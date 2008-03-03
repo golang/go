@@ -6,7 +6,35 @@ with additional information not strictly belonging into a language
 spec.
 
 
-Recent design decisions
+Open questions
+
+- how to do map iteration? should be symmetric to array iteration
+for k in m { ... }
+for k:v in m { ... }
+for :v in m { ... }
+
+- how to delete from a map
+
+- how to test for map membership (we may want an 'atomic install'? m[i] ?= x; )
+
+- compound struct literals?
+StructTypeName { a, b, c }
+
+- array literals should be easy/natural to write
+[ 1, 2, 3 ]
+ArrayTypeName [ 1, 2, 3 ]
+
+- map literals
+[ "a" : 1, "d" : 2, "z" : 3 ]
+MapTypeName [ "a" : 1, "d" : 2, "z" : 3 ]
+
+- are basic types interfaces / do they define interfaces?
+
+- package initialization?
+
+
+
+Design decisions
 
 A list of decisions made but for which we haven't incorporated proper
 language into this spec.  Keep this section small and the spec
@@ -445,9 +473,14 @@ BasicLit = CharLit | StringLit | IntLit | FloatLit .
 
 
 Function Literals
-[THESE ARE CORRECT]
+
+The type of a function literal
 
 FunctionLit = FunctionType Block.
+
+A function literal represents a function. A function literal can be invoked
+or assigned to a variable of the corresponding function pointer type.
+
 
 // Function literal
 func (a, b int, z float) bool { return a*b < int(z); }
@@ -641,12 +674,29 @@ array [1000][1000] float64
 
 Channel types
 
+A channel provides a mechanism for two concurrently executing functions
+to exchange values and synchronize execution.  A channel type can be
+'generic', permitting values of any type to be exchanged, or it may be
+'specific', permitting only values of an explicitly specified type.
 
-ChannelType = 'channel' '(' Type '<-' Type ')' .
+Upon creation, a channel can be used both to send and to receive; it
+may be restricted only to send or to receive; such a restricted channel
+is called a 'send channel' or a 'receive channel'.
 
-channel(int <- float)
+ChannelType = 'chan' [ '<' | '>' ] [ Type ] .
 
-- incomplete
+chan  // a generic channel
+chan int   // a channel that can exchange only ints
+chan> float // a channel that can only be used to send floats
+chan<  // a channel that can receive (only) values of any type
+
+Channel values are created using new(chan) (etc.).  Since new()
+returns a pointer, channel variables are always pointers to
+channels:
+
+var c *chan int = new(chan int);
+
+It is an error to attempt to dereference a channel pointer.
 
 
 Pointer types
@@ -724,14 +774,27 @@ func (p *T) . (a, b int, z float) bool
 func (p *T) . (a, b int, z float) (success bool)
 func (p *T) . (a, b int, z float) (success bool, result float)
 
+A variable can only hold a pointer to a function, but not a function value.
+In particular, v := func() {}; creates a variable of type *func(). To call the
+function referenced by v, one writes v(). It is illegal to dereference a function
+pointer.
+
+
 
 Map types
 
-MapType = 'map' '(' Type <- Type ')'.
+A map is a structured type consisting of a variable number of entries
+called (key, value) pairs. For a given map,
+the keys and values must each be of a specific type.
+Upon creation, a map is empty and values may be added and removed
+during execution.  The number of entries in a map is called its length.
 
-map(int <- string)
+MapType = 'map' '[' KeyType ']' ValueType .
+KeyType = Type .
+ValueType = Type .
 
-- incomplete
+map [string] int
+map [struct { pid int; name string }] *chan Buffer
 
 
 Struct types
@@ -951,7 +1014,8 @@ func (p *T) foo (a, b int, z float) bool;
 Statements
 
 Statement = EmptyStat | Assignment | CompoundStat | Declaration |
-            ExpressionStat | IncDecStat | IfStat | WhileStat | ReturnStat .
+            ExpressionStat | IncDecStat | IfStat | WhileStat | ForStat |
+            ReturnStat .
 
 
 Empty statements
@@ -1020,6 +1084,14 @@ while {
 case i < n: f1();
 case i < m: f2();
 }
+
+
+For statements
+
+NEEDS TO BE COMPLETED
+
+ForStat = 'for' ...
+
 
 
 Return statements
