@@ -1,0 +1,1197 @@
+The Go Annotated Specification
+
+This document supersedes all previous Go spec attempts.  The intent is
+to make this a reference for syntax and semantics.  It is annotated
+with additional information not strictly belonging into a language
+spec.
+
+
+Recent design decisions
+
+A list of decisions made but for which we haven't incorporated proper
+language into this spec.  Keep this section small and the spec
+up-to-date instead.
+
+- multi-dimensional arrays: implementation restriction for now
+
+- no '->', always '.'
+- (*a)[i] can be sugared into: a[i]
+- '.' to select package elements
+
+- arrays are not automatically pointers, we must always say
+  explicitly: "*array T" if we mean a pointer to that array
+- there is no pointer arithmetic in the language
+- there are no unions
+
+- packages: need to pin it all down
+
+- tuple notation: (a, b) = (b, a);
+  generally: need to make this clear
+
+- for now: no (C) 'static' variables inside functions
+
+- exports: we write: 'export a, b, c;' (with a, b, c, etc.  a list of
+  exported names, possibly also: structure.field)
+- the ordering of methods in interfaces is not relevant
+- structs must be identical (same decl) to be the same
+  (Ken has different implementation: equivalent declaration is the
+  same; what about methods?)
+
+- new methods can be added to a struct outside the package where the
+  struct is declared (need to think through all implications)
+- array assignment by value
+- do we need a type switch?
+
+- write down scoping rules for statements
+
+- semicolons: where are they needed and where are they not needed.
+  need a simple and consistent rule
+  
+- we have: postfix ++ and -- as statements
+
+
+
+Guiding principles
+
+Go is an attempt at a new systems programming language.
+[gri: this needs to be expanded. some keywords below]
+
+- small, concise, crisp
+- procedural
+- strongly typed
+- few, orthogonal, and general concepts
+- avoid repetition of declarations
+- multi-threading support in the language
+- garbage collected
+- containers w/o templates
+- compiler can be written in Go and so can it's GC
+- very fast compilation possible (1MLOC/s stretch goal)
+- reasonably efficient (C ballpark)
+- compact, predictable code
+  (local program changes generally have local effects)
+- no macros
+
+
+Syntax
+
+The syntax of Go borrows from the C tradition with respect to
+statements and from the Pascal tradition with respect to declarations.
+Go programs are written using a lean notation with a small set of
+keywords, without filler keywords (such as 'of', 'to', etc.) or other
+gratuitous syntax, and with a slight preference for expressive
+keywords (e.g.  'function') over operators or other syntactic
+mechanisms.  Generally, "light" language features (variables, simple
+control flow, etc.) are expressed using a light-weight notation (short
+keywords, little syntax), while "heavy" language features use a more
+heavy-weight notation (longer keywords, more syntax).
+
+[gri: should say something about syntactic alternatives: if a
+syntactic form foreseeably will lead to a style recommendation, try to
+make that the syntactic form instead.  For instance, Go structured
+statements always require the {} braces even if there is only a single
+sub-statement.  Similar ideas apply elsewhere.]
+
+
+Modularity, identifiers and scopes
+
+A Go program consists of one or more files compiled separately, though
+not independently.  A single file or compilation unit may make
+individual identifiers visible to other files by marking them as
+exported; there is no "header file".  The exported interface of a file
+may be exposed in condensed form (without the corresponding
+implementation) through tools.
+
+A package collects types, constants, functions, and so on into a named
+entity that may be imported to enable its constituents be used in
+another compilation unit.  Each source file is part of exactly one
+package; each package is constructed from one source file.
+
+Within a file, all identifiers are declared explicitly (expect for
+general predeclared identifiers such as true and false) and thus for
+each identifier in a file the corresponding declaration can be found
+in that same file (usually before its use, except for the rare case of
+forward declarations).  Identifiers may denote program entities that
+are implemented in other files.  Nevertheless, such identifiers are
+still declared via an import declaration in the file that is referring
+to them.  This explicit declaration requirement ensures that every
+compilation unit can be read by itself.
+
+The scoping of identifiers is uniform: An identifier is visible from
+the point of its declaration to the end of the immediately surrounding
+block, and nested identifiers shadow outer identifiers with the same
+name.  All identifiers are in the same namespace; i.e., no two
+identifiers in the same scope may have the same name even if they
+denote different language concepts (for instance, such as variable vs
+a function).  Uniform scoping rules make Go programs easier to read
+and to understand.
+
+
+Program structure
+
+A compilation unit consists of a package specifier followed by import
+declarations followed by other declarations.  There are no statements
+at the top level of a file.  [gri: do we have a main function?  or do
+we treat all functions uniformly and instead permit a program to be
+started by providing a package name and a "start" function?  I like
+the latter because if gives a lot of flexibility and should be not
+hard to implement].  [r: i suggest that we define a symbol, main or
+Main or start or Start, and begin execution in the single exported
+function of that name in the program.  the flexibility of having a
+choice of name is unimportant and the corresponding need to define the
+name in order to link or execute adds complexity.  by default it
+should be trivial; we could allow a run-time flag to override the
+default for gri's flexibility.]
+
+
+Typing, polymorphism, and object-orientation
+
+Go programs are strongly typed; i.e., each program entity has a static
+type known at compile time.  Variables also have a dynamic type, which
+is the type of the value they hold at run-time.  Generally, the
+dynamic and the static type of a variable are identical, except for
+variables of interface type.  In that case the dynamic type of the
+variable is a pointer to a structure that implements the variable's
+(static) interface type.  There may be many different structures
+implementing an interface and thus the dynamic type of such variables
+is generally not known at compile time.  Such variables are called
+polymorphic.
+
+Interface types are the mechanism to support an object-oriented
+programming style.  Different interface types are independent of each
+other and no explicit hierarchy is required (such as single or
+multiple inheritance explicitly specified through respective type
+declarations).  Interface types only define a set of functions that a
+corresponding implementation must provide.  Thus interface and
+implementation are strictly separated.
+
+An interface is implemented by associating functions (methods) with
+structures.  If a structure implements all methods of an interface, it
+implements that interface and thus can be used where that interface is
+required.  Unless used through a variable of interface type, methods
+can always be statically bound (they are not "virtual"), and incur no
+runtime overhead compared to an ordinary function.
+
+Go has no explicit notion of classes, sub-classes, or inheritance.
+These concepts are trivially modeled in Go through the use of
+functions, structures, associated methods, and interfaces.
+
+Go has no explicit notion of type parameters or templates.  Instead,
+containers (such as stacks, lists, etc.) are implemented through the
+use of abstract data types operating on interface types.  [gri: there
+is some automatic boxing, semi-automatic unboxing support for basic
+types].
+
+
+Pointers and garbage collection
+
+Variables may be allocated automatically (when entering the scope of
+the variable) or explicitly on the heap.  Pointers are used to refer
+to heap-allocated variables.  Pointers may also be used to point to
+any other variable; such a pointer is obtained by "getting the
+address" of that variable.  In particular, pointers may point "inside"
+other variables, or to automatic variables (which are usually
+allocated on the stack).  Variables are automatically reclaimed when
+they are no longer accessible.  There is no pointer arithmetic in Go.
+
+
+Functions
+
+Functions contain declarations and statements.  They may be invoked
+recursively.  Functions may declare nested functions, and nested
+functions have access to the variables in the surrounding functions,
+they are in fact closures.  Functions may be anonymous and appear as
+literals in expressions.
+
+
+Multithreading and channels
+
+[Rob: We need something here]
+
+
+
+
+Notation
+
+The syntax is specified in green productions using Extended
+Backus-Naur Form (EBNF).  In particular:
+
+''  encloses lexical symbols
+|  separates alternatives
+()  used for grouping
+[]  specifies option (0 or 1 times)
+{}  specifies repetition (0 to n times)
+
+A production may be referred to from various places in this document
+but is usually defined close to its first use.  Code examples are
+written in gray.  Annotations are in blue, and open issues are in red.
+One goal is to get rid of all red text in this document. [r: done!]
+
+
+Vocabulary and representation
+
+REWRITE THIS: BADLY EXPRESSED
+
+Go program source is a sequence of characters.  Each character is a
+Unicode code point encoded in UTF-8.
+
+A Go program is a sequence of symbols satisfying the Go syntax.  A
+symbol is a non-empty sequence of characters.  Symbols are
+identifiers, numbers, strings, operators, delimiters, and comments.
+White space must not occur within symbols (except in comments, and in
+the case of blanks and tabs in strings).  They are ignored unless they
+are essential to separate two consecutive symbols.
+
+White space is composed of blanks, newlines, carriage returns, and
+tabs only.
+
+A character is a Unicode code point.  In particular, capital and
+lower-case letters are considered as being distinct.  Note that some
+Unicode characters (e.g., the character ä), may be representable in
+two forms, as a single code point, or as two code points.  For the
+Unicode standard these two encodings represent the same character, but
+for Go, these two encodings correspond to two different characters).
+
+Source encoding
+
+The input is encoded in UTF-8.  In the grammar we use the notation
+
+utf8_char
+
+to refer to an arbitrary Unicode code point encoded in UTF-8.
+
+Digits and Letters
+
+octal_digit = { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' } .
+decimal_digit = { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' } .
+hex_digit = { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'a' |
+              'A' | 'b' | 'B' | 'c' | 'C' | 'd' | 'D' | 'e' | 'E' | 'f' | 'F' } .
+letter = 'A' | 'a' | ... 'Z' | 'z' | '_' .
+
+For now, letters and digits are ASCII.  We may expand this to allow
+Unicode definitions of letters and digits.
+
+
+Identifiers
+
+An identifier is a name for a program entity such as a variable, a
+type, a function, etc.
+
+identifier = letter { letter | decimal_digit } .
+
+
+- need to explain scopes, visibility (elsewhere)
+- need to say something about predeclared identifiers, and their
+  (universe) scope (elsewhere)
+
+
+Character and string literals
+
+A RawStringLit is a string literal delimited by back quotes ``; the
+first back quote encountered after the opening back quote terminates
+the string.
+
+RawStringLit = '`' { utf8_char } '`' .
+
+`abc`
+`\n`
+
+Character and string literals are very similar to C except:
+  - Octal character escapes are always 3 digits (\077 not \77)
+  - Hexadecimal character escapes are always 2 digits (\x07 not \x7)
+  - Strings are UTF-8 and represent Unicode
+  - `` strings exist; they do not interpret backslashes
+
+CharLit = '\'' ( UnicodeValue | ByteValue ) '\'' .
+StringLit = RawStringLit | InterpretedStringLit .
+InterpretedStringLit = '"' { UnicodeValue | ByteValue } '"' .
+ByteValue = OctalByteValue | HexByteValue .
+OctalByteValue = '\' octal_digit octal_digit octal_digit .
+HexByteValue = '\' 'x' hex_digit hex_digit .
+UnicodeValue = utf8_char | EscapedCharacter | LittleUValue | BigUValue .
+LittleUValue = '\' 'u' hex_digit hex_digit hex_digit hex_digit .
+BigUValue = '\' 'U' hex_digit hex_digit hex_digit hex_digit
+                    hex_digit hex_digit hex_digit hex_digit .
+EscapedCharacter = '\' ( 'a' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' ) .
+
+An OctalByteValue contains three octal digits.  A HexByteValue
+contains two hexadecimal digits.  (Note: This differs from C but is
+simpler.)
+
+It is erroneous for an OctalByteValue to represent a value larger than 255. 
+(By construction, a HexByteValue cannot.)
+
+A UnicodeValue takes one of four forms:
+
+   1.  The UTF-8 encoding of a Unicode code point.  Since Go source
+       text is in UTF-8, this is the obvious translation from input
+       text into Unicode characters.
+   2.  The usual list of C backslash escapes: \n \t etc.  3.  A
+       `little u' value, such as \u12AB.  This represents the Unicode
+       code point with the corresponding hexadecimal value.  It always
+       has exactly 4 hexadecimal digits.
+   4.  A `big U' value, such as '\U00101234'.  This represents the
+       Unicode code point with the corresponding hexadecimal value.
+       It always has exactly 8 hexadecimal digits.
+
+Some values that can be represented this way are illegal because they
+are not valid Unicode code points.  These include values above
+0x10FFFF and surrogate halves.
+
+A character literal is a form of unsigned integer constant.  Its value
+is that of the Unicode code point represented by the text between the
+quotes.
+
+'a'
+'ä'
+'本'
+'\t'
+'\0'
+'\07'
+'\0377'
+'\x7'
+'\xff'
+'\u12e4'
+'\U00101234'
+
+A string literal has type 'string'.  Its value is constructed by
+taking the byte values formed by the successive elements of the
+literal.  For ByteValues, these are the literal bytes; for
+UnicodeValues, these are the bytes of the UTF-8 encoding of the
+corresponding Unicode code points.  Note that "\u00FF" and "\xFF" are
+different strings: the first contains the two-byte UTF-8 expansion of
+the value 255, while the second contains a single byte of value 255.
+The same rules apply to raw string literals, except the contents are
+uninterpreted UTF-8.
+
+""
+"Hello, world!\n"
+"日本語"
+"\u65e5本\U00008a9e"
+"\xff\u00FF"
+
+These examples all represent the same string:
+
+"日本語"  // UTF-8 input text
+`日本語`  // UTF-8 input text as a raw literal
+"\u65e5\u672c\u8a9e"  // The explicit Unicode code points
+"\U000065e5\U0000672c\U00008a9e"  // The explicit Unicode code points
+"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // The explicit UTF-8 bytes
+
+The language does not canonicalize Unicode text or evaluate combining
+forms.  The text of source code is passed uninterpreted.
+
+If the source code represents a character as two code points, such as
+a combining form involving an accent and a letter, the result will be
+an error if placed in a character literal (it is not a single code
+point), and will appear as two code points if placed in a string
+literal.  [This simple strategy may be insufficient in the long run
+but is surely fine for now.]
+
+
+Numeric literals
+
+Integer literals take the usual C form, except for the absence of the
+'U', 'L' etc.  suffixes, and represent integer constants.  (Character
+literals are also integer constants.) Similarly, floating point
+literals are also C-like, without suffixes and decimal only.
+
+An integer constant represents an abstract integer value of arbitrary
+precision.  Only when an integer constant (or arithmetic expression
+formed from integer constants) is assigned to a variable (or other
+l-value) is it required to fit into a particular size - that of type
+of the variable.  In other words, integer constants and arithmetic
+upon them is not subject to overflow; only assignment of integer
+constants (and constant expressions) to an l-value can cause overflow.
+It is an error if the value of the constant or expression cannot be
+represented correctly in the range of the type of the l-value.
+
+Floating point literals also represent an abstract, ideal floating
+point value that is constrained only upon assignment.  [r: what do we
+need to say here?  trickier because of truncation of fractions.]
+
+IntLit = [ '+' | '-' ] UnsignedIntLit .
+UnsignedIntLit = DecimalIntLit | OctalIntLit | HexIntLit .
+DecimalIntLit = ( '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' )
+                { decimal_digit } .
+OctalIntLit = '0' { octal_digit } .
+HexIntLit = '0' ( 'x' | 'X' ) hex_digit { hex_digit } .
+FloatLit = [ '+' | '-' ] UnsignedFloatLit .
+UnsignedFloatLit = "the usual decimal-only floating point representation".
+
+
+
+Compound Literals
+
+THIS SECTION IS WRONG
+Compound literals require some fine tuning.  I think we did ok in
+Sawzall but there are some loose ends.  I don't like that one cannot
+easily distinguish between an array and a struct.  We may need to
+specify a type if these literals appear in expressions, but we don't
+want to specify a type if these literals appear as intializer
+expressions where the variable is already typed.  And we don't want to
+do any implicit conversions.
+
+CompoundLit = ArrayLit | FunctionLit | StructureLit | MapLit.
+ArrayLit = '{' [ ExpressionList ] ']'.  // all elems must have "the same" type
+StructureLit = '{' [ ExpressionList ] '}'.
+MapLit = '{' [ PairList ] '}'.
+PairList = Pair { ',' Pair }.
+Pair = Expression ':' Expression.
+
+Literals
+
+Literal = BasicLit | CompoundLit .
+BasicLit = CharLit | StringLit | IntLit | FloatLit .
+
+
+Function Literals
+[THESE ARE CORRECT]
+
+FunctionLit = FunctionType Block.
+
+// Function literal
+func (a, b int, z float) bool { return a*b < int(z); }
+
+// Method literal
+func (p *T) . (a, b int, z float) bool { return a*b < int(z) + p.x; }
+
+
+Operators
+
+- incomplete
+
+
+Delimiters
+
+- incomplete
+
+
+Comments
+
+There are two forms of comments.
+
+The first starts '//' and ends at a newline.
+
+The second starts at '/*' and ends at the first '*/'.  It may cross
+newlines.  It does not nest.
+
+Comments are treated like white space.
+
+
+Common productions
+
+IdentifierList = identifier { ',' identifier }.
+ExpressionList = Expression { ',' Expression }.
+
+QualifiedIdent = [ PackageName '.' ] identifier.
+PackageName = identifier.
+
+
+Types
+
+A type specifies the set of values which variables of that type may
+assume, and the operators that are applicable.
+
+Except for variables of interface types, the static type of a variable
+(i.e.  the type the variable is declared with) is the same as the
+dynamic type of the variable (i.e.  the type of the variable at
+run-time).  Variables of interface types may hold variables of
+different dynamic types, but their dynamic types must be compatible
+with the static interface type.  At any given instant during run-time,
+a variable has exactly one dynamic type.  A type declaration
+associates an identifier with a type.
+
+Array and struct types are called structured types, all other types
+are called unstructured.  A structured type cannot contain itself.
+[gri: this needs to be formulated much more precisely].
+
+Type = TypeName | ArrayType | ChannelType | InterfaceType |
+       FunctionType | MapType | StructType | PointerType .
+TypeName = QualifiedIdent.
+
+
+[gri: To make the types specifications more precise we need to
+introduce some general concepts such as what it means to 'contain'
+another type, to be 'equal' to another type, etc.  Furthermore, we are
+imprecise as we sometimes use the word type, sometimes just the type
+name (int), or the structure (array) to denote different things (types
+and variables).  We should explain more precisely.  Finally, there is
+a difference between equality of types and assignment compatibility -
+or isn't there?]
+
+
+Basic types
+
+Go defines a number of basic types which are referred to by their
+predeclared type names.  There are signed and unsigned integer types,
+and floating point types:
+
+  bool     the truth values true and false
+
+  uint8    the set of all unsigned 8bit integers
+  uint16  the set of all unsigned 16bit integers
+  uint32  the set of all unsigned 32bit integers
+  unit64  the set of all unsigned 64bit integers
+
+  byte    same as uint8
+
+  int8    the set of all signed 8bit integers, in 2's complement
+  int16  the set of all signed 16bit integers, in 2's complement
+  int32  the set of all signed 32bit integers, in 2's complement
+  int64  the set of all signed 64bit integers, in 2's complement
+
+  float32    the set of all valid IEEE-754 32bit floating point numbers
+  float64    the set of all valid IEEE-754 64bit floating point numbers
+  float80    the set of all valid IEEE-754 80bit floating point numbers
+  
+  double    same as float64
+
+Additionally, Go declares 3 basic types, uint, int, and float, which
+are platform-specific.  The bit width of these types corresponds to
+the "natural bit width" for the respective types for the given
+platform (e.g.  int is usally the same as int32 on a 32bit
+architecture, or int64 on a 64bit architecture).  These types are by
+definition platform-specific and should be used with the appropriate
+caution.
+
+[gri: do we specify minimal sizes for uint, int, float?  e.g.  int is
+at least int32?] [gri: do we say something about the correspondence of
+sizeof(*T) and sizeof(int)?  Are they the same?] [r: do we want
+int128 and uint128?.]
+
+
+Built-in types
+
+Besides the basic types there is a set of built-in types: string, and chan,
+with maybe more to follow.
+
+
+Type string
+
+The string type represents the set of string values (strings).
+A string behaves like an array of bytes, with the following properties:
+
+- They are immutable: after creation, it is not possible to change the
+  contents of a string
+- No internal pointers: it is illegal to create a pointer to an inner
+  element of a string
+- They can be indexed: given string s1, s1[i] is a byte value
+- They can be concatenated: given strings s1 and s2, s1 + s2 is a value
+  combining the elements of s1 and s2 in sequence
+- Known length: the length of a string s1 can be obtained by the function/
+  operator len(s1).  [r: is it a bulitin? do we make it a method? etc.  this is
+  a placeholder].  The length of a string is the number of bytes within.
+  Unlike in C, there is no terminal NUL byte.
+- Creation 1: a string can be created from an integer value by a conversion
+    string('x') yields "x"
+- Creation 2: a string can by created from an array of integer values (maybe
+  just array of bytes) by a conversion
+    a [3]byte; a[0] = 'a'; a[1] = 'b'; a[2] = 'c';  string(a) == "abc";
+
+The language has string literals as dicussed above.  The type of a string
+literal is 'string'.
+
+
+Array types
+
+An array is a structured type consisting of a number of elements which
+are all of the same type, called the element type.  The number of
+elements of an array is called its length.  The elements of an array
+are designated by indices which are integers between 0 and the length
+- 1.
+
+THIS SECTION NEEDS WORK REGARDING STATIC AND DYNAMIC ARRAYS
+
+An array type specifies a set of arrays with a given element type and
+an optional array length.  The array length must be (compile-time)
+constant expression, if present.  Arrays without length specification
+are called open arrays.  An open array must not contain other open
+arrays, and open arrays can only be used as parameter types or in a
+pointer type (for instance, a struct may not contain an open array
+field, but only a pointer to an open array).
+
+[gri: Need to define when array types are the same!  Also need to
+define assignment compatibility] [gri: Need to define a mechanism to
+get to the length of an array at run-time.  This could be a
+predeclared function 'length' (which may be problematic due to the
+name).  Alternatively, we could define an interface for array types
+and say that there is a 'length()' method.  So we would write
+a.length() which I think is pretty clean.].  [r: if array types have
+an interface and a string is an array, some stuff (but not enough)
+falls out nicely.]
+
+ArrayType = 'array' { '[' ArrayLength ']' } ElementType.
+ArrayLength = Expression.
+ElementType = Type.
+
+The notation
+
+    array [n][m] T
+
+is a syntactic shortcut for
+
+    array [n] array [m] T.
+
+(the shortcut may be applied recursively).
+
+array uint8
+array [64] struct { x, y: int32; }
+array [1000][1000] float64
+
+
+Channel types
+
+
+ChannelType = 'channel' '(' Type '<-' Type ')' .
+
+channel(int <- float)
+
+- incomplete
+
+
+Pointer types
+
+- TODO: Need some intro here.
+
+Two pointer types are the same if they are pointing to variables of
+the same type.
+
+PointerType = '*' Type.
+
+- We do not allow pointer arithmetic of any kind.
+
+Interface types
+
+- TBD: This needs to be much more precise. For now we understand what it means.
+
+An interface type specifies a set of methods, the "method interface"
+of structs.  No two methods in one interface can have the same name.
+
+Two interfaces are the same if their set of functions is the same,
+i.e., if all methods exist in both interfaces and if the function
+names and signatures are the same.  The order of declaration of
+methods in an interface is irrelevant.
+
+A set of interface types implicitly creates an unconnected, ordered
+lattice of types.  An interface type T1 is said to be smaller than or
+equalt to an interface type T2 (T1 <= T2) if the entire interface of
+T1 "is part" of T2. Thus, two interface types T1, T2 are the same if
+T1 <= T2, and T2 <= T1, and thus we can write T1 == T2.
+
+
+InterfaceType = 'interface' '{' { MethodDecl } '}' .
+MethodDecl = identifier Signature ';',
+
+// An empty interface.
+interface {};
+
+// A basic file interface.
+interface {
+  Read(Buffer) bool;
+  Write(Buffer) bool;
+  Close();
+}
+
+
+Interface pointers can be implemented as "fat pointers"; namely a pair
+(ptr, tdesc) where ptr is simply the pointer to a struct instance
+implementing the interface, and tdesc is the structs type descriptor.
+Only when crossing the boundary from statically typed structs to
+interfaces and vice versa, does the type descriptor come into play.
+In those places, the compiler statically knows the value of the type
+descriptor.
+
+
+Function types
+
+FunctionType = 'func' Signature .
+Signature = [ Receiver '.' ] Parameters [ Result ] .
+Receiver = '(' identifier Type ')' .
+Parameters = '(' [ ParameterList ] ')' .
+ParameterList = ParameterSection { ',' ParameterSection } .
+ParameterSection = [ IdentifierList ] Type .
+Result = [ Type ] | '(' ParameterList ')' .
+
+// Function types
+func ()
+func (a, b int, z float) bool
+func (a, b int, z float) (success bool)
+func (a, b int, z float) (success bool, result float)
+
+// Method types
+func (p *T) . ()
+func (p *T) . (a, b int, z float) bool
+func (p *T) . (a, b int, z float) (success bool)
+func (p *T) . (a, b int, z float) (success bool, result float)
+
+
+Map types
+
+MapType = 'map' '(' Type <- Type ')'.
+
+map(int <- string)
+
+- incomplete
+
+
+Struct types
+
+Struct types are similar to C structs.
+
+NEED TO DEFINE STRUCT EQUIVALENCE Two struct types are the same if and
+only if they are declared by the same struct type; i.e., struct types
+are compared via equivalence, and *not* structurally.  For that
+reason, struct types are usually given a type name so that it is
+possible to refer to the same struct in different places in a program.
+What about equivalence of structs w/ respect to methods?  What if
+methods can be added in another package?  TBD.
+
+Each field of a struct represents a variable within the data
+structure.  In particular, a function field represents a function
+variable, not a method.
+
+StructType = 'struct' '{' { FieldDecl } '}' .
+FieldDecl = IdentifierList Type ';' .
+
+// An empty struct.
+struct {}
+
+// A struct with 5 fields.
+struct {
+    x, y int;
+    u float;
+    a []int;
+    f func();
+}
+
+
+
+Note that a program which never uses interface types can be fully
+statically typed.  That is, the "usual" implementation of structs (or
+classes as they are called in other languages) having an extra type
+descriptor prepended in front of every single struct is not required.
+Only when a pointer to a struct is assigned to an interface variable,
+the type descriptor comes into play, and at that point it is
+statically known at compile-time!
+
+Package specifiers
+
+Every source file is an element of a package, and defines which
+package by the first element of every source file, which must be a
+package specifier:
+
+PackageSpecifier = 'package' PackageName .
+
+package Math
+
+
+Package import declarations
+
+A program can access exported items from another package.  It does so
+by in effect declaring a local name providing access to the package,
+and then using the local name as a namespace with which to address the
+elements of the package.
+
+ImportDecl = 'import' PackageName FileName .
+FileName = DoubleQuotedString .
+DoubleQuotedString = '"' TEXT '"' .
+
+(DoubleQuotedString should be replaced by the correct string literal production!)
+Package import declarations must be the first statements in a file
+after the package specifier.
+
+A package import associates an identifier with a package, named by a
+file.  In effect, it is a declaration:
+
+import Math "lib/Math";
+import library "my/library";
+
+After such an import, one can use the Math (e.g) identifier to access
+elements within it
+
+x float = Math.sin(y);
+
+Note that this process derives nothing explicit about the type of the
+`imported' function (here Math.sin()).  The import must execute to
+provide this information to the compiler (or the programmer, for that
+matter).
+
+An angled-string refers to official stuff in a public place, in effect
+the run-time library.  A double-quoted-string refers to arbitrary
+code; it is probably a local file name that needs to be discovered
+using rules outside the scope of the language spec.
+
+The file name in a package must be complete except for a suffix.
+Moreover, the package name must correspond to the (basename of) the
+source file name.  For instance, the implementation of package Bar
+must be in file Bar.go, and if it lives in directory foo we write
+
+import Bar "foo/bar";
+
+to import it.
+
+[This is a little redundant but if we allow multiple files per package
+it will seem less so, and in any case the redundancy is useful and
+protective.]
+
+We assume Unix syntax for file names: / separators, no suffix for
+directories.  If the language is ported to other systems, the
+environment must simulate these properties to avoid changing the
+source code.
+
+
+Declarations
+
+- This needs to be expanded.
+- We need to think about enums (or some alternative mechanism).
+
+Declaration = (ConstDecl | VarDecl | TypeDecl | FunctionDecl |
+               ForwardDecl | AliasDecl) .
+
+
+Const declarations
+
+ConstDecl = 'const' ( ConstSpec | '(' ConstSpecList [ ';' ] ')' ).
+ConstSpec = identifier [ Type ] '=' Expression .
+ConstSpecList = ConstSpec { ';' ConstSpec }.
+
+const pi float = 3.14159265
+const e = 2.718281828
+const (
+  one int = 1;
+  two = 3
+)
+
+
+Variable declarations
+
+VarDecl = 'var' ( VarSpec | '(' VarSpecList [ ';' ] ')' ) | ShortVarDecl .
+VarSpec = IdentifierList ( Type [ '=' ExpressionList ] | '=' ExpressionList ) .
+VarSpecList = VarSpec { ';' VarSpec } .
+ShortVarDecl = identifier ':=' Expression .
+
+var i int
+var u, v, w float
+var k = 0
+var x, y float = -1.0, -2.0
+var (
+  i int;
+  u, v = 2.0, 3.0
+)
+
+If the expression list is present, it must have the same number of elements
+as there are variables in the variable specification.
+
+[ TODO: why is x := 0 not legal at the global level? ]
+
+
+Type declarations
+
+TypeDecl = 'type' ( TypeSpec | '(' TypeSpecList [ ';' ] ')' ).
+TypeSpec = identifier Type .
+TypeSpecList = TypeSpec { ';' TypeSpec }.
+
+
+type IntArray [16] int
+type (
+  Point struct { x, y float };
+  Polar Point
+)
+
+
+Function and method declarations
+
+FunctionDecl = 'func' [ Receiver ] identifier Parameters [ Result ] ( ';' | Block ) .
+Block = '{' { Statement } '}' .
+
+
+func min(x int, y int) int {
+  if x < y {
+    return x;
+  }
+  return y;
+}
+
+func foo (a, b int, z float) bool {
+  return a*b < int(z);
+}
+
+
+A method is a function that also declares a receiver.  The receiver is
+a struct with which the function is associated.  The receiver type
+must denote a pointer to a struct.
+
+func (p *T) foo (a, b int, z float) bool {
+  return a*b < int(z) + p.x; 
+}
+
+func (p *Point) Length() float {
+  return Math.sqrt(p.x * p.x + p.y * p.y);
+}
+
+func (p *Point) Scale(factor float) {
+  p.x = p.x * factor;
+  p.y = p.y * factor;
+}
+
+The last two examples are methods of struct type Point.  The variable p is
+the receiver; within the body of the method it represents the value of
+the receiving struct.
+
+Note that methods are declared outside the body of the corresponding
+struct.
+
+Functions and methods can be forward declared by omitting the body:
+
+func foo (a, b int, z float) bool;
+func (p *T) foo (a, b int, z float) bool;
+
+
+
+Statements
+
+Statement = EmptyStat | Assignment | CompoundStat | Declaration |
+            ExpressionStat | IncDecStat | IfStat | WhileStat | ReturnStat .
+
+
+Empty statements
+
+EmptyStat = ';' .
+
+
+Assignments
+
+Assignment = Designator '=' Expression .
+
+- no automatic conversions
+- values can be assigned to variables if they are of the same type, or
+if they satisfy the interface type (much more precision needed here!)
+
+
+
+Compound statements
+
+CompoundStat = '{' { Statement } '}' .
+
+
+Expression statements
+
+ExpressionStat = Expression .
+
+
+IncDec statements
+
+IncDecStat = Expression ( '++' | '--' ) .
+
+
+
+
+If statements
+
+IfStat = 'if' ( [ Expression ] '{' { IfCaseList } '}' ) |
+              ( Expression '{' { Statement } '}' [ 'else' { Statement } ] ).
+IfCaseList = ( 'case' ExpressionList | 'default' ) ':' { Statement } .
+
+if x < y {
+  return x;
+} else {
+  return y;
+}
+
+if tag {
+case 0, 1: s1();
+case 2: s2();
+default: ;
+}
+
+if {
+case x < y: f1();
+case x < z: f2();
+}
+
+
+While statements
+
+WhileStat = 'while' ( [ Expression ] '{' { WhileCaseList } '}' ) |
+                    ( Expression '{' { Statement } '}' ).
+WhileCaseList = 'case' ExpressionList ':' { Statement } .
+
+while {
+case i < n: f1();
+case i < m: f2();
+}
+
+
+Return statements
+
+ReturnStat = 'return' [ ExpressionList ] .
+
+There are two ways to return values from a function.  The first is to
+explicitly list the return value or values in the return statement:
+
+func simple_f  () int {
+  return 2;
+}
+
+func complex_f1() (re float, im float) {
+  return -7.0, -4.0;
+}
+
+The second is to provide names for the return values and assign them
+explicitly in the function; the return statement will then provide no
+values:
+
+func complex_f2() (re float, im float) {
+  re = 7.0;
+  im = 4.0;
+  return;
+}
+
+It is legal to name the return values in the declaration even if the
+first form of return statement is used:
+
+
+func complex_f2() (re float, im float) {
+  return 7.0, 4.0;
+}
+
+
+Expressions
+
+Expression = Conjunction { '||' Conjunction }.
+Conjunction = Comparison { '&&' Comparison }.
+Comparison = SimpleExpr [ relation SimpleExpr ].
+relation = '==' | '!=' | '<' | '<=' | '>' | '>='.
+SimpleExpr = Term { add_op Term }.
+add_op = '+' | '-' | '|' | '^'.
+Term = Factor { mul_op Factor }.
+mul_op = '*' | '/' | '%' | '<<' | '>>' | '&'.
+
+The corresponding precedence hierarchy is as follows: (5 levels of
+precedence is about the maximum people can keep comfortably in their
+heads.  The experience with C and C++ shows that more then that
+usually requires explicit manual consultation...).  [gri: I still
+think we should consider 0 levels of binary precedence: All operators
+are on the same level, but parentheses are required when different
+operators are mixed.  That would make it really easy, and really
+clear.  It would also open the door for straight-forward introduction
+of user-defined operators, which would be rather useful.]
+
+Precedence    Operator
+    1                  ||
+    2                  &&
+    3                  ==  !=  <  <=  >  >=
+    4                  +  -  |  ^
+    5                      *  /  %  <<  >>  &
+
+
+For integer values, / and % satisfy the following relationship:
+
+    (a / b) * b + a % b == a
+
+and
+
+    (a / b) is "truncated towards zero".
+
+The shift operators implement arithmetic shifts for signed integers,
+and logical shifts for unsigned integers.  TBD: is there any range
+checking on s in x >> s, or x << s ?
+
+[gri: We decided on a couple of issues here that we need to write down
+more nicely]
+
+- There are no implicit type conversions except for
+constants/literals.  In particular, unsigned and signed integers
+cannot be mixed in an expression w/o explicit casting.
+
+- Unary '^' corresponds to C '~' (bitwise negate).
+
+- Arrays can be subscripted (a[i]) or sliced (a[i : j]).  A slice a[i
+: j] is a new array of length (j - i), and consisting of the elements
+a[i], a[i + 1], ...  a[j - 1].  [gri/r: Is the slice array bounds
+check hard (leading to an error), or soft (truncating) ?].
+Furthermore: Array slicing is very tricky!  Do we get a copy (a new
+array) or a new array descriptor?  This is open at this point.  There
+is a simple way out of the mess: Structured types are always passed by
+reference, and there is no value assignment for structured types.  It
+gets very complicated very quickly.
+
+[gri: Syntax below is incomplete - what about method invocation?]
+
+Factor = Literal | Designator | '!' Expression | '-' Expression |
+         '^' Expression | '&' Expression | '(' Expression ')' | Call.
+Designator = QualifiedIdent { Selector }.
+Selector = '.' identifier | '[' Expression [ ':' Expression ] ']'.
+Call = Factor '(' ExpressionList ')'.
+
+[gri: We need a precise definition of a constant expression]
+
+
+
+
+Compilation units
+
+The unit of compilation is a single file.  A compilation unit consists
+of a package specifier followed by a list of import declarations
+followed by a list of global declarations.
+
+CompilationUnit = { ImportDecl } { GlobalDeclaration }.
+GlobalDeclaration = Declaration.
+
+
+Exports
+
+Globally declared identifiers may be exported, thus making the
+exported identifer visible outside the package.  Another package may
+then import the identifier to use it.
+
+Export directives must only appear at the global level of a
+compilation unit (at least for now).  That is, one can export
+compilation-unit global identifiers but not, for example, local
+variables or structure fields.
+
+Exporting an identifier makes the identifier visible externally to the
+package.  If the identifier represents a type, the type structure is
+exported as well.  The exported identifiers may appear later in the
+source than the export directive itself, but it is an error to specify
+an identifier not declared anywhere in the source file containing the
+export directive.
+
+ExportDirective = 'export' ExportIdentifier { ',' ExportIdentifier } .
+ExportIdentifier = identifier .
+
+export sin, cos;
+
+One may export variables and types, but (at least for now), not
+aliases.  [r: what is needed to make aliases exportable?  issue is
+transitivity.]
+
+Exporting a variable does not automatically export the type of the
+variable.  For illustration, consider the program fragment:
+
+package P;
+export v1, v2, p;
+struct S { a int; b int; }
+var v1 S;
+var v2 S;
+var p *S;
+
+Notice that S is not exported. Another source file may contain:
+
+import P;
+alias v1 P.v1;
+alias v2 P.v2;
+alias p P.p;
+
+This program can use v and p but not access the fields (a and b) of
+structure type S explicitly.  For instance, it could legally contain
+
+if p == nil { }
+if v1 == v2 { }
+
+but not
+
+if v.a == 0 { }
+
+
+
