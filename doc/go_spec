@@ -1,17 +1,12 @@
 The Go Annotated Specification
 
-This document supersedes all previous Go spec attempts.  The intent is
-to make this a reference for syntax and semantics.  It is annotated
+This document supersedes all previous Go spec attempts.  The intent
+is to make this a reference for syntax and semantics.  It is annotated
 with additional information not strictly belonging into a language
 spec.
 
 
 Open questions
-
-- how to do map iteration? should be symmetric to array iteration
-for k in m { ... }
-for k:v in m { ... }
-for :v in m { ... }
 
 - how to delete from a map
 
@@ -710,6 +705,7 @@ PointerType = '*' Type.
 
 - We do not allow pointer arithmetic of any kind.
 
+
 Interface types
 
 - TBD: This needs to be much more precise. For now we understand what it means.
@@ -1013,9 +1009,10 @@ func (p *T) foo (a, b int, z float) bool;
 
 Statements
 
-Statement = EmptyStat | Assignment | CompoundStat | Declaration |
-            ExpressionStat | IncDecStat | IfStat | WhileStat | ForStat |
-            ReturnStat .
+Statement =
+  EmptyStat | Assignment | CompoundStat | Declaration |
+  ExpressionStat | IncDecStat | IfStat | WhileStat | ForStat |
+  RangeStat | ReturnStat .
 
 
 Empty statements
@@ -1094,6 +1091,31 @@ ForStat = 'for' ...
 
 
 
+Range statements
+
+Range statements denote iteration over the contents of arrays and maps.
+
+RangeStat = 'range' IdentifierList ':=' RangeExpression Block .
+RangeExpression = Expression .
+
+A range expression must evaluate to an array, map or string. The identifier list must contain
+either one or two identifiers. If the range expression is a map, a single identifier is declared
+to range over the keys of the map; two identifiers range over the keys and corresponding
+values. For arrays and strings, the behavior is analogous for integer indices (the keys) and array
+elements (the values).
+
+a := [ 1, 2, 3];
+m := [ "fo" : 2, "foo" : 3, "fooo" : 4 ]
+
+range i := a {
+  f(a[i]);
+}
+
+range k, v := m {
+  assert(len(k) == v);
+}
+
+
 Return statements
 
 ReturnStat = 'return' [ ExpressionList ] .
@@ -1154,7 +1176,7 @@ Precedence    Operator
     2                  &&
     3                  ==  !=  <  <=  >  >=
     4                  +  -  |  ^
-    5                      *  /  %  <<  >>  &
+    5                  *  /  %  <<  >>  &
 
 
 For integer values, / and % satisfy the following relationship:
