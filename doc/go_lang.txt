@@ -17,8 +17,8 @@ The design is motivated by the following guidelines:
 - strongly typed
 - concise syntax avoiding repetition
 - few, orthogonal, and general concepts
-- excellent support for threading and interprocess communication
-- efficient garbage collection
+- support for threading and interprocess communication
+- garbage collection
 - container library written in Go
 - reasonably efficient (C ballpark)
 
@@ -34,12 +34,11 @@ individual identifiers visible to other files by marking them as
 exported; there is no "header file".
 
 A package collects types, constants, functions, and so on into a named
-entity that may be imported to enable its constituents be used in
+entity that may be exported to enable its constituents be used in
 another compilation unit.
 
 Because there are no header files, all identifiers in a package are either
-declared explicitly within the package or, in certain cases, arise from an
-import statement.
+declared explicitly within the package or arise from an import statement.
 
 Scoping is essentially the same as in C.
 
@@ -64,20 +63,9 @@ still under development.
 
 Typing, polymorphism, and object-orientation
 
-Go programs are strongly typed: each program entity has a static
-type known at compile time.  Variables also have a dynamic type, which
-is the type of the value they hold at run-time.  Usually, the
-dynamic and the static type of a variable are identical, except for
-variables of interface type.  In that case the dynamic type of the
-variable is a pointer to a structure that implements the variable's
-(static) interface type.  There may be many different structures
-implementing an interface and thus the dynamic type of such variables
-is generally not known at compile time.  Such variables are called
-polymorphic.
-
-Also, certain expressions, in particular map and channel accesses,
-can also be polymorphic.  The language provides mechanisms to
-make use of such polymorphic values type-safe.
+Go programs are strongly typed. Certain expressions, in particular map
+and channel accesses, can also be polymorphic.  The language provides
+mechanisms to make use of such polymorphic values type-safe.
 
 Interface types are the mechanism to support an object-oriented
 programming style.  Different interface types are independent of each
@@ -130,7 +118,8 @@ language support.
 
 Values and references
 
-Unless accessing expliciting through a pointer, all objects are values.
+All objects have value semantics, but its contents may be accessed
+through different pointers referring to the same object.
 For example, when calling a function with an array, the array is
 passed by value, possibly by making a copy.   To pass a reference,
 one must explicitly pass a pointer to the array.  For arrays in
@@ -151,9 +140,9 @@ Here is a complete example Go program that implements a concurrent prime sieve:
 ============================
 package Main
 
-// Send the sequence 2, 3, 4, ... to channel 'c'.
-func Generate(ch *chan< int) {
-  for i := 2; true; i++ {
+// Send the sequence 2, 3, 4, ... to channel 'ch'.
+func Generate(ch *chan> int) {
+  for i := 2; ; i++ {
     >ch = i;  // Send 'i' to channel 'ch'.
   }
 }
@@ -161,7 +150,7 @@ func Generate(ch *chan< int) {
 // Copy the values from channel 'in' to channel 'out',
 // removing those divisible by 'prime'.
 func Filter(in *chan< int, out *chan> int, prime int) {
-  while true {
+  for ; ; {
     i := <in;  // Receive value of new variable 'i' from 'in'.
     if i % prime != 0 {
       >out = i;  // Send 'i' to channel 'out'.
@@ -173,7 +162,7 @@ func Filter(in *chan< int, out *chan> int, prime int) {
 func Sieve() {
   ch := new(chan int);  // Create a new channel.
   go Generate(ch);  // Start Generate() as a subprocess.
-  while true {
+  for ; ; {
     prime := <ch;
     printf("%d\n",  prime);
     ch1 := new(chan int);
@@ -248,14 +237,14 @@ hex_digit = { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'a' |
               'A' | 'b' | 'B' | 'c' | 'C' | 'd' | 'D' | 'e' | 'E' | 'f' | 'F' } .
 letter = 'A' | 'a' | ... 'Z' | 'z' | '_' .
 
-For simplicity, letters and digits are ASCII.  We may expand this to allow
-Unicode definitions of letters and digits.
+For simplicity, letters and digits are ASCII.  We may in time allow
+Unicode identifiers.
 
 
 Identifiers
 
 An identifier is a name for a program entity such as a variable, a
-type, a function, etc.
+type, a function, etc. An identifier must not be a reserved word.
 
 identifier = letter { letter | decimal_digit } .
 
@@ -304,7 +293,7 @@ architecture, or int64 on a 64-bit architecture.  These types are by
 definition platform-specific and should be used with the appropriate
 caution.
 
-Two predeclared identifiers, 'true' and 'false', represent the
+Two reserved words, 'true' and 'false', represent the
 corresponding boolean constant values.
 
 
@@ -509,7 +498,7 @@ elements of an array is called its length.  The elements of an array
 are designated by indices which are integers between 0 and the length
 - 1.
 
-An array type specifies a set of arrays with a given element type and
+An array type specifies arrays with a given element type and
 an optional array length.  The array length must be a (compile-time)
 constant expression, if present.  Arrays without length specification
 are called dynamic arrays.  A dynamic array must not contain other dynamic
@@ -522,6 +511,7 @@ ArrayLength = Expression.
 ElementType = Type.
 
   [] uint8
+  [2*n] int
   [64] struct { x, y: int32; }
   [1000][1000] float64
 
@@ -544,13 +534,15 @@ called (key, value) pairs. For a given map,
 the keys and values must each be of a specific type.
 Upon creation, a map is empty and values may be added and removed
 during execution.  The number of entries in a map is called its length.
+A map whose value type is 'any' can store values of all types.
 
 MapType = 'map' '[' KeyType ']' ValueType .
 KeyType = Type .
-ValueType = Type .
+ValueType = Type | 'any' .
 
   map [string] int
   map [struct { pid int; name string }] *chan Buffer
+  map [string] any
 
 
 Map Literals
@@ -595,10 +587,13 @@ Struct literals represent struct constants.  They comprise a list of
 expressions that represent the individual fields of a struct.  The
 individual expressions must match those of the specified struct type.
 
-StructLit = StructType '{' [ ExpressionList ] '}' .
+StructLit = StructType '(' [ ExpressionList ] ')' .
 StructType = TypeName .
 
 The type name must be that of a defined struct type.
+
+  Point(2, 3)
+  ColoredPoint(4, 4, "green")
 
 
 Pointer types
@@ -626,12 +621,12 @@ Upon creation, a channel can be used both to send and to receive; it
 may be restricted only to send or to receive; such a restricted channel
 is called a 'send channel' or a 'receive channel'.
 
-ChannelType = 'chan' [ '<' | '>' ] [ Type ] .
+ChannelType = 'chan' [ '<' | '>' ] ValueType .
 
-    chan  // a generic channel
+    chan any  // a generic channel
     chan int   // a channel that can exchange only ints
     chan> float // a channel that can only be used to send floats
-    chan<  // a channel that can receive (only) values of any type
+    chan< any  // a channel that can receive (only) values of any type
 
 Channel variables always have type pointer to channel.
 It is an error to attempt to dereference a channel pointer.
@@ -682,6 +677,8 @@ Block = '{' [ StatementList ] '}' .
 
 A function literal can be invoked
 or assigned to a variable of the corresponding function pointer type.
+For now, a function literal can reference only its parameters, global
+variables, and variables declared within the function literal.
 
     // Function literal
     func (a, b int, z float) bool { return a*b < int(z); }
@@ -700,10 +697,13 @@ a method indicates the type of the struct by declaring a receiver of type
 
 the declaration
 
-  func (p *Point) distance(float scale) float { return scale * (p.x*p.x + p.y*p.y) }
+  func (p *Point) distance(float scale) float {
+    return scale * (p.x*p.x + p.y*p.y);
+  }
 
 creates a method of type Point.  Note that methods are not declared
-within their struct type declaration.  They may appear anywhere.
+within their struct type declaration.  They may appear anywhere and
+may be forward-declared for commentary.
 
 When invoked, a method behaves like a function whose first argument
 is the receiver, but at the call site the receiver is bound to the method
@@ -736,9 +736,9 @@ MethodDecl = identifier Parameters [ Result ] ';' .
     Close();
   }
 
-Any struct that has, as a subset, the methods of that interface is
-said to implement the interface. For instance, if two struct types
-S1 and S2 have the methods
+Any struct whose interface has, possibly as a subset, the complete
+set of methods of an interface I is said to implement interface I.
+For instance, if two struct types S1 and S2 have the methods
 
   func (p *T) Read(b Buffer) bool { return ... }
   func (p *T) Write(b Buffer) bool { return ... }
@@ -860,7 +860,8 @@ Function and method declarations
 
 Functions and methods have a special declaration syntax, slightly
 different from the type syntax because an identifier must be present
-in the signature.
+in the signature. For now, functions and methods can only be declared
+at the global level.
 
 FunctionDecl = 'func' NamedSignature  ( ';' | Block ) .
 NamedSignature = [ Receiver ] identifier Parameters [ Result ] .
@@ -900,7 +901,7 @@ Functions and methods can be forward declared by omitting the body:
 
 Export declarations
 
-Globally declared identifiers may be exported, thus making the
+Global identifiers may be exported, thus making the
 exported identifer visible outside the package.  Another package may
 then import the identifier to use it.
 
@@ -966,10 +967,11 @@ can be simplified to
 Expression = Conjunction { '||' Conjunction }.
 Conjunction = Comparison { '&&' Comparison }.
 Comparison = SimpleExpr [ relation SimpleExpr ].
-relation = '==' | '!=' | '<' | '<=' | '>' | '>='.
 SimpleExpr = Term { add_op Term }.
-add_op = '+' | '-' | '|' | '^'.
 Term = Operand { mul_op Operand }.
+
+relation = '==' | '!=' | '<' | '<=' | '>' | '>='.
+add_op = '+' | '-' | '|' | '^'.
 mul_op = '*' | '/' | '%' | '<<' | '>>' | '&'.
 
 The corresponding precedence hierarchy is as follows:
@@ -996,13 +998,14 @@ and
     (a / b) is "truncated towards zero".
 
 The shift operators implement arithmetic shifts for signed integers,
-and logical shifts for unsigned integers.
+and logical shifts for unsigned integers. The property of negative
+shift counts are undefined.
 
 There are no implicit type conversions except for
 constants and literals.  In particular, unsigned and signed integers
 cannot be mixed in an expression w/o explicit casting.
 
-Unary '^' corresponds to C '~' (bitwise negate).
+Unary '^' corresponds to C '~' (bitwise complement).
 
 
 Statements
@@ -1016,7 +1019,7 @@ Statement =
   GoStat |
   ReturnStat |
   IfStat | SwitchStat |
-  WhileStat | ForStat | RangeStat |
+  ForStat | RangeStat |
   BreakStat | ContinueStat | GotoStat | LabelStat .
 
 
@@ -1066,22 +1069,39 @@ or an array indexing.
 
 A tuple assignment assigns the individual elements of a multi-valued operation,
 such function evaluation or some channel and map operations, into individual
-variables.  Tuple assignment is simultaneous.
-For example,
+variables. For instance, a tuple assignment such as
+
+  v1, v2, v3 = e1, e2, e3
+  
+assigns the expressions e1, e2, e3 to temporaries and then assigns the temporaries
+to the variables v1, v2, v3. Thus
 
   a, b = b, a
 
-exchanges the values of a and b.
+exchanges the values of a and b. The tuple assignment
 
   x, y = f()
+
+calls the function f, which must return 2 values and assigns them to x and y.
+As a special case, retrieving a value from a map, when written as a two-element
+tuple assignment, assign a value and a boolean. If the value is present in the map,
+the value is assigned and the second, boolean variable is set to true. Otherwise,
+the variable is unchanged, and the boolean value is set to false.
+  
   value, present = map_var[key]
+  
+Analogously, receiving a value from a channel can be written as a tuple assignment.
+
   value, success = <chan_var
+  
+If the receive operation would block, the boolean is set to false. This provides to avoid
+blocking on a receive operation.
 
 Sending on a channel is a form of assignment. The left hand side expression
 must denote a channel pointer value.
 
   >chan_ptr = value
-
+  
 In assignments, the type of the expression must match the type of the designator.
 
 
@@ -1136,13 +1156,11 @@ first form of return statement is used:
 
 If statements
 
-[ NOTE We propose a simplified control syntax ]
-
 If statements have the traditional form except that the
-condition need not be parenthesized and the statements
+condition need not be parenthesized and the "then" statement
 must be in brace brackets.
 
-IfStat = 'if' [ SimpleVarDecl ';' ] Expression Block [ 'else' ( Block | IfStat ) ] .
+IfStat = 'if' [ SimpleVarDecl ';' ] Expression Block [ 'else' Statement ] .
 
   if x > 0 {
     return true;
@@ -1165,13 +1183,20 @@ Switch statements
 
 Switches provide multi-way execution.
 
-SwitchStat = 'switch' [ SimpleVarDecl ';' ] [ Expression ] '{' CaseList '}' .
-CaseList = ( 'case' ExpressionList | 'default' ) ':' { Statement | 'fallthrough' ';' } .
+SwitchStat = 'switch' [ [ SimpleVarDecl ';' ] [ Expression ] ] '{' { CaseClause } '}' .
+CaseClause = CaseList { Statement } [ 'fallthrough' ] .
+CaseList = Case { Case } .
+Case = ( 'case' ExpressionList | 'default' ) ':' .
 
-Note that the expressions do not need to be constants. They will
-be evaluated top to bottom until the first successful non-defauit case.
-If none matches and there is a default case, the default case is
-executed.
+There can be at most one default case in a switch statement.
+
+The 'fallthrough' keyword indicates that the control should flow from
+the end of this case clause to the first statement of the next clause.
+
+The expressions do not need to be constants. They will
+be evaluated top to bottom until the first successful non-default case is reached.
+If none matches and there is a default case, the statements of the default
+case are executed.
 
   switch tag {
   default: s3()
@@ -1187,13 +1212,13 @@ the variable is initialized once before the switch is entered.
   case x < 0: return -x
   default: return x
   }
-
+  
 Cases do not fall through unless explicitly marked with a 'fallthrough' statement.
 
   switch a {
   case 1:
     b();
-    fallthrough;
+    fallthrough
   case 2:
     c();
   }
@@ -1207,43 +1232,36 @@ If the expression is omitted, it is equivalent to 'true'.
   }
 
 
-While statements
-
-A while statement is the usual loop construct.
-
-WhileStat = 'while' [ SimpleVarDecl ';' ] Expression Block .
-
-  while a < b {
-    a++
-  }
-
-A while statement may include the declaration of a single temporary variable.
-The scope of the declared variable extends to the end of the while statement, and
-the variable is initialized once before the loop is entered. 
-
-  while x := <ch_ptr; y < x {
-    y++
-  }
-
-
 For statements
 
-For statements are as in C except the first clause can be a simplified variable
-declaration.
+For statements are a combination of the 'for' and 'while' loops of C.
 
-ForStat = 'for' [ InitStatement ] ';' [ Condition ] ';' [ Continuation ] Block .
-InitStatement = SimpleVarDecl | Expression .
+ForStat = 'for' [ Condition | ForClause ] Block .
+ForClause = [ InitStat ] ';' [ Condition ] ';' [ PostStat ] .
+
+InitStat = SimpleStat .
 Condition = Expression .
-Continuation = Expression | IncDecStatement .
+PostStat = SimpleStat .
+
+A SimpleStat is a simple statement such as an assignemnt, a SimpleVarDecl,
+or an increment or decrement statement. Therefore one may declare a loop
+variable in the init statement.
 
   for i := 0; i < 10; i++ {
-    printf("%d\n", i);
+    printf("%d\n", i)
+  }
+
+A 'for' statement with just a condition executes until the condition becomes
+false. Thus it is the same as C 'while' statement.
+
+  for a < b {
+    a *= 2
   }
 
 If the condition is absent, it is equivalent to 'true'.
 
-  for ;; {
-    f();
+  for {
+    f()
   }
 
 
@@ -1261,7 +1279,7 @@ to range over the keys of the map; two identifiers range over the keys and corre
 values. For arrays and strings, the behavior is analogous for integer indices (the keys) and
 array elements (the values).
 
-  a := [ 1, 2, 3];
+  a := [ 1, 2, 3 ];
   m := [ "fo" : 2, "foo" : 3, "fooo" : 4 ]
 
   range i := a {
@@ -1275,19 +1293,29 @@ array elements (the values).
 
 Break statements
 
-Within a for or while loop a break statement terminates execution of the loop.
-[ TODO Do they work in switches? If not - we avoid an ambiguity ]
+Within a 'for' or 'switch' statement, a 'break' statement terminates execution of
+the innermost 'for' or 'switch' statement.
 
-BreakStat = 'break' .
+BreakStat = 'break' [ identifier ].
+
+If there is an identifier, it must be the label name of an enclosing 'for' or' 'switch'
+statement, and that is the one whose execution terminates.
+
+  L: for i < n {
+    switch i {
+    case 5: break L
+    }
+  }
 
 
 Continue statements
 
-Within a for or while loop a continue statement begins the next iteration of the
-loop.  Within a while loop, the continue jumps to the condition; within a for loop
-it jumps to the continuation statement.
+Within a 'for' loop a continue statement begins the next iteration of the
+loop at the post statement.
 
-ContinueStat = 'continue' .
+ContinueStat = 'continue' [ identifier ].
+
+The optional identifier is analogous to that of a 'break' statement.
 
 
 Goto statements
@@ -1301,12 +1329,13 @@ GotoStat = 'goto' identifier .
 
 Label statement
 
-A label statement serves as the target of a goto statement.
-[ TODO This invention is likely to resolve grammatical problems ]
+A label statement serves as the target of a 'goto', 'break' or 'continue' statement.
 
-LabelStat = 'label' identifier ':' .
+LabelStat = identifier ':' .
 
-  label Error:
+  Error:
+
+There are various restrictions [TBD] as to where a label statement can be used.
 
 
 Packages
@@ -1325,7 +1354,7 @@ A program can access exported items from another package using
 an import declaration:
 
 ImportDecl = 'import' [ PackageName ] PackageFileName .
-PackageFileName = '"' { utf8_char } '"' .
+PackageFileName = string_lit .
 
 
 [ TODO complete this section ]
