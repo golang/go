@@ -161,7 +161,7 @@ Here is a complete example Go program that implements a concurrent prime sieve:
   // Copy the values from channel 'in' to channel 'out',
   // removing those divisible by 'prime'.
   func Filter(in *chan< int, out *chan> int, prime int) {
-    for ; ; {
+    for {
       i := <in;  // Receive value of new variable 'i' from 'in'.
       if i % prime != 0 {
         >out = i;  // Send 'i' to channel 'out'.
@@ -173,7 +173,7 @@ Here is a complete example Go program that implements a concurrent prime sieve:
   func Sieve() {
     ch := new(chan int);  // Create a new channel.
     go Generate(ch);  // Start Generate() as a subprocess.
-    for ; ; {
+    for {
       prime := <ch;
       printf("%d\n",  prime);
       ch1 := new(chan int);
@@ -262,11 +262,11 @@ Identifiers
 An identifier is a name for a program entity such as a variable, a
 type, a function, etc. An identifier must not be a reserved word.
 
-identifier = letter { letter | decimal_digit } .
+  identifier = letter { letter | decimal_digit } .
 
-  a
-  _x
-  ThisIsVariable9
+	a
+	_x
+	ThisIsVariable9
 
 
 Types
@@ -285,16 +285,16 @@ Go defines a number of basic types which are referred to by their
 predeclared type names.  There are signed and unsigned integer
 and floating point types:
 
-  bool     the truth values true and false
+  bool    the truth values true and false
 
-  uint8    the set of all unsigned 8bit integers
+  uint8   the set of all unsigned 8bit integers
   uint16  the set of all unsigned 16bit integers
   uint32  the set of all unsigned 32bit integers
   unit64  the set of all unsigned 64bit integers
 
   byte    alias for uint8
 
-  int8    the set of all signed 8bit integers, in 2's complement
+  int8   the set of all signed 8bit integers, in 2's complement
   int16  the set of all signed 16bit integers, in 2's complement
   int32  the set of all signed 32bit integers, in 2's complement
   int64  the set of all signed 64bit integers, in 2's complement
@@ -408,7 +408,7 @@ text into Unicode characters.
 * A `little u' value, such as \u12AB.  This represents the Unicode
 code point with the corresponding hexadecimal value.  It always
 has exactly 4 hexadecimal digits.
-* A `big U' value, such as '\U00101234'.  This represents the
+* A `big U' value, such as \U00101234.  This represents the
 Unicode code point with the corresponding hexadecimal value.
 It always has exactly 8 hexadecimal digits.
 
