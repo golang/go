@@ -816,7 +816,7 @@ Literals
 ----
 
   Literal = BasicLit | CompoundLit .
-  BasicLit = CharLit | StringLit | IntLit | FloatLit .
+  BasicLit = char_lit | string_lit | int_lit | float_lit .
   CompoundLit = ArrayLit | MapLit | StructLit | FunctionLit .
 
 
