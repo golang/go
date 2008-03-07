@@ -1,4 +1,5 @@
 The Go Programming Language
+(March 7, 2008)
 
 This document is an informal specification/proposal for a new systems programming
 language.
@@ -490,21 +491,19 @@ TypeName = QualifiedIdent.
 Array types
 
 [TODO: this section needs work regarding the precise difference between
-regular and dynamic arrays]
+static, open and dynamic arrays]
 
 An array is a structured type consisting of a number of elements which
 are all of the same type, called the element type.  The number of
 elements of an array is called its length.  The elements of an array
-are designated by indices which are integers between 0 and the length
-- 1.
+are designated by indices which are integers between 0 and the length - 1.
 
 An array type specifies arrays with a given element type and
-an optional array length.  The array length must be a (compile-time)
-constant expression, if present.  Arrays without length specification
-are called dynamic arrays.  A dynamic array must not contain other dynamic
-arrays, and dynamic arrays can only be used as parameter types or in a
-pointer type (for instance, a struct may not contain a dynamic array
-field, but only a pointer to an open array).
+an optional array length. If the length is present, it is part of the type.
+Arrays without a length specification are called open arrays.
+Any array may be assigned to an open array variable with the
+same element type. Typically, open arrays are used as
+formal parameters for functions.
 
 ArrayType = { '[' ArrayLength ']' } ElementType.
 ArrayLength = Expression.
@@ -514,6 +513,11 @@ ElementType = Type.
   [2*n] int
   [64] struct { x, y: int32; }
   [1000][1000] float64
+
+The length of an array can be discovered at run time using the
+built-in special function len():
+
+  len(a)
 
 
 Array literals
@@ -920,61 +924,38 @@ export directive.
 ExportDecl = 'export' ExportIdentifier { ',' ExportIdentifier } .
 ExportIdentifier = QualifiedIdent .
 
-export sin, cos
-export Math.abs
+  export sin, cos
+  export Math.abs
 
 [ TODO complete this section ]
 
 
 Expressions
 
-Expression syntax is based on that of C.
+Expression syntax is based on that of C but with fewer precedence levels.
 
-Operand = Literal | Designator | UnaryExpr | '(' Expression ')' | Call.
-UnaryExpr =  unary_op Expression
-unary_op =  '!' | '-' | '^' | '&' | '<' .
-Designator = QualifiedIdent { Selector }.
-Selector = '.' identifier | '[' Expression [ ':' Expression ] ']'.
-Call = Operand '(' ExpressionList ')'.
+Expression = BinaryExpr | UnaryExpr | PrimaryExpr .
+BinaryExpr = Expression binary_op Expression .
+UnaryExpr = unary_op Expression .
 
-  2
-  a[i]
-  "hello"
-  f("abc")
-  p.q.r
-  a.m(zot, bar)
-  <chan_ptr
-  ~v
-  m["key"]
-  (x+y)
-
-For selectors and function invocations, one level of pointer dereferencing
-is provided automatically. Thus, the expressions
+PrimaryExpr =
+  identifier | Literal | '(' Expression ')' | 'iota' |
+  Call | Conversion |
+  Expression '[' Expression [ ':' Expression ] ']' | Expression '.' identifier .
   
-  (*a)[i]
-  (*m)["key"]
-  (*s).field
-  (*f)()
-  
-can be simplified to
+Call = Expression '(' [ ExpressionList ] ')' .
+Conversion = TypeName '(' [ ExpressionList ] ')' .
 
-  a[i]
-  m["key"]
-  s.field
-  f()
-  
-
-Expression = Conjunction { '||' Conjunction }.
-Conjunction = Comparison { '&&' Comparison }.
-Comparison = SimpleExpr [ relation SimpleExpr ].
-SimpleExpr = Term { add_op Term }.
-Term = Operand { mul_op Operand }.
-
-relation = '==' | '!=' | '<' | '<=' | '>' | '>='.
+binary_op = log_op | rel_op | add_op | mul_op .
+log_op = '||' | '&&' .
+rel_op = '==' | '!=' | '<' | '<=' | '>' | '>='.
 add_op = '+' | '-' | '|' | '^'.
 mul_op = '*' | '/' | '%' | '<<' | '>>' | '&'.
 
-The corresponding precedence hierarchy is as follows:
+unary_op = '+' | '-' | '!' | '^' | '<' | '>' | '*' | '&' .
+
+Field selection ('.') binds tightest, followed by indexing ('[]') and then calls and conversions.
+The remaining precedence levels are as follows (in increasing precedence order):
 
 Precedence    Operator
     1                  ||
@@ -982,13 +963,8 @@ Precedence    Operator
     3                  ==  !=  <  <=  >  >=
     4                  +  -  |  ^
     5                  *  /  %  <<  >>  &
-
-  23 + 3*x[i]
-  x <= f()
-  a >> ~b
-  f() || g()
-  x == y || <chan_ptr > 0
-
+    6                  +  -  !  ^  <  >  *  &  (unary)
+    
 For integer values, / and % satisfy the following relationship:
 
     (a / b) * b + a % b == a
@@ -997,15 +973,67 @@ and
 
     (a / b) is "truncated towards zero".
 
-The shift operators implement arithmetic shifts for signed integers,
-and logical shifts for unsigned integers. The property of negative
-shift counts are undefined.
-
 There are no implicit type conversions except for
 constants and literals.  In particular, unsigned and signed integers
-cannot be mixed in an expression w/o explicit casting.
+cannot be mixed in an expression without explicit conversion.
 
-Unary '^' corresponds to C '~' (bitwise complement).
+The shift operators implement arithmetic shifts for signed integers,
+and logical shifts for unsigned integers. The property of negative
+shift counts are undefined. Unary '^' corresponds to C '~' (bitwise
+complement).
+
+There is no '->' operator. Given a pointer p to a struct, one writes
+p.f to access field f of the struct. Similarly. given an array or map pointer, one
+writes p[i], given a function pointer, one writes p() to call the function.
+
+Other operators behave as in C.
+
+The 'iota' keyword is discussed in the next section.
+  
+Primary expressions
+
+  x
+  2
+  (s + ".txt")
+  f(3.1415, true)
+  Point(1, 2)
+  m["foo"]
+  s[i : j + 1]
+  obj.color
+  Math.sin
+  f.p[i].x()
+
+General expressions
+
+  +x
+  23 + 3*x[i]
+  x <= f()
+  ^a >> b
+  f() || g()
+  x == y + 1 && <chan_ptr > 0
+  
+
+The constant generator 'iota'
+
+Within a declaration, each appearance of the keyword 'iota' represents a successive
+element of an integer sequence. It is reset to zero whenever the keyword 'const', 'type'
+or 'var' introduces a new declaration. For instance, 'iota' can be used to construct
+a set of related constants:
+
+  const (
+    enum0 = iota;  // sets enum0 to 0, etc.
+    enum1 = iota;
+    enum2 = iota
+  )
+
+  const (
+    a = 1 << iota;  // sets a to 1 (iota has been reset)
+    b = 1 << iota;  // sets b to 2
+    c = 1 << iota;  // sets c to 4
+  )
+  
+  const x = iota;  // sets x to 0
+  const y = iota;  // sets y to 0
 
 
 Statements
@@ -1014,14 +1042,16 @@ Statements control execution.
 
 Statement =
   Declaration |
-  ExpressionStat | IncDecStat | CompoundStat |
-  Assignment |
+  SimpleStat | CompoundStat |
   GoStat |
   ReturnStat |
   IfStat | SwitchStat |
   ForStat | RangeStat |
   BreakStat | ContinueStat | GotoStat | LabelStat .
 
+SimpleStat =
+  ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
+  
 
 Expression statements
 
@@ -1055,9 +1085,11 @@ from the declaration to the end of the compound statement.
 Assignments
 
 Assignment = SingleAssignment | TupleAssignment | Send .
-SimpleAssignment = Designator '=' Expression .
-TupleAssignment = DesignatorList '=' ExpressionList .
+SimpleAssignment = Designator assign_op Expression .
+TupleAssignment = DesignatorList assign_op ExpressionList .
 Send = '>' Expression = Expression .
+
+assign_op = [ add_op | mul_op ] '=' .
 
 The designator must be an l-value such as a variable, pointer indirection,
 or an array indexing.
@@ -1065,7 +1097,10 @@ or an array indexing.
   x = 1
   *p = f()
   a[i] = 23
+  
+As in C, arithmetic binary operators can be combined with assignments:
 
+  j <<= 2
 
 A tuple assignment assigns the individual elements of a multi-valued operation,
 such function evaluation or some channel and map operations, into individual
@@ -1243,7 +1278,7 @@ InitStat = SimpleStat .
 Condition = Expression .
 PostStat = SimpleStat .
 
-A SimpleStat is a simple statement such as an assignemnt, a SimpleVarDecl,
+A SimpleStat is a simple statement such as an assignment, a SimpleVarDecl,
 or an increment or decrement statement. Therefore one may declare a loop
 variable in the init statement.
 
@@ -1350,14 +1385,45 @@ PackageClause = 'package' PackageName .
 
 Import declarations
 
-A program can access exported items from another package using
-an import declaration:
+A program can gain access to exported items from another package
+through an import declaration:
 
-ImportDecl = 'import' [ PackageName ] PackageFileName .
+ImportDecl = 'import' [ '.' | PackageName ] PackageFileName .
 PackageFileName = string_lit .
 
+An import statement makes the exported contents of the named
+package file accessible in this package.
 
-[ TODO complete this section ]
+In the following discussion, assume we have a package in the
+file "/lib/math", called package Math, which exports functions sin
+and cos.
+
+In the general form, with an explicit package name, the import
+statement declares that package name as an identifier whose
+contents are the exported elements of the imported package.
+For instance, after
+
+  import M "/lib/math"
+
+the contents of the package /lib/math can be accessed by
+M.cos, M.sin, etc.
+
+In its simplest form, with no package name, the import statement
+implicitly uses the imported package name itself as the local
+package name.  After
+
+  import "/lib/math"
+
+the contents are accessible by Math.sin, Math.cos.
+
+Finally, if instead of a package name the import statement uses
+an explicit period, the contents of the imported package are added
+to the current package. After
+
+  import . "/lib/math"
+
+the contents are accessible by sin and cos.  In this instance, it is
+an error if the import introduces name conflicts.
 
 
 Program
@@ -1372,5 +1438,3 @@ Program = PackageClause { ImportDecl } { Declaration } .
 TODO: type switch?
 TODO: select
 TODO: words about slices
-TODO: words about channel ops, tuple returns
-TODO: words about map ops, tuple returns
