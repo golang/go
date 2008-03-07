@@ -623,8 +623,7 @@ Struct literals represent struct constants.  They comprise a list of
 expressions that represent the individual fields of a struct.  The
 individual expressions must match those of the specified struct type.
 
-  StructLit = StructType '(' [ ExpressionList ] ')' .
-  StructType = TypeName .
+  StructLit = TypeName '(' [ ExpressionList ] ')' .
 
 The type name must be that of a defined struct type.
 
