@@ -1139,7 +1139,7 @@ Assignments
   Assignment = SingleAssignment | TupleAssignment | Send .
   SimpleAssignment = Designator assign_op Expression .
   TupleAssignment = DesignatorList assign_op ExpressionList .
-  Send = '>' Expression = Expression .
+  Send = '>' Expression '=' Expression .
   
   assign_op = [ add_op | mul_op ] '=' .
 
