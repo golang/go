@@ -532,9 +532,9 @@ Any array may be assigned to an open array variable with the
 same element type. Typically, open arrays are used as
 formal parameters for functions.
 
-  ArrayType = { '[' ArrayLength ']' } ElementType.
-  ArrayLength = Expression.
-  ElementType = Type.
+  ArrayType = '[' [ ArrayLength ] ']' ElementType .
+  ArrayLength = Expression .
+  ElementType = Type .
 
   [] uint8
   [2*n] int
@@ -687,7 +687,7 @@ Functions can return multiple values simultaneously.
   Parameters = '(' [ ParameterList ] ')' .
   ParameterList = ParameterSection { ',' ParameterSection } .
   ParameterSection = [ IdentifierList ] Type .
-  Result = [ Type ] | '(' ParameterList ')' .
+  Result = Type | '(' ParameterList ')' .
 
     // Function types
     func ()
