@@ -601,8 +601,8 @@ Struct types are similar to C structs.
 Each field of a struct represents a variable within the data
 structure.
 
-  StructType = 'struct' '{' { FieldDecl } '}' .
-  FieldDecl = IdentifierList Type ';' .
+  StructType = 'struct' '{' [ FieldDecl { ';' FieldDecl } [ ';' ] ] '}' .
+  FieldDecl = IdentifierList Type .
 
     // An empty struct.
     struct {}
@@ -768,8 +768,8 @@ Interface types
 
 An interface type denotes a set of methods.
 
-  InterfaceType = 'interface' '{' { MethodDecl } '}' .
-  MethodDecl = identifier Parameters [ Result ] ';' .
+  InterfaceType = 'interface' '{' [ MethodDecl { ';' MethodDecl } [ ';' ] ] '}' .
+  MethodDecl = identifier Parameters [ Result ] .
 
   // A basic file interface.
   type File interface {
