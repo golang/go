@@ -601,7 +601,8 @@ Struct types are similar to C structs.
 Each field of a struct represents a variable within the data
 structure.
 
-  StructType = 'struct' '{' [ FieldDecl { ';' FieldDecl } [ ';' ] ] '}' .
+  StructType = 'struct' '{' [ FieldDeclList [ ';' ] ] '}' .
+  FieldDeclList = FieldDecl { ';' FieldDeclList } .
   FieldDecl = IdentifierList Type .
 
     // An empty struct.
@@ -712,7 +713,7 @@ Function Literals
 Function literals represent anonymous functions.
 
   FunctionLit = FunctionType Block .
-  Block = '{' [ StatementList ] '}' .
+  Block = CompoundStat .
 
 A function literal can be invoked
 or assigned to a variable of the corresponding function pointer type.
@@ -768,7 +769,8 @@ Interface types
 
 An interface type denotes a set of methods.
 
-  InterfaceType = 'interface' '{' [ MethodDecl { ';' MethodDecl } [ ';' ] ] '}' .
+  InterfaceType = 'interface' '{' [ MethodDeclList [ ';' ] ] '}' .
+  MethodDeclList = MethodDecl { ';' MethodDecl } .
   MethodDecl = identifier Parameters [ Result ] .
 
   // A basic file interface.
@@ -1089,17 +1091,31 @@ Statements
 Statements control execution.
 
   Statement =
+    [ LabelDecl ] ( StructuredStat | UnstructuredStat ) .
+    
+  StructuredStat =
+    CompoundStat | IfStat | SwitchStat | ForStat | RangeStat .
+
+  UnstructuredStat =
     Declaration |
-    SimpleStat | CompoundStat |
-    GoStat |
-    ReturnStat |
-    IfStat | SwitchStat |
-    ForStat | RangeStat |
-    BreakStat | ContinueStat | GotoStat | LabelStat .
-  
+    SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat .
+    
   SimpleStat =
     ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
-  
+    
+    
+Statement lists
+----
+
+Semicolons are used to separate individual statements of a statement list.
+They are optional after a statement that ends with a closing curly brace '}'.
+
+  StatementList =
+    StructuredStat |
+    UnstructuredStat |
+    StructuredStat [ ";" ] StatementList |
+    UnstructuredStat ";" StatementList . 
+    
 
 Expression statements
 ----
@@ -1122,7 +1138,7 @@ Note that ++ and -- are not operators for expressions.
 Compound statements
 ----
 
-  CompoundStat = '{' { Statement } '}' .
+  CompoundStat = '{' [ StatementList [ ";" ] ] '}' .
 
   {
     x := 1;
@@ -1278,7 +1294,7 @@ Switch statements
 Switches provide multi-way execution.
 
   SwitchStat = 'switch' [ [ SimpleVarDecl ';' ] [ Expression ] ] '{' { CaseClause } '}' .
-  CaseClause = CaseList { Statement } [ 'fallthrough' ] .
+  CaseClause = CaseList StatementList [ ';' ] [ 'fallthrough' [ ';' ] ] .
   CaseList = Case { Case } .
   Case = ( 'case' ExpressionList | 'default' ) ':' .
 
@@ -1426,12 +1442,12 @@ A goto statement transfers control to the corresponding label statement.
   goto Error
 
 
-Label statement
+Label declaration
 ----
 
-A label statement serves as the target of a 'goto', 'break' or 'continue' statement.
+A label declaration serves as the target of a 'goto', 'break' or 'continue' statement.
 
-  LabelStat = identifier ':' .
+  LabelDecl = identifier ':' .
 
   Error:
 
