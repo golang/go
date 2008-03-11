@@ -878,7 +878,7 @@ A variable declaration creates a variable and gives it a type and a name.
 It may optionally give the variable an initial value; in some forms of
 declaration the type of the initial value defines the type of the variable.
 
-  VarDecl = "var" ( VarSpec | "(" VarSpecList [ ";" ] ")" ) | SimpleVarDecl .
+  VarDecl = "var" ( VarSpec | "(" VarSpecList [ ";" ] ")" ) .
   VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
   VarSpecList = VarSpec { ";" VarSpec } .
 
@@ -1102,7 +1102,7 @@ Statements control execution.
     Block | IfStat | SwitchStat | ForStat | RangeStat .
 
   UnstructuredStat =
-    Declaration |
+    Declaration | SimpleVarDecl |
     SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat .
     
   SimpleStat =
@@ -1227,7 +1227,7 @@ and optionally provides a result value or values to the caller.
 There are two ways to return values from a function.  The first is to
 explicitly list the return value or values in the return statement:
 
-  func simple_f  () int {
+  func simple_f() int {
     return 2;
   }
 
@@ -1260,7 +1260,7 @@ If statements have the traditional form except that the
 condition need not be parenthesized and the "then" statement
 must be in brace brackets.
 
-  IfStat = "if" [ SimpleVarDecl ";" ] Expression Block [ "else" Statement ] .
+  IfStat = "if" [ SimpleStat ";" ] Expression Block [ "else" Statement ] .
 
   if x > 0 {
     return true;
@@ -1284,7 +1284,7 @@ Switch statements
 
 Switches provide multi-way execution.
 
-  SwitchStat = "switch" [ SimpleVarDecl ";" ] [ "Expression ] "{" { CaseClause } "}" .
+  SwitchStat = "switch" [ [ SimpleStat ";" ] "Expression ] "{" { CaseClause } "}" .
   CaseClause = CaseList StatementList [ ";" ] [ "fallthrough" [ ";" ] ] .
   CaseList = Case { Case } .
   Case = ( "case" ExpressionList | "default" ) ":" .
