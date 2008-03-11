@@ -190,17 +190,18 @@ Here is a complete example Go program that implements a concurrent prime sieve:
 Notation
 ----
 
-The syntax is specified using Extended
-Backus-Naur Form (EBNF).  In particular:
+The syntax is specified using Extended Backus-Naur Form (EBNF). 
+In particular:
 
-- ''  encloses lexical symbols
-- |  separates alternatives
+- ""  encloses lexical symbols (\" is used to denote a " in a symbol)
+- |   separates alternatives
 - ()  used for grouping
 - []  specifies option (0 or 1 times)
 - {}  specifies repetition (0 to n times)
 
 A production may be referenced from various places in this document
-but is usually defined close to its first use.  Code examples are indented.
+but is usually defined close to its first use.  Productions and code
+examples are indented.
 
 Lower-case production names are used to identify productions that cannot
 be broken by white space or comments; they are usually tokens. Other
@@ -210,10 +211,10 @@ productions are in CamelCase.
 Common productions
 ----
 
-  IdentifierList = identifier { ',' identifier } .
-  ExpressionList = Expression { ',' Expression } .
+  IdentifierList = identifier { "," identifier } .
+  ExpressionList = Expression { "," Expression } .
 
-  QualifiedIdent = [ PackageName '.' ] identifier .
+  QualifiedIdent = [ PackageName "." ] identifier .
   PackageName = identifier .
 
 
@@ -246,11 +247,11 @@ to refer to an arbitrary Unicode code point encoded in UTF-8.
 Digits and Letters
 ----
 
-  octal_digit = { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' } .
-  decimal_digit = { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' } .
-  hex_digit = { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'a' |
-                'A' | 'b' | 'B' | 'c' | 'C' | 'd' | 'D' | 'e' | 'E' | 'f' | 'F' } .
-  letter = 'A' | 'a' | ... 'Z' | 'z' | '_' .
+  octal_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" } .
+  decimal_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" } .
+  hex_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "a" |
+                "A" | "b" | "B" | "c" | "C" | "d" | "D" | "e" | "E" | "f" | "F" } .
+  letter = "A" | "a" | ... "Z" | "z" | "_" .
 
 For simplicity, letters and digits are ASCII.  We may in time allow
 Unicode identifiers.
@@ -337,13 +338,13 @@ variable or constant.
 Floating point literals also represent an abstract, ideal floating
 point value that is constrained only upon assignment.
 
-  int_lit = [ '+' | '-' ] unsigned_int_lit .
+  int_lit = [ "+" | "-" ] unsigned_int_lit .
   unsigned_int_lit = decimal_int_lit | octal_int_lit | hex_int_lit .
-  decimal_int_lit = ( '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' )
+  decimal_int_lit = ( "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" )
                   { decimal_digit } .
-  octal_int_lit = '0' { octal_digit } .
-  hex_int_lit = '0' ( 'x' | 'X' ) hex_digit { hex_digit } .
-  float_lit = [ '+' | '-' ] unsigned_float_lit .
+  octal_int_lit = "0" { octal_digit } .
+  hex_int_lit = "0" ( "x" | "X" ) hex_digit { hex_digit } .
+  float_lit = [ "+" | "-" ] unsigned_float_lit .
   unsigned_float_lit = "the usual decimal-only floating point representation".
 
   07
@@ -389,15 +390,15 @@ Character and string literals are similar to C except:
 
 The rules are:
 
-  char_lit = '\'' ( unicode_value | byte_value ) '\'' .
+  char_lit = "'" ( unicode_value | byte_value ) "'" .
   unicode_value = utf8_char | little_u_value | big_u_value | escaped_char .
   byte_value = octal_byte_value | hex_byte_value .
-  octal_byte_value = '\' octal_digit octal_digit octal_digit .
-  hex_byte_value = '\' 'x' hex_digit hex_digit .
-  little_u_value = '\' 'u' hex_digit hex_digit hex_digit hex_digit .
-  big_u_value = '\' 'U' hex_digit hex_digit hex_digit hex_digit
+  octal_byte_value = "\" octal_digit octal_digit octal_digit .
+  hex_byte_value = "\" "x" hex_digit hex_digit .
+  little_u_value = "\" "u" hex_digit hex_digit hex_digit hex_digit .
+  big_u_value = "\" "U" hex_digit hex_digit hex_digit hex_digit
                       hex_digit hex_digit hex_digit hex_digit .
-  escaped_char = '\' ( 'a' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' ) .
+  escaped_char = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" ) .
 
 A UnicodeValue takes one of four forms:
 
@@ -444,8 +445,8 @@ Double-quoted strings have the usual properties; back-quoted strings
 do not interpret backslashes at all.
 
   string_lit = raw_string_lit | interpreted_string_lit .
-  raw_string_lit = '`' { utf8_char } '`' .
-  interpreted_string_lit = '"' { unicode_value | byte_value } '"' .
+  raw_string_lit = "`" { utf8_char } "`" .
+  interpreted_string_lit = "\"" { unicode_value | byte_value } "\"" .
 
 A string literal has type 'string'.  Its value is constructed by
 taking the byte values formed by the successive elements of the
@@ -532,7 +533,7 @@ Any array may be assigned to an open array variable with the
 same element type. Typically, open arrays are used as
 formal parameters for functions.
 
-  ArrayType = '[' [ ArrayLength ] ']' ElementType .
+  ArrayType = "[" [ ArrayLength ] "]" ElementType .
   ArrayLength = Expression .
   ElementType = Type .
 
@@ -553,7 +554,7 @@ Array literals
 Array literals represent array constants. All the contained expressions must
 be of the same type, which is the element type of the resulting array.
 
-  ArrayLit = '[' ExpressionList ']' .
+  ArrayLit = "[" ExpressionList "]" .
 
   [ 1, 2, 3 ]
   [ "x", "y" ]
@@ -569,9 +570,9 @@ Upon creation, a map is empty and values may be added and removed
 during execution.  The number of entries in a map is called its length.
 A map whose value type is 'any' can store values of all types.
 
-  MapType = 'map' '[' KeyType ']' ValueType .
+  MapType = "map" "[" KeyType "]" ValueType .
   KeyType = Type .
-  ValueType = Type | 'any' .
+  ValueType = Type | "any" .
 
   map [string] int
   map [struct { pid int; name string }] *chan Buffer
@@ -585,9 +586,9 @@ Map literals represent map constants.  They comprise a list of (key, value)
 pairs.  All keys must have the same type; all values must have the same type.
 These types define the key and value types for the map.
 
-  MapLit = '[' KeyValueList ']' .
-  KeyValueList = KeyValue { ',' KeyValue } .
-  KeyValue = Expression ':' Expression .
+  MapLit = "[" KeyValueList "]" .
+  KeyValueList = KeyValue { "," KeyValue } .
+  KeyValue = Expression ":" Expression .
 
   [ "one" : 1, "two" : 2 ]
   [ 2: true, 3: true, 5: true, 7: true ]
@@ -601,8 +602,8 @@ Struct types are similar to C structs.
 Each field of a struct represents a variable within the data
 structure.
 
-  StructType = 'struct' '{' [ FieldDeclList [ ';' ] ] '}' .
-  FieldDeclList = FieldDecl { ';' FieldDeclList } .
+  StructType = "struct" "{" [ FieldDeclList [ ";" ] ] "}" .
+  FieldDeclList = FieldDecl { ";" FieldDeclList } .
   FieldDecl = IdentifierList Type .
 
     // An empty struct.
@@ -624,7 +625,7 @@ Struct literals represent struct constants.  They comprise a list of
 expressions that represent the individual fields of a struct.  The
 individual expressions must match those of the specified struct type.
 
-  StructLit = TypeName '(' [ ExpressionList ] ')' .
+  StructLit = TypeName "(" [ ExpressionList ] ")" .
 
 The type name must be that of a defined struct type.
 
@@ -637,7 +638,7 @@ Pointer types
 
 Pointer types are similar to those in C.
 
-  PointerType = '*' Type.
+  PointerType = "*" Type.
 
 We do not allow pointer arithmetic of any kind.
 
@@ -659,7 +660,7 @@ Upon creation, a channel can be used both to send and to receive; it
 may be restricted only to send or to receive; such a restricted channel
 is called a 'send channel' or a 'receive channel'.
 
-  ChannelType = 'chan' [ '<' | '>' ] ValueType .
+  ChannelType = "chan" [ "<" | ">" ] ValueType .
 
     chan any  // a generic channel
     chan int   // a channel that can exchange only ints
@@ -681,13 +682,13 @@ A method is a function with a receiver, which is of type pointer to struct.
 
 Functions can return multiple values simultaneously.
 
-  FunctionType = 'func' AnonymousSignature .
-  AnonymousSignature = [ Receiver '.' ] Parameters [ Result ] .
-  Receiver = '(' identifier Type ')' .
-  Parameters = '(' [ ParameterList ] ')' .
-  ParameterList = ParameterSection { ',' ParameterSection } .
+  FunctionType = "func" AnonymousSignature .
+  AnonymousSignature = [ Receiver "." ] Parameters [ Result ] .
+  Receiver = "(" identifier Type ")" .
+  Parameters = "(" [ ParameterList ] ")" .
+  ParameterList = ParameterSection { "," ParameterSection } .
   ParameterSection = [ IdentifierList ] Type .
-  Result = Type | '(' ParameterList ')' .
+  Result = Type | "(" ParameterList ")" .
 
     // Function types
     func ()
@@ -713,7 +714,7 @@ Function Literals
 Function literals represent anonymous functions.
 
   FunctionLit = FunctionType Block .
-  Block = '{' [ StatementList [ ';' ] ] '}' .
+  Block = "{" [ StatementList [ ";" ] ] "}" .
 
 The scope of an identifier declared within a block extends
 from the declaration of the identifier (that is, the position
@@ -773,8 +774,8 @@ Interface types
 
 An interface type denotes a set of methods.
 
-  InterfaceType = 'interface' '{' [ MethodDeclList [ ';' ] ] '}' .
-  MethodDeclList = MethodDecl { ';' MethodDecl } .
+  InterfaceType = "interface" "{" [ MethodDeclList [ ";" ] ] "}" .
+  MethodDeclList = MethodDecl { ";" MethodDecl } .
   MethodDecl = identifier Parameters [ Result ] .
 
   // A basic file interface.
@@ -839,9 +840,9 @@ Const declarations
 
 A constant declaration gives a name to the value of a constant expression.
 
-  ConstDecl = 'const' ( ConstSpec | '(' ConstSpecList [ ';' ] ')' ).
-  ConstSpec = identifier [ Type ] '=' Expression .
-  ConstSpecList = ConstSpec { ';' ConstSpec }.
+  ConstDecl = "const" ( ConstSpec | "(" ConstSpecList [ ";" ] ")" ).
+  ConstSpec = identifier [ Type ] "=" Expression .
+  ConstSpecList = ConstSpec { ";" ConstSpec }.
 
   const pi float = 3.14159265
   const e = 2.718281828
@@ -858,9 +859,9 @@ A type declaration introduces a name as a shorthand for a type.
 In certain situations, such as conversions, it may be necessary to
 use such a type name.
 
-  TypeDecl = 'type' ( TypeSpec | '(' TypeSpecList [ ';' ] ')' ).
+  TypeDecl = "type" ( TypeSpec | "(" TypeSpecList [ ";" ] ")" ).
   TypeSpec = identifier Type .
-  TypeSpecList = TypeSpec { ';' TypeSpec }.
+  TypeSpecList = TypeSpec { ";" TypeSpec }.
 
 
   type IntArray [16] int
@@ -877,9 +878,9 @@ A variable declaration creates a variable and gives it a type and a name.
 It may optionally give the variable an initial value; in some forms of
 declaration the type of the initial value defines the type of the variable.
 
-  VarDecl = 'var' ( VarSpec | '(' VarSpecList [ ';' ] ')' ) | SimpleVarDecl .
-  VarSpec = IdentifierList ( Type [ '=' ExpressionList ] | '=' ExpressionList ) .
-  VarSpecList = VarSpec { ';' VarSpec } .
+  VarDecl = "var" ( VarSpec | "(" VarSpecList [ ";" ] ")" ) | SimpleVarDecl .
+  VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
+  VarSpecList = VarSpec { ";" VarSpec } .
 
   var i int
   var u, v, w float
@@ -895,7 +896,7 @@ as there are variables in the variable specification.
 
 The syntax
 
-  SimpleVarDecl = identifier ':=' Expression .
+  SimpleVarDecl = identifier ":=" Expression .
 
 is shorthand for
 
@@ -917,7 +918,7 @@ different from the type syntax because an identifier must be present
 in the signature. For now, functions and methods can only be declared
 at the global level.
 
-  FunctionDecl = 'func' NamedSignature  ( ';' | Block ) .
+  FunctionDecl = "func" NamedSignature  ( ";" | Block ) .
   NamedSignature = [ Receiver ] identifier Parameters [ Result ] .
 
   func min(x int, y int) int {
@@ -972,7 +973,7 @@ source than the export directive itself, but it is an error to specify
 an identifier not declared anywhere in the source file containing the
 export directive.
 
-  ExportDecl = 'export' ExportIdentifier { ',' ExportIdentifier } .
+  ExportDecl = "export" ExportIdentifier { "," ExportIdentifier } .
   ExportIdentifier = QualifiedIdent .
 
   export sin, cos
@@ -991,20 +992,20 @@ Expression syntax is based on that of C but with fewer precedence levels.
   UnaryExpr = unary_op Expression .
 
   PrimaryExpr =
-    identifier | Literal | '(' Expression ')' | 'iota' |
+    identifier | Literal | "(" Expression ")" | "iota" |
     Call | Conversion |
-    Expression '[' Expression [ ':' Expression ] ']' | Expression '.' identifier .
+    Expression "[" Expression [ ":" Expression ] "]" | Expression "." identifier .
   
-  Call = Expression '(' [ ExpressionList ] ')' .
-  Conversion = TypeName '(' [ ExpressionList ] ')' .
+  Call = Expression "(" [ ExpressionList ] ")" .
+  Conversion = TypeName "(" [ ExpressionList ] ")" .
 
   binary_op = log_op | rel_op | add_op | mul_op .
-  log_op = '||' | '&&' .
-  rel_op = '==' | '!=' | '<' | '<=' | '>' | '>='.
-  add_op = '+' | '-' | '|' | '^'.
-  mul_op = '*' | '/' | '%' | '<<' | '>>' | '&'.
+  log_op = "||" | "&&" .
+  rel_op = "==" | "!=" | "<" | "<=" | ">" | ">=".
+  add_op = "+" | "-" | "|" | "^".
+  mul_op = "*" | "/" | "%" | "<<" | ">>" | "&".
 
-  unary_op = '+' | '-' | '!' | '^' | '<' | '>' | '*' | '&' .
+  unary_op = "+" | "-" | "!" | "^" | "<" | ">" | "*" | "&" .
 
 Field selection ('.') binds tightest, followed by indexing ('[]') and then calls and conversions.
 The remaining precedence levels are as follows (in increasing precedence order):
@@ -1132,7 +1133,7 @@ Expression statements
 IncDec statements
 ----
 
-  IncDecStat = Expression ( '++' | '--' ) .
+  IncDecStat = Expression ( "++" | "--" ) .
 
   a[i]++
 
@@ -1146,9 +1147,9 @@ Assignments
   SingleAssignment = PrimaryExpr assign_op Expression .
   TupleAssignment = PrimaryExprList assign_op ExpressionList .
   PrimaryExprList = PrimaryExpr { "," PrimaryExpr } .
-  Send = '>' Expression '=' Expression .
+  Send = ">" Expression "=" Expression .
   
-  assign_op = [ add_op | mul_op ] '=' .
+  assign_op = [ add_op | mul_op ] "=" .
 
 The left-hand side must be an l-value such as a variable, pointer indirection,
 or an array indexing.
@@ -1207,7 +1208,7 @@ concurrent thread of control within the same address space.  Unlike
 with a function, the next line of the program does not wait for the
 function to complete.
 
-  GoStat = 'go' Call .
+  GoStat = "go" Call .
 
 
   go Server()
@@ -1220,7 +1221,7 @@ Return statements
 A return statement terminates execution of the containing function
 and optionally provides a result value or values to the caller.
 
-  ReturnStat = 'return' [ ExpressionList ] .
+  ReturnStat = "return" [ ExpressionList ] .
 
 
 There are two ways to return values from a function.  The first is to
@@ -1259,7 +1260,7 @@ If statements have the traditional form except that the
 condition need not be parenthesized and the "then" statement
 must be in brace brackets.
 
-  IfStat = 'if' [ SimpleVarDecl ';' ] Expression Block [ 'else' Statement ] .
+  IfStat = "if" [ SimpleVarDecl ";" ] Expression Block [ "else" Statement ] .
 
   if x > 0 {
     return true;
@@ -1283,10 +1284,10 @@ Switch statements
 
 Switches provide multi-way execution.
 
-  SwitchStat = 'switch' [ [ SimpleVarDecl ';' ] [ Expression ] ] '{' { CaseClause } '}' .
-  CaseClause = CaseList StatementList [ ';' ] [ 'fallthrough' [ ';' ] ] .
+  SwitchStat = "switch" [ SimpleVarDecl ";" ] [ "Expression ] "{" { CaseClause } "}" .
+  CaseClause = CaseList StatementList [ ";" ] [ "fallthrough" [ ";" ] ] .
   CaseList = Case { Case } .
-  Case = ( 'case' ExpressionList | 'default' ) ':' .
+  Case = ( "case" ExpressionList | "default" ) ":" .
 
 There can be at most one default case in a switch statement.
 
@@ -1337,8 +1338,8 @@ For statements
 
 For statements are a combination of the 'for' and 'while' loops of C.
 
-  ForStat = 'for' [ Condition | ForClause ] Block .
-  ForClause = [ InitStat ] ';' [ Condition ] ';' [ PostStat ] .
+  ForStat = "for" [ Condition | ForClause ] Block .
+  ForClause = [ InitStat ] ";" [ Condition ] ";" [ PostStat ] .
   
   InitStat = SimpleStat .
   Condition = Expression .
@@ -1372,7 +1373,7 @@ Range statements
 Range statements are a special control structure for iterating over
 the contents of arrays and maps.
 
-  RangeStat = 'range' IdentifierList ':=' RangeExpression Block .
+  RangeStat = "range" IdentifierList ":=" RangeExpression Block .
   RangeExpression = Expression .
 
 A range expression must evaluate to an array, map or string. The identifier list must contain
@@ -1399,7 +1400,7 @@ Break statements
 Within a 'for' or 'switch' statement, a 'break' statement terminates execution of
 the innermost 'for' or 'switch' statement.
 
-  BreakStat = 'break' [ identifier ].
+  BreakStat = "break" [ identifier ].
 
 If there is an identifier, it must be the label name of an enclosing 'for' or' 'switch'
 statement, and that is the one whose execution terminates.
@@ -1417,7 +1418,7 @@ Continue statements
 Within a 'for' loop a continue statement begins the next iteration of the
 loop at the post statement.
 
-  ContinueStat = 'continue' [ identifier ].
+  ContinueStat = "continue" [ identifier ].
 
 The optional identifier is analogous to that of a 'break' statement.
 
@@ -1427,7 +1428,7 @@ Goto statements
 
 A goto statement transfers control to the corresponding label statement.
 
-  GotoStat = 'goto' identifier .
+  GotoStat = "goto" identifier .
 
   goto Error
 
@@ -1437,7 +1438,7 @@ Label declaration
 
 A label declaration serves as the target of a 'goto', 'break' or 'continue' statement.
 
-  LabelDecl = identifier ':' .
+  LabelDecl = identifier ":" .
 
   Error:
 
@@ -1450,7 +1451,7 @@ Packages
 Every source file identifies the package to which it belongs.
 The file must begin with a package clause.
 
-  PackageClause = 'package' PackageName .
+  PackageClause = "package" PackageName .
 
   package Math
 
@@ -1461,7 +1462,7 @@ Import declarations
 A program can gain access to exported items from another package
 through an import declaration:
 
-  ImportDecl = 'import' [ '.' | PackageName ] PackageFileName .
+  ImportDecl = "import" [ "." | PackageName ] PackageFileName .
   PackageFileName = string_lit .
 
 An import statement makes the exported contents of the named
