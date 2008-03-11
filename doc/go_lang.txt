@@ -210,11 +210,11 @@ productions are in CamelCase.
 Common productions
 ----
 
-  IdentifierList = identifier { ',' identifier }.
-  ExpressionList = Expression { ',' Expression }.
+  IdentifierList = identifier { ',' identifier } .
+  ExpressionList = Expression { ',' Expression } .
 
-  QualifiedIdent = [ PackageName '.' ] identifier.
-  PackageName = identifier.
+  QualifiedIdent = [ PackageName '.' ] identifier .
+  PackageName = identifier .
 
 
 Source code representation
@@ -713,7 +713,11 @@ Function Literals
 Function literals represent anonymous functions.
 
   FunctionLit = FunctionType Block .
-  Block = CompoundStat .
+  Block = '{' [ StatementList [ ';' ] ] '}' .
+
+The scope of an identifier declared within a block extends
+from the declaration of the identifier (that is, the position
+immediately after the identifier) to the end of the block.
 
 A function literal can be invoked
 or assigned to a variable of the corresponding function pointer type.
@@ -1094,7 +1098,7 @@ Statements control execution.
     [ LabelDecl ] ( StructuredStat | UnstructuredStat ) .
     
   StructuredStat =
-    CompoundStat | IfStat | SwitchStat | ForStat | RangeStat .
+    Block | IfStat | SwitchStat | ForStat | RangeStat .
 
   UnstructuredStat =
     Declaration |
@@ -1133,20 +1137,6 @@ IncDec statements
   a[i]++
 
 Note that ++ and -- are not operators for expressions.
-
-
-Compound statements
-----
-
-  CompoundStat = '{' [ StatementList [ ";" ] ] '}' .
-
-  {
-    x := 1;
-    f(x);
-  }
-
-The scope of an Identifier declared within a compound statement extends
-from the declaration to the end of the compound statement.
 
 
 Assignments
