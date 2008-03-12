@@ -166,9 +166,9 @@ func MakeNumber (x uint32) *Number {
 
 
 func main() {
-  func (n int) int { return n + 1; }(1);
+  //f unc (n int) int { return n + 1; }(1);
 
-  print "HashMap - gri 2/8/2008\n";
+  //print "HashMap - gri 2/8/2008\n";
   
   var hmap *HashMap = new(HashMap);
   hmap.Initialize(0);
@@ -182,5 +182,5 @@ func main() {
   //hmap.Lookup(x2, true);
   //hmap.Lookup(x3, true);
   
-  print "done\n";
+  //print "done\n";
 }
