@@ -432,10 +432,10 @@ quotes. [Note: the Unicode doesn't look right in the browser.]
     'ä'
     '本'
     '\t'
-    '\0'
-    '\07'
-    '\0377'
-    '\x7'
+    '\000'
+    '\007'
+    '\377'
+    '\x07'
     '\xff'
     '\u12e4'
     '\U00101234'
@@ -1507,7 +1507,7 @@ Program
 A program is package clause, optionally followed by import declarations,
 followed by a series of declarations.
 
-Program = PackageClause { ImportDecl } { Declaration } .
+  Program = PackageClause { ImportDecl } { Declaration } .
 
 TODO
 ----
