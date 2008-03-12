@@ -603,7 +603,7 @@ Each field of a struct represents a variable within the data
 structure.
 
   StructType = "struct" "{" [ FieldDeclList [ ";" ] ] "}" .
-  FieldDeclList = FieldDecl { ";" FieldDeclList } .
+  FieldDeclList = FieldDecl { ";" FieldDecl } .
   FieldDecl = IdentifierList Type .
 
     // An empty struct.

@@ -13,13 +13,16 @@ const
   
 const (
   pi = /* the usual */ 3.14159265358979323;
-  e = 2.718281828
+  e = 2.718281828;
 )
 
-type
+type (
+  Empty interface {};
   Point struct {
-    x, y int
-  }
+    x, y int;
+  };
+  Point2 Point
+)
   
 var (
   x1 int;
@@ -42,7 +45,19 @@ func swap(x, y int) (u, v int) {
 
 func control_structs() {
   i := 0;
-  for {
-    i++
+  for {}
+  for {};
+  for j := 0; j < i; j++ {
+    if i == 0 {
+    } else i = 0;
+    var x float
+  }
+  foo: switch {
+    case i < y:
+    case i < j:
+    case i == 0, i == 1, i == j:
+      i++; i++;
+    default:
+      break
   }
 }
