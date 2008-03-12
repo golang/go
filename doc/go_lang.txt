@@ -154,7 +154,7 @@ Here is a complete example Go program that implements a concurrent prime sieve:
   // Send the sequence 2, 3, 4, ... to channel 'ch'.
   func Generate(ch *chan> int) {
     for i := 2; ; i++ {
-      >ch = i;  // Send 'i' to channel 'ch'.
+      >ch = i  // Send 'i' to channel 'ch'.
     }
   }
   
@@ -164,7 +164,7 @@ Here is a complete example Go program that implements a concurrent prime sieve:
     for {
       i := <in;  // Receive value of new variable 'i' from 'in'.
       if i % prime != 0 {
-        >out = i;  // Send 'i' to channel 'out'.
+        >out = i  // Send 'i' to channel 'out'.
       }
     }
   }
@@ -178,12 +178,12 @@ Here is a complete example Go program that implements a concurrent prime sieve:
       printf("%d\n",  prime);
       ch1 := new(chan int);
       go Filter(ch, ch1, prime);
-      ch = ch1;
+      ch = ch1
     }
   }
   
   func Main() {
-    Sieve();
+    Sieve()
   }
 
 
@@ -822,7 +822,7 @@ Literals
 ----
 
   Literal = BasicLit | CompoundLit .
-  BasicLit = char_lit | string_lit | int_lit | float_lit .
+  BasicLit = char_lit | string_lit | int_lit | float_lit | "nil" .
   CompoundLit = ArrayLit | MapLit | StructLit | FunctionLit .
 
 
@@ -993,11 +993,12 @@ Expression syntax is based on that of C but with fewer precedence levels.
 
   PrimaryExpr =
     identifier | Literal | "(" Expression ")" | "iota" |
-    Call | Conversion |
+    Call | Conversion | Allocation |
     Expression "[" Expression [ ":" Expression ] "]" | Expression "." identifier .
   
   Call = Expression "(" [ ExpressionList ] ")" .
   Conversion = TypeName "(" [ ExpressionList ] ")" .
+  Allocation = "new" "(" Type [ "," ExpressionList ] ")" .
 
   binary_op = log_op | rel_op | add_op | mul_op .
   log_op = "||" | "&&" .
