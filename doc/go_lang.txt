@@ -368,8 +368,9 @@ A string behaves like an array of bytes, with the following properties:
 - Known length: the length of a string s1 can be obtained by the function/
   operator len(s1).  The length of a string is the number of bytes within.
   Unlike in C, there is no terminal NUL byte.
-- Creation 1: a string can be created from an integer value by a conversion
-    string('x') yields "x"
+- Creation 1: a string can be created from an integer value by a conversion;
+  the result is a string containing the UTF-8 encoding of that code point.
+    string('x') yields "x"; string(0x1234) yields the equivalent of "\u1234"
 - Creation 2: a string can by created from an array of integer values (maybe
   just array of bytes) by a conversion
     a [3]byte; a[0] = 'a'; a[1] = 'b'; a[2] = 'c';  string(a) == "abc";
