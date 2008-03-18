@@ -56,13 +56,13 @@ declarations followed by other declarations.  There are no statements
 at the top level of a file.
 
 A program consists of a number of packages.  By convention, one
-package, by default called Main, is the starting point for execution.
-It contains a function, also called Main, that is the first function invoked
+package, by default called main, is the starting point for execution.
+It contains a function, also called main, that is the first function invoked
 by the run time system.
 
 If any package within the program
-contains a function Init(), that function will be executed
-before Main.Main() is called.  The details of initialization are
+contains a function init(), that function will be executed
+before main.main() is called.  The details of initialization are
 still under development.
 
 
@@ -149,7 +149,7 @@ comprehensible composability of types.
 Here is a complete example Go program that implements a concurrent prime sieve:
 
 
-  package Main
+  package main
   
   // Send the sequence 2, 3, 4, ... to channel 'ch'.
   func Generate(ch *chan> int) {
@@ -182,7 +182,7 @@ Here is a complete example Go program that implements a concurrent prime sieve:
     }
   }
   
-  func Main() {
+  func main() {
     Sieve()
   }
 
@@ -999,7 +999,7 @@ Expression syntax is based on that of C but with fewer precedence levels.
   
   Call = Expression "(" [ ExpressionList ] ")" .
   Conversion = TypeName "(" [ ExpressionList ] ")" .
-  Allocation = "new" "(" Type [ "," ExpressionList ] ")" .
+  Allocation = "new" "(" Type [ "," Expression ] ")" .
 
   binary_op = log_op | rel_op | add_op | mul_op .
   log_op = "||" | "&&" .
@@ -1052,6 +1052,7 @@ Primary expressions
   (s + ".txt")
   f(3.1415, true)
   Point(1, 2)
+  new([]int, 100)
   m["foo"]
   s[i : j + 1]
   obj.color
