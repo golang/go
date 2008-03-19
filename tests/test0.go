@@ -69,7 +69,7 @@ func control_structs() {
   foo:  // a label
   switch {
   case i < y:
-    fallthrough
+    fallthrough;
   case i < j:
   case i == 0, i == 1, i == j:
     i++; i++;
