@@ -58,9 +58,9 @@ func (m *HashMap) Clear() {
   var i uint32 = m.capacity() - 1;
   for i > 0 {
     m.map_[i].key = nil;
-    i = i - 1;
+    i = i - 1
   }
-  m.occupancy_ = 0;
+  m.occupancy_ = 0
 }
 
 
