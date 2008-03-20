@@ -399,7 +399,7 @@ The rules are:
   little_u_value = "\" "u" hex_digit hex_digit hex_digit hex_digit .
   big_u_value = "\" "U" hex_digit hex_digit hex_digit hex_digit
                       hex_digit hex_digit hex_digit hex_digit .
-  escaped_char = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" ) .
+  escaped_char = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | "\"" ) .
 
 A UnicodeValue takes one of four forms:
 
