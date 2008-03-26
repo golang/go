@@ -4,5 +4,5 @@
 
 #!/bin/bash
 for f in *.go; do
-  ../src/go $f
+  go $f
 done
