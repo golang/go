@@ -73,8 +73,10 @@ Go programs are strongly typed. Certain expressions, in particular map
 and channel accesses, can also be polymorphic.  The language provides
 mechanisms to make use of such polymorphic values type-safe.
 
-Interface types are the mechanism to support an object-oriented
-programming style.  Different interface types are independent of each
+
+Interface types, building on structures with methods, provide
+the mechanisms to support object-oriented programming.
+Different interface types are independent of each
 other and no explicit hierarchy is required (such as single or
 multiple inheritance explicitly specified through respective type
 declarations).  Interface types only define a set of methods that a
@@ -128,7 +130,7 @@ language support.
 Values and references
 ----
 
-All objects have value semantics, but its contents may be accessed
+All objects have value semantics, but their contents may be accessed
 through different pointers referring to the same object.
 For example, when calling a function with an array, the array is
 passed by value, possibly by making a copy.   To pass a reference,
@@ -136,7 +138,7 @@ one must explicitly pass a pointer to the array.  For arrays in
 particular, this is different from C.
 
 There is also a built-in string type, which represents immutable
-byte strings.
+strings of bytes.
 
 
 Syntax
@@ -193,10 +195,10 @@ Notation
 The syntax is specified using Extended Backus-Naur Form (EBNF). 
 In particular:
 
-- ""  encloses lexical symbols (\" is used to denote a " in a symbol)
+- ""  encloses lexical symbols (a backslash precedes a literal quote within a symbol)
 - |   separates alternatives
-- ()  used for grouping
-- []  specifies option (0 or 1 times)
+- ()  groups
+- []  specifies an option (0 or 1 times)
 - {}  specifies repetition (0 to n times)
 
 A production may be referenced from various places in this document
@@ -273,7 +275,7 @@ type, a function, etc. An identifier must not be a reserved word.
 Types
 ----
 
-A type specifies the set of values which variables of that type may
+A type specifies the set of values that variables of that type may
 assume, and the operators that are applicable.
 
 There are basic types and compound types constructed from them.
@@ -282,27 +284,27 @@ There are basic types and compound types constructed from them.
 Basic types
 ----
 
-Go defines a number of basic types which are referred to by their
+Go defines a number of basic types, referred to by their
 predeclared type names.  There are signed and unsigned integer
 and floating point types:
 
   bool    the truth values true and false
 
-  uint8   the set of all unsigned 8bit integers
-  uint16  the set of all unsigned 16bit integers
-  uint32  the set of all unsigned 32bit integers
-  unit64  the set of all unsigned 64bit integers
+  uint8   the set of all unsigned 8-bit integers
+  uint16  the set of all unsigned 16-bit integers
+  uint32  the set of all unsigned 32-bit integers
+  unit64  the set of all unsigned 64-bit integers
 
   byte    alias for uint8
 
-  int8   the set of all signed 8bit integers, in 2's complement
-  int16  the set of all signed 16bit integers, in 2's complement
-  int32  the set of all signed 32bit integers, in 2's complement
-  int64  the set of all signed 64bit integers, in 2's complement
+  int8   the set of all signed 8-bit integers, in 2's complement
+  int16  the set of all signed 16-bit integers, in 2's complement
+  int32  the set of all signed 32-bit integers, in 2's complement
+  int64  the set of all signed 64-bit integers, in 2's complement
 
-  float32    the set of all valid IEEE-754 32bit floating point numbers
-  float64    the set of all valid IEEE-754 64bit floating point numbers
-  float80    the set of all valid IEEE-754 80bit floating point numbers
+  float32    the set of all valid IEEE-754 32-bit floating point numbers
+  float64    the set of all valid IEEE-754 64-bit floating point numbers
+  float80    the set of all valid IEEE-754 80-bit floating point numbers
 
 Additionally, Go declares 4 basic types, uint, int, float, and double,
 which are platform-specific.  The bit width of these types corresponds to
@@ -320,8 +322,8 @@ Numeric literals
 ----
 
 Integer literals take the usual C form, except for the absence of the
-'U', 'L' etc.  suffixes, and represent integer constants.  (Character
-literals are also integer constants.) Similarly, floating point
+'U', 'L', etc. suffixes, and represent integer constants.  Character
+literals are also integer constants.  Similarly, floating point
 literals are also C-like, without suffixes and decimal only.
 
 An integer constant represents an abstract integer value of arbitrary
@@ -333,7 +335,10 @@ upon them is not subject to overflow; only finalization of integer
 constants (and constant expressions) can cause overflow.
 It is an error if the value of the constant or expression cannot be
 represented correctly in the range of the type of the receiving
-variable or constant.
+variable or constant.  By extension, it is also possible to use
+an integer as a floating constant (such as 1 instead of 1.0) if
+it can be represented accurately, and vice versa (such as 1e9
+instead of 1000000000).
 
 Floating point literals also represent an abstract, ideal floating
 point value that is constrained only upon assignment.
@@ -356,15 +361,15 @@ The string type
 ----
 
 The string type represents the set of string values (strings).
-A string behaves like an array of bytes, with the following properties:
+Strings behave like arrays of bytes, with the following properties:
 
 - They are immutable: after creation, it is not possible to change the
-  contents of a string
+  contents of a string.
 - No internal pointers: it is illegal to create a pointer to an inner
-  element of a string
-- They can be indexed: given string s1, s1[i] is a byte value
+  element of a string.
+- They can be indexed: given string s1, s1[i] is a byte value.
 - They can be concatenated: given strings s1 and s2, s1 + s2 is a value
-  combining the elements of s1 and s2 in sequence
+  combining the elements of s1 and s2 in sequence.
 - Known length: the length of a string s1 can be obtained by the function/
   operator len(s1).  The length of a string is the number of bytes within.
   Unlike in C, there is no terminal NUL byte.
@@ -401,7 +406,7 @@ The rules are:
                       hex_digit hex_digit hex_digit hex_digit .
   escaped_char = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | "\"" ) .
 
-A UnicodeValue takes one of four forms:
+A unicode_value takes one of four forms:
 
 * The UTF-8 encoding of a Unicode code point.  Since Go source
 text is in UTF-8, this is the obvious translation from input
@@ -418,12 +423,12 @@ Some values that can be represented this way are illegal because they
 are not valid Unicode code points.  These include values above
 0x10FFFF and surrogate halves.
 
-An OctalByteValue contains three octal digits.  A HexByteValue
+An octal_byte_value contains three octal digits.  A hex_byte_value
 contains two hexadecimal digits.  (Note: This differs from C but is
 simpler.)
 
-It is erroneous for an OctalByteValue to represent a value larger than 255. 
-(By construction, a HexByteValue cannot.)
+It is erroneous for an octal_byte_value to represent a value larger than 255. 
+(By construction, a hex_byte_value cannot.)
 
 A character literal is a form of unsigned integer constant.  Its value
 is that of the Unicode code point represented by the text between the
@@ -451,8 +456,8 @@ do not interpret backslashes at all.
 
 A string literal has type 'string'.  Its value is constructed by
 taking the byte values formed by the successive elements of the
-literal.  For ByteValues, these are the literal bytes; for
-UnicodeValues, these are the bytes of the UTF-8 encoding of the
+literal.  For byte_values, these are the literal bytes; for
+unicode_values, these are the bytes of the UTF-8 encoding of the
 corresponding Unicode code points.  Note that
 	"\u00FF"
 and
@@ -508,7 +513,7 @@ differ only if the variable has an interface type.)
 Compound types may be constructed from other types by
 assembling arrays, maps, channels, structures, and functions.
 
-Array and struct types are called structured types, all other types
+Array, map and struct types are called structured types, all other types
 are called unstructured.  A structured type cannot contain itself.
 
   Type = TypeName | ArrayType | ChannelType | InterfaceType |
@@ -522,8 +527,8 @@ Array types
 [TODO: this section needs work regarding the precise difference between
 static, open and dynamic arrays]
 
-An array is a structured type consisting of a number of elements which
-are all of the same type, called the element type.  The number of
+An array is a structured type consisting of a number of elements
+all of the same type, called the element type.  The number of
 elements of an array is called its length.  The elements of an array
 are designated by indices which are integers between 0 and the length - 1.
 
@@ -543,22 +548,10 @@ formal parameters for functions.
   [64] struct { x, y: int32; }
   [1000][1000] float64
 
-The length of an array can be discovered at run time using the
-built-in special function len():
+The length of an array can be discovered at run time (or compile time, if
+its length is a constant) using the built-in special function len():
 
   len(a)
-
-
-Array literals
-----
-
-Array literals represent array constants. All the contained expressions must
-be of the same type, which is the element type of the resulting array.
-
-  ArrayLit = "[" ExpressionList "]" .
-
-  [ 1, 2, 3 ]
-  [ "x", "y" ]
 
 
 Map types
@@ -578,21 +571,6 @@ A map whose value type is 'any' can store values of all types.
   map [string] int
   map [struct { pid int; name string }] *chan Buffer
   map [string] any
-
-
-Map Literals
-----
-
-Map literals represent map constants.  They comprise a list of (key, value)
-pairs.  All keys must have the same type; all values must have the same type.
-These types define the key and value types for the map.
-
-  MapLit = "[" KeyValueList "]" .
-  KeyValueList = KeyValue { "," KeyValue } .
-  KeyValue = Expression ":" Expression .
-
-  [ "one" : 1, "two" : 2 ]
-  [ 2: true, 3: true, 5: true, 7: true ]
 
 
 Struct types
@@ -618,7 +596,46 @@ structure.
         f func();
     }
 
-  
+Compound Literals
+----
+
+Literals for compound data structures consist of the type of the constant
+followed by a parenthesized expression list.  In effect, they are a
+conversion from expression list to compound value.
+
+
+Array literals
+----
+
+Array literals represent array values. All the contained expressions must
+be of the same type, which is the element type of the resulting array.
+
+  ArrayLit = ArrayType "(" [ ExpressionList ] ")" .
+
+  []int()
+  []int(1, 2, 3)
+  []string("x", "y")
+
+Unresolved issues: Are elements converted?  What about length?
+
+Map Literals
+----
+
+Map literals represent map values.  They comprise a list of (key, value)
+pairs written as successive values.
+All keys must have the same type; all values must have the same type.
+
+
+  MapLit = MapType "(" KeyValueList ")" .
+  KeyValueList = [ KeyValue { "," KeyValue } ].
+  KeyValue = Expression "," Expression .
+
+  [string]map int("one",1, "two",2)
+  [int]map bool(2,true, 3,true, 5,true, 7,true)
+
+Unresolved issues: Are elements converted?
+Colon for a separator or comma?
+
 Struct literals
 ----
 
@@ -626,12 +643,11 @@ Struct literals represent struct constants.  They comprise a list of
 expressions that represent the individual fields of a struct.  The
 individual expressions must match those of the specified struct type.
 
-  StructLit = TypeName "(" [ ExpressionList ] ")" .
-
-The type name must be that of a defined struct type.
+  StructLit = StructType "(" [ ExpressionList ] ")" .
 
   Point(2, 3)
   ColoredPoint(4, 4, "green")
+  struct { a, b int } (7, 8)
 
 
 Pointer types
@@ -644,7 +660,7 @@ Pointer types are similar to those in C.
 We do not allow pointer arithmetic of any kind.
 
   *int
-  *map[string] **int
+  *map[string] *chan
 
 There are no pointer literals.
 
@@ -657,19 +673,24 @@ to exchange values and synchronize execution.  A channel type can be
 'generic', permitting values of any type to be exchanged, or it may be
 'specific', permitting only values of an explicitly specified type.
 
-Upon creation, a channel can be used both to send and to receive; it
-may be restricted only to send or to receive; such a restricted channel
+Upon creation, a channel can be used both to send and to receive.
+By conversion or assignment, it may be restricted only to send or
+to receive; such a restricted channel
 is called a 'send channel' or a 'receive channel'.
 
   ChannelType = "chan" [ "<" | ">" ] ValueType .
 
-    chan any  // a generic channel
-    chan int   // a channel that can exchange only ints
+    chan any    // a generic channel
+    chan int    // a channel that can exchange only ints
     chan> float // a channel that can only be used to send floats
-    chan< any  // a channel that can receive (only) values of any type
+    chan< any   // a channel that can receive (only) values of any type
 
 Channel variables always have type pointer to channel.
-It is an error to attempt to dereference a channel pointer.
+It is an error to attempt to use a channel value and in
+particular to dereference a channel pointer.
+
+    var ch *chan int;
+    ch = new(chan int);  // new returns type *chan int
 
 There are no channel literals.
 
@@ -703,10 +724,10 @@ Functions can return multiple values simultaneously.
     func (p *T) . (a, b int, z float) (success bool)
     func (p *T) . (a, b int, z float) (success bool, result float)
 
-A variable can only hold a pointer to a function, but not a function value.
-In particular, v := func() {}; creates a variable of type *func(). To call the
-function referenced by v, one writes v(). It is illegal to dereference a function
-pointer.
+A variable can hold only a pointer to a function, not a function value.
+In particular, v := func() {} creates a variable of type *func(). To call the
+function referenced by v, one writes v(). It is illegal to dereference a
+function pointer.
 
 
 Function Literals
@@ -732,6 +753,7 @@ variables, and variables declared within the function literal.
     // Method literal
     func (p *T) . (a, b int, z float) bool { return a*b < int(z) + p.x; }
 
+Unresolved issues: Are there method literals? How do you use them?
 
 Methods
 ----
@@ -857,8 +879,6 @@ Type declarations
 ----
 
 A type declaration introduces a name as a shorthand for a type.
-In certain situations, such as conversions, it may be necessary to
-use such a type name.
 
   TypeDecl = "type" ( TypeSpec | "(" TypeSpecList [ ";" ] ")" ).
   TypeSpec = identifier Type .
@@ -907,7 +927,8 @@ is shorthand for
   f := func() int { return 7; }
   ch := new(chan int);
   
-Also, in some contexts such as if or while statements, this construct can be used to
+Also, in some contexts such as if or for statements,
+this construct can be used to
 declare local temporary variables.
 
 
@@ -916,7 +937,7 @@ Function and method declarations
 
 Functions and methods have a special declaration syntax, slightly
 different from the type syntax because an identifier must be present
-in the signature. For now, functions and methods can only be declared
+in the signature. Functions and methods can only be declared
 at the global level.
 
   FunctionDecl = "func" NamedSignature  ( ";" | Block ) .
@@ -929,14 +950,14 @@ at the global level.
     return y;
   }
 
-  func foo (a, b int, z float) bool {
+  func foo(a, b int, z float) bool {
     return a*b < int(z);
   }
 
 
 A method is a function that also declares a receiver.
 
-  func (p *T) foo (a, b int, z float) bool {
+  func (p *T) foo(a, b int, z float) bool {
     return a*b < int(z) + p.x; 
   }
 
@@ -951,8 +972,8 @@ A method is a function that also declares a receiver.
 
 Functions and methods can be forward declared by omitting the body:
 
-  func foo (a, b int, z float) bool;
-  func (p *T) foo (a, b int, z float) bool;
+  func foo(a, b int, z float) bool;
+  func (p *T) foo(a, b int, z float) bool;
 
 
 Export declarations
@@ -963,9 +984,9 @@ exported identifer visible outside the package.  Another package may
 then import the identifier to use it.
 
 Export declarations must only appear at the global level of a
-compilation unit.  That is, one can export
-compilation-unit global identifiers but not, for example, local
-variables or structure fields.
+compilation unit and can name only globally-visible identifiers.
+That is, one can export global functions, types, and so on but not
+local variables or structure fields.
 
 Exporting an identifier makes the identifier visible externally to the
 package.  If the identifier represents a type, the type structure is
@@ -978,9 +999,11 @@ export directive.
   ExportIdentifier = QualifiedIdent .
 
   export sin, cos
-  export Math.abs
+  export math.abs
 
-[ TODO complete this section ]
+TODO: complete this section
+
+TODO: export as a mechanism for public and private struct fields?
 
 
 Expressions
@@ -1029,23 +1052,28 @@ and
     (a / b) is "truncated towards zero".
 
 There are no implicit type conversions except for
-constants and literals.  In particular, unsigned and signed integers
-cannot be mixed in an expression without explicit conversion.
+constants and literals.  In particular, unsigned and signed integer
+variables cannot be mixed in an expression without explicit conversion.
 
-The shift operators implement arithmetic shifts for signed integers,
-and logical shifts for unsigned integers. The property of negative
+The shift operators implement arithmetic shifts for signed integers
+and logical shifts for unsigned integers. The properties of negative
 shift counts are undefined. Unary '^' corresponds to C '~' (bitwise
 complement).
 
 There is no '->' operator. Given a pointer p to a struct, one writes
-p.f to access field f of the struct. Similarly. given an array or map pointer, one
-writes p[i], given a function pointer, one writes p() to call the function.
+    p.f
+to access field f of the struct. Similarly, given an array or map
+pointer, one writes
+    p[i]
+to access an element.  Given a function pointer, one writes
+    p()
+to call the function.
 
 Other operators behave as in C.
 
-The 'iota' keyword is discussed in the next section.
+The "iota" keyword is discussed in the next section.
   
-Primary expressions
+Examples of primary expressions
 
   x
   2
@@ -1059,7 +1087,7 @@ Primary expressions
   Math.sin
   f.p[i].x()
 
-General expressions
+Examples of general expressions
 
   +x
   23 + 3*x[i]
@@ -1124,6 +1152,8 @@ They are optional after a statement that ends with a closing curly brace '}'.
     StructuredStat [ ";" ] StatementList |
     UnstructuredStat ";" StatementList . 
     
+TODO: define optional semicolons precisely
+
 
 Expression statements
 ----
@@ -1166,7 +1196,7 @@ As in C, arithmetic binary operators can be combined with assignments:
   j <<= 2
 
 A tuple assignment assigns the individual elements of a multi-valued operation,
-such function evaluation or some channel and map operations, into individual
+such as function evaluation or some channel and map operations, into individual
 variables. For instance, a tuple assignment such as
 
   v1, v2, v3 = e1, e2, e3
@@ -1180,7 +1210,7 @@ exchanges the values of a and b. The tuple assignment
 
   x, y = f()
 
-calls the function f, which must return 2 values and assigns them to x and y.
+calls the function f, which must return two values, and assigns them to x and y.
 As a special case, retrieving a value from a map, when written as a two-element
 tuple assignment, assign a value and a boolean. If the value is present in the map,
 the value is assigned and the second, boolean variable is set to true. Otherwise,
@@ -1192,8 +1222,8 @@ Analogously, receiving a value from a channel can be written as a tuple assignme
 
   value, success = <chan_var
   
-If the receive operation would block, the boolean is set to false. This provides to avoid
-blocking on a receive operation.
+If the receive operation would block, the boolean is set to false.
+This provides a mechanism to avoid blocking on a receive operation.
 
 Sending on a channel is a form of assignment. The left hand side expression
 must denote a channel pointer value.
@@ -1215,7 +1245,7 @@ function to complete.
 
 
   go Server()
-  go func(ch chan> bool) { for ;; { sleep(10); >ch = true; }} (c)
+  go func(ch chan> bool) { for { sleep(10); >ch = true; }} (c)
 
 
 Return statements
@@ -1234,7 +1264,7 @@ explicitly list the return value or values in the return statement:
     return 2;
   }
 
-  func complex_f1() (re float, im float) {
+  func complex_f1() (float, float) {
     return -7.0, -4.0;
   }
 
@@ -1294,7 +1324,7 @@ Switches provide multi-way execution.
 
 There can be at most one default case in a switch statement.
 
-The 'fallthrough' keyword indicates that the control should flow from
+The "fallthrough" keyword indicates that the control should flow from
 the end of this case clause to the first statement of the next clause.
 
 The expressions do not need to be constants. They will
@@ -1317,7 +1347,7 @@ the variable is initialized once before the switch is entered.
   default: return x
   }
   
-Cases do not fall through unless explicitly marked with a 'fallthrough' statement.
+Cases do not fall through unless explicitly marked with a "fallthrough" statement.
 
   switch a {
   case 1:
@@ -1327,7 +1357,7 @@ Cases do not fall through unless explicitly marked with a 'fallthrough' statemen
     c();
   }
 
-If the expression is omitted, it is equivalent to 'true'.
+If the expression is omitted, it is equivalent to "true".
 
   switch {
   case x < y: f1();
@@ -1339,7 +1369,7 @@ If the expression is omitted, it is equivalent to 'true'.
 For statements
 ----
 
-For statements are a combination of the 'for' and 'while' loops of C.
+For statements are a combination of the "for" and "while" loops of C.
 
   ForStat = "for" [ Condition | ForClause ] Block .
   ForClause = [ InitStat ] ";" [ Condition ] ";" [ PostStat ] .
@@ -1356,14 +1386,14 @@ variable in the init statement.
     printf("%d\n", i)
   }
 
-A 'for' statement with just a condition executes until the condition becomes
-false. Thus it is the same as C 'while' statement.
+A for statement with just a condition executes until the condition becomes
+false. Thus it is the same as C's while statement.
 
   for a < b {
     a *= 2
   }
 
-If the condition is absent, it is equivalent to 'true'.
+If the condition is absent, it is equivalent to "true".
 
   for {
     f()
@@ -1385,8 +1415,8 @@ to range over the keys of the map; two identifiers range over the keys and corre
 values. For arrays and strings, the behavior is analogous for integer indices (the keys) and
 array elements (the values).
 
-  a := [ 1, 2, 3 ];
-  m := [ "fo" : 2, "foo" : 3, "fooo" : 4 ]
+  a := []int(1, 2, 3);
+  m := [string]map int("fo",2, "foo",3, "fooo",4)
 
   range i := a {
     f(a[i]);
@@ -1400,12 +1430,13 @@ array elements (the values).
 Break statements
 ----
 
-Within a 'for' or 'switch' statement, a 'break' statement terminates execution of
-the innermost 'for' or 'switch' statement.
+Within a for or switch statement, a break statement terminates execution of
+the innermost for or switch statement.
 
   BreakStat = "break" [ identifier ].
 
-If there is an identifier, it must be the label name of an enclosing 'for' or' 'switch'
+If there is an identifier, it must be the label name of an enclosing
+for or switch
 statement, and that is the one whose execution terminates.
 
   L: for i < n {
@@ -1418,12 +1449,12 @@ statement, and that is the one whose execution terminates.
 Continue statements
 ----
 
-Within a 'for' loop a continue statement begins the next iteration of the
+Within a for loop a continue statement begins the next iteration of the
 loop at the post statement.
 
   ContinueStat = "continue" [ identifier ].
 
-The optional identifier is analogous to that of a 'break' statement.
+The optional identifier is analogous to that of a break statement.
 
 
 Goto statements
@@ -1439,13 +1470,14 @@ A goto statement transfers control to the corresponding label statement.
 Label declaration
 ----
 
-A label declaration serves as the target of a 'goto', 'break' or 'continue' statement.
+A label declaration serves as the target of a goto, break or continue statement.
 
   LabelDecl = identifier ":" .
 
   Error:
 
-There are various restrictions [TBD] as to where a label statement can be used.
+TODO: what are the restrictions on the placement of labels
+and goto statements?
 
 
 Packages
