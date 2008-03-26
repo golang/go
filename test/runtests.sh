@@ -3,6 +3,7 @@
 # license that can be found in the LICENSE file.
 
 #!/bin/bash
+GO=$1
 for f in *.go; do
-  go $f
+  $GO $f
 done

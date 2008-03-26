@@ -9,9 +9,8 @@ package main
 func main() {
   [ ' ',
     'a',
-    // need to fix Coco/R scanner to read Unicode.
-    // 'ä',
-    //'本',
+    'ä',
+    '本',
     '\a',
     '\b',
     '\f',
