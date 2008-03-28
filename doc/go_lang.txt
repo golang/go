@@ -69,10 +69,9 @@ still under development.
 Typing, polymorphism, and object-orientation
 ----
 
-Go programs are strongly typed. Certain expressions, in particular map
-and channel accesses, can also be polymorphic.  The language provides
-mechanisms to make use of such polymorphic values type-safe.
-
+Go programs are strongly typed.  Certain values can also be
+polymorphic.  The language provides mechanisms to make use of such
+polymorphic values type-safe.
 
 Interface types, building on structures with methods, provide
 the mechanisms to support object-oriented programming.
@@ -96,7 +95,7 @@ functions, structures, associated methods, and interfaces.
 
 Go has no explicit notion of type parameters or templates.  Instead,
 containers (such as stacks, lists, etc.) are implemented through the
-use of abstract data types operating on interface types.
+use of abstract operations on interface types or polymorphic values.
 
 
 Pointers and garbage collection
@@ -249,8 +248,8 @@ to refer to an arbitrary Unicode code point encoded in UTF-8.
 Digits and Letters
 ----
 
-  octal_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" } .
-  decimal_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" } .
+  oct_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" } .
+  dec_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" } .
   hex_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "a" |
                 "A" | "b" | "B" | "c" | "C" | "d" | "D" | "e" | "E" | "f" | "F" } .
   letter = "A" | "a" | ... "Z" | "z" | "_" .
@@ -265,7 +264,7 @@ Identifiers
 An identifier is a name for a program entity such as a variable, a
 type, a function, etc. An identifier must not be a reserved word.
 
-  identifier = letter { letter | decimal_digit } .
+  identifier = letter { letter | dec_digit } .
 
 	a
 	_x
@@ -317,6 +316,9 @@ caution.
 Two reserved words, "true" and "false", represent the
 corresponding boolean constant values.
 
+There is also a polymorphic type, "any".  The "any" type can represent
+a value of any type.
+
 
 Numeric literals
 ----
@@ -343,14 +345,18 @@ instead of 1000000000).
 Floating point literals also represent an abstract, ideal floating
 point value that is constrained only upon assignment.
 
-  int_lit = [ "+" | "-" ] unsigned_int_lit .
+  sign = "+" | "-" .
+  int_lit = [ sign ] unsigned_int_lit .
   unsigned_int_lit = decimal_int_lit | octal_int_lit | hex_int_lit .
   decimal_int_lit = ( "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" )
-                  { decimal_digit } .
-  octal_int_lit = "0" { octal_digit } .
+                  { dec_digit } .
+  octal_int_lit = "0" { oct_digit } .
   hex_int_lit = "0" ( "x" | "X" ) hex_digit { hex_digit } .
-  float_lit = [ "+" | "-" ] unsigned_float_lit .
-  unsigned_float_lit = "the usual decimal-only floating point representation".
+  float_lit =  [ sign ] ( fractional_lit | exponential_lit ) .
+  fractional_lit = { dec_digit } ( dec_digit "." | "." dec_digit )
+                   { dec_digit } [ exponent ] .
+  exponential_lit = dec_digit { dec_digit } exponent .
+  exponent = ( "e" | "E" ) [ sign ] dec_digit { dec_digit }
 
   07
   0xFF
@@ -399,7 +405,7 @@ The rules are:
   char_lit = "'" ( unicode_value | byte_value ) "'" .
   unicode_value = utf8_char | little_u_value | big_u_value | escaped_char .
   byte_value = octal_byte_value | hex_byte_value .
-  octal_byte_value = "\" octal_digit octal_digit octal_digit .
+  octal_byte_value = "\" oct_digit oct_digit oct_digit .
   hex_byte_value = "\" "x" hex_digit hex_digit .
   little_u_value = "\" "u" hex_digit hex_digit hex_digit hex_digit .
   big_u_value = "\" "U" hex_digit hex_digit hex_digit hex_digit
@@ -495,7 +501,6 @@ an error if placed in a character literal (it is not a single code
 point), and will appear as two code points if placed in a string
 literal.
 
-
 More about types
 ----
 
@@ -508,7 +513,7 @@ variable.
 
 At any given time, a variable or value has exactly one dynamic
 type, which may be the same as the static type.  (They will
-differ only if the variable has an interface type.)
+differ only if the variable has an interface type or "any" type.)
 
 Compound types may be constructed from other types by
 assembling arrays, maps, channels, structures, and functions.
@@ -669,9 +674,7 @@ Channel types
 ----
 
 A channel provides a mechanism for two concurrently executing functions
-to exchange values and synchronize execution.  A channel type can be
-'generic', permitting values of any type to be exchanged, or it may be
-'specific', permitting only values of an explicitly specified type.
+to synchronize execution and exchange values of a specified type.
 
 Upon creation, a channel can be used both to send and to receive.
 By conversion or assignment, it may be restricted only to send or
@@ -838,7 +841,37 @@ and S1 and S2 also implement
 
 they implement the Lock interface as well as the File interface.
 
+It is legal to assign a pointer to a struct to a variable of
+compatible interface type.  It is legal to assign an interface
+variable to any struct pointer variable but if the struct type is
+incompatible the result will be nil.
+
 There are no interface literals.
+
+
+The polymorphic "any" type
+----
+
+Given a variable of type "any", one can store any value into it by
+plain assignment or implicitly, such as through a function parameter
+or channel operation.  Given an "any" variable v storing an underlying
+value of type T, one may:
+
+  - copy v's value to another variable of type "any"
+  - extract the stored value by an explicit conversion operation T(v)
+  - copy v's value to a variable of type T
+  
+Attempts to convert/extract to an incompatible type will yield nil.
+
+No other operations are defined (yet).
+
+Note that type
+	interface {}
+is a special case that can match any struct type, while type
+	any
+can match any type at all, including basic types, arrays, etc.
+
+TODO: details about reflection
 
 
 Literals
@@ -1422,10 +1455,15 @@ array elements (the values).
     f(a[i]);
   }
 
+  range v, i := a {
+    f(v);
+  }
+
   range k, v := m {
     assert(len(k) == v);
   }
 
+TODO: is this right?
 
 Break statements
 ----
@@ -1457,16 +1495,6 @@ loop at the post statement.
 The optional identifier is analogous to that of a break statement.
 
 
-Goto statements
-----
-
-A goto statement transfers control to the corresponding label statement.
-
-  GotoStat = "goto" identifier .
-
-  goto Error
-
-
 Label declaration
 ----
 
@@ -1476,9 +1504,25 @@ A label declaration serves as the target of a goto, break or continue statement.
 
   Error:
 
-TODO: what are the restrictions on the placement of labels
-and goto statements?
 
+Goto statements
+----
+
+A goto statement transfers control to the corresponding label statement.
+
+  GotoStat = "goto" identifier .
+
+  goto Error
+
+Executing the goto statement must not cause any variables to come into
+scope that were not already in scope at the point of the goto.  For
+instance, this example:
+
+	goto L;  // BAD
+	v := 3;
+	L:
+
+is erroneous because the jump to label L skips the creation of v.
 
 Packages
 ----
@@ -1549,3 +1593,5 @@ TODO
 - TODO: type switch?
 - TODO: select
 - TODO: words about slices
+- TODO: what is nil? do we type-test by a nil conversion or something else?
+
