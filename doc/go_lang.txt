@@ -1,6 +1,6 @@
 The Go Programming Language
 ----
-(March 7, 2008)
+(March 28, 2008)
 
 This document is an informal specification/proposal for a new systems programming
 language.
