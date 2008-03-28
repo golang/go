@@ -1163,7 +1163,7 @@ Statements control execution.
     [ LabelDecl ] ( StructuredStat | UnstructuredStat ) .
     
   StructuredStat =
-    Block | IfStat | SwitchStat | ForStat | RangeStat .
+    Block | IfStat | SwitchStat | SelectStat | ForStat | RangeStat .
 
   UnstructuredStat =
     Declaration | SimpleVarDecl |
@@ -1399,6 +1399,65 @@ If the expression is omitted, it is equivalent to "true".
   }
 
 
+Select statements
+----
+
+A select statement chooses which of a set of possible communications
+will proceed.  It looks similar to a switch statement but with the
+cases all referring to communication operations.
+
+  SelectStat = "select" "{" { CommClause } "}" .
+  CommClause = CommCase { Statement } .
+  CommCase = ( "default" | ( "case" ( SendCase | RecvCase) ) ) ":" .
+  SendCase = Send .
+  RecvCase = [ identifier '=' ] RecvExpression .
+  RecvExpression = '<' Expression .
+
+The select statement evaluates all the channel (pointers) involved.
+If any of the channels can proceed, the corresponding communication
+and statements are evaluated.  Otherwise, if there is a default case,
+that executes; if not, the statement blocks until one of the
+communications can complete.  A channel pointer may be nil, which is
+equivalent to that case not being present in the select statement.
+
+If the channel sends or receives "any" or an interface type, its
+communication can proceed only if the type of the communication
+clause matches that of the dynamic value to be exchanged.
+
+If multiple cases can proceed, a uniform fair choice is made regarding
+which single communication will execute.
+
+    var c, c1, c2 *chan int;
+    select {
+    case i1 = <c1:
+        printf("received %d from c1\n", i1);
+    case >c2 = i2:
+        printf("sent %d to c2\n", i2);
+    default:
+        printf("no communication\n");
+    }
+
+    for {  // send random sequence of bits to c
+        select {
+        case >c = 0:  // note: no statement, no fallthrough, no folding of cases
+        case >c = 1:
+        }
+    }
+
+    var ca *chan any;
+    var i int;
+    var f float;
+    select {
+    case i = <ca:
+        printf("received int %d from ca\n", i);
+    case f = <ca:
+        printf("received float %f from ca\n", f);
+    }
+
+TODO: do we allow case i := <c: ?
+TODO: need to precise about all the details but this is not the right doc for that
+
+
 For statements
 ----
 
@@ -1591,7 +1650,6 @@ TODO
 ----
 
 - TODO: type switch?
-- TODO: select
 - TODO: words about slices
 - TODO: what is nil? do we type-test by a nil conversion or something else?
 
