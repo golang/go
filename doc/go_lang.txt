@@ -438,7 +438,7 @@ It is erroneous for an octal_byte_value to represent a value larger than 255.
 
 A character literal is a form of unsigned integer constant.  Its value
 is that of the Unicode code point represented by the text between the
-quotes. [Note: the Unicode doesn't look right in the browser.]
+quotes.
 
     'a'
     'ä'
