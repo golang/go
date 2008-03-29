@@ -245,7 +245,7 @@ void
 cgen(Node *n)
 {
 	long lno;
-	Node *nl, *nr, *r, *r1;
+	Node *nl, *nr, *r;
 	int a;
 	Prog *p1, *p2, *p3;
 
@@ -358,21 +358,14 @@ cgen(Node *n)
 		break;
 
 	case OSLICE:
-		nl = n->left;
+		nl = n->left;	// name
 		nr = n->right;
 
-		r = nr->left;
-		if(usesptr(nr->left)) {
-			cgen(nr->left);
-			r = tempname(nr->left->type);
-			gopcodet(PSTORE, nr->left->type, r);
-		}
-
-		r1 = nr->right;
-		if(!nr->right->addable) {
-			cgen(nr->right);
-			r1 = tempname(nr->right->type);
-			gopcodet(PSTORE, nr->right->type, r1);
+		r = nr->right;	// index2
+		if(!r->addable) {
+			cgen(r);
+			r = tempname(r->type);
+			gopcodet(PSTORE, r->type, r);
 		}
 
 		// string into PTADDR
@@ -385,8 +378,8 @@ cgen(Node *n)
 		// offset in int reg
 		cgen(nr->left);
 
-		// len addressed
-		gopcodet(PSLICE, nr->left->type, nr->right);
+		// index 2 addressed
+		gopcodet(PSLICE, r->type, r);
 		break;
 
 	case OINDEXPTR:
