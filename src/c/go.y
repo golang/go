@@ -62,6 +62,7 @@ file:
 	{
 		if(debug['f'])
 			frame(1);
+		testdclstack();
 	}
 
 package:
@@ -286,12 +287,12 @@ complex_stmt:
 	LFOR for_stmt
 	{
 		/* FOR and WHILE are the same keyword */
-		popdcl();
+		popdcl("for/while");
 		$$ = $2;
 	}
 |	LSWITCH if_stmt
 	{
-		popdcl();
+		popdcl("if/switch");
 		if(!casebody($2->nbody))
 			yyerror("switch statement must have case labels");
 		$$ = $2;
@@ -299,18 +300,18 @@ complex_stmt:
 	}
 |	LIF if_stmt
 	{
-		popdcl();
+		popdcl("if/switch");
 		$$ = $2;
 	}
 |	LIF if_stmt LELSE else_stmt
 	{
-		popdcl();
+		popdcl("if/switch");
 		$$ = $2;
 		$$->nelse = $4;
 	}
 |	LRANGE range_stmt
 	{
-		popdcl();
+		popdcl("range");
 		$$ = $2;
 	}
 |	LRETURN oexpr_list ';'
@@ -322,14 +323,12 @@ complex_stmt:
 		// will be converted to OCASE
 		// right will point to next case
 		// done in casebody()
-		popdcl();
-		markdcl();
+		poptodcl();
 		$$ = nod(OXCASE, $2, N);
 	}
 |	LDEFAULT ':'
 	{
-		popdcl();
-		markdcl();
+		poptodcl();
 		$$ = nod(OXCASE, N, N);
 	}
 |	LFALL ';'
@@ -369,13 +368,13 @@ complex_stmt:
 compound_stmt:
 	'{'
 	{
-		markdcl();
+		markdcl("compound");
 	} ostmt_list '}'
 	{
 		$$ = $3;
 		if($$ == N)
 			$$ = nod(OEMPTY, N, N);
-		popdcl();
+		popdcl("compound");
 	}
 
 for_header:
@@ -404,7 +403,9 @@ for_body:
 	}
 
 for_stmt:
-	{ markdcl(); } for_body
+	{
+		markdcl("for/while");
+	} for_body
 	{
 		$$ = $2;
 	}
@@ -433,7 +434,9 @@ if_body:
 	}
 
 if_stmt:
-	{ markdcl(); } if_body
+	{
+		markdcl("if/switch");
+	} if_body
 	{
 		$$ = $2;
 	}
@@ -461,7 +464,9 @@ range_body:
 	}
 
 range_stmt:
-	{ markdcl(); } range_body
+	{
+		markdcl("range");
+	} range_body
 	{
 		$$ = $2;
 	}
@@ -883,7 +888,7 @@ fnlitdcl:
 fnliteral:
 	fnlitdcl '{' ostmt_list '}'
 	{
-		popdcl();
+		popdcl("fnlit");
 
 		vargen++;
 		snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);

@@ -309,6 +309,7 @@ funchdr(Node *n)
 	if(dclcontext != PEXTERN)
 		fatal("funchdr: dclcontext");
 	dclcontext = PAUTO;
+	markdcl("func");
 
 	funcargs(n->type);
 	if(n->type->thistuple > 0) {
@@ -364,6 +365,7 @@ funcbody(Node *n)
 	if(dclcontext != PAUTO)
 		fatal("funcbody: dclcontext");
 	dclcontext = PEXTERN;
+	popdcl("func");
 }
 
 /*
@@ -477,7 +479,7 @@ pushdcl(Sym *s)
 }
 
 void
-popdcl(void)
+popdcl(char *why)
 {
 	Sym *d, *s;
 
@@ -491,18 +493,38 @@ popdcl(void)
 		if(debug['d'])
 			print("\t%ld pop %S\n", curio.lineno, s);
 	}
-	if(d != S)
-		d = d->link;
-	dclstack = d;
+	if(d == S)
+		fatal("popdcl: no mark");
+	if(strcmp(why, d->package) != 0)
+		fatal("popdcl: pushed as %s poped as %s", d->package, why);
+	dclstack = d->link;
 }
 
 void
-markdcl(void)
+poptodcl(void)
+{
+	Sym *d, *s;
+
+	for(d=dclstack; d!=S; d=d->link) {
+		if(d->name == nil)
+			break;
+		s = pkglookup(d->name, d->package);
+		dcopy(s, d);
+		if(debug['d'])
+			print("\t%ld pop %S\n", curio.lineno, s);
+	}
+	if(d == S)
+		fatal("poptodcl: no mark");
+}
+
+void
+markdcl(char *why)
 {
 	Sym *d;
 
 	d = push();
 	d->name = nil;		// used as a mark in fifo
+	d->package = why;	// diagnostic for unmatched
 //	if(debug['d'])
 //		print("markdcl\n");
 }
@@ -512,7 +534,7 @@ markdclstack(void)
 {
 	Sym *d, *s;
 
-	markdcl();
+	markdcl("fnlit");
 
 	// copy the entire pop of the stack
 	// all the way back to block0.
@@ -525,6 +547,19 @@ markdclstack(void)
 			s = pkglookup(d->name, d->package);
 			pushdcl(s);
 			dcopy(s, d);
+		}
+	}
+}
+
+void
+testdclstack(void)
+{
+	Sym *d;
+
+	for(d=dclstack; d!=S; d=d->link) {
+		if(d->name == nil) {
+			yyerror("mark left on the stack");
+			continue;
 		}
 	}
 }
