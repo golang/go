@@ -227,7 +227,7 @@ enum
 	TINTER,
 	TFORW,
 	TFIELD,
-	TPOLY,
+	TANY,
 	TSTRING,
 
 	NTYPE,
