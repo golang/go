@@ -37,8 +37,7 @@
 %type	<node>		simple_stmt osimple_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
 %type	<node>		name name_name new_name new_name_list_r
-%type	<node>		type polytype
-%type	<node>		new_type
+%type	<node>		type new_type
 %type	<node>		vardcl_list_r vardcl
 %type	<node>		constdcl_list_r constdcl
 %type	<node>		typedcl_list_r typedcl
@@ -750,14 +749,14 @@ type:
 	{
 		$$ = aindex($2, $4);
 	}
-|	LCHAN chantype polytype
+|	LCHAN chantype type
 	{
 		$$ = nod(OTYPE, N, N);
 		$$->etype = TCHAN;
 		$$->type = $3;
 		$$->chan = $2;
 	}
-|	LMAP '[' type ']' polytype
+|	LMAP '[' type ']' type
 	{
 		$$ = nod(OTYPE, N, N);
 		$$->etype = TMAP;
@@ -781,6 +780,11 @@ type:
 	{
 		$$ = dostruct(N, TINTER);
 	}
+|	LANY
+	{
+		$$ = nod(OTYPE, N, N);
+		$$->etype = TANY;
+	}
 |	fntypeh
 |	'*' type
 	{
@@ -792,14 +796,6 @@ type:
 		if(dclcontext != PEXTERN)
 			yyerror("foreward type in function body %s", $2->name);
 		$$ = forwdcl($2);
-	}
-
-polytype:
-	type
-|	LANY
-	{
-		$$ = nod(OTYPE, N, N);
-		$$->etype = TPOLY;
 	}
 
 chantype:

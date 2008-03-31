@@ -967,7 +967,7 @@ cgen_ret(Node *n)
 			genconv(f->type, arg->type);
 			gopcode(PLOAD, PTADDR, a->nname);
 			gopcode(PADDO, PTADDR, f->nname);
-			gopcodet(PSTOREI, arg->type, N);
+			gopcodet(PSTOREI, f->type, N);
 		}
 		arg = listnext(&save);
 		f = f->down;
