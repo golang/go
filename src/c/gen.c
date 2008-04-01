@@ -827,19 +827,19 @@ loop:
 			break;
 
 		case PAS_SINGLE: // single return val used in expr
-			if(nr == N) {
+			if(nr == N || isnil(nr)) {
 				if(nl->addable) {
 					gopcodet(PSTOREZ, nl->type, nl);
 					break;
 				}
 				agen(nl);
-				gopcodet(PSTOREZIP, nl->type, N);
+				gopcodet(PSTOREZI, nl->type, N);
 				break;
 			}
 
 			if(nl->addable) {
 				cgen(nr);
-				genconv(nl->type, nr->type);
+				genconv(nl, nr);
 				gopcodet(PSTORE, nl->type, nl);
 				break;
 			}
@@ -851,7 +851,7 @@ loop:
 			}
 			if(!usesptr(nr)) {
 				cgen(nr);
-				genconv(nl->type, nr->type);
+				genconv(nl, nr);
 				agen(nl);
 				gopcodet(PSTOREI, nr->type, N);
 				break;
@@ -860,7 +860,7 @@ loop:
 			r = tempname(ptrto(nl->type));
 			gopcode(PSTORE, PTADDR, r);
 			cgen(nr);
-			genconv(nl->type, nr->type);
+			genconv(nl, nr);
 			gopcode(PLOAD, PTADDR, r);
 			gopcodet(PSTOREI, nl->type, N);
 			break;
@@ -964,7 +964,7 @@ cgen_ret(Node *n)
 			gopcodet(PSTOREI, arg->type, arg);
 		} else {
 			cgen(arg);
-			genconv(f->type, arg->type);
+			genconv(f, arg);
 			gopcode(PLOAD, PTADDR, a->nname);
 			gopcode(PADDO, PTADDR, f->nname);
 			gopcodet(PSTOREI, f->type, N);
@@ -1010,7 +1010,7 @@ cgen_call(Node *n, int toss)
 			gopcodet(PSTOREI, at->type, ae);
 		} else {
 			cgen(ae);
-			genconv(at->type, ae->type);
+			genconv(at, ae);
 			gopcode(PADDR, PTADDR, sn);
 			gopcode(PADDO, PTADDR, at->nname);
 			gopcodet(PSTOREI, at->type, N);
@@ -1120,9 +1120,13 @@ genprint(Node *n)
 int
 needconvert(Node *tl, Node *tr)
 {
-	if(isinter(tl))
-		if(isptrto(tr, TSTRUCT) || isinter(tr))
+	if(isinter(tl)) {
+		if(isptrto(tr, TSTRUCT))
 			return 1;
+		if(isinter(tr))
+			return 1;
+		return 0;
+	}
 	if(isptrto(tl, TSTRUCT))
 		if(isinter(tr))
 			return 1;
@@ -1130,8 +1134,12 @@ needconvert(Node *tl, Node *tr)
 }
 
 void
-genconv(Node *tl, Node *tr)
+genconv(Node *l, Node *r)
 {
+	Node *tl, *tr;
+
+	tl = l->type;
+	tr = r->type;
 	if(needconvert(tl, tr))
 		gopcode(PCONV, PTNIL, nod(OCONV, tl, tr));
 }

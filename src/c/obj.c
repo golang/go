@@ -243,6 +243,27 @@ obj1(Prog *p)
 		}
 		break;
 
+	case PSTOREZI:
+		switch(p->pt) {
+		default:
+			Bprint(bout, "\t*(%Q*)%R = 0;\n", p->pt, PTADDR);
+			break;
+
+		case PTARRAY:
+		case PTSTRUCT:
+			Bprint(bout, "\tmemset((%Q*)%R, 0, sizeof((%Q*)%R));\n", p->pt, PTADDR, p->pt, PTADDR);
+			break;
+
+		case PTINTER:
+			Bprint(bout, "\t((%Q*)%R)->s = 0; ((%Q*)%R)->m = 0;\n", p->pt, PTADDR, p->pt, PTADDR);
+			break;
+
+		case PTSTRING:
+			Bprint(bout, "\t(%Q*)%R = &nilstring;\n", p->pt, PTADDR);
+			break;
+		}
+		break;
+
 	case PCONV:
 		doconv(p);
 		break;

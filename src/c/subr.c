@@ -998,6 +998,18 @@ out:
 }
 
 int
+isnil(Node *n)
+{
+	if(n == N)
+		return 0;
+	if(n->op != OLITERAL)
+		return 0;
+	if(n->val.ctype != CTNIL)
+		return 0;
+	return 1;
+}
+
+int
 isptrto(Node *t, int et)
 {
 	if(t == N)

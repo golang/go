@@ -236,6 +236,7 @@ pnames[] =
 	[PSTORE]	= "STORE",
 	[PSTOREI]	= "STOREI",
 	[PSTOREZ]	= "STOREZ",
+	[PSTOREZI]	= "STOREZI",
 	[PCONV]		= "CONV",
 	[PADDR]		= "ADDR",
 	[PADDO]		= "ADDO",
