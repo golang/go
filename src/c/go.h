@@ -395,6 +395,7 @@ Node*	unrev(Node*);
 void	dodump(Node*, int);
 void	dump(char*, Node*);
 Node*	aindex(Node*, Node*);
+int	isnil(Node*);
 int	isptrto(Node*, int);
 int	isinter(Node*);
 int	isbytearray(Node*);
