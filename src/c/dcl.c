@@ -297,7 +297,6 @@ funchdr(Node *n)
 		n->nname = on;
 		n->type = on->type;
 		n->sym = s;
-		s->oname = n;
 		if(debug['d'])
 			print("forew  var-dcl %S %T\n", n->sym, n->type);
 	}

@@ -855,7 +855,7 @@ fntypeh:
 		$$ = functype(N, $3, $5);
 		funcnam($$, nil);
 	}
-/* i dont believe that this form is useful for nothing */
+/* i dont believe that this form is useful for anything */
 |	LFUNC '(' oarg_type_list ')' '.' '(' oarg_type_list ')' fnres
 	{
 		if($3 == N || $3->op == OLIST)
