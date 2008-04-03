@@ -39,8 +39,6 @@
 %type	<node>		name name_name new_name new_name_list_r
 %type	<node>		type new_type
 %type	<node>		vardcl_list_r vardcl
-%type	<node>		constdcl_list_r constdcl
-%type	<node>		typedcl_list_r typedcl
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl
 %type	<node>		export_list_r export
@@ -142,21 +140,21 @@ common_dcl:
 	}
 |	LCONST constdcl
 	{
-		$$ = $2;
+		$$ = N;
 		iota = 0;
 	}
 |	LCONST '(' constdcl_list_r osemi ')'
 	{
-		$$ = rev($3);
+		$$ = N;
 		iota = 0;
 	}
 |	LTYPE typedcl
 	{
-		$$ = $2;
+		$$ = N;
 	}
 |	LTYPE '(' typedcl_list_r osemi ')'
 	{
-		$$ = rev($3);
+		$$ = N;
 	}
 
 vardcl:
@@ -165,16 +163,14 @@ vardcl:
 		$$ = rev($1);
 		dodclvar($$, $2);
 
-		$$ = nod(ODCLVAR, $$, N);
-		$$->type = $2;
+		$$ = nod(OAS, $$, N);
 	}
 |	new_name_list_r type '=' oexpr_list
 	{
 		$$ = rev($1);
 		dodclvar($$, $2);
 
-		$$ = nod(ODCLVAR, $$, $4);
-		$$->type = $2;
+		$$ = nod(OAS, $$, $4);
 	}
 |	new_name '=' expr
 	{
@@ -182,8 +178,7 @@ vardcl:
 		defaultlit($3);
 		dodclvar($1, $3->type);
 
-		$$ = nod(ODCLVAR, $1, $3);
-		$$->type = $3->type;
+		$$ = nod(OAS, $1, $3);
 	}
 
 constdcl:
@@ -191,8 +186,6 @@ constdcl:
 	{
 		walktype($3, 0);
 		dodclconst($1, $3);
-
-		$$ = nod(ODCLCONST, $1, $3);
 		iota += 1;
 	}
 |	new_name type '=' expr
@@ -200,8 +193,6 @@ constdcl:
 		walktype($4, 0);
 		convlit($4, $2);
 		dodclconst($1, $4);
-
-		$$ = nod(ODCLCONST, $1, $4);
 		iota += 1;
 	}
 
@@ -209,9 +200,6 @@ typedcl:
 	new_type type
 	{
 		dodcltype($1, $2);
-
-		$$ = nod(ODCLTYPE, $1, N);
-		$$->type = $2;
 	}
 
 /*
@@ -279,7 +267,8 @@ simple_stmt:
 		walktype($3, 0);	// this is a little harry
 		defaultlit($3);
 		dodclvar($1, $3->type);
-		$$ = nod(OCOLAS, $1, $3);
+
+		$$ = nod(OAS, $1, $3);
 	}
 
 complex_stmt:
@@ -957,16 +946,10 @@ vardcl_list_r:
 constdcl_list_r:
 	constdcl
 |	constdcl_list_r ';' constdcl
-	{
-		$$ = nod(OLIST, $1, $3);
-	}
 
 typedcl_list_r:
 	typedcl
 |	typedcl_list_r ';' typedcl
-	{
-		$$ = nod(OLIST, $1, $3);
-	}
 
 structdcl_list_r:
 	structdcl

@@ -542,16 +542,12 @@ opnames[] =
 	[OXCASE]	= "XCASE",
 	[OFALL]		= "FALL",
 	[OCONV]		= "CONV",
-	[OCOLAS]	= "COLAS",
 	[OCOM]		= "COM",
 	[OCONST]	= "CONST",
 	[OCONTINUE]	= "CONTINUE",
 	[ODCLARG]	= "DCLARG",
-	[ODCLCONST]	= "DCLCONST",
 	[ODCLFIELD]	= "DCLFIELD",
 	[ODCLFUNC]	= "DCLFUNC",
-	[ODCLTYPE]	= "DCLTYPE",
-	[ODCLVAR]	= "DCLVAR",
 	[ODIV]		= "DIV",
 	[ODOT]		= "DOT",
 	[ODOTPTR]	= "DOTPTR",
@@ -570,6 +566,7 @@ opnames[] =
 	[OINDEX]	= "INDEX",
 	[OINDEXPTR]	= "INDEXPTR",
 	[OINDEXSTR]	= "INDEXSTR",
+	[OINDEXPTRSTR]	= "INDEXPTRSTR",
 	[OINDEXMAP]	= "INDEXMAP",
 	[OINDEXPTRMAP]	= "INDEXPTRMAP",
 	[OIND]		= "IND",
@@ -597,6 +594,8 @@ opnames[] =
 	[ORETURN]	= "RETURN",
 	[ORSH]		= "RSH",
 	[OSLICE]	= "SLICE",
+	[OSLICESTR]	= "SLICESTR",
+	[OSLICEPTRSTR]	= "SLICEPTRSTR",
 	[OSUB]		= "SUB",
 	[OSWITCH]	= "SWITCH",
 	[OTYPE]		= "TYPE",
@@ -1076,8 +1075,12 @@ eqtype(Node *t1, Node *t2, int d)
 			if(t1->nname != N && t1->nname->sym != S) {
 				if(t2->nname == N || t2->nname->sym == S)
 					return 0;
-				if(strcmp(t1->nname->sym->name, t2->nname->sym->name) != 0)
-					return 0;
+				if(strcmp(t1->nname->sym->name, t2->nname->sym->name) != 0) {
+					// assigned names dont count
+					if(t1->nname->sym->name[0] != '_' ||
+				   	   t2->nname->sym->name[0] != '_')
+						return 0;
+				}
 			}
 			t1 = t1->down;
 			t2 = t2->down;
@@ -1104,6 +1107,41 @@ eqtype(Node *t1, Node *t2, int d)
 		return 1;
 	}
 	return eqtype(t1->type, t2->type, d+1);
+}
+
+/*
+ * are the arg names of two
+ * functions the same. we know
+ * that eqtype has been called
+ * and has returned true.
+ */
+int
+eqargs(Node *t1, Node *t2)
+{
+	if(t1 == t2)
+		return 1;
+	if(t1 == N || t2 == N)
+		return 0;
+	if(t1->op != OTYPE || t2->op != OTYPE)
+		fatal("eqargs: oops %O %O", t1->op, t2->op);
+
+	if(t1->etype != t2->etype)
+		return 0;
+
+	if(t1->etype != TFUNC)
+		fatal("eqargs: oops %E", t1->etype);
+
+	t1 = t1->type;
+	t2 = t2->type;
+	for(;;) {
+		if(t1 == t2)
+			break;
+		if(!eqtype(t1, t2, 0))
+			return 0;
+		t1 = t1->down;
+		t2 = t2->down;
+	}
+	return 1;
 }
 
 ulong
