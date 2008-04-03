@@ -27,7 +27,6 @@ type Vector struct {
 // BUG: workaround for non-constant allocation.
 // i must be a power of 10.
 func Alloc(i int) *[]Element {
-	print "Alloc ", i, "\n";
 	switch i {
 	case 1:
 		return new([1]Element);
