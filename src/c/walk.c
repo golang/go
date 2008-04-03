@@ -46,9 +46,6 @@ loop:
 		fatal("walktype: switch 1 unknown op %N", n);
 		goto ret;
 
-	case ODCLTYPE:
-		goto ret;
-
 	case OPANIC:
 	case OPRINT:
 		walktype(n->left, 0);
@@ -172,8 +169,6 @@ loop:
 		ascompatte(n->op, getinarg(t), &n->right);
 		goto ret;
 
-	case OCOLAS:
-	case ODCLVAR:
 	case OAS:
 		if(!top)
 			goto nottop;
@@ -360,6 +355,13 @@ loop:
 		// left side is string
 		if(isptrto(t, TSTRING)) {
 			n->op = OINDEXSTR;
+			n->type = types[TUINT8];
+			goto ret;
+		}
+
+		// left side is ptr to string
+		if(isptrto(t, TPTR) && isptrto(t->type, TSTRING)) {
+			n->op = OINDEXPTRSTR;
 			n->type = types[TUINT8];
 			goto ret;
 		}
@@ -741,14 +743,23 @@ walkslice(Node *n)
 
 	if(n->left == N || n->right == N)
 		return;
-	walktype(n->left, 0);
-	if(!isptrto(n->left->type, TSTRING)) {
-		badtype(OSLICE, n->left->type, N);
-		return;
-	}
 	if(n->right->op != OLIST)
 		fatal("slice not a list");
 
+	walktype(n->left, 0);
+	if(isptrto(n->left->type, TSTRING)) {
+		n->op = OSLICESTR;
+		goto ok;
+	}
+	if(isptrto(n->left->type->type, TPTR) && isptrto(n->left->type->type, TSTRING)) {
+		n->op = OSLICEPTRSTR;
+		goto ok;
+	}
+
+	badtype(OSLICE, n->left->type, N);
+	return;
+
+ok:
 	// check for type errors
 	walktype(n->right, 0);
 	l = n->right->left;

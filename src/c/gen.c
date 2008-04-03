@@ -87,9 +87,6 @@ loop:
 		dump("gen: unknown op", n);
 		break;
 
-	case ODCLTYPE:
-		break;
-
 	case OLIST:
 		gen(n->left);
 		n = n->right;
@@ -216,8 +213,6 @@ loop:
 		cgen_asop(n->left, n->right, n->kaka);
 		break;
 
-	case ODCLVAR:
-	case OCOLAS:
 	case OAS:
 		cgen_as(n->left, n->right, n->op, n->kaka);
 		break;
@@ -342,6 +337,19 @@ cgen(Node *n)
 		gopcode(PCONV, PTNIL, nod(OCONV, n->type, nl->type));
 		break;
 
+	case OINDEXPTRSTR:
+		nl = n->left;
+		nr = n->right;
+		if(nl->addable) {
+			cgen(nr);
+			cgen(nl);
+			gopcode(PLOADI, PTADDR, N);
+			gopcodet(PINDEXZ, nr->type, N);
+			break;
+		}
+fatal("xxx");
+		break;
+
 	case OINDEXSTR:
 		nl = n->left;
 		nr = n->right;
@@ -357,7 +365,8 @@ cgen(Node *n)
 		gopcodet(PINDEXZ, nr->type, r);
 		break;
 
-	case OSLICE:
+	case OSLICESTR:
+	case OSLICEPTRSTR:
 		nl = n->left;	// name
 		nr = n->right;
 
@@ -374,6 +383,9 @@ cgen(Node *n)
 			gconv(PTADDR, nl->type->etype);
 		} else
 			gopcode(PLOAD, PTADDR, nl);
+
+		if(n->op == OSLICEPTRSTR)
+			gopcode(PLOADI, PTADDR, N);
 
 		// offset in int reg
 		cgen(nr->left);
@@ -806,16 +818,13 @@ loop:
 	default:
 		fatal("cgen_as: unknown op %O", op);
 
-	case ODCLVAR:
+	case OAS:
 		if(nr == N && nl->op == OLIST) {
 			kaka = PAS_SINGLE;
 			cgen_as(nl->left, nr, op, kaka);
 			nl = nl->right;
 			goto loop;
 		}
-
-	case OCOLAS:
-	case OAS:
 		switch(kaka) {
 		default:
 			yyerror("cgen_as: unknown param %d %d", kaka, PAS_CALLM);

@@ -283,6 +283,15 @@ funchdr(Node *n)
 	s = n->nname->sym;
 	on = s->oname;
 
+	// check for same types
+	if(on != N) {
+		if(eqtype(n->type, on->type, 0)) {
+			if(!eqargs(n->type, on->type))
+				yyerror("foreward declarations not the same: %S", s);
+		} else
+			yyerror("redeclare of function: %S", s);
+	}
+
 	// check for foreward declaration
 	if(on == N || !eqtype(n->type, on->type, 0)) {
 		// initial declaration or redeclaration
