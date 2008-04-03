@@ -15,8 +15,8 @@ import sys "sys"
 
 export Fmt, New;
 
-var ldigits [16]byte; // BUG: should be constants
-var udigits [16]byte; // BUG: can they be strings? looks like trouble with buf[i] = digits[val];
+var ldigits string;
+var udigits string;
 var inited bool;
 var pows10 [160] double;
 
@@ -43,18 +43,11 @@ func (f *Fmt) init() {
 	if inited {
 		return;
 	}
-	var i byte;
-	for i = 0; i < 10; i++ {
-		ldigits[i] = '0' + i;
-		udigits[i] = '0' + i;
-	}
-	for i = 0; i < 6; i++ {
-		ldigits[i+10] = 'a' + i;
-		udigits[i+10] = 'A' + i;
-	}
+	ldigits = "0123456789abcdef";  // BUG: should be initialized const
+	udigits = "0123456789ABCDEF";  // BUG: should be initialized const
 	// BUG: should be done with initialization
 	var p double = 1.0;
-	for i = 0; i < 160; i++ {  // BUG: len(pows10)
+	for i := 0; i < 160; i++ {  // BUG: len(pows10)
 		pows10[i] = p;
 		p *= 10.0;
 	}
@@ -141,18 +134,18 @@ func (f *Fmt) pad(s string) {
 // never mind.)  val is known to be unsigned.  we could make things maybe
 // marginally faster by splitting the 32-bit case out into a separate function
 // but it's not worth the duplication, so val has 64 bits.
-func putint(buf *[64]byte, i int, base, val uint64, digits *[16]byte) int {
+func putint(buf *[64]byte, i int, base, val uint64, digits *string) int {
 	for val >= base {
-		buf[i] = digits[val%base];
+		buf[i] = (*digits)[val%base];  // BUG: shouldn't need indirect
 		i--;
 		val /= base;
 	}
-	buf[i] = digits[val];
+	buf[i] = (*digits)[val];  // BUG: shouldn't need indirect
 	return i-1;
 }
 
 // integer; interprets prec but not wid.
-func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *[16]byte) string {
+func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string {
 	var buf [64]byte;
 	negative := is_signed && a < 0;
 	if negative {
@@ -300,8 +293,7 @@ func (f *Fmt) c(a int) *Fmt {
 func (f *Fmt) s(s string) *Fmt {
 	if f.prec_present {
 		if f.prec < len(s) {
-			w := f.prec;  // BUG: can't use f.prec in slice
-			s = s[0:w];
+			s = s[0:f.prec];
 		}
 	}
 	f.pad(s);
