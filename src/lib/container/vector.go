@@ -123,7 +123,7 @@ func Test() {
 	for i := 0; i < v.Len(); i++ {
 		var x *I;
 		x = v.At(i);
-		print i, " ", x.val, "\n";  // BUG: can't use I(v.At(i))
+		print i, " ", x.val, "\n";
 	}
 }
 
