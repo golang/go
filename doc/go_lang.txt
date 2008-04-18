@@ -1009,6 +1009,33 @@ Functions and methods can be forward declared by omitting the body:
   func (p *T) foo(a, b int, z float) bool;
 
 
+Initial values
+----
+
+When memory is allocated to store a value, either through a declaration
+or new(), and no explicit initialization is provided, the memory is
+given a default initialization.  Each element of such a value is
+set to the ``zero'' for that type: 0 for integers, 0.0 for floats, and
+nil for pointers.  This intialization is done recursively, so for
+instance each element of an array of integers will be set to 0 if no
+other value is specified.
+
+These two simple declarations are equivalent:
+
+  var i int;
+  var i int = 0;
+
+After
+
+  type T struct { i int; f float; next *T };
+  t := new(T);
+
+the following holds:
+
+  t.i == 0
+  t.f == 0.0
+  t.next == nil
+
 Export declarations
 ----
 
@@ -1104,7 +1131,7 @@ to call the function.
 
 Other operators behave as in C.
 
-The "iota" keyword is discussed in the next section.
+The "iota" keyword is discussed in a later section.
   
 Examples of primary expressions
 
@@ -1128,7 +1155,59 @@ Examples of general expressions
   ^a >> b
   f() || g()
   x == y + 1 && <chan_ptr > 0
-  
+
+
+The nil value
+----
+
+The keyword
+  nil
+represents the ``zero'' value for a pointer type or interface type.
+
+The only operations allowed for nil are to assign it to a pointer or
+interface value and to compare it for equality or inquality with a
+pointer or interface value.
+
+  var p *int;
+  if p != nil {
+    print p
+  } else {
+    print "p points nowhere"
+  }
+
+By default, pointers are initialized to nil.
+
+TODO: how does this definition jibe with using nil to specify
+conversion failure if the result is not of pointer type, such
+as an any variable holding an int?
+
+Allocation
+----
+
+The builtin-function new() allocates storage.  The function takes a
+parenthesized operand list comprising the type of the value to
+allocate, optionally followed by type-specific expressions that
+influence the allocation.  The invocation returns a pointer to the
+memory.  The memory is initialized as described in the section on
+initial values.
+
+For instance,
+
+  type S struct { a int; b float }
+  new(int32)
+
+allocates storage for an S, initializes it (a=0, b=0.0), and returns a
+value of type *S pointing to that storage.
+
+The only defined parameters affect sizes for allocating arrays,
+buffered channels, and maps.
+
+  ap := new([]int, 10); # a pointer to an array of 10 ints
+  aap := new([][]int, 5, 10); # a pointer to an array of 5 arrays of 10 ints
+  c := new(chan int, 10); # a pointer to a channel with a buffer size of 10
+  m := new(map[string] int, 100); # a pointer to a map with space for 100 elements preallocated
+
+TODO: argument order for dimensions in multidimensional arrays
 
 The constant generator 'iota'
 ----
