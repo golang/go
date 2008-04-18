@@ -1,6 +1,6 @@
 The Go Programming Language
 ----
-(March 28, 2008)
+(April 17, 2008)
 
 This document is an informal specification/proposal for a new systems programming
 language.
@@ -402,15 +402,15 @@ Character and string literals are similar to C except:
 
 The rules are:
 
-  char_lit = "'" ( unicode_value | byte_value ) "'" .
-  unicode_value = utf8_char | little_u_value | big_u_value | escaped_char .
-  byte_value = octal_byte_value | hex_byte_value .
-  octal_byte_value = "\" oct_digit oct_digit oct_digit .
-  hex_byte_value = "\" "x" hex_digit hex_digit .
-  little_u_value = "\" "u" hex_digit hex_digit hex_digit hex_digit .
-  big_u_value = "\" "U" hex_digit hex_digit hex_digit hex_digit
-                      hex_digit hex_digit hex_digit hex_digit .
-  escaped_char = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | "\"" ) .
+  char_lit = "'" ( utf8_char_no_single_quote | "\" esc_seq ) "'" .
+
+  esc_seq =
+    "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | "\"" |
+    oct_digit oct_digit oct_digit |
+    "x" hex_digit hex_digit |
+    "u" hex_digit hex_digit hex_digit hex_digit |
+    "U" hex_digit hex_digit hex_digit hex_digit
+    hex_digit hex_digit hex_digit hex_digit .
 
 A unicode_value takes one of four forms:
 
@@ -457,8 +457,8 @@ Double-quoted strings have the usual properties; back-quoted strings
 do not interpret backslashes at all.
 
   string_lit = raw_string_lit | interpreted_string_lit .
-  raw_string_lit = "`" { utf8_char } "`" .
-  interpreted_string_lit = "\"" { unicode_value | byte_value } "\"" .
+  raw_string_lit = "`" { utf8_char_no_back_quote } "`" .
+  interpreted_string_lit = "\"" { utf8_char_no_double_quote | "\\" esc_seq } "\"" .
 
 A string literal has type 'string'.  Its value is constructed by
 taking the byte values formed by the successive elements of the
@@ -1078,7 +1078,8 @@ Expression syntax is based on that of C but with fewer precedence levels.
   PrimaryExpr =
     identifier | Literal | "(" Expression ")" | "iota" |
     Call | Conversion | Allocation |
-    Expression "[" Expression [ ":" Expression ] "]" | Expression "." identifier .
+    Expression "[" Expression [ ":" Expression ] "]" | Expression "." identifier |
+    Expression "." "(" Type ")" .
   
   Call = Expression "(" [ ExpressionList ] ")" .
   Conversion = TypeName "(" [ ExpressionList ] ")" .
@@ -1092,8 +1093,9 @@ Expression syntax is based on that of C but with fewer precedence levels.
 
   unary_op = "+" | "-" | "!" | "^" | "<" | ">" | "*" | "&" .
 
-Field selection ('.') binds tightest, followed by indexing ('[]') and then calls and conversions.
-The remaining precedence levels are as follows (in increasing precedence order):
+Field selection and type assertions ('.') bind tightest, followed by indexing ('[]')
+and then calls and conversions. The remaining precedence levels are as follows
+(in increasing precedence order):
 
   Precedence    Operator
       1                  ||
