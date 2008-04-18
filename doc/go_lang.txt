@@ -1,6 +1,6 @@
 The Go Programming Language
 ----
-(April 17, 2008)
+(April 18, 2008)
 
 This document is an informal specification/proposal for a new systems programming
 language.
@@ -194,11 +194,13 @@ Notation
 The syntax is specified using Extended Backus-Naur Form (EBNF). 
 In particular:
 
-- ""  encloses lexical symbols (a backslash precedes a literal quote within a symbol)
-- |   separates alternatives
+- |   separates alternatives (least binding strength)
 - ()  groups
 - []  specifies an option (0 or 1 times)
 - {}  specifies repetition (0 to n times)
+
+Lexical symbols are enclosed in double quotes '''' (the
+double quote symbol is written as ''"'').
 
 A production may be referenced from various places in this document
 but is usually defined close to its first use.  Productions and code
@@ -266,9 +268,9 @@ type, a function, etc. An identifier must not be a reserved word.
 
   identifier = letter { letter | dec_digit } .
 
-	a
-	_x
-	ThisIsVariable9
+  a
+  _x
+  ThisIsVariable9
 
 
 Types
@@ -287,23 +289,23 @@ Go defines a number of basic types, referred to by their
 predeclared type names.  There are signed and unsigned integer
 and floating point types:
 
-  bool    the truth values true and false
+  bool     the truth values true and false
 
-  uint8   the set of all unsigned 8-bit integers
-  uint16  the set of all unsigned 16-bit integers
-  uint32  the set of all unsigned 32-bit integers
-  unit64  the set of all unsigned 64-bit integers
+  uint8    the set of all unsigned 8-bit integers
+  uint16   the set of all unsigned 16-bit integers
+  uint32   the set of all unsigned 32-bit integers
+  unit64   the set of all unsigned 64-bit integers
 
-  byte    alias for uint8
+  byte     alias for uint8
 
-  int8   the set of all signed 8-bit integers, in 2's complement
-  int16  the set of all signed 16-bit integers, in 2's complement
-  int32  the set of all signed 32-bit integers, in 2's complement
-  int64  the set of all signed 64-bit integers, in 2's complement
+  int8     the set of all signed 8-bit integers, in 2's complement
+  int16    the set of all signed 16-bit integers, in 2's complement
+  int32    the set of all signed 32-bit integers, in 2's complement
+  int64    the set of all signed 64-bit integers, in 2's complement
 
-  float32    the set of all valid IEEE-754 32-bit floating point numbers
-  float64    the set of all valid IEEE-754 64-bit floating point numbers
-  float80    the set of all valid IEEE-754 80-bit floating point numbers
+  float32  the set of all valid IEEE-754 32-bit floating point numbers
+  float64  the set of all valid IEEE-754 64-bit floating point numbers
+  float80  the set of all valid IEEE-754 80-bit floating point numbers
 
 Additionally, Go declares 4 basic types, uint, int, float, and double,
 which are platform-specific.  The bit width of these types corresponds to
@@ -349,14 +351,14 @@ point value that is constrained only upon assignment.
   int_lit = [ sign ] unsigned_int_lit .
   unsigned_int_lit = decimal_int_lit | octal_int_lit | hex_int_lit .
   decimal_int_lit = ( "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" )
-                  { dec_digit } .
+                    { dec_digit } .
   octal_int_lit = "0" { oct_digit } .
   hex_int_lit = "0" ( "x" | "X" ) hex_digit { hex_digit } .
   float_lit =  [ sign ] ( fractional_lit | exponential_lit ) .
   fractional_lit = { dec_digit } ( dec_digit "." | "." dec_digit )
                    { dec_digit } [ exponent ] .
   exponential_lit = dec_digit { dec_digit } exponent .
-  exponent = ( "e" | "E" ) [ sign ] dec_digit { dec_digit }
+  exponent = ( "e" | "E" ) [ sign ] dec_digit { dec_digit } .
 
   07
   0xFF
@@ -373,15 +375,15 @@ Strings behave like arrays of bytes, with the following properties:
   contents of a string.
 - No internal pointers: it is illegal to create a pointer to an inner
   element of a string.
-- They can be indexed: given string s1, s1[i] is a byte value.
-- They can be concatenated: given strings s1 and s2, s1 + s2 is a value
-  combining the elements of s1 and s2 in sequence.
-- Known length: the length of a string s1 can be obtained by the function/
-  operator len(s1).  The length of a string is the number of bytes within.
+- They can be indexed: given string "s1", "s1[i]" is a byte value.
+- They can be concatenated: given strings "s1" and "s2", "s1 + s2" is a value
+  combining the elements of "s1" and "s2" in sequence.
+- Known length: the length of a string "s1" can be obtained by the function/
+  operator "len(s1)".  The length of a string is the number of bytes within.
   Unlike in C, there is no terminal NUL byte.
 - Creation 1: a string can be created from an integer value by a conversion;
   the result is a string containing the UTF-8 encoding of that code point.
-    string('x') yields "x"; string(0x1234) yields the equivalent of "\u1234"
+    "string('x')" yields "x"; "string(0x1234)" yields the equivalent of "\u1234"
 - Creation 2: a string can by created from an array of integer values (maybe
   just array of bytes) by a conversion
     a [3]byte; a[0] = 'a'; a[1] = 'b'; a[2] = 'c';  string(a) == "abc";
@@ -390,38 +392,36 @@ Strings behave like arrays of bytes, with the following properties:
 Character and string literals
 ----
 
-Character and string literals are almost the same as in C, but with
-UTF-8 required.  This section is precise but can be skipped on first
-reading.
+Character and string literals are almost the same as in C, with the
+following differences:
 
-Character and string literals are similar to C except:
-  - Octal character escapes are always 3 digits (\077 not \77)
-  - Hexadecimal character escapes are always 2 digits (\x07 not \x7)
-  - Strings are UTF-8 and represent Unicode
+  - The encoding is UTF-8
   - `` strings exist; they do not interpret backslashes
+  - Octal character escapes are always 3 digits ("\077" not "\77")
+  - Hexadecimal character escapes are always 2 digits ("\x07" not "\x7")
 
-The rules are:
+This section is precise but can be skipped on first reading. The rules are:
 
-  char_lit = "'" ( utf8_char_no_single_quote | "\" esc_seq ) "'" .
-
-  esc_seq =
-    "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | "\"" |
-    oct_digit oct_digit oct_digit |
-    "x" hex_digit hex_digit |
-    "u" hex_digit hex_digit hex_digit hex_digit |
-    "U" hex_digit hex_digit hex_digit hex_digit
-    hex_digit hex_digit hex_digit hex_digit .
+  char_lit = "'" ( unicode_value | byte_value ) "'" .
+  unicode_value = utf8_char | little_u_value | big_u_value | escaped_char .
+  byte_value = octal_byte_value | hex_byte_value .
+  octal_byte_value = "\" oct_digit oct_digit oct_digit .
+  hex_byte_value = "\" "x" hex_digit hex_digit .
+  little_u_value = "\" "u" hex_digit hex_digit hex_digit hex_digit .
+  big_u_value = "\" "U" hex_digit hex_digit hex_digit hex_digit
+                      hex_digit hex_digit hex_digit hex_digit .
+  escaped_char = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | """ ) .
 
 A unicode_value takes one of four forms:
 
 * The UTF-8 encoding of a Unicode code point.  Since Go source
 text is in UTF-8, this is the obvious translation from input
 text into Unicode characters.
-* The usual list of C backslash escapes: \n \t etc.
-* A `little u' value, such as \u12AB.  This represents the Unicode
+* The usual list of C backslash escapes: "\n", "\t", etc.
+* A `little u' value, such as "\u12AB".  This represents the Unicode
 code point with the corresponding hexadecimal value.  It always
 has exactly 4 hexadecimal digits.
-* A `big U' value, such as \U00101234.  This represents the
+* A `big U' value, such as "\U00101234".  This represents the
 Unicode code point with the corresponding hexadecimal value.
 It always has exactly 8 hexadecimal digits.
 
@@ -440,34 +440,34 @@ A character literal is a form of unsigned integer constant.  Its value
 is that of the Unicode code point represented by the text between the
 quotes.
 
-    'a'
-    'ä'
-    '本'
-    '\t'
-    '\000'
-    '\007'
-    '\377'
-    '\x07'
-    '\xff'
-    '\u12e4'
-    '\U00101234'
+  'a'
+  'ä'
+  '本'
+  '\t'
+  '\000'
+  '\007'
+  '\377'
+  '\x07'
+  '\xff'
+  '\u12e4'
+  '\U00101234'
 
 String literals come in two forms: double-quoted and back-quoted.
 Double-quoted strings have the usual properties; back-quoted strings
 do not interpret backslashes at all.
 
   string_lit = raw_string_lit | interpreted_string_lit .
-  raw_string_lit = "`" { utf8_char_no_back_quote } "`" .
-  interpreted_string_lit = "\"" { utf8_char_no_double_quote | "\\" esc_seq } "\"" .
+  raw_string_lit = "`" { utf8_char } "`" .
+  interpreted_string_lit = """ { unicode_value | byte_value } """ .
 
 A string literal has type 'string'.  Its value is constructed by
 taking the byte values formed by the successive elements of the
 literal.  For byte_values, these are the literal bytes; for
 unicode_values, these are the bytes of the UTF-8 encoding of the
 corresponding Unicode code points.  Note that
-	"\u00FF"
+  "\u00FF"
 and
-	"\xFF"
+  "\xFF"
 are
 different strings: the first contains the two-byte UTF-8 expansion of
 the value 255, while the second contains a single byte of value 255.
@@ -486,11 +486,11 @@ uninterpreted UTF-8.
 
 These examples all represent the same string:
 
-    "日本語"  // UTF-8 input text
-    `日本語`  // UTF-8 input text as a raw literal
-    "\u65e5\u672c\u8a9e"  // The explicit Unicode code points
-    "\U000065e5\U0000672c\U00008a9e"  // The explicit Unicode code points
-    "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // The explicit UTF-8 bytes
+  "日本語"  // UTF-8 input text
+  `日本語`  // UTF-8 input text as a raw literal
+  "\u65e5\u672c\u8a9e"  // The explicit Unicode code points
+  "\U000065e5\U0000672c\U00008a9e"  // The explicit Unicode code points
+  "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // The explicit UTF-8 bytes
 
 The language does not canonicalize Unicode text or evaluate combining
 forms.  The text of source code is passed uninterpreted.
@@ -590,16 +590,16 @@ structure.
   FieldDeclList = FieldDecl { ";" FieldDecl } .
   FieldDecl = IdentifierList Type .
 
-    // An empty struct.
-    struct {}
+  // An empty struct.
+  struct {}
 
-    // A struct with 5 fields.
-    struct {
-        x, y int;
-        u float;
-        a []int;
-        f func();
-    }
+  // A struct with 5 fields.
+  struct {
+    x, y int;
+    u float;
+    a []int;
+    f func();
+  }
 
 Compound Literals
 ----
@@ -683,17 +683,17 @@ is called a 'send channel' or a 'receive channel'.
 
   ChannelType = "chan" [ "<" | ">" ] ValueType .
 
-    chan any    // a generic channel
-    chan int    // a channel that can exchange only ints
-    chan> float // a channel that can only be used to send floats
-    chan< any   // a channel that can receive (only) values of any type
+  chan any    // a generic channel
+  chan int    // a channel that can exchange only ints
+  chan> float // a channel that can only be used to send floats
+  chan< any   // a channel that can receive (only) values of any type
 
 Channel variables always have type pointer to channel.
 It is an error to attempt to use a channel value and in
 particular to dereference a channel pointer.
 
-    var ch *chan int;
-    ch = new(chan int);  // new returns type *chan int
+  var ch *chan int;
+  ch = new(chan int);  // new returns type *chan int
 
 There are no channel literals.
 
@@ -715,17 +715,17 @@ Functions can return multiple values simultaneously.
   ParameterSection = [ IdentifierList ] Type .
   Result = Type | "(" ParameterList ")" .
 
-    // Function types
-    func ()
-    func (a, b int, z float) bool
-    func (a, b int, z float) (success bool)
-    func (a, b int, z float) (success bool, result float)
+  // Function types
+  func ()
+  func (a, b int, z float) bool
+  func (a, b int, z float) (success bool)
+  func (a, b int, z float) (success bool, result float)
 
-    // Method types
-    func (p *T) . ()
-    func (p *T) . (a, b int, z float) bool
-    func (p *T) . (a, b int, z float) (success bool)
-    func (p *T) . (a, b int, z float) (success bool, result float)
+  // Method types
+  func (p *T) . ()
+  func (p *T) . (a, b int, z float) bool
+  func (p *T) . (a, b int, z float) (success bool)
+  func (p *T) . (a, b int, z float) (success bool, result float)
 
 A variable can hold only a pointer to a function, not a function value.
 In particular, v := func() {} creates a variable of type *func(). To call the
@@ -750,11 +750,11 @@ or assigned to a variable of the corresponding function pointer type.
 For now, a function literal can reference only its parameters, global
 variables, and variables declared within the function literal.
 
-    // Function literal
-    func (a, b int, z float) bool { return a*b < int(z); }
+  // Function literal
+  func (a, b int, z float) bool { return a*b < int(z); }
 
-    // Method literal
-    func (p *T) . (a, b int, z float) bool { return a*b < int(z) + p.x; }
+  // Method literal
+  func (p *T) . (a, b int, z float) bool { return a*b < int(z) + p.x; }
 
 Unresolved issues: Are there method literals? How do you use them?
 
@@ -769,7 +769,7 @@ a method indicates the type of the struct by declaring a receiver of type
 
 the declaration
 
-  func (p *Point) distance(float scale) float {
+  func (p *Point) distance(scale float) float {
     return scale * (p.x*p.x + p.y*p.y);
   }
 
@@ -866,9 +866,9 @@ Attempts to convert/extract to an incompatible type will yield nil.
 No other operations are defined (yet).
 
 Note that type
-	interface {}
+  interface {}
 is a special case that can match any struct type, while type
-	any
+  any
 can match any type at all, including basic types, arrays, etc.
 
 TODO: details about reflection
@@ -1098,20 +1098,20 @@ and then calls and conversions. The remaining precedence levels are as follows
 (in increasing precedence order):
 
   Precedence    Operator
-      1                  ||
-      2                  &&
-      3                  ==  !=  <  <=  >  >=
-      4                  +  -  |  ^
-      5                  *  /  %  <<  >>  &
-      6                  +  -  !  ^  <  >  *  &  (unary)
+      1            ||
+      2            &&
+      3            ==  !=  <  <=  >  >=
+      4            +  -  |  ^
+      5            *  /  %  <<  >>  &
+      6            +  -  !  ^  <  >  *  &  (unary)
     
 For integer values, / and % satisfy the following relationship:
 
-    (a / b) * b + a % b == a
+  (a / b) * b + a % b == a
 
 and
 
-    (a / b) is "truncated towards zero".
+  (a / b) is "truncated towards zero".
 
 There are no implicit type conversions except for
 constants and literals.  In particular, unsigned and signed integer
@@ -1123,12 +1123,12 @@ shift counts are undefined. Unary '^' corresponds to C '~' (bitwise
 complement).
 
 There is no '->' operator. Given a pointer p to a struct, one writes
-    p.f
+  p.f
 to access field f of the struct. Similarly, given an array or map
 pointer, one writes
-    p[i]
+  p[i]
 to access an element.  Given a function pointer, one writes
-    p()
+  p()
 to call the function.
 
 Other operators behave as in C.
@@ -1508,32 +1508,32 @@ clause matches that of the dynamic value to be exchanged.
 If multiple cases can proceed, a uniform fair choice is made regarding
 which single communication will execute.
 
-    var c, c1, c2 *chan int;
-    select {
-    case i1 = <c1:
-        printf("received %d from c1\n", i1);
-    case >c2 = i2:
-        printf("sent %d to c2\n", i2);
-    default:
-        printf("no communication\n");
-    }
+  var c, c1, c2 *chan int;
+  select {
+  case i1 = <c1:
+    printf("received %d from c1\n", i1);
+  case >c2 = i2:
+    printf("sent %d to c2\n", i2);
+  default:
+    printf("no communication\n");
+  }
 
-    for {  // send random sequence of bits to c
-        select {
-        case >c = 0:  // note: no statement, no fallthrough, no folding of cases
-        case >c = 1:
-        }
-    }
-
-    var ca *chan any;
-    var i int;
-    var f float;
+  for {  // send random sequence of bits to c
     select {
-    case i = <ca:
-        printf("received int %d from ca\n", i);
-    case f = <ca:
-        printf("received float %f from ca\n", f);
+    case >c = 0:  // note: no statement, no fallthrough, no folding of cases
+    case >c = 1:
     }
+  }
+
+  var ca *chan any;
+  var i int;
+  var f float;
+  select {
+  case i = <ca:
+    printf("received int %d from ca\n", i);
+  case f = <ca:
+    printf("received float %f from ca\n", f);
+  }
 
 TODO: do we allow case i := <c: ?
 TODO: need to precise about all the details but this is not the right doc for that
@@ -1658,9 +1658,9 @@ Executing the goto statement must not cause any variables to come into
 scope that were not already in scope at the point of the goto.  For
 instance, this example:
 
-	goto L;  // BAD
-	v := 3;
-	L:
+  goto L;  // BAD
+  v := 3;
+  L:
 
 is erroneous because the jump to label L skips the creation of v.
 
@@ -1732,5 +1732,5 @@ TODO
 
 - TODO: type switch?
 - TODO: words about slices
-- TODO: what is nil? do we type-test by a nil conversion or something else?
+- TODO: I (gri) would like to say that sizeof(int) == sizeof(pointer), always.
 
