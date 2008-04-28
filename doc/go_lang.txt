@@ -1082,7 +1082,8 @@ Expression syntax is based on that of C but with fewer precedence levels.
     Expression "." "(" Type ")" .
   
   Call = Expression "(" [ ExpressionList ] ")" .
-  Conversion = TypeName "(" [ ExpressionList ] ")" .
+  Conversion = TypeName "(" Expression ")" |
+               "convert" "(" Type "," Expression ")" .
   Allocation = "new" "(" Type [ "," Expression ] ")" .
 
   binary_op = log_op | rel_op | add_op | mul_op .
@@ -1210,6 +1211,37 @@ buffered channels, and maps.
   m := new(map[string] int, 100); # a pointer to a map with space for 100 elements preallocated
 
 TODO: argument order for dimensions in multidimensional arrays
+
+
+Conversions
+----
+
+There are three ways to convert a value from one type to another.
+
+The most general is a call to the intrinsic special function "convert"
+with arguments the type name and the value to be converted.
+
+	var i int = convert(int, PI * 1000.0);
+	chars_as_ints := convert([]int, "now is the time");
+
+If the destination type is a known type name, the conversion can be
+rewritten to look syntactically like a call to a function with that
+name.
+
+	i := int(PI * 1000.0);
+	s := AStructType(an_interface_variable);
+
+A conversion can be written as a parenthesized type after a period.
+Although intended for ease of conversion within a method call chain,
+this form works in any expression context.
+
+	var s *AStructType = vec.index(2).(*AStructType);
+	fld := vec.index(2).(*AStructType).field;
+	f := 1000.(float);
+
+TODO: are there parameters to any conversions? go.y has oexpr_list as the
+contents of a TypeName() conversion; i expected expr instead and that's what
+the others have.
 
 The constant generator 'iota'
 ----
@@ -1733,4 +1765,5 @@ TODO
 - TODO: type switch?
 - TODO: words about slices
 - TODO: I (gri) would like to say that sizeof(int) == sizeof(pointer), always.
-
+- TODO: when are two types equal? consider 
+	func iterate(f *func(int, interface{}), arg interface{})
