@@ -1246,9 +1246,11 @@ the others have.
 The constant generator 'iota'
 ----
 
-Within a declaration, each appearance of the keyword 'iota' represents a successive
-element of an integer sequence. It is reset to zero whenever the keyword 'const', 'type'
-or 'var' introduces a new declaration. For instance, 'iota' can be used to construct
+Within a declaration, the keyword 'iota' represents successive
+elements of an integer sequence.
+It is reset to zero whenever the keyword 'const'
+introduces a new declaration and increments as each identifier
+is declared. For instance, 'iota' can be used to construct
 a set of related constants:
 
   const (
@@ -1266,6 +1268,7 @@ a set of related constants:
   const x = iota;  // sets x to 0
   const y = iota;  // sets y to 0
 
+TODO: should iota work in var, type, func decls too?
 
 Statements
 ----
