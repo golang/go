@@ -1,6 +1,6 @@
 The Go Programming Language
 ----
-(April 18, 2008)
+(April 29, 2008)
 
 This document is an informal specification/proposal for a new systems programming
 language.
@@ -365,6 +365,7 @@ point value that is constrained only upon assignment.
   -44
   +3.24e-7
 
+
 The string type
 ----
 
@@ -501,6 +502,7 @@ an error if placed in a character literal (it is not a single code
 point), and will appear as two code points if placed in a string
 literal.
 
+
 More about types
 ----
 
@@ -601,6 +603,7 @@ structure.
     f func();
   }
 
+
 Compound Literals
 ----
 
@@ -623,6 +626,7 @@ be of the same type, which is the element type of the resulting array.
 
 Unresolved issues: Are elements converted?  What about length?
 
+
 Map Literals
 ----
 
@@ -640,6 +644,7 @@ All keys must have the same type; all values must have the same type.
 
 Unresolved issues: Are elements converted?
 Colon for a separator or comma?
+
 
 Struct literals
 ----
@@ -712,7 +717,7 @@ Functions can return multiple values simultaneously.
   Receiver = "(" identifier Type ")" .
   Parameters = "(" [ ParameterList ] ")" .
   ParameterList = ParameterSection { "," ParameterSection } .
-  ParameterSection = [ IdentifierList ] Type .
+  ParameterSection = IdentifierList Type .
   Result = Type | "(" ParameterList ")" .
 
   // Function types
@@ -757,6 +762,7 @@ variables, and variables declared within the function literal.
   func (p *T) . (a, b int, z float) bool { return a*b < int(z) + p.x; }
 
 Unresolved issues: Are there method literals? How do you use them?
+
 
 Methods
 ----
@@ -872,6 +878,45 @@ is a special case that can match any struct type, while type
 can match any type at all, including basic types, arrays, etc.
 
 TODO: details about reflection
+
+
+Equivalence of types
+---
+
+Types are structurally equivalent: Two types are equivalent ('equal') if they
+are constructed the same way from equivalent types.
+
+For instance, all variables declared as "*int" have equivalent type,
+as do all variables declared as "map [string] chan int".
+
+More precisely, two struct types are equivalent if they have exactly the same fields
+in the same order, with equal field names and types. For all other composite types,
+the types of the components must be equivalent. Additionally, for equivalent arrays,
+the lengths must be equal (or absent), and for channel types the mode must be equal
+(">", "<", or none). The names of receivers, parameters, or result values of functions
+are ignored for the purpose of type equivalence.
+
+For instance, the struct type
+
+  struct {
+    a int;
+    b int;
+    f *func (m *[32] float, x int, y int) bool
+  }
+  
+is equivalent to
+
+  struct {
+    a, b int;
+    f *F
+  }
+  
+where "F" is declared as "func (a *[30 + 2] float, b, c int) (ok bool)".
+
+Finally, two interface types are equivalent if they both declare the same set of
+methods: For each method in the first interface type there is a method in the
+second interface type with the same method name and equivalent signature, and
+vice versa. Note that the declaration order of the methods is not relevant.
 
 
 Literals
@@ -1036,6 +1081,7 @@ the following holds:
   t.f == 0.0
   t.next == nil
 
+
 Export declarations
 ----
 
@@ -1184,6 +1230,7 @@ TODO: how does this definition jibe with using nil to specify
 conversion failure if the result is not of pointer type, such
 as an any variable holding an int?
 
+
 Allocation
 ----
 
@@ -1242,6 +1289,7 @@ this form works in any expression context.
 TODO: are there parameters to any conversions? go.y has oexpr_list as the
 contents of a TypeName() conversion; i expected expr instead and that's what
 the others have.
+
 
 The constant generator 'iota'
 ----
@@ -1761,6 +1809,7 @@ A program is package clause, optionally followed by import declarations,
 followed by a series of declarations.
 
   Program = PackageClause { ImportDecl } { Declaration } .
+
 
 TODO
 ----
