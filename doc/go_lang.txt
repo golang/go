@@ -1461,12 +1461,18 @@ explicitly list the return value or values in the return statement:
     return 2;
   }
 
-  func complex_f1() (float, float) {
+A function may return multiple values.
+The syntax of the return clause in that case is the same as
+that of a parameter list; in particular, names must be provided for
+the elements of the return value.
+
+  func complex_f1() (re float, im float) {
     return -7.0, -4.0;
   }
 
-The second is to provide names for the return values and assign them
-explicitly in the function; the return statement will then provide no
+The second method to return values
+is to use those names within the function as variables
+to be assigned explicitly; the return statement will then provide no
 values:
 
   func complex_f2() (re float, im float) {
@@ -1474,14 +1480,6 @@ values:
     im = 4.0;
     return;
   }
-
-It is legal to name the return values in the declaration even if the
-first form of return statement is used:
-
-  func complex_f2() (re float, im float) {
-    return 7.0, 4.0;
-  }
-
 
 If statements
 ----
@@ -1817,5 +1815,3 @@ TODO
 - TODO: type switch?
 - TODO: words about slices
 - TODO: I (gri) would like to say that sizeof(int) == sizeof(pointer), always.
-- TODO: when are two types equal? consider 
-	func iterate(f *func(int, interface{}), arg interface{})

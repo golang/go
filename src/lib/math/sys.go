@@ -4,9 +4,9 @@
 
 package sys
 
-func	modf(a double) (double, double);
-func	frexp(a double) (int, double);
-func	ldexp(double, int) double;
+func	modf(a double) (x double, y double);
+func	frexp(a double) (e int, m double);
+func	ldexp(f double, e int) double;
 
 func	Inf(n int) double;
 func	NaN() double;
