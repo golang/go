@@ -1572,8 +1572,8 @@ cases all referring to communication operations.
   CommClause = CommCase { Statement } .
   CommCase = ( "default" | ( "case" ( SendCase | RecvCase) ) ) ":" .
   SendCase = Send .
-  RecvCase = [ identifier '=' ] RecvExpression .
-  RecvExpression = '<' Expression .
+  RecvCase = [ identifier "=" ] RecvExpr .
+  RecvExpr = "<" Expression .
 
 The select statement evaluates all the channel (pointers) involved.
 If any of the channels can proceed, the corresponding communication
