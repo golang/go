@@ -296,8 +296,6 @@ and floating point types:
   uint32   the set of all unsigned 32-bit integers
   unit64   the set of all unsigned 64-bit integers
 
-  byte     alias for uint8
-
   int8     the set of all signed 8-bit integers, in 2's complement
   int16    the set of all signed 16-bit integers, in 2's complement
   int32    the set of all signed 32-bit integers, in 2's complement
@@ -307,13 +305,26 @@ and floating point types:
   float64  the set of all valid IEEE-754 64-bit floating point numbers
   float80  the set of all valid IEEE-754 80-bit floating point numbers
 
-Additionally, Go declares 4 basic types, uint, int, float, and double,
-which are platform-specific.  The bit width of these types corresponds to
-the ``natural bit width'' for the respective types for the given
-platform. For instance, int is usally the same as int32 on a 32-bit
-architecture, or int64 on a 64-bit architecture.  These types are by
-definition platform-specific and should be used with the appropriate
-caution.
+Additionally, Go declares several platform-specific type aliases:
+ushort, short, uint, int, ulong, long, float, and double.  The bit
+width of these types is ``natural'' for the respective types for the
+given platform.  For instance, int is usually the same as int32 on a
+32-bit architecture, or int64 on a 64-bit architecture.
+
+The integer sizes are defined such that short is at least 16 bits, int
+is at least 32 bits, and long is at least 64 bits (and ditto for the
+unsigned equivalents).  Also, the sizes are such that short <= int <=
+long.  Similarly, float is at least 32 bits, double is at least 64
+bits, and the sizes have float <= double.
+
+Also, ``byte'' is an alias for uint8.
+
+Finally, a type ptrint is defined.  It is an unsigned integer type
+that is the smallest natural integer type of the machine large enough
+to store the uninterpreted bits of a pointer value.
+
+Generally, programmers should use these types rather than the explicitly
+sized types to maximize portability.
 
 Two reserved words, "true" and "false", represent the
 corresponding boolean constant values.
@@ -1290,6 +1301,33 @@ TODO: are there parameters to any conversions? go.y has oexpr_list as the
 contents of a TypeName() conversion; i expected expr instead and that's what
 the others have.
 
+Only some conversions are permitted.
+
+1) Between integer types.  If the value is a signed quantity, it is
+sign extended to implicit infinite precision; otherwise it is zero
+extended.  It is then truncated to fit in the destination type size.
+For example, uint32(int8(0xFF)) is 0xFFFFFFFF.  The conversion always
+yields a valid value; for instance, there is no signal for overflow.
+
+2) Between integer and floating point types, or between floating point
+types.  To avoid overdefining the properties of the conversion, for
+now we define it as a ``best effort'' conversion.  The conversion
+always succeeds but the value may be a NaN or other problematic
+result.  TODO: clarify?
+
+3) Conversions between interfaces and compatible interfaces and struct
+pointers.  Invalid conversions (that is, conversions between
+incompatible types) yield nil values. TODO: is nil right here? Or
+should incompatible conversions fail immediately?
+
+4) Conversions between ``any'' values and arbitrary types.  Invalid
+conversions yield nil values. TODO: is nil right here? Or should
+incompatible conversions fail immediately?
+
+Note that there is no linguistic mechanism to convert between pointers
+and integers. A library may be provided under restricted circumstances
+to acccess this conversion in low-level code but it will not be available
+in general.
 
 The constant generator 'iota'
 ----
