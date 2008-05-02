@@ -683,6 +683,15 @@ We do not allow pointer arithmetic of any kind.
   *int
   *map[string] *chan
 
+It is legal to write a pointer type (only) such as *T or **T even if T
+is not yet defined as a type name.  This allows the construction of
+mutually recursive data types such as structs:
+
+	type S1 struct { s2 *S2 }  // S2 is not yet declared
+	type S2 struct { s1 *S1 }
+
+By the end of the package source, such types must be fully declared.
+
 There are no pointer literals.
 
 
