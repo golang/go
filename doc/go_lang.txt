@@ -1,6 +1,6 @@
 The Go Programming Language
 ----
-(April 29, 2008)
+(May 5, 2008)
 
 This document is an informal specification/proposal for a new systems programming
 language.
@@ -678,19 +678,26 @@ Pointer types are similar to those in C.
 
   PointerType = "*" Type.
 
-We do not allow pointer arithmetic of any kind.
+Pointer arithmetic of any kind is not permitted.
 
   *int
   *map[string] *chan
 
-It is legal to write a pointer type (only) such as *T or **T even if T
-is not yet defined as a type name.  This allows the construction of
-mutually recursive data types such as structs:
+It is legal to write a pointer type (only) such as *T even if T is
+an incomplete type (i.e., either not yet fully defined or forward
+declared). This allows the construction of recursive types such as:
 
-	type S1 struct { s2 *S2 }  // S2 is not yet declared
-	type S2 struct { s1 *S1 }
+  type S struct { s *S }
 
-By the end of the package source, such types must be fully declared.
+Together with a type forward declaration, mutually recursive types
+can be constructed such as:
+
+  type S2  // forward declaration of S2
+  type S1 struct { s2 *S2 }
+  type S2 struct { s1 *S1 }
+
+By the end of the package source, all forward-declared types must be
+fully declared if they are used.
 
 There are no pointer literals.
 
@@ -976,13 +983,17 @@ A constant declaration gives a name to the value of a constant expression.
 Type declarations
 ----
 
-A type declaration introduces a name as a shorthand for a type.
+A type declaration introduces a name as a shorthand for a type. Providing only
+a name without a type serves as a forward declaration: The name is declared and
+given an incomplete type. Incomplete types can be used together (and only) with
+pointer types.
 
   TypeDecl = "type" ( TypeSpec | "(" TypeSpecList [ ";" ] ")" ).
-  TypeSpec = identifier Type .
+  TypeSpec = identifier [ Type ] .
   TypeSpecList = TypeSpec { ";" TypeSpec }.
 
 
+  type List  // foward declaration
   type IntArray [16] int
   type (
     Point struct { x, y float };
