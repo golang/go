@@ -346,7 +346,7 @@ func unpack(a double) (negative bool, exp int, num double) {
 	var e2 int;
 	e2, g = sys.frexp(a);
 	e := int(e2 * .301029995663981);
-	g := a * pow10(-e);
+	g = a * pow10(-e);
 	for g < 1 {
 		e--;
 		g = a * pow10(-e);
