@@ -1,6 +1,6 @@
 The Go Programming Language
 ----
-(May 5, 2008)
+(May 8, 2008)
 
 This document is an informal specification/proposal for a new systems programming
 language.
@@ -279,7 +279,7 @@ Types
 A type specifies the set of values that variables of that type may
 assume, and the operators that are applicable.
 
-There are basic types and compound types constructed from them.
+There are basic types and composite types.
 
 
 Basic types
@@ -537,11 +537,8 @@ At any given time, a variable or value has exactly one dynamic
 type, which may be the same as the static type.  (They will
 differ only if the variable has an interface type or "any" type.)
 
-Compound types may be constructed from other types by
-assembling arrays, maps, channels, structures, and functions.
-
-Array, map and struct types are called structured types, all other types
-are called unstructured.  A structured type cannot contain itself.
+Types may be composed from other types by assembling arrays, maps,
+channels, structures, and functions. They are called composite types.
 
   Type = TypeName | ArrayType | ChannelType | InterfaceType |
          FunctionType | MapType | StructType | PointerType .
@@ -554,7 +551,7 @@ Array types
 [TODO: this section needs work regarding the precise difference between
 static, open and dynamic arrays]
 
-An array is a structured type consisting of a number of elements
+An array is a composite type consisting of a number of elements
 all of the same type, called the element type.  The number of
 elements of an array is called its length.  The elements of an array
 are designated by indices which are integers between 0 and the length - 1.
@@ -584,7 +581,7 @@ its length is a constant) using the built-in special function len():
 Map types
 ----
 
-A map is a structured type consisting of a variable number of entries
+A map is a composite type consisting of a variable number of entries
 called (key, value) pairs. For a given map,
 the keys and values must each be of a specific type.
 Upon creation, a map is empty and values may be added and removed
@@ -935,10 +932,10 @@ A constant declaration gives a name to the value of a constant expression.
 Type declarations
 ----
 
-A type declaration introduces a name as a shorthand for a type. Providing only
-a name without a type serves as a forward declaration: The name is declared and
-given an incomplete type. Incomplete types can be used together (and only) with
-pointer types.
+A type declaration introduces a name as a shorthand for a type. The name refers
+to an incomplete type until the type specification is complete. If no type is
+provided at all, the declaration effectively serves as a forward declaration.
+Incomplete types can be used together (and only) with pointer types.
 
   TypeDecl = "type" ( TypeSpec | "(" TypeSpecList [ ";" ] ")" ).
   TypeSpec = identifier [ Type ] .
@@ -951,6 +948,10 @@ pointer types.
     Point struct { x, y float };
     Polar Point
   )
+
+Since incomplete types can only be used with pointer types, in a type
+declaration a type may not refer to itself unless it does so with a
+pointer type.
 
 
 Variable declarations
@@ -1292,7 +1293,7 @@ These conversions are called ``compound conversions''.
 There is syntactic help to make conversion expressions simpler to write.
 
 If the result type is of ConversionType (a type name, array type,
-map type, structure type, or interface type, essentially anything
+map type, struct type, or interface type, essentially anything
 except a pointer), the conversion can be rewritten to look
 syntactically like a call to a function whose name is the type:
 
