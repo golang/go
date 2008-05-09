@@ -67,7 +67,8 @@ func control_structs() {
     var x float
   }
   foo:  // a label
-  switch {
+  var j int;
+  switch y := 0; true {
   case i < y:
     fallthrough;
   case i < j:
