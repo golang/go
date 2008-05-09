@@ -623,54 +623,6 @@ followed by a parenthesized expression list.  In effect, they are a
 conversion from expression list to compound value.
 
 
-Array literals
-----
-
-Array literals represent array values. All the contained expressions must
-be of the same type, which is the element type of the resulting array.
-
-  ArrayLit = ArrayType "(" [ ExpressionList ] ")" .
-
-  []int()
-  []int(1, 2, 3)
-  []string("x", "y")
-
-Unresolved issues: Are elements converted?  What about length?
-
-
-Map Literals
-----
-
-Map literals represent map values.  They comprise a list of (key, value)
-pairs written as successive values.
-All keys must have the same type; all values must have the same type.
-
-
-  MapLit = MapType "(" KeyValueList ")" .
-  KeyValueList = [ KeyValue { "," KeyValue } ].
-  KeyValue = Expression "," Expression .
-
-  [string]map int("one",1, "two",2)
-  [int]map bool(2,true, 3,true, 5,true, 7,true)
-
-Unresolved issues: Are elements converted?
-Colon for a separator or comma?
-
-
-Struct literals
-----
-
-Struct literals represent struct constants.  They comprise a list of
-expressions that represent the individual fields of a struct.  The
-individual expressions must match those of the specified struct type.
-
-  StructLit = StructType "(" [ ExpressionList ] ")" .
-
-  Point(2, 3)
-  ColoredPoint(4, 4, "green")
-  struct { a, b int } (7, 8)
-
-
 Pointer types
 ----
 
@@ -699,8 +651,6 @@ can be constructed such as:
 By the end of the package source, all forward-declared types must be
 fully declared if they are used.
 
-There are no pointer literals.
-
 
 Channel types
 ----
@@ -726,9 +676,6 @@ particular to dereference a channel pointer.
 
   var ch *chan int;
   ch = new(chan int);  // new returns type *chan int
-
-There are no channel literals.
-
 
 Function types
 ----
@@ -879,8 +826,6 @@ compatible interface type.  It is legal to assign an interface
 variable to any struct pointer variable but if the struct type is
 incompatible the result will be nil.
 
-There are no interface literals.
-
 
 The polymorphic "any" type
 ----
@@ -949,9 +894,7 @@ vice versa. Note that the declaration order of the methods is not relevant.
 Literals
 ----
 
-  Literal = BasicLit | CompoundLit .
-  BasicLit = char_lit | string_lit | int_lit | float_lit | "nil" .
-  CompoundLit = ArrayLit | MapLit | StructLit | FunctionLit .
+  Literal = char_lit | string_lit | int_lit | float_lit | FunctionLit | "nil" .
 
 
 Declarations
@@ -1159,8 +1102,9 @@ Expression syntax is based on that of C but with fewer precedence levels.
     Expression "." "(" Type ")" .
   
   Call = Expression "(" [ ExpressionList ] ")" .
-  Conversion = TypeName "(" Expression ")" |
-               "convert" "(" Type "," Expression ")" .
+  Conversion = "convert" "(" Type [ "," ExpressionList ] ")" |
+               ConversionType "(" [ ExpressionList ] ")" .
+  ConversionType = TypeName | ArrayType | MapType | StructType | InterfaceType .
   Allocation = "new" "(" Type [ "," Expression ] ")" .
 
   binary_op = log_op | rel_op | add_op | mul_op .
@@ -1245,7 +1189,7 @@ The keyword
 represents the ``zero'' value for a pointer type or interface type.
 
 The only operations allowed for nil are to assign it to a pointer or
-interface value and to compare it for equality or inquality with a
+interface variable and to compare it for equality or inequality with a
 pointer or interface value.
 
   var p *int;
@@ -1260,6 +1204,8 @@ By default, pointers are initialized to nil.
 TODO: how does this definition jibe with using nil to specify
 conversion failure if the result is not of pointer type, such
 as an any variable holding an int?
+
+TODO: if interfaces were explicitly pointers, this gets simpler.
 
 
 Allocation
@@ -1294,40 +1240,82 @@ TODO: argument order for dimensions in multidimensional arrays
 Conversions
 ----
 
-There are three ways to convert a value from one type to another.
+Conversions create new values of a specified type derived from the
+elements of a list of expressions of a different type.
 
-The most general is a call to the intrinsic special function "convert"
-with arguments the type name and the value to be converted.
+The most general conversion takes the form of a call to "convert",
+with the result type and a list of expressions as arguments:
 
-	var i int = convert(int, PI * 1000.0);
-	chars_as_ints := convert([]int, "now is the time");
+	convert(int, PI * 1000.0);
+	convert([]int, 1, 2, 3, 4);
 
-If the destination type is a known type name, the conversion can be
-rewritten to look syntactically like a call to a function with that
-name.
+If the result type is a basic type, pointer type, or
+interface type, there must be exactly one expression and there is a
+specific set of permitted conversions, detailed later in the section.
+These conversions are called ``simple conversions''.
+TODO: if interfaces were explicitly pointers, this gets simpler.
 
-	i := int(PI * 1000.0);
-	s := AStructType(an_interface_variable);
+	convert(int, 3.14159);
+	convert(uint32, ~0);
+	convert(interface{}, new(S))
+	convert(*AStructType, interface_value)
 
-A conversion can be written as a parenthesized type after a period.
-Although intended for ease of conversion within a method call chain,
-this form works in any expression context.
+For other result types - arrays, maps, structs - the expressions
+form a list of values to be assigned to successive elements of the
+resulting value.  If the type is an array or map, the list may even be
+empty.  Unlike in a simple conversion, the types of the expressions
+must be equivalent to the types of the elements of the result type;
+the individual values are not converted.  For instance, if result
+type is []int, the expressions must be all of type int, not float or
+uint.  (For maps, the successive elements must be key-value pairs).
+For arrays and struct types, if fewer elements are provided than
+specified by the result type, the missing elements are
+initialized to the respective ``zero'' value for that element type.
+
+These conversions are called ``compound conversions''.
+
+	convert([]int)  // empty array of ints
+	convert([]int, 1, 2, 3)
+	convert([5]int, 1, 2);  // == convert([5]int, 1, 2, 0, 0, 0)
+	convert(map[string]int, "1", 1, "2", 2)
+	convert(struct{ x int; y float }, 3, sqrt(2.0))
+
+There is syntactic help to make conversion expressions simpler to write.
+
+If the result type is of ConversionType (a type name, array type,
+map type, structure type, or interface type, essentially anything
+except a pointer), the conversion can be rewritten to look
+syntactically like a call to a function whose name is the type:
+
+	int(PI * 1000.0);
+	AStructType(an_interface_variable);
+	struct{ x int, y float }(3, sqrt(2.0))
+	[]int(1, 2, 3, 4);
+	map[string]int("1", 1, "2", 2);
+	
+This notation is convenient for declaring and initializing
+variables of composite type:
+
+	primes := []int(2, 3, 5, 7, 9, 11, 13);
+
+Simple conversions can also be written as a parenthesized type after
+an expression and a period.  Although intended for ease of conversion
+within a method call chain, this form works in any expression context.
+TODO: should it?
 
 	var s *AStructType = vec.index(2).(*AStructType);
 	fld := vec.index(2).(*AStructType).field;
-	f := 1000.(float);
+	a := foo[i].(string);
 
-TODO: are there parameters to any conversions? go.y has oexpr_list as the
-contents of a TypeName() conversion; i expected expr instead and that's what
-the others have.
-
-Only some conversions are permitted.
+As said, for compound conversions the element types must be equivalent.
+For simple conversions, the types can differ but only some combinations
+are permitted:
 
 1) Between integer types.  If the value is a signed quantity, it is
 sign extended to implicit infinite precision; otherwise it is zero
-extended.  It is then truncated to fit in the destination type size.
+extended.  It is then truncated to fit in the result type size.
 For example, uint32(int8(0xFF)) is 0xFFFFFFFF.  The conversion always
-yields a valid value; for instance, there is no signal for overflow.
+yields a valid value; there is no signal for overflow.
 
 2) Between integer and floating point types, or between floating point
 types.  To avoid overdefining the properties of the conversion, for
@@ -1343,6 +1331,18 @@ should incompatible conversions fail immediately?
 4) Conversions between ``any'' values and arbitrary types.  Invalid
 conversions yield nil values. TODO: is nil right here? Or should
 incompatible conversions fail immediately?
+
+5) Strings permit two special conversions.
+
+5a) Converting an integer value yields a string containing the UTF-8
+representation of the integer.
+
+	string(0x65e5)  // "\u65e5"
+
+5b) Converting an array of uint8s yields a string whose successive
+bytes are those of the array.  (Recall byte is a synonym for uint8.)
+
+	string([]byte('h', 'e', 'l', 'l', 'o')) // "hello"
 
 Note that there is no linguistic mechanism to convert between pointers
 and integers. A library may be provided under restricted circumstances
