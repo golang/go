@@ -285,11 +285,11 @@ There are basic types and compound types constructed from them.
 Basic types
 ----
 
-Go defines a number of basic types, referred to by their
-predeclared type names.  There are signed and unsigned integer
-and floating point types:
+Go defines a number of basic types, referred to by their predeclared
+type names.  These include traditional arithmetic types, booleans,
+strings, and a special polymorphic type.
 
-  bool     the truth values true and false
+The arithmetic types are:
 
   uint8    the set of all unsigned 8-bit integers
   uint16   the set of all unsigned 16-bit integers
@@ -319,18 +319,27 @@ bits, and the sizes have float <= double.
 
 Also, ``byte'' is an alias for uint8.
 
-Finally, a type ptrint is defined.  It is an unsigned integer type
-that is the smallest natural integer type of the machine large enough
-to store the uninterpreted bits of a pointer value.
+An arithmetic type ``ptrint'' is also defined.  It is an unsigned
+integer type that is the smallest natural integer type of the machine
+large enough to store the uninterpreted bits of a pointer value.
 
 Generally, programmers should use these types rather than the explicitly
 sized types to maximize portability.
 
-Two reserved words, "true" and "false", represent the
+Other basic types include:
+
+  bool     the truth values true and false
+  string   immutable strings of bytes
+  any      polymorphic type
+
+Two reserved words, ``true'' and ``false'', represent the
 corresponding boolean constant values.
 
-There is also a polymorphic type, "any".  The "any" type can represent
-a value of any type.
+Strings are described in a later section.
+
+The polymorphic ``any'' type can represent a value of any type.
+
+TODO: we need a section about any
 
 
 Numeric literals
