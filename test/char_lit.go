@@ -7,7 +7,8 @@
 package main
 
 func main() {
-  [ ' ',
+  []int(
+    ' ',
     'a',
     'ä',
     '本',
@@ -30,5 +31,5 @@ func main() {
     '\ubabe',
     '\U0123ABCD',
     '\Ucafebabe'
-  ]
+  );
 }
