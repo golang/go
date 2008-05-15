@@ -9,47 +9,47 @@ package main
 // brainfuck
 
 func main() {
-       var a [30000]byte;
-       prog := "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.";
-       p := 0;
-       pc := 0;
-       for {
-               switch prog[pc] {
-                       case '>':
-                               p++;
-                       case '<':
-                               p--;
-                       case '+':
-                               a[p]++;
-                       case '-':
-                               a[p]--;
-                       case '.':
-                               print string(a[p]);
-                       case '[':
-                               if a[p] == 0 {
-                                       for nest := 1; nest > 0; pc++ {
-                                               if prog[pc+1] == ']' {
-                                                       nest--;
-                                               }
-                                               if prog[pc+1] == '[' {
-                                                       nest++;
-                                               }
-                                       }
-                               }
-                       case ']':
-                               if a[p] != 0 {
-                                       for nest := -1; nest < 0; pc-- {
-                                               if prog[pc-1] == ']' {
-                                                       nest--;
-                                               }
-                                               if prog[pc-1] == '[' {
-                                                       nest++;
-                                               }
-                                       }
-                               }
-                       default:
-                               return;
-               }
-               pc++;
-       }
+	var a [30000]byte;
+	prog := "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.";
+	p := 0;
+	pc := 0;
+	for {
+		switch prog[pc] {
+			case '>':
+					p++;
+			case '<':
+					p--;
+			case '+':
+					a[p]++;
+			case '-':
+					a[p]--;
+			case '.':
+					print string(a[p]);
+			case '[':
+				if a[p] == 0 {
+					for nest := 1; nest > 0; pc++ {
+						switch prog[pc+1] {
+							case ']':
+								nest--;
+							case '[':
+								nest++;
+						}
+					}
+				}
+			case ']':
+				if a[p] != 0 {
+					for nest := -1; nest < 0; pc-- {
+						switch prog[pc-1] {
+							case ']':
+								nest--;
+							case '[':
+								nest++;
+						}
+					}
+				}
+			default:
+					return;
+		}
+		pc++;
+	}
 }
