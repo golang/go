@@ -942,7 +942,7 @@ Incomplete types can be used together (and only) with pointer types.
   TypeSpecList = TypeSpec { ";" TypeSpec }.
 
 
-  type List  // foward declaration
+  type List  // forward declaration
   type IntArray [16] int
   type (
     Point struct { x, y float };
@@ -993,6 +993,7 @@ Also, in some contexts such as if or for statements,
 this construct can be used to
 declare local temporary variables.
 
+TODO: var a, b = 1, "x"; is permitted by grammar but not by current compiler
 
 Function and method declarations
 ----
@@ -1289,6 +1290,9 @@ These conversions are called ``compound conversions''.
 	convert([5]int, 1, 2);  // == convert([5]int, 1, 2, 0, 0, 0)
 	convert(map[string]int, "1", 1, "2", 2)
 	convert(struct{ x int; y float }, 3, sqrt(2.0))
+
+TODO: are interface/struct and 'any' conversions legal? they're not
+equivalent, just compatible. convert([]any, 1, "hi", nil);
 
 There is syntactic help to make conversion expressions simpler to write.
 
@@ -1876,7 +1880,7 @@ Program
 A program is package clause, optionally followed by import declarations,
 followed by a series of declarations.
 
-  Program = PackageClause { ImportDecl } { Declaration } .
+  Program = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
 
 
 TODO
@@ -1885,3 +1889,4 @@ TODO
 - TODO: type switch?
 - TODO: words about slices
 - TODO: I (gri) would like to say that sizeof(int) == sizeof(pointer), always.
+- TODO: really lock down semicolons
