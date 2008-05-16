@@ -1,10 +1,15 @@
-The Go Programming Language
+The Go Programming Language (DRAFT)
 ----
-(May 8, 2008)
 
-This document is an informal specification/proposal for a new systems programming
-language.
+Robert Griesemer, Rob Pike, Ken Thompson
 
+----
+(May 14, 2008)
+
+This document is a semi-informal specification/proposal for a new
+systems programming language.  The document is under active
+development; any piece may change substantially as design progresses;
+also there remain a number of unresolved issues.
 
 Guiding principles
 ----
