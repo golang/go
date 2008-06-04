@@ -378,7 +378,7 @@ int	yyparse(void);
 /*
  *	lex.c
  */
-int	main(int, char*[]);
+int	mainlex(int, char*[]);
 void	importfile(Val*);
 void	cannedimports(void);
 void	unimportfile();
