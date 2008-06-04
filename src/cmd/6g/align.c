@@ -4,6 +4,13 @@
 
 #include "gg.h"
 
+int
+main(int argc, char *argv[])
+{
+	mainlex(argc, argv);
+	return 99;
+}
+
 /*
  * machine size and rounding
  * alignment is dictated around
