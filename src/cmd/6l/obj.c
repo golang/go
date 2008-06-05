@@ -32,15 +32,11 @@
 #include	"l.h"
 #include	<ar.h>
 
-#ifndef	DEFAULT
-#define	DEFAULT	'9'
-#endif
-
 char	*noname		= "<none>";
 char	symname[]	= SYMDEF;
 char	thechar		= '6';
-char	*thestring 	= "amd64";
-char	*paramspace	= "FP";
+char*	thestring 	= "amd64";
+char*	paramspace	= "FP";
 
 /*
  *	-H2 -T4136 -R4096		is plan9 64-bit format
@@ -90,7 +86,7 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
-HEADTYPE = 6;	// botch
+
 	ARGBEGIN {
 	default:
 		c = ARGC();
@@ -142,14 +138,22 @@ HEADTYPE = 6;	// botch
 		diag("usage: 6l [-options] objects");
 		errorexit();
 	}
-	if(!debug['9'] && !debug['U'] && !debug['B'])
-		debug[DEFAULT] = 1;
+
+	mywhatsys();	// get goroot, goarch, goos
+	if(strcmp(goarch, thestring) != 0)
+		print("goarch is not known: %s\n", goarch);
+
 	if(HEADTYPE == -1) {
-		if(debug['B'])
-			HEADTYPE = 2;
-		if(debug['9'])
-			HEADTYPE = 2;
+		HEADTYPE = 2;
+		if(strcmp(goos, "linux") == 0)
+			HEADTYPE = 7;
+		else
+		if(strcmp(goos, "darwin") == 0)
+			HEADTYPE = 6;
+		else
+			print("goos is not known: %s\n", goos);
 	}
+
 	switch(HEADTYPE) {
 	default:
 		diag("unknown -H option");
@@ -185,6 +189,15 @@ HEADTYPE = 6;	// botch
 		HEADR = machheadr();
 		if(INITTEXT == -1)
 			INITTEXT = 4096+HEADR;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = 4096;
+		break;
+	case 7:	/* elf64 executable */
+		HEADR = rnd(64L+2*56L, 16);
+		if(INITTEXT == -1)
+			INITTEXT = 0x400000L+HEADR;
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)
@@ -300,7 +313,7 @@ HEADTYPE = 6;	// botch
 			if(i >= D_X0+8)
 				regrex[i] = Rxr | Rxx | Rxb;
 		}
-		if(i >= D_CR+8 && i <= D_CR+15) 
+		if(i >= D_CR+8 && i <= D_CR+15)
 			regrex[i] = Rxr;
 	}
 
@@ -333,14 +346,18 @@ HEADTYPE = 6;	// botch
 	firstp = prg();
 	lastp = firstp;
 
-	if(INITENTRY == 0) {
-		INITENTRY = "_main";
-		if(debug['p'])
-			INITENTRY = "_mainp";
-		if(!debug['l'])
-			lookup(INITENTRY, 0)->type = SXREF;
-	} else if(!(*INITENTRY >= '0' && *INITENTRY <= '9'))
-		lookup(INITENTRY, 0)->type = SXREF;
+	if(INITENTRY == nil) {
+		INITENTRY = "_rt0";
+		a = mal(strlen(INITENTRY)+strlen(goarch)+strlen(goos)+10);
+		strcpy(a, INITENTRY);
+		strcat(a, "_");
+		strcat(a, goarch);
+		strcat(a, "_");
+		strcat(a, goos);
+		INITENTRY = a;
+	}
+
+	lookup(INITENTRY, 0)->type = SXREF;
 
 	while(*argv)
 		objfile(*argv++);
@@ -349,6 +366,7 @@ HEADTYPE = 6;	// botch
 	firstp = firstp->link;
 	if(firstp == P)
 		errorexit();
+
 	if(doexp || dlm){
 		EXPTAB = "_exporttab";
 		zerosig(EXPTAB);
@@ -365,6 +383,7 @@ HEADTYPE = 6;	// botch
 		}
 		export();
 	}
+
 	patch();
 	follow();
 	dodata();
@@ -812,8 +831,8 @@ ldobj(int f, long c, char *pn)
 	r = bsize - bloc;
 	if(r < 7)
 		goto eof;
-	if(memcmp(bloc, "x86-64\n", 7) != 0) {
-		diag("file not x86-64: %s\n", pn);
+	if(memcmp(bloc, thestring, strlen(thestring)) != 0) {
+		diag("file not %s\n", thestring);
 		return;
 	}
 

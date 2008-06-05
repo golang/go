@@ -98,6 +98,13 @@ lputl(long l)
 }
 
 void
+llputl(vlong v)
+{
+	lputl(v);
+	lputl(v>>32);
+}
+
+void
 strnput(char *s, int n)
 {
 	int i;
@@ -166,6 +173,10 @@ asmb(void)
 	case 5:
 		seek(cout, HEADR+textsize, 0);
 		break;
+	case 7:
+		v = rnd(HEADR+textsize, INITRND);
+		seek(cout, v, 0);
+		break;
 	case 6:
 		v = HEADR+textsize;
 		myseek(cout, v);
@@ -207,6 +218,8 @@ asmb(void)
 		default:
 		case 2:
 		case 5:
+		case 7:
+debug['s'] = 1;
 			seek(cout, HEADR+textsize+datsize, 0);
 			break;
 		case 6:
@@ -283,7 +296,7 @@ asmb(void)
 		wputl(52);			/* Ehdr size */
 		wputl(32);			/* Phdr size */
 		wputl(3);			/* # of Phdrs */
-		wputl(0);			/* Shdr size */
+		wputl(40);			/* Shdr size */
 		wputl(0);			/* # of Shdrs */
 		wputl(0);			/* Shdr string size */
 
@@ -361,6 +374,56 @@ asmb(void)
 			0,0,0,0,		/* offset align reloc nreloc */
 			1);			/* flag - zero fill */
 		machstack(va+HEADR);
+		break;
+	case 7:
+		/* elf amd-64 */
+		strnput("\177ELF", 4);		/* e_ident */
+		cput(2);			/* class = 64 bit */
+		cput(1);			/* data = LSB */
+		cput(1);			/* version = CURRENT */
+		strnput("", 9);
+
+/*10*/		wputl(2);			/* type = EXEC */
+		wputl(62);			/* machine = AMD64 */
+		lputl(1L);			/* version = CURRENT */
+/*18*/		llputl(entryvalue());		/* entry vaddr */
+		llputl(64L);			/* offset to first phdr */
+		llputl(0L);			/* offset to first shdr */
+/*30*/		lputl(0L);			/* processor specific flags */
+		wputl(64);			/* Ehdr size */
+		wputl(56);			/* Phdr size */
+		wputl(2);			/* # of Phdrs */
+		wputl(64);			/* Shdr size */
+		wputl(0);			/* # of Shdrs */
+		wputl(0);			/* Shdr string size */
+
+		lputl(1L);			/* text - type = PT_LOAD */
+		lputl(1L+4L);			/* text - flags = PF_X+PF_R */
+		llputl(HEADR);			/* file offset */
+		llputl(INITTEXT);		/* vaddr */
+		llputl(INITTEXT);		/* paddr */
+		llputl(textsize);		/* file size */
+		llputl(textsize);		/* memory size */
+		llputl(INITRND);		/* alignment */
+
+		lputl(1L);			/* data - type = PT_LOAD */
+		lputl(1L+2L+4L);		/* text - flags = PF_X+PF_W+PF_R */
+		v = rnd(HEADR+textsize, INITRND);
+		llputl(v);			/* file offset */
+		llputl(INITDAT);		/* vaddr */
+		llputl(INITDAT);		/* paddr */
+		llputl(datsize);		/* file size */
+		llputl(datsize+bsssize);	/* memory size */
+		llputl(INITRND);		/* alignment */
+
+//		lputl(0L);			/* data - type = PT_NULL */
+//		lputl(4L);			/* ro - flags = PF_R */
+//		llputl(HEADR+textsize+datsize);	/* file offset */
+//		llputl(0L);
+//		llputl(0L);
+//		llputl(symsize);		/* symbol table size */
+//		llputl(lcsize);			/* line number size */
+//		llputl(0x04L);			/* alignment */
 		break;
 	}
 	cflush();
