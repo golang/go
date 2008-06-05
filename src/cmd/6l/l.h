@@ -338,7 +338,8 @@ EXTERN	int	dtype;
 EXTERN	char*	paramspace;
 
 EXTERN	Adr*	reloca;
-EXTERN	int	doexp, dlm;
+EXTERN	int	doexp;		// export table
+EXTERN	int	dlm;		// dynamically loadable module
 EXTERN	int	imports, nimports;
 EXTERN	int	exports, nexports;
 EXTERN	char*	EXPTAB;
