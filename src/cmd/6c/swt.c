@@ -231,7 +231,7 @@ outcode(void)
 	}
 	Binit(&b, f, OWRITE);
 
-	Bprint(&b, "x86-64\n");
+	Bprint(&b, "%s\n", thestring);
 	Bprint(&b, "!\n");
 
 	outhist(&b);
