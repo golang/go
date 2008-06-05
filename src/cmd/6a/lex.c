@@ -41,6 +41,7 @@ main(int argc, char *argv[])
 
 	thechar = '6';
 	thestring = "amd64";
+
 	memset(debug, 0, sizeof(debug));
 	cinit();
 	outfile = 0;
@@ -166,7 +167,7 @@ assemble(char *file)
 	pass = 1;
 	pinit(file);
 
-	Bprint(&obuf, "x86-64\n");
+	Bprint(&obuf, "%s\n", thestring);
 
 	for(i=0; i<nDlist; i++)
 		dodefine(Dlist[i]);

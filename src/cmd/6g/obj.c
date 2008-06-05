@@ -49,7 +49,7 @@ dumpobj(void)
 	if(bout == nil)
 		fatal("cant open %s", outfile);
 
-	Bprint(bout, "x86-64\n");
+	Bprint(bout, "amd64\n");
 	Bprint(bout, "  exports automatically generated from\n");
 	Bprint(bout, "  %s in package \"%s\"\n", curio.infile, package);
 	dumpexport();
