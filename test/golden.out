@@ -1,4 +1,34 @@
 
+=========== ./bug032.go
+BUG: compilation succeeds incorrectly
+
+=========== ./bug033.go
+BUG: compilation succeeds incorrectly
+
+=========== ./bug034.go
+BUG: compilation succeeds incorrectly
+
+=========== ./bug035.go
+BUG: compilation succeeds incorrectly
+
+=========== ./bug036.go
+BUG: compilation succeeds incorrectly
+
+=========== ./bug037.go
+BUG: compilation succeeds incorrectly
+
+=========== ./bug038.go
+BUG: compilation succeeds incorrectly
+
+=========== ./bug039.go
+BUG: compilation succeeds incorrectly
+
+=========== ./bug040.go
+BUG: compilation succeeds incorrectly
+
+=========== ./bug041.go
+BUG: compilation succeeds incorrectly
+
 =========== ./char_lit.go
 char_lit.go:5: syntax error
 char_lit.go:17: unknown escape sequence: \
@@ -101,6 +131,7 @@ BUG: known to fail incorrectly
 =========== ken/rob1.go
 
 =========== ken/rob2.go
+(hello hello (hello 12 34))
 
 =========== ken/robfor.go
 ken/robfor.go:45: fatal error: optoas: no entry MOD-<int32>INT32
