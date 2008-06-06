@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 
-TEXT	rt0_amd64_darwin(SB),1,$-8
+TEXT	_rt0_amd64_darwin(SB),1,$-8
 	PUSHQ	$0
 	MOVQ	SP, BP
 	ANDQ	$~15, SP
