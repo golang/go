@@ -28,11 +28,12 @@ do
 		echo >&2 fail: $i
 	fi
 done | cat -v >run.out
+
 case $failed in
 1)
 	echo FAIL
 esac
-rm  /tmp/$USER.$$.gotest
+rm  -f /tmp/$USER.$$.gotest *.6
 if ! diff run.out golden.out
 then
 	failed=1
