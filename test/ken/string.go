@@ -1,0 +1,103 @@
+// $G $D/$F.go && $L $F.$A && ./$A.out
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+
+package main
+
+func
+main()
+{
+	var c string;
+
+	a := `abc`;
+	b := `xyz`;
+
+	/* print a literal */
+	print `abc`;
+
+	/* print a variable */
+	print b, "-";
+
+	/* catenate literals */
+	print `abc` + `xyz`, "-";
+
+	/* catenate variables */
+	print a+b, "-";
+
+	/* compare literals */
+	if `abc` == `xyz` || `abc` != "abc" || `abc` > `xyz` {
+		panic "compare literals";
+	}
+
+	/* compare variables */
+	if a == b || a != a || a > b {
+		panic "compare variables";
+	}
+
+	/* cat */
+	c = a+b;
+	print c, "-";
+
+	/* catequal */
+	c = a;
+	c += b;
+	print c, "-";
+
+	/* clumsy evaluation */
+	c = b;
+	c = a + c;
+	print c, "-";
+
+	/* len */
+	if len(c) != 6 {
+		panic "len ", len(c);
+	}
+
+	/* index strings */
+	for i:=0; i<len(c); i=i+1 {
+		if c[i] != (a+b)[i] {
+			panic "index ", i, " ", c[i], " ", (a+b)[i];
+		}
+	}
+
+	/* slice strings */
+	print c[0:3], c[3:6];
+
+	print "\n";
+
+	/* create string with integer constant */
+	c = string('x');
+	if c != "x" {
+		panic "create int ", c;
+	}
+
+	/* create string with integer variable */
+	v := 'x';
+	c = string(v);
+	if c != "x" {
+		panic "create int ", c;
+	}
+
+	/* create string with byte array */
+	var z [3]byte;
+	z[0] = 'a';
+	z[1] = 'b';
+	z[2] = 'c';
+	c = string(z);
+	if c != "abc" {
+		panic "create array ", c;
+	}
+
+	/* create string with byte array pointer */
+	z := new([3]byte);
+	z[0] = 'a';
+	z[1] = 'b';
+	z[2] = 'c';
+	c = string(z);
+	if c != "abc" {
+		panic "create array pointer ", c;
+	}
+}

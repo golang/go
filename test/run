@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+
 case X"$GOARCH" in
 Xamd64)
 	export A=6
@@ -18,15 +19,19 @@ export L=${A}l
 
 failed=0
 
-for i in *.go
+for dir in . ken
 do
-	echo '===========' $i
-	export F=$(basename $i .go)
-	sed -n '1,/[^/]/p' $i | sed 's@//@@; $d' > /tmp/$USER.$$.gotest
-	if ! sh /tmp/$USER.$$.gotest
-	then
-		echo >&2 fail: $i
-	fi
+	for i in $dir/*.go
+	do
+		echo '===========' $i
+		export F=$(basename $i .go)
+		export D=$dir
+		sed -n '1,/[^/]/p' $i | sed 's@//@@; $d' > /tmp/$USER.$$.gotest
+		if ! sh /tmp/$USER.$$.gotest
+		then
+			echo >&2 fail: $i
+		fi
+	done
 done | cat -v >run.out
 
 case $failed in
