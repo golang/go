@@ -694,16 +694,14 @@ cgen_asop(Node *nl, Node *nr, int op)
 	regalloc(&n1, nl->type, N);
 	if(nl->addable) {
 		cgen(nr, &n1);
-		gins(a, nl, &n1);
-		gmove(&n1, nl);
+		gins(a, &n1, nl);
 		regfree(&n1);
 		return;
 	}
 
 	igen(nl, &n2, N);
 	cgen(nr, &n1);
-	gins(a, &n2, &n1);
-	gmove(&n1, &n2);
+	gins(a, &n1, &n2);
 	regfree(&n1);
 	regfree(&n2);
 }
