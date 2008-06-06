@@ -1,8 +1,10 @@
+
 =========== ./char_lit.go
 char_lit.go:5: syntax error
 char_lit.go:17: unknown escape sequence: \
 char_lit.go:19: unknown escape sequence: "
 BUG: known to fail incorrectly
+
 =========== ./float_lit.go
 float_lit.go:5: syntax error
 float_lit.go:28: overflow in float constant
@@ -10,30 +12,46 @@ float_lit.go:56: overflow in float constant
 float_lit.go:60: overflow in float constant
 float_lit.go:64: overflow in float constant
 BUG: known to fail incorrectly
+
 =========== ./for.go
 for.go:45: fatal error: optoas: no entry MOD-<int32>INT32
 BUG: known to fail incorrectly
+
 =========== ./func.go
+main_f4: doasm: notfound from=75 to=10 (24)    IDIVL   $2,AX
+main_f4: doasm: notfound from=75 to=10 (24)    IDIVL   $2,AX
+main_f4: doasm: notfound from=75 to=10 (24)    IDIVL   $2,AX
+BUG: known to fail incorrectly
+
 =========== ./hashmap.go
 hashmap.go:46: fatal error: optoas: no entry LSH-<uint32>UINT32
 BUG: known to fail incorrectly
+
 =========== ./helloworld.go
 hello, world
+
 =========== ./if.go
+
 =========== ./int_lit.go
 int_lit.go:5: syntax error
 BUG: known to fail incorrectly
+
 =========== ./iota.go
+
 =========== ./literal.go
+
 =========== ./sieve.go
 sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(8)
 BUG: known to fail incorrectly
+
 =========== ./string_lit.go
 string_lit.go:5: syntax error
 string_lit.go:12: unknown escape sequence: \
 string_lit.go:12: unknown escape sequence: '
 BUG: known to fail incorrectly
+
 =========== ./switch.go
+
 =========== ./test0.go
 test0.go:23: addtyp: renaming Point/<Point>{<x><int32>INT32;<y><int32>INT32;} to Point2/<Point2>FORW
 test0.go:48: illegal types for operand
@@ -47,43 +65,69 @@ test0.go:54: function call must be single valued (0)
 test0.go:54: illegal types for operand
 	(<Point2>{}) AS ({})
 BUG: known to fail incorrectly
+
 =========== ./turing.go
 Hello World!
+
 =========== ken/for.go
+
 =========== ken/interfun.go
+
 =========== ken/intervar.go
  print 1 bio 2 file 3 -- abc
+
 =========== ken/label.go
 100
+
 =========== ken/litfun.go
+
 =========== ken/mfunc.go
 ken/mfunc.go:13: function call must be single valued (2)
 BUG: known to fail incorrectly
+
 =========== ken/ptrfun.go
+
 =========== ken/ptrvar.go
+
 =========== ken/rob1.go
+
 =========== ken/rob2.go
+
 =========== ken/robfor.go
 ken/robfor.go:45: fatal error: optoas: no entry MOD-<int32>INT32
 BUG: known to fail incorrectly
+
 =========== ken/robfunc.go
 ken/robfunc.go:74: function call must be single valued (2)
 ken/robfunc.go:79: function call must be single valued (2)
 ken/robfunc.go:84: function call must be single valued (2)
 BUG: known to fail incorrectly
+
 =========== ken/robif.go
+
 =========== ken/robiota.go
+
 =========== ken/robliteral.go
+
 =========== ken/robswitch.go
+
 =========== ken/simparray.go
+
 =========== ken/simpbool.go
+
 =========== ken/simpconv.go
+
 =========== ken/simpfun.go
+
 =========== ken/simpprint.go
 hello world
+
 =========== ken/simpswitch.go
 0out01out12out2aout34out4fiveout56out6aout78out89out9
+
 =========== ken/simpvar.go
+
 =========== ken/string.go
 abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+
 =========== ken/strvar.go
