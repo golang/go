@@ -22,6 +22,13 @@ cgen(Node *n, Node *res)
 	if(res == N || res->type == T)
 		fatal("cgen: res nil");
 
+	if(n->ullman >= UINF) {
+		if(n->op == OINDREG)
+			fatal("cgen: this is going to misscompile");
+		if(res->ullman >= UINF)
+			fatal("cgen: fun both sides");
+	}
+
 	lno = dynlineno;
 	if(n->op != ONAME)
 		dynlineno = n->lineno;	// for diagnostics
@@ -32,6 +39,14 @@ cgen(Node *n, Node *res)
 	}
 
 	if(!res->addable) {
+		if(n->ullman > res->ullman) {
+			regalloc(&n1, nr->type, res);
+			cgen(n, &n1);
+			cgen(&n1, res);
+			regfree(&n1);
+			return;
+		}
+
 		igen(res, &n1, N);
 		cgen(n, &n1);
 		regfree(&n1);
