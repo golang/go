@@ -50,7 +50,7 @@ func main() {
 	assertequal(count, 1, "if empty");
 
 	count = 0;
-	if one := 1; {
+	if one := 1; true {
 		count = count + one;	
 	}
 	assertequal(count, 1, "if empty one");

@@ -35,7 +35,7 @@ func main() {
 	case i5 > x: assert(false, ">");
 	}
 
-	switch x := 5; {  // BUG?: true should not be necessary but now made mandatory in go_lang.txt
+	switch x := 5; true {
 	case i5 < x: assert(false, "<");
 	case i5 == x: assert(true, "!");
 	case i5 > x: assert(false, ">");
