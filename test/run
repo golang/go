@@ -33,7 +33,7 @@ case $failed in
 1)
 	echo FAIL
 esac
-rm  -f /tmp/$USER.$$.gotest *.6
+rm  -f /tmp/$USER.$$.gotest *.6 6.out
 if ! diff run.out golden.out
 then
 	failed=1
