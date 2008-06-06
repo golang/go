@@ -688,10 +688,15 @@ cgen_asop(Node *nl, Node *nr, int op)
 	Node n1, n2;
 	int a;
 
-	// botch compare ullman numbers
-	// and use temp for functions
+	if(nr->ullman >= UINF && nl->ullman >= UINF) {
+		fatal("cgen_asop both sides call");
+	}
 
 	a = optoas(op, nl->type);
+	if(nr->ullman > nl->ullman) {
+		fatal("gcgen_asopen");
+	}
+
 	regalloc(&n1, nl->type, N);
 	if(nl->addable) {
 		cgen(nr, &n1);
@@ -814,6 +819,10 @@ cgen_as(Node *nl, Node *nr, int op)
 		nr->type = tl;
 		nr->addable = 1;
 		ullmancalc(nr);
+	}
+
+	if(nr->ullman >= UINF && nl->ullman >= UINF) {
+		fatal("cgen_as both sides call");
 	}
 	cgen(nr, nl);
 }
