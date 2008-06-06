@@ -388,8 +388,9 @@ agen_inter(Node *n, Node *res)
 			agen(n->left, &nodr);
 			gmove(&nodr, &nodo);
 			fatal("agen_inter i2s");
-		} else
-			gmove(n->left, &nodo);
+		} else {
+			cgen(n->left, &nodo);
+		}
 
 		nodtypesig(&nodt, n->type);
 		agen(&nodt, &nodr);
