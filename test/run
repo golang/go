@@ -3,7 +3,6 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-
 case X"$GOARCH" in
 Xamd64)
 	export A=6
@@ -13,13 +12,12 @@ Xamd64)
 	exit 1
 esac
 
-export A=6
 export G=${A}g
 export L=${A}l
 
 failed=0
 
-for dir in . ken
+for dir in . ken bugs fixedbugs
 do
 	for i in $dir/*.go
 	do
@@ -45,6 +43,6 @@ then
 	failed=1
 fi
 
-echo 2>&1 $(grep -c '^BUG' run.out) tests are failing incorrectly
+echo 2>&1 $(grep -c '^BUG' run.out) tests are behaving incorrectly
 
 exit $failed

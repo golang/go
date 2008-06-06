@@ -117,6 +117,9 @@ BUG: known to fail incorrectly
 =========== ken/robiota.go
 
 =========== ken/robliteral.go
+assertion fail: sj1
+assertion fail: sj2
+BUG: known to fail incorrectly
 
 =========== ken/robswitch.go
 
@@ -140,3 +143,119 @@ hello world
 abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 
 =========== ken/strvar.go
+
+=========== bugs/bug001.go
+BUG: known to succeed incorrectly
+
+=========== bugs/bug002.go
+BUG: known to succeed incorrectly
+
+=========== bugs/bug003.go
+bugs/bug003.go:6: switch statement must have case labels
+bugs/bug003.go:6: fatal error: walkswitch: not case EMPTY
+
+BUG: fatal error
+
+=========== bugs/bug004.go
+BUG: known to succeed incorrectly
+
+=========== bugs/bug006.go
+bugs/bug006.go:6: illegal combination of literals 0 0
+bugs/bug006.go:6: expression must be a constant
+bugs/bug006.go:6: expression must be a constant
+bugs/bug006.go:6: expression must be a constant
+bugs/bug006.go:6: expression must be a constant
+bugs/bug006.go:6: expression must be a constant
+bugs/bug006.go:6: expression must be a constant
+bugs/bug006.go:6: expression must be a constant
+bugs/bug006.go:6: expression must be a constant
+bugs/bug006.go:6: expression must be a constant
+bugs/bug006.go:6: fatal error: too many errors
+BUG: known to fail incorrectly
+
+=========== bugs/bug010.go
+bugs/bug010.go:7: i undefined
+bugs/bug010.go:8: illegal conversion of constant to 020({},<_o114>{},{})
+bugs/bug010.go:9: error in shape across assignment
+BUG: known to fail incorrectly
+
+=========== bugs/bug014.go
+bugs/bug014.go:6: non-oct character in escape sequence: '
+bugs/bug014.go:6: non-oct character in escape sequence: '
+bugs/bug014.go:7: non-oct character in escape sequence: '
+bugs/bug014.go:8: non-hex character in escape sequence: '
+bugs/bug014.go:9: non-hex character in escape sequence: '
+BUG: errors caught but exit code should be non-zero
+
+=========== bugs/bug015.go
+BUG: known to succeed incorrectly
+
+=========== bugs/bug016.go
+bugs/bug016.go:7: fatal error: optoas: no entry LSH-<int32>INT32
+BUG: fatal error
+
+=========== bugs/bug022.go
+bugs/bug022.go:8: illegal types for operand
+	(*<string>*STRING) INDEXPTR (<int32>INT32)
+bugs/bug022.go:8: illegal types for operand
+	(<uint8>UINT8) AS 
+BUG: known to fail incorrectly
+
+=========== bugs/bug023.go
+bugs/bug023.go:20: fatal error: naddr: const <Type>I{<TypeName>110(<_t117>{},<_o119>{},{});}
+BUG: known to fail incorrectly
+
+=========== bugs/bug024.go
+bugs/bug024.go:8: unknown escape sequence: \
+BUG: erroneous errors but compiles anyway
+
+=========== bugs/bug025.go
+bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
+
+BUG: known to fail incorrectly or at least with a bad message
+
+=========== bugs/bug026.go
+check: main_sigs_I: not defined
+BUG: known to fail incorrectly
+
+=========== bugs/bug027.go
+bugs/bug027.go:50: illegal types for operand
+	(<Element>I{}) CONV (<I>{})
+bugs/bug027.go:50: illegal types for operand
+	(<Element>I{}) CONV (<I>{})
+BUG: known to fail incorrectly
+
+=========== bugs/bug028.go
+bugs/bug028.go:9: unreachable statements in a switch
+BUG: known to fail incorrectly
+
+=========== bugs/bug029.go
+BUG: known to succeed incorrectly
+
+=========== bugs/bug030.go
+BUG: known to succeed incorrectly
+
+=========== fixedbugs/bug000.go
+
+=========== fixedbugs/bug005.go
+
+=========== fixedbugs/bug007.go
+fixedbugs/bug007.go:7: addtyp: renaming Point/<Point>{<x><float32>FLOAT32;<y><float32>FLOAT32;} to Polar/<Polar>FORW
+
+=========== fixedbugs/bug008.go
+
+=========== fixedbugs/bug009.go
+
+=========== fixedbugs/bug011.go
+
+=========== fixedbugs/bug012.go
+
+=========== fixedbugs/bug013.go
+
+=========== fixedbugs/bug017.go
+
+=========== fixedbugs/bug020.go
+
+=========== fixedbugs/bug021.go
+
+=========== fixedbugs/bug031.go
