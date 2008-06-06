@@ -23,6 +23,9 @@ main_f4: doasm: notfound from=75 to=10 (24)    IDIVL   $2,AX
 main_f4: doasm: notfound from=75 to=10 (24)    IDIVL   $2,AX
 BUG: known to fail incorrectly
 
+=========== ./func1.go
+BUG: known to succeed incorrectly
+
 =========== ./hashmap.go
 hashmap.go:46: fatal error: optoas: no entry LSH-<uint32>UINT32
 BUG: known to fail incorrectly
@@ -31,6 +34,9 @@ BUG: known to fail incorrectly
 hello, world
 
 =========== ./if.go
+
+=========== ./if1.go
+BUG: known to succeed incorrectly
 
 =========== ./int_lit.go
 int_lit.go:5: syntax error
@@ -51,6 +57,9 @@ string_lit.go:12: unknown escape sequence: '
 BUG: known to fail incorrectly
 
 =========== ./switch.go
+
+=========== ./switch1.go
+BUG: known to succeed incorrectly
 
 =========== ./test0.go
 test0.go:23: addtyp: renaming Point/<Point>{<x><int32>INT32;<y><int32>INT32;} to Point2/<Point2>FORW

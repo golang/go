@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(May 14, 2008)
+(June 6, 2008)
 
 This document is a semi-informal specification/proposal for a new
 systems programming language.  The document is under active
@@ -1563,17 +1563,19 @@ If statements
 
 If statements have the traditional form except that the
 condition need not be parenthesized and the "then" statement
-must be in brace brackets.
+must be in brace brackets. The condition may be omitted in which
+case it is assumed to have the value "true".
 
-  IfStat = "if" [ SimpleStat ";" ] Expression Block [ "else" Statement ] .
+  IfStat = "if" [ [ SimpleStat ";" ] Expression ] Block [ "else" Statement ] .
 
   if x > 0 {
     return true;
   }
-  
-An if statement may include the declaration of a single temporary variable.
+
+An "if" statement may include the declaration of a single temporary variable.
 The scope of the declared variable extends to the end of the if statement, and
-the variable is initialized once before the statement is entered. 
+the variable is initialized once before the statement is entered. If a variable
+is declared, the condition cannot be omitted.
 
   if x := f(); x < y {
     return x;
