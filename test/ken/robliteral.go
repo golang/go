@@ -2,18 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// $G $D/$F.go && $L $F.$A && ! ./$A.out && echo BUG: known to fail incorrectly
 
 package main
+
+var code int;
 
 func assert(cond bool, msg string) {
 	if !cond {
 		print "assertion fail: " + msg + "\n";
+		code = 1;
 		//panic 1;  this file has errors; print them all
 	}
 }
 
-func main() {
+func main() int {
+	code = 0;
+
 	// bool
 	var t bool = true;
 	var f bool = false;
@@ -207,4 +212,9 @@ func main() {
 	var sj1 string = "\u65e5\u672c\u8a9e";
 	var sj2 string = "\U000065e5\U0000672c\U00008a9e";
 	var sj3 string = "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e";
+	assert(sj0 == sj1, "sj1");
+	assert(sj0 == sj2, "sj2");
+	assert(sj0 == sj3, "sj3");
+
+	return code;
 }
