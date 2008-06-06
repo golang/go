@@ -23,6 +23,7 @@ for dir in . ken
 do
 	for i in $dir/*.go
 	do
+		echo
 		echo '===========' $i
 		export F=$(basename $i .go)
 		export D=$dir
