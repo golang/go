@@ -60,9 +60,18 @@ TEXT	sys_mmap(SB),1,$-8
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
 	MOVL	20(SP), DX
-	MOVL	24(SP), R10
+	MOVL	24(SP), CX
 	MOVL	28(SP), R8
 	MOVL	32(SP), R9
+
+/* flags arg for ANON is 1000 but sb 20 */
+	MOVL	CX, AX
+	ANDL	$~0x1000, CX
+	ANDL	$0x1000, AX
+	SHRL	$7, AX
+	ORL	AX, CX
+
+	MOVL	CX, R10
 	MOVL	$9, AX			// syscall entry
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
