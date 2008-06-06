@@ -321,6 +321,7 @@ struct	Io
 EXTERN	Io	curio;
 EXTERN	Io	pushedio;
 
+EXTERN	char*	infile;
 EXTERN	char*	outfile;
 EXTERN	char*	package;
 EXTERN	Biobuf*	bout;

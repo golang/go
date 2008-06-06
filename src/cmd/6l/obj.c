@@ -60,7 +60,7 @@ isobjfile(char *f)
 	n = Bread(b, buf1, 5);
 	if(n == 5 && (buf1[2] == 1 && buf1[3] == '<' || buf1[3] == 1 && buf1[4] == '<'))
 		v = 1;	/* good enough for our purposes */
-	else{
+	else {
 		Bseek(b, 0, 0);
 		n = Bread(b, buf2, SARMAG);
 		v = n == SARMAG && strncmp(buf2, ARMAG, SARMAG) == 0;
@@ -347,22 +347,27 @@ main(int argc, char *argv[])
 	lastp = firstp;
 
 	if(INITENTRY == nil) {
-		INITENTRY = "_rt0";
-		a = mal(strlen(INITENTRY)+strlen(goarch)+strlen(goos)+10);
-		strcpy(a, INITENTRY);
-		strcat(a, "_");
-		strcat(a, goarch);
-		strcat(a, "_");
-		strcat(a, goos);
-		INITENTRY = a;
+		INITENTRY = mal(strlen(goarch)+strlen(goos)+10);
+		sprint(INITENTRY, "_rt0_%s_%s", goarch, goos);
 	}
-
 	lookup(INITENTRY, 0)->type = SXREF;
+
+	if(!debug['l']) {
+		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
+		sprint(a, "%s/lib/rt0_%s_%s.6", goroot, goarch, goos);
+		objfile(a);
+	}
 
 	while(*argv)
 		objfile(*argv++);
-	if(!debug['l'])
+
+	if(!debug['l']) {
 		loadlib();
+		a = mal(strlen(goroot)+strlen(goarch)+20);
+		sprint(a, "%s/lib/rt_%s.6", goroot, goarch);
+		objfile(a);
+	}
+
 	firstp = firstp->link;
 	if(firstp == P)
 		errorexit();

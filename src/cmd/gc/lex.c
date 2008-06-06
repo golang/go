@@ -49,7 +49,8 @@ mainlex(int argc, char *argv[])
 	
 	lexinit();
 
-	curio.infile = argv[0];
+	infile = argv[0];
+	curio.infile = infile;
 
 	curio.bin = Bopen(curio.infile, OREAD);
 	if(curio.bin == nil)
@@ -1066,6 +1067,7 @@ mkpackage(char* pkg)
 {
 	Sym *s;
 	long h;
+	char *p;
 
 	if(bout != nil) {
 		yyerror("mkpackage: called again %s %s", pkg, package);
@@ -1082,7 +1084,16 @@ mkpackage(char* pkg)
 
 	if(outfile == nil) {
 		// BOTCH need to get .6 from backend
-		snprint(namebuf, sizeof(namebuf), "%s.6", package);
+		p = strrchr(infile, '/');
+		if(p == nil)
+			p = infile;
+		else
+			p = p+1;
+		snprint(namebuf, sizeof(namebuf), "%s", p);
+		p = strrchr(namebuf, '.');
+		if(p != nil)
+			*p = 0;
+		strncat(namebuf, ".6", sizeof(namebuf));
 		outfile = strdup(namebuf);
 	}
 }
