@@ -1,0 +1,40 @@
+#!/bin/sh
+# Copyright 2009 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+case X"$GOARCH" in
+Xamd64)
+	export A=6
+	;;
+*)
+	echo 1>&2 run: unknown architecture
+	exit 1
+esac
+
+export A=6
+export G=${A}g
+export L=${A}l
+
+failed=0
+
+for i in *.go
+do
+	echo '===========' $i
+	export F=$(basename $i .go)
+	sed -n '1,/[^/]/p' $i | sed 's@//@@; $d' > /tmp/$USER.$$.gotest
+	if ! sh /tmp/$USER.$$.gotest
+	then
+		echo >&2 fail: $i
+	fi
+done | cat -v >run.out
+case $failed in
+1)
+	echo FAIL
+esac
+rm  /tmp/$USER.$$.gotest
+if ! diff run.out golden.out
+then
+	failed=1
+fi
+exit $failed
