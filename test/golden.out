@@ -1,0 +1,49 @@
+=========== char_lit.go
+char_lit.go:5: syntax error
+char_lit.go:17: unknown escape sequence: \
+char_lit.go:19: unknown escape sequence: "
+BUG: known to fail incorrectly
+=========== float_lit.go
+float_lit.go:5: syntax error
+float_lit.go:28: overflow in float constant
+float_lit.go:56: overflow in float constant
+float_lit.go:60: overflow in float constant
+float_lit.go:64: overflow in float constant
+BUG: known to fail incorrectly
+=========== hashmap.go
+hashmap.go:46: fatal error: optoas: no entry LSH-<uint32>UINT32
+BUG: known to fail incorrectly
+=========== helloworld.go
+hello, world
+=========== int_lit.go
+int_lit.go:5: syntax error
+BUG: known to fail incorrectly
+=========== sieve.go
+sieve.go:8: syntax error
+sieve.go:16: prime undefined
+sieve.go:17: out undefined
+sieve.go:18: syntax error
+sieve.go:27: fatal error: walktype: switch 1 unknown op RECV l(27)
+BUG: known to fail incorrectly
+=========== string_lit.go
+string_lit.go:5: syntax error
+string_lit.go:12: unknown escape sequence: \
+string_lit.go:12: unknown escape sequence: '
+BUG: known to fail incorrectly
+=========== test0.go
+test0.go:23: addtyp: renaming Point/<Point>{<x><int32>INT32;<y><int32>INT32;} to Point2/<Point2>FORW
+test0.go:48: illegal types for operand
+	(<float32>FLOAT32) AS (<int32>INT32)
+test0.go:49: illegal types for operand
+	(<float32>FLOAT32) AS (<int32>INT32)
+test0.go:50: error in shape across assignment
+test0.go:55: illegal types for operand
+	(*<Point2>{}) CALLMETH (<Point2>{})
+test0.go:54: function call must be single valued (0)
+test0.go:54: illegal types for operand
+	(<Point2>{}) AS ({})
+BUG: known to fail incorrectly
+=========== turing.go
+^B^A^H^H^K^B^Q^@^C^C^C^A^@index 0<111>111
+throw: bounds
+BUG: known to fail incorrectly

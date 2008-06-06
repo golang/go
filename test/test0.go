@@ -4,8 +4,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This is test0.go.
-
 package Test0
 
 const
@@ -29,11 +27,11 @@ type (
 )
 
 func (p *Point) Initialize(x, y int) {
-  p.x, p.y = x, y
+  p.x, p.y = x, y;
 }
 
 func (p *Point) Distance() int {
-  return p.x * p.x + p.y * p.y
+  return p.x * p.x + p.y * p.y;
 }
 
 var (
@@ -45,14 +43,14 @@ var (
 func foo() {}
 
 func min(x, y int) int {
-  if x < y { return x }
-  return y
+  if x < y { return x; }
+  return y;
 }
 
 func swap(x, y int) (u, v int) {
   u = y;
   v = x;
-  return
+  return;
 }
 
 func control_structs() {
@@ -64,7 +62,7 @@ func control_structs() {
   for j := 0; j < i; j++ {
     if i == 0 {
     } else i = 0;
-    var x float
+    var x float;
   }
   foo:  // a label
   var j int;
@@ -77,6 +75,6 @@ func control_structs() {
     goto foo;
   default:
     i = -+-+i;
-    break
+    break;
   }
 }
