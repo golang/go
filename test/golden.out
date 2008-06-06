@@ -18,6 +18,7 @@ BUG: known to fail incorrectly
 hashmap.go:46: fatal error: optoas: no entry LSH-<uint32>UINT32
 BUG: known to fail incorrectly
 =========== helloworld.go
+hello, world
 =========== if.go
 =========== int_lit.go
 int_lit.go:5: syntax error
@@ -47,3 +48,4 @@ test0.go:54: illegal types for operand
 	(<Point2>{}) AS ({})
 BUG: known to fail incorrectly
 =========== turing.go
+Hello World!
