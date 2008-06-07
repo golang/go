@@ -1,7 +1,4 @@
 
-=========== ./bug041.go
-BUG: compilation succeeds incorrectly
-
 =========== ./char_lit.go
 char_lit.go:5: syntax error
 char_lit.go:17: unknown escape sequence: \
