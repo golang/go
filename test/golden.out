@@ -1,31 +1,4 @@
 
-=========== ./bug032.go
-BUG: compilation succeeds incorrectly
-
-=========== ./bug033.go
-BUG: compilation succeeds incorrectly
-
-=========== ./bug034.go
-BUG: compilation succeeds incorrectly
-
-=========== ./bug035.go
-BUG: compilation succeeds incorrectly
-
-=========== ./bug036.go
-BUG: compilation succeeds incorrectly
-
-=========== ./bug037.go
-BUG: compilation succeeds incorrectly
-
-=========== ./bug038.go
-BUG: compilation succeeds incorrectly
-
-=========== ./bug039.go
-BUG: compilation succeeds incorrectly
-
-=========== ./bug040.go
-BUG: compilation succeeds incorrectly
-
 =========== ./bug041.go
 BUG: compilation succeeds incorrectly
 
@@ -265,6 +238,33 @@ BUG: known to succeed incorrectly
 
 =========== bugs/bug030.go
 BUG: known to succeed incorrectly
+
+=========== bugs/bug032.go
+bug032.go:0: fatal error: cant open: bug032.go
+
+=========== bugs/bug033.go
+bug033.go:0: fatal error: cant open: bug033.go
+
+=========== bugs/bug034.go
+bug034.go:0: fatal error: cant open: bug034.go
+
+=========== bugs/bug035.go
+bug035.go:0: fatal error: cant open: bug035.go
+
+=========== bugs/bug036.go
+bug036.go:0: fatal error: cant open: bug036.go
+
+=========== bugs/bug037.go
+bug037.go:0: fatal error: cant open: bug037.go
+
+=========== bugs/bug038.go
+bug038.go:0: fatal error: cant open: bug038.go
+
+=========== bugs/bug039.go
+bug039.go:0: fatal error: cant open: bug039.go
+
+=========== bugs/bug040.go
+bug040.go:0: fatal error: cant open: bug040.go
 
 =========== fixedbugs/bug000.go
 
