@@ -171,7 +171,7 @@ cannedimports(void)
 long
 yylex(void)
 {
-	long c, c1;
+	ulong c, c1;
 	char *cp;
 	Rune rune;
 	int escflag;
@@ -696,10 +696,10 @@ getnsc(void)
 }
 
 
-long
-escchar(long e, int *escflg)
+ulong
+escchar(int e, int *escflg)
 {
-	long c, l;
+	ulong c, l;
 	int i;
 
 	*escflg = 0;
@@ -753,7 +753,7 @@ loop:
 
 	default:
 		if(c != e)
-		warn("unknown escape sequence: %c", c);
+			warn("unknown escape sequence: %c", c);
 	}
 	return c;
 
