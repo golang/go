@@ -40,7 +40,7 @@ cgen(Node *n, Node *res)
 
 	if(!res->addable) {
 		if(n->ullman > res->ullman) {
-			regalloc(&n1, nr->type, res);
+			regalloc(&n1, n->type, res);
 			cgen(n, &n1);
 			cgen(&n1, res);
 			regfree(&n1);
