@@ -262,6 +262,13 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug040.go
 BUG: compilation succeeds incorrectly
 
+=========== bugs/bug041.go
+BUG: compilation succeeds incorrectly
+
+=========== bugs/bug042.go
+bugs/bug042.go:6: syntax error
+BUG: compilation should succeed
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug005.go
