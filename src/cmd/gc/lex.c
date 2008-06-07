@@ -171,7 +171,8 @@ cannedimports(void)
 long
 yylex(void)
 {
-	ulong c, c1;
+	int c, c1;
+	vlong v;
 	char *cp;
 	Rune rune;
 	int escflag;
@@ -224,14 +225,14 @@ l0:
 
 	caseq:
 		for(;;) {
-			c = escchar('"', &escflag);
-			if(c == EOF)
+			if(escchar('"', &escflag, &v))
 				break;
 			if(escflag) {
 				cp = remal(cp, c1, 1);
-				cp[c1++] = c;
+				cp[c1++] = v;
 			} else {
-				rune = c;
+				// botch - this limits size of runes
+				rune = v;
 				c = runelen(rune);
 				cp = remal(cp, c1, c);
 				runetochar(cp+c1, &rune);
@@ -281,15 +282,13 @@ l0:
 
 	case '\'':
 		/* '.' */
-		c = escchar('\'', &escflag);
-		if(c == EOF)
-			c = '\'';
-		c1 = escchar('\'', &escflag);
-		if(c1 != EOF) {
+		if(escchar('\'', &escflag, &v))
+			v = '\'';	// allow '''
+		if(!escchar('\'', &escflag, &v)) {
 			yyerror("missing '");
-			ungetc(c1);
+			ungetc(v);
 		}
-		yylval.val.vval = c;
+		yylval.val.vval = v;
 		yylval.val.ctype = CTINT;
 		DBG("lex: codepoint literal\n");
 		return LLITERAL;
@@ -696,11 +695,11 @@ getnsc(void)
 }
 
 
-ulong
-escchar(int e, int *escflg)
+int
+escchar(int e, int *escflg, vlong *val)
 {
-	ulong c, l;
-	int i;
+	int i, c;
+	vlong l;
 
 	*escflg = 0;
 
@@ -708,13 +707,15 @@ loop:
 	c = getr();
 	if(c == '\n') {
 		yyerror("newline in string");
-		return EOF;
+		return 1;
 	}
 	if(c != '\\') {
 		if(c == e)
-			c = EOF;
-		return c;
+			return 1;
+		*val = c;
+		return 0;
 	}
+
 	c = getr();
 	switch(c) {
 	case '\n':
@@ -742,20 +743,21 @@ loop:
 	case '7':
 		goto oct;
 
-	case 'a': return '\a';
-	case 'b': return '\b';
-	case 'f': return '\f';
-	case 'n': return '\n';
-	case 'r': return '\r';
-	case 't': return '\t';
-	case 'v': return '\v';
-	case '\\': return '\\';
+	case 'a': c = '\a'; break;
+	case 'b': c = '\b'; break;
+	case 'f': c = '\f'; break;
+	case 'n': c = '\n'; break;
+	case 'r': c = '\r'; break;
+	case 't': c = '\t'; break;
+	case 'v': c = '\v'; break;
+	case '\\': c = '\\'; break;
 
 	default:
 		if(c != e)
 			warn("unknown escape sequence: %c", c);
 	}
-	return c;
+	*val = c;
+	return 0;
 
 hex:
 	l = 0;
@@ -778,7 +780,8 @@ hex:
 		break;
 	}
 	*escflg = 1;
-	return l;
+	*val = l;
+	return 0;
 
 oct:
 	l = c - '0';
@@ -794,7 +797,8 @@ oct:
 	if(l > 255)
 		warn("oct escape value > 255: %d", l);
 	*escflg = 1;
-	return l;
+	*val = l;
+	return 0;
 }
 
 static	struct
