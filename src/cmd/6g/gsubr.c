@@ -1354,38 +1354,82 @@ optoas(int op, Type *t)
 		a = ANEGQ;
 		break;
 
+	case CASE(OLSH, TINT8):
+	case CASE(OLSH, TUINT8):
+		a = ASHLB;
+		break;
+
+	case CASE(OLSH, TINT16):
+	case CASE(OLSH, TUINT16):
+		a = ASHLW;
+		break;
+
+	case CASE(OLSH, TINT32):
+	case CASE(OLSH, TUINT32):
+	case CASE(OLSH, TPTR32):
+		a = ASHLL;
+		break;
+
+	case CASE(OLSH, TINT64):
+	case CASE(OLSH, TUINT64):
+	case CASE(OLSH, TPTR64):
+		a = ASHLQ;
+		break;
+
+	case CASE(ORSH, TUINT8):
+		a = ASHRB;
+		break;
+
+	case CASE(ORSH, TUINT16):
+		a = ASHRW;
+		break;
+
+	case CASE(ORSH, TUINT32):
+	case CASE(ORSH, TPTR32):
+		a = ASHRL;
+		break;
+
+	case CASE(ORSH, TUINT64):
+	case CASE(ORSH, TPTR64):
+		a = ASHRQ;
+		break;
+
+	case CASE(ORSH, TINT8):
+		a = ASARB;
+		break;
+
+	case CASE(ORSH, TINT16):
+		a = ASARW;
+		break;
+
+	case CASE(ORSH, TINT32):
+		a = ASARL;
+		break;
+
+	case CASE(ORSH, TINT64):
+		a = ASARQ;
+		break;
+
 	case CASE(OMUL, TINT8):
+	case CASE(OMUL, TUINT8):
 		a = AIMULB;
 		break;
 
-	case CASE(OMUL, TUINT8):
-		a = AMULB;
-		break;
-
 	case CASE(OMUL, TINT16):
+	case CASE(OMUL, TUINT16):
 		a = AIMULW;
 		break;
 
-	case CASE(OMUL, TUINT16):
-		a = AMULW;
-		break;
-
 	case CASE(OMUL, TINT32):
+	case CASE(OMUL, TUINT32):
+	case CASE(OMUL, TPTR32):
 		a = AIMULL;
 		break;
 
-	case CASE(OMUL, TUINT32):
-	case CASE(OMUL, TPTR32):
-		a = AMULL;
-		break;
-
 	case CASE(OMUL, TINT64):
-		a = AIMULQ;
-		break;
-
 	case CASE(OMUL, TUINT64):
 	case CASE(OMUL, TPTR64):
-		a = AMULQ;
+		a = AIMULQ;
 		break;
 
 	case CASE(OMUL, TFLOAT32):
@@ -1438,6 +1482,18 @@ optoas(int op, Type *t)
 	case CASE(OMOD, TUINT64):
 	case CASE(OMOD, TPTR64):
 		a = ADIVQ;
+		break;
+
+	case CASE(OFOR, TINT16):
+		a = ACWD;
+		break;
+
+	case CASE(OFOR, TINT32):
+		a = ACDQ;
+		break;
+
+	case CASE(OFOR, TINT64):
+		a = ACQO;
 		break;
 
 	case CASE(ODIV, TFLOAT32):
