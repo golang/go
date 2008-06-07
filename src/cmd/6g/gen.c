@@ -827,49 +827,85 @@ cgen_as(Node *nl, Node *nr, int op)
 	cgen(nr, nl);
 }
 
+int
+samereg(Node *a, Node *b)
+{
+	if(a->op != OREGISTER)
+		return 0;
+	if(b->op != OREGISTER)
+		return 0;
+	if(a->val.vval != b->val.vval)
+		return 0;
+	return 1;
+}
+
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
 	Node n1, n2, n3;
-	int a;
+	int a, rax, rdx;
 
-	if(reg[D_AX] || reg[D_DX]) {
-		fatal("registers occupide");
+	nodreg(&n1, types[TINT64], D_AX);
+	nodreg(&n2, types[TINT64], D_DX);
+
+	rax = reg[D_AX];
+	rdx = reg[D_DX];
+
+	// hold down the DX:AX registers
+	regalloc(&n1, nr->type, &n1);
+	if(rax && !samereg(res, &n1)) {
+		// clean out the AX register
+		regalloc(&n3, types[TINT64], N);
+		gins(AMOVQ, &n1, &n3);
+		regfree(&n1);
+
+		reg[D_AX] = 0;
+		cgen_div(op, nl, nr, res);
+		reg[D_AX] = rax;
+
+		gins(AMOVQ, &n3, &n1);
+		regfree(&n3);
+		return;
+	}
+
+	regalloc(&n2, nr->type, &n2);
+	if(rdx && !samereg(res, &n2)) {
+		// clean out the DX register
+		regalloc(&n3, types[TINT64], N);
+		gins(AMOVQ, &n2, &n3);
+		regfree(&n1);
+
+		reg[D_DX] = 0;
+		cgen_div(op, nl, nr, res);
+		reg[D_DX] = rdx;
+
+		gins(AMOVQ, &n3, &n2);
+		regfree(&n3);
+		return;
 	}
 
 	a = optoas(op, nl->type);
-
-	// hold down the DX:AX registers
-	nodreg(&n1, types[TINT64], D_AX);
-	nodreg(&n2, types[TINT64], D_DX);
-	regalloc(&n1, nr->type, &n1);
-	regalloc(&n2, nr->type, &n2);
 
 	if(!issigned[nl->type->etype]) {
 		nodconst(&n3, nl->type, 0);
 		gmove(&n3, &n2);
 	}
 
+	regalloc(&n3, nr->type, res);
 	if(nl->ullman >= nr->ullman) {
 		cgen(nl, &n1);
 		if(issigned[nl->type->etype])
 			gins(ACDQ, N, N);
-		if(!nr->addable) {
-			regalloc(&n3, nr->type, res);
-			cgen(nr, &n3);
-			gins(a, &n3, N);
-			regfree(&n3);
-		} else
-			gins(a, nr, N);
+		cgen(nr, &n3);
+		gins(a, &n3, N);
 	} else {
-		regalloc(&n3, nr->type, res);
 		cgen(nr, &n3);
 		cgen(nl, &n1);
 		if(issigned[nl->type->etype])
 			gins(ACDQ, N, N);
 		gins(a, &n3, N);
-		regfree(&n3);
 	}
+	regfree(&n3);
 
 	if(op == ODIV)
 		gmove(&n1, res);
