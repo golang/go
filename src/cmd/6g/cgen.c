@@ -112,9 +112,7 @@ cgen(Node *n, Node *res)
 		goto sbop;
 
 	// asymmetric binary
-	case OMOD:
 	case OSUB:
-	case ODIV:
 	case OLSH:
 	case ORSH:
 		a = optoas(n->op, nl->type);
@@ -236,6 +234,11 @@ cgen(Node *n, Node *res)
 	case OCALL:
 		cgen_call(n);
 		cgen_callret(n, res);
+		break;
+
+	case OMOD:
+	case ODIV:
+		cgen_div(n->op, nl, nr, res);
 		break;
 	}
 	goto ret;

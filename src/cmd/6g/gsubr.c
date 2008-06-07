@@ -1397,36 +1397,46 @@ optoas(int op, Type *t)
 		break;
 
 	case CASE(ODIV, TINT8):
+	case CASE(OMOD, TINT8):
 		a = AIDIVB;
 		break;
 
 	case CASE(ODIV, TUINT8):
+	case CASE(OMOD, TUINT8):
 		a = ADIVB;
 		break;
 
 	case CASE(ODIV, TINT16):
+	case CASE(OMOD, TINT16):
 		a = AIDIVW;
 		break;
 
 	case CASE(ODIV, TUINT16):
+	case CASE(OMOD, TUINT16):
 		a = ADIVW;
 		break;
 
 	case CASE(ODIV, TINT32):
+	case CASE(OMOD, TINT32):
 		a = AIDIVL;
 		break;
 
 	case CASE(ODIV, TUINT32):
 	case CASE(ODIV, TPTR32):
+	case CASE(OMOD, TUINT32):
+	case CASE(OMOD, TPTR32):
 		a = ADIVL;
 		break;
 
 	case CASE(ODIV, TINT64):
+	case CASE(OMOD, TINT64):
 		a = AIDIVQ;
 		break;
 
 	case CASE(ODIV, TUINT64):
 	case CASE(ODIV, TPTR64):
+	case CASE(OMOD, TUINT64):
+	case CASE(OMOD, TPTR64):
 		a = ADIVQ;
 		break;
 

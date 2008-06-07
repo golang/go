@@ -826,3 +826,56 @@ cgen_as(Node *nl, Node *nr, int op)
 	}
 	cgen(nr, nl);
 }
+
+void
+cgen_div(int op, Node *nl, Node *nr, Node *res)
+{
+	Node n1, n2, n3;
+	int a;
+
+	if(reg[D_AX] || reg[D_DX]) {
+		fatal("registers occupide");
+	}
+
+	a = optoas(op, nl->type);
+
+	// hold down the DX:AX registers
+	nodreg(&n1, types[TINT64], D_AX);
+	nodreg(&n2, types[TINT64], D_DX);
+	regalloc(&n1, nr->type, &n1);
+	regalloc(&n2, nr->type, &n2);
+
+	if(!issigned[nl->type->etype]) {
+		nodconst(&n3, nl->type, 0);
+		gmove(&n3, &n2);
+	}
+
+	if(nl->ullman >= nr->ullman) {
+		cgen(nl, &n1);
+		if(issigned[nl->type->etype])
+			gins(ACDQ, N, N);
+		if(!nr->addable) {
+			regalloc(&n3, nr->type, res);
+			cgen(nr, &n3);
+			gins(a, &n3, N);
+			regfree(&n3);
+		} else
+			gins(a, nr, N);
+	} else {
+		regalloc(&n3, nr->type, res);
+		cgen(nr, &n3);
+		cgen(nl, &n1);
+		if(issigned[nl->type->etype])
+			gins(ACDQ, N, N);
+		gins(a, &n3, N);
+		regfree(&n3);
+	}
+
+	if(op == ODIV)
+		gmove(&n1, res);
+	else
+		gmove(&n2, res);
+
+	regfree(&n1);
+	regfree(&n2);
+}
