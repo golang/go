@@ -274,6 +274,10 @@ bugs/bug043.go:14: error in shape across assignment
 bugs/bug043.go:17: error in shape across assignment
 BUG: compilation should succeed
 
+=========== bugs/bug044.go
+bugs/bug044.go:23: error in shape across assignment
+BUG: compilation should succeed
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug005.go
