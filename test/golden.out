@@ -240,31 +240,31 @@ BUG: known to succeed incorrectly
 BUG: known to succeed incorrectly
 
 =========== bugs/bug032.go
-bug032.go:0: fatal error: cant open: bug032.go
+BUG: compilation succeeds incorrectly
 
 =========== bugs/bug033.go
-bug033.go:0: fatal error: cant open: bug033.go
+BUG: compilation succeeds incorrectly
 
 =========== bugs/bug034.go
-bug034.go:0: fatal error: cant open: bug034.go
+BUG: compilation succeeds incorrectly
 
 =========== bugs/bug035.go
-bug035.go:0: fatal error: cant open: bug035.go
+BUG: compilation succeeds incorrectly
 
 =========== bugs/bug036.go
-bug036.go:0: fatal error: cant open: bug036.go
+BUG: compilation succeeds incorrectly
 
 =========== bugs/bug037.go
-bug037.go:0: fatal error: cant open: bug037.go
+BUG: compilation succeeds incorrectly
 
 =========== bugs/bug038.go
-bug038.go:0: fatal error: cant open: bug038.go
+BUG: compilation succeeds incorrectly
 
 =========== bugs/bug039.go
-bug039.go:0: fatal error: cant open: bug039.go
+BUG: compilation succeeds incorrectly
 
 =========== bugs/bug040.go
-bug040.go:0: fatal error: cant open: bug040.go
+BUG: compilation succeeds incorrectly
 
 =========== fixedbugs/bug000.go
 
