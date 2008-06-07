@@ -269,6 +269,11 @@ BUG: compilation succeeds incorrectly
 bugs/bug042.go:6: syntax error
 BUG: compilation should succeed
 
+=========== bugs/bug043.go
+bugs/bug043.go:14: error in shape across assignment
+bugs/bug043.go:17: error in shape across assignment
+BUG: compilation should succeed
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug005.go
