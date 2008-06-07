@@ -749,6 +749,7 @@ loop:
 	case 'r': return '\r';
 	case 't': return '\t';
 	case 'v': return '\v';
+	case '\\': return '\\';
 
 	default:
 		if(c != e)
