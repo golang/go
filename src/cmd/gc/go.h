@@ -387,7 +387,7 @@ void	lexinit(void);
 char*	lexname(int);
 long	getr(void);
 int	getnsc(void);
-ulong	escchar(int, int*);
+int	escchar(int, int*, vlong*);
 int	getc(void);
 void	ungetc(int);
 void	mkpackage(char*);
