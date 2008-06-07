@@ -14,7 +14,7 @@ func main() {
     "a",
     "ä",
     "本",
-    "\a\b\f\n\r\t\v\\\'\"",
+    "\a\b\f\n\r\t\v\\\"",
     "\000\123\x00\xca\xFE\u0123\ubabe\U0123ABCD\Ucafebabe",
     
     ``,

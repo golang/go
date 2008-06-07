@@ -53,7 +53,6 @@ BUG: known to fail incorrectly
 =========== ./string_lit.go
 string_lit.go:5: syntax error
 string_lit.go:12: unknown escape sequence: \
-string_lit.go:12: unknown escape sequence: '
 BUG: known to fail incorrectly
 
 =========== ./switch.go
