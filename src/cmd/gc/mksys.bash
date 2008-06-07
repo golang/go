@@ -16,4 +16,4 @@ $a
 
 .
 w sysimport.c
-q' | ed foop.6
+q' | ed sys.6

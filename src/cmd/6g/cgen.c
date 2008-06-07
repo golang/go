@@ -9,7 +9,7 @@ cgen(Node *n, Node *res)
 {
 	long lno;
 	Node *nl, *nr, *r;
-	Node n1, tmp;
+	Node n1, n2;
 	int a;
 	Prog *p1, *p2, *p3;
 
@@ -113,8 +113,6 @@ cgen(Node *n, Node *res)
 
 	// asymmetric binary
 	case OSUB:
-	case OLSH:
-	case ORSH:
 		a = optoas(n->op, nl->type);
 		goto abop;
 
@@ -240,6 +238,10 @@ cgen(Node *n, Node *res)
 	case ODIV:
 		cgen_div(n->op, nl, nr, res);
 		break;
+	case OLSH:
+	case ORSH:
+		cgen_shift(n->op, nl, nr, res);
+		break;
 	}
 	goto ret;
 
@@ -251,26 +253,21 @@ sbop:	// symmetric binary
 	}
 
 abop:	// asymmetric binary
-	if(nr->addable) {
+	if(nl->ullman >= nr->ullman) {
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
-		gins(a, nr, &n1);
-		gmove(&n1, res);
-		regfree(&n1);
-		goto ret;
+		regalloc(&n2, nr->type, N);
+		cgen(nr, &n2);
+	} else {
+		regalloc(&n2, nr->type, N);
+		cgen(nr, &n2);
+		regalloc(&n1, nl->type, res);
+		cgen(nl, &n1);
 	}
-
-	tempname(&tmp, nr->type);
-	regalloc(&n1, nr->type, res);
-	cgen(nr, &n1);
-	gmove(&n1, &tmp);
-	regfree(&n1);
-
-	regalloc(&n1, nl->type, res);
-	cgen(nl, &n1);
-	gins(a, &tmp, &n1);
+	gins(a, &n2, &n1);
 	gmove(&n1, res);
 	regfree(&n1);
+	regfree(&n2);
 	goto ret;
 
 uop:	// unary
@@ -375,18 +372,16 @@ agen(Node *n, Node *res)
 		// &a is in res
 		// i is in &n1
 		// w is width
-		if(issigned[n1.type->etype]) {
-			nodconst(&n3, types[TINT64], w);	// w/tint64
+		nodconst(&n3, types[TINT64], w);	// w/tint64
+		if(issigned[n1.type->etype])
 			regalloc(&n2, types[TINT64], &n1);	// i/int64
-			gmove(&n1, &n2);
-			gins(optoas(OMUL, types[TINT64]), &n3, &n2);
-			gins(optoas(OADD, types[tptr]), &n2, res);
-			regfree(&n1);
-			regfree(&n2);
-			break;
-		}
-		// unsigned multiply is a pain in the ass
-		fatal("agen: unsigned index");
+		else
+			regalloc(&n2, types[TUINT64], &n1);	// i/uint64
+		gmove(&n1, &n2);
+		gins(optoas(OMUL, types[TINT64]), &n3, &n2);
+		gins(optoas(OADD, types[tptr]), &n2, res);
+		regfree(&n1);
+		regfree(&n2);
 		break;
 
 //	case OIND:

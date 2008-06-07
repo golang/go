@@ -839,25 +839,32 @@ samereg(Node *a, Node *b)
 	return 1;
 }
 
+/*
+ * this is hard because divide
+ * is done in a fixed numerator
+ * of combined DX:AX registers
+ */
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
 	Node n1, n2, n3;
 	int a, rax, rdx;
 
-	nodreg(&n1, types[TINT64], D_AX);
-	nodreg(&n2, types[TINT64], D_DX);
 
 	rax = reg[D_AX];
 	rdx = reg[D_DX];
 
-	// hold down the DX:AX registers
+	nodreg(&n1, types[TINT64], D_AX);
+	nodreg(&n2, types[TINT64], D_DX);
 	regalloc(&n1, nr->type, &n1);
+	regalloc(&n2, nr->type, &n2);
+
+	// clean out the AX register
 	if(rax && !samereg(res, &n1)) {
-		// clean out the AX register
 		regalloc(&n3, types[TINT64], N);
 		gins(AMOVQ, &n1, &n3);
 		regfree(&n1);
+		regfree(&n2);
 
 		reg[D_AX] = 0;
 		cgen_div(op, nl, nr, res);
@@ -868,12 +875,12 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 		return;
 	}
 
-	regalloc(&n2, nr->type, &n2);
+	// clean out the DX register
 	if(rdx && !samereg(res, &n2)) {
-		// clean out the DX register
 		regalloc(&n3, types[TINT64], N);
 		gins(AMOVQ, &n2, &n3);
 		regfree(&n1);
+		regfree(&n2);
 
 		reg[D_DX] = 0;
 		cgen_div(op, nl, nr, res);
@@ -891,18 +898,18 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 		gmove(&n3, &n2);
 	}
 
-	regalloc(&n3, nr->type, res);
+	regalloc(&n3, nr->type, N);
 	if(nl->ullman >= nr->ullman) {
 		cgen(nl, &n1);
 		if(issigned[nl->type->etype])
-			gins(ACDQ, N, N);
+			gins(optoas(OFOR, nl->type), N, N);
 		cgen(nr, &n3);
 		gins(a, &n3, N);
 	} else {
 		cgen(nr, &n3);
 		cgen(nl, &n1);
 		if(issigned[nl->type->etype])
-			gins(ACDQ, N, N);
+			gins(optoas(OFOR, nl->type), N, N);
 		gins(a, &n3, N);
 	}
 	regfree(&n3);
@@ -911,6 +918,63 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 		gmove(&n1, res);
 	else
 		gmove(&n2, res);
+
+	regfree(&n1);
+	regfree(&n2);
+}
+
+/*
+ * this is hard because shift
+ * count is either constant
+ * or the CL register
+ */
+void
+cgen_shift(int op, Node *nl, Node *nr, Node *res)
+{
+	Node n1, n2;
+	int a, rcl;
+
+	a = optoas(op, nl->type);
+
+	if(nr->op == OLITERAL) {
+		regalloc(&n1, nr->type, res);
+		cgen(nl, &n1);
+		gins(a, nr, &n1);
+		gmove(&n1, res);
+		regfree(&n1);
+		return;
+	}
+
+	rcl = reg[D_CX];
+
+	nodreg(&n1, types[TINT64], D_CX);
+	regalloc(&n1, nr->type, &n1);
+
+	// clean out the CL register
+	if(rcl && !samereg(res, &n1)) {
+		regalloc(&n2, types[TINT64], N);
+		gins(AMOVQ, &n1, &n2);
+		regfree(&n1);
+
+		reg[D_CX] = 0;
+		cgen_shift(op, nl, nr, res);
+		reg[D_CX] = rcl;
+
+		gins(AMOVQ, &n2, &n1);
+		regfree(&n2);
+		return;
+	}
+
+	regalloc(&n2, nl->type, res);	// can one shift the CL register?
+	if(nl->ullman >= nr->ullman) {
+		cgen(nl, &n2);
+		cgen(nr, &n1);
+	} else {
+		cgen(nr, &n1);
+		cgen(nl, &n2);
+	}
+	gins(a, &n1, &n2);
+	gmove(&n2, res);
 
 	regfree(&n1);
 	regfree(&n2);
