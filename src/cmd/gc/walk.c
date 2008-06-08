@@ -264,6 +264,7 @@ loop:
 		}
 
 		// simple fix-float
+		if(n->left->type != T)
 		if(isint[n->left->type->etype] || isfloat[n->left->type->etype])
 		if(isint[n->type->etype] || isfloat[n->type->etype]) {
 			evconst(n);
@@ -281,6 +282,11 @@ loop:
 				*n = *stringop(n);
 				goto ret;
 			}
+		}
+
+		if(n->type->etype == TARRAY) {
+			arrayconv(n->type, n->left);
+			goto ret;
 		}
 
 		badtype(n->op, n->left->type, n->type);
@@ -1275,4 +1281,32 @@ Node*
 reorder(Node *n)
 {
 	return n;
+}
+
+void
+arrayconv(Type *t, Node *n)
+{
+	int c;
+	Iter save;
+	Node *l;
+
+	l = listfirst(&save, &n);
+	c = 0;
+
+loop:
+	if(l == N) {
+		if(t->bound == 0)
+			t->bound = c;
+		if(t->bound == 0 || t->bound < c)
+			yyerror("error with array convert bounds");
+		return;
+	}
+
+	c++;
+	walktype(l, 0);
+	convlit(l, t->type);
+	if(!ascompat(l->type, t->type))
+		badtype(OARRAY, l->type, t->type);
+	l = listnext(&save);
+	goto loop;
 }

@@ -530,6 +530,7 @@ Node*	newcompat(Node*);
 Node*	stringop(Node*);
 Node*	convas(Node*);
 Node*	reorder(Node*);
+void	arrayconv(Type*, Node*);
 
 /*
  *	const.c

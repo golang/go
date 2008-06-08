@@ -30,12 +30,14 @@
 %type	<lint>		chandir
 %type	<node>		xdcl xdcl_list_r oxdcl_list common_dcl
 %type	<node>		oarg_type_list arg_type_list_r arg_type
-%type	<node>		stmt empty_stmt else_stmt
-%type	<node>		complex_stmt compound_stmt stmt_list_r ostmt_list
+%type	<node>		else_stmt1 else_stmt2
+%type	<node>		complex_stmt compound_stmt ostmt_list
+%type	<node>		stmt_list_r Astmt_list_r Bstmt_list_r
+%type	<node>		Astmt Bstmt Cstmt
 %type	<node>		for_stmt for_body for_header
 %type	<node>		if_stmt if_body if_header
 %type	<node>		range_header range_body range_stmt
-%type	<node>		simple_stmt osimple_stmt
+%type	<node>		simple_stmt osimple_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
 %type	<node>		name name_name new_name new_name_list_r
 %type	<node>		vardcl_list_r vardcl
@@ -48,7 +50,7 @@
 %type	<node>		fnres fnliteral xfndcl fndcl
 %type	<node>		keyval_list_r keyval
 
-%type	<type>		type fntypeh fntype fnlitdcl intype new_type
+%type	<type>		type fntypeh fntype fnlitdcl intype new_type typeconv
 
 %left			LOROR
 %left			LANDAND
@@ -206,40 +208,16 @@ typedcl:
 		dodcltype($1, $2);
 	}
 
-/*
- * statements
- */
-stmt:
-	error ';'
+else_stmt1:
+	complex_stmt
+|	compound_stmt
+
+else_stmt2:
+	simple_stmt
+|	semi_stmt
+|	';'
 	{
 		$$ = N;
-		context = nil;
-	}
-|	common_dcl ';'
-	{
-		$$ = $1;
-	}
-|	simple_stmt ';'
-|	complex_stmt
-|	compound_stmt
-|	empty_stmt
-
-empty_stmt:
-	';'
-	{
-		$$ = nod(OEMPTY, N, N);
-	}
-
-else_stmt:
-	stmt
-	{
-		$$ = $1;
-		switch($$->op) {
-		case OLABEL:
-		case OXCASE:
-		case OXFALL:
-			yyerror("statement cannot be labeled");
-		}
 	}
 
 simple_stmt:
@@ -295,7 +273,7 @@ complex_stmt:
 		popdcl("if/switch");
 		$$ = $2;
 	}
-|	LIF if_stmt LELSE else_stmt
+|	LIF if_stmt LELSE else_stmt1
 	{
 		popdcl("if/switch");
 		$$ = $2;
@@ -305,10 +283,6 @@ complex_stmt:
 	{
 		popdcl("range");
 		$$ = $2;
-	}
-|	LRETURN oexpr_list ';'
-	{
-		$$ = nod(ORETURN, $2, N);
 	}
 |	LCASE expr_list ':'
 	{
@@ -323,38 +297,50 @@ complex_stmt:
 		poptodcl();
 		$$ = nod(OXCASE, N, N);
 	}
-|	LFALL ';'
+|	new_name ':'
+	{
+		$$ = nod(OLABEL, $1, N);
+	}
+
+semi_stmt:
+	LFALL
 	{
 		// will be converted to OFALL
 		$$ = nod(OXFALL, N, N);
 	}
-|	LBREAK oexpr ';'
+|	LBREAK oexpr
 	{
 		$$ = nod(OBREAK, $2, N);
 	}
-|	LCONTINUE oexpr ';'
+|	LCONTINUE oexpr
 	{
 		$$ = nod(OCONTINUE, $2, N);
 	}
-|	LGO pexpr '(' oexpr_list ')' ';'
+|	LGO pexpr '(' oexpr_list ')'
 	{
 		$$ = nod(OPROC, $2, $4);
 	}
-|	LPRINT expr_list ';'
+|	LPRINT expr_list
 	{
 		$$ = nod(OPRINT, $2, N);
 	}
-|	LPANIC oexpr_list ';'
+|	LPANIC oexpr_list
 	{
 		$$ = nod(OPANIC, $2, N);
 	}
-|	LGOTO new_name ';'
+|	LGOTO new_name
 	{
 		$$ = nod(OGOTO, $2, N);
 	}
-|	new_name ':'
+|	LRETURN oexpr_list
 	{
-		$$ = nod(OLABEL, $1, N);
+		$$ = nod(ORETURN, $2, N);
+	}
+|	LIF if_stmt LELSE else_stmt2
+	{
+		popdcl("if/switch");
+		$$ = $2;
+		$$->nelse = $4;
 	}
 
 compound_stmt:
@@ -657,11 +643,11 @@ pexpr:
 		// map literal
 		$$ = N;
 	}
-|	latype '(' oexpr_list ')'
+|	typeconv '(' oexpr_list ')'
 	{
 		// struct literal and conversions
 		$$ = nod(OCONV, $3, N);
-		$$->type = $1->otype;
+		$$->type = $1;
 	}
 |	LCONVERT '(' type ',' expr ')'
 	{
@@ -736,6 +722,32 @@ name:
 	lname
 	{
 		$$ = oldname($1);
+	}
+
+typeconv:
+	latype
+	{
+		$$ = oldtype($1);
+	}
+|	'[' ']' typeconv
+	{
+		$$ = aindex(N, $3);
+	}
+|	LCHAN chandir typeconv
+	{
+		$$ = typ(TCHAN);
+		$$->type = $3;
+		$$->chan = $2;
+	}
+|	LMAP '[' typeconv ']' typeconv
+	{
+		$$ = typ(TMAP);
+		$$->down = $3;
+		$$->type = $5;
+	}
+|	LANY
+	{
+		$$ = typ(TANY);
 	}
 
 type:
@@ -1046,15 +1058,48 @@ arg_type_list_r:
 		$$ = nod(OLIST, $1, $3);
 	}
 
-stmt_list_r:
-	stmt
-	{
-		$$ = $1;
-	}
-|	stmt_list_r stmt
+Astmt:
+	complex_stmt
+
+Bstmt:
+	semi_stmt
+|	common_dcl
+
+Cstmt:
+	simple_stmt
+
+Astmt_list_r:
+	Astmt
+|	Astmt_list_r Astmt
 	{
 		$$ = nod(OLIST, $1, $2);
 	}
+|	Bstmt_list_r ';'
+|	Astmt_list_r ';'
+|	';'
+	{
+		$$ = N;
+	}
+
+Bstmt_list_r:
+	Bstmt
+|	Cstmt
+|	Bstmt_list_r Bstmt
+	{
+		$$ = nod(OLIST, $1, $2);
+	}
+|	Astmt_list_r Cstmt
+	{
+		$$ = nod(OLIST, $1, $2);
+	}
+|	Astmt_list_r Bstmt
+	{
+		$$ = nod(OLIST, $1, $2);
+	}
+
+stmt_list_r:
+	Astmt_list_r
+|	Bstmt_list_r
 
 expr_list_r:
 	expr
