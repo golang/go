@@ -14,7 +14,7 @@ cgen(Node *n, Node *res)
 	Prog *p1, *p2, *p3;
 
 	if(debug['g']) {
-		dump("\ncgen-l", res);
+		dump("\ncgen-res", res);
 		dump("cgen-r", n);
 	}
 	if(n == N || n->type == T)
@@ -441,9 +441,9 @@ void
 bgen(Node *n, int true, Prog *to)
 {
 	long lno;
-	int et, a, b;
+	int et, a;
 	Node *nl, *nr, *r;
-	Node n1, n2, tmp;
+	Node n1, n2;
 	Prog *p1, *p2;
 
 	if(n == N)
@@ -560,48 +560,17 @@ bgen(Node *n, int true, Prog *to)
 		}
 		a = optoas(a, nr->type);
 
-		if(nr->addable) {
-			regalloc(&n1, nl->type, N);
-			cgen(nl, &n1);
-			b = optoas(OCMP, nr->type);
-
-			switch(b) {
-			case ACMPQ:
-				if(nr->op == OLITERAL)
-				if(nr->val.vval >= (1LL<<32))
-					goto dolit;
-
-			case AUCOMISS:
-				if(nr->op == OLITERAL)
-					goto dolit;
-				if(nr->op == ONAME)
-					goto dolit;
-			}
-
-			gins(b, &n1, nr);
-			patch(gbranch(a, nr->type), to);
-			regfree(&n1);
-			break;
-
-		dolit:
-			regalloc(&n2, nr->type, N);
-			cgen(nr, &n2);
-			gins(b, &n1, &n2);
-			patch(gbranch(a, nr->type), to);
-			regfree(&n2);
-			regfree(&n1);
-			break;
-		}
-
-		tempname(&tmp, nr->type);
-		cgen(nr, &tmp);
-
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);
 
-		gins(optoas(OCMP, nr->type), &n1, &tmp);
+		regalloc(&n2, nr->type, N);
+		cgen(nr, &n2);
+
+		gins(optoas(OCMP, nr->type), &n1, &n2);
 		patch(gbranch(a, nr->type), to);
+
 		regfree(&n1);
+		regfree(&n2);
 		break;
 	}
 	goto ret;

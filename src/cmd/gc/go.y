@@ -1058,16 +1058,32 @@ arg_type_list_r:
 		$$ = nod(OLIST, $1, $3);
 	}
 
+/*
+ * need semi in front NO
+ * need semi in back  NO
+ */
 Astmt:
 	complex_stmt
+|	compound_stmt
 
+/*
+ * need semi in front NO
+ * need semi in back  YES
+ */
 Bstmt:
 	semi_stmt
 |	common_dcl
 
+/*
+ * need semi in front YES
+ * need semi in back  YES
+ */
 Cstmt:
 	simple_stmt
 
+/*
+ * statement list that need semi in back  NO
+ */
 Astmt_list_r:
 	Astmt
 |	Astmt_list_r Astmt
@@ -1081,6 +1097,9 @@ Astmt_list_r:
 		$$ = N;
 	}
 
+/*
+ * statement list that need semi in back  YES
+ */
 Bstmt_list_r:
 	Bstmt
 |	Cstmt
