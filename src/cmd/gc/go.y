@@ -1065,6 +1065,10 @@ arg_type_list_r:
 Astmt:
 	complex_stmt
 |	compound_stmt
+|	';'
+	{
+		$$ = N;
+	}
 
 /*
  * need semi in front NO
@@ -1091,11 +1095,6 @@ Astmt_list_r:
 		$$ = nod(OLIST, $1, $2);
 	}
 |	Bstmt_list_r ';'
-|	Astmt_list_r ';'
-|	';'
-	{
-		$$ = N;
-	}
 
 /*
  * statement list that need semi in back  YES
@@ -1107,11 +1106,11 @@ Bstmt_list_r:
 	{
 		$$ = nod(OLIST, $1, $2);
 	}
-|	Astmt_list_r Cstmt
+|	Astmt_list_r Bstmt
 	{
 		$$ = nod(OLIST, $1, $2);
 	}
-|	Astmt_list_r Bstmt
+|	Astmt_list_r Cstmt
 	{
 		$$ = nod(OLIST, $1, $2);
 	}
