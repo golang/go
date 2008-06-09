@@ -1,9 +1,5 @@
 
 =========== ./char_lit.go
-char_lit.go:5: syntax error
-char_lit.go:17: unknown escape sequence: \
-char_lit.go:19: unknown escape sequence: "
-BUG: known to fail incorrectly
 
 =========== ./float_lit.go
 float_lit.go:5: syntax error
@@ -39,8 +35,6 @@ hello, world
 BUG: known to succeed incorrectly
 
 =========== ./int_lit.go
-int_lit.go:5: syntax error
-BUG: known to fail incorrectly
 
 =========== ./iota.go
 
@@ -52,8 +46,8 @@ BUG: known to fail incorrectly
 
 =========== ./string_lit.go
 string_lit.go:5: syntax error
-string_lit.go:12: unknown escape sequence: \
-BUG: known to fail incorrectly
+string_lit.go:12: unknown escape sequence: \ 
+BUG: known to fail incorrectly                                                                                    
 
 =========== ./switch.go
 
@@ -205,10 +199,6 @@ BUG: known to fail incorrectly
 bugs/bug023.go:20: fatal error: naddr: const <Type>I{<TypeName>110(<_t117>{},<_o119>{},{});}
 BUG: known to fail incorrectly
 
-=========== bugs/bug024.go
-bugs/bug024.go:8: unknown escape sequence: \
-BUG: erroneous errors but compiles anyway
-
 =========== bugs/bug025.go
 bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
 
@@ -300,5 +290,7 @@ fixedbugs/bug007.go:7: addtyp: renaming Point/<Point>{<x><float32>FLOAT32;<y><fl
 =========== fixedbugs/bug020.go
 
 =========== fixedbugs/bug021.go
+
+=========== fixedbugs/bug024.go
 
 =========== fixedbugs/bug031.go
