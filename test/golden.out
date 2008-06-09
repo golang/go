@@ -25,8 +25,6 @@ BUG: known to succeed incorrectly
 =========== ./iota.go
 
 =========== ./literal.go
-literal.go:127: fatal error: nodconst: bad type <float32>FLOAT32
-BUG: fatal error
 
 =========== ./sieve.go
 sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(8)
@@ -94,8 +92,6 @@ BUG: known to fail incorrectly
 =========== ken/robiota.go
 
 =========== ken/robliteral.go
-ken/robliteral.go:132: fatal error: nodconst: bad type <float32>FLOAT32
-BUG: known to fail incorrectly
 
 =========== ken/robswitch.go
 
