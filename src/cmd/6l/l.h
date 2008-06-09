@@ -344,6 +344,7 @@ EXTERN	int	imports, nimports;
 EXTERN	int	exports, nexports;
 EXTERN	char*	EXPTAB;
 EXTERN	Prog	undefp;
+EXTERN	ulong	stroffset;
 
 #define	UP	(&undefp)
 
@@ -423,6 +424,15 @@ void	machseg(char*, vlong, vlong, vlong, vlong, ulong, ulong, ulong, ulong);
 void	machsect(char*, char*, vlong, vlong, ulong, ulong, ulong, ulong, ulong);
 void	machstack(vlong);
 ulong	machheadr(void);
+
+ulong	linuxheadr(void);
+void	linuxphdr(int type, int flags, vlong foff,
+	vlong vaddr, vlong paddr,
+	vlong filesize, vlong memsize, vlong align);
+void	linuxshdr(char *name, ulong type, vlong flags, vlong addr, vlong off,
+	vlong size, ulong link, ulong info, vlong align, vlong entsize);
+void	linuxstrtable(void);
+
 
 #pragma	varargck	type	"D"	Adr*
 #pragma	varargck	type	"P"	Prog*

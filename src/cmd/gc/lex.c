@@ -227,7 +227,7 @@ l0:
 		for(;;) {
 			if(escchar('"', &escflag, &v))
 				break;
-			if(escflag || v < Runeself) {
+			if(v < Runeself || escflag) {
 				cp = remal(cp, c1, 1);
 				cp[c1++] = v;
 			} else {

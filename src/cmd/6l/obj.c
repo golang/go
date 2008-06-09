@@ -195,9 +195,9 @@ main(int argc, char *argv[])
 			INITRND = 4096;
 		break;
 	case 7:	/* elf64 executable */
-		HEADR = rnd(64L+2*56L, 16);
+		HEADR = linuxheadr();
 		if(INITTEXT == -1)
-			INITTEXT = 0x400000L+HEADR;
+			INITTEXT = 4096+HEADR;
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)
