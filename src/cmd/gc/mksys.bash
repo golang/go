@@ -16,4 +16,4 @@ $a
 
 .
 w sysimport.c
-q' | ed sys.6
+q' | /bin/ed sys.6
