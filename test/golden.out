@@ -2,16 +2,9 @@
 =========== ./char_lit.go
 
 =========== ./float_lit.go
-float_lit.go:5: syntax error
-float_lit.go:28: overflow in float constant
-float_lit.go:56: overflow in float constant
-float_lit.go:60: overflow in float constant
-float_lit.go:64: overflow in float constant
 BUG: known to fail incorrectly
 
 =========== ./for.go
-for.go:45: fatal error: optoas: no entry MOD-<int32>INT32
-BUG: known to fail incorrectly
 
 =========== ./func.go
 
@@ -19,8 +12,6 @@ BUG: known to fail incorrectly
 BUG: known to succeed incorrectly
 
 =========== ./hashmap.go
-hashmap.go:46: fatal error: optoas: no entry LSH-<uint32>UINT32
-BUG: known to fail incorrectly
 
 =========== ./helloworld.go
 hello, world
@@ -35,6 +26,8 @@ BUG: known to succeed incorrectly
 =========== ./iota.go
 
 =========== ./literal.go
+literal.go:127: fatal error: nodconst: bad type <float32>FLOAT32
+BUG: fatal error
 
 =========== ./sieve.go
 sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(8)
@@ -90,8 +83,6 @@ BUG: known to fail incorrectly
 (hello hello (hello 12 34))
 
 =========== ken/robfor.go
-ken/robfor.go:45: fatal error: optoas: no entry MOD-<int32>INT32
-BUG: known to fail incorrectly
 
 =========== ken/robfunc.go
 ken/robfunc.go:74: function call must be single valued (2)
@@ -104,8 +95,7 @@ BUG: known to fail incorrectly
 =========== ken/robiota.go
 
 =========== ken/robliteral.go
-assertion fail: sj1
-assertion fail: sj2
+ken/robliteral.go:132: fatal error: nodconst: bad type <float32>FLOAT32
 BUG: known to fail incorrectly
 
 =========== ken/robswitch.go
@@ -176,10 +166,6 @@ BUG: errors caught but exit code should be non-zero
 
 =========== bugs/bug015.go
 BUG: known to succeed incorrectly
-
-=========== bugs/bug016.go
-bugs/bug016.go:7: fatal error: optoas: no entry LSH-<int32>INT32
-BUG: fatal error
 
 =========== bugs/bug022.go
 bugs/bug022.go:8: illegal types for operand
@@ -277,6 +263,8 @@ fixedbugs/bug007.go:7: addtyp: renaming Point/<Point>{<x><float32>FLOAT32;<y><fl
 =========== fixedbugs/bug012.go
 
 =========== fixedbugs/bug013.go
+
+=========== fixedbugs/bug016.go
 
 =========== fixedbugs/bug017.go
 
