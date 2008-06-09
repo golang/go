@@ -127,62 +127,6 @@ cgen(Node *n, Node *res)
 		regfree(&n1);
 		break;
 
-//	case OINDEXPTRSTR:
-//		nl = n->left;
-//		nr = n->right;
-//		if(nl->addable) {
-//			cgen(nr);
-//			cgen(nl);
-//			gopcode(P_LOADI, T_ADDR, N);
-//			gopcodet(P_INDEXZ, nr->type, N);
-//			break;
-//		}
-//		break;
-
-//	case OINDEXSTR:
-//		nl = n->left;
-//		nr = n->right;
-//		if(nl->addable) {
-//			cgen(nr);
-//			gopcodet(P_INDEXZ, nr->type, nl);
-//			break;
-//		}
-//		cgen(nl);
-//		r = tempname(nl->type);
-//		gopcodet(P_STORE, nl->type, r);
-//		cgen(nr);
-//		gopcodet(P_INDEXZ, nr->type, r);
-//		break;
-
-//	case OSLICESTR:
-//	case OSLICEPTRSTR:
-//		nl = n->left;	// name
-//		nr = n->right;
-//
-//		r = nr->right;	// index2
-//		if(!r->addable) {
-//			cgen(r);
-//			r = tempname(r->type);
-//			gopcodet(P_STORE, r->type, r);
-//		}
-//
-//		// string into T_ADDR
-//		if(!nl->addable) {
-//			cgen(nl);
-//			gconv(T_ADDR, nl->type->etype);
-//		} else
-//			gopcode(P_LOAD, T_ADDR, nl);
-//
-//		if(n->op == OSLICEPTRSTR)
-//			gopcode(P_LOADI, T_ADDR, N);
-//
-//		// offset in int reg
-//		cgen(nr->left);
-//
-//		// index 2 addressed
-//		gopcodet(P_SLICE, r->type, r);
-//		break;
-
 	case OS2I:
 	case OI2I:
 	case OI2S:
@@ -210,11 +154,6 @@ cgen(Node *n, Node *res)
 		fatal("cgen: OLEN: unknown type %lT", nl->type);
 		break;
 
-//	case ODOTMETH:
-//	case ODOTINTER:
-//		cgen(n->left);
-//		break;
-
 	case OADDR:
 		agen(nl, res);
 		break;
@@ -238,6 +177,7 @@ cgen(Node *n, Node *res)
 	case ODIV:
 		cgen_div(n->op, nl, nr, res);
 		break;
+
 	case OLSH:
 	case ORSH:
 		cgen_shift(n->op, nl, nr, res);
@@ -287,7 +227,7 @@ agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
 	Node n1, n2, n3, tmp;
-	ulong w;
+	ulong w, lno;
 	Type *t;
 
 	if(n == N || n->type == T)
@@ -296,13 +236,20 @@ agen(Node *n, Node *res)
 	if(!isptr[res->type->etype])
 		fatal("agen: not tptr: %T", res->type);
 
+	lno = dynlineno;
+	if(n->op != ONAME)
+		dynlineno = n->lineno;	// for diagnostics
+
 	if(n->addable) {
 		regalloc(&n1, types[tptr], res);
 		gins(ALEAQ, n, &n1);
 		gmove(&n1, res);
 		regfree(&n1);
-		return;
+		goto ret;
 	}
+
+	nl = n->left;
+	nr = n->right;
 
 	switch(n->op) {
 	default:
@@ -317,8 +264,6 @@ agen(Node *n, Node *res)
 //		break;
 
 	case OINDEXPTR:
-		nl = n->left;
-		nr = n->right;
 		w = n->type->width;
 		if(nr->addable)
 			goto iprad;
@@ -347,8 +292,6 @@ agen(Node *n, Node *res)
 //	case OINDREG:
 
 	case OINDEX:
-		nl = n->left;
-		nr = n->right;
 		w = n->type->width;
 		if(nr->addable)
 			goto irad;
@@ -395,7 +338,6 @@ agen(Node *n, Node *res)
 //		break;
 		
 	case ODOT:
-		nl = n->left;
 		t = nl->type;
 		agen(nl, res);
 		if(n->xoffset != 0) {
@@ -405,7 +347,6 @@ agen(Node *n, Node *res)
 		break;
 
 	case ODOTPTR:
-		nl = n->left;
 		t = nl->type;
 		if(!isptr[t->etype])
 			fatal("agen: not ptr %N", n);
@@ -416,6 +357,9 @@ agen(Node *n, Node *res)
 		}
 		break;
 	}
+
+ret:
+	dynlineno = lno;
 }
 
 vlong
@@ -443,7 +387,7 @@ bgen(Node *n, int true, Prog *to)
 	long lno;
 	int et, a;
 	Node *nl, *nr, *r;
-	Node n1, n2;
+	Node n1, n2, tmp;
 	Prog *p1, *p2;
 
 	if(n == N)
@@ -452,6 +396,9 @@ bgen(Node *n, int true, Prog *to)
 	lno = dynlineno;
 	if(n->op != ONAME)
 		dynlineno = n->lineno;	// for diagnostics
+
+	nl = n->left;
+	nr = n->right;
 
 	if(n->type == T) {
 		convlit(n, types[TBOOL]);
@@ -558,7 +505,31 @@ bgen(Node *n, int true, Prog *to)
 			nl = nr;
 			nr = r;
 		}
+
 		a = optoas(a, nr->type);
+
+		if(nr->ullman >= UINF) {
+			regalloc(&n1, nr->type, N);
+			cgen(nr, &n1);
+
+			tempname(&tmp, nr->type);
+			gmove(&n1, &tmp);
+			regfree(&n1);
+			
+			regalloc(&n1, nl->type, N);
+			cgen(nl, &n1);
+
+			regalloc(&n2, nr->type, &n2);
+			cgen(&tmp, &n2);
+
+			gins(optoas(OCMP, nr->type), &n1, &n2);
+			patch(gbranch(a, nr->type), to);
+
+			regfree(&n1);
+			regfree(&n2);
+			break;
+		}
+
 
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);
