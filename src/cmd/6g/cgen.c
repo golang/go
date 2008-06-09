@@ -144,7 +144,7 @@ cgen(Node *n, Node *res)
 	case OLEN:
 		if(isptrto(nl->type, TSTRING)) {
 			regalloc(&n1, types[tptr], res);
-			cgen(nl, res);
+			cgen(nl, &n1);
 			n1.op = OINDREG;
 			n1.type = types[TINT32];
 			gmove(&n1, res);
