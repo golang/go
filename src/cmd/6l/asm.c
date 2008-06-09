@@ -173,10 +173,6 @@ asmb(void)
 	case 5:
 		seek(cout, HEADR+textsize, 0);
 		break;
-	case 7:
-		v = rnd(HEADR+textsize, INITRND);
-		seek(cout, v, 0);
-		break;
 	case 6:
 		v = HEADR+textsize;
 		myseek(cout, v);
@@ -186,6 +182,10 @@ asmb(void)
 			v--;
 		}
 		cflush();
+		break;
+	case 7:
+		v = rnd(HEADR+textsize, INITRND);
+		seek(cout, v, 0);
 		break;
 	}
 
@@ -218,9 +218,13 @@ asmb(void)
 		default:
 		case 2:
 		case 5:
+debug['s'] = 1;
+			seek(cout, HEADR+textsize+datsize, 0);
+			break;
 		case 7:
 debug['s'] = 1;
 			seek(cout, HEADR+textsize+datsize, 0);
+			linuxstrtable();
 			break;
 		case 6:
 			debug['s'] = 1;
@@ -239,12 +243,13 @@ debug['s'] = 1;
 		if(dlm)
 			asmdyn();
 		cflush();
-	}
-	else if(dlm){
+	} else
+	if(dlm){
 		seek(cout, HEADR+textsize+datsize, 0);
 		asmdyn();
 		cflush();
 	}
+
 	if(debug['v'])
 		Bprint(&bso, "%5.2f headr\n", cputime());
 	Bflush(&bso);
@@ -383,47 +388,122 @@ debug['s'] = 1;
 		cput(1);			/* version = CURRENT */
 		strnput("", 9);
 
-/*10*/		wputl(2);			/* type = EXEC */
+		wputl(2);			/* type = EXEC */
 		wputl(62);			/* machine = AMD64 */
 		lputl(1L);			/* version = CURRENT */
-/*18*/		llputl(entryvalue());		/* entry vaddr */
+		llputl(entryvalue());		/* entry vaddr */
 		llputl(64L);			/* offset to first phdr */
-		llputl(0L);			/* offset to first shdr */
-/*30*/		lputl(0L);			/* processor specific flags */
+		llputl(64L+56*3);		/* offset to first shdr */
+		lputl(0L);			/* processor specific flags */
 		wputl(64);			/* Ehdr size */
 		wputl(56);			/* Phdr size */
-		wputl(2);			/* # of Phdrs */
+		wputl(3);			/* # of Phdrs */
 		wputl(64);			/* Shdr size */
-		wputl(0);			/* # of Shdrs */
-		wputl(0);			/* Shdr string size */
+		wputl(5);			/* # of Shdrs */
+		wputl(4);			/* Shdr with strings */
 
-		lputl(1L);			/* text - type = PT_LOAD */
-		lputl(1L+4L);			/* text - flags = PF_X+PF_R */
-		llputl(HEADR);			/* file offset */
-		llputl(INITTEXT);		/* vaddr */
-		llputl(INITTEXT);		/* paddr */
-		llputl(textsize);		/* file size */
-		llputl(textsize);		/* memory size */
-		llputl(INITRND);		/* alignment */
+		linuxphdr(1,			/* text - type = PT_LOAD */
+			1L+4L,			/* text - flags = PF_X+PF_R */
+			HEADR,			/* file offset */
+			INITTEXT,		/* vaddr */
+			INITTEXT,		/* paddr */
+			textsize,		/* file size */
+			textsize,		/* memory size */
+			INITRND);		/* alignment */
 
-		lputl(1L);			/* data - type = PT_LOAD */
-		lputl(1L+2L+4L);		/* text - flags = PF_X+PF_W+PF_R */
 		v = rnd(HEADR+textsize, INITRND);
-		llputl(v);			/* file offset */
-		llputl(INITDAT);		/* vaddr */
-		llputl(INITDAT);		/* paddr */
-		llputl(datsize);		/* file size */
-		llputl(datsize+bsssize);	/* memory size */
-		llputl(INITRND);		/* alignment */
+		linuxphdr(1,			/* data - type = PT_LOAD */
+			1L+2L+4L,		/* data - flags = PF_X+PF_W+PF_R */
+			v,			/* file offset */
+			INITDAT,		/* vaddr */
+			INITDAT,		/* paddr */
+			datsize,		/* file size */
+			datsize+bsssize,	/* memory size */
+			INITRND);		/* alignment */
 
-//		lputl(0L);			/* data - type = PT_NULL */
-//		lputl(4L);			/* ro - flags = PF_R */
-//		llputl(HEADR+textsize+datsize);	/* file offset */
-//		llputl(0L);
-//		llputl(0L);
-//		llputl(symsize);		/* symbol table size */
-//		llputl(lcsize);			/* line number size */
-//		llputl(0x04L);			/* alignment */
+		linuxphdr(0x6474e551,		/* gok - type = gok */
+			1L+2L+4L,		/* gok - flags = PF_X+PF_R */
+			0,			/* file offset */
+			0,			/* vaddr */
+			0,			/* paddr */
+			0,			/* file size */
+			0,			/* memory size */
+			8);			/* alignment */
+
+		linuxshdr(nil,			/* name */
+			0,			/* type */
+			0,			/* flags */
+			0,			/* addr */
+			0,			/* off */
+			0,			/* size */
+			0,			/* link */
+			0,			/* info */
+			0,			/* align */
+			0);			/* entsize */
+
+		stroffset = 1;
+		v = HEADR;
+		linuxshdr(".text",		/* name */
+			1,			/* type */
+			6,			/* flags */
+			INITTEXT,		/* addr */
+			v,			/* off */
+			textsize,		/* size */
+			0,			/* link */
+			0,			/* info */
+			4,			/* align */
+			0);			/* entsize */
+
+		v += textsize;
+		linuxshdr(".data",		/* name */
+			1,			/* type */
+			3,			/* flags */
+			INITDAT,		/* addr */
+			v,			/* off */
+			datsize,		/* size */
+			0,			/* link */
+			0,			/* info */
+			4,			/* align */
+			0);			/* entsize */
+
+		v += datsize;
+		linuxshdr(".bss",		/* name */
+			8,			/* type */
+			3,			/* flags */
+			INITDAT,		/* addr */
+			v,			/* off */
+			bsssize,		/* size */
+			0,			/* link */
+			0,			/* info */
+			4,			/* align */
+			0);			/* entsize */
+
+		v += 0;
+		va = stroffset +
+			strlen(".shstrtab")+1 +
+			strlen(".gosymtab")+1;
+		linuxshdr(".shstrtab",		/* name */
+			3,			/* type */
+			0,			/* flags */
+			0,			/* addr */
+			v,			/* off */
+			va,			/* size */
+			0,			/* link */
+			0,			/* info */
+			4,			/* align */
+			0);			/* entsize */
+
+		v += va;
+		linuxshdr(".gosymtab",		/* name */
+			2,			/* type */
+			0,			/* flags */
+			0,			/* addr */
+			v,			/* off */
+			0,			/* size */
+			0,			/* link */
+			0,			/* info */
+			4,			/* align */
+			0);			/* entsize */
 		break;
 	}
 	cflush();
@@ -677,4 +757,80 @@ machheadr(void)
 	a += 46;	/* stack sect */
 
 	return a*4;
+}
+
+ulong
+linuxheadr(void)
+{
+	ulong a;
+
+	a = 64;		/* a.out header */
+
+	a += 56;	/* page zero seg */
+	a += 56;	/* text seg */
+	a += 56;	/* stack seg */
+
+	a += 64;	/* nil sect */
+	a += 64;	/* .text sect */
+	a += 64;	/* .data seg */
+	a += 64;	/* .bss sect */
+	a += 64;	/* .shstrtab sect - strings for headers */
+	a += 64;	/* .gosymtab sect */
+
+	return a;
+}
+
+
+void
+linuxphdr(int type, int flags, vlong foff,
+	vlong vaddr, vlong paddr,
+	vlong filesize, vlong memsize, vlong align)
+{
+
+	lputl(type);			/* text - type = PT_LOAD */
+	lputl(flags);			/* text - flags = PF_X+PF_R */
+	llputl(foff);			/* file offset */
+	llputl(vaddr);			/* vaddr */
+	llputl(paddr);			/* paddr */
+	llputl(filesize);		/* file size */
+	llputl(memsize);		/* memory size */
+	llputl(align);			/* alignment */
+}
+
+void
+linuxshdr(char *name, ulong type, vlong flags, vlong addr, vlong off,
+	vlong size, ulong link, ulong info, vlong align, vlong entsize)
+{
+	lputl(stroffset);
+	lputl(type);
+	llputl(flags);
+	llputl(addr);
+	llputl(off);
+	llputl(size);
+	lputl(link);
+	lputl(info);
+	llputl(align);
+	llputl(entsize);
+
+	if(name != nil)
+		stroffset += strlen(name)+1;
+}
+
+void
+linuxstrtable(void)
+{
+	char *name;
+
+	name = "";
+	strnput(name, strlen(name)+1);
+	name = ".text";
+	strnput(name, strlen(name)+1);
+	name = ".data";
+	strnput(name, strlen(name)+1);
+	name = ".bss";
+	strnput(name, strlen(name)+1);
+	name = ".shstrtab";
+	strnput(name, strlen(name)+1);
+	name = ".gosymtab";
+	strnput(name, strlen(name)+1);
 }

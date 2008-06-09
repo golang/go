@@ -175,6 +175,10 @@ cgen(Node *n, Node *res)
 
 	case OMOD:
 	case ODIV:
+		if(isfloat[n->type->etype]) {
+			a = optoas(n->op, nl->type);
+			goto abop;
+		}
 		cgen_div(n->op, nl, nr, res);
 		break;
 
