@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(June 6, 2008)
+(June 9, 2008)
 
 This document is a semi-informal specification/proposal for a new
 systems programming language.  The document is under active
@@ -916,6 +916,8 @@ constant, variable, or function.
 
   Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | ExportDecl .
 
+TODO: specify range of visibility, scope rules.
+
 
 Const declarations
 ----
@@ -982,6 +984,18 @@ declaration the type of the initial value defines the type of the variable.
 If the expression list is present, it must have the same number of elements
 as there are variables in the variable specification.
 
+If the variable type is omitted, an initialization expression (or expression
+list) must be present, and the variable type is the type of the expression
+value (in case of a list of variables, the variables assume the types of the
+corresponding expression values).
+
+If the variable type is omitted, and the corresponding initialization expression
+is a constant expression of abstract int or floating point type, the type
+of the variable is "int" or "float" respectively:
+
+  var i = 0  // i has int type
+  var f = 3.1415  // f has float type
+
 The syntax
 
   SimpleVarDecl = identifier ":=" Expression .
@@ -994,11 +1008,11 @@ is shorthand for
   f := func() int { return 7; }
   ch := new(chan int);
   
-Also, in some contexts such as if or for statements,
-this construct can be used to
-declare local temporary variables.
+Also, in some contexts such as "if", "for", or "switch" statements,
+this construct can be used to declare local temporary variables.
 
 TODO: var a, b = 1, "x"; is permitted by grammar but not by current compiler
+
 
 Function and method declarations
 ----
@@ -1151,16 +1165,21 @@ and
 
   (a / b) is "truncated towards zero".
 
-There are no implicit type conversions except for
-constants and literals.  In particular, unsigned and signed integer
-variables cannot be mixed in an expression without explicit conversion.
+There are no implicit type conversions: Except for the shift operators
+"<<" and ">>", both operands of a binary operator must have the same type.
+In particular, unsigned and signed integer values cannot be mixed in an
+expression without explicit conversion.
 
-The shift operators implement arithmetic shifts for signed integers
-and logical shifts for unsigned integers. The properties of negative
-shift counts are undefined. Unary '^' corresponds to C '~' (bitwise
-complement).
+The shift operators shift the left operand by the shift count specified by the
+right operand. They implement arithmetic shifts if the left operand is a signed
+integer, and logical shifts if it is an unsigned integer. The shift count must
+be an unsigned integer. There is no upper limit on the shift count. It is
+as if the left operand is shifted "n" times by 1 for a shift count of "n".
 
-There is no '->' operator. Given a pointer p to a struct, one writes
+Unary "^" corresponds to C "~" (bitwise complement). There is no "~" operator
+in Go.
+
+There is no "->" operator. Given a pointer p to a struct, one writes
   p.f
 to access field f of the struct. Similarly, given an array or map
 pointer, one writes
@@ -1272,7 +1291,7 @@ These conversions are called ``simple conversions''.
 TODO: if interfaces were explicitly pointers, this gets simpler.
 
 	convert(int, 3.14159);
-	convert(uint32, ~0);
+	convert(uint32, ^0);
 	convert(interface{}, new(S))
 	convert(*AStructType, interface_value)
 
