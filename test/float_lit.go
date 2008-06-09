@@ -23,7 +23,7 @@ close(a, b double) bool
 	if e < 0 {
 		e = -e;
 	}
-	if e*1.0e-14 < d {
+	if e*1.0e-14 > d {
 		return true;
 	}
 	return false;

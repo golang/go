@@ -2,8 +2,6 @@
 =========== ./char_lit.go
 
 =========== ./float_lit.go
-+10. is printfloat should be printfloat
-BUG: known to fail incorrectly
 
 =========== ./for.go
 
