@@ -14,10 +14,6 @@ for.go:45: fatal error: optoas: no entry MOD-<int32>INT32
 BUG: known to fail incorrectly
 
 =========== ./func.go
-main_f4: doasm: notfound from=75 to=10 (24)    IDIVL   $2,AX
-main_f4: doasm: notfound from=75 to=10 (24)    IDIVL   $2,AX
-main_f4: doasm: notfound from=75 to=10 (24)    IDIVL   $2,AX
-BUG: known to fail incorrectly
 
 =========== ./func1.go
 BUG: known to succeed incorrectly

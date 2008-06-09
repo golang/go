@@ -8,7 +8,8 @@ Xamd64)
 	export A=6
 	;;
 *)
-	echo 1>&2 run: unknown architecture
+	export A=6
+	echo 1>&2 run: assuming amd64
 	exit 1
 esac
 
