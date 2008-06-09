@@ -175,6 +175,7 @@ yylex(void)
 	vlong v;
 	char *cp;
 	Rune rune;
+	int escflag;
 	Sym *s;
 
 l0:
@@ -224,19 +225,19 @@ l0:
 
 	caseq:
 		for(;;) {
-			if(escchar('"', &v))
+			if(escchar('"', &escflag, &v))
 				break;
-			if(v >= Runeself) {
+			if(escflag || v < Runeself) {
+				cp = remal(cp, c1, 1);
+				cp[c1++] = v;
+			} else {
 				// botch - this limits size of runes
 				rune = v;
 				c = runelen(rune);
 				cp = remal(cp, c1, c);
 				runetochar(cp+c1, &rune);
 				c1 += c;
-				continue;
 			}
-			cp = remal(cp, c1, 1);
-			cp[c1++] = v;
 		}
 		goto catem;
 
@@ -281,9 +282,9 @@ l0:
 
 	case '\'':
 		/* '.' */
-		if(escchar('\'', &v))
+		if(escchar('\'', &escflag, &v))
 			v = '\'';	// allow '''
-		if(!escchar('\'', &v)) {
+		if(!escchar('\'', &escflag, &v)) {
 			yyerror("missing '");
 			ungetc(v);
 		}
@@ -695,11 +696,12 @@ getnsc(void)
 
 
 int
-escchar(int e, vlong *val)
+escchar(int e, int *escflg, vlong *val)
 {
-	int i;
-	long c;
+	int i, c;
 	vlong l;
+
+	*escflg = 0;
 
 loop:
 	c = getr();
@@ -720,6 +722,7 @@ loop:
 		goto loop;
 
 	case 'x':
+		*escflg = 1;	// it's a byte
 		i = 2;
 		goto hex;
 
@@ -739,6 +742,7 @@ loop:
 	case '5':
 	case '6':
 	case '7':
+		*escflg = 1;	// it's a byte
 		goto oct;
 
 	case 'a': c = '\a'; break;
@@ -793,6 +797,7 @@ oct:
 	}
 	if(l > 255)
 		warn("oct escape value > 255: %d", l);
+
 	*val = l;
 	return 0;
 }
