@@ -1154,10 +1154,10 @@ optoas(int op, Type *t)
 	case CASE(OEQ, TUINT32):
 	case CASE(OEQ, TINT64):
 	case CASE(OEQ, TUINT64):
-	case CASE(OEQ, TFLOAT32):
-	case CASE(OEQ, TFLOAT64):
 	case CASE(OEQ, TPTR32):
 	case CASE(OEQ, TPTR64):
+	case CASE(OEQ, TFLOAT32):
+	case CASE(OEQ, TFLOAT64):
 		a = AJEQ;
 		break;
 
@@ -1170,10 +1170,10 @@ optoas(int op, Type *t)
 	case CASE(ONE, TUINT32):
 	case CASE(ONE, TINT64):
 	case CASE(ONE, TUINT64):
-	case CASE(ONE, TFLOAT32):
-	case CASE(ONE, TFLOAT64):
 	case CASE(ONE, TPTR32):
 	case CASE(ONE, TPTR64):
+	case CASE(ONE, TFLOAT32):
+	case CASE(ONE, TFLOAT64):
 		a = AJNE;
 		break;
 
@@ -1181,8 +1181,6 @@ optoas(int op, Type *t)
 	case CASE(OLT, TINT16):
 	case CASE(OLT, TINT32):
 	case CASE(OLT, TINT64):
-	case CASE(OLT, TFLOAT32):
-	case CASE(OLT, TFLOAT64):
 		a = AJLT;
 		break;
 
@@ -1190,6 +1188,8 @@ optoas(int op, Type *t)
 	case CASE(OLT, TUINT16):
 	case CASE(OLT, TUINT32):
 	case CASE(OLT, TUINT64):
+	case CASE(OGE, TFLOAT32):
+	case CASE(OGE, TFLOAT64):
 		a = AJCS;
 		break;
 
@@ -1197,8 +1197,6 @@ optoas(int op, Type *t)
 	case CASE(OLE, TINT16):
 	case CASE(OLE, TINT32):
 	case CASE(OLE, TINT64):
-	case CASE(OLE, TFLOAT32):
-	case CASE(OLE, TFLOAT64):
 		a = AJLE;
 		break;
 
@@ -1206,6 +1204,8 @@ optoas(int op, Type *t)
 	case CASE(OLE, TUINT16):
 	case CASE(OLE, TUINT32):
 	case CASE(OLE, TUINT64):
+	case CASE(OGT, TFLOAT32):
+	case CASE(OGT, TFLOAT64):
 		a = AJLS;
 		break;
 
@@ -1213,8 +1213,6 @@ optoas(int op, Type *t)
 	case CASE(OGT, TINT16):
 	case CASE(OGT, TINT32):
 	case CASE(OGT, TINT64):
-	case CASE(OGT, TFLOAT32):
-	case CASE(OGT, TFLOAT64):
 		a = AJGT;
 		break;
 
@@ -1222,6 +1220,8 @@ optoas(int op, Type *t)
 	case CASE(OGT, TUINT16):
 	case CASE(OGT, TUINT32):
 	case CASE(OGT, TUINT64):
+	case CASE(OLE, TFLOAT32):
+	case CASE(OLE, TFLOAT64):
 		a = AJHI;
 		break;
 
@@ -1229,8 +1229,6 @@ optoas(int op, Type *t)
 	case CASE(OGE, TINT16):
 	case CASE(OGE, TINT32):
 	case CASE(OGE, TINT64):
-	case CASE(OGE, TFLOAT32):
-	case CASE(OGE, TFLOAT64):
 		a = AJGE;
 		break;
 
@@ -1238,6 +1236,8 @@ optoas(int op, Type *t)
 	case CASE(OGE, TUINT16):
 	case CASE(OGE, TUINT32):
 	case CASE(OGE, TUINT64):
+	case CASE(OLT, TFLOAT32):
+	case CASE(OLT, TFLOAT64):
 		a = AJCC;
 		break;
 
