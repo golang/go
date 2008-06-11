@@ -54,11 +54,9 @@ func (t *T) m10(a int, b float) int {
 
 
 func f9(a int) (i int, f float) {
-// BUG funny return value
 	i := 9;
 	f := float(9);
 	return i, f;
-//	return;
 }
 
 
@@ -83,14 +81,14 @@ func main() {
 	r8, s8 = f8(1);
 	assertequal(r8, 8, "r8");
 	assertequal(int(s8), 8, "s8");
-		var r9 int;
-		var s9 float;
-		r9, s9 = f9(1);
-		assertequal(r9, 9, "r9");
-		assertequal(int(s9), 9, "s9");
-		var t *T = new(T);
-		t.x = 1;
-		t.y = 2;
-		r10 := t.m10(1, 3.0);
-		assertequal(r10, 10, "10");
+	var r9 int;
+	var s9 float;
+	r9, s9 = f9(1);
+	assertequal(r9, 9, "r9");
+	assertequal(int(s9), 9, "s9");
+	var t *T = new(T);
+	t.x = 1;
+	t.y = 2;
+	r10 := t.m10(1, 3.0);
+	assertequal(r10, 10, "10");
 }
