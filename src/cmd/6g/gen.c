@@ -692,19 +692,26 @@ cgen_asop(Node *nl, Node *nr, int op)
 		fatal("cgen_asop both sides call");
 	}
 
+// BOTCH make special case for DIVQ
+
 	a = optoas(op, nl->type);
+	if(nl->addable) {
+		regalloc(&n2, nr->type, N);
+		cgen(nr, &n2);
+		regalloc(&n1, nl->type, N);
+		cgen(nl, &n1);
+		gins(a, &n2, &n1);
+		gmove(&n1, nl);
+		regfree(&n1);
+		regfree(&n2);
+		return;
+	}
+
 	if(nr->ullman > nl->ullman) {
 		fatal("gcgen_asopen");
 	}
 
 	regalloc(&n1, nl->type, N);
-	if(nl->addable) {
-		cgen(nr, &n1);
-		gins(a, &n1, nl);
-		regfree(&n1);
-		return;
-	}
-
 	igen(nl, &n2, N);
 	cgen(nr, &n1);
 	gins(a, &n1, &n2);

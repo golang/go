@@ -23,6 +23,10 @@ func	intstring(int64) string;
 func	byteastring(*byte, int32) string;
 func	mkiface(*byte, *byte, *struct{}) interface{};
 
+func	frexp(float64) (int32, float64);	// break fp into exp,fract
+func	ldexp(int32, float64) float64;		// make fp from exp,fract
+func	modf(float64) (float64, float64);	// break fp into double.double
+
 export
 	mal
 	breakpoint
@@ -41,4 +45,8 @@ export
 	intstring
 	byteastring
 	mkiface
+
+	frexp
+	ldexp
+	modf
 	;
