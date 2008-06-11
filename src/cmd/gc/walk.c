@@ -1224,6 +1224,7 @@ convas(Node *n)
 	if(n->op != OAS)
 		fatal("convas: not as %O", n->op);
 
+	ullmancalc(n);
 	l = n->left;
 	r = n->right;
 	if(l == N || r == N)
@@ -1321,7 +1322,7 @@ loop1:
 		if(c == 0 || t == 1)
 			return n;
 		if(c > 1) {
-			yyerror("reorder1: too many funcation calls evaluating parameters");
+			yyerror("reorder1: too many function calls evaluating parameters");
 			return n;
 		}
 		goto pass2;
@@ -1337,21 +1338,18 @@ loop1:
 
 pass2:
 	l = listfirst(&save, &n);
-	f = N;	// isolated function call
-	r = N;	// rest of them
+	r = N;	// rest
+	f = N;	// fncall
 
 loop2:
 	if(l == N) {
-		if(r == N || f == N)
-			fatal("reorder1 not nil 1");
 		r = nod(OLIST, f, r);
-		return rev(r);
+		r = rev(r);
+		return r;
 	}
-	if(l->ullman >= UINF) {
-		if(f != N)
-			fatal("reorder1 not nil 2");
+	if(l->ullman >= UINF)
 		f = l;
-	} else
+	else
 	if(r == N)
 		r = l;
 	else
