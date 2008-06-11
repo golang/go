@@ -67,8 +67,6 @@ Hello World!
 =========== ken/litfun.go
 
 =========== ken/mfunc.go
-ken/mfunc.go:13: function call must be single valued (2)
-BUG: known to fail incorrectly
 
 =========== ken/ptrfun.go
 
@@ -82,10 +80,6 @@ BUG: known to fail incorrectly
 =========== ken/robfor.go
 
 =========== ken/robfunc.go
-ken/robfunc.go:74: function call must be single valued (2)
-ken/robfunc.go:79: function call must be single valued (2)
-ken/robfunc.go:84: function call must be single valued (2)
-BUG: known to fail incorrectly
 
 =========== ken/robif.go
 
@@ -241,6 +235,10 @@ BUG: compilation should succeed
 =========== bugs/bug044.go
 bugs/bug044.go:23: error in shape across assignment
 BUG: compilation should succeed
+
+=========== bugs/bug045.go
+bugs/bug045.go:13: fatal error: naddr: const <T>{<i><int32>INT32;}
+BUG: known to fail incorrectly
 
 =========== fixedbugs/bug000.go
 
