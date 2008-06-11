@@ -161,9 +161,6 @@ loop:
 		n->type = *getoutarg(t);
 		if(t->outtuple == 1)
 			n->type = n->type->type->type;
-		else
-		if(!top)
-			yyerror("function call must be single valued (%d)", t->outtuple);
 
 		walktype(n->right, 0);
 
@@ -173,12 +170,12 @@ loop:
 
 		case OCALLINTER:
 			l = ascompatte(n->op, getinarg(t), &n->right, 0);
-			n->right = reorder(l);
+			n->right = reorder1(l);
 			break;
 
 		case OCALL:
 			l = ascompatte(n->op, getinarg(t), &n->right, 0);
-			n->right = reorder(l);
+			n->right = reorder1(l);
 			break;
 
 		case OCALLMETH:
@@ -187,7 +184,7 @@ loop:
 			r = ascompatte(n->op, getthis(t), &n->left->left, 0);
 			if(l != N)
 				r = nod(OLIST, r, l);
-			n->right = reorder(r);
+			n->right = reorder1(r);
 			break;
 		}
 		goto ret;
@@ -204,12 +201,12 @@ loop:
 			goto ret;
 
 		if(r->op == OCALL && l->op == OLIST) {
-			// botch callmulti - need to do more
 			walktype(l, 0);
 			walktype(r, 0);
 			l = ascompatet(n->op, &n->left, &r->type, 0);
-			if(l != N && l->op == OAS)
-				*n = *reorder(l);
+			if(l != N) {
+				*n = *nod(OLIST, r, reorder2(l));
+			}
 			goto ret;
 		}
 
@@ -217,7 +214,7 @@ loop:
 		walktype(r, 0);
 		l = ascompatee(n->op, &n->left, &n->right);
 		if(l != N)
-			*n = *reorder(l);
+			*n = *reorder3(l);
 		goto ret;
 
 	case OBREAK:
@@ -296,7 +293,7 @@ loop:
 		walktype(n->left, 0);
 		l = ascompatte(n->op, getoutarg(curfn->type), &n->left, 1);
 		if(l != N)
-			n->left = reorder(l);
+			n->left = reorder4(l);
 		goto ret;
 
 	case ONOT:
@@ -561,6 +558,7 @@ loop:
 
 nottop:
 	fatal("walktype: not top %O", n->op);
+	goto ret;
 
 badt:
 	if(n->right == N) {
@@ -701,13 +699,6 @@ lookdot(Node *n, Type *t, int d)
 	Type *f, *r, *c;
 	Sym *s;
 
-//dowidth(t);
-//print("\nlookdot %T\n", t);
-//for(f=t->type; f!=T; f=f->down) {
-//print("   %3ld", f->width);
-//print(" %S\n", f->sym);
-//}
-
 	r = T;
 	s = n->sym;
 	if(d > 0)
@@ -822,17 +813,17 @@ walkdot(Node *n)
 }
 
 
-/*
- * check assign expression list to
- * a expression list. called in
- *	expr-list = expr-list
- */
 Node*
 ascompatee(int op, Node **nl, Node **nr)
 {
 	Node *l, *r, *nn, *a;
 	Iter savel, saver;
 
+	/*
+	 * check assign expression list to
+	 * a expression list. called in
+	 *	expr-list = expr-list
+	 */
 	l = listfirst(&savel, nl);
 	r = listfirst(&saver, nr);
 	nn = N;
@@ -842,7 +833,7 @@ loop:
 	if(l == N || r == N) {
 		if(l != r)
 			yyerror("error in shape across assignment");
-		return nn;
+		return rev(nn);
 	}
 
 	convlit(r, l->type);
@@ -856,18 +847,13 @@ loop:
 	if(nn == N)
 		nn = a;
 	else
-		nn = nod(OLIST, nn, a);
+		nn = nod(OLIST, a, nn);
 
 	l = listnext(&savel);
 	r = listnext(&saver);
 	goto loop;
 }
 
-/*
- * check assign type list to
- * a expression list. called in
- *	expr-list = func()
- */
 Node*
 ascompatet(int op, Node **nl, Type **nr, int fp)
 {
@@ -875,6 +861,11 @@ ascompatet(int op, Node **nl, Type **nr, int fp)
 	Type *r;
 	Iter savel, saver;
 
+	/*
+	 * check assign type list to
+	 * a expression list. called in
+	 *	expr-list = func()
+	 */
 	l = listfirst(&savel, nl);
 	r = structfirst(&saver, nr);
 	nn = N;
@@ -883,7 +874,7 @@ loop:
 	if(l == N || r == T) {
 		if(l != N || r != T)
 			yyerror("error in shape across assignment");
-		return nn;
+		return rev(nn);
 	}
 
 	if(!ascompat(l->type, r->type)) {
@@ -896,7 +887,7 @@ loop:
 	if(nn == N)
 		nn = a;
 	else
-		nn = nod(OLIST, nn, a);
+		nn = nod(OLIST, a, nn);
 
 	l = listnext(&savel);
 	r = structnext(&saver);
@@ -904,12 +895,6 @@ loop:
 	goto loop;
 }
 
-/*
- * check assign expression list to
- * a type list. called in
- *	return expr-list
- *	func(expr-list)
- */
 Node*
 ascompatte(int op, Type **nl, Node **nr, int fp)
 {
@@ -917,6 +902,12 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
 	Node *r, *nn, *a;
 	Iter savel, saver;
 
+	/*
+	 * check assign expression list to
+	 * a type list. called in
+	 *	return expr-list
+	 *	func(expr-list)
+	 */
 	l = structfirst(&savel, nl);
 	r = listfirst(&saver, nr);
 	nn = N;
@@ -925,7 +916,7 @@ loop:
 	if(l == T || r == N) {
 		if(l != T || r != N)
 			yyerror("error in shape across assignment");
-		return nn;
+		return rev(nn);
 	}
 
 	convlit(r, l->type);
@@ -939,7 +930,7 @@ loop:
 	if(nn == N)
 		nn = a;
 	else
-		nn = nod(OLIST, nn, a);
+		nn = nod(OLIST, a, nn);
 
 	l = structnext(&savel);
 	r = listnext(&saver);
@@ -1277,12 +1268,6 @@ ret:
 	return n;
 }
 
-Node*
-reorder(Node *n)
-{
-	return n;
-}
-
 void
 arrayconv(Type *t, Node *n)
 {
@@ -1309,4 +1294,126 @@ loop:
 		badtype(OARRAY, l->type, t->type);
 	l = listnext(&save);
 	goto loop;
+}
+
+Node*
+reorder1(Node *n)
+{
+	Iter save;
+	Node *l, *r, *f;
+	int c, t;
+
+	/*
+	 * from ascompat[te]
+	 * evaluating actual function arguments.
+	 *	f(a,b)
+	 * if there is exactly one function expr,
+	 * then it is done first. otherwise must
+	 * make temp variables
+	 */
+
+	l = listfirst(&save, &n);
+	c = 0;	// function calls
+	t = 0;	// total parameters
+
+loop1:
+	if(l == N) {
+		if(c == 0 || t == 1)
+			return n;
+		if(c > 1) {
+			yyerror("reorder1: too many funcation calls evaluating parameters");
+			return n;
+		}
+		goto pass2;
+	}
+	if(l->op == OLIST)
+		fatal("reorder1 OLIST");
+
+	t++;
+	if(l->ullman >= UINF)
+		c++;
+	l = listnext(&save);
+	goto loop1;
+
+pass2:
+	l = listfirst(&save, &n);
+	f = N;	// isolated function call
+	r = N;	// rest of them
+
+loop2:
+	if(l == N) {
+		if(r == N || f == N)
+			fatal("reorder1 not nil 1");
+		r = nod(OLIST, f, r);
+		return rev(r);
+	}
+	if(l->ullman >= UINF) {
+		if(f != N)
+			fatal("reorder1 not nil 2");
+		f = l;
+	} else
+	if(r == N)
+		r = l;
+	else
+		r = nod(OLIST, l, r);
+
+	l = listnext(&save);
+	goto loop2;
+}
+
+Node*
+reorder2(Node *n)
+{
+	Iter save;
+	Node *l;
+	int c;
+
+	/*
+	 * from ascompat[et]
+	 *	a,b = f()
+	 * return of a multi.
+	 * there can be no function calls at all,
+	 * or they will over-write the return values.
+	 */
+
+	l = listfirst(&save, &n);
+	c = 0;
+
+loop1:
+	if(l == N) {
+		if(c > 0)
+			yyerror("reorder2: too many funcation calls evaluating parameters");
+		return n;
+	}
+	if(l->op == OLIST)
+		fatal("reorder2 OLIST");
+
+	if(l->ullman >= UINF)
+		c++;
+	l = listnext(&save);
+	goto loop1;
+}
+
+Node*
+reorder3(Node *n)
+{
+	/*
+	 * from ascompat[ee]
+	 *	a,b = c,d
+	 * simultaneous assignment. there can be
+	 * later use of an earlier lvalue.
+	 */
+	return n;
+}
+
+Node*
+reorder4(Node *n)
+{
+	/*
+	 * from ascompat[te]
+	 *	return c,d
+	 * return expression assigned to output
+	 * parameters. there may be no problems.
+	 */
+	return n;
 }

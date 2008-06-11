@@ -563,6 +563,160 @@ sys_ifacei2s(Sigs *ss, Map *m, void *s)
 	}
 }
 
+enum
+{
+	NANEXP		= 2047<<20,
+	NANMASK		= 2047<<20,
+	NANSIGN		= 1<<31,
+};
+
+static	uint64	uvnan		= 0x7FF0000000000001;
+static	uint64	uvinf		= 0x7FF0000000000000;
+static	uint64	uvneginf	= 0xFFF0000000000000;
+
+static int32
+isInf(float64 d, int32 sign)
+{
+	uint64 x;
+
+	x = *(uint64*)&d;
+	if(sign == 0) {
+		if(x == uvinf || x == uvneginf)
+			return 1;
+		return 0;
+	}
+	if(sign > 0) {
+		if(x == uvinf)
+			return 1;
+		return 0;
+	}
+	if(x == uvneginf)
+		return 1;
+	return 0;
+}
+
+static float64
+NaN(void)
+{
+	return *(float64*)&uvnan;
+}
+
+static int32
+isNaN(float64 d)
+{
+	uint64 x;
+
+	x = *(uint64*)&d;
+	return ((uint32)x>>32)==0x7FF00000 && !isInf(d, 0);
+}
+
+static float64
+Inf(int32 sign)
+{
+	if(sign < 0)
+		return *(float64*)&uvinf;
+	else
+		return *(float64*)&uvneginf;
+}
+
+enum
+{
+	MASK	= 0x7ffL,
+	SHIFT	= 64-11-1,
+	BIAS	= 1022L,
+};
+
+static float64
+frexp(float64 d, int32 *ep)
+{
+	uint64 x;
+
+	if(d == 0) {
+		*ep = 0;
+		return 0;
+	}
+	x = *(uint64*)&d;
+	*ep = (int32)((x >> SHIFT) & MASK) - BIAS;
+	x &= ~((uint64)MASK << SHIFT);
+	x |= (uint64)BIAS << SHIFT;
+	return *(float64*)&x;
+}
+
+static float64
+ldexp(float64 d, int32 e)
+{
+	uint64 x;
+
+	if(d == 0)
+		return 0;
+	x = *(uint64*)&d;
+	e += (int32)(x >> SHIFT) & MASK;
+	if(e <= 0)
+		return 0;	/* underflow */
+	if(e >= MASK){		/* overflow */
+		if(d < 0)
+			return Inf(-1);
+		return Inf(1);
+	}
+	x &= ~((uint64)MASK << SHIFT);
+	x |= (uint64)e << SHIFT;
+	return *(float64*)&x;
+}
+
+static float64
+modf(float64 d, float64 *ip)
+{
+	float64 dd;
+	uint64 x;
+	int32 e;
+
+	if(d < 1) {
+		if(d < 0) {
+			d = modf(-d, ip);
+			*ip = -*ip;
+			return -d;
+		}
+		*ip = 0;
+		return d;
+	}
+
+	x = *(uint64*)&d;
+	e = (int32)((x >> SHIFT) & MASK) - BIAS;
+
+	/*
+	 * Keep the top 11+e bits; clear the rest.
+	 */
+	if(e <= 64-11)
+		x &= ~((uint64)1 << (64-11-e))-1;
+	dd = *(float64*)&x;
+	*ip = dd;
+	return d - dd;
+}
+
+// func frexp(float64) (int32, float64); // break fp into exp,fract
+void
+sys_frexp(float64 din, int32 iou, float64 dou)
+{
+	dou = frexp(din, &iou);
+	FLUSH(&dou);
+}
+
+//func	ldexp(int32, float64) float64;	// make fp from exp,fract
+void
+sys_ldexp(float64 din, int32 ein, float64 dou)
+{
+	dou = ldexp(din, ein);
+	FLUSH(&dou);
+}
+
+//func	modf(float64) (float64, float64);	// break fp into double+double
+float64
+sys_modf(float64 din, float64 dou1, float64 dou2)
+{
+	dou1 = modf(din, &dou2);
+	FLUSH(&dou2);
+}
+
 void
 check(void)
 {

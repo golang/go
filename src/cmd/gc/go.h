@@ -529,8 +529,11 @@ Node*	nodpanic(long);
 Node*	newcompat(Node*);
 Node*	stringop(Node*);
 Node*	convas(Node*);
-Node*	reorder(Node*);
 void	arrayconv(Type*, Node*);
+Node*	reorder1(Node*);
+Node*	reorder2(Node*);
+Node*	reorder3(Node*);
+Node*	reorder4(Node*);
 
 /*
  *	const.c
