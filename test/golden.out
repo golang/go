@@ -46,7 +46,6 @@ test0.go:49: illegal types for operand
 test0.go:50: error in shape across assignment
 test0.go:55: illegal types for operand
 	(*<Point2>{}) CALLMETH (<Point2>{})
-test0.go:54: function call must be single valued (0)
 test0.go:54: illegal types for operand
 	(<Point2>{}) AS ({})
 BUG: known to fail incorrectly
@@ -106,7 +105,8 @@ hello world
 =========== ken/simpvar.go
 
 =========== ken/string.go
-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-index 0<12700>6
+throw: bounds
 
 =========== ken/strvar.go
 
@@ -141,7 +141,7 @@ BUG: known to fail incorrectly
 
 =========== bugs/bug010.go
 bugs/bug010.go:7: i undefined
-bugs/bug010.go:8: illegal conversion of constant to 020({},<_o114>{},{})
+bugs/bug010.go:8: illegal conversion of constant to 020({},<_o135>{},{})
 bugs/bug010.go:9: error in shape across assignment
 BUG: known to fail incorrectly
 
@@ -164,7 +164,7 @@ bugs/bug022.go:8: illegal types for operand
 BUG: known to fail incorrectly
 
 =========== bugs/bug023.go
-bugs/bug023.go:20: fatal error: naddr: const <Type>I{<TypeName>110(<_t117>{},<_o119>{},{});}
+bugs/bug023.go:20: fatal error: naddr: const <Type>I{<TypeName>110(<_t138>{},<_o140>{},{});}
 BUG: known to fail incorrectly
 
 =========== bugs/bug025.go
@@ -238,6 +238,10 @@ BUG: compilation should succeed
 
 =========== bugs/bug045.go
 bugs/bug045.go:13: fatal error: naddr: const <T>{<i><int32>INT32;}
+BUG: known to fail incorrectly
+
+=========== bugs/bug046.go
+bugs/bug046.go:7: illegal <this> pointer
 BUG: known to fail incorrectly
 
 =========== fixedbugs/bug000.go
