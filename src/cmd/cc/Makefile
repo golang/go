@@ -45,6 +45,6 @@ y.tab.c: $(YFILES)
 	yacc $(YFLAGS) $(YFILES)
 
 clean:
-	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
+	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
 
 install: $(LIB)
