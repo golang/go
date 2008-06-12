@@ -6,6 +6,6 @@
 for i in 6l 6a 6c 6g gc cc
 do
 	cd $i
-	mk clean
+	make clean
 	cd ..
 done

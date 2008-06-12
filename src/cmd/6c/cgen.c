@@ -333,7 +333,7 @@ cgen(Node *n, Node *nn)
 				c = r->vconst;
 				if(c < 0)
 					c = -c;
-				v = log2(c);
+				v = xlog2(c);
 				if(v < 0)
 					break;
 				/* fall thru */
@@ -640,7 +640,7 @@ cgen(Node *n, Node *nn)
 				c = r->vconst;
 				if(c < 0)
 					c = -c;
-				v = log2(c);
+				v = xlog2(c);
 				if(v < 0)
 					break;
 				/* fall thru */
