@@ -40,3 +40,8 @@ echo; echo; echo %%%% making 6g %%%%; echo
 cd 6g
 make install
 cd ..
+
+echo; echo; echo %%%% making db %%%%; echo
+cd db
+make install
+cd ..
