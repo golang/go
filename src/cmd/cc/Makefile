@@ -37,7 +37,7 @@ OFILES=\
 	compat.$O\
 
 $(LIB): $(OFILES)
-	9ar rsc $(LIB) $(OFILES)
+	ar rsc $(LIB) $(OFILES)
 
 $(OFILES): $(HFILES)
 
