@@ -6,13 +6,13 @@
 for i in lib9 libbio
 do
 	cd $i
-	make install
+	make clean
 	cd ..
 done
 
 for i in cmd runtime
 do
 	cd $i
-	bash make.bash
+	bash clean.bash
 	cd ..
 done

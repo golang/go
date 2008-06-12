@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-CFLAGS=-I/home/r/plan9/include -I$(GOROOT)/include
+CFLAGS=-I$(GOROOT)/include
 BIN=$(HOME)/bin
 O=o
 
@@ -32,7 +32,7 @@ LIB=\
 	../cc/cc.a$O
 
 $(TARG): $(OFILES) $(LIB)
-	cc -o $(TARG) -L/home/r/plan9/lib $(OFILES) $(LIB) -lbio -l9
+	cc -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9
 
 $(OFILES): $(HFILES)
 

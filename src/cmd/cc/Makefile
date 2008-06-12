@@ -3,7 +3,7 @@
 # license that can be found in the LICENSE file.
 
 YFLAGS=-d
-CFLAGS=-I/home/r/plan9/include -I$(GOROOT)/include
+CFLAGS=-I$(GOROOT)/include
 BIN=$(HOME)/bin
 O=o
 
