@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(June 9, 2008)
+(June 12, 2008)
 
 This document is a semi-informal specification/proposal for a new
 systems programming language.  The document is under active
@@ -299,7 +299,7 @@ The arithmetic types are:
   uint8    the set of all unsigned 8-bit integers
   uint16   the set of all unsigned 16-bit integers
   uint32   the set of all unsigned 32-bit integers
-  unit64   the set of all unsigned 64-bit integers
+  uint64   the set of all unsigned 64-bit integers
 
   int8     the set of all signed 8-bit integers, in 2's complement
   int16    the set of all signed 16-bit integers, in 2's complement
@@ -1135,7 +1135,7 @@ Expression syntax is based on that of C but with fewer precedence levels.
   Conversion = "convert" "(" Type [ "," ExpressionList ] ")" |
                ConversionType "(" [ ExpressionList ] ")" .
   ConversionType = TypeName | ArrayType | MapType | StructType | InterfaceType .
-  Allocation = "new" "(" Type [ "," Expression ] ")" .
+  Allocation = "new" "(" Type [ "," ExpressionList ] ")" .
 
   binary_op = log_op | rel_op | add_op | mul_op .
   log_op = "||" | "&&" .
