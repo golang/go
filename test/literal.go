@@ -99,10 +99,10 @@ func main() {
 	assert(u22 == u23, "u22");
 
 	// uint64
-//BUG	var u30 uint64 = 0;
-//BUG	var u31 uint64 = 1;
-//BUG	var u32 uint64 = 18446744073709551615;
-//BUG	var u33 uint64 = +18446744073709551615;
+	var u30 uint64 = 0;
+	var u31 uint64 = 1;
+	var u32 uint64 = 18446744073709551615;
+	var u33 uint64 = +18446744073709551615;
 
 	// float
 	var f00 float = 3.14159;
@@ -186,7 +186,7 @@ func main() {
 	assert(s1[0] == 'h', "s1-0");
 	assert(s1[4] == 0xc3, "s1-4");
 	assert(s1[5] == 0xb4, "s1-5");
-//	var s2 string = "\a\b\f\n\r\t\v";  // BUG: \r miscompiles
+	var s2 string = "\a\b\f\n\r\t\v";
 
 	var s00 string = "\000";
 	var s01 string = "\007";
