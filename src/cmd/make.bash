@@ -8,35 +8,35 @@ bash clean.bash
 
 cd 6l
 bash mkenam
-mk enam.o
+make enam.o
 cd ..
 
 echo; echo; echo %%%% making cc %%%%; echo
 cd cc
-mk install
+make install
 cd ..
 
 echo; echo; echo %%%% making 6l %%%%; echo
 cd 6l
-mk install
+make install
 cd ..
 
 echo; echo; echo %%%% making 6a %%%%; echo
 cd 6a
-mk install
+make install
 cd ..
 
 echo; echo; echo %%%% making 6c %%%%; echo
 cd 6c
-mk install
+make install
 cd ..
 
 echo; echo; echo %%%% making gc %%%%; echo
 cd gc
-mk install
+make install
 cd ..
 
 echo; echo; echo %%%% making 6g %%%%; echo
 cd 6g
-mk install
+make install
 cd ..
