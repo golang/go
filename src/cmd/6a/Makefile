@@ -3,7 +3,7 @@
 # license that can be found in the LICENSE file.
 
 YFLAGS=-d
-CFLAGS=-I/home/r/plan9/include -I$(GOROOT)/include
+CFLAGS=-I$(GOROOT)/include
 BIN=$(HOME)/bin
 O=o
 
@@ -26,7 +26,7 @@ YFILES=\
 	a.y\
 
 $(TARG): $(OFILES)
-	cc -o $(TARG) -L/home/r/plan9/lib $(OFILES) -lbio -l9
+	cc -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
 
 $(OFILES): $(HFILES)
 
