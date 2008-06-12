@@ -109,7 +109,7 @@ Node*	lookdot(Node*, Node*, int);
 void	inarggen(void);
 void	agen_inter(Node*, Node*);
 void	cgen_as(Node*, Node*, int);
-void	cgen_asop(Node*, Node*, int);
+void	cgen_asop(Node*);
 void	cgen_ret(Node*);
 void	cgen_call(Node*);
 void	cgen_callmeth(Node*);
