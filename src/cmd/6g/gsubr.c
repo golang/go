@@ -1047,6 +1047,12 @@ naddr(Node *n, Addr *a)
 		a->sym = n->sym;
 		if(a->sym == S)
 			a->sym = lookup(".noname");
+		if(n->method) {
+			if(n->type != T)
+			if(n->type->sym != S)
+			if(n->type->sym->opackage != nil)
+				a->sym = pkglookup(a->sym->name, n->type->sym->opackage);
+		}
 
 		switch(n->class) {
 		default:

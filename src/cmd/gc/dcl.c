@@ -5,6 +5,18 @@
 #include	"go.h"
 #include	"y.tab.h"
 
+int
+dflag(void)
+{
+	if(!debug['d'])
+		return 0;
+	if(debug['y'])
+		return 1;
+	if(inimportsys)
+		return 0;
+	return 1;
+}
+
 void
 dodclvar(Node *n, Type *t)
 {
@@ -70,7 +82,7 @@ loop:
 	r->back->forw = d;
 	r->back = d;
 
-	if(debug['d'])
+	if(dflag())
 		print("const-dcl %S %N\n", n->sym, n->sym->oconst);
 }
 
@@ -321,7 +333,7 @@ funchdr(Node *n)
 		n->type = on->type;
 		n->class = on->class;
 		n->sym = s;
-		if(debug['d'])
+		if(dflag())
 			print("forew  var-dcl %S %T\n", n->sym, n->type);
 	}
 
@@ -497,14 +509,14 @@ popdcl(char *why)
 {
 	Sym *d, *s;
 
-//	if(debug['d'])
+//	if(dflag())
 //		print("revert\n");
 	for(d=dclstack; d!=S; d=d->link) {
 		if(d->name == nil)
 			break;
 		s = pkglookup(d->name, d->package);
 		dcopy(s, d);
-		if(debug['d'])
+		if(dflag())
 			print("\t%ld pop %S\n", curio.lineno, s);
 	}
 	if(d == S)
@@ -524,7 +536,7 @@ poptodcl(void)
 			break;
 		s = pkglookup(d->name, d->package);
 		dcopy(s, d);
-		if(debug['d'])
+		if(dflag())
 			print("\t%ld pop %S\n", curio.lineno, s);
 	}
 	if(d == S)
@@ -539,7 +551,7 @@ markdcl(char *why)
 	d = push();
 	d->name = nil;		// used as a mark in fifo
 	d->package = why;	// diagnostic for unmatched
-//	if(debug['d'])
+//	if(dflag())
 //		print("markdcl\n");
 }
 
@@ -639,7 +651,7 @@ addvar(Node *n, Type *t, int ctxt)
 	r->back->forw = d;
 	r->back = d;
 
-	if(debug['d']) {
+	if(dflag()) {
 		if(ctxt == PEXTERN)
 			print("extern var-dcl %S G%ld %T\n", s, s->vargen, t);
 		else
@@ -666,7 +678,7 @@ addtyp(Type *n, Type *t, int ctxt)
 			// allow nil interface to be
 			// redeclared as an interface
 			if(ot->etype == TINTER && ot->type == T && t->etype == TINTER) {
-				if(debug['d'])
+				if(dflag())
 					print("forew  typ-dcl %S G%ld %T\n", s, s->vargen, t);
 				s->otype = t;
 				return;
@@ -710,7 +722,7 @@ addtyp(Type *n, Type *t, int ctxt)
 	r->back->forw = d;
 	r->back = d;
 
-	if(debug['d']) {
+	if(dflag()) {
 		if(ctxt == PEXTERN)
 			print("extern typ-dcl %S G%ld %T\n", s, s->vargen, t);
 		else

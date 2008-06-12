@@ -137,6 +137,7 @@ struct	Node
 	uchar	trecur;		// to detect loops
 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
 	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
+	uchar	method;		// OCALLMETH name
 	long	vargen;		// unique name for OTYPE/ONAME
 	ulong	lineno;
 	vlong	xoffset;
@@ -353,12 +354,15 @@ EXTERN	Dcl*	externdcl;
 EXTERN	Dcl*	exportlist;
 EXTERN	int	dclcontext;	// PEXTERN/PAUTO
 EXTERN	int	importflag;
+EXTERN	int	inimportsys;
 
 EXTERN	Node*	booltrue;
 EXTERN	Node*	boolfalse;
 EXTERN	ulong	iota;
 EXTERN	long	vargen;
 EXTERN	long	exportgen;
+EXTERN	long	maxarg;
+EXTERN	long	stksize;
 
 EXTERN	Node*	retnil;
 EXTERN	Node*	fskel;

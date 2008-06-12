@@ -266,18 +266,34 @@ dumpexport(void)
 /*
  * ******* import *******
  */
+Sym*
+getimportsym(Node *ss)
+{
+	char *pkg;
+	Sym *s;
+
+	if(ss->op != OIMPORT)
+		fatal("getimportsym: oops1 %N\n", ss);
+
+	pkg = ss->psym->name;
+	if(pkgmyname != S)
+		pkg = pkgmyname->name;
+
+	s = pkglookup(ss->sym->name, pkg);
+
+	/* botch - need some diagnostic checking for the following assignment */
+	s->opackage = ss->osym->name;
+	return s;
+}
+
 Type*
 importlooktype(Node *n)
 {
 	Sym *s;
 
-	if(n->op != OIMPORT)
-		fatal("importlooktype: oops1 %N\n", n);
-
-	s = pkglookup(n->sym->name, n->psym->name);
+	s = getimportsym(n);
 	if(s->otype == T)
 		fatal("importlooktype: oops2 %S\n", s);
-
 	return s->otype;
 }
 
@@ -367,31 +383,22 @@ importfuncnam(Type *t)
 	}
 }
 
-Sym*
-getimportsym(Node *ss)
-{
-	char *pkg;
-	Sym *s;
-
-	pkg = ss->psym->name;
-	if(pkgmyname != S)
-		pkg = pkgmyname->name;
-
-	s = pkglookup(ss->sym->name, pkg);
-	/* botch - need some diagnostic checking for the following assignment */
-	s->opackage = ss->osym->name;
-	return s;
-}
-
 void
 importaddtyp(Node *ss, Type *t)
 {
 	Sym *s;
 
 	s = getimportsym(ss);
-	if(s->otype == T || !eqtype(t, s->otype, 0)) {
+	if(s->otype == T) {
 		addtyp(newtype(s), t, PEXTERN);
+		return;
 	}
+	if(!eqtype(t, s->otype, 0)) {
+		print("redeclaring %S %lT => %lT\n", s, s->otype, t);
+		addtyp(newtype(s), t, PEXTERN);
+		return;
+	}
+	print("sametype %S %lT => %lT\n", s, s->otype, t);
 }
 
 /*

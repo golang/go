@@ -1301,7 +1301,7 @@ Node*
 reorder1(Node *n)
 {
 	Iter save;
-	Node *l, *r, *f;
+	Node *l, *r, *f, *a, *g;
 	int c, t;
 
 	/*
@@ -1321,10 +1321,6 @@ loop1:
 	if(l == N) {
 		if(c == 0 || t == 1)
 			return n;
-		if(c > 1) {
-			yyerror("reorder1: too many function calls evaluating parameters");
-			return n;
-		}
 		goto pass2;
 	}
 	if(l->op == OLIST)
@@ -1338,23 +1334,50 @@ loop1:
 
 pass2:
 	l = listfirst(&save, &n);
-	r = N;	// rest
-	f = N;	// fncall
+	g = N;	// fncalls assigned to tempnames
+	f = N;	// one fncall assigned to stack
+	r = N;	// non fncalls and tempnames assigned to stack
 
 loop2:
 	if(l == N) {
-		r = nod(OLIST, f, r);
 		r = rev(r);
+		g = rev(g);
+		if(g != N)
+			f = nod(OLIST, g, f);
+		r = nod(OLIST, f, r);
 		return r;
 	}
-	if(l->ullman >= UINF)
+	if(l->ullman < UINF) {
+		if(r == N)
+			r = l;
+		else
+			r = nod(OLIST, l, r);
+		goto more;
+	}
+	if(f == N) {
 		f = l;
+		goto more;
+	}
+
+	// make assignment of fncall to tempname
+	a = nod(OXXX, N, N);
+	tempname(a, l->right->type);
+	a = nod(OAS, a, l->right);
+
+	if(g == N)
+		g = a;
 	else
+		g = nod(OLIST, a, g);
+
+	// put normal arg assignment on list
+	// with fncall replaced by tempname
+	l->right = a->left;
 	if(r == N)
 		r = l;
 	else
 		r = nod(OLIST, l, r);
 
+more:
 	l = listnext(&save);
 	goto loop2;
 }
