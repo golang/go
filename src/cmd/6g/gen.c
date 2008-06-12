@@ -36,9 +36,6 @@ compile(Node *fn)
 	if(debug['w'])
 		dump("--- pre walk ---", curfn->nbody);
 
-	maxarg = 0;
-	stksize = 0;
-
 	walk(curfn);
 	if(nerrors != 0)
 		return;
@@ -592,6 +589,8 @@ cgen_callmeth(Node *n)
 	// (p.f)(...) goes to (f)(p,...)
 
 	l = n->left;
+	if(l->op != ODOTMETH)
+		fatal("cgen_callmeth: not dotmethod: %N");
 
 	n->op = OCALL;
 	n->left = n->left->right;
@@ -647,6 +646,7 @@ cgen_call(Node *n)
 	}
 
 	// call direct
+	n->left->method = 1;
 	gins(ACALL, N, n->left);
 }
 

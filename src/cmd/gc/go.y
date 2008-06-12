@@ -829,10 +829,14 @@ keyval:
  * all in one place to show how crappy it all is
  */
 xfndcl:
-	LFUNC fndcl fnbody
+	LFUNC
 	{
-		$$ = $2;
-		$$->nbody = $3;
+		maxarg = 0;
+		stksize = 0;
+	} fndcl fnbody
+	{
+		$$ = $3;
+		$$->nbody = $4;
 		funcbody($$);
 	}
 

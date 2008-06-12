@@ -92,8 +92,6 @@ EXTERN	uchar	reg[D_NONE];
 EXTERN	ushort	txt[NTYPE*NTYPE];
 EXTERN	long	maxround;
 EXTERN	long	widthptr;
-EXTERN	long	maxarg;
-EXTERN	long	stksize;
 EXTERN	Sym*	symstringo;	// string objects
 EXTERN	long	stringo;	// size of string objects
 EXTERN	long	pcloc;		// instruction counter

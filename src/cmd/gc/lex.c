@@ -111,7 +111,7 @@ importfile(Val *f)
 		return;
 	}
 	// BOTCH need to get .8 from backend
-	snprint(namebuf, sizeof(namebuf), "%Z.8", f->sval);
+	snprint(namebuf, sizeof(namebuf), "%Z.6", f->sval);
 
 	imp = Bopen(namebuf, OREAD);
 	if(imp == nil) {
@@ -154,6 +154,7 @@ unimportfile(void)
 	}
 	curio = pushedio;
 	pushedio.bin = nil;
+	inimportsys = 0;
 }
 
 void
@@ -166,6 +167,7 @@ cannedimports(void)
 	curio.infile = "internal sys.go";
 	curio.cp = sysimport;
 	pkgmyname = S;
+	inimportsys = 1;
 }
 
 long
