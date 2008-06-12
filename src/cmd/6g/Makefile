@@ -26,7 +26,7 @@ OFILES=\
 LIB=\
 	../gc/gc.a$O
 
-$(TARG): $(OFILES)
+$(TARG): $(OFILES) $(LIB)
 	cc -o $(TARG) -L/home/r/plan9/lib $(OFILES) $(LIB) -lbio -l9
 
 $(OFILES): $(HFILES)
