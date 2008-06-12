@@ -275,7 +275,7 @@ loop:
 		break;
 
 	case OASOP:
-		cgen_asop(n->left, n->right, n->etype);
+		cgen_asop(n);
 		break;
 
 	case OAS:
@@ -683,40 +683,40 @@ cgen_ret(Node *n)
 }
 
 void
-cgen_asop(Node *nl, Node *nr, int op)
+cgen_asop(Node *n)
 {
-	Node n1, n2;
-	int a;
+	Node n1, n2, n3, n4;
+	Node *nl, *nr;
+
+	nl = n->left;
+	nr = n->right;
 
 	if(nr->ullman >= UINF && nl->ullman >= UINF) {
 		fatal("cgen_asop both sides call");
 	}
 
-// BOTCH make special case for DIVQ
-
-	a = optoas(op, nl->type);
-	if(nl->addable) {
-		regalloc(&n2, nr->type, N);
-		cgen(nr, &n2);
-		regalloc(&n1, nl->type, N);
-		cgen(nl, &n1);
-		gins(a, &n2, &n1);
-		gmove(&n1, nl);
-		regfree(&n1);
-		regfree(&n2);
-		return;
-	}
-
 	if(nr->ullman > nl->ullman) {
-		fatal("gcgen_asopen");
+		regalloc(&n2, nl->type, N);
+		cgen(nr, &n2);
+		igen(nl, &n1, N);
+	} else {
+		igen(nl, &n1, N);
+		regalloc(&n2, nl->type, N);
+		cgen(nr, &n2);
 	}
 
-	regalloc(&n1, nl->type, N);
-	igen(nl, &n2, N);
-	cgen(nr, &n1);
-	gins(a, &n1, &n2);
+	n3 = *n;
+	n3.left = &n1;
+	n3.right = &n2;
+	n3.op = n->etype;
+
+	regalloc(&n4, nr->type, N);
+	cgen(&n3, &n4);
+	gmove(&n4, &n1);
+
 	regfree(&n1);
 	regfree(&n2);
+	regfree(&n4);
 }
 
 void
