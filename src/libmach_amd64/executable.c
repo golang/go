@@ -626,7 +626,8 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
 	ushort (*swab)(ushort);
 	Ehdr64 *ep;
 	Phdr64 *ph;
-	int i, it, id, is, phsz;
+	Shdr64 *sh;
+	int i, it, id, is, phsz, shsz;
 
 	/* bitswap the header according to the DATA format */
 	ep = &hp->e.elfhdr64;
@@ -711,6 +712,17 @@ print("entry: 0x%x\n", ep->elfentry);
 	}
 	hswal(ph, phsz/sizeof(ulong), swal);
 
+	shsz = sizeof(Shdr64)*ep->shnum;
+	sh = malloc(shsz);
+	if(sh) {
+		seek(fd, ep->shoff, 0);
+		if(read(fd, sh, shsz) < 0) {
+			free(sh);
+			sh = 0;
+		} else
+			hswal(ph, phsz/sizeof(ulong), swal);
+	}
+
 	/* find text, data and symbols and install them */
 	it = id = is = -1;
 	for(i = 0; i < ep->phnum; i++) {
@@ -748,7 +760,9 @@ print("entry: 0x%x\n", ep->elfentry);
 		}
 
 		werrstr("No TEXT or DATA sections");
+error:
 		free(ph);
+		free(sh);
 		return 0;
 	}
 
@@ -756,7 +770,40 @@ print("entry: 0x%x\n", ep->elfentry);
 	setdata(fp, ph[id].vaddr, ph[id].filesz, ph[id].offset, ph[id].memsz - ph[id].filesz);
 	if(is != -1)
 		setsym(fp, ph[is].filesz, 0, ph[is].memsz, ph[is].offset);
+	else if(ep->machine == AMD64 && sh != 0){
+		char *buf;
+		uvlong symsize = 0;
+		uvlong symoff = 0;
+		uvlong pclnsz = 0;
+
+		/* load shstrtab names */
+		buf = malloc(sh[ep->shstrndx].size);
+		if (buf == 0)
+			goto done;
+		memset(buf, 0, sizeof buf);
+		seek(fd, sh[ep->shstrndx].offset, 0);
+		read(fd, buf, sh[ep->shstrndx].size);
+
+		for(i = 0; i < ep->shnum; i++) {
+			if (sh[i].type == 2 && strcmp(&buf[sh[i].name], ".gosymtab") == 0) {
+				symsize = sh[i].size;
+				symoff = sh[i].offset;
+			}
+			if (sh[i].type == 2 && strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
+				if (sh[i].offset != symoff+symsize) {
+					werrstr("pc line table not contiguous with symbol table");
+					free(buf);
+					goto error;
+				}
+				pclnsz = sh[i].size;
+			}
+		}
+		setsym(fp, symsize, 0, pclnsz, symoff);
+		free(buf);
+	}
+done:
 	free(ph);
+	free(sh);
 	return 1;
 }
 

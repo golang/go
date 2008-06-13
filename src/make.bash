@@ -3,6 +3,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+bash clean.bash
+
 for i in lib9 libbio libmach_amd64
 do
 	cd $i
