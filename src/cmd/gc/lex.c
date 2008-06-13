@@ -868,6 +868,7 @@ static	struct
 	"true",		LTRUE,		Txxx,
 	"type",		LTYPE,		Txxx,
 	"var",		LVAR,		Txxx,
+	"sys",		LPACK,		Txxx,
 
 	"notwithstanding",		LIGNORE,	Txxx,
 	"thetruthofthematter",		LIGNORE,	Txxx,

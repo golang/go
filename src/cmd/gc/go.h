@@ -333,6 +333,7 @@ EXTERN	Sym*	hash[NHASH];
 EXTERN	Sym*	dclstack;
 EXTERN	Sym*	b0stack;
 EXTERN	Sym*	pkgmyname;	// my name for package
+EXTERN	Sym*	pkgimportname;	// package name from imported package
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	sysimport;
 
@@ -498,6 +499,7 @@ Type*	forwdcl(Sym*);
 /*
  *	export.c
  */
+void	renamepkg(Node*);
 void	markexport(Node*);
 void	dumpe(Sym*);
 void	dumpexport(void);

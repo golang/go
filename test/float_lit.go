@@ -18,7 +18,7 @@ func
 close(da double, ia, ib int64, pow int) bool
 {
 	db := double(ia) / double(ib);
-	db = db*pow10(pow);
+	db *= pow10(pow);
 
 	if da == 0 {
 		if db == 0 {
@@ -27,17 +27,12 @@ close(da double, ia, ib int64, pow int) bool
 		return false;
 	}
 
-	dd := da-db;
-	if dd < 0 {
-		dd = -dd;
-	}
-
-	de := da;
+	de := (da-db) /da;
 	if de < 0 {
 		de = -de;
 	}
 
-	if de*1.0e-14 > dd {
+	if de < 1.0e-14 {
 		return true;
 	}
 	return false;

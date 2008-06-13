@@ -14,11 +14,13 @@ markexport(Node *n)
 loop:
 	if(n == N)
 		return;
+
 	if(n->op == OLIST) {
 		markexport(n->left);
 		n = n->right;
 		goto loop;
 	}
+
 	if(n->op != OEXPORT)
 		fatal("markexport: op no OEXPORT: %O", n->op);
 
@@ -252,6 +254,8 @@ dumpexport(void)
 	Bprint(bout, "   import\n");
 	Bprint(bout, "   ((\n");
 
+	Bprint(bout, "    package %s\n", package);
+
 	// print it depth first
 	for(d=exportlist->forw; d!=D; d=d->forw) {
 		dynlineno = d->lineno;
@@ -266,6 +270,19 @@ dumpexport(void)
 /*
  * ******* import *******
  */
+void
+renamepkg(Node *n)
+{
+	if(n->psym == pkgimportname)
+		if(pkgmyname != S)
+			n->psym = pkgmyname;
+
+	if(n->psym->lexical != LPACK) {
+		warn("%S is becoming a package behind your back", n->psym);
+		n->psym->lexical = LPACK;
+	}
+}
+
 Sym*
 getimportsym(Node *ss)
 {
@@ -276,9 +293,6 @@ getimportsym(Node *ss)
 		fatal("getimportsym: oops1 %N\n", ss);
 
 	pkg = ss->psym->name;
-	if(pkgmyname != S)
-		pkg = pkgmyname->name;
-
 	s = pkglookup(ss->sym->name, pkg);
 
 	/* botch - need some diagnostic checking for the following assignment */

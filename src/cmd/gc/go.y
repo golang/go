@@ -86,7 +86,7 @@ import:
 |	LIMPORT '(' import_stmt_list_r osemi ')'
 
 import_stmt:
-	import_here import_there
+	import_here import_package import_there
 
 import_here:
 	LLITERAL
@@ -107,6 +107,17 @@ import_here:
 		// import with my name
 		pkgmyname = lookup(package);
 		importfile(&$2);
+	}
+
+import_package:
+	LPACKAGE sym
+	{
+		pkgimportname = $2;
+
+		// if we are not remapping the package name
+		// then the imported package name is LPACK
+		if(pkgmyname == S)
+			pkgimportname->lexical = LPACK;
 	}
 
 import_there:
@@ -1330,11 +1341,11 @@ hidden_import:
 isym:
 	sym '.' sym
 	{
-		$1->lexical = LPACK;
 		$$ = nod(OIMPORT, N, N);
 		$$->osym = $1;
 		$$->psym = $1;
 		$$->sym = $3;
+		renamepkg($$);
 	}
 |	'(' sym ')' sym '.' sym
 	{
@@ -1342,6 +1353,7 @@ isym:
 		$$->osym = $2;
 		$$->psym = $4;
 		$$->sym = $6;
+		renamepkg($$);
 	}
 
 hidden_importsym:
@@ -1349,6 +1361,7 @@ hidden_importsym:
 |	'!' isym
 	{
 		$$ = $2;
+		$$->etype = 1;
 	}
 
 hidden_importfield:
