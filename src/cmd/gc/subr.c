@@ -871,7 +871,7 @@ Tconv(Fmt *fp)
 		break;
 
 	case TMAP:
-		snprint(buf, sizeof(buf), "[%T]%T", t->down, t->type);
+		snprint(buf, sizeof(buf), "MAP[%T]%T", t->down, t->type);
 		break;
 
 	case TARRAY:
