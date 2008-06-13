@@ -431,7 +431,7 @@ void	linuxphdr(int type, int flags, vlong foff,
 	vlong filesize, vlong memsize, vlong align);
 void	linuxshdr(char *name, ulong type, vlong flags, vlong addr, vlong off,
 	vlong size, ulong link, ulong info, vlong align, vlong entsize);
-void	linuxstrtable(void);
+int	linuxstrtable(void);
 
 
 #pragma	varargck	type	"D"	Adr*
