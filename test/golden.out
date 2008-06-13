@@ -26,6 +26,10 @@ BUG: known to succeed incorrectly
 
 =========== ./literal.go
 
+=========== ./nil.go
+nil.go:30: fatal error: naddr: const <T>{<i><int32>INT32;}
+BUG: known to fail incorrectly
+
 =========== ./sieve.go
 sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(8)
 BUG: known to fail incorrectly
