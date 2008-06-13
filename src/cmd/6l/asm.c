@@ -226,7 +226,7 @@ debug['s'] = 1;
 			break;
 		case 7:
 debug['s'] = 1;
-			seek(cout, HEADR+textsize+datsize, 0);
+			seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
 			linuxstrtable();
 			break;
 		case 6:
@@ -498,7 +498,6 @@ w = bsssize;
 			8,			/* align */
 			0);			/* entsize */
 
-fo = HEADR+textsize+datsize;
 w = stroffset +
 	strlen(".shstrtab")+1;
 //	strlen(".gosymtab")+1;
