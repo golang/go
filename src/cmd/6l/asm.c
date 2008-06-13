@@ -124,6 +124,9 @@ asmb(void)
 	int a;
 	uchar *op1;
 	vlong vl, va, fo, w;
+	int strtabsize;
+
+	strtabsize = 0;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -187,6 +190,10 @@ asmb(void)
 		break;
 
 	case 7:
+		debug['8'] = 1;	/* 64-bit addresses */
+		seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
+		strtabsize = linuxstrtable();
+		cflush();
 		v = rnd(HEADR+textsize, INITRND);
 		myseek(cout, v);
 		break;
@@ -221,16 +228,14 @@ asmb(void)
 		default:
 		case 2:
 		case 5:
-debug['s'] = 1;
+			debug['s'] = 1;
 			seek(cout, HEADR+textsize+datsize, 0);
-			break;
-		case 7:
-debug['s'] = 1;
-			seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
-			linuxstrtable();
 			break;
 		case 6:
 			debug['s'] = 1;
+			break;
+		case 7:
+			seek(cout, rnd(HEADR+textsize, INITRND)+datsize+strtabsize, 0);
 			break;
 		}
 		if(!debug['s'])
@@ -402,13 +407,15 @@ debug['s'] = 1;
 		wputl(56);			/* Phdr size */
 		wputl(3);			/* # of Phdrs */
 		wputl(64);			/* Shdr size */
-		wputl(5);			/* # of Shdrs */
+		if (!debug['s'])
+			wputl(7);			/* # of Shdrs */
+		else
+			wputl(5);			/* # of Shdrs */
 		wputl(4);			/* Shdr with strings */
 
-fo = 0;
-va = INITRND;
-w = HEADR+textsize;
-
+		fo = 0;
+		va = INITRND;
+		w = HEADR+textsize;
 
 		linuxphdr(1,			/* text - type = PT_LOAD */
 			1L+4L,			/* text - flags = PF_X+PF_R */
@@ -419,9 +426,9 @@ w = HEADR+textsize;
 			w,			/* memory size */
 			INITRND);		/* alignment */
 
-fo = rnd(fo+w, INITRND);
-va = rnd(va+w, INITRND);
-w = datsize;
+		fo = rnd(fo+w, INITRND);
+		va = rnd(va+w, INITRND);
+		w = datsize;
 
 		linuxphdr(1,			/* data - type = PT_LOAD */
 			2L+4L,			/* data - flags = PF_W+PF_R */
@@ -452,10 +459,10 @@ w = datsize;
 			0,			/* align */
 			0);			/* entsize */
 
-stroffset = 1;
-fo = 0;
-va = INITRND;
-w = HEADR+textsize;
+		stroffset = 1;  /* 0 means no name, so start at 1 */
+		fo = 0;
+		va = INITRND;
+		w = HEADR+textsize;
 
 		linuxshdr(".text",		/* name */
 			1,			/* type */
@@ -468,9 +475,9 @@ w = HEADR+textsize;
 			8,			/* align */
 			0);			/* entsize */
 
-fo = rnd(fo+w, INITRND);
-va = rnd(va+w, INITRND);
-w = datsize;
+		fo = rnd(fo+w, INITRND);
+		va = rnd(va+w, INITRND);
+		w = datsize;
 
 		linuxshdr(".data",		/* name */
 			1,			/* type */
@@ -483,9 +490,9 @@ w = datsize;
 			8,			/* align */
 			0);			/* entsize */
 
-fo += w;
-va += w;
-w = bsssize;
+		fo += w;
+		va += w;
+		w = bsssize;
 
 		linuxshdr(".bss",		/* name */
 			8,			/* type */
@@ -498,9 +505,7 @@ w = bsssize;
 			8,			/* align */
 			0);			/* entsize */
 
-w = stroffset +
-	strlen(".shstrtab")+1;
-//	strlen(".gosymtab")+1;
+		w = strtabsize;
 
 		linuxshdr(".shstrtab",		/* name */
 			3,			/* type */
@@ -513,18 +518,36 @@ w = stroffset +
 			8,			/* align */
 			0);			/* entsize */
 
-//fo += w;
-//
-//		linuxshdr(".gosymtab",		/* name */
-//			2,			/* type */
-//			0,			/* flags */
-//			0,			/* addr */
-//			fo,			/* off */
-//			0,			/* size */
-//			0,			/* link */
-//			0,			/* info */
-//			8,			/* align */
-//			0);			/* entsize */
+		if (debug['s'])
+			break;
+
+		fo += w;
+		w = symsize;
+
+		linuxshdr(".gosymtab",		/* name */
+			2,			/* type */
+			0,			/* flags */
+			0,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			8,			/* align */
+			24);			/* entsize */
+		
+		fo += w;
+		w = lcsize;
+
+		linuxshdr(".gopclntab",		/* name */
+			2,			/* type */
+			0,			/* flags */
+			0,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			8,			/* align */
+			24);			/* entsize */
 		break;
 	}
 	cflush();
@@ -796,7 +819,10 @@ linuxheadr(void)
 	a += 64;	/* .data seg */
 	a += 64;	/* .bss sect */
 	a += 64;	/* .shstrtab sect - strings for headers */
-//	a += 64;	/* .gosymtab sect */
+	if (!debug['s']) {
+		a += 64;	/* .gosymtab sect */
+		a += 64;	/* .gopclntab sect */
+	}
 
 	return a;
 }
@@ -837,21 +863,30 @@ linuxshdr(char *name, ulong type, vlong flags, vlong addr, vlong off,
 		stroffset += strlen(name)+1;
 }
 
-void
+int
+putstrtab(char* name) {
+	int w;
+
+	w = strlen(name)+1;
+	strnput(name, w);
+	return w;
+}
+
+int
 linuxstrtable(void)
 {
 	char *name;
+	int size;
 
-	name = "";
-	strnput(name, strlen(name)+1);
-	name = ".text";
-	strnput(name, strlen(name)+1);
-	name = ".data";
-	strnput(name, strlen(name)+1);
-	name = ".bss";
-	strnput(name, strlen(name)+1);
-	name = ".shstrtab";
-	strnput(name, strlen(name)+1);
-//	name = ".gosymtab";
-//	strnput(name, strlen(name)+1);
+	size = 0;
+	size += putstrtab("");
+	size += putstrtab(".text");
+	size += putstrtab(".data");
+	size += putstrtab(".bss");
+	size += putstrtab(".shstrtab");
+	if (!debug['s']) {
+		size += putstrtab(".gosymtab");
+		size += putstrtab(".gopclntab");
+	}
+	return size;
 }
