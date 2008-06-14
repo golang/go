@@ -52,12 +52,12 @@ Pconv(Fmt *fp)
 	sconsize = 8;
 	if(p->as == ADATA) {
 		sconsize = p->from.scale;
-		snprint(str, sizeof(str), "%.4ld %-7A %D/%d,%D",
-			p->loc, p->as, &p->from, sconsize, &p->to);
+		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D/%d,%D",
+			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
 		return fmtstrcpy(fp, str);
 	}
-	snprint(str, sizeof(str), "%.4ld %-7A %D,%D",
-		p->loc, p->as, &p->from, &p->to);
+	snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%D",
+		p->loc, p->lineno, p->as, &p->from, &p->to);
 	return fmtstrcpy(fp, str);
 }
 

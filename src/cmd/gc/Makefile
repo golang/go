@@ -27,6 +27,7 @@ OFILES=\
 	const.$O\
 	mpatof.$O\
 	sysimport.$O\
+	compat.$O\
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)

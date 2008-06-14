@@ -97,6 +97,8 @@ EXTERN	long	stringo;	// size of string objects
 EXTERN	long	pcloc;		// instruction counter
 EXTERN	String	emptystring;
 extern	char*	anames[];
+EXTERN	Hist*	hist;
+EXTERN	Prog	zprog;
 
 /*
  * gen.c
@@ -195,6 +197,7 @@ void	zaddr(Biobuf*, Addr*, int);
 void	ieeedtod(Ieee*, double);
 void	dumpstrings(void);
 void	dumpsignatures(void);
+void	outhist(Biobuf*);
 
 /*
  * align

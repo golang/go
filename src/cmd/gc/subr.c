@@ -14,24 +14,11 @@ errorexit(void)
 }
 
 void
-myexit(int x)
-{
-	if(x)
-		exits("error");
-	exits(nil);
-}
-
-void
 yyerror(char *fmt, ...)
 {
 	va_list arg;
-	long lno;
 
-	lno = dynlineno;
-	if(lno == 0)
-		lno = curio.lineno;
-
-	print("%s:%ld: ", curio.infile, lno);
+	print("%L: ");
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
@@ -48,13 +35,8 @@ void
 warn(char *fmt, ...)
 {
 	va_list arg;
-	long lno;
 
-	lno = dynlineno;
-	if(lno == 0)
-		lno = curio.lineno;
-
-	print("%s:%ld: ", curio.infile, lno);
+	print("%L warning: ");
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
@@ -67,13 +49,8 @@ void
 fatal(char *fmt, ...)
 {
 	va_list arg;
-	long lno;
 
-	lno = dynlineno;
-	if(lno == 0)
-		lno = curio.lineno;
-
-	print("%s:%ld: fatal error: ", curio.infile, lno);
+	print("%L fatal error: ");
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
@@ -81,6 +58,31 @@ fatal(char *fmt, ...)
 	if(debug['h'])
 		*(int*)0 = 0;
 	myexit(1);
+}
+
+void
+linehist(char *file, long off)
+{
+	Hist *h;
+
+	if(debug['i'])
+	if(file != nil)
+		print("%L: import %s\n", file);
+	else
+		print("%L: <eof>\n");
+
+	h = alloc(sizeof(Hist));
+	h->name = file;
+	h->line = lineno;
+	h->offset = off;
+	h->link = H;
+	if(ehist == H) {
+		hist = h;
+		ehist = h;
+		return;
+	}
+	ehist->link = h;
+	ehist = h;
 }
 
 ulong
@@ -248,7 +250,7 @@ nod(int op, Node *nleft, Node *nright)
 	n->right = nright;
 	n->lineno = dynlineno;
 	if(dynlineno == 0)
-		n->lineno = curio.lineno;
+		n->lineno = lineno;
 	return n;
 }
 
@@ -644,6 +646,74 @@ Oconv(Fmt *fp)
 		return fmtstrcpy(fp, buf);
 	}
 	return fmtstrcpy(fp, opnames[o]);
+}
+
+int
+Lconv(Fmt *fp)
+{
+	char str[STRINGSZ], s[STRINGSZ];
+	struct
+	{
+		Hist*	incl;	/* start of this include file */
+		long	idel;	/* delta line number to apply to include */
+		Hist*	line;	/* start of this #line directive */
+		long	ldel;	/* delta line number to apply to #line */
+	} a[HISTSZ];
+	long lno, d;
+	int i, n;
+	Hist *h;
+
+	lno = dynlineno;
+	if(lno == 0)
+		lno = lineno;
+
+	n = 0;
+	for(h=hist; h!=H; h=h->link) {
+		if(lno < h->line)
+			break;
+		if(h->name) {
+			if(n < HISTSZ) {	/* beginning of file */
+				a[n].incl = h;
+				a[n].idel = h->line;
+				a[n].line = 0;
+			}
+			n++;
+			continue;
+		}
+		n--;
+		if(n > 0 && n < HISTSZ) {
+			d = h->line - a[n].incl->line;
+			a[n-1].ldel += d;
+			a[n-1].idel += d;
+		}
+	}
+
+	if(n > HISTSZ)
+		n = HISTSZ;
+
+	str[0] = 0;
+	for(i=n-1; i>=0; i--) {
+		if(i != n-1) {
+			if(fp->flags & ~(FmtWidth|FmtPrec))
+				break;
+			strcat(str, " ");
+		}
+		if(a[i].line)
+			snprint(s, STRINGSZ, "%s:%ld[%s:%ld]",
+				a[i].line->name, lno-a[i].ldel+1,
+				a[i].incl->name, lno-a[i].idel+1);
+		else
+			snprint(s, STRINGSZ, "%s:%ld",
+				a[i].incl->name, lno-a[i].idel+1);
+		if(strlen(s)+strlen(str) >= STRINGSZ-10)
+			break;
+		strcat(str, s);
+		lno = a[i].incl->line - 1;	/* now print out start of this file */
+	}
+	if(n == 0)
+		strcat(str, "<eof>");
+
+	return fmtstrcpy(fp, str);
 }
 
 /*

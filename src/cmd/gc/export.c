@@ -35,7 +35,7 @@ loop:
 	d = mal(sizeof(*d));
 	d->dsym = s;
 	d->dnode = N;
-	d->lineno = curio.lineno;
+	d->lineno = lineno;
 
 	r = exportlist;
 	d->back = r->back;

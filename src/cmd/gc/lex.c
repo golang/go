@@ -39,6 +39,10 @@ mainlex(int argc, char *argv[])
 	if(argc != 1)
 		goto usage;
 
+	pathname = mal(100);
+	if(mygetwd(pathname, 99) == 0)
+		strcpy(pathname, "/???");
+
 	fmtinstall('O', Oconv);		// node opcodes
 	fmtinstall('E', Econv);		// etype opcodes
 	fmtinstall('J', Jconv);		// all the node flags
@@ -46,15 +50,19 @@ mainlex(int argc, char *argv[])
 	fmtinstall('T', Tconv);		// type pointer
 	fmtinstall('N', Nconv);		// node pointer
 	fmtinstall('Z', Zconv);		// escaped string
+	fmtinstall('L', Lconv);		// line number
 	
 	lexinit();
+	lineno = 1;
 
 	infile = argv[0];
-	curio.infile = infile;
+	linehist(infile, 0);
 
-	curio.bin = Bopen(curio.infile, OREAD);
+	curio.infile = infile;
+	curio.bin = Bopen(infile, OREAD);
 	if(curio.bin == nil)
-		fatal("cant open: %s", curio.infile);
+		fatal("cant open: %s", infile);
+	curio.peekc = 0;
 
 	externdcl = mal(sizeof(*externdcl));
 	externdcl->back = externdcl;
@@ -69,14 +77,11 @@ mainlex(int argc, char *argv[])
 	fskel->right->left = nod(ODCLFIELD, N, N);
 	fskel->right->right = nod(ODCLFIELD, N, N);
 
-	curio.peekc = 0;
-	curio.lineno = 1;
 	nerrors = 0;
 	yyparse();
 
+	linehist(nil, 0);
 	Bterm(curio.bin);
-	if(bout != nil)
-		Bterm(bout);
 
 	if(nerrors)
 		errorexit();
@@ -104,6 +109,7 @@ void
 importfile(Val *f)
 {
 	Biobuf *imp;
+	char *file;
 	long c;
 
 	if(f->ctype != CTSTR) {
@@ -112,12 +118,12 @@ importfile(Val *f)
 	}
 	// BOTCH need to get .8 from backend
 	snprint(namebuf, sizeof(namebuf), "%Z.6", f->sval);
+	file = strdup(namebuf);
+	linehist(file, 0);
 
-	imp = Bopen(namebuf, OREAD);
-	if(imp == nil) {
-		yyerror("cant open import: %s", namebuf);
-		return;
-	}
+	imp = Bopen(file, OREAD);
+	if(imp == nil)
+		fatal("cant open import: %s", namebuf);
 
 	/*
 	 * position the input right
@@ -125,9 +131,8 @@ importfile(Val *f)
 	 */
 	pushedio = curio;
 	curio.bin = imp;
-	curio.lineno = 1;
 	curio.peekc = 0;
-	curio.infile = strdup(namebuf);
+	curio.infile = file;
 	for(;;) {
 		c = getc();
 		if(c == EOF)
@@ -148,6 +153,8 @@ importfile(Val *f)
 void
 unimportfile(void)
 {
+	linehist(nil, 0);
+
 	if(curio.bin != nil) {
 		Bterm(curio.bin);
 		curio.bin = nil;
@@ -160,12 +167,17 @@ unimportfile(void)
 void
 cannedimports(void)
 {
+	char *file;
+
+	file = "sys.6";
+	linehist(file, 0);
+
 	pushedio = curio;
 	curio.bin = nil;
-	curio.lineno = 1;
 	curio.peekc = 0;
-	curio.infile = "internal sys.go";
+	curio.infile = file;
 	curio.cp = sysimport;
+
 	pkgmyname = S;
 	inimportsys = 1;
 }
@@ -619,7 +631,7 @@ getc(void)
 	if(c != 0) {
 		curio.peekc = 0;
 		if(c == '\n')
-			curio.lineno++;
+			lineno++;
 		return c;
 	}
 
@@ -636,7 +648,7 @@ getc(void)
 		return EOF;
 
 	case '\n':
-		curio.lineno++;
+		lineno++;
 		break;
 	}
 	return c;
@@ -647,7 +659,7 @@ ungetc(int c)
 {
 	curio.peekc = c;
 	if(c == '\n')
-		curio.lineno--;
+		lineno--;
 }
 
 long
@@ -688,7 +700,7 @@ getnsc(void)
 		if(!isspace(c))
 			return c;
 		if(c == '\n') {
-			curio.lineno++;
+			lineno++;
 			return c;
 		}
 		c = getc();

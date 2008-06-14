@@ -55,6 +55,8 @@ dumpobj(void)
 	dumpexport();
 	Bprint(bout, "\n!\n");
 
+	outhist(bout);
+
 	// add globals
 	nodconst(&n1, types[TINT32], 0);
 	for(d=externdcl; d!=D; d=d->forw) {
@@ -158,6 +160,9 @@ dumpobj(void)
 			zaddr(bout, &p->to, st);
 		}
 	}
+	Bterm(bout);
+return;
+	Bterm(bout);
 }
 
 void
@@ -256,6 +261,69 @@ zaddr(Biobuf *b, Addr *a, int s)
 	}
 	if(t & T_TYPE)
 		Bputc(b, a->type);
+}
+
+void
+outhist(Biobuf *b)
+{
+	Hist *h;
+	char *p, *q, *op;
+	Prog pg;
+	int n;
+
+	pg = zprog;
+	pg.as = AHISTORY;
+	for(h = hist; h != H; h = h->link) {
+		p = h->name;
+		op = 0;
+
+		if(p && p[0] != '/' && h->offset == 0 && pathname && pathname[0] == '/') {
+			op = p;
+			p = pathname;
+		}
+
+		while(p) {
+			q = utfrune(p, '/');
+			if(q) {
+				n = q-p;
+				if(n == 0)
+					n = 1;		// leading "/"
+				q++;
+			} else {
+				n = strlen(p);
+				q = 0;
+			}
+			if(n) {
+				Bputc(b, ANAME);
+				Bputc(b, ANAME>>8);
+				Bputc(b, D_FILE);
+				Bputc(b, 1);
+				Bputc(b, '<');
+				Bwrite(b, p, n);
+				Bputc(b, 0);
+			}
+			p = q;
+			if(p == 0 && op) {
+				p = op;
+				op = 0;
+			}
+		}
+
+		pg.lineno = h->line;
+		pg.to.type = zprog.to.type;
+		pg.to.offset = h->offset;
+		if(h->offset)
+			pg.to.type = D_CONST;
+
+		Bputc(b, pg.as);
+		Bputc(b, pg.as>>8);
+		Bputc(b, pg.lineno);
+		Bputc(b, pg.lineno>>8);
+		Bputc(b, pg.lineno>>16);
+		Bputc(b, pg.lineno>>24);
+		zaddr(b, &pg.from, 0);
+		zaddr(b, &pg.to, 0);
+	}
 }
 
 void

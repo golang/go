@@ -511,13 +511,14 @@ popdcl(char *why)
 
 //	if(dflag())
 //		print("revert\n");
+
 	for(d=dclstack; d!=S; d=d->link) {
 		if(d->name == nil)
 			break;
 		s = pkglookup(d->name, d->package);
 		dcopy(s, d);
 		if(dflag())
-			print("\t%ld pop %S\n", curio.lineno, s);
+			print("\t%L pop %S\n", lineno, s);
 	}
 	if(d == S)
 		fatal("popdcl: no mark");
@@ -537,7 +538,7 @@ poptodcl(void)
 		s = pkglookup(d->name, d->package);
 		dcopy(s, d);
 		if(dflag())
-			print("\t%ld pop %S\n", curio.lineno, s);
+			print("\t%L pop %S\n", lineno, s);
 	}
 	if(d == S)
 		fatal("poptodcl: no mark");
