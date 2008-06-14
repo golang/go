@@ -83,6 +83,7 @@ static	Sym	*symbols;		/* symbol table */
 static	Txtsym	*txt;			/* Base of text symbol table */
 static	uvlong	txtstart;		/* start of text segment */
 static	uvlong	txtend;			/* end of text segment */
+static	uvlong	firstinstr;		/* as found from symtab; needed for amd64 */
 
 static void	cleansyms(void);
 static long	decodename(Biobuf*, Sym*);
@@ -385,6 +386,7 @@ buildtbls(void)
 		return 1;
 	isbuilt = 1;
 			/* allocate the tables */
+	firstinstr = 0;
 	if(nglob) {
 		globals = malloc(nglob*sizeof(*globals));
 		if(!globals) {
@@ -428,6 +430,7 @@ buildtbls(void)
 	hp = hist;
 	ap = autos;
 	for(p = symbols; i-- > 0; p++) {
+//print("sym %d type %c name %s value %llux\n", p-symbols, p->type, p->name, p->value);
 		switch(p->type) {
 		case 'D':
 		case 'd':
@@ -474,6 +477,8 @@ buildtbls(void)
 			tp->locals = ap;
 			if(debug)
 				print("TEXT: %s at %llux\n", p->name, p->value);
+			if (firstinstr == 0 || p->value < firstinstr)
+				firstinstr = p->value;
 			if(f && !f->sym) {			/* first  */
 				f->sym = p;
 				f->addr = p->value;
@@ -1045,6 +1050,7 @@ fileline(char *str, int n, uvlong dot)
 			bot = mid;
 		else {
 			line = pc2line(dot);
+			print("line %d\n", line);
 			if(line > 0 && fline(str, n, line, f->hist, 0) >= 0)
 				return 1;
 			break;
@@ -1269,7 +1275,10 @@ pc2line(uvlong pc)
 	if(pcline == 0)
 		return -1;
 	currline = 0;
-	currpc = txtstart-mach->pcquant;
+	if (firstinstr != 0)
+		currpc = firstinstr-mach->pcquant;
+	else
+		currpc = txtstart-mach->pcquant;
 	if(pc<currpc || pc>txtend)
 		return ~0;
 
