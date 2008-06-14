@@ -14,6 +14,7 @@ tothinkabout:
 #include	<u.h>
 #include	<libc.h>
 #include	<bio.h>
+#include	"compat.h"
 
 #ifndef	EXTERN
 #define EXTERN	extern
@@ -28,6 +29,7 @@ enum
 	YYMAXDEPTH	= 500,
 	MAXALIGN	= 7,
 	UINF		= 100,
+	HISTSZ		= 10,
 
 	PRIME1		= 3,
 	PRIME2		= 10007,
@@ -189,6 +191,16 @@ struct	Iter
 	Node*	n;
 };
 
+typedef	struct	Hist	Hist;
+struct	Hist
+{
+	Hist*	link;
+	char*	name;
+	long	line;
+	long	offset;
+};
+#define	H	((Hist*)0)
+
 enum
 {
 	OXXX,
@@ -313,13 +325,18 @@ struct	Io
 {
 	char*	infile;
 	Biobuf*	bin;
-	long	lineno;
+	long	ilineno;
 	int	peekc;
 	char*	cp;	// used for content when bin==nil
 };
 
 EXTERN	Io	curio;
 EXTERN	Io	pushedio;
+EXTERN	long	lineno;
+EXTERN	char*	pathname;
+EXTERN	Hist*	hist;
+EXTERN	Hist*	ehist;
+
 
 EXTERN	char*	infile;
 EXTERN	char*	outfile;
@@ -416,6 +433,7 @@ Sym*	pkglookup(char*, char*);
 void	yyerror(char*, ...);
 void	warn(char*, ...);
 void	fatal(char*, ...);
+void	linehist(char*, long);
 Node*	nod(int, Node*, Node*);
 Type*	typ(int);
 Dcl*	dcl(void);
@@ -457,6 +475,7 @@ Type*	funcnext(Iter*);
 
 int	Econv(Fmt*);
 int	Jconv(Fmt*);
+int	Lconv(Fmt*);
 int	Oconv(Fmt*);
 int	Sconv(Fmt*);
 int	Tconv(Fmt*);

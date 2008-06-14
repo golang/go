@@ -200,6 +200,13 @@ belexinit(int lextype)
 	int i;
 	Sym *s0, *s1;
 
+	zprog.link = P;
+	zprog.as = AGOK;
+	zprog.from.type = D_NONE;
+	zprog.from.index = D_NONE;
+	zprog.from.scale = 0;
+	zprog.to = zprog.from;
+
 	for(i=0; i<nelem(typedefs); i+=2) {
 		s1 = lookup(typedefs[i+1]);
 		if(s1->lexical != lextype)
