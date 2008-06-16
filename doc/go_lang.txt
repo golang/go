@@ -1582,10 +1582,10 @@ If statements
 
 If statements have the traditional form except that the
 condition need not be parenthesized and the "then" statement
-must be in brace brackets. The condition may be omitted in which
+must be in brace brackets. The condition may be omitted, in which
 case it is assumed to have the value "true".
 
-  IfStat = "if" [ [ SimpleStat ";" ] Expression ] Block [ "else" Statement ] .
+  IfStat = "if" [ [ Simplestat ] ";" ] [ Condition ] Block [ "else" Statement ] .
 
   if x > 0 {
     return true;
@@ -1593,8 +1593,7 @@ case it is assumed to have the value "true".
 
 An "if" statement may include the declaration of a single temporary variable.
 The scope of the declared variable extends to the end of the if statement, and
-the variable is initialized once before the statement is entered. If a variable
-is declared, the condition cannot be omitted.
+the variable is initialized once before the statement is entered.
 
   if x := f(); x < y {
     return x;
@@ -1610,7 +1609,7 @@ Switch statements
 
 Switches provide multi-way execution.
 
-  SwitchStat = "switch" [ [ SimpleStat ";" ] Expression ] "{" { CaseClause } "}" .
+  SwitchStat = "switch" [ [ Simplestat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
   CaseClause = CaseList StatementList [ ";" ] [ "fallthrough" [ ";" ] ] .
   CaseList = Case { Case } .
   Case = ( "case" ExpressionList | "default" ) ":" .
