@@ -6,9 +6,14 @@
 
 package main
 
-func main() {
-	count := 0;
-	if one := 1; {  // BUG if there is a simple stat, the condition must be present
-		count = count + one;	
+func main() int {
+	count := 7;
+	if one := 1; {
+		count = count + one	
 	}
+	if count != 8 {
+		print count, " should be 8\n";
+		return 1
+	}
+	return 0
 }

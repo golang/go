@@ -6,11 +6,13 @@
 
 package main
 
-func main() {
-  i := 0;
-	switch x := 5; {  // BUG if there is a simple stat, the condition must be present
-	case i < x:
-	case i == x:
-	case i > x:
+func main() int {
+	i := 0;
+	switch x := 5; {
+		case i < x:
+			return 0;
+		case i == x:
+		case i > x:
+			return 1;
 	}
 }
