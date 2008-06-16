@@ -225,6 +225,23 @@ BUG: known to fail incorrectly
 bugs/bug046.go:7: illegal <this> pointer
 BUG: known to fail incorrectly
 
+=========== bugs/bug047.go
+bugs/bug047.go:13: illegal types for operand: CONV
+	(<T>{<s><string>*STRING;<f><float32>FLOAT32;})
+bugs/bug047.go:16: illegal types for operand: CONV
+	(MAP[<int32>INT32]<int32>INT32)
+bugs/bug047.go:13: illegal types for operand: CONV
+	(<T>{<s><string>*STRING;<f><float32>FLOAT32;})
+bugs/bug047.go:16: illegal types for operand: CONV
+	(MAP[<int32>INT32]<int32>INT32)
+BUG: known to fail incorrectly
+
+=========== bugs/bug048.go
+bugs/bug048.go:7: illegal types for operand: CONV
+	(MAP[<int32>INT32]<int32>INT32)
+bugs/bug048.go:8: syntax error
+BUG: known to fail incorrectly
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
