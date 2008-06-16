@@ -845,8 +845,10 @@ static	struct
 	"char",		LBASETYPE,	TUINT8,		// temp??
 	"string",	LBASETYPE,	TSTRING,
 
+	"any",		LBASETYPE,	TANY,
+
 /* keywords */
-	"any",		LANY,		Txxx,
+//	"any",		LANY,		Txxx,
 	"break",	LBREAK,		Txxx,
 	"case",		LCASE,		Txxx,
 	"chan",		LCHAN,		Txxx,
@@ -918,13 +920,17 @@ lexinit(void)
 			okforeq[i] = 1;
 			okforadd[i] = 1;
 			okforand[i] = 1;
+			issimple[i] = 1;
 		}
 		if(isfloat[i]) {
 			okforeq[i] = 1;
 			okforadd[i] = 1;
+			issimple[i] = 1;
 		}
 		switch(i) {
 		case TBOOL:
+			issimple[i] = 1;
+
 		case TPTR32:
 		case TPTR64:
 			okforeq[i] = 1;

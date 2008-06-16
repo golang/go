@@ -217,6 +217,17 @@ dumpexporttype(Sym *s)
 		}
 		Bprint(bout, "%c\n", (et==TSTRUCT)? '}': '>');
 		break;
+
+	case TMAP:
+		reexport(t->type);
+		reexport(t->down);
+
+		/* type 6 */
+		Bprint(bout, "\ttype ");
+		if(s->export != 0)
+			Bprint(bout, "!");
+		Bprint(bout, "%lS [%lS] %lS\n", s, t->down->sym, t->type->sym);
+		break;
 	}
 }
 
@@ -481,9 +492,18 @@ doimportv1(Node *ss, Node *st)
  * array type
  */
 void
-doimport1(Node *ss, Node *ss1, Node *s)
+doimport1(Node *ss, Node *si, Node *st)
 {
-	fatal("doimport1");
+	Type *t;
+	Sym *s;
+
+	t = typ(TMAP);
+	s = pkglookup(si->sym->name, si->psym->name);
+	t->down = s->otype;
+	s = pkglookup(st->sym->name, st->psym->name);
+	t->type = s->otype;
+
+	importaddtyp(ss, t);
 }
 
 /*

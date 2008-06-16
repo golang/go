@@ -37,9 +37,17 @@ loop:
 void
 dodcltype(Type *n, Type *t)
 {
+	Type *nt;
 
 	if(n == T)
 		return;
+	if(t->sym != S) {
+		// botch -- should be a complete deep copy
+		nt = typ(Txxx);
+		*nt = *t;
+		t = nt;
+		t->sym = S;
+	}
 	addtyp(n, t, dclcontext);
 }
 

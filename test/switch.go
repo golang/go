@@ -16,6 +16,7 @@ func assert(cond bool, msg string) {
 func main() {
 	i5 := 5;
 	i7 := 7;
+	hello := "hello";
 
 	switch true {
 	case i5 < 5: assert(false, "<");
@@ -121,6 +122,13 @@ func main() {
 	default: assert(i5 == count, "good");
 	}
 	assert(fired > 0, "fired");
+
+	switch hello {
+	case "wowie": assert(false, "wowie");
+	case "hello": assert(true, "hello");
+	case "jumpn": assert(false, "jumpn");
+	default: assert(false, "default");
+	}
 
 	fired = 0;
 	switch i := i5 + 2; i {

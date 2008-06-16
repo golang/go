@@ -331,15 +331,9 @@ agen(Node *n, Node *res)
 		regfree(&n2);
 		break;
 
-//	case OIND:
-//		nl = n->left;
-//		if(nl->addable) {
-//			gopcode(P_LOAD, T_ADDR, nl);
-//			break;
-//		}
-//		cgen(nl);
-//		gconv(T_ADDR, nl->type->etype);
-//		break;
+	case OIND:
+		cgen(nl, res);
+		break;
 		
 	case ODOT:
 		t = nl->type;
