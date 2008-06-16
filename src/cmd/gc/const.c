@@ -10,14 +10,15 @@ convlit(Node *n, Type *t)
 {
 	int et;
 
-	if(n->op != OLITERAL)
-		return;
-	if(t == T)
+	if(n == N || n->op != OLITERAL || t == T)
 		return;
 
-	n->type = t;
+	if(t->etype == TANY || isptrto(t, TANY)) {
+		defaultlit(n);
+		return;
+	}
+
 	et = t->etype;
-
 	switch(whatis(n)) {
 	case Wlitint:
 		if(isptrto(t, TSTRING)) {
@@ -72,6 +73,7 @@ convlit(Node *n, Type *t)
 		}
 		goto bad1;
 	}
+	n->type = t;
 	return;
 
 bad1:
@@ -122,9 +124,17 @@ evconst(Node *n)
 	case Wlitstr:
 		break;
 	}
+
 	if(wl != wr) {
-		yyerror("illegal combination of literals %d %d", nl->etype, nr->etype);
-		return;
+		if(wl == Wlitfloat && wr == Wlitint)
+			convlit(n->right, n->left->type);
+		else
+		if(wl == Wlitint && wr == Wlitfloat)
+			convlit(n->left, n->right->type);
+		else {
+			yyerror("illegal combination of literals %d %d", nl->etype, nr->etype);
+			return;
+		}
 	}
 
 	switch(TUP(n->op, wl)) {

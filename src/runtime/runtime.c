@@ -147,7 +147,7 @@ throw(int8 *s)
 	sys_exit(1);
 }
 
-static void
+void
 mcpy(byte *t, byte *f, uint32 n)
 {
 	while(n > 0) {
@@ -169,7 +169,7 @@ brk(uint32 n)
 	return v;
 }
 
-static void*
+void*
 mal(uint32 n)
 {
 	byte* v;

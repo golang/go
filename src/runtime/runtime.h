@@ -84,6 +84,8 @@ enum
  */
 void	FLUSH(void*);
 void	prints(int8*);
+void	mcpy(byte*, byte*, uint32);
+void*	mal(uint32);
 void	sys_exit(int32);
 void	sys_write(int32, void*, int32);
 void	sys_breakpoint(void);
@@ -97,6 +99,7 @@ void	sys_printbool(bool);
 void	sys_printfloat(float64);
 void	sys_printint(int64);
 void	sys_printstring(string);
+void	sys_printpointer(void*);
 void	sys_catstring(string, string, string);
 void	sys_cmpstring(string, string, int32);
 void	sys_slicestring(string, int32, int32, string);

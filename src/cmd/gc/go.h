@@ -320,6 +320,15 @@ enum
 	PSTATIC,
 };
 
+enum
+{
+	Exxx,
+	Eyyy,
+	Etop,		// evaluated at statement level
+	Elv,		// evaluated in lvalue context
+	Erv,		// evaluated in rvalue context
+};
+
 typedef	struct	Io	Io;
 struct	Io
 {
@@ -359,6 +368,7 @@ EXTERN	uchar	isptr[NTYPE];
 EXTERN	uchar	isint[NTYPE];
 EXTERN	uchar	isfloat[NTYPE];
 EXTERN	uchar	issigned[NTYPE];
+EXTERN	uchar	issimple[NTYPE];
 EXTERN	uchar	okforeq[NTYPE];
 EXTERN	uchar	okforadd[NTYPE];
 EXTERN	uchar	okforand[NTYPE];
@@ -447,6 +457,7 @@ int	isptrto(Type*, int);
 int	isinter(Type*);
 int	isbytearray(Type*);
 int	eqtype(Type*, Type*, int);
+void	argtype(Node*, Type*);
 int	eqargs(Type*, Type*);
 ulong	typehash(Type*, int);
 void	frame(int);
@@ -457,6 +468,7 @@ void	ullmancalc(Node*);
 void	badtype(int, Type*, Type*);
 Type*	ptrto(Type*);
 Node*	cleanidlist(Node*);
+Node*	syslook(char*, int);
 
 Type**	getthis(Type*);
 Type**	getoutarg(Type*);
@@ -541,10 +553,10 @@ void	doimport7(Node*, Node*);
  */
 void	walk(Node*);
 void	walktype(Node*, int);
-Type*	walkswitch(Node*, Node*, Type*(*)(Node*, Type*));
+Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
 int	casebody(Node*);
 int	whatis(Node*);
-void	walkdot(Node*);
+void	walkdot(Node*, int);
 Node*	ascompatee(int, Node**, Node**);
 Node*	ascompatet(int, Node**, Type**, int);
 Node*	ascompatte(int, Type**, Node**, int);
@@ -552,7 +564,8 @@ int	ascompat(Type*, Type*);
 Node*	prcompat(Node*);
 Node*	nodpanic(long);
 Node*	newcompat(Node*);
-Node*	stringop(Node*);
+Node*	stringop(Node*, int);
+Node*	mapop(Node*, int);
 Node*	convas(Node*);
 void	arrayconv(Type*, Node*);
 Node*	reorder1(Node*);

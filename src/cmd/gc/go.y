@@ -12,7 +12,7 @@
 	struct	Val	val;
 	int		lint;
 }
-%token	<sym>		LNAME LBASETYPE LATYPE LANY LPACK LACONST
+%token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
 %token	<val>		LLITERAL LASOP
 %token			LPACKAGE LIMPORT LEXPORT
 %token			LMAP LCHAN LINTERFACE LFUNC LSTRUCT
@@ -191,7 +191,7 @@ vardcl:
 	}
 |	new_name '=' expr
 	{
-		walktype($3, 0);	// this is a little harry
+		walktype($3, Erv);	// this is a little harry
 		defaultlit($3);
 		dodclvar($1, $3->type);
 
@@ -201,13 +201,13 @@ vardcl:
 constdcl:
 	new_name '=' expr
 	{
-		walktype($3, 0);
+		walktype($3, Erv);
 		dodclconst($1, $3);
 		iota += 1;
 	}
 |	new_name type '=' expr
 	{
-		walktype($4, 0);
+		walktype($4, Erv);
 		convlit($4, $2);
 		dodclconst($1, $4);
 		iota += 1;
@@ -257,7 +257,7 @@ simple_stmt:
 	}
 |	new_name LCOLAS expr
 	{
-		walktype($3, 0);	// this is a little harry
+		walktype($3, Erv);	// this is a little harry
 		defaultlit($3);
 		dodclvar($1, $3->type);
 
@@ -278,17 +278,23 @@ complex_stmt:
 			yyerror("switch statement must have case labels");
 		$$ = $2;
 		$$->op = OSWITCH;
+		//if($$->ninit != N && $$->ntest == N)
+		//	yyerror("switch expression should not be missing");
 	}
 |	LIF if_stmt
 	{
 		popdcl("if/switch");
 		$$ = $2;
+		//if($$->ninit != N && $$->ntest == N)
+		//	yyerror("if conditional should not be missing");
 	}
 |	LIF if_stmt LELSE else_stmt1
 	{
 		popdcl("if/switch");
 		$$ = $2;
 		$$->nelse = $4;
+		//if($$->ninit != N && $$->ntest == N)
+		//	yyerror("if conditional should not be missing");
 	}
 |	LRANGE range_stmt
 	{
@@ -352,6 +358,8 @@ semi_stmt:
 		popdcl("if/switch");
 		$$ = $2;
 		$$->nelse = $4;
+		//if($$->ninit != N && $$->ntest == N)
+		//	yyerror("if conditional should not be missing");
 	}
 
 compound_stmt:
@@ -756,10 +764,6 @@ typeconv:
 		$$->down = $3;
 		$$->type = $5;
 	}
-|	LANY
-	{
-		$$ = typ(TANY);
-	}
 
 type:
 	latype
@@ -798,10 +802,6 @@ type:
 |	LINTERFACE '{' '}'
 	{
 		$$ = dostruct(N, TINTER);
-	}
-|	LANY
-	{
-		$$ = typ(TANY);
 	}
 |	fntypeh
 |	'*' type
@@ -1284,8 +1284,10 @@ oarg_type_list:
  * an output package
  */
 hidden_import:
+	/* leftover import ignored */
+	LPACKAGE sym
 	/* variables */
-	LVAR hidden_importsym hidden_importsym
+|	LVAR hidden_importsym hidden_importsym
 	{
 		// var
 		doimportv1($2, $3);

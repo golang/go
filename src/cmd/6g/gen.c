@@ -497,7 +497,7 @@ swgen(Node *n)
 		n1.op = OEQ;
 		n1.left = &tmp;
 		n1.right = s->scase;
-		walktype(&n1, 0);
+		walktype(&n1, Erv);
 		bgen(&n1, 1, s->sprog);
 	}
 	if(dflt != P) {

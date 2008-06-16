@@ -5,7 +5,7 @@
 
 package foop	// rename to avoid redeclaration
 
-func	mal(uint32) *byte;
+func	mal(uint32) *any;
 func	breakpoint();
 func	panicl(int32);
 
@@ -27,17 +27,27 @@ func	frexp(float64) (int32, float64);	// break fp into exp,fract
 func	ldexp(int32, float64) float64;		// make fp from exp,fract
 func	modf(float64) (float64, float64);	// break fp into double.double
 
+func	newmap(keysize uint32, valsize uint32,
+		keyalg uint32, valalg uint32,
+		hint uint32) (hmap *map[any]any);
+func	mapaccess1(hmap *map[any]any, key any) (val any);
+func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
+func	mapdelete(hmap *map[any]any, key any);
+func	mapassign(hmap *map[any]any, any);
+
 export
 	mal
 	breakpoint
-	panicl
 
+	// print panic
+	panicl
 	printbool
 	printfloat
 	printint
 	printstring
 	printpointer
 
+	// op string
 	catstring
 	cmpstring
 	slicestring
@@ -49,4 +59,12 @@ export
 	frexp
 	ldexp
 	modf
+
+	// op map
+	newmap
+	mapaccess1
+	mapaccess2
+	mapdelete
+	mapassign
+
 	;

@@ -36,7 +36,7 @@ warn(char *fmt, ...)
 {
 	va_list arg;
 
-	print("%L warning: ");
+	print("%L: ");
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
@@ -50,7 +50,7 @@ fatal(char *fmt, ...)
 {
 	va_list arg;
 
-	print("%L fatal error: ");
+	print("%L: fatal error: ");
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
@@ -344,7 +344,7 @@ aindex(Node *b, Type *t)
 	if(t->etype == TDARRAY)
 		yyerror("dynamic array type cannot be a dynamic array");
 
-	walktype(b, 0);
+	walktype(b, Erv);
 	switch(whatis(b)) {
 	default:
 		yyerror("array bound must be a constant integer expression");
@@ -754,6 +754,7 @@ etnames[] =
 	[TFIELD]	= "FIELD",
 	[TSTRING]	= "STRING",
 	[TCHAN]		= "CHAN",
+	[TANY]		= "ANY",
 };
 
 int
@@ -884,6 +885,7 @@ Tconv(Fmt *fp)
 
 	strcpy(buf, "");
 	if(t->sym != S) {
+		if(t->sym->name[0] != '_')
 		snprint(buf, sizeof(buf), "<%S>", t->sym);
 	}
 	if(t->trecur > 5) {
@@ -908,13 +910,13 @@ Tconv(Fmt *fp)
 
 	case TFUNC:
 		if(fp->flags & FmtLong)
-			snprint(buf1, sizeof(buf1), "%d%d%d(%lT,%lT,%lT)",
-				t->thistuple, t->outtuple, t->intuple,
-				t->type, t->type->down, t->type->down->down);
+			snprint(buf1, sizeof(buf1), "%d%d%d(%lT,%lT)%lT",
+				t->thistuple, t->intuple, t->outtuple,
+				t->type, t->type->down->down, t->type->down);
 		else
-			snprint(buf1, sizeof(buf1), "%d%d%d(%T,%T,%T)",
-				t->thistuple, t->outtuple, t->intuple,
-				t->type, t->type->down, t->type->down->down);
+			snprint(buf1, sizeof(buf1), "%d%d%d(%T,%T)%T",
+				t->thistuple, t->intuple, t->outtuple,
+				t->type, t->type->down->down, t->type->down);
 		strncat(buf, buf1, sizeof(buf));
 		break;
 
@@ -1205,6 +1207,141 @@ eqtype(Type *t1, Type *t2, int d)
 	return eqtype(t1->type, t2->type, d+1);
 }
 
+static int
+subtype(Type **stp, Type *t)
+{
+	Type *st;
+
+loop:
+	st = *stp;
+	if(st == T)
+		return 0;
+	switch(st->etype) {
+	default:
+		return 0;
+
+	case TPTR32:
+	case TPTR64:
+		stp = &st->type;
+		goto loop;
+
+	case TANY:
+		*stp = t;
+		break;
+
+	case TMAP:
+		if(subtype(&st->down, t))
+			break;
+		stp = &st->type;
+		goto loop;
+
+	case TFUNC:
+		for(;;) {
+			if(subtype(&st->type, t))
+				break;
+			if(subtype(&st->type->down->down, t))
+				break;
+			if(subtype(&st->type->down, t))
+				break;
+			return 0;
+		}
+		break;
+
+	case TSTRUCT:
+		for(st=st->type; st!=T; st=st->down)
+			if(subtype(&st->type, t))
+				return 1;
+		return 0;
+	}
+	return 1;
+}
+
+void
+argtype(Node *on, Type *t)
+{
+	if(!subtype(&on->type, t))
+		fatal("argtype: failed %N %T\n", on, t);
+}
+
+Type*
+shallow(Type *t)
+{
+	Type *nt;
+
+	if(t == T)
+		return T;
+	nt = typ(0);
+	*nt = *t;
+	return nt;
+}
+
+Type*
+deep(Type *t)
+{
+	Type *nt, *xt;
+
+	if(t == T)
+		return T;
+
+	switch(t->etype) {
+	default:
+		nt = t;	// share from here down
+		break;
+
+	case TPTR32:
+	case TPTR64:
+		nt = shallow(t);
+		nt->type = deep(t->type);
+		break;
+
+	case TMAP:
+		nt = shallow(t);
+		nt->down = deep(t->down);
+		nt->type = deep(t->type);
+		break;
+
+	case TFUNC:
+		nt = shallow(t);
+		nt->type = deep(t->type);
+		nt->type->down = deep(t->type->down);
+		nt->type->down->down = deep(t->type->down->down);
+		break;
+
+	case TSTRUCT:
+		nt = shallow(t);
+		nt->type = shallow(t->type);
+		xt = nt->type;
+
+		for(t=t->type; t!=T; t=t->down) {
+			xt->type = deep(t->type);
+			xt->down = shallow(t->down);
+			xt = xt->down;
+		}
+		break;
+	}
+	return nt;
+}
+
+Node*
+syslook(char *name, int copy)
+{
+	Sym *s;
+	Node *n;
+
+	s = pkglookup(name, "sys");
+	if(s == S || s->oname == N)
+		fatal("looksys: cant find sys.%s", name);
+
+	if(!copy)
+		return s->oname;
+
+	n = nod(0, N, N);
+	*n = *s->oname;
+	n->type = deep(s->oname->type);
+
+	return n;
+}
+
 /*
  * are the arg names of two
  * functions the same. we know
@@ -1386,13 +1523,27 @@ out:
 void
 badtype(int o, Type *tl, Type *tr)
 {
-	yyerror("illegal types for operand");
+
+loop:
+	switch(o) {
+	case OCALL:
+		if(tl == T || tr == T)
+			break;
+		if(isptr[tl->etype] && isptr[tr->etype]) {
+			tl = tl->type;
+			tr = tr->type;
+			goto loop;
+		}
+		if(tl->etype != TFUNC || tr->etype != TFUNC)
+			break;
+//		if(eqtype(t1, t2, 0))
+	}
+
+	yyerror("illegal types for operand: %O", o);
 	if(tl != T)
-		print("	(%T)", tl);
-	print(" %O ", o);
+		print("	(%lT)\n", tl);
 	if(tr != T)
-		print("(%T)", tr);
-	print("\n");
+		print("	(%lT)\n", tr);
 }
 
 /*
@@ -1605,6 +1756,11 @@ listnext(Iter *s)
 
 	n = s->n;
 	r = n->right;
+	if(r == N) {
+		s->an = &s->n;
+		s->n = N;
+		return N;
+	}
 	if(r->op == OLIST) {
 		s->n = r;
 		s->an = &r->left;
