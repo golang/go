@@ -114,19 +114,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 
 =========== ken/strvar.go
 
-=========== bugs/bug001.go
-BUG: known to succeed incorrectly
-
-=========== bugs/bug002.go
-BUG: known to succeed incorrectly
-
-=========== bugs/bug003.go
-bugs/bug003.go:6: switch statement must have case labels
-BUG: fatal error
-
-=========== bugs/bug004.go
-BUG: known to succeed incorrectly
-
 =========== bugs/bug006.go
 zero
  fail
@@ -239,6 +226,14 @@ bugs/bug046.go:7: illegal <this> pointer
 BUG: known to fail incorrectly
 
 =========== fixedbugs/bug000.go
+
+=========== fixedbugs/bug001.go
+
+=========== fixedbugs/bug002.go
+
+=========== fixedbugs/bug003.go
+
+=========== fixedbugs/bug004.go
 
 =========== fixedbugs/bug005.go
 
