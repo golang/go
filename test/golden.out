@@ -18,7 +18,6 @@ hello, world
 =========== ./if.go
 
 =========== ./if1.go
-BUG: known to succeed incorrectly
 
 =========== ./int_lit.go
 
@@ -27,11 +26,11 @@ BUG: known to succeed incorrectly
 =========== ./literal.go
 
 =========== ./nil.go
-nil.go:30 fatal error: naddr: const <T>{<i><int32>INT32;}
+nil.go:30: fatal error: naddr: const <T>{<i><int32>INT32;}
 BUG: known to fail incorrectly
 
 =========== ./sieve.go
-sieve.go:8 fatal error: walktype: switch 1 unknown op SEND l(114)
+sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(151)
 BUG: known to fail incorrectly
 
 =========== ./string_lit.go
@@ -39,19 +38,21 @@ BUG: known to fail incorrectly
 =========== ./switch.go
 
 =========== ./switch1.go
-BUG: known to succeed incorrectly
 
 =========== ./test0.go
-test0.go:23 warning: addtyp: renaming Point/<Point>{<x><int32>INT32;<y><int32>INT32;} to Point2/<Point2>FORW
-test0.go:48: illegal types for operand
-	(<float32>FLOAT32) AS (<int32>INT32)
-test0.go:49: illegal types for operand
-	(<float32>FLOAT32) AS (<int32>INT32)
+test0.go:48: illegal types for operand: AS
+	(<float32>FLOAT32)
+	(<int32>INT32)
+test0.go:49: illegal types for operand: AS
+	(<float32>FLOAT32)
+	(<int32>INT32)
 test0.go:50: error in shape across assignment
-test0.go:55: illegal types for operand
-	(*<Point2>{}) CALLMETH (<Point2>{})
-test0.go:54: illegal types for operand
-	(<Point2>{}) AS ({})
+test0.go:55: illegal types for operand: CALLMETH
+	(*<Point>{})
+	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
+test0.go:54: illegal types for operand: AS
+	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
+	({})
 BUG: known to fail incorrectly
 
 =========== ./turing.go
@@ -121,57 +122,45 @@ BUG: known to succeed incorrectly
 
 =========== bugs/bug003.go
 bugs/bug003.go:6: switch statement must have case labels
-bugs/bug003.go:6 fatal error: walkswitch: not case EMPTY
-
 BUG: fatal error
 
 =========== bugs/bug004.go
 BUG: known to succeed incorrectly
 
 =========== bugs/bug006.go
-bugs/bug006.go:6: illegal combination of literals 0 0
-bugs/bug006.go:6: expression must be a constant
-bugs/bug006.go:6: expression must be a constant
-bugs/bug006.go:6: expression must be a constant
-bugs/bug006.go:6: expression must be a constant
-bugs/bug006.go:6: expression must be a constant
-bugs/bug006.go:6: expression must be a constant
-bugs/bug006.go:6: expression must be a constant
-bugs/bug006.go:6: expression must be a constant
-bugs/bug006.go:6: expression must be a constant
-bugs/bug006.go:6 fatal error: too many errors
+zero
+ fail
 BUG: known to fail incorrectly
 
 =========== bugs/bug010.go
 bugs/bug010.go:7: i undefined
-bugs/bug010.go:8: illegal conversion of constant to 020({},<_o135>{},{})
+bugs/bug010.go:8: illegal conversion of constant to 002({},{}){}
 bugs/bug010.go:9: error in shape across assignment
 BUG: known to fail incorrectly
 
 =========== bugs/bug014.go
-bugs/bug014.go:6 warning: non-oct character in escape sequence: '
-bugs/bug014.go:6 warning: non-oct character in escape sequence: '
-bugs/bug014.go:7 warning: non-oct character in escape sequence: '
-bugs/bug014.go:8 warning: non-hex character in escape sequence: '
-bugs/bug014.go:9 warning: non-hex character in escape sequence: '
+bugs/bug014.go:6: non-oct character in escape sequence: '
+bugs/bug014.go:6: non-oct character in escape sequence: '
+bugs/bug014.go:7: non-oct character in escape sequence: '
+bugs/bug014.go:8: non-hex character in escape sequence: '
+bugs/bug014.go:9: non-hex character in escape sequence: '
 BUG: errors caught but exit code should be non-zero
 
 =========== bugs/bug015.go
 BUG: known to succeed incorrectly
 
 =========== bugs/bug022.go
-bugs/bug022.go:8: illegal types for operand
-	(*<string>*STRING) INDEXPTR (<int32>INT32)
-bugs/bug022.go:8: illegal types for operand
-	(<uint8>UINT8) AS 
+bugs/bug022.go:8: illegal types for operand: INDEXPTR
+	(*<string>*STRING)
+	(<int32>INT32)
 BUG: known to fail incorrectly
 
 =========== bugs/bug023.go
-bugs/bug023.go:20 fatal error: naddr: const <Type>I{<TypeName>110(<_t138>{},<_o140>{},{});}
+bugs/bug023.go:20: fatal error: naddr: const <Type>I{<TypeName>101({},{}){};}
 BUG: known to fail incorrectly
 
 =========== bugs/bug025.go
-bugs/bug025.go:7 fatal error: dumpexportvar: oname nil: Foo
+bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
 
 BUG: known to fail incorrectly or at least with a bad message
 
@@ -180,10 +169,12 @@ check: main_sigs_I: not defined
 BUG: known to fail incorrectly
 
 =========== bugs/bug027.go
-bugs/bug027.go:50: illegal types for operand
-	(<Element>I{}) CONV (<I>{})
-bugs/bug027.go:50: illegal types for operand
-	(<Element>I{}) CONV (<I>{})
+bugs/bug027.go:50: illegal types for operand: CONV
+	(<Element>I{})
+	(<I>{<val><int32>INT32;})
+bugs/bug027.go:50: illegal types for operand: CONV
+	(<Element>I{})
+	(<I>{<val><int32>INT32;})
 BUG: known to fail incorrectly
 
 =========== bugs/bug028.go
@@ -240,7 +231,7 @@ bugs/bug044.go:23: error in shape across assignment
 BUG: compilation should succeed
 
 =========== bugs/bug045.go
-bugs/bug045.go:13 fatal error: naddr: const <T>{<i><int32>INT32;}
+bugs/bug045.go:13: fatal error: naddr: const <T>{<i><int32>INT32;}
 BUG: known to fail incorrectly
 
 =========== bugs/bug046.go
@@ -252,7 +243,6 @@ BUG: known to fail incorrectly
 =========== fixedbugs/bug005.go
 
 =========== fixedbugs/bug007.go
-fixedbugs/bug007.go:7 warning: addtyp: renaming Point/<Point>{<x><float32>FLOAT32;<y><float32>FLOAT32;} to Polar/<Polar>FORW
 
 =========== fixedbugs/bug008.go
 

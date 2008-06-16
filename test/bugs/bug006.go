@@ -7,10 +7,14 @@
 package main
 
 const (
+	x float = iota;
 	g float = 4.5 * iota;
 );
 
-func main() {
+func main() int {
+	if g == 0.0 { print "zero\n";}
+	if g != 4.5 { print " fail\n"; return 1; }
+	return 0;
 }
 /*
 should 4.5 * iota be ok? perhaps, perhaps not. but (all!) error msgs are bad:
