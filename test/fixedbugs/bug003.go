@@ -7,9 +7,8 @@
 package main
 
 func main() {
-	switch ; {}  // compiles; should be an error (should be simplevardecl before ;)
+	switch ; { case true: return; default: return }
 }
 /*
-bug003.go:6: switch statement must have case labels
 bug003.go:6: fatal error: walkswitch: not case EMPTY
 */

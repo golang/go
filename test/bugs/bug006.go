@@ -16,17 +16,3 @@ func main() int {
 	if g != 4.5 { print " fail\n"; return 1; }
 	return 0;
 }
-/*
-should 4.5 * iota be ok? perhaps, perhaps not. but (all!) error msgs are bad:
-bug6.go:4: illegal combination of literals 0 0
-bug6.go:4: expression must be a constant
-bug6.go:4: expression must be a constant
-bug6.go:4: expression must be a constant
-bug6.go:4: expression must be a constant
-bug6.go:4: expression must be a constant
-bug6.go:4: expression must be a constant
-bug6.go:4: expression must be a constant
-bug6.go:4: expression must be a constant
-bug6.go:4: expression must be a constant
-bug6.go:4: fatal error: too many errors
-*/
