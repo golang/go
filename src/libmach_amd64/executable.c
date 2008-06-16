@@ -32,6 +32,7 @@
 #include	<bootexec.h>
 #include	<mach_amd64.h>
 #include	"elf.h"
+#include	"macho.h"
 
 /*
  *	All a.out header types.  The dummy entry allows canonical
@@ -50,6 +51,7 @@ typedef struct {
 		struct mips4kexec mipsk4;	/* bootexec.h */
 		struct sparcexec sparc;	/* bootexec.h */
 		struct nextexec next;	/* bootexec.h */
+		Machhdr machhdr;	/* macho.h */
 	} e;
 	long dummy;			/* padding to ensure extra long */
 } ExecHdr;
@@ -62,6 +64,7 @@ static	int	common(int, Fhdr*, ExecHdr*);
 static	int	commonllp64(int, Fhdr*, ExecHdr*);
 static	int	adotout(int, Fhdr*, ExecHdr*);
 static	int	elfdotout(int, Fhdr*, ExecHdr*);
+static	int	machdotout(int, Fhdr*, ExecHdr*);
 static	int	armdotout(int, Fhdr*, ExecHdr*);
 static	void	setsym(Fhdr*, long, long, long, vlong);
 static	void	setdata(Fhdr*, uvlong, long, vlong, long);
@@ -256,6 +259,15 @@ ExecTable exectab[] =
 		sizeof(Ehdr64),
 		nil,
 		elfdotout },
+	{ MACH_MAG,			/* 64-bit MACH (apple mac) */
+		"mach executable",
+		nil,
+		FAMD64,
+		0,
+		&mi386,
+		sizeof(Ehdr64),
+		nil,
+		machdotout },
 	{ E_MAGIC,			/* Arm 5.out and boot image */
 		"arm plan 9 executable",
 		"arm plan 9 dlm",
@@ -652,7 +664,6 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
 	ep->machine = swab(ep->machine);
 	ep->version = swal(ep->version);
 	ep->elfentry = swal(ep->elfentry);
-print("entry: 0x%x\n", ep->elfentry);
 	ep->phoff = swav(ep->phoff);
 	ep->shoff = swav(ep->shoff);
 	ep->flags = swav(ep->flags);
@@ -943,6 +954,143 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
 		setsym(fp, ph[is].filesz, 0, ph[is].memsz, ph[is].offset);
 	free(ph);
 	return 1;
+}
+
+static int
+machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+{
+	uvlong (*swav)(uvlong);
+	ulong (*swal)(ulong);
+	ushort (*swab)(ushort);
+	Machhdr *mp;
+	MachCmd **cmd;
+	MachSeg64 *text;
+	MachSeg64 *data;
+	MachSymSeg *symtab;
+	MachSymSeg *pclntab;
+	MachSeg64 *seg;
+	MachSect64 *sect;
+	uvlong textsize, datasize, bsssize;
+	uchar *cmdbuf;
+	uchar *cmdp;
+	int i;
+
+	/* bitswap the header according to the DATA format */
+	mp = &hp->e.machhdr;
+	if (mp->cputype != leswal(MACH_CPU_TYPE_X86_64)) {
+		werrstr("bad MACH cpu type - not amd64");
+		return 0;
+	}
+	swab = leswab;
+	swal = leswal;
+	swav = leswav;
+
+	mp->magic = swal(mp->magic);
+	mp->cputype = swal(mp->cputype);
+	mp->cpusubtype = swal(mp->cpusubtype);
+	mp->filetype = swal(mp->filetype);
+	mp->ncmds = swal(mp->ncmds);
+	mp->sizeofcmds = swal(mp->sizeofcmds);
+	mp->flags = swal(mp->flags);
+	mp->reserved = swal(mp->reserved);
+	if (mp->cpusubtype != MACH_CPU_SUBTYPE_X86) {
+		werrstr("bad MACH cpu subtype - not amd64");
+		return 0;
+	}
+	if (mp->filetype != MACH_EXECUTABLE_TYPE) {
+		werrstr("bad MACH cpu subtype - not amd64");
+		return 0;
+	}
+	mach = &mamd64;
+	fp->type = FAMD64;
+
+	cmdbuf = malloc(mp->sizeofcmds);
+	seek(fd, sizeof(Machhdr), 0);
+	if(read(fd, cmdbuf, mp->sizeofcmds) != mp->sizeofcmds) {
+		free(cmdbuf);
+		return 0;
+	}
+	cmd = malloc(mp->ncmds * sizeof(MachCmd*));
+	cmdp = cmdbuf;
+	text = 0;
+	data = 0;
+	symtab = 0;
+	pclntab = 0;
+	textsize = datasize = bsssize = 0;
+	for (i = 0; i < mp->ncmds; i++) {
+		MachCmd *c;
+
+		cmd[i] = (MachCmd*)cmdp;
+		c = cmd[i];
+		c->type = swal(c->type);
+		c->size = swal(c->size);
+		switch(c->type) {
+		case MACH_SEGMENT_64:
+			seg = (MachSeg64*)c;
+			seg->vmaddr = swav(seg->vmaddr);
+			seg->vmsize = swav(seg->vmsize);
+			seg->fileoff = swav(seg->fileoff);
+			seg->filesize = swav(seg->filesize);
+			seg->maxprot = swal(seg->maxprot);
+			seg->initprot = swal(seg->initprot);
+			seg->nsects = swal(seg->nsects);
+			seg->flags = swal(seg->flags);
+			if (strcmp(seg->segname, "__TEXT") == 0) {
+				text = seg;
+				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
+				if (strcmp(sect->sectname, "__text") == 0) {
+					textsize = swav(sect->size);
+				} else {
+					werrstr("no text section");
+					goto bad;
+				}
+			}
+			if (strcmp(seg->segname, "__DATA") == 0) {
+				data = seg;
+				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
+				if (strcmp(sect->sectname, "__data") == 0) {
+					datasize = swav(sect->size);
+				} else {
+					werrstr("no data section");
+					goto bad;
+				}
+				sect++;
+				if (strcmp(sect->sectname, "__bss") == 0) {
+					bsssize = swav(sect->size);
+				} else {
+					werrstr("no bss section");
+					goto bad;
+				}
+			}
+			break;
+		case MACH_UNIXTHREAD:
+			break;
+		case MACH_SYMSEG:
+			if (symtab == 0)
+				symtab = (MachSymSeg*)c;
+			else if (pclntab == 0)
+				pclntab = (MachSymSeg*)c;
+			break;
+		}
+		cmdp += c->size;
+	}
+	if (text == 0 || data == 0) {
+		free(cmd);
+		free(cmdbuf);
+		return 0;
+	}
+	/* compute entry by taking address after header - weird - BUG? */
+	settext(fp, text->vmaddr+sizeof(Machhdr) + mp->sizeofcmds, text->vmaddr, textsize, text->fileoff);
+	setdata(fp, data->vmaddr, datasize, data->fileoff, bsssize);
+	if(symtab != 0)
+		setsym(fp, symtab->filesize, 0, pclntab? pclntab->filesize : 0, symtab->fileoff);
+	free(cmd);
+	free(cmdbuf);
+	return 1;
+bad:
+	free(cmd);
+	free(cmdbuf);
+	return 0;
 }
 
 /*

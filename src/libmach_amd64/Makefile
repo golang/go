@@ -70,7 +70,7 @@ OFILES=\
 #	qobj.$O\
 #	vcodas.$O\
 
-HFILES=$(GOROOT)/include/mach_amd64.h elf.h obj.h
+HFILES=$(GOROOT)/include/mach_amd64.h elf.h macho.h obj.h
 
 install: $(LIB)
 	cp $(LIB) $(GOROOT)/lib

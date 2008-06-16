@@ -179,6 +179,7 @@ asmb(void)
 		seek(cout, HEADR+textsize, 0);
 		break;
 	case 6:
+		debug['8'] = 1;	/* 64-bit addresses */
 		v = HEADR+textsize;
 		myseek(cout, v);
 		v = rnd(v, 4096) - v;
@@ -232,7 +233,7 @@ asmb(void)
 			seek(cout, HEADR+textsize+datsize, 0);
 			break;
 		case 6:
-			debug['s'] = 1;
+			seek(cout, rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND), 0);
 			break;
 		case 7:
 			seek(cout, rnd(HEADR+textsize, INITRND)+datsize+strtabsize, 0);
@@ -348,7 +349,10 @@ asmb(void)
 		lputl((1<<24)|7);		/* cputype - x86/ABI64 */
 		lputl(3);			/* subtype - x86 */
 		lputl(2);			/* file type - mach executable */
-		lputl(4);			/* number of loads */
+		if (debug['s'])
+			lputl(4);			/* number of loads */
+		else
+			lputl(6);			/* number of loads */
 		lputl(machheadr()-32);		/* size of loads */
 		lputl(1);			/* flags - no undefines */
 		lputl(0);			/* reserved */
@@ -386,7 +390,15 @@ asmb(void)
 			va+v+datsize,bsssize,	/* addr size */
 			0,0,0,0,		/* offset align reloc nreloc */
 			1);			/* flag - zero fill */
+
 		machstack(va+HEADR);
+
+		if (!debug['s']) {
+			v += rnd(datsize, INITRND);
+			machsymseg(v,symsize);	/* fileoffset,filesize */
+			v += symsize;
+			machsymseg(v,lcsize);	/* fileoffset,filesize */
+		}
 		break;
 	case 7:
 		/* elf amd-64 */
@@ -737,7 +749,7 @@ void
 machseg(char *name, vlong vaddr, vlong vsize, vlong foff, vlong fsize,
 	ulong prot1, ulong prot2, ulong nsect, ulong flag)
 {
-	lputl(25);	// section
+	lputl(25);	/* segment 64 */
 	lputl(72 + 80*nsect);
 	strnput(name, 16);
 	vputl(vaddr);
@@ -748,6 +760,15 @@ machseg(char *name, vlong vaddr, vlong vsize, vlong foff, vlong fsize,
 	lputl(prot2);
 	lputl(nsect);
 	lputl(flag);
+}
+
+void
+machsymseg(ulong foffset, ulong fsize)
+{
+	lputl(3);	/* obsolete gdb debug info */
+	lputl(16);	/* size of symseg command */
+	lputl(foffset);
+	lputl(fsize);
 }
 
 void
@@ -799,6 +820,10 @@ machheadr(void)
 	a += 20;	/* data sect */
 	a += 20;	/* bss sect */
 	a += 46;	/* stack sect */
+	if (!debug['s']) {
+		a += 4;	/* symtab seg */
+		a += 4;	/* lctab seg */
+	}
 
 	return a*4;
 }

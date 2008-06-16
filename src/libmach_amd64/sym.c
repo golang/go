@@ -1050,7 +1050,6 @@ fileline(char *str, int n, uvlong dot)
 			bot = mid;
 		else {
 			line = pc2line(dot);
-			print("line %d\n", line);
 			if(line > 0 && fline(str, n, line, f->hist, 0) >= 0)
 				return 1;
 			break;

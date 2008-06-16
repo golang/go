@@ -43,6 +43,7 @@ char*	paramspace	= "FP";
  *	-H3 -T4128 -R4096		is plan9 32-bit format
  *	-H5 -T0x80110000 -R4096		is ELF32
  *	-H6 -Tx -Rx			is apple MH-exec
+ *	-H7 -Tx -Rx			is linux elf-exec
  *
  *	options used: 189BLQSWabcjlnpsvz
  */
