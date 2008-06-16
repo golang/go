@@ -421,6 +421,7 @@ int	zaddr(uchar*, Adr*, Sym*[]);
 void	zerosig(char*);
 
 void	machseg(char*, vlong, vlong, vlong, vlong, ulong, ulong, ulong, ulong);
+void	machsymseg(ulong, ulong);
 void	machsect(char*, char*, vlong, vlong, ulong, ulong, ulong, ulong, ulong);
 void	machstack(vlong);
 ulong	machheadr(void);
