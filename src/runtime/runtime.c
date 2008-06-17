@@ -71,15 +71,6 @@ sys_printpointer(void *p)
 }
 
 void
-sys_panicl(int32 lno)
-{
-	prints("\npanic on line ");
-	sys_printint(lno);
-	prints("\n");
-	*(int32*)0 = 0;
-}
-
-void
 sys_printstring(string v)
 {
 	sys_write(1, v->str, v->len);
@@ -99,6 +90,24 @@ void
 prints(int8 *s)
 {
 	sys_write(1, s, strlen(s));
+}
+
+void
+sys_printpc(void *p)
+{
+	prints("PC=0x");
+	sys_printpointer(sys_getcallerpc(p));
+}
+
+void
+sys_panicl(int32 lno)
+{
+	prints("\npanic on line ");
+	sys_printint(lno);
+	prints(" ");
+	sys_printpc(&lno);
+	prints("\n");
+	*(int32*)0 = 0;
 }
 
 dump(byte *p, int32 n)
@@ -307,8 +316,11 @@ sys_slicestring(string si, int32 lindex, int32 hindex, string so)
 	int32 l;
 
 	if(lindex < 0 || lindex > si->len ||
-	   hindex < lindex || hindex > si->len)
+	   hindex < lindex || hindex > si->len) {
+		sys_printpc(&si);
+		prints(" ");
 		prbounds("slice", lindex, si->len, hindex);
+	}
 
 	l = hindex-lindex;
 	so = mal(sizeof(so->len)+l);
@@ -320,8 +332,11 @@ sys_slicestring(string si, int32 lindex, int32 hindex, string so)
 void
 sys_indexstring(string s, int32 i, byte b)
 {
-	if(i < 0 || i >= s->len)
+	if(i < 0 || i >= s->len) {
+		sys_printpc(&s);
+		prints(" ");
 		prbounds("index", 0, i, s->len);
+	}
 
 	b = s->str[i];
 	FLUSH(&b);
