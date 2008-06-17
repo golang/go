@@ -1360,6 +1360,72 @@ optoas(int op, Type *t)
 		a = ANEGQ;
 		break;
 
+	case CASE(OAND, TINT8):
+	case CASE(OAND, TUINT8):
+		a = AANDB;
+		break;
+
+	case CASE(OAND, TINT16):
+	case CASE(OAND, TUINT16):
+		a = AANDW;
+		break;
+
+	case CASE(OAND, TINT32):
+	case CASE(OAND, TUINT32):
+	case CASE(OAND, TPTR32):
+		a = AANDL;
+		break;
+
+	case CASE(OAND, TINT64):
+	case CASE(OAND, TUINT64):
+	case CASE(OAND, TPTR64):
+		a = AANDQ;
+		break;
+
+	case CASE(OOR, TINT8):
+	case CASE(OOR, TUINT8):
+		a = AORB;
+		break;
+
+	case CASE(OOR, TINT16):
+	case CASE(OOR, TUINT16):
+		a = AORW;
+		break;
+
+	case CASE(OOR, TINT32):
+	case CASE(OOR, TUINT32):
+	case CASE(OOR, TPTR32):
+		a = AORL;
+		break;
+
+	case CASE(OOR, TINT64):
+	case CASE(OOR, TUINT64):
+	case CASE(OOR, TPTR64):
+		a = AORQ;
+		break;
+
+	case CASE(OXOR, TINT8):
+	case CASE(OXOR, TUINT8):
+		a = AXORB;
+		break;
+
+	case CASE(OXOR, TINT16):
+	case CASE(OXOR, TUINT16):
+		a = AXORW;
+		break;
+
+	case CASE(OXOR, TINT32):
+	case CASE(OXOR, TUINT32):
+	case CASE(OXOR, TPTR32):
+		a = AXORL;
+		break;
+
+	case CASE(OXOR, TINT64):
+	case CASE(OXOR, TUINT64):
+	case CASE(OXOR, TPTR64):
+		a = AXORQ;
+		break;
+
 	case CASE(OLSH, TINT8):
 	case CASE(OLSH, TUINT8):
 		a = ASHLB;
