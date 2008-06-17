@@ -147,7 +147,7 @@ enum
 	MAP_ANON	= 0x1000,
 };
 
-static void
+void
 throw(int8 *s)
 {
 	prints("throw: ");
@@ -208,6 +208,30 @@ mal(uint32 n)
 	return v;
 }
 
+uint32
+cmpstring(string s1, string s2)
+{
+	uint32 i, l;
+	byte c1, c2;
+
+	l = s1->len;
+	if(s2->len < l)
+		l = s2->len;
+	for(i=0; i<l; i++) {
+		c1 = s1->str[i];
+		c2 = s2->str[i];
+		if(c1 < c2)
+			return -1;
+		if(c1 > c2)
+			return +1;
+	}
+	if(s1->len < s2->len)
+		return -1;
+	if(s1->len > s2->len)
+		return +1;
+	return 0;
+}
+
 void
 sys_mal(uint32 n, uint8 *ret)
 {
@@ -243,35 +267,7 @@ out:
 void
 sys_cmpstring(string s1, string s2, int32 v)
 {
-	uint32 i, l;
-	byte c1, c2;
-
-	l = s1->len;
-	if(s2->len < l)
-		l = s2->len;
-	for(i=0; i<l; i++) {
-		c1 = s1->str[i];
-		c2 = s2->str[i];
-		if(c1 < c2) {
-			v = -1;
-			goto out;
-		}
-		if(c1 > c2) {
-			v = +1;
-			goto out;
-		}
-	}
-	if(s1->len < s2->len) {
-		v = -1;
-		goto out;
-	}
-	if(s1->len > s2->len) {
-		v = +1;
-		goto out;
-	}
-	v = 0;
-
-out:
+	v = cmpstring(s1, s2);
 	FLUSH(&v);
 }
 

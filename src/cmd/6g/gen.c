@@ -21,27 +21,21 @@ compile(Node *fn)
 	Plist *pl;
 	Node nod1;
 	Prog *ptxt;
+	long lno;
+
 
 	if(fn->nbody == N)
 		return;
+	lno = dynlineno;
+
 
 	curfn = fn;
+	dynlineno = curfn->lineno;	// for diagnostics
 	dowidth(curfn->type);
-
-	if(nerrors != 0) {
-		walk(curfn);
-		return;
-	}
-
-	if(debug['w'])
-		dump("--- pre walk ---", curfn->nbody);
 
 	walk(curfn);
 	if(nerrors != 0)
 		return;
-
-	if(debug['w'])
-		dump("--- post walk ---", curfn->nbody);
 
 	allocparams();
 
@@ -71,6 +65,8 @@ compile(Node *fn)
 
 	if(debug['f'])
 		frame(0);
+
+	dynlineno = lno;;
 }
 
 void
@@ -692,7 +688,7 @@ cgen_asop(Node *n)
 	nr = n->right;
 
 	if(nr->ullman >= UINF && nl->ullman >= UINF) {
-		fatal("cgen_asop both sides call");
+		fatal("cgen_asop: both sides call");
 	}
 
 	if(nr->ullman > nl->ullman) {

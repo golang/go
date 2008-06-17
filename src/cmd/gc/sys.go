@@ -32,8 +32,8 @@ func	newmap(keysize uint32, valsize uint32,
 		hint uint32) (hmap *map[any]any);
 func	mapaccess1(hmap *map[any]any, key any) (val any);
 func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
-func	mapdelete(hmap *map[any]any, key any);
-func	mapassign(hmap *map[any]any, any);
+func	mapassign1(hmap *map[any]any, key any, val any);
+func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
 
 export
 	mal
@@ -64,7 +64,7 @@ export
 	newmap
 	mapaccess1
 	mapaccess2
-	mapdelete
-	mapassign
+	mapassign1
+	mapassign2
 
 	;

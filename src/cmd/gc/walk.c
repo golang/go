@@ -43,8 +43,9 @@ loop:
 	if(n->op != ONAME)
 		dynlineno = n->lineno;	// for diagnostics
 
-if(debug['T'])
-print("%L walktype %O %d\n", n->op, top);
+	if(debug['w'] > 1 && top == Etop)
+		if(n->op != OLIST)
+			dump("walk-before", n);
 
 	t = T;
 	et = Txxx;
@@ -225,7 +226,6 @@ print("%L walktype %O %d\n", n->op, top);
 		if(r == N || r->type == T)
 			goto ret;
 
-
 		if(r->op == OCALL && l->op == OLIST) {
 			l = ascompatet(n->op, &n->left, &r->type, 0);
 			if(l != N) {
@@ -233,7 +233,6 @@ print("%L walktype %O %d\n", n->op, top);
 			}
 			goto ret;
 		}
-
 		l = ascompatee(n->op, &n->left, &n->right);
 		if(l != N)
 			*n = *reorder3(l);
@@ -419,7 +418,6 @@ print("%L walktype %O %d\n", n->op, top);
 			goto nottop;
 		walktype(n->left, Erv);
 		evconst(n);
-		ullmancalc(n);
 		t = n->left->type;
 		if(t != T && isptr[t->etype])
 			t = t->type;
@@ -442,41 +440,67 @@ print("%L walktype %O %d\n", n->op, top);
 		walktype(n->left, top);
 		walktype(n->right, Erv);
 
-		ullmancalc(n);
 		if(n->left == N || n->right == N)
 			goto ret;
+
+		defaultlit(n->left);
 		t = n->left->type;
 		if(t == T)
 			goto ret;
 
-		// map
-		if(isptrto(t, TMAP)) {
-			*n = *mapop(n, top);
-			goto ret;
-		}
-
-		// right side must be an int
-		if(n->right->type == T)
-			convlit(n->right, types[TINT32]);
-		if(n->left->type == T || n->right->type == T)
-			goto ret;
-		if(!isint[n->right->type->etype])
-			goto badt;
-
-		// left side is string
-		if(isptrto(t, TSTRING)) {
-			*n = *stringop(n, top);
-			goto ret;
-		}
-
-		// left side is array
+		// left side is indirect
 		if(isptr[t->etype]) {
 			t = t->type;
 			n->op = OINDEXPTR;
 		}
-		if(t->etype != TARRAY && t->etype != TDARRAY)
+
+		switch(t->etype) {
+		default:
 			goto badt;
-		n->type = t->type;
+
+		case TMAP:
+			// right side must map type
+			if(n->right->type == T) {
+				convlit(n->right, t->down);
+				if(n->right->type == T)
+					break;
+			}
+			if(!eqtype(n->right->type, t->down, 0))
+				goto badt;
+			if(n->op != OINDEXPTR)
+				goto badt;
+			n->op = OINDEX;
+			n->type = t->type;
+			break;
+
+		case TSTRING:
+			// right side must be an int
+			if(top != Erv)
+				goto nottop;
+			if(n->right->type == T) {
+				convlit(n->right, types[TINT32]);
+				if(n->right->type == T)
+					break;
+			}
+			if(!isint[n->right->type->etype])
+				goto badt;
+			*n = *stringop(n, top);
+			break;
+			
+		case TARRAY:
+		case TDARRAY:
+			// right side must be an int
+			if(n->right->type == T) {
+				convlit(n->right, types[TINT32]);
+				if(n->right->type == T)
+					break;
+			}
+			if(!isint[n->right->type->etype])
+				goto badt;
+
+			n->type = t->type;
+			break;
+		}
 		goto ret;
 
 	case OSLICE:
@@ -638,6 +662,9 @@ badt:
 	goto ret;
 
 ret:
+	if(debug['w'] && top == Etop)
+		dump("walk-after", n);
+
 	ullmancalc(n);
 	dynlineno = lno;
 }
@@ -1206,7 +1233,7 @@ stringop(Node *n, int top)
 		r = nod(OCALL, on, r);
 		break;
 
-	case OINDEX:
+	case OINDEXPTR:
 		// sys_indexstring(s, i)
 		r = nod(OCONV, n->right, N);
 		r->type = types[TINT32];
@@ -1275,18 +1302,18 @@ algtype(Type *t)
 {
 	int a;
 
-	a = 0;
+	a = 100;
 	if(issimple[t->etype])
-		a = 1;		// simple mem
+		a = 0;		// simple mem
 	else
 	if(isptrto(t, TSTRING))
-		a = 2;		// string
+		a = 1;		// string
 	else
 	if(isptr[t->etype])
-		a = 3;		// pointer
+		a = 2;		// pointer
 	else
 	if(isinter(t))
-		a = 4;		// interface
+		a = 3;		// interface
 	else
 		fatal("algtype: cant find type %T", t);
 	return a;
@@ -1304,16 +1331,20 @@ mapop(Node *n, int top)
 	lno = dynlineno;
 	dynlineno = n->lineno;
 
-print("mapop %O\n", n->op);
+//dump("mapop", n);
+
 	r = n;
 	switch(n->op) {
 	default:
-		fatal("stringop: unknown op %E", n->op);
+		fatal("mapop: unknown op %E", n->op);
 
 	case ONEW:
+		if(top != Erv)
+			goto nottop;
+
 		// newmap(keysize uint32, valsize uint32,
 		//	keyalg uint32, valalg uint32,
-		//	hint uint32) (hmap *map[any]any);
+		//	hint uint32) (hmap *map[any-1]any-2);
 
 		t = fixmap(n->type);
 		if(t == T)
@@ -1334,18 +1365,18 @@ print("mapop %O\n", n->op);
 
 		on = syslook("newmap", 1);
 
-print("type1=%lT\n", on->type);
 		argtype(on, t->down);	// any-1
 		argtype(on, t->type);	// any-2
-print("type5=%lT\n", on->type);
 
 		r = nod(OCALL, on, r);
 		walktype(r, top);
 		r->type = n->type;
 		break;
 
-	case OINDEX:
 	case OINDEXPTR:
+		if(top != Erv)
+			goto nottop;
+
 		// mapaccess1(hmap *map[any]any, key any) (val any);
 
 		t = fixmap(n->left->type);
@@ -1370,23 +1401,121 @@ print("type5=%lT\n", on->type);
 
 		on = syslook("mapaccess1", 1);
 
-print("type1=%lT\n", on->type);
 		argtype(on, t->down);	// any-1
 		argtype(on, t->type);	// any-2
 		argtype(on, t->down);	// any-3
 		argtype(on, t->type);	// any-4
-print("type5=%lT\n", on->type);
 
 		r = nod(OCALL, on, r);
 		walktype(r, Erv);
-		r->type = ptrto(t->type);
-		r = nod(OIND, r, N);
 		r->type = t->type;
 		break;
-	}
 
+		// mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
+
+		t = fixmap(n->left->type);
+		if(t == T)
+			break;
+
+		convlit(n->right, t->down);
+
+		if(!eqtype(n->right->type, t->down, 0)) {
+			badtype(n->op, n->right->type, t->down);
+			break;
+		}
+
+		a = n->right;				// key
+		if(!isptr[t->down->etype]) {
+			a = nod(OADDR, a, N);
+			a->type = ptrto(t);
+		}
+		r = a;
+		a = n->left;				// map
+		r = nod(OLIST, a, r);
+
+		on = syslook("mapaccess2", 1);
+
+		argtype(on, t->down);	// any-1
+		argtype(on, t->type);	// any-2
+		argtype(on, t->down);	// any-3
+		argtype(on, t->type);	// any-4
+
+		r = nod(OCALL, on, r);
+		walktype(r, Erv);
+		r->type = t->type;
+		break;
+
+	case OAS:
+		if(top != Elv)
+			goto nottop;
+		if(n->left->op != OINDEX)
+			fatal("mapos: AS left not OINDEX");
+
+		// mapassign1(hmap *map[any-1]any-2, key any-3, val any-4);
+
+		t = fixmap(n->left->left->type);
+		if(t == T)
+			break;
+
+		a = n->right;				// val
+		r = a;
+		a = n->left->right;			// key
+		r = nod(OLIST, a, r);
+		a = n->left->left;			// map
+		r = nod(OLIST, a, r);
+
+		on = syslook("mapassign1", 1);
+
+		argtype(on, t->down);	// any-1
+		argtype(on, t->type);	// any-2
+		argtype(on, t->down);	// any-3
+		argtype(on, t->type);	// any-4
+
+		r = nod(OCALL, on, r);
+		walktype(r, Erv);
+		break;
+
+/* BOTCH get 2nd version attached */
+		if(top != Elv)
+			goto nottop;
+		if(n->left->op != OINDEX)
+			fatal("mapos: AS left not OINDEX");
+
+		// mapassign2(hmap *map[any]any, key any, val any, pres bool);
+
+		t = fixmap(n->left->left->type);
+		if(t == T)
+			break;
+
+		a = n->right;				// pres
+		r = a;
+		a = n->right;				// val
+		r =nod(OLIST, a, r);
+		a = n->left->right;			// key
+		r = nod(OLIST, a, r);
+		a = n->left->left;			// map
+		r = nod(OLIST, a, r);
+
+		on = syslook("mapassign2", 1);
+
+		argtype(on, t->down);	// any-1
+		argtype(on, t->type);	// any-2
+		argtype(on, t->down);	// any-3
+		argtype(on, t->type);	// any-4
+
+		r = nod(OCALL, on, r);
+		walktype(r, Erv);
+		break;
+
+	}
+//dump("mapop return", r);
 	dynlineno = lno;
 	return r;
+
+nottop:
+	dump("bad top", n);
+	fatal("mapop: top=%d %O", top, n->op);
+	return N;
 }
 
 void
@@ -1420,6 +1549,18 @@ convas(Node *n)
 	rt = r->type;
 	if(lt == T || rt == T)
 		return n;
+
+	if(n->left->op == OINDEX)
+	if(isptrto(n->left->left->type, TMAP)) {
+		*n = *mapop(n, Elv);
+		return n;
+	}
+
+	if(n->left->op == OINDEXPTR)
+	if(n->left->left->type->etype == TMAP) {
+		*n = *mapop(n, Elv);
+		return n;
+	}
 
 	if(eqtype(lt, rt, 0))
 		return n;

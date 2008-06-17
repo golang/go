@@ -80,12 +80,18 @@ enum
 #define	nil		((void*)0)
 
 /*
- * very low level
+ * very low level c-called
  */
 void	FLUSH(void*);
+void	throw(int8*);
 void	prints(int8*);
 void	mcpy(byte*, byte*, uint32);
 void*	mal(uint32);
+uint32	cmpstring(string, string);
+
+/*
+ * low level go -called
+ */
 void	sys_exit(int32);
 void	sys_write(int32, void*, int32);
 void	sys_breakpoint(void);
@@ -94,7 +100,7 @@ void	sys_memclr(byte*, uint32);
 void* sys_getcallerpc(void*);
 
 /*
- * runtime
+ * runtime go-called
  */
 void	sys_printbool(bool);
 void	sys_printfloat(float64);
