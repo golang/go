@@ -267,6 +267,10 @@ BUG: infinite loop in error reporting
 =========== bugs/bug052.go
 BUG: incorrect code for division
 
+=========== bugs/bug053.go
+bugs/bug053.go:6: syntax error
+BUG: len should not be a keyword
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
