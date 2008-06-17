@@ -47,10 +47,10 @@ test0.go:49: illegal types for operand: AS
 	(<float32>FLOAT32)
 	(<int32>INT32)
 test0.go:50: error in shape across assignment
-test0.go:55: illegal types for operand: CALLMETH
+test0.go:47: illegal types for operand: CALLMETH
 	(*<Point>{})
 	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
-test0.go:54: illegal types for operand: AS
+test0.go:47: illegal types for operand: AS
 	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
 	({})
 BUG: known to fail incorrectly
@@ -139,7 +139,6 @@ BUG: known to succeed incorrectly
 =========== bugs/bug022.go
 bugs/bug022.go:8: illegal types for operand: INDEXPTR
 	(*<string>*STRING)
-	(<int32>INT32)
 BUG: known to fail incorrectly
 
 =========== bugs/bug023.go
@@ -210,7 +209,7 @@ BUG: compilation should succeed
 
 =========== bugs/bug043.go
 bugs/bug043.go:14: error in shape across assignment
-bugs/bug043.go:17: error in shape across assignment
+bugs/bug043.go:14: error in shape across assignment
 BUG: compilation should succeed
 
 =========== bugs/bug044.go
@@ -250,6 +249,23 @@ BUG: fatal error
 bugs/bug050.go:3: package statement must be first
 sys.6:1 bugs/bug050.go:2: syntax error
 BUG: segfault
+
+=========== bugs/bug051.go
+bugs/bug051.go:10: expression must be a constant
+bugs/bug051.go:10: expression must be a constant
+bugs/bug051.go:10: expression must be a constant
+bugs/bug051.go:10: expression must be a constant
+bugs/bug051.go:10: expression must be a constant
+bugs/bug051.go:10: expression must be a constant
+bugs/bug051.go:10: expression must be a constant
+bugs/bug051.go:10: expression must be a constant
+bugs/bug051.go:10: expression must be a constant
+bugs/bug051.go:10: expression must be a constant
+bugs/bug051.go:10: fatal error: too many errors
+BUG: infinite loop in error reporting
+
+=========== bugs/bug052.go
+BUG: incorrect code for division
 
 =========== fixedbugs/bug000.go
 
