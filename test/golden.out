@@ -242,6 +242,15 @@ bugs/bug048.go:7: illegal types for operand: CONV
 bugs/bug048.go:8: syntax error
 BUG: known to fail incorrectly
 
+=========== bugs/bug049.go
+bugs/bug049.go:6: fatal error: stringpool: not string
+BUG: fatal error
+
+=========== bugs/bug050.go
+bugs/bug050.go:3: package statement must be first
+sys.6:1 bugs/bug050.go:2: syntax error
+BUG: segfault
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
