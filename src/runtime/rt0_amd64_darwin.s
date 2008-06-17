@@ -84,3 +84,8 @@ TEXT	sys_memclr(SB),1,$-8
 	REP
 	STOSQ
 	RET
+
+TEXT	sys_getcallerpc+0(SB),0,$0
+	MOVQ	x+0(FP),AX
+	MOVQ	-8(AX),AX
+	RET
