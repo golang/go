@@ -77,7 +77,7 @@ Hello World!
 =========== ken/rob1.go
 
 =========== ken/rob2.go
-(hello hello (hello 12 34))
+(defn foo (add 12 34))
 
 =========== ken/robfor.go
 
