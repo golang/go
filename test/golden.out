@@ -261,6 +261,10 @@ BUG: len should not be a keyword
 bugs/bug054.go:22: fatal error: agen: unknown op CALLMETH u(1) l(165) <Element>I{}
 BUG: known to fail incorrectly
 
+=========== bugs/bug055.go
+bug055.go:1: fatal error: cant open: bug055.go
+BUG: known to fail incorrectly
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
