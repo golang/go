@@ -21,7 +21,7 @@ func main() {
 	var c *chan int;
 	var t *T;
 	var in IN;
-	var ta *[]T;
+	var ta *[]IN;
 
 	i = nil;
 	f = nil;
@@ -30,6 +30,6 @@ func main() {
 	c = nil;
 	t = nil;
 	i = nil;
-	ta = new([1]T);
-	ta[0] = nil;  //BUG (see bugs/bug045.go) 
+	ta = new([1]IN);
+	ta[0] = nil;
 }
