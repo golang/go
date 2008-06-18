@@ -297,6 +297,7 @@ enum
 	Wlitint,
 	Wlitbool,
 	Wlitstr,
+	Wlitnil,
 
 	Wtunkn,
 };
