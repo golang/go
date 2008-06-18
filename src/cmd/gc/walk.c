@@ -43,9 +43,8 @@ loop:
 	if(n->op != ONAME)
 		dynlineno = n->lineno;	// for diagnostics
 
-	if(debug['w'] > 1 && top == Etop)
-		if(n->op != OLIST)
-			dump("walk-before", n);
+	if(debug['w'] > 1 && top == Etop && n->op != OLIST)
+		dump("walk-before", n);
 
 	t = T;
 	et = Txxx;
@@ -218,7 +217,6 @@ loop:
 
 		walktype(l, Elv);
 		walktype(r, Erv);
-
 		if(l == N || l->type == T)
 			goto ret;
 
@@ -233,6 +231,7 @@ loop:
 			}
 			goto ret;
 		}
+
 		l = ascompatee(n->op, &n->left, &n->right);
 		if(l != N)
 			*n = *reorder3(l);
@@ -662,8 +661,8 @@ badt:
 	goto ret;
 
 ret:
-	if(debug['w'] && top == Etop)
-		dump("walk-after", n);
+	if(debug['w'] && top == Etop && n != N)
+		dump("walk", n);
 
 	ullmancalc(n);
 	dynlineno = lno;
