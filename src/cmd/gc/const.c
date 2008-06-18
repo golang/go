@@ -9,17 +9,21 @@ void
 convlit(Node *n, Type *t)
 {
 	int et;
+	Node *n1;
 
 	if(n == N || n->op != OLITERAL || t == T)
 		return;
 
-	if(t->etype == TANY || isptrto(t, TANY)) {
-		defaultlit(n);
-		return;
-	}
-
 	et = t->etype;
 	switch(whatis(n)) {
+	default:
+		goto bad1;
+
+	case Wlitnil:
+		if(isptr[et] || et = TINTER)
+			break;
+		goto bad1;
+
 	case Wlitint:
 		if(isptrto(t, TSTRING)) {
 			Rune rune;
