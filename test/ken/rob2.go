@@ -73,6 +73,7 @@ var lineno int32 = 1;
 var input string;
 var inputindex int = 0;
 var tokenbuf [100]byte;
+var tokenlen int = 0;
 
 const EOF int = -1;
 
@@ -135,7 +136,7 @@ func Get() int
 		peekc = -1;
 	} else {
 		c = convert(int, input[inputindex]);
-		inputindex = inputindex + 1; // BUG should be incr one expr
+		inputindex++
 		if c == '\n' {
 			lineno = lineno + 1;
 		}
@@ -185,6 +186,7 @@ func NextToken()
 			if i >= 100 - 1 {	// sizeof tokenbuf - 1
 				panic "atom too long\n";
 			}
+			tokenlen = i;
 			tokenbuf[i] = nilchar;
 			if '0' <= tokenbuf[0] && tokenbuf[0] <= '9' {
 				token = '0';
@@ -217,10 +219,7 @@ func ParseList() *Slist
 	retval = slist;
 	for ;; {
 		slist.list.car = Parse();
-		if token == ')' {	// empty cdr
-			break;
-		}
-		if token == EOF {	// empty cdr BUG SHOULD USE ||
+		if token == ')' || token == EOF {	// empty cdr
 			break;
 		}
 		slist.list.cdr = new(Slist);
@@ -239,7 +238,7 @@ func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
 		slist.atom.integer = i;
 		slist.isstring = false;
 	} else {
-		slist.atom.str = "hello";
+		slist.atom.str = string(tokenbuf)[0:tokenlen];
 		slist.isstring = true;
 	}
 	slist.isatom = true;
@@ -249,7 +248,7 @@ func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
 func atoi() int	// BUG: uses tokenbuf; should take argument
 {
 	var v int = 0;
-	for i := 0; '0' <= tokenbuf[i] && tokenbuf[i] <= '9'; i = i + 1 {
+	for i := 0; i < tokenlen && '0' <= tokenbuf[i] && tokenbuf[i] <= '9'; i = i + 1 {
 		v = 10 * v + convert(int, tokenbuf[i] - '0');
 	}
 	return v;
