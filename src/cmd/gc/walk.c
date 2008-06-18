@@ -116,6 +116,7 @@ loop:
 		walktype(n->ninit, Etop);
 		walktype(n->ntest, Erv);
 		walktype(n->nbody, Etop);
+
 		// find common type
 		if(n->ntest->type == T)
 			n->ntest->type = walkswitch(n, sw1);
@@ -127,11 +128,9 @@ loop:
 		// set the type on all literals
 		if(n->ntest->type != T)
 			walkswitch(n, sw3);
-
-		walktype(n->ntest, Erv);
-
-		n = n->nincr;
-		goto loop;
+		walktype(n->ntest, Erv);	// BOTCH is this right
+		walktype(n->nincr, Erv);
+		goto ret;
 
 	case OEMPTY:
 		if(top != Etop)
