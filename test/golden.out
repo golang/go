@@ -26,7 +26,7 @@ hello, world
 =========== ./literal.go
 
 =========== ./nil.go
-nil.go:30: fatal error: naddr: const <T>{<i><int32>INT32;}
+nil.go:30: illegal conversion of constant to <T>{}
 BUG: known to fail incorrectly
 
 =========== ./sieve.go
@@ -142,8 +142,6 @@ bugs/bug022.go:8: illegal types for operand: INDEXPTR
 BUG: known to fail incorrectly
 
 =========== bugs/bug023.go
-bugs/bug023.go:20: fatal error: naddr: const <Type>I{<TypeName>101({},{}){};}
-BUG: known to fail incorrectly
 
 =========== bugs/bug025.go
 bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
@@ -217,7 +215,7 @@ bugs/bug044.go:23: error in shape across assignment
 BUG: compilation should succeed
 
 =========== bugs/bug045.go
-bugs/bug045.go:13: fatal error: naddr: const <T>{<i><int32>INT32;}
+bugs/bug045.go:13: illegal conversion of constant to <T>{}
 BUG: known to fail incorrectly
 
 =========== bugs/bug046.go
@@ -242,8 +240,6 @@ bugs/bug048.go:8: syntax error
 BUG: known to fail incorrectly
 
 =========== bugs/bug049.go
-bugs/bug049.go:6: fatal error: stringpool: not string
-BUG: fatal error
 
 =========== bugs/bug050.go
 bugs/bug050.go:3: package statement must be first
@@ -270,6 +266,8 @@ BUG: incorrect code for division
 =========== bugs/bug053.go
 bugs/bug053.go:6: syntax error
 BUG: len should not be a keyword
+
+=========== bugs/bug054.go
 
 =========== fixedbugs/bug000.go
 
