@@ -440,7 +440,7 @@ swgen(Node *n)
 	while(c1 != N) {
 		dynlineno = c1->lineno;	// for diagnostics
 		if(c1->op != OCASE) {
-			if(s0 == C)
+			if(s0 == C && dflt == P)
 				yyerror("unreachable statements in a switch");
 			gen(c1);
 
@@ -463,7 +463,6 @@ swgen(Node *n)
 			dflt = pc;
 
 		while(c2 != N) {
-
 			s = mal(sizeof(*s));
 			if(s0 == C)
 				s0 = s;
