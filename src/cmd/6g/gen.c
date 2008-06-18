@@ -729,7 +729,7 @@ cgen_as(Node *nl, Node *nr, int op)
 	if(tl == T)
 		return;
 
-	if(nr == N) {
+	if(nr == N || isnil(nr)) {
 		if(isfat(tl)) {
 			/* clear a fat object */
 			if(debug['g'])
