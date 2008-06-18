@@ -18,6 +18,10 @@ func Alloc(i int) int {
 	}
 }
 
+func main() {
+	s := Alloc(7);
+}
+
 /*
 bug028.go:7: unreachable statements in a switch
 */
