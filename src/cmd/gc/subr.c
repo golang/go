@@ -504,6 +504,8 @@ whatis(Node *n)
 			return Wlitbool;
 		case CTSTR:
 			return Wlitstr;
+		case CTNIL:
+			return Wlitnil;	// not used
 		}
 		return Wtunkn;
 	}
