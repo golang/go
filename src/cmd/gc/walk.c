@@ -12,8 +12,12 @@ static	Node*	curfn;
 void
 walk(Node *fn)
 {
+	if(debug['W'])
+		dump("fn-before", fn->nbody);
 	curfn = fn;
 	walktype(fn->nbody, Etop);
+	if(debug['W'])
+		dump("fn", fn->nbody);
 }
 
 void
@@ -458,6 +462,9 @@ loop:
 			goto badt;
 
 		case TMAP:
+
+print("top=%d type %lT", top, t);
+dump("index", n);
 			// right side must map type
 			if(n->right->type == T) {
 				convlit(n->right, t->down);
@@ -470,6 +477,8 @@ loop:
 				goto badt;
 			n->op = OINDEX;
 			n->type = t->type;
+			if(top == Erv)
+*n = *mapop(n, top);
 			break;
 
 		case TSTRING:
@@ -710,7 +719,6 @@ walkswitch(Node *sw, Type*(*call)(Node*, Type*))
 {
 	Node *n, *c;
 	Type *place;
-
 	place = call(sw->ntest, T);
 
 	n = sw->nbody;
@@ -1372,10 +1380,10 @@ mapop(Node *n, int top)
 		r->type = n->type;
 		break;
 
-	case OINDEXPTR:
+	case OINDEX:
 		if(top != Erv)
 			goto nottop;
-
+dump("access start", n);
 		// mapaccess1(hmap *map[any]any, key any) (val any);
 
 		t = fixmap(n->left->type);
@@ -1408,6 +1416,7 @@ mapop(Node *n, int top)
 		r = nod(OCALL, on, r);
 		walktype(r, Erv);
 		r->type = t->type;
+dump("access finish", r);
 		break;
 
 		// mapaccess2(hmap *map[any]any, key any) (val any, pres bool);

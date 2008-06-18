@@ -446,6 +446,7 @@ void	warn(char*, ...);
 void	fatal(char*, ...);
 void	linehist(char*, long);
 Node*	nod(int, Node*, Node*);
+Node*	list(Node*, Node*);
 Type*	typ(int);
 Dcl*	dcl(void);
 Node*	rev(Node*);

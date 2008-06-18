@@ -20,7 +20,17 @@ convlit(Node *n, Type *t)
 		goto bad1;
 
 	case Wlitnil:
-		if(isptr[et] || et = TINTER)
+		if(isptr[et] || et == TINTER)
+			break;
+		goto bad1;
+
+	case Wlitstr:
+		if(isptrto(t, TSTRING))
+			break;
+		goto bad1;
+
+	case Wlitbool:
+		if(et == TBOOL)
 			break;
 		goto bad1;
 

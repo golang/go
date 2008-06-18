@@ -254,6 +254,16 @@ nod(int op, Node *nleft, Node *nright)
 	return n;
 }
 
+Node*
+list(Node *a, Node *b)
+{
+	if(a == N)
+		return b;
+	if(b == N)
+		return a;
+	return nod(OLIST, a, b);
+}
+
 Type*
 typ(int et)
 {
