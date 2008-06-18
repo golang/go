@@ -30,7 +30,7 @@
 %type	<lint>		chandir
 %type	<node>		xdcl xdcl_list_r oxdcl_list common_dcl
 %type	<node>		oarg_type_list arg_type_list_r arg_type
-%type	<node>		else_stmt1 else_stmt2
+%type	<node>		else_stmt1 else_stmt2 inc_stmt noninc_stmt
 %type	<node>		complex_stmt compound_stmt ostmt_list
 %type	<node>		stmt_list_r Astmt_list_r Bstmt_list_r
 %type	<node>		Astmt Bstmt Cstmt Dstmt
@@ -232,19 +232,13 @@ else_stmt2:
 	}
 
 simple_stmt:
+	inc_stmt
+|	noninc_stmt
+
+noninc_stmt:
 	expr
 	{
 		$$ = $1;
-	}
-|	expr LINC
-	{
-		$$ = nod(OASOP, $1, literal(1));
-		$$->etype = OADD;
-	}
-|	expr LDEC
-	{
-		$$ = nod(OASOP, $1, literal(1));
-		$$->etype = OSUB;
 	}
 |	expr LASOP expr
 	{
@@ -262,6 +256,18 @@ simple_stmt:
 		dodclvar($1, $3->type);
 
 		$$ = nod(OAS, $1, $3);
+	}
+
+inc_stmt:
+	expr LINC
+	{
+		$$ = nod(OASOP, $1, literal(1));
+		$$->etype = OADD;
+	}
+|	expr LDEC
+	{
+		$$ = nod(OASOP, $1, literal(1));
+		$$->etype = OSUB;
 	}
 
 complex_stmt:
@@ -1094,14 +1100,15 @@ Bstmt:
  * need semi in back  YES
  */
 Cstmt:
-	simple_stmt
+	noninc_stmt
 
 /*
  * need semi in front YES
  * need semi in back  NO
  */
 Dstmt:
-	new_name ':'
+	inc_stmt
+|	new_name ':'
 	{
 		$$ = nod(OLABEL, $1, N);
 	}
@@ -1114,15 +1121,15 @@ Astmt_list_r:
 |	Dstmt
 |	Astmt_list_r Astmt
 	{
-		$$ = nod(OLIST, $1, $2);
+		$$ = list($1, $2);
 	}
 |	Astmt_list_r Dstmt
 	{
-		$$ = nod(OLIST, $1, $2);
+		$$ = list($1, $2);
 	}
 |	Bstmt_list_r Astmt
 	{
-		$$ = nod(OLIST, $1, $2);
+		$$ = list($1, $2);
 	}
 
 /*
@@ -1133,15 +1140,15 @@ Bstmt_list_r:
 |	Cstmt
 |	Astmt_list_r Bstmt
 	{
-		$$ = nod(OLIST, $1, $2);
+		$$ = list($1, $2);
 	}
 |	Astmt_list_r Cstmt
 	{
-		$$ = nod(OLIST, $1, $2);
+		$$ = list($1, $2);
 	}
 |	Bstmt_list_r Bstmt
 	{
-		$$ = nod(OLIST, $1, $2);
+		$$ = list($1, $2);
 	}
 
 stmt_list_r:
