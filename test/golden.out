@@ -161,10 +161,6 @@ bugs/bug027.go:50: illegal types for operand: CONV
 	(<I>{<val><int32>INT32;})
 BUG: known to fail incorrectly
 
-=========== bugs/bug028.go
-bugs/bug028.go:9: unreachable statements in a switch
-BUG: known to fail incorrectly
-
 =========== bugs/bug029.go
 BUG: known to succeed incorrectly
 
@@ -268,6 +264,8 @@ bugs/bug053.go:6: syntax error
 BUG: len should not be a keyword
 
 =========== bugs/bug054.go
+bugs/bug054.go:22: fatal error: agen: unknown op CALLMETH u(1) l(165) <Element>I{}
+BUG: known to fail incorrectly
 
 =========== fixedbugs/bug000.go
 
@@ -302,5 +300,7 @@ BUG: len should not be a keyword
 =========== fixedbugs/bug021.go
 
 =========== fixedbugs/bug024.go
+
+=========== fixedbugs/bug028.go
 
 =========== fixedbugs/bug031.go
