@@ -102,11 +102,61 @@ sys_printpc(void *p)
 void
 sys_panicl(int32 lno)
 {
+	uint8 *pc;
+	uint8 *sp;
+	uint8 *retpc;
+	int32 spoff;
+	static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
+	int8* spp;
+	int32 counter;
+	int32 i;
+
 	prints("\npanic on line ");
 	sys_printint(lno);
 	prints(" ");
 	sys_printpc(&lno);
 	prints("\n");
+	sp = (uint8*)&lno;
+	pc = (uint8*)sys_panicl;
+	counter = 0;
+	while((pc = ((uint8**)sp)[-1]) > (uint8*)0x1000) {
+		for(i = 0; i < 3; i++){
+			prints("\tint32[");
+			sys_printint(i);
+			prints("]=");
+			sys_printint(((uint32*)sp)[i]);
+			prints("\tint64*[");
+			sys_printint(i);
+			prints("]=");
+			sys_printpointer(((void**)sp)[i]);
+			prints("\n");
+		}
+		prints("0x");
+		sys_printpointer(pc);
+		prints(" ");
+		/* next word down on stack is PC */
+		retpc = pc;
+		/* find SP offset by stepping back through instructions to SP offset marker */
+		while(pc > (uint8*)0x1000+11) {
+			for(spp = spmark; *spp != '\0' && *pc++ == (uint8)*spp++; )
+				;
+			if(*spp == '\0'){
+				spoff = *pc++;
+				spoff += *pc++ << 8;
+				spoff += *pc++ << 16;
+				prints((int8*)pc);
+				prints("+");
+				sys_printint(pc-retpc);
+				prints("?zi\n");
+				sp += spoff + 8;
+				break;
+			}
+		}
+		if(counter++ > 100){
+			prints("stack trace terminated\n");
+			break;
+		}
+	}
 	*(int32*)0 = 0;
 }
 
