@@ -32,6 +32,7 @@
 #define	NSNAME	8
 #define NOPROF	(1<<0)
 #define DUPOK	(1<<1)
+#define SOFmark	(11)
 
 /*
  *	amd64

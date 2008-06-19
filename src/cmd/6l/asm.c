@@ -138,7 +138,8 @@ asmb(void)
 	for(p = firstp; p != P; p = p->link) {
 		if(p->as == ATEXT)
 			curtext = p;
-		if(p->pc != pc) {
+		if(p->pc != pc)
+		if(p->as != ATEXT || p->pc != pc+SOFmark) {
 			if(!debug['a'])
 				print("%P\n", curp);
 			diag("phase error %llux sb %llux in %s", p->pc, pc, TNAME);

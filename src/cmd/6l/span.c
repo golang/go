@@ -83,6 +83,8 @@ start:
 				p->pc = c;
 		asmins(p);
 		p->pc = c;
+		if(p->as == ATEXT)
+			p->pc += SOFmark;	// skip the stack marker
 		m = andptr-and;
 		p->mark = m;
 		c += m;
@@ -113,6 +115,8 @@ loop:
 			}
 		}
 		p->pc = c;
+		if(p->as == ATEXT)
+			p->pc += SOFmark;	// skip the stack marker
 		c += p->mark;
 	}
 	if(again) {
@@ -269,7 +273,7 @@ asmlc(void)
 	Prog *p;
 	long oldlc, v, s;
 
-	oldpc = INITTEXT;
+	oldpc = INITTEXT+SOFmark;
 	oldlc = 0;
 	for(p = firstp; p != P; p = p->link) {
 		if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
@@ -1119,6 +1123,19 @@ found:
 	default:
 		diag("asmins: unknown z %d %P", t[2], p);
 		return;
+
+	case Ztext:
+		v = p->to.offset;
+		if(v < 0)
+			v = 0;
+
+		// eleven bytes of buried stack offset
+		*andptr++ = v>>3;
+		*andptr++ = v>>11;
+		*andptr++ = v>>19;
+		for(v=0; v<SOFmark-3; v++)
+			*andptr++ = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe"[v];
+		break;
 
 	case Zpseudo:
 		break;
