@@ -110,6 +110,7 @@ sys_panicl(int32 lno)
 	int8* spp;
 	int32 counter;
 	int32 i;
+	int8* name;
 
 	prints("\npanic on line ");
 	sys_printint(lno);
@@ -119,18 +120,29 @@ sys_panicl(int32 lno)
 	sp = (uint8*)&lno;
 	pc = (uint8*)sys_panicl;
 	counter = 0;
+	name = "panic";
 	while((pc = ((uint8**)sp)[-1]) > (uint8*)0x1000) {
+		/* print args for this frame */
+		prints("\t");
+		prints(name);
+		prints("(");
 		for(i = 0; i < 3; i++){
-			prints("\tint32[");
-			sys_printint(i);
-			prints("]=");
+			if(i != 0)
+				prints(", ");
 			sys_printint(((uint32*)sp)[i]);
-			prints("\tint64*[");
-			sys_printint(i);
-			prints("]=");
-			sys_printpointer(((void**)sp)[i]);
-			prints("\n");
 		}
+		prints(", ...)\n");
+		prints("\t");
+		prints(name);
+		prints("(");
+		for(i = 0; i < 3; i++){
+			if(i != 0)
+				prints(", ");
+			prints("0x");
+			sys_printpointer(((void**)sp)[i]);
+		}
+		prints(", ...)\n");
+		/* print pc for next frame */
 		prints("0x");
 		sys_printpointer(pc);
 		prints(" ");
@@ -144,7 +156,8 @@ sys_panicl(int32 lno)
 				spoff = *pc++;
 				spoff += *pc++ << 8;
 				spoff += *pc++ << 16;
-				prints((int8*)pc);
+				name = (int8*)pc;
+				prints(name);
 				prints("+");
 				sys_printint(pc-retpc);
 				prints("?zi\n");
