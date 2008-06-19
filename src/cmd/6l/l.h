@@ -217,6 +217,7 @@ enum
 	Zaut_r,
 	Zo_m,
 	Zo_m64,
+	Ztext,
 	Zpseudo,
 	Zr_m,
 	Zr_m_xm,

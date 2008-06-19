@@ -925,7 +925,9 @@ loop:
 			sig = 1729;
 		if(sig != 0){
 			if(s->sig != 0 && s->sig != sig)
-				diag("incompatible type signatures %lux(%s) and %lux(%s) for %s", s->sig, filen[s->file], sig, pn, s->name);
+				diag("incompatible type signatures %lux(%s)"
+					"and %lux(%s) for %s", s->sig,
+					filen[s->file], sig, pn, s->name);
 			s->sig = sig;
 			s->file = files-1;
 		}
