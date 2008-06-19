@@ -281,6 +281,112 @@ loop:
 	goto loop;
 }
 
+Prog*
+byteq(int v)
+{
+	Prog *p;
+
+	p = prg();
+	p->as = ABYTE;
+	p->from.type = D_CONST;
+	p->from.offset = v&0xff;
+	return p;
+}
+
+void
+markstk(Prog *l)
+{
+	Prog *p0, *p, *q, *r;
+	long i, n, line;
+	Sym *s;
+
+	version++;
+	s = lookup(l->from.sym->name, version);
+	s->type = STEXT;
+	line = l->line;
+
+	// start with fake copy of ATEXT
+	p0 = prg();
+	p = p0;
+	*p = *l;	// note this gets p->pcond and p->line
+
+	p->from.type = D_STATIC;
+	p->from.sym = s;
+	p->to.offset = 0;
+
+	// put out magic sequence
+	n = strlen(SOFmark);
+	for(i=0; i<n; i++) {
+		q = byteq(SOFmark[i]);
+		q->line = line;
+		p->link = q;
+		p = q;
+	}
+
+	// put out stack offset
+	n = l->to.offset;
+	if(n < 0)
+		n = 0;
+	for(i=0; i<3; i++) {
+		q = byteq(n);
+		q->line = line;
+		p->link = q;
+		p = q;
+		n = n>>8;
+	}
+
+	// put out null terminated name
+	for(i=0;; i++) {
+		n = s->name[i];
+		q = byteq(n);
+		q->line = line;
+		p->link = q;
+		p = q;
+		if(n == 0)
+			break;
+	}
+
+	// put out return instruction
+	q = prg();
+	q->as = ARET;
+	q->line = line;
+	p->link = q;
+	p = q;
+
+	r = l->pcond;
+	l->pcond = p0;
+	p->link = r;
+	p0->pcond = r;
+
+	// hard part is linking end of
+	// the text body to my fake ATEXT
+	for(p=l;; p=q) {
+		q = p->link;
+		if(q == r) {
+			p->link = p0;
+			return;
+		}
+	}
+}
+
+void
+addstackmark(void)
+{
+	Prog *p;
+
+	if(debug['v'])
+		Bprint(&bso, "%5.2f stkmark\n", cputime());
+	Bflush(&bso);
+
+	for(p=textp; p!=P; p=p->pcond) {
+		markstk(p);		// splice in new body
+		p = p->pcond;		// skip the one we just put in
+	}
+
+//	for(p=textp; p!=P; p=p->pcond)
+//		print("%P\n", p);
+}
+
 int
 relinv(int a)
 {
@@ -344,6 +450,7 @@ patch(void)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f patch\n", cputime());
 	Bflush(&bso);
+
 	s = lookup("exit", 0);
 	vexit = s->value;
 	for(p = firstp; p != P; p = p->link) {
