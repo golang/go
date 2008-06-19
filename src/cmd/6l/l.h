@@ -217,7 +217,6 @@ enum
 	Zaut_r,
 	Zo_m,
 	Zo_m64,
-	Ztext,
 	Zpseudo,
 	Zr_m,
 	Zr_m_xm,
@@ -388,6 +387,7 @@ void	export(void);
 int	find1(long, int);
 int	find2(long, int);
 void	follow(void);
+void	addstachmark(void);
 void	gethunk(void);
 void	histtoauto(void);
 double	ieeedtod(Ieee*);

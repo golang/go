@@ -37,7 +37,7 @@ uchar	ynone[] =
 };
 uchar	ytext[] =
 {
-	Ymb,	Yi32,	Ztext,	1,
+	Ymb,	Yi32,	Zpseudo,1,
 	0
 };
 uchar	ynop[] =
