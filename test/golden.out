@@ -21,6 +21,8 @@ hello, world
 
 =========== ./int_lit.go
 
+=========== ./integer.go
+
 =========== ./iota.go
 
 =========== ./literal.go
@@ -52,6 +54,16 @@ test0.go:47: illegal types for operand: AS
 	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
 	({})
 BUG: known to fail incorrectly
+
+=========== ./test_integer.go
+TestConv
+TestAdd
+TestSub
+TestMul
+TestDiv
+TestMod
+TestFact
+PASSED
 
 =========== ./turing.go
 Hello World!
