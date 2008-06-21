@@ -615,6 +615,7 @@ opnames[] =
 	[OMOD]		= "MOD",
 	[OMUL]		= "MUL",
 	[ONAME]		= "NAME",
+	[ONONAME]	= "NONAME",
 	[ONE]		= "NE",
 	[ONOT]		= "NOT",
 	[OOROR]		= "OROR",
@@ -998,6 +999,7 @@ Nconv(Fmt *fp)
 		break;
 
 	case ONAME:
+	case ONONAME:
 		if(n->sym == S) {
 			snprint(buf, sizeof(buf), "%O%J", n->op, n);
 			break;

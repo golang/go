@@ -28,7 +28,8 @@
 
 %type	<sym>		sym laconst lname latype
 %type	<lint>		chandir
-%type	<node>		xdcl xdcl_list_r oxdcl_list common_dcl
+%type	<node>		xdcl xdcl_list_r oxdcl_list
+%type	<node>		common_dcl Acommon_dcl Bcommon_dcl
 %type	<node>		oarg_type_list arg_type_list_r arg_type
 %type	<node>		else_stmt1 else_stmt2 inc_stmt noninc_stmt
 %type	<node>		complex_stmt compound_stmt ostmt_list
@@ -40,17 +41,19 @@
 %type	<node>		simple_stmt osimple_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
 %type	<node>		name name_name new_name new_name_list_r
-%type	<node>		vardcl_list_r vardcl
+%type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl
 %type	<node>		export_list_r export
 %type	<node>		hidden_importsym_list_r ohidden_importsym_list hidden_importsym isym
 %type	<node>		hidden_importfield_list_r ohidden_importfield_list hidden_importfield
 %type	<node>		fnbody
-%type	<node>		fnres fnliteral xfndcl fndcl
+%type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl
 %type	<node>		keyval_list_r keyval
+%type	<node>		typedcl Atypedcl Btypedcl
 
-%type	<type>		type fntypeh fntype fnlitdcl intype new_type typeconv
+%type	<type>		fntype fnlitdcl intype new_type typeconv
+%type	<type>		type Atype Btype fntypeh Afntypeh Bfntypeh
 
 %left			LOROR
 %left			LANDAND
@@ -147,7 +150,11 @@ xdcl:
 	}
 
 common_dcl:
-	LVAR vardcl
+	Acommon_dcl
+|	Bcommon_dcl
+
+Acommon_dcl:
+	LVAR Avardcl
 	{
 		$$ = $2;
 	}
@@ -155,17 +162,12 @@ common_dcl:
 	{
 		$$ = rev($3);
 	}
-|	LCONST constdcl
-	{
-		$$ = N;
-		iota = 0;
-	}
 |	LCONST '(' constdcl_list_r osemi ')'
 	{
 		$$ = N;
 		iota = 0;
 	}
-|	LTYPE typedcl
+|	LTYPE Atypedcl
 	{
 		$$ = N;
 	}
@@ -174,8 +176,36 @@ common_dcl:
 		$$ = N;
 	}
 
+Bcommon_dcl:
+	LVAR Bvardcl
+	{
+		$$ = $2;
+	}
+|	LCONST constdcl
+	{
+		$$ = N;
+		iota = 0;
+	}
+|	LTYPE Btypedcl
+	{
+		$$ = N;
+	}
+
 vardcl:
-	new_name_list_r type
+	Avardcl
+|	Bvardcl
+
+Avardcl:
+	new_name_list_r Atype
+	{
+		$$ = rev($1);
+		dodclvar($$, $2);
+
+		$$ = nod(OAS, $$, N);
+	}
+
+Bvardcl:
+	new_name_list_r Btype
 	{
 		$$ = rev($1);
 		dodclvar($$, $2);
@@ -214,7 +244,17 @@ constdcl:
 	}
 
 typedcl:
-	new_type type
+	Atypedcl
+|	Btypedcl
+
+Atypedcl:
+	new_type Atype
+	{
+		dodcltype($1, $2);
+	}
+
+Btypedcl:
+	new_type Btype
 	{
 		dodcltype($1, $2);
 	}
@@ -249,13 +289,9 @@ noninc_stmt:
 	{
 		$$ = nod(OAS, $1, $3);
 	}
-|	new_name LCOLAS expr
+|	expr_list LCOLAS expr_list
 	{
-		walktype($3, Erv);	// this is a little harry
-		defaultlit($3);
-		dodclvar($1, $3->type);
-
-		$$ = nod(OAS, $1, $3);
+		$$ = nod(OAS, colas($1, $3), $3);
 	}
 
 inc_stmt:
@@ -768,21 +804,25 @@ typeconv:
 	}
 
 type:
+	Atype
+|	Btype
+
+Atype:
 	latype
 	{
 		$$ = oldtype($1);
 	}
-|	'[' oexpr ']' type
+|	'[' oexpr ']' Atype
 	{
 		$$ = aindex($2, $4);
 	}
-|	LCHAN chandir type
+|	LCHAN chandir Atype
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
 		$$->chan = $2;
 	}
-|	LMAP '[' type ']' type
+|	LMAP '[' type ']' Atype
 	{
 		$$ = typ(TMAP);
 		$$->down = $3;
@@ -805,8 +845,31 @@ type:
 	{
 		$$ = dostruct(N, TINTER);
 	}
-|	fntypeh
-|	'*' type
+|	Afntypeh
+|	'*' Atype
+	{
+		$$ = ptrto($2);
+	}
+
+Btype:
+	'[' oexpr ']' Btype
+	{
+		$$ = aindex($2, $4);
+	}
+|	LCHAN chandir Btype
+	{
+		$$ = typ(TCHAN);
+		$$->type = $3;
+		$$->chan = $2;
+	}
+|	LMAP '[' type ']' Btype
+	{
+		$$ = typ(TMAP);
+		$$->down = $3;
+		$$->type = $5;
+	}
+|	Bfntypeh
+|	'*' Btype
 	{
 		$$ = ptrto($2);
 	}
@@ -874,12 +937,31 @@ fndcl:
 	}
 
 fntypeh:
-	LFUNC '(' oarg_type_list ')' fnres
+	Afntypeh
+|	Bfntypeh
+
+Afntypeh:
+	LFUNC '(' oarg_type_list ')' Afnres
 	{
 		$$ = functype(N, $3, $5);
 		funcnam($$, nil);
 	}
-|	LFUNC '(' oarg_type_list ')' '.' '(' oarg_type_list ')' fnres
+|	LFUNC '(' oarg_type_list ')' '.' '(' oarg_type_list ')' Afnres
+	/* i dont believe that this form is useful for anything */
+	{
+		if($3 == N || $3->op == OLIST)
+			yyerror("syntax error in method receiver");
+		$$ = functype($3, $7, $9);
+		funcnam($$, nil);
+	}
+
+Bfntypeh:
+	LFUNC '(' oarg_type_list ')' Bfnres
+	{
+		$$ = functype(N, $3, $5);
+		funcnam($$, nil);
+	}
+|	LFUNC '(' oarg_type_list ')' '.' '(' oarg_type_list ')' Bfnres
 	/* i dont believe that this form is useful for anything */
 	{
 		if($3 == N || $3->op == OLIST)
@@ -942,12 +1024,12 @@ fnbody:
 	{
 		$$ = N;
 	}
-
 fnres:
-	{
-		$$ = N;
-	}
-|	type
+	Afnres
+|	Bfnres
+
+Afnres:
+	Atype
 	{
 		$$ = nod(ODCLFIELD, N, N);
 		$$->type = $1;
@@ -956,6 +1038,17 @@ fnres:
 |	'(' oarg_type_list ')'
 	{
 		$$ = $2;
+	}
+
+Bfnres:
+	{
+		$$ = N;
+	}
+|	Btype
+	{
+		$$ = nod(ODCLFIELD, N, N);
+		$$->type = $1;
+		$$ = cleanidlist($$);
 	}
 
 /*
@@ -1082,6 +1175,7 @@ arg_type_list_r:
 Astmt:
 	complex_stmt
 |	compound_stmt
+|	Acommon_dcl
 |	';'
 	{
 		$$ = N;
@@ -1093,7 +1187,7 @@ Astmt:
  */
 Bstmt:
 	semi_stmt
-|	common_dcl
+|	Bcommon_dcl
 
 /*
  * need semi in front YES
@@ -1154,6 +1248,10 @@ Bstmt_list_r:
 stmt_list_r:
 	Astmt_list_r
 |	Bstmt_list_r
+|	error ';'
+	{
+		$$ = N;
+	}
 
 expr_list_r:
 	expr
@@ -1227,6 +1325,7 @@ expr_list:
 	{
 		$$ = rev($1);
 	}
+
 
 /*
  * optional things
