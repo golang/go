@@ -234,6 +234,11 @@ agen(Node *n, Node *res)
 	ulong w, lno;
 	Type *t;
 
+
+	if(debug['g']) {
+		dump("\nagen-res", res);
+		dump("agen-r", n);
+	}
 	if(n == N || n->type == T)
 		return;
 
@@ -266,6 +271,21 @@ agen(Node *n, Node *res)
 //		gmove(&n1, res);
 //		regfree(&n1);
 //		break;
+
+	case OCALLMETH:
+		cgen_callmeth(n);
+		cgen_aret(n, res);
+		break;
+
+	case OCALLINTER:
+		cgen_callinter(n, res);
+		cgen_aret(n, res);
+		break;
+
+	case OCALL:
+		cgen_call(n);
+		cgen_aret(n, res);
+		break;
 
 	case OINDEXPTR:
 		w = n->type->width;
@@ -388,6 +408,9 @@ bgen(Node *n, int true, Prog *to)
 	Node n1, n2, tmp;
 	Prog *p1, *p2;
 
+	if(debug['g']) {
+		dump("\nbgen", n);
+	}
 	if(n == N)
 		n = booltrue;
 
@@ -554,6 +577,10 @@ sgen(Node *n, Node *ns, ulong w)
 	Node nodl, nodr;
 	long c;
 
+	if(debug['g']) {
+		dump("\nsgen-res", ns);
+		dump("sgen-r", n);
+	}
 	if(w == 0)
 		return;
 	if(n->ullman >= UINF && ns->ullman >= UINF) {
@@ -570,7 +597,6 @@ sgen(Node *n, Node *ns, ulong w)
 		agen(ns, &nodl);
 		agen(n, &nodr);
 	}
-
 	gins(ACLD, N, N);	// clear direction flag
 
 	c = w / 8;

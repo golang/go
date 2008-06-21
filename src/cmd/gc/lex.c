@@ -54,6 +54,8 @@ mainlex(int argc, char *argv[])
 	
 	lexinit();
 	lineno = 1;
+	block = 1;
+	blockgen = 1;
 
 	infile = argv[0];
 	linehist(infile, 0);
@@ -770,7 +772,7 @@ loop:
 
 	default:
 		if(c != e)
-			warn("unknown escape sequence: %c", c);
+			yyerror("unknown escape sequence: %c", c);
 	}
 	*val = c;
 	return 0;
@@ -791,7 +793,7 @@ hex:
 			l = l*16 + c-'A' + 10;
 			continue;
 		}
-		warn("non-hex character in escape sequence: %c", c);
+		yyerror("non-hex character in escape sequence: %c", c);
 		ungetc(c);
 		break;
 	}
@@ -806,11 +808,11 @@ oct:
 			l = l*8 + c-'0';
 			continue;
 		}
-		warn("non-oct character in escape sequence: %c", c);
+		yyerror("non-oct character in escape sequence: %c", c);
 		ungetc(c);
 	}
 	if(l > 255)
-		warn("oct escape value > 255: %d", l);
+		yyerror("oct escape value > 255: %d", l);
 
 	*val = l;
 	return 0;

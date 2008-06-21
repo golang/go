@@ -71,10 +71,16 @@ typedef	struct	Type	Type;
 
 struct	Type
 {
-	int	etype;
-	int	chan;
+	uchar	etype;
+	uchar	chan;
 	uchar	recur;		// to detect loops
 	uchar	trecur;		// to detect loops
+
+	// TFUNCT
+	uchar	thistuple;
+	uchar	outtuple;
+	uchar	intuple;
+
 	Sym*	sym;
 	long	vargen;		// unique name for OTYPE/ONAME
 
@@ -94,10 +100,6 @@ struct	Type
 	Type*	argin;
 	Node*	nname;
 
-	uchar	thistuple;
-	uchar	outtuple;
-	uchar	intuple;
-
 	// TARRAY
 	long	bound;
 };
@@ -105,7 +107,13 @@ struct	Type
 
 struct	Node
 {
-	int	op;
+	uchar	op;
+	uchar	ullman;		// sethi/ullman number
+	uchar	addable;	// type of addressability - 0 is not addressable
+	uchar	trecur;		// to detect loops
+	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
+	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
+	uchar	method;		// OCALLMETH name
 
 	// most nodes
 	Node*	left;
@@ -134,12 +142,6 @@ struct	Node
 	Sym*	fsym;		// import
 	Sym*	psym;		// import
 	Sym*	sym;		// various
-	uchar	ullman;		// sethi/ullman number
-	uchar	addable;	// type of addressability - 0 is not addressable
-	uchar	trecur;		// to detect loops
-	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
-	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
-	uchar	method;		// OCALLMETH name
 	long	vargen;		// unique name for OTYPE/ONAME
 	ulong	lineno;
 	vlong	xoffset;
@@ -148,6 +150,14 @@ struct	Node
 
 struct	Sym
 {
+	ushort	tblock;
+	ushort	vblock;
+
+	uchar	undef;		// a diagnostic has been generated
+	uchar	export;		// marked as export
+	uchar	exported;	// has been exported
+	uchar	sym;		// huffman encoding in object file
+
 	char*	opackage;	// original package name
 	char*	package;	// package name
 	char*	name;		// variable name
@@ -159,10 +169,6 @@ struct	Sym
 	vlong	offset;		// stack location if automatic
 	long	lexical;
 	long	vargen;		// unique variable number
-	uchar	undef;		// a diagnostic has been generated
-	uchar	export;		// marked as export
-	uchar	exported;	// has been exported
-	uchar	sym;		// huffman encoding in object file
 	Sym*	link;
 };
 #define	S	((Sym*)0)
@@ -170,7 +176,7 @@ struct	Sym
 typedef	struct	Dcl	Dcl;
 struct	Dcl
 {
-	int	op;
+	uchar	op;
 	Sym*	dsym;		// for printing only
 	Node*	dnode;		// oname
 	Type*	dtype;		// otype
@@ -207,7 +213,7 @@ enum
 
 	OTYPE, OCONST, OVAR, OEXPORT, OIMPORT,
 
-	ONAME,
+	ONAME, ONONAME,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
 	ODCLFUNC, ODCLFIELD, ODCLARG,
 	OLIST, OCMP,
@@ -392,6 +398,8 @@ EXTERN	long	vargen;
 EXTERN	long	exportgen;
 EXTERN	long	maxarg;
 EXTERN	long	stksize;
+EXTERN	ushort	blockgen;		// max block number
+EXTERN	ushort	block;			// current block number
 
 EXTERN	Node*	retnil;
 EXTERN	Node*	fskel;
@@ -570,6 +578,7 @@ Node*	stringop(Node*, int);
 Node*	mapop(Node*, int);
 Node*	convas(Node*);
 void	arrayconv(Type*, Node*);
+Node*	colas(Node*, Node*);
 Node*	reorder1(Node*);
 Node*	reorder2(Node*);
 Node*	reorder3(Node*);

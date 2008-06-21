@@ -1098,20 +1098,20 @@ naddr(Node *n, Addr *a)
 		fatal("naddr: const %lT", n->type);
 		break;
 
-//	case OADDR:
-//		naddr(n->left, a);
-//		if(a->type >= D_INDIR) {
-//			a->type -= D_INDIR;
-//			break;
-//		}
-//		if(a->type == D_EXTERN || a->type == D_STATIC ||
-//		   a->type == D_AUTO || a->type == D_PARAM)
-//			if(a->index == D_NONE) {
-//				a->index = a->type;
-//				a->type = D_ADDR;
-//				break;
-//			}
-//		goto bad;
+	case OADDR:
+		naddr(n->left, a);
+		if(a->type >= D_INDIR) {
+			a->type -= D_INDIR;
+			break;
+		}
+		if(a->type == D_EXTERN || a->type == D_STATIC ||
+		   a->type == D_AUTO || a->type == D_PARAM)
+			if(a->index == D_NONE) {
+				a->index = a->type;
+				a->type = D_ADDR;
+				break;
+			}
+		fatal("naddr: OADDR\n");
 
 //	case OADD:
 //		if(n->right->op == OLITERAL) {

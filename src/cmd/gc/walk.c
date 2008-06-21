@@ -38,7 +38,7 @@ walktype(Node *n, int top)
 	lno = dynlineno;
 	if(top == Exxx || top == Eyyy) {
 		dump("", n);
-		fatal("walktype: top=%d", top);
+		fatal("walktype: bad top=%d", top);
 	}
 
 loop:
@@ -77,6 +77,17 @@ loop:
 			goto nottop;
 		n->addable = 1;
 		ullmancalc(n);
+		goto ret;
+
+	case ONONAME:
+		s = n->sym;
+		if(s->undef == 0) {
+			s->undef = 1;
+			yyerror("%S: undefined", s);
+			goto ret;
+		}
+		if(top == Etop)
+			goto nottop;
 		goto ret;
 
 	case ONAME:
@@ -200,6 +211,9 @@ loop:
 
 		case OCALLMETH:
 			// add this-pointer to the arg list
+			// this is bad - if not a simple
+			// should make a temp copy rather
+			// than recalculate it.
 			l = ascompatte(n->op, getinarg(t), &n->right, 0);
 			r = ascompatte(n->op, getthis(t), &n->left->left, 0);
 			if(l != N)
@@ -461,9 +475,6 @@ loop:
 			goto badt;
 
 		case TMAP:
-
-print("top=%d type %lT", top, t);
-dump("index", n);
 			// right side must map type
 			if(n->right->type == T) {
 				convlit(n->right, t->down);
@@ -477,7 +488,7 @@ dump("index", n);
 			n->op = OINDEX;
 			n->type = t->type;
 			if(top == Erv)
-*n = *mapop(n, top);
+				*n = *mapop(n, top);
 			break;
 
 		case TSTRING:
@@ -493,7 +504,7 @@ dump("index", n);
 				goto badt;
 			*n = *stringop(n, top);
 			break;
-			
+
 		case TARRAY:
 		case TDARRAY:
 			// right side must be an int
@@ -746,7 +757,6 @@ casebody(Node *n)
 	Node *oc, *ot, *t;
 	Iter save;
 
-
 	/*
 	 * look to see if statements at top level have
 	 * case labels attached to them. convert the illegal
@@ -912,7 +922,6 @@ print("%L walkdot %O %d\n", n->op, top);
 	}
 }
 
-
 Node*
 ascompatee(int op, Node **nl, Node **nr)
 {
@@ -927,7 +936,6 @@ ascompatee(int op, Node **nl, Node **nr)
 	l = listfirst(&savel, nl);
 	r = listfirst(&saver, nr);
 	nn = N;
-	
 
 loop:
 	if(l == N || r == N) {
@@ -1382,7 +1390,6 @@ mapop(Node *n, int top)
 	case OINDEX:
 		if(top != Erv)
 			goto nottop;
-dump("access start", n);
 		// mapaccess1(hmap *map[any]any, key any) (val any);
 
 		t = fixmap(n->left->type);
@@ -1415,7 +1422,6 @@ dump("access start", n);
 		r = nod(OCALL, on, r);
 		walktype(r, Erv);
 		r->type = t->type;
-dump("access finish", r);
 		break;
 
 		// mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
@@ -1515,7 +1521,6 @@ dump("access finish", r);
 		break;
 
 	}
-//dump("mapop return", r);
 	dynlineno = lno;
 	return r;
 
@@ -1544,7 +1549,7 @@ convas(Node *n)
 	Type *lt, *rt;
 
 	if(n->op != OAS)
-		fatal("convas: not as %O", n->op);
+		fatal("convas: not OAS %O", n->op);
 
 	ullmancalc(n);
 	l = n->left;
@@ -1629,6 +1634,121 @@ loop:
 		badtype(OARRAY, l->type, t->type);
 	l = listnext(&save);
 	goto loop;
+}
+
+Node*
+old2new(Node *n, Type *t)
+{
+	Node *l;
+
+	if(n->op != ONAME && n->op != ONONAME) {
+		yyerror("left side of := must be a name");
+		return n;
+	}
+	l = newname(n->sym);
+	dodclvar(l, t);
+	return l;
+}
+
+Node*
+colas(Node *nl, Node *nr)
+{
+	Iter savel, saver;
+	Node *l, *r, *a, *n;
+	Type *t;
+	int cl, cr;
+
+	/* nl is an expression list.
+	 * nr is an expression list.
+	 * return a newname-list from
+	 * the types from the rhs.
+	 */
+	n = N;
+	cr = listcount(nr);
+	cl = listcount(nl);
+	if(cl != cr) {
+		if(cr == 1)
+			goto multi;
+		goto badt;
+	}
+
+	l = listfirst(&savel, &nl);
+	r = listfirst(&saver, &nr);
+
+loop:
+	if(l == N)
+		return n;
+
+	walktype(r, Erv);
+	defaultlit(r);
+	a = old2new(l, r->type);
+	if(n == N)
+		n = a;
+	else
+		n = nod(OLIST, n, a);
+
+	l = listnext(&savel);
+	r = listnext(&saver);
+	goto loop;
+
+multi:
+	/*
+	 * there is a list on the left
+	 * and a mono on the right.
+	 * go into the right to get
+	 * individual types for the left.
+	 */
+	switch(nr->op) {
+	default:
+		goto badt;
+
+	case OCALLMETH:
+	case OCALLINTER:
+	case OCALL:
+		walktype(nr->left, Erv);
+		t = nr->left->type;
+		if(t == T || t->etype != TFUNC)
+			goto badt;
+		if(t->outtuple != cl)
+			goto badt;
+
+		l = listfirst(&savel, &nl);
+		t = structfirst(&saver, getoutarg(t));
+		while(l != N) {
+			a = old2new(l, t);
+			if(n == N)
+				n = a;
+			else
+				n = nod(OLIST, n, a);
+			l = listnext(&savel);
+			t = structnext(&saver);
+		}
+		break;
+
+	case OINDEX:
+	case OINDEXPTR:
+		// check if rhs is a map index.
+		// if so, types are bool,maptype
+		if(cl != 2)
+			goto badt;
+		walktype(nr->left, Elv);
+		t = nr->left->type;
+		if(t != T && isptr[t->etype])
+			t = t->type;
+		if(t == T || t->etype != TMAP)
+			goto badt;
+
+		a = old2new(nl->left, types[TBOOL]);
+		n = a;
+		a = old2new(nl->right, t->type);
+		n = nod(OLIST, n, a);
+		break;
+	}
+	return n;
+
+badt:
+	yyerror("shape error across :=");
+	return nl;
 }
 
 Node*

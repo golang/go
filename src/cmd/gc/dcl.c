@@ -489,6 +489,8 @@ dcopy(Sym *a, Sym *b)
 	a->lexical = b->lexical;
 	a->undef = b->undef;
 	a->vargen = b->vargen;
+	a->vblock = b->vblock;
+	a->tblock = b->tblock;
 }
 
 Sym*
@@ -533,6 +535,7 @@ popdcl(char *why)
 	if(strcmp(why, d->package) != 0)
 		fatal("popdcl: pushed as %s poped as %s", d->package, why);
 	dclstack = d->link;
+	block = d->vblock;
 }
 
 void
@@ -560,6 +563,10 @@ markdcl(char *why)
 	d = push();
 	d->name = nil;		// used as a mark in fifo
 	d->package = why;	// diagnostic for unmatched
+	d->vblock = block;
+
+	blockgen++;
+	block = blockgen;
 //	if(dflag())
 //		print("markdcl\n");
 }
@@ -628,25 +635,20 @@ addvar(Node *n, Type *t, int ctxt)
 
 	r = autodcl;
 	if(ctxt == PEXTERN) {
-		on = s->oname;
-		if(on != N) {
-			if(eqtype(t, on->type, 0)) {
-				warn("%S redeclared", s);
-				return;
-			}
-			yyerror("%S redeclared (%T %T)", s,
-				on->type, t);
-		}
 		r = externdcl;
 		gen = 0;
 	}
 
+	if(s->vblock == block)
+		yyerror("var %S redeclared in this block %d", s, block);
+		
 	if(ctxt != PEXTERN)
 		pushdcl(s);
 
 	s->vargen = gen;
 	s->oname = n;
 	s->offset = 0;
+	s->vblock = block;
 
 	n->type = t;
 	n->vargen = gen;
@@ -692,15 +694,12 @@ addtyp(Type *n, Type *t, int ctxt)
 				s->otype = t;
 				return;
 			}
-			if(eqtype(t, ot, 0)) {
-				warn("%S redeclared", s);
-				return;
-			}
-			yyerror("%S redeclared (%T %T)", s,
-				ot, t);
 		}
 		r = externdcl;
 	}
+
+	if(s->tblock == block)
+		yyerror("type %S redeclared in this block %d", s, block);
 
 	if(ctxt != PEXTERN)
 		pushdcl(s);
@@ -712,6 +711,7 @@ addtyp(Type *n, Type *t, int ctxt)
 	s->vargen = vargen;
 	s->otype = t;
 	s->lexical = LATYPE;
+	s->tblock = block;
 
 	t->sym = s;
 	t->vargen = vargen;
@@ -784,9 +784,11 @@ oldname(Sym *s)
 
 	n = s->oname;
 	if(n == N) {
-		yyerror("%S undefined", s);
-		n = newname(s);
-		dodclvar(n, types[TINT32]);
+		n = nod(ONONAME, N, N);
+		n->sym = s;
+		n->type = T;
+		n->addable = 1;
+		n->ullman = 0;
 	}
 	return n;
 }
