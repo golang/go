@@ -9,15 +9,15 @@ package main
 func
 main()
 {
-	s := vlong(0);
+	s1 := vlong(0);
 	for i:=short(0); i<10; i=i+1 {
-		s = s + vlong(i);
+		s1 = s1 + vlong(i);
 	}
-	if s != 45 { panic s; }
+	if s1 != 45 { panic s1; }
 
-	s := float(0);
+	s2 := float(0);
 	for i:=0; i<10; i=i+1 {
-		s = s + float(i);
+		s2 = s2 + float(i);
 	}
-	if s != 45 { panic s; }
+	if s2 != 45 { panic s2; }
 }

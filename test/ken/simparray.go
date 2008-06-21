@@ -17,33 +17,33 @@ main()
 		a[i] = float(i);
 	}
 
-	s := float(0);
+	s1 := float(0);
 	for i:=5; i<10; i=i+1 {
-		s = s + a[i];
+		s1 = s1 + a[i];
 	}
 
-	if s != 35 { panic s; }
+	if s1 != 35 { panic s1; }
 
 	for i:=short(5); i<10; i=i+1 {
 		b[i] = float(i);
 	}
 
-	s := float(0);
+	s2 := float(0);
 	for i:=5; i<10; i=i+1 {
-		s = s + b[i];
+		s2 = s2 + b[i];
 	}
 
-	if s != 35 { panic s; }
+	if s2 != 35 { panic s2; }
 
 	b := new([100]int);
 	for i:=0; i<100; i=i+1 {
 		b[i] = i;
 	}
 
-	s := 0;
+	s3 := 0;
 	for i:=0; i<100; i=i+1 {
-		s = s+b[i];
+		s3 = s3+b[i];
 	}
 
-	if s != 4950 { panic s; }
+	if s3 != 4950 { panic s3; }
 }

@@ -82,21 +82,21 @@ main()
 	}
 
 	/* create string with byte array */
-	var z [3]byte;
-	z[0] = 'a';
-	z[1] = 'b';
-	z[2] = 'c';
-	c = string(z);
+	var z1 [3]byte;
+	z1[0] = 'a';
+	z1[1] = 'b';
+	z1[2] = 'c';
+	c = string(z1);
 	if c != "abc" {
 		panic "create array ", c;
 	}
 
 	/* create string with byte array pointer */
-	z := new([3]byte);
-	z[0] = 'a';
-	z[1] = 'b';
-	z[2] = 'c';
-	c = string(z);
+	z2 := new([3]byte);
+	z2[0] = 'a';
+	z2[1] = 'b';
+	z2[2] = 'c';
+	c = string(z2);
 	if c != "abc" {
 		panic "create array pointer ", c;
 	}
