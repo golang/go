@@ -88,6 +88,12 @@ void	prints(int8*);
 void	mcpy(byte*, byte*, uint32);
 void*	mal(uint32);
 uint32	cmpstring(string, string);
+void	initsig(void);
+void	traceback(uint8 *pc, uint8 *sp);
+struct SigTab {
+	int32	catch;
+	int8	*name;
+};
 
 /*
  * low level go -called
@@ -98,6 +104,8 @@ void	sys_breakpoint(void);
 uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
 void	sys_memclr(byte*, uint32);
 void* sys_getcallerpc(void*);
+void	sys_sigaction(int64, void*, void*);
+void	sys_rt_sigaction(int64, void*, void*, uint64);
 
 /*
  * runtime go-called

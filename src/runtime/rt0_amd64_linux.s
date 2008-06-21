@@ -52,6 +52,25 @@ TEXT	sys_write(SB),1,$-8
 	CALL	notok(SB)
 	RET
 
+TEXT	sys_rt_sigaction(SB),1,$-8
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVQ	24(SP), DX
+	MOVQ	32(SP), CX
+	MOVL	CX, R10
+	MOVL	$13, AX			// syscall entry
+	SYSCALL
+	JCC	2(PC)
+	CALL	notok(SB)
+	RET
+
+TEXT sigtramp(SB),1,$24
+	MOVQ	DI,0(SP)
+	MOVQ	SI,8(SP)
+	MOVQ	DX,16(SP)
+	CALL	sighandler(SB)
+	RET
+
 TEXT	sys_breakpoint(SB),1,$-8
 	BYTE	$0xcc
 	RET
