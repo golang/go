@@ -29,8 +29,9 @@ typedef struct  sigaction {
 		void    (*sa_handler)(int32);
 		void    (*sa_sigaction)(int32, siginfo *, void *);
 	} u;		     /* signal handler */
+	uint8 sa_mask[128];		     /* signal mask to apply. 128? are they MORONS? */
 	int32     sa_flags;		     /* see signal options below */
-	uint8 sa_mask[2];		     /* signal mask to apply. BUG: 2 is a guess */
+	void (*sa_restorer) (void);	/* unused here; needed to return from trap? */
 } sigaction;
 
 void
@@ -62,12 +63,10 @@ initsig(void)
 {
 	int32 i;
 	a.u.sa_sigaction = (void*)sigtramp;
-	a.sa_flags = 1|2|4|0x10000000|0x20000000|0x40000000|0x80000000;
-	//a.sa_flags |= SA_SIGINFO;
-	a.sa_flags = ~0;	/* BUG: why is this needed? */
+	a.sa_flags |= 0x04;  /* SA_SIGINFO */
 	for(i=0; i<sizeof(a.sa_mask); i++)
 		a.sa_mask[i] = 0xFF;
-	//a.sa_mask[1] = (1 << (11-1));
+
 	for(i = 0; i <NSIG; i++)
 		if(sigtab[i].catch){
 			sys_rt_sigaction(i, &a, (void*)0, 8);
