@@ -27,7 +27,7 @@ walktype(Node *n, int top)
 	Type *t;
 	Sym *s;
 	long lno;
-	int et;
+	int et, cl, cr;
 
 	/*
 	 * walk the whole tree of the body of a function.
@@ -229,29 +229,47 @@ loop:
 
 		l = n->left;
 		r = n->right;
-		if(l == N)
-			goto ret;
 
 		walktype(l, Elv);
-		walktype(r, Erv);
-		if(l == N || l->type == T)
+		if(l == N || r == N)
 			goto ret;
 
-		convlit(r, l->type);
-		if(r == N || r->type == T)
-			goto ret;
+		cl = listcount(l);
+		cr = listcount(r);
 
-		if(r->op == OCALL && l->op == OLIST) {
+		if(cl == cr) {
+			walktype(r, Erv);
+			l = ascompatee(n->op, &n->left, &n->right);
+			if(l != N)
+				*n = *reorder3(l);
+			goto ret;
+		}
+
+		if(cr != 1) {
+			yyerror("bad shape across assignment");
+			goto ret;
+		}
+
+		switch(r->op) {
+		case OCALLMETH:
+		case OCALLINTER:
+		case OCALL:
+			walktype(r, Erv);
 			l = ascompatet(n->op, &n->left, &r->type, 0);
 			if(l != N) {
 				*n = *nod(OLIST, r, reorder2(l));
 			}
-			goto ret;
-		}
+			break;
 
-		l = ascompatee(n->op, &n->left, &n->right);
-		if(l != N)
-			*n = *reorder3(l);
+		case OINDEX:
+		case OINDEXPTR:
+			if(!isptrto(r->left->type, TMAP))
+				goto badt;
+			if(cl != 2)
+				goto badt;
+			*n = *mapop(n, top);
+			break;
+		}
 		goto ret;
 
 	case OBREAK:
@@ -1412,40 +1430,6 @@ mapop(Node *n, int top)
 		a = n->left;				// map
 		r = nod(OLIST, a, r);
 
-		on = syslook("mapaccess1", 1);
-
-		argtype(on, t->down);	// any-1
-		argtype(on, t->type);	// any-2
-		argtype(on, t->down);	// any-3
-		argtype(on, t->type);	// any-4
-
-		r = nod(OCALL, on, r);
-		walktype(r, Erv);
-		r->type = t->type;
-		break;
-
-		// mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
-
-		t = fixmap(n->left->type);
-		if(t == T)
-			break;
-
-		convlit(n->right, t->down);
-
-		if(!eqtype(n->right->type, t->down, 0)) {
-			badtype(n->op, n->right->type, t->down);
-			break;
-		}
-
-		a = n->right;				// key
-		if(!isptr[t->down->etype]) {
-			a = nod(OADDR, a, N);
-			a->type = ptrto(t);
-		}
-		r = a;
-		a = n->left;				// map
-		r = nod(OLIST, a, r);
-
 		on = syslook("mapaccess2", 1);
 
 		argtype(on, t->down);	// any-1
@@ -1458,9 +1442,36 @@ mapop(Node *n, int top)
 		r->type = t->type;
 		break;
 
+	access2:
+		// mapaccess2(hmap *map[any-1]any-2, key any-3) (val-4 any, pres bool);
+
+		t = fixmap(n->right->left->type);
+		if(t == T)
+			break;
+
+		a = n->right->right;			// key
+		r = a;
+		a = n->right->left;			// map
+		r = nod(OLIST, a, r);
+
+		on = syslook("mapaccess2", 1);
+
+		argtype(on, t->down);	// any-1
+		argtype(on, t->type);	// any-2
+		argtype(on, t->down);	// any-3
+		argtype(on, t->type);	// any-4
+
+		n->right = nod(OCALL, on, r);
+		walktype(n, Etop);
+		r = n;
+		break;
+
 	case OAS:
-		if(top != Elv)
+		if(top != Elv) {
+			if(top == Etop)
+				goto access2;
 			goto nottop;
+		}
 		if(n->left->op != OINDEX)
 			fatal("mapos: AS left not OINDEX");
 
@@ -1661,7 +1672,7 @@ colas(Node *nl, Node *nr)
 	/* nl is an expression list.
 	 * nr is an expression list.
 	 * return a newname-list from
-	 * the types from the rhs.
+	 * types derived from the rhs.
 	 */
 	n = N;
 	cr = listcount(nr);
@@ -1675,21 +1686,19 @@ colas(Node *nl, Node *nr)
 	l = listfirst(&savel, &nl);
 	r = listfirst(&saver, &nr);
 
-loop:
-	if(l == N)
-		return n;
+	while(l != N) {
+		walktype(r, Erv);
+		defaultlit(r);
+		a = old2new(l, r->type);
+		if(n == N)
+			n = a;
+		else
+			n = nod(OLIST, n, a);
 
-	walktype(r, Erv);
-	defaultlit(r);
-	a = old2new(l, r->type);
-	if(n == N)
-		n = a;
-	else
-		n = nod(OLIST, n, a);
-
-	l = listnext(&savel);
-	r = listnext(&saver);
-	goto loop;
+		l = listnext(&savel);
+		r = listnext(&saver);
+	}
+	return n;
 
 multi:
 	/*
@@ -1738,9 +1747,9 @@ multi:
 		if(t == T || t->etype != TMAP)
 			goto badt;
 
-		a = old2new(nl->left, types[TBOOL]);
+		a = old2new(nl->left, t->type);
 		n = a;
-		a = old2new(nl->right, t->type);
+		a = old2new(nl->right, types[TBOOL]);
 		n = nod(OLIST, n, a);
 		break;
 	}
