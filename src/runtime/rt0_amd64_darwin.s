@@ -24,6 +24,11 @@ loop:
 
 done:
 	ADDQ	$8, CX
+	SUBQ	$16, SP
+	MOVL	DI, 0(SP)
+	MOVQ	SI, 8(SP)
+	CALL	args(SB)
+	ADDQ	$16, SP
 	CALL	check(SB)
 	CALL	main_main(SB)
 	CALL	sys_exit(SB)
