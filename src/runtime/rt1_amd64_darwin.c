@@ -39,6 +39,7 @@ typedef struct  sigaction {
 void
 sighandler(int32 sig, siginfo* info, void** context) {
 	int32 i;
+	void *pc, *sp;
 
 	if(sig < 0 || sig >= NSIG){
 		prints("Signal ");
@@ -46,14 +47,18 @@ sighandler(int32 sig, siginfo* info, void** context) {
 	}else{
 		prints(sigtab[sig].name);
 	}
+
 	prints("\nFaulting address: 0x");
 	sys_printpointer(info->si_addr);
 	prints("\nPC: 0x");
-	sys_printpointer(((void**)((&sig)+1))[22]);
+	pc = ((void**)((&sig)+1))[22];
+	sys_printpointer(pc);
 	prints("\nSP: 0x");
-	sys_printpointer(((void**)((&sig)+1))[13]);
+	sp = ((void**)((&sig)+1))[13];
+	sys_printpointer(sp);
 	prints("\n");
-	traceback(((void**)((&sig)+1))[22], ((void**)((&sig)+1))[13]);	/* empirically discovered locations */
+	if (pc != 0 && sp != 0)
+		traceback(pc, sp);	/* empirically discovered locations */
 	sys_exit(2);
 }
 
