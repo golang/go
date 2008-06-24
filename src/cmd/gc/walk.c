@@ -76,7 +76,6 @@ loop:
 		if(top != Erv)
 			goto nottop;
 		n->addable = 1;
-		ullmancalc(n);
 		goto ret;
 
 	case ONONAME:
@@ -94,7 +93,6 @@ loop:
 		if(top == Etop)
 			goto nottop;
 		n->addable = 1;
-		ullmancalc(n);
 		if(n->type == T) {
 			s = n->sym;
 			if(s->undef == 0) {
@@ -163,14 +161,12 @@ loop:
 		if(top == Elv)
 			goto nottop;
 
-		n->ullman = UINF;
 		if(n->type != T)
 			goto ret;
 
 		walktype(n->left, Erv);
 		if(n->left == N)
 			goto ret;
-
 		t = n->left->type;
 		if(t == T)
 			goto ret;
@@ -210,14 +206,12 @@ loop:
 			break;
 
 		case OCALLMETH:
-			// add this-pointer to the arg list
-			// this is bad - if not a simple
-			// should make a temp copy rather
-			// than recalculate it.
 			l = ascompatte(n->op, getinarg(t), &n->right, 0);
 			r = ascompatte(n->op, getthis(t), &n->left->left, 0);
 			if(l != N)
 				r = nod(OLIST, r, l);
+			n->left->left = N;
+			ullmancalc(n->left);
 			n->right = reorder1(r);
 			break;
 		}
@@ -442,7 +436,6 @@ loop:
 		if(n->left == N)
 			goto ret;
 		evconst(n);
-		ullmancalc(n);
 		if(n->op == OLITERAL)
 			goto ret;
 		break;

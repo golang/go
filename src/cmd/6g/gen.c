@@ -658,7 +658,7 @@ cgen_callret(Node *n, Node *res)
 
 	fp = structfirst(&flist, getoutarg(t));
 	if(fp == T)
-		fatal("cgen_aret: nil");
+		fatal("cgen_callret: nil");
 
 	memset(&nod, 0, sizeof(nod));
 	nod.op = OINDREG;
@@ -677,16 +677,14 @@ cgen_aret(Node *n, Node *res)
 	Type *fp, *t;
 	Iter flist;
 
-fatal("cgen_aret");
-
 	t = n->left->type;
-	if(t->etype == TPTR32 || t->etype == TPTR64)
+	if(isptr[t->etype])
 		t = t->type;
 
 	fp = structfirst(&flist, getoutarg(t));
 	if(fp == T)
 		fatal("cgen_aret: nil");
-/* gins LEA */
+
 	memset(&nod1, 0, sizeof(nod1));
 	nod1.op = OINDREG;
 	nod1.val.vval = D_SP;
