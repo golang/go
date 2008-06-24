@@ -64,7 +64,7 @@ TEXT	sys_sigaction(SB),1,$-8
 	CALL	notok(SB)
 	RET
 
-TEXT sigtramp(SB),1,$-24
+TEXT sigtramp(SB),1,$24
 	MOVL	DX,0(SP)
 	MOVQ	CX,8(SP)
 	MOVQ	R8,16(SP)
