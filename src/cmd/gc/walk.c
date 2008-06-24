@@ -239,31 +239,53 @@ loop:
 			goto ret;
 		}
 
-		if(cr != 1) {
-			yyerror("bad shape across assignment");
-			goto ret;
-		}
-
 		switch(r->op) {
 		case OCALLMETH:
 		case OCALLINTER:
 		case OCALL:
-			walktype(r, Erv);
-			l = ascompatet(n->op, &n->left, &r->type, 0);
-			if(l != N) {
-				*n = *nod(OLIST, r, reorder2(l));
+			if(cr == 1) {
+				// a,b,... = fn()
+				walktype(r, Erv);
+				l = ascompatet(n->op, &n->left, &r->type, 0);
+				if(l != N) {
+					*n = *nod(OLIST, r, reorder2(l));
+				}
+				goto ret;
 			}
 			break;
 
 		case OINDEX:
 		case OINDEXPTR:
-			if(!isptrto(r->left->type, TMAP))
-				goto badt;
-			if(cl != 2)
-				goto badt;
-			*n = *mapop(n, top);
+			if(cl == 2 && cr == 1) {
+				// a,b = map[] - mapaccess2
+				if(!isptrto(r->left->type, TMAP))
+					break;
+				l = mapop(n, top);
+				if(l == N)
+					break;
+				*n = *l;
+				goto ret;
+			}
 			break;
 		}
+
+		switch(l->op) {
+		case OINDEX:
+		case OINDEXPTR:
+			if(cl == 1 && cr == 2) {
+				// map[] = a,b - mapassign2
+				if(!isptrto(l->left->type, TMAP))
+					break;
+				l = mapop(n, top);
+				if(l == N)
+					break;
+				*n = *l;
+				goto ret;
+			}
+			break;
+		}
+
+		yyerror("bad shape across assignment - cr=%d cl=%d\n", cr, cl);
 		goto ret;
 
 	case OBREAK:
@@ -454,6 +476,8 @@ loop:
 		default:
 			goto badt;
 		case TSTRING:
+			break;
+		case TMAP:
 			break;
 		}
 		n->type = types[TINT32];
@@ -1348,7 +1372,7 @@ mapop(Node *n, int top)
 	Node *r, *a;
 	Type *t;
 	Node *on;
-	int alg1, alg2;
+	int alg1, alg2, cl, cr;
 
 	lno = dynlineno;
 	dynlineno = n->lineno;
@@ -1433,40 +1457,22 @@ mapop(Node *n, int top)
 		r->type = t->type;
 		break;
 
-	access2:
-		// mapaccess2(hmap *map[any-1]any-2, key any-3) (val-4 any, pres bool);
-
-		t = fixmap(n->right->left->type);
-		if(t == T)
-			break;
-
-		a = n->right->right;			// key
-		r = a;
-		a = n->right->left;			// map
-		r = nod(OLIST, a, r);
-
-		on = syslook("mapaccess2", 1);
-
-		argtype(on, t->down);	// any-1
-		argtype(on, t->type);	// any-2
-		argtype(on, t->down);	// any-3
-		argtype(on, t->type);	// any-4
-
-		n->right = nod(OCALL, on, r);
-		walktype(n, Etop);
-		r = n;
-		break;
-
 	case OAS:
-		if(top != Elv) {
-			if(top == Etop)
-				goto access2;
-			goto nottop;
-		}
-		if(n->left->op != OINDEX)
-			fatal("mapos: AS left not OINDEX");
+		cl = listcount(n->left);
+		cr = listcount(n->right);
+
+		if(cl == 1 && cr == 2)
+			goto assign2;
+		if(cl == 2 && cr == 1)
+			goto access2;
+		if(cl != 1 || cr != 1)
+			goto shape;
 
 		// mapassign1(hmap *map[any-1]any-2, key any-3, val any-4);
+
+//dump("assign1", n);
+		if(n->left->op != OINDEX)
+			goto shape;
 
 		t = fixmap(n->left->left->type);
 		if(t == T)
@@ -1490,21 +1496,20 @@ mapop(Node *n, int top)
 		walktype(r, Erv);
 		break;
 
-/* BOTCH get 2nd version attached */
-		if(top != Elv)
-			goto nottop;
-		if(n->left->op != OINDEX)
-			fatal("mapos: AS left not OINDEX");
-
+	assign2:
 		// mapassign2(hmap *map[any]any, key any, val any, pres bool);
+
+//dump("assign2", n);
+		if(n->left->op != OINDEX)
+			goto shape;
 
 		t = fixmap(n->left->left->type);
 		if(t == T)
 			break;
 
-		a = n->right;				// pres
+		a = n->right->right;			// pres
 		r = a;
-		a = n->right;				// val
+		a = n->right->left;			// val
 		r =nod(OLIST, a, r);
 		a = n->left->right;			// key
 		r = nod(OLIST, a, r);
@@ -1522,9 +1527,42 @@ mapop(Node *n, int top)
 		walktype(r, Erv);
 		break;
 
+	access2:
+		// mapaccess2(hmap *map[any-1]any-2, key any-3) (val-4 any, pres bool);
+
+//dump("access2", n);
+		if(n->right->op != OINDEX)
+			goto shape;
+
+		t = fixmap(n->right->left->type);
+		if(t == T)
+			break;
+
+		a = n->right->right;			// key
+		r = a;
+		a = n->right->left;			// map
+		r = nod(OLIST, a, r);
+
+		on = syslook("mapaccess2", 1);
+
+		argtype(on, t->down);	// any-1
+		argtype(on, t->type);	// any-2
+		argtype(on, t->down);	// any-3
+		argtype(on, t->type);	// any-4
+
+		n->right = nod(OCALL, on, r);
+		walktype(n, Etop);
+		r = n;
+		break;
+
 	}
 	dynlineno = lno;
 	return r;
+
+shape:
+	dump("shape", n);
+	fatal("mapop: cl=%d cr=%d, %O", top, n->op);
+	return N;
 
 nottop:
 	dump("bad top", n);

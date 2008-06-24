@@ -155,6 +155,15 @@ cgen(Node *n, Node *res)
 			regfree(&n1);
 			break;
 		}
+		if(isptrto(nl->type, TMAP)) {
+			regalloc(&n1, types[tptr], res);
+			cgen(nl, &n1);
+			n1.op = OINDREG;
+			n1.type = types[TINT32];
+			gmove(&n1, res);
+			regfree(&n1);
+			break;
+		}
 		fatal("cgen: OLEN: unknown type %lT", nl->type);
 		break;
 

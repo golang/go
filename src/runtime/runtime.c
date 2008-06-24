@@ -6,6 +6,9 @@
 
 int32	debug	= 0;
 
+static	int32	empty		= 0;
+static	string	emptystring	= (string)&empty;
+
 void
 sys_printbool(bool v)
 {
@@ -73,11 +76,12 @@ sys_printpointer(void *p)
 void
 sys_printstring(string v)
 {
-	sys_write(1, v->str, v->len);
+	if(v != nil)
+		sys_write(1, v->str, v->len);
 }
 
 int32
-strlen(int8 *s)
+findnull(int8 *s)
 {
 	int32 l;
 
@@ -89,7 +93,7 @@ strlen(int8 *s)
 void
 prints(int8 *s)
 {
-	sys_write(1, s, strlen(s));
+	sys_write(1, s, findnull(s));
 }
 
 void
@@ -220,6 +224,11 @@ cmpstring(string s1, string s2)
 	uint32 i, l;
 	byte c1, c2;
 
+	if(s1 == nil)
+		s1 = emptystring;
+	if(s2 == nil)
+		s2 = emptystring;
+
 	l = s1->len;
 	if(s2->len < l)
 		l = s2->len;
@@ -250,11 +259,11 @@ sys_catstring(string s1, string s2, string s3)
 {
 	uint32 l;
 
-	if(s1->len == 0) {
+	if(s1 == nil || s1->len == 0) {
 		s3 = s2;
 		goto out;
 	}
-	if(s2->len == 0) {
+	if(s2 == nil || s2->len == 0) {
 		s3 = s1;
 		goto out;
 	}
@@ -317,6 +326,9 @@ sys_slicestring(string si, int32 lindex, int32 hindex, string so)
 	string s, str;
 	int32 l;
 
+	if(si == nil)
+		si = emptystring;
+
 	if(lindex < 0 || lindex > si->len ||
 	   hindex < lindex || hindex > si->len) {
 		sys_printpc(&si);
@@ -334,6 +346,9 @@ sys_slicestring(string si, int32 lindex, int32 hindex, string so)
 void
 sys_indexstring(string s, int32 i, byte b)
 {
+	if(s == nil)
+		s = emptystring;
+
 	if(i < 0 || i >= s->len) {
 		sys_printpc(&s);
 		prints(" ");
@@ -785,6 +800,7 @@ struct	Link
 
 struct	Hmap
 {
+	uint32	len;		// must be first
 	uint32	keysize;
 	uint32	valsize;
 	uint32	hint;
@@ -881,7 +897,7 @@ static void
 stringcopy(uint32 s, string *a, string *b)
 {
 	if(b == nil) {
-		*b = nil;
+		*a = nil;
 		return;
 	}
 	*a = *b;
@@ -932,6 +948,7 @@ sys_newmap(uint32 keysize, uint32 valsize,
 
 	m = mal(sizeof(*m));
 
+	m->len = 0;
 	m->keysize = keysize;
 	m->valsize = valsize;
 	m->keyalg = &algarray[keyalg];
@@ -1053,6 +1070,7 @@ sys_mapassign(Hmap *m, byte *ak, byte *av)
 	l->link = m->link;
 	m->link = l;
 	m->keyalg->copy(m->keysize, l->data, ak);
+	m->len++;
 
 out:
 	m->valalg->copy(m->valsize, l->data+m->valoffset, av);
@@ -1088,7 +1106,6 @@ sys_mapassign2(Hmap *m, ...)
 	Link **ll;
 	byte *ak, *av, *ap;
 
-
 	ak = (byte*)&m + m->ko;
 	av = (byte*)&m + m->vo;
 	ap = (byte*)&m + m->po;
@@ -1104,6 +1121,7 @@ sys_mapassign2(Hmap *m, ...)
 		if(m->keyalg->equal(m->keysize, ak, (*ll)->data)) {
 			m->valalg->copy(m->valsize, (*ll)->data+m->valoffset, nil);
 			(*ll) = (*ll)->link;
+			m->len--;
 			if(debug) {
 				prints("mapdelete (found): map=");
 				sys_printpointer(m);

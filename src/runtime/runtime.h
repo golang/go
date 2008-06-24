@@ -103,7 +103,7 @@ void	sys_write(int32, void*, int32);
 void	sys_breakpoint(void);
 uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
 void	sys_memclr(byte*, uint32);
-void* sys_getcallerpc(void*);
+void*	sys_getcallerpc(void*);
 void	sys_sigaction(int64, void*, void*);
 void	sys_rt_sigaction(int64, void*, void*, uint64);
 
