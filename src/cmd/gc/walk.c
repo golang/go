@@ -864,9 +864,6 @@ walkdot(Node *n, int top)
 	Type *t, *f;
 	int i;
 
-if(debug['T'])
-print("%L walkdot %O %d\n", n->op, top);
-
 	if(n->left == N || n->right == N)
 		return;
 
@@ -1415,15 +1412,16 @@ mapop(Node *n, int top)
 		}
 
 		a = n->right;				// key
-		if(!isptr[t->down->etype]) {
-			a = nod(OADDR, a, N);
-			a->type = ptrto(t);
-		}
+//		if(!isptr[t->down->etype]) {
+//			a = nod(OADDR, a, N);
+//			a->type = ptrto(t);
+//		}
+
 		r = a;
 		a = n->left;				// map
 		r = nod(OLIST, a, r);
 
-		on = syslook("mapaccess2", 1);
+		on = syslook("mapaccess1", 1);
 
 		argtype(on, t->down);	// any-1
 		argtype(on, t->type);	// any-2

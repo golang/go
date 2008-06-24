@@ -990,7 +990,7 @@ sys_mapaccess1(Hmap *m, ...)
 	m->valalg->copy(m->valsize, av, 0);
 
 out:
-	if(1) {
+	if(debug) {
 		prints("sys_mapaccess1: map=");
 		sys_printpointer(m);
 		prints("; key=");
