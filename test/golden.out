@@ -130,18 +130,12 @@ zero
 BUG: known to fail incorrectly
 
 =========== bugs/bug010.go
-bugs/bug010.go:7: i undefined
+bugs/bug010.go:7: i: undefined
 bugs/bug010.go:8: illegal conversion of constant to 002({},{}){}
+bugs/bug010.go:8: illegal types for operand: AS
+	(002({},{}){<i><int32>INT32;<f><float32>FLOAT32;})
 bugs/bug010.go:9: error in shape across assignment
 BUG: known to fail incorrectly
-
-=========== bugs/bug014.go
-bugs/bug014.go:6: non-oct character in escape sequence: '
-bugs/bug014.go:6: non-oct character in escape sequence: '
-bugs/bug014.go:7: non-oct character in escape sequence: '
-bugs/bug014.go:8: non-hex character in escape sequence: '
-bugs/bug014.go:9: non-hex character in escape sequence: '
-BUG: errors caught but exit code should be non-zero
 
 =========== bugs/bug015.go
 BUG: known to succeed incorrectly
@@ -149,6 +143,8 @@ BUG: known to succeed incorrectly
 =========== bugs/bug022.go
 bugs/bug022.go:8: illegal types for operand: INDEXPTR
 	(*<string>*STRING)
+bugs/bug022.go:8: illegal types for operand: AS
+	(<uint8>UINT8)
 BUG: known to fail incorrectly
 
 =========== bugs/bug023.go
@@ -159,7 +155,7 @@ bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
 BUG: known to fail incorrectly or at least with a bad message
 
 =========== bugs/bug026.go
-check: main_sigs_I: not defined
+traceback: main_sigs_I: not defined
 BUG: known to fail incorrectly
 
 =========== bugs/bug027.go
@@ -174,9 +170,6 @@ BUG: known to fail incorrectly
 =========== bugs/bug029.go
 BUG: known to succeed incorrectly
 
-=========== bugs/bug030.go
-BUG: known to succeed incorrectly
-
 =========== bugs/bug032.go
 BUG: compilation succeeds incorrectly
 
@@ -189,19 +182,10 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug035.go
 BUG: compilation succeeds incorrectly
 
-=========== bugs/bug036.go
-BUG: compilation succeeds incorrectly
-
 =========== bugs/bug037.go
 BUG: compilation succeeds incorrectly
 
-=========== bugs/bug038.go
-BUG: compilation succeeds incorrectly
-
 =========== bugs/bug039.go
-BUG: compilation succeeds incorrectly
-
-=========== bugs/bug040.go
 BUG: compilation succeeds incorrectly
 
 =========== bugs/bug041.go
@@ -270,7 +254,7 @@ bugs/bug053.go:6: syntax error
 BUG: len should not be a keyword
 
 =========== bugs/bug054.go
-bugs/bug054.go:22: fatal error: agen: unknown op CALLMETH u(1) l(165) <Element>I{}
+bugs/bug054.go:22: fatal error: cgen_aret
 BUG: known to fail incorrectly
 
 =========== bugs/bug055.go
@@ -301,6 +285,8 @@ BUG: known to fail incorrectly
 
 =========== fixedbugs/bug013.go
 
+=========== fixedbugs/bug014.go
+
 =========== fixedbugs/bug016.go
 
 =========== fixedbugs/bug017.go
@@ -313,6 +299,14 @@ BUG: known to fail incorrectly
 
 =========== fixedbugs/bug028.go
 
+=========== fixedbugs/bug030.go
+
 =========== fixedbugs/bug031.go
+
+=========== fixedbugs/bug036.go
+
+=========== fixedbugs/bug038.go
+
+=========== fixedbugs/bug040.go
 
 =========== fixedbugs/bug045.go
