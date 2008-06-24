@@ -11,7 +11,7 @@ package fmt
 	f.ud(^0).putnl();  // print string with automatic newline
 */
 
-import sys "sys"
+// import sys "sys"
 
 export Fmt, New;
 
@@ -142,6 +142,17 @@ func putint(buf *[64]byte, i int, base, val uint64, digits *string) int {
 	}
 	buf[i] = (*digits)[val];  // BUG: shouldn't need indirect
 	return i-1;
+}
+
+// boolean
+func (f *Fmt) boolean(a bool) *Fmt {
+	if a {
+		f.pad("true");
+	} else {
+		f.pad("false");
+	}
+	f.clearflags();
+	return f;
 }
 
 // integer; interprets prec but not wid.
