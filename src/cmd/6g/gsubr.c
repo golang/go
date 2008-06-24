@@ -1687,8 +1687,11 @@ stringpool(Node *n)
 	Pool *p;
 	int w;
 
-	if(n->op != OLITERAL || n->val.ctype != CTSTR)
-		fatal("stringpool: not string");
+	if(n->op != OLITERAL || n->val.ctype != CTSTR) {
+		if(n->val.ctype == CTNIL)
+			return;
+		fatal("stringpool: not string %N", n);
+	}
 
 	p = mal(sizeof(*p));
 

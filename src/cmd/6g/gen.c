@@ -825,11 +825,6 @@ cgen_as(Node *nl, Node *nr, int op)
 
 		case TPTR32:
 		case TPTR64:
-			if(isptrto(nl->type, TSTRING)) {
-				nr->val.ctype = CTSTR;
-				nr->val.sval = &emptystring;
-				break;
-			}
 			nr->val.ctype = CTNIL;
 			nr->val.vval = 0;
 			break;
