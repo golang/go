@@ -19,19 +19,22 @@ cgen(Node *n, Node *res)
 	}
 	if(n == N || n->type == T)
 		return;
+
+	lno = dynlineno;
+	if(n->op != ONAME)
+		dynlineno = n->lineno;	// for diagnostics
+
 	if(res == N || res->type == T)
 		fatal("cgen: res nil");
 
 	if(n->ullman >= UINF) {
 		if(n->op == OINDREG)
 			fatal("cgen: this is going to misscompile");
-		if(res->ullman >= UINF)
-			fatal("cgen: fun both sides");
+		if(res->ullman >= UINF) {
+			dump("fncalls", n);
+			fatal("cgen: node and result functions");
+		}
 	}
-
-	lno = dynlineno;
-	if(n->op != ONAME)
-		dynlineno = n->lineno;	// for diagnostics
 
 	if(isfat(n->type)) {
 		sgen(n, res, n->type->width);
@@ -62,6 +65,7 @@ cgen(Node *n, Node *res)
 	nr = n->right;
 	if(nl != N && nl->ullman >= UINF)
 	if(nr != N && nr->ullman >= UINF) {
+		dump("fncalls", n);
 		fatal("cgen: both sides functions");
 		goto ret;
 	}

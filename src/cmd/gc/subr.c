@@ -1516,6 +1516,8 @@ ullmancalc(Node *n)
 	case OI2S:
 	case OI2I:
 	case OCALL:
+	case OCALLMETH:
+	case OCALLINTER:
 		ul = UINF;
 		goto out;
 	}
