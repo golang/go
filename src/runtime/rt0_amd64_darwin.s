@@ -30,7 +30,7 @@ done:
 	CALL	args(SB)
 	ADDQ	$16, SP
 	CALL	check(SB)
-	CALL	main_main(SB)
+	CALL	main·main(SB)
 	CALL	sys·exit(SB)
 	CALL	notok(SB)
 	POPQ	AX
