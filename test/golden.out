@@ -13,6 +13,19 @@
 BUG: known to succeed incorrectly
 
 =========== ./hashmap.go
+fncalls
+.   MOD u(101) l(234) <uint32>UINT32
+.   .   CALLINTER u(100) l(234) <uint32>UINT32
+.   .   .   DOTINTER u(1) l(234) 101({},{}){}
+.   .   .   .   NAME-key G253 a(1) g(253) l(231) *<KeyType>I{}
+.   .   .   .   NAME-Hash G0 a(1) l(182)
+.   .   CALLMETH u(100) l(234) <uint32>UINT32
+.   .   .   DOTMETH u(1) l(234) 101({},{}){}
+.   .   .   .   NAME-HashMap_capacity G0 a(1) l(208) 101({},{}){}
+.   .   .   AS u(1) l(234)
+.   .   .   .   INDREG a(1) l(234) m G252 *<HashMap>{}
+.   .   .   .   NAME-m G252 a(1) g(252) l(231) *<HashMap>{}
+hashmap.go:71: fatal error: cgen: both sides functions
 
 =========== ./helloworld.go
 hello, world
@@ -32,7 +45,7 @@ hello, world
 =========== ./nil.go
 
 =========== ./sieve.go
-sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(151)
+sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(171)
 BUG: known to fail incorrectly
 
 =========== ./string_lit.go
@@ -157,7 +170,7 @@ bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
 BUG: known to fail incorrectly or at least with a bad message
 
 =========== bugs/bug026.go
-traceback: main_sigs_I: not defined
+traceback: main·sigs_I: not defined
 BUG: known to fail incorrectly
 
 =========== bugs/bug027.go
@@ -256,7 +269,18 @@ bugs/bug053.go:6: syntax error
 BUG: len should not be a keyword
 
 =========== bugs/bug054.go
-bugs/bug054.go:22: fatal error: cgen_aret
+xxx
+.   CALL u(100) l(188) <Element>I{}
+.   .   NAME-Vector_At G0 a(1) l(175) 111({},{}){}
+.   .   AS u(1) l(188)
+.   .   .   INDREG a(1) l(188) v G0 *<Vector>{}
+.   .   .   DOTPTR u(1) l(188) *<Vector>{}
+.   .   .   .   NAME-s G224 a(1) g(224) l(184) *<TStruct>{}
+.   .   .   .   NAME-fields G0 a(1) l(181)
+.   .   AS u(1) l(188)
+.   .   .   INDREG a(1) l(188) i G225 <int32>INT32
+.   .   .   NAME-i G225 a(1) g(225) l(184) <int32>INT32
+bugs/bug054.go:25: fatal error: agen_inter i2s
 BUG: known to fail incorrectly
 
 =========== bugs/bug055.go

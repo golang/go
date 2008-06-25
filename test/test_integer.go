@@ -22,9 +22,9 @@ var (
 )
 
 
-func CHECK(p bool) {
+func CHECK(msg string, p bool) {
   if !p {
-    panic "CHECK failed\n";
+    panic "CHECK failed: ", msg, "\n";
   }
 }
 
@@ -43,16 +43,16 @@ func Init() {
   a_c = Integer.FromString("93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000991");
 }
 
+func N991() string { return "991" }
 
 func TestConv() {
   print "TestConv\n";
-  CHECK(a.eql(Integer.FromInt(991)));
-  CHECK(b.eql(Integer.Fact(20)));
-  CHECK(c.eql(Integer.Fact(100)));
-  
-  CHECK(a.ToString() == sa);
-  CHECK(b.ToString() == sb);
-  CHECK(c.ToString() == sc);
+  CHECK("TC1", a.eql(Integer.FromInt(991)));
+  CHECK("TC2", b.eql(Integer.Fact(20)));
+  CHECK("TC3", c.eql(Integer.Fact(100)));
+  CHECK("TC4", a.ToString() == sa);
+  CHECK("TC5", b.ToString() == sb);
+  CHECK("TC6", c.ToString() == sc);
   
   // also tested much via TestFact
 }
@@ -60,18 +60,18 @@ func TestConv() {
 
 func TestAdd() {
   print "TestAdd\n";
-  CHECK(z.add(z).eql(z));
-  CHECK(a.add(z).eql(a));
-  CHECK(z.add(a).eql(a));
+  CHECK("TA1", z.add(z).eql(z));
+  CHECK("TA2", a.add(z).eql(a));
+  CHECK("TA3", z.add(a).eql(a));
 
-  CHECK(c.add(z).eql(c));
-  CHECK(z.add(c).eql(c));
+  CHECK("TA4", c.add(z).eql(c));
+  CHECK("TA5", z.add(c).eql(c));
 
-  CHECK(m.add(p).eql(z));
+  CHECK("TA6", m.add(p).eql(z));
   
-  CHECK(a.add(a).eql(a_a));
-  CHECK(a.add(b).eql(a_b));
-  CHECK(a.add(c).eql(a_c));
+  CHECK("TA7", a.add(a).eql(a_a));
+  CHECK("TA8", a.add(b).eql(a_b));
+  CHECK("TA9", a.add(c).eql(a_c));
   
   // needs more
 }
@@ -79,16 +79,16 @@ func TestAdd() {
 
 func TestSub() {
   print "TestSub\n";
-  CHECK(z.sub(z).eql(z));
-  CHECK(a.sub(z).eql(a));
-  CHECK(z.sub(a).eql(a.neg()));
+  CHECK("TS1", z.sub(z).eql(z));
+  CHECK("TS2", a.sub(z).eql(a));
+  CHECK("TS3", z.sub(a).eql(a.neg()));
 
-  CHECK(c.sub(z).eql(c));
-  CHECK(z.sub(c).eql(c.neg()));
+  CHECK("TS4", c.sub(z).eql(c));
+  CHECK("TS5", z.sub(c).eql(c.neg()));
   
-  CHECK(p.sub(m).eql(p.add(p)));
+  CHECK("TS6", p.sub(m).eql(p.add(p)));
 
-  CHECK(a.sub(a).eql(z));
+  CHECK("TS7", a.sub(a).eql(z));
   
   // needs more
 }
@@ -116,7 +116,7 @@ func TestFact() {
   print "TestFact\n";
   for n := 990; n < 1010; n++ {
     f := Integer.Fact(n);
-    CHECK(Integer.FromString(f.ToString()).eql(f));
+    CHECK("TF", Integer.FromString(f.ToString()).eql(f));
   }
 }
 
