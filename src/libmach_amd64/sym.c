@@ -1189,7 +1189,7 @@ symcomp(const void *a, const void *b)
 	i = (*(Sym**)a)->value - (*(Sym**)b)->value;
 	if (i)
 		return i;
-	return cdotstrcmp((*(Sym**)a)->name, (*(Sym**)b)->name);
+	return strcmp((*(Sym**)a)->name, (*(Sym**)b)->name);
 }
 
 /*
