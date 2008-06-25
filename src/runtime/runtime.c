@@ -750,6 +750,82 @@ sys·modf(float64 din, float64 dou1, float64 dou2)
 	FLUSH(&dou2);
 }
 
+static int32	argc;
+static uint8**	argv;
+static int32	envc;
+static uint8**	envv;
+
+
+void
+args(int32 c, uint8 **v)
+{
+	argc = c;
+	argv = v;
+	envv = v + argc + 1;  // skip 0 at end of argv
+	for (envc = 0; envv[envc] != 0; envc++)
+		;
+}
+
+//func argc() int32;  // return number of arguments
+void
+sys_argc(int32 v)
+{
+	v = argc;
+	FLUSH(&v);
+}
+
+//func envc() int32;  // return number of environment variables
+void
+sys_envc(int32 v)
+{
+	v = envc;
+	FLUSH(&v);
+}
+
+//func argv(i) string;  // return argument i
+void
+sys_argv(int32 i, string s)
+{
+	uint8* str;
+	int32 l;
+
+	if(i < 0 || i >= argc) {
+		s = emptystring;
+		goto out;
+	}
+
+	str = argv[i];
+	l = findnull((int8*)str);
+	s = mal(sizeof(s->len)+l);
+	s->len = l;
+	mcpy(s->str, str, l);
+
+out:
+	FLUSH(&s);
+}
+
+//func envv(i) string;  // return argument i
+void
+sys_envv(int32 i, string s)
+{
+	uint8* str;
+	int32 l;
+
+	if(i < 0 || i >= envc) {
+		s = emptystring;
+		goto out;
+	}
+
+	str = envv[i];
+	l = findnull((int8*)str);
+	s = mal(sizeof(s->len)+l);
+	s->len = l;
+	mcpy(s->str, str, l);
+
+out:
+	FLUSH(&s);
+}
+
 check(void)
 {
 	int8 a;
