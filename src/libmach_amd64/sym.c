@@ -561,6 +561,29 @@ lookup(char *fn, char *var, Symbol *s)
 }
 
 /*
+ * strcmp, but allow '_' to match center dot (rune 00b7 == bytes c2 b7)
+ */
+int
+cdotstrcmp(char *sym, char *user) {
+	for (;;) {
+		while (*sym == *user) {
+			if (*sym++ == '\0')
+				return 0;
+			user++;
+		}
+		/* unequal - but maybe '_' matches center dot */
+		if (user[0] == '_' && (sym[0]&0xFF) == 0xc2 && (sym[1]&0xFF) == 0xb7) {
+			/* '_' matches center dot - advance and continue */
+			user++;
+			sym += 2;
+			continue;
+		}
+		break;
+	}
+	return *user - *sym;
+}
+
+/*
  * find a function by name
  */
 static int
@@ -569,7 +592,7 @@ findtext(char *name, Symbol *s)
 	int i;
 
 	for(i = 0; i < ntxt; i++) {
-		if(strcmp(txt[i].sym->name, name) == 0) {
+		if(cdotstrcmp(txt[i].sym->name, name) == 0) {
 			fillsym(txt[i].sym, s);
 			s->handle = (void *) &txt[i];
 			s->index = i;
@@ -587,7 +610,7 @@ findglobal(char *name, Symbol *s)
 	long i;
 
 	for(i = 0; i < nglob; i++) {
-		if(strcmp(globals[i]->name, name) == 0) {
+		if(cdotstrcmp(globals[i]->name, name) == 0) {
 			fillsym(globals[i], s);
 			s->index = i;
 			return 1;
@@ -622,7 +645,7 @@ findlocvar(Symbol *s1, char *name, Symbol *s2)
 	tp = (Txtsym *)s1->handle;
 	if(tp && tp->locals) {
 		for(i = 0; i < tp->n; i++)
-			if (strcmp(tp->locals[i]->name, name) == 0) {
+			if (cdotstrcmp(tp->locals[i]->name, name) == 0) {
 				fillsym(tp->locals[i], s2);
 				s2->handle = (void *)tp;
 				s2->index = tp->n-1 - i;
@@ -1166,7 +1189,7 @@ symcomp(const void *a, const void *b)
 	i = (*(Sym**)a)->value - (*(Sym**)b)->value;
 	if (i)
 		return i;
-	return strcmp((*(Sym**)a)->name, (*(Sym**)b)->name);
+	return cdotstrcmp((*(Sym**)a)->name, (*(Sym**)b)->name);
 }
 
 /*
