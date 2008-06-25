@@ -694,12 +694,7 @@ cgen_aret(Node *n, Node *res)
 	nod1.xoffset = fp->width;
 	nod1.type = fp->type;
 
-	memset(&nod2, 0, sizeof(nod2));
-	nod2.op = OADDR;
-	nod2.left = &nod1;
-	nod2.addable = 1;
-
-	cgen_as(res, &nod2, 0);
+	gins(ALEAQ, &nod1, res);
 }
 
 void
