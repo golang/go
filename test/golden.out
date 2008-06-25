@@ -263,6 +263,12 @@ BUG: known to fail incorrectly
 bug055.go:1: fatal error: cant open: bug055.go
 BUG: known to fail incorrectly
 
+=========== bugs/bug056.go
+bugs/bug056.go:9: illegal types for operand: AS
+	(<int32>INT32)
+	(<int32>INT32)
+BUG: compilation should succeed
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
