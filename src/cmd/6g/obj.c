@@ -165,6 +165,13 @@ return;
 	Bterm(bout);
 }
 
+Bputdot(Biobuf *b)
+{
+	// put out middle dot ·
+	Bputc(b, 0xc2);
+	Bputc(b, 0xb7);
+}
+
 void
 zname(Biobuf *b, Sym *s, int t)
 {
@@ -177,7 +184,7 @@ zname(Biobuf *b, Sym *s, int t)
 
 	for(n=s->opackage; *n; n++)
 		Bputc(b, *n);
-	Bputc(b, '_');
+	Bputdot(b);
 	for(n=s->name; *n; n++)
 		Bputc(b, *n);
 	Bputc(b, 0);

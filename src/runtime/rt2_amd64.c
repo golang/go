@@ -22,7 +22,7 @@ traceback(uint8 *pc, uint8 *sp)
 	name = "panic";
 	for(;;){
 		prints("0x");
-		sys_printpointer(pc);
+		sys·printpointer(pc);
 		prints("?zi\n");
 		/* find SP offset by stepping back through instructions to SP offset marker */
 		while(pc > (uint8*)0x1000+sizeof spmark-1) {
@@ -50,7 +50,7 @@ traceback(uint8 *pc, uint8 *sp)
 		for(i = 0; i < 3; i++){
 			if(i != 0)
 				prints(", ");
-			sys_printint(((uint32*)sp)[i]);
+			sys·printint(((uint32*)sp)[i]);
 		}
 		prints(", ...)\n");
 		prints("\t");
@@ -60,7 +60,7 @@ traceback(uint8 *pc, uint8 *sp)
 			if(i != 0)
 				prints(", ");
 			prints("0x");
-			sys_printpointer(((void**)sp)[i]);
+			sys·printpointer(((void**)sp)[i]);
 		}
 		prints(", ...)\n");
 		/* print pc for next frame */

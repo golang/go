@@ -40,20 +40,20 @@ sighandler(int32 sig, siginfo* info, void** context) {
 
 	if(sig < 0 || sig >= NSIG){
 		prints("Signal ");
-		sys_printint(sig);
+		sys·printint(sig);
 	}else{
 		prints(sigtab[sig].name);
 	}
 	prints("\nFaulting address: 0x");
-	sys_printpointer(info->si_addr);
+	sys·printpointer(info->si_addr);
 	prints("\nPC: 0x");
-	sys_printpointer(context[21]);
+	sys·printpointer(context[21]);
 	prints("\nSP: 0x");
-	sys_printpointer(context[20]);
+	sys·printpointer(context[20]);
 	prints("\n");
 	traceback(context[21], context[20]);	/* empirically discovered locations */
-	sys_breakpoint();
-	sys_exit(2);
+	sys·breakpoint();
+	sys·exit(2);
 }
 
 sigaction a;
@@ -69,6 +69,6 @@ initsig(void)
 
 	for(i = 0; i <NSIG; i++)
 		if(sigtab[i].catch){
-			sys_rt_sigaction(i, &a, (void*)0, 8);
+			sys·rt_sigaction(i, &a, (void*)0, 8);
 		}
 }

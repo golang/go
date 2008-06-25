@@ -31,7 +31,7 @@ done:
 	ADDQ	$16, SP
 	CALL	check(SB)
 	CALL	main_main(SB)
-	CALL	sys_exit(SB)
+	CALL	sys·exit(SB)
 	CALL	notok(SB)
 	POPQ	AX
 	RET
@@ -39,7 +39,7 @@ done:
 TEXT	FLUSH(SB),1,$-8
 	RET
 
-TEXT	sys_exit(SB),1,$-8
+TEXT	sys·exit(SB),1,$-8
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+1), AX
 	SYSCALL
@@ -47,7 +47,7 @@ TEXT	sys_exit(SB),1,$-8
 	CALL	notok(SB)
 	RET
 
-TEXT	sys_write(SB),1,$-8
+TEXT	sys·write(SB),1,$-8
 	MOVL	8(SP), DI		// arg 1 fid
 	MOVQ	16(SP), SI		// arg 2 buf
 	MOVL	24(SP), DX		// arg 3 count
@@ -57,7 +57,7 @@ TEXT	sys_write(SB),1,$-8
 	CALL	notok(SB)
 	RET
 
-TEXT	sys_sigaction(SB),1,$-8
+TEXT	sys·sigaction(SB),1,$-8
 	MOVL	8(SP), DI		// arg 1 sig
 	MOVQ	16(SP), SI		// arg 2 act
 	MOVQ	24(SP), DX		// arg 3 oact
@@ -76,11 +76,11 @@ TEXT sigtramp(SB),1,$24
 	CALL	sighandler(SB)
 	RET
 
-TEXT	sys_breakpoint(SB),1,$-8
+TEXT	sys·breakpoint(SB),1,$-8
 	BYTE	$0xcc
 	RET
 
-TEXT	sys_mmap(SB),1,$-8
+TEXT	sys·mmap(SB),1,$-8
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVL	16(SP), SI		// arg 2 len
 	MOVL	20(SP), DX		// arg 3 prot
@@ -98,7 +98,7 @@ TEXT	notok(SB),1,$-8
 	MOVQ	BP, (BP)
 	RET
 
-TEXT	sys_memclr(SB),1,$-8
+TEXT	sys·memclr(SB),1,$-8
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVL	16(SP), CX		// arg 2 count
 	ADDL	$7, CX
@@ -109,7 +109,7 @@ TEXT	sys_memclr(SB),1,$-8
 	STOSQ
 	RET
 
-TEXT	sys_getcallerpc+0(SB),0,$0
+TEXT	sys·getcallerpc+0(SB),0,$0
 	MOVQ	x+0(FP),AX
 	MOVQ	-8(AX),AX
 	RET

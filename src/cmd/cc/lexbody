@@ -232,6 +232,16 @@ lookup(void)
 	return s;
 }
 
+int
+ISALPHA(int c)
+{
+	if(isalpha(c))
+		return 1;
+	if(c >= Runeself)
+		return 1;
+	return 0;
+}
+
 long
 yylex(void)
 {
@@ -259,7 +269,7 @@ l1:
 		}
 		goto l0;
 	}
-	if(isalpha(c))
+	if(ISALPHA(c))
 		goto talph;
 	if(isdigit(c))
 		goto tnum;
@@ -275,7 +285,7 @@ l1:
 
 	case '.':
 		c = GETC();
-		if(isalpha(c)) {
+		if(ISALPHA(c)) {
 			cp = symb;
 			*cp++ = '.';
 			goto aloop;
@@ -296,7 +306,7 @@ l1:
 	aloop:
 		*cp++ = c;
 		c = GETC();
-		if(isalpha(c) || isdigit(c) || c == '_' || c == '$')
+		if(ISALPHA(c) || isdigit(c) || c == '_' || c == '$')
 			goto aloop;
 		*cp = 0;
 		peekc = c;
