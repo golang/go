@@ -1908,42 +1908,117 @@ loop1:
 /*
  * from ascompat[ee]
  *	a,b = c,d
- * simultaneous assignment. there can be
- * later use of an earlier lvalue.
+ * simultaneous assignment. there cannot
+ * be later use of an earlier lvalue.
  */
 int
-vmatch(Node *l, Node *r)
+vmatch2(Node *l, Node *r)
 {
-	dump("l", l);
-	dump("r", r);
-	return 0;
+
+loop:
+	/*
+	 * isolate all right sides
+	 */
+	if(r == N)
+		return 0;
+	switch(r->op) {
+	case ONAME:
+		// match each right given left
+		if(l == r)
+			return 1;
+	case OLITERAL:
+		return 0;
+	}
+	if(vmatch2(l, r->right))
+		return 1;
+	r = r->left;
+	goto loop;
+}
+
+int
+vmatch1(Node *l, Node *r)
+{
+
+loop:
+	/*
+	 * isolate all left sides
+	 */
+	if(l == N)
+		return 0;
+	switch(l->op) {
+	case ONAME:
+		// match each left with all rights
+		return vmatch2(l, r);
+	case OLITERAL:
+		return 0;
+	}
+	if(vmatch1(l->right, r))
+		return 1;
+	l = l->left;
+	goto loop;
 }
 
 Node*
 reorder3(Node *n)
 {
 	Iter save1, save2;
-	Node *l1, *l2;
+	Node *l1, *l2, *q, *r;
 	int c1, c2;
+
+	r = N;
 
 	l1 = listfirst(&save1, &n);
 	c1 = 0;
 
 	while(l1 != N) {
-		l2 = listfirst(&save1, &n);
+		l2 = listfirst(&save2, &n);
 		c2 = 0;
 		while(l2 != N) {
 			if(c2 > c1) {
-				if(vmatch(l1->left, l2->right)) {
+				if(vmatch1(l1->left, l2->right)) {
+					q = nod(OXXX, N, N);
+					tempname(q, l2->right->type);
+					q = nod(OAS, l1->left, q);
+					l1->left = q->right;
+					if(r == N)
+						r = q;
+					else
+						r = nod(OLIST, r, q);
+					break;
 				}
 			}
-			l2 = listnext(&save1);
+			l2 = listnext(&save2);
 			c2++;
 		}
 		l1 = listnext(&save1);
 		c1++;
 	}
-	return n;
+	if(r == N)
+		return n;
+
+	q = N;
+	l1 = listfirst(&save1, &n);
+	while(l1 != N) {
+		if(q == N)
+			q = l1;
+		else
+			q = nod(OLIST, q, l1);
+		l1 = listnext(&save1);
+	}
+
+	r = rev(r);
+	l1 = listfirst(&save1, &r);
+	while(l1 != N) {
+		if(q == N)
+			q = l1;
+		else
+			q = nod(OLIST, q, l1);
+		l1 = listnext(&save1);
+	}
+
+	q = rev(q);
+//dump("res", q);
+	return q;
 }
 
 Node*
