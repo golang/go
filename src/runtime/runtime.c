@@ -768,7 +768,7 @@ args(int32 c, uint8 **v)
 
 //func argc() int32;  // return number of arguments
 void
-sys_argc(int32 v)
+sys·argc(int32 v)
 {
 	v = argc;
 	FLUSH(&v);
@@ -776,7 +776,7 @@ sys_argc(int32 v)
 
 //func envc() int32;  // return number of environment variables
 void
-sys_envc(int32 v)
+sys·envc(int32 v)
 {
 	v = envc;
 	FLUSH(&v);
@@ -784,7 +784,7 @@ sys_envc(int32 v)
 
 //func argv(i) string;  // return argument i
 void
-sys_argv(int32 i, string s)
+sys·argv(int32 i, string s)
 {
 	uint8* str;
 	int32 l;
@@ -806,7 +806,7 @@ out:
 
 //func envv(i) string;  // return argument i
 void
-sys_envv(int32 i, string s)
+sys·envv(int32 i, string s)
 {
 	uint8* str;
 	int32 l;
