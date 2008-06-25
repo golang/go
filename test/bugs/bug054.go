@@ -22,6 +22,23 @@ type TStruct struct {
 	fields *Vector;
 }
 
-func (s *TStruct) field() {
-	t := s.fields.At(0);
+func (s *TStruct) field(i int) *TStruct {
+	// works if we say
+	//	t := s.fields.At(i);
+	//	return t;
+	return s.fields.At(i);
+}
+
+func main() {
+	v := new(Vector);
+	v.elem = new([10]Element);
+	t := new(TStruct);
+	t.name = "hi";
+	v.elem[0] = t;
+	s := new(TStruct);
+	s.name = "foo";
+	s.fields = v;
+	if s.field(0).name != "hi" {
+		panic "bad name"
+	}
 }

@@ -439,7 +439,7 @@ func tostring(x Value) string {
     s[i] = '-';
     i++;
   }
-  s[i] = 0;
+  length := i;
   ASSERT(0 < i && i < n);
   
   // reverse in place
@@ -451,7 +451,7 @@ func tostring(x Value) string {
     i--;
   }
 
-  return string(s);
+  return string(s)[0:length];
 }
 
 
