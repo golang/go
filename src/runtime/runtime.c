@@ -10,23 +10,23 @@ static	int32	empty		= 0;
 static	string	emptystring	= (string)&empty;
 
 void
-sys_printbool(bool v)
+sys·printbool(bool v)
 {
 	if(v) {
-		sys_write(1, (byte*)"true", 4);
+		sys·write(1, (byte*)"true", 4);
 		return;
 	}
-	sys_write(1, (byte*)"false", 5);
+	sys·write(1, (byte*)"false", 5);
 }
 
 void
-sys_printfloat(float64 v)
+sys·printfloat(float64 v)
 {
-	sys_write(1, "printfloat", 10);
+	sys·write(1, "printfloat", 10);
 }
 
 void
-sys_printint(int64 v)
+sys·printint(int64 v)
 {
 	byte buf[100];
 	int32 i, s;
@@ -36,7 +36,7 @@ sys_printint(int64 v)
 		v = -v;
 		s = 1;
 		if(v < 0) {
-			sys_write(1, (byte*)"-oo", 3);
+			sys·write(1, (byte*)"-oo", 3);
 			return;
 		}
 	}
@@ -51,11 +51,11 @@ sys_printint(int64 v)
 		i--;
 		buf[i] = '-';
 	}
-	sys_write(1, buf+i, nelem(buf)-i);
+	sys·write(1, buf+i, nelem(buf)-i);
 }
 
 void
-sys_printpointer(void *p)
+sys·printpointer(void *p)
 {
 	uint64 v;
 	byte buf[100];
@@ -70,14 +70,14 @@ sys_printpointer(void *p)
 			break;
 		v = v/16;
 	}
-	sys_write(1, buf+i, nelem(buf)-i);
+	sys·write(1, buf+i, nelem(buf)-i);
 }
 
 void
-sys_printstring(string v)
+sys·printstring(string v)
 {
 	if(v != nil)
-		sys_write(1, v->str, v->len);
+		sys·write(1, v->str, v->len);
 }
 
 int32
@@ -93,31 +93,31 @@ findnull(int8 *s)
 void
 prints(int8 *s)
 {
-	sys_write(1, s, findnull(s));
+	sys·write(1, s, findnull(s));
 }
 
 void
-sys_printpc(void *p)
+sys·printpc(void *p)
 {
 	prints("PC=0x");
-	sys_printpointer(sys_getcallerpc(p));
+	sys·printpointer(sys·getcallerpc(p));
 }
 
 /*BUG: move traceback code to architecture-dependent runtime */
 void
-sys_panicl(int32 lno)
+sys·panicl(int32 lno)
 {
 	uint8 *sp;
 
 	prints("\npanic on line ");
-	sys_printint(lno);
+	sys·printint(lno);
 	prints(" ");
-	sys_printpc(&lno);
+	sys·printpc(&lno);
 	prints("\n");
 	sp = (uint8*)&lno;
-	traceback(sys_getcallerpc(&lno), sp);
-	sys_breakpoint();
-	sys_exit(2);
+	traceback(sys·getcallerpc(&lno), sp);
+	sys·breakpoint();
+	sys·exit(2);
 }
 
 dump(byte *p, int32 n)
@@ -126,8 +126,8 @@ dump(byte *p, int32 n)
 	int32 i;
 
 	for(i=0; i<n; i++) {
-		sys_printpointer((byte*)(p[i]>>4));
-		sys_printpointer((byte*)(p[i]&0xf));
+		sys·printpointer((byte*)(p[i]>>4));
+		sys·printpointer((byte*)(p[i]&0xf));
 		if((i&15) == 15)
 			prints("\n");
 		else
@@ -163,7 +163,8 @@ throw(int8 *s)
 	prints("throw: ");
 	prints(s);
 	prints("\n");
-	sys_exit(1);
+	*(int32*)0 = 0;
+	sys·exit(1);
 }
 
 void
@@ -182,8 +183,8 @@ brk(uint32 n)
 {
 	byte* v;
 
-	v = sys_mmap(nil, NHUNK, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
-	sys_memclr(v, n);
+	v = sys·mmap(nil, NHUNK, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
+	sys·memclr(v, n);
 	nmmap += n;
 	return v;
 }
@@ -248,14 +249,14 @@ cmpstring(string s1, string s2)
 }
 
 void
-sys_mal(uint32 n, uint8 *ret)
+sys·mal(uint32 n, uint8 *ret)
 {
 	ret = mal(n);
 	FLUSH(&ret);
 }
 
 void
-sys_catstring(string s1, string s2, string s3)
+sys·catstring(string s1, string s2, string s3)
 {
 	uint32 l;
 
@@ -280,7 +281,7 @@ out:
 }
 
 void
-sys_cmpstring(string s1, string s2, int32 v)
+sys·cmpstring(string s1, string s2, int32 v)
 {
 	v = cmpstring(s1, s2);
 	FLUSH(&v);
@@ -311,17 +312,17 @@ prbounds(int8* s, int32 a, int32 b, int32 c)
 
 	prints(s);
 	prints(" ");
-	sys_printint(a);
+	sys·printint(a);
 	prints("<");
-	sys_printint(b);
+	sys·printint(b);
 	prints(">");
-	sys_printint(c);
+	sys·printint(c);
 	prints("\n");
 	throw("bounds");
 }
 
 void
-sys_slicestring(string si, int32 lindex, int32 hindex, string so)
+sys·slicestring(string si, int32 lindex, int32 hindex, string so)
 {
 	string s, str;
 	int32 l;
@@ -331,7 +332,7 @@ sys_slicestring(string si, int32 lindex, int32 hindex, string so)
 
 	if(lindex < 0 || lindex > si->len ||
 	   hindex < lindex || hindex > si->len) {
-		sys_printpc(&si);
+		sys·printpc(&si);
 		prints(" ");
 		prbounds("slice", lindex, si->len, hindex);
 	}
@@ -344,13 +345,13 @@ sys_slicestring(string si, int32 lindex, int32 hindex, string so)
 }
 
 void
-sys_indexstring(string s, int32 i, byte b)
+sys·indexstring(string s, int32 i, byte b)
 {
 	if(s == nil)
 		s = emptystring;
 
 	if(i < 0 || i >= s->len) {
-		sys_printpc(&s);
+		sys·printpc(&s);
 		prints(" ");
 		prbounds("index", 0, i, s->len);
 	}
@@ -409,7 +410,7 @@ runetochar(byte *str, uint32 c)
 }
 
 void
-sys_intstring(int64 v, string s)
+sys·intstring(int64 v, string s)
 {
 	int32 l;
 
@@ -419,7 +420,7 @@ sys_intstring(int64 v, string s)
 }
 
 void
-sys_byteastring(byte *a, int32 l, string s)
+sys·byteastring(byte *a, int32 l, string s)
 {
 	s = mal(sizeof(s->len)+l);
 	s->len = l;
@@ -494,16 +495,16 @@ loop2:
 }
 
 void
-sys_ifaces2i(Sigi *si, Sigs *ss, Map *m, void *s)
+sys·ifaces2i(Sigi *si, Sigs *ss, Map *m, void *s)
 {
 
 	if(debug) {
 		prints("s2i sigi=");
-		sys_printpointer(si);
+		sys·printpointer(si);
 		prints(" sigs=");
-		sys_printpointer(ss);
+		sys·printpointer(ss);
 		prints(" s=");
-		sys_printpointer(s);
+		sys·printpointer(s);
 	}
 
 	if(s == nil) {
@@ -517,9 +518,9 @@ sys_ifaces2i(Sigi *si, Sigs *ss, Map *m, void *s)
 
 	if(debug) {
 		prints(" returning m=");
-		sys_printpointer(m);
+		sys·printpointer(m);
 		prints(" s=");
-		sys_printpointer(s);
+		sys·printpointer(s);
 		prints("\n");
 		dump((byte*)m, 64);
 	}
@@ -528,16 +529,16 @@ sys_ifaces2i(Sigi *si, Sigs *ss, Map *m, void *s)
 }
 
 void
-sys_ifacei2i(Sigi *si, Map *m, void *s)
+sys·ifacei2i(Sigi *si, Map *m, void *s)
 {
 
 	if(debug) {
 		prints("i2i sigi=");
-		sys_printpointer(si);
+		sys·printpointer(si);
 		prints(" m=");
-		sys_printpointer(m);
+		sys·printpointer(m);
 		prints(" s=");
-		sys_printpointer(s);
+		sys·printpointer(s);
 	}
 
 	if(m == nil) {
@@ -559,23 +560,23 @@ sys_ifacei2i(Sigi *si, Map *m, void *s)
 
 	if(debug) {
 		prints(" returning m=");
-		sys_printpointer(m);
+		sys·printpointer(m);
 		prints(" s=");
-		sys_printpointer(s);
+		sys·printpointer(s);
 		prints("\n");
 		dump((byte*)m, 64);
 	}
 }
 
 void
-sys_ifacei2s(Sigs *ss, Map *m, void *s)
+sys·ifacei2s(Sigs *ss, Map *m, void *s)
 {
 
 	if(debug) {
 		prints("i2s m=");
-		sys_printpointer(m);
+		sys·printpointer(m);
 		prints(" s=");
-		sys_printpointer(s);
+		sys·printpointer(s);
 		prints("\n");
 	}
 
@@ -727,7 +728,7 @@ modf(float64 d, float64 *ip)
 
 // func frexp(float64) (int32, float64); // break fp into exp,fract
 void
-sys_frexp(float64 din, int32 iou, float64 dou)
+sys·frexp(float64 din, int32 iou, float64 dou)
 {
 	dou = frexp(din, &iou);
 	FLUSH(&dou);
@@ -735,7 +736,7 @@ sys_frexp(float64 din, int32 iou, float64 dou)
 
 //func	ldexp(int32, float64) float64;	// make fp from exp,fract
 void
-sys_ldexp(float64 din, int32 ein, float64 dou)
+sys·ldexp(float64 din, int32 ein, float64 dou)
 {
 	dou = ldexp(din, ein);
 	FLUSH(&dou);
@@ -743,7 +744,7 @@ sys_ldexp(float64 din, int32 ein, float64 dou)
 
 //func	modf(float64) (float64, float64);	// break fp into double+double
 float64
-sys_modf(float64 din, float64 dou1, float64 dou2)
+sys·modf(float64 din, float64 dou1, float64 dou2)
 {
 	dou1 = modf(din, &dou2);
 	FLUSH(&dou2);
@@ -854,7 +855,7 @@ memprint(uint32 s, void *a)
 		v = *(uint64*)a;
 		break;
 	}
-	sys_printint(v);
+	sys·printint(v);
 }
 
 static void
@@ -890,7 +891,7 @@ stringequal(uint32 s, string *a, string *b)
 static void
 stringprint(uint32 s, string *a)
 {
-	sys_printstring(*a);
+	sys·printstring(*a);
 }
 
 static void
@@ -925,7 +926,7 @@ algarray[] =
 //	keyalg uint32, valalg uint32,
 //	hint uint32) (hmap *map[any]any);
 void
-sys_newmap(uint32 keysize, uint32 valsize,
+sys·newmap(uint32 keysize, uint32 valsize,
 	uint32 keyalg, uint32 valalg, uint32 hint,
 	Hmap* ret)
 {
@@ -934,16 +935,16 @@ sys_newmap(uint32 keysize, uint32 valsize,
 	if(keyalg >= nelem(algarray) ||
 	   valalg >= nelem(algarray)) {
 		prints("0<=");
-		sys_printint(keyalg);
+		sys·printint(keyalg);
 		prints("<");
-		sys_printint(nelem(algarray));
+		sys·printint(nelem(algarray));
 		prints("\n0<=");
-		sys_printint(valalg);
+		sys·printint(valalg);
 		prints("<");
-		sys_printint(nelem(algarray));
+		sys·printint(nelem(algarray));
 		prints("\n");
 
-		throw("sys_newmap: key/val algorithm out of range");
+		throw("sys·newmap: key/val algorithm out of range");
 	}
 
 	m = mal(sizeof(*m));
@@ -966,30 +967,30 @@ sys_newmap(uint32 keysize, uint32 valsize,
 
 	if(debug) {
 		prints("newmap: map=");
-		sys_printpointer(m);
+		sys·printpointer(m);
 		prints("; keysize=");
-		sys_printint(keysize);
+		sys·printint(keysize);
 		prints("; valsize=");
-		sys_printint(valsize);
+		sys·printint(valsize);
 		prints("; keyalg=");
-		sys_printint(keyalg);
+		sys·printint(keyalg);
 		prints("; valalg=");
-		sys_printint(valalg);
+		sys·printint(valalg);
 		prints("; valoffset=");
-		sys_printint(m->valoffset);
+		sys·printint(m->valoffset);
 		prints("; ko=");
-		sys_printint(m->ko);
+		sys·printint(m->ko);
 		prints("; vo=");
-		sys_printint(m->vo);
+		sys·printint(m->vo);
 		prints("; po=");
-		sys_printint(m->po);
+		sys·printint(m->po);
 		prints("\n");
 	}
 }
 
 // mapaccess1(hmap *map[any]any, key any) (val any);
 void
-sys_mapaccess1(Hmap *m, ...)
+sys·mapaccess1(Hmap *m, ...)
 {
 	Link *l;
 	byte *ak, *av;
@@ -1008,8 +1009,8 @@ sys_mapaccess1(Hmap *m, ...)
 
 out:
 	if(debug) {
-		prints("sys_mapaccess1: map=");
-		sys_printpointer(m);
+		prints("sys·mapaccess1: map=");
+		sys·printpointer(m);
 		prints("; key=");
 		m->keyalg->print(m->keysize, ak);
 		prints("; val=");
@@ -1020,7 +1021,7 @@ out:
 
 // mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
 void
-sys_mapaccess2(Hmap *m, ...)
+sys·mapaccess2(Hmap *m, ...)
 {
 	Link *l;
 	byte *ak, *av, *ap;
@@ -1042,20 +1043,20 @@ sys_mapaccess2(Hmap *m, ...)
 
 out:
 	if(debug) {
-		prints("sys_mapaccess2: map=");
-		sys_printpointer(m);
+		prints("sys·mapaccess2: map=");
+		sys·printpointer(m);
 		prints("; key=");
 		m->keyalg->print(m->keysize, ak);
 		prints("; val=");
 		m->valalg->print(m->valsize, av);
 		prints("; pres=");
-		sys_printbool(*ap);
+		sys·printbool(*ap);
 		prints("\n");
 	}
 }
 
 static void
-sys_mapassign(Hmap *m, byte *ak, byte *av)
+sys·mapassign(Hmap *m, byte *ak, byte *av)
 {
 	Link *l;
 
@@ -1077,7 +1078,7 @@ out:
 
 	if(debug) {
 		prints("mapassign: map=");
-		sys_printpointer(m);
+		sys·printpointer(m);
 		prints("; key=");
 		m->keyalg->print(m->keysize, ak);
 		prints("; val=");
@@ -1088,7 +1089,7 @@ out:
 
 // mapassign1(hmap *map[any]any, key any, val any);
 void
-sys_mapassign1(Hmap *m, ...)
+sys·mapassign1(Hmap *m, ...)
 {
 	Link **ll;
 	byte *ak, *av;
@@ -1096,12 +1097,12 @@ sys_mapassign1(Hmap *m, ...)
 	ak = (byte*)&m + m->ko;
 	av = (byte*)&m + m->vo;
 
-	sys_mapassign(m, ak, av);
+	sys·mapassign(m, ak, av);
 }
 
 // mapassign2(hmap *map[any]any, key any, val any, pres bool);
 void
-sys_mapassign2(Hmap *m, ...)
+sys·mapassign2(Hmap *m, ...)
 {
 	Link **ll;
 	byte *ak, *av, *ap;
@@ -1112,7 +1113,7 @@ sys_mapassign2(Hmap *m, ...)
 
 	if(*ap == true) {
 		// assign
-		sys_mapassign(m, ak, av);
+		sys·mapassign(m, ak, av);
 		return;
 	}
 
@@ -1124,7 +1125,7 @@ sys_mapassign2(Hmap *m, ...)
 			m->len--;
 			if(debug) {
 				prints("mapdelete (found): map=");
-				sys_printpointer(m);
+				sys·printpointer(m);
 				prints("; key=");
 				m->keyalg->print(m->keysize, ak);
 				prints("\n");
@@ -1135,7 +1136,7 @@ sys_mapassign2(Hmap *m, ...)
 
 	if(debug) {
 		prints("mapdelete (not found): map=");
-		sys_printpointer(m);
+		sys·printpointer(m);
 		prints("; key=");
 		m->keyalg->print(m->keysize, ak);
 		prints(" *** not found\n");

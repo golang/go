@@ -380,6 +380,7 @@ agen_inter(Node *n, Node *res)
 		if(!n->left->addable) {
 			agen(n->left, &nodr);
 			gmove(&nodr, &nodo);
+			dump("xxx", n->left);
 			fatal("agen_inter i2s");
 		} else {
 			cgen(n->left, &nodo);

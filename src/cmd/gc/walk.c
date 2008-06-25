@@ -1789,21 +1789,20 @@ badt:
 	return nl;
 }
 
+/*
+ * from ascompat[te]
+ * evaluating actual function arguments.
+ *	f(a,b)
+ * if there is exactly one function expr,
+ * then it is done first. otherwise must
+ * make temp variables
+ */
 Node*
 reorder1(Node *n)
 {
 	Iter save;
 	Node *l, *r, *f, *a, *g;
 	int c, t;
-
-	/*
-	 * from ascompat[te]
-	 * evaluating actual function arguments.
-	 *	f(a,b)
-	 * if there is exactly one function expr,
-	 * then it is done first. otherwise must
-	 * make temp variables
-	 */
 
 	l = listfirst(&save, &n);
 	c = 0;	// function calls
@@ -1874,20 +1873,19 @@ more:
 	goto loop2;
 }
 
+/*
+ * from ascompat[et]
+ *	a,b = f()
+ * return of a multi.
+ * there can be no function calls at all,
+ * or they will over-write the return values.
+ */
 Node*
 reorder2(Node *n)
 {
 	Iter save;
 	Node *l;
 	int c;
-
-	/*
-	 * from ascompat[et]
-	 *	a,b = f()
-	 * return of a multi.
-	 * there can be no function calls at all,
-	 * or they will over-write the return values.
-	 */
 
 	l = listfirst(&save, &n);
 	c = 0;
@@ -1907,15 +1905,44 @@ loop1:
 	goto loop1;
 }
 
+/*
+ * from ascompat[ee]
+ *	a,b = c,d
+ * simultaneous assignment. there can be
+ * later use of an earlier lvalue.
+ */
+int
+vmatch(Node *l, Node *r)
+{
+	dump("l", l);
+	dump("r", r);
+	return 0;
+}
+
 Node*
 reorder3(Node *n)
 {
-	/*
-	 * from ascompat[ee]
-	 *	a,b = c,d
-	 * simultaneous assignment. there can be
-	 * later use of an earlier lvalue.
-	 */
+	Iter save1, save2;
+	Node *l1, *l2;
+	int c1, c2;
+
+	l1 = listfirst(&save1, &n);
+	c1 = 0;
+
+	while(l1 != N) {
+		l2 = listfirst(&save1, &n);
+		c2 = 0;
+		while(l2 != N) {
+			if(c2 > c1) {
+				if(vmatch(l1->left, l2->right)) {
+				}
+			}
+			l2 = listnext(&save1);
+			c2++;
+		}
+		l1 = listnext(&save1);
+		c1++;
+	}
 	return n;
 }
 

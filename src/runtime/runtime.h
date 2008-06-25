@@ -90,7 +90,8 @@ void*	mal(uint32);
 uint32	cmpstring(string, string);
 void	initsig(void);
 void	traceback(uint8 *pc, uint8 *sp);
-struct SigTab {
+struct	SigTab
+{
 	int32	catch;
 	int8	*name;
 };
@@ -98,28 +99,28 @@ struct SigTab {
 /*
  * low level go -called
  */
-void	sys_exit(int32);
-void	sys_write(int32, void*, int32);
-void	sys_breakpoint(void);
-uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
-void	sys_memclr(byte*, uint32);
-void*	sys_getcallerpc(void*);
-void	sys_sigaction(int64, void*, void*);
-void	sys_rt_sigaction(int64, void*, void*, uint64);
+void	sys·exit(int32);
+void	sys·write(int32, void*, int32);
+void	sys·breakpoint(void);
+uint8*	sys·mmap(byte*, uint32, int32, int32, int32, uint32);
+void	sys·memclr(byte*, uint32);
+void*	sys·getcallerpc(void*);
+void	sys·sigaction(int64, void*, void*);
+void	sys·rt_sigaction(int64, void*, void*, uint64);
 
 /*
  * runtime go-called
  */
-void	sys_printbool(bool);
-void	sys_printfloat(float64);
-void	sys_printint(int64);
-void	sys_printstring(string);
-void	sys_printpointer(void*);
-void	sys_catstring(string, string, string);
-void	sys_cmpstring(string, string, int32);
-void	sys_slicestring(string, int32, int32, string);
-void	sys_indexstring(string, int32, byte);
-void	sys_intstring(int64, string);
-void	sys_ifaces2i(Sigi*, Sigs*, Map*, void*);
-void	sys_ifacei2i(Sigi*, Map*, void*);
-void	sys_ifacei2s(Sigs*, Map*, void*);
+void	sys·printbool(bool);
+void	sys·printfloat(float64);
+void	sys·printint(int64);
+void	sys·printstring(string);
+void	sys·printpointer(void*);
+void	sys·catstring(string, string, string);
+void	sys·cmpstring(string, string, int32);
+void	sys·slicestring(string, int32, int32, string);
+void	sys·indexstring(string, int32, byte);
+void	sys·intstring(int64, string);
+void	sys·ifaces2i(Sigi*, Sigs*, Map*, void*);
+void	sys·ifacei2i(Sigi*, Map*, void*);
+void	sys·ifacei2s(Sigs*, Map*, void*);
