@@ -4,7 +4,7 @@
 
 CFLAGS=-I$(GOROOT)/include
 BIN=$(HOME)/bin
-O=o
+O=6
 
 # The directory is ar because the source is portable and general.
 # We call the binary 6ar to avoid confusion and because this binary
