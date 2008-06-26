@@ -19,7 +19,8 @@ LIBOFILES=\
 	sys_file.$O\
 
 OFILES=$(RT0OFILES) $(LIBOFILES)
-HFILES=runtime.h
+OS_H=$(GOARCH)_$(GOOS).h
+HFILES=runtime.h $(OS_H_)
 
 install: rt0 $(LIB)
 	cp $(RT0OFILES) $(GOROOT)/lib
@@ -37,6 +38,9 @@ clean:
 
 %.$O:	%.c
 	$(CC) $<
+
+sys_file.$O:	sys_file.c $(OS_H)
+	$(CC) -D$(GOARCH)_$(GOOS) $<
 
 %.$O:	%.s
 	$(AS) $<

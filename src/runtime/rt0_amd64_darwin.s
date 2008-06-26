@@ -60,20 +60,21 @@ TEXT	sys·write(SB),1,$-8
 TEXT	open(SB),1,$-8
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
-	MOVL	$5, AX			// syscall entry
+	MOVQ	$0, R10
+	MOVL	$(0x2000000+5), AX	// syscall entry
 	SYSCALL
 	RET
 
 TEXT	close(SB),1,$-8
 	MOVL	8(SP), DI
-	MOVL	$6, AX			// syscall entry
+	MOVL	$(0x2000000+6), AX	// syscall entry
 	SYSCALL
 	RET
 
 TEXT	fstat(SB),1,$-8
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
-	MOVL	$189, AX			// syscall entry
+	MOVL	$(0x2000000+339), AX	// syscall entry; really fstat64
 	SYSCALL
 	RET
 
@@ -81,7 +82,7 @@ TEXT	read(SB),1,$-8
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
-	MOVL	$3, AX			// syscall entry
+	MOVL	$(0x2000000+3), AX	// syscall entry
 	SYSCALL
 	RET
 
