@@ -7,8 +7,8 @@ TEXT	_rt0_amd64_linux(SB),1,$-8
 	PUSHQ	$0
 	MOVQ	SP, BP
 	ANDQ	$~15, SP
-	MOVQ	8(BP), DI
-	LEAQ	16(BP), SI
+	MOVQ	8(BP), DI	// argc
+	LEAQ	16(BP), SI	// argv
 	MOVL	DI, DX
 	ADDL	$1, DX
 	SHLL	$3, DX
@@ -24,6 +24,11 @@ loop:
 
 done:
 	ADDQ	$8, CX
+	SUBQ	$16, SP
+	MOVL	DI, 0(SP)
+	MOVQ	SI, 8(SP)
+	CALL	args(SB)
+	ADDQ	$16, SP
 	CALL	check(SB)
 	CALL	main·main(SB)
 	CALL	sys·exit(SB)
@@ -50,6 +55,34 @@ TEXT	sys·write(SB),1,$-8
 	SYSCALL
 	JCC	2(PC)
 	CALL	notok(SB)
+	RET
+
+TEXT	open(SB),1,$-8
+	MOVQ	8(SP), DI
+	MOVL	16(SP), SI
+	MOVL	$2, AX			// syscall entry
+	SYSCALL
+	RET
+
+TEXT	close(SB),1,$-8
+	MOVL	8(SP), DI
+	MOVL	$3, AX			// syscall entry
+	SYSCALL
+	RET
+
+TEXT	fstat(SB),1,$-8
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVL	$5, AX			// syscall entry
+	SYSCALL
+	RET
+
+TEXT	read(SB),1,$-8
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVL	24(SP), DX
+	MOVL	$0, AX			// syscall entry
+	SYSCALL
 	RET
 
 TEXT	sys·rt_sigaction(SB),1,$-8
@@ -94,7 +127,7 @@ TEXT	sys·mmap(SB),1,$-8
 	MOVL	$9, AX			// syscall entry
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JNE	2(PC)
+	JLS	2(PC)
 	CALL	notok(SB)
 	RET
 

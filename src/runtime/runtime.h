@@ -90,6 +90,10 @@ void*	mal(uint32);
 uint32	cmpstring(string, string);
 void	initsig(void);
 void	traceback(uint8 *pc, uint8 *sp);
+int32	open(byte*, int32);
+int32	read(int32, void*, int32);
+void	close(int32);
+int32	fstat(int32, void*);
 struct	SigTab
 {
 	int32	catch;
@@ -124,3 +128,4 @@ void	sys·intstring(int64, string);
 void	sys·ifaces2i(Sigi*, Sigs*, Map*, void*);
 void	sys·ifacei2i(Sigi*, Map*, void*);
 void	sys·ifacei2s(Sigs*, Map*, void*);
+void	sys·readfile(string, string, bool);
