@@ -28,7 +28,6 @@ compile(Node *fn)
 		return;
 	lno = dynlineno;
 
-
 	curfn = fn;
 	dynlineno = curfn->lineno;	// for diagnostics
 	dowidth(curfn->type);
