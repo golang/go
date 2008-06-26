@@ -32,6 +32,7 @@ O=o
 LIB=libmach_amd64.a
 OFILES=\
 	executable.$O\
+	fakeobj.$O\
 	map.$O\
 	obj.$O\
 	swap.$O\

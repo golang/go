@@ -113,7 +113,9 @@ objtype(Biobuf *bp, char **name)
 {
 	int i;
 	char buf[MAXIS];
+	int c;
 
+Retry:
 	if(Bread(bp, buf, MAXIS) < MAXIS)
 		return -1;
 	Bseek(bp, -MAXIS, 1);
@@ -123,6 +125,36 @@ objtype(Biobuf *bp, char **name)
 				*name = obj[i].name;
 			return i;
 		}
+	}
+
+	/*
+	 * Maybe there's an import block we need to skip
+	 */
+	for(i = 0; i < MAXIS; i++) {
+		if(isalpha(buf[i]) || isdigit(buf[i]))
+			continue;
+		if(i == 0 || buf[i] != '\n')
+			return -1;
+		break;
+	}
+
+	/*
+	 * Found one.  Skip until "\n!\n"
+	 */
+	while((c = Bgetc(bp)) != Beof) {
+		if(c != '\n')
+			continue;
+		c = Bgetc(bp);
+		if(c != '!'){
+			Bungetc(bp);
+			continue;
+		}
+		c = Bgetc(bp);
+		if(c != '\n'){
+			Bungetc(bp);
+			continue;
+		}
+		goto Retry;
 	}
 	return -1;
 }

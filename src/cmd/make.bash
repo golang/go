@@ -41,6 +41,11 @@ cd 6g
 make install
 cd ..
 
+echo; echo; echo %%%% making ar %%%%; echo
+cd ar
+make install
+cd ..
+
 echo; echo; echo %%%% making db %%%%; echo
 cd db
 make install
