@@ -15,6 +15,7 @@ RT0OFILES=\
 LIBOFILES=\
 	rt1_$(GOARCH)_$(GOOS).$O\
 	rt2_$(GOARCH).$O\
+	runtime.$O\
 
 OFILES=$(RT0OFILES) $(LIBOFILES)
 HFILES=

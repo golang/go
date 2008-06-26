@@ -363,10 +363,6 @@ main(int argc, char *argv[])
 		objfile(*argv++);
 
 	if(!debug['l']) {
-		loadlib();
-		a = mal(strlen(goroot)+strlen(goarch)+20);
-		sprint(a, "%s/lib/rt_%s.6", goroot, goarch);
-		objfile(a);
 		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
 		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
 		objfile(a);
