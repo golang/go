@@ -4,13 +4,13 @@
 
 CFLAGS=-I$(GOROOT)/include
 BIN=$(HOME)/bin
-O=6
+O=o
 
 # The directory is ar because the source is portable and general.
 # We call the binary 6ar to avoid confusion and because this binary
 # is linked only with amd64 and x86 support.
 
-TARG=$(O)ar
+TARG=6ar
 OFILES=\
 	ar.$O\
 
