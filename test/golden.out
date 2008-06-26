@@ -1,5 +1,11 @@
 
 =========== ./args.go
+argc
+panic on line 171 PC=0x150c
+0x150c?zi
+	mainM-BM-7main(0, 0, 0, ...)
+	mainM-BM-7main(0x0, 0x0, 0x3, ...)
+0x12e5?zi
 
 =========== ./char_lit.go
 
@@ -170,7 +176,7 @@ bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
 BUG: known to fail incorrectly or at least with a bad message
 
 =========== bugs/bug026.go
-traceback: main·sigs_I: not defined
+traceback: mainM-BM-7sigs_I: not defined
 BUG: known to fail incorrectly
 
 =========== bugs/bug027.go
@@ -262,6 +268,36 @@ bugs/bug051.go:10: fatal error: too many errors
 BUG: infinite loop in error reporting
 
 =========== bugs/bug052.go
+SIGSEGV: segmentation violation
+Faulting address: 0x1
+pc: 0x152c
+
+0x152c?zi
+	mainM-BM-7main(0, 0, 0, ...)
+	mainM-BM-7main(0x0, 0x0, 0x1, ...)
+0x12e5?zi
+
+rax     0x1
+rbx     0x7
+rcx     0x7fffffffe8f8
+rdx     0x3
+rdi     0x7fffffffe920
+rsi     0x5b00
+rbp     0x7fffffffe938
+rsp     0x7fffffffe8f0
+r8      0x0
+r9      0x0
+r10     0x8
+r11     0x202
+r12     0x0
+r13     0x0
+r14     0x0
+r15     0x0
+rip     0x152c
+rflags  0x10202
+cs      0x33
+fs      0x0
+gs      0x0
 BUG: incorrect code for division
 
 =========== bugs/bug053.go
