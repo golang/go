@@ -10,7 +10,9 @@ type Box struct {};
 var m map[string] *Box;
   
 func main() {
-  m["foo"] = nil;
+  s := "foo";
+  var x *Box = nil;
+  m[s] = x;
 }
 
 /*
