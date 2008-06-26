@@ -39,7 +39,7 @@ clean:
 %.$O:	%.c
 	$(CC) $<
 
-sys_file.$O:	sys_file.c $(OS_H)
+sys_file.$O:	sys_file.c sys_types.h $(OS_H)
 	$(CC) -D$(GOARCH)_$(GOOS) $<
 
 %.$O:	%.s

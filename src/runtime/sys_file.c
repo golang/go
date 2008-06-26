@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
-#include "sys_structs.h"
+#include "sys_types.h"
 
 void
 sys·readfile(string filein, string fileout, bool okout)
