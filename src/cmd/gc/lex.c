@@ -118,7 +118,8 @@ importfile(Val *f)
 		yyerror("import statement not a string");
 		return;
 	}
-	// BOTCH need to get .8 from backend
+
+	// BOTCH need to get .6 from backend
 	snprint(namebuf, sizeof(namebuf), "%Z.6", f->sval);
 	file = strdup(namebuf);
 	linehist(file, 0);
@@ -126,6 +127,7 @@ importfile(Val *f)
 	imp = Bopen(file, OREAD);
 	if(imp == nil)
 		fatal("cant open import: %s", namebuf);
+	linehist(file, -1);	// acts as #pragma lib
 
 	/*
 	 * position the input right

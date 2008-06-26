@@ -64,12 +64,22 @@ void
 linehist(char *file, long off)
 {
 	Hist *h;
+	char *cp;
 
 	if(debug['i'])
-	if(file != nil)
-		print("%L: import %s\n", file);
-	else
+	if(file != nil) {
+		if(off < 0)
+			print("%L: pragma %s\n", file);
+		else
+			print("%L: import %s\n", file);
+	} else
 		print("%L: <eof>\n");
+
+	if(off < 0 && file[0] != '/') {
+		cp = mal(strlen(file) + strlen(pathname) + 2);
+		sprint(cp, "%s/%s", pathname, file);
+		file = cp;
+	}
 
 	h = alloc(sizeof(Hist));
 	h->name = file;
