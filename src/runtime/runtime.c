@@ -980,6 +980,36 @@ stringcopy(uint32 s, string *a, string *b)
 	*a = *b;
 }
 
+static uint64
+pointerhash(uint32 s, void **a)
+{
+	prints("pointerhash\n");
+	return 0x12345;
+}
+
+static uint32
+pointerequal(uint32 s, void **a, void **b)
+{
+	prints("pointerequal\n");
+	return 0;
+}
+
+static void
+pointerprint(uint32 s, void **a)
+{
+	prints("pointerprint\n");
+}
+
+static void
+pointercopy(uint32 s, void **a, void **b)
+{
+	if(b == nil) {
+		*a = nil;
+		return;
+	}
+	*a = *b;
+}
+
 static uint32
 rnd(uint32 n, uint32 m)
 {
@@ -996,6 +1026,7 @@ algarray[] =
 {
 	{	&memhash,	&memequal,	&memprint,	&memcopy	},
 	{	&stringhash,	&stringequal,	&stringprint,	&stringcopy	},
+	{	&pointerhash,	&pointerequal,	&pointerprint,	&pointercopy	},
 };
 
 // newmap(keysize uint32, valsize uint32,
@@ -1008,8 +1039,8 @@ sys·newmap(uint32 keysize, uint32 valsize,
 {
 	Hmap *m;
 
-	if(keyalg >= nelem(algarray) ||
-	   valalg >= nelem(algarray)) {
+	if(keyalg >= 2 ||
+	   valalg >= 3) {
 		prints("0<=");
 		sys·printint(keyalg);
 		prints("<");
