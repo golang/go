@@ -415,7 +415,7 @@ func copy(x Value) Value {
   
   z := alloc(xl + 1);  // add space for one extra digit
   for i := 0; i < xl; i++ { z[i + H] = x[i + H]; }
-  set_len(z, xl);
+  set_len(z, int(x[0]));  // don't loose sign!
   
   return z;
 }
@@ -569,7 +569,14 @@ func (x Integer) xor (y Integer) Integer {
 // Comparisons
 
 func (x Integer) cmp (y Integer) int {
-  return 0;
+  // do better then this
+  d := x.sub(y);
+  switch {
+    case sign(d.val): return -1;
+    case zero(d.val): return  0;
+    default         : return +1;
+  }
+  CHECK(false);  // unreachable
 }
 
 
@@ -616,3 +623,18 @@ func (x Integer) ToString() string {
   return tostring(x.val);
 }
 
+
+func (x Integer) ToInt() int {
+  v := x.val;
+  if len_(v) <= 1 {
+    if zero(v) {
+      return 0;
+    }
+    i := int(v[0 + H]);
+    if sign(v) {
+      i = -i;  // incorrect for smallest int
+    }
+    return i;
+  }
+  panic "integer too large";
+}
