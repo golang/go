@@ -8,7 +8,7 @@
 
 typedef uint64 __uint64_t;
 
-// From /usr/include/mach/i386/_structs.h
+/* From /usr/include/mach/i386/_structs.h */
 #define	_STRUCT_X86_THREAD_STATE64	struct __darwin_x86_thread_state64
 _STRUCT_X86_THREAD_STATE64
 {
@@ -64,7 +64,7 @@ print_thread_state(_STRUCT_X86_THREAD_STATE64* ss)
 }
 
 
-/* Code generated via: g++ -m64 signals.cc && a.out */
+/* Code generated via: g++ -m64 gen_signals_support.cc && a.out */
 
 static void *adr_at(void *ptr, int32 offs) {
   return (void *)((uint8 *)ptr + offs);
@@ -119,15 +119,17 @@ typedef struct siginfo {
 	/* more stuff here */
 } siginfo;
 
+
 typedef struct  sigaction {
  	union {
-		void    (*sa_handler)(int32);
-		void    (*sa_sigaction)(int32, siginfo *, void *);
-	} u;		     /* signal handler */
-	void	(*sa_trampoline)(void);	/* kernel callback point; calls sighandler() */
-	uint8 sa_mask[4];		     /* signal mask to apply */
-	int32     sa_flags;		     /* see signal options below */
+		void (*sa_handler)(int32);
+		void (*sa_sigaction)(int32, siginfo *, void *);
+	} u;				/* signal handler */
+	void (*sa_trampoline)(void);	/* kernel callback point; calls sighandler() */
+	uint8 sa_mask[4];		/* signal mask to apply */
+	int32 sa_flags;			/* see signal options below */
 } sigaction;
+
 
 void
 sighandler(int32 sig, siginfo *info, void *context)
@@ -151,6 +153,7 @@ sighandler(int32 sig, siginfo *info, void *context)
         
 	sys·exit(2);
 }
+
 
 sigaction a;
 extern void sigtramp(void);
