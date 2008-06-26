@@ -40,6 +40,8 @@ func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
 func	mapassign1(hmap *map[any]any, key any, val any);
 func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
 
+func	readfile(string) (string, bool);	// read file into string; boolean status
+
 export
 	mal
 	breakpoint
@@ -78,5 +80,8 @@ export
 	mapaccess2
 	mapassign1
 	mapassign2
+
+	// files
+	readfile
 
 	;

@@ -16,9 +16,10 @@ LIBOFILES=\
 	rt1_$(GOARCH)_$(GOOS).$O\
 	rt2_$(GOARCH).$O\
 	runtime.$O\
+	sys_file.$O\
 
 OFILES=$(RT0OFILES) $(LIBOFILES)
-HFILES=
+HFILES=runtime.h
 
 install: rt0 $(LIB)
 	cp $(RT0OFILES) $(GOROOT)/lib

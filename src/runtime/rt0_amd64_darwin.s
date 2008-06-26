@@ -7,8 +7,8 @@ TEXT	_rt0_amd64_darwin(SB),1,$-8
 	PUSHQ	$0
 	MOVQ	SP, BP
 	ANDQ	$~15, SP
-	MOVQ	8(BP), DI
-	LEAQ	16(BP), SI
+	MOVQ	8(BP), DI	// argc
+	LEAQ	16(BP), SI	// argv
 	MOVL	DI, DX
 	ADDL	$1, DX
 	SHLL	$3, DX
@@ -55,6 +55,34 @@ TEXT	sys·write(SB),1,$-8
 	SYSCALL
 	JCC	2(PC)
 	CALL	notok(SB)
+	RET
+
+TEXT	open(SB),1,$-8
+	MOVQ	8(SP), DI
+	MOVL	16(SP), SI
+	MOVL	$5, AX			// syscall entry
+	SYSCALL
+	RET
+
+TEXT	close(SB),1,$-8
+	MOVL	8(SP), DI
+	MOVL	$6, AX			// syscall entry
+	SYSCALL
+	RET
+
+TEXT	fstat(SB),1,$-8
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVL	$189, AX			// syscall entry
+	SYSCALL
+	RET
+
+TEXT	read(SB),1,$-8
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVL	24(SP), DX
+	MOVL	$3, AX			// syscall entry
+	SYSCALL
 	RET
 
 TEXT	sys·sigaction(SB),1,$-8
