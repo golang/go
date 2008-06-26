@@ -364,15 +364,11 @@ main(int argc, char *argv[])
 
 	if(!debug['l']) {
 		loadlib();
-		/* BUG: these should be an archive or pulled via pragmas in rt0_*.6 */
 		a = mal(strlen(goroot)+strlen(goarch)+20);
 		sprint(a, "%s/lib/rt_%s.6", goroot, goarch);
 		objfile(a);
 		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
-		sprint(a, "%s/lib/rt1_%s_%s.6", goroot, goarch, goos);
-		objfile(a);
-		a = mal(strlen(goroot)+strlen(goarch)+20);
-		sprint(a, "%s/lib/rt2_%s.6", goroot, goarch);
+		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
 		objfile(a);
 	}
 

@@ -10,7 +10,7 @@ O=o
 # We call the binary 6ar to avoid confusion and because this binary
 # is linked only with amd64 and x86 support.
 
-TARG=6ar
+TARG=$(O)ar
 OFILES=\
 	ar.$O\
 
