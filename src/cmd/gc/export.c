@@ -260,7 +260,7 @@ dumpexport(void)
 	Dcl *d;
 	long lno;
 
-	lno = dynlineno;
+	lno = lineno;
 
 	Bprint(bout, "   import\n");
 	Bprint(bout, "   ((\n");
@@ -269,13 +269,13 @@ dumpexport(void)
 
 	// print it depth first
 	for(d=exportlist->forw; d!=D; d=d->forw) {
-		dynlineno = d->lineno;
+		lineno = d->lineno;
 		dumpe(d->dsym);
 	}
 
 	Bprint(bout, "   ))\n");
 
-	dynlineno = lno;
+	lineno = lno;
 }
 
 /*

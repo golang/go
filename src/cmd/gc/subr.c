@@ -18,7 +18,7 @@ yyerror(char *fmt, ...)
 {
 	va_list arg;
 
-	print("%L: ");
+	print("%L: ", lineno);
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
@@ -36,7 +36,7 @@ warn(char *fmt, ...)
 {
 	va_list arg;
 
-	print("%L: ");
+	print("%L: ", lineno);
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
@@ -50,7 +50,7 @@ fatal(char *fmt, ...)
 {
 	va_list arg;
 
-	print("%L: fatal error: ");
+	print("%L: fatal error: ", lineno);
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
@@ -66,14 +66,15 @@ linehist(char *file, long off)
 	Hist *h;
 	char *cp;
 
-	if(debug['i'])
-	if(file != nil) {
-		if(off < 0)
-			print("%L: pragma %s\n", file);
-		else
-			print("%L: import %s\n", file);
-	} else
-		print("%L: <eof>\n");
+	if(debug['i']) {
+		if(file != nil) {
+			if(off < 0)
+				print("pragma %s at line %L\n", file, lineno);
+			else
+				print("import %s at line %L\n", file, lineno);
+		} else
+			print("end of import at line %L\n", lineno);
+	}
 
 	if(off < 0 && file[0] != '/') {
 		cp = mal(strlen(file) + strlen(pathname) + 2);
@@ -93,6 +94,17 @@ linehist(char *file, long off)
 	}
 	ehist->link = h;
 	ehist = h;
+}
+
+long
+setlineno(Node *n)
+{
+	long lno;
+
+	lno = lineno;
+	if(n != N && n->op != ONAME)
+		lineno = n->lineno;
+	return lno;
 }
 
 ulong
@@ -245,7 +257,7 @@ dcl(void)
 	Dcl *d;
 
 	d = mal(sizeof(*d));
-	d->lineno = dynlineno;
+	d->lineno = lineno;
 	return d;
 }
 
@@ -258,9 +270,7 @@ nod(int op, Node *nleft, Node *nright)
 	n->op = op;
 	n->left = nleft;
 	n->right = nright;
-	n->lineno = dynlineno;
-	if(dynlineno == 0)
-		n->lineno = lineno;
+	n->lineno = lineno;
 	return n;
 }
 
@@ -686,9 +696,7 @@ Lconv(Fmt *fp)
 	int i, n;
 	Hist *h;
 
-	lno = dynlineno;
-	if(lno == 0)
-		lno = lineno;
+	lno = va_arg(fp->args, long);
 
 	n = 0;
 	for(h=hist; h!=H; h=h->link) {
@@ -734,8 +742,9 @@ Lconv(Fmt *fp)
 		lno = a[i].incl->line - 1;	/* now print out start of this file */
 	}
 	if(n == 0)
-		strcat(str, "<eof>");
+		strcat(str, "<epoch>");
 
+ret:
 	return fmtstrcpy(fp, str);
 }
 

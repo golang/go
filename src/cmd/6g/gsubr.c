@@ -53,7 +53,7 @@ prog(int as)
 	clearp(pc);
 
 	p->as = as;
-	p->lineno = dynlineno;
+	p->lineno = lineno;
 	p->link = pc;
 	return p;
 }

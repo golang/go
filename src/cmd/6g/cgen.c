@@ -20,9 +20,7 @@ cgen(Node *n, Node *res)
 	if(n == N || n->type == T)
 		return;
 
-	lno = dynlineno;
-	if(n->op != ONAME)
-		dynlineno = n->lineno;	// for diagnostics
+	lno = setlineno(n);
 
 	if(res == N || res->type == T)
 		fatal("cgen: res nil");
@@ -236,7 +234,7 @@ uop:	// unary
 	goto ret;
 
 ret:
-	dynlineno = lno;
+	lineno = lno;
 }
 
 void
@@ -244,9 +242,9 @@ agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
 	Node n1, n2, n3, tmp;
-	ulong w, lno;
+	ulong w;
 	Type *t;
-
+	long lno;
 
 	if(debug['g']) {
 		dump("\nagen-res", res);
@@ -255,12 +253,10 @@ agen(Node *n, Node *res)
 	if(n == N || n->type == T)
 		return;
 
+	lno = setlineno(n);
+
 	if(!isptr[res->type->etype])
 		fatal("agen: not tptr: %T", res->type);
-
-	lno = dynlineno;
-	if(n->op != ONAME)
-		dynlineno = n->lineno;	// for diagnostics
 
 	if(n->addable) {
 		regalloc(&n1, types[tptr], res);
@@ -390,7 +386,7 @@ agen(Node *n, Node *res)
 	}
 
 ret:
-	dynlineno = lno;
+	lineno = lno;
 }
 
 vlong
@@ -427,9 +423,7 @@ bgen(Node *n, int true, Prog *to)
 	if(n == N)
 		n = booltrue;
 
-	lno = dynlineno;
-	if(n->op != ONAME)
-		dynlineno = n->lineno;	// for diagnostics
+	lno = setlineno(n);
 
 	nl = n->left;
 	nr = n->right;
@@ -581,14 +575,16 @@ bgen(Node *n, int true, Prog *to)
 	goto ret;
 
 ret:
-	dynlineno = lno;
+	lineno = lno;
 }
 
 void
 sgen(Node *n, Node *ns, ulong w)
 {
 	Node nodl, nodr;
-	long c;
+	long c, lno;
+
+	lno = setlineno(n);
 
 	if(debug['g']) {
 		dump("\nsgen-res", ns);
@@ -625,4 +621,6 @@ sgen(Node *n, Node *ns, ulong w)
 		gins(AREP, N, N);	// repeat
 		gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
 	}
+
+	lineno = lno;
 }
