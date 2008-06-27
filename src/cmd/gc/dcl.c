@@ -317,14 +317,14 @@ funchdr(Node *n)
 	if(on != N) {
 		if(eqtype(n->type, on->type, 0)) {
 			if(!eqargs(n->type, on->type))
-				yyerror("foreward declarations not the same: %S", s);
+				yyerror("forward declarations not the same: %S", s);
 		} else {
 			yyerror("redeclare of function: %S", s);
 			on = N;
 		}
 	}
 
-	// check for foreward declaration
+	// check for forward declaration
 	if(on == N) {
 		// initial declaration or redeclaration
 		// declare fun name, argument types and argument names
@@ -533,7 +533,7 @@ popdcl(char *why)
 	if(d == S)
 		fatal("popdcl: no mark");
 	if(strcmp(why, d->package) != 0)
-		fatal("popdcl: pushed as %s poped as %s", d->package, why);
+		fatal("popdcl: pushed as %s popped as %s", d->package, why);
 	dclstack = d->link;
 	block = d->vblock;
 }
@@ -718,7 +718,7 @@ addtyp(Type *n, Type *t, int ctxt)
 
 	for(f=s->forwtype; f!=T; f=f->nforw) {
 		if(!isptr[f->etype])
-			fatal("addtyp: foreward");
+			fatal("addtyp: forward");
 		f->type = t;
 	}
 	s->forwtype = T;
