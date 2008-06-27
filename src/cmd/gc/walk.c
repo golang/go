@@ -35,7 +35,7 @@ walktype(Node *n, int top)
 	 * compile-time constants are evaluated.
 	 */
 
-	lno = dynlineno;
+	lno = setlineno(n);
 	if(top == Exxx || top == Eyyy) {
 		dump("", n);
 		fatal("walktype: bad top=%d", top);
@@ -44,8 +44,7 @@ walktype(Node *n, int top)
 loop:
 	if(n == N)
 		goto ret;
-	if(n->op != ONAME)
-		dynlineno = n->lineno;	// for diagnostics
+	setlineno(n);
 
 	if(debug['w'] > 1 && top == Etop && n->op != OLIST)
 		dump("walk-before", n);
@@ -719,7 +718,7 @@ ret:
 		dump("walk", n);
 
 	ullmancalc(n);
-	dynlineno = lno;
+	lineno = lno;
 }
 
 /*
@@ -1219,8 +1218,7 @@ stringop(Node *n, int top)
 	Node *r, *c, *on;
 	long lno, l;
 
-	lno = dynlineno;
-	dynlineno = n->lineno;
+	lno = setlineno(n);
 
 	switch(n->op) {
 	default:
@@ -1312,7 +1310,7 @@ stringop(Node *n, int top)
 	}
 
 	walktype(r, top);
-	dynlineno = lno;
+	lineno = lno;
 	return r;
 }
 
@@ -1374,8 +1372,7 @@ mapop(Node *n, int top)
 	Node *on;
 	int alg1, alg2, cl, cr;
 
-	lno = dynlineno;
-	dynlineno = n->lineno;
+	lno = setlineno(n);
 
 //dump("mapop", n);
 
@@ -1556,17 +1553,19 @@ mapop(Node *n, int top)
 		break;
 
 	}
-	dynlineno = lno;
+	lineno = lno;
 	return r;
 
 shape:
 	dump("shape", n);
 	fatal("mapop: cl=%d cr=%d, %O", top, n->op);
+	lineno = lno;
 	return N;
 
 nottop:
 	dump("bad top", n);
 	fatal("mapop: top=%d %O", top, n->op);
+	lineno = lno;
 	return N;
 }
 

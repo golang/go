@@ -26,15 +26,15 @@ compile(Node *fn)
 
 	if(fn->nbody == N)
 		return;
-	lno = dynlineno;
+	lno = setlineno(fn);
 
 	curfn = fn;
-	dynlineno = curfn->lineno;	// for diagnostics
+	lineno = curfn->lineno;	// for diagnostics
 	dowidth(curfn->type);
 
 	walk(curfn);
 	if(nerrors != 0)
-		return;
+		goto ret;
 
 	allocparams();
 
@@ -65,7 +65,8 @@ compile(Node *fn)
 	if(debug['f'])
 		frame(0);
 
-	dynlineno = lno;;
+ret:
+	lineno = lno;
 }
 
 void
@@ -139,12 +140,12 @@ gen(Node *n)
 	Prog *p1, *p2, *p3;
 	Sym *s;
 
-	lno = dynlineno;
+	lno = setlineno(n);
 
 loop:
 	if(n == N)
 		goto ret;
-	dynlineno = n->lineno;	// for diagnostics
+	setlineno(n);
 
 	switch(n->op) {
 	default:
@@ -295,7 +296,7 @@ loop:
 	}
 
 ret:
-	dynlineno = lno;
+	lineno = lno;
 }
 
 void
@@ -304,7 +305,9 @@ agen_inter(Node *n, Node *res)
 	Node nodo, nodr, nodt;
 	Sym *s;
 	char *e;
-	long o;
+	long o,lno;
+
+	lno = setlineno(n);
 
 	// stack offset
 	memset(&nodo, 0, sizeof(nodo));
@@ -408,6 +411,7 @@ agen_inter(Node *n, Node *res)
 	gins(ALEAQ, &nodo, res);
 
 	regfree(&nodr);
+	lineno = lno;
 }
 
 void
@@ -425,7 +429,7 @@ swgen(Node *n)
 // walk. gen binary search for
 // sequence of constant cases
 
-	lno = dynlineno;
+	lno = setlineno(n);
 
 	p1 = gbranch(AJMP, T);
 	s0 = C;
@@ -438,7 +442,7 @@ swgen(Node *n)
 	dflt = P;
 	c1 = listfirst(&save1, &n->nbody);
 	while(c1 != N) {
-		dynlineno = c1->lineno;	// for diagnostics
+		lineno = c1->lineno;	// for diagnostics
 		if(c1->op != OCASE) {
 			if(s0 == C && dflt == P)
 				yyerror("unreachable statements in a switch");
@@ -502,7 +506,7 @@ swgen(Node *n)
 	patch(gbranch(AJMP, T), breakpc);
 
 ret:
-	dynlineno = lno;
+	lineno = lno;
 }
 
 void
@@ -530,6 +534,9 @@ cgen_callinter(Node *n, Node *res)
 {
 	Node *i, *f;
 	Node tmpi, nodo, nodr, nodsp;
+	long lno;
+
+	lno = setlineno(n);
 
 	i = n->left;
 	if(i->op != ODOTINTER)
@@ -573,15 +580,19 @@ cgen_callinter(Node *n, Node *res)
 	regfree(&nodr);
 
 	setmaxarg(n->left->type);
+	lineno = lno;
 }
 
 void
 cgen_callmeth(Node *n)
 {
 	Node *l;
+	long lno;
 
 	// generate a rewrite for method call
 	// (p.f)(...) goes to (f)(p,...)
+
+	lno = setlineno(n);
 
 	l = n->left;
 	if(l->op != ODOTMETH)
@@ -594,6 +605,7 @@ cgen_callmeth(Node *n)
 	if(n->left->op == ONAME)
 		n->left->class = PEXTERN;
 	cgen_call(n);
+	lineno = lno;
 }
 
 void
@@ -601,9 +613,12 @@ cgen_call(Node *n)
 {
 	Type *t;
 	Node nod, afun;
+	long lno;
 
 	if(n == N)
 		return;
+
+	lno = setlineno(n);
 
 	if(n->left->ullman >= UINF) {
 		// if name involves a fn call
@@ -628,7 +643,7 @@ cgen_call(Node *n)
 		cgen_as(&nod, &afun, 0);
 		gins(ACALL, N, &nod);
 		regfree(&nod);
-		return;
+		goto ret;
 	}
 
 	// call pointer
@@ -637,12 +652,15 @@ cgen_call(Node *n)
 		cgen_as(&nod, n->left, 0);
 		gins(ACALL, N, &nod);
 		regfree(&nod);
-		return;
+		goto ret;
 	}
 
 	// call direct
 	n->left->method = 1;
 	gins(ACALL, N, n->left);
+
+ret:
+	lineno = lno;
 }
 
 void
@@ -651,6 +669,9 @@ cgen_callret(Node *n, Node *res)
 	Node nod;
 	Type *fp, *t;
 	Iter flist;
+	long lno;
+
+	lno = setlineno(n);
 
 	t = n->left->type;
 	if(t->etype == TPTR32 || t->etype == TPTR64)
@@ -668,6 +689,7 @@ cgen_callret(Node *n, Node *res)
 	nod.xoffset = fp->width;
 	nod.type = fp->type;
 	cgen_as(res, &nod, 0);
+	lineno = lno;
 }
 
 void
@@ -676,6 +698,9 @@ cgen_aret(Node *n, Node *res)
 	Node nod1, nod2;
 	Type *fp, *t;
 	Iter flist;
+	long lno;
+
+	lno = setlineno(n);
 
 	t = n->left->type;
 	if(isptr[t->etype])
@@ -694,13 +719,18 @@ cgen_aret(Node *n, Node *res)
 	nod1.type = fp->type;
 
 	gins(ALEAQ, &nod1, res);
+	lineno = lno;
 }
 
 void
 cgen_ret(Node *n)
 {
+	long lno;
+
+	lno = setlineno(n);
 	gen(n->left);	// copy out args
 	gins(ARET, N, N);
+	lineno = lno;
 }
 
 void
@@ -708,6 +738,9 @@ cgen_asop(Node *n)
 {
 	Node n1, n2, n3, n4;
 	Node *nl, *nr;
+	long lno;
+
+	lno = setlineno(n);
 
 	nl = n->left;
 	nr = n->right;
@@ -738,6 +771,7 @@ cgen_asop(Node *n)
 	regfree(&n1);
 	regfree(&n2);
 	regfree(&n4);
+	lineno = lno;
 }
 
 void
@@ -746,6 +780,7 @@ cgen_as(Node *nl, Node *nr, int op)
 	Node nc, n1;
 	Type *tl;
 	ulong w, c;
+	long lno;
 
 	if(nl == N)
 		return;
@@ -753,6 +788,8 @@ cgen_as(Node *nl, Node *nr, int op)
 	tl = nl->type;
 	if(tl == T)
 		return;
+
+	lno = setlineno(nl);
 
 	if(nr == N || isnil(nr)) {
 		if(isfat(tl)) {
@@ -783,7 +820,7 @@ cgen_as(Node *nl, Node *nr, int op)
 				gins(AREP, N, N);	// repeat
 				gins(ASTOSB, N, N);	// STOB AL,*(DI)+
 			}
-			return;
+			goto ret;
 		}
 
 		/* invent a "zero" for the rhs */
@@ -835,7 +872,7 @@ cgen_as(Node *nl, Node *nr, int op)
 //			gins(AMOVQ, &nc, &n1);
 //			n1.xoffset += widthptr;
 //			gins(AMOVQ, &nc, &n1);
-//			return;
+//			goto ret;
 
 		}
 		nr->op = OLITERAL;
@@ -848,6 +885,9 @@ cgen_as(Node *nl, Node *nr, int op)
 		fatal("cgen_as both sides call");
 	}
 	cgen(nr, nl);
+
+ret:
+	lineno = lno;
 }
 
 int
@@ -872,7 +912,9 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
 	Node n1, n2, n3;
 	int a, rax, rdx;
+	long lno;
 
+	lno = setlineno(nl);
 
 	rax = reg[D_AX];
 	rdx = reg[D_DX];
@@ -895,7 +937,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 
 		gins(AMOVQ, &n3, &n1);
 		regfree(&n3);
-		return;
+		goto ret;
 	}
 
 	// clean out the DX register
@@ -911,7 +953,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 
 		gins(AMOVQ, &n3, &n2);
 		regfree(&n3);
-		return;
+		goto ret;
 	}
 
 	a = optoas(op, nl->type);
@@ -944,6 +986,9 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 
 	regfree(&n1);
 	regfree(&n2);
+
+ret:
+	lineno = lno;
 }
 
 /*
@@ -956,6 +1001,9 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
 	Node n1, n2;
 	int a, rcl;
+	long lno;
+
+	lno = setlineno(nl);
 
 	a = optoas(op, nl->type);
 
@@ -965,7 +1013,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		gins(a, nr, &n1);
 		gmove(&n1, res);
 		regfree(&n1);
-		return;
+		goto ret;
 	}
 
 	rcl = reg[D_CX];
@@ -985,7 +1033,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 
 		gins(AMOVQ, &n2, &n1);
 		regfree(&n2);
-		return;
+		goto ret;
 	}
 
 	regalloc(&n2, nl->type, res);	// can one shift the CL register?
@@ -1001,4 +1049,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 
 	regfree(&n1);
 	regfree(&n2);
+
+ret:
+	lineno = lno;
 }
