@@ -568,6 +568,23 @@ dostkoff(void)
 	Prog *p, *q;
 	long autoffset, deltasp;
 	int a, f, curframe, curbecome, maxbecome, pcsize;
+	Prog *pmorestack;
+	Sym *symmorestack;
+
+	pmorestack = P;
+	symmorestack = lookup("_morestack", 0);
+
+	if(symmorestack->type == STEXT)
+	for(p = firstp; p != P; p = p->link) {
+		if(p->as == ATEXT) {
+			if(p->from.sym == symmorestack) {
+				pmorestack = p;
+				break;
+			}
+		}
+	}
+	if(pmorestack == P)
+		diag("_morestack not defined");
 
 	curframe = 0;
 	curbecome = 0;
@@ -643,15 +660,72 @@ dostkoff(void)
 	for(p = firstp; p != P; p = p->link) {
 		if(p->as == ATEXT) {
 			curtext = p;
-			autoffset = p->to.offset;
+			parsetextconst(p->to.offset);
+			autoffset = textstksiz;
 			if(autoffset < 0)
 				autoffset = 0;
+
+			q = P;
+			if(pmorestack != P)
+			if(!(p->from.scale & NOSPLIT)) {
+				if(autoffset <= 50) {
+					// small stack
+					p = appendp(p);
+					p->as = ACMPQ;
+					p->from.type = D_SP;
+					p->to.type = D_INDIR+D_R15;
+					
+				} else {
+					// large stack
+					p = appendp(p);
+					p->as = AMOVQ;
+					p->from.type = D_SP;
+					p->to.type = D_AX;
+
+					p = appendp(p);
+					p->as = ASUBQ;
+					p->from.type = D_CONST;
+					p->from.offset = autoffset-50;
+					p->to.type = D_AX;
+
+					p = appendp(p);
+					p->as = ACMPQ;
+					p->from.type = D_AX;
+					p->to.type = D_INDIR+D_R15;
+				}
+				// common
+				p = appendp(p);
+				p->as = AJHI;
+				p->to.type = D_BRANCH;
+				p->to.offset = 3;
+				q = p;
+
+				p = appendp(p);
+				p->as = AMOVQ;
+				p->from.type = D_CONST;
+				p->from.offset = curtext->to.offset;
+				p->to.type = D_AX;
+
+				p = appendp(p);
+				p->as = ACALL;
+				p->to.type = D_BRANCH;
+				p->pcond = pmorestack;
+				p->to.sym = symmorestack;
+
+			}
+
+			if(q != P)
+				q->pcond = p->link;
+
 			if(autoffset) {
 				p = appendp(p);
 				p->as = AADJSP;
 				p->from.type = D_CONST;
 				p->from.offset = autoffset;
+				if(q != P)
+					q->pcond = p;
 			}
+
 			deltasp = autoffset;
 		}
 		pcsize = p->mode/8;

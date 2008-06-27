@@ -56,10 +56,13 @@ Pconv(Fmt *fp)
 	switch(p->as) {
 	case ATEXT:
 		if(p->from.scale) {
-			sprint(str, "%-7s %-7A %D,%d,%D",
+			sprint(str, "%-7s %-7A %D,%d,%lD",
 				str1, p->as, &p->from, p->from.scale, &p->to);
 			break;
 		}
+		sprint(str, "%-7s %-7A %D,%lD",
+			str1, p->as, &p->from, &p->to);
+		break;
 
 	default:
 		sprint(str, "%-7s %-7A %D,%D",
@@ -95,6 +98,22 @@ Dconv(Fmt *fp)
 
 	a = va_arg(fp->args, Adr*);
 	i = a->type;
+
+	if(fp->flags & FmtLong) {
+		if(i != D_CONST) {
+			// ATEXT dst is not constant
+			sprint(str, "!!%D", a);
+			goto brk;
+		}
+		parsetextconst(a->offset);
+		if(textinarg == 0 && textoutarg == 0) {
+			sprint(str, "$%lld", textstksiz);
+			goto brk;
+		}
+		sprint(str, "$%lld-%lld-%lld", textstksiz, textinarg, textoutarg);
+		goto brk;
+	}
+
 	if(i >= D_INDIR) {
 		if(a->offset)
 			sprint(str, "%lld(%R)", a->offset, i-D_INDIR);
@@ -394,4 +413,27 @@ diag(char *fmt, ...)
 		print("too many errors\n");
 		errorexit();
 	}
+}
+
+void
+parsetextconst(vlong arg)
+{
+	textstksiz = arg & 0xffffffffLL;
+	if(textstksiz & 0x80000000LL)
+		textstksiz = -(-textstksiz & 0xffffffffLL);
+		
+
+	// the following throws away one bit
+	// of precision, but maintains compat
+	textinarg = (arg >> 32) & 0xffffLL;
+	if(textinarg & 0x8000LL)
+		textinarg = -(-textinarg & 0xffffLL);
+	if(textinarg <= 0)
+		textinarg = 100;
+
+	textoutarg = (arg >> 48) & 0xffffLL;
+	if(textoutarg & 0x8000LL)
+		textoutarg = -(-textoutarg & 0xffffLL);
+	if(textoutarg <= 0)
+		textoutarg = 0;
 }

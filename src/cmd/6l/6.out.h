@@ -32,6 +32,7 @@
 #define	NSNAME	8
 #define NOPROF	(1<<0)
 #define DUPOK	(1<<1)
+#define NOSPLIT	(1<<2)
 #define SOFmark	"\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe"
 
 /*

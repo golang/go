@@ -3,48 +3,59 @@
 // license that can be found in the LICENSE file.
 
 
-TEXT	_rt0_amd64_linux(SB),1,$-8
-	PUSHQ	$0
-	MOVQ	SP, BP
-	ANDQ	$~15, SP
-	MOVQ	8(BP), DI	// argc
-	LEAQ	16(BP), SI	// argv
-	MOVL	DI, DX
-	ADDL	$1, DX
-	SHLL	$3, DX
-	ADDQ	SI, DX
-	MOVQ	DX, CX
-	CMPQ	(CX), $0
-	JEQ	done
+TEXT	_rt0_amd64_linux(SB),7,$-8
 
-loop:
-	ADDQ	$8, CX
-	CMPQ	(CX), $0
-	JNE	loop
+// copy arguments forward on an even stack
 
-done:
-	ADDQ	$8, CX
-	SUBQ	$16, SP
-	MOVL	DI, 0(SP)
-	MOVQ	SI, 8(SP)
-	CALL	args(SB)
-	ADDQ	$16, SP
+
+	MOVQ	0(SP), AX		// argc
+	LEAQ	8(SP), BX		// argv
+	ANDQ	$~7, SP
+	SUBQ	$32, SP
+	MOVQ	AX, 16(SP)
+	MOVQ	BX, 24(SP)
+
+// allocate the per-user block
+
+	LEAQ	peruser<>(SB), R15	// dedicated u. register
+	MOVQ	SP, AX
+	SUBQ	$4096, AX
+	MOVQ	AX, 0(R15)
+
 	CALL	check(SB)
+
+// process the arguments
+
+	MOVL	16(SP), AX
+	MOVL	AX, 0(SP)
+	MOVQ	24(SP), AX
+	MOVQ	AX, 8(SP)
+	CALL	args(SB)
+
 	CALL	main·main(SB)
+
+	MOVQ	$0, AX
+	MOVQ	AX, 0(SP)		// exit status
 	CALL	sys·exit(SB)
+
 	CALL	notok(SB)
-	POPQ	AX
+
+	ADDQ	$32, SP
 	RET
 
-TEXT	FLUSH(SB),1,$-8
+TEXT	_morestack(SB), 7, $0
+	MOVQ	SP, AX
+	SUBQ	$1024, AX
+	MOVQ	AX, 0(R15)
+	RET
+
+TEXT	FLUSH(SB),7,$-8
 	RET
 
 TEXT	sys·exit(SB),1,$-8
 	MOVL	8(SP), DI
 	MOVL	$60, AX
 	SYSCALL
-	JCC	2(PC)
-	CALL	notok(SB)
 	RET
 
 TEXT	sys·write(SB),1,$-8
@@ -53,8 +64,6 @@ TEXT	sys·write(SB),1,$-8
 	MOVL	24(SP), DX
 	MOVL	$1, AX			// syscall entry
 	SYSCALL
-	JCC	2(PC)
-	CALL	notok(SB)
 	RET
 
 TEXT	open(SB),1,$-8
@@ -93,8 +102,6 @@ TEXT	sys·rt_sigaction(SB),1,$-8
 	MOVL	CX, R10
 	MOVL	$13, AX			// syscall entry
 	SYSCALL
-	JCC	2(PC)
-	CALL	notok(SB)
 	RET
 
 TEXT	sigtramp(SB),1,$24
@@ -151,3 +158,5 @@ TEXT	sys·getcallerpc+0(SB),0,$0
 	MOVQ	x+0(FP),AX
 	MOVQ	-8(AX),AX
 	RET
+
+GLOBL	peruser<>(SB),$64
