@@ -126,7 +126,7 @@ func (f *Fmt) pad(s string) {
 			}
 		}
 	}
-	f.buf = f.buf + s;  // BUG: += should work
+	f.buf += s;
 }
 
 // format val into buf, ending at buf[i].  (printing is easier right-to-left;
@@ -355,7 +355,7 @@ func unpack(a double) (negative bool, exp int, num double) {
 	// guess 10-exponent using 2-exponent, then fine tune.
 	var g double;
 	var e2 int;
-	e2, g = sys.frexp(a);
+	e2, g = sys.frexp(a);  // BUG: should be able to say e2, g := sys.frexp(a);
 	e := int(e2 * .301029995663981);
 	g = a * pow10(-e);
 	for g < 1 {
@@ -473,15 +473,15 @@ func (f *Fmt) G(a double) *Fmt {
 
 // float
 func (x *Fmt) f(a float) *Fmt {
-	return x.F(double(a));
+	return x.F(double(a))
 }
 
 // float
 func (x *Fmt) e(a float) *Fmt {
-	return x.E(double(a));
+	return x.E(double(a))
 }
 
 // float
 func (x *Fmt) g(a float) *Fmt {
-	return x.G(double(a));
+	return x.G(double(a))
 }
