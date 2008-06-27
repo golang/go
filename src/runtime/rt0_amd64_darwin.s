@@ -3,43 +3,56 @@
 // license that can be found in the LICENSE file.
 
 
-TEXT	_rt0_amd64_darwin(SB),1,$-8
-	PUSHQ	$0
-	MOVQ	SP, BP
-	ANDQ	$~15, SP
-	MOVQ	8(BP), DI	// argc
-	LEAQ	16(BP), SI	// argv
-	MOVL	DI, DX
-	ADDL	$1, DX
-	SHLL	$3, DX
-	ADDQ	SI, DX
-	MOVQ	DX, CX
-	CMPQ	(CX), $0
-	JEQ	done
+TEXT	_rt0_amd64_darwin(SB),7,$-8
 
-loop:
-	ADDQ	$8, CX
-	CMPQ	(CX), $0
-	JNE	loop
+// copy arguments forward on an even stack
 
-done:
-	ADDQ	$8, CX
-	SUBQ	$16, SP
-	MOVL	DI, 0(SP)
-	MOVQ	SI, 8(SP)
-	CALL	args(SB)
-	ADDQ	$16, SP
+
+	MOVQ	0(SP), AX		// argc
+	LEAQ	8(SP), BX		// argv
+	ANDQ	$~7, SP
+	SUBQ	$32, SP
+	MOVQ	AX, 16(SP)
+	MOVQ	BX, 24(SP)
+
+// allocate the per-user block
+
+	LEAQ	peruser<>(SB), R15	// dedicated u. register
+	MOVQ	SP, AX
+	SUBQ	$4096, AX
+	MOVQ	AX, 0(R15)
+
 	CALL	check(SB)
+
+// process the arguments
+
+	MOVL	16(SP), AX
+	MOVL	AX, 0(SP)
+	MOVQ	24(SP), AX
+	MOVQ	AX, 8(SP)
+	CALL	args(SB)
+
 	CALL	main·main(SB)
+
+	MOVQ	$0, AX
+	MOVQ	AX, 0(SP)		// exit status
 	CALL	sys·exit(SB)
+
 	CALL	notok(SB)
-	POPQ	AX
+
+	ADDQ	$32, SP
+	RET
+
+TEXT	_morestack(SB), 7, $0
+	MOVQ	SP, AX
+	SUBQ	$1024, AX
+	MOVQ	AX, 0(R15)
 	RET
 
 TEXT	FLUSH(SB),7,$-8
 	RET
 
-TEXT	sys·exit(SB),7,$-8
+TEXT	sys·exit(SB),1,$-8
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+1), AX
 	SYSCALL
@@ -138,7 +151,9 @@ TEXT	sys·memclr(SB),1,$-8
 	STOSQ
 	RET
 
-TEXT	sys·getcallerpc+0(SB),0,$0
+TEXT	sys·getcallerpc+0(SB),1,$0
 	MOVQ	x+0(FP),AX
 	MOVQ	-8(AX),AX
 	RET
+
+GLOBL	peruser<>(SB),$64
