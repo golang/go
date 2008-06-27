@@ -7,9 +7,10 @@
 package main
 
 type Box struct {};
-var m map[string] *Box;
+var m *map[string] *Box;
   
 func main() {
+  m := new(map[string] *Box);
   s := "foo";
   var x *Box = nil;
   m[s] = x;
