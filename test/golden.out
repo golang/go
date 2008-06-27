@@ -66,10 +66,10 @@ test0.go:49: illegal types for operand: AS
 	(<float32>FLOAT32)
 	(<int32>INT32)
 test0.go:50: error in shape across assignment
-test0.go:47: illegal types for operand: CALLMETH
+test0.go:55: illegal types for operand: CALLMETH
 	(*<Point>{})
 	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
-test0.go:47: illegal types for operand: AS
+test0.go:54: illegal types for operand: AS
 	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
 	({})
 BUG: known to fail incorrectly
@@ -206,7 +206,7 @@ BUG: compilation should succeed
 
 =========== bugs/bug043.go
 bugs/bug043.go:14: error in shape across assignment
-bugs/bug043.go:14: error in shape across assignment
+bugs/bug043.go:17: error in shape across assignment
 BUG: compilation should succeed
 
 =========== bugs/bug044.go
@@ -321,13 +321,8 @@ BUG: compilation should succeed
 bugs/bug057.go:13: syntax error
 BUG: compilation should succeed
 
-=========== bugs/bug058.go
-bugs/bug058.go:11: illegal types for operand: INDEX
-	(MAP[<string>*STRING]*<Box>{})
-	(<string>*STRING)
-bugs/bug058.go:11: illegal types for operand: AS
-	(*<Box>{})
-BUG: compilation should succeed
+=========== bugs/bug059.go
+BUG: crashes
 
 =========== fixedbugs/bug000.go
 
@@ -378,3 +373,5 @@ BUG: compilation should succeed
 =========== fixedbugs/bug040.go
 
 =========== fixedbugs/bug045.go
+
+=========== fixedbugs/bug058.go

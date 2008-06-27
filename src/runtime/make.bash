@@ -4,8 +4,6 @@
 
 set -ex
 
-for GOOS in linux darwin
-do
-	make install
-done
+make clean
+make install
 
