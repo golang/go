@@ -154,7 +154,7 @@ TEXT	sys·memclr(SB),1,$-8
 	STOSQ
 	RET
 
-TEXT	sys·getcallerpc+0(SB),0,$0
+TEXT	sys·getcallerpc+0(SB),1,$0
 	MOVQ	x+0(FP),AX
 	MOVQ	-8(AX),AX
 	RET
