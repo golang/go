@@ -52,8 +52,8 @@
 %token	<dval>	LFCONST
 %token	<sval>	LSCONST LSP
 %token	<sym>	LNAME LLAB LVAR
-%type	<lval>	con expr pointer offset
-%type	<gen>	mem imm reg nam rel rem rim rom omem nmem
+%type	<lval>	con con3 expr pointer offset
+%type	<gen>	mem imm imm3 reg nam rel rem rim rom omem nmem
 %type	<gen2>	nonnon nonrel nonrem rimnon rimrem remrim spec10
 %type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9
 %%
@@ -177,12 +177,12 @@ spec1:	/* DATA */
 	}
 
 spec2:	/* TEXT */
-	mem ',' imm
+	mem ',' imm3
 	{
 		$$.from = $1;
 		$$.to = $3;
 	}
-|	mem ',' con ',' imm
+|	mem ',' con ',' imm3
 	{
 		$$.from = $1;
 		$$.from.scale = $3;
@@ -362,6 +362,14 @@ reg:
 	{
 		$$ = nullgen;
 		$$.type = $1;
+	}
+
+imm3:
+	'$' con3
+	{
+		$$ = nullgen;
+		$$.type = D_CONST;
+		$$.offset = $2;
 	}
 
 imm:
@@ -546,6 +554,25 @@ con:
 |	'(' expr ')'
 	{
 		$$ = $2;
+	}
+
+con3:
+	LCONST
+|	'-' LCONST
+	{
+		$$ = -$2;
+	}
+|	LCONST '-' LCONST '-' LCONST
+	{
+		$$ = ($1 & 0xffffffffLL) +
+			(($3 & 0xffffLL) << 32) +
+			(($5 & 0xffffLL) << 48);
+	}
+|	'-' LCONST '-' LCONST '-' LCONST
+	{
+		$$ = (-$2 & 0xffffffffLL) +
+			(($4 & 0xffffLL) << 32) +
+			(($6 & 0xffffLL) << 48);
 	}
 
 expr:

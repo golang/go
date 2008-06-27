@@ -345,6 +345,9 @@ EXTERN	int	exports, nexports;
 EXTERN	char*	EXPTAB;
 EXTERN	Prog	undefp;
 EXTERN	ulong	stroffset;
+EXTERN	vlong	textstksiz;
+EXTERN	vlong	textinarg;
+EXTERN	vlong	textoutarg;
 
 #define	UP	(&undefp)
 
@@ -407,6 +410,7 @@ void	objfile(char*);
 int	opsize(Prog*);
 void	patch(void);
 Prog*	prg(void);
+void	parsetextconst(vlong);
 void	readundefs(char*, int);
 int	relinv(int);
 long	reuse(Prog*, Sym*);
