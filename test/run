@@ -32,7 +32,7 @@ do
 			echo >&2 fail: $i
 		fi
 	done
-done | cat -v >run.out
+done > run.out
 
 case $failed in
 1)
