@@ -877,7 +877,7 @@ Btype:
 	{
 		// dont know if this is an error or not
 		if(dclcontext != PEXTERN)
-			yyerror("foreward type in function body %s", $2->name);
+			yyerror("forward type in function body %s", $2->name);
 		$$ = forwdcl($2);
 	}
 
