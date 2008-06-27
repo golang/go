@@ -1,11 +1,5 @@
 
 =========== ./args.go
-argc
-panic on line 171 PC=0x150c
-0x150c?zi
-	mainM-BM-7main(0, 0, 0, ...)
-	mainM-BM-7main(0x0, 0x0, 0x3, ...)
-0x12e5?zi
 
 =========== ./char_lit.go
 
@@ -50,9 +44,13 @@ hello, world
 
 =========== ./nil.go
 
+=========== ./readfile.go
+
 =========== ./sieve.go
-sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(171)
+sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(176)
 BUG: known to fail incorrectly
+
+=========== ./simasign.go
 
 =========== ./string_lit.go
 
@@ -75,16 +73,6 @@ test0.go:47: illegal types for operand: AS
 	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
 	({})
 BUG: known to fail incorrectly
-
-=========== ./test_integer.go
-TestConv
-TestAdd
-TestSub
-TestMul
-TestDiv
-TestMod
-TestFact
-PASSED
 
 =========== ./turing.go
 Hello World!
@@ -176,7 +164,7 @@ bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
 BUG: known to fail incorrectly or at least with a bad message
 
 =========== bugs/bug026.go
-traceback: mainM-BM-7sigs_I: not defined
+initsig: main·sigs_I: not defined
 BUG: known to fail incorrectly
 
 =========== bugs/bug027.go
@@ -273,8 +261,8 @@ Faulting address: 0x1
 pc: 0x152c
 
 0x152c?zi
-	mainM-BM-7main(0, 0, 0, ...)
-	mainM-BM-7main(0x0, 0x0, 0x1, ...)
+	main·main(0, 0, 0, ...)
+	main·main(0x0, 0x0, 0x1, ...)
 0x12e5?zi
 
 rax     0x1
@@ -327,6 +315,18 @@ BUG: known to fail incorrectly
 bugs/bug056.go:9: illegal types for operand: AS
 	(<int32>INT32)
 	(<int32>INT32)
+BUG: compilation should succeed
+
+=========== bugs/bug057.go
+bugs/bug057.go:13: syntax error
+BUG: compilation should succeed
+
+=========== bugs/bug058.go
+bugs/bug058.go:11: illegal types for operand: INDEX
+	(MAP[<string>*STRING]*<Box>{})
+	(<string>*STRING)
+bugs/bug058.go:11: illegal types for operand: AS
+	(*<Box>{})
 BUG: compilation should succeed
 
 =========== fixedbugs/bug000.go
