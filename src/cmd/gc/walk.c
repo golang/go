@@ -487,7 +487,7 @@ loop:
 		if(top == Etop)
 			goto nottop;
 
-		walktype(n->left, top);
+		walktype(n->left, Erv);
 		walktype(n->right, Erv);
 
 		if(n->left == N || n->right == N)
