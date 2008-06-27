@@ -423,7 +423,7 @@ importaddtyp(Node *ss, Type *t)
 		addtyp(newtype(s), t, PEXTERN);
 		return;
 	}
-	print("sametype %S %lT => %lT\n", s, s->otype, t);
+//	print("sametype %S %lT => %lT\n", s, s->otype, t);
 }
 
 /*
