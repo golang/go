@@ -7,14 +7,14 @@
 
 package main
 
-func main() int {
+func main() {
 	var s string
 	var ok bool
 
 	s, ok = sys.readfile("readfile.go");
 	if !ok {
 		print "couldn't readfile\n";
-		return 1
+		sys.exit(1)
 	}
 	start_of_file :=
 		"// $G $F.go && $L $F.$A && ./$A.out readfile.go\n" +
@@ -23,6 +23,6 @@ func main() int {
 		"package main\n";
 	if s[0:102] != start_of_file {
 		print "wrong data\n";
-		return 1
+		sys.exit(1)
 	}
 }

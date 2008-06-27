@@ -32,7 +32,7 @@ func assert(a, b, c string) {
 	}
 }
 
-func main() int {
+func main() {
 	ecode = 0;
 	s :=
 		""
@@ -75,5 +75,5 @@ func main() int {
 	       `\000\123\x00\312\xFE\u0123\ubabe\U0000babe`,
            "backslashes 2 (backquote)");
 	assert("\\x\\u\\U\\", `\x\u\U\`, "backslash 3 (backquote)");
-	return ecode;
+	sys.exit(ecode);
 }

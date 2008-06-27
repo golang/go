@@ -6,7 +6,6 @@
 
 package main
 
-func main() int {
+func main() {
 	print "hello, world\n";
-	return 0;
 }

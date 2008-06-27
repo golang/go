@@ -6,7 +6,7 @@
 
 package main
 
-func main() int {
+func main() {
   s := 
     0 +
     123 +
@@ -18,6 +18,6 @@ func main() int {
     0X123;
   if s != 788 {
     print "s is ", s, "; should be 788\n";
-    return 1;
+    sys.exit(1);
   }
 }

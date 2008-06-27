@@ -77,7 +77,7 @@ var tokenlen int = 0;
 
 const EOF int = -1;
 
-func main() int32
+func main()
 {
 	var list *Slist;
 
@@ -91,8 +91,6 @@ func main() int32
 		list.Free();
 		break;
 	}
-
-	return 0;
 }
 
 func (slist *Slist) PrintOne(doparen bool)

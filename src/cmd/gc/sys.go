@@ -42,6 +42,8 @@ func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
 
 func	readfile(string) (string, bool);	// read file into string; boolean status
 
+func exit(int32);
+
 export
 	mal
 	breakpoint
@@ -84,4 +86,6 @@ export
 	// files
 	readfile
 
+	// system calls
+	exit
 	;
