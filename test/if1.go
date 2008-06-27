@@ -6,14 +6,13 @@
 
 package main
 
-func main() int {
+func main() {
 	count := 7;
 	if one := 1; {
 		count = count + one	
 	}
 	if count != 8 {
 		print count, " should be 8\n";
-		return 1
+		sys.exit(1)
 	}
-	return 0
 }

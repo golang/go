@@ -54,9 +54,8 @@ TEXT	FLUSH(SB),7,$-8
 
 TEXT	sys·exit(SB),1,$-8
 	MOVL	8(SP), DI		// arg 1 exit status
-	MOVL	$(0x2000000+1), AX
+	MOVL	$(0x2000000+1), AX	// syscall entry
 	SYSCALL
-	JCC	2(PC)
 	CALL	notok(SB)
 	RET
 

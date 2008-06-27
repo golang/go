@@ -36,8 +36,6 @@ hello, world
 
 =========== ./int_lit.go
 
-=========== ./integer.go
-
 =========== ./iota.go
 
 =========== ./literal.go

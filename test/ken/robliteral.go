@@ -16,7 +16,7 @@ func assert(cond bool, msg string) {
 	}
 }
 
-func main() int {
+func main() {
 	code = 0;
 
 	// bool
@@ -216,5 +216,5 @@ func main() int {
 	assert(sj0 == sj2, "sj2");
 	assert(sj0 == sj3, "sj3");
 
-	return code;
+	sys.exit(code);
 }

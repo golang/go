@@ -6,7 +6,7 @@
 
 package main
 
-func main() int {
+func main() {
   var i uint64 =
     ' ' +
     'a' +
@@ -33,10 +33,10 @@ func main() int {
   ;
   if '\Ucafebabe' != 0xcafebabe {
   	print "cafebabe wrong\n";
-  	return 1;
+  	sys.exit(1)
   }
   if i != 0xcc238de1 {
   	print "number is ", i, " should be ", 0xcc238de1, "\n";
-  	return 1;
+  	sys.exit(1)
   }
 }

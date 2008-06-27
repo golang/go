@@ -67,7 +67,7 @@ Print_BUG()
 }
 
 func
-main() int32
+main()
 {
 	list := new(List);
 	list.Init();
@@ -78,5 +78,4 @@ main() int32
 	}
 
 	list.Print();
-	return 0;
 }

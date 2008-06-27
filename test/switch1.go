@@ -6,13 +6,13 @@
 
 package main
 
-func main() int {
+func main() {
 	i := 0;
 	switch x := 5; {
 		case i < x:
-			return 0;
+			sys.exit(0);
 		case i == x:
 		case i > x:
-			return 1;
+			sys.exit(1);
 	}
 }
