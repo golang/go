@@ -29,8 +29,10 @@ cgen(Node *n, Node *res)
 		if(n->op == OINDREG)
 			fatal("cgen: this is going to misscompile");
 		if(res->ullman >= UINF) {
-			dump("fncalls", n);
-			fatal("cgen: node and result functions");
+			tempname(&n1, n->type);
+			cgen(n, &n1);
+			cgen(&n1, res);
+			goto ret;
 		}
 	}
 
@@ -45,7 +47,7 @@ cgen(Node *n, Node *res)
 			cgen(n, &n1);
 			cgen(&n1, res);
 			regfree(&n1);
-			return;
+			goto ret;
 		}
 
 		igen(res, &n1, N);
