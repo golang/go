@@ -312,6 +312,12 @@ BUG: crashes
 =========== bugs/bug060.go
 BUG: crashes
 
+=========== bugs/bug061.go
+bugs/bug061.go:7: illegal types for operand: SLICE
+bugs/bug061.go:7: illegal types for operand: AS
+	(<string>*STRING)
+BUG: known to fail incorrectly
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
