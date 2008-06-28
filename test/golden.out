@@ -309,6 +309,9 @@ BUG: compilation should succeed
 =========== bugs/bug059.go
 BUG: crashes
 
+=========== bugs/bug060.go
+BUG: crashes
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
