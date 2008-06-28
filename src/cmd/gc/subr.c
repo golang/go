@@ -700,6 +700,8 @@ Lconv(Fmt *fp)
 
 	n = 0;
 	for(h=hist; h!=H; h=h->link) {
+		if(h->offset < 0)
+			continue;
 		if(lno < h->line)
 			break;
 		if(h->name) {
