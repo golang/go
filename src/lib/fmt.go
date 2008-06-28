@@ -347,6 +347,9 @@ func pow10(n int) double {
 }
 
 func unpack(a double) (negative bool, exp int, num double) {
+	if a == 0 {
+		return false, 0, 0.0
+	}
 	neg := a < 0;
 	if neg {
 		a = -a;
@@ -380,9 +383,20 @@ func (f *Fmt) E(a double) *Fmt {
 		prec = f.prec;
 	}
 	prec++;  // one digit left of decimal
+	var s string;
 	// multiply by 10^prec to get decimal places; put decimal after first digit
-	g *= pow10(prec);
-	s := f.integer(int64(g + .5), 10, true, &ldigits);  // get the digits into a string
+	if g == 0 {
+		// doesn't work for zero - fake it
+		s = "000000000000000000000000000000000000000000000000000000000000";
+		if prec < len(s) {
+			s = s[0:prec];
+		} else {
+			prec = len(s);
+		}
+	} else {
+		g *= pow10(prec);
+		s = f.integer(int64(g + .5), 10, true, &ldigits);  // get the digits into a string
+	}
 	s = s[0:1] + "." + s[1:prec];  // insert a decimal point
 	// print exponent with leading 0 if appropriate.
 	es := New().p(2).integer(int64(exp), 10, true, &ldigits);
