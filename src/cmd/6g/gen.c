@@ -746,7 +746,12 @@ cgen_asop(Node *n)
 	nr = n->right;
 
 	if(nr->ullman >= UINF && nl->ullman >= UINF) {
-		fatal("cgen_asop: both sides call");
+		tempname(&n1, nr->type);
+		cgen(nr, &n1);
+		n2 = *n;
+		n2.right = &n1;
+		cgen_asop(&n2);
+		return;
 	}
 
 	if(nr->ullman > nl->ullman) {
@@ -881,9 +886,6 @@ cgen_as(Node *nl, Node *nr, int op)
 		ullmancalc(nr);
 	}
 
-	if(nr->ullman >= UINF && nl->ullman >= UINF) {
-		fatal("cgen_as both sides call");
-	}
 	cgen(nr, nl);
 
 ret:
