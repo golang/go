@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package tan
+package math
 
-import		sys "sys"
 export		tan
 
 /*
@@ -63,7 +62,7 @@ tan(arg double) double
 
 	if flag {
 		if(temp == 0) {
-			return sys.NaN();
+			panic "return sys.NaN()";
 		}
 		temp = 1/temp;
 	}

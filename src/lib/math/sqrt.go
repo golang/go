@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sqrt
+package math
 
-import		sys "sys"
 export		sqrt
 
 /*
@@ -20,13 +19,14 @@ sqrt(arg double) double
 	var x, temp double;
 	var exp, i int;
 
+/* BUG: NO isINF
 	if sys.isInf(arg, 1) {
 		return arg;
 	}
-
+*/
 	if arg <= 0 {
 		if arg < 0 {
-			return sys.NaN();
+			panic "return sys.NaN()"
 		}
 		return 0;
 	}

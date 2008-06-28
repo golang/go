@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pow
+package math
 
-import		sys "sys"
-import		floor "floor"
-import		sqrt "sqrt"
-import		log "log"
-import		exp "exp"
+import		math "floor"
+import		math "sqrt"
+import		math "log"
+import		math "exp"
 export		pow
 
 /*
@@ -27,14 +26,14 @@ pow(arg1,arg2 double) double
 	if arg1 <= 0 {
 		if(arg1 == 0) {
 			if arg2 <= 0 {
-				return sys.NaN();
+				panic "return sys.NaN()";
 			}
 			return 0;
 		}
 
-		temp = floor.floor(arg2);
+		temp = floor(arg2);
 		if temp != arg2 {
-			return sys.NaN();
+			panic "return sys.NaN()";
 		}
 
 		l = long(temp);
@@ -44,15 +43,15 @@ pow(arg1,arg2 double) double
 		return pow(-arg1, arg2);
 	}
 
-	temp = floor.floor(arg2);
+	temp = floor(arg2);
 	if temp != arg2 {
 		if arg2-temp == .5 {
 			if temp == 0 {
-				return sqrt.sqrt(arg1);
+				return sqrt(arg1);
 			}
-			return pow(arg1, temp) * sqrt.sqrt(arg1);
+			return pow(arg1, temp) * sqrt(arg1);
 		}
-		return exp.exp(arg2 * log.log(arg1));
+		return exp(arg2 * log(arg1));
 	}
 
 	l = long(temp);

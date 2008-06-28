@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package atan2
+package math
 
-import	atan "atan"
+import	math "atan"
 export	atan2
 
 /*
@@ -29,7 +29,7 @@ atan2(arg1, arg2 double) double
 		}
 		return -pio2;
 	}
-	x = atan.atan(arg1/arg2);
+	x = atan(arg1/arg2);
 	if arg2 < 0 {
 		if x <= 0 {
 			return x + pi;

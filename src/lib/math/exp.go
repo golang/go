@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package exp
+package math
 
-import	sys "sys"
-import	floor "floor"
+import	math "floor"
 export	exp
 
 /*
@@ -34,21 +33,21 @@ exp(arg double) double
 	var x, fract, temp1, temp2, xsq double;
 	var ent int;
 
-	if arg == 0 {
+	if arg == 0. {
 		return 1;
 	}
 	if arg < -maxf {
-		return 0;
+		return 0.;
 	}
 	if arg > maxf {
-		return sys.Inf(1);
+		panic "return sys.Inf(1)"
 	}
 
 	x = arg*log2e;
-	ent = int(floor.floor(x));
+	ent = int(floor(x));
 	fract = (x-double(ent)) - 0.5;
 	xsq = fract*fract;
 	temp1 = ((p2*xsq+p1)*xsq+p0)*fract;
 	temp2 = ((xsq+q2)*xsq+q1)*xsq + q0;
-	return sys.ldexp(sqrt2*(temp2+temp1)/(temp2-temp1), ent);
+	return sys.ldexp(ent, sqrt2*(temp2+temp1)/(temp2-temp1));
 }

@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sin
+package math
 
-import	sys "sys"
 export	sin, cos
 
 const
@@ -41,7 +40,7 @@ sinus(arg double, quad int) double
 	} else {
 		k = long(x);
 		y = x - double(k);
-		quad = (quad + k) & 3;
+		quad = (quad + int(k)) & 3;
 	}
 
 	if quad&1 != 0 {

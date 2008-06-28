@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sinh
+package math
 
-import	exp "exp"
+import	math "exp"
 export	sinh, cosh
 
 /*
@@ -45,10 +45,10 @@ sinh(arg double) double
 	}
 	switch true {
 	case arg > 21:
-		temp = exp.exp(arg)/2;
+		temp = exp(arg)/2;
 
 	case arg > 0.5:
-		temp = (exp.exp(arg) - exp.exp(-arg))/2;
+//		temp = (exp(arg) - exp(-arg))/2;
 
 	default:
 		argsq = arg*arg;
@@ -69,7 +69,7 @@ cosh(arg double) double
 		arg = - arg;
 	}
 	if arg > 21 {
-		return exp.exp(arg)/2;
+		return exp(arg)/2;
 	}
-	return (exp.exp(arg) + exp.exp(-arg))/2;
+//	return (exp(arg) + exp(-arg))/2;
 }
