@@ -55,6 +55,8 @@ prog(int as)
 	p->as = as;
 	p->lineno = lineno;
 	p->link = pc;
+if(lineno == 0)
+warn("line 0 %P\n", p);
 	return p;
 }
 
@@ -214,6 +216,7 @@ nodreg(Node *n, Type *t, int r)
 	memset(n, 0, sizeof(*n));
 	n->op = OREGISTER;
 	n->addable = 1;
+	n->lineno = lineno;
 	ullmancalc(n);
 	n->val.vval = r;
 	n->type = t;
@@ -239,6 +242,7 @@ nodarg(Type *t, int fp)
 	n->sym = t->sym;
 	n->xoffset = t->width;
 	n->addable = 1;
+	n->lineno = lineno;
 
 	switch(fp) {
 	case 0:		// output arg
@@ -266,6 +270,7 @@ nodconst(Node *n, Type *t, vlong v)
 	memset(n, 0, sizeof(*n));
 	n->op = OLITERAL;
 	n->addable = 1;
+	n->lineno = lineno;
 	ullmancalc(n);
 	n->val.vval = v;
 	n->val.ctype = CTINT;
@@ -1672,6 +1677,7 @@ tempname(Node *n, Type *t)
 	n->etype = t->etype;
 	n->class = PAUTO;
 	n->addable = 1;
+	n->lineno = lineno;
 	n->ullman = 0;
 
 	dowidth(t);

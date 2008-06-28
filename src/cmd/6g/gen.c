@@ -685,6 +685,7 @@ cgen_callret(Node *n, Node *res)
 	nod.op = OINDREG;
 	nod.val.vval = D_SP;
 	nod.addable = 1;
+	nod.lineno = lineno;
 
 	nod.xoffset = fp->width;
 	nod.type = fp->type;
@@ -714,6 +715,7 @@ cgen_aret(Node *n, Node *res)
 	nod1.op = OINDREG;
 	nod1.val.vval = D_SP;
 	nod1.addable = 1;
+	nod1.lineno = lineno;
 
 	nod1.xoffset = fp->width;
 	nod1.type = fp->type;
