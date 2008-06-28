@@ -13,19 +13,6 @@
 BUG: known to succeed incorrectly
 
 =========== ./hashmap.go
-fncalls
-.   MOD u(101) l(234) <uint32>UINT32
-.   .   CALLINTER u(100) l(234) <uint32>UINT32
-.   .   .   DOTINTER u(1) l(234) 101({},{}){}
-.   .   .   .   NAME-key G253 a(1) g(253) l(231) *<KeyType>I{}
-.   .   .   .   NAME-Hash G0 a(1) l(182)
-.   .   CALLMETH u(100) l(234) <uint32>UINT32
-.   .   .   DOTMETH u(1) l(234) 101({},{}){}
-.   .   .   .   NAME-HashMap_capacity G0 a(1) l(208) 101({},{}){}
-.   .   .   AS u(1) l(234)
-.   .   .   .   INDREG a(1) l(234) m G252 *<HashMap>{}
-.   .   .   .   NAME-m G252 a(1) g(252) l(231) *<HashMap>{}
-hashmap.go:71: fatal error: cgen: both sides functions
 
 =========== ./helloworld.go
 hello, world
