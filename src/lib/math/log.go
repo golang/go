@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package log
+package math
 
-import	sys "sys"
 export	log, log10
 
 /*
@@ -37,7 +36,7 @@ log(arg double) double
 	var exp int;
 
 	if arg <= 0 {
-		return sys.NaN();
+		panic "return sys.NaN()";
 	}
 
 	exp,x = sys.frexp(arg);
@@ -64,7 +63,7 @@ log10(arg double) double
 {
 
 	if arg <= 0 {
-		return sys.NaN();
+		panic "return sys.NaN()";
 	}
 	return log(arg) * ln10o1;
 }

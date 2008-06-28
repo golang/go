@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package asin
+package math
 
-import	sys "sys"
-import	atan "atan"
-import	sqrt "sqrt"
+import	math "atan"
+import	math "sqrt"
+
 export	asin, acos
 
 /*
@@ -34,14 +34,14 @@ asin(arg double)double
 		sign = true;
 	}
 	if arg > 1 {
-		return sys.NaN();
+		panic "return sys.NaN()";
 	}
 
-	temp = sqrt.sqrt(1 - x*x);
+	temp = sqrt(1 - x*x);
 	if x > 0.7 {
-		temp = pio2 - atan.atan(temp/x);
+		temp = pio2 - atan(temp/x);
 	} else {
-		temp = atan.atan(x/temp);
+		temp = atan(x/temp);
 	}
 
 	if sign {
@@ -54,7 +54,7 @@ func
 acos(arg double)double
 {
 	if(arg > 1 || arg < -1) {
-		return sys.NaN();
+		panic "return sys.NaN()";
 	}
 	return pio2 - asin(arg);
 }

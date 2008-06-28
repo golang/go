@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package fmod
+package math
 
-import	sys "sys"
 export	fmod
 
 /*
@@ -39,7 +38,7 @@ fmod(x, y double) double
 		if rfr < yfr {
 			rexp = rexp - 1;
 		}
-		r = r - sys.ldexp(y, rexp-yexp);
+		r = r - sys.ldexp(rexp-yexp, y);
 	}
 	if sign {
 		r = -r;
