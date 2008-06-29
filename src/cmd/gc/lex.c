@@ -162,7 +162,8 @@ unimportfile(void)
 	if(curio.bin != nil) {
 		Bterm(curio.bin);
 		curio.bin = nil;
-	}
+	} else
+		lineno--;	// re correct sys.6 line number
 	curio = pushedio;
 	pushedio.bin = nil;
 	inimportsys = 0;
@@ -174,7 +175,8 @@ cannedimports(void)
 	char *file;
 
 	file = "sys.6";
-	linehist(file, 0);
+	lineno++;		// if sys.6 is included on line 1,
+	linehist(file, 0);	// the debugger gets confused
 
 	pushedio = curio;
 	curio.bin = nil;

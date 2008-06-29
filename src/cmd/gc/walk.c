@@ -26,8 +26,10 @@ walktype(Node *n, int top)
 	Node *r, *l;
 	Type *t;
 	Sym *s;
-	long lno;
 	int et, cl, cr;
+	long lno;
+
+	lno = setlineno(n);
 
 	/*
 	 * walk the whole tree of the body of a function.
@@ -35,7 +37,6 @@ walktype(Node *n, int top)
 	 * compile-time constants are evaluated.
 	 */
 
-	lno = setlineno(n);
 	if(top == Exxx || top == Eyyy) {
 		dump("", n);
 		fatal("walktype: bad top=%d", top);
@@ -44,6 +45,7 @@ walktype(Node *n, int top)
 loop:
 	if(n == N)
 		goto ret;
+
 	setlineno(n);
 
 	if(debug['w'] > 1 && top == Etop && n->op != OLIST)
@@ -765,6 +767,8 @@ walkswitch(Node *sw, Type*(*call)(Node*, Type*))
 	Type *place;
 	place = call(sw->ntest, T);
 
+	setlineno(sw);
+
 	n = sw->nbody;
 	if(n->op == OLIST)
 		n = n->left;
@@ -776,9 +780,11 @@ walkswitch(Node *sw, Type*(*call)(Node*, Type*))
 			fatal("walkswitch: not case %O\n", n->op);
 		for(c=n->left; c!=N; c=c->right) {
 			if(c->op != OLIST) {
+				setlineno(c);
 				place = call(c, place);
 				break;
 			}
+			setlineno(c);
 			place = call(c->left, place);
 		}
 	}
@@ -1216,9 +1222,7 @@ Node*
 stringop(Node *n, int top)
 {
 	Node *r, *c, *on;
-	long lno, l;
-
-	lno = setlineno(n);
+	long l;
 
 	switch(n->op) {
 	default:
@@ -1310,7 +1314,6 @@ stringop(Node *n, int top)
 	}
 
 	walktype(r, top);
-	lineno = lno;
 	return r;
 }
 
@@ -1366,13 +1369,10 @@ algtype(Type *t)
 Node*
 mapop(Node *n, int top)
 {
-	long lno;
 	Node *r, *a;
 	Type *t;
 	Node *on;
 	int alg1, alg2, cl, cr;
-
-	lno = setlineno(n);
 
 //dump("mapop", n);
 
@@ -1553,19 +1553,16 @@ mapop(Node *n, int top)
 		break;
 
 	}
-	lineno = lno;
 	return r;
 
 shape:
 	dump("shape", n);
 	fatal("mapop: cl=%d cr=%d, %O", top, n->op);
-	lineno = lno;
 	return N;
 
 nottop:
 	dump("bad top", n);
 	fatal("mapop: top=%d %O", top, n->op);
-	lineno = lno;
 	return N;
 }
 
