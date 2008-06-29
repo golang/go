@@ -102,8 +102,14 @@ setlineno(Node *n)
 	long lno;
 
 	lno = lineno;
-	if(n != N && n->op != ONAME)
+	if(n != N && n->op != ONAME) {
 		lineno = n->lineno;
+		if(lineno == 0) {
+			if(debug['K'])
+				warn("setlineno: line 0");
+			lineno = lno;
+		}
+	}
 	return lno;
 }
 
