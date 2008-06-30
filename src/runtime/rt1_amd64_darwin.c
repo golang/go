@@ -145,11 +145,11 @@ sighandler(int32 sig, siginfo *info, void *context)
         _STRUCT_X86_THREAD_STATE64 *ss = get___ss(uc_mcontext);
 
 	prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
-        prints("\npc: 0x");  sys·printpointer((void *)ss->__rip);
-        prints("\n\n");
+	prints("\npc: 0x");  sys·printpointer((void *)ss->__rip);
+	prints("\n\n");
         
-	traceback((void *)ss->__rip, (void *)ss->__rsp);
-        print_thread_state(ss);
+	traceback((void *)ss->__rip, (void *)ss->__rsp, (void*)ss->__r15);
+	print_thread_state(ss);
         
 	sys·exit(2);
 }

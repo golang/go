@@ -175,7 +175,16 @@ easy:
 	ADDQ	$8, SP
 	RET
 
+// marker.  must be here; used by traceback() to discover calls to _morestack
+TEXT _endmorestack(SB), 7, $-8
+	RET
+
 TEXT	FLUSH(SB),7,$-8
 	RET
+
+TEXT	getu(SB),7,$-8
+	MOVQ	R15, AX
+	RET
+
 
 GLOBL	peruser<>(SB),$64
