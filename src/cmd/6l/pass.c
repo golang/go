@@ -668,7 +668,7 @@ dostkoff(void)
 			q = P;
 			if(pmorestack != P)
 			if(!(p->from.scale & NOSPLIT)) {
-				if(autoffset <= 50) {
+				if(autoffset <= 75) {
 					// small stack
 					p = appendp(p);
 					p->as = ACMPQ;
@@ -678,14 +678,9 @@ dostkoff(void)
 				} else {
 					// large stack
 					p = appendp(p);
-					p->as = AMOVQ;
-					p->from.type = D_SP;
-					p->to.type = D_AX;
-
-					p = appendp(p);
-					p->as = ASUBQ;
-					p->from.type = D_CONST;
-					p->from.offset = autoffset-50;
+					p->as = ALEAQ;
+					p->from.type = D_INDIR+D_SP;
+					p->from.offset = -(autoffset-75);
 					p->to.type = D_AX;
 
 					p = appendp(p);
@@ -693,6 +688,7 @@ dostkoff(void)
 					p->from.type = D_AX;
 					p->to.type = D_INDIR+D_R15;
 				}
+
 				// common
 				p = appendp(p);
 				p->as = AJHI;
@@ -703,8 +699,13 @@ dostkoff(void)
 				p = appendp(p);
 				p->as = AMOVQ;
 				p->from.type = D_CONST;
-				p->from.offset = curtext->to.offset;
+				p->from.offset = 0;
 				p->to.type = D_AX;
+
+				/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
+				if(autoffset+160 > 4096)
+					p->from.offset = (autoffset+160) & ~7LL;
+				p->from.offset |= textarg<<32;
 
 				p = appendp(p);
 				p->as = ACALL;

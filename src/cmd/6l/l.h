@@ -346,8 +346,7 @@ EXTERN	char*	EXPTAB;
 EXTERN	Prog	undefp;
 EXTERN	ulong	stroffset;
 EXTERN	vlong	textstksiz;
-EXTERN	vlong	textinarg;
-EXTERN	vlong	textoutarg;
+EXTERN	vlong	textarg;
 
 #define	UP	(&undefp)
 
