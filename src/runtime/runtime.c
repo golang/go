@@ -183,7 +183,7 @@ brk(uint32 n)
 {
 	byte* v;
 
-	v = sys·mmap(nil, NHUNK, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
+	v = sys·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
 	sys·memclr(v, n);
 	nmmap += n;
 	return v;
@@ -194,10 +194,8 @@ mal(uint32 n)
 {
 	byte* v;
 
-	// round to keep everything 64-bit alligned
-	while(n & 7)
-		n++;
-
+	// round to keep everything 64-bit aligned
+	n = (n+7) & ~7;
 	nmal += n;
 
 	// do we have enough in contiguous hunk

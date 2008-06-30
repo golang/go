@@ -106,11 +106,11 @@ Dconv(Fmt *fp)
 			goto brk;
 		}
 		parsetextconst(a->offset);
-		if(textinarg == 0 && textoutarg == 0) {
+		if(textarg == 0) {
 			sprint(str, "$%lld", textstksiz);
 			goto brk;
 		}
-		sprint(str, "$%lld-%lld-%lld", textstksiz, textinarg, textoutarg);
+		sprint(str, "$%lld-%lld", textstksiz, textarg);
 		goto brk;
 	}
 
@@ -422,18 +422,15 @@ parsetextconst(vlong arg)
 	if(textstksiz & 0x80000000LL)
 		textstksiz = -(-textstksiz & 0xffffffffLL);
 		
-
-	// the following throws away one bit
-	// of precision, but maintains compat
-	textinarg = (arg >> 32) & 0xffffLL;
-	if(textinarg & 0x8000LL)
-		textinarg = -(-textinarg & 0xffffLL);
-	if(textinarg <= 0)
-		textinarg = 100;
-
-	textoutarg = (arg >> 48) & 0xffffLL;
-	if(textoutarg & 0x8000LL)
-		textoutarg = -(-textoutarg & 0xffffLL);
-	if(textoutarg <= 0)
-		textoutarg = 0;
+	textarg = (arg >> 32) & 0xffffffffLL;
+	if(textarg & 0x80000000LL)
+		textarg = 0;
+	if(textarg <= 0)
+		textarg = 100;
+	if(textarg > textstksiz) {
+		textarg = textstksiz;
+		if(textarg <= 0)
+			textarg = 0;
+	}
+	textarg = (textarg+7) & ~7LL;
 }
