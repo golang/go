@@ -31,6 +31,10 @@ func	envv(int32) string;
 func	frexp(float64) (int32, float64);	// break fp into exp,fract
 func	ldexp(int32, float64) float64;		// make fp from exp,fract
 func	modf(float64) (float64, float64);	// break fp into double.double
+func	isInf(float64, int32) bool;			// test for infinity
+func	isNaN(float64) bool;				// test for not-a-number
+func	Inf(int32) float64;					// return signed Inf
+func	NaN() float64;						// return a NaN
 
 func	newmap(keysize uint32, valsize uint32,
 		keyalg uint32, valalg uint32,
@@ -42,7 +46,7 @@ func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
 
 func	readfile(string) (string, bool);	// read file into string; boolean status
 
-func exit(int32);
+func	exit(int32);
 
 export
 	mal
@@ -75,6 +79,10 @@ export
 	frexp
 	ldexp
 	modf
+	isInf,
+	isNaN,
+	Inf,
+	NaN,
 
 	// op map
 	newmap
