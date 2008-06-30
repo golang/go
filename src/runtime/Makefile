@@ -13,9 +13,14 @@ RT0OFILES=\
 	rt0_$(GOARCH)_$(GOOS).$O\
 
 LIBOFILES=\
+	rt0_$(GOARCH).$O\
 	rt1_$(GOARCH)_$(GOOS).$O\
 	rt2_$(GOARCH).$O\
+	sys_$(GOARCH)_$(GOOS).$O\
 	runtime.$O\
+	runtime_map.$O\
+	runtime_print.$O\
+	runtime_string.$O\
 	sys_file.$O\
 
 OFILES=$(RT0OFILES) $(LIBOFILES)

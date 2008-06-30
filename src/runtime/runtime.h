@@ -80,6 +80,16 @@ enum
 #define	nil		((void*)0)
 
 /*
+ * common functions and data
+ */
+int32 strcmp(byte*, byte*);
+int32 findnull(int8*);
+void	dump(byte*, int32);
+
+extern string	emptystring;
+extern int32 debug;
+
+/*
  * very low level c-called
  */
 void	FLUSH(void*);
@@ -119,6 +129,7 @@ void	sys·printbool(bool);
 void	sys·printfloat(float64);
 void	sys·printint(int64);
 void	sys·printstring(string);
+void	sys·printpc(void*);
 void	sys·printpointer(void*);
 void	sys·catstring(string, string, string);
 void	sys·cmpstring(string, string, int32);
