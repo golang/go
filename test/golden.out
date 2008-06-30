@@ -32,7 +32,7 @@ hello, world
 =========== ./readfile.go
 
 =========== ./sieve.go
-sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(176)
+sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(201)
 BUG: known to fail incorrectly
 
 =========== ./simasign.go
@@ -149,7 +149,7 @@ bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
 BUG: known to fail incorrectly or at least with a bad message
 
 =========== bugs/bug026.go
-initsig: main·sigs_I: not defined
+sys·printstring: main·sigs_I: not defined
 BUG: known to fail incorrectly
 
 =========== bugs/bug027.go
@@ -223,7 +223,7 @@ BUG: known to fail incorrectly
 
 =========== bugs/bug050.go
 bugs/bug050.go:3: package statement must be first
-sys.6:1 bugs/bug050.go:2: syntax error
+sys.6:1 bugs/bug050.go:3: syntax error
 BUG: segfault
 
 =========== bugs/bug051.go

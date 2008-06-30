@@ -518,7 +518,7 @@ out:
 	FLUSH(&s);
 }
 
-//func envv(i) string;  // return argument i
+//func envv(i) string;  // return environment variable i
 void
 sys·envv(int32 i, string s)
 {
