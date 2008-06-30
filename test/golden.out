@@ -306,9 +306,6 @@ BUG: compilation should succeed
 bugs/bug057.go:13: syntax error
 BUG: compilation should succeed
 
-=========== bugs/bug059.go
-BUG: crashes
-
 =========== bugs/bug060.go
 BUG: crashes
 
@@ -369,3 +366,5 @@ BUG: known to fail incorrectly
 =========== fixedbugs/bug045.go
 
 =========== fixedbugs/bug058.go
+
+=========== fixedbugs/bug059.go
