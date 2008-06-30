@@ -93,13 +93,14 @@ extern int32 debug;
  * very low level c-called
  */
 void	FLUSH(void*);
+void*	getu(void);
 void	throw(int8*);
 void	prints(int8*);
 void	mcpy(byte*, byte*, uint32);
 void*	mal(uint32);
 uint32	cmpstring(string, string);
 void	initsig(void);
-void	traceback(uint8 *pc, uint8 *sp);
+void	traceback(uint8 *pc, uint8 *sp, void* up);
 int32	open(byte*, int32);
 int32	read(int32, void*, int32);
 void	close(int32);

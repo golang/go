@@ -18,7 +18,7 @@ sys·panicl(int32 lno)
 	sys·printpc(&lno);
 	prints("\n");
 	sp = (uint8*)&lno;
-	traceback(sys·getcallerpc(&lno), sp);
+	traceback(sys·getcallerpc(&lno), sp, getu());
 	sys·breakpoint();
 	sys·exit(2);
 }

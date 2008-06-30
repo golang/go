@@ -152,7 +152,7 @@ sighandler(int32 sig, siginfo* info, void** context)
         prints("\npc: 0x");  sys·printpointer((void *)sc->rip);
         prints("\n\n");
         
-	traceback((void *)sc->rip, (void *)sc->rsp);
+	traceback((void *)sc->rip, (void *)sc->rsp, (void *)sc->r15);
         print_sigcontext(sc);
 
 	sys·breakpoint();
