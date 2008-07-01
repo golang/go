@@ -305,6 +305,7 @@ type, a function, etc. An identifier must not be a reserved word.
   a
   _x
   ThisIsVariable9
+  αβ
 
 
 Reserved words
