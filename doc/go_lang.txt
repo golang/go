@@ -4,12 +4,13 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(June 12, 2008)
+(July 1, 2008)
 
-This document is a semi-informal specification/proposal for a new
+This document is a semi-formal specification/proposal for a new
 systems programming language.  The document is under active
 development; any piece may change substantially as design progresses;
 also there remain a number of unresolved issues.
+
 
 Guiding principles
 ----
@@ -34,41 +35,49 @@ The language should be strong enough that the compiler and run time can be
 written in itself.
 
 
-Modularity, identifiers and scopes
-----
-
-A Go program consists of one or more `packages' compiled separately, though
-not independently.  A single package may make
-individual identifiers visible to other files by marking them as
-exported; there is no ``header file''.
-
-A package collects types, constants, functions, and so on into a named
-entity that may be exported to enable its constituents be used in
-another compilation unit.
-
-Because there are no header files, all identifiers in a package are either
-declared explicitly within the package or arise from an import statement.
-
-Scoping is essentially the same as in C.
-
-
 Program structure
 ----
 
-A compilation unit (usually a single source file)
-consists of a package specifier followed by import
-declarations followed by other declarations.  There are no statements
-at the top level of a file.
+A Go program consists of a number of ``packages''.
 
-A program consists of a number of packages.  By convention, one
-package, by default called main, is the starting point for execution.
-It contains a function, also called main, that is the first function invoked
-by the run time system.
+A package is built from one or more source files, each of which consists
+of a package specifier followed by import declarations followed by other
+declarations.  There are no statements at the top level of a file.
+
+By convention, one package, by default called main, is the starting point for
+execution. It contains a function, also called main, that is the first function
+invoked by the run time system.
 
 If any package within the program
 contains a function init(), that function will be executed
 before main.main() is called.  The details of initialization are
 still under development.
+
+Source files can be compiled separately (without the source
+code of packages they depend on), but not independently (the compiler does
+check dependencies by consulting the symbol information in compiled packages).
+
+
+Modularity, identifiers and scopes
+----
+
+A package is a collection of import, constant, type, variable, and function
+declarations. Each declaration associates an ``identifier'' with a program
+entity (such as a type).
+
+In particular, all identifiers in a package are either
+declared explicitly within the package, arise from an import statement,
+or belong to a small set of predefined identifiers (such as "int32").
+
+A package may make explicitly declared identifiers visible to other
+packages by marking them as exported; there is no ``header file''.
+Imported identifiers cannot be re-exported.
+
+Scoping is essentially the same as in C: The scope of an identifier declared
+within a ``block'' extends from the declaration of the identifier (that is, the
+position immediately after the identifier) to the end of the block. An identifier
+shadows identifiers with the same name declared in outer scopes. Within a
+block, a particular identifier must be declared at most once.
 
 
 Typing, polymorphism, and object-orientation
@@ -78,6 +87,22 @@ Go programs are strongly typed.  Certain values can also be
 polymorphic.  The language provides mechanisms to make use of such
 polymorphic values type-safe.
 
+Interface types provide the mechanisms to support object-oriented
+programming. Different interface types are independent of each
+other and no explicit hierarchy is required (such as single or
+multiple inheritance explicitly specified through respective type
+declarations).  Interface types only define a set of methods that a
+corresponding implementation must provide.  Thus interface and
+implementation are strictly separated.
+
+An interface is implemented by associating methods with types.
+If a type defines all methods of an interface, it
+implements that interface and thus can be used where that interface is
+required.  Unless used through a variable of interface type, methods
+can always be statically bound (they are not ``virtual''), and incur no
+runtime overhead compared to an ordinary function.
+
+[OLD
 Interface types, building on structures with methods, provide
 the mechanisms to support object-oriented programming.
 Different interface types are independent of each
@@ -93,6 +118,7 @@ implements that interface and thus can be used where that interface is
 required.  Unless used through a variable of interface type, methods
 can always be statically bound (they are not ``virtual''), and incur no
 runtime overhead compared to an ordinary function.
+END]
 
 Go has no explicit notion of classes, sub-classes, or inheritance.
 These concepts are trivially modeled in Go through the use of
@@ -249,7 +275,11 @@ In the grammar we use the notation
 
   utf8_char
 
-to refer to an arbitrary Unicode code point encoded in UTF-8.
+to refer to an arbitrary Unicode code point encoded in UTF-8. We use
+
+  non_ascii
+
+to refer to the subset of "utf8_char" code points with values >= 128.
 
 
 Digits and Letters
@@ -259,10 +289,9 @@ Digits and Letters
   dec_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" } .
   hex_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "a" |
                 "A" | "b" | "B" | "c" | "C" | "d" | "D" | "e" | "E" | "f" | "F" } .
-  letter = "A" | "a" | ... "Z" | "z" | "_" .
+  letter = "A" | "a" | ... "Z" | "z" | "_" | non_ascii .
 
-For simplicity, letters and digits are ASCII.  We may in time allow
-Unicode identifiers.
+All non-ASCII code points are considered letters; digits are always ASCII.
 
 
 Identifiers
@@ -276,6 +305,21 @@ type, a function, etc. An identifier must not be a reserved word.
   a
   _x
   ThisIsVariable9
+
+
+Reserved words
+----
+
+  break         fallthrough       import            return
+  case          false             interface         select
+  const         for               map               struct
+  continue      func              new               switch
+  default       go                nil               true
+  else          goto              package           type
+  export        if                range             var
+
+
+TODO: "len" is currently also a reserved word - it shouldn't be.
 
 
 Types
@@ -342,9 +386,10 @@ corresponding boolean constant values.
 
 Strings are described in a later section.
 
+[OLD
 The polymorphic ``any'' type can represent a value of any type.
-
 TODO: we need a section about any
+END]
 
 
 Numeric literals
@@ -353,7 +398,8 @@ Numeric literals
 Integer literals take the usual C form, except for the absence of the
 'U', 'L', etc. suffixes, and represent integer constants.  Character
 literals are also integer constants.  Similarly, floating point
-literals are also C-like, without suffixes and decimal only.
+literals are also C-like, without suffixes and in decimal representation
+only.
 
 An integer constant represents an abstract integer value of arbitrary
 precision.  Only when an integer constant (or arithmetic expression
@@ -532,15 +578,13 @@ More about types
 ----
 
 The static type of a variable is the type defined by the variable's
-declaration.  At run-time, some variables, in particular those of
-interface types, can assume a dynamic type, which may be
-different at different times during execution.  The dynamic type
-of a variable is always compatible with the static type of the
-variable.
+declaration. The dynamic type of a variable is the actual type of the
+value stored in a variable at runtime. Except for variables of interface
+type, the static and dynamic type of variables is always the same.
 
-At any given time, a variable or value has exactly one dynamic
-type, which may be the same as the static type.  (They will
-differ only if the variable has an interface type or "any" type.)
+Variables of interface type may hold values of different types during
+execution. However, the dynamic type of the variable is always compatible
+with the static type of the variable.
 
 Types may be composed from other types by assembling arrays, maps,
 channels, structures, and functions. They are called composite types.
@@ -591,7 +635,9 @@ called (key, value) pairs. For a given map,
 the keys and values must each be of a specific type.
 Upon creation, a map is empty and values may be added and removed
 during execution.  The number of entries in a map is called its length.
+[OLD
 A map whose value type is 'any' can store values of all types.
+END]
 
   MapType = "map" "[" KeyType "]" ValueType .
   KeyType = Type .
@@ -600,6 +646,8 @@ A map whose value type is 'any' can store values of all types.
   map [string] int
   map [struct { pid int; name string }] *chan Buffer
   map [string] any
+
+Implementation restriction: Currently, only pointers to maps are supported.
 
 
 Struct types
@@ -632,6 +680,8 @@ Compound Literals
 Literals for compound data structures consist of the type of the constant
 followed by a parenthesized expression list.  In effect, they are a
 conversion from expression list to compound value.
+
+TODO: Needs to be updated.
 
 
 Pointer types
@@ -693,7 +743,10 @@ Function types
 
 A function type denotes the set of all functions with the same signature.
 
-A method is a function with a receiver, which is of type pointer to struct.
+A method is a function with a receiver declaration.
+[OLD
+, which is of type pointer to struct.
+END]
 
 Functions can return multiple values simultaneously.
 
@@ -722,6 +775,9 @@ In particular, v := func() {} creates a variable of type *func(). To call the
 function referenced by v, one writes v(). It is illegal to dereference a
 function pointer.
 
+TODO: For consistency, we should require the use of & to get the pointer to
+a function: &func() {}.
+
 
 Function Literals
 ----
@@ -730,10 +786,6 @@ Function literals represent anonymous functions.
 
   FunctionLit = FunctionType Block .
   Block = "{" [ StatementList [ ";" ] ] "}" .
-
-The scope of an identifier declared within a block extends
-from the declaration of the identifier (that is, the position
-immediately after the identifier) to the end of the block.
 
 A function literal can be invoked
 or assigned to a variable of the corresponding function pointer type.
@@ -752,9 +804,8 @@ Unresolved issues: Are there method literals? How do you use them?
 Methods
 ----
 
-A method is a function bound to a particular struct type T.  When defined,
-a method indicates the type of the struct by declaring a receiver of type
-*T.  For instance, given type Point
+A method is a function bound to a particular type T, where T is the
+type of the receiver. For instance, given type Point
 
   type Point struct { x, y float }
 
@@ -764,9 +815,8 @@ the declaration
     return scale * (p.x*p.x + p.y*p.y);
   }
 
-creates a method of type Point.  Note that methods are not declared
-within their struct type declaration.  They may appear anywhere and
-may be forward-declared for commentary.
+creates a method of type *Point.  Note that methods may appear anywhere
+after the declaration of the receiver type and may be forward-declared.
 
 When invoked, a method behaves like a function whose first argument
 is the receiver, but at the call site the receiver is bound to the method
@@ -774,16 +824,16 @@ using the notation
 
   receiver.method()
 
-For instance, given a Point variable pt, one may call
+For instance, given a *Point variable pt, one may call
 
   pt.distance(3.5)
 
 
-Interface of a struct
+Interface of a type
 ----
 
-The interface of a struct is defined to be the unordered set of methods
-associated with that struct.
+The interface of a type is defined to be the unordered set of methods
+associated with that type.
 
 
 Interface types
@@ -802,22 +852,23 @@ An interface type denotes a set of methods.
     Close();
   }
 
-Any struct whose interface has, possibly as a subset, the complete
+Any type whose interface has, possibly as a subset, the complete
 set of methods of an interface I is said to implement interface I.
-For instance, if two struct types S1 and S2 have the methods
+For instance, if two types S1 and S2 have the methods
 
-  func (p *T) Read(b Buffer) bool { return ... }
-  func (p *T) Write(b Buffer) bool { return ... }
-  func (p *T) Close() { ... }
+  func (p T) Read(b Buffer) bool { return ... }
+  func (p T) Write(b Buffer) bool { return ... }
+  func (p T) Close() { ... }
 
-then the File interface is implemented by both S1 and S2, regardless of
-what other methods S1 and S2 may have or share.
+(where T stands for either S1 or S2) then the File interface is
+implemented by both S1 and S2, regardless of what other methods
+S1 and S2 may have or share.
 
-All struct types implement the empty interface:
+All types implement the empty interface:
 
   interface {}
 
-In general, a struct type implements an arbitrary number of interfaces.
+In general, a type implements an arbitrary number of interfaces.
 For instance, if we have
 
   type Lock interface {
@@ -827,17 +878,20 @@ For instance, if we have
 
 and S1 and S2 also implement
 
-  func (p *T) lock() { ... }
-  func (p *T) unlock() { ... }
+  func (p T) lock() { ... }
+  func (p T) unlock() { ... }
 
 they implement the Lock interface as well as the File interface.
 
+[OLD
 It is legal to assign a pointer to a struct to a variable of
 compatible interface type.  It is legal to assign an interface
 variable to any struct pointer variable but if the struct type is
 incompatible the result will be nil.
+END]
 
 
+[OLD
 The polymorphic "any" type
 ----
 
@@ -861,12 +915,15 @@ is a special case that can match any struct type, while type
 can match any type at all, including basic types, arrays, etc.
 
 TODO: details about reflection
+END]
 
 
 Equivalence of types
 ---
 
-Types are structurally equivalent: Two types are equivalent ('equal') if they
+TODO: We may need to rethink this because of the new ways interfaces work.
+
+Types are structurally equivalent: Two types are equivalent (``equal'') if they
 are constructed the same way from equivalent types.
 
 For instance, all variables declared as "*int" have equivalent type,
@@ -1002,7 +1059,7 @@ The syntax
 
 is shorthand for
 
-  var identifer = Expression.
+  var identifier = Expression.
 
   i := 0
   f := func() int { return 7; }
@@ -1011,15 +1068,15 @@ is shorthand for
 Also, in some contexts such as "if", "for", or "switch" statements,
 this construct can be used to declare local temporary variables.
 
-TODO: var a, b = 1, "x"; is permitted by grammar but not by current compiler
-
 
 Function and method declarations
 ----
 
 Functions and methods have a special declaration syntax, slightly
 different from the type syntax because an identifier must be present
-in the signature. Functions and methods can only be declared
+in the signature.
+
+Implementation restriction: Functions and methods can only be declared
 at the global level.
 
   FunctionDecl = "func" NamedSignature  ( ";" | Block ) .
@@ -1064,10 +1121,10 @@ Initial values
 When memory is allocated to store a value, either through a declaration
 or new(), and no explicit initialization is provided, the memory is
 given a default initialization.  Each element of such a value is
-set to the ``zero'' for that type: 0 for integers, 0.0 for floats, and
-nil for pointers.  This intialization is done recursively, so for
-instance each element of an array of integers will be set to 0 if no
-other value is specified.
+set to the ``zero'' for that type: "false" for booleans, "0" for integers,
+"0.0" for floats, '''' for strings, and nil for pointers.  This intialization
+is done recursively, so for instance each element of an array of integers will
+be set to 0 if no other value is specified.
 
 These two simple declarations are equivalent:
 
@@ -1094,7 +1151,7 @@ exported identifer visible outside the package.  Another package may
 then import the identifier to use it.
 
 Export declarations must only appear at the global level of a
-compilation unit and can name only globally-visible identifiers.
+source file and can name only globally-visible identifiers.
 That is, one can export global functions, types, and so on but not
 local variables or structure fields.
 
@@ -1236,11 +1293,15 @@ pointer or interface value.
 
 By default, pointers are initialized to nil.
 
+TODO: This needs to be revisited.
+
+[OLD
 TODO: how does this definition jibe with using nil to specify
 conversion failure if the result is not of pointer type, such
 as an any variable holding an int?
 
 TODO: if interfaces were explicitly pointers, this gets simpler.
+END]
 
 
 Allocation
@@ -1274,6 +1335,10 @@ TODO: argument order for dimensions in multidimensional arrays
 
 Conversions
 ----
+
+TODO: gri believes this section is too complicated. Instead we should
+replace this with: 1) proper conversions of basic types, 2) compound
+literals, and 3) type assertions.
 
 Conversions create new values of a specified type derived from the
 elements of a list of expressions of a different type.
@@ -1414,21 +1479,17 @@ a set of related constants:
 
 TODO: should iota work in var, type, func decls too?
 
+
 Statements
 ----
 
 Statements control execution.
 
   Statement =
-    [ LabelDecl ] ( StructuredStat | UnstructuredStat ) .
-    
-  StructuredStat =
-    Block | IfStat | SwitchStat | SelectStat | ForStat | RangeStat .
-
-  UnstructuredStat =
-    Declaration | SimpleVarDecl |
-    SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat .
-    
+    Declaration |
+    SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
+    Block | IfStat | SwitchStat | SelectStat | ForStat | RangeStat |
+  
   SimpleStat =
     ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
     
@@ -1437,15 +1498,13 @@ Statement lists
 ----
 
 Semicolons are used to separate individual statements of a statement list.
-They are optional after a statement that ends with a closing curly brace '}'.
+They are optional immediately before or after a closing curly brace "}",
+immediately after "++" or "--", and immediately before a reserved word.
 
-  StatementList =
-    StructuredStat |
-    UnstructuredStat |
-    StructuredStat [ ";" ] StatementList |
-    UnstructuredStat ";" StatementList . 
-    
-TODO: define optional semicolons precisely
+  StatementList = Statement { [ ";" ] Statement } .
+
+
+TODO: This still seems to be more complicated then necessary.
 
 
 Expression statements
@@ -1478,7 +1537,7 @@ Assignments
   assign_op = [ add_op | mul_op ] "=" .
 
 The left-hand side must be an l-value such as a variable, pointer indirection,
-or an array indexing.
+or an array index.
 
   x = 1
   *p = f()
@@ -1602,7 +1661,15 @@ the variable is initialized once before the statement is entered.
   } else {
     return y;
   }
-  
+
+
+TODO: We should fix this and move to:
+
+  IfStat =
+    "if" [ [ Simplestat ] ";" ] [ Condition ] Block
+    { "else" "if" Condition Block }
+    [ "else" Block ] .
+
 
 Switch statements
 ----
@@ -1610,7 +1677,7 @@ Switch statements
 Switches provide multi-way execution.
 
   SwitchStat = "switch" [ [ Simplestat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
-  CaseClause = CaseList StatementList [ ";" ] [ "fallthrough" [ ";" ] ] .
+  CaseClause = CaseList [ StatementList [ ";" ] ] [ "fallthrough" [ ";" ] ] .
   CaseList = Case { Case } .
   Case = ( "case" ExpressionList | "default" ) ":" .
 
@@ -1902,7 +1969,7 @@ an error if the import introduces name conflicts.
 Program
 ----
 
-A program is package clause, optionally followed by import declarations,
+A program is a package clause, optionally followed by import declarations,
 followed by a series of declarations.
 
   Program = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
@@ -1913,5 +1980,4 @@ TODO
 
 - TODO: type switch?
 - TODO: words about slices
-- TODO: I (gri) would like to say that sizeof(int) == sizeof(pointer), always.
 - TODO: really lock down semicolons
