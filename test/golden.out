@@ -243,34 +243,33 @@ BUG: infinite loop in error reporting
 =========== bugs/bug052.go
 SIGSEGV: segmentation violation
 Faulting address: 0x1
-pc: 0x152c
+pc: 0x1349
 
-0x152c?zi
-	main·main(0, 0, 0, ...)
-	main·main(0x0, 0x0, 0x1, ...)
-0x12e5?zi
+0x1349?zi
+	main·main(1, 0, 1606416464, ...)
+	main·main(0x1, 0x7fff5fbff850, 0x1, ...)
 
 rax     0x1
 rbx     0x7
-rcx     0x7fffffffe8f8
+rcx     0x7fff5fbff7e8
 rdx     0x3
-rdi     0x7fffffffe920
-rsi     0x5b00
-rbp     0x7fffffffe938
-rsp     0x7fffffffe8f0
+rdi     0x7fff5fbff810
+rsi     0x4950
+rbp     0x13ffc00
+rsp     0x7fff5fbff7e0
 r8      0x0
 r9      0x0
-r10     0x8
-r11     0x202
+r10     0x0
+r11     0x216
 r12     0x0
 r13     0x0
 r14     0x0
-r15     0x0
-rip     0x152c
-rflags  0x10202
-cs      0x33
-fs      0x0
-gs      0x0
+r15     0x68f0
+rip     0x1349
+rflags  0x10206
+cs      0x27
+fs      0x10
+gs      0x48
 BUG: incorrect code for division
 
 =========== bugs/bug053.go
@@ -279,16 +278,16 @@ BUG: len should not be a keyword
 
 =========== bugs/bug054.go
 xxx
-.   CALL u(100) l(188) <Element>I{}
-.   .   NAME-Vector_At G0 a(1) l(175) 111({},{}){}
-.   .   AS u(1) l(188)
-.   .   .   INDREG a(1) l(188) v G0 *<Vector>{}
-.   .   .   DOTPTR u(1) l(188) *<Vector>{}
-.   .   .   .   NAME-s G224 a(1) g(224) l(184) *<TStruct>{}
-.   .   .   .   NAME-fields G0 a(1) l(181)
-.   .   AS u(1) l(188)
-.   .   .   INDREG a(1) l(188) i G225 <int32>INT32
-.   .   .   NAME-i G225 a(1) g(225) l(184) <int32>INT32
+.   CALL u(100) l(218) <Element>I{}
+.   .   NAME-Vector_At G0 a(1) l(205) 111({},{}){}
+.   .   AS u(1) l(218)
+.   .   .   INDREG a(1) l(218) v G0 *<Vector>{}
+.   .   .   DOTPTR u(1) l(218) *<Vector>{}
+.   .   .   .   NAME-s G264 a(1) g(264) l(214) *<TStruct>{}
+.   .   .   .   NAME-fields G0 a(1) l(211)
+.   .   AS u(1) l(218)
+.   .   .   INDREG a(1) l(218) i G265 <int32>INT32
+.   .   .   NAME-i G265 a(1) g(265) l(214) <int32>INT32
 bugs/bug054.go:25: fatal error: agen_inter i2s
 BUG: known to fail incorrectly
 
@@ -314,6 +313,9 @@ bugs/bug061.go:7: illegal types for operand: SLICE
 bugs/bug061.go:7: illegal types for operand: AS
 	(<string>*STRING)
 BUG: known to fail incorrectly
+
+=========== bugs/bug062.go
+BUG: known to succeed incorrectly
 
 =========== fixedbugs/bug000.go
 
