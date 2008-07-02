@@ -1734,7 +1734,7 @@ will proceed.  It looks similar to a switch statement but with the
 cases all referring to communication operations.
 
   SelectStat = "select" "{" { CommClause } "}" .
-  CommClause = CommCase { Statement } .
+  CommClause = CommCase [ StatementList [ ";" ] ] .
   CommCase = ( "default" | ( "case" ( SendCase | RecvCase) ) ) ":" .
   SendCase = Send .
   RecvCase = [ identifier "=" ] RecvExpr .
