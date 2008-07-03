@@ -1092,6 +1092,40 @@ out:
 	return fmtstrcpy(fp, buf);
 }
 
+Node*
+treecopy(Node *n)
+{
+	Node *m;
+
+	if(n == N)
+		return N;
+
+	switch(n->op) {
+	default:
+		m = nod(OXXX, N, N);
+		*m = *n;
+		m->left = treecopy(n->left);
+		m->right = treecopy(n->right);
+		break;
+
+	case OLITERAL:
+		if(n->iota) {
+			m = literal(iota);
+			m->iota = 1;	// flag to reevaluate on copy
+			break;
+		}
+		m = nod(OXXX, N, N);
+		*m = *n;
+		break;
+
+	case ONAME:
+		m = nod(OXXX, N, N);
+		*m = *n;
+		break;
+	}
+	return m;
+}
+
 int
 Zconv(Fmt *fp)
 {
