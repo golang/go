@@ -32,10 +32,9 @@ const (
 	DEC = iota;
 	NOT = iota;
 	
-	OR = iota;
-	BOR = iota;
 	AND = iota;
-	BAND = iota;
+	OR = iota;
+	XOR = iota;
 	
 	ADD = iota;
 	SUB = iota;
@@ -49,6 +48,25 @@ const (
 	LEQ = iota;
 	GTR = iota;
 	GEQ = iota;
+
+	SHL = iota;
+	SHR = iota;
+
+	ADD_ASSIGN = iota;
+	SUB_ASSIGN = iota;
+	MUL_ASSIGN = iota;
+	QUO_ASSIGN = iota;
+	REM_ASSIGN = iota;
+
+	AND_ASSIGN = iota;
+	OR_ASSIGN = iota;
+	XOR_ASSIGN = iota;
+	
+	SHL_ASSIGN = iota;
+	SHR_ASSIGN = iota;
+
+	CAND = iota;
+	COR = iota;
 	
 	// keywords
 	BREAK = iota;
@@ -114,11 +132,10 @@ func TokenName(tok int) string {
 	case INC: return "INC";
 	case DEC: return "DEC";
 	case NOT: return "NOT";
-	
-	case OR: return "OR";
-	case BOR: return "BOR";
+
 	case AND: return "AND";
-	case BAND: return "BAND";
+	case OR: return "OR";
+	case XOR: return "XOR";
 	
 	case ADD: return "ADD";
 	case SUB: return "SUB";
@@ -133,6 +150,25 @@ func TokenName(tok int) string {
 	case LEQ: return "LEQ";
 	case GTR: return "GTR";
 	case GEQ: return "GEQ";
+
+	case SHL: return SHL;
+	case SHR: return SHR;
+
+	case ADD_ASSIGN: return "ADD_ASSIGN";
+	case SUB_ASSIGN: return "SUB_ASSIGN";
+	case MUL_ASSIGN: return "MUL_ASSIGN";
+	case QUO_ASSIGN: return "QUO_ASSIGN";
+	case REM_ASSIGN: return "REM_ASSIGN";
+
+	case AND_ASSIGN: return "AND_ASSIGN";
+	case OR_ASSIGN: return "OR_ASSIGN";
+	case XOR_ASSIGN: return "XOR_ASSIGN";
+
+	case SHL_ASSIGN: return "SHL_ASSIGN";
+	case SHR_ASSIGN: return "SHR_ASSIGN";
+
+	case CAND: return "CAND";
+	case COR: return "COR";
 
 	case BREAK: return "BREAK";
 	case CASE: return "CASE";
@@ -305,12 +341,27 @@ func (S *Scanner) ScanIdentifier () int {
 }
 
 
-func (S *Scanner) ScanNumber () {
-	// TODO complete this routine
-	
-	for is_dec_digit(S.ch) {
-		S.Next();
+func (S *Scanner) ScanMantissa () {
+     	for is_dec_digit(S.ch) {
+	      	S.Next();
 	}
+}
+
+
+func (S *Scanner) ScanNumber () int {
+	// TODO complete this routine
+	if S.ch == '.' {
+	   	S.Next();
+	}
+	S.ScanMantissa();
+	if S.ch == 'e' || S.ch == 'E' {
+	   	S.Next();
+		if S.ch == '-' || S.ch == '+' {
+		   	S.Next();
+		}
+		S.ScanMantissa();
+	}
+	return NUMBER;
 }
 
 
@@ -371,9 +422,7 @@ func (S *Scanner) ScanEscape () {
 }
 
 
-func (S *Scanner) ScanChar () {
-	S.Next();  // consume '\'
-
+func (S *Scanner) ScanChar () int {
 	if (S.ch == '\\') {
 		S.Next();
 		S.ScanEscape();
@@ -386,26 +435,68 @@ func (S *Scanner) ScanChar () {
 	} else {
 		panic "char not terminated";
 	}
+	return NUMBER;
 }
 
 
-func (S *Scanner) ScanString () {
-	for S.Next(); S.ch != '"'; S.Next() {
+func (S *Scanner) ScanString () int {
+	for ; S.ch != '"'; S.Next() {
 		if S.ch == '\n' || S.ch < 0 {
 			panic "string not terminated";
 		}
 	}
 	S.Next();
+	return STRING;
 }
 
 
-func (S *Scanner) ScanRawString () {
-	for S.Next(); S.ch != '`'; S.Next() {
+func (S *Scanner) ScanRawString () int {
+	for ; S.ch != '`'; S.Next() {
 		if S.ch == '\n' || S.ch < 0 {
 			panic "string not terminated";
 		}
 	}
 	S.Next();
+	return STRING;
+}
+
+
+func (S *Scanner) Select2 (tok0, tok1 int) int {
+     	if S.ch == '=' {
+	   	S.Next();
+	   	return tok1;
+	}
+	return tok0;
+}
+
+
+func (S *Scanner) Select3 (tok0, tok1, ch2, tok2 int) int {
+	if S.ch == '=' {
+	   	S.Next();
+		return tok1;
+	}
+	if S.ch == ch2 {
+	   	S.Next();
+		return tok2;
+	}
+	return tok0;
+}
+
+
+func (S *Scanner) Select4 (tok0, tok1, ch2, tok2, tok3 int) int {
+	if S.ch == '=' {
+	   	S.Next();
+		return tok1;
+	}
+	if S.ch == ch2 {
+	   	S.Next();
+		if S.ch == '=' {
+		   	S.Next();
+			return tok3;
+		}
+		return tok2;
+	}
+	return tok0;
 }
 
 
@@ -416,171 +507,52 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 	var beg int = S.pos - 1;
 	var end int = beg;
 	
-	if is_letter(S.ch) {
-		tok = S.ScanIdentifier();
-
-	} else if is_dec_digit(S.ch) {
-		S.ScanNumber();
-		tok = NUMBER;
-
-	} else {
-		switch S.ch {
-			case -1:
-				tok = EOF;
-				
+	switch ch := S.ch; {
+	case is_letter(ch): tok = S.ScanIdentifier();
+	case is_dec_digit(ch): tok = S.ScanNumber();
+	default:
+		S.Next();
+		switch ch {
+			case -1: tok = EOF;
+			case '"': tok = S.ScanString();
+			case '\'': tok = S.ScanChar();
+			case '`': tok = S.ScanRawString();
+			case ':': tok = S.Select2(COLON, DEFINE);
+			case '.':
+				if is_dec_digit(S.ch) {
+				     	tok = S.ScanNumber();
+				} else {
+				        tok = PERIOD;
+				}
+			case ',': tok = COMMA;
+			case ';': tok = SEMICOLON;
+			case '(': tok = LPAREN;
+			case ')': tok = RPAREN;
+			case '[': tok = LBRACK;
+			case ']': tok = RBRACK;
+			case '{': tok = LBRACE;
+			case '}': tok = RBRACE;
+			case '+': tok = S.Select3(ADD, ADD_ASSIGN, '+', INC);
+			case '-': tok = S.Select3(SUB, SUB_ASSIGN, '-', DEC);
+			case '*': tok = S.Select2(MUL, MUL_ASSIGN);
 			case '/':
-				S.Next();
 				if S.ch == '/' || S.ch == '*' {
 					S.SkipComment();
+					// cannot simply return because of 6g bug
 					tok, beg, end = S.Scan();
 					return tok, beg, end;
-				} else {
-					tok = QUO;
 				}
-				
-			case '"':
-				S.ScanString();
-				tok = STRING;
-				
-			case '\'':
-				S.ScanChar();
-				tok = NUMBER;
-				
-			case '`':
-				S.ScanRawString();
-				tok = STRING;
-				
-			case ':':
-				S.Next();
-				if (S.ch == '=') {
-					S.Next();
-					tok = DEFINE;
-				} else {
-					tok = COLON;
-				}
-				
-			case '.':
-				S.Next();
-				tok = PERIOD;
-				
-			case ',':
-				S.Next();
-				tok = COMMA;
-				
-			case '+':
-				S.Next();
-				if (S.ch == '+') {
-					S.Next();
-					tok = INC;
-				} else {
-					tok = ADD;
-				}
-				
-			case '-':
-				S.Next();
-				if (S.ch == '-') {
-					S.Next();
-					tok = DEC;
-				} else {
-					tok = SUB;
-				}
-				
-			case '*':
-				S.Next();
-				tok = MUL;
+				tok = S.Select2(QUO, QUO_ASSIGN);
+			case '%': tok = S.Select2(REM, REM_ASSIGN);
+			case '^': tok = S.Select2(XOR, XOR_ASSIGN);
+			case '<': tok = S.Select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
+			case '>': tok = S.Select4(GTR, GEQ, '>', SHR, SHR_ASSIGN);
+			case '=': tok = S.Select2(ASSIGN, EQL);
+			case '!': tok = S.Select2(NOT, NEQ);
+			case '&': tok = S.Select3(AND, AND_ASSIGN, '&', CAND);
+			case '|': tok = S.Select3(OR, OR_ASSIGN, '|', COR);
+			default: tok = ILLEGAL;
 
-			case '/':
-				S.Next();
-				tok = QUO;
-
-			case '%':
-				S.Next();
-				tok = REM;
-
-			case '<':
-				S.Next();
-				if (S.ch == '=') {
-					S.Next();
-					tok = LEQ;
-				} else {
-					tok = LSS;
-				}
-				
-			case '>':
-				S.Next();
-				if (S.ch == '=') {
-					S.Next();
-					tok = GEQ;
-				} else {
-					tok = GTR;
-				}
-				
-			case '=':
-				S.Next();
-				if (S.ch == '=') {
-					S.Next();
-					tok = EQL;
-				} else {
-					tok = ASSIGN;
-				}
-				
-			case '!':
-				S.Next();
-				if (S.ch == '=') {
-					S.Next();
-					tok = NEQ;
-				} else {
-					tok = NOT;
-				}
-				
-			case ';':
-				S.Next();
-				tok = SEMICOLON;
-				
-			case '(':
-				S.Next();
-				tok = LPAREN;
-				
-			case ')':
-				S.Next();
-				tok = LPAREN;
-				
-			case '[':
-				S.Next();
-				tok = LBRACK;
-				
-			case ']':
-				S.Next();
-				tok = RBRACK;
-				
-			case '{':
-				S.Next();
-				tok = LBRACE;
-				
-			case '}':
-				S.Next();
-				tok = RBRACE;
-				
-			case '&':
-				S.Next();
-				if S.ch == '&' {
-					S.Next();
-					tok = AND;
-				} else {
-					tok = BAND;
-				}
-				
-			case '|':
-				S.Next();
-				if S.ch == '|' {
-					S.Next();
-					tok = OR;
-				} else {
-					tok = BOR;
-				}
-				
-			default:
-				S.Next();  // make progress
 		}
 	}
 	
