@@ -317,6 +317,20 @@ BUG: known to fail incorrectly
 =========== bugs/bug062.go
 BUG: known to succeed incorrectly
 
+=========== bugs/bug063.go
+bugs/bug063.go:4: illegal combination of literals XOR 7
+bugs/bug063.go:4: expression must be a constant
+bugs/bug063.go:4: expression must be a constant
+bugs/bug063.go:4: expression must be a constant
+bugs/bug063.go:4: expression must be a constant
+bugs/bug063.go:4: expression must be a constant
+bugs/bug063.go:4: expression must be a constant
+bugs/bug063.go:4: expression must be a constant
+bugs/bug063.go:4: expression must be a constant
+bugs/bug063.go:4: expression must be a constant
+bugs/bug063.go:4: fatal error: too many errors
+BUG: should compile without problems
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
