@@ -4,107 +4,104 @@
 
 package Scanner
 
-
 export EOF;
 const (
 	ILLEGAL = iota;
-	EOF = iota;
-	IDENT = iota;
-	STRING = iota;
-	NUMBER = iota;
+	EOF;
+	IDENT;
+	STRING;
+	NUMBER;
 
-	COMMA = iota;
-	COLON = iota;
-	SEMICOLON = iota;
-	PERIOD = iota;
+	COMMA;
+	COLON;
+	SEMICOLON;
+	PERIOD;
 
-	LPAREN = iota;
-	RPAREN = iota;
-	LBRACK = iota;
-	RBRACK = iota;
-	LBRACE = iota;
-	RBRACE = iota;
+	LPAREN;
+	RPAREN;
+	LBRACK;
+	RBRACK;
+	LBRACE;
+	RBRACE;
 	
-	ASSIGN = iota;
-	DEFINE = iota;
+	ASSIGN;
+	DEFINE;
 	
-	INC = iota;
-	DEC = iota;
-	NOT = iota;
+	INC;
+	DEC;
+	NOT;
 	
-	AND = iota;
-	OR = iota;
-	XOR = iota;
+	AND;
+	OR;
+	XOR;
 	
-	ADD = iota;
-	SUB = iota;
-	MUL = iota;
-	QUO = iota;
-	REM = iota;
+	ADD;
+	SUB;
+	MUL;
+	QUO;
+	REM;
 	
-	EQL = iota;
-	NEQ = iota;
-	LSS = iota;
-	LEQ = iota;
-	GTR = iota;
-	GEQ = iota;
+	EQL;
+	NEQ;
+	LSS;
+	LEQ;
+	GTR;
+	GEQ;
 
-	SHL = iota;
-	SHR = iota;
+	SHL;
+	SHR;
 
-	ADD_ASSIGN = iota;
-	SUB_ASSIGN = iota;
-	MUL_ASSIGN = iota;
-	QUO_ASSIGN = iota;
-	REM_ASSIGN = iota;
+	ADD_ASSIGN;
+	SUB_ASSIGN;
+	MUL_ASSIGN;
+	QUO_ASSIGN;
+	REM_ASSIGN;
 
-	AND_ASSIGN = iota;
-	OR_ASSIGN = iota;
-	XOR_ASSIGN = iota;
+	AND_ASSIGN;
+	OR_ASSIGN;
+	XOR_ASSIGN;
 	
-	SHL_ASSIGN = iota;
-	SHR_ASSIGN = iota;
+	SHL_ASSIGN;
+	SHR_ASSIGN;
 
-	CAND = iota;
-	COR = iota;
+	CAND;
+	COR;
 	
 	// keywords
-	KEYWORDS_BEG = iota;
-	BREAK = iota;
-	CASE = iota;
-	CONST = iota;
-	CONTINUE = iota;
-	DEFAULT = iota;
-	ELSE = iota;
-	EXPORT = iota;
-	FALLTHROUGH = iota;
-	FALSE = iota;
-	FOR = iota;
-	FUNC = iota;
-	GO = iota;
-	GOTO = iota;
-	IF = iota;
-	IMPORT = iota;
-	INTERFACE = iota;
-	MAP = iota;
-	NEW = iota;
-	NIL = iota;
-	PACKAGE = iota;
-	RANGE = iota;
-	RETURN = iota;
-	SELECT = iota;
-	STRUCT = iota;
-	SWITCH = iota;
-	TRUE = iota;
-	TYPE = iota;
-	VAR = iota;
-	KEYWORDS_END = iota;
+	KEYWORDS_BEG;
+	BREAK;
+	CASE;
+	CONST;
+	CONTINUE;
+	DEFAULT;
+	ELSE;
+	EXPORT;
+	FALLTHROUGH;
+	FALSE;
+	FOR;
+	FUNC;
+	GO;
+	GOTO;
+	IF;
+	IMPORT;
+	INTERFACE;
+	MAP;
+	NEW;
+	NIL;
+	PACKAGE;
+	RANGE;
+	RETURN;
+	SELECT;
+	STRUCT;
+	SWITCH;
+	TRUE;
+	TYPE;
+	VAR;
+	KEYWORDS_END;
 )
 
 
-var (
-	Keywords *map [string] int;
-)
+var Keywords *map [string] int;
 
 
 export TokenName
@@ -238,6 +235,9 @@ type Scanner struct {
 }
 
 
+// Read the next Unicode char into S.ch.
+// S.ch < 0 means end-of-file.
+//
 func (S *Scanner) Next () {
 	const (
 		Bit1 = 7;
@@ -246,6 +246,7 @@ func (S *Scanner) Next () {
 		Bit3 = 4;
 		Bit4 = 3;
 
+		// TODO 6g constant evaluation incomplete
 		T1 = 0x00;  // (1 << (Bit1 + 1) - 1) ^ 0xFF;  // 0000 0000
 		Tx = 0x80;  // (1 << (Bitx + 1) - 1) ^ 0xFF;  // 1000 0000
 		T2 = 0xC0;  // (1 << (Bit2 + 1) - 1) ^ 0xFF;  // 1100 0000
@@ -269,22 +270,25 @@ func (S *Scanner) Next () {
 	// 1-byte sequence
 	// 0000-007F => T1
 	if pos >= lim {
-		goto eof;
+		S.ch = -1;  // end of file
+		return;
 	}
-	c0 := int(src[pos + 0]);
+	c0 := int(src[pos]);
+	pos++;
 	if c0 < Tx {
 		S.ch = c0;
-		S.pos = pos + 1;
+		S.pos = pos;
 		return;
 	}
 
 	// 2-byte sequence
 	// 0080-07FF => T2 Tx
-	if pos + 1 >= lim {
-		goto eof;
+	if pos >= lim {
+		goto bad;
 	}
-	c1 := int(src[pos + 1]) ^ Tx;
-	if  c1 & Testx != 0 {
+	c1 := int(src[pos]) ^ Tx;
+	pos++;
+	if c1 & Testx != 0 {
 		goto bad;
 	}
 	if c0 < T3 {
@@ -296,16 +300,17 @@ func (S *Scanner) Next () {
 			goto bad;
 		}
 		S.ch = r;
-		S.pos = pos + 2;
+		S.pos = pos;
 		return;
 	}
 
-	// 3-byte encoding
+	// 3-byte sequence
 	// 0800-FFFF => T3 Tx Tx
-	if pos + 2 >= lim {
-		goto eof;
+	if pos >= lim {
+		goto bad;
 	}
-	c2 := int(src[pos + 2]) ^ Tx;
+	c2 := int(src[pos]) ^ Tx;
+	pos++;
 	if c2 & Testx != 0 {
 		goto bad;
 	}
@@ -315,7 +320,7 @@ func (S *Scanner) Next () {
 			goto bad;
 		}
 		S.ch = r;
-		S.pos = pos + 3;
+		S.pos = pos;
 		return;
 	}
 
@@ -324,10 +329,6 @@ bad:
 	S.ch = Bad;
 	S.pos += 1;
 	return;
-	
-	// end of file
-eof:
-	S.ch = -1;
 }
 
 
@@ -351,6 +352,14 @@ func (S *Scanner) Open (src string) {
 }
 
 
+func (S *Scanner) Expect (ch int) {
+	if S.ch != ch {
+		panic "expected ", string(ch), " found ", string(S.ch);
+	}
+	S.Next();
+}
+
+
 func (S *Scanner) SkipWhitespace () {
 	for is_whitespace(S.ch) {
 		S.Next();
@@ -361,14 +370,18 @@ func (S *Scanner) SkipWhitespace () {
 func (S *Scanner) SkipComment () {
 	if S.ch == '/' {
 		// comment
-		for S.Next(); S.ch != '\n' && S.ch >= 0; S.Next() {}
+		S.Next();
+		for S.ch != '\n' && S.ch >= 0 {
+			S.Next();
+		}
 		
 	} else {
 		/* comment */
-		for S.Next(); S.ch >= 0; {
-			c := S.ch;
+		S.Next();
+		for S.ch >= 0 {
+			ch := S.ch;
 			S.Next();
-			if c == '*' && S.ch == '/' {
+			if ch == '*' && S.ch == '/' {
 				S.Next();
 				return;
 			}
@@ -396,25 +409,50 @@ func (S *Scanner) ScanIdentifier () int {
 }
 
 
-func (S *Scanner) ScanMantissa () {
+func (S *Scanner) ScanMantissa (base int) {
 	for is_dec_digit(S.ch) {
 		S.Next();
 	}
 }
 
 
-func (S *Scanner) ScanNumber () int {
-	// TODO complete this routine
-	if S.ch == '.' {
-		S.Next();
+func (S *Scanner) ScanNumber (seen_decimal_point bool) int {
+	if seen_decimal_point {
+		S.ScanMantissa(10);
+		goto exponent;
 	}
-	S.ScanMantissa();
+	
+	if S.ch == '0' {
+		// int
+		S.Next();
+		if S.ch == 'x' || S.ch == 'X' {
+			// hexadecimal int
+			S.Next();
+			S.ScanMantissa(16);
+		} else {
+			// octal int
+			S.ScanMantissa(8);
+		}
+		return NUMBER;
+	}
+	
+	// decimal int or float
+	S.ScanMantissa(10);
+	
+	if S.ch == '.' {
+		// float
+		S.Next();
+		S.ScanMantissa(10)
+	}
+	
+exponent:
 	if S.ch == 'e' || S.ch == 'E' {
+		// float
 		S.Next();
 		if S.ch == '-' || S.ch == '+' {
 			S.Next();
 		}
-		S.ScanMantissa();
+		S.ScanMantissa(10);
 	}
 	return NUMBER;
 }
@@ -440,36 +478,30 @@ func (S *Scanner) ScanHexDigits(n int) {
 }
 
 
-func (S *Scanner) ScanEscape () {
+func (S *Scanner) ScanEscape () string {
 	// TODO: fix this routine
 	
-	switch (S.ch) {
-	case 'a': fallthrough;
-	case 'b': fallthrough;
-	case 'f': fallthrough;
-	case 'n': fallthrough;
-	case 'r': fallthrough;
-	case 't': fallthrough;
-	case 'v': fallthrough;
-	case '\\': fallthrough;
-	case '\'': fallthrough;
-	case '"':
-		S.Next();
+	ch := S.ch;
+	S.Next();
+	switch (ch) {
+	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"':
+		return string(ch);
 		
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		S.ScanOctDigits(3);
+		S.ScanOctDigits(3 - 1);  // 1 char already read
+		return "";  // TODO fix this
 		
 	case 'x':
-		S.Next();
 		S.ScanHexDigits(2);
+		return "";  // TODO fix this
 		
 	case 'u':
-		S.Next();
 		S.ScanHexDigits(4);
+		return "";  // TODO fix this
 
 	case 'U':
-		S.Next();
 		S.ScanHexDigits(8);
+		return "";  // TODO fix this
 
 	default:
 		panic "illegal char escape";
@@ -478,39 +510,49 @@ func (S *Scanner) ScanEscape () {
 
 
 func (S *Scanner) ScanChar () int {
-	if (S.ch == '\\') {
-		S.Next();
+	// '\'' already consumed
+
+	ch := S.ch;
+	S.Next();
+	if ch == '\\' {
 		S.ScanEscape();
-	} else {
-		S.Next();
 	}
 
-	if S.ch == '\'' {
-		S.Next();
-	} else {
-		panic "char not terminated";
-	}
+	S.Next();
 	return NUMBER;
 }
 
 
 func (S *Scanner) ScanString () int {
-	for ; S.ch != '"'; S.Next() {
-		if S.ch == '\n' || S.ch < 0 {
+	// '"' already consumed
+
+	for S.ch != '"' {
+		ch := S.ch;
+		S.Next();
+		if ch == '\n' || ch < 0 {
 			panic "string not terminated";
 		}
+		if ch == '\\' {
+			S.ScanEscape();
+		}
 	}
+
 	S.Next();
 	return STRING;
 }
 
 
 func (S *Scanner) ScanRawString () int {
-	for ; S.ch != '`'; S.Next() {
-		if S.ch == '\n' || S.ch < 0 {
+	// '`' already consumed
+
+	for S.ch != '`' {
+		ch := S.ch;
+		S.Next();
+		if ch == '\n' || ch < 0 {
 			panic "string not terminated";
 		}
 	}
+
 	S.Next();
 	return STRING;
 }
@@ -564,7 +606,7 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 	
 	switch ch := S.ch; {
 	case is_letter(ch): tok = S.ScanIdentifier();
-	case is_dec_digit(ch): tok = S.ScanNumber();
+	case is_dec_digit(ch): tok = S.ScanNumber(false);
 	default:
 		S.Next();
 		switch ch {
@@ -575,7 +617,7 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 		case ':': tok = S.Select2(COLON, DEFINE);
 		case '.':
 			if is_dec_digit(S.ch) {
-				tok = S.ScanNumber();
+				tok = S.ScanNumber(true);
 			} else {
 				tok = PERIOD;
 			}
