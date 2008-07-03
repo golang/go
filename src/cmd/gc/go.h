@@ -114,6 +114,7 @@ struct	Node
 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
 	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
 	uchar	method;		// OCALLMETH name
+	uchar	iota;		// OLITERAL made from iota
 
 	// most nodes
 	Node*	left;
@@ -393,6 +394,7 @@ EXTERN	int	inimportsys;
 EXTERN	Node*	booltrue;
 EXTERN	Node*	boolfalse;
 EXTERN	ulong	iota;
+EXTERN	Node*	lastconst;
 EXTERN	long	vargen;
 EXTERN	long	exportgen;
 EXTERN	long	maxarg;
@@ -479,6 +481,7 @@ void	badtype(int, Type*, Type*);
 Type*	ptrto(Type*);
 Node*	cleanidlist(Node*);
 Node*	syslook(char*, int);
+Node*	treecopy(Node*);
 
 Type**	getthis(Type*);
 Type**	getoutarg(Type*);

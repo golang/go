@@ -40,7 +40,7 @@
 %type	<node>		range_header range_body range_stmt
 %type	<node>		simple_stmt osimple_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
-%type	<node>		name name_name new_name new_name_list_r
+%type	<node>		name name_name new_name new_name_list_r conexpr
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl
@@ -166,6 +166,7 @@ Acommon_dcl:
 	{
 		$$ = N;
 		iota = 0;
+		lastconst = N;
 	}
 |	LTYPE Atypedcl
 	{
@@ -185,6 +186,7 @@ Bcommon_dcl:
 	{
 		$$ = N;
 		iota = 0;
+		lastconst = N;
 	}
 |	LTYPE Btypedcl
 	{
@@ -224,22 +226,33 @@ Bvardcl:
 		walktype($3, Erv);	// this is a little harry
 		defaultlit($3);
 		dodclvar($1, $3->type);
-
 		$$ = nod(OAS, $1, $3);
 	}
 
 constdcl:
-	new_name '=' expr
+	new_name conexpr
+	{
+		walktype($2, Erv);
+		dodclconst($1, $2);
+	}
+|	new_name type conexpr
 	{
 		walktype($3, Erv);
+		convlit($3, $2);
 		dodclconst($1, $3);
+	}
+
+conexpr:
+	{
+		if(lastconst == N)
+			yyerror("first constant must evaluate an expression");
+		$$ = treecopy(lastconst);
 		iota += 1;
 	}
-|	new_name type '=' expr
+|	'=' expr
 	{
-		walktype($4, Erv);
-		convlit($4, $2);
-		dodclconst($1, $4);
+		$$ = $2;
+		lastconst = treecopy($$);
 		iota += 1;
 	}
 
@@ -653,6 +666,7 @@ pexpr:
 |	LIOTA
 	{
 		$$ = literal(iota);
+		$$->iota = 1;	// flag to reevaluate on copy
 	}
 |	name
 |	'(' expr ')'
