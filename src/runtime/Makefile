@@ -18,9 +18,9 @@ LIBOFILES=\
 	rt2_$(GOARCH).$O\
 	sys_$(GOARCH)_$(GOOS).$O\
 	runtime.$O\
-	runtime_map.$O\
-	runtime_print.$O\
-	runtime_string.$O\
+	map.$O\
+	print.$O\
+	string.$O\
 	sys_file.$O\
 
 OFILES=$(RT0OFILES) $(LIBOFILES)
@@ -37,6 +37,9 @@ $(LIB): $(LIBOFILES)
 	$(O)ar rc $(LIB) $(LIBOFILES)
 
 $(OFILES): $(HFILES)
+
+nuke:
+	rm -f *.$(O) *.a $(GOROOT)/lib/$(LIB)
 
 clean:
 	rm -f *.$(O) *.a

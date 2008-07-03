@@ -6,6 +6,6 @@ set -ex
 
 for GOOS in linux darwin
 do
-	make clean
+	make nuke
 done
 
