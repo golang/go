@@ -33,7 +33,13 @@ testit() bool
 		i == 9;
 }
 
-func main()
+func
+swap(x, y int) (u, v int) {
+	return y, x
+}
+
+func
+main()
 {
 	a = 1;
 	b = 2;
@@ -65,4 +71,13 @@ func main()
 		printit();
 		panic;
 	}
+
+	a, b = swap(1, 2);
+	if a != 2 || b != 1 {
+		panic "bad swap";
+	}
+//BUG	a, b = swap(swap(a, b));
+//	if a != 2 || b != 1 {
+//		panic "bad swap";
+//	}
 }
