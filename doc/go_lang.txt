@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(July 1, 2008)
+(July 3, 2008)
 
 This document is a semi-formal specification/proposal for a new
 systems programming language.  The document is under active
@@ -983,7 +983,7 @@ Const declarations
 A constant declaration gives a name to the value of a constant expression.
 
   ConstDecl = "const" ( ConstSpec | "(" ConstSpecList [ ";" ] ")" ).
-  ConstSpec = identifier [ Type ] "=" Expression .
+  ConstSpec = identifier [ Type ] [ "=" Expression ] .
   ConstSpecList = ConstSpec { ";" ConstSpec }.
 
   const pi float = 3.14159265
@@ -992,6 +992,23 @@ A constant declaration gives a name to the value of a constant expression.
     one int = 1;
     two = 3
   )
+
+The constant expression may be omitted, in which case the expression is
+the last expression used after the "const" keyword. If no such expression
+exists, the constant expression cannot be omitted.
+
+Together with the 'iota' constant generator this permits light-weight
+declaration of ``enum'' values.
+
+  const (
+    illegal = iota;
+    eof;
+    ident;
+    string;
+    number;
+  )
+
+TODO move/re-arrange section on iota.
 
 
 Type declarations
@@ -1452,6 +1469,7 @@ Note that there is no linguistic mechanism to convert between pointers
 and integers. A library may be provided under restricted circumstances
 to acccess this conversion in low-level code but it will not be available
 in general.
+
 
 The constant generator 'iota'
 ----
