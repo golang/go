@@ -148,6 +148,14 @@ xdcl:
 	{
 		$$ = N;
 	}
+|	error '}'
+	{
+		$$ = N;
+	}
+|	error ';'
+	{
+		$$ = N;
+	}
 
 common_dcl:
 	Acommon_dcl
@@ -1194,6 +1202,14 @@ Astmt:
 	{
 		$$ = N;
 	}
+|	error ';'
+	{
+		$$ = N;
+	}
+|	error '}'
+	{
+		$$ = N;
+	}
 
 /*
  * need semi in front NO
@@ -1262,10 +1278,6 @@ Bstmt_list_r:
 stmt_list_r:
 	Astmt_list_r
 |	Bstmt_list_r
-|	error ';'
-	{
-		$$ = N;
-	}
 
 expr_list_r:
 	expr
