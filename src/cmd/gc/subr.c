@@ -1231,10 +1231,8 @@ eqtype(Type *t1, Type *t2, int d)
 		return 1;
 	if(t1 == T || t2 == T)
 		return 0;
-
 	if(t1->etype != t2->etype)
 		return 0;
-
 	switch(t1->etype) {
 	case TINTER:
 	case TSTRUCT:
