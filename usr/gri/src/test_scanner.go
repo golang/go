@@ -11,8 +11,10 @@ func Scan(src string) {
 	S := new(Scanner.Scanner);
 	S.Open(src);
 	for {
+		var t Scanner.Token;
 		var tok, beg, end int;
-		tok, beg, end = S.Scan();
+		tok, beg, end = S.Scan(&t);
+		//t.Print();  // TODO  this doesn't compile?
 		print Scanner.TokenName(tok), "\t ", src[beg : end], "\n";
 		if tok == Scanner.EOF {
 			return;

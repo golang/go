@@ -212,18 +212,17 @@ func is_letter (ch int) bool {
 }
 
 
-func is_oct_digit (ch int) bool {
-	return '0' <= ch && ch <= '7';
-}
-
-
-func is_dec_digit (ch int) bool {
-	return '0' <= ch && ch <= '9';
-}
-
-
-func is_hex_digit (ch int) bool {
-	return '0' <= ch && ch <= '9' || 'a' <= ch && ch <= 'f' || 'A' <= ch && ch <= 'F';
+func digit_val (ch int) int {
+	if '0' <= ch && ch <= '9' {
+		return ch - '0';
+	}
+	if 'a' <= ch && ch <= 'f' {
+		return ch - 'a' + 10;
+	}
+	if 'A' <= ch && ch <= 'F' {
+		return ch - 'A' + 10;
+	}
+	return 16;  // larger than any legal digit val
 }
 
 
@@ -232,6 +231,19 @@ type Scanner struct {
 	src string;
 	pos int;
 	ch int;  // one char look-ahead
+}
+
+
+export Token
+type Token struct {
+	val int;
+	beg, end int;
+	txt string;
+}
+
+
+func (T *Token) Print () {
+	print TokenName(T.val), " [", T.beg, ", ", T.end, "[ ", T.txt, "\n";
 }
 
 
@@ -393,7 +405,7 @@ func (S *Scanner) SkipComment () {
 
 func (S *Scanner) ScanIdentifier () int {
 	beg := S.pos - 1;
-	for is_letter(S.ch) || is_dec_digit(S.ch) {
+	for is_letter(S.ch) || digit_val(S.ch) < 10 {
 		S.Next();
 	}
 	end := S.pos - 1;
@@ -410,7 +422,7 @@ func (S *Scanner) ScanIdentifier () int {
 
 
 func (S *Scanner) ScanMantissa (base int) {
-	for is_dec_digit(S.ch) {
+	for digit_val(S.ch) < base {
 		S.Next();
 	}
 }
@@ -423,6 +435,7 @@ func (S *Scanner) ScanNumber (seen_decimal_point bool) int {
 	}
 	
 	if S.ch == '0' {
+		// TODO bug: doesn't accept 09.0 !
 		// int
 		S.Next();
 		if S.ch == 'x' || S.ch == 'X' {
@@ -458,22 +471,13 @@ exponent:
 }
 
 
-func (S *Scanner) ScanOctDigits(n int) {
-	for ; n > 0; n-- {
-		if !is_oct_digit(S.ch) {
-			panic "illegal char escape";
-		}
+func (S *Scanner) ScanDigits(n int, base int) {
+	for digit_val(S.ch) < base {
 		S.Next();
+		n--;
 	}
-}
-
-
-func (S *Scanner) ScanHexDigits(n int) {
-	for ; n > 0; n-- {
-		if !is_hex_digit(S.ch) {
-			panic "illegal char escape";
-		}
-		S.Next();
+	if n > 0 {
+		panic "illegal char escape";
 	}
 }
 
@@ -488,19 +492,19 @@ func (S *Scanner) ScanEscape () string {
 		return string(ch);
 		
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		S.ScanOctDigits(3 - 1);  // 1 char already read
+		S.ScanDigits(3 - 1, 8);  // 1 char already read
 		return "";  // TODO fix this
 		
 	case 'x':
-		S.ScanHexDigits(2);
+		S.ScanDigits(2, 16);
 		return "";  // TODO fix this
 		
 	case 'u':
-		S.ScanHexDigits(4);
+		S.ScanDigits(4, 16);
 		return "";  // TODO fix this
 
 	case 'U':
-		S.ScanHexDigits(8);
+		S.ScanDigits(8, 16);
 		return "";  // TODO fix this
 
 	default:
@@ -518,7 +522,7 @@ func (S *Scanner) ScanChar () int {
 		S.ScanEscape();
 	}
 
-	S.Next();
+	S.Expect('\'');
 	return NUMBER;
 }
 
@@ -597,16 +601,17 @@ func (S *Scanner) Select4 (tok0, tok1, ch2, tok2, tok3 int) int {
 }
 
 
-func (S *Scanner) Scan () (tok, beg, end int) {
+func (S *Scanner) Scan (t *Token) (tok, beg, end int) {
 	S.SkipWhitespace();
 	
 	var tok int = ILLEGAL;
 	var beg int = S.pos - 1;
 	var end int = beg;
 	
-	switch ch := S.ch; {
+	ch := S.ch;
+	switch {
 	case is_letter(ch): tok = S.ScanIdentifier();
-	case is_dec_digit(ch): tok = S.ScanNumber(false);
+	case digit_val(ch) < 10: tok = S.ScanNumber(false);
 	default:
 		S.Next();
 		switch ch {
@@ -616,7 +621,7 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 		case '`': tok = S.ScanRawString();
 		case ':': tok = S.Select2(COLON, DEFINE);
 		case '.':
-			if is_dec_digit(S.ch) {
+			if digit_val(S.ch) < 10 {
 				tok = S.ScanNumber(true);
 			} else {
 				tok = PERIOD;
@@ -636,7 +641,7 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 			if S.ch == '/' || S.ch == '*' {
 				S.SkipComment();
 				// cannot simply return because of 6g bug
-				tok, beg, end = S.Scan();
+				tok, beg, end = S.Scan(t);
 				return tok, beg, end;
 			}
 			tok = S.Select2(QUO, QUO_ASSIGN);
@@ -653,5 +658,11 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 	}
 	
 	end = S.pos - 1;
+	
+	t.val = tok;
+	t.beg = beg;
+	t.end = end;
+	t.txt = S.src[beg : end];
+	
 	return tok, beg, end;
 }
