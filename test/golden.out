@@ -187,6 +187,7 @@ BUG: compilation succeeds incorrectly
 
 =========== bugs/bug042.go
 bugs/bug042.go:6: syntax error
+bugs/bug042.go:15: syntax error
 BUG: compilation should succeed
 
 =========== bugs/bug043.go
@@ -217,6 +218,8 @@ BUG: known to fail incorrectly
 bugs/bug048.go:7: illegal types for operand: CONV
 	(MAP[<int32>INT32]<int32>INT32)
 bugs/bug048.go:8: syntax error
+bugs/bug048.go:7: illegal types for operand: CONV
+	(MAP[<int32>INT32]<int32>INT32)
 BUG: known to fail incorrectly
 
 =========== bugs/bug049.go
@@ -294,12 +297,6 @@ BUG: known to fail incorrectly
 =========== bugs/bug055.go
 bug055.go:1: fatal error: cant open: bug055.go
 BUG: known to fail incorrectly
-
-=========== bugs/bug056.go
-bugs/bug056.go:9: illegal types for operand: AS
-	(<int32>INT32)
-	(<int32>INT32)
-BUG: compilation should succeed
 
 =========== bugs/bug057.go
 bugs/bug057.go:13: syntax error
@@ -386,6 +383,8 @@ BUG: compilation should succeed
 =========== fixedbugs/bug040.go
 
 =========== fixedbugs/bug045.go
+
+=========== fixedbugs/bug056.go
 
 =========== fixedbugs/bug058.go
 
