@@ -224,7 +224,6 @@ loop:
 
 		l = n->left;
 		r = n->right;
-
 		walktype(l, Elv);
 		if(l == N || r == N)
 			goto ret;
@@ -1749,7 +1748,7 @@ multi:
 		l = listfirst(&savel, &nl);
 		t = structfirst(&saver, getoutarg(t));
 		while(l != N) {
-			a = old2new(l, t);
+			a = old2new(l, t->type);
 			if(n == N)
 				n = a;
 			else
