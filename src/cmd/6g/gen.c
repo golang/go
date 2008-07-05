@@ -106,6 +106,26 @@ allocparams(void)
 		t = funcnext(&list);
 	}
 
+	t = structfirst(&list, getoutarg(curfn->type));
+	while(t != T) {
+		if(t->nname != N && t->nname->sym->name[0] != '_') {
+			if(d == D)
+				fatal("allocparams: this nil");
+			if(d->op != ONAME) {
+				d = d->forw;
+				continue;
+			}
+
+			n = d->dnode;
+			if(n->class != PPARAM)
+				fatal("allocparams: this class");
+
+			n->xoffset = t->width;
+			d = d->forw;
+		}
+		t = structnext(&list);
+	}
+
 	/*
 	 * allocate (set xoffset) the stack
 	 * slots for all automatics.

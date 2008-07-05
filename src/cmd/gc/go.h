@@ -80,6 +80,7 @@ struct	Type
 	uchar	thistuple;
 	uchar	outtuple;
 	uchar	intuple;
+	uchar	outnamed;
 
 	Sym*	sym;
 	long	vargen;		// unique name for OTYPE/ONAME
@@ -144,7 +145,7 @@ struct	Node
 	Sym*	psym;		// import
 	Sym*	sym;		// various
 	long	vargen;		// unique name for OTYPE/ONAME
-	ulong	lineno;
+	long	lineno;
 	vlong	xoffset;
 };
 #define	N	((Node*)0)
@@ -525,8 +526,8 @@ void	funcbody(Node*);
 Type*	dostruct(Node*, int);
 Type**	stotype(Node*, Type**);
 Type*	sortinter(Type*);
-void	markdcl(char*);
-void	popdcl(char*);
+void	markdcl(void);
+void	popdcl(void);
 void	poptodcl(void);
 void	markdclstack(void);
 void	testdclstack(void);
@@ -566,6 +567,7 @@ void	doimport7(Node*, Node*);
  */
 void	walk(Node*);
 void	walktype(Node*, int);
+void	walkbool(Node*);
 Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
 int	casebody(Node*);
 int	whatis(Node*);

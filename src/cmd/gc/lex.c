@@ -550,7 +550,7 @@ tnum:
 	}
 	*cp++ = c;
 	c = getc();
-	if(c == 'x' || c == 'X')
+	if(c == 'x' || c == 'X') {
 		for(;;) {
 			*cp++ = c;
 			c = getc();
@@ -564,16 +564,24 @@ tnum:
 				yyerror("malformed hex constant");
 			goto ncu;
 		}
-	if(c < '0' || c > '7')
-		goto dc;
-	for(;;) {
-		if(c >= '0' && c <= '7') {
-			*cp++ = c;
-			c = getc();
-			continue;
-		}
-		goto ncu;
 	}
+
+	c1 = 0;
+	for(;;) {
+		if(!isdigit(c))
+			break;
+		if(c < '0' || c > '7')
+			c1 = 1;		// not octal
+		*cp++ = c;
+		c = getc();
+	}
+	if(c == '.')
+		goto casedot;
+	if(c == 'e' || c == 'E')
+		goto casee;
+	if(c1)
+		yyerror("malformed octal constant");
+	goto ncu;
 
 dc:
 	if(c == '.')

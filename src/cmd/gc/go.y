@@ -47,8 +47,7 @@
 %type	<node>		export_list_r export
 %type	<node>		hidden_importsym_list_r ohidden_importsym_list hidden_importsym isym
 %type	<node>		hidden_importfield_list_r ohidden_importfield_list hidden_importfield
-%type	<node>		fnbody
-%type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl
+%type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
 %type	<node>		keyval_list_r keyval
 %type	<node>		typedcl Atypedcl Btypedcl
 
@@ -148,13 +147,9 @@ xdcl:
 	{
 		$$ = N;
 	}
-|	error '}'
+|	error xdcl
 	{
-		$$ = N;
-	}
-|	error ';'
-	{
-		$$ = N;
+		$$ = $2;
 	}
 
 common_dcl:
@@ -330,13 +325,12 @@ inc_stmt:
 complex_stmt:
 	LFOR for_stmt
 	{
-		/* FOR and WHILE are the same keyword */
-		popdcl("for/while");
+		popdcl();
 		$$ = $2;
 	}
 |	LSWITCH if_stmt
 	{
-		popdcl("if/switch");
+		popdcl();
 		if(!casebody($2->nbody))
 			yyerror("switch statement must have case labels");
 		$$ = $2;
@@ -346,14 +340,14 @@ complex_stmt:
 	}
 |	LIF if_stmt
 	{
-		popdcl("if/switch");
+		popdcl();
 		$$ = $2;
 		//if($$->ninit != N && $$->ntest == N)
 		//	yyerror("if conditional should not be missing");
 	}
 |	LIF if_stmt LELSE else_stmt1
 	{
-		popdcl("if/switch");
+		popdcl();
 		$$ = $2;
 		$$->nelse = $4;
 		//if($$->ninit != N && $$->ntest == N)
@@ -361,7 +355,7 @@ complex_stmt:
 	}
 |	LRANGE range_stmt
 	{
-		popdcl("range");
+		popdcl();
 		$$ = $2;
 	}
 |	LCASE expr_list ':'
@@ -414,7 +408,7 @@ semi_stmt:
 	}
 |	LIF if_stmt LELSE else_stmt2
 	{
-		popdcl("if/switch");
+		popdcl();
 		$$ = $2;
 		$$->nelse = $4;
 		//if($$->ninit != N && $$->ntest == N)
@@ -424,13 +418,13 @@ semi_stmt:
 compound_stmt:
 	'{'
 	{
-		markdcl("compound");
+		markdcl();
 	} ostmt_list '}'
 	{
 		$$ = $3;
 		if($$ == N)
 			$$ = nod(OEMPTY, N, N);
-		popdcl("compound");
+		popdcl();
 	}
 
 for_header:
@@ -460,7 +454,7 @@ for_body:
 
 for_stmt:
 	{
-		markdcl("for/while");
+		markdcl();
 	} for_body
 	{
 		$$ = $2;
@@ -491,7 +485,7 @@ if_body:
 
 if_stmt:
 	{
-		markdcl("if/switch");
+		markdcl();
 	} if_body
 	{
 		$$ = $2;
@@ -521,7 +515,7 @@ range_body:
 
 range_stmt:
 	{
-		markdcl("range");
+		markdcl();
 	} range_body
 	{
 		$$ = $2;
@@ -1012,7 +1006,7 @@ fnlitdcl:
 fnliteral:
 	fnlitdcl '{' ostmt_list '}'
 	{
-		popdcl("fnlit");
+		popdcl();
 
 		vargen++;
 		snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
@@ -1036,16 +1030,17 @@ fnliteral:
 	}
 
 fnbody:
-	compound_stmt
+	'{' ostmt_list '}'
 	{
-		$$ = $1;
-		if($$->op == OEMPTY)
+		$$ = $2;
+		if($$ == N)
 			$$ = nod(ORETURN, N, N);
 	}
 |	';'
 	{
 		$$ = N;
 	}
+
 fnres:
 	Afnres
 |	Bfnres
@@ -1202,11 +1197,7 @@ Astmt:
 	{
 		$$ = N;
 	}
-|	error ';'
-	{
-		$$ = N;
-	}
-|	error '}'
+|	error Astmt
 	{
 		$$ = N;
 	}
@@ -1218,6 +1209,10 @@ Astmt:
 Bstmt:
 	semi_stmt
 |	Bcommon_dcl
+|	error Bstmt
+	{
+		$$ = N;
+	}
 
 /*
  * need semi in front YES
