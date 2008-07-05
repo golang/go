@@ -49,7 +49,63 @@ sys·printbool(bool v)
 void
 sys·printfloat(float64 v)
 {
-	sys·write(1, "printfloat", 10);
+	byte buf[20];
+	int32 e, s, i, n;
+	float64 h;
+
+	n = 5;	// digits printed
+	e = 0;	// exp
+	s = 0;	// sign
+	if(v != 0) {
+		// sign
+		if(v < 0) {
+			v = -v;
+			s = 1;
+		}
+
+		// normalize
+		while(v >= 10) {
+			e++;
+			v /= 10;
+		}
+		while(v < 1) {
+			e--;
+			v *= 10;
+		}
+
+		// round
+		h = 5;
+		for(i=0; i<n; i++)
+			h /= 10;
+		v += h;
+		if(v >= 10) {
+			e++;
+			v /= 10;
+		}
+	}
+
+	// format +d.dddd+edd
+	buf[0] = '+';
+	if(s)
+		buf[0] = '-';
+	for(i=0; i<n; i++) {
+		s = v;
+		buf[i+2] = s+'0';
+		v -= s;
+		v *= 10.;
+	}
+	buf[1] = buf[2];
+	buf[2] = '.';
+
+	buf[n+2] = '+';
+	if(e < 0) {
+		e = -e;
+		buf[n+2] = '-';
+	}
+	buf[n+3] = 'e';
+	buf[n+4] = (e/10) + '0';
+	buf[n+5] = (e%10) + '0';
+	sys·write(1, buf, n+6);
 }
 
 void
