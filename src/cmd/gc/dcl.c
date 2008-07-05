@@ -353,7 +353,7 @@ funchdr(Node *n)
 		fatal("funchdr: dclcontext");
 
 	dclcontext = PAUTO;
-	markdcl("func");
+	markdcl();
 	funcargs(n->type);
 
 	if(n->type->thistuple > 0) {
@@ -368,8 +368,9 @@ funcargs(Type *t)
 {
 	Type *n1;
 	Iter save;
+	int all;
 
-	// declare the this argument
+	// declare the this/in arguments
 	n1 = funcfirst(&save, t);
 	while(n1 != T) {
 		if(n1->nname != N)
@@ -378,13 +379,22 @@ funcargs(Type *t)
 	}
 
 	// declare the outgoing arguments
-//	n1 = structfirst(&save, getoutarg(t));
-//	while(n1 != T) {
-//		n1->left = newname(n1->sym);
-//		if(n1->nname != N)
-//			addvar(n1->nname, n1->type, PPARAM);
-//		n1 = structnext(&save);
-//	}
+	all = 0;
+	n1 = structfirst(&save, getoutarg(t));
+	while(n1 != T) {
+		if(n1->nname != N && n1->nname->sym->name[0] != '_') {
+			addvar(n1->nname, n1->type, PPARAM);
+			all |= 1;
+		} else
+			all |= 2;
+		n1 = structnext(&save);
+	}
+	if(all == 3)
+		yyerror("output parameters are all named or not named");
+
+	t->outnamed = 0;
+	if(all == 1)
+		t->outnamed = 1;
 }
 
 /*
@@ -401,7 +411,7 @@ funcbody(Node *n)
 	// change the declaration context from auto to extern
 	if(dclcontext != PAUTO)
 		fatal("funcbody: dclcontext");
-	popdcl("func");
+	popdcl();
 	dclcontext = PEXTERN;
 }
 
@@ -515,7 +525,7 @@ pushdcl(Sym *s)
 }
 
 void
-popdcl(char *why)
+popdcl(void)
 {
 	Sym *d, *s;
 
@@ -532,8 +542,6 @@ popdcl(char *why)
 	}
 	if(d == S)
 		fatal("popdcl: no mark");
-	if(strcmp(why, d->package) != 0)
-		fatal("popdcl: pushed as %s popped as %s", d->package, why);
 	dclstack = d->link;
 	block = d->vblock;
 }
@@ -556,17 +564,17 @@ poptodcl(void)
 }
 
 void
-markdcl(char *why)
+markdcl(void)
 {
 	Sym *d;
 
 	d = push();
 	d->name = nil;		// used as a mark in fifo
-	d->package = why;	// diagnostic for unmatched
 	d->vblock = block;
 
 	blockgen++;
 	block = blockgen;
+
 //	if(dflag())
 //		print("markdcl\n");
 }
@@ -576,7 +584,7 @@ markdclstack(void)
 {
 	Sym *d, *s;
 
-	markdcl("fnlit");
+	markdcl();
 
 	// copy the entire pop of the stack
 	// all the way back to block0.
@@ -639,8 +647,14 @@ addvar(Node *n, Type *t, int ctxt)
 		gen = 0;
 	}
 
-	if(s->vblock == block)
-		yyerror("var %S redeclared in this block %d", s, block);
+	if(s->vblock == block) {
+		if(s->oname != N) {
+			yyerror("var %S redeclared in this block"
+				"\n     previous declaration at %L",
+				s, s->oname->lineno);
+		} else
+			yyerror("var %S redeclared in this block", s);
+	}
 		
 	if(ctxt != PEXTERN)
 		pushdcl(s);

@@ -112,7 +112,7 @@ loop:
 		if(top != Etop)
 			goto nottop;
 		walktype(n->ninit, Etop);
-		walktype(n->ntest, Erv);
+		walkbool(n->ntest);
 		walktype(n->nincr, Etop);
 		n = n->nbody;
 		goto loop;
@@ -151,7 +151,7 @@ loop:
 		if(top != Etop)
 			goto nottop;
 		walktype(n->ninit, Etop);
-		walktype(n->ntest, Erv);
+		walkbool(n->ntest);
 		walktype(n->nelse, Etop);
 		n = n->nbody;
 		goto loop;
@@ -377,6 +377,10 @@ loop:
 		if(top != Etop)
 			goto nottop;
 		walktype(n->left, Erv);
+		if(curfn->type->outnamed && n->left == N) {
+			// print("special return\n");
+			goto ret;
+		}
 		l = ascompatte(n->op, getoutarg(curfn->type), &n->left, 1);
 		if(l != N)
 			n->left = reorder4(l);
@@ -720,6 +724,15 @@ ret:
 
 	ullmancalc(n);
 	lineno = lno;
+}
+
+void
+walkbool(Node *n)
+{
+	walktype(n, Erv);
+	if(n != N && n->type != T)
+		if(!eqtype(n->type, types[TBOOL], 0))
+			yyerror("IF and FOR require a boolean type");
 }
 
 /*
