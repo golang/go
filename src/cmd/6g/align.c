@@ -22,6 +22,10 @@ main(int argc, char *argv[])
 static	int	wptr	= 8;	// width of a pointer
 static	int	wmax	= 8;	// max rounding
 
+/*
+ * additionally, go declares several platform-specific type aliases:
+ * ushort, short, uint, int, ulong, long, float, and double.  The bit
+ */
 static char*
 typedefs[] =
 {
@@ -30,13 +34,13 @@ typedefs[] =
 
 	"int",		"int32",	// ints
 	"uint",		"uint32",
-	"rune",		"uint32",
+//	"rune",		"uint32",
 
 	"long",		"int64",	// longs
 	"ulong",	"uint64",
 
-	"vlong",	"int64",	// vlongs
-	"uvlong",	"uint64",
+//	"vlong",	"int64",	// vlongs
+//	"uvlong",	"uint64",
 
 	"float",	"float32",	// floats
 	"double",	"float64",
