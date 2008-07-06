@@ -71,7 +71,7 @@ loop:
 
 	if(e->op != OLITERAL) {
 		yyerror("expression must be a constant");
-		goto loop;
+		return;
 	}
 	s = n->sym;
 
