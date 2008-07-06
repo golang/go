@@ -140,12 +140,16 @@ evconst(Node *n)
 	}
 
 	if(wl != wr) {
-		if(wl == Wlitfloat && wr == Wlitint)
-			convlit(n->right, n->left->type);
-		else
-		if(wl == Wlitint && wr == Wlitfloat)
-			convlit(n->left, n->right->type);
-		else {
+		if(wl == Wlitfloat && wr == Wlitint) {
+			nr->val.dval = nr->val.vval;
+			nr->val.ctype = CTFLT;
+			wr = whatis(nr);
+		} else
+		if(wl == Wlitint && wr == Wlitfloat) {
+			nl->val.dval = nl->val.vval;
+			nl->val.ctype = CTFLT;
+			wl = whatis(nl);
+		} else {
 			yyerror("illegal combination of literals %d %d", nl->etype, nr->etype);
 			return;
 		}

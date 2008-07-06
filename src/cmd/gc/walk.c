@@ -427,11 +427,11 @@ loop:
 		walktype(n->right, Erv);
 		if(n->left == N || n->right == N)
 			goto ret;
-		convlit(n->left, n->right->type);
-		convlit(n->right, n->left->type);
 		evconst(n);
 		if(n->op == OLITERAL)
 			goto ret;
+		convlit(n->left, n->right->type);
+		convlit(n->right, n->left->type);
 		if(n->left->type == T || n->right->type == T)
 			goto ret;
 		if(!ascompat(n->left->type, n->right->type))
@@ -503,6 +503,24 @@ loop:
 		if(t == T)
 			goto ret;
 
+// BOTCH - convert each index opcode
+// to look like this and get rid of OINDEXPTR
+		if(isptr[t->etype])
+		if(isptrto(t, TSTRING) || isptrto(t->type, TSTRING)) {
+			// right side must be an int
+			if(top != Erv)
+				goto nottop;
+			if(n->right->type == T) {
+				convlit(n->right, types[TINT32]);
+				if(n->right->type == T)
+					goto ret;
+			}
+			if(!isint[n->right->type->etype])
+				goto badt;
+			*n = *stringop(n, top);
+			goto ret;
+		}
+
 		// left side is indirect
 		if(isptr[t->etype]) {
 			t = t->type;
@@ -528,20 +546,6 @@ loop:
 			n->type = t->type;
 			if(top == Erv)
 				*n = *mapop(n, top);
-			break;
-
-		case TSTRING:
-			// right side must be an int
-			if(top != Erv)
-				goto nottop;
-			if(n->right->type == T) {
-				convlit(n->right, types[TINT32]);
-				if(n->right->type == T)
-					break;
-			}
-			if(!isint[n->right->type->etype])
-				goto badt;
-			*n = *stringop(n, top);
 			break;
 
 		case TARRAY:
@@ -989,7 +993,7 @@ ascompatee(int op, Node **nl, Node **nr)
 loop:
 	if(l == N || r == N) {
 		if(l != r)
-			yyerror("error in shape across assignment");
+			yyerror("error in shape across %O", op);
 		return rev(nn);
 	}
 
@@ -1030,7 +1034,7 @@ ascompatet(int op, Node **nl, Type **nr, int fp)
 loop:
 	if(l == N || r == T) {
 		if(l != N || r != T)
-			yyerror("error in shape across assignment");
+			yyerror("error in shape across %O", op);
 		return rev(nn);
 	}
 
@@ -1072,7 +1076,7 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
 loop:
 	if(l == T || r == N) {
 		if(l != T || r != N)
-			yyerror("error in shape across assignment");
+			yyerror("error in shape across %O", op);
 		return rev(nn);
 	}
 	convlit(r, l->type);
@@ -1293,11 +1297,17 @@ stringop(Node *n, int top)
 		r = nod(OCALL, on, r);
 		break;
 
-	case OINDEXPTR:
+	case OINDEX:
 		// sys_indexstring(s, i)
+		c = n->left;
+		if(isptrto(c->type->type, TSTRING)) {
+			// lhs is string or *string
+			c = nod(OIND, c, N);
+			c->type = c->left->type->type;
+		}
 		r = nod(OCONV, n->right, N);
 		r->type = types[TINT32];
-		r = nod(OLIST, n->left, r);
+		r = nod(OLIST, c, r);
 		on = syslook("indexstring", 0);
 		r = nod(OCALL, on, r);
 		break;

@@ -117,8 +117,10 @@ dumpexportvar(Sym *s)
 	s->exported = 1;
 
 	n = s->oname;
-	if(n == N || n->type == T)
-		fatal("dumpexportvar: oname nil: %S\n", s);
+	if(n == N || n->type == T) {
+		yyerror("variable exported but not defined: %S\n", s);
+		return;
+	}
 
 	t = n->type;
 	reexport(t);
@@ -141,8 +143,11 @@ dumpexporttype(Sym *s)
 	s->exported = 1;
 
 	t = s->otype;
-	if(t == T)
-		fatal("dumpexporttype: otype nil: %S\n", s);
+	if(t == T) {
+		yyerror("type exported but not defined: %S\n", s);
+		return;
+	}
+
 	if(t->sym != s)
 		fatal("dumpexporttype: cross reference: %S\n", s);
 

@@ -83,7 +83,8 @@ mainlex(int argc, char *argv[])
 	yyparse();
 
 	linehist(nil, 0);
-	Bterm(curio.bin);
+	if(curio.bin != nil)
+		Bterm(curio.bin);
 
 	if(nerrors)
 		errorexit();
