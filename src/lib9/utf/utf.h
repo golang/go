@@ -68,7 +68,7 @@ int chartorune(Rune* r, const char* s);
 // n bytes of s.  If the UTF sequence is incomplete within n bytes,
 // charntorune will set *r to Runeerror and return 0. If it is complete
 // but not in UTF format, it will set *r to Runeerror and return 1.
-// 
+//
 // Added 2004-09-24 by Wei-Hwa Huang
 
 int charntorune(Rune* r, const char* s, int n);
@@ -123,7 +123,7 @@ int utfnlen(const char* s, long n);
 // byte terminating a string is considered to be part of the string s.
 // (cf. strchr)
 
-const char* utfrune(const char* s, Rune r);
+/*const*/ char* utfrune(const char* s, Rune r);
 
 
 // utfrrune returns a pointer to the last occurrence of rune r in the
@@ -131,7 +131,7 @@ const char* utfrune(const char* s, Rune r);
 // byte terminating a string is considered to be part of the string s.
 // (cf. strrchr)
 
-const char* utfrrune(const char* s, Rune r);
+/*const*/ char* utfrrune(const char* s, Rune r);
 
 
 // utfutf returns a pointer to the first occurrence of the UTF string
@@ -152,7 +152,7 @@ char* utfecpy(char *s1, char *es1, const char *s2);
 
 // These functions are rune-string analogues of the corresponding
 // functions in strcat (3).
-// 
+//
 // These routines first appeared in Plan 9.
 // SEE ALSO
 // memmove (3)
@@ -205,8 +205,8 @@ Rune totitlerune(Rune r);
 
 // isupperrune tests for upper case characters, including Unicode
 // upper case letters and targets of the toupper mapping. islowerrune
-// and istitlerune are defined analogously. 
- 
+// and istitlerune are defined analogously.
+
 int isupperrune(Rune r);
 int islowerrune(Rune r);
 int istitlerune(Rune r);
