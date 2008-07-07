@@ -12,6 +12,11 @@ func putint(digits *string) {
 	i = digits[7];  // doesn't compile
 }
 
+func main() {
+	s := "asdfasdfasdfasdf";
+	putint(&s);
+}
+
 /*
 bug022.go:8: illegal types for operand
 	(*<string>*STRING) INDEXPTR (<int32>INT32)

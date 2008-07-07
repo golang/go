@@ -10,7 +10,8 @@
 =========== ./func.go
 
 =========== ./func1.go
-BUG: known to succeed incorrectly
+func1.go:10: var a redeclared in this block
+     previous declaration at func1.go:10
 
 =========== ./hashmap.go
 
@@ -44,20 +45,6 @@ BUG: known to fail incorrectly
 =========== ./switch1.go
 
 =========== ./test0.go
-test0.go:48: illegal types for operand: AS
-	(<float32>FLOAT32)
-	(<int32>INT32)
-test0.go:49: illegal types for operand: AS
-	(<float32>FLOAT32)
-	(<int32>INT32)
-test0.go:50: error in shape across assignment
-test0.go:55: illegal types for operand: CALLMETH
-	(*<Point>{})
-	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
-test0.go:54: illegal types for operand: AS
-	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
-	({})
-BUG: known to fail incorrectly
 
 =========== ./turing.go
 Hello World!
@@ -118,35 +105,19 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 
 =========== ken/strvar.go
 
-=========== bugs/bug006.go
-zero
- fail
-BUG: known to fail incorrectly
-
 =========== bugs/bug010.go
-bugs/bug010.go:7: i: undefined
-bugs/bug010.go:8: illegal conversion of constant to 002({},{}){}
-bugs/bug010.go:8: illegal types for operand: AS
-	(002({},{}){<i><int32>INT32;<f><float32>FLOAT32;})
-bugs/bug010.go:9: error in shape across assignment
+bugs/bug010.go:13: error in shape across CALL
 BUG: known to fail incorrectly
 
 =========== bugs/bug015.go
 BUG: known to succeed incorrectly
 
-=========== bugs/bug022.go
-bugs/bug022.go:8: illegal types for operand: INDEXPTR
-	(*<string>*STRING)
-bugs/bug022.go:8: illegal types for operand: AS
-	(<uint8>UINT8)
-BUG: known to fail incorrectly
-
 =========== bugs/bug023.go
 
 =========== bugs/bug025.go
-bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
+bugs/bug025.go:7: variable exported but not defined: Foo
 
-BUG: known to fail incorrectly or at least with a bad message
+BUG: bad exit status - should be 1 - plus extra newline in message
 
 =========== bugs/bug026.go
 sys·printstring: main·sigs_I: not defined
@@ -173,30 +144,11 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug034.go
 BUG: compilation succeeds incorrectly
 
-=========== bugs/bug035.go
-BUG: compilation succeeds incorrectly
-
-=========== bugs/bug037.go
-BUG: compilation succeeds incorrectly
-
-=========== bugs/bug039.go
-BUG: compilation succeeds incorrectly
-
 =========== bugs/bug041.go
 BUG: compilation succeeds incorrectly
 
 =========== bugs/bug042.go
 bugs/bug042.go:6: syntax error
-bugs/bug042.go:15: syntax error
-BUG: compilation should succeed
-
-=========== bugs/bug043.go
-bugs/bug043.go:14: error in shape across assignment
-bugs/bug043.go:17: error in shape across assignment
-BUG: compilation should succeed
-
-=========== bugs/bug044.go
-bugs/bug044.go:23: error in shape across assignment
 BUG: compilation should succeed
 
 =========== bugs/bug046.go
@@ -229,20 +181,6 @@ bugs/bug050.go:3: package statement must be first
 sys.6:1 bugs/bug050.go:3: syntax error
 BUG: segfault
 
-=========== bugs/bug051.go
-bugs/bug051.go:10: expression must be a constant
-bugs/bug051.go:10: expression must be a constant
-bugs/bug051.go:10: expression must be a constant
-bugs/bug051.go:10: expression must be a constant
-bugs/bug051.go:10: expression must be a constant
-bugs/bug051.go:10: expression must be a constant
-bugs/bug051.go:10: expression must be a constant
-bugs/bug051.go:10: expression must be a constant
-bugs/bug051.go:10: expression must be a constant
-bugs/bug051.go:10: expression must be a constant
-bugs/bug051.go:10: fatal error: too many errors
-BUG: infinite loop in error reporting
-
 =========== bugs/bug052.go
 SIGSEGV: segmentation violation
 Faulting address: 0x1
@@ -252,27 +190,6 @@ pc: 0x1349
 	main·main(1, 0, 1606416464, ...)
 	main·main(0x1, 0x7fff5fbff850, 0x1, ...)
 
-rax     0x1
-rbx     0x7
-rcx     0x7fff5fbff7e8
-rdx     0x3
-rdi     0x7fff5fbff810
-rsi     0x4950
-rbp     0x13ffc00
-rsp     0x7fff5fbff7e0
-r8      0x0
-r9      0x0
-r10     0x0
-r11     0x216
-r12     0x0
-r13     0x0
-r14     0x0
-r15     0x68f0
-rip     0x1349
-rflags  0x10206
-cs      0x27
-fs      0x10
-gs      0x48
 BUG: incorrect code for division
 
 =========== bugs/bug053.go
@@ -317,15 +234,6 @@ BUG: known to succeed incorrectly
 =========== bugs/bug063.go
 bugs/bug063.go:5: illegal combination of literals XOR 7
 bugs/bug063.go:5: expression must be a constant
-bugs/bug063.go:5: expression must be a constant
-bugs/bug063.go:5: expression must be a constant
-bugs/bug063.go:5: expression must be a constant
-bugs/bug063.go:5: expression must be a constant
-bugs/bug063.go:5: expression must be a constant
-bugs/bug063.go:5: expression must be a constant
-bugs/bug063.go:5: expression must be a constant
-bugs/bug063.go:5: expression must be a constant
-bugs/bug063.go:5: fatal error: too many errors
 BUG: should compile without problems
 
 =========== bugs/bug064.go
@@ -345,6 +253,8 @@ BUG: compilation should succeed
 =========== fixedbugs/bug004.go
 
 =========== fixedbugs/bug005.go
+
+=========== fixedbugs/bug006.go
 
 =========== fixedbugs/bug007.go
 
@@ -368,6 +278,8 @@ BUG: compilation should succeed
 
 =========== fixedbugs/bug021.go
 
+=========== fixedbugs/bug022.go
+
 =========== fixedbugs/bug024.go
 
 =========== fixedbugs/bug028.go
@@ -376,13 +288,34 @@ BUG: compilation should succeed
 
 =========== fixedbugs/bug031.go
 
+=========== fixedbugs/bug035.go
+fixedbugs/bug035.go:6: var i redeclared in this block
+     previous declaration at fixedbugs/bug035.go:5
+fixedbugs/bug035.go:7: var f redeclared in this block
+     previous declaration at fixedbugs/bug035.go:5
+
 =========== fixedbugs/bug036.go
+
+=========== fixedbugs/bug037.go
+fixedbugs/bug037.go:6: vlong: undefined
+fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(199) t=<T> nil
 
 =========== fixedbugs/bug038.go
 
+=========== fixedbugs/bug039.go
+fixedbugs/bug039.go:6: var x redeclared in this block
+     previous declaration at fixedbugs/bug039.go:5
+
 =========== fixedbugs/bug040.go
 
+=========== fixedbugs/bug043.go
+
+=========== fixedbugs/bug044.go
+
 =========== fixedbugs/bug045.go
+
+=========== fixedbugs/bug051.go
+fixedbugs/bug051.go:10: expression must be a constant
 
 =========== fixedbugs/bug056.go
 

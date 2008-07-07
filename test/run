@@ -32,7 +32,8 @@ do
 			echo >&2 fail: $i
 		fi
 	done
-done > run.out
+done | # clean up some stack noise
+	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x' > run.out
 
 case $failed in
 1)
