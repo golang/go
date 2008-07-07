@@ -156,6 +156,12 @@ loop:
 		n = n->nbody;
 		goto loop;
 
+	case OPROC:
+		if(top != Etop)
+			goto nottop;
+		*n = *procop(n);
+		goto ret;
+
 	case OCALLMETH:
 	case OCALLINTER:
 	case OCALL:
@@ -1586,6 +1592,27 @@ nottop:
 	dump("bad top", n);
 	fatal("mapop: top=%d %O", top, n->op);
 	return N;
+}
+
+Node*
+procop(Node *n)
+{
+	Node *r, *on;
+
+	switch(n->op) {
+	default:
+		fatal("mapop: unknown op %E", n->op);
+
+	case OPROC:	// rewrite if(sys.newproc()) (n->left)
+		on = syslook("newproc", 0);
+		r = nod(OIF, N, N);
+		r->ntest = nod(OCALL, on, N);
+		r->nbody = n->left;
+dump("newproc", r);
+		walktype(r, Etop);
+		break;
+	}
+	return r;
 }
 
 void
