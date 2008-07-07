@@ -40,7 +40,7 @@ func f7(a int) (int, float) {
 }
 
 
-func f8(a int) (a int, b float) {
+func f8(a int) (x int, y float) {
 	return 8, 8.0;
 }
 
@@ -53,7 +53,7 @@ func (t *T) m10(a int, b float) int {
 }
 
 
-func f9(a int) (i int, f float) {
+func f9(a int) (in int, fl float) {
 	i := 9;
 	f := float(9);
 	return i, f;

@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package Test0
+package main
 
 const
   a_const = 0
@@ -26,8 +26,9 @@ type (
   Point2 Point
 )
 
-func (p *Point) Initialize(x, y int) {
+func (p *Point) Initialize(x, y int) *Point {
   p.x, p.y = x, y;
+  return p;
 }
 
 func (p *Point) Distance() int {
@@ -54,7 +55,7 @@ func swap(x, y int) (u, v int) {
 }
 
 func control_structs() {
-  var p Point = new(Point).Initialize(2, 3);
+  var p *Point = new(Point).Initialize(2, 3);
   i := p.Distance();
   var f float = 0.3;
   for {}
@@ -77,4 +78,7 @@ func control_structs() {
     i = -+-+i;
     break;
   }
+}
+
+func main() {
 }

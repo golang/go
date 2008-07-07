@@ -6,6 +6,8 @@
 
 package main
 
+type vlong int64;
+
 func
 main()
 {

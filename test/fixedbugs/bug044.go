@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// $G $D/$F.go || echo BUG: compilation should succeed
+// $G $D/$F.go && $L $F.$A && ./$A.out
 
 package main
 
@@ -24,4 +24,6 @@ func (p *S) M2b() {
   p.M1b();
 }
 
-func (p *S) M1b() int {}  // BUG this doesn't
+func (p *S) M1b() int { return 0 }  // BUG this doesn't
+
+func main() {}
