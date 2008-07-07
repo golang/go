@@ -62,7 +62,7 @@ tan(arg double) double
 
 	if flag {
 		if(temp == 0) {
-			panic "return sys.NaN()";
+			panic sys.NaN();
 		}
 		temp = 1/temp;
 	}

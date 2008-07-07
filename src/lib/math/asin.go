@@ -34,7 +34,7 @@ asin(arg double)double
 		sign = true;
 	}
 	if arg > 1 {
-		panic "return sys.NaN()";
+		return sys.NaN();
 	}
 
 	temp = sqrt(1 - x*x);
@@ -54,7 +54,7 @@ func
 acos(arg double)double
 {
 	if(arg > 1 || arg < -1) {
-		panic "return sys.NaN()";
+		return sys.NaN();
 	}
 	return pio2 - asin(arg);
 }

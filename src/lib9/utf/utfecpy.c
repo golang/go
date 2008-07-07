@@ -7,18 +7,17 @@
  * or modification of this software and in all copies of the supporting
  * documentation for such software.
  * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
- * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES MAKE
- * ANY REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+ * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES MAKE ANY
+ * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
  */
-#define _BSD_SOURCE 1	/* memccpy */
 #include <stdarg.h>
 #include <string.h>
-#include "plan9.h"
 #include "utf.h"
+#include "utfdef.h"
 
 char*
-utfecpy(char *to, char *e, char *from)
+utfecpy(char *to, char *e, const char *from)
 {
 	char *end;
 

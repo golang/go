@@ -85,6 +85,8 @@ enum
 int32 strcmp(byte*, byte*);
 int32 findnull(int8*);
 void	dump(byte*, int32);
+int32 runetochar(byte*, int32);
+int32 chartorune(uint32*, byte*);
 
 extern string	emptystring;
 extern int32 debug;

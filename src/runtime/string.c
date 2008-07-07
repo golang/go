@@ -151,55 +151,6 @@ sys·indexstring(string s, int32 i, byte b)
 	FLUSH(&b);
 }
 
-/*
- * this is the plan9 runetochar
- * extended for 36 bits in 7 bytes
- * note that it truncates to 32 bits
- * through the argument passing.
- */
-static int32
-runetochar(byte *str, uint32 c)
-{
-	int32 i, n;
-	uint32 mask, mark;
-
-	/*
-	 * one character in 7 bits
-	 */
-	if(c <= 0x07FUL) {
-		str[0] = c;
-		return 1;
-	}
-
-	/*
-	 * every new character picks up 5 bits
-	 * one less in the first byte and
-	 * six more in an extension byte
-	 */
-	mask = 0x7ffUL;
-	mark = 0xC0UL;
-	for(n=1;; n++) {
-		if(c <= mask)
-			break;
-		mask = (mask<<5) | 0x1fUL;
-		mark = (mark>>1) | 0x80UL;
-	}
-
-	/*
-	 * lay down the bytes backwards
-	 * n is the number of extension bytes
-	 * mask is the max codepoint
-	 * mark is the zeroth byte indicator
-	 */
-	for(i=n; i>0; i--) {
-		str[i] = 0x80UL | (c&0x3fUL);
-		c >>= 6;
-	}
-
-	str[0] = mark|c;
-	return n+1;
-}
-
 void
 sys·intstring(int64 v, string s)
 {

@@ -40,7 +40,7 @@ exp(arg double) double
 		return 0.;
 	}
 	if arg > maxf {
-		panic "return sys.Inf(1)"
+		return sys.Inf(1)
 	}
 
 	x = arg*log2e;

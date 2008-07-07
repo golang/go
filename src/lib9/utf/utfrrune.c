@@ -7,21 +7,22 @@
  * or modification of this software and in all copies of the supporting
  * documentation for such software.
  * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
- * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES MAKE
- * ANY REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+ * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES MAKE ANY
+ * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
  */
 #include <stdarg.h>
 #include <string.h>
-#include "plan9.h"
 #include "utf.h"
+#include "utfdef.h"
 
+const
 char*
-utfrrune(char *s, long c)
+utfrrune(const char *s, Rune c)
 {
 	long c1;
 	Rune r;
-	char *s1;
+	const char *s1;
 
 	if(c < Runesync)		/* not part of utf sequence */
 		return strrchr(s, c);
@@ -42,4 +43,5 @@ utfrrune(char *s, long c)
 			s1 = s;
 		s += c1;
 	}
+	return 0;
 }
