@@ -388,7 +388,8 @@ semi_stmt:
 	}
 |	LGO pexpr '(' oexpr_list ')'
 	{
-		$$ = nod(OPROC, $2, $4);
+		$$ = nod(OCALL, $2, $4);
+		$$ = nod(OPROC, $$, N);
 	}
 |	LPRINT expr_list
 	{

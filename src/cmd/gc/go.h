@@ -581,6 +581,7 @@ Node*	nodpanic(long);
 Node*	newcompat(Node*);
 Node*	stringop(Node*, int);
 Node*	mapop(Node*, int);
+Node*	procop(Node*);
 Node*	convas(Node*);
 void	arrayconv(Type*, Node*);
 Node*	colas(Node*, Node*);
