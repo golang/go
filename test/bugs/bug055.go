@@ -15,7 +15,7 @@ func main() {
 	if true {} else i++
 	type s struct {};
 	i = 0
-	type s int
+	type s2 int
 	var k = func (a int) int { return a+1 }(3);
 ro:
 }
