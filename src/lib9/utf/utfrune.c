@@ -16,7 +16,7 @@
 #include "utf.h"
 #include "utfdef.h"
 
-const
+/* const - removed for go code */
 char*
 utfrune(const char *s, Rune c)
 {
@@ -33,13 +33,13 @@ utfrune(const char *s, Rune c)
 			if(c1 == 0)
 				return 0;
 			if(c1 == c)
-				return s;
+				return (char*)s;
 			s++;
 			continue;
 		}
 		n = chartorune(&r, s);
 		if(r == c)
-			return s;
+			return (char*)s;
 		s += n;
 	}
 	return 0;

@@ -16,7 +16,7 @@
 #include "utf.h"
 #include "utfdef.h"
 
-const
+/* const - removed for go code */
 char*
 utfrrune(const char *s, Rune c)
 {
@@ -32,7 +32,7 @@ utfrrune(const char *s, Rune c)
 		c1 = *(uchar*)s;
 		if(c1 < Runeself) {	/* one byte rune */
 			if(c1 == 0)
-				return s1;
+				return (char*)s1;
 			if(c1 == c)
 				s1 = s;
 			s++;
