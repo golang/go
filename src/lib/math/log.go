@@ -36,7 +36,7 @@ log(arg double) double
 	var exp int;
 
 	if arg <= 0 {
-		panic "return sys.NaN()";
+		return sys.NaN();
 	}
 
 	exp,x = sys.frexp(arg);
@@ -63,7 +63,7 @@ log10(arg double) double
 {
 
 	if arg <= 0 {
-		panic "return sys.NaN()";
+		return sys.NaN();
 	}
 	return log(arg) * ln10o1;
 }

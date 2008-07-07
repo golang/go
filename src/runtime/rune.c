@@ -1,7 +1,6 @@
 /*
  * The authors of this software are Rob Pike and Ken Thompson.
  *              Copyright (c) 2002 by Lucent Technologies.
- *              Portions Copyright (c) 2009 The Go Authors.  All rights reserved.
  * Permission to use, copy, modify, and distribute this software for any
  * purpose without fee is hereby granted, provided that this entire notice
  * is included in all copies of any software which is or includes a copy
@@ -12,10 +11,13 @@
  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
  */
-#include <stdarg.h>
-#include <string.h>
-#include "utf.h"
-#include "utfdef.h"
+
+/*
+ * This code is copied, with slight editing due to type differences,
+ * from a subset of ../lib9/utf/rune.c
+ */
+
+#include "runtime.h"
 
 enum
 {
@@ -24,7 +26,7 @@ enum
 	Bit2	= 5,
 	Bit3	= 4,
 	Bit4	= 3,
-	Bit5	= 2,
+	Bit5	= 2, 
 
 	T1	= ((1<<(Bit1+1))-1) ^ 0xFF,	/* 0000 0000 */
 	Tx	= ((1<<(Bitx+1))-1) ^ 0xFF,	/* 1000 0000 */
@@ -42,14 +44,19 @@ enum
 	Maskx	= (1<<Bitx)-1,			/* 0011 1111 */
 	Testx	= Maskx ^ 0xFF,			/* 1100 0000 */
 
+	Runeerror	= 0xFFFD,
+	Runeself	= 0x80,
+
 	Bad	= Runeerror,
+	
+	Runemax	= 0x10FFFF,	/* maximum rune value */
 };
 
 /*
  * Modified by Wei-Hwa Huang, Google Inc., on 2004-09-24
- * This is a slower but "safe" version of the old chartorune
+ * This is a slower but "safe" version of the old chartorune 
  * that works on strings that are not necessarily null-terminated.
- *
+ * 
  * If you know for sure that your string is null-terminated,
  * chartorune will be a bit faster.
  *
@@ -63,11 +70,11 @@ enum
  * Note that if we have decoding problems for other
  * reasons, we return 1 instead of 0.
  */
-int
-charntorune(Rune *rune, const char *str, int length)
+int32
+charntorune(int32 *rune, byte *str, int32 length)
 {
-	int c, c1, c2, c3;
-	long l;
+	int32 c, c1, c2, c3;
+	int32 l;
 
 	/* When we're not allowed to read anything */
 	if(length <= 0) {
@@ -78,7 +85,7 @@ charntorune(Rune *rune, const char *str, int length)
 	 * one character sequence (7-bit value)
 	 *	00000-0007F => T1
 	 */
-	c = *(uchar*)str;
+	c = *(byte*)str;  /* cast not necessary, but kept for safety */
 	if(c < Tx) {
 		*rune = c;
 		return 1;
@@ -93,7 +100,7 @@ charntorune(Rune *rune, const char *str, int length)
 	 * two character sequence (11-bit value)
 	 *	0080-07FF => T2 Tx
 	 */
-	c1 = *(uchar*)(str+1) ^ Tx;
+	c1 = *(byte*)(str+1) ^ Tx;
 	if(c1 & Testx)
 		goto bad;
 	if(c < T3) {
@@ -115,7 +122,7 @@ charntorune(Rune *rune, const char *str, int length)
 	 * three character sequence (16-bit value)
 	 *	0800-FFFF => T3 Tx Tx
 	 */
-	c2 = *(uchar*)(str+2) ^ Tx;
+	c2 = *(byte*)(str+2) ^ Tx;
 	if(c2 & Testx)
 		goto bad;
 	if(c < T4) {
@@ -133,7 +140,7 @@ charntorune(Rune *rune, const char *str, int length)
 	 * four character sequence (21-bit value)
 	 *	10000-1FFFFF => T4 Tx Tx Tx
 	 */
-	c3 = *(uchar*)(str+3) ^ Tx;
+	c3 = *(byte*)(str+3) ^ Tx;
 	if (c3 & Testx)
 		goto bad;
 	if (c < T5) {
@@ -159,104 +166,17 @@ badlen:
 
 }
 
-
-/*
- * This is the older "unsafe" version, which works fine on
- * null-terminated strings.
- */
-int
-chartorune(Rune *rune, const char *str)
-{
-	int c, c1, c2, c3;
-	long l;
-
-	/*
-	 * one character sequence
-	 *	00000-0007F => T1
-	 */
-	c = *(uchar*)str;
-	if(c < Tx) {
-		*rune = c;
-		return 1;
-	}
-
-	/*
-	 * two character sequence
-	 *	0080-07FF => T2 Tx
-	 */
-	c1 = *(uchar*)(str+1) ^ Tx;
-	if(c1 & Testx)
-		goto bad;
-	if(c < T3) {
-		if(c < T2)
-			goto bad;
-		l = ((c << Bitx) | c1) & Rune2;
-		if(l <= Rune1)
-			goto bad;
-		*rune = l;
-		return 2;
-	}
-
-	/*
-	 * three character sequence
-	 *	0800-FFFF => T3 Tx Tx
-	 */
-	c2 = *(uchar*)(str+2) ^ Tx;
-	if(c2 & Testx)
-		goto bad;
-	if(c < T4) {
-		l = ((((c << Bitx) | c1) << Bitx) | c2) & Rune3;
-		if(l <= Rune2)
-			goto bad;
-		*rune = l;
-		return 3;
-	}
-
-	/*
-	 * four character sequence (21-bit value)
-	 *	10000-1FFFFF => T4 Tx Tx Tx
-	 */
-	c3 = *(uchar*)(str+3) ^ Tx;
-	if (c3 & Testx)
-		goto bad;
-	if (c < T5) {
-		l = ((((((c << Bitx) | c1) << Bitx) | c2) << Bitx) | c3) & Rune4;
-		if (l <= Rune3)
-			goto bad;
-		*rune = l;
-		return 4;
-	}
-
-	/*
-	 * Support for 5-byte or longer UTF-8 would go here, but
-	 * since we don't have that, we'll just fall through to bad.
-	 */
-
-	/*
-	 * bad decoding
-	 */
-bad:
-	*rune = Bad;
-	return 1;
-}
-
-int
-isvalidcharntorune(const char* str, int length, Rune* rune, int* consumed) {
-	*consumed = charntorune(rune, str, length);
-	return *rune != Runeerror || *consumed == 3;
-}
-
-int
-runetochar(char *str, const Rune *rune)
+int32
+runetochar(byte *str, int32 rune)  /* note: in original, arg2 was pointer */
 {
 	/* Runes are signed, so convert to unsigned for range check. */
-	unsigned long c;
+	uint32 c;
 
 	/*
 	 * one character sequence
 	 *	00000-0007F => 00-7F
 	 */
-	c = *rune;
+	c = rune;
 	if(c <= Rune1) {
 		str[0] = c;
 		return 1;
@@ -301,51 +221,4 @@ runetochar(char *str, const Rune *rune)
 	str[2] = Tx | ((c >> 1*Bitx) & Maskx);
 	str[3] = Tx | (c & Maskx);
 	return 4;
-}
-
-int
-runelen(Rune rune)
-{
-	char str[10];
-
-	return runetochar(str, &rune);
-}
-
-int
-runenlen(const Rune *r, int nrune)
-{
-	int nb, c;
-
-	nb = 0;
-	while(nrune--) {
-		c = *r++;
-		if (c <= Rune1)
-			nb++;
-		else if (c <= Rune2)
-			nb += 2;
-		else if (c <= Rune3)
-			nb += 3;
-		else /* assert(c <= Rune4) */
-			nb += 4;
-	}
-	return nb;
-}
-
-int
-fullrune(const char *str, int n)
-{
-	if (n > 0) {
-		int c = *(uchar*)str;
-		if (c < Tx)
-			return 1;
-		if (n > 1) {
-			if (c < T3)
-				return 1;
-			if (n > 2) {
-				if (c < T4 || n > 3)
-					return 1;
-			}
-		}
-	}
-	return 0;
 }

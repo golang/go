@@ -48,7 +48,7 @@ sinh(arg double) double
 		temp = exp(arg)/2;
 
 	case arg > 0.5:
-//		temp = (exp(arg) - exp(-arg))/2;
+		temp = (exp(arg) - exp(-arg))/2;
 
 	default:
 		argsq = arg*arg;
@@ -71,5 +71,5 @@ cosh(arg double) double
 	if arg > 21 {
 		return exp(arg)/2;
 	}
-//	return (exp(arg) + exp(-arg))/2;
+	return (exp(arg) + exp(-arg))/2;
 }

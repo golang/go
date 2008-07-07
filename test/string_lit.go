@@ -75,5 +75,14 @@ func main() {
 	       `\000\123\x00\312\xFE\u0123\ubabe\U0000babe`,
            "backslashes 2 (backquote)");
 	assert("\\x\\u\\U\\", `\x\u\U\`, "backslash 3 (backquote)");
+
+	// test large runes. perhaps not the most logical place for this test.
+	var r int32;
+	r = 0x10ffff;	// largest rune value
+	s = string(r);
+	assert(s, "\xf4\x8f\xbf\xbf", "largest rune");
+	r = 0x10ffff + 1;
+	s = string(r);
+	assert(s, "\xef\xbf\xbd", "too-large rune");
 	sys.exit(ecode);
 }

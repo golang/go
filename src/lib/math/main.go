@@ -5,7 +5,25 @@
 
 package main
 
-import math "math"
+//import math "math"
+//////////////////
+ import math "asin"
+ import math "atan"
+ import math "atan2"
+ import math "exp"
+ import math "fabs"
+ import math "floor"
+ import math "fmod"
+ import math "hypot"
+ import math "log"
+ import math "pow"
+ import math "pow10"
+ import math "sin"
+ import math "sinh"
+ import math "sqrt"
+ import math "tan"
+ import math "tanh"
+
 
 const
 (

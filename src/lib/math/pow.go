@@ -26,14 +26,14 @@ pow(arg1,arg2 double) double
 	if arg1 <= 0 {
 		if(arg1 == 0) {
 			if arg2 <= 0 {
-				panic "return sys.NaN()";
+				return sys.NaN();
 			}
 			return 0;
 		}
 
 		temp = floor(arg2);
 		if temp != arg2 {
-			panic "return sys.NaN()";
+			panic sys.NaN();
 		}
 
 		l = long(temp);

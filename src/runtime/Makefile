@@ -20,6 +20,7 @@ LIBOFILES=\
 	runtime.$O\
 	map.$O\
 	print.$O\
+	rune.$O\
 	string.$O\
 	sys_file.$O\
 

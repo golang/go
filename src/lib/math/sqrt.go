@@ -19,11 +19,10 @@ sqrt(arg double) double
 	var x, temp double;
 	var exp, i int;
 
-/* BUG: NO isINF
 	if sys.isInf(arg, 1) {
 		return arg;
 	}
-*/
+
 	if arg <= 0 {
 		if arg < 0 {
 			panic "return sys.NaN()"
