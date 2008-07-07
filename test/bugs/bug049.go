@@ -12,6 +12,8 @@ func atom(s string) {
 	}
 }
 
+func main() {}
+
 /*
 bug047.go:4: fatal error: stringpool: not string
 */

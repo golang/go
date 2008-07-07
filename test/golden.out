@@ -112,8 +112,6 @@ BUG: known to fail incorrectly
 =========== bugs/bug015.go
 BUG: known to succeed incorrectly
 
-=========== bugs/bug023.go
-
 =========== bugs/bug025.go
 bugs/bug025.go:7: variable exported but not defined: Foo
 
@@ -175,11 +173,8 @@ bugs/bug048.go:7: illegal types for operand: CONV
 BUG: known to fail incorrectly
 
 =========== bugs/bug049.go
-
-=========== bugs/bug050.go
-bugs/bug050.go:3: package statement must be first
-sys.6:1 bugs/bug050.go:3: syntax error
-BUG: segfault
+getu: main·.stringo: not defined
+BUG: link failure
 
 =========== bugs/bug052.go
 SIGSEGV: segmentation violation
@@ -212,7 +207,7 @@ bugs/bug054.go:25: fatal error: agen_inter i2s
 BUG: known to fail incorrectly
 
 =========== bugs/bug055.go
-bug055.go:1: fatal error: cant open: bug055.go
+bugs/bug055.go:15: fatal error: allocparams: this class
 BUG: known to fail incorrectly
 
 =========== bugs/bug057.go
@@ -280,6 +275,8 @@ BUG: compilation should succeed
 
 =========== fixedbugs/bug022.go
 
+=========== fixedbugs/bug023.go
+
 =========== fixedbugs/bug024.go
 
 =========== fixedbugs/bug028.go
@@ -313,6 +310,10 @@ fixedbugs/bug039.go:6: var x redeclared in this block
 =========== fixedbugs/bug044.go
 
 =========== fixedbugs/bug045.go
+
+=========== fixedbugs/bug050.go
+fixedbugs/bug050.go:3: package statement must be first
+sys.6:1 fixedbugs/bug050.go:3: syntax error
 
 =========== fixedbugs/bug051.go
 fixedbugs/bug051.go:10: expression must be a constant
