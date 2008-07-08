@@ -313,14 +313,14 @@ type, a function, etc. An identifier must not be a reserved word.
 Reserved words
 ----
 
-  break         fallthrough       import            return
-  case          false             interface         select
+  break         fallthrough       interface         return
+  case          false             iota              select
   const         for               map               struct
   chan          func              new               switch
   continue      go                nil               true
   default       goto              package           type
   else          if                range             var
-  export
+  export        import
 
 
 TODO: "len" is currently also a reserved word - it shouldn't be.
