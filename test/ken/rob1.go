@@ -74,7 +74,7 @@ main()
 	for i := 0; i < 10; i = i + 1 {
 		integer := new(Integer);
 		integer.Init_BUG(i);
-		list.Insert(integer);
+		list.Insert(integer); //BUG: this is the failing line
 	}
 
 	list.Print();
