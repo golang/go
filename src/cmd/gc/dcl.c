@@ -153,7 +153,7 @@ funcnam(Type *t, char *nam)
 
 	if(t->thistuple > 0) {
 		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_t%.3ld", vargen);
+		snprint(namebuf, sizeof(namebuf), "_t%s%.3ld", nam, vargen);
 		s = lookup(namebuf);
 		addtyp(newtype(s), t->type, PEXTERN);
 		n = newname(s);
@@ -162,7 +162,7 @@ funcnam(Type *t, char *nam)
 	}
 	if(t->outtuple > 0) {
 		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_o%.3ld", vargen);
+		snprint(namebuf, sizeof(namebuf), "_o%s%.3ld", nam, vargen);
 		s = lookup(namebuf);
 		addtyp(newtype(s), t->type->down, PEXTERN);
 		n = newname(s);
@@ -171,7 +171,7 @@ funcnam(Type *t, char *nam)
 	}
 	if(t->intuple > 0) {
 		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_i%.3ld", vargen);
+		snprint(namebuf, sizeof(namebuf), "_i%s%.3ld", nam, vargen);
 		s = lookup(namebuf);
 		addtyp(newtype(s), t->type->down->down, PEXTERN);
 		n = newname(s);

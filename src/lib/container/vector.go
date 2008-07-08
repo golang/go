@@ -63,8 +63,8 @@ func (v *Vector) Len() int {
 
 func (v *Vector) At(i int) Element {
 	if i < 0 || i >= v.nelem {
-		//return nil;  // BUG
-		panic "At out of range\n";
+		panic "Vector.At(", i, ") out of range (size ", v.nelem, ")\n";
+		return nil;
 	}
 	return v.elem[i];
 }
