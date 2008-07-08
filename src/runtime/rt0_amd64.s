@@ -179,12 +179,17 @@ easy:
 TEXT _endmorestack(SB), 7, $-8
 	RET
 
+// call a subroutine in a new coroutine
+// argument list is on the stack addr of fn is in AX
+TEXT	sys·_newproc(SB), 7, $0
+	JMP	AX
+	RET
+
 TEXT	FLUSH(SB),7,$-8
 	RET
 
 TEXT	getu(SB),7,$-8
 	MOVQ	R15, AX
 	RET
-
 
 GLOBL	peruser<>(SB),$64

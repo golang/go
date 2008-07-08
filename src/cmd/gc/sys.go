@@ -44,8 +44,6 @@ func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
 func	mapassign1(hmap *map[any]any, key any, val any);
 func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
 
-func	newproc() bool;				// create a new coroutine; true is child
-
 func	readfile(string) (string, bool);	// read file into string; boolean status
 
 func	exit(int32);
@@ -92,9 +90,6 @@ export
 	mapaccess2
 	mapassign1
 	mapassign2
-
-	// threads/coroutines
-	newproc
 
 	// files
 	readfile

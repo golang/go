@@ -14,6 +14,7 @@ enum
 };
 
 static	Node*	curfn;
+static	Node*	newproc;
 
 void
 compile(Node *fn)
@@ -22,6 +23,16 @@ compile(Node *fn)
 	Node nod1;
 	Prog *ptxt;
 	long lno;
+
+if(newproc == N) {
+	newproc = nod(ONAME, N, N);
+	memset(newproc, 0, sizeof(*newproc));
+	newproc->op = ONAME;
+	newproc->sym = pkglookup("_newproc", "sys");
+	newproc->class = PEXTERN;
+	newproc->addable = 1;
+	newproc->ullman = 0;
+}
 
 	if(fn->nbody == N)
 		return;
@@ -298,15 +309,19 @@ loop:
 		break;
 
 	case OCALLMETH:
-		cgen_callmeth(n);
+		cgen_callmeth(n, 0);
 		break;
 
 	case OCALLINTER:
-		cgen_callinter(n, N);
+		cgen_callinter(n, N, 0);
 		break;
 
 	case OCALL:
-		cgen_call(n);
+		cgen_call(n, 0);
+		break;
+
+	case OPROC:
+		cgen_proc(n);
 		break;
 
 	case ORETURN:
@@ -552,7 +567,21 @@ genpanic(void)
 }
 
 void
-cgen_callinter(Node *n, Node *res)
+ginscall(Node *f, int proc)
+{
+	Node regax;
+
+	if(proc) {
+		nodreg(&regax, types[TINT64], D_AX);
+		gins(ALEAQ, f, &regax);
+		gins(ACALL, N, newproc);
+		return;
+	}
+	gins(ACALL, N, f);
+}
+
+void
+cgen_callinter(Node *n, Node *res, int proc)
 {
 	Node *i, *f;
 	Node tmpi, nodo, nodr, nodsp;
@@ -588,21 +617,19 @@ cgen_callinter(Node *n, Node *res)
 	nodo.xoffset -= widthptr;
 	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.m
 
-//print("field = %N\n", f);
-//print("offset = %ld\n", n->left->xoffset);
-
 	nodo.xoffset = n->left->xoffset + 4*widthptr;
 	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
 
-	gins(ACALL, N, &nodr);
+	ginscall(&nodr, proc);
+
 	regfree(&nodr);
-	regfree(&nodr);
+	regfree(&nodo);
 
 	setmaxarg(n->left->type);
 }
 
 void
-cgen_callmeth(Node *n)
+cgen_callmeth(Node *n, int proc)
 {
 	Node *l;
 
@@ -619,14 +646,14 @@ cgen_callmeth(Node *n)
 
 	if(n->left->op == ONAME)
 		n->left->class = PEXTERN;
-	cgen_call(n);
+	cgen_call(n, proc);
 }
 
 void
-cgen_call(Node *n)
+cgen_call(Node *n, int proc)
 {
 	Type *t;
-	Node nod, afun;
+	Node nod, afun, regax;
 
 	if(n == N)
 		return;
@@ -652,7 +679,7 @@ cgen_call(Node *n)
 	if(n->left->ullman >= UINF) {
 		regalloc(&nod, types[tptr], N);
 		cgen_as(&nod, &afun, 0);
-		gins(ACALL, N, &nod);
+		ginscall(&nod, proc);
 		regfree(&nod);
 		goto ret;
 	}
@@ -661,17 +688,39 @@ cgen_call(Node *n)
 	if(isptr[n->left->type->etype]) {
 		regalloc(&nod, types[tptr], N);
 		cgen_as(&nod, n->left, 0);
-		gins(ACALL, N, &nod);
+		ginscall(&nod, proc);
 		regfree(&nod);
 		goto ret;
 	}
 
 	// call direct
 	n->left->method = 1;
-	gins(ACALL, N, n->left);
+	ginscall(n->left, proc);
 
 ret:
 	;
+}
+
+void
+cgen_proc(Node *n)
+{
+	switch(n->left->op) {
+	default:
+		fatal("cgen_proc: unknown call %O", n->left->op);
+
+	case OCALLMETH:
+		cgen_callmeth(n->left, 1);
+		break;
+
+	case OCALLINTER:
+		cgen_callinter(n->left, N, 1);
+		break;
+
+	case OCALL:
+		cgen_call(n->left, 1);
+		break;
+	}
+		
 }
 
 void
