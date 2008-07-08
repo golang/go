@@ -18,7 +18,7 @@ export
 	AND_ASSIGN, OR_ASSIGN, XOR_ASSIGN, SHL_ASSIGN, SHR_ASSIGN,
 	CAND, COR,
 	BREAK, CASE, CHAN, CONST, CONTINUE, DEFAULT, ELSE, EXPORT, FALLTHROUGH, FALSE,
-	FOR, FUNC, GO, GOTO, IF, IMPORT, INTERFACE, MAP, NEW, NIL, PACKAGE, RANGE,
+	FOR, FUNC, GO, GOTO, IF, IMPORT, INTERFACE, IOTA, MAP, NEW, NIL, PACKAGE, RANGE,
 	RETURN, SELECT, STRUCT, SWITCH, TRUE, TYPE, VAR
 	
 	
@@ -103,6 +103,7 @@ const (
 	IF;
 	IMPORT;
 	INTERFACE;
+	IOTA;
 	MAP;
 	NEW;
 	NIL;
@@ -140,8 +141,8 @@ func TokenName(tok int) string {
 	case RPAREN: return ")";
 	case LBRACK: return "[";
 	case RBRACK: return "]";
-	case LBRACE: return "{";
-	case RBRACE: return "}";
+	case LBRACE: return "LBRACE";
+	case RBRACE: return "RBRACE";
 
 	case ASSIGN: return "=";
 	case DEFINE: return ":=";
@@ -203,6 +204,7 @@ func TokenName(tok int) string {
 	case IF: return "if";
 	case IMPORT: return "import";
 	case INTERFACE: return "interface";
+	case IOTA: return "iota";
 	case MAP: return "map";
 	case NEW: return "new";
 	case NIL: return "nil";
