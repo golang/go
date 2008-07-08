@@ -142,4 +142,10 @@ void	sys·intstring(int64, string);
 void	sys·ifaces2i(Sigi*, Sigs*, Map*, void*);
 void	sys·ifacei2i(Sigi*, Map*, void*);
 void	sys·ifacei2s(Sigs*, Map*, void*);
+
+/*
+ * User go-called
+ */
 void	sys·readfile(string, string, bool);
+void	sys·bytestorune(byte*, int32, int32, int32, int32);
+void	sys·stringtorune(string, int32, int32, int32, int32);

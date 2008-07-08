@@ -222,3 +222,22 @@ runetochar(byte *str, int32 rune)  /* note: in original, arg2 was pointer */
 	str[3] = Tx | (c & Maskx);
 	return 4;
 }
+
+/*
+ * Wrappers for calling from go
+ */
+void
+sys·bytestorune(byte *str, int32 off, int32 length, int32 outrune, int32 outcount)
+{
+	outcount = charntorune(&outrune, str + off, length);
+	FLUSH(&outrune);
+	FLUSH(&outcount);
+}
+
+void
+sys·stringtorune(string str, int32 off, int32 length, int32 outrune, int32 outcount)
+{
+	outcount = charntorune(&outrune, str->str + off, length);
+	FLUSH(&outrune);
+	FLUSH(&outcount);
+}
