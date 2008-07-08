@@ -4,7 +4,24 @@
 
 package Scanner
 
-export EOF;
+export
+	ILLEGAL, EOF, IDENT, STRING, NUMBER,
+	COMMA, COLON, SEMICOLON, PERIOD,
+	LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE,
+	ASSIGN, DEFINE,
+	INC, DEC, NOT,
+	AND, OR, XOR,
+	ADD, SUB, MUL, QUO, REM,
+	EQL, NEQ, LSS, LEQ, GTR, GEQ,
+	SHL, SHR,
+	ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN,
+	AND_ASSIGN, OR_ASSIGN, XOR_ASSIGN, SHL_ASSIGN, SHR_ASSIGN,
+	CAND, COR,
+	BREAK, CASE, CHAN, CONST, CONTINUE, DEFAULT, ELSE, EXPORT, FALLTHROUGH, FALSE,
+	FOR, FUNC, GO, GOTO, IF, IMPORT, INTERFACE, MAP, NEW, NIL, PACKAGE, RANGE,
+	RETURN, SELECT, STRUCT, SWITCH, TRUE, TYPE, VAR
+	
+	
 const (
 	ILLEGAL = iota;
 	EOF;
@@ -71,6 +88,7 @@ const (
 	KEYWORDS_BEG;
 	BREAK;
 	CASE;
+	CHAN;
 	CONST;
 	CONTINUE;
 	DEFAULT;
@@ -170,6 +188,7 @@ func TokenName(tok int) string {
 
 	case BREAK: return "break";
 	case CASE: return "case";
+	case CHAN: return "chan";
 	case CONST: return "const";
 	case CONTINUE: return "continue";
 	case DEFAULT: return "default";
@@ -234,6 +253,7 @@ type Scanner struct {
 }
 
 
+/*
 export Token
 type Token struct {
 	val int;
@@ -245,6 +265,7 @@ type Token struct {
 func (T *Token) Print () {
 	print TokenName(T.val), " [", T.beg, ", ", T.end, "[ ", T.txt, "\n";
 }
+*/
 
 
 // Read the next Unicode char into S.ch.
@@ -601,12 +622,12 @@ func (S *Scanner) Select4 (tok0, tok1, ch2, tok2, tok3 int) int {
 }
 
 
-func (S *Scanner) Scan (t *Token) (tok, beg, end int) {
+func (S *Scanner) Scan () (tok, beg, end int) {
 	S.SkipWhitespace();
 	
-	var tok int = ILLEGAL;
-	var beg int = S.pos - 1;
-	var end int = beg;
+	tok = ILLEGAL;
+	beg = S.pos - 1;
+	end = beg;
 	
 	ch := S.ch;
 	switch {
@@ -641,7 +662,7 @@ func (S *Scanner) Scan (t *Token) (tok, beg, end int) {
 			if S.ch == '/' || S.ch == '*' {
 				S.SkipComment();
 				// cannot simply return because of 6g bug
-				tok, beg, end = S.Scan(t);
+				tok, beg, end = S.Scan();
 				return tok, beg, end;
 			}
 			tok = S.Select2(QUO, QUO_ASSIGN);
@@ -659,10 +680,12 @@ func (S *Scanner) Scan (t *Token) (tok, beg, end int) {
 	
 	end = S.pos - 1;
 	
+	/*
 	t.val = tok;
 	t.beg = beg;
 	t.end = end;
 	t.txt = S.src[beg : end];
+	*/
 	
 	return tok, beg, end;
 }

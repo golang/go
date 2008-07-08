@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(July 3, 2008)
+(July 7, 2008)
 
 This document is a semi-formal specification/proposal for a new
 systems programming language.  The document is under active
@@ -314,10 +314,11 @@ Reserved words
   break         fallthrough       import            return
   case          false             interface         select
   const         for               map               struct
-  continue      func              new               switch
-  default       go                nil               true
-  else          goto              package           type
-  export        if                range             var
+  chan          func              new               switch
+  continue      go                nil               true
+  default       goto              package           type
+  else          if                range             var
+  export
 
 
 TODO: "len" is currently also a reserved word - it shouldn't be.
