@@ -172,17 +172,17 @@ cgen(Node *n, Node *res)
 		break;
 
 	case OCALLMETH:
-		cgen_callmeth(n);
+		cgen_callmeth(n, 0);
 		cgen_callret(n, res);
 		break;
 
 	case OCALLINTER:
-		cgen_callinter(n, res);
+		cgen_callinter(n, res, 0);
 		cgen_callret(n, res);
 		break;
 
 	case OCALL:
-		cgen_call(n);
+		cgen_call(n, 0);
 		cgen_callret(n, res);
 		break;
 
@@ -281,17 +281,17 @@ agen(Node *n, Node *res)
 //		break;
 
 	case OCALLMETH:
-		cgen_callmeth(n);
+		cgen_callmeth(n, 0);
 		cgen_aret(n, res);
 		break;
 
 	case OCALLINTER:
-		cgen_callinter(n, res);
+		cgen_callinter(n, res, 0);
 		cgen_aret(n, res);
 		break;
 
 	case OCALL:
-		cgen_call(n);
+		cgen_call(n, 0);
 		cgen_aret(n, res);
 		break;
 

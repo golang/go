@@ -159,7 +159,7 @@ loop:
 	case OPROC:
 		if(top != Etop)
 			goto nottop;
-		*n = *procop(n);
+		walktype(n->left, Etop);
 		goto ret;
 
 	case OCALLMETH:
@@ -1594,27 +1594,6 @@ nottop:
 	return N;
 }
 
-Node*
-procop(Node *n)
-{
-	Node *r, *on;
-
-	switch(n->op) {
-	default:
-		fatal("mapop: unknown op %E", n->op);
-
-	case OPROC:	// rewrite if(sys.newproc()) (n->left)
-		on = syslook("newproc", 0);
-		r = nod(OIF, N, N);
-		r->ntest = nod(OCALL, on, N);
-		r->nbody = n->left;
-dump("newproc", r);
-		walktype(r, Etop);
-		break;
-	}
-	return r;
-}
-
 void
 diagnamed(Type *t)
 {
@@ -1772,6 +1751,7 @@ colas(Node *nl, Node *nr)
 		l = listnext(&savel);
 		r = listnext(&saver);
 	}
+	n = rev(n);
 	return n;
 
 multi:
@@ -1827,6 +1807,7 @@ multi:
 		n = nod(OLIST, n, a);
 		break;
 	}
+	n = rev(n);
 	return n;
 
 badt:

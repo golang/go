@@ -1673,7 +1673,6 @@ tempname(Node *n, Type *t)
 	n->op = ONAME;
 	n->sym = s;
 	n->type = t;
-	n->sym = s;
 	n->etype = t->etype;
 	n->class = PAUTO;
 	n->addable = 1;
