@@ -8,7 +8,7 @@ import Scanner "scanner"
 import Parser "parser"
 
 
-func Parse(src string, verbose bool) {
+func Parse(src string, verbose int) {
 	S := new(Scanner.Scanner);
 	S.Open(src);
 	
@@ -20,10 +20,14 @@ func Parse(src string, verbose bool) {
 
 
 func main() {
-	verbose := false;
+	verbose := 0;
 	for i := 1; i < sys.argc(); i++ {
-		if sys.argv(i) == "-v" {
-			verbose = true;
+		switch sys.argv(i) {
+		case "-v":
+			verbose = 1;
+			continue;
+		case "-vv":
+			verbose = 2;
 			continue;
 		}
 		
