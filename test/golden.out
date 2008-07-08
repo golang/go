@@ -237,11 +237,6 @@ bugs/bug064.go:15: illegal types for operand: CALL
 	({<u><int32>INT32;<v><int32>INT32;})
 BUG: compilation should succeed
 
-=========== bugs/bug065.go
-bugs/bug065.go:6: bad shape across assignment - cr=3 cl=2
-
-BUG: known to fail incorrectly
-
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
@@ -328,3 +323,5 @@ fixedbugs/bug051.go:10: expression must be a constant
 =========== fixedbugs/bug058.go
 
 =========== fixedbugs/bug059.go
+
+=========== fixedbugs/bug065.go
