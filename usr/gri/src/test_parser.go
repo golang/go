@@ -5,32 +5,34 @@
 package main
 
 import Scanner "scanner"
+import Parser "parser"
 
 
-func Scan(src string) {
+func Parse(src string, verbose bool) {
 	S := new(Scanner.Scanner);
 	S.Open(src);
-	for {
-		//var t Scanner.Token;
-		var tok, beg, end int;
-		tok, beg, end = S.Scan(/*&t*/);
-		//t.Print();  // TODO  this doesn't compile?
-		print Scanner.TokenName(tok), "\t ", src[beg : end], "\n";
-		if tok == Scanner.EOF {
-			return;
-		}
-	}
+	
+	P := new(Parser.Parser);
+	P.Open(S, verbose);
+	
+	P.ParseProgram();
 }
 
 
 func main() {
+	verbose := false;
 	for i := 1; i < sys.argc(); i++ {
+		if sys.argv(i) == "-v" {
+			verbose = true;
+			continue;
+		}
+		
 		var src string;
 		var ok bool;
 		src, ok = sys.readfile(sys.argv(i));
 		if ok {
-			print "scanning " + sys.argv(i) + "\n";
-			Scan(src);
+			print "parsing " + sys.argv(i) + "\n";
+			Parse(src, verbose);
 		} else {
 			print "error: cannot read " + sys.argv(i) + "\n";
 		}
