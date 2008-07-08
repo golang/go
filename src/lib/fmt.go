@@ -15,10 +15,13 @@ package fmt
 
 export Fmt, New;
 
+const NByte = 64;
+const NPows10 = 160;  // BUG: why not nelem(pows10);
+
 var ldigits string;
 var udigits string;
 var inited bool;
-var pows10 [160] double;
+var pows10 [NPows10] double;
 
 type Fmt struct {
 	buf string;
@@ -47,7 +50,7 @@ func (f *Fmt) init() {
 	udigits = "0123456789ABCDEF";  // BUG: should be initialized const
 	// BUG: should be done with initialization
 	var p double = 1.0;
-	for i := 0; i < 160; i++ {  // BUG: len(pows10)
+	for i := 0; i < NPows10; i++ {
 		pows10[i] = p;
 		p *= 10.0;
 	}
@@ -112,10 +115,10 @@ func (f *Fmt) pad(s string) {
 		}
 		w -= len(s);
 		if w > 0 {
-			if w > 64 {  // BUG: should be able to use a const
-				w = 64;
+			if w > NByte {
+				w = NByte;
 			}
-			var buf[64] byte;  // BUG: should be able to allocate a size
+			var buf[NByte] byte;  // BUG: should be able to allocate variable size
 			for i := 0; i < w; i++ {
 				buf[i] = ' ';
 			}
@@ -134,13 +137,13 @@ func (f *Fmt) pad(s string) {
 // never mind.)  val is known to be unsigned.  we could make things maybe
 // marginally faster by splitting the 32-bit case out into a separate function
 // but it's not worth the duplication, so val has 64 bits.
-func putint(buf *[64]byte, i int, base, val uint64, digits *string) int {
+func putint(buf *[NByte]byte, i int, base, val uint64, digits *string) int {
 	for val >= base {
-		buf[i] = (*digits)[val%base];  // BUG: shouldn't need indirect
+		buf[i] = digits[val%base];
 		i--;
 		val /= base;
 	}
-	buf[i] = (*digits)[val];  // BUG: shouldn't need indirect
+	buf[i] = digits[val];
 	return i-1;
 }
 
@@ -157,14 +160,14 @@ func (f *Fmt) boolean(a bool) *Fmt {
 
 // integer; interprets prec but not wid.
 func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string {
-	var buf [64]byte;
+	var buf [NByte]byte;
 	negative := is_signed && a < 0;
 	if negative {
 		a = -a;
 	}
-	i := putint(&buf, 63, uint64(base), uint64(a), digits);
+	i := putint(&buf, NByte-1, uint64(base), uint64(a), digits);
 	if f.prec_present {
-		for i > 0 && f.prec > (63-i) {
+		for i > 0 && f.prec > (NByte-1-i) {
 			buf[i] = '0';
 			i--;
 		}
@@ -173,7 +176,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
 		buf[i] = '-';
 		i--;
 	}
-	return string(buf)[i+1:64];
+	return string(buf)[i+1:NByte];
 }
 
 // decimal
@@ -314,7 +317,6 @@ func (f *Fmt) s(s string) *Fmt {
 
 func pow10(n int) double {
 	var d double;
-	npows10 := 160;  // nelem(pows10); BUG: why not a const?
 
 	neg := false;
 	if n < 0 {
@@ -327,17 +329,17 @@ func pow10(n int) double {
 		return 1.79769e+308; // HUGE_VAL
 	}
 
-	if n < npows10 {
+	if n < NPows10 {
 		d = pows10[n];
 	} else {
-		d = pows10[npows10-1];
+		d = pows10[NPows10-1];
 		for {
-			n -= npows10 - 1;
-			if n < npows10 {
+			n -= NPows10 - 1;
+			if n < NPows10 {
 				d *= pows10[n];
 				break;
 			}
-			d *= pows10[npows10 - 1];
+			d *= pows10[NPows10 - 1];
 		}
 	}
 	if neg {
@@ -356,9 +358,7 @@ func unpack(a double) (negative bool, exp int, num double) {
 	}
 	// find g,e such that a = g*10^e.
 	// guess 10-exponent using 2-exponent, then fine tune.
-	var g double;
-	var e2 int;
-	e2, g = sys.frexp(a);  // BUG: should be able to say e2, g := sys.frexp(a);
+	e2, g := sys.frexp(a);
 	e := int(e2 * .301029995663981);
 	g = a * pow10(-e);
 	for g < 1 {
@@ -401,7 +401,7 @@ func (f *Fmt) E(a double) *Fmt {
 	// print exponent with leading 0 if appropriate.
 	es := New().p(2).integer(int64(exp), 10, true, &ldigits);
 	if exp > 0 {
-		es = "+" + es;  // BUG: should do this with a fmt flag
+		es = "+" + es;  // TODO: should do this with a fmt flag
 	}
 	s = s + "e" + es;
 	if negative {

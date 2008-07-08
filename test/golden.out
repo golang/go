@@ -10,8 +10,8 @@
 =========== ./func.go
 
 =========== ./func1.go
-func1.go:10: var a redeclared in this block
-     previous declaration at func1.go:10
+func1.go:12: var a redeclared in this block
+     previous declaration at func1.go:12
 
 =========== ./hashmap.go
 

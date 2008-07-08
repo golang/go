@@ -61,14 +61,15 @@ main()
 		ck(exp[i], math.exp(f));
 		ck(floor[i], math.floor(f));
 		ck(log[i], math.log(math.fabs(f)));
+		math.pow(10, f);
 		ck(pow[i], math.pow(10, f));
 		ck(sin[i], math.sin(f));
 		ck(sinh[i], math.sinh(f));
 		ck(sqrt[i], math.sqrt(math.fabs(f)));
 		ck(tan[i], math.tan(f));
 		ck(tanh[i], math.tanh(f));
-		ck(math.fabs(tanh[i]*math.sqrt(2)),
-			math.hypot(tanh[i], tanh[i]));
+//		ck(math.fabs(tanh[i]*math.sqrt(2)),
+//			math.hypot(tanh[i], tanh[i]));
 	}
 }
 
