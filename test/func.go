@@ -54,13 +54,11 @@ func (t *T) m10(a int, b float) int {
 }
 
 
-//BUG func f9(a int) (i int, f float) {  // multiple returns not ready yet
-// BUG funny return value
-//	var i float = 9;
-//	var f float = 9.0;
-//	return i, f;
-// return
-// }
+func f9(a int) (i int, f float) {
+	i = 9;
+	f = 9.0;
+	return;
+}
 
 
 func main() {
@@ -74,21 +72,15 @@ func main() {
 	assertequal(r5, 5, "5");
 	r6 := f6(1);
 	assertequal(r6, 6, "6");
-	var r7 int;
-	var s7 float;
-	//BUG r7, s7 = f7(1);
-	//BUG assertequal(r7, 7, "r7");
-	//BUG assertequal(int(s7), 7, "s7");
-	var r8 int;
-	var s8 float;
-	//BUG r8, s8 = f8(1);
-	//BUG assertequal(r8, 8, "r8");
-	//BUG assertequal(int(s8), 8, "s8");
-	var r9 int;
-	var s9 float;
-	//BUG r9, s9 = f9(1);
-	//BUG assertequal(r9, 9, "r9");
-	//BUG assertequal(int(s9), 9, "s9");
+	r7, s7 := f7(1);
+	assertequal(r7, 7, "r7");
+	assertequal(int(s7), 7, "s7");
+	r8, s8 := f8(1);
+	assertequal(r8, 8, "r8");
+	assertequal(int(s8), 8, "s8");
+	r9, s9 := f9(1);
+	assertequal(r9, 9, "r9");
+	assertequal(int(s9), 9, "s9");
 	var t *T = new(T);
 	t.x = 1;
 	t.y = 2;

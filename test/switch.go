@@ -91,7 +91,7 @@ func main() {
 	default: dummy := 0; assert(i5 == 5, "good");
 	}
 
-	fired := 0;  // BUG: should be able to use 'false'
+	fired := false;
 	switch i5 {
 	case 0: dummy := 0; fallthrough;  // tests scoping of cases
 	case 1: dummy := 0; fallthrough;
@@ -103,9 +103,9 @@ func main() {
 	case 7: dummy := 0; fallthrough;
 	case 8: dummy := 0; fallthrough;
 	case 9: dummy := 0; fallthrough;
-	default: dummy := 0; fired = fired + 1; assert(i5 == 5, "good");
+	default: dummy := 0; fired = !fired; assert(i5 == 5, "good");
 	}
-	assert(fired > 0, "fired");
+	assert(fired, "fired");
 
 	count := 0;
 	switch i5 {
@@ -121,7 +121,7 @@ func main() {
 	case 9: count = count + 1; fallthrough;
 	default: assert(i5 == count, "good");
 	}
-	assert(fired > 0, "fired");
+	assert(fired, "fired");
 
 	switch hello {
 	case "wowie": assert(false, "wowie");
@@ -130,10 +130,10 @@ func main() {
 	default: assert(false, "default");
 	}
 
-	fired = 0;
+	fired = false;
 	switch i := i5 + 2; i {
-	case i7: fired = 1;
+	case i7: fired = true;
 	default: assert(false, "fail");
 	}
-	assert(fired == 1, "var");
+	assert(fired, "var");
 }
