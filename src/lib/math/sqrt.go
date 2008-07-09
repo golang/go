@@ -30,7 +30,7 @@ sqrt(arg double) double
 		return 0;
 	}
 
-	exp,x = sys.frexp(arg);
+	x,exp = sys.frexp(arg);
 	for x < 0.5 {
 		x = x*2;
 		exp = exp-1;

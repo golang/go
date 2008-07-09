@@ -24,7 +24,7 @@ fmod(x, y double) double
 		y = -y;
 	}
 
-	yexp,yfr = sys.frexp(y);
+	yfr,yexp = sys.frexp(y);
 	sign = false;
 	if x < 0 {
 		r = -x;
@@ -34,11 +34,11 @@ fmod(x, y double) double
 	}
 
 	for r >= y {
-		rexp,rfr = sys.frexp(r);
+		rfr,rexp = sys.frexp(r);
 		if rfr < yfr {
 			rexp = rexp - 1;
 		}
-		r = r - sys.ldexp(rexp-yexp, y);
+		r = r - sys.ldexp(y, rexp-yexp);
 	}
 	if sign {
 		r = -r;

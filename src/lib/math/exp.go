@@ -49,5 +49,5 @@ exp(arg double) double
 	xsq = fract*fract;
 	temp1 = ((p2*xsq+p1)*xsq+p0)*fract;
 	temp2 = ((xsq+q2)*xsq+q1)*xsq + q0;
-	return sys.ldexp(ent, sqrt2*(temp2+temp1)/(temp2-temp1));
+	return sys.ldexp(sqrt2*(temp2+temp1)/(temp2-temp1), ent);
 }

@@ -28,8 +28,8 @@ func	envc() int32;
 func	argv(int32) string;
 func	envv(int32) string;
 
-func	frexp(float64) (int32, float64);	// break fp into exp,fract
-func	ldexp(int32, float64) float64;		// make fp from exp,fract
+func	frexp(float64) (float64, int32);	// break fp into exp,fract
+func	ldexp(float64, int32) float64;		// make fp from exp,fract
 func	modf(float64) (float64, float64);	// break fp into double.double
 func	isInf(float64, int32) bool;		// test for infinity
 func	isNaN(float64) bool;			// test for not-a-number
