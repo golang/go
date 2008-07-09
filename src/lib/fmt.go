@@ -358,7 +358,7 @@ func unpack(a double) (negative bool, exp int, num double) {
 	}
 	// find g,e such that a = g*10^e.
 	// guess 10-exponent using 2-exponent, then fine tune.
-	e2, g := sys.frexp(a);
+	g, e2 := sys.frexp(a);
 	e := int(e2 * .301029995663981);
 	g = a * pow10(-e);
 	for g < 1 {

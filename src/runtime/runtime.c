@@ -402,15 +402,15 @@ modf(float64 d, float64 *ip)
 	 * Keep the top 11+e bits; clear the rest.
 	 */
 	if(e <= 64-11)
-		x &= ~((uint64)1 << (64-11-e))-1;
+		x &= ~(((uint64)1 << (64LL-11LL-e))-1);
 	dd = *(float64*)&x;
 	*ip = dd;
 	return d - dd;
 }
 
-// func frexp(float64) (int32, float64); // break fp into exp,fract
+// func frexp(float64) (float64, int32); // break fp into exp,fract
 void
-sys·frexp(float64 din, int32 iou, float64 dou)
+sys·frexp(float64 din, float64 dou, int32 iou)
 {
 	dou = frexp(din, &iou);
 	FLUSH(&dou);
@@ -426,10 +426,10 @@ sys·ldexp(float64 din, int32 ein, float64 dou)
 
 //func	modf(float64) (float64, float64);	// break fp into double+double
 float64
-sys·modf(float64 din, float64 dou1, float64 dou2)
+sys·modf(float64 din, float64 integer, float64 fraction)
 {
-	dou1 = modf(din, &dou2);
-	FLUSH(&dou2);
+	fraction = modf(din, &integer);
+	FLUSH(&fraction);
 }
 
 //func	isinf(float64, int32 sign) bool;  // test for infinity
