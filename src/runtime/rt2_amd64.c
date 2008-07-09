@@ -36,11 +36,11 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 	int32 counter;
 	int32 i;
 	int8* name;
-	U u;
+	G g;
 	Stktop *stktop;
 
 	// store local copy of per-process data block that we can write as we unwind
-	mcpy((byte*)&u, (byte*)r15, sizeof(U));
+	mcpy((byte*)&g, (byte*)r15, sizeof(G));
 
 	counter = 0;
 	name = "panic";
@@ -48,9 +48,9 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 		callpc = pc;
 		if((uint8*)_morestack < pc && pc < (uint8*)_endmorestack) {
 			// call site in _morestack(); pop to earlier stack block to get true caller
-			stktop = (Stktop*)u.stackbase;
-			u.stackbase = stktop->oldbase;
-			u.stackguard = stktop->oldguard;
+			stktop = (Stktop*)g.stackbase;
+			g.stackbase = stktop->oldbase;
+			g.stackguard = stktop->oldguard;
 			sp = stktop->oldsp;
 			pc = ((uint8**)sp)[1];
 			sp += 16;  // two irrelevant calls on stack - morestack, plus the call morestack made
