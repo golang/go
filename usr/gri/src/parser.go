@@ -4,6 +4,7 @@
 
 package Parser
 
+//import . "scanner"
 import Scanner "scanner"
 
 
@@ -64,18 +65,27 @@ func (P *Parser) Open(S *Scanner.Scanner, verbose int) {
 
 func (P *Parser) Error(msg string) {
 	panic "error: ", msg, "\n";
+	P.Next();  // make progress
 }
 
 
 func (P *Parser) Expect(tok int) {
-	if tok != P.tok {
+	if P.tok == tok {
+		P.Next()
+	} else {
 		P.Error("expected `" + Scanner.TokenName(tok) + "`, found `" + Scanner.TokenName(P.tok) + "`");
 	}
-	P.Next();  // make progress in any case
 }
 
 
-func (P *Parser) ParseType();
+func (P *Parser) Optional(tok int) {
+	if P.tok == tok {
+		P.Next();
+	}
+}
+
+
+func (P *Parser) TryType() bool;
 func (P *Parser) ParseExpression();
 
 
@@ -117,6 +127,15 @@ func (P *Parser) ParseTypeName() {
 }
 
 
+func (P *Parser) ParseType() {
+	P.Trace("Type");
+	if !P.TryType() {
+		P.Error("type expected");
+	}
+	P.Ecart();
+}
+
+
 func (P *Parser) ParseArrayType() {
 	P.Trace("ArrayType");
 	P.Expect(Scanner.LBRACK);
@@ -131,7 +150,13 @@ func (P *Parser) ParseArrayType() {
 
 func (P *Parser) ParseChannelType() {
 	P.Trace("ChannelType");
-	panic "ChannelType";
+	P.Expect(Scanner.CHAN);
+	switch P.tok {
+	case Scanner.LSS: fallthrough
+	case Scanner.GTR:
+		P.Next();
+	}
+	P.ParseType();
 	P.Ecart();
 }
 
@@ -179,9 +204,7 @@ func (P *Parser) ParseStructType() {
 			P.Expect(Scanner.SEMICOLON);
 		}
 	}
-	if P.tok == Scanner.SEMICOLON {
-		P.Next();
-	}
+	P.Optional(Scanner.SEMICOLON);
 	P.Expect(Scanner.RBRACE);
 	P.Ecart();
 }
@@ -195,8 +218,8 @@ func (P *Parser) ParsePointerType() {
 }
 
 
-func (P *Parser) ParseType() {
-	P.Trace("Type");
+func (P *Parser) TryType() bool {
+	P.Trace("Type (try)");
 	switch P.tok {
 	case Scanner.IDENT:
 		P.ParseTypeName();
@@ -215,9 +238,11 @@ func (P *Parser) ParseType() {
 	case Scanner.MUL:
 		P.ParsePointerType();
 	default:
-		P.Error("type expected");
+		P.Ecart();
+		return false;
 	}
 	P.Ecart();
+	return true;
 }
 
 
@@ -242,9 +267,7 @@ func (P *Parser) ParseImportDecl() {
 			P.Next();
 			P.ParseImportSpec();
 		}
-		if P.tok == Scanner.SEMICOLON {
-			P.Next();
-		}
+		P.Optional(Scanner.SEMICOLON);
 	} else {
 		P.ParseImportSpec();
 	}
@@ -266,14 +289,7 @@ func (P *Parser) ParseExpressionList() {
 func (P *Parser) ParseConstSpec() {
 	P.Trace("ConstSpec");
 	P.ParseIdent();
-	// TODO factor this code
-	switch P.tok {
-	case Scanner.IDENT, Scanner.LBRACK, Scanner.CHAN, Scanner.INTERFACE,
-		Scanner.FUNC, Scanner.MAP, Scanner.STRUCT, Scanner.MUL:
-		P.ParseType();
-	default:
-		break;
-	}
+	P.TryType();
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
 		P.ParseExpression();
@@ -286,14 +302,14 @@ func (P *Parser) ParseConstDecl() {
 	P.Trace("ConstDecl");
 	P.Expect(Scanner.CONST);
 	if P.tok == Scanner.LPAREN {
-		P.ParseConstSpec();
-		for P.tok == Scanner.SEMICOLON {
-			P.Next();
+		P.Next();
+		for P.tok != Scanner.RPAREN {
 			P.ParseConstSpec();
+			if P.tok != Scanner.RPAREN {
+				P.Expect(Scanner.SEMICOLON);
+			}
 		}
-		if P.tok == Scanner.SEMICOLON {
-			P.Next();
-		}
+		P.Next();
 	} else {
 		P.ParseConstSpec();
 	}
@@ -304,14 +320,7 @@ func (P *Parser) ParseConstDecl() {
 func (P *Parser) ParseTypeSpec() {
 	P.Trace("TypeSpec");
 	P.ParseIdent();
-	// TODO factor this code
-	switch P.tok {
-	case Scanner.IDENT, Scanner.LBRACK, Scanner.CHAN, Scanner.INTERFACE,
-		Scanner.FUNC, Scanner.MAP, Scanner.STRUCT, Scanner.MUL:
-		P.ParseType();
-	default:
-		break;
-	}
+	P.TryType();
 	P.Ecart();
 }
 
@@ -320,14 +329,14 @@ func (P *Parser) ParseTypeDecl() {
 	P.Trace("TypeDecl");
 	P.Expect(Scanner.TYPE);
 	if P.tok == Scanner.LPAREN {
-		P.ParseTypeSpec();
-		for P.tok == Scanner.SEMICOLON {
-			P.Next();
+		P.Next();
+		for P.tok != Scanner.RPAREN {
 			P.ParseTypeSpec();
+			if P.tok != Scanner.RPAREN {
+				P.Expect(Scanner.SEMICOLON);
+			}
 		}
-		if P.tok == Scanner.SEMICOLON {
-			P.Next();
-		}
+		P.Next();
 	} else {
 		P.ParseTypeSpec();
 	}
@@ -356,14 +365,14 @@ func (P *Parser) ParseVarDecl() {
 	P.Trace("VarDecl");
 	P.Expect(Scanner.VAR);
 	if P.tok == Scanner.LPAREN {
-		P.ParseVarSpec();
-		for P.tok == Scanner.SEMICOLON {
-			P.Next();
+		P.Next();
+		for P.tok != Scanner.RPAREN {
 			P.ParseVarSpec();
+			if P.tok != Scanner.RPAREN {
+				P.Expect(Scanner.SEMICOLON);
+			}
 		}
-		if P.tok == Scanner.SEMICOLON {
-			P.Next();
-		}
+		P.Next();
 	} else {
 		P.ParseVarSpec();
 	}
@@ -445,7 +454,7 @@ func (P *Parser) ParseNamedSignature() {
 
 
 func (P *Parser) ParseDeclaration();
-func (P *Parser) ParseStatement() bool;
+func (P *Parser) TryStatement() bool;
 func (P *Parser) ParseStatementList();
 func (P *Parser) ParseBlock();
 func (P *Parser) ParsePrimaryExpr();
@@ -473,30 +482,28 @@ func (P *Parser) ParseBuiltinStat() {
 func (P *Parser) ParseSimpleStat() {
 	P.Trace("SimpleStat");
 	P.ParseExpression();
-	switch P.tok {
-	case Scanner.ASSIGN: fallthrough;
-	case Scanner.DEFINE:
+	if P.tok == Scanner.COLON {
 		P.Next();
-		P.ParseExpression();
-	case Scanner.COMMA:
+		P.Ecart();
+		return;
+	}
+	if P.tok == Scanner.COMMA {
 		P.Next();
 		P.ParsePrimaryExprList();
-		switch P.tok {
-		case Scanner.ASSIGN:
-		case Scanner.ADD_ASSIGN:
-		case Scanner.SUB_ASSIGN:
-		case Scanner.MUL_ASSIGN:
-		case Scanner.QUO_ASSIGN:
-		case Scanner.REM_ASSIGN:
-		case Scanner.AND_ASSIGN:
-		case Scanner.OR_ASSIGN:
-		case Scanner.XOR_ASSIGN:
-		case Scanner.SHL_ASSIGN:
-		case Scanner.SHR_ASSIGN:
-			break;
-		default:
-			P.Error("expected assignment operand");
-		}
+	}
+	switch P.tok {
+	case Scanner.ASSIGN: fallthrough;
+	case Scanner.DEFINE: fallthrough;
+	case Scanner.ADD_ASSIGN: fallthrough;
+	case Scanner.SUB_ASSIGN: fallthrough;
+	case Scanner.MUL_ASSIGN: fallthrough;
+	case Scanner.QUO_ASSIGN: fallthrough;
+	case Scanner.REM_ASSIGN: fallthrough;
+	case Scanner.AND_ASSIGN: fallthrough;
+	case Scanner.OR_ASSIGN: fallthrough;
+	case Scanner.XOR_ASSIGN: fallthrough;
+	case Scanner.SHL_ASSIGN: fallthrough;
+	case Scanner.SHR_ASSIGN:
 		P.Next();
 		P.ParseExpressionList();
 	case Scanner.INC:
@@ -505,6 +512,13 @@ func (P *Parser) ParseSimpleStat() {
 		P.Next();
 	}
 	P.Ecart();
+}
+
+
+func (P *Parser) ParseGoStat() {
+	P.Trace("GoStat");
+	P.Expect(Scanner.GO);
+	P.ParseExpression();
 }
 
 
@@ -518,9 +532,9 @@ func (P *Parser) ParseReturnStat() {
 }
 
 
-func (P *Parser) ParseBreakStat() {
-	P.Trace("BreakStat");
-	P.Expect(Scanner.BREAK);
+func (P *Parser) ParseControlFlowStat(tok int) {
+	P.Trace("ControlFlowStat");
+	P.Expect(tok);
 	if P.tok == Scanner.IDENT {
 		P.ParseIdent();
 	}
@@ -528,11 +542,10 @@ func (P *Parser) ParseBreakStat() {
 }
 
 
-func (P *Parser) ParseContinueStat() {
-	P.Trace("ContinueStat");
-	P.Expect(Scanner.CONTINUE);
-	if P.tok == Scanner.IDENT {
-		P.ParseIdent();
+func (P *Parser) ParseStatement() {
+	P.Trace("Statement");
+	if !P.TryStatement() {
+		P.Error("statement expected");
 	}
 	P.Ecart();
 }
@@ -544,6 +557,7 @@ func (P *Parser) ParseIfStat() {
 	if P.tok != Scanner.LBRACE {
 		P.ParseSimpleStat();
 		if P.tok == Scanner.SEMICOLON {
+			P.Next();
 			P.ParseExpression();
 		}
 	}
@@ -554,9 +568,7 @@ func (P *Parser) ParseIfStat() {
 			P.ParseIfStat();
 		} else {
 			// TODO should be P.ParseBlock()
-			if !P.ParseStatement() {
-				P.Error("statement expected");
-			}
+			P.ParseStatement();
 		}
 	}
 	P.Ecart();
@@ -614,15 +626,11 @@ func (P *Parser) ParseCaseClause() {
 	P.ParseCaseList();
 	if P.tok != Scanner.FALLTHROUGH && P.tok != Scanner.RBRACE {
 		P.ParseStatementList();
-		if P.tok == Scanner.SEMICOLON {
-			P.Next();
-		}
+		P.Optional(Scanner.SEMICOLON);
 	}
 	if P.tok == Scanner.FALLTHROUGH {
 		P.Next();
-		if P.tok == Scanner.SEMICOLON {
-			P.Next();
-		}
+		P.Optional(Scanner.SEMICOLON);
 	}
 	P.Ecart();
 }
@@ -634,6 +642,7 @@ func (P *Parser) ParseSwitchStat() {
 	if P.tok != Scanner.LBRACE {
 		P.ParseSimpleStat();
 		if P.tok == Scanner.SEMICOLON {
+			P.Next();
 			P.ParseExpression();
 		}
 	}
@@ -646,14 +655,16 @@ func (P *Parser) ParseSwitchStat() {
 }
 
 
-func (P *Parser) ParseStatement() bool {
-	P.Trace("Statement");
+func (P *Parser) TryStatement() bool {
+	P.Trace("Statement (try)");
 	switch P.tok {
 	case Scanner.CONST: fallthrough;
 	case Scanner.TYPE: fallthrough;
 	case Scanner.VAR: fallthrough;
 	case Scanner.FUNC:
 		P.ParseDeclaration();
+	case Scanner.GTR:
+		P.ParseSimpleStat();  // send
 	case Scanner.IDENT:
 		switch P.ident {
 		case "print", "panic":
@@ -662,15 +673,11 @@ func (P *Parser) ParseStatement() bool {
 			P.ParseSimpleStat();
 		}
 	case Scanner.GO:
-		panic "go statement";
+		P.ParseGoStat();
 	case Scanner.RETURN:
 		P.ParseReturnStat();
-	case Scanner.BREAK:
-		P.ParseBreakStat();
-	case Scanner.CONTINUE:
-		P.ParseContinueStat();
-	case Scanner.GOTO:
-		panic "goto statement";
+	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
+		P.ParseControlFlowStat(P.tok);
 	case Scanner.LBRACE:
 		P.ParseBlock();
 	case Scanner.IF:
@@ -695,10 +702,8 @@ func (P *Parser) ParseStatement() bool {
 
 func (P *Parser) ParseStatementList() {
 	P.Trace("StatementList");
-	for P.ParseStatement() {
-		if P.tok == Scanner.SEMICOLON {
-			P.Next();
-		}
+	for P.TryStatement() {
+		P.Optional(Scanner.SEMICOLON);
 	}
 	P.Ecart();
 }
@@ -710,9 +715,7 @@ func (P *Parser) ParseBlock() {
 	if P.tok != Scanner.RBRACE && P.tok != Scanner.SEMICOLON {
 		P.ParseStatementList();
 	}
-	if P.tok == Scanner.SEMICOLON {
-		P.Next();
-	}
+	P.Optional(Scanner.SEMICOLON);
 	P.Expect(Scanner.RBRACE);
 	P.Ecart();
 }
@@ -740,6 +743,7 @@ func (P *Parser) ParseExportDecl() {
 		P.Next();
 		P.ParseIdent();
 	}
+	P.Optional(Scanner.COMMA);
 	P.Ecart();
 }
 
@@ -759,7 +763,6 @@ func (P *Parser) ParseDeclaration() {
 		P.ParseExportDecl();
 	default:
 		P.Error("declaration expected");
-		P.Next();  // make progress
 	}
 	P.Ecart();
 }
@@ -791,7 +794,8 @@ func (P *Parser) ParseOperand() {
 	case Scanner.LPAREN:
 		P.Next();
 		P.ParseExpression();
-		P.Expect(Scanner.LPAREN);
+		P.Expect(Scanner.RPAREN);
+	case Scanner.NIL: fallthrough;
 	case Scanner.IOTA: fallthrough;
 	case Scanner.TRUE: fallthrough;
 	case Scanner.FALSE:
@@ -895,6 +899,7 @@ func (P *Parser) ParseMultiplicativeExpr() {
 		case Scanner.SHL: fallthrough;
 		case Scanner.SHR: fallthrough;
 		case Scanner.AND:
+			P.Next();
 			P.ParseUnaryExpr();
 		default:
 			P.Ecart();
@@ -914,6 +919,7 @@ func (P *Parser) ParseAdditiveExpr() {
 		case Scanner.SUB: fallthrough;
 		case Scanner.OR: fallthrough;
 		case Scanner.XOR:
+			P.Next();
 			P.ParseMultiplicativeExpr();
 		default:
 			P.Ecart();
@@ -976,15 +982,11 @@ func (P *Parser) ParseProgram() {
 	P.ParseIdent();
 	for P.tok == Scanner.IMPORT {
 		P.ParseImportDecl();
-		if P.tok == Scanner.SEMICOLON {
-			P.Next();
-		}
+		P.Optional(Scanner.SEMICOLON);
 	}
 	for P.tok != Scanner.EOF {
 		P.ParseDeclaration();
-		if P.tok == Scanner.SEMICOLON {
-			P.Next();
-		}
+		P.Optional(Scanner.SEMICOLON);
 	}
 	P.Ecart();
 }
