@@ -20,7 +20,7 @@ type Parser struct {
 
 func (P *Parser) PrintIndent() {
 	for i := P.indent; i > 0; i-- {
-		print "  ";
+		print ". ";
 	}
 }
 
@@ -556,6 +556,7 @@ func (P *Parser) ParseGoStat() {
 	P.Trace("GoStat");
 	P.Expect(Scanner.GO);
 	P.ParseExpression();
+	P.Ecart();
 }
 
 
@@ -755,6 +756,8 @@ func (P *Parser) ParseSelectStat() bool {
 
 func (P *Parser) TryStatement() bool {
 	P.Trace("Statement (try)");
+	indent := P.indent;
+	res := true;
 	switch P.tok {
 	case Scanner.CONST: fallthrough;
 	case Scanner.TYPE: fallthrough;
@@ -790,11 +793,13 @@ func (P *Parser) TryStatement() bool {
 		P.ParseSelectStat();
 	default:
 		// no statement found
-		P.Ecart();
-		return false;
+		res = false;
+	}
+	if indent != P.indent {
+		panic "imbalanced tracing code"
 	}
 	P.Ecart();
-	return true;
+	return res;
 }
 
 
@@ -856,6 +861,7 @@ func (P *Parser) ParseExportDecl() {
 
 func (P *Parser) ParseDeclaration() {
 	P.Trace("Declaration");
+	indent := P.indent;
 	switch P.tok {
 	case Scanner.CONST:
 		P.ParseConstDecl();
@@ -869,6 +875,9 @@ func (P *Parser) ParseDeclaration() {
 		P.ParseExportDecl();
 	default:
 		P.Error("declaration expected");
+	}
+	if indent != P.indent {
+		panic "imbalanced tracing code"
 	}
 	P.Ecart();
 }
@@ -907,7 +916,7 @@ func (P *Parser) ParseOperand() {
 	case Scanner.NEW:
 		P.ParseNew();
 	default:
-		panic "unknown operand"
+		P.Error("operand expected");
 	}
 	P.Ecart();
 }
@@ -992,82 +1001,32 @@ func (P *Parser) ParseUnaryExpr() {
 }
 
 
-func (P *Parser) ParseMultiplicativeExpr() {
-	P.Trace("MultiplicativeExpr");
+func Precedence(tok int) int {
+	// TODO should use a map or array here for lookup
+	switch tok {
+	case Scanner.COR:
+		return 1;
+	case Scanner.CAND:
+		return 2;
+	case Scanner.EQL, Scanner.NEQ, Scanner.LSS, Scanner.LEQ, Scanner.GTR, Scanner.GEQ:
+		return 3;
+	case Scanner.ADD, Scanner.SUB, Scanner.OR, Scanner.XOR:
+		return 4;
+	case Scanner.MUL, Scanner.QUO, Scanner.REM, Scanner.SHL, Scanner.SHR, Scanner.AND:
+		return 5;
+	}
+	return 0;
+}
+
+
+func (P *Parser) ParseBinaryExpr(prec1 int) {
+	P.Trace("BinaryExpr");
 	P.ParseUnaryExpr();
-	for {
-		switch P.tok {
-		case Scanner.MUL: fallthrough;
-		case Scanner.QUO: fallthrough;
-		case Scanner.REM: fallthrough;
-		case Scanner.SHL: fallthrough;
-		case Scanner.SHR: fallthrough;
-		case Scanner.AND:
+	for prec := Precedence(P.tok); prec >= prec1; prec-- {
+		for Precedence(P.tok) == prec {
 			P.Next();
-			P.ParseUnaryExpr();
-		default:
-			P.Ecart();
-			return;
+			P.ParseBinaryExpr(prec + 1);
 		}
-	}
-	P.Ecart();
-}
-
-
-func (P *Parser) ParseAdditiveExpr() {
-	P.Trace("AdditiveExpr");
-	P.ParseMultiplicativeExpr();
-	for {
-		switch P.tok {
-		case Scanner.ADD: fallthrough;
-		case Scanner.SUB: fallthrough;
-		case Scanner.OR: fallthrough;
-		case Scanner.XOR:
-			P.Next();
-			P.ParseMultiplicativeExpr();
-		default:
-			P.Ecart();
-			return;
-		}
-	}
-	P.Ecart();
-}
-
-
-func (P *Parser) ParseRelationalExpr() {
-	P.Trace("RelationalExpr");
-	P.ParseAdditiveExpr();
-	switch P.tok {
-	case Scanner.EQL: fallthrough;
-	case Scanner.NEQ: fallthrough;
-	case Scanner.LSS: fallthrough;
-	case Scanner.LEQ: fallthrough;
-	case Scanner.GTR: fallthrough;
-	case Scanner.GEQ:
-		P.Next();
-		P.ParseAdditiveExpr();
-	}
-	P.Ecart();
-}
-
-
-func (P *Parser) ParseLANDExpr() {
-	P.Trace("LANDExpr");
-	P.ParseRelationalExpr();
-	for P.tok == Scanner.CAND {
-		P.Next();
-		P.ParseRelationalExpr();
-	}
-	P.Ecart();
-}
-
-
-func (P *Parser) ParseLORExpr() {
-	P.Trace("LORExpr");
-	P.ParseLANDExpr();
-	for P.tok == Scanner.COR {
-		P.Next();
-		P.ParseLANDExpr();
 	}
 	P.Ecart();
 }
@@ -1075,7 +1034,11 @@ func (P *Parser) ParseLORExpr() {
 
 func (P *Parser) ParseExpression() {
 	P.Trace("Expression");
-	P.ParseLORExpr();
+	indent := P.indent;
+	P.ParseBinaryExpr(1);
+	if indent != P.indent {
+		panic "imbalanced tracing code";
+	}
 	P.Ecart();
 }
 
