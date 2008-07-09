@@ -262,12 +262,12 @@ func (P *Parser) ParseImportDecl() {
 	P.Trace("ImportDecl");
 	P.Expect(Scanner.IMPORT);
 	if P.tok == Scanner.LPAREN {
-		P.ParseImportSpec();
-		for P.tok == Scanner.SEMICOLON {
-			P.Next();
+		P.Next();
+		for P.tok != Scanner.RPAREN {
 			P.ParseImportSpec();
+			P.Optional(Scanner.SEMICOLON);  // TODO this seems wrong
 		}
-		P.Optional(Scanner.SEMICOLON);
+		P.Next();
 	} else {
 		P.ParseImportSpec();
 	}
@@ -738,12 +738,20 @@ func (P *Parser) ParseFuncDecl() {
 func (P *Parser) ParseExportDecl() {
 	P.Trace("ExportDecl");
 	P.Expect(Scanner.EXPORT);
-	P.ParseIdent();
-	for P.tok == Scanner.COMMA {
+	if P.tok == Scanner.LPAREN {
 		P.Next();
+		for P.tok != Scanner.RPAREN {
+			P.ParseIdent();
+			P.Optional(Scanner.COMMA);  // TODO this seems wrong
+		}
+		P.Next();
+	} else {
 		P.ParseIdent();
+		for P.tok == Scanner.COMMA {
+			P.Next();
+			P.ParseIdent();
+		}
 	}
-	P.Optional(Scanner.COMMA);
 	P.Ecart();
 }
 
@@ -787,14 +795,12 @@ func (P *Parser) ParseOperand() {
 	switch P.tok {
 	case Scanner.IDENT:
 		P.ParseQualifiedIdent();
-	case Scanner.STRING:
-		fallthrough;
-	case Scanner.NUMBER:
-		P.Next();
 	case Scanner.LPAREN:
 		P.Next();
 		P.ParseExpression();
 		P.Expect(Scanner.RPAREN);
+	case Scanner.STRING: fallthrough;
+	case Scanner.NUMBER: fallthrough;
 	case Scanner.NIL: fallthrough;
 	case Scanner.IOTA: fallthrough;
 	case Scanner.TRUE: fallthrough;

@@ -458,20 +458,25 @@ func (S *Scanner) ScanNumber (seen_decimal_point bool) int {
 	}
 	
 	if S.ch == '0' {
-		// TODO bug: doesn't accept 09.0 !
-		// int
+		// int or float
 		S.Next();
 		if S.ch == 'x' || S.ch == 'X' {
 			// hexadecimal int
 			S.Next();
 			S.ScanMantissa(16);
 		} else {
-			// octal int
+			// octal int or float
 			S.ScanMantissa(8);
+			if digit_val(S.ch) < 10 || S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
+				// float
+				goto mantissa;
+			}
+			// octal int
 		}
 		return NUMBER;
 	}
 	
+mantissa:
 	// decimal int or float
 	S.ScanMantissa(10);
 	
