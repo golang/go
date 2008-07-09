@@ -15,9 +15,9 @@ export		pow
  */
 
 func
-pow(arg1,arg2 double) double
+pow(arg1,arg2 float64) float64
 {
-	var temp double;
+	var temp float64;
 	var l long;
 
 	if arg2 < 0 {
@@ -60,10 +60,10 @@ pow(arg1,arg2 double) double
 		if l&1 != 0 {
 			temp = temp*arg1;
 		}
-		l = l>>1;
+		l >>= 1;
 		if l == 0 {
 			return temp;
 		}
-		arg1 = arg1*arg1;
+		arg1 *= arg1;
 	}
 }

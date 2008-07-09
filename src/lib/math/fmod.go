@@ -7,14 +7,14 @@ package math
 export	fmod
 
 /*
-	floating-point mod func without infinity or NaN checking
+ *	floating-point mod func without infinity or NaN checking
  */
 
 func
-fmod(x, y double) double
+fmod(x, y float64) float64
 {
 	var yexp, rexp int;
-	var r, yfr, rfr double;
+	var r, yfr, rfr float64;
 	var sign bool;
 
 	if y == 0 {

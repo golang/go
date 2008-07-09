@@ -4,13 +4,13 @@
 
 package sys
 
-func	modf(a double) (x double, y double);
-func	frexp(a double) (e int, m double);
-func	ldexp(f double, e int) double;
+func	modf(a float64) (x float64, y float64);
+func	frexp(a float64) (e int, m float64);
+func	ldexp(f float64, e int) float64;
 
-func	Inf(n int) double;
-func	NaN() double;
-func	isInf(arg double, n int) bool;
+func	Inf(n int) float64;
+func	NaN() float64;
+func	isInf(arg float64, n int) bool;
 
 export	modf, frexp, ldexp
 export	NaN, isInf, Inf

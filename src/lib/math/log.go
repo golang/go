@@ -7,13 +7,13 @@ package math
 export	log, log10
 
 /*
-	log returns the natural logarithm of its floating
-	point argument.
-
-	The coefficients are #2705 from Hart & Cheney. (19.38D)
-
-	It calls frexp.
-*/
+ *	log returns the natural logarithm of its floating
+ *	point argument.
+ *
+ *	The coefficients are #2705 from Hart & Cheney. (19.38D)
+ *
+ *	It calls frexp.
+ */
 
 const
 (
@@ -30,9 +30,9 @@ const
 )
 
 func
-log(arg double) double
+log(arg float64) float64
 {
-	var x, z, zsq, temp double;
+	var x, z, zsq, temp float64;
 	var exp int;
 
 	if arg <= 0 {
@@ -54,12 +54,12 @@ log(arg double) double
 
 	temp = ((p3*zsq + p2)*zsq + p1)*zsq + p0;
 	temp = temp/(((zsq + q2)*zsq + q1)*zsq + q0);
-	temp = temp*z + double(exp)*log2;
+	temp = temp*z + float64(exp)*log2;
 	return temp;
 }
 
 func
-log10(arg double) double
+log10(arg float64) float64
 {
 
 	if arg <= 0 {

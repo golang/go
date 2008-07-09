@@ -6,7 +6,7 @@
 package main
 
 //import math "math"
-//////////////////
+
  import math "asin"
  import math "atan"
  import math "atan2"
@@ -25,29 +25,26 @@ package main
  import math "tanh"
 
 
-const
-(
-	length	= 10;
-)
+const	length	= 10;
 
 var
 (
-	vf	[length]double;
-	asin	[length]double;
-	atan	[length]double;
-	exp	[length]double;
-	floor	[length]double;
-	log	[length]double;
-	pow	[length]double;
-	sin	[length]double;
-	sinh	[length]double;
-	sqrt	[length]double;
-	tan	[length]double;
-	tanh	[length]double;
+	vf	[length]float64;
+	asin	[length]float64;
+	atan	[length]float64;
+	exp	[length]float64;
+	floor	[length]float64;
+	log	[length]float64;
+	pow	[length]float64;
+	sin	[length]float64;
+	sinh	[length]float64;
+	sqrt	[length]float64;
+	tan	[length]float64;
+	tanh	[length]float64;
 )
 
 func	init();
-func	ck(a,b double);
+func	ck(a,b float64);
 
 func
 main()
@@ -73,7 +70,7 @@ main()
 }
 
 func
-ck(a,b double)
+ck(a,b float64)
 {
 	d := a-b;
 	if d < 0 {

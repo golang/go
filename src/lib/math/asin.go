@@ -18,13 +18,13 @@ export	asin, acos
 
 const
 (
-	pio2	= .15707963267948966192313216e1;
+	pio2 = .15707963267948966192313216e1
 )
 
 func
-asin(arg double)double
+asin(arg float64)float64
 {
-	var temp, x double;
+	var temp, x float64;
 	var sign bool;
 
 	sign = false;
@@ -51,7 +51,7 @@ asin(arg double)double
 }
 
 func
-acos(arg double)double
+acos(arg float64)float64
 {
 	if(arg > 1 || arg < -1) {
 		return sys.NaN();

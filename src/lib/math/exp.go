@@ -8,11 +8,11 @@ import	math "floor"
 export	exp
 
 /*
-	exp returns the exponential func of its
-	floating-point argument.
-
-	The coefficients are #1069 from Hart and Cheney. (22.35D)
-*/
+ *	exp returns the exponential func of its
+ *	floating-point argument.
+ *
+ *	The coefficients are #1069 from Hart and Cheney. (22.35D)
+ */
 
 const
 (
@@ -28,16 +28,16 @@ const
 )
 
 func
-exp(arg double) double
+exp(arg float64) float64
 {
-	var x, fract, temp1, temp2, xsq double;
+	var x, fract, temp1, temp2, xsq float64;
 	var ent int;
 
 	if arg == 0. {
 		return 1;
 	}
 	if arg < -maxf {
-		return 0.;
+		return 0;
 	}
 	if arg > maxf {
 		return sys.Inf(1)
@@ -45,7 +45,7 @@ exp(arg double) double
 
 	x = arg*log2e;
 	ent = int(floor(x));
-	fract = (x-double(ent)) - 0.5;
+	fract = (x-float64(ent)) - 0.5;
 	xsq = fract*fract;
 	temp1 = ((p2*xsq+p1)*xsq+p0)*fract;
 	temp2 = ((xsq+q2)*xsq+q1)*xsq + q0;

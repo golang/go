@@ -8,15 +8,15 @@ import		math "sinh"
 export		tanh
 
 /*
-	tanh(arg) computes the hyperbolic tangent of its floating
-	point argument.
-
-	sinh and cosh are called except for large arguments, which
-	would cause overflow improperly.
+ *	tanh(arg) computes the hyperbolic tangent of its floating
+ *	point argument.
+ *
+ *	sinh and cosh are called except for large arguments, which
+ *	would cause overflow improperly.
  */
 
 func
-tanh(arg double) double
+tanh(arg float64) float64
 {
 	if arg < 0 {
 		arg = -arg;

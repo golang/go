@@ -7,17 +7,17 @@ package math
 export	hypot
 
 /*
-	hypot -- sqrt(p*p + q*q), but overflows only if the result does.
-	See Cleve Moler and Donald Morrison,
-	Replacing Square Roots by Pythagorean Sums
-	IBM Journal of Research and Development,
-	Vol. 27, Number 6, pp. 577-581, Nov. 1983
+ *	hypot -- sqrt(p*p + q*q), but overflows only if the result does.
+ *	See Cleve Moler and Donald Morrison,
+ *	Replacing Square Roots by Pythagorean Sums
+ *	IBM Journal of Research and Development,
+ *	Vol. 27, Number 6, pp. 577-581, Nov. 1983
  */
 
 func
-hypot(p, q double) double
+hypot(p, q float64) float64
 {
-	var r, s, pfac double;
+	var r, s, pfac float64;
 
 	if p < 0 {
 		p = -p;
@@ -40,7 +40,7 @@ hypot(p, q double) double
 	q = q/p;
 	r = q;
 	p = 1;
-	for ;; {
+	for {
 		r = r*r;
 		s = r+4;
 		if s == 4 {
