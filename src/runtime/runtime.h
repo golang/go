@@ -61,6 +61,29 @@ struct	Map
 	int32	unused;
 	void	(*fun[])(void);
 };
+typedef	struct	U		U;
+struct	U
+{
+	byte*	stackguard;	// must not move
+	byte*	stackbase;	// must not move
+	U*	ufor;		// dbl ll of all u
+	U*	ubak;
+	U*	runqfor;	// dbl ll of runnable
+	U*	runqbak;
+};
+typedef	struct	M		M;
+struct	M
+{
+	byte*	istackguard;	// must not move
+	byte*	istackbase;	// must not move
+};
+
+/*
+ * global variables
+ */
+U*	allu;
+M*	allm;
+U*	runq;
 
 /*
  * defined constants

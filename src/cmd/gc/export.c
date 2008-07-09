@@ -54,7 +54,7 @@ reexport(Type *t)
 	s = t->sym;
 	if(s == S/* || s->name[0] == '_'*/) {
 		exportgen++;
-		snprint(namebuf, sizeof(namebuf), "_e%.3ld", exportgen);
+		snprint(namebuf, sizeof(namebuf), "_e%s_%.3ld", filename, exportgen);
 		s = lookup(namebuf);
 		s->lexical = LATYPE;
 		s->otype = t;

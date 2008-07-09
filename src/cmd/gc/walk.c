@@ -1078,7 +1078,6 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
 	l = structfirst(&savel, nl);
 	r = listfirst(&saver, nr);
 	nn = N;
-
 loop:
 	if(l == T || r == N) {
 		if(l != T || r != N)

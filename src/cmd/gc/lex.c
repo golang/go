@@ -57,6 +57,7 @@ mainlex(int argc, char *argv[])
 	block = 1;
 	blockgen = 1;
 
+	setfilename(argv[0]);
 	infile = argv[0];
 	linehist(infile, 0);
 
@@ -106,6 +107,21 @@ usage:
 	print("  -h panic on an error\n");
 	myexit(0);
 	return 0;
+}
+
+void
+setfilename(char *file)
+{
+	char *p;
+
+	p = strrchr(file, '/');
+	if(p != nil)
+		file = p+1;
+	strncpy(namebuf, file, sizeof(namebuf));
+	p = strchr(namebuf, '.');
+	if(p != nil)
+		*p = 0;
+	filename = strdup(namebuf);
 }
 
 void

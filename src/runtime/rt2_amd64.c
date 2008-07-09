@@ -8,13 +8,13 @@ extern int32	debug;
 
 static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
 
-typedef struct U U;
-struct U {
-	uint8*	stackguard;
-	uint8*	stackbase;
-	uint8*	istackguard;
-	uint8*	istackbase;
-};
+//typedef struct U U;
+//struct U {
+//	uint8*	stackguard;
+//	uint8*	stackbase;
+//	uint8*	istackguard;
+//	uint8*	istackbase;
+//};
 
 typedef struct Stktop Stktop;
 struct Stktop {
