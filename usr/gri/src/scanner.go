@@ -376,11 +376,39 @@ func Init () {
 }
 
 
+// Compute (line, column) information for a given source position.
+func (S *Scanner) LineCol(pos int) (line, col int) {
+	line = 1;
+	lpos := 0;
+	
+	src := S.src;
+	if pos > len(src) {
+		pos = len(src);
+	}
+
+	for i := 0; i < pos; i++ {
+		if src[i] != '\n' {
+			line++;
+			lpos = i;
+		}
+	}
+	
+	return line, pos - lpos;
+}
+
+
+func (S *Scanner) Error(pos int, msg string) {
+	line, col := S.LineCol(pos);
+	print "error ", line, ":", col, ": ", msg, "\n";
+}
+
+
 func (S *Scanner) Open (src string) {
 	if Keywords == nil {
 		Init();
 	}
 
+	//S.nerrors = 0;
 	S.src = src;
 	S.pos = 0;
 	S.Next();
@@ -389,9 +417,9 @@ func (S *Scanner) Open (src string) {
 
 func (S *Scanner) Expect (ch int) {
 	if S.ch != ch {
-		panic "expected ", string(ch), " found ", string(S.ch);
+		S.Error(S.pos, "expected " + string(ch) + ", found " + string(S.ch));
 	}
-	S.Next();
+	S.Next();  // make always progress
 }
 
 
@@ -412,6 +440,7 @@ func (S *Scanner) SkipComment () {
 		
 	} else {
 		/* comment */
+		pos := S.pos;
 		S.Next();
 		for S.ch >= 0 {
 			ch := S.ch;
@@ -421,7 +450,7 @@ func (S *Scanner) SkipComment () {
 				return;
 			}
 		}
-		panic "comment not terminated";
+		S.Error(pos, "comment not terminated");
 	}
 }
 
@@ -505,7 +534,7 @@ func (S *Scanner) ScanDigits(n int, base int) {
 		n--;
 	}
 	if n > 0 {
-		panic "illegal char escape";
+		S.Error(S.pos, "illegal char escape");
 	}
 }
 
@@ -536,7 +565,7 @@ func (S *Scanner) ScanEscape () string {
 		return "";  // TODO fix this
 
 	default:
-		panic "illegal char escape";
+		S.Error(S.pos, "illegal char escape");
 	}
 }
 
@@ -558,11 +587,12 @@ func (S *Scanner) ScanChar () int {
 func (S *Scanner) ScanString () int {
 	// '"' already consumed
 
+	pos := S.pos - 1;  // TODO maybe incorrect (Unicode)
 	for S.ch != '"' {
 		ch := S.ch;
 		S.Next();
 		if ch == '\n' || ch < 0 {
-			panic "string not terminated";
+			S.Error(pos, "string not terminated");
 		}
 		if ch == '\\' {
 			S.ScanEscape();
@@ -577,11 +607,12 @@ func (S *Scanner) ScanString () int {
 func (S *Scanner) ScanRawString () int {
 	// '`' already consumed
 
+	pos := S.pos - 1;  // TODO maybe incorrect (Unicode)
 	for S.ch != '`' {
 		ch := S.ch;
 		S.Next();
 		if ch == '\n' || ch < 0 {
-			panic "string not terminated";
+			S.Error(pos, "string not terminated");
 		}
 	}
 

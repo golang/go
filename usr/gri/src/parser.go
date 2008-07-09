@@ -64,7 +64,7 @@ func (P *Parser) Open(S *Scanner.Scanner, verbose int) {
 
 
 func (P *Parser) Error(msg string) {
-	panic "error: ", msg, "\n";
+	P.S.Error(P.S.pos, msg);
 	P.Next();  // make progress
 }
 
