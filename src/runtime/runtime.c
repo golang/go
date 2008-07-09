@@ -571,9 +571,14 @@ check(void)
 	initsig();
 }
 
+extern	register	u;
+uint32	a;
+
 void
 _newproc(byte* fn, int32 siz, byte* args)
 {
+	a = u;
+
 	prints("_newproc fn=");
 	sys·printpointer(fn);
 	prints("; siz=");

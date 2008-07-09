@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 /*
  * basic types
  */
@@ -61,15 +60,15 @@ struct	Map
 	int32	unused;
 	void	(*fun[])(void);
 };
-typedef	struct	U		U;
-struct	U
+typedef	struct	G		G;
+struct	G
 {
 	byte*	stackguard;	// must not move
 	byte*	stackbase;	// must not move
-	U*	ufor;		// dbl ll of all u
-	U*	ubak;
-	U*	runqfor;	// dbl ll of runnable
-	U*	runqbak;
+	G*	ufor;		// dbl ll of all u
+	G*	ubak;
+	G*	runqfor;	// dbl ll of runnable
+	G*	runqbak;
 };
 typedef	struct	M		M;
 struct	M
@@ -77,13 +76,15 @@ struct	M
 	byte*	istackguard;	// must not move
 	byte*	istackbase;	// must not move
 };
+extern	register	G*	g;	// R15
+extern	register	M*	m;	// R14
 
 /*
  * global variables
  */
-U*	allu;
 M*	allm;
-U*	runq;
+G*	allu;
+G*	runq;
 
 /*
  * defined constants
