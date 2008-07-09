@@ -161,16 +161,39 @@ func (P *Parser) ParseChannelType() {
 }
 
 
-func (P *Parser) ParseInterfaceType() {
-	P.Trace("InterfaceType");
-	panic "InterfaceType";
+func (P *Parser) ParseParameters();
+func (P *Parser) TryResult() bool;
+
+
+func (P *Parser) ParseMethodDecl() {
+	P.Trace("MethodDecl");
+	P.ParseIdent();
+	P.ParseParameters();
+	P.TryResult();
+	P.Optional(Scanner.SEMICOLON);
 	P.Ecart();
 }
 
 
+func (P *Parser) ParseInterfaceType() {
+	P.Trace("InterfaceType");
+	P.Expect(Scanner.INTERFACE);
+	P.Expect(Scanner.LBRACE);
+	for P.tok != Scanner.RBRACE {
+		P.ParseMethodDecl();
+	}
+	P.Next();
+	P.Ecart();
+}
+
+
+func (P *Parser) ParseAnonymousSignature();
+
+
 func (P *Parser) ParseFunctionType() {
 	P.Trace("FunctionType");
-	panic "FunctionType";
+	P.Expect(Scanner.FUNC);
+	P.ParseAnonymousSignature();
 	P.Ecart();
 }
 
@@ -410,14 +433,38 @@ func (P *Parser) ParseParameters() {
 }
 
 
-func (P *Parser) ParseResult() {
-	P.Trace("Result");
+func (P *Parser) TryResult() bool {
+	P.Trace("Result (try)");
+	res := false;
 	if P.tok == Scanner.LPAREN {
 		// TODO: here we allow empty returns - should proably fix this
 		P.ParseParameters();
+		res = true;
 	} else {
-		P.ParseType();
+		res = P.TryType();
 	}
+	P.Ecart();
+	return res;
+}
+
+
+// Anonymous signatures
+//
+//          (params)
+//          (params) type
+//          (params) (results)
+// (recv) . (params)
+// (recv) . (params) type
+// (recv) . (params) (results)
+
+func (P *Parser) ParseAnonymousSignature() {
+	P.Trace("AnonymousSignature");
+	P.ParseParameters();
+	if P.tok == Scanner.PERIOD {
+		P.Next();
+		P.ParseParameters();
+	}
+	P.TryResult();
 	P.Ecart();
 }
 
@@ -436,19 +483,9 @@ func (P *Parser) ParseNamedSignature() {
 	if P.tok == Scanner.LPAREN {
 		P.ParseParameters();
 	}
-
 	P.ParseIdent();  // function name
-
 	P.ParseParameters();
-
-	// TODO factor this code
-	switch P.tok {
-	case Scanner.IDENT, Scanner.LBRACK, Scanner.CHAN, Scanner.INTERFACE,
-		Scanner.FUNC, Scanner.MAP, Scanner.STRUCT, Scanner.MUL, Scanner.LPAREN:
-		P.ParseResult();
-	default:
-		break;
-	}
+	P.TryResult();
 	P.Ecart();
 }
 
