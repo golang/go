@@ -692,6 +692,67 @@ func (P *Parser) ParseSwitchStat() {
 }
 
 
+func (P *Parser) ParseCommCase() {
+  P.Trace("CommCase");
+  if P.tok == Scanner.CASE {
+	P.Next();
+	if P.tok == Scanner.GTR {
+		// send
+		P.Next();
+		P.ParseExpression();
+		P.Expect(Scanner.EQL);
+		P.ParseExpression();
+	} else {
+		// receive
+		if P.tok != Scanner.LSS {
+			P.ParseIdent();
+			P.Expect(Scanner.ASSIGN);
+		}
+		P.Expect(Scanner.LSS);
+		P.ParseExpression();
+	}
+  } else {
+	P.Expect(Scanner.DEFAULT);
+  }
+  P.Expect(Scanner.COLON);
+  P.Ecart();
+}
+
+
+func (P *Parser) ParseCommClause() {
+	P.Trace("CommClause");
+	P.ParseCommCase();
+	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE {
+		P.ParseStatementList();
+		P.Optional(Scanner.SEMICOLON);
+	}
+	P.Ecart();
+}
+
+
+func (P *Parser) ParseRangeStat() bool {
+	P.Trace("RangeStat");
+	P.Expect(Scanner.RANGE);
+	P.ParseIdentList();
+	P.Expect(Scanner.DEFINE);
+	P.ParseExpression();
+	P.ParseBlock();
+	P.Ecart();
+}
+
+
+func (P *Parser) ParseSelectStat() bool {
+	P.Trace("SelectStat");
+	P.Expect(Scanner.SELECT);
+	P.Expect(Scanner.LBRACE);
+	for P.tok != Scanner.RBRACE {
+		P.ParseCommClause();
+	}
+	P.Next();
+	P.Ecart();
+}
+
+
 func (P *Parser) TryStatement() bool {
 	P.Trace("Statement (try)");
 	switch P.tok {
@@ -724,9 +785,9 @@ func (P *Parser) TryStatement() bool {
 	case Scanner.SWITCH:
 		P.ParseSwitchStat();
 	case Scanner.RANGE:
-		panic "range statement";
+		P.ParseRangeStat();
 	case Scanner.SELECT:
-		panic "select statement";
+		P.ParseSelectStat();
 	default:
 		// no statement found
 		P.Ecart();
