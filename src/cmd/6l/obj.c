@@ -461,7 +461,7 @@ objfile(char *file)
 	struct ar_hdr arhdr;
 	char *e, *start, *stop;
 
-	if(file[0] == '-' && file[1] == 'l') {
+	if(file[0] == '-' && file[1] == 'l') {	// TODO: fix this
 		if(debug['9'])
 			sprint(name, "/%s/lib/lib", thestring);
 		else
@@ -819,6 +819,9 @@ ldobj(int f, long c, char *pn)
 	static int files;
 	static char **filen;
 	char **nfilen;
+	int ntext;
+
+	ntext = 0;
 
 	if((files&15) == 0){
 		nfilen = malloc((files+16)*sizeof(char*));
@@ -1062,6 +1065,13 @@ loop:
 		goto loop;
 
 	case ATEXT:
+		s = p->from.sym;
+		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
+			/* redefinition, so file has probably been seen before */
+			if(debug['v'])
+				diag("skipping: %s: redefinition: %s", pn, s->name);
+			return;
+		}
 		if(curtext != P) {
 			histtoauto();
 			curtext->to.autom = curauto;
@@ -1069,7 +1079,6 @@ loop:
 		}
 		skip = 0;
 		curtext = p;
-		s = p->from.sym;
 		if(s == S) {
 			diag("%s: no TEXT symbol: %P", pn, p);
 			errorexit();
