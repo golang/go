@@ -12,9 +12,9 @@ export	floor, ceil
  */
 
 func
-floor(arg double) double
+floor(arg float64) float64
 {
-	var fract, d double;
+	var fract, d float64;
 
 	d = arg;
 	if d < 0 {
@@ -30,7 +30,7 @@ floor(arg double) double
 }
 
 func
-ceil(arg double) double
+ceil(arg float64) float64
 {
 	return -floor(-arg);
 }

@@ -7,16 +7,16 @@ package math
 export		sqrt
 
 /*
-	sqrt returns the square root of its floating
-	point argument. Newton's method.
-
-	calls frexp
-*/
+ *	sqrt returns the square root of its floating
+ *	point argument. Newton's method.
+ *
+ *	calls frexp
+ */
 
 func
-sqrt(arg double) double
+sqrt(arg float64) float64
 {
-	var x, temp double;
+	var x, temp float64;
 	var exp, i int;
 
 	if sys.isInf(arg, 1) {
@@ -25,7 +25,7 @@ sqrt(arg double) double
 
 	if arg <= 0 {
 		if arg < 0 {
-			panic "return sys.NaN()"
+			return sys.NaN();
 		}
 		return 0;
 	}
@@ -43,17 +43,17 @@ sqrt(arg double) double
 	temp = 0.5 * (1+x);
 
 	for exp > 60 {
-		temp = temp * double(1<<30);
+		temp = temp * float64(1<<30);
 		exp = exp - 60;
 	}
 	for exp < -60 {
-		temp = temp / double(1<<30);
+		temp = temp / float64(1<<30);
 		exp = exp + 60;
 	}
 	if exp >= 0 {
-		temp = temp * double(1 << (exp/2));
+		temp = temp * float64(1 << (exp/2));
 	} else {
-		temp = temp / double(1 << (-exp/2));
+		temp = temp / float64(1 << (-exp/2));
 	}
 
 	for i=0; i<=4; i=i+1 {

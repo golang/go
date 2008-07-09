@@ -7,12 +7,12 @@ package math
 export	atan
 
 /*
-	floating-point arctangent
-
-	atan returns the value of the arctangent of its
-	argument in the range [-pi/2,pi/2].
-	there are no error returns.
-	coefficients are #5077 from Hart & Cheney. (19.56D)
+ *	floating-point arctangent
+ *
+ *	atan returns the value of the arctangent of its
+ *	argument in the range [-pi/2,pi/2].
+ *	there are no error returns.
+ *	coefficients are #5077 from Hart & Cheney. (19.56D)
 */
 
 
@@ -35,14 +35,14 @@ const
 )
 
 /*
-	xatan evaluates a series valid in the
-	range [-0.414...,+0.414...]. (tan(pi/8))
+ *	xatan evaluates a series valid in the
+ *	range [-0.414...,+0.414...]. (tan(pi/8))
  */
 
 func
-xatan(arg double) double
+xatan(arg float64) float64
 {
-	var argsq, value double;
+	var argsq, value float64;
 
 	argsq = arg*arg;
 	value = ((((p4*argsq + p3)*argsq + p2)*argsq + p1)*argsq + p0);
@@ -51,12 +51,11 @@ xatan(arg double) double
 }
 
 /*
-	satan reduces its argument (known to be positive)
-	to the range [0,0.414...] and calls xatan.
+ *	satan reduces its argument (known to be positive)
+ *	to the range [0,0.414...] and calls xatan.
  */
-
 func
-satan(arg double) double
+satan(arg float64) float64
 {
 
 	if arg < sq2m1 {
@@ -69,12 +68,11 @@ satan(arg double) double
 }
 
 /*
-	atan makes its argument positive and
-	calls the inner routine satan.
+ *	atan makes its argument positive and
+ *	calls the inner routine satan.
  */
-
 func
-atan(arg double) double
+atan(arg float64) float64
 {
 
 	if arg > 0 {

@@ -21,9 +21,9 @@ const
 )
 
 func
-sinus(arg double, quad int) double
+sinus(arg float64, quad int) float64
 {
-	var e, f, ysq, x, y, temp1, temp2 double;
+	var e, f, ysq, x, y, temp1, temp2 float64;
 	var k long;
 
 	x = arg;
@@ -34,12 +34,12 @@ sinus(arg double, quad int) double
 	x = x * piu2;	/* underflow? */
 	if x > 32764 {
 		e,y = sys.modf(x);
-		e = e + double(quad);
+		e = e + float64(quad);
 		temp1,f = sys.modf(0.25*e);
 		quad = int(e - 4*f);
 	} else {
 		k = long(x);
-		y = x - double(k);
+		y = x - float64(k);
 		quad = (quad + int(k)) & 3;
 	}
 
@@ -57,7 +57,7 @@ sinus(arg double, quad int) double
 }
 
 func
-cos(arg double) double
+cos(arg float64) float64
 {
 	if arg < 0 {
 		arg = -arg;
@@ -66,7 +66,7 @@ cos(arg double) double
 }
 
 func
-sin(arg double) double
+sin(arg float64) float64
 {
 	return sinus(arg, 0);
 }

@@ -8,9 +8,9 @@ import	math "atan"
 export	atan2
 
 /*
-	atan2 discovers what quadrant the angle
-	is in and calls atan.
-*/
+ *	atan2 discovers what quadrant the angle
+ *	is in and calls atan.
+ */
 
 const
 (
@@ -19,9 +19,9 @@ const
 )
 
 func
-atan2(arg1, arg2 double) double
+atan2(arg1, arg2 float64) float64
 {
-	var x double;
+	var x float64;
 
 	if arg1+arg2 == arg1 {
 		if arg1 >= 0 {

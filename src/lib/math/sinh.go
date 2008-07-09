@@ -8,17 +8,17 @@ import	math "exp"
 export	sinh, cosh
 
 /*
-	sinh(arg) returns the hyperbolic sine of its floating-
-	point argument.
-
-	The exponential func is called for arguments
-	greater in magnitude than 0.5.
-
-	A series is used for arguments smaller in magnitude than 0.5.
-	The coefficients are #2029 from Hart & Cheney. (20.36D)
-
-	cosh(arg) is computed from the exponential func for
-	all arguments.
+ *	sinh(arg) returns the hyperbolic sine of its floating-
+ *	point argument.
+ *
+ *	The exponential func is called for arguments
+ *	greater in magnitude than 0.5.
+ *
+ *	A series is used for arguments smaller in magnitude than 0.5.
+ *	The coefficients are #2029 from Hart & Cheney. (20.36D)
+ *
+ *	cosh(arg) is computed from the exponential func for
+ *	all arguments.
  */
 
 const
@@ -33,9 +33,9 @@ const
 )
 
 func
-sinh(arg double) double
+sinh(arg float64) float64
 {
-	var temp, argsq double;
+	var temp, argsq float64;
 	var sign bool;
 
 	sign = false;
@@ -43,6 +43,7 @@ sinh(arg double) double
 		arg = -arg;
 		sign = true;
 	}
+
 	switch true {
 	case arg > 21:
 		temp = exp(arg)/2;
@@ -63,7 +64,7 @@ sinh(arg double) double
 }
 
 func
-cosh(arg double) double
+cosh(arg float64) float64
 {
 	if arg < 0 {
 		arg = - arg;

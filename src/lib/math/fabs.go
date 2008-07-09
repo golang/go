@@ -7,7 +7,7 @@ package math
 export	fabs
 
 func
-fabs(arg double) double
+fabs(arg float64) float64
 {
 
 	if arg < 0 {

@@ -14,15 +14,10 @@ export	pow10
  * the presumption is that GO converts fp numbers better
  * than multipication of lower powers of 10.
  */
-const
-(
-	tabsize		= 70;
-)
 
-var	tab[tabsize] double;
-func	init();
-var	initdone bool;
-
+const	tabsize		= 70;
+var	initdone	bool;
+var	tab[tabsize]	float64;
 //{
 //	1.0e0, 1.0e1, 1.0e2, 1.0e3, 1.0e4, 1.0e5, 1.0e6, 1.0e7, 1.0e8, 1.0e9,
 //	1.0e10,1.0e11,1.0e12,1.0e13,1.0e14,1.0e15,1.0e16,1.0e17,1.0e18,1.0e19,
@@ -33,8 +28,10 @@ var	initdone bool;
 //	1.0e60,1.0e61,1.0e62,1.0e63,1.0e64,1.0e65,1.0e66,1.0e67,1.0e68,1.0e69,
 //};
 
+func	init();
+
 func
-pow10(e int) double 
+pow10(e int) float64 
 {
 	if !initdone {
 		init();
@@ -53,8 +50,11 @@ func
 init()
 {
 	initdone = true;
-	tab[0] = 1.0;
-	for i:=1; i<tabsize; i=i+1 {
-		tab[i] = tab[i-1]*10;
+
+	tab[0] = 1.0e0;
+	tab[1] = 1.0e1;
+	for i:=2; i<tabsize; i++ {
+		m := i/2;
+		tab[i] = tab[m] * tab[i-m];
 	}
 }

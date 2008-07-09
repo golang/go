@@ -7,8 +7,8 @@ package math
 export		tan
 
 /*
-	floating point tangent
-	Coefficients are #4285 from Hart & Cheney. (19.74D)
+ *	floating point tangent
+ *	Coefficients are #4285 from Hart & Cheney. (19.74D)
  */
 
 const
@@ -25,9 +25,9 @@ const
 )
 
 func
-tan(arg double) double
+tan(arg float64) float64
 {
-	var temp, e, x, xsq double;
+	var temp, e, x, xsq float64;
 	var i long;
 	var flag, sign bool;
 
