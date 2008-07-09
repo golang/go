@@ -14,9 +14,10 @@ TEXT	_rt0_amd64(SB),7,$-8
 	MOVQ	AX, 16(SP)
 	MOVQ	BX, 24(SP)
 
-	// allocate the per-user block
+	// allocate the per-user and per-mach blocks
 
 	LEAQ	peruser<>(SB), R15	// dedicated u. register
+	LEAQ	permach<>(SB), R14	// dedicated m. register
 
 	LEAQ	(-4096+104+4*8)(SP), AX
 	MOVQ	AX, 0(R15)		// 0(R15) is stack limit (w 104b guard)
@@ -26,11 +27,11 @@ TEXT	_rt0_amd64(SB),7,$-8
 	CALL	mal(SB)
 
 	LEAQ	104(AX), BX
-	MOVQ	BX, 16(R15)		// 16(R15) is limit of istack (w 104b guard)
+	MOVQ	BX, 0(R14)		// 0(R14) is limit of istack (w 104b guard)
 
 	ADDQ	0(SP), AX
 	LEAQ	(-4*8)(AX), BX
-	MOVQ	BX, 24(R15)		// 24(R15) is base of istack (w auto*4)
+	MOVQ	BX, 8(R14)		// 8(R14) is base of istack (w auto*4)
 
 	CALL	check(SB)
 
@@ -75,7 +76,7 @@ TEXT	_rt0_amd64(SB),7,$-8
 TEXT	_morestack(SB), 7, $0
 	// save stuff on interrupt stack
 
-	MOVQ	24(R15), BX		// istack
+	MOVQ	8(R14), BX		// istack
 	MOVQ	SP, 8(BX)		// old SP
 	MOVQ	AX, 16(BX)		// magic number
 	MOVQ	0(R15), AX		// old limit
@@ -84,7 +85,7 @@ TEXT	_morestack(SB), 7, $0
 	// switch and set up new limit
 
 	MOVQ	BX, SP
-	MOVQ	16(R15), AX		// istack limit
+	MOVQ	0(R14), AX		// istack limit
 	MOVQ	AX, 0(R15)
 
 	// allocate a new stack max of request and 4k
@@ -180,9 +181,33 @@ TEXT _endmorestack(SB), 7, $-8
 	RET
 
 // call a subroutine in a new coroutine
-// argument list is on the stack addr of fn is in AX
+// argument list is on the stack
+// addr of fn is in AX
 TEXT	sys·_newproc(SB), 7, $0
-	JMP	AX
+	// save stuff on interrupt stack
+
+	MOVQ	8(R14), CX		// istack
+	MOVQ	AX, 0(CX)		// fn pointer
+	MOVQ	BX, 8(CX)		// arg size
+	MOVQ	SP, 16(CX)		// old SP
+	MOVQ	0(R15), AX		// old limit
+	MOVQ	AX, 24(CX)
+
+	// switch and set up new limit
+
+	MOVQ	CX, SP
+	MOVQ	0(R14), AX		// istack limit
+	MOVQ	AX, 0(R15)
+
+	CALL	_newproc(SB)
+
+	// restore old SP and limit
+
+	MOVQ	24(SP), AX		// old limit
+	MOVQ	AX, 0(R15)
+	MOVQ	16(SP), AX		// old SP
+	MOVQ	AX, SP
+
 	RET
 
 TEXT	FLUSH(SB),7,$-8
@@ -192,4 +217,5 @@ TEXT	getu(SB),7,$-8
 	MOVQ	R15, AX
 	RET
 
+GLOBL	permach<>(SB),$64
 GLOBL	peruser<>(SB),$64

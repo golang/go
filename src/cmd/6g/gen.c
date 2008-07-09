@@ -566,14 +566,46 @@ genpanic(void)
 	p->to.type = D_INDIR+D_AX;
 }
 
+int
+argsize(Type *t)
+{
+	Iter save;
+	Type *fp;
+	int w, x;
+
+	w = 0;
+
+	fp = structfirst(&save, getoutarg(t));
+	while(fp != T) {
+		x = fp->width + fp->type->width;
+		if(x > w)
+			w = x;
+		fp = structnext(&save);
+	}
+
+	fp = funcfirst(&save, t);
+	while(fp != T) {
+		x = fp->width + fp->type->width;
+		if(x > w)
+			w = x;
+		fp = structnext(&save);
+	}
+
+	w = (w+7) & ~7;
+	return w;
+}
+
 void
 ginscall(Node *f, int proc)
 {
-	Node regax;
+	Node reg, con;
 
 	if(proc) {
-		nodreg(&regax, types[TINT64], D_AX);
-		gins(ALEAQ, f, &regax);
+		nodreg(&reg, types[TINT64], D_AX);
+		gins(ALEAQ, f, &reg);
+		nodreg(&reg, types[TINT64], D_BX);
+		nodconst(&con, types[TINT32], argsize(f->type));
+		gins(AMOVL, &con, &reg);
 		gins(ACALL, N, newproc);
 		return;
 	}

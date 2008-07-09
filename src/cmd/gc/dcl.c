@@ -144,7 +144,7 @@ funcnam(Type *t, char *nam)
 
 	if(nam == nil) {
 		vargen++;
-		snprint(buf, sizeof(buf), "_f%.3ld", vargen);
+		snprint(buf, sizeof(buf), "_f%s_%.3ld", filename, vargen);
 		nam = buf;
 	}
 
@@ -153,7 +153,7 @@ funcnam(Type *t, char *nam)
 
 	if(t->thistuple > 0) {
 		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_t%s%.3ld", nam, vargen);
+		snprint(namebuf, sizeof(namebuf), "_t%s_%.3ld", filename, vargen);
 		s = lookup(namebuf);
 		addtyp(newtype(s), t->type, PEXTERN);
 		n = newname(s);
@@ -162,7 +162,7 @@ funcnam(Type *t, char *nam)
 	}
 	if(t->outtuple > 0) {
 		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_o%s%.3ld", nam, vargen);
+		snprint(namebuf, sizeof(namebuf), "_o%s_%.3ld", filename, vargen);
 		s = lookup(namebuf);
 		addtyp(newtype(s), t->type->down, PEXTERN);
 		n = newname(s);
@@ -171,7 +171,7 @@ funcnam(Type *t, char *nam)
 	}
 	if(t->intuple > 0) {
 		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_i%s%.3ld", nam, vargen);
+		snprint(namebuf, sizeof(namebuf), "_i%s_%.3ld", filename, vargen);
 		s = lookup(namebuf);
 		addtyp(newtype(s), t->type->down->down, PEXTERN);
 		n = newname(s);
@@ -451,7 +451,7 @@ loop:
 		f->nname = n->left;
 	} else {
 		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_e%.3ld", vargen);
+		snprint(namebuf, sizeof(namebuf), "_e%s_%.3ld", filename, vargen);
 		f->nname = newname(lookup(namebuf));
 	}
 	f->sym = f->nname->sym;
@@ -632,7 +632,7 @@ addvar(Node *n, Type *t, int ctxt)
 
 	if(ot->etype == TSTRUCT && ot->vargen == 0) {
 		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_s%.3ld", vargen);
+		snprint(namebuf, sizeof(namebuf), "_s%s_%.3ld", filename, vargen);
 		s = lookup(namebuf);
 		addtyp(newtype(s), ot, PEXTERN);
 	}

@@ -570,3 +570,16 @@ check(void)
 //	prints(1"check ok\n");
 	initsig();
 }
+
+void
+_newproc(byte* fn, int32 siz, byte* args)
+{
+	prints("_newproc fn=");
+	sys·printpointer(fn);
+	prints("; siz=");
+	sys·printint(siz);
+	prints("; args=");
+	sys·printpointer(args);
+	prints("\n");
+	dump(args, 32);
+}

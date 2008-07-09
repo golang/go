@@ -370,6 +370,7 @@ EXTERN	Sym*	pkgmyname;	// my name for package
 EXTERN	Sym*	pkgimportname;	// package name from imported package
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	sysimport;
+EXTERN	char*	filename;	// name to uniqify names
 
 EXTERN	Type*	types[NTYPE];
 EXTERN	uchar	isptr[NTYPE];
@@ -422,6 +423,7 @@ int	yyparse(void);
  *	lex.c
  */
 int	mainlex(int, char*[]);
+void	setfilename(char*);
 void	importfile(Val*);
 void	cannedimports(void);
 void	unimportfile();
