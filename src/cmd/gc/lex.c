@@ -6,6 +6,7 @@
 #define		EXTERN
 #include	"go.h"
 #include	"y.tab.h"
+#include <ar.h>
 
 #define	DBG	if(!debug['x']);else print
 enum
@@ -124,26 +125,100 @@ setfilename(char *file)
 	filename = strdup(namebuf);
 }
 
+int
+arsize(Biobuf *b, char *name){
+	struct ar_hdr *a;
+
+	if((a = Brdline(b, '\n')) == nil)
+		return 0;
+	if(Blinelen(b) != sizeof(struct ar_hdr))
+		return 0;
+	if(strncmp(a->name, name, strlen(name)) != 0)
+		return 0;
+	return atoi(a->size);
+}
+
+int
+skiptopkgdef(Biobuf *b)
+{
+	char *p;
+	int sz;
+
+	/* archive header */
+	if((p = Brdline(b, '\n')) == nil)
+		return 0;
+	if(Blinelen(b) != 8)
+		return 0;
+	if(memcmp(p, "!<arch>\n", 8) != 0)
+		return 0;
+	/* symbol table is first; skip it */
+	sz = arsize(b, "__.SYMDEF");
+	if(sz <= 0)
+		return 0;
+	Bseek(b, sz, 1);
+	/* package export block is second */
+	sz = arsize(b, "__.PKGDEF");
+	if(sz <= 0)
+		return 0;
+	return 1;
+}
+
+int
+findpkg(String *name)
+{
+	static char* goroot;
+
+	if(goroot == nil) {
+		goroot = getenv("GOROOT");
+		if(goroot == nil)
+			return 0;
+	}
+
+	// BOTCH need to get .6 from backend
+	snprint(namebuf, sizeof(namebuf), "%Z.6", name);
+	if(access(namebuf, 0) >= 0)
+		return 1;
+	snprint(namebuf, sizeof(namebuf), "%Z.a", name);
+	if(access(namebuf, 0) >= 0)
+		return 1;
+	snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.6", goroot, name);
+	if(access(namebuf, 0) >= 0)
+		return 1;
+	snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.a", goroot, name);
+	if(access(namebuf, 0) >= 0)
+		return 1;
+	return 0;
+}
+
 void
 importfile(Val *f)
 {
 	Biobuf *imp;
 	char *file;
 	long c;
+	char *p;
+	int len;
 
 	if(f->ctype != CTSTR) {
 		yyerror("import statement not a string");
 		return;
 	}
 
-	// BOTCH need to get .6 from backend
-	snprint(namebuf, sizeof(namebuf), "%Z.6", f->sval);
-	file = strdup(namebuf);
-	linehist(file, 0);
-
-	imp = Bopen(file, OREAD);
+	if(!findpkg(f->sval))
+		fatal("can't find import: %Z", f->sval);
+	imp = Bopen(namebuf, OREAD);
 	if(imp == nil)
-		fatal("cant open import: %s", namebuf);
+		fatal("can't open import: %Z", f->sval);
+	file = strdup(namebuf);
+
+	len = strlen(namebuf);
+	if(len > 2)
+	if(namebuf[len-2] == '.')
+	if(namebuf[len-1] == 'a')
+	if(!skiptopkgdef(imp))
+		fatal("import not package file: %s", namebuf);
+
+	linehist(file, 0);
 	linehist(file, -1);	// acts as #pragma lib
 
 	/*
@@ -675,6 +750,8 @@ getc(void)
 
 	switch(c) {
 	case 0:
+		if(curio.bin != nil)
+			break;
 	case EOF:
 		return EOF;
 
