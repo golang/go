@@ -10,7 +10,7 @@ do
 	cd ..
 done
 
-for i in cmd runtime
+for i in cmd runtime lib
 do
 	cd $i
 	bash clean.bash
