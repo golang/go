@@ -33,7 +33,7 @@ hello, world
 =========== ./readfile.go
 
 =========== ./sieve.go
-sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(201)
+sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(212)
 BUG: known to fail incorrectly
 
 =========== ./simassign.go
@@ -48,8 +48,6 @@ BUG: known to fail incorrectly
 
 =========== ./turing.go
 Hello World!
-
-=========== ./utf.go
 
 =========== ken/for.go
 
@@ -180,8 +178,8 @@ Faulting address: 0x1
 pc: 0x1349
 
 0x1349?zi
-	main·main(1, 0, 1606416464, ...)
-	main·main(0x1, 0x7fff5fbff850, 0x1, ...)
+	main·main(1, 0, 1606416456, ...)
+	main·main(0x1, 0x7fff5fbff848, 0x1, ...)
 
 BUG: incorrect code for division
 
@@ -191,16 +189,16 @@ BUG: len should not be a keyword
 
 =========== bugs/bug054.go
 xxx
-.   CALL u(100) l(218) <Element>I{}
-.   .   NAME-Vector_At G0 a(1) l(205) 111({},{}){}
-.   .   AS u(1) l(218)
-.   .   .   INDREG a(1) l(218) v G0 *<Vector>{}
-.   .   .   DOTPTR u(1) l(218) *<Vector>{}
-.   .   .   .   NAME-s G264 a(1) g(264) l(214) *<TStruct>{}
-.   .   .   .   NAME-fields G0 a(1) l(211)
-.   .   AS u(1) l(218)
-.   .   .   INDREG a(1) l(218) i G265 <int32>INT32
-.   .   .   NAME-i G265 a(1) g(265) l(214) <int32>INT32
+.   CALL u(100) l(229) <Element>I{}
+.   .   NAME-Vector_At G0 a(1) l(216) 111({},{}){}
+.   .   AS u(1) l(229)
+.   .   .   INDREG a(1) l(229) v G0 *<Vector>{}
+.   .   .   DOTPTR u(1) l(229) *<Vector>{}
+.   .   .   .   NAME-s G279 a(1) g(279) l(225) *<TStruct>{}
+.   .   .   .   NAME-fields G0 a(1) l(222)
+.   .   AS u(1) l(229)
+.   .   .   INDREG a(1) l(229) i G280 <int32>INT32
+.   .   .   NAME-i G280 a(1) g(280) l(225) <int32>INT32
 bugs/bug054.go:25: fatal error: agen_inter i2s
 BUG: known to fail incorrectly
 
@@ -233,6 +231,10 @@ BUG: should compile without problems
 bugs/bug064.go:15: illegal types for operand: CALL
 	(<int32>INT32)
 	({<u><int32>INT32;<v><int32>INT32;})
+BUG: compilation should succeed
+
+=========== bugs/bug065.go
+bugs/bug065.go:6: unknown escape sequence: '
 BUG: compilation should succeed
 
 =========== fixedbugs/bug000.go
@@ -293,7 +295,7 @@ fixedbugs/bug035.go:7: var f redeclared in this block
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(199) t=<T> nil
+fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(210) t=<T> nil
 
 =========== fixedbugs/bug038.go
 

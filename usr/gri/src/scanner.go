@@ -250,24 +250,10 @@ func digit_val (ch int) int {
 export Scanner
 type Scanner struct {
 	src string;
-	pos int;
+	pos int;  // current reading position
 	ch int;  // one char look-ahead
+	chpos int;  // position of ch
 }
-
-
-/*
-export Token
-type Token struct {
-	val int;
-	beg, end int;
-	txt string;
-}
-
-
-func (T *Token) Print () {
-	print TokenName(T.val), " [", T.beg, ", ", T.end, "[ ", T.txt, "\n";
-}
-*/
 
 
 // Read the next Unicode char into S.ch.
@@ -306,12 +292,14 @@ func (S *Scanner) Next () {
 	// 0000-007F => T1
 	if pos >= lim {
 		S.ch = -1;  // end of file
+		S.chpos = lim;
 		return;
 	}
 	c0 := int(src[pos]);
 	pos++;
 	if c0 < Tx {
 		S.ch = c0;
+		S.chpos = S.pos;
 		S.pos = pos;
 		return;
 	}
@@ -335,6 +323,7 @@ func (S *Scanner) Next () {
 			goto bad;
 		}
 		S.ch = r;
+		S.chpos = S.pos;
 		S.pos = pos;
 		return;
 	}
@@ -355,6 +344,7 @@ func (S *Scanner) Next () {
 			goto bad;
 		}
 		S.ch = r;
+		S.chpos = S.pos;
 		S.pos = pos;
 		return;
 	}
@@ -362,6 +352,7 @@ func (S *Scanner) Next () {
 	// bad encoding
 bad:
 	S.ch = Bad;
+	S.chpos = S.pos;
 	S.pos += 1;
 	return;
 }
@@ -415,9 +406,59 @@ func (S *Scanner) Open (src string) {
 }
 
 
+// TODO this needs to go elsewhere
+func IntString(x, base int) string {
+	neg := false;
+	if x < 0 {
+		x = -x;
+		if x < 0 {
+			panic "smallest int not handled";
+		}
+		neg = true;
+	}
+
+	hex := "0123456789ABCDEF";
+	var buf [16] byte;
+	i := 0;
+	for x > 0 || i == 0 {
+		buf[i] = hex[x % base];
+		x /= base;
+		i++;
+	}
+	
+	s := "";
+	if neg {
+		s = "-";
+	}
+	for i > 0 {
+		i--;
+		s = s + string(int(buf[i]));
+	}
+	return s;
+}
+
+
+
+func CharString(ch int) string {
+	s := string(ch);
+	switch ch {
+	case '\a': s = "\\a";
+	case '\b': s = "\\b";
+	case '\f': s = "\\f";
+	case '\n': s = "\\n";
+	case '\r': s = "\\r";
+	case '\t': s = "\\t";
+	case '\v': s = "\\v";
+	case '\\': s = "\\";
+	case '\'': s = "\\'";
+	}
+	return "'" + s + "' (U+" + IntString(ch, 16) + ")";
+}
+
+
 func (S *Scanner) Expect (ch int) {
 	if S.ch != ch {
-		S.Error(S.pos, "expected " + string(ch) + ", found " + string(S.ch));
+		S.Error(S.chpos, "expected " + CharString(ch) + ", found " + CharString(S.ch));
 	}
 	S.Next();  // make always progress
 }
@@ -431,6 +472,7 @@ func (S *Scanner) SkipWhitespace () {
 
 
 func (S *Scanner) SkipComment () {
+	// '/' already consumed
 	if S.ch == '/' {
 		// comment
 		S.Next();
@@ -440,8 +482,8 @@ func (S *Scanner) SkipComment () {
 		
 	} else {
 		/* comment */
-		pos := S.pos;
-		S.Next();
+		pos := S.chpos - 1;
+		S.Expect('*');
 		for S.ch >= 0 {
 			ch := S.ch;
 			S.Next();
@@ -534,7 +576,7 @@ func (S *Scanner) ScanDigits(n int, base int) {
 		n--;
 	}
 	if n > 0 {
-		S.Error(S.pos, "illegal char escape");
+		S.Error(S.chpos, "illegal char escape");
 	}
 }
 
@@ -543,6 +585,7 @@ func (S *Scanner) ScanEscape () string {
 	// TODO: fix this routine
 	
 	ch := S.ch;
+	pos := S.chpos;
 	S.Next();
 	switch (ch) {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"':
@@ -565,7 +608,7 @@ func (S *Scanner) ScanEscape () string {
 		return "";  // TODO fix this
 
 	default:
-		S.Error(S.pos, "illegal char escape");
+		S.Error(pos, "illegal char escape");
 	}
 }
 
@@ -587,12 +630,13 @@ func (S *Scanner) ScanChar () int {
 func (S *Scanner) ScanString () int {
 	// '"' already consumed
 
-	pos := S.pos - 1;  // TODO maybe incorrect (Unicode)
+	pos := S.chpos - 1;
 	for S.ch != '"' {
 		ch := S.ch;
 		S.Next();
 		if ch == '\n' || ch < 0 {
 			S.Error(pos, "string not terminated");
+			break;
 		}
 		if ch == '\\' {
 			S.ScanEscape();
@@ -607,12 +651,13 @@ func (S *Scanner) ScanString () int {
 func (S *Scanner) ScanRawString () int {
 	// '`' already consumed
 
-	pos := S.pos - 1;  // TODO maybe incorrect (Unicode)
+	pos := S.chpos - 1;
 	for S.ch != '`' {
 		ch := S.ch;
 		S.Next();
 		if ch == '\n' || ch < 0 {
 			S.Error(pos, "string not terminated");
+			break;
 		}
 	}
 
@@ -672,7 +717,7 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 	case is_letter(ch): tok = S.ScanIdentifier();
 	case digit_val(ch) < 10: tok = S.ScanNumber(false);
 	default:
-		S.Next();
+		S.Next();  // always make progress
 		switch ch {
 		case -1: tok = EOF;
 		case '"': tok = S.ScanString();
@@ -712,18 +757,10 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 		case '!': tok = S.Select2(NOT, NEQ);
 		case '&': tok = S.Select3(AND, AND_ASSIGN, '&', CAND);
 		case '|': tok = S.Select3(OR, OR_ASSIGN, '|', COR);
-		default: tok = ILLEGAL;
 		}
 	}
 	
-	end = S.pos - 1;
-	
-	/*
-	t.val = tok;
-	t.beg = beg;
-	t.end = end;
-	t.txt = S.src[beg : end];
-	*/
+	end = S.pos - 1;  // TODO correct? (Unicode)
 	
 	return tok, beg, end;
 }
