@@ -564,6 +564,7 @@ doimport4(Node *ss, Node *n)
 
 	t = typ(TSTRUCT);
 	importstotype(n, &t->type, t);
+	dowidth(t);
 
 	importaddtyp(ss, t);
 }
@@ -619,6 +620,7 @@ doimport7(Node *ss, Node *n)
 
 	t = typ(TINTER);
 	importstotype(n, &t->type, t);
+	dowidth(t);
 
 	importaddtyp(ss, t);
 }
