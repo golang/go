@@ -7,14 +7,11 @@ package main
 import Scanner "scanner"
 
 
-func Scan(src string) {
+func Scan(filename, src string) {
 	S := new(Scanner.Scanner);
-	S.Open(src);
+	S.Open(filename, src);
 	for {
-		//var t Scanner.Token;
-		var tok, beg, end int;
-		tok, beg, end = S.Scan(/*&t*/);
-		//t.Print();  // TODO  this doesn't compile?
+		tok, beg, end := S.Scan();
 		print Scanner.TokenName(tok), "\t ", src[beg : end], "\n";
 		if tok == Scanner.EOF {
 			return;
@@ -30,7 +27,7 @@ func main() {
 		src, ok = sys.readfile(sys.argv(i));
 		if ok {
 			print "scanning " + sys.argv(i) + "\n";
-			Scan(src);
+			Scan(sys.argv(i), src);
 		} else {
 			print "error: cannot read " + sys.argv(i) + "\n";
 		}

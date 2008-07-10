@@ -16,7 +16,7 @@ export
 	SHL, SHR,
 	ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN,
 	AND_ASSIGN, OR_ASSIGN, XOR_ASSIGN, SHL_ASSIGN, SHR_ASSIGN,
-	CAND, COR,
+	LAND, LOR,
 	BREAK, CASE, CHAN, CONST, CONTINUE, DEFAULT, ELSE, EXPORT, FALLTHROUGH, FALSE,
 	FOR, FUNC, GO, GOTO, IF, IMPORT, INTERFACE, IOTA, MAP, NEW, NIL, PACKAGE, RANGE,
 	RETURN, SELECT, STRUCT, SWITCH, TRUE, TYPE, VAR
@@ -81,8 +81,8 @@ const (
 	SHL_ASSIGN;
 	SHR_ASSIGN;
 
-	CAND;
-	COR;
+	LAND;
+	LOR;
 	
 	// keywords
 	KEYWORDS_BEG;
@@ -184,8 +184,8 @@ func TokenName(tok int) string {
 	case SHL_ASSIGN: return "<<=";
 	case SHR_ASSIGN: return ">>=";
 
-	case CAND: return "&&";
-	case COR: return "||";
+	case LAND: return "&&";
+	case LOR: return "||";
 
 	case BREAK: return "break";
 	case CASE: return "case";
@@ -249,6 +249,10 @@ func digit_val (ch int) int {
 
 export Scanner
 type Scanner struct {
+	filename string;  // error reporting only
+	nerrors int;  // number of errors
+	errpos int;  // last error position
+	
 	src string;
 	pos int;  // current reading position
 	ch int;  // one char look-ahead
@@ -389,17 +393,25 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
 
 
 func (S *Scanner) Error(pos int, msg string) {
-	line, col := S.LineCol(pos);
-	print "error ", line, ":", col, ": ", msg, "\n";
+	const errdist = 10;
+	if pos > S.errpos + errdist || S.nerrors == 0 {
+		line, col := S.LineCol(pos);
+		print S.filename, ":", line, ":", col, ": ", msg, "\n";
+		S.nerrors++;
+		S.errpos = pos;
+	}
 }
 
 
-func (S *Scanner) Open (src string) {
+func (S *Scanner) Open (filename, src string) {
 	if Keywords == nil {
 		Init();
 	}
 
-	//S.nerrors = 0;
+	S.filename = filename;
+	S.nerrors = 0;
+	S.errpos = 0;
+	
 	S.src = src;
 	S.pos = 0;
 	S.Next();
@@ -438,19 +450,18 @@ func IntString(x, base int) string {
 }
 
 
-
 func CharString(ch int) string {
 	s := string(ch);
 	switch ch {
-	case '\a': s = "\\a";
-	case '\b': s = "\\b";
-	case '\f': s = "\\f";
-	case '\n': s = "\\n";
-	case '\r': s = "\\r";
-	case '\t': s = "\\t";
-	case '\v': s = "\\v";
-	case '\\': s = "\\";
-	case '\'': s = "\\'";
+	case '\a': s = `\a`;
+	case '\b': s = `\b`;
+	case '\f': s = `\f`;
+	case '\n': s = `\n`;
+	case '\r': s = `\r`;
+	case '\t': s = `\t`;
+	case '\v': s = `\v`;
+	case '\\': s = `\\`;
+	case '\'': s = `\'`;
 	}
 	return "'" + s + "' (U+" + IntString(ch, 16) + ")";
 }
@@ -708,11 +719,10 @@ func (S *Scanner) Select4 (tok0, tok1, ch2, tok2, tok3 int) int {
 func (S *Scanner) Scan () (tok, beg, end int) {
 	S.SkipWhitespace();
 	
-	tok = ILLEGAL;
-	beg = S.pos - 1;
-	end = beg;
-	
 	ch := S.ch;
+	tok = ILLEGAL;
+	beg = S.chpos;
+
 	switch {
 	case is_letter(ch): tok = S.ScanIdentifier();
 	case digit_val(ch) < 10: tok = S.ScanNumber(false);
@@ -755,12 +765,13 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 		case '>': tok = S.Select4(GTR, GEQ, '>', SHR, SHR_ASSIGN);
 		case '=': tok = S.Select2(ASSIGN, EQL);
 		case '!': tok = S.Select2(NOT, NEQ);
-		case '&': tok = S.Select3(AND, AND_ASSIGN, '&', CAND);
-		case '|': tok = S.Select3(OR, OR_ASSIGN, '|', COR);
+		case '&': tok = S.Select3(AND, AND_ASSIGN, '&', LAND);
+		case '|': tok = S.Select3(OR, OR_ASSIGN, '|', LOR);
+		default:
+			S.Error(beg, "illegal character " + CharString(ch));
+			tok = ILLEGAL;
 		}
 	}
 	
-	end = S.pos - 1;  // TODO correct? (Unicode)
-	
-	return tok, beg, end;
+	return tok, beg, S.chpos;
 }

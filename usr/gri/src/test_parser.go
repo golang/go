@@ -8,9 +8,9 @@ import Scanner "scanner"
 import Parser "parser"
 
 
-func Parse(src string, verbose int) {
+func Parse(filename, src string, verbose int) {
 	S := new(Scanner.Scanner);
-	S.Open(src);
+	S.Open(filename, src);
 	
 	P := new(Parser.Parser);
 	P.Open(S, verbose);
@@ -31,12 +31,10 @@ func main() {
 			continue;
 		}
 		
-		var src string;
-		var ok bool;
-		src, ok = sys.readfile(sys.argv(i));
+		src, ok := sys.readfile(sys.argv(i));
 		if ok {
 			print "parsing " + sys.argv(i) + "\n";
-			Parse(src, verbose);
+			Parse(sys.argv(i), src, verbose);
 		} else {
 			print "error: cannot read " + sys.argv(i) + "\n";
 		}

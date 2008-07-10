@@ -4,7 +4,6 @@
 
 package Parser
 
-//import . "scanner"
 import Scanner "scanner"
 
 
@@ -63,8 +62,8 @@ func (P *Parser) Open(S *Scanner.Scanner, verbose int) {
 }
 
 
-func (P *Parser) Error(msg string) {
-	P.S.Error(P.S.pos, msg);
+func (P *Parser) Error(pos int, msg string) {
+	P.S.Error(pos, msg);
 	P.Next();  // make progress
 }
 
@@ -73,7 +72,7 @@ func (P *Parser) Expect(tok int) {
 	if P.tok == tok {
 		P.Next()
 	} else {
-		P.Error("expected `" + Scanner.TokenName(tok) + "`, found `" + Scanner.TokenName(P.tok) + "`");
+		P.Error(P.beg, "expected '" + Scanner.TokenName(tok) + "', found '" + Scanner.TokenName(P.tok) + "'");
 	}
 }
 
@@ -130,7 +129,7 @@ func (P *Parser) ParseTypeName() {
 func (P *Parser) ParseType() {
 	P.Trace("Type");
 	if !P.TryType() {
-		P.Error("type expected");
+		P.Error(P.beg, "type expected");
 	}
 	P.Ecart();
 }
@@ -583,7 +582,7 @@ func (P *Parser) ParseControlFlowStat(tok int) {
 func (P *Parser) ParseStatement() {
 	P.Trace("Statement");
 	if !P.TryStatement() {
-		P.Error("statement expected");
+		P.Error(P.beg, "statement expected");
 	}
 	P.Ecart();
 }
@@ -874,7 +873,7 @@ func (P *Parser) ParseDeclaration() {
 	case Scanner.EXPORT:
 		P.ParseExportDecl();
 	default:
-		P.Error("declaration expected");
+		P.Error(P.beg, "declaration expected");
 	}
 	if indent != P.indent {
 		panic "imbalanced tracing code"
@@ -916,7 +915,7 @@ func (P *Parser) ParseOperand() {
 	case Scanner.NEW:
 		P.ParseNew();
 	default:
-		P.Error("operand expected");
+		P.Error(P.beg, "operand expected");
 	}
 	P.Ecart();
 }
@@ -1004,9 +1003,9 @@ func (P *Parser) ParseUnaryExpr() {
 func Precedence(tok int) int {
 	// TODO should use a map or array here for lookup
 	switch tok {
-	case Scanner.COR:
+	case Scanner.LOR:
 		return 1;
-	case Scanner.CAND:
+	case Scanner.LAND:
 		return 2;
 	case Scanner.EQL, Scanner.NEQ, Scanner.LSS, Scanner.LEQ, Scanner.GTR, Scanner.GEQ:
 		return 3;
