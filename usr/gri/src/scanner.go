@@ -387,7 +387,7 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
 	}
 
 	for i := 0; i < pos; i++ {
-		if src[i] != '\n' {
+		if src[i] == '\n' {
 			line++;
 			lpos = i;
 		}
