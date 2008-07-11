@@ -592,10 +592,14 @@ func (P *Parser) ParseIfStat() {
 	P.Trace("IfStat");
 	P.Expect(Scanner.IF);
 	if P.tok != Scanner.LBRACE {
-		P.ParseSimpleStat();
+		if P.tok != Scanner.SEMICOLON {
+			P.ParseSimpleStat();
+		}
 		if P.tok == Scanner.SEMICOLON {
 			P.Next();
-			P.ParseExpression();
+			if P.tok != Scanner.LBRACE {
+				P.ParseExpression();
+			}
 		}
 	}
 	P.ParseBlock();
@@ -677,10 +681,14 @@ func (P *Parser) ParseSwitchStat() {
 	P.Trace("SwitchStat");
 	P.Expect(Scanner.SWITCH);
 	if P.tok != Scanner.LBRACE {
-		P.ParseSimpleStat();
+		if P.tok != Scanner.SEMICOLON {
+			P.ParseSimpleStat();
+		}
 		if P.tok == Scanner.SEMICOLON {
 			P.Next();
-			P.ParseExpression();
+			if P.tok != Scanner.LBRACE {
+				P.ParseExpression();
+			}
 		}
 	}
 	P.Expect(Scanner.LBRACE);
