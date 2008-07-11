@@ -1046,10 +1046,13 @@ func (P *Parser) ParseProgram() {
 	P.Trace("Program");
 	P.Expect(Scanner.PACKAGE);
 	P.ParseIdent();
+	P.Optional(Scanner.SEMICOLON);
+	
 	for P.tok == Scanner.IMPORT {
 		P.ParseImportDecl();
 		P.Optional(Scanner.SEMICOLON);
 	}
+	
 	for P.tok != Scanner.EOF {
 		P.ParseDeclaration();
 		P.Optional(Scanner.SEMICOLON);

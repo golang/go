@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package Globals;
+package Globals
 
 
 // The following types should really be in their respective files
@@ -49,6 +49,7 @@ type Scope struct {
 }
 
 
+/*
 func (scope *Scope) Lookup(ident string) *Object {
 	panic "UNIMPLEMENTED";
 	return nil;
@@ -64,3 +65,4 @@ func (scope *Scope) InsertImport(obj *Object) *Object {
 	panic "UNIMPLEMENTED";
 	return nil;
 }
+*/
