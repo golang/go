@@ -4,8 +4,8 @@
 
 package math
 
-import	math "atan"
-import	math "sqrt"
+import	math "math"
+import	math "math"
 
 export	asin, acos
 
