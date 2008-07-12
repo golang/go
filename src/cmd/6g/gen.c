@@ -28,7 +28,7 @@ if(newproc == N) {
 	newproc = nod(ONAME, N, N);
 	memset(newproc, 0, sizeof(*newproc));
 	newproc->op = ONAME;
-	newproc->sym = pkglookup("_newproc", "sys");
+	newproc->sym = pkglookup("newproc", "sys");
 	newproc->class = PEXTERN;
 	newproc->addable = 1;
 	newproc->ullman = 0;
@@ -603,10 +603,12 @@ ginscall(Node *f, int proc)
 	if(proc) {
 		nodreg(&reg, types[TINT64], D_AX);
 		gins(ALEAQ, f, &reg);
-		nodreg(&reg, types[TINT64], D_BX);
+		gins(APUSHQ, &reg, N);
 		nodconst(&con, types[TINT32], argsize(f->type));
-		gins(AMOVL, &con, &reg);
+		gins(APUSHQ, &con, N);
 		gins(ACALL, N, newproc);
+		gins(APOPQ, N, &reg);
+		gins(APOPQ, N, &reg);
 		return;
 	}
 	gins(ACALL, N, f);

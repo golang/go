@@ -572,19 +572,20 @@ dostkoff(void)
 	Sym *symmorestack;
 
 	pmorestack = P;
-	symmorestack = lookup("_morestack", 0);
+	symmorestack = lookup("sys·morestack", 0);
 
 	if(symmorestack->type == STEXT)
 	for(p = firstp; p != P; p = p->link) {
 		if(p->as == ATEXT) {
 			if(p->from.sym == symmorestack) {
 				pmorestack = p;
+				p->from.scale |= NOSPLIT;
 				break;
 			}
 		}
 	}
 	if(pmorestack == P)
-		diag("_morestack not defined");
+		diag("sys·morestack not defined");
 
 	curframe = 0;
 	curbecome = 0;
@@ -693,7 +694,7 @@ dostkoff(void)
 				p = appendp(p);
 				p->as = AJHI;
 				p->to.type = D_BRANCH;
-				p->to.offset = 3;
+				p->to.offset = 4;
 				q = p;
 
 				p = appendp(p);
@@ -706,6 +707,12 @@ dostkoff(void)
 				if(autoffset+160 > 4096)
 					p->from.offset = (autoffset+160) & ~7LL;
 				p->from.offset |= textarg<<32;
+
+				p = appendp(p);
+				p->as = AMOVQ;
+				p->from.type = D_AX;
+				p->to.type = D_INDIR+D_R14;
+				p->to.offset = 8;
 
 				p = appendp(p);
 				p->as = ACALL;
