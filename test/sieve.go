@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package Main
+package main
 
 // Send the sequence 2, 3, 4, ... to channel 'ch'.
 func Generate(ch *chan> int) {
@@ -30,13 +30,13 @@ func Sieve() {
   go Generate(ch);  // Start Generate() as a subprocess.
   for {
     prime := <ch;
-    print "%d\n",  prime;
+    print prime, "\n";
     ch1 := new(chan int);
     go Filter(ch, ch1, prime);
     ch = ch1
   }
 }
 
-func Main() {
+func main() {
   Sieve()
 }
