@@ -4,7 +4,7 @@
 
 package math
 
-import		math "sinh"
+import		math "math"
 export		tanh
 
 /*

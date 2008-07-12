@@ -4,7 +4,7 @@
 
 package math
 
-import	math "floor"
+import	math "math"
 export	exp
 
 /*

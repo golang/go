@@ -4,10 +4,10 @@
 
 package math
 
-import		math "floor"
-import		math "sqrt"
-import		math "log"
-import		math "exp"
+import		math "math"
+import		math "math"
+import		math "math"
+import		math "math"
 export		pow
 
 /*

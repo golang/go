@@ -4,7 +4,7 @@
 
 package math
 
-import	math "atan"
+import	math "math"
 export	atan2
 
 /*
