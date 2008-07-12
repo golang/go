@@ -50,14 +50,6 @@ TEXT	sys·breakpoint(SB),7,$-8
 	BYTE	$0xcc
 	RET
 
-TEXT _morestack(SB), 7, $-8
-	BYTE	$0xcc
-	RET
-
-// marker.  must be here; used by traceback() to discover calls to _morestack
-TEXT _endmorestack(SB), 7, $-8
-	RET
-
 TEXT	FLUSH(SB),7,$-8
 	RET
 
