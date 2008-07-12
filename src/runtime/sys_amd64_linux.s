@@ -65,10 +65,6 @@ TEXT	sigtramp(SB),1,$24
 	CALL	sighandler(SB)
 	RET
 
-TEXT	sys·breakpoint(SB),1,$-8
-	BYTE	$0xcc
-	RET
-
 TEXT	sys·mmap(SB),1,$-8
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI

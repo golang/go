@@ -4,9 +4,9 @@
 
 #include "runtime.h"
 
+G	g0;			// idle goroutine
 int32	debug	= 0;
 
-/*BUG: move traceback code to architecture-dependent runtime */
 void
 sys·panicl(int32 lno)
 {
@@ -18,7 +18,7 @@ sys·panicl(int32 lno)
 	sys·printpc(&lno);
 	prints("\n");
 	sp = (uint8*)&lno;
-	traceback(sys·getcallerpc(&lno), sp, getu());
+	traceback(sys·getcallerpc(&lno), sp, g);
 	sys·breakpoint();
 	sys·exit(2);
 }
@@ -571,20 +571,229 @@ check(void)
 	initsig();
 }
 
-extern	register	u;
-uint32	a;
+void
+sys·goexit(void)
+{
+//prints("goexit goid=");
+//sys·printint(g->goid);
+//prints("\n");
+	g->status = Gdead;
+	sys·gosched();
+}
 
 void
-_newproc(byte* fn, int32 siz, byte* args)
+sys·newproc(int32 siz, byte* fn, byte* arg0)
 {
-	a = u;
+	byte *stk, *sp;
+	G *newg;
 
-	prints("_newproc fn=");
-	sys·printpointer(fn);
-	prints("; siz=");
-	sys·printint(siz);
-	prints("; args=");
-	sys·printpointer(args);
-	prints("\n");
-	dump(args, 32);
+//prints("newproc siz=");
+//sys·printint(siz);
+//prints(" fn=");
+//sys·printpointer(fn);
+
+	siz = (siz+7) & ~7;
+	if(siz > 1024) {
+		prints("sys·newproc: too many args: ");
+		sys·printint(siz);
+		prints("\n");
+		sys·panicl(123);
+	}
+
+	newg = mal(sizeof(G));
+	stk = mal(4096);
+	newg->stackguard = stk+160;
+
+	sp = stk + 4096 - 4*8;
+	newg->stackbase = sp;
+
+	sp -= siz;
+	mcpy(sp, (byte*)&arg0, siz);
+
+	sp -= 8;
+	*(byte**)sp = (byte*)sys·goexit;
+
+	sp -= 8;	// retpc used by gogo
+	newg->sched.SP = sp;
+	newg->sched.PC = fn;
+
+	goidgen++;
+	newg->goid = goidgen;
+
+	newg->status = Grunnable;
+	newg->link = allg;
+	allg = newg;
+
+//prints(" goid=");
+//sys·printint(newg->goid);
+//prints("\n");
+}
+
+G*
+select(void)
+{
+	G *gp, *bestg;
+
+	bestg = nil;
+	for(gp=allg; gp!=nil; gp=gp->link) {
+		if(gp->status != Grunnable)
+			continue;
+		if(bestg == nil || gp->pri < bestg->pri)
+			bestg = gp;
+	}
+	if(bestg != nil)
+		bestg->pri++;
+	return bestg;
+}
+
+void
+gom0init(void)
+{
+	gosave(&m->sched);
+	sys·gosched();
+}
+
+void
+sys·gosched(void)
+{
+	G* gp;
+
+	if(g != m->g0) {
+		if(gosave(&g->sched))
+			return;
+		g = m->g0;
+		gogo(&m->sched);
+	}
+	gp = select();
+	if(gp == nil) {
+//		prints("sched: no more work\n");
+		sys·exit(0);
+	}
+
+	m->curg = gp;
+	g = gp;
+	gogo(&gp->sched);
+}
+
+//
+// the calling sequence for a routine that
+// needs N bytes stack, A args.
+//
+//	N1 = (N+160 > 4096)? N+160: 0
+//	A1 = A
+//
+// if N <= 75
+//	CMPQ	SP, 0(R15)
+//	JHI	4(PC)
+//	MOVQ	$(N1<<0) | (A1<<32)), AX
+//	MOVQ	AX, 0(R14)
+//	CALL	sys·morestack(SB)
+//
+// if N > 75
+//	LEAQ	(-N-75)(SP), AX
+//	CMPQ	AX, 0(R15)
+//	JHI	4(PC)
+//	MOVQ	$(N1<<0) | (A1<<32)), AX
+//	MOVQ	AX, 0(R14)
+//	CALL	sys·morestack(SB)
+//
+
+int32 debug = 0;
+
+void
+morestack2(void)
+{
+	Stktop *top;
+	uint32 siz2;
+	byte *sp;
+if(debug) prints("morestack2\n");
+
+	top = (Stktop*)m->curg->stackbase;
+
+	m->curg->stackbase = top->oldbase;
+	m->curg->stackguard = top->oldguard;
+	siz2 = (top->magic>>32) & 0xffffLL;
+
+	sp = (byte*)top;
+	if(siz2 > 0) {
+		siz2 = (siz2+7) & ~7;
+		sp -= siz2;
+		mcpy(top->oldsp+16, sp, siz2);
+	}
+
+	m->morestack.SP = top->oldsp+8;
+	m->morestack.PC = (byte*)(*(uint64*)(top->oldsp+8));
+if(debug) prints("morestack2 sp=");
+if(debug) sys·printpointer(m->morestack.SP);
+if(debug) prints(" pc=");
+if(debug) sys·printpointer(m->morestack.PC);
+if(debug) prints("\n");
+	gogo(&m->morestack);
+}
+
+void
+morestack1(void)
+{
+	int32 siz1, siz2;
+	Stktop *top;
+	byte *stk, *sp;
+	void (*fn)(void);
+
+	siz1 = m->morearg & 0xffffffffLL;
+	siz2 = (m->morearg>>32) & 0xffffLL;
+
+if(debug) prints("morestack1 siz1=");
+if(debug) sys·printint(siz1);
+if(debug) prints(" siz2=");
+if(debug) sys·printint(siz2);
+if(debug) prints(" moresp=");
+if(debug) sys·printpointer(m->moresp);
+if(debug) prints("\n");
+
+	if(siz1 < 4096)
+		siz1 = 4096;
+	stk = mal(siz1 + 1024);
+	stk += 512;
+
+	top = (Stktop*)(stk+siz1-sizeof(*top));
+
+	top->oldbase = m->curg->stackbase;
+	top->oldguard = m->curg->stackguard;
+	top->oldsp = m->moresp;
+	top->magic = m->morearg;
+
+	m->curg->stackbase = (byte*)top;
+	m->curg->stackguard = stk + 160;
+
+	sp = (byte*)top;
+	
+	if(siz2 > 0) {
+		siz2 = (siz2+7) & ~7;
+		sp -= siz2;
+		mcpy(sp, m->moresp+16, siz2);
+	}
+
+	g = m->curg;
+	fn = (void(*)(void))(*(uint64*)m->moresp);
+if(debug) prints("fn=");
+if(debug) sys·printpointer(fn);
+if(debug) prints("\n");
+	setspgoto(sp, fn, morestack2);
+
+	*(int32*)345 = 123;
+}
+
+void
+sys·morestack(uint64 u)
+{
+	while(g == m->g0) {
+		// very bad news
+		*(int32*)123 = 123;
+	}
+
+	g = m->g0;
+	m->moresp = (byte*)(&u-1);
+	setspgoto(m->sched.SP, morestack1, nil);
+
+	*(int32*)234 = 123;
 }

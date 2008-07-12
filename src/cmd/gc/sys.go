@@ -44,6 +44,9 @@ func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
 func	mapassign1(hmap *map[any]any, key any, val any);
 func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
 
+func	gosched();
+func	goexit();
+
 func	readfile(string) (string, bool);	// read file into string; boolean status
 func	bytestorune(*byte, int32, int32) (int32, int32);	// convert bytes to runes	
 func	stringtorune(string, int32, int32) (int32, int32);	// convert bytes to runes	
@@ -92,6 +95,10 @@ export
 	mapaccess2
 	mapassign1
 	mapassign2
+
+	// go routines
+	gosched
+	goexit
 
 	// files
 	readfile

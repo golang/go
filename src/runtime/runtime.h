@@ -60,31 +60,59 @@ struct	Map
 	int32	unused;
 	void	(*fun[])(void);
 };
+typedef	struct	Gobuf		Gobuf;
+struct	Gobuf
+{
+	byte*	SP;
+	byte*	PC;
+};
 typedef	struct	G		G;
 struct	G
 {
 	byte*	stackguard;	// must not move
 	byte*	stackbase;	// must not move
-	G*	ufor;		// dbl ll of all u
-	G*	ubak;
-	G*	runqfor;	// dbl ll of runnable
-	G*	runqbak;
+	Gobuf	sched;
+	G*	link;
+	int32	status;
+	int32	pri;
+	int32	goid;
 };
 typedef	struct	M		M;
 struct	M
 {
-	byte*	istackguard;	// must not move
-	byte*	istackbase;	// must not move
+	G*	g0;		// g0 w interrupt stack - must not move
+	uint64	morearg;	// arg to morestack - must not move
+	G*	curg;		// current running goroutine
+	Gobuf	sched;
+	Gobuf	morestack;
+	byte*	moresp;
+	int32	siz1;
+	int32	siz2;
+};
+typedef struct Stktop Stktop;
+struct Stktop {
+	uint8*	oldbase;
+	uint8*	oldsp;
+	uint64	magic;
+	uint8*	oldguard;
 };
 extern	register	G*	g;	// R15
 extern	register	M*	m;	// R14
+
+enum
+{
+	// G status
+	Gidle,
+	Grunnable,
+	Gdead,
+};
 
 /*
  * global variables
  */
 M*	allm;
-G*	allu;
-G*	runq;
+G*	allg;
+int32	goidgen;
 
 /*
  * defined constants
@@ -106,18 +134,21 @@ enum
 /*
  * common functions and data
  */
-int32 strcmp(byte*, byte*);
-int32 findnull(int8*);
+int32	strcmp(byte*, byte*);
+int32	findnull(int8*);
 void	dump(byte*, int32);
-int32 runetochar(byte*, int32);
-int32 chartorune(uint32*, byte*);
+int32	runetochar(byte*, int32);
+int32	chartorune(uint32*, byte*);
 
 extern string	emptystring;
-extern int32 debug;
+extern int32	debug;
 
 /*
  * very low level c-called
  */
+int32	gogo(Gobuf*);
+int32	gosave(Gobuf*);
+void	setspgoto(byte*, void(*)(void), void(*)(void));
 void	FLUSH(void*);
 void*	getu(void);
 void	throw(int8*);
@@ -126,7 +157,7 @@ void	mcpy(byte*, byte*, uint32);
 void*	mal(uint32);
 uint32	cmpstring(string, string);
 void	initsig(void);
-void	traceback(uint8 *pc, uint8 *sp, void* up);
+void	traceback(uint8 *pc, uint8 *sp, G* gp);
 int32	open(byte*, int32);
 int32	read(int32, void*, int32);
 void	close(int32);
@@ -140,6 +171,8 @@ struct	SigTab
 /*
  * low level go -called
  */
+void	sys·goexit(void);
+void	sys·gosched(void);
 void	sys·exit(int32);
 void	sys·write(int32, void*, int32);
 void	sys·breakpoint(void);

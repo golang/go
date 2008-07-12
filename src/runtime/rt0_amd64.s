@@ -16,26 +16,17 @@ TEXT	_rt0_amd64(SB),7,$-8
 
 	// allocate the per-user and per-mach blocks
 
-	LEAQ	peruser<>(SB), R15	// dedicated u. register
-	LEAQ	permach<>(SB), R14	// dedicated m. register
+	LEAQ	m0<>(SB), R14		// dedicated m. register
+	LEAQ	g0(SB), R15		// dedicated g. register
+	MOVQ	R15, 0(R14)		// m has pointer to its g0
 
-	LEAQ	(-4096+104+4*8)(SP), AX
+	// create istack out of the given (operating system) stack
+
+	LEAQ	(-1024+104)(SP), AX
 	MOVQ	AX, 0(R15)		// 0(R15) is stack limit (w 104b guard)
-
-	MOVL	$1024, AX
-	MOVL	AX, 0(SP)
-	CALL	mal(SB)
-
-	LEAQ	104(AX), BX
-	MOVQ	BX, 0(R14)		// 0(R14) is limit of istack (w 104b guard)
-
-	ADDQ	0(SP), AX
-	LEAQ	(-4*8)(AX), BX
-	MOVQ	BX, 8(R14)		// 8(R14) is base of istack (w auto*4)
+	MOVQ	SP, 8(R15)		// 8(R15) is base
 
 	CALL	check(SB)
-
-	// process the arguments
 
 	MOVL	16(SP), AX		// copy argc
 	MOVL	AX, 0(SP)
@@ -43,179 +34,60 @@ TEXT	_rt0_amd64(SB),7,$-8
 	MOVQ	AX, 8(SP)
 	CALL	args(SB)
 
-	CALL	main·main(SB)
+	// create a new goroutine to start program
 
-	MOVQ	$0, AX
-	MOVQ	AX, 0(SP)		// exit status
-	CALL	sys·exit(SB)
+	PUSHQ	$main·main(SB)		// entry
+	PUSHQ	$16			// arg size
+	CALL	sys·newproc(SB)
+	CALL	gom0init(SB)
+	POPQ	AX
+	POPQ	AX
 
-	CALL	notok(SB)		// fault
+	CALL	notok(SB)		// never returns
 	RET
 
-//
-// the calling sequence for a routine that
-// needs N bytes stack, A args.
-//
-//	N1 = (N+160 > 4096)? N+160: 0
-//	A1 = A
-//
-// if N <= 75
-//	CMPQ	SP, 0(R15)
-//	JHI	3(PC)
-//	MOVQ	$(N1<<0) | (A1<<32)), AX
-//	CALL	_morestack
-//
-// if N > 75
-//	LEAQ	(-N-75)(SP), AX
-//	CMPQ	AX, 0(R15)
-//	JHI	3(PC)
-//	MOVQ	$(N1<<0) | (A1<<32)), AX
-//	CALL	_morestack
-//
-
-TEXT	_morestack(SB), 7, $0
-	// save stuff on interrupt stack
-
-	MOVQ	8(R14), BX		// istack
-	MOVQ	SP, 8(BX)		// old SP
-	MOVQ	AX, 16(BX)		// magic number
-	MOVQ	0(R15), AX		// old limit
-	MOVQ	AX, 24(BX)
-
-	// switch and set up new limit
-
-	MOVQ	BX, SP
-	MOVQ	0(R14), AX		// istack limit
-	MOVQ	AX, 0(R15)
-
-	// allocate a new stack max of request and 4k
-
-	MOVL	16(SP), AX		// magic number
-	CMPL	AX, $4096
-	JHI	2(PC)
-	MOVL	$4096, AX
-	MOVL	AX, 0(SP)
-	CALL	mal(SB)
-
-	// switch to new stack
-
-	MOVQ	SP, BX			// istack
-	ADDQ	$104, AX		// new stack limit
-	MOVQ	AX, 0(R15)
-	ADDQ	0(SP), AX
-	LEAQ	(-104-4*8)(AX), SP	// new SP
-	MOVQ	8(R15), AX
-	MOVQ	AX, 0(SP)		// old base
-	MOVQ	SP, 8(R15)		// new base
-
-	// copy needed stuff from istack to new stack
-
-	MOVQ	16(BX), AX		// magic number
-	MOVQ	AX, 16(SP)
-	MOVQ	24(BX), AX		// old limit
-	MOVQ	AX, 24(SP)
-	MOVQ	8(BX), AX		// old SP
-	MOVQ	AX, 8(SP)
-
-// are there parameters
-
-	MOVL	20(SP), CX		// copy count
-	CMPL	CX, $0
-	JEQ	easy
-
-// copy in
-
-	LEAQ	16(AX), SI
-	SUBQ	CX, SP
-	MOVQ	SP, DI
-	SHRL	$3, CX
-	CLD
-	REP
-	MOVSQ
-
-	// call the intended
-	CALL	0(AX)
-
-// copy out
-
-	MOVQ	SP, SI
-	MOVQ	8(R15), BX		// new base
-	MOVQ	8(BX), AX		// old SP
-	LEAQ	16(AX), DI
-	MOVL	20(BX), CX		// copy count
-	SHRL	$3, CX
-	CLD
-	REP
-	MOVSQ
-
-	// restore old SP and limit
-	MOVQ	8(R15), SP		// new base
-	MOVQ	24(SP), AX		// old limit
-	MOVQ	AX, 0(R15)
-	MOVQ	0(SP), AX
-	MOVQ	AX, 8(R15)		// old base
-	MOVQ	8(SP), AX		// old SP
-	MOVQ	AX, SP
-
-	// and return to the call behind mine
-	ADDQ	$8, SP
+TEXT	sys·breakpoint(SB),7,$-8
+	BYTE	$0xcc
 	RET
 
-easy:
-	CALL	0(AX)
-
-	// restore old SP and limit
-	MOVQ	24(SP), AX		// old limit
-	MOVQ	AX, 0(R15)
-	MOVQ	0(SP), AX
-	MOVQ	AX, 8(R15)		// old base
-	MOVQ	8(SP), AX		// old SP
-	MOVQ	AX, SP
-
-	// and return to the call behind mine
-	ADDQ	$8, SP
+TEXT _morestack(SB), 7, $-8
+	BYTE	$0xcc
 	RET
 
 // marker.  must be here; used by traceback() to discover calls to _morestack
 TEXT _endmorestack(SB), 7, $-8
 	RET
 
-// call a subroutine in a new coroutine
-// argument list is on the stack
-// addr of fn is in AX
-TEXT	sys·_newproc(SB), 7, $0
-	// save stuff on interrupt stack
-
-	MOVQ	8(R14), CX		// istack
-	MOVQ	AX, 0(CX)		// fn pointer
-	MOVQ	BX, 8(CX)		// arg size
-	MOVQ	SP, 16(CX)		// old SP
-	MOVQ	0(R15), AX		// old limit
-	MOVQ	AX, 24(CX)
-
-	// switch and set up new limit
-
-	MOVQ	CX, SP
-	MOVQ	0(R14), AX		// istack limit
-	MOVQ	AX, 0(R15)
-
-	CALL	_newproc(SB)
-
-	// restore old SP and limit
-
-	MOVQ	24(SP), AX		// old limit
-	MOVQ	AX, 0(R15)
-	MOVQ	16(SP), AX		// old SP
-	MOVQ	AX, SP
-
-	RET
-
 TEXT	FLUSH(SB),7,$-8
 	RET
 
-TEXT	getu(SB),7,$-8
-	MOVQ	R15, AX
+/*
+ *  go-routine
+ */
+TEXT gogo(SB), 7, $0
+	MOVQ	8(SP), AX		// gobuf
+	MOVQ	0(AX), SP		// restore SP
+	MOVQ	8(AX), AX
+	MOVQ	AX, 0(SP)		// put PC on the stack
+	MOVL	$1, AX			// return 1
 	RET
 
-GLOBL	permach<>(SB),$64
-GLOBL	peruser<>(SB),$64
+TEXT gosave(SB), 7, $0
+	MOVQ	8(SP), AX		// gobuf
+	MOVQ	SP, 0(AX)		// save SP
+	MOVQ	0(SP), BX
+	MOVQ	BX, 8(AX)		// save PC
+	MOVL	$0, AX			// return 0
+	RET
+
+TEXT setspgoto(SB), 7, $0
+	MOVQ	8(SP), AX		// SP
+	MOVQ	16(SP), BX		// fn to call
+	MOVQ	24(SP), CX		// fn to return
+	MOVQ	AX, SP
+	PUSHQ	CX
+	JMP	BX
+	POPQ	AX
+	RET
+
+GLOBL	m0<>(SB),$64
