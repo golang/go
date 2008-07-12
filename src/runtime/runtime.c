@@ -698,15 +698,15 @@ sys·gosched(void)
 //	CALL	sys·morestack(SB)
 //
 
-int32 debug = 0;
-
 void
-morestack2(void)
+oldstack(void)
 {
 	Stktop *top;
 	uint32 siz2;
 	byte *sp;
-if(debug) prints("morestack2\n");
+if(debug) prints("oldstack m->cret = ");
+if(debug) sys·printpointer((void*)m->cret);
+if(debug) prints("\n");
 
 	top = (Stktop*)m->curg->stackbase;
 
@@ -723,16 +723,16 @@ if(debug) prints("morestack2\n");
 
 	m->morestack.SP = top->oldsp+8;
 	m->morestack.PC = (byte*)(*(uint64*)(top->oldsp+8));
-if(debug) prints("morestack2 sp=");
+if(debug) prints("oldstack sp=");
 if(debug) sys·printpointer(m->morestack.SP);
 if(debug) prints(" pc=");
 if(debug) sys·printpointer(m->morestack.PC);
 if(debug) prints("\n");
-	gogo(&m->morestack);
+	gogoret(&m->morestack, m->cret);
 }
 
 void
-morestack1(void)
+newstack(void)
 {
 	int32 siz1, siz2;
 	Stktop *top;
@@ -742,7 +742,7 @@ morestack1(void)
 	siz1 = m->morearg & 0xffffffffLL;
 	siz2 = (m->morearg>>32) & 0xffffLL;
 
-if(debug) prints("morestack1 siz1=");
+if(debug) prints("newstack siz1=");
 if(debug) sys·printint(siz1);
 if(debug) prints(" siz2=");
 if(debug) sys·printint(siz2);
@@ -778,7 +778,7 @@ if(debug) prints("\n");
 if(debug) prints("fn=");
 if(debug) sys·printpointer(fn);
 if(debug) prints("\n");
-	setspgoto(sp, fn, morestack2);
+	setspgoto(sp, fn, retfromnewstack);
 
 	*(int32*)345 = 123;
 }
@@ -793,7 +793,7 @@ sys·morestack(uint64 u)
 
 	g = m->g0;
 	m->moresp = (byte*)(&u-1);
-	setspgoto(m->sched.SP, morestack1, nil);
+	setspgoto(m->sched.SP, newstack, nil);
 
 	*(int32*)234 = 123;
 }

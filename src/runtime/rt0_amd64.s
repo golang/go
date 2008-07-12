@@ -72,6 +72,25 @@ TEXT gosave(SB), 7, $0
 	MOVL	$0, AX			// return 0
 	RET
 
+/*
+ * support for morestack
+ */
+
+// return point when leaving new stack.  save AX, jmp to oldstack to switch back
+TEXT retfromnewstack(SB), 7, $0
+	MOVQ	AX, 16(R14)	// save AX in m->cret
+	MOVQ	$oldstack(SB), AX
+	JMP	AX
+
+// gogo, returning 2nd arg instead of 1
+TEXT gogoret(SB), 7, $0
+	MOVQ	16(SP), AX			// return 2nd arg
+	MOVQ	8(SP), BX		// gobuf
+	MOVQ	0(BX), SP		// restore SP
+	MOVQ	8(BX), BX
+	MOVQ	BX, 0(SP)		// put PC on the stack
+	RET
+
 TEXT setspgoto(SB), 7, $0
 	MOVQ	8(SP), AX		// SP
 	MOVQ	16(SP), BX		// fn to call

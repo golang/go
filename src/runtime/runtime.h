@@ -82,6 +82,7 @@ struct	M
 {
 	G*	g0;		// g0 w interrupt stack - must not move
 	uint64	morearg;	// arg to morestack - must not move
+	uint64	cret;	// return value from C - must not move
 	G*	curg;		// current running goroutine
 	Gobuf	sched;
 	Gobuf	morestack;
@@ -148,6 +149,8 @@ extern int32	debug;
  */
 int32	gogo(Gobuf*);
 int32	gosave(Gobuf*);
+int32	gogoret(Gobuf*, uint64);
+void	retfromnewstack(void);
 void	setspgoto(byte*, void(*)(void), void(*)(void));
 void	FLUSH(void*);
 void*	getu(void);

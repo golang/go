@@ -8,8 +8,6 @@ extern int32	debug;
 
 static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
 
-extern void morestack2();
-
 void
 traceback(uint8 *pc, uint8 *sp, void* r15)
 {
@@ -29,8 +27,8 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 	name = "panic";
 	for(;;){
 		callpc = pc;
-		if((uint8*)morestack2 == pc) {
-			// call site is morestack2(); pop to earlier stack block to get true caller
+		if((uint8*)retfromnewstack == pc) {
+			// call site is retfromnewstack(); pop to earlier stack block to get true caller
 			stktop = (Stktop*)g.stackbase;
 			g.stackbase = stktop->oldbase;
 			g.stackguard = stktop->oldguard;
