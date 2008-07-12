@@ -8,8 +8,7 @@ extern int32	debug;
 
 static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
 
-extern void _morestack();
-extern void _endmorestack();
+extern void morestack2();
 
 void
 traceback(uint8 *pc, uint8 *sp, void* r15)
@@ -30,7 +29,7 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 	name = "panic";
 	for(;;){
 		callpc = pc;
-		if((uint8*)_morestack < pc && pc < (uint8*)_endmorestack) {
+		if((uint8*)morestack2 == pc) {
 			// call site in _morestack(); pop to earlier stack block to get true caller
 			stktop = (Stktop*)g.stackbase;
 			g.stackbase = stktop->oldbase;
@@ -83,6 +82,5 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 			sys·printpointer(((void**)sp)[i]);
 		}
 		prints(", ...)\n");
-		/* print pc for next frame */
 	}
 }
