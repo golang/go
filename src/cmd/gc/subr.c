@@ -1295,6 +1295,7 @@ loop:
 
 	case TPTR32:
 	case TPTR64:
+	case TCHAN:
 		stp = &st->type;
 		goto loop;
 

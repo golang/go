@@ -50,14 +50,23 @@ Pconv(Fmt *fp)
 
 	p = va_arg(fp->args, Prog*);
 	sconsize = 8;
-	if(p->as == ADATA) {
+	switch(p->as) {
+	default:
+		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%D",
+			p->loc, p->lineno, p->as, &p->from, &p->to);
+		break;
+
+	case ADATA:
 		sconsize = p->from.scale;
 		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D/%d,%D",
 			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
-		return fmtstrcpy(fp, str);
+		break;
+
+	case ATEXT:
+		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%lD",
+			p->loc, p->lineno, p->as, &p->from, &p->to);
+		break;
 	}
-	snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%D",
-		p->loc, p->lineno, p->as, &p->from, &p->to);
 	return fmtstrcpy(fp, str);
 }
 
@@ -67,6 +76,7 @@ Dconv(Fmt *fp)
 	char str[40], s[20];
 	Addr *a;
 	int i;
+	ulong d1, d2;
 
 	a = va_arg(fp->args, Addr*);
 	i = a->type;
@@ -111,6 +121,12 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_CONST:
+		if(fp->flags & FmtLong) {
+			d1 = a->offset & 0xffffffffLL;
+			d2 = (a->offset>>32) & 0xffffffffLL;
+			sprint(str, "$%lud-%lud", d1, d2);
+			break;
+		}
 		sprint(str, "$%lld", a->offset);
 		break;
 

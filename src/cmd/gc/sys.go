@@ -44,6 +44,8 @@ func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
 func	mapassign1(hmap *map[any]any, key any, val any);
 func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
 
+func	newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+
 func	gosched();
 func	goexit();
 
@@ -89,12 +91,15 @@ export
 	Inf,
 	NaN,
 
-	// op map
+	// map
 	newmap
 	mapaccess1
 	mapaccess2
 	mapassign1
 	mapassign2
+
+	// chan
+	newchan
 
 	// go routines
 	gosched
