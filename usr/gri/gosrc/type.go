@@ -24,9 +24,11 @@ const /* flag */ (
 )
 
 
+export Type
 type Type Globals.Type
 
 
+export NewType
 func NewType(form int) *Type {
 	panic "UNIMPLEMENTED";
 	return nil;

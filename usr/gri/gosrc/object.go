@@ -15,9 +15,11 @@ const /* kind */ (
 )
 
 
+export Object
 type Object Globals.Object
 
 
+export NewObject
 func NewObject(kind int, name string) *Object {
 	obj := new(Object);
 	obj.mark = false;
