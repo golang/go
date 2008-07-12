@@ -30,7 +30,7 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 	for(;;){
 		callpc = pc;
 		if((uint8*)morestack2 == pc) {
-			// call site in _morestack(); pop to earlier stack block to get true caller
+			// call site is morestack2(); pop to earlier stack block to get true caller
 			stktop = (Stktop*)g.stackbase;
 			g.stackbase = stktop->oldbase;
 			g.stackguard = stktop->oldguard;
