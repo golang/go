@@ -1219,6 +1219,10 @@ newcompat(Node *n)
 		r = mapop(n, Erv);
 		return r;
 	}
+	if(t->etype == TCHAN) {
+		r = chanop(n, Erv);
+		return r;
+	}
 
 	if(n->left != N)
 		yyerror("dont know what new(,e) means");
@@ -1366,6 +1370,32 @@ fixmap(Type *tm)
 	}
 
 	dowidth(t->down);
+	dowidth(t->type);
+
+	return t;
+}
+
+Type*
+fixchan(Type *tm)
+{
+	Type *t;
+
+	t = tm->type;
+	if(t == T) {
+		fatal("fixchan: t nil");
+		return T;
+	}
+
+	if(t->etype != TCHAN) {
+		fatal("fixchan: %O not map");
+		return T;
+	}
+
+	if(t->type == T) {
+		fatal("fixchan: chan element type is nil");
+		return T;
+	}
+
 	dowidth(t->type);
 
 	return t;
@@ -1591,6 +1621,49 @@ nottop:
 	dump("bad top", n);
 	fatal("mapop: top=%d %O", top, n->op);
 	return N;
+}
+
+Node*
+chanop(Node *n, int top)
+{
+	Node *r, *a;
+	Type *t;
+	Node *on;
+	int alg, cl, cr;
+
+//dump("chanop", n);
+
+	r = n;
+	switch(n->op) {
+	default:
+		fatal("mapop: unknown op %E", n->op);
+
+	case ONEW:
+		// newchan(elemsize uint32, elemalg uint32,
+		//	hint uint32) (hmap *chan[any-1]);
+
+		t = fixchan(n->type);
+		if(t == T)
+			break;
+
+		a = n->left;				// hint
+		if(n->left == N)
+			a = nodintconst(0);
+		r = a;
+		a = nodintconst(algtype(t->type));	// elem algorithm
+		r = nod(OLIST, a, r);
+		a = nodintconst(t->type->width);	// elem width
+		r = nod(OLIST, a, r);
+
+		on = syslook("newchan", 1);
+		argtype(on, t->type);	// any-1
+
+		r = nod(OCALL, on, r);
+		walktype(r, top);
+		r->type = n->type;
+		break;
+	}
+	return r;
 }
 
 void

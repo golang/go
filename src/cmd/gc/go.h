@@ -96,9 +96,9 @@ struct	Type
 	Type*	nforw;
 
 	// TFUNCT
-	Type*	this;
-	Type*	argout;
-	Type*	argin;
+//	Type*	this;
+//	Type*	argout;
+//	Type*	argin;
 	Node*	nname;
 
 	// TARRAY
@@ -563,6 +563,7 @@ void	doimport4(Node*, Node*);
 void	doimport5(Node*, Val*);
 void	doimport6(Node*, Node*);
 void	doimport7(Node*, Node*);
+void	doimport8(Node*, Val*, Node*);
 
 /*
  *	walk.c
@@ -583,6 +584,7 @@ Node*	nodpanic(long);
 Node*	newcompat(Node*);
 Node*	stringop(Node*, int);
 Node*	mapop(Node*, int);
+Node*	chanop(Node*, int);
 Node*	convas(Node*);
 void	arrayconv(Type*, Node*);
 Node*	colas(Node*, Node*);

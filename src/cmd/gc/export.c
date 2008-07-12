@@ -233,6 +233,16 @@ dumpexporttype(Sym *s)
 			Bprint(bout, "!");
 		Bprint(bout, "%lS [%lS] %lS\n", s, t->down->sym, t->type->sym);
 		break;
+
+	case TCHAN:
+		reexport(t->type);
+
+		/* type 8 */
+		Bprint(bout, "\ttype ");
+		if(s->export != 0)
+			Bprint(bout, "!");
+		Bprint(bout, "%lS %d %lS\n", s, t->chan, t->type->sym);
+		break;
 	}
 }
 
@@ -621,6 +631,28 @@ doimport7(Node *ss, Node *n)
 	t = typ(TINTER);
 	importstotype(n, &t->type, t);
 	dowidth(t);
+
+	importaddtyp(ss, t);
+}
+
+/*
+ * LTYPE importsym chdir importsym
+ * interface type
+ */
+void
+doimport8(Node *ss, Val *v, Node *st)
+{
+	Type *t;
+	Sym *s;
+	int dir;
+
+	s = pkglookup(st->sym->name, st->psym->name);
+	dir = v->vval;
+
+	t = typ(TCHAN);
+	s = pkglookup(st->sym->name, st->psym->name);
+	t->type = s->otype;
+	t->chan = dir;
 
 	importaddtyp(ss, t);
 }

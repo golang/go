@@ -910,6 +910,14 @@ chandir:
 	{
 		$$ = Csend;
 	}
+|	LLT LGT
+	{
+		$$ = Cboth;
+	}
+|	LGT LLT
+	{
+		$$ = 0;
+	}
 
 keyval:
 	expr ':' expr
@@ -1480,6 +1488,11 @@ hidden_import:
 	{
 		// type interface
 		doimport7($2, $4);
+	}
+|	LTYPE hidden_importsym LLITERAL hidden_importsym
+	{
+		// type interface
+		doimport8($2, &$3, $4);
 	}
 
 isym:
