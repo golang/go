@@ -246,6 +246,7 @@ loop:
 		}
 
 		switch(r->op) {
+
 		case OCALLMETH:
 		case OCALLINTER:
 		case OCALL:
@@ -267,6 +268,19 @@ loop:
 				if(!isptrto(r->left->type, TMAP))
 					break;
 				l = mapop(n, top);
+				if(l == N)
+					break;
+				*n = *l;
+				goto ret;
+			}
+			break;
+
+		case ORECV:
+			if(cl == 2 && cr == 1) {
+				// a,b = <chan - chanrecv2
+				if(!isptrto(r->left->type, TCHAN))
+					break;
+				l = chanop(n, top);
 				if(l == N)
 					break;
 				*n = *l;
@@ -538,7 +552,7 @@ loop:
 			goto badt;
 
 		case TMAP:
-			// right side must map type
+			// right side must be map type
 			if(n->right->type == T) {
 				convlit(n->right, t->down);
 				if(n->right->type == T)
@@ -568,6 +582,28 @@ loop:
 			n->type = t->type;
 			break;
 		}
+		goto ret;
+
+	case OSEND:
+		if(top != Elv)
+			goto nottop;
+		walktype(n->left, Erv);
+		t = n->left->type;
+		if(!isptrto(t, TCHAN))
+			goto badt;
+		n->type = t->type->type;
+		goto ret;
+
+	case ORECV:
+		if(top != Erv)
+			goto nottop;
+		walktype(n->left, Erv);
+		t = n->left->type;
+		if(!isptrto(t, TCHAN))
+			goto badt;
+		n->type = t->type->type;
+
+		*n = *chanop(n, top);
 		goto ret;
 
 	case OSLICE:
@@ -1251,7 +1287,7 @@ stringop(Node *n, int top)
 
 	switch(n->op) {
 	default:
-		fatal("stringop: unknown op %E", n->op);
+		fatal("stringop: unknown op %O", n->op);
 
 	case OEQ:
 	case ONE:
@@ -1278,7 +1314,7 @@ stringop(Node *n, int top)
 		// sys_catstring(s1, s2)
 		switch(n->etype) {
 		default:
-			fatal("stringop: unknown op %E-%E", n->op, n->etype);
+			fatal("stringop: unknown op %O-%O", n->op, n->etype);
 
 		case OADD:
 			// s1 = sys_catstring(s1, s2)
@@ -1436,7 +1472,7 @@ mapop(Node *n, int top)
 	r = n;
 	switch(n->op) {
 	default:
-		fatal("mapop: unknown op %E", n->op);
+		fatal("mapop: unknown op %O", n->op);
 
 	case ONEW:
 		if(top != Erv)
@@ -1636,7 +1672,7 @@ chanop(Node *n, int top)
 	r = n;
 	switch(n->op) {
 	default:
-		fatal("mapop: unknown op %E", n->op);
+		fatal("chanop: unknown op %O", n->op);
 
 	case ONEW:
 		// newchan(elemsize uint32, elemalg uint32,
@@ -1662,8 +1698,38 @@ chanop(Node *n, int top)
 		walktype(r, top);
 		r->type = n->type;
 		break;
+
+	case OAS:
+		// chansend(hchan *chan any, elem any);
+
+//dump("assign1", n);
+		if(n->left->op != OSEND)
+			goto shape;
+
+		t = fixchan(n->left->left->type);
+		if(t == T)
+			break;
+
+		a = n->right;				// val
+		r = a;
+		a = n->left->left;			// chan
+		r = nod(OLIST, a, r);
+
+		on = syslook("chansend", 1);
+
+		argtype(on, t->type);	// any-1
+		argtype(on, t->type);	// any-2
+
+		r = nod(OCALL, on, r);
+		walktype(r, Erv);
+		break;
+
 	}
 	return r;
+
+shape:
+	fatal("chanop: %O", n->op);
+	return N;
 }
 
 void
@@ -1707,6 +1773,12 @@ convas(Node *n)
 	if(n->left->op == OINDEXPTR)
 	if(n->left->left->type->etype == TMAP) {
 		*n = *mapop(n, Elv);
+		return n;
+	}
+
+	if(n->left->op == OSEND)
+	if(n->left->type != T) {
+		*n = *chanop(n, Elv);
 		return n;
 	}
 
