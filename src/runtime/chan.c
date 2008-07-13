@@ -73,3 +73,31 @@ sys·chansend(Hchan* c, ...)
 		prints("\n");
 	}
 }
+
+// chanrecv1(hchan *chan any) (elem any);
+void
+sys·chanrecv1(Hchan* c, ...)
+{
+	byte *ae;
+
+	ae = (byte*)&c + c->eo;
+	if(debug) {
+		prints("chanrecv1: chan=");
+		sys·printpointer(c);
+		prints("\n");
+	}
+}
+
+// chanrecv2(hchan *chan any) (elem any, pres bool);
+void
+sys·chanrecv2(Hchan* c, ...)
+{
+	byte *ae;
+
+	ae = (byte*)&c + c->eo;
+	if(debug) {
+		prints("chanrecv2: chan=");
+		sys·printpointer(c);
+		prints("\n");
+	}
+}
