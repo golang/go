@@ -19,6 +19,7 @@ LIBOFILES=\
 	sys_$(GOARCH)_$(GOOS).$O\
 	runtime.$O\
 	map.$O\
+	chan.$O\
 	print.$O\
 	rune.$O\
 	string.$O\

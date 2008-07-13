@@ -33,24 +33,58 @@ typedef	double			float64;
  */
 typedef	uint8			bool;
 typedef	uint8			byte;
-typedef	struct
+typedef	struct	String		*string;
+typedef	struct	Sigs		Sigs;
+typedef	struct	Sigi		Sigi;
+typedef	struct	Map		Map;
+typedef	struct	Gobuf		Gobuf;
+typedef	struct	G		G;
+typedef	struct	M		M;
+typedef struct	Stktop		Stktop;
+typedef	struct	Alg		Alg;
+
+/*
+ * per cpu declaration
+ */
+extern	register	G*	g;	// R15
+extern	register	M*	m;	// R14
+
+/*
+ * defined constants
+ */
+enum
+{
+	// G status
+	Gidle,
+	Grunnable,
+	Gdead,
+};
+enum
+{
+	true	= 1,
+	false	= 0,
+};
+
+/*
+ * structures
+ */
+struct String
 {
 	int32	len;
 	byte	str[1];
-}				*string;
-typedef	struct
+};
+struct	Sigs
 {
 	byte*	name;
 	uint32	hash;
 	void	(*fun)(void);
-}				Sigs;
-typedef	struct
+};
+struct	Sigi
 {
 	byte*	name;
 	uint32	hash;
 	uint32	offset;
-}				Sigi;
-typedef	struct	Map		Map;
+};
 struct	Map
 {
 	Sigi*	si;
@@ -60,13 +94,11 @@ struct	Map
 	int32	unused;
 	void	(*fun[])(void);
 };
-typedef	struct	Gobuf		Gobuf;
 struct	Gobuf
 {
 	byte*	SP;
 	byte*	PC;
 };
-typedef	struct	G		G;
 struct	G
 {
 	byte*	stackguard;	// must not move
@@ -77,7 +109,6 @@ struct	G
 	int32	pri;
 	int32	goid;
 };
-typedef	struct	M		M;
 struct	M
 {
 	G*	g0;		// g0 w interrupt stack - must not move
@@ -90,38 +121,24 @@ struct	M
 	int32	siz1;
 	int32	siz2;
 };
-typedef struct Stktop Stktop;
-struct Stktop {
+struct Stktop
+{
 	uint8*	oldbase;
 	uint8*	oldsp;
 	uint64	magic;
 	uint8*	oldguard;
 };
-extern	register	G*	g;	// R15
-extern	register	M*	m;	// R14
-
-enum
+struct	Alg
 {
-	// G status
-	Gidle,
-	Grunnable,
-	Gdead,
+	uint64	(*hash)(uint32, void*);
+	uint32	(*equal)(uint32, void*, void*);
+	void	(*print)(uint32, void*);
+	void	(*copy)(uint32, void*, void*);
 };
-
-/*
- * global variables
- */
-M*	allm;
-G*	allg;
-int32	goidgen;
-
-/*
- * defined constants
- */
-enum
+struct	SigTab
 {
-	true	= 1,
-	false	= 0,
+	int32	catch;
+	int8	*name;
 };
 
 /*
@@ -133,6 +150,15 @@ enum
 #define	nil		((void*)0)
 
 /*
+ * external data
+ */
+extern	Alg	algarray[3];
+extern	string	emptystring;
+M*	allm;
+G*	allg;
+int32	goidgen;
+
+/*
  * common functions and data
  */
 int32	strcmp(byte*, byte*);
@@ -140,9 +166,6 @@ int32	findnull(int8*);
 void	dump(byte*, int32);
 int32	runetochar(byte*, int32);
 int32	chartorune(uint32*, byte*);
-
-extern string	emptystring;
-extern int32	debug;
 
 /*
  * very low level c-called
@@ -155,6 +178,7 @@ void	setspgoto(byte*, void(*)(void), void(*)(void));
 void	FLUSH(void*);
 void*	getu(void);
 void	throw(int8*);
+uint32	rnd(uint32, uint32);
 void	prints(int8*);
 void	mcpy(byte*, byte*, uint32);
 void*	mal(uint32);
@@ -165,11 +189,6 @@ int32	open(byte*, int32);
 int32	read(int32, void*, int32);
 void	close(int32);
 int32	fstat(int32, void*);
-struct	SigTab
-{
-	int32	catch;
-	int8	*name;
-};
 
 /*
  * low level go -called
