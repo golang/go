@@ -46,11 +46,11 @@ TEXT	_rt0_amd64(SB),7,$-8
 	CALL	notok(SB)		// never returns
 	RET
 
-TEXT	sys·breakpoint(SB),7,$-8
+TEXT	sys·breakpoint(SB),7,$0
 	BYTE	$0xcc
 	RET
 
-TEXT	FLUSH(SB),7,$-8
+TEXT	FLUSH(SB),7,$0
 	RET
 
 /*

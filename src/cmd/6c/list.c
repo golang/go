@@ -76,15 +76,26 @@ Pconv(Fmt *fp)
 	Prog *p;
 
 	p = va_arg(fp->args, Prog*);
-	if(p->as == ADATA)
+	switch(p->as) {
+	case ADATA:
 		sprint(str, "	%A	%D/%d,%D",
 			p->as, &p->from, p->from.scale, &p->to);
-	else if(p->as == ATEXT)
-		sprint(str, "	%A	%D,%d,%D",
-			p->as, &p->from, p->from.scale, &p->to);
-	else
-		sprint(str, "	%A	%D,%D",
+		break;
+
+	case ATEXT:
+		if(p->from.scale) {
+			sprint(str, "	%A	%D,%d,%lD",
+				p->as, &p->from, p->from.scale, &p->to);
+			break;
+		}
+		sprint(str, "	%A	%D,%lD",
 			p->as, &p->from, &p->to);
+		break;
+
+	defaul:
+		sprint(str, "	%A	%D,%lD", p->as, &p->from, &p->to);
+		break;
+	}
 	return fmtstrcpy(fp, str);
 }
 
@@ -106,6 +117,18 @@ Dconv(Fmt *fp)
 
 	a = va_arg(fp->args, Adr*);
 	i = a->type;
+
+	if(fp->flags & FmtLong) {
+		if(i != D_CONST) {
+			// ATEXT dst is not constant
+			sprint(str, "!!%D", a);
+			goto brk;
+		}
+		sprint(str, "$%lld-%lld", a->offset&0xffffffffLL,
+			(a->offset>>32)&0xffffffffLL);
+		goto brk;
+	}
+
 	if(i >= D_INDIR) {
 		if(a->offset)
 			sprint(str, "%lld(%R)", a->offset, i-D_INDIR);

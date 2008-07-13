@@ -175,6 +175,7 @@ dowidth(Type *t)
 		w = widstruct(*getthis(t), 0, 0);
 		w = widstruct(*getinarg(t), w, 0);
 		w = widstruct(*getoutarg(t), w, 1);
+		t->argwid = w;
 		w = 0;
 		break;
 	}

@@ -30,11 +30,37 @@
 
 #include "gc.h"
 
+vlong
+argsize(void)
+{
+	Type *t;
+	long s;
+
+//print("t=%T\n", thisfn);
+	s = 0;
+	for(t=thisfn->down; t!=T; t=t->down) {
+		switch(t->etype) {
+		case TVOID:
+			break;
+		case TDOT:
+			s += 64;
+			break;
+		default:
+			s = align(s, t, Aarg1);
+			s = align(s, t, Aarg2);
+			break;
+		}
+//print("	%d %T\n", s, t);
+	}
+	return (s+7) & ~7;
+}
+
 void
 codgen(Node *n, Node *nn)
 {
 	Prog *sp;
 	Node *n1, nod, nod1;
+	vlong v;
 
 	cursafe = 0;
 	curarg = 0;
@@ -52,7 +78,11 @@ codgen(Node *n, Node *nn)
 			break;
 	}
 	nearln = nn->lineno;
-	gpseudo(ATEXT, n1->sym, nodconst(stkoff));
+
+	v = argsize() << 32;
+	v |= stkoff & 0xffffffff;
+
+	gpseudo(ATEXT, n1->sym, nodgconst(v, types[TVLONG]));
 	sp = p;
 
 	/*

@@ -425,12 +425,5 @@ parsetextconst(vlong arg)
 	textarg = (arg >> 32) & 0xffffffffLL;
 	if(textarg & 0x80000000LL)
 		textarg = 0;
-	if(textarg <= 0)
-		textarg = 100;
-	if(textarg > textstksiz) {
-		textarg = textstksiz;
-		if(textarg <= 0)
-			textarg = 0;
-	}
 	textarg = (textarg+7) & ~7LL;
 }

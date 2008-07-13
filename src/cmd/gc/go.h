@@ -96,10 +96,8 @@ struct	Type
 	Type*	nforw;
 
 	// TFUNCT
-//	Type*	this;
-//	Type*	argout;
-//	Type*	argin;
 	Node*	nname;
+	vlong	argwid;
 
 	// TARRAY
 	long	bound;
