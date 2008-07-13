@@ -1720,12 +1720,8 @@ chanop(Node *n, int top)
 		r = nod(OLIST, a, r);
 
 		on = syslook("chansend", 1);
-print("type=%lT\n", t);
-print("on=%lT\n", on->type);
 		argtype(on, t->type);	// any-1
-print("on=%lT\n", on->type);
 		argtype(on, t->type);	// any-2
-print("on=%lT\n", on->type);
 
 		r = nod(OCALL, on, r);
 		walktype(r, Erv);
