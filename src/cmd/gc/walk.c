@@ -1700,11 +1700,15 @@ chanop(Node *n, int top)
 		break;
 
 	case OAS:
-		// chansend(hchan *chan any, elem any);
+		cl = listcount(n->left);
+		cr = listcount(n->right);
 
-//dump("assign1", n);
-		if(n->left->op != OSEND)
+		if(cl == 2 && cr == 1 && n->right->op == ORECV)
+			goto recv2;
+		if(cl != 1 || cr != 1 || n->left->op != OSEND)
 			goto shape;
+
+		// chansend(hchan *chan any, elem any);
 
 		t = fixchan(n->left->left->type);
 		if(t == T)
@@ -1716,14 +1720,54 @@ chanop(Node *n, int top)
 		r = nod(OLIST, a, r);
 
 		on = syslook("chansend", 1);
-
+print("type=%lT\n", t);
+print("on=%lT\n", on->type);
 		argtype(on, t->type);	// any-1
+print("on=%lT\n", on->type);
 		argtype(on, t->type);	// any-2
+print("on=%lT\n", on->type);
 
 		r = nod(OCALL, on, r);
 		walktype(r, Erv);
 		break;
 
+	case ORECV:
+		// chanrecv1(hchan *chan any) (elem any);
+
+		t = fixchan(n->left->type);
+		if(t == T)
+			break;
+
+		a = n->left;			// chan
+		r = a;
+
+		on = syslook("chanrecv1", 1);
+
+		argtype(on, t->type);	// any-1
+		argtype(on, t->type);	// any-2
+		r = nod(OCALL, on, r);
+		walktype(r, Erv);
+		break;
+
+	recv2:
+		// chanrecv2(hchan *chan any) (elem any, pres bool);
+
+		t = fixchan(n->right->left->type);
+		if(t == T)
+			break;
+
+		a = n->right->left;			// chan
+		r = a;
+
+		on = syslook("chanrecv2", 1);
+
+		argtype(on, t->type);	// any-1
+		argtype(on, t->type);	// any-2
+		r = nod(OCALL, on, r);
+		n->right = r;
+		r = n;
+		walktype(r, Etop);
+		break;
 	}
 	return r;
 
@@ -1950,6 +1994,18 @@ multi:
 		a = old2new(nl->right, types[TBOOL]);
 		n = nod(OLIST, n, a);
 		break;
+
+	case ORECV:
+		if(cl != 2)
+			goto badt;
+		walktype(nr->left, Erv);
+		t = nr->left->type;
+		if(!isptrto(t, TCHAN))
+			goto badt;
+		a = old2new(nl->left, t->type->type);
+		n = a;
+		a = old2new(nl->right, types[TBOOL]);
+		n = nod(OLIST, n, a);
 	}
 	n = rev(n);
 	return n;

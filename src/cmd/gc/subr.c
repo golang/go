@@ -1364,6 +1364,7 @@ deep(Type *t)
 
 	case TPTR32:
 	case TPTR64:
+	case TCHAN:
 		nt = shallow(t);
 		nt->type = deep(t->type);
 		break;
