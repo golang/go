@@ -22,7 +22,7 @@ compile(Node *fn)
 	Plist *pl;
 	Node nod1;
 	Prog *ptxt;
-	long lno, argsiz;
+	long lno;
 
 if(newproc == N) {
 	newproc = nod(ONAME, N, N);
@@ -70,10 +70,7 @@ if(newproc == N) {
 	pc->lineno = lineno;
 
 	// fill in argument size
-	argsiz = getthisx(curfn->type) -> width;
-	argsiz += getinargx(curfn->type) -> width;
-	argsiz += getoutargx(curfn->type) -> width;
-	ptxt->to.offset = rnd(argsiz, maxround);
+	ptxt->to.offset = rnd(curfn->type->argwid, maxround);
 
 	// fill in final stack size
 	ptxt->to.offset <<= 32;

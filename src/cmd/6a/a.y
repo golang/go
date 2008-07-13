@@ -46,15 +46,16 @@
 %left	'+' '-'
 %left	'*' '/' '%'
 %token	<lval>	LTYPE0 LTYPE1 LTYPE2 LTYPE3 LTYPE4
-%token	<lval>	LTYPEC LTYPED LTYPEN LTYPER LTYPET LTYPES LTYPEM LTYPEI LTYPEXC LTYPEX LTYPERT
+%token	<lval>	LTYPEC LTYPED LTYPEN LTYPER LTYPET LTYPEG
+%token	<lval>	LTYPES LTYPEM LTYPEI LTYPEXC LTYPEX LTYPERT
 %token	<lval>	LCONST LFP LPC LSB
 %token	<lval>	LBREG LLREG LSREG LFREG LMREG LXREG
 %token	<dval>	LFCONST
 %token	<sval>	LSCONST LSP
 %token	<sym>	LNAME LLAB LVAR
-%type	<lval>	con con3 expr pointer offset
-%type	<gen>	mem imm imm3 reg nam rel rem rim rom omem nmem
-%type	<gen2>	nonnon nonrel nonrem rimnon rimrem remrim spec10
+%type	<lval>	con con2 expr pointer offset
+%type	<gen>	mem imm imm2 reg nam rel rem rim rom omem nmem
+%type	<gen2>	nonnon nonrel nonrem rimnon rimrem remrim spec10 spec11
 %type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9
 %%
 prog:
@@ -106,6 +107,7 @@ inst:
 |	LTYPEXC spec8	{ outcode($1, &$2); }
 |	LTYPEX spec9	{ outcode($1, &$2); }
 |	LTYPERT spec10	{ outcode($1, &$2); }
+|	LTYPEG spec11	{ outcode($1, &$2); }
 
 nonnon:
 	{
@@ -177,12 +179,12 @@ spec1:	/* DATA */
 	}
 
 spec2:	/* TEXT */
-	mem ',' imm3
+	mem ',' imm2
 	{
 		$$.from = $1;
 		$$.to = $3;
 	}
-|	mem ',' con ',' imm3
+|	mem ',' con ',' imm2
 	{
 		$$.from = $1;
 		$$.from.scale = $3;
@@ -281,6 +283,19 @@ spec10:	/* RET/RETF */
 		$$.to = nullgen;
 	}
 
+spec11:	/* GLOBL */
+	mem ',' imm
+	{
+		$$.from = $1;
+		$$.to = $3;
+	}
+|	mem ',' con ',' imm
+	{
+		$$.from = $1;
+		$$.from.scale = $3;
+		$$.to = $5;
+	}
+
 rem:
 	reg
 |	mem
@@ -363,9 +378,8 @@ reg:
 		$$ = nullgen;
 		$$.type = $1;
 	}
-
-imm3:
-	'$' con3
+imm2:
+	'$' con2
 	{
 		$$ = nullgen;
 		$$.type = D_CONST;
@@ -556,23 +570,24 @@ con:
 		$$ = $2;
 	}
 
-con3:
+con2:
 	LCONST
+	{
+		$$ = $1 & 0xffffffffLL;
+	}
 |	'-' LCONST
 	{
-		$$ = -$2;
+		$$ = -$2 & 0xffffffffLL;
 	}
-|	LCONST '-' LCONST '-' LCONST
+|	LCONST '-' LCONST
 	{
 		$$ = ($1 & 0xffffffffLL) +
-			(($3 & 0xffffLL) << 32) +
-			(($5 & 0xffffLL) << 48);
+			(($3 & 0xffffLL) << 32);
 	}
-|	'-' LCONST '-' LCONST '-' LCONST
+|	'-' LCONST '-' LCONST
 	{
 		$$ = (-$2 & 0xffffffffLL) +
-			(($4 & 0xffffLL) << 32) +
-			(($6 & 0xffffLL) << 48);
+			(($4 & 0xffffLL) << 32);
 	}
 
 expr:

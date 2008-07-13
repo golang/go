@@ -6,13 +6,13 @@
 // System calls and other sys.stuff for AMD64, Linux
 //
 
-TEXT	sys·exit(SB),1,$-8
+TEXT	sys·exit(SB),1,$0-8
 	MOVL	8(SP), DI
 	MOVL	$60, AX
 	SYSCALL
 	RET
 
-TEXT	sys·write(SB),1,$-8
+TEXT	sys·write(SB),1,$0-24
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -20,27 +20,27 @@ TEXT	sys·write(SB),1,$-8
 	SYSCALL
 	RET
 
-TEXT	open(SB),1,$-8
+TEXT	open(SB),1,$0-16
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
 	MOVL	$2, AX			// syscall entry
 	SYSCALL
 	RET
 
-TEXT	close(SB),1,$-8
+TEXT	close(SB),1,$0-8
 	MOVL	8(SP), DI
 	MOVL	$3, AX			// syscall entry
 	SYSCALL
 	RET
 
-TEXT	fstat(SB),1,$-8
+TEXT	fstat(SB),1,$0-16
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	$5, AX			// syscall entry
 	SYSCALL
 	RET
 
-TEXT	read(SB),1,$-8
+TEXT	read(SB),1,$0-24
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -48,7 +48,7 @@ TEXT	read(SB),1,$-8
 	SYSCALL
 	RET
 
-TEXT	sys·rt_sigaction(SB),1,$-8
+TEXT	sys·rt_sigaction(SB),1,$0-32
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -58,14 +58,14 @@ TEXT	sys·rt_sigaction(SB),1,$-8
 	SYSCALL
 	RET
 
-TEXT	sigtramp(SB),1,$24
+TEXT	sigtramp(SB),1,$24-16
 	MOVQ	DI,0(SP)
 	MOVQ	SI,8(SP)
 	MOVQ	DX,16(SP)
 	CALL	sighandler(SB)
 	RET
 
-TEXT	sys·mmap(SB),1,$-8
+TEXT	sys·mmap(SB),1,$0-32
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
 	MOVL	20(SP), DX
@@ -88,12 +88,12 @@ TEXT	sys·mmap(SB),1,$-8
 	CALL	notok(SB)
 	RET
 
-TEXT	notok(SB),1,$-8
+TEXT	notok(SB),7,$0
 	MOVL	$0xf1, BP
 	MOVQ	BP, (BP)
 	RET
 
-TEXT	sys·memclr(SB),1,$-8
+TEXT	sys·memclr(SB),1,$0-16
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVL	16(SP), CX		// arg 2 count (cannot be zero)
 	ADDL	$7, CX
