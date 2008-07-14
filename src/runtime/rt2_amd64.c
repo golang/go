@@ -8,6 +8,8 @@ extern int32	debug;
 
 static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
 
+extern uint8 end;
+
 void
 traceback(uint8 *pc, uint8 *sp, void* r15)
 {
@@ -39,6 +41,8 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 		}
 		/* find SP offset by stepping back through instructions to SP offset marker */
 		while(pc > (uint8*)0x1000+sizeof spmark-1) {
+			if(pc >= &end)
+				return;
 			for(spp = spmark; *spp != '\0' && *pc++ == (uint8)*spp++; )
 				;
 			if(*spp == '\0'){
