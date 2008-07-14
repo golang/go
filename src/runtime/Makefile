@@ -22,6 +22,7 @@ LIBOFILES=\
 	chan.$O\
 	print.$O\
 	rune.$O\
+	proc.$O\
 	string.$O\
 	sys_file.$O\
 
