@@ -4,7 +4,12 @@
 
 package Type
 
-import Globals "globals"
+export
+	UNDEF, BAD, NIL,
+	BOOL, UINT, INT, FLOAT, STRING,
+	ANY,
+	ARRAY, STRUCT, INTERFACE, MAP, CHANNEL, FUNCTION, POINTER, REFERENCE
+
 
 const /* form */ (
 	// internal types
@@ -24,12 +29,6 @@ const /* flag */ (
 )
 
 
-export Type
-type Type Globals.Type
-
-
-export NewType
-func NewType(form int) *Type {
-	panic "UNIMPLEMENTED";
-	return nil;
-}
+// The 'Type' declaration should be here as well, but 6g cannot handle
+// this due to cross-package circular references. For now it's all in
+// globals.go.
