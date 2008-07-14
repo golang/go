@@ -5,6 +5,10 @@
 package main
 
 import Build "build"
+import Globals "globals"
+import Object "object"
+import Type "type"
+import Universe "universe"
 import Scanner "scanner"
 import Parser "parser"
 
@@ -23,6 +27,8 @@ func PrintHelp() {
 
 
 func Compile(filename, src string, verbose int) {
+	Universe.Init();
+
 	S := new(Scanner.Scanner);
 	S.Open(filename, src);
 	

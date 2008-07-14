@@ -15,17 +15,6 @@ const /* kind */ (
 )
 
 
-export Object
-type Object Globals.Object
-
-
-export NewObject
-func NewObject(kind int, name string) *Object {
-	obj := new(Object);
-	obj.mark = false;
-	obj.kind = kind;
-	obj.name = name;
-	obj.type_ = nil;  // Universe::undef_t;
-	obj.pnolev = 0;
-	return obj;
-}
+// The 'Object' declaration should be here as well, but 6g cannot handle
+// this due to cross-package circular references. For now it's all in
+// globals.go.
