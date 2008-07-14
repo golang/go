@@ -18,7 +18,7 @@ export L=${A}l
 
 failed=0
 
-for dir in . ken bugs fixedbugs
+for dir in . ken chan bugs fixedbugs
 do
 	for i in $dir/*.go
 	do

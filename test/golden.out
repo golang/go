@@ -30,11 +30,22 @@ hello, world
 
 =========== ./nil.go
 
+=========== ./peano.go
+0! = 1
+1! = 1
+2! = 2
+3! = 6
+4! = 24
+5! = 120
+6! = 720
+7! = 5040
+8! = 40320
+9! = 362880
+10! = 3628800
+
 =========== ./readfile.go
 
 =========== ./sieve.go
-sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(212)
-BUG: known to fail incorrectly
 
 =========== ./simassign.go
 
@@ -48,6 +59,8 @@ BUG: known to fail incorrectly
 
 =========== ./turing.go
 Hello World!
+
+=========== ./utf.go
 
 =========== ken/for.go
 
@@ -100,6 +113,8 @@ hello world
 abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 
 =========== ken/strvar.go
+
+=========== chan/sieve.go
 
 =========== bugs/bug010.go
 bugs/bug010.go:13: error in shape across CALL
