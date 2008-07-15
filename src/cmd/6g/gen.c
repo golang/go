@@ -106,7 +106,7 @@ allocparams(void)
 	t = funcfirst(&list, curfn->type);
 	while(t != T) {
 		if(d == D)
-			fatal("allocparams: this nil");
+			fatal("allocparams: this & in nil");
 		if(d->op != ONAME) {
 			d = d->forw;
 			continue;
@@ -114,7 +114,7 @@ allocparams(void)
 
 		n = d->dnode;
 		if(n->class != PPARAM)
-			fatal("allocparams: this class");
+			fatal("allocparams: this & in class");
 
 		n->xoffset = t->width;
 		d = d->forw;
@@ -125,7 +125,7 @@ allocparams(void)
 	while(t != T) {
 		if(t->nname != N && t->nname->sym->name[0] != '_') {
 			if(d == D)
-				fatal("allocparams: this nil");
+				fatal("allocparams: out nil");
 			if(d->op != ONAME) {
 				d = d->forw;
 				continue;
@@ -133,7 +133,7 @@ allocparams(void)
 
 			n = d->dnode;
 			if(n->class != PPARAM)
-				fatal("allocparams: this class");
+				fatal("allocparams: out class");
 
 			n->xoffset = t->width;
 			d = d->forw;
