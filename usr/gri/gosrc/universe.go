@@ -67,7 +67,7 @@ var (
 
 
 func DeclObj(kind int, ident string, typ *Globals.Type) *Globals.Object {
-	obj := Globals.NewObject(kind, ident);
+	obj := Globals.NewObject(-1 /* no source pos */, kind, ident);
 	obj.typ = typ;
 	if kind == Object.TYPE && typ.obj == nil {
 		typ.obj = obj;  // set primary type object

@@ -16,6 +16,7 @@ package Globals
 export Object
 type Object struct {
 	mark bool;  // mark => object marked for export
+	pos int;  // source position
 	kind int;
 	ident string;
 	typ *Type;
@@ -67,9 +68,10 @@ type Scope struct {
 // Creation
 
 export NewObject
-func NewObject(kind int, ident string) *Object {
+func NewObject(pos, kind int, ident string) *Object {
 	obj := new(Object);
 	obj.mark = false;
+	obj.pos = pos;
 	obj.kind = kind;
 	obj.ident = ident;
 	obj.typ = nil;  // Universe::undef_t;
