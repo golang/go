@@ -196,8 +196,9 @@ void*	mal(uint32);
 uint32	cmpstring(string, string);
 void	initsig(void);
 void	traceback(uint8 *pc, uint8 *sp, G* gp);
-int32	open(byte*, int32);
+int32	open(byte*, int32, ...);
 int32	read(int32, void*, int32);
+int32	write(int32, void*, int32);
 void	close(int32);
 int32	fstat(int32, void*);
 
