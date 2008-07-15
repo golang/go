@@ -606,8 +606,11 @@ ginscall(Node *f, int proc)
 
 	if(proc) {
 		nodreg(&reg, types[TINT64], D_AX);
-		gins(ALEAQ, f, &reg);
-		gins(APUSHQ, &reg, N);
+		if(f->op != OREGISTER) {
+			gins(ALEAQ, f, &reg);
+			gins(APUSHQ, &reg, N);
+		} else
+			gins(APUSHQ, f, N);
 		nodconst(&con, types[TINT32], argsize(f->type));
 		gins(APUSHQ, &con, N);
 		gins(ACALL, N, newproc);
@@ -658,6 +661,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 	nodo.xoffset = n->left->xoffset + 4*widthptr;
 	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
 
+	// BOTCH nodr.type = fntype;
 	ginscall(&nodr, proc);
 
 	regfree(&nodr);
@@ -717,6 +721,7 @@ cgen_call(Node *n, int proc)
 	if(n->left->ullman >= UINF) {
 		regalloc(&nod, types[tptr], N);
 		cgen_as(&nod, &afun, 0);
+		nod.type = t;
 		ginscall(&nod, proc);
 		regfree(&nod);
 		goto ret;
@@ -726,6 +731,7 @@ cgen_call(Node *n, int proc)
 	if(isptr[n->left->type->etype]) {
 		regalloc(&nod, types[tptr], N);
 		cgen_as(&nod, n->left, 0);
+		nod.type = t;
 		ginscall(&nod, proc);
 		regfree(&nod);
 		goto ret;
