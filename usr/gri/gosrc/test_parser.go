@@ -4,6 +4,7 @@
 
 package main
 
+import Globals "globals"  // to get rid od 6g warning only
 import Scanner "scanner"
 import Parser "parser"
 

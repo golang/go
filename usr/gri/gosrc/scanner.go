@@ -121,6 +121,7 @@ const (
 
 
 var Keywords *map [string] int;
+var VerboseMsgs bool;  // error message customization
 
 
 export TokenName
@@ -362,12 +363,25 @@ bad:
 }
 
 
+func IsUser(username string) bool {
+	for i := 0; i < sys.envc(); i++ {
+		if sys.envv(i) == "USER=" + username {
+			return true;
+		}
+	}
+	return false;
+}
+
+
 func Init () {
 	Keywords = new(map [string] int);
 	
 	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
 	  Keywords[TokenName(i)] = i;
 	}
+	
+	// r doesn't want column information in error messages...
+	VerboseMsgs = !IsUser("r");
 }
 
 
@@ -396,7 +410,11 @@ func (S *Scanner) Error(pos int, msg string) {
 	const errdist = 10;
 	if pos > S.errpos + errdist || S.nerrors == 0 {
 		line, col := S.LineCol(pos);
-		print S.filename, ":", line, ":", col, ": ", msg, "\n";
+		if VerboseMsgs {
+			print S.filename, ":", line, ":", col, ": ", msg, "\n";
+		} else {
+			print S.filename, ":", line,           ": ", msg, "\n";
+		}
 		S.nerrors++;
 		S.errpos = pos;
 	}
