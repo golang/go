@@ -41,3 +41,5 @@ struct stat {	// really a stat64
 	uint32 st_gen;
  	int64 st_qspare[2];
 };
+
+#define	O_CREAT	0x0200
