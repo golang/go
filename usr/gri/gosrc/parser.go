@@ -826,9 +826,11 @@ func (P *Parser) TryStatement() bool {
 	switch P.tok {
 	case Scanner.CONST: fallthrough;
 	case Scanner.TYPE: fallthrough;
-	case Scanner.VAR: fallthrough;
-	case Scanner.FUNC:
+	case Scanner.VAR:
 		P.ParseDeclaration();
+	case Scanner.FUNC:
+		// for now we do not allow local function declarations
+		fallthrough;
 	case Scanner.GTR:
 		P.ParseSimpleStat();  // send
 	case Scanner.IDENT:
