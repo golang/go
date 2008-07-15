@@ -1499,6 +1499,22 @@ a set of related constants:
   const x = iota;  // sets x to 0
   const y = iota;  // sets y to 0
 
+Since the expression in constant declarations repeats implicitly
+if omitted, the first two examples above can be abbreviated:
+
+  const (
+    enum0 = iota;  // sets enum0 to 0, etc.
+    enum1;
+    enum2
+  )
+
+  const (
+    a = 1 << iota;  // sets a to 1 (iota has been reset)
+    b;  // sets b to 2
+    c;  // sets c to 4
+  )
+
+
 TODO: should iota work in var, type, func decls too?
 
 
