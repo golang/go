@@ -706,6 +706,11 @@ pexpr:
 		$$ = nod(ONEW, N, N);
 		$$->type = ptrto($3);
 	}
+|	LNEW '(' type ',' expr_list ')'
+	{
+		$$ = nod(ONEW, $5, N);
+		$$->type = ptrto($3);
+	}
 |	fnliteral
 |	'[' expr_list ']'
 	{

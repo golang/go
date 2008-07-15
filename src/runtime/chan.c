@@ -26,7 +26,7 @@ struct	Hchan
 struct	Link
 {
 	Link*	link;
-	byte	data[8];
+	byte	elem[8];
 };
 
 // newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
@@ -124,7 +124,17 @@ sys·chansend(Hchan* c, ...)
 	return;
 
 asynch:
-	throw("sys·chansend: asynch not yet");
+	while(c->qcount >= c->dataqsiz) {
+		g->status = Gwaiting;
+		enqueue(&c->sendq, g);
+		sys·gosched();
+	}
+	c->elemalg->copy(c->elemsize, c->senddataq->elem, ae);
+	c->senddataq = c->senddataq->link;
+	c->qcount++;
+	gr = dequeue(&c->recvq);
+	if(gr != nil)
+		gr->status = Grunnable;
 }
 
 // chanrecv1(hchan *chan any) (elem any);
@@ -156,7 +166,17 @@ sys·chanrecv1(Hchan* c, ...)
 	return;
 
 asynch:
-	throw("sys·chanrecv1: asynch not yet");
+	while(c->qcount <= 0) {
+		g->status = Gwaiting;
+		enqueue(&c->recvq, g);
+		sys·gosched();
+	}
+	c->elemalg->copy(c->elemsize, ae, c->recvdataq->elem);
+	c->recvdataq = c->recvdataq->link;
+	c->qcount--;
+	gs = dequeue(&c->sendq);
+	if(gs != nil)
+		gs->status = Grunnable;
 }
 
 // chanrecv2(hchan *chan any) (elem any, pres bool);
@@ -164,6 +184,7 @@ void
 sys·chanrecv2(Hchan* c, ...)
 {
 	byte *ae, *ap;
+	G *gs;
 
 	ae = (byte*)&c + c->eo;
 	ap = (byte*)&c + c->po;
@@ -174,8 +195,27 @@ sys·chanrecv2(Hchan* c, ...)
 	}
 	if(c->dataqsiz > 0)
 		goto asynch;
-	throw("sys·chanrecv2: synch not yet");
+
+	gs = dequeue(&c->sendq);
+	if(gs != nil) {
+		c->elemalg->copy(c->elemsize, ae, gs->elem);
+		gs->status = Grunnable;
+		*ap = true;
+		return;
+	}
+	*ap = false;
+	return;
 
 asynch:
-	throw("sys·chanrecv2: asynch not yet");
+	if(c->qcount <= 0) {
+		*ap = false;
+		return;
+	}
+	c->elemalg->copy(c->elemsize, ae, c->recvdataq->elem);
+	c->recvdataq = c->recvdataq->link;
+	c->qcount--;
+	gs = dequeue(&c->sendq);
+	if(gs != nil)
+		gs->status = Grunnable;
+	*ap = true;
 }
