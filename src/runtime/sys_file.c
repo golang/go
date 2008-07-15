@@ -59,7 +59,7 @@ sys·writefile(string filein, string textin, bool okout)
 
 	mcpy(namebuf, filein->str, filein->len);
 	namebuf[filein->len] = '\0';
-	fd = open(namebuf, 1|0x0200, 0644);  // open for write, create if non-existant (sic)
+	fd = open(namebuf, 1|O_CREAT, 0644);  // open for write, create if non-existant (sic)
 	if(fd < 0)
 		goto out;
 

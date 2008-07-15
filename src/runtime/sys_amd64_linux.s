@@ -12,17 +12,10 @@ TEXT	sys·exit(SB),1,$0-8
 	SYSCALL
 	RET
 
-TEXT	sys·write(SB),1,$0-24
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVL	24(SP), DX
-	MOVL	$1, AX			// syscall entry
-	SYSCALL
-	RET
-
 TEXT	open(SB),1,$0-16
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
+	MOVL	20(SP), DX
 	MOVL	$2, AX			// syscall entry
 	SYSCALL
 	RET
@@ -45,6 +38,22 @@ TEXT	read(SB),1,$0-24
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
 	MOVL	$0, AX			// syscall entry
+	SYSCALL
+	RET
+
+TEXT	write(SB),1,$0-24
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVL	24(SP), DX
+	MOVL	$1, AX			// syscall entry
+	SYSCALL
+	RET
+
+TEXT	sys·write(SB),1,$0-24
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVL	24(SP), DX
+	MOVL	$1, AX			// syscall entry
 	SYSCALL
 	RET
 

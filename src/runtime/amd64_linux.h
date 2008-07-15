@@ -38,3 +38,5 @@ struct stat {
 	struct timespec	st_mtime;   /* time of last modification */
 	struct timespec	st_ctime;   /* time of last status change */
 };
+
+#define	O_CREAT	0100
