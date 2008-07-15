@@ -118,7 +118,7 @@ dumpexportvar(Sym *s)
 
 	n = s->oname;
 	if(n == N || n->type == T) {
-		yyerror("variable exported but not defined: %S\n", s);
+		yyerror("variable exported but not defined: %S", s);
 		return;
 	}
 
@@ -144,7 +144,7 @@ dumpexporttype(Sym *s)
 
 	t = s->otype;
 	if(t == T) {
-		yyerror("type exported but not defined: %S\n", s);
+		yyerror("type exported but not defined: %S", s);
 		return;
 	}
 
@@ -251,10 +251,10 @@ dumpe(Sym *s)
 {
 	switch(s->lexical) {
 	default:
-		yyerror("unknown export symbol: %S\n", s, s->lexical);
+		yyerror("unknown export symbol: %S", s, s->lexical);
 		break;
 	case LPACK:
-		yyerror("package export symbol: %S\n", s);
+		yyerror("package export symbol: %S", s);
 		break;
 	case LATYPE:
 	case LBASETYPE:
