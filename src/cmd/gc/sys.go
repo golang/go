@@ -53,6 +53,7 @@ func	gosched();
 func	goexit();
 
 func	readfile(string) (string, bool);	// read file into string; boolean status
+func	writefile(string, string) (bool);	// write string into file; boolean status
 func	bytestorune(*byte, int32, int32) (int32, int32);	// convert bytes to runes	
 func	stringtorune(string, int32, int32) (int32, int32);	// convert bytes to runes	
 
@@ -113,6 +114,7 @@ export
 
 	// files
 	readfile
+	writefile
 
 	// runes and utf-8
 	bytestorune
