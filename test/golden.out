@@ -218,7 +218,7 @@ bugs/bug054.go:25: fatal error: agen_inter i2s
 BUG: known to fail incorrectly
 
 =========== bugs/bug055.go
-bugs/bug055.go:15: fatal error: allocparams: this class
+bugs/bug055.go:15: fatal error: allocparams: out class
 BUG: known to fail incorrectly
 
 =========== bugs/bug057.go
@@ -248,9 +248,29 @@ bugs/bug064.go:15: illegal types for operand: CALL
 	({<u><int32>INT32;<v><int32>INT32;})
 BUG: compilation should succeed
 
-=========== bugs/bug065.go
-bugs/bug065.go:6: unknown escape sequence: '
+=========== bugs/bug066.go
 BUG: compilation should succeed
+
+=========== bugs/bug067.go
+
+=========== bugs/bug068.go
+bugs/bug068.go:6: unknown escape sequence: '
+BUG: compilation should succeed
+
+=========== bugs/bug069.go
+bugs/bug069.go:12: bad shape across assignment - cr=1 cl=2
+
+=========== bugs/bug070.go
+outer loop top k 0
+inner loop top i 0
+do break
+outer loop top k 1
+k not zero
+panic on line 257 PC=0x1362
+0x1362?zi
+	main·main(1, 0, 1606415440, ...)
+	main·main(0x1, 0x7fff5fbff450, 0x0, ...)
+BUG: crashes
 
 =========== fixedbugs/bug000.go
 
