@@ -182,7 +182,7 @@ func (scope *Scope) Lookup(ident string) *Object {
 
 func (scope *Scope) Insert(obj *Object) {
 	if scope.Lookup(obj.ident) != nil {
-		panic;
+		panic "obj already inserted";
 	}
 	scope.entries.AddObj(obj);
 }

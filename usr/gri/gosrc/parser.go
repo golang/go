@@ -5,6 +5,8 @@
 package Parser
 
 import Scanner "scanner"
+import Globals "globals"
+import Universe "universe"
 
 
 export Parser
@@ -14,6 +16,7 @@ type Parser struct {
 	tok int;  // one token look-ahead
 	beg, end int;  // token position
 	ident string;  // last ident seen
+	top_scope *Globals.Scope;
 }
 
 
@@ -59,6 +62,7 @@ func (P *Parser) Open(S *Scanner.Scanner, verbose int) {
 	P.indent = 0;
 	P.S = S;
 	P.Next();
+	P.top_scope = Universe.scope;
 }
 
 
@@ -83,6 +87,46 @@ func (P *Parser) Optional(tok int) {
 	}
 }
 
+
+// ----------------------------------------------------------------------------
+
+func (P *Parser) OpenScope() {
+	P.top_scope = Globals.NewScope(P.top_scope);
+}
+
+
+func (P *Parser) CloseScope() {
+	P.top_scope = P.top_scope.parent;
+}
+
+
+func (P *Parser) Lookup(ident string) *Globals.Object {
+	for scope := P.top_scope; scope != nil; scope = scope.parent {
+		obj := scope.Lookup(ident);
+		if obj != nil {
+			return obj;
+		}
+	}
+	return nil;
+}
+
+
+func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
+	if scope.Lookup(obj.ident) != nil {
+		// TODO is this the correct error position?
+		P.Error(P.beg, `"` + obj.ident + `" is declared already`);
+		return;  // don't insert it into the scope
+	}
+	scope.Insert(obj);
+}
+
+
+func (P *Parser) Declare(obj *Globals.Object) {
+	P.DeclareInScope(P.top_scope, obj);
+}
+
+
+// ----------------------------------------------------------------------------
 
 func (P *Parser) TryType() bool;
 func (P *Parser) ParseExpression();
@@ -178,9 +222,11 @@ func (P *Parser) ParseInterfaceType() {
 	P.Trace("InterfaceType");
 	P.Expect(Scanner.INTERFACE);
 	P.Expect(Scanner.LBRACE);
+	P.OpenScope();
 	for P.tok != Scanner.RBRACE {
 		P.ParseMethodDecl();
 	}
+	P.CloseScope();
 	P.Next();
 	P.Ecart();
 }
@@ -220,6 +266,7 @@ func (P *Parser) ParseStructType() {
 	P.Trace("StructType");
 	P.Expect(Scanner.STRUCT);
 	P.Expect(Scanner.LBRACE);
+	P.OpenScope();
 	for P.tok != Scanner.RBRACE {
 		P.ParseFieldDecl();
 		if P.tok != Scanner.RBRACE {
@@ -227,6 +274,7 @@ func (P *Parser) ParseStructType() {
 		}
 	}
 	P.Optional(Scanner.SEMICOLON);
+	P.CloseScope();
 	P.Expect(Scanner.RBRACE);
 	P.Ecart();
 }
@@ -458,12 +506,14 @@ func (P *Parser) TryResult() bool {
 
 func (P *Parser) ParseAnonymousSignature() {
 	P.Trace("AnonymousSignature");
+	P.OpenScope();
 	P.ParseParameters();
 	if P.tok == Scanner.PERIOD {
 		P.Next();
 		P.ParseParameters();
 	}
 	P.TryResult();
+	P.CloseScope();
 	P.Ecart();
 }
 
@@ -479,12 +529,14 @@ func (P *Parser) ParseAnonymousSignature() {
 
 func (P *Parser) ParseNamedSignature() {
 	P.Trace("NamedSignature");
+	P.OpenScope();
 	if P.tok == Scanner.LPAREN {
 		P.ParseParameters();
 	}
 	P.ParseIdent();  // function name
 	P.ParseParameters();
 	P.TryResult();
+	P.CloseScope();
 	P.Ecart();
 }
 
@@ -591,6 +643,7 @@ func (P *Parser) ParseStatement() {
 func (P *Parser) ParseIfStat() {
 	P.Trace("IfStat");
 	P.Expect(Scanner.IF);
+	P.OpenScope();
 	if P.tok != Scanner.LBRACE {
 		if P.tok != Scanner.SEMICOLON {
 			P.ParseSimpleStat();
@@ -612,6 +665,7 @@ func (P *Parser) ParseIfStat() {
 			P.ParseStatement();
 		}
 	}
+	P.CloseScope();
 	P.Ecart();
 }
 
@@ -619,6 +673,7 @@ func (P *Parser) ParseIfStat() {
 func (P *Parser) ParseForStat() {
 	P.Trace("ForStat");
 	P.Expect(Scanner.FOR);
+	P.OpenScope();
 	if P.tok != Scanner.LBRACE {
 		if P.tok != Scanner.SEMICOLON {
 			P.ParseSimpleStat();
@@ -635,6 +690,7 @@ func (P *Parser) ParseForStat() {
 		}
 	}
 	P.ParseBlock();
+	P.CloseScope();
 	P.Ecart();
 }
 
@@ -680,6 +736,7 @@ func (P *Parser) ParseCaseClause() {
 func (P *Parser) ParseSwitchStat() {
 	P.Trace("SwitchStat");
 	P.Expect(Scanner.SWITCH);
+	P.OpenScope();
 	if P.tok != Scanner.LBRACE {
 		if P.tok != Scanner.SEMICOLON {
 			P.ParseSimpleStat();
@@ -696,6 +753,7 @@ func (P *Parser) ParseSwitchStat() {
 		P.ParseCaseClause();
 	}
 	P.Expect(Scanner.RBRACE);
+	P.CloseScope();
 	P.Ecart();
 }
 
@@ -822,10 +880,12 @@ func (P *Parser) ParseStatementList() {
 func (P *Parser) ParseBlock() {
 	P.Trace("Block");
 	P.Expect(Scanner.LBRACE);
+	P.OpenScope();
 	if P.tok != Scanner.RBRACE && P.tok != Scanner.SEMICOLON {
 		P.ParseStatementList();
 	}
 	P.Optional(Scanner.SEMICOLON);
+	P.CloseScope();
 	P.Expect(Scanner.RBRACE);
 	P.Ecart();
 }
@@ -904,6 +964,14 @@ func (P *Parser) ParseNew() {
 }
 
 
+func (P *Parser) ParseFunctionLit() {
+	P.Trace("FunctionLit");
+	P.ParseFunctionType();
+	P.ParseBlock();
+	P.Ecart();
+}
+
+
 func (P *Parser) ParseOperand() {
 	P.Trace("Operand");
 	switch P.tok {
@@ -920,6 +988,8 @@ func (P *Parser) ParseOperand() {
 	case Scanner.TRUE: fallthrough;
 	case Scanner.FALSE:
 		P.Next();
+	case Scanner.FUNC:
+		P.ParseFunctionLit();
 	case Scanner.NEW:
 		P.ParseNew();
 	default:
@@ -1052,18 +1122,24 @@ func (P *Parser) ParseExpression() {
 
 func (P *Parser) ParseProgram() {
 	P.Trace("Program");
+	P.OpenScope();
 	P.Expect(Scanner.PACKAGE);
 	P.ParseIdent();
 	P.Optional(Scanner.SEMICOLON);
 	
-	for P.tok == Scanner.IMPORT {
-		P.ParseImportDecl();
-		P.Optional(Scanner.SEMICOLON);
+	{	P.OpenScope();
+		for P.tok == Scanner.IMPORT {
+			P.ParseImportDecl();
+			P.Optional(Scanner.SEMICOLON);
+		}
+		
+		for P.tok != Scanner.EOF {
+			P.ParseDeclaration();
+			P.Optional(Scanner.SEMICOLON);
+		}
+		P.CloseScope();
 	}
 	
-	for P.tok != Scanner.EOF {
-		P.ParseDeclaration();
-		P.Optional(Scanner.SEMICOLON);
-	}
+	P.CloseScope();
 	P.Ecart();
 }
