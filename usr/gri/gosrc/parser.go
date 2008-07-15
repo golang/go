@@ -6,7 +6,13 @@ package Parser
 
 import Scanner "scanner"
 import Globals "globals"
+import Object "object"
+import Type "type"
 import Universe "universe"
+
+
+// So I can submit and have a running parser for now...
+const EnableSemanticTests = false;
 
 
 export Parser
@@ -19,6 +25,9 @@ type Parser struct {
 	top_scope *Globals.Scope;
 }
 
+
+// ----------------------------------------------------------------------------
+// Support functions
 
 func (P *Parser) PrintIndent() {
 	for i := P.indent; i > 0; i-- {
@@ -52,7 +61,7 @@ func (P *Parser) Next() {
 	}
 	if P.verbose > 1 {
 		P.PrintIndent();
-		print Scanner.TokenName(P.tok), "\n";
+		print "[", P.beg, "] ", Scanner.TokenName(P.tok), "\n";
 	}
 }
 
@@ -68,16 +77,14 @@ func (P *Parser) Open(S *Scanner.Scanner, verbose int) {
 
 func (P *Parser) Error(pos int, msg string) {
 	P.S.Error(pos, msg);
-	P.Next();  // make progress
 }
 
 
 func (P *Parser) Expect(tok int) {
-	if P.tok == tok {
-		P.Next()
-	} else {
+	if P.tok != tok {
 		P.Error(P.beg, "expected '" + Scanner.TokenName(tok) + "', found '" + Scanner.TokenName(P.tok) + "'");
 	}
+	P.Next();  // make progress in any case
 }
 
 
@@ -89,6 +96,7 @@ func (P *Parser) Optional(tok int) {
 
 
 // ----------------------------------------------------------------------------
+// Scopes
 
 func (P *Parser) OpenScope() {
 	P.top_scope = Globals.NewScope(P.top_scope);
@@ -112,9 +120,13 @@ func (P *Parser) Lookup(ident string) *Globals.Object {
 
 
 func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
+	if !EnableSemanticTests {
+		return;
+	}
+	
 	if scope.Lookup(obj.ident) != nil {
 		// TODO is this the correct error position?
-		P.Error(P.beg, `"` + obj.ident + `" is declared already`);
+		P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
 		return;  // don't insert it into the scope
 	}
 	scope.Insert(obj);
@@ -130,18 +142,56 @@ func (P *Parser) Declare(obj *Globals.Object) {
 // Common productions
 
 
-func (P *Parser) TryType() bool;
+func (P *Parser) TryType() *Globals.Type;
 func (P *Parser) ParseExpression();
 func (P *Parser) TryStatement() bool;
 func (P *Parser) ParseDeclaration();
 
 
-func (P *Parser) ParseIdent() {
-	if P.verbose > 0 {
-		P.PrintIndent();
-		print "Ident = \"", P.ident, "\"\n";
+func (P *Parser) ParseIdent() string {
+	P.Trace("Ident");
+
+	ident := "";
+	if P.tok == Scanner.IDENT {
+		ident = P.ident;
+		if P.verbose > 0 {
+			P.PrintIndent();
+			print "Ident = \"", ident, "\"\n";
+		}
+		P.Next();
+	} else {
+		P.Expect(Scanner.IDENT);  // use Expect() error handling
 	}
-	P.Expect(Scanner.IDENT);
+	
+	P.Ecart();
+	return ident;
+}
+
+
+func (P *Parser) ParseIdentDecl(kind int) *Globals.Object {
+	P.Trace("IdentDecl");
+	
+	pos := P.beg;
+	obj := Globals.NewObject(pos, kind, P.ParseIdent());
+	P.Declare(obj);
+	
+	P.Ecart();
+	return obj;
+}
+
+
+func (P *Parser) ParseIdentDeclList(kind int) *Globals.List {
+	P.Trace("IdentDeclList");
+	
+	list := Globals.NewList();
+	list.AddObj(P.ParseIdentDecl(kind));
+	for P.tok == Scanner.COMMA {
+		P.Next();
+		list.AddObj(P.ParseIdentDecl(kind));
+	}
+	
+	P.Ecart();
+	return list;
 }
 
 
@@ -156,37 +206,76 @@ func (P *Parser) ParseIdentList() {
 }
 
 
-func (P *Parser) ParseQualifiedIdent() {
+func (P *Parser) ParseQualifiedIdent() *Globals.Object {
 	P.Trace("QualifiedIdent");
-	P.ParseIdent();
-	if P.tok == Scanner.PERIOD {
-		P.Next();
+
+	if EnableSemanticTests {
+		pos := P.beg;
+		ident := P.ParseIdent();
+		obj := P.Lookup(ident);
+		if obj == nil {
+			P.Error(pos, `"` + ident + `" is not declared`);
+			obj = Globals.NewObject(pos, Object.BAD, ident);
+		}
+
+		if obj.kind == Object.PACKAGE && P.tok == Scanner.PERIOD {
+			panic "Qualified ident not complete yet";
+			P.Next();
+			P.ParseIdent();
+		}
+		P.Ecart();
+		return obj;
+		
+	} else {
 		P.ParseIdent();
+		if P.tok == Scanner.PERIOD {
+			P.Next();
+			P.ParseIdent();
+		}
+		P.Ecart();
+		return nil;
 	}
-	P.Ecart();
 }
 
 
 // ----------------------------------------------------------------------------
 // Types
 
-func (P *Parser) ParseType() {
+func (P *Parser) ParseType() *Globals.Type{
 	P.Trace("Type");
-	if !P.TryType() {
+	
+	typ := P.TryType();
+	if typ == nil {
 		P.Error(P.beg, "type expected");
+		typ = Universe.bad_t;
 	}
+	
 	P.Ecart();
+	return typ;
 }
 
 
-func (P *Parser) ParseTypeName() {
+func (P *Parser) ParseTypeName() *Globals.Type {
 	P.Trace("TypeName");
-	P.ParseQualifiedIdent();
-	P.Ecart();
+	
+	if EnableSemanticTests {
+		obj := P.ParseQualifiedIdent();
+		typ := obj.typ;
+		if obj.kind != Object.TYPE {
+			P.Error(obj.pos, `"` + obj.ident + `" is not a type`);
+			typ = Universe.bad_t;
+		}
+		P.Ecart();
+		return typ;
+	} else {
+		P.ParseQualifiedIdent();
+		P.Ecart();
+		return Universe.bad_t;
+	}
 }
 
 
-func (P *Parser) ParseArrayType() {
+func (P *Parser) ParseArrayType() *Globals.Type {
 	P.Trace("ArrayType");
 	P.Expect(Scanner.LBRACK);
 	if P.tok != Scanner.RBRACK {
@@ -195,10 +284,11 @@ func (P *Parser) ParseArrayType() {
 	P.Expect(Scanner.RBRACK);
 	P.ParseType();
 	P.Ecart();
+	return Universe.bad_t;
 }
 
 
-func (P *Parser) ParseChannelType() {
+func (P *Parser) ParseChannelType() *Globals.Type {
 	P.Trace("ChannelType");
 	P.Expect(Scanner.CHAN);
 	switch P.tok {
@@ -208,6 +298,7 @@ func (P *Parser) ParseChannelType() {
 	}
 	P.ParseType();
 	P.Ecart();
+	return Universe.bad_t;
 }
 
 
@@ -249,7 +340,7 @@ func (P *Parser) TryResult() bool {
 		P.ParseParameters();
 		res = true;
 	} else {
-		res = P.TryType();
+		res = P.TryType() != nil;
 	}
 	P.Ecart();
 	return res;
@@ -302,11 +393,12 @@ func (P *Parser) ParseNamedSignature() {
 }
 
 
-func (P *Parser) ParseFunctionType() {
+func (P *Parser) ParseFunctionType() *Globals.Type {
 	P.Trace("FunctionType");
 	P.Expect(Scanner.FUNC);
 	P.ParseAnonymousSignature();
 	P.Ecart();
+	return Universe.bad_t;
 }
 
 
@@ -320,7 +412,7 @@ func (P *Parser) ParseMethodDecl() {
 }
 
 
-func (P *Parser) ParseInterfaceType() {
+func (P *Parser) ParseInterfaceType() *Globals.Type {
 	P.Trace("InterfaceType");
 	P.Expect(Scanner.INTERFACE);
 	P.Expect(Scanner.LBRACE);
@@ -331,10 +423,11 @@ func (P *Parser) ParseInterfaceType() {
 	P.CloseScope();
 	P.Next();
 	P.Ecart();
+	return Universe.bad_t;
 }
 
 
-func (P *Parser) ParseMapType() {
+func (P *Parser) ParseMapType() *Globals.Type {
 	P.Trace("MapType");
 	P.Expect(Scanner.MAP);
 	P.Expect(Scanner.LBRACK);
@@ -342,23 +435,32 @@ func (P *Parser) ParseMapType() {
 	P.Expect(Scanner.RBRACK);
 	P.ParseType();
 	P.Ecart();
+	return Universe.bad_t;
 }
 
 
 func (P *Parser) ParseFieldDecl() {
 	P.Trace("FieldDecl");
-	P.ParseIdentList();
-	P.ParseType();
+	
+	list := P.ParseIdentDeclList(Object.VAR);
+	typ := P.ParseType();  // TODO should check completeness of types
+	for p := list.first; p != nil; p = p.next {
+		p.obj.typ = typ;  // TODO should use/have set_type()
+	}
+	
 	P.Ecart();
 }
 
 
-func (P *Parser) ParseStructType() {
+func (P *Parser) ParseStructType() *Globals.Type {
 	P.Trace("StructType");
+	
 	P.Expect(Scanner.STRUCT);
 	P.Expect(Scanner.LBRACE);
 	P.OpenScope();
-	for P.tok != Scanner.RBRACE {
+	typ := Globals.NewType(Type.STRUCT);
+	typ.scope = P.top_scope;
+	for P.tok == Scanner.IDENT {
 		P.ParseFieldDecl();
 		if P.tok != Scanner.RBRACE {
 			P.Expect(Scanner.SEMICOLON);
@@ -367,43 +469,39 @@ func (P *Parser) ParseStructType() {
 	P.Optional(Scanner.SEMICOLON);
 	P.CloseScope();
 	P.Expect(Scanner.RBRACE);
+	
 	P.Ecart();
+	return typ;
 }
 
 
-func (P *Parser) ParsePointerType() {
+func (P *Parser) ParsePointerType() *Globals.Type {
 	P.Trace("PointerType");
 	P.Expect(Scanner.MUL);
 	P.ParseType();
 	P.Ecart();
+	return Universe.bad_t;
 }
 
 
-func (P *Parser) TryType() bool {
+// Returns nil if no type was found.
+func (P *Parser) TryType() *Globals.Type {
 	P.Trace("Type (try)");
+	
+	var typ *Globals.Type = nil;
 	switch P.tok {
-	case Scanner.IDENT:
-		P.ParseTypeName();
-	case Scanner.LBRACK:
-		P.ParseArrayType();
-	case Scanner.CHAN:
-		P.ParseChannelType();
-	case Scanner.INTERFACE:
-		P.ParseInterfaceType();
-	case Scanner.FUNC:
-		P.ParseFunctionType();
-	case Scanner.MAP:
-		P.ParseMapType();
-	case Scanner.STRUCT:
-		P.ParseStructType();
-	case Scanner.MUL:
-		P.ParsePointerType();
-	default:
-		P.Ecart();
-		return false;
+	case Scanner.IDENT: typ = P.ParseTypeName();
+	case Scanner.LBRACK: typ = P.ParseArrayType();
+	case Scanner.CHAN: typ = P.ParseChannelType();
+	case Scanner.INTERFACE: typ = P.ParseInterfaceType();
+	case Scanner.FUNC: typ = P.ParseFunctionType();
+	case Scanner.MAP: typ = P.ParseMapType();
+	case Scanner.STRUCT: typ = P.ParseStructType();
+	case Scanner.MUL: typ = P.ParsePointerType();
 	}
+
 	P.Ecart();
-	return true;
+	return typ;
 }
 
 
@@ -414,6 +512,7 @@ func (P *Parser) ParseStatement() {
 	P.Trace("Statement");
 	if !P.TryStatement() {
 		P.Error(P.beg, "statement expected");
+		P.Next();  // make progress
 	}
 	P.Ecart();
 }
@@ -500,6 +599,7 @@ func (P *Parser) ParseOperand() {
 		P.ParseNew();
 	default:
 		P.Error(P.beg, "operand expected");
+		P.Next();  // make progress
 	}
 	P.Ecart();
 }
@@ -903,8 +1003,9 @@ func (P *Parser) TryStatement() bool {
 	case Scanner.FUNC:
 		// for now we do not allow local function declarations
 		fallthrough;
+	case Scanner.LSS: fallthrough;
 	case Scanner.GTR:
-		P.ParseSimpleStat();  // send
+		P.ParseSimpleStat();  // send or receive
 	case Scanner.IDENT:
 		switch P.ident {
 		case "print", "panic":
@@ -947,18 +1048,21 @@ func (P *Parser) TryStatement() bool {
 
 func (P *Parser) ParseImportSpec() {
 	P.Trace("ImportSpec");
+	
 	if P.tok == Scanner.PERIOD {
 		P.Next();
 	} else if P.tok == Scanner.IDENT {
 		P.Next();
 	}
 	P.Expect(Scanner.STRING);
+	
 	P.Ecart();
 }
 
 
 func (P *Parser) ParseImportDecl() {
 	P.Trace("ImportDecl");
+	
 	P.Expect(Scanner.IMPORT);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
@@ -970,24 +1074,33 @@ func (P *Parser) ParseImportDecl() {
 	} else {
 		P.ParseImportSpec();
 	}
+	
 	P.Ecart();
 }
 
 
 func (P *Parser) ParseConstSpec() {
 	P.Trace("ConstSpec");
-	P.ParseIdent();
-	P.TryType();
+	
+	list := P.ParseIdentDeclList(Object.CONST);
+	typ := P.TryType();
+	if typ != nil {
+		for p := list.first; p != nil; p = p.next {
+			p.obj.typ = typ;  // TODO should use/have set_type()!
+		}
+	}
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
-		P.ParseExpression();
+		P.ParseExpressionList();
 	}
+	
 	P.Ecart();
 }
 
 
 func (P *Parser) ParseConstDecl() {
 	P.Trace("ConstDecl");
+	
 	P.Expect(Scanner.CONST);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
@@ -1001,20 +1114,45 @@ func (P *Parser) ParseConstDecl() {
 	} else {
 		P.ParseConstSpec();
 	}
+	
 	P.Ecart();
 }
 
 
 func (P *Parser) ParseTypeSpec() {
 	P.Trace("TypeSpec");
-	P.ParseIdent();
-	P.TryType();
+	
+	pos := P.beg;
+	ident := P.ParseIdent();
+	obj := P.top_scope.Lookup(ident);  // only lookup in top scope!
+	if obj != nil {
+		// ok if forward declared type
+		if obj.kind != Object.TYPE || obj.typ.form != Type.UNDEF {
+			// TODO use obj.pos to refer to decl pos in error msg!
+			P.Error(pos, `"` + ident + `" is declared already`);
+		}
+	} else {
+		obj = Globals.NewObject(pos, Object.TYPE, ident);
+		obj.typ = Universe.undef_t;  // TODO fix this
+		P.top_scope.Insert(obj);
+	}
+	
+	typ := P.TryType();  // no type if we have a forward decl
+	if typ != nil {
+		// TODO what about the name of incomplete types?
+		obj.typ = typ;  // TODO should use/have set_typ()!
+		if typ.obj == nil {
+			typ.obj = obj;  // primary type object
+		}
+	}
+	
 	P.Ecart();
 }
 
 
 func (P *Parser) ParseTypeDecl() {
 	P.Trace("TypeDecl");
+	
 	P.Expect(Scanner.TYPE);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
@@ -1028,29 +1166,36 @@ func (P *Parser) ParseTypeDecl() {
 	} else {
 		P.ParseTypeSpec();
 	}
+	
 	P.Ecart();
 }
 
 
 func (P *Parser) ParseVarSpec() {
 	P.Trace("VarSpec");
-	P.ParseIdentList();
+	
+	list := P.ParseIdentDeclList(Object.VAR);
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
 		P.ParseExpressionList();
 	} else {
-		P.ParseType();
+		typ := P.ParseType();
+		for p := list.first; p != nil; p = p.next {
+			p.obj.typ = typ;  // TODO should use/have set_type()!
+		}
 		if P.tok == Scanner.ASSIGN {
 			P.Next();
 			P.ParseExpressionList();
 		}
 	}
+	
 	P.Ecart();
 }
 
 
 func (P *Parser) ParseVarDecl() {
 	P.Trace("VarDecl");
+	
 	P.Expect(Scanner.VAR);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
@@ -1064,12 +1209,14 @@ func (P *Parser) ParseVarDecl() {
 	} else {
 		P.ParseVarSpec();
 	}
+	
 	P.Ecart();
 }
 
 
 func (P *Parser) ParseFuncDecl() {
 	P.Trace("FuncDecl");
+	
 	P.Expect(Scanner.FUNC);
 	P.ParseNamedSignature();
 	if P.tok == Scanner.SEMICOLON {
@@ -1078,12 +1225,14 @@ func (P *Parser) ParseFuncDecl() {
 	} else {
 		P.ParseBlock();
 	}
+	
 	P.Ecart();
 }
 
 
 func (P *Parser) ParseExportDecl() {
 	P.Trace("ExportDecl");
+	
 	P.Expect(Scanner.EXPORT);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
@@ -1099,12 +1248,14 @@ func (P *Parser) ParseExportDecl() {
 			P.ParseIdent();
 		}
 	}
+	
 	P.Ecart();
 }
 
 
 func (P *Parser) ParseDeclaration() {
 	P.Trace("Declaration");
+	
 	indent := P.indent;
 	switch P.tok {
 	case Scanner.CONST:
@@ -1119,10 +1270,12 @@ func (P *Parser) ParseDeclaration() {
 		P.ParseExportDecl();
 	default:
 		P.Error(P.beg, "declaration expected");
+		P.Next();  // make progress
 	}
 	if indent != P.indent {
 		panic "imbalanced tracing code"
 	}
+	
 	P.Ecart();
 }
 

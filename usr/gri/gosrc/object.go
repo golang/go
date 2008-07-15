@@ -7,7 +7,7 @@ package Object
 import Globals "globals"
 
 
-export BAD, CONST, TYPE, VAR, FUNC, PACKAGE
+export BAD, CONST, TYPE, VAR, FUNC, PACKAGE, PTYPE
 const /* kind */ (
 	BAD = iota;  // error handling
 	CONST; TYPE; VAR; FUNC; PACKAGE;
