@@ -13,7 +13,7 @@ func	printbool(bool);
 func	printfloat(double);
 func	printint(int64);
 func	printstring(string);
-func	printpointer(*byte);
+func	printpointer(*any);
 
 func	catstring(string, string) string;
 func	cmpstring(string, string) int32;
