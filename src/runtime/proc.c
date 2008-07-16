@@ -35,8 +35,24 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 		sys·panicl(123);
 	}
 
-	newg = mal(sizeof(G));
-	stk = mal(4096);
+	// try to rip off an old goroutine
+	for(newg=allg; newg!=nil; newg=newg->alllink)
+		if(newg->status == Gdead)
+			break;
+
+	if(newg == nil) {
+		newg = mal(sizeof(G));
+		stk = mal(4096);
+		newg->stack0 = stk;
+
+		newg->status = Gwaiting;
+		newg->alllink = allg;
+		allg = newg;
+	} else {
+		stk = newg->stack0;
+		newg->status = Gwaiting;
+	}
+
 	newg->stackguard = stk+160;
 
 	sp = stk + 4096 - 4*8;
@@ -56,8 +72,6 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 	newg->goid = goidgen;
 
 	newg->status = Grunnable;
-	newg->alllink = allg;
-	allg = newg;
 
 //prints(" goid=");
 //sys·printint(newg->goid);
@@ -67,18 +81,25 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 G*
 select(void)
 {
-	G *gp, *bestg;
+	G *gp;
 
-	bestg = nil;
-	for(gp=allg; gp!=nil; gp=gp->alllink) {
-		if(gp->status != Grunnable)
-			continue;
-		if(bestg == nil || gp->pri < bestg->pri)
-			bestg = gp;
+	gp = m->lastg;
+	if(gp == nil)
+		gp = allg;
+
+	for(gp=gp->alllink; gp!=nil; gp=gp->alllink) {
+		if(gp->status == Grunnable) {
+			m->lastg = gp;
+			return gp;
+		}
 	}
-	if(bestg != nil)
-		bestg->pri++;
-	return bestg;
+	for(gp=allg; gp!=nil; gp=gp->alllink) {
+		if(gp->status == Grunnable) {
+			m->lastg = gp;
+			return gp;
+		}
+	}
+	return nil;
 }
 
 void
