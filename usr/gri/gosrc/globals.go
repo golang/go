@@ -60,7 +60,7 @@ export Scope
 type Scope struct {
 	parent *Scope;
 	entries *List;
-	// entries *map[string] *Object;  // doesn't work yet
+	// entries *map[string] *Object;  // doesn't work properly
 }
 
 

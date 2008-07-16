@@ -5,12 +5,7 @@
 package main
 
 import Build "build"
-import Globals "globals"
-import Object "object"
-import Type "type"
-import Universe "universe"
-import Scanner "scanner"
-import Parser "parser"
+import Compilation "compilation"
 
 
 func PrintHelp() {
@@ -23,19 +18,6 @@ func PrintHelp() {
     printf("  %s  %s\n", Flags[i].name, Flags[i].help);
   }
   */
-}
-
-
-func Compile(filename, src string, verbose int) {
-	Universe.Init();
-
-	S := new(Scanner.Scanner);
-	S.Open(filename, src);
-	
-	P := new(Parser.Parser);
-	P.Open(S, verbose);
-	
-	P.ParseProgram();
 }
 
 
@@ -56,12 +38,6 @@ func main() {
 			continue;
 		}
 		
-		src, ok := sys.readfile(sys.argv(i));
-		if ok {
-			print "parsing " + sys.argv(i) + "\n";
-			Compile(sys.argv(i), src, verbose);
-		} else {
-			print "error: cannot read " + sys.argv(i) + "\n";
-		}
+		Compilation.Compile(sys.argv(i), verbose);
 	}
 }
