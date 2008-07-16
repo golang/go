@@ -1179,6 +1179,8 @@ prcompat(Node *n)
 
 loop:
 	if(l == N) {
+		if(r == N)
+			return nod(OBAD, N, N);
 		walktype(r, Etop);
 		return r;
 	}
@@ -1186,28 +1188,33 @@ loop:
 	w = whatis(l);
 	switch(w) {
 	default:
-		badtype(n->op, l->type, T);
-		l = listnext(&save);
-		goto loop;
+		if(!isptr[l->type->etype]) {
+			badtype(n->op, l->type, T);
+			l = listnext(&save);
+			goto loop;
+		}
+		on = syslook("printpointer", 1);
+		argtype(on, l->type->type);	// any-1
+		break;
+
 	case Wlitint:
 	case Wtint:
-		name = "printint";
+		on = syslook("printint", 0);
 		break;
 	case Wlitfloat:
 	case Wtfloat:
-		name = "printfloat";
+		on = syslook("printfloat", 0);
 		break;
 	case Wlitbool:
 	case Wtbool:
-		name = "printbool";
+		on = syslook("printbool", 0);
 		break;
 	case Wlitstr:
 	case Wtstr:
-		name = "printstring";
+		on = syslook("printstring", 0);
 		break;
 	}
 
-	on = syslook(name, 0);
 	t = *getinarg(on->type);
 	if(t != nil)
 		t = t->type;
