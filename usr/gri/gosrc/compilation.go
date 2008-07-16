@@ -7,6 +7,7 @@ package Compilation
 import Globals "globals"
 import Object "object"
 import Type "type"
+import Universe "universe"
 import Package "package"
 import Scanner "scanner"
 import Parser "parser"
@@ -16,7 +17,8 @@ export Compilation
 type Compilation struct {
   src_name string;
   pkg *Globals.Object;
-  imports *Globals.List;  // a list of *Globals.Package
+  imports [256] *Package.Package;  // TODO need open arrays
+  nimports int;
 }
 
 
@@ -48,5 +50,26 @@ func (C *Compilation) Export() {
 
 
 export Compile
-func Compile() {
+func Compile(src_name string, verbose int) {
+	comp := new(Compilation);
+	comp.src_name = src_name;
+	comp.pkg = nil;
+	comp.nimports = 0;
+	
+	src, ok := sys.readfile(src_name);
+	if !ok {
+		print "cannot open ", src_name, "\n"
+		return;
+	}
+	
+	Universe.Init();
+
+	S := new(Scanner.Scanner);
+	S.Open(src_name, src);
+
+	P := new(Parser.Parser);
+	P.Open(S, verbose);
+	
+	print "parsing ", src_name, "\n";
+	P.ParseProgram();
 }
