@@ -93,9 +93,9 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
 
 }
 
-// chansend(hchan *chan any, elem any);
+// chansend1(hchan *chan any, elem any);
 void
-sys·chansend(Hchan* c, ...)
+sys·chansend1(Hchan* c, ...)
 {
 	byte *ae;
 	G *gr;
@@ -135,6 +135,49 @@ asynch:
 	gr = dequeue(&c->recvq);
 	if(gr != nil)
 		gr->status = Grunnable;
+}
+
+// chansend2(hchan *chan any, elem any) (pres bool);
+void
+sys·chansend2(Hchan* c, ...)
+{
+	byte *ae, *ap;
+	G *gr;
+
+	ae = (byte*)&c + c->eo;
+	ap = (byte*)&c + c->po;
+	if(debug) {
+		prints("chansend: chan=");
+		sys·printpointer(c);
+		prints("; elem=");
+		c->elemalg->print(c->elemsize, ae);
+		prints("\n");
+	}
+	if(c->dataqsiz > 0)
+		goto asynch;
+
+	gr = dequeue(&c->recvq);
+	if(gr != nil) {
+		c->elemalg->copy(c->elemsize, gr->elem, ae);
+		gr->status = Grunnable;
+		*ap = true;
+		return;
+	}
+	*ap = false;
+	return;
+
+asynch:
+	if(c->qcount >= c->dataqsiz) {
+		*ap = false;
+		return;
+	}
+	c->elemalg->copy(c->elemsize, c->senddataq->elem, ae);
+	c->senddataq = c->senddataq->link;
+	c->qcount++;
+	gr = dequeue(&c->recvq);
+	if(gr != nil)
+		gr->status = Grunnable;
+	*ap = true;
 }
 
 // chanrecv1(hchan *chan any) (elem any);
