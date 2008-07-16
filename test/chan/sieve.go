@@ -28,12 +28,12 @@ func Filter(in *chan<- int, out *chan-< int, prime int) {
 }
 
 // The prime sieve: Daisy-chain Filter processes together.
-func Sieve() {
+func Sieve(primes *chan-< int) {
 	ch := new(chan int);  // Create a new channel.
 	go Generate(ch);  // Start Generate() as a subprocess.
 	for {
 		prime := <-ch;
-		print prime, "\n";
+		primes -< prime;
 		ch1 := new(chan int);
 		go Filter(ch, ch1, prime);
 		ch = ch1

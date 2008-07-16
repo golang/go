@@ -278,6 +278,7 @@ loop:
 		case ORECV:
 			if(cl == 2 && cr == 1) {
 				// a,b = <chan - chanrecv2
+				walktype(r->left, Erv);
 				if(!isptrto(r->left->type, TCHAN))
 					break;
 				l = chanop(n, top);
@@ -585,25 +586,24 @@ loop:
 		goto ret;
 
 	case OSEND:
-		if(top != Elv)
+		if(top == Elv)
 			goto nottop;
 		walktype(n->left, Erv);
-		t = n->left->type;
-		if(!isptrto(t, TCHAN))
-			goto badt;
-		n->type = t->type->type;
+		walktype(n->right, Erv);
+		*n = *chanop(n, top);
 		goto ret;
 
 	case ORECV:
-		if(top != Erv)
+		if(top == Elv)
 			goto nottop;
-		walktype(n->left, Erv);
-		t = n->left->type;
-		if(!isptrto(t, TCHAN))
-			goto badt;
-		n->type = t->type->type;
-
-		*n = *chanop(n, top);
+		if(n->right == N) {
+			walktype(n->left, Erv);	// chan
+			*n = *chanop(n, top);	// returns e blocking
+			goto ret;
+		}
+		walktype(n->left, Elv);		// e
+		walktype(n->right, Erv);	// chan
+		*n = *chanop(n, top);		// returns bool non-blocking
 		goto ret;
 
 	case OSLICE:
@@ -1396,7 +1396,7 @@ fixmap(Type *tm)
 	}
 
 	if(t->etype != TMAP) {
-		fatal("fixmap: %O not map");
+		fatal("fixmap: %lT not map", tm);
 		return T;
 	}
 
@@ -1423,7 +1423,7 @@ fixchan(Type *tm)
 	}
 
 	if(t->etype != TCHAN) {
-		fatal("fixchan: %O not map");
+		fatal("fixchan: %lT not chan", tm);
 		return T;
 	}
 
@@ -1703,31 +1703,32 @@ chanop(Node *n, int top)
 		cl = listcount(n->left);
 		cr = listcount(n->right);
 
-		if(cl == 2 && cr == 1 && n->right->op == ORECV)
-			goto recv2;
-		if(cl != 1 || cr != 1 || n->left->op != OSEND)
+		if(cl != 2 || cr != 1 || n->right->op != ORECV)
 			goto shape;
 
-		// chansend(hchan *chan any, elem any);
+		// chanrecv2(hchan *chan any) (elem any, pres bool);
 
-		t = fixchan(n->left->left->type);
+		t = fixchan(n->right->left->type);
 		if(t == T)
 			break;
 
-		a = n->right;				// val
+		a = n->right->left;			// chan
 		r = a;
-		a = n->left->left;			// chan
-		r = nod(OLIST, a, r);
 
-		on = syslook("chansend", 1);
+		on = syslook("chanrecv2", 1);
+
 		argtype(on, t->type);	// any-1
 		argtype(on, t->type);	// any-2
-
 		r = nod(OCALL, on, r);
-		walktype(r, Erv);
+		n->right = r;
+		r = n;
+		walktype(r, Etop);
 		break;
 
 	case ORECV:
+		if(n->right != N)
+			goto recv2;
+
 		// chanrecv1(hchan *chan any) (elem any);
 
 		t = fixchan(n->left->type);
@@ -1747,12 +1748,12 @@ chanop(Node *n, int top)
 
 	recv2:
 		// chanrecv2(hchan *chan any) (elem any, pres bool);
-
-		t = fixchan(n->right->left->type);
+fatal("recv2 not yet");
+		t = fixchan(n->right->type);
 		if(t == T)
 			break;
 
-		a = n->right->left;			// chan
+		a = n->right;			// chan
 		r = a;
 
 		on = syslook("chanrecv2", 1);
@@ -1763,6 +1764,48 @@ chanop(Node *n, int top)
 		n->right = r;
 		r = n;
 		walktype(r, Etop);
+		break;
+
+	case OSEND:
+		t = fixchan(n->left->type);
+		if(t == T)
+			break;
+		if(top != Etop)
+			goto send2;
+
+		// chansend1(hchan *chan any, elem any);
+		t = fixchan(n->left->type);
+		if(t == T)
+			break;
+
+		a = n->right;			// e
+		r = a;
+		a = n->left;			// chan
+		r = nod(OLIST, a, r);
+
+		on = syslook("chansend1", 1);
+		argtype(on, t->type);	// any-1
+		argtype(on, t->type);	// any-2
+		r = nod(OCALL, on, r);
+		walktype(r, top);
+		break;
+
+	send2:
+		// chansend2(hchan *chan any, val any) (pres bool);
+		t = fixchan(n->left->type);
+		if(t == T)
+			break;
+
+		a = n->right;			// e
+		r = a;
+		a = n->left;			// chan
+		r = nod(OLIST, a, r);
+
+		on = syslook("chansend2", 1);
+		argtype(on, t->type);	// any-1
+		argtype(on, t->type);	// any-2
+		r = nod(OCALL, on, r);
+		walktype(r, top);
 		break;
 	}
 	return r;

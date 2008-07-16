@@ -480,6 +480,10 @@ l0:
 			c = LDEC;
 			goto lx;
 		}
+		if(c1 == '<') {
+			c = LSEND;
+			goto lx;
+		}
 		if(c1 == '=') {
 			c = OSUB;
 			goto asop;
@@ -517,6 +521,10 @@ l0:
 		}
 		if(c1 == '=') {
 			c = LLE;
+			goto lx;
+		}
+		if(c1 == '-') {
+			c = LRECV;
 			goto lx;
 		}
 		c = LLT;

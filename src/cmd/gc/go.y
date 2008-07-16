@@ -22,7 +22,7 @@
 %token			LFOR LIF LELSE LSWITCH LCASE LDEFAULT
 %token			LBREAK LCONTINUE LGO LGOTO LRANGE
 %token			LOROR LANDAND LEQ LNE LLE LLT LGE LGT
-%token			LLSH LRSH LINC LDEC
+%token			LLSH LRSH LINC LDEC LSEND LRECV
 %token			LNIL LTRUE LFALSE LIOTA
 %token			LPANIC LPRINT LIGNORE
 
@@ -56,6 +56,7 @@
 
 %left			LOROR
 %left			LANDAND
+%left			LSEND LRECV
 %left			LEQ LNE LLE LGE LLT LGT
 %left			'+' '-' '|' '^'
 %left			'*' '/' '%' '&' LLSH LRSH
@@ -599,6 +600,14 @@ expr:
 	{
 		$$ = nod(ORSH, $1, $3);
 	}
+|	expr LSEND expr
+	{
+		$$ = nod(OSEND, $1, $3);
+	}
+|	expr LRECV expr
+	{
+		$$ = nod(ORECV, $1, $3);
+	}
 
 uexpr:
 	pexpr
@@ -631,13 +640,9 @@ uexpr:
 	{
 		$$ = nod(OCOM, $2, N);
 	}
-|	LLT uexpr
+|	LRECV uexpr
 	{
 		$$ = nod(ORECV, $2, N);
-	}
-|	LGT uexpr
-	{
-		$$ = nod(OSEND, $2, N);
 	}
 
 pexpr:
@@ -907,21 +912,13 @@ chandir:
 	{
 		$$ = Cboth;
 	}
-|	LLT
+|	LRECV
 	{
 		$$ = Crecv;
 	}
-|	LGT
+|	LSEND
 	{
 		$$ = Csend;
-	}
-|	LLT LGT
-	{
-		$$ = Cboth;
-	}
-|	LGT LLT
-	{
-		$$ = 0;
 	}
 
 keyval:
@@ -1027,6 +1024,7 @@ fnliteral:
 
 		$$ = newname(lookup(namebuf));
 		addvar($$, $1, PEXTERN);
+dump("lit1", $$);
 
 		{
 			Node *n;
@@ -1037,10 +1035,13 @@ fnliteral:
 			n->nbody = $3;
 			if(n->nbody == N)
 				n->nbody = nod(ORETURN, N, N);
+dump("comp1", n);
 			compile(n);
+dump("comp2", n);
 		}
 
 		$$ = nod(OADDR, $$, N);
+dump("lit2", $$);
 	}
 
 fnbody:
