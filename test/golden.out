@@ -114,6 +114,8 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 
 =========== ken/strvar.go
 
+=========== chan/fifo.go
+
 =========== chan/sieve.go
 
 =========== bugs/bug010.go
@@ -259,6 +261,8 @@ BUG: compilation should succeed
 
 =========== bugs/bug069.go
 bugs/bug069.go:12: bad shape across assignment - cr=1 cl=2
+
+BUG: compilation should succeed
 
 =========== bugs/bug070.go
 outer loop top k 0
