@@ -15,7 +15,8 @@ struct	Hchan
 	uint32	dataqsiz;		// size of the circular q
 	uint32	qcount;			// total data in the q
 	uint32	eo;			// vararg of element
-	uint32	po;			// vararg of present bool
+	uint32	po1;			// vararg of present bool in next structure
+	uint32	po2;			// vararg of present bool in same structure
 	Alg*	elemalg;		// interface for element type
 	Link*	senddataq;		// pointer for sender
 	Link*	recvdataq;		// pointer for receiver
@@ -74,7 +75,8 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
 
 	// these calculations are compiler dependent
 	c->eo = rnd(sizeof(c), elemsize);
-	c->po = rnd(c->eo+elemsize, 1);
+	c->po1 = rnd(c->eo+elemsize, 8);	// next structure
+	c->po2 = rnd(c->eo+elemsize, 1);	// same structure
 
 	ret = c;
 	FLUSH(&ret);
@@ -90,7 +92,6 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
 		sys·printint(c->dataqsiz);
 		prints("\n");
 	}
-
 }
 
 // chansend1(hchan *chan any, elem any);
@@ -145,7 +146,8 @@ sys·chansend2(Hchan* c, ...)
 	G *gr;
 
 	ae = (byte*)&c + c->eo;
-	ap = (byte*)&c + c->po;
+	ap = (byte*)&c + c->po1;
+
 	if(debug) {
 		prints("chansend: chan=");
 		sys·printpointer(c);
@@ -230,7 +232,8 @@ sys·chanrecv2(Hchan* c, ...)
 	G *gs;
 
 	ae = (byte*)&c + c->eo;
-	ap = (byte*)&c + c->po;
+	ap = (byte*)&c + c->po2;
+
 	if(debug) {
 		prints("chanrecv2: chan=");
 		sys·printpointer(c);
