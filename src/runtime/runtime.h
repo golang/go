@@ -105,11 +105,11 @@ struct	G
 {
 	byte*	stackguard;	// must not move
 	byte*	stackbase;	// must not move
+	byte*	stack0;		// first stack segment
 	Gobuf	sched;
 	G*	alllink;	// on allq
 	G*	qlink;		// on wait q
 	int32	status;
-	int32	pri;
 	int32	goid;
 	byte	elem[8];	// transfer element for chan
 };
@@ -117,8 +117,9 @@ struct	M
 {
 	G*	g0;		// g0 w interrupt stack - must not move
 	uint64	morearg;	// arg to morestack - must not move
-	uint64	cret;	// return value from C - must not move
+	uint64	cret;		// return value from C - must not move
 	G*	curg;		// current running goroutine
+	G*	lastg;		// last running goroutine - to emulate fifo
 	Gobuf	sched;
 	Gobuf	morestack;
 	byte*	moresp;
