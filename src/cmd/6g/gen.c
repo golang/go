@@ -94,58 +94,6 @@ allocparams(void)
 
 	/*
 	 * allocate (set xoffset) the stack
-	 * slots for this, inargs, outargs
-	 * these are allocated positavely
-	 * from 0 up.
-	 * note that this uses the 'width'
-	 * field, which, in the OFIELD of the
-	 * parameters, is the offset in the
-	 * parameter list.
-	 */
-	d = curfn->type->param->forw;
-	t = funcfirst(&list, curfn->type);
-	while(t != T) {
-		if(d == D)
-			fatal("allocparams: this & in nil");
-
-		if(d->op != ONAME) {
-			d = d->forw;
-			continue;
-		}
-
-		n = d->dnode;
-		if(n->class != PPARAM)
-			fatal("allocparams: this & in class %N %d", n, n->class);
-
-//print("assign %S %ld\n", n->sym, t->width);
-		n->xoffset = t->width;
-		d = d->forw;
-		t = funcnext(&list);
-	}
-
-	t = structfirst(&list, getoutarg(curfn->type));
-	while(t != T) {
-		if(t->nname != N && t->nname->sym->name[0] != '_') {
-			if(d == D)
-				fatal("allocparams: out nil");
-
-			if(d->op != ONAME) {
-				d = d->forw;
-				continue;
-			}
-
-			n = d->dnode;
-			if(n->class != PPARAM)
-				fatal("allocparams: out class %N %d", n, n->class);
-
-			n->xoffset = t->width;
-			d = d->forw;
-		}
-		t = structnext(&list);
-	}
-
-	/*
-	 * allocate (set xoffset) the stack
 	 * slots for all automatics.
 	 * allocated starting at -w down.
 	 */
@@ -996,56 +944,16 @@ samereg(Node *a, Node *b)
 	return 1;
 }
 
-/*
- * this is hard because divide
- * is done in a fixed numerator
- * of combined DX:AX registers
- */
 void
-cgen_div(int op, Node *nl, Node *nr, Node *res)
+dodiv(int op, Node *nl, Node *nr, Node *res)
 {
+	int a;
 	Node n1, n2, n3;
-	int a, rax, rdx;
-
-	rax = reg[D_AX];
-	rdx = reg[D_DX];
 
 	nodreg(&n1, types[TINT64], D_AX);
 	nodreg(&n2, types[TINT64], D_DX);
-	regalloc(&n1, nr->type, &n1);
-	regalloc(&n2, nr->type, &n2);
-
-	// clean out the AX register
-	if(rax && !samereg(res, &n1)) {
-		regalloc(&n3, types[TINT64], N);
-		gins(AMOVQ, &n1, &n3);
-		regfree(&n1);
-		regfree(&n2);
-
-		reg[D_AX] = 0;
-		cgen_div(op, nl, nr, res);
-		reg[D_AX] = rax;
-
-		gins(AMOVQ, &n3, &n1);
-		regfree(&n3);
-		goto ret;
-	}
-
-	// clean out the DX register
-	if(rdx && !samereg(res, &n2)) {
-		regalloc(&n3, types[TINT64], N);
-		gins(AMOVQ, &n2, &n3);
-		regfree(&n1);
-		regfree(&n2);
-
-		reg[D_DX] = 0;
-		cgen_div(op, nl, nr, res);
-		reg[D_DX] = rdx;
-
-		gins(AMOVQ, &n3, &n2);
-		regfree(&n3);
-		goto ret;
-	}
+	regalloc(&n1, nl->type, &n1);
+	regalloc(&n2, nl->type, &n2);
 
 	a = optoas(op, nl->type);
 
@@ -1077,9 +985,72 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 
 	regfree(&n1);
 	regfree(&n2);
+}
 
-ret:
-	;
+/*
+ * this is hard because divide
+ * is done in a fixed numerator
+ * of combined DX:AX registers
+ */
+void
+cgen_div(int op, Node *nl, Node *nr, Node *res)
+{
+	Node n1, n2, n3, n4, n5;
+	int a, rax, rdx;
+
+	rax = reg[D_AX];
+	rdx = reg[D_DX];
+
+	nodreg(&n1, types[TINT64], D_AX);
+	nodreg(&n2, types[TINT64], D_DX);
+
+	// clean out the AX register
+	if(rax && !samereg(res, &n1)) {
+		if(rdx && !samereg(res, &n2)) {
+			regalloc(&n5, types[TINT64], N);	// DX holder
+			regalloc(&n4, types[TINT64], N);	// AX holder
+			regalloc(&n3, nl->type, N);		// dest for div
+
+			gins(AMOVQ, &n2, &n5);
+			gins(AMOVQ, &n1, &n4);
+			dodiv(op, nl, nr, &n3);
+			gins(AMOVQ, &n4, &n1);
+			gins(AMOVQ, &n5, &n2);
+			gmove(&n3, res);
+
+			regfree(&n5);
+			regfree(&n4);
+			regfree(&n3);
+			return;
+		}
+		regalloc(&n4, types[TINT64], N);	// AX holder
+		regalloc(&n3, nl->type, N);		// dest for div
+
+		gins(AMOVQ, &n1, &n4);
+		dodiv(op, nl, nr, &n3);
+		gins(AMOVQ, &n4, &n1);
+		gmove(&n3, res);
+
+		regfree(&n4);
+		regfree(&n3);
+		return;
+	}
+
+	// clean out the DX register
+	if(rdx && !samereg(res, &n2)) {
+		regalloc(&n4, types[TINT64], N);	// DX holder
+		regalloc(&n3, nl->type, N);		// dest for div
+
+		gins(AMOVQ, &n2, &n4);
+		dodiv(op, nl, nr, &n3);
+		gins(AMOVQ, &n4, &n2);
+		gmove(&n3, res);
+
+		regfree(&n4);
+		regfree(&n3);
+		return;
+	}
+	dodiv(op, nl, nr, res);
 }
 
 /*

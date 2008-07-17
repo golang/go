@@ -1506,6 +1506,7 @@ ptrto(Type *t)
 		fatal("ptrto: nil");
 	t1 = typ(tptr);
 	t1->type = t;
+	t1->width = types[tptr]->width;
 	return t1;
 }
 

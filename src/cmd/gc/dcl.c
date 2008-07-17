@@ -370,13 +370,13 @@ funcargs(Type *ft)
 	Iter save;
 	int all;
 
-	ft->param = autodcl->back;	// base of arguments - see allocparams in gen.c
-
 	// declare the this/in arguments
 	t = funcfirst(&save, ft);
 	while(t != T) {
-		if(t->nname != N)
+		if(t->nname != N) {
+			t->nname->xoffset = t->width;
 			addvar(t->nname, t->type, PPARAM);
+		}
 		t = funcnext(&save);
 	}
 
@@ -384,6 +384,8 @@ funcargs(Type *ft)
 	all = 0;
 	t = structfirst(&save, getoutarg(ft));
 	while(t != T) {
+		if(t->nname != N)
+			t->nname->xoffset = t->width;
 		if(t->nname != N && t->nname->sym->name[0] != '_') {
 			addvar(t->nname, t->type, PPARAM);
 			all |= 1;

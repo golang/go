@@ -28,12 +28,8 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 //sys·printpointer(fn);
 
 	siz = (siz+7) & ~7;
-	if(siz > 1024) {
-		prints("sys·newproc: too many args: ");
-		sys·printint(siz);
-		prints("\n");
-		sys·panicl(123);
-	}
+	if(siz > 1024)
+		throw("sys·newproc: too many args");
 
 	// try to rip off an old goroutine
 	for(newg=allg; newg!=nil; newg=newg->alllink)
