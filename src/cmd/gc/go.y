@@ -1024,7 +1024,6 @@ fnliteral:
 
 		$$ = newname(lookup(namebuf));
 		addvar($$, $1, PEXTERN);
-dump("lit1", $$);
 
 		{
 			Node *n;
@@ -1035,13 +1034,10 @@ dump("lit1", $$);
 			n->nbody = $3;
 			if(n->nbody == N)
 				n->nbody = nod(ORETURN, N, N);
-dump("comp1", n);
 			compile(n);
-dump("comp2", n);
 		}
 
 		$$ = nod(OADDR, $$, N);
-dump("lit2", $$);
 	}
 
 fnbody:
