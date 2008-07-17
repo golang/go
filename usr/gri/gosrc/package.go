@@ -9,10 +9,11 @@ import Globals "globals"
 export Package
 type Package struct {
 	ref int;
+	file_name string;
 	ident string;
-	path string;
 	key string;
 	scope *Globals.Scope;
+	pno int;
 }
 
 

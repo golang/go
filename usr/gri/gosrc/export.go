@@ -8,6 +8,7 @@ import Globals "globals"
 import Object "object"
 import Type "type"
 import Package "package"
+//import Compilation "compilation"
 
 
 type Exporter struct {
@@ -253,7 +254,7 @@ func (E *Exporter) WritePackage(pkg *Package.Package) {
 	E.pkg_ref++;
 
 	E.WriteString(pkg.ident);
-	E.WriteString(pkg.path);
+	E.WriteString(pkg.file_name);
 	E.WriteString(pkg.key);
 }
 
@@ -294,7 +295,7 @@ func (E *Exporter) Export(/*Compilation* comp, BBuffer* buf*/) {
 
 
 export Export
-func Export(/*Compilation* comp, BBuffer* buf*/) {
+func Export(file_name string /*comp *Compilation.Compilation*/) {
 	/*
 	Exporter exp;
 	exp.Export(comp, buf);
