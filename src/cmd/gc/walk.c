@@ -1179,8 +1179,6 @@ prcompat(Node *n)
 
 loop:
 	if(l == N) {
-		if(r == N)
-			return nod(OBAD, N, N);
 		walktype(r, Etop);
 		return r;
 	}

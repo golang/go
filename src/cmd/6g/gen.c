@@ -102,7 +102,7 @@ allocparams(void)
 	 * parameters, is the offset in the
 	 * parameter list.
 	 */
-	d = paramdcl->forw;;
+	d = curfn->type->param->forw;
 	t = funcfirst(&list, curfn->type);
 	while(t != T) {
 		if(d == D)
@@ -117,6 +117,7 @@ allocparams(void)
 		if(n->class != PPARAM)
 			fatal("allocparams: this & in class %N %d", n, n->class);
 
+//print("assign %S %ld\n", n->sym, t->width);
 		n->xoffset = t->width;
 		d = d->forw;
 		t = funcnext(&list);
@@ -127,6 +128,7 @@ allocparams(void)
 		if(t->nname != N && t->nname->sym->name[0] != '_') {
 			if(d == D)
 				fatal("allocparams: out nil");
+
 			if(d->op != ONAME) {
 				d = d->forw;
 				continue;

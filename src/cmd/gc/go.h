@@ -68,6 +68,7 @@ struct	Val
 typedef	struct	Sym	Sym;
 typedef	struct	Node	Node;
 typedef	struct	Type	Type;
+typedef	struct	Dcl	Dcl;
 
 struct	Type
 {
@@ -84,6 +85,7 @@ struct	Type
 
 	Sym*	sym;
 	long	vargen;		// unique name for OTYPE/ONAME
+	Dcl*	param;
 
 	// most nodes
 	Type*	type;
@@ -173,7 +175,6 @@ struct	Sym
 };
 #define	S	((Sym*)0)
 
-typedef	struct	Dcl	Dcl;
 struct	Dcl
 {
 	uchar	op;

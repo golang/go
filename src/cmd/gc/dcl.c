@@ -364,39 +364,39 @@ funchdr(Node *n)
 }
 
 void
-funcargs(Type *t)
+funcargs(Type *ft)
 {
-	Type *n1;
+	Type *t;
 	Iter save;
 	int all;
 
-	paramdcl = autodcl->back;	// base of arguments - see allocparams in gen.c
+	ft->param = autodcl->back;	// base of arguments - see allocparams in gen.c
 
 	// declare the this/in arguments
-	n1 = funcfirst(&save, t);
-	while(n1 != T) {
-		if(n1->nname != N)
-			addvar(n1->nname, n1->type, PPARAM);
-		n1 = funcnext(&save);
+	t = funcfirst(&save, ft);
+	while(t != T) {
+		if(t->nname != N)
+			addvar(t->nname, t->type, PPARAM);
+		t = funcnext(&save);
 	}
 
 	// declare the outgoing arguments
 	all = 0;
-	n1 = structfirst(&save, getoutarg(t));
-	while(n1 != T) {
-		if(n1->nname != N && n1->nname->sym->name[0] != '_') {
-			addvar(n1->nname, n1->type, PPARAM);
+	t = structfirst(&save, getoutarg(ft));
+	while(t != T) {
+		if(t->nname != N && t->nname->sym->name[0] != '_') {
+			addvar(t->nname, t->type, PPARAM);
 			all |= 1;
 		} else
 			all |= 2;
-		n1 = structnext(&save);
+		t = structnext(&save);
 	}
 	if(all == 3)
 		yyerror("output parameters are all named or not named");
 
-	t->outnamed = 0;
+	ft->outnamed = 0;
 	if(all == 1)
-		t->outnamed = 1;
+		ft->outnamed = 1;
 }
 
 /*
