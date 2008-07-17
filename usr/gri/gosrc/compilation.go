@@ -11,6 +11,7 @@ import Universe "universe"
 import Package "package"
 import Scanner "scanner"
 import Parser "parser"
+import Export "export"
 
 
 export Compilation
@@ -22,20 +23,57 @@ type Compilation struct {
 }
 
 
-func (C *Compilation) Lookup(pkg_name string) *Package.Package {
-	panic "UNIMPLEMENTED";
+func (C *Compilation) Lookup(file_name string) *Package.Package {
+	for i := 0; i < C.nimports; i++ {
+		pkg := C.imports[i];
+		if pkg.file_name == file_name {
+			return pkg;
+		}
+	}
 	return nil;
 }
 
 
 func (C *Compilation) Insert(pkg *Package.Package) {
-	panic "UNIMPLEMENTED";
+	if C.Lookup(pkg.file_name) != nil {
+		panic "package already inserted";
+	}
+	pkg.pno = C.nimports;
+	C.imports[C.nimports] = pkg;
+	C.nimports++;
 }
 
 
 func (C *Compilation) InsertImport(pkg *Package.Package) *Package.Package {
-	panic "UNIMPLEMENTED";
-	return nil;
+	p := C.Lookup(pkg.file_name);
+	if (p == nil) {
+		// no primary package found
+		C.Insert(pkg);
+		p = pkg;
+	}
+	return p;
+}
+
+
+func BaseName(s string) string {
+	// TODO this is not correct for non-ASCII strings!
+	i := len(s);
+	for i >= 0 && s[i] != '/' {
+		if s[i] > 128 {
+			panic "non-ASCII string"
+		}
+		i--;
+	}
+	return s[i + 1 : len(s)];
+}
+
+
+func FixExt(s string) string {
+	i := len(s) - 3;  // 3 == len(".go");
+	if s[i : len(s)] == ".go" {
+		s = s[0 : i];
+	}
+	return s + ".7"
 }
 
 
@@ -45,7 +83,8 @@ func (C *Compilation) Import(pkg_name string) (pno int) {
 
 
 func (C *Compilation) Export() {
-	panic "UNIMPLEMENTED";
+	file_name := FixExt(BaseName(C.src_name));  // strip src dir
+	Export.Export(file_name/*, C */);
 }
 
 

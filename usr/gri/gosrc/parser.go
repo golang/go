@@ -292,8 +292,8 @@ func (P *Parser) ParseChannelType() *Globals.Type {
 	P.Trace("ChannelType");
 	P.Expect(Scanner.CHAN);
 	switch P.tok {
-	case Scanner.LSS: fallthrough
-	case Scanner.GTR:
+	case Scanner.SEND: fallthrough
+	case Scanner.RECV:
 		P.Next();
 	}
 	P.ParseType();
@@ -681,9 +681,8 @@ func (P *Parser) ParseUnaryExpr() {
 	case Scanner.SUB: fallthrough;
 	case Scanner.NOT: fallthrough;
 	case Scanner.XOR: fallthrough;
-	case Scanner.LSS: fallthrough;
-	case Scanner.GTR: fallthrough;
 	case Scanner.MUL: fallthrough;
+	case Scanner.RECV: fallthrough;
 	case Scanner.AND:
 		P.Next();
 		P.ParseUnaryExpr();
@@ -702,12 +701,14 @@ func Precedence(tok int) int {
 		return 1;
 	case Scanner.LAND:
 		return 2;
-	case Scanner.EQL, Scanner.NEQ, Scanner.LSS, Scanner.LEQ, Scanner.GTR, Scanner.GEQ:
+	case Scanner.SEND, Scanner.RECV:
 		return 3;
-	case Scanner.ADD, Scanner.SUB, Scanner.OR, Scanner.XOR:
+	case Scanner.EQL, Scanner.NEQ, Scanner.LSS, Scanner.LEQ, Scanner.GTR, Scanner.GEQ:
 		return 4;
-	case Scanner.MUL, Scanner.QUO, Scanner.REM, Scanner.SHL, Scanner.SHR, Scanner.AND:
+	case Scanner.ADD, Scanner.SUB, Scanner.OR, Scanner.XOR:
 		return 5;
+	case Scanner.MUL, Scanner.QUO, Scanner.REM, Scanner.SHL, Scanner.SHR, Scanner.AND:
+		return 6;
 	}
 	return 0;
 }

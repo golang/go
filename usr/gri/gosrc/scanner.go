@@ -14,6 +14,7 @@ export
 	ADD, SUB, MUL, QUO, REM,
 	EQL, NEQ, LSS, LEQ, GTR, GEQ,
 	SHL, SHR,
+	SEND, RECV,
 	ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN,
 	AND_ASSIGN, OR_ASSIGN, XOR_ASSIGN, SHL_ASSIGN, SHR_ASSIGN,
 	LAND, LOR,
@@ -67,6 +68,9 @@ const (
 
 	SHL;
 	SHR;
+	
+	SEND;
+	RECV;
 
 	ADD_ASSIGN;
 	SUB_ASSIGN;
@@ -171,6 +175,9 @@ func TokenName(tok int) string {
 
 	case SHL: return "<<";
 	case SHR: return ">>";
+	
+	case SEND: return "-<";
+	case RECV: return "<-";
 
 	case ADD_ASSIGN: return "+=";
 	case SUB_ASSIGN: return "-=";
@@ -767,7 +774,13 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 		case '{': tok = LBRACE;
 		case '}': tok = RBRACE;
 		case '+': tok = S.Select3(ADD, ADD_ASSIGN, '+', INC);
-		case '-': tok = S.Select3(SUB, SUB_ASSIGN, '-', DEC);
+		case '-':
+			if S.ch == '<' {
+				S.Next();
+				tok = SEND;
+			} else {
+				tok = S.Select3(SUB, SUB_ASSIGN, '-', DEC);
+			}
 		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
@@ -779,7 +792,13 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 			tok = S.Select2(QUO, QUO_ASSIGN);
 		case '%': tok = S.Select2(REM, REM_ASSIGN);
 		case '^': tok = S.Select2(XOR, XOR_ASSIGN);
-		case '<': tok = S.Select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
+		case '<':
+			if S.ch == '-' {
+				S.Next();
+				tok = RECV;
+			} else {
+				tok = S.Select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
+			}
 		case '>': tok = S.Select4(GTR, GEQ, '>', SHR, SHR_ASSIGN);
 		case '=': tok = S.Select2(ASSIGN, EQL);
 		case '!': tok = S.Select2(NOT, NEQ);
