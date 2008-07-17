@@ -1004,8 +1004,8 @@ func (P *Parser) TryStatement() bool {
 	case Scanner.FUNC:
 		// for now we do not allow local function declarations
 		fallthrough;
-	case Scanner.LSS: fallthrough;
-	case Scanner.GTR:
+	case Scanner.SEND: fallthrough;
+	case Scanner.RECV:
 		P.ParseSimpleStat();  // send or receive
 	case Scanner.IDENT:
 		switch P.ident {

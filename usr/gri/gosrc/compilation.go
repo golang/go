@@ -13,47 +13,6 @@ import Parser "parser"
 import Export "export"
 
 
-export Compilation
-type Compilation struct {
-  src_name string;
-  pkg *Globals.Object;
-  imports [256] *Globals.Package;  // TODO need open arrays
-  nimports int;
-}
-
-
-func (C *Compilation) Lookup(file_name string) *Globals.Package {
-	for i := 0; i < C.nimports; i++ {
-		pkg := C.imports[i];
-		if pkg.file_name == file_name {
-			return pkg;
-		}
-	}
-	return nil;
-}
-
-
-func (C *Compilation) Insert(pkg *Globals.Package) {
-	if C.Lookup(pkg.file_name) != nil {
-		panic "package already inserted";
-	}
-	pkg.pno = C.nimports;
-	C.imports[C.nimports] = pkg;
-	C.nimports++;
-}
-
-
-func (C *Compilation) InsertImport(pkg *Globals.Package) *Globals.Package {
-	p := C.Lookup(pkg.file_name);
-	if (p == nil) {
-		// no primary package found
-		C.Insert(pkg);
-		p = pkg;
-	}
-	return p;
-}
-
-
 func BaseName(s string) string {
 	// TODO this is not correct for non-ASCII strings!
 	i := len(s);
@@ -76,12 +35,12 @@ func FixExt(s string) string {
 }
 
 
-func (C *Compilation) Import(pkg_name string) (pno int) {
+func Import(C *Globals.Compilation, pkg_name string) (pno int) {
 	panic "UNIMPLEMENTED";
 }
 
 
-func (C *Compilation) Export() {
+func Export(C *Globals.Compilation) {
 	file_name := FixExt(BaseName(C.src_name));  // strip src dir
 	Export.Export(file_name/*, C */);
 }
@@ -89,7 +48,7 @@ func (C *Compilation) Export() {
 
 export Compile
 func Compile(src_name string, verbose int) {
-	comp := new(Compilation);
+	comp := new(Globals.Compilation);
 	comp.src_name = src_name;
 	comp.pkg = nil;
 	comp.nimports = 0;

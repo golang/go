@@ -6,9 +6,9 @@ package Globals
 
 
 // The following types should really be in their respective files
-// (object.go, type.go, scope.go, package.go) but they refer to each
-// other and we don't know how to handle forward-declared pointers
-// across packages yet.
+// (object.go, type.go, scope.go, package.go, compilation.go) but
+// they refer to each other and we don't know how to handle forward
+// declared pointers across packages yet.
 
 
 // ----------------------------------------------------------------------------
@@ -72,6 +72,15 @@ type Package struct {
 	key string;
 	scope *Scope;
 	pno int;
+}
+
+
+export Compilation
+type Compilation struct {
+  src_name string;
+  pkg *Object;
+  imports [256] *Package;  // TODO need open arrays
+  nimports int;
 }
 
 
@@ -225,4 +234,39 @@ func (scope *Scope) Print() {
 		print "\n  ", p.obj.ident;
 	}
 	print "\n}\n";
+}
+
+
+// ----------------------------------------------------------------------------
+// Compilation methods
+
+func (C *Compilation) Lookup(file_name string) *Package {
+	for i := 0; i < C.nimports; i++ {
+		pkg := C.imports[i];
+		if pkg.file_name == file_name {
+			return pkg;
+		}
+	}
+	return nil;
+}
+
+
+func (C *Compilation) Insert(pkg *Package) {
+	if C.Lookup(pkg.file_name) != nil {
+		panic "package already inserted";
+	}
+	pkg.pno = C.nimports;
+	C.imports[C.nimports] = pkg;
+	C.nimports++;
+}
+
+
+func (C *Compilation) InsertImport(pkg *Package) *Package {
+	p := C.Lookup(pkg.file_name);
+	if (p == nil) {
+		// no primary package found
+		C.Insert(pkg);
+		p = pkg;
+	}
+	return p;
 }
