@@ -8,7 +8,6 @@ import Globals "globals"
 import Object "object"
 import Type "type"
 import Universe "universe"
-import Package "package"
 import Scanner "scanner"
 import Parser "parser"
 import Export "export"
@@ -18,12 +17,12 @@ export Compilation
 type Compilation struct {
   src_name string;
   pkg *Globals.Object;
-  imports [256] *Package.Package;  // TODO need open arrays
+  imports [256] *Globals.Package;  // TODO need open arrays
   nimports int;
 }
 
 
-func (C *Compilation) Lookup(file_name string) *Package.Package {
+func (C *Compilation) Lookup(file_name string) *Globals.Package {
 	for i := 0; i < C.nimports; i++ {
 		pkg := C.imports[i];
 		if pkg.file_name == file_name {
@@ -34,7 +33,7 @@ func (C *Compilation) Lookup(file_name string) *Package.Package {
 }
 
 
-func (C *Compilation) Insert(pkg *Package.Package) {
+func (C *Compilation) Insert(pkg *Globals.Package) {
 	if C.Lookup(pkg.file_name) != nil {
 		panic "package already inserted";
 	}
@@ -44,7 +43,7 @@ func (C *Compilation) Insert(pkg *Package.Package) {
 }
 
 
-func (C *Compilation) InsertImport(pkg *Package.Package) *Package.Package {
+func (C *Compilation) InsertImport(pkg *Globals.Package) *Globals.Package {
 	p := C.Lookup(pkg.file_name);
 	if (p == nil) {
 		// no primary package found
@@ -111,4 +110,5 @@ func Compile(src_name string, verbose int) {
 	
 	print "parsing ", src_name, "\n";
 	P.ParseProgram();
+	//comp.Export();
 }

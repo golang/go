@@ -7,7 +7,6 @@ package Exporter
 import Globals "globals"
 import Object "object"
 import Type "type"
-import Package "package"
 //import Compilation "compilation"
 
 
@@ -25,7 +24,7 @@ type Exporter struct {
 
 func (E *Exporter) WriteType(typ *Globals.Type);
 func (E *Exporter) WriteObject(obj *Globals.Object);
-func (E *Exporter) WritePackage(pkg *Package.Package) ;
+func (E *Exporter) WritePackage(pkg *Globals.Package) ;
 
 
 func (E *Exporter) WriteByte(x byte) {
@@ -240,7 +239,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 }
 
 
-func (E *Exporter) WritePackage(pkg *Package.Package) {
+func (E *Exporter) WritePackage(pkg *Globals.Package) {
 	if pkg.ref >= 0 {
 		E.WritePackageTag(-pkg.ref);  // package already exported
 		return;
@@ -279,7 +278,7 @@ func (E *Exporter) Export(/*Compilation* comp, BBuffer* buf*/) {
 	E.type_ref = Universe.types.len();
 	*/
 	
-	var pkg *Package.Package = nil; // comp.packages[0];
+	var pkg *Globals.Package = nil; // comp.packages[0];
 	E.WritePackage(pkg);
 	for p := pkg.scope.entries.first; p != nil; p = p.next {
 		if p.obj.mark {
