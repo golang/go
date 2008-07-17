@@ -370,6 +370,8 @@ funcargs(Type *t)
 	Iter save;
 	int all;
 
+	paramdcl = autodcl->back;	// base of arguments - see allocparams in gen.c
+
 	// declare the this/in arguments
 	n1 = funcfirst(&save, t);
 	while(n1 != T) {
@@ -598,6 +600,30 @@ markdclstack(void)
 			pushdcl(s);
 			dcopy(s, d);
 		}
+	}
+}
+
+void
+dumpdcl(char *st)
+{
+	Sym *s, *d;
+	int i;
+
+	print("\ndumpdcl: %s %p\n", st, b0stack);
+
+	i = 0;
+	for(d=dclstack; d!=S; d=d->link) {
+		i++;
+		print("    %.2d %p", i, d);
+		if(d == b0stack)
+			print(" (b0)");
+		if(d->name == nil) {
+			print("\n");
+			continue;
+		}
+		print(" '%s'", d->name);
+		s = pkglookup(d->name, d->package);
+		print(" %lS\n", s);
 	}
 }
 

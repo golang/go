@@ -385,6 +385,7 @@ EXTERN	vlong	minintval[NTYPE];
 EXTERN	vlong	maxintval[NTYPE];
 
 EXTERN	Dcl*	autodcl;
+EXTERN	Dcl*	paramdcl;
 EXTERN	Dcl*	externdcl;
 EXTERN	Dcl*	exportlist;
 EXTERN	int	dclcontext;	// PEXTERN/PAUTO
@@ -529,6 +530,7 @@ Type*	sortinter(Type*);
 void	markdcl(void);
 void	popdcl(void);
 void	poptodcl(void);
+void	dumpdcl(char*);
 void	markdclstack(void);
 void	testdclstack(void);
 Sym*	pushdcl(Sym*);
