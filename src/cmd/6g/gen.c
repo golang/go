@@ -945,33 +945,28 @@ samereg(Node *a, Node *b)
 }
 
 void
-dodiv(int op, Node *nl, Node *nr, Node *res)
+dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 {
 	int a;
-	Node n1, n2, n3;
-
-	nodreg(&n1, types[TINT64], D_AX);
-	nodreg(&n2, types[TINT64], D_DX);
-	regalloc(&n1, nl->type, &n1);
-	regalloc(&n2, nl->type, &n2);
+	Node n3;
 
 	a = optoas(op, nl->type);
 
 	if(!issigned[nl->type->etype]) {
 		nodconst(&n3, nl->type, 0);
-		gmove(&n3, &n2);
+		gmove(&n3, dx);
 	}
 
 	regalloc(&n3, nr->type, N);
 	if(nl->ullman >= nr->ullman) {
-		cgen(nl, &n1);
+		cgen(nl, ax);
 		if(issigned[nl->type->etype])
 			gins(optoas(OFOR, nl->type), N, N);
 		cgen(nr, &n3);
 		gins(a, &n3, N);
 	} else {
 		cgen(nr, &n3);
-		cgen(nl, &n1);
+		cgen(nl, ax);
 		if(issigned[nl->type->etype])
 			gins(optoas(OFOR, nl->type), N, N);
 		gins(a, &n3, N);
@@ -979,12 +974,9 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
 	regfree(&n3);
 
 	if(op == ODIV)
-		gmove(&n1, res);
+		gmove(ax, res);
 	else
-		gmove(&n2, res);
-
-	regfree(&n1);
-	regfree(&n2);
+		gmove(dx, res);
 }
 
 /*
@@ -995,62 +987,68 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
-	Node n1, n2, n3, n4, n5;
+	Node ax, dx, n3, tmpax, tmpdx;
 	int a, rax, rdx;
 
 	rax = reg[D_AX];
 	rdx = reg[D_DX];
 
-	nodreg(&n1, types[TINT64], D_AX);
-	nodreg(&n2, types[TINT64], D_DX);
+	nodreg(&ax, types[TINT64], D_AX);
+	nodreg(&dx, types[TINT64], D_DX);
+	regalloc(&ax, nl->type, &ax);
+	regalloc(&dx, nl->type, &dx);
 
 	// clean out the AX register
-	if(rax && !samereg(res, &n1)) {
-		if(rdx && !samereg(res, &n2)) {
-			regalloc(&n5, types[TINT64], N);	// DX holder
-			regalloc(&n4, types[TINT64], N);	// AX holder
+	if(rax && !samereg(res, &ax)) {
+		if(rdx && !samereg(res, &dx)) {
+			regalloc(&tmpdx, types[TINT64], N);
+			regalloc(&tmpax, types[TINT64], N);
 			regalloc(&n3, nl->type, N);		// dest for div
 
-			gins(AMOVQ, &n2, &n5);
-			gins(AMOVQ, &n1, &n4);
-			dodiv(op, nl, nr, &n3);
-			gins(AMOVQ, &n4, &n1);
-			gins(AMOVQ, &n5, &n2);
+			gins(AMOVQ, &dx, &tmpdx);
+			gins(AMOVQ, &ax, &tmpax);
+			dodiv(op, nl, nr, &n3, &ax, &dx);
+			gins(AMOVQ, &tmpax, &ax);
+			gins(AMOVQ, &tmpdx, &dx);
 			gmove(&n3, res);
 
-			regfree(&n5);
-			regfree(&n4);
+			regfree(&tmpdx);
+			regfree(&tmpax);
 			regfree(&n3);
-			return;
+			goto ret;
 		}
-		regalloc(&n4, types[TINT64], N);	// AX holder
+		regalloc(&tmpax, types[TINT64], N);
 		regalloc(&n3, nl->type, N);		// dest for div
 
-		gins(AMOVQ, &n1, &n4);
-		dodiv(op, nl, nr, &n3);
-		gins(AMOVQ, &n4, &n1);
+		gins(AMOVQ, &ax, &tmpax);
+		dodiv(op, nl, nr, &n3, &ax, &dx);
+		gins(AMOVQ, &tmpax, &ax);
 		gmove(&n3, res);
 
-		regfree(&n4);
+		regfree(&tmpax);
 		regfree(&n3);
-		return;
+		goto ret;
 	}
 
 	// clean out the DX register
-	if(rdx && !samereg(res, &n2)) {
-		regalloc(&n4, types[TINT64], N);	// DX holder
+	if(rdx && !samereg(res, &dx)) {
+		regalloc(&tmpdx, types[TINT64], N);
 		regalloc(&n3, nl->type, N);		// dest for div
 
-		gins(AMOVQ, &n2, &n4);
-		dodiv(op, nl, nr, &n3);
-		gins(AMOVQ, &n4, &n2);
+		gins(AMOVQ, &dx, &tmpdx);
+		dodiv(op, nl, nr, &n3, &ax, &dx);
+		gins(AMOVQ, &tmpdx, &dx);
 		gmove(&n3, res);
 
-		regfree(&n4);
+		regfree(&tmpdx);
 		regfree(&n3);
-		return;
+		goto ret;
 	}
-	dodiv(op, nl, nr, res);
+	dodiv(op, nl, nr, res, &ax, &dx);
+
+ret:
+	regfree(&ax);
+	regfree(&dx);
 }
 
 /*
