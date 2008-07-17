@@ -425,6 +425,10 @@ func (S *Scanner) Error(pos int, msg string) {
 		S.nerrors++;
 		S.errpos = pos;
 	}
+	
+	if S.nerrors >= 10 {
+		sys.exit(1);
+	}
 }
 
 
