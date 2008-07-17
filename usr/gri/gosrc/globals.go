@@ -6,9 +6,9 @@ package Globals
 
 
 // The following types should really be in their respective files
-// object.go, type.go, and scope.go but they refer to each other
-// and we don't know how to handle forward-declared pointers across
-// packages yet.
+// (object.go, type.go, scope.go, package.go) but they refer to each
+// other and we don't know how to handle forward-declared pointers
+// across packages yet.
 
 
 // ----------------------------------------------------------------------------
@@ -64,6 +64,17 @@ type Scope struct {
 }
 
 
+export Package
+type Package struct {
+	ref int;  // for exporting only: >= 0 means already exported
+	file_name string;
+	ident string;
+	key string;
+	scope *Scope;
+	pno int;
+}
+
+
 // ----------------------------------------------------------------------------
 // Creation
 
@@ -100,6 +111,13 @@ func NewScope(parent *Scope) *Scope {
 	scope.parent = parent;
 	scope.entries = NewList();
 	return scope;
+}
+
+
+export NewPackage;
+func NewPackage() *Package {
+	pkg := new(Package);
+	return pkg;
 }
 
 
