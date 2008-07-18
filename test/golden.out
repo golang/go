@@ -192,15 +192,6 @@ enqueue: main·.stringo: not defined
 BUG: link failure
 
 =========== bugs/bug052.go
-SIGSEGV: segmentation violation
-Faulting address: 0x1
-pc: 0x1346
-
-0x1346?zi
-	main·main(1, 0, 1606414968, ...)
-	main·main(0x1, 0x7fff5fbff278, 0x0, ...)
-
-BUG: incorrect code for division
 
 =========== bugs/bug053.go
 bugs/bug053.go:6: syntax error
@@ -249,7 +240,6 @@ bugs/bug064.go:15: illegal types for operand: CALL
 BUG: compilation should succeed
 
 =========== bugs/bug066.go
-BUG: compilation should succeed
 
 =========== bugs/bug067.go
 
@@ -265,12 +255,14 @@ outer loop top k 1
 k not zero
 panic on line 271 PC=0x1362
 0x1362?zi
-	main·main(1, 0, 1606414960, ...)
-	main·main(0x1, 0x7fff5fbff270, 0x0, ...)
+	main·main(1, 0, 1606416424, ...)
+	main·main(0x1, 0x7fff5fbff828, 0x0, ...)
 BUG: crashes
 
-=========== bugs/bug071.go
-BUG: compiler crashes
+=========== bugs/bug072.go
+
+=========== bugs/bug073.go
+BUG: should not compile
 
 =========== fixedbugs/bug000.go
 
@@ -364,3 +356,5 @@ fixedbugs/bug051.go:10: expression must be a constant
 =========== fixedbugs/bug065.go
 
 =========== fixedbugs/bug069.go
+
+=========== fixedbugs/bug071.go
