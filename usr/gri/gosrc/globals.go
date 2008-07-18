@@ -34,7 +34,17 @@ type Type struct {
 	obj *Object;  // primary type object or NULL
 	key *Object;  // maps
 	elt *Object;  // arrays, maps, channels, pointers, references
-	scope *Scope;  // incomplete types, structs, interfaces, functions, packages
+	scope *Scope;  // structs, interfaces, functions
+}
+
+
+export Package
+type Package struct {
+	ref int;  // for exporting only: >= 0 means already exported
+	file_name string;
+	key string;
+	obj *Object;
+	scope *Scope;
 }
 
 
@@ -46,6 +56,7 @@ type Elem struct {
 	str string;
 	obj *Object;
 	typ *Type;
+	pkg *Package;
 }
 
 
@@ -64,23 +75,11 @@ type Scope struct {
 }
 
 
-export Package
-type Package struct {
-	ref int;  // for exporting only: >= 0 means already exported
-	file_name string;
-	ident string;
-	key string;
-	scope *Scope;
-	pno int;
-}
-
-
 export Compilation
 type Compilation struct {
-  src_name string;
-  pkg *Object;
-  imports [256] *Package;  // TODO need open arrays
-  nimports int;
+	// TODO use open arrays eventually
+	pkgs [256] *Package;  // pkgs[0] is the current package
+	npkgs int;
 }
 
 
@@ -103,8 +102,18 @@ func NewObject(pos, kind int, ident string) *Object {
 export NewType
 func NewType(form int) *Type {
 	typ := new(Type);
+	typ.ref = -1;
 	typ.form = form;
 	return typ;
+}
+
+
+export NewPackage;
+func NewPackage(file_name string) *Package {
+	pkg := new(Package);
+	pkg.ref = -1;
+	pkg.file_name = file_name;
+	return pkg;
 }
 
 
@@ -123,10 +132,10 @@ func NewScope(parent *Scope) *Scope {
 }
 
 
-export NewPackage;
-func NewPackage() *Package {
-	pkg := new(Package);
-	return pkg;
+export NewCompilation;
+func NewCompilation() *Compilation {
+	comp := new(Compilation);
+	return comp;
 }
 
 
@@ -241,8 +250,8 @@ func (scope *Scope) Print() {
 // Compilation methods
 
 func (C *Compilation) Lookup(file_name string) *Package {
-	for i := 0; i < C.nimports; i++ {
-		pkg := C.imports[i];
+	for i := 0; i < C.npkgs; i++ {
+		pkg := C.pkgs[i];
 		if pkg.file_name == file_name {
 			return pkg;
 		}
@@ -255,9 +264,8 @@ func (C *Compilation) Insert(pkg *Package) {
 	if C.Lookup(pkg.file_name) != nil {
 		panic "package already inserted";
 	}
-	pkg.pno = C.nimports;
-	C.imports[C.nimports] = pkg;
-	C.nimports++;
+	C.pkgs[C.npkgs] = pkg;
+	C.npkgs++;
 }
 
 

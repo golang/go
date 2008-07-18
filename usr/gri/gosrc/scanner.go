@@ -415,7 +415,8 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
 
 func (S *Scanner) Error(pos int, msg string) {
 	const errdist = 10;
-	if pos > S.errpos + errdist || S.nerrors == 0 {
+	delta := pos - S.errpos;  // may be negative!
+	if delta < errdist || delta > errdist || S.nerrors == 0 {
 		line, col := S.LineCol(pos);
 		if VerboseMsgs {
 			print S.filename, ":", line, ":", col, ": ", msg, "\n";
