@@ -119,6 +119,8 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 =========== chan/nonblock.go
 PASS
 
+=========== chan/powser1.go
+
 =========== chan/sieve.go
 
 =========== bugs/bug010.go
