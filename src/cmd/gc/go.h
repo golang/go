@@ -613,3 +613,4 @@ void	dumpobj(void);
 void	dowidth(Type*);
 void	argspace(long);
 Node*	nodarg(Type*, int);
+void	nodconst(Node*, Type*, vlong);
