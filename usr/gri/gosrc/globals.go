@@ -113,6 +113,7 @@ func NewPackage(file_name string) *Package {
 	pkg := new(Package);
 	pkg.ref = -1;
 	pkg.file_name = file_name;
+	pkg.key = "<the package key>";  // TODO fix this
 	return pkg;
 }
 

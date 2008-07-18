@@ -65,6 +65,8 @@ func Compile(file_name string, verbose int) {
 	}
 	
 	// export
-	export_file_name := FixExt(BaseName(file_name));  // strip file dir
-	Export.Export(comp, export_file_name);
+	/*
+	exp := new(Export.Exporter);
+	exp.Export(comp, FixExt(BaseName(file_name)));
+	*/
 }

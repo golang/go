@@ -7,13 +7,12 @@ package Exporter
 import Globals "globals"
 import Object "object"
 import Type "type"
-//import Compilation "compilation"
+import Universe "universe"
 
 
+export Exporter  // really only want to export Export()
 type Exporter struct {
-	/*
-	Compilation* comp;
-	*/
+	comp *Globals.Compilation;
 	debug bool;
 	buf [4*1024] byte;
 	pos int;
@@ -24,22 +23,26 @@ type Exporter struct {
 
 func (E *Exporter) WriteType(typ *Globals.Type);
 func (E *Exporter) WriteObject(obj *Globals.Object);
-func (E *Exporter) WritePackage(pkg *Globals.Package) ;
+func (E *Exporter) WritePackage(pkg *Globals.Package);
 
 
 func (E *Exporter) WriteByte(x byte) {
 	E.buf[E.pos] = x;
 	E.pos++;
+	/*
 	if E.debug {
 		print " ", x;
 	}
+	*/
 }
 
 
 func (E *Exporter) WriteInt(x int) {
+	/*
 	if E.debug {
 		print " #", x;
 	}
+	*/
 	for x < -64 || x >= 64 {
 		E.WriteByte(byte(x & 127));
 		x = int(uint(x >> 7));  // arithmetic shift
@@ -51,7 +54,7 @@ func (E *Exporter) WriteInt(x int) {
 
 func (E *Exporter) WriteString(s string) {
 	if E.debug {
-		print `"`, s, `"`;
+		print ` "`, s, `"`;
 	}
 	n := len(s);
 	E.WriteInt(n);
@@ -66,7 +69,7 @@ func (E *Exporter) WriteObjTag(tag int) {
 		panic "tag < 0";
 	}
 	if E.debug {
-		print "\nO: ", tag;  // obj kind
+		print "\nObj: ", tag;  // obj kind
 	}
 	E.WriteInt(tag);
 }
@@ -75,9 +78,9 @@ func (E *Exporter) WriteObjTag(tag int) {
 func (E *Exporter) WriteTypeTag(tag int) {
 	if E.debug {
 		if tag > 0 {
-			print "\nT", E.type_ref, ": ", tag;  // type form
+			print "\nTyp ", E.type_ref, ": ", tag;  // type form
 		} else {
-			print " [T", -tag, "]";  // type ref
+			print " [Typ ", -tag, "]";  // type ref
 		}
 	}
 	E.WriteInt(tag);
@@ -87,9 +90,9 @@ func (E *Exporter) WriteTypeTag(tag int) {
 func (E *Exporter) WritePackageTag(tag int) {
 	if E.debug {
 		if tag > 0 {
-			print "\nP", E.pkg_ref, ": ", tag;  // package no
+			print "\nPkg ", E.pkg_ref, ": ", tag;  // package no
 		} else {
-			print " [P", -tag, "]";  // package ref
+			print " [Pkg ", -tag, "]";  // package ref
 		}
 	}
 	E.WriteInt(tag);
@@ -146,8 +149,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 		E.WriteObjTag(obj.kind);
 		E.WriteString(obj.ident);
 		E.WriteType(obj.typ);
-		panic "UNIMPLEMENTED";
-		//E.WritePackage(E.comp.packages[obj.pnolev]);
+		E.WritePackage(E.comp.pkgs[obj.pnolev]);
 
 		switch obj.kind {
 		case Object.BAD: fallthrough;
@@ -192,8 +194,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 			panic "typ.obj.type() != typ";  // primary type
 		}
 		E.WriteString(typ.obj.ident);
-		panic "UNIMPLEMENTED";
-		//WritePackage(E.comp.packages[typ.obj.pnolev]);
+		E.WritePackage(E.comp.pkgs[typ.obj.pnolev]);
 	} else {
 		E.WriteString("");
 	}
@@ -258,27 +259,30 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
 }
 
 
-func (E *Exporter) Export(/*Compilation* comp, BBuffer* buf*/) {
-	panic "UNIMPLEMENTED";
-	
-	/*
+func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	E.comp = comp;
-	E.buf = buf;
-	E.pak_ref = 0;
-	E.nbytes = 0;
-	*/
+	E.debug = true;
+	E.pos = 0;
+	E.pkg_ref = 0;
+	E.type_ref = 0;
+	
+	if E.debug {
+		print "exporting to ", file_name;
+	}
 
 	// Predeclared types are "pre-exported".
-	/*
-	#ifdef DEBUG
-	for (int i = 0; i < Universe.types.len(); i++) {
-	ASSERT(Universe.types[i].ref == i);
+	// TODO run the loop below only in debug mode
+	{	i := 0;
+		for p := Universe.types.first; p != nil; p = p.next {
+			if p.typ.ref != i {
+				panic "incorrect ref for predeclared type";
+			}
+			i++;
+		}
 	}
-	#endif
-	E.type_ref = Universe.types.len();
-	*/
+	E.type_ref = Universe.types.len_;
 	
-	var pkg *Globals.Package = nil; // comp.packages[0];
+	pkg := comp.pkgs[0];
 	E.WritePackage(pkg);
 	for p := pkg.scope.entries.first; p != nil; p = p.next {
 		if p.obj.mark {
@@ -288,15 +292,9 @@ func (E *Exporter) Export(/*Compilation* comp, BBuffer* buf*/) {
 	E.WriteObjTag(0);
 
 	if E.debug {
-		print "\n(", E.pos, ")\n";
+		print "\n(", E.pos, " bytes)\n";
 	}
-}
-
-
-export Export
-func Export(comp *Globals.Compilation, file_name string) {
-	/*
-	Exporter exp;
-	exp.Export(comp, buf);
-	*/
+	
+	data := string(E.buf)[0 : E.pos];
+	ok := sys.writefile(file_name, data);
 }
