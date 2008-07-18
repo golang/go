@@ -11,6 +11,7 @@ import Type "type"
 
 export
 	scope,
+	types,
 	undef_t, bad_t, nil_t,
 	bool_t,
 	uint8_t, uint16_t, uint32_t, uint64_t,
@@ -27,6 +28,7 @@ export
 
 var (
 	scope *Globals.Scope;
+	types *Globals.List;
 	
 	// internal types
 	undef_t,
@@ -90,19 +92,19 @@ func DeclType(form int, ident string, size int) *Globals.Type {
 
 
 func Register(typ *Globals.Type) *Globals.Type {
-	/*
-	type->ref = Universe::types.len(); // >= 0
-	Universe::types.Add(type);
-	*/
+	if types.len_ < 0 {
+		panic "types.len_ < 0";
+	}
+	typ.ref = types.len_;
+	types.AddTyp(typ);
 	return typ;
 }
 
 
 export Init
 func Init() {
-	// print "initializing universe\n";
-	
 	scope = Globals.NewScope(nil);  // universe has no parent
+	types = Globals.NewList();
 	
 	// Interal types
 	undef_t = Globals.NewType(Type.UNDEF);
