@@ -14,7 +14,7 @@ func Parse(filename, src string, verbose int) {
 	S.Open(filename, src);
 	
 	P := new(Parser.Parser);
-	P.Open(S, verbose);
+	P.Open(nil, S, verbose);
 	
 	P.ParseProgram();
 }

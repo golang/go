@@ -17,12 +17,14 @@ const EnableSemanticTests = false;
 
 export Parser
 type Parser struct {
+	comp *Globals.Compilation;
 	verbose, indent int;
 	S *Scanner.Scanner;
 	tok int;  // one token look-ahead
 	beg, end int;  // token position
 	ident string;  // last ident seen
 	top_scope *Globals.Scope;
+	exports *Globals.List;
 }
 
 
@@ -66,12 +68,14 @@ func (P *Parser) Next() {
 }
 
 
-func (P *Parser) Open(S *Scanner.Scanner, verbose int) {
+func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, verbose int) {
+	P.comp = comp;
 	P.verbose = verbose;
 	P.indent = 0;
 	P.S = S;
 	P.Next();
 	P.top_scope = Universe.scope;
+	P.exports = Globals.NewList();
 }
 
 
@@ -1238,15 +1242,15 @@ func (P *Parser) ParseExportDecl() {
 	if P.tok == Scanner.LPAREN {
 		P.Next();
 		for P.tok != Scanner.RPAREN {
-			P.ParseIdent();
+			P.exports.AddStr(P.ParseIdent());
 			P.Optional(Scanner.COMMA);  // TODO this seems wrong
 		}
 		P.Next();
 	} else {
-		P.ParseIdent();
+		P.exports.AddStr(P.ParseIdent());
 		for P.tok == Scanner.COMMA {
 			P.Next();
-			P.ParseIdent();
+			P.exports.AddStr(P.ParseIdent());
 		}
 	}
 	
@@ -1284,14 +1288,46 @@ func (P *Parser) ParseDeclaration() {
 // ----------------------------------------------------------------------------
 // Program
 
+func (P *Parser) MarkExports() {
+	if !EnableSemanticTests {
+		return;
+	}
+	
+	scope := P.top_scope;
+	for p := P.exports.first; p != nil; p = p.next {
+		obj := scope.Lookup(p.str);
+		if obj != nil {
+			obj.mark = true;
+			// For now we export deep
+			// TODO this should change eventually - we need selective export
+			if obj.kind == Object.TYPE {
+				typ := obj.typ;
+				if typ.form == Type.STRUCT || typ.form == Type.INTERFACE {
+					scope := typ.scope;
+					for p := scope.entries.first; p != nil; p = p.next {
+						p.obj.mark = true;
+					}
+				}
+			}
+		} else {
+			// TODO need to report proper src position
+			P.Error(0, `"` + p.str + `" is not declared - cannot be exported`);
+		}
+	}
+}
+
+
 func (P *Parser) ParseProgram() {
 	P.Trace("Program");
+	
 	P.OpenScope();
 	P.Expect(Scanner.PACKAGE);
-	P.ParseIdent();
+	pkg := P.comp.pkgs[0];
+	pkg.obj = P.ParseIdentDecl(Object.PACKAGE);
 	P.Optional(Scanner.SEMICOLON);
 	
 	{	P.OpenScope();
+		pkg.scope = P.top_scope;
 		for P.tok == Scanner.IMPORT {
 			P.ParseImportDecl();
 			P.Optional(Scanner.SEMICOLON);
@@ -1301,6 +1337,8 @@ func (P *Parser) ParseProgram() {
 			P.ParseDeclaration();
 			P.Optional(Scanner.SEMICOLON);
 		}
+		
+		P.MarkExports();
 		P.CloseScope();
 	}
 	

@@ -15,7 +15,7 @@ import Export "export"
 
 func BaseName(s string) string {
 	// TODO this is not correct for non-ASCII strings!
-	i := len(s);
+	i := len(s) - 1;
 	for i >= 0 && s[i] != '/' {
 		if s[i] > 128 {
 			panic "non-ASCII string"
@@ -31,43 +31,40 @@ func FixExt(s string) string {
 	if s[i : len(s)] == ".go" {
 		s = s[0 : i];
 	}
-	return s + ".7"
-}
-
-
-func Import(C *Globals.Compilation, pkg_name string) (pno int) {
-	panic "UNIMPLEMENTED";
-}
-
-
-func Export(C *Globals.Compilation) {
-	file_name := FixExt(BaseName(C.src_name));  // strip src dir
-	Export.Export(file_name/*, C */);
+	return s + ".7";
 }
 
 
 export Compile
-func Compile(src_name string, verbose int) {
-	comp := new(Globals.Compilation);
-	comp.src_name = src_name;
-	comp.pkg = nil;
-	comp.nimports = 0;
-	
-	src, ok := sys.readfile(src_name);
+func Compile(file_name string, verbose int) {
+	src, ok := sys.readfile(file_name);
 	if !ok {
-		print "cannot open ", src_name, "\n"
+		print "cannot open ", file_name, "\n"
 		return;
 	}
 	
-	Universe.Init();
-
-	S := new(Scanner.Scanner);
-	S.Open(src_name, src);
-
-	P := new(Parser.Parser);
-	P.Open(S, verbose);
+	Universe.Init();  // TODO eventually this should be only needed once
 	
-	print "parsing ", src_name, "\n";
-	P.ParseProgram();
-	//comp.Export();
+	comp := Globals.NewCompilation();
+	pkg := Globals.NewPackage(file_name);
+	comp.Insert(pkg);
+	if comp.npkgs != 1 {
+		panic "should have exactly one package now";
+	}
+
+	scanner := new(Scanner.Scanner);
+	scanner.Open(file_name, src);
+
+	parser := new(Parser.Parser);
+	parser.Open(comp, scanner, verbose);
+
+	print "parsing ", file_name, "\n";
+	parser.ParseProgram();
+	if parser.S.nerrors > 0 {
+		return;
+	}
+	
+	// export
+	export_file_name := FixExt(BaseName(file_name));  // strip file dir
+	Export.Export(comp, export_file_name);
 }

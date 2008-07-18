@@ -252,7 +252,7 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
 	pkg.ref = E.pkg_ref;
 	E.pkg_ref++;
 
-	E.WriteString(pkg.ident);
+	E.WriteString(pkg.obj.ident);
 	E.WriteString(pkg.file_name);
 	E.WriteString(pkg.key);
 }
@@ -294,7 +294,7 @@ func (E *Exporter) Export(/*Compilation* comp, BBuffer* buf*/) {
 
 
 export Export
-func Export(file_name string /*comp *Compilation.Compilation*/) {
+func Export(comp *Globals.Compilation, file_name string) {
 	/*
 	Exporter exp;
 	exp.Export(comp, buf);
