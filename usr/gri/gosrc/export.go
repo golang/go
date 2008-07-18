@@ -260,16 +260,16 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
 
 
 func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+	if E.debug {
+		print "exporting to ", file_name;
+	}
+
 	E.comp = comp;
 	E.debug = true;
 	E.pos = 0;
 	E.pkg_ref = 0;
 	E.type_ref = 0;
 	
-	if E.debug {
-		print "exporting to ", file_name;
-	}
-
 	// Predeclared types are "pre-exported".
 	// TODO run the loop below only in debug mode
 	{	i := 0;
@@ -297,4 +297,8 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	
 	data := string(E.buf)[0 : E.pos];
 	ok := sys.writefile(file_name, data);
+	
+	if !ok {
+		panic "export failed";
+	}
 }
