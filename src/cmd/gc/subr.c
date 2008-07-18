@@ -1281,7 +1281,7 @@ eqtype(Type *t1, Type *t2, int d)
 }
 
 static int
-subtype(Type **stp, Type *t)
+subtype(Type **stp, Type *t, int d)
 {
 	Type *st;
 
@@ -1289,6 +1289,11 @@ loop:
 	st = *stp;
 	if(st == T)
 		return 0;
+
+	d++;
+	if(d >= 10)
+		return 0;
+
 	switch(st->etype) {
 	default:
 		return 0;
@@ -1304,18 +1309,18 @@ loop:
 		break;
 
 	case TMAP:
-		if(subtype(&st->down, t))
+		if(subtype(&st->down, t, d))
 			break;
 		stp = &st->type;
 		goto loop;
 
 	case TFUNC:
 		for(;;) {
-			if(subtype(&st->type, t))
+			if(subtype(&st->type, t, d))
 				break;
-			if(subtype(&st->type->down->down, t))
+			if(subtype(&st->type->down->down, t, d))
 				break;
-			if(subtype(&st->type->down, t))
+			if(subtype(&st->type->down, t, d))
 				break;
 			return 0;
 		}
@@ -1323,7 +1328,7 @@ loop:
 
 	case TSTRUCT:
 		for(st=st->type; st!=T; st=st->down)
-			if(subtype(&st->type, t))
+			if(subtype(&st->type, t, d))
 				return 1;
 		return 0;
 	}
@@ -1333,7 +1338,7 @@ loop:
 void
 argtype(Node *on, Type *t)
 {
-	if(!subtype(&on->type, t))
+	if(!subtype(&on->type, t, 0))
 		fatal("argtype: failed %N %T\n", on, t);
 }
 
