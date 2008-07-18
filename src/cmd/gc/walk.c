@@ -501,8 +501,11 @@ loop:
 		default:
 			goto badt;
 		case TSTRING:
-			break;
 		case TMAP:
+		case TDARRAY:
+			break;
+		case TARRAY:
+			nodconst(n, types[TINT32], t->bound);
 			break;
 		}
 		n->type = types[TINT32];
