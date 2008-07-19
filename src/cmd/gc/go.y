@@ -66,6 +66,7 @@ file:
 	{
 		if(debug['f'])
 			frame(1);
+		fninit($4);
 		testdclstack();
 	}
 
@@ -138,12 +139,17 @@ xdcl:
 |	LEXPORT export_list_r
 	{
 		markexport(rev($2));
+		$$ = N;
 	}
 |	LEXPORT '(' export_list_r ')'
 	{
 		markexport(rev($3));
+		$$ = N;
 	}
 |	xfndcl
+	{
+		$$ = N;
+	}
 |	';'
 	{
 		$$ = N;
@@ -168,9 +174,9 @@ Acommon_dcl:
 	}
 |	LCONST '(' constdcl_list_r osemi ')'
 	{
-		$$ = N;
 		iota = 0;
 		lastconst = N;
+		$$ = N;
 	}
 |	LTYPE Atypedcl
 	{
@@ -1089,7 +1095,7 @@ xdcl_list_r:
 	xdcl
 |	xdcl_list_r xdcl
 	{
-		$$ = nod(OLIST, $1, $2);
+		$$ = list($1, $2);
 	}
 
 vardcl_list_r:

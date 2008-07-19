@@ -877,3 +877,105 @@ forwdcl(Sym *s)
 	s->forwtype = t;
 	return t;
 }
+
+// hand-craft the following initialization code
+//	var	init_%%%_done bool;			(1)
+//	func	init_%%%_function()			(2)
+//		if init_%%%_done { return }		(3)
+//		init_%%%_done = true;			(4)
+//		for Y {	
+//			init_%%%_function()		(5)
+//		}
+//		if true { <init stmts> }		(6)
+//		init()	// if any			(7)
+//		return					(8)
+//	}
+//	export	init_%%%_function			(9)
+
+void
+fninit(Node *n)
+{
+	Node *done, *any, *init;
+	Node *a, *b, *r;
+	Iter iter;
+	ulong h;
+	Sym *s;
+
+	r = N;
+
+	// (1)
+	vargen++;
+	snprint(namebuf, sizeof(namebuf), "init_%.3ld_done", vargen);
+	done = newname(lookup(namebuf));
+	addvar(done, types[TBOOL], PEXTERN);
+
+	// (2)
+
+	maxarg = 0;
+	stksize = 0;
+
+	vargen++;
+	h = vargen;
+	if(strcmp(package, "main") == 0)
+		h = 999;
+	snprint(namebuf, sizeof(namebuf), "init_%.3ld_function", h);
+	b = nod(ODCLFUNC, N, N);
+	b->nname = newname(lookup(namebuf));
+	b->type = functype(N, N, N);
+	funchdr(b);
+
+	// (3)
+	a = nod(OIF, N, N);
+	a->ntest = done;
+	a->nbody = nod(ORETURN, N, N);
+	r = list(r, a);
+
+	// (4)
+	a = nod(OAS, done, booltrue);
+	r = list(r, a);
+
+	// (5)
+	init = N;
+	for(h=0; h<NHASH; h++)
+	for(s = hash[h]; s != S; s = s->link) {
+		if(s->name[0] != 'i')
+			continue;
+		if(strstr(s->name, "init") == nil)
+			continue;
+		if(strstr(s->name, "_function") == nil) {
+			if(strcmp(s->name, "init") == 0)
+				init = s->oname;
+			continue;
+		}
+		if(s->oname == N)
+			continue;
+
+		a = nod(OCALL, s->oname, N);
+		r = list(r, a);
+	}
+
+	// (6)
+	r = list(r, n);
+
+	// (7)
+	if(init != N) {
+		a = nod(OCALL, init, N);
+		r = list(r, a);
+	}
+
+	// (8)
+	a = nod(ORETURN, N, N);
+	r = list(r, a);
+
+	// (9)
+	a = nod(OEXPORT, N, N);
+	a->sym = b->nname->sym;
+	markexport(a);
+
+	b->nbody = rev(r);
+//dump("b", b);
+//dump("r", b->nbody);
+
+	popdcl();
+	compile(b);
+}
