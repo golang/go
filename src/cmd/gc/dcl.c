@@ -914,11 +914,13 @@ fninit(Node *n)
 	maxarg = 0;
 	stksize = 0;
 
-	vargen++;
-	h = vargen;
+	snprint(namebuf, sizeof(namebuf), "init_%s_function", filename);
+
+	// this is a botch since we need a known name to
+	// call the top level init function out of rt0
 	if(strcmp(package, "main") == 0)
-		h = 999;
-	snprint(namebuf, sizeof(namebuf), "init_%.3ld_function", h);
+		snprint(namebuf, sizeof(namebuf), "init_function");
+
 	b = nod(ODCLFUNC, N, N);
 	b->nname = newname(lookup(namebuf));
 	b->type = functype(N, N, N);
