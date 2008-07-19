@@ -13,7 +13,7 @@ export	atan
  *	argument in the range [-pi/2,pi/2].
  *	there are no error returns.
  *	coefficients are #5077 from Hart & Cheney. (19.56D)
-*/
+ */
 
 
 const
@@ -38,7 +38,6 @@ const
  *	xatan evaluates a series valid in the
  *	range [-0.414...,+0.414...]. (tan(pi/8))
  */
-
 func
 xatan(arg float64) float64
 {
