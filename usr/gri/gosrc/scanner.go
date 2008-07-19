@@ -231,17 +231,17 @@ func TokenName(tok int) string {
 }
 
 
-func is_whitespace (ch int) bool {
+func is_whitespace(ch int) bool {
 	return ch == ' ' || ch == '\r' || ch == '\n' || ch == '\t';
 }
 
 
-func is_letter (ch int) bool {
+func is_letter(ch int) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 128 ;
 }
 
 
-func digit_val (ch int) int {
+func digit_val(ch int) int {
 	if '0' <= ch && ch <= '9' {
 		return ch - '0';
 	}
@@ -261,7 +261,7 @@ type Scanner struct {
 	nerrors int;  // number of errors
 	errpos int;  // last error position
 	
-	src string;
+	src string;  // scanned source
 	pos int;  // current reading position
 	ch int;  // one char look-ahead
 	chpos int;  // position of ch
@@ -271,7 +271,7 @@ type Scanner struct {
 // Read the next Unicode char into S.ch.
 // S.ch < 0 means end-of-file.
 //
-func (S *Scanner) Next () {
+func (S *Scanner) Next() {
 	const (
 		Bit1 = 7;
 		Bitx = 6;
@@ -380,7 +380,7 @@ func IsUser(username string) bool {
 }
 
 
-func Init () {
+func Init() {
 	Keywords = new(map [string] int);
 	
 	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
@@ -433,7 +433,7 @@ func (S *Scanner) Error(pos int, msg string) {
 }
 
 
-func (S *Scanner) Open (filename, src string) {
+func (S *Scanner) Open(filename, src string) {
 	if Keywords == nil {
 		Init();
 	}
@@ -497,7 +497,7 @@ func CharString(ch int) string {
 }
 
 
-func (S *Scanner) Expect (ch int) {
+func (S *Scanner) Expect(ch int) {
 	if S.ch != ch {
 		S.Error(S.chpos, "expected " + CharString(ch) + ", found " + CharString(S.ch));
 	}
@@ -505,14 +505,14 @@ func (S *Scanner) Expect (ch int) {
 }
 
 
-func (S *Scanner) SkipWhitespace () {
+func (S *Scanner) SkipWhitespace() {
 	for is_whitespace(S.ch) {
 		S.Next();
 	}
 }
 
 
-func (S *Scanner) SkipComment () {
+func (S *Scanner) SkipComment() {
 	// '/' already consumed
 	if S.ch == '/' {
 		// comment
@@ -538,33 +538,35 @@ func (S *Scanner) SkipComment () {
 }
 
 
-func (S *Scanner) ScanIdentifier () int {
-	beg := S.pos - 1;
+func (S *Scanner) ScanIdentifier() (tok int, val string) {
+	pos := S.chpos;
 	for is_letter(S.ch) || digit_val(S.ch) < 10 {
 		S.Next();
 	}
-	end := S.pos - 1;
+	val = S.src[pos : S.chpos];
 	
-	var tok int;
 	var present bool;
-	tok, present = Keywords[S.src[beg : end]];
+	tok, present = Keywords[val];
 	if !present {
 		tok = IDENT;
 	}
 	
-	return tok;
+	return tok, val;
 }
 
 
-func (S *Scanner) ScanMantissa (base int) {
+func (S *Scanner) ScanMantissa(base int) {
 	for digit_val(S.ch) < base {
 		S.Next();
 	}
 }
 
 
-func (S *Scanner) ScanNumber (seen_decimal_point bool) int {
+func (S *Scanner) ScanNumber(seen_decimal_point bool) string {
+	pos := S.chpos;
+	
 	if seen_decimal_point {
+		pos--;  // '.' is one byte
 		S.ScanMantissa(10);
 		goto exponent;
 	}
@@ -585,7 +587,7 @@ func (S *Scanner) ScanNumber (seen_decimal_point bool) int {
 			}
 			// octal int
 		}
-		return NUMBER;
+		goto exit;
 	}
 	
 mantissa:
@@ -607,7 +609,9 @@ exponent:
 		}
 		S.ScanMantissa(10);
 	}
-	return NUMBER;
+	
+exit:
+	return S.src[pos : S.chpos];
 }
 
 
@@ -622,7 +626,7 @@ func (S *Scanner) ScanDigits(n int, base int) {
 }
 
 
-func (S *Scanner) ScanEscape () string {
+func (S *Scanner) ScanEscape() string {
 	// TODO: fix this routine
 	
 	ch := S.ch;
@@ -654,9 +658,10 @@ func (S *Scanner) ScanEscape () string {
 }
 
 
-func (S *Scanner) ScanChar () int {
+func (S *Scanner) ScanChar() string {
 	// '\'' already consumed
 
+	pos := S.chpos - 1;
 	ch := S.ch;
 	S.Next();
 	if ch == '\\' {
@@ -664,11 +669,11 @@ func (S *Scanner) ScanChar () int {
 	}
 
 	S.Expect('\'');
-	return NUMBER;
+	return S.src[pos : S.chpos];
 }
 
 
-func (S *Scanner) ScanString () int {
+func (S *Scanner) ScanString() string {
 	// '"' already consumed
 
 	pos := S.chpos - 1;
@@ -683,13 +688,13 @@ func (S *Scanner) ScanString () int {
 			S.ScanEscape();
 		}
 	}
-
+	
 	S.Next();
-	return STRING;
+	return S.src[pos : S.chpos];
 }
 
 
-func (S *Scanner) ScanRawString () int {
+func (S *Scanner) ScanRawString() string {
 	// '`' already consumed
 
 	pos := S.chpos - 1;
@@ -703,11 +708,11 @@ func (S *Scanner) ScanRawString () int {
 	}
 
 	S.Next();
-	return STRING;
+	return S.src[pos : S.chpos];
 }
 
 
-func (S *Scanner) Select2 (tok0, tok1 int) int {
+func (S *Scanner) Select2(tok0, tok1 int) int {
 	if S.ch == '=' {
 		S.Next();
 		return tok1;
@@ -716,7 +721,7 @@ func (S *Scanner) Select2 (tok0, tok1 int) int {
 }
 
 
-func (S *Scanner) Select3 (tok0, tok1, ch2, tok2 int) int {
+func (S *Scanner) Select3(tok0, tok1, ch2, tok2 int) int {
 	if S.ch == '=' {
 		S.Next();
 		return tok1;
@@ -729,7 +734,7 @@ func (S *Scanner) Select3 (tok0, tok1, ch2, tok2 int) int {
 }
 
 
-func (S *Scanner) Select4 (tok0, tok1, ch2, tok2, tok3 int) int {
+func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
 	if S.ch == '=' {
 		S.Next();
 		return tok1;
@@ -746,27 +751,27 @@ func (S *Scanner) Select4 (tok0, tok1, ch2, tok2, tok3 int) int {
 }
 
 
-func (S *Scanner) Scan () (tok, beg, end int) {
+func (S *Scanner) Scan() (tok, pos int, val string) {
 	S.SkipWhitespace();
 	
 	ch := S.ch;
 	tok = ILLEGAL;
-	beg = S.chpos;
-
+	pos = S.chpos;
+	
 	switch {
-	case is_letter(ch): tok = S.ScanIdentifier();
-	case digit_val(ch) < 10: tok = S.ScanNumber(false);
+	case is_letter(ch): tok, val = S.ScanIdentifier();
+	case digit_val(ch) < 10: tok, val = NUMBER, S.ScanNumber(false);
 	default:
 		S.Next();  // always make progress
 		switch ch {
 		case -1: tok = EOF;
-		case '"': tok = S.ScanString();
-		case '\'': tok = S.ScanChar();
-		case '`': tok = S.ScanRawString();
+		case '"': tok, val = STRING, S.ScanString();
+		case '\'': tok, val = NUMBER, S.ScanChar();
+		case '`': tok, val = STRING, S.ScanRawString();
 		case ':': tok = S.Select2(COLON, DEFINE);
 		case '.':
 			if digit_val(S.ch) < 10 {
-				tok = S.ScanNumber(true);
+				tok, val = NUMBER, S.ScanNumber(true);
 			} else {
 				tok = PERIOD;
 			}
@@ -791,8 +796,8 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 			if S.ch == '/' || S.ch == '*' {
 				S.SkipComment();
 				// cannot simply return because of 6g bug
-				tok, beg, end = S.Scan();
-				return tok, beg, end;
+				tok, pos, val = S.Scan();
+				return tok, pos, val;
 			}
 			tok = S.Select2(QUO, QUO_ASSIGN);
 		case '%': tok = S.Select2(REM, REM_ASSIGN);
@@ -810,10 +815,10 @@ func (S *Scanner) Scan () (tok, beg, end int) {
 		case '&': tok = S.Select3(AND, AND_ASSIGN, '&', LAND);
 		case '|': tok = S.Select3(OR, OR_ASSIGN, '|', LOR);
 		default:
-			S.Error(beg, "illegal character " + CharString(ch));
+			S.Error(pos, "illegal character " + CharString(ch));
 			tok = ILLEGAL;
 		}
 	}
 	
-	return tok, beg, S.chpos;
+	return tok, pos, val;
 }
