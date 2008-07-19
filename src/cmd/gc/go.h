@@ -542,6 +542,7 @@ Node*	oldname(Sym*);
 Type*	newtype(Sym*);
 Type*	oldtype(Sym*);
 Type*	forwdcl(Sym*);
+void	fninit(Node*);
 
 /*
  *	export.c
