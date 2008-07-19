@@ -22,10 +22,9 @@ floor(arg float64) float64
 		if fract != 0.0 {
 			d = d+1;
 		}
-		d = -d;
-	} else {
-		d,fract = sys.modf(d);
+		return -d;
 	}
+	d,fract = sys.modf(d);
 	return d;
 }
 

@@ -5,7 +5,6 @@
 package math
 
 import	math "math"
-import	math "math"
 
 export	asin, acos
 

@@ -25,13 +25,11 @@ var
 	tanh	[length]float64;
 )
 
-func	init();
 func	ck(a,b float64);
 
 func
 main()
 {
-	init();
 	for i:=0; i<length; i=i+1 {
 		f := vf[i];
 
