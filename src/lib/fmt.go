@@ -18,10 +18,18 @@ export Fmt, New;
 const NByte = 64;
 const NPows10 = 160;  // BUG: why not nelem(pows10);
 
-var ldigits string;
-var udigits string;
-var inited bool;
+var ldigits string = "0123456789abcdef";  // BUG: Should be const
+var udigits string = "0123456789ABCDEF";  // BUG: Should be const
 var pows10 [NPows10] double;
+
+func init() {
+	pows10[0] = 1.0e0;
+	pows10[1] = 1.0e1;
+	for i:=2; i<NPows10; i++ {
+		m := i/2;
+		pows10[i] = pows10[m] * pows10[i-m];
+	}
+}
 
 type Fmt struct {
 	buf string;
@@ -43,18 +51,6 @@ func (f *Fmt) clearbuf() {
 func (f *Fmt) init() {
 	f.clearbuf();
 	f.clearflags();
-	if inited {
-		return;
-	}
-	ldigits = "0123456789abcdef";  // BUG: should be initialized const
-	udigits = "0123456789ABCDEF";  // BUG: should be initialized const
-	// BUG: should be done with initialization
-	var p double = 1.0;
-	for i := 0; i < NPows10; i++ {
-		pows10[i] = p;
-		p *= 10.0;
-	}
-	inited = true;
 }
 
 func New() *Fmt {
