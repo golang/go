@@ -9,6 +9,7 @@ import Object "object"
 import Type "type"
 import Universe "universe"
 import Scanner "scanner"
+import AST "ast"
 import Parser "parser"
 import Export "export"
 

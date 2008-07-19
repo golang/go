@@ -11,8 +11,12 @@ func Scan(filename, src string) {
 	S := new(Scanner.Scanner);
 	S.Open(filename, src);
 	for {
-		tok, beg, end := S.Scan();
-		print Scanner.TokenName(tok), "\t ", src[beg : end], "\n";
+		tok, pos, val := S.Scan();
+		print pos, ": ", Scanner.TokenName(tok);
+		if tok == Scanner.IDENT || tok == Scanner.NUMBER || tok == Scanner.STRING {
+			print " ", val;
+		}
+		print "\n";
 		if tok == Scanner.EOF {
 			return;
 		}

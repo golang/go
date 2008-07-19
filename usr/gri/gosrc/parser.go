@@ -9,6 +9,7 @@ import Globals "globals"
 import Object "object"
 import Type "type"
 import Universe "universe"
+import AST "ast"
 
 
 // So I can submit and have a running parser for now...
@@ -20,9 +21,13 @@ type Parser struct {
 	comp *Globals.Compilation;
 	verbose, indent int;
 	S *Scanner.Scanner;
+	
+	// Token
 	tok int;  // one token look-ahead
-	beg, end int;  // token position
-	ident string;  // last ident seen
+	pos int;  // token source position
+	val string;  // token value (for IDENT, NUMBER, STRING only)
+
+	// Semantic analysis
 	top_scope *Globals.Scope;
 	exports *Globals.List;
 }
@@ -57,13 +62,10 @@ func (P *Parser) Ecart() {
 
 
 func (P *Parser) Next() {
-	P.tok, P.beg, P.end = P.S.Scan();
-	if P.tok == Scanner.IDENT {
-		P.ident = P.S.src[P.beg : P.end];
-	}
+	P.tok, P.pos, P.val = P.S.Scan();
 	if P.verbose > 1 {
 		P.PrintIndent();
-		print "[", P.beg, "] ", Scanner.TokenName(P.tok), "\n";
+		print "[", P.pos, "] ", Scanner.TokenName(P.tok), "\n";
 	}
 }
 
@@ -86,7 +88,7 @@ func (P *Parser) Error(pos int, msg string) {
 
 func (P *Parser) Expect(tok int) {
 	if P.tok != tok {
-		P.Error(P.beg, "expected '" + Scanner.TokenName(tok) + "', found '" + Scanner.TokenName(P.tok) + "'");
+		P.Error(P.pos, "expected '" + Scanner.TokenName(tok) + "', found '" + Scanner.TokenName(P.tok) + "'");
 	}
 	P.Next();  // make progress in any case
 }
@@ -157,7 +159,7 @@ func (P *Parser) ParseIdent() string {
 
 	ident := "";
 	if P.tok == Scanner.IDENT {
-		ident = P.ident;
+		ident = P.val;
 		if P.verbose > 0 {
 			P.PrintIndent();
 			print "Ident = \"", ident, "\"\n";
@@ -175,7 +177,7 @@ func (P *Parser) ParseIdent() string {
 func (P *Parser) ParseIdentDecl(kind int) *Globals.Object {
 	P.Trace("IdentDecl");
 	
-	pos := P.beg;
+	pos := P.pos;
 	obj := Globals.NewObject(pos, kind, P.ParseIdent());
 	P.Declare(obj);
 	
@@ -214,7 +216,7 @@ func (P *Parser) ParseQualifiedIdent() *Globals.Object {
 	P.Trace("QualifiedIdent");
 
 	if EnableSemanticTests {
-		pos := P.beg;
+		pos := P.pos;
 		ident := P.ParseIdent();
 		obj := P.Lookup(ident);
 		if obj == nil {
@@ -250,7 +252,7 @@ func (P *Parser) ParseType() *Globals.Type{
 	
 	typ := P.TryType();
 	if typ == nil {
-		P.Error(P.beg, "type expected");
+		P.Error(P.pos, "type expected");
 		typ = Universe.bad_t;
 	}
 	
@@ -515,7 +517,7 @@ func (P *Parser) TryType() *Globals.Type {
 func (P *Parser) ParseStatement() {
 	P.Trace("Statement");
 	if !P.TryStatement() {
-		P.Error(P.beg, "statement expected");
+		P.Error(P.pos, "statement expected");
 		P.Next();  // make progress
 	}
 	P.Ecart();
@@ -602,7 +604,7 @@ func (P *Parser) ParseOperand() {
 	case Scanner.NEW:
 		P.ParseNew();
 	default:
-		P.Error(P.beg, "operand expected");
+		P.Error(P.pos, "operand expected");
 		P.Next();  // make progress
 	}
 	P.Ecart();
@@ -678,7 +680,7 @@ func (P *Parser) ParsePrimaryExprList() {
 }
 
 
-func (P *Parser) ParseUnaryExpr() {
+func (P *Parser) ParseUnaryExpr() *AST.Expr {
 	P.Trace("UnaryExpr");
 	switch P.tok {
 	case Scanner.ADD: fallthrough;
@@ -691,10 +693,11 @@ func (P *Parser) ParseUnaryExpr() {
 		P.Next();
 		P.ParseUnaryExpr();
 		P.Ecart();
-		return;
+		return nil;  // TODO fix this
 	}
 	P.ParsePrimaryExpr();
 	P.Ecart();
+	return nil;  // TODO fix this
 }
 
 
@@ -718,15 +721,22 @@ func Precedence(tok int) int {
 }
 
 
-func (P *Parser) ParseBinaryExpr(prec1 int) {
+func (P *Parser) ParseBinaryExpr(prec1 int) *AST.Expr {
 	P.Trace("BinaryExpr");
-	P.ParseUnaryExpr();
+	
+	x := P.ParseUnaryExpr();
 	for prec := Precedence(P.tok); prec >= prec1; prec-- {
 		for Precedence(P.tok) == prec {
+			e := new(AST.Expr);
+			e.typ = Universe.undef_t;  // TODO fix this
+			e.op = P.tok;  // TODO should we use tokens or separate operator constants?
+			e.x = x;
 			P.Next();
-			P.ParseBinaryExpr(prec + 1);
+			e.y = P.ParseBinaryExpr(prec + 1);
+			x = e;
 		}
 	}
+	
 	P.Ecart();
 }
 
@@ -1012,7 +1022,7 @@ func (P *Parser) TryStatement() bool {
 	case Scanner.RECV:
 		P.ParseSimpleStat();  // send or receive
 	case Scanner.IDENT:
-		switch P.ident {
+		switch P.val {
 		case "print", "panic":
 			P.ParseBuiltinStat();
 		default:
@@ -1127,7 +1137,7 @@ func (P *Parser) ParseConstDecl() {
 func (P *Parser) ParseTypeSpec() {
 	P.Trace("TypeSpec");
 	
-	pos := P.beg;
+	pos := P.pos;
 	ident := P.ParseIdent();
 	obj := P.top_scope.Lookup(ident);  // only lookup in top scope!
 	if obj != nil {
@@ -1274,7 +1284,7 @@ func (P *Parser) ParseDeclaration() {
 	case Scanner.EXPORT:
 		P.ParseExportDecl();
 	default:
-		P.Error(P.beg, "declaration expected");
+		P.Error(P.pos, "declaration expected");
 		P.Next();  // make progress
 	}
 	if indent != P.indent {
