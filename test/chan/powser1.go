@@ -233,6 +233,24 @@ type PS2 *[2] PS; // pair of power series
 var Ones PS
 var Twos PS
 
+// print eval in floating point of PS at x=c to n terms
+func
+Evaln(c *rat, U PS, n int)
+{
+	xn := float64(1);
+	x := float64(c.num)/float64(c.den);
+	val := float64(0);
+	for i:=0; i<n; i++ {
+		u := get(U);
+		if end(u) != 0 {
+			break;
+		}
+		val = val + x * float64(u.num)/float64(u.den);
+		xn = xn*x;
+	}
+	print val, "\n";
+}
+
 func mkPS() *dch {
 	return mkdch()
 }
