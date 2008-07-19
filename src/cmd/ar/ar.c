@@ -111,6 +111,7 @@ char	artemp[] =	"/tmp/vXXXXX";
 char	movtemp[] =	"/tmp/v1XXXXX";
 char	tailtemp[] =	"/tmp/v2XXXXX";
 char	symdef[] =	"__.SYMDEF";
+char	pkgdef[] =	"__.PKGDEF";
 
 int	aflag;				/* command line flags */
 int	bflag;
@@ -566,7 +567,8 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 	offset = Boffset(b);
 	obj = objtype(b, 0);
 	if (obj < 0) {			/* not an object file */
-		allobj = 0;
+		if (strcmp(file, pkgdef) != 0)  /* don't clear allobj if it's pkg defs */
+			allobj = 0;
 		d = dirfstat(Bfildes(b));
 		if (d != nil && d->length == 0)
 			fprint(2, "ar: zero length file %s\n", file);
