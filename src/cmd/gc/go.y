@@ -955,6 +955,8 @@ fndcl:
 		b0stack = dclstack;	// mark base for fn literals
 		$$ = nod(ODCLFUNC, N, N);
 		$$->nname = $1;
+		if($3 == N && $5 == N)
+			$$->nname = renameinit($1);
 		$$->type = functype(N, $3, $5);
 		funchdr($$);
 	}

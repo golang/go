@@ -521,6 +521,7 @@ Node*	methodname(Node*, Type*);
 Type*	functype(Node*, Node*, Node*);
 char*	thistypenam(Node*);
 void	funcnam(Type*, char*);
+Node*	renameinit(Node*);
 void	funchdr(Node*);
 void	funcargs(Type*);
 void	funcbody(Node*);
