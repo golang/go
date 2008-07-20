@@ -917,7 +917,7 @@ void
 fninit(Node *n)
 {
 	Node *done, *any;
-	Node *a, *b, *r;
+	Node *a, *fn, *r;
 	Iter iter;
 	ulong h;
 	Sym *s;
@@ -941,10 +941,10 @@ fninit(Node *n)
 	if(strcmp(package, "main") == 0)
 		snprint(namebuf, sizeof(namebuf), "init_function");
 
-	b = nod(ODCLFUNC, N, N);
-	b->nname = newname(lookup(namebuf));
-	b->type = functype(N, N, N);
-	funchdr(b);
+	fn = nod(ODCLFUNC, N, N);
+	fn->nname = newname(lookup(namebuf));
+	fn->type = functype(N, N, N);
+	funchdr(fn);
 
 	// (3)
 	a = nod(OIF, N, N);
@@ -968,6 +968,7 @@ fninit(Node *n)
 		if(s->oname == N)
 			continue;
 
+		// could check that it is fn of no args/returns
 		a = nod(OCALL, s->oname, N);
 		r = list(r, a);
 	}
@@ -976,6 +977,7 @@ fninit(Node *n)
 	r = list(r, n);
 
 	// (7)
+	// could check that it is fn of no args/returns
 	snprint(namebuf, sizeof(namebuf), "init_%s", filename);
 	s = lookup(namebuf);
 	if(s->oname != N) {
@@ -989,13 +991,13 @@ fninit(Node *n)
 
 	// (9)
 	a = nod(OEXPORT, N, N);
-	a->sym = b->nname->sym;
+	a->sym = fn->nname->sym;
 	markexport(a);
 
-	b->nbody = rev(r);
-//dump("b", b);
-//dump("r", b->nbody);
+	fn->nbody = rev(r);
+//dump("b", fn);
+//dump("r", fn->nbody);
 
 	popdcl();
-	compile(b);
+	compile(fn);
 }
