@@ -299,6 +299,28 @@ bad:
 }
 
 /*
+ * a function named init is a special case.
+ * it is called by the initialization before
+ * main is run. to make it unique within a
+ * package, the name, normally "pkg.init", is
+ * altered to "pkg.<file>_init".
+ */
+Node*
+renameinit(Node *n)
+{
+	Sym *s;
+
+	s = n->sym;
+	if(s == S)
+		return n;
+	if(strcmp(s->name, "init") != 0)
+		return n;
+	snprint(namebuf, sizeof(namebuf), "init_%s", filename);
+	s = lookup(namebuf);
+	return newname(s);
+}
+
+/*
  * declare the function proper.
  * and declare the arguments
  * called in extern-declaration context
@@ -879,23 +901,22 @@ forwdcl(Sym *s)
 }
 
 // hand-craft the following initialization code
-//	var	init_%%%_done bool;			(1)
-//	func	init_%%%_function()			(2)
-//		if init_%%%_done { return }		(3)
-//		init_%%%_done = true;			(4)
-//		for Y {	
-//			init_%%%_function()		(5)
-//		}
-//		if true { <init stmts> }		(6)
+//	var	init_<file>_done bool;			(1)
+//	func	init_<file>_function()			(2)
+//		if init_<file>_done { return }		(3)
+//		init_<file>_done = true;		(4)
+//		// over all matching imported symbols
+//			<pkg>.init_<file>_function()	(5)
+//		{ <init stmts> }			(6)
 //		init()	// if any			(7)
 //		return					(8)
 //	}
-//	export	init_%%%_function			(9)
+//	export	init_<file>_function			(9)
 
 void
 fninit(Node *n)
 {
-	Node *done, *any, *init;
+	Node *done, *any;
 	Node *a, *b, *r;
 	Iter iter;
 	ulong h;
@@ -904,8 +925,7 @@ fninit(Node *n)
 	r = N;
 
 	// (1)
-	vargen++;
-	snprint(namebuf, sizeof(namebuf), "init_%.3ld_done", vargen);
+	snprint(namebuf, sizeof(namebuf), "init_%s_done", filename);
 	done = newname(lookup(namebuf));
 	addvar(done, types[TBOOL], PEXTERN);
 
@@ -937,18 +957,14 @@ fninit(Node *n)
 	r = list(r, a);
 
 	// (5)
-	init = N;
 	for(h=0; h<NHASH; h++)
 	for(s = hash[h]; s != S; s = s->link) {
 		if(s->name[0] != 'i')
 			continue;
-		if(strstr(s->name, "init") == nil)
+		if(strstr(s->name, "init_") == nil)
 			continue;
-		if(strstr(s->name, "_function") == nil) {
-			if(strcmp(s->name, "init") == 0)
-				init = s->oname;
+		if(strstr(s->name, "_function") == nil)
 			continue;
-		}
 		if(s->oname == N)
 			continue;
 
@@ -960,8 +976,10 @@ fninit(Node *n)
 	r = list(r, n);
 
 	// (7)
-	if(init != N) {
-		a = nod(OCALL, init, N);
+	snprint(namebuf, sizeof(namebuf), "init_%s", filename);
+	s = lookup(namebuf);
+	if(s->oname != N) {
+		a = nod(OCALL, s->oname, N);
 		r = list(r, a);
 	}
 
