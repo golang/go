@@ -1609,6 +1609,12 @@ the value is assigned and the second, boolean variable is set to true. Otherwise
 the variable is unchanged, and the boolean value is set to false.
   
   value, present = map_var[key]
+
+To delete a value from a map, use a tuple assignment with the map on the left
+and a false boolean expression as the second expression on the right, such
+as:
+
+  map_var[key] = value, false
     
 In assignments, the type of the expression must match the type of the left-hand side.
 
