@@ -20,9 +20,13 @@ convlit(Node *n, Type *t)
 		goto bad1;
 
 	case Wlitnil:
-		if(isptr[et] || et == TINTER)
-			break;
-		goto bad1;
+		if(!isptr[et] && et != TINTER)
+			goto bad1;
+		if(isptrto(t, TSTRING)) {
+			n->val.sval = mal(8);
+			n->val.ctype = CTSTR;
+		}
+		break;
 
 	case Wlitstr:
 		if(isptrto(t, TSTRING))

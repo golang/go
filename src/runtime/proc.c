@@ -254,28 +254,3 @@ sys·morestack(uint64 u)
 
 	*(int32*)234 = 123;	// never return
 }
-
-G*
-dequeue(WaitQ *q)
-{
-	G *gp;
-
-	gp = q->first;
-	if(gp == nil)
-		return nil;
-	q->first = gp->qlink;
-	return gp;
-}
-
-void
-enqueue(WaitQ *q, G *gp)
-{
-	gp->qlink = nil;
-	if(q->first == nil) {
-		q->first = gp;
-		q->last = gp;
-		return;
-	}
-	q->last->qlink = gp;
-	q->last = gp;
-}
