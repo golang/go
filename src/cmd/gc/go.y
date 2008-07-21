@@ -18,7 +18,7 @@
 %token			LMAP LCHAN LINTERFACE LFUNC LSTRUCT
 %token			LCOLAS LFALL LRETURN
 %token			LNEW LLEN
-%token			LVAR LTYPE LCONST LCONVERT
+%token			LVAR LTYPE LCONST LCONVERT LSELECT
 %token			LFOR LIF LELSE LSWITCH LCASE LDEFAULT
 %token			LBREAK LCONTINUE LGO LGOTO LRANGE
 %token			LOROR LANDAND LEQ LNE LLE LLT LGE LGT
@@ -37,7 +37,7 @@
 %type	<node>		Astmt Bstmt Cstmt Dstmt
 %type	<node>		for_stmt for_body for_header
 %type	<node>		if_stmt if_body if_header
-%type	<node>		range_header range_body range_stmt
+%type	<node>		range_header range_body range_stmt select_stmt
 %type	<node>		simple_stmt osimple_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
 %type	<node>		name name_name new_name new_name_list_r conexpr
@@ -360,6 +360,11 @@ complex_stmt:
 		//if($$->ninit != N && $$->ntest == N)
 		//	yyerror("if conditional should not be missing");
 	}
+|	LSELECT select_stmt
+	{
+		popdcl();
+		$$ = $2;
+	}
 |	LRANGE range_stmt
 	{
 		popdcl();
@@ -527,6 +532,15 @@ range_stmt:
 	} range_body
 	{
 		$$ = $2;
+	}
+
+select_stmt:
+	{
+		markdcl();
+	}
+	compound_stmt
+	{
+		$$ = nod(OSELECT, $2, N);
 	}
 
 /*

@@ -659,6 +659,7 @@ opnames[] =
 	[OI2I]		= "I2I",
 	[OSLICE]	= "SLICE",
 	[OSUB]		= "SUB",
+	[OSELECT]	= "SELECT",
 	[OSWITCH]	= "SWITCH",
 	[OTYPE]		= "TYPE",
 	[OVAR]		= "VAR",

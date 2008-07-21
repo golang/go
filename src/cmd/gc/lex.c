@@ -962,20 +962,20 @@ static	struct
 	"string",	LBASETYPE,	TSTRING,
 
 	"any",		LBASETYPE,	TANY,
+	"sys",		LPACK,		Txxx,
 
 /* keywords */
-//	"any",		LANY,		Txxx,
 	"break",	LBREAK,		Txxx,
 	"case",		LCASE,		Txxx,
 	"chan",		LCHAN,		Txxx,
 	"const",	LCONST,		Txxx,
 	"continue",	LCONTINUE,	Txxx,
-	"convert",	LCONVERT,	Txxx,
+	"convert",	LCONVERT,	Txxx,		// should be a var
 	"default",	LDEFAULT,	Txxx,
 	"else",		LELSE,		Txxx,
 	"export",	LEXPORT,	Txxx,
 	"fallthrough",	LFALL,		Txxx,
-	"false",	LFALSE,		Txxx,
+	"false",	LFALSE,		Txxx,		// should be a var
 	"for",		LFOR,		Txxx,
 	"func",		LFUNC,		Txxx,
 	"go",		LGO,		Txxx,
@@ -985,20 +985,20 @@ static	struct
 	"interface",	LINTERFACE,	Txxx,
 	"iota",		LIOTA,		Txxx,
 	"map",		LMAP,		Txxx,
-	"new",		LNEW,		Txxx,
-	"len",		LLEN,		Txxx,
-	"nil",		LNIL,		Txxx,
+	"new",		LNEW,		Txxx,		// should be a var
+	"len",		LLEN,		Txxx,		// should be a var
+	"nil",		LNIL,		Txxx,		// should be a var
 	"package",	LPACKAGE,	Txxx,
-	"panic",	LPANIC,		Txxx,
-	"print",	LPRINT,		Txxx,
+	"panic",	LPANIC,		Txxx,		// temp
+	"print",	LPRINT,		Txxx,		// temp
 	"range",	LRANGE,		Txxx,
 	"return",	LRETURN,	Txxx,
+	"select",	LSELECT,	Txxx,
 	"struct",	LSTRUCT,	Txxx,
 	"switch",	LSWITCH,	Txxx,
-	"true",		LTRUE,		Txxx,
+	"true",		LTRUE,		Txxx,		// should be a var
 	"type",		LTYPE,		Txxx,
 	"var",		LVAR,		Txxx,
-	"sys",		LPACK,		Txxx,
 
 	"notwithstanding",		LIGNORE,	Txxx,
 	"thetruthofthematter",		LIGNORE,	Txxx,

@@ -8,6 +8,21 @@ static	int32	debug	= 0;
 
 typedef	struct	Hchan	Hchan;
 typedef	struct	Link	Link;
+typedef	struct	WaitQ	WaitQ;
+typedef	struct	SudoG	SudoG;
+
+struct	SudoG
+{
+	G*	g;		// g and selgen constitute
+	int64	selgen;		// a weak pointer to g
+	SudoG*	link;
+};
+
+struct	WaitQ
+{
+	SudoG*	first;
+	SudoG*	last;
+};
 
 struct	Hchan
 {
@@ -21,6 +36,7 @@ struct	Hchan
 	Link*	recvdataq;		// pointer for receiver
 	WaitQ	recvq;			// list of recv waiters
 	WaitQ	sendq;			// list of send waiters
+	SudoG*	free;			// freelist
 };
 
 struct	Link
@@ -28,6 +44,11 @@ struct	Link
 	Link*	link;
 	byte	elem[8];
 };
+
+static SudoG*	dequeue(WaitQ*, Hchan*);
+static void	enqueue(WaitQ*, SudoG*);
+static SudoG*	allocsg(Hchan*);
+static void	freesg(Hchan*, SudoG*);
 
 // newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
 void
@@ -97,7 +118,8 @@ void
 sys·chansend1(Hchan* c, ...)
 {
 	byte *ae;
-	G *gr;
+	SudoG *sgr;
+	G* gr;
 
 	ae = (byte*)&c + c->eo;
 	if(debug) {
@@ -110,30 +132,39 @@ sys·chansend1(Hchan* c, ...)
 	if(c->dataqsiz > 0)
 		goto asynch;
 
-	gr = dequeue(&c->recvq);
-	if(gr != nil) {
+	sgr = dequeue(&c->recvq, c);
+	if(sgr != nil) {
+		gr = sgr->g;
+		freesg(c, sgr);
+
 		c->elemalg->copy(c->elemsize, gr->elem, ae);
 		gr->status = Grunnable;
 		return;
 	}
+
 	c->elemalg->copy(c->elemsize, g->elem, ae);
+	sgr = allocsg(c);
 	g->status = Gwaiting;
-	enqueue(&c->sendq, g);
+	enqueue(&c->sendq, sgr);
 	sys·gosched();
 	return;
 
 asynch:
 	while(c->qcount >= c->dataqsiz) {
+		sgr = allocsg(c);
 		g->status = Gwaiting;
-		enqueue(&c->sendq, g);
+		enqueue(&c->sendq, sgr);
 		sys·gosched();
 	}
 	c->elemalg->copy(c->elemsize, c->senddataq->elem, ae);
 	c->senddataq = c->senddataq->link;
 	c->qcount++;
-	gr = dequeue(&c->recvq);
-	if(gr != nil)
+	sgr = dequeue(&c->recvq, c);
+	if(sgr != nil) {
+		gr = sgr->g;
+		freesg(c, sgr);
 		gr->status = Grunnable;
+	}
 }
 
 // chansend2(hchan *chan any, elem any) (pres bool);
@@ -141,6 +172,7 @@ void
 sys·chansend2(Hchan* c, ...)
 {
 	byte *ae, *ap;
+	SudoG *sgr;
 	G *gr;
 
 	ae = (byte*)&c + c->eo;
@@ -156,8 +188,11 @@ sys·chansend2(Hchan* c, ...)
 	if(c->dataqsiz > 0)
 		goto asynch;
 
-	gr = dequeue(&c->recvq);
-	if(gr != nil) {
+	sgr = dequeue(&c->recvq, c);
+	if(sgr != nil) {
+		gr = sgr->g;
+		freesg(c, sgr);
+
 		c->elemalg->copy(c->elemsize, gr->elem, ae);
 		gr->status = Grunnable;
 		*ap = true;
@@ -174,9 +209,12 @@ asynch:
 	c->elemalg->copy(c->elemsize, c->senddataq->elem, ae);
 	c->senddataq = c->senddataq->link;
 	c->qcount++;
-	gr = dequeue(&c->recvq);
-	if(gr != nil)
+	sgr = dequeue(&c->recvq, c);
+	if(gr != nil) {
+		gr = sgr->g;
+		freesg(c, sgr);
 		gr->status = Grunnable;
+	}
 	*ap = true;
 }
 
@@ -185,6 +223,7 @@ void
 sys·chanrecv1(Hchan* c, ...)
 {
 	byte *ae;
+	SudoG *sgs;
 	G *gs;
 
 	ae = (byte*)&c + c->eo;
@@ -196,30 +235,39 @@ sys·chanrecv1(Hchan* c, ...)
 	if(c->dataqsiz > 0)
 		goto asynch;
 
-	gs = dequeue(&c->sendq);
-	if(gs != nil) {
+	sgs = dequeue(&c->sendq, c);
+	if(sgs != nil) {
+		gs = sgs->g;
+		freesg(c, sgs);
+
 		c->elemalg->copy(c->elemsize, ae, gs->elem);
 		gs->status = Grunnable;
 		return;
 	}
+	sgs = allocsg(c);
 	g->status = Gwaiting;
-	enqueue(&c->recvq, g);
+	enqueue(&c->recvq, sgs);
 	sys·gosched();
 	c->elemalg->copy(c->elemsize, ae, g->elem);
 	return;
 
 asynch:
 	while(c->qcount <= 0) {
+		sgs = allocsg(c);
 		g->status = Gwaiting;
-		enqueue(&c->recvq, g);
+		enqueue(&c->recvq, sgs);
 		sys·gosched();
 	}
 	c->elemalg->copy(c->elemsize, ae, c->recvdataq->elem);
 	c->recvdataq = c->recvdataq->link;
 	c->qcount--;
-	gs = dequeue(&c->sendq);
-	if(gs != nil)
+	sgs = dequeue(&c->sendq, c);
+	if(gs != nil) {
+		gs = sgs->g;
+		freesg(c, sgs);
+
 		gs->status = Grunnable;
+	}
 }
 
 // chanrecv2(hchan *chan any) (elem any, pres bool);
@@ -227,6 +275,7 @@ void
 sys·chanrecv2(Hchan* c, ...)
 {
 	byte *ae, *ap;
+	SudoG *sgs;
 	G *gs;
 
 	ae = (byte*)&c + c->eo;
@@ -240,8 +289,11 @@ sys·chanrecv2(Hchan* c, ...)
 	if(c->dataqsiz > 0)
 		goto asynch;
 
-	gs = dequeue(&c->sendq);
-	if(gs != nil) {
+	sgs = dequeue(&c->sendq, c);
+	if(sgs != nil) {
+		gs = sgs->g;
+		freesg(c, sgs);
+
 		c->elemalg->copy(c->elemsize, ae, gs->elem);
 		gs->status = Grunnable;
 		*ap = true;
@@ -258,8 +310,70 @@ asynch:
 	c->elemalg->copy(c->elemsize, ae, c->recvdataq->elem);
 	c->recvdataq = c->recvdataq->link;
 	c->qcount--;
-	gs = dequeue(&c->sendq);
-	if(gs != nil)
+	sgs = dequeue(&c->sendq, c);
+	if(sgs != nil) {
+		gs = sgs->g;
+		freesg(c, sgs);
+
 		gs->status = Grunnable;
+	}
 	*ap = true;
+}
+
+static SudoG*
+dequeue(WaitQ *q, Hchan *c)
+{
+	SudoG *sgp;
+
+loop:
+	sgp = q->first;
+	if(sgp == nil)
+		return nil;
+	q->first = sgp->link;
+
+	// if sgp is stale, ignore it
+	if(sgp->selgen != sgp->g->selgen) {
+prints("INVALID PSEUDOG POINTER\n");
+		freesg(c, sgp);
+		goto loop;
+	}
+
+	// invalidate any others
+	sgp->g->selgen++;
+	return sgp;
+}
+
+static void
+enqueue(WaitQ *q, SudoG *sgp)
+{
+	sgp->link = nil;
+	if(q->first == nil) {
+		q->first = sgp;
+		q->last = sgp;
+		return;
+	}
+	q->last->link = sgp;
+	q->last = sgp;
+}
+
+static SudoG*
+allocsg(Hchan *c)
+{
+	SudoG* sg;
+
+	sg = c->free;
+	if(sg != nil) {
+		c->free = sg->link;
+	} else
+		sg = mal(sizeof(*sg));
+	sg->selgen = g->selgen;
+	sg->g = g;
+	return sg;
+}
+
+static void
+freesg(Hchan *c, SudoG *sg)
+{
+	sg->link = c->free;
+	c->free = sg;
 }

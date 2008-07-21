@@ -42,7 +42,6 @@ typedef	struct	G		G;
 typedef	struct	M		M;
 typedef struct	Stktop		Stktop;
 typedef	struct	Alg		Alg;
-typedef	struct	WaitQ		WaitQ;
 
 /*
  * per cpu declaration
@@ -108,9 +107,9 @@ struct	G
 	byte*	stack0;		// first stack segment
 	Gobuf	sched;
 	G*	alllink;	// on allq
-	G*	qlink;		// on wait q
 	int32	status;
 	int32	goid;
+	int64	selgen;		// valid sudog pointer
 	byte	elem[8];	// transfer element for chan
 };
 struct	M
@@ -125,11 +124,6 @@ struct	M
 	byte*	moresp;
 	int32	siz1;
 	int32	siz2;
-};
-struct	WaitQ
-{
-	G*	first;
-	G*	last;
 };
 struct	Stktop
 {
@@ -176,8 +170,6 @@ int32	findnull(int8*);
 void	dump(byte*, int32);
 int32	runetochar(byte*, int32);
 int32	chartorune(uint32*, byte*);
-G*	dequeue(WaitQ*);
-void	enqueue(WaitQ*, G*);
 
 /*
  * very low level c-called
