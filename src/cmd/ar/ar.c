@@ -116,6 +116,7 @@ char	pkgdef[] =	"__.PKGDEF";
 int	aflag;				/* command line flags */
 int	bflag;
 int	cflag;
+int	gflag;
 int	oflag;
 int	uflag;
 int	vflag;
@@ -123,6 +124,9 @@ int	vflag;
 Arfile *astart, *amiddle, *aend;	/* Temp file control block pointers */
 int	allobj = 1;			/* set when all members are object files of the same type */
 int	symdefsize;			/* size of symdef file */
+int	pkgdefsize;			/* size of pkgdef data */
+char	*pkgdata;		/* pkgdef data */
+char	*pkgstmt;		/* string "package foo" */
 int	dupfound;			/* flag for duplicate symbol */
 Hashchain	*hash[NHASH];		/* hash table of text symbols */
 	
@@ -158,6 +162,7 @@ int	page(Arfile*);
 void	pmode(long);
 void	rl(int);
 void	scanobj(Biobuf*, Arfile*, long);
+void	scanpkg(Biobuf*, long);
 void	select(int*, long);
 void	setcom(void(*)(char*, int, char**));
 void	skip(Biobuf*, vlong);
@@ -190,6 +195,7 @@ main(int argc, char *argv[])
 		case 'b':	bflag = 1;	break;
 		case 'c':	cflag = 1;	break;
 		case 'd':	setcom(dcmd);	break;
+		case 'g':	gflag = 1; break;
 		case 'i':	bflag = 1;	break;
 		case 'l':
 				strcpy(artemp, "vXXXXX");
@@ -289,6 +295,11 @@ rcmd(char *arname, int count, char **files)
 			skip(&bar, bp->size);
 			continue;
 		}
+			/* pitch pkgdef file */
+		if (gflag && strcmp(file, pkgdef) == 0) {
+			skip(&bar, bp->size);
+			continue;
+		}
 		if (count && !match(count, files)) {
 			scanobj(&bar, ap, bp->size);
 			arcopy(&bar, ap, bp);
@@ -367,9 +378,11 @@ dcmd(char *arname, int count, char **files)
 			skip(&bar, bp->size);
 			if (strcmp(file, symdef) == 0)
 				allobj = 0;
-		} else if (i == 0 && strcmp(file, symdef) == 0)
-				skip(&bar, bp->size);
-		else {
+		} else if (i == 0 && strcmp(file, symdef) == 0) {
+			skip(&bar, bp->size);
+		} else if (gflag && strcmp(file, pkgdef) == 0) {
+			skip(&bar, bp->size);
+		} else {
 			scanobj(&bar, astart, bp->size);
 			arcopy(&bar, astart, bp);
 		}
@@ -468,15 +481,20 @@ mcmd(char *arname, int count, char **files)
 			mesg('m', file);
 			scanobj(&bar, amiddle, bp->size);
 			arcopy(&bar, amiddle, bp);
-		} else
+		} else if (ap == astart && i == 0 && strcmp(file, symdef) == 0) {
 			/*
 			 * pitch the symdef file if it is at the beginning
 			 * of the archive and we aren't inserting in front
 			 * of it (ap == astart).
 			 */
-		if (ap == astart && i == 0 && strcmp(file, symdef) == 0)
 			skip(&bar, bp->size);
-		else {
+		} else if (ap == astart && gflag && strcmp(file, pkgdef) == 0) {
+			/*
+			 * pitch the pkgdef file if we aren't inserting in front
+			 * of it (ap == astart).
+			 */
+			skip(&bar, bp->size);
+		} else {
 			scanobj(&bar, ap, bp->size);
 			arcopy(&bar, ap, bp);
 		}
@@ -567,7 +585,7 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 	offset = Boffset(b);
 	obj = objtype(b, 0);
 	if (obj < 0) {			/* not an object file */
-		if (strcmp(file, pkgdef) != 0)  /* don't clear allobj if it's pkg defs */
+		if (!gflag || strcmp(file, pkgdef) != 0)  /* don't clear allobj if it's pkg defs */
 			allobj = 0;
 		d = dirfstat(Bfildes(b));
 		if (d != nil && d->length == 0)
@@ -591,6 +609,114 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 	}
 	Bseek(b, offset, 0);
 	objtraverse(objsym, ap);
+	if (gflag) {
+		scanpkg(b, size);
+		Bseek(b, offset, 0);
+	}
+}
+
+/*
+ * does line contain substring (length-limited)
+ */
+int
+strstrn(char *line, int len, char *sub)
+{
+	int i;
+	int sublen; 
+
+	sublen = strlen(sub);
+	for (i = 0; i < len - sublen; i++)
+		if (memcmp(line+i, sub, sublen) == 0)
+			return 1;
+	return 0;
+}
+
+/*
+ * Extract the package definition data from an object file
+ */
+void
+scanpkg(Biobuf *b, long size)
+{
+	long n;
+	int c;
+	long start, end, pkgsize;
+	char* data;
+	char* line;
+	char pkg[1024];
+	int first;
+
+	/*
+	 * scan until ((
+	 */
+	for (n=0; n<size; ) {
+		c = Bgetc(b);
+		if(c == Beof)
+			break;
+		n++;
+		if(c != '(')
+			continue;
+		c = Bgetc(b);
+		if(c == Beof)
+			break;
+		n++;
+		if(c != '(')
+			continue;
+		goto foundstart;
+	}
+	fprint(2, "ar: no package import section in %s\n", file);
+	return;
+
+foundstart:
+	/* how big is it? */
+	first = 1;
+	start = end = 0;
+	for (n=0; n<size; n+=Blinelen(b)) {
+		line = Brdline(b, '\n');
+		if (line == 0)
+			goto bad;
+		if (first && strstrn(line, Blinelen(b), "package ")) {
+			if (Blinelen(b) > sizeof(pkg)-1)
+				goto bad;
+			memmove(pkg, line, Blinelen(b));
+			pkg[Blinelen(b)] = '\0';
+			start = Boffset(b);  // after package statement
+			first = 0;
+			continue;
+		}
+		if (strstrn(line, Blinelen(b), "))"))
+			goto foundend;
+		end = Boffset(b);  // before closing ))
+	}
+bad:
+	fprint(2, "ar: bad package import section in %s\n", file);
+	return;
+
+foundend:
+	if (start == 0 || end == 0)
+		goto bad;
+	if (pkgdefsize == 0) {
+		/* this is the first package */
+		pkgstmt = armalloc(strlen(pkg)+1);
+		strcpy(pkgstmt, pkg);
+		pkgdefsize = 7 + 3 + strlen(pkg);	/* "import\n((\npackage foo\n" */
+		pkgdata = armalloc(pkgdefsize);
+		sprint(pkgdata, "import\n((\n%s", pkgstmt);
+	} else {
+		if (strcmp(pkg, pkgstmt) != 0) {
+			fprint(2, "ar: inconsistent package name\n");
+			return;
+		}
+	}
+	pkgsize = end-start;
+	data = armalloc(pkgdefsize + pkgsize);  /* should chain instead of reallocate */
+	memmove(data, pkgdata, pkgdefsize);
+	Bseek(b, start, 0);
+	if (Bread(b, data+pkgdefsize, pkgsize) != pkgsize) {
+		fprint(2, "ar: error reading package import section in %s\n", file);
+		return;
+	}
+	pkgdefsize += pkgsize;
+	pkgdata = data;
 }
 
 /*
@@ -860,6 +986,7 @@ rl(int fd)
 	char *cp;
 	struct ar_hdr a;
 	long len;
+	int headlen;
 
 	Binit(&b, fd, OWRITE);
 	Bseek(&b,seek(fd,0,1), 0);
@@ -880,7 +1007,13 @@ rl(int fd)
 	if(HEADER_IO(Bwrite, &b, a))
 			wrerr();
 
-	len += Boffset(&b);
+	headlen = Boffset(&b);
+	len += headlen;
+	if (gflag) {
+		len += SAR_HDR + pkgdefsize + 3; /* +3 for "))\n" */
+		if (len & 1)
+			len++;
+	}
 	if (astart) {
 		wrsym(&b, len, astart->sym);
 		len += astart->size;
@@ -894,6 +1027,29 @@ rl(int fd)
 
 	if(symdefsize&0x01)
 		Bputc(&b, 0);
+
+	if (gflag) {
+		len = pkgdefsize + 3;  /* for "))\n" at close */
+		sprint(a.date, "%-12ld", time(0));
+		sprint(a.uid, "%-6d", 0);
+		sprint(a.gid, "%-6d", 0);
+		sprint(a.mode, "%-8lo", 0644L);
+		sprint(a.size, "%-10ld", (len + 1) & ~1);
+		strncpy(a.fmag, ARFMAG, 2);
+		strcpy(a.name, pkgdef);
+		for (cp = strchr(a.name, 0);		/* blank pad on right */
+			cp < a.name+sizeof(a.name); cp++)
+				*cp = ' ';
+		if(HEADER_IO(Bwrite, &b, a))
+				wrerr();
+
+		if (Bwrite(&b, pkgdata, pkgdefsize) != pkgdefsize)
+			wrerr();
+		if (Bwrite(&b, "))\n", 3) != 3)
+			wrerr();
+		if(len&0x01)
+			Bputc(&b, 0);
+	}
 	Bterm(&b);
 }
 
@@ -1202,6 +1358,7 @@ page(Arfile *ap)
 int
 getspace(void)
 {
+fprint(2, "IN GETSPACE\n");
 	if (astart && astart->head && page(astart))
 			return 1;
 	if (amiddle && amiddle->head && page(amiddle))
