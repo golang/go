@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(July 21, 2008)
+(July 22, 2008)
 
 This document is a semi-formal specification/proposal for a new
 systems programming language.  The document is under active
@@ -1226,15 +1226,17 @@ Expression syntax is based on that of C but with fewer precedence levels.
 
   PrimaryExpr =
     identifier | Literal | "(" Expression ")" | "iota" |
-    Call | Conversion | Allocation |
-    Expression "[" Expression [ ":" Expression ] "]" | Expression "." identifier |
-    Expression "." "(" Type ")" .
-  
+    Call | Conversion | Allocation | Index |
+    Expression "." identifier | Expression "." "(" Type ")" .
+
   Call = Expression "(" [ ExpressionList ] ")" .
   Conversion = "convert" "(" Type [ "," ExpressionList ] ")" |
                ConversionType "(" [ ExpressionList ] ")" .
   ConversionType = TypeName | ArrayType | MapType | StructType | InterfaceType .
   Allocation = "new" "(" Type [ "," ExpressionList ] ")" .
+  Index = SimpleIndex | Slice .
+  SimpleIndex = Expression "[" Expression"]" .
+  Slice = Expression "[" Expression ":" Expression "]" .
 
   binary_op = log_op | comm_op | rel_op | add_op | mul_op .
   log_op = "||" | "&&" .
@@ -1496,6 +1498,42 @@ and integers. A library may be provided under restricted circumstances
 to acccess this conversion in low-level code but it will not be available
 in general.
 
+
+Slices and array concatenation
+----
+
+Strings and arrays can be ``sliced'' to construct substrings or subarrays.
+The index expressions in the slice select which elements appear in the
+result.  The result has indexes starting at 0 and length equal to the difference
+in the index values in the slice.  After
+
+  a := []int(1,2,3,4)
+  slice := a[1:3]
+
+The array ``slice'' has length two and elements
+
+  slice[0] == 2
+  slice[1] == 3
+
+The index values in the slice must be in bounds for the original
+array (or string) and the slice length must be non-negative.
+
+Slices are new arrays (or strings) storing copies of the elements, so
+changes to the elements of the slice do not affect the original.
+In the example, a subsequent assignment to element 0,
+
+  slice[0] = 5
+
+would have no effect on ``a''.
+
+Strings and arrays can also be concatenated using the ``+'' (or ``+='')
+operator.
+
+  a += []int(5, 6, 7)
+  s := "hi" + string(c)
+
+Like slices, addition creates a new array or string by copying the
+elements.
 
 The constant generator 'iota'
 ----
@@ -2109,7 +2147,7 @@ followed by a series of declarations.
   Program = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
 
 
-Initialization and Program Execution
+Initialization and program execution
 ----
 
 A package with no imports is initialized by assigning initial values to
