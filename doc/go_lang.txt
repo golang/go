@@ -50,10 +50,9 @@ By convention, one package, by default called main, is the starting point for
 execution. It contains a function, also called main, that is the first function
 invoked by the run time system.
 
-If any package within the program
+If a source file within the program
 contains a function init(), that function will be executed
-before main.main() is called.  The details of initialization are
-still under development.
+before main.main() is called.
 
 Source files can be compiled separately (without the source
 code of packages they depend on), but not independently (the compiler does
@@ -2110,9 +2109,40 @@ followed by a series of declarations.
   Program = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
 
 
+Initialization and Program Execution
+----
+
+A package with no imports is initialized by assigning initial values to
+all its global variables in declaration order and then calling any init()
+functions defined in its source. Since a package may contain more
+than one source file, there may be more than one init() function, but
+only one per source file.
+
+If a package has imports, the imported packages are initialized
+before initializing the package itself.    If multiple packages import
+a package P, P will be initialized only once.
+
+The importing of packages, by construction, guarantees that there can
+be no cyclic dependencies in initialization.
+
+A complete program, possibly created by linking multiple packages,
+must have one package called main, with a function
+  func main() { ...  }
+defined.  The function main.main() takes no arguments and returns no
+value.
+
+Program execution begins by initializing the main package and then
+invoking main.main().
+
+When main.main() returns, the program exits.
+
+TODO: is there a way to override the default for package main or the
+default for the function name main.main?
+
 TODO
 ----
 
 - TODO: type switch?
 - TODO: words about slices
 - TODO: really lock down semicolons
+- TODO: need to talk (perhaps elsewhere) about libraries, sys.exit(), etc.
