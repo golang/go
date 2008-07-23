@@ -10,7 +10,6 @@ export
 	ANY,
 	ARRAY, STRUCT, INTERFACE, MAP, CHANNEL, FUNCTION, POINTER, REFERENCE
 
-
 const /* form */ (
 	// internal types
 	UNDEF = iota; BAD; NIL;
@@ -23,6 +22,9 @@ const /* form */ (
 )
 
 
+export
+	SEND, RECV
+	
 const /* flag */ (
 	SEND = 1 << iota;  // chan>
 	RECV;  // chan< or method

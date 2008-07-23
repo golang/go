@@ -8,15 +8,39 @@ import Globals "globals"
 import Universe "universe"
 
 
+// ----------------------------------------------------------------------------
+// Expressions
+
 export Expr
-type Expr struct {
-	typ *Globals.Type;
-	op int;
-	x, y *Expr;
+type Expr interface {
 }
 
 
+export BinaryExpr
+type BinaryExpr struct {
+	typ *Globals.Type;
+	op int;
+	x, y Expr;
+}
+
+
+// ----------------------------------------------------------------------------
+// Statements
+
 export Stat
-type Stat struct {
-	// To be completed
+type Stat interface {
+}
+
+
+export Block
+type Block struct {
+	// TODO fill in
+}
+
+
+export IfStat
+type IfStat struct {
+	cond Expr;
+	then_ Stat;
+	else_ Stat;
 }
