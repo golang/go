@@ -474,6 +474,7 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
 	P.TryResult();
 	P.CloseScope();
 	
+	P.Ecart();
 	return name, MakeFunctionType(sig, p0, r0, true);
 }
 
@@ -684,12 +685,82 @@ func (P *Parser) ParseFunctionLit() {
 }
 
 
+func (P *Parser) ParseExpressionPair() {
+	P.Trace("ExpressionPair");
+
+	P.ParseExpression();
+	P.Expect(Scanner.COLON);
+	P.ParseExpression();
+	
+	P.Ecart();
+}
+
+
+func (P *Parser) ParseExpressionPairList() {
+	P.Trace("ExpressionPairList");
+
+	P.ParseExpressionPair();
+	for (P.tok == Scanner.COMMA) {
+		P.ParseExpressionPair();
+	}
+	
+	P.Ecart();
+}
+
+
+func (P *Parser) ParseCompositeLit(typ *Globals.Type) {
+	P.Trace("CompositeLit");
+	
+	// TODO I think we should use {} instead of () for
+	// composite literals to syntactically distinguish
+	// them from conversions. For now: allow both.
+	var paren int;
+	if P.tok == Scanner.LPAREN {
+		P.Next();
+		paren = Scanner.RPAREN;
+	} else {
+		P.Expect(Scanner.LBRACE);
+		paren = Scanner.RBRACE;
+	}
+	
+	// TODO: should allow trailing ','
+	if P.tok != paren {
+		P.ParseExpression();
+		if P.tok == Scanner.COMMA {
+			P.Next();
+			if P.tok != paren {
+				P.ParseExpressionList();
+			}
+		} else if P.tok == Scanner.COLON {
+			P.Next();
+			P.ParseExpression();
+			if P.tok == Scanner.COMMA {
+				P.Next();
+				if P.tok != paren {
+					P.ParseExpressionPairList();
+				}
+			}
+		}
+	}
+
+	P.Expect(paren);
+
+	P.Ecart();
+}
+
+
 func (P *Parser) ParseOperand() {
 	P.Trace("Operand");
 	
 	switch P.tok {
 	case Scanner.IDENT:
 		P.ParseQualifiedIdent();
+		// TODO enable code below
+		/*
+		if obj.kind == Object.TYPE {
+			P.ParseCompositeLit(obj.typ);
+		}
+		*/
 	case Scanner.LPAREN:
 		P.Next();
 		P.ParseExpression();
@@ -706,8 +777,13 @@ func (P *Parser) ParseOperand() {
 	case Scanner.NEW:
 		P.ParseNew();
 	default:
-		P.Error(P.pos, "operand expected");
-		P.Next();  // make progress
+		typ := P.TryType();
+		if typ != nil {
+			P.ParseCompositeLit(typ);
+		} else {
+			P.Error(P.pos, "operand expected");
+			P.Next();  // make progress
+		}
 	}
 	
 	P.Ecart();
@@ -863,7 +939,7 @@ func (P *Parser) ParseExpression() {
 	P.ParseBinaryExpr(1);
 	
 	if indent != P.indent {
-		panic "imbalanced tracing code";
+		panic "imbalanced tracing code (Expression)";
 	}
 	P.Ecart();
 }
@@ -1194,7 +1270,7 @@ func (P *Parser) TryStatement() bool {
 	}
 
 	if indent != P.indent {
-		panic "imbalanced tracing code"
+		panic "imbalanced tracing code (Statement)"
 	}
 	P.Ecart();
 	return res;
@@ -1431,7 +1507,7 @@ func (P *Parser) ParseDeclaration() {
 		P.Next();  // make progress
 	}
 	if indent != P.indent {
-		panic "imbalanced tracing code"
+		panic "imbalanced tracing code (Declaration)"
 	}
 	
 	P.Ecart();
