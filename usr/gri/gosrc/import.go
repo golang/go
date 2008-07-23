@@ -216,15 +216,15 @@ func (I *Importer) ReadType() *Globals.Type {
 
 	case Type.ARRAY:
 		typ.len_ = I.ReadInt();
-		typ.elt = I.ReadTypeField();
+		typ.elt = I.ReadType();
 
 	case Type.MAP:
-		typ.key = I.ReadTypeField();
-		typ.elt = I.ReadTypeField();
+		typ.key = I.ReadType();
+		typ.elt = I.ReadType();
 
 	case Type.CHANNEL:
 		typ.flags = I.ReadInt();
-		typ.elt = I.ReadTypeField();
+		typ.elt = I.ReadType();
 
 	case Type.FUNCTION:
 		typ.flags = I.ReadInt();
@@ -235,7 +235,7 @@ func (I *Importer) ReadType() *Globals.Type {
 
 	case Type.POINTER: fallthrough;
 	case Type.REFERENCE:
-		typ.elt = I.ReadTypeField();
+		typ.elt = I.ReadType();
 	}
 
 	return ptyp;  // only use primary type

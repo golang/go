@@ -149,23 +149,23 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 		E.WriteObjTag(obj.kind);
 		E.WriteString(obj.ident);
 		E.WriteType(obj.typ);
-		E.WritePackage(E.comp.pkgs[obj.pnolev]);
+		//E.WritePackage(E.comp.pkgs[obj.pnolev]);
 
 		switch obj.kind {
-		case Object.BAD: fallthrough;
-		case Object.PACKAGE: fallthrough;
-		case Object.PTYPE:
-			panic "UNREACHABLE";
 		case Object.CONST:
 			E.WriteInt(0);  // should be the correct value
-			break;
+
 		case Object.TYPE:
 			// nothing to do
+			
 		case Object.VAR:
 			E.WriteInt(0);  // should be the correct address/offset
+			
 		case Object.FUNC:
 			E.WriteInt(0);  // should be the correct address/offset
+			
 		default:
+			print "obj.kind = ", obj.kind, "\n";
 			panic "UNREACHABLE";
 		}
 	}
@@ -200,41 +200,30 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 	}
 
 	switch typ.form {
-	case Type.UNDEF: fallthrough;
-	case Type.BAD: fallthrough;
-	case Type.NIL: fallthrough;
-	case Type.BOOL: fallthrough;
-	case Type.UINT: fallthrough;
-	case Type.INT: fallthrough;
-	case Type.FLOAT: fallthrough;
-	case Type.STRING: fallthrough;
-	case Type.ANY:
-		panic "UNREACHABLE";
-
 	case Type.ARRAY:
 		E.WriteInt(typ.len_);
-		E.WriteTypeField(typ.elt);
+		E.WriteType(typ.elt);
 
 	case Type.MAP:
-		E.WriteTypeField(typ.key);
-		E.WriteTypeField(typ.elt);
+		E.WriteType(typ.key);
+		E.WriteType(typ.elt);
 
 	case Type.CHANNEL:
 		E.WriteInt(typ.flags);
-		E.WriteTypeField(typ.elt);
+		E.WriteType(typ.elt);
 
 	case Type.FUNCTION:
 		E.WriteInt(typ.flags);
-		fallthrough;
-	case Type.STRUCT: fallthrough;
-	case Type.INTERFACE:
+		E.WriteScope(typ.scope);
+		
+	case Type.STRUCT, Type.INTERFACE:
 		E.WriteScope(typ.scope);
 
-	case Type.POINTER: fallthrough;
-	case Type.REFERENCE:
-		E.WriteTypeField(typ.elt);
+	case Type.POINTER, Type.REFERENCE:
+		E.WriteType(typ.elt);
 
 	default:
+		print "typ.form = ", typ.form, "\n";
 		panic "UNREACHABLE";
 	}
 }
