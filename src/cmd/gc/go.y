@@ -338,8 +338,6 @@ complex_stmt:
 |	LSWITCH if_stmt
 	{
 		popdcl();
-		if(!casebody($2->nbody))
-			yyerror("switch statement must have case labels");
 		$$ = $2;
 		$$->op = OSWITCH;
 		//if($$->ninit != N && $$->ntest == N)

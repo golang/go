@@ -51,6 +51,11 @@ func	chanrecv3(hchan *chan any) (elem any, pres bool);
 func	chansend1(hchan *chan any, elem any);
 func	chansend2(hchan *chan any, elem any) (pres bool);
 
+func	newselect(size uint32) (sel *byte);
+func	selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
+func	selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+func	selectgo(sel *byte);
+
 func	gosched();
 func	goexit();
 
@@ -111,6 +116,12 @@ export
 	chanrecv3
 	chansend1
 	chansend2
+
+	// select
+	newselect
+	selectsend
+	selectrecv
+	selectgo
 
 	// go routines
 	gosched

@@ -255,6 +255,17 @@ loop:
 		breakpc = sbreak;
 		break;
 
+	case OSELECT:
+		gen(n->ninit);
+		sbreak = breakpc;
+		p1 = gbranch(AJMP, T);			// 		goto test
+		breakpc = gbranch(AJMP, T);		// break:	goto done
+		patch(p1, pc);				// test:
+		gen(n->nbody);				//		select() body
+		patch(breakpc, pc);			// done:
+		breakpc = sbreak;
+		break;
+
 	case OASOP:
 		cgen_asop(n);
 		break;
