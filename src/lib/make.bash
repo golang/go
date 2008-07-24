@@ -5,6 +5,8 @@
 #!/bin/bash
 
 rm -f *.6
-6g fmt.go 
-6g container/vector.go
+for i in flag.go fmt.go container/vector.go
+do
+	6g $i
+done
 mv *.6 $GOROOT/pkg

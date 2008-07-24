@@ -16,7 +16,7 @@ package fmt
 export Fmt, New;
 
 const NByte = 64;
-const NPows10 = 160;  // BUG: why not nelem(pows10);
+const NPows10 = 160;
 
 var ldigits string = "0123456789abcdef";  // BUG: Should be const
 var udigits string = "0123456789ABCDEF";  // BUG: Should be const
