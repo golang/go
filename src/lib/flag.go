@@ -36,6 +36,8 @@ package flag
  *	Integer flags accept 1234, 0664, 0x1234 and may be negative.
  *	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
  */
+ 
+import fmt "fmt"
 
 export Bool, Int, String
 export Arg, NArg
@@ -138,6 +140,15 @@ func (b *BoolValue) Set(val bool) {
 	b.val = val
 }
 
+func (b *BoolValue) Str() string {
+	if b.val {
+		return "true"
+	}
+	else {
+		return "false"
+	}
+}
+
 func NewBoolValue(b bool, p *bool) *BoolValue {
 	v := new(BoolValue);
 	v.val = b;
@@ -185,6 +196,10 @@ func (i *IntValue) Set(val int64) {
 		*i.p = val
 	}
 	i.val = val
+}
+
+func (i *IntValue) Str() string {
+	return fmt.New().D(i.val).str()
 }
 
 func
@@ -236,6 +251,10 @@ func (s *StringValue) Set(val string) {
 	s.val = val
 }
 
+func (s *StringValue) Str() string {
+	return `"` + s.val + `"`
+}
+
 func NewStringValue(s string, p *string) *StringValue {
 	v := new(StringValue);
 	v.val = s;
@@ -251,6 +270,7 @@ type Value interface {
 	IsBool()	bool;
 	IsInt()	bool;
 	IsString()	bool;
+	Str()		string;
 	ValidValue(str string) bool;
 }
 
@@ -259,12 +279,23 @@ type Flag struct {
 	name	string;
 	usage	string;
 	value	Value;
+	next	*Flag;  // BUG: remove when we can iterate over maps
 }
 
 type Flags struct {
 	actual *map[string] *Flag;
 	formal *map[string] *Flag;
 	first_arg	int;
+	flag_list	*Flag;  // BUG: remove when we can iterate over maps
+}
+
+func (flags *Flags) Usage() {
+	// BUG: use map iteration when available
+	print "Usage: \n";
+	for f := flags.flag_list; f != nil; f = f.next {
+		print "  -", f.name, "=", f.value.Str(), ": ", f.usage, "\n";
+	}
+	sys.exit(1);
 }
 
 // --Customer's value getters
@@ -322,6 +353,8 @@ func Add(name string, value Value, usage string) *Flag {
 		panic "flag redefinition"
 	}
 	flags.formal[name] = f;
+	f.next = flags.flag_list;  // BUG: remove when we can iterate over maps
+	flags.flag_list = f;  // BUG: remove when we can iterate over maps
 	return f;
 }
 
@@ -359,8 +392,8 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 	}
 	name := s[num_minuses : len(s)];
 	if len(name) == 0 || name[0] == '-' || name[0]=='=' {
-		print "bad flag syntax: ", s, "\n"
-		return false, -1
+		print "bad flag syntax: ", s, "\n";
+		f.Usage();
 	}
 
 	// it's a flag. does it have an argument?
@@ -376,14 +409,14 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 	}
 	flag, alreadythere := flags.actual[name];
 	if alreadythere {
-		print "flag specified twice: -", name, "\n"
-		return false, -1
+		print "flag specified twice: -", name, "\n";
+		f.Usage();
 	}
 	m := flags.formal;
 	flag, alreadythere = m[name]; // BUG
 	if !alreadythere {
-		print "flag provided but not defined: -", name, "\n"
-		return false, -1
+		print "flag provided but not defined: -", name, "\n";
+		f.Usage();
 	}
 	if !has_value && index < sys.argc()-1 && flag.value.ValidValue(sys.argv(index+1)) {
 		// value is the next arg
@@ -396,8 +429,8 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 			if has_value {
 				k, ok := atob(value);
 				if !ok {
-					print "invalid boolean value ", value, " for flag: -", name, "\n"
-					return false, -1
+					print "invalid boolean value ", value, " for flag: -", name, "\n";
+					f.Usage();
 				}
 				flag.value.AsBool().Set(k)
 			} else {
@@ -405,19 +438,19 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 			}
 		case flag.value.IsInt():
 			if !has_value {
-				print "flag needs an argument: -", name, "\n"
-				return false, -1
+				print "flag needs an argument: -", name, "\n";
+				f.Usage();
 			}
 			k, ok := atoi(value);
 			if !ok {
-				print "invalid integer value ", value, " for flag: -", name, "\n"
-				return false, -1
+				print "invalid integer value ", value, " for flag: -", name, "\n";
+				f.Usage();
 			}
 			flag.value.AsInt().Set(k)
 		case flag.value.IsString():
 			if !has_value {
-				print "flag needs an argument: -", name, "\n"
-				return false, -1
+				print "flag needs an argument: -", name, "\n";
+				f.Usage();
 			}
 			flag.value.AsString().Set(value)
 	}
