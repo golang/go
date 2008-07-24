@@ -70,7 +70,7 @@ loop:
 		if(top != Etop)
 			goto nottop;
 		walktype(n->left, Erv);
-		*n = *nod(OLIST, prcompat(n->left), nodpanic(n->lineno));
+		*n = *list(prcompat(n->left), nodpanic(n->lineno));
 		goto ret;
 
 	case OLITERAL:
@@ -121,6 +121,9 @@ loop:
 		if(top != Etop)
 			goto nottop;
 
+		if(!casebody(n->nbody))
+			yyerror("switch statement must have case labels");
+
 		if(n->ntest == N)
 			n->ntest = booltrue;
 		walktype(n->ninit, Etop);
@@ -141,6 +144,20 @@ loop:
 		walktype(n->ntest, Erv);	// BOTCH is this right
 		walktype(n->nincr, Erv);
 		goto ret;
+
+	case OSELECT:
+		if(top != Etop)
+			goto nottop;
+
+		walkselect(n);
+		goto ret;
+
+	case OSCASE:
+		if(top != Etop)
+			goto nottop;
+//		walktype(n->left, Erv);	SPECIAL
+		n = n->right;
+		goto loop;
 
 	case OEMPTY:
 		if(top != Etop)
@@ -216,7 +233,7 @@ loop:
 			l = ascompatte(n->op, getinarg(t), &n->right, 0);
 			r = ascompatte(n->op, getthis(t), &n->left->left, 0);
 			if(l != N)
-				r = nod(OLIST, r, l);
+				r = list(r, l);
 			n->left->left = N;
 			ullmancalc(n->left);
 			n->right = reorder1(r);
@@ -255,7 +272,7 @@ loop:
 				walktype(r, Erv);
 				l = ascompatet(n->op, &n->left, &r->type, 0);
 				if(l != N) {
-					*n = *nod(OLIST, r, reorder2(l));
+					*n = *list(r, reorder2(l));
 				}
 				goto ret;
 			}
@@ -591,8 +608,8 @@ loop:
 	case OSEND:
 		if(top == Elv)
 			goto nottop;
-		walktype(n->left, Erv);
-		walktype(n->right, Erv);
+		walktype(n->left, Erv);		// chan
+		walktype(n->right, Erv);	// e
 		*n = *chanop(n, top);
 		goto ret;
 
@@ -805,7 +822,7 @@ sw2(Node *c, Type *place)
 }
 
 /*
- * check that selected type
+ * check that switch type
  * is compat with all the cases
  */
 Type*
@@ -895,6 +912,125 @@ loop:
 	ot = t;
 	t = listnext(&save);
 	goto loop;
+}
+
+Node*
+selcase(Node *c, Node *var)
+{
+	Node *a, *r, *on;
+	Type *t;
+
+	walktype(c->left, Erv);		// chan
+	walktype(c->right, Erv);	// elem
+	t = fixchan(c->left->type);
+	if(t == T)
+		return;
+
+	convlit(c->right, t->type);
+	if(!ascompat(t->type, c->right->type)) {
+		badtype(c->op, t->type, c->right->type);
+		return;
+	}
+
+	// selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
+	on = syslook("selectsend", 1);
+	argtype(on, t->type);
+	argtype(on, t->type);
+
+	a = c->right;		// elem
+	r = a;
+	a = c->left;		// chan
+	r = list(a, r);
+	a = var;		// sel-var
+	r = list(a, r);
+
+	a = nod(OCALL, on, r);
+	r = nod(OIF, N, N);
+	r->ntest = a;
+
+	return r;
+
+}
+
+void
+walkselect(Node *sel)
+{
+	Iter iter;
+	Node *n, *oc, *on, *r;
+	Node *var, *bod, *res;
+	int count;
+	long lno;
+
+	lno = setlineno(sel);
+
+	// generate sel-struct
+	var = nod(OXXX, N, N);
+	tempname(var, ptrto(types[TUINT8]));
+
+	n = listfirst(&iter, &sel->left);
+	if(n == N || n->op != OXCASE)
+		yyerror("first select statement must be a case");
+
+	count = 0;	// number of cases
+	res = N;	// entire select body
+	bod = N;	// body of each case
+	oc = N;		// last case
+
+	for(count=0; n!=N; n=listnext(&iter)) {
+		setlineno(n);
+
+		switch(n->op) {
+		default:
+			bod = list(bod, n);
+			break;
+
+		case OXCASE:
+			switch(n->left->op) {
+			default:
+				yyerror("select cases must be send or recv");
+				break;
+
+			case OSEND:
+				if(oc != N) {
+					bod = list(bod, nod(OBREAK, N, N));
+					oc->nbody = rev(bod);
+				}
+				oc = selcase(n->left, var);
+				res = list(res, oc);
+				break;
+			}
+			bod = N;
+			count++;
+			break;
+		}
+	}
+	if(oc != N) {
+		bod = list(bod, nod(OBREAK, N, N));
+		oc->nbody = rev(bod);
+	}
+	setlineno(sel);
+
+	// selectgo(sel *byte);
+	on = syslook("selectgo", 0);
+	r = nod(OCALL, on, var);		// sel-var
+	res = list(res, r);
+
+	// newselect(size uint32) (sel *byte);
+	on = syslook("newselect", 0);
+
+	r = nod(OXXX, N, N);
+	nodconst(r, types[TINT32], count);	// count
+	r = nod(OCALL, on, r);
+	r = nod(OAS, var, r);
+
+	sel->ninit = r;
+	sel->nbody = rev(res);
+	sel->left = N;
+
+	walktype(sel->ninit, Etop);
+	walktype(sel->nbody, Etop);
+
+	lineno = lno;
 }
 
 /*
@@ -1053,7 +1189,7 @@ loop:
 	if(nn == N)
 		nn = a;
 	else
-		nn = nod(OLIST, a, nn);
+		nn = list(a, nn);
 
 	l = listnext(&savel);
 	r = listnext(&saver);
@@ -1093,7 +1229,7 @@ loop:
 	if(nn == N)
 		nn = a;
 	else
-		nn = nod(OLIST, a, nn);
+		nn = list(a, nn);
 
 	l = listnext(&savel);
 	r = structnext(&saver);
@@ -1134,7 +1270,7 @@ loop:
 	if(nn == N)
 		nn = a;
 	else
-		nn = nod(OLIST, a, nn);
+		nn = list(a, nn);
 
 	l = structnext(&savel);
 	r = listnext(&saver);
@@ -1230,7 +1366,7 @@ loop:
 	if(r == N)
 		r = nod(OCALL, on, l);
 	else
-		r = nod(OLIST, r, nod(OCALL, on, l));
+		r = list(r, nod(OCALL, on, l));
 
 	l = listnext(&save);
 	goto loop;
@@ -1305,7 +1441,7 @@ stringop(Node *n, int top)
 	case OLT:
 		// sys_cmpstring(s1, s2) :: 0
 		on = syslook("cmpstring", 0);
-		r = nod(OLIST, n->left, n->right);
+		r = list(n->left, n->right);
 		r = nod(OCALL, on, r);
 		c = nodintconst(0);
 		r = nod(n->op, r, c);
@@ -1314,7 +1450,7 @@ stringop(Node *n, int top)
 	case OADD:
 		// sys_catstring(s1, s2)
 		on = syslook("catstring", 0);
-		r = nod(OLIST, n->left, n->right);
+		r = list(n->left, n->right);
 		r = nod(OCALL, on, r);
 		break;
 
@@ -1328,7 +1464,7 @@ stringop(Node *n, int top)
 			// s1 = sys_catstring(s1, s2)
 			if(n->etype != OADD)
 				fatal("stringop: not cat");
-			r = nod(OLIST, n->left, n->right);
+			r = list(n->left, n->right);
 			on = syslook("catstring", 0);
 			r = nod(OCALL, on, r);
 			r = nod(OAS, n->left, r);
@@ -1344,8 +1480,8 @@ stringop(Node *n, int top)
 		c = nod(OCONV, n->right->right, N);
 		c->type = types[TINT32];
 
-		r = nod(OLIST, r, c);
-		r = nod(OLIST, n->left, r);
+		r = list(r, c);
+		r = list(n->left, r);
 		on = syslook("slicestring", 0);
 		r = nod(OCALL, on, r);
 		break;
@@ -1360,7 +1496,7 @@ stringop(Node *n, int top)
 		}
 		r = nod(OCONV, n->right, N);
 		r->type = types[TINT32];
-		r = nod(OLIST, c, r);
+		r = list(c, r);
 		on = syslook("indexstring", 0);
 		r = nod(OCALL, on, r);
 		break;
@@ -1382,7 +1518,7 @@ stringop(Node *n, int top)
 		l = isbytearray(n->left->type);
 		c = nodintconst(l-1);
 
-		r = nod(OLIST, r, c);
+		r = list(r, c);
 		on = syslook("byteastring", 0);
 		r = nod(OCALL, on, r);
 		break;
@@ -1499,13 +1635,13 @@ mapop(Node *n, int top)
 			a = nodintconst(0);
 		r = a;
 		a = nodintconst(algtype(t->type));	// val algorithm
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 		a = nodintconst(algtype(t->down));	// key algorithm
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 		a = nodintconst(t->type->width);	// val width
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 		a = nodintconst(t->down->width);	// key width
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 
 		on = syslook("newmap", 1);
 
@@ -1541,7 +1677,7 @@ mapop(Node *n, int top)
 
 		r = a;
 		a = n->left;				// map
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 
 		on = syslook("mapaccess1", 1);
 
@@ -1579,9 +1715,9 @@ mapop(Node *n, int top)
 		a = n->right;				// val
 		r = a;
 		a = n->left->right;			// key
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 		a = n->left->left;			// map
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 
 		on = syslook("mapassign1", 1);
 
@@ -1608,11 +1744,11 @@ mapop(Node *n, int top)
 		a = n->right->right;			// pres
 		r = a;
 		a = n->right->left;			// val
-		r =nod(OLIST, a, r);
+		r =list(a, r);
 		a = n->left->right;			// key
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 		a = n->left->left;			// map
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 
 		on = syslook("mapassign2", 1);
 
@@ -1639,7 +1775,7 @@ mapop(Node *n, int top)
 		a = n->right->right;			// key
 		r = a;
 		a = n->right->left;			// map
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 
 		on = syslook("mapaccess2", 1);
 
@@ -1695,9 +1831,9 @@ chanop(Node *n, int top)
 			a = nodintconst(0);
 		r = a;
 		a = nodintconst(algtype(t->type));	// elem algorithm
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 		a = nodintconst(t->type->width);	// elem width
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 
 		on = syslook("newchan", 1);
 		argtype(on, t->type);	// any-1
@@ -1789,7 +1925,7 @@ fatal("recv2 not yet");
 		a = n->right;			// e
 		r = a;
 		a = n->left;			// chan
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 
 		on = syslook("chansend1", 1);
 		argtype(on, t->type);	// any-1
@@ -1807,7 +1943,7 @@ fatal("recv2 not yet");
 		a = n->right;			// e
 		r = a;
 		a = n->left;			// chan
-		r = nod(OLIST, a, r);
+		r = list(a, r);
 
 		on = syslook("chansend2", 1);
 		argtype(on, t->type);	// any-1
@@ -1981,7 +2117,7 @@ colas(Node *nl, Node *nr)
 		if(n == N)
 			n = a;
 		else
-			n = nod(OLIST, n, a);
+			n = list(n, a);
 
 		l = listnext(&savel);
 		r = listnext(&saver);
@@ -2017,7 +2153,7 @@ multi:
 			if(n == N)
 				n = a;
 			else
-				n = nod(OLIST, n, a);
+				n = list(n, a);
 			l = listnext(&savel);
 			t = structnext(&saver);
 		}
@@ -2039,7 +2175,7 @@ multi:
 		a = old2new(nl->left, t->type);
 		n = a;
 		a = old2new(nl->right, types[TBOOL]);
-		n = nod(OLIST, n, a);
+		n = list(n, a);
 		break;
 
 	case ORECV:
@@ -2052,7 +2188,7 @@ multi:
 		a = old2new(nl->left, t->type->type);
 		n = a;
 		a = old2new(nl->right, types[TBOOL]);
-		n = nod(OLIST, n, a);
+		n = list(n, a);
 	}
 	n = rev(n);
 	return n;
@@ -2107,15 +2243,15 @@ loop2:
 		r = rev(r);
 		g = rev(g);
 		if(g != N)
-			f = nod(OLIST, g, f);
-		r = nod(OLIST, f, r);
+			f = list(g, f);
+		r = list(f, r);
 		return r;
 	}
 	if(l->ullman < UINF) {
 		if(r == N)
 			r = l;
 		else
-			r = nod(OLIST, l, r);
+			r = list(l, r);
 		goto more;
 	}
 	if(f == N) {
@@ -2131,7 +2267,7 @@ loop2:
 	if(g == N)
 		g = a;
 	else
-		g = nod(OLIST, a, g);
+		g = list(a, g);
 
 	// put normal arg assignment on list
 	// with fncall replaced by tempname
@@ -2139,7 +2275,7 @@ loop2:
 	if(r == N)
 		r = l;
 	else
-		r = nod(OLIST, l, r);
+		r = list(l, r);
 
 more:
 	l = listnext(&save);
@@ -2256,7 +2392,7 @@ reorder3(Node *n)
 					if(r == N)
 						r = q;
 					else
-						r = nod(OLIST, r, q);
+						r = list(r, q);
 					break;
 				}
 			}
@@ -2275,7 +2411,7 @@ reorder3(Node *n)
 		if(q == N)
 			q = l1;
 		else
-			q = nod(OLIST, q, l1);
+			q = list(q, l1);
 		l1 = listnext(&save1);
 	}
 
@@ -2285,7 +2421,7 @@ reorder3(Node *n)
 		if(q == N)
 			q = l1;
 		else
-			q = nod(OLIST, q, l1);
+			q = list(q, l1);
 		l1 = listnext(&save1);
 	}
 

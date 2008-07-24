@@ -110,7 +110,6 @@ struct	G
 	int32	status;
 	int32	goid;
 	int64	selgen;		// valid sudog pointer
-	byte	elem[8];	// transfer element for chan
 };
 struct	M
 {
@@ -205,6 +204,7 @@ void	sys·write(int32, void*, int32);
 void	sys·breakpoint(void);
 uint8*	sys·mmap(byte*, uint32, int32, int32, int32, uint32);
 void	sys·memclr(byte*, uint32);
+void	sys·setcallerpc(void*, void*);
 void*	sys·getcallerpc(void*);
 void	sys·sigaction(int64, void*, void*);
 void	sys·rt_sigaction(int64, void*, void*, uint64);

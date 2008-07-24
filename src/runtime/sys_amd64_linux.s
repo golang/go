@@ -114,6 +114,12 @@ TEXT	sys·memclr(SB),1,$0-16
 	RET
 
 TEXT	sys·getcallerpc+0(SB),1,$0
-	MOVQ	x+0(FP),AX
-	MOVQ	-8(AX),AX
+	MOVQ	x+0(FP),AX		// addr of first arg
+	MOVQ	-8(AX),AX		// get calling pc
+	RET
+
+TEXT	sys·setcallerpc+0(SB),1,$0
+	MOVQ	x+0(FP),AX		// addr of first arg
+	MOVQ	x+8(FP), BX
+	MOVQ	BX, -8(AX)		// set calling pc
 	RET

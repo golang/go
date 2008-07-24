@@ -7,6 +7,7 @@
 6g sys.go
 echo '1,/((/d
 /))/+1,$d
+g/init_.*_function/d
 1,$s/foop/sys/g
 1,$s/^[ 	]*/	"/g
 1,$s/$/\\n"/g

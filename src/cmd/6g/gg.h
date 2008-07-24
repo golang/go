@@ -107,6 +107,7 @@ void	compile(Node*);
 void	proglist(void);
 void	gen(Node*);
 void	swgen(Node*);
+void	selgen(Node*);
 Node*	lookdot(Node*, Node*, int);
 void	inarggen(void);
 void	agen_inter(Node*, Node*);

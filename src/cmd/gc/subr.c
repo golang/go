@@ -603,6 +603,7 @@ opnames[] =
 	[OCALLINTER]	= "CALLINTER",
 	[OCASE]		= "CASE",
 	[OXCASE]	= "XCASE",
+	[OSCASE]	= "SCASE",
 	[OCMP]		= "CMP",
 	[OFALL]		= "FALL",
 	[OCONV]		= "CONV",

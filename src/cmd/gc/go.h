@@ -219,8 +219,8 @@ enum
 	OLIST, OCMP,
 	OPTR, OARRAY,
 	ORETURN, OFOR, OIF, OSWITCH, OI2S, OS2I, OI2I,
-	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL, OSELECT,
-	OGOTO, OPROC, ONEW, OPANIC, OPRINT, OEMPTY,
+	OAS, OASOP, OCASE, OXCASE, OSCASE, OFALL, OXFALL,
+	OGOTO, OPROC, ONEW, OPANIC, OPRINT, OEMPTY, OSELECT,
 
 	OOROR,
 	OANDAND,
@@ -575,6 +575,7 @@ void	walktype(Node*, int);
 void	walkbool(Node*);
 Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
 int	casebody(Node*);
+void	walkselect(Node*);
 int	whatis(Node*);
 void	walkdot(Node*, int);
 Node*	ascompatee(int, Node**, Node**);
@@ -585,7 +586,9 @@ Node*	prcompat(Node*);
 Node*	nodpanic(long);
 Node*	newcompat(Node*);
 Node*	stringop(Node*, int);
+Type*	fixmap(Type*);
 Node*	mapop(Node*, int);
+Type*	fixchan(Type*);
 Node*	chanop(Node*, int);
 Node*	convas(Node*);
 void	arrayconv(Type*, Node*);
