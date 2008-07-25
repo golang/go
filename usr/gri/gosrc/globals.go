@@ -162,6 +162,11 @@ func (L *List) at(i int) *Elem {
 }
 
 
+func (L *List) Clear() {
+	L.len_, L.first, L.last = 0, nil, nil;
+}
+
+
 func (L *List) Add() *Elem {
 	L.len_++;
 	e := new(Elem);
@@ -172,6 +177,11 @@ func (L *List) Add() *Elem {
 	}
 	L.last = e;
 	return e;
+}
+
+
+func (L *List) IntAt(i int) int {
+	return L.at(i).val;
 }
 
 
