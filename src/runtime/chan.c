@@ -54,7 +54,10 @@ struct	Scase
 	byte*	pc;			// return pc
 	uint16	send;			// 0-recv 1-send
 	uint16	so;			// vararg of selected bool
-	byte	elem[8];		// element
+	union {
+		byte	elem[8];	// element (send)
+		byte*	elemp;		// pointer to element (recv)
+	} u;
 };
 
 struct	Select
@@ -390,7 +393,7 @@ sys·selectsend(Select *sel, Hchan *c, ...)
 	cas->send = 1;
 
 	ae = (byte*)&sel + eo;
-	c->elemalg->copy(c->elemsize, cas->elem, ae);
+	c->elemalg->copy(c->elemsize, cas->u.elem, ae);
 
 	as = (byte*)&sel + cas->so;
 	*as = false;
@@ -414,7 +417,45 @@ sys·selectsend(Select *sel, Hchan *c, ...)
 void
 sys·selectrecv(Select *sel, Hchan *c, ...)
 {
-	throw("selectrecv");
+	int32 i, epo;
+	Scase *cas;
+	byte *as;
+
+	// return val, selected, is preset to false
+	if(c == nil)
+		return;
+
+	i = sel->ncase;
+	if(i >= sel->tcase)
+		throw("selectsend: too many cases");
+	sel->ncase = i+1;
+	cas = &sel->scase[i];
+
+	cas->pc = sys·getcallerpc(&sel);
+	cas->chan = c;
+
+	epo = rnd(sizeof(sel), sizeof(c));
+	epo = rnd(epo+sizeof(c), sizeof(byte*));
+	cas->so = rnd(epo+sizeof(byte*), 1);
+	cas->send = 0;
+	cas->u.elemp = *(byte**)((byte*)&sel + epo);
+
+	as = (byte*)&sel + cas->so;
+	*as = false;
+
+	if(debug) {
+		prints("newselect s=");
+		sys·printpointer(sel);
+		prints(" pc=");
+		sys·printpointer(cas->pc);
+		prints(" chan=");
+		sys·printpointer(cas->chan);
+		prints(" so=");
+		sys·printint(cas->so);
+		prints(" send=");
+		sys·printint(cas->send);
+		prints("\n");
+	}
 }
 
 // selectgo(sel *byte);
@@ -428,6 +469,9 @@ sys·selectgo(Select *sel)
 	byte *ae, *as;
 	SudoG *sgr;
 	G *gr;
+
+	SudoG *sgs;
+	G *gs;
 
 	if(sel->ncase < 1) {
 		throw("selectgo: no cases");
@@ -453,15 +497,32 @@ sys·selectgo(Select *sel)
 		c = cas->chan;
 		if(cas->send) {
 			if(c->dataqsiz > 0) {
-				throw("selectgo: asynch");
+				throw("selectgo: send asynch");
 			}
 			sgr = dequeue(&c->recvq, c);
 			if(sgr == nil)
 				continue;
 
-			c->elemalg->copy(c->elemsize, sgr->elem, cas->elem);
+			c->elemalg->copy(c->elemsize, sgr->elem, cas->u.elem);
 			gr = sgr->g;
 			gr->status = Grunnable;
+
+			goto retc;
+		} else {
+			if(c->dataqsiz > 0) {
+				throw("selectgo: recv asynch");
+			}
+			sgs = dequeue(&c->sendq, c);
+			if(sgs == nil)
+				continue;
+
+			if(cas->u.elemp != nil)
+				c->elemalg->copy(c->elemsize, cas->u.elemp, sgs->elem);
+
+			gs = sgs->g;
+			gs->status = Grunnable;
+
+			freesg(c, sgs);
 
 			goto retc;
 		}
