@@ -915,13 +915,18 @@ loop:
 }
 
 Node*
-selcase(Node *c, Node *var)
+selcase(Node *n, Node *var)
 {
-	Node *a, *r, *on;
+	Node *a, *r, *on, *c;
 	Type *t;
+
+	c = n->left;
+	if(c->op == ORECV)
+		goto recv;
 
 	walktype(c->left, Erv);		// chan
 	walktype(c->right, Erv);	// elem
+
 	t = fixchan(c->left->type);
 	if(t == T)
 		return;
@@ -937,11 +942,44 @@ selcase(Node *c, Node *var)
 	argtype(on, t->type);
 	argtype(on, t->type);
 
-	a = c->right;		// elem
+	a = c->right;			// elem
 	r = a;
-	a = c->left;		// chan
+	a = c->left;			// chan
 	r = list(a, r);
-	a = var;		// sel-var
+	a = var;			// sel-var
+	r = list(a, r);
+
+	a = nod(OCALL, on, r);
+	r = nod(OIF, N, N);
+	r->ntest = a;
+
+	return r;
+
+recv:
+	walktype(c->left, Elv);		// elem
+	walktype(c->right, Erv);	// chan
+
+	t = fixchan(c->right->type);
+	if(t == T)
+		return;
+
+	convlit(c->left, t->type);
+	if(!ascompat(t->type, c->left->type)) {
+		badtype(c->op, t->type, c->left->type);
+		return;
+	}
+
+	// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+	on = syslook("selectrecv", 1);
+	argtype(on, t->type);
+	argtype(on, t->type);
+
+	a = c->left;			// elem
+	a = nod(OADDR, a, N);
+	r = a;
+	a = c->right;			// chan
+	r = list(a, r);
+	a = var;			// sel-var
 	r = list(a, r);
 
 	a = nod(OCALL, on, r);
@@ -991,11 +1029,12 @@ walkselect(Node *sel)
 				break;
 
 			case OSEND:
+			case ORECV:
 				if(oc != N) {
 					bod = list(bod, nod(OBREAK, N, N));
 					oc->nbody = rev(bod);
 				}
-				oc = selcase(n->left, var);
+				oc = selcase(n, var);
 				res = list(res, oc);
 				break;
 			}
@@ -1029,6 +1068,8 @@ walkselect(Node *sel)
 
 	walktype(sel->ninit, Etop);
 	walktype(sel->nbody, Etop);
+
+dump("sel", sel);
 
 	lineno = lno;
 }

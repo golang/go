@@ -446,6 +446,7 @@ loop:
 	case OIF:
 	case OSWITCH:
 	case OFOR:
+	case OSELECT:
 		dodump(n->ninit, dep);
 		break;
 	}
@@ -478,6 +479,11 @@ loop:
 			print("%O-else\n", n->op);
 			dodump(n->nelse, dep+1);
 		}
+		return;
+
+	case OSELECT:
+		print("%O%J\n", n->op, n);
+		dodump(n->nbody, dep+1);
 		return;
 
 	case OSWITCH:
