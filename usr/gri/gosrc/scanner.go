@@ -387,8 +387,8 @@ func Init() {
 	  Keywords[TokenName(i)] = i;
 	}
 	
-	// r doesn't want column information in error messages...
-	VerboseMsgs = !IsUser("r");
+	// Provide column information in error messages for gri only...
+	VerboseMsgs = IsUser("gri");
 }
 
 
