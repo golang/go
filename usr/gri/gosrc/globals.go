@@ -53,10 +53,10 @@ type Package struct {
 
 type Elem struct {
 	next *Elem;
+	val int;
 	str string;
 	obj *Object;
 	typ *Type;
-	pkg *Package;
 }
 
 
@@ -187,6 +187,11 @@ func (L *List) ObjAt(i int) *Object {
 
 func (L *List) TypAt(i int) *Type {
 	return L.at(i).typ;
+}
+
+
+func (L *List) AddInt(val int) {
+	L.Add().val = val;
 }
 
 

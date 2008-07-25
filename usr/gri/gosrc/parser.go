@@ -208,12 +208,15 @@ func (P *Parser) ParseIdentList() {
 }
 
 
-func (P *Parser) ParseQualifiedIdent() *Globals.Object {
+func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 	P.Trace("QualifiedIdent");
 
+	if pos < 0 {
+		pos = P.pos;
+		ident = P.ParseIdent();
+	}
+	
 	if EnableSemanticTests {
-		pos := P.pos;
-		ident := P.ParseIdent();
 		obj := P.Lookup(ident);
 		if obj == nil {
 			P.Error(pos, `"` + ident + `" is not declared`);
@@ -229,7 +232,6 @@ func (P *Parser) ParseQualifiedIdent() *Globals.Object {
 		return obj;
 		
 	} else {
-		P.ParseIdent();
 		if P.tok == Scanner.PERIOD {
 			P.Next();
 			P.ParseIdent();
@@ -261,7 +263,7 @@ func (P *Parser) ParseTypeName() *Globals.Type {
 	P.Trace("TypeName");
 	
 	if EnableSemanticTests {
-		obj := P.ParseQualifiedIdent();
+		obj := P.ParseQualifiedIdent(-1, "");
 		typ := obj.typ;
 		if obj.kind != Object.TYPE {
 			P.Error(obj.pos, `"` + obj.ident + `" is not a type`);
@@ -270,7 +272,7 @@ func (P *Parser) ParseTypeName() *Globals.Type {
 		P.Ecart();
 		return typ;
 	} else {
-		P.ParseQualifiedIdent();
+		P.ParseQualifiedIdent(-1, "");
 		P.Ecart();
 		return Universe.bad_t;
 	}
@@ -510,11 +512,11 @@ func (P *Parser) ParseInterfaceType() *Globals.Type {
 	P.OpenScope();
 	typ := Globals.NewType(Type.INTERFACE);
 	typ.scope = P.top_scope;
-	for P.tok != Scanner.RBRACE {
+	for P.tok == Scanner.IDENT {
 		P.ParseMethodDecl();
 	}
 	P.CloseScope();
-	P.Next();
+	P.Expect(Scanner.RBRACE);
 	
 	P.Ecart();
 	return typ;
@@ -708,6 +710,15 @@ func (P *Parser) ParseExpressionPairList() {
 }
 
 
+func (P *Parser) ParseBuiltinCall() {
+	P.Trace("BuiltinCall");
+	
+	P.ParseExpressionList();  // TODO should be optional
+	
+	P.Ecart();
+}
+
+
 func (P *Parser) ParseCompositeLit(typ *Globals.Type) {
 	P.Trace("CompositeLit");
 	
@@ -749,18 +760,36 @@ func (P *Parser) ParseCompositeLit(typ *Globals.Type) {
 }
 
 
-func (P *Parser) ParseOperand() {
+func (P *Parser) ParseOperand(pos int, ident string) {
 	P.Trace("Operand");
+
+	if pos < 0 && P.tok == Scanner.IDENT {
+		// no look-ahead yet
+		pos = P.pos;
+		ident = P.val;
+		P.Next();
+	}
 	
-	switch P.tok {
-	case Scanner.IDENT:
-		P.ParseQualifiedIdent();
+	if pos >= 0 {
+		// TODO set these up properly in the Universe
+		if ident == "panic" || ident == "print" {
+			P.ParseBuiltinCall();
+			goto exit;
+		}
+	
+		P.ParseQualifiedIdent(pos, ident);
 		// TODO enable code below
 		/*
 		if obj.kind == Object.TYPE {
 			P.ParseCompositeLit(obj.typ);
 		}
 		*/
+		goto exit;
+	}
+	
+	switch P.tok {
+	case Scanner.IDENT:
+		panic "UNREACHABLE";
 	case Scanner.LPAREN:
 		P.Next();
 		P.ParseExpression();
@@ -786,6 +815,7 @@ func (P *Parser) ParseOperand() {
 		}
 	}
 	
+exit:
 	P.Ecart();
 }
 
@@ -821,8 +851,8 @@ func (P *Parser) ParseIndexOrSlice() {
 }
 
 
-func (P *Parser) ParseInvocation() {
-	P.Trace("Invocation");
+func (P *Parser) ParseCall() {
+	P.Trace("Call");
 	
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
@@ -834,10 +864,10 @@ func (P *Parser) ParseInvocation() {
 }
 
 
-func (P *Parser) ParsePrimaryExpr() {
+func (P *Parser) ParsePrimaryExpr(pos int, ident string) AST.Expr {
 	P.Trace("PrimaryExpr");
 	
-	P.ParseOperand();
+	P.ParseOperand(pos, ident);
 	for {
 		switch P.tok {
 		case Scanner.PERIOD:
@@ -845,24 +875,25 @@ func (P *Parser) ParsePrimaryExpr() {
 		case Scanner.LBRACK:
 			P.ParseIndexOrSlice();
 		case Scanner.LPAREN:
-			P.ParseInvocation();
+			P.ParseCall();
 		default:
 			P.Ecart();
-			return;
+			return nil;
 		}
 	}
 	
 	P.Ecart();
+	return nil;
 }
 
 
 func (P *Parser) ParsePrimaryExprList() {
 	P.Trace("PrimaryExprList");
 	
-	P.ParsePrimaryExpr();
+	P.ParsePrimaryExpr(-1, "");
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParsePrimaryExpr();
+		P.ParsePrimaryExpr(-1, "");
 	}
 	
 	P.Ecart();
@@ -885,7 +916,7 @@ func (P *Parser) ParseUnaryExpr() AST.Expr {
 		P.Ecart();
 		return nil;  // TODO fix this
 	}
-	P.ParsePrimaryExpr();
+	P.ParsePrimaryExpr(-1, "");
 	
 	P.Ecart();
 	return nil;  // TODO fix this
@@ -912,10 +943,15 @@ func Precedence(tok int) int {
 }
 
 
-func (P *Parser) ParseBinaryExpr(prec1 int) AST.Expr {
+func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) AST.Expr {
 	P.Trace("BinaryExpr");
 	
-	x := P.ParseUnaryExpr();
+	var x AST.Expr;
+	if pos >= 0 {
+		x = P.ParsePrimaryExpr(pos, ident);
+	} else {
+		x = P.ParseUnaryExpr();
+	}
 	for prec := Precedence(P.tok); prec >= prec1; prec-- {
 		for Precedence(P.tok) == prec {
 			e := new(AST.BinaryExpr);
@@ -923,7 +959,7 @@ func (P *Parser) ParseBinaryExpr(prec1 int) AST.Expr {
 			e.op = P.tok;  // TODO should we use tokens or separate operator constants?
 			e.x = x;
 			P.Next();
-			e.y = P.ParseBinaryExpr(prec + 1);
+			e.y = P.ParseBinaryExpr(-1, "", prec + 1);
 			x = e;
 		}
 	}
@@ -932,11 +968,13 @@ func (P *Parser) ParseBinaryExpr(prec1 int) AST.Expr {
 }
 
 
-func (P *Parser) ParseExpression() {
-	P.Trace("Expression");
+// Expressions where the first token may be an
+// identifier that has already been consumed.
+func (P *Parser) ParseIdentExpression(pos int, ident string) {
+	P.Trace("IdentExpression");
 	indent := P.indent;
 	
-	P.ParseBinaryExpr(1);
+	P.ParseBinaryExpr(pos, ident, 1);
 	
 	if indent != P.indent {
 		panic "imbalanced tracing code (Expression)";
@@ -945,32 +983,102 @@ func (P *Parser) ParseExpression() {
 }
 
 
+func (P *Parser) ParseExpression() {
+	P.Trace("Expression");	
+	P.ParseIdentExpression(-1, "");
+	P.Ecart();
+}
+
+
 // ----------------------------------------------------------------------------
 // Statements
 
-func (P *Parser) ParseBuiltinStat() {
-	P.Trace("BuiltinStat");
-	P.Expect(Scanner.IDENT);
-	P.ParseExpressionList();  // TODO should be optional
+func (P *Parser) ParseIdentOrExpr(nidents int) int {
+	P.Trace("IdentOrExpr");
+	if nidents >= 0 && P.tok == Scanner.IDENT {
+		pos := P.pos;
+		ident := P.val;
+		P.Next();
+		switch P.tok {
+		case Scanner.COMMA,
+			Scanner.COLON,
+			Scanner.DEFINE,
+			Scanner.ASSIGN,
+			Scanner.ADD_ASSIGN,
+			Scanner.SUB_ASSIGN,
+			Scanner.MUL_ASSIGN,
+			Scanner.QUO_ASSIGN,
+			Scanner.REM_ASSIGN,
+			Scanner.AND_ASSIGN,
+			Scanner.OR_ASSIGN,
+			Scanner.XOR_ASSIGN,
+			Scanner.SHL_ASSIGN,
+			Scanner.SHR_ASSIGN:
+			// identifier is not part of a more complicated expression
+			nidents++;
+			
+		default:
+			// assume identifier is part of a more complicated expression
+			P.ParseIdentExpression(pos, ident);
+			nidents = -nidents - 1;
+		}
+	} else {
+		P.ParseExpression();
+		if nidents > 0 {
+			nidents = -nidents;
+		}
+		nidents--;
+	}
 	P.Ecart();
+	return nidents;
+}
+
+
+// temporary - will go away eventually
+func abs(x int) int {
+	if x < 0 {
+		x = -x;
+	}
+	return x;
 }
 
 
 func (P *Parser) ParseSimpleStat() {
 	P.Trace("SimpleStat");
-	P.ParseExpression();
-	if P.tok == Scanner.COLON {
+	
+	// If we see an identifier, we don't know if it's part of a
+	// label declaration, (multiple) variable declaration, assignment,
+	// or simply an expression, without looking ahead.
+	// Strategy: We parse an expression list, but simultaneously, as
+	// long as possible, maintain a list of identifiers which is converted
+	// into an expression list only if neccessary.
+	// TODO: maintain the lists
+
+	nidents := P.ParseIdentOrExpr(0);
+	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.Ecart();
-		return;
+		nidents = P.ParseIdentOrExpr(nidents);
 	}
-	if P.tok == Scanner.COMMA {
-		P.Next();
-		P.ParsePrimaryExprList();
-	}
+	
 	switch P.tok {
+	case Scanner.COLON:
+		// label declaration
+		P.Next();
+		if nidents != 1 {
+			// TODO provide exact error position
+			P.Error(P.pos, "illegal label declaration");
+		}
+		
+	case Scanner.DEFINE:
+		// variable declaration
+		P.Next();
+		P.ParseExpressionList();
+		if nidents < 0 {
+			// TODO provide exact error position
+			P.Error(P.pos, "illegal identifier list for declaration");
+		}
+		
 	case Scanner.ASSIGN: fallthrough;
-	case Scanner.DEFINE: fallthrough;
 	case Scanner.ADD_ASSIGN: fallthrough;
 	case Scanner.SUB_ASSIGN: fallthrough;
 	case Scanner.MUL_ASSIGN: fallthrough;
@@ -983,11 +1091,19 @@ func (P *Parser) ParseSimpleStat() {
 	case Scanner.SHR_ASSIGN:
 		P.Next();
 		P.ParseExpressionList();
-	case Scanner.INC:
+	case Scanner.INC, Scanner.DEC:
 		P.Next();
-	case Scanner.DEC:
-		P.Next();
+		if abs(nidents) != 1 {
+			// TODO provide exact error position
+			P.Error(P.pos, "too many expressions for '++' or '--'");
+		}
+	default:
+		if abs(nidents) != 1 {
+			// TODO provide exact error position
+			P.Error(P.pos, "too many expressions for expression statement");
+		}
 	}
+	
 	P.Ecart();
 }
 
@@ -1144,7 +1260,7 @@ func (P *Parser) ParseSwitchStat() {
 		}
 	}
 	P.Expect(Scanner.LBRACE);
-	for P.tok != Scanner.RBRACE {
+	for P.tok == Scanner.CASE || P.tok == Scanner.DEFAULT {
 		P.ParseCaseClause();
 	}
 	P.Expect(Scanner.RBRACE);
@@ -1214,7 +1330,7 @@ func (P *Parser) ParseSelectStat() bool {
 	
 	P.Expect(Scanner.SELECT);
 	P.Expect(Scanner.LBRACE);
-	for P.tok != Scanner.RBRACE {
+	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 		P.ParseCommClause();
 	}
 	P.Next();
@@ -1236,16 +1352,8 @@ func (P *Parser) TryStatement() bool {
 	case Scanner.FUNC:
 		// for now we do not allow local function declarations
 		fallthrough;
-	case Scanner.SEND: fallthrough;
-	case Scanner.RECV:
-		P.ParseSimpleStat();  // send or receive
-	case Scanner.IDENT:
-		switch P.val {
-		case "print", "panic":
-			P.ParseBuiltinStat();
-		default:
-			P.ParseSimpleStat();
-		}
+	case Scanner.MUL, Scanner.SEND, Scanner.RECV, Scanner.IDENT:
+		P.ParseSimpleStat();
 	case Scanner.GO:
 		P.ParseGoStat();
 	case Scanner.RETURN:
@@ -1300,7 +1408,7 @@ func (P *Parser) ParseImportDecl() {
 	P.Expect(Scanner.IMPORT);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
-		for P.tok != Scanner.RPAREN {
+		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
 			P.ParseImportSpec();
 			P.Optional(Scanner.SEMICOLON);  // TODO this seems wrong
 		}
@@ -1338,7 +1446,7 @@ func (P *Parser) ParseConstDecl() {
 	P.Expect(Scanner.CONST);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
-		for P.tok != Scanner.RPAREN {
+		for P.tok == Scanner.IDENT {
 			P.ParseConstSpec();
 			if P.tok != Scanner.RPAREN {
 				P.Expect(Scanner.SEMICOLON);
@@ -1390,7 +1498,7 @@ func (P *Parser) ParseTypeDecl() {
 	P.Expect(Scanner.TYPE);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
-		for P.tok != Scanner.RPAREN {
+		for P.tok == Scanner.IDENT {
 			P.ParseTypeSpec();
 			if P.tok != Scanner.RPAREN {
 				P.Expect(Scanner.SEMICOLON);
@@ -1433,7 +1541,7 @@ func (P *Parser) ParseVarDecl() {
 	P.Expect(Scanner.VAR);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
-		for P.tok != Scanner.RPAREN {
+		for P.tok == Scanner.IDENT {
 			P.ParseVarSpec();
 			if P.tok != Scanner.RPAREN {
 				P.Expect(Scanner.SEMICOLON);
@@ -1467,20 +1575,20 @@ func (P *Parser) ParseFuncDecl() {
 func (P *Parser) ParseExportDecl() {
 	P.Trace("ExportDecl");
 	
+	// TODO this needs to be clarified - the current syntax is
+	// "everything goes" - sigh...
 	P.Expect(Scanner.EXPORT);
+	has_paren := false;
 	if P.tok == Scanner.LPAREN {
 		P.Next();
-		for P.tok != Scanner.RPAREN {
-			P.exports.AddStr(P.ParseIdent());
-			P.Optional(Scanner.COMMA);  // TODO this seems wrong
-		}
-		P.Next();
-	} else {
+		has_paren = true;
+	}
+	for P.tok == Scanner.IDENT {
 		P.exports.AddStr(P.ParseIdent());
-		for P.tok == Scanner.COMMA {
-			P.Next();
-			P.exports.AddStr(P.ParseIdent());
-		}
+		P.Optional(Scanner.COMMA);  // TODO this seems wrong
+	}
+	if has_paren {
+		P.Expect(Scanner.RPAREN)
 	}
 	
 	P.Ecart();
