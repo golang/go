@@ -189,10 +189,6 @@ bugs/bug048.go:7: illegal types for operand: CONV
 	(MAP[<int32>INT32]<int32>INT32)
 BUG: known to fail incorrectly
 
-=========== bugs/bug049.go
-enqueue: main·.stringo: not defined
-BUG: link failure
-
 =========== bugs/bug052.go
 
 =========== bugs/bug053.go
@@ -261,6 +257,20 @@ BUG: crashes
 
 =========== bugs/bug073.go
 BUG: should not compile
+
+=========== bugs/bug074.go
+
+=========== bugs/bug075.go
+bugs/bug075.go:11: bad shape across assignment - cr=1 cl=2
+
+BUG: known to fail incorrectly
+
+=========== bugs/bug076.go
+bugs/bug076.go:11: label redeclared: exit
+BUG: known to fail incorrectly
+
+=========== bugs/bug077.go
+BUG: known to succeed incorrectly
 
 =========== fixedbugs/bug000.go
 
@@ -335,6 +345,8 @@ fixedbugs/bug039.go:6: var x redeclared in this block
 =========== fixedbugs/bug044.go
 
 =========== fixedbugs/bug045.go
+
+=========== fixedbugs/bug049.go
 
 =========== fixedbugs/bug050.go
 fixedbugs/bug050.go:3: package statement must be first
