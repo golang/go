@@ -127,7 +127,6 @@ func (P *Parser) Lookup(ident string) *Globals.Object {
 
 func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
 	if EnableSemanticTests && scope.Lookup(obj.ident) != nil {
-		// TODO is this the correct error position?
 		P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
 		return;  // don't insert it into the scope
 	}
@@ -648,16 +647,20 @@ func (P *Parser) ParseBlock() {
 // ----------------------------------------------------------------------------
 // Expressions
 
-func (P *Parser) ParseExpressionList() {
+func (P *Parser) ParseExpressionList() *Globals.List {
 	P.Trace("ExpressionList");
 	
+	list := Globals.NewList();
 	P.ParseExpression();
+	list.AddInt(0);  // TODO fix this - add correct list element
 	for P.tok == Scanner.COMMA {
 		P.Next();
 		P.ParseExpression();
+		list.AddInt(0);  // TODO fix this - add correct list element
 	}
 	
 	P.Ecart();
+	return list;
 }
 
 
@@ -993,11 +996,30 @@ func (P *Parser) ParseExpression() {
 // ----------------------------------------------------------------------------
 // Statements
 
-func (P *Parser) ParseIdentOrExpr(nidents int) int {
+func (P *Parser) ConvertToExprList(pos_list, ident_list, expr_list *Globals.List) {
+	for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
+		pos, ident := p.val, q.str;
+		if EnableSemanticTests {
+			obj := P.Lookup(ident);
+			if obj == nil {
+				P.Error(pos, `"` + ident + `" is not declared`);
+				obj = Globals.NewObject(pos, Object.BAD, ident);
+			}
+		}
+		expr_list.AddInt(0);  // TODO fix this - add correct expression
+	}
+	ident_list.Clear();
+}
+
+
+func (P *Parser) ParseIdentOrExpr(pos_list, ident_list, expr_list *Globals.List) {
 	P.Trace("IdentOrExpr");
-	if nidents >= 0 && P.tok == Scanner.IDENT {
-		pos := P.pos;
-		ident := P.val;
+	
+	pos_list.AddInt(P.pos);
+	pos, ident := -1, "";
+	just_ident := false;
+	if expr_list.len_ == 0 /* only idents so far */ && P.tok == Scanner.IDENT {
+		pos, ident = P.pos, P.val;
 		P.Next();
 		switch P.tok {
 		case Scanner.COMMA,
@@ -1015,31 +1037,34 @@ func (P *Parser) ParseIdentOrExpr(nidents int) int {
 			Scanner.SHL_ASSIGN,
 			Scanner.SHR_ASSIGN:
 			// identifier is not part of a more complicated expression
-			nidents++;
-			
-		default:
-			// assume identifier is part of a more complicated expression
-			P.ParseIdentExpression(pos, ident);
-			nidents = -nidents - 1;
+			just_ident = true;
 		}
-	} else {
-		P.ParseExpression();
-		if nidents > 0 {
-			nidents = -nidents;
-		}
-		nidents--;
 	}
+
+	if just_ident {
+		ident_list.AddStr(ident);
+	} else {
+		P.ConvertToExprList(pos_list, ident_list, expr_list);
+		P.ParseIdentExpression(pos, ident);
+		expr_list.AddInt(0);  // TODO fix this - add correct expression
+	}
+	
 	P.Ecart();
-	return nidents;
 }
 
 
-// temporary - will go away eventually
-func abs(x int) int {
-	if x < 0 {
-		x = -x;
+func (P *Parser) ParseIdentOrExprList() (pos_list, ident_list, expr_list *Globals.List) {
+	P.Trace("IdentOrExprList");
+	
+	pos_list, ident_list, expr_list = Globals.NewList(), Globals.NewList(), Globals.NewList();
+	P.ParseIdentOrExpr(pos_list, ident_list, expr_list);
+	for P.tok == Scanner.COMMA {
+		P.Next();
+		P.ParseIdentOrExpr(pos_list, ident_list, expr_list);
 	}
-	return x;
+	
+	P.Ecart();
+	return pos_list, ident_list, expr_list;
 }
 
 
@@ -1051,31 +1076,38 @@ func (P *Parser) ParseSimpleStat() {
 	// or simply an expression, without looking ahead.
 	// Strategy: We parse an expression list, but simultaneously, as
 	// long as possible, maintain a list of identifiers which is converted
-	// into an expression list only if neccessary.
-	// TODO: maintain the lists
-
-	nidents := P.ParseIdentOrExpr(0);
-	for P.tok == Scanner.COMMA {
-		P.Next();
-		nidents = P.ParseIdentOrExpr(nidents);
-	}
+	// into an expression list only if neccessary. The result of
+	// ParseIdentOrExprList is a list of ident/expr positions and either
+	// a non-empty list of identifiers or a non-empty list of expressions
+	// (but not both).
+	pos_list, ident_list, expr_list := P.ParseIdentOrExprList();
 	
 	switch P.tok {
 	case Scanner.COLON:
 		// label declaration
-		P.Next();
-		if nidents != 1 {
-			// TODO provide exact error position
+		if EnableSemanticTests && ident_list.len_ != 1 {
 			P.Error(P.pos, "illegal label declaration");
 		}
+		P.Next();
 		
 	case Scanner.DEFINE:
 		// variable declaration
+		if EnableSemanticTests && ident_list.len_ == 0 {
+			P.Error(P.pos, "illegal left-hand side for declaration");
+		}
 		P.Next();
-		P.ParseExpressionList();
-		if nidents < 0 {
-			// TODO provide exact error position
-			P.Error(P.pos, "illegal identifier list for declaration");
+		pos := P.pos;
+		val_list := P.ParseExpressionList();
+		if EnableSemanticTests && val_list.len_ != ident_list.len_ {
+			P.Error(pos, "number of expressions does not match number of variables");
+		}
+		// declare variables
+		if EnableSemanticTests {
+			for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
+				obj := Globals.NewObject(p.val, Object.VAR, q.str);
+				P.Declare(obj);
+				// TODO set correct types
+			}
 		}
 		
 	case Scanner.ASSIGN: fallthrough;
@@ -1089,18 +1121,21 @@ func (P *Parser) ParseSimpleStat() {
 	case Scanner.XOR_ASSIGN: fallthrough;
 	case Scanner.SHL_ASSIGN: fallthrough;
 	case Scanner.SHR_ASSIGN:
+		P.ConvertToExprList(pos_list, ident_list, expr_list);
 		P.Next();
-		P.ParseExpressionList();
-	case Scanner.INC, Scanner.DEC:
-		P.Next();
-		if abs(nidents) != 1 {
-			// TODO provide exact error position
-			P.Error(P.pos, "too many expressions for '++' or '--'");
+		pos := P.pos;
+		val_list := P.ParseExpressionList();
+		if EnableSemanticTests && val_list.len_ != expr_list.len_ {
+			P.Error(pos, "number of expressions does not match number of variables");
 		}
+		
 	default:
-		if abs(nidents) != 1 {
-			// TODO provide exact error position
-			P.Error(P.pos, "too many expressions for expression statement");
+		P.ConvertToExprList(pos_list, ident_list, expr_list);
+		if EnableSemanticTests && expr_list.len_ != 1 {
+			P.Error(P.pos, "no expression list allowed");
+		}
+		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
+			P.Next();
 		}
 	}
 	
