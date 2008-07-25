@@ -971,8 +971,9 @@ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) AST.Expr {
 }
 
 
-// Expressions where the first token may be an
-// identifier that has already been consumed.
+// Expressions where the first token may be an identifier which has already
+// been consumed. If the identifier is present, pos is the identifier position,
+// otherwise pos must be < 0 (and ident is ignored).
 func (P *Parser) ParseIdentExpression(pos int, ident string) {
 	P.Trace("IdentExpression");
 	indent := P.indent;
@@ -1456,13 +1457,14 @@ func (P *Parser) ParseImportDecl() {
 }
 
 
-func (P *Parser) ParseConstSpec() {
+func (P *Parser) ParseConstSpec(exported bool) {
 	P.Trace("ConstSpec");
 	
 	list := P.ParseIdentDeclList(Object.CONST);
 	typ := P.TryType();
 	if typ != nil {
 		for p := list.first; p != nil; p = p.next {
+			p.obj.mark = exported;
 			p.obj.typ = typ;  // TODO should use/have set_type()!
 		}
 	}
@@ -1475,28 +1477,28 @@ func (P *Parser) ParseConstSpec() {
 }
 
 
-func (P *Parser) ParseConstDecl() {
+func (P *Parser) ParseConstDecl(exported bool) {
 	P.Trace("ConstDecl");
 	
 	P.Expect(Scanner.CONST);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
 		for P.tok == Scanner.IDENT {
-			P.ParseConstSpec();
+			P.ParseConstSpec(exported);
 			if P.tok != Scanner.RPAREN {
 				P.Expect(Scanner.SEMICOLON);
 			}
 		}
 		P.Next();
 	} else {
-		P.ParseConstSpec();
+		P.ParseConstSpec(exported);
 	}
 	
 	P.Ecart();
 }
 
 
-func (P *Parser) ParseTypeSpec() {
+func (P *Parser) ParseTypeSpec(exported bool) {
 	P.Trace("TypeSpec");
 	
 	pos := P.pos;
@@ -1510,6 +1512,7 @@ func (P *Parser) ParseTypeSpec() {
 		}
 	} else {
 		obj = Globals.NewObject(pos, Object.TYPE, ident);
+		obj.mark = exported;
 		obj.typ = Universe.undef_t;  // TODO fix this
 		P.top_scope.Insert(obj);
 	}
@@ -1527,28 +1530,28 @@ func (P *Parser) ParseTypeSpec() {
 }
 
 
-func (P *Parser) ParseTypeDecl() {
+func (P *Parser) ParseTypeDecl(exported bool) {
 	P.Trace("TypeDecl");
 	
 	P.Expect(Scanner.TYPE);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
 		for P.tok == Scanner.IDENT {
-			P.ParseTypeSpec();
+			P.ParseTypeSpec(exported);
 			if P.tok != Scanner.RPAREN {
 				P.Expect(Scanner.SEMICOLON);
 			}
 		}
 		P.Next();
 	} else {
-		P.ParseTypeSpec();
+		P.ParseTypeSpec(exported);
 	}
 	
 	P.Ecart();
 }
 
 
-func (P *Parser) ParseVarSpec() {
+func (P *Parser) ParseVarSpec(exported bool) {
 	P.Trace("VarSpec");
 	
 	list := P.ParseIdentDeclList(Object.VAR);
@@ -1570,28 +1573,28 @@ func (P *Parser) ParseVarSpec() {
 }
 
 
-func (P *Parser) ParseVarDecl() {
+func (P *Parser) ParseVarDecl(exported bool) {
 	P.Trace("VarDecl");
 	
 	P.Expect(Scanner.VAR);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
 		for P.tok == Scanner.IDENT {
-			P.ParseVarSpec();
+			P.ParseVarSpec(exported);
 			if P.tok != Scanner.RPAREN {
 				P.Expect(Scanner.SEMICOLON);
 			}
 		}
 		P.Next();
 	} else {
-		P.ParseVarSpec();
+		P.ParseVarSpec(exported);
 	}
 	
 	P.Ecart();
 }
 
 
-func (P *Parser) ParseFuncDecl() {
+func (P *Parser) ParseFuncDecl(exported bool) {
 	P.Trace("FuncDecl");
 	
 	P.Expect(Scanner.FUNC);
@@ -1612,7 +1615,7 @@ func (P *Parser) ParseExportDecl() {
 	
 	// TODO this needs to be clarified - the current syntax is
 	// "everything goes" - sigh...
-	P.Expect(Scanner.EXPORT);
+	//P.Expect(Scanner.EXPORT);
 	has_paren := false;
 	if P.tok == Scanner.LPAREN {
 		P.Next();
@@ -1632,27 +1635,40 @@ func (P *Parser) ParseExportDecl() {
 
 func (P *Parser) ParseDeclaration() {
 	P.Trace("Declaration");
-	
 	indent := P.indent;
+	
+	exported := false;
+	if P.tok == Scanner.EXPORT {
+		P.Next();
+		exported = true;
+	}
 	switch P.tok {
 	case Scanner.CONST:
-		P.ParseConstDecl();
+		P.ParseConstDecl(exported);
 	case Scanner.TYPE:
-		P.ParseTypeDecl();
+		P.ParseTypeDecl(exported);
 	case Scanner.VAR:
-		P.ParseVarDecl();
+		P.ParseVarDecl(exported);
 	case Scanner.FUNC:
-		P.ParseFuncDecl();
+		P.ParseFuncDecl(exported);
 	case Scanner.EXPORT:
+		if exported {
+			P.Error(P.pos, "cannot mark export declaration for export");
+		}
+		P.Next();
 		P.ParseExportDecl();
 	default:
-		P.Error(P.pos, "declaration expected");
-		P.Next();  // make progress
+		if exported && (P.tok == Scanner.IDENT || P.tok == Scanner.LPAREN) {
+			P.ParseExportDecl();
+		} else {
+			P.Error(P.pos, "declaration expected");
+			P.Next();  // make progress
+		}
 	}
+	
 	if indent != P.indent {
 		panic "imbalanced tracing code (Declaration)"
 	}
-	
 	P.Ecart();
 }
 
