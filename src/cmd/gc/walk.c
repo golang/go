@@ -1069,7 +1069,7 @@ walkselect(Node *sel)
 	walktype(sel->ninit, Etop);
 	walktype(sel->nbody, Etop);
 
-dump("sel", sel);
+//dump("sel", sel);
 
 	lineno = lno;
 }

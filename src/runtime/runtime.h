@@ -107,9 +107,10 @@ struct	G
 	byte*	stack0;		// first stack segment
 	Gobuf	sched;
 	G*	alllink;	// on allq
-	int32	status;
+	void*	param;		// passed parameter on wakeup
+	int16	status;
 	int32	goid;
-	int64	selgen;		// valid sudog pointer
+	int32	selgen;		// valid sudog pointer
 };
 struct	M
 {
