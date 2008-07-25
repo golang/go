@@ -17,7 +17,8 @@ struct	SudoG
 {
 	G*	g;		// g and selgen constitute
 	byte	elem[8];	// synch data element
-	int64	selgen;		// a weak pointer to g
+	int16	offset;		// offset of case number
+	int32	selgen;		// a weak pointer to g
 	SudoG*	link;
 };
 
@@ -162,6 +163,7 @@ sys·chansend1(Hchan* c, ...)
 		c->elemalg->copy(c->elemsize, sgr->elem, ae);
 
 		gr = sgr->g;
+		gr->param = sgr;
 		gr->status = Grunnable;
 		return;
 	}
@@ -217,6 +219,7 @@ sys·chansend2(Hchan* c, ...)
 		gr = sgr->g;
 		c->elemalg->copy(c->elemsize, sgr->elem, ae);
 
+		gr->param = sgr;
 		gr->status = Grunnable;
 		*ap = true;
 		return;
@@ -263,6 +266,7 @@ sys·chanrecv1(Hchan* c, ...)
 		c->elemalg->copy(c->elemsize, ae, sgs->elem);
 
 		gs = sgs->g;
+		gs->param = sgs;
 		gs->status = Grunnable;
 
 		freesg(c, sgs);
@@ -319,6 +323,7 @@ sys·chanrecv2(Hchan* c, ...)
 		c->elemalg->copy(c->elemsize, ae, sgs->elem);
 
 		gs = sgs->g;
+		gs->param = sgs;
 		gs->status = Grunnable;
 
 		freesg(c, sgs);
@@ -374,7 +379,7 @@ sys·selectsend(Select *sel, Hchan *c, ...)
 	Scase *cas;
 	byte *as, *ae;
 
-	// return val, selected, is preset to false
+	// nil cases do not compete
 	if(c == nil)
 		return;
 
@@ -421,7 +426,7 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 	Scase *cas;
 	byte *as;
 
-	// return val, selected, is preset to false
+	// nil cases do not compete
 	if(c == nil)
 		return;
 
@@ -465,16 +470,21 @@ sys·selectgo(Select *sel)
 	uint32 p, o, i;
 	Scase *cas;
 	Hchan *c;
+	SudoG *sg;
+	G *gp;
 
 	byte *ae, *as;
-	SudoG *sgr;
-	G *gr;
 
-	SudoG *sgs;
-	G *gs;
+	if(0) {
+		prints("selectgo: sel=");
+		sys·printpointer(sel);
+		prints("\n");
+	}
 
-	if(sel->ncase < 1) {
-		throw("selectgo: no cases");
+	if(sel->ncase < 2) {
+		if(sel->ncase < 1)
+			throw("selectgo: no cases");
+		// make special case of one.
 	}
 
 	// select a (relative) prime
@@ -486,45 +496,33 @@ sys·selectgo(Select *sel)
 			throw("selectgo: failed to select prime");
 		}
 	}
+
+	// select an initial offset
 	o = fastrand2();
 
 	p %= sel->ncase;
 	o %= sel->ncase;
 
-	// pass 1 - look for something that can go
+	// pass 1 - look for something already waiting
 	for(i=0; i<sel->ncase; i++) {
 		cas = &sel->scase[o];
 		c = cas->chan;
-		if(cas->send) {
-			if(c->dataqsiz > 0) {
+
+		if(c->dataqsiz > 0) {
+			if(cas->send)
 				throw("selectgo: send asynch");
-			}
-			sgr = dequeue(&c->recvq, c);
-			if(sgr == nil)
-				continue;
-
-			c->elemalg->copy(c->elemsize, sgr->elem, cas->u.elem);
-			gr = sgr->g;
-			gr->status = Grunnable;
-
-			goto retc;
-		} else {
-			if(c->dataqsiz > 0) {
+			else
 				throw("selectgo: recv asynch");
-			}
-			sgs = dequeue(&c->sendq, c);
-			if(sgs == nil)
-				continue;
+		}
 
-			if(cas->u.elemp != nil)
-				c->elemalg->copy(c->elemsize, cas->u.elemp, sgs->elem);
-
-			gs = sgs->g;
-			gs->status = Grunnable;
-
-			freesg(c, sgs);
-
-			goto retc;
+		if(cas->send) {
+			sg = dequeue(&c->recvq, c);
+			if(sg != nil)
+				goto gotr;
+		} else {
+			sg = dequeue(&c->sendq, c);
+			if(sg != nil)
+				goto gots;
 		}
 
 		o += p;
@@ -532,15 +530,96 @@ sys·selectgo(Select *sel)
 			o -= sel->ncase;
 	}
 
-	if(debug) {
-		prints("selectgo s=");
+	// pass 2 - enqueue on all chans
+	for(i=0; i<sel->ncase; i++) {
+		cas = &sel->scase[o];
+		c = cas->chan;
+		if(cas->send) {
+			sg = dequeue(&c->recvq, c);
+			if(sg != nil)
+				goto gotr;	// probably an error
+			sg = allocsg(c);
+			sg->offset = o;
+			c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
+			enqueue(&c->sendq, sg);
+		} else {
+			sg = dequeue(&c->sendq, c);
+			if(sg != nil)
+				goto gots;	// probably an error
+
+			sg = allocsg(c);
+			sg->offset = o;
+			enqueue(&c->recvq, sg);
+		}
+
+		o += p;
+		if(o >= sel->ncase)
+			o -= sel->ncase;
+	}
+
+	if(0) {
+		prints("wait: sel=");
 		sys·printpointer(sel);
-		prints(" p=");
-		sys·printpointer((void*)p);
+		prints("\n");
+	}
+	g->status = Gwaiting;
+	sys·gosched();
+
+	if(0) {
+		prints("wait-return: sel=");
+		sys·printpointer(sel);
 		prints("\n");
 	}
 
-	throw("selectgo");
+	sg = g->param;
+	o = sg->offset;
+	cas = &sel->scase[o];
+	c = cas->chan;
+
+	if(0) {
+		prints("wake: sel=");
+		sys·printpointer(sel);
+		prints(" c=");
+		sys·printpointer(c);
+		prints(" o=");
+		sys·printint(o);
+		prints("\n");
+	}
+	if(cas->send)
+		goto gots;
+
+gotr:
+	if(0) {
+		prints("gotr: sel=");
+		sys·printpointer(sel);
+		prints(" c=");
+		sys·printpointer(c);
+		prints(" o=");
+		sys·printint(o);
+		prints("\n");
+	}
+	c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
+	gp = sg->g;
+	gp->param = sg;
+	gp->status = Grunnable;
+	goto retc;
+
+gots:
+	if(0) {
+		prints("gots: sel=");
+		sys·printpointer(sel);
+		prints(" c=");
+		sys·printpointer(c);
+		prints(" o=");
+		sys·printint(o);
+		prints("\n");
+	}
+	if(cas->u.elemp != nil)
+		c->elemalg->copy(c->elemsize, cas->u.elemp, sg->elem);
+	gp = sg->g;
+	gp->param = sg;
+	gp->status = Grunnable;
+	freesg(c, sg);
 
 retc:
 	sys·setcallerpc(&sel, cas->pc);
@@ -561,7 +640,7 @@ loop:
 
 	// if sgp is stale, ignore it
 	if(sgp->selgen != sgp->g->selgen) {
-prints("INVALID PSEUDOG POINTER\n");
+		//prints("INVALID PSEUDOG POINTER\n");
 		freesg(c, sgp);
 		goto loop;
 	}
