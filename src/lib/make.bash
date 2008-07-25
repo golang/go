@@ -5,7 +5,7 @@
 #!/bin/bash
 
 rm -f *.6
-for i in flag.go fmt.go container/vector.go
+for i in fmt.go flag.go container/vector.go
 do
 	6g $i
 done
