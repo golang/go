@@ -4,8 +4,12 @@
 
 package syscall
 
-// for simplicity of addressing in assembler, all integers are 64 bits
-// in these calling sequences.
+/*
+ * These calls have signatures that are independent of operating system.
+ *
+ * For simplicity of addressing in assembler, all integers are 64 bits
+ * in these calling sequences.
+ */
 
 func open(*byte, int64) (ret int64, errno int64);
 func close(int64) (ret int64, errno int64);
