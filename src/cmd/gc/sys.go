@@ -47,7 +47,7 @@ func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
 func	newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
 func	chanrecv1(hchan *chan any) (elem any);
 func	chanrecv2(hchan *chan any) (elem any, pres bool);
-func	chanrecv3(hchan *chan any) (elem any, pres bool);
+func	chanrecv3(hchan *chan any, elem *any) (pres bool);
 func	chansend1(hchan *chan any, elem any);
 func	chansend2(hchan *chan any, elem any) (pres bool);
 

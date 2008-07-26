@@ -33,8 +33,6 @@ struct	Hchan
 	uint32	elemsize;
 	uint32	dataqsiz;		// size of the circular q
 	uint32	qcount;			// total data in the q
-	uint16	eo;			// vararg of element
-	uint16	po;			// vararg of present bool
 	Alg*	elemalg;		// interface for element type
 	Link*	senddataq;		// pointer for sender
 	Link*	recvdataq;		// pointer for receiver
@@ -65,8 +63,11 @@ struct	Select
 {
 	uint16	tcase;			// total count of scase[]
 	uint16	ncase;			// currently filled scase[]
+	Select*	link;			// for freelist
 	Scase	scase[1];		// one per case
 };
+
+static	Select*	selfree[20];
 
 static	SudoG*	dequeue(WaitQ*, Hchan*);
 static	void	enqueue(WaitQ*, SudoG*);
@@ -119,10 +120,6 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
 		c->dataqsiz = hint;
 	}
 
-	// these calculations are compiler dependent
-	c->eo = rnd(sizeof(c), elemsize);
-	c->po = rnd(c->eo+elemsize, 1);
-
 	ret = c;
 	FLUSH(&ret);
 
@@ -139,216 +136,205 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
 	}
 }
 
-// chansend1(hchan *chan any, elem any);
+/*
+ * generic single channel send/recv
+ * if the bool pointer is nil,
+ * then the full exchange will
+ * occur. if pres is not nil,
+ * then the protocol will not
+ * sleep but return if it could
+ * not complete
+ */
 void
-sys·chansend1(Hchan* c, ...)
+sendchan(Hchan *c, byte *ep, bool *pres)
 {
-	byte *ae;
-	SudoG *sgr;
-	G* gr;
+	SudoG *sg;
+	G* gp;
 
-	ae = (byte*)&c + c->eo;
 	if(debug) {
 		prints("chansend: chan=");
 		sys·printpointer(c);
 		prints("; elem=");
-		c->elemalg->print(c->elemsize, ae);
+		c->elemalg->print(c->elemsize, ep);
 		prints("\n");
 	}
+
 	if(c->dataqsiz > 0)
 		goto asynch;
 
-	sgr = dequeue(&c->recvq, c);
-	if(sgr != nil) {
-		c->elemalg->copy(c->elemsize, sgr->elem, ae);
+	sg = dequeue(&c->recvq, c);
+	if(sg != nil) {
+		if(ep != nil)
+			c->elemalg->copy(c->elemsize, sg->elem, ep);
 
-		gr = sgr->g;
-		gr->param = sgr;
-		gr->status = Grunnable;
+		gp = sg->g;
+		gp->param = sg;
+		gp->status = Grunnable;
+
+		if(pres != nil)
+			*pres = true;
 		return;
 	}
 
-	sgr = allocsg(c);
-	c->elemalg->copy(c->elemsize, sgr->elem, ae);
+	if(pres != nil) {
+		*pres = false;
+		return;
+	}
+
+	sg = allocsg(c);
+	if(ep != nil)
+		c->elemalg->copy(c->elemsize, sg->elem, ep);
+	g->param = nil;
 	g->status = Gwaiting;
-	enqueue(&c->sendq, sgr);
+	enqueue(&c->sendq, sg);
 	sys·gosched();
+
+	sg = g->param;
+	freesg(c, sg);
 	return;
 
 asynch:
 	while(c->qcount >= c->dataqsiz) {
-		sgr = allocsg(c);
+		sg = allocsg(c);
 		g->status = Gwaiting;
-		enqueue(&c->sendq, sgr);
+		enqueue(&c->sendq, sg);
 		sys·gosched();
 	}
-	c->elemalg->copy(c->elemsize, c->senddataq->elem, ae);
+	if(ep != nil)
+		c->elemalg->copy(c->elemsize, c->senddataq->elem, ep);
 	c->senddataq = c->senddataq->link;
 	c->qcount++;
-	sgr = dequeue(&c->recvq, c);
-	if(sgr != nil) {
-		gr = sgr->g;
-		freesg(c, sgr);
-		gr->status = Grunnable;
+
+	sg = dequeue(&c->recvq, c);
+	if(sg != nil) {
+		gp = sg->g;
+		freesg(c, sg);
+		gp->status = Grunnable;
 	}
+}
+
+static void
+chanrecv(Hchan* c, byte *ep, bool* pres)
+{
+	SudoG *sg;
+	G *gp;
+
+	if(debug) {
+		prints("chanrecv: chan=");
+		sys·printpointer(c);
+		prints("\n");
+	}
+
+	if(c->dataqsiz > 0)
+		goto asynch;
+
+	sg = dequeue(&c->sendq, c);
+	if(sg != nil) {
+		c->elemalg->copy(c->elemsize, ep, sg->elem);
+
+		gp = sg->g;
+		gp->param = sg;
+		gp->status = Grunnable;
+
+		if(pres != nil)
+			*pres = true;
+		return;
+	}
+
+	if(pres != nil) {
+		*pres = false;
+		return;
+	}
+		
+	sg = allocsg(c);
+	g->param = nil;
+	g->status = Gwaiting;
+	enqueue(&c->recvq, sg);
+	sys·gosched();
+
+	sg = g->param;
+	c->elemalg->copy(c->elemsize, ep, sg->elem);
+	freesg(c, sg);
+	return;
+
+asynch:
+	while(c->qcount <= 0) {
+		sg = allocsg(c);
+		g->status = Gwaiting;
+		enqueue(&c->recvq, sg);
+		sys·gosched();
+	}
+	c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
+	c->recvdataq = c->recvdataq->link;
+	c->qcount--;
+	sg = dequeue(&c->sendq, c);
+	if(sg != nil) {
+		gp = sg->g;
+		freesg(c, sg);
+		gp->status = Grunnable;
+	}
+}
+
+// chansend1(hchan *chan any, elem any);
+void
+sys·chansend1(Hchan* c, ...)
+{
+	int32 o;
+	byte *ae;
+
+	o = rnd(sizeof(c), c->elemsize);
+	ae = (byte*)&c + o;
+	sendchan(c, ae, nil);
 }
 
 // chansend2(hchan *chan any, elem any) (pres bool);
 void
 sys·chansend2(Hchan* c, ...)
 {
+	int32 o;
 	byte *ae, *ap;
-	SudoG *sgr;
-	G *gr;
 
-	ae = (byte*)&c + c->eo;
-	ap = (byte*)&c + c->po;
+	o = rnd(sizeof(c), c->elemsize);
+	ae = (byte*)&c + o;
+	o = rnd(o+c->elemsize, 1);
+	ap = (byte*)&c + o;
 
-	if(debug) {
-		prints("chansend: chan=");
-		sys·printpointer(c);
-		prints("; elem=");
-		c->elemalg->print(c->elemsize, ae);
-		prints("\n");
-	}
-	if(c->dataqsiz > 0)
-		goto asynch;
-
-	sgr = dequeue(&c->recvq, c);
-	if(sgr != nil) {
-		gr = sgr->g;
-		c->elemalg->copy(c->elemsize, sgr->elem, ae);
-
-		gr->param = sgr;
-		gr->status = Grunnable;
-		*ap = true;
-		return;
-	}
-	*ap = false;
-	return;
-
-asynch:
-	if(c->qcount >= c->dataqsiz) {
-		*ap = false;
-		return;
-	}
-	c->elemalg->copy(c->elemsize, c->senddataq->elem, ae);
-	c->senddataq = c->senddataq->link;
-	c->qcount++;
-	sgr = dequeue(&c->recvq, c);
-	if(gr != nil) {
-		gr = sgr->g;
-		freesg(c, sgr);
-		gr->status = Grunnable;
-	}
-	*ap = true;
+	sendchan(c, ae, ap);
 }
 
 // chanrecv1(hchan *chan any) (elem any);
 void
 sys·chanrecv1(Hchan* c, ...)
 {
+	int32 o;
 	byte *ae;
-	SudoG *sgs;
-	G *gs;
 
-	ae = (byte*)&c + c->eo;
-	if(debug) {
-		prints("chanrecv1: chan=");
-		sys·printpointer(c);
-		prints("\n");
-	}
-	if(c->dataqsiz > 0)
-		goto asynch;
+	o = rnd(sizeof(c), c->elemsize);
+	ae = (byte*)&c + o;
 
-	sgs = dequeue(&c->sendq, c);
-	if(sgs != nil) {
-		c->elemalg->copy(c->elemsize, ae, sgs->elem);
-
-		gs = sgs->g;
-		gs->param = sgs;
-		gs->status = Grunnable;
-
-		freesg(c, sgs);
-		return;
-	}
-	sgs = allocsg(c);
-	g->status = Gwaiting;
-	enqueue(&c->recvq, sgs);
-	sys·gosched();
-	c->elemalg->copy(c->elemsize, ae, sgs->elem);
-	freesg(c, sgs);
-	return;
-
-asynch:
-	while(c->qcount <= 0) {
-		sgs = allocsg(c);
-		g->status = Gwaiting;
-		enqueue(&c->recvq, sgs);
-		sys·gosched();
-	}
-	c->elemalg->copy(c->elemsize, ae, c->recvdataq->elem);
-	c->recvdataq = c->recvdataq->link;
-	c->qcount--;
-	sgs = dequeue(&c->sendq, c);
-	if(gs != nil) {
-		gs = sgs->g;
-		freesg(c, sgs);
-
-		gs->status = Grunnable;
-	}
+	chanrecv(c, ae, nil);
 }
 
 // chanrecv2(hchan *chan any) (elem any, pres bool);
 void
 sys·chanrecv2(Hchan* c, ...)
 {
+	int32 o;
 	byte *ae, *ap;
-	SudoG *sgs;
-	G *gs;
 
-	ae = (byte*)&c + c->eo;
-	ap = (byte*)&c + c->po;
+	o = rnd(sizeof(c), c->elemsize);
+	ae = (byte*)&c + o;
+	o = rnd(o+c->elemsize, 1);
+	ap = (byte*)&c + o;
 
-	if(debug) {
-		prints("chanrecv2: chan=");
-		sys·printpointer(c);
-		prints("\n");
-	}
-	if(c->dataqsiz > 0)
-		goto asynch;
+	chanrecv(c, ae, ap);
+}
 
-	sgs = dequeue(&c->sendq, c);
-	if(sgs != nil) {
-		c->elemalg->copy(c->elemsize, ae, sgs->elem);
-
-		gs = sgs->g;
-		gs->param = sgs;
-		gs->status = Grunnable;
-
-		freesg(c, sgs);
-		*ap = true;
-		return;
-	}
-	*ap = false;
-	return;
-
-asynch:
-	if(c->qcount <= 0) {
-		*ap = false;
-		return;
-	}
-	c->elemalg->copy(c->elemsize, ae, c->recvdataq->elem);
-	c->recvdataq = c->recvdataq->link;
-	c->qcount--;
-	sgs = dequeue(&c->sendq, c);
-	if(sgs != nil) {
-		gs = sgs->g;
-		freesg(c, sgs);
-
-		gs->status = Grunnable;
-	}
-	*ap = true;
+// chanrecv3(hchan *chan any, elem *any) (pres bool);
+void
+sys·chanrecv3(Hchan* c, byte* ep, byte pres)
+{
+	chanrecv(c, ep, &pres);
 }
 
 // newselect(size uint32) (sel *byte);
@@ -360,7 +346,16 @@ sys·newselect(int32 size, Select *sel)
 	n = 0;
 	if(size > 1)
 		n = size-1;
-	sel = mal(sizeof(*sel) + n*sizeof(sel->scase[0]));
+
+	sel = nil;
+	if(size >= 1 && size < nelem(selfree)) {
+		sel = selfree[size];
+		if(sel != nil)
+			selfree[size] = sel->link;
+	}
+	if(sel == nil)
+		sel = mal(sizeof(*sel) + n*sizeof(sel->scase[0]));
+
 	sel->tcase = size;
 	sel->ncase = 0;
 	FLUSH(&sel);
@@ -419,7 +414,7 @@ sys·selectsend(Select *sel, Hchan *c, ...)
 void
 sys·selectrecv(Select *sel, Hchan *c, ...)
 {
-	int32 i, epo;
+	int32 i, eo;
 	Scase *cas;
 
 	// nil cases do not compete
@@ -435,11 +430,11 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 	cas->pc = sys·getcallerpc(&sel);
 	cas->chan = c;
 
-	epo = rnd(sizeof(sel), sizeof(c));
-	epo = rnd(epo+sizeof(c), sizeof(byte*));
-	cas->so = rnd(epo+sizeof(byte*), 1);
+	eo = rnd(sizeof(sel), sizeof(c));
+	eo = rnd(eo+sizeof(c), sizeof(byte*));
+	cas->so = rnd(eo+sizeof(byte*), 1);
 	cas->send = 0;
-	cas->u.elemp = *(byte**)((byte*)&sel + epo);
+	cas->u.elemp = *(byte**)((byte*)&sel + eo);
 
 	if(debug) {
 		prints("newselect s=");
@@ -456,6 +451,8 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 	}
 }
 
+uint32	xxx	= 0;
+
 // selectgo(sel *byte);
 void
 sys·selectgo(Select *sel)
@@ -468,7 +465,7 @@ sys·selectgo(Select *sel)
 
 	byte *ae, *as;
 
-	if(0) {
+	if(xxx) {
 		prints("selectgo: sel=");
 		sys·printpointer(sel);
 		prints("\n");
@@ -502,20 +499,23 @@ sys·selectgo(Select *sel)
 		c = cas->chan;
 
 		if(c->dataqsiz > 0) {
-			if(cas->send)
-				throw("selectgo: send asynch");
-			else
-				throw("selectgo: recv asynch");
+			if(cas->send) {
+				if(c->qcount < c->dataqsiz)
+					goto asyns;
+			} else {
+				if(c->qcount > 0)
+					goto asynr;
+			}
 		}
 
 		if(cas->send) {
 			sg = dequeue(&c->recvq, c);
 			if(sg != nil)
-				goto gotr;
+				goto gots;
 		} else {
 			sg = dequeue(&c->sendq, c);
 			if(sg != nil)
-				goto gots;
+				goto gotr;
 		}
 
 		o += p;
@@ -527,19 +527,39 @@ sys·selectgo(Select *sel)
 	for(i=0; i<sel->ncase; i++) {
 		cas = &sel->scase[o];
 		c = cas->chan;
+
+		if(c->dataqsiz > 0) {
+			if(cas->send) {
+				if(c->qcount < c->dataqsiz) {
+					prints("second pass asyn send\n");
+					goto asyns;
+				}
+			} else {
+				if(c->qcount > 0) {
+					prints("second pass asyn recv\n");
+					goto asynr;
+				}
+			}
+		}
+
 		if(cas->send) {
 			sg = dequeue(&c->recvq, c);
-			if(sg != nil)
-				goto gotr;	// probably an error
+			if(sg != nil) {
+				prints("second pass syn send\n");
+				g->selgen++;
+				goto gots;	// probably an error
+			}
 			sg = allocsg(c);
 			sg->offset = o;
 			c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
 			enqueue(&c->sendq, sg);
 		} else {
 			sg = dequeue(&c->sendq, c);
-			if(sg != nil)
-				goto gots;	// probably an error
-
+			if(sg != nil) {
+				prints("second pass syn recv\n");
+				g->selgen++;
+				goto gotr;	// probably an error
+			}
 			sg = allocsg(c);
 			sg->offset = o;
 			enqueue(&c->recvq, sg);
@@ -550,56 +570,44 @@ sys·selectgo(Select *sel)
 			o -= sel->ncase;
 	}
 
-	if(0) {
-		prints("wait: sel=");
-		sys·printpointer(sel);
-		prints("\n");
-	}
+	// send and recv paths to sleep for a rendezvous
 	g->status = Gwaiting;
 	sys·gosched();
-
-	if(0) {
-		prints("wait-return: sel=");
-		sys·printpointer(sel);
-		prints("\n");
-	}
 
 	sg = g->param;
 	o = sg->offset;
 	cas = &sel->scase[o];
 	c = cas->chan;
 
-	if(0) {
-		prints("wake: sel=");
+	if(xxx) {
+		prints("wait-return: sel=");
 		sys·printpointer(sel);
 		prints(" c=");
 		sys·printpointer(c);
+		prints(" cas=");
+		sys·printpointer(cas);
+		prints(" send=");
+		sys·printint(cas->send);
 		prints(" o=");
 		sys·printint(o);
 		prints("\n");
 	}
-	if(cas->send)
-		goto gots;
 
-gotr:
-	if(0) {
-		prints("gotr: sel=");
-		sys·printpointer(sel);
-		prints(" c=");
-		sys·printpointer(c);
-		prints(" o=");
-		sys·printint(o);
-		prints("\n");
+	if(!cas->send) {
+		if(cas->u.elemp != nil)
+			c->elemalg->copy(c->elemsize, cas->u.elemp, sg->elem);
 	}
-	c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
-	gp = sg->g;
-	gp->param = sg;
-	gp->status = Grunnable;
+
+	freesg(c, sg);
 	goto retc;
 
-gots:
-	if(0) {
-		prints("gots: sel=");
+asynr:
+asyns:
+	throw("asyn");
+gotr:
+	// recv path to wakeup the sender (sg)
+	if(xxx) {
+		prints("gotr: sel=");
 		sys·printpointer(sel);
 		prints(" c=");
 		sys·printpointer(c);
@@ -612,9 +620,30 @@ gots:
 	gp = sg->g;
 	gp->param = sg;
 	gp->status = Grunnable;
-	freesg(c, sg);
+	goto retc;
+
+gots:
+	// send path to wakeup the receiver (sg)
+	if(xxx) {
+		prints("gots: sel=");
+		sys·printpointer(sel);
+		prints(" c=");
+		sys·printpointer(c);
+		prints(" o=");
+		sys·printint(o);
+		prints("\n");
+	}
+	c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
+	gp = sg->g;
+	gp->param = sg;
+	gp->status = Grunnable;
 
 retc:
+	if(sel->ncase >= 1 && sel->ncase < nelem(selfree)) {
+		sel->link = selfree[sel->ncase];
+		selfree[sel->ncase] = sel;
+	}
+
 	sys·setcallerpc(&sel, cas->pc);
 	as = (byte*)&sel + cas->so;
 	*as = true;
@@ -668,6 +697,8 @@ allocsg(Hchan *c)
 		sg = mal(sizeof(*sg));
 	sg->selgen = g->selgen;
 	sg->g = g;
+	sg->offset = 0;
+
 	return sg;
 }
 

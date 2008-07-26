@@ -1910,7 +1910,6 @@ chanop(Node *n, int top)
 			goto shape;
 
 		// chanrecv2(hchan *chan any) (elem any, pres bool);
-
 		t = fixchan(n->right->left->type);
 		if(t == T)
 			break;
@@ -1950,19 +1949,27 @@ chanop(Node *n, int top)
 		break;
 
 	recv2:
-		// chanrecv2(hchan *chan any) (elem any, pres bool);
-fatal("recv2 not yet");
+		// chanrecv3(hchan *chan any, *elem any) (pres bool);
 		t = fixchan(n->right->type);
 		if(t == T)
 			break;
 
 		a = n->right;			// chan
 		r = a;
+		a = n->left;			// elem
+		if(a == N) {
+			a = nil;
+			a = nod(OLITERAL, N, N);
+			a->val.ctype = CTNIL;
+			a->val.vval = 0;
+		} else
+			a = nod(OADDR, a, N);
 
-		on = syslook("chanrecv2", 1);
+		on = syslook("chanrecv3", 1);
 
 		argtype(on, t->type);	// any-1
 		argtype(on, t->type);	// any-2
+
 		r = nod(OCALL, on, r);
 		n->right = r;
 		r = n;
