@@ -20,6 +20,23 @@ walk(Node *fn)
 		dump("fn", fn->nbody);
 }
 
+int
+isselect(Node *n)
+{
+	Sym *s;
+
+	if(n == N)
+		return 0;
+	n = n->left;
+	s = pkglookup("selectsend", "sys");
+	if(s == n->sym)
+		return 1;
+	s = pkglookup("selectrecv", "sys");
+	if(s == n->sym)
+		return 1;
+	return 0;
+}
+
 void
 walktype(Node *n, int top)
 {
@@ -227,16 +244,20 @@ loop:
 		case OCALL:
 			l = ascompatte(n->op, getinarg(t), &n->right, 0);
 			n->right = reorder1(l);
+			if(isselect(n)) {
+				// clear output bool - special prob with selectsend
+				r = ascompatte(n->op, getoutarg(t), &boolfalse, 0);
+				n->right = list(n->right, r);
+			}
 			break;
 
 		case OCALLMETH:
 			l = ascompatte(n->op, getinarg(t), &n->right, 0);
 			r = ascompatte(n->op, getthis(t), &n->left->left, 0);
-			if(l != N)
-				r = list(r, l);
+			l = list(r, l);
 			n->left->left = N;
 			ullmancalc(n->left);
-			n->right = reorder1(r);
+			n->right = reorder1(l);
 			break;
 		}
 		goto ret;
@@ -919,6 +940,7 @@ selcase(Node *n, Node *var)
 {
 	Node *a, *r, *on, *c;
 	Type *t;
+	Iter iter;
 
 	c = n->left;
 	if(c->op == ORECV)
@@ -949,11 +971,7 @@ selcase(Node *n, Node *var)
 	a = var;			// sel-var
 	r = list(a, r);
 
-	a = nod(OCALL, on, r);
-	r = nod(OIF, N, N);
-	r->ntest = a;
-
-	return r;
+	goto out;
 
 recv:
 	walktype(c->left, Elv);		// elem
@@ -982,12 +1000,12 @@ recv:
 	a = var;			// sel-var
 	r = list(a, r);
 
+out:
 	a = nod(OCALL, on, r);
 	r = nod(OIF, N, N);
 	r->ntest = a;
 
 	return r;
-
 }
 
 void

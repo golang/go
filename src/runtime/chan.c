@@ -377,7 +377,7 @@ sys·selectsend(Select *sel, Hchan *c, ...)
 {
 	int32 i, eo;
 	Scase *cas;
-	byte *as, *ae;
+	byte *ae;
 
 	// nil cases do not compete
 	if(c == nil)
@@ -400,9 +400,6 @@ sys·selectsend(Select *sel, Hchan *c, ...)
 	ae = (byte*)&sel + eo;
 	c->elemalg->copy(c->elemsize, cas->u.elem, ae);
 
-	as = (byte*)&sel + cas->so;
-	*as = false;
-
 	if(debug) {
 		prints("newselect s=");
 		sys·printpointer(sel);
@@ -424,7 +421,6 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 {
 	int32 i, epo;
 	Scase *cas;
-	byte *as;
 
 	// nil cases do not compete
 	if(c == nil)
@@ -444,9 +440,6 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 	cas->so = rnd(epo+sizeof(byte*), 1);
 	cas->send = 0;
 	cas->u.elemp = *(byte**)((byte*)&sel + epo);
-
-	as = (byte*)&sel + cas->so;
-	*as = false;
 
 	if(debug) {
 		prints("newselect s=");
