@@ -14,10 +14,11 @@ type T struct {
 func main() {
   s := "";
   l1 := len(s);
+  var t T;
   l2 := len(T.s);  // BUG: cannot take len() of a string field
 }
 
 /*
 uetli:/home/gri/go/test/bugs gri$ 6g bug057.go 
-bug057.go:13: syntax error
+bug057.go:14: syntax error
 */
