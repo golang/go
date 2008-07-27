@@ -130,10 +130,6 @@ BUG: known to fail incorrectly
 =========== bugs/bug015.go
 BUG: known to succeed incorrectly
 
-=========== bugs/bug025.go
-bugs/bug025.go:7: variable exported but not defined: Foo
-BUG: bad exit status - should be 1 - plus extra newline in message
-
 =========== bugs/bug026.go
 sys·printstring: main·sigs_I: not defined
 BUG: known to fail incorrectly
@@ -154,9 +150,6 @@ BUG: known to succeed incorrectly
 BUG: compilation succeeds incorrectly
 
 =========== bugs/bug033.go
-BUG: compilation succeeds incorrectly
-
-=========== bugs/bug034.go
 BUG: compilation succeeds incorrectly
 
 =========== bugs/bug041.go
@@ -189,29 +182,16 @@ bugs/bug048.go:7: illegal types for operand: CONV
 	(MAP[<int32>INT32]<int32>INT32)
 BUG: known to fail incorrectly
 
-=========== bugs/bug052.go
-
 =========== bugs/bug053.go
 bugs/bug053.go:6: syntax error
 BUG: len should not be a keyword
 
 =========== bugs/bug054.go
-xxx
-.   CALL u(100) l(286) <Element>I{}
-.   .   NAME-Vector_At G0 a(1) l(273) 111({},{}){}
-.   .   AS u(1) l(286)
-.   .   .   INDREG a(1) l(286) v G0 *<Vector>{}
-.   .   .   DOTPTR u(1) l(286) *<Vector>{}
-.   .   .   .   NAME-s G349 a(1) g(349) l(282) *<TStruct>{}
-.   .   .   .   NAME-fields G0 a(1) l(279)
-.   .   AS u(1) l(286)
-.   .   .   INDREG a(1) l(286) i G350 <int32>INT32
-.   .   .   NAME-i G350 a(1) g(350) l(282) <int32>INT32
 bugs/bug054.go:25: fatal error: agen_inter i2s
 BUG: known to fail incorrectly
 
 =========== bugs/bug057.go
-bugs/bug057.go:13: syntax error
+bugs/bug057.go:14: syntax error
 BUG: compilation should succeed
 
 =========== bugs/bug060.go
@@ -225,11 +205,6 @@ BUG: known to fail incorrectly
 
 =========== bugs/bug062.go
 BUG: known to succeed incorrectly
-
-=========== bugs/bug063.go
-bugs/bug063.go:5: illegal combination of literals XOR 7
-bugs/bug063.go:5: expression must be a constant
-BUG: should compile without problems
 
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
@@ -247,10 +222,10 @@ inner loop top i 0
 do break
 outer loop top k 1
 k not zero
-panic on line 271 PC=0x1362
+panic on line 305 PC=0x1362
 0x1362?zi
-	main·main(1, 0, 1606416424, ...)
-	main·main(0x1, 0x7fff5fbff828, 0x0, ...)
+	main·main(1, 0, 1606415392, ...)
+	main·main(0x1, 0x7fff5fbff420, 0x0, ...)
 BUG: crashes
 
 =========== bugs/bug072.go
@@ -271,6 +246,8 @@ BUG: known to fail incorrectly
 
 =========== bugs/bug077.go
 BUG: known to succeed incorrectly
+
+=========== bugs/bug078.go
 
 =========== fixedbugs/bug000.go
 
@@ -314,6 +291,9 @@ BUG: known to succeed incorrectly
 
 =========== fixedbugs/bug024.go
 
+=========== fixedbugs/bug025.go
+fixedbugs/bug025.go:7: variable exported but not defined: Foo
+
 =========== fixedbugs/bug028.go
 
 =========== fixedbugs/bug030.go
@@ -330,7 +310,7 @@ fixedbugs/bug035.go:7: var f redeclared in this block
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(267) t=<T> nil
+fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(301) t=<T> nil
 
 =========== fixedbugs/bug038.go
 
@@ -355,6 +335,8 @@ sys.6:1 fixedbugs/bug050.go:3: syntax error
 =========== fixedbugs/bug051.go
 fixedbugs/bug051.go:10: expression must be a constant
 
+=========== fixedbugs/bug052.go
+
 =========== fixedbugs/bug055.go
 
 =========== fixedbugs/bug056.go
@@ -362,6 +344,8 @@ fixedbugs/bug051.go:10: expression must be a constant
 =========== fixedbugs/bug058.go
 
 =========== fixedbugs/bug059.go
+
+=========== fixedbugs/bug063.go
 
 =========== fixedbugs/bug065.go
 
