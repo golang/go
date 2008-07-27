@@ -762,7 +762,7 @@ pexpr:
  * from other packages
  */
 lpack:
-	LPACK 
+	LPACK
 	{
 		context = $1->name;
 	}

@@ -49,7 +49,7 @@ reexport(Type *t)
 	Sym *s;
 
 	if(t == T)
-		fatal("reexport: type nil\n");
+		fatal("reexport: type nil");
 
 	s = t->sym;
 	if(s == S/* || s->name[0] == '_'*/) {
@@ -75,7 +75,7 @@ dumpexportconst(Sym *s)
 
 	n = s->oconst;
 	if(n == N || n->op != OLITERAL)
-		fatal("dumpexportconst: oconst nil: %S\n", s);
+		fatal("dumpexportconst: oconst nil: %S", s);
 
 	t = n->type;	// may or may not be specified
 	if(t != T)
@@ -90,7 +90,7 @@ dumpexportconst(Sym *s)
 
 	switch(n->val.ctype) {
 	default:
-		fatal("dumpexportconst: unknown ctype: %S\n", s);
+		fatal("dumpexportconst: unknown ctype: %S", s);
 	case CTINT:
 	case CTSINT:
 	case CTUINT:
@@ -149,13 +149,13 @@ dumpexporttype(Sym *s)
 	}
 
 	if(t->sym != s)
-		fatal("dumpexporttype: cross reference: %S\n", s);
+		fatal("dumpexporttype: cross reference: %S", s);
 
 	et = t->etype;
 	switch(et) {
 	default:
 		if(et < 0 || et >= nelem(types) || types[et] == T)
-			fatal("dumpexporttype: basic type: %S %E\n", s, et);
+			fatal("dumpexporttype: basic type: %S %E", s, et);
 		/* type 5 */
 		Bprint(bout, "\ttype %lS %d\n", s, et);
 		break;
@@ -184,7 +184,7 @@ dumpexporttype(Sym *s)
 	case TFUNC:
 		for(f=t->type; f!=T; f=f->down) {
 			if(f->etype != TSTRUCT)
-				fatal("dumpexporttype: funct not field: %T\n", f);
+				fatal("dumpexporttype: funct not field: %T", f);
 			reexport(f);
 		}
 
@@ -205,7 +205,7 @@ dumpexporttype(Sym *s)
 	case TINTER:
 		for(f=t->type; f!=T; f=f->down) {
 			if(f->etype != TFIELD)
-				fatal("dumpexporttype: funct not field: %lT\n", f);
+				fatal("dumpexporttype: funct not field: %lT", f);
 			reexport(f->type);
 		}
 
@@ -316,7 +316,7 @@ getimportsym(Node *ss)
 	Sym *s;
 
 	if(ss->op != OIMPORT)
-		fatal("getimportsym: oops1 %N\n", ss);
+		fatal("getimportsym: oops1 %N", ss);
 
 	pkg = ss->psym->name;
 	s = pkglookup(ss->sym->name, pkg);
@@ -333,7 +333,7 @@ importlooktype(Node *n)
 
 	s = getimportsym(n);
 	if(s->otype == T)
-		fatal("importlooktype: oops2 %S\n", s);
+		fatal("importlooktype: oops2 %S", s);
 	return s->otype;
 }
 
@@ -392,7 +392,7 @@ importfuncnam(Type *t)
 	Type *t1;
 
 	if(t->etype != TFUNC)
-		fatal("importfuncnam: not func %T\n", t);
+		fatal("importfuncnam: not func %T", t);
 
 	if(t->thistuple > 0) {
 		t1 = t->type;
@@ -591,7 +591,7 @@ doimport5(Node *ss, Val *v)
 
 	et = v->vval;
 	if(et <= 0 || et >= nelem(types) || types[et] == T)
-		fatal("doimport5: bad type index: %E\n", et);
+		fatal("doimport5: bad type index: %E", et);
 
 	t = typ(et);
 	t->sym = S;

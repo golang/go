@@ -191,6 +191,9 @@ evconst(Node *n)
 	case TUP(OAND, Wlitint):
 		nl->val.vval &= nr->val.vval;
 		break;
+	case TUP(OXOR, Wlitint):
+		nl->val.vval ^= nr->val.vval;
+		break;
 
 	case TUP(OADD, Wlitfloat):
 		nl->val.dval += nr->val.dval;
