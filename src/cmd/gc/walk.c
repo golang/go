@@ -974,13 +974,40 @@ selcase(Node *n, Node *var)
 	goto out;
 
 recv:
-	walktype(c->left, Elv);		// elem
+	if(c->right != N)
+		goto recv2;
+
+	walktype(c->left, Erv);		// chan
+
+	t = fixchan(c->left->type);
+	if(t == T)
+		return;
+
+	// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+	on = syslook("selectrecv", 1);
+	argtype(on, t->type);
+	argtype(on, t->type);
+
+	a = c->left;			// nil elem
+	a = nod(OLITERAL, N, N);
+	a->val.ctype = CTNIL;
+	a->val.vval = 0;
+
+	r = a;
+	a = c->left;			// chan
+	r = list(a, r);
+	a = var;			// sel-var
+	r = list(a, r);
+	goto out;
+
+recv2:	
 	walktype(c->right, Erv);	// chan
 
 	t = fixchan(c->right->type);
 	if(t == T)
 		return;
 
+	walktype(c->left, Elv);	// elem
 	convlit(c->left, t->type);
 	if(!ascompat(t->type, c->left->type)) {
 		badtype(c->op, t->type, c->left->type);
@@ -1958,7 +1985,6 @@ chanop(Node *n, int top)
 		r = a;
 		a = n->left;			// elem
 		if(a == N) {
-			a = nil;
 			a = nod(OLITERAL, N, N);
 			a->val.ctype = CTNIL;
 			a->val.vval = 0;
