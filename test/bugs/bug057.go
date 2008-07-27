@@ -15,7 +15,7 @@ func main() {
   s := "";
   l1 := len(s);
   var t T;
-  l2 := len(T.s);  // BUG: cannot take len() of a string field
+  l2 := len(t.s);  // BUG: cannot take len() of a string field
 }
 
 /*
