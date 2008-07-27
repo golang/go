@@ -93,6 +93,9 @@ mainlex(int argc, char *argv[])
 
 	dumpobj();
 
+	if(nerrors)
+		errorexit();
+
 	myexit(0);
 	return 0;
 
