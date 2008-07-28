@@ -75,48 +75,21 @@ func mkdch2() *dch2 {
 // generation to begin servicing out[1].
 
 func dosplit(in *dch, out *dch2, wait *chan int ){
-//print "dosplit ", wait, "\n";
 	var t *dch;
 	both := false;	// do not service both channels
-/*
+
 	select {
 	case <-out[0].req:
 		;
 	case <-wait:
-		both = 1;
+		both = true;
 		select {
 		case <-out[0].req:
 			;
 		case <-out[1].req:
 			t=out[0]; out[0]=out[1]; out[1]=t;
-		};
-	}
-*/
-// select simulation
-	for {
-		var ok bool;
-		var dummy int;
-		dummy, ok = <-out[0].req;
-		if ok { goto OUT1 }
-		dummy, ok = <-wait;
-		if ok {
-			both = true;
-			// select simulation
-			for {
-				dummy, ok = <-out[0].req;
-				if ok { goto OUT1 }
-				dummy, ok = <-out[1].req;
-				if ok {
-					out[0], out[1] = out[1], out[0];
-					goto OUT1
-				}
-				sys.gosched();
-			}
 		}
-		sys.gosched();
 	}
-
-OUT1: //BUG
 
 	seqno++;
 	in.req -< seqno;
@@ -165,42 +138,21 @@ func getn(in *[]*dch, n int) *[]item {
 	}
 	for n=2*n; n>0; n-- {
 		seqno++
-/*
-		select{
-		case req[i=] <-= seqno:
-			dat[i] = in[i].dat;
-			req[i] = nil;
-		case it = <-dat[i=]:
-			out[i] = it;
-			dat[i] = nil;
-		}
-*/
 
-		// simulation of select
-		sel:
-		for c1:=0; ; c1++ {
-			for i := 0; i < 2; i++ {
-				ok := false;
-				if req[i] != nil { ok = req[i] -< seqno }
-				if ok {
-					dat[i] = in[i].dat;
-					req[i] = nil;
-					goto OUT; // BUG
-					break sel;
-				}
-				ok = false;
-				if dat[i] != nil { it, ok = <-dat[i] }
-				if ok {
-					out[i] = it;
-					dat[i] = nil;
-					goto OUT;  // BUG
-					break sel;
-				}
-				sys.gosched();
-			}
-			sys.gosched();
+		select{
+		case req[0] -< seqno:
+			dat[0] = in[0].dat;
+			req[0] = nil;
+		case req[1] -< seqno:
+			dat[1] = in[1].dat;
+			req[1] = nil;
+		case it <- dat[0]:
+			out[0] = it;
+			dat[0] = nil;
+		case it <- dat[1]:
+			out[1] = it;
+			dat[1] = nil;
 		}
-OUT:
 	}
 	return out;
 }
@@ -251,7 +203,6 @@ func mkPS2() *dch2 {
 
 func gcd (u, v int64) int64{
 	if u < 0 { return gcd(-u, v) }
-	if u > v { return gcd(v, u) }
 	if u == 0 { return v }
 	return gcd(v%u, u)
 }
