@@ -183,10 +183,6 @@ BUG: len should not be a keyword
 bugs/bug054.go:25: fatal error: agen_inter i2s
 BUG: known to fail incorrectly
 
-=========== bugs/bug057.go
-bugs/bug057.go:14: syntax error
-BUG: compilation should succeed
-
 =========== bugs/bug060.go
 BUG: crashes
 
@@ -241,6 +237,9 @@ BUG: known to fail incorrectly
 BUG: known to succeed incorrectly
 
 =========== bugs/bug078.go
+
+=========== bugs/bug079.go
+BUG: succeeds incorrectly
 
 =========== fixedbugs/bug000.go
 
@@ -335,6 +334,8 @@ fixedbugs/bug051.go:10: expression must be a constant
 =========== fixedbugs/bug055.go
 
 =========== fixedbugs/bug056.go
+
+=========== fixedbugs/bug057.go
 
 =========== fixedbugs/bug058.go
 
