@@ -106,7 +106,7 @@ struct	G
 	byte*	stackbase;	// must not move
 	byte*	stack0;		// first stack segment
 	Gobuf	sched;
-	G*	alllink;	// on allq
+	G*	alllink;	// on allg
 	void*	param;		// passed parameter on wakeup
 	int16	status;
 	int32	goid;
@@ -189,6 +189,7 @@ void*	mal(uint32);
 uint32	cmpstring(string, string);
 void	initsig(void);
 void	traceback(uint8 *pc, uint8 *sp, G* gp);
+void	tracebackothers(G*);
 int32	open(byte*, int32, ...);
 int32	read(int32, void*, int32);
 int32	write(int32, void*, int32);

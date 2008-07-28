@@ -149,6 +149,7 @@ sighandler(int32 sig, siginfo *info, void *context)
 	prints("\n\n");
         
 	traceback((void *)ss->__rip, (void *)ss->__rsp, (void*)ss->__r15);
+	tracebackothers((void*)ss->__r15);
 	print_thread_state(ss);
         
 	sys·exit(2);
