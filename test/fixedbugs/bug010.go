@@ -7,7 +7,7 @@
 package main
 
 
-func f() (i int, f float) {
+func f(i int, f float) {
 	i = 8;
 	f = 8.0;
 	return;
