@@ -74,6 +74,21 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 //prints("\n");
 }
 
+void
+tracebackothers(G *me)
+{
+	G *g;
+
+	for(g = allg; g != nil; g = g->alllink) {
+		if(g == me)
+			continue;
+		prints("\ngoroutine ");
+		sys·printint(g->goid);
+		prints(":\n");
+		traceback(g->sched.PC, g->sched.SP+8, g);  // gogo adjusts SP by 8 (not portable!)
+	}
+}
+
 G*
 select(void)
 {
