@@ -720,7 +720,7 @@ pexpr:
 	{
 		$$ = nod(OCALL, $1, $3);
 	}
-|	LLEN '(' name ')'
+|	LLEN '(' expr ')'
 	{
 		$$ = nod(OLEN, $3, N);
 	}
