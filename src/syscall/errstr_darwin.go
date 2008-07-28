@@ -329,8 +329,6 @@ func init(){
 	error[ELAST] = "Must be equal largest errno"; 
 }
 
-var digits string = "0123456789"
-
 func str(val int64) string {  // do it here rather than with fmt to avoid dependency
 	if val < 0 {
 		return "-" + str(-val);
@@ -338,11 +336,11 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
 	var buf [32]byte;  // big enough for int64
 	i := len(buf)-1;
 	for val >= 10 {
-		buf[i] = digits[val%10];
+		buf[i] = val%10 + '0';
 		i--;
 		val /= 10;
 	}
-	buf[i] = digits[val];
+	buf[i] = val + '0';
 	return string(buf)[i:len(buf)];
 }
 

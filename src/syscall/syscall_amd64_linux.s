@@ -99,3 +99,19 @@ TEXT	syscall·fstat(SB),1,$0-16
 	MOVQ	AX, 24(SP)
 	MOVQ	$0, 32(SP)
 	RET
+
+TEXT	syscall·lstat(SB),1,$0-16
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVQ	$0, DX
+	MOVQ	$6, AX			// syscall entry
+	SYSCALL
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	5(PC)
+	MOVQ	$-1, 24(SP)
+	NEGQ	AX
+	MOVQ	AX, 32(SP)
+	RET
+	MOVQ	AX, 24(SP)
+	MOVQ	$0, 32(SP)
+	RET

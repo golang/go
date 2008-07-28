@@ -11,9 +11,9 @@ package syscall
  * in these calling sequences.
  */
 
-func open(*byte, int64) (ret int64, errno int64);
-func close(int64) (ret int64, errno int64);
-func read(int64, *byte, int64) (ret int64, errno int64);
-func write(int64, *byte, int64) (ret int64, errno int64);
+func open(name *byte, mode int64) (ret int64, errno int64);
+func close(fd int64) (ret int64, errno int64);
+func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64);
+func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64);
 
 export open, close, read, write
