@@ -4,11 +4,12 @@
 
 package syscall
 
-func stat(*byte, *Stat) (ret int64, errno int64);
-func fstat(int64, *Stat) (ret int64, errno int64);
+func stat(name *byte, buf *Stat) (ret int64, errno int64);
+func fstat(fd int64, buf *Stat) (ret int64, errno int64);
+func lstat(name *byte, buf *Stat) (ret int64, errno int64);
 
 export Stat
-export stat, fstat
+export stat, fstat, lstat
 
 // Stat and relatives for Linux
 
