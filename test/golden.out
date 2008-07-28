@@ -123,10 +123,6 @@ PASS
 
 =========== chan/sieve.go
 
-=========== bugs/bug010.go
-bugs/bug010.go:13: error in shape across CALL
-BUG: known to fail incorrectly
-
 =========== bugs/bug015.go
 BUG: known to succeed incorrectly
 
@@ -147,9 +143,6 @@ BUG: known to fail incorrectly
 BUG: known to succeed incorrectly
 
 =========== bugs/bug032.go
-BUG: compilation succeeds incorrectly
-
-=========== bugs/bug033.go
 BUG: compilation succeeds incorrectly
 
 =========== bugs/bug041.go
@@ -224,8 +217,8 @@ outer loop top k 1
 k not zero
 panic on line 305 PC=0x1362
 0x1362?zi
-	main·main(1, 0, 1606415392, ...)
-	main·main(0x1, 0x7fff5fbff420, 0x0, ...)
+	main·main(1, 0, 1606414952, ...)
+	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
 BUG: crashes
 
 =========== bugs/bug072.go
@@ -268,6 +261,8 @@ BUG: known to succeed incorrectly
 =========== fixedbugs/bug008.go
 
 =========== fixedbugs/bug009.go
+
+=========== fixedbugs/bug010.go
 
 =========== fixedbugs/bug011.go
 
