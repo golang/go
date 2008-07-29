@@ -115,7 +115,7 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
 	// determine number of objects to export
 	n := 0;
 	for p := scope.entries.first; p != nil; p = p.next {
-		if p.obj.mark {
+		if p.obj.exported {
 			n++;
 		}			
 	}
@@ -123,7 +123,7 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
 	// export the objects, if any
 	if n > 0 {
 		for p := scope.entries.first; p != nil; p = p.next {
-			if p.obj.mark {
+			if p.obj.exported {
 				E.WriteObject(p.obj);
 			}			
 		}
@@ -136,8 +136,8 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
 
 
 func (E *Exporter) WriteObject(obj *Globals.Object) {
-	if obj == nil || !obj.mark {
-		panic "obj == nil || !obj.mark";
+	if obj == nil || !obj.exported {
+		panic "obj == nil || !obj.exported";
 	}
 
 	if obj.kind == Object.TYPE && obj.typ.obj == obj {
@@ -274,7 +274,7 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	pkg := comp.pkgs[0];
 	E.WritePackage(pkg);
 	for p := pkg.scope.entries.first; p != nil; p = p.next {
-		if p.obj.mark {
+		if p.obj.exported {
 			E.WriteObject(p.obj);
 		}
 	}
