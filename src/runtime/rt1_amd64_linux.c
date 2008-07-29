@@ -153,7 +153,7 @@ sighandler(int32 sig, siginfo* info, void** context)
         prints("\n\n");
         
 	traceback((void *)sc->rip, (void *)sc->rsp, (void *)sc->r15);
-	tracebackothers((void*)sc->__r15);
+	tracebackothers((void*)sc->r15);
 	print_sigcontext(sc);
 
 	sys·breakpoint();
