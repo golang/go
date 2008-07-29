@@ -13,7 +13,7 @@ PKG=syscall.a
 OFILES=\
 	syscall.$O \
 	errstr_$(GOOS).$O \
-	stat_$(GOARCH)_$(GOOS).$O \
+	file_$(GOARCH)_$(GOOS).$O \
 	syscall_$(GOARCH)_$(GOOS).$O \
 
 

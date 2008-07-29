@@ -8,12 +8,13 @@ package syscall
  * These calls have signatures that are independent of operating system.
  *
  * For simplicity of addressing in assembler, all integers are 64 bits
- * in these calling sequences.
+ * in these calling sequences (although it complicates some, such as pipe)
  */
 
-func open(name *byte, mode int64) (ret int64, errno int64);
-func close(fd int64) (ret int64, errno int64);
-func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64);
-func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64);
+func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+func	AddrToInt(b *byte) int64;
 
-export open, close, read, write
+export Syscall
+export AddrToInt
+
+

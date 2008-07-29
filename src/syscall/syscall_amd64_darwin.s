@@ -3,98 +3,35 @@
 // license that can be found in the LICENSE file.
 
 //
-// System calls for AMD64, Darwin
+// System call support for AMD64, Darwin
 //
 
-TEXT	syscall·open(SB),1,$-8
-	MOVQ	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVQ	$0, R10
-	MOVL	$(0x2000000+5), AX	// syscall entry
+// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+// Trap # in AX, args in DI SI DX, return in AX DX
+
+TEXT	syscall·Syscall(SB),1,$-8
+	MOVQ	16(SP), DI
+	MOVQ	24(SP), SI
+	MOVQ	32(SP), DX
+	MOVQ	8(SP), AX	// syscall entry
+	ADDQ	$0x2000000, AX
 	SYSCALL
-	JCC	4(PC)
-	MOVQ	$-1, 24(SP)
-	MOVQ	AX, 32(SP)
+	JCC	5(PC)
+	MOVQ	$-1, 40(SP)	// r1
+	MOVQ	$0, 48(SP)	// r2
+	MOVQ	AX, 56(SP)  // errno
 	RET
-	MOVQ	AX, 24(SP)
-	MOVQ	$0, 32(SP)
+	MOVQ	AX, 40(SP)	// r1
+	MOVQ	DX, 48(SP)	// r2
+	MOVQ	$0, 56(SP)	// errno
 	RET
 
-TEXT	syscall·close(SB),1,$-8
-	MOVL	8(SP), DI
-	MOVL	$(0x2000000+6), AX	// syscall entry
-	SYSCALL
-	JCC	4(PC)
-	MOVQ	$-1, 16(SP)
-	MOVQ	AX, 24(SP)
-	RET
+TEXT	syscall·AddrToInt(SB),1,$-8
+	MOVQ	8(SP), AX
 	MOVQ	AX, 16(SP)
-	MOVQ	$0, 24(SP)
 	RET
 
-TEXT	syscall·read(SB),1,$-8
-	MOVQ	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVQ	24(SP), DX
-	MOVL	$(0x2000000+3), AX	// syscall entry
-	SYSCALL
-	JCC	4(PC)
-	MOVQ	$-1, 32(SP)
-	MOVQ	AX, 40(SP)
-	RET
-	MOVQ	AX, 32(SP)
-	MOVQ	$0, 40(SP)
-	RET
-
-TEXT	syscall·write(SB),1,$-8
-	MOVQ	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVQ	24(SP), DX
-	MOVL	$(0x2000000+4), AX	// syscall entry
-	SYSCALL
-	JCC	4(PC)
-	MOVQ	$-1, 32(SP)
-	MOVQ	AX, 40(SP)
-	RET
-	MOVQ	AX, 32(SP)
-	MOVQ	$0, 40(SP)
-	RET
-
-TEXT	syscall·stat(SB),1,$-8
-	MOVQ	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVL	$(0x2000000+338), AX	// syscall entry
-	SYSCALL
-	JCC	4(PC)
-	MOVQ	$-1, 24(SP)
-	MOVQ	AX, 32(SP)
-	RET
-	MOVQ	AX, 24(SP)
-	MOVQ	$0, 32(SP)
-	RET
-
-TEXT	syscall·fstat(SB),1,$-8
-	MOVQ	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVL	$(0x2000000+339), AX	// syscall entry
-	SYSCALL
-	JCC	4(PC)
-	MOVQ	$-1, 24(SP)
-	MOVQ	AX, 32(SP)
-	RET
-	MOVQ	AX, 24(SP)
-	MOVQ	$0, 32(SP)
-	RET
-
-TEXT	syscall·lstat(SB),1,$-8
-	MOVQ	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVL	$(0x2000000+340), AX	// syscall entry
-	SYSCALL
-	JCC	4(PC)
-	MOVQ	$-1, 24(SP)
-	MOVQ	AX, 32(SP)
-	RET
-	MOVQ	AX, 24(SP)
-	MOVQ	$0, 32(SP)
+TEXT	syscall·StatToInt(SB),1,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
 	RET
