@@ -32,6 +32,11 @@ TEXT	syscall·AddrToInt(SB),1,$-8
 	MOVQ	AX, 16(SP)
 	RET
 
+TEXT	syscall·Addr32ToInt(SB),1,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
+	RET
+
 TEXT	syscall·StatToInt(SB),1,$-8
 	MOVQ	8(SP), AX
 	MOVQ	AX, 16(SP)
