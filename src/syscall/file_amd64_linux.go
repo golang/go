@@ -11,6 +11,7 @@ export stat, fstat, lstat
 export open, close, read, write, pipe
 
 func	StatToInt(s *Stat) int64;
+func	Addr32ToInt(s *int32) int64;
 
 // Stat and relatives for Linux
 
@@ -45,6 +46,9 @@ type Stat struct {
 	st_atime	Timespec;   /* time of last access */
 	st_mtime	Timespec;   /* time of last modification */
 	st_ctime	Timespec;   /* time of last status change */
+	st_unused4	int64;
+	st_unused5	int64;
+	st_unused6	int64;
 }
 
 func open(name *byte, mode int64) (ret int64, errno int64) {
@@ -60,6 +64,7 @@ func close(fd int64) (ret int64, errno int64) {
 }
 
 func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
+print "READ: ", fd, " ", nbytes, "\n";
 	const SYSREAD = 0;
 	r1, r2, err := syscall.Syscall(SYSREAD, fd, AddrToInt(buf), nbytes);
 	return r1, err;
@@ -73,12 +78,13 @@ func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
 
 func pipe(fds *[2]int64) (ret int64, errno int64) {
 	const SYSPIPE = 22;
-	r1, r2, err := syscall.Syscall(SYSPIPE, 0, 0, 0);
+	var t [2] int32;
+	r1, r2, err := syscall.Syscall(SYSPIPE, Addr32ToInt(&t[0]), 0, 0);
 	if r1 < 0 {
 		return r1, err;
 	}
-	fds[0] = r1;
-	fds[1] = r2;
+	fds[0] = int64(t[0]);
+	fds[1] = int64(t[1]);
 	return 0, err;
 }
 
