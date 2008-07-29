@@ -29,6 +29,7 @@ type Parser struct {
 
 	// Semantic analysis
 	top_scope *Globals.Scope;
+	undef_types *Globals.List;
 	exports *Globals.List;
 }
 
@@ -77,6 +78,7 @@ func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, verbose int
 	P.S = S;
 	P.Next();
 	P.top_scope = Universe.scope;
+	P.undef_types = Globals.NewList();
 	P.exports = Globals.NewList();
 }
 
@@ -244,7 +246,7 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 // ----------------------------------------------------------------------------
 // Types
 
-func (P *Parser) ParseType() *Globals.Type{
+func (P *Parser) ParseType() *Globals.Type {
 	P.Trace("Type");
 	
 	typ := P.TryType();
@@ -262,10 +264,11 @@ func (P *Parser) ParseTypeName() *Globals.Type {
 	P.Trace("TypeName");
 	
 	if EnableSemanticTests {
+		pos := P.pos;
 		obj := P.ParseQualifiedIdent(-1, "");
 		typ := obj.typ;
 		if obj.kind != Object.TYPE {
-			P.Error(obj.pos, `"` + obj.ident + `" is not a type`);
+			P.Error(pos, "qualified identifier does not denote a type");
 			typ = Universe.bad_t;
 		}
 		P.Ecart();
@@ -571,16 +574,42 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 	P.Trace("PointerType");
 	
 	P.Expect(Scanner.MUL);
-	typ := Universe.undef_t;
-	if (EnableSemanticTests && P.tok == Scanner.IDENT && P.Lookup(P.val) == nil) {
-		// forward declaration
-		panic "UNIMPLEMENTED *forward_declared_type";
+	typ := Globals.NewType(Type.POINTER);
+	
+	if EnableSemanticTests {
+		if P.tok == Scanner.IDENT {
+			if P.Lookup(P.val) == nil {
+				// implicit forward declaration
+				// TODO very problematic: in which scope should the
+				// type object be declared? It's different if this
+				// is inside a struct or say in a var declaration.
+				// This code is only here for "compatibility" with 6g.
+				pos := P.pos;
+				obj := Globals.NewObject(pos, Object.TYPE, P.ParseIdent());
+				obj.typ = Globals.NewType(Type.UNDEF);
+				obj.typ.obj = obj;  // primary type object
+				typ.elt = obj.typ;
+				// TODO obj should be declared, but scope is not clear
+			} else {
+				// type name
+				// (ParseType() doesn't permit incomplete types,
+				// so call ParseTypeName() here)
+				typ.elt = P.ParseTypeName();
+			}
+		} else {
+			typ.elt = P.ParseType();
+		}
+	
+		// collect undefined pointer types
+		if typ.elt.form == Type.UNDEF {
+			P.undef_types.AddTyp(typ);
+		}
+		
 	} else {
-		typ = Globals.NewType(Type.POINTER);
 		typ.elt = P.ParseType();
 	}
 
-	P.Ecart();	
+	P.Ecart();
 	return typ;
 }
 
@@ -589,6 +618,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 func (P *Parser) TryType() *Globals.Type {
 	P.Trace("Type (try)");
 	
+	pos := P.pos;
 	var typ *Globals.Type = nil;
 	switch P.tok {
 	case Scanner.IDENT: typ = P.ParseTypeName();
@@ -599,6 +629,10 @@ func (P *Parser) TryType() *Globals.Type {
 	case Scanner.MAP: typ = P.ParseMapType();
 	case Scanner.STRUCT: typ = P.ParseStructType();
 	case Scanner.MUL: typ = P.ParsePointerType();
+	}
+
+	if typ != nil && typ.form == Type.UNDEF {
+		P.Error(pos, "incomplete type");
 	}
 
 	P.Ecart();
@@ -1464,34 +1498,13 @@ func (P *Parser) ParseConstSpec(exported bool) {
 	typ := P.TryType();
 	if typ != nil {
 		for p := list.first; p != nil; p = p.next {
-			p.obj.mark = exported;
+			p.obj.exported = exported;
 			p.obj.typ = typ;  // TODO should use/have set_type()!
 		}
 	}
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
 		P.ParseExpressionList();
-	}
-	
-	P.Ecart();
-}
-
-
-func (P *Parser) ParseConstDecl(exported bool) {
-	P.Trace("ConstDecl");
-	
-	P.Expect(Scanner.CONST);
-	if P.tok == Scanner.LPAREN {
-		P.Next();
-		for P.tok == Scanner.IDENT {
-			P.ParseConstSpec(exported);
-			if P.tok != Scanner.RPAREN {
-				P.Expect(Scanner.SEMICOLON);
-			}
-		}
-		P.Next();
-	} else {
-		P.ParseConstSpec(exported);
 	}
 	
 	P.Ecart();
@@ -1505,46 +1518,26 @@ func (P *Parser) ParseTypeSpec(exported bool) {
 	ident := P.ParseIdent();
 	obj := P.top_scope.Lookup(ident);  // only lookup in top scope!
 	if obj != nil {
-		// ok if forward declared type
+		// name already declared - ok if forward declared type
 		if obj.kind != Object.TYPE || obj.typ.form != Type.UNDEF {
 			// TODO use obj.pos to refer to decl pos in error msg!
 			P.Error(pos, `"` + ident + `" is declared already`);
 		}
 	} else {
 		obj = Globals.NewObject(pos, Object.TYPE, ident);
-		obj.mark = exported;
-		obj.typ = Universe.undef_t;  // TODO fix this
-		P.top_scope.Insert(obj);
+		obj.exported = exported;
+		obj.typ = Globals.NewType(Type.UNDEF);
+		obj.typ.obj = obj;  // primary type object
+		P.Declare(obj);
 	}
 	
-	typ := P.TryType();  // no type if we have a forward decl
+	typ := P.TryType();  // nil if we have an explicit forward declaration
+
 	if typ != nil {
-		// TODO what about the name of incomplete types?
-		obj.typ = typ;  // TODO should use/have set_typ()!
+		obj.typ = typ;
 		if typ.obj == nil {
 			typ.obj = obj;  // primary type object
 		}
-	}
-	
-	P.Ecart();
-}
-
-
-func (P *Parser) ParseTypeDecl(exported bool) {
-	P.Trace("TypeDecl");
-	
-	P.Expect(Scanner.TYPE);
-	if P.tok == Scanner.LPAREN {
-		P.Next();
-		for P.tok == Scanner.IDENT {
-			P.ParseTypeSpec(exported);
-			if P.tok != Scanner.RPAREN {
-				P.Expect(Scanner.SEMICOLON);
-			}
-		}
-		P.Next();
-	} else {
-		P.ParseTypeSpec(exported);
 	}
 	
 	P.Ecart();
@@ -1573,21 +1566,32 @@ func (P *Parser) ParseVarSpec(exported bool) {
 }
 
 
-func (P *Parser) ParseVarDecl(exported bool) {
-	P.Trace("VarDecl");
+// TODO With method variables, we wouldn't need this dispatch function.
+func (P *Parser) ParseSpec(exported bool, keyword int) {
+	switch keyword {
+	case Scanner.CONST: P.ParseConstSpec(exported);
+	case Scanner.TYPE: P.ParseTypeSpec(exported);
+	case Scanner.VAR: P.ParseVarSpec(exported);
+	default: panic "UNREACHABLE";
+	}
+}
+
+
+func (P *Parser) ParseDecl(exported bool, keyword int) {
+	P.Trace("Decl");
 	
-	P.Expect(Scanner.VAR);
+	P.Expect(keyword);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
 		for P.tok == Scanner.IDENT {
-			P.ParseVarSpec(exported);
+			P.ParseSpec(exported, keyword);
 			if P.tok != Scanner.RPAREN {
 				P.Expect(Scanner.SEMICOLON);
 			}
 		}
 		P.Next();
 	} else {
-		P.ParseVarSpec(exported);
+		P.ParseSpec(exported, keyword);
 	}
 	
 	P.Ecart();
@@ -1643,12 +1647,8 @@ func (P *Parser) ParseDeclaration() {
 		exported = true;
 	}
 	switch P.tok {
-	case Scanner.CONST:
-		P.ParseConstDecl(exported);
-	case Scanner.TYPE:
-		P.ParseTypeDecl(exported);
-	case Scanner.VAR:
-		P.ParseVarDecl(exported);
+	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+		P.ParseDecl(exported, P.tok);
 	case Scanner.FUNC:
 		P.ParseFuncDecl(exported);
 	case Scanner.EXPORT:
@@ -1676,6 +1676,28 @@ func (P *Parser) ParseDeclaration() {
 // ----------------------------------------------------------------------------
 // Program
 
+func (P *Parser) ResolveUndefTypes() {
+	if !EnableSemanticTests {
+		return;
+	}
+	
+	for p := P.undef_types.first; p != nil; p = p.next {
+		typ := p.typ;
+		if typ.form != Type.POINTER {
+			panic "unresolved types should be pointers only";
+		}
+		if typ.elt.form != Type.UNDEF {
+			panic "unresolved pointer should point to undefined type";
+		}
+		obj := typ.elt.obj;
+		typ.elt = obj.typ;
+		if typ.elt.form == Type.UNDEF {
+			P.Error(obj.pos, `"` + obj.ident + `" is not declared`);
+		}
+	}
+}
+
+
 func (P *Parser) MarkExports() {
 	if !EnableSemanticTests {
 		return;
@@ -1685,7 +1707,7 @@ func (P *Parser) MarkExports() {
 	for p := P.exports.first; p != nil; p = p.next {
 		obj := scope.Lookup(p.str);
 		if obj != nil {
-			obj.mark = true;
+			obj.exported = true;
 			// For now we export deep
 			// TODO this should change eventually - we need selective export
 			if obj.kind == Object.TYPE {
@@ -1693,7 +1715,7 @@ func (P *Parser) MarkExports() {
 				if typ.form == Type.STRUCT || typ.form == Type.INTERFACE {
 					scope := typ.scope;
 					for p := scope.entries.first; p != nil; p = p.next {
-						p.obj.mark = true;
+						p.obj.exported = true;
 					}
 				}
 			}
@@ -1726,6 +1748,7 @@ func (P *Parser) ParseProgram() {
 			P.Optional(Scanner.SEMICOLON);
 		}
 		
+		P.ResolveUndefTypes();
 		P.MarkExports();
 		P.CloseScope();
 	}

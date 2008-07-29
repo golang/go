@@ -15,7 +15,7 @@ package Globals
 
 export Object
 type Object struct {
-	mark bool;  // mark => object marked for export
+	exported bool;
 	pos int;  // source position
 	kind int;
 	ident string;
@@ -89,7 +89,7 @@ type Compilation struct {
 export NewObject
 func NewObject(pos, kind int, ident string) *Object {
 	obj := new(Object);
-	obj.mark = false;
+	obj.exported = false;
 	obj.pos = pos;
 	obj.kind = kind;
 	obj.ident = ident;
