@@ -4,15 +4,16 @@
 
 package syscall
 
+// File operations for Darwin
+
 import syscall "syscall"
 
 export Stat
 export stat, fstat, lstat
-export open, close, read, write, pipe
+export open, creat, close, read, write, pipe
+export unlink
 
 func	StatToInt(s *Stat) int64;
-
-// Stat and relatives for Darwin
 
 type dev_t uint32;
 type ino_t uint64;
@@ -50,9 +51,43 @@ type Stat struct {
  	st_qspare[2]	int64;
 }
 
-func open(name *byte, mode int64) (ret int64, errno int64) {
+const (
+	O_RDONLY = 0x0;
+	O_WRONLY = 0x1;
+	O_RDWR = 0x2;
+	O_APPEND = 0x8;
+	O_ASYNC = 0x40;
+	O_CREAT = 0x200;
+	O_NOCTTY = 0x20000;
+	O_NONBLOCK = 0x4;
+	O_NDELAY = O_NONBLOCK;
+	O_SYNC = 0x80;
+	O_TRUNC = 0x400;
+)
+
+export (
+	O_RDONLY,
+	O_WRONLY,
+	O_RDWR,
+	O_APPEND,
+	O_ASYNC,
+	O_CREAT,
+	O_NOCTTY,
+	O_NONBLOCK,
+	O_NDELAY,
+	O_SYNC,
+	O_TRUNC
+)
+
+func open(name *byte, mode int64, flags int64) (ret int64, errno int64) {
 	const SYSOPEN = 5;
-	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, 0);
+	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, flags);
+	return r1, err;
+}
+
+func creat(name *byte, mode int64) (ret int64, errno int64) {
+	const SYSOPEN = 5;
+	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, O_CREAT|O_WRONLY|O_TRUNC);
 	return r1, err;
 }
 
@@ -82,7 +117,7 @@ func pipe(fds *[2]int64) (ret int64, errno int64) {
 	}
 	fds[0] = r1;
 	fds[1] = r2;
-	return 0, err;
+	return 0, 0;
 }
 
 func stat(name *byte, buf *Stat) (ret int64, errno int64) {
@@ -100,5 +135,11 @@ func lstat(name *byte, buf *Stat) (ret int64, errno int64) {
 func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
 	const SYSFSTAT = 339;
 	r1, r2, err := syscall.Syscall(SYSFSTAT, fd, StatToInt(buf), 0);
+	return r1, err;
+}
+
+func unlink(name *byte) (ret int64, errno int64) {
+	const SYSUNLINK = 10;
+	r1, r2, err := syscall.Syscall(SYSUNLINK, AddrToInt(name), 0, 0);
 	return r1, err;
 }

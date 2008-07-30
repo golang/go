@@ -4,16 +4,17 @@
 
 package syscall
 
+// File operations for Linux
+
 import syscall "syscall"
 
 export Stat
 export stat, fstat, lstat
-export open, close, read, write, pipe
+export open, creat, close, read, write, pipe
+export unlink
 
 func	StatToInt(s *Stat) int64;
 func	Addr32ToInt(s *int32) int64;
-
-// Stat and relatives for Linux
 
 type dev_t uint64;
 type ino_t uint64;
@@ -51,9 +52,43 @@ type Stat struct {
 	st_unused6	int64;
 }
 
-func open(name *byte, mode int64) (ret int64, errno int64) {
+const (
+	O_RDONLY = 0x0;
+	O_WRONLY = 0x1;
+	O_RDWR = 0x2;
+	O_APPEND = 0x400;
+	O_ASYNC = 0x2000;
+	O_CREAT = 0x40;
+	O_NOCTTY = 0x100;
+	O_NONBLOCK = 0x800;
+	O_NDELAY = O_NONBLOCK;
+	O_SYNC = 0x1000;
+	O_TRUNC = 0x200;
+)
+
+export (
+	O_RDONLY,
+	O_WRONLY,
+	O_RDWR,
+	O_APPEND,
+	O_ASYNC,
+	O_CREAT,
+	O_NOCTTY,
+	O_NONBLOCK,
+	O_NDELAY,
+	O_SYNC,
+	O_TRUNC
+)
+
+func open(name *byte, mode int64, flags int64) (ret int64, errno int64) {
 	const SYSOPEN = 2;
-	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, 0);
+	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, flags);
+	return r1, err;
+}
+
+func creat(name *byte, mode int64) (ret int64, errno int64) {
+	const SYSOPEN = 2;
+	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, O_CREAT|O_WRONLY|O_TRUNC);
 	return r1, err;
 }
 
@@ -64,7 +99,6 @@ func close(fd int64) (ret int64, errno int64) {
 }
 
 func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
-print "READ: ", fd, " ", nbytes, "\n";
 	const SYSREAD = 0;
 	r1, r2, err := syscall.Syscall(SYSREAD, fd, AddrToInt(buf), nbytes);
 	return r1, err;
@@ -85,7 +119,7 @@ func pipe(fds *[2]int64) (ret int64, errno int64) {
 	}
 	fds[0] = int64(t[0]);
 	fds[1] = int64(t[1]);
-	return 0, err;
+	return 0, 0;
 }
 
 func stat(name *byte, buf *Stat) (ret int64, errno int64) {
@@ -106,3 +140,8 @@ func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
 	return r1, err;
 }
 
+func unlink(name *byte) (ret int64, errno int64) {
+	const SYSUNLINK = 87;
+	r1, r2, err := syscall.Syscall(SYSUNLINK, AddrToInt(name), 0, 0);
+	return r1, err;
+}
