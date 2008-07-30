@@ -247,6 +247,12 @@ bugs/bug080.go:12: illegal types for operand: CALL
 	({<x><int32>INT32;<y><float32>FLOAT32;})
 BUG: fails incorrectly
 
+=========== bugs/bug081.go
+
+=========== bugs/bug082.go
+bugs/bug082.go:7: fatal error: optoas: no entry COM-<int32>INT32
+BUG: fails incorrectly
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
