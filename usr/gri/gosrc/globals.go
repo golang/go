@@ -280,6 +280,7 @@ func (C *Compilation) Insert(pkg *Package) {
 	if C.Lookup(pkg.file_name) != nil {
 		panic "package already inserted";
 	}
+	pkg.obj.pnolev = C.npkgs;
 	C.pkgs[C.npkgs] = pkg;
 	C.npkgs++;
 }

@@ -4,6 +4,7 @@
 
 package Compilation
 
+import Utils "utils"
 import Globals "globals"
 import Object "object"
 import Type "type"
@@ -12,28 +13,6 @@ import Scanner "scanner"
 import AST "ast"
 import Parser "parser"
 import Export "export"
-
-
-func BaseName(s string) string {
-	// TODO this is not correct for non-ASCII strings!
-	i := len(s) - 1;
-	for i >= 0 && s[i] != '/' {
-		if s[i] > 128 {
-			panic "non-ASCII string"
-		}
-		i--;
-	}
-	return s[i + 1 : len(s)];
-}
-
-
-func FixExt(s string) string {
-	i := len(s) - 3;  // 3 == len(".go");
-	if s[i : len(s)] == ".go" {
-		s = s[0 : i];
-	}
-	return s + ".7";
-}
 
 
 export Compile
@@ -47,11 +26,6 @@ func Compile(file_name string, verbose int) {
 	Universe.Init();  // TODO eventually this should be only needed once
 	
 	comp := Globals.NewCompilation();
-	pkg := Globals.NewPackage(file_name);
-	comp.Insert(pkg);
-	if comp.npkgs != 1 {
-		panic "should have exactly one package now";
-	}
 
 	scanner := new(Scanner.Scanner);
 	scanner.Open(file_name, src);
@@ -66,8 +40,6 @@ func Compile(file_name string, verbose int) {
 	}
 	
 	// export
-	/*
 	exp := new(Export.Exporter);
-	exp.Export(comp, FixExt(BaseName(file_name)));
-	*/
+	exp.Export(comp, Utils.FixExt(Utils.BaseName(file_name)));
 }

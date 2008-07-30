@@ -4,11 +4,13 @@
 
 package Parser
 
+import Utils "utils"
 import Scanner "scanner"
 import Globals "globals"
 import Object "object"
 import Type "type"
 import Universe "universe"
+import Import "import"
 import AST "ast"
 
 
@@ -28,6 +30,7 @@ type Parser struct {
 	val string;  // token value (for IDENT, NUMBER, STRING only)
 
 	// Semantic analysis
+	level int;  // 0 = global scope, -1 = function scope of global functions, etc.
 	top_scope *Globals.Scope;
 	undef_types *Globals.List;
 	exports *Globals.List;
@@ -77,6 +80,7 @@ func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, verbose int
 	P.indent = 0;
 	P.S = S;
 	P.Next();
+	P.level = 0;
 	P.top_scope = Universe.scope;
 	P.undef_types = Globals.NewList();
 	P.exports = Globals.NewList();
@@ -128,7 +132,11 @@ func (P *Parser) Lookup(ident string) *Globals.Object {
 
 
 func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
-	if EnableSemanticTests && scope.Lookup(obj.ident) != nil {
+	if !EnableSemanticTests {
+		return;
+	}
+	obj.pnolev = P.level;
+	if scope.Lookup(obj.ident) != nil {
 		P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
 		return;  // don't insert it into the scope
 	}
@@ -138,6 +146,77 @@ func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
 
 func (P *Parser) Declare(obj *Globals.Object) {
 	P.DeclareInScope(P.top_scope, obj);
+}
+
+
+func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.Type {
+  // Determine if we have a receiver or not.
+  if p0 > 0 && check_recv {
+    // method
+	if p0 != 1 {
+		panic "p0 != 1";
+	}
+  }
+  typ := Globals.NewType(Type.FUNCTION);
+  if p0 == 0 {
+	typ.flags = 0;
+  } else {
+	typ.flags = Type.RECV;
+  }
+  typ.len_ = r0 - p0;
+  typ.scope = sig;
+  return typ;
+}
+
+
+func (P *Parser) DeclareFunc(exported bool, ident string, typ *Globals.Type) *Globals.Object {
+  // Determine scope.
+  scope := P.top_scope;
+  if typ.flags & Type.RECV != 0 {
+    // method - declare in corresponding struct
+	if typ.scope.entries.len_ < 1 {
+		panic "no recv in signature?";
+	}
+    trecv := typ.scope.entries.first.typ;
+    if trecv.form == Type.POINTER {
+      trecv = trecv.elt;
+    }
+    scope = trecv.scope;
+  }
+  
+  // Declare the function.
+  fun := scope.Lookup(ident);
+  if fun == nil {
+    fun = Globals.NewObject(-1, Object.FUNC, ident);
+	fun.typ = typ;
+	// TODO do we need to set the prymary type? probably...
+    P.DeclareInScope(scope, fun);
+    return fun;
+  }
+  
+  // fun != NULL: possibly a forward declaration.
+  if (fun.kind != Object.FUNC) {
+    P.Error(-1, `"` + ident + `" is declared already`);
+    // Continue but do not insert this function into the scope.
+    fun = Globals.NewObject(-1, Object.FUNC, ident);
+	fun.typ = typ;
+	// TODO do we need to set the prymary type? probably...
+    return fun;
+  }
+  
+  // We have a function with the same name.
+  /*
+  if (!EqualTypes(type, fun->type())) {
+    this->Error("type of \"%s\" does not match its forward declaration", name.cstr());
+    // Continue but do not insert this function into the scope.
+    NewObject(Object::FUNC, name);
+    fun->set_type(type);
+    return fun;    
+  }
+  */
+  
+  // We have a matching forward declaration. Use it.
+  return fun;
 }
 
 
@@ -225,10 +304,23 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 		}
 
 		if obj.kind == Object.PACKAGE && P.tok == Scanner.PERIOD {
-			panic "Qualified ident not complete yet";
-			P.Next();
-			P.ParseIdent();
+			if obj.pnolev < 0 {
+				panic "obj.pnolev < 0";
+			}
+			pkg := P.comp.pkgs[obj.pnolev];
+			//if pkg.obj.ident != ident {
+			//	panic "pkg.obj.ident != ident";
+			//}
+			P.Next();  // consume "."
+			pos = P.pos;
+			ident = P.ParseIdent();
+			obj = pkg.scope.Lookup(ident);
+			if obj == nil {
+				P.Error(pos, `"` + ident + `" is not declared in package "` + pkg.obj.ident + `"`);
+				obj = Globals.NewObject(pos, Object.BAD, ident);
+			}
 		}
+		
 		P.Ecart();
 		return obj;
 		
@@ -383,26 +475,6 @@ func (P *Parser) TryResult() bool {
 }
 
 
-func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.Type {
-  // Determine if we have a receiver or not.
-  if p0 > 0 && check_recv {
-    // method
-	if p0 != 1 {
-		panic "p0 != 1";
-	}
-  }
-  typ := Globals.NewType(Type.FUNCTION);
-  if p0 == 0 {
-	typ.flags = 0;
-  } else {
-	typ.flags = Type.RECV;
-  }
-  typ.len_ = r0 - p0;
-  typ.scope = sig;
-  return typ;
-}
-
-
 // Anonymous signatures
 //
 //          (params)
@@ -424,9 +496,9 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
 	
 	if P.tok == Scanner.PERIOD {
 		p0 = sig.entries.len_;
-		if (p0 != 1) {
+		if (EnableSemanticTests && p0 != 1) {
 			P.Error(recv_pos, "must have exactly one receiver")
-			panic "UNIMPLEMENTED";
+			panic "UNIMPLEMENTED (ParseAnonymousSignature)";
 			// TODO do something useful here
 		}
 		P.Next();
@@ -462,10 +534,10 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
 		recv_pos := P.pos;
 		P.ParseParameters();
 		p0 = sig.entries.len_;
-		if (p0 != 1) {
+		if (EnableSemanticTests && p0 != 1) {
 			print "p0 = ", p0, "\n";
 			P.Error(recv_pos, "must have exactly one receiver")
-			panic "UNIMPLEMENTED";
+			panic "UNIMPLEMENTED (ParseNamedSignature)";
 			// TODO do something useful here
 		}
 	}
@@ -498,8 +570,13 @@ func (P *Parser) ParseMethodDecl() {
 	P.Trace("MethodDecl");
 	
 	P.ParseIdent();
+	P.OpenScope();
+	sig := P.top_scope;
+	p0 := 0;
 	P.ParseParameters();
+	r0 := sig.entries.len_;
 	P.TryResult();
+	P.CloseScope();
 	P.Optional(Scanner.SEMICOLON);
 	
 	P.Ecart();
@@ -662,15 +739,26 @@ func (P *Parser) ParseStatementList() {
 }
 
 
-func (P *Parser) ParseBlock() {
+func (P *Parser) ParseBlock(sig *Globals.Scope) {
 	P.Trace("Block");
 	
 	P.Expect(Scanner.LBRACE);
 	P.OpenScope();
+	if sig != nil {
+		P.level--;
+		// add function parameters to scope
+		scope := P.top_scope;
+		for p := sig.entries.first; p != nil; p = p.next {
+			scope.Insert(p.obj)
+		}
+	}
 	if P.tok != Scanner.RBRACE && P.tok != Scanner.SEMICOLON {
 		P.ParseStatementList();
 	}
 	P.Optional(Scanner.SEMICOLON);
+	if sig != nil {
+		P.level++;
+	}
 	P.CloseScope();
 	P.Expect(Scanner.RBRACE);
 	
@@ -717,8 +805,8 @@ func (P *Parser) ParseNew() {
 func (P *Parser) ParseFunctionLit() {
 	P.Trace("FunctionLit");
 	
-	P.ParseFunctionType();
-	P.ParseBlock();
+	typ := P.ParseFunctionType();
+	P.ParseBlock(typ.scope);
 	
 	P.Ecart();
 }
@@ -1226,7 +1314,7 @@ func (P *Parser) ParseIfStat() *AST.IfStat {
 			}
 		}
 	}
-	P.ParseBlock();
+	P.ParseBlock(nil);
 	if P.tok == Scanner.ELSE {
 		P.Next();
 		if P.tok == Scanner.IF {
@@ -1262,7 +1350,7 @@ func (P *Parser) ParseForStat() {
 			}
 		}
 	}
-	P.ParseBlock();
+	P.ParseBlock(nil);
 	P.CloseScope();
 	
 	P.Ecart();
@@ -1389,7 +1477,7 @@ func (P *Parser) ParseRangeStat() bool {
 	P.ParseIdentList();
 	P.Expect(Scanner.DEFINE);
 	P.ParseExpression();
-	P.ParseBlock();
+	P.ParseBlock(nil);
 	
 	P.Ecart();
 }
@@ -1431,7 +1519,7 @@ func (P *Parser) TryStatement() bool {
 	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
 		P.ParseControlFlowStat(P.tok);
 	case Scanner.LBRACE:
-		P.ParseBlock();
+		P.ParseBlock(nil);
 	case Scanner.IF:
 		P.ParseIfStat();
 	case Scanner.FOR:
@@ -1461,30 +1549,32 @@ func (P *Parser) TryStatement() bool {
 func (P *Parser) ParseImportSpec() {
 	P.Trace("ImportSpec");
 	
+	var obj *Globals.Object = nil;
 	if P.tok == Scanner.PERIOD {
+		P.Error(P.pos, `"import ." not yet handled properly`);
 		P.Next();
 	} else if P.tok == Scanner.IDENT {
-		P.Next();
+		obj = P.ParseIdentDecl(Object.PACKAGE);
 	}
-	P.Expect(Scanner.STRING);
 	
-	P.Ecart();
-}
-
-
-func (P *Parser) ParseImportDecl() {
-	P.Trace("ImportDecl");
-	
-	P.Expect(Scanner.IMPORT);
-	if P.tok == Scanner.LPAREN {
-		P.Next();
-		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
-			P.ParseImportSpec();
-			P.Optional(Scanner.SEMICOLON);  // TODO this seems wrong
+	if (EnableSemanticTests && P.tok == Scanner.STRING) {
+		// TODO eventually the scanner should strip the quotes
+		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
+		imp := new(Import.Importer);
+		pkg := imp.Import(P.comp, Utils.FixExt(Utils.BaseName(pkg_name)));
+		if pkg != nil {
+			if obj == nil {
+				// use original package name
+				obj = pkg.obj;
+				P.Declare(obj);
+			}
+			obj.pnolev = pkg.obj.pnolev;
+		} else {
+			P.Error(P.pos, `import of "` + pkg_name + `" failed`);
 		}
 		P.Next();
 	} else {
-		P.ParseImportSpec();
+		P.Expect(Scanner.STRING);  // use Expect() error handling
 	}
 	
 	P.Ecart();
@@ -1569,6 +1659,7 @@ func (P *Parser) ParseVarSpec(exported bool) {
 // TODO With method variables, we wouldn't need this dispatch function.
 func (P *Parser) ParseSpec(exported bool, keyword int) {
 	switch keyword {
+	case Scanner.IMPORT: P.ParseImportSpec();
 	case Scanner.CONST: P.ParseConstSpec(exported);
 	case Scanner.TYPE: P.ParseTypeSpec(exported);
 	case Scanner.VAR: P.ParseVarSpec(exported);
@@ -1586,7 +1677,8 @@ func (P *Parser) ParseDecl(exported bool, keyword int) {
 		for P.tok == Scanner.IDENT {
 			P.ParseSpec(exported, keyword);
 			if P.tok != Scanner.RPAREN {
-				P.Expect(Scanner.SEMICOLON);
+				// P.Expect(Scanner.SEMICOLON);
+				P.Optional(Scanner.SEMICOLON);  // TODO this seems wrong! (needed for math.go)
 			}
 		}
 		P.Next();
@@ -1602,12 +1694,13 @@ func (P *Parser) ParseFuncDecl(exported bool) {
 	P.Trace("FuncDecl");
 	
 	P.Expect(Scanner.FUNC);
-	P.ParseNamedSignature();
+	ident, typ := P.ParseNamedSignature();
+	obj := P.DeclareFunc(exported, ident, typ);  // need obj later for statements
 	if P.tok == Scanner.SEMICOLON {
 		// forward declaration
 		P.Next();
 	} else {
-		P.ParseBlock();
+		P.ParseBlock(typ.scope);
 	}
 	
 	P.Ecart();
@@ -1643,9 +1736,14 @@ func (P *Parser) ParseDeclaration() {
 	
 	exported := false;
 	if P.tok == Scanner.EXPORT {
+		if P.level == 0 {
+			exported = true;
+		} else {
+			P.Error(P.pos, "local declarations cannot be exported");
+		}
 		P.Next();
-		exported = true;
 	}
+	
 	switch P.tok {
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
 		P.ParseDecl(exported, P.tok);
@@ -1732,14 +1830,18 @@ func (P *Parser) ParseProgram() {
 	
 	P.OpenScope();
 	P.Expect(Scanner.PACKAGE);
-	pkg := P.comp.pkgs[0];
+	pkg := Globals.NewPackage(P.S.filename);
 	pkg.obj = P.ParseIdentDecl(Object.PACKAGE);
+	P.comp.Insert(pkg);
+	if P.comp.npkgs != 1 {
+		panic "should have exactly one package now";
+	}
 	P.Optional(Scanner.SEMICOLON);
 	
 	{	P.OpenScope();
 		pkg.scope = P.top_scope;
 		for P.tok == Scanner.IMPORT {
-			P.ParseImportDecl();
+			P.ParseDecl(false, Scanner.IMPORT);
 			P.Optional(Scanner.SEMICOLON);
 		}
 		

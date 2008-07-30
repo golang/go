@@ -38,28 +38,29 @@ func (E *Exporter) WriteByte(x byte) {
 
 
 func (E *Exporter) WriteInt(x int) {
-	/*
-	if E.debug {
-		print " #", x;
-	}
-	*/
+	x0 := x;
 	for x < -64 || x >= 64 {
 		E.WriteByte(byte(x & 127));
 		x = int(uint(x >> 7));  // arithmetic shift
 	}
 	// -64 <= x && x < 64
 	E.WriteByte(byte(x + 192));
+	/*
+	if E.debug {
+		print " #", x0;
+	}
+	*/
 }
 
 
 func (E *Exporter) WriteString(s string) {
-	if E.debug {
-		print ` "`, s, `"`;
-	}
 	n := len(s);
 	E.WriteInt(n);
 	for i := 0; i < n; i++ {
 		E.WriteByte(s[i]);
+	}
+	if E.debug {
+		print ` "`, s, `"`;
 	}
 }
 
@@ -68,14 +69,15 @@ func (E *Exporter) WriteObjTag(tag int) {
 	if tag < 0 {
 		panic "tag < 0";
 	}
+	E.WriteInt(tag);
 	if E.debug {
 		print "\nObj: ", tag;  // obj kind
 	}
-	E.WriteInt(tag);
 }
 
 
 func (E *Exporter) WriteTypeTag(tag int) {
+	E.WriteInt(tag);
 	if E.debug {
 		if tag > 0 {
 			print "\nTyp ", E.type_ref, ": ", tag;  // type form
@@ -83,11 +85,11 @@ func (E *Exporter) WriteTypeTag(tag int) {
 			print " [Typ ", -tag, "]";  // type ref
 		}
 	}
-	E.WriteInt(tag);
 }
 
 
 func (E *Exporter) WritePackageTag(tag int) {
+	E.WriteInt(tag);
 	if E.debug {
 		if tag > 0 {
 			print "\nPkg ", E.pkg_ref, ": ", tag;  // package no
@@ -95,7 +97,6 @@ func (E *Exporter) WritePackageTag(tag int) {
 			print " [Pkg ", -tag, "]";  // package ref
 		}
 	}
-	E.WriteInt(tag);
 }
 
 
@@ -119,6 +120,7 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
 			n++;
 		}			
 	}
+	E.WriteInt(n);
 	
 	// export the objects, if any
 	if n > 0 {
@@ -149,7 +151,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 		E.WriteObjTag(obj.kind);
 		E.WriteString(obj.ident);
 		E.WriteType(obj.typ);
-		//E.WritePackage(E.comp.pkgs[obj.pnolev]);
+		E.WritePackage(E.comp.pkgs[obj.pnolev]);
 
 		switch obj.kind {
 		case Object.CONST:
@@ -249,16 +251,16 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
 
 
 func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
-	if E.debug {
-		print "exporting to ", file_name;
-	}
-
 	E.comp = comp;
-	E.debug = true;
+	E.debug = false;
 	E.pos = 0;
 	E.pkg_ref = 0;
 	E.type_ref = 0;
 	
+	if E.debug {
+		print "exporting to ", file_name, "\n";
+	}
+
 	// Predeclared types are "pre-exported".
 	// TODO run the loop below only in debug mode
 	{	i := 0;
