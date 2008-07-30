@@ -10,6 +10,7 @@ import Type "type"
 import Universe "universe"
 
 
+export Importer  // really only want to export Import()
 type Importer struct {
 	comp *Globals.Compilation;
 	debug bool;
@@ -257,6 +258,7 @@ func (I *Importer) ReadPackage() *Globals.Package {
 	if pkg == nil {
 		// new package
 		pkg = Globals.NewPackage(file_name);
+		pkg.obj = Globals.NewObject(-1, Object.PACKAGE, ident);
 		pkg.scope = Globals.NewScope(nil);
 		pkg = I.comp.InsertImport(pkg);
 
@@ -271,24 +273,25 @@ func (I *Importer) ReadPackage() *Globals.Package {
 }
 
 
-func (I *Importer) Import(comp* Globals.Compilation, file_name string) {
-	if I.debug {
-		print "importing from ", file_name;
-	}
-	
-	buf, ok := sys.readfile(file_name);
-	if !ok {
-		panic "import failed";
-	}
-	
+func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.Package {
 	I.comp = comp;
-	I.debug = true;
-	I.buf = buf;
+	I.debug = false;
+	I.buf = "";
 	I.pos = 0;
 	I.npkgs = 0;
 	I.ntypes = 0;
 	
-	// Predeclared types are "pre-exported".
+	if I.debug {
+		print "importing from ", file_name, "\n";
+	}
+	
+	buf, ok := sys.readfile(file_name);
+	if !ok {
+		return nil;
+	}
+	I.buf = buf;
+	
+	// Predeclared types are "pre-imported".
 	for p := Universe.types.first; p != nil; p = p.next {
 		if p.typ.ref != I.ntypes {
 			panic "incorrect ref for predeclared type";
@@ -311,4 +314,6 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) {
 	if I.debug {
 		print "\n(", I.pos, " bytes)\n";
 	}
+	
+	return pkg;
 }
