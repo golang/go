@@ -213,8 +213,8 @@ outer loop top k 1
 k not zero
 panic on line 305 PC=0x1362
 0x1362?zi
-	main·main(1, 0, 1606414952, ...)
-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+	main·main(1, 0, 1606416400, ...)
+	main·main(0x1, 0x7fff5fbff810, 0x0, ...)
 BUG: crashes
 
 =========== bugs/bug072.go
@@ -240,6 +240,12 @@ BUG: known to succeed incorrectly
 
 =========== bugs/bug079.go
 BUG: succeeds incorrectly
+
+=========== bugs/bug080.go
+bugs/bug080.go:12: illegal types for operand: CALL
+	(<int32>INT32)
+	({<x><int32>INT32;<y><float32>FLOAT32;})
+BUG: fails incorrectly
 
 =========== fixedbugs/bug000.go
 
