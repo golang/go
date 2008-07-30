@@ -169,54 +169,54 @@ func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.
 }
 
 
-func (P *Parser) DeclareFunc(exported bool, ident string, typ *Globals.Type) *Globals.Object {
-  // Determine scope.
+func (P *Parser) DeclareFunc(ident string, typ *Globals.Type) *Globals.Object {
+  // determine scope
   scope := P.top_scope;
   if typ.flags & Type.RECV != 0 {
     // method - declare in corresponding struct
 	if typ.scope.entries.len_ < 1 {
 		panic "no recv in signature?";
 	}
-    trecv := typ.scope.entries.first.typ;
-    if trecv.form == Type.POINTER {
-      trecv = trecv.elt;
+    recv_typ := typ.scope.entries.first.obj.typ;
+    if recv_typ.form == Type.POINTER {
+      recv_typ = recv_typ.elt;
     }
-    scope = trecv.scope;
+    scope = recv_typ.scope;
   }
   
-  // Declare the function.
-  fun := scope.Lookup(ident);
-  if fun == nil {
-    fun = Globals.NewObject(-1, Object.FUNC, ident);
-	fun.typ = typ;
-	// TODO do we need to set the prymary type? probably...
-    P.DeclareInScope(scope, fun);
-    return fun;
+  // declare the function
+  obj := scope.Lookup(ident);
+  if obj == nil {
+    obj = Globals.NewObject(-1, Object.FUNC, ident);
+	obj.typ = typ;
+	// TODO do we need to set the primary type? probably...
+    P.DeclareInScope(scope, obj);
+    return obj;
   }
   
-  // fun != NULL: possibly a forward declaration.
-  if (fun.kind != Object.FUNC) {
+  // obj != NULL: possibly a forward declaration.
+  if (obj.kind != Object.FUNC) {
     P.Error(-1, `"` + ident + `" is declared already`);
     // Continue but do not insert this function into the scope.
-    fun = Globals.NewObject(-1, Object.FUNC, ident);
-	fun.typ = typ;
+    obj = Globals.NewObject(-1, Object.FUNC, ident);
+	obj.typ = typ;
 	// TODO do we need to set the prymary type? probably...
-    return fun;
+    return obj;
   }
   
   // We have a function with the same name.
   /*
-  if (!EqualTypes(type, fun->type())) {
+  if (!EqualTypes(type, obj->type())) {
     this->Error("type of \"%s\" does not match its forward declaration", name.cstr());
     // Continue but do not insert this function into the scope.
     NewObject(Object::FUNC, name);
-    fun->set_type(type);
-    return fun;    
+    obj->set_type(type);
+    return obj;    
   }
   */
   
   // We have a matching forward declaration. Use it.
-  return fun;
+  return obj;
 }
 
 
@@ -1510,7 +1510,7 @@ func (P *Parser) TryStatement() bool {
 	case Scanner.FUNC:
 		// for now we do not allow local function declarations
 		fallthrough;
-	case Scanner.MUL, Scanner.SEND, Scanner.RECV, Scanner.IDENT:
+	case Scanner.MUL, Scanner.SEND, Scanner.RECV, Scanner.IDENT, Scanner.LPAREN:
 		P.ParseSimpleStat();
 	case Scanner.GO:
 		P.ParseGoStat();
@@ -1695,7 +1695,8 @@ func (P *Parser) ParseFuncDecl(exported bool) {
 	
 	P.Expect(Scanner.FUNC);
 	ident, typ := P.ParseNamedSignature();
-	obj := P.DeclareFunc(exported, ident, typ);  // need obj later for statements
+	obj := P.DeclareFunc(ident, typ);  // need obj later for statements
+	obj.exported = exported;
 	if P.tok == Scanner.SEMICOLON {
 		// forward declaration
 		P.Next();

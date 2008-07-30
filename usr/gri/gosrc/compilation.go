@@ -13,6 +13,7 @@ import Scanner "scanner"
 import AST "ast"
 import Parser "parser"
 import Export "export"
+import Printer "printer"
 
 
 export Compile
@@ -39,7 +40,12 @@ func Compile(file_name string, verbose int) {
 		return;
 	}
 	
+	/*
 	// export
 	exp := new(Export.Exporter);
 	exp.Export(comp, Utils.FixExt(Utils.BaseName(file_name)));
+	
+	// print export
+	Printer.PrintObject(comp, comp.pkgs[0].obj, false);
+	*/
 }
