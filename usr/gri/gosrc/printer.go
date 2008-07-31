@@ -199,6 +199,9 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 		}
 		P.PrintType(typ);
 
+	case Type.ALIAS:
+		P.PrintType(typ.elt);
+
 	case Type.ARRAY:
 		print "[]";
 		P.PrintType(typ.elt);

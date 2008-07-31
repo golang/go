@@ -6,9 +6,14 @@
 
 package base
 
+type Foo int
+
+type Bar *float;
+
 type Node struct {
   left, right *Node;
-  val bool
+  val bool;
+  f Foo
 }
 
-export Node
+export Foo, Bar, Node

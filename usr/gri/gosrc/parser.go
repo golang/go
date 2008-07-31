@@ -1633,9 +1633,21 @@ func (P *Parser) ParseTypeSpec(exported bool) {
 		P.Declare(obj);
 	}
 	
-	typ := P.TryType();  // nil if we have an explicit forward declaration
+	// If the next token is an identifier and we have a legal program,
+	// it must be a typename. In that case this declaration introduces
+	// an alias type.
+	make_alias := P.tok == Scanner.IDENT;
+	
+	// If we have an explicit forward declaration, TryType will not
+	// find a type and return nil.
+	typ := P.TryType();
 
 	if typ != nil {
+		if make_alias {
+			alias := Globals.NewType(Type.ALIAS);
+			alias.elt = typ;
+			typ = alias;
+		}
 		obj.typ = typ;
 		if typ.obj == nil {
 			typ.obj = obj;  // primary type object
