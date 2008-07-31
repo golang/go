@@ -15,11 +15,11 @@ type Importer struct {
 	comp *Globals.Compilation;
 	debug bool;
 	buf string;
-	pos int;
+	buf_pos int;
 	pkgs [256] *Globals.Package;
-	npkgs int;
+	pkg_ref int;
 	types [1024] *Globals.Type;
-	ntypes int;
+	type_ref int;
 };
 
 
@@ -29,8 +29,8 @@ func (I *Importer) ReadPackage() *Globals.Package;
 
 
 func (I *Importer) ReadByte() byte {
-	x := I.buf[I.pos];
-	I.pos++;
+	x := I.buf[I.buf_pos];
+	I.buf_pos++;
 	/*
 	if E.debug {
 		print " ", x;
@@ -80,7 +80,7 @@ func (I *Importer) ReadObjectTag() int {
 		panic "tag < 0";
 	}
 	if I.debug {
-		print "\nObj: ", tag;  // obj kind
+		print "\n", Object.KindStr(tag);
 	}
 	return tag;
 }
@@ -89,10 +89,10 @@ func (I *Importer) ReadObjectTag() int {
 func (I *Importer) ReadTypeTag() int {
 	tag := I.ReadInt();
 	if I.debug {
-		if tag > 0 {
-			print "\nTyp ", I.ntypes, ": ", tag;  // type form
+		if tag >= 0 {
+			print " [T", tag, "]";  // type ref
 		} else {
-			print " [Typ ", -tag, "]";  // type ref
+			print "\nT", I.type_ref, ": ", Type.FormStr(-tag);
 		}
 	}
 	return tag;
@@ -102,20 +102,13 @@ func (I *Importer) ReadTypeTag() int {
 func (I *Importer) ReadPackageTag() int {
 	tag := I.ReadInt();
 	if I.debug {
-		if tag > 0 {
-			print "\nPkg ", I.npkgs, ": ", tag;  // package tag
+		if tag >= 0 {
+			print " [P", tag, "]";  // package ref
 		} else {
-			print " [Pkg ", -tag, "]";  // package ref
+			print "\nP", I.pkg_ref, ": ", -tag;  // package tag
 		}
 	}
 	return tag;
-}
-
-
-func (I *Importer) ReadTypeField() *Globals.Object {
-	fld := Globals.NewObject(0, Object.VAR, "");
-	fld.typ = I.ReadType();
-	return fld;
 }
 
 
@@ -127,7 +120,7 @@ func (I *Importer) ReadScope() *Globals.Scope {
 	scope := Globals.NewScope(nil);
 	for {
 		tag := I.ReadObjectTag();
-		if tag == 0 {
+		if tag == Object.EOS {  // terminator
 			break;
 		}
 		// InsertImport only needed for package scopes
@@ -159,12 +152,6 @@ func (I *Importer) ReadObject(tag int) *Globals.Object {
 		obj.pnolev = I.ReadPackage().obj.pnolev;
 
 		switch (tag) {
-		default: fallthrough;
-		case Object.BAD: fallthrough;
-		case Object.PACKAGE: fallthrough;
-		case Object.PTYPE:
-			panic "UNREACHABLE";
-
 		case Object.CONST:
 			I.ReadInt();  // should set the value field
 
@@ -176,6 +163,9 @@ func (I *Importer) ReadObject(tag int) *Globals.Object {
 
 		case Object.FUNC:
 			I.ReadInt();  // should set the address/offset field
+			
+		default:
+			panic "UNREACHABLE";
 		}
 
 		return obj;
@@ -186,14 +176,14 @@ func (I *Importer) ReadObject(tag int) *Globals.Object {
 func (I *Importer) ReadType() *Globals.Type {
 	tag := I.ReadTypeTag();
 
-	if tag <= 0 {
-		return I.types[-tag];  // type already imported
+	if tag >= 0 {
+		return I.types[tag];  // type already imported
 	}
 
-	typ := Globals.NewType(tag);
+	typ := Globals.NewType(-tag);
 	ptyp := typ;  // primary type
 	ident := I.ReadString();
-	if (len(ident) > 0) {
+	if len(ident) > 0 {
 		// primary type
 		obj := Globals.NewObject(0, Object.TYPE, ident);
 		obj.typ = typ;
@@ -206,22 +196,11 @@ func (I *Importer) ReadType() *Globals.Type {
 
 		ptyp = obj.typ;
 	}
-	I.types[I.ntypes] = ptyp;
-	I.ntypes++;
+	I.types[I.type_ref] = ptyp;
+	I.type_ref++;
 
-	switch (tag) {
+	switch (typ.form) {
 	default: fallthrough;
-	case Type.UNDEF: fallthrough;
-	case Type.BAD: fallthrough;
-	case Type.NIL: fallthrough;
-	case Type.BOOL: fallthrough;
-	case Type.UINT: fallthrough;
-	case Type.INT: fallthrough;
-	case Type.FLOAT: fallthrough;
-	case Type.STRING: fallthrough;
-	case Type.ANY:
-		panic "UNREACHABLE";
-
 	case Type.ARRAY:
 		typ.len_ = I.ReadInt();
 		typ.elt = I.ReadType();
@@ -243,6 +222,9 @@ func (I *Importer) ReadType() *Globals.Type {
 
 	case Type.POINTER, Type.REFERENCE:
 		typ.elt = I.ReadType();
+
+	default:
+		panic "UNREACHABLE";
 	}
 
 	return ptyp;  // only use primary type
@@ -252,10 +234,14 @@ func (I *Importer) ReadType() *Globals.Type {
 func (I *Importer) ReadPackage() *Globals.Package {
 	tag := I.ReadPackageTag();
 
-	if (tag <= 0) {
-		return I.pkgs[-tag];  // package already imported
+	if tag >= 0 {
+		return I.pkgs[tag];  // package already imported
 	}
 
+	if -tag != Object.PACKAGE {
+		panic "incorrect package tag";
+	}
+	
 	ident := I.ReadString();
 	file_name := I.ReadString();
 	key := I.ReadString();
@@ -268,12 +254,12 @@ func (I *Importer) ReadPackage() *Globals.Package {
 		pkg.scope = Globals.NewScope(nil);
 		pkg = I.comp.InsertImport(pkg);
 
-	} else if (key != pkg.key) {
+	} else if key != pkg.key {
 		// package inconsistency
 		panic "package key inconsistency";
 	}
-	I.pkgs[I.npkgs] = pkg;
-	I.npkgs++;
+	I.pkgs[I.pkg_ref] = pkg;
+	I.pkg_ref++;
 
 	return pkg;
 }
@@ -283,9 +269,9 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 	I.comp = comp;
 	I.debug = comp.flags.debug;
 	I.buf = "";
-	I.pos = 0;
-	I.npkgs = 0;
-	I.ntypes = 0;
+	I.buf_pos = 0;
+	I.pkg_ref = 0;
+	I.type_ref = 0;
 	
 	if I.debug {
 		print "importing from ", file_name, "\n";
@@ -299,17 +285,17 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 	
 	// Predeclared types are "pre-imported".
 	for p := Universe.types.first; p != nil; p = p.next {
-		if p.typ.ref != I.ntypes {
+		if p.typ.ref != I.type_ref {
 			panic "incorrect ref for predeclared type";
 		}
-		I.types[I.ntypes] = p.typ;
-		I.ntypes++;
+		I.types[I.type_ref] = p.typ;
+		I.type_ref++;
 	}
 
 	pkg := I.ReadPackage();
 	for {
 		tag := I.ReadObjectTag();
-		if tag == 0 {
+		if tag == Object.EOS {
 			break;
 		}
 		obj := I.ReadObject(tag);
@@ -318,7 +304,7 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 	}
 
 	if I.debug {
-		print "\n(", I.pos, " bytes)\n";
+		print "\n(", I.buf_pos, " bytes)\n";
 	}
 	
 	return pkg;

@@ -78,8 +78,10 @@ type Scope struct {
 export Flags;
 type Flags struct {
 	debug bool;
+	print_export bool;
 	semantic_checks bool;
 	verbose int;
+	sixg bool;
 }
 
 
@@ -102,7 +104,7 @@ func NewObject(pos, kind int, ident string) *Object {
 	obj.pos = pos;
 	obj.kind = kind;
 	obj.ident = ident;
-	obj.typ = nil;  // Universe::undef_t;
+	obj.typ = nil;  // Universe::undef_t;  (cyclic import...)
 	obj.pnolev = 0;
 	return obj;
 }

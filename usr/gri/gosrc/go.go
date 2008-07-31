@@ -18,9 +18,11 @@ func PrintHelp() {
   print "usage:\n";
   print "  go { flag | file }\n";
   print "  -d  print debug information\n";
+  print "  -p  print export\n";
   print "  -s  enable semantic checks\n";
   print "  -v  verbose mode\n";
   print "  -vv  very verbose mode\n";
+  print "  -6g  6g compatibility mode\n";
 }
 
 
@@ -36,9 +38,11 @@ func main() {
 	for i := 1; i < sys.argc(); i++ {
 		switch arg := sys.argv(i); arg {
 		case "-d": flags.debug = true;
+		case "-p": flags.print_export = true;
 		case "-s": flags.semantic_checks = true;
 		case "-v": flags.verbose = 1;
 		case "-vv": flags.verbose = 2;
+		case "-6g": flags.sixg = true;
 		default: files.AddStr(arg);
 		}
 	}

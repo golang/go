@@ -14,6 +14,7 @@ import AST "ast"
 import Parser "parser"
 import Export "export"
 import Printer "printer"
+import Verifier "verifier"
 
 
 export Compile
@@ -36,9 +37,15 @@ func Compile(comp *Globals.Compilation, file_name string) {
 		return;
 	}
 	
-	// export
-	if comp.flags.semantic_checks {
-		Printer.PrintObject(comp, comp.pkgs[0].obj, false);
-		Export.Export(comp, file_name);
+	if !comp.flags.semantic_checks {
+		return;
 	}
+	
+	Verifier.Verify(comp);
+	
+	if comp.flags.print_export {
+		Printer.PrintObject(comp, comp.pkgs[0].obj, false);
+	}
+	
+	Export.Export(comp, file_name);
 }
