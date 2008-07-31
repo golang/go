@@ -22,7 +22,7 @@ func BaseName(s string) string {
 export FixExt
 func FixExt(s string) string {
 	i := len(s) - 3;  // 3 == len(".go");
-	if s[i : len(s)] == ".go" {
+	if i >= 0 && s[i : len(s)] == ".go" {
 		s = s[0 : i];
 	}
 	return s + ".7";
