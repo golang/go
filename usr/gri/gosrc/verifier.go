@@ -25,10 +25,6 @@ func VerifyObject(obj *Globals.Object, pnolev int);
 
 
 func VerifyType(typ *Globals.Type) {
-	if typ == nil {
-		return;  // see Globals.NewObject
-	}
-	
 	if typ.obj != nil {
 		VerifyObject(typ.obj, 0);
 	}

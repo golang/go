@@ -6,8 +6,7 @@
 
 package decls
 
-//import "base"
-import base "base"
+import "base"
 import base2 "base"
 
 const c0 int = 0
@@ -53,12 +52,12 @@ type (
 )
 
 type T6 chan int
-type T7 chan<- T6
-type T8 chan-< T6
+type T7 chan<- *T6
+type T8 chan-< *T6
 
 type T9 struct {
   p *T9;
-  q [] map [int] *T9;
+  q [] *map [int] *T9;
   f *func(x, y *T9) *T9;
 }
 
@@ -97,7 +96,7 @@ var v1 float = c1
 var (
   v2 T2;
   v3 struct {
-    f1, f2, f3 M0;
+    f1, f2, f3 *M0;
   }
 )
 
@@ -105,16 +104,19 @@ var (
 func f0() {}
 func f1(a int) {}
 func f2(a, b int, c float) {}
-func f3() bool {}
+func f3() bool { return false; }
 func f4(a int) (z T5, ok bool) {}
-func f5(a, b int, c float) (z T5, ok bool) {}
+func f5(a, b int, c float) (z T5, ok bool) {
+	u, v := 0, 0;
+	return;
+}
 
 
 func (p *T4) m0() {}
 func (p *T4) m1(a int) {}
 func (p *T4) m2(a, b int, c float) {}
-func (p *T4) m3() bool {}
-func (p *T4) m4(a int) (z T5, ok bool) {}
+func (p *T4) m3() bool { return false; }
+func (p *T4) m4(a int) (z T5, ok bool) { return; }
 func (p *T4) m5(a, b int, c float) (z T5, ok bool) {
   L: var x = a;
 }

@@ -79,7 +79,7 @@ func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
 	
 	if fun != nil {
 		P.PrintObject(fun);
-		print " ";
+		//print " ";
 	} else if p0 > 0 {
 		print ". ";
 	}
@@ -94,10 +94,9 @@ func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
 
 
 func (P *Printer) PrintIndent() {
-	const scale = 4;
 	print "\n";
-	for i := P.level * scale; i > 0; i-- {
-		print " ";
+	for i := P.level; i > 0; i-- {
+		print "\t";
 	}
 }
 
