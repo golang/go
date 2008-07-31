@@ -200,7 +200,9 @@ func (I *Importer) ReadType() *Globals.Type {
 	I.type_ref++;
 
 	switch (typ.form) {
-	default: fallthrough;
+	case Type.ALIAS:
+		typ.elt = I.ReadType();
+
 	case Type.ARRAY:
 		typ.len_ = I.ReadInt();
 		typ.elt = I.ReadType();

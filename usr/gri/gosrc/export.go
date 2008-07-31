@@ -23,7 +23,7 @@ type Exporter struct {
 
 func (E *Exporter) WriteType(typ *Globals.Type);
 func (E *Exporter) WriteObject(obj *Globals.Object);
-func (E *Exporter) WritePackage(pkg *Globals.Package);
+func (E *Exporter) WritePackage(pno int);
 
 
 func (E *Exporter) WriteByte(x byte) {
@@ -132,7 +132,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 		E.WriteObjectTag(obj.kind);
 		E.WriteString(obj.ident);
 		E.WriteType(obj.typ);
-		E.WritePackage(E.comp.pkgs[obj.pnolev]);
+		E.WritePackage(obj.pnolev);
 
 		switch obj.kind {
 		case Object.CONST:
@@ -173,12 +173,15 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 			panic "typ.obj.type() != typ";  // primary type
 		}
 		E.WriteString(typ.obj.ident);
-		E.WritePackage(E.comp.pkgs[typ.obj.pnolev]);
+		E.WritePackage(typ.obj.pnolev);
 	} else {
 		E.WriteString("");
 	}
 
 	switch typ.form {
+	case Type.ALIAS:
+		E.WriteType(typ.elt);
+
 	case Type.ARRAY:
 		E.WriteInt(typ.len_);
 		E.WriteType(typ.elt);
@@ -207,7 +210,11 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 }
 
 
-func (E *Exporter) WritePackage(pkg *Globals.Package) {
+func (E *Exporter) WritePackage(pno int) {
+	if pno < 0 {
+		pno = 0;
+	}
+	pkg := E.comp.pkgs[pno];
 	if pkg.ref >= 0 {
 		E.WritePackageTag(pkg.ref);  // package already exported
 		return;
@@ -251,7 +258,7 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	E.type_ref = Universe.types.len_;
 	
 	pkg := comp.pkgs[0];
-	E.WritePackage(pkg);
+	E.WritePackage(0);
 	E.WriteScope(pkg.scope);
 	
 	if E.debug {

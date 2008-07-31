@@ -79,15 +79,17 @@ func DeclObj(kind int, ident string, typ *Globals.Type) *Globals.Object {
 }
 
 
-func DeclAlias(ident string, typ *Globals.Type) *Globals.Type {
-	return DeclObj(Object.TYPE, ident, typ).typ;
-}
-
-
 func DeclType(form int, ident string, size int) *Globals.Type {
   typ := Globals.NewType(form);
   typ.size = size;
-  return DeclAlias(ident, typ);
+  return DeclObj(Object.TYPE, ident, typ).typ;
+}
+
+
+func DeclAlias(ident string, typ *Globals.Type) *Globals.Type {
+	alias := Globals.NewType(Type.ALIAS);
+	alias.elt = typ;
+	return DeclObj(Object.TYPE, ident, alias).typ;
 }
 
 

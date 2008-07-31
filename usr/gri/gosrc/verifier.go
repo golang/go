@@ -50,6 +50,8 @@ func VerifyType(typ *Globals.Type) {
 		break;
 	case Type.ANY:
 		break;
+	case Type.ALIAS:
+		break;
 	case Type.ARRAY:
 		break;
 	case Type.STRUCT:

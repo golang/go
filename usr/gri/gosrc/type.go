@@ -8,7 +8,7 @@ export
 	UNDEF, BAD, NIL,
 	BOOL, UINT, INT, FLOAT, STRING,
 	ANY,
-	ARRAY, STRUCT, INTERFACE, MAP, CHANNEL, FUNCTION, POINTER, REFERENCE
+	ALIAS, ARRAY, STRUCT, INTERFACE, MAP, CHANNEL, FUNCTION, POINTER, REFERENCE
 
 const /* form */ (
 	// internal types
@@ -18,7 +18,7 @@ const /* form */ (
 	// 'any' type
 	ANY;
 	// composite types
-	ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; POINTER; REFERENCE;
+	ALIAS; ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; POINTER; REFERENCE;
 )
 
 
@@ -48,6 +48,7 @@ func FormStr(form int) string {
 	case FLOAT: return "FLOAT";
 	case STRING: return "STRING";
 	case ANY: return "ANY";
+	case ALIAS: return "ALIAS";
 	case ARRAY: return "ARRAY";
 	case STRUCT: return "STRUCT";
 	case INTERFACE: return "INTERFACE";
