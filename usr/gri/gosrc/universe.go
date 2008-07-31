@@ -101,8 +101,7 @@ func Register(typ *Globals.Type) *Globals.Type {
 }
 
 
-export Init
-func Init() {
+func init() {
 	scope = Globals.NewScope(nil);  // universe has no parent
 	types = Globals.NewList();
 	

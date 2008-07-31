@@ -4,13 +4,13 @@
 
 package Importer
 
+import Utils "utils"
 import Globals "globals"
 import Object "object"
 import Type "type"
 import Universe "universe"
 
 
-export Importer  // really only want to export Import()
 type Importer struct {
 	comp *Globals.Compilation;
 	debug bool;
@@ -74,7 +74,7 @@ func (I *Importer) ReadString() string {
 }
 
 
-func (I *Importer) ReadObjTag() int {
+func (I *Importer) ReadObjectTag() int {
 	tag := I.ReadInt();
 	if tag < 0 {
 		panic "tag < 0";
@@ -125,14 +125,21 @@ func (I *Importer) ReadScope() *Globals.Scope {
 	}
 
 	scope := Globals.NewScope(nil);
-	for n := I.ReadInt(); n > 0; n-- {
-		tag := I.ReadObjTag();
-		scope.Insert(I.ReadObject(tag));
+	for {
+		tag := I.ReadObjectTag();
+		if tag == 0 {
+			break;
+		}
+		// InsertImport only needed for package scopes
+		// but ok to use always
+		scope.InsertImport(I.ReadObject(tag));
 	}
-
+	
 	if I.debug {
 		print " }";
 	}
+	
+	return scope;
 }
 
 
@@ -229,13 +236,12 @@ func (I *Importer) ReadType() *Globals.Type {
 
 	case Type.FUNCTION:
 		typ.flags = I.ReadInt();
-		fallthrough;
-	case Type.STRUCT: fallthrough;
-	case Type.INTERFACE:
 		typ.scope = I.ReadScope();
 
-	case Type.POINTER: fallthrough;
-	case Type.REFERENCE:
+	case Type.STRUCT, Type.INTERFACE:
+		typ.scope = I.ReadScope();
+
+	case Type.POINTER, Type.REFERENCE:
 		typ.elt = I.ReadType();
 	}
 
@@ -275,7 +281,7 @@ func (I *Importer) ReadPackage() *Globals.Package {
 
 func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.Package {
 	I.comp = comp;
-	I.debug = false;
+	I.debug = comp.flags.debug;
 	I.buf = "";
 	I.pos = 0;
 	I.npkgs = 0;
@@ -302,7 +308,7 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 
 	pkg := I.ReadPackage();
 	for {
-		tag := I.ReadObjTag();
+		tag := I.ReadObjectTag();
 		if tag == 0 {
 			break;
 		}
@@ -316,4 +322,11 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 	}
 	
 	return pkg;
+}
+
+
+export Import
+func Import(comp* Globals.Compilation, pkg_name string) *Globals.Package {
+	var I Importer;
+	return (&I).Import(comp, Utils.FixExt(pkg_name));
 }

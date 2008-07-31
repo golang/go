@@ -17,22 +17,18 @@ import Printer "printer"
 
 
 export Compile
-func Compile(file_name string, verbose int) {
+func Compile(comp *Globals.Compilation, file_name string) {
 	src, ok := sys.readfile(file_name);
 	if !ok {
 		print "cannot open ", file_name, "\n"
 		return;
 	}
 	
-	Universe.Init();  // TODO eventually this should be only needed once
-	
-	comp := Globals.NewCompilation();
-
 	scanner := new(Scanner.Scanner);
 	scanner.Open(file_name, src);
 
 	parser := new(Parser.Parser);
-	parser.Open(comp, scanner, verbose);
+	parser.Open(comp, scanner);
 
 	print "parsing ", file_name, "\n";
 	parser.ParseProgram();
@@ -40,12 +36,9 @@ func Compile(file_name string, verbose int) {
 		return;
 	}
 	
-	/*
 	// export
-	exp := new(Export.Exporter);
-	exp.Export(comp, Utils.FixExt(Utils.BaseName(file_name)));
-	
-	// print export
-	Printer.PrintObject(comp, comp.pkgs[0].obj, false);
-	*/
+	if comp.flags.semantic_checks {
+		Printer.PrintObject(comp, comp.pkgs[0].obj, false);
+		Export.Export(comp, file_name);
+	}
 }

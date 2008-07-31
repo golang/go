@@ -4,13 +4,13 @@
 
 package Exporter
 
+import Utils "utils"
 import Globals "globals"
 import Object "object"
 import Type "type"
 import Universe "universe"
 
 
-export Exporter  // really only want to export Export()
 type Exporter struct {
 	comp *Globals.Compilation;
 	debug bool;
@@ -65,7 +65,7 @@ func (E *Exporter) WriteString(s string) {
 }
 
 
-func (E *Exporter) WriteObjTag(tag int) {
+func (E *Exporter) WriteObjectTag(tag int) {
 	if tag < 0 {
 		panic "tag < 0";
 	}
@@ -113,24 +113,13 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
 		print " {";
 	}
 
-	// determine number of objects to export
-	n := 0;
 	for p := scope.entries.first; p != nil; p = p.next {
 		if p.obj.exported {
-			n++;
-		}			
-	}
-	E.WriteInt(n);
-	
-	// export the objects, if any
-	if n > 0 {
-		for p := scope.entries.first; p != nil; p = p.next {
-			if p.obj.exported {
-				E.WriteObject(p.obj);
-			}			
+			E.WriteObject(p.obj);
 		}
 	}
-
+	E.WriteObjectTag(0);  // terminator
+	
 	if E.debug {
 		print " }";
 	}
@@ -144,11 +133,11 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 
 	if obj.kind == Object.TYPE && obj.typ.obj == obj {
 		// primary type object - handled entirely by WriteType()
-		E.WriteObjTag(Object.PTYPE);
+		E.WriteObjectTag(Object.PTYPE);
 		E.WriteType(obj.typ);
 
 	} else {
-		E.WriteObjTag(obj.kind);
+		E.WriteObjectTag(obj.kind);
 		E.WriteString(obj.ident);
 		E.WriteType(obj.typ);
 		E.WritePackage(E.comp.pkgs[obj.pnolev]);
@@ -252,7 +241,7 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
 
 func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	E.comp = comp;
-	E.debug = false;
+	E.debug = comp.flags.debug;
 	E.pos = 0;
 	E.pkg_ref = 0;
 	E.type_ref = 0;
@@ -275,13 +264,8 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	
 	pkg := comp.pkgs[0];
 	E.WritePackage(pkg);
-	for p := pkg.scope.entries.first; p != nil; p = p.next {
-		if p.obj.exported {
-			E.WriteObject(p.obj);
-		}
-	}
-	E.WriteObjTag(0);
-
+	E.WriteScope(pkg.scope);
+	
 	if E.debug {
 		print "\n(", E.pos, " bytes)\n";
 	}
@@ -292,4 +276,11 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	if !ok {
 		panic "export failed";
 	}
+}
+
+
+export Export
+func Export(comp* Globals.Compilation, pkg_name string) {
+	var E Exporter;
+	(&E).Export(comp, Utils.FixExt(Utils.BaseName(pkg_name)));
 }

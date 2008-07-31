@@ -27,3 +27,16 @@ func FixExt(s string) string {
 	}
 	return s + ".7";
 }
+
+
+export GetEnv
+func GetEnv(key string) string {
+	n := len(key);
+	for i := 0; i < sys.envc(); i++ {
+		v := sys.envv(i);
+		if v[0 : n] == key {
+			return v[n + 1 : len(v)];  // +1: skip "="
+		}
+	}
+	return "";
+}
