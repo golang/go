@@ -6,7 +6,7 @@
 
 package decls
 
-// import "base"  // this fails
+import "base"
 import base "base"
 import base2 "base"
 

@@ -27,7 +27,7 @@ type Parser struct {
 	val string;  // token value (for IDENT, NUMBER, STRING only)
 
 	// Semantic analysis
-	level int;  // 0 = global scope, -1 = function scope of global functions, etc.
+	level int;  // 0 = global scope, -1 = function/struct scope of global functions/structs, etc.
 	top_scope *Globals.Scope;
 	undef_types *Globals.List;
 	exports *Globals.List;
@@ -486,6 +486,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
 	P.Trace("AnonymousSignature");
 	
 	P.OpenScope();
+	P.level--;
 	sig := P.top_scope;
 	p0 := 0;
 	
@@ -505,6 +506,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
 	
 	r0 := sig.entries.len_;
 	P.TryResult();
+	P.level++;
 	P.CloseScope();
 	
 	P.Ecart();
@@ -525,6 +527,7 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
 	P.Trace("NamedSignature");
 	
 	P.OpenScope();
+	P.level--;
 	sig := P.top_scope;
 	p0 := 0;
 
@@ -546,6 +549,7 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
 	
 	r0 := sig.entries.len_;
 	P.TryResult();
+	P.level++;
 	P.CloseScope();
 	
 	P.Ecart();
@@ -569,11 +573,13 @@ func (P *Parser) ParseMethodDecl() {
 	
 	P.ParseIdent();
 	P.OpenScope();
+	P.level--;
 	sig := P.top_scope;
 	p0 := 0;
 	P.ParseParameters();
 	r0 := sig.entries.len_;
 	P.TryResult();
+	P.level++;
 	P.CloseScope();
 	P.Optional(Scanner.SEMICOLON);
 	
@@ -587,11 +593,13 @@ func (P *Parser) ParseInterfaceType() *Globals.Type {
 	P.Expect(Scanner.INTERFACE);
 	P.Expect(Scanner.LBRACE);
 	P.OpenScope();
+	P.level--;
 	typ := Globals.NewType(Type.INTERFACE);
 	typ.scope = P.top_scope;
 	for P.tok == Scanner.IDENT {
 		P.ParseMethodDecl();
 	}
+	P.level++;
 	P.CloseScope();
 	P.Expect(Scanner.RBRACE);
 	
@@ -628,6 +636,7 @@ func (P *Parser) ParseStructType() *Globals.Type {
 	P.Expect(Scanner.STRUCT);
 	P.Expect(Scanner.LBRACE);
 	P.OpenScope();
+	P.level--;
 	typ := Globals.NewType(Type.STRUCT);
 	typ.scope = P.top_scope;
 	for P.tok == Scanner.IDENT {
@@ -637,6 +646,7 @@ func (P *Parser) ParseStructType() *Globals.Type {
 		}
 	}
 	P.Optional(Scanner.SEMICOLON);
+	P.level++;
 	P.CloseScope();
 	P.Expect(Scanner.RBRACE);
 	
@@ -745,8 +755,12 @@ func (P *Parser) ParseBlock(sig *Globals.Scope) {
 	if sig != nil {
 		P.level--;
 		// add function parameters to scope
+		// TODO do we need to make a copy? what if we change obj fields?
 		scope := P.top_scope;
 		for p := sig.entries.first; p != nil; p = p.next {
+			if p.obj.pnolev != P.level {
+				panic "incorrect level";
+			}
 			scope.Insert(p.obj)
 		}
 	}
@@ -1560,12 +1574,13 @@ func (P *Parser) ParseImportSpec() {
 		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
 		pkg := Import.Import(P.comp, pkg_name);
 		if pkg != nil {
+			pno := pkg.obj.pnolev;  // preserve pno
 			if obj == nil {
 				// use original package name
 				obj = pkg.obj;
-				P.Declare(obj);
+				P.Declare(obj);  // this changes (pkg.)obj.pnolev!
 			}
-			obj.pnolev = pkg.obj.pnolev;
+			obj.pnolev = pno;  // correct pno
 		} else {
 			P.Error(P.pos, `import of "` + pkg_name + `" failed`);
 		}
@@ -1836,7 +1851,10 @@ func (P *Parser) ParseProgram() {
 	}
 	P.Optional(Scanner.SEMICOLON);
 	
-	{	P.OpenScope();
+	{	if P.level != 0 {
+			panic "incorrect scope level";
+		}
+		P.OpenScope();
 		pkg.scope = P.top_scope;
 		for P.tok == Scanner.IMPORT {
 			P.ParseDecl(false, Scanner.IMPORT);
@@ -1851,6 +1869,9 @@ func (P *Parser) ParseProgram() {
 		P.ResolveUndefTypes();
 		P.MarkExports();
 		P.CloseScope();
+		if P.level != 0 {
+			panic "incorrect scope level";
+		}
 	}
 	
 	P.CloseScope();

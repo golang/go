@@ -34,3 +34,28 @@ const /* flag */ (
 // The 'Type' declaration should be here as well, but 6g cannot handle
 // this due to cross-package circular references. For now it's all in
 // globals.go.
+
+
+export FormStr
+func FormStr(form int) string {
+	switch form {
+	case UNDEF: return "UNDEF";
+	case BAD: return "BAD";
+	case NIL: return "NIL";
+	case BOOL: return "BOOL";
+	case UINT: return "UINT";
+	case INT: return "INT";
+	case FLOAT: return "FLOAT";
+	case STRING: return "STRING";
+	case ANY: return "ANY";
+	case ARRAY: return "ARRAY";
+	case STRUCT: return "STRUCT";
+	case INTERFACE: return "INTERFACE";
+	case MAP: return "MAP";
+	case CHANNEL: return "CHANNEL";
+	case FUNCTION: return "FUNCTION";
+	case POINTER: return "POINTER";
+	case REFERENCE: return "REFERENCE";
+	}
+	return "<unknown Type form>";
+}

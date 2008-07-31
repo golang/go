@@ -15,7 +15,7 @@ type Exporter struct {
 	comp *Globals.Compilation;
 	debug bool;
 	buf [4*1024] byte;
-	pos int;
+	buf_pos int;
 	pkg_ref int;
 	type_ref int;
 };
@@ -27,8 +27,8 @@ func (E *Exporter) WritePackage(pkg *Globals.Package);
 
 
 func (E *Exporter) WriteByte(x byte) {
-	E.buf[E.pos] = x;
-	E.pos++;
+	E.buf[E.buf_pos] = x;
+	E.buf_pos++;
 	/*
 	if E.debug {
 		print " ", x;
@@ -71,7 +71,7 @@ func (E *Exporter) WriteObjectTag(tag int) {
 	}
 	E.WriteInt(tag);
 	if E.debug {
-		print "\nObj: ", tag;  // obj kind
+		print "\n", Object.KindStr(tag);
 	}
 }
 
@@ -79,10 +79,10 @@ func (E *Exporter) WriteObjectTag(tag int) {
 func (E *Exporter) WriteTypeTag(tag int) {
 	E.WriteInt(tag);
 	if E.debug {
-		if tag > 0 {
-			print "\nTyp ", E.type_ref, ": ", tag;  // type form
+		if tag >= 0 {
+			print " [T", tag, "]";  // type ref
 		} else {
-			print " [Typ ", -tag, "]";  // type ref
+			print "\nT", E.type_ref, ": ", Type.FormStr(-tag);
 		}
 	}
 }
@@ -91,20 +91,12 @@ func (E *Exporter) WriteTypeTag(tag int) {
 func (E *Exporter) WritePackageTag(tag int) {
 	E.WriteInt(tag);
 	if E.debug {
-		if tag > 0 {
-			print "\nPkg ", E.pkg_ref, ": ", tag;  // package no
+		if tag >= 0 {
+			print " [P", tag, "]";  // package ref
 		} else {
-			print " [Pkg ", -tag, "]";  // package ref
+			print "\nP", E.pkg_ref, ": ", -tag;  // package no
 		}
 	}
-}
-
-
-func (E *Exporter) WriteTypeField(fld *Globals.Object) {
-	if fld.kind != Object.VAR {
-		panic "fld.kind != Object.VAR";
-	}
-	E.WriteType(fld.typ);
 }
 
 
@@ -118,7 +110,7 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
 			E.WriteObject(p.obj);
 		}
 	}
-	E.WriteObjectTag(0);  // terminator
+	E.WriteObjectTag(Object.EOS);
 	
 	if E.debug {
 		print " }";
@@ -127,8 +119,8 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
 
 
 func (E *Exporter) WriteObject(obj *Globals.Object) {
-	if obj == nil || !obj.exported {
-		panic "obj == nil || !obj.exported";
+	if !obj.exported {
+		panic "!obj.exported";
 	}
 
 	if obj.kind == Object.TYPE && obj.typ.obj == obj {
@@ -156,7 +148,6 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 			E.WriteInt(0);  // should be the correct address/offset
 			
 		default:
-			print "obj.kind = ", obj.kind, "\n";
 			panic "UNREACHABLE";
 		}
 	}
@@ -164,19 +155,16 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 
 
 func (E *Exporter) WriteType(typ *Globals.Type) {
-	if typ == nil {
-		panic "typ == nil";
-	}
-
 	if typ.ref >= 0 {
-		E.WriteTypeTag(-typ.ref);  // type already exported
+		E.WriteTypeTag(typ.ref);  // type already exported
 		return;
 	}
 
-	if typ.form <= 0 {
-		panic "typ.form <= 0";
+	if -typ.form >= 0 {
+		panic "-typ.form >= 0";  // conflict with ref numbers
 	}
-	E.WriteTypeTag(typ.form);
+	
+	E.WriteTypeTag(-typ.form);
 	typ.ref = E.type_ref;
 	E.type_ref++;
 
@@ -214,7 +202,6 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 		E.WriteType(typ.elt);
 
 	default:
-		print "typ.form = ", typ.form, "\n";
 		panic "UNREACHABLE";
 	}
 }
@@ -222,14 +209,15 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 
 func (E *Exporter) WritePackage(pkg *Globals.Package) {
 	if pkg.ref >= 0 {
-		E.WritePackageTag(-pkg.ref);  // package already exported
+		E.WritePackageTag(pkg.ref);  // package already exported
 		return;
 	}
 
-	if Object.PACKAGE <= 0 {
-		panic "Object.PACKAGE <= 0";
+	if -Object.PACKAGE >= 0 {
+		panic "-Object.PACKAGE >= 0";  // conflict with ref numbers
 	}
-	E.WritePackageTag(Object.PACKAGE);
+	
+	E.WritePackageTag(-Object.PACKAGE);
 	pkg.ref = E.pkg_ref;
 	E.pkg_ref++;
 
@@ -242,7 +230,7 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
 func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	E.comp = comp;
 	E.debug = comp.flags.debug;
-	E.pos = 0;
+	E.buf_pos = 0;
 	E.pkg_ref = 0;
 	E.type_ref = 0;
 	
@@ -267,10 +255,10 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	E.WriteScope(pkg.scope);
 	
 	if E.debug {
-		print "\n(", E.pos, " bytes)\n";
+		print "\n(", E.buf_pos, " bytes)\n";
 	}
 	
-	data := string(E.buf)[0 : E.pos];
+	data := string(E.buf)[0 : E.buf_pos];
 	ok := sys.writefile(file_name, data);
 	
 	if !ok {
