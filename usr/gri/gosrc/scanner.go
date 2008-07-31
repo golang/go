@@ -4,6 +4,9 @@
 
 package Scanner
 
+import Utils "utils"
+
+
 export
 	ILLEGAL, EOF, IDENT, STRING, NUMBER,
 	COMMA, COLON, SEMICOLON, PERIOD,
@@ -231,6 +234,18 @@ func TokenName(tok int) string {
 }
 
 
+func init() {
+	Keywords = new(map [string] int);
+	
+	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
+	  Keywords[TokenName(i)] = i;
+	}
+	
+	// Provide column information in error messages for gri only...
+	VerboseMsgs = Utils.GetEnv("USER") == "gri";
+}
+
+
 func is_whitespace(ch int) bool {
 	return ch == ' ' || ch == '\r' || ch == '\n' || ch == '\t';
 }
@@ -370,28 +385,6 @@ bad:
 }
 
 
-func IsUser(username string) bool {
-	for i := 0; i < sys.envc(); i++ {
-		if sys.envv(i) == "USER=" + username {
-			return true;
-		}
-	}
-	return false;
-}
-
-
-func Init() {
-	Keywords = new(map [string] int);
-	
-	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
-	  Keywords[TokenName(i)] = i;
-	}
-	
-	// Provide column information in error messages for gri only...
-	VerboseMsgs = IsUser("gri");
-}
-
-
 // Compute (line, column) information for a given source position.
 func (S *Scanner) LineCol(pos int) (line, col int) {
 	line = 1;
@@ -416,13 +409,21 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
 func (S *Scanner) Error(pos int, msg string) {
 	const errdist = 10;
 	delta := pos - S.errpos;  // may be negative!
-	if delta < errdist || delta > errdist || S.nerrors == 0 {
-		line, col := S.LineCol(pos);
-		if VerboseMsgs {
-			print S.filename, ":", line, ":", col, ": ", msg, "\n";
-		} else {
-			print S.filename, ":", line,           ": ", msg, "\n";
+	if delta < 0 {
+		delta = -delta;
+	}
+	if delta > errdist || S.nerrors == 0 /* always report first error */ {
+		print S.filename;
+		if pos >= 0 {
+			// print position
+			line, col := S.LineCol(pos);
+			if VerboseMsgs {
+				print ":", line, ":", col;
+			} else {
+				print ":", line;
+			}
 		}
+		print ": ", msg, "\n";
 		S.nerrors++;
 		S.errpos = pos;
 	}
@@ -434,10 +435,6 @@ func (S *Scanner) Error(pos int, msg string) {
 
 
 func (S *Scanner) Open(filename, src string) {
-	if Keywords == nil {
-		Init();
-	}
-
 	S.filename = filename;
 	S.nerrors = 0;
 	S.errpos = 0;

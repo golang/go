@@ -14,13 +14,10 @@ import Import "import"
 import AST "ast"
 
 
-// So I can submit and have a running parser for now...
-const EnableSemanticTests = false;
-
-
 export Parser
 type Parser struct {
 	comp *Globals.Compilation;
+	semantic_checks bool;
 	verbose, indent int;
 	S *Scanner.Scanner;
 	
@@ -74,9 +71,10 @@ func (P *Parser) Next() {
 }
 
 
-func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, verbose int) {
+func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner) {
 	P.comp = comp;
-	P.verbose = verbose;
+	P.semantic_checks = comp.flags.semantic_checks;
+	P.verbose = comp.flags.verbose;
 	P.indent = 0;
 	P.S = S;
 	P.Next();
@@ -132,7 +130,7 @@ func (P *Parser) Lookup(ident string) *Globals.Object {
 
 
 func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
-	if !EnableSemanticTests {
+	if !P.semantic_checks {
 		return;
 	}
 	obj.pnolev = P.level;
@@ -296,7 +294,7 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 		ident = P.ParseIdent();
 	}
 	
-	if EnableSemanticTests {
+	if P.semantic_checks {
 		obj := P.Lookup(ident);
 		if obj == nil {
 			P.Error(pos, `"` + ident + `" is not declared`);
@@ -355,7 +353,7 @@ func (P *Parser) ParseType() *Globals.Type {
 func (P *Parser) ParseTypeName() *Globals.Type {
 	P.Trace("TypeName");
 	
-	if EnableSemanticTests {
+	if P.semantic_checks {
 		pos := P.pos;
 		obj := P.ParseQualifiedIdent(-1, "");
 		typ := obj.typ;
@@ -496,7 +494,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
 	
 	if P.tok == Scanner.PERIOD {
 		p0 = sig.entries.len_;
-		if (EnableSemanticTests && p0 != 1) {
+		if (P.semantic_checks && p0 != 1) {
 			P.Error(recv_pos, "must have exactly one receiver")
 			panic "UNIMPLEMENTED (ParseAnonymousSignature)";
 			// TODO do something useful here
@@ -534,7 +532,7 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
 		recv_pos := P.pos;
 		P.ParseParameters();
 		p0 = sig.entries.len_;
-		if (EnableSemanticTests && p0 != 1) {
+		if (P.semantic_checks && p0 != 1) {
 			print "p0 = ", p0, "\n";
 			P.Error(recv_pos, "must have exactly one receiver")
 			panic "UNIMPLEMENTED (ParseNamedSignature)";
@@ -653,7 +651,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 	P.Expect(Scanner.MUL);
 	typ := Globals.NewType(Type.POINTER);
 	
-	if EnableSemanticTests {
+	if P.semantic_checks {
 		if P.tok == Scanner.IDENT {
 			if P.Lookup(P.val) == nil {
 				// implicit forward declaration
@@ -1122,7 +1120,7 @@ func (P *Parser) ParseExpression() {
 func (P *Parser) ConvertToExprList(pos_list, ident_list, expr_list *Globals.List) {
 	for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
 		pos, ident := p.val, q.str;
-		if EnableSemanticTests {
+		if P.semantic_checks {
 			obj := P.Lookup(ident);
 			if obj == nil {
 				P.Error(pos, `"` + ident + `" is not declared`);
@@ -1208,24 +1206,24 @@ func (P *Parser) ParseSimpleStat() {
 	switch P.tok {
 	case Scanner.COLON:
 		// label declaration
-		if EnableSemanticTests && ident_list.len_ != 1 {
+		if P.semantic_checks && ident_list.len_ != 1 {
 			P.Error(P.pos, "illegal label declaration");
 		}
 		P.Next();
 		
 	case Scanner.DEFINE:
 		// variable declaration
-		if EnableSemanticTests && ident_list.len_ == 0 {
+		if P.semantic_checks && ident_list.len_ == 0 {
 			P.Error(P.pos, "illegal left-hand side for declaration");
 		}
 		P.Next();
 		pos := P.pos;
 		val_list := P.ParseExpressionList();
-		if EnableSemanticTests && val_list.len_ != ident_list.len_ {
+		if P.semantic_checks && val_list.len_ != ident_list.len_ {
 			P.Error(pos, "number of expressions does not match number of variables");
 		}
 		// declare variables
-		if EnableSemanticTests {
+		if P.semantic_checks {
 			for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
 				obj := Globals.NewObject(p.val, Object.VAR, q.str);
 				P.Declare(obj);
@@ -1248,13 +1246,13 @@ func (P *Parser) ParseSimpleStat() {
 		P.Next();
 		pos := P.pos;
 		val_list := P.ParseExpressionList();
-		if EnableSemanticTests && val_list.len_ != expr_list.len_ {
+		if P.semantic_checks && val_list.len_ != expr_list.len_ {
 			P.Error(pos, "number of expressions does not match number of variables");
 		}
 		
 	default:
 		P.ConvertToExprList(pos_list, ident_list, expr_list);
-		if EnableSemanticTests && expr_list.len_ != 1 {
+		if P.semantic_checks && expr_list.len_ != 1 {
 			P.Error(P.pos, "no expression list allowed");
 		}
 		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
@@ -1557,11 +1555,10 @@ func (P *Parser) ParseImportSpec() {
 		obj = P.ParseIdentDecl(Object.PACKAGE);
 	}
 	
-	if (EnableSemanticTests && P.tok == Scanner.STRING) {
+	if (P.semantic_checks && P.tok == Scanner.STRING) {
 		// TODO eventually the scanner should strip the quotes
 		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
-		imp := new(Import.Importer);
-		pkg := imp.Import(P.comp, Utils.FixExt(Utils.BaseName(pkg_name)));
+		pkg := Import.Import(P.comp, pkg_name);
 		if pkg != nil {
 			if obj == nil {
 				// use original package name
@@ -1776,7 +1773,7 @@ func (P *Parser) ParseDeclaration() {
 // Program
 
 func (P *Parser) ResolveUndefTypes() {
-	if !EnableSemanticTests {
+	if !P.semantic_checks {
 		return;
 	}
 	
@@ -1798,7 +1795,7 @@ func (P *Parser) ResolveUndefTypes() {
 
 
 func (P *Parser) MarkExports() {
-	if !EnableSemanticTests {
+	if !P.semantic_checks {
 		return;
 	}
 	
@@ -1820,7 +1817,7 @@ func (P *Parser) MarkExports() {
 			}
 		} else {
 			// TODO need to report proper src position
-			P.Error(0, `"` + p.str + `" is not declared - cannot be exported`);
+			P.Error(-1, `"` + p.str + `" is not declared - cannot be exported`);
 		}
 	}
 }

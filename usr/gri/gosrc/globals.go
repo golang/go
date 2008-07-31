@@ -75,8 +75,17 @@ type Scope struct {
 }
 
 
+export Flags;
+type Flags struct {
+	debug bool;
+	semantic_checks bool;
+	verbose int;
+}
+
+
 export Compilation
 type Compilation struct {
+	flags *Flags;
 	// TODO use open arrays eventually
 	pkgs [256] *Package;  // pkgs[0] is the current package
 	npkgs int;
@@ -134,8 +143,9 @@ func NewScope(parent *Scope) *Scope {
 
 
 export NewCompilation;
-func NewCompilation() *Compilation {
+func NewCompilation(flags *Flags) *Compilation {
 	comp := new(Compilation);
+	comp.flags = flags;
 	return comp;
 }
 

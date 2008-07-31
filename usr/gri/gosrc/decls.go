@@ -121,4 +121,4 @@ func (p *T4) m5(a, b int, c float) (z T5, ok bool) {
 
 export c0, c1, v2, v3
 export T0, T1, T4, T4, T4, M0, M5, I2, f0, f1
-// export Node0, Node1 // this fails
+export Node0, Node1

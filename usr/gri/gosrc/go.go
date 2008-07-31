@@ -5,19 +5,22 @@
 package main
 
 import Build "build"
+import Globals "globals"
 import Compilation "compilation"
 
+
+// For now we are not using the flags package to minimize
+// external dependencies, and because the requirements are
+// very minimal at this point.
 
 func PrintHelp() {
   print "go in go (", Build.time, ")\n";
   print "usage:\n";
-  print "  go { -v | -vv | file }\n";
-  /*
-  printf("flags:\n");
-  for (int i = 0; Flags[i].name != NULL; i++) {
-    printf("  %s  %s\n", Flags[i].name, Flags[i].help);
-  }
-  */
+  print "  go { flag | file }\n";
+  print "  -d  print debug information\n";
+  print "  -s  enable semantic checks\n";
+  print "  -v  verbose mode\n";
+  print "  -vv  very verbose mode\n";
 }
 
 
@@ -27,17 +30,22 @@ func main() {
 		sys.exit(1);
 	}
 	
-	verbose := 0;
+	// collect flags and files
+	flags := new(Globals.Flags);
+	files := Globals.NewList();
 	for i := 1; i < sys.argc(); i++ {
-		switch sys.argv(i) {
-		case "-v":
-			verbose = 1;
-			continue;
-		case "-vv":
-			verbose = 2;
-			continue;
+		switch arg := sys.argv(i); arg {
+		case "-d": flags.debug = true;
+		case "-s": flags.semantic_checks = true;
+		case "-v": flags.verbose = 1;
+		case "-vv": flags.verbose = 2;
+		default: files.AddStr(arg);
 		}
-		
-		Compilation.Compile(sys.argv(i), verbose);
+	}
+	
+	// compile files
+	for p := files.first; p != nil; p = p.next {
+		comp := Globals.NewCompilation(flags);
+		Compilation.Compile(comp, p.str);
 	}
 }
