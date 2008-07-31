@@ -11,26 +11,22 @@ import Universe "universe"
 // ----------------------------------------------------------------------------
 // Expressions
 
-export Expr
-type Expr interface {
+export BinaryExpr
+type BinaryExpr struct {
+	typ_ *Globals.Type;
+	op int;
+	x, y Globals.Expr;
 }
 
 
-export BinaryExpr
-type BinaryExpr struct {
-	typ *Globals.Type;
-	op int;
-	x, y Expr;
+
+func (x *BinaryExpr) typ() *Globals.Type {
+	return x.typ_;
 }
 
 
 // ----------------------------------------------------------------------------
 // Statements
-
-export Stat
-type Stat interface {
-}
-
 
 export Block
 type Block struct {
@@ -40,7 +36,7 @@ type Block struct {
 
 export IfStat
 type IfStat struct {
-	cond Expr;
-	then_ Stat;
-	else_ Stat;
+	cond Globals.Expr;
+	then_ Globals.Stat;
+	else_ Globals.Stat;
 }

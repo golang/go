@@ -109,6 +109,7 @@ func init() {
 	
 	// Interal types
 	undef_t = Globals.NewType(Type.UNDEF);
+	Globals.Universe_undef_t = undef_t;
 	bad_t = Globals.NewType(Type.BAD);
 	nil_t = DeclType(Type.NIL, "nil", 8);
 	

@@ -149,6 +149,7 @@ func (P *Parser) Declare(obj *Globals.Object) {
 
 func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.Type {
   // Determine if we have a receiver or not.
+  // TODO do we still need this?
   if p0 > 0 && check_recv {
     // method
 	if p0 != 1 {
@@ -223,7 +224,7 @@ func (P *Parser) DeclareFunc(ident string, typ *Globals.Type) *Globals.Object {
 
 
 func (P *Parser) TryType() *Globals.Type;
-func (P *Parser) ParseExpression();
+func (P *Parser) ParseExpression() Globals.Expr;
 func (P *Parser) TryStatement() bool;
 func (P *Parser) ParseDeclaration();
 
@@ -350,6 +351,32 @@ func (P *Parser) ParseType() *Globals.Type {
 }
 
 
+func (P *Parser) ParseVarType() *Globals.Type {
+	P.Trace("VarType");
+	
+	pos := P.pos;
+	typ := P.ParseType();
+	
+	if P.semantic_checks {
+		switch typ.form {
+		case Type.ARRAY:
+			if P.comp.flags.sixg || typ.len_ >= 0 {
+				break;
+			}
+			// open arrays must be pointers
+			fallthrough;
+			
+		case Type.MAP, Type.CHANNEL, Type.FUNCTION:
+			P.Error(pos, "must be pointer to this type");
+			typ = Universe.bad_t;
+		}
+	}
+		
+	P.Ecart();
+	return typ;
+}
+
+
 func (P *Parser) ParseTypeName() *Globals.Type {
 	P.Trace("TypeName");
 	
@@ -381,7 +408,7 @@ func (P *Parser) ParseArrayType() *Globals.Type {
 		P.ParseExpression();
 	}
 	P.Expect(Scanner.RBRACK);
-	typ.elt = P.ParseType();
+	typ.elt = P.ParseVarType();
 	P.Ecart();
 	
 	return typ;
@@ -403,7 +430,7 @@ func (P *Parser) ParseChannelType() *Globals.Type {
 	default:
 		typ.flags = Type.SEND + Type.RECV;
 	}
-	typ.elt = P.ParseType();
+	typ.elt = P.ParseVarType();
 	P.Ecart();
 	
 	return typ;
@@ -414,7 +441,7 @@ func (P *Parser) ParseVarDeclList() {
 	P.Trace("VarDeclList");
 	
 	list := P.ParseIdentDeclList(Object.VAR);
-	typ := P.ParseType();  // TODO should check completeness of types
+	typ := P.ParseVarType();
 	for p := list.first; p != nil; p = p.next {
 		p.obj.typ = typ;  // TODO should use/have set_type()
 	}
@@ -571,17 +598,23 @@ func (P *Parser) ParseFunctionType() *Globals.Type {
 func (P *Parser) ParseMethodDecl() {
 	P.Trace("MethodDecl");
 	
-	P.ParseIdent();
+	pos := P.pos;
+	ident := P.ParseIdent();
 	P.OpenScope();
 	P.level--;
 	sig := P.top_scope;
-	p0 := 0;
+	// dummy receiver (give it a name so it won't conflict with unnamed result)
+	sig.Insert(Globals.NewObject(pos, Object.VAR, ".recv"));
 	P.ParseParameters();
 	r0 := sig.entries.len_;
 	P.TryResult();
 	P.level++;
 	P.CloseScope();
 	P.Optional(Scanner.SEMICOLON);
+	
+	obj := Globals.NewObject(pos, Object.FUNC, ident);
+	obj.typ = MakeFunctionType(sig, 1, r0, true);
+	P.Declare(obj);
 	
 	P.Ecart();
 }
@@ -614,9 +647,9 @@ func (P *Parser) ParseMapType() *Globals.Type {
 	P.Expect(Scanner.MAP);
 	P.Expect(Scanner.LBRACK);
 	typ := Globals.NewType(Type.MAP);
-	typ.key = P.ParseType();
+	typ.key = P.ParseVarType();
 	P.Expect(Scanner.RBRACK);
-	typ.elt = P.ParseType();
+	typ.elt = P.ParseVarType();
 	P.Ecart();
 	
 	return typ;
@@ -754,14 +787,10 @@ func (P *Parser) ParseBlock(sig *Globals.Scope) {
 	P.OpenScope();
 	if sig != nil {
 		P.level--;
-		// add function parameters to scope
-		// TODO do we need to make a copy? what if we change obj fields?
+		// add copies of the formal parameters to the function scope
 		scope := P.top_scope;
 		for p := sig.entries.first; p != nil; p = p.next {
-			if p.obj.pnolev != P.level {
-				panic "incorrect level";
-			}
-			scope.Insert(p.obj)
+			scope.Insert(p.obj.Copy())
 		}
 	}
 	if P.tok != Scanner.RBRACE && P.tok != Scanner.SEMICOLON {
@@ -798,7 +827,7 @@ func (P *Parser) ParseExpressionList() *Globals.List {
 }
 
 
-func (P *Parser) ParseNew() {
+func (P *Parser) ParseNew() Globals.Expr {
 	P.Trace("New");
 	
 	P.Expect(Scanner.NEW);
@@ -811,16 +840,18 @@ func (P *Parser) ParseNew() {
 	P.Expect(Scanner.RPAREN);
 	
 	P.Ecart();
+	return nil;
 }
 
 
-func (P *Parser) ParseFunctionLit() {
+func (P *Parser) ParseFunctionLit() Globals.Expr {
 	P.Trace("FunctionLit");
 	
 	typ := P.ParseFunctionType();
 	P.ParseBlock(typ.scope);
 	
 	P.Ecart();
+	return nil;
 }
 
 
@@ -847,16 +878,17 @@ func (P *Parser) ParseExpressionPairList() {
 }
 
 
-func (P *Parser) ParseBuiltinCall() {
+func (P *Parser) ParseBuiltinCall() Globals.Expr {
 	P.Trace("BuiltinCall");
 	
 	P.ParseExpressionList();  // TODO should be optional
 	
 	P.Ecart();
+	return nil;
 }
 
 
-func (P *Parser) ParseCompositeLit(typ *Globals.Type) {
+func (P *Parser) ParseCompositeLit(typ *Globals.Type) Globals.Expr {
 	P.Trace("CompositeLit");
 	
 	// TODO I think we should use {} instead of () for
@@ -894,10 +926,11 @@ func (P *Parser) ParseCompositeLit(typ *Globals.Type) {
 	P.Expect(paren);
 
 	P.Ecart();
+	return nil;
 }
 
 
-func (P *Parser) ParseOperand(pos int, ident string) {
+func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
 	P.Trace("Operand");
 
 	if pos < 0 && P.tok == Scanner.IDENT {
@@ -954,10 +987,11 @@ func (P *Parser) ParseOperand(pos int, ident string) {
 	
 exit:
 	P.Ecart();
+	return nil;
 }
 
 
-func (P *Parser) ParseSelectorOrTypeAssertion() {
+func (P *Parser) ParseSelectorOrTypeAssertion() Globals.Expr {
 	P.Trace("SelectorOrTypeAssertion");
 	
 	P.Expect(Scanner.PERIOD);
@@ -970,10 +1004,11 @@ func (P *Parser) ParseSelectorOrTypeAssertion() {
 	}
 	
 	P.Ecart();
+	return nil;
 }
 
 
-func (P *Parser) ParseIndexOrSlice() {
+func (P *Parser) ParseIndexOrSlice() Globals.Expr {
 	P.Trace("IndexOrSlice");
 	
 	P.Expect(Scanner.LBRACK);
@@ -985,10 +1020,11 @@ func (P *Parser) ParseIndexOrSlice() {
 	P.Expect(Scanner.RBRACK);
 	
 	P.Ecart();
+	return nil;
 }
 
 
-func (P *Parser) ParseCall() {
+func (P *Parser) ParseCall() Globals.Expr {
 	P.Trace("Call");
 	
 	P.Expect(Scanner.LPAREN);
@@ -998,10 +1034,11 @@ func (P *Parser) ParseCall() {
 	P.Expect(Scanner.RPAREN);
 	
 	P.Ecart();
+	return nil;
 }
 
 
-func (P *Parser) ParsePrimaryExpr(pos int, ident string) AST.Expr {
+func (P *Parser) ParsePrimaryExpr(pos int, ident string) Globals.Expr {
 	P.Trace("PrimaryExpr");
 	
 	P.ParseOperand(pos, ident);
@@ -1037,7 +1074,7 @@ func (P *Parser) ParsePrimaryExprList() {
 }
 
 
-func (P *Parser) ParseUnaryExpr() AST.Expr {
+func (P *Parser) ParseUnaryExpr() Globals.Expr {
 	P.Trace("UnaryExpr");
 	
 	switch P.tok {
@@ -1080,10 +1117,10 @@ func Precedence(tok int) int {
 }
 
 
-func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) AST.Expr {
+func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) Globals.Expr {
 	P.Trace("BinaryExpr");
 	
-	var x AST.Expr;
+	var x Globals.Expr;
 	if pos >= 0 {
 		x = P.ParsePrimaryExpr(pos, ident);
 	} else {
@@ -1092,7 +1129,7 @@ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) AST.Expr {
 	for prec := Precedence(P.tok); prec >= prec1; prec-- {
 		for Precedence(P.tok) == prec {
 			e := new(AST.BinaryExpr);
-			e.typ = Universe.undef_t;  // TODO fix this
+			e.typ_ = Universe.undef_t;  // TODO fix this
 			e.op = P.tok;  // TODO should we use tokens or separate operator constants?
 			e.x = x;
 			P.Next();
@@ -1102,29 +1139,34 @@ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) AST.Expr {
 	}
 	
 	P.Ecart();
+	return x;
 }
 
 
 // Expressions where the first token may be an identifier which has already
 // been consumed. If the identifier is present, pos is the identifier position,
 // otherwise pos must be < 0 (and ident is ignored).
-func (P *Parser) ParseIdentExpression(pos int, ident string) {
+func (P *Parser) ParseIdentExpression(pos int, ident string) Globals.Expr {
 	P.Trace("IdentExpression");
 	indent := P.indent;
 	
-	P.ParseBinaryExpr(pos, ident, 1);
+	x := P.ParseBinaryExpr(pos, ident, 1);
 	
 	if indent != P.indent {
 		panic "imbalanced tracing code (Expression)";
 	}
 	P.Ecart();
+	return x;
 }
 
 
-func (P *Parser) ParseExpression() {
-	P.Trace("Expression");	
-	P.ParseIdentExpression(-1, "");
+func (P *Parser) ParseExpression() Globals.Expr {
+	P.Trace("Expression");
+	
+	x := P.ParseIdentExpression(-1, "");
+
 	P.Ecart();
+	return x;
 }
 
 
@@ -1280,8 +1322,10 @@ func (P *Parser) ParseSimpleStat() {
 
 func (P *Parser) ParseGoStat() {
 	P.Trace("GoStat");
+	
 	P.Expect(Scanner.GO);
 	P.ParseExpression();
+	
 	P.Ecart();
 }
 
@@ -1666,9 +1710,9 @@ func (P *Parser) ParseVarSpec(exported bool) {
 		P.Next();
 		P.ParseExpressionList();
 	} else {
-		typ := P.ParseType();
+		typ := P.ParseVarType();
 		for p := list.first; p != nil; p = p.next {
-			p.obj.typ = typ;  // TODO should use/have set_type()!
+			p.obj.typ = typ;
 		}
 		if P.tok == Scanner.ASSIGN {
 			P.Next();

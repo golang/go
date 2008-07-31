@@ -6,7 +6,7 @@ package Globals
 
 
 // The following types should really be in their respective files
-// (object.go, type.go, scope.go, package.go, compilation.go) but
+// (object.go, type.go, scope.go, package.go, compilation.go, etc.) but
 // they refer to each other and we don't know how to handle forward
 // declared pointers across packages yet.
 
@@ -21,6 +21,7 @@ type Object struct {
 	ident string;
 	typ *Type;
 	pnolev int;  // >= 0: package no., <= 0: level, 0: global level of compilation
+	scope *Scope;  // which contains the object
 }
 
 
@@ -33,7 +34,7 @@ type Type struct {
 	len_ int;  // array length, no. of parameters (w/o recv)
 	obj *Object;  // primary type object or NULL
 	key *Type;  // maps
-	elt *Type;  // arrays, maps, channels, pointers
+	elt *Type;  // aliases, arrays, maps, channels, pointers
 	scope *Scope;  // structs, interfaces, functions
 }
 
@@ -94,8 +95,24 @@ type Compilation struct {
 }
 
 
+export Expr
+type Expr interface {
+	typ() *Type;
+	// ... more to come here
+}
+
+
+export Stat
+type Stat interface {
+	// ... more to come here
+}
+
+
 // ----------------------------------------------------------------------------
 // Creation
+
+export Universe_undef_t
+var Universe_undef_t *Type  // initialized by Universe to Universe.undef_t
 
 export NewObject
 func NewObject(pos, kind int, ident string) *Object {
@@ -104,8 +121,9 @@ func NewObject(pos, kind int, ident string) *Object {
 	obj.pos = pos;
 	obj.kind = kind;
 	obj.ident = ident;
-	obj.typ = nil;  // Universe::undef_t;  (cyclic import...)
+	obj.typ = Universe_undef_t;
 	obj.pnolev = 0;
+	obj.scope = nil;
 	return obj;
 }
 
@@ -113,7 +131,7 @@ func NewObject(pos, kind int, ident string) *Object {
 export NewType
 func NewType(form int) *Type {
 	typ := new(Type);
-	typ.ref = -1;
+	typ.ref = -1;  // not yet exported
 	typ.form = form;
 	return typ;
 }
@@ -122,7 +140,7 @@ func NewType(form int) *Type {
 export NewPackage;
 func NewPackage(file_name string) *Package {
 	pkg := new(Package);
-	pkg.ref = -1;
+	pkg.ref = -1;  // not yet exported
 	pkg.file_name = file_name;
 	pkg.key = "<the package key>";  // TODO fix this
 	return pkg;
@@ -149,6 +167,22 @@ func NewCompilation(flags *Flags) *Compilation {
 	comp := new(Compilation);
 	comp.flags = flags;
 	return comp;
+}
+
+
+// ----------------------------------------------------------------------------
+// Object methods
+
+func (obj *Object) Copy() *Object {
+	copy := new(Object);
+	copy.exported = obj.exported;
+	copy.pos = obj.pos;
+	copy.kind = obj.kind;
+	copy.ident = obj.ident;
+	copy.typ = obj.typ;
+	copy.pnolev = obj.pnolev;
+	copy.scope = nil;  // cannot be in the same scope (same ident!)
+	return copy;
 }
 
 
@@ -239,6 +273,9 @@ func (scope *Scope) Lookup(ident string) *Object {
 	var p *Elem;
 	for p = scope.entries.first; p != nil; p = p.next {
 		if p.obj.ident == ident {
+			if p.obj.scope != scope {
+				panic "incorrect scope for object";
+			}
 			return p.obj;
 		}
 	}
@@ -250,7 +287,11 @@ func (scope *Scope) Insert(obj *Object) {
 	if scope.Lookup(obj.ident) != nil {
 		panic "obj already inserted";
 	}
+	if obj.scope != nil {
+		panic "obj already in a scope";
+	}
 	scope.entries.AddObj(obj);
+	obj.scope = scope;
 }
 
 
