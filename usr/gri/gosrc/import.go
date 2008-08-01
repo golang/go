@@ -24,7 +24,7 @@ type Importer struct {
 
 
 func (I *Importer) ReadType() *Globals.Type;
-func (I *Importer) ReadObject(tag int) *Globals.Object;
+func (I *Importer) ReadObject() *Globals.Object;
 func (I *Importer) ReadPackage() *Globals.Package;
 
 
@@ -105,7 +105,7 @@ func (I *Importer) ReadPackageTag() int {
 		if tag >= 0 {
 			print " [P", tag, "]";  // package ref
 		} else {
-			print "\nP", I.pkg_ref, ": ", -tag;  // package tag
+			print "\nP", I.pkg_ref, ":";
 		}
 	}
 	return tag;
@@ -118,14 +118,12 @@ func (I *Importer) ReadScope() *Globals.Scope {
 	}
 
 	scope := Globals.NewScope(nil);
-	for {
-		tag := I.ReadObjectTag();
-		if tag == Object.EOS {  // terminator
-			break;
-		}
+	obj := I.ReadObject();
+	for obj != nil {
 		// InsertImport only needed for package scopes
 		// but ok to use always
-		scope.InsertImport(I.ReadObject(tag));
+		scope.InsertImport(obj);
+		obj = I.ReadObject();
 	}
 	
 	if I.debug {
@@ -136,7 +134,12 @@ func (I *Importer) ReadScope() *Globals.Scope {
 }
 
 
-func (I *Importer) ReadObject(tag int) *Globals.Object {
+func (I *Importer) ReadObject() *Globals.Object {
+	tag := I.ReadObjectTag();
+	if tag == Object.EOS {
+		return nil;
+	}
+	
 	if tag == Object.PTYPE {
 		// primary type object - handled entirely by ReadType()
 		typ := I.ReadType();
@@ -175,7 +178,6 @@ func (I *Importer) ReadObject(tag int) *Globals.Object {
 
 func (I *Importer) ReadType() *Globals.Type {
 	tag := I.ReadTypeTag();
-
 	if tag >= 0 {
 		return I.types[tag];  // type already imported
 	}
@@ -235,15 +237,10 @@ func (I *Importer) ReadType() *Globals.Type {
 
 func (I *Importer) ReadPackage() *Globals.Package {
 	tag := I.ReadPackageTag();
-
 	if tag >= 0 {
 		return I.pkgs[tag];  // package already imported
 	}
 
-	if -tag != Object.PACKAGE {
-		panic "incorrect package tag";
-	}
-	
 	ident := I.ReadString();
 	file_name := I.ReadString();
 	key := I.ReadString();
@@ -295,14 +292,11 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 	}
 
 	pkg := I.ReadPackage();
-	for {
-		tag := I.ReadObjectTag();
-		if tag == Object.EOS {
-			break;
-		}
-		obj := I.ReadObject(tag);
+	obj := I.ReadObject();
+	for obj != nil {
 		obj.pnolev = pkg.obj.pnolev;
 		pkg.scope.InsertImport(obj);
+		obj = I.ReadObject();
 	}
 
 	if I.debug {

@@ -16,7 +16,7 @@ package Globals
 export Object
 type Object struct {
 	exported bool;
-	pos int;  // source position
+	pos int;  // source position (< 0 if unknown position)
 	kind int;
 	ident string;
 	typ *Type;
@@ -270,8 +270,7 @@ func (L *List) AddTyp(typ *Type) {
 // Scope methods
 
 func (scope *Scope) Lookup(ident string) *Object {
-	var p *Elem;
-	for p = scope.entries.first; p != nil; p = p.next {
+	for p := scope.entries.first; p != nil; p = p.next {
 		if p.obj.ident == ident {
 			if p.obj.scope != scope {
 				panic "incorrect scope for object";
@@ -307,8 +306,7 @@ func (scope *Scope) InsertImport(obj *Object) *Object {
 
 func (scope *Scope) Print() {
 	print "scope {";
-	var p* Elem;
-	for p = scope.entries.first; p != nil; p = p.next {
+	for p := scope.entries.first; p != nil; p = p.next {
 		print "\n  ", p.obj.ident;
 	}
 	print "\n}\n";

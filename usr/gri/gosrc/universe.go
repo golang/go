@@ -130,16 +130,16 @@ func init() {
 	any_t = Register(DeclType(Type.ANY, "any", 8));
 
 	// All but 'byte' should be platform-dependent, eventually.
-	byte_t = DeclAlias("byte", uint8_t);
-	ushort_t = DeclAlias("ushort", uint16_t);
-	uint_t = DeclAlias("uint", uint32_t);
-	ulong_t = DeclAlias("ulong", uint32_t);
-	short_t = DeclAlias("short", int16_t);
-	int_t = DeclAlias("int", int32_t);
-	long_t = DeclAlias("long", int32_t);
-	float_t = DeclAlias("float", float32_t);
-	double_t = DeclAlias("double", float64_t);
-	ptrint_t = DeclAlias("ptrint", uint64_t);
+	byte_t = Register(DeclAlias("byte", uint8_t));
+	ushort_t = Register(DeclAlias("ushort", uint16_t));
+	uint_t = Register(DeclAlias("uint", uint32_t));
+	ulong_t = Register(DeclAlias("ulong", uint32_t));
+	short_t = Register(DeclAlias("short", int16_t));
+	int_t = Register(DeclAlias("int", int32_t));
+	long_t = Register(DeclAlias("long", int32_t));
+	float_t = Register(DeclAlias("float", float32_t));
+	double_t = Register(DeclAlias("double", float64_t));
+	ptrint_t = Register(DeclAlias("ptrint", uint64_t));
 
 	// Predeclared constants
 	true_ = DeclObj(Object.CONST, "true", bool_t);
