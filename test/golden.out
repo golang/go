@@ -255,6 +255,9 @@ BUG: fails incorrectly
 
 =========== bugs/bug083.go
 
+=========== bugs/bug084.go
+BUG: wrong answer
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
