@@ -253,6 +253,8 @@ BUG: fails incorrectly
 bugs/bug082.go:7: fatal error: optoas: no entry COM-<int32>INT32
 BUG: fails incorrectly
 
+=========== bugs/bug083.go
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
