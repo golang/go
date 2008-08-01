@@ -595,7 +595,7 @@ func (P *Parser) ParseFunctionType() *Globals.Type {
 }
 
 
-func (P *Parser) ParseMethodDecl() {
+func (P *Parser) ParseMethodDecl(recv_typ *Globals.Type) {
 	P.Trace("MethodDecl");
 	
 	pos := P.pos;
@@ -603,9 +603,14 @@ func (P *Parser) ParseMethodDecl() {
 	P.OpenScope();
 	P.level--;
 	sig := P.top_scope;
+	
 	// dummy receiver (give it a name so it won't conflict with unnamed result)
-	sig.Insert(Globals.NewObject(pos, Object.VAR, ".recv"));
+	recv := Globals.NewObject(pos, Object.VAR, ".recv");
+	recv.typ = recv_typ;
+	sig.Insert(recv);
+	
 	P.ParseParameters();
+	
 	r0 := sig.entries.len_;
 	P.TryResult();
 	P.level++;
@@ -630,7 +635,7 @@ func (P *Parser) ParseInterfaceType() *Globals.Type {
 	typ := Globals.NewType(Type.INTERFACE);
 	typ.scope = P.top_scope;
 	for P.tok == Scanner.IDENT {
-		P.ParseMethodDecl();
+		P.ParseMethodDecl(typ);
 	}
 	P.level++;
 	P.CloseScope();

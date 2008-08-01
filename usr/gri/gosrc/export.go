@@ -94,23 +94,23 @@ func (E *Exporter) WritePackageTag(tag int) {
 		if tag >= 0 {
 			print " [P", tag, "]";  // package ref
 		} else {
-			print "\nP", E.pkg_ref, ": ", -tag;  // package no
+			print "\nP", E.pkg_ref, ":";
 		}
 	}
 }
 
 
-func (E *Exporter) WriteScope(scope *Globals.Scope) {
+func (E *Exporter) WriteScope(scope *Globals.Scope, export_all bool) {
 	if E.debug {
 		print " {";
 	}
 
 	for p := scope.entries.first; p != nil; p = p.next {
-		if p.obj.exported {
+		if export_all || p.obj.exported {
 			E.WriteObject(p.obj);
 		}
 	}
-	E.WriteObjectTag(Object.EOS);
+	E.WriteObject(nil);
 	
 	if E.debug {
 		print " }";
@@ -119,8 +119,9 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
 
 
 func (E *Exporter) WriteObject(obj *Globals.Object) {
-	if !obj.exported {
-		panic "!obj.exported";
+	if obj == nil {
+		E.WriteObjectTag(Object.EOS);
+		return;
 	}
 
 	if obj.kind == Object.TYPE && obj.typ.obj == obj {
@@ -196,10 +197,10 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 
 	case Type.FUNCTION:
 		E.WriteInt(typ.flags);
-		E.WriteScope(typ.scope);
+		E.WriteScope(typ.scope, true);
 		
 	case Type.STRUCT, Type.INTERFACE:
-		E.WriteScope(typ.scope);
+		E.WriteScope(typ.scope, true);  // for now
 
 	case Type.POINTER, Type.REFERENCE:
 		E.WriteType(typ.elt);
@@ -220,11 +221,7 @@ func (E *Exporter) WritePackage(pno int) {
 		return;
 	}
 
-	if -Object.PACKAGE >= 0 {
-		panic "-Object.PACKAGE >= 0";  // conflict with ref numbers
-	}
-	
-	E.WritePackageTag(-Object.PACKAGE);
+	E.WritePackageTag(-1);
 	pkg.ref = E.pkg_ref;
 	E.pkg_ref++;
 
@@ -259,7 +256,7 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	
 	pkg := comp.pkgs[0];
 	E.WritePackage(0);
-	E.WriteScope(pkg.scope);
+	E.WriteScope(pkg.scope, false);
 	
 	if E.debug {
 		print "\n(", E.buf_pos, " bytes)\n";
