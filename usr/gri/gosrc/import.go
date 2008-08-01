@@ -136,43 +136,40 @@ func (I *Importer) ReadScope() *Globals.Scope {
 
 func (I *Importer) ReadObject() *Globals.Object {
 	tag := I.ReadObjectTag();
-	if tag == Object.EOS {
+	if tag == Object.END {
 		return nil;
 	}
 	
-	if tag == Object.PTYPE {
-		// primary type object - handled entirely by ReadType()
+	if tag == Object.TYPE {
+		// named types are always primary types
+		// and handled entirely by ReadType()
 		typ := I.ReadType();
 		if typ.obj.typ != typ {
-			panic "incorrect primary type";
+			panic "inconsistent primary type";
 		}
 		return typ.obj;
-
-	} else {
-		ident := I.ReadString();
-		obj := Globals.NewObject(0, tag, ident);
-		obj.typ = I.ReadType();
-		obj.pnolev = I.ReadPackage().obj.pnolev;
-
-		switch (tag) {
-		case Object.CONST:
-			I.ReadInt();  // should set the value field
-
-		case Object.TYPE:
-			// nothing to do
-			
-		case Object.VAR:
-			I.ReadInt();  // should set the address/offset field
-
-		case Object.FUNC:
-			I.ReadInt();  // should set the address/offset field
-			
-		default:
-			panic "UNREACHABLE";
-		}
-
-		return obj;
 	}
+	
+	ident := I.ReadString();
+	obj := Globals.NewObject(0, tag, ident);
+	obj.typ = I.ReadType();
+	obj.pnolev = I.ReadPackage().obj.pnolev;
+
+	switch (tag) {
+	case Object.CONST:
+		I.ReadInt();  // should set the value field
+
+	case Object.VAR:
+		I.ReadInt();  // should set the address/offset field
+
+	case Object.FUNC:
+		I.ReadInt();  // should set the address/offset field
+		
+	default:
+		panic "UNREACHABLE";
+	}
+
+	return obj;
 }
 
 

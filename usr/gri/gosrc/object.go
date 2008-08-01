@@ -7,12 +7,11 @@ package Object
 import Globals "globals"
 
 
-export BAD, CONST, TYPE, VAR, FUNC, PACKAGE, LABEL, PTYPE, EOS
+export BAD, CONST, TYPE, VAR, FUNC, PACKAGE, LABEL, END
 const /* kind */ (
 	BAD = iota;  // error handling
 	CONST; TYPE; VAR; FUNC; PACKAGE; LABEL;
-	PTYPE;  // primary type (import/export only)
-	EOS;  // end of scope (import/export only)
+	END;  // end of scope (import/export only)
 )
 
 
@@ -31,8 +30,7 @@ func KindStr(kind int) string {
 	case FUNC: return "FUNC";
 	case PACKAGE: return "PACKAGE";
 	case LABEL: return "LABEL";
-	case PTYPE: return "PTYPE";
-	case EOS: return "EOS";
+	case END: return "END";
 	}
 	return "<unknown Object kind>";
 }

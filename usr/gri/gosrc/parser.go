@@ -1649,13 +1649,19 @@ func (P *Parser) ParseConstSpec(exported bool) {
 	typ := P.TryType();
 	if typ != nil {
 		for p := list.first; p != nil; p = p.next {
-			p.obj.exported = exported;
-			p.obj.typ = typ;  // TODO should use/have set_type()!
+			p.obj.typ = typ;
 		}
 	}
+	
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
 		P.ParseExpressionList();
+	}
+	
+	if exported {
+		for p := list.first; p != nil; p = p.next {
+			p.obj.exported = true;
+		}
 	}
 	
 	P.Ecart();
@@ -1722,6 +1728,12 @@ func (P *Parser) ParseVarSpec(exported bool) {
 		if P.tok == Scanner.ASSIGN {
 			P.Next();
 			P.ParseExpressionList();
+		}
+	}
+	
+	if exported {
+		for p := list.first; p != nil; p = p.next {
+			p.obj.exported = true;
 		}
 	}
 	

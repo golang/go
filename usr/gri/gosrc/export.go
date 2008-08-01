@@ -120,37 +120,37 @@ func (E *Exporter) WriteScope(scope *Globals.Scope, export_all bool) {
 
 func (E *Exporter) WriteObject(obj *Globals.Object) {
 	if obj == nil {
-		E.WriteObjectTag(Object.EOS);
+		E.WriteObjectTag(Object.END);
 		return;
 	}
 
-	if obj.kind == Object.TYPE && obj.typ.obj == obj {
-		// primary type object - handled entirely by WriteType()
-		E.WriteObjectTag(Object.PTYPE);
-		E.WriteType(obj.typ);
-
-	} else {
-		E.WriteObjectTag(obj.kind);
-		E.WriteString(obj.ident);
-		E.WriteType(obj.typ);
-		E.WritePackage(obj.pnolev);
-
-		switch obj.kind {
-		case Object.CONST:
-			E.WriteInt(0);  // should be the correct value
-
-		case Object.TYPE:
-			// nothing to do
-			
-		case Object.VAR:
-			E.WriteInt(0);  // should be the correct address/offset
-			
-		case Object.FUNC:
-			E.WriteInt(0);  // should be the correct address/offset
-			
-		default:
-			panic "UNREACHABLE";
+	E.WriteObjectTag(obj.kind);
+	if obj.kind == Object.TYPE {
+		// named types are always primary types
+		// and handled entirely by WriteType()
+		if obj.typ.obj != obj {
+			panic "inconsistent primary type"
 		}
+		E.WriteType(obj.typ);
+		return;
+	}
+
+	E.WriteString(obj.ident);
+	E.WriteType(obj.typ);
+	E.WritePackage(obj.pnolev);
+
+	switch obj.kind {
+	case Object.CONST:
+		E.WriteInt(0);  // should be the correct value
+
+	case Object.VAR:
+		E.WriteInt(0);  // should be the correct address/offset
+		
+	case Object.FUNC:
+		E.WriteInt(0);  // should be the correct address/offset
+		
+	default:
+		panic "UNREACHABLE";
 	}
 }
 
