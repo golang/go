@@ -553,7 +553,7 @@ argsize(Type *t)
 		x = fp->width + fp->type->width;
 		if(x > w)
 			w = x;
-		fp = structnext(&save);
+		fp = funcnext(&save);
 	}
 
 	w = (w+7) & ~7;
