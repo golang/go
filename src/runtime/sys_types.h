@@ -7,7 +7,7 @@
 #else
 	#ifdef amd64_darwin
 		#include "amd64_darwin.h"
+	#else
+		You_need_to_write_the_syscall_header
 	#endif
-#else
-	You_need_to_write_the_syscall_header
 #endif
