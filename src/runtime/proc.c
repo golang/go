@@ -90,7 +90,7 @@ tracebackothers(G *me)
 }
 
 G*
-select(void)
+nextgoroutine(void)
 {
 	G *gp;
 
@@ -114,32 +114,34 @@ select(void)
 }
 
 void
+scheduler(void)
+{
+	G* gp;
+	
+	gosave(&m->sched);
+	gp = nextgoroutine();
+	if(gp == nil) {
+//		prints("sched: no more work\n");
+		sys·exit(0);
+	}
+	m->curg = gp;
+	g = gp;
+	gogo(&gp->sched);
+}
+
+void
 gom0init(void)
 {
-	gosave(&m->sched);
-	sys·gosched();
+	scheduler();
 }
 
 void
 sys·gosched(void)
 {
-	G* gp;
-
-	if(g != m->g0) {
-		if(gosave(&g->sched))
-			return;
-		g = m->g0;
-		gogo(&m->sched);
-	}
-	gp = select();
-	if(gp == nil) {
-//		prints("sched: no more work\n");
-		sys·exit(0);
-	}
-
-	m->curg = gp;
-	g = gp;
-	gogo(&gp->sched);
+	if(gosave(&g->sched))
+		return;
+	g = m->g0;
+	gogo(&m->sched);
 }
 
 //
