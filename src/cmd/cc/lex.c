@@ -244,6 +244,7 @@ compile(char *file, char **defs, int ndef)
 			errorexit();
 		}
 		Binit(&outbuf, c, OWRITE);
+		outfile = strdup(outfile);
 	}
 	newio();
 	first = 0;
