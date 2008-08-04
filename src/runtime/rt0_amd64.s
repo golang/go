@@ -14,9 +14,9 @@ TEXT	_rt0_amd64(SB),7,$-8
 	MOVQ	AX, 16(SP)
 	MOVQ	BX, 24(SP)
 
-	// allocate the per-user and per-mach blocks
+	// set the per-goroutine and per-mach registers
 
-	LEAQ	m0<>(SB), R14		// dedicated m. register
+	LEAQ	m0(SB), R14		// dedicated m. register
 	LEAQ	g0(SB), R15		// dedicated g. register
 	MOVQ	R15, 0(R14)		// m has pointer to its g0
 
@@ -33,8 +33,9 @@ TEXT	_rt0_amd64(SB),7,$-8
 	MOVQ	24(SP), AX		// copy argv
 	MOVQ	AX, 8(SP)
 	CALL	args(SB)
+	CALL	schedinit(SB)
 	CALL	main·init_function(SB) // initialization
-
+	
 	// create a new goroutine to start program
 
 	PUSHQ	$main·main(SB)		// entry
@@ -102,4 +103,22 @@ TEXT setspgoto(SB), 7, $0
 	POPQ	AX
 	RET
 
-GLOBL	m0<>(SB),$64
+// bool cas(int32 *val, int32 old, int32 new)
+// Atomically:
+//	if(*val == old){
+//		*val = new;
+//		return 1;
+//	}else
+//		return 0;
+TEXT cas(SB), 7, $0
+	MOVQ	8(SP), BX
+	MOVL	16(SP), AX
+	MOVL	20(SP), CX
+	LOCK
+	CMPXCHGL	CX, 0(BX)
+	JZ 3(PC)
+	MOVL	$0, AX
+	RET
+	MOVL	$1, AX
+	RET
+

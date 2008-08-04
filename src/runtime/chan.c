@@ -4,6 +4,8 @@
 
 #include "runtime.h"
 
+// TODO locking of select
+
 static	int32	debug	= 0;
 
 typedef	struct	Hchan	Hchan;
@@ -30,6 +32,7 @@ struct	WaitQ
 
 struct	Hchan
 {
+	Lock;
 	uint32	elemsize;
 	uint32	dataqsiz;		// size of the circular q
 	uint32	qcount;			// total data in the q
@@ -159,6 +162,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 		prints("\n");
 	}
 
+	lock(c);
 	if(c->dataqsiz > 0)
 		goto asynch;
 
@@ -169,7 +173,8 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 
 		gp = sg->g;
 		gp->param = sg;
-		gp->status = Grunnable;
+		unlock(c);
+		ready(gp);
 
 		if(pres != nil)
 			*pres = true;
@@ -177,6 +182,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 	}
 
 	if(pres != nil) {
+		unlock(c);
 		*pres = false;
 		return;
 	}
@@ -187,18 +193,24 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 	g->param = nil;
 	g->status = Gwaiting;
 	enqueue(&c->sendq, sg);
+	unlock(c);
 	sys·gosched();
 
+	lock(c);
 	sg = g->param;
 	freesg(c, sg);
+	unlock(c);
 	return;
 
 asynch:
 	while(c->qcount >= c->dataqsiz) {
+		// (rsc) should check for pres != nil
 		sg = allocsg(c);
 		g->status = Gwaiting;
 		enqueue(&c->sendq, sg);
+		unlock(c);
 		sys·gosched();
+		lock(c);
 	}
 	if(ep != nil)
 		c->elemalg->copy(c->elemsize, c->senddataq->elem, ep);
@@ -209,8 +221,10 @@ asynch:
 	if(sg != nil) {
 		gp = sg->g;
 		freesg(c, sg);
-		gp->status = Grunnable;
-	}
+		unlock(c);
+		ready(gp);
+	}else
+		unlock(c);
 }
 
 static void
@@ -225,6 +239,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 		prints("\n");
 	}
 
+	lock(c);
 	if(c->dataqsiz > 0)
 		goto asynch;
 
@@ -234,7 +249,8 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 
 		gp = sg->g;
 		gp->param = sg;
-		gp->status = Grunnable;
+		unlock(c);
+		ready(gp);
 
 		if(pres != nil)
 			*pres = true;
@@ -242,6 +258,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 	}
 
 	if(pres != nil) {
+		unlock(c);
 		*pres = false;
 		return;
 	}
@@ -250,11 +267,14 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 	g->param = nil;
 	g->status = Gwaiting;
 	enqueue(&c->recvq, sg);
+	unlock(c);
 	sys·gosched();
 
+	lock(c);
 	sg = g->param;
 	c->elemalg->copy(c->elemsize, ep, sg->elem);
 	freesg(c, sg);
+	unlock(c);
 	return;
 
 asynch:
@@ -262,7 +282,9 @@ asynch:
 		sg = allocsg(c);
 		g->status = Gwaiting;
 		enqueue(&c->recvq, sg);
+		unlock(c);
 		sys·gosched();
+		lock(c);
 	}
 	c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
 	c->recvdataq = c->recvdataq->link;
@@ -271,8 +293,10 @@ asynch:
 	if(sg != nil) {
 		gp = sg->g;
 		freesg(c, sg);
-		gp->status = Grunnable;
-	}
+		unlock(c);
+		ready(gp);
+	}else
+		unlock(c);
 }
 
 // chansend1(hchan *chan any, elem any);
@@ -571,6 +595,8 @@ sys·selectgo(Select *sel)
 	}
 
 	// send and recv paths to sleep for a rendezvous
+	// (rsc) not correct to set Gwaiting after queueing;
+	// might already have been readied.
 	g->status = Gwaiting;
 	sys·gosched();
 
@@ -619,7 +645,7 @@ gotr:
 		c->elemalg->copy(c->elemsize, cas->u.elemp, sg->elem);
 	gp = sg->g;
 	gp->param = sg;
-	gp->status = Grunnable;
+	ready(gp);
 	goto retc;
 
 gots:
@@ -636,7 +662,7 @@ gots:
 	c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
 	gp = sg->g;
 	gp->param = sg;
-	gp->status = Grunnable;
+	ready(gp);
 
 retc:
 	if(sel->ncase >= 1 && sel->ncase < nelem(selfree)) {

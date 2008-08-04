@@ -7,7 +7,9 @@
 //
 
 // func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
-// Trap # in AX, args in DI SI DX, return in AX DX
+// Trap # in AX, args in DI SI DX R10 R8 R9, return in AX DX
+// Note that this differs from "standard" ABI convention, which
+// would pass 4th arg in CX, not R10.
 
 TEXT	syscall·Syscall(SB),7,$-8
 	MOVQ	16(SP), DI

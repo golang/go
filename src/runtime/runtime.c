@@ -4,7 +4,6 @@
 
 #include "runtime.h"
 
-G	g0;			// idle goroutine
 int32	debug	= 0;
 
 void
@@ -24,10 +23,6 @@ sys·panicl(int32 lno)
 	sys·exit(2);
 }
 
-static	uint8*	hunk;
-static	uint32	nhunk;
-static	uint64	nmmap;
-static	uint64	nmal;
 enum
 {
 	NHUNK		= 20<<20,
@@ -76,42 +71,51 @@ rnd(uint32 n, uint32 m)
 	return n;
 }
 
-static byte*
+static void*
 brk(uint32 n)
 {
-	byte* v;
+	byte *v;
 
 	v = sys·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
-	sys·memclr(v, n);
-	nmmap += n;
+	m->mem.nmmap += n;
 	return v;
 }
+
 
 void*
 mal(uint32 n)
 {
 	byte* v;
+	Mem *mem;
 
 	// round to keep everything 64-bit aligned
 	n = rnd(n, 8);
-	nmal += n;
 
-	// do we have enough in contiguous hunk
-	if(n > nhunk) {
-
-		// if it is big allocate it separately
-		if(n > NHUNK)
-			return brk(n);
-
-		// allocate a new contiguous hunk
-		hunk = brk(NHUNK);
-		nhunk = NHUNK;
+	// be careful.  calling any function might invoke
+	// mal to allocate more stack.
+	if(n > NHUNK) {
+		// this call is okay - calling mal recursively
+		// won't change anything we depend on.
+		v = brk(n);
+	} else {
+		// allocate a new hunk if this one is too small
+		if(n > m->mem.nhunk) {
+			// better not to call brk here - it might grow the stack,
+			// causing a call to mal and the allocation of a 
+			// new hunk behind our backs.  then we'd toss away
+			// almost all of that new hunk and replace it.
+			// that'd just be a memory leak - the code would still run.
+			m->mem.hunk =
+				sys·mmap(nil, NHUNK, PROT_READ|PROT_WRITE,
+					MAP_ANON|MAP_PRIVATE, 0, 0);
+			m->mem.nhunk = NHUNK;
+			m->mem.nmmap += NHUNK;
+		}
+		v = m->mem.hunk;
+		m->mem.hunk += n;
+		m->mem.nhunk -= n;
 	}
-
-	// allocate from the contiguous hunk
-	v = hunk;
-	hunk += n;
-	nhunk -= n;
+	m->mem.nmal += n;
 	return v;
 }
 
@@ -491,6 +495,44 @@ args(int32 c, uint8 **v)
 		;
 }
 
+int32
+getenvc(void)
+{
+	return envc;
+}
+
+byte*
+getenv(int8 *s)
+{
+	int32 i, j, len;
+	byte *v, *bs;
+	
+	bs = (byte*)s;
+	len = findnull(s);
+	for(i=0; i<envc; i++){
+		v = envv[i];
+		for(j=0; j<len; j++)
+			if(bs[j] != v[j])
+				goto nomatch;
+		if(v[len] != '=')
+			goto nomatch;
+		return v+len+1;
+	nomatch:;
+	}
+	return nil;
+}
+
+int32
+atoi(byte *p)
+{
+	int32 n;
+	
+	n = 0;
+	while('0' <= *p && *p <= '9')
+		n = n*10 + *p++ - '0';
+	return n;
+}
+
 //func argc() int32;  // return number of arguments
 void
 sys·argc(int32 v)
@@ -579,7 +621,33 @@ check(void)
 	if(sizeof(k) != 8) throw("bad k");
 	if(sizeof(l) != 8) throw("bad l");
 //	prints(1"check ok\n");
+
+	uint32 z;
+	z = 1;
+	if(!cas(&z, 1, 2))
+		throw("cas1");
+	if(z != 2)
+		throw("cas2");
+	
+	z = 4;
+	if(cas(&z, 5, 6))
+		throw("cas3");
+	if(z != 4)
+		throw("cas4");
+
 	initsig();
+}
+
+uint32
+xadd(uint32 *val, uint32 delta)
+{
+	uint32 v;
+	
+	for(;;){
+		v = *val;
+		if(cas(val, v, v+delta))
+			return v+delta;
+	}
 }
 
 /*

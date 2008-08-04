@@ -4,16 +4,56 @@
 
 #include "runtime.h"
 
+typedef struct Sched Sched;
+
+M	m0;
+G	g0;	// idle goroutine for m0
+
+// Maximum number of os procs (M's) to kick off.
+// Can override with $gomaxprocs environment variable.
+// For now set to 1 (single-threaded), because not 
+// everything is properly locked (e.g., chans) and because
+// Darwin's multithreading code isn't implemented.
+int32	gomaxprocs = 1;
+
 static	int32	debug	= 0;
+
+struct Sched {
+	G *runhead;
+	G *runtail;
+	int32 nwait;
+	int32 nready;
+	int32 ng;
+	int32 nm;
+	M *wait;
+	Lock;
+};
+
+Sched sched;
 
 void
 sys·goexit(void)
 {
-//prints("goexit goid=");
-//sys·printint(g->goid);
-//prints("\n");
+	if(debug){
+		prints("goexit goid=");
+		sys·printint(g->goid);
+		prints("\n");
+	}
 	g->status = Gdead;
 	sys·gosched();
+}
+
+void
+schedinit(void)
+{
+	byte *p;
+	extern int32 getenvc(void);
+	
+	p = getenv("gomaxprocs");
+	if(p && '0' <= *p && *p <= '9')
+		gomaxprocs = atoi(p);
+	sched.nm = 1;
+	sched.nwait = 1;
 }
 
 void
@@ -64,10 +104,13 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 	newg->sched.SP = sp;
 	newg->sched.PC = fn;
 
+	lock(&sched);
+	sched.ng++;
 	goidgen++;
 	newg->goid = goidgen;
+	unlock(&sched);
 
-	newg->status = Grunnable;
+	ready(newg);
 
 //prints(" goid=");
 //sys·printint(newg->goid);
@@ -80,7 +123,7 @@ tracebackothers(G *me)
 	G *g;
 
 	for(g = allg; g != nil; g = g->alllink) {
-		if(g == me)
+		if(g == me || g->status == Gdead)
 			continue;
 		prints("\ngoroutine ");
 		sys·printint(g->goid);
@@ -89,44 +132,173 @@ tracebackothers(G *me)
 	}
 }
 
+void newmach(void);
+
+static void
+readylocked(G *g)
+{
+	g->status = Grunnable;
+	if(sched.runhead == nil)
+		sched.runhead = g;
+	else
+		sched.runtail->runlink = g;
+	sched.runtail = g;
+	g->runlink = nil;
+	sched.nready++;
+	// Don't wake up another scheduler.
+	// This only gets called when we're
+	// about to reschedule anyway.
+}
+
+static Lock print;
+	
+void
+ready(G *g)
+{
+	M *mm;
+
+	// gp might be running on another scheduler.
+	// (E.g., it queued and then we decided to wake it up
+	// before it had a chance to sys·gosched().)
+	// Grabbing the runlock ensures that it is not running elsewhere.
+	// You can delete the if check, but don't delete the 
+	// lock/unlock sequence (being able to grab the lock
+	// means the proc has gone to sleep).
+	lock(&g->runlock);
+	if(g->status == Grunnable || g->status == Grunning)
+		*(int32*)0x1023 = 0x1023;
+	lock(&sched);
+	g->status = Grunnable;
+	if(sched.runhead == nil)
+		sched.runhead = g;
+	else
+		sched.runtail->runlink = g;
+	sched.runtail = g;
+	g->runlink = nil;
+	unlock(&g->runlock);
+	sched.nready++;
+	if(sched.nready > sched.nwait)
+	if(gomaxprocs == 0 || sched.nm < gomaxprocs){
+		if(debug){
+			prints("new scheduler: ");
+			sys·printint(sched.nready);
+			prints(" > ");
+			sys·printint(sched.nwait);
+			prints("\n");
+		}
+		sched.nwait++;
+		newmach();
+	}
+	if(sched.wait){
+		mm = sched.wait;
+		sched.wait = mm->waitlink;
+		rwakeupandunlock(&mm->waitr);
+	}else
+		unlock(&sched);
+}
+
+extern void p0(void), p1(void);
+
 G*
 nextgoroutine(void)
 {
 	G *gp;
 
-	gp = m->lastg;
-	if(gp == nil)
-		gp = allg;
-
-	for(gp=gp->alllink; gp!=nil; gp=gp->alllink) {
-		if(gp->status == Grunnable) {
-			m->lastg = gp;
-			return gp;
+	while((gp = sched.runhead) == nil){
+		if(debug){
+			prints("nextgoroutine runhead=nil ng=");
+			sys·printint(sched.ng);
+			prints("\n");
 		}
+		if(sched.ng == 0)
+			return nil;
+		m->waitlink = sched.wait;
+		m->waitr.l = &sched.Lock;
+		sched.wait = m;
+		sched.nwait++;
+		if(sched.nm == sched.nwait)
+			prints("all goroutines are asleep - deadlock!\n");
+		rsleep(&m->waitr);
+		sched.nwait--;
 	}
-	for(gp=allg; gp!=nil; gp=gp->alllink) {
-		if(gp->status == Grunnable) {
-			m->lastg = gp;
-			return gp;
-		}
-	}
-	return nil;
+	sched.nready--;
+	sched.runhead = gp->runlink;
+	return gp;
 }
 
 void
 scheduler(void)
 {
 	G* gp;
-	
+
+	m->pid = getprocid();
+
 	gosave(&m->sched);
+	lock(&sched);
+
+	if(m->curg == nil){
+		// Brand new scheduler; nwait counts us.
+		// Not anymore.
+		sched.nwait--;
+	}else{
+		gp = m->curg;
+		gp->m = nil;
+		switch(gp->status){
+		case Gdead:
+			sched.ng--;
+			if(debug){
+				prints("sched: dead: ");
+				sys·printint(sched.ng);
+				prints("\n");
+			}
+			break;
+		case Grunning:
+			readylocked(gp);
+			break;
+		case Grunnable:
+			// don't want to see this
+			*(int32*)0x456 = 0x234;
+			break;
+		}
+		unlock(&gp->runlock);
+	}
+
 	gp = nextgoroutine();
 	if(gp == nil) {
 //		prints("sched: no more work\n");
 		sys·exit(0);
 	}
+	unlock(&sched);
+	
+	lock(&gp->runlock);
+	gp->status = Grunning;
 	m->curg = gp;
+	gp->m = m;
 	g = gp;
 	gogo(&gp->sched);
+}
+
+void
+newmach(void)
+{
+	M *mm;
+	byte *stk, *stktop;
+	int64 ret;
+	
+	sched.nm++;
+	if(!(sched.nm&(sched.nm-1))){
+		sys·printint(sched.nm);
+		prints(" threads\n");
+	}
+	mm = mal(sizeof(M)+sizeof(G)+1024+104);
+	sys·memclr((byte*)mm, sizeof(M));
+	mm->g0 = (G*)(mm+1);
+	sys·memclr((byte*)mm->g0, sizeof(G));
+	stk = (byte*)mm->g0 + 104;
+	stktop = stk + 1024;
+	mm->g0->stackguard = stk;
+	mm->g0->stackbase = stktop;
+	newosproc(mm, mm->g0, stktop, (void(*)(void*))scheduler, nil);
 }
 
 void
@@ -138,10 +310,11 @@ gom0init(void)
 void
 sys·gosched(void)
 {
-	if(gosave(&g->sched))
-		return;
-	g = m->g0;
-	gogo(&m->sched);
+	if(gosave(&g->sched) == 0){
+		// (rsc) signal race here?
+		g = m->g0;
+		gogo(&m->sched);
+	}
 }
 
 //
