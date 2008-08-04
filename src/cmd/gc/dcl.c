@@ -919,7 +919,7 @@ fninit(Node *n)
 	Node *done, *any;
 	Node *a, *fn, *r;
 	Iter iter;
-	ulong h;
+	uint32 h;
 	Sym *s;
 
 	r = N;

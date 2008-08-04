@@ -173,6 +173,16 @@ typedef intptr_t intptr;
 typedef uint32_t u32int;
 typedef int32_t s32int;
 
+typedef s8int int8;
+typedef u8int uint8;
+typedef s16int int16;
+typedef u16int uint16;
+typedef s32int int32;
+typedef u32int uint32;
+typedef s64int int64;
+typedef u64int uint64;
+
+
 #undef _NEEDUCHAR
 #undef _NEEDUSHORT
 #undef _NEEDUINT

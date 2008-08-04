@@ -88,7 +88,7 @@ struct	Prog
 	Prog*	link;
 	Prog*	pcond;	/* work on this */
 	vlong	pc;
-	long	line;
+	int32	line;
 	uchar	mark;	/* work on these */
 	uchar	back;
 
@@ -100,7 +100,7 @@ struct	Auto
 {
 	Sym*	asym;
 	Auto*	link;
-	long	aoffset;
+	int32	aoffset;
 	short	type;
 };
 struct	Sym
@@ -113,7 +113,7 @@ struct	Sym
 	uchar	subtype;
 	ushort	file;
 	vlong	value;
-	long	sig;
+	int32	sig;
 	Sym*	link;
 };
 struct	Optab
@@ -274,14 +274,14 @@ EXTERN union
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"S"	char*
 
-EXTERN	long	HEADR;
-EXTERN	long	HEADTYPE;
+EXTERN	int32	HEADR;
+EXTERN	int32	HEADTYPE;
 EXTERN	vlong	INITDAT;
-EXTERN	long	INITRND;
+EXTERN	int32	INITRND;
 EXTERN	vlong	INITTEXT;
 EXTERN	char*	INITENTRY;		/* entry point */
 EXTERN	Biobuf	bso;
-EXTERN	long	bsssize;
+EXTERN	int32	bsssize;
 EXTERN	int	cbc;
 EXTERN	char*	cbp;
 EXTERN	char*	pcstr;
@@ -319,19 +319,19 @@ EXTERN	uchar	and[30];
 EXTERN	int	reg[D_NONE];
 EXTERN	int	regrex[D_NONE+1];
 EXTERN	Prog*	lastp;
-EXTERN	long	lcsize;
+EXTERN	int32	lcsize;
 EXTERN	int	nerrors;
-EXTERN	long	nhunk;
-EXTERN	long	nsymbol;
+EXTERN	int32	nhunk;
+EXTERN	int32	nsymbol;
 EXTERN	char*	noname;
 EXTERN	char*	outfile;
 EXTERN	vlong	pc;
-EXTERN	long	spsize;
+EXTERN	int32	spsize;
 EXTERN	Sym*	symlist;
-EXTERN	long	symsize;
+EXTERN	int32	symsize;
 EXTERN	Prog*	textp;
 EXTERN	vlong	textsize;
-EXTERN	long	thunk;
+EXTERN	int32	thunk;
 EXTERN	int	version;
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;
@@ -344,7 +344,7 @@ EXTERN	int	imports, nimports;
 EXTERN	int	exports, nexports;
 EXTERN	char*	EXPTAB;
 EXTERN	Prog	undefp;
-EXTERN	ulong	stroffset;
+EXTERN	uint32	stroffset;
 EXTERN	vlong	textstksiz;
 EXTERN	vlong	textarg;
 
@@ -359,7 +359,7 @@ int	Dconv(Fmt*);
 int	Pconv(Fmt*);
 int	Rconv(Fmt*);
 int	Sconv(Fmt*);
-void	addhist(long, int);
+void	addhist(int32, int);
 Prog*	appendp(Prog*);
 void	asmb(void);
 void	asmdyn(void);
@@ -372,38 +372,38 @@ Prog*	brchain(Prog*);
 Prog*	brloop(Prog*);
 void	buildop(void);
 void	cflush(void);
-void	ckoff(Sym*, long);
+void	ckoff(Sym*, int32);
 Prog*	copyp(Prog*);
 double	cputime(void);
-void	datblk(long, long);
+void	datblk(int32, int32);
 void	diag(char*, ...);
 void	dodata(void);
 void	doinit(void);
 void	doprof1(void);
 void	doprof2(void);
 void	dostkoff(void);
-void	dynreloc(Sym*, ulong, int);
+void	dynreloc(Sym*, uint32, int);
 vlong	entryvalue(void);
 void	errorexit(void);
 void	export(void);
-int	find1(long, int);
-int	find2(long, int);
+int	find1(int32, int);
+int	find2(int32, int);
 void	follow(void);
 void	addstachmark(void);
 void	gethunk(void);
 void	histtoauto(void);
 double	ieeedtod(Ieee*);
-long	ieeedtof(Ieee*);
+int32	ieeedtof(Ieee*);
 void	import(void);
-void	ldobj(int, long, char*);
+void	ldobj(int, int32, char*);
 void	loadlib(void);
 void	listinit(void);
 Sym*	lookup(char*, int);
-void	lput(long);
-void	lputl(long);
+void	lput(int32);
+void	lputl(int32);
 void	main(int, char*[]);
 void	mkfwd(void);
-void*	mysbrk(ulong);
+void*	mysbrk(uint32);
 void	nuxiinit(void);
 void	objfile(char*);
 int	opsize(Prog*);
@@ -412,7 +412,7 @@ Prog*	prg(void);
 void	parsetextconst(vlong);
 void	readundefs(char*, int);
 int	relinv(int);
-long	reuse(Prog*, Sym*);
+int32	reuse(Prog*, Sym*);
 vlong	rnd(vlong, vlong);
 void	span(void);
 void	undef(void);
@@ -424,18 +424,18 @@ void	xfol(Prog*);
 int	zaddr(uchar*, Adr*, Sym*[]);
 void	zerosig(char*);
 
-void	machseg(char*, vlong, vlong, vlong, vlong, ulong, ulong, ulong, ulong);
-void	machsymseg(ulong, ulong);
-void	machsect(char*, char*, vlong, vlong, ulong, ulong, ulong, ulong, ulong);
+void	machseg(char*, vlong, vlong, vlong, vlong, uint32, uint32, uint32, uint32);
+void	machsymseg(uint32, uint32);
+void	machsect(char*, char*, vlong, vlong, uint32, uint32, uint32, uint32, uint32);
 void	machstack(vlong);
-ulong	machheadr(void);
+uint32	machheadr(void);
 
-ulong	linuxheadr(void);
+uint32	linuxheadr(void);
 void	linuxphdr(int type, int flags, vlong foff,
 	vlong vaddr, vlong paddr,
 	vlong filesize, vlong memsize, vlong align);
-void	linuxshdr(char *name, ulong type, vlong flags, vlong addr, vlong off,
-	vlong size, ulong link, ulong info, vlong align, vlong entsize);
+void	linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
+	vlong size, uint32 link, uint32 info, vlong align, vlong entsize);
 int	linuxstrtable(void);
 
 

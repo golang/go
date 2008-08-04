@@ -61,7 +61,7 @@ fatal(char *fmt, ...)
 }
 
 void
-linehist(char *file, long off)
+linehist(char *file, int32 off)
 {
 	Hist *h;
 	char *cp;
@@ -96,10 +96,10 @@ linehist(char *file, long off)
 	ehist = h;
 }
 
-long
+int32
 setlineno(Node *n)
 {
-	long lno;
+	int32 lno;
 
 	lno = lineno;
 	if(n != N && n->op != ONAME) {
@@ -113,10 +113,10 @@ setlineno(Node *n)
 	return lno;
 }
 
-ulong
+uint32
 stringhash(char *p)
 {
-	long h;
+	int32 h;
 	int c;
 
 	h = 0;
@@ -139,7 +139,7 @@ Sym*
 lookup(char *p)
 {
 	Sym *s;
-	ulong h;
+	uint32 h;
 	int c;
 
 	h = stringhash(p) % NHASH;
@@ -171,7 +171,7 @@ Sym*
 pkglookup(char *p, char *k)
 {
 	Sym *s;
-	ulong h;
+	uint32 h;
 	int c;
 
 	h = stringhash(p) % NHASH;
@@ -204,7 +204,7 @@ void
 gethunk(void)
 {
 	char *h;
-	long nh;
+	int32 nh;
 
 	nh = NHUNK;
 	if(thunk >= 10L*NHUNK)
@@ -220,11 +220,11 @@ gethunk(void)
 }
 
 void*
-mal(long n)
+mal(int32 n)
 {
 	void *p;
 
-	while((ulong)hunk & MAXALIGN) {
+	while((uintptr)hunk & MAXALIGN) {
 		hunk++;
 		nhunk--;
 	}
@@ -239,7 +239,7 @@ mal(long n)
 }
 
 void*
-remal(void *p, long on, long n)
+remal(void *p, int32 on, int32 n)
 {
 	void *q;
 
@@ -307,7 +307,7 @@ dobad(void)
 }
 
 Node*
-nodintconst(long v)
+nodintconst(int32 v)
 {
 	Node *c;
 
@@ -702,15 +702,15 @@ Lconv(Fmt *fp)
 	struct
 	{
 		Hist*	incl;	/* start of this include file */
-		long	idel;	/* delta line number to apply to include */
+		int32	idel;	/* delta line number to apply to include */
 		Hist*	line;	/* start of this #line directive */
-		long	ldel;	/* delta line number to apply to #line */
+		int32	ldel;	/* delta line number to apply to #line */
 	} a[HISTSZ];
-	long lno, d;
+	int32 lno, d;
 	int i, n;
 	Hist *h;
 
-	lno = va_arg(fp->args, long);
+	lno = va_arg(fp->args, int32);
 
 	n = 0;
 	for(h=hist; h!=H; h=h->link) {
@@ -1463,10 +1463,10 @@ eqargs(Type *t1, Type *t2)
 	return 1;
 }
 
-ulong
+uint32
 typehash(Type *at, int d)
 {
-	ulong h;
+	uint32 h;
 	Type *t;
 
 	if(at == T)
@@ -1524,7 +1524,7 @@ ptrto(Type *t)
 }
 
 Node*
-literal(long v)
+literal(int32 v)
 {
 	Node *n;
 

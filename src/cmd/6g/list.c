@@ -76,7 +76,7 @@ Dconv(Fmt *fp)
 	char str[40], s[20];
 	Addr *a;
 	int i;
-	ulong d1, d2;
+	uint32 d1, d2;
 
 	a = va_arg(fp->args, Addr*);
 	i = a->type;

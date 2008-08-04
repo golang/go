@@ -107,7 +107,7 @@ void
 evconst(Node *n)
 {
 	Node *nl, *nr;
-	long len;
+	int32 len;
 	String *str;
 	int wl, wr;
 
@@ -378,7 +378,7 @@ defaultlit(Node *n)
 int
 cmpslit(Node *l, Node *r)
 {
-	long l1, l2, i, m;
+	int32 l1, l2, i, m;
 	char *s1, *s2;
 
 	l1 = l->val.sval->len;

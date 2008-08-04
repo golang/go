@@ -244,7 +244,7 @@ agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
 	Node n1, n2, n3, tmp;
-	ulong w;
+	uint32 w;
 	Type *t;
 
 	if(debug['g']) {
@@ -576,10 +576,10 @@ ret:
 }
 
 void
-sgen(Node *n, Node *ns, ulong w)
+sgen(Node *n, Node *ns, uint32 w)
 {
 	Node nodl, nodr;
-	long c;
+	int32 c;
 
 	if(debug['g']) {
 		dump("\nsgen-res", ns);

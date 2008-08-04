@@ -91,7 +91,7 @@ int
 bnum(Bits a)
 {
 	int i;
-	long b;
+	int32 b;
 
 	for(i=0; i<BITS; i++)
 		if(b = a.b[i])

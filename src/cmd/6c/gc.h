@@ -83,7 +83,7 @@ struct	Prog
 	Adr	from;
 	Adr	to;
 	Prog*	link;
-	long	lineno;
+	int32	lineno;
 	short	as;
 };
 #define	P	((Prog*)0)
@@ -92,7 +92,7 @@ struct	Case
 {
 	Case*	link;
 	vlong	val;
-	long	label;
+	int32	label;
 	char	def;
 	char	isv;
 };
@@ -101,7 +101,7 @@ struct	Case
 struct	C1
 {
 	vlong	val;
-	long	label;
+	int32	label;
 };
 
 struct	Var
@@ -114,8 +114,8 @@ struct	Var
 
 struct	Reg
 {
-	long	pc;
-	long	rpo;		/* reverse post ordering */
+	int32	pc;
+	int32	rpo;		/* reverse post ordering */
 
 	Bits	set;
 	Bits	use1;
@@ -128,11 +128,11 @@ struct	Reg
 	Bits	regdiff;
 	Bits	act;
 
-	long	regu;
-	long	loop;		/* could be shorter */
+	int32	regu;
+	int32	loop;		/* could be shorter */
 
 	Reg*	log5;
-	long	active;
+	int32	active;
 
 	Reg*	p1;
 	Reg*	p2;
@@ -161,26 +161,26 @@ struct	Rgn
 	short	regno;
 };
 
-EXTERN	long	breakpc;
-EXTERN	long	nbreak;
+EXTERN	int32	breakpc;
+EXTERN	int32	nbreak;
 EXTERN	Case*	cases;
 EXTERN	Node	constnode;
 EXTERN	Node	fconstnode;
 EXTERN	Node	vconstnode;
-EXTERN	long	continpc;
-EXTERN	long	curarg;
-EXTERN	long	cursafe;
+EXTERN	int32	continpc;
+EXTERN	int32	curarg;
+EXTERN	int32	cursafe;
 EXTERN	Prog*	firstp;
 EXTERN	Prog*	lastp;
-EXTERN	long	maxargsafe;
+EXTERN	int32	maxargsafe;
 EXTERN	int	mnstring;
 EXTERN	Node*	nodrat;
 EXTERN	Node*	nodret;
 EXTERN	Node*	nodsafe;
-EXTERN	long	nrathole;
-EXTERN	long	nstring;
+EXTERN	int32	nrathole;
+EXTERN	int32	nstring;
 EXTERN	Prog*	p;
-EXTERN	long	pc;
+EXTERN	int32	pc;
 EXTERN	Node	lregnode;
 EXTERN	Node	qregnode;
 EXTERN	char	string[NSNAME];
@@ -188,8 +188,8 @@ EXTERN	Sym*	symrathole;
 EXTERN	Node	znode;
 EXTERN	Prog	zprog;
 EXTERN	int	reg[D_NONE];
-EXTERN	long	exregoffset;
-EXTERN	long	exfregoffset;
+EXTERN	int32	exregoffset;
+EXTERN	int32	exfregoffset;
 EXTERN	uchar	typechlpv[NTYPE];
 
 #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
@@ -214,8 +214,8 @@ EXTERN	Bits	params;
 EXTERN	Bits	consts;
 EXTERN	Bits	addrs;
 
-EXTERN	long	regbits;
-EXTERN	long	exregbits;
+EXTERN	int32	regbits;
+EXTERN	int32	exregbits;
 
 EXTERN	int	change;
 EXTERN	int	suppress;
@@ -225,9 +225,9 @@ EXTERN	Reg*	lastr;
 EXTERN	Reg	zreg;
 EXTERN	Reg*	freer;
 EXTERN	Var	var[NVAR];
-EXTERN	long*	idom;
+EXTERN	int32*	idom;
 EXTERN	Reg**	rpo2r;
-EXTERN	long	maxnr;
+EXTERN	int32	maxnr;
 
 extern	char*	anames[];
 
@@ -251,7 +251,7 @@ void	reglcgen(Node*, Node*, Node*);
 void	lcgen(Node*, Node*);
 void	bcgen(Node*, int);
 void	boolgen(Node*, int, Node*);
-void	sugen(Node*, Node*, long);
+void	sugen(Node*, Node*, int32);
 int	needreg(Node*, int);
 int	hardconst(Node*);
 int	immconst(Node*);
@@ -272,7 +272,7 @@ void	gclean(void);
 void	nextpc(void);
 void	gargs(Node*, Node*, Node*);
 void	garg1(Node*, Node*, Node*, int, Node**);
-Node*	nodconst(long);
+Node*	nodconst(int32);
 Node*	nodfconst(double);
 Node*	nodgconst(vlong, Type*);
 int	nodreg(Node*, Node*, int);
@@ -293,7 +293,7 @@ void	gins(int a, Node*, Node*);
 void	gopcode(int, Type*, Node*, Node*);
 int	samaddr(Node*, Node*);
 void	gbranch(int);
-void	patch(Prog*, long);
+void	patch(Prog*, int32);
 int	sconst(Node*);
 void	gpseudo(int, Sym*, Node*);
 
@@ -302,14 +302,14 @@ void	gpseudo(int, Sym*, Node*);
  */
 int	swcmp(const void*, const void*);
 void	doswit(Node*);
-void	swit1(C1*, int, long, Node*);
+void	swit1(C1*, int, int32, Node*);
 void	cas(void);
 void	bitload(Node*, Node*, Node*, Node*, Node*);
 void	bitstore(Node*, Node*, Node*, Node*, Node*);
-long	outstring(char*, long);
+int32	outstring(char*, int32);
 void	nullwarn(Node*, Node*);
-void	sextern(Sym*, Node*, long, long);
-void	gextern(Sym*, Node*, long, long);
+void	sextern(Sym*, Node*, int32, int32);
+void	gextern(Sym*, Node*, int32, int32);
 void	outcode(void);
 void	ieeedtod(Ieee*, double);
 
@@ -334,12 +334,12 @@ void	regopt(Prog*);
 void	addmove(Reg*, int, int, int);
 Bits	mkvar(Reg*, Adr*);
 void	prop(Reg*, Bits, Bits);
-void	loopit(Reg*, long);
+void	loopit(Reg*, int32);
 void	synch(Reg*, Bits);
-ulong	allreg(ulong, Rgn*);
+uint32	allreg(uint32, Rgn*);
 void	paint1(Reg*, int);
-ulong	paint2(Reg*, int);
-void	paint3(Reg*, int, long, int);
+uint32	paint2(Reg*, int);
+void	paint3(Reg*, int, int32, int);
 void	addreg(Adr*, int);
 
 /*
@@ -361,10 +361,10 @@ int	copyau(Adr*, Adr*);
 int	copysub(Adr*, Adr*, Adr*, int);
 int	copysub1(Prog*, Adr*, Adr*, int);
 
-long	RtoB(int);
-long	FtoB(int);
-int	BtoR(long);
-int	BtoF(long);
+int32	RtoB(int);
+int32	FtoB(int);
+int	BtoR(int32);
+int	BtoF(int32);
 
 #define	D_HI	D_NONE
 #define	D_LO	D_NONE
@@ -383,8 +383,8 @@ int	cond(int);
 int	com64(Node*);
 void	com64init(void);
 void	bool64(Node*);
-long	lo64v(Node*);
-long	hi64v(Node*);
+int32	lo64v(Node*);
+int32	hi64v(Node*);
 Node*	lo64(Node*);
 Node*	hi64(Node*);
 
@@ -393,8 +393,8 @@ Node*	hi64(Node*);
  */
 void	sdivgen(Node*, Node*, Node*, Node*);
 void	udivgen(Node*, Node*, Node*, Node*);
-void	sdiv2(long, int, Node*, Node*);
-void	smod2(long, int, Node*, Node*);
+void	sdiv2(int32, int, Node*, Node*);
+void	smod2(int32, int, Node*, Node*);
 void	mulgen(Type*, Node*, Node*);
 void	genmuladd(Node*, Node*, int, Node*);
 void	shiftit(Type*, Node*, Node*);

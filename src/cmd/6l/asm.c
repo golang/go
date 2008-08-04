@@ -32,7 +32,7 @@
 
 #define	Dbufslop	100
 
-#define PADDR(a)	((ulong)(a) & ~0x80000000)
+#define PADDR(a)	((uint32)(a) & ~0x80000000)
 
 vlong
 entryvalue(void)
@@ -73,7 +73,7 @@ wput(ushort w)
 }
 
 void
-lput(long l)
+lput(int32 l)
 {
 	cput(l>>24);
 	cput(l>>16);
@@ -89,7 +89,7 @@ llput(vlong v)
 }
 
 void
-lputl(long l)
+lputl(int32 l)
 {
 	cput(l);
 	cput(l>>8);
@@ -120,7 +120,7 @@ void
 asmb(void)
 {
 	Prog *p;
-	long v, magic;
+	int32 v, magic;
 	int a;
 	uchar *op1;
 	vlong vl, va, fo, w;
@@ -595,11 +595,11 @@ outa(int n, uchar *cast, uchar *map, vlong l)
 }
 
 void
-datblk(long s, long n)
+datblk(int32 s, int32 n)
 {
 	Prog *p;
 	uchar *cast;
-	long l, fl, j;
+	int32 l, fl, j;
 	vlong o;
 	int i, c;
 
@@ -747,7 +747,7 @@ vputl(vlong v)
 
 void
 machseg(char *name, vlong vaddr, vlong vsize, vlong foff, vlong fsize,
-	ulong prot1, ulong prot2, ulong nsect, ulong flag)
+	uint32 prot1, uint32 prot2, uint32 nsect, uint32 flag)
 {
 	lputl(25);	/* segment 64 */
 	lputl(72 + 80*nsect);
@@ -763,7 +763,7 @@ machseg(char *name, vlong vaddr, vlong vsize, vlong foff, vlong fsize,
 }
 
 void
-machsymseg(ulong foffset, ulong fsize)
+machsymseg(uint32 foffset, uint32 fsize)
 {
 	lputl(3);	/* obsolete gdb debug info */
 	lputl(16);	/* size of symseg command */
@@ -772,8 +772,8 @@ machsymseg(ulong foffset, ulong fsize)
 }
 
 void
-machsect(char *name, char *seg, vlong addr, vlong size, ulong off,
-	ulong align, ulong reloc, ulong nreloc, ulong flag)
+machsect(char *name, char *seg, vlong addr, vlong size, uint32 off,
+	uint32 align, uint32 reloc, uint32 nreloc, uint32 flag)
 {
 	strnput(name, 16);
 	strnput(seg, 16);
@@ -807,10 +807,10 @@ machstack(vlong e)
 		lputl(0);
 }
 
-ulong
+uint32
 machheadr(void)
 {
-	ulong a;
+	uint32 a;
 
 	a = 8;		/* a.out header */
 	a += 18;	/* page zero seg */
@@ -828,10 +828,10 @@ machheadr(void)
 	return a*4;
 }
 
-ulong
+uint32
 linuxheadr(void)
 {
-	ulong a;
+	uint32 a;
 
 	a = 64;		/* a.out header */
 
@@ -870,8 +870,8 @@ linuxphdr(int type, int flags, vlong foff,
 }
 
 void
-linuxshdr(char *name, ulong type, vlong flags, vlong addr, vlong off,
-	vlong size, ulong link, ulong info, vlong align, vlong entsize)
+linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
+	vlong size, uint32 link, uint32 info, vlong align, vlong entsize)
 {
 	lputl(stroffset);
 	lputl(type);

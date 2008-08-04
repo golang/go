@@ -34,8 +34,8 @@ struct	Addr
 struct	Prog
 {
 	short	as;		// opcode
-	ulong	loc;		// pc offset in this func
-	ulong	lineno;		// source line that generated this
+	uint32	loc;		// pc offset in this func
+	uint32	lineno;		// source line that generated this
 	Addr	from;		// src address
 	Addr	to;		// dst address
 	Prog*	link;		// next instruction in this func
@@ -57,8 +57,8 @@ struct Sig
 {
 	char*	name;
 	Sym*	sym;
-	ulong	hash;
-	long	offset;
+	uint32	hash;
+	int32	offset;
 	Sig*	link;
 };
 
@@ -87,14 +87,14 @@ EXTERN	Plist*	plast;
 EXTERN	Pool*	poolist;
 EXTERN	Pool*	poolast;
 EXTERN	Biobuf*	bout;
-EXTERN	long	dynloc;
+EXTERN	int32	dynloc;
 EXTERN	uchar	reg[D_NONE];
 EXTERN	ushort	txt[NTYPE*NTYPE];
-EXTERN	long	maxround;
-EXTERN	long	widthptr;
+EXTERN	int32	maxround;
+EXTERN	int32	widthptr;
 EXTERN	Sym*	symstringo;	// string objects
-EXTERN	long	stringo;	// size of string objects
-EXTERN	long	pcloc;		// instruction counter
+EXTERN	int32	stringo;	// size of string objects
+EXTERN	int32	pcloc;		// instruction counter
 EXTERN	String	emptystring;
 extern	char*	anames[];
 EXTERN	Hist*	hist;
@@ -134,7 +134,7 @@ void	agen(Node*, Node*);
 void	igen(Node*, Node*, Node*);
 vlong	fieldoffset(Type*, Node*);
 void	bgen(Node*, int, Prog*);
-void	sgen(Node*, Node*, ulong);
+void	sgen(Node*, Node*, uint32);
 void	gmove(Node*, Node*);
 Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);
@@ -205,4 +205,4 @@ void	outhist(Biobuf*);
  * align
  */
 void	dowidth(Type*);
-ulong	rnd(ulong, ulong);
+uint32	rnd(uint32, uint32);

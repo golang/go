@@ -124,7 +124,7 @@ acidinit(void)
 }
 
 void
-acidmember(Type *t, long off, int flag)
+acidmember(Type *t, int32 off, int flag)
 {
 	Sym *s, *s1;
 	Type *l;

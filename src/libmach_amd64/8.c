@@ -34,7 +34,7 @@
 #include <ureg_x86.h>
 #include <mach_amd64.h>
 
-#define	REGOFF(x)	(ulong)(&((struct Ureg *) 0)->x)
+#define	REGOFF(x)	(uintptr)(&((struct Ureg *) 0)->x)
 
 #define PC		REGOFF(pc)
 #define SP		REGOFF(sp)

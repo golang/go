@@ -46,8 +46,8 @@ struct txtsym {				/* Text Symbol table */
 
 struct hist {				/* Stack of include files & #line directives */
 	char	*name;			/* Assumes names Null terminated in file */
-	long	line;			/* line # where it was included */
-	long	offset;			/* line # of #line directive */
+	int32	line;			/* line # where it was included */
+	int32	offset;			/* line # of #line directive */
 };
 
 struct file {				/* Per input file header to history stack */
@@ -69,11 +69,11 @@ static	Sym	**fnames;		/* file names path component table */
 static	Sym	**globals;		/* globals by addr table */
 static	Hist	*hist;			/* base of history stack */
 static	int	isbuilt;		/* internal table init flag */
-static	long	nauto;			/* number of automatics */
-static	long	nfiles;			/* number of files */
-static	long	nglob;			/* number of globals */
-static	long	nhist;			/* number of history stack entries */
-static	long	nsym;			/* number of symbols */
+static	int32	nauto;			/* number of automatics */
+static	int32	nfiles;			/* number of files */
+static	int32	nglob;			/* number of globals */
+static	int32	nhist;			/* number of history stack entries */
+static	int32	nsym;			/* number of symbols */
 static	int	ntxt;			/* number of text symbols */
 static	uchar	*pcline;		/* start of pc-line state table */
 static	uchar 	*pclineend;		/* end of pc-line table */
@@ -86,15 +86,15 @@ static	uvlong	txtend;			/* end of text segment */
 static	uvlong	firstinstr;		/* as found from symtab; needed for amd64 */
 
 static void	cleansyms(void);
-static long	decodename(Biobuf*, Sym*);
+static int32	decodename(Biobuf*, Sym*);
 static short	*encfname(char*);
-static int 	fline(char*, int, long, Hist*, Hist**);
+static int 	fline(char*, int, int32, Hist*, Hist**);
 static void	fillsym(Sym*, Symbol*);
 static int	findglobal(char*, Symbol*);
 static int	findlocvar(Symbol*, char *, Symbol*);
 static int	findtext(char*, Symbol*);
 static int	hcomp(Hist*, short*);
-static int	hline(File*, short*, long*);
+static int	hline(File*, short*, int32*);
 static void	printhist(char*, Hist*, int);
 static int	buildtbls(void);
 static int	symcomp(const void*, const void*);
@@ -109,7 +109,7 @@ int
 syminit(int fd, Fhdr *fp)
 {
 	Sym *p;
-	long i, l, size;
+	int32 i, l, size;
 	vlong vl;
 	Biobuf b;
 	int svalsz;
@@ -228,12 +228,12 @@ symerrmsg(int n, char *table)
 	return -1;
 }
 
-static long
+static int32
 decodename(Biobuf *bp, Sym *p)
 {
 	char *cp;
 	int c1, c2;
-	long n;
+	int32 n;
 	vlong o;
 
 	if((p->type & 0x80) == 0) {		/* old-style, fixed length names */
@@ -352,7 +352,7 @@ textseg(uvlong base, Fhdr *fp)
  *		(special hack for high access rate operations)
  */
 Sym *
-symbase(long *n)
+symbase(int32 *n)
 {
 	*n = nsym;
 	return symbols;
@@ -375,7 +375,7 @@ getsym(int index)
 static int
 buildtbls(void)
 {
-	long i;
+	int32 i;
 	int j, nh, ng, nt;
 	File *f;
 	Txtsym *tp;
@@ -607,7 +607,7 @@ findtext(char *name, Symbol *s)
 static int
 findglobal(char *name, Symbol *s)
 {
-	long i;
+	int32 i;
 
 	for(i = 0; i < nglob; i++) {
 		if(cdotstrcmp(globals[i]->name, name) == 0) {
@@ -881,10 +881,10 @@ globalsym(Symbol *s, int index)
  *	find the pc given a file name and line offset into it.
  */
 uvlong
-file2pc(char *file, long line)
+file2pc(char *file, int32 line)
 {
 	File *fp;
-	long i;
+	int32 i;
 	uvlong pc, start, end;
 	short *name;
 
@@ -980,11 +980,11 @@ encfname(char *file)
  *	the size of intervening files in the stack.
  */
 static int
-hline(File *fp, short *name, long *line)
+hline(File *fp, short *name, int32 *line)
 {
 	Hist *hp;
 	int offset, depth;
-	long ln;
+	int32 ln;
 
 	for(hp = fp->hist; hp->name; hp++)		/* find name in stack */
 		if(hp->name[1] || hp->name[2]) {
@@ -1053,10 +1053,10 @@ hcomp(Hist *hp, short *sp)
 /*
  *	Convert a pc to a "file:line {file:line}" string.
  */
-long
+int32
 fileline(char *str, int n, uvlong dot)
 {
-	long line, top, bot, mid;
+	int32 line, top, bot, mid;
 	File *f;
 
 	*str = 0;
@@ -1087,11 +1087,11 @@ fileline(char *str, int n, uvlong dot)
  *	file with included files inserted in line.
  */
 static int
-fline(char *str, int n, long line, Hist *base, Hist **ret)
+fline(char *str, int n, int32 line, Hist *base, Hist **ret)
 {
 	Hist *start;			/* start of current level */
 	Hist *h;			/* current entry */
-	long delta;			/* sum of size of files this level */
+	int32 delta;			/* sum of size of files this level */
 	int k;
 
 	start = base;
@@ -1287,12 +1287,12 @@ pc2sp(uvlong pc)
 /*
  *	find the source file line number for a given value of the pc
  */
-long
+int32
 pc2line(uvlong pc)
 {
 	uchar *c, u;
 	uvlong currpc;
-	long currline;
+	int32 currline;
 
 	if(pcline == 0)
 		return -1;
@@ -1331,12 +1331,12 @@ pc2line(uvlong pc)
  *	a file and the first text address in the following file, respectively.
  */
 uvlong
-line2addr(long line, uvlong basepc, uvlong endpc)
+line2addr(int32 line, uvlong basepc, uvlong endpc)
 {
 	uchar *c,  u;
 	uvlong currpc, pc;
-	long currline;
-	long delta, d;
+	int32 currline;
+	int32 delta, d;
 	int found;
 
 	if(pcline == 0 || line == 0)

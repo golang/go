@@ -193,7 +193,7 @@ zname(Biobuf *b, Sym *s, int t)
 void
 zaddr(Biobuf *b, Addr *a, int s)
 {
-	long l;
+	int32 l;
 	int i, t;
 	char *n;
 	Ieee e;
@@ -359,7 +359,7 @@ ieeedtod(Ieee *ieee, double native)
 	fr = modf(fr*f, &ho);
 	ieee->l = ho;
 	ieee->l <<= 16;
-	ieee->l |= (long)(fr*f);
+	ieee->l |= (int32)(fr*f);
 }
 
 void
@@ -409,7 +409,7 @@ dumpstrings(void)
 	Pool *l;
 	Prog *p;
 	Addr ac, ao;
-	long wi;
+	int32 wi;
 
 	if(poolist == nil)
 		return;

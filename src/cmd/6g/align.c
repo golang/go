@@ -24,7 +24,7 @@ static	int	wmax	= 8;	// max rounding
 
 /*
  * additionally, go declares several platform-specific type aliases:
- * ushort, short, uint, int, ulong, long, float, and double.  The bit
+ * ushort, short, uint, int, uint32, int32, float, and double.  The bit
  */
 static char*
 typedefs[] =
@@ -47,8 +47,8 @@ typedefs[] =
 
 };
 
-ulong
-rnd(ulong o, ulong r)
+uint32
+rnd(uint32 o, uint32 r)
 {
 	if(r > wmax)
 		r = wmax;
@@ -62,7 +62,7 @@ void
 offmod(Type *t)
 {
 	Type *f;
-	long o;
+	int32 o;
 
 	o = 0;
 	for(f=t->type; f!=T; f=f->down) {
@@ -75,11 +75,11 @@ offmod(Type *t)
 	}
 }
 
-ulong
-widstruct(Type *t, ulong o, int flag)
+uint32
+widstruct(Type *t, uint32 o, int flag)
 {
 	Type *f;
-	long w;
+	int32 w;
 
 	for(f=t->type; f!=T; f=f->down) {
 		if(f->etype != TFIELD)
@@ -100,7 +100,7 @@ widstruct(Type *t, ulong o, int flag)
 void
 dowidth(Type *t)
 {
-	ulong w;
+	uint32 w;
 
 	w = 0;
 	if(t == T)

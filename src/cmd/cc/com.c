@@ -839,7 +839,7 @@ int
 tcomd(Node *n)
 {
 	Type *t;
-	long o;
+	int32 o;
 
 	o = 0;
 	t = dotsearch(n->sym, n->left->type->link, n, &o);

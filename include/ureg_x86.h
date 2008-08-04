@@ -28,26 +28,26 @@
 
 struct Ureg
 {
-	ulong	di;		/* general registers */
-	ulong	si;		/* ... */
-	ulong	bp;		/* ... */
-	ulong	nsp;
-	ulong	bx;		/* ... */
-	ulong	dx;		/* ... */
-	ulong	cx;		/* ... */
-	ulong	ax;		/* ... */
-	ulong	gs;		/* data segments */
-	ulong	fs;		/* ... */
-	ulong	es;		/* ... */
-	ulong	ds;		/* ... */
-	ulong	trap;		/* trap type */
-	ulong	ecode;		/* error code (or zero) */
-	ulong	pc;		/* pc */
-	ulong	cs;		/* old context */
-	ulong	flags;		/* old flags */
+	uint32	di;		/* general registers */
+	uint32	si;		/* ... */
+	uint32	bp;		/* ... */
+	uint32	nsp;
+	uint32	bx;		/* ... */
+	uint32	dx;		/* ... */
+	uint32	cx;		/* ... */
+	uint32	ax;		/* ... */
+	uint32	gs;		/* data segments */
+	uint32	fs;		/* ... */
+	uint32	es;		/* ... */
+	uint32	ds;		/* ... */
+	uint32	trap;		/* trap type */
+	uint32	ecode;		/* error code (or zero) */
+	uint32	pc;		/* pc */
+	uint32	cs;		/* old context */
+	uint32	flags;		/* old flags */
 	union {
-		ulong	usp;
-		ulong	sp;
+		uint32	usp;
+		uint32	sp;
 	};
-	ulong	ss;		/* old stack segment */
+	uint32	ss;		/* old stack segment */
 };

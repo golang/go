@@ -116,7 +116,7 @@ addr(Biobuf *bp)
 {
 	Addr a;
 	int t;
-	long l;
+	int32 l;
 	vlong off;
 
 	off = 0;

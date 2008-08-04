@@ -240,7 +240,7 @@ processprog(Prog *p, int doautos)
 static void
 objlookup(int id, char *name, int type, uint sig)
 {
-	long h;
+	int32 h;
 	char *cp;
 	Sym *s;
 	Symtab *sp;
@@ -351,7 +351,7 @@ nextar(Biobuf *bp, int offset, char *buf)
 {
 	struct ar_hdr a;
 	int i, r;
-	long arsize;
+	int32 arsize;
 
 	if (offset&01)
 		offset++;

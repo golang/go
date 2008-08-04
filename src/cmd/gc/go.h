@@ -52,7 +52,7 @@ enum
 typedef	struct	String	String;
 struct	String
 {
-	long	len;
+	int32	len;
 	char	s[3];	// variable
 };
 
@@ -83,7 +83,7 @@ struct	Type
 	uchar	outnamed;
 
 	Sym*	sym;
-	long	vargen;		// unique name for OTYPE/ONAME
+	int32	vargen;		// unique name for OTYPE/ONAME
 
 	// most nodes
 	Type*	type;
@@ -100,7 +100,7 @@ struct	Type
 	vlong	argwid;
 
 	// TARRAY
-	long	bound;
+	int32	bound;
 };
 #define	T	((Type*)0)
 
@@ -142,8 +142,8 @@ struct	Node
 	Sym*	fsym;		// import
 	Sym*	psym;		// import
 	Sym*	sym;		// various
-	long	vargen;		// unique name for OTYPE/ONAME
-	long	lineno;
+	int32	vargen;		// unique name for OTYPE/ONAME
+	int32	lineno;
 	vlong	xoffset;
 };
 #define	N	((Node*)0)
@@ -167,8 +167,8 @@ struct	Sym
 	Type*	forwtype;	// TPTR iff forward declared
 	void*	label;		// pointer to Prog* of label
 	vlong	offset;		// stack location if automatic
-	long	lexical;
-	long	vargen;		// unique variable number
+	int32	lexical;
+	int32	vargen;		// unique variable number
 	Sym*	link;
 };
 #define	S	((Sym*)0)
@@ -180,7 +180,7 @@ struct	Dcl
 	Sym*	dsym;		// for printing only
 	Node*	dnode;		// oname
 	Type*	dtype;		// otype
-	long	lineno;
+	int32	lineno;
 
 	Dcl*	forw;
 	Dcl*	back;		// sentinel has pointer to last
@@ -202,8 +202,8 @@ struct	Hist
 {
 	Hist*	link;
 	char*	name;
-	long	line;
-	long	offset;
+	int32	line;
+	int32	offset;
 };
 #define	H	((Hist*)0)
 
@@ -341,14 +341,14 @@ struct	Io
 {
 	char*	infile;
 	Biobuf*	bin;
-	long	ilineno;
+	int32	ilineno;
 	int	peekc;
 	char*	cp;	// used for content when bin==nil
 };
 
 EXTERN	Io	curio;
 EXTERN	Io	pushedio;
-EXTERN	long	lineno;
+EXTERN	int32	lineno;
 EXTERN	char*	pathname;
 EXTERN	Hist*	hist;
 EXTERN	Hist*	ehist;
@@ -394,12 +394,12 @@ EXTERN	int	inimportsys;
 
 EXTERN	Node*	booltrue;
 EXTERN	Node*	boolfalse;
-EXTERN	ulong	iota;
+EXTERN	uint32	iota;
 EXTERN	Node*	lastconst;
-EXTERN	long	vargen;
-EXTERN	long	exportgen;
-EXTERN	long	maxarg;
-EXTERN	long	stksize;
+EXTERN	int32	vargen;
+EXTERN	int32	exportgen;
+EXTERN	int32	maxarg;
+EXTERN	int32	stksize;
 EXTERN	ushort	blockgen;		// max block number
 EXTERN	ushort	block;			// current block number
 
@@ -410,8 +410,8 @@ EXTERN	char*	context;
 EXTERN	int	thechar;
 EXTERN	char*	thestring;
 EXTERN	char*	hunk;
-EXTERN	long	nhunk;
-EXTERN	long	thunk;
+EXTERN	int32	nhunk;
+EXTERN	int32	thunk;
 
 /*
  *	y.tab.c
@@ -426,10 +426,10 @@ void	setfilename(char*);
 void	importfile(Val*);
 void	cannedimports(void);
 void	unimportfile();
-long	yylex(void);
+int32	yylex(void);
 void	lexinit(void);
 char*	lexname(int);
-long	getr(void);
+int32	getr(void);
 int	getnsc(void);
 int	escchar(int, int*, vlong*);
 int	getc(void);
@@ -446,17 +446,17 @@ int	mpatov(char*, vlong*);
  *	subr.c
  */
 void	myexit(int);
-void*	mal(long);
-void*	remal(void*, long, long);
+void*	mal(int32);
+void*	remal(void*, int32, int32);
 void	errorexit(void);
-ulong	stringhash(char*);
+uint32	stringhash(char*);
 Sym*	lookup(char*);
 Sym*	pkglookup(char*, char*);
 void	yyerror(char*, ...);
 void	warn(char*, ...);
 void	fatal(char*, ...);
-void	linehist(char*, long);
-long	setlineno(Node*);
+void	linehist(char*, int32);
+int32	setlineno(Node*);
 Node*	nod(int, Node*, Node*);
 Node*	list(Node*, Node*);
 Type*	typ(int);
@@ -473,11 +473,11 @@ int	isbytearray(Type*);
 int	eqtype(Type*, Type*, int);
 void	argtype(Node*, Type*);
 int	eqargs(Type*, Type*);
-ulong	typehash(Type*, int);
+uint32	typehash(Type*, int);
 void	frame(int);
-Node*	literal(long);
+Node*	literal(int32);
 Node*	dobad(void);
-Node*	nodintconst(long);
+Node*	nodintconst(int32);
 void	ullmancalc(Node*);
 void	badtype(int, Type*, Type*);
 Type*	ptrto(Type*);
@@ -583,7 +583,7 @@ Node*	ascompatet(int, Node**, Type**, int);
 Node*	ascompatte(int, Type**, Node**, int);
 int	ascompat(Type*, Type*);
 Node*	prcompat(Node*);
-Node*	nodpanic(long);
+Node*	nodpanic(int32);
 Node*	newcompat(Node*);
 Node*	stringop(Node*, int);
 Type*	fixmap(Type*);
@@ -616,6 +616,6 @@ void	proglist(void);
 int	optopop(int);
 void	dumpobj(void);
 void	dowidth(Type*);
-void	argspace(long);
+void	argspace(int32);
 Node*	nodarg(Type*, int);
 void	nodconst(Node*, Type*, vlong);
