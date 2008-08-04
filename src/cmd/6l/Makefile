@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-CFLAGS=-I$(GOROOT)/include
-BIN=$(HOME)/bin
-O=o
+include ../../Make.conf
 
 TARG=\
 	6l\
@@ -25,7 +23,7 @@ HFILES=\
 
 
 $(TARG): $(OFILES)
-	cc -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
+	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
 
 $(OFILES): $(HFILES)
 

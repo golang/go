@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-CFLAGS=-I$(GOROOT)/include
-BIN=$(HOME)/bin
-O=o
+include ../../Make.conf
 
 # The directory is ar because the source is portable and general.
 # We call the binary 6ar to avoid confusion and because this binary
@@ -15,7 +13,7 @@ OFILES=\
 	ar.$O\
 
 $(TARG): $(OFILES)
-	cc -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lbio -l9
+	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lbio -l9
 
 clean:
 	rm -f $(OFILES) $(TARG)
