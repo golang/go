@@ -103,8 +103,7 @@ export type Stat interface {
 
 export var Universe_undef_t *Type  // initialized by Universe to Universe.undef_t
 
-export NewObject
-func NewObject(pos, kind int, ident string) *Object {
+export func NewObject(pos, kind int, ident string) *Object {
 	obj := new(Object);
 	obj.exported = false;
 	obj.pos = pos;
@@ -116,8 +115,7 @@ func NewObject(pos, kind int, ident string) *Object {
 }
 
 
-export NewType
-func NewType(form int) *Type {
+export func NewType(form int) *Type {
 	typ := new(Type);
 	typ.ref = -1;  // not yet exported
 	typ.form = form;
@@ -125,8 +123,7 @@ func NewType(form int) *Type {
 }
 
 
-export NewPackage;
-func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
 	pkg := new(Package);
 	pkg.ref = -1;  // not yet exported
 	pkg.file_name = file_name;
@@ -137,14 +134,12 @@ func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
 }
 
 
-export NewList
-func NewList() *List {
+export func NewList() *List {
 	return new(List);
 }
 
 
-export NewScope
-func NewScope(parent *Scope) *Scope {
+export func NewScope(parent *Scope) *Scope {
 	scope := new(Scope);
 	scope.parent = parent;
 	scope.entries = NewList();
@@ -152,8 +147,7 @@ func NewScope(parent *Scope) *Scope {
 }
 
 
-export NewCompilation;
-func NewCompilation(flags *Flags) *Compilation {
+export func NewCompilation(flags *Flags) *Compilation {
 	comp := new(Compilation);
 	comp.flags = flags;
 	return comp;

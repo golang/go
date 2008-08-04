@@ -5,8 +5,7 @@
 package Utils
 
 
-export BaseName
-func BaseName(s string) string {
+export func BaseName(s string) string {
 	// TODO this is not correct for non-ASCII strings!
 	i := len(s) - 1;
 	for i >= 0 && s[i] != '/' {
@@ -19,8 +18,7 @@ func BaseName(s string) string {
 }
 
 
-export FixExt
-func FixExt(s string) string {
+export func FixExt(s string) string {
 	i := len(s) - 3;  // 3 == len(".go");
 	if i >= 0 && s[i : len(s)] == ".go" {
 		s = s[0 : i];
@@ -29,8 +27,7 @@ func FixExt(s string) string {
 }
 
 
-export GetEnv
-func GetEnv(key string) string {
+export func GetEnv(key string) string {
 	n := len(key);
 	for i := 0; i < sys.envc(); i++ {
 		v := sys.envv(i);

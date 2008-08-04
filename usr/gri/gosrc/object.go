@@ -19,8 +19,7 @@ export const /* kind */ (
 // globals.go.
 
 
-export KindStr
-func KindStr(kind int) string {
+export func KindStr(kind int) string {
 	switch kind {
 	case BAD: return "BAD";
 	case CONST: return "CONST";

@@ -14,8 +14,7 @@ import Import "import"
 import AST "ast"
 
 
-export Parser
-type Parser struct {
+export type Parser struct {
 	comp *Globals.Compilation;
 	semantic_checks bool;
 	verbose, indent int;
@@ -1796,9 +1795,14 @@ func (P *Parser) ParseFuncDecl(exported bool) {
 func (P *Parser) ParseExportDecl() {
 	P.Trace("ExportDecl");
 	
-	// TODO this needs to be clarified - the current syntax is
-	// "everything goes" - sigh...
+	// TODO This is deprecated syntax and should go away eventually.
+	// (Also at the moment the syntax is everything goes...)
 	//P.Expect(Scanner.EXPORT);
+
+	if !P.comp.flags.sixg {
+		P.Error(P.pos, "deprecated export syntax (use -6g to enable)");
+	}
+	
 	has_paren := false;
 	if P.tok == Scanner.LPAREN {
 		P.Next();

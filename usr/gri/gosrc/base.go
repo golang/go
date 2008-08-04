@@ -6,14 +6,12 @@
 
 package base
 
-type Foo int
+export type Foo int
 
-type Bar *float;
+export type Bar *float;
 
-type Node struct {
+export type Node struct {
   left, right *Node;
   val bool;
   f Foo
 }
-
-export Foo, Bar, Node

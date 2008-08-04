@@ -306,8 +306,7 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 }
 
 
-export Import
-func Import(comp* Globals.Compilation, pkg_name string) *Globals.Package {
+export func Import(comp* Globals.Compilation, pkg_name string) *Globals.Package {
 	var I Importer;
 	return (&I).Import(comp, Utils.FixExt(pkg_name));
 }

@@ -11,8 +11,7 @@ import Universe "universe"
 // ----------------------------------------------------------------------------
 // Expressions
 
-export BinaryExpr
-type BinaryExpr struct {
+export type BinaryExpr struct {
 	typ_ *Globals.Type;
 	op int;
 	x, y Globals.Expr;
@@ -28,14 +27,12 @@ func (x *BinaryExpr) typ() *Globals.Type {
 // ----------------------------------------------------------------------------
 // Statements
 
-export Block
-type Block struct {
+export type Block struct {
 	// TODO fill in
 }
 
 
-export IfStat
-type IfStat struct {
+export type IfStat struct {
 	cond Globals.Expr;
 	then_ Globals.Stat;
 	else_ Globals.Stat;
