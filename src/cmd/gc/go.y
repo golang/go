@@ -44,7 +44,6 @@
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl
-%type	<node>		export_list_r export
 %type	<node>		hidden_importsym_list_r ohidden_importsym_list hidden_importsym isym
 %type	<node>		hidden_importfield_list_r ohidden_importfield_list hidden_importfield
 %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
@@ -136,14 +135,17 @@ import_there:
  */
 xdcl:
 	common_dcl
+|	LEXPORT { exportadj = 1; } common_dcl
+	{
+		$$ = $3;
+		exportadj = 0;
+	}
 |	LEXPORT export_list_r
 	{
-		markexport(rev($2));
 		$$ = N;
 	}
 |	LEXPORT '(' export_list_r ')'
 	{
-		markexport(rev($3));
 		$$ = N;
 	}
 |	xfndcl
@@ -1322,21 +1324,15 @@ new_name_list_r:
 export_list_r:
 	export
 |	export_list_r ocomma export
-	{
-		$$ = nod(OLIST, $1, $3);
-	}
 
 export:
 	sym
 	{
-		$$ = nod(OEXPORT, N, N);
-		$$->sym = $1;
+		exportsym($1);
 	}
 |	sym '.' sym
 	{
-		$$ = nod(OEXPORT, N, N);
-		$$->psym = $1;
-		$$->sym = $3;
+		exportsym(pkglookup($3->name, $1->name));
 	}
 
 import_stmt_list_r:

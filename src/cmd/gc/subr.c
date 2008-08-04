@@ -670,7 +670,6 @@ opnames[] =
 	[OSWITCH]	= "SWITCH",
 	[OTYPE]		= "TYPE",
 	[OVAR]		= "VAR",
-	[OEXPORT]	= "EXPORT",
 	[OIMPORT]	= "IMPORT",
 	[OXOR]		= "XOR",
 	[ONEW]		= "NEW",

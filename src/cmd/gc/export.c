@@ -6,28 +6,12 @@
 #include	"y.tab.h"
 
 void
-markexport(Node *n)
+exportsym(Sym *s)
 {
-	Sym *s;
 	Dcl *d, *r;
 
-loop:
-	if(n == N)
+	if(s == S)
 		return;
-
-	if(n->op == OLIST) {
-		markexport(n->left);
-		n = n->right;
-		goto loop;
-	}
-
-	if(n->op != OEXPORT)
-		fatal("markexport: op no OEXPORT: %O", n->op);
-
-	s = n->sym;
-	if(n->psym != S)
-		s = pkglookup(n->sym->name, n->psym->name);
-
 	if(s->export != 0)
 		return;
 	s->export = 1;

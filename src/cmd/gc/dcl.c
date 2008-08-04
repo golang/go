@@ -31,6 +31,8 @@ loop:
 		goto loop;
 	}
 
+	if(exportadj)
+		exportsym(n->sym);
 	addvar(n, t, dclcontext);
 }
 
@@ -48,6 +50,8 @@ dodcltype(Type *n, Type *t)
 		t = nt;
 		t->sym = S;
 	}
+	if(exportadj)
+		exportsym(n->sym);
 	addtyp(n, t, dclcontext);
 }
 
@@ -65,6 +69,8 @@ loop:
 		n = n->right;
 		goto loop;
 	}
+	if(exportadj)
+		exportsym(n->sym);
 
 	if(n->op != ONAME)
 		fatal("dodclconst: not a name");
@@ -990,9 +996,7 @@ fninit(Node *n)
 	r = list(r, a);
 
 	// (9)
-	a = nod(OEXPORT, N, N);
-	a->sym = fn->nname->sym;
-	markexport(a);
+	exportsym(fn->nname->sym);
 
 	fn->nbody = rev(r);
 //dump("b", fn);
