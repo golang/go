@@ -45,6 +45,7 @@ func SynchFifo() {
 	for i := 0; i < N; i++ {
 		ch -< i
 	}
+	<-in
 }
 
 func main() {
