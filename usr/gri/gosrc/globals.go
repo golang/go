@@ -126,12 +126,13 @@ func NewType(form int) *Type {
 
 
 export NewPackage;
-func NewPackage(file_name string, obj *Object) *Package {
+func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
 	pkg := new(Package);
 	pkg.ref = -1;  // not yet exported
 	pkg.file_name = file_name;
 	pkg.key = "<the package key>";  // TODO fix this
 	pkg.obj = obj;
+	pkg.scope = scope;
 	return pkg;
 }
 
@@ -315,15 +316,4 @@ func (C *Compilation) Insert(pkg *Package) {
 	pkg.obj.pnolev = C.pkg_ref;
 	C.pkg_list[C.pkg_ref] = pkg;
 	C.pkg_ref++;
-}
-
-
-func (C *Compilation) InsertImport(pkg *Package) *Package {
-	p := C.Lookup(pkg.file_name);
-	if (p == nil) {
-		// no primary package found
-		C.Insert(pkg);
-		p = pkg;
-	}
-	return p;
 }

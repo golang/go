@@ -23,9 +23,7 @@ type Importer struct {
 };
 
 
-func (I *Importer) ReadType() *Globals.Type;
 func (I *Importer) ReadObject() *Globals.Object;
-func (I *Importer) ReadPackage() *Globals.Package;
 
 
 func (I *Importer) ReadByte() byte {
@@ -74,13 +72,14 @@ func (I *Importer) ReadString() string {
 }
 
 
-func (I *Importer) ReadObjectTag() int {
+func (I *Importer) ReadPackageTag() int {
 	tag := I.ReadInt();
-	if tag < 0 {
-		panic "tag < 0";
-	}
 	if I.debug {
-		print "\n", Object.KindStr(tag);
+		if tag >= 0 {
+			print " [P", tag, "]";  // package ref
+		} else {
+			print "\nP", I.pkg_ref, ":";
+		}
 	}
 	return tag;
 }
@@ -99,16 +98,45 @@ func (I *Importer) ReadTypeTag() int {
 }
 
 
-func (I *Importer) ReadPackageTag() int {
+func (I *Importer) ReadObjectTag() int {
 	tag := I.ReadInt();
+	if tag < 0 {
+		panic "tag < 0";
+	}
 	if I.debug {
-		if tag >= 0 {
-			print " [P", tag, "]";  // package ref
-		} else {
-			print "\nP", I.pkg_ref, ":";
-		}
+		print "\n", Object.KindStr(tag);
 	}
 	return tag;
+}
+
+
+func (I *Importer) ReadPackage() *Globals.Package {
+	tag := I.ReadPackageTag();
+	if tag >= 0 {
+		return I.pkg_list[tag];  // package already imported
+	}
+
+	ident := I.ReadString();
+	file_name := I.ReadString();
+	key := I.ReadString();
+	
+	// Canonicalize package - if it was imported before,
+	// use the primary import.
+	pkg := I.comp.Lookup(file_name);
+	if pkg == nil {
+		// new package
+		obj := Globals.NewObject(-1, Object.PACKAGE, ident);
+		pkg = Globals.NewPackage(file_name, obj, Globals.NewScope(nil));
+		I.comp.Insert(pkg);
+	} else if key != pkg.key {
+		// the package was imported before but the package
+		// key has changed
+		panic "package key inconsistency";
+	}
+	I.pkg_list[I.pkg_ref] = pkg;
+	I.pkg_ref++;
+
+	return pkg;
 }
 
 
@@ -120,7 +148,7 @@ func (I *Importer) ReadScope() *Globals.Scope {
 	scope := Globals.NewScope(nil);
 	obj := I.ReadObject();
 	for obj != nil {
-		scope.InsertImport(obj);
+		scope.Insert(obj);
 		obj = I.ReadObject();
 	}
 	
@@ -129,44 +157,6 @@ func (I *Importer) ReadScope() *Globals.Scope {
 	}
 	
 	return scope;
-}
-
-
-func (I *Importer) ReadObject() *Globals.Object {
-	tag := I.ReadObjectTag();
-	if tag == Object.END {
-		return nil;
-	}
-	
-	if tag == Object.TYPE {
-		// named types are always primary types
-		// and handled entirely by ReadType()
-		typ := I.ReadType();
-		if typ.obj.typ != typ {
-			panic "inconsistent primary type";
-		}
-		return typ.obj;
-	}
-	
-	ident := I.ReadString();
-	obj := Globals.NewObject(0, tag, ident);
-	obj.typ = I.ReadType();
-
-	switch (tag) {
-	case Object.CONST:
-		I.ReadInt();  // should set the value field
-
-	case Object.VAR:
-		I.ReadInt();  // should set the address/offset field
-
-	case Object.FUNC:
-		I.ReadInt();  // should set the address/offset field
-		
-	default:
-		panic "UNREACHABLE";
-	}
-
-	return obj;
 }
 
 
@@ -181,7 +171,7 @@ func (I *Importer) ReadType() *Globals.Type {
 
 	ident := I.ReadString();
 	if len(ident) > 0 {
-		// primary type
+		// named type
 		pkg := I.ReadPackage();
 		
 		// create corresponding type object
@@ -234,32 +224,40 @@ func (I *Importer) ReadType() *Globals.Type {
 }
 
 
-func (I *Importer) ReadPackage() *Globals.Package {
-	tag := I.ReadPackageTag();
-	if tag >= 0 {
-		return I.pkg_list[tag];  // package already imported
+func (I *Importer) ReadObject() *Globals.Object {
+	tag := I.ReadObjectTag();
+	if tag == Object.END {
+		return nil;
 	}
-
+	
+	if tag == Object.TYPE {
+		// named types are handled entirely by ReadType()
+		typ := I.ReadType();
+		if typ.obj.typ != typ {
+			panic "inconsistent named type";
+		}
+		return typ.obj;
+	}
+	
 	ident := I.ReadString();
-	file_name := I.ReadString();
-	key := I.ReadString();
-	pkg := I.comp.Lookup(file_name);
+	obj := Globals.NewObject(0, tag, ident);
+	obj.typ = I.ReadType();
 
-	if pkg == nil {
-		// new package
-		obj := Globals.NewObject(-1, Object.PACKAGE, ident);
-		pkg = Globals.NewPackage(file_name, obj);
-		pkg.scope = Globals.NewScope(nil);
-		pkg = I.comp.InsertImport(pkg);
+	switch (tag) {
+	case Object.CONST:
+		I.ReadInt();  // should set the value field
 
-	} else if key != pkg.key {
-		// package inconsistency
-		panic "package key inconsistency";
+	case Object.VAR:
+		I.ReadInt();  // should set the address/offset field
+
+	case Object.FUNC:
+		I.ReadInt();  // should set the address/offset field
+		
+	default:
+		panic "UNREACHABLE";
 	}
-	I.pkg_list[I.pkg_ref] = pkg;
-	I.pkg_ref++;
 
-	return pkg;
+	return obj;
 }
 
 
@@ -290,14 +288,16 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 		I.type_ref++;
 	}
 
+	// import package
 	pkg := I.ReadPackage();
-	obj := I.ReadObject();
-	for obj != nil {
-		obj.pnolev = pkg.obj.pnolev;
-		pkg.scope.InsertImport(obj);
-		obj = I.ReadObject();
+	{	obj := I.ReadObject();
+		for obj != nil {
+			obj.pnolev = pkg.obj.pnolev;
+			pkg.scope.InsertImport(obj);
+			obj = I.ReadObject();
+		}
 	}
-
+	
 	if I.debug {
 		print "\n(", I.buf_pos, " bytes)\n";
 	}
