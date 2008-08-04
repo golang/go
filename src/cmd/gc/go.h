@@ -211,7 +211,7 @@ enum
 {
 	OXXX,
 
-	OTYPE, OCONST, OVAR, OEXPORT, OIMPORT,
+	OTYPE, OCONST, OVAR, OIMPORT,
 
 	ONAME, ONONAME,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
@@ -369,6 +369,7 @@ EXTERN	Sym*	pkgimportname;	// package name from imported package
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	sysimport;
 EXTERN	char*	filename;	// name to uniqify names
+EXTERN	int	exportadj;	// declaration is being exported
 
 EXTERN	Type*	types[NTYPE];
 EXTERN	uchar	isptr[NTYPE];
@@ -549,7 +550,7 @@ void	fninit(Node*);
  *	export.c
  */
 void	renamepkg(Node*);
-void	markexport(Node*);
+void	exportsym(Sym*);
 void	dumpe(Sym*);
 void	dumpexport(void);
 void	dumpexporttype(Sym*);
