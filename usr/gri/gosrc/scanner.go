@@ -111,8 +111,7 @@ var Keywords *map [string] int;
 var VerboseMsgs bool;  // error message customization
 
 
-export TokenName
-func TokenName(tok int) string {
+export func TokenName(tok int) string {
 	switch (tok) {
 	case ILLEGAL: return "illegal";
 	case EOF: return "eof";

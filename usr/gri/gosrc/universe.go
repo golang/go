@@ -9,24 +9,7 @@ import Object "object"
 import Type "type"
 
 
-export
-	scope,
-	types,
-	undef_t, bad_t, nil_t,
-	bool_t,
-	uint8_t, uint16_t, uint32_t, uint64_t,
-	int8_t, int16_t, int32_t, int64_t,
-	float32_t, float64_t, float80_t,
-	string_t, any_t,
-	byte_t,
-	ushort_t, uint_t, ulong_t,
-	short_t, int_t, long_t,
-	float_t, double_t,
-	ptrint_t,
-	true_, false_
-	
-
-var (
+export var (
 	scope *Globals.Scope;
 	types *Globals.List;
 	

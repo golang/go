@@ -27,8 +27,7 @@ export const /* flag */ (
 // globals.go.
 
 
-export FormStr
-func FormStr(form int) string {
+export func FormStr(form int) string {
 	switch form {
 	case UNDEF: return "UNDEF";
 	case BAD: return "BAD";

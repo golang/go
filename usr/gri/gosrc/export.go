@@ -282,8 +282,7 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 }
 
 
-export Export
-func Export(comp* Globals.Compilation, pkg_name string) {
+export func Export(comp* Globals.Compilation, pkg_name string) {
 	var E Exporter;
 	(&E).Export(comp, Utils.FixExt(Utils.BaseName(pkg_name)));
 }

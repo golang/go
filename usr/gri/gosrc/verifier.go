@@ -104,8 +104,7 @@ func VerifyPackage(pkg *Globals.Package, pno int) {
 }
 
 
-export Verify
-func Verify(comp *Globals.Compilation) {
+export func Verify(comp *Globals.Compilation) {
 	for i := 0; i < comp.pkg_ref; i++ {
 		VerifyPackage(comp.pkg_list[i], i);
 	}

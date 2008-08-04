@@ -17,8 +17,7 @@ import Printer "printer"
 import Verifier "verifier"
 
 
-export Compile
-func Compile(comp *Globals.Compilation, file_name string) {
+export func Compile(comp *Globals.Compilation, file_name string) {
 	src, ok := sys.readfile(file_name);
 	if !ok {
 		print "cannot open ", file_name, "\n"

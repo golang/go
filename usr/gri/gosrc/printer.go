@@ -259,8 +259,7 @@ func (P *Printer) PrintType(typ *Globals.Type) {
 }
 
 
-export PrintObject
-func PrintObject(comp *Globals.Compilation, obj *Globals.Object, print_all bool) {
+export func PrintObject(comp *Globals.Compilation, obj *Globals.Object, print_all bool) {
 	var P Printer;
 	(&P).Init(comp, print_all);
 	(&P).PrintObjectStruct(obj);
