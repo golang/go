@@ -84,7 +84,7 @@ Machdata i386mach =
 	1,			/* break point size */
 
 	leswab,			/* convert short to local byte order */
-	leswal,			/* convert long to local byte order */
+	leswal,			/* convert int32 to local byte order */
 	leswav,			/* convert vlong to local byte order */
 	i386trace,		/* C traceback */
 	i386frame,		/* frame finder */
@@ -101,7 +101,7 @@ Machdata i386mach =
 static char*
 i386excep(Map *map, Rgetter rget)
 {
-	ulong c;
+	uint32 c;
 	uvlong pc;
 	static char buf[16];
 
@@ -210,9 +210,9 @@ struct	Instr
 	char	rip;		/* RIP-relative in amd64 mode */
 	uchar	opre;		/* f2/f3 could introduce media */
 	short	seg;		/* segment of far address */
-	ulong	disp;		/* displacement */
-	ulong 	imm;		/* immediate */
-	ulong 	imm2;		/* second immediate operand */
+	uint32	disp;		/* displacement */
+	uint32 	imm;		/* immediate */
+	uint32 	imm2;		/* second immediate operand */
 	uvlong	imm64;		/* big immediate */
 	char	*curr;		/* fill level in output buffer */
 	char	*end;		/* end of output buffer */
@@ -286,9 +286,9 @@ enum {
 	Iwdq,			/* Operand-sized immediate, possibly 64 bits */
 	Awd,			/* Address offset */
 	Iwds,			/* Operand-sized immediate (sign extended) */
-	RM,			/* Word or long R/M field with register (/r) */
+	RM,			/* Word or int32 R/M field with register (/r) */
 	RMB,			/* Byte R/M field with register (/r) */
-	RMOP,			/* Word or long R/M field with op code (/digit) */
+	RMOP,			/* Word or int32 R/M field with op code (/digit) */
 	RMOPB,			/* Byte R/M field with op code (/digit) */
 	RMR,			/* R/M register only (mod = 11) */
 	RMM,			/* R/M memory only (mod = 0/1/2) */
@@ -1294,10 +1294,10 @@ igets(Map *map, Instr *ip, ushort *sp)
  *  get 4 bytes of the instruction
  */
 static int
-igetl(Map *map, Instr *ip, ulong *lp)
+igetl(Map *map, Instr *ip, uint32 *lp)
 {
 	ushort s;
-	long	l;
+	int32	l;
 
 	if (igets(map, ip, &s) < 0)
 		return -1;
@@ -1315,7 +1315,7 @@ igetl(Map *map, Instr *ip, ulong *lp)
 static int
 igetq(Map *map, Instr *ip, vlong *qp)
 {
-	ulong	l;
+	uint32	l;
 	uvlong q;
 
 	if (igetl(map, ip, &l) < 0)
@@ -1483,7 +1483,7 @@ badop:
 				ip->imm = c|0xffffff00;
 			else
 				ip->imm = c&0xff;
-			ip->imm64 = (long)ip->imm;
+			ip->imm64 = (int32)ip->imm;
 			ip->jumptype = Jbs;
 			break;
 		case Ibs:	/* 8-bit immediate (sign extended) */
@@ -1496,7 +1496,7 @@ badop:
 					ip->imm = c|0xff00;
 			else
 				ip->imm = c&0xff;
-			ip->imm64 = (long)ip->imm;
+			ip->imm64 = (int32)ip->imm;
 			break;
 		case Iw:	/* 16-bit immediate -> imm */
 			if (igets(map, ip, &s) < 0)
@@ -1530,7 +1530,7 @@ badop:
 					return 0;
 				ip->imm64 = ip->imm;
 				if (ip->rex & REXW) {
-					ulong l;
+					uint32 l;
 					if (igetl(map, ip, &l) < 0)
 						return 0;
 					ip->imm64 |= (uvlong)l << 32;
@@ -1781,7 +1781,7 @@ static void
 plocal(Instr *ip)
 {
 	int ret;
-	long offset;
+	int32 offset;
 	Symbol s;
 	char *reg;
 
@@ -1826,10 +1826,10 @@ isjmp(Instr *ip)
  * are changed on sources.
  */
 static int
-issymref(Instr *ip, Symbol *s, long w, long val)
+issymref(Instr *ip, Symbol *s, int32 w, int32 val)
 {
 	Symbol next, tmp;
-	long isstring, size;
+	int32 isstring, size;
 
 	if (isjmp(ip))
 		return 1;
@@ -1869,7 +1869,7 @@ static void
 immediate(Instr *ip, vlong val)
 {
 	Symbol s;
-	long w;
+	int32 w;
 
 	if (findsym(val, CANY, &s)) {		/* TO DO */
 		w = val - s.value;
@@ -2036,9 +2036,9 @@ prinstr(Instr *ip, char *fmt)
 			break;
 		case 'p':
 			/*
-			 * signed immediate in the ulong ip->imm.
+			 * signed immediate in the uint32 ip->imm.
 			 */
-			v = (long)ip->imm;
+			v = (int32)ip->imm;
 			immediate(ip, v+ip->addr+ip->n);
 			break;
 		case 'r':
@@ -2154,7 +2154,7 @@ i386foll(Map *map, uvlong pc, Rgetter rget, uvlong *foll)
 		return 1;
 	case Iwds:		/* pc relative JUMP or CALL*/
 	case Jbs:		/* pc relative JUMP or CALL */
-		v = (long)i.imm;
+		v = (int32)i.imm;
 		foll[0] = pc+v+i.n;
 		n = 1;
 		break;

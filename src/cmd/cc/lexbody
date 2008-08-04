@@ -76,7 +76,7 @@ gethunk(void)
 }
 
 void*
-alloc(long n)
+alloc(int32 n)
 {
 	void *p;
 
@@ -93,7 +93,7 @@ alloc(long n)
 }
 
 void*
-allocn(void *p, long on, long n)
+allocn(void *p, int32 on, int32 n)
 {
 	void *q;
 
@@ -204,7 +204,7 @@ Sym*
 lookup(void)
 {
 	Sym *s;
-	long h;
+	int32 h;
 	char *p;
 	int c, l;
 
@@ -242,7 +242,7 @@ ISALPHA(int c)
 	return 0;
 }
 
-long
+int32
 yylex(void)
 {
 	int c, c1;
@@ -665,11 +665,11 @@ yyerror(char *a, ...)
 }
 
 void
-prfile(long l)
+prfile(int32 l)
 {
 	int i, n;
 	Hist a[HISTSZ], *h;
-	long d;
+	int32 d;
 
 	n = 0;
 	for(h = hist; h != H; h = h->link) {
@@ -729,5 +729,5 @@ ieeedtod(Ieee *ieee, double native)
 	fr = modf(fr*f, &ho);
 	ieee->l = ho;
 	ieee->l <<= 16;
-	ieee->l |= (long)(fr*f);
+	ieee->l |= (int32)(fr*f);
 }

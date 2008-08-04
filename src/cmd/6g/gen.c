@@ -22,7 +22,7 @@ compile(Node *fn)
 	Plist *pl;
 	Node nod1;
 	Prog *ptxt;
-	long lno;
+	int32 lno;
 
 if(newproc == N) {
 	newproc = nod(ONAME, N, N);
@@ -90,7 +90,7 @@ allocparams(void)
 	Iter list;
 	Type *t;
 	Node *n;
-	ulong w;
+	uint32 w;
 
 	/*
 	 * allocate (set xoffset) the stack
@@ -120,7 +120,7 @@ allocparams(void)
 void
 gen(Node *n)
 {
-	long lno;
+	int32 lno;
 	Prog *scontin, *sbreak;
 	Prog *p1, *p2, *p3;
 	Sym *s;
@@ -305,7 +305,7 @@ agen_inter(Node *n, Node *res)
 	Node nodo, nodr, nodt;
 	Sym *s;
 	char *e;
-	long o,lno;
+	int32 o,lno;
 
 	lno = setlineno(n);
 
@@ -420,7 +420,7 @@ swgen(Node *n)
 	Node n1, tmp;
 	Case *s0, *se, *s;
 	Prog *p1, *dflt;
-	long lno;
+	int32 lno;
 	int any;
 	Iter save1, save2;
 
@@ -791,7 +791,7 @@ cgen_asop(Node *n)
 {
 	Node n1, n2, n3, n4;
 	Node *nl, *nr;
-	long lno;
+	int32 lno;
 
 	nl = n->left;
 	nr = n->right;
@@ -837,7 +837,7 @@ cgen_as(Node *nl, Node *nr, int op)
 {
 	Node nc, n1;
 	Type *tl;
-	ulong w, c;
+	uint32 w, c;
 
 	if(nl == N)
 		return;

@@ -7,19 +7,19 @@
  */
 
 typedef struct {
-	ulong	magic;		/* mach magic number identifier */
-	ulong	cputype;	/* cpu specifier */
-	ulong	cpusubtype;	/* machine specifier */
-	ulong	filetype;	/* type of file */
-	ulong	ncmds;		/* number of load commands */
-	ulong	sizeofcmds;	/* the size of all the load commands */
-	ulong	flags;		/* flags */
-	ulong	reserved;	/* reserved */
+	uint32	magic;		/* mach magic number identifier */
+	uint32	cputype;	/* cpu specifier */
+	uint32	cpusubtype;	/* machine specifier */
+	uint32	filetype;	/* type of file */
+	uint32	ncmds;		/* number of load commands */
+	uint32	sizeofcmds;	/* the size of all the load commands */
+	uint32	flags;		/* flags */
+	uint32	reserved;	/* reserved */
 } Machhdr;
 
 typedef struct {
-	ulong	type;	/* type of load command */
-	ulong	size;	/* total size in bytes */
+	uint32	type;	/* type of load command */
+	uint32	size;	/* total size in bytes */
 } MachCmd;
 
 typedef struct  {
@@ -29,16 +29,16 @@ typedef struct  {
 	uvlong	vmsize;		/* memory size of this segment */
 	uvlong	fileoff;	/* file offset of this segment */
 	uvlong	filesize;	/* amount to map from the file */
-	ulong	maxprot;	/* maximum VM protection */
-	ulong	initprot;	/* initial VM protection */
-	ulong	nsects;		/* number of sections in segment */
-	ulong	flags;		/* flags */
+	uint32	maxprot;	/* maximum VM protection */
+	uint32	initprot;	/* initial VM protection */
+	uint32	nsects;		/* number of sections in segment */
+	uint32	flags;		/* flags */
 } MachSeg64; /* for 64-bit architectures */
 
 typedef struct  {
 	MachCmd	cmd;
-	ulong	fileoff;	/* file offset of this segment */
-	ulong	filesize;	/* amount to map from the file */
+	uint32	fileoff;	/* file offset of this segment */
+	uint32	filesize;	/* amount to map from the file */
 } MachSymSeg;
 
 typedef struct  {
@@ -46,14 +46,14 @@ typedef struct  {
 	char		segname[16];	/* segment this section goes in */
 	uvlong	addr;		/* memory address of this section */
 	uvlong	size;		/* size in bytes of this section */
-	ulong	offset;		/* file offset of this section */
-	ulong	align;		/* section alignment (power of 2) */
-	ulong	reloff;		/* file offset of relocation entries */
-	ulong	nreloc;		/* number of relocation entries */
-	ulong	flags;		/* flags (section type and attributes)*/
-	ulong	reserved1;	/* reserved (for offset or index) */
-	ulong	reserved2;	/* reserved (for count or sizeof) */
-	ulong	reserved3;	/* reserved */
+	uint32	offset;		/* file offset of this section */
+	uint32	align;		/* section alignment (power of 2) */
+	uint32	reloff;		/* file offset of relocation entries */
+	uint32	nreloc;		/* number of relocation entries */
+	uint32	flags;		/* flags (section type and attributes)*/
+	uint32	reserved1;	/* reserved (for offset or index) */
+	uint32	reserved2;	/* reserved (for count or sizeof) */
+	uint32	reserved3;	/* reserved */
 } MachSect64; /* for 64-bit architectures */
 
 enum {

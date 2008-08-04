@@ -44,7 +44,7 @@ walktype(Node *n, int top)
 	Type *t;
 	Sym *s;
 	int et, cl, cr;
-	long lno;
+	int32 lno;
 
 	lno = setlineno(n);
 
@@ -1042,7 +1042,7 @@ walkselect(Node *sel)
 	Node *n, *oc, *on, *r;
 	Node *var, *bod, *res;
 	int count;
-	long lno;
+	int32 lno;
 
 	lno = setlineno(sel);
 
@@ -1459,7 +1459,7 @@ loop:
 }
 
 Node*
-nodpanic(long lineno)
+nodpanic(int32 lineno)
 {
 	Node *n, *on;
 
@@ -1513,7 +1513,7 @@ Node*
 stringop(Node *n, int top)
 {
 	Node *r, *c, *on;
-	long l;
+	int32 l;
 
 	switch(n->op) {
 	default:

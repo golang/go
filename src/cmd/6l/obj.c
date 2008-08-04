@@ -421,7 +421,7 @@ void
 loadlib(void)
 {
 	int i;
-	long h;
+	int32 h;
 	Sym *s;
 
 loop:
@@ -453,7 +453,7 @@ errorexit(void)
 void
 objfile(char *file)
 {
-	long off, esym, cnt, l;
+	int32 off, esym, cnt, l;
 	int f, work;
 	Sym *s;
 	char magbuf[SARMAG];
@@ -561,7 +561,7 @@ int
 zaddr(uchar *p, Adr *a, Sym *h[])
 {
 	int c, t, i;
-	long l;
+	int32 l;
 	Sym *s;
 	Auto *u;
 
@@ -579,7 +579,7 @@ zaddr(uchar *p, Adr *a, Sym *h[])
 	if(t & T_OFFSET) {
 		/*
 		 * Hack until Charles fixes the compiler.
-		a->offset = (long)(p[c] | (p[c+1]<<8) | (p[c+2]<<16) | (p[c+3]<<24));
+		a->offset = (int32)(p[c] | (p[c+1]<<8) | (p[c+2]<<16) | (p[c+3]<<24));
 		 */
 		l = p[c] | (p[c+1]<<8) | (p[c+2]<<16) | (p[c+3]<<24);
 		a->offset = l;
@@ -707,7 +707,7 @@ addlib(char *obj)
 }
 
 void
-addhist(long line, int type)
+addhist(int32 line, int type)
 {
 	Auto *u;
 	Sym *s;
@@ -808,14 +808,14 @@ readsome(int f, uchar *buf, uchar *good, uchar *stop, int max)
 }
 
 void
-ldobj(int f, long c, char *pn)
+ldobj(int f, int32 c, char *pn)
 {
 	vlong ipc;
 	Prog *p, *t;
 	uchar *bloc, *bsize, *stop;
 	int v, o, r, skip, mode;
 	Sym *h[NSYM], *s, *di;
-	ulong sig;
+	uint32 sig;
 	static int files;
 	static char **filen;
 	char **nfilen;
@@ -1230,7 +1230,7 @@ lookup(char *symb, int v)
 {
 	Sym *s;
 	char *p;
-	long h;
+	int32 h;
 	int l, c;
 
 	h = v;
@@ -1298,7 +1298,7 @@ void
 doprof1(void)
 {
 	Sym *s;
-	long n;
+	int32 n;
 	Prog *p, *q;
 
 	if(debug['v'])
@@ -1487,7 +1487,7 @@ nuxiinit(void)
 }
 
 int
-find1(long l, int c)
+find1(int32 l, int c)
 {
 	char *p;
 	int i;
@@ -1500,7 +1500,7 @@ find1(long l, int c)
 }
 
 int
-find2(long l, int c)
+find2(int32 l, int c)
 {
 	short *p;
 	int i;
@@ -1515,11 +1515,11 @@ find2(long l, int c)
 	return 0;
 }
 
-long
+int32
 ieeedtof(Ieee *e)
 {
 	int exp;
-	long v;
+	int32 v;
 
 	if(e->h == 0)
 		return 0;

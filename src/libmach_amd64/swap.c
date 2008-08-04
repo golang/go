@@ -41,10 +41,10 @@ beswab(ushort s)
 }
 
 /*
- * big-endian long
+ * big-endian int32
  */
-ulong
-beswal(ulong l)
+uint32
+beswal(uint32 l)
 {
 	uchar *p;
 
@@ -80,10 +80,10 @@ leswab(ushort s)
 }
 
 /*
- * little-endian long
+ * little-endian int32
  */
-ulong
-leswal(ulong l)
+uint32
+leswal(uint32 l)
 {
 	uchar *p;
 

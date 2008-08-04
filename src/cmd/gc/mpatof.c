@@ -10,7 +10,7 @@ int	mpatov(char *s, vlong *v);
 
 enum
 {
-	Mpscale	= 29,		/* safely smaller than bits in a long */
+	Mpscale	= 29,		/* safely smaller than bits in a int32 */
 	Mpprec	= 36,		/* Mpscale*Mpprec sb > largest fp exp */
 	Mpbase	= 1L<<Mpscale,
 };
@@ -18,7 +18,7 @@ enum
 typedef
 struct
 {
-	long	a[Mpprec];
+	int32	a[Mpprec];
 	char	ovf;
 } Mp;
 
@@ -169,7 +169,7 @@ static int
 mptof(Mp *a, double *d)
 {
 	double f, g;
-	long x, *a1;
+	int32 x, *a1;
 	int i;
 
 	if(a->ovf)
@@ -200,7 +200,7 @@ static void
 mpadd(Mp *a, Mp *b)
 {
 	int i, c;
-	long x, *a1, *b1;
+	int32 x, *a1, *b1;
 
 	if(b->ovf)
 		a->ovf = 1;

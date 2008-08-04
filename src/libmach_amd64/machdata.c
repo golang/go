@@ -98,7 +98,7 @@ symoff(char *buf, int n, uvlong v, int space)
 {
 	Symbol s;
 	int r;
-	long delta;
+	int32 delta;
 
 	r = delta = 0;		/* to shut compiler up */
 	if (v) {
@@ -132,7 +132,7 @@ int
 fpformat(Map *map, Reglist *rp, char *buf, int n, int modif)
 {
 	char reg[12];
-	ulong r;
+	uint32 r;
 
 	switch(rp->rformat)
 	{
@@ -180,9 +180,9 @@ fpformat(Map *map, Reglist *rp, char *buf, int n, int modif)
 }
 
 char *
-_hexify(char *buf, ulong p, int zeros)
+_hexify(char *buf, uint32 p, int zeros)
 {
-	ulong d;
+	uint32 d;
 
 	d = p/16;
 	if(d)
@@ -200,7 +200,7 @@ _hexify(char *buf, ulong p, int zeros)
  * double format.  Naive but workable, probably.
  */
 int
-ieeedftos(char *buf, int n, ulong h, ulong l)
+ieeedftos(char *buf, int n, uint32 h, uint32 l)
 {
 	double fr;
 	int exp;
@@ -238,7 +238,7 @@ ieeedftos(char *buf, int n, ulong h, ulong l)
 }
 
 int
-ieeesftos(char *buf, int n, ulong h)
+ieeesftos(char *buf, int n, uint32 h)
 {
 	double fr;
 	int exp;
@@ -273,25 +273,25 @@ ieeesftos(char *buf, int n, ulong h)
 int
 beieeesftos(char *buf, int n, void *s)
 {
-	return ieeesftos(buf, n, beswal(*(ulong*)s));
+	return ieeesftos(buf, n, beswal(*(uint32*)s));
 }
 
 int
 beieeedftos(char *buf, int n, void *s)
 {
-	return ieeedftos(buf, n, beswal(*(ulong*)s), beswal(((ulong*)(s))[1]));
+	return ieeedftos(buf, n, beswal(*(uint32*)s), beswal(((uint32*)(s))[1]));
 }
 
 int
 leieeesftos(char *buf, int n, void *s)
 {
-	return ieeesftos(buf, n, leswal(*(ulong*)s));
+	return ieeesftos(buf, n, leswal(*(uint32*)s));
 }
 
 int
 leieeedftos(char *buf, int n, void *s)
 {
-	return ieeedftos(buf, n, leswal(((ulong*)(s))[1]), leswal(*(ulong*)s));
+	return ieeedftos(buf, n, leswal(((uint32*)(s))[1]), leswal(*(uint32*)s));
 }
 
 /* packed in 12 bytes, with s[2]==s[3]==0; mantissa starts at s[4]*/
@@ -300,7 +300,7 @@ beieee80ftos(char *buf, int n, void *s)
 {
 	uchar *reg = (uchar*)s;
 	int i;
-	ulong x;
+	uint32 x;
 	uchar ieee[8+8];	/* room for slop */
 	uchar *p, *q;
 

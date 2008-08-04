@@ -48,9 +48,9 @@
 	struct
 	{
 		char*	s;
-		long	l;
+		int32	l;
 	} sval;
-	long	lval;
+	int32	lval;
 	double	dval;
 	vlong	vval;
 }
@@ -198,7 +198,7 @@ adlist:
 	}
 	'=' init
 	{
-		long w;
+		int32 w;
 
 		w = $1->sym->type->width;
 		$$ = doinit($1->sym, $1->type, 0L, $4);

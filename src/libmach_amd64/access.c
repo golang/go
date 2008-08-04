@@ -45,7 +45,7 @@ static	struct	segment*	reloc(Map*, uvlong, vlong*);
 int
 geta(Map *map, uvlong addr, uvlong *x)
 {
-	ulong l;
+	uint32 l;
 	uvlong vl;
 
 	if (mach->szaddr == 8){
@@ -81,7 +81,7 @@ get8(Map *map, uvlong addr, uvlong *x)
 }
 
 int
-get4(Map *map, uvlong addr, ulong *x)
+get4(Map *map, uvlong addr, uint32 *x)
 {
 	if (!map) {
 		werrstr("get4: invalid map");
@@ -158,7 +158,7 @@ put8(Map *map, uvlong addr, uvlong v)
 }
 
 int
-put4(Map *map, uvlong addr, ulong v)
+put4(Map *map, uvlong addr, uint32 v)
 {
 	if (!map) {
 		werrstr("put4: invalid map");

@@ -198,7 +198,7 @@ importfile(Val *f)
 {
 	Biobuf *imp;
 	char *file;
-	long c;
+	int32 c;
 	char *p;
 	int len;
 
@@ -283,7 +283,7 @@ cannedimports(void)
 	inimportsys = 1;
 }
 
-long
+int32
 yylex(void)
 {
 	int c, c1;
@@ -335,8 +335,8 @@ l0:
 	case '"':
 		/* "..." */
 		strcpy(namebuf, "\"<string>\"");
-		cp = mal(sizeof(long));
-		c1 = 4;
+		cp = mal(sizeof(int32));
+		c1 = sizeof(int32);
 
 	caseq:
 		for(;;) {
@@ -359,8 +359,8 @@ l0:
 	case '`':
 		/* `...` */
 		strcpy(namebuf, "`<string>`");
-		cp = mal(sizeof(long));
-		c1 = 4;
+		cp = mal(sizeof(int32));
+		c1 = sizeof(int32);
 
 	casebq:
 		for(;;) {
@@ -385,7 +385,7 @@ l0:
 			break;
 		}
 
-		*(long*)cp = c1-4;	// length
+		*(int32*)cp = c1-sizeof(int32);	// length
 		do {
 			cp = remal(cp, c1, 1);
 			cp[c1++] = 0;
@@ -781,7 +781,7 @@ ungetc(int c)
 		lineno--;
 }
 
-long
+int32
 getr(void)
 {
 	int c, i;
@@ -1212,7 +1212,7 @@ void
 mkpackage(char* pkg)
 {
 	Sym *s;
-	long h;
+	int32 h;
 	char *p;
 
 	if(bout != nil) {

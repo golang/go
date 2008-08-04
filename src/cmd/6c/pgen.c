@@ -34,7 +34,7 @@ vlong
 argsize(void)
 {
 	Type *t;
-	long s;
+	int32 s;
 
 //print("t=%T\n", thisfn);
 	s = 0;
@@ -125,7 +125,7 @@ void
 supgen(Node *n)
 {
 	int owarn;
-	long spc;
+	int32 spc;
 	Prog *sp;
 
 	if(n == Z)
@@ -149,7 +149,7 @@ gen(Node *n)
 	Node *l, nod;
 	Prog *sp, *spc, *spb;
 	Case *cn;
-	long sbc, scc;
+	int32 sbc, scc;
 	int snbreak, sncontin;
 	int f, o, oldreach;
 

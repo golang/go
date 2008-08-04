@@ -174,7 +174,7 @@ copytyp(Type *t)
 }
 
 Type*
-garbt(Type *t, long b)
+garbt(Type *t, int32 b)
 {
 	Type *t1;
 
@@ -187,7 +187,7 @@ garbt(Type *t, long b)
 }
 
 int
-simpleg(long b)
+simpleg(int32 b)
 {
 
 	b &= BGARB;
@@ -203,7 +203,7 @@ simpleg(long b)
 }
 
 int
-simplec(long b)
+simplec(int32 b)
 {
 
 	b &= BCLASS;
@@ -230,7 +230,7 @@ simplec(long b)
 }
 
 Type*
-simplet(long b)
+simplet(int32 b)
 {
 
 	b &= ~BCLASS & ~BGARB;
@@ -299,10 +299,10 @@ simplet(long b)
 }
 
 int
-stcompat(Node *n, Type *t1, Type *t2, long ttab[])
+stcompat(Node *n, Type *t1, Type *t2, int32 ttab[])
 {
 	int i;
-	ulong b;
+	uint32 b;
 
 	i = 0;
 	if(t2 != T)
@@ -326,7 +326,7 @@ stcompat(Node *n, Type *t1, Type *t2, long ttab[])
 }
 
 int
-tcompat(Node *n, Type *t1, Type *t2, long ttab[])
+tcompat(Node *n, Type *t1, Type *t2, int32 ttab[])
 {
 
 	if(stcompat(n, t1, t2, ttab)) {
@@ -342,7 +342,7 @@ tcompat(Node *n, Type *t1, Type *t2, long ttab[])
 }
 
 void
-makedot(Node *n, Type *t, long o)
+makedot(Node *n, Type *t, int32 o)
 {
 	Node *n1, *n2;
 
@@ -389,7 +389,7 @@ makedot(Node *n, Type *t, long o)
 }
 
 Type*
-dotsearch(Sym *s, Type *t, Node *n, long *off)
+dotsearch(Sym *s, Type *t, Node *n, int32 *off)
 {
 	Type *t1, *xt, *rt;
 
@@ -441,12 +441,12 @@ ambig:
 	return xt;
 }
 
-long
+int32
 dotoffset(Type *st, Type *lt, Node *n)
 {
 	Type *t;
 	Sym *g;
-	long o, o1;
+	int32 o, o1;
 
 	o = -1;
 	/*
@@ -574,7 +574,7 @@ typeext(Type *st, Node *l)
 {
 	Type *lt;
 	Node *n1, *n2;
-	long o;
+	int32 o;
 
 	lt = l->type;
 	if(lt == T)
@@ -689,7 +689,7 @@ arith(Node *n, int f)
 	Type *t1, *t2;
 	int i, j, k;
 	Node *n1;
-	long w;
+	int32 w;
 
 	t1 = n->left->type;
 	if(n->right == Z)
@@ -799,7 +799,7 @@ bad:
 void
 simplifyshift(Node *n)
 {
-	ulong c3;
+	uint32 c3;
 	int o, s1, s2, c1, c2;
 
 	if(!typechlp[n->type->etype])
@@ -1078,7 +1078,7 @@ bad:
 }
 
 int
-topbit(ulong v)
+topbit(uint32 v)
 {
 	int i;
 
@@ -1160,7 +1160,7 @@ invert(Node *n)
 }
 
 int
-bitno(long b)
+bitno(int32 b)
 {
 	int i;
 
@@ -1171,10 +1171,10 @@ bitno(long b)
 	return 0;
 }
 
-long
-typebitor(long a, long b)
+int32
+typebitor(int32 a, int32 b)
 {
-	long c;
+	int32 c;
 
 	c = a | b;
 	if(a & b)
@@ -1277,10 +1277,10 @@ fatal(Node *n, char *fmt, ...)
 	errorexit();
 }
 
-ulong	thash1	= 0x2edab8c9;
-ulong	thash2	= 0x1dc74fb8;
-ulong	thash3	= 0x1f241331;
-ulong	thash[NALLTYPES];
+uint32	thash1	= 0x2edab8c9;
+uint32	thash2	= 0x1dc74fb8;
+uint32	thash3	= 0x1f241331;
+uint32	thash[NALLTYPES];
 Init	thashinit[] =
 {
 	TXXX,		0x17527bbd,	0,
@@ -1618,7 +1618,7 @@ int	typesuinit[] =
 	TSTRUCT, TUNION, -1,
 };
 
-long	tasign[NTYPE];
+int32	tasign[NTYPE];
 Init	tasigninit[] =
 {
 	TCHAR,		BNUMBER,	0,
@@ -1639,7 +1639,7 @@ Init	tasigninit[] =
 	-1,		0,		0,
 };
 
-long	tasadd[NTYPE];
+int32	tasadd[NTYPE];
 Init	tasaddinit[] =
 {
 	TCHAR,		BNUMBER,	0,
@@ -1658,7 +1658,7 @@ Init	tasaddinit[] =
 	-1,		0,		0,
 };
 
-long	tcast[NTYPE];
+int32	tcast[NTYPE];
 Init	tcastinit[] =
 {
 	TCHAR,		BNUMBER|BIND|BVOID,	0,
@@ -1680,7 +1680,7 @@ Init	tcastinit[] =
 	-1,		0,			0,
 };
 
-long	tadd[NTYPE];
+int32	tadd[NTYPE];
 Init	taddinit[] =
 {
 	TCHAR,		BNUMBER|BIND,	0,
@@ -1699,7 +1699,7 @@ Init	taddinit[] =
 	-1,		0,		0,
 };
 
-long	tsub[NTYPE];
+int32	tsub[NTYPE];
 Init	tsubinit[] =
 {
 	TCHAR,		BNUMBER,	0,
@@ -1718,7 +1718,7 @@ Init	tsubinit[] =
 	-1,		0,		0,
 };
 
-long	tmul[NTYPE];
+int32	tmul[NTYPE];
 Init	tmulinit[] =
 {
 	TCHAR,		BNUMBER,	0,
@@ -1736,7 +1736,7 @@ Init	tmulinit[] =
 	-1,		0,		0,
 };
 
-long	tand[NTYPE];
+int32	tand[NTYPE];
 Init	tandinit[] =
 {
 	TCHAR,		BINTEGER,	0,
@@ -1752,7 +1752,7 @@ Init	tandinit[] =
 	-1,		0,		0,
 };
 
-long	trel[NTYPE];
+int32	trel[NTYPE];
 Init	trelinit[] =
 {
 	TCHAR,		BNUMBER,	0,
@@ -1771,27 +1771,27 @@ Init	trelinit[] =
 	-1,		0,		0,
 };
 
-long	tfunct[1] =
+int32	tfunct[1] =
 {
 	BFUNC,
 };
 
-long	tindir[1] =
+int32	tindir[1] =
 {
 	BIND,
 };
 
-long	tdot[1] =
+int32	tdot[1] =
 {
 	BSTRUCT|BUNION,
 };
 
-long	tnot[1] =
+int32	tnot[1] =
 {
 	BNUMBER|BIND,
 };
 
-long	targ[1] =
+int32	targ[1] =
 {
 	BNUMBER|BIND|BSTRUCT|BUNION,
 };

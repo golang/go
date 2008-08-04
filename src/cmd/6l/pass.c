@@ -36,7 +36,7 @@ dodata(void)
 	int i;
 	Sym *s;
 	Prog *p;
-	long t, u;
+	int32 t, u;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f dodata\n", cputime());
@@ -297,7 +297,7 @@ void
 markstk(Prog *l)
 {
 	Prog *p0, *p, *q, *r;
-	long i, n, line;
+	int32 i, n, line;
 	Sym *s;
 
 	version++;
@@ -438,10 +438,10 @@ doinit(void)
 void
 patch(void)
 {
-	long c;
+	int32 c;
 	Prog *p, *q;
 	Sym *s;
-	long vexit;
+	int32 vexit;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f mkfwd\n", cputime());
@@ -517,7 +517,7 @@ mkfwd(void)
 {
 	Prog *p;
 	int i;
-	long dwn[LOG], cnt[LOG];
+	int32 dwn[LOG], cnt[LOG];
 	Prog *lst[LOG];
 
 	for(i=0; i<LOG; i++) {
@@ -566,7 +566,7 @@ void
 dostkoff(void)
 {
 	Prog *p, *q;
-	long autoffset, deltasp;
+	int32 autoffset, deltasp;
 	int a, f, curframe, curbecome, maxbecome, pcsize;
 	Prog *pmorestack;
 	Sym *symmorestack;
@@ -882,7 +882,7 @@ import(void)
 }
 
 void
-ckoff(Sym *s, long v)
+ckoff(Sym *s, int32 v)
 {
 	if(v < 0 || v >= 1<<Roffset)
 		diag("relocation offset %ld for %s out of range", v, s->name);
@@ -954,13 +954,13 @@ export(void)
 		/* Bprint(&bso, "EXPORT: %s sig=%lux t=%d\n", s->name, s->sig, s->type); */
 
 		/* signature */
-		p = newdata(et, off, sizeof(long), D_EXTERN);
-		off += sizeof(long);
+		p = newdata(et, off, sizeof(int32), D_EXTERN);
+		off += sizeof(int32);
 		p->to.offset = s->sig;
 
 		/* address */
-		p = newdata(et, off, sizeof(long), D_EXTERN);
-		off += sizeof(long);
+		p = newdata(et, off, sizeof(int32), D_EXTERN);
+		off += sizeof(int32);
 		p->to.type = D_ADDR;
 		p->to.index = D_EXTERN;
 		p->to.sym = s;
@@ -982,8 +982,8 @@ export(void)
 		}
 
 		/* name */
-		p = newdata(et, off, sizeof(long), D_EXTERN);
-		off += sizeof(long);
+		p = newdata(et, off, sizeof(int32), D_EXTERN);
+		off += sizeof(int32);
 		p->to.type = D_ADDR;
 		p->to.index = D_STATIC;
 		p->to.sym = str;
@@ -997,8 +997,8 @@ export(void)
 	}
 
 	for(i = 0; i < 3; i++){
-		newdata(et, off, sizeof(long), D_EXTERN);
-		off += sizeof(long);
+		newdata(et, off, sizeof(int32), D_EXTERN);
+		off += sizeof(int32);
 	}
 	et->value = off;
 	if(sv == 0)

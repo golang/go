@@ -273,7 +273,7 @@ void
 dumpexport(void)
 {
 	Dcl *d;
-	long lno;
+	int32 lno;
 
 	lno = lineno;
 

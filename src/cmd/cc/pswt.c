@@ -47,7 +47,7 @@ doswit(Node *n)
 {
 	Case *c;
 	C1 *q, *iq;
-	long def, nc, i, isv;
+	int32 def, nc, i, isv;
 
 	def = 0;
 	nc = 0;
@@ -74,7 +74,7 @@ doswit(Node *n)
 		if(isv)
 			q->val = c->val;
 		else
-			q->val = (long)c->val;	/* cast ensures correct value for 32-bit switch on 64-bit architecture */
+			q->val = (int32)c->val;	/* cast ensures correct value for 32-bit switch on 64-bit architecture */
 		q++;
 	}
 	qsort(iq, nc, sizeof(C1), swcmp);
@@ -101,12 +101,12 @@ cas(void)
 	cases = c;
 }
 
-long
-outlstring(ushort *s, long n)
+int32
+outlstring(ushort *s, int32 n)
 {
 	char buf[2];
 	int c;
-	long r;
+	int32 r;
 
 	if(suppress)
 		return nstring;
@@ -164,5 +164,5 @@ ieeedtod(Ieee *ieee, double native)
 	fr = modf(fr*f, &ho);
 	ieee->l = ho;
 	ieee->l <<= 16;
-	ieee->l |= (long)(fr*f);
+	ieee->l |= (int32)(fr*f);
 }

@@ -394,7 +394,7 @@ Sym*
 lookup(void)
 {
 	Sym *s;
-	ulong h;
+	uint32 h;
 	char *p;
 	int c, n;
 
@@ -404,7 +404,7 @@ lookup(void)
 		h += *p++;
 	}
 	n = (p - symb) + 1;
-	if((long)h < 0)
+	if((int32)h < 0)
 		h = ~h;
 	h %= NHASH;
 	c = symb[0];
@@ -453,11 +453,11 @@ enum
 	Numflt		= 1<<4,
 };
 
-long
+int32
 yylex(void)
 {
 	vlong vv;
-	long c, c1, t;
+	int32 c, c1, t;
 	char *cp;
 	Rune rune;
 	Sym *s;
@@ -1019,7 +1019,7 @@ getc(void)
 	return c;
 }
 
-long
+int32
 getr(void)
 {
 	int c, i;
@@ -1079,10 +1079,10 @@ unget(int c)
 		lineno--;
 }
 
-long
-escchar(long e, int longflg, int escflg)
+int32
+escchar(int32 e, int longflg, int escflg)
 {
-	long c, l;
+	int32 c, l;
 	int i;
 
 loop:
@@ -1335,14 +1335,14 @@ Lconv(Fmt *fp)
 	struct
 	{
 		Hist*	incl;	/* start of this include file */
-		long	idel;	/* delta line number to apply to include */
+		int32	idel;	/* delta line number to apply to include */
 		Hist*	line;	/* start of this #line directive */
-		long	ldel;	/* delta line number to apply to #line */
+		int32	ldel;	/* delta line number to apply to #line */
 	} a[HISTSZ];
-	long l, d;
+	int32 l, d;
 	int i, n;
 
-	l = va_arg(fp->args, long);
+	l = va_arg(fp->args, int32);
 	n = 0;
 	for(h = hist; h != H; h = h->link) {
 		if(l < h->line)
@@ -1402,7 +1402,7 @@ Tconv(Fmt *fp)
 	char str[STRINGSZ+20], s[STRINGSZ+20];
 	Type *t, *t1;
 	int et;
-	long n;
+	int32 n;
 
 	str[0] = 0;
 	for(t = va_arg(fp->args, Type*); t != T; t = t->link) {
@@ -1472,11 +1472,11 @@ int
 Qconv(Fmt *fp)
 {
 	char str[STRINGSZ+20], *s;
-	long b;
+	int32 b;
 	int i;
 
 	str[0] = 0;
-	for(b = va_arg(fp->args, long); b;) {
+	for(b = va_arg(fp->args, int32); b;) {
 		i = bitno(b);
 		if(str[0])
 			strcat(str, " ");

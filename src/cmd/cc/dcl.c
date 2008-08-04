@@ -35,7 +35,7 @@ dodecl(void (*f)(int,Type*,Sym*), int c, Type *t, Node *n)
 {
 	Sym *s;
 	Node *n1;
-	long v;
+	int32 v;
 
 	nearln = lineno;
 	lastfield = 0;
@@ -183,7 +183,7 @@ tcopy(Type *t)
 }
 
 Node*
-doinit(Sym *s, Type *t, long o, Node *a)
+doinit(Sym *s, Type *t, int32 o, Node *a)
 {
 	Node *n;
 
@@ -312,11 +312,11 @@ isstruct(Node *a, Type *t)
 }
 
 Node*
-init1(Sym *s, Type *t, long o, int exflag)
+init1(Sym *s, Type *t, int32 o, int exflag)
 {
 	Node *a, *l, *r, nod;
 	Type *t1;
-	long e, w, so, mw;
+	int32 e, w, so, mw;
 
 	a = peekinit();
 	if(a == Z)
@@ -552,7 +552,7 @@ void
 suallign(Type *t)
 {
 	Type *l;
-	long o, w;
+	int32 o, w;
 
 	o = 0;
 	switch(t->etype) {
@@ -616,8 +616,8 @@ suallign(Type *t)
 	}
 }
 
-long
-xround(long v, int w)
+int32
+xround(int32 v, int w)
 {
 	int r;
 
@@ -1057,12 +1057,12 @@ sigind(Type *t, Typetab *tt)
 	return -1;
 }
 
-static ulong
+static uint32
 signat(Type *t, Typetab *tt)
 {
 	int i;
 	Type *t1;
-	long s;
+	int32 s;
 
 	s = 0;
 	for(; t; t=t->link) {
@@ -1095,10 +1095,10 @@ signat(Type *t, Typetab *tt)
 	return s;
 }
 
-ulong
+uint32
 signature(Type *t)
 {
-	ulong s;
+	uint32 s;
 	Typetab tt;
 
 	tt.n = 0;
@@ -1108,10 +1108,10 @@ signature(Type *t)
 	return s;
 }
 
-ulong
+uint32
 sign(Sym *s)
 {
-	ulong v;
+	uint32 v;
 	Type *t;
 
 	if(s->sig == SIGINTERN)
@@ -1313,7 +1313,7 @@ pdecl(int c, Type *t, Sym *s)
 void
 xdecl(int c, Type *t, Sym *s)
 {
-	long o;
+	int32 o;
 
 	o = 0;
 	switch(c) {
@@ -1538,7 +1538,7 @@ doenum(Sym *s, Node *n)
 }
 
 void
-symadjust(Sym *s, Node *n, long del)
+symadjust(Sym *s, Node *n, int32 del)
 {
 
 	switch(n->op) {
@@ -1564,10 +1564,10 @@ symadjust(Sym *s, Node *n, long del)
 }
 
 Node*
-contig(Sym *s, Node *n, long v)
+contig(Sym *s, Node *n, int32 v)
 {
 	Node *p, *r, *q, *m;
-	long w;
+	int32 w;
 	Type *zt;
 
 	if(debug['i']) {

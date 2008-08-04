@@ -759,7 +759,7 @@ gmove(Node *f, Node *t)
 		return;
 
 /*
- * ulong to float
+ * uvlong to float
  */
 	case CASE(TUINT64, TFLOAT64):
 	case CASE(TUINT64, TFLOAT32):
@@ -972,7 +972,7 @@ Prog*
 gins(int as, Node *f, Node *t)
 {
 //	Node nod;
-//	long v;
+//	int32 v;
 	Prog *p;
 
 //	if(f != N && f->op == OINDEX) {
@@ -1660,7 +1660,7 @@ void
 tempname(Node *n, Type *t)
 {
 	Sym *s;
-	ulong w;
+	uint32 w;
 
 	if(t == T) {
 		yyerror("tempname called with nil type");
@@ -1785,7 +1785,7 @@ void
 setmaxarg(Type *t)
 {
 	Type *to;
-	long w;
+	int32 w;
 
 	to = *getoutarg(t);
 	w = to->width;

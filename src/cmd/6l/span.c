@@ -37,7 +37,7 @@ void
 span(void)
 {
 	Prog *p, *q;
-	long v;
+	int32 v;
 	vlong c, idat;
 	int m, n, again;
 
@@ -267,7 +267,7 @@ asmlc(void)
 {
 	vlong oldpc;
 	Prog *p;
-	long oldlc, v, s;
+	int32 oldlc, v, s;
 
 	oldpc = INITTEXT;
 	oldlc = 0;
@@ -346,7 +346,7 @@ int
 oclass(Adr *a)
 {
 	vlong v;
-	long l;
+	int32 l;
 
 	if(a->type >= D_INDIR || a->index != D_NONE) {
 		if(a->index != D_NONE && a->scale == 0) {
@@ -623,7 +623,7 @@ bad:
 }
 
 static void
-put4(long v)
+put4(int32 v)
 {
 	if(dlm && curp != P && reloca != nil){
 		dynreloc(reloca->sym, curp->pc + andptr - &and[0], 1);
@@ -692,7 +692,7 @@ vaddr(Adr *a)
 static void
 asmandsz(Adr *a, int r, int rex, int m64)
 {
-	long v;
+	int32 v;
 	int t;
 	Adr aa;
 
@@ -1638,7 +1638,7 @@ struct Reloc
 	int n;
 	int t;
 	uchar *m;
-	ulong *a;
+	uint32 *a;
 };
 
 Reloc rels;
@@ -1648,26 +1648,26 @@ grow(Reloc *r)
 {
 	int t;
 	uchar *m, *nm;
-	ulong *a, *na;
+	uint32 *a, *na;
 
 	t = r->t;
 	r->t += 64;
 	m = r->m;
 	a = r->a;
 	r->m = nm = malloc(r->t*sizeof(uchar));
-	r->a = na = malloc(r->t*sizeof(ulong));
+	r->a = na = malloc(r->t*sizeof(uint32));
 	memmove(nm, m, t*sizeof(uchar));
-	memmove(na, a, t*sizeof(ulong));
+	memmove(na, a, t*sizeof(uint32));
 	free(m);
 	free(a);
 }
 
 void
-dynreloc(Sym *s, ulong v, int abs)
+dynreloc(Sym *s, uint32 v, int abs)
 {
 	int i, k, n;
 	uchar *m;
-	ulong *a;
+	uint32 *a;
 	Reloc *r;
 
 	if(s->type == SUNDEF)
@@ -1712,7 +1712,7 @@ asmdyn()
 {
 	int i, n, t, c;
 	Sym *s;
-	ulong la, ra, *a;
+	uint32 la, ra, *a;
 	vlong off;
 	uchar *m;
 	Reloc *r;

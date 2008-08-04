@@ -65,10 +65,10 @@ typedef	struct	Bits	Bits;
 #define	MASK(n)		(SIGN(n)|(SIGN(n)-1))
 
 #define	BITS	5
-#define	NVAR	(BITS*sizeof(ulong)*8)
+#define	NVAR	(BITS*sizeof(uint32)*8)
 struct	Bits
 {
-	ulong	b[BITS];
+	uint32	b[BITS];
 };
 
 struct	Node
@@ -76,9 +76,9 @@ struct	Node
 	Node*	left;
 	Node*	right;
 	void*	label;
-	long	pc;
+	int32	pc;
 	int	reg;
-	long	xoffset;
+	int32	xoffset;
 	double	fconst;		/* fp constant */
 	vlong	vconst;		/* non fp const */
 	char*	cstring;	/* character string */
@@ -86,7 +86,7 @@ struct	Node
 
 	Sym*	sym;
 	Type*	type;
-	long	lineno;
+	int32	lineno;
 	uchar	op;
 	uchar	oldop;
 	uchar	xcast;
@@ -106,8 +106,8 @@ struct	Sym
 	Type*	suetag;
 	Type*	tenum;
 	char*	macro;
-	long	varlineno;
-	long	offset;
+	int32	varlineno;
+	int32	offset;
 	vlong	vconst;
 	double	fconst;
 	Node*	label;
@@ -135,8 +135,8 @@ struct	Decl
 	Decl*	link;
 	Sym*	sym;
 	Type*	type;
-	long	varlineno;
-	long	offset;
+	int32	varlineno;
+	int32	offset;
 	short	val;
 	ushort	block;
 	uchar	class;
@@ -151,9 +151,9 @@ struct	Type
 	Funct*	funct;
 	Type*	link;
 	Type*	down;
-	long	width;
-	long	offset;
-	long	lineno;
+	int32	width;
+	int32	offset;
+	int32	lineno;
 	uchar	shift;
 	uchar	nbits;
 	uchar	etype;
@@ -166,7 +166,7 @@ struct	Type
 struct	Init			/* general purpose initialization */
 {
 	int	code;
-	ulong	value;
+	uint32	value;
 	char*	s;
 };
 
@@ -190,8 +190,8 @@ struct	Hist
 {
 	Hist*	link;
 	char*	name;
-	long	line;
-	long	offset;
+	int32	line;
+	int32	offset;
 };
 #define	H	((Hist*)0)
 EXTERN Hist*	hist;
@@ -445,12 +445,12 @@ EXTERN struct
 } en;
 
 EXTERN	int	autobn;
-EXTERN	long	autoffset;
+EXTERN	int32	autoffset;
 EXTERN	int	blockno;
 EXTERN	Decl*	dclstack;
 EXTERN	char	debug[256];
 EXTERN	Hist*	ehist;
-EXTERN	long	firstbit;
+EXTERN	int32	firstbit;
 EXTERN	Sym*	firstarg;
 EXTERN	Type*	firstargtype;
 EXTERN	Decl*	firstdcl;
@@ -461,16 +461,16 @@ EXTERN	char*	include[20];
 EXTERN	Io*	iofree;
 EXTERN	Io*	ionext;
 EXTERN	Io*	iostack;
-EXTERN	long	lastbit;
+EXTERN	int32	lastbit;
 EXTERN	char	lastclass;
 EXTERN	Type*	lastdcl;
-EXTERN	long	lastfield;
+EXTERN	int32	lastfield;
 EXTERN	Type*	lasttype;
-EXTERN	long	lineno;
-EXTERN	long	nearln;
+EXTERN	int32	lineno;
+EXTERN	int32	nearln;
 EXTERN	int	nerrors;
 EXTERN	int	newflag;
-EXTERN	long	nhunk;
+EXTERN	int32	nhunk;
 EXTERN	int	ninclude;
 EXTERN	Node*	nodproto;
 EXTERN	Node*	nodcast;
@@ -479,7 +479,7 @@ EXTERN	Biobuf	diagbuf;
 EXTERN	char*	outfile;
 EXTERN	char*	pathname;
 EXTERN	int	peekc;
-EXTERN	long	stkoff;
+EXTERN	int32	stkoff;
 EXTERN	Type*	strf;
 EXTERN	Type*	strl;
 EXTERN	char	symb[NSYMB];
@@ -490,7 +490,7 @@ EXTERN	Type*	tufield;
 EXTERN	int	thechar;
 EXTERN	char*	thestring;
 EXTERN	Type*	thisfn;
-EXTERN	long	thunk;
+EXTERN	int32	thunk;
 EXTERN	Type*	types[NTYPE];
 EXTERN	Type*	fntypes[NTYPE];
 EXTERN	Node*	initlist;
@@ -508,10 +508,10 @@ extern	char	*onames[], *tnames[], *gnames[];
 extern	char	*cnames[], *qnames[], *bnames[];
 extern	uchar	tab[NTYPE][NTYPE];
 extern	uchar	comrel[], invrel[], logrel[];
-extern	long	ncast[], tadd[], tand[];
-extern	long	targ[], tasadd[], tasign[], tcast[];
-extern	long	tdot[], tfunct[], tindir[], tmul[];
-extern	long	tnot[], trel[], tsub[];
+extern	int32	ncast[], tadd[], tand[];
+extern	int32	targ[], tasadd[], tasign[], tcast[];
+extern	int32	tdot[], tfunct[], tindir[], tmul[];
+extern	int32	tnot[], trel[], tsub[];
 
 extern	uchar	typeaf[];
 extern	uchar	typefd[];
@@ -533,10 +533,10 @@ extern	uchar	typechlpfd[];
 EXTERN	uchar*	typeword;
 EXTERN	uchar*	typecmplx;
 
-extern	ulong	thash1;
-extern	ulong	thash2;
-extern	ulong	thash3;
-extern	ulong	thash[];
+extern	uint32	thash1;
+extern	uint32	thash2;
+extern	uint32	thash3;
+extern	uint32	thash[];
 
 /*
  *	compat.c/unix.c/windows.c
@@ -551,7 +551,7 @@ int	myexec(char*, char*[]);
 int	mydup(int, int);
 int	myfork(void);
 int	mypipe(int*);
-void*	mysbrk(ulong);
+void*	mysbrk(uint32);
 
 /*
  *	parser
@@ -562,25 +562,25 @@ int	mpatov(char*, vlong*);
 /*
  *	lex.c
  */
-void*	allocn(void*, long, long);
-void*	alloc(long);
+void*	allocn(void*, int32, int32);
+void*	alloc(int32);
 void	cinit(void);
 int	compile(char*, char**, int);
 void	errorexit(void);
 int	filbuf(void);
 int	getc(void);
-long	getr(void);
+int32	getr(void);
 int	getnsc(void);
 Sym*	lookup(void);
 void	main(int, char*[]);
 void	newfile(char*, int);
 void	newio(void);
 void	pushio(void);
-long	escchar(long, int, int);
+int32	escchar(int32, int, int);
 Sym*	slookup(char*);
 void	syminit(Sym*);
 void	unget(int);
-long	yylex(void);
+int32	yylex(void);
 int	Lconv(Fmt*);
 int	Tconv(Fmt*);
 int	FNconv(Fmt*);
@@ -595,7 +595,7 @@ void	setinclude(char*);
 void	dodefine(char*);
 void	domacro(void);
 Sym*	getsym(void);
-long	getnsn(void);
+int32	getnsn(void);
 void	linehist(char*, int);
 void	macdef(void);
 void	macprag(void);
@@ -609,9 +609,9 @@ void	macund(void);
 /*
  * dcl.c
  */
-Node*	doinit(Sym*, Type*, long, Node*);
+Node*	doinit(Sym*, Type*, int32, Node*);
 Type*	tcopy(Type*);
-Node*	init1(Sym*, Type*, long, int);
+Node*	init1(Sym*, Type*, int32, int);
 Node*	newlist(Node*, Node*);
 void	adecl(int, Type*, Sym*);
 int	anyproto(Node*);
@@ -632,16 +632,16 @@ void	pdecl(int, Type*, Sym*);
 Decl*	push(void);
 Decl*	push1(Sym*);
 Node*	revertdcl(void);
-long	xround(long, int);
+int32	xround(int32, int);
 int	rsametype(Type*, Type*, int, int);
 int	sametype(Type*, Type*);
-ulong	sign(Sym*);
-ulong	signature(Type*);
+uint32	sign(Sym*);
+uint32	signature(Type*);
 void	suallign(Type*);
 void	tmerge(Type*, Sym*);
 void	walkparam(Node*, int);
 void	xdecl(int, Type*, Sym*);
-Node*	contig(Sym*, Node*, long);
+Node*	contig(Sym*, Node*, int32);
 
 /*
  * com.c
@@ -678,12 +678,12 @@ void	dclfunct(Type*, Sym*);
  */
 void	arith(Node*, int);
 int	deadheads(Node*);
-Type*	dotsearch(Sym*, Type*, Node*, long*);
-long	dotoffset(Type*, Type*, Node*);
+Type*	dotsearch(Sym*, Type*, Node*, int32*);
+int32	dotoffset(Type*, Type*, Node*);
 void	gethunk(void);
 Node*	invert(Node*);
-int	bitno(long);
-void	makedot(Node*, Type*, long);
+int	bitno(int32);
+void	makedot(Node*, Type*, int32);
 int	mixedasop(Type*, Type*);
 Node*	new(int, Node*, Node*);
 Node*	new1(int, Node*, Node*);
@@ -693,12 +693,12 @@ void	prtree(Node*, char*);
 void	prtree1(Node*, int, int);
 void	relcon(Node*, Node*);
 int	relindex(int);
-int	simpleg(long);
-Type*	garbt(Type*, long);
-int	simplec(long);
-Type*	simplet(long);
-int	stcompat(Node*, Type*, Type*, long[]);
-int	tcompat(Node*, Type*, Type*, long[]);
+int	simpleg(int32);
+Type*	garbt(Type*, int32);
+int	simplec(int32);
+Type*	simplet(int32);
+int	stcompat(Node*, Type*, Type*, int32[]);
+int	tcompat(Node*, Type*, Type*, int32[]);
 void	tinit(void);
 Type*	typ(int, Type*);
 Type*	copytyp(Type*);
@@ -708,9 +708,9 @@ int	side(Node*);
 int	vconst(Node*);
 int	xlog2(uvlong);
 int	vlog(Node*);
-int	topbit(ulong);
+int	topbit(uint32);
 void	simplifyshift(Node*);
-long	typebitor(long, long);
+int32	typebitor(int32, int32);
 void	diag(Node*, char*, ...);
 void	warn(Node*, char*, ...);
 void	yyerror(char*, ...);
@@ -755,15 +755,15 @@ void	pragincomplete(void);
  */
 void	codgen(Node*, Node*);
 void	gclean(void);
-void	gextern(Sym*, Node*, long, long);
+void	gextern(Sym*, Node*, int32, int32);
 void	ginit(void);
-long	outstring(char*, long);
-long	outlstring(ushort*, long);
-void	sextern(Sym*, Node*, long, long);
+int32	outstring(char*, int32);
+int32	outlstring(ushort*, int32);
+void	sextern(Sym*, Node*, int32, int32);
 void	xcom(Node*);
-long	exreg(Type*);
-long	align(long, Type*, int);
-long	maxround(long, long);
+int32	exreg(Type*);
+int32	align(int32, Type*, int);
+int32	maxround(int32, int32);
 
 extern	schar	ewidth[];
 
@@ -788,8 +788,8 @@ int	machcap(Node*);
 #pragma	varargck	argpos	yyerror	1
 
 #pragma	varargck	type	"F"	Node*
-#pragma	varargck	type	"L"	long
-#pragma	varargck	type	"Q"	long
+#pragma	varargck	type	"L"	int32
+#pragma	varargck	type	"Q"	int32
 #pragma	varargck	type	"O"	int
 #pragma	varargck	type	"T"	Type*
 #pragma	varargck	type	"|"	int

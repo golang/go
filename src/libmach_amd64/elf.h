@@ -35,9 +35,9 @@ typedef struct {
 	ushort	type;		/* file type */
 	ushort	machine;	/* target machine */
 	int	version;	/* file version */
-	ulong	elfentry;	/* start address */
-	ulong	phoff;		/* phdr file offset */
-	ulong	shoff;		/* shdr file offset */
+	uint32	elfentry;	/* start address */
+	uint32	phoff;		/* phdr file offset */
+	uint32	shoff;		/* shdr file offset */
 	int	flags;		/* file flags */
 	ushort	ehsize;		/* sizeof ehdr */
 	ushort	phentsize;	/* sizeof phdr */
@@ -66,11 +66,11 @@ typedef struct {
 
 typedef struct {
 	int	type;		/* entry type */
-	ulong	offset;		/* file offset */
-	ulong	vaddr;		/* virtual address */
-	ulong	paddr;		/* physical address */
+	uint32	offset;		/* file offset */
+	uint32	vaddr;		/* virtual address */
+	uint32	paddr;		/* physical address */
 	int	filesz;		/* file size */
-	ulong	memsz;		/* memory size */
+	uint32	memsz;		/* memory size */
 	int	flags;		/* entry flags */
 	int	align;		/* memory/file alignment */
 } Phdr32;
@@ -87,27 +87,27 @@ typedef struct {
 } Phdr64;
 
 typedef struct {
-	ulong	name;		/* section name */
-	ulong	type;		/* SHT_... */
-	ulong	flags;		/* SHF_... */
-	ulong	addr;		/* virtual address */
-	ulong	offset;		/* file offset */
-	ulong	size;		/* section size */
-	ulong	link;		/* misc info */
-	ulong	info;		/* misc info */
-	ulong	addralign;	/* memory alignment */
-	ulong	entsize;	/* entry size if table */
+	uint32	name;		/* section name */
+	uint32	type;		/* SHT_... */
+	uint32	flags;		/* SHF_... */
+	uint32	addr;		/* virtual address */
+	uint32	offset;		/* file offset */
+	uint32	size;		/* section size */
+	uint32	link;		/* misc info */
+	uint32	info;		/* misc info */
+	uint32	addralign;	/* memory alignment */
+	uint32	entsize;	/* entry size if table */
 } Shdr32;
 
 typedef struct {
-	ulong	name;		/* section name */
-	ulong	type;		/* SHT_... */
+	uint32	name;		/* section name */
+	uint32	type;		/* SHT_... */
 	uvlong	flags;		/* SHF_... */
 	uvlong	addr;		/* virtual address */
 	uvlong	offset;		/* file offset */
 	uvlong	size;		/* section size */
-	ulong	link;		/* misc info */
-	ulong	info;		/* misc info */
+	uint32	link;		/* misc info */
+	uint32	info;		/* misc info */
 	uvlong	addralign;	/* memory alignment */
 	uvlong	entsize;	/* entry size if table */
 } Shdr64;

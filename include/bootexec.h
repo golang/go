@@ -29,14 +29,14 @@
 struct coffsect
 {
 	char	name[8];
-	ulong	phys;
-	ulong	virt;
-	ulong	size;
-	ulong	fptr;
-	ulong	fptrreloc;
-	ulong	fptrlineno;
-	ulong	nrelocnlineno;
-	ulong	flags;
+	uint32	phys;
+	uint32	virt;
+	uint32	size;
+	uint32	fptr;
+	uint32	fptrreloc;
+	uint32	fptrlineno;
+	uint32	nrelocnlineno;
+	uint32	flags;
 };
 
 /*
@@ -46,26 +46,26 @@ struct mipsexec
 {
 	short	mmagic;		/* (0x160) mips magic number */
 	short	nscns;		/* (unused) number of sections */
-	long	timdat;		/* (unused) time & date stamp */
-	long	symptr;		/* offset to symbol table */
-	long	nsyms;		/* size of symbol table */
+	int32	timdat;		/* (unused) time & date stamp */
+	int32	symptr;		/* offset to symbol table */
+	int32	nsyms;		/* size of symbol table */
 	short	opthdr;		/* (0x38) sizeof(optional hdr) */
 	short	pcszs;		/* flags */
 	short	amagic;		/* see above */
 	short	vstamp;		/* version stamp */
-	long	tsize;		/* text size in bytes */
-	long	dsize;		/* initialized data */
-	long	bsize;		/* uninitialized data */
-	long	mentry;		/* entry pt.				*/
-	long	text_start;	/* base of text used for this file	*/
-	long	data_start;	/* base of data used for this file	*/
-	long	bss_start;	/* base of bss used for this file	*/
-	long	gprmask;	/* general purpose register mask	*/
+	int32	tsize;		/* text size in bytes */
+	int32	dsize;		/* initialized data */
+	int32	bsize;		/* uninitialized data */
+	int32	mentry;		/* entry pt.				*/
+	int32	text_start;	/* base of text used for this file	*/
+	int32	data_start;	/* base of data used for this file	*/
+	int32	bss_start;	/* base of bss used for this file	*/
+	int32	gprmask;	/* general purpose register mask	*/
 union{
-	long	cprmask[4];	/* co-processor register masks		*/
-	long	pcsize;
+	int32	cprmask[4];	/* co-processor register masks		*/
+	int32	pcsize;
 };
-	long	gp_value;	/* the gp value used for this object    */
+	int32	gp_value;	/* the gp value used for this object    */
 };
 
 struct mips4kexec
@@ -80,64 +80,64 @@ struct sparcexec
 {
 	short	sjunk;		/* dynamic bit and version number */
 	short	smagic;		/* 0407 */
-	ulong	stext;
-	ulong	sdata;
-	ulong	sbss;
-	ulong	ssyms;
-	ulong	sentry;
-	ulong	strsize;
-	ulong	sdrsize;
+	uint32	stext;
+	uint32	sdata;
+	uint32	sbss;
+	uint32	ssyms;
+	uint32	sentry;
+	uint32	strsize;
+	uint32	sdrsize;
 };
 
 struct nextexec
 {
 /* UNUSED
 	struct	nexthdr{
-		ulong	nmagic;
-		ulong	ncputype;
-		ulong	ncpusubtype;
-		ulong	nfiletype;
-		ulong	ncmds;
-		ulong	nsizeofcmds;
-		ulong	nflags;
+		uint32	nmagic;
+		uint32	ncputype;
+		uint32	ncpusubtype;
+		uint32	nfiletype;
+		uint32	ncmds;
+		uint32	nsizeofcmds;
+		uint32	nflags;
 	};
 
 	struct nextcmd{
-		ulong	cmd;
-		ulong	cmdsize;
+		uint32	cmd;
+		uint32	cmdsize;
 		uchar	segname[16];
-		ulong	vmaddr;
-		ulong	vmsize;
-		ulong	fileoff;
-		ulong	filesize;
-		ulong	maxprot;
-		ulong	initprot;
-		ulong	nsects;
-		ulong	flags;
+		uint32	vmaddr;
+		uint32	vmsize;
+		uint32	fileoff;
+		uint32	filesize;
+		uint32	maxprot;
+		uint32	initprot;
+		uint32	nsects;
+		uint32	flags;
 	}textc;
 	struct nextsect{
 		char	sectname[16];
 		char	segname[16];
-		ulong	addr;
-		ulong	size;
-		ulong	offset;
-		ulong	align;
-		ulong	reloff;
-		ulong	nreloc;
-		ulong	flags;
-		ulong	reserved1;
-		ulong	reserved2;
+		uint32	addr;
+		uint32	size;
+		uint32	offset;
+		uint32	align;
+		uint32	reloff;
+		uint32	nreloc;
+		uint32	flags;
+		uint32	reserved1;
+		uint32	reserved2;
 	}texts;
 	struct nextcmd	datac;
 	struct nextsect	datas;
 	struct nextsect	bsss;
 	struct nextsym{
-		ulong	cmd;
-		ulong	cmdsize;
-		ulong	symoff;
-		ulong	nsyms;
-		ulong	spoff;
-		ulong	pcoff;
+		uint32	cmd;
+		uint32	cmdsize;
+		uint32	symoff;
+		uint32	nsyms;
+		uint32	spoff;
+		uint32	pcoff;
 	}symc;
 */
 };
@@ -146,20 +146,20 @@ struct i386exec
 {
 /* UNUSED
 	struct	i386coff{
-		ulong	isectmagic;
-		ulong	itime;
-		ulong	isyms;
-		ulong	insyms;
-		ulong	iflags;
+		uint32	isectmagic;
+		uint32	itime;
+		uint32	isyms;
+		uint32	insyms;
+		uint32	iflags;
 	};
 	struct	i386hdr{
-		ulong	imagic;
-		ulong	itextsize;
-		ulong	idatasize;
-		ulong	ibsssize;
-		ulong	ientry;
-		ulong	itextstart;
-		ulong	idatastart;
+		uint32	imagic;
+		uint32	itextsize;
+		uint32	idatasize;
+		uint32	ibsssize;
+		uint32	ientry;
+		uint32	itextstart;
+		uint32	idatastart;
 	};
 	struct coffsect	itexts;
 	struct coffsect idatas;
