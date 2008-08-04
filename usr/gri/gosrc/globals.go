@@ -13,20 +13,17 @@ package Globals
 
 // ----------------------------------------------------------------------------
 
-export Object
-type Object struct {
+export type Object struct {
 	exported bool;
 	pos int;  // source position (< 0 if unknown position)
 	kind int;
 	ident string;
-	typ *Type;
-	pnolev int;  // >= 0: package no., <= 0: level, 0: global level of compilation
-	scope *Scope;  // which contains the object
+	typ *Type;  // nil for packages
+	pnolev int;  // >= 0: package no., <= 0: function nesting level, 0: global level
 }
 
 
-export Type
-type Type struct {
+export type Type struct {
 	ref int;  // for exporting only: >= 0 means already exported
 	form int;
 	flags int;  // channels, functions
@@ -39,13 +36,12 @@ type Type struct {
 }
 
 
-export Package
-type Package struct {
+export type Package struct {
 	ref int;  // for exporting only: >= 0 means already exported
 	file_name string;
 	key string;
 	obj *Object;
-	scope *Scope;
+	scope *Scope;  // holds the (global) objects in this package
 }
 
 
@@ -61,23 +57,20 @@ type Elem struct {
 }
 
 
-export List
-type List struct {
+export type List struct {
 	len_ int;
 	first, last *Elem;
 };
 
 
-export Scope
-type Scope struct {
+export type Scope struct {
 	parent *Scope;
 	entries *List;
 	// entries *map[string] *Object;  // doesn't work properly
 }
 
 
-export Flags;
-type Flags struct {
+export type Flags struct {
 	debug bool;
 	print_export bool;
 	semantic_checks bool;
@@ -86,24 +79,21 @@ type Flags struct {
 }
 
 
-export Compilation
-type Compilation struct {
+export type Compilation struct {
 	flags *Flags;
 	// TODO use open arrays eventually
-	pkgs [256] *Package;  // pkgs[0] is the current package
-	npkgs int;
+	pkg_list [256] *Package;  // pkg_list[0] is the current package
+	pkg_ref int;
 }
 
 
-export Expr
-type Expr interface {
+export type Expr interface {
 	typ() *Type;
 	// ... more to come here
 }
 
 
-export Stat
-type Stat interface {
+export type Stat interface {
 	// ... more to come here
 }
 
@@ -111,8 +101,7 @@ type Stat interface {
 // ----------------------------------------------------------------------------
 // Creation
 
-export Universe_undef_t
-var Universe_undef_t *Type  // initialized by Universe to Universe.undef_t
+export var Universe_undef_t *Type  // initialized by Universe to Universe.undef_t
 
 export NewObject
 func NewObject(pos, kind int, ident string) *Object {
@@ -123,7 +112,6 @@ func NewObject(pos, kind int, ident string) *Object {
 	obj.ident = ident;
 	obj.typ = Universe_undef_t;
 	obj.pnolev = 0;
-	obj.scope = nil;
 	return obj;
 }
 
@@ -138,11 +126,12 @@ func NewType(form int) *Type {
 
 
 export NewPackage;
-func NewPackage(file_name string) *Package {
+func NewPackage(file_name string, obj *Object) *Package {
 	pkg := new(Package);
 	pkg.ref = -1;  // not yet exported
 	pkg.file_name = file_name;
 	pkg.key = "<the package key>";  // TODO fix this
+	pkg.obj = obj;
 	return pkg;
 }
 
@@ -181,7 +170,6 @@ func (obj *Object) Copy() *Object {
 	copy.ident = obj.ident;
 	copy.typ = obj.typ;
 	copy.pnolev = obj.pnolev;
-	copy.scope = nil;  // cannot be in the same scope (same ident!)
 	return copy;
 }
 
@@ -272,9 +260,6 @@ func (L *List) AddTyp(typ *Type) {
 func (scope *Scope) Lookup(ident string) *Object {
 	for p := scope.entries.first; p != nil; p = p.next {
 		if p.obj.ident == ident {
-			if p.obj.scope != scope {
-				panic "incorrect scope for object";
-			}
 			return p.obj;
 		}
 	}
@@ -286,11 +271,7 @@ func (scope *Scope) Insert(obj *Object) {
 	if scope.Lookup(obj.ident) != nil {
 		panic "obj already inserted";
 	}
-	if obj.scope != nil {
-		panic "obj already in a scope";
-	}
 	scope.entries.AddObj(obj);
-	obj.scope = scope;
 }
 
 
@@ -317,8 +298,8 @@ func (scope *Scope) Print() {
 // Compilation methods
 
 func (C *Compilation) Lookup(file_name string) *Package {
-	for i := 0; i < C.npkgs; i++ {
-		pkg := C.pkgs[i];
+	for i := 0; i < C.pkg_ref; i++ {
+		pkg := C.pkg_list[i];
 		if pkg.file_name == file_name {
 			return pkg;
 		}
@@ -331,9 +312,9 @@ func (C *Compilation) Insert(pkg *Package) {
 	if C.Lookup(pkg.file_name) != nil {
 		panic "package already inserted";
 	}
-	pkg.obj.pnolev = C.npkgs;
-	C.pkgs[C.npkgs] = pkg;
-	C.npkgs++;
+	pkg.obj.pnolev = C.pkg_ref;
+	C.pkg_list[C.pkg_ref] = pkg;
+	C.pkg_ref++;
 }
 
 

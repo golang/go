@@ -137,7 +137,6 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 
 	E.WriteString(obj.ident);
 	E.WriteType(obj.typ);
-	E.WritePackage(obj.pnolev);
 
 	switch obj.kind {
 	case Object.CONST:
@@ -164,21 +163,32 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 	if -typ.form >= 0 {
 		panic "-typ.form >= 0";  // conflict with ref numbers
 	}
-	
 	E.WriteTypeTag(-typ.form);
 	typ.ref = E.type_ref;
 	E.type_ref++;
 
+	// if we have a primary type, export the type identifier and package
+	ident := "";
 	if typ.obj != nil {
+		// primary type
 		if typ.obj.typ != typ {
-			panic "typ.obj.type() != typ";  // primary type
+			panic "inconsistent primary type";
 		}
-		E.WriteString(typ.obj.ident);
-		E.WritePackage(typ.obj.pnolev);
-	} else {
-		E.WriteString("");
+		ident = typ.obj.ident;
+		if !typ.obj.exported {
+			// the type is invisible (it's identifier is not exported)
+			// prepend "." to the identifier to make it an illegal
+			// identifier and thus invisible in Go source code
+			ident = "." + ident;
+		}
 	}
-
+	
+	E.WriteString(ident);
+	if len(ident) > 0 {
+		// primary type
+		E.WritePackage(typ.obj.pnolev);
+	}
+	
 	switch typ.form {
 	case Type.ALIAS:
 		E.WriteType(typ.elt);
@@ -215,7 +225,7 @@ func (E *Exporter) WritePackage(pno int) {
 	if pno < 0 {
 		pno = 0;
 	}
-	pkg := E.comp.pkgs[pno];
+	pkg := E.comp.pkg_list[pno];
 	if pkg.ref >= 0 {
 		E.WritePackageTag(pkg.ref);  // package already exported
 		return;
@@ -254,7 +264,7 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	}
 	E.type_ref = Universe.types.len_;
 	
-	pkg := comp.pkgs[0];
+	pkg := comp.pkg_list[0];
 	E.WritePackage(0);
 	E.WriteScope(pkg.scope, false);
 	

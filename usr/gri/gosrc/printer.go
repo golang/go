@@ -164,7 +164,7 @@ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
 		print "package ";
 		P.PrintObject(obj);
 		print " ";
-		P.PrintScope(P.comp.pkgs[obj.pnolev].scope, 0);
+		P.PrintScope(P.comp.pkg_list[obj.pnolev].scope, 0);
 
 	default:
 		panic "UNREACHABLE";
@@ -178,7 +178,7 @@ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
 
 func (P *Printer) PrintObject(obj *Globals.Object) {
 	if obj.pnolev > 0 {
-		print P.comp.pkgs[obj.pnolev].obj.ident, ".";
+		print P.comp.pkg_list[obj.pnolev].obj.ident, ".";
 	}
 	print obj.ident;
 }

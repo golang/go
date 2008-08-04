@@ -6,27 +6,7 @@ package Scanner
 
 import Utils "utils"
 
-
-export
-	ILLEGAL, EOF, IDENT, STRING, NUMBER,
-	COMMA, COLON, SEMICOLON, PERIOD,
-	LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE,
-	ASSIGN, DEFINE,
-	INC, DEC, NOT,
-	AND, OR, XOR,
-	ADD, SUB, MUL, QUO, REM,
-	EQL, NEQ, LSS, LEQ, GTR, GEQ,
-	SHL, SHR,
-	SEND, RECV,
-	ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN,
-	AND_ASSIGN, OR_ASSIGN, XOR_ASSIGN, SHL_ASSIGN, SHR_ASSIGN,
-	LAND, LOR,
-	BREAK, CASE, CHAN, CONST, CONTINUE, DEFAULT, ELSE, EXPORT, FALLTHROUGH, FALSE,
-	FOR, FUNC, GO, GOTO, IF, IMPORT, INTERFACE, IOTA, MAP, NEW, NIL, PACKAGE, RANGE,
-	RETURN, SELECT, STRUCT, SWITCH, TRUE, TYPE, VAR
-	
-	
-const (
+export const (
 	ILLEGAL = iota;
 	EOF;
 	IDENT;
@@ -270,8 +250,7 @@ func digit_val(ch int) int {
 }
 
 
-export Scanner
-type Scanner struct {
+export type Scanner struct {
 	filename string;  // error reporting only
 	nerrors int;  // number of errors
 	errpos int;  // last error position

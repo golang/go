@@ -7,8 +7,7 @@ package Object
 import Globals "globals"
 
 
-export BAD, CONST, TYPE, VAR, FUNC, PACKAGE, LABEL, END
-const /* kind */ (
+export const /* kind */ (
 	BAD = iota;  // error handling
 	CONST; TYPE; VAR; FUNC; PACKAGE; LABEL;
 	END;  // end of scope (import/export only)
