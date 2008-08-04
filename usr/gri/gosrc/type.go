@@ -4,13 +4,7 @@
 
 package Type
 
-export
-	UNDEF, BAD, NIL,
-	BOOL, UINT, INT, FLOAT, STRING,
-	ANY,
-	ALIAS, ARRAY, STRUCT, INTERFACE, MAP, CHANNEL, FUNCTION, POINTER, REFERENCE
-
-const /* form */ (
+export const /* form */ (
 	// internal types
 	UNDEF = iota; BAD; NIL;
 	// basic types
@@ -22,10 +16,7 @@ const /* form */ (
 )
 
 
-export
-	SEND, RECV
-	
-const /* flag */ (
+export const /* flag */ (
 	SEND = 1 << iota;  // chan>
 	RECV;  // chan< or method
 )

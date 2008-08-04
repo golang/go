@@ -306,7 +306,7 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 			if obj.pnolev < 0 {
 				panic "obj.pnolev < 0";
 			}
-			pkg := P.comp.pkgs[obj.pnolev];
+			pkg := P.comp.pkg_list[obj.pnolev];
 			//if pkg.obj.ident != ident {
 			//	panic "pkg.obj.ident != ident";
 			//}
@@ -1916,10 +1916,10 @@ func (P *Parser) ParseProgram() {
 	
 	P.OpenScope();
 	P.Expect(Scanner.PACKAGE);
-	pkg := Globals.NewPackage(P.S.filename);
-	pkg.obj = P.ParseIdentDecl(Object.PACKAGE);
+	obj := P.ParseIdentDecl(Object.PACKAGE);
+	pkg := Globals.NewPackage(P.S.filename, obj);
 	P.comp.Insert(pkg);
-	if P.comp.npkgs != 1 {
+	if P.comp.pkg_ref != 1 {
 		panic "should have exactly one package now";
 	}
 	P.Optional(Scanner.SEMICOLON);

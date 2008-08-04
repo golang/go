@@ -16,9 +16,9 @@ type Importer struct {
 	debug bool;
 	buf string;
 	buf_pos int;
-	pkgs [256] *Globals.Package;
+	pkg_list [256] *Globals.Package;
 	pkg_ref int;
-	types [1024] *Globals.Type;
+	type_list [1024] *Globals.Type;
 	type_ref int;
 };
 
@@ -120,8 +120,6 @@ func (I *Importer) ReadScope() *Globals.Scope {
 	scope := Globals.NewScope(nil);
 	obj := I.ReadObject();
 	for obj != nil {
-		// InsertImport only needed for package scopes
-		// but ok to use always
 		scope.InsertImport(obj);
 		obj = I.ReadObject();
 	}
@@ -153,7 +151,6 @@ func (I *Importer) ReadObject() *Globals.Object {
 	ident := I.ReadString();
 	obj := Globals.NewObject(0, tag, ident);
 	obj.typ = I.ReadType();
-	obj.pnolev = I.ReadPackage().obj.pnolev;
 
 	switch (tag) {
 	case Object.CONST:
@@ -176,26 +173,31 @@ func (I *Importer) ReadObject() *Globals.Object {
 func (I *Importer) ReadType() *Globals.Type {
 	tag := I.ReadTypeTag();
 	if tag >= 0 {
-		return I.types[tag];  // type already imported
+		return I.type_list[tag];  // type already imported
 	}
 
 	typ := Globals.NewType(-tag);
 	ptyp := typ;  // primary type
+
 	ident := I.ReadString();
 	if len(ident) > 0 {
 		// primary type
+		pkg := I.ReadPackage();
+		
+		// create corresponding type object
 		obj := Globals.NewObject(0, Object.TYPE, ident);
+		obj.exported = true;
 		obj.typ = typ;
+		obj.pnolev = pkg.obj.pnolev;
 		typ.obj = obj;
 
 		// canonicalize type
-		pkg := I.ReadPackage();
-		obj.pnolev = pkg.obj.pnolev;
-		obj = pkg.scope.InsertImport(obj);
-
-		ptyp = obj.typ;
+		// (if the type was seen before, use primary instance!)
+		ptyp = pkg.scope.InsertImport(obj).typ;
 	}
-	I.types[I.type_ref] = ptyp;
+	// insert the primary type into the type table but
+	// keep filling in the current type fields
+	I.type_list[I.type_ref] = ptyp;
 	I.type_ref++;
 
 	switch (typ.form) {
@@ -235,7 +237,7 @@ func (I *Importer) ReadType() *Globals.Type {
 func (I *Importer) ReadPackage() *Globals.Package {
 	tag := I.ReadPackageTag();
 	if tag >= 0 {
-		return I.pkgs[tag];  // package already imported
+		return I.pkg_list[tag];  // package already imported
 	}
 
 	ident := I.ReadString();
@@ -245,8 +247,8 @@ func (I *Importer) ReadPackage() *Globals.Package {
 
 	if pkg == nil {
 		// new package
-		pkg = Globals.NewPackage(file_name);
-		pkg.obj = Globals.NewObject(-1, Object.PACKAGE, ident);
+		obj := Globals.NewObject(-1, Object.PACKAGE, ident);
+		pkg = Globals.NewPackage(file_name, obj);
 		pkg.scope = Globals.NewScope(nil);
 		pkg = I.comp.InsertImport(pkg);
 
@@ -254,7 +256,7 @@ func (I *Importer) ReadPackage() *Globals.Package {
 		// package inconsistency
 		panic "package key inconsistency";
 	}
-	I.pkgs[I.pkg_ref] = pkg;
+	I.pkg_list[I.pkg_ref] = pkg;
 	I.pkg_ref++;
 
 	return pkg;
@@ -284,7 +286,7 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 		if p.typ.ref != I.type_ref {
 			panic "incorrect ref for predeclared type";
 		}
-		I.types[I.type_ref] = p.typ;
+		I.type_list[I.type_ref] = p.typ;
 		I.type_ref++;
 	}
 

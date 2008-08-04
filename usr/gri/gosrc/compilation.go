@@ -31,7 +31,6 @@ func Compile(comp *Globals.Compilation, file_name string) {
 	parser := new(Parser.Parser);
 	parser.Open(comp, scanner);
 
-	print "parsing ", file_name, "\n";
 	parser.ParseProgram();
 	if parser.S.nerrors > 0 {
 		return;
@@ -44,7 +43,7 @@ func Compile(comp *Globals.Compilation, file_name string) {
 	Verifier.Verify(comp);
 	
 	if comp.flags.print_export {
-		Printer.PrintObject(comp, comp.pkgs[0].obj, false);
+		Printer.PrintObject(comp, comp.pkg_list[0].obj, false);
 	}
 	
 	Export.Export(comp, file_name);
