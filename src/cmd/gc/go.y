@@ -135,21 +135,27 @@ import_there:
  */
 xdcl:
 	common_dcl
-|	LEXPORT { exportadj = 1; } common_dcl
+|	xfndcl
 	{
-		$$ = $3;
-		exportadj = 0;
+		$$ = N;
 	}
 |	LEXPORT export_list_r
 	{
 		$$ = N;
 	}
+|	LEXPORT { exportadj = 1; } common_dcl
+	{
+		$$ = $3;
+		exportadj = 0;
+	}
 |	LEXPORT '(' export_list_r ')'
 	{
 		$$ = N;
 	}
-|	xfndcl
+|	LEXPORT xfndcl
 	{
+		if($2 != N && $2->nname != N)
+			exportsym($2->nname->sym);
 		$$ = N;
 	}
 |	';'
