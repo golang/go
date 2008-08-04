@@ -40,8 +40,11 @@ typedef	struct	Map		Map;
 typedef	struct	Gobuf		Gobuf;
 typedef	struct	G		G;
 typedef	struct	M		M;
-typedef struct	Stktop		Stktop;
+typedef	struct	Stktop		Stktop;
 typedef	struct	Alg		Alg;
+typedef	struct	Lock		Lock;
+typedef	struct	Rendez	Rendez;
+typedef	struct	Mem		Mem;
 
 /*
  * per cpu declaration
@@ -57,6 +60,7 @@ enum
 	// G status
 	Gidle,
 	Grunnable,
+	Grunning,
 	Gwaiting,
 	Gdead,
 };
@@ -69,6 +73,15 @@ enum
 /*
  * structures
  */
+struct	Lock
+{
+	uint32	key;
+};
+struct	Rendez
+{
+	Lock*	l;
+	uint32	sleeping;	// someone is sleeping (Linux)
+};
 struct String
 {
 	int32	len;
@@ -111,6 +124,16 @@ struct	G
 	int16	status;
 	int32	goid;
 	int32	selgen;		// valid sudog pointer
+	G*	runlink;
+	Lock	runlock;
+	M*	m;	// for debuggers
+};
+struct	Mem
+{
+	uint8*	hunk;
+	uint32	nhunk;
+	uint64	nmmap;
+	uint64	nmal;
 };
 struct	M
 {
@@ -124,6 +147,10 @@ struct	M
 	byte*	moresp;
 	int32	siz1;
 	int32	siz2;
+	Rendez	waitr;
+	M*	waitlink;
+	int32	pid;	// for debuggers
+	Mem	mem;
 };
 struct	Stktop
 {
@@ -161,6 +188,7 @@ extern	string	emptystring;
 M*	allm;
 G*	allg;
 int32	goidgen;
+extern	int32	gomaxprocs;
 
 /*
  * common functions and data
@@ -195,6 +223,37 @@ int32	read(int32, void*, int32);
 int32	write(int32, void*, int32);
 void	close(int32);
 int32	fstat(int32, void*);
+bool	cas(uint32*, uint32, uint32);
+uint32	xadd(uint32*, uint32);
+void	exit1(int32);
+void	ready(G*);
+byte*	getenv(int8*);
+int32	atoi(byte*);
+void	newosproc(M *mm, G *gg, void *stk, void (*fn)(void*), void *arg);
+int32	getprocid(void);
+
+/*
+ * mutual exclusion locks.  in the uncontended case,
+ * as fast as spin locks (just a few user-level instructions),
+ * but on the contention path they sleep in the kernel.
+ */
+void	lock(Lock*);
+void	unlock(Lock*);
+void	lockinit(Lock*);
+
+/*
+ * sleep and wakeup.
+ * a Rendez is somewhere to sleep.  it is protected by the lock r->l.
+ * the caller must acquire r->l, check the condition, and if the 
+ * condition is false, call rsleep.  rsleep will atomically drop the lock
+ * and go to sleep.  a subsequent rwakeup (caller must hold r->l)
+ * will wake up the guy who is rsleeping.  the lock keeps rsleep and
+ * rwakeup from missing each other.
+ * n.b. only one proc can rsleep on a given rendez at a time.
+ */
+void	rsleep(Rendez*);
+void	rwakeup(Rendez*);
+void	rwakeupandunlock(Rendez*);
 
 /*
  * low level go -called

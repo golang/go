@@ -5,7 +5,6 @@
 #include "runtime.h"
 #include "signals.h"
 
-
 typedef uint64 __uint64_t;
 
 /* From /usr/include/mach/i386/_structs.h */
@@ -173,4 +172,76 @@ initsig(void)
 		if(sigtab[i].catch){
 			sys·sigaction(i, &a, (void*)0);
 		}
+}
+
+static void
+unimplemented(int8 *name)
+{
+	prints(name);
+	prints(" not implemented\n");
+	*(int32*)1231 = 1231;
+}
+
+void
+sys·sleep(int64 ms)
+{
+	unimplemented("sleep");
+}
+
+void
+lock(Lock *l)
+{
+	if(xadd(&l->key, 1) == 1)
+		return;
+	unimplemented("lock wait");
+}
+
+void
+unlock(Lock *l)
+{
+	if(xadd(&l->key, -1) == 0)
+		return;
+	unimplemented("unlock wakeup");
+}
+
+void
+rsleep(Rendez *r)
+{
+	unimplemented("rsleep");
+
+	// dumb implementation:
+	r->sleeping = 1;
+	unlock(r->l);
+	while(r->sleeping)
+		;
+	lock(r->l);
+}
+
+void
+rwakeup(Rendez *r)
+{
+	unimplemented("rwakeup");
+
+	// dumb implementation:
+	r->sleeping = 0;
+}
+
+void
+rwakeupandunlock(Rendez *r)
+{
+	// dumb implementation:
+	rwakeup(r);
+	unlock(r->l);
+}
+
+void
+newosproc(M *mm, G *gg, void *stk, void (*fn)(void*), void *arg)
+{
+	unimplemented("newosproc");
+}
+
+int32
+getprocid(void)
+{
+	return 0;
 }

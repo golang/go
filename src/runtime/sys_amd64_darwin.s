@@ -6,7 +6,15 @@
 // System calls and other sys.stuff for AMD64, Darwin
 //
 
+// TODO(rsc): Either sys·exit or exit1 is wrong!
 TEXT	sys·exit(SB),1,$-8
+	MOVL	8(SP), DI		// arg 1 exit status
+	MOVL	$(0x2000000+1), AX	// syscall entry
+	SYSCALL
+	CALL	notok(SB)
+	RET
+
+TEXT	exit1(SB),1,$-8
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+1), AX	// syscall entry
 	SYSCALL
@@ -80,7 +88,7 @@ TEXT sigtramp(SB),1,$24
 	CALL	sighandler(SB)
 	RET
 
-TEXT	sys·mmap(SB),1,$-8
+TEXT	sys·mmap(SB),7,$-8
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVL	16(SP), SI		// arg 2 len
 	MOVL	20(SP), DX		// arg 3 prot
@@ -98,7 +106,7 @@ TEXT	notok(SB),1,$-8
 	MOVQ	BP, (BP)
 	RET
 
-TEXT	sys·memclr(SB),1,$-8
+TEXT	sys·memclr(SB),7,$-8
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVL	16(SP), CX		// arg 2 count
 	ADDL	$7, CX
