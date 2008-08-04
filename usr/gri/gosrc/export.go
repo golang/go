@@ -21,9 +21,7 @@ type Exporter struct {
 };
 
 
-func (E *Exporter) WriteType(typ *Globals.Type);
 func (E *Exporter) WriteObject(obj *Globals.Object);
-func (E *Exporter) WritePackage(pno int);
 
 
 func (E *Exporter) WriteByte(x byte) {
@@ -65,13 +63,14 @@ func (E *Exporter) WriteString(s string) {
 }
 
 
-func (E *Exporter) WriteObjectTag(tag int) {
-	if tag < 0 {
-		panic "tag < 0";
-	}
+func (E *Exporter) WritePackageTag(tag int) {
 	E.WriteInt(tag);
 	if E.debug {
-		print "\n", Object.KindStr(tag);
+		if tag >= 0 {
+			print " [P", tag, "]";  // package ref
+		} else {
+			print "\nP", E.pkg_ref, ":";
+		}
 	}
 }
 
@@ -88,27 +87,44 @@ func (E *Exporter) WriteTypeTag(tag int) {
 }
 
 
-func (E *Exporter) WritePackageTag(tag int) {
+func (E *Exporter) WriteObjectTag(tag int) {
+	if tag < 0 {
+		panic "tag < 0";
+	}
 	E.WriteInt(tag);
 	if E.debug {
-		if tag >= 0 {
-			print " [P", tag, "]";  // package ref
-		} else {
-			print "\nP", E.pkg_ref, ":";
-		}
+		print "\n", Object.KindStr(tag);
 	}
 }
 
 
-func (E *Exporter) WriteScope(scope *Globals.Scope, export_all bool) {
+func (E *Exporter) WritePackage(pkg *Globals.Package) {
+	if E.comp.pkg_list[pkg.obj.pnolev] != pkg {
+		panic "inconsistent package object"
+	}
+
+	if pkg.ref >= 0 {
+		E.WritePackageTag(pkg.ref);  // package already exported
+		return;
+	}
+
+	E.WritePackageTag(-1);
+	pkg.ref = E.pkg_ref;
+	E.pkg_ref++;
+
+	E.WriteString(pkg.obj.ident);
+	E.WriteString(pkg.file_name);
+	E.WriteString(pkg.key);
+}
+
+
+func (E *Exporter) WriteScope(scope *Globals.Scope) {
 	if E.debug {
 		print " {";
 	}
 
 	for p := scope.entries.first; p != nil; p = p.next {
-		if export_all || p.obj.exported {
-			E.WriteObject(p.obj);
-		}
+		E.WriteObject(p.obj);
 	}
 	E.WriteObject(nil);
 	
@@ -118,18 +134,84 @@ func (E *Exporter) WriteScope(scope *Globals.Scope, export_all bool) {
 }
 
 
+func (E *Exporter) WriteType(typ *Globals.Type) {
+	if typ.ref >= 0 {
+		E.WriteTypeTag(typ.ref);  // type already exported
+		return;
+	}
+
+	if -typ.form >= 0 {
+		panic "conflict with ref numbers";
+	}
+	E.WriteTypeTag(-typ.form);
+	typ.ref = E.type_ref;
+	E.type_ref++;
+
+	// if we have a named type, export the type identifier and package
+	ident := "";
+	if typ.obj != nil {
+		// named type
+		if typ.obj.typ != typ {
+			panic "inconsistent named type";
+		}
+		ident = typ.obj.ident;
+		if !typ.obj.exported {
+			// the type is invisible (it's identifier is not exported)
+			// prepend "." to the identifier to make it an illegal
+			// identifier and thus invisible in Go source code
+			ident = "." + ident;
+		}
+	}
+	
+	E.WriteString(ident);
+	if len(ident) > 0 {
+		// named type
+		E.WritePackage(E.comp.pkg_list[typ.obj.pnolev]);
+	}
+	
+	switch typ.form {
+	case Type.ALIAS:
+		E.WriteType(typ.elt);
+
+	case Type.ARRAY:
+		E.WriteInt(typ.len_);
+		E.WriteType(typ.elt);
+
+	case Type.MAP:
+		E.WriteType(typ.key);
+		E.WriteType(typ.elt);
+
+	case Type.CHANNEL:
+		E.WriteInt(typ.flags);
+		E.WriteType(typ.elt);
+
+	case Type.FUNCTION:
+		E.WriteInt(typ.flags);
+		E.WriteScope(typ.scope);
+		
+	case Type.STRUCT, Type.INTERFACE:
+		E.WriteScope(typ.scope);
+
+	case Type.POINTER, Type.REFERENCE:
+		E.WriteType(typ.elt);
+
+	default:
+		panic "UNREACHABLE";
+	}
+}
+
+
 func (E *Exporter) WriteObject(obj *Globals.Object) {
 	if obj == nil {
 		E.WriteObjectTag(Object.END);
 		return;
 	}
-
 	E.WriteObjectTag(obj.kind);
+
 	if obj.kind == Object.TYPE {
-		// named types are always primary types
-		// and handled entirely by WriteType()
+		// named types are handled entirely by WriteType()
 		if obj.typ.obj != obj {
-			panic "inconsistent primary type"
+			panic "inconsistent named type"
 		}
 		E.WriteType(obj.typ);
 		return;
@@ -151,93 +233,6 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 	default:
 		panic "UNREACHABLE";
 	}
-}
-
-
-func (E *Exporter) WriteType(typ *Globals.Type) {
-	if typ.ref >= 0 {
-		E.WriteTypeTag(typ.ref);  // type already exported
-		return;
-	}
-
-	if -typ.form >= 0 {
-		panic "-typ.form >= 0";  // conflict with ref numbers
-	}
-	E.WriteTypeTag(-typ.form);
-	typ.ref = E.type_ref;
-	E.type_ref++;
-
-	// if we have a primary type, export the type identifier and package
-	ident := "";
-	if typ.obj != nil {
-		// primary type
-		if typ.obj.typ != typ {
-			panic "inconsistent primary type";
-		}
-		ident = typ.obj.ident;
-		if !typ.obj.exported {
-			// the type is invisible (it's identifier is not exported)
-			// prepend "." to the identifier to make it an illegal
-			// identifier and thus invisible in Go source code
-			ident = "." + ident;
-		}
-	}
-	
-	E.WriteString(ident);
-	if len(ident) > 0 {
-		// primary type
-		E.WritePackage(typ.obj.pnolev);
-	}
-	
-	switch typ.form {
-	case Type.ALIAS:
-		E.WriteType(typ.elt);
-
-	case Type.ARRAY:
-		E.WriteInt(typ.len_);
-		E.WriteType(typ.elt);
-
-	case Type.MAP:
-		E.WriteType(typ.key);
-		E.WriteType(typ.elt);
-
-	case Type.CHANNEL:
-		E.WriteInt(typ.flags);
-		E.WriteType(typ.elt);
-
-	case Type.FUNCTION:
-		E.WriteInt(typ.flags);
-		E.WriteScope(typ.scope, true);
-		
-	case Type.STRUCT, Type.INTERFACE:
-		E.WriteScope(typ.scope, true);  // for now
-
-	case Type.POINTER, Type.REFERENCE:
-		E.WriteType(typ.elt);
-
-	default:
-		panic "UNREACHABLE";
-	}
-}
-
-
-func (E *Exporter) WritePackage(pno int) {
-	if pno < 0 {
-		pno = 0;
-	}
-	pkg := E.comp.pkg_list[pno];
-	if pkg.ref >= 0 {
-		E.WritePackageTag(pkg.ref);  // package already exported
-		return;
-	}
-
-	E.WritePackageTag(-1);
-	pkg.ref = E.pkg_ref;
-	E.pkg_ref++;
-
-	E.WriteString(pkg.obj.ident);
-	E.WriteString(pkg.file_name);
-	E.WriteString(pkg.key);
 }
 
 
@@ -264,9 +259,15 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	}
 	E.type_ref = Universe.types.len_;
 	
+	// export package 0
 	pkg := comp.pkg_list[0];
-	E.WritePackage(0);
-	E.WriteScope(pkg.scope, false);
+	E.WritePackage(pkg);
+	for p := pkg.scope.entries.first; p != nil; p = p.next {
+		if p.obj.exported {
+			E.WriteObject(p.obj);
+		}
+	}
+	E.WriteObject(nil);
 	
 	if E.debug {
 		print "\n(", E.buf_pos, " bytes)\n";

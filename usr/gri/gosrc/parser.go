@@ -1917,18 +1917,18 @@ func (P *Parser) ParseProgram() {
 	P.OpenScope();
 	P.Expect(Scanner.PACKAGE);
 	obj := P.ParseIdentDecl(Object.PACKAGE);
-	pkg := Globals.NewPackage(P.S.filename, obj);
-	P.comp.Insert(pkg);
-	if P.comp.pkg_ref != 1 {
-		panic "should have exactly one package now";
-	}
 	P.Optional(Scanner.SEMICOLON);
 	
 	{	if P.level != 0 {
 			panic "incorrect scope level";
 		}
 		P.OpenScope();
-		pkg.scope = P.top_scope;
+		
+		P.comp.Insert(Globals.NewPackage(P.S.filename, obj, P.top_scope));
+		if P.comp.pkg_ref != 1 {
+			panic "should have exactly one package now";
+		}
+
 		for P.tok == Scanner.IMPORT {
 			P.ParseDecl(false, Scanner.IMPORT);
 			P.Optional(Scanner.SEMICOLON);
