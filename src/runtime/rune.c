@@ -26,7 +26,7 @@ enum
 	Bit2	= 5,
 	Bit3	= 4,
 	Bit4	= 3,
-	Bit5	= 2, 
+	Bit5	= 2,
 
 	T1	= ((1<<(Bit1+1))-1) ^ 0xFF,	/* 0000 0000 */
 	Tx	= ((1<<(Bitx+1))-1) ^ 0xFF,	/* 1000 0000 */
@@ -48,15 +48,15 @@ enum
 	Runeself	= 0x80,
 
 	Bad	= Runeerror,
-	
+
 	Runemax	= 0x10FFFF,	/* maximum rune value */
 };
 
 /*
  * Modified by Wei-Hwa Huang, Google Inc., on 2004-09-24
- * This is a slower but "safe" version of the old chartorune 
+ * This is a slower but "safe" version of the old chartorune
  * that works on strings that are not necessarily null-terminated.
- * 
+ *
  * If you know for sure that your string is null-terminated,
  * chartorune will be a bit faster.
  *

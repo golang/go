@@ -41,17 +41,17 @@ struct Sched {
 	Lock;
 
 	G *gfree;	// available gs (status == Gdead)
-	
+
 	G *ghead;	// gs waiting to run
 	G *gtail;
 	int32 gwait;	// number of gs waiting to run
 	int32 gcount;	// number of gs that are alive
-	
+
 	M *mhead;	// ms waiting for work
 	int32 mwait;	// number of ms waiting for work
 	int32 mcount;	// number of ms that are alive
 	int32 mmax;	// max number of ms allowed
-	
+
 	int32 predawn;	// running initialization, don't run new gs.
 };
 
@@ -76,7 +76,7 @@ schedinit(void)
 {
 	int32 n;
 	byte *p;
-	
+
 	sched.mmax = 1;
 	p = getenv("gomaxprocs");
 	if(p != nil && (n = atoi(p)) != 0)
@@ -90,7 +90,7 @@ void
 m0init(void)
 {
 	int32 i;
-	
+
 	// Let's go.
 	sched.predawn = 0;
 
@@ -163,7 +163,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 	sched.gcount++;
 	goidgen++;
 	newg->goid = goidgen;
-	
+
 	readylocked(newg);
 	unlock(&sched);
 
@@ -205,7 +205,7 @@ static G*
 gget(void)
 {
 	G *g;
-	
+
 	g = sched.ghead;
 	if(g){
 		sched.ghead = g->schedlink;
@@ -230,7 +230,7 @@ static M*
 mget(void)
 {
 	M *m;
-	
+
 	m = sched.mhead;
 	if(m){
 		sched.mhead = m->schedlink;
@@ -252,7 +252,7 @@ static G*
 gfget(void)
 {
 	G *g;
-	
+
 	g = sched.gfree;
 	if(g)
 		sched.gfree = g->schedlink;
@@ -267,7 +267,7 @@ ready(G *g)
 	// have queued itself on a channel but not yet gotten
 	// a chance to call sys·gosched and actually go to sleep).
 	notesleep(&g->stopped);
-	
+
 	lock(&sched);
 	readylocked(g);
 	unlock(&sched);
@@ -300,7 +300,7 @@ readylocked(G *g)
 		m->nextg = g;
 		notewakeup(&m->havenextg);
 	}
-	
+
 	// Else put g on queue, kicking off new m if needed.
 	else{
 		gput(g);
@@ -327,7 +327,7 @@ nextgandunlock(void)
 	m->nextg = nil;
 	noteclear(&m->havenextg);
 	unlock(&sched);
-	
+
 	notesleep(&m->havenextg);
 	if((gp = m->nextg) == nil)
 		throw("bad m->nextg in nextgoroutine");
@@ -373,7 +373,7 @@ scheduler(void)
 
 	// Find (or wait for) g to run.  Unlocks sched.
 	gp = nextgandunlock();
-	
+
 	noteclear(&gp->stopped);
 	gp->status = Grunning;
 	m->curg = gp;
@@ -406,13 +406,13 @@ mnew(void)
 	M *m;
 	G *g;
 	byte *stk, *stktop;
-	
+
 	sched.mcount++;
 	if(debug){
 		sys·printint(sched.mcount);
 		prints(" threads\n");
 	}
-	
+
 	// Allocate m, g, stack in one chunk.
 	// 1024 and 104 are the magic constants
 	// use in rt0_amd64.s when setting up g0.
@@ -420,7 +420,7 @@ mnew(void)
 	g = (G*)(m+1);
 	stk = (byte*)g + 104;
 	stktop = stk + 1024;
-	
+
 	m->g0 = g;
 	g->stackguard = stk;
 	g->stackbase = stktop;
@@ -521,7 +521,7 @@ newstack(void)
 	m->curg->stackguard = stk + 160;
 
 	sp = (byte*)top;
-	
+
 	if(siz2 > 0) {
 		siz2 = (siz2+7) & ~7;
 		sp -= siz2;

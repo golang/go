@@ -243,7 +243,7 @@ void	unlock(Lock*);
 
 /*
  * sleep and wakeup on one-time events.
- * before any calls to notesleep or notewakeup, 
+ * before any calls to notesleep or notewakeup,
  * must call noteclear to initialize the Note.
  * then, any number of threads can call notesleep
  * and exactly one thread can call notewakeup (once).

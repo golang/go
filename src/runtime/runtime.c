@@ -512,7 +512,7 @@ getenv(int8 *s)
 {
 	int32 i, j, len;
 	byte *v, *bs;
-	
+
 	bs = (byte*)s;
 	len = findnull(s);
 	for(i=0; i<envc; i++){
@@ -532,7 +532,7 @@ int32
 atoi(byte *p)
 {
 	int32 n;
-	
+
 	n = 0;
 	while('0' <= *p && *p <= '9')
 		n = n*10 + *p++ - '0';
@@ -635,7 +635,7 @@ check(void)
 		throw("cas1");
 	if(z != 2)
 		throw("cas2");
-	
+
 	z = 4;
 	if(cas(&z, 5, 6))
 		throw("cas3");

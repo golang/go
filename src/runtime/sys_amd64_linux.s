@@ -146,7 +146,7 @@ TEXT futex(SB),7,$0
 TEXT clone(SB),7,$0
 	MOVL	flags+8(SP), DI
 	MOVQ	stack+16(SP), SI
-	
+
 	// Copy m, g, fn off parent stack for use by child.
 	// Careful: Linux system call clobbers CX and R11.
 	MOVQ	m+24(SP), R8
@@ -160,13 +160,13 @@ TEXT clone(SB),7,$0
 	CMPQ	AX, $0
 	JEQ	2(PC)
 	RET
-	
+
 	// In child, call fn on new stack
 	MOVQ	SI, SP
 	MOVQ	R8, R14	// m
 	MOVQ	R9, R15	// g
 	CALL	R12
-	
+
 	// It shouldn't return.  If it does, exi
 	MOVL	$111, DI
 	MOVL	$60, AX
