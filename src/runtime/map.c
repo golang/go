@@ -40,7 +40,7 @@ sys·newmap(uint32 keysize, uint32 valsize,
 {
 	Hmap *m;
 
-	if(keyalg >= 2 ||
+	if(keyalg >= 3 ||
 	   valalg >= 3) {
 		prints("0<=");
 		sys·printint(keyalg);

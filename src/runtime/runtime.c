@@ -777,7 +777,8 @@ pointercopy(uint32 s, void **a, void **b)
 Alg
 algarray[3] =
 {
-	{	&memhash,	&memequal,	&memprint,	&memcopy	},
-	{	&stringhash,	&stringequal,	&stringprint,	&stringcopy	},
-	{	&pointerhash,	&pointerequal,	&pointerprint,	&pointercopy	},
+	{	&memhash,	&memequal,	&memprint,	&memcopy	},  // 0
+	{	&stringhash,	&stringequal,	&stringprint,	&stringcopy	},  // 1
+//	{	&pointerhash,	&pointerequal,	&pointerprint,	&pointercopy	},  // 2
+	{	&memhash,	&memequal,	&memprint,	&memcopy	},  // 2 - treat pointers as ints
 };
