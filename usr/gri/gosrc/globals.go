@@ -30,7 +30,7 @@ export type Type struct {
 	size int;  // in bytes
 	len_ int;  // array length, no. of parameters (w/o recv)
 	obj *Object;  // primary type object or NULL
-	key *Type;  // maps
+	aux *Type;  // alias base type or map key
 	elt *Type;  // aliases, arrays, maps, channels, pointers
 	scope *Scope;  // structs, interfaces, functions
 }

@@ -109,7 +109,7 @@ func (P *Printer) PrintScope(scope *Globals.Scope, delta int) {
 	} else {
 		n = 0;
 		for p := scope.entries.first; p != nil; p = p.next {
-			if p.obj.exported {
+			if p.obj.exported && !IsAnonymous(p.obj.ident) {
 				n++;
 			}
 		}
@@ -120,7 +120,7 @@ func (P *Printer) PrintScope(scope *Globals.Scope, delta int) {
 	if n > 0 {
 		P.level += delta;
 		for p := scope.entries.first; p != nil; p = p.next {
-			if P.print_all || p.obj.exported {
+			if P.print_all || p.obj.exported && !IsAnonymous(p.obj.ident) {
 				P.PrintIndent();
 				P.PrintObjectStruct(p.obj);
 			}
@@ -200,7 +200,12 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 
 	case Type.ALIAS:
 		P.PrintType(typ.elt);
-
+		if typ.aux != typ.elt {
+			print " /* ";
+			P.PrintType(typ.aux);
+			print " */";
+		}
+		
 	case Type.ARRAY:
 		print "[]";
 		P.PrintType(typ.elt);
@@ -217,7 +222,7 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 
 	case Type.MAP:
 		print "map [";
-		P.PrintType(typ.key);
+		P.PrintType(typ.aux);
 		print "] ";
 		P.PrintType(typ.elt);
 
@@ -263,4 +268,5 @@ export func PrintObject(comp *Globals.Compilation, obj *Globals.Object, print_al
 	var P Printer;
 	(&P).Init(comp, print_all);
 	(&P).PrintObjectStruct(obj);
+	print "\n";
 }

@@ -13,3 +13,7 @@ export type T2 struct {
 
 export func (obj *T2) M1(u, v float) {
 }
+
+export func F0(a int, b T0) int {
+	return a + b;
+}

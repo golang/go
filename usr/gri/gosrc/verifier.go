@@ -21,12 +21,27 @@ func Error(msg string) {
 }
 
 
-func VerifyObject(obj *Globals.Object, pnolev int);
+type Verifier struct {
+	comp *Globals.Compilation;
+	
+	// various sets for marking the graph (and thus avoid cycles)
+	objs *map[*Globals.Object] bool;
+	typs *map[*Globals.Type] bool;
+	pkgs *map[*Globals.Package] bool;
+}
 
 
-func VerifyType(typ *Globals.Type) {
+func (V *Verifier) VerifyObject(obj *Globals.Object, pnolev int);
+
+
+func (V *Verifier) VerifyType(typ *Globals.Type) {
+	if V.typs[typ] {
+		return;  // already verified
+	}
+	V.typs[typ] = true;
+	
 	if typ.obj != nil {
-		VerifyObject(typ.obj, 0);
+		V.VerifyObject(typ.obj, 0);
 	}
 	
 	switch typ.form {
@@ -70,8 +85,14 @@ func VerifyType(typ *Globals.Type) {
 }
 
 
-func VerifyObject(obj *Globals.Object, pnolev int) {
-	VerifyType(obj.typ);
+func (V *Verifier) VerifyObject(obj *Globals.Object, pnolev int) {
+	if V.objs[obj] {
+		return;  // already verified
+	}
+	V.objs[obj] = true;
+	
+	// all objects have a non-nil type
+	V.VerifyType(obj.typ);
 	
 	switch obj.kind {
 	case Object.CONST:
@@ -92,20 +113,46 @@ func VerifyObject(obj *Globals.Object, pnolev int) {
 }
 
 
-func VerifyScope(scope *Globals.Scope) {
+func (V *Verifier) VerifyScope(scope *Globals.Scope) {
 	for p := scope.entries.first; p != nil; p = p.next {
-		VerifyObject(p.obj, 0);
+		V.VerifyObject(p.obj, 0);
 	}
 }
 
 
-func VerifyPackage(pkg *Globals.Package, pno int) {
-	VerifyObject(pkg.obj, 0);
+func (V *Verifier) VerifyPackage(pkg *Globals.Package, pno int) {
+	if V.pkgs[pkg] {
+		return;  // already verified
+	}
+	V.pkgs[pkg] = true;
+	
+	V.VerifyObject(pkg.obj, pno);
+	V.VerifyScope(pkg.scope);
+}
+
+
+func (V *Verifier) Verify(comp *Globals.Compilation) {
+	// initialize Verifier
+	V.comp = comp;
+	V.objs = new(map[*Globals.Object] bool);
+	V.typs = new(map[*Globals.Type] bool);
+	V.pkgs = new(map[*Globals.Package] bool);
+
+	// verify all packages
+	filenames := new(map[string] bool);
+	for i := 0; i < comp.pkg_ref; i++ {
+		pkg := comp.pkg_list[i];
+		// each pkg filename must appear only once
+		if filenames[pkg.file_name] {
+			Error("package filename present more then once");
+		}
+		filenames[pkg.file_name] = true;
+		V.VerifyPackage(pkg, i);
+	}
 }
 
 
 export func Verify(comp *Globals.Compilation) {
-	for i := 0; i < comp.pkg_ref; i++ {
-		VerifyPackage(comp.pkg_list[i], i);
-	}
+	V := new(Verifier);
+	V.Verify(comp);
 }
