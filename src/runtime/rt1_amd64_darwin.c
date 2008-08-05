@@ -191,7 +191,7 @@ sys·sleep(int64 ms)
 void
 lock(Lock *l)
 {
-	if(xadd(&l->key, 1) == 1)
+	if(cas(&l->key, 0, 1))
 		return;
 	unimplemented("lock wait");
 }
@@ -199,43 +199,33 @@ lock(Lock *l)
 void
 unlock(Lock *l)
 {
-	if(xadd(&l->key, -1) == 0)
+	if(cas(&l->key, 1, 0))
 		return;
 	unimplemented("unlock wakeup");
 }
 
 void
-rsleep(Rendez *r)
+noteclear(Note *n)
 {
-	unimplemented("rsleep");
-
-	// dumb implementation:
-	r->sleeping = 1;
-	unlock(r->l);
-	while(r->sleeping)
-		;
-	lock(r->l);
+	n->lock.key = 0;
+	lock(&n->lock);
 }
 
 void
-rwakeup(Rendez *r)
+notesleep(Note *n)
 {
-	unimplemented("rwakeup");
-
-	// dumb implementation:
-	r->sleeping = 0;
+	lock(&n->lock);
+	unlock(&n->lock);
 }
 
 void
-rwakeupandunlock(Rendez *r)
+notewakeup(Note *n)
 {
-	// dumb implementation:
-	rwakeup(r);
-	unlock(r->l);
+	unlock(&n->lock);
 }
 
 void
-newosproc(M *mm, G *gg, void *stk, void (*fn)(void*), void *arg)
+newosproc(M *mm, G *gg, void *stk, void (*fn)(void))
 {
 	unimplemented("newosproc");
 }

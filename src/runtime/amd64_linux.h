@@ -48,6 +48,6 @@ struct stat {
 
 // Linux-specific system calls
 int64	futex(uint32*, int32, uint32, struct timespec*, uint32*, uint32);
-int64	clone(int32, void*, M*, G*, void(*)(void*), void*);
+int64	clone(int32, void*, M*, G*, void(*)(void));
 int64	select(int32, void*, void*, void*, void*);
 

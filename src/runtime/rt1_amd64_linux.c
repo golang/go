@@ -138,21 +138,19 @@ typedef struct sigaction {
 void
 sighandler(int32 sig, siginfo* info, void** context)
 {
-	int32 i;
-
 	if(sig < 0 || sig >= NSIG){
 		prints("Signal ");
 		sys·printint(sig);
 	}else{
 		prints(sigtab[sig].name);
 	}
-        
+
         struct sigcontext *sc = &(((struct ucontext *)context)->uc_mcontext);
-        
+
         prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
         prints("\npc: 0x");  sys·printpointer((void *)sc->rip);
         prints("\n\n");
-        
+
 	traceback((void *)sc->rip, (void *)sc->rsp, (void *)sc->r15);
 	tracebackothers((void*)sc->r15);
 	print_sigcontext(sc);
@@ -179,16 +177,14 @@ initsig(void)
 		}
 }
 
-// Linux futex.  The simple cases really are simple:
+// Linux futex.
 //
-//	futex(addr, FUTEX_WAIT, val, duration, _, _)
-//		Inside the kernel, atomically check that *addr == val
-//		and go to sleep for at most duration.
+//	futexsleep(uint32 *addr, uint32 val)
+//	futexwakeup(uint32 *addr)
 //
-//	futex(addr, FUTEX_WAKE, val, _, _, _)
-//		Wake up at least val procs sleeping on addr.
-//
-// (Of course, they have added more complicated things since then.)
+// Futexsleep atomically checks if *addr == val and if so, sleeps on addr.
+// Futexwakeup wakes up one thread sleeping on addr.
+// Futexsleep is allowed to wake up spuriously.
 
 enum
 {	
@@ -199,10 +195,10 @@ enum
 	EAGAIN = 11,
 };
 
-// TODO(rsc) I tried using 1<<40 here but it woke up (-ETIMEDOUT).
+// TODO(rsc) I tried using 1<<40 here but futex woke up (-ETIMEDOUT).
 // I wonder if the timespec that gets to the kernel
-// actually has two 32-bit numbers in it, so that
-// a 64-bit 1<<40 ends up being 0 seconds, 
+// actually has two 32-bit numbers in it, so tha
+// a 64-bit 1<<40 ends up being 0 seconds,
 // 1<<8 nanoseconds.
 static struct timespec longtime =
 {
@@ -210,69 +206,106 @@ static struct timespec longtime =
 	0
 };
 
+// Atomically,
+//	if(*addr == val) sleep
+// Might be woken up spuriously; that's allowed.
 static void
-efutex(uint32 *addr, int32 op, int32 val, struct timespec *ts)
+futexsleep(uint32 *addr, uint32 val)
 {
 	int64 ret;
+	
+	ret = futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
+	if(ret >= 0 || ret == -EAGAIN || ret == -EINTR)
+		return;
 
-again:
-	ret = futex(addr, op, val, ts, nil, 0);
-
-	// These happen when you use a debugger, among other times.
-	if(ret == -EAGAIN || ret == -EINTR){
-		// If we were sleeping, it's okay to wake up early.
-		if(op == FUTEX_WAIT)
-			return;
-		
-		// If we were waking someone up, we don't know
-		// whether that succeeded, so wake someone else up too.
-		if(op == FUTEX_WAKE){
-prints("futexwake ");
-sys·printint(ret);
-prints("\n");
-			goto again;
-		}
-	}
-
-	if(ret < 0){
-		prints("futex error addr=");
-		sys·printpointer(addr);
-		prints(" op=");
-		sys·printint(op);
-		prints(" val=");
-		sys·printint(val);
-		prints(" ts=");
-		sys·printpointer(ts);
-		prints(" returned ");
-		sys·printint(-ret);
-		prints("\n");
-		*(int32*)101 = 202;
-	}
+	prints("futexsleep addr=");
+	sys·printpointer(addr);
+	prints(" val=");
+	sys·printint(val);
+	prints(" returned ");
+	sys·printint(ret);
+	prints("\n");
+	*(int32*)0x1005 = 0x1005;
 }
 
-// Lock and unlock.  
-// A zeroed Lock is unlocked (no need to initialize each lock).
-// The l->key is either 0 (unlocked), 1 (locked), or >=2 (contended).
+// If any procs are sleeping on addr, wake up at least one.
+static void
+futexwakeup(uint32 *addr)
+{
+	int64 ret;
+	
+	ret = futex(addr, FUTEX_WAKE, 1, nil, nil, 0);
+
+	if(ret >= 0)
+		return;
+
+	// I don't know that futex wakeup can return
+	// EAGAIN or EINTR, but if it does, it would be 
+	// safe to loop and call futex again.
+
+	prints("futexwakeup addr=");
+	sys·printpointer(addr);
+	prints(" returned ");
+	sys·printint(ret);
+	prints("\n");
+	*(int32*)0x1006 = 0x1006;
+}
+
+
+// Lock and unlock.
+//
+// The lock state is a single 32-bit word that holds
+// a 31-bit count of threads waiting for the lock
+// and a single bit (the low bit) saying whether the lock is held.
+// The uncontended case runs entirely in user space.
+// When contention is detected, we defer to the kernel (futex).
+//
+// A reminder: compare-and-swap cas(addr, old, new) does
+//	if(*addr == old) { *addr = new; return 1; }
+// 	else return 0;
+// but atomically.
 
 void
 lock(Lock *l)
 {
 	uint32 v;
-	
-	if(l->key != 0) *(int32*)0x1001 = 0x1001;
-	l->key = 1;
-	return;
 
-	for(;;){
-		// Try for lock.  If we incremented it from 0 to 1, we win.
-		if((v=xadd(&l->key, 1)) == 1)
+again:
+	v = l->key;
+	if((v&1) == 0){
+		if(cas(&l->key, v, v|1)){
+			// Lock wasn't held; we grabbed it.
 			return;
-
-		// We lose.  It was already >=1 and is now >=2.
-		// Use futex to atomically check that the value is still
-		// what we think it is and go to sleep.
-		efutex(&l->key, FUTEX_WAIT, v, &longtime);
+		}
+		goto again;
 	}
+	
+	// Lock was held; try to add ourselves to the waiter count.
+	if(!cas(&l->key, v, v+2))
+		goto again;
+	
+	// We're accounted for, now sleep in the kernel.
+	//
+	// We avoid the obvious lock/unlock race because
+	// the kernel won't put us to sleep if l->key has
+	// changed underfoot and is no longer v+2.
+	//
+	// We only really care that (v&1) == 1 (the lock is held),
+	// and in fact there is a futex variant that could
+	// accomodate that check, but let's not get carried away.)
+	futexsleep(&l->key, v+2);
+	
+	// We're awake: remove ourselves from the count.
+	for(;;){
+		v = l->key;
+		if(v < 2)
+			throw("bad lock key");
+		if(cas(&l->key, v, v-2))
+			break;
+	}
+	
+	// Try for the lock again.
+	goto again;
 }
 
 void
@@ -280,68 +313,54 @@ unlock(Lock *l)
 {
 	uint32 v;
 
-	if(l->key != 1) *(int32*)0x1002 = 0x1002;
-	l->key = 0;
-	return;
+	// Atomically get value and clear lock bit.
+again:
+	v = l->key;
+	if((v&1) == 0)
+		throw("unlock of unlocked lock");
+	if(!cas(&l->key, v, v&~1))
+		goto again;
 
-	// Unlock the lock.  If we decremented from 1 to 0, wasn't contended.
-	if((v=xadd(&l->key, -1)) == 0)
-		return;
-	
-	// The lock was contended.  Mark it as unlocked and wake a waiter.
-	l->key = 0;
-	efutex(&l->key, FUTEX_WAKE, 1, nil);
+	// If there were waiters, wake one.
+	if(v & ~1)
+		futexwakeup(&l->key);
 }
 
-// Sleep and wakeup (see description in runtime.h)
+
+// One-time notifications.
+//
+// Since the lock/unlock implementation already
+// takes care of sleeping in the kernel, we just reuse it.
+// (But it's a weird use, so it gets its own interface.)
+//
+// We use a lock to represent the event:
+// unlocked == event has happened.
+// Thus the lock starts out locked, and to wait for the
+// event you try to lock the lock.  To signal the event,
+// you unlock the lock.
 
 void
-rsleep(Rendez *r)
+noteclear(Note *n)
 {
-	// Record that we're about to go to sleep and drop the lock.
-	r->sleeping = 1;
-	unlock(r->l);
-	
-	// Go to sleep if r->sleeping is still 1.
-	efutex(&r->sleeping, FUTEX_WAIT, 1, &longtime);
-
-	// Reacquire the lock.
-	lock(r->l);
+	n->lock.key = 0;	// memset(n, 0, sizeof *n)
+	lock(&n->lock);
 }
 
 void
-rwakeup(Rendez *r)
+notewakeup(Note *n)
 {
-	if(!r->sleeping)
-		return;
-
-	// Clear the sleeping flag in case sleeper
-	// is between unlock and futex.
-	r->sleeping = 0;
-	
-	// Wake up if actually made it to sleep.
-	efutex(&r->sleeping, FUTEX_WAKE, 1, nil);
+	unlock(&n->lock);
 }
 
-// Like rwakeup(r), unlock(r->l), but drops the lock before
-// waking the other proc.  This reduces bouncing back and forth
-// in the scheduler: the first thing the other proc wants to do
-// is acquire r->l, so it helps to unlock it before we wake him.
 void
-rwakeupandunlock(Rendez *r)
+notesleep(Note *n)
 {
-	int32 wassleeping;
-	
-	if(!r->sleeping){
-		unlock(r->l);
-		return;
-	}
-
-	r->sleeping = 0;
-	unlock(r->l);
-	efutex(&r->sleeping, FUTEX_WAKE, 1, nil);
+	lock(&n->lock);
+	unlock(&n->lock);	// Let other sleepers find out too.
 }
 
+
+// Clone, the Linux rfork.
 enum
 {
 	CLONE_VM = 0x100,
@@ -365,7 +384,7 @@ enum
 };
 
 void
-newosproc(M *mm, G *gg, void *stk, void (*fn)(void*), void *arg)
+newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	int64 ret;
 	int32 flags;
@@ -382,20 +401,18 @@ newosproc(M *mm, G *gg, void *stk, void (*fn)(void*), void *arg)
 	if(0){
 		prints("newosproc stk=");
 		sys·printpointer(stk);
-		prints(" mm=");
-		sys·printpointer(mm);
-		prints(" gg=");
-		sys·printpointer(gg);
+		prints(" m=");
+		sys·printpointer(m);
+		prints(" g=");
+		sys·printpointer(g);
 		prints(" fn=");
 		sys·printpointer(fn);
-		prints(" arg=");
-		sys·printpointer(arg);
 		prints(" clone=");
 		sys·printpointer(clone);
 		prints("\n");
 	}
 
-	ret = clone(flags, stk, mm, gg, fn, arg);
+	ret = clone(flags, stk, m, g, fn);
 	if(ret < 0)
 		*(int32*)123 = 123;
 }

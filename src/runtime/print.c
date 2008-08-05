@@ -8,7 +8,6 @@
 void
 dump(byte *p, int32 n)
 {
-	uint32 v;
 	int32 i;
 
 	for(i=0; i<n; i++) {
