@@ -4,8 +4,6 @@
 
 package math
 
-export	hypot
-
 /*
  *	hypot -- sqrt(p*p + q*q), but overflows only if the result does.
  *	See Cleve Moler and Donald Morrison,
@@ -14,7 +12,7 @@ export	hypot
  *	Vol. 27, Number 6, pp. 577-581, Nov. 1983
  */
 
-func
+export func
 hypot(p, q float64) float64
 {
 	var r, s, pfac float64;

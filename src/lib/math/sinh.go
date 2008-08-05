@@ -5,7 +5,6 @@
 package math
 
 import	math "math"
-export	sinh, cosh
 
 /*
  *	sinh(arg) returns the hyperbolic sine of its floating-
@@ -32,7 +31,7 @@ const
 	q2	= -0.173678953558233699533450911e+3;
 )
 
-func
+export func
 sinh(arg float64) float64
 {
 	var temp, argsq float64;
@@ -63,7 +62,7 @@ sinh(arg float64) float64
 	return temp;
 }
 
-func
+export func
 cosh(arg float64) float64
 {
 	if arg < 0 {

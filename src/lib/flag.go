@@ -39,12 +39,12 @@ package flag
  
 import fmt "fmt"
 
-export Bool, Int, String
-export Arg, NArg
-export Parse
+//export Bool, Int, String
+//export Arg, NArg
+//export Parse
 //export Flag.BVal BUG: variable exported but not defined: Flag.BVal
 //export Flag.SVal BUG: variable exported but not defined: Flag.SVal
-export Flag
+//export Flag
 
 // BUG: ctoi, atoi, atob belong elsewhere
 func ctoi(c int64) int64 {
@@ -275,7 +275,7 @@ type Value interface {
 }
 
 // -- Flag structure (internal)
-type Flag struct {
+export type Flag struct {
 	name	string;
 	usage	string;
 	value	Value;
@@ -330,7 +330,7 @@ func New() *Flags {
 
 var flags *Flags = New();
 
-func Arg(i int) string {
+export func Arg(i int) string {
 	i += flags.first_arg;
 	if i < 0 || i >= sys.argc() {
 		return "";
@@ -338,7 +338,7 @@ func Arg(i int) string {
 	return sys.argv(i)
 }
 
-func NArg() int32 {
+export func NArg() int32 {
 	return sys.argc() - flags.first_arg
 }
 
@@ -358,15 +358,15 @@ func Add(name string, value Value, usage string) *Flag {
 	return f;
 }
 
-func Bool(name string, value bool, p *bool, usage string) *Flag {
+export func Bool(name string, value bool, p *bool, usage string) *Flag {
 	return Add(name, NewBoolValue(value, p), usage);
 }
 
-func Int(name string, value int64, p *int64, usage string) *Flag {
+export func Int(name string, value int64, p *int64, usage string) *Flag {
 	return Add(name, NewIntValue(value, p), usage);
 }
 
-func String(name, value string, p *string, usage string) *Flag {
+export func String(name, value string, p *string, usage string) *Flag {
 	return Add(name, NewStringValue(value, p), usage);
 }
 
@@ -458,7 +458,7 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 	return true, index + 1
 }
 
-func Parse() {
+export func Parse() {
 	for i := 1; i < sys.argc();  {
 		ok, next := flags.ParseOne(i);
 		if next > 0 {

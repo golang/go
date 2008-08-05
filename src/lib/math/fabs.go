@@ -4,9 +4,7 @@
 
 package math
 
-export	fabs
-
-func
+export func
 fabs(arg float64) float64
 {
 

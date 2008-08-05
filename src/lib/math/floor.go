@@ -4,14 +4,12 @@
 
 package math
 
-export	floor, ceil
-
 /*
  * floor and ceil-- greatest integer <= arg
  * (resp least >=)
  */
 
-func
+export func
 floor(arg float64) float64
 {
 	var fract, d float64;
@@ -28,7 +26,7 @@ floor(arg float64) float64
 	return d;
 }
 
-func
+export func
 ceil(arg float64) float64
 {
 	return -floor(-arg);

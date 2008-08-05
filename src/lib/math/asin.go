@@ -6,8 +6,6 @@ package math
 
 import	math "math"
 
-export	asin, acos
-
 /*
  * asin(arg) and acos(arg) return the arcsin, arccos,
  * respectively of their arguments.
@@ -20,7 +18,7 @@ const
 	pio2 = .15707963267948966192313216e1
 )
 
-func
+export func
 asin(arg float64)float64
 {
 	var temp, x float64;
@@ -49,7 +47,7 @@ asin(arg float64)float64
 	return temp;
 }
 
-func
+export func
 acos(arg float64)float64
 {
 	if(arg > 1 || arg < -1) {

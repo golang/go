@@ -4,8 +4,6 @@
 
 package math
 
-export	pow10
-
 /*
  * this table might overflow 127-bit exponent representations.
  * in that case, truncate it after 1.0e38.
@@ -18,7 +16,7 @@ export	pow10
 const	tabsize		= 70;
 var	tab[tabsize]	float64;
 
-func
+export func
 pow10(e int) float64 
 {
 	if e < 0 {

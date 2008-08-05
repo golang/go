@@ -9,6 +9,7 @@
  */
 
 package	rand
+/*
 export
 	srand			// set rand state (int32)
 	vrand			// int64 63-bits
@@ -18,6 +19,7 @@ export
 	lnrand			// int32 % (int32)
 	nrand			// int   % (int)
 	frand;			// float64 >=0.0 <1.0
+*/
 
 const
 (
@@ -51,7 +53,7 @@ seedrand(x int32) int32
 	return x;
 }
 
-func
+export func
 srand(seed int32)
 {
 	rng_tap = 0;
@@ -81,7 +83,7 @@ srand(seed int32)
 	}
 }
 
-func
+export func
 vrand() int64
 {
 	rng_tap--;
@@ -99,21 +101,21 @@ vrand() int64
 	return x;
 }
 
-func
+export func
 lrand() int32
 {
 	x := vrand() & 0x7fffffff;
 	return int32(x);
 }
 
-func
+export func
 rand() int
 {
 	x := vrand() & 0x7fff;
 	return int(x);
 }
 
-func
+export func
 vnrand(n int64) int64
 {
 	var v,slop int64;
@@ -124,21 +126,21 @@ vnrand(n int64) int64
 	return v % n;
 }
 
-func
+export func
 lnrand(n int32) int32
 {
 	v := vnrand(int64(n));
 	return int32(v);
 }
 
-func
+export func
 nrand(n int) int
 {
 	v := vnrand(int64(n));
 	return int(v);
 }
 
-func
+export func
 frand() float64
 {
 	var x float64;

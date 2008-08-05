@@ -4,13 +4,11 @@
 
 package math
 
-export	fmod
-
 /*
  *	floating-point mod func without infinity or NaN checking
  */
 
-func
+export func
 fmod(x, y float64) float64
 {
 	var yexp, rexp int;

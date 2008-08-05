@@ -4,8 +4,6 @@
 
 package math
 
-export		sqrt
-
 /*
  *	sqrt returns the square root of its floating
  *	point argument. Newton's method.
@@ -13,7 +11,7 @@ export		sqrt
  *	calls frexp
  */
 
-func
+export func
 sqrt(arg float64) float64
 {
 	var x, temp float64;

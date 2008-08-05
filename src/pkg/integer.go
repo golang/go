@@ -7,12 +7,10 @@ package Integer
 const ValueLen = 1000;
 type Word uint32
 type Value *[ValueLen]Word
-type IntegerImpl struct {
+export type IntegerImpl struct {
   val Value
 }
-type Integer *IntegerImpl
-
-export IntegerImpl, Integer
+export type Integer *IntegerImpl
 
 const N = 4;
 const H = 1
@@ -458,14 +456,12 @@ func tostring(x Value) string {
 // ----------------------------------------------------------------------------
 // Creation
 
-export FromInt
-func FromInt(v int) Integer {
+export func FromInt(v int) Integer {
   return new(IntegerImpl).Init(make(v));
 }
 
 
-export FromString
-func FromString(s string) Integer {
+export func FromString(s string) Integer {
   return new(IntegerImpl).Init(make_from_string(s));
 }
 
@@ -613,8 +609,7 @@ func (x Integer) geq (y Integer) bool {
 // ----------------------------------------------------------------------------
 // Specials
 
-export Fact
-func Fact(n int) Integer {
+export func Fact(n int) Integer {
   return new(IntegerImpl).Init(fact(n));
 }
 

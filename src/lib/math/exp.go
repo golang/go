@@ -5,7 +5,6 @@
 package math
 
 import	math "math"
-export	exp
 
 /*
  *	exp returns the exponential func of its
@@ -27,7 +26,7 @@ const
 	maxf	= 10000;
 )
 
-func
+export func
 exp(arg float64) float64
 {
 	var x, fract, temp1, temp2, xsq float64;
