@@ -35,7 +35,7 @@ TEXT	_rt0_amd64(SB),7,$-8
 	CALL	args(SB)
 	CALL	schedinit(SB)
 	CALL	main·init_function(SB) // initialization
-	
+
 	// create a new goroutine to start program
 
 	PUSHQ	$main·main(SB)		// entry

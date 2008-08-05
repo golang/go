@@ -262,7 +262,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 		*pres = false;
 		return;
 	}
-		
+
 	sg = allocsg(c);
 	g->param = nil;
 	g->status = Gwaiting;

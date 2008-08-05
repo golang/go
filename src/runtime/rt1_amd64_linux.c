@@ -187,10 +187,10 @@ initsig(void)
 // Futexsleep is allowed to wake up spuriously.
 
 enum
-{	
+{
 	FUTEX_WAIT = 0,
 	FUTEX_WAKE = 1,
-	
+
 	EINTR = 4,
 	EAGAIN = 11,
 };
@@ -213,7 +213,7 @@ static void
 futexsleep(uint32 *addr, uint32 val)
 {
 	int64 ret;
-	
+
 	ret = futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
 	if(ret >= 0 || ret == -EAGAIN || ret == -EINTR)
 		return;
@@ -233,14 +233,14 @@ static void
 futexwakeup(uint32 *addr)
 {
 	int64 ret;
-	
+
 	ret = futex(addr, FUTEX_WAKE, 1, nil, nil, 0);
 
 	if(ret >= 0)
 		return;
 
 	// I don't know that futex wakeup can return
-	// EAGAIN or EINTR, but if it does, it would be 
+	// EAGAIN or EINTR, but if it does, it would be
 	// safe to loop and call futex again.
 
 	prints("futexwakeup addr=");
@@ -279,11 +279,11 @@ again:
 		}
 		goto again;
 	}
-	
+
 	// Lock was held; try to add ourselves to the waiter count.
 	if(!cas(&l->key, v, v+2))
 		goto again;
-	
+
 	// We're accounted for, now sleep in the kernel.
 	//
 	// We avoid the obvious lock/unlock race because
@@ -294,7 +294,7 @@ again:
 	// and in fact there is a futex variant that could
 	// accomodate that check, but let's not get carried away.)
 	futexsleep(&l->key, v+2);
-	
+
 	// We're awake: remove ourselves from the count.
 	for(;;){
 		v = l->key;
@@ -303,7 +303,7 @@ again:
 		if(cas(&l->key, v, v-2))
 			break;
 	}
-	
+
 	// Try for the lock again.
 	goto again;
 }
@@ -388,7 +388,7 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	int64 ret;
 	int32 flags;
-	
+
 	flags = CLONE_PARENT	/* getppid doesn't change in child */
 		| CLONE_VM	/* share memory */
 		| CLONE_FS	/* share cwd, etc */
