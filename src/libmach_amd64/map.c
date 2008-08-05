@@ -44,7 +44,7 @@ newmap(Map *map, int n)
 {
 	int size;
 
-	size = sizeof(Map)+(n-1)*sizeof(struct segment);
+	size = sizeof(Map)+(n-1)*sizeof(Seg);
 	if (map == 0)
 		map = malloc(size);
 	else
@@ -59,7 +59,7 @@ newmap(Map *map, int n)
 }
 
 int
-setmap(Map *map, int fd, uvlong b, uvlong e, vlong f, char *name)
+setmap(Map *map, int fd, uvlong b, uvlong e, vlong f, char *name, Maprw *rw)
 {
 	int i;
 
@@ -76,6 +76,7 @@ setmap(Map *map, int fd, uvlong b, uvlong e, vlong f, char *name)
 	map->seg[i].inuse = 1;
 	map->seg[i].name = name;
 	map->seg[i].fd = fd;
+	map->seg[i].rw = rw;
 	return 1;
 }
 
@@ -110,58 +111,6 @@ stacktop(int pid)
 	return strtoull(cp, 0, 16);
 }
 
-Map*
-attachproc(int pid, int kflag, int corefd, Fhdr *fp)
-{
-	char buf[64], *regs;
-	int fd;
-	Map *map;
-	uvlong n;
-	int mode;
-
-	map = newmap(0, 4);
-	if (!map)
-		return 0;
-	if(kflag) {
-		regs = "kregs";
-		mode = OREAD;
-	} else {
-		regs = "regs";
-		mode = ORDWR;
-	}
-	if (mach->regsize) {
-		sprint(buf, "/proc/%d/%s", pid, regs);
-		fd = open(buf, mode);
-		if(fd < 0) {
-			free(map);
-			return 0;
-		}
-		setmap(map, fd, 0, mach->regsize, 0, "regs");
-	}
-	if (mach->fpregsize) {
-		sprint(buf, "/proc/%d/fpregs", pid);
-		fd = open(buf, mode);
-		if(fd < 0) {
-			close(map->seg[0].fd);
-			free(map);
-			return 0;
-		}
-		setmap(map, fd, mach->regsize, mach->regsize+mach->fpregsize, 0, "fpregs");
-	}
-	setmap(map, corefd, fp->txtaddr, fp->txtaddr+fp->txtsz, fp->txtaddr, "text");
-	if(kflag || fp->dataddr >= mach->utop) {
-		setmap(map, corefd, fp->dataddr, ~0, fp->dataddr, "data");
-		return map;
-	}
-	n = stacktop(pid);
-	if (n == 0) {
-		setmap(map, corefd, fp->dataddr, mach->utop, fp->dataddr, "data");
-		return map;
-	}
-	setmap(map, corefd, fp->dataddr, n, fp->dataddr, "data");
-	return map;
-}
-	
 int
 findseg(Map *map, char *name)
 {
@@ -182,6 +131,29 @@ unusemap(Map *map, int i)
 		map->seg[i].inuse = 0;
 }
 
+int
+fdrw(Map *map, Seg *s, uvlong addr, void *v, uint n, int isread)
+{
+	int tot, m;
+
+	for(tot=0; tot<n; tot+=m){
+		if(isread)
+			m = pread(s->fd, (uchar*)v+tot, n-tot, addr+tot);
+		else
+			m = pwrite(s->fd, (uchar*)v+tot, n-tot, addr+tot);
+		if(m == 0){
+			werrstr("short %s", isread ? "read" : "write");
+			return -1;
+		}
+		if(m < 0){
+			werrstr("%s %d at %#llux (+%#llux): %r", isread ? "read" : "write", n, addr, s->f);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+
 Map*
 loadmap(Map *map, int fd, Fhdr *fp)
 {
@@ -195,11 +167,13 @@ loadmap(Map *map, int fd, Fhdr *fp)
 	map->seg[0].fd = fd;
 	map->seg[0].inuse = 1;
 	map->seg[0].name = "text";
+	map->seg[0].rw = fdrw;
 	map->seg[1].b = fp->dataddr;
 	map->seg[1].e = fp->dataddr+fp->datsz;
 	map->seg[1].f = fp->datoff;
 	map->seg[1].fd = fd;
 	map->seg[1].inuse = 1;
 	map->seg[1].name = "data";
+	map->seg[0].rw = fdrw;
 	return map;
 }

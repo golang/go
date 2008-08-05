@@ -43,6 +43,7 @@ OFILES=\
 	8.$O\
 	8db.$O\
 	6obj.$O\
+	$(GOOS).$O\
 #	v.$O\
 #	k.$O\
 #	u.$O\
