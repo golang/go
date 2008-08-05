@@ -198,25 +198,33 @@ enum
 };
 
 typedef	struct	Map	Map;
-typedef struct	Symbol	Symbol;
+typedef	struct	Symbol	Symbol;
 typedef	struct	Reglist	Reglist;
 typedef	struct	Mach	Mach;
 typedef	struct	Machdata Machdata;
+typedef	struct	Seg	Seg;
+
+typedef int Maprw(Map *m, Seg *s, uvlong addr, void *v, uint n, int isread);
+
+struct Seg {
+	char	*name;		/* the segment name */
+	int	fd;		/* file descriptor */
+	int	inuse;		/* in use - not in use */
+	int	cache;		/* should cache reads? */
+	uvlong	b;		/* base */
+	uvlong	e;		/* end */
+	vlong	f;		/* offset within file */
+	Maprw	*rw;		/* read/write fn for seg */
+};
 
 /*
- * 	Structure to map a segment to a position in a file
+ * 	Structure to map a segment to data
  */
 struct Map {
-	int	nsegs;			/* number of segments */
-	struct segment {		/* per-segment map */
-		char	*name;		/* the segment name */
-		int	fd;		/* file descriptor */
-		int	inuse;		/* in use - not in use */
-		int	cache;		/* should cache reads? */
-		uvlong	b;		/* base */
-		uvlong	e;		/* end */
-		vlong	f;		/* offset within file */
-	} seg[1];			/* actually n of these */
+	int	pid;
+	int	tid;
+	int	nsegs;	/* number of segments */
+	Seg	seg[1];	/* actually n of these */
 };
 
 /*
@@ -335,7 +343,6 @@ typedef struct Fhdr
 extern	int	asstype;	/* dissembler type - machdata.c */
 extern	Machdata *machdata;	/* jump vector - machdata.c */
 
-Map*		attachproc(int, int, int, Fhdr*);
 int		beieee80ftos(char*, int, void*);
 int		beieeesftos(char*, int, void*);
 int		beieeedftos(char*, int, void*);
@@ -394,10 +401,19 @@ int		readar(Biobuf*, int, vlong, int);
 int		readobj(Biobuf*, int);
 uvlong		riscframe(Map*, uvlong, uvlong, uvlong, uvlong);
 int		risctrace(Map*, uvlong, uvlong, uvlong, Tracer);
-int		setmap(Map*, int, uvlong, uvlong, vlong, char*);
+int		setmap(Map*, int, uvlong, uvlong, vlong, char*, Maprw *rw);
 Sym*		symbase(int32*);
 int		syminit(int, Fhdr*);
 int		symoff(char*, int, uvlong, int);
 void		textseg(uvlong, Fhdr*);
 int		textsym(Symbol*, int);
 void		unusemap(Map*, int);
+
+Map*		attachproc(int pid, Fhdr *fp);
+int		ctlproc(int pid, char *msg);
+void		detachproc(Map *m);
+int		procnotes(int pid, char ***pnotes);
+char*		proctextfile(int pid);
+int		procthreadpids(int pid, int **thread);
+
+Maprw	fdrw;
