@@ -211,10 +211,10 @@ inner loop top i 0
 do break
 outer loop top k 1
 k not zero
-panic on line 305 PC=0x1362
+panic on line 310 PC=0x1362
 0x1362?zi
-	main·main(1, 0, 1606414952, ...)
-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+	main·main(1, 0, 1606416392, ...)
+	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
 BUG: crashes
 
 =========== bugs/bug072.go
@@ -254,6 +254,10 @@ bugs/bug082.go:7: fatal error: optoas: no entry COM-<int32>INT32
 BUG: fails incorrectly
 
 =========== bugs/bug083.go
+
+=========== bugs/bug085.go
+bugs/bug085.go:8: P: undefined
+BUG: fails incorrectly
 
 =========== fixedbugs/bug000.go
 
@@ -318,7 +322,7 @@ fixedbugs/bug035.go:7: var f redeclared in this block
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(301) t=<T> nil
+fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(306) t=<T> nil
 
 =========== fixedbugs/bug038.go
 
