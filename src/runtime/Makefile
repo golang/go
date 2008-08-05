@@ -30,9 +30,10 @@ OFILES=$(RT0OFILES) $(LIBOFILES)
 OS_H=$(GOARCH)_$(GOOS).h
 HFILES=runtime.h $(OS_H_)
 
-install: rt0 $(LIB)
+install: rt0 $(LIB) runtime.acid
 	cp $(RT0OFILES) $(GOROOT)/lib
 	cp $(LIB) $(GOROOT)/lib
+	cp runtime.acid $(GOROOT)/acid/runtime.acid
 
 rt0:	$(RT0OFILES)
 
@@ -45,7 +46,7 @@ nuke:
 	rm -f *.$(O) *.a $(GOROOT)/lib/$(LIB)
 
 clean:
-	rm -f *.$(O) *.a
+	rm -f *.$(O) *.a runtime.acid
 
 %.$O:	%.c
 	$(CC) $<
@@ -55,3 +56,6 @@ sys_file.$O:	sys_file.c sys_types.h $(OS_H)
 
 %.$O:	%.s
 	$(AS) $<
+
+runtime.acid: runtime.h
+	$(CC) -a runtime.h >runtime.acid

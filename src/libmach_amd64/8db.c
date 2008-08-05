@@ -127,8 +127,8 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 	Symbol s, f;
 
 	USED(link);
-	i = 0;
 	osp = 0;
+	i = 0;
 	while(findsym(pc, CTEXT, &s)) {
 		if (osp == sp)
 			break;
@@ -142,7 +142,6 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 				break;
 			sp += f.value-mach->szaddr;
 		}
-
 		if (geta(map, sp, &pc) < 0)
 			break;
 
