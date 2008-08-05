@@ -7,21 +7,24 @@
 //
 
 // TODO(rsc): Either sys·exit or exit1 is wrong!
-TEXT	sys·exit(SB),1,$-8
+// It looks like sys·exit is correct (exits the entire program)
+// and exit1 should be mimicking the OS X library routine
+// __bsdthread_terminate.
+TEXT	sys·exit(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+1), AX	// syscall entry
 	SYSCALL
 	CALL	notok(SB)
 	RET
 
-TEXT	exit1(SB),1,$-8
+TEXT	exit1(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+1), AX	// syscall entry
 	SYSCALL
 	CALL	notok(SB)
 	RET
 
-TEXT	sys·write(SB),1,$-8
+TEXT	sys·write(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 fid
 	MOVQ	16(SP), SI		// arg 2 buf
 	MOVL	24(SP), DX		// arg 3 count
@@ -31,7 +34,7 @@ TEXT	sys·write(SB),1,$-8
 	CALL	notok(SB)
 	RET
 
-TEXT	open(SB),1,$-8
+TEXT	open(SB),7,$-8
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
 	MOVL	20(SP), DX
@@ -40,20 +43,20 @@ TEXT	open(SB),1,$-8
 	SYSCALL
 	RET
 
-TEXT	close(SB),1,$-8
+TEXT	close(SB),7,$-8
 	MOVL	8(SP), DI
 	MOVL	$(0x2000000+6), AX	// syscall entry
 	SYSCALL
 	RET
 
-TEXT	fstat(SB),1,$-8
+TEXT	fstat(SB),7,$-8
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	$(0x2000000+339), AX	// syscall entry; really fstat64
 	SYSCALL
 	RET
 
-TEXT	read(SB),1,$-8
+TEXT	read(SB),7,$-8
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -61,7 +64,7 @@ TEXT	read(SB),1,$-8
 	SYSCALL
 	RET
 
-TEXT	write(SB),1,$-8
+TEXT	write(SB),7,$-8
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -69,7 +72,7 @@ TEXT	write(SB),1,$-8
 	SYSCALL
 	RET
 
-TEXT	sys·sigaction(SB),1,$-8
+TEXT	sys·sigaction(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 sig
 	MOVQ	16(SP), SI		// arg 2 act
 	MOVQ	24(SP), DX		// arg 3 oact
@@ -81,7 +84,7 @@ TEXT	sys·sigaction(SB),1,$-8
 	CALL	notok(SB)
 	RET
 
-TEXT sigtramp(SB),1,$24
+TEXT sigtramp(SB),7,$24
 	MOVL	DX,0(SP)
 	MOVQ	CX,8(SP)
 	MOVQ	R8,16(SP)
@@ -101,7 +104,7 @@ TEXT	sys·mmap(SB),7,$-8
 	CALL	notok(SB)
 	RET
 
-TEXT	notok(SB),1,$-8
+TEXT	notok(SB),7,$-8
 	MOVL	$0xf1, BP
 	MOVQ	BP, (BP)
 	RET
@@ -117,12 +120,12 @@ TEXT	sys·memclr(SB),7,$-8
 	STOSQ
 	RET
 
-TEXT	sys·getcallerpc+0(SB),1,$0
+TEXT	sys·getcallerpc+0(SB),7,$0
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	-8(AX),AX		// get calling pc
 	RET
 
-TEXT	sys·setcallerpc+0(SB),1,$0
+TEXT	sys·setcallerpc+0(SB),7,$0
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	x+8(FP), BX
 	MOVQ	BX, -8(AX)		// set calling pc

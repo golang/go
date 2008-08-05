@@ -45,8 +45,6 @@ out:
 static void
 prbounds(int8* s, int32 a, int32 b, int32 c)
 {
-	int32 i;
-
 	prints(s);
 	prints(" ");
 	sys·printint(a);
@@ -115,7 +113,6 @@ strcmp(byte *s1, byte *s2)
 void
 sys·slicestring(string si, int32 lindex, int32 hindex, string so)
 {
-	string s, str;
 	int32 l;
 
 	if(si == nil)
@@ -154,8 +151,6 @@ sys·indexstring(string s, int32 i, byte b)
 void
 sys·intstring(int64 v, string s)
 {
-	int32 l;
-
 	s = mal(sizeof(s->len)+8);
 	s->len = runetochar(s->str, v);
 	FLUSH(&s);

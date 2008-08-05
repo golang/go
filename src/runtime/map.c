@@ -199,7 +199,6 @@ out:
 void
 sys·mapassign1(Hmap *m, ...)
 {
-	Link **ll;
 	byte *ak, *av;
 
 	ak = (byte*)&m + m->ko;

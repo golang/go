@@ -49,10 +49,10 @@ clean:
 	rm -f *.$(O) *.a runtime.acid
 
 %.$O:	%.c
-	$(CC) $<
+	$(CC) -w $<
 
 sys_file.$O:	sys_file.c sys_types.h $(OS_H)
-	$(CC) -D$(GOARCH)_$(GOOS) $<
+	$(CC) -w -D$(GOARCH)_$(GOOS) $<
 
 %.$O:	%.s
 	$(AS) $<

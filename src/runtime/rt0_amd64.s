@@ -41,7 +41,7 @@ TEXT	_rt0_amd64(SB),7,$-8
 	PUSHQ	$main·main(SB)		// entry
 	PUSHQ	$16			// arg size
 	CALL	sys·newproc(SB)
-	CALL	gom0init(SB)
+	CALL	m0init(SB)
 	POPQ	AX
 	POPQ	AX
 

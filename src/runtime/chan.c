@@ -487,7 +487,7 @@ sys·selectgo(Select *sel)
 	SudoG *sg;
 	G *gp;
 
-	byte *ae, *as;
+	byte *as;
 
 	if(xxx) {
 		prints("selectgo: sel=");
@@ -630,6 +630,8 @@ sys·selectgo(Select *sel)
 asynr:
 asyns:
 	throw("asyn");
+	return;	// compiler doesn't know throw doesn't return
+
 gotr:
 	// recv path to wakeup the sender (sg)
 	if(xxx) {

@@ -6,19 +6,19 @@
 // System calls and other sys.stuff for AMD64, Linux
 //
 
-TEXT	sys·exit(SB),1,$0-8
+TEXT	sys·exit(SB),7,$0-8
 	MOVL	8(SP), DI
-	MOVL	$231, AX	// force all os threads to exit
+	MOVL	$231, AX	// exitgroup - force all os threads to exi
 	SYSCALL
 	RET
 
-TEXT exit1(SB),1,$0-8
+TEXT exit1(SB),7,$0-8
 	MOVL	8(SP), DI
-	MOVL	$60, AX	// exit the current os thread
+	MOVL	$60, AX	// exit - exit the current os thread
 	SYSCALL
 	RET
 
-TEXT	open(SB),1,$0-16
+TEXT	open(SB),7,$0-16
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
 	MOVL	20(SP), DX
@@ -26,20 +26,20 @@ TEXT	open(SB),1,$0-16
 	SYSCALL
 	RET
 
-TEXT	close(SB),1,$0-8
+TEXT	close(SB),7,$0-8
 	MOVL	8(SP), DI
 	MOVL	$3, AX			// syscall entry
 	SYSCALL
 	RET
 
-TEXT	fstat(SB),1,$0-16
+TEXT	fstat(SB),7,$0-16
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	$5, AX			// syscall entry
 	SYSCALL
 	RET
 
-TEXT	read(SB),1,$0-24
+TEXT	read(SB),7,$0-24
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -47,7 +47,7 @@ TEXT	read(SB),1,$0-24
 	SYSCALL
 	RET
 
-TEXT	write(SB),1,$0-24
+TEXT	write(SB),7,$0-24
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -55,7 +55,7 @@ TEXT	write(SB),1,$0-24
 	SYSCALL
 	RET
 
-TEXT	sys·write(SB),1,$0-24
+TEXT	sys·write(SB),7,$0-24
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
@@ -63,7 +63,7 @@ TEXT	sys·write(SB),1,$0-24
 	SYSCALL
 	RET
 
-TEXT	sys·rt_sigaction(SB),1,$0-32
+TEXT	sys·rt_sigaction(SB),7,$0-32
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -72,7 +72,7 @@ TEXT	sys·rt_sigaction(SB),1,$0-32
 	SYSCALL
 	RET
 
-TEXT	sigtramp(SB),1,$24-16
+TEXT	sigtramp(SB),7,$24-16
 	MOVQ	DI,0(SP)
 	MOVQ	SI,8(SP)
 	MOVQ	DX,16(SP)
@@ -118,20 +118,20 @@ TEXT	sys·memclr(SB),7,$0-16
 	STOSQ
 	RET
 
-TEXT	sys·getcallerpc+0(SB),1,$0
+TEXT	sys·getcallerpc+0(SB),7,$0
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	-8(AX),AX		// get calling pc
 	RET
 
-TEXT	sys·setcallerpc+0(SB),1,$0
+TEXT	sys·setcallerpc+0(SB),7,$0
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	x+8(FP), BX
 	MOVQ	BX, -8(AX)		// set calling pc
 	RET
 
-// int64 futex(int32 *uaddr, int32 op, int32 val, 
+// int64 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
-TEXT futex(SB),1,$0
+TEXT futex(SB),7,$0
 	MOVQ	8(SP), DI
 	MOVL	16(SP), SI
 	MOVL	20(SP), DX
@@ -142,17 +142,16 @@ TEXT futex(SB),1,$0
 	SYSCALL
 	RET
 
-// int64 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void*), void *arg);
+// int64 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
 TEXT clone(SB),7,$0
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
+	MOVL	flags+8(SP), DI
+	MOVQ	stack+16(SP), SI
 	
-	// Copy m, g, fn, arg off parent stack for use by child.
+	// Copy m, g, fn off parent stack for use by child.
 	// Careful: Linux system call clobbers CX and R11.
-	MOVQ	24(SP), R8
-	MOVQ	32(SP), R9
-	MOVQ	40(SP), R12
-	MOVQ	48(SP), R13
+	MOVQ	m+24(SP), R8
+	MOVQ	g+32(SP), R9
+	MOVQ	fn+40(SP), R12
 
 	MOVL	$56, AX
 	SYSCALL
@@ -162,21 +161,20 @@ TEXT clone(SB),7,$0
 	JEQ	2(PC)
 	RET
 	
-	// In child, call fn(arg) on new stack
+	// In child, call fn on new stack
 	MOVQ	SI, SP
 	MOVQ	R8, R14	// m
 	MOVQ	R9, R15	// g
-	PUSHQ	R13
 	CALL	R12
 	
-	// It shouldn't return.  If it does, exit
+	// It shouldn't return.  If it does, exi
 	MOVL	$111, DI
 	MOVL	$60, AX
 	SYSCALL
 	JMP	-3(PC)	// keep exiting
 
 // int64 select(int32, void*, void*, void*, void*)
-TEXT select(SB),1,$0
+TEXT select(SB),7,$0
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -187,14 +185,14 @@ TEXT select(SB),1,$0
 	RET
 
 // Linux allocates each thread its own pid, like Plan 9.
-// But the getpid() system call returns the pid of the 
+// But the getpid() system call returns the pid of the
 // original thread (the one that exec started with),
 // no matter which thread asks.  This system call,
 // which Linux calls gettid, returns the actual pid of
 // the calling thread, not the fake one.
 //
 // int32 getprocid(void)
-TEXT getprocid(SB),1,$0
+TEXT getprocid(SB),7,$0
 	MOVL	$186, AX
 	SYSCALL
 	RET

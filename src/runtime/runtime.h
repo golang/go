@@ -43,7 +43,7 @@ typedef	struct	M		M;
 typedef	struct	Stktop		Stktop;
 typedef	struct	Alg		Alg;
 typedef	struct	Lock		Lock;
-typedef	struct	Rendez	Rendez;
+typedef	struct	Note	Note;
 typedef	struct	Mem		Mem;
 
 /*
@@ -62,6 +62,7 @@ enum
 	Grunnable,
 	Grunning,
 	Gwaiting,
+	Gmoribund,
 	Gdead,
 };
 enum
@@ -77,10 +78,9 @@ struct	Lock
 {
 	uint32	key;
 };
-struct	Rendez
+struct	Note
 {
-	Lock*	l;
-	uint32	sleeping;	// someone is sleeping (Linux)
+	Lock	lock;
 };
 struct String
 {
@@ -124,8 +124,8 @@ struct	G
 	int16	status;
 	int32	goid;
 	int32	selgen;		// valid sudog pointer
-	G*	runlink;
-	Lock	runlock;
+	G*	schedlink;
+	Note	stopped;
 	M*	m;	// for debuggers
 };
 struct	Mem
@@ -147,9 +147,10 @@ struct	M
 	byte*	moresp;
 	int32	siz1;
 	int32	siz2;
-	Rendez	waitr;
-	M*	waitlink;
-	int32	pid;	// for debuggers
+	Note	havenextg;
+	G*	nextg;
+	M*	schedlink;
+	int32	procid;	// for debuggers
 	Mem	mem;
 };
 struct	Stktop
@@ -224,36 +225,34 @@ int32	write(int32, void*, int32);
 void	close(int32);
 int32	fstat(int32, void*);
 bool	cas(uint32*, uint32, uint32);
-uint32	xadd(uint32*, uint32);
 void	exit1(int32);
 void	ready(G*);
 byte*	getenv(int8*);
 int32	atoi(byte*);
-void	newosproc(M *mm, G *gg, void *stk, void (*fn)(void*), void *arg);
+void	newosproc(M *m, G *g, void *stk, void (*fn)(void));
 int32	getprocid(void);
 
 /*
  * mutual exclusion locks.  in the uncontended case,
  * as fast as spin locks (just a few user-level instructions),
  * but on the contention path they sleep in the kernel.
+ * a zeroed Lock is unlocked (no need to initialize each lock).
  */
 void	lock(Lock*);
 void	unlock(Lock*);
-void	lockinit(Lock*);
 
 /*
- * sleep and wakeup.
- * a Rendez is somewhere to sleep.  it is protected by the lock r->l.
- * the caller must acquire r->l, check the condition, and if the 
- * condition is false, call rsleep.  rsleep will atomically drop the lock
- * and go to sleep.  a subsequent rwakeup (caller must hold r->l)
- * will wake up the guy who is rsleeping.  the lock keeps rsleep and
- * rwakeup from missing each other.
- * n.b. only one proc can rsleep on a given rendez at a time.
+ * sleep and wakeup on one-time events.
+ * before any calls to notesleep or notewakeup, 
+ * must call noteclear to initialize the Note.
+ * then, any number of threads can call notesleep
+ * and exactly one thread can call notewakeup (once).
+ * once notewakeup has been called, all the notesleeps
+ * will return.  future notesleeps will return immediately.
  */
-void	rsleep(Rendez*);
-void	rwakeup(Rendez*);
-void	rwakeupandunlock(Rendez*);
+void	noteclear(Note*);
+void	notesleep(Note*);
+void	notewakeup(Note*);
 
 /*
  * low level go -called

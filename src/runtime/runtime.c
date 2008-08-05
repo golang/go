@@ -71,6 +71,7 @@ rnd(uint32 n, uint32 m)
 	return n;
 }
 
+// Convenient wrapper around mmap.
 static void*
 brk(uint32 n)
 {
@@ -81,12 +82,15 @@ brk(uint32 n)
 	return v;
 }
 
-
+// Allocate n bytes of memory.  Note that this gets used
+// to allocate new stack segments, so at each call to a function
+// you have to ask yourself "would it be okay to call mal recursively
+// right here?"  The answer is yes unless we're in the middle of
+// editing the malloc state in m->mem.
 void*
 mal(uint32 n)
 {
 	byte* v;
-	Mem *mem;
 
 	// round to keep everything 64-bit aligned
 	n = rnd(n, 8);
@@ -94,17 +98,19 @@ mal(uint32 n)
 	// be careful.  calling any function might invoke
 	// mal to allocate more stack.
 	if(n > NHUNK) {
-		// this call is okay - calling mal recursively
-		// won't change anything we depend on.
 		v = brk(n);
 	} else {
 		// allocate a new hunk if this one is too small
 		if(n > m->mem.nhunk) {
-			// better not to call brk here - it might grow the stack,
-			// causing a call to mal and the allocation of a 
-			// new hunk behind our backs.  then we'd toss away
-			// almost all of that new hunk and replace it.
-			// that'd just be a memory leak - the code would still run.
+			// here we're in the middle of editing m->mem
+			// (we're about to overwrite m->mem.hunk),
+			// so we can't call brk - it might call mal to grow the
+			// stack, and the recursive call would allocate a new
+			// hunk, and then once brk returned we'd immediately
+			// overwrite that hunk with our own.
+			// (the net result would be a memory leak, not a crash.)
+			// so we have to call sys·mmap directly - it is written
+			// in assembly and tagged not to grow the stack.
 			m->mem.hunk =
 				sys·mmap(nil, NHUNK, PROT_READ|PROT_WRITE,
 					MAP_ANON|MAP_PRIVATE, 0, 0);
@@ -136,7 +142,7 @@ hashmap(Sigi *si, Sigs *ss)
 	byte *sname, *iname;
 	Map *m;
 
-	h = ((uint32)si + (uint32)ss) % nelem(hash);
+	h = ((uint32)(uint64)si + (uint32)(uint64)ss) % nelem(hash);
 	for(m=hash[h]; m!=nil; m=m->link) {
 		if(m->si == si && m->ss == ss) {
 			if(m->bad) {
@@ -301,9 +307,9 @@ enum
 	NANSIGN		= 1<<31,
 };
 
-static	uint64	uvnan		= 0x7FF0000000000001;
-static	uint64	uvinf		= 0x7FF0000000000000;
-static	uint64	uvneginf	= 0xFFF0000000000000;
+static	uint64	uvnan		= 0x7FF0000000000001ULL;
+static	uint64	uvinf		= 0x7FF0000000000000ULL;
+static	uint64	uvneginf	= 0xFFF0000000000000ULL;
 
 static int32
 isInf(float64 d, int32 sign)
@@ -338,7 +344,7 @@ isNaN(float64 d)
 	uint64 x;
 
 	x = *(uint64*)&d;
-	return ((uint32)x>>32)==0x7FF00000 && !isInf(d, 0);
+	return (uint32)(x>>32)==0x7FF00000 && !isInf(d, 0);
 }
 
 static float64
@@ -424,7 +430,7 @@ modf(float64 d, float64 *ip)
 	return d - dd;
 }
 
-// func frexp(float64) (float64, int32); // break fp into exp,fract
+// func frexp(float64) (float64, int32); // break fp into exp,frac
 void
 sys·frexp(float64 din, float64 dou, int32 iou)
 {
@@ -432,7 +438,7 @@ sys·frexp(float64 din, float64 dou, int32 iou)
 	FLUSH(&dou);
 }
 
-//func	ldexp(int32, float64) float64;	// make fp from exp,fract
+//func	ldexp(int32, float64) float64;	// make fp from exp,frac
 void
 sys·ldexp(float64 din, int32 ein, float64 dou)
 {
@@ -441,7 +447,7 @@ sys·ldexp(float64 din, int32 ein, float64 dou)
 }
 
 //func	modf(float64) (float64, float64);	// break fp into double+double
-float64
+void
 sys·modf(float64 din, float64 integer, float64 fraction)
 {
 	fraction = modf(din, &integer);
@@ -593,6 +599,7 @@ out:
 	FLUSH(&s);
 }
 
+void
 check(void)
 {
 	int8 a;
@@ -638,18 +645,6 @@ check(void)
 	initsig();
 }
 
-uint32
-xadd(uint32 *val, uint32 delta)
-{
-	uint32 v;
-	
-	for(;;){
-		v = *val;
-		if(cas(val, v, v+delta))
-			return v+delta;
-	}
-}
-
 /*
  * map and chan helpers for
  * dealing with unknown types
@@ -657,6 +652,7 @@ xadd(uint32 *val, uint32 delta)
 static uint64
 memhash(uint32 s, void *a)
 {
+	USED(s, a);
 	prints("memhash\n");
 	return 0x12345;
 }
@@ -718,6 +714,7 @@ memcopy(uint32 s, void *a, void *b)
 static uint64
 stringhash(uint32 s, string *a)
 {
+	USED(s, a);
 	prints("stringhash\n");
 	return 0x12345;
 }
@@ -725,18 +722,21 @@ stringhash(uint32 s, string *a)
 static uint32
 stringequal(uint32 s, string *a, string *b)
 {
+	USED(s);
 	return cmpstring(*a, *b) == 0;
 }
 
 static void
 stringprint(uint32 s, string *a)
 {
+	USED(s);
 	sys·printstring(*a);
 }
 
 static void
 stringcopy(uint32 s, string *a, string *b)
 {
+	USED(s);
 	if(b == nil) {
 		*a = nil;
 		return;
@@ -747,6 +747,7 @@ stringcopy(uint32 s, string *a, string *b)
 static uint64
 pointerhash(uint32 s, void **a)
 {
+	USED(s, a);
 	prints("pointerhash\n");
 	return 0x12345;
 }
@@ -754,6 +755,7 @@ pointerhash(uint32 s, void **a)
 static uint32
 pointerequal(uint32 s, void **a, void **b)
 {
+	USED(s, a, b);
 	prints("pointerequal\n");
 	return 0;
 }
@@ -761,12 +763,14 @@ pointerequal(uint32 s, void **a, void **b)
 static void
 pointerprint(uint32 s, void **a)
 {
+	USED(s, a);
 	prints("pointerprint\n");
 }
 
 static void
 pointercopy(uint32 s, void **a, void **b)
 {
+	USED(s);
 	if(b == nil) {
 		*a = nil;
 		return;
@@ -777,8 +781,8 @@ pointercopy(uint32 s, void **a, void **b)
 Alg
 algarray[3] =
 {
-	{	&memhash,	&memequal,	&memprint,	&memcopy	},  // 0
-	{	&stringhash,	&stringequal,	&stringprint,	&stringcopy	},  // 1
-//	{	&pointerhash,	&pointerequal,	&pointerprint,	&pointercopy	},  // 2
-	{	&memhash,	&memequal,	&memprint,	&memcopy	},  // 2 - treat pointers as ints
+	{	memhash,	memequal,	memprint,	memcopy	},  // 0
+	{	stringhash,	stringequal,	stringprint,	stringcopy	},  // 1
+//	{	pointerhash,	pointerequal,	pointerprint,	pointercopy	},  // 2
+	{	memhash,	memequal,	memprint,	memcopy	},  // 2 - treat pointers as ints
 };
