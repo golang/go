@@ -4,8 +4,6 @@
 
 package math
 
-export	sin, cos
-
 const
 (
 	p0	=  .1357884097877375669092680e8;
@@ -56,7 +54,7 @@ sinus(arg float64, quad int) float64
 	return temp1/temp2;
 }
 
-func
+export func
 cos(arg float64) float64
 {
 	if arg < 0 {
@@ -65,7 +63,7 @@ cos(arg float64) float64
 	return sinus(arg, 1);
 }
 
-func
+export func
 sin(arg float64) float64
 {
 	return sinus(arg, 0);

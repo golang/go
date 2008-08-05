@@ -4,8 +4,6 @@
 
 package math
 
-export	log, log10
-
 /*
  *	log returns the natural logarithm of its floating
  *	point argument.
@@ -29,7 +27,7 @@ const
 	q2	=  -.891110902798312337e1;
 )
 
-func
+export func
 log(arg float64) float64
 {
 	var x, z, zsq, temp float64;
@@ -58,7 +56,7 @@ log(arg float64) float64
 	return temp;
 }
 
-func
+export func
 log10(arg float64) float64
 {
 

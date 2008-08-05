@@ -13,7 +13,7 @@ package fmt
 
 // import sys "sys"
 
-export Fmt, New;
+//export Fmt, New;
 
 const NByte = 64;
 const NPows10 = 160;
@@ -31,7 +31,7 @@ func init() {
 	}
 }
 
-type Fmt struct {
+export type Fmt struct {
 	buf string;
 	wid int;
 	wid_present bool;
@@ -53,7 +53,7 @@ func (f *Fmt) init() {
 	f.clearflags();
 }
 
-func New() *Fmt {
+export func New() *Fmt {
 	f := new(Fmt);
 	f.init();
 	return f;

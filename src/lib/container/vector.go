@@ -4,7 +4,7 @@
 
 package vector
 
-export Vector, New;
+//export Vector, New;
 
 /*
 	import vector "vector"
@@ -18,7 +18,7 @@ export Vector, New;
 type Element interface {
 }
 
-type Vector struct {
+export type Vector struct {
 	nalloc int;
 	nelem int;
 	elem *[]Element;
@@ -49,7 +49,7 @@ func is_pow10(i int) bool {
 	return false;
 }
 
-func New() *Vector {
+export func New() *Vector {
 	v := new(Vector);
 	v.nelem = 0;
 	v.nalloc = 1;

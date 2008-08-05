@@ -5,7 +5,6 @@
 package math
 
 import	math "math"
-export	atan2
 
 /*
  *	atan2 discovers what quadrant the angle
@@ -18,7 +17,7 @@ const
 	pi	= .3141592653589793238462643383276e1;
 )
 
-func
+export func
 atan2(arg1, arg2 float64) float64
 {
 	var x float64;

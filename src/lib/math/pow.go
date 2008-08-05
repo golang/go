@@ -5,13 +5,12 @@
 package math
 
 import		math "math"
-export		pow
 
 /*
 	arg1 ^ arg2 (exponentiation)
  */
 
-func
+export func
 pow(arg1,arg2 float64) float64
 {
 	var temp float64;

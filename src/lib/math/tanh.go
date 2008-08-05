@@ -5,7 +5,6 @@
 package math
 
 import		math "math"
-export		tanh
 
 /*
  *	tanh(arg) computes the hyperbolic tangent of its floating
@@ -15,7 +14,7 @@ export		tanh
  *	would cause overflow improperly.
  */
 
-func
+export func
 tanh(arg float64) float64
 {
 	if arg < 0 {

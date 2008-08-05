@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(July 22, 2008)
+(August 4, 2008)
 
 This document is a semi-formal specification/proposal for a new
 systems programming language.  The document is under active
@@ -993,12 +993,33 @@ Literals
 Declarations
 ----
 
-A declaration associates a name with a language entity such as a type,
-constant, variable, or function.
+A declaration associates a name with a language entity such as a constant, type,
+variable, or function.
 
-  Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | ExportDecl .
+  Declaration = [ "export" ] ( ConstDecl | TypeDecl | VarDecl | FunctionDecl ) .
+
+Global declarations optionally may be marked for export with the reserved word
+"export". Local declarations can never be exported.
+All identifiers (and only those identifiers) declared in exported declarations
+are made visible to clients of this package, that is other packages that import
+this package.
+If the declaration defines a type, the type structure is exported as well. In
+particular, if the declaration defines a new "struct" or "interface" type,
+all structure fields and all structure and interface methods are exported also.
+
+  export const pi float = 3.14159265
+  export func Parse(source string);
+
+Note that at the moment the old-style export via ExportDecl is still supported.
+
+TODO: Eventually we need to be able to restrict visibility of fields and methods.
+(gri) The default should be no struct fields and methods are automatically exported.
 
 TODO: specify range of visibility, scope rules.
+
+[OLD
+  Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | ExportDecl .
+END]
 
 
 Const declarations
@@ -1018,7 +1039,7 @@ A constant declaration gives a name to the value of a constant expression.
   )
 
 The constant expression may be omitted, in which case the expression is
-the last expression used after the "const" keyword. If no such expression
+the last expression used after the reserved word "const". If no such expression
 exists, the constant expression cannot be omitted.
 
 Together with the 'iota' constant generator this permits light-weight
@@ -1185,6 +1206,7 @@ the following holds:
   t.next == nil
 
 
+[OLD
 Export declarations
 ----
 
@@ -1213,6 +1235,7 @@ export directive.
 TODO: complete this section
 
 TODO: export as a mechanism for public and private struct fields?
+END]
 
 
 Expressions
@@ -1293,7 +1316,7 @@ to call the function.
 
 Other operators behave as in C.
 
-The "iota" keyword is discussed in a later section.
+The reserved word "iota" is discussed in a later section.
   
 Examples of primary expressions
 
@@ -1322,7 +1345,7 @@ Examples of general expressions
 The nil value
 ----
 
-The keyword
+The reserved word
   nil
 represents the ``zero'' value for a pointer type or interface type.
 
@@ -1538,9 +1561,9 @@ elements.
 The constant generator 'iota'
 ----
 
-Within a declaration, the keyword 'iota' represents successive
+Within a declaration, the reserved word 'iota' represents successive
 elements of an integer sequence.
-It is reset to zero whenever the keyword 'const'
+It is reset to zero whenever the reserved word 'const'
 introduces a new declaration and increments as each identifier
 is declared. For instance, 'iota' can be used to construct
 a set of related constants:
@@ -1854,7 +1877,7 @@ Switches provide multi-way execution.
 
 There can be at most one default case in a switch statement.
 
-The "fallthrough" keyword indicates that the control should flow from
+The reserved word "fallthrough" indicates that the control should flow from
 the end of this case clause to the first statement of the next clause.
 
 The expressions do not need to be constants. They will

@@ -4,8 +4,6 @@
 
 package math
 
-export	atan
-
 /*
  *	floating-point arctangent
  *
@@ -70,7 +68,7 @@ satan(arg float64) float64
  *	atan makes its argument positive and
  *	calls the inner routine satan.
  */
-func
+export func
 atan(arg float64) float64
 {
 

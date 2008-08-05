@@ -4,8 +4,6 @@
 
 package math
 
-export		tan
-
 /*
  *	floating point tangent
  *	Coefficients are #4285 from Hart & Cheney. (19.74D)
@@ -24,7 +22,7 @@ const
         piu4	=  .1273239544735162686151070107e+1;	// 4/pi
 )
 
-func
+export func
 tan(arg float64) float64
 {
 	var temp, e, x, xsq float64;
