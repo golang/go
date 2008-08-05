@@ -124,7 +124,9 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
 	}
 
 	for p := scope.entries.first; p != nil; p = p.next {
-		E.WriteObject(p.obj);
+		if p.obj.exported {
+			E.WriteObject(p.obj);
+		}
 	}
 	E.WriteObject(nil);
 	
@@ -158,7 +160,8 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 		if !typ.obj.exported {
 			// the type is invisible (it's identifier is not exported)
 			// prepend "." to the identifier to make it an illegal
-			// identifier and thus invisible in Go source code
+			// identifier for importing packages and thus inaccessible
+			// from those package's source code
 			ident = "." + ident;
 		}
 	}
@@ -170,15 +173,12 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 	}
 	
 	switch typ.form {
-	case Type.ALIAS:
+	case Type.ALIAS, Type.MAP:
+		E.WriteType(typ.aux);
 		E.WriteType(typ.elt);
 
 	case Type.ARRAY:
 		E.WriteInt(typ.len_);
-		E.WriteType(typ.elt);
-
-	case Type.MAP:
-		E.WriteType(typ.key);
 		E.WriteType(typ.elt);
 
 	case Type.CHANNEL:
@@ -262,12 +262,7 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	// export package 0
 	pkg := comp.pkg_list[0];
 	E.WritePackage(pkg);
-	for p := pkg.scope.entries.first; p != nil; p = p.next {
-		if p.obj.exported {
-			E.WriteObject(p.obj);
-		}
-	}
-	E.WriteObject(nil);
+	E.WriteScope(pkg.scope);
 	
 	if E.debug {
 		print "\n(", E.buf_pos, " bytes)\n";

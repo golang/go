@@ -140,23 +140,26 @@ func (I *Importer) ReadPackage() *Globals.Package {
 }
 
 
-func (I *Importer) ReadScope() *Globals.Scope {
+func (I *Importer) ReadScope(scope *Globals.Scope, allow_multiples bool) {
 	if I.debug {
 		print " {";
 	}
 
-	scope := Globals.NewScope(nil);
 	obj := I.ReadObject();
 	for obj != nil {
-		scope.Insert(obj);
+		// allow_multiples is for debugging only - we should never
+		// have multiple imports where we don't expect them
+		if allow_multiples {
+			scope.InsertImport(obj);
+		} else {
+			scope.Insert(obj);
+		}
 		obj = I.ReadObject();
 	}
 	
 	if I.debug {
 		print " }";
 	}
-	
-	return scope;
 }
 
 
@@ -191,15 +194,12 @@ func (I *Importer) ReadType() *Globals.Type {
 	I.type_ref++;
 
 	switch (typ.form) {
-	case Type.ALIAS:
+	case Type.ALIAS, Type.MAP:
+		typ.aux = I.ReadType();
 		typ.elt = I.ReadType();
 
 	case Type.ARRAY:
 		typ.len_ = I.ReadInt();
-		typ.elt = I.ReadType();
-
-	case Type.MAP:
-		typ.key = I.ReadType();
 		typ.elt = I.ReadType();
 
 	case Type.CHANNEL:
@@ -208,10 +208,12 @@ func (I *Importer) ReadType() *Globals.Type {
 
 	case Type.FUNCTION:
 		typ.flags = I.ReadInt();
-		typ.scope = I.ReadScope();
+		typ.scope = Globals.NewScope(nil);
+		I.ReadScope(typ.scope, false);
 
 	case Type.STRUCT, Type.INTERFACE:
-		typ.scope = I.ReadScope();
+		typ.scope = Globals.NewScope(nil);
+		I.ReadScope(typ.scope, false);
 
 	case Type.POINTER, Type.REFERENCE:
 		typ.elt = I.ReadType();
@@ -241,6 +243,7 @@ func (I *Importer) ReadObject() *Globals.Object {
 	
 	ident := I.ReadString();
 	obj := Globals.NewObject(0, tag, ident);
+	obj.exported = true;
 	obj.typ = I.ReadType();
 
 	switch (tag) {
@@ -290,13 +293,7 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 
 	// import package
 	pkg := I.ReadPackage();
-	{	obj := I.ReadObject();
-		for obj != nil {
-			obj.pnolev = pkg.obj.pnolev;
-			pkg.scope.InsertImport(obj);
-			obj = I.ReadObject();
-		}
-	}
+	I.ReadScope(pkg.scope, true);
 	
 	if I.debug {
 		print "\n(", I.buf_pos, " bytes)\n";

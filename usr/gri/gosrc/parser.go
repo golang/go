@@ -147,74 +147,82 @@ func (P *Parser) Declare(obj *Globals.Object) {
 
 
 func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.Type {
-  // Determine if we have a receiver or not.
-  // TODO do we still need this?
-  if p0 > 0 && check_recv {
-    // method
-	if p0 != 1 {
-		panic "p0 != 1";
+	// Determine if we have a receiver or not.
+	// TODO do we still need this?
+	if p0 > 0 && check_recv {
+		// method
+		if p0 != 1 {
+			panic "p0 != 1";
+		}
 	}
-  }
-  typ := Globals.NewType(Type.FUNCTION);
-  if p0 == 0 {
-	typ.flags = 0;
-  } else {
-	typ.flags = Type.RECV;
-  }
-  typ.len_ = r0 - p0;
-  typ.scope = sig;
-  return typ;
+
+	typ := Globals.NewType(Type.FUNCTION);
+	if p0 == 0 {
+		typ.flags = 0;
+	} else {
+		typ.flags = Type.RECV;
+	}
+	typ.len_ = r0 - p0;
+	typ.scope = sig;
+
+	// parameters are always exported (they can't be accessed w/o the function
+	// or function type being exported)
+	for p := sig.entries.first; p != nil; p = p.next {
+		p.obj.exported = true;
+	}
+
+	return typ;
 }
 
 
 func (P *Parser) DeclareFunc(ident string, typ *Globals.Type) *Globals.Object {
-  // determine scope
-  scope := P.top_scope;
-  if typ.flags & Type.RECV != 0 {
-    // method - declare in corresponding struct
-	if typ.scope.entries.len_ < 1 {
-		panic "no recv in signature?";
+	// determine scope
+	scope := P.top_scope;
+	if typ.flags & Type.RECV != 0 {
+		// method - declare in corresponding struct
+		if typ.scope.entries.len_ < 1 {
+			panic "no recv in signature?";
+		}
+		recv_typ := typ.scope.entries.first.obj.typ;
+		if recv_typ.form == Type.POINTER {
+			recv_typ = recv_typ.elt;
+		}
+		scope = recv_typ.scope;
 	}
-    recv_typ := typ.scope.entries.first.obj.typ;
-    if recv_typ.form == Type.POINTER {
-      recv_typ = recv_typ.elt;
-    }
-    scope = recv_typ.scope;
-  }
-  
-  // declare the function
-  obj := scope.Lookup(ident);
-  if obj == nil {
-    obj = Globals.NewObject(-1, Object.FUNC, ident);
-	obj.typ = typ;
-	// TODO do we need to set the primary type? probably...
-    P.DeclareInScope(scope, obj);
-    return obj;
-  }
-  
-  // obj != NULL: possibly a forward declaration.
-  if (obj.kind != Object.FUNC) {
-    P.Error(-1, `"` + ident + `" is declared already`);
-    // Continue but do not insert this function into the scope.
-    obj = Globals.NewObject(-1, Object.FUNC, ident);
-	obj.typ = typ;
-	// TODO do we need to set the prymary type? probably...
-    return obj;
-  }
-  
-  // We have a function with the same name.
-  /*
-  if (!EqualTypes(type, obj->type())) {
-    this->Error("type of \"%s\" does not match its forward declaration", name.cstr());
-    // Continue but do not insert this function into the scope.
-    NewObject(Object::FUNC, name);
-    obj->set_type(type);
-    return obj;    
-  }
-  */
-  
-  // We have a matching forward declaration. Use it.
-  return obj;
+
+	// declare the function
+	obj := scope.Lookup(ident);
+	if obj == nil {
+		obj = Globals.NewObject(-1, Object.FUNC, ident);
+		obj.typ = typ;
+		// TODO do we need to set the primary type? probably...
+		P.DeclareInScope(scope, obj);
+		return obj;
+	}
+
+	// obj != NULL: possibly a forward declaration.
+	if obj.kind != Object.FUNC {
+		P.Error(-1, `"` + ident + `" is declared already`);
+		// Continue but do not insert this function into the scope.
+		obj = Globals.NewObject(-1, Object.FUNC, ident);
+		obj.typ = typ;
+		// TODO do we need to set the primary type? probably...
+		return obj;
+	}
+
+	// We have a function with the same name.
+	/*
+	if !EqualTypes(type, obj->type()) {
+		this->Error("type of \"%s\" does not match its forward declaration", name.cstr());
+		// Continue but do not insert this function into the scope.
+		NewObject(Object::FUNC, name);
+		obj->set_type(type);
+		return obj;    
+	}
+	*/
+
+	// We have a matching forward declaration. Use it.
+	return obj;
 }
 
 
@@ -521,7 +529,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
 	
 	if P.tok == Scanner.PERIOD {
 		p0 = sig.entries.len_;
-		if (P.semantic_checks && p0 != 1) {
+		if P.semantic_checks && p0 != 1 {
 			P.Error(recv_pos, "must have exactly one receiver")
 			panic "UNIMPLEMENTED (ParseAnonymousSignature)";
 			// TODO do something useful here
@@ -561,7 +569,7 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
 		recv_pos := P.pos;
 		P.ParseParameters();
 		p0 = sig.entries.len_;
-		if (P.semantic_checks && p0 != 1) {
+		if P.semantic_checks && p0 != 1 {
 			print "p0 = ", p0, "\n";
 			P.Error(recv_pos, "must have exactly one receiver")
 			panic "UNIMPLEMENTED (ParseNamedSignature)";
@@ -651,7 +659,7 @@ func (P *Parser) ParseMapType() *Globals.Type {
 	P.Expect(Scanner.MAP);
 	P.Expect(Scanner.LBRACK);
 	typ := Globals.NewType(Type.MAP);
-	typ.key = P.ParseVarType();
+	typ.aux = P.ParseVarType();
 	P.Expect(Scanner.RBRACK);
 	typ.elt = P.ParseVarType();
 	P.Ecart();
@@ -1617,7 +1625,7 @@ func (P *Parser) ParseImportSpec() {
 		obj = P.ParseIdentDecl(Object.PACKAGE);
 	}
 	
-	if (P.semantic_checks && P.tok == Scanner.STRING) {
+	if P.semantic_checks && P.tok == Scanner.STRING {
 		// TODO eventually the scanner should strip the quotes
 		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
 		pkg := Import.Import(P.comp, pkg_name);
@@ -1699,12 +1707,25 @@ func (P *Parser) ParseTypeSpec(exported bool) {
 	if typ != nil {
 		if make_alias {
 			alias := Globals.NewType(Type.ALIAS);
+			if typ.form == Type.ALIAS {
+				alias.aux = typ.aux;  // the base type
+			} else {
+				alias.aux = typ;
+			}
 			alias.elt = typ;
 			typ = alias;
 		}
 		obj.typ = typ;
 		if typ.obj == nil {
 			typ.obj = obj;  // primary type object
+		}
+		// if the type is exported, for now we export all fields
+		// of structs and interfaces by default
+		// TODO this needs to change eventually
+		if exported && (typ.form == Type.STRUCT || typ.form == Type.INTERFACE) {
+			for p := typ.scope.entries.first; p != nil; p = p.next {
+				p.obj.exported = true;
+			}
 		}
 	}
 	

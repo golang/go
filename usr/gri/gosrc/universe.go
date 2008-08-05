@@ -71,6 +71,7 @@ func DeclType(form int, ident string, size int) *Globals.Type {
 
 func DeclAlias(ident string, typ *Globals.Type) *Globals.Type {
 	alias := Globals.NewType(Type.ALIAS);
+	alias.aux = typ;
 	alias.elt = typ;
 	return DeclObj(Object.TYPE, ident, alias).typ;
 }
