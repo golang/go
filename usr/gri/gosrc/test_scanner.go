@@ -13,7 +13,7 @@ func Scan(filename, src string) {
 	for {
 		tok, pos, val := S.Scan();
 		print pos, ": ", Scanner.TokenName(tok);
-		if tok == Scanner.IDENT || tok == Scanner.NUMBER || tok == Scanner.STRING {
+		if tok == Scanner.IDENT || tok == Scanner.INT || tok == Scanner.FLOAT || tok == Scanner.STRING {
 			print " ", val;
 		}
 		print "\n";

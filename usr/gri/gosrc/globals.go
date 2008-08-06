@@ -45,18 +45,6 @@ export type Package struct {
 }
 
 
-// TODO This is hideous! We need to have a decent way to do lists.
-// Ideally open arrays that allow '+'.
-
-type Elem struct {
-	next *Elem;
-	val int;
-	str string;
-	obj *Object;
-	typ *Type;
-}
-
-
 export type List struct {
 	len_ int;
 	first, last *Elem;
@@ -95,6 +83,19 @@ export type Expr interface {
 
 export type Stat interface {
 	// ... more to come here
+}
+
+
+// TODO This is hideous! We need to have a decent way to do lists.
+// Ideally open arrays that allow '+'.
+
+type Elem struct {
+	next *Elem;
+	val int;
+	str string;
+	obj *Object;
+	typ *Type;
+	expr Expr
 }
 
 
@@ -246,6 +247,11 @@ func (L *List) AddObj(obj *Object) {
 
 func (L *List) AddTyp(typ *Type) {
 	L.Add().typ = typ;
+}
+
+
+func (L *List) AddExpr(expr Expr) {
+	L.Add().expr = expr;
 }
 
 

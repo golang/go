@@ -47,14 +47,14 @@ func (P *Parser) Trace(msg string) {
 	if P.verbose > 0 {
 		P.PrintIndent();
 		print msg, " {\n";
-		P.indent++;
 	}
+	P.indent++;
 }
 
 
 func (P *Parser) Ecart() {
+	P.indent--;
 	if P.verbose > 0 {
-		P.indent--;
 		P.PrintIndent();
 		print "}\n";
 	}
@@ -132,6 +132,9 @@ func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
 	if !P.semantic_checks {
 		return;
 	}
+	if P.level > 0 {
+		panic "cannot declare objects in other packages";
+	}
 	obj.pnolev = P.level;
 	if scope.Lookup(obj.ident) != nil {
 		P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
@@ -200,26 +203,25 @@ func (P *Parser) DeclareFunc(ident string, typ *Globals.Type) *Globals.Object {
 		return obj;
 	}
 
-	// obj != NULL: possibly a forward declaration.
+	// obj != NULL: possibly a forward declaration
 	if obj.kind != Object.FUNC {
 		P.Error(-1, `"` + ident + `" is declared already`);
-		// Continue but do not insert this function into the scope.
+		// continue but do not insert this function into the scope
 		obj = Globals.NewObject(-1, Object.FUNC, ident);
 		obj.typ = typ;
 		// TODO do we need to set the primary type? probably...
 		return obj;
 	}
 
-	// We have a function with the same name.
-	/*
-	if !EqualTypes(type, obj->type()) {
-		this->Error("type of \"%s\" does not match its forward declaration", name.cstr());
-		// Continue but do not insert this function into the scope.
-		NewObject(Object::FUNC, name);
-		obj->set_type(type);
+	// we have a function with the same name
+	if !Type.Equal(typ, obj.typ) {
+		P.Error(-1, `type of "` + ident + `" does not match its forward declaration`);
+		// continue but do not insert this function into the scope
+		obj = Globals.NewObject(-1, Object.FUNC, ident);
+		obj.typ = typ;
+		// TODO do we need to set the primary type? probably...
 		return obj;    
 	}
-	*/
 
 	// We have a matching forward declaration. Use it.
 	return obj;
@@ -826,12 +828,10 @@ func (P *Parser) ParseExpressionList() *Globals.List {
 	P.Trace("ExpressionList");
 	
 	list := Globals.NewList();
-	P.ParseExpression();
-	list.AddInt(0);  // TODO fix this - add correct list element
+	list.AddExpr(P.ParseExpression());
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParseExpression();
-		list.AddInt(0);  // TODO fix this - add correct list element
+		list.AddExpr(P.ParseExpression());
 	}
 	
 	P.Ecart();
@@ -867,23 +867,36 @@ func (P *Parser) ParseFunctionLit() Globals.Expr {
 }
 
 
-func (P *Parser) ParseExpressionPair() {
-	P.Trace("ExpressionPair");
-
-	P.ParseExpression();
-	P.Expect(Scanner.COLON);
-	P.ParseExpression();
+func (P *Parser) ParseSingleExpressionList(list *Globals.List) {
+	P.Trace("SingleExpressionList");
+	
+	list.AddExpr(P.ParseExpression());
+	for P.tok == Scanner.COMMA {
+		P.Next();
+		list.AddExpr(P.ParseExpression());
+	}
 	
 	P.Ecart();
 }
 
 
-func (P *Parser) ParseExpressionPairList() {
+func (P *Parser) ParseExpressionPair(list *Globals.List) {
+	P.Trace("ExpressionPair");
+
+	list.AddExpr(P.ParseExpression());
+	P.Expect(Scanner.COLON);
+	list.AddExpr(P.ParseExpression());
+	
+	P.Ecart();
+}
+
+
+func (P *Parser) ParseExpressionPairList(list *Globals.List) {
 	P.Trace("ExpressionPairList");
 
-	P.ParseExpressionPair();
+	P.ParseExpressionPair(list);
 	for (P.tok == Scanner.COMMA) {
-		P.ParseExpressionPair();
+		P.ParseExpressionPair(list);
 	}
 	
 	P.Ecart();
@@ -916,20 +929,21 @@ func (P *Parser) ParseCompositeLit(typ *Globals.Type) Globals.Expr {
 	}
 	
 	// TODO: should allow trailing ','
+	list := Globals.NewList();
 	if P.tok != paren {
-		P.ParseExpression();
+		list.AddExpr(P.ParseExpression());
 		if P.tok == Scanner.COMMA {
 			P.Next();
 			if P.tok != paren {
-				P.ParseExpressionList();
+				P.ParseSingleExpressionList(list);
 			}
 		} else if P.tok == Scanner.COLON {
 			P.Next();
-			P.ParseExpression();
+			list.AddExpr(P.ParseExpression());
 			if P.tok == Scanner.COMMA {
 				P.Next();
 				if P.tok != paren {
-					P.ParseExpressionPairList();
+					P.ParseExpressionPairList(list);
 				}
 			}
 		}
@@ -951,64 +965,110 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
 		ident = P.val;
 		P.Next();
 	}
-	
+
+	var res Globals.Expr = AST.Bad;
+
 	if pos >= 0 {
 		// TODO set these up properly in the Universe
 		if ident == "panic" || ident == "print" {
-			P.ParseBuiltinCall();
-			goto exit;
-		}
-	
-		P.ParseQualifiedIdent(pos, ident);
-		// TODO enable code below
-		/*
-		if obj.kind == Object.TYPE {
-			P.ParseCompositeLit(obj.typ);
-		}
-		*/
-		goto exit;
-	}
-	
-	switch P.tok {
-	case Scanner.IDENT:
-		panic "UNREACHABLE";
-	case Scanner.LPAREN:
-		P.Next();
-		P.ParseExpression();
-		P.Expect(Scanner.RPAREN);
-	case Scanner.STRING: fallthrough;
-	case Scanner.NUMBER: fallthrough;
-	case Scanner.NIL: fallthrough;
-	case Scanner.IOTA: fallthrough;
-	case Scanner.TRUE: fallthrough;
-	case Scanner.FALSE:
-		P.Next();
-	case Scanner.FUNC:
-		P.ParseFunctionLit();
-	case Scanner.NEW:
-		P.ParseNew();
-	default:
-		typ := P.TryType();
-		if typ != nil {
-			P.ParseCompositeLit(typ);
+			res = P.ParseBuiltinCall();
+			
 		} else {
-			P.Error(P.pos, "operand expected");
-			P.Next();  // make progress
+			obj := P.ParseQualifiedIdent(pos, ident);
+			if P.semantic_checks {
+				if obj.kind == Object.TYPE {
+					res = P.ParseCompositeLit(obj.typ);
+				} else {
+					res = AST.NewObject(obj);
+				}
+			}
 		}
-	}
+
+	} else {
 	
-exit:
+		switch P.tok {
+		case Scanner.IDENT:
+			panic "UNREACHABLE";
+			
+		case Scanner.LPAREN:
+			P.Next();
+			res = P.ParseExpression();
+			P.Expect(Scanner.RPAREN);
+			
+		case Scanner.INT:
+			x := AST.NewLiteral(Universe.int_t);
+			x.i = 42;  // TODO set the right value
+			res = x;
+			P.Next();
+
+		case Scanner.FLOAT:
+			x := AST.NewLiteral(Universe.float_t);
+			x.f = 42.0;  // TODO set the right value
+			res = x;
+			P.Next();
+
+		case Scanner.STRING:
+			x := AST.NewLiteral(Universe.string_t);
+			x.s = P.val;  // TODO need to strip quotes, interpret string properly
+			res = x;
+			P.Next();
+
+		case Scanner.NIL:
+			P.Next();
+			res = AST.Nil;
+			
+		case Scanner.IOTA:
+			x := AST.NewLiteral(Universe.int_t);
+			x.i = 42;  // TODO set the right value
+			res = x;
+			P.Next();
+
+		case Scanner.TRUE:
+			P.Next();
+			res = AST.True;
+
+		case Scanner.FALSE:
+			P.Next();
+			res = AST.False;
+			
+		case Scanner.FUNC:
+			res = P.ParseFunctionLit();
+			
+		case Scanner.NEW:
+			res = P.ParseNew();
+			
+		default:
+			typ := P.TryType();
+			if typ != nil {
+				res = P.ParseCompositeLit(typ);
+			} else {
+				P.Error(P.pos, "operand expected");
+				P.Next();  // make progress
+			}
+		}
+	
+	}
+
 	P.Ecart();
-	return nil;
+	return res;
 }
 
 
-func (P *Parser) ParseSelectorOrTypeAssertion() Globals.Expr {
+func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
 	P.Trace("SelectorOrTypeAssertion");
-	
+
+	pos := P.pos;
 	P.Expect(Scanner.PERIOD);
+	if P.semantic_checks {
+		typ := x.typ();
+		if typ.form != Type.STRUCT || typ.form != Type.INTERFACE {
+			P.Error(pos, `"." cannot be applied to this operand`);
+		}
+	}
+	
 	if P.tok == Scanner.IDENT {
-		P.ParseIdent();
+		ident := P.ParseIdent();
+		
 	} else {
 		P.Expect(Scanner.LPAREN);
 		P.ParseType();
@@ -1016,11 +1076,11 @@ func (P *Parser) ParseSelectorOrTypeAssertion() Globals.Expr {
 	}
 	
 	P.Ecart();
-	return nil;
+	return x;
 }
 
 
-func (P *Parser) ParseIndexOrSlice() Globals.Expr {
+func (P *Parser) ParseIndexOrSlice(x Globals.Expr) Globals.Expr {
 	P.Trace("IndexOrSlice");
 	
 	P.Expect(Scanner.LBRACK);
@@ -1032,11 +1092,11 @@ func (P *Parser) ParseIndexOrSlice() Globals.Expr {
 	P.Expect(Scanner.RBRACK);
 	
 	P.Ecart();
-	return nil;
+	return x;
 }
 
 
-func (P *Parser) ParseCall() Globals.Expr {
+func (P *Parser) ParseCall(x Globals.Expr) Globals.Expr {
 	P.Trace("Call");
 	
 	P.Expect(Scanner.LPAREN);
@@ -1046,30 +1106,26 @@ func (P *Parser) ParseCall() Globals.Expr {
 	P.Expect(Scanner.RPAREN);
 	
 	P.Ecart();
-	return nil;
+	return x;
 }
 
 
 func (P *Parser) ParsePrimaryExpr(pos int, ident string) Globals.Expr {
 	P.Trace("PrimaryExpr");
 	
-	P.ParseOperand(pos, ident);
+	x := P.ParseOperand(pos, ident);
 	for {
 		switch P.tok {
-		case Scanner.PERIOD:
-			P.ParseSelectorOrTypeAssertion();
-		case Scanner.LBRACK:
-			P.ParseIndexOrSlice();
-		case Scanner.LPAREN:
-			P.ParseCall();
-		default:
-			P.Ecart();
-			return nil;
+		case Scanner.PERIOD: x = P.ParseSelectorOrTypeAssertion(x);
+		case Scanner.LBRACK: x = P.ParseIndexOrSlice(x);
+		case Scanner.LPAREN: x = P.ParseCall(x);
+		default: goto exit;
 		}
 	}
-	
+
+exit:
 	P.Ecart();
-	return nil;
+	return x;
 }
 
 
@@ -1944,10 +2000,10 @@ func (P *Parser) ParseProgram() {
 	obj := P.ParseIdentDecl(Object.PACKAGE);
 	P.Optional(Scanner.SEMICOLON);
 	
-	{	if P.level != 0 {
+	{	P.OpenScope();
+		if P.level != 0 {
 			panic "incorrect scope level";
 		}
-		P.OpenScope();
 		
 		P.comp.Insert(Globals.NewPackage(P.S.filename, obj, P.top_scope));
 		if P.comp.pkg_ref != 1 {
@@ -1966,10 +2022,11 @@ func (P *Parser) ParseProgram() {
 		
 		P.ResolveUndefTypes();
 		P.MarkExports();
-		P.CloseScope();
+		
 		if P.level != 0 {
 			panic "incorrect scope level";
 		}
+		P.CloseScope();
 	}
 	
 	P.CloseScope();

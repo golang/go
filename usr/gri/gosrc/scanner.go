@@ -10,8 +10,9 @@ export const (
 	ILLEGAL = iota;
 	EOF;
 	IDENT;
+	INT;
+	FLOAT;
 	STRING;
-	NUMBER;
 
 	COMMA;
 	COLON;
@@ -116,8 +117,9 @@ export func TokenName(tok int) string {
 	case ILLEGAL: return "illegal";
 	case EOF: return "eof";
 	case IDENT: return "ident";
+	case INT: return "int";
+	case FLOAT: return "float";
 	case STRING: return "string";
-	case NUMBER: return "number";
 
 	case COMMA: return ",";
 	case COLON: return ":";
@@ -537,10 +539,12 @@ func (S *Scanner) ScanMantissa(base int) {
 }
 
 
-func (S *Scanner) ScanNumber(seen_decimal_point bool) string {
+func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
 	pos := S.chpos;
+	tok = INT;
 	
 	if seen_decimal_point {
+		tok = FLOAT;
 		pos--;  // '.' is one byte
 		S.ScanMantissa(10);
 		goto exponent;
@@ -558,6 +562,7 @@ func (S *Scanner) ScanNumber(seen_decimal_point bool) string {
 			S.ScanMantissa(8);
 			if digit_val(S.ch) < 10 || S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
 				// float
+				tok = FLOAT;
 				goto mantissa;
 			}
 			// octal int
@@ -571,6 +576,7 @@ mantissa:
 	
 	if S.ch == '.' {
 		// float
+		tok = FLOAT;
 		S.Next();
 		S.ScanMantissa(10)
 	}
@@ -578,6 +584,7 @@ mantissa:
 exponent:
 	if S.ch == 'e' || S.ch == 'E' {
 		// float
+		tok = FLOAT;
 		S.Next();
 		if S.ch == '-' || S.ch == '+' {
 			S.Next();
@@ -586,7 +593,7 @@ exponent:
 	}
 	
 exit:
-	return S.src[pos : S.chpos];
+	return tok, S.src[pos : S.chpos];
 }
 
 
@@ -735,18 +742,18 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
 	
 	switch {
 	case is_letter(ch): tok, val = S.ScanIdentifier();
-	case digit_val(ch) < 10: tok, val = NUMBER, S.ScanNumber(false);
+	case digit_val(ch) < 10: tok, val = S.ScanNumber(false);
 	default:
 		S.Next();  // always make progress
 		switch ch {
 		case -1: tok = EOF;
 		case '"': tok, val = STRING, S.ScanString();
-		case '\'': tok, val = NUMBER, S.ScanChar();
+		case '\'': tok, val = INT, S.ScanChar();
 		case '`': tok, val = STRING, S.ScanRawString();
 		case ':': tok = S.Select2(COLON, DEFINE);
 		case '.':
 			if digit_val(S.ch) < 10 {
-				tok, val = NUMBER, S.ScanNumber(true);
+				tok, val = S.ScanNumber(true);
 			} else {
 				tok = PERIOD;
 			}
