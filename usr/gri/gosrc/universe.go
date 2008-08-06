@@ -32,6 +32,7 @@ export var (
 	float64_t,
 	float80_t,
 	string_t,
+	integer_t,
 	any_t,
 	
 	// alias types
@@ -111,6 +112,7 @@ func init() {
 	float64_t = Register(DeclType(Type.FLOAT, "float64", 8));
 	float80_t = Register(DeclType(Type.FLOAT, "float80", 10));
 	string_t = Register(DeclType(Type.STRING, "string", 8));
+	integer_t = Register(DeclType(Type.INTEGER, "integer", 8));
 	any_t = Register(DeclType(Type.ANY, "any", 8));
 
 	// All but 'byte' should be platform-dependent, eventually.
