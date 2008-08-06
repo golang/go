@@ -259,6 +259,10 @@ BUG: fails incorrectly
 bugs/bug085.go:8: P: undefined
 BUG: fails incorrectly
 
+=========== bugs/bug086.go
+4882
+BUG: succeeds incorrectly
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
