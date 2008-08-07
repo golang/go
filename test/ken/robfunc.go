@@ -35,7 +35,7 @@ func f6(a int) (r int) {
 	return 6;
 }
 
-func f7(a int) (int, float) {
+func f7(a int) (x int, y float) {
 	return 7, 7.0;
 }
 
