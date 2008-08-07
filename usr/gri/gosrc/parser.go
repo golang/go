@@ -824,15 +824,24 @@ func (P *Parser) ParseBlock(sig *Globals.Scope) {
 // ----------------------------------------------------------------------------
 // Expressions
 
-func (P *Parser) ParseExpressionList() *Globals.List {
+func (P *Parser) ParseExpressionList(list *Globals.List) {
 	P.Trace("ExpressionList");
 	
-	list := Globals.NewList();
 	list.AddExpr(P.ParseExpression());
 	for P.tok == Scanner.COMMA {
 		P.Next();
 		list.AddExpr(P.ParseExpression());
 	}
+	
+	P.Ecart();
+}
+
+
+func (P *Parser) ParseNewExpressionList() *Globals.List {
+	P.Trace("NewExpressionList");
+	
+	list := Globals.NewList();
+	P.ParseExpressionList(list);
 	
 	P.Ecart();
 	return list;
@@ -845,9 +854,10 @@ func (P *Parser) ParseNew() Globals.Expr {
 	P.Expect(Scanner.NEW);
 	P.Expect(Scanner.LPAREN);
 	P.ParseType();
+	args := Globals.NewList();
 	if P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParseExpressionList()
+		P.ParseExpressionList(args)
 	}
 	P.Expect(Scanner.RPAREN);
 	
@@ -864,19 +874,6 @@ func (P *Parser) ParseFunctionLit() Globals.Expr {
 	
 	P.Ecart();
 	return nil;
-}
-
-
-func (P *Parser) ParseSingleExpressionList(list *Globals.List) {
-	P.Trace("SingleExpressionList");
-	
-	list.AddExpr(P.ParseExpression());
-	for P.tok == Scanner.COMMA {
-		P.Next();
-		list.AddExpr(P.ParseExpression());
-	}
-	
-	P.Ecart();
 }
 
 
@@ -906,7 +903,8 @@ func (P *Parser) ParseExpressionPairList(list *Globals.List) {
 func (P *Parser) ParseBuiltinCall() Globals.Expr {
 	P.Trace("BuiltinCall");
 	
-	P.ParseExpressionList();  // TODO should be optional
+	args := Globals.NewList();
+	P.ParseExpressionList(args);  // TODO should be optional
 	
 	P.Ecart();
 	return nil;
@@ -935,7 +933,7 @@ func (P *Parser) ParseCompositeLit(typ *Globals.Type) Globals.Expr {
 		if P.tok == Scanner.COMMA {
 			P.Next();
 			if P.tok != paren {
-				P.ParseSingleExpressionList(list);
+				P.ParseExpressionList(list);
 			}
 		} else if P.tok == Scanner.COLON {
 			P.Next();
@@ -979,7 +977,7 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
 				if obj.kind == Object.TYPE {
 					res = P.ParseCompositeLit(obj.typ);
 				} else {
-					res = AST.NewObject(obj);
+					res = AST.NewObject(pos, obj);
 				}
 			}
 		}
@@ -996,19 +994,19 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
 			P.Expect(Scanner.RPAREN);
 			
 		case Scanner.INT:
-			x := AST.NewLiteral(Universe.int_t);
+			x := AST.NewLiteral(P.pos, Universe.int_t);
 			x.i = 42;  // TODO set the right value
 			res = x;
 			P.Next();
 
 		case Scanner.FLOAT:
-			x := AST.NewLiteral(Universe.float_t);
+			x := AST.NewLiteral(P.pos, Universe.float_t);
 			x.f = 42.0;  // TODO set the right value
 			res = x;
 			P.Next();
 
 		case Scanner.STRING:
-			x := AST.NewLiteral(Universe.string_t);
+			x := AST.NewLiteral(P.pos, Universe.string_t);
 			x.s = P.val;  // TODO need to strip quotes, interpret string properly
 			res = x;
 			P.Next();
@@ -1018,7 +1016,7 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
 			res = AST.Nil;
 			
 		case Scanner.IOTA:
-			x := AST.NewLiteral(Universe.int_t);
+			x := AST.NewLiteral(P.pos, Universe.int_t);
 			x.i = 42;  // TODO set the right value
 			res = x;
 			P.Next();
@@ -1057,22 +1055,41 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
 func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
 	P.Trace("SelectorOrTypeAssertion");
 
-	pos := P.pos;
+	period_pos := P.pos;
 	P.Expect(Scanner.PERIOD);
-	if P.semantic_checks {
-		typ := x.typ();
-		if typ.form != Type.STRUCT || typ.form != Type.INTERFACE {
-			P.Error(pos, `"." cannot be applied to this operand`);
-		}
-	}
 	
 	if P.tok == Scanner.IDENT {
+		ident_pos := P.pos;
 		ident := P.ParseIdent();
+		
+		if P.semantic_checks {
+			switch typ := x.typ(); typ.form {
+			case Type.BAD:
+				// ignore
+				break;
+			case Type.STRUCT, Type.INTERFACE:
+				obj := typ.scope.Lookup(ident);
+				if obj != nil {
+					x = AST.NewSelector(x.pos(), obj.typ);
+					
+				} else {
+					P.Error(ident_pos, `no field/method "` + ident + `"`);
+					x = AST.Bad;
+				}
+			default:
+				P.Error(period_pos, `"." not applicable`);
+				x = AST.Bad;
+			}
+		}
 		
 	} else {
 		P.Expect(Scanner.LPAREN);
 		P.ParseType();
 		P.Expect(Scanner.RPAREN);
+		
+		if P.semantic_checks {
+			panic "UNIMPLEMENTED";
+		}
 	}
 	
 	P.Ecart();
@@ -1083,13 +1100,40 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
 func (P *Parser) ParseIndexOrSlice(x Globals.Expr) Globals.Expr {
 	P.Trace("IndexOrSlice");
 	
+	pos := P.pos;
 	P.Expect(Scanner.LBRACK);
-	P.ParseExpression();
+	i1 := P.ParseExpression();
+	var i2 Globals.Expr;
 	if P.tok == Scanner.COLON {
 		P.Next();
-		P.ParseExpression();
+		i2 := P.ParseExpression();
 	}
 	P.Expect(Scanner.RBRACK);
+	
+	if P.semantic_checks {
+		switch typ := x.typ(); typ.form {
+		case Type.BAD:
+			// ignore
+			break;
+		case Type.STRING, Type.ARRAY:
+			panic "UNIMPLEMENTED";
+			
+		case Type.MAP:
+			if Type.Equal(typ.aux, i1.typ()) {
+				// x = AST.NewSubscript(x, i1);
+				panic "UNIMPLEMENTED";
+				
+			} else {
+				P.Error(x.pos(), "map key type mismatch");
+				x = AST.Bad;
+			}
+			
+		default:
+			P.Error(pos, `"[]" not applicable`);
+			x = AST.Bad;
+		}
+		
+	}
 	
 	P.Ecart();
 	return x;
@@ -1098,12 +1142,17 @@ func (P *Parser) ParseIndexOrSlice(x Globals.Expr) Globals.Expr {
 
 func (P *Parser) ParseCall(x Globals.Expr) Globals.Expr {
 	P.Trace("Call");
-	
+
 	P.Expect(Scanner.LPAREN);
+	args := Globals.NewList();
 	if P.tok != Scanner.RPAREN {
-		P.ParseExpressionList();
+		P.ParseExpressionList(args);
 	}
 	P.Expect(Scanner.RPAREN);
+
+	if P.semantic_checks {
+		panic "UNIMPLEMENTED";
+	}
 	
 	P.Ecart();
 	return x;
@@ -1129,16 +1178,19 @@ exit:
 }
 
 
-func (P *Parser) ParsePrimaryExprList() {
+// TODO is this function needed?
+func (P *Parser) ParsePrimaryExprList() *Globals.List {
 	P.Trace("PrimaryExprList");
-	
-	P.ParsePrimaryExpr(-1, "");
+
+	list := Globals.NewList();
+	list.AddExpr(P.ParsePrimaryExpr(-1, ""));
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParsePrimaryExpr(-1, "");
+		list.AddExpr(P.ParsePrimaryExpr(-1, ""));
 	}
 	
 	P.Ecart();
+	return list;
 }
 
 
@@ -1342,7 +1394,7 @@ func (P *Parser) ParseSimpleStat() {
 		}
 		P.Next();
 		pos := P.pos;
-		val_list := P.ParseExpressionList();
+		val_list := P.ParseNewExpressionList();
 		if P.semantic_checks && val_list.len_ != ident_list.len_ {
 			P.Error(pos, "number of expressions does not match number of variables");
 		}
@@ -1369,7 +1421,7 @@ func (P *Parser) ParseSimpleStat() {
 		P.ConvertToExprList(pos_list, ident_list, expr_list);
 		P.Next();
 		pos := P.pos;
-		val_list := P.ParseExpressionList();
+		val_list := P.ParseNewExpressionList();
 		if P.semantic_checks && val_list.len_ != expr_list.len_ {
 			P.Error(pos, "number of expressions does not match number of variables");
 		}
@@ -1402,8 +1454,9 @@ func (P *Parser) ParseReturnStat() {
 	P.Trace("ReturnStat");
 	
 	P.Expect(Scanner.RETURN);
+	res := Globals.NewList();
 	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
-		P.ParseExpressionList();
+		P.ParseExpressionList(res);
 	}
 	
 	P.Ecart();
@@ -1486,7 +1539,8 @@ func (P *Parser) ParseCase() {
 	
 	if P.tok == Scanner.CASE {
 		P.Next();
-		P.ParseExpressionList();
+		list := Globals.NewList();
+		P.ParseExpressionList(list);
 	} else {
 		P.Expect(Scanner.DEFAULT);
 	}
@@ -1718,7 +1772,7 @@ func (P *Parser) ParseConstSpec(exported bool) {
 	
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
-		P.ParseExpressionList();
+		P.ParseNewExpressionList();
 	}
 	
 	if exported {
@@ -1795,7 +1849,7 @@ func (P *Parser) ParseVarSpec(exported bool) {
 	list := P.ParseIdentDeclList(Object.VAR);
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
-		P.ParseExpressionList();
+		P.ParseNewExpressionList();
 	} else {
 		typ := P.ParseVarType();
 		for p := list.first; p != nil; p = p.next {
@@ -1803,7 +1857,7 @@ func (P *Parser) ParseVarSpec(exported bool) {
 		}
 		if P.tok == Scanner.ASSIGN {
 			P.Next();
-			P.ParseExpressionList();
+			P.ParseNewExpressionList();
 		}
 	}
 	

@@ -13,6 +13,7 @@ import Universe "universe"
 
 
 export type Literal struct {
+	pos_ int;
 	typ_ *Globals.Type;
 	b bool;
 	i int;
@@ -21,13 +22,19 @@ export type Literal struct {
 }
 
 
+func (x *Literal) pos() int {
+	return x.pos_;
+}
+
+
 func (x *Literal) typ() *Globals.Type {
 	return x.typ_;
 }
 
 
-export func NewLiteral(typ *Globals.Type) *Literal {
+export func NewLiteral(pos int, typ *Globals.Type) *Literal {
 	x := new(Literal);
+	x.pos_ = pos;
 	x.typ_ = typ;
 	return x;
 }
@@ -40,7 +47,13 @@ export var Bad, True, False, Nil *Literal;
 // method to its interface. However, this would require renaming the
 // typ field everywhere... - Need to think about accessors again.
 export type Object struct {
+	pos_ int;
 	obj *Globals.Object;
+}
+
+
+func (x *Object) pos() int {
+	return x.pos_;
 }
 
 
@@ -49,15 +62,23 @@ func (x *Object) typ() *Globals.Type {
 }
 
 
-export func NewObject(obj* Globals.Object) *Object {
+export func NewObject(pos int, obj* Globals.Object) *Object {
 	x := new(Object);
+	x.pos_ = pos;
 	x.obj = obj;
 	return x;
 }
 
 
+// TODO model Selector as binary operation?
 export type Selector struct {
+	pos_ int;
 	typ_ *Globals.Type;
+}
+
+
+func (x *Selector) pos() int {
+	return x.pos_;
 }
 
 
@@ -66,10 +87,24 @@ func (x *Selector) typ() *Globals.Type {
 }
 
 
+export func NewSelector(pos int, typ *Globals.Type) *Selector {
+	x := new(Selector);
+	x.pos_ = pos;
+	x.typ_ = typ;
+	return x;
+}
+
+
 export type BinaryExpr struct {
+	pos_ int;
 	typ_ *Globals.Type;
 	op int;
 	x, y Globals.Expr;
+}
+
+
+func (x *BinaryExpr) pos() int {
+	return x.pos_;
 }
 
 
@@ -97,8 +132,8 @@ export type IfStat struct {
 // Initialization
 
 func init() {
-	Bad = NewLiteral(Universe.bad_t);
-	True = NewLiteral(Universe.bool_t);  True.b = true;
-	False = NewLiteral(Universe.bool_t);  False.b = false;
-	Nil = NewLiteral(Universe.nil_t);
+	Bad = NewLiteral(-1, Universe.bad_t);
+	True = NewLiteral(-1, Universe.bool_t);  True.b = true;
+	False = NewLiteral(-1, Universe.bool_t);  False.b = false;
+	Nil = NewLiteral(-1, Universe.nil_t);
 }

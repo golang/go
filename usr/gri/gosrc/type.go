@@ -163,3 +163,13 @@ export func Equal(x, y *Globals.Type) bool {
 	}
 	return res;
 }
+
+
+export func Assigneable(from, to *Globals.Type) bool {
+	if Equal(from, to) {
+		return true;
+	}
+	
+	panic "UNIMPLEMENTED";
+	return false;
+}
