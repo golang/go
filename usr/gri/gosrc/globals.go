@@ -63,7 +63,8 @@ export type Flags struct {
 	print_export bool;
 	semantic_checks bool;
 	verbose int;
-	sixg bool;
+	sixg bool;  // 6g compatibility
+	pscan bool;  // parallel scanning using a token channel
 }
 
 

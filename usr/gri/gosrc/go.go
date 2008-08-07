@@ -23,6 +23,7 @@ func PrintHelp() {
   print "  -v  verbose mode\n";
   print "  -vv  very verbose mode\n";
   print "  -6g  6g compatibility mode\n";
+  print "  -pscan  scan and parse in parallel (use token channel)\n";
 }
 
 
@@ -43,6 +44,7 @@ func main() {
 		case "-v": flags.verbose = 1;
 		case "-vv": flags.verbose = 2;
 		case "-6g": flags.sixg = true;
+		case "-pscan": flags.pscan = true;
 		default: files.AddStr(arg);
 		}
 	}

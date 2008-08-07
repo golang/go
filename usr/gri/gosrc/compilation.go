@@ -26,9 +26,15 @@ export func Compile(comp *Globals.Compilation, file_name string) {
 	
 	scanner := new(Scanner.Scanner);
 	scanner.Open(file_name, src);
+	
+	var tstream *chan *Scanner.Token;
+	if comp.flags.pscan {
+		tstream = new(chan *Scanner.Token, 100);
+		go scanner.Server(tstream);
+	}
 
 	parser := new(Parser.Parser);
-	parser.Open(comp, scanner);
+	parser.Open(comp, scanner, tstream);
 
 	parser.ParseProgram();
 	if parser.S.nerrors > 0 {
