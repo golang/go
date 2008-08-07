@@ -8,7 +8,7 @@ package main
 
 type Item interface
 {
-	Print_BUG	func();
+	Print();
 }
 
 type ListItem struct
@@ -42,7 +42,7 @@ Print()
 {
 	i := list.head;
 	for i != nil {
-		i.item.Print_BUG();
+		i.item.Print();
 		i = i.next;
 	}
 }
@@ -54,14 +54,14 @@ type Integer struct
 }
 
 func (this *Integer)
-Init_BUG(i int) *Integer
+Init(i int) *Integer
 {
 	this.val = i;
 	return this;
 }
 
 func (this *Integer)
-Print_BUG()
+Print()
 {
 	print this.val;
 }
@@ -73,9 +73,10 @@ main()
 	list.Init();
 	for i := 0; i < 10; i = i + 1 {
 		integer := new(Integer);
-		integer.Init_BUG(i);
-		list.Insert(integer); //BUG: this is the failing line
+		integer.Init(i);
+		list.Insert(integer);
 	}
 
 	list.Print();
+	print "\n";
 }

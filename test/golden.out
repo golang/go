@@ -81,6 +81,7 @@ Hello World!
 =========== ken/ptrvar.go
 
 =========== ken/rob1.go
+9876543210
 
 =========== ken/rob2.go
 (defn foo (add 12 34))
