@@ -76,6 +76,7 @@ export type Compilation struct {
 
 
 export type Expr interface {
+	pos() int;  // source position
 	typ() *Type;
 	// ... more to come here
 }
