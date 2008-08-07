@@ -19,6 +19,7 @@ export type Parser struct {
 	semantic_checks bool;
 	verbose, indent int;
 	S *Scanner.Scanner;
+	C *chan *Scanner.Token;
 	
 	// Token
 	tok int;  // one token look-ahead
@@ -62,7 +63,12 @@ func (P *Parser) Ecart() {
 
 
 func (P *Parser) Next() {
-	P.tok, P.pos, P.val = P.S.Scan();
+	if P.C == nil {
+		P.tok, P.pos, P.val = P.S.Scan();
+	} else {
+		t := <- P.C;
+		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
+	}
 	if P.verbose > 1 {
 		P.PrintIndent();
 		print "[", P.pos, "] ", Scanner.TokenName(P.tok), "\n";
@@ -70,12 +76,13 @@ func (P *Parser) Next() {
 }
 
 
-func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner) {
+func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, C *chan *Scanner.Token) {
 	P.comp = comp;
 	P.semantic_checks = comp.flags.semantic_checks;
 	P.verbose = comp.flags.verbose;
 	P.indent = 0;
 	P.S = S;
+	P.C = C;
 	P.Next();
 	P.level = 0;
 	P.top_scope = Universe.scope;

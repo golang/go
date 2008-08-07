@@ -804,3 +804,22 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
 	
 	return tok, pos, val;
 }
+
+
+export type Token struct {
+	pos int;
+	tok int;
+	val string;
+}
+
+
+func (S *Scanner) Server(c *chan *Token) {
+	for {
+		t := new(Token);
+		t.tok, t.pos, t.val = S.Scan();
+		c -< t;
+		if t.tok == EOF {
+			break;
+		}
+	}
+}
