@@ -1,34 +1,10 @@
 
-=========== ./args.go
-
-=========== ./char_lit.go
-
-=========== ./float_lit.go
-
-=========== ./for.go
-
-=========== ./func.go
-
 =========== ./func1.go
 func1.go:12: var a redeclared in this block
      previous declaration at func1.go:12
 
-=========== ./hashmap.go
-
 =========== ./helloworld.go
 hello, world
-
-=========== ./if.go
-
-=========== ./if1.go
-
-=========== ./int_lit.go
-
-=========== ./iota.go
-
-=========== ./literal.go
-
-=========== ./nil.go
 
 =========== ./peano.go
 0! = 1
@@ -43,28 +19,8 @@ hello, world
 9! = 362880
 10! = 3628800
 
-=========== ./readfile.go
-
-=========== ./sieve.go
-
-=========== ./simassign.go
-
-=========== ./string_lit.go
-
-=========== ./switch.go
-
-=========== ./switch1.go
-
-=========== ./test0.go
-
 =========== ./turing.go
 Hello World!
-
-=========== ./utf.go
-
-=========== ken/for.go
-
-=========== ken/interfun.go
 
 =========== ken/intervar.go
  print 1 bio 2 file 3 -- abc
@@ -72,35 +28,11 @@ Hello World!
 =========== ken/label.go
 100
 
-=========== ken/litfun.go
-
-=========== ken/mfunc.go
-
-=========== ken/ptrfun.go
-
-=========== ken/ptrvar.go
-
 =========== ken/rob1.go
 9876543210
 
 =========== ken/rob2.go
 (defn foo (add 12 34))
-
-=========== ken/robfor.go
-
-=========== ken/robfunc.go
-
-=========== ken/robif.go
-
-=========== ken/robiota.go
-
-=========== ken/simparray.go
-
-=========== ken/simpbool.go
-
-=========== ken/simpconv.go
-
-=========== ken/simpfun.go
 
 =========== ken/simpprint.go
 hello world
@@ -108,21 +40,11 @@ hello world
 =========== ken/simpswitch.go
 0out01out12out2aout34out4fiveout56out6aout78out89out9
 
-=========== ken/simpvar.go
-
 =========== ken/string.go
 abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 
-=========== ken/strvar.go
-
-=========== chan/fifo.go
-
 =========== chan/nonblock.go
 PASS
-
-=========== chan/powser1.go
-
-=========== chan/sieve.go
 
 =========== bugs/bug015.go
 BUG: known to succeed incorrectly
@@ -214,16 +136,22 @@ outer loop top k 1
 k not zero
 panic on line 310 PC=0x1362
 0x1362?zi
-	main·main(1, 0, 1606416392, ...)
-	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
+	main·main(1, 0, 1606414952, ...)
+	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
 BUG: crashes
+Trace/BPT trap          ./$A.out
 
 =========== bugs/bug072.go
+bugs/bug072.go:6: bug: undefined
+BUG: compiler crashes after error message - Bus error
+Bus error               $G $D/$F.go
 
 =========== bugs/bug073.go
 BUG: should not compile
 
 =========== bugs/bug074.go
+BUG: compiler crashes - Bus error
+Bus error               $G $D/$F.go
 
 =========== bugs/bug075.go
 bugs/bug075.go:11: bad shape across assignment - cr=1 cl=2
@@ -237,8 +165,6 @@ BUG: known to fail incorrectly
 =========== bugs/bug077.go
 BUG: known to succeed incorrectly
 
-=========== bugs/bug078.go
-
 =========== bugs/bug079.go
 BUG: succeeds incorrectly
 
@@ -249,78 +175,25 @@ bugs/bug080.go:12: illegal types for operand: CALL
 BUG: fails incorrectly
 
 =========== bugs/bug081.go
+bugs/bug081.go:5: first constant must evaluate an expression
+BUG: compiler should not crash
+Bus error               $G $D/$F.go
 
 =========== bugs/bug082.go
 bugs/bug082.go:7: fatal error: optoas: no entry COM-<int32>INT32
 BUG: fails incorrectly
 
-=========== bugs/bug083.go
-
 =========== bugs/bug085.go
 bugs/bug085.go:8: P: undefined
 BUG: fails incorrectly
+Bus error               $G $D/$F.go
 
 =========== bugs/bug086.go
 4882
 BUG: succeeds incorrectly
 
-=========== bugs/bug087.go
-bugs/bug087.go:8: illegal combination of literals LEN 9
-bugs/bug087.go:8: illegal combination of literals LEN 9
-BUG: fails incorrectly
-
-=========== fixedbugs/bug000.go
-
-=========== fixedbugs/bug001.go
-
-=========== fixedbugs/bug002.go
-
-=========== fixedbugs/bug003.go
-
-=========== fixedbugs/bug004.go
-
-=========== fixedbugs/bug005.go
-
-=========== fixedbugs/bug006.go
-
-=========== fixedbugs/bug007.go
-
-=========== fixedbugs/bug008.go
-
-=========== fixedbugs/bug009.go
-
-=========== fixedbugs/bug010.go
-
-=========== fixedbugs/bug011.go
-
-=========== fixedbugs/bug012.go
-
-=========== fixedbugs/bug013.go
-
-=========== fixedbugs/bug014.go
-
-=========== fixedbugs/bug016.go
-
-=========== fixedbugs/bug017.go
-
-=========== fixedbugs/bug020.go
-
-=========== fixedbugs/bug021.go
-
-=========== fixedbugs/bug022.go
-
-=========== fixedbugs/bug023.go
-
-=========== fixedbugs/bug024.go
-
 =========== fixedbugs/bug025.go
 fixedbugs/bug025.go:7: variable exported but not defined: Foo
-
-=========== fixedbugs/bug028.go
-
-=========== fixedbugs/bug030.go
-
-=========== fixedbugs/bug031.go
 
 =========== fixedbugs/bug035.go
 fixedbugs/bug035.go:6: var i redeclared in this block
@@ -328,27 +201,13 @@ fixedbugs/bug035.go:6: var i redeclared in this block
 fixedbugs/bug035.go:7: var f redeclared in this block
      previous declaration at fixedbugs/bug035.go:5
 
-=========== fixedbugs/bug036.go
-
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
 fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(306) t=<T> nil
 
-=========== fixedbugs/bug038.go
-
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: var x redeclared in this block
      previous declaration at fixedbugs/bug039.go:5
-
-=========== fixedbugs/bug040.go
-
-=========== fixedbugs/bug043.go
-
-=========== fixedbugs/bug044.go
-
-=========== fixedbugs/bug045.go
-
-=========== fixedbugs/bug049.go
 
 =========== fixedbugs/bug050.go
 fixedbugs/bug050.go:3: package statement must be first
@@ -357,29 +216,5 @@ sys.6:1 fixedbugs/bug050.go:3: syntax error
 =========== fixedbugs/bug051.go
 fixedbugs/bug051.go:10: expression must be a constant
 
-=========== fixedbugs/bug052.go
-
-=========== fixedbugs/bug055.go
-
-=========== fixedbugs/bug056.go
-
-=========== fixedbugs/bug057.go
-
-=========== fixedbugs/bug058.go
-
-=========== fixedbugs/bug059.go
-
-=========== fixedbugs/bug063.go
-
-=========== fixedbugs/bug065.go
-
-=========== fixedbugs/bug066.go
-
 =========== fixedbugs/bug067.go
 ok
-
-=========== fixedbugs/bug069.go
-
-=========== fixedbugs/bug071.go
-
-=========== fixedbugs/bug084.go
