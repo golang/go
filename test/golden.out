@@ -264,6 +264,11 @@ BUG: fails incorrectly
 4882
 BUG: succeeds incorrectly
 
+=========== bugs/bug087.go
+bugs/bug087.go:8: illegal combination of literals LEN 9
+bugs/bug087.go:8: illegal combination of literals LEN 9
+BUG: fails incorrectly
+
 =========== fixedbugs/bug000.go
 
 =========== fixedbugs/bug001.go
