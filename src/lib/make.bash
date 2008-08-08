@@ -4,9 +4,12 @@
 
 #!/bin/bash
 
+echo; echo; echo %%%% making lib %%%%; echo
+
 rm -f *.6
 for i in fmt.go flag.go container/vector.go
 do
-	6g $i
+	base=$(basename $i .go)
+	echo 6g -o $GOROOT/pkg/$base.6 $i
+	6g -o $GOROOT/pkg/$base.6 $i
 done
-mv *.6 $GOROOT/pkg

@@ -18,3 +18,12 @@ do
 	bash make.bash
 	cd ..
 done
+
+# do these after go compiler and runtime are built
+for i in syscall
+do
+	echo; echo; echo %%%% making $i %%%%; echo
+	cd $i
+	make install
+	cd ..
+done
