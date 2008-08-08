@@ -120,6 +120,8 @@ acidinit(void)
 		if(types[TINT]->width != types[TSHORT]->width)
 			warn(Z, "acidmember int not long or short");
 	}
+	if(types[TIND]->width == types[TUVLONG]->width)
+		acidchar[TIND] = 'Y';
 	
 }
 
@@ -143,9 +145,8 @@ acidmember(Type *t, int32 off, int flag)
 	case TIND:
 		if(s == S)
 			break;
-		if(flag) {
-			for(l=t; l->etype==TIND; l=l->link)
-				;
+		l = t->link;
+		if(flag) { 
 			if(typesu[l->etype]) {
 				s1 = acidsue(l->link);
 				if(s1 != S) {
@@ -156,9 +157,19 @@ acidmember(Type *t, int32 off, int flag)
 				}
 			}
 		} else {
-			Bprint(&outbuf,
-				"\tprint(\"\t%s\t\", addr.%s\\X, \"\\n\");\n",
-				amap(s->name), amap(s->name));
+			l = t->link;
+			s1 = S;
+			if(typesu[l->etype])
+				s1 = acidsue(l->link);
+			if(s1 != S) {
+				Bprint(&outbuf,
+					"\tprint(indent, \"%s\t(%s)\", addr.%s\\X, \"\\n\");\n",
+					amap(s->name), amap(s1->name), amap(s->name));
+			} else {
+				Bprint(&outbuf,
+					"\tprint(indent, \"%s\t\", addr.%s\\X, \"\\n\");\n",
+					amap(s->name), amap(s->name));
+			}
 			break;
 		}
 
@@ -181,7 +192,7 @@ acidmember(Type *t, int32 off, int flag)
 			Bprint(&outbuf, "	'%c' %ld %s;\n",
 			acidchar[t->etype], t->offset+off, amap(s->name));
 		} else {
-			Bprint(&outbuf, "\tprint(\"\t%s\t\", addr.%s, \"\\n\");\n",
+			Bprint(&outbuf, "\tprint(indent, \"%s\t\", addr.%s, \"\\n\");\n",
 				amap(s->name), amap(s->name));
 		}
 		break;
@@ -204,17 +215,17 @@ acidmember(Type *t, int32 off, int flag)
 			}
 		} else {
 			if(s != S) {
-				Bprint(&outbuf, "\tprint(\"%s %s {\\n\");\n",
+				Bprint(&outbuf, "\tprint(indent, \"%s %s {\\n\");\n",
 					amap(s1->name), amap(s->name));
-				Bprint(&outbuf, "\t%s(addr.%s);\n",
+				Bprint(&outbuf, "\tindent_%s(addr.%s, indent+\"\\t\");\n",
 					amap(s1->name), amap(s->name));
-				Bprint(&outbuf, "\tprint(\"}\\n\");\n");
+				Bprint(&outbuf, "\tprint(indent, \"}\\n\");\n");
 			} else {
-				Bprint(&outbuf, "\tprint(\"%s {\\n\");\n",
+				Bprint(&outbuf, "\tprint(indent, \"%s {\\n\");\n",
 					amap(s1->name));
-				Bprint(&outbuf, "\t\t%s(addr+%ld);\n",
+				Bprint(&outbuf, "\tindent_%s(addr+%ld, indent+\"\\t\");\n",
 					amap(s1->name), t->offset+off);
-				Bprint(&outbuf, "\tprint(\"}\\n\");\n");
+				Bprint(&outbuf, "\tprint(indent, \"}\\n\");\n");
 			}
 		}
 		break;
@@ -258,7 +269,8 @@ acidtype(Type *t)
 			acidmember(l, 0, 1);
 		Bprint(&outbuf, "};\n\n");
 
-		Bprint(&outbuf, "defn\n%s(addr) {\n\tcomplex %s addr;\n", an, an);
+		Bprint(&outbuf, "defn\n%s(addr) {\n\tindent_%s(addr, \"\\t\");\n}\n", an, an);
+		Bprint(&outbuf, "defn\nindent_%s(addr, indent) {\n\tcomplex %s addr;\n", an, an);
 		for(l = t->link; l != T; l = l->down)
 			acidmember(l, 0, 0);
 		Bprint(&outbuf, "};\n\n");
