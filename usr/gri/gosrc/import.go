@@ -264,6 +264,66 @@ func (I *Importer) ReadObject() *Globals.Object {
 }
 
 
+func ReadObjectFile(filename string) (data string, ok bool) {
+	data, ok = sys.readfile(filename + Globals.obj_file_ext);
+	magic := Globals.MAGIC_obj_file;  // TODO remove once len(constant) works
+	if ok && len(data) >= len(magic) && data[0 : len(magic)] == magic {
+		return data, ok;
+	}
+	return "", false;
+}
+
+
+func ReadSourceFile(filename string) (data string, ok bool) {
+	data, ok = sys.readfile(filename + Globals.src_file_ext);
+	return data, ok;
+}
+
+
+func ReadImport(comp* Globals.Compilation, filename string, update bool) (data string, ok bool) {
+	if filename == "" {
+		panic "illegal package file name";
+	}
+
+	// see if it just works
+	data, ok = ReadObjectFile(filename);
+	if ok {
+		return data, ok;
+	}
+	
+	if filename[0] == '/' {
+		// absolute path
+		panic `don't know how to handle absolute import file path "` + filename + `"`;
+	}
+	
+	// relative path
+	// try relative to the $GOROOT/pkg directory
+	std_filename := Utils.GOROOT + "/pkg/" + filename;
+	data, ok = ReadObjectFile(std_filename);
+	if ok {
+		return data, ok;
+	}
+	
+	if !update {
+		return "", false;
+	}
+	
+	// TODO BIG HACK - fix this!
+	// look for a src file
+	// see if it just works
+	data, ok = ReadSourceFile(filename);
+	if ok {
+		comp.Compile(comp.flags, filename + Globals.src_file_ext);
+		data, ok = ReadImport(comp, filename, false);
+		if ok {
+			return data, ok;
+		}
+	}
+	
+	return "", false;
+}
+
+
 func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.Package {
 	I.comp = comp;
 	I.debug = comp.flags.debug;
@@ -276,7 +336,8 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 		print "importing from ", file_name, "\n";
 	}
 	
-	buf, ok := sys.readfile(file_name);
+	//  read file and check magic bits
+	buf, ok := ReadImport(comp, file_name, comp.flags.update_packages);
 	if !ok {
 		return nil;
 	}
@@ -305,5 +366,5 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
 
 export func Import(comp* Globals.Compilation, pkg_name string) *Globals.Package {
 	var I Importer;
-	return (&I).Import(comp, Utils.FixExt(pkg_name));
+	return (&I).Import(comp, pkg_name);
 }

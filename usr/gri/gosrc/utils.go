@@ -5,6 +5,34 @@
 package Utils
 
 
+// Environment
+export var
+	GOARCH,
+	GOOS,
+	GOROOT,
+	USER string;
+
+
+func GetEnv(key string) string {
+	n := len(key);
+	for i := 0; i < sys.envc(); i++ {
+		v := sys.envv(i);
+		if v[0 : n] == key {
+			return v[n + 1 : len(v)];  // +1: trim "="
+		}
+	}
+	return "";
+}
+
+
+func init() {
+	GOARCH = GetEnv("GOARCH");
+	GOOS = GetEnv("GOOS");
+	GOROOT = GetEnv("GOROOT");
+	USER = GetEnv("USER");
+}
+
+
 export func BaseName(s string) string {
 	// TODO this is not correct for non-ASCII strings!
 	i := len(s) - 1;
@@ -18,22 +46,10 @@ export func BaseName(s string) string {
 }
 
 
-export func FixExt(s string) string {
-	i := len(s) - 3;  // 3 == len(".go");
-	if i >= 0 && s[i : len(s)] == ".go" {
+export func TrimExt(s, ext string) string {
+	i := len(s) - len(ext);
+	if i >= 0 && s[i : len(s)] == ext {
 		s = s[0 : i];
 	}
-	return s + ".7";
-}
-
-
-export func GetEnv(key string) string {
-	n := len(key);
-	for i := 0; i < sys.envc(); i++ {
-		v := sys.envv(i);
-		if v[0 : n] == key {
-			return v[n + 1 : len(v)];  // +1: skip "="
-		}
-	}
-	return "";
+	return s;
 }
