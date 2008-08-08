@@ -9,49 +9,80 @@ import Globals "globals"
 import Compilation "compilation"
 
 
-// For now we are not using the flags package to minimize
-// external dependencies, and because the requirements are
-// very minimal at this point.
-
 func PrintHelp() {
-  print "go in go (", Build.time, ")\n";
-  print "usage:\n";
-  print "  go { flag | file }\n";
-  print "  -d  print debug information\n";
-  print "  -p  print export\n";
-  print "  -s  enable semantic checks\n";
-  print "  -v  verbose mode\n";
-  print "  -vv  very verbose mode\n";
-  print "  -6g  6g compatibility mode\n";
-  print "  -pscan  scan and parse in parallel (use token channel)\n";
+	print
+		"go (" + Build.time + ")\n" +
+		"usage:\n" +
+		"  go { flag } { file }\n" +
+		"  -d             debug mode, additional self tests and prints\n" +
+		"  -o filename    explicit object filename\n" +
+		"  -r             recursively update imported packages in current directory\n" +
+		"  -p             print package interface\n" +
+		"  -v [0 .. 3]    verbosity level\n" +
+		"  -6g            6g compatibility mode\n" +
+		"  -scan          scan only, print tokens\n" +
+		"  -parse         parse only, print productions\n" +
+		"  -ast           analyse only, print ast\n" +
+		"  -deps          print package dependencies\n" +
+		"  -token_chan    use token channel to scan and parse in parallel\n";
+}
+
+
+var argno int = 1;
+func Next() string {
+	arg := "";
+	if argno < sys.argc() {
+		arg = sys.argv(argno);
+		argno++;
+	}
+	return arg;
 }
 
 
 func main() {
-	if sys.argc() <= 1 {
-		PrintHelp();
-		sys.exit(1);
-	}
+	arg := Next();
 	
+	if arg == "" {
+		PrintHelp();
+		return;
+	}
+
 	// collect flags and files
 	flags := new(Globals.Flags);
 	files := Globals.NewList();
-	for i := 1; i < sys.argc(); i++ {
-		switch arg := sys.argv(i); arg {
+	for arg != "" {
+	    switch arg {
 		case "-d": flags.debug = true;
-		case "-p": flags.print_export = true;
-		case "-s": flags.semantic_checks = true;
-		case "-v": flags.verbose = 1;
-		case "-vv": flags.verbose = 2;
+		case "-o": flags.object_filename = Next();
+			print "note: -o flag ignored at the moment\n";
+		case "-r": flags.update_packages = true;
+		case "-p": flags.print_interface = true;
+		case "-v":
+			arg = Next();
+			switch arg {
+			case "0", "1", "2", "3":
+				flags.verbosity = uint(arg[0] - '0');
+			default:
+				// anything else is considered the next argument
+				flags.verbosity = 1;
+				continue;
+			}
 		case "-6g": flags.sixg = true;
-		case "-pscan": flags.pscan = true;
+		case "-scan": flags.scan = true;
+			print "note: -scan flag ignored at the moment\n";
+		case "-parse": flags.parse = true;
+			print "note: -parse flag ignored at the moment\n";
+		case "-ast": flags.ast = true;
+		case "-deps": flags.deps = true;
+			print "note: -deps flag ignored at the moment\n";
+		case "-token_chan": flags.token_chan = true;
 		default: files.AddStr(arg);
 		}
+		arg = Next();
 	}
 	
 	// compile files
 	for p := files.first; p != nil; p = p.next {
-		comp := Globals.NewCompilation(flags);
-		Compilation.Compile(comp, p.str);
+		Compilation.Compile(flags, p.str);
 	}
 }

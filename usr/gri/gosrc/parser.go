@@ -17,7 +17,7 @@ import AST "ast"
 export type Parser struct {
 	comp *Globals.Compilation;
 	semantic_checks bool;
-	verbose, indent int;
+	verbose, indent uint;
 	S *Scanner.Scanner;
 	C *chan *Scanner.Token;
 	
@@ -78,8 +78,8 @@ func (P *Parser) Next() {
 
 func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, C *chan *Scanner.Token) {
 	P.comp = comp;
-	P.semantic_checks = comp.flags.semantic_checks;
-	P.verbose = comp.flags.verbose;
+	P.semantic_checks = comp.flags.ast;
+	P.verbose = comp.flags.verbosity;
 	P.indent = 0;
 	P.S = S;
 	P.C = C;

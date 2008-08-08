@@ -5,6 +5,18 @@
 package Globals
 
 
+// ----------------------------------------------------------------------------
+// Constants
+
+export const (
+	MAGIC_obj_file = "/*go.7*/";  // anything, really
+	src_file_ext = ".go";
+	obj_file_ext = ".7";
+)
+
+
+// ----------------------------------------------------------------------------
+
 // The following types should really be in their respective files
 // (object.go, type.go, scope.go, package.go, compilation.go, etc.) but
 // they refer to each other and we don't know how to handle forward
@@ -60,16 +72,28 @@ export type Scope struct {
 
 export type Flags struct {
 	debug bool;
-	print_export bool;
-	semantic_checks bool;
-	verbose int;
-	sixg bool;  // 6g compatibility
-	pscan bool;  // parallel scanning using a token channel
+	object_filename string;
+	update_packages bool;
+	print_interface bool;
+	verbosity uint;
+	sixg bool;
+
+	scan bool;
+	parse bool;
+	ast bool;
+	deps bool;
+	token_chan bool;
 }
 
 
 export type Compilation struct {
+	// envionment
 	flags *Flags;
+	Error *func(comp *Compilation);  // TODO complete this
+	Import *func(comp *Compilation, data string) *Package;
+	Export *func(comp *Compilation) string;
+    Compile *func(flags *Flags, filename string);  // TODO remove this eventually
+	
 	// TODO use open arrays eventually
 	pkg_list [256] *Package;  // pkg_list[0] is the current package
 	pkg_ref int;
@@ -147,13 +171,6 @@ export func NewScope(parent *Scope) *Scope {
 	scope.parent = parent;
 	scope.entries = NewList();
 	return scope;
-}
-
-
-export func NewCompilation(flags *Flags) *Compilation {
-	comp := new(Compilation);
-	comp.flags = flags;
-	return comp;
 }
 
 

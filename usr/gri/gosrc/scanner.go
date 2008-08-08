@@ -223,7 +223,7 @@ func init() {
 	}
 	
 	// Provide column information in error messages for gri only...
-	VerboseMsgs = Utils.GetEnv("USER") == "gri";
+	VerboseMsgs = Utils.USER == "gri";
 }
 
 

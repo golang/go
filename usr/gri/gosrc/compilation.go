@@ -17,18 +17,25 @@ import Printer "printer"
 import Verifier "verifier"
 
 
-export func Compile(comp *Globals.Compilation, file_name string) {
-	src, ok := sys.readfile(file_name);
+export func Compile(flags *Globals.Flags, filename string) {
+	// setup compilation
+	comp := new(Globals.Compilation);
+	comp.flags = flags;
+	comp.Compile = &Compile;
+	
+	src, ok := sys.readfile(filename);
 	if !ok {
-		print "cannot open ", file_name, "\n"
+		print "cannot open ", filename, "\n"
 		return;
 	}
 	
+	print filename, "\n";
+	
 	scanner := new(Scanner.Scanner);
-	scanner.Open(file_name, src);
+	scanner.Open(filename, src);
 	
 	var tstream *chan *Scanner.Token;
-	if comp.flags.pscan {
+	if comp.flags.token_chan {
 		tstream = new(chan *Scanner.Token, 100);
 		go scanner.Server(tstream);
 	}
@@ -41,15 +48,15 @@ export func Compile(comp *Globals.Compilation, file_name string) {
 		return;
 	}
 	
-	if !comp.flags.semantic_checks {
+	if !comp.flags.ast {
 		return;
 	}
 	
 	Verifier.Verify(comp);
 	
-	if comp.flags.print_export {
+	if comp.flags.print_interface {
 		Printer.PrintObject(comp, comp.pkg_list[0].obj, false);
 	}
 	
-	Export.Export(comp, file_name);
+	Export.Export(comp, filename);
 }

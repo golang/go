@@ -247,6 +247,12 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 		print "exporting to ", file_name, "\n";
 	}
 
+	// write magic bits
+	magic := Globals.MAGIC_obj_file;  // TODO remove once len(constant) works
+	for i := 0; i < len(magic); i++ {
+		E.WriteByte(magic[i]);
+	}
+	
 	// Predeclared types are "pre-exported".
 	// TODO run the loop below only in debug mode
 	{	i := 0;
@@ -279,5 +285,5 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 
 export func Export(comp* Globals.Compilation, pkg_name string) {
 	var E Exporter;
-	(&E).Export(comp, Utils.FixExt(Utils.BaseName(pkg_name)));
+	(&E).Export(comp, Utils.TrimExt(Utils.BaseName(pkg_name), Globals.src_file_ext) + Globals.obj_file_ext);
 }
