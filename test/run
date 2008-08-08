@@ -18,28 +18,42 @@ export L=${A}l
 
 failed=0
 
+# don't use $$ in file names to avoid spurious diffs
+RUNFILE=/tmp/gorun-$USER
+TMP1FILE=/tmp/gotest1-$USER
+TMP2FILE=/tmp/gotest2-$USER
+
 for dir in . ken chan bugs fixedbugs
 do
 	for i in $dir/*.go
 	do
-		echo
-		echo '===========' $i
 		export F=$(basename $i .go)
 		export D=$dir
-		sed -n '1,/[^/]/p' $i | sed 's@//@@; $d' > /tmp/$USER.$$.gotest
-		if ! sh /tmp/$USER.$$.gotest
+		sed -n '1,/[^/]/p' $i | sed 's@//@@; $d' > $RUNFILE
+		if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
 		then
+			echo
+			echo "===========" $i
+			cat $TMP1FILE
+			cat $TMP2FILE
 			echo >&2 fail: $i
+		elif test -s $TMP1FILE
+		then
+			echo
+			echo "===========" $i
+			cat $TMP1FILE
+			cat $TMP2FILE
 		fi
 	done
 done | # clean up some stack noise
-	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x' > run.out
+	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
+	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/' > run.out
 
 case $failed in
 1)
 	echo FAIL
 esac
-rm  -f /tmp/$USER.$$.gotest *.6 6.out
+rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.6 6.out
 if ! diff run.out golden.out
 then
 	failed=1
