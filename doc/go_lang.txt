@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(August 4, 2008)
+(August 7, 2008)
 
 This document is a semi-formal specification/proposal for a new
 systems programming language.  The document is under active
@@ -709,33 +709,33 @@ key-value pairs separated by a colon:
 TODO: helper syntax for nested arrays etc? (avoids repeating types but
 complicates the spec needlessly.)
 
+
 Pointer types
 ----
 
 Pointer types are similar to those in C.
 
-  PointerType = "*" Type.
+  PointerType = "*" ElementType.
 
 Pointer arithmetic of any kind is not permitted.
 
   *int
   *map[string] *chan
 
-It is legal to write a pointer type (only) such as *T even if T is
-an incomplete type (i.e., either not yet fully defined or forward
-declared). This allows the construction of recursive types such as:
+For pointer types (only), the pointer element type may be an
+identifier referring to an incomplete (not yet fully defined) or undeclared
+type. This allows the construction of recursive and mutually recursive types
+such as:
 
   type S struct { s *S }
 
-Together with a type forward declaration, mutually recursive types
-can be constructed such as:
-
-  type S2  // forward declaration of S2
   type S1 struct { s2 *S2 }
   type S2 struct { s1 *S1 }
 
-By the end of the package source, all forward-declared types must be
-fully declared if they are used.
+If the element type is an undeclared identifier, the declaration implicitly
+forward-declares an (incomplete) type with the respective name. By the end
+of the package source, any such forward-declared type must be completely
+declared in the same or an outer scope.
 
 
 Channel types
@@ -1059,26 +1059,28 @@ TODO move/re-arrange section on iota.
 Type declarations
 ----
 
-A type declaration introduces a name as a shorthand for a type. The name refers
-to an incomplete type until the type specification is complete. If no type is
-provided at all, the declaration effectively serves as a forward declaration.
-Incomplete types can be used together (and only) with pointer types.
+A type declaration introduces a name as a shorthand for a type.
 
   TypeDecl = "type" ( TypeSpec | "(" TypeSpecList [ ";" ] ")" ).
-  TypeSpec = identifier [ Type ] .
+  TypeSpec = identifier Type .
   TypeSpecList = TypeSpec { ";" TypeSpec }.
 
+The name refers to an incomplete type until the type specification is complete.
+Incomplete types can be referred to only by pointer types. Consequently, in a
+type declaration a type may not refer to itself unless it does so with a pointer
+type.
 
-  type List  // forward declaration
   type IntArray [16] int
+
   type (
     Point struct { x, y float };
     Polar Point
   )
 
-Since incomplete types can only be used with pointer types, in a type
-declaration a type may not refer to itself unless it does so with a
-pointer type.
+  type TreeNode struct {
+    left, right *TreeNode;
+	value Point;
+  }
 
 
 Variable declarations
