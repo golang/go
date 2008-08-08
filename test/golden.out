@@ -71,10 +71,6 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug041.go
 BUG: compilation succeeds incorrectly
 
-=========== bugs/bug042.go
-bugs/bug042.go:6: syntax error
-BUG: compilation should succeed
-
 =========== bugs/bug046.go
 bugs/bug046.go:7: illegal <this> pointer
 BUG: known to fail incorrectly
@@ -136,8 +132,8 @@ outer loop top k 1
 k not zero
 panic on line 310 PC=0x1362
 0x1362?zi
-	main·main(1, 0, 1606414952, ...)
-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+	main·main(1, 0, 1606416392, ...)
+	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
 BUG: crashes
 Trace/BPT trap          ./$A.out
 
@@ -191,6 +187,11 @@ Bus error               $G $D/$F.go
 =========== bugs/bug086.go
 4882
 BUG: succeeds incorrectly
+
+=========== bugs/bug087.go
+bugs/bug087.go:8: illegal combination of literals LEN 9
+bugs/bug087.go:8: illegal combination of literals LEN 9
+BUG: fails incorrectly
 
 =========== fixedbugs/bug025.go
 fixedbugs/bug025.go:7: variable exported but not defined: Foo
