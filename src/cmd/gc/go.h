@@ -6,7 +6,6 @@
 todo:
 	1. dyn arrays
 	2. multi
-	3. block 0
 tothinkabout:
 	2. argument in import
 */
@@ -56,13 +55,46 @@ struct	String
 	char	s[3];	// variable
 };
 
+enum
+{
+	Mpscale	= 29,		/* safely smaller than bits in a long */
+	Mpprec	= 10,		/* Mpscale*Mpprec is max number of bits */
+	Mpbase	= 1L<<Mpscale,
+	Mpsign	= Mpbase >> 1,
+	Mpmask	= Mpbase -1,
+	Debug	= 1,
+};
+
+typedef	struct	Mpint	Mpint;
+struct	Mpint
+{
+	vlong	val;
+	long	a[Mpprec];
+	uchar	neg;
+	uchar	ovf;
+};
+
+typedef	struct	Mpflt	Mpflt;
+struct	Mpflt
+{
+	double	val;
+	long	a[Mpprec];
+	uchar	neg;
+	uchar	ovf;
+};
+
 typedef	struct	Val	Val;
 struct	Val
 {
-	int	ctype;
-	double	dval;
-	vlong	vval;
-	String*	sval;
+	short	ctype;
+	union
+	{
+		short	reg;		// OREGISTER
+		short	bval;		// bool value CTBOOL
+		Mpint*	xval;		// int CTINT
+		Mpflt*	fval;		// float CTFLT
+		String*	sval;		// string CTSTR
+	} u;
 };
 
 typedef	struct	Sym	Sym;
@@ -135,7 +167,7 @@ struct	Node
 	// func
 	Node*	nname;
 
-	// OLITERAL
+	// OLITERAL/OREGISTER
 	Val	val;
 
 	Sym*	osym;		// import
@@ -380,10 +412,11 @@ EXTERN	uchar	issimple[NTYPE];
 EXTERN	uchar	okforeq[NTYPE];
 EXTERN	uchar	okforadd[NTYPE];
 EXTERN	uchar	okforand[NTYPE];
-EXTERN	double	minfloatval[NTYPE];
-EXTERN	double	maxfloatval[NTYPE];
-EXTERN	vlong	minintval[NTYPE];
-EXTERN	vlong	maxintval[NTYPE];
+
+EXTERN	Mpint*	minintval[NTYPE];
+EXTERN	Mpint*	maxintval[NTYPE];
+EXTERN	Mpflt*	minfltval[NTYPE];
+EXTERN	Mpflt*	maxfltval[NTYPE];
 
 EXTERN	Dcl*	autodcl;
 EXTERN	Dcl*	paramdcl;
@@ -438,10 +471,46 @@ void	ungetc(int);
 void	mkpackage(char*);
 
 /*
- *	mpatof.c
+ *	mparith.c
  */
-int	mpatof(char*, double*);
-int	mpatov(char*, vlong*);
+void	mpmovefixfix(Mpint *a, Mpint *b);
+void	mpmovefixflt(Mpflt *a, Mpint *b);
+void	mpmovefltfix(Mpint *a, Mpflt *b);
+void	mpmovefltflt(Mpflt *a, Mpflt *b);
+void	mpmovecfix(Mpint *a, vlong v);
+void	mpmovecflt(Mpflt *a, double f);
+
+int	mpcmpfixfix(Mpint *a, Mpint *b);
+int	mpcmpfltflt(Mpflt *a, Mpflt *b);
+int	mpcmpfixc(Mpint *b, vlong c);
+int	mpcmpfltc(Mpint *b, double c);
+int	mptestfixfix(Mpint *a);
+int	mptestfltflt(Mpflt *a);
+
+void	mpaddfixfix(Mpint *a, Mpint *b);
+void	mpaddfltflt(Mpflt *a, Mpflt *b);
+void	mpsubfixfix(Mpint *a, Mpint *b);
+void	mpsubfltflt(Mpflt *a, Mpflt *b);
+void	mpmulfixfix(Mpint *a, Mpint *b);
+void	mpmulfltflt(Mpflt *a, Mpflt *b);
+void	mpdivfixfix(Mpint *a, Mpint *b);
+void	mpdivfltflt(Mpflt *a, Mpflt *b);
+void	mpnegfix(Mpint *a);
+void	mpnegflt(Mpflt *a);
+
+void	mpandfixfix(Mpint *a, Mpint *b);
+void	mplshfixfix(Mpint *a, Mpint *b);
+void	mpmodfixfix(Mpint *a, Mpint *b);
+void	mporfixfix(Mpint *a, Mpint *b);
+void	mprshfixfix(Mpint *a, Mpint *b);
+void	mpxorfixfix(Mpint *a, Mpint *b);
+void	mpcomfix(Mpint *a);
+
+double	mpgetflt(Mpflt *a);
+vlong	mpgetfix(Mpint *a);
+
+void	mpatofix(Mpint *a, char *s);
+void	mpatoflt(Mpflt *a, char *s);
 
 /*
  *	subr.c

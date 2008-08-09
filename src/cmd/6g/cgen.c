@@ -454,7 +454,8 @@ bgen(Node *n, int true, Prog *to)
 		goto ret;
 
 	case OLITERAL:
-		if(!true == !n->val.vval)
+// need to ask if it is bool?
+		if(!true == !n->val.u.bval)
 			patch(gbranch(AJMP, T), to);
 		goto ret;
 

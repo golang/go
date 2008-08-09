@@ -762,8 +762,9 @@ loop:
 			break;
 
 		l = nod(OLITERAL, N, N);
+		l->val.u.fval = mal(sizeof(*l->val.u.fval));
 		l->val.ctype = CTFLT;
-		l->val.dval = 0;
+		mpmovecflt(l->val.u.fval, 0.0);
 
 		l = nod(OSUB, l, n->left);
 		*n = *l;
@@ -991,7 +992,6 @@ recv:
 	a = c->left;			// nil elem
 	a = nod(OLITERAL, N, N);
 	a->val.ctype = CTNIL;
-	a->val.vval = 0;
 
 	r = a;
 	a = c->left;			// chan
@@ -1987,7 +1987,6 @@ chanop(Node *n, int top)
 		if(a == N) {
 			a = nod(OLITERAL, N, N);
 			a->val.ctype = CTNIL;
-			a->val.vval = 0;
 		} else
 			a = nod(OADDR, a, N);
 

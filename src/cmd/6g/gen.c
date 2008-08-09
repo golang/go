@@ -312,7 +312,7 @@ agen_inter(Node *n, Node *res)
 	// stack offset
 	memset(&nodo, 0, sizeof(nodo));
 	nodo.op = OINDREG;
-	nodo.val.vval = D_SP;
+	nodo.val.u.reg = D_SP;
 	nodo.addable = 1;
 	nodo.type = types[tptr];
 
@@ -745,7 +745,7 @@ cgen_callret(Node *n, Node *res)
 
 	memset(&nod, 0, sizeof(nod));
 	nod.op = OINDREG;
-	nod.val.vval = D_SP;
+	nod.val.u.reg = D_SP;
 	nod.addable = 1;
 
 	nod.xoffset = fp->width;
@@ -770,7 +770,7 @@ cgen_aret(Node *n, Node *res)
 
 	memset(&nod1, 0, sizeof(nod1));
 	nod1.op = OINDREG;
-	nod1.val.vval = D_SP;
+	nod1.val.u.reg = D_SP;
 	nod1.addable = 1;
 
 	nod1.xoffset = fp->width;
@@ -894,31 +894,32 @@ cgen_as(Node *nl, Node *nr, int op)
 		case TUINT32:
 		case TINT64:
 		case TUINT64:
+			nr->val.u.xval = mal(sizeof(*nr->val.u.xval));
+			mpmovecfix(nr->val.u.xval, 0);
 			nr->val.ctype = CTINT;
-			nr->val.vval = 0;
 			break;
 
 		case TFLOAT32:
 		case TFLOAT64:
 		case TFLOAT80:
+			nr->val.u.fval = mal(sizeof(*nr->val.u.fval));
+			mpmovecflt(nr->val.u.fval, 0.0);
 			nr->val.ctype = CTFLT;
-			nr->val.dval = 0.0;
 			break;
 
 		case TBOOL:
+			nr->val.u.bval = 0;
 			nr->val.ctype = CTBOOL;
-			nr->val.vval = 0;
 			break;
 
 		case TPTR32:
 		case TPTR64:
 			if(isptrto(tl, TSTRING)) {
-				nr->val.sval = mal(8);
+				nr->val.u.sval = mal(8);
 				nr->val.ctype = CTSTR;
 				break;
 			}
 			nr->val.ctype = CTNIL;
-			nr->val.vval = 0;
 			break;
 
 //		case TINTER:
@@ -954,7 +955,7 @@ samereg(Node *a, Node *b)
 		return 0;
 	if(b->op != OREGISTER)
 		return 0;
-	if(a->val.vval != b->val.vval)
+	if(a->val.u.reg != b->val.u.reg)
 		return 0;
 	return 1;
 }

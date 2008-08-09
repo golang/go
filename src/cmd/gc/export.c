@@ -78,14 +78,16 @@ dumpexportconst(Sym *s)
 	case CTINT:
 	case CTSINT:
 	case CTUINT:
+		Bprint(bout, "0x%llux\n", mpgetfix(n->val.u.xval));
+		break;
 	case CTBOOL:
-		Bprint(bout, "0x%llux\n", n->val.vval);
+		Bprint(bout, "0x%llux\n", n->val.u.bval);
 		break;
 	case CTFLT:
-		Bprint(bout, "%.17e\n", n->val.dval);
+		Bprint(bout, "%.17e\n", mpgetflt(n->val.u.fval));
 		break;
 	case CTSTR:
-		Bprint(bout, "\"%Z\"\n", n->val.sval);
+		Bprint(bout, "\"%Z\"\n", n->val.u.sval);
 		break;
 	}
 }
@@ -516,7 +518,7 @@ doimport2(Node *ss, Val *b, Node *st)
 	Sym *s;
 
 	t = typ(TARRAY);
-	t->bound = b->vval;
+	t->bound = mpgetfix(b->u.xval);
 	s = pkglookup(st->sym->name, st->psym->name);
 	t->type = s->otype;
 
@@ -542,6 +544,7 @@ doimport3(Node *ss, Node *n)
 	t->outtuple = importcount(t->type->down);
 	t->intuple = importcount(t->type->down->down);
 
+	dowidth(t);
 	importfuncnam(t);
 
 	importaddtyp(ss, t);
@@ -573,7 +576,7 @@ doimport5(Node *ss, Val *v)
 	int et;
 	Type *t;
 
-	et = v->vval;
+	et = mpgetfix(v->u.xval);
 	if(et <= 0 || et >= nelem(types) || types[et] == T)
 		fatal("doimport5: bad type index: %E", et);
 
@@ -631,7 +634,7 @@ doimport8(Node *ss, Val *v, Node *st)
 	int dir;
 
 	s = pkglookup(st->sym->name, st->psym->name);
-	dir = v->vval;
+	dir = mpgetfix(v->u.xval);
 
 	t = typ(TCHAN);
 	s = pkglookup(st->sym->name, st->psym->name);

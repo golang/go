@@ -74,7 +74,7 @@ dumpobj(void)
 			continue;
 
 		dowidth(n->type);
-		n1.val.vval = n->type->width;
+		mpmovecfix(n1.val.u.xval, n->type->width);
 
 		p = pc;
 		gins(AGLOBL, s->oname, &n1);
