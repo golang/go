@@ -313,7 +313,8 @@ nodintconst(int32 v)
 
 	c = nod(OLITERAL, N, N);
 	c->addable = 1;
-	c->val.vval = v;
+	c->val.u.xval = mal(sizeof(*c->val.u.xval));
+	mpmovecfix(c->val.u.xval, v);
 	c->val.ctype = CTINT;
 	c->type = types[TINT32];
 	ullmancalc(c);
@@ -391,7 +392,7 @@ aindex(Node *b, Type *t)
 		break;
 
 	case Wlitint:	// fixed lb
-		r->bound = b->val.vval;
+		r->bound = mpgetfix(b->val.u.xval);
 		break;
 	}
 	return r;
@@ -1043,31 +1044,31 @@ Nconv(Fmt *fp)
 		goto ptyp;
 
 	case OREGISTER:
-		snprint(buf, sizeof(buf), "%O-%R%J", n->op, (int)n->val.vval, n);
+		snprint(buf, sizeof(buf), "%O-%R%J", n->op, n->val.u.reg, n);
 		break;
 
 	case OLITERAL:
 		switch(n->val.ctype) {
 		default:
-			snprint(buf1, sizeof(buf1), "LITERAL-ctype=%d%lld", n->val.ctype, n->val.vval);
+			snprint(buf1, sizeof(buf1), "LITERAL-ctype=%d", n->val.ctype);
 			break;
 		case CTINT:
-			snprint(buf1, sizeof(buf1), "I%lld", n->val.vval);
+			snprint(buf1, sizeof(buf1), "I%lld", mpgetfix(n->val.u.xval));
 			break;
 		case CTSINT:
-			snprint(buf1, sizeof(buf1), "S%lld", n->val.vval);
+			snprint(buf1, sizeof(buf1), "S%lld", mpgetfix(n->val.u.xval));
 			break;
 		case CTUINT:
-			snprint(buf1, sizeof(buf1), "U%lld", n->val.vval);
+			snprint(buf1, sizeof(buf1), "U%lld", mpgetfix(n->val.u.xval));
 			break;
 		case CTFLT:
-			snprint(buf1, sizeof(buf1), "F%g", n->val.dval);
+			snprint(buf1, sizeof(buf1), "F%g", mpgetflt(n->val.u.fval));
 			break;
 		case CTSTR:
-			snprint(buf1, sizeof(buf1), "S\"%Z\"", n->val.sval);
+			snprint(buf1, sizeof(buf1), "S\"%Z\"", n->val.u.sval);
 			break;
 		case CTBOOL:
-			snprint(buf1, sizeof(buf1), "B%lld", n->val.vval);
+			snprint(buf1, sizeof(buf1), "B%lld", n->val.u.bval);
 			break;
 		case CTNIL:
 			snprint(buf1, sizeof(buf1), "N");
@@ -1118,7 +1119,6 @@ treecopy(Node *n)
 	case OLITERAL:
 		if(n->iota) {
 			m = literal(iota);
-			m->iota = 1;	// flag to reevaluate on copy
 			break;
 		}
 		m = nod(OXXX, N, N);
@@ -1528,8 +1528,9 @@ literal(int32 v)
 	Node *n;
 
 	n = nod(OLITERAL, N, N);
+	n->val.u.xval = mal(sizeof(*n->val.u.xval));
 	n->val.ctype = CTINT;
-	n->val.vval = v;
+	mpmovecfix(n->val.u.xval, v);
 	return n;
 }
 

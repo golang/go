@@ -13,7 +13,8 @@
 	int		lint;
 }
 %token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
-%token	<val>		LLITERAL LASOP
+%token	<val>		LLITERAL
+%token	<lint>		LASOP
 %token			LPACKAGE LIMPORT LEXPORT
 %token			LMAP LCHAN LINTERFACE LFUNC LSTRUCT
 %token			LCOLAS LFALL LRETURN
@@ -269,8 +270,8 @@ conexpr:
 	}
 |	'=' expr
 	{
-		$$ = $2;
-		lastconst = treecopy($$);
+		lastconst = $2;
+		$$ = treecopy(lastconst);
 		iota += 1;
 	}
 
@@ -314,7 +315,7 @@ noninc_stmt:
 |	expr LASOP expr
 	{
 		$$ = nod(OASOP, $1, $3);
-		$$->etype = $2.vval;	// rathole to pass opcode
+		$$->etype = $2;			// rathole to pass opcode
 	}
 |	expr_list '=' expr_list
 	{
@@ -687,7 +688,6 @@ pexpr:
 	{
 		$$ = nod(OLITERAL, N, N);
 		$$->val.ctype = CTNIL;
-		$$->val.vval = 0;
 	}
 |	LTRUE
 	{

@@ -23,7 +23,7 @@ convlit(Node *n, Type *t)
 		if(!isptr[et] && et != TINTER)
 			goto bad1;
 		if(isptrto(t, TSTRING)) {
-			n->val.sval = mal(8);
+			n->val.u.sval = mal(8);
 			n->val.ctype = CTSTR;
 		}
 		break;
@@ -44,29 +44,31 @@ convlit(Node *n, Type *t)
 			int l;
 			String *s;
 
-			rune = n->val.vval;
+			rune = mpgetfix(n->val.u.xval);
 			l = runelen(rune);
 			s = mal(sizeof(*s)+l);
 			s->len = l;
 			runetochar((char*)(s->s), &rune);
 
-			n->val.sval = s;
+			n->val.u.sval = s;
 			n->val.ctype = CTSTR;
 			break;
 		}
 		if(isint[et]) {
-			if(n->val.vval < minintval[et])
+			// int to int
+			if(mpcmpfixfix(n->val.u.xval, minintval[et]) < 0)
 				goto bad2;
-			if(n->val.vval > maxintval[et])
+			if(mpcmpfixfix(n->val.u.xval, maxintval[et]) > 0)
 				goto bad2;
 			break;
 		}
 		if(isfloat[et]) {
-			if(n->val.vval < minfloatval[et])
+			// int to float
+			if(mpcmpfltflt(n->val.u.fval, minfltval[et]) < 0)
 				goto bad2;
-			if(n->val.vval > maxfloatval[et])
+			if(mpcmpfltflt(n->val.u.fval, maxfltval[et]) > 0)
 				goto bad2;
-			n->val.dval = n->val.vval;
+			mpmovefixflt(n->val.u.fval, n->val.u.xval);
 			n->val.ctype = CTFLT;
 			break;
 		}
@@ -74,18 +76,20 @@ convlit(Node *n, Type *t)
 
 	case Wlitfloat:
 		if(isint[et]) {
-			if(n->val.dval < minintval[et])
+			// float to int
+			if(mpcmpfixfix(n->val.u.xval, minintval[et]) < 0)
 				goto bad2;
-			if(n->val.dval > maxintval[et])
+			if(mpcmpfixfix(n->val.u.xval, maxintval[et]) > 0)
 				goto bad2;
-			n->val.vval = n->val.dval;
+			mpmovefltfix(n->val.u.xval, n->val.u.fval);
 			n->val.ctype = CTINT;
 			break;
 		}
 		if(isfloat[et]) {
-			if(n->val.dval < minfloatval[et])
+			// float to float
+			if(mpcmpfltflt(n->val.u.fval, minfltval[et]) < 0)
 				goto bad2;
-			if(n->val.dval > maxfloatval[et])
+			if(mpcmpfltflt(n->val.u.fval, maxfltval[et]) > 0)
 				goto bad2;
 			break;
 		}
@@ -110,6 +114,8 @@ evconst(Node *n)
 	int32 len;
 	String *str;
 	int wl, wr;
+	Mpint *xval;
+	Mpflt *fval;
 
 	nl = n->left;
 	if(nl == N)
@@ -145,119 +151,134 @@ evconst(Node *n)
 
 	if(wl != wr) {
 		if(wl == Wlitfloat && wr == Wlitint) {
-			nr->val.dval = nr->val.vval;
+			xval = nr->val.u.xval;
+			nr->val.u.fval = mal(sizeof(*nr->val.u.fval));
+			mpmovefixflt(nr->val.u.fval, xval);
 			nr->val.ctype = CTFLT;
 			wr = whatis(nr);
 		} else
 		if(wl == Wlitint && wr == Wlitfloat) {
-			nl->val.dval = nl->val.vval;
+			xval = nl->val.u.xval;
+			nl->val.u.fval = mal(sizeof(*nl->val.u.fval));
+			mpmovefixflt(nl->val.u.fval, xval);
 			nl->val.ctype = CTFLT;
 			wl = whatis(nl);
 		} else {
-			yyerror("illegal combination of literals %d %d", nl->etype, nr->etype);
+			yyerror("illegal combination of literals %E %E", nl->etype, nr->etype);
 			return;
 		}
 	}
 
+	// dance to not modify left side
+	// this is because iota will reuse it
+	if(wl == Wlitint) {
+		xval = mal(sizeof(*xval));
+		mpmovefixfix(xval, nl->val.u.xval);
+	} else
+	if(wl == Wlitfloat) {
+		fval = mal(sizeof(*fval));
+		mpmovefltflt(fval, nl->val.u.fval);
+	}
+
 	switch(TUP(n->op, wl)) {
 	default:
-		yyerror("illegal combination of literals %O %d", n->op, wl);
+		yyerror("illegal combination of literals %O %E", n->op, nl->etype);
 		return;
 
 	case TUP(OADD, Wlitint):
-		nl->val.vval += nr->val.vval;
+		mpaddfixfix(xval, nr->val.u.xval);
 		break;
 	case TUP(OSUB, Wlitint):
-		nl->val.vval -= nr->val.vval;
+		mpsubfixfix(xval, nr->val.u.xval);
 		break;
 	case TUP(OMUL, Wlitint):
-		nl->val.vval *= nr->val.vval;
+		mpmulfixfix(xval, nr->val.u.xval);
 		break;
 	case TUP(ODIV, Wlitint):
-		nl->val.vval /= nr->val.vval;
+		mpdivfixfix(xval, nr->val.u.xval);
 		break;
 	case TUP(OMOD, Wlitint):
-		nl->val.vval %= nr->val.vval;
+		mpmodfixfix(xval, nr->val.u.xval);
 		break;
+
 	case TUP(OLSH, Wlitint):
-		nl->val.vval <<= nr->val.vval;
+		mplshfixfix(xval, nr->val.u.xval);
 		break;
 	case TUP(ORSH, Wlitint):
-		nl->val.vval >>= nr->val.vval;
+		mprshfixfix(xval, nr->val.u.xval);
 		break;
 	case TUP(OOR, Wlitint):
-		nl->val.vval |= nr->val.vval;
+		mporfixfix(xval, nr->val.u.xval);
 		break;
 	case TUP(OAND, Wlitint):
-		nl->val.vval &= nr->val.vval;
+		mpandfixfix(xval, nr->val.u.xval);
 		break;
 	case TUP(OXOR, Wlitint):
-		nl->val.vval ^= nr->val.vval;
+		mpxorfixfix(xval, nr->val.u.xval);
 		break;
 
 	case TUP(OADD, Wlitfloat):
-		nl->val.dval += nr->val.dval;
+		mpaddfltflt(fval, nr->val.u.fval);
 		break;
 	case TUP(OSUB, Wlitfloat):
-		nl->val.dval -= nr->val.dval;
+		mpsubfltflt(fval, nr->val.u.fval);
 		break;
 	case TUP(OMUL, Wlitfloat):
-		nl->val.dval *= nr->val.dval;
+		mpmulfltflt(fval, nr->val.u.fval);
 		break;
 	case TUP(ODIV, Wlitfloat):
-		nl->val.dval /= nr->val.dval;
+		mpdivfltflt(fval, nr->val.u.fval);
 		break;
 
 	case TUP(OEQ, Wlitint):
-		if(nl->val.vval == nr->val.vval)
+		if(mpcmpfixfix(xval, nr->val.u.xval) == 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(ONE, Wlitint):
-		if(nl->val.vval != nr->val.vval)
+		if(mpcmpfixfix(xval, nr->val.u.xval) != 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OLT, Wlitint):
-		if(nl->val.vval < nr->val.vval)
+		if(mpcmpfixfix(xval, nr->val.u.xval) < 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OLE, Wlitint):
-		if(nl->val.vval <= nr->val.vval)
+		if(mpcmpfixfix(xval, nr->val.u.xval) <= 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OGE, Wlitint):
-		if(nl->val.vval >= nr->val.vval)
+		if(mpcmpfixfix(xval, nr->val.u.xval) >= 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OGT, Wlitint):
-		if(nl->val.vval > nr->val.vval)
+		if(mpcmpfixfix(xval, nr->val.u.xval) > 0)
 			goto settrue;
 		goto setfalse;
 
 	case TUP(OEQ, Wlitfloat):
-		if(nl->val.dval == nr->val.dval)
+		if(mpcmpfltflt(fval, nr->val.u.fval) == 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(ONE, Wlitfloat):
-		if(nl->val.dval != nr->val.dval)
+		if(mpcmpfltflt(fval, nr->val.u.fval) != 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OLT, Wlitfloat):
-		if(nl->val.dval < nr->val.dval)
+		if(mpcmpfltflt(fval, nr->val.u.fval) < 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OLE, Wlitfloat):
-		if(nl->val.dval <= nr->val.dval)
+		if(mpcmpfltflt(fval, nr->val.u.fval) <= 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OGE, Wlitfloat):
-		if(nl->val.dval >= nr->val.dval)
+		if(mpcmpfltflt(fval, nr->val.u.fval) >= 0)
 			goto settrue;
 		goto setfalse;
 	case TUP(OGT, Wlitfloat):
-		if(nl->val.dval > nr->val.dval)
+		if(mpcmpfltflt(fval, nr->val.u.fval) > 0)
 			goto settrue;
 		goto setfalse;
-
 
 	case TUP(OEQ, Wlitstr):
 		if(cmpslit(nl, nr) == 0)
@@ -284,25 +305,33 @@ evconst(Node *n)
 			goto settrue;
 		goto setfalse;
 	case TUP(OADD, Wlitstr):
-		len = nl->val.sval->len + nr->val.sval->len;
+		len = nl->val.u.sval->len + nr->val.u.sval->len;
 		str = mal(sizeof(*str) + len);
 		str->len = len;
-		memcpy(str->s, nl->val.sval->s, nl->val.sval->len);
-		memcpy(str->s+nl->val.sval->len, nr->val.sval->s, nr->val.sval->len);
+		memcpy(str->s, nl->val.u.sval->s, nl->val.u.sval->len);
+		memcpy(str->s+nl->val.u.sval->len, nr->val.u.sval->s, nr->val.u.sval->len);
 		str->len = len;
-		nl->val.sval = str;
+		nl->val.u.sval = str;
 		break;
 
 	case TUP(OOROR, Wlitbool):
-		if(nl->val.vval || nr->val.vval)
+		if(nl->val.u.bval || nr->val.u.bval)
 			goto settrue;
 		goto setfalse;
 	case TUP(OANDAND, Wlitbool):
-		if(nl->val.vval && nr->val.vval)
+		if(nl->val.u.bval && nr->val.u.bval)
 			goto settrue;
 		goto setfalse;
 	}
 	*n = *nl;
+
+	// second half of dance
+	if(wl == Wlitint) {
+		n->val.u.xval = xval;
+	} else
+	if(wl == Wlitfloat) {
+		n->val.u.fval = fval;
+	}
 	return;
 
 settrue:
@@ -320,24 +349,22 @@ unary:
 		return;
 
 	case TUP(OPLUS, Wlitint):
-		nl->val.vval = +nl->val.vval;
 		break;
 	case TUP(OMINUS, Wlitint):
-		nl->val.vval = -nl->val.vval;
+		mpnegfix(nl->val.u.xval);
 		break;
 	case TUP(OCOM, Wlitint):
-		nl->val.vval = ~nl->val.vval;
+		mpcomfix(nl->val.u.xval);
 		break;
 
 	case TUP(OPLUS, Wlitfloat):
-		nl->val.dval = +nl->val.dval;
 		break;
 	case TUP(OMINUS, Wlitfloat):
-		nl->val.dval = -nl->val.dval;
+		mpnegflt(nl->val.u.fval);
 		break;
 
 	case TUP(ONOT, Wlitbool):
-		if(nl->val.vval)
+		if(nl->val.u.bval)
 			goto settrue;
 		goto setfalse;
 	}
@@ -381,10 +408,10 @@ cmpslit(Node *l, Node *r)
 	int32 l1, l2, i, m;
 	char *s1, *s2;
 
-	l1 = l->val.sval->len;
-	l2 = r->val.sval->len;
-	s1 = l->val.sval->s;
-	s2 = r->val.sval->s;
+	l1 = l->val.u.sval->len;
+	l2 = r->val.u.sval->len;
+	s1 = l->val.u.sval->s;
+	s2 = r->val.u.sval->s;
 
 	m = l1;
 	if(l2 < m)

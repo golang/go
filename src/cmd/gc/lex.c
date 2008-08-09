@@ -207,11 +207,11 @@ importfile(Val *f)
 		return;
 	}
 
-	if(!findpkg(f->sval))
-		fatal("can't find import: %Z", f->sval);
+	if(!findpkg(f->u.sval))
+		fatal("can't find import: %Z", f->u.sval);
 	imp = Bopen(namebuf, OREAD);
 	if(imp == nil)
-		fatal("can't open import: %Z", f->sval);
+		fatal("can't open import: %Z", f->u.sval);
 	file = strdup(namebuf);
 
 	len = strlen(namebuf);
@@ -245,7 +245,7 @@ importfile(Val *f)
 			continue;
 		return;
 	}
-	yyerror("no import in: %Z", f->sval);
+	yyerror("no import in: %Z", f->u.sval);
 	unimportfile();
 }
 
@@ -390,7 +390,7 @@ l0:
 			cp = remal(cp, c1, 1);
 			cp[c1++] = 0;
 		} while(c1 & MAXALIGN);
-		yylval.val.sval = (String*)cp;
+		yylval.val.u.sval = (String*)cp;
 		yylval.val.ctype = CTSTR;
 		DBG("lex: string literal\n");
 		return LLITERAL;
@@ -403,7 +403,8 @@ l0:
 			yyerror("missing '");
 			ungetc(v);
 		}
-		yylval.val.vval = v;
+		yylval.val.u.xval = mal(sizeof(*yylval.val.u.xval));
+		mpmovecfix(yylval.val.u.xval, v);
 		yylval.val.ctype = CTINT;
 		DBG("lex: codepoint literal\n");
 		return LLITERAL;
@@ -594,7 +595,7 @@ lx:
 	return c;
 
 asop:
-	yylval.val.vval = c;	// rathole to hold which asop
+	yylval.lint = c;	// rathole to hold which asop
 	DBG("lex: TOKEN ASOP %c\n", c);
 	return LASOP;
 
@@ -695,9 +696,12 @@ dc:
 ncu:
 	*cp = 0;
 	ungetc(c);
-	if(mpatov(namebuf, &yylval.val.vval)) {
+
+	yylval.val.u.xval = mal(sizeof(*yylval.val.u.xval));
+	mpatofix(yylval.val.u.xval, namebuf);
+	if(yylval.val.u.xval->ovf) {
 		yyerror("overflow in constant");
-		yylval.val.vval = 0;
+		mpmovecfix(yylval.val.u.xval, 0);
 	}
 	yylval.val.ctype = CTINT;
 	DBG("lex: integer literal\n");
@@ -730,9 +734,12 @@ casee:
 caseout:
 	*cp = 0;
 	ungetc(c);
-	if(mpatof(namebuf, &yylval.val.dval)) {
+
+	yylval.val.u.fval = mal(sizeof(*yylval.val.u.fval));
+	mpatoflt(yylval.val.u.fval, namebuf);
+	if(yylval.val.u.fval->ovf) {
 		yyerror("overflow in float constant");
-		yylval.val.dval = 0;
+		mpmovecflt(yylval.val.u.fval, 0.0);
 	}
 	yylval.val.ctype = CTFLT;
 	DBG("lex: floating literal\n");
@@ -1040,11 +1047,15 @@ lexinit(void)
 			okforadd[i] = 1;
 			okforand[i] = 1;
 			issimple[i] = 1;
+			minintval[i] = mal(sizeof(*minintval[i]));
+			maxintval[i] = mal(sizeof(*maxintval[i]));
 		}
 		if(isfloat[i]) {
 			okforeq[i] = 1;
 			okforadd[i] = 1;
 			issimple[i] = 1;
+			minfltval[i] = mal(sizeof(*minfltval[i]));
+			maxfltval[i] = mal(sizeof(*maxfltval[i]));
 		}
 		switch(i) {
 		case TBOOL:
@@ -1055,35 +1066,27 @@ lexinit(void)
 			okforeq[i] = 1;
 			break;
 		}
-		minfloatval[i] = 0.0;
-		maxfloatval[i] = 0.0;
-		minintval[i] = 0;
-		maxintval[i] = 0;
 	}
 
-// this stuff smells - really need to do constants
-// in multi precision arithmetic
+	mpatofix(maxintval[TINT8], "0x7f");
+	mpatofix(minintval[TINT8], "-0x80");
+	mpatofix(maxintval[TINT16], "0x7fff");
+	mpatofix(minintval[TINT16], "-0x8000");
+	mpatofix(maxintval[TINT32], "0x7fffffff");
+	mpatofix(minintval[TINT32], "-0x80000000");
+	mpatofix(maxintval[TINT64], "0x7fffffffffffffff");
+	mpatofix(minintval[TINT64], "-0x8000000000000000");
+	mpatofix(maxintval[TUINT8], "0xff");
+	mpatofix(maxintval[TUINT16], "0xffff");
+	mpatofix(maxintval[TUINT32], "0xffffffff");
+	mpatofix(maxintval[TUINT64], "0x7fffffffffffffff");
+	mpatofix(minintval[TUINT64], "-0x8000000000000000");
 
-	maxintval[TINT8] = 0x7f;
-	minintval[TINT8] = -maxintval[TINT8]-1;
-	maxintval[TINT16] = 0x7fff;
-	minintval[TINT16] = -maxintval[TINT16]-1;
-	maxintval[TINT32] = 0x7fffffffL;
-	minintval[TINT32] = -maxintval[TINT32]-1;
-	maxintval[TINT64] = 0x7fffffffffffffffLL;
-	minintval[TINT64] = -maxintval[TINT64]-1;
-	maxintval[TUINT8] = 0xff;
-	maxintval[TUINT16] = 0xffff;
-	maxintval[TUINT32] = 0xffffffffL;
+	mpatoflt(maxfltval[TFLOAT32], "3.40282347e+38");
+	mpatoflt(minfltval[TFLOAT32], "-3.40282347e+38");
+	mpatoflt(maxfltval[TFLOAT64], "1.7976931348623157e+308");
+	mpatoflt(minfltval[TFLOAT64], "-1.7976931348623157e+308");
 
-	/* special case until we got to multiple precision */
-	maxintval[TUINT64] = 0x7fffffffffffffffLL;
-	minintval[TUINT64] = -maxintval[TUINT64]-1;
-
-	maxfloatval[TFLOAT32] = 3.40282347e+38;
-	minfloatval[TFLOAT32] = -maxfloatval[TFLOAT32];
-	maxfloatval[TFLOAT64] = 1.7976931348623157e+308;
-	minfloatval[TFLOAT64] = -maxfloatval[TFLOAT64]-1;
 
 	/*
 	 * initialize basic types array
@@ -1126,14 +1129,14 @@ lexinit(void)
 	belexinit(LBASETYPE);
 
 	booltrue = nod(OLITERAL, N, N);
+	booltrue->val.u.bval = 1;
 	booltrue->val.ctype = CTBOOL;
-	booltrue->val.vval = 1;
 	booltrue->type = types[TBOOL];
 	booltrue->addable = 1;
 
 	boolfalse = nod(OLITERAL, N, N);
+	boolfalse->val.u.bval = 0;
 	boolfalse->val.ctype = CTBOOL;
-	boolfalse->val.vval = 0;
 	boolfalse->type = types[TBOOL];
 	boolfalse->addable = 1;
 }

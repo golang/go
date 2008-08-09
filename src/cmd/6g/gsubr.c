@@ -151,7 +151,7 @@ regalloc(Node *n, Type *t, Node *o)
 	case TPTR64:
 	case TBOOL:
 		if(o != N && o->op == OREGISTER) {
-			i = o->val.vval;
+			i = o->val.u.reg;
 			if(i >= D_AX && i <= D_R15)
 				goto out;
 		}
@@ -166,7 +166,7 @@ regalloc(Node *n, Type *t, Node *o)
 	case TFLOAT64:
 	case TFLOAT80:
 		if(o != N && o->op == OREGISTER) {
-			i = o->val.vval;
+			i = o->val.u.reg;
 			if(i >= D_X0 && i <= D_X7)
 				goto out;
 		}
@@ -194,7 +194,7 @@ regfree(Node *n)
 
 	if(n->op != OREGISTER && n->op != OINDREG)
 		fatal("regfree: not a register");
-	i = n->val.vval;
+	i = n->val.u.reg;
 	if(i < 0 || i >= sizeof(reg))
 		fatal("regfree: reg out of range");
 	if(reg[i] <= 0)
@@ -220,7 +220,7 @@ nodreg(Node *n, Type *t, int r)
 	n->op = OREGISTER;
 	n->addable = 1;
 	ullmancalc(n);
-	n->val.vval = r;
+	n->val.u.reg = r;
 	n->type = t;
 }
 
@@ -248,7 +248,7 @@ nodarg(Type *t, int fp)
 	switch(fp) {
 	case 0:		// output arg
 		n->op = OINDREG;
-		n->val.vval = D_SP;
+		n->val.u.reg = D_SP;
 		break;
 
 	case 1:		// input arg
@@ -258,7 +258,7 @@ nodarg(Type *t, int fp)
 	case 2:		// offset output arg
 fatal("shpuldnt be used");
 		n->op = OINDREG;
-		n->val.vval = D_SP;
+		n->val.u.reg = D_SP;
 		n->xoffset += types[tptr]->width;
 		break;
 	}
@@ -272,7 +272,8 @@ nodconst(Node *n, Type *t, vlong v)
 	n->op = OLITERAL;
 	n->addable = 1;
 	ullmancalc(n);
-	n->val.vval = v;
+	n->val.u.xval = mal(sizeof(*n->val.u.xval));
+	mpmovecfix(n->val.u.xval, v);
 	n->val.ctype = CTINT;
 	n->type = t;
 
@@ -373,7 +374,7 @@ gmove(Node *f, Node *t)
 			f->op, ft, t->op, tt);
 	if(isfloat[ft] && f->op == OCONST) {
 		/* TO DO: pick up special constants, possibly preloaded */
-		if(f->val.dval == 0.0){
+		if(mpgetflt(f->val.u.fval) == 0.0) {
 			regalloc(&nod, t->type, t);
 			gins(AXORPD, &nod, &nod);
 			gmove(&nod, t);
@@ -582,22 +583,22 @@ gmove(Node *f, Node *t)
 	case CASE(TINT32, TINT64):
 	case CASE(TINT32, TPTR64):
 		a = AMOVLQSX;
-		if(f->op == OCONST) {
-			f->val.vval &= (uvlong)0xffffffffU;
-			if(f->val.vval & 0x80000000)
-				f->val.vval |= (vlong)0xffffffff << 32;
-			a = AMOVQ;
-		}
+//		if(f->op == OCONST) {
+//			f->val.vval &= (uvlong)0xffffffffU;
+//			if(f->val.vval & 0x80000000)
+//				f->val.vval |= (vlong)0xffffffff << 32;
+//			a = AMOVQ;
+//		}
 		break;
 
 	case CASE(TUINT32, TINT64):
 	case CASE(TUINT32, TUINT64):
 	case CASE(TUINT32, TPTR64):
 		a = AMOVL;	/* same effect as AMOVLQZX */
-		if(f->op == OCONST) {
-			f->val.vval &= (uvlong)0xffffffffU;
-			a = AMOVQ;
-		}
+//		if(f->op == OCONST) {
+//			f->val.vval &= (uvlong)0xffffffffU;
+//			a = AMOVQ;
+//		}
 		break;
 
 	case CASE(TPTR64, TINT64):
@@ -615,45 +616,45 @@ gmove(Node *f, Node *t)
 	case CASE(TINT16, TINT32):
 	case CASE(TINT16, TUINT32):
 		a = AMOVWLSX;
-		if(f->op == OCONST) {
-			f->val.vval &= 0xffff;
-			if(f->val.vval & 0x8000)
-				f->val.vval |= 0xffff0000;
-			a = AMOVL;
-		}
+//		if(f->op == OCONST) {
+//			f->val.vval &= 0xffff;
+//			if(f->val.vval & 0x8000)
+//				f->val.vval |= 0xffff0000;
+//			a = AMOVL;
+//		}
 		break;
 
 	case CASE(TINT16, TINT64):
 	case CASE(TINT16, TUINT64):
 	case CASE(TINT16, TPTR64):
 		a = AMOVWQSX;
-		if(f->op == OCONST) {
-			f->val.vval &= 0xffff;
-			if(f->val.vval & 0x8000){
-				f->val.vval |= 0xffff0000;
-				f->val.vval |= (vlong)~0 << 32;
-			}
-			a = AMOVL;
-		}
+//		if(f->op == OCONST) {
+//			f->val.vval &= 0xffff;
+//			if(f->val.vval & 0x8000){
+//				f->val.vval |= 0xffff0000;
+//				f->val.vval |= (vlong)~0 << 32;
+//			}
+//			a = AMOVL;
+//		}
 		break;
 
 	case CASE(TUINT16, TINT32):
 	case CASE(TUINT16, TUINT32):
 		a = AMOVWLZX;
-		if(f->op == OCONST) {
-			f->val.vval &= 0xffff;
-			a = AMOVL;
-		}
+//		if(f->op == OCONST) {
+//			f->val.vval &= 0xffff;
+//			a = AMOVL;
+//		}
 		break;
 
 	case CASE(TUINT16, TINT64):
 	case CASE(TUINT16, TUINT64):
 	case CASE(TUINT16, TPTR64):
 		a = AMOVWQZX;
-		if(f->op == OCONST) {
-			f->val.vval &= 0xffff;
-			a = AMOVL;	/* MOVL also zero-extends to 64 bits */
-		}
+//		if(f->op == OCONST) {
+//			f->val.vval &= 0xffff;
+//			a = AMOVL;	/* MOVL also zero-extends to 64 bits */
+//		}
 		break;
 
 	case CASE(TINT8, TINT16):
@@ -661,26 +662,26 @@ gmove(Node *f, Node *t)
 	case CASE(TINT8, TINT32):
 	case CASE(TINT8, TUINT32):
 		a = AMOVBLSX;
-		if(f->op == OCONST) {
-			f->val.vval &= 0xff;
-			if(f->val.vval & 0x80)
-				f->val.vval |= 0xffffff00;
-			a = AMOVL;
-		}
+//		if(f->op == OCONST) {
+//			f->val.vval &= 0xff;
+//			if(f->val.vval & 0x80)
+//				f->val.vval |= 0xffffff00;
+//			a = AMOVL;
+//		}
 		break;
 
 	case CASE(TINT8, TINT64):
 	case CASE(TINT8, TUINT64):
 	case CASE(TINT8, TPTR64):
 		a = AMOVBQSX;
-		if(f->op == OCONST) {
-			f->val.vval &= 0xff;
-			if(f->val.vval & 0x80){
-				f->val.vval |= 0xffffff00;
-				f->val.vval |= (vlong)~0 << 32;
-			}
-			a = AMOVQ;
-		}
+//		if(f->op == OCONST) {
+//			f->val.vval &= 0xff;
+//			if(f->val.vval & 0x80){
+//				f->val.vval |= 0xffffff00;
+//				f->val.vval |= (vlong)~0 << 32;
+//			}
+//			a = AMOVQ;
+//		}
 		break;
 
 	case CASE(TBOOL, TINT16):
@@ -692,10 +693,10 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT8, TINT32):
 	case CASE(TUINT8, TUINT32):
 		a = AMOVBLZX;
-		if(f->op == OCONST) {
-			f->val.vval &= 0xff;
-			a = AMOVL;
-		}
+//		if(f->op == OCONST) {
+//			f->val.vval &= 0xff;
+//			a = AMOVL;
+//		}
 		break;
 
 	case CASE(TBOOL, TINT64):
@@ -705,10 +706,10 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT8, TUINT64):
 	case CASE(TUINT8, TPTR64):
 		a = AMOVBQZX;
-		if(f->op == OCONST) {
-			f->val.vval &= 0xff;
-			a = AMOVL;	/* zero-extends to 64-bits */
-		}
+//		if(f->op == OCONST) {
+//			f->val.vval &= 0xff;
+//			a = AMOVL;	/* zero-extends to 64-bits */
+//		}
 		break;
 
 /*
@@ -961,7 +962,7 @@ samaddr(Node *f, Node *t)
 
 	switch(f->op) {
 	case OREGISTER:
-		if(f->val.vval != t->val.vval)
+		if(f->val.u.reg != t->val.u.reg)
 			break;
 		return 1;
 	}
@@ -1016,7 +1017,7 @@ naddr(Node *n, Addr *a)
 		break;
 
 	case OREGISTER:
-		a->type = n->val.vval;
+		a->type = n->val.u.reg;
 		a->sym = S;
 		break;
 
@@ -1041,7 +1042,7 @@ naddr(Node *n, Addr *a)
 //		break;
 
 	case OINDREG:
-		a->type = n->val.vval+D_INDIR;
+		a->type = n->val.u.reg+D_INDIR;
 		a->sym = n->sym;
 		a->offset = n->xoffset;
 		break;
@@ -1078,12 +1079,22 @@ naddr(Node *n, Addr *a)
 		break;
 
 	case OLITERAL:
-		if(isfloat[n->type->etype]) {
-			a->type = D_FCONST;
-			a->dval = n->val.dval;
+		switch(n->val.ctype) {
+		default:
+			fatal("naddr: const %lT", n->type);
 			break;
-		}
-		if(isptrto(n->type, TSTRING)) {
+		case CTFLT:
+			a->type = D_FCONST;
+			a->dval = mpgetflt(n->val.u.fval);
+			break;
+		case CTINT:
+		case CTSINT:
+		case CTUINT:
+			a->sym = S;
+			a->type = D_CONST;
+			a->offset = mpgetfix(n->val.u.xval);
+			break;
+		case CTSTR:
 			a->etype = n->etype;
 			a->sym = symstringo;
 			a->type = D_ADDR;
@@ -1091,16 +1102,17 @@ naddr(Node *n, Addr *a)
 			a->offset = symstringo->offset;
 			stringpool(n);
 			break;
-		}
-		if(isint[n->type->etype] ||
-		   isptr[n->type->etype] ||
-		   n->type->etype == TBOOL) {
+		case CTBOOL:
 			a->sym = S;
 			a->type = D_CONST;
-			a->offset = n->val.vval;
+			a->offset = n->val.u.bval;
+			break;
+		case CTNIL:
+			a->sym = S;
+			a->type = D_CONST;
+			a->offset = 0;
 			break;
 		}
-		fatal("naddr: const %lT", n->type);
 		break;
 
 	case OADDR:
@@ -1699,7 +1711,7 @@ stringpool(Node *n)
 
 	p = mal(sizeof(*p));
 
-	p->sval = n->val.sval;
+	p->sval = n->val.u.sval;
 	p->link = nil;
 
 	if(poolist == nil)
