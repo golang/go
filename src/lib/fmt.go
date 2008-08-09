@@ -11,15 +11,13 @@ package fmt
 	f.ud(^0).putnl();  // print string with automatic newline
 */
 
-// import sys "sys"
-
-//export Fmt, New;
+// export Fmt, New;
 
 const NByte = 64;
 const NPows10 = 160;
 
-var ldigits string = "0123456789abcdef";  // BUG: Should be const
-var udigits string = "0123456789ABCDEF";  // BUG: Should be const
+var ldigits string = "0123456789abcdef"  // var not const because we take its address
+var udigits string = "0123456789ABCDEF"
 var pows10 [NPows10] double;
 
 func init() {
@@ -355,7 +353,7 @@ func unpack(a double) (negative bool, exp int, num double) {
 	// find g,e such that a = g*10^e.
 	// guess 10-exponent using 2-exponent, then fine tune.
 	g, e2 := sys.frexp(a);
-	e := int(e2 * .301029995663981);
+	e := int(double(e2) * .301029995663981);
 	g = a * pow10(-e);
 	for g < 1 {
 		e--;
