@@ -458,7 +458,13 @@ loop:
 		if(top != Etop)
 			goto nottop;
 		walktype(n->left, Elv);
-		goto com;
+		l = n->left;
+		if(l->op != OINDEX)
+			goto com;
+		if(!isptrto(l->left->type, TMAP))
+			goto com;
+		*n = *mapop(n, top);
+		goto loop;
 
 	case OLSH:
 	case ORSH:
@@ -1875,6 +1881,21 @@ mapop(Node *n, int top)
 		r = n;
 		break;
 
+	case OASOP:
+		// rewrite map[index] op= right
+		// into tmpi := index; map[tmpi] = map[tmpi] op right
+
+		t = n->left->left->type->type;
+		a = nod(OXXX, N, N);
+		tempname(a, t->down);			// tmpi
+		r = nod(OAS, a, n->left->right);	// tmpi := index
+		n->left->right = a;			// m[tmpi]
+
+		a = nod(OXXX, N, N);
+		*a = *n->left;				// copy of map[tmpi]
+		a = nod(n->etype, a, n->right);		// m[tmpi] op right
+		a = nod(OAS, n->left, a);		// map[tmpi] = map[tmpi] op right
+		r = nod(OLIST, r, a);
 	}
 	return r;
 
