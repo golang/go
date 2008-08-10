@@ -101,8 +101,17 @@ cgen(Node *n, Node *res)
 		goto ret;
 
 	// unary
-	case OMINUS:
 	case OCOM:
+		a = optoas(OXOR, nl->type);
+		regalloc(&n1, nl->type, N);
+		cgen(nl, &n1);
+		nodconst(&n2, nl->type, -1);
+		gins(a, &n2, &n1);
+		gmove(&n1, res);
+		regfree(&n1);
+		goto ret;
+
+	case OMINUS:
 		a = optoas(n->op, nl->type);
 		goto uop;
 
