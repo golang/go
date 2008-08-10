@@ -216,18 +216,26 @@ methcmp(Type *t1, Type *t2)
 Node*
 methodname(Node *n, Type *t)
 {
+	Sym *s;
+
+	s = S;
+	if(t->sym != S)
+		s = t->sym;
 	if(isptr[t->etype])
 		t = t->type;
-	if(t->etype != TSTRUCT)
-		goto bad;
-	if(t->sym == S)
-		goto bad;
+	if(t->sym != S)
+		s = t->sym;
 
-	snprint(namebuf, sizeof(namebuf), "%s_%s", t->sym->name, n->sym->name);
+//	if(t->etype != TSTRUCT)
+//		goto bad;
+
+	if(s == S)
+		goto bad;
+	snprint(namebuf, sizeof(namebuf), "%s_%s", s->name, n->sym->name);
 	return newname(lookup(namebuf));
 
 bad:
-	yyerror("illegal <this> pointer");
+	yyerror("illegal <this> pointer: %T", t);
 	return n;
 }
 
