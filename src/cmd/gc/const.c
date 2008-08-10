@@ -323,16 +323,7 @@ evconst(Node *n)
 			goto settrue;
 		goto setfalse;
 	}
-	*n = *nl;
-
-	// second half of dance
-	if(wl == Wlitint) {
-		n->val.u.xval = xval;
-	} else
-	if(wl == Wlitfloat) {
-		n->val.u.fval = fval;
-	}
-	return;
+	goto ret;
 
 settrue:
 	*n = *booltrue;
@@ -343,6 +334,15 @@ setfalse:
 	return;
 
 unary:
+	if(wl == Wlitint) {
+		xval = mal(sizeof(*xval));
+		mpmovefixfix(xval, nl->val.u.xval);
+	} else
+	if(wl == Wlitfloat) {
+		fval = mal(sizeof(*fval));
+		mpmovefltflt(fval, nl->val.u.fval);
+	}
+
 	switch(TUP(n->op, wl)) {
 	default:
 		yyerror("illegal combination of literals %O %d", n->op, wl);
@@ -351,16 +351,16 @@ unary:
 	case TUP(OPLUS, Wlitint):
 		break;
 	case TUP(OMINUS, Wlitint):
-		mpnegfix(nl->val.u.xval);
+		mpnegfix(xval);
 		break;
 	case TUP(OCOM, Wlitint):
-		mpcomfix(nl->val.u.xval);
+		mpcomfix(xval);
 		break;
 
 	case TUP(OPLUS, Wlitfloat):
 		break;
 	case TUP(OMINUS, Wlitfloat):
-		mpnegflt(nl->val.u.fval);
+		mpnegflt(fval);
 		break;
 
 	case TUP(ONOT, Wlitbool):
@@ -368,7 +368,17 @@ unary:
 			goto settrue;
 		goto setfalse;
 	}
+
+ret:
 	*n = *nl;
+
+	// second half of dance
+	if(wl == Wlitint) {
+		n->val.u.xval = xval;
+	} else
+	if(wl == Wlitfloat) {
+		n->val.u.fval = fval;
+	}
 }
 
 void

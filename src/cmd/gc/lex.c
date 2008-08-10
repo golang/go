@@ -1076,11 +1076,11 @@ lexinit(void)
 	mpatofix(minintval[TINT32], "-0x80000000");
 	mpatofix(maxintval[TINT64], "0x7fffffffffffffff");
 	mpatofix(minintval[TINT64], "-0x8000000000000000");
+
 	mpatofix(maxintval[TUINT8], "0xff");
 	mpatofix(maxintval[TUINT16], "0xffff");
 	mpatofix(maxintval[TUINT32], "0xffffffff");
-	mpatofix(maxintval[TUINT64], "0x7fffffffffffffff");
-	mpatofix(minintval[TUINT64], "-0x8000000000000000");
+	mpatofix(maxintval[TUINT64], "0xffffffffffffffff");
 
 	mpatoflt(maxfltval[TFLOAT32], "3.40282347e+38");
 	mpatoflt(minfltval[TFLOAT32], "-3.40282347e+38");
