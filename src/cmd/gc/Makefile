@@ -22,7 +22,9 @@ OFILES=\
 	export.$O\
 	walk.$O\
 	const.$O\
-	mparith.$O\
+	mparith1.$O\
+	mparith2.$O\
+	mparith3.$O\
 	sysimport.$O\
 	compat.$O\
 

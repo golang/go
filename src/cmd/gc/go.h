@@ -78,8 +78,6 @@ typedef	struct	Mpflt	Mpflt;
 struct	Mpflt
 {
 	double	val;
-	long	a[Mpprec];
-	uchar	neg;
 	uchar	ovf;
 };
 
@@ -471,46 +469,54 @@ void	ungetc(int);
 void	mkpackage(char*);
 
 /*
- *	mparith.c
+ *	mparith1.c
  */
-void	mpmovefixfix(Mpint *a, Mpint *b);
-void	mpmovefixflt(Mpflt *a, Mpint *b);
-void	mpmovefltfix(Mpint *a, Mpflt *b);
-void	mpmovefltflt(Mpflt *a, Mpflt *b);
-void	mpmovecfix(Mpint *a, vlong v);
-void	mpmovecflt(Mpflt *a, double f);
-
 int	mpcmpfixfix(Mpint *a, Mpint *b);
-int	mpcmpfltflt(Mpflt *a, Mpflt *b);
 int	mpcmpfixc(Mpint *b, vlong c);
-int	mpcmpfltc(Mpint *b, double c);
-int	mptestfixfix(Mpint *a);
-int	mptestfltflt(Mpflt *a);
-
-void	mpaddfixfix(Mpint *a, Mpint *b);
-void	mpaddfltflt(Mpflt *a, Mpflt *b);
+int	mpcmpfltflt(Mpflt *a, Mpflt *b);
+int	mpcmpfltc(Mpflt *b, double c);
 void	mpsubfixfix(Mpint *a, Mpint *b);
 void	mpsubfltflt(Mpflt *a, Mpflt *b);
-void	mpmulfixfix(Mpint *a, Mpint *b);
-void	mpmulfltflt(Mpflt *a, Mpflt *b);
+void	mpaddcfix(Mpint *a, vlong c);
+void	mpaddcflt(Mpflt *a, double c);
+void	mpmulcfix(Mpint *a, vlong c);
+void	mpmulcflt(Mpflt *a, double c);
 void	mpdivfixfix(Mpint *a, Mpint *b);
-void	mpdivfltflt(Mpflt *a, Mpflt *b);
-void	mpnegfix(Mpint *a);
-void	mpnegflt(Mpflt *a);
+void	mpmodfixfix(Mpint *a, Mpint *b);
+void	mpatofix(Mpint *a, char *s);
+void	mpatoflt(Mpflt *a, char *s);
+void	mpmovefltfix(Mpint *a, Mpflt *b);
+void	mpmovefixflt(Mpflt *a, Mpint *b);
 
+/*
+ *	mparith2.c
+ */
+void	mpmovefixfix(Mpint *a, Mpint *b);
+void	mpmovecfix(Mpint *a, vlong v);
+int	mptestfix(Mpint *a);
+void	mpaddfixfix(Mpint *a, Mpint *b);
+void	mpmulfixfix(Mpint *a, Mpint *b);
+void	mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d);
+void	mpnegfix(Mpint *a);
 void	mpandfixfix(Mpint *a, Mpint *b);
 void	mplshfixfix(Mpint *a, Mpint *b);
-void	mpmodfixfix(Mpint *a, Mpint *b);
 void	mporfixfix(Mpint *a, Mpint *b);
 void	mprshfixfix(Mpint *a, Mpint *b);
 void	mpxorfixfix(Mpint *a, Mpint *b);
 void	mpcomfix(Mpint *a);
-
-double	mpgetflt(Mpflt *a);
 vlong	mpgetfix(Mpint *a);
 
-void	mpatofix(Mpint *a, char *s);
-void	mpatoflt(Mpflt *a, char *s);
+/*
+ *	mparith3.c
+ */
+void	mpmovefltflt(Mpflt *a, Mpflt *b);
+void	mpmovecflt(Mpflt *a, double f);
+int	mptestflt(Mpflt *a);
+void	mpaddfltflt(Mpflt *a, Mpflt *b);
+void	mpmulfltflt(Mpflt *a, Mpflt *b);
+void	mpdivfltflt(Mpflt *a, Mpflt *b);
+void	mpnegflt(Mpflt *a);
+double	mpgetflt(Mpflt *a);
 
 /*
  *	subr.c
