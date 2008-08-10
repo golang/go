@@ -1,17 +1,19 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 #include "go.h"
 
+/// uses arihmetic
+
 int
 mpcmpfixfix(Mpint *a, Mpint *b)
 {
-	if(a->val > b->val)
-		return +1;
-	if(a->val < b->val)
-		return -1;
-	return 0;
+	Mpint c;
+
+	mpmovefixfix(&c, a);
+	mpsubfixfix(&c, b);
+	return mptestfix(&c);
 }
 
 int
@@ -26,188 +28,36 @@ mpcmpfixc(Mpint *b, vlong c)
 int
 mpcmpfltflt(Mpflt *a, Mpflt *b)
 {
-	if(a->val > b->val)
-		return +1;
-	if(a->val < b->val)
-		return -1;
-	return 0;
+	Mpflt c;
+
+	mpmovefltflt(&c, a);
+	mpsubfltflt(&c, b);
+	return mptestflt(&c);
 }
 
 int
-mpcmpfltc(Mpint *b, double c)
+mpcmpfltc(Mpflt *b, double c)
 {
-	Mpint a;
+	Mpflt a;
 
 	mpmovecflt(&a, c);
 	return mpcmpfltflt(&a, b);
 }
 
 void
-mpaddfixfix(Mpint *a, Mpint *b)
-{
-	a->val += b->val;
-}
-
-void
 mpsubfixfix(Mpint *a, Mpint *b)
 {
-	a->val -= b->val;
-}
-
-void
-mpmulfixfix(Mpint *a, Mpint *b)
-{
-	a->val *= b->val;
-}
-
-void
-mpdivfixfix(Mpint *a, Mpint *b)
-{
-	a->val /= b->val;
-}
-
-void
-mpmodfixfix(Mpint *a, Mpint *b)
-{
-	a->val %= b->val;
-}
-
-void
-mporfixfix(Mpint *a, Mpint *b)
-{
-	a->val |= b->val;
-}
-
-void
-mpandfixfix(Mpint *a, Mpint *b)
-{
-	a->val &= b->val;
-}
-
-void
-mpxorfixfix(Mpint *a, Mpint *b)
-{
-	a->val ^= b->val;
-}
-
-void
-mplshfixfix(Mpint *a, Mpint *b)
-{
-	a->val <<= b->val;
-}
-
-void
-mprshfixfix(Mpint *a, Mpint *b)
-{
-	a->val >>= b->val;
-}
-
-void
-mpnegfix(Mpint *a)
-{
-	a->val = -a->val;
-}
-
-void
-mpcomfix(Mpint *a)
-{
-	a->val = ~a->val;
-}
-
-void
-mpaddfltflt(Mpflt *a, Mpflt *b)
-{
-	a->val += b->val;
+	mpnegfix(b);
+	mpaddfixfix(a, b);
+	mpnegfix(b);
 }
 
 void
 mpsubfltflt(Mpflt *a, Mpflt *b)
 {
-	a->val -= b->val;
-}
-
-void
-mpmulfltflt(Mpflt *a, Mpflt *b)
-{
-	a->val *= b->val;
-}
-
-void
-mpdivfltflt(Mpflt *a, Mpflt *b)
-{
-	a->val /= b->val;
-}
-
-vlong
-mpgetfix(Mpint *a)
-{
-	return a->val;
-}
-
-double
-mpgetflt(Mpflt *a)
-{
-	return a->val;
-}
-
-void
-mpmovefixfix(Mpint *a, Mpint *b)
-{
-	*a = *b;
-}
-
-void
-mpmovefltflt(Mpflt *a, Mpflt *b)
-{
-	*a = *b;
-}
-
-void
-mpmovefixflt(Mpflt *a, Mpint *b)
-{
-	a->val = b->val;
-}
-
-void
-mpmovecfix(Mpint *a, vlong c)
-{
-	a->val = c;
-}
-
-void
-mpmovecflt(Mpflt *a, double c)
-{
-	a->val = c;
-}
-
-void
-mpmovefltfix(Mpint *a, Mpflt *b)
-{
-	a->val = b->val;
-}
-
-void
-mpnegflt(Mpflt *a)
-{
-	a->val = -a->val;
-}
-
-void
-mpaddcflt(Mpflt *a, double c)
-{
-	Mpflt b;
-
-	mpmovecflt(&b, c);
-	mpaddfltflt(a, &b);
-}
-
-void
-mpmulcflt(Mpflt *a, double c)
-{
-	Mpflt b;
-
-	mpmovecflt(&b, c);
-	mpmulfltflt(a, &b);
+	mpnegflt(b);
+	mpaddfltflt(a, b);
+	mpnegflt(b);
 }
 
 void
@@ -220,12 +70,82 @@ mpaddcfix(Mpint *a, vlong c)
 }
 
 void
+mpaddcflt(Mpflt *a, double c)
+{
+	Mpflt b;
+
+	mpmovecflt(&b, c);
+	mpaddfltflt(a, &b);
+}
+
+void
 mpmulcfix(Mpint *a, vlong c)
 {
 	Mpint b;
 
 	mpmovecfix(&b, c);
 	mpmulfixfix(a, &b);
+}
+
+void
+mpmulcflt(Mpflt *a, double c)
+{
+	Mpflt b;
+
+	mpmovecflt(&b, c);
+	mpmulfltflt(a, &b);
+}
+
+void
+mpdivfixfix(Mpint *a, Mpint *b)
+{
+	Mpint q, r;
+
+	mpdivmodfixfix(&q, &r, a, b);
+	mpmovefixfix(a, &q);
+}
+
+void
+mpmodfixfix(Mpint *a, Mpint *b)
+{
+	Mpint q, r;
+
+	mpdivmodfixfix(&q, &r, a, b);
+	mpmovefixfix(a, &r);
+}
+
+void
+mpcomfix(Mpint *a)
+{
+	Mpint b;
+
+	mpmovecfix(&b, 1);
+	mpnegfix(a);
+	mpsubfixfix(a, &b);
+}
+
+void
+mpmovefixflt(Mpflt *a, Mpint *b)
+{
+	mpmovecflt(a, mpgetfix(b));
+}
+
+void
+mpmovefltfix(Mpint *a, Mpflt *b)
+{
+	mpmovecfix(a, mpgetflt(b));
+}
+
+void
+mpmovefixfix(Mpint *a, Mpint *b)
+{
+	*a = *b;
+}
+
+void
+mpmovefltflt(Mpflt *a, Mpflt *b)
+{
+	*a = *b;
 }
 
 //
@@ -265,7 +185,7 @@ mpatoflt(Mpflt *a, char *as)
 	ex = 0;		/* exponent */
 	zer = 1;	/* zero */
 
-	mpmovecflt(a, 0);
+	mpmovecflt(a, 0.0);
 	for(;;) {
 		switch(c = *s++) {
 		default:
@@ -348,7 +268,6 @@ bad:
 void
 mpatofix(Mpint *a, char *as)
 {
-
 	int c, f;
 	char *s;
 
