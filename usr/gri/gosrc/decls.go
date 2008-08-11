@@ -65,8 +65,7 @@ type T9 struct {
 	f *func(x, y *T9) *T9;
 }
 
-type T10;
-type T11 struct {
+export type T11 struct {
 	p *T10;
 }
 
@@ -77,7 +76,6 @@ type T10 struct {
 type T12 struct {
 	p *T12
 }
-
 
 type I0 interface {}
 type I1 interface {
@@ -124,3 +122,9 @@ func (p *T4) m4(a int) (z T5, ok bool) { return; }
 func (p *T4) m5(a, b int, c float) (z T5, ok bool) {
 	L: var x = a;
 }
+
+
+func f2() {
+	type T *T14;
+}
+type T14 int;

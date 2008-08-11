@@ -4,7 +4,9 @@
 
 package Scanner
 
+import Platform "platform"
 import Utils "utils"
+
 
 export const (
 	ILLEGAL = iota;
@@ -223,7 +225,7 @@ func init() {
 	}
 	
 	// Provide column information in error messages for gri only...
-	VerboseMsgs = Utils.USER == "gri";
+	VerboseMsgs = Platform.USER == "gri";
 }
 
 
@@ -291,7 +293,7 @@ func (S *Scanner) Next() {
 		Bad	= 0xFFFD;  // Runeerror
 	);
 
-	src := S.src;  // TODO only needed because of 6g bug
+	src := S.src;
 	lim := len(src);
 	pos := S.pos;
 	
@@ -425,38 +427,6 @@ func (S *Scanner) Open(filename, src string) {
 }
 
 
-// TODO this needs to go elsewhere
-func IntString(x, base int) string {
-	neg := false;
-	if x < 0 {
-		x = -x;
-		if x < 0 {
-			panic "smallest int not handled";
-		}
-		neg = true;
-	}
-
-	hex := "0123456789ABCDEF";
-	var buf [16] byte;
-	i := 0;
-	for x > 0 || i == 0 {
-		buf[i] = hex[x % base];
-		x /= base;
-		i++;
-	}
-	
-	s := "";
-	if neg {
-		s = "-";
-	}
-	for i > 0 {
-		i--;
-		s = s + string(int(buf[i]));
-	}
-	return s;
-}
-
-
 func CharString(ch int) string {
 	s := string(ch);
 	switch ch {
@@ -470,7 +440,7 @@ func CharString(ch int) string {
 	case '\\': s = `\\`;
 	case '\'': s = `\'`;
 	}
-	return "'" + s + "' (U+" + IntString(ch, 16) + ")";
+	return "'" + s + "' (U+" + Utils.IntToString(ch, 16) + ")";
 }
 
 

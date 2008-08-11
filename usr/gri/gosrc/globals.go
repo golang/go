@@ -5,18 +5,6 @@
 package Globals
 
 
-// ----------------------------------------------------------------------------
-// Constants
-
-export const (
-	MAGIC_obj_file = "/*go.7*/";  // anything, really
-	src_file_ext = ".go";
-	obj_file_ext = ".7";
-)
-
-
-// ----------------------------------------------------------------------------
-
 // The following types should really be in their respective files
 // (object.go, type.go, scope.go, package.go, compilation.go, etc.) but
 // they refer to each other and we don't know how to handle forward
@@ -44,7 +32,7 @@ export type Type struct {
 	obj *Object;  // primary type object or NULL
 	aux *Type;  // alias base type or map key
 	elt *Type;  // aliases, arrays, maps, channels, pointers
-	scope *Scope;  // structs, interfaces, functions
+	scope *Scope;  // forwards, structs, interfaces, functions
 }
 
 
@@ -72,7 +60,7 @@ export type Scope struct {
 
 export type Flags struct {
 	debug bool;
-	object_filename string;
+	object_file string;
 	update_packages bool;
 	print_interface bool;
 	verbosity uint;
@@ -86,13 +74,18 @@ export type Flags struct {
 }
 
 
-export type Compilation struct {
-	// envionment
-	flags *Flags;
+export type Environment struct {
 	Error *func(comp *Compilation);  // TODO complete this
-	Import *func(comp *Compilation, data string) *Package;
+	Import *func(comp *Compilation, pkg_file string) *Package;
 	Export *func(comp *Compilation) string;
-    Compile *func(flags *Flags, filename string);  // TODO remove this eventually
+	Compile *func(flags *Flags, env* Environment, file string);
+}
+
+
+export type Compilation struct {
+	// environment
+	flags *Flags;
+	env *Environment;
 	
 	// TODO use open arrays eventually
 	pkg_list [256] *Package;  // pkg_list[0] is the current package
@@ -128,7 +121,7 @@ type Elem struct {
 // ----------------------------------------------------------------------------
 // Creation
 
-export var Universe_undef_t *Type  // initialized by Universe to Universe.undef_t
+export var Universe_void_t *Type  // initialized by Universe to Universe.void_t
 
 export func NewObject(pos, kind int, ident string) *Object {
 	obj := new(Object);
@@ -136,7 +129,7 @@ export func NewObject(pos, kind int, ident string) *Object {
 	obj.pos = pos;
 	obj.kind = kind;
 	obj.ident = ident;
-	obj.typ = Universe_undef_t;
+	obj.typ = Universe_void_t;
 	obj.pnolev = 0;
 	return obj;
 }

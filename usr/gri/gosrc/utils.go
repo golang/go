@@ -5,34 +5,6 @@
 package Utils
 
 
-// Environment
-export var
-	GOARCH,
-	GOOS,
-	GOROOT,
-	USER string;
-
-
-func GetEnv(key string) string {
-	n := len(key);
-	for i := 0; i < sys.envc(); i++ {
-		v := sys.envv(i);
-		if v[0 : n] == key {
-			return v[n + 1 : len(v)];  // +1: trim "="
-		}
-	}
-	return "";
-}
-
-
-func init() {
-	GOARCH = GetEnv("GOARCH");
-	GOOS = GetEnv("GOOS");
-	GOROOT = GetEnv("GOROOT");
-	USER = GetEnv("USER");
-}
-
-
 export func BaseName(s string) string {
 	// TODO this is not correct for non-ASCII strings!
 	i := len(s) - 1;
@@ -46,10 +18,46 @@ export func BaseName(s string) string {
 }
 
 
+export func Contains(s, sub string, pos int) bool {
+	end := pos + len(sub);
+	return pos >= 0 && end <= len(s) && s[pos : end] == sub;
+}
+
+
 export func TrimExt(s, ext string) string {
 	i := len(s) - len(ext);
 	if i >= 0 && s[i : len(s)] == ext {
 		s = s[0 : i];
 	}
 	return s;
+}
+
+
+export func IntToString(x, base int) string {
+	x0 := x;
+	if x < 0 {
+		x = -x;
+		if x < 0 {
+			panic "smallest int not handled";
+		}
+	} else if x == 0 {
+		return "0";
+	}
+
+	// x > 0
+	hex := "0123456789ABCDEF";
+	var buf [32] byte;
+	i := len(buf);
+	for x > 0 {
+		i--;
+		buf[i] = hex[x % base];
+		x /= base;
+	}
+	
+	if x0 < 0 {
+		i--;
+		buf[i] = '-';
+	}
+	
+	return string(buf)[i : len(buf)];
 }

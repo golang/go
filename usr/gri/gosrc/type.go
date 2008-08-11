@@ -10,11 +10,28 @@ import Object "object"
 
 export const /* form */ (
 	// internal types
-	UNDEF = iota; VOID; BAD; NIL;
+	// VOID types are used when we don't have a type.
+	VOID = iota;
+	
+	// BAD types are compatible with any type and don't cause further errors.
+	// They are introduced only as a result of an error in the source code. A
+	// correct program cannot have BAD types.
+	BAD;
+	
+	// FORWARD types are forward-declared (incomplete) types. They can only
+	// be used as element types of pointer types and must be resolved before
+	// their internals are accessible.
+	FORWARD;
+	
+	// The type of nil.
+	NIL;
+
 	// basic types
 	BOOL; UINT; INT; FLOAT; STRING; INTEGER;
-	// 'any' type
+	
+	// 'any' type  // TODO this should go away eventually
 	ANY;
+	
 	// composite types
 	ALIAS; ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; POINTER; REFERENCE;
 )
@@ -33,9 +50,9 @@ export const /* flag */ (
 
 export func FormStr(form int) string {
 	switch form {
-	case UNDEF: return "UNDEF";
 	case VOID: return "VOID";
 	case BAD: return "BAD";
+	case FORWARD: return "FORWARD";
 	case NIL: return "NIL";
 	case BOOL: return "BOOL";
 	case UINT: return "UINT";
@@ -74,7 +91,7 @@ func Equal0(x, y *Globals.Type) bool {
 	}
 
 	switch x.form {
-	case UNDEF, BAD:
+	case FORWARD, BAD:
 		break;
 
 	case NIL, BOOL, STRING, ANY:
