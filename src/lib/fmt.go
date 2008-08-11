@@ -366,11 +366,33 @@ func unpack(a double) (negative bool, exp int, num double) {
 	return neg, e, g;
 }
 
+// check for Inf, NaN
+func(f *Fmt) InfOrNan(a double) bool {
+	if sys.isInf(a, 0) {
+		if sys.isInf(a, 1) {
+			f.pad("Inf");
+		} else {
+			f.pad("-Inf");
+		}
+		f.clearflags();
+		return true;
+	}
+	if sys.isNaN(a) {
+		f.pad("NaN");
+		f.clearflags();
+		return true;
+	}
+	return false;
+}
+
 // double
 func (f *Fmt) E(a double) *Fmt {
 	var negative bool;
 	var g double;
 	var exp int;
+	if f.InfOrNan(a) {
+		return f;
+	}
 	negative, exp, g = unpack(a);
 	prec := 6;
 	if f.prec_present {
@@ -394,7 +416,7 @@ func (f *Fmt) E(a double) *Fmt {
 	s = s[0:1] + "." + s[1:prec];  // insert a decimal point
 	// print exponent with leading 0 if appropriate.
 	es := New().p(2).integer(int64(exp), 10, true, &ldigits);
-	if exp > 0 {
+	if exp >= 0 {
 		es = "+" + es;  // TODO: should do this with a fmt flag
 	}
 	s = s + "e" + es;
@@ -411,6 +433,9 @@ func (f *Fmt) F(a double) *Fmt {
 	var negative bool;
 	var g double;
 	var exp int;
+	if f.InfOrNan(a) {
+		return f;
+	}
 	negative, exp, g = unpack(a);
 	if exp > 19 || exp < -19 {  // too big for this sloppy code
 		return f.E(a);
@@ -442,6 +467,9 @@ func (f *Fmt) F(a double) *Fmt {
 
 // double
 func (f *Fmt) G(a double) *Fmt {
+	if f.InfOrNan(a) {
+		return f;
+	}
 	f1 := New();
 	f2 := New();
 	if f.wid_present {
