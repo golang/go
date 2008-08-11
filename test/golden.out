@@ -46,9 +46,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 =========== chan/nonblock.go
 PASS
 
-=========== bugs/bug015.go
-BUG: known to succeed incorrectly
-
 =========== bugs/bug026.go
 sys·printstring: main·sigs_I: not defined
 BUG: known to fail incorrectly
@@ -70,10 +67,6 @@ BUG: compilation succeeds incorrectly
 
 =========== bugs/bug041.go
 BUG: compilation succeeds incorrectly
-
-=========== bugs/bug046.go
-bugs/bug046.go:7: illegal <this> pointer
-BUG: known to fail incorrectly
 
 =========== bugs/bug047.go
 bugs/bug047.go:13: illegal types for operand: CONV
@@ -175,10 +168,6 @@ bugs/bug081.go:5: first constant must evaluate an expression
 BUG: compiler should not crash
 Bus error               $G $D/$F.go
 
-=========== bugs/bug082.go
-bugs/bug082.go:7: fatal error: optoas: no entry COM-<int32>INT32
-BUG: fails incorrectly
-
 =========== bugs/bug085.go
 bugs/bug085.go:8: P: undefined
 BUG: fails incorrectly
@@ -192,6 +181,9 @@ BUG: succeeds incorrectly
 bugs/bug087.go:8: illegal combination of literals LEN 9
 bugs/bug087.go:8: illegal combination of literals LEN 9
 BUG: fails incorrectly
+
+=========== fixedbugs/bug015.go
+fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
 
 =========== fixedbugs/bug025.go
 fixedbugs/bug025.go:7: variable exported but not defined: Foo
