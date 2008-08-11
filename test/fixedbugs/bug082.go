@@ -9,6 +9,7 @@ package main
 func main() {
 	x := 0;
 	x = ^x;  // unary ^ not yet implemented
+	if x != ^0 { panic x, " ", ^0 }
 }
 
 /*
