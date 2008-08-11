@@ -350,7 +350,7 @@ isNaN(float64 d)
 static float64
 Inf(int32 sign)
 {
-	if(sign < 0)
+	if(sign >= 0)
 		return *(float64*)&uvinf;
 	else
 		return *(float64*)&uvneginf;
