@@ -14,7 +14,7 @@ export var (
 	types *Globals.List;
 	
 	// internal types
-	undef_t,
+	void_t,
 	bad_t,
 	nil_t,
 	
@@ -93,8 +93,8 @@ func init() {
 	types = Globals.NewList();
 	
 	// Interal types
-	undef_t = Globals.NewType(Type.UNDEF);
-	Globals.Universe_undef_t = undef_t;
+	void_t = Globals.NewType(Type.VOID);
+	Globals.Universe_void_t = void_t;
 	bad_t = Globals.NewType(Type.BAD);
 	nil_t = DeclType(Type.NIL, "nil", 8);
 	

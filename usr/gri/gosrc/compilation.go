@@ -4,6 +4,7 @@
 
 package Compilation
 
+import Platform "platform"
 import Utils "utils"
 import Globals "globals"
 import Object "object"
@@ -12,16 +13,77 @@ import Universe "universe"
 import Scanner "scanner"
 import AST "ast"
 import Parser "parser"
-import Export "export"
+import Importer "import"
+import Exporter "export"
 import Printer "printer"
 import Verifier "verifier"
 
 
-export func Compile(flags *Globals.Flags, filename string) {
+func ReadImport(comp* Globals.Compilation, filename string, update bool) (data string, ok bool) {
+	if filename == "" {
+		panic "illegal package file name";
+	}
+
+	// see if it just works
+	data, ok = Platform.ReadObjectFile(filename);
+	if ok {
+		return data, ok;
+	}
+	
+	if filename[0] == '/' {
+		// absolute path
+		panic `don't know how to handle absolute import file path "` + filename + `"`;
+	}
+	
+	// relative path
+	// try relative to the $GOROOT/pkg directory
+	std_filename := Platform.GOROOT + "/pkg/" + filename;
+	data, ok = Platform.ReadObjectFile(std_filename);
+	if ok {
+		return data, ok;
+	}
+	
+	if !update {
+		return "", false;
+	}
+	
+	// TODO BIG HACK - fix this!
+	// look for a src file
+	// see if it just works
+	data, ok = Platform.ReadSourceFile(filename);
+	if ok {
+		comp.env.Compile(comp.flags, comp.env, filename + Platform.src_file_ext);
+		data, ok = ReadImport(comp, filename, false);
+		if ok {
+			return data, ok;
+		}
+	}
+	
+	return "", false;
+}
+
+
+export func Import(comp *Globals.Compilation, pkg_file string) *Globals.Package {
+	data, ok := ReadImport(comp, pkg_file, comp.flags.update_packages)
+	var pkg *Globals.Package;
+	if ok {
+		pkg = Importer.Import(comp, data);
+	}
+	return pkg;
+}
+
+
+export func Export(comp *Globals.Compilation) string {
+	panic "UNIMPLEMENTED";
+	return "";
+}
+
+
+export func Compile(flags *Globals.Flags, env* Globals.Environment, filename string) {
 	// setup compilation
 	comp := new(Globals.Compilation);
 	comp.flags = flags;
-	comp.Compile = &Compile;
+	comp.env = env;
 	
 	src, ok := sys.readfile(filename);
 	if !ok {
@@ -29,8 +91,10 @@ export func Compile(flags *Globals.Flags, filename string) {
 		return;
 	}
 	
-	print filename, "\n";
-	
+	if flags.verbosity > 0 {
+		print filename, "\n";
+	}
+
 	scanner := new(Scanner.Scanner);
 	scanner.Open(filename, src);
 	
@@ -58,5 +122,5 @@ export func Compile(flags *Globals.Flags, filename string) {
 		Printer.PrintObject(comp, comp.pkg_list[0].obj, false);
 	}
 	
-	Export.Export(comp, filename);
+	Exporter.Export(comp, filename);
 }

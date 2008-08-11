@@ -4,6 +4,7 @@
 
 package Exporter
 
+import Platform "platform"
 import Utils "utils"
 import Globals "globals"
 import Object "object"
@@ -248,7 +249,7 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 	}
 
 	// write magic bits
-	magic := Globals.MAGIC_obj_file;  // TODO remove once len(constant) works
+	magic := Platform.MAGIC_obj_file;  // TODO remove once len(constant) works
 	for i := 0; i < len(magic); i++ {
 		E.WriteByte(magic[i]);
 	}
@@ -283,7 +284,51 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
 }
 
 
+func (E *Exporter) Export2(comp* Globals.Compilation) string {
+	E.comp = comp;
+	E.debug = comp.flags.debug;
+	E.buf_pos = 0;
+	E.pkg_ref = 0;
+	E.type_ref = 0;
+	
+	// write magic bits
+	magic := Platform.MAGIC_obj_file;  // TODO remove once len(constant) works
+	for i := 0; i < len(magic); i++ {
+		E.WriteByte(magic[i]);
+	}
+	
+	// Predeclared types are "pre-exported".
+	// TODO run the loop below only in debug mode
+	{	i := 0;
+		for p := Universe.types.first; p != nil; p = p.next {
+			if p.typ.ref != i {
+				panic "incorrect ref for predeclared type";
+			}
+			i++;
+		}
+	}
+	E.type_ref = Universe.types.len_;
+	
+	// export package 0
+	pkg := comp.pkg_list[0];
+	E.WritePackage(pkg);
+	E.WriteScope(pkg.scope);
+	
+	if E.debug {
+		print "\n(", E.buf_pos, " bytes)\n";
+	}
+	
+	return string(E.buf)[0 : E.buf_pos];
+}
+
+
 export func Export(comp* Globals.Compilation, pkg_name string) {
 	var E Exporter;
-	(&E).Export(comp, Utils.TrimExt(Utils.BaseName(pkg_name), Globals.src_file_ext) + Globals.obj_file_ext);
+	(&E).Export(comp, Utils.TrimExt(Utils.BaseName(pkg_name), Platform.src_file_ext) + Platform.obj_file_ext);
+}
+
+
+export func Export2(comp* Globals.Compilation) string {
+	var E Exporter;
+	return (&E).Export2(comp);
 }

@@ -186,8 +186,11 @@ func (P *Printer) PrintObject(obj *Globals.Object) {
 
 func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 	switch typ.form {
-	case Type.UNDEF:
-		print "<undef type>";
+	case Type.VOID:
+		print "void";
+		
+	case Type.FORWARD:
+		print "<forward type>";
 
 	case Type.BAD:
 		print "<bad type>";

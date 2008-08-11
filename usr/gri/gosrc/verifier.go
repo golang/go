@@ -45,7 +45,12 @@ func (V *Verifier) VerifyType(typ *Globals.Type) {
 	}
 	
 	switch typ.form {
-	case Type.UNDEF:  // for now - remove eventually
+	case Type.VOID:
+		break;  // TODO for now - remove eventually
+	case Type.FORWARD:
+		if typ.scope == nil {
+			Error("forward types must have a scope");
+		}
 		break;
 	case Type.NIL:
 		break;

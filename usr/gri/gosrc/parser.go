@@ -17,7 +17,8 @@ import AST "ast"
 export type Parser struct {
 	comp *Globals.Compilation;
 	semantic_checks bool;
-	verbose, indent uint;
+	verbose bool;
+	indent uint;
 	S *Scanner.Scanner;
 	C *chan *Scanner.Token;
 	
@@ -29,7 +30,7 @@ export type Parser struct {
 	// Semantic analysis
 	level int;  // 0 = global scope, -1 = function/struct scope of global functions/structs, etc.
 	top_scope *Globals.Scope;
-	undef_types *Globals.List;
+	forward_types *Globals.List;
 	exports *Globals.List;
 }
 
@@ -45,7 +46,7 @@ func (P *Parser) PrintIndent() {
 
 
 func (P *Parser) Trace(msg string) {
-	if P.verbose > 0 {
+	if P.verbose {
 		P.PrintIndent();
 		print msg, " {\n";
 	}
@@ -55,7 +56,7 @@ func (P *Parser) Trace(msg string) {
 
 func (P *Parser) Ecart() {
 	P.indent--;
-	if P.verbose > 0 {
+	if P.verbose {
 		P.PrintIndent();
 		print "}\n";
 	}
@@ -69,7 +70,7 @@ func (P *Parser) Next() {
 		t := <- P.C;
 		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
 	}
-	if P.verbose > 1 {
+	if P.verbose {
 		P.PrintIndent();
 		print "[", P.pos, "] ", Scanner.TokenName(P.tok), "\n";
 	}
@@ -79,14 +80,14 @@ func (P *Parser) Next() {
 func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, C *chan *Scanner.Token) {
 	P.comp = comp;
 	P.semantic_checks = comp.flags.ast;
-	P.verbose = comp.flags.verbosity;
+	P.verbose = comp.flags.verbosity > 2;
 	P.indent = 0;
 	P.S = S;
 	P.C = C;
 	P.Next();
 	P.level = 0;
 	P.top_scope = Universe.scope;
-	P.undef_types = Globals.NewList();
+	P.forward_types = Globals.NewList();
 	P.exports = Globals.NewList();
 }
 
@@ -185,7 +186,7 @@ func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.
 }
 
 
-func (P *Parser) DeclareFunc(ident string, typ *Globals.Type) *Globals.Object {
+func (P *Parser) DeclareFunc(pos int, ident string, typ *Globals.Type) *Globals.Object {
 	// determine scope
 	scope := P.top_scope;
 	if typ.flags & Type.RECV != 0 {
@@ -203,7 +204,7 @@ func (P *Parser) DeclareFunc(ident string, typ *Globals.Type) *Globals.Object {
 	// declare the function
 	obj := scope.Lookup(ident);
 	if obj == nil {
-		obj = Globals.NewObject(-1, Object.FUNC, ident);
+		obj = Globals.NewObject(pos, Object.FUNC, ident);
 		obj.typ = typ;
 		// TODO do we need to set the primary type? probably...
 		P.DeclareInScope(scope, obj);
@@ -245,13 +246,14 @@ func (P *Parser) TryStatement() bool;
 func (P *Parser) ParseDeclaration();
 
 
-func (P *Parser) ParseIdent() string {
+func (P *Parser) ParseIdent() (pos int, ident string) {
 	P.Trace("Ident");
 
-	ident := "";
+	pos = P.pos;
+	ident = "";
 	if P.tok == Scanner.IDENT {
 		ident = P.val;
-		if P.verbose > 0 {
+		if P.verbose {
 			P.PrintIndent();
 			print "Ident = \"", ident, "\"\n";
 		}
@@ -261,15 +263,15 @@ func (P *Parser) ParseIdent() string {
 	}
 	
 	P.Ecart();
-	return ident;
+	return pos, ident;
 }
 
 
 func (P *Parser) ParseIdentDecl(kind int) *Globals.Object {
 	P.Trace("IdentDecl");
 	
-	pos := P.pos;
-	obj := Globals.NewObject(pos, kind, P.ParseIdent());
+	pos, ident := P.ParseIdent();
+	obj := Globals.NewObject(pos, kind, ident);
 	P.Declare(obj);
 	
 	P.Ecart();
@@ -307,8 +309,7 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 	P.Trace("QualifiedIdent");
 
 	if pos < 0 {
-		pos = P.pos;
-		ident = P.ParseIdent();
+		pos, ident = P.ParseIdent();
 	}
 	
 	if P.semantic_checks {
@@ -327,8 +328,7 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 			//	panic "pkg.obj.ident != ident";
 			//}
 			P.Next();  // consume "."
-			pos = P.pos;
-			ident = P.ParseIdent();
+			pos, ident = P.ParseIdent();
 			obj = pkg.scope.Lookup(ident);
 			if obj == nil {
 				P.Error(pos, `"` + ident + `" is not declared in package "` + pkg.obj.ident + `"`);
@@ -559,14 +559,14 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
 
 // Named signatures
 //
-//        name (params)
-//        name (params) type
-//        name (params) (results)
-// (recv) name (params)
-// (recv) name (params) type
-// (recv) name (params) (results)
+//        ident (params)
+//        ident (params) type
+//        ident (params) (results)
+// (recv) ident (params)
+// (recv) ident (params) type
+// (recv) ident (params) (results)
 
-func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
+func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type) {
 	P.Trace("NamedSignature");
 	
 	P.OpenScope();
@@ -586,7 +586,7 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
 		}
 	}
 	
-	name = P.ParseIdent();
+	pos, ident = P.ParseIdent();
 
 	P.ParseParameters();
 	
@@ -596,7 +596,7 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
 	P.CloseScope();
 	
 	P.Ecart();
-	return name, MakeFunctionType(sig, p0, r0, true);
+	return pos, ident, MakeFunctionType(sig, p0, r0, true);
 }
 
 
@@ -614,8 +614,7 @@ func (P *Parser) ParseFunctionType() *Globals.Type {
 func (P *Parser) ParseMethodDecl(recv_typ *Globals.Type) {
 	P.Trace("MethodDecl");
 	
-	pos := P.pos;
-	ident := P.ParseIdent();
+	pos, ident := P.ParseIdent();
 	P.OpenScope();
 	P.level--;
 	sig := P.top_scope;
@@ -715,39 +714,40 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 	P.Expect(Scanner.MUL);
 	typ := Globals.NewType(Type.POINTER);
 	
-	if P.semantic_checks {
-		if P.tok == Scanner.IDENT {
-			if P.Lookup(P.val) == nil {
-				// implicit forward declaration
-				// TODO very problematic: in which scope should the
-				// type object be declared? It's different if this
-				// is inside a struct or say in a var declaration.
-				// This code is only here for "compatibility" with 6g.
-				pos := P.pos;
-				obj := Globals.NewObject(pos, Object.TYPE, P.ParseIdent());
-				obj.typ = Globals.NewType(Type.UNDEF);
-				obj.typ.obj = obj;  // primary type object
-				typ.elt = obj.typ;
-				// TODO obj should be declared, but scope is not clear
-			} else {
-				// type name
-				// (ParseType() doesn't permit incomplete types,
-				// so call ParseTypeName() here)
-				typ.elt = P.ParseTypeName();
-			}
+	var elt *Globals.Type;
+	if P.semantic_checks && P.tok == Scanner.IDENT {
+		if P.Lookup(P.val) == nil {
+			// implicit forward declaration
+			// create a named forward type 
+			pos, ident := P.ParseIdent();
+			obj := Globals.NewObject(pos, Object.TYPE, ident);
+			elt = Globals.NewType(Type.FORWARD);
+			obj.typ = elt;
+			elt.obj = obj;  // primary type object;
+			// remember the current scope - resolving the forward
+			// type must find a matching declaration in this or a less nested scope
+			elt.scope = P.top_scope;
+			
 		} else {
-			typ.elt = P.ParseType();
+			// type name
+			// (ParseType() (via TryType()) checks for forward types and complains,
+			// so call ParseTypeName() directly)
+			// we can only have a foward type here if we refer to the name of a
+			// yet incomplete type (i.e. if we are in the middle of a type's declaration)
+			elt = P.ParseTypeName();
 		}
-	
-		// collect undefined pointer types
-		if typ.elt.form == Type.UNDEF {
-			P.undef_types.AddTyp(typ);
+
+		// collect uses of pointer types referring to forward types
+		if elt.form == Type.FORWARD {
+			P.forward_types.AddTyp(typ);
 		}
 		
 	} else {
-		typ.elt = P.ParseType();
+		elt = P.ParseType();
 	}
 
+	typ.elt = elt;
+	
 	P.Ecart();
 	return typ;
 }
@@ -770,7 +770,7 @@ func (P *Parser) TryType() *Globals.Type {
 	case Scanner.MUL: typ = P.ParsePointerType();
 	}
 
-	if typ != nil && typ.form == Type.UNDEF {
+	if typ != nil && typ.form == Type.FORWARD {
 		P.Error(pos, "incomplete type");
 	}
 
@@ -1066,8 +1066,7 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
 	P.Expect(Scanner.PERIOD);
 	
 	if P.tok == Scanner.IDENT {
-		ident_pos := P.pos;
-		ident := P.ParseIdent();
+		ident_pos, ident := P.ParseIdent();
 		
 		if P.semantic_checks {
 			switch typ := x.typ(); typ.form {
@@ -1256,7 +1255,7 @@ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) Globals.Expr 
 	for prec := Precedence(P.tok); prec >= prec1; prec-- {
 		for Precedence(P.tok) == prec {
 			e := new(AST.BinaryExpr);
-			e.typ_ = Universe.undef_t;  // TODO fix this
+			e.typ_ = Universe.bad_t;  // TODO fix this
 			e.op = P.tok;  // TODO should we use tokens or separate operator constants?
 			e.x = x;
 			P.Next();
@@ -1745,7 +1744,9 @@ func (P *Parser) ParseImportSpec() {
 	if P.semantic_checks && P.tok == Scanner.STRING {
 		// TODO eventually the scanner should strip the quotes
 		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
-		pkg := Import.Import(P.comp, pkg_name);
+		// TODO switch to indirect import once the compiler problems are fixed
+		//pkg := Import.Import(P.comp, pkg_name);
+		pkg := P.comp.env.Import(P.comp, pkg_name);
 		if pkg != nil {
 			pno := pkg.obj.pnolev;  // preserve pno
 			if obj == nil {
@@ -1794,55 +1795,48 @@ func (P *Parser) ParseConstSpec(exported bool) {
 
 func (P *Parser) ParseTypeSpec(exported bool) {
 	P.Trace("TypeSpec");
+
+	// Immediately after declaration of the type name, the type is
+	// considered forward-declared. It may be referred to from inside
+	// the type specification only via a pointer type.
+	typ := Globals.NewType(Type.FORWARD);
+	typ.scope = P.top_scope;  // not really needed here, but for consistency
 	
-	pos := P.pos;
-	ident := P.ParseIdent();
-	obj := P.top_scope.Lookup(ident);  // only lookup in top scope!
-	if obj != nil {
-		// name already declared - ok if forward declared type
-		if obj.kind != Object.TYPE || obj.typ.form != Type.UNDEF {
-			// TODO use obj.pos to refer to decl pos in error msg!
-			P.Error(pos, `"` + ident + `" is declared already`);
-		}
-	} else {
-		obj = Globals.NewObject(pos, Object.TYPE, ident);
-		obj.exported = exported;
-		obj.typ = Globals.NewType(Type.UNDEF);
-		obj.typ.obj = obj;  // primary type object
-		P.Declare(obj);
-	}
+	pos, ident := P.ParseIdent();
+	obj := Globals.NewObject(pos, Object.TYPE, ident);
+	obj.exported = exported;
+	obj.typ = typ;
+	typ.obj = obj;  // primary type object
+	P.Declare(obj);
 	
 	// If the next token is an identifier and we have a legal program,
 	// it must be a typename. In that case this declaration introduces
 	// an alias type.
-	make_alias := P.tok == Scanner.IDENT;
-	
-	// If we have an explicit forward declaration, TryType will not
-	// find a type and return nil.
-	typ := P.TryType();
+	if P.tok == Scanner.IDENT {
+		typ = Globals.NewType(Type.ALIAS);
+		elt := P.ParseType();  // we want a complete type - don't shortcut to ParseTypeName()
+		typ.elt = elt;
+		if elt.form == Type.ALIAS {
+			typ.aux = elt.aux;  // the base type
+		} else {
+			typ.aux = elt;
+		}
+	} else {
+		typ = P.ParseType();
+	}
 
-	if typ != nil {
-		if make_alias {
-			alias := Globals.NewType(Type.ALIAS);
-			if typ.form == Type.ALIAS {
-				alias.aux = typ.aux;  // the base type
-			} else {
-				alias.aux = typ;
-			}
-			alias.elt = typ;
-			typ = alias;
-		}
-		obj.typ = typ;
-		if typ.obj == nil {
-			typ.obj = obj;  // primary type object
-		}
-		// if the type is exported, for now we export all fields
-		// of structs and interfaces by default
-		// TODO this needs to change eventually
-		if exported && (typ.form == Type.STRUCT || typ.form == Type.INTERFACE) {
-			for p := typ.scope.entries.first; p != nil; p = p.next {
-				p.obj.exported = true;
-			}
+	obj.typ = typ;
+	if typ.obj == nil {
+		typ.obj = obj;  // primary type object
+	}
+	
+	// if the type is exported, for now we export all fields
+	// of structs and interfaces by default
+	// TODO this needs to change eventually
+	// Actually in 6g even types referred to are exported - sigh...
+	if exported && (typ.form == Type.STRUCT || typ.form == Type.INTERFACE) {
+		for p := typ.scope.entries.first; p != nil; p = p.next {
+			p.obj.exported = true;
 		}
 	}
 	
@@ -1916,8 +1910,8 @@ func (P *Parser) ParseFuncDecl(exported bool) {
 	P.Trace("FuncDecl");
 	
 	P.Expect(Scanner.FUNC);
-	ident, typ := P.ParseNamedSignature();
-	obj := P.DeclareFunc(ident, typ);  // need obj later for statements
+	pos, ident, typ := P.ParseNamedSignature();
+	obj := P.DeclareFunc(pos, ident, typ);  // need obj later for statements
 	obj.exported = exported;
 	if P.tok == Scanner.SEMICOLON {
 		// forward declaration
@@ -1947,7 +1941,8 @@ func (P *Parser) ParseExportDecl() {
 		has_paren = true;
 	}
 	for P.tok == Scanner.IDENT {
-		P.exports.AddStr(P.ParseIdent());
+		pos, ident := P.ParseIdent();
+		P.exports.AddStr(ident);
 		P.Optional(Scanner.COMMA);  // TODO this seems wrong
 	}
 	if has_paren {
@@ -2002,23 +1997,49 @@ func (P *Parser) ParseDeclaration() {
 // ----------------------------------------------------------------------------
 // Program
 
-func (P *Parser) ResolveUndefTypes() {
+func (P *Parser) ResolveForwardTypes() {
 	if !P.semantic_checks {
 		return;
 	}
 	
-	for p := P.undef_types.first; p != nil; p = p.next {
+	for p := P.forward_types.first; p != nil; p = p.next {
 		typ := p.typ;
 		if typ.form != Type.POINTER {
 			panic "unresolved types should be pointers only";
 		}
-		if typ.elt.form != Type.UNDEF {
-			panic "unresolved pointer should point to undefined type";
+		
+		elt := typ.elt;
+		if typ.elt.form != Type.FORWARD {
+			panic "unresolved pointer should point to forward type";
 		}
-		obj := typ.elt.obj;
+		
+		obj := elt.obj;
+		if obj.typ == elt {
+			// actual forward declaration (as opposed to forward types introduced
+			// during type declaration) - need to lookup the actual type object
+			var elt_obj *Globals.Object;
+			for scope := elt.scope; scope != nil && elt_obj == nil; scope = scope.parent {
+				elt_obj = scope.Lookup(obj.ident);
+			}
+			// update the type object if we found one
+			if elt_obj != nil {
+				if elt_obj.kind == Object.TYPE {
+					obj = elt_obj;
+				} else {
+					P.Error(obj.pos, `"` + obj.ident + `" does not denote a type`);
+				}
+			}
+		}
+
+		// update the pointer type
 		typ.elt = obj.typ;
-		if typ.elt.form == Type.UNDEF {
-			P.Error(obj.pos, `"` + obj.ident + `" is not declared`);
+		
+		// TODO as long as we don't *use* a forward type, we are ok
+		// => consider not reporting this as an error
+		// (in a real forward declaration, the corresponding objects are not in a scope
+		// and have incorrect pnolev)
+		if typ.elt.form == Type.FORWARD {
+			P.Error(obj.pos, `"` + obj.ident + `" is not declared after forward declaration`);
 		}
 	}
 }
@@ -2081,7 +2102,7 @@ func (P *Parser) ParseProgram() {
 			P.Optional(Scanner.SEMICOLON);
 		}
 		
-		P.ResolveUndefTypes();
+		P.ResolveForwardTypes();
 		P.MarkExports();
 		
 		if P.level != 0 {

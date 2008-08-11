@@ -15,7 +15,7 @@ func PrintHelp() {
 		"usage:\n" +
 		"  go { flag } { file }\n" +
 		"  -d             debug mode, additional self tests and prints\n" +
-		"  -o filename    explicit object filename\n" +
+		"  -o file        explicit object file\n" +
 		"  -r             recursively update imported packages in current directory\n" +
 		"  -p             print package interface\n" +
 		"  -v [0 .. 3]    verbosity level\n" +
@@ -53,7 +53,7 @@ func main() {
 	for arg != "" {
 	    switch arg {
 		case "-d": flags.debug = true;
-		case "-o": flags.object_filename = Next();
+		case "-o": flags.object_file = Next();
 			print "note: -o flag ignored at the moment\n";
 		case "-r": flags.update_packages = true;
 		case "-p": flags.print_interface = true;
@@ -81,8 +81,14 @@ func main() {
 		arg = Next();
 	}
 	
+	// setup environment
+	env := new(Globals.Environment);
+	env.Import = &Compilation.Import;
+	env.Export = &Compilation.Export;
+	env.Compile = &Compilation.Compile;
+	
 	// compile files
 	for p := files.first; p != nil; p = p.next {
-		Compilation.Compile(flags, p.str);
+		Compilation.Compile(flags, env, p.str);
 	}
 }
