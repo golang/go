@@ -487,6 +487,7 @@ void	mpatofix(Mpint *a, char *s);
 void	mpatoflt(Mpflt *a, char *s);
 void	mpmovefltfix(Mpint *a, Mpflt *b);
 void	mpmovefixflt(Mpflt *a, Mpint *b);
+int	Bconv(Fmt*);
 
 /*
  *	mparith2.c
