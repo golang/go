@@ -1053,13 +1053,9 @@ Nconv(Fmt *fp)
 			snprint(buf1, sizeof(buf1), "LITERAL-ctype=%d", n->val.ctype);
 			break;
 		case CTINT:
-			snprint(buf1, sizeof(buf1), "I%lld", mpgetfix(n->val.u.xval));
-			break;
 		case CTSINT:
-			snprint(buf1, sizeof(buf1), "S%lld", mpgetfix(n->val.u.xval));
-			break;
 		case CTUINT:
-			snprint(buf1, sizeof(buf1), "U%lld", mpgetfix(n->val.u.xval));
+			snprint(buf1, sizeof(buf1), "I%B", n->val.u.xval);
 			break;
 		case CTFLT:
 			snprint(buf1, sizeof(buf1), "F%g", mpgetflt(n->val.u.fval));

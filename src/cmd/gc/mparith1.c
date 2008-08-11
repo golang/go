@@ -348,3 +348,32 @@ bad:
 	warn("set ovf in mpatov: %s", as);
 	mpmovecfix(a, 0);
 }
+
+int
+Bconv(Fmt *fp)
+{
+	char buf[500], *p;
+	Mpint *xval, q, r, ten;
+	int f;
+
+	xval = va_arg(fp->args, Mpint*);
+	mpmovefixfix(&q, xval);
+	f = 0;
+	if(mptestfix(&q) < 0) {
+		f = 1;
+		mpnegfix(&q);
+	}
+	mpmovecfix(&ten, 10);
+
+	p = &buf[sizeof(buf)];
+	*--p = 0;
+	for(;;) {
+		mpdivmodfixfix(&q, &r, &q, &ten);
+		*--p = mpgetfix(&r) + '0';
+		if(mptestfix(&q) <= 0)
+			break;
+	}
+	if(f)
+		*--p = '-';
+	return fmtstrcpy(fp, p);
+}

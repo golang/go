@@ -52,6 +52,7 @@ mainlex(int argc, char *argv[])
 	fmtinstall('N', Nconv);		// node pointer
 	fmtinstall('Z', Zconv);		// escaped string
 	fmtinstall('L', Lconv);		// line number
+	fmtinstall('B', Bconv);		// big numbers
 	
 	lexinit();
 	lineno = 1;

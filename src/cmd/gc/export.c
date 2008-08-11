@@ -78,7 +78,7 @@ dumpexportconst(Sym *s)
 	case CTINT:
 	case CTSINT:
 	case CTUINT:
-		Bprint(bout, "0x%llux\n", mpgetfix(n->val.u.xval));
+		Bprint(bout, "%B\n", n->val.u.xval);
 		break;
 	case CTBOOL:
 		Bprint(bout, "0x%llux\n", n->val.u.bval);
