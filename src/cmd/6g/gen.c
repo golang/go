@@ -455,10 +455,9 @@ swgen(Node *n)
 		}
 
 		// put in the break between cases
-		if(any) {
+		if(any)
 			patch(gbranch(AJMP, T), breakpc);
-			any = 0;
-		}
+		any = 1;
 
 		// over case expressions
 		c2 = listfirst(&save2, &c1->left);

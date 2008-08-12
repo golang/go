@@ -1064,7 +1064,7 @@ Nconv(Fmt *fp)
 			snprint(buf1, sizeof(buf1), "S\"%Z\"", n->val.u.sval);
 			break;
 		case CTBOOL:
-			snprint(buf1, sizeof(buf1), "B%lld", n->val.u.bval);
+			snprint(buf1, sizeof(buf1), "B%d", n->val.u.bval);
 			break;
 		case CTNIL:
 			snprint(buf1, sizeof(buf1), "N");

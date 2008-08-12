@@ -708,7 +708,7 @@ pexpr:
 	{
 		$$ = $2;
 	}
-|	pexpr '.' sym1
+|	pexpr '.' sym2
 	{
 		$$ = nod(ODOT, $1, newname($3));
 	}
@@ -812,13 +812,13 @@ name_name:
 	}
 
 new_name:
-	sym2
+	sym1
 	{
 		$$ = newname($1);
 	}
 
 new_type:
-	sym2
+	sym1
 	{
 		$$ = newtype($1);
 	}
@@ -832,17 +832,36 @@ sym:
 sym1:
 	sym
 |	key1
-|	key2
 
 sym2:
 	sym
+|	key1
 |	key2
 
 /*
  * keywords that we can
+>>>> ORIGINAL go/src/cmd/gc/go.y#8
+==== THEIRS go/src/cmd/gc/go.y#9
  * use as field names
+==== YOURS go/src/cmd/gc/go.y
+ * use a variable/type names
+<<<<
  */
 key1:
+	LNIL
+|	LTRUE
+|	LFALSE
+|	LIOTA
+|	LLEN
+|	LPANIC
+|	LPRINT
+|	LNEW
+|	LBASETYPE
+
+/*
+ * keywords that we can
+ */
+key2:
 	LPACKAGE
 |	LIMPORT
 |	LEXPORT
@@ -871,8 +890,21 @@ key1:
 |	LRANGE
 |	LIGNORE
 
-/*
- * keywords that we can
+>>>> ORIGINAL go/src/cmd/gc/go.y#8
+ * use a variable/type names
+ */
+key2:
+	LNIL
+|	LTRUE
+|	LFALSE
+|	LIOTA
+|	LLEN
+|	LPANIC
+|	LPRINT
+|	LNEW
+|	LBASETYPE
+
+==== THEIRS go/src/cmd/gc/go.y#9
  * use as variable/type names
  */
 key2:
@@ -886,6 +918,8 @@ key2:
 |	LNEW
 |	LBASETYPE
 
+==== YOURS src/cmd/gc/go.y
+<<<<
 name:
 	lname
 	{
@@ -1394,7 +1428,7 @@ export:
 	{
 		exportsym($1);
 	}
-|	sym '.' sym1
+|	sym '.' sym2
 	{
 		exportsym(pkglookup($3->name, $1->name));
 	}
@@ -1578,7 +1612,7 @@ hidden_import:
 	}
 
 isym:
-	sym '.' sym1
+	sym '.' sym2
 	{
 		$$ = nod(OIMPORT, N, N);
 		$$->osym = $1;
@@ -1586,7 +1620,7 @@ isym:
 		$$->sym = $3;
 		renamepkg($$);
 	}
-|	'(' sym ')' sym '.' sym1
+|	'(' sym ')' sym '.' sym2
 	{
 		$$ = nod(OIMPORT, N, N);
 		$$->osym = $2;

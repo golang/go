@@ -7,6 +7,28 @@
 /// uses arihmetic
 
 int
+mpcmpfixflt(Mpint *a, Mpflt *b)
+{
+	char buf[500];
+	Mpflt c;
+
+	sprint(buf, "%B", a);
+	mpatoflt(&c, buf);
+	return mpcmpfltflt(&c, b);
+}
+
+int
+mpcmpfltfix(Mpflt *a, Mpint *b)
+{
+	char buf[500];
+	Mpflt c;
+
+	sprint(buf, "%B", b);
+	mpatoflt(&c, buf);
+	return mpcmpfltflt(a, &c);
+}
+
+int
 mpcmpfixfix(Mpint *a, Mpint *b)
 {
 	Mpint c;

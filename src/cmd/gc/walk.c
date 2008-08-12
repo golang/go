@@ -1399,11 +1399,11 @@ Node*
 prcompat(Node *n)
 {
 	Node *l, *r;
+	Node *on;
 	Type *t;
 	Iter save;
 	int w;
 	char *name;
-	Node *on;
 
 	r = N;
 	l = listfirst(&save, &n);
