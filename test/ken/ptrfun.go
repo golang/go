@@ -32,13 +32,13 @@ main()
 	c.x = &g;
 
 	v = g(c);
-	if v != 6 { panic v; }
+	if v != 6 { panic(v); }
 
 	v = c.x(c);
-	if v != 6 { panic v; }
+	if v != 6 { panic(v); }
 
 	v = c.f();
-	if v != 6 { panic v; }
+	if v != 6 { panic(v); }
 }
 
 func
@@ -47,6 +47,6 @@ g(p *C)int
 	var v int;
 
 	v = p.a;
-	if v != 6 { panic v; }
+	if v != 6 { panic(v); }
 	return p.a;
 }

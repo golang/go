@@ -13,13 +13,13 @@ main()
 	for i:=0; i<10; i=i+1 {
 		switch(i) {
 		case 5:
-			print "five";
+			print("five");
 		case a,7:
-			print "a";
+			print("a");
 		default:
-			print i;
+			print(i);
 		}
-		print "out", i;
+		print("out", i);
 	}
-	print "\n";
+	print("\n");
 }

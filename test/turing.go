@@ -24,7 +24,7 @@ func main() {
 			case '-':
 					a[p]--;
 			case '.':
-					print string(a[p]);
+					print(string(a[p]));
 			case '[':
 				if a[p] == 0 {
 					for nest := 1; nest > 0; pc++ {

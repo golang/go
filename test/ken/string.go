@@ -16,69 +16,69 @@ main()
 	b := `xyz`;
 
 	/* print a literal */
-	print `abc`;
+	print(`abc`);
 
 	/* print a variable */
-	print b, "-";
+	print(b, "-");
 
 	/* catenate literals */
-	print `abc` + `xyz`, "-";
+	print(`abc` + `xyz`, "-");
 
 	/* catenate variables */
-	print a+b, "-";
+	print(a+b, "-");
 
 	/* compare literals */
 	if `abc` == `xyz` || `abc` != "abc" || `abc` > `xyz` {
-		panic "compare literals";
+		panic("compare literals");
 	}
 
 	/* compare variables */
 	if a == b || a != a || a > b {
-		panic "compare variables";
+		panic("compare variables");
 	}
 
 	/* cat */
 	c = a+b;
-	print c, "-";
+	print(c, "-");
 
 	/* catequal */
 	c = a;
 	c += b;
-	print c, "-";
+	print(c, "-");
 
 	/* clumsy evaluation */
 	c = b;
 	c = a + c;
-	print c, "-";
+	print(c, "-");
 
 	/* len */
 	if len(c) != 6 {
-		panic "len ", len(c);
+		panic("len ", len(c));
 	}
 
 	/* index strings */
 	for i:=0; i<len(c); i=i+1 {
 		if c[i] != (a+b)[i] {
-			panic "index ", i, " ", c[i], " ", (a+b)[i];
+			panic("index ", i, " ", c[i], " ", (a+b)[i]);
 		}
 	}
 
 	/* slice strings */
-	print c[0:3], c[3:6];
+	print(c[0:3], c[3:6]);
 
-	print "\n";
+	print("\n");
 
 	/* create string with integer constant */
 	c = string('x');
 	if c != "x" {
-		panic "create int ", c;
+		panic("create int ", c);
 	}
 
 	/* create string with integer variable */
 	v := 'x';
 	c = string(v);
 	if c != "x" {
-		panic "create int ", c;
+		panic("create int ", c);
 	}
 
 	/* create string with byte array */
@@ -88,7 +88,7 @@ main()
 	z1[2] = 'c';
 	c = string(z1);
 	if c != "abc" {
-		panic "create array ", c;
+		panic("create array ", c);
 	}
 
 	/* create string with byte array pointer */
@@ -98,6 +98,6 @@ main()
 	z2[2] = 'c';
 	c = string(z2);
 	if c != "abc" {
-		panic "create array pointer ", c;
+		panic("create array pointer ", c);
 	}
 }

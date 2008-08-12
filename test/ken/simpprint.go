@@ -10,5 +10,5 @@ package main
 func
 main()
 {
-	print "hello world\n";
+	print("hello world\n");
 }

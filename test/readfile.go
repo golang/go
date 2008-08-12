@@ -13,7 +13,7 @@ func main() {
 
 	s, ok = sys.readfile("readfile.go");
 	if !ok {
-		print "couldn't readfile\n";
+		print("couldn't readfile\n");
 		sys.exit(1)
 	}
 	start_of_file :=
@@ -22,7 +22,7 @@ func main() {
 		"\n" +
 		"package main\n";
 	if s[0:102] != start_of_file {
-		print "wrong data\n";
+		print("wrong data\n");
 		sys.exit(1)
 	}
 }

@@ -14,7 +14,7 @@ func pause() {
 }
 
 func i32receiver(c *chan int32) {
-	if <-c != 123 { panic "i32 value" }
+	if <-c != 123 { panic("i32 value") }
 }
 
 func i32sender(c *chan int32) {
@@ -22,7 +22,7 @@ func i32sender(c *chan int32) {
 }
 
 func i64receiver(c *chan int64) {
-	if <-c != 123456 { panic "i64 value" }
+	if <-c != 123456 { panic("i64 value") }
 }
 
 func i64sender(c *chan int64) {
@@ -30,7 +30,7 @@ func i64sender(c *chan int64) {
 }
 
 func breceiver(c *chan bool) {
-	if ! <-c { panic "b value" }
+	if ! <-c { panic("b value") }
 }
 
 func bsender(c *chan bool) {
@@ -38,7 +38,7 @@ func bsender(c *chan bool) {
 }
 
 func sreceiver(c *chan string) {
-	if <-c != "hello" { panic "s value" }
+	if <-c != "hello" { panic("s value") }
 }
 
 func ssender(c *chan string) {
@@ -58,55 +58,55 @@ func main() {
 	cs := new(chan string);
 
 	i32, ok = <-c32;
-	if ok { panic "blocked i32sender" }
+	if ok { panic("blocked i32sender") }
 
 	i64, ok = <-c64;
-	if ok { panic "blocked i64sender" }
+	if ok { panic("blocked i64sender") }
 
 	b, ok = <-cb;
-	if ok { panic "blocked bsender" }
+	if ok { panic("blocked bsender") }
 
 	s, ok = <-cs;
-	if ok { panic "blocked ssender" }
+	if ok { panic("blocked ssender") }
 
 	go i32receiver(c32);
 	pause();
 	ok = c32 -< 123;
-	if !ok { panic "i32receiver" }
+	if !ok { panic("i32receiver") }
 	go i32sender(c32);
 	pause();
 	i32, ok = <-c32;
-	if !ok { panic "i32sender" }
-	if i32 != 234 { panic "i32sender value" }
+	if !ok { panic("i32sender") }
+	if i32 != 234 { panic("i32sender value") }
 
 	go i64receiver(c64);
 	pause();
 	ok = c64 -< 123456;
-	if !ok { panic "i64receiver" }
+	if !ok { panic("i64receiver") }
 	go i64sender(c64);
 	pause();
 	i64, ok = <-c64;
-	if !ok { panic "i64sender" }
-	if i64 != 234567 { panic "i64sender value" }
+	if !ok { panic("i64sender") }
+	if i64 != 234567 { panic("i64sender value") }
 
 	go breceiver(cb);
 	pause();
 	ok = cb -< true;
-	if !ok { panic "breceiver" }
+	if !ok { panic("breceiver") }
 	go bsender(cb);
 	pause();
 	b, ok = <-cb;
-	if !ok { panic "bsender" }
-	if !b{ panic "bsender value" }
+	if !ok { panic("bsender") }
+	if !b{ panic("bsender value") }
 
 	go sreceiver(cs);
 	pause();
 	ok = cs -< "hello";
-	if !ok { panic "sreceiver" }
+	if !ok { panic("sreceiver") }
 	go ssender(cs);
 	pause();
 	s, ok = <-cs;
-	if !ok { panic "ssender" }
-	if s != "hello again" { panic "ssender value" }
-	print "PASS\n"
+	if !ok { panic("ssender") }
+	if s != "hello again" { panic("ssender value") }
+	print("PASS\n")
 }

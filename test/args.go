@@ -8,12 +8,12 @@ package main
 
 func main() {
 	if sys.argc() != 3 {
-		panic "argc"
+		panic("argc")
 	}
 	if sys.argv(1) != "arg1" {
-		panic "arg1"
+		panic("arg1")
 	}
 	if sys.argv(2) != "arg2" {
-		panic "arg2"
+		panic("arg2")
 	}
 }

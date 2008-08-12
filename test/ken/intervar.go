@@ -22,7 +22,7 @@ type	Print	struct
 func (p *Print)
 dop()
 {
-	print " print ", p.whoami;
+	print(" print ", p.whoami);
 	p.put.puts("abc");
 }
 
@@ -37,7 +37,7 @@ type	Bio	struct
 func (b *Bio)
 puts(s string)
 {
-	print " bio ", b.whoami;
+	print(" bio ", b.whoami);
 	b.put.puts(s);
 }
 
@@ -52,7 +52,7 @@ type	File	struct
 func (f *File)
 puts(s string)
 {
-	print " file ", f.whoami, " -- ", s;
+	print(" file ", f.whoami, " -- ", s);
 }
 
 func
@@ -71,5 +71,5 @@ main()
 	f.whoami = 3;
 
 	p.dop();
-	print "\n";
+	print("\n");
 }

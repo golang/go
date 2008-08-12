@@ -17,7 +17,7 @@ func main() {
     0X0 +
     0X123;
   if s != 788 {
-    print "s is ", s, "; should be 788\n";
+    print("s is ", s, "; should be 788\n");
     sys.exit(1);
   }
 }

@@ -21,5 +21,5 @@ main()
 		y = 25;
 	}
 	x = x+y;
-	if(x != 40) { panic x; }
+	if(x != 40) { panic(x); }
 }

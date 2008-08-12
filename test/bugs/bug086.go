@@ -14,7 +14,7 @@ func f() int {
 }
 
 func main() {
-	print f(), "\n";
+	print(f(), "\n");
 }
 
 /*

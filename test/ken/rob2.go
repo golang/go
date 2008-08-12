@@ -100,21 +100,21 @@ func (slist *Slist) PrintOne(doparen bool)
 	}
 	if slist.isatom {
 		if slist.isstring {
-			print slist.String();
+			print(slist.String());
 		} else {
-			print slist.Integer();
+			print(slist.Integer());
 		}
 	} else {
 		if doparen {
-			print "(" ;
+			print("(" );
 		}
 		slist.Car().PrintOne(true);
 		if slist.Cdr() != nil {
-			print " ";
+			print(" ");
 			slist.Cdr().PrintOne(false);
 		}
 		if doparen {
-			print ")";
+			print(")");
 		}
 	}
 }
@@ -122,7 +122,7 @@ func (slist *Slist) PrintOne(doparen bool)
 func (slist *Slist) Print()
 {
 	slist.PrintOne(true);
-	print "\n";
+	print("\n");
 }
 
 func Get() int
@@ -182,7 +182,7 @@ func NextToken()
 				}
 			}
 			if i >= 100 - 1 {	// sizeof tokenbuf - 1
-				panic "atom too long\n";
+				panic("atom too long\n");
 			}
 			tokenlen = i;
 			tokenbuf[i] = nilchar;
@@ -197,8 +197,8 @@ func NextToken()
 func Expect(c int)
 {
 	if token != c {
-		print "parse error: expected ", c, "\n";
-		panic "parse";
+		print("parse error: expected ", c, "\n");
+		panic("parse");
 	}
 	NextToken();
 }
@@ -276,7 +276,7 @@ func Parse() *Slist
 				slist = atom(0);
 			default:
 				slist = nil;
-				print "unknown token"; //, token, tokenbuf;
+				print("unknown token"); // token, tokenbuf);
 		}
 		NextToken();
 		return slist;

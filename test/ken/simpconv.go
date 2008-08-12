@@ -15,11 +15,11 @@ main()
 	for i:=short(0); i<10; i=i+1 {
 		s1 = s1 + vlong(i);
 	}
-	if s1 != 45 { panic s1; }
+	if s1 != 45 { panic(s1); }
 
 	s2 := float(0);
 	for i:=0; i<10; i=i+1 {
 		s2 = s2 + float(i);
 	}
-	if s2 != 45 { panic s2; }
+	if s2 != 45 { panic(s2); }
 }

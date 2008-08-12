@@ -15,5 +15,5 @@ main()
 	for i=0; i<100; i=i+1 {
 		t = t+i;
 	}
-	if t != 50*99  { panic t; }
+	if t != 50*99  { panic(t); }
 }

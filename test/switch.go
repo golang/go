@@ -8,8 +8,8 @@ package main
 
 func assert(cond bool, msg string) {
 	if !cond {
-		print "assertion fail: ", msg, "\n";
-		panic 1;
+		print("assertion fail: ", msg, "\n");
+		panic(1);
 	}
 }
 

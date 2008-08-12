@@ -18,6 +18,6 @@ main()
 	b := 2;
 	a, b = swap(swap(a, b));
 	if a != 2 || b != 1 {
-		panic "bad swap";
+		panic("bad swap");
 	}
 }

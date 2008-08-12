@@ -34,8 +34,8 @@ main()
 	s2.d.c = 23;
 	s2.d.d = 20;
 
-	if(s2.d.c != 23) { panic 1; }
-	if(g2.d.c != 23) { panic 2; }
+	if(s2.d.c != 23) { panic(1); }
+	if(g2.d.c != 23) { panic(2); }
 
 	x =	s1.a +
 		s1.b +
@@ -50,5 +50,5 @@ main()
 		s2.d.c +
 		s2.d.d;
 
-	if(x != 121) { panic x; }
+	if(x != 121) { panic(x); }
 }

@@ -20,7 +20,7 @@ func Alloc(i int) int {
 
 func main() {
 	s := Alloc(7);
-	if s != 5 { panic "bad" }
+	if s != 5 { panic("bad") }
 }
 
 /*

@@ -11,16 +11,16 @@ var	a,b,c,d,e,f,g,h,i int;
 func
 printit()
 {
-	print a,b,c,d,e,f,g,h,i,"\n";
+	print(a,b,c,d,e,f,g,h,i,"\n");
 }
 
 func
 testit() bool
 {
 	if a+b+c+d+e+f+g+h+i != 45 {
-		print "sum does not add to 45\n";
+		print("sum does not add to 45\n");
 		printit();
-		panic;
+		panic();
 	}
 	return	a == 1 &&
 		b == 2 &&
@@ -51,7 +51,7 @@ main()
 	h = 8;
 	i = 9;
 
-	if !testit() { panic "init val\n"; }
+	if !testit() { panic("init val\n"); }
 
 	for z:=0; z<100; z++ {
 		a,b,c,d, e,f,g,h,i = b,c,d,a, i,e,f,g,h;
@@ -60,24 +60,24 @@ main()
 			if z == 19 {
 				break;
 			}
-			print "on ", z, "th iteration\n";
+			print("on ", z, "th iteration\n");
 			printit();
-			panic;
+			panic();
 		}
 	}
 
 	if !testit() {
-		print "final val\n";
+		print("final val\n");
 		printit();
-		panic;
+		panic();
 	}
 
 	a, b = swap(1, 2);
 	if a != 2 || b != 1 {
-		panic "bad swap";
+		panic("bad swap");
 	}
 //BUG	a, b = swap(swap(a, b));
 //	if a != 2 || b != 1 {
-//		panic "bad swap";
+//		panic("bad swap");
 //	}
 }

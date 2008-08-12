@@ -11,7 +11,7 @@ type Service struct {
 }
 
 func (s *Service) Serve(a int64) {
-	if a != 1234 { panic a, " not 1234\n" }
+	if a != 1234 { panic(a, " not 1234\n") }
 }
 
 var arith Service

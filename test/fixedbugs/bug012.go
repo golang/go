@@ -12,10 +12,10 @@ func main() {
 	var u31 uint64 = 1;
 	var u32 uint64 = 18446744073709551615;
 	var u33 uint64 = +18446744073709551615;
-	if u32 != (1<<64)-1 { panic "u32\n"; }
-	if u33 != (1<<64)-1 { panic "u33\n"; }
+	if u32 != (1<<64)-1 { panic("u32\n"); }
+	if u33 != (1<<64)-1 { panic("u33\n"); }
 	var i34 int64 = ^0;  // note: 2's complement means ^0 == -1
-	if i34 != -1 { panic "i34" }
+	if i34 != -1 { panic("i34") }
 }
 /*
 bug12.go:5: overflow converting constant to <uint64>UINT64

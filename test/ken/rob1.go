@@ -63,7 +63,7 @@ Init(i int) *Integer
 func (this *Integer)
 Print()
 {
-	print this.val;
+	print(this.val);
 }
 
 func
@@ -78,5 +78,5 @@ main()
 	}
 
 	list.Print();
-	print "\n";
+	print("\n");
 }
