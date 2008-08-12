@@ -18,15 +18,15 @@
 %token	<sym>		LPACKAGE LIMPORT LEXPORT
 %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
 %token	<sym>		LCOLAS LFALL LRETURN
-%token	<sym>		LNEW LLEN
+%token	<sym>		LNEW LLEN LTYPEOF LPANIC LPRINT
 %token	<sym>		LVAR LTYPE LCONST LCONVERT LSELECT
 %token	<sym>		LFOR LIF LELSE LSWITCH LCASE LDEFAULT
 %token	<sym>		LBREAK LCONTINUE LGO LGOTO LRANGE
 %token	<sym>		LNIL LTRUE LFALSE LIOTA
-%token	<sym>		LPANIC LPRINT LIGNORE
 
 %token			LOROR LANDAND LEQ LNE LLE LLT LGE LGT
 %token			LLSH LRSH LINC LDEC LSEND LRECV
+%token			LIGNORE
 
 %type	<sym>		sym sym1 sym2 key1 key2 laconst lname latype
 %type	<lint>		chandir
@@ -733,6 +733,11 @@ pexpr:
 	{
 		$$ = nod(OLEN, $3, N);
 	}
+|	LTYPEOF '(' type ')'
+	{
+		$$ = nod(OTYPEOF, N, N);
+		$$->type = $3;
+	}
 |	LNEW '(' type ')'
 	{
 		$$ = nod(ONEW, N, N);
@@ -852,6 +857,7 @@ key1:
 |	LPRINT
 |	LNEW
 |	LBASETYPE
+|	LTYPEOF
 
 /*
  * keywords that we can
@@ -884,7 +890,6 @@ key2:
 |	LGO
 |	LGOTO
 |	LRANGE
-|	LIGNORE
 
 name:
 	lname

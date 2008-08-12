@@ -303,6 +303,7 @@ void
 agen_inter(Node *n, Node *res)
 {
 	Node nodo, nodr, nodt;
+	Node *var;
 	Sym *s;
 	char *e;
 	int32 o,lno;
@@ -355,9 +356,10 @@ agen_inter(Node *n, Node *res)
 
 		nodo.xoffset = 1*widthptr;
 		if(!n->left->addable) {
-			agen(n->left, &nodr);
-			gmove(&nodr, &nodo);
-			fatal("agen_inter i2i");
+			var = nod(OXXX, N, N);
+			tempname(var, n->left->type);
+			cgen(n->left, var);
+			cgen(var, &nodo);
 		} else {
 			cgen(n->left, &nodo);
 		}
@@ -380,9 +382,10 @@ agen_inter(Node *n, Node *res)
 
 		nodo.xoffset = 1*widthptr;
 		if(!n->left->addable) {
-			agen(n->left, &nodr);
-			gmove(&nodr, &nodo);
-			fatal("agen_inter i2s");
+			var = nod(OXXX, N, N);
+			tempname(var, n->left->type);
+			cgen(n->left, var);
+			cgen(var, &nodo);
 		} else {
 			cgen(n->left, &nodo);
 		}
