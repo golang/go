@@ -27,8 +27,8 @@ main()
 	s1.c = 3;
 	s1.d = 5;
 
-	if(s1.c != 3) { panic s1.c; }
-	if(g1.c != 3) { panic g1.c; }
+	if(s1.c != 3) { panic(s1.c); }
+	if(g1.c != 3) { panic(g1.c); }
 
 	s2.a = 7;
 	s2.b = 11;
@@ -38,8 +38,8 @@ main()
 	s2.d.c = 23;
 	s2.d.d = 29;
 
-	if(s2.d.c != 23) { panic s2.d.c; }
-	if(g2.d.c != 23) { panic g2.d.c; }
+	if(s2.d.c != 23) { panic(s2.d.c); }
+	if(g2.d.c != 23) { panic(g2.d.c); }
 
 	x =	s1.a +
 		s1.b +
@@ -54,7 +54,7 @@ main()
 		s2.d.c +
 		s2.d.d;
 
-	if(x != 130) { panic x; }
+	if(x != 130) { panic(x); }
 
 	// test an automatic struct
 	s3.a = 7;
@@ -65,7 +65,7 @@ main()
 	s3.d.c = 23;
 	s3.d.d = 29;
 
-	if(s3.d.c != 23) { panic s3.d.c; }
+	if(s3.d.c != 23) { panic(s3.d.c); }
 
 	x =	s3.a +
 		s3.b +
@@ -75,5 +75,5 @@ main()
 		s3.d.c +
 		s3.d.d;
 
-	if(x != 119) { panic x; }
+	if(x != 119) { panic(x); }
 }

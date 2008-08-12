@@ -39,6 +39,6 @@ func main() {
 	s.name = "foo";
 	s.fields = v;
 	if s.field(0).name != "hi" {
-		panic "bad name"
+		panic("bad name")
 	}
 }

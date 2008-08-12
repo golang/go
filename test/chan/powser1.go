@@ -18,8 +18,8 @@ type rat struct  {
 }
 
 func (u *rat) pr(){
-	if u.den==1 { print u.num }
-	else { print u.num, "/", u.den }
+	if u.den==1 { print(u.num) }
+	else { print(u.num, "/", u.den) }
 	print(" ")
 }
 
@@ -126,7 +126,7 @@ func get(in *dch) item{
 
 func getn(in *[]*dch, n int) *[]item {
 	// BUG n:=len(in);
-	if n != 2 { panic "bad n in getn" };
+	if n != 2 { panic("bad n in getn") };
 	req := new([2] *chan int);
 	dat := new([2] *chan item);
 	out := new([2] item);
@@ -264,7 +264,7 @@ func sub(u, v *rat) *rat{
 }
 
 func inv(u *rat) *rat{	// invert a rat
-	if u.num == 0 { panic "zero divide in inv" }
+	if u.num == 0 { panic("zero divide in inv") }
 	return i2tor(u.den, u.num);
 }
 
@@ -283,7 +283,7 @@ Evaln(c *rat, U PS, n int)
 		val = val + x * float64(u.num)/float64(u.den);
 		xn = xn*x;
 	}
-	print val, "\n";
+	print(val, "\n");
 }
 
 // Print n terms of a power series
@@ -294,7 +294,7 @@ func Printn(U PS, n int){
 		if end(u) != 0 { done = true }
 		else { u.pr() }
 	}
-	print ("\n");
+	print(("\n"));
 }
 
 func Print(U PS){
@@ -614,12 +614,12 @@ func check(U PS, c *rat, count int, str string) {
 	for i := 0; i < count; i++ {
 		r := get(U)
 		if !r.eq(c) {
-			print "got: ";
+			print("got: ");
 			r.pr();
-			print "should get ";
+			print("should get ");
 			c.pr();
-			print "\n";
-			panic str
+			print("\n");
+			panic(str)
 		}
 	}
 }
@@ -634,17 +634,17 @@ func checka(U PS, a *[]*rat, str string) {
 func main() {
 	Init();
 	if sys.argc() > 1 {  // print
-		print "Ones: "; Printn(Ones, 10);
-		print "Twos: "; Printn(Twos, 10);
-		print "Add: "; Printn(Add(Ones, Twos), 10);
-		print "Diff: "; Printn(Diff(Ones), 10);
-		print "Integ: "; Printn(Integ(zero, Ones), 10);
-		print "CMul: "; Printn(Cmul(neg(one), Ones), 10);
-		print "Sub: "; Printn(Sub(Ones, Twos), 10);
-		print "Mul: "; Printn(Mul(Ones, Ones), 10);
-		print "Exp: "; Printn(Exp(Ones), 15);
-		print "MonSubst: "; Printn(MonSubst(Ones, neg(one), 2), 10);
-		print "ATan: "; Printn(Integ(zero, MonSubst(Ones, neg(one), 2)), 10);
+		print("Ones: "); Printn(Ones, 10);
+		print("Twos: "); Printn(Twos, 10);
+		print("Add: "); Printn(Add(Ones, Twos), 10);
+		print("Diff: "); Printn(Diff(Ones), 10);
+		print("Integ: "); Printn(Integ(zero, Ones), 10);
+		print("CMul: "); Printn(Cmul(neg(one), Ones), 10);
+		print("Sub: "); Printn(Sub(Ones, Twos), 10);
+		print("Mul: "); Printn(Mul(Ones, Ones), 10);
+		print("Exp: "); Printn(Exp(Ones), 15);
+		print("MonSubst: "); Printn(MonSubst(Ones, neg(one), 2), 10);
+		print("ATan: "); Printn(Integ(zero, MonSubst(Ones, neg(one), 2)), 10);
 	} else {  // test
 		check(Ones, one, 5, "Ones");
 		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1

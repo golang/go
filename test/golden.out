@@ -87,10 +87,6 @@ bugs/bug048.go:7: illegal types for operand: CONV
 	(MAP[<int32>INT32]<int32>INT32)
 BUG: known to fail incorrectly
 
-=========== bugs/bug053.go
-bugs/bug053.go:6: syntax error
-BUG: len should not be a keyword
-
 =========== bugs/bug054.go
 bugs/bug054.go:25: fatal error: agen_inter i2s
 BUG: known to fail incorrectly

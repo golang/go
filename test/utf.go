@@ -22,13 +22,13 @@ func main() {
 	for w, i, j := 0,0,0; i < l; i += w {
 		var r int32;
 		r, w = sys.stringtorune(s, i, l);
-		if w == 0 { panic "zero width in string" }
-		if r != chars[j] { panic "wrong value from string" }
+		if w == 0 { panic("zero width in string") }
+		if r != chars[j] { panic("wrong value from string") }
 		j++;
 	}
 	// encoded as bytes:  'a' 'b' 'c' e6 97 a5 e6 9c ac e8 aa 9e
 	const L = 12;
-	if L != l { panic "wrong length constructing array" }
+	if L != l { panic("wrong length constructing array") }
 	a := new([L]byte);
 	a[0] = 'a';
 	a[1] = 'b';
@@ -45,8 +45,8 @@ func main() {
 	for w, i, j := 0,0,0; i < L; i += w {
 		var r int32;
 		r, w = sys.bytestorune(&a[0], i, L);
-		if w == 0 { panic "zero width in bytes" }
-		if r != chars[j] { panic "wrong value from bytes" }
+		if w == 0 { panic("zero width in bytes") }
+		if r != chars[j] { panic("wrong value from bytes") }
 		j++;
 	}
 }

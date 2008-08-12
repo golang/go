@@ -11,7 +11,7 @@ var ecode int;
 func assert(a, b, c string) {
 	if a != b {
 		ecode = 1;
-		print "FAIL: ", c, ": ", a, "!=", b, "\n";
+		print("FAIL: ", c, ": ", a, "!=", b, "\n");
 		var max int = len(a);
 		if len(b) > max {
 			max = len(b);
@@ -26,7 +26,7 @@ func assert(a, b, c string) {
 				bc = int(b[i]);
 			}
 			if ac != bc {
-				print "\ta[", i, "] = ", ac, "; b[", i, "] =", bc, "\n";
+				print("\ta[", i, "] = ", ac, "; b[", i, "] =", bc, "\n");
 			}
 		}
 	}

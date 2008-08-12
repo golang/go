@@ -11,15 +11,15 @@ import fmt "fmt"  // BUG: shouldn't need the first 'fmt'.
 func E(f *fmt.Fmt, e string) {
 	g := f.str();
 	if sys.argc() > 1 {
-		print g, "\n";
+		print(g, "\n");
 		if g != e {
-			print "expected <", e, ">\n";
+			print("expected <", e, ">\n");
 		}
 		return;
 	}
 	if g != e {
-		print "expected <", e, ">\n";
-		print "got      <", g, ">\n"
+		print("expected <", e, ">\n");
+		print("got      <", g, ">\n");
 	}
 }
 

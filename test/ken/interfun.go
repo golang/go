@@ -45,20 +45,20 @@ main()
 	s.b = 6;
 
 	// call structure
-	if s.f() != 5 { panic 11; }
-	if s.g() != 6 { panic 12; }
+	if s.f() != 5 { panic(11); }
+	if s.g() != 6 { panic(12); }
 
 	i1 = s;		// convert S to I1
 	i2 = i1;	// convert I1 to I2
 
 	// call interface
-	if i1.f() != 5 { panic 21; }
-	if i2.f() != 5 { panic 22; }
-	if i2.g() != 6 { panic 23; }
+	if i1.f() != 5 { panic(21); }
+	if i2.f() != 5 { panic(22); }
+	if i2.g() != 6 { panic(23); }
 
 	g = i1;		// convert I1 to S
-	if g != s { panic 31; }
+	if g != s { panic(31); }
 
 	g = i2;		// convert I2 to S
-	if g != s { panic 32; }
+	if g != s { panic(32); }
 }

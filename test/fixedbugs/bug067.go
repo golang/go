@@ -7,5 +7,5 @@
 package main
 
 func main() {
-	go func() { print "ok\n" } ();
+	go func() { print("ok\n") } ();
 }

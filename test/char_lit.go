@@ -32,11 +32,11 @@ func main() {
     '\Ucafebabe'
   ;
   if '\Ucafebabe' != 0xcafebabe {
-  	print "cafebabe wrong\n";
+  	print("cafebabe wrong\n");
   	sys.exit(1)
   }
   if i != 0xcc238de1 {
-  	print "number is ", i, " should be ", 0xcc238de1, "\n";
+  	print("number is ", i, " should be ", 0xcc238de1, "\n");
   	sys.exit(1)
   }
 }

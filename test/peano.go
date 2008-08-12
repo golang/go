@@ -87,7 +87,7 @@ func count(x *Number) int {
 func check(x *Number, expected int) {
 	var c = count(x);
 	if c != expected {
-		panic "error: found ", c, "; expected ", expected, "\n";
+		panic("error: found ", c, "; expected ", expected, "\n");
 	}
 }
 
@@ -125,7 +125,7 @@ func main() {
 	
 	verify();
 	for i := 0; i <= 10; i++ {
-		print i, "! = ", count(fact(gen(i))), "\n";
+		print(i, "! = ", count(fact(gen(i))), "\n");
 	}
 }
 

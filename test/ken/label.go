@@ -28,8 +28,8 @@ loop:
 	if i < 100 {
 		goto loop;
 	}
-	print i;
-	print "\n";
+	print(i);
+	print("\n");
 	return;
 
 gogoloop:

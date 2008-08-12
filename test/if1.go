@@ -12,7 +12,7 @@ func main() {
 		count = count + one	
 	}
 	if count != 8 {
-		print count, " should be 8\n";
+		print(count, " should be 8\n");
 		sys.exit(1)
 	}
 }

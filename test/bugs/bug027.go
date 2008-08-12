@@ -39,7 +39,7 @@ func main() {
 	i3 := new(I); i3.val = 3333;
 	i4 := new(I); i4.val = 44444;
 	v := New();
-	print "hi\n";
+	print("hi\n");
 	v.Insert(i4);
 	v.Insert(i3);
 	v.Insert(i2);
@@ -48,10 +48,10 @@ func main() {
 	for i := 0; i < v.nelem; i++ {
 		var x *I;
 		x = v.At(i);
-		print i, " ", x.val, "\n";  // prints correct list
+		print(i, " ", x.val, "\n");  // prints correct list
 	}
 	for i := 0; i < v.nelem; i++ {
-		print i, " ", I(v.At(i)).val, "\n"; // always prints 5 - bad code - should be *I()
+		print(i, " ", I(v.At(i)).val, "\n"); // always prints 5 - bad code - should be *I()
 	}
 }
 /*

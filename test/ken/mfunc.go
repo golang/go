@@ -14,7 +14,7 @@ main()
 	var x,y int;
 
 	x,y = simple(10,20,30);
-	if x+y != 65 { panic x+y; }
+	if x+y != 65 { panic(x+y); }
 }
 
 func

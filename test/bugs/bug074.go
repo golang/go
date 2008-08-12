@@ -8,5 +8,5 @@ package main
 
 func main() {
 	x := string('a', 'b', '\n');
-	print x;
+	print(x);
 }

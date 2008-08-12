@@ -17,7 +17,7 @@ func AsynchFifo() {
 	}
 	for i := 0; i < N; i++ {
 		if <-ch != i {
-			print "bad receive\n";
+			print("bad receive\n");
 			sys.exit(1);
 		}
 	}
@@ -26,7 +26,7 @@ func AsynchFifo() {
 func Chain(ch *chan<- int, val int, in *chan<- int, out *chan-< int) {
 	<-in;
 	if <-ch != val {
-		panic val
+		panic(val)
 	}
 	out -< 1
 }
