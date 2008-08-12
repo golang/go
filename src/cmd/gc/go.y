@@ -12,22 +12,23 @@
 	struct	Val	val;
 	int		lint;
 }
-%token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
 %token	<val>		LLITERAL
 %token	<lint>		LASOP
-%token			LPACKAGE LIMPORT LEXPORT
-%token			LMAP LCHAN LINTERFACE LFUNC LSTRUCT
-%token			LCOLAS LFALL LRETURN
-%token			LNEW LLEN
-%token			LVAR LTYPE LCONST LCONVERT LSELECT
-%token			LFOR LIF LELSE LSWITCH LCASE LDEFAULT
-%token			LBREAK LCONTINUE LGO LGOTO LRANGE
+%token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
+%token	<sym>		LPACKAGE LIMPORT LEXPORT
+%token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
+%token	<sym>		LCOLAS LFALL LRETURN
+%token	<sym>		LNEW LLEN
+%token	<sym>		LVAR LTYPE LCONST LCONVERT LSELECT
+%token	<sym>		LFOR LIF LELSE LSWITCH LCASE LDEFAULT
+%token	<sym>		LBREAK LCONTINUE LGO LGOTO LRANGE
+%token	<sym>		LNIL LTRUE LFALSE LIOTA
+%token	<sym>		LPANIC LPRINT LIGNORE
+
 %token			LOROR LANDAND LEQ LNE LLE LLT LGE LGT
 %token			LLSH LRSH LINC LDEC LSEND LRECV
-%token			LNIL LTRUE LFALSE LIOTA
-%token			LPANIC LPRINT LIGNORE
 
-%type	<sym>		sym laconst lname latype
+%type	<sym>		sym sym1 sym2 key1 key2 laconst lname latype
 %type	<lint>		chandir
 %type	<node>		xdcl xdcl_list_r oxdcl_list
 %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
@@ -410,13 +411,13 @@ semi_stmt:
 		$$ = nod(OCALL, $2, $4);
 		$$ = nod(OPROC, $$, N);
 	}
-|	LPRINT expr_list
+|	LPRINT '(' oexpr_list ')'
 	{
-		$$ = nod(OPRINT, $2, N);
+		$$ = nod(OPRINT, $3, N);
 	}
-|	LPANIC oexpr_list
+|	LPANIC '(' oexpr_list ')'
 	{
-		$$ = nod(OPANIC, $2, N);
+		$$ = nod(OPANIC, $3, N);
 	}
 |	LGOTO new_name
 	{
@@ -707,7 +708,7 @@ pexpr:
 	{
 		$$ = $2;
 	}
-|	pexpr '.' sym
+|	pexpr '.' sym1
 	{
 		$$ = nod(ODOT, $1, newname($3));
 	}
@@ -811,13 +812,13 @@ name_name:
 	}
 
 new_name:
-	sym
+	sym2
 	{
 		$$ = newname($1);
 	}
 
 new_type:
-	sym
+	sym2
 	{
 		$$ = newtype($1);
 	}
@@ -827,6 +828,63 @@ sym:
 |	LNAME
 |	LACONST
 |	LPACK
+
+sym1:
+	sym
+|	key1
+|	key2
+
+sym2:
+	sym
+|	key2
+
+/*
+ * keywords that we can
+ * use a field names
+ */
+key1:
+	LPACKAGE
+|	LIMPORT
+|	LEXPORT
+|	LMAP
+|	LCHAN
+|	LINTERFACE
+|	LFUNC
+|	LSTRUCT
+|	LFALL
+|	LRETURN
+|	LVAR
+|	LTYPE
+|	LCONST
+|	LCONVERT
+|	LSELECT
+|	LFOR
+|	LIF
+|	LELSE
+|	LSWITCH
+|	LCASE
+|	LDEFAULT
+|	LBREAK
+|	LCONTINUE
+|	LGO
+|	LGOTO
+|	LRANGE
+|	LIGNORE
+
+/*
+ * keywords that we can
+ * use a variable/type names
+ */
+key2:
+	LNIL
+|	LTRUE
+|	LFALSE
+|	LIOTA
+|	LLEN
+|	LPANIC
+|	LPRINT
+|	LNEW
+|	LBASETYPE
 
 name:
 	lname
@@ -1336,7 +1394,7 @@ export:
 	{
 		exportsym($1);
 	}
-|	sym '.' sym
+|	sym '.' sym1
 	{
 		exportsym(pkglookup($3->name, $1->name));
 	}
@@ -1520,7 +1578,7 @@ hidden_import:
 	}
 
 isym:
-	sym '.' sym
+	sym '.' sym1
 	{
 		$$ = nod(OIMPORT, N, N);
 		$$->osym = $1;
@@ -1528,7 +1586,7 @@ isym:
 		$$->sym = $3;
 		renamepkg($$);
 	}
-|	'(' sym ')' sym '.' sym
+|	'(' sym ')' sym '.' sym1
 	{
 		$$ = nod(OIMPORT, N, N);
 		$$->osym = $2;
