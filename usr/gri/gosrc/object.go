@@ -9,7 +9,7 @@ import Globals "globals"
 
 export const /* kind */ (
 	BAD = iota;  // error handling
-	CONST; TYPE; VAR; FUNC; PACKAGE; LABEL;
+	CONST; TYPE; VAR; FIELD; FUNC; PACKAGE; LABEL;
 	END;  // end of scope (import/export only)
 )
 
@@ -25,6 +25,7 @@ export func KindStr(kind int) string {
 	case CONST: return "CONST";
 	case TYPE: return "TYPE";
 	case VAR: return "VAR";
+	case FIELD: return "FIELD";
 	case FUNC: return "FUNC";
 	case PACKAGE: return "PACKAGE";
 	case LABEL: return "LABEL";

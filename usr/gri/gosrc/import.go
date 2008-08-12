@@ -260,7 +260,7 @@ func (I *Importer) ReadObject() *Globals.Object {
 	case Object.CONST:
 		I.ReadInt();  // should set the value field
 
-	case Object.VAR:
+	case Object.VAR, Object.FIELD:
 		I.ReadInt();  // should set the address/offset field
 
 	case Object.FUNC:

@@ -149,7 +149,7 @@ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
 		print " ";
 		P.PrintTypeStruct(obj.typ);
 
-	case Object.VAR:
+	case Object.VAR, Object.FIELD:
 		if P.level == 0 {
 			print "var ";
 		}

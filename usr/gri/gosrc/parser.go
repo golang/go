@@ -246,12 +246,13 @@ func (P *Parser) TryStatement() bool;
 func (P *Parser) ParseDeclaration();
 
 
-func (P *Parser) ParseIdent() (pos int, ident string) {
+func (P *Parser) ParseIdent(allow_keyword bool) (pos int, ident string) {
 	P.Trace("Ident");
 
-	pos = P.pos;
-	ident = "";
-	if P.tok == Scanner.IDENT {
+	pos, ident = P.pos, "";
+	// NOTE Can make this faster by not doing the keyword lookup in the
+	// scanner if we don't care about keywords.
+	if P.tok == Scanner.IDENT || allow_keyword && P.tok > Scanner.IDENT {
 		ident = P.val;
 		if P.verbose {
 			P.PrintIndent();
@@ -270,7 +271,7 @@ func (P *Parser) ParseIdent() (pos int, ident string) {
 func (P *Parser) ParseIdentDecl(kind int) *Globals.Object {
 	P.Trace("IdentDecl");
 	
-	pos, ident := P.ParseIdent();
+	pos, ident := P.ParseIdent(kind == Object.FIELD);
 	obj := Globals.NewObject(pos, kind, ident);
 	P.Declare(obj);
 	
@@ -296,10 +297,10 @@ func (P *Parser) ParseIdentDeclList(kind int) *Globals.List {
 
 func (P *Parser) ParseIdentList() {
 	P.Trace("IdentList");
-	P.ParseIdent();
+	P.ParseIdent(false);
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParseIdent();
+		P.ParseIdent(false);
 	}
 	P.Ecart();
 }
@@ -309,7 +310,7 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 	P.Trace("QualifiedIdent");
 
 	if pos < 0 {
-		pos, ident = P.ParseIdent();
+		pos, ident = P.ParseIdent(false);
 	}
 	
 	if P.semantic_checks {
@@ -328,7 +329,7 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 			//	panic "pkg.obj.ident != ident";
 			//}
 			P.Next();  // consume "."
-			pos, ident = P.ParseIdent();
+			pos, ident = P.ParseIdent(false);
 			obj = pkg.scope.Lookup(ident);
 			if obj == nil {
 				P.Error(pos, `"` + ident + `" is not declared in package "` + pkg.obj.ident + `"`);
@@ -342,7 +343,7 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 	} else {
 		if P.tok == Scanner.PERIOD {
 			P.Next();
-			P.ParseIdent();
+			P.ParseIdent(false);
 		}
 		P.Ecart();
 		return nil;
@@ -453,10 +454,10 @@ func (P *Parser) ParseChannelType() *Globals.Type {
 }
 
 
-func (P *Parser) ParseVarDeclList() {
+func (P *Parser) ParseVarDeclList(kind int) {
 	P.Trace("VarDeclList");
 	
-	list := P.ParseIdentDeclList(Object.VAR);
+	list := P.ParseIdentDeclList(kind);
 	typ := P.ParseVarType();
 	for p := list.first; p != nil; p = p.next {
 		p.obj.typ = typ;  // TODO should use/have set_type()
@@ -466,20 +467,13 @@ func (P *Parser) ParseVarDeclList() {
 }
 
 
-func (P *Parser) ParseParameterSection() {
-	P.Trace("ParameterSection");
-	P.ParseVarDeclList();
-	P.Ecart();
-}
-
-
 func (P *Parser) ParseParameterList() {
 	P.Trace("ParameterList");
 	
-	P.ParseParameterSection();
+	P.ParseVarDeclList(Object.VAR);
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParseParameterSection();
+		P.ParseVarDeclList(Object.VAR);
 	}
 	
 	P.Ecart();
@@ -586,7 +580,7 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
 		}
 	}
 	
-	pos, ident = P.ParseIdent();
+	pos, ident = P.ParseIdent(true);
 
 	P.ParseParameters();
 	
@@ -614,7 +608,7 @@ func (P *Parser) ParseFunctionType() *Globals.Type {
 func (P *Parser) ParseMethodDecl(recv_typ *Globals.Type) {
 	P.Trace("MethodDecl");
 	
-	pos, ident := P.ParseIdent();
+	pos, ident := P.ParseIdent(true);
 	P.OpenScope();
 	P.level--;
 	sig := P.top_scope;
@@ -649,7 +643,7 @@ func (P *Parser) ParseInterfaceType() *Globals.Type {
 	P.level--;
 	typ := Globals.NewType(Type.INTERFACE);
 	typ.scope = P.top_scope;
-	for P.tok == Scanner.IDENT {
+	for P.tok >= Scanner.IDENT {
 		P.ParseMethodDecl(typ);
 	}
 	P.level++;
@@ -676,13 +670,6 @@ func (P *Parser) ParseMapType() *Globals.Type {
 }
 
 
-func (P *Parser) ParseFieldDecl() {
-	P.Trace("FieldDecl");
-	P.ParseVarDeclList();
-	P.Ecart();
-}
-
-
 func (P *Parser) ParseStructType() *Globals.Type {
 	P.Trace("StructType");
 	
@@ -692,8 +679,8 @@ func (P *Parser) ParseStructType() *Globals.Type {
 	P.level--;
 	typ := Globals.NewType(Type.STRUCT);
 	typ.scope = P.top_scope;
-	for P.tok == Scanner.IDENT {
-		P.ParseFieldDecl();
+	for P.tok >= Scanner.IDENT {
+		P.ParseVarDeclList(Object.FIELD);
 		if P.tok != Scanner.RBRACE {
 			P.Expect(Scanner.SEMICOLON);
 		}
@@ -738,7 +725,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 			
 			P.Next();  // consume package name
 			P.Expect(Scanner.PERIOD);
-			pos, ident := P.ParseIdent();
+			pos, ident := P.ParseIdent(false);
 			obj := pkg.scope.Lookup(ident);
 			if obj == nil {
 				elt = Globals.NewType(Type.FORWARD);
@@ -760,7 +747,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 			if P.Lookup(P.val) == nil {
 				// implicit type forward declaration
 				// create a named forward type 
-				pos, ident := P.ParseIdent();
+				pos, ident := P.ParseIdent(false);
 				obj := Globals.NewObject(pos, Object.TYPE, ident);
 				elt = Globals.NewType(Type.FORWARD);
 				obj.typ = elt;
@@ -1110,8 +1097,8 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
 	period_pos := P.pos;
 	P.Expect(Scanner.PERIOD);
 	
-	if P.tok == Scanner.IDENT {
-		ident_pos, ident := P.ParseIdent();
+	if P.tok >= Scanner.IDENT {
+		ident_pos, ident := P.ParseIdent(true);
 		
 		if P.semantic_checks {
 			switch typ := x.typ(); typ.form {
@@ -1519,7 +1506,7 @@ func (P *Parser) ParseControlFlowStat(tok int) {
 	
 	P.Expect(tok);
 	if P.tok == Scanner.IDENT {
-		P.ParseIdent();
+		P.ParseIdent(false);
 	}
 	
 	P.Ecart();
@@ -1659,7 +1646,7 @@ func (P *Parser) ParseCommCase() {
 	} else {
 		// receive
 		if P.tok != Scanner.LSS {
-			P.ParseIdent();
+			P.ParseIdent(false);
 			P.Expect(Scanner.ASSIGN);
 		}
 		P.Expect(Scanner.LSS);
@@ -1831,7 +1818,7 @@ func (P *Parser) ParseTypeSpec(exported bool) {
 
 	var typ *Globals.Type;
 	
-	pos, ident := P.ParseIdent();
+	pos, ident := P.ParseIdent(false);
 	obj := P.Lookup(ident);
 	
 	if !P.comp.flags.sixg && obj != nil {
@@ -1990,7 +1977,7 @@ func (P *Parser) ParseExportDecl() {
 		has_paren = true;
 	}
 	for P.tok == Scanner.IDENT {
-		pos, ident := P.ParseIdent();
+		pos, ident := P.ParseIdent(false);
 		P.exports.AddStr(ident);
 		P.Optional(Scanner.COMMA);  // TODO this seems wrong
 	}
