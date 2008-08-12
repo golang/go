@@ -66,13 +66,13 @@ func (f *Fmt) str() string {
 }
 
 func (f *Fmt) put() {
-	print f.buf;
+	print(f.buf);
 	f.clearbuf();
 	f.clearflags();
 }
 
 func (f *Fmt) putnl() {
-	print f.buf, "\n";
+	print(f.buf, "\n");
 	f.clearbuf();
 	f.clearflags();
 }
