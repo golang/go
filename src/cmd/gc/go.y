@@ -840,12 +840,7 @@ sym2:
 
 /*
  * keywords that we can
->>>> ORIGINAL go/src/cmd/gc/go.y#8
-==== THEIRS go/src/cmd/gc/go.y#9
- * use as field names
-==== YOURS go/src/cmd/gc/go.y
- * use a variable/type names
-<<<<
+ * use as variable/type names
  */
 key1:
 	LNIL
@@ -860,6 +855,7 @@ key1:
 
 /*
  * keywords that we can
+ * use as field names
  */
 key2:
 	LPACKAGE
@@ -890,36 +886,6 @@ key2:
 |	LRANGE
 |	LIGNORE
 
->>>> ORIGINAL go/src/cmd/gc/go.y#8
- * use a variable/type names
- */
-key2:
-	LNIL
-|	LTRUE
-|	LFALSE
-|	LIOTA
-|	LLEN
-|	LPANIC
-|	LPRINT
-|	LNEW
-|	LBASETYPE
-
-==== THEIRS go/src/cmd/gc/go.y#9
- * use as variable/type names
- */
-key2:
-	LNIL
-|	LTRUE
-|	LFALSE
-|	LIOTA
-|	LLEN
-|	LPANIC
-|	LPRINT
-|	LNEW
-|	LBASETYPE
-
-==== YOURS src/cmd/gc/go.y
-<<<<
 name:
 	lname
 	{
