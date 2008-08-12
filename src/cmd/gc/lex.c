@@ -1022,8 +1022,8 @@ void
 lexinit(void)
 {
 	int i, etype, lex;
-	Sym *s;
 	Type *t;
+	Sym *s;
 
 	besetptr();
 

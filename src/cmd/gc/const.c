@@ -63,12 +63,16 @@ convlit(Node *n, Type *t)
 			break;
 		}
 		if(isfloat[et]) {
+			Mpint *xv;
+
 			// int to float
-			if(mpcmpfltflt(n->val.u.fval, minfltval[et]) < 0)
+			xv = n->val.u.xval;
+			if(mpcmpfixflt(xv, minfltval[et]) < 0)
 				goto bad2;
-			if(mpcmpfltflt(n->val.u.fval, maxfltval[et]) > 0)
+			if(mpcmpfixflt(xv, maxfltval[et]) > 0)
 				goto bad2;
-			mpmovefixflt(n->val.u.fval, n->val.u.xval);
+			n->val.u.fval = mal(sizeof(*n->val.u.fval));
+			mpmovefixflt(n->val.u.fval, xv);
 			n->val.ctype = CTFLT;
 			break;
 		}
@@ -76,12 +80,16 @@ convlit(Node *n, Type *t)
 
 	case Wlitfloat:
 		if(isint[et]) {
+			Mpflt *fv;
+
 			// float to int
-			if(mpcmpfixfix(n->val.u.xval, minintval[et]) < 0)
+			fv = n->val.u.fval;
+			if(mpcmpfltfix(fv, minintval[et]) < 0)
 				goto bad2;
-			if(mpcmpfixfix(n->val.u.xval, maxintval[et]) > 0)
+			if(mpcmpfltfix(fv, maxintval[et]) > 0)
 				goto bad2;
-			mpmovefltfix(n->val.u.xval, n->val.u.fval);
+			n->val.u.xval = mal(sizeof(*n->val.u.xval));
+			mpmovefltfix(n->val.u.xval, fv);
 			n->val.ctype = CTINT;
 			break;
 		}

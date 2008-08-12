@@ -471,6 +471,8 @@ void	mkpackage(char*);
 /*
  *	mparith1.c
  */
+int	mpcmpfixflt(Mpint *a, Mpflt *b);
+int	mpcmpfltfix(Mpflt *a, Mpint *b);
 int	mpcmpfixfix(Mpint *a, Mpint *b);
 int	mpcmpfixc(Mpint *b, vlong c);
 int	mpcmpfltflt(Mpflt *a, Mpflt *b);

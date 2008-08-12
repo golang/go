@@ -162,35 +162,34 @@ func NextToken()
 		c = Get();
 	}
 	switch c {
-		case EOF:
-			token = EOF;
-		case '(':
-		case ')':
-			token = c;
-			break;
-		default:
-			for i = 0; i < 100 - 1; {	// sizeof tokenbuf - 1
-				tokenbuf[i] = convert(byte, c);
-				i = i + 1;
-				c = Get();
-				if c == EOF {
-					break;
-				}
-				if WhiteSpace(c) || c == ')' {
-					peekc = c;
-					break;
-				}
+	case EOF:
+		token = EOF;
+	case '(', ')':
+		token = c;
+		break;
+	default:
+		for i = 0; i < 100 - 1; {	// sizeof tokenbuf - 1
+			tokenbuf[i] = convert(byte, c);
+			i = i + 1;
+			c = Get();
+			if c == EOF {
+				break;
 			}
-			if i >= 100 - 1 {	// sizeof tokenbuf - 1
-				panic("atom too long\n");
+			if WhiteSpace(c) || c == ')' {
+				peekc = c;
+				break;
 			}
-			tokenlen = i;
-			tokenbuf[i] = nilchar;
-			if '0' <= tokenbuf[0] && tokenbuf[0] <= '9' {
-				token = '0';
-			} else {
-				token = 'A';
-			}
+		}
+		if i >= 100 - 1 {	// sizeof tokenbuf - 1
+			panic("atom too long\n");
+		}
+		tokenlen = i;
+		tokenbuf[i] = nilchar;
+		if '0' <= tokenbuf[0] && tokenbuf[0] <= '9' {
+			token = '0';
+		} else {
+			token = 'A';
+		}
 	}
 }
 
@@ -267,16 +266,15 @@ func Parse() *Slist
 	} else {
 		// Atom
 		switch token {
-			case EOF:
-				return nil;
-			case '0':
-				slist = atom(atoi());
-			case '"':
-			case 'A':
-				slist = atom(0);
-			default:
-				slist = nil;
-				print("unknown token"); // token, tokenbuf);
+		case EOF:
+			return nil;
+		case '0':
+			slist = atom(atoi());
+		case '"', 'A':
+			slist = atom(0);
+		default:
+			slist = nil;
+			print("unknown token: ", token, "\n");
 		}
 		NextToken();
 		return slist;
