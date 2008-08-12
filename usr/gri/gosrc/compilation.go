@@ -52,7 +52,7 @@ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data s
 	// see if it just works
 	data, ok = Platform.ReadSourceFile(filename);
 	if ok {
-		comp.env.Compile(comp.flags, comp.env, filename + Platform.src_file_ext);
+		comp.env.Compile(comp, filename + Platform.src_file_ext);
 		data, ok = ReadImport(comp, filename, false);
 		if ok {
 			return data, ok;
@@ -73,30 +73,28 @@ export func Import(comp *Globals.Compilation, pkg_file string) *Globals.Package 
 }
 
 
-export func Export(comp *Globals.Compilation) string {
-	panic "UNIMPLEMENTED";
-	return "";
+export func Export(comp *Globals.Compilation, pkg_file string) {
+	data := Exporter.Export(comp);
+	ok := Platform.WriteObjectFile(pkg_file, data);
+	if !ok {
+		panic "export failed";
+	}
 }
 
 
-export func Compile(flags *Globals.Flags, env* Globals.Environment, filename string) {
-	// setup compilation
-	comp := new(Globals.Compilation);
-	comp.flags = flags;
-	comp.env = env;
-	
-	src, ok := sys.readfile(filename);
+export func Compile(comp *Globals.Compilation, src_file string) {
+	src, ok := Platform.ReadSourceFile(src_file);
 	if !ok {
-		print "cannot open ", filename, "\n"
+		print "cannot open ", src_file, "\n"
 		return;
 	}
 	
-	if flags.verbosity > 0 {
-		print filename, "\n";
+	if comp.flags.verbosity > 0 {
+		print src_file, "\n";
 	}
 
 	scanner := new(Scanner.Scanner);
-	scanner.Open(filename, src);
+	scanner.Open(src_file, src);
 	
 	var tstream *chan *Scanner.Token;
 	if comp.flags.token_chan {
@@ -122,5 +120,5 @@ export func Compile(flags *Globals.Flags, env* Globals.Environment, filename str
 		Printer.PrintObject(comp, comp.pkg_list[0].obj, false);
 	}
 	
-	Exporter.Export(comp, filename);
+	Export(comp, src_file);
 }

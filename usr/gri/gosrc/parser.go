@@ -715,33 +715,78 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 	typ := Globals.NewType(Type.POINTER);
 	
 	var elt *Globals.Type;
-	if P.semantic_checks && P.tok == Scanner.IDENT {
-		if P.Lookup(P.val) == nil {
-			// implicit forward declaration
-			// create a named forward type 
+	if P.semantic_checks {
+		if P.tok == Scanner.STRING && !P.comp.flags.sixg {
+			// implicit package.type forward declaration
+			// TODO eventually the scanner should strip the quotes
+			pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
+			pkg := P.comp.Lookup(pkg_name);
+			if pkg == nil {
+				// package doesn't exist yet - add it to the package list
+				obj := Globals.NewObject(P.pos, Object.PACKAGE, ".pkg");
+				pkg = Globals.NewPackage(pkg_name, obj, Globals.NewScope(nil));
+				pkg.key = "";  // mark as forward-declared package
+				P.comp.Insert(pkg);
+			} else {
+				// package exists already - must be forward declaration
+				if pkg.key != "" {
+					P.Error(P.pos, `cannot use implicit package forward declaration for imported package "` + P.val + `"`);
+					panic "wrong package forward decl";
+					// TODO introduce dummy package so we can continue safely
+				}
+			}
+			
+			P.Next();  // consume package name
+			P.Expect(Scanner.PERIOD);
 			pos, ident := P.ParseIdent();
-			obj := Globals.NewObject(pos, Object.TYPE, ident);
-			elt = Globals.NewType(Type.FORWARD);
-			obj.typ = elt;
-			elt.obj = obj;  // primary type object;
-			// remember the current scope - resolving the forward
-			// type must find a matching declaration in this or a less nested scope
-			elt.scope = P.top_scope;
+			obj := pkg.scope.Lookup(ident);
+			if obj == nil {
+				elt = Globals.NewType(Type.FORWARD);
+				elt.scope = P.top_scope;  // not really needed here, but for consistency
+				obj = Globals.NewObject(pos, Object.TYPE, ident);
+				obj.exported = true;  // the type name must be visible
+				obj.typ = elt;
+				elt.obj = obj;  // primary type object;
+				pkg.scope.Insert(obj);
+				obj.pnolev = pkg.obj.pnolev;
+			} else {
+				if obj.kind != Object.TYPE || obj.typ.form != Type.FORWARD {
+					panic "inconsistency in package.type forward declaration";
+				}
+				elt = obj.typ;
+			}
+			
+		} else if P.tok == Scanner.IDENT {
+			if P.Lookup(P.val) == nil {
+				// implicit type forward declaration
+				// create a named forward type 
+				pos, ident := P.ParseIdent();
+				obj := Globals.NewObject(pos, Object.TYPE, ident);
+				elt = Globals.NewType(Type.FORWARD);
+				obj.typ = elt;
+				elt.obj = obj;  // primary type object;
+				// remember the current scope - resolving the forward
+				// type must find a matching declaration in this or a less nested scope
+				elt.scope = P.top_scope;
+				
+			} else {
+				// type name
+				// (ParseType() (via TryType()) checks for forward types and complains,
+				// so call ParseTypeName() directly)
+				// we can only have a foward type here if we refer to the name of a
+				// yet incomplete type (i.e. if we are in the middle of a type's declaration)
+				elt = P.ParseTypeName();
+			}
+
+			// collect uses of pointer types referring to forward types
+			if elt.form == Type.FORWARD {
+				P.forward_types.AddTyp(typ);
+			}
 			
 		} else {
-			// type name
-			// (ParseType() (via TryType()) checks for forward types and complains,
-			// so call ParseTypeName() directly)
-			// we can only have a foward type here if we refer to the name of a
-			// yet incomplete type (i.e. if we are in the middle of a type's declaration)
-			elt = P.ParseTypeName();
+			elt = P.ParseType();
 		}
-
-		// collect uses of pointer types referring to forward types
-		if elt.form == Type.FORWARD {
-			P.forward_types.AddTyp(typ);
-		}
-		
+	
 	} else {
 		elt = P.ParseType();
 	}
@@ -1556,22 +1601,10 @@ func (P *Parser) ParseCase() {
 }
 
 
-func (P *Parser) ParseCaseList() {
-	P.Trace("CaseList");
-	
-	P.ParseCase();
-	for P.tok == Scanner.CASE || P.tok == Scanner.DEFAULT {
-		P.ParseCase();
-	}
-	
-	P.Ecart();
-}
-
-
 func (P *Parser) ParseCaseClause() {
 	P.Trace("CaseClause");
 	
-	P.ParseCaseList();
+	P.ParseCase();
 	if P.tok != Scanner.FALLTHROUGH && P.tok != Scanner.RBRACE {
 		P.ParseStatementList();
 		P.Optional(Scanner.SEMICOLON);
@@ -1796,19 +1829,35 @@ func (P *Parser) ParseConstSpec(exported bool) {
 func (P *Parser) ParseTypeSpec(exported bool) {
 	P.Trace("TypeSpec");
 
-	// Immediately after declaration of the type name, the type is
-	// considered forward-declared. It may be referred to from inside
-	// the type specification only via a pointer type.
-	typ := Globals.NewType(Type.FORWARD);
-	typ.scope = P.top_scope;  // not really needed here, but for consistency
+	var typ *Globals.Type;
 	
 	pos, ident := P.ParseIdent();
-	obj := Globals.NewObject(pos, Object.TYPE, ident);
-	obj.exported = exported;
-	obj.typ = typ;
-	typ.obj = obj;  // primary type object
-	P.Declare(obj);
+	obj := P.Lookup(ident);
 	
+	if !P.comp.flags.sixg && obj != nil {
+		if obj.typ.form == Type.FORWARD {
+			// imported forward-declared type
+			if !exported {
+				panic "foo";
+			}
+		} else {
+			panic "bar";
+		}
+		
+	} else {
+		// Immediately after declaration of the type name, the type is
+		// considered forward-declared. It may be referred to from inside
+		// the type specification only via a pointer type.
+		typ = Globals.NewType(Type.FORWARD);
+		typ.scope = P.top_scope;  // not really needed here, but for consistency
+
+		obj = Globals.NewObject(pos, Object.TYPE, ident);
+		obj.exported = exported;
+		obj.typ = typ;
+		typ.obj = obj;  // primary type object
+		P.Declare(obj);
+	}
+
 	// If the next token is an identifier and we have a legal program,
 	// it must be a typename. In that case this declaration introduces
 	// an alias type.

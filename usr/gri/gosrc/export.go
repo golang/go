@@ -174,6 +174,12 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 	}
 	
 	switch typ.form {
+	case Type.FORWARD:
+		// corresponding package must be forward-declared too
+		if typ.obj == nil || E.comp.pkg_list[typ.obj.pnolev].key != "" {
+			panic "inconsistency in package.type forward declaration";
+		}
+		
 	case Type.ALIAS, Type.MAP:
 		E.WriteType(typ.aux);
 		E.WriteType(typ.elt);
@@ -237,54 +243,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 }
 
 
-func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
-	E.comp = comp;
-	E.debug = comp.flags.debug;
-	E.buf_pos = 0;
-	E.pkg_ref = 0;
-	E.type_ref = 0;
-	
-	if E.debug {
-		print "exporting to ", file_name, "\n";
-	}
-
-	// write magic bits
-	magic := Platform.MAGIC_obj_file;  // TODO remove once len(constant) works
-	for i := 0; i < len(magic); i++ {
-		E.WriteByte(magic[i]);
-	}
-	
-	// Predeclared types are "pre-exported".
-	// TODO run the loop below only in debug mode
-	{	i := 0;
-		for p := Universe.types.first; p != nil; p = p.next {
-			if p.typ.ref != i {
-				panic "incorrect ref for predeclared type";
-			}
-			i++;
-		}
-	}
-	E.type_ref = Universe.types.len_;
-	
-	// export package 0
-	pkg := comp.pkg_list[0];
-	E.WritePackage(pkg);
-	E.WriteScope(pkg.scope);
-	
-	if E.debug {
-		print "\n(", E.buf_pos, " bytes)\n";
-	}
-	
-	data := string(E.buf)[0 : E.buf_pos];
-	ok := sys.writefile(file_name, data);
-	
-	if !ok {
-		panic "export failed";
-	}
-}
-
-
-func (E *Exporter) Export2(comp* Globals.Compilation) string {
+func (E *Exporter) Export(comp* Globals.Compilation) string {
 	E.comp = comp;
 	E.debug = comp.flags.debug;
 	E.buf_pos = 0;
@@ -322,13 +281,7 @@ func (E *Exporter) Export2(comp* Globals.Compilation) string {
 }
 
 
-export func Export(comp* Globals.Compilation, pkg_name string) {
+export func Export(comp* Globals.Compilation) string {
 	var E Exporter;
-	(&E).Export(comp, Utils.TrimExt(Utils.BaseName(pkg_name), Platform.src_file_ext) + Platform.obj_file_ext);
-}
-
-
-export func Export2(comp* Globals.Compilation) string {
-	var E Exporter;
-	return (&E).Export2(comp);
+	return (&E).Export(comp);
 }
