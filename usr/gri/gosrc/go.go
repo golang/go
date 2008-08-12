@@ -10,7 +10,7 @@ import Compilation "compilation"
 
 
 func PrintHelp() {
-	print
+	print(
 		"go (" + Build.time + ")\n" +
 		"usage:\n" +
 		"  go { flag } { file }\n" +
@@ -24,7 +24,8 @@ func PrintHelp() {
 		"  -parse         parse only, print productions\n" +
 		"  -ast           analyse only, print ast\n" +
 		"  -deps          print package dependencies\n" +
-		"  -token_chan    use token channel to scan and parse in parallel\n";
+		"  -token_chan    use token channel to scan and parse in parallel\n"
+	);
 }
 
 
@@ -54,7 +55,7 @@ func main() {
 	    switch arg {
 		case "-d": flags.debug = true;
 		case "-o": flags.object_file = Next();
-			print "note: -o flag ignored at the moment\n";
+			print("note: -o flag ignored at the moment\n");
 		case "-r": flags.update_packages = true;
 		case "-p": flags.print_interface = true;
 		case "-v":
@@ -69,12 +70,12 @@ func main() {
 			}
 		case "-6g": flags.sixg = true;
 		case "-scan": flags.scan = true;
-			print "note: -scan flag ignored at the moment\n";
+			print("note: -scan flag ignored at the moment\n");
 		case "-parse": flags.parse = true;
-			print "note: -parse flag ignored at the moment\n";
+			print("note: -parse flag ignored at the moment\n");
 		case "-ast": flags.ast = true;
 		case "-deps": flags.deps = true;
-			print "note: -deps flag ignored at the moment\n";
+			print("note: -deps flag ignored at the moment\n");
 		case "-token_chan": flags.token_chan = true;
 		default: files.AddStr(arg);
 		}

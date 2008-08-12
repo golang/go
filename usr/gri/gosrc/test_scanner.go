@@ -12,11 +12,11 @@ func Scan1(filename, src string) {
 	S.Open(filename, src);
 	for {
 		tok, pos, val := S.Scan();
-		print pos, ": ", Scanner.TokenName(tok);
+		print(pos, ": ", Scanner.TokenName(tok));
 		if tok == Scanner.IDENT || tok == Scanner.INT || tok == Scanner.FLOAT || tok == Scanner.STRING {
-			print " ", val;
+			print(" ", val);
 		}
-		print "\n";
+		print("\n");
 		if tok == Scanner.EOF {
 			return;
 		}
@@ -33,11 +33,11 @@ func Scan2(filename, src string) {
 		var t *Scanner.Token;
 		t = <- c;
 		tok, pos, val := t.tok, t.pos, t.val;
-		print pos, ": ", Scanner.TokenName(tok);
+		print(pos, ": ", Scanner.TokenName(tok));
 		if tok == Scanner.IDENT || tok == Scanner.INT || tok == Scanner.FLOAT || tok == Scanner.STRING {
-			print " ", val;
+			print(" ", val);
 		}
-		print "\n";
+		print("\n");
 		if tok == Scanner.EOF {
 			return;
 		}
@@ -51,14 +51,14 @@ func main() {
 		var ok bool;
 		src, ok = sys.readfile(sys.argv(i));
 		if ok {
-			print "scanning (standard) " + sys.argv(i) + "\n";
+			print("scanning (standard) " + sys.argv(i) + "\n");
 			Scan1(sys.argv(i), src);
-			print "\n";
-			print "scanning (channels) " + sys.argv(i) + "\n";
+			print("\n");
+			print("scanning (channels) " + sys.argv(i) + "\n");
 			Scan2(sys.argv(i), src);
 		} else {
-			print "error: cannot read " + sys.argv(i) + "\n";
+			print("error: cannot read " + sys.argv(i) + "\n");
 		}
-		print "\n";
+		print("\n");
 	}
 }

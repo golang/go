@@ -17,7 +17,7 @@ import AST "ast"
 
 
 func Error(msg string) {
-	panic "internal compiler error: ", msg, "\n";
+	panic("internal compiler error: ", msg, "\n");
 }
 
 

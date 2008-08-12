@@ -128,7 +128,7 @@ func Equal0(x, y *Globals.Type) bool {
 				xf := p.obj;
 				yf := q.obj;
 				if xf.kind != Object.VAR || yf.kind != Object.VAR {
-					panic "parameters must be vars";
+					panic("parameters must be vars");
 				}
 				if !Equal(xf.typ, yf.typ) {
 					return false;
@@ -160,14 +160,14 @@ func Equal0(x, y *Globals.Type) bool {
 		return false;
 
 	case INTERFACE:
-		panic "UNIMPLEMENTED";
+		panic("UNIMPLEMENTED");
 		return false;
 
 	case POINTER, REFERENCE:
 		return Equal(x.elt, y.elt);
 	}
 
-	panic "UNREACHABLE";
+	panic("UNREACHABLE");
 	return false;
 }
 
@@ -176,7 +176,7 @@ export func Equal(x, y *Globals.Type) bool {
 	res := Equal0(x, y);
 	// TODO should do the check below only in debug mode
 	if Equal0(y, x) != res {
-		panic "type equality must be symmetric";
+		panic("type equality must be symmetric");
 	}
 	return res;
 }
@@ -187,6 +187,6 @@ export func Assigneable(from, to *Globals.Type) bool {
 		return true;
 	}
 	
-	panic "UNIMPLEMENTED";
+	panic("UNIMPLEMENTED");
 	return false;
 }

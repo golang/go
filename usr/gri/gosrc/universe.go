@@ -80,7 +80,7 @@ func DeclAlias(ident string, typ *Globals.Type) *Globals.Type {
 
 func Register(typ *Globals.Type) *Globals.Type {
 	if types.len_ < 0 {
-		panic "types.len_ < 0";
+		panic("types.len_ < 0");
 	}
 	typ.ref = types.len_;
 	types.AddTyp(typ);

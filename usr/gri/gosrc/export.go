@@ -30,7 +30,7 @@ func (E *Exporter) WriteByte(x byte) {
 	E.buf_pos++;
 	/*
 	if E.debug {
-		print " ", x;
+		print(" ", x);
 	}
 	*/
 }
@@ -46,7 +46,7 @@ func (E *Exporter) WriteInt(x int) {
 	E.WriteByte(byte(x + 192));
 	/*
 	if E.debug {
-		print " #", x0;
+		print(" #", x0);
 	}
 	*/
 }
@@ -59,7 +59,7 @@ func (E *Exporter) WriteString(s string) {
 		E.WriteByte(s[i]);
 	}
 	if E.debug {
-		print ` "`, s, `"`;
+		print(` "`, s, `"`);
 	}
 }
 
@@ -68,9 +68,9 @@ func (E *Exporter) WritePackageTag(tag int) {
 	E.WriteInt(tag);
 	if E.debug {
 		if tag >= 0 {
-			print " [P", tag, "]";  // package ref
+			print(" [P", tag, "]");  // package ref
 		} else {
-			print "\nP", E.pkg_ref, ":";
+			print("\nP", E.pkg_ref, ":");
 		}
 	}
 }
@@ -80,9 +80,9 @@ func (E *Exporter) WriteTypeTag(tag int) {
 	E.WriteInt(tag);
 	if E.debug {
 		if tag >= 0 {
-			print " [T", tag, "]";  // type ref
+			print(" [T", tag, "]");  // type ref
 		} else {
-			print "\nT", E.type_ref, ": ", Type.FormStr(-tag);
+			print("\nT", E.type_ref, ": ", Type.FormStr(-tag));
 		}
 	}
 }
@@ -90,18 +90,18 @@ func (E *Exporter) WriteTypeTag(tag int) {
 
 func (E *Exporter) WriteObjectTag(tag int) {
 	if tag < 0 {
-		panic "tag < 0";
+		panic("tag < 0");
 	}
 	E.WriteInt(tag);
 	if E.debug {
-		print "\n", Object.KindStr(tag);
+		print("\n", Object.KindStr(tag));
 	}
 }
 
 
 func (E *Exporter) WritePackage(pkg *Globals.Package) {
 	if E.comp.pkg_list[pkg.obj.pnolev] != pkg {
-		panic "inconsistent package object"
+		panic("inconsistent package object");
 	}
 
 	if pkg.ref >= 0 {
@@ -121,7 +121,7 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
 
 func (E *Exporter) WriteScope(scope *Globals.Scope) {
 	if E.debug {
-		print " {";
+		print(" {");
 	}
 
 	for p := scope.entries.first; p != nil; p = p.next {
@@ -132,7 +132,7 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
 	E.WriteObject(nil);
 	
 	if E.debug {
-		print " }";
+		print(" }");
 	}
 }
 
@@ -144,7 +144,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 	}
 
 	if -typ.form >= 0 {
-		panic "conflict with ref numbers";
+		panic("conflict with ref numbers");
 	}
 	E.WriteTypeTag(-typ.form);
 	typ.ref = E.type_ref;
@@ -155,7 +155,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 	if typ.obj != nil {
 		// named type
 		if typ.obj.typ != typ {
-			panic "inconsistent named type";
+			panic("inconsistent named type");
 		}
 		ident = typ.obj.ident;
 		if !typ.obj.exported {
@@ -177,7 +177,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 	case Type.FORWARD:
 		// corresponding package must be forward-declared too
 		if typ.obj == nil || E.comp.pkg_list[typ.obj.pnolev].key != "" {
-			panic "inconsistency in package.type forward declaration";
+			panic("inconsistency in package.type forward declaration");
 		}
 		
 	case Type.ALIAS, Type.MAP:
@@ -203,7 +203,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 		E.WriteType(typ.elt);
 
 	default:
-		panic "UNREACHABLE";
+		panic("UNREACHABLE");
 	}
 }
 
@@ -218,7 +218,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 	if obj.kind == Object.TYPE {
 		// named types are handled entirely by WriteType()
 		if obj.typ.obj != obj {
-			panic "inconsistent named type"
+			panic("inconsistent named type");
 		}
 		E.WriteType(obj.typ);
 		return;
@@ -238,7 +238,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 		E.WriteInt(0);  // should be the correct address/offset
 		
 	default:
-		panic "UNREACHABLE";
+		panic("UNREACHABLE");
 	}
 }
 
@@ -261,7 +261,7 @@ func (E *Exporter) Export(comp* Globals.Compilation) string {
 	{	i := 0;
 		for p := Universe.types.first; p != nil; p = p.next {
 			if p.typ.ref != i {
-				panic "incorrect ref for predeclared type";
+				panic("incorrect ref for predeclared type");
 			}
 			i++;
 		}
@@ -274,7 +274,7 @@ func (E *Exporter) Export(comp* Globals.Compilation) string {
 	E.WriteScope(pkg.scope);
 	
 	if E.debug {
-		print "\n(", E.buf_pos, " bytes)\n";
+		print("\n(", E.buf_pos, " bytes)\n");
 	}
 	
 	return string(E.buf)[0 : E.buf_pos];

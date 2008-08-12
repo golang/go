@@ -21,7 +21,7 @@ import Verifier "verifier"
 
 func ReadImport(comp* Globals.Compilation, filename string, update bool) (data string, ok bool) {
 	if filename == "" {
-		panic "illegal package file name";
+		panic("illegal package file name");
 	}
 
 	// see if it just works
@@ -32,7 +32,7 @@ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data s
 	
 	if filename[0] == '/' {
 		// absolute path
-		panic `don't know how to handle absolute import file path "` + filename + `"`;
+		panic(`don't know how to handle absolute import file path "` + filename + `"`);
 	}
 	
 	// relative path
@@ -77,7 +77,7 @@ export func Export(comp *Globals.Compilation, pkg_file string) {
 	data := Exporter.Export(comp);
 	ok := Platform.WriteObjectFile(pkg_file, data);
 	if !ok {
-		panic "export failed";
+		panic("export failed");
 	}
 }
 
@@ -85,12 +85,12 @@ export func Export(comp *Globals.Compilation, pkg_file string) {
 export func Compile(comp *Globals.Compilation, src_file string) {
 	src, ok := Platform.ReadSourceFile(src_file);
 	if !ok {
-		print "cannot open ", src_file, "\n"
+		print("cannot open ", src_file, "\n");
 		return;
 	}
 	
 	if comp.flags.verbosity > 0 {
-		print src_file, "\n";
+		print(src_file, "\n");
 	}
 
 	scanner := new(Scanner.Scanner);

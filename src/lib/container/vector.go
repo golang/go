@@ -37,8 +37,8 @@ func Alloc(i int) *[]Element {
 	case 1000:
 		return new([1000]Element);
 	}
-	print "bad size ", i, "\n";
-	panic "not known size\n";
+	print("bad size ", i, "\n");
+	panic("not known size\n");
 }
 
 func is_pow10(i int) bool {
@@ -63,7 +63,7 @@ func (v *Vector) Len() int {
 
 func (v *Vector) At(i int) Element {
 	if i < 0 || i >= v.nelem {
-		panic "Vector.At(", i, ") out of range (size ", v.nelem, ")\n";
+		panic("Vector.At(", i, ") out of range (size ", v.nelem, ")\n");
 		return nil;
 	}
 	return v.elem[i];
@@ -71,7 +71,7 @@ func (v *Vector) At(i int) Element {
 
 func (v *Vector) Delete(i int) {
 	if i < 0 || i >= v.nelem {
-		panic "Delete out of range\n";
+		panic("Delete out of range\n");
 	}
 	for j := i+1; j < v.nelem; j++ {
 		v.elem[j-1] = v.elem[j];
@@ -82,7 +82,7 @@ func (v *Vector) Delete(i int) {
 
 func (v *Vector) Insert(i int, e Element) {
 	if i > v.nelem {
-		panic "Del too large\n";
+		panic("Del too large\n");
 	}
 	if v.nelem == v.nalloc && is_pow10(v.nalloc) {
 		n := Alloc(v.nalloc * 10);
@@ -114,14 +114,14 @@ func Test() {
 	i3 := new(I); i3.val = 3333;
 	i4 := new(I); i4.val = 44444;
 	v := New();
-	print "hi\n";
+	print("hi\n");
 	v.Insert(0, i4);
 	v.Insert(0, i3);
 	v.Insert(0, i2);
 	v.Insert(0, i1);
 	v.Insert(0, i0);
 	for i := 0; i < v.Len(); i++ {
-		print i, " ", v.At(i).(*I).val, "\n";
+		print(i, " ", v.At(i).(*I).val, "\n");
 	}
 }
 

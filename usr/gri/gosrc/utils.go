@@ -10,7 +10,7 @@ export func BaseName(s string) string {
 	i := len(s) - 1;
 	for i >= 0 && s[i] != '/' {
 		if s[i] > 128 {
-			panic "non-ASCII string"
+			panic("non-ASCII string");
 		}
 		i--;
 	}
@@ -38,7 +38,7 @@ export func IntToString(x, base int) string {
 	if x < 0 {
 		x = -x;
 		if x < 0 {
-			panic "smallest int not handled";
+			panic("smallest int not handled");
 		}
 	} else if x == 0 {
 		return "0";
