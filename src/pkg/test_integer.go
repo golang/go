@@ -24,7 +24,7 @@ var (
 
 func CHECK(msg string, p bool) {
   if !p {
-    panic "CHECK failed: ", msg, "\n";
+    panic("CHECK failed: ", msg, "\n");
   }
 }
 
@@ -46,7 +46,7 @@ func Init() {
 func N991() string { return "991" }
 
 func TestConv() {
-  print "TestConv\n";
+  print("TestConv\n");
   CHECK("TC1", a.eql(Integer.FromInt(991)));
   CHECK("TC2", b.eql(Integer.Fact(20)));
   CHECK("TC3", c.eql(Integer.Fact(100)));
@@ -59,7 +59,7 @@ func TestConv() {
 
 
 func TestAdd() {
-  print "TestAdd\n";
+  print("TestAdd\n");
   CHECK("TA1", z.add(z).eql(z));
   CHECK("TA2", a.add(z).eql(a));
   CHECK("TA3", z.add(a).eql(a));
@@ -78,7 +78,7 @@ func TestAdd() {
 
 
 func TestSub() {
-  print "TestSub\n";
+  print("TestSub\n");
   CHECK("TS1", z.sub(z).eql(z));
   CHECK("TS2", a.sub(z).eql(a));
   CHECK("TS3", z.sub(a).eql(a.neg()));
@@ -95,25 +95,25 @@ func TestSub() {
 
 
 func TestMul() {
-  print "TestMul\n";
+  print("TestMul\n");
   // tested much via TestFact for now
 }
 
 
 func TestDiv() {
-  print "TestDiv\n";
+  print("TestDiv\n");
   // no div implemented yet
 }
 
 
 func TestMod() {
-  print "TestMod\n";
+  print("TestMod\n");
   // no mod implemented yet
 }
 
 
 func TestFact() {
-  print "TestFact\n";
+  print("TestFact\n");
   for n := 990; n < 1010; n++ {
     f := Integer.Fact(n);
     CHECK("TF", Integer.FromString(f.ToString()).eql(f));
@@ -133,5 +133,5 @@ func main() {
 
   TestFact();
   
-  print "PASSED\n";
+  print("PASSED\n");
 }

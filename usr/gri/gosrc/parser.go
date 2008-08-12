@@ -40,7 +40,7 @@ export type Parser struct {
 
 func (P *Parser) PrintIndent() {
 	for i := P.indent; i > 0; i-- {
-		print ". ";
+		print(". ");
 	}
 }
 
@@ -48,7 +48,7 @@ func (P *Parser) PrintIndent() {
 func (P *Parser) Trace(msg string) {
 	if P.verbose {
 		P.PrintIndent();
-		print msg, " {\n";
+		print(msg, " {\n");
 	}
 	P.indent++;
 }
@@ -58,7 +58,7 @@ func (P *Parser) Ecart() {
 	P.indent--;
 	if P.verbose {
 		P.PrintIndent();
-		print "}\n";
+		print("}\n");
 	}
 }
 
@@ -72,7 +72,7 @@ func (P *Parser) Next() {
 	}
 	if P.verbose {
 		P.PrintIndent();
-		print "[", P.pos, "] ", Scanner.TokenName(P.tok), "\n";
+		print("[", P.pos, "] ", Scanner.TokenName(P.tok), "\n");
 	}
 }
 
@@ -141,7 +141,7 @@ func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
 		return;
 	}
 	if P.level > 0 {
-		panic "cannot declare objects in other packages";
+		panic("cannot declare objects in other packages");
 	}
 	obj.pnolev = P.level;
 	if scope.Lookup(obj.ident) != nil {
@@ -163,7 +163,7 @@ func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.
 	if p0 > 0 && check_recv {
 		// method
 		if p0 != 1 {
-			panic "p0 != 1";
+			panic("p0 != 1");
 		}
 	}
 
@@ -192,7 +192,7 @@ func (P *Parser) DeclareFunc(pos int, ident string, typ *Globals.Type) *Globals.
 	if typ.flags & Type.RECV != 0 {
 		// method - declare in corresponding struct
 		if typ.scope.entries.len_ < 1 {
-			panic "no recv in signature?";
+			panic("no recv in signature?");
 		}
 		recv_typ := typ.scope.entries.first.obj.typ;
 		if recv_typ.form == Type.POINTER {
@@ -256,7 +256,7 @@ func (P *Parser) ParseIdent(allow_keyword bool) (pos int, ident string) {
 		ident = P.val;
 		if P.verbose {
 			P.PrintIndent();
-			print "Ident = \"", ident, "\"\n";
+			print("Ident = \"", ident, "\"\n");
 		}
 		P.Next();
 	} else {
@@ -322,11 +322,11 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 
 		if obj.kind == Object.PACKAGE && P.tok == Scanner.PERIOD {
 			if obj.pnolev < 0 {
-				panic "obj.pnolev < 0";
+				panic("obj.pnolev < 0");
 			}
 			pkg := P.comp.pkg_list[obj.pnolev];
 			//if pkg.obj.ident != ident {
-			//	panic "pkg.obj.ident != ident";
+			//	panic("pkg.obj.ident != ident");
 			//}
 			P.Next();  // consume "."
 			pos, ident = P.ParseIdent(false);
@@ -534,7 +534,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
 		p0 = sig.entries.len_;
 		if P.semantic_checks && p0 != 1 {
 			P.Error(recv_pos, "must have exactly one receiver")
-			panic "UNIMPLEMENTED (ParseAnonymousSignature)";
+			panic("UNIMPLEMENTED (ParseAnonymousSignature)");
 			// TODO do something useful here
 		}
 		P.Next();
@@ -573,9 +573,9 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
 		P.ParseParameters();
 		p0 = sig.entries.len_;
 		if P.semantic_checks && p0 != 1 {
-			print "p0 = ", p0, "\n";
+			print("p0 = ", p0, "\n");
 			P.Error(recv_pos, "must have exactly one receiver")
-			panic "UNIMPLEMENTED (ParseNamedSignature)";
+			panic("UNIMPLEMENTED (ParseNamedSignature)");
 			// TODO do something useful here
 		}
 	}
@@ -718,7 +718,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 				// package exists already - must be forward declaration
 				if pkg.key != "" {
 					P.Error(P.pos, `cannot use implicit package forward declaration for imported package "` + P.val + `"`);
-					panic "wrong package forward decl";
+					panic("wrong package forward decl");
 					// TODO introduce dummy package so we can continue safely
 				}
 			}
@@ -738,7 +738,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 				obj.pnolev = pkg.obj.pnolev;
 			} else {
 				if obj.kind != Object.TYPE || obj.typ.form != Type.FORWARD {
-					panic "inconsistency in package.type forward declaration";
+					panic("inconsistency in package.type forward declaration");
 				}
 				elt = obj.typ;
 			}
@@ -939,17 +939,6 @@ func (P *Parser) ParseExpressionPairList(list *Globals.List) {
 }
 
 
-func (P *Parser) ParseBuiltinCall() Globals.Expr {
-	P.Trace("BuiltinCall");
-	
-	args := Globals.NewList();
-	P.ParseExpressionList(args);  // TODO should be optional
-	
-	P.Ecart();
-	return nil;
-}
-
-
 func (P *Parser) ParseCompositeLit(typ *Globals.Type) Globals.Expr {
 	P.Trace("CompositeLit");
 	
@@ -1006,18 +995,12 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
 	var res Globals.Expr = AST.Bad;
 
 	if pos >= 0 {
-		// TODO set these up properly in the Universe
-		if ident == "panic" || ident == "print" {
-			res = P.ParseBuiltinCall();
-			
-		} else {
-			obj := P.ParseQualifiedIdent(pos, ident);
-			if P.semantic_checks {
-				if obj.kind == Object.TYPE {
-					res = P.ParseCompositeLit(obj.typ);
-				} else {
-					res = AST.NewObject(pos, obj);
-				}
+		obj := P.ParseQualifiedIdent(pos, ident);
+		if P.semantic_checks {
+			if obj.kind == Object.TYPE {
+				res = P.ParseCompositeLit(obj.typ);
+			} else {
+				res = AST.NewObject(pos, obj);
 			}
 		}
 
@@ -1025,7 +1008,7 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
 	
 		switch P.tok {
 		case Scanner.IDENT:
-			panic "UNREACHABLE";
+			panic("UNREACHABLE");
 			
 		case Scanner.LPAREN:
 			P.Next();
@@ -1126,7 +1109,7 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
 		P.Expect(Scanner.RPAREN);
 		
 		if P.semantic_checks {
-			panic "UNIMPLEMENTED";
+			panic("UNIMPLEMENTED");
 		}
 	}
 	
@@ -1154,12 +1137,12 @@ func (P *Parser) ParseIndexOrSlice(x Globals.Expr) Globals.Expr {
 			// ignore
 			break;
 		case Type.STRING, Type.ARRAY:
-			panic "UNIMPLEMENTED";
+			panic("UNIMPLEMENTED");
 			
 		case Type.MAP:
 			if Type.Equal(typ.aux, i1.typ()) {
 				// x = AST.NewSubscript(x, i1);
-				panic "UNIMPLEMENTED";
+				panic("UNIMPLEMENTED");
 				
 			} else {
 				P.Error(x.pos(), "map key type mismatch");
@@ -1189,7 +1172,7 @@ func (P *Parser) ParseCall(x Globals.Expr) Globals.Expr {
 	P.Expect(Scanner.RPAREN);
 
 	if P.semantic_checks {
-		panic "UNIMPLEMENTED";
+		panic("UNIMPLEMENTED");
 	}
 	
 	P.Ecart();
@@ -1311,7 +1294,7 @@ func (P *Parser) ParseIdentExpression(pos int, ident string) Globals.Expr {
 	x := P.ParseBinaryExpr(pos, ident, 1);
 	
 	if indent != P.indent {
-		panic "imbalanced tracing code (Expression)";
+		panic("imbalanced tracing code (Expression)");
 	}
 	P.Ecart();
 	return x;
@@ -1740,7 +1723,7 @@ func (P *Parser) TryStatement() bool {
 	}
 
 	if indent != P.indent {
-		panic "imbalanced tracing code (Statement)"
+		panic("imbalanced tracing code (Statement)");
 	}
 	P.Ecart();
 	return res;
@@ -1825,10 +1808,10 @@ func (P *Parser) ParseTypeSpec(exported bool) {
 		if obj.typ.form == Type.FORWARD {
 			// imported forward-declared type
 			if !exported {
-				panic "foo";
+				panic("foo");
 			}
 		} else {
-			panic "bar";
+			panic("bar");
 		}
 		
 	} else {
@@ -1915,7 +1898,7 @@ func (P *Parser) ParseSpec(exported bool, keyword int) {
 	case Scanner.CONST: P.ParseConstSpec(exported);
 	case Scanner.TYPE: P.ParseTypeSpec(exported);
 	case Scanner.VAR: P.ParseVarSpec(exported);
-	default: panic "UNREACHABLE";
+	default: panic("UNREACHABLE");
 	}
 }
 
@@ -2024,7 +2007,7 @@ func (P *Parser) ParseDeclaration() {
 	}
 	
 	if indent != P.indent {
-		panic "imbalanced tracing code (Declaration)"
+		panic("imbalanced tracing code (Declaration)");
 	}
 	P.Ecart();
 }
@@ -2041,12 +2024,12 @@ func (P *Parser) ResolveForwardTypes() {
 	for p := P.forward_types.first; p != nil; p = p.next {
 		typ := p.typ;
 		if typ.form != Type.POINTER {
-			panic "unresolved types should be pointers only";
+			panic("unresolved types should be pointers only");
 		}
 		
 		elt := typ.elt;
 		if typ.elt.form != Type.FORWARD {
-			panic "unresolved pointer should point to forward type";
+			panic("unresolved pointer should point to forward type");
 		}
 		
 		obj := elt.obj;
@@ -2120,12 +2103,12 @@ func (P *Parser) ParseProgram() {
 	
 	{	P.OpenScope();
 		if P.level != 0 {
-			panic "incorrect scope level";
+			panic("incorrect scope level");
 		}
 		
 		P.comp.Insert(Globals.NewPackage(P.S.filename, obj, P.top_scope));
 		if P.comp.pkg_ref != 1 {
-			panic "should have exactly one package now";
+			panic("should have exactly one package now");
 		}
 
 		for P.tok == Scanner.IMPORT {
@@ -2142,7 +2125,7 @@ func (P *Parser) ParseProgram() {
 		P.MarkExports();
 		
 		if P.level != 0 {
-			panic "incorrect scope level";
+			panic("incorrect scope level");
 		}
 		P.CloseScope();
 	}

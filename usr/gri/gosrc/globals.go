@@ -192,7 +192,7 @@ func (L* List) len_() int {
 
 func (L *List) at(i int) *Elem {
 	if i < 0 || L.len_ <= i {
-		panic "index out of bounds";
+		panic("index out of bounds");
 	}
 
 	p := L.first;
@@ -282,7 +282,7 @@ func (scope *Scope) Lookup(ident string) *Object {
 
 func (scope *Scope) Insert(obj *Object) {
 	if scope.Lookup(obj.ident) != nil {
-		panic "obj already inserted";
+		panic("obj already inserted");
 	}
 	scope.entries.AddObj(obj);
 }
@@ -299,11 +299,11 @@ func (scope *Scope) InsertImport(obj *Object) *Object {
 
 
 func (scope *Scope) Print() {
-	print "scope {";
+	print("scope {");
 	for p := scope.entries.first; p != nil; p = p.next {
-		print "\n  ", p.obj.ident;
+		print("\n  ", p.obj.ident);
 	}
-	print "\n}\n";
+	print("\n}\n");
 }
 
 
@@ -323,7 +323,7 @@ func (C *Compilation) Lookup(file_name string) *Package {
 
 func (C *Compilation) Insert(pkg *Package) {
 	if C.Lookup(pkg.file_name) != nil {
-		panic "package already inserted";
+		panic("package already inserted");
 	}
 	pkg.obj.pnolev = C.pkg_ref;
 	C.pkg_list[C.pkg_ref] = pkg;

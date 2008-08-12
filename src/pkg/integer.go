@@ -24,20 +24,20 @@ const M = 1 << L - 1;
 // TODO What are we going to about asserts?
 func ASSERT(p bool) {
   if !p {
-    panic "ASSERT failed";
+    panic("ASSERT failed");
   }
 }
 
 
 func CHECK(p bool) {
   if !p {
-    panic "CHECK failed";
+    panic("CHECK failed");
   }
 }
 
 
 func UNIMPLEMENTED(s string) {
-  panic "UNIMPLEMENTED: ", s;
+  panic("UNIMPLEMENTED: ", s);
 }
 
 
@@ -631,5 +631,5 @@ func (x Integer) ToInt() int {
     }
     return i;
   }
-  panic "integer too large";
+  panic("integer too large");
 }

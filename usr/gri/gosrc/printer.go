@@ -42,23 +42,23 @@ func (P *Printer) PrintSigRange(typ *Globals.Type, a, b int) {
 	if a + 1 == b && IsAnonymous(scope.entries.ObjAt(a).ident) {
 		P.PrintType(scope.entries.TypAt(a));  // result type only
 	} else {
-		print "(";
+		print("(");
 		for i := a; i < b; i++ {
 			par := scope.entries.ObjAt(i);
 			if i > a {
-				print ", ";
+				print(", ");
 			}
-			print par.ident, " ";
+			print(par.ident, " ");
 			P.PrintType(par.typ);
 		}
-		print ")";
+		print(")");
 	}
 }
 
 
 func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
 	if typ.form != Type.FUNCTION {
-		panic "typ.form != Type.FUNCTION";
+		panic("typ.form != Type.FUNCTION");
 	}
 	
 	p0 := 0;
@@ -69,34 +69,34 @@ func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
 	l0 := typ.scope.entries.len_;
 	
 	if P.level == 0 {
-		print "func ";
+		print("func ");
 
 		if 0 < p0 {
 			P.PrintSigRange(typ, 0, p0);
-			print " ";
+			print(" ");
 		}
 	}
 	
 	if fun != nil {
 		P.PrintObject(fun);
-		//print " ";
+		//print(" ");
 	} else if p0 > 0 {
-		print ". ";
+		print(". ");
 	}
 	
 	P.PrintSigRange(typ, p0, r0);
 
 	if r0 < l0 {
-		print " ";
+		print(" ");
 		P.PrintSigRange(typ, r0, l0);
 	}
 }
 
 
 func (P *Printer) PrintIndent() {
-	print "\n";
+	print("\n");
 	for i := P.level; i > 0; i-- {
-		print "\t";
+		print("\t");
 	}
 }
 
@@ -134,44 +134,44 @@ func (P *Printer) PrintScope(scope *Globals.Scope, delta int) {
 func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
 	switch obj.kind {
 	case Object.BAD:
-		print "bad ";
+		print("bad ");
 		P.PrintObject(obj);
 
 	case Object.CONST:
-		print "const ";
+		print("const ");
 		P.PrintObject(obj);
-		print " ";
+		print(" ");
 		P.PrintType(obj.typ);
 
 	case Object.TYPE:
-		print "type ";
+		print("type ");
 		P.PrintObject(obj);
-		print " ";
+		print(" ");
 		P.PrintTypeStruct(obj.typ);
 
 	case Object.VAR, Object.FIELD:
 		if P.level == 0 {
-			print "var ";
+			print("var ");
 		}
 		P.PrintObject(obj);
-		print " ";
+		print(" ");
 		P.PrintType(obj.typ);
 
 	case Object.FUNC:
 		P.PrintSignature(obj.typ, obj);
 
 	case Object.PACKAGE:
-		print "package ";
+		print("package ");
 		P.PrintObject(obj);
-		print " ";
+		print(" ");
 		P.PrintScope(P.comp.pkg_list[obj.pnolev].scope, 0);
 
 	default:
-		panic "UNREACHABLE";
+		panic("UNREACHABLE");
 	}
 	
 	if P.level > 0 {
-		print ";";
+		print(";");
 	}
 }
 
@@ -181,86 +181,86 @@ func (P *Printer) PrintObject(obj *Globals.Object) {
 		pkg := P.comp.pkg_list[obj.pnolev];
 		if pkg.key == "" {
 			// forward-declared package
-			print `"`, pkg.file_name, `"`;
+			print(`"`, pkg.file_name, `"`);
 		} else {
 			// imported package
-			print pkg.obj.ident;
+			print(pkg.obj.ident);
 		}
-		print "."
+		print(".");
 	}
-	print obj.ident;
+	print(obj.ident);
 }
 
 
 func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 	switch typ.form {
 	case Type.VOID:
-		print "void";
+		print("void");
 		
 	case Type.FORWARD:
-		print "<forward type>";
+		print("<forward type>");
 
 	case Type.BAD:
-		print "<bad type>";
+		print("<bad type>");
 
 	case Type.NIL, Type.BOOL, Type.UINT, Type.INT, Type.FLOAT, Type.STRING, Type.ANY:
 		if typ.obj == nil {
-			panic "typ.obj == nil";
+			panic("typ.obj == nil");
 		}
 		P.PrintType(typ);
 
 	case Type.ALIAS:
 		P.PrintType(typ.elt);
 		if typ.aux != typ.elt {
-			print " /* ";
+			print(" /* ");
 			P.PrintType(typ.aux);
-			print " */";
+			print(" */");
 		}
 		
 	case Type.ARRAY:
-		print "[]";
+		print("[]");
 		P.PrintType(typ.elt);
 
 	case Type.STRUCT:
-		print "struct {";
+		print("struct {");
 		P.PrintScope(typ.scope, 1);
-		print "}";
+		print("}");
 
 	case Type.INTERFACE:
-		print "interface {";
+		print("interface {");
 		P.PrintScope(typ.scope, 1);
-		print "}";
+		print("}");
 
 	case Type.MAP:
-		print "map [";
+		print("map [");
 		P.PrintType(typ.aux);
-		print "] ";
+		print("] ");
 		P.PrintType(typ.elt);
 
 	case Type.CHANNEL:
-		print "chan";
+		print("chan");
 		switch typ.flags {
-		case Type.SEND: print " -<";
-		case Type.RECV: print " <-";
+		case Type.SEND: print(" -<");
+		case Type.RECV: print(" <-");
 		case Type.SEND + Type.RECV:  // nothing to print
-		default: panic "UNREACHABLE";
+		default: panic("UNREACHABLE");
 		}
-		print " ";
+		print(" ");
 		P.PrintType(typ.elt);
 
 	case Type.FUNCTION:
 		P.PrintSignature(typ, nil);
 
 	case Type.POINTER:
-		print "*";
+		print("*");
 		P.PrintType(typ.elt);
 
 	case Type.REFERENCE:
-		print "&";
+		print("&");
 		P.PrintType(typ.elt);
 
 	default:
-		panic "UNREACHABLE";
+		panic("UNREACHABLE");
 		
 	}
 }
@@ -279,5 +279,5 @@ export func PrintObject(comp *Globals.Compilation, obj *Globals.Object, print_al
 	var P Printer;
 	(&P).Init(comp, print_all);
 	(&P).PrintObjectStruct(obj);
-	print "\n";
+	print("\n");
 }

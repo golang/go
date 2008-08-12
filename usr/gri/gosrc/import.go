@@ -32,7 +32,7 @@ func (I *Importer) ReadByte() byte {
 	I.buf_pos++;
 	/*
 	if E.debug {
-		print " ", x;
+		print(" ", x);
 	}
 	*/
 	return x;
@@ -52,7 +52,7 @@ func (I *Importer) ReadInt() int {
 	x |= ((int(b) - 192) << s);
 	/*
 	if I.debug {
-		print " #", x;
+		print(" #", x);
 	}
 	*/
 	return x;
@@ -67,7 +67,7 @@ func (I *Importer) ReadString() string {
 	}
 	s := string(buf)[0 : n];
 	if I.debug {
-		print ` "`, s, `"`;
+		print(` "`, s, `"`);
 	}
 	return s;
 }
@@ -77,9 +77,9 @@ func (I *Importer) ReadPackageTag() int {
 	tag := I.ReadInt();
 	if I.debug {
 		if tag >= 0 {
-			print " [P", tag, "]";  // package ref
+			print(" [P", tag, "]");  // package ref
 		} else {
-			print "\nP", I.pkg_ref, ":";
+			print("\nP", I.pkg_ref, ":");
 		}
 	}
 	return tag;
@@ -90,9 +90,9 @@ func (I *Importer) ReadTypeTag() int {
 	tag := I.ReadInt();
 	if I.debug {
 		if tag >= 0 {
-			print " [T", tag, "]";  // type ref
+			print(" [T", tag, "]");  // type ref
 		} else {
-			print "\nT", I.type_ref, ": ", Type.FormStr(-tag);
+			print("\nT", I.type_ref, ": ", Type.FormStr(-tag));
 		}
 	}
 	return tag;
@@ -102,10 +102,10 @@ func (I *Importer) ReadTypeTag() int {
 func (I *Importer) ReadObjectTag() int {
 	tag := I.ReadInt();
 	if tag < 0 {
-		panic "tag < 0";
+		panic("tag < 0");
 	}
 	if I.debug {
-		print "\n", Object.KindStr(tag);
+		print("\n", Object.KindStr(tag));
 	}
 	return tag;
 }
@@ -130,14 +130,14 @@ func (I *Importer) ReadPackage() *Globals.Package {
 		pkg = Globals.NewPackage(file_name, obj, Globals.NewScope(nil));
 		I.comp.Insert(pkg);
 		if I.comp.flags.verbosity > 1 {
-			print `import: implicitly adding package `, ident, ` "`, file_name, `" (pno = `, obj.pnolev, ")\n";
+			print(`import: implicitly adding package `, ident, ` "`, file_name, `" (pno = `, obj.pnolev, ")\n");
 		}
 	} else if key != "" && key != pkg.key {
 		// the package was imported before but the package
 		// key has changed (a "" key indicates a forward-
 		// declared package - it's key is consistent with
 		// any actual package of the same name)
-		panic "package key inconsistency";
+		panic("package key inconsistency");
 	}
 	I.pkg_list[I.pkg_ref] = pkg;
 	I.pkg_ref++;
@@ -148,7 +148,7 @@ func (I *Importer) ReadPackage() *Globals.Package {
 
 func (I *Importer) ReadScope(scope *Globals.Scope, allow_multiples bool) {
 	if I.debug {
-		print " {";
+		print(" {");
 	}
 
 	obj := I.ReadObject();
@@ -164,7 +164,7 @@ func (I *Importer) ReadScope(scope *Globals.Scope, allow_multiples bool) {
 	}
 	
 	if I.debug {
-		print " }";
+		print(" }");
 	}
 }
 
@@ -229,7 +229,7 @@ func (I *Importer) ReadType() *Globals.Type {
 		typ.elt = I.ReadType();
 
 	default:
-		panic "UNREACHABLE";
+		panic("UNREACHABLE");
 	}
 
 	return ptyp;  // only use primary type
@@ -246,7 +246,7 @@ func (I *Importer) ReadObject() *Globals.Object {
 		// named types are handled entirely by ReadType()
 		typ := I.ReadType();
 		if typ.obj.typ != typ {
-			panic "inconsistent named type";
+			panic("inconsistent named type");
 		}
 		return typ.obj;
 	}
@@ -267,7 +267,7 @@ func (I *Importer) ReadObject() *Globals.Object {
 		I.ReadInt();  // should set the address/offset field
 		
 	default:
-		panic "UNREACHABLE";
+		panic("UNREACHABLE");
 	}
 
 	return obj;
@@ -290,7 +290,7 @@ func (I *Importer) Import(comp* Globals.Compilation, data string) *Globals.Packa
 	// Predeclared types are "pre-imported".
 	for p := Universe.types.first; p != nil; p = p.next {
 		if p.typ.ref != I.type_ref {
-			panic "incorrect ref for predeclared type";
+			panic("incorrect ref for predeclared type");
 		}
 		I.type_list[I.type_ref] = p.typ;
 		I.type_ref++;
@@ -301,7 +301,7 @@ func (I *Importer) Import(comp* Globals.Compilation, data string) *Globals.Packa
 	I.ReadScope(pkg.scope, true);
 	
 	if I.debug {
-		print "\n(", I.buf_pos, " bytes)\n";
+		print("\n(", I.buf_pos, " bytes)\n");
 	}
 	
 	return pkg;

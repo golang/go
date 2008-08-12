@@ -397,17 +397,17 @@ func (S *Scanner) Error(pos int, msg string) {
 		delta = -delta;
 	}
 	if delta > errdist || S.nerrors == 0 /* always report first error */ {
-		print S.filename;
+		print(S.filename);
 		if pos >= 0 {
 			// print position
 			line, col := S.LineCol(pos);
 			if VerboseMsgs {
-				print ":", line, ":", col;
+				print(":", line, ":", col);
 			} else {
-				print ":", line;
+				print(":", line);
 			}
 		}
-		print ": ", msg, "\n";
+		print(": ", msg, "\n");
 		S.nerrors++;
 		S.errpos = pos;
 	}
