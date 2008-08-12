@@ -981,12 +981,12 @@ static	struct
 	"chan",		LCHAN,		Txxx,
 	"const",	LCONST,		Txxx,
 	"continue",	LCONTINUE,	Txxx,
-	"convert",	LCONVERT,	Txxx,		// should be a var
+	"convert",	LCONVERT,	Txxx,
 	"default",	LDEFAULT,	Txxx,
 	"else",		LELSE,		Txxx,
 	"export",	LEXPORT,	Txxx,
 	"fallthrough",	LFALL,		Txxx,
-	"false",	LFALSE,		Txxx,		// should be a var
+	"false",	LFALSE,		Txxx,
 	"for",		LFOR,		Txxx,
 	"func",		LFUNC,		Txxx,
 	"go",		LGO,		Txxx,
@@ -996,19 +996,20 @@ static	struct
 	"interface",	LINTERFACE,	Txxx,
 	"iota",		LIOTA,		Txxx,
 	"map",		LMAP,		Txxx,
-	"new",		LNEW,		Txxx,		// should be a var
-	"len",		LLEN,		Txxx,		// should be a var
-	"nil",		LNIL,		Txxx,		// should be a var
+	"new",		LNEW,		Txxx,
+	"len",		LLEN,		Txxx,
+	"nil",		LNIL,		Txxx,
 	"package",	LPACKAGE,	Txxx,
-	"panic",	LPANIC,		Txxx,		// temp
-	"print",	LPRINT,		Txxx,		// temp
+	"panic",	LPANIC,		Txxx,
+	"print",	LPRINT,		Txxx,
 	"range",	LRANGE,		Txxx,
 	"return",	LRETURN,	Txxx,
 	"select",	LSELECT,	Txxx,
 	"struct",	LSTRUCT,	Txxx,
 	"switch",	LSWITCH,	Txxx,
-	"true",		LTRUE,		Txxx,		// should be a var
+	"true",		LTRUE,		Txxx,
 	"type",		LTYPE,		Txxx,
+	"typeof",	LTYPEOF,	Txxx,
 	"var",		LVAR,		Txxx,
 
 	"notwithstanding",		LIGNORE,	Txxx,
