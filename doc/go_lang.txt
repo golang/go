@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(August 7, 2008)
+(August 11, 2008)
 
 This document is a semi-formal specification/proposal for a new
 systems programming language.  The document is under active
@@ -321,8 +321,8 @@ Reserved words
   else          if                range             var
   export        import
 
-
-TODO: "len" is currently also a reserved word - it shouldn't be.
+With the exception of structure fields and methods, reserved words may
+not be declared as identifiers.
 
 
 Types
@@ -1357,9 +1357,9 @@ pointer or interface value.
 
   var p *int;
   if p != nil {
-    print p
+    print(p)
   } else {
-    print "p points nowhere"
+    print("p points nowhere")
   }
 
 By default, pointers are initialized to nil.
@@ -1735,9 +1735,9 @@ The value of the boolean reports true if the communication succeeded,
 false if it did not.  These two examples are equivalent:
 
   ok := ch -< 3;
-  if ok { print "sent" } else { print "not sent" }
+  if ok { print("sent") } else { print("not sent") }
 
-  if ch -< 3 { print "sent" } else { print "not sent" }
+  if ch -< 3 { print("sent") } else { print("not sent") }
 
 In other words, if the program tests the value of a send operation,
 the send is non-blocking and the value of the expression is the
@@ -1753,7 +1753,7 @@ As with send operations, in expression context this form may
 be used as a boolean and makes the receive non-blocking:
 
   ok := e <- ch;
-  if ok { print "received", e } else { print "did not receive" }
+  if ok { print("received", e) } else { print("did not receive") }
 
 The receive operator may also be used as a prefix unary operator
 on a channel.
@@ -1873,8 +1873,7 @@ Switch statements
 Switches provide multi-way execution.
 
   SwitchStat = "switch" [ [ Simplestat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
-  CaseClause = CaseList [ StatementList [ ";" ] ] [ "fallthrough" [ ";" ] ] .
-  CaseList = Case { Case } .
+  CaseClause = Case [ StatementList [ ";" ] ] [ "fallthrough" [ ";" ] ] .
   Case = ( "case" ExpressionList | "default" ) ":" .
 
 There can be at most one default case in a switch statement.
