@@ -840,7 +840,7 @@ sym2:
 
 /*
  * keywords that we can
- * use a field names
+ * use as field names
  */
 key1:
 	LPACKAGE
@@ -873,7 +873,7 @@ key1:
 
 /*
  * keywords that we can
- * use a variable/type names
+ * use as variable/type names
  */
 key2:
 	LNIL
