@@ -132,9 +132,11 @@ func (I *Importer) ReadPackage() *Globals.Package {
 		if I.comp.flags.verbosity > 1 {
 			print `import: implicitly adding package `, ident, ` "`, file_name, `" (pno = `, obj.pnolev, ")\n";
 		}
-	} else if key != pkg.key {
+	} else if key != "" && key != pkg.key {
 		// the package was imported before but the package
-		// key has changed
+		// key has changed (a "" key indicates a forward-
+		// declared package - it's key is consistent with
+		// any actual package of the same name)
 		panic "package key inconsistency";
 	}
 	I.pkg_list[I.pkg_ref] = pkg;
@@ -198,6 +200,10 @@ func (I *Importer) ReadType() *Globals.Type {
 	I.type_ref++;
 
 	switch (typ.form) {
+	case Type.FORWARD:
+		typ.scope = Globals.NewScope(nil);
+		break;
+		
 	case Type.ALIAS, Type.MAP:
 		typ.aux = I.ReadType();
 		typ.elt = I.ReadType();

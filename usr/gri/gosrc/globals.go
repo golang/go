@@ -77,8 +77,8 @@ export type Flags struct {
 export type Environment struct {
 	Error *func(comp *Compilation);  // TODO complete this
 	Import *func(comp *Compilation, pkg_file string) *Package;
-	Export *func(comp *Compilation) string;
-	Compile *func(flags *Flags, env* Environment, file string);
+	Export *func(comp *Compilation, pkg_file string);
+	Compile *func(comp *Compilation, src_file string);
 }
 
 
@@ -147,7 +147,7 @@ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
 	pkg := new(Package);
 	pkg.ref = -1;  // not yet exported
 	pkg.file_name = file_name;
-	pkg.key = "<the package key>";  // TODO fix this
+	pkg.key = "<the package key>";  // empty key means package forward declaration
 	pkg.obj = obj;
 	pkg.scope = scope;
 	return pkg;

@@ -4,6 +4,9 @@
 
 package Platform
 
+import Utils "utils"
+
+
 // ----------------------------------------------------------------------------
 // Environment
 
@@ -54,7 +57,14 @@ export func ReadObjectFile(filename string) (data string, ok bool) {
 }
 
 
-export func ReadSourceFile(filename string) (data string, ok bool) {
-	data, ok = sys.readfile(filename + src_file_ext);
+export func ReadSourceFile(name string) (data string, ok bool) {
+	name = Utils.TrimExt(name, src_file_ext) + src_file_ext;
+	data, ok = sys.readfile(name);
 	return data, ok;
+}
+
+
+export func WriteObjectFile(name string, data string) bool {
+	name = Utils.TrimExt(Utils.BaseName(name), src_file_ext) + obj_file_ext;
+	return sys.writefile(name, data);
 }

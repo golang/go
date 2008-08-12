@@ -178,7 +178,15 @@ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
 
 func (P *Printer) PrintObject(obj *Globals.Object) {
 	if obj.pnolev > 0 {
-		print P.comp.pkg_list[obj.pnolev].obj.ident, ".";
+		pkg := P.comp.pkg_list[obj.pnolev];
+		if pkg.key == "" {
+			// forward-declared package
+			print `"`, pkg.file_name, `"`;
+		} else {
+			// imported package
+			print pkg.obj.ident;
+		}
+		print "."
 	}
 	print obj.ident;
 }

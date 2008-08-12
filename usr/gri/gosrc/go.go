@@ -89,6 +89,12 @@ func main() {
 	
 	// compile files
 	for p := files.first; p != nil; p = p.next {
-		Compilation.Compile(flags, env, p.str);
+		// setup compilation
+		comp := new(Globals.Compilation);
+		comp.flags = flags;
+		comp.env = env;
+		
+		// compile
+		Compilation.Compile(comp, p.str);
 	}
 }
