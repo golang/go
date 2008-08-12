@@ -11,7 +11,6 @@ import Utils "utils"
 export const (
 	ILLEGAL = iota;
 	EOF;
-	IDENT;
 	INT;
 	FLOAT;
 	STRING;
@@ -74,6 +73,9 @@ export const (
 	LAND;
 	LOR;
 	
+	// IDENT must be immediately before keywords
+	IDENT;
+
 	// keywords
 	KEYWORDS_BEG;
 	BREAK;
@@ -118,7 +120,6 @@ export func TokenName(tok int) string {
 	switch (tok) {
 	case ILLEGAL: return "illegal";
 	case EOF: return "eof";
-	case IDENT: return "ident";
 	case INT: return "int";
 	case FLOAT: return "float";
 	case STRING: return "string";
@@ -180,6 +181,8 @@ export func TokenName(tok int) string {
 
 	case LAND: return "&&";
 	case LOR: return "||";
+
+	case IDENT: return "ident";
 
 	case BREAK: return "break";
 	case CASE: return "case";

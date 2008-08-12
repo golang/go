@@ -231,7 +231,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 	case Object.CONST:
 		E.WriteInt(0);  // should be the correct value
 
-	case Object.VAR:
+	case Object.VAR, Object.FIELD:
 		E.WriteInt(0);  // should be the correct address/offset
 		
 	case Object.FUNC:
