@@ -444,19 +444,14 @@ Strings behave like arrays of bytes, with the following properties:
 
 - They are immutable: after creation, it is not possible to change the
 contents of a string.
-
 - No internal pointers: it is illegal to create a pointer to an inner
 element of a string.
-
 - They can be indexed: given string "s1", "s1[i]" is a byte value.
-
 - They can be concatenated: given strings "s1" and "s2", "s1 + s2" is a value
 combining the elements of "s1" and "s2" in sequence.
-
 - Known length: the length of a string "s1" can be obtained by the function/
 operator "len(s1)".  The length of a string is the number of bytes within.
 Unlike in C, there is no terminal NUL byte.
-
 - Creation 1: a string can be created from an integer value by a conversion;
 the result is a string containing the UTF-8 encoding of that code point.
 "string('x')" yields "x"; "string(0x1234)" yields the equivalent of "\u1234"
@@ -626,7 +621,7 @@ formal parameters for functions.
 
 	[] uint8
 	[2*n] int
-	[64] struct { x, y: int32; }
+	[64] struct { x, y int32; }
 	[1000][1000] float64
 
 The length of an array can be discovered at run time (or compile time, if
