@@ -182,42 +182,42 @@ comprehensible composability of types.
 Here is a complete example Go program that implements a concurrent prime sieve:
 
 
-  package main
-  
-  // Send the sequence 2, 3, 4, ... to channel 'ch'.
-  func Generate(ch *chan-< int) {
-    for i := 2; ; i++ {
-      ch -< i  // Send 'i' to channel 'ch'.
-    }
-  }
-  
-  // Copy the values from channel 'in' to channel 'out',
-  // removing those divisible by 'prime'.
-  func Filter(in *chan<- int, out *chan-< int, prime int) {
-    for {
-      i := <-in;  // Receive value of new variable 'i' from 'in'.
-      if i % prime != 0 {
-        out -< i  // Send 'i' to channel 'out'.
-      }
-    }
-  }
-  
-  // The prime sieve: Daisy-chain Filter processes together.
-  func Sieve() {
-    ch := new(chan int);  // Create a new channel.
-    go Generate(ch);  // Start Generate() as a subprocess.
-    for {
-      prime := <-ch;
-      printf("%d\n",  prime);
-      ch1 := new(chan int);
-      go Filter(ch, ch1, prime);
-      ch = ch1
-    }
-  }
-  
-  func main() {
-    Sieve()
-  }
+	package main
+	
+	// Send the sequence 2, 3, 4, ... to channel 'ch'.
+	func Generate(ch *chan-< int) {
+		for i := 2; ; i++ {
+			ch -< i  // Send 'i' to channel 'ch'.
+		}
+	}
+	
+	// Copy the values from channel 'in' to channel 'out',
+	// removing those divisible by 'prime'.
+	func Filter(in *chan<- int, out *chan-< int, prime int) {
+		for {
+			i := <-in;  // Receive value of new variable 'i' from 'in'.
+			if i % prime != 0 {
+				out -< i  // Send 'i' to channel 'out'.
+			}
+		}
+	}
+	
+	// The prime sieve: Daisy-chain Filter processes together.
+	func Sieve() {
+		ch := new(chan int);  // Create a new channel.
+		go Generate(ch);  // Start Generate() as a subprocess.
+		for {
+			prime := <-ch;
+			printf("%d\n",  prime);
+			ch1 := new(chan int);
+			go Filter(ch, ch1, prime);
+			ch = ch1
+		}
+	}
+	
+	func main() {
+		Sieve()
+	}
 
 
 Notation
@@ -246,11 +246,11 @@ productions are in CamelCase.
 Common productions
 ----
 
-  IdentifierList = identifier { "," identifier } .
-  ExpressionList = Expression { "," Expression } .
+	IdentifierList = identifier { "," identifier } .
+	ExpressionList = Expression { "," Expression } .
 
-  QualifiedIdent = [ PackageName "." ] identifier .
-  PackageName = identifier .
+	QualifiedIdent = [ PackageName "." ] identifier .
+	PackageName = identifier .
 
 
 Source code representation
@@ -274,11 +274,11 @@ Characters
 
 In the grammar we use the notation
 
-  utf8_char
+	utf8_char
 
 to refer to an arbitrary Unicode code point encoded in UTF-8. We use
 
-  non_ascii
+	non_ascii
 
 to refer to the subset of "utf8_char" code points with values >= 128.
 
@@ -286,11 +286,12 @@ to refer to the subset of "utf8_char" code points with values >= 128.
 Digits and Letters
 ----
 
-  oct_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" } .
-  dec_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" } .
-  hex_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "a" |
-                "A" | "b" | "B" | "c" | "C" | "d" | "D" | "e" | "E" | "f" | "F" } .
-  letter = "A" | "a" | ... "Z" | "z" | "_" | non_ascii .
+	oct_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" } .
+	dec_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" } .
+	hex_digit =
+		{ "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "a" |
+		"A" | "b" | "B" | "c" | "C" | "d" | "D" | "e" | "E" | "f" | "F" } .
+	letter = "A" | "a" | ... "Z" | "z" | "_" | non_ascii .
 
 All non-ASCII code points are considered letters; digits are always ASCII.
 
@@ -301,25 +302,25 @@ Identifiers
 An identifier is a name for a program entity such as a variable, a
 type, a function, etc.
 
-  identifier = letter { letter | dec_digit } .
+	identifier = letter { letter | dec_digit } .
 
-  a
-  _x
-  ThisIsVariable9
-  αβ
+	a
+	_x
+	ThisIsVariable9
+	αβ
 
 
 Reserved words
 ----
 
-  break         fallthrough       interface         return
-  case          false             iota              select
-  const         for               map               struct
-  chan          func              new               switch
-  continue      go                nil               true
-  default       goto              package           type
-  else          if                range             var
-  export        import
+	break         fallthrough       interface         return
+	case          false             iota              select
+	const         for               map               struct
+	chan          func              new               switch
+	continue      go                nil               true
+	default       goto              package           type
+	else          if                range             var
+	export        import
 
 With the exception of structure fields and methods, reserved words may
 not be declared as identifiers.
@@ -343,19 +344,19 @@ strings, and a special polymorphic type.
 
 The arithmetic types are:
 
-  uint8    the set of all unsigned 8-bit integers
-  uint16   the set of all unsigned 16-bit integers
-  uint32   the set of all unsigned 32-bit integers
-  uint64   the set of all unsigned 64-bit integers
+	uint8    the set of all unsigned 8-bit integers
+	uint16   the set of all unsigned 16-bit integers
+	uint32   the set of all unsigned 32-bit integers
+	uint64   the set of all unsigned 64-bit integers
 
-  int8     the set of all signed 8-bit integers, in 2's complement
-  int16    the set of all signed 16-bit integers, in 2's complement
-  int32    the set of all signed 32-bit integers, in 2's complement
-  int64    the set of all signed 64-bit integers, in 2's complement
+	int8     the set of all signed 8-bit integers, in 2's complement
+	int16    the set of all signed 16-bit integers, in 2's complement
+	int32    the set of all signed 32-bit integers, in 2's complement
+	int64    the set of all signed 64-bit integers, in 2's complement
 
-  float32  the set of all valid IEEE-754 32-bit floating point numbers
-  float64  the set of all valid IEEE-754 64-bit floating point numbers
-  float80  the set of all valid IEEE-754 80-bit floating point numbers
+	float32  the set of all valid IEEE-754 32-bit floating point numbers
+	float64  the set of all valid IEEE-754 64-bit floating point numbers
+	float80  the set of all valid IEEE-754 80-bit floating point numbers
 
 Additionally, Go declares several platform-specific type aliases:
 ushort, short, uint, int, ulong, long, float, and double.  The bit
@@ -380,9 +381,9 @@ sized types to maximize portability.
 
 Other basic types include:
 
-  bool     the truth values true and false
-  string   immutable strings of bytes
-  any      polymorphic type
+	bool     the truth values true and false
+	string   immutable strings of bytes
+	any      polymorphic type
 
 Two reserved words, ``true'' and ``false'', represent the
 corresponding boolean constant values.
@@ -418,23 +419,21 @@ variable.
 Floating point constants also represent an abstract, ideal floating
 point value that is constrained only upon assignment.
 
-  sign = "+" | "-" .
-  int_lit = [ sign ] unsigned_int_lit .
-  unsigned_int_lit = decimal_int_lit | octal_int_lit | hex_int_lit .
-  decimal_int_lit = ( "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" )
-                    { dec_digit } .
-  octal_int_lit = "0" { oct_digit } .
-  hex_int_lit = "0" ( "x" | "X" ) hex_digit { hex_digit } .
-  float_lit =  [ sign ] ( fractional_lit | exponential_lit ) .
-  fractional_lit = { dec_digit } ( dec_digit "." | "." dec_digit )
-                   { dec_digit } [ exponent ] .
-  exponential_lit = dec_digit { dec_digit } exponent .
-  exponent = ( "e" | "E" ) [ sign ] dec_digit { dec_digit } .
+	sign = "+" | "-" .
+	int_lit = [ sign ] unsigned_int_lit .
+	unsigned_int_lit = decimal_int_lit | octal_int_lit | hex_int_lit .
+	decimal_int_lit = ( "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ) { dec_digit } .
+	octal_int_lit = "0" { oct_digit } .
+	hex_int_lit = "0" ( "x" | "X" ) hex_digit { hex_digit } .
+	float_lit =  [ sign ] ( fractional_lit | exponential_lit ) .
+	fractional_lit = { dec_digit } ( dec_digit "." | "." dec_digit ) { dec_digit } [ exponent ] .
+	exponential_lit = dec_digit { dec_digit } exponent .
+	exponent = ( "e" | "E" ) [ sign ] dec_digit { dec_digit } .
 
-  07
-  0xFF
-  -44
-  +3.24e-7
+	07
+	0xFF
+	-44
+	+3.24e-7
 
 
 The string type
@@ -444,21 +443,28 @@ The string type represents the set of string values (strings).
 Strings behave like arrays of bytes, with the following properties:
 
 - They are immutable: after creation, it is not possible to change the
-  contents of a string.
+contents of a string.
+
 - No internal pointers: it is illegal to create a pointer to an inner
-  element of a string.
+element of a string.
+
 - They can be indexed: given string "s1", "s1[i]" is a byte value.
+
 - They can be concatenated: given strings "s1" and "s2", "s1 + s2" is a value
-  combining the elements of "s1" and "s2" in sequence.
+combining the elements of "s1" and "s2" in sequence.
+
 - Known length: the length of a string "s1" can be obtained by the function/
-  operator "len(s1)".  The length of a string is the number of bytes within.
-  Unlike in C, there is no terminal NUL byte.
+operator "len(s1)".  The length of a string is the number of bytes within.
+Unlike in C, there is no terminal NUL byte.
+
 - Creation 1: a string can be created from an integer value by a conversion;
-  the result is a string containing the UTF-8 encoding of that code point.
-    "string('x')" yields "x"; "string(0x1234)" yields the equivalent of "\u1234"
+the result is a string containing the UTF-8 encoding of that code point.
+"string('x')" yields "x"; "string(0x1234)" yields the equivalent of "\u1234"
+
 - Creation 2: a string can by created from an array of integer values (maybe
-  just array of bytes) by a conversion
-    a [3]byte; a[0] = 'a'; a[1] = 'b'; a[2] = 'c';  string(a) == "abc";
+just array of bytes) by a conversion:
+
+	a [3]byte; a[0] = 'a'; a[1] = 'b'; a[2] = 'c';  string(a) == "abc";
 
 
 Character and string literals
@@ -467,22 +473,23 @@ Character and string literals
 Character and string literals are almost the same as in C, with the
 following differences:
 
-  - The encoding is UTF-8
-  - `` strings exist; they do not interpret backslashes
-  - Octal character escapes are always 3 digits ("\077" not "\77")
-  - Hexadecimal character escapes are always 2 digits ("\x07" not "\x7")
+	- The encoding is UTF-8
+	- `` strings exist; they do not interpret backslashes
+	- Octal character escapes are always 3 digits ("\077" not "\77")
+	- Hexadecimal character escapes are always 2 digits ("\x07" not "\x7")
 
 This section is precise but can be skipped on first reading. The rules are:
 
-  char_lit = "'" ( unicode_value | byte_value ) "'" .
-  unicode_value = utf8_char | little_u_value | big_u_value | escaped_char .
-  byte_value = octal_byte_value | hex_byte_value .
-  octal_byte_value = "\" oct_digit oct_digit oct_digit .
-  hex_byte_value = "\" "x" hex_digit hex_digit .
-  little_u_value = "\" "u" hex_digit hex_digit hex_digit hex_digit .
-  big_u_value = "\" "U" hex_digit hex_digit hex_digit hex_digit
-                      hex_digit hex_digit hex_digit hex_digit .
-  escaped_char = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | """ ) .
+	char_lit = "'" ( unicode_value | byte_value ) "'" .
+	unicode_value = utf8_char | little_u_value | big_u_value | escaped_char .
+	byte_value = octal_byte_value | hex_byte_value .
+	octal_byte_value = "\" oct_digit oct_digit oct_digit .
+	hex_byte_value = "\" "x" hex_digit hex_digit .
+	little_u_value = "\" "u" hex_digit hex_digit hex_digit hex_digit .
+	big_u_value =
+		"\" "U" hex_digit hex_digit hex_digit hex_digit
+		hex_digit hex_digit hex_digit hex_digit .
+	escaped_char = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | """ ) .
 
 A unicode_value takes one of four forms:
 
@@ -512,57 +519,57 @@ A character literal is a form of unsigned integer constant.  Its value
 is that of the Unicode code point represented by the text between the
 quotes.
 
-  'a'
-  'ä'
-  '本'
-  '\t'
-  '\000'
-  '\007'
-  '\377'
-  '\x07'
-  '\xff'
-  '\u12e4'
-  '\U00101234'
+	'a'
+	'ä'
+	'本'
+	'\t'
+	'\000'
+	'\007'
+	'\377'
+	'\x07'
+	'\xff'
+	'\u12e4'
+	'\U00101234'
 
 String literals come in two forms: double-quoted and back-quoted.
 Double-quoted strings have the usual properties; back-quoted strings
 do not interpret backslashes at all.
 
-  string_lit = raw_string_lit | interpreted_string_lit .
-  raw_string_lit = "`" { utf8_char } "`" .
-  interpreted_string_lit = """ { unicode_value | byte_value } """ .
+	string_lit = raw_string_lit | interpreted_string_lit .
+	raw_string_lit = "`" { utf8_char } "`" .
+	interpreted_string_lit = """ { unicode_value | byte_value } """ .
 
 A string literal has type 'string'.  Its value is constructed by
 taking the byte values formed by the successive elements of the
 literal.  For byte_values, these are the literal bytes; for
 unicode_values, these are the bytes of the UTF-8 encoding of the
 corresponding Unicode code points.  Note that
-  "\u00FF"
+	"\u00FF"
 and
-  "\xFF"
+	"\xFF"
 are
 different strings: the first contains the two-byte UTF-8 expansion of
 the value 255, while the second contains a single byte of value 255.
 The same rules apply to raw string literals, except the contents are
 uninterpreted UTF-8.
 
-  `abc`
-  `\n`
-  "hello, world\n"
-  "\n"
-  ""
-  "Hello, world!\n"
-  "日本語"
-  "\u65e5本\U00008a9e"
-  "\xff\u00FF"
+	`abc`
+	`\n`
+	"hello, world\n"
+	"\n"
+	""
+	"Hello, world!\n"
+	"日本語"
+	"\u65e5本\U00008a9e"
+	"\xff\u00FF"
 
 These examples all represent the same string:
 
-  "日本語"  // UTF-8 input text
-  `日本語`  // UTF-8 input text as a raw literal
-  "\u65e5\u672c\u8a9e"  // The explicit Unicode code points
-  "\U000065e5\U0000672c\U00008a9e"  // The explicit Unicode code points
-  "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // The explicit UTF-8 bytes
+	"日本語"  // UTF-8 input text
+	`日本語`  // UTF-8 input text as a raw literal
+	"\u65e5\u672c\u8a9e"  // The explicit Unicode code points
+	"\U000065e5\U0000672c\U00008a9e"  // The explicit Unicode code points
+	"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // The explicit UTF-8 bytes
 
 The language does not canonicalize Unicode text or evaluate combining
 forms.  The text of source code is passed uninterpreted.
@@ -589,9 +596,10 @@ with the static type of the variable.
 Types may be composed from other types by assembling arrays, maps,
 channels, structures, and functions. They are called composite types.
 
-  Type = TypeName | ArrayType | ChannelType | InterfaceType |
-         FunctionType | MapType | StructType | PointerType .
-  TypeName = QualifiedIdent.
+	Type =
+		TypeName | ArrayType | ChannelType | InterfaceType |
+		FunctionType | MapType | StructType | PointerType .
+	TypeName = QualifiedIdent.
 
 
 Array types
@@ -612,19 +620,19 @@ Any array may be assigned to an open array variable with the
 same element type. Typically, open arrays are used as
 formal parameters for functions.
 
-  ArrayType = "[" [ ArrayLength ] "]" ElementType .
-  ArrayLength = Expression .
-  ElementType = Type .
+	ArrayType = "[" [ ArrayLength ] "]" ElementType .
+	ArrayLength = Expression .
+	ElementType = Type .
 
-  [] uint8
-  [2*n] int
-  [64] struct { x, y: int32; }
-  [1000][1000] float64
+	[] uint8
+	[2*n] int
+	[64] struct { x, y: int32; }
+	[1000][1000] float64
 
 The length of an array can be discovered at run time (or compile time, if
 its length is a constant) using the built-in special function len():
 
-  len(a)
+	len(a)
 
 
 Map types
@@ -639,13 +647,13 @@ during execution.  The number of entries in a map is called its length.
 A map whose value type is 'any' can store values of all types.
 END]
 
-  MapType = "map" "[" KeyType "]" ValueType .
-  KeyType = Type .
-  ValueType = Type | "any" .
+	MapType = "map" "[" KeyType "]" ValueType .
+	KeyType = Type .
+	ValueType = Type | "any" .
 
-  map [string] int
-  map [struct { pid int; name string }] *chan Buffer
-  map [string] any
+	map [string] int
+	map [struct { pid int; name string }] *chan Buffer
+	map [string] any
 
 Implementation restriction: Currently, only pointers to maps are supported.
 
@@ -658,20 +666,20 @@ Struct types are similar to C structs.
 Each field of a struct represents a variable within the data
 structure.
 
-  StructType = "struct" "{" [ FieldDeclList [ ";" ] ] "}" .
-  FieldDeclList = FieldDecl { ";" FieldDecl } .
-  FieldDecl = IdentifierList Type .
+	StructType = "struct" "{" [ FieldDeclList [ ";" ] ] "}" .
+	FieldDeclList = FieldDecl { ";" FieldDecl } .
+	FieldDecl = IdentifierList Type .
 
-  // An empty struct.
-  struct {}
+	// An empty struct.
+	struct {}
 
-  // A struct with 5 fields.
-  struct {
-    x, y int;
-    u float;
-    a []int;
-    f func();
-  }
+	// A struct with 5 fields.
+	struct {
+		x, y int;
+		u float;
+		a []int;
+		f func();
+	}
 
 
 Composite Literals
@@ -683,25 +691,25 @@ conversion from expression list to composite value.
 
 Structure literals follow this form directly.  Given
 
-  type Rat struct { num, den int };
-  type Num struct { r Rat, f float, s string };
+	type Rat struct { num, den int };
+	type Num struct { r Rat, f float, s string };
 
 we can write
 
-  pi := Num(Rat(22,7), 3.14159, "pi")
+	pi := Num(Rat(22,7), 3.14159, "pi")
 
 For array literals, if the size is present the constructed array has that many
 elements; trailing elements are given the approprate zero value for that type.
 If it is absent, the size of the array is the number of elements. It is an error
 if a specified size is less than the number of elements in the expression list.
 
-  primes := [6]int(2, 3, 5, 7, 9, 11)
-  weekdays := []string("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+	primes := [6]int(2, 3, 5, 7, 9, 11)
+	weekdays := []string("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 Map literals are similar except the elements of the expression list are
 key-value pairs separated by a colon:
 
-  m := map[string]int("good":0, "bad":1, "indifferent":7)
+	m := map[string]int("good":0, "bad":1, "indifferent":7)
 
 TODO: helper syntax for nested arrays etc? (avoids repeating types but
 complicates the spec needlessly.)
@@ -712,22 +720,22 @@ Pointer types
 
 Pointer types are similar to those in C.
 
-  PointerType = "*" ElementType.
+	PointerType = "*" ElementType.
 
 Pointer arithmetic of any kind is not permitted.
 
-  *int
-  *map[string] *chan
+	*int
+	*map[string] *chan
 
 For pointer types (only), the pointer element type may be an
 identifier referring to an incomplete (not yet fully defined) or undeclared
 type. This allows the construction of recursive and mutually recursive types
 such as:
 
-  type S struct { s *S }
+	type S struct { s *S }
 
-  type S1 struct { s2 *S2 }
-  type S2 struct { s1 *S1 }
+	type S1 struct { s2 *S2 }
+	type S2 struct { s1 *S1 }
 
 If the element type is an undeclared identifier, the declaration implicitly
 forward-declares an (incomplete) type with the respective name. By the end
@@ -746,19 +754,19 @@ By conversion or assignment, it may be restricted only to send or
 to receive; such a restricted channel
 is called a 'send channel' or a 'receive channel'.
 
-  ChannelType = "chan" [ "<-" | "-<" ] ValueType .
+	ChannelType = "chan" [ "<-" | "-<" ] ValueType .
 
-  chan any    // a generic channel
-  chan int    // a channel that can exchange only ints
-  chan-< float // a channel that can only be used to send floats
-  chan<- any   // a channel that can receive (only) values of any type
+	chan any    // a generic channel
+	chan int    // a channel that can exchange only ints
+	chan-< float // a channel that can only be used to send floats
+	chan<- any   // a channel that can receive (only) values of any type
 
 Channel variables always have type pointer to channel.
 It is an error to attempt to use a channel value and in
 particular to dereference a channel pointer.
 
-  var ch *chan int;
-  ch = new(chan int);  // new returns type *chan int
+	var ch *chan int;
+	ch = new(chan int);  // new returns type *chan int
 
 Function types
 ----
@@ -772,25 +780,25 @@ END]
 
 Functions can return multiple values simultaneously.
 
-  FunctionType = "func" AnonymousSignature .
-  AnonymousSignature = [ Receiver "." ] Parameters [ Result ] .
-  Receiver = "(" identifier Type ")" .
-  Parameters = "(" [ ParameterList ] ")" .
-  ParameterList = ParameterSection { "," ParameterSection } .
-  ParameterSection = IdentifierList Type .
-  Result = Type | "(" ParameterList ")" .
+	FunctionType = "func" AnonymousSignature .
+	AnonymousSignature = [ Receiver "." ] Parameters [ Result ] .
+	Receiver = "(" identifier Type ")" .
+	Parameters = "(" [ ParameterList ] ")" .
+	ParameterList = ParameterSection { "," ParameterSection } .
+	ParameterSection = IdentifierList Type .
+	Result = Type | "(" ParameterList ")" .
 
-  // Function types
-  func ()
-  func (a, b int, z float) bool
-  func (a, b int, z float) (success bool)
-  func (a, b int, z float) (success bool, result float)
+	// Function types
+	func ()
+	func (a, b int, z float) bool
+	func (a, b int, z float) (success bool)
+	func (a, b int, z float) (success bool, result float)
 
-  // Method types
-  func (p *T) . ()
-  func (p *T) . (a, b int, z float) bool
-  func (p *T) . (a, b int, z float) (success bool)
-  func (p *T) . (a, b int, z float) (success bool, result float)
+	// Method types
+	func (p *T) . ()
+	func (p *T) . (a, b int, z float) bool
+	func (p *T) . (a, b int, z float) (success bool)
+	func (p *T) . (a, b int, z float) (success bool, result float)
 
 A variable can hold only a pointer to a function, not a function value.
 In particular, v := func() {} creates a variable of type *func(). To call the
@@ -806,19 +814,19 @@ Function Literals
 
 Function literals represent anonymous functions.
 
-  FunctionLit = FunctionType Block .
-  Block = "{" [ StatementList [ ";" ] ] "}" .
+	FunctionLit = FunctionType Block .
+	Block = "{" [ StatementList [ ";" ] ] "}" .
 
 A function literal can be invoked
 or assigned to a variable of the corresponding function pointer type.
 For now, a function literal can reference only its parameters, global
 variables, and variables declared within the function literal.
 
-  // Function literal
-  func (a, b int, z float) bool { return a*b < int(z); }
+	// Function literal
+	func (a, b int, z float) bool { return a*b < int(z); }
 
-  // Method literal
-  func (p *T) . (a, b int, z float) bool { return a*b < int(z) + p.x; }
+	// Method literal
+	func (p *T) . (a, b int, z float) bool { return a*b < int(z) + p.x; }
 
 Unresolved issues: Are there method literals? How do you use them?
 
@@ -829,13 +837,13 @@ Methods
 A method is a function bound to a particular type T, where T is the
 type of the receiver. For instance, given type Point
 
-  type Point struct { x, y float }
+	type Point struct { x, y float }
 
 the declaration
 
-  func (p *Point) distance(scale float) float {
-    return scale * (p.x*p.x + p.y*p.y);
-  }
+	func (p *Point) distance(scale float) float {
+		return scale * (p.x*p.x + p.y*p.y);
+	}
 
 creates a method of type *Point.  Note that methods may appear anywhere
 after the declaration of the receiver type and may be forward-declared.
@@ -844,11 +852,11 @@ When invoked, a method behaves like a function whose first argument
 is the receiver, but at the call site the receiver is bound to the method
 using the notation
 
-  receiver.method()
+	receiver.method()
 
 For instance, given a *Point variable pt, one may call
 
-  pt.distance(3.5)
+	pt.distance(3.5)
 
 
 Interface of a type
@@ -863,24 +871,24 @@ Interface types
 
 An interface type denotes a set of methods.
 
-  InterfaceType = "interface" "{" [ MethodDeclList [ ";" ] ] "}" .
-  MethodDeclList = MethodDecl { ";" MethodDecl } .
-  MethodDecl = identifier Parameters [ Result ] .
+	InterfaceType = "interface" "{" [ MethodDeclList [ ";" ] ] "}" .
+	MethodDeclList = MethodDecl { ";" MethodDecl } .
+	MethodDecl = identifier Parameters [ Result ] .
 
-  // A basic file interface.
-  type File interface {
-    Read(b Buffer) bool;
-    Write(b Buffer) bool;
-    Close();
-  }
+	// A basic file interface.
+	type File interface {
+		Read(b Buffer) bool;
+		Write(b Buffer) bool;
+		Close();
+	}
 
 Any type whose interface has, possibly as a subset, the complete
 set of methods of an interface I is said to implement interface I.
 For instance, if two types S1 and S2 have the methods
 
-  func (p T) Read(b Buffer) bool { return ... }
-  func (p T) Write(b Buffer) bool { return ... }
-  func (p T) Close() { ... }
+	func (p T) Read(b Buffer) bool { return ... }
+	func (p T) Write(b Buffer) bool { return ... }
+	func (p T) Close() { ... }
 
 (where T stands for either S1 or S2) then the File interface is
 implemented by both S1 and S2, regardless of what other methods
@@ -888,20 +896,20 @@ S1 and S2 may have or share.
 
 All types implement the empty interface:
 
-  interface {}
+	interface {}
 
 In general, a type implements an arbitrary number of interfaces.
 For instance, if we have
 
-  type Lock interface {
-    lock();
-    unlock();
-  }
+	type Lock interface {
+		lock();
+		unlock();
+	}
 
 and S1 and S2 also implement
 
-  func (p T) lock() { ... }
-  func (p T) unlock() { ... }
+	func (p T) lock() { ... }
+	func (p T) unlock() { ... }
 
 they implement the Lock interface as well as the File interface.
 
@@ -922,18 +930,18 @@ plain assignment or implicitly, such as through a function parameter
 or channel operation.  Given an "any" variable v storing an underlying
 value of type T, one may:
 
-  - copy v's value to another variable of type "any"
-  - extract the stored value by an explicit conversion operation T(v)
-  - copy v's value to a variable of type T
-  
+	- copy v's value to another variable of type "any"
+	- extract the stored value by an explicit conversion operation T(v)
+	- copy v's value to a variable of type T
+	
 Attempts to convert/extract to an incompatible type will yield nil.
 
 No other operations are defined (yet).
 
 Note that type
-  interface {}
+	interface {}
 is a special case that can match any struct type, while type
-  any
+	any
 can match any type at all, including basic types, arrays, etc.
 
 TODO: details about reflection
@@ -960,19 +968,19 @@ are ignored for the purpose of type equivalence.
 
 For instance, the struct type
 
-  struct {
-    a int;
-    b int;
-    f *func (m *[32] float, x int, y int) bool
-  }
-  
+	struct {
+		a int;
+		b int;
+		f *func (m *[32] float, x int, y int) bool
+	}
+	
 is equivalent to
 
-  struct {
-    a, b int;
-    f *F
-  }
-  
+	struct {
+		a, b int;
+		f *F
+	}
+	
 where "F" is declared as "func (a *[30 + 2] float, b, c int) (ok bool)".
 
 Finally, two interface types are equivalent if they both declare the same set of
@@ -984,7 +992,7 @@ vice versa. Note that the declaration order of the methods is not relevant.
 Literals
 ----
 
-  Literal = char_lit | string_lit | int_lit | float_lit | FunctionLit | "nil" .
+	Literal = char_lit | string_lit | int_lit | float_lit | FunctionLit | "nil" .
 
 
 Declarations
@@ -993,7 +1001,7 @@ Declarations
 A declaration associates a name with a language entity such as a constant, type,
 variable, or function.
 
-  Declaration = [ "export" ] ( ConstDecl | TypeDecl | VarDecl | FunctionDecl ) .
+	Declaration = [ "export" ] ( ConstDecl | TypeDecl | VarDecl | FunctionDecl ) .
 
 Global declarations optionally may be marked for export with the reserved word
 "export". Local declarations can never be exported.
@@ -1004,8 +1012,8 @@ If the declaration defines a type, the type structure is exported as well. In
 particular, if the declaration defines a new "struct" or "interface" type,
 all structure fields and all structure and interface methods are exported also.
 
-  export const pi float = 3.14159265
-  export func Parse(source string);
+	export const pi float = 3.14159265
+	export func Parse(source string);
 
 Note that at the moment the old-style export via ExportDecl is still supported.
 
@@ -1015,7 +1023,7 @@ TODO: Eventually we need to be able to restrict visibility of fields and methods
 TODO: specify range of visibility, scope rules.
 
 [OLD
-  Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | ExportDecl .
+	Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | ExportDecl .
 END]
 
 
@@ -1024,16 +1032,16 @@ Const declarations
 
 A constant declaration gives a name to the value of a constant expression.
 
-  ConstDecl = "const" ( ConstSpec | "(" ConstSpecList [ ";" ] ")" ).
-  ConstSpec = identifier [ Type ] [ "=" Expression ] .
-  ConstSpecList = ConstSpec { ";" ConstSpec }.
+	ConstDecl = "const" ( ConstSpec | "(" ConstSpecList [ ";" ] ")" ).
+	ConstSpec = identifier [ Type ] [ "=" Expression ] .
+	ConstSpecList = ConstSpec { ";" ConstSpec }.
 
-  const pi float = 3.14159265
-  const e = 2.718281828
-  const (
-    one int = 1;
-    two = 3
-  )
+	const pi float = 3.14159265
+	const e = 2.718281828
+	const (
+		one int = 1;
+		two = 3
+	)
 
 The constant expression may be omitted, in which case the expression is
 the last expression used after the reserved word "const". If no such expression
@@ -1100,26 +1108,26 @@ Type declarations
 
 A type declaration introduces a name as a shorthand for a type.
 
-  TypeDecl = "type" ( TypeSpec | "(" TypeSpecList [ ";" ] ")" ).
-  TypeSpec = identifier Type .
-  TypeSpecList = TypeSpec { ";" TypeSpec }.
+	TypeDecl = "type" ( TypeSpec | "(" TypeSpecList [ ";" ] ")" ).
+	TypeSpec = identifier Type .
+	TypeSpecList = TypeSpec { ";" TypeSpec }.
 
 The name refers to an incomplete type until the type specification is complete.
 Incomplete types can be referred to only by pointer types. Consequently, in a
 type declaration a type may not refer to itself unless it does so with a pointer
 type.
 
-  type IntArray [16] int
+	type IntArray [16] int
 
-  type (
-    Point struct { x, y float };
-    Polar Point
-  )
+	type (
+		Point struct { x, y float };
+		Polar Point
+	)
 
-  type TreeNode struct {
-    left, right *TreeNode;
-    value Point;
-  }
+	type TreeNode struct {
+		left, right *TreeNode;
+		value Point;
+	}
 
 
 Variable declarations
@@ -1129,18 +1137,18 @@ A variable declaration creates a variable and gives it a type and a name.
 It may optionally give the variable an initial value; in some forms of
 declaration the type of the initial value defines the type of the variable.
 
-  VarDecl = "var" ( VarSpec | "(" VarSpecList [ ";" ] ")" ) .
-  VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
-  VarSpecList = VarSpec { ";" VarSpec } .
+	VarDecl = "var" ( VarSpec | "(" VarSpecList [ ";" ] ")" ) .
+	VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
+	VarSpecList = VarSpec { ";" VarSpec } .
 
-  var i int
-  var u, v, w float
-  var k = 0
-  var x, y float = -1.0, -2.0
-  var (
-    i int;
-    u, v = 2.0, 3.0
-  )
+	var i int
+	var u, v, w float
+	var k = 0
+	var x, y float = -1.0, -2.0
+	var (
+		i int;
+		u, v = 2.0, 3.0
+	)
 
 If the expression list is present, it must have the same number of elements
 as there are variables in the variable specification.
@@ -1154,21 +1162,21 @@ If the variable type is omitted, and the corresponding initialization expression
 is a constant expression of abstract int or floating point type, the type
 of the variable is "int" or "float" respectively:
 
-  var i = 0  // i has int type
-  var f = 3.1415  // f has float type
+	var i = 0  // i has int type
+	var f = 3.1415  // f has float type
 
 The syntax
 
-  SimpleVarDecl = identifier ":=" Expression .
+	SimpleVarDecl = identifier ":=" Expression .
 
 is shorthand for
 
-  var identifier = Expression.
+	var identifier = Expression.
 
-  i := 0
-  f := func() int { return 7; }
-  ch := new(chan int);
-  
+	i := 0
+	f := func() int { return 7; }
+	ch := new(chan int);
+	
 Also, in some contexts such as "if", "for", or "switch" statements,
 this construct can be used to declare local temporary variables.
 
@@ -1183,40 +1191,40 @@ in the signature.
 Implementation restriction: Functions and methods can only be declared
 at the global level.
 
-  FunctionDecl = "func" NamedSignature  ( ";" | Block ) .
-  NamedSignature = [ Receiver ] identifier Parameters [ Result ] .
+	FunctionDecl = "func" NamedSignature  ( ";" | Block ) .
+	NamedSignature = [ Receiver ] identifier Parameters [ Result ] .
 
-  func min(x int, y int) int {
-    if x < y {
-      return x;
-    }
-    return y;
-  }
+	func min(x int, y int) int {
+		if x < y {
+			return x;
+		}
+		return y;
+	}
 
-  func foo(a, b int, z float) bool {
-    return a*b < int(z);
-  }
+	func foo(a, b int, z float) bool {
+		return a*b < int(z);
+	}
 
 
 A method is a function that also declares a receiver.
 
-  func (p *T) foo(a, b int, z float) bool {
-    return a*b < int(z) + p.x; 
-  }
+	func (p *T) foo(a, b int, z float) bool {
+		return a*b < int(z) + p.x; 
+	}
 
-  func (p *Point) Length() float {
-    return Math.sqrt(p.x * p.x + p.y * p.y);
-  }
+	func (p *Point) Length() float {
+		return Math.sqrt(p.x * p.x + p.y * p.y);
+	}
 
-  func (p *Point) Scale(factor float) {
-    p.x = p.x * factor;
-    p.y = p.y * factor;
-  }
+	func (p *Point) Scale(factor float) {
+		p.x = p.x * factor;
+		p.y = p.y * factor;
+	}
 
 Functions and methods can be forward declared by omitting the body:
 
-  func foo(a, b int, z float) bool;
-  func (p *T) foo(a, b int, z float) bool;
+	func foo(a, b int, z float) bool;
+	func (p *T) foo(a, b int, z float) bool;
 
 
 Initial values
@@ -1232,19 +1240,19 @@ be set to 0 if no other value is specified.
 
 These two simple declarations are equivalent:
 
-  var i int;
-  var i int = 0;
+	var i int;
+	var i int = 0;
 
 After
 
-  type T struct { i int; f float; next *T };
-  t := new(T);
+	type T struct { i int; f float; next *T };
+	t := new(T);
 
 the following holds:
 
-  t.i == 0
-  t.f == 0.0
-  t.next == nil
+	t.i == 0
+	t.f == 0.0
+	t.next == nil
 
 
 [OLD
@@ -1267,11 +1275,11 @@ source than the export directive itself, but it is an error to specify
 an identifier not declared anywhere in the source file containing the
 export directive.
 
-  ExportDecl = "export" ExportIdentifier { "," ExportIdentifier } .
-  ExportIdentifier = QualifiedIdent .
+	ExportDecl = "export" ExportIdentifier { "," ExportIdentifier } .
+	ExportIdentifier = QualifiedIdent .
 
-  export sin, cos
-  export math.abs
+	export sin, cos
+	export math.abs
 
 TODO: complete this section
 
@@ -1284,53 +1292,53 @@ Expressions
 
 Expression syntax is based on that of C but with fewer precedence levels.
 
-  Expression = BinaryExpr | UnaryExpr | PrimaryExpr .
-  BinaryExpr = Expression binary_op Expression .
-  UnaryExpr = unary_op Expression .
+	Expression = BinaryExpr | UnaryExpr | PrimaryExpr .
+	BinaryExpr = Expression binary_op Expression .
+	UnaryExpr = unary_op Expression .
 
-  PrimaryExpr =
-    identifier | Literal | "(" Expression ")" | "iota" |
-    Call | Conversion | Allocation | Index |
-    Expression "." identifier | Expression "." "(" Type ")" .
+	PrimaryExpr =
+		identifier | Literal | "(" Expression ")" | "iota" |
+		Call | Conversion | Allocation | Index |
+		Expression "." identifier | Expression "." "(" Type ")" .
 
-  Call = Expression "(" [ ExpressionList ] ")" .
-  Conversion = "convert" "(" Type [ "," ExpressionList ] ")" |
-               ConversionType "(" [ ExpressionList ] ")" .
-  ConversionType = TypeName | ArrayType | MapType | StructType | InterfaceType .
-  Allocation = "new" "(" Type [ "," ExpressionList ] ")" .
-  Index = SimpleIndex | Slice .
-  SimpleIndex = Expression "[" Expression"]" .
-  Slice = Expression "[" Expression ":" Expression "]" .
+	Call = Expression "(" [ ExpressionList ] ")" .
+	Conversion =
+		"convert" "(" Type [ "," ExpressionList ] ")" | ConversionType "(" [ ExpressionList ] ")" .
+	ConversionType = TypeName | ArrayType | MapType | StructType | InterfaceType .
+	Allocation = "new" "(" Type [ "," ExpressionList ] ")" .
+	Index = SimpleIndex | Slice .
+	SimpleIndex = Expression "[" Expression"]" .
+	Slice = Expression "[" Expression ":" Expression "]" .
 
-  binary_op = log_op | comm_op | rel_op | add_op | mul_op .
-  log_op = "||" | "&&" .
-  comm_op = "<-" | "-<" .
-  rel_op = "==" | "!=" | "<" | "<=" | ">" | ">=" .
-  add_op = "+" | "-" | "|" | "^" .
-  mul_op = "*" | "/" | "%" | "<<" | ">>" | "&" .
+	binary_op = log_op | comm_op | rel_op | add_op | mul_op .
+	log_op = "||" | "&&" .
+	comm_op = "<-" | "-<" .
+	rel_op = "==" | "!=" | "<" | "<=" | ">" | ">=" .
+	add_op = "+" | "-" | "|" | "^" .
+	mul_op = "*" | "/" | "%" | "<<" | ">>" | "&" .
 
-  unary_op = "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
+	unary_op = "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
 
 Field selection and type assertions ('.') bind tightest, followed by indexing ('[]')
 and then calls and conversions. The remaining precedence levels are as follows
 (in increasing precedence order):
 
-  Precedence    Operator
-      1            ||
-      2            &&
-      3            <- -<
-      4            ==  !=  <  <=  >  >=
-      5            +  -  |  ^
-      6            *  /  %  <<  >>  &
-      7            +  -  !  ^  *  <- (unary) &  (unary)
-    
+	Precedence    Operator
+		1             ||
+		2             &&
+		3             <- -<
+		4             ==  !=  <  <=  >  >=
+		5             +  -  |  ^
+		6             *  /  %  <<  >>  &
+		7             +  -  !  ^  *  <- (unary) &  (unary)
+		
 For integer values, / and % satisfy the following relationship:
 
-  (a / b) * b + a % b == a
+	(a / b) * b + a % b == a
 
 and
 
-  (a / b) is "truncated towards zero".
+	(a / b) is "truncated towards zero".
 
 There are no implicit type conversions: Except for the shift operators
 "<<" and ">>", both operands of a binary operator must have the same type.
@@ -1347,59 +1355,59 @@ Unary "^" corresponds to C "~" (bitwise complement). There is no "~" operator
 in Go.
 
 There is no "->" operator. Given a pointer p to a struct, one writes
-  p.f
+	p.f
 to access field f of the struct. Similarly, given an array or map
 pointer, one writes
-  p[i]
+	p[i]
 to access an element.  Given a function pointer, one writes
-  p()
+	p()
 to call the function.
 
 Other operators behave as in C.
 
 The reserved word "iota" is discussed in a later section.
-  
+	
 Examples of primary expressions
 
-  x
-  2
-  (s + ".txt")
-  f(3.1415, true)
-  Point(1, 2)
-  new([]int, 100)
-  m["foo"]
-  s[i : j + 1]
-  obj.color
-  Math.sin
-  f.p[i].x()
+	x
+	2
+	(s + ".txt")
+	f(3.1415, true)
+	Point(1, 2)
+	new([]int, 100)
+	m["foo"]
+	s[i : j + 1]
+	obj.color
+	Math.sin
+	f.p[i].x()
 
 Examples of general expressions
 
-  +x
-  23 + 3*x[i]
-  x <= f()
-  ^a >> b
-  f() || g()
-  x == y + 1 && <-chan_ptr > 0
+	+x
+	23 + 3*x[i]
+	x <= f()
+	^a >> b
+	f() || g()
+	x == y + 1 && <-chan_ptr > 0
 
 
 The nil value
 ----
 
 The reserved word
-  nil
+	nil
 represents the ``zero'' value for a pointer type or interface type.
 
 The only operations allowed for nil are to assign it to a pointer or
 interface variable and to compare it for equality or inequality with a
 pointer or interface value.
 
-  var p *int;
-  if p != nil {
-    print(p)
-  } else {
-    print("p points nowhere")
-  }
+	var p *int;
+	if p != nil {
+		print(p)
+	} else {
+		print("p points nowhere")
+	}
 
 By default, pointers are initialized to nil.
 
@@ -1426,8 +1434,8 @@ initial values.
 
 For instance,
 
-  type S struct { a int; b float }
-  new(S)
+	type S struct { a int; b float }
+	new(S)
 
 allocates storage for an S, initializes it (a=0, b=0.0), and returns a
 value of type *S pointing to that storage.
@@ -1435,10 +1443,10 @@ value of type *S pointing to that storage.
 The only defined parameters affect sizes for allocating arrays,
 buffered channels, and maps.
 
-  ap := new([]int, 10); # a pointer to an array of 10 ints
-  aap := new([][]int, 5, 10); # a pointer to an array of 5 arrays of 10 ints
-  c := new(chan int, 10); # a pointer to a channel with a buffer size of 10
-  m := new(map[string] int, 100); # a pointer to a map with space for 100 elements preallocated
+	ap := new([]int, 10); # a pointer to an array of 10 ints
+	aap := new([][]int, 5, 10); # a pointer to an array of 5 arrays of 10 ints
+	c := new(chan int, 10); # a pointer to a channel with a buffer size of 10
+	m := new(map[string] int, 100); # a pointer to a map with space for 100 elements preallocated
 
 TODO: argument order for dimensions in multidimensional arrays
 
@@ -1571,13 +1579,13 @@ The index expressions in the slice select which elements appear in the
 result.  The result has indexes starting at 0 and length equal to the difference
 in the index values in the slice.  After
 
-  a := []int(1,2,3,4)
-  slice := a[1:3]
+	a := []int(1,2,3,4)
+	slice := a[1:3]
 
 The array ``slice'' has length two and elements
 
-  slice[0] == 2
-  slice[1] == 3
+	slice[0] == 2
+	slice[1] == 3
 
 The index values in the slice must be in bounds for the original
 array (or string) and the slice length must be non-negative.
@@ -1586,15 +1594,15 @@ Slices are new arrays (or strings) storing copies of the elements, so
 changes to the elements of the slice do not affect the original.
 In the example, a subsequent assignment to element 0,
 
-  slice[0] = 5
+	slice[0] = 5
 
 would have no effect on ``a''.
 
 Strings and arrays can also be concatenated using the ``+'' (or ``+='')
 operator.
 
-  a += []int(5, 6, 7)
-  s := "hi" + string(c)
+	a += []int(5, 6, 7)
+	s := "hi" + string(c)
 
 Like slices, addition creates a new array or string by copying the
 elements.
@@ -1609,35 +1617,35 @@ introduces a new declaration and increments as each identifier
 is declared. For instance, 'iota' can be used to construct
 a set of related constants:
 
-  const (
-    enum0 = iota;  // sets enum0 to 0, etc.
-    enum1 = iota;
-    enum2 = iota
-  )
+	const (
+		enum0 = iota;  // sets enum0 to 0, etc.
+		enum1 = iota;
+		enum2 = iota
+	)
 
-  const (
-    a = 1 << iota;  // sets a to 1 (iota has been reset)
-    b = 1 << iota;  // sets b to 2
-    c = 1 << iota;  // sets c to 4
-  )
-  
-  const x = iota;  // sets x to 0
-  const y = iota;  // sets y to 0
+	const (
+		a = 1 << iota;  // sets a to 1 (iota has been reset)
+		b = 1 << iota;  // sets b to 2
+		c = 1 << iota;  // sets c to 4
+	)
+	
+	const x = iota;  // sets x to 0
+	const y = iota;  // sets y to 0
 
 Since the expression in constant declarations repeats implicitly
 if omitted, the first two examples above can be abbreviated:
 
-  const (
-    enum0 = iota;  // sets enum0 to 0, etc.
-    enum1;
-    enum2
-  )
+	const (
+		enum0 = iota;  // sets enum0 to 0, etc.
+		enum1;
+		enum2
+	)
 
-  const (
-    a = 1 << iota;  // sets a to 1 (iota has been reset)
-    b;  // sets b to 2
-    c;  // sets c to 4
-  )
+	const (
+		a = 1 << iota;  // sets a to 1 (iota has been reset)
+		b;  // sets b to 2
+		c;  // sets c to 4
+	)
 
 
 TODO: should iota work in var, type, func decls too?
@@ -1648,15 +1656,15 @@ Statements
 
 Statements control execution.
 
-  Statement =
-    Declaration |
-    SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
-    Block | IfStat | SwitchStat | SelectStat | ForStat | RangeStat |
-  
-  SimpleStat =
-    ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
-    
-    
+	Statement =
+		Declaration |
+		SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
+		Block | IfStat | SwitchStat | SelectStat | ForStat | RangeStat |
+	
+	SimpleStat =
+		ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
+		
+		
 Statement lists
 ----
 
@@ -1664,7 +1672,7 @@ Semicolons are used to separate individual statements of a statement list.
 They are optional immediately before or after a closing curly brace "}",
 immediately after "++" or "--", and immediately before a reserved word.
 
-  StatementList = Statement { [ ";" ] Statement } .
+	StatementList = Statement { [ ";" ] Statement } .
 
 
 TODO: This still seems to be more complicated then necessary.
@@ -1673,17 +1681,17 @@ TODO: This still seems to be more complicated then necessary.
 Expression statements
 ----
 
-  ExpressionStat = Expression .
+	ExpressionStat = Expression .
 
-  f(x+y)
+	f(x+y)
 
 
 IncDec statements
 ----
 
-  IncDecStat = Expression ( "++" | "--" ) .
+	IncDecStat = Expression ( "++" | "--" ) .
 
-  a[i]++
+	a[i]++
 
 Note that ++ and -- are not operators for expressions.
 
@@ -1691,54 +1699,54 @@ Note that ++ and -- are not operators for expressions.
 Assignments
 ----
 
-  Assignment = SingleAssignment | TupleAssignment .
-  SingleAssignment = PrimaryExpr assign_op Expression .
-  TupleAssignment = PrimaryExprList assign_op ExpressionList .
-  PrimaryExprList = PrimaryExpr { "," PrimaryExpr } .
-  
-  assign_op = [ add_op | mul_op ] "=" .
+	Assignment = SingleAssignment | TupleAssignment .
+	SingleAssignment = PrimaryExpr assign_op Expression .
+	TupleAssignment = PrimaryExprList assign_op ExpressionList .
+	PrimaryExprList = PrimaryExpr { "," PrimaryExpr } .
+	
+	assign_op = [ add_op | mul_op ] "=" .
 
 The left-hand side must be an l-value such as a variable, pointer indirection,
 or an array index.
 
-  x = 1
-  *p = f()
-  a[i] = 23
-  k = <-ch
-  
+	x = 1
+	*p = f()
+	a[i] = 23
+	k = <-ch
+	
 As in C, arithmetic binary operators can be combined with assignments:
 
-  j <<= 2
+	j <<= 2
 
 A tuple assignment assigns the individual elements of a multi-valued operation,
 such as function evaluation or some channel and map operations, into individual
 variables. For instance, a tuple assignment such as
 
-  v1, v2, v3 = e1, e2, e3
-  
+	v1, v2, v3 = e1, e2, e3
+	
 assigns the expressions e1, e2, e3 to temporaries and then assigns the temporaries
 to the variables v1, v2, v3. Thus
 
-  a, b = b, a
+	a, b = b, a
 
 exchanges the values of a and b. The tuple assignment
 
-  x, y = f()
+	x, y = f()
 
 calls the function f, which must return two values, and assigns them to x and y.
 As a special case, retrieving a value from a map, when written as a two-element
 tuple assignment, assign a value and a boolean. If the value is present in the map,
 the value is assigned and the second, boolean variable is set to true. Otherwise,
 the variable is unchanged, and the boolean value is set to false.
-  
-  value, present = map_var[key]
+	
+	value, present = map_var[key]
 
 To delete a value from a map, use a tuple assignment with the map on the left
 and a false boolean expression as the second expression on the right, such
 as:
 
-  map_var[key] = value, false
-    
+	map_var[key] = value, false
+		
 In assignments, the type of the expression must match the type of the left-hand side.
 
 Communication
@@ -1751,18 +1759,18 @@ Here the term "channel" means "variable of type *chan".
 
 A channel is created by allocating it:
 
-  ch := new(chan int)
+	ch := new(chan int)
 
 An optional argument to new() specifies a buffer size for an
 asynchronous channel; if absent or zero, the channel is synchronous:
 
-  sync_chan := new(chan int)
-  buffered_chan := new(chan int, 10)
+	sync_chan := new(chan int)
+	buffered_chan := new(chan int, 10)
 
 The send operator is the binary operator  "-<", which operates on
 a channel and a value (expression):
 
-  ch -< 3
+	ch -< 3
 
 In this form, the send operation is an (expression) statement that
 blocks until the send can proceed, at which point the value is
@@ -1773,10 +1781,10 @@ of the expression is a boolean and the operation is non-blocking.
 The value of the boolean reports true if the communication succeeded,
 false if it did not.  These two examples are equivalent:
 
-  ok := ch -< 3;
-  if ok { print("sent") } else { print("not sent") }
+	ok := ch -< 3;
+	if ok { print("sent") } else { print("not sent") }
 
-  if ch -< 3 { print("sent") } else { print("not sent") }
+	if ch -< 3 { print("sent") } else { print("not sent") }
 
 In other words, if the program tests the value of a send operation,
 the send is non-blocking and the value of the expression is the
@@ -1786,35 +1794,35 @@ the operation blocks until it succeeds.
 The receive uses the binary operator "<-", analogous to send but
 with the channel on the right:
 
-  v1 <- ch
+	v1 <- ch
 
 As with send operations, in expression context this form may
 be used as a boolean and makes the receive non-blocking:
 
-  ok := e <- ch;
-  if ok { print("received", e) } else { print("did not receive") }
+	ok := e <- ch;
+	if ok { print("received", e) } else { print("did not receive") }
 
 The receive operator may also be used as a prefix unary operator
 on a channel.
 
-  <- ch
+	<- ch
 
 The expression blocks until a value is available, which then can
 be assigned to a variable or used like any other expression:
 
-  v1 := <-ch
-  v2 = <-ch
-  f(<-ch)
+	v1 := <-ch
+	v2 = <-ch
+	f(<-ch)
 
 If the receive expression does not save the value, the value is
 discarded:
 
-  <- strobe  // wait until clock pulse
+	<- strobe  // wait until clock pulse
 
 Finally, as a special case unique to receive, the forms
 
-  e, ok := <-ch
-  e, ok = <-ch
+	e, ok := <-ch
+	e, ok = <-ch
 
 allow the operation to declare and/or assign the received value and
 the boolean indicating success.  These two forms are always
@@ -1828,11 +1836,11 @@ concurrent thread of control within the same address space.  Unlike
 with a function, the next line of the program does not wait for the
 function to complete.
 
-  GoStat = "go" Call .
+	GoStat = "go" Call .
 
 
-  go Server()
-  go func(ch chan-< bool) { for { sleep(10); ch -< true; }} (c)
+	go Server()
+	go func(ch chan-< bool) { for { sleep(10); ch -< true; }} (c)
 
 
 Return statements
@@ -1841,35 +1849,35 @@ Return statements
 A return statement terminates execution of the containing function
 and optionally provides a result value or values to the caller.
 
-  ReturnStat = "return" [ ExpressionList ] .
+	ReturnStat = "return" [ ExpressionList ] .
 
 
 There are two ways to return values from a function.  The first is to
 explicitly list the return value or values in the return statement:
 
-  func simple_f() int {
-    return 2;
-  }
+	func simple_f() int {
+		return 2;
+	}
 
 A function may return multiple values.
 The syntax of the return clause in that case is the same as
 that of a parameter list; in particular, names must be provided for
 the elements of the return value.
 
-  func complex_f1() (re float, im float) {
-    return -7.0, -4.0;
-  }
+	func complex_f1() (re float, im float) {
+		return -7.0, -4.0;
+	}
 
 The second method to return values
 is to use those names within the function as variables
 to be assigned explicitly; the return statement will then provide no
 values:
 
-  func complex_f2() (re float, im float) {
-    re = 7.0;
-    im = 4.0;
-    return;
-  }
+	func complex_f2() (re float, im float) {
+		re = 7.0;
+		im = 4.0;
+		return;
+	}
 
 If statements
 ----
@@ -1879,31 +1887,31 @@ condition need not be parenthesized and the "then" statement
 must be in brace brackets. The condition may be omitted, in which
 case it is assumed to have the value "true".
 
-  IfStat = "if" [ [ Simplestat ] ";" ] [ Condition ] Block [ "else" Statement ] .
+	IfStat = "if" [ [ Simplestat ] ";" ] [ Condition ] Block [ "else" Statement ] .
 
-  if x > 0 {
-    return true;
-  }
+	if x > 0 {
+		return true;
+	}
 
 An "if" statement may include the declaration of a single temporary variable.
 The scope of the declared variable extends to the end of the if statement, and
 the variable is initialized once before the statement is entered.
 
-  if x := f(); x < y {
-    return x;
-  } else if x > z {
-    return z;
-  } else {
-    return y;
-  }
+	if x := f(); x < y {
+		return x;
+	} else if x > z {
+		return z;
+	} else {
+		return y;
+	}
 
 
 TODO: We should fix this and move to:
 
-  IfStat =
-    "if" [ [ Simplestat ] ";" ] [ Condition ] Block
-    { "else" "if" Condition Block }
-    [ "else" Block ] .
+	IfStat =
+		"if" [ [ Simplestat ] ";" ] [ Condition ] Block
+		{ "else" "if" Condition Block }
+		[ "else" Block ] .
 
 
 Switch statements
@@ -1911,9 +1919,9 @@ Switch statements
 
 Switches provide multi-way execution.
 
-  SwitchStat = "switch" [ [ Simplestat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
-  CaseClause = Case [ StatementList [ ";" ] ] [ "fallthrough" [ ";" ] ] .
-  Case = ( "case" ExpressionList | "default" ) ":" .
+	SwitchStat = "switch" [ [ Simplestat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
+	CaseClause = Case [ StatementList [ ";" ] ] [ "fallthrough" [ ";" ] ] .
+	Case = ( "case" ExpressionList | "default" ) ":" .
 
 There can be at most one default case in a switch statement.
 
@@ -1925,38 +1933,38 @@ be evaluated top to bottom until the first successful non-default case is reache
 If none matches and there is a default case, the statements of the default
 case are executed.
 
-  switch tag {
-  default: s3()
-  case 0, 1: s1()
-  case 2: s2()
-  }
+	switch tag {
+	default: s3()
+	case 0, 1: s1()
+	case 2: s2()
+	}
 
 A switch statement may include the declaration of a single temporary variable.
 The scope of the declared variable extends to the end of the switch statement, and
 the variable is initialized once before the switch is entered. 
 
-  switch x := f(); true {
-  case x < 0: return -x
-  default: return x
-  }
-  
+	switch x := f(); true {
+	case x < 0: return -x
+	default: return x
+	}
+	
 Cases do not fall through unless explicitly marked with a "fallthrough" statement.
 
-  switch a {
-  case 1:
-    b();
-    fallthrough
-  case 2:
-    c();
-  }
+	switch a {
+	case 1:
+		b();
+		fallthrough
+	case 2:
+		c();
+	}
 
 If the expression is omitted, it is equivalent to "true".
 
-  switch {
-  case x < y: f1();
-  case x < z: f2();
-  case x == 4: f3();
-  }
+	switch {
+	case x < y: f1();
+	case x < z: f2();
+	case x == 4: f3();
+	}
 
 
 Select statements
@@ -1966,13 +1974,13 @@ A select statement chooses which of a set of possible communications
 will proceed.  It looks similar to a switch statement but with the
 cases all referring to communication operations.
 
-  SelectStat = "select" "{" { CommClause } "}" .
-  CommClause = CommCase [ StatementList [ ";" ] ] .
-  CommCase = ( "default" | ( "case" ( SendCase | RecvCase) ) ) ":" .
-  SendCase = SendExpr .
-  RecvCase = RecvExpr .
-  SendExpr =  Expression "-<" Expression .
-  RecvExpr =  [ identifier ] "<-" Expression .
+	SelectStat = "select" "{" { CommClause } "}" .
+	CommClause = CommCase [ StatementList [ ";" ] ] .
+	CommCase = ( "default" | ( "case" ( SendCase | RecvCase) ) ) ":" .
+	SendCase = SendExpr .
+	RecvCase = RecvExpr .
+	SendExpr =  Expression "-<" Expression .
+	RecvExpr =  [ identifier ] "<-" Expression .
 
 The select statement evaluates all the channel (pointers) involved.
 If any of the channels can proceed, the corresponding communication
@@ -1988,32 +1996,32 @@ clause matches that of the dynamic value to be exchanged.
 If multiple cases can proceed, a uniform fair choice is made regarding
 which single communication will execute.
 
-  var c, c1, c2 *chan int;
-  select {
-  case i1 <-c1:
-    printf("received %d from c1\n", i1);
-  case c2 -< i2:
-    printf("sent %d to c2\n", i2);
-  default:
-    printf("no communication\n");
-  }
+	var c, c1, c2 *chan int;
+	select {
+	case i1 <-c1:
+		printf("received %d from c1\n", i1);
+	case c2 -< i2:
+		printf("sent %d to c2\n", i2);
+	default:
+		printf("no communication\n");
+	}
 
-  for {  // send random sequence of bits to c
-    select {
-    case c -< 0:  // note: no statement, no fallthrough, no folding of cases
-    case c -< 1:
-    }
-  }
+	for {  // send random sequence of bits to c
+		select {
+		case c -< 0:  // note: no statement, no fallthrough, no folding of cases
+		case c -< 1:
+		}
+	}
 
-  var ca *chan any;
-  var i int;
-  var f float;
-  select {
-  case i  <- ca:
-    printf("received int %d from ca\n", i);
-  case f  <- ca:
-    printf("received float %f from ca\n", f);
-  }
+	var ca *chan any;
+	var i int;
+	var f float;
+	select {
+	case i  <- ca:
+		printf("received int %d from ca\n", i);
+	case f  <- ca:
+		printf("received float %f from ca\n", f);
+	}
 
 TODO: do we allow case i := <-c: ?
 TODO: need to precise about all the details but this is not the right doc for that
@@ -2024,33 +2032,33 @@ For statements
 
 For statements are a combination of the "for" and "while" loops of C.
 
-  ForStat = "for" [ Condition | ForClause ] Block .
-  ForClause = [ InitStat ] ";" [ Condition ] ";" [ PostStat ] .
-  
-  InitStat = SimpleStat .
-  Condition = Expression .
-  PostStat = SimpleStat .
+	ForStat = "for" [ Condition | ForClause ] Block .
+	ForClause = [ InitStat ] ";" [ Condition ] ";" [ PostStat ] .
+	
+	InitStat = SimpleStat .
+	Condition = Expression .
+	PostStat = SimpleStat .
 
 A SimpleStat is a simple statement such as an assignment, a SimpleVarDecl,
 or an increment or decrement statement. Therefore one may declare a loop
 variable in the init statement.
 
-  for i := 0; i < 10; i++ {
-    printf("%d\n", i)
-  }
+	for i := 0; i < 10; i++ {
+		printf("%d\n", i)
+	}
 
 A for statement with just a condition executes until the condition becomes
 false. Thus it is the same as C's while statement.
 
-  for a < b {
-    a *= 2
-  }
+	for a < b {
+		a *= 2
+	}
 
 If the condition is absent, it is equivalent to "true".
 
-  for {
-    f()
-  }
+	for {
+		f()
+	}
 
 
 Range statements
@@ -2059,8 +2067,8 @@ Range statements
 Range statements are a special control structure for iterating over
 the contents of arrays and maps.
 
-  RangeStat = "range" IdentifierList ":=" RangeExpression Block .
-  RangeExpression = Expression .
+	RangeStat = "range" IdentifierList ":=" RangeExpression Block .
+	RangeExpression = Expression .
 
 A range expression must evaluate to an array, map or string. The identifier list must contain
 either one or two identifiers. If the range expression is a map, a single identifier is declared
@@ -2068,20 +2076,20 @@ to range over the keys of the map; two identifiers range over the keys and corre
 values. For arrays and strings, the behavior is analogous for integer indices (the keys) and
 array elements (the values).
 
-  a := []int(1, 2, 3);
-  m := [string]map int("fo",2, "foo",3, "fooo",4)
+	a := []int(1, 2, 3);
+	m := [string]map int("fo",2, "foo",3, "fooo",4)
 
-  range i := a {
-    f(a[i]);
-  }
+	range i := a {
+		f(a[i]);
+	}
 
-  range v, i := a {
-    f(v);
-  }
+	range v, i := a {
+		f(v);
+	}
 
-  range k, v := m {
-    assert(len(k) == v);
-  }
+	range k, v := m {
+		assert(len(k) == v);
+	}
 
 TODO: is this right?
 
@@ -2092,17 +2100,17 @@ Break statements
 Within a for or switch statement, a break statement terminates execution of
 the innermost for or switch statement.
 
-  BreakStat = "break" [ identifier ].
+	BreakStat = "break" [ identifier ].
 
 If there is an identifier, it must be the label name of an enclosing
 for or switch
 statement, and that is the one whose execution terminates.
 
-  L: for i < n {
-    switch i {
-    case 5: break L
-    }
-  }
+	L: for i < n {
+		switch i {
+		case 5: break L
+		}
+	}
 
 
 Continue statements
@@ -2111,7 +2119,7 @@ Continue statements
 Within a for loop a continue statement begins the next iteration of the
 loop at the post statement.
 
-  ContinueStat = "continue" [ identifier ].
+	ContinueStat = "continue" [ identifier ].
 
 The optional identifier is analogous to that of a break statement.
 
@@ -2121,9 +2129,9 @@ Label declaration
 
 A label declaration serves as the target of a goto, break or continue statement.
 
-  LabelDecl = identifier ":" .
+	LabelDecl = identifier ":" .
 
-  Error:
+	Error:
 
 
 Goto statements
@@ -2131,17 +2139,17 @@ Goto statements
 
 A goto statement transfers control to the corresponding label statement.
 
-  GotoStat = "goto" identifier .
+	GotoStat = "goto" identifier .
 
-  goto Error
+	goto Error
 
 Executing the goto statement must not cause any variables to come into
 scope that were not already in scope at the point of the goto.  For
 instance, this example:
 
-  goto L;  // BAD
-  v := 3;
-  L:
+	goto L;  // BAD
+	v := 3;
+	L:
 
 is erroneous because the jump to label L skips the creation of v.
 
@@ -2151,9 +2159,9 @@ Packages
 Every source file identifies the package to which it belongs.
 The file must begin with a package clause.
 
-  PackageClause = "package" PackageName .
+	PackageClause = "package" PackageName .
 
-  package Math
+	package Math
 
 
 Import declarations
@@ -2162,9 +2170,9 @@ Import declarations
 A program can gain access to exported items from another package
 through an import declaration:
 
-  ImportDecl = "import" ( ImportSpec | "(" ImportSpecList [ ";" ] ")" ) .
-  ImportSpec = [ "." | PackageName ] PackageFileName .
-  ImportSpecList = ImportSpec { ";" ImportSpec } .
+	ImportDecl = "import" ( ImportSpec | "(" ImportSpecList [ ";" ] ")" ) .
+	ImportSpec = [ "." | PackageName ] PackageFileName .
+	ImportSpecList = ImportSpec { ";" ImportSpec } .
 
 An import statement makes the exported contents of the named
 package file accessible in this package.
@@ -2178,7 +2186,7 @@ statement declares that package name as an identifier whose
 contents are the exported elements of the imported package.
 For instance, after
 
-  import M "/lib/math"
+	import M "/lib/math"
 
 the contents of the package /lib/math can be accessed by
 M.cos, M.sin, etc.
@@ -2187,7 +2195,7 @@ In its simplest form, with no package name, the import statement
 implicitly uses the imported package name itself as the local
 package name.  After
 
-  import "/lib/math"
+	import "/lib/math"
 
 the contents are accessible by Math.sin, Math.cos.
 
@@ -2195,7 +2203,7 @@ Finally, if instead of a package name the import statement uses
 an explicit period, the contents of the imported package are added
 to the current package. After
 
-  import . "/lib/math"
+	import . "/lib/math"
 
 the contents are accessible by sin and cos.  In this instance, it is
 an error if the import introduces name conflicts.
@@ -2207,7 +2215,7 @@ Program
 A program is a package clause, optionally followed by import declarations,
 followed by a series of declarations.
 
-  Program = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
+	Program = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
 
 
 Initialization and program execution
@@ -2228,7 +2236,7 @@ be no cyclic dependencies in initialization.
 
 A complete program, possibly created by linking multiple packages,
 must have one package called main, with a function
-  func main() { ...  }
+	func main() { ...  }
 defined.  The function main.main() takes no arguments and returns no
 value.
 
