@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(August 11, 2008)
+(August 12, 2008)
 
 This document is a semi-formal specification/proposal for a new
 systems programming language.  The document is under active
@@ -299,7 +299,7 @@ Identifiers
 ----
 
 An identifier is a name for a program entity such as a variable, a
-type, a function, etc. An identifier must not be a reserved word.
+type, a function, etc.
 
   identifier = letter { letter | dec_digit } .
 
@@ -413,12 +413,9 @@ upon them is not subject to overflow; only finalization of integer
 constants (and constant expressions) can cause overflow.
 It is an error if the value of the constant or expression cannot be
 represented correctly in the range of the type of the receiving
-variable or constant.  By extension, it is also possible to use
-an integer as a floating constant (such as 1 instead of 1.0) if
-it can be represented accurately, and vice versa (such as 1e9
-instead of 1000000000).
+variable.
 
-Floating point literals also represent an abstract, ideal floating
+Floating point constants also represent an abstract, ideal floating
 point value that is constrained only upon assignment.
 
   sign = "+" | "-" .
@@ -1042,19 +1039,61 @@ The constant expression may be omitted, in which case the expression is
 the last expression used after the reserved word "const". If no such expression
 exists, the constant expression cannot be omitted.
 
-Together with the 'iota' constant generator this permits light-weight
-declaration of ``enum'' values.
+Together with the 'iota' constant generator (described later),
+implicit repetition permits light-weight declaration of enumerated
+values.
 
-  const (
-    illegal = iota;
-    eof;
-    ident;
-    string;
-    number;
-  )
+	const (
+		Sunday = iota;
+		Monday;
+		Tuesday;
+		Wednesday;
+		Thursday;
+		Friday;
+		Partyday;
+	)
 
-TODO move/re-arrange section on iota.
+The initializing expression of a constant may contain only other
+constants.  This is illegal:
 
+	var i int = 10;
+	const c = i;  // error
+
+The initializing expression for a numeric constant is evaluated
+using the principles described in the section on numeric literals:
+constants are mathematical values given a size only upon assignment
+to a variable.  Intermediate values, and the constants themselves,
+may require precision significantly larger than any concrete type
+in the language.  Thus the following is legal:
+
+	const Huge = 1 << 100;
+	var Four int8 = Huge >> 98;
+
+A given numeric constant expression is, however, defined to be
+either an integer or a floating point value, depending on the syntax
+of the literals it comprises (123 vs. 1.0e4).  This is because the
+nature of the arithmetic operations depends on the type of the
+values; for example, 3/2 is an integer division yielding 1, while
+3./2. is a floating point division yielding 1.5.  Thus
+
+	const x = 3./2. + 3/2;
+
+yields a floating point constant of value 2.5 (1.5 + 1); its
+constituent expressions are evaluated using different rules for
+division.
+
+If the type is specified, the resulting constant has the named type.
+
+If the type is missing from the constant declaration, the constant
+represents a value of abitrary precision, either integer or floating
+point, determined by the type of the initializing expression. Such
+a constant may be assigned to any variable that can represent its
+value accurately, regardless of type.  For instance, 3 can be
+assigned to any int variable but also to any floating point variable,
+while 1e12 can be assigned to a float32, float64, or even int64.
+It is erroneous to assign a value with a non-zero fractional
+part to an integer, or if the assignment would overflow or
+underflow.
 
 Type declarations
 ----
@@ -1079,7 +1118,7 @@ type.
 
   type TreeNode struct {
     left, right *TreeNode;
-	value Point;
+    value Point;
   }
 
 
