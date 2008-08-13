@@ -182,6 +182,9 @@ bugs/bug088.dir/bug1.go:8: illegal types for operand: AS
 	(<(bug0)P.int32>INT32)
 BUG: fails incorrectly
 
+=========== bugs/bug090.go
+BUG: compilation succeeds incorrectly
+
 =========== fixedbugs/bug015.go
 fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
 
