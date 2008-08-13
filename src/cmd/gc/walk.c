@@ -391,45 +391,56 @@ loop:
 		if(top != Erv)
 			goto nottop;
 		walktype(n->left, Erv);
-		if(n->left == N)
+
+		l = n->left;
+		if(l == N)
+			goto ret;
+		t = n->type;
+		if(t == T)
 			goto ret;
 
-		convlit(n->left, n->type);
+		convlit(l, t);
 
 		// nil conversion
-		if(eqtype(n->type, n->left->type, 0)) {
-			if(n->left->op != ONAME)
-				*n = *n->left;
+		if(eqtype(t, l->type, 0)) {
+			if(l->op != ONAME)
+				*n = *l;
 			goto ret;
 		}
 
 		// simple fix-float
-		if(n->left->type != T)
-		if(isint[n->left->type->etype] || isfloat[n->left->type->etype])
-		if(isint[n->type->etype] || isfloat[n->type->etype]) {
+		if(l->type != T)
+		if(isint[l->type->etype] || isfloat[l->type->etype])
+		if(isint[t->etype] || isfloat[t->etype]) {
 			evconst(n);
 			goto ret;
 		}
 
 		// to string
-		if(isptrto(n->type, TSTRING)) {
-			if(isint[n->left->type->etype]) {
+		if(isptrto(t, TSTRING)) {
+			if(isint[l->type->etype]) {
 				*n = *stringop(n, top);
 				goto ret;
 			}
-			if(isbytearray(n->left->type) != 0) {
+			if(isbytearray(l->type) != 0) {
 				n->op = OARRAY;
 				*n = *stringop(n, top);
 				goto ret;
 			}
 		}
 
-		if(n->type->etype == TARRAY) {
-			arrayconv(n->type, n->left);
+		if(t->etype == TARRAY) {
+			arrayconv(t, l);
 			goto ret;
 		}
 
-		badtype(n->op, n->left->type, n->type);
+		r = isandss(n->type, l);
+		if(r != N) {
+			*n = *r;
+			goto ret;
+		}
+
+		badtype(n->op, l->type, t);
 		goto ret;
 
 	case ORETURN:
@@ -2083,9 +2094,45 @@ diagnamed(Type *t)
 }
 
 Node*
+isandss(Type *lt, Node *r)
+{
+	Type *rt;
+	Node *n;
+	int o;
+
+	rt = r->type;
+	if(isinter(lt)) {
+		if(isptrto(rt, TSTRUCT)) {
+			o = OS2I;
+			goto ret;
+		}
+		if(isinter(rt)) {
+			o = OI2I;
+			goto ret;
+		}
+	}
+
+	if(isptrto(lt, TSTRUCT)) {
+		if(isinter(rt)) {
+			o = OI2S;
+			goto ret;
+		}
+	}
+
+	return N;
+
+ret:
+	diagnamed(lt);
+	diagnamed(rt);
+
+	n = nod(o, r, N);
+	n->type = lt;
+	return n;
+}
+
+Node*
 convas(Node *n)
 {
-	int o;
 	Node *l, *r;
 	Type *lt, *rt;
 
@@ -2124,34 +2171,14 @@ convas(Node *n)
 	if(eqtype(lt, rt, 0))
 		return n;
 
-	if(isinter(lt)) {
-		if(isptrto(rt, TSTRUCT)) {
-			o = OS2I;
-			goto ret;
-		}
-		if(isinter(rt)) {
-			o = OI2I;
-			goto ret;
-		}
-	}
-
-	if(isptrto(lt, TSTRUCT)) {
-		if(isinter(rt)) {
-			o = OI2S;
-			goto ret;
-		}
+	r = isandss(lt, r);
+	if(r != N) {
+		n->right = r;
+		walktype(n, Etop);
+		return n;
 	}
 
 	badtype(n->op, lt, rt);
-	return n;
-
-ret:
-	diagnamed(lt);
-	diagnamed(rt);
-
-	n->right = nod(o, r, N);
-	n->right->type = l->type;
-	walktype(n, Etop);
 	return n;
 }
 

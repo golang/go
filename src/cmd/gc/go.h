@@ -669,6 +669,7 @@ Type*	fixmap(Type*);
 Node*	mapop(Node*, int);
 Type*	fixchan(Type*);
 Node*	chanop(Node*, int);
+Node*	isandss(Type*, Node*);
 Node*	convas(Node*);
 void	arrayconv(Type*, Node*);
 Node*	colas(Node*, Node*);
