@@ -1583,7 +1583,7 @@ hidden_import:
 	}
 
 isym:
-	sym '.' sym2
+	sym1 '.' sym2
 	{
 		$$ = nod(OIMPORT, N, N);
 		$$->osym = $1;
@@ -1591,7 +1591,7 @@ isym:
 		$$->sym = $3;
 		renamepkg($$);
 	}
-|	'(' sym ')' sym '.' sym2
+|	'(' sym1 ')' sym1 '.' sym2
 	{
 		$$ = nod(OIMPORT, N, N);
 		$$->osym = $2;
@@ -1609,7 +1609,7 @@ hidden_importsym:
 	}
 
 hidden_importfield:
-	sym isym
+	sym1 isym
 	{
 		$$ = $2;
 		$$->fsym = $1;
