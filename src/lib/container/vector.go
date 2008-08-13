@@ -121,6 +121,7 @@ func Test() {
 	v.Insert(0, i1);
 	v.Insert(0, i0);
 	for i := 0; i < v.Len(); i++ {
+		x := convert(*I, v.At(i));
 		print(i, " ", v.At(i).(*I).val, "\n");
 	}
 }
