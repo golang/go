@@ -87,10 +87,6 @@ bugs/bug048.go:7: illegal types for operand: CONV
 	(MAP[<int32>INT32]<int32>INT32)
 BUG: known to fail incorrectly
 
-=========== bugs/bug054.go
-bugs/bug054.go:25: fatal error: agen_inter i2s
-BUG: known to fail incorrectly
-
 =========== bugs/bug061.go
 bugs/bug061.go:7: illegal types for operand: SLICE
 bugs/bug061.go:7: illegal types for operand: AS
@@ -185,10 +181,6 @@ bugs/bug088.dir/bug1.go:8: b2: undefined
 bugs/bug088.dir/bug1.go:8: illegal types for operand: AS
 	(<(bug0)P.int32>INT32)
 BUG: fails incorrectly
-
-=========== bugs/bug089.go
-bugs/bug089.go:16: fatal error: agen_inter i2i
-BUG: should compile
 
 =========== fixedbugs/bug015.go
 fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
