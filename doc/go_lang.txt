@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(August 12, 2008)
+(August 20, 2008)
 
 This document is a semi-formal specification/proposal for a new
 systems programming language.  The document is under active
@@ -309,21 +309,44 @@ type, a function, etc.
 	ThisIsVariable9
 	αβ
 
+The following identifiers are predeclared:
+
+- all basic types:
+
+	bool, uint8, uint16, uint32, uint64, int8, int16, int32, int64,
+	float32, float64, float80, string
+	
+- and their alias types:
+
+	byte, ushort, uint, ulong, short, int, long, float, double, ptrint
+	
+- the predeclared constants
+
+	true, false, nil
+	
+- the predeclared functions (note: this list is likely to change)
+
+	convert(), len(), new(), panic(), print(), ...
+
+
+TODO(gri) We should think hard about reducing the alias type list to:
+byte, uint, int, float, ptrint (note that for instance the C++ style
+guide is explicit about not using short, long, etc. because their sizes
+are unknown in general).
+
 
 Reserved words
 ----
 
-	break         fallthrough       interface         return
-	case          false             iota              select
-	const         for               map               struct
-	chan          func              new               switch
-	continue      go                nil               true
-	default       goto              package           type
-	else          if                range             var
-	export        import
+The following words are reserved and must not be used as identifiers:
 
-With the exception of structure fields and methods, reserved words may
-not be declared as identifiers.
+	break           export          import          select
+	case            fallthrough     interface       struct
+	const           for             iota            switch
+	chan            func            map             type
+	continue        go              package         var
+	default         goto            range
+	else            if              return
 
 
 Types
@@ -385,7 +408,7 @@ Other basic types include:
 	string   immutable strings of bytes
 	any      polymorphic type
 
-Two reserved words, ``true'' and ``false'', represent the
+Two predeclared constants, ``true'' and ``false'', represent the
 corresponding boolean constant values.
 
 Strings are described in a later section.
@@ -1389,8 +1412,10 @@ Examples of general expressions
 The nil value
 ----
 
-The reserved word
+The predeclared constant
+
 	nil
+
 represents the ``zero'' value for a pointer type or interface type.
 
 The only operations allowed for nil are to assign it to a pointer or
@@ -1605,11 +1630,11 @@ elements.
 The constant generator 'iota'
 ----
 
-Within a declaration, the reserved word 'iota' represents successive
+Within a declaration, the reserved word "iota" represents successive
 elements of an integer sequence.
-It is reset to zero whenever the reserved word 'const'
+It is reset to zero whenever the reserved word "const"
 introduces a new declaration and increments as each identifier
-is declared. For instance, 'iota' can be used to construct
+is declared. For instance, "iota" can be used to construct
 a set of related constants:
 
 	const (
