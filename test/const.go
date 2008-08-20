@@ -89,10 +89,6 @@ func floats() {
 	assert(i == f0, "i == f0");
 	i = fm1;
 	assert(i == fm1, "i == fm1");
-	i = f1;
-	assert(i == f1, "i == f1");
-	i = f1e3;
-	assert(i == f1e3, "i == f1e3");
 
 	// verify that all are assignable as floats
 	var f float64;

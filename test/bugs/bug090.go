@@ -36,4 +36,10 @@ func main() {
 	i = f3div2;	// BUG: probably shouldn't compile
 	assert(i == c3div2, "i == c3div2 from f3div2");
 	assert(i != f3div2, "i != f3div2");	// BUG: certainly shouldn't fail
+
+	const g float64 = 1.0;
+	i = g;  // BUG: shouldn't compile
+
+	const h float64 = 3.14;
+	i = h;  // BUG: certainly shouldn't compile
 }
