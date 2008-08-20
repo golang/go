@@ -103,5 +103,5 @@ func main() {
 	assert(r == 2.0, "r");
 
 	assert(s == "a", "s");
-	assert(t == "b", "s");
+	assert(t == "b", "t");
 }
