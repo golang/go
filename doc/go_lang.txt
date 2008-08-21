@@ -1013,19 +1013,39 @@ Literals
 	Literal = char_lit | string_lit | int_lit | float_lit | FunctionLit | "nil" .
 
 
-Declarations
+Declaration and scope rules
 ----
 
-A declaration associates a name with a language entity such as a constant, type,
-variable, or function.
+Every identifier in a program must be declared; some identifiers, such as "int"
+and "true", are predeclared. A declaration associates an identifier
+with a language entity (package, constant, type, variable, function, method,
+or label) and may specify properties of that entity such as its type.
 
 	Declaration = [ "export" ] ( ConstDecl | TypeDecl | VarDecl | FunctionDecl ) .
+
+The ``scope'' of a language entity named 'x' extends textually from the point
+immediately after the identifier 'x' in the declaration to the end of the
+surrounding block (package, function, struct, or interface), excluding any
+nested scopes that redeclare 'x'. The entity is said to be local to its scope.
+Declarations in the package scope are ``global'' declarations.
+
+The following scope rules apply:
+
+	1. No identifier may be declared twice in a single scope.
+	2. A language entity may only be referred to within its scope.
+	3. Field and method identifiers may be used only to select elements
+	   from the corresponding types.  In effect, the field selector operator 
+	   '.' temporarily re-opens the scope of such identifiers (see Expressions).
+	4. Forward declaration: A type of the form "*T" may be mentioned at a point
+	   where "T" is not yet declared. The declaration of "T" must follow in the
+	   same package and "T" must be visible at the end of the block containing "*T".
 
 Global declarations optionally may be marked for export with the reserved word
 "export". Local declarations can never be exported.
 All identifiers (and only those identifiers) declared in exported declarations
-are made visible to clients of this package, that is other packages that import
+are made visible to clients of this package, that is, other packages that import
 this package.
+
 If the declaration defines a type, the type structure is exported as well. In
 particular, if the declaration defines a new "struct" or "interface" type,
 all structure fields and all structure and interface methods are exported also.
@@ -1037,8 +1057,8 @@ Note that at the moment the old-style export via ExportDecl is still supported.
 
 TODO: Eventually we need to be able to restrict visibility of fields and methods.
 (gri) The default should be no struct fields and methods are automatically exported.
-
-TODO: specify range of visibility, scope rules.
+Export should be identifier-based: an identifier is either exported or not, and thus
+visible or not in importing package.
 
 [OLD
 	Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | ExportDecl .
