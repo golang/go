@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(August 20, 2008)
+(August 21, 2008)
 
 This document is a semi-formal specification/proposal for a new
 systems programming language.  The document is under active
@@ -791,16 +791,10 @@ Function types
 
 A function type denotes the set of all functions with the same signature.
 
-A method is a function with a receiver declaration.
-[OLD
-, which is of type pointer to struct.
-END]
-
 Functions can return multiple values simultaneously.
 
-	FunctionType = "func" AnonymousSignature .
-	AnonymousSignature = [ Receiver "." ] Parameters [ Result ] .
-	Receiver = "(" identifier Type ")" .
+	FunctionType = "func" Signature .
+	Signature = Parameters [ Result ] .
 	Parameters = "(" [ ParameterList ] ")" .
 	ParameterList = ParameterSection { "," ParameterSection } .
 	ParameterSection = IdentifierList Type .
@@ -811,12 +805,6 @@ Functions can return multiple values simultaneously.
 	func (a, b int, z float) bool
 	func (a, b int, z float) (success bool)
 	func (a, b int, z float) (success bool, result float)
-
-	// Method types
-	func (p *T) . ()
-	func (p *T) . (a, b int, z float) bool
-	func (p *T) . (a, b int, z float) (success bool)
-	func (p *T) . (a, b int, z float) (success bool, result float)
 
 A variable can hold only a pointer to a function, not a function value.
 In particular, v := func() {} creates a variable of type *func(). To call the
@@ -843,45 +831,13 @@ variables, and variables declared within the function literal.
 	// Function literal
 	func (a, b int, z float) bool { return a*b < int(z); }
 
-	// Method literal
-	func (p *T) . (a, b int, z float) bool { return a*b < int(z) + p.x; }
-
-Unresolved issues: Are there method literals? How do you use them?
-
-
-Methods
-----
-
-A method is a function bound to a particular type T, where T is the
-type of the receiver. For instance, given type Point
-
-	type Point struct { x, y float }
-
-the declaration
-
-	func (p *Point) distance(scale float) float {
-		return scale * (p.x*p.x + p.y*p.y);
-	}
-
-creates a method of type *Point.  Note that methods may appear anywhere
-after the declaration of the receiver type and may be forward-declared.
-
-When invoked, a method behaves like a function whose first argument
-is the receiver, but at the call site the receiver is bound to the method
-using the notation
-
-	receiver.method()
-
-For instance, given a *Point variable pt, one may call
-
-	pt.distance(3.5)
-
 
 Interface of a type
 ----
 
 The interface of a type is defined to be the unordered set of methods
-associated with that type.
+associated with that type. Methods are defined in a later section;
+they are functions bound to a type.
 
 
 Interface types
@@ -891,7 +847,7 @@ An interface type denotes a set of methods.
 
 	InterfaceType = "interface" "{" [ MethodDeclList [ ";" ] ] "}" .
 	MethodDeclList = MethodDecl { ";" MethodDecl } .
-	MethodDecl = identifier Parameters [ Result ] .
+	MethodDecl = identifier Signature .
 
 	// A basic file interface.
 	type File interface {
@@ -1021,7 +977,7 @@ and "true", are predeclared. A declaration associates an identifier
 with a language entity (package, constant, type, variable, function, method,
 or label) and may specify properties of that entity such as its type.
 
-	Declaration = [ "export" ] ( ConstDecl | TypeDecl | VarDecl | FunctionDecl ) .
+	Declaration = [ "export" ] ( ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl ) .
 
 The ``scope'' of a language entity named 'x' extends textually from the point
 immediately after the identifier 'x' in the declaration to the end of the
@@ -1219,36 +1175,38 @@ Also, in some contexts such as "if", "for", or "switch" statements,
 this construct can be used to declare local temporary variables.
 
 
-Function and method declarations
+Function declarations
 ----
 
-Functions and methods have a special declaration syntax, slightly
-different from the type syntax because an identifier must be present
-in the signature.
+A function declaration declares an identifier of type function.
 
-Implementation restriction: Functions and methods can only be declared
-at the global level.
-
-	FunctionDecl = "func" NamedSignature  ( ";" | Block ) .
-	NamedSignature = [ Receiver ] identifier Parameters [ Result ] .
-
+	FunctionDecl = "func" identifier Signature  ( ";" | Block ) .
+	
 	func min(x int, y int) int {
 		if x < y {
 			return x;
 		}
 		return y;
 	}
+	
+A function declaration without a body serves as a forward declaration:
 
-	func foo(a, b int, z float) bool {
-		return a*b < int(z);
-	}
+	func MakeNode(left, right *Node) *Node;
 
 
-A method is a function that also declares a receiver.
+Implementation restriction: Functions can only be declared at the global level.
 
-	func (p *T) foo(a, b int, z float) bool {
-		return a*b < int(z) + p.x; 
-	}
+
+Method declarations
+----
+
+A method declaration declares a function with a receiver.
+
+	MethodDecl = "func" Receiver identifier Signature  ( ";" | Block ) .
+	Receiver = "(" identifier Type ")" .
+
+A method is bound to the type of its receiver.
+For instance, given type Point, the declarations
 
 	func (p *Point) Length() float {
 		return Math.sqrt(p.x * p.x + p.y * p.y);
@@ -1259,10 +1217,31 @@ A method is a function that also declares a receiver.
 		p.y = p.y * factor;
 	}
 
-Functions and methods can be forward declared by omitting the body:
+create methods for type *Point.  Note that methods may appear anywhere
+after the declaration of the receiver type and may be forward-declared.
 
-	func foo(a, b int, z float) bool;
-	func (p *T) foo(a, b int, z float) bool;
+
+Method invocation
+----
+
+A method is invoked using the notation
+
+	receiver.method()
+
+where receiver is a value of the receive type of the method.
+
+For instance, given a *Point variable pt, one may call
+
+	pt.Scale(3.5)
+
+The type of a method is the type of a function with the receiver as first
+argument.  For instance, the method "Scale" has type
+
+	func(p *Point, factor float)
+
+However, a function declared this way is not a method.
+
+There is no distinct method type and there are no method literals.
 
 
 Initial values
@@ -1418,6 +1397,7 @@ Examples of primary expressions
 	obj.color
 	Math.sin
 	f.p[i].x()
+	&point.distance
 
 Examples of general expressions
 
@@ -1461,6 +1441,76 @@ as an any variable holding an int?
 TODO: if interfaces were explicitly pointers, this gets simpler.
 END]
 
+
+Function and method pointers
+----
+
+Given a function f, declared as
+
+	func f(a int) int;
+
+taking the address of f with the expression
+
+	&f
+
+creates a pointer to the function that may be stored in a value of type pointer
+to function:
+
+	var fp *func(a int) int = &f;
+
+The function pointer may be invoked with the usual syntax; no explicit
+indirection is required:
+
+	fp(7)
+
+Methods are a form of function, and the address of a method has the type
+pointer to function.  Consider the type T with method M:
+
+	type T struct {
+		a int;
+	}
+	func (tp *T) M(a int) int;
+	var t *T;
+
+To construct the address of method M, we write
+
+	&t.M
+
+using the variable t (not the type T).  The expression is a pointer to a
+function, with type
+
+	*func(t *T, a int) int
+
+and may be invoked only as a function, not a method:
+
+	var f *func(t *T, a int) int;
+	f = &t.M;
+	x := f(t, 7);
+
+Note that one does not write t.f(7); taking the address of a method demotes
+it to a function.
+
+In general, given type T with method M and variable t of type *T,
+the method invocation
+
+	t.M(args)
+
+is equivalent to the function call
+
+	(&t.M)(t, args)
+
+If T is an interface type, the expression &t.M does not determine which
+underlying type's M is called until the point of the call itself. Thus given
+T1 and T2, both implementing interface I with interface M, the sequence
+
+	var t1 *T1;
+	var t2 *T2;
+	var i I = t1;
+	m := &i.M;
+	m(t2);
+
+will invoke t2.M() even though m was constructed with an expression involving
+t1.
 
 Allocation
 ----
