@@ -282,13 +282,6 @@ agen(Node *n, Node *res)
 		fatal("agen: unknown op %N", n);
 		break;
 
-//	case ONAME:
-//		regalloc(&n1, types[tptr], res);
-//		gins(optoas(OADDR, types[tptr]), n, &n1);
-//		gmove(&n1, res);
-//		regfree(&n1);
-//		break;
-
 	case OCALLMETH:
 		cgen_callmeth(n, 0);
 		cgen_aret(n, res);
@@ -329,8 +322,6 @@ agen(Node *n, Node *res)
 	case OI2S:
 		agen_inter(n, res);
 		break;
-
-//	case OINDREG:
 
 	case OINDEX:
 		w = n->type->width;
@@ -585,11 +576,27 @@ ret:
 	;
 }
 
+int32
+stkof(Node *n)
+{
+	switch(n->op) {
+	case OS2I:
+		return 2*widthptr;
+	case OI2I:
+		return 1*widthptr;
+	case OINDREG:
+		return n->xoffset;
+	}
+	// botch - probably failing to recognize address
+	// arithmetic on the above. eg INDEX and DOT
+	return -1;
+}
+
 void
 sgen(Node *n, Node *ns, uint32 w)
 {
 	Node nodl, nodr;
-	int32 c;
+	int32 c, q, odst, osrc;
 
 	if(debug['g']) {
 		dump("\nsgen-res", ns);
@@ -601,6 +608,14 @@ sgen(Node *n, Node *ns, uint32 w)
 		fatal("sgen UINF");
 	}
 
+	// offset on the stack
+	odst = stkof(ns);
+	osrc = stkof(n);
+	if(osrc < 0)
+		odst = odst;
+	if(odst < 0)
+		osrc = odst;
+
 	nodreg(&nodl, types[tptr], D_DI);
 	nodreg(&nodr, types[tptr], D_SI);
 
@@ -611,20 +626,52 @@ sgen(Node *n, Node *ns, uint32 w)
 		agen(ns, &nodl);
 		agen(n, &nodr);
 	}
-	gins(ACLD, N, N);	// clear direction flag
 
-	c = w / 8;
-	if(c > 0) {
-		gconreg(AMOVQ, c, D_CX);
-		gins(AREP, N, N);	// repeat
-		gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
+	c = w % 8;	// bytes
+	q = w / 8;	// quads
+
+	// if we are copying forward on the stack and
+	// the src and dst overlap, then reverse direction
+	if(odst > osrc && odst-osrc < w) {
+		// reverse direction
+		gins(ASTD, N, N);		// set direction flag
+		if(c > 0) {
+			gconreg(AADDQ, w-1, D_SI);
+			gconreg(AADDQ, w-1, D_DI);
+
+			gconreg(AMOVQ, c, D_CX);
+			gins(AREP, N, N);	// repeat
+			gins(AMOVSB, N, N);	// MOVB *(SI)-,*(DI)-
+		}
+
+		if(q > 0) {
+			if(c > 0) {
+				gconreg(AADDQ, -7, D_SI);
+				gconreg(AADDQ, -7, D_DI);
+			} else {
+				gconreg(AADDQ, w-8, D_SI);
+				gconreg(AADDQ, w-8, D_DI);
+			}
+			gconreg(AMOVQ, q, D_CX);
+			gins(AREP, N, N);	// repeat
+			gins(AMOVSQ, N, N);	// MOVQ *(SI)-,*(DI)-
+		}
+		// for future optimization
+		// we leave with the flag clear
+		gins(ACLD, N, N);
+	} else {
+		// normal direction
+		gins(ACLD, N, N);		// clear direction flag
+		if(q > 0) {
+			gconreg(AMOVQ, q, D_CX);
+			gins(AREP, N, N);	// repeat
+			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
+		}
+
+		if(c > 0) {
+			gconreg(AMOVQ, c, D_CX);
+			gins(AREP, N, N);	// repeat
+			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
+		}
 	}
-
-	c = w % 8;
-	if(c > 0) {
-		gconreg(AMOVQ, c, D_CX);
-		gins(AREP, N, N);	// repeat
-		gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
-	}
-
 }

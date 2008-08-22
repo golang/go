@@ -28,7 +28,7 @@
 %token			LLSH LRSH LINC LDEC LSEND LRECV
 %token			LIGNORE
 
-%type	<sym>		sym sym1 sym2 key1 key2 laconst lname latype
+%type	<sym>		sym sym1 sym2 key laconst lname latype
 %type	<lint>		chandir
 %type	<node>		xdcl xdcl_list_r oxdcl_list
 %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
@@ -836,18 +836,17 @@ sym:
 
 sym1:
 	sym
-|	key1
+|	key
 
 sym2:
 	sym
-|	key1
-|	key2
+|	key
 
 /*
  * keywords that we can
  * use as variable/type names
  */
-key1:
+key:
 	LNIL
 |	LTRUE
 |	LFALSE
@@ -858,38 +857,7 @@ key1:
 |	LNEW
 |	LBASETYPE
 |	LTYPEOF
-
-/*
- * keywords that we can
- * use as field names
- */
-key2:
-	LPACKAGE
-|	LIMPORT
-|	LEXPORT
-|	LMAP
-|	LCHAN
-|	LINTERFACE
-|	LFUNC
-|	LSTRUCT
-|	LFALL
-|	LRETURN
-|	LVAR
-|	LTYPE
-|	LCONST
 |	LCONVERT
-|	LSELECT
-|	LFOR
-|	LIF
-|	LELSE
-|	LSWITCH
-|	LCASE
-|	LDEFAULT
-|	LBREAK
-|	LCONTINUE
-|	LGO
-|	LGOTO
-|	LRANGE
 
 name:
 	lname
