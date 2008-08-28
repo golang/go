@@ -376,37 +376,27 @@ aindex(Node *b, Type *t)
 	Type *r;
 	int bound;
 
+	bound = -1;	// open bound
 	walktype(b, Erv);
 	switch(whatis(b)) {
 	default:	// variable bound
-		walktype(b, Erv);
-		if(b->type != T && isint[b->type->etype])
-			goto dyn;
 		yyerror("array bound must be an integer expression");
-		bound = 0;
 		break;
 
 	case Wnil:	// open bound
-		goto dyn;
+		break;
 
 	case Wlitint:	// fixed bound
 		bound = mpgetfix(b->val.u.xval);
+		if(bound < 0)
+			yyerror("array bound must be non negative");
 		break;
 	}
 
 	// fixed array
 	r = typ(TARRAY);
 	r->type = t;
-	r->dbound = b;
 	r->bound = bound;
-	return r;
-
-dyn:
-	// dynamic array
-	r = typ(TDARRAY);
-	r->type = t;
-	r->dbound = b;
-	r->bound = 0;
 	return r;
 }
 
@@ -806,7 +796,7 @@ etnames[] =
 	[TPTR64]	= "PTR64",
 	[TFUNC]		= "FUNC",
 	[TARRAY]	= "ARRAY",
-	[TDARRAY]	= "DARRAY",
+//	[TDARRAY]	= "DARRAY",
 	[TSTRUCT]	= "STRUCT",
 	[TCHAN]		= "CHAN",
 	[TMAP]		= "MAP",
@@ -1008,14 +998,10 @@ Tconv(Fmt *fp)
 		break;
 
 	case TARRAY:
-		snprint(buf1, sizeof(buf1), "[%ld]%T", t->bound, t->type);
-		strncat(buf, buf1, sizeof(buf));
-		break;
-
-	case TDARRAY:
-		snprint(buf1, sizeof(buf1), "[]%T", t->type);
-		if(t->dbound != N)
-			snprint(buf1, sizeof(buf1), "[<expr>]%T", t->type);
+		if(t->bound >= 0)
+			snprint(buf1, sizeof(buf1), "[%ld]%T", t->bound, t->type);
+		else
+			snprint(buf1, sizeof(buf1), "[]%T", t->type);
 		strncat(buf, buf1, sizeof(buf));
 		break;
 
@@ -1217,6 +1203,24 @@ isptrto(Type *t, int et)
 }
 
 int
+isptrarray(Type *t)
+{
+	if(isptrto(t, TARRAY))
+		if(t->type->bound >= 0)
+			return 1;
+	return 0;
+}
+
+int
+isptrdarray(Type *t)
+{
+	if(isptrto(t, TARRAY))
+		if(t->type->bound < 0)
+			return 1;
+	return 0;
+}
+
+int
 isinter(Type *t)
 {
 	if(t != T && t->etype == TINTER)
@@ -1324,7 +1328,6 @@ loop:
 	case TPTR64:
 	case TCHAN:
 	case TARRAY:
-	case TDARRAY:
 		stp = &st->type;
 		goto loop;
 
@@ -1395,7 +1398,6 @@ deep(Type *t)
 	case TPTR64:
 	case TCHAN:
 	case TARRAY:
-	case TDARRAY:
 		nt = shallow(t);
 		nt->type = deep(t->type);
 		break;

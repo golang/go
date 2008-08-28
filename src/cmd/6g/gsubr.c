@@ -1604,7 +1604,6 @@ isfat(Type *t)
 	switch(t->etype) {
 	case TSTRUCT:
 	case TARRAY:
-	case TDARRAY:
 	case TINTER:	// maybe remove later
 		return 1;
 	}

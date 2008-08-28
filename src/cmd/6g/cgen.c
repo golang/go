@@ -136,7 +136,7 @@ cgen(Node *n, Node *res)
 		}
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
-		if(isptrto(n->type, TARRAY) && isptrto(nl->type, TDARRAY)) {
+		if(isptrarray(n->type) && isptrdarray(nl->type)) {
 			// convert dynamic array to static array
 			n2 = n1;
 			n2.op = OINDREG;
@@ -144,7 +144,7 @@ cgen(Node *n, Node *res)
 			n2.type = types[tptr];
 			gins(AMOVQ, &n2, &n1);
 		}
-		if(isptrto(n->type, TDARRAY) && isptrto(nl->type, TARRAY)) {
+		if(isptrdarray(n->type) && isptrarray(nl->type)) {
 			// conver static array to dynamic array
 			// it is assumed that the dope is just before the array
 			nodconst(&n2, types[tptr], offsetof(Array,b));
@@ -187,7 +187,7 @@ cgen(Node *n, Node *res)
 			regfree(&n1);
 			break;
 		}
-		if(isptrto(nl->type, TDARRAY)) {
+		if(isptrdarray(nl->type)) {
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
 			n1.op = OINDREG;
@@ -201,7 +201,7 @@ cgen(Node *n, Node *res)
 		break;
 
 	case OCAP:
-		if(isptrto(nl->type, TDARRAY)) {
+		if(isptrdarray(nl->type)) {
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
 			n1.op = OINDREG;
@@ -387,7 +387,7 @@ agen(Node *n, Node *res)
 		// i is in &n1
 		// w is width
 
-		if(isptrto(nl->type, TDARRAY)) {
+		if(isptrdarray(nl->type)) {
 			regalloc(&n2, types[tptr], res);
 			gmove(res, &n2);
 
@@ -418,7 +418,7 @@ agen(Node *n, Node *res)
 			if(!debug['B']) {
 				// check bounds
 				nodconst(&n3, types[TUINT32], nl->type->bound);
-				if(isptrto(nl->type, TARRAY))
+				if(isptrarray(nl->type))
 					nodconst(&n3, types[TUINT32], nl->type->type->bound);
 				gins(optoas(OCMP, types[TUINT32]), &n1, &n3);
 
