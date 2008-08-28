@@ -481,7 +481,7 @@ loop:
 	if(n->op != ODCLFIELD || n->type == T)
 		fatal("stotype: oops %N\n", n);
 
-	if(n->type->etype == TDARRAY)
+	if(n->type->etype == TARRAY && n->type->bound < 0)
 		yyerror("type of a structure field cannot be an open array");
 
 	f = typ(TFIELD);

@@ -157,14 +157,13 @@ dowidth(Type *t)
 	case TSTRING:		// implemented as pointer
 		w = wptr;
 		break;
-	case TDARRAY:
-		fatal("width of a dynamic array");
 	case TARRAY:
+		if(t->bound < 0)
+			fatal("width of a dynamic array");
 		if(t->type == T)
 			break;
 		dowidth(t->type);
-		w = t->bound * t->type->width
-;//			+ offsetof(Array, b[0]);
+		w = t->bound * t->type->width;
 		break;
 
 	case TSTRUCT:

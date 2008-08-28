@@ -140,8 +140,7 @@ struct	Type
 	vlong	argwid;
 
 	// TARRAY
-	int32	bound;
-	Node*	dbound;
+	int32	bound;		// negative is dynamic array
 };
 #define	T	((Type*)0)
 
@@ -303,7 +302,7 @@ enum
 
 	TFUNC,
 	TARRAY,
-	TDARRAY,
+	T_old_DARRAY,
 	TSTRUCT,
 	TCHAN,
 	TMAP,
@@ -558,6 +557,8 @@ void	dump(char*, Node*);
 Type*	aindex(Node*, Type*);
 int	isnil(Node*);
 int	isptrto(Type*, int);
+int	isptrarray(Type*);
+int	isptrdarray(Type*);
 int	isinter(Type*);
 int	isbytearray(Type*);
 int	eqtype(Type*, Type*, int);
