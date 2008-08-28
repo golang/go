@@ -37,6 +37,7 @@ typedef	struct	String		*string;
 typedef	struct	Sigs		Sigs;
 typedef	struct	Sigi		Sigi;
 typedef	struct	Map		Map;
+typedef	struct	Array		Array;
 typedef	struct	Gobuf		Gobuf;
 typedef	struct	G		G;
 typedef	struct	M		M;
@@ -98,6 +99,14 @@ struct	Sigi
 	byte*	name;
 	uint32	hash;
 	uint32	offset;
+};
+
+struct	Array
+{				// must not move anything
+	byte*	array;		// actual data
+	uint32	nel;		// number of elements
+	uint32	cap;		// allocate3d number of elements
+	byte	b[8];		// actual array - may not be contig
 };
 struct	Map
 {

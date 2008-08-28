@@ -136,6 +136,20 @@ cgen(Node *n, Node *res)
 		}
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
+		if(isptrto(n->type, TARRAY) && isptrto(nl->type, TDARRAY)) {
+			// convert dynamic array to static array
+			n2 = n1;
+			n2.op = OINDREG;
+			n2.xoffset = offsetof(Array,array);
+			n2.type = types[tptr];
+			gins(AMOVQ, &n2, &n1);
+		}
+		if(isptrto(n->type, TDARRAY) && isptrto(nl->type, TARRAY)) {
+			// conver static array to dynamic array
+			// it is assumed that the dope is just before the array
+			nodconst(&n2, types[tptr], offsetof(Array,b));
+			gins(ASUBQ, &n2, &n1);
+		}
 		gmove(&n1, res);
 		regfree(&n1);
 		break;
@@ -173,7 +187,31 @@ cgen(Node *n, Node *res)
 			regfree(&n1);
 			break;
 		}
+		if(isptrto(nl->type, TDARRAY)) {
+			regalloc(&n1, types[tptr], res);
+			cgen(nl, &n1);
+			n1.op = OINDREG;
+			n1.type = types[TUINT32];
+			n1.xoffset = offsetof(Array,nel);
+			gmove(&n1, res);
+			regfree(&n1);
+			break;
+		}
 		fatal("cgen: OLEN: unknown type %lT", nl->type);
+		break;
+
+	case OCAP:
+		if(isptrto(nl->type, TDARRAY)) {
+			regalloc(&n1, types[tptr], res);
+			cgen(nl, &n1);
+			n1.op = OINDREG;
+			n1.type = types[TUINT32];
+			n1.xoffset = offsetof(Array,cap);
+			gmove(&n1, res);
+			regfree(&n1);
+			break;
+		}
+		fatal("cgen: OCAP: unknown type %lT", nl->type);
 		break;
 
 	case OADDR:
@@ -253,6 +291,7 @@ agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
 	Node n1, n2, n3, tmp;
+	Prog *p1;
 	uint32 w;
 	Type *t;
 
@@ -347,15 +386,60 @@ agen(Node *n, Node *res)
 		// &a is in res
 		// i is in &n1
 		// w is width
-		nodconst(&n3, types[TINT64], w);	// w/tint64
+
+		if(isptrto(nl->type, TDARRAY)) {
+			regalloc(&n2, types[tptr], res);
+			gmove(res, &n2);
+
+			if(!debug['B']) {
+				// check bounds
+				n3 = n2;
+				n3.op = OINDREG;
+				n3.type = types[tptr];
+				n3.xoffset = offsetof(Array, nel);
+				gins(optoas(OCMP, types[TUINT32]), &n1, &n3);
+
+				p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+
+				nodconst(&n3, types[TUINT8], 5); // 5 is range trap
+				gins(AINT, &n3, N);
+				patch(p1, pc);
+			}
+
+			// fetch array base from dope
+			n3 = n2;
+			n3.op = OINDREG;
+			n3.type = types[tptr];
+			n3.xoffset = offsetof(Array, array);
+			gins(AMOVQ, &n3, &n2);
+			gmove(&n2, res);
+			regfree(&n2);
+		} else
+			if(!debug['B']) {
+				// check bounds
+				nodconst(&n3, types[TUINT32], nl->type->bound);
+				if(isptrto(nl->type, TARRAY))
+					nodconst(&n3, types[TUINT32], nl->type->type->bound);
+				gins(optoas(OCMP, types[TUINT32]), &n1, &n3);
+
+				p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+
+				nodconst(&n3, types[TUINT8], 5); // 5 is range trap
+				gins(AINT, &n3, N);
+				patch(p1, pc);
+			}
+
+		t = types[TUINT64];
 		if(issigned[n1.type->etype])
-			regalloc(&n2, types[TINT64], &n1);	// i/int64
-		else
-			regalloc(&n2, types[TUINT64], &n1);	// i/uint64
+			t = types[TINT64];
+
+		regalloc(&n2, t, &n1);			// i
 		gmove(&n1, &n2);
-		gins(optoas(OMUL, types[TINT64]), &n3, &n2);
-		gins(optoas(OADD, types[tptr]), &n2, res);
 		regfree(&n1);
+
+		nodconst(&n3, t, w);			// w
+		gins(optoas(OMUL, t), &n3, &n2);
+		gins(optoas(OADD, types[tptr]), &n2, res);
 		regfree(&n2);
 		break;
 

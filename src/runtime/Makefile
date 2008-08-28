@@ -20,6 +20,7 @@ LIBOFILES=\
 	runtime.$O\
 	map.$O\
 	chan.$O\
+	array.$O\
 	print.$O\
 	rune.$O\
 	proc.$O\
