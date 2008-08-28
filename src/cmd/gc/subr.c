@@ -374,27 +374,39 @@ Type*
 aindex(Node *b, Type *t)
 {
 	Type *r;
-
-	r = typ(TARRAY);
-	r->type = t;
-
-	if(t->etype == TDARRAY)
-		yyerror("dynamic array type cannot be a dynamic array");
+	int bound;
 
 	walktype(b, Erv);
 	switch(whatis(b)) {
-	default:
-		yyerror("array bound must be a constant integer expression");
+	default:	// variable bound
+		walktype(b, Erv);
+		if(b->type != T && isint[b->type->etype])
+			goto dyn;
+		yyerror("array bound must be an integer expression");
+		bound = 0;
 		break;
 
-	case Wnil:	// default zero lb
-		r->bound = 0;
-		break;
+	case Wnil:	// open bound
+		goto dyn;
 
-	case Wlitint:	// fixed lb
-		r->bound = mpgetfix(b->val.u.xval);
+	case Wlitint:	// fixed bound
+		bound = mpgetfix(b->val.u.xval);
 		break;
 	}
+
+	// fixed array
+	r = typ(TARRAY);
+	r->type = t;
+	r->dbound = b;
+	r->bound = bound;
+	return r;
+
+dyn:
+	// dynamic array
+	r = typ(TDARRAY);
+	r->type = t;
+	r->dbound = b;
+	r->bound = 0;
 	return r;
 }
 
@@ -641,6 +653,7 @@ opnames[] =
 	[OLABEL]	= "LABEL",
 	[OLE]		= "LE",
 	[OLEN]		= "LEN",
+	[OCAP]		= "CAP",
 	[OLIST]		= "LIST",
 	[OLITERAL]	= "LITERAL",
 	[OLSH]		= "LSH",
@@ -1001,6 +1014,8 @@ Tconv(Fmt *fp)
 
 	case TDARRAY:
 		snprint(buf1, sizeof(buf1), "[]%T", t->type);
+		if(t->dbound != N)
+			snprint(buf1, sizeof(buf1), "[<expr>]%T", t->type);
 		strncat(buf, buf1, sizeof(buf));
 		break;
 
@@ -1229,7 +1244,6 @@ eqtype(Type *t1, Type *t2, int d)
 {
 	if(d >= 10)
 		return 1;
-
 	if(t1 == t2)
 		return 1;
 	if(t1 == T || t2 == T)
@@ -1279,6 +1293,11 @@ eqtype(Type *t1, Type *t2, int d)
 			t2 = t2->down;
 		}
 		return 1;
+
+	case TARRAY:
+		if(t1->bound == t2->bound)
+			break;
+		return 0;
 	}
 	return eqtype(t1->type, t2->type, d+1);
 }
@@ -1304,6 +1323,8 @@ loop:
 	case TPTR32:
 	case TPTR64:
 	case TCHAN:
+	case TARRAY:
+	case TDARRAY:
 		stp = &st->type;
 		goto loop;
 
@@ -1373,6 +1394,8 @@ deep(Type *t)
 	case TPTR32:
 	case TPTR64:
 	case TCHAN:
+	case TARRAY:
+	case TDARRAY:
 		nt = shallow(t);
 		nt->type = deep(t->type);
 		break;

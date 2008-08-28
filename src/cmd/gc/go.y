@@ -18,7 +18,7 @@
 %token	<sym>		LPACKAGE LIMPORT LEXPORT
 %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
 %token	<sym>		LCOLAS LFALL LRETURN
-%token	<sym>		LNEW LLEN LTYPEOF LPANIC LPRINT
+%token	<sym>		LNEW LLEN LCAP LTYPEOF LPANIC LPRINT
 %token	<sym>		LVAR LTYPE LCONST LCONVERT LSELECT
 %token	<sym>		LFOR LIF LELSE LSWITCH LCASE LDEFAULT
 %token	<sym>		LBREAK LCONTINUE LGO LGOTO LRANGE
@@ -733,6 +733,10 @@ pexpr:
 	{
 		$$ = nod(OLEN, $3, N);
 	}
+|	LCAP '(' expr ')'
+	{
+		$$ = nod(OCAP, $3, N);
+	}
 |	LTYPEOF '(' type ')'
 	{
 		$$ = nod(OTYPEOF, N, N);
@@ -852,6 +856,7 @@ key:
 |	LFALSE
 |	LIOTA
 |	LLEN
+|	LCAP
 |	LPANIC
 |	LPRINT
 |	LNEW
@@ -1518,6 +1523,11 @@ hidden_import:
 	{
 		// type array
 		doimport2($2, &$4, $6);
+	}
+|	LTYPE hidden_importsym '[' ']' hidden_importsym
+	{
+		// type array
+		doimport2($2, nil, $5);
 	}
 |	LTYPE hidden_importsym '(' ohidden_importsym_list ')'
 	{

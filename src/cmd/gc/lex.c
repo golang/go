@@ -998,6 +998,7 @@ static	struct
 	"map",		LMAP,		Txxx,
 	"new",		LNEW,		Txxx,
 	"len",		LLEN,		Txxx,
+	"cap",		LCAP,		Txxx,
 	"nil",		LNIL,		Txxx,
 	"package",	LPACKAGE,	Txxx,
 	"panic",	LPANIC,		Txxx,

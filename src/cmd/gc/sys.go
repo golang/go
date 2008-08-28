@@ -56,6 +56,11 @@ func	selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
 func	selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
 func	selectgo(sel *byte);
 
+func	newarray(nel uint32, cap uint32, width uint32) (ary *[]any);
+func	arraysliced(old *[]any, lb uint32, hb uint32, width uint32) (ary *[]any);
+func	arrayslices(old *any, nel uint32, lb uint32, hb uint32, width uint32) (ary *[]any);
+func	arrays2d(old *any, nel uint32) (ary *[]any);
+
 func	gosched();
 func	goexit();
 
@@ -123,6 +128,12 @@ export
 	selectsend
 	selectrecv
 	selectgo
+
+	// dynamic arrays
+	newarray
+	arraysliced
+	arrayslices
+	arrays2d
 
 	// go routines
 	gosched

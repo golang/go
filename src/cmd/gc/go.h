@@ -3,11 +3,6 @@
 // license that can be found in the LICENSE file.
 
 /*
-todo:
-	1. dyn arrays
-	2. multi
-tothinkabout:
-	2. argument in import
 */
 
 #include	<u.h>
@@ -53,6 +48,21 @@ struct	String
 {
 	int32	len;
 	char	s[3];	// variable
+};
+
+/*
+ * note this is the runtime representation
+ * of the compilers arrays. it is probably
+ * insafe to use it this way, but it puts
+ * all the changes in one place.
+ */
+typedef	struct	Array	Array;
+struct	Array
+{				// must not move anything
+	uchar	array[8];	// pointer to data
+	uint32	nel;		// number of elements
+	uint32	cap;		// allocated number of elements
+	uchar	b;		// actual array - may not be contig
 };
 
 enum
@@ -131,6 +141,7 @@ struct	Type
 
 	// TARRAY
 	int32	bound;
+	Node*	dbound;
 };
 #define	T	((Type*)0)
 
@@ -251,7 +262,7 @@ enum
 	ORETURN, OFOR, OIF, OSWITCH, OI2S, OS2I, OI2I,
 	OAS, OASOP, OCASE, OXCASE, OSCASE, OFALL, OXFALL,
 	OGOTO, OPROC, ONEW, OEMPTY, OSELECT,
-	OLEN, OPANIC, OPRINT, OTYPEOF,
+	OLEN, OCAP, OPANIC, OPRINT, OTYPEOF,
 
 	OOROR,
 	OANDAND,
@@ -669,6 +680,7 @@ Type*	fixmap(Type*);
 Node*	mapop(Node*, int);
 Type*	fixchan(Type*);
 Node*	chanop(Node*, int);
+Node*	arrayop(Node*, int);
 Node*	isandss(Type*, Node*);
 Node*	convas(Node*);
 void	arrayconv(Type*, Node*);

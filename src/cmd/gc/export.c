@@ -147,12 +147,17 @@ dumpexporttype(Sym *s)
 		break;
 
 	case TARRAY:
+	case TDARRAY:
 		reexport(t->type);
 
 		/* type 2 */
 		Bprint(bout, "\ttype ");
 		if(s->export != 0)
 			Bprint(bout, "!");
+		if(et == TDARRAY) {
+			Bprint(bout, "%lS [] %lS\n", s, t->type->sym);
+			break;
+		}
 		Bprint(bout, "%lS [%lud] %lS\n", s, t->bound, t->type->sym);
 		break;
 
@@ -517,8 +522,13 @@ doimport2(Node *ss, Val *b, Node *st)
 	Type *t;
 	Sym *s;
 
-	t = typ(TARRAY);
-	t->bound = mpgetfix(b->u.xval);
+	if(b == nil) {
+		t = typ(TDARRAY);
+		t->dbound = N;
+	} else {
+		t = typ(TARRAY);
+		t->bound = mpgetfix(b->u.xval);
+	}
 	s = pkglookup(st->sym->name, st->psym->name);
 	t->type = s->otype;
 

@@ -325,7 +325,7 @@ func Split(U PS) *dch2{
 func Add(U, V PS) PS{
 	Z := mkPS();
 	go func(U, V, Z PS){
-		var uv *[2] *rat;
+		var uv *[] *rat;
 		for {
 			<-Z.req;
 			uv = get2(U,V);
@@ -419,9 +419,9 @@ func Shift(c *rat, U PS) PS{
 // Convert array of coefficients, constant term first
 // to a (finite) power series
 
+/* BUG: NEED LEN OF ARRAY
 func Poly(a [] *rat) PS{
 	Z:=mkPS();
-/* BUG: NEED LEN OF ARRAY
 	begin func(a [] *rat, Z PS){
 		j:=0;
 		done:=0;
@@ -431,9 +431,9 @@ func Poly(a [] *rat) PS{
 		for(; i<j; i=i+1) put(a[i],Z);
 		put(finis,Z);
 	}();
-*/
 	return Z;
 }
+*/
 
 // Multiply. The algorithm is
 // 	let U = u + x*UU
