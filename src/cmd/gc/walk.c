@@ -496,8 +496,8 @@ loop:
 		evconst(n);
 		if(n->op == OLITERAL)
 			goto ret;
-		convlit(n->left, n->left->type);
 		convlit(n->right, types[TUINT32]);
+		convlit(n->left, types[TINT32]);
 		if(n->left->type == T || n->right->type == T)
 			goto ret;
 		if(issigned[n->right->type->etype])
@@ -1458,6 +1458,7 @@ ascompat(Type *t1, Type *t2)
 	if(isptrdarray(t1))
 		if(isptrarray(t2))
 			return 1;
+
 	return 0;
 }
 
