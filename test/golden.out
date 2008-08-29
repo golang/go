@@ -188,6 +188,10 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug091.go
 BUG: compilation succeeds incorrectly
 
+=========== bugs/bug092.go
+BUG should not crash
+/tmp/gorun-gri: line 1: 18181 Illegal instruction     ./$A.out
+
 =========== fixedbugs/bug015.go
 fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
 
