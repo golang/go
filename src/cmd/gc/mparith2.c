@@ -71,10 +71,11 @@ mplshw(Mpint *a)
 static void
 mprsh(Mpint *a)
 {
-	long *a1, x;
+	long *a1, x, lo;
 	int i, c;
 
 	c = 0;
+	lo = a->a[0] & 1;
 	a1 = &a->a[Mpprec];
 	for(i=0; i<Mpprec; i++) {
 		x = *--a1;
@@ -83,6 +84,8 @@ mprsh(Mpint *a)
 		if(x & 1)
 			c = Mpbase;
 	}
+	if(a->neg && lo == 0)
+		mpaddcfix(a, -1);
 }
 
 //
@@ -92,15 +95,18 @@ mprsh(Mpint *a)
 static void
 mprshw(Mpint *a)
 {
-	long *a1;
+	long *a1, lo;
 	int i;
 
+	lo = a->a[0];
 	a1 = &a->a[0];
 	for(i=1; i<Mpprec; i++) {
 		a1[0] = a1[1];
 		*a1++;
 	}
 	a1[0] = 0;
+	if(a->neg && lo == 0)
+		mpaddcfix(a, -1);
 }
 
 //
@@ -411,7 +417,10 @@ mprshfixfix(Mpint *a, Mpint *b)
 	s = mpgetfix(b);
 	if(s < 0 || s >= Mpprec*Mpscale) {
 		warn("stupid shift: %lld", s);
-		mpmovecfix(a, 0);
+		if(a->neg)
+			mpmovecfix(a, -1);
+		else
+			mpmovecfix(a, 0);
 		return;
 	}
 

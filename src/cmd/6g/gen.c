@@ -1077,8 +1077,9 @@ ret:
 void
 cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
-	Node n1, n2;
+	Node n1, n2, n3;
 	int a, rcl;
+	Prog *p1;
 
 	a = optoas(op, nl->type);
 
@@ -1111,7 +1112,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		goto ret;
 	}
 
-	regalloc(&n2, nl->type, res);	// can one shift the CL register?
+	regalloc(&n2, nl->type, res);	// can one shift the CL register
 	if(nl->ullman >= nr->ullman) {
 		cgen(nl, &n2);
 		cgen(nr, &n1);
@@ -1119,7 +1120,21 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		cgen(nr, &n1);
 		cgen(nl, &n2);
 	}
+
+	// test and fix up large shifts
+	nodconst(&n3, types[TUINT32], nl->type->width*8);
+	gins(optoas(OCMP, types[TUINT32]), &n1, &n3);
+	p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+	if(op == ORSH && issigned[nl->type->etype]) {
+		nodconst(&n3, types[TUINT32], nl->type->width*8-1);
+		gins(a, &n3, &n2);
+	} else {
+		nodconst(&n3, nl->type, 0);
+		gmove(&n3, &n2);
+	}
+	patch(p1, pc);
 	gins(a, &n1, &n2);
+
 	gmove(&n2, res);
 
 	regfree(&n1);

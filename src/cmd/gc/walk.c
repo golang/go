@@ -473,8 +473,11 @@ loop:
 			goto nottop;
 		walktype(n->left, Elv);
 		l = n->left;
-		if(l->op != OINDEX)
+		if(l->op != OINDEX) {
+			if(n->etype == OLSH || n->etype == ORSH)
+				goto shft;
 			goto com;
+		}
 		if(!isptrto(l->left->type, TMAP))
 			goto com;
 		*n = *mapop(n, top);
@@ -482,6 +485,25 @@ loop:
 
 	case OLSH:
 	case ORSH:
+		if(top != Erv)
+			goto nottop;
+		walktype(n->left, Erv);
+
+	shft:
+		walktype(n->right, Erv);
+		if(n->left == N || n->right == N)
+			goto ret;
+		evconst(n);
+		if(n->op == OLITERAL)
+			goto ret;
+		convlit(n->left, n->left->type);
+		convlit(n->right, types[TUINT32]);
+		if(n->left->type == T || n->right->type == T)
+			goto ret;
+		if(issigned[n->right->type->etype])
+			goto badt;
+		break;
+
 	case OMOD:
 	case OAND:
 	case OOR:
