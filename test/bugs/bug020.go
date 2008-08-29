@@ -16,7 +16,7 @@ func main() {
 }
 
 /*
-x.go :
-main.go.c: In function ‘main_putint’:
-main.go.c:41: error: syntax error before ‘)’ token
+uetli:~/Source/go1/test gri$ 6g bugs/bug020.go
+bugs/bug020.go:7: type of a structure field cannot be an open array
+bugs/bug020.go:7: fatal error: width of a dynamic array
 */

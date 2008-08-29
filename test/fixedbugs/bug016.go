@@ -12,5 +12,7 @@ func main() {
 }
 
 /*
-bug016.go:7: fatal error: optoas: no entry LSH-<int32>INT32
+ixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
+fixedbugs/bug016.go:7: illegal types for operand: AS
+	(<int32>INT32)
 */

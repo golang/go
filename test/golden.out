@@ -46,6 +46,11 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 =========== chan/nonblock.go
 PASS
 
+=========== bugs/bug020.go
+bugs/bug020.go:7: type of a structure field cannot be an open array
+bugs/bug020.go:7: fatal error: width of a dynamic array
+BUG should compile
+
 =========== bugs/bug026.go
 sys·printstring: main·sigs_I: not defined
 BUG: known to fail incorrectly
@@ -88,10 +93,8 @@ bugs/bug048.go:7: illegal types for operand: CONV
 BUG: known to fail incorrectly
 
 =========== bugs/bug061.go
-bugs/bug061.go:7: illegal types for operand: SLICE
-bugs/bug061.go:7: illegal types for operand: AS
-	(<string>*STRING)
 BUG: known to fail incorrectly
+Bus error               $G $D/$F.go
 
 =========== bugs/bug062.go
 BUG: known to succeed incorrectly
@@ -112,10 +115,10 @@ inner loop top i 0
 do break
 outer loop top k 1
 k not zero
-panic on line 310 PC=0x1362
+panic on line 342 PC=0x1362
 0x1362?zi
-	main·main(1, 0, 1606414952, ...)
-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+	main·main(1, 0, 1606416392, ...)
+	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
 BUG: crashes
 Trace/BPT trap          ./$A.out
 
@@ -123,9 +126,6 @@ Trace/BPT trap          ./$A.out
 bugs/bug072.go:6: bug: undefined
 BUG: compiler crashes after error message - Bus error
 Bus error               $G $D/$F.go
-
-=========== bugs/bug073.go
-BUG: should not compile
 
 =========== bugs/bug074.go
 BUG: compiler crashes - Bus error
@@ -191,6 +191,11 @@ BUG: compilation succeeds incorrectly
 =========== fixedbugs/bug015.go
 fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
 
+=========== fixedbugs/bug016.go
+fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
+fixedbugs/bug016.go:7: illegal types for operand: AS
+	(<int32>INT32)
+
 =========== fixedbugs/bug025.go
 fixedbugs/bug025.go:7: variable exported but not defined: Foo
 
@@ -202,7 +207,7 @@ fixedbugs/bug035.go:7: var f redeclared in this block
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(306) t=<T> nil
+fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(338) t=<T> nil
 
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: var x redeclared in this block
@@ -217,3 +222,15 @@ fixedbugs/bug051.go:10: expression must be a constant
 
 =========== fixedbugs/bug067.go
 ok
+
+=========== fixedbugs/bug073.go
+fixedbugs/bug073.go:8: illegal types for operand: LSH
+	(<int32>INT32)
+	(<int32>INT32)
+fixedbugs/bug073.go:8: illegal types for operand: AS
+	(<int32>INT32)
+fixedbugs/bug073.go:9: illegal types for operand: RSH
+	(<int32>INT32)
+	(<int32>INT32)
+fixedbugs/bug073.go:9: illegal types for operand: AS
+	(<int32>INT32)
