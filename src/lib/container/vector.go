@@ -18,91 +18,88 @@ package vector
 type Element interface {
 }
 
+
 export type Vector struct {
-	nalloc int;
-	nelem int;
 	elem *[]Element;
 }
 
-// BUG: workaround for non-constant allocation.
-// i must be a power of 10.
-func Alloc(i int) *[]Element {
-	switch i {
-	case 1:
-		return new([1]Element);
-	case 10:
-		return new([10]Element);
-	case 100:
-		return new([100]Element);
-	case 1000:
-		return new([1000]Element);
-	}
-	print("bad size ", i, "\n");
-	panic("not known size\n");
-}
-
-func is_pow10(i int) bool {
-	switch i {
-	case 1, 10, 100, 1000:
-		return true;
-	}
-	return false;
-}
 
 export func New() *Vector {
 	v := new(Vector);
-	v.nelem = 0;
-	v.nalloc = 1;
-	v.elem = Alloc(v.nalloc);
+	v.elem = new([]Element, 1) [0 : 0];  // capacity must be > 0!
 	return v;
 }
 
-func (v *Vector) Len() int {
-	return v.nelem;
+
+func (v *Vector) RangeError(op string, i int) {
+	panic("Vector.", op, ": index ", i, " out of range (len = ", len(v.elem), ")\n");
 }
 
+
+func (v *Vector) Len() int {
+	return len(v.elem);
+}
+
+
 func (v *Vector) At(i int) Element {
-	if i < 0 || i >= v.nelem {
-		panic("Vector.At(", i, ") out of range (size ", v.nelem, ")\n");
-		return nil;
+	n := v.Len();
+	if i < 0 || i >= n {
+		v.RangeError("At", i);
+		var e Element;
+		return e;  // don't return nil - may not be legal in the future
 	}
 	return v.elem[i];
 }
 
+
+// TODO(r) It would be better if this were called 'Remove' and if
+// it were returning the removed element. This way it would be 
+// symmetric with 'Insert', provide the functionality of 'Delete'
+// and allow to get the appropriate entry w/ an extra call.
+
 func (v *Vector) Delete(i int) {
-	if i < 0 || i >= v.nelem {
-		panic("Delete out of range\n");
+	n := v.Len();
+	if i < 0 || i >= n {
+		v.RangeError("Delete", i);
 	}
-	for j := i+1; j < v.nelem; j++ {
-		v.elem[j-1] = v.elem[j];
+	for j := i + 1; j < n; j++ {
+		v.elem[j - 1] = v.elem[j];
 	}
-	v.nelem--;
-	v.elem[v.nelem] = nil;
+	var e Element;
+	v.elem[n - 1] = e;  // don't set to nil - may not be legal in the future
+	v.elem = v.elem[0 : n - 1];
 }
+
 
 func (v *Vector) Insert(i int, e Element) {
-	if i > v.nelem {
-		panic("Del too large\n");
+	n := v.Len();
+	if i < 0 || i > n {
+		v.RangeError("Insert", i);
 	}
-	if v.nelem == v.nalloc && is_pow10(v.nalloc) {
-		n := Alloc(v.nalloc * 10);
-		for j := 0; j < v.nalloc; j++ {
-			n[j] = v.elem[j];
+
+	// grow array by doubling its capacity
+	if n == cap(v.elem) {
+		a := new([]Element, n*2);
+		for j := 0; j < n; j++ {
+			a[j] = v.elem[j];
 		}
-		v.elem = n;
-		v.nalloc *= 10;
+		v.elem = a;
 	}
+
 	// make a hole
-	for j := v.nelem; j > i; j-- {
+	v.elem = v.elem[0 : n + 1];
+	for j := n; j > i; j-- {
 		v.elem[j] = v.elem[j-1];
 	}
+	
 	v.elem[i] = e;
-	v.nelem++;
 }
 
+
 func (v *Vector) Append(e Element) {
-	v.Insert(v.nelem, e);
+	v.Insert(len(v.elem), e);
 }
+
 
 /*
 type I struct { val int; };  // BUG: can't be local;
