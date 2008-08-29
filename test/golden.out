@@ -193,8 +193,6 @@ fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
-fixedbugs/bug016.go:7: illegal types for operand: AS
-	(<int32>INT32)
 
 =========== fixedbugs/bug025.go
 fixedbugs/bug025.go:7: variable exported but not defined: Foo
@@ -227,10 +225,6 @@ ok
 fixedbugs/bug073.go:8: illegal types for operand: LSH
 	(<int32>INT32)
 	(<int32>INT32)
-fixedbugs/bug073.go:8: illegal types for operand: AS
-	(<int32>INT32)
 fixedbugs/bug073.go:9: illegal types for operand: RSH
 	(<int32>INT32)
-	(<int32>INT32)
-fixedbugs/bug073.go:9: illegal types for operand: AS
 	(<int32>INT32)

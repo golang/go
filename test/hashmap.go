@@ -47,9 +47,7 @@ type HashMap struct {
 
 
 func (m *HashMap) capacity() uint32 {
-	// TODO we need to figure out how to determine the type of
-	// a shifted 'untyped' int so we can get rid of the conversion
-	return uint32(1) << m.log2_capacity_;
+	return 1 << m.log2_capacity_;
 }
 
 
