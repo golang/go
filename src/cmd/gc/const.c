@@ -11,9 +11,19 @@ convlit(Node *n, Type *t)
 	int et;
 	Node *n1;
 
-	if(n == N || n->op != OLITERAL || t == T)
+	if(n == N || t == T)
 		return;
-
+	switch(n->op) {
+	default:
+		return;
+	case OLITERAL:
+		break;
+	case OLSH:
+	case ORSH:
+		convlit(n->left, t);
+		n->type = n->left->type;
+		return;
+	}
 	et = t->etype;
 	switch(whatis(n)) {
 	default:
