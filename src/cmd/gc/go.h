@@ -205,7 +205,6 @@ struct	Sym
 	Type*	otype;		// TYPE node if a type
 	Node*	oconst;		// OLITERAL node if a const
 	Type*	forwtype;	// TPTR iff forward declared
-	void*	label;		// pointer to Prog* of label
 	vlong	offset;		// stack location if automatic
 	int32	lexical;
 	int32	vargen;		// unique variable number
