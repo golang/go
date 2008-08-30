@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(August 28, 2008)
+(August 29, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -351,12 +351,11 @@ Operators and delimitors
 
 The following special character sequences serve as operators or delimitors:
 
-	+    &     +=    &=     ==    (    ,
-	-    |     -=    |=     !=    )    ;
-	*    ^     *=    ^=     <     [    :
-	/    <<    /=    <<=    <=    ]    .
-	%    >>    %=    >>=    >     {    !
-	<-   -<    =     :=     >=    }	
+	+    &     +=    &=     &&    ==    !=    (    )
+	-    |     -=    |=     ||    <     >=    [    ]
+	*    ^     *=    ^=     <-    >     <=    {    }
+	/    <<    /=    <<=    -<    ++    --    =    :=
+	%    >>    %=    >>=    !     .     ,     ;    :
 
 
 Reserved words
@@ -364,13 +363,11 @@ Reserved words
 
 The following words are reserved and must not be used as identifiers:
 
-	break           export          import          select
-	case            fallthrough     interface       struct
-	const           for             iota            switch
-	chan            func            map             type
-	continue        go              package         var
-	default         goto            range
-	else            if              return
+	break        default      func         interface    select
+	case         else         go           map          struct
+	const        export       goto         package      switch
+	chan         fallthrough  if           range        type
+	continue     for          import       return       var
 
 
 Declaration and scope rules
