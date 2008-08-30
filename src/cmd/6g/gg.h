@@ -78,6 +78,18 @@ struct	Pool
 	Pool*	link;
 };
 
+typedef	struct	Label Label;
+struct	Label
+{
+	uchar	op;		// OFOR/OGOTO/OLABEL
+	Sym*	sym;
+	Prog*	label;		// pointer to code
+	Prog*	breakpc;	// pointer to code
+	Prog*	continpc;	// pointer to code
+	Label*	link;
+};
+#define	L	((Label*)0)
+
 EXTERN	Prog*	continpc;
 EXTERN	Prog*	breakpc;
 EXTERN	Prog*	pc;
@@ -99,13 +111,15 @@ EXTERN	String	emptystring;
 extern	char*	anames[];
 EXTERN	Hist*	hist;
 EXTERN	Prog	zprog;
+EXTERN	Label*	labellist;
+EXTERN	Label*	findlab(Sym*);
 
 /*
  * gen.c
  */
 void	compile(Node*);
 void	proglist(void);
-void	gen(Node*);
+void	gen(Node*, Label*);
 void	swgen(Node*);
 void	selgen(Node*);
 Node*	lookdot(Node*, Node*, int);
@@ -125,6 +139,7 @@ void	genpanic(void);
 int	needconvert(Type*, Type*);
 void	genconv(Type*, Type*);
 void	allocparams(void);
+void	checklabels();
 
 /*
  * cgen

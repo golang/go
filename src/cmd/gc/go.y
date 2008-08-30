@@ -42,7 +42,7 @@
 %type	<node>		range_header range_body range_stmt select_stmt
 %type	<node>		simple_stmt osimple_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
-%type	<node>		name name_name new_name new_name_list_r conexpr
+%type	<node>		name name_name onew_name new_name new_name_list_r conexpr
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl
@@ -326,6 +326,14 @@ noninc_stmt:
 	{
 		$$ = nod(OAS, colas($1, $3), $3);
 	}
+|	LPRINT '(' oexpr_list ')'
+	{
+		$$ = nod(OPRINT, $3, N);
+	}
+|	LPANIC '(' oexpr_list ')'
+	{
+		$$ = nod(OPANIC, $3, N);
+	}
 
 inc_stmt:
 	expr LINC
@@ -398,11 +406,11 @@ semi_stmt:
 		// will be converted to OFALL
 		$$ = nod(OXFALL, N, N);
 	}
-|	LBREAK oexpr
+|	LBREAK onew_name
 	{
 		$$ = nod(OBREAK, $2, N);
 	}
-|	LCONTINUE oexpr
+|	LCONTINUE onew_name
 	{
 		$$ = nod(OCONTINUE, $2, N);
 	}
@@ -410,14 +418,6 @@ semi_stmt:
 	{
 		$$ = nod(OCALL, $2, $4);
 		$$ = nod(OPROC, $$, N);
-	}
-|	LPRINT '(' oexpr_list ')'
-	{
-		$$ = nod(OPRINT, $3, N);
-	}
-|	LPANIC '(' oexpr_list ')'
-	{
-		$$ = nod(OPANIC, $3, N);
 	}
 |	LGOTO new_name
 	{
@@ -831,6 +831,12 @@ new_type:
 	{
 		$$ = newtype($1);
 	}
+
+onew_name:
+	{
+		$$ = N;
+	}
+|	new_name
 
 sym:
 	LATYPE
