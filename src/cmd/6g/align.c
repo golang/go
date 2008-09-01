@@ -102,10 +102,10 @@ dowidth(Type *t)
 {
 	uint32 w;
 
-	w = 0;
 	if(t == T)
 		return;
 
+	w = 0;
 	switch(t->etype) {
 	default:
 		fatal("dowidth: unknown type: %E", t->etype);
@@ -123,13 +123,13 @@ dowidth(Type *t)
 	case TINT32:
 	case TUINT32:
 	case TFLOAT32:
-	case TPTR32:
+	case TPTR32:		// note lack of recursion
 		w = 4;
 		break;
 	case TINT64:
 	case TUINT64:
 	case TFLOAT64:
-	case TPTR64:
+	case TPTR64:		// note lack of recursion
 		w = 8;
 		break;
 	case TFLOAT80:
@@ -158,12 +158,9 @@ dowidth(Type *t)
 		w = wptr;
 		break;
 	case TARRAY:
-		if(t->bound < 0)
-			fatal("width of a dynamic array");
-		if(t->type == T)
-			break;
 		dowidth(t->type);
-		w = t->bound * t->type->width;
+		if(t->bound >= 0 && t->type != T)
+			w = t->bound * t->type->width;
 		break;
 
 	case TSTRUCT:
