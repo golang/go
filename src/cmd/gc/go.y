@@ -943,6 +943,7 @@ Atype:
 |	Afntypeh
 |	'*' Atype
 	{
+		dowidth($2);
 		$$ = ptrto($2);
 	}
 
@@ -966,6 +967,7 @@ Btype:
 |	Bfntypeh
 |	'*' Btype
 	{
+		dowidth($2);
 		$$ = ptrto($2);
 	}
 |	'*' lname

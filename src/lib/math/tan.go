@@ -60,7 +60,7 @@ tan(arg float64) float64
 
 	if flag {
 		if(temp == 0) {
-			panic sys.NaN();
+			panic(sys.NaN());
 		}
 		temp = 1/temp;
 	}

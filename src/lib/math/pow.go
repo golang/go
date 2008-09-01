@@ -29,7 +29,7 @@ pow(arg1,arg2 float64) float64
 
 		temp = floor(arg2);
 		if temp != arg2 {
-			panic sys.NaN();
+			panic(sys.NaN());
 		}
 
 		l = long(temp);

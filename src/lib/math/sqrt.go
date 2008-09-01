@@ -49,9 +49,11 @@ sqrt(arg float64) float64
 		exp = exp + 60;
 	}
 	if exp >= 0 {
-		temp = temp * float64(1 << (exp/2));
+		exp = 1 << uint(exp/2);
+		temp = temp * float64(exp);
 	} else {
-		temp = temp / float64(1 << (-exp/2));
+		exp = 1 << uint(-exp/2);
+		temp = temp / float64(exp);
 	}
 
 	for i=0; i<=4; i=i+1 {
