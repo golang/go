@@ -559,7 +559,7 @@ int	isptrto(Type*, int);
 int	isptrarray(Type*);
 int	isptrdarray(Type*);
 int	isinter(Type*);
-int	isbytearray(Type*);
+int	bytearraysz(Type*);
 int	eqtype(Type*, Type*, int);
 void	argtype(Node*, Type*);
 int	eqargs(Type*, Type*);
@@ -689,6 +689,7 @@ Node*	reorder1(Node*);
 Node*	reorder2(Node*);
 Node*	reorder3(Node*);
 Node*	reorder4(Node*);
+Node*	structlit(Node*);
 
 /*
  *	const.c
