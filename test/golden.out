@@ -169,7 +169,7 @@ BUG: compilation succeeds incorrectly
 
 =========== bugs/bug092.go
 BUG should not crash
-/tmp/gorun-r: line 1: 83206 Illegal instruction     ./$A.out
+$RUNFILE: line 1: PID Illegal instruction     ./$A.out
 
 =========== fixedbugs/bug015.go
 fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
