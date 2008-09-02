@@ -217,7 +217,6 @@ func init(){
 	error[EPROTO] = "Protocol error"; 
 	error[ETIME] = "STREAM ioctl timeout"; 
 	error[EOPNOTSUPP] = "Operation not supported on socket"; 
-	error[ELAST] = "Must be equal largest errno"; 
 }
 
 func str(val int64) string {  // do it here rather than with fmt to avoid dependency
