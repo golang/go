@@ -47,7 +47,9 @@ do
 	done
 done | # clean up some stack noise
 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
-	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/' > run.out
+	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
+		s!'$RUNFILE'!$RUNFILE!g
+		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/' > run.out
 
 case $failed in
 1)
