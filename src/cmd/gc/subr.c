@@ -1229,18 +1229,20 @@ isinter(Type *t)
 }
 
 int
-isbytearray(Type *t)
+bytearraysz(Type *t)
 {
 	if(t == T)
-		return 0;
+		return -2;
 	if(isptr[t->etype]) {
 		t = t->type;
 		if(t == T)
-			return 0;
+			return -2;
 	}
 	if(t->etype != TARRAY)
-		return 0;
-	return t->bound+1;
+		return -2;
+	if(!eqtype(t->type, types[TUINT8], 0))
+		return -2;
+	return t->bound;	// -1 is dyn, >=0 is fixed
 }
 
 int

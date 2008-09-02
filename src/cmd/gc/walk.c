@@ -8,6 +8,7 @@ static	Type*	sw1(Node*, Type*);
 static	Type*	sw2(Node*, Type*);
 static	Type*	sw3(Node*, Type*);
 static	Node*	curfn;
+static	Node*	addtop;
 
 void
 walk(Node *fn)
@@ -38,7 +39,7 @@ isselect(Node *n)
 }
 
 void
-walktype(Node *n, int top)
+walktype1(Node *n, int top)
 {
 	Node *r, *l;
 	Type *t;
@@ -53,11 +54,6 @@ walktype(Node *n, int top)
 	 * the types expressions are calculated.
 	 * compile-time constants are evaluated.
 	 */
-
-	if(top == Exxx || top == Eyyy) {
-		dump("", n);
-		fatal("walktype: bad top=%d", top);
-	}
 
 loop:
 	if(n == N)
@@ -75,6 +71,11 @@ loop:
 	default:
 		fatal("walktype: switch 1 unknown op %N", n);
 		goto ret;
+
+	case OLIST:
+		walktype(n->left, top);
+		n = n->right;
+		goto loop;
 
 	case OPRINT:
 		if(top != Etop)
@@ -119,11 +120,6 @@ loop:
 			}
 		}
 		goto ret;
-
-	case OLIST:
-		walktype(n->left, top);
-		n = n->right;
-		goto loop;
 
 	case OFOR:
 		if(top != Etop)
@@ -400,6 +396,8 @@ loop:
 			goto ret;
 
 		convlit(l, t);
+		if(l->type == T)
+			goto ret;
 
 		// nil conversion
 		if(eqtype(t, l->type, 0)) {
@@ -422,7 +420,7 @@ loop:
 				*n = *stringop(n, top);
 				goto ret;
 			}
-			if(isbytearray(l->type) != 0) {
+			if(bytearraysz(l->type) != -2) {
 				n->op = OARRAY;
 				*n = *stringop(n, top);
 				goto ret;
@@ -433,16 +431,20 @@ loop:
 		if(isptrarray(t) && isptrdarray(l->type))
 			goto ret;
 
-//		if(t->etype == TARRAY) {
-//			arrayconv(t, l);
-//			goto ret;
-//		}
-
+		// interface and structure
 		r = isandss(n->type, l);
 		if(r != N) {
 			*n = *r;
 			goto ret;
 		}
+
+		// structure literal
+		if(t->etype == TSTRUCT) {
+			r = structlit(n);
+			*n = *r;
+			goto ret;
+		}
+
 		badtype(n->op, l->type, t);
 		goto ret;
 
@@ -1591,6 +1593,7 @@ Node*
 stringop(Node *n, int top)
 {
 	Node *r, *c, *on;
+	Type *t;
 	int32 l;
 
 	switch(n->op) {
@@ -1674,15 +1677,24 @@ stringop(Node *n, int top)
 		break;
 
 	case OARRAY:
-		// byteastring(a, l)
+		// byteastring(*byte, int32) string;
+		t = n->left->type;
+		l = bytearraysz(t);
+
+		// &a[0]
 		c = nodintconst(0);
 		r = nod(OINDEX, n->left, c);
 		r = nod(OADDR, r, N);
 
-		l = isbytearray(n->left->type);
-		c = nodintconst(l-1);
-
+		if(l >= 0) {
+			// static size
+			c = nodintconst(l);
+		} else {
+			// dynamic size
+			c = nod(OLEN, n->left, N);
+		}
 		r = list(r, c);
+
 		on = syslook("byteastring", 0);
 		r = nod(OCALL, on, r);
 		break;
@@ -2310,6 +2322,20 @@ arrayop(Node *n, int top)
 }
 
 void
+walktype(Node *n, int top)
+{
+	Node *r;
+
+	walktype1(n, top);
+	while(top == Etop && addtop != N) {
+		r = addtop;
+		addtop = N;
+		walktype1(r, top);
+		n->ninit = list(r, n->ninit);
+	}
+}
+
+void
 diagnamed(Type *t)
 {
 	if(isinter(t))
@@ -2419,34 +2445,6 @@ bad:
 	badtype(n->op, lt, rt);
 	return n;
 }
-
-//void
-//arrayconv(Type *t, Node *n)
-//{
-//	int c;
-//	Iter save;
-//	Node *l;
-//
-//	l = listfirst(&save, &n);
-//	c = 0;
-//
-//loop:
-//	if(l == N) {
-//		if(t->bound == 0)
-//			t->bound = c;
-//		if(t->bound == 0 || t->bound < c)
-//			yyerror("error with array convert bounds");
-//		return;
-//	}
-//
-//	c++;
-//	walktype(l, Erv);
-//	convlit(l, t->type);
-//	if(!ascompat(l->type, t->type))
-//		badtype(OARRAY, l->type, t->type);
-//	l = listnext(&save);
-//	goto loop;
-//}
 
 Node*
 old2new(Node *n, Type *t)
@@ -2817,4 +2815,41 @@ reorder4(Node *n)
 	 * parameters. there may be no problems.
 	 */
 	return n;
+}
+
+Node*
+structlit(Node *n)
+{
+	Iter savel, saver;
+	Type *l, *t;
+	Node *var, *r, *a;
+
+	t = n->type;
+	if(t->etype != TSTRUCT)
+		fatal("structlit: not struct");
+
+print("\nstruct lit %lT\n", t);
+
+	var = nod(OXXX, N, N);
+	tempname(var, t);
+
+	l = structfirst(&savel, &n->type);
+	r = listfirst(&saver, &n->left);
+
+loop:
+	if(l == T || r == N) {
+		if(l != T || r != N)
+			yyerror("error in shape struct literal");
+		return var;
+	}
+
+	// build list of var.field = expr
+
+	a = nod(ODOT, var, newname(l->sym));
+	a = nod(OAS, a, r);
+	addtop = list(addtop, a);
+
+	l = structnext(&savel);
+	r = listnext(&saver);
+	goto loop;
 }
