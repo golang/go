@@ -21,23 +21,6 @@ walk(Node *fn)
 		dump("fn", fn->nbody);
 }
 
-int
-isselect(Node *n)
-{
-	Sym *s;
-
-	if(n == N)
-		return 0;
-	n = n->left;
-	s = pkglookup("selectsend", "sys");
-	if(s == n->sym)
-		return 1;
-	s = pkglookup("selectrecv", "sys");
-	if(s == n->sym)
-		return 1;
-	return 0;
-}
-
 void
 walktype1(Node *n, int top)
 {
@@ -396,8 +379,6 @@ loop:
 			goto ret;
 
 		convlit(l, t);
-		if(l->type == T)
-			goto ret;
 
 		// nil conversion
 		if(eqtype(t, l->type, 0)) {
@@ -415,6 +396,7 @@ loop:
 		}
 
 		// to string
+		if(l->type != T)
 		if(isptrto(t, TSTRING)) {
 			if(isint[l->type->etype]) {
 				*n = *stringop(n, top);
@@ -2331,7 +2313,7 @@ walktype(Node *n, int top)
 		r = addtop;
 		addtop = N;
 		walktype1(r, top);
-		n->ninit = list(r, n->ninit);
+		n->ninit = list(n->ninit, r);
 	}
 }
 
@@ -2829,8 +2811,6 @@ structlit(Node *n)
 	t = n->type;
 	if(t->etype != TSTRUCT)
 		fatal("structlit: not struct");
-
-print("\nstruct lit %lT\n", t);
 
 	var = nod(OXXX, N, N);
 	tempname(var, t);
