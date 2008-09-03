@@ -459,8 +459,9 @@ Const declarations
 A constant declaration gives a name to the value of a constant expression.
 
 	ConstDecl = "const" ( ConstSpec | "(" ConstSpecList [ ";" ] ")" ).
-	ConstSpec = identifier [ Type ] [ "=" Expression ] .
-	ConstSpecList = ConstSpec { ";" ConstSpec }.
+	ConstSpec = identifier [ Type ] "=" Expression .
+	ConstSpecList = ConstSpec { ";" ConstSpecOptExpr }.
+ 	ConstSpecOptExpr = identifier [ Type ] [ "=" Expression ] .
 
 	const pi float = 3.14159265
 	const e = 2.718281828
@@ -1140,10 +1141,12 @@ we can write
 
 	pi := Num(Rat(22,7), 3.14159, "pi")
 
-For array literals, if the size is present the constructed array has that many
+For array literals, if the length is present the constructed array has that many
 elements; trailing elements are given the approprate zero value for that type.
-If it is absent, the size of the array is the number of elements. It is an error
-if a specified size is less than the number of elements in the expression list.
+If it is absent, the length of the array is the number of elements. It is an error
+if the specified length is less than the number of elements in the expression list.
+In either case, the length is known at compile type and thus the type of an
+array literal is always a fixed array type.
 
 	primes := [6]int(2, 3, 5, 7, 9, 11)
 	weekdays := []string("mon", "tue", "wed", "thu", "fri", "sat", "sun")
