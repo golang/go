@@ -425,39 +425,18 @@ loop:
 			dodump(n->left, dep);
 		n = n->right;
 		goto loop;
-
-//	case ODCLFUNC:
-//		dodump(n->nname, dep);
-//		if(n->this) {
-//			indent(dep);
-//			print("%O-this\n", n->op);
-//			dodump(n->this, dep+1);
-//		}
-//		if(n->argout) {
-//			indent(dep);
-//			print("%O-outarg\n", n->op);
-//			dodump(n->argout, dep+1);
-//		}
-//		if(n->argin) {
-//			indent(dep);
-//			print("%O-inarg\n", n->op);
-//			dodump(n->argin, dep+1);
-//		}
-//		n = n->nbody;
-//		goto loop;
-
-	case OIF:
-	case OSWITCH:
-	case OFOR:
-	case OSELECT:
-		dodump(n->ninit, dep);
-		break;
 	}
 
 	indent(dep);
 	if(dep > 10) {
 		print("...\n");
 		return;
+	}
+
+	if(n->ninit != N) {
+		print("%O-init\n", n->op);
+		dodump(n->ninit, dep+1);
+		indent(dep);
 	}
 
 	switch(n->op) {

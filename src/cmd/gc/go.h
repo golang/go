@@ -690,6 +690,8 @@ Node*	reorder2(Node*);
 Node*	reorder3(Node*);
 Node*	reorder4(Node*);
 Node*	structlit(Node*);
+Node*	arraylit(Node*);
+Node*	chantlit(Node*);
 
 /*
  *	const.c
