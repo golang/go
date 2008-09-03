@@ -8,6 +8,5 @@ package main
 
 func main() {
 	type M map[int] int;
-	m0 := M(7 , 8);	// parses OK
-	m1 := M(7 : 8);	// BUG: syntax error  (grammar but not doc has [a:b]; what should we do?
+	m1 := M(7 : 8);
 }
