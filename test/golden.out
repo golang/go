@@ -71,21 +71,6 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug041.go
 BUG: compilation succeeds incorrectly
 
-=========== bugs/bug047.go
-bugs/bug047.go:16: illegal types for operand: CONV
-	(MAP[<int32>INT32]<int32>INT32)
-bugs/bug047.go:16: illegal types for operand: CONV
-	(MAP[<int32>INT32]<int32>INT32)
-BUG: known to fail incorrectly
-
-=========== bugs/bug048.go
-bugs/bug048.go:7: illegal types for operand: CONV
-	(MAP[<int32>INT32]<int32>INT32)
-bugs/bug048.go:8: syntax error
-bugs/bug048.go:7: illegal types for operand: CONV
-	(MAP[<int32>INT32]<int32>INT32)
-BUG: known to fail incorrectly
-
 =========== bugs/bug061.go
 BUG: known to fail incorrectly
 Bus error               $G $D/$F.go

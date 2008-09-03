@@ -17,5 +17,5 @@ func main() {
 	t := T(s, f);
 
 	type M map[int] int;
-	m0 := M(7 , 8);
+	m0 := M(7:8);
 }
