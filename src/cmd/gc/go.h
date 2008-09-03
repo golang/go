@@ -277,7 +277,7 @@ enum
 	OINDEX, OINDEXPTR, OSLICE,
 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
 	OLITERAL, OREGISTER, OINDREG,
-	OCONV,
+	OCONV, OKEY,
 	OBAD,
 
 	OEND,
@@ -691,7 +691,7 @@ Node*	reorder3(Node*);
 Node*	reorder4(Node*);
 Node*	structlit(Node*);
 Node*	arraylit(Node*);
-Node*	chantlit(Node*);
+Node*	maplit(Node*);
 
 /*
  *	const.c

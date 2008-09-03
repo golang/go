@@ -56,6 +56,7 @@ loop:
 		goto ret;
 
 	case OLIST:
+	case OKEY:
 		walktype(n->left, top);
 		n = n->right;
 		goto loop;
@@ -367,7 +368,7 @@ loop:
 		goto ret;
 
 	case OCONV:
-		if(top != Erv)
+		if(top == Etop)
 			goto nottop;
 		walktype(n->left, Erv);
 
@@ -430,6 +431,13 @@ loop:
 		// structure literal
 		if(t->etype == TARRAY) {
 			r = arraylit(n);
+			*n = *r;
+			goto ret;
+		}
+
+		// map literal
+		if(t->etype == TMAP) {
+			r = maplit(n);
 			*n = *r;
 			goto ret;
 		}
@@ -2871,9 +2879,8 @@ arraylit(Node *n)
 	r = listfirst(&saver, &n->left);
 
 loop:
-	if(r == N) {
+	if(r == N)
 		return var;
-	}
 
 	// build list of var[c] = expr
 
@@ -2882,6 +2889,48 @@ loop:
 	a = nod(OAS, a, r);
 	addtop = list(addtop, a);
 	idx++;
+
+	r = listnext(&saver);
+	goto loop;
+}
+
+Node*
+maplit(Node *n)
+{
+	Iter saver;
+	Type *t;
+	Node *var, *r, *a;
+
+	t = n->type;
+	if(t->etype != TMAP)
+		fatal("maplit: not array");
+	t = ptrto(t);
+
+	var = nod(OXXX, N, N);
+	tempname(var, t);
+
+	a = nod(ONEW, N, N);
+	a->type = t;
+	a = nod(OAS, var, a);
+	addtop = list(addtop, a);
+
+	r = listfirst(&saver, &n->left);
+
+loop:
+	if(r == N) {
+		return var;
+	}
+
+	if(r->op != OKEY) {
+		yyerror("map literal must have key:value pairs");
+		return var;
+	}
+
+	// build list of var[c] = expr
+
+	a = nod(OINDEX, var, r->left);
+	a = nod(OAS, a, r->right);
+	addtop = list(addtop, a);
 
 	r = listnext(&saver);
 	goto loop;

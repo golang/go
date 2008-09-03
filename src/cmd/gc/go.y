@@ -990,7 +990,7 @@ chandir:
 keyval:
 	expr ':' expr
 	{
-		$$ = nod(OLIST, $1, $3);
+		$$ = nod(OKEY, $1, $3);
 	}
 
 /*
