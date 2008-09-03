@@ -41,7 +41,7 @@ func (I *Importer) ReadByte() byte {
 
 func (I *Importer) ReadInt() int {
 	x := 0;
-	s := 0;  // TODO eventually Go will require this to be a uint!
+	s := uint(0);
 	b := I.ReadByte();
 	for b < 128 {
 		x |= int(b) << s;

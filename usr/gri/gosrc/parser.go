@@ -533,7 +533,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
 	if P.tok == Scanner.PERIOD {
 		p0 = sig.entries.len_;
 		if P.semantic_checks && p0 != 1 {
-			P.Error(recv_pos, "must have exactly one receiver")
+			P.Error(recv_pos, "must have exactly one receiver");
 			panic("UNIMPLEMENTED (ParseAnonymousSignature)");
 			// TODO do something useful here
 		}
@@ -574,7 +574,7 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
 		p0 = sig.entries.len_;
 		if P.semantic_checks && p0 != 1 {
 			print("p0 = ", p0, "\n");
-			P.Error(recv_pos, "must have exactly one receiver")
+			P.Error(recv_pos, "must have exactly one receiver");
 			panic("UNIMPLEMENTED (ParseNamedSignature)");
 			// TODO do something useful here
 		}
