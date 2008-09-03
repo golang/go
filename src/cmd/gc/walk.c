@@ -2392,57 +2392,59 @@ convas(Node *n)
 	if(n->op != OAS)
 		fatal("convas: not OAS %O", n->op);
 
-	ullmancalc(n);
 	l = n->left;
 	r = n->right;
 	if(l == N || r == N)
-		return n;
+		goto out;
 
 	lt = l->type;
 	rt = r->type;
 	if(lt == T || rt == T)
-		return n;
+		goto out;
 
 	if(n->left->op == OINDEX)
 	if(isptrto(n->left->left->type, TMAP)) {
 		*n = *mapop(n, Elv);
-		return n;
+		goto out;
 	}
 
 	if(n->left->op == OINDEXPTR)
 	if(n->left->left->type->etype == TMAP) {
 		*n = *mapop(n, Elv);
-		return n;
+		goto out;
 	}
 
 	if(n->left->op == OSEND)
 	if(n->left->type != T) {
 		*n = *chanop(n, Elv);
-		return n;
+		goto out;
 	}
 
 	if(eqtype(lt, rt, 0))
-		return n;
+		goto out;
 
 	r = isandss(lt, r);
 	if(r != N) {
 		n->right = r;
 		walktype(n, Etop);
-		return n;
+		goto out;
 	}
 
 	if(isptrdarray(lt) && isptrarray(rt)) {
 		if(!eqtype(lt->type->type, rt->type->type, 0))
 			goto bad;
 		*n = *arrayop(n, Etop);
-		return n;
+		goto out;
 	}
 
 	if(ascompat(lt, rt))
-		return n;
+		goto out;
 
 bad:
 	badtype(n->op, lt, rt);
+
+out:
+	ullmancalc(n);
 	return n;
 }
 
