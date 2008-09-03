@@ -137,6 +137,9 @@ gen(Node *n, Label *labloop)
 loop:
 	if(n == N)
 		goto ret;
+	if(n->ninit)
+		gen(n->ninit, L);
+
 	setlineno(n);
 
 	switch(n->op) {
@@ -234,7 +237,6 @@ loop:
 		break;
 
 	case OFOR:
-		gen(n->ninit, L);			// 		init
 		p1 = gbranch(AJMP, T);			// 		goto test
 		sbreak = breakpc;
 		breakpc = gbranch(AJMP, T);		// break:	goto done
@@ -256,7 +258,6 @@ loop:
 		break;
 
 	case OIF:
-		gen(n->ninit, L);			//		init
 		p1 = gbranch(AJMP, T);			//		goto test
 		p2 = gbranch(AJMP, T);			// p2:		goto else
 		patch(p1, pc);				// test:
@@ -269,7 +270,6 @@ loop:
 		break;
 
 	case OSWITCH:
-		gen(n->ninit, L);			// 		init
 		p1 = gbranch(AJMP, T);			// 		goto test
 		sbreak = breakpc;
 		breakpc = gbranch(AJMP, T);		// break:	goto done
@@ -284,7 +284,6 @@ loop:
 		break;
 
 	case OSELECT:
-		gen(n->ninit, L);
 		sbreak = breakpc;
 		p1 = gbranch(AJMP, T);			// 		goto test
 		breakpc = gbranch(AJMP, T);		// break:	goto done

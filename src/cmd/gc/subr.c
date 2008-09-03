@@ -1221,6 +1221,23 @@ isptrdarray(Type *t)
 }
 
 int
+isselect(Node *n)
+{
+	Sym *s;
+
+	if(n == N)
+		return 0;
+	n = n->left;
+	s = pkglookup("selectsend", "sys");
+	if(s == n->sym)
+		return 1;
+	s = pkglookup("selectrecv", "sys");
+	if(s == n->sym)
+		return 1;
+	return 0;
+}
+
+int
 isinter(Type *t)
 {
 	if(t != T && t->etype == TINTER)
