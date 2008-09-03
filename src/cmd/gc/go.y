@@ -28,7 +28,7 @@
 %token			LLSH LRSH LINC LDEC LSEND LRECV
 %token			LIGNORE
 
-%type	<sym>		sym sym1 sym2 key laconst lname latype
+%type	<sym>		sym sym1 sym2 keyword laconst lname latype
 %type	<lint>		chandir
 %type	<node>		xdcl xdcl_list_r oxdcl_list
 %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
@@ -49,7 +49,7 @@
 %type	<node>		hidden_importsym_list_r ohidden_importsym_list hidden_importsym isym
 %type	<node>		hidden_importfield_list_r ohidden_importfield_list hidden_importfield
 %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
-%type	<node>		keyval_list_r keyval
+%type	<node>		keyexpr_list keyval_list_r keyval
 %type	<node>		typedcl Atypedcl Btypedcl
 
 %type	<type>		fntype fnlitdcl intype new_type typeconv
@@ -753,23 +753,13 @@ pexpr:
 		$$->type = ptrto($3);
 	}
 |	fnliteral
-|	'[' expr_list ']'
-	{
-		// array literal
-		$$ = N;
-	}
-|	'[' keyval_list_r ']'
-	{
-		// map literal
-		$$ = N;
-	}
-|	typeconv '(' oexpr_list ')'
+|	typeconv '(' keyexpr_list ')'
 	{
 		// struct literal and conversions
-		$$ = nod(OCONV, $3, N);
+		$$ = nod(OCONV, rev($3), N);
 		$$->type = $1;
 	}
-|	LCONVERT '(' type ',' expr ')'
+|	LCONVERT '(' type ',' keyexpr_list ')'
 	{
 		$$ = nod(OCONV, $5, N);
 		$$->type = $3;
@@ -846,17 +836,17 @@ sym:
 
 sym1:
 	sym
-|	key
+|	keyword
 
 sym2:
 	sym
-|	key
+|	keyword
 
 /*
  * keywords that we can
  * use as variable/type names
  */
-key:
+keyword:
 	LNIL
 |	LTRUE
 |	LFALSE
@@ -881,21 +871,27 @@ typeconv:
 	{
 		$$ = oldtype($1);
 	}
-|	'[' ']' typeconv
+|	'[' oexpr ']' type
 	{
-		$$ = aindex(N, $3);
+		// array literal
+		$$ = aindex($2, $4);
 	}
-|	LCHAN chandir typeconv
+|	LMAP '[' type ']' type
 	{
-		$$ = typ(TCHAN);
-		$$->type = $3;
-		$$->chan = $2;
-	}
-|	LMAP '[' typeconv ']' typeconv
-	{
+		// map literal
 		$$ = typ(TMAP);
 		$$->down = $3;
 		$$->type = $5;
+	}
+|	LSTRUCT '{' structdcl_list_r osemi '}'
+	{
+		// struct literal
+		$$ = dostruct(rev($3), TSTRUCT);
+	}
+|	LSTRUCT '{' '}'
+	{
+		// struct literal
+		$$ = dostruct(N, TSTRUCT);
 	}
 
 type:
@@ -1413,6 +1409,13 @@ keyval_list_r:
 	{
 		$$ = nod(OLIST, $1, $3);
 	}
+
+keyexpr_list:
+	keyval_list_r
+	{
+		$$ = rev($1);
+	}
+|	expr_list
 
 /*
  * the one compromise of a

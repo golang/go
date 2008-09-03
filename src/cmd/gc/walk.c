@@ -427,6 +427,13 @@ loop:
 			goto ret;
 		}
 
+		// structure literal
+		if(t->etype == TARRAY) {
+			r = arraylit(n);
+			*n = *r;
+			goto ret;
+		}
+
 		badtype(n->op, l->type, t);
 		goto ret;
 
@@ -2832,6 +2839,50 @@ loop:
 	addtop = list(addtop, a);
 
 	l = structnext(&savel);
+	r = listnext(&saver);
+	goto loop;
+}
+
+Node*
+arraylit(Node *n)
+{
+	Iter saver;
+	Type *t;
+	Node *var, *r, *a;
+	int idx;
+
+	t = n->type;
+	if(t->etype != TARRAY)
+		fatal("arraylit: not array");
+
+	if(t->bound < 0) {
+		// make it a closed array
+		// should there be a type copy here?
+		r = listfirst(&saver, &n->left);
+		for(idx=0; r!=N; idx++)
+			r = listnext(&saver);
+		t->bound = idx;
+	}
+
+	var = nod(OXXX, N, N);
+	tempname(var, t);
+
+	idx = 0;
+	r = listfirst(&saver, &n->left);
+
+loop:
+	if(r == N) {
+		return var;
+	}
+
+	// build list of var[c] = expr
+
+	a = nodintconst(idx);
+	a = nod(OINDEX, var, a);
+	a = nod(OAS, a, r);
+	addtop = list(addtop, a);
+	idx++;
+
 	r = listnext(&saver);
 	goto loop;
 }
