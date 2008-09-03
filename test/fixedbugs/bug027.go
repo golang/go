@@ -51,7 +51,7 @@ func main() {
 		print(i, " ", x.val, "\n");  // prints correct list
 	}
 	for i := 0; i < v.nelem; i++ {
-		print(i, " ", I(v.At(i)).val, "\n"); // always prints 5 - bad code - should be *I()
+		print(i, " ", v.At(i).(*I).val, "\n");
 	}
 }
 /*

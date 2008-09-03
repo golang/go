@@ -4,7 +4,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 package	main
 
 export func
@@ -147,10 +146,10 @@ testfdfault()
 func
 main()
 {
-	print("testpdpd\n");	testpdpd();
-	print("testpfpf\n");	testpfpf();
-	print("testpdpf1\n");	testpdpf1();
-	print("testpdpf2\n");	testpdpf2();
+	testpdpd();
+	testpfpf();
+	testpdpf1();
+	testpdpf2();
 //	print("testpdfault\n");	testpdfault();
 //	print("testfdfault\n");	testfdfault();
 }

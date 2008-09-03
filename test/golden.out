@@ -34,6 +34,14 @@ Hello World!
 =========== ken/rob2.go
 (defn foo (add 12 34))
 
+=========== ken/shift.go
+ken/shift.go:50: stupid shift: 1025
+ken/shift.go:51: stupid shift: 1025
+ken/shift.go:57: stupid shift: 1025
+ken/shift.go:58: stupid shift: 1025
+ken/shift.go:64: stupid shift: 1025
+ken/shift.go:65: stupid shift: 1025
+
 =========== ken/simpprint.go
 hello world
 
@@ -54,15 +62,6 @@ BUG should compile
 sys·printstring: main·sigs_I: not defined
 BUG: known to fail incorrectly
 
-=========== bugs/bug027.go
-bugs/bug027.go:50: illegal types for operand: CONV
-	(<Element>I{})
-	(<I>{<val><int32>INT32;})
-bugs/bug027.go:50: illegal types for operand: CONV
-	(<Element>I{})
-	(<I>{<val><int32>INT32;})
-BUG: known to fail incorrectly
-
 =========== bugs/bug029.go
 BUG: known to succeed incorrectly
 
@@ -73,12 +72,8 @@ BUG: compilation succeeds incorrectly
 BUG: compilation succeeds incorrectly
 
 =========== bugs/bug047.go
-bugs/bug047.go:13: illegal types for operand: CONV
-	(<T>{<s><string>*STRING;<f><float32>FLOAT32;})
 bugs/bug047.go:16: illegal types for operand: CONV
 	(MAP[<int32>INT32]<int32>INT32)
-bugs/bug047.go:13: illegal types for operand: CONV
-	(<T>{<s><string>*STRING;<f><float32>FLOAT32;})
 bugs/bug047.go:16: illegal types for operand: CONV
 	(MAP[<int32>INT32]<int32>INT32)
 BUG: known to fail incorrectly
@@ -108,14 +103,12 @@ BUG: compilation should succeed
 bugs/bug068.go:6: unknown escape sequence: '
 BUG: compilation should succeed
 
-=========== bugs/bug072.go
-bugs/bug072.go:6: bug: undefined
-BUG: compiler crashes after error message - Bus error
-Bus error               $G $D/$F.go
-
 =========== bugs/bug074.go
+bugs/bug074.go:6: illegal types for operand: CONV
+	(<string>*STRING)
+bugs/bug074.go:6: illegal types for operand: CONV
+	(<string>*STRING)
 BUG: compiler crashes - Bus error
-Bus error               $G $D/$F.go
 
 =========== bugs/bug075.go
 bugs/bug075.go:11: bad shape across assignment - cr=1 cl=2
@@ -180,6 +173,19 @@ fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
 =========== fixedbugs/bug025.go
 fixedbugs/bug025.go:7: variable exported but not defined: Foo
 
+=========== fixedbugs/bug027.go
+hi
+0 44444
+1 3333
+2 222
+3 11
+4 0
+0 44444
+1 3333
+2 222
+3 11
+4 0
+
 =========== fixedbugs/bug035.go
 fixedbugs/bug035.go:6: var i redeclared in this block
      previous declaration at fixedbugs/bug035.go:5
@@ -209,6 +215,13 @@ outer loop top k 0
 inner loop top i 0
 do break
 broke
+
+=========== fixedbugs/bug072.go
+fixedbugs/bug072.go:6: bug: undefined
+fixedbugs/bug072.go:6: illegal types for operand: CONV
+	(<string>*STRING)
+fixedbugs/bug072.go:6: illegal types for operand: CONV
+	(<string>*STRING)
 
 =========== fixedbugs/bug073.go
 fixedbugs/bug073.go:8: illegal types for operand: LSH
