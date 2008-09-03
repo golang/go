@@ -191,6 +191,8 @@ type, a function, etc.
 	ThisIsVariable9
 	αβ
 
+Some identifiers are predeclared (see Declarations).
+
 
 Numeric literals
 ----
@@ -1068,15 +1070,15 @@ Expressions
 Operands
 ----
 	
-	Operand = QualifiedIdent | Literal | "(" Expression ")" | "iota" .
+	Operand = Literal | QualifiedIdent | "(" Expression ")" .
 	Literal = int_lit | float_lit | char_lit | string_lit | CompositeLit | FunctionLit .
 	
 	
 Iota
 ----
 
-Within a declaration, the reserved word "iota" represents successive
-elements of an integer sequence.
+Within a declaration, the predeclared operand "iota"
+represents successive elements of an integer sequence.
 It is reset to zero whenever the reserved word "const"
 introduces a new declaration and increments as each identifier
 is declared. For instance, "iota" can be used to construct
@@ -1157,7 +1159,7 @@ complicates the spec needlessly.)
 
 TODO(gri): These are not conversions and we could use {} instead of () in
 the syntax. This will make literals such as Foo(1, 2, 3) clearly stand
-out from function calls.
+out from function calls. TBD.
 
 
 Function Literals
@@ -1247,6 +1249,8 @@ would have no effect on ``a''.
 
 Type guards
 ----
+
+TODO: write this section
 
 
 Calls
@@ -1354,9 +1358,13 @@ elements.
 Comparison operators
 ----
 
+TODO: write this section
+
 
 Logical operators
 ----
+
+TODO: write this section
 
 
 Address operators
@@ -1985,13 +1993,17 @@ after the declaration of the receiver type and may be forward-declared.
 Predeclared functions
 ----
 
-	assert (suggested by gri)
 	cap
 	convert
 	len
 	new
 	panic
 	print
+	typeof
+
+
+TODO: (gri) suggests that we should consider assert() as a built-in function.
+It is like panic, but takes a guard as first argument.
 
 
 Conversions
@@ -2201,7 +2213,7 @@ to the current package. After
 the contents are accessible by sin and cos.  In this instance, it is
 an error if the import introduces name conflicts.
 
-Here is a complete example Go program that implements a concurrent prime sieve:
+Here is a complete example Go package that implements a concurrent prime sieve:
 
 	package main
 	
@@ -2299,7 +2311,7 @@ default for the function name main.main?
 
 ----
 ----
-AS OF YET UNUSED LANGUAGE
+UNUSED PARTS OF OLD DOCUMENT go_lang.txt - KEEP AROUND UNTIL NOT NEEDED ANYMORE
 ----
 
 Guiding principles
@@ -2575,6 +2587,31 @@ as an any variable holding an int?
 
 TODO: if interfaces were explicitly pointers, this gets simpler.
 END]
+
+
+Expressions
+----
+
+Expression syntax is based on that of C but with fewer precedence levels.
+
+	Expression = BinaryExpr | UnaryExpr | PrimaryExpr .
+	BinaryExpr = Expression binary_op Expression .
+	UnaryExpr = unary_op Expression .
+
+	PrimaryExpr =
+		identifier | Literal | "(" Expression ")" | "iota" |
+		Call | Conversion | Allocation | Index |
+		Expression "." identifier | Expression "." "(" Type ")" .
+
+	Call = Expression "(" [ ExpressionList ] ")" .
+	Conversion =
+		"convert" "(" Type [ "," ExpressionList ] ")" | ConversionType "(" [ ExpressionList ] ")" .
+	ConversionType = TypeName | ArrayType | MapType | StructType | InterfaceType .
+	Allocation = "new" "(" Type [ "," ExpressionList ] ")" .
+	Index = SimpleIndex | Slice .
+	SimpleIndex = Expression "[" Expression"]" .
+	Slice = Expression "[" Expression ":" Expression "]" .
+
 
 
 TODO
