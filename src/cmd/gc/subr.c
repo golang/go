@@ -619,6 +619,7 @@ opnames[] =
 	[OINDEX]	= "INDEX",
 	[OINDEXPTR]	= "INDEXPTR",
 	[OIND]		= "IND",
+	[OKEY]		= "KEY",
 	[OLABEL]	= "LABEL",
 	[OLE]		= "LE",
 	[OLEN]		= "LEN",
