@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(August 29, 2008)
+(September 3, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -438,11 +438,11 @@ The following identifiers are predeclared:
 	
 - the predeclared constants
 
-	true, false, nil
+	true, false, iota, nil
 	
 - the predeclared functions (note: this list is likely to change)
 
-	cap(), convert(), len(), new(), panic(), print(), ...
+	cap(), convert(), len(), new(), panic(), print(), typeof(), ...
 
 
 TODO(gri) We should think hard about reducing the alias type list to:
@@ -1116,16 +1116,23 @@ if omitted, the first two examples above can be abbreviated:
 Composite Literals
 ----
 
-	CompositeLit = ...
-
 Literals for composite data structures consist of the type of the value
-followed by a parenthesized expression list.  In appearance, they are a
-conversion from expression list to composite value.
+followed by a parenthesized expression list for array and structure literals,
+or a list of expression pairs for map literals.
 
-Structure literals follow this form directly.  Given
+	CompositeLit = LiteralType "(" [ ( ExpressionList | ExprPairList ) [ "," ] ] ")" .
+	LiteralType = TypeName | ArrayType | MapType | StructType .
+	ExprPairList = ExprPair { "," ExprPair } .
+	ExprPair = Expression ":" Expression .
+
+If LiteralType is a TypeName, the denoted type must be an array, map, or
+structure.  The types of the expressions must match the respective key, element,
+and field types of the literal type; there is no automatic type conversion.
+
+Given
 
 	type Rat struct { num, den int };
-	type Num struct { r Rat, f float, s string };
+	type Num struct { r Rat; f float; s string };
 
 we can write
 
@@ -1142,10 +1149,15 @@ if a specified size is less than the number of elements in the expression list.
 Map literals are similar except the elements of the expression list are
 key-value pairs separated by a colon:
 
-	m := map[string]int("good":0, "bad":1, "indifferent":7)
+	m := map[string]int("good": 0, "bad": 1, "indifferent": 7)
 
 TODO: helper syntax for nested arrays etc? (avoids repeating types but
 complicates the spec needlessly.)
+
+
+TODO(gri): These are not conversions and we could use {} instead of () in
+the syntax. This will make literals such as Foo(1, 2, 3) clearly stand
+out from function calls.
 
 
 Function Literals
