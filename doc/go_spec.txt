@@ -11,7 +11,7 @@ This document is a semi-formal specification of the Go systems
 programming language.
 
 <font color=red>
-This document is not read for external review, it is under active development.
+This document is not ready for external review, it is under active development.
 Any part may change substantially as design progresses.
 </font>
 
