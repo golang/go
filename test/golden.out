@@ -145,10 +145,6 @@ BUG: fails incorrectly
 =========== bugs/bug090.go
 BUG: compilation succeeds incorrectly
 
-=========== bugs/bug092.go
-BUG should not crash
-$RUNFILE: line 1: PID Illegal instruction     ./$A.out
-
 =========== fixedbugs/bug015.go
 fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
 
