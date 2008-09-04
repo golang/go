@@ -245,7 +245,7 @@ following differences:
 	- Octal character escapes are always 3 digits ("\077" not "\77")
 	- Hexadecimal character escapes are always 2 digits ("\x07" not "\x7")
 
-This section is precise but can be skipped on first reading. The rules are:
+The rules are:
 
 	char_lit = "'" ( unicode_value | byte_value ) "'" .
 	unicode_value = utf8_char | little_u_value | big_u_value | escaped_char .
@@ -264,6 +264,8 @@ A unicode_value takes one of four forms:
 text is in UTF-8, this is the obvious translation from input
 text into Unicode characters.
 * The usual list of C backslash escapes: "\n", "\t", etc.
+Within a character or string literal, only the corresponding quote character
+is a legal escape (this is not explicitly reflected in the above syntax).
 * A `little u' value, such as "\u12AB".  This represents the Unicode
 code point with the corresponding hexadecimal value.  It always
 has exactly 4 hexadecimal digits.
@@ -1783,7 +1785,7 @@ or an increment or decrement statement. Therefore one may declare a loop
 variable in the init statement.
 
 	for i := 0; i < 10; i++ {
-		printf("%d\n", i)
+		print(i, "\n")
 	}
 
 A for statement with just a condition executes until the condition becomes
@@ -1880,11 +1882,11 @@ which single communication will execute.
 	var c, c1, c2 *chan int;
 	select {
 	case i1 <-c1:
-		printf("received %d from c1\n", i1);
+		print("received ", i1, " from c1\n");
 	case c2 -< i2:
-		printf("sent %d to c2\n", i2);
+		print("sent ", i2, " to c2\n");
 	default:
-		printf("no communication\n");
+		print("no communication\n");
 	}
 
 	for {  // send random sequence of bits to c
@@ -1899,9 +1901,9 @@ which single communication will execute.
 	var f float;
 	select {
 	case i  <- ca:
-		printf("received int %d from ca\n", i);
+		print("received int ", i, " from ca\n");
 	case f  <- ca:
-		printf("received float %f from ca\n", f);
+		print("received float ", f, " from ca\n");
 	}
 
 TODO: do we allow case i := <-c: ?
@@ -2306,7 +2308,7 @@ Here is a complete example Go package that implements a concurrent prime sieve:
 		go Generate(ch);  // Start Generate() as a subprocess.
 		for {
 			prime := <-ch;
-			printf("%d\n",  prime);
+			print(prime, "\n");
 			ch1 := new(chan int);
 			go Filter(ch, ch1, prime);
 			ch = ch1
