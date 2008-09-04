@@ -84,10 +84,6 @@ bugs/bug064.go:15: illegal types for operand: CALL
 	({<u><int32>INT32;<v><int32>INT32;})
 BUG: compilation should succeed
 
-=========== bugs/bug068.go
-bugs/bug068.go:6: unknown escape sequence: '
-BUG: compilation should succeed
-
 =========== bugs/bug074.go
 bugs/bug074.go:6: illegal types for operand: CONV
 	(<string>*STRING)
@@ -185,6 +181,9 @@ fixedbugs/bug051.go:10: expression must be a constant
 
 =========== fixedbugs/bug067.go
 ok
+
+=========== fixedbugs/bug068.go
+fixedbugs/bug068.go:8: unknown escape sequence: '
 
 =========== fixedbugs/bug070.go
 outer loop top k 0
