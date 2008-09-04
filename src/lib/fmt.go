@@ -112,14 +112,14 @@ func (f *Fmt) pad(s string) {
 			if w > NByte {
 				w = NByte;
 			}
-			var buf[NByte] byte;  // BUG: should be able to allocate variable size
+			buf := new([]byte, w);
 			for i := 0; i < w; i++ {
 				buf[i] = ' ';
 			}
 			if left {
-				s = string(buf)[0:w] + s;
+				s = string(buf) + s;
 			} else {
-				s = s + string(buf)[0:w];
+				s = s + string(buf);
 			}
 		}
 	}
