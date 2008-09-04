@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 3, 2008)
+(September 4, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -1156,8 +1156,8 @@ key-value pairs separated by a colon:
 
 	m := map[string]int("good": 0, "bad": 1, "indifferent": 7)
 
-TODO: helper syntax for nested arrays etc? (avoids repeating types but
-complicates the spec needlessly.)
+TODO: Consider adding helper syntax for nested composites
+(avoids repeating types but complicates the spec needlessly.)
 
 
 TODO(gri): These are not conversions and we could use {} instead of () in
@@ -1288,6 +1288,8 @@ There is no distinct method type and there are no method literals.
 Operators
 ----
 
+Operators combine operands into expressions.
+
 	Expression = UnaryExpr { binary_op Expression } .
 	UnaryExpr = unary_op UnaryExpr | PrimaryExpr .
 	
@@ -1300,17 +1302,28 @@ Operators
 
 	unary_op = "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
 
+With the exception of shifts (see Arithmetic operators),
+the operand types in binary operations must be the same.
+For instance, signed and unsigned integer values cannot be
+mixed in an expression, and there is no implicit conversion
+from integer to floating point types.
 
-Precedence levels of binary operators, in increasing precedence:
+Unary operators have the highest precedence.
+There are six precedence levels for binary operators:
+multiplication operators bind strongest, followed by addition
+operators, comparison operators, communication operators, "&&" (logical and),
+and finally "||" (logical or) with the lowest precedence:
 
 	Precedence    Operator
-		1             ||
-		2             &&
-		3             <-  -<
-		4             ==  !=  <  <=  >  >=
-		5             +  -  |  ^
 		6             *  /  %  <<  >>  &
+		5             +  -  |  ^
+		4             ==  !=  <  <=  >  >=
+		3             <-  -<
+		2             &&
+		1             ||
 
+Operators of the same precedence associate from left to right.
+For instance, "x / y / z" stands for "(x / y) / z".
 
 Examples
 
@@ -1325,6 +1338,33 @@ Examples
 Arithmetic operators
 ----
 
+Arithmetic operators apply to numeric types and yield a result of the same
+type as the first operand. The four standard arithmetic operators ("+", "-",
+"*", "/") apply to both integer and floating point types, while "+" also applies
+to strings and arrays; all other arithmetic operators apply to integer types only.
+
+	+    sum             integers, floats, strings, arrays
+	-    difference      integers, floats
+	*    product         integers, floats
+	/    quotient        integers, floats
+	%    remainder       integers
+	
+	&    bitwise and     integers
+	|    bitwise or      integers
+	^    bitwise xor     integers
+	
+	<<   left shift      integer << unsigned integer
+	>>   right shift     integer >> unsigned integer
+
+Strings and arrays can be concatenated using the "+" operator
+(or via the "+=" assignment):
+
+	s := "hi" + string(c)
+	a += []int(5, 6, 7)
+
+String and array addition creates a new array or string by copying the
+elements.
+
 For integer values, / and % satisfy the following relationship:
 
 	(a / b) * b + a % b == a
@@ -1333,11 +1373,21 @@ and
 
 	(a / b) is "truncated towards zero".
 
+Examples:
 
-There are no implicit type conversions: Except for the shift operators
-"<<" and ">>", both operands of a binary operator must have the same type.
-In particular, unsigned and signed integer values cannot be mixed in an
-expression without explicit conversion.
+	 x     y     x / y     x % y
+	 5     3       1         2
+	-5     3      -1        -2
+	 5    -3      -1         2
+	-5    -3       1        -2
+
+Note that if the dividend is positive and the divisor is a constant power of 2,
+the division may be replaced by a left shift, and computing the remainder may
+be replaced by a bitwise "and" operation:
+
+	 x     x / 4     x % 4     x >> 2     x & 3
+	 11      2         3         2          3
+	-11     -2        -3        -3          1
 
 The shift operators shift the left operand by the shift count specified by the
 right operand. They implement arithmetic shifts if the left operand is a signed
@@ -1345,33 +1395,45 @@ integer, and logical shifts if it is an unsigned integer. The shift count must
 be an unsigned integer. There is no upper limit on the shift count. It is
 as if the left operand is shifted "n" times by 1 for a shift count of "n".
 
-Unary "^" corresponds to C "~" (bitwise complement). There is no "~" operator
-in Go.
+The unary operators "+", "-", and "^" are defined as follows:
 
-Strings and arrays can also be concatenated using the ``+'' (or ``+='')
-operator.
-
-	a += []int(5, 6, 7)
-	s := "hi" + string(c)
-
-Like slices, addition creates a new array or string by copying the
-elements.
+	+x                          is 0 + x
+	-x    negation              is 0 - x
+	^x    bitwise complement    is -1 ^ x
 
 
 Comparison operators
 ----
 
-TODO: write this section
+Comparison operators yield a boolean result. All comparison operators apply
+to strings and numeric types. The operators "==" and "!=" also apply to
+boolean values and to pointer types (including the value "nil").
+
+	==    equal
+	!=    not equal
+	<     less
+	<=    less or equal
+	>     greater
+	>=    greater or equal
+
+TODO: Can we/should we be able to compare interfaces?
 
 
 Logical operators
 ----
 
-TODO: write this section
+Logical operators apply to boolean operands and yield a boolean result.
+The right operand is evaluated conditionally.
+
+	&&    conditional and    p && q  is  "if p then q else false"
+	||    conditional or     p || q  is  "if p then true else q"
+	!     not                !p      is  "not p"
 
 
 Address operators
 ----
+
+TODO: Need to talk about unary "*", clean up section below.
 
 Given a function f, declared as
 
