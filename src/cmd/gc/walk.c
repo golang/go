@@ -16,13 +16,74 @@ walk(Node *fn)
 	if(debug['W'])
 		dump("fn-before", fn->nbody);
 	curfn = fn;
-	walktype(fn->nbody, Etop);
+	walkstate(fn->nbody);
 	if(debug['W'])
 		dump("fn", fn->nbody);
 }
 
 void
-walktype1(Node *n, int top)
+walkstate(Node *n)
+{
+	Node *l, *more;
+
+loop:
+	if(n == N)
+		return;
+
+	more = N;
+	switch(n->op) {
+
+	case OLIST:
+		walkstate(n->left);
+		more = n->right;
+		break;
+
+	default:
+		yyerror("walkstate: %O not a top level statement", n->op);
+
+	case OASOP:
+	case OAS:
+	case OCALLMETH:
+	case OCALLINTER:
+	case OCALL:
+	case OSEND:
+	case ORECV:
+	case OPRINT:
+	case OPANIC:
+	case OFOR:
+	case OIF:
+	case OSWITCH:
+	case OSELECT:
+	case OEMPTY:
+	case OBREAK:
+	case OCONTINUE:
+	case OGOTO:
+	case OLABEL:
+	case OFALL:
+	case OXCASE:
+	case OCASE:
+	case OXFALL:
+	case ORETURN:
+	case OPROC:
+		walktype(n, Etop);
+		break;
+	}
+
+	while(addtop != N) {
+		l = addtop;
+		addtop = N;
+		walktype(l, Etop);
+		n->ninit = list(n->ninit, l);
+	}
+
+	if(more != N) {
+		n = more;
+		goto loop;
+	}
+}
+
+void
+walktype(Node *n, int top)
 {
 	Node *r, *l;
 	Type *t;
@@ -108,11 +169,11 @@ loop:
 	case OFOR:
 		if(top != Etop)
 			goto nottop;
-		walktype(n->ninit, Etop);
+		walkstate(n->ninit);
 		walkbool(n->ntest);
-		walktype(n->nincr, Etop);
-		n = n->nbody;
-		goto loop;
+		walkstate(n->nincr);
+		walkstate(n->nbody);
+		goto ret;
 
 	case OSWITCH:
 		if(top != Etop)
@@ -123,9 +184,9 @@ loop:
 
 		if(n->ntest == N)
 			n->ntest = booltrue;
-		walktype(n->ninit, Etop);
+		walkstate(n->ninit);
 		walktype(n->ntest, Erv);
-		walktype(n->nbody, Etop);
+		walkstate(n->nbody);
 
 		// find common type
 		if(n->ntest->type == T)
@@ -149,13 +210,6 @@ loop:
 		walkselect(n);
 		goto ret;
 
-	case OSCASE:
-		if(top != Etop)
-			goto nottop;
-//		walktype(n->left, Erv);	SPECIAL
-		n = n->right;
-		goto loop;
-
 	case OEMPTY:
 		if(top != Etop)
 			goto nottop;
@@ -164,16 +218,16 @@ loop:
 	case OIF:
 		if(top != Etop)
 			goto nottop;
-		walktype(n->ninit, Etop);
+		walkstate(n->ninit);
 		walkbool(n->ntest);
-		walktype(n->nelse, Etop);
-		n = n->nbody;
-		goto loop;
+		walkstate(n->nelse);
+		walkstate(n->nbody);
+		goto ret;
 
 	case OPROC:
 		if(top != Etop)
 			goto nottop;
-		walktype(n->left, Etop);
+		walkstate(n->left);
 		goto ret;
 
 	case OCALLMETH:
@@ -345,8 +399,8 @@ loop:
 		if(top != Etop)
 			goto nottop;
 		walktype(n->left, Erv);
-		n = n->right;
-		goto loop;
+		walkstate(n->right);
+		goto ret;
 
 	case OXFALL:
 		if(top != Etop)
@@ -480,7 +534,7 @@ loop:
 		if(!isptrto(l->left->type, TMAP))
 			goto com;
 		*n = *mapop(n, top);
-		goto loop;
+		goto ret;
 
 	case OLSH:
 	case ORSH:
@@ -1179,8 +1233,8 @@ walkselect(Node *sel)
 	sel->nbody = rev(res);
 	sel->left = N;
 
-	walktype(sel->ninit, Etop);
-	walktype(sel->nbody, Etop);
+	walkstate(sel->ninit);
+	walkstate(sel->nbody);
 
 //dump("sel", sel);
 
@@ -1476,7 +1530,7 @@ prcompat(Node *n)
 
 loop:
 	if(l == N) {
-		walktype(r, Etop);
+		walktype(r, Erv);
 		return r;
 	}
 
@@ -1538,7 +1592,7 @@ nodpanic(int32 lineno)
 	on = syslook("panicl", 0);
 	n = nodintconst(lineno);
 	n = nod(OCALL, on, n);
-	walktype(n, Etop);
+	walktype(n, Erv);
 	return n;
 }
 
@@ -2124,7 +2178,7 @@ chanop(Node *n, int top)
 		argtype(on, t->type);	// any-1
 		argtype(on, t->type);	// any-2
 		r = nod(OCALL, on, r);
-		walktype(r, top);
+		walktype(r, Etop);
 		break;
 
 	send2:
@@ -2142,7 +2196,7 @@ chanop(Node *n, int top)
 		argtype(on, t->type);	// any-1
 		argtype(on, t->type);	// any-2
 		r = nod(OCALL, on, r);
-		walktype(r, top);
+		walktype(r, Etop);
 		break;
 	}
 	return r;
@@ -2316,20 +2370,6 @@ arrayop(Node *n, int top)
 		break;
 	}
 	return r;
-}
-
-void
-walktype(Node *n, int top)
-{
-	Node *r;
-
-	walktype1(n, top);
-	while(top == Etop && addtop != N) {
-		r = addtop;
-		addtop = N;
-		walktype1(r, top);
-		n->ninit = list(n->ninit, r);
-	}
 }
 
 void

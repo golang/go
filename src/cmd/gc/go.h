@@ -258,7 +258,7 @@ enum
 	OLIST, OCMP,
 	OPTR, OARRAY,
 	ORETURN, OFOR, OIF, OSWITCH, OI2S, OS2I, OI2I,
-	OAS, OASOP, OCASE, OXCASE, OSCASE, OFALL, OXFALL,
+	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL,
 	OGOTO, OPROC, ONEW, OEMPTY, OSELECT,
 	OLEN, OCAP, OPANIC, OPRINT, OTYPEOF,
 
@@ -661,7 +661,9 @@ void	doimport8(Node*, Val*, Node*);
  *	walk.c
  */
 void	walk(Node*);
+void	walkstate(Node*);
 void	walktype(Node*, int);
+void	walkas(Node*);
 void	walkbool(Node*);
 Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
 int	casebody(Node*);

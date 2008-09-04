@@ -42,7 +42,7 @@
 %type	<node>		range_header range_body range_stmt select_stmt
 %type	<node>		simple_stmt osimple_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
-%type	<node>		name name_name onew_name new_name new_name_list_r conexpr
+%type	<node>		name name_name onew_name new_name new_name_list_r
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl
@@ -182,7 +182,13 @@ Acommon_dcl:
 	{
 		$$ = rev($3);
 	}
-|	LCONST '(' constdcl_list_r osemi ')'
+|	LCONST '(' constdcl osemi ')'
+	{
+		iota = 0;
+		lastconst = N;
+		$$ = N;
+	}
+|	LCONST '(' constdcl ';' constdcl_list_r osemi ')'
 	{
 		iota = 0;
 		lastconst = N;
@@ -234,7 +240,7 @@ Bvardcl:
 
 		$$ = nod(OAS, $$, N);
 	}
-|	new_name_list_r type '=' oexpr_list
+|	new_name_list_r type '=' expr_list
 	{
 		$$ = rev($1);
 		dodclvar($$, $2);
@@ -250,29 +256,43 @@ Bvardcl:
 	}
 
 constdcl:
-	new_name conexpr
+	new_name type '=' expr
 	{
-		walktype($2, Erv);
-		dodclconst($1, $2);
-	}
-|	new_name type conexpr
-	{
-		walktype($3, Erv);
-		convlit($3, $2);
-		dodclconst($1, $3);
-	}
+		Node *c = treecopy($4);
+		walktype(c, Erv);
+		convlit(c, $2);
+		dodclconst($1, c);
 
-conexpr:
-	{
-		if(lastconst == N)
-			yyerror("first constant must evaluate an expression");
-		$$ = treecopy(lastconst);
+		lastconst = $4;
 		iota += 1;
 	}
-|	'=' expr
+|	new_name '=' expr
 	{
-		lastconst = $2;
-		$$ = treecopy(lastconst);
+		Node *c = treecopy($3);
+		walktype(c, Erv);
+		dodclconst($1, c);
+
+		lastconst = $3;
+		iota += 1;
+	}
+
+constdcl1:
+	constdcl
+|	new_name type
+	{
+		Node *c = treecopy(lastconst);
+		walktype(c, Erv);
+		convlit(c, $2);
+		dodclconst($1, c);
+
+		iota += 1;
+	}
+|	new_name
+	{
+		Node *c = treecopy(lastconst);
+		walktype(c, Erv);
+		dodclconst($1, c);
+
 		iota += 1;
 	}
 
@@ -1041,27 +1061,11 @@ Afntypeh:
 		$$ = functype(N, $3, $5);
 		funcnam($$, nil);
 	}
-|	LFUNC '(' oarg_type_list ')' '.' '(' oarg_type_list ')' Afnres
-	/* i dont believe that this form is useful for anything */
-	{
-		if($3 == N || $3->op == OLIST)
-			yyerror("syntax error in method receiver");
-		$$ = functype($3, $7, $9);
-		funcnam($$, nil);
-	}
 
 Bfntypeh:
 	LFUNC '(' oarg_type_list ')' Bfnres
 	{
 		$$ = functype(N, $3, $5);
-		funcnam($$, nil);
-	}
-|	LFUNC '(' oarg_type_list ')' '.' '(' oarg_type_list ')' Bfnres
-	/* i dont believe that this form is useful for anything */
-	{
-		if($3 == N || $3->op == OLIST)
-			yyerror("syntax error in method receiver");
-		$$ = functype($3, $7, $9);
 		funcnam($$, nil);
 	}
 
@@ -1168,8 +1172,8 @@ vardcl_list_r:
 	}
 
 constdcl_list_r:
-	constdcl
-|	constdcl_list_r ';' constdcl
+	constdcl1
+|	constdcl_list_r ';' constdcl1
 
 typedcl_list_r:
 	typedcl
@@ -1415,7 +1419,7 @@ keyexpr_list:
 	{
 		$$ = rev($1);
 	}
-|	expr_list
+|	oexpr_list
 
 /*
  * the one compromise of a
