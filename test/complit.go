@@ -8,6 +8,20 @@ package main
 
 type T struct { i int; f float; s string; next *T }
 
+type R struct { num int }
+
+func itor(a int) *R {
+	r := new(R);
+	r.num = a;
+	return r;
+}
+
+func eq(a *[]*R) {
+	for i := 0; i < len(a); i++ {
+		if a[i].num != i { panic("bad") }
+	}
+}
+
 func main() {
 	var t T;
 	t = T(0, 7.2, "hi", &t);
@@ -18,7 +32,7 @@ func main() {
 	a1 := []int(1,2,3);
 	if len(a1) != 3 { panic("a1") }
 	a2 := [10]int(1,2,3);
-	if len(a2) != 10 || a2[3] != 0 { panic("a2") }
+	if len(a2) != 10 || cap(a2) != 10 { panic("a2") }
 	//a3 := [10]int(1,2,3,);  // BUG: trailing commas not allowed
 	//if len(a3) != 10 || a2[3] != 0 { panic("a3") }
 
@@ -41,4 +55,6 @@ func main() {
 
 	m := map[string]float("one":1.0, "two":2.0, "pi":22./7.);
 	if len(m) != 3 { panic("m") }
+
+	eq(&[]*R(itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)));
 }
