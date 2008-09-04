@@ -13,3 +13,10 @@ do
 	echo 6g -o $GOROOT/pkg/$base.6 $i
 	6g -o $GOROOT/pkg/$base.6 $i
 done
+
+echo; echo; echo %%%% making lib/math %%%%; echo
+
+cd math
+bash make.bash
+cd ..
+

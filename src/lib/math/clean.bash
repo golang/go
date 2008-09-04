@@ -4,8 +4,4 @@
 
 #!/bin/bash
 
-rm -f $GOROOT/pkg/*
-
-cd math
-bash clean.bash
-cd ..
+rm -f 6.out *.6 math.a
