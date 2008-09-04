@@ -24,7 +24,18 @@ convlit(Node *n, Type *t)
 		n->type = n->left->type;
 		return;
 	}
+
 	et = t->etype;
+	switch(et) {
+	case TARRAY:
+	case TFUNC:
+	case TCHAN:
+	case TMAP:
+//	case TPTR32:
+//	case TPTR64:
+		return;
+	}
+
 	switch(whatis(n)) {
 	default:
 		goto bad1;
