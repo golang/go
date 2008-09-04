@@ -112,11 +112,6 @@ bugs/bug080.go:12: illegal types for operand: CALL
 	({<x><int32>INT32;<y><float32>FLOAT32;})
 BUG: fails incorrectly
 
-=========== bugs/bug081.go
-bugs/bug081.go:5: first constant must evaluate an expression
-BUG: compiler should not crash
-Bus error               $G $D/$F.go
-
 =========== bugs/bug083.go
 BUG: succeeds incorrectly
 
@@ -211,6 +206,9 @@ fixedbugs/bug073.go:8: illegal types for operand: LSH
 fixedbugs/bug073.go:9: illegal types for operand: RSH
 	(<int32>INT32)
 	(<int32>INT32)
+
+=========== fixedbugs/bug081.go
+fixedbugs/bug081.go:5: syntax error
 
 =========== fixedbugs/bug091.go
 fixedbugs/bug091.go:14: label exit not defined
