@@ -669,33 +669,35 @@ dostkoff(void)
 			q = P;
 			if(pmorestack != P)
 			if(!(p->from.scale & NOSPLIT)) {
-				if(autoffset <= 75) {
-					// small stack
+				if(autoffset < 4096) {  // do we need to call morestack
+					if(autoffset <= 75) {
+						// small stack
+						p = appendp(p);
+						p->as = ACMPQ;
+						p->from.type = D_SP;
+						p->to.type = D_INDIR+D_R15;
+						
+					} else {
+						// large stack
+						p = appendp(p);
+						p->as = ALEAQ;
+						p->from.type = D_INDIR+D_SP;
+						p->from.offset = -(autoffset-75);
+						p->to.type = D_AX;
+	
+						p = appendp(p);
+						p->as = ACMPQ;
+						p->from.type = D_AX;
+						p->to.type = D_INDIR+D_R15;
+					}
+	
+					// common
 					p = appendp(p);
-					p->as = ACMPQ;
-					p->from.type = D_SP;
-					p->to.type = D_INDIR+D_R15;
-					
-				} else {
-					// large stack
-					p = appendp(p);
-					p->as = ALEAQ;
-					p->from.type = D_INDIR+D_SP;
-					p->from.offset = -(autoffset-75);
-					p->to.type = D_AX;
-
-					p = appendp(p);
-					p->as = ACMPQ;
-					p->from.type = D_AX;
-					p->to.type = D_INDIR+D_R15;
+					p->as = AJHI;
+					p->to.type = D_BRANCH;
+					p->to.offset = 4;
+					q = p;
 				}
-
-				// common
-				p = appendp(p);
-				p->as = AJHI;
-				p->to.type = D_BRANCH;
-				p->to.offset = 4;
-				q = p;
 
 				p = appendp(p);
 				p->as = AMOVQ;
