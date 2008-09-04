@@ -4,8 +4,6 @@
 
 #!/bin/bash
 
-rm -f $GOROOT/pkg/*
+# should probably just be a makefile
 
-cd math
-bash clean.bash
-cd ..
+bash g1 && cp math.a $GOROOT/pkg/math.a
