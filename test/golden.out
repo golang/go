@@ -62,21 +62,11 @@ BUG should compile
 sys·printstring: main·sigs_I: not defined
 BUG: known to fail incorrectly
 
-=========== bugs/bug029.go
-BUG: known to succeed incorrectly
-
 =========== bugs/bug032.go
 BUG: compilation succeeds incorrectly
 
 =========== bugs/bug041.go
 BUG: compilation succeeds incorrectly
-
-=========== bugs/bug061.go
-BUG: known to fail incorrectly
-Bus error               $G $D/$F.go
-
-=========== bugs/bug062.go
-BUG: known to succeed incorrectly
 
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
@@ -158,6 +148,10 @@ hi
 3 11
 4 0
 
+=========== fixedbugs/bug029.go
+fixedbugs/bug029.go:6: syntax error
+fixedbugs/bug029.go:6: syntax error
+
 =========== fixedbugs/bug035.go
 fixedbugs/bug035.go:6: var i redeclared in this block
      previous declaration at fixedbugs/bug035.go:5
@@ -172,12 +166,20 @@ fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(338) t=<T> nil
 fixedbugs/bug039.go:6: var x redeclared in this block
      previous declaration at fixedbugs/bug039.go:5
 
+=========== fixedbugs/bug049.go
+fixedbugs/bug049.go:6: illegal conversion of constant to <string>*STRING
+
 =========== fixedbugs/bug050.go
 fixedbugs/bug050.go:3: package statement must be first
 sys.6:1 fixedbugs/bug050.go:3: syntax error
 
 =========== fixedbugs/bug051.go
 fixedbugs/bug051.go:10: expression must be a constant
+
+=========== fixedbugs/bug062.go
+fixedbugs/bug062.go:6: illegal conversion of constant to <string>*STRING
+fixedbugs/bug062.go:6: illegal types for operand: AS
+	(<string>*STRING)
 
 =========== fixedbugs/bug067.go
 ok
