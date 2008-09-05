@@ -172,9 +172,17 @@ cgen(Node *n, Node *res)
 		if(isptrto(nl->type, TSTRING)) {
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
+
+			nodconst(&n2, types[tptr], 0);
+			gins(optoas(OCMP, types[tptr]), &n1, &n2);
+			p1 = gbranch(optoas(OEQ, types[tptr]), T);
+
 			n1.op = OINDREG;
 			n1.type = types[TINT32];
 			gmove(&n1, res);
+
+			patch(p1, pc);
+
 			regfree(&n1);
 			break;
 		}

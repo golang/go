@@ -947,26 +947,8 @@ cgen_as(Node *nl, Node *nr, int op)
 
 		case TPTR32:
 		case TPTR64:
-			if(isptrto(tl, TSTRING)) {
-				nr->val.u.sval = mal(8);
-				nr->val.ctype = CTSTR;
-				break;
-			}
 			nr->val.ctype = CTNIL;
 			break;
-
-//		case TINTER:
-//			nodreg(&n1, types[tptr], D_DI);
-//			agen(nl, &n1);
-//			n1.op = OINDREG;
-//
-//			nodreg(&nc, types[tptr], D_AX);
-//			gconreg(AMOVQ, 0, D_AX);
-//
-//			gins(AMOVQ, &nc, &n1);
-//			n1.xoffset += widthptr;
-//			gins(AMOVQ, &nc, &n1);
-//			goto ret;
 
 		}
 		nr->op = OLITERAL;
