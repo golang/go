@@ -4,4 +4,4 @@
 
 #!/bin/bash
 
-rm -f 6.out *.6 math.a
+make nuke

@@ -18,13 +18,13 @@ OFILES=\
 
 
 install: $(PKG)
-	cp $(PKG) $(GOROOT)/pkg
+	cp $(PKG) $(GOROOT)/pkg/$(PKG)
 
 $(PKG): $(OFILES)
 	$(O)ar grc $(PKG) $(OFILES)
 
 nuke:
-	rm -f *.$(O) *.a $(GOROOT)/lib/$(PKG)
+	rm -f *.$(O) *.a $(GOROOT)/pkg/$(PKG)
 
 clean:
 	rm -f *.$(O) *.a
