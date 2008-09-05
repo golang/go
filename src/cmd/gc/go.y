@@ -956,7 +956,10 @@ Atype:
 	{
 		$$ = dostruct(N, TINTER);
 	}
-|	Afntypeh
+|	'*'Afntypeh
+	{
+		$$ = ptrto($2);
+	}
 |	'*' Atype
 	{
 		dowidth($2);
@@ -980,7 +983,10 @@ Btype:
 		$$->down = $3;
 		$$->type = $5;
 	}
-|	Bfntypeh
+|	'*' Bfntypeh
+	{
+		$$ = ptrto($2);
+	}
 |	'*' Btype
 	{
 		dowidth($2);

@@ -83,6 +83,13 @@ loop:
 }
 
 void
+indir(Node *nl, Node *nr)
+{
+	if(nr != N)
+		*nl = *nr;
+}
+
+void
 walktype(Node *n, int top)
 {
 	Node *r, *l;
@@ -126,14 +133,14 @@ loop:
 		if(top != Etop)
 			goto nottop;
 		walktype(n->left, Erv);
-		*n = *prcompat(n->left);
+		indir(n, prcompat(n->left));
 		goto ret;
 
 	case OPANIC:
 		if(top != Etop)
 			goto nottop;
 		walktype(n->left, Erv);
-		*n = *list(prcompat(n->left), nodpanic(n->lineno));
+		indir(n, list(prcompat(n->left), nodpanic(n->lineno)));
 		goto ret;
 
 	case OLITERAL:
@@ -313,7 +320,7 @@ loop:
 			walktype(r, Erv);
 			l = ascompatee(n->op, &n->left, &n->right);
 			if(l != N)
-				*n = *reorder3(l);
+				indir(n, reorder3(l));
 			goto ret;
 		}
 
@@ -326,9 +333,8 @@ loop:
 				// a,b,... = fn()
 				walktype(r, Erv);
 				l = ascompatet(n->op, &n->left, &r->type, 0);
-				if(l != N) {
-					*n = *list(r, reorder2(l));
-				}
+				if(l != N)
+					indir(n, list(r, reorder2(l)));
 				goto ret;
 			}
 			break;
@@ -342,7 +348,7 @@ loop:
 				l = mapop(n, top);
 				if(l == N)
 					break;
-				*n = *l;
+				indir(n, l);
 				goto ret;
 			}
 			break;
@@ -356,7 +362,7 @@ loop:
 				l = chanop(n, top);
 				if(l == N)
 					break;
-				*n = *l;
+				indir(n, l);
 				goto ret;
 			}
 			break;
@@ -372,7 +378,7 @@ loop:
 				l = mapop(n, top);
 				if(l == N)
 					break;
-				*n = *l;
+				indir(n, l);
 				goto ret;
 			}
 			break;
@@ -438,7 +444,7 @@ loop:
 		// nil conversion
 		if(eqtype(t, l->type, 0)) {
 			if(l->op != ONAME)
-				*n = *l;
+				indir(n, l);
 			goto ret;
 		}
 
@@ -454,12 +460,12 @@ loop:
 		if(l->type != T)
 		if(isptrto(t, TSTRING)) {
 			if(isint[l->type->etype]) {
-				*n = *stringop(n, top);
+				indir(n, stringop(n, top));
 				goto ret;
 			}
 			if(bytearraysz(l->type) != -2) {
 				n->op = OARRAY;
-				*n = *stringop(n, top);
+				indir(n, stringop(n, top));
 				goto ret;
 			}
 		}
@@ -471,28 +477,27 @@ loop:
 		// interface and structure
 		r = isandss(n->type, l);
 		if(r != N) {
-			*n = *r;
+			indir(n, r);
 			goto ret;
 		}
 
 		// structure literal
 		if(t->etype == TSTRUCT) {
-			r = structlit(n);
-			*n = *r;
+			indir(n, structlit(n));
 			goto ret;
 		}
 
 		// structure literal
 		if(t->etype == TARRAY) {
 			r = arraylit(n);
-			*n = *r;
+			indir(n, r);
 			goto ret;
 		}
 
 		// map literal
 		if(t->etype == TMAP) {
 			r = maplit(n);
-			*n = *r;
+			indir(n, r);
 			goto ret;
 		}
 
@@ -533,7 +538,7 @@ loop:
 		}
 		if(!isptrto(l->left->type, TMAP))
 			goto com;
-		*n = *mapop(n, top);
+		indir(n, mapop(n, top));
 		goto ret;
 
 	case OLSH:
@@ -601,7 +606,7 @@ loop:
 		case OADD:
 		case OASOP:
 			if(isptrto(n->left->type, TSTRING)) {
-				*n = *stringop(n, top);
+				indir(n, stringop(n, top));
 				goto ret;
 			}
 		}
@@ -695,7 +700,7 @@ loop:
 			}
 			if(!isint[n->right->type->etype])
 				goto badt;
-			*n = *stringop(n, top);
+			indir(n, stringop(n, top));
 			goto ret;
 		}
 
@@ -723,7 +728,7 @@ loop:
 			n->op = OINDEX;
 			n->type = t->type;
 			if(top == Erv)
-				*n = *mapop(n, top);
+				indir(n, mapop(n, top));
 			break;
 
 		case TARRAY:
@@ -746,20 +751,20 @@ loop:
 			goto nottop;
 		walktype(n->left, Erv);		// chan
 		walktype(n->right, Erv);	// e
-		*n = *chanop(n, top);
+		indir(n, chanop(n, top));
 		goto ret;
 
 	case ORECV:
 		if(top == Elv)
 			goto nottop;
 		if(n->right == N) {
-			walktype(n->left, Erv);	// chan
-			*n = *chanop(n, top);	// returns e blocking
+			walktype(n->left, Erv);		// chan
+			indir(n, chanop(n, top));	// returns e blocking
 			goto ret;
 		}
 		walktype(n->left, Elv);		// e
 		walktype(n->right, Erv);	// chan
-		*n = *chanop(n, top);		// returns bool non-blocking
+		indir(n, chanop(n, top));	// returns bool non-blocking
 		goto ret;
 
 	case OSLICE:
@@ -770,15 +775,18 @@ loop:
 		walktype(n->right, Erv);
 		if(n->left == N || n->right == N)
 			goto ret;
+		convlit(n->left, types[TSTRING]);
 		t = n->left->type;
+		if(t == T)
+			goto ret;
 		if(isptr[t->etype])
 			t = t->type;
 		if(t->etype == TSTRING) {
-			*n = *stringop(n, top);
+			indir(n, stringop(n, top));
 			goto ret;
 		}
 		if(t->etype == TARRAY) {
-			*n = *arrayop(n, top);
+			indir(n, arrayop(n, top));
 			goto ret;
 		}
 		badtype(OSLICE, n->left->type, T);
@@ -822,7 +830,7 @@ loop:
 	case ONEW:
 		if(top != Erv)
 			goto nottop;
-		*n = *newcompat(n);
+		indir(n, newcompat(n));
 		goto ret;
 	}
 
@@ -889,7 +897,7 @@ loop:
 		mpmovecflt(l->val.u.fval, 0.0);
 
 		l = nod(OSUB, l, n->left);
-		*n = *l;
+		indir(n, l);
 		walktype(n, Erv);
 		goto ret;
 
@@ -2027,7 +2035,7 @@ mapop(Node *n, int top)
 		n->left->right = a;			// m[tmpi]
 
 		a = nod(OXXX, N, N);
-		*a = *n->left;				// copy of map[tmpi]
+		indir(a, n->left);			// copy of map[tmpi]
 		a = nod(n->etype, a, n->right);		// m[tmpi] op right
 		a = nod(OAS, n->left, a);		// map[tmpi] = map[tmpi] op right
 		r = nod(OLIST, r, a);
@@ -2441,19 +2449,19 @@ convas(Node *n)
 
 	if(n->left->op == OINDEX)
 	if(isptrto(n->left->left->type, TMAP)) {
-		*n = *mapop(n, Elv);
+		indir(n, mapop(n, Elv));
 		goto out;
 	}
 
 	if(n->left->op == OINDEXPTR)
 	if(n->left->left->type->etype == TMAP) {
-		*n = *mapop(n, Elv);
+		indir(n, mapop(n, Elv));
 		goto out;
 	}
 
 	if(n->left->op == OSEND)
 	if(n->left->type != T) {
-		*n = *chanop(n, Elv);
+		indir(n, chanop(n, Elv));
 		goto out;
 	}
 
@@ -2470,7 +2478,7 @@ convas(Node *n)
 	if(isptrdarray(lt) && isptrarray(rt)) {
 		if(!eqtype(lt->type->type, rt->type->type, 0))
 			goto bad;
-		*n = *arrayop(n, Etop);
+		indir(n, arrayop(n, Etop));
 		goto out;
 	}
 
