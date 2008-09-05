@@ -4,6 +4,6 @@
 
 #!/bin/bash
 
-# should probably just be a makefile
+make install
 
-bash g1 && cp math.a $GOROOT/pkg/math.a
+# old way: bash g1 && cp math.a $GOROOT/pkg/math.a
