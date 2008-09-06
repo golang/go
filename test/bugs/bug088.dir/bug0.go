@@ -4,6 +4,6 @@
 
 package bug0
 
-export var v0 *func() int;
-export var v1 *func() (a int);
-export var v2 *func() (a, b int);
+export var v0 *() int;
+export var v1 *() (a int);
+export var v2 *() (a, b int);

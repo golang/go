@@ -28,7 +28,7 @@
 %token			LLSH LRSH LINC LDEC LSEND LRECV
 %token			LIGNORE
 
-%type	<sym>		sym sym1 sym2 keyword laconst lname latype
+%type	<sym>		sym sym1 sym2 keyword laconst lname latype non_type_sym
 %type	<lint>		chandir
 %type	<node>		xdcl xdcl_list_r oxdcl_list
 %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
@@ -42,7 +42,7 @@
 %type	<node>		range_header range_body range_stmt select_stmt
 %type	<node>		simple_stmt osimple_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
-%type	<node>		name name_name onew_name new_name new_name_list_r
+%type	<node>		name name_name onew_name new_name new_name_list_r non_type_new_name
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl
@@ -52,8 +52,9 @@
 %type	<node>		keyexpr_list keyval_list_r keyval
 %type	<node>		typedcl Atypedcl Btypedcl
 
-%type	<type>		fntype fnlitdcl intype new_type typeconv
-%type	<type>		type Atype Btype fntypeh Afntypeh Bfntypeh
+%type	<type>		fntype fnlitdcl Afntype Bfntype fullAtype
+%type	<type>		type Atype Btype indcl new_type fullBtype
+%type	<type>		structtype interfacetype convtype
 
 %left			LOROR
 %left			LANDAND
@@ -224,7 +225,7 @@ vardcl:
 |	Bvardcl
 
 Avardcl:
-	new_name_list_r Atype
+	new_name_list_r fullAtype
 	{
 		$$ = rev($1);
 		dodclvar($$, $2);
@@ -233,7 +234,7 @@ Avardcl:
 	}
 
 Bvardcl:
-	new_name_list_r Btype
+	new_name_list_r fullBtype
 	{
 		$$ = rev($1);
 		dodclvar($$, $2);
@@ -301,13 +302,13 @@ typedcl:
 |	Btypedcl
 
 Atypedcl:
-	new_type Atype
+	new_type fullAtype
 	{
 		dodcltype($1, $2);
 	}
 
 Btypedcl:
-	new_type Btype
+	new_type fullBtype
 	{
 		dodcltype($1, $2);
 	}
@@ -772,18 +773,23 @@ pexpr:
 		$$ = nod(ONEW, $5, N);
 		$$->type = ptrto($3);
 	}
-|	fnliteral
-|	typeconv '(' keyexpr_list ')'
-	{
-		// struct literal and conversions
-		$$ = nod(OCONV, rev($3), N);
-		$$->type = $1;
-	}
 |	LCONVERT '(' type ',' keyexpr_list ')'
 	{
 		$$ = nod(OCONV, $5, N);
 		$$->type = $3;
 	}
+|	latype '(' expr ')'
+	{
+		$$ = nod(OCONV, $3, N);
+		$$->type = oldtype($1);
+	}
+|	convtype '{' keyexpr_list '}'
+	{
+		// struct literal and conversions
+		$$ = nod(OCONV, rev($3), N);
+		$$->type = $1;
+	}
+|	fnliteral
 
 /*
  * lexical symbols that can be
@@ -836,6 +842,12 @@ new_name:
 		$$ = newname($1);
 	}
 
+non_type_new_name:
+	non_type_sym
+	{
+		$$ = newname($1);
+	}
+
 new_type:
 	sym1
 	{
@@ -856,6 +868,12 @@ sym:
 
 sym1:
 	sym
+|	keyword
+
+non_type_sym:
+	LNAME
+|	LACONST
+|	LPACK
 |	keyword
 
 sym2:
@@ -886,7 +904,7 @@ name:
 		$$ = oldname($1);
 	}
 
-typeconv:
+convtype:
 	latype
 	{
 		$$ = oldtype($1);
@@ -903,91 +921,63 @@ typeconv:
 		$$->down = $3;
 		$$->type = $5;
 	}
-|	LSTRUCT '{' structdcl_list_r osemi '}'
-	{
-		// struct literal
-		$$ = dostruct(rev($3), TSTRUCT);
-	}
-|	LSTRUCT '{' '}'
-	{
-		// struct literal
-		$$ = dostruct(N, TSTRUCT);
-	}
+|	structtype
 
 type:
-	Atype
-|	Btype
+	fullAtype
+|	fullBtype
 
 Atype:
 	latype
 	{
 		$$ = oldtype($1);
 	}
-|	'[' oexpr ']' Atype
+|	'[' oexpr ']' fullAtype
 	{
 		$$ = aindex($2, $4);
 	}
-|	LCHAN chandir Atype
+|	LCHAN chandir fullAtype
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
 		$$->chan = $2;
 	}
-|	LMAP '[' type ']' Atype
+|	LMAP '[' type ']' fullAtype
 	{
 		$$ = typ(TMAP);
 		$$->down = $3;
 		$$->type = $5;
 	}
-|	LSTRUCT '{' structdcl_list_r osemi '}'
-	{
-		$$ = dostruct(rev($3), TSTRUCT);
-	}
-|	LSTRUCT '{' '}'
-	{
-		$$ = dostruct(N, TSTRUCT);
-	}
-|	LINTERFACE '{' interfacedcl_list_r osemi '}'
-	{
-		$$ = dostruct(rev($3), TINTER);
-		$$ = sortinter($$);
-	}
-|	LINTERFACE '{' '}'
-	{
-		$$ = dostruct(N, TINTER);
-	}
-|	'*'Afntypeh
-	{
-		$$ = ptrto($2);
-	}
-|	'*' Atype
+|	structtype
+|	interfacetype
+|	'*' fullAtype
 	{
 		dowidth($2);
 		$$ = ptrto($2);
 	}
 
+fullAtype:
+	Atype
+|	Afntype
+
 Btype:
-	'[' oexpr ']' Btype
+	'[' oexpr ']' fullBtype
 	{
 		$$ = aindex($2, $4);
 	}
-|	LCHAN chandir Btype
+|	LCHAN chandir fullBtype
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
 		$$->chan = $2;
 	}
-|	LMAP '[' type ']' Btype
+|	LMAP '[' type ']' fullBtype
 	{
 		$$ = typ(TMAP);
 		$$->down = $3;
 		$$->type = $5;
 	}
-|	'*' Bfntypeh
-	{
-		$$ = ptrto($2);
-	}
-|	'*' Btype
+|	'*' fullBtype
 	{
 		dowidth($2);
 		$$ = ptrto($2);
@@ -998,6 +988,31 @@ Btype:
 		if(dclcontext != PEXTERN)
 			yyerror("forward type in function body %s", $2->name);
 		$$ = forwdcl($2);
+	}
+
+fullBtype:
+	Btype
+|	Bfntype
+
+structtype:
+	LSTRUCT '{' structdcl_list_r osemi '}'
+	{
+		$$ = dostruct(rev($3), TSTRUCT);
+	}
+|	LSTRUCT '{' '}'
+	{
+		$$ = dostruct(N, TSTRUCT);
+	}
+
+interfacetype:
+	LINTERFACE '{' interfacedcl_list_r osemi '}'
+	{
+		$$ = dostruct(rev($3), TINTER);
+		$$ = sortinter($$);
+	}
+|	LINTERFACE '{' '}'
+	{
+		$$ = dostruct(N, TINTER);
 	}
 
 chandir:
@@ -1057,31 +1072,22 @@ fndcl:
 		funchdr($$);
 	}
 
-fntypeh:
-	Afntypeh
-|	Bfntypeh
-
-Afntypeh:
-	LFUNC '(' oarg_type_list ')' Afnres
-	{
-		$$ = functype(N, $3, $5);
-		funcnam($$, nil);
-	}
-
-Bfntypeh:
-	LFUNC '(' oarg_type_list ')' Bfnres
-	{
-		$$ = functype(N, $3, $5);
-		funcnam($$, nil);
-	}
-
 fntype:
-	fntypeh
-|	latype
+	Afntype
+|	Bfntype
+
+Afntype:
+	'(' oarg_type_list ')' Afnres
 	{
-		$$ = oldtype($1);
-		if($$ == T || $$->etype != TFUNC)
-			yyerror("illegal type for function literal");
+		$$ = functype(N, $2, $4);
+		funcnam($$, nil);
+	}
+
+Bfntype:
+	'(' oarg_type_list ')' Bfnres
+	{
+		$$ = functype(N, $2, $4);
+		funcnam($$, nil);
 	}
 
 fnlitdcl:
@@ -1093,7 +1099,7 @@ fnlitdcl:
 	}
 
 fnliteral:
-	fnlitdcl '{' ostmt_list '}'
+	LFUNC fnlitdcl '{' ostmt_list '}'
 	{
 		popdcl();
 
@@ -1101,15 +1107,15 @@ fnliteral:
 		snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
 
 		$$ = newname(lookup(namebuf));
-		addvar($$, $1, PEXTERN);
+		addvar($$, $2, PEXTERN);
 
 		{
 			Node *n;
 
 			n = nod(ODCLFUNC, N, N);
 			n->nname = $$;
-			n->type = $1;
-			n->nbody = $3;
+			n->type = $2;
+			n->nbody = $4;
 			if(n->nbody == N)
 				n->nbody = nod(ORETURN, N, N);
 			compile(n);
@@ -1225,23 +1231,17 @@ interfacedcl:
 		$$ = nod(ODCLFIELD, $1, N);
 		$$ = nod(OLIST, $$, $3);
 	}
-|	new_name intype
+|	new_name indcl
 	{
 		$$ = nod(ODCLFIELD, $1, N);
 		$$->type = $2;
 	}
 
-intype:
+indcl:
 	'(' oarg_type_list ')' fnres
 	{
 		// without func keyword
 		$$ = functype(fakethis(), $2, $4);
-		funcnam($$, nil);
-	}
-|	LFUNC '(' oarg_type_list ')' fnres
-	{
-		// with func keyword
-		$$ = functype(fakethis(), $3, $5);
 		funcnam($$, nil);
 	}
 |	latype
@@ -1261,7 +1261,7 @@ arg_type:
 		$$ = nod(ODCLFIELD, N, N);
 		$$->type = $1;
 	}
-|	new_name type
+|	non_type_new_name type
 	{
 		$$ = nod(ODCLFIELD, $1, N);
 		$$->type = $2;

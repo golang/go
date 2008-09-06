@@ -8,7 +8,7 @@ package main
 
 type	Iputs	interface
 {
-	puts	func(s string);
+	puts	(s string);
 }
 
 // ---------
