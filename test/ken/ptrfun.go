@@ -10,7 +10,7 @@ package main
 type C struct
 {
 	a	int;
-	x	*func(p *C)int;
+	x	*(p *C)int;
 }
 
 func	g(p *C)int;

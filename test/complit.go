@@ -24,37 +24,37 @@ func eq(a *[]*R) {
 
 func main() {
 	var t T;
-	t = T(0, 7.2, "hi", &t);
+	t = T{0, 7.2, "hi", &t};
 
 	var tp *T;
-	tp = &T(0, 7.2, "hi", &t);
+	tp = &T{0, 7.2, "hi", &t};
 
-	a1 := []int(1,2,3);
+	a1 := []int{1,2,3};
 	if len(a1) != 3 { panic("a1") }
-	a2 := [10]int(1,2,3);
+	a2 := [10]int{1,2,3};
 	if len(a2) != 10 || cap(a2) != 10 { panic("a2") }
-	//a3 := [10]int(1,2,3,);  // BUG: trailing commas not allowed
+	//a3 := [10]int{1,2,3,};  // BUG: trailing commas not allowed
 	//if len(a3) != 10 || a2[3] != 0 { panic("a3") }
 
 	var oai *[]int;
-	oai = &[]int(1,2,3);
+	oai = &[]int{1,2,3};
 	if len(oai) != 3 { panic("oai") }
 
-	at := []*T(&t, &t, &t);
+	at := []*T{&t, &t, &t};
 	if len(at) != 3 { panic("at") }
 
 	c := new(chan int);
-	ac := []*chan int(c, c, c);
+	ac := []*chan int{c, c, c};
 	if len(ac) != 3 { panic("ac") }
 
-	aat := [][len(at)]*T(at, at);
+	aat := [][len(at)]*T{at, at};
 	if len(aat) != 2 || len(aat[1]) != 3 { panic("at") }
 	
-	s := string([]byte('h', 'e', 'l', 'l', 'o'));
+	s := string([]byte{'h', 'e', 'l', 'l', 'o'});
 	if s != "hello" { panic("s") }
 
-	m := map[string]float("one":1.0, "two":2.0, "pi":22./7.);
+	m := map[string]float{"one":1.0, "two":2.0, "pi":22./7.};
 	if len(m) != 3 { panic("m") }
 
-	eq(&[]*R(itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)));
+	eq(&[]*R{itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)});
 }
