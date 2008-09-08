@@ -597,7 +597,6 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
 func (P *Parser) ParseFunctionType() *Globals.Type {
 	P.Trace("FunctionType");
 	
-	P.Expect(Scanner.FUNC);
 	typ := P.ParseAnonymousSignature();
 	
 	P.Ecart();
@@ -796,7 +795,7 @@ func (P *Parser) TryType() *Globals.Type {
 	case Scanner.LBRACK: typ = P.ParseArrayType();
 	case Scanner.CHAN: typ = P.ParseChannelType();
 	case Scanner.INTERFACE: typ = P.ParseInterfaceType();
-	case Scanner.FUNC: typ = P.ParseFunctionType();
+	case Scanner.LPAREN: typ = P.ParseFunctionType();
 	case Scanner.MAP: typ = P.ParseMapType();
 	case Scanner.STRUCT: typ = P.ParseStructType();
 	case Scanner.MUL: typ = P.ParsePointerType();
@@ -908,6 +907,7 @@ func (P *Parser) ParseNew() Globals.Expr {
 func (P *Parser) ParseFunctionLit() Globals.Expr {
 	P.Trace("FunctionLit");
 	
+	P.Expect(Scanner.FUNC);
 	typ := P.ParseFunctionType();
 	P.ParseBlock(typ.scope);
 	

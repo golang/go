@@ -37,23 +37,23 @@ type (
 	T5 *T4;
 )
 
-type F0 func ()
-type F1 func (a int)
-type F2 func (a, b int, c float)
-type F3 func () bool
-type F4 func (a int) (z T5, ok bool)
-type F5 func (a, b int, c float) (z T5, ok bool)
-type F6 func (a int, b float) bool
-type F7 func (a int, b float, c, d *bool) bool
+type F0 ()
+type F1 (a int)
+type F2 (a, b int, c float)
+type F3 () bool
+type F4 (a int) (z T5, ok bool)
+type F5 (a, b int, c float) (z T5, ok bool)
+type F6 (a int, b float) bool
+type F7 (a int, b float, c, d *bool) bool
 
-export type M0 func (p T5) . ();
+export type M0 (p T5) . ();
 type (
-	M1 func (p T5) . (a int);
-	M2 func (p T5) . (a, b int, c float);
-	M3 func (p T5) . () bool;
-	M4 func (p T5) . (a int) (z T5, ok bool);
+	M1 (p T5) . (a int);
+	M2 (p T5) . (a, b int, c float);
+	M3 (p T5) . () bool;
+	M4 (p T5) . (a int) (z T5, ok bool);
 )
-export type M5 func (p T5) . (a, b int, c float) (z T5, ok bool);
+export type M5 (p T5) . (a, b int, c float) (z T5, ok bool);
 
 type T6 chan int
 type T7 chan<- *T6
@@ -62,7 +62,7 @@ type T8 chan-< *T6
 type T9 struct {
 	p *T9;
 	q [] *map [int] *T9;
-	f *func(x, y *T9) *T9;
+	f *(x, y *T9) *T9;
 }
 
 export type T11 struct {
