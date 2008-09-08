@@ -75,10 +75,10 @@ export type Flags struct {
 
 
 export type Environment struct {
-	Error *func(comp *Compilation);  // TODO complete this
-	Import *func(comp *Compilation, pkg_file string) *Package;
-	Export *func(comp *Compilation, pkg_file string);
-	Compile *func(comp *Compilation, src_file string);
+	Error *(comp *Compilation);  // TODO complete this
+	Import *(comp *Compilation, pkg_file string) *Package;
+	Export *(comp *Compilation, pkg_file string);
+	Compile *(comp *Compilation, src_file string);
 }
 
 
