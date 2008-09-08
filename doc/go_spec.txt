@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 4, 2008)
+(September 8, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -992,22 +992,23 @@ particular to dereference a channel pointer.
 Function types
 ----
 
-A function type denotes the set of all functions with the same signature.
+A function type denotes the set of all functions with the same parameter
+list and result.
 
-Functions can return multiple values simultaneously.
-
-	FunctionType = "func" Signature .
-	Signature = Parameters [ Result ] .
-	Parameters = "(" [ ParameterList ] ")" .
+	FunctionType = "(" [ ParameterList ] ")" [ Result ] .
 	ParameterList = ParameterSection { "," ParameterSection } .
 	ParameterSection = IdentifierList Type .
 	Result = Type | "(" ParameterList ")" .
 
+Functions can return multiple values simultaneously.
+
 	// Function types
-	func ()
-	func (a, b int, z float) bool
-	func (a, b int, z float) (success bool)
-	func (a, b int, z float) (success bool, result float)
+	()
+	() int
+	(s string)
+	(a, b int, z float) bool
+	(a, b int, z float) (success bool)
+	(a, b int, z float) (success bool, result float)
 
 A variable can hold only a pointer to a function, not a function value.
 In particular, v := func() {} creates a variable of type *func(). To call the
@@ -1025,7 +1026,7 @@ An interface type denotes a set of methods.
 
 	InterfaceType = "interface" "{" [ MethodDeclList [ ";" ] ] "}" .
 	MethodDeclList = MethodDecl { ";" MethodDecl } .
-	MethodDecl = identifier Signature .
+	MethodDecl = identifier FunctionType .
 
 	// A basic file interface.
 	type File interface {
@@ -1125,7 +1126,7 @@ Literals for composite data structures consist of the type of the value
 followed by a parenthesized expression list for array and structure literals,
 or a list of expression pairs for map literals.
 
-	CompositeLit = LiteralType "(" [ ( ExpressionList | ExprPairList ) [ "," ] ] ")" .
+	CompositeLit = LiteralType "{" [ ( ExpressionList | ExprPairList ) [ "," ] ] "}" .
 	LiteralType = TypeName | ArrayType | MapType | StructType .
 	ExprPairList = ExprPair { "," ExprPair } .
 	ExprPair = Expression ":" Expression .
@@ -1141,7 +1142,7 @@ Given
 
 we can write
 
-	pi := Num(Rat(22,7), 3.14159, "pi")
+	pi := Num{Rat{22, 7}, 3.14159, "pi"};
 
 For array literals, if the length is present the constructed array has that many
 elements; trailing elements are given the approprate zero value for that type.
@@ -1150,21 +1151,16 @@ if the specified length is less than the number of elements in the expression li
 In either case, the length is known at compile type and thus the type of an
 array literal is always a fixed array type.
 
-	primes := [6]int(2, 3, 5, 7, 9, 11)
-	weekdays := []string("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+	primes := [6]int{2, 3, 5, 7, 9, 11};
+	weekdays := []string{"mon", "tue", "wed", "thu", "fri", "sat", "sun"};
 
 Map literals are similar except the elements of the expression list are
 key-value pairs separated by a colon:
 
-	m := map[string]int("good": 0, "bad": 1, "indifferent": 7)
+	m := map[string]int{"good": 0, "bad": 1, "indifferent": 7};
 
 TODO: Consider adding helper syntax for nested composites
 (avoids repeating types but complicates the spec needlessly.)
-
-
-TODO(gri): These are not conversions and we could use {} instead of () in
-the syntax. This will make literals such as Foo(1, 2, 3) clearly stand
-out from function calls. TBD.
 
 
 Function Literals
@@ -1172,16 +1168,22 @@ Function Literals
 
 Function literals represent anonymous functions.
 
-	FunctionLit = FunctionType Block .
+	FunctionLit = "func" FunctionType Block .
 	Block = "{" [ StatementList [ ";" ] ] "}" .
 
-A function literal can be invoked
-or assigned to a variable of the corresponding function pointer type.
-For now, a function literal can reference only its parameters, global
-variables, and variables declared within the function literal.
+The type of a function literal is a pointer to the function type.
 
-	// Function literal
 	func (a, b int, z float) bool { return a*b < int(z); }
+
+A function literal can be assigned to a variable of the
+corresponding function pointer type, or invoked directly.
+
+	f := func(x, y int) int { return x + y; }
+	func(ch *chan int) { ch -< ACK; } (reply_chan)
+
+Implementation restriction: A function literal can reference only
+its parameters, global variables, and variables declared within the
+function literal.
 
 
 Primary expressions
@@ -1367,7 +1369,7 @@ Strings and arrays can be concatenated using the "+" operator
 String and array addition creates a new array or string by copying the
 elements.
 
-For integer values, / and % satisfy the following relationship:
+For integer values, "/" and "%" satisfy the following relationship:
 
 	(a / b) * b + a % b == a
 
@@ -2016,7 +2018,7 @@ literals in expressions.
 
 A function declaration declares an identifier of type function.
 
-	FunctionDecl = "func" identifier Signature  ( ";" | Block ) .
+	FunctionDecl = "func" identifier FunctionType ( ";" | Block ) .
 	
 	func min(x int, y int) int {
 		if x < y {
@@ -2038,7 +2040,7 @@ Methods
 
 A method declaration declares a function with a receiver.
 
-	MethodDecl = "func" Receiver identifier Signature  ( ";" | Block ) .
+	MethodDecl = "func" Receiver identifier FunctionType ( ";" | Block ) .
 	Receiver = "(" identifier Type ")" .
 
 A method is bound to the type of its receiver.
@@ -2618,8 +2620,8 @@ where "F" is declared as "func (a *[30 + 2] float, b, c int) (ok bool)".
 
 Finally, two interface types are equivalent if they both declare the same set of
 methods: For each method in the first interface type there is a method in the
-second interface type with the same method name and equivalent signature, and
-vice versa. Note that the declaration order of the methods is not relevant.
+second interface type with the same method name and equivalent function type,
+and vice versa. Note that the declaration order of the methods is not relevant.
 
 
 [OLD
