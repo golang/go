@@ -426,7 +426,7 @@ asmb(void)
 		wputl(4);			/* Shdr with strings */
 
 		fo = 0;
-		va = INITRND;
+		va = INITTEXT & ~((vlong)INITRND - 1);
 		w = HEADR+textsize;
 
 		linuxphdr(1,			/* text - type = PT_LOAD */
@@ -537,7 +537,7 @@ asmb(void)
 		w = symsize;
 
 		linuxshdr(".gosymtab",		/* name */
-			2,			/* type */
+			7,			/* type */
 			0,			/* flags */
 			0,			/* addr */
 			fo,			/* off */
@@ -551,7 +551,7 @@ asmb(void)
 		w = lcsize;
 
 		linuxshdr(".gopclntab",		/* name */
-			2,			/* type */
+			7,			/* type */
 			0,			/* flags */
 			0,			/* addr */
 			fo,			/* off */
