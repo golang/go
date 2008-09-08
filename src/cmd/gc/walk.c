@@ -2882,9 +2882,17 @@ structlit(Node *n)
 	r = listfirst(&saver, &n->left);
 
 loop:
+	if(l != T && l->etype == TFIELD && l->type->etype == TFUNC) {
+		// skip methods
+		l = structnext(&savel);
+		goto loop;
+	}
+
 	if(l == T || r == N) {
-		if(l != T || r != N)
-			yyerror("error in shape struct literal");
+		if(l != T)
+			yyerror("struct literal expect expr of type %T", l);
+		if(r != N)
+			yyerror("struct literal too many expressions");
 		return var;
 	}
 
