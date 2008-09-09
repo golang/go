@@ -75,11 +75,10 @@ bugs/bug064.go:15: illegal types for operand: CALL
 BUG: compilation should succeed
 
 =========== bugs/bug074.go
-bugs/bug074.go:6: illegal types for operand: CONV
-	(<string>*STRING)
-bugs/bug074.go:6: illegal types for operand: CONV
-	(<string>*STRING)
+bugs/bug074.go:6: syntax error
+bugs/bug074.go:7: x: undefined
 BUG: compiler crashes - Bus error
+Bus error               $G $D/$F.go
 
 =========== bugs/bug075.go
 bugs/bug075.go:11: bad shape across assignment - cr=1 cl=2
