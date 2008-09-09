@@ -93,6 +93,9 @@ Contents
 	Function declarations
 		Methods (type-bound functions)
 		Predeclared functions
+			Length and capacity
+			Conversions
+			Allocation
 
 	Packages
 
@@ -675,7 +678,7 @@ Basic types
 
 Go defines a number of basic types, referred to by their predeclared
 type names.  These include traditional arithmetic types, booleans,
-strings, and a special polymorphic type.
+and strings.
 
 
 Arithmetic types
@@ -720,10 +723,8 @@ sized types to maximize portability.
 Booleans
 ----
 
-	bool     the truth values true and false
-
-Two predeclared constants, ``true'' and ``false'', represent the
-corresponding boolean constant values.
+The type "bool" comprises the truth values true and false, which are
+available through the two predeclared constants, "true" and "false".
 
 
 Strings
@@ -739,9 +740,9 @@ element of a string.
 - They can be indexed: given string "s1", "s1[i]" is a byte value.
 - They can be concatenated: given strings "s1" and "s2", "s1 + s2" is a value
 combining the elements of "s1" and "s2" in sequence.
-- Known length: the length of a string "s1" can be obtained by the function/
-operator "len(s1)".  The length of a string is the number of bytes within.
-Unlike in C, there is no terminal NUL byte.
+- Known length: the length of a string "s1" can be obtained by calling
+"len(s1)".  The length of a string is the number
+of bytes within. Unlike in C, there is no terminal NUL byte.
 - Creation 1: a string can be created from an integer value by a conversion;
 the result is a string containing the UTF-8 encoding of that code point.
 "string('x')" yields "x"; "string(0x1234)" yields the equivalent of "\u1234"
@@ -891,14 +892,20 @@ to arrays and arrays.
 Struct types
 ----
 
-Struct types are similar to C structs.
-
-Each field of a struct represents a variable within the data
-structure.
+A struct is a composite type consisting of a fixed number of elements,
+called fields, with possibly different types. The struct type declaration
+specifies the name and type for each field. The scope of each field identifier
+extends from the point of the declaration to the end of the struct type, but
+it is also visible within field selectors (see Primary Expressions).
 
 	StructType = "struct" "{" [ FieldDeclList [ ";" ] ] "}" .
 	FieldDeclList = FieldDecl { ";" FieldDecl } .
-	FieldDecl = IdentifierList Type .
+	FieldDecl = IdentifierList FieldType .
+	FieldType = Type .
+
+Type equality: Two struct types are equal only if both have the same number
+of fields in the same order and and the field types are equal
+(note that the field names do not have to match).
 
 	// An empty struct.
 	struct {}
@@ -907,24 +914,27 @@ structure.
 	struct {
 		x, y int;
 		u float;
-		a []int;
-		f func();
+		a *[]int;
+		f *();
 	}
+	
+Assignment compatibility: Structs are assignment compatible to variables of
+equal type only.
 
 
 Pointer types
 ----
 
-Pointer types are similar to those in C.
+A pointer type denotes the set of all pointers to variables of a given
+type, called the ``base type'' of the pointer, and the value "nil".
 
-	PointerType = "*" ElementType.
-
-Pointer arithmetic of any kind is not permitted.
+	PointerType = "*" BaseType .
+	BaseType = Type .
 
 	*int
 	*map[string] *chan
 
-For pointer types (only), the pointer element type may be an
+For pointer types (only), the pointer base type may be an
 identifier referring to an incomplete (not yet fully defined) or undeclared
 type. This allows the construction of recursive and mutually recursive types
 such as:
@@ -934,33 +944,51 @@ such as:
 	type S1 struct { s2 *S2 }
 	type S2 struct { s1 *S1 }
 
-If the element type is an undeclared identifier, the declaration implicitly
-forward-declares an (incomplete) type with the respective name. By the end
-of the package source, any such forward-declared type must be completely
-declared in the same or an outer scope.
+If the base type is an undeclared identifier, the declaration implicitly
+forward-declares an (incomplete) type with the respective name. Any such
+forward-declared type must be completely declared in the same or an outer
+scope.
+
+Type equality: Two pointer types are equal only if both have equal
+base types.
+
+Assignment compatibility: A pointer is assignment compatible to a variable
+of pointer type, only if both types are equal.
+
+Pointer arithmetic of any kind is not permitted.
 
 
 Map types
 ----
 
 A map is a composite type consisting of a variable number of entries
-called (key, value) pairs. For a given map,
-the keys and values must each be of a specific type.
+called (key, value) pairs. For a given map, the keys and values must
+each be of a specific type called the key and value type, respectively.
 Upon creation, a map is empty and values may be added and removed
 during execution.  The number of entries in a map is called its length.
-[OLD
-A map whose value type is 'any' can store values of all types.
-END]
 
 	MapType = "map" "[" KeyType "]" ValueType .
 	KeyType = Type .
-	ValueType = Type | "any" .
+	ValueType = Type .
 
 	map [string] int
 	map [struct { pid int; name string }] *chan Buffer
 	map [string] any
 
-Implementation restriction: Currently, only pointers to maps are supported.
+The length of a map "m" can be discovered using the built-in function
+
+	len(m)
+
+Allocation: A map may only be used as a base type of a pointer type.
+There are no variables, parameters, array, struct, or map fields of
+map type, only of pointers to maps.
+
+Type equivalence: Two map types are equal only if both have equal
+key and value types.
+
+Assignment compatibility: A pointer to a map type is assignment
+compatible to a variable of pointer to map type only if both types
+are equal.
 
 
 Channel types
@@ -1011,7 +1039,7 @@ Functions can return multiple values simultaneously.
 	(a, b int, z float) (success bool, result float)
 
 A variable can hold only a pointer to a function, not a function value.
-In particular, v := func() {} creates a variable of type *func(). To call the
+In particular, v := func() {} creates a variable of type *(). To call the
 function referenced by v, one writes v(). It is illegal to dereference a
 function pointer.
 
@@ -1185,6 +1213,10 @@ Implementation restriction: A function literal can reference only
 its parameters, global variables, and variables declared within the
 function literal.
 
+TODO: Should a function literal return a value of the function type
+instead of the pointer to the function? Seems more consistent with
+the other uses and composite literals.
+
 
 Primary expressions
 ----
@@ -1282,7 +1314,7 @@ For instance, given a *Point variable pt, one may call
 The type of a method is the type of a function with the receiver as first
 argument.  For instance, the method "Scale" has type
 
-	func(p *Point, factor float)
+	(p *Point, factor float)
 
 However, a function declared this way is not a method.
 
@@ -1450,7 +1482,7 @@ taking the address of f with the expression
 creates a pointer to the function that may be stored in a value of type pointer
 to function:
 
-	var fp *func(a int) int = &f;
+	var fp *(a int) int = &f;
 
 The function pointer may be invoked with the usual syntax; no explicit
 indirection is required:
@@ -1473,11 +1505,11 @@ To construct the address of method M, we write
 using the variable t (not the type T).  The expression is a pointer to a
 function, with type
 
-	*func(t *T, a int) int
+	*(t *T, a int) int
 
 and may be invoked only as a function, not a method:
 
-	var f *func(t *T, a int) int;
+	var f *(t *T, a int) int;
 	f = &t.M;
 	x := f(t, 7);
 
@@ -2075,6 +2107,21 @@ TODO: (gri) suggests that we should consider assert() as a built-in function.
 It is like panic, but takes a guard as first argument.
 
 
+Length and capacity
+----
+
+The predeclared function "len()" takes a value of array or map type,
+or of pointer to array or map type, and returns the number of array
+of map elements.
+
+The predeclared function "cap()" takes a value of array or pointer
+to array type and returns the number of elements for which there
+is space allocated in the array. For an array "a", at any time the
+following relationship holds:
+
+	0 <= len(a) <= cap(a)
+
+
 Conversions
 ----
 
@@ -2198,30 +2245,27 @@ in general.
 Allocation
 ----
 
-The builtin-function new() allocates storage.  The function takes a
-parenthesized operand list comprising the type of the value to
-allocate, optionally followed by type-specific expressions that
-influence the allocation.  The invocation returns a pointer to the
-memory.  The memory is initialized as described in the section on
-initial values.
+The built-in function "new()" takes a type "T", optionally followed by a
+type-specific list of expressions. It allocates memory for a variable
+of type "T" and returns a pointer of type "*T" to that variable. The
+memory is initialized as described in the section on initial values.
 
-For instance,
+	new(type, [optional list of expressions])
+
+For instance
 
 	type S struct { a int; b float }
 	new(S)
 
-allocates storage for an S, initializes it (a=0, b=0.0), and returns a
-value of type *S pointing to that storage.
+dynamically allocates memory for a variable of type S, initializes it
+(a=0, b=0.0), and returns a value of type *S pointing to that variable.
 
 The only defined parameters affect sizes for allocating arrays,
 buffered channels, and maps.
 
-	ap := new([]int, 10); # a pointer to an array of 10 ints
-	aap := new([][]int, 5, 10); # a pointer to an array of 5 arrays of 10 ints
-	c := new(chan int, 10); # a pointer to a channel with a buffer size of 10
-	m := new(map[string] int, 100); # a pointer to a map with space for 100 elements preallocated
-
-TODO: argument order for dimensions in multidimensional arrays
+	ap := new([]int, 10);            # a pointer to an open array of 10 ints
+	c := new(chan int, 10);          # a pointer to a channel with a buffer size of 10
+	m := new(map[string] int, 100);  # a pointer to a map with initial space for 100 elements
 
 
 Packages
@@ -2365,7 +2409,9 @@ be no cyclic dependencies in initialization.
 
 A complete program, possibly created by linking multiple packages,
 must have one package called main, with a function
+
 	func main() { ...  }
+
 defined.  The function main.main() takes no arguments and returns no
 value.
 
@@ -2606,7 +2652,7 @@ For instance, the struct type
 	struct {
 		a int;
 		b int;
-		f *func (m *[32] float, x int, y int) bool
+		f *(m *[32] float, x int, y int) bool
 	}
 	
 is equivalent to
