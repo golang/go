@@ -244,6 +244,9 @@ loop:
 		continpc = pc;
 		gen(n->nincr, L);				// contin:	incr
 		patch(p1, pc);				// test:
+		if(n->ntest != N)
+			if(n->ntest->ninit != N)
+				gen(n->ntest->ninit, L);
 		bgen(n->ntest, 0, breakpc);		//		if(!test) goto break
 		if(labloop != L) {
 			labloop->op = OFOR;
@@ -261,6 +264,9 @@ loop:
 		p1 = gbranch(AJMP, T);			//		goto test
 		p2 = gbranch(AJMP, T);			// p2:		goto else
 		patch(p1, pc);				// test:
+		if(n->ntest != N)
+			if(n->ntest->ninit != N)
+				gen(n->ntest->ninit, L);
 		bgen(n->ntest, 0, p2);			// 		if(!test) goto p2
 		gen(n->nbody, L);			//		then
 		p3 = gbranch(AJMP, T);			//		goto done
@@ -522,6 +528,9 @@ swgen(Node *n)
 
 	patch(p1, pc);
 
+	if(n->ntest != N)
+		if(n->ntest->ninit != N)
+			gen(n->ntest->ninit, L);
 	tempname(&tmp, n->ntest->type);
 	cgen(n->ntest, &tmp);
 

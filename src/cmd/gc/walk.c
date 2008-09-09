@@ -13,18 +13,48 @@ static	Node*	addtop;
 void
 walk(Node *fn)
 {
-	if(debug['W'])
-		dump("fn-before", fn->nbody);
+	char s[50];
+
 	curfn = fn;
+	if(debug['W']) {
+		snprint(s, sizeof(s), "\nbefore %S", curfn->nname->sym);
+		dump(s, fn->nbody);
+	}
 	walkstate(fn->nbody);
+	if(debug['W']) {
+		snprint(s, sizeof(s), "after %S", curfn->nname->sym);
+		dump(s, fn->nbody);
+	}
+}
+
+void
+addtotop(Node *n)
+{
+	Node *l;
+
+	while(addtop != N) {
+		l = addtop;
+		addtop = N;
+		walktype(l, Etop);
+		n->ninit = list(n->ninit, l);
+	}
+}
+
+void
+gettype(Node *n)
+{
 	if(debug['W'])
-		dump("fn", fn->nbody);
+		dump("\nbefore gettype", n);
+	walktype(n, Erv);
+	addtotop(n);
+	if(debug['W'])
+		dump("after gettype", n);
 }
 
 void
 walkstate(Node *n)
 {
-	Node *l, *more;
+	Node *more;
 
 loop:
 	if(n == N)
@@ -69,12 +99,7 @@ loop:
 		break;
 	}
 
-	while(addtop != N) {
-		l = addtop;
-		addtop = N;
-		walktype(l, Etop);
-		n->ninit = list(n->ninit, l);
-	}
+	addtotop(n);
 
 	if(more != N) {
 		n = more;
@@ -227,8 +252,8 @@ loop:
 			goto nottop;
 		walkstate(n->ninit);
 		walkbool(n->ntest);
-		walkstate(n->nelse);
 		walkstate(n->nbody);
+		walkstate(n->nelse);
 		goto ret;
 
 	case OPROC:
@@ -306,6 +331,9 @@ loop:
 	case OAS:
 		if(top != Etop)
 			goto nottop;
+
+		addtop = list(addtop, n->ninit);
+		n->ninit = N;
 
 		l = n->left;
 		r = n->right;
@@ -948,6 +976,7 @@ void
 walkbool(Node *n)
 {
 	walktype(n, Erv);
+	addtotop(n);
 	if(n != N && n->type != T)
 		if(!eqtype(n->type, types[TBOOL], 0))
 			yyerror("IF and FOR require a boolean type");
@@ -1545,6 +1574,8 @@ loop:
 	w = whatis(l);
 	switch(w) {
 	default:
+		if(l->type == T)
+			goto out;
 		if(!isptr[l->type->etype]) {
 			badtype(n->op, l->type, T);
 			l = listnext(&save);
@@ -1588,6 +1619,7 @@ loop:
 	else
 		r = list(r, nod(OCALL, on, l));
 
+out:
 	l = listnext(&save);
 	goto loop;
 }
