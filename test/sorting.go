@@ -10,7 +10,7 @@ import Sort "sort"
 
 func main() {
 	{	data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586};
-		a := Sort.IntArray(&data);
+		a := Sort.IntArray{&data};
 		
 		Sort.Sort(&a);
 
@@ -27,7 +27,7 @@ func main() {
 	}
 
 	{	data := []float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8};
-		a := Sort.FloatArray(&data);
+		a := Sort.FloatArray{&data};
 		
 		Sort.Sort(&a);
 
@@ -44,7 +44,7 @@ func main() {
 	}
 
 	{	data := []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"};
-		a := Sort.StringArray(&data);
+		a := Sort.StringArray{&data};
 		
 		Sort.Sort(&a);
 
