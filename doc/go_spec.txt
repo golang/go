@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 8, 2008)
+(September 9, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -15,6 +15,41 @@ This document is not ready for external review, it is under active development.
 Any part may change substantially as design progresses.
 </font>
 
+
+<!--
+Open issues according to gri:
+[ ] clarification on interface types, rules
+[ ] methods for all types
+[ ] remove "any"
+[ ] convert should not be used for composite literals anymore,
+	in fact, convert() should go away
+[ ] syntax for var args
+[ ] reflection support in the language
+[ ] partial export of structs, methods
+[ ] if statement: else syntax must be fixed
+[ ] range statement: to be defined more reasonably
+[ ] packages of multiple files: dealing with it is convoluted
+[ ] should we have a shorter list of alias types? (byte, int, uint, float)
+[ ] old-style export decls (still needed, but ideally should go away)
+[ ] new(arraytype, n1, n2): spec only talks about length, not capacity
+    (should only use new(arraytype, n) - this will allow later
+	 extension to multi-dim arrays w/o breaking the language)
+[ ] & needed to get a function pointer from a function?
+[ ] comparison operators: can we compare interfaces?
+[ ] optional semicolons: too complicated and unclear
+[ ] like to have assert() in the language, w/ option to disable code gen for it
+[ ] composite types should uniformly create an instance instead of a pointer
+[ ] func literal like a composite type - should probably require the '&' to get
+    address
+[ ] meaning of nil
+[ ] clarify slice rules
+[ ] something on tuples?
+[ ] semantics of statements
+[ ] need for type switch? (or use type guard with ok in tuple assignment?)
+[ ] can we add methods to types defined in another package?
+[ ] do we need anything on package vs file names?
+
+-->
 
 Contents
 ----
