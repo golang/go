@@ -250,7 +250,7 @@ Bvardcl:
 	}
 |	new_name '=' expr
 	{
-		walktype($3, Erv);	// this is a little harry
+		gettype($3);
 		defaultlit($3);
 		dodclvar($1, $3->type);
 		$$ = nod(OAS, $1, $3);
@@ -260,7 +260,7 @@ constdcl:
 	new_name type '=' expr
 	{
 		Node *c = treecopy($4);
-		walktype(c, Erv);
+		gettype(c);
 		convlit(c, $2);
 		dodclconst($1, c);
 
@@ -270,7 +270,7 @@ constdcl:
 |	new_name '=' expr
 	{
 		Node *c = treecopy($3);
-		walktype(c, Erv);
+		gettype(c);
 		dodclconst($1, c);
 
 		lastconst = $3;
@@ -282,7 +282,7 @@ constdcl1:
 |	new_name type
 	{
 		Node *c = treecopy(lastconst);
-		walktype(c, Erv);
+		gettype(c);
 		convlit(c, $2);
 		dodclconst($1, c);
 
@@ -291,7 +291,7 @@ constdcl1:
 |	new_name
 	{
 		Node *c = treecopy(lastconst);
-		walktype(c, Erv);
+		gettype(c);
 		dodclconst($1, c);
 
 		iota += 1;
@@ -346,6 +346,7 @@ noninc_stmt:
 |	expr_list LCOLAS expr_list
 	{
 		$$ = nod(OAS, colas($1, $3), $3);
+		addtotop($$);
 	}
 |	LPRINT '(' oexpr_list ')'
 	{
@@ -379,23 +380,17 @@ complex_stmt:
 		popdcl();
 		$$ = $2;
 		$$->op = OSWITCH;
-		//if($$->ninit != N && $$->ntest == N)
-		//	yyerror("switch expression should not be missing");
 	}
 |	LIF if_stmt
 	{
 		popdcl();
 		$$ = $2;
-		//if($$->ninit != N && $$->ntest == N)
-		//	yyerror("if conditional should not be missing");
 	}
 |	LIF if_stmt LELSE else_stmt1
 	{
 		popdcl();
 		$$ = $2;
 		$$->nelse = $4;
-		//if($$->ninit != N && $$->ntest == N)
-		//	yyerror("if conditional should not be missing");
 	}
 |	LSELECT select_stmt
 	{
@@ -453,8 +448,6 @@ semi_stmt:
 		popdcl();
 		$$ = $2;
 		$$->nelse = $4;
-		//if($$->ninit != N && $$->ntest == N)
-		//	yyerror("if conditional should not be missing");
 	}
 
 compound_stmt:
