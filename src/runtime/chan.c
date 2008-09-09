@@ -4,9 +4,8 @@
 
 #include "runtime.h"
 
-// TODO locking of select
-
 static	int32	debug	= 0;
+static	Lock		chanlock;
 
 typedef	struct	Hchan	Hchan;
 typedef	struct	Link	Link;
@@ -32,7 +31,6 @@ struct	WaitQ
 
 struct	Hchan
 {
-	Lock;
 	uint32	elemsize;
 	uint32	dataqsiz;		// size of the circular q
 	uint32	qcount;			// total data in the q
@@ -162,7 +160,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 		prints("\n");
 	}
 
-	lock(c);
+	lock(&chanlock);
 	if(c->dataqsiz > 0)
 		goto asynch;
 
@@ -173,7 +171,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 
 		gp = sg->g;
 		gp->param = sg;
-		unlock(c);
+		unlock(&chanlock);
 		ready(gp);
 
 		if(pres != nil)
@@ -182,7 +180,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 	}
 
 	if(pres != nil) {
-		unlock(c);
+		unlock(&chanlock);
 		*pres = false;
 		return;
 	}
@@ -193,13 +191,13 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 	g->param = nil;
 	g->status = Gwaiting;
 	enqueue(&c->sendq, sg);
-	unlock(c);
+	unlock(&chanlock);
 	sys·gosched();
 
-	lock(c);
+	lock(&chanlock);
 	sg = g->param;
 	freesg(c, sg);
-	unlock(c);
+	unlock(&chanlock);
 	return;
 
 asynch:
@@ -208,9 +206,9 @@ asynch:
 		sg = allocsg(c);
 		g->status = Gwaiting;
 		enqueue(&c->sendq, sg);
-		unlock(c);
+		unlock(&chanlock);
 		sys·gosched();
-		lock(c);
+		lock(&chanlock);
 	}
 	if(ep != nil)
 		c->elemalg->copy(c->elemsize, c->senddataq->elem, ep);
@@ -221,10 +219,10 @@ asynch:
 	if(sg != nil) {
 		gp = sg->g;
 		freesg(c, sg);
-		unlock(c);
+		unlock(&chanlock);
 		ready(gp);
 	}else
-		unlock(c);
+		unlock(&chanlock);
 }
 
 static void
@@ -239,7 +237,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 		prints("\n");
 	}
 
-	lock(c);
+	lock(&chanlock);
 	if(c->dataqsiz > 0)
 		goto asynch;
 
@@ -249,7 +247,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 
 		gp = sg->g;
 		gp->param = sg;
-		unlock(c);
+		unlock(&chanlock);
 		ready(gp);
 
 		if(pres != nil)
@@ -258,7 +256,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 	}
 
 	if(pres != nil) {
-		unlock(c);
+		unlock(&chanlock);
 		*pres = false;
 		return;
 	}
@@ -267,14 +265,14 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 	g->param = nil;
 	g->status = Gwaiting;
 	enqueue(&c->recvq, sg);
-	unlock(c);
+	unlock(&chanlock);
 	sys·gosched();
 
-	lock(c);
+	lock(&chanlock);
 	sg = g->param;
 	c->elemalg->copy(c->elemsize, ep, sg->elem);
 	freesg(c, sg);
-	unlock(c);
+	unlock(&chanlock);
 	return;
 
 asynch:
@@ -282,9 +280,9 @@ asynch:
 		sg = allocsg(c);
 		g->status = Gwaiting;
 		enqueue(&c->recvq, sg);
-		unlock(c);
+		unlock(&chanlock);
 		sys·gosched();
-		lock(c);
+		lock(&chanlock);
 	}
 	c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
 	c->recvdataq = c->recvdataq->link;
@@ -293,10 +291,10 @@ asynch:
 	if(sg != nil) {
 		gp = sg->g;
 		freesg(c, sg);
-		unlock(c);
+		unlock(&chanlock);
 		ready(gp);
 	}else
-		unlock(c);
+		unlock(&chanlock);
 }
 
 // chansend1(hchan *chan any, elem any);
@@ -371,12 +369,14 @@ sys·newselect(int32 size, Select *sel)
 	if(size > 1)
 		n = size-1;
 
+	lock(&chanlock);
 	sel = nil;
 	if(size >= 1 && size < nelem(selfree)) {
 		sel = selfree[size];
 		if(sel != nil)
 			selfree[size] = sel->link;
 	}
+	unlock(&chanlock);
 	if(sel == nil)
 		sel = mal(sizeof(*sel) + n*sizeof(sel->scase[0]));
 
@@ -517,6 +517,8 @@ sys·selectgo(Select *sel)
 	p %= sel->ncase;
 	o %= sel->ncase;
 
+	lock(&chanlock);
+
 	// pass 1 - look for something already waiting
 	for(i=0; i<sel->ncase; i++) {
 		cas = &sel->scase[o];
@@ -598,8 +600,10 @@ sys·selectgo(Select *sel)
 	// (rsc) not correct to set Gwaiting after queueing;
 	// might already have been readied.
 	g->status = Gwaiting;
+	unlock(&chanlock);
 	sys·gosched();
 
+	lock(&chanlock);
 	sg = g->param;
 	o = sg->offset;
 	cas = &sel->scase[o];
@@ -629,6 +633,7 @@ sys·selectgo(Select *sel)
 
 asynr:
 asyns:
+	unlock(&chanlock);
 	throw("asyn");
 	return;	// compiler doesn't know throw doesn't return
 
@@ -671,6 +676,7 @@ retc:
 		sel->link = selfree[sel->ncase];
 		selfree[sel->ncase] = sel;
 	}
+	unlock(&chanlock);
 
 	sys·setcallerpc(&sel, cas->pc);
 	as = (byte*)&sel + cas->so;

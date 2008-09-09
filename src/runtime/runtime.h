@@ -44,7 +44,7 @@ typedef	struct	M		M;
 typedef	struct	Stktop		Stktop;
 typedef	struct	Alg		Alg;
 typedef	struct	Lock		Lock;
-typedef	struct	Note	Note;
+typedef	union	Note	Note;
 typedef	struct	Mem		Mem;
 
 /*
@@ -78,10 +78,17 @@ enum
 struct	Lock
 {
 	uint32	key;
+	uint32	sema;	// for OS X
 };
-struct	Note
+union	Note
 {
-	Lock	lock;
+	struct {	// Linux
+		Lock	lock;
+	};
+	struct {	// OS X
+		int32	wakeup;
+		uint32	sema;
+	};
 };
 struct String
 {
@@ -149,6 +156,7 @@ struct	M
 	G*	g0;		// g0 w interrupt stack - must not move
 	uint64	morearg;	// arg to morestack - must not move
 	uint64	cret;		// return value from C - must not move
+	uint64	procid;	// for debuggers - must not move
 	G*	curg;		// current running goroutine
 	G*	lastg;		// last running goroutine - to emulate fifo
 	Gobuf	sched;
@@ -159,8 +167,8 @@ struct	M
 	Note	havenextg;
 	G*	nextg;
 	M*	schedlink;
-	int32	procid;	// for debuggers
 	Mem	mem;
+	uint32	machport;	// Return address for Mach IPC (OS X)
 };
 struct	Stktop
 {
@@ -239,7 +247,6 @@ void	ready(G*);
 byte*	getenv(int8*);
 int32	atoi(byte*);
 void	newosproc(M *m, G *g, void *stk, void (*fn)(void));
-int32	getprocid(void);
 
 /*
  * mutual exclusion locks.  in the uncontended case,
