@@ -7,7 +7,7 @@
 echo; echo; echo %%%% making lib %%%%; echo
 
 rm -f *.6
-for i in fmt.go flag.go container/vector.go
+for i in fmt.go flag.go container/vector.go sort.go
 do
 	base=$(basename $i .go)
 	echo 6g -o $GOROOT/pkg/$base.6 $i
