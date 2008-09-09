@@ -81,6 +81,7 @@ TEXT	sigtramp(SB),7,$24-16
 
 TEXT	sys·mmap(SB),7,$0-32
 	MOVQ	8(SP), DI
+	MOVQ	$0, SI
 	MOVL	16(SP), SI
 	MOVL	20(SP), DX
 	MOVL	24(SP), R10
@@ -103,7 +104,7 @@ TEXT	sys·mmap(SB),7,$0-32
 	RET
 
 TEXT	notok(SB),7,$0
-	MOVL	$0xf1, BP
+	MOVQ	$0xf1, BP
 	MOVQ	BP, (BP)
 	RET
 

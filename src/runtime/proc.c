@@ -463,8 +463,6 @@ oldstack(void)
 
 	top = (Stktop*)m->curg->stackbase;
 
-	m->curg->stackbase = top->oldbase;
-	m->curg->stackguard = top->oldguard;
 	siz2 = (top->magic>>32) & 0xffffLL;
 
 	sp = (byte*)top;
@@ -474,14 +472,11 @@ oldstack(void)
 		mcpy(top->oldsp+16, sp, siz2);
 	}
 
+	// call  no more functions after this point - limit register disagrees with R15
+	m->curg->stackbase = top->oldbase;
+	m->curg->stackguard = top->oldguard;
 	m->morestack.SP = top->oldsp+8;
 	m->morestack.PC = (byte*)(*(uint64*)(top->oldsp+8));
-
-// prints("oldstack sp=");
-// sys·printpointer(m->morestack.SP);
-// prints(" pc=");
-// sys·printpointer(m->morestack.PC);
-// prints("\n");
 
 	gogoret(&m->morestack, m->cret);
 }
