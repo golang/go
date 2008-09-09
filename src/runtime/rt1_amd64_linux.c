@@ -427,3 +427,7 @@ sys·sleep(int64 ms)
 	select(0, nil, nil, nil, &tv);
 }
 
+void
+osinit(void)
+{
+}

@@ -341,8 +341,6 @@ scheduler(void)
 {
 	G* gp;
 
-	// Initialization.
-	m->procid = getprocid();
 	lock(&sched);
 
 	if(gosave(&m->sched)){
@@ -472,7 +470,7 @@ oldstack(void)
 		mcpy(top->oldsp+16, sp, siz2);
 	}
 
-	// call  no more functions after this point - limit register disagrees with R15
+	// call  no more functions after this point - stackguard disagrees with SP
 	m->curg->stackbase = top->oldbase;
 	m->curg->stackguard = top->oldguard;
 	m->morestack.SP = top->oldsp+8;

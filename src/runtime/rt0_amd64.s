@@ -33,6 +33,7 @@ TEXT	_rt0_amd64(SB),7,$-8
 	MOVQ	24(SP), AX		// copy argv
 	MOVQ	AX, 8(SP)
 	CALL	args(SB)
+	CALL	osinit(SB)
 	CALL	schedinit(SB)
 	CALL	main·init_function(SB) // initialization
 

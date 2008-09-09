@@ -4,12 +4,11 @@
 
 //
 // System calls and other sys.stuff for AMD64, Darwin
+// See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
+// or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
 //
 
-// TODO(rsc): Either sys·exit or exit1 is wrong!
-// It looks like sys·exit is correct (exits the entire program)
-// and exit1 should be mimicking the OS X library routine
-// __bsdthread_terminate.
+// Exit the entire program (like C exit)
 TEXT	sys·exit(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+1), AX	// syscall entry
@@ -17,9 +16,11 @@ TEXT	sys·exit(SB),7,$-8
 	CALL	notok(SB)
 	RET
 
+// Exit this OS thread (like pthread_exit, which eventually
+// calls __bsdthread_terminate).
 TEXT	exit1(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 exit status
-	MOVL	$(0x2000000+1), AX	// syscall entry
+	MOVL	$(0x2000000+361), AX	// syscall entry
 	SYSCALL
 	CALL	notok(SB)
 	RET
@@ -130,3 +131,127 @@ TEXT	sys·setcallerpc+0(SB),7,$0
 	MOVQ	x+8(FP), BX
 	MOVQ	BX, -8(AX)		// set calling pc
 	RET
+
+// void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
+TEXT bsdthread_create(SB),7,$-8
+	// Set up arguments to bsdthread_create system call.
+	// The ones in quotes pass through to the thread callback
+	// uninterpreted, so we can put whatever we want there.
+	MOVQ	fn+32(SP), DI	// "func"
+	MOVQ	m+16(SP), SI	// "arg"
+	MOVQ	stk+8(SP), DX	// stack
+	MOVQ	g+24(SP), R10	// "pthread"
+	MOVQ	$0, R10	// flags
+	MOVQ	$(0x2000000+360), AX	// bsdthread_create
+	SYSCALL
+	JCC 2(PC)
+	CALL	notok(SB)
+	RET
+
+// The thread that bsdthread_create creates starts executing here,
+// because we registered this function using bsdthread_register
+// at startup.
+//	DI = "pthread" (= g)
+//	SI = mach thread port
+//	DX = "func" (= fn)
+//	CX = "arg" (= m)
+//	R8 = stack
+//	R9 = flags (= 0)
+//	SP = stack - C_64_REDZONE_LEN (= stack - 128)
+TEXT bsdthread_start(SB),7,$-8
+	MOVQ	CX, R14	// m
+	MOVQ	DI, R15	// g
+	MOVQ	SI, 24(R14)	// thread port is m->procid
+	CALL	DX	// fn
+	CALL	exit1(SB)
+	RET
+
+// void bsdthread_register(void)
+// registers callbacks for threadstart (see bsdthread_create above
+// and wqthread and pthsize (not used).  returns 0 on success.
+TEXT bsdthread_register(SB),7,$-8
+	MOVQ	$bsdthread_start(SB), DI	// threadstart
+	MOVQ	$0, SI	// wqthread, not used by us
+	MOVQ	$0, DX	// pthsize, not used by us
+	MOVQ	$(0x2000000+366), AX	// bsdthread_register
+	SYSCALL
+	JCC 2(PC)
+	CALL	notok(SB)
+	RET
+
+// int64 select(int32, void*, void*, void*, void*)
+TEXT select(SB),7,$0
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVQ	24(SP), DX
+	MOVQ	32(SP), R10
+	MOVQ	40(SP), R8
+	MOVL	$(0x2000000+407), AX	// select_nocancel
+	SYSCALL
+	RET
+
+// Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
+
+// uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
+TEXT mach_msg_trap(SB),7,$0
+	MOVQ	8(SP), DI
+	MOVL	16(SP), SI
+	MOVL	20(SP), DX
+	MOVL	24(SP), R10
+	MOVL	28(SP), R8
+	MOVL	32(SP), R9
+	MOVL	36(SP), R11
+	PUSHQ	R11	// seventh arg, on stack
+	MOVL	$(0x1000000+31), AX	// mach_msg_trap
+	SYSCALL
+	POPQ	R11
+	RET
+
+TEXT mach_task_self(SB),7,$0
+	MOVL	$(0x1000000+28), AX	// task_self_trap
+	SYSCALL
+	RET
+
+TEXT mach_thread_self(SB),7,$0
+	MOVL	$(0x1000000+27), AX	// thread_self_trap
+	SYSCALL
+	RET
+
+TEXT mach_reply_port(SB),7,$0
+	MOVL	$(0x1000000+26), AX	// mach_reply_port
+	SYSCALL
+	RET
+
+// Mach provides trap versions of the semaphore ops,
+// instead of requiring the use of RPC.
+
+// uint32 mach_semaphore_wait(uint32)
+TEXT mach_semaphore_wait(SB),7,$0
+	MOVL	8(SP), DI
+	MOVL	$(0x1000000+36), AX	// semaphore_wait_trap
+	SYSCALL
+	RET
+
+// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+TEXT mach_semaphore_timedwait(SB),7,$0
+	MOVL	8(SP), DI
+	MOVL	12(SP), SI
+	MOVL	16(SP), DX
+	MOVL	$(0x1000000+38), AX	// semaphore_timedwait_trap
+	SYSCALL
+	RET
+
+// uint32 mach_semaphore_signal(uint32)
+TEXT mach_semaphore_signal(SB),7,$0
+	MOVL	8(SP), DI
+	MOVL	$(0x1000000+33), AX	// semaphore_signal_trap
+	SYSCALL
+	RET
+
+// uint32 mach_semaphore_signal_all(uint32)
+TEXT mach_semaphore_signal_all(SB),7,$0
+	MOVL	8(SP), DI
+	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
+	SYSCALL
+	RET
+

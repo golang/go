@@ -22,6 +22,11 @@ struct timespec {
 	int64 tv_nsec;
 };
 
+struct timeval {
+	time_t tv_sec;
+	int64 tv_usec;
+};
+
 struct stat {	// really a stat64
 	dev_t st_dev;
 	mode_t st_mode;
@@ -43,3 +48,19 @@ struct stat {	// really a stat64
 };
 
 #define	O_CREAT	0x0200
+
+void bsdthread_create(void*, M*, G*, void(*)(void));
+void bsdthread_register(void);
+int64 select(int32, void*, void*, void*, struct timeval*);
+
+
+// Mach calls
+
+typedef int32 kern_return_t;
+typedef uint32 mach_port_t;
+
+mach_port_t semcreate(void);
+void semacquire(mach_port_t);
+void semrelease(mach_port_t);
+void semreset(mach_port_t);
+void semdestroy(mach_port_t);

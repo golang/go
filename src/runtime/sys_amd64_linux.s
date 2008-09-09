@@ -162,10 +162,17 @@ TEXT clone(SB),7,$0
 	JEQ	2(PC)
 	RET
 
-	// In child, call fn on new stack
+	// In child, set up new stack
 	MOVQ	SI, SP
 	MOVQ	R8, R14	// m
 	MOVQ	R9, R15	// g
+	
+	// Initialize m->procid to Linux tid
+	MOVL	$186, AX	// gettid
+	SYSCALL
+	MOVQ	AX, 24(R14)
+	
+	// Call fn
 	CALL	R12
 
 	// It shouldn't return.  If it does, exi
@@ -174,7 +181,7 @@ TEXT clone(SB),7,$0
 	SYSCALL
 	JMP	-3(PC)	// keep exiting
 
-// int64 select(int32, void*, void*, void*, void*)
+// int64 select(int32, void*, void*, void*, struct timeval*)
 TEXT select(SB),7,$0
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
@@ -182,19 +189,6 @@ TEXT select(SB),7,$0
 	MOVQ	32(SP), R10
 	MOVQ	40(SP), R8
 	MOVL	$23, AX
-	SYSCALL
-	RET
-
-// Linux allocates each thread its own pid, like Plan 9.
-// But the getpid() system call returns the pid of the
-// original thread (the one that exec started with),
-// no matter which thread asks.  This system call,
-// which Linux calls gettid, returns the actual pid of
-// the calling thread, not the fake one.
-//
-// int32 getprocid(void)
-TEXT getprocid(SB),7,$0
-	MOVL	$186, AX
 	SYSCALL
 	RET
 
