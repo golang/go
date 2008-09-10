@@ -2269,7 +2269,7 @@ representation of the integer.
 5b) Converting an array of uint8s yields a string whose successive
 bytes are those of the array.  (Recall byte is a synonym for uint8.)
 
-	string([]byte('h', 'e', 'l', 'l', 'o')) // "hello"
+	string([]byte{'h', 'e', 'l', 'l', 'o'}) // "hello"
 
 Note that there is no linguistic mechanism to convert between pointers
 and integers. A library may be provided under restricted circumstances

@@ -59,4 +59,54 @@ func main() {
 			panic();
 		}
 	}
+	
+	// Same tests again, this time using the convenience wrappers
+	
+	{	data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586};
+		
+		Sort.SortInts(&data);
+
+		/*
+		for i := 0; i < len(data); i++ {
+			print(data[i], " ");
+		}
+		print("\n");
+		*/
+		
+		if !Sort.IntsAreSorted(&data) {
+			panic();
+		}
+	}
+
+	{	data := []float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8};
+		
+		Sort.SortFloats(&data);
+
+		/*
+		for i := 0; i < len(data); i++ {
+			print(data[i], " ");
+		}
+		print("\n");
+		*/
+		
+		if !Sort.FloatsAreSorted(&data) {
+			panic();
+		}
+	}
+
+	{	data := []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"};
+		
+		Sort.SortStrings(&data);
+
+		/*
+		for i := 0; i < len(data); i++ {
+			print(data[i], " ");
+		}
+		print("\n");
+		*/
+		
+		if !Sort.StringsAreSorted(&data) {
+			panic();
+		}
+	}
 }

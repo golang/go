@@ -65,8 +65,6 @@ export func IsSorted(data SortInterface) bool {
 
 
 // Convenience types for common cases
-// TODO: Once we can associate methods with all types, this can be simplified
-//       since we cann associate the methods with the arrays directly.
 
 export type IntArray struct {
 	data *[]int;
@@ -93,3 +91,15 @@ export type StringArray struct {
 func (p *StringArray) len() int            { return len(p.data); }
 func (p *StringArray) less(i, j int) bool  { return p.data[i] < p.data[j]; }
 func (p *StringArray) swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+
+
+// Convenience wrappers for common cases
+
+export func SortInts(a *[]int)        { Sort(&IntArray{a}); }
+export func SortFloats(a *[]float)    { Sort(&FloatArray{a}); }
+export func SortStrings(a *[]string)  { Sort(&StringArray{a}); }
+
+
+export func IntsAreSorted(a *[]int) bool       { return IsSorted(&IntArray{a}); }
+export func FloatsAreSorted(a *[]float) bool   { return IsSorted(&FloatArray{a}); }
+export func StringsAreSorted(a *[]string) bool { return IsSorted(&StringArray{a}); }
