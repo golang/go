@@ -5,21 +5,20 @@
 O=6
 GC=$(O)g
 
-PKG=os.a
+PKG=$(GOROOT)/pkg/os.a
 
-OFILES=\
-	os.$O \
-	os_file.$O \
-
+O1=\
+	os.$O
 
 install: $(PKG)
-	cp $(PKG) $(GOROOT)/pkg/$(PKG)
 
-$(PKG): $(OFILES)
-	$(O)ar grc $(PKG) $(OFILES)
+$(PKG): a1
+
+a1: 	$(O1)
+	$(O)ar grc $(PKG) $(O1)
 
 nuke:
-	rm -f *.$(O) *.a $(GOROOT)/pkg/$(PKG)
+	rm -f *.$(O) *.a $(PKG)
 
 clean:
 	rm -f *.$(O) *.a
