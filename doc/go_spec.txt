@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 9, 2008)
+(September 10, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -48,6 +48,8 @@ Open issues according to gri:
 [ ] need for type switch? (or use type guard with ok in tuple assignment?)
 [ ] can we add methods to types defined in another package?
 [ ] do we need anything on package vs file names?
+[ ] need to talk about precise int/floats clearly
+[ ] iant suggests to use abstract/precise int for len(), cap() - good idea
 
 -->
 
@@ -157,6 +159,9 @@ In particular:
 Lexical symbols are enclosed in double quotes '''' (the
 double quote symbol is written as ''"'').
 
+The form "a ... b" represents the set of characters from "a" through "b" as
+alternatives.
+
 A production may be referenced from various places in this document
 but is usually defined close to its first use.  Productions and code
 examples are indented.
@@ -199,12 +204,10 @@ to refer to the subset of "utf8_char" code points with values >= 128.
 Letters and digits
 ----
 
-	letter = "A" | "a" | ... "Z" | "z" | "_" | non_ascii .
-	oct_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" } .
-	dec_digit = { "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" } .
-	hex_digit =
-		{ "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "a" |
-		"A" | "b" | "B" | "c" | "C" | "d" | "D" | "e" | "E" | "f" | "F" } .
+	letter    = "A" ... "Z" | "a" ... "z" | "_" | non_ascii.
+	oct_digit = "0" ... "7" .
+	dec_digit = "0" ... "9" .
+	hex_digit = "0" ... "9" | "A" ... "F" | "a" ... "f" .
 
 All non-ASCII code points are considered letters; digits are always ASCII.
 
@@ -412,7 +415,7 @@ The following words are reserved and must not be used as identifiers:
 	continue     for          import       return       var
 
 
-Declaration and scope rules
+Declarations and scope rules
 ----
 
 Every identifier in a program must be declared; some identifiers, such as "int"
@@ -1186,7 +1189,7 @@ Composite Literals
 ----
 
 Literals for composite data structures consist of the type of the value
-followed by a parenthesized expression list for array and structure literals,
+followed by a braced expression list for array and structure literals,
 or a list of expression pairs for map literals.
 
 	CompositeLit = LiteralType "{" [ ( ExpressionList | ExprPairList ) [ "," ] ] "}" .
@@ -1431,7 +1434,7 @@ Strings and arrays can be concatenated using the "+" operator
 (or via the "+=" assignment):
 
 	s := "hi" + string(c)
-	a += []int(5, 6, 7)
+	a += []int{5, 6, 7}
 
 String and array addition creates a new array or string by copying the
 elements.
@@ -1893,7 +1896,7 @@ array elements (the values).
 		f(a[i]);
 	}
 
-	range v, i := a {
+	range i, v := a {
 		f(v);
 	}
 
@@ -1950,7 +1953,7 @@ which single communication will execute.
 
 	var c, c1, c2 *chan int;
 	select {
-	case i1 <-c1:
+	case i1 <- c1:
 		print("received ", i1, " from c1\n");
 	case c2 -< i2:
 		print("sent ", i2, " to c2\n");
@@ -2093,13 +2096,14 @@ A function declaration declares an identifier of type function.
 		}
 		return y;
 	}
-	
+
 A function declaration without a body serves as a forward declaration:
 
 	func MakeNode(left, right *Node) *Node;
 
 
-Implementation restriction: Functions can only be declared at the global level.
+Implementation restrictions: Functions can only be declared at the global level.
+A function must be declared or forward-declared before it can be invoked.
 
 
 Methods
@@ -2139,15 +2143,17 @@ Predeclared functions
 
 
 TODO: (gri) suggests that we should consider assert() as a built-in function.
-It is like panic, but takes a guard as first argument.
+It is like panic, but takes a boolean guard as first argument. (rsc also thinks
+this is a good idea).
 
 
 Length and capacity
 ----
 
-The predeclared function "len()" takes a value of array or map type,
-or of pointer to array or map type, and returns the number of array
-of map elements.
+The predeclared function "len()" takes a value of type string,
+array or map type, or of pointer to array or map type, and
+returns the length of the string in bytes, or the number of array
+of map elements, respectively.
 
 The predeclared function "cap()" takes a value of array or pointer
 to array type and returns the number of elements for which there
@@ -2155,6 +2161,9 @@ is space allocated in the array. For an array "a", at any time the
 following relationship holds:
 
 	0 <= len(a) <= cap(a)
+
+TODO(gri) Change this and the following sections to use a table indexed
+by functions and parameter types instead of lots of prose.
 
 
 Conversions
@@ -2216,14 +2225,14 @@ syntactically like a call to a function whose name is the type:
 
 	int(PI * 1000.0);
 	AStructType(an_interface_variable);
-	struct{ x int, y float }(3, sqrt(2.0))
-	[]int(1, 2, 3, 4);
-	map[string]int("1", 1, "2", 2);
+	struct{ x int, y float }{3, sqrt(2.0)}
+	[]int{1, 2, 3, 4};
+	map[string]int{"1", 1, "2", 2};
 	
 This notation is convenient for declaring and initializing
 variables of composite type:
 
-	primes := []int(2, 3, 5, 7, 9, 11, 13);
+	primes := []int{2, 3, 5, 7, 9, 11, 13};
 
 Simple conversions can also be written as a parenthesized type after
 an expression and a period.  Although intended for ease of conversion
