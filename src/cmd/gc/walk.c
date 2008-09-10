@@ -2364,7 +2364,7 @@ arrayop(Node *n, int top)
 		r = list(a, r);
 
 		a = nod(OCONV, n->right->left, N);	// lb
-		a->type = types[TINT32];
+		a->type = types[TUINT32];
 		r = list(a, r);
 
 		a = n->left;				// old
@@ -2391,12 +2391,12 @@ arrayop(Node *n, int top)
 		r = list(a, r);
 
 		a = nod(OCONV, n->right->left, N);	// lb
-		a->type = types[TINT32];
+		a->type = types[TUINT32];
 		r = list(a, r);
 
 		a = nodintconst(t->bound);		// nel
 		a = nod(OCONV, a, N);
-		a->type = types[TINT32];
+		a->type = types[TUINT32];
 		r = list(a, r);
 
 		a = n->left;				// old
