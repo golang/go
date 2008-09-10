@@ -1,0 +1,21 @@
+Get Going
+----
+
+Rob Pike
+
+----
+(September 10, 2008)
+
+
+This document is a tutorial introduction to the basics of the Go systems programming
+language, intended for programmers familiar with C or C++.
+
+--PROG progs/helloworld.go
+
+--PROG progs/helloworld.go /func.main/ END
+
+--PROG progs/helloworld.go /print/
+
+--PROG progs/helloworld.go /func/
+
+Now is the time.
