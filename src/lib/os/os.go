@@ -8,7 +8,31 @@ import syscall "syscall"
 
 // Support types and routines for OS library
 
-func WriteString(fd int64, s string) (ret int64, err *Error);
+// FDs are wrappers for file descriptors
+export type FD struct {
+	fd int64
+}
+
+// Errors are singleton structures. Use the Print()/String() methods to get their contents --
+// they handle the nil (no error) case.
+export type Error struct {
+	s string
+}
+
+export func NewFD(fd int64) *FD {
+	if fd < 0 {
+		return nil
+	}
+	n := new(FD);	// TODO(r): how about return &FD{fd} ?
+	n.fd = fd;
+	return n;
+}
+
+export var (
+	Stdin = NewFD(0);
+	Stdout = NewFD(1);
+	Stderr = NewFD(2);
+)
 
 export func StringToBytes(b *[]byte, s string) bool {
 	if len(s) >= len(b) {
@@ -19,31 +43,6 @@ export func StringToBytes(b *[]byte, s string) bool {
 	}
 	b[len(s)] = '\000';	// not necessary - memory is zeroed - but be explicit
 	return true
-}
-
-// Errors are singleton structures. Use the Print()/String() methods to get their contents --
-// it handles the nil (no error) case.
-
-export type Error struct {
-	s string
-}
-
-const NoError = "No Error"
-
-func (e *Error) Print() {
-	if e == nil {
-		WriteString(2, NoError)
-	} else {
-		WriteString(2, e.s)
-	}
-}
-
-func (e *Error) String() string {
-	if e == nil {
-		return NoError
-	} else {
-		return e.s
-	}
 }
 
 var ErrorTab = new(map[int64] *Error);
@@ -101,36 +100,62 @@ export var (
 	EAGAIN = ErrnoToError(syscall.EAGAIN);
 )
 
-export func Open(name string, mode int64, flags int64) (ret int64, err *Error) {
+export func Open(name string, mode int64, flags int64) (fd *FD, err *Error) {
 	var buf [512]byte;
 	if !StringToBytes(&buf, name) {
-		return -1, ErrnoToError(syscall.ENAMETOOLONG)
+		return nil, EINVAL
 	}
 	r, e := syscall.open(&buf[0], mode, flags);
+	return NewFD(r), ErrnoToError(e)
+}
+
+func (fd *FD) Close() *Error {
+	if fd == nil {
+		return EINVAL
+	}
+	r, e := syscall.close(fd.fd);
+	fd.fd = -1;  // so it can't be closed again
+	return ErrnoToError(e)
+}
+
+func (fd *FD) Read(b *[]byte) (ret int64, err *Error) {
+	if fd == nil {
+		return -1, EINVAL
+	}
+	r, e := syscall.read(fd.fd, &b[0], int64(len(b)));
 	return r, ErrnoToError(e)
 }
 
-export func Close(fd int64) (ret int64, err *Error) {
-	r, e := syscall.close(fd);
+func (fd *FD) Write(b *[]byte) (ret int64, err *Error) {
+	if fd == nil {
+		return -1, EINVAL
+	}
+	r, e := syscall.write(fd.fd, &b[0], int64(len(b)));
 	return r, ErrnoToError(e)
 }
 
-export func Read(fd int64, b *[]byte) (ret int64, err *Error) {
-	r, e := syscall.read(fd, &b[0], int64(len(b)));
-	return r, ErrnoToError(e)
-}
-
-export func Write(fd int64, b *[]byte) (ret int64, err *Error) {
-	r, e := syscall.write(fd, &b[0], int64(len(b)));
-	return r, ErrnoToError(e)
-}
-
-export func WriteString(fd int64, s string) (ret int64, err *Error) {
+func (fd *FD) WriteString(s string) (ret int64, err *Error) {
+	if fd == nil {
+		return -1, EINVAL
+	}
 	b := new([]byte, len(s)+1);
 	if !StringToBytes(b, s) {
-		return -1, ErrnoToError(syscall.ENAMETOOLONG)
+		return -1, EINVAL
 	}
-	r, e := syscall.write(fd, &b[0], int64(len(s)));
+	r, e := syscall.write(fd.fd, &b[0], int64(len(s)));
 	return r, ErrnoToError(e)
 }
 
+const NoError = "No Error"
+
+func (e *Error) String() string {
+	if e == nil {
+		return NoError
+	} else {
+		return e.s
+	}
+}
+
+func (e *Error) Print() {
+	Stderr.WriteString(e.String())
+}
