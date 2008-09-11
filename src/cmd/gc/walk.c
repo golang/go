@@ -54,7 +54,7 @@ walk(Node *fn)
 	}
 	if(curfn->type->outtuple)
 		if(walkret(curfn->nbody))
-			warn("function ends without a return statement");
+			yyerror("function ends without a return statement");
 	walkstate(curfn->nbody);
 	if(debug['W']) {
 		snprint(s, sizeof(s), "after %S", curfn->nname->sym);
