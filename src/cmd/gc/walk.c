@@ -10,6 +10,38 @@ static	Type*	sw3(Node*, Type*);
 static	Node*	curfn;
 static	Node*	addtop;
 
+// can this code branch reach the end
+// without an undcontitional RETURN
+// this is hard, so it is conservative
+int
+walkret(Node *n)
+{
+
+loop:
+	if(n != N)
+	switch(n->op) {
+	case OLIST:
+		if(n->right == N) {
+			n = n->left;
+			goto loop;
+		}
+		n = n->right;
+		goto loop;
+
+	// at this point, we have the last
+	// statement of the function
+
+	case OGOTO:
+	case OPANIC:
+	case ORETURN:
+		return 0;
+	}
+
+	// all other statements
+	// will flow to the end
+	return 1;
+}
+
 void
 walk(Node *fn)
 {
@@ -18,12 +50,15 @@ walk(Node *fn)
 	curfn = fn;
 	if(debug['W']) {
 		snprint(s, sizeof(s), "\nbefore %S", curfn->nname->sym);
-		dump(s, fn->nbody);
+		dump(s, curfn->nbody);
 	}
-	walkstate(fn->nbody);
+	if(curfn->type->outtuple)
+		if(walkret(curfn->nbody))
+			warn("function ends without a return statement");
+	walkstate(curfn->nbody);
 	if(debug['W']) {
 		snprint(s, sizeof(s), "after %S", curfn->nname->sym);
-		dump(s, fn->nbody);
+		dump(s, curfn->nbody);
 	}
 }
 
