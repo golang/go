@@ -68,6 +68,8 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug041.go
 BUG: compilation succeeds incorrectly
 
+=========== bugs/bug060.go
+map does not increment
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
 	(<int32>INT32)
@@ -103,10 +105,6 @@ BUG: succeeds incorrectly
 bugs/bug085.go:8: P: undefined
 BUG: fails incorrectly
 
-=========== bugs/bug086.go
-4882
-BUG: succeeds incorrectly
-
 =========== bugs/bug087.go
 bugs/bug087.go:8: illegal combination of literals LEN 9
 bugs/bug087.go:8: illegal combination of literals LEN 9
@@ -140,6 +138,23 @@ pc: 0x1b7d
 	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
 
 BUG: fails incorrectly
+
+=========== bugs/bug094.go
+bugs/bug094.go:11: left side of := must be a name
+bad top
+.   LITERAL-I0 l(343)
+bugs/bug094.go:11: fatal error: walktype: top=3 LITERAL
+BUG: fails incorrectly
+
+=========== bugs/bug095.go
+found 2, expected 1
+
+panic on line 342 PC=0x139e
+0x139e?zi
+	main·main(1, 0, 1606416392, ...)
+	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
+BUG wrong result
+Trace/BPT trap          ./$A.out
 
 =========== fixedbugs/bug015.go
 fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
