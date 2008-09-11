@@ -70,7 +70,6 @@ const NoError = "No Error"
 func (e *Error) String() string {
 	if e == nil {
 		return NoError
-	} else {
-		return e.s
 	}
+	return e.s
 }

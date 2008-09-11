@@ -144,9 +144,7 @@ func (b *BoolValue) Str() string {
 	if b.val {
 		return "true"
 	}
-	else {
-		return "false"
-	}
+	return "false"
 }
 
 func NewBoolValue(b bool, p *bool) *BoolValue {

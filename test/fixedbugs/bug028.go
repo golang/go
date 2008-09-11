@@ -16,6 +16,7 @@ func Alloc(i int) int {
 	case 10:
 		return 10;
 	}
+	return 0
 }
 
 func main() {

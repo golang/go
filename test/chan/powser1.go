@@ -382,7 +382,7 @@ func Monmul(U PS, n int) PS{
 // Multiply by x
 
 func Xmul(U PS) PS{
-	Monmul(U,1);
+	return Monmul(U,1);
 }
 
 func Rep(c *rat) PS{
