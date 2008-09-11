@@ -226,5 +226,8 @@ fixedbugs/bug073.go:9: illegal types for operand: RSH
 =========== fixedbugs/bug081.go
 fixedbugs/bug081.go:5: syntax error
 
+=========== fixedbugs/bug086.go
+fixedbugs/bug086.go:5: function ends without a return statement
+
 =========== fixedbugs/bug091.go
 fixedbugs/bug091.go:14: label exit not defined

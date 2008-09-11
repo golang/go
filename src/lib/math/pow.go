@@ -62,4 +62,5 @@ pow(arg1,arg2 float64) float64
 		}
 		arg1 *= arg1;
 	}
+	panic("unreachable")
 }
