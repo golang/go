@@ -27,6 +27,20 @@ export var (
 	Stderr = NewFD(2);
 )
 
+export const (
+	O_RDONLY = syscall.O_RDONLY;
+	O_WRONLY = syscall.O_WRONLY;
+	O_RDWR = syscall.O_RDWR;
+	O_APPEND = syscall.O_APPEND;
+	O_ASYNC = syscall.O_ASYNC;
+	O_CREAT = syscall.O_CREAT;
+	O_NOCTTY = syscall.O_NOCTTY;
+	O_NONBLOCK = syscall.O_NONBLOCK;
+	O_NDELAY = O_NONBLOCK;
+	O_SYNC = syscall.O_SYNC;
+	O_TRUNC = syscall.O_TRUNC;
+)
+
 export func Open(name string, mode int64, flags int64) (fd *FD, err *Error) {
 	r, e := syscall.open(name, mode, flags);
 	return NewFD(r), ErrnoToError(e)
