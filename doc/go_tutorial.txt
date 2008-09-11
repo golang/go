@@ -45,7 +45,7 @@ to store Unicode strings represented in UTF-8.
 
 The built-in function "print()" has been used during the early stages of
 development of the language but is not guaranteed to last.  Here's a better version of the
-program that doesn't depend on this "print()":
+program that doesn't depend on "print()":
 
 --PROG progs/helloworld2.go
 
@@ -103,20 +103,20 @@ or we could go even shorter and write the idiom
 	s := "";
 
 The := operator is used a lot in Go to represent an initializing declaration.
-(For those who know Limbo, it's the same, except notice that there is no
-colon after the name in a full "var" declaration.)
-And here's one in the "for" clause on the next line:
+(For those who know Limbo, its := construct is the same, but notice
+that Go has no colon after the name in a full "var" declaration.)
+And there's one in the "for" clause on the next line:
 
 --PROG  progs/echo.go /for/
 
-The "Flag" package has parsed the arguments and left the non-flags in
-a list that can be iterated over in the obvious way.
+The "Flag" package has parsed the arguments and left the non-flag arguments
+in a list that can be iterated over in the obvious way.
 
 The Go "for" statement differs from that of C in a number of ways.  First,
 it's the only looping construct; there is no "while" or "do".  Second,
 there are no parentheses on the clause, but the braces on the body
-are mandatory.  Later examples will show some other ways "for"
-can be written.
+are mandatory.  (The same applies to the "if" statement.) Later examples
+will show some other ways "for" can be written.
 
 The body of the loop builds up the string "s" by appending (using +=)
 the flags and separating spaces. After the loop, if the "-n" flag is not
@@ -132,4 +132,104 @@ The "sys" package is built in and contains some essentials for getting
 started; for instance, "sys.argc()" and "sys.argv(int)" are used by the
 "Flag" package to access the arguments.
 
-More to come.
+An Interlude about Types
+----
+
+Go has some familiar types such as "int" and "float", which represent
+values of the ''appropriate'' size for the machine. It also defines
+specifically-sized types such as "int8", "float64", and so on, plus
+unsigned integer types such as "uint", "uint32", etc.  And then there
+is a "byte" synonym for "uint8", which is the element type for
+strings.
+
+Speaking of "string", that's a built-in type as well.  Strings are
+<i>immutable values</i> -- they are not just arrays of "byte" values.
+Once you've built a string <i>value</i>, you can't change it, although
+of course you can change a string <i>variable</i> simply by
+reassigning it.  This snippet from "strings.go" is legal code:
+
+--PROG progs/strings.go /hello/ /ciao/
+
+However the following statements are illegal because they would modify
+a "string" value:
+
+	s[0] = 'x';
+	(*p)[1] = 'y';
+
+In C++ terms, Go strings are a bit like "const strings", while pointers
+to strings are analogous to "const string" references.
+
+Yes, there are pointers.  However, Go simplifies their use a little;
+read on.
+
+Arrays are declared like this:
+
+	var array_of_int [10]int;
+
+Arrays, like strings, are values, but they are mutable. This differs
+from C, in which "array_of_int" would be usable as a pointer to "int".
+In Go, since arrays are values, it's meaningful (and useful) to talk
+about pointers to arrays.
+
+The size of the array is part of its type; however, one can declare
+an <i>open array</i> variable, to which one can assign any array value
+with the same element type.
+(At the moment, only <i>pointers</i> to open arrays are implemented.)
+Thus one can write this function (from "sum.go"):
+
+--PROG progs/sum.go /sum/ /^}/
+
+and invoke it like this:
+
+--PROG progs/sum.go /1,2,3/
+
+Note how the return type ("int") is defined for "sum()" by stating it
+after the parameter list.  Also observe that although the argument
+is a pointer to an array, we can index it directly ("a[i]" not "(*a)[i]").
+The expression "[]int{1,2,3}" -- a type followed by a brace-bounded expression
+-- is a constructor for a value, in this case an array of "int". We pass it
+to "sum()" by taking its address.
+
+The built-in function "len()" appeared there too - it works on strings,
+arrays, and maps, which can be built like this:
+
+	m := map[string] int {"one":1 , "two":2}
+
+At least for now, maps are <i>always</i> pointers, so in this example
+"m" has type "*map[string]int".  This may change.
+
+You can also create a map (or anything else) with the built-in "new()"
+function:
+
+	m := new(map[string] int)
+
+The "new()" function always returns a pointer, an address for the object
+it creates.
+
+An Interlude about Constants
+----
+
+Although integers come in lots of sizes in Go, integer constants do not.
+There are no constants like "0ll" or "0x0UL".   Instead, integer
+constants are evaluated as ideal, arbitrary precision values that
+can overflow only when they are assigned to an integer variable of
+some specific size.
+
+	const hard_eight = (1 << 100) >> 97  // legal
+
+There are nuances that deserve redirection to the legalese of the
+language specification but here are some illustrative examples:
+
+	var a uint64 = 0  // a has type uint64, value 0
+	a := uint64(0)    // equivalent; uses a "conversion"
+	i := 0x1234       // i gets default type: int
+	var j int = 1e6   // legal - 1000000 is representable in an int
+	x := 1.5          // a float
+	i3div2 = 3/2      // integer division - result is 1
+	f3div2 = 3./2.    // floating point division - result is 1.5
+
+Conversions only work for simple cases such as converting ints of one
+sign or size to another, and between ints and floats, plus a few other
+simple cases.  There are no automatic conversions of any kind in Go,
+other than that of making constants have concrete size and type when
+assigned to a variable.
