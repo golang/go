@@ -8,14 +8,128 @@ Rob Pike
 
 
 This document is a tutorial introduction to the basics of the Go systems programming
-language, intended for programmers familiar with C or C++.
+language, intended for programmers familiar with C or C++. It is not a comprehensive
+guide to the language; at the moment the closest to that is the draft specification:
+
+	/doc/go_lang.html
+
+To check out the compiler and tools and be ready to run Go programs, see
+
+	/doc/go_setup.html
+
+The presentation proceeds through a series of modest programs to illustrate
+key features of the language.  All the programs work (at time of writing) and are
+checked in at
+
+	/doc/progs
+
+Program snippets are annotated with the line number in the original file; for
+cleanliness, blank lines remain blank.
+
+Hello, World
+----
+
+Let's start in the usual way:
 
 --PROG progs/helloworld.go
 
---PROG progs/helloworld.go /func.main/ END
+Every Go source file declares which package it's part of using a "package" statement.
+The "main" package's "main" function is where the program starts running (after
+any initialization).
 
---PROG progs/helloworld.go /print/
+Function declarations are introduced with the "func" keyword.
 
---PROG progs/helloworld.go /func/
+Notice that string constants can contain Unicode characters, encoded in UTF-8.
+Go is defined to accept UTF-8 input.  Strings are arrays of bytes, usually used
+to store Unicode strings represented in UTF-8.
 
-Now is the time.
+The built-in function "print()" has been used during the early stages of
+development of the language but is not guaranteed to last.  Here's a better version of the
+program that doesn't depend on this "print()":
+
+--PROG progs/helloworld2.go
+
+This version imports the ''os'' package to acess its "Stdout" variable, of type
+"*OS.FD"; given "OS.Stdout" we can use its "WriteString" method to print the string.
+
+The comment convention is the same as in C++:
+
+	/* ... */
+	// ...
+
+Echo
+----
+
+Next up, here's a version of the Unix utility "echo(1)":
+
+--PROG progs/echo.go
+
+It's still fairly small but it's doing a number of new things.  In the last example,
+we saw "func" introducing a function.  The keywords "var", "const", and "type"
+(not used yet) also introduce declarations, as does "import".
+Notice that we can group declarations of the same sort into
+parenthesized, semicolon-separated lists if we want, as on lines 3-6 and 10-13.
+But it's not necessary to do so; we could have said
+
+	const Space = " "
+	const Newline = "\n"
+
+Semicolons aren't needed here; in fact, semicolons are unnecessary after any
+top-level declaration, even though they are needed as separators <i>within</i>
+a parenthesized list of declarations.
+
+Having imported the "Flag" package, line 8 creates a global variable to hold
+the value of echo's -n flag.  (The nil indicates a nice feature not needed here;
+see the source in "src/lib/flag.go" for details).
+
+In "main.main", we parse the arguments (line 16) and then create a local
+string variable we will use to build the output.
+
+The declaration statement has the form
+
+	var s string = "";
+
+This is the "var" keyword, followed by the name of the variable, followed by
+its type, followed by an equals sign and an initial value for the variable.
+
+Go tries to be terse, and this declaration could be shortened.  Since the
+string constant is of type string, we don't have to tell the compiler that.
+We could write
+
+	var s = "";
+
+or we could go even shorter and write the idiom
+
+	s := "";
+
+The := operator is used a lot in Go to represent an initializing declaration.
+(For those who know Limbo, it's the same, except notice that there is no
+colon after the name in a full "var" declaration.)
+And here's one in the "for" clause on the next line:
+
+--PROG  progs/echo.go /for/
+
+The "Flag" package has parsed the arguments and left the non-flags in
+a list that can be iterated over in the obvious way.
+
+The Go "for" statement differs from that of C in a number of ways.  First,
+it's the only looping construct; there is no "while" or "do".  Second,
+there are no parentheses on the clause, but the braces on the body
+are mandatory.  Later examples will show some other ways "for"
+can be written.
+
+The body of the loop builds up the string "s" by appending (using +=)
+the flags and separating spaces. After the loop, if the "-n" flag is not
+set, it appends a newline, and then writes the result.
+
+Notice that "main.main" is a niladic function with no return type.
+It's defined that way.  Falling off the end of "main.main" means
+''success''; if you want to signal erroneous return, use
+
+	sys.exit(1)
+
+The "sys" package is built in and contains some essentials for getting
+started; for instance, "sys.argc()" and "sys.argv(int)" are used by the
+"Flag" package to access the arguments.
+
+More to come.
