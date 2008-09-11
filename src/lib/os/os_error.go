@@ -6,8 +6,8 @@ package os
 
 import syscall "syscall"
 
-// Errors are singleton structures. Use the Print()/String() methods to get their contents --
-// they handle the nil (no error) case.
+// Errors are singleton structures. Use the String() method to get their contents --
+// it handles the nil (no error) case.
 export type Error struct {
 	s string
 }

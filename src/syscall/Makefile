@@ -8,23 +8,31 @@ CC=$(O)c
 AS=$(O)a
 GC=$(O)g
 
-PKG=syscall.a
+PKG=$(GOROOT)/pkg/syscall.a
 
-OFILES=\
+O1=\
 	syscall.$O \
 	errstr_$(GOOS).$O \
+
+O2=\
 	file_$(GOARCH)_$(GOOS).$O \
 	syscall_$(GOARCH)_$(GOOS).$O \
 
 
-install: $(PKG)
-	cp $(PKG) $(GOROOT)/pkg/$(PKG)
+install: nuke $(PKG)
 
-$(PKG): $(OFILES)
-	$(O)ar grc $(PKG) $(OFILES)
+$(PKG): a1 a2
+
+a1: 	$(O1)
+	$(O)ar grc $(PKG) $(O1)
+	rm *.6
+
+a2: 	$(O2)
+	$(O)ar grc $(PKG) $(O2)
+	rm *.6
 
 nuke:
-	rm -f *.$(O) *.a $(GOROOT)/pkg/$(PKG)
+	rm -f *.$(O) *.a $(PKG)
 
 clean:
 	rm -f *.$(O) *.a

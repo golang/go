@@ -65,15 +65,25 @@ const (
 	O_TRUNC = 0x400;
 )
 
-export func open(name *byte, mode int64, flags int64) (ret int64, errno int64) {
+const NameBufsize = 512
+
+export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
+	var namebuf [NameBufsize]byte;
+	if !StringToBytes(&namebuf, name) {
+		return -1, syscall.ENAMETOOLONG
+	}
 	const SYSOPEN = 5;
-	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, flags);
+	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(&namebuf[0]), mode, perm);
 	return r1, err;
 }
 
-export func creat(name *byte, mode int64) (ret int64, errno int64) {
+export func creat(name string, perm int64) (ret int64, errno int64) {
+	var namebuf [NameBufsize]byte;
+	if !StringToBytes(&namebuf, name) {
+		return -1, syscall.ENAMETOOLONG
+	}
 	const SYSOPEN = 5;
-	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, O_CREAT|O_WRONLY|O_TRUNC);
+	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(&namebuf[0]), O_CREAT|O_WRONLY|O_TRUNC, perm);
 	return r1, err;
 }
 
@@ -106,9 +116,13 @@ export func pipe(fds *[2]int64) (ret int64, errno int64) {
 	return 0, 0;
 }
 
-export func stat(name *byte, buf *Stat) (ret int64, errno int64) {
+export func stat(name string, buf *Stat) (ret int64, errno int64) {
+	var namebuf [NameBufsize]byte;
+	if !StringToBytes(&namebuf, name) {
+		return -1, syscall.ENAMETOOLONG
+	}
 	const SYSSTAT = 338;
-	r1, r2, err := syscall.Syscall(SYSSTAT, AddrToInt(name), StatToInt(buf), 0);
+	r1, r2, err := syscall.Syscall(SYSSTAT, AddrToInt(&namebuf[0]), StatToInt(buf), 0);
 	return r1, err;
 }
 
@@ -124,8 +138,12 @@ export func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
 	return r1, err;
 }
 
-export func unlink(name *byte) (ret int64, errno int64) {
+export func unlink(name string) (ret int64, errno int64) {
+	var namebuf [NameBufsize]byte;
+	if !StringToBytes(&namebuf, name) {
+		return -1, syscall.ENAMETOOLONG
+	}
 	const SYSUNLINK = 10;
-	r1, r2, err := syscall.Syscall(SYSUNLINK, AddrToInt(name), 0, 0);
+	r1, r2, err := syscall.Syscall(SYSUNLINK, AddrToInt(&namebuf[0]), 0, 0);
 	return r1, err;
 }
