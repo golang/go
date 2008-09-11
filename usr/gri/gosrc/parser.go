@@ -348,6 +348,8 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 		P.Ecart();
 		return nil;
 	}
+	
+	panic("UNREACHABLE");
 }
 
 
@@ -412,6 +414,8 @@ func (P *Parser) ParseTypeName() *Globals.Type {
 		P.Ecart();
 		return Universe.bad_t;
 	}
+	
+	panic("UNREACHABLE");
 }
 
 
@@ -1525,6 +1529,7 @@ func (P *Parser) ParseIfStat() *AST.IfStat {
 	P.CloseScope();
 	
 	P.Ecart();
+	return nil;
 }
 
 
@@ -1657,7 +1662,7 @@ func (P *Parser) ParseCommClause() {
 }
 
 
-func (P *Parser) ParseRangeStat() bool {
+func (P *Parser) ParseRangeStat() {
 	P.Trace("RangeStat");
 	
 	P.Expect(Scanner.RANGE);
@@ -1670,7 +1675,7 @@ func (P *Parser) ParseRangeStat() bool {
 }
 
 
-func (P *Parser) ParseSelectStat() bool {
+func (P *Parser) ParseSelectStat() {
 	P.Trace("SelectStat");
 	
 	P.Expect(Scanner.SELECT);

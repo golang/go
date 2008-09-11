@@ -572,7 +572,7 @@ func (x Integer) cmp (y Integer) int {
     case zero(d.val): return  0;
     default         : return +1;
   }
-  CHECK(false);  // unreachable
+  panic("UNREACHABLE");
 }
 
 
