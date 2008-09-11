@@ -459,7 +459,7 @@ sigcmp(Sig *a, Sig *b)
 void
 dumpsignatures(void)
 {
-	Dcl *d;
+	Dcl *d, *x;
 	Type *t, *f;
 	Sym *s1, *s;
 	int et, o, wi, ot;
@@ -467,6 +467,44 @@ dumpsignatures(void)
 	Addr at, ao, ac, ad;
 	Prog *p;
 	char *sp;
+
+	// copy externdcl list to signatlist
+	for(d=externdcl; d!=D; d=d->forw) {
+		if(d->op != OTYPE)
+			continue;
+
+		t = d->dtype;
+		if(t == T)
+			continue;
+
+		et = t->etype;
+		if(et != TSTRUCT && et != TINTER)
+			continue;
+
+		s = d->dsym;
+		if(s == S)
+			continue;
+
+		if(s->name[0] == '_')
+			continue;
+
+		// if it was imported
+		if(s->local == 0)
+			continue;
+
+// until i can figure out
+// when/if it is used, do them all
+//		// if not used and not exported
+//		if(s->local == 1 && !s->export)
+//			continue;
+
+		x = mal(sizeof(*d));
+		x->op = OTYPE;
+		x->dsym = s;
+		x->dtype = t;
+		x->forw = signatlist;
+		signatlist = x;
+	}
 
 	/*
 	 * put all the names into a linked
@@ -505,7 +543,7 @@ dumpsignatures(void)
 
 	wi = types[TINT32]->width;
 
-	for(d=externdcl; d!=D; d=d->forw) {
+	for(d=signatlist; d!=D; d=d->forw) {
 		if(d->op != OTYPE)
 			continue;
 

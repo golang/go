@@ -52,6 +52,7 @@ dodcltype(Type *n, Type *t)
 	}
 	if(exportadj)
 		exportsym(n->sym);
+	n->sym->local = 1;
 	addtyp(n, t, dclcontext);
 }
 

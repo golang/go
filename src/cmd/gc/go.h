@@ -195,8 +195,9 @@ struct	Sym
 
 	uchar	undef;		// a diagnostic has been generated
 	uchar	export;		// marked as export
-	uchar	exported;	// has been exported
+	uchar	exported;	// exported
 	uchar	sym;		// huffman encoding in object file
+	uchar	local;		// created in this file
 
 	char*	opackage;	// original package name
 	char*	package;	// package name
@@ -429,6 +430,7 @@ EXTERN	Dcl*	autodcl;
 EXTERN	Dcl*	paramdcl;
 EXTERN	Dcl*	externdcl;
 EXTERN	Dcl*	exportlist;
+EXTERN	Dcl*	signatlist;
 EXTERN	int	dclcontext;	// PEXTERN/PAUTO
 EXTERN	int	importflag;
 EXTERN	int	inimportsys;

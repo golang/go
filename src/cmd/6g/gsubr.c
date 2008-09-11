@@ -322,7 +322,11 @@ loop:
 
 	s = t->sym;
 	if(s == S)
-		fatal("nodtypesig: no sym for type");
+		fatal("signame: no sym for type");
+
+	// mark it as used so signature will be generated
+	if(s->local == 1)
+		s->local = 2;
 
 	snprint(namebuf, sizeof(namebuf), "%s_%s", e, s->name);
 	s = pkglookup(namebuf, s->package);
