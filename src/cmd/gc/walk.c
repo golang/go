@@ -1970,8 +1970,6 @@ mapop(Node *n, int top)
 			goto shape;
 
 		// mapassign1(hmap *map[any-1]any-2, key any-3, val any-4);
-
-//dump("assign1", n);
 		if(n->left->op != OINDEX)
 			goto shape;
 
@@ -1999,8 +1997,6 @@ mapop(Node *n, int top)
 
 	assign2:
 		// mapassign2(hmap *map[any]any, key any, val any, pres bool);
-
-//dump("assign2", n);
 		if(n->left->op != OINDEX)
 			goto shape;
 
