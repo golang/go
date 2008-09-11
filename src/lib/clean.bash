@@ -6,6 +6,10 @@
 
 rm -f $GOROOT/pkg/*
 
-cd math
-bash clean.bash
-cd ..
+for i in os math
+do
+	cd $i
+	make nuke
+	cd ..
+done
+
