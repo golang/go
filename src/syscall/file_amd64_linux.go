@@ -52,7 +52,7 @@ export type Stat struct {
 	st_unused6	int64;
 }
 
-const (
+export const (
 	O_RDONLY = 0x0;
 	O_WRONLY = 0x1;
 	O_RDWR = 0x2;
