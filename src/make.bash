@@ -12,7 +12,7 @@ do
 	cd ..
 done
 
-for i in cmd runtime lib
+for i in cmd runtime
 do
 	cd $i
 	bash make.bash
@@ -25,5 +25,12 @@ do
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i
 	make install
+	cd ..
+done
+
+for i in lib
+do
+	cd $i
+	bash make.bash
 	cd ..
 done
