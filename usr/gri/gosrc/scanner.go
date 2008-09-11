@@ -609,6 +609,8 @@ func (S *Scanner) ScanEscape() string {
 	default:
 		S.Error(pos, "illegal char escape");
 	}
+
+	return "";  // TODO fix this
 }
 
 
