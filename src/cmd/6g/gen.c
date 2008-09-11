@@ -68,8 +68,10 @@ if(newproc == N) {
 	gclean();
 	checklabels();
 
-//	if(curfn->type->outtuple != 0)
-//		gins(AGOK, N, N);
+	if(curfn->type->outtuple != 0) {
+		nodconst(&nod1, types[TUINT8], 6); // 6 is opcode trap
+		gins(AINT, &nod1, N);
+	}
 
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
