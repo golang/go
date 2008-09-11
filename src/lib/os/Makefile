@@ -8,11 +8,11 @@ GC=$(O)g
 PKG=$(GOROOT)/pkg/os.a
 
 O1=\
-	os_base.$O os_error.$O
+	os_error.$O
 O2=\
 	os_file.$O
 
-install: $(PKG)
+install: nuke $(PKG)
 
 $(PKG): a1 a2
 
