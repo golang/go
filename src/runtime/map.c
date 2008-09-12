@@ -114,6 +114,7 @@ sys·mapaccess1(Hmap *m, ...)
 	}
 
 	m->valalg->copy(m->valsize, av, 0);
+	throw("sys·mapaccess1: key not in map");
 
 out:
 	if(debug) {

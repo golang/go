@@ -406,6 +406,7 @@ loop:
 		case OINDEXPTR:
 			if(cl == 2 && cr == 1) {
 				// a,b = map[] - mapaccess2
+				walktype(r->left, Erv);
 				if(!isptrto(r->left->type, TMAP))
 					break;
 				l = mapop(n, top);
