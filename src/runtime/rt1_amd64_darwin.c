@@ -6,6 +6,9 @@
 #include "amd64_darwin.h"
 #include "signals.h"
 
+extern void _rt0_amd64_darwin();
+byte* startsym = (byte*)_rt0_amd64_darwin;
+
 typedef uint64 __uint64_t;
 
 /* From /usr/include/mach/i386/_structs.h */

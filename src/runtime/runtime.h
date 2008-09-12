@@ -208,6 +208,7 @@ G*	allg;
 int32	goidgen;
 extern	int32	gomaxprocs;
 extern	int32	panicking;
+extern	byte	*startsym;
 
 /*
  * common functions and data
