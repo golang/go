@@ -9,7 +9,7 @@ static struct SigTab sigtab[] = {
 	/* 2 */	0, "SIGINT: interrupt program",
 	/* 3 */	1, "SIGQUIT: quit program",
 	/* 4 */	1, "SIGILL: illegal instruction",
-	/* 5 */	0, "SIGTRAP: trace trap",	/* uncaught; used by panic and signal handler */
+	/* 5 */	1, "SIGTRAP: trace trap",	/* used by panic and array out of bounds, etc. */
 	/* 6 */	1, "SIGABRT: abort program",
 	/* 7 */	1, "SIGEMT: emulate instruction executed",
 	/* 8 */	1, "SIGFPE: floating-point exception",

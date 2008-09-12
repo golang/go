@@ -5,6 +5,7 @@
 #include "runtime.h"
 
 int32	debug	= 0;
+int32	panicking = 0;
 
 void
 sys·panicl(int32 lno)
@@ -19,7 +20,8 @@ sys·panicl(int32 lno)
 	sp = (uint8*)&lno;
 	traceback(sys·getcallerpc(&lno), sp, g);
 	tracebackothers(g);
-	sys·breakpoint();
+	panicking = 1;
+	sys·breakpoint();  // so we can grab it in a debugger
 	sys·exit(2);
 }
 

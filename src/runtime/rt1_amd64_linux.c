@@ -138,14 +138,19 @@ typedef struct sigaction {
 void
 sighandler(int32 sig, siginfo* info, void** context)
 {
-	if(sig < 0 || sig >= NSIG){
-		prints("Signal ");
-		sys·printint(sig);
-	}else{
-		prints(sigtab[sig].name);
-	}
+	if(panicking)	// traceback already printed
+		sys·exit(2);
 
         struct sigcontext *sc = &(((struct ucontext *)context)->uc_mcontext);
+
+	if(!inlinetrap(sig, (byte *)sc->rip)) {
+		if(sig < 0 || sig >= NSIG){
+			prints("Signal ");
+			sys·printint(sig);
+		}else{
+			prints(sigtab[sig].name);
+		}
+	}
 
         prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
         prints("\npc: 0x");  sys·printpointer((void *)sc->rip);

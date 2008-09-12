@@ -86,3 +86,33 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 		prints(", ...)\n");
 	}
 }
+
+/*
+ * For trace traps, disassemble instruction to see if it's INTB of known type.
+ */
+int32
+inlinetrap(int32 sig, byte* pc)
+{
+	extern void etext();
+	extern void _rt0_amd64_darwin();
+
+	if(sig != 5)	/* SIGTRAP */
+		return 0;
+	if(pc-2 < (byte*)_rt0_amd64_darwin || pc >= (byte*)etext)
+		return 0;
+	if(pc[-2] != 0xcd)  /* INTB */
+		return 0;
+	switch(pc[-1]) {
+	case 5:
+		prints("\nTRAP: array out of bounds\n");
+		break;
+	case 6:
+		prints("\nTRAP: leaving function with returning a value\n");
+		break;
+	default:
+		prints("\nTRAP: unknown run-time trap ");
+		sys·printint(pc[-1]);
+		prints("\n");
+	}
+	return 1;
+}
