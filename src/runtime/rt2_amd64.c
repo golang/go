@@ -94,11 +94,10 @@ int32
 inlinetrap(int32 sig, byte* pc)
 {
 	extern void etext();
-	extern void _rt0_amd64_darwin();
 
 	if(sig != 5)	/* SIGTRAP */
 		return 0;
-	if(pc-2 < (byte*)_rt0_amd64_darwin || pc >= (byte*)etext)
+	if(pc-2 < startsym || pc >= (byte*)etext)
 		return 0;
 	if(pc[-2] != 0xcd)  /* INTB */
 		return 0;

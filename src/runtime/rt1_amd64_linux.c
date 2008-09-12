@@ -6,6 +6,9 @@
 #include "amd64_linux.h"
 #include "signals.h"
 
+extern void _rt0_amd64_linux();
+byte* startsym = (byte*)_rt0_amd64_linux;
+
 /* From /usr/include/asm-x86_64/sigcontext.h */
 struct _fpstate {
   uint16   cwd;
