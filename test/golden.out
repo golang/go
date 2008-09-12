@@ -165,6 +165,12 @@ panic on line 344 PC=0x13c2
 BUG wrong result
 Trace/BPT trap          ./$A.out
 
+=========== bugs/bug098.go
+bugs/bug098.go:10: illegal types for operand: AS
+	(*MAP[<int32>INT32]<int32>INT32)
+	(**MAP[<int32>INT32]<int32>INT32)
+BUG should compile
+
 =========== fixedbugs/bug015.go
 fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
 
