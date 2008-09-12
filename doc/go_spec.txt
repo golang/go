@@ -765,15 +765,15 @@ long.  Similarly, float is at least 32 bits, double is at least 64
 bits, and the sizes have float <= double.
 
 	byte     alias for uint8
-	ushort	 uint16 <= ushort <= uint
+	ushort   uint16 <= ushort <= uint
 	uint     uint32 <= uint <= ulong
 	ulong    uint64 <= ulong
 
-	short	 int16 <= short <= int
+	short    int16 <= short <= int
 	int      int32 <= int <= long
 	long     int64 <= long
 
-	float	 float32 <= float <= double
+	float    float32 <= float <= double
 	double   float64 <= double
 
 An arithmetic type ``ptrint'' is also defined.  It is an unsigned
@@ -782,16 +782,6 @@ large enough to store the uninterpreted bits of a pointer value.
 
 Generally, programmers should use these types rather than the explicitly
 sized types to maximize portability.
-
-Finally, for the purpose of explaining the rules of expressions (§Expressions),
-there are three ideal numeric types:
-
-	'ideal int'     the set of all ideal ints
-	'ideal float'   the set of all ideal floats
-	'ideal number'  the union of ideal_int and ideal_float
-	
-The type of an integer or character literal is "ideal_int"
-and the type of a floating point literal is "ideal_float".
 
 
 Booleans
@@ -1176,13 +1166,13 @@ An expression specifies the computation of a value via the application of
 operators and function invocations on operands. An expression has a value and
 a type.
 
-An expression may be of ideal numeric type. The type of such expressions is
-implicitly converted into the 'expected type' required for the expression.
+The type of an expression may be an ideal number. The type of such expressions
+is implicitly converted into the 'expected type' required for the expression.
 The conversion is legal if the (ideal) expression value is a member of the
 set represented by the expected type. Otherwise the expression is erroneous.
 
-For instance, if the expected type is int32, any ideal_int or ideal_float
-value which fits into an int32 without loss of precision can be legally converted.
+For instance, if the expected type is int32, any ideal number
+which fits into an int32 without loss of precision can be legally converted.
 Along the same lines, a negative ideal integer cannot be converted into a uint
 without loss of the sign; such a conversion is illegal.
 
@@ -1438,13 +1428,13 @@ Operators combine operands into expressions.
 The operand types in binary operations must be equal, with the following exceptions:
 
 	- The right operand in a shift operation must be
-	  an unsigned int type (§Arithmetic operators).
+	  an unsigned int (§Arithmetic operators).
 
-	- Otherwise, an operand of ideal_number type is
-	  converted into the type of the other operand (§Expression).
+	- Otherwise, ideal number operands are
+	  converted to match the type of the other operand (§Expression).
 	  
-	- If both operands are ideal numbers, the conversion is to ideal_float
-	  if one of the operand types is ideal_float (relevant for "/" and "%").
+	- If both operands are ideal numbers, the conversion is to ideal floats
+	  if one of the operands is an ideal float (relevant for "/" and "%").
 
 Unary operators have the highest precedence.
 There are six precedence levels for binary operators:
