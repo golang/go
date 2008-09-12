@@ -9,17 +9,11 @@
  */
 
 package	rand
-/*
-export
-	srand			// set rand state (int32)
-	vrand			// int64 63-bits
-	lrand			// int32 31-bits
-	rand			// int   15-bits
-	vnrand			// int64 % (int64)
-	lnrand			// int32 % (int32)
-	nrand			// int   % (int)
-	frand;			// float64 >=0.0 <1.0
-*/
+
+// rand, rand31, rand63 - return non-negative random int, int32, int64
+// urand32 - return random uint32
+// nrand, nrand31, nrand63 - return 0 <= random < n
+// frand, frand64, frand32 - return 0 <= random float, float64, float32 < 1
 
 const
 (
@@ -84,7 +78,7 @@ srand(seed int32)
 }
 
 export func
-vrand() int64
+rand63() int64
 {
 	rng_tap--;
 	if rng_tap < 0 {
@@ -102,54 +96,70 @@ vrand() int64
 }
 
 export func
-lrand() int32
+urand32() uint32
 {
-	x := vrand() & 0x7fffffff;
-	return int32(x);
+	return uint32(rand63() >> 31);
+}
+
+export func
+rand31() int32
+{
+	return int32(rand63() >> 32);
 }
 
 export func
 rand() int
 {
-	x := vrand() & 0x7fff;
-	return int(x);
+	u := uint(rand63());
+	return int(u << 1 >> 1);	// clear sign bit if int == int32
 }
 
 export func
-vnrand(n int64) int64
+nrand63(n int64) int64
 {
-	var v,slop int64;
-
-	slop = MASK % n;
-	for v = vrand(); v <= slop; v = vrand() {
+	if n <= 0 {
+		return 0
 	}
-	return v % n;
+	max := int64((1<<63)-1 - (1<<63) % uint64(n));
+	v := rand63()
+	for v > max {
+		v = rand63()
+	}
+	return v % n
 }
 
 export func
-lnrand(n int32) int32
+nrand31(n int32) int32
 {
-	v := vnrand(int64(n));
-	return int32(v);
+	return int32(nrand63(int64(n)))
 }
 
 export func
 nrand(n int) int
 {
-	v := vnrand(int64(n));
-	return int(v);
+	return int(nrand63(int64(n)))
 }
 
 export func
-frand() float64
+frand64() float64
 {
-	var x float64;
-
-	x = float64(vrand()) / float64(MASK);
+	x := float64(rand63()) / float64(MASK);
 	for x >= 1 {
-		x = float64(vrand()) / float64(MASK);
-	} 
+		x = float64(rand63()) / float64(MASK);
+	}
 	return x;
+}
+
+export func
+frand32() float32
+{
+	return float32(frand64())
+}
+
+export func
+frand() float
+{
+	return float(frand64())
 }
 
 func
