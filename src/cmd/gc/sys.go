@@ -7,6 +7,8 @@ package foop	// rename to avoid redeclaration
 
 func	mal(uint32) *any;
 func	breakpoint();
+func	throwindex();
+func	throwreturn();
 func	panicl(int32);
 
 func	printbool(bool);
@@ -75,6 +77,8 @@ func	exit(int32);
 export
 	mal
 	breakpoint
+	throwindex
+	throwreturn
 
 	// print panic
 	panicl

@@ -301,6 +301,7 @@ agen(Node *n, Node *res)
 	Node n1, n2, n3, tmp;
 	Prog *p1;
 	uint32 w;
+	uint64 v;
 	Type *t;
 
 	if(debug['g']) {
@@ -344,6 +345,12 @@ agen(Node *n, Node *res)
 		cgen_aret(n, res);
 		break;
 
+	case OS2I:
+	case OI2I:
+	case OI2S:
+		agen_inter(n, res);
+		break;
+
 	case OINDEXPTR:
 		w = n->type->width;
 		if(nr->addable)
@@ -363,12 +370,6 @@ agen(Node *n, Node *res)
 		regalloc(&n1, nr->type, N);
 		cgen(nr, &n1);
 		goto index;
-
-	case OS2I:
-	case OI2I:
-	case OI2S:
-		agen_inter(n, res);
-		break;
 
 	case OINDEX:
 		w = n->type->width;
@@ -409,8 +410,7 @@ agen(Node *n, Node *res)
 
 				p1 = gbranch(optoas(OLT, types[TUINT32]), T);
 
-				nodconst(&n3, types[TUINT8], 5); // 5 is range trap
-				gins(AINT, &n3, N);
+				gins(ACALL, N, throwindex);
 				patch(p1, pc);
 			}
 
@@ -431,11 +431,17 @@ agen(Node *n, Node *res)
 				gins(optoas(OCMP, types[TUINT32]), &n1, &n3);
 
 				p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-
-				nodconst(&n3, types[TUINT8], 5); // 5 is range trap
-				gins(AINT, &n3, N);
+				gins(ACALL, N, throwindex);
 				patch(p1, pc);
 			}
+
+		if(whatis(nr) == Wlitint) {
+			regfree(&n1);
+			v = mpgetfix(nr->val.u.xval);
+			nodconst(&n2, types[tptr], v*w);
+			gins(optoas(OADD, types[tptr]), &n2, res);
+			break;
+		}
 
 		t = types[TUINT64];
 		if(issigned[n1.type->etype])

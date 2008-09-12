@@ -25,6 +25,18 @@ sys·panicl(int32 lno)
 	sys·exit(2);
 }
 
+void
+sys·throwindex(void)
+{
+	throw("index out of range");
+}
+
+void
+sys·throwreturn(void)
+{
+	throw("no return at end of a typed function");
+}
+
 enum
 {
 	NHUNK		= 20<<20,

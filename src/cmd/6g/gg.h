@@ -113,6 +113,10 @@ EXTERN	Hist*	hist;
 EXTERN	Prog	zprog;
 EXTERN	Label*	labellist;
 EXTERN	Label*	findlab(Sym*);
+EXTERN	Node*	curfn;
+EXTERN	Node*	newproc;
+EXTERN	Node*	throwindex;
+EXTERN	Node*	throwreturn;
 
 /*
  * gen.c
