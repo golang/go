@@ -17,6 +17,10 @@ int
 walkret(Node *n)
 {
 
+	// until gri gets rid
+	// of the bugs on this
+	return 0;
+
 loop:
 	if(n != N)
 	switch(n->op) {

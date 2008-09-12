@@ -13,9 +13,6 @@ enum
 	AJMPX	= AADDPD,
 };
 
-static	Node*	curfn;
-static	Node*	newproc;
-
 void
 compile(Node *fn)
 {
@@ -26,12 +23,26 @@ compile(Node *fn)
 
 if(newproc == N) {
 	newproc = nod(ONAME, N, N);
-	memset(newproc, 0, sizeof(*newproc));
-	newproc->op = ONAME;
 	newproc->sym = pkglookup("newproc", "sys");
 	newproc->class = PEXTERN;
 	newproc->addable = 1;
 	newproc->ullman = 0;
+}
+
+if(throwindex == N) {
+	throwindex = nod(ONAME, N, N);
+	throwindex->sym = pkglookup("throwindex", "sys");
+	throwindex->class = PEXTERN;
+	throwindex->addable = 1;
+	throwindex->ullman = 0;
+}
+
+if(throwreturn == N) {
+	throwreturn = nod(ONAME, N, N);
+	throwreturn->sym = pkglookup("throwreturn", "sys");
+	throwreturn->class = PEXTERN;
+	throwreturn->addable = 1;
+	throwreturn->ullman = 0;
 }
 
 	if(fn->nbody == N)
@@ -69,8 +80,7 @@ if(newproc == N) {
 	checklabels();
 
 	if(curfn->type->outtuple != 0) {
-		nodconst(&nod1, types[TUINT8], 6); // 6 is opcode trap
-		gins(AINT, &nod1, N);
+		gins(ACALL, N, throwreturn);
 	}
 
 	pc->as = ARET;	// overwrite AEND
