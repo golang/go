@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 10, 2008)
+(September 11, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -50,6 +50,7 @@ Open issues according to gri:
 [ ] do we need anything on package vs file names?
 [ ] need to talk about precise int/floats clearly
 [ ] iant suggests to use abstract/precise int for len(), cap() - good idea
+    (issue: what happens in len() + const - what is the type?)
 
 -->
 
@@ -93,7 +94,8 @@ Contents
 
 	Expressions
 		Operands
-			Iota
+			Qualified identifiers
+				Iota
 			Composite Literals
 			Function Literals
 
@@ -204,10 +206,10 @@ to refer to the subset of "utf8_char" code points with values >= 128.
 Letters and digits
 ----
 
-	letter    = "A" ... "Z" | "a" ... "z" | "_" | non_ascii.
-	oct_digit = "0" ... "7" .
-	dec_digit = "0" ... "9" .
-	hex_digit = "0" ... "9" | "A" ... "F" | "a" ... "f" .
+	letter        = "A" ... "Z" | "a" ... "z" | "_" | non_ascii.
+	decimal_digit = "0" ... "9" .
+	octal_digit   = "0" ... "7" .
+	hex_digit     = "0" ... "9" | "A" ... "F" | "a" ... "f" .
 
 All non-ASCII code points are considered letters; digits are always ASCII.
 
@@ -225,54 +227,66 @@ Identifiers
 An identifier is a name for a program entity such as a variable, a
 type, a function, etc.
 
-	identifier = letter { letter | dec_digit } .
+	identifier = letter { letter | decimal_digit } .
 
 	a
 	_x
 	ThisIsVariable9
 	αβ
 
-Some identifiers are predeclared (see Declarations).
+Some identifiers are predeclared (§Declarations).
 
 
 Numeric literals
 ----
 
-Integer literals take the usual C form, except for the absence of the
-'U', 'L', etc. suffixes, and represent integer constants.  Character
-literals are also integer constants.  Similarly, floating point
-literals are also C-like, without suffixes and in decimal representation
-only.
+An integer literal represents a mathematically ideal integer constant
+of arbitrary precision, or 'ideal int'.
 
-An integer constant represents an abstract integer value of arbitrary
-precision.  Only when an integer constant (or arithmetic expression
-formed from integer constants) is bound to a typed variable
-or constant is it required to fit into a particular size - that of the type
-of the variable.  In other words, integer constants and arithmetic
-upon them is not subject to overflow; only finalization of integer
-constants (and constant expressions) can cause overflow.
-It is an error if the value of the constant or expression cannot be
-represented correctly in the range of the type of the receiving
-variable.
+	int_lit     = decimal_int | octal_int | hex_int .
+	decimal_int = ( "1" ... "9" ) { decimal_digit } .
+	octal_int   = "0" { octal_digit } .
+	hex_int     = "0" ( "x" | "X" ) hex_digit { hex_digit } .
 
-Floating point constants also represent an abstract, ideal floating
-point value that is constrained only upon assignment.
+	42
+	0600
+	0xBadFace
+	170141183460469231731687303715884105727
 
-	sign = "+" | "-" .
-	int_lit = [ sign ] unsigned_int_lit .
-	unsigned_int_lit = decimal_int_lit | octal_int_lit | hex_int_lit .
-	decimal_int_lit = ( "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ) { dec_digit } .
-	octal_int_lit = "0" { oct_digit } .
-	hex_int_lit = "0" ( "x" | "X" ) hex_digit { hex_digit } .
-	float_lit =  [ sign ] ( fractional_lit | exponential_lit ) .
-	fractional_lit = { dec_digit } ( dec_digit "." | "." dec_digit ) { dec_digit } [ exponent ] .
-	exponential_lit = dec_digit { dec_digit } exponent .
-	exponent = ( "e" | "E" ) [ sign ] dec_digit { dec_digit } .
+A floating point literal represents a mathematically ideal floating point
+constant of arbitrary precision, or 'ideal float'.
 
-	07
-	0xFF
-	-44
-	+3.24e-7
+	float_lit =
+		decimals "." [ decimals ] [exponent ] |
+		decimals exponent |
+		"." decimals [ exponent ] .
+	decimals = decimal_digit { decimal_digit } .
+	exponent = ( "e" | "E" ) [ "+" | "-" ] decimals .
+
+	0.
+	2.71828
+	1.e+0
+	6.67428e-11
+	1E6
+	.25
+	.12345E+5
+
+Numeric literals are unsigned. A negative constant is formed by
+applying the unary prefix operator "-" (§Arithmetic operators).
+
+An 'ideal number' is either an 'ideal int' or an 'ideal float'.
+
+Only when an ideal number (or an arithmetic expression formed
+solely from ideal numbers) is bound to a variable or used in an expression
+or constant of fixed-size integers or floats it is required to fit
+a particular size.  In other words, ideal numbers and arithmetic
+upon them are not subject to overflow; only use of them in assignments
+or expressions involving fixed-size numbers may cause overflow, and thus
+an error (§Expressions).
+
+Implementation restriction: A compiler may implement ideal numbers
+by choosing a "sufficiently large" internal representation of such
+numbers.
 
 
 Character and string literals
@@ -291,7 +305,7 @@ The rules are:
 	char_lit = "'" ( unicode_value | byte_value ) "'" .
 	unicode_value = utf8_char | little_u_value | big_u_value | escaped_char .
 	byte_value = octal_byte_value | hex_byte_value .
-	octal_byte_value = "\" oct_digit oct_digit oct_digit .
+	octal_byte_value = "\" octal_digit octal_digit octal_digit .
 	hex_byte_value = "\" "x" hex_digit hex_digit .
 	little_u_value = "\" "u" hex_digit hex_digit hex_digit hex_digit .
 	big_u_value =
@@ -349,7 +363,7 @@ do not interpret backslashes at all.
 	raw_string_lit = "`" { utf8_char } "`" .
 	interpreted_string_lit = """ { unicode_value | byte_value } """ .
 
-A string literal has type 'string'.  Its value is constructed by
+A string literal has type "string".  Its value is constructed by
 taking the byte values formed by the successive elements of the
 literal.  For byte_values, these are the literal bytes; for
 unicode_values, these are the bytes of the UTF-8 encoding of the
@@ -420,8 +434,8 @@ Declarations and scope rules
 
 Every identifier in a program must be declared; some identifiers, such as "int"
 and "true", are predeclared. A declaration associates an identifier
-with a language entity (package, constant, type, variable, function, method,
-or label) and may specify properties of that entity such as its type.
+with a language entity (package, constant, type, variable, function, or method)
+and may specify properties of that entity such as its type.
 
 	Declaration = [ "export" ] ( ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl ) .
 
@@ -438,7 +452,7 @@ The following scope rules apply:
 	3. Field and method identifiers may be used only to select elements
 	   from the corresponding types, and only after those types are fully
 	   declared.  In effect, the field selector operator
-	   '.' temporarily re-opens the scope of such identifiers (see Expressions).
+	   "." temporarily re-opens the scope of such identifiers (§Expressions).
 	4. Forward declaration: A type of the form "*T" may be mentioned at a point
 	   where "T" is not yet declared. The full declaration of "T" must be within a
 	   block containing the forward declaration, and the forward declaration
@@ -446,7 +460,7 @@ The following scope rules apply:
 
 Global declarations optionally may be marked for export with the reserved word
 "export". Local declarations can never be exported.
-All identifiers (and only those identifiers) declared in exported declarations
+Identifiers declared in exported declarations (and no other identifiers)
 are made visible to clients of this package, that is, other packages that import
 this package.
 
@@ -456,6 +470,10 @@ all structure fields and all structure and interface methods are exported also.
 
 	export const pi float = 3.14159265
 	export func Parse(source string);
+
+The scope of a label 'x' is the entire block of the surrounding function (excluding
+nested functions that redeclare 'x'); label scopes do not intersect with any other
+scopes. Within a function a label 'x' may only be declared once (§Labels).
 
 Note that at the moment the old-style export via ExportDecl is still supported.
 
@@ -517,9 +535,9 @@ The constant expression may be omitted, in which case the expression is
 the last expression used after the reserved word "const". If no such expression
 exists, the constant expression cannot be omitted.
 
-Together with the 'iota' constant generator (described later),
+Together with the "iota" constant generator (described later),
 implicit repetition permits light-weight declaration of enumerated
-values.
+values:
 
 	const (
 		Sunday = iota;
@@ -691,19 +709,18 @@ Types
 A type specifies the set of values that variables of that type may
 assume, and the operators that are applicable.
 
-There are basic types and composite types.
+There are basic types and composite types. Basic types are predeclared.
+Composite types are arrays, maps, channels, structures, functions, pointers,
+and interfaces. They are constructed from other (basic or composite) types.
 
-The static type of a variable is the type defined by the variable's
-declaration. The dynamic type of a variable is the actual type of the
-value stored in a variable at runtime. Except for variables of interface
-type, the static and dynamic type of variables is always the same.
+The 'static type' (or simply 'type') of a variable is the type defined by
+the variable's declaration. The 'dynamic type' of a variable is the actual
+type of the value stored in a variable at runtime. Except for variables of
+interface type, the static and dynamic type of variables is always the same.
 
 Variables of interface type may hold values of different types during
 execution. However, the dynamic type of the variable is always compatible
 with the static type of the variable.
-
-Types may be composed from other types by assembling arrays, maps,
-channels, structures, and functions. They are called composite types.
 
 	Type =
 		TypeName | ArrayType | ChannelType | InterfaceType |
@@ -736,9 +753,8 @@ Arithmetic types
 	float64  the set of all valid IEEE-754 64-bit floating point numbers
 	float80  the set of all valid IEEE-754 80-bit floating point numbers
 
-Additionally, Go declares several platform-specific type aliases:
-ushort, short, uint, int, ulong, long, float, and double.  The bit
-width of these types is ``natural'' for the respective types for the
+Additionally, Go declares several platform-specific type aliases; the
+bit width of these types is ``natural'' for the respective types for the
 given platform.  For instance, int is usually the same as int32 on a
 32-bit architecture, or int64 on a 64-bit architecture.
 
@@ -748,7 +764,17 @@ unsigned equivalents).  Also, the sizes are such that short <= int <=
 long.  Similarly, float is at least 32 bits, double is at least 64
 bits, and the sizes have float <= double.
 
-Also, ``byte'' is an alias for uint8.
+	byte     alias for uint8
+	ushort	 uint16 <= ushort <= uint
+	uint     uint32 <= uint <= ulong
+	ulong    uint64 <= ulong
+
+	short	 int16 <= short <= int
+	int      int32 <= int <= long
+	long     int64 <= long
+
+	float	 float32 <= float <= double
+	double   float64 <= double
 
 An arithmetic type ``ptrint'' is also defined.  It is an unsigned
 integer type that is the smallest natural integer type of the machine
@@ -756,6 +782,16 @@ large enough to store the uninterpreted bits of a pointer value.
 
 Generally, programmers should use these types rather than the explicitly
 sized types to maximize portability.
+
+Finally, for the purpose of explaining the rules of expressions (§Expressions),
+there are three ideal numeric types:
+
+	'ideal int'     the set of all ideal ints
+	'ideal float'   the set of all ideal floats
+	'ideal number'  the union of ideal_int and ideal_float
+	
+The type of an integer or character literal is "ideal_int"
+and the type of a floating point literal is "ideal_float".
 
 
 Booleans
@@ -934,7 +970,7 @@ A struct is a composite type consisting of a fixed number of elements,
 called fields, with possibly different types. The struct type declaration
 specifies the name and type for each field. The scope of each field identifier
 extends from the point of the declaration to the end of the struct type, but
-it is also visible within field selectors (see Primary Expressions).
+it is also visible within field selectors (§Primary Expressions).
 
 	StructType = "struct" "{" [ FieldDeclList [ ";" ] ] "}" .
 	FieldDeclList = FieldDecl { ";" FieldDecl } .
@@ -1136,14 +1172,37 @@ they implement the Lock interface as well as the File interface.
 Expressions
 ----
 
+An expression specifies the computation of a value via the application of
+operators and function invocations on operands. An expression has a value and
+a type.
+
+An expression may be of ideal numeric type. The type of such expressions is
+implicitly converted into the 'expected type' required for the expression.
+The conversion is legal if the (ideal) expression value is a member of the
+set represented by the expected type. Otherwise the expression is erroneous.
+
+For instance, if the expected type is int32, any ideal_int or ideal_float
+value which fits into an int32 without loss of precision can be legally converted.
+Along the same lines, a negative ideal integer cannot be converted into a uint
+without loss of the sign; such a conversion is illegal.
+
 
 Operands
 ----
-	
-	Operand = Literal | QualifiedIdent | "(" Expression ")" .
-	Literal = int_lit | float_lit | char_lit | string_lit | CompositeLit | FunctionLit .
-	
-	
+
+Operands denote the elementary values in an expression.
+
+	Operand  = Literal | QualifiedIdent | "(" Expression ")" .
+	Literal  = BasicLit | CompositeLit | FunctionLit .
+	BasicLit = int_lit | float_lit | char_lit | string_lit .
+
+
+Qualified identifiers
+----
+
+TODO(gri) write this section
+
+
 Iota
 ----
 
@@ -1376,17 +1435,23 @@ Operators combine operands into expressions.
 
 	unary_op = "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
 
-With the exception of shifts (see Arithmetic operators),
-the operand types in binary operations must be the same.
-For instance, signed and unsigned integer values cannot be
-mixed in an expression, and there is no implicit conversion
-from integer to floating point types.
+The operand types in binary operations must be equal, with the following exceptions:
+
+	- The right operand in a shift operation must be
+	  an unsigned int type (§Arithmetic operators).
+
+	- Otherwise, an operand of ideal_number type is
+	  converted into the type of the other operand (§Expression).
+	  
+	- If both operands are ideal numbers, the conversion is to ideal_float
+	  if one of the operand types is ideal_float (relevant for "/" and "%").
 
 Unary operators have the highest precedence.
 There are six precedence levels for binary operators:
 multiplication operators bind strongest, followed by addition
-operators, comparison operators, communication operators, "&&" (logical and),
-and finally "||" (logical or) with the lowest precedence:
+operators, comparison operators, communication operators,
+"&&" (logical and), and finally "||" (logical or) with the
+lowest precedence:
 
 	Precedence    Operator
 		6             *  /  %  <<  >>  &
@@ -1663,7 +1728,7 @@ Statements
 Statements control execution.
 
 	Statement =
-		Declaration |
+		Declaration | LabelDecl |
 		SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
 		Block | IfStat | SwitchStat | SelectStat | ForStat | RangeStat |
 	
@@ -2097,7 +2162,7 @@ A function declaration declares an identifier of type function.
 		return y;
 	}
 
-A function declaration without a body serves as a forward declaration:
+A function declaration without a block serves as a forward declaration:
 
 	func MakeNode(left, right *Node) *Node;
 
