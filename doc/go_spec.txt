@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 11, 2008)
+(September 12, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -51,7 +51,7 @@ Open issues according to gri:
 [ ] need to talk about precise int/floats clearly
 [ ] iant suggests to use abstract/precise int for len(), cap() - good idea
     (issue: what happens in len() + const - what is the type?)
-
+[ ] Do composite literals create a new literal each time (gri thinks yes)
 -->
 
 Contents
@@ -114,6 +114,7 @@ Contents
 			Communication operators
 
 	Statements
+		Label declarations
 		Expression statements
 		IncDec statements
 		Assignments
@@ -471,9 +472,10 @@ all structure fields and all structure and interface methods are exported also.
 	export const pi float = 3.14159265
 	export func Parse(source string);
 
-The scope of a label 'x' is the entire block of the surrounding function (excluding
-nested functions that redeclare 'x'); label scopes do not intersect with any other
-scopes. Within a function a label 'x' may only be declared once (§Labels).
+The scope of a label 'x' is the entire block of the surrounding function excluding
+any nested function. Thus, each function has its own private label scope, and
+identifiers for labels never conflict with any non-label identifier. Within a
+function a label 'x' may only be declared once (§Label declarations).
 
 Note that at the moment the old-style export via ExportDecl is still supported.
 
@@ -1166,7 +1168,7 @@ An expression specifies the computation of a value via the application of
 operators and function invocations on operands. An expression has a value and
 a type.
 
-The type of an expression may be an ideal number. The type of such expressions
+The type of a constant expression may be an ideal number. The type of such expressions
 is implicitly converted into the 'expected type' required for the expression.
 The conversion is legal if the (ideal) expression value is a member of the
 set represented by the expected type. Otherwise the expression is erroneous.
@@ -1175,6 +1177,10 @@ For instance, if the expected type is int32, any ideal number
 which fits into an int32 without loss of precision can be legally converted.
 Along the same lines, a negative ideal integer cannot be converted into a uint
 without loss of the sign; such a conversion is illegal.
+
+TODO(gri) This may be overly constraining. What about "len(a) + c" where
+c is an ideal number? Is len(a) of type int, or of an ideal number? Probably
+should be ideal number, because for fixed arrays, it is a constant.
 
 
 Operands
@@ -1432,7 +1438,7 @@ The operand types in binary operations must be equal, with the following excepti
 
 	- Otherwise, ideal number operands are
 	  converted to match the type of the other operand (§Expression).
-	  
+
 	- If both operands are ideal numbers, the conversion is to ideal floats
 	  if one of the operands is an ideal float (relevant for "/" and "%").
 
@@ -1733,6 +1739,12 @@ immediately after "++" or "--", and immediately before a reserved word.
 
 
 TODO: This still seems to be more complicated then necessary.
+
+
+Label declarations
+----
+
+TODO write this section
 
 
 Expression statements
