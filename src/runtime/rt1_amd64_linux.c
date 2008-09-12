@@ -6,9 +6,6 @@
 #include "amd64_linux.h"
 #include "signals.h"
 
-extern void _rt0_amd64_linux();
-byte* startsym = (byte*)_rt0_amd64_linux;
-
 /* From /usr/include/asm-x86_64/sigcontext.h */
 struct _fpstate {
   uint16   cwd;
@@ -137,6 +134,35 @@ typedef struct sigaction {
 	void (*sa_restorer) (void);	/* unused here; needed to return from trap? */
 } sigaction;
 
+/*
+ * For trace traps, disassemble instruction to see if it's INTB of known type.
+ */
+int32
+inlinetrap(int32 sig, byte* pc)
+{
+	extern void etext();
+	extern void _rt0_amd64_linux();
+
+	if(sig != 5 && sig != 11)	/* 5 is for trap, but INTB 5 looks like SEGV */
+		return 0;
+	if(pc < (byte*)_rt0_amd64_linux || pc+2 >= (byte*)etext)
+		return 0;
+	if(pc[0] != 0xcd)  /* INTB */
+		return 0;
+	switch(pc[1]) {
+	case 5:
+		prints("\nTRAP: array out of bounds\n");
+		break;
+	case 6:
+		prints("\nTRAP: leaving function with returning a value\n");
+		break;
+	default:
+		prints("\nTRAP: unknown run-time trap ");
+		sys·printint(pc[1]);
+		prints("\n");
+	}
+	return 1;
+}
 
 void
 sighandler(int32 sig, siginfo* info, void** context)
@@ -166,7 +192,6 @@ sighandler(int32 sig, siginfo* info, void** context)
 	sys·breakpoint();
 	sys·exit(2);
 }
-
 
 static sigaction a;
 
