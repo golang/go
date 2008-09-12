@@ -15,7 +15,7 @@ do
 done
 
 rm -f *.6
-for i in fmt.go flag.go container/vector.go rand.go sort.go strings.go
+for i in fmt.go flag.go container/vector.go rand.go sort.go io.go bufio.go strings.go
 do
 	base=$(basename $i .go)
 	echo 6g -o $GOROOT/pkg/$base.6 $i

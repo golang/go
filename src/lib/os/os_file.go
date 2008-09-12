@@ -41,8 +41,8 @@ export const (
 	O_TRUNC = syscall.O_TRUNC;
 )
 
-export func Open(name string, mode int64, flags int64) (fd *FD, err *Error) {
-	r, e := syscall.open(name, mode, flags);
+export func Open(name string, mode int, flags int) (fd *FD, err *Error) {
+	r, e := syscall.open(name, int64(mode), int64(flags));
 	return NewFD(r), ErrnoToError(e)
 }
 
@@ -55,23 +55,23 @@ func (fd *FD) Close() *Error {
 	return ErrnoToError(e)
 }
 
-func (fd *FD) Read(b *[]byte) (ret int64, err *Error) {
+func (fd *FD) Read(b *[]byte) (ret int, err *Error) {
 	if fd == nil {
 		return -1, EINVAL
 	}
 	r, e := syscall.read(fd.fd, &b[0], int64(len(b)));
-	return r, ErrnoToError(e)
+	return int(r), ErrnoToError(e)
 }
 
-func (fd *FD) Write(b *[]byte) (ret int64, err *Error) {
+func (fd *FD) Write(b *[]byte) (ret int, err *Error) {
 	if fd == nil {
 		return -1, EINVAL
 	}
 	r, e := syscall.write(fd.fd, &b[0], int64(len(b)));
-	return r, ErrnoToError(e)
+	return int(r), ErrnoToError(e)
 }
 
-func (fd *FD) WriteString(s string) (ret int64, err *Error) {
+func (fd *FD) WriteString(s string) (ret int, err *Error) {
 	if fd == nil {
 		return -1, EINVAL
 	}
@@ -80,5 +80,5 @@ func (fd *FD) WriteString(s string) (ret int64, err *Error) {
 		return -1, EINVAL
 	}
 	r, e := syscall.write(fd.fd, &b[0], int64(len(s)));
-	return r, ErrnoToError(e)
+	return int(r), ErrnoToError(e)
 }
