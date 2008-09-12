@@ -156,6 +156,15 @@ panic on line 342 PC=0x139e
 BUG wrong result
 Trace/BPT trap          ./$A.out
 
+=========== bugs/bug097.go
+
+panic on line 344 PC=0x13c2
+0x13c2?zi
+	main·main(1, 0, 1606416392, ...)
+	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
+BUG wrong result
+Trace/BPT trap          ./$A.out
+
 =========== fixedbugs/bug015.go
 fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
 
