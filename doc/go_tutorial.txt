@@ -1,4 +1,4 @@
-Get Going
+Let's Go
 ----
 
 Rob Pike
@@ -9,7 +9,8 @@ Rob Pike
 
 This document is a tutorial introduction to the basics of the Go systems programming
 language, intended for programmers familiar with C or C++. It is not a comprehensive
-guide to the language; at the moment the closest to that is the draft specification:
+guide to the language; at the moment the document closest to that is the draft
+specification:
 
 	/doc/go_lang.html
 
@@ -79,7 +80,7 @@ top-level declaration, even though they are needed as separators <i>within</i>
 a parenthesized list of declarations.
 
 Having imported the "Flag" package, line 8 creates a global variable to hold
-the value of echo's -n flag.  (The nil indicates a nice feature not needed here;
+the value of echo's -n flag.  (The nil hides a nice feature not needed here;
 see the source in "src/lib/flag.go" for details).
 
 In "main.main", we parse the arguments (line 16) and then create a local
@@ -233,3 +234,69 @@ sign or size to another, and between ints and floats, plus a few other
 simple cases.  There are no automatic conversions of any kind in Go,
 other than that of making constants have concrete size and type when
 assigned to a variable.
+
+An I/O Package
+----
+
+Next we'll look at a simple package for doing file I/O with the usual
+sort of open/close/read/write interface.  Here's the start of "fd.go":
+
+--PROG progs/fd.go /package/ /^}/
+
+The first line declares the name of the package -- "fd" for ''file descriptor'' --
+and then we import the low-level, external "syscall" package, which provides
+a primitive interface to the underlying operating system's calls.
+
+Next is a type definition: the "type" keyword introduces a type declaration,
+in this case a data structure called "FD".
+To make things a little more interesting, our "FD" includes the name of the file
+that the file descriptor refers to.  The "export" keyword makes the declared
+structure visible to users of the package.
+
+Now we can write what is often called a factory:
+
+--PROG progs/fd.go /NewFD/ /^}/
+
+This returns a pointer to a new "FD" structure with the file descriptor and name
+filled in.  We can use it to construct some familiar, exported variables of type "*FD":
+
+--PROG progs/fd.go /export.var/ /^.$/
+
+The "NewFD" function was not exported because it's internal. The proper factory
+to use is "Open":
+
+--PROG progs/fd.go /func.Open/ /^}/
+
+There are a number of new things in these few lines.  First, "Open" returns
+multiple values, an "FD" and an "errno" (Unix error number).  We declare the
+multi-value return as a parenthesized list of declarations.  "Syscall.open"
+also has a multi-value return, which we can grab with the multi-variable
+declaration on line 27; it declares "r" and "e" to hold the two values,
+both of type "int64" (although you'd have to look at the "syscall" package
+to see that).  Finally, line 28 returns two values: a pointer to the new "FD"
+and the return code.  If "Syscall.open" failed, the file descriptor "r" will
+be negative and "NewFD" will return "nil".
+
+Now that we can build "FDs", we can write methods to use them. To declare
+a method of a type, we define a function to have an explicit receiver
+of that type, placed
+in parentheses before the function name. Here are some methods for "FD",
+each of which declares a receiver variable "fd".
+
+--PROG progs/fd.go /Close/ END
+
+There is no implicit "this" and the receiver variable must be used to access
+members of the structure.  Methods are not declared within
+the "struct" declaration itself.  The "struct" declaration defines only data members.
+
+Finally, we can use our new package:
+
+--PROG progs/helloworld3.go
+
+and run the program:
+
+	% helloworld3
+	hello, world
+	can't open file; errno=2
+	% 
+
