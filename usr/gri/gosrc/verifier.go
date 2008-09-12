@@ -35,7 +35,7 @@ func (V *Verifier) VerifyObject(obj *Globals.Object, pnolev int);
 
 
 func (V *Verifier) VerifyType(typ *Globals.Type) {
-	if V.typs[typ] {
+	if present, ok := V.typs[typ]; present {
 		return;  // already verified
 	}
 	V.typs[typ] = true;
@@ -91,7 +91,7 @@ func (V *Verifier) VerifyType(typ *Globals.Type) {
 
 
 func (V *Verifier) VerifyObject(obj *Globals.Object, pnolev int) {
-	if V.objs[obj] {
+	if present, ok := V.objs[obj]; present {
 		return;  // already verified
 	}
 	V.objs[obj] = true;
@@ -126,7 +126,7 @@ func (V *Verifier) VerifyScope(scope *Globals.Scope) {
 
 
 func (V *Verifier) VerifyPackage(pkg *Globals.Package, pno int) {
-	if V.pkgs[pkg] {
+	if present, ok := V.pkgs[pkg]; present {
 		return;  // already verified
 	}
 	V.pkgs[pkg] = true;
@@ -148,8 +148,8 @@ func (V *Verifier) Verify(comp *Globals.Compilation) {
 	for i := 0; i < comp.pkg_ref; i++ {
 		pkg := comp.pkg_list[i];
 		// each pkg filename must appear only once
-		if filenames[pkg.file_name] {
-			Error("package filename present more then once");
+		if present, ok := filenames[pkg.file_name]; present {
+			Error("package filename present more than once");
 		}
 		filenames[pkg.file_name] = true;
 		V.VerifyPackage(pkg, i);
