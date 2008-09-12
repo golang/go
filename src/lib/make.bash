@@ -6,19 +6,19 @@
 
 echo; echo; echo %%%% making lib %%%%; echo
 
-rm -f *.6
-for i in fmt.go flag.go container/vector.go sort.go
-do
-	base=$(basename $i .go)
-	echo 6g -o $GOROOT/pkg/$base.6 $i
-	6g -o $GOROOT/pkg/$base.6 $i
-done
-
 for i in os math
 do
 	echo; echo; echo %%%% making lib/$i %%%%; echo
 	cd $i
 	make install
 	cd ..
+done
+
+rm -f *.6
+for i in fmt.go flag.go container/vector.go rand.go sort.go strings.go
+do
+	base=$(basename $i .go)
+	echo 6g -o $GOROOT/pkg/$base.6 $i
+	6g -o $GOROOT/pkg/$base.6 $i
 done
 
