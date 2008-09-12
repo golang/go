@@ -130,19 +130,23 @@ typedef struct  sigaction {
 	int32 sa_flags;			/* see signal options below */
 } sigaction;
 
-
 void
 sighandler(int32 sig, siginfo *info, void *context)
 {
-	if(sig < 0 || sig >= NSIG){
-		prints("Signal ");
-		sys·printint(sig);
-	}else{
-		prints(sigtab[sig].name);
-	}
+	if(panicking)	// traceback already printed
+		sys·exit(2);
 
         _STRUCT_MCONTEXT64 *uc_mcontext = get_uc_mcontext(context);
         _STRUCT_X86_THREAD_STATE64 *ss = get___ss(uc_mcontext);
+
+	if(!inlinetrap(sig, (byte *)ss->__rip)) {
+		if(sig < 0 || sig >= NSIG){
+			prints("Signal ");
+			sys·printint(sig);
+		}else{
+			prints(sigtab[sig].name);
+		}
+	}
 
 	prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
 	prints("\npc: 0x");  sys·printpointer((void *)ss->__rip);
