@@ -73,7 +73,7 @@ Pconv(Fmt *fp)
 int
 Dconv(Fmt *fp)
 {
-	char str[40], s[20];
+	char str[100], s[100];
 	Addr *a;
 	int i;
 	uint32 d1, d2;
@@ -82,18 +82,18 @@ Dconv(Fmt *fp)
 	i = a->type;
 	if(i >= D_INDIR) {
 		if(a->offset)
-			sprint(str, "%lld(%R)", a->offset, i-D_INDIR);
+			snprint(str, sizeof(str), "%lld(%R)", a->offset, i-D_INDIR);
 		else
-			sprint(str, "(%R)", i-D_INDIR);
+			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
 		goto brk;
 	}
 	switch(i) {
 
 	default:
 		if(a->offset)
-			sprint(str, "$%lld,%R", a->offset, i);
+			snprint(str, sizeof(str), "$%lld,%R", a->offset, i);
 		else
-			sprint(str, "%R", i);
+			snprint(str, sizeof(str), "%R", i);
 		break;
 
 	case D_NONE:
@@ -105,50 +105,50 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_EXTERN:
-		sprint(str, "%S+%lld(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S+%lld(SB)", a->sym, a->offset);
 		break;
 
 	case D_STATIC:
-		sprint(str, "%S<>+%lld(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S<>+%lld(SB)", a->sym, a->offset);
 		break;
 
 	case D_AUTO:
-		sprint(str, "%S+%lld(SP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S+%lld(SP)", a->sym, a->offset);
 		break;
 
 	case D_PARAM:
-		sprint(str, "%S+%lld(FP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S+%lld(FP)", a->sym, a->offset);
 		break;
 
 	case D_CONST:
 		if(fp->flags & FmtLong) {
 			d1 = a->offset & 0xffffffffLL;
 			d2 = (a->offset>>32) & 0xffffffffLL;
-			sprint(str, "$%lud-%lud", d1, d2);
+			snprint(str, sizeof(str), "$%lud-%lud", d1, d2);
 			break;
 		}
-		sprint(str, "$%lld", a->offset);
+		snprint(str, sizeof(str), "$%lld", a->offset);
 		break;
 
 	case D_FCONST:
-		sprint(str, "$(%.17e)", a->dval);
+		snprint(str, sizeof(str), "$(%.17e)", a->dval);
 		break;
 
 	case D_SCONST:
-		sprint(str, "$\"%Y\"", a->sval);
+		snprint(str, sizeof(str), "$\"%Y\"", a->sval);
 		break;
 
 	case D_ADDR:
 		a->type = a->index;
 		a->index = D_NONE;
-		sprint(str, "$%D", a);
+		snprint(str, sizeof(str), "$%D", a);
 		a->index = a->type;
 		a->type = D_ADDR;
 		goto conv;
 	}
 brk:
 	if(a->index != D_NONE) {
-		sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
+		snprint(s, sizeof(s), "(%R*%d)", (int)a->index, (int)a->scale);
 		strcat(str, s);
 	}
 conv:
