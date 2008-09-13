@@ -115,6 +115,7 @@ struct	Type
 	uchar	chan;
 	uchar	recur;		// to detect loops
 	uchar	trecur;		// to detect loops
+	uchar	methptr;	// all methods are pointers to this type
 
 	// TFUNCT
 	uchar	thistuple;
@@ -122,8 +123,13 @@ struct	Type
 	uchar	intuple;
 	uchar	outnamed;
 
+	Type*	method;
+
 	Sym*	sym;
 	int32	vargen;		// unique name for OTYPE/ONAME
+
+	Node*	nname;
+	vlong	argwid;
 
 	// most nodes
 	Type*	type;
@@ -134,10 +140,6 @@ struct	Type
 
 	// TPTR
 	Type*	nforw;
-
-	// TFUNCT
-	Node*	nname;
-	vlong	argwid;
 
 	// TARRAY
 	int32	bound;		// negative is dynamic array
@@ -609,6 +611,7 @@ void	dodcltype(Type*, Type*);
 void	dodclconst(Node*, Node*);
 void	defaultlit(Node*);
 int	listcount(Node*);
+void	addmethod(Node*, Type*);
 Node*	methodname(Node*, Type*);
 Type*	functype(Node*, Node*, Node*);
 char*	thistypenam(Node*);
@@ -671,7 +674,7 @@ Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
 int	casebody(Node*);
 void	walkselect(Node*);
 int	whatis(Node*);
-void	walkdot(Node*, int);
+void	walkdot(Node*);
 Node*	ascompatee(int, Node**, Node**);
 Node*	ascompatet(int, Node**, Type**, int);
 Node*	ascompatte(int, Type**, Node**, int);
