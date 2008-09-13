@@ -130,37 +130,6 @@ typedef struct  sigaction {
 	int32 sa_flags;			/* see signal options below */
 } sigaction;
 
-/*
- * For trace traps, disassemble instruction to see if it's INTB of known type.
- */
-int32
-inlinetrap(int32 sig, byte* pc)
-{
-	extern void etext();
-	extern void _rt0_amd64_darwin();
-
-	if(sig != 5)	/* INTB 5 looks like TRAP */
-		return 0;
-	pc -= 2;	// mac steps across INTB
-	if(pc < (byte*)_rt0_amd64_darwin || pc+2 >= (byte*)etext)
-		return 0;
-	if(pc[0] != 0xcd)  /* INTB */
-		return 0;
-	switch(pc[1]) {
-	case 5:
-		prints("\nTRAP: array out of bounds\n");
-		break;
-	case 6:
-		prints("\nTRAP: leaving function with returning a value\n");
-		break;
-	default:
-		prints("\nTRAP: unknown run-time trap ");
-		sys·printint(pc[1]);
-		prints("\n");
-	}
-	return 1;
-}
-
 void
 sighandler(int32 sig, siginfo *info, void *context)
 {
@@ -170,13 +139,11 @@ sighandler(int32 sig, siginfo *info, void *context)
         _STRUCT_MCONTEXT64 *uc_mcontext = get_uc_mcontext(context);
         _STRUCT_X86_THREAD_STATE64 *ss = get___ss(uc_mcontext);
 
-	if(!inlinetrap(sig, (byte *)ss->__rip)) {
-		if(sig < 0 || sig >= NSIG){
-			prints("Signal ");
-			sys·printint(sig);
-		}else{
-			prints(sigtab[sig].name);
-		}
+	if(sig < 0 || sig >= NSIG){
+		prints("Signal ");
+		sys·printint(sig);
+	}else{
+		prints(sigtab[sig].name);
 	}
 
 	prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
