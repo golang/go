@@ -1057,12 +1057,12 @@ fndcl:
 |	'(' oarg_type_list ')' new_name '(' oarg_type_list ')' fnres
 	{
 		b0stack = dclstack;	// mark base for fn literals
+		if($2 == N || $2->op == OLIST)
+			yyerror("syntax error in method receiver");
 		$$ = nod(ODCLFUNC, N, N);
 		$$->nname = methodname($4, $2->type);
 		$$->type = functype($2, $6, $8);
 		funchdr($$);
-
-		addmethod($4, $$->type);
 	}
 
 fntype:

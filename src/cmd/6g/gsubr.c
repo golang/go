@@ -329,7 +329,7 @@ loop:
 		s->local = 2;
 
 	snprint(namebuf, sizeof(namebuf), "%s_%s", e, s->name);
-	s = pkglookup(namebuf, s->opackage);
+	s = pkglookup(namebuf, s->package);
 	return s;
 }
 

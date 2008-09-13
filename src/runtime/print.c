@@ -96,13 +96,12 @@ sys·printfloat(float64 v)
 	buf[1] = buf[2];
 	buf[2] = '.';
 
-	buf[n+2] = 'e';
-	buf[n+3] = '+';
+	buf[n+2] = '+';
 	if(e < 0) {
 		e = -e;
-		buf[n+3] = '-';
+		buf[n+2] = '-';
 	}
-
+	buf[n+3] = 'e';
 	buf[n+4] = (e/10) + '0';
 	buf[n+5] = (e%10) + '0';
 	sys·write(1, buf, n+6);
