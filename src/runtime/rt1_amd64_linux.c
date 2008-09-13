@@ -129,40 +129,10 @@ typedef struct sigaction {
 		void (*sa_handler)(int32);
 		void (*sa_sigaction)(int32, siginfo *, void *);
 	} u;				/* signal handler */
-	uint8 sa_mask[128];		/* signal mask to apply. 128? are they MORONS? */
+	uint8 sa_mask[128];		/* signal mask to apply. 128? are they KIDDING? */
 	int32 sa_flags;			/* see signal options below */
 	void (*sa_restorer) (void);	/* unused here; needed to return from trap? */
 } sigaction;
-
-/*
- * For trace traps, disassemble instruction to see if it's INTB of known type.
- */
-int32
-inlinetrap(int32 sig, byte* pc)
-{
-	extern void etext();
-	extern void _rt0_amd64_linux();
-
-	if(sig != 5 && sig != 11)	/* 5 is for trap, but INTB 5 looks like SEGV */
-		return 0;
-	if(pc < (byte*)_rt0_amd64_linux || pc+2 >= (byte*)etext)
-		return 0;
-	if(pc[0] != 0xcd)  /* INTB */
-		return 0;
-	switch(pc[1]) {
-	case 5:
-		prints("\nTRAP: array out of bounds\n");
-		break;
-	case 6:
-		prints("\nTRAP: leaving function with returning a value\n");
-		break;
-	default:
-		prints("\nTRAP: unknown run-time trap ");
-		sys·printint(pc[1]);
-		prints("\n");
-	}
-	return 1;
-}
 
 void
 sighandler(int32 sig, siginfo* info, void** context)
@@ -172,13 +142,11 @@ sighandler(int32 sig, siginfo* info, void** context)
 
         struct sigcontext *sc = &(((struct ucontext *)context)->uc_mcontext);
 
-	if(!inlinetrap(sig, (byte *)sc->rip)) {
-		if(sig < 0 || sig >= NSIG){
-			prints("Signal ");
-			sys·printint(sig);
-		}else{
-			prints(sigtab[sig].name);
-		}
+	if(sig < 0 || sig >= NSIG){
+		prints("Signal ");
+		sys·printint(sig);
+	}else{
+		prints(sigtab[sig].name);
 	}
 
         prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
