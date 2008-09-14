@@ -233,6 +233,13 @@ dumpexporttype(Sym *s)
 		Bprint(bout, "%lS %d %lS\n", s, t->chan, t->type->sym);
 		break;
 	}
+
+	for(f=t->method; f!=T; f=f->down) {
+		if(f->etype != TFIELD)
+			fatal("dumpexporttype: method not field: %lT", f);
+		reexport(f->type);
+		Bprint(bout, "\tfunc %S %lS\n", f->sym, f->type->sym);
+	}
 }
 
 void
@@ -548,7 +555,6 @@ doimport3(Node *ss, Node *n)
 	t->thistuple = importcount(t->type);
 	t->outtuple = importcount(t->type->down);
 	t->intuple = importcount(t->type->down->down);
-
 	dowidth(t);
 	importfuncnam(t);
 
@@ -647,4 +653,17 @@ doimport8(Node *ss, Val *v, Node *st)
 	t->chan = dir;
 
 	importaddtyp(ss, t);
+}
+
+/*
+ * LFUNC importsym sym
+ * method type
+ */
+void
+doimport9(Sym *sf, Node *ss)
+{
+	Sym *sfun;
+
+	sfun = getimportsym(ss);
+	addmethod(newname(sf), sfun->otype, 0);
 }
