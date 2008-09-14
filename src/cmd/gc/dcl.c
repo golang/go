@@ -219,6 +219,10 @@ methodname(Node *n, Type *t)
 {
 	Sym *s;
 
+	if(t == T)
+		goto bad;
+
+	// method receiver must be typename or *typename
 	s = S;
 	if(t->sym != S)
 		s = t->sym;
@@ -226,12 +230,9 @@ methodname(Node *n, Type *t)
 		t = t->type;
 	if(t->sym != S)
 		s = t->sym;
-
-//	if(t->etype != TSTRUCT)
-//		goto bad;
-
 	if(s == S)
 		goto bad;
+
 	snprint(namebuf, sizeof(namebuf), "%s_%s", s->name, n->sym->name);
 	return newname(lookup(namebuf));
 
@@ -242,71 +243,85 @@ bad:
 
 /*
  * add a method, declared as a function,
- * into the structure
+ * n is fieldname, pa is base type, t is function type
  */
 void
-addmethod(Node *n, Type *pa, Type *t)
+addmethod(Node *n, Type *t, int local)
 {
-	Type *f, *d, *p;
-	Sym *s;
+	Type *f, *d, *pa;
+	Sym *st, *sf;
+	int ptr;
 
+	// get field sym
+	if(n == N)
+		goto bad;
 	if(n->op != ONAME)
 		goto bad;
-	s = n->sym;
-	if(s == S)
+	sf = n->sym;
+	if(sf == S)
 		goto bad;
+
+	// get parent type sym
+	pa = *getthis(t);	// ptr to this structure
 	if(pa == T)
 		goto bad;
-	if(!isptr[pa->etype])
+	pa = pa->type;		// ptr to this field
+	if(pa == T)
 		goto bad;
-	p = pa->type;
-	if(p == T)
-		goto bad;
-	if(p->etype != TSTRUCT)
-		goto bad;
-	if(p->sym == S)
+	pa = pa->type;		// ptr to this type
+	if(pa == T)
 		goto bad;
 
-	if(p->type == T) {
-		n = nod(ODCLFIELD, newname(s), N);
-		n->type = t;
+	// optionally rip off ptr to type
+	ptr = 0;
+	if(isptr[pa->etype]) {
+		if(pa->sym == S || pa->sym->name[0] == '_') {
+			ptr = 1;
+			pa = pa->type;
+			if(pa == T)
+				goto bad;
+		}
+	}
+	if(pa->etype == TINTER)
+		yyerror("no methods on interfaces");
 
-		stotype(n, &p->type);
+	// and finally the receiver sym
+	st = pa->sym;
+	if(st == S)
+		goto bad;
+	if(local && !st->local) {
+		yyerror("method receiver type must be locally defined: %S", st);
 		return;
 	}
 
+	n = nod(ODCLFIELD, newname(sf), N);
+	n->type = t;
+
+	if(pa->method == T)
+		pa->methptr = ptr;
+	if(pa->methptr != ptr)
+		yyerror("combination of direct and ptr receivers of: %S", st);
+
 	d = T;	// last found
-	for(f=p->type; f!=T; f=f->down) {
+	for(f=pa->method; f!=T; f=f->down) {
 		if(f->etype != TFIELD)
 			fatal("addmethod: not TFIELD: %N", f);
 
-		if(strcmp(s->name, f->sym->name) != 0) {
+		if(strcmp(sf->name, f->sym->name) != 0) {
 			d = f;
 			continue;
 		}
-
-		// if a field matches a non-this function
-		// then delete it and let it be redeclared
-		if(methcmp(t, f->type)) {
-			if(d == T) {
-				p->type = f->down;
-				continue;
-			}
-			d->down = f->down;
-			continue;
-		}
 		if(!eqtype(t, f->type, 0))
-			yyerror("field redeclared as method: %S", s);
-		return;
+			yyerror("method redeclared: %S of type %S", sf, st);
 	}
 
-	n = nod(ODCLFIELD, newname(s), N);
-	n->type = t;
-
 	if(d == T)
-		stotype(n, &p->type);
+		stotype(n, &pa->method);
 	else
 		stotype(n, &d->down);
+
+	if(dflag())
+		print("method         %S of type %s%S\n", sf, (ptr? "*":""), st);
 	return;
 
 bad:
@@ -393,11 +408,6 @@ funchdr(Node *n)
 	markdcl();
 	funcargs(n->type);
 
-	if(n->type->thistuple > 0) {
-		Type *t;
-		t = *getthis(n->type);
-		addmethod(n->nname, t->type->type, n->type);
-	}
 }
 
 void

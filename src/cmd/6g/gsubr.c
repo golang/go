@@ -306,15 +306,15 @@ loop:
 
 	switch(t->etype) {
 	default:
-		fatal("signame: unknown type %T", t);
+		e = "sigs";
+		break;
 
 	case TPTR32:
 	case TPTR64:
 		t = t->type;
 		goto loop;
+
 	case TSTRUCT:
-		e = "sigs";
-		break;
 	case TINTER:
 		e = "sigi";
 		break;

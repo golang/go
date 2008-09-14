@@ -566,7 +566,12 @@ dumpsignatures(void)
 
 		a = nil;
 		o = 0;
-		for(f=t->type; f!=T; f=f->down) {
+
+		f = t->type;
+		if(et != TINTER)
+			f = t->method;
+
+		for(; f!=T; f=f->down) {
 			if(f->type->etype != TFUNC)
 				continue;
 
@@ -589,8 +594,11 @@ dumpsignatures(void)
 				a->name = sp+1;
 			
 			a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
-			a->sym = f->sym;
 			a->offset = o;
+			snprint(namebuf, sizeof(namebuf), "%s_%s",
+				at.sym->name+5, f->sym->name);
+			a->sym = lookup(namebuf);
+
 			o++;
 		}
 

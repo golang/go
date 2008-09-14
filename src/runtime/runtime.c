@@ -201,6 +201,7 @@ loop2:
 		hash[h] = m;
 		return nil;
 	}
+
 	if(ihash != ss[ns].hash ||
 	   strcmp(sname, iname) != 0) {
 		ns++;

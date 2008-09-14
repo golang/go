@@ -17,10 +17,6 @@ int
 walkret(Node *n)
 {
 
-	// until gri gets rid
-	// of the bugs on this
-	return 0;
-
 loop:
 	if(n != N)
 	switch(n->op) {
@@ -866,7 +862,7 @@ loop:
 	case ODOTINTER:
 		if(top == Etop)
 			goto nottop;
-		walkdot(n, top);
+		walkdot(n);
 		goto ret;
 
 	case OADDR:
@@ -1323,17 +1319,15 @@ walkselect(Node *sel)
  * normal binary operations.
  */
 Type*
-lookdot(Node *n, Type *t, int d)
+lookdot(Node *n, Type *f)
 {
-	Type *f, *r, *c;
+	Type *r, *c;
 	Sym *s;
 
 	r = T;
 	s = n->sym;
-	if(d > 0)
-		goto deep;
 
-	for(f=t->type; f!=T; f=f->down) {
+	for(; f!=T; f=f->down) {
 		if(f->sym == S)
 			continue;
 		if(f->sym != s)
@@ -1345,38 +1339,18 @@ lookdot(Node *n, Type *t, int d)
 		r = f;
 	}
 	return r;
-
-deep:
-	/* deeper look after shallow failed */
-	for(f=t->type; f!=T; f=f->down) {
-		// only look at unnamed sub-structures
-		// BOTCH no such thing -- all are assigned temp names
-		if(f->sym != S)
-			continue;
-		c = f->type;
-		if(c->etype != TSTRUCT)
-			continue;
-		c = lookdot(n, c, d-1);
-		if(c == T)
-			continue;
-		if(r != T) {
-			yyerror("ambiguous unnamed DOT reference %s", s->name);
-			break;
-		}
-		r = c;
-	}
-	return r;
 }
 
 void
-walkdot(Node *n, int top)
+walkdot(Node *n)
 {
 	Node *mn;
 	Type *t, *f;
-	int i;
 
 	if(n->left == N || n->right == N)
 		return;
+	if(n->op == ODOTINTER || n->op == ODOTMETH)
+		return;	// already done
 
 	walktype(n->left, Erv);
 	if(n->right->op != ONAME) {
@@ -1395,50 +1369,29 @@ walkdot(Node *n, int top)
 		n->op = ODOTPTR;
 	}
 
-	if(n->right->op != ONAME)
-		fatal("walkdot: not name %O", n->right->op);
-
-	switch(t->etype) {
-	default:
-		badtype(ODOT, t, T);
-		return;
-
-	case TSTRUCT:
-	case TINTER:
-		for(i=0; i<5; i++) {
-			f = lookdot(n->right, t, i);
-			if(f != T)
-				break;
-		}
-
-		// look up the field as TYPE_name
-		// for a mothod. botch this should
-		// be done better.
-		if(f == T && t->etype == TSTRUCT) {
-			mn = methodname(n->right, t);
-			for(i=0; i<5; i++) {
-				f = lookdot(mn, t, i);
-				if(f != T)
-					break;
-			}
-		}
-
-		if(f == T) {
-			yyerror("undefined DOT reference %N", n->right);
-			break;
-		}
-
-		n->xoffset = f->width;
-		n->right = f->nname;		// substitute real name
-		n->type = f->type;
-		if(n->type->etype == TFUNC) {
-			n->op = ODOTMETH;
-			if(t->etype == TINTER) {
+	// as a structure field
+	if(t->etype == TSTRUCT || t->etype == TINTER) {
+		f = lookdot(n->right, t->type);
+		if(f != T) {
+			n->xoffset = f->width;
+			n->right = f->nname;		// substitute real name
+			n->type = f->type;
+			if(t->etype == TINTER)
 				n->op = ODOTINTER;
-			}
+			return;
 		}
-		break;
 	}
+
+	f = lookdot(n->right, t->method);
+	if(f == T) {
+		yyerror("undefined DOT reference %N", n->right);
+		return;
+	}
+
+	n->xoffset = f->width;
+	n->right = methodname(n->right, t);
+	n->type = f->type;
+	n->op = ODOTMETH;
 }
 
 Node*
@@ -1841,25 +1794,21 @@ fixmap(Type *tm)
 	Type *t;
 
 	t = tm->type;
-	if(t == T) {
-		fatal("fixmap: t nil");
-		return T;
-	}
-
-	if(t->etype != TMAP) {
-		fatal("fixmap: %lT not map", tm);
-		return T;
-	}
-
-	if(t->down == T || t->type == T) {
-		fatal("fixmap: map key/value types are nil");
-		return T;
-	}
+	if(t == T)
+		goto bad;
+	if(t->etype != TMAP)
+		goto bad;
+	if(t->down == T || t->type == T)
+		goto bad;
 
 	dowidth(t->down);
 	dowidth(t->type);
 
 	return t;
+
+bad:
+	yyerror("not a map: %lT", tm);
+	return T;
 }
 
 Type*
@@ -1867,25 +1816,23 @@ fixchan(Type *tm)
 {
 	Type *t;
 
+	if(tm == T) 
+		goto bad;
 	t = tm->type;
-	if(t == T) {
-		fatal("fixchan: t nil");
-		return T;
-	}
-
-	if(t->etype != TCHAN) {
-		fatal("fixchan: %lT not chan", tm);
-		return T;
-	}
-
-	if(t->type == T) {
-		fatal("fixchan: chan element type is nil");
-		return T;
-	}
+	if(t == T)
+		goto bad;
+	if(t->etype != TCHAN)
+		goto bad;
+	if(t->type == T)
+		goto bad;
 
 	dowidth(t->type);
 
 	return t;
+
+bad:
+	yyerror("not a channel: %lT", tm);
+	return T;
 }
 
 static int
@@ -2288,24 +2235,21 @@ fixarray(Type *tm)
 	Type *t;
 
 	t = tm->type;
-	if(t == T) {
-		fatal("fixarray: t nil");
-		return T;
-	}
-
-	if(t->etype != TARRAY) {
-		fatal("fixarray: %lT not array", tm);
-		return T;
-	}
-
-	if(t->type == T) {
-		fatal("fixarray: array element type is nil");
-		return T;
-	}
+	if(t == T)
+		goto bad;
+	if(t->etype != TARRAY)
+		goto bad;
+	if(t->type == T)
+		goto bad;
 
 	dowidth(t->type);
 
 	return t;
+
+bad:
+	yyerror("not an array: %lT", tm);
+	return T;
+	
 }
 
 Node*
