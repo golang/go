@@ -56,3 +56,7 @@ func (fd *FD) Write(b *[]byte) (ret int64, errno int64) {
 	r, e := Syscall.write(fd.fildes, &b[0], int64(len(b)));
 	return r, e
 }
+
+func (fd *FD) Name() string {
+	return fd.name
+}

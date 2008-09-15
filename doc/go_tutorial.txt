@@ -4,7 +4,7 @@ Let's Go
 Rob Pike
 
 ----
-(September 10, 2008)
+(September 14, 2008)
 
 
 This document is a tutorial introduction to the basics of the Go systems programming
@@ -300,3 +300,242 @@ and run the program:
 	can't open file; errno=2
 	% 
 
+Rotting cats
+----
+
+Building on the FD package, here's a simple version of the Unix utility "cat(1)", "progs/cat.go":
+
+--PROG progs/cat.go
+
+By now this should be easy to follow, but the "switch" statement introduces some
+new features.  Like a "for" loop, an "if" or "switch" can include an
+initialization statement.  The "switch" on line 12 uses one to create variables
+"nr" and "er" to hold the return values from "fd.Read()".  (The "if" on line 19
+has the same idea.)  The "switch" statement is general: it evaluates the cases
+from  top to bottom looking for the first case that matches the value; the
+case expressions don't need to be constants or even integers.
+
+Since the "switch" value is just "true", we could leave it off -- as is also true
+in a "for" statement, a missing value means "true".  In fact, such a "switch"
+is a form of "if-else" chain.
+
+Line 19 calls "Write()" by slicing (a pointer to) the array, creating a
+<i>reference slice</i>.
+
+Now let's make a variant of "cat" that optionally does "rot13" on its input.
+It's easy to do by just processing the bytes, but instead we will exploit
+Go's notion of an <i>interface</i>.
+
+The "cat()" subroutine uses only two methods of "fd": "Read()" and "Name()",
+so let's start by defining an interface that has exactly those two methods.
+Here is code from "progs/cat_rot13.go":
+
+--PROG progs/cat_rot13.go /type.Reader/ /^}/
+
+Any type that implements the two methods of "Reader" -- regardless of whatever
+other methods the type may also contain -- is said to <i>implement</i> the
+interface.  Since "FD.FD" implements these methods, it implements the
+"Reader" interface.  We could tweak the "cat" subroutine to accept a "Reader"
+instead of a "*FD.FD" and it would work just fine, but let's embellish a little
+first by writing a second type that implements "Reader", one that wraps an
+existing "Reader" and does "rot13" on the data. To do this, we just define
+the type and implement the methods and with no other bookkeeping,
+we have a second implementation of the "Reader" interface.
+
+--PROG progs/cat_rot13.go /type.Rot13/ /end.of.Rot13/
+
+(The "rot13" function called on line 39 is trivial and not worth reproducing.)
+
+To use the new feature, we define a flag:
+
+--PROG progs/cat_rot13.go /rot13_flag/
+
+and use it from within a mostly unchanged "cat()" function:
+
+--PROG progs/cat_rot13.go /func.cat/ /^}/
+
+Lines 53 and 54 set it all up: If the "rot13" flag is true, wrap the "Reader"
+we received into a "Rot13" and proceed.  Note that the interface variables
+are values, not pointers: the argument is of type "Reader", not "*Reader",
+even though under the covers it holds a pointer to a "struct".
+
+Here it is in action:
+
+<pre>
+	% echo abcdefghijklmnopqrstuvwxyz | ./cat
+	abcdefghijklmnopqrstuvwxyz
+	% echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
+	nopqrstuvwxyzabcdefghijklm
+	% 
+</pre>
+
+Fans of dependency injection may take cheer from how easily interfaces
+made substituting the implementation of a file descriptor.
+
+Interfaces are a distinct feature of Go.  An interface is implemented by a
+type if the type implements all the methods declared in the interface.
+This means
+that a type may implement an arbitrary number of different interfaces.
+There is no type hierarchy; things can be much more <i>ad hoc</i>,
+as we saw with "rot13".  "FD.FD" implements "Reader"; it could also
+implement a "Writer", or any other interface built from its methods that
+fits the current situation. Consider the <i>empty interface</i>
+
+<pre>
+	type interface Empty {}
+</pre>
+
+<i>Every</i> type implements the empty interface, which makes it
+useful for things like containers.
+
+Sorting
+----
+
+As another example of interfaces, consider this simple sort algorithm,
+taken from "progs/sort.go":
+
+--PROG progs/sort.go /func.Sort/ /^}/
+
+The code needs only three methods, which we wrap into "SortInterface":
+
+--PROG progs/sort.go /interface/ /^}/
+
+We can apply "Sort" to any type that implements "len", "less", and "swap".
+The "sort" package includes the necessary methods to allow sorting of
+arrays of integers, strings, etc.; here's the code for arrays of "int":
+
+--PROG progs/sort.go /type.*IntArray/ /swap/
+
+And now a routine to test it out, from "progs/sortmain.go".  This
+uses a function in the "sort" package, omitted here for brevity,
+to test that the result is sorted.
+
+--PROG progs/sortmain.go /func.ints/ /^}/
+
+If we have a new type we want to be able to sort, all we need to do is
+to implement the three methods for that type, like this:
+
+--PROG progs/sortmain.go /type.Day/ /swap/
+
+The 2,3,5 program
+----
+
+Now we come to processes and communication - concurrent programming.
+It's a big subject so to be brief we assume some familiarity with the topic.
+
+The prime sieve program in the language specification document is
+an excellent illustration of concurrent programming, but for variety
+here we'll solve a different problem in a similar way.
+
+An old interview question is to write a program that prints all the
+integers that can be written as multiples of 2, 3, and 5 only.
+One way to solve it is to generate streams of numbers multiplied
+by 2, 3, and 5, and to provide as input to the stream generators
+the output of the program so far.  To generate the correct output,
+we pick the least number generated each round and eliminate
+duplicates (6 appears twice, as 2*3s and as 3*2), but that's easy.
+
+Here's a flow diagram:
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src=go235.jpg >
+
+<br>
+
+To create a stream of integers, we use a Go <i>channel</i>, which,
+borrowing from CSP and its descendants, represents a communications
+channel that can connect two computations.  In Go, channel variables are
+always pointers to channels -- it's the (hidden) object they point to that
+does the communication.
+
+Here are the first few lines of "progs/235A.go":
+
+--PROG progs/235A.go /package/ /^}/
+
+The numbers can get big, so we'll use 64-bit unsigned integers,
+using the shorthand "INT" defined on line 3.
+
+The function M is a multiplication generator.  It receives data
+on the channel "in", using the unary receive operator "&lt;-"; the expression
+"&lt;-in" retrieves the next value on the the channel.  The value
+is multiplied by the factor "f" and then sent out on channel "out",
+using the binary send operator "-&lt".  Channels block, so if there's
+nothing available on "in" or no recipient for the the value on "out",
+the function will block until it can proceed.
+
+To deal with blocking, we want M to run in a separate thread. Go has
+its own model of process/threads/light-weight processes/coroutines,
+so to avoid notational confusion we'll call concurrently executing
+computations in Go <i>goroutines</i>.  To start a goroutine,
+invoke the function, prefixing the call with the keyword "go";
+this starts the function running independently of the current
+computation but in the same address space:
+
+	go sum(huge_array); // calculate sum in the background
+
+If you want to know when the calculation is done, pass a channel
+on which it can report back:
+
+	ch := new(chan int);
+	go sum(huge_array, ch);
+	// ... do something else for a while
+	result := <-ch;  // wait for, and retrieve, result
+
+Back to our 2-3-5 program.  Here's how "main" sets up the
+calculation:
+
+--PROG progs/235A.go /func.main/ /go.M.5/
+
+Lines 17 through 22 create the channels to connect the multipliers,
+and lines 24 through 26 launch the goroutines.  The "100" parameter
+to the input channels ("c2i" etc.) is a buffer size. By default,
+Go channels are unbuffered (synchronous) but the "Multipler" inputs need to
+be buffered because the main loop will generate data faster than
+they process it.
+
+Next we initialize a few variables.
+
+
+--PROG progs/235A.go /x.:=/ /x5/
+
+The "x" variable will be the value we generate; the others will
+hold the latest value received from each "Multiplier" goroutine.
+
+Finally, here is the main loop:
+
+--PROG progs/235A.go /for.*100/ /^.}/
+
+The algorithm is simple:  We send the current value to each of
+the "Multiplier" goroutines; it needs to be multiplied by 2, 3, and 5 to
+produce the full list.  Next, we advance the streams: each
+channel whose latest value is the current value needs to step
+to the next value.  Finally, we choose the least of the current
+values, and iterate.
+
+This program can be tightened up a little using a pattern common
+in this style of programming.  Here is a variant version of "Multiplier",
+from "progs/235B.go":
+
+--PROG progs/235B.go /func.M/ /^}/
+
+This version does all the setup internally. It creates the channels,
+launches a goroutine internally using a function literal, and
+returns the channels to the caller.  It is a concurrent factory,
+starting the goroutine and returning its connections.
+
+The "main" function starts out simpler as a result:
+
+--PROG progs/235B.go /func.main/ /x5/
+
+The rest is the same.
+
+The program "progs/235_gen.go" generalizes the problem; by
+filling in the elements of an array "F"
+
+--PROG progs/235_gen.go /F.*INT/
+
+we can produces outputs from multiples of any integers.
+Here is the full program, without further elucidation.
+
+--PROG progs/235_gen.go
