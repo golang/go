@@ -76,12 +76,14 @@ addtotop(Node *n)
 }
 
 void
-gettype(Node *n)
+gettype(Node *n, Node *a)
 {
 	if(debug['W'])
 		dump("\nbefore gettype", n);
 	walktype(n, Erv);
-	addtotop(n);
+	if(a == N && addtop != N)
+		fatal("gettype: addtop");
+	addtotop(a);
 	if(debug['W'])
 		dump("after gettype", n);
 }

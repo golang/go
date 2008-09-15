@@ -247,20 +247,22 @@ Bvardcl:
 		dodclvar($$, $2);
 
 		$$ = nod(OAS, $$, $4);
+		addtotop($$);
 	}
 |	new_name '=' expr
 	{
-		gettype($3);
+		$$ = nod(OAS, $1, N);
+		gettype($3, $$);
 		defaultlit($3);
 		dodclvar($1, $3->type);
-		$$ = nod(OAS, $1, $3);
+		$$->right = $3;
 	}
 
 constdcl:
 	new_name type '=' expr
 	{
 		Node *c = treecopy($4);
-		gettype(c);
+		gettype(c, N);
 		convlit(c, $2);
 		dodclconst($1, c);
 
@@ -270,7 +272,7 @@ constdcl:
 |	new_name '=' expr
 	{
 		Node *c = treecopy($3);
-		gettype(c);
+		gettype(c, N);
 		dodclconst($1, c);
 
 		lastconst = $3;
@@ -282,7 +284,7 @@ constdcl1:
 |	new_name type
 	{
 		Node *c = treecopy(lastconst);
-		gettype(c);
+		gettype(c, N);
 		convlit(c, $2);
 		dodclconst($1, c);
 
@@ -291,7 +293,7 @@ constdcl1:
 |	new_name
 	{
 		Node *c = treecopy(lastconst);
-		gettype(c);
+		gettype(c, N);
 		dodclconst($1, c);
 
 		iota += 1;

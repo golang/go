@@ -666,6 +666,8 @@ void	doimport9(Sym*, Node*);
 /*
  *	walk.c
  */
+void	addtotop(Node*);
+void	gettype(Node*, Node*);
 void	walk(Node*);
 void	walkstate(Node*);
 void	walktype(Node*, int);
