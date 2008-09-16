@@ -291,18 +291,26 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
 	return buf, err
 }
 
+// BUG(bugs/bug102.go): string(empty bytes array) throws error
+func ToString(p *[]byte) string {
+	if len(p) == 0 {
+		return ""
+	}
+	return string(p)
+}
+
 // Read until the first occurrence of delim in the input,
 // returning a new string containing the line.
 // If savedelim, keep delim in the result; otherwise chop it off.
 func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *os.Error) {
 	bytes, e := b.ReadLineBytes(delim)
 	if e != nil {
-		return string(bytes), e
+		return ToString(bytes), e
 	}
 	if !savedelim {
 		bytes = bytes[0:len(bytes)-1]
 	}
-	return string(bytes), nil
+	return ToString(bytes), nil
 }
 
 

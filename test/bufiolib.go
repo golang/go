@@ -121,7 +121,7 @@ var readmakers = []*(p *[]byte) io.Read {
 func ReadLines(b *bufio.BufRead) string {
 	s := ""
 	for {
-		s1, e := b.ReadLineString('\n', false)
+		s1, e := b.ReadLineString('\n', true)
 		if e == bufio.EndOfFile {
 			break
 		}
