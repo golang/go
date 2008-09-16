@@ -49,8 +49,8 @@ struct user_regs_struct {
 	unsigned long rip,cs,eflags;
 	unsigned long rsp,ss;
   	unsigned long fs_base, gs_base;
-	unsigned long ds,es,fs,gs; 
-}; 
+	unsigned long ds,es,fs,gs;
+};
 
 static int
 isstopped(int pid)
@@ -160,7 +160,7 @@ detachproc(Map *m)
 	free(m);
 }
 
-/* /proc/pid/stat contains 
+/* /proc/pid/stat contains
 	pid
 	command in parens
 	0. state
@@ -289,41 +289,25 @@ ctlproc(int pid, char *msg)
 	if(strcmp(msg, "startstop") == 0){
 		if(ptrace(PTRACE_CONT, pid, 0, 0) < 0)
 			return -1;
-		goto waitstop;
+		return waitstop(pid);
 	}
 	if(strcmp(msg, "sysstop") == 0){
 		if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0)
 			return -1;
-		goto waitstop;
+		return waitstop(pid);
 	}
 	if(strcmp(msg, "stop") == 0){
 		if(kill(pid, SIGSTOP) < 0)
 			return -1;
-		goto waitstop;
+		return waitstop(pid);
 	}
 	if(strcmp(msg, "step") == 0){
 		if(ptrace(PTRACE_SINGLESTEP, pid, 0, 0) < 0)
 			return -1;
-		goto waitstop;
+		return waitstop(pid);
 	}
-	if(strcmp(msg, "waitstop") == 0){
-	waitstop:
-		if(isstopped(pid))
-			return 0;
-		for(;;){
-			p = waitpid(pid, &status, WUNTRACED|__WALL);
-			if(p <= 0){
-				if(errno == ECHILD){
-					if(isstopped(pid))
-						return 0;
-				}
-				return -1;
-			}
-/*fprint(2, "got pid %d status %x\n", pid, status); */
-			if(WIFEXITED(status) || WIFSTOPPED(status))
-				return 0;
-		}
-	}
+	if(strcmp(msg, "waitstop") == 0)
+		return waitstop(pid);
 	if(strcmp(msg, "start") == 0)
 		return ptrace(PTRACE_CONT, pid, 0, 0);
 	werrstr("unknown control message '%s'", msg);
