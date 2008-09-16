@@ -9,6 +9,7 @@ package syscall
  */
 
 export func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+export func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
 export func AddrToInt(b *byte) int64;
 
 /*
