@@ -4,12 +4,12 @@
 
 package main
 
-type BinOp (a, b int) int;
-
 type Request struct {
 	a, b	int;
 	replyc	*chan int;
 }
+
+type BinOp (a, b int) int;
 
 func Run(op *BinOp, request *Request) {
 	result := op(request.a, request.b);
