@@ -313,6 +313,7 @@ addmethod(Node *n, Type *t, int local)
 		}
 		if(!eqtype(t, f->type, 0))
 			yyerror("method redeclared: %S of type %S", sf, st);
+		return;
 	}
 
 	if(d == T)
