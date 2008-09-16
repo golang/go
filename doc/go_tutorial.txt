@@ -51,7 +51,10 @@ program that doesn't depend on "print()":
 --PROG progs/helloworld2.go
 
 This version imports the ''os'' package to acess its "Stdout" variable, of type
-"*OS.FD"; given "OS.Stdout" we can use its "WriteString" method to print the string.
+"*OS.FD".  The "import" statement is a declaration: it names the identifier ("OS")
+that will be used to access members of the package imported from the file (&quot;os&quot;),
+found in the current directory or in a standard location.
+Given "OS.Stdout" we can use its "WriteString" method to print the string.
 
 The comment convention is the same as in C++:
 
@@ -517,14 +520,64 @@ Now "main"'s interface to the prime sieve is a channel of primes:
 
 --PROG progs/sieve1.go /func.main/ /^}/
 
-Service
+Multiplexing
 ----
 
-here we will describe this server:
+With channels, it's possible to serve multiple independent client goroutines without
+writing an actual multiplexer.  The trick is to send the server a channel in the message,
+which it will then use to reply to the original sender.
+A realistic client-server program is a lot of code, so here is a very simple substitute
+to illustrate the idea.  It starts by defining "Request" type, which embeds a channel
+that will be used for the reply.
 
---PROG progs/server.go
+--PROG progs/server.go /type.Request/ /^}/
 
-and this modification, which exits cleanly
+The server will be trivial: it will do simple binary operations on integers.  Here's the
+code that invokes the operation and responds to the request:
 
---PROG progs/server1.go /func.Server/ END
+--PROG progs/server.go /type.BinOp/ /^}/
 
+The "Server" routine loops forever, receiving requests and, to avoid blocking due to
+a long-running operation, starting a goroutine to do the actual work.
+
+--PROG progs/server.go /func.Server/ /^}/
+
+We construct a server in a familiar way, starting it up and returning a channel to
+connect to it:
+
+--PROG progs/server.go /func.StartServer/ /^}/
+
+Here's a simple test.  It starts a server with an addition operator, and sends out
+lots of requests but doesn't wait for the reply.  Only after all the requests are sent
+does it check the results.
+
+--PROG progs/server.go /func.main/ /^}/
+
+One annoyance with this program is that it doesn't exit cleanly; when "main" returns
+there are a number of lingering goroutines blocked on communication.  To solve this,
+we provide a second, "quit" channel to the server:
+
+--PROG progs/server1.go /func.StartServer/ /^}/
+
+It passes the quit channel to the "Server" function, which uses it like this:
+
+--PROG progs/server1.go /func.Server/ /^}/
+
+Inside "Server", a "select" statement chooses which of the multiple communications
+listed by its cases can proceed.  If all are blocked, it waits until one can proceed; if
+multiple can proceed, it chooses one at random.  In this instance, the "select" allows
+the server to honor requests until it receives a quit message, at which point it
+returns, terminating its execution.  (The language doesn't yet allow the ":="
+syntax in "select" statements, although it might one day.  Also, observe the use
+of the binary, infix form of the receive operator.)
+
+
+All that's left is to strobe the "quit" channel
+at the end of main:
+
+--PROG progs/server1.go /adder,.quit/
+...
+--PROG progs/server1.go /quit....true/
+
+There's a lot more to Go programming and concurrent programming in general but this
+quick tour should give you some of the basics.

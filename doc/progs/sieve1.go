@@ -16,7 +16,7 @@ func Generate() *chan int {
 }
 
 // Filter out input values divisible by 'prime', send rest to returned channel
-func Filter(in *chan int, prime int) *chan int{
+func Filter(in *chan int, prime int) *chan int {
 	out := new(chan int);
 	go func(in *chan int, out *chan int, prime int) {
 		for {

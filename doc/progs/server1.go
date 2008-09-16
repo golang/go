@@ -4,12 +4,12 @@
 
 package main
 
-type BinOp (a, b int) int;
-
 type Request struct {
 	a, b	int;
 	replyc	*chan int;
 }
+
+type BinOp (a, b int) int;
 
 func Run(op *BinOp, request *Request) {
 	result := op(request.a, request.b);
@@ -20,7 +20,7 @@ func Server(op *BinOp, service *chan *Request, quit *chan bool) {
 	for {
 		var request *Request;
 		select {
-		case request <- service:      // can't say request := <-service here yet
+		case request <- service:
 			go Run(op, request);  // don't wait for it
 		case <-quit:
 			return;
