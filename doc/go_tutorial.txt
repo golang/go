@@ -212,9 +212,9 @@ An Interlude about Constants
 
 Although integers come in lots of sizes in Go, integer constants do not.
 There are no constants like "0ll" or "0x0UL".   Instead, integer
-constants are evaluated as ideal, arbitrary precision values that
-can overflow only when they are assigned to an integer variable of
-some specific size.
+constants are evaluated as ideal, large-precision values that
+can overflow only when they are assigned to an integer variable with
+too little precision to represent the value.
 
 	const hard_eight = (1 << 100) >> 97  // legal
 
@@ -313,7 +313,8 @@ initialization statement.  The "switch" on line 12 uses one to create variables
 "nr" and "er" to hold the return values from "fd.Read()".  (The "if" on line 19
 has the same idea.)  The "switch" statement is general: it evaluates the cases
 from  top to bottom looking for the first case that matches the value; the
-case expressions don't need to be constants or even integers.
+case expressions don't need to be constants or even integers, as long as
+they all have the same type.
 
 Since the "switch" value is just "true", we could leave it off -- as is also true
 in a "for" statement, a missing value means "true".  In fact, such a "switch"
@@ -417,59 +418,59 @@ to implement the three methods for that type, like this:
 
 --PROG progs/sortmain.go /type.Day/ /swap/
 
-The 2,3,5 program
+Prime numbers
 ----
 
-Now we come to processes and communication - concurrent programming.
+Now we come to processes and communication -- concurrent programming.
 It's a big subject so to be brief we assume some familiarity with the topic.
 
-The prime sieve program in the language specification document is
-an excellent illustration of concurrent programming, but for variety
-here we'll solve a different problem in a similar way.
+A classic program in the style is the prime sieve of Eratosthenes.
+It works by taking a stream of all the natural numbers, and introducing
+a sequence of filters, one for each prime, to winnow the multiples of
+that prime.  At each step we have a sequence of filters of the primes
+so far, and the next number to pop out is the next prime, which triggers
+the creation of the next filter in the chain.
 
-An old interview question is to write a program that prints all the
-integers that can be written as multiples of 2, 3, and 5 only.
-One way to solve it is to generate streams of numbers multiplied
-by 2, 3, and 5, and to provide as input to the stream generators
-the output of the program so far.  To generate the correct output,
-we pick the least number generated each round and eliminate
-duplicates (6 appears twice, as 2*3s and as 3*2), but that's easy.
-
-Here's a flow diagram:
+Here's a flow diagram; each box represents a filter element whose
+creation is triggered by the first number that flowed from the
+elements before it.
 
 <br>
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src=go235.jpg >
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src='sieve.gif'>
 
 <br>
 
 To create a stream of integers, we use a Go <i>channel</i>, which,
-borrowing from CSP and its descendants, represents a communications
-channel that can connect two computations.  In Go, channel variables are
-always pointers to channels -- it's the (hidden) object they point to that
+borrowing from CSP's descendants, represents a communications
+channel that can connect two concurrent computations.
+In Go, channel variables are
+always pointers to channels -- it's the object they point to that
 does the communication.
 
-Here are the first few lines of "progs/235A.go":
+Here is the first function in "progs/sieve.go":
 
---PROG progs/235A.go /package/ /^}/
+--PROG progs/sieve.go /Send/ /^}/
 
-The numbers can get big, so we'll use 64-bit unsigned integers,
-using the shorthand "INT" defined on line 3.
+The function "Generate" sends the sequence 2, 3, 4, 5, ... to its
+argument channel, "ch", using the binary send operator "-&lt".
+Channels block, so if there's no recipient for the the value on "ch",
+the send operation will wait until one becomes available.
 
-The function M is a multiplication generator.  It receives data
-on the channel "in", using the unary receive operator "&lt;-"; the expression
-"&lt;-in" retrieves the next value on the the channel.  The value
-is multiplied by the factor "f" and then sent out on channel "out",
-using the binary send operator "-&lt".  Channels block, so if there's
-nothing available on "in" or no recipient for the the value on "out",
-the function will block until it can proceed.
+The "Filter" function has three arguments: an input channel, an output
+channel, and a prime number.  It copies values from the input to the
+output, discarding anything divisible by the prime.  The unary prefix
+operator "&lt;-" (receive) retrieves the next value on the channel.
 
-To deal with blocking, we want M to run in a separate thread. Go has
+--PROG progs/sieve.go /Copy/ /^}/
+
+
+The generator and filters execute concurrently.  Go has
 its own model of process/threads/light-weight processes/coroutines,
 so to avoid notational confusion we'll call concurrently executing
 computations in Go <i>goroutines</i>.  To start a goroutine,
 invoke the function, prefixing the call with the keyword "go";
-this starts the function running independently of the current
+this starts the function running in parallel with the current
 computation but in the same address space:
 
 	go sum(huge_array); // calculate sum in the background
@@ -482,60 +483,48 @@ on which it can report back:
 	// ... do something else for a while
 	result := <-ch;  // wait for, and retrieve, result
 
-Back to our 2-3-5 program.  Here's how "main" sets up the
-calculation:
+Back to our prime sieve.  Here's how the sieve pipeline is stitched
+together:
 
---PROG progs/235A.go /func.main/ /go.M.5/
+--PROG progs/sieve.go /func.main/ /^}/
 
-Lines 17 through 22 create the channels to connect the multipliers,
-and lines 24 through 26 launch the goroutines.  The "100" parameter
-to the input channels ("c2i" etc.) is a buffer size. By default,
-Go channels are unbuffered (synchronous) but the "Multipler" inputs need to
-be buffered because the main loop will generate data faster than
-they process it.
+Line 23 creates the initial channel to pass to "Generate", which it
+then starts up.  As each prime pops out of the channel, a new "Filter"
+is added to the pipeline and <i>its</i> output becomes the new value
+of "ch".
 
-Next we initialize a few variables.
+The sieve program can be tweaked to use a pattern common
+in this style of programming.  Here is a variant version
+of "Generate", from "progs/sieve1.go":
 
+--PROG progs/sieve1.go /func.Generate/ /^}/
 
---PROG progs/235A.go /x.:=/ /x5/
+This version does all the setup internally. It creates the output
+channel, launches a goroutine internally using a function literal, and
+returns the channel to the caller.  It is a factory for concurrent
+execution, starting the goroutine and returning its connection.
+The same
+change can be made to "Filter":
 
-The "x" variable will be the value we generate; the others will
-hold the latest value received from each "Multiplier" goroutine.
+--PROG progs/sieve1.go /func.Filter/ /^}/
 
-Finally, here is the main loop:
+The "Sieve" function's main loop becomes simpler and clearer as a
+result, and while we're at it let's turn it into a factory too:
 
---PROG progs/235A.go /for.*100/ /^.}/
+--PROG progs/sieve1.go /func.Sieve/ /^}/
 
-The algorithm is simple:  We send the current value to each of
-the "Multiplier" goroutines; it needs to be multiplied by 2, 3, and 5 to
-produce the full list.  Next, we advance the streams: each
-channel whose latest value is the current value needs to step
-to the next value.  Finally, we choose the least of the current
-values, and iterate.
+Now "main"'s interface to the prime sieve is a channel of primes:
 
-This program can be tightened up a little using a pattern common
-in this style of programming.  Here is a variant version of "Multiplier",
-from "progs/235B.go":
+--PROG progs/sieve1.go /func.main/ /^}/
 
---PROG progs/235B.go /func.M/ /^}/
+Service
+----
 
-This version does all the setup internally. It creates the channels,
-launches a goroutine internally using a function literal, and
-returns the channels to the caller.  It is a concurrent factory,
-starting the goroutine and returning its connections.
+here we will describe this server:
 
-The "main" function starts out simpler as a result:
+--PROG progs/server.go
 
---PROG progs/235B.go /func.main/ /x5/
+and this modification, which exits cleanly
 
-The rest is the same.
+--PROG progs/server1.go /func.Server/ END
 
-The program "progs/235_gen.go" generalizes the problem; by
-filling in the elements of an array "F"
-
---PROG progs/235_gen.go /F.*INT/
-
-we can produces outputs from multiples of any integers.
-Here is the full program, without further elucidation.
-
---PROG progs/235_gen.go
