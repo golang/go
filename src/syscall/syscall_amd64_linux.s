@@ -29,6 +29,27 @@ TEXT	syscall·Syscall(SB),7,$-8
 	MOVQ	$0, 56(SP)	// errno
 	RET
 
+TEXT syscall·Syscall6(SB),7,$-8
+	MOVQ	16(SP), DI
+	MOVQ	24(SP), SI
+	MOVQ	32(SP), DX
+	MOVQ	40(SP), R10
+	MOVQ	48(SP), R8
+	MOVQ	56(SP), R9
+	MOVQ	8(SP), AX	// syscall entry
+	ADDQ	$0x2000000, AX
+	SYSCALL
+	JLS	6(PC)
+	MOVQ	$-1, 64(SP)	// r1
+	MOVQ	$0, 72(SP)	// r2
+	NEGQ	AX
+	MOVQ	AX, 80(SP)  // errno
+	RET
+	MOVQ	AX, 64(SP)	// r1
+	MOVQ	DX, 72(SP)	// r2
+	MOVQ	$0, 80(SP)	// errno
+	RET
+
 // conversion operators - really just casts
 TEXT	syscall·AddrToInt(SB),7,$-8
 	MOVQ	8(SP), AX
