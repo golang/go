@@ -11,15 +11,14 @@ import (
 
 var rot13_flag = Flag.Bool("rot13", false, nil, "rot13 the input")
 
-func rot13(bb byte) byte {
-	var b int = int(bb)      /// BUG: until byte division is fixed
+func rot13(b byte) byte {
 	if 'a' <= b && b <= 'z' {
 	   b = 'a' + ((b - 'a') + 13) % 26;
 	}
 	if 'A' <= b && b <= 'Z' {
 	   b = 'A' + ((b - 'A') + 13) % 26
 	}
-	return byte(b)
+	return b
 }
 
 type Reader interface {
