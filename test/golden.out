@@ -1,10 +1,39 @@
 
+=========== ./bufiolib.go
+throw: index out of range
+SIGSEGV: segmentation violation
+Faulting address: 0x0
+pc: 0x11c43
+
+0x11c43?zi
+	throw(98060, 0, 235528, ...)
+	throw(0x17f0c, 0x39808, 0x5e2e, ...)
+0x11b97?zi
+	sys·throwindex(235528, 0, 0, ...)
+	sys·throwindex(0x39808, 0x0, 0x1, ...)
+0x5e2e?zi
+	bufio·BufRead_ReadLineString(235312, 0, 65546, ...)
+	bufio·BufRead_ReadLineString(0x39730, 0x1000a, 0x39758, ...)
+0x1cb8?zi
+	main·ReadLines(235312, 0, 235304, ...)
+	main·ReadLines(0x39730, 0x39728, 0x1, ...)
+0x2bb5?zi
+	main·TestBufRead(85470, 0, 1, ...)
+	main·TestBufRead(0x14dde, 0x1, 0x7fff5fbff268, ...)
+0x3830?zi
+	main·main(1, 0, 1606414952, ...)
+	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+
+
 =========== ./func1.go
 func1.go:12: var a redeclared in this block
      previous declaration at func1.go:12
 
 =========== ./helloworld.go
 hello, world
+
+=========== ./map.go
+skipping increment test until bug060 is fixed
 
 =========== ./peano.go
 0! = 1
@@ -59,7 +88,7 @@ bugs/bug020.go:7: type of a structure field cannot be an open array
 BUG should compile
 
 =========== bugs/bug026.go
-sys·printstring: main·sigs_I: not defined
+sys·printstring: main·sigi_I: not defined
 BUG: known to fail incorrectly
 
 =========== bugs/bug032.go
@@ -70,6 +99,8 @@ BUG: compilation succeeds incorrectly
 
 =========== bugs/bug060.go
 map does not increment
+BUG: map increment
+
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
 	(<int32>INT32)
@@ -80,11 +111,6 @@ BUG: compilation should succeed
 bugs/bug074.go:6: syntax error
 bugs/bug074.go:7: x: undefined
 BUG: compiler crashes - Bus error
-
-=========== bugs/bug075.go
-bugs/bug075.go:11: bad shape across assignment - cr=1 cl=2
-
-BUG: known to fail incorrectly
 
 =========== bugs/bug077.go
 BUG: known to succeed incorrectly
@@ -125,51 +151,77 @@ BUG: compilation succeeds incorrectly
 throw: ifaces2i: nil pointer
 SIGSEGV: segmentation violation
 Faulting address: 0x0
-pc: 0x1b7d
+pc: 0x1c11
 
-0x1b7d?zi
-	throw(30409, 0, 0, ...)
-	throw(0x76c9, 0x0, 0x0, ...)
-0x207f?zi
-	sys·ifaces2i(31440, 0, 31480, ...)
-	sys·ifaces2i(0x7ad0, 0x7af8, 0x0, ...)
+0x1c11?zi
+	throw(30465, 0, 0, ...)
+	throw(0x7701, 0x0, 0x0, ...)
+0x2113?zi
+	sys·ifaces2i(31496, 0, 31536, ...)
+	sys·ifaces2i(0x7b08, 0x7b30, 0x0, ...)
 0x136f?zi
-	main·main(1, 0, 1606416392, ...)
-	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
+	main·main(1, 0, 1606414952, ...)
+	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
 
 BUG: fails incorrectly
 
 =========== bugs/bug094.go
 bugs/bug094.go:11: left side of := must be a name
 bad top
-.   LITERAL-I0 l(343)
+.   LITERAL-I0 l(353)
 bugs/bug094.go:11: fatal error: walktype: top=3 LITERAL
 BUG: fails incorrectly
 
 =========== bugs/bug095.go
 found 2, expected 1
 
-panic on line 342 PC=0x139e
+panic on line 352 PC=0x139e
 0x139e?zi
-	main·main(1, 0, 1606416392, ...)
-	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
+	main·main(1, 0, 1606414952, ...)
+	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
 BUG wrong result
-Trace/BPT trap          ./$A.out
 
 =========== bugs/bug097.go
 
-panic on line 344 PC=0x13c2
-0x13c2?zi
-	main·main(1, 0, 1606416392, ...)
-	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
+panic on line 354 PC=0x13bc
+0x13bc?zi
+	main·main(1, 0, 1606414952, ...)
+	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
 BUG wrong result
-Trace/BPT trap          ./$A.out
 
 =========== bugs/bug098.go
 bugs/bug098.go:10: illegal types for operand: AS
 	(*MAP[<int32>INT32]<int32>INT32)
 	(**MAP[<int32>INT32]<int32>INT32)
 BUG should compile
+
+=========== bugs/bug099.go
+done1
+SIGSEGV: segmentation violation
+Faulting address: 0x0
+pc: 0x0
+
+0x0?zi
+	panic(5070, 0, 45192, ...)
+	panic(0x13ce, 0xb088, 0xb088, ...)
+
+
+=========== bugs/bug102.go
+throw: index out of range
+SIGSEGV: segmentation violation
+Faulting address: 0x0
+pc: 0x2615
+
+0x2615?zi
+	throw(31052, 0, 0, ...)
+	throw(0x794c, 0x0, 0x1315, ...)
+0x2569?zi
+	sys·throwindex(45096, 0, 0, ...)
+	sys·throwindex(0xb028, 0x0, 0x0, ...)
+0x1315?zi
+	main·main(1, 0, 1606414952, ...)
+	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+
 
 =========== fixedbugs/bug015.go
 fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
@@ -205,7 +257,7 @@ fixedbugs/bug035.go:7: var f redeclared in this block
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(338) t=<T> nil
+fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(348) t=<T> nil
 
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: var x redeclared in this block
