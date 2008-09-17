@@ -238,14 +238,12 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 		P.PrintType(typ.elt);
 
 	case Type.CHANNEL:
-		print("chan");
 		switch typ.flags {
-		case Type.SEND: print(" -<");
-		case Type.RECV: print(" <-");
-		case Type.SEND + Type.RECV:  // nothing to print
+		case Type.SEND: print("chan <- ");
+		case Type.RECV: print("<- chan ");
+		case Type.SEND + Type.RECV: print("chan ");
 		default: panic("UNREACHABLE");
 		}
-		print(" ");
 		P.PrintType(typ.elt);
 
 	case Type.FUNCTION:
