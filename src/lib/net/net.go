@@ -19,7 +19,8 @@ func NewError(s string) *os.Error {
 }
 
 export var (
-	BadAddress = NewError("malformed addres");
+	BadAddress = NewError("malformed address");
+	MissingAddress = NewError("missing address");
 	UnknownNetwork = NewError("unknown network");
 	UnknownHost = NewError("unknown host");
 	UnknownPort = NewError("unknown port");
@@ -39,10 +40,10 @@ func SplitHostPort(hostport string) (host, port string, err *os.Error) {
 	if i < 0 {
 		return "", "", BadAddress
 	}
-	
+
 	host = hostport[0:i];
 	port = hostport[i+1:len(hostport)];
-	
+
 	// Can put brackets around host ...
 	if host[0] == '[' && host[len(host)-1] == ']' {
 		host = host[1:len(host)-1]
@@ -69,6 +70,20 @@ func JoinHostPort(host, port string) string {
 	return host + ":" + port
 }
 
+func dtoi(s string) (n int, ok bool) {
+	if s == "" || s[0] < '0' || s[0] > '9' {
+		return 0, false
+	}
+	n = 0;
+	for i := 0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+		n = n*10 + int(s[i] - '0')
+		if n >= 1000000 {	// bigger than we need
+			return 0, false
+		}
+	}
+	return n, true
+}
+
 // Convert "host:port" into IP address and port.
 // For now, host and port must be numeric literals.
 // Eventually, we'll have name resolution.
@@ -78,22 +93,21 @@ func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.E
 	if err != nil {
 		return nil, 0, err
 	}
-	
+
 	// TODO: Resolve host.
-	
+
 	addr := ip.ParseIP(host);
 	if addr == nil {
-print("Failed to parse: ", host, "\n");
 		return nil, 0, UnknownHost
 	}
-	
+
 	// TODO: Resolve port.
-	
-	p, ok := strings.atoi(port);
+
+	p, ok := dtoi(port);
 	if !ok || p < 0 || p > 0xFFFF {
 		return nil, 0, UnknownPort
 	}
-	
+
 	return addr, p, nil
 }
 
@@ -117,7 +131,7 @@ func SockaddrToHostPort(sa *socket.Sockaddr) (hostport string, err *os.Error) {
 func boolint(b bool) int {
 	if b {
 		return 1
-	} 
+	}
 	return 0
 }
 
@@ -127,7 +141,10 @@ func Socket(f, p, t int64, la, ra *socket.Sockaddr) (fd int64, err *os.Error) {
 	if e != nil {
 		return -1, e
 	}
-	
+
+	// Allow reuse of recently-used addresses.
+	socket.setsockopt_int(s, socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
 	var r int64
 	if la != nil {
 		r, e = socket.bind(s, la)
@@ -136,7 +153,7 @@ func Socket(f, p, t int64, la, ra *socket.Sockaddr) (fd int64, err *os.Error) {
 			return -1, e
 		}
 	}
-	
+
 	if ra != nil {
 		r, e = socket.connect(s, ra)
 		if e != nil {
@@ -144,7 +161,7 @@ func Socket(f, p, t int64, la, ra *socket.Sockaddr) (fd int64, err *os.Error) {
 			return -1, e
 		}
 	}
-	
+
 	return s, nil
 }
 
@@ -256,11 +273,18 @@ func (c *ConnBase) SetLinger(sec int) *os.Error {
 // PreferIPv4 here should fall back to the IPv4 socket interface when possible.
 const PreferIPv4 = false
 
-func DialInternet(net, laddr, raddr string, proto int64) (fd int64, err *os.Error) {
+func InternetSocket(net, laddr, raddr string, proto int64) (fd int64, err *os.Error) {
 	// Parse addresses (unless they are empty).
 	var lip, rip *[]byte
 	var lport, rport int
 	var lerr, rerr *os.Error
+// BUG 6g doesn't zero var lists
+lip = nil;
+rip = nil;
+lport = 0;
+rport = 0;
+lerr = nil;
+rerr = nil
 	if laddr != "" {
 		lip, lport, lerr = HostPortToIP(net, laddr)
 		if lerr != nil {
@@ -274,7 +298,7 @@ func DialInternet(net, laddr, raddr string, proto int64) (fd int64, err *os.Erro
 		}
 	}
 
-	// Figure out IP version.  
+	// Figure out IP version.
 	// If network has a suffix like "tcp4", obey it.
 	vers := 0;
 	switch net[len(net)-1] {
@@ -303,8 +327,11 @@ func DialInternet(net, laddr, raddr string, proto int64) (fd int64, err *os.Erro
 		cvt = &socket.IPv6ToSockaddr;
 		family = socket.AF_INET6
 	}
-	
+
 	var la, ra *socket.Sockaddr;
+// BUG
+la = nil;
+ra = nil
 	if lip != nil {
 		la, lerr = cvt(lip, lport);
 		if lerr != nil {
@@ -388,15 +415,23 @@ func (c *ConnTCP) SetKeepAlive(keepalive bool) *os.Error {
 	return (&c.base).SetKeepAlive(keepalive)
 }
 
+func NewConnTCP(fd int64, raddr string) *ConnTCP {
+	c := new(ConnTCP);
+	c.base.fd = os.NewFD(fd);
+	c.base.raddr = raddr;
+	c.SetNoDelay(true);
+	return c
+}
+
 export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
-	fd, e := DialInternet(net, laddr, raddr, socket.SOCK_STREAM)
+	if raddr == "" {
+		return nil, MissingAddress
+	}
+	fd, e := InternetSocket(net, laddr, raddr, socket.SOCK_STREAM)
 	if e != nil {
 		return nil, e
 	}
-	c = new(ConnTCP);
-	c.base.fd = os.NewFD(fd);
-	c.SetNoDelay(true)
-	return c, nil
+	return NewConnTCP(fd, raddr), nil
 }
 
 
@@ -481,3 +516,83 @@ export func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
 	return nil, UnknownNetwork
 }
 
+
+export type Listener interface {
+	Accept() (c Conn, raddr string, err *os.Error);
+	Close() *os.Error;
+}
+
+type NoListener struct { unused int }
+func (l *NoListener) Accept() (c Conn, raddr string, err *os.Error) {
+	return &noconn, "", os.EINVAL
+}
+func (l *NoListener) Close() *os.Error { return os.EINVAL }
+
+var nolistener NoListener
+
+export type ListenerTCP struct {
+	fd *os.FD;
+	laddr string
+}
+
+export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
+	fd, e := InternetSocket(net, laddr, "", socket.SOCK_STREAM)
+	if e != nil {
+		return nil, e
+	}
+	r, e1 := socket.listen(fd, socket.ListenBacklog())
+	if e1 != nil {
+		syscall.close(fd)
+		return nil, e1
+	}
+	l = new(ListenerTCP);
+	l.fd = os.NewFD(fd);
+	return l, nil
+}
+
+func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
+	if l == nil || l.fd == nil || l.fd.fd < 0 {
+		return nil, "", os.EINVAL
+	}
+	var sa socket.Sockaddr;
+	fd, e := socket.accept(l.fd.fd, &sa)
+	if e != nil {
+		return nil, "", e
+	}
+	raddr, e = SockaddrToHostPort(&sa)
+	if e != nil {
+		syscall.close(fd)
+		return nil, "", e
+	}
+	return NewConnTCP(fd, raddr), raddr, nil
+}
+
+func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
+	c1, r1, e1 := l.AcceptTCP()
+	if e1 != nil {
+		return &noconn, "", e1
+	}
+	return c1, r1, nil
+}
+
+func (l *ListenerTCP) Close() *os.Error {
+	if l == nil || l.fd == nil {
+		return os.EINVAL
+	}
+	return l.fd.Close()
+}
+
+export func Listen(net, laddr string) (l Listener, err *os.Error) {
+	switch net {
+	case "tcp", "tcp4", "tcp6":
+		l, err := ListenTCP(net, laddr)
+		if err != nil {
+			return &nolistener, err
+		}
+		return l, nil
+/*
+	more here
+*/
+	}
+	return nil, UnknownNetwork
+}

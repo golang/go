@@ -37,7 +37,6 @@ TEXT syscall·Syscall6(SB),7,$-8
 	MOVQ	48(SP), R8
 	MOVQ	56(SP), R9
 	MOVQ	8(SP), AX	// syscall entry
-	ADDQ	$0x2000000, AX
 	SYSCALL
 	JLS	6(PC)
 	MOVQ	$-1, 64(SP)	// r1

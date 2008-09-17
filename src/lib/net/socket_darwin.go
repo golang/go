@@ -53,6 +53,8 @@ export const (
 	IPPROTO_UDP = 17;
 
 	TCP_NODELAY = 0x01;
+
+	SOMAXCONN = 128;
 )
 
 export type SockaddrUnix struct {
@@ -127,7 +129,7 @@ export func listen(fd, n int64) (ret int64, err *os.Error) {
 }
 
 export func accept(fd int64, sa *Sockaddr) (ret int64, err *os.Error) {
-	n := int32(sa.len);
+	n := SizeofSockaddr;
 	r1, r2, e := syscall.Syscall(ACCEPT, fd, SockaddrPtr(sa), Int32Ptr(&n));
 	return r1, os.ErrnoToError(e)
 }
@@ -229,3 +231,6 @@ export func SockaddrToIP(sa1 *Sockaddr) (p *[]byte, port int, err *os.Error) {
 	return nil, 0, nil	// not reached
 }
 
+export func ListenBacklog() int64 {
+	return SOMAXCONN
+}

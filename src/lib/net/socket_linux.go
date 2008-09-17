@@ -63,6 +63,8 @@ export const (
 	IPPROTO_UDP = 17;
 
 	TCP_NODELAY = 0x01;
+
+	SOMAXCONN = 128;
 )
 
 export type SockaddrUnix struct {
@@ -145,7 +147,7 @@ export func listen(fd, n int64) (ret int64, err *os.Error) {
 }
 
 export func accept(fd int64, sa *Sockaddr) (ret int64, err *os.Error) {
-	n := int32(sa.Len());
+	n := SizeofSockaddr;
 	r1, r2, e := syscall.Syscall(ACCEPT, fd, SockaddrPtr(sa), Int32Ptr(&n));
 	return r1, os.ErrnoToError(e)
 }
@@ -208,11 +210,21 @@ export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *Sockaddr, err *os.Error) {
 	return SockaddrInet4ToSockaddr(sa), nil
 }
 
+var IPv6zero [ip.IPv6len]byte;
+
 export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *Sockaddr, err *os.Error) {
 	p = ip.ToIPv6(p)
 	if p == nil || port < 0 || port > 0xFFFF {
 		return nil, os.EINVAL
 	}
+
+	// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
+	// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
+	// which it refuses to do.  Rewrite to the IPv6 all zeros.
+	if p4 := ip.ToIPv4(p); p4 != nil && p4[0] == 0 && p4[1] == 0 && p4[2] == 0 && p4[3] == 0 {
+		p = &IPv6zero;
+	}
+
 	sa := new(SockaddrInet6);
 	sa.family = AF_INET6;
 	sa.port[0] = byte(port>>8);
@@ -245,3 +257,10 @@ export func SockaddrToIP(sa1 *Sockaddr) (p *[]byte, port int, err *os.Error) {
 	return nil, 0, nil	// not reached
 }
 
+export func ListenBacklog() int64 {
+	// TODO: maybe /proc/sys/net/core/somaxconn
+	// and read the limit out of there, to take advantage of kernels
+	// that have increased the limit
+
+	return SOMAXCONN
+}
