@@ -1,30 +1,4 @@
 
-=========== ./bufiolib.go
-throw: index out of range
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: 0x11c43
-
-0x11c43?zi
-	throw(98060, 0, 235528, ...)
-	throw(0x17f0c, 0x39808, 0x5e2e, ...)
-0x11b97?zi
-	sys·throwindex(235528, 0, 0, ...)
-	sys·throwindex(0x39808, 0x0, 0x1, ...)
-0x5e2e?zi
-	bufio·BufRead_ReadLineString(235312, 0, 65546, ...)
-	bufio·BufRead_ReadLineString(0x39730, 0x1000a, 0x39758, ...)
-0x1cb8?zi
-	main·ReadLines(235312, 0, 235304, ...)
-	main·ReadLines(0x39730, 0x39728, 0x1, ...)
-0x2bb5?zi
-	main·TestBufRead(85470, 0, 1, ...)
-	main·TestBufRead(0x14dde, 0x1, 0x7fff5fbff268, ...)
-0x3830?zi
-	main·main(1, 0, 1606414952, ...)
-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
-
-
 =========== ./func1.go
 func1.go:12: var a redeclared in this block
      previous declaration at func1.go:12
@@ -47,6 +21,10 @@ skipping increment test until bug060 is fixed
 8! = 40320
 9! = 362880
 10! = 3628800
+
+=========== ./printbig.go
+-9223372036854775808
+9223372036854775807
 
 =========== ./turing.go
 Hello World!
