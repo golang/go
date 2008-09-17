@@ -25,11 +25,10 @@
 %token	<sym>		LNIL LTRUE LFALSE LIOTA
 
 %token			LOROR LANDAND LEQ LNE LLE LLT LGE LGT
-%token			LLSH LRSH LINC LDEC LSEND LRECV
+%token			LLSH LRSH LINC LDEC LCOMM
 %token			LIGNORE
 
 %type	<sym>		sym sym1 sym2 keyword laconst lname latype non_type_sym
-%type	<lint>		chandir
 %type	<node>		xdcl xdcl_list_r oxdcl_list
 %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
 %type	<node>		oarg_type_list arg_type_list_r arg_type
@@ -55,10 +54,11 @@
 %type	<type>		fntype fnlitdcl Afntype Bfntype fullAtype
 %type	<type>		type Atype Btype indcl new_type fullBtype
 %type	<type>		structtype interfacetype convtype
+%type	<type>		Achantype Bchantype
 
 %left			LOROR
 %left			LANDAND
-%left			LSEND LRECV
+%left			LCOMM
 %left			LEQ LNE LLE LGE LLT LGT
 %left			'+' '-' '|' '^'
 %left			'*' '/' '%' '&' LLSH LRSH
@@ -412,6 +412,24 @@ complex_stmt:
 		poptodcl();
 		$$ = nod(OXCASE, $2, N);
 	}
+|	LCASE name '=' expr ':'
+	{
+		// will be converted to OCASE
+		// right will point to next case
+		// done in casebody()
+		poptodcl();
+		$$ = nod(OAS, $2, $4);
+		$$ = nod(OXCASE, $$, N);
+	}
+|	LCASE name LCOLAS expr ':'
+	{
+		// will be converted to OCASE
+		// right will point to next case
+		// done in casebody()
+		poptodcl();
+		$$ = nod(OAS, colas($2, $4), $4);
+		$$ = nod(OXCASE, $$, N);
+	}
 |	LDEFAULT ':'
 	{
 		poptodcl();
@@ -644,13 +662,9 @@ expr:
 	{
 		$$ = nod(ORSH, $1, $3);
 	}
-|	expr LSEND expr
+|	expr LCOMM expr
 	{
 		$$ = nod(OSEND, $1, $3);
-	}
-|	expr LRECV expr
-	{
-		$$ = nod(ORECV, $1, $3);
 	}
 
 uexpr:
@@ -684,7 +698,7 @@ uexpr:
 	{
 		$$ = nod(OCOM, $2, N);
 	}
-|	LRECV uexpr
+|	LCOMM uexpr
 	{
 		$$ = nod(ORECV, $2, N);
 	}
@@ -931,11 +945,17 @@ Atype:
 	{
 		$$ = aindex($2, $4);
 	}
-|	LCHAN chandir fullAtype
+|	LCOMM LCHAN fullAtype
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
-		$$->chan = $2;
+		$$->chan = Crecv;
+	}
+|	LCHAN LCOMM Atype  // not full Atype
+	{
+		$$ = typ(TCHAN);
+		$$->type = $3;
+		$$->chan = Csend;
 	}
 |	LMAP '[' type ']' fullAtype
 	{
@@ -951,20 +971,35 @@ Atype:
 		$$ = ptrto($2);
 	}
 
+Achantype:
+	LCHAN fullAtype
+	{
+		$$ = typ(TCHAN);
+		$$->type = $2;
+		$$->chan = Cboth;
+	}
+
 fullAtype:
 	Atype
 |	Afntype
+|	Achantype
 
 Btype:
 	'[' oexpr ']' fullBtype
 	{
 		$$ = aindex($2, $4);
 	}
-|	LCHAN chandir fullBtype
+|	LCOMM LCHAN fullBtype
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
-		$$->chan = $2;
+		$$->chan = Crecv;
+	}
+|	LCHAN LCOMM Btype  // not full Btype
+	{
+		$$ = typ(TCHAN);
+		$$->type = $3;
+		$$->chan = Csend;
 	}
 |	LMAP '[' type ']' fullBtype
 	{
@@ -985,9 +1020,18 @@ Btype:
 		$$ = forwdcl($2);
 	}
 
+Bchantype:
+	LCHAN fullBtype
+	{
+		$$ = typ(TCHAN);
+		$$->type = $2;
+		$$->chan = Cboth;
+	}
+
 fullBtype:
 	Btype
 |	Bfntype
+|	Bchantype
 
 structtype:
 	LSTRUCT '{' structdcl_list_r osemi '}'
@@ -1008,19 +1052,6 @@ interfacetype:
 |	LINTERFACE '{' '}'
 	{
 		$$ = dostruct(N, TINTER);
-	}
-
-chandir:
-	{
-		$$ = Cboth;
-	}
-|	LRECV
-	{
-		$$ = Crecv;
-	}
-|	LSEND
-	{
-		$$ = Csend;
 	}
 
 keyval:
