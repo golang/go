@@ -13,7 +13,7 @@ import syscall "syscall"
 //export open, creat, close, read, write, pipe
 //export unlink
 
-func	StatToInt(s *Stat) int64;
+func	StatPtr(s *Stat) int64;
 
 type dev_t uint32;
 type ino_t uint64;
@@ -73,7 +73,7 @@ export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
 		return -1, syscall.ENAMETOOLONG
 	}
 	const SYSOPEN = 5;
-	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(&namebuf[0]), mode, perm);
+	r1, r2, err := syscall.Syscall(SYSOPEN, BytePtr(&namebuf[0]), mode, perm);
 	return r1, err;
 }
 
@@ -83,7 +83,7 @@ export func creat(name string, perm int64) (ret int64, errno int64) {
 		return -1, syscall.ENAMETOOLONG
 	}
 	const SYSOPEN = 5;
-	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(&namebuf[0]), O_CREAT|O_WRONLY|O_TRUNC, perm);
+	r1, r2, err := syscall.Syscall(SYSOPEN, BytePtr(&namebuf[0]), O_CREAT|O_WRONLY|O_TRUNC, perm);
 	return r1, err;
 }
 
@@ -95,13 +95,13 @@ export func close(fd int64) (ret int64, errno int64) {
 
 export func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
 	const SYSREAD = 3;
-	r1, r2, err := syscall.Syscall(SYSREAD, fd, AddrToInt(buf), nbytes);
+	r1, r2, err := syscall.Syscall(SYSREAD, fd, BytePtr(buf), nbytes);
 	return r1, err;
 }
 
 export func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
 	const SYSWRITE = 4;
-	r1, r2, err := syscall.Syscall(SYSWRITE, fd, AddrToInt(buf), nbytes);
+	r1, r2, err := syscall.Syscall(SYSWRITE, fd, BytePtr(buf), nbytes);
 	return r1, err;
 }
 
@@ -122,19 +122,19 @@ export func stat(name string, buf *Stat) (ret int64, errno int64) {
 		return -1, syscall.ENAMETOOLONG
 	}
 	const SYSSTAT = 338;
-	r1, r2, err := syscall.Syscall(SYSSTAT, AddrToInt(&namebuf[0]), StatToInt(buf), 0);
+	r1, r2, err := syscall.Syscall(SYSSTAT, BytePtr(&namebuf[0]), StatPtr(buf), 0);
 	return r1, err;
 }
 
 export func lstat(name *byte, buf *Stat) (ret int64, errno int64) {
 	const SYSLSTAT = 340;
-	r1, r2, err := syscall.Syscall(SYSLSTAT, AddrToInt(name), StatToInt(buf), 0);
+	r1, r2, err := syscall.Syscall(SYSLSTAT, BytePtr(name), StatPtr(buf), 0);
 	return r1, err;
 }
 
 export func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
 	const SYSFSTAT = 339;
-	r1, r2, err := syscall.Syscall(SYSFSTAT, fd, StatToInt(buf), 0);
+	r1, r2, err := syscall.Syscall(SYSFSTAT, fd, StatPtr(buf), 0);
 	return r1, err;
 }
 
@@ -144,6 +144,6 @@ export func unlink(name string) (ret int64, errno int64) {
 		return -1, syscall.ENAMETOOLONG
 	}
 	const SYSUNLINK = 10;
-	r1, r2, err := syscall.Syscall(SYSUNLINK, AddrToInt(&namebuf[0]), 0, 0);
+	r1, r2, err := syscall.Syscall(SYSUNLINK, BytePtr(&namebuf[0]), 0, 0);
 	return r1, err;
 }

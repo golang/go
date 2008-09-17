@@ -48,12 +48,12 @@ TEXT	syscall·Syscall6(SB),7,$-8
 	RET
 
 // conversion operators - really just casts
-TEXT	syscall·AddrToInt(SB),7,$-8
+TEXT	syscall·BytePtr(SB),7,$-8
 	MOVQ	8(SP), AX
 	MOVQ	AX, 16(SP)
 	RET
 
-TEXT	syscall·StatToInt(SB),7,$-8
+TEXT	syscall·StatPtr(SB),7,$-8
 	MOVQ	8(SP), AX
 	MOVQ	AX, 16(SP)
 	RET

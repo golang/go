@@ -16,6 +16,7 @@ O1=\
 
 O2=\
 	file_$(GOARCH)_$(GOOS).$O \
+	time_$(GOARCH)_$(GOOS).$O \
 	syscall_$(GOARCH)_$(GOOS).$O \
 
 

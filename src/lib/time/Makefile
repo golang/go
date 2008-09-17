@@ -5,13 +5,12 @@
 O=6
 GC=$(O)g
 
-PKG=$(GOROOT)/pkg/os.a
+PKG=$(GOROOT)/pkg/time.a
 
 O1=\
-	os_error.$O
+	zoneinfo.$O
 O2=\
-	os_file.$O\
-	os_time.$O\
+	time.$O\
 
 install: nuke $(PKG)
 
