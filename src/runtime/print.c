@@ -112,15 +112,16 @@ void
 sys·printint(int64 v)
 {
 	byte buf[100];
-	int32 i, s;
+	int32 i, s, big;
 
+	big = 0;
 	s = 0;
 	if(v < 0) {
 		v = -v;
 		s = 1;
 		if(v < 0) {
-			sys·write(1, (byte*)"-oo", 3);
-			return;
+			big = 1;
+			v--;
 		}
 	}
 
@@ -130,9 +131,12 @@ sys·printint(int64 v)
 			break;
 		v = v/10;
 	}
-	if(s) {
+	if(s){
 		i--;
 		buf[i] = '-';
+	}
+	if(big){
+		buf[nelem(buf)-1]++;
 	}
 	sys·write(1, buf+i, nelem(buf)-i);
 }
