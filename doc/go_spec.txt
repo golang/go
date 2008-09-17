@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 12, 2008)
+(September 17, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -414,7 +414,7 @@ The following special character sequences serve as operators or delimitors:
 	+    &     +=    &=     &&    ==    !=    (    )
 	-    |     -=    |=     ||    <     >=    [    ]
 	*    ^     *=    ^=     <-    >     <=    {    }
-	/    <<    /=    <<=    -<    ++    --    =    :=
+	/    <<    /=    <<=          ++    --    =    :=
 	%    >>    %=    >>=    !     .     ,     ;    :
 
 
@@ -1064,16 +1064,17 @@ A channel provides a mechanism for two concurrently executing functions
 to synchronize execution and exchange values of a specified type.
 
 Upon creation, a channel can be used both to send and to receive.
-By conversion or assignment, it may be restricted only to send or
-to receive; such a restricted channel
-is called a 'send channel' or a 'receive channel'.
+By conversion or assignment, a 'full' channel may be constrained only to send or
+to receive. Such a restricted channel is called a 'send channel' or a 'receive channel'.
 
-	ChannelType = "chan" [ "<-" | "-<" ] ValueType .
+	ChannelType = FullChannel | SendChannel | RecvChannel .
+	FullChannel = "chan" ValueType .
+	SendChannel = "chan" "<-" ValueType .
+	RecvChannel = "<-" "chan" ValueType .
 
-	chan any    // a generic channel
-	chan int    // a channel that can exchange only ints
-	chan-< float // a channel that can only be used to send floats
-	chan<- any   // a channel that can receive (only) values of any type
+	chan T         // a channel that can exchange values of type T
+	chan <- float  // a channel that can only be used to send floats
+	<-chan int     // a channel that can receive only ints
 
 Channel variables always have type pointer to channel.
 It is an error to attempt to use a channel value and in
@@ -1300,7 +1301,7 @@ A function literal can be assigned to a variable of the
 corresponding function pointer type, or invoked directly.
 
 	f := func(x, y int) int { return x + y; }
-	func(ch *chan int) { ch -< ACK; } (reply_chan)
+	func(ch *chan int) { ch <- ACK; } (reply_chan)
 
 Implementation restriction: A function literal can reference only
 its parameters, global variables, and variables declared within the
@@ -1424,12 +1425,15 @@ Operators combine operands into expressions.
 	
 	binary_op = log_op | com_op | rel_op | add_op | mul_op .
 	log_op = "||" | "&&" .
-	com_op = "<-" | "-<" .
+	com_op = "<-" .
 	rel_op = "==" | "!=" | "<" | "<=" | ">" | ">=" .
 	add_op = "+" | "-" | "|" | "^" .
 	mul_op = "*" | "/" | "%" | "<<" | ">>" | "&" .
 
 	unary_op = "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
+
+TODO: If we allow non-blocking sends only in the form "ok = ch <- x", it doesn't
+make sense to give binary "<-" precedence 3. It should be at the lowest level. TBD.
 
 The operand types in binary operations must be equal, with the following exceptions:
 
@@ -1453,7 +1457,7 @@ lowest precedence:
 		6             *  /  %  <<  >>  &
 		5             +  -  |  ^
 		4             ==  !=  <  <=  >  >=
-		3             <-  -<
+		3             <-
 		2             &&
 		1             ||
 
@@ -1656,10 +1660,10 @@ asynchronous channel; if absent or zero, the channel is synchronous:
 	sync_chan := new(chan int)
 	buffered_chan := new(chan int, 10)
 
-The send operator is the binary operator  "-<", which operates on
+The send operation uses the binary operator "<-", which operates on
 a channel and a value (expression):
 
-	ch -< 3
+	ch <- 3
 
 In this form, the send operation is an (expression) statement that
 blocks until the send can proceed, at which point the value is
@@ -1670,31 +1674,22 @@ of the expression is a boolean and the operation is non-blocking.
 The value of the boolean reports true if the communication succeeded,
 false if it did not.  These two examples are equivalent:
 
-	ok := ch -< 3;
+	ok := ch <- 3;
 	if ok { print("sent") } else { print("not sent") }
 
-	if ch -< 3 { print("sent") } else { print("not sent") }
+	if ch <- 3 { print("sent") } else { print("not sent") }
 
 In other words, if the program tests the value of a send operation,
 the send is non-blocking and the value of the expression is the
 success of the operation.  If the program does not test the value,
 the operation blocks until it succeeds.
 
-The receive uses the binary operator "<-", analogous to send but
-with the channel on the right:
+TODO: Adjust the above depending on how we rule on the ok semantics.
 
-	v1 <- ch
+The receive operation uses the prefix unary operator "<-".
+The value of the expression is the value received:
 
-As with send operations, in expression context this form may
-be used as a boolean and makes the receive non-blocking:
-
-	ok := e <- ch;
-	if ok { print("received", e) } else { print("did not receive") }
-
-The receive operator may also be used as a prefix unary operator
-on a channel.
-
-	<- ch
+	<-ch
 
 The expression blocks until a value is available, which then can
 be assigned to a variable or used like any other expression:
@@ -1706,16 +1701,15 @@ be assigned to a variable or used like any other expression:
 If the receive expression does not save the value, the value is
 discarded:
 
-	<- strobe  // wait until clock pulse
+	<-strobe  // wait until clock pulse
 
-Finally, as a special case unique to receive, the forms
+If a receive expression is used in a tuple assignment of the form
 
-	e, ok := <-ch
-	e, ok = <-ch
+	x, ok = <-ch;  // or: x, ok := <-ch
 
-allow the operation to declare and/or assign the received value and
-the boolean indicating success.  These two forms are always
-non-blocking.
+the receive operation becomes non-blocking, and the boolean variable
+"ok" will be set to "true" if the receive operation succeeded, and set
+to "false" otherwise.
 
 
 Statements
@@ -1986,7 +1980,7 @@ function to complete.
 
 
 	go Server()
-	go func(ch chan-< bool) { for { sleep(10); ch -< true; }} (c)
+	go func(ch chan <- bool) { for { sleep(10); ch <- true; }} (c)
 
 
 Select statements
@@ -2001,8 +1995,8 @@ cases all referring to communication operations.
 	CommCase = ( "default" | ( "case" ( SendCase | RecvCase) ) ) ":" .
 	SendCase = SendExpr .
 	RecvCase = RecvExpr .
-	SendExpr =  Expression "-<" Expression .
-	RecvExpr =  [ identifier ] "<-" Expression .
+	SendExpr =  Expression "<-" Expression .
+	RecvExpr =  [ PrimaryExpr ( "=" | ":=" ) ] "<-" Expression .
 
 The select statement evaluates all the channel (pointers) involved.
 If any of the channels can proceed, the corresponding communication
@@ -2011,18 +2005,24 @@ that executes; if not, the statement blocks until one of the
 communications can complete.  A channel pointer may be nil, which is
 equivalent to that case not being present in the select statement.
 
-If the channel sends or receives "any" or an interface type, its
+If the channel sends or receives an interface type, its
 communication can proceed only if the type of the communication
 clause matches that of the dynamic value to be exchanged.
 
 If multiple cases can proceed, a uniform fair choice is made regarding
 which single communication will execute.
 
+The receive case may declare a new variable (via a ":=" assignment). The
+scope of such variables begins immediately after the variable identifier
+and ends at the end of the respective "select" case (that is, before the
+next "case", "default", or closing brace).
+
 	var c, c1, c2 *chan int;
+	var i1, i2 int;
 	select {
-	case i1 <- c1:
+	case i1 = <-c1:
 		print("received ", i1, " from c1\n");
-	case c2 -< i2:
+	case c2 <- i2:
 		print("sent ", i2, " to c2\n");
 	default:
 		print("no communication\n");
@@ -2030,23 +2030,22 @@ which single communication will execute.
 
 	for {  // send random sequence of bits to c
 		select {
-		case c -< 0:  // note: no statement, no fallthrough, no folding of cases
-		case c -< 1:
+		case c <- 0:  // note: no statement, no fallthrough, no folding of cases
+		case c <- 1:
 		}
 	}
 
-	var ca *chan any;
+	var ca *chan interface {};
 	var i int;
 	var f float;
 	select {
-	case i  <- ca:
+	case i = <-ca:
 		print("received int ", i, " from ca\n");
-	case f  <- ca:
+	case f = <-ca:
 		print("received float ", f, " from ca\n");
 	}
 
-TODO: do we allow case i := <-c: ?
-TODO: need to precise about all the details but this is not the right doc for that
+TODO: Make semantics more precise.
 
 
 Return statements
@@ -2442,19 +2441,19 @@ Here is a complete example Go package that implements a concurrent prime sieve:
 	package main
 	
 	// Send the sequence 2, 3, 4, ... to channel 'ch'.
-	func Generate(ch *chan-< int) {
+	func Generate(ch *chan <- int) {
 		for i := 2; ; i++ {
-			ch -< i  // Send 'i' to channel 'ch'.
+			ch <- i  // Send 'i' to channel 'ch'.
 		}
 	}
 	
 	// Copy the values from channel 'in' to channel 'out',
 	// removing those divisible by 'prime'.
-	func Filter(in *chan<- int, out *chan-< int, prime int) {
+	func Filter(in *chan <- int, out *<-chan int, prime int) {
 		for {
 			i := <-in;  // Receive value of new variable 'i' from 'in'.
 			if i % prime != 0 {
-				out -< i  // Send 'i' to channel 'out'.
+				out <- i  // Send 'i' to channel 'out'.
 			}
 		}
 	}
