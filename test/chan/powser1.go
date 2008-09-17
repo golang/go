@@ -92,33 +92,33 @@ func dosplit(in *dch, out *dch2, wait *chan int ){
 	}
 
 	seqno++;
-	in.req -< seqno;
+	in.req <- seqno;
 	release := new(chan  int);
 	go dosplit(in, out, release);
 	dat := <-in.dat;
-	out[0].dat -< dat;
+	out[0].dat <- dat;
 	if !both {
 		<-wait
 	}
 	<-out[1].req;
-	out[1].dat -< dat;
-	release -< 0;
+	out[1].dat <- dat;
+	release <- 0;
 }
 
 func split(in *dch, out *dch2){
 	release := new(chan int);
 	go dosplit(in, out, release);
-	release -< 0;
+	release <- 0;
 }
 
 func put(dat item, out *dch){
 	<-out.req;
-	out.dat -< dat;
+	out.dat <- dat;
 }
 
 func get(in *dch) item{
 	seqno++;
-	in.req -< seqno;
+	in.req <- seqno;
 	return <-in.dat;
 }
 
@@ -140,16 +140,16 @@ func getn(in *[]*dch, n int) *[]item {
 		seqno++
 
 		select{
-		case req[0] -< seqno:
+		case req[0] <- seqno:
 			dat[0] = in[0].dat;
 			req[0] = nil;
-		case req[1] -< seqno:
+		case req[1] <- seqno:
 			dat[1] = in[1].dat;
 			req[1] = nil;
-		case it <- dat[0]:
+		case it = <-dat[0]:
 			out[0] = it;
 			dat[0] = nil;
-		case it <- dat[1]:
+		case it = <-dat[1]:
 			out[1] = it;
 			dat[1] = nil;
 		}
@@ -169,7 +169,7 @@ func get2(in0 *dch, in1 *dch)  *[]item {
 func copy(in *dch, out *dch){
 	for {
 		<-out.req;
-		out.dat -< get(in);
+		out.dat <- get(in);
 	}
 }
 
@@ -331,15 +331,15 @@ func Add(U, V PS) PS{
 			uv = get2(U,V);
 			switch end(uv[0])+2*end(uv[1]) {
 			case 0:
-				Z.dat -< add(uv[0], uv[1]);
+				Z.dat <- add(uv[0], uv[1]);
 			case 1:
-				Z.dat -< uv[1];
+				Z.dat <- uv[1];
 				copy(V,Z);
 			case 2:
-				Z.dat -< uv[0];
+				Z.dat <- uv[0];
 				copy(U,Z)
 			case 3:
-				Z.dat -< finis;
+				Z.dat <- finis;
 			}
 		}
 	}(U, V, Z);
@@ -355,9 +355,9 @@ func Cmul(c *rat,U PS) PS{
 			<-Z.req;
 			u := get(U);
 			if end(u) != 0 { done = true }
-			else { Z.dat -< mul(c,u) }
+			else { Z.dat <- mul(c,u) }
 		}
-		Z.dat -< finis;
+		Z.dat <- finis;
 	}(c, U, Z);
 	return Z;
 }
@@ -446,14 +446,14 @@ func Mul(U, V PS) PS{
 		<-Z.req;
 		uv := get2(U,V);
 		if end(uv[0])!=0 || end(uv[1]) != 0 {
-			Z.dat -< finis;
+			Z.dat <- finis;
 		} else {
-			Z.dat -< mul(uv[0],uv[1]);
+			Z.dat <- mul(uv[0],uv[1]);
 			UU := Split(U);
 			VV := Split(V);
 			W := Add(Cmul(uv[0],VV[0]),Cmul(uv[1],UU[0]));
 			<-Z.req;
-			Z.dat -< get(W);
+			Z.dat <- get(W);
 			copy(Add(W,Mul(UU[1],VV[1])),Z);
 		}
 	}(U, V, Z);
@@ -473,12 +473,12 @@ func Diff(U PS) PS{
 				u = get(U);
 				if end(u) != 0 { done=true }
 				else {
-					Z.dat -< mul(itor(int64(i)),u);
+					Z.dat <- mul(itor(int64(i)),u);
 					<-Z.req;
 				}
 			}
 		}
-		Z.dat -< finis;
+		Z.dat <- finis;
 	}(U, Z);
 	return Z;
 }
@@ -493,9 +493,9 @@ func Integ(c *rat,U PS) PS{
 			<-Z.req;
 			u := get(U);
 			if end(u) != 0 { done= true }
-			Z.dat -< mul(i2tor(1,int64(i)),u);
+			Z.dat <- mul(i2tor(1,int64(i)),u);
 		}
-		Z.dat -< finis;
+		Z.dat <- finis;
 	}(c, U, Z);
 	return Z;
 }
@@ -532,7 +532,7 @@ func Recip(U PS) PS{
 		ZZ:=mkPS2();
 		<-Z.req;
 		z := inv(get(U));
-		Z.dat -< z;
+		Z.dat <- z;
 		split(Mul(Cmul(neg(z),U),Shift(z,ZZ[0])),ZZ);
 		copy(ZZ[1],Z);
 	}(U, Z);
@@ -564,7 +564,7 @@ func Subst(U, V PS) PS {
 		VV := Split(V);
 		<-Z.req;
 		u := get(U);
-		Z.dat -< u;
+		Z.dat <- u;
 		if end(u) == 0 {
 			if end(get(VV[0])) != 0 { put(finis,Z); }
 			else { copy(Mul(VV[0],Subst(U,VV[1])),Z); }
@@ -583,15 +583,15 @@ func MonSubst(U PS, c0 *rat, n int) PS {
 		for {
 			<-Z.req;
 			u := get(U);
-			Z.dat -< mul(u, c);
+			Z.dat <- mul(u, c);
 			c = mul(c, c0);
 			if end(u) != 0 {
-				Z.dat -< finis;
+				Z.dat <- finis;
 				break;
 			}
 			for i := 1; i < n; i++ {
 				<-Z.req;
-				Z.dat -< zero;
+				Z.dat <- zero;
 			}
 		}
 	}(U, Z, c0, n);
