@@ -18,7 +18,7 @@ func i32receiver(c *chan int32) {
 }
 
 func i32sender(c *chan int32) {
-	c -< 234
+	c <- 234
 }
 
 func i64receiver(c *chan int64) {
@@ -26,7 +26,7 @@ func i64receiver(c *chan int64) {
 }
 
 func i64sender(c *chan int64) {
-	c -< 234567
+	c <- 234567
 }
 
 func breceiver(c *chan bool) {
@@ -34,7 +34,7 @@ func breceiver(c *chan bool) {
 }
 
 func bsender(c *chan bool) {
-	c -< true
+	c <- true
 }
 
 func sreceiver(c *chan string) {
@@ -42,7 +42,7 @@ func sreceiver(c *chan string) {
 }
 
 func ssender(c *chan string) {
-	c -< "hello again"
+	c <- "hello again"
 }
 
 func main() {
@@ -71,7 +71,7 @@ func main() {
 
 	go i32receiver(c32);
 	pause();
-	ok = c32 -< 123;
+	ok = c32 <- 123;
 	if !ok { panic("i32receiver") }
 	go i32sender(c32);
 	pause();
@@ -81,7 +81,7 @@ func main() {
 
 	go i64receiver(c64);
 	pause();
-	ok = c64 -< 123456;
+	ok = c64 <- 123456;
 	if !ok { panic("i64receiver") }
 	go i64sender(c64);
 	pause();
@@ -91,7 +91,7 @@ func main() {
 
 	go breceiver(cb);
 	pause();
-	ok = cb -< true;
+	ok = cb <- true;
 	if !ok { panic("breceiver") }
 	go bsender(cb);
 	pause();
@@ -101,7 +101,7 @@ func main() {
 
 	go sreceiver(cs);
 	pause();
-	ok = cs -< "hello";
+	ok = cs <- "hello";
 	if !ok { panic("sreceiver") }
 	go ssender(cs);
 	pause();

@@ -13,7 +13,7 @@ func M(f uint64) (in, out *T) {
 	out = new(T, 100);
 	go func(in, out *T, f uint64) {
 		for {
-			out -< f * <- in;
+			out <- f * <-in;
 		}
 	}(in, out, f);
 	return in, out;
@@ -55,7 +55,7 @@ func main() {
 	for i := 0; i < len(OUT); i++ {
 		t := min(xs);
 		for i := 0; i < n; i++ {
-			ins[i] -< x;
+			ins[i] <- x;
 		}
 
 		for i := 0; i < n; i++ {
