@@ -54,8 +54,7 @@ export const (
 	SHL;
 	SHR;
 	
-	SEND;
-	RECV;
+	ARROW;
 
 	ADD_ASSIGN;
 	SUB_ASSIGN;
@@ -163,8 +162,7 @@ export func TokenName(tok int) string {
 	case SHL: return "<<";
 	case SHR: return ">>";
 	
-	case SEND: return "-<";
-	case RECV: return "<-";
+	case ARROW: return "<-";
 
 	case ADD_ASSIGN: return "+=";
 	case SUB_ASSIGN: return "-=";
@@ -740,13 +738,7 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
 		case '{': tok = LBRACE;
 		case '}': tok = RBRACE;
 		case '+': tok = S.Select3(ADD, ADD_ASSIGN, '+', INC);
-		case '-':
-			if S.ch == '<' {
-				S.Next();
-				tok = SEND;
-			} else {
-				tok = S.Select3(SUB, SUB_ASSIGN, '-', DEC);
-			}
+		case '-': tok = S.Select3(SUB, SUB_ASSIGN, '-', DEC);
 		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
@@ -761,7 +753,7 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
 		case '<':
 			if S.ch == '-' {
 				S.Next();
-				tok = RECV;
+				tok = ARROW;
 			} else {
 				tok = S.Select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
 			}
@@ -791,7 +783,7 @@ func (S *Scanner) Server(c *chan *Token) {
 	for {
 		t := new(Token);
 		t.tok, t.pos, t.val = S.Scan();
-		c -< t;
+		c <- t;
 		if t.tok == EOF {
 			break;
 		}

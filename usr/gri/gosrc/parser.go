@@ -430,8 +430,8 @@ func (P *Parser) ParseArrayType() *Globals.Type {
 	}
 	P.Expect(Scanner.RBRACK);
 	typ.elt = P.ParseVarType();
-	P.Ecart();
-	
+
+	P.Ecart();	
 	return typ;
 }
 
@@ -439,21 +439,23 @@ func (P *Parser) ParseArrayType() *Globals.Type {
 func (P *Parser) ParseChannelType() *Globals.Type {
 	P.Trace("ChannelType");
 	
-	P.Expect(Scanner.CHAN);
 	typ := Globals.NewType(Type.CHANNEL);
-	switch P.tok {
-	case Scanner.SEND:
-		typ.flags = Type.SEND;
+	if P.tok == Scanner.CHAN {
 		P.Next();
-	case Scanner.RECV:
+		if P.tok == Scanner.ARROW {
+			typ.flags = Type.SEND;
+			P.Next();
+		} else {
+			typ.flags = Type.SEND + Type.RECV;
+		}
+	} else {
+		P.Expect(Scanner.ARROW);
+		P.Expect(Scanner.CHAN);
 		typ.flags = Type.RECV;
-		P.Next();
-	default:
-		typ.flags = Type.SEND + Type.RECV;
 	}
 	typ.elt = P.ParseVarType();
-	P.Ecart();
-	
+
+	P.Ecart();	
 	return typ;
 }
 
@@ -797,7 +799,7 @@ func (P *Parser) TryType() *Globals.Type {
 	switch P.tok {
 	case Scanner.IDENT: typ = P.ParseTypeName();
 	case Scanner.LBRACK: typ = P.ParseArrayType();
-	case Scanner.CHAN: typ = P.ParseChannelType();
+	case Scanner.CHAN, Scanner.ARROW: typ = P.ParseChannelType();
 	case Scanner.INTERFACE: typ = P.ParseInterfaceType();
 	case Scanner.LPAREN: typ = P.ParseFunctionType();
 	case Scanner.MAP: typ = P.ParseMapType();
@@ -946,25 +948,14 @@ func (P *Parser) ParseExpressionPairList(list *Globals.List) {
 func (P *Parser) ParseCompositeLit(typ *Globals.Type) Globals.Expr {
 	P.Trace("CompositeLit");
 	
-	// TODO I think we should use {} instead of () for
-	// composite literals to syntactically distinguish
-	// them from conversions. For now: allow both.
-	var paren int;
-	if P.tok == Scanner.LPAREN {
-		P.Next();
-		paren = Scanner.RPAREN;
-	} else {
-		P.Expect(Scanner.LBRACE);
-		paren = Scanner.RBRACE;
-	}
-	
+	P.Expect(Scanner.LBRACE);
 	// TODO: should allow trailing ','
 	list := Globals.NewList();
-	if P.tok != paren {
+	if P.tok != Scanner.RBRACE {
 		list.AddExpr(P.ParseExpression());
 		if P.tok == Scanner.COMMA {
 			P.Next();
-			if P.tok != paren {
+			if P.tok != Scanner.RBRACE {
 				P.ParseExpressionList(list);
 			}
 		} else if P.tok == Scanner.COLON {
@@ -972,14 +963,13 @@ func (P *Parser) ParseCompositeLit(typ *Globals.Type) Globals.Expr {
 			list.AddExpr(P.ParseExpression());
 			if P.tok == Scanner.COMMA {
 				P.Next();
-				if P.tok != paren {
+				if P.tok != Scanner.RBRACE {
 					P.ParseExpressionPairList(list);
 				}
 			}
 		}
 	}
-
-	P.Expect(paren);
+	P.Expect(Scanner.RBRACE);
 
 	P.Ecart();
 	return nil;
@@ -1228,7 +1218,7 @@ func (P *Parser) ParseUnaryExpr() Globals.Expr {
 	case Scanner.NOT: fallthrough;
 	case Scanner.XOR: fallthrough;
 	case Scanner.MUL: fallthrough;
-	case Scanner.RECV: fallthrough;
+	case Scanner.ARROW: fallthrough;
 	case Scanner.AND:
 		P.Next();
 		P.ParseUnaryExpr();
@@ -1249,7 +1239,7 @@ func Precedence(tok int) int {
 		return 1;
 	case Scanner.LAND:
 		return 2;
-	case Scanner.SEND, Scanner.RECV:
+	case Scanner.ARROW:
 		return 3;
 	case Scanner.EQL, Scanner.NEQ, Scanner.LSS, Scanner.LEQ, Scanner.GTR, Scanner.GEQ:
 		return 4;
@@ -1702,7 +1692,7 @@ func (P *Parser) TryStatement() bool {
 	case Scanner.FUNC:
 		// for now we do not allow local function declarations
 		fallthrough;
-	case Scanner.MUL, Scanner.SEND, Scanner.RECV, Scanner.IDENT, Scanner.LPAREN:
+	case Scanner.MUL, Scanner.ARROW, Scanner.IDENT, Scanner.LPAREN:
 		P.ParseSimpleStat();
 	case Scanner.GO:
 		P.ParseGoStat();
