@@ -13,14 +13,13 @@ type BinOp (a, b int) int;
 
 func Run(op *BinOp, request *Request) {
 	result := op(request.a, request.b);
-	request.replyc -< result;
+	request.replyc <- result;
 }
 
 func Server(op *BinOp, service *chan *Request, quit *chan bool) {
 	for {
-		var request *Request;
 		select {
-		case request <- service:
+		case request := <-service:
 			go Run(op, request);  // don't wait for it
 		case <-quit:
 			return;
@@ -44,12 +43,12 @@ func main() {
 		req.a = i;
 		req.b = i + N;
 		req.replyc = new(chan int);
-		adder -< req;
+		adder <- req;
 	}
 	for i := N-1; i >= 0; i-- {   // doesn't matter what order
 		if <-reqs[i].replyc != N + 2*i {
 			print("fail at ", i, "\n");
 		}
 	}
-	quit -< true;
+	quit <- true;
 }

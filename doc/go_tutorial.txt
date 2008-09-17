@@ -456,17 +456,16 @@ Here is the first function in "progs/sieve.go":
 --PROG progs/sieve.go /Send/ /^}/
 
 The function "Generate" sends the sequence 2, 3, 4, 5, ... to its
-argument channel, "ch", using the binary send operator "-&lt".
+argument channel, "ch", using the binary communications operator "&lt-".
 Channels block, so if there's no recipient for the the value on "ch",
 the send operation will wait until one becomes available.
 
 The "Filter" function has three arguments: an input channel, an output
 channel, and a prime number.  It copies values from the input to the
-output, discarding anything divisible by the prime.  The unary prefix
+output, discarding anything divisible by the prime.  The unary communications
 operator "&lt;-" (receive) retrieves the next value on the channel.
 
 --PROG progs/sieve.go /Copy/ /^}/
-
 
 The generator and filters execute concurrently.  Go has
 its own model of process/threads/light-weight processes/coroutines,
@@ -567,9 +566,7 @@ Inside "Server", a "select" statement chooses which of the multiple communicatio
 listed by its cases can proceed.  If all are blocked, it waits until one can proceed; if
 multiple can proceed, it chooses one at random.  In this instance, the "select" allows
 the server to honor requests until it receives a quit message, at which point it
-returns, terminating its execution.  (The language doesn't yet allow the ":="
-syntax in "select" statements, although it might one day.  Also, observe the use
-of the binary, infix form of the receive operator.)
+returns, terminating its execution.
 
 
 All that's left is to strobe the "quit" channel
