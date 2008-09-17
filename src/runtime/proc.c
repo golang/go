@@ -78,7 +78,7 @@ schedinit(void)
 	byte *p;
 
 	sched.mmax = 1;
-	p = getenv("gomaxprocs");
+	p = getenv("GOMAXPROCS");
 	if(p != nil && (n = atoi(p)) != 0)
 		sched.mmax = n;
 	sched.mcount = 1;

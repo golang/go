@@ -22,3 +22,10 @@ do
 	6g -o $GOROOT/pkg/$base.6 $i
 done
 
+for i in net
+do
+	echo; echo; echo %%%% making lib/$i %%%%; echo
+	cd $i
+	make install
+	cd ..
+done

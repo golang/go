@@ -336,6 +336,10 @@ func ParseIPv6(s string) *[]byte {
 	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
 		ellipsis = 0;
 		i = 2
+		// Might be only ellipsis
+		if i == len(s) {
+			return p
+		}
 	}
 
 	// Loop, parsing hex numbers followed by colon.
@@ -343,12 +347,12 @@ func ParseIPv6(s string) *[]byte {
 L:	for j < IPv6len {
 		// Hex number.
 		n, i1, ok := xtoi(s, i)
-		if !ok || n >= 0xFFFF {
+		if !ok || n > 0xFFFF {
 			return nil
 		}
 
 		// If followed by dot, might be in trailing IPv4.
-		if s[i1] == '.' {
+		if i1 < len(s) && s[i1] == '.' {
 			if ellipsis < 0 && j != IPv6len - IPv4len {
 				// Not the right place.
 				return nil
@@ -389,7 +393,7 @@ L:	for j < IPv6len {
 		i++
 
 		// Look for ellipsis.
-		if s[i+1] == ':' {
+		if s[i] == ':' {
 			if ellipsis >= 0 {	// already have one
 				return nil
 			}
@@ -411,7 +415,7 @@ L:	for j < IPv6len {
 			return nil
 		}
 		n := IPv6len - j
-		for k := j; k >= ellipsis; k-- {
+		for k := j-1; k >= ellipsis; k-- {
 			p[k+n] = p[k]
 		}
 		for k := ellipsis+n-1; k>=ellipsis; k-- {
