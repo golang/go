@@ -9,7 +9,7 @@ func Generate() *chan int {
 	ch := new(chan int);
 	go func(ch *chan int){
 		for i := 2; ; i++ {
-			ch -< i
+			ch <- i
 		}
 	}(ch);
 	return ch;
@@ -21,7 +21,7 @@ func Filter(in *chan int, prime int) *chan int {
 	go func(in *chan int, out *chan int, prime int) {
 		for {
 			if i := <-in; i % prime != 0 {
-				out -< i
+				out <- i
 			}
 		}
 	}(in, out, prime);
@@ -34,7 +34,7 @@ func Sieve() *chan int {
 		ch := Generate();
 		for {
 			prime := <-ch;
-			out -< prime;
+			out <- prime;
 			ch = Filter(ch, prime);
 		}
 	}(out);

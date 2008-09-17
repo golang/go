@@ -7,7 +7,7 @@ package main
 // Send the sequence 2, 3, 4, ... to channel 'ch'.
 func Generate(ch *chan int) {
 	for i := 2; ; i++ {
-		ch -< i  // Send 'i' to channel 'ch'.
+		ch <- i  // Send 'i' to channel 'ch'.
 	}
 }
 
@@ -17,7 +17,7 @@ func Filter(in *chan int, out *chan int, prime int) {
 	for {
 		i := <-in  // Receive value of new variable 'i' from 'in'.
 		if i % prime != 0 {
-			out -< i  // Send 'i' to channel 'out'.
+			out <- i  // Send 'i' to channel 'out'.
 		}
 	}
 }
