@@ -1232,6 +1232,30 @@ out:
 	return r;
 }
 
+Node*
+selectas(Node *name, Node *expr)
+{
+	Node *a;
+	Type *t;
+
+	if(expr == N || expr->op != ORECV)
+		goto bad;
+	t = expr->left->type;
+	if(t == T)
+		goto bad;
+	if(isptr[t->etype])
+		t = t->type;
+	if(t == T)
+		goto bad;
+	if(t->etype != TCHAN)
+		goto bad;
+	a = old2new(name, t->type);
+	return a;
+
+bad:
+	return name;
+}
+
 void
 walkselect(Node *sel)
 {
@@ -1269,6 +1293,16 @@ walkselect(Node *sel)
 			default:
 				yyerror("select cases must be send or recv");
 				break;
+
+			case OAS:
+				// convert new syntax (a=recv(chan)) to (recv(a,chan))
+				if(n->left->right == N || n->left->right->op != ORECV) {
+					yyerror("select cases must be send or recv");
+					break;
+				}
+				n->left->right->right = n->left->right->left;
+				n->left->right->left = n->left->left;
+				n->left = n->left->right;
 
 			case OSEND:
 			case ORECV:

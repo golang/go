@@ -702,6 +702,8 @@ Node*	reorder4(Node*);
 Node*	structlit(Node*);
 Node*	arraylit(Node*);
 Node*	maplit(Node*);
+Node*	selectas(Node*, Node*);
+Node*	old2new(Node*, Type*);
 
 /*
  *	const.c

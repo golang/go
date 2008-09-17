@@ -427,7 +427,7 @@ complex_stmt:
 		// right will point to next case
 		// done in casebody()
 		poptodcl();
-		$$ = nod(OAS, colas($2, $4), $4);
+		$$ = nod(OAS, selectas($2,$4), $4);
 		$$ = nod(OXCASE, $$, N);
 	}
 |	LDEFAULT ':'
