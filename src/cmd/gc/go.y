@@ -951,7 +951,7 @@ Atype:
 		$$->type = $3;
 		$$->chan = Crecv;
 	}
-|	LCHAN LCOMM Atype  // not full Atype
+|	LCHAN LCOMM Atype  /* not full Atype */
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
