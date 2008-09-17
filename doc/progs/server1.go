@@ -27,9 +27,9 @@ func Server(op *BinOp, service *chan *Request, quit *chan bool) {
 	}
 }
 
-func StartServer(op *BinOp) (servch *chan *Request, quitch *chan bool) {
-	service := new(chan *Request);
-	quit := new(chan bool);
+func StartServer(op *BinOp) (service *chan *Request, quit *chan bool) {
+	service = new(chan *Request);
+	quit = new(chan bool);
 	go Server(op, service, quit);
 	return service, quit;
 }

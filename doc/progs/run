@@ -1,0 +1,65 @@
+#!/bin/bash
+# Copyright 2009 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+rm -f *.6
+
+for i in \
+	fd.go \
+	helloworld.go \
+	helloworld2.go \
+	helloworld3.go \
+	echo.go \
+	cat.go \
+	cat_rot13.go \
+	sum.go \
+	sort.go \
+	sortmain.go \
+	sieve.go \
+	sieve1.go \
+	server1.go \
+; do
+	BASE=$(basename $i .go)
+
+	6g $i
+done
+
+function testit {
+	6l $1.6
+	x=$(echo $(6.out $2 2>&1))  # extra echo canonicalizes
+	if [ "$x" != "$3" ]
+	then
+		echo $1 failed: '"'$x'"' is not '"'$3'"'
+	fi
+}
+
+function testitpipe {
+	6l $1.6
+	x=$(echo $(6.out | $2 2>&1))  # extra echo canonicalizes
+	if [ "$x" != "$3" ]
+	then
+		echo $1 failed: '"'$x'"' is not '"'$3'"'
+	fi
+}
+
+
+testit helloworld "" "Hello, world; or Καλημέρα κόσμε; or こんにちは 世界"
+testit helloworld2 "" "Hello, world; or Καλημέρα κόσμε; or こんにちは 世界"
+testit helloworld3 "" "hello, world can't open file; errno=2"
+testit echo "hello, world" "hello, world"
+testit sum "" "6"
+
+alphabet=abcdefghijklmnopqrstuvwxyz
+rot13=nopqrstuvwxyzabcdefghijklm
+echo $alphabet | testit cat "" $alphabet
+echo $alphabet | testit cat_rot13 "--rot13" $rot13
+echo $rot13 | testit cat_rot13 "--rot13" $alphabet
+
+testit sortmain "" "Sunday Monday Tuesday Thursday Friday"
+
+testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
+testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
+
+# server hangs; don't run it
+testit server1 "" ""
