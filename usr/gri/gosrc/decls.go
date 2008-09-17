@@ -56,8 +56,8 @@ type (
 export type M5 (p T5) . (a, b int, c float) (z T5, ok bool);
 
 type T6 chan int
-type T7 chan<- *T6
-type T8 chan-< *T6
+type T7 <- chan *T6
+type T8 chan <- *T6
 
 type T9 struct {
 	p *T9;
