@@ -681,13 +681,13 @@ dostkoff(void)
 					p->from.type = D_INDIR+D_R15;
 					p->from.offset = 8;
 					p->to.type = D_SP;
-					
+
 					p = appendp(p);
 					p->as = AJHI;
 					p->to.type = D_BRANCH;
 					p->to.offset = 4;
 					q1 = p;
-					
+
 					p = appendp(p);
 					p->as = AINT;
 					p->from.type = D_CONST;
@@ -716,13 +716,13 @@ dostkoff(void)
 							q1->pcond = p;
 							q1 = P;
 						}
-	
+
 						p = appendp(p);
 						p->as = ACMPQ;
 						p->from.type = D_AX;
 						p->to.type = D_INDIR+D_R15;
 					}
-	
+
 					// common
 					p = appendp(p);
 					p->as = AJHI;
