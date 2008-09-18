@@ -37,6 +37,11 @@ a3: $(O3)
 a4: $(O4)
 	$(O)ar grc $(PKG) $(O4)
 
+$(O1): nuke
+$(O2): a1
+$(O3): a2
+$(O4): a3
+
 nuke:
 	rm -f *.$(O) *.a $(PKG)
 

@@ -33,8 +33,11 @@ $(LIB): $(OFILES)
 
 $(OFILES): $(HFILES)
 
-y.tab.c: $(YFILES)
+y.tab.h: $(YFILES)
 	yacc $(YFLAGS) $(YFILES)
+
+y.tab.c: y.tab.h
+	# do nothing
 
 sysimport.c:	sys.go mksys.bash
 	bash mksys.bash

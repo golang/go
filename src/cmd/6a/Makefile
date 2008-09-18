@@ -29,8 +29,11 @@ $(OFILES): $(HFILES)
 
 lex.$O:	../cc/macbody ../cc/lexbody
 
-y.tab.c: $(YFILES)
+y.tab.h: $(YFILES)
 	yacc $(YFLAGS) $(YFILES)
+
+y.tab.c: y.tab.h
+	# do nothing
 
 clean:
 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c

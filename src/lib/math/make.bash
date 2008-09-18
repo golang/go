@@ -4,6 +4,8 @@
 
 #!/bin/bash
 
+set -e
+
 make install
 
 # old way: bash g1 && cp math.a $GOROOT/pkg/math.a
