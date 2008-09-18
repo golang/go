@@ -12,7 +12,7 @@ bash mkenam
 make enam.o
 cd ..
 
-for i in cc 6l 6a 6c gc 6g ar db nm acid
+for i in cc 6l 6a 6c gc 6g ar db nm blyacc acid
 do
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i
