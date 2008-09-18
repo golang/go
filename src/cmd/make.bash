@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+set -e
 
 bash clean.bash
 
@@ -11,47 +12,10 @@ bash mkenam
 make enam.o
 cd ..
 
-echo; echo; echo %%%% making cc %%%%; echo
-cd cc
-make install
-cd ..
-
-echo; echo; echo %%%% making 6l %%%%; echo
-cd 6l
-make install
-cd ..
-
-echo; echo; echo %%%% making 6a %%%%; echo
-cd 6a
-make install
-cd ..
-
-echo; echo; echo %%%% making 6c %%%%; echo
-cd 6c
-make install
-cd ..
-
-echo; echo; echo %%%% making gc %%%%; echo
-cd gc
-make install
-cd ..
-
-echo; echo; echo %%%% making 6g %%%%; echo
-cd 6g
-make install
-cd ..
-
-echo; echo; echo %%%% making ar %%%%; echo
-cd ar
-make install
-cd ..
-
-echo; echo; echo %%%% making db %%%%; echo
-cd db
-make install
-cd ..
-
-echo; echo; echo %%%% making nm %%%%; echo
-cd nm
-make install
-cd ..
+for i in cc 6l 6a 6c gc 6g ar db nm acid
+do
+	echo; echo; echo %%%% making $i %%%%; echo
+	cd $i
+	make install
+	cd ..
+done

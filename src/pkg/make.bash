@@ -4,6 +4,8 @@
 
 #!/bin/bash
 
+set -e
+
 # clean
 rm -f *.6 6.out test_integer
 

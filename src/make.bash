@@ -3,9 +3,12 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+set -e
+export MAKEFLAGS=-j4
+
 bash clean.bash
 
-for i in lib9 libbio libmach_amd64
+for i in lib9 libbio libmach_amd64 libregexp
 do
 	cd $i
 	make install

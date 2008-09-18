@@ -32,6 +32,9 @@ a2: 	$(O2)
 	$(O)ar grc $(PKG) $(O2)
 	rm *.6
 
+$(O1): nuke
+$(O2): a1
+
 nuke:
 	rm -f *.$(O) *.a $(PKG)
 

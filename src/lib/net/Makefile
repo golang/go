@@ -22,8 +22,11 @@ $(NET): $(NETO)
 
 $(NETO): $(IP) $(SOCKET)
 
+$(SOCKETO): $(IP)
+
 $(SOCKET): $(SOCKETO)
 	$(O)ar grc $(SOCKET) $(SOCKETO)
+	rm $(SOCKETO)
 
 $(GOROOT)/pkg/%.$O: %.$O
 	cp $*.$O $(GOROOT)/pkg/$*.$O
