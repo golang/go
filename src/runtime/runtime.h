@@ -157,6 +157,7 @@ struct	M
 	uint64	morearg;	// arg to morestack - must not move
 	uint64	cret;		// return value from C - must not move
 	uint64	procid;	// for debuggers - must not move
+	G*	gsignal;		// signal-handling G - must not move
 	G*	curg;		// current running goroutine
 	G*	lastg;		// last running goroutine - to emulate fifo
 	Gobuf	sched;
@@ -248,6 +249,10 @@ void	ready(G*);
 byte*	getenv(int8*);
 int32	atoi(byte*);
 void	newosproc(M *m, G *g, void *stk, void (*fn)(void));
+void	sigaltstack(void*, void*);
+void	signalstack(byte*, int32);
+G*	malg(int32);
+void	minit(void);
 
 /*
  * mutual exclusion locks.  in the uncontended case,

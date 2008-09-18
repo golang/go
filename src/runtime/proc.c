@@ -70,7 +70,18 @@ static void readylocked(G*);	// ready, but sched is locked
 // Scheduler loop.
 static void scheduler(void);
 
-// Called before main·init_function.
+// The bootstrap sequence is:
+//
+//	call osinit
+//	call schedinit
+//	make & queue new G
+//	call mstart
+//
+// The new G does:
+//
+//	call main·init_function
+//	call initdone
+//	call main·main
 void
 schedinit(void)
 {
@@ -85,9 +96,9 @@ schedinit(void)
 	sched.predawn = 1;
 }
 
-// Called after main·init_function; main·main is on ready queue.
+// Called after main·init_function; main·main will be called on return.
 void
-m0init(void)
+initdone(void)
 {
 	int32 i;
 
@@ -100,8 +111,6 @@ m0init(void)
 	// would have, had it not been pre-dawn.
 	for(i=1; i<sched.gcount && i<sched.mmax; i++)
 		mnew();
-
-	scheduler();
 }
 
 void
@@ -114,6 +123,21 @@ sys·goexit(void)
 	}
 	g->status = Gmoribund;
 	sys·gosched();
+}
+
+G*
+malg(int32 stacksize)
+{
+	G *g;
+	byte *stk;
+
+	// 160 is the slop amount known to the stack growth code
+	g = mal(sizeof(G));
+	stk = mal(160 + stacksize);
+	g->stack0 = stk;
+	g->stackguard = stk + 160;
+	g->stackbase = stk + 160 + stacksize;
+	return g;
 }
 
 void
@@ -135,15 +159,13 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 
 	if((newg = gfget()) != nil){
 		newg->status = Gwaiting;
-		stk = newg->stack0;
 	}else{
-		newg = mal(sizeof(G));
-		stk = mal(4096);
-		newg->stack0 = stk;
+		newg = malg(4096);
 		newg->status = Gwaiting;
 		newg->alllink = allg;
 		allg = newg;
 	}
+	stk = newg->stack0;
 
 	newg->stackguard = stk+160;
 
@@ -335,6 +357,14 @@ nextgandunlock(void)
 	return gp;
 }
 
+// Called to start an M.
+void
+mstart(void)
+{
+	minit();
+	scheduler();
+}
+
 // Scheduler loop: find g to run, run it, repeat.
 static void
 scheduler(void)
@@ -342,11 +372,13 @@ scheduler(void)
 	G* gp;
 
 	lock(&sched);
-
 	if(gosave(&m->sched)){
-		// Jumped here via gosave/gogo, so didn'
+		// Jumped here via gosave/gogo, so didn't
 		// execute lock(&sched) above.
 		lock(&sched);
+		
+		if(sched.predawn)
+			throw("init sleeping");
 
 		// Just finished running m->curg.
 		gp = m->curg;
@@ -371,7 +403,6 @@ scheduler(void)
 
 	// Find (or wait for) g to run.  Unlocks sched.
 	gp = nextgandunlock();
-
 	noteclear(&gp->stopped);
 	gp->status = Grunning;
 	m->curg = gp;
@@ -388,10 +419,6 @@ void
 sys·gosched(void)
 {
 	if(gosave(&g->sched) == 0){
-		// TODO(rsc) signal race here?
-		// If a signal comes in between
-		// changing g and changing SP,
-		// growing the stack will fail.
 		g = m->g0;
 		gogo(&m->sched);
 	}
@@ -402,8 +429,6 @@ static void
 mnew(void)
 {
 	M *m;
-	G *g;
-	byte *stk, *stktop;
 
 	sched.mcount++;
 	if(debug){
@@ -411,18 +436,9 @@ mnew(void)
 		prints(" threads\n");
 	}
 
-	// Allocate m, g, stack in one chunk.
-	// 1024 and 104 are the magic constants
-	// use in rt0_amd64.s when setting up g0.
-	m = mal(sizeof(M)+sizeof(G)+104+1024);
-	g = (G*)(m+1);
-	stk = (byte*)g + 104;
-	stktop = stk + 1024;
-
-	m->g0 = g;
-	g->stackguard = stk;
-	g->stackbase = stktop;
-	newosproc(m, g, stktop, scheduler);
+	m = mal(sizeof(M));
+	m->g0 = malg(1024);
+	newosproc(m, m->g0, m->g0->stackbase, mstart);
 }
 
 //

@@ -53,7 +53,7 @@ prbounds(int8* s, int32 a, int32 b, int32 c)
 	prints(">");
 	sys·printint(c);
 	prints("\n");
-	throw("bounds");
+	throw("string bounds");
 }
 
 uint32
