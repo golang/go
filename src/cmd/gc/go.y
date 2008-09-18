@@ -1644,3 +1644,58 @@ hidden_importfield:
 		$$ = $2;
 		$$->fsym = $1;
 	}
+
+/*
+ * helpful error messages.
+ * THIS SECTION MUST BE AT THE END OF THE FILE.
+ *
+ * these rules trigger reduce/reduce conflicts in the grammar.
+ * they are safe because reduce/reduce conflicts are resolved
+ * in favor of rules appearing earlier in the grammar, and these
+ * are at the end of the file.
+ *
+ * to check whether the rest of the grammar is free of
+ * reduce/reduce conflicts, comment this section out by
+ * removing the slash on the next line.
+ */
+lpack:
+	LATYPE
+	{
+		yyerror("%s is type, not package", $1->name);
+		YYERROR;
+	}
+
+laconst:
+	LPACK
+	{
+		// for LALR(1) reasons, using laconst works here
+		// but lname does not.  even so, the messages make
+		// more sense saying "var" instead of "const".
+		yyerror("%s is package, not var", $1->name);
+		YYERROR;
+	}
+|	LATYPE
+	{
+		yyerror("%s is type, not var", $1->name);
+		YYERROR;
+	}
+
+latype:
+	LACONST
+	{
+		yyerror("%s is const, not type", $1->name);
+		YYERROR;
+	}
+|	LPACK
+	{
+		yyerror("%s is package, not type", $1->name);
+		YYERROR;
+	}
+|	LNAME
+	{
+		yyerror("%s is var, not type", $1->name);
+		YYERROR;
+	}
+
+/**/
+

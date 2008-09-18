@@ -1420,7 +1420,7 @@ walkdot(Node *n)
 
 	f = lookdot(n->right, t->method);
 	if(f == T) {
-		yyerror("undefined DOT reference %N", n->right);
+		yyerror("undefined DOT %s", n->right->sym->name);
 		return;
 	}
 
