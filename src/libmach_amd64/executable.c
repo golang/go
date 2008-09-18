@@ -796,11 +796,11 @@ error:
 		read(fd, buf, sh[ep->shstrndx].size);
 
 		for(i = 0; i < ep->shnum; i++) {
-			if (sh[i].type == 2 && strcmp(&buf[sh[i].name], ".gosymtab") == 0) {
+			if (strcmp(&buf[sh[i].name], ".gosymtab") == 0) {
 				symsize = sh[i].size;
 				symoff = sh[i].offset;
 			}
-			if (sh[i].type == 2 && strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
+			if (strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
 				if (sh[i].offset != symoff+symsize) {
 					werrstr("pc line table not contiguous with symbol table");
 					free(buf);

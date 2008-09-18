@@ -523,3 +523,12 @@ ptraceerr:
 	werrstr("ptrace %s register laddr=%d pid=%d: %r", isr ? "read" : "write", laddr, map->pid);
 	return -1;	
 }
+
+char*
+procstatus(int pid)
+{
+	if(isstopped(pid))
+		return "Stopped";
+
+	return "Running";
+}
