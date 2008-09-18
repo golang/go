@@ -157,16 +157,33 @@ sighandler(int32 sig, siginfo *info, void *context)
 	sys·exit(2);
 }
 
+struct stack_t {
+	byte *sp;
+	int64 size;
+	int32 flags;
+};
 
 sigaction a;
 extern void sigtramp(void);
 
 void
+signalstack(byte *p, int32 n)
+{
+	struct stack_t st;
+
+	st.sp = p;
+	st.size = n;
+	st.flags = 0;
+	sigaltstack(&st, nil);
+}
+
+void
 initsig(void)
 {
 	int32 i;
+
 	a.u.sa_sigaction = (void*)sigtramp;
-	a.sa_flags |= 0x40;  /* SA_SIGINFO */
+	a.sa_flags |= 0x41;  /* SA_SIGINFO, SA_ONSTACK */
 	for(i=0; i<sizeof(a.sa_mask); i++)
 		a.sa_mask[i] = 0xFF;
 	a.sa_trampoline = sigtramp;
@@ -306,6 +323,15 @@ void
 newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	bsdthread_create(stk, m, g, fn);
+}
+
+// Called to initialize a new m (including the bootstrap m).
+void
+minit(void)
+{
+	// Initialize signal handling.
+	m->gsignal = malg(32*1024);	// OS X wants >=8K, Linux >=2K
+	signalstack(m->gsignal->stackguard, 32*1024);
 }
 
 

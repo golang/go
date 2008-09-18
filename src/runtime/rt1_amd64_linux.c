@@ -161,6 +161,25 @@ sighandler(int32 sig, siginfo* info, void** context)
 	sys·exit(2);
 }
 
+struct stack_t {
+	void *sp;
+	int32 flags;
+	int32 pad;
+	int64 size;
+};
+
+void
+signalstack(byte *p, int32 n)
+{
+	struct stack_t st;
+
+	st.sp = p;
+	st.size = n;
+	st.pad = 0;
+	st.flags = 0;
+	sigaltstack(&st, nil);
+}
+
 static sigaction a;
 
 void
@@ -168,7 +187,7 @@ initsig(void)
 {
 	int32 i;
 	a.u.sa_sigaction = (void*)sigtramp;
-	a.sa_flags = 0x04;  /* SA_SIGINFO */
+	a.sa_flags = 0x08000004;  /* SA_ONSTACK,  SA_SIGINFO */
 	for(i=0; i<sizeof(a.sa_mask); i++)
 		a.sa_mask[i] = 0xFF;
 
@@ -177,6 +196,7 @@ initsig(void)
 			sys·rt_sigaction(i, &a, (void*)0, 8);
 		}
 }
+
 
 // Linux futex.
 //
@@ -431,4 +451,13 @@ sys·sleep(int64 ms)
 void
 osinit(void)
 {
+}
+
+// Called to initialize a new m (including the bootstrap m).
+void
+minit(void)
+{
+	// Initialize signal handling.
+	m->gsignal = malg(32*1024);	// OS X wants >=8K, Linux >=2K
+	signalstack(m->gsignal->stackguard, 32*1024);
 }

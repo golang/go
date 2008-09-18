@@ -73,6 +73,7 @@ TEXT	sys·rt_sigaction(SB),7,$0-32
 	RET
 
 TEXT	sigtramp(SB),7,$24-16
+	MOVQ	32(R14), R15	// g = m->gsignal
 	MOVQ	DI,0(SP)
 	MOVQ	SI,8(SP)
 	MOVQ	DX,16(SP)
@@ -192,3 +193,12 @@ TEXT select(SB),7,$0
 	SYSCALL
 	RET
 
+TEXT sigaltstack(SB),7,$-8
+	MOVQ	new+8(SP), DI
+	MOVQ	old+16(SP), SI
+	MOVQ	$131, AX
+	SYSCALL
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	2(PC)
+	CALL	notok(SB)
+	RET

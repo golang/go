@@ -86,6 +86,7 @@ TEXT	sys·sigaction(SB),7,$-8
 	RET
 
 TEXT sigtramp(SB),7,$24
+	MOVQ	32(R14), R15	// g = m->gsignal
 	MOVL	DX,0(SP)
 	MOVQ	CX,8(SP)
 	MOVQ	R8,16(SP)
@@ -130,6 +131,15 @@ TEXT	sys·setcallerpc+0(SB),7,$0
 	MOVQ	x+0(FP),AX		// addr of first arg
 	MOVQ	x+8(FP), BX
 	MOVQ	BX, -8(AX)		// set calling pc
+	RET
+
+TEXT sigaltstack(SB),7,$-8
+	MOVQ	new+8(SP), DI
+	MOVQ	old+16(SP), SI
+	MOVQ	$(0x2000000+53), AX
+	SYSCALL
+	JCC	2(PC)
+	CALL	notok(SB)
 	RET
 
 // void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
