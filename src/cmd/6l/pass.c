@@ -565,7 +565,7 @@ brloop(Prog *p)
 void
 dostkoff(void)
 {
-	Prog *p, *q;
+	Prog *p, *q, *q1;
 	int32 autoffset, deltasp;
 	int a, f, curframe, curbecome, maxbecome, pcsize;
 	Prog *pmorestack;
@@ -667,8 +667,33 @@ dostkoff(void)
 				autoffset = 0;
 
 			q = P;
+			q1 = P;
 			if(pmorestack != P)
 			if(!(p->from.scale & NOSPLIT)) {
+				if(debug['K']) {
+					// 6l -K means check not only for stack
+					// overflow but stack underflow.
+					// On underflow, INT 3 (breakpoint).
+					// Underflow itself is rare but this also
+					// catches out-of-sync stack guard info.
+					p = appendp(p);
+					p->as = ACMPQ;
+					p->from.type = D_INDIR+D_R15;
+					p->from.offset = 8;
+					p->to.type = D_SP;
+					
+					p = appendp(p);
+					p->as = AJHI;
+					p->to.type = D_BRANCH;
+					p->to.offset = 4;
+					q1 = p;
+					
+					p = appendp(p);
+					p->as = AINT;
+					p->from.type = D_CONST;
+					p->from.offset = 3;
+				}
+
 				if(autoffset < 4096) {  // do we need to call morestack
 					if(autoffset <= 75) {
 						// small stack
@@ -676,7 +701,10 @@ dostkoff(void)
 						p->as = ACMPQ;
 						p->from.type = D_SP;
 						p->to.type = D_INDIR+D_R15;
-						
+						if(q1) {
+							q1->pcond = p;
+							q1 = P;
+						}
 					} else {
 						// large stack
 						p = appendp(p);
@@ -684,6 +712,10 @@ dostkoff(void)
 						p->from.type = D_INDIR+D_SP;
 						p->from.offset = -(autoffset-75);
 						p->to.type = D_AX;
+						if(q1) {
+							q1->pcond = p;
+							q1 = P;
+						}
 	
 						p = appendp(p);
 						p->as = ACMPQ;
@@ -704,6 +736,10 @@ dostkoff(void)
 				p->from.type = D_CONST;
 				p->from.offset = 0;
 				p->to.type = D_AX;
+				if(q1) {
+					q1->pcond = p;
+					q1 = P;
+				}
 
 				/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
 				if(autoffset+160 > 4096)
