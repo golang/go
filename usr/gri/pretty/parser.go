@@ -680,7 +680,9 @@ func (P *Parser) ParseCall(x AST.Expr) AST.Expr {
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
 	   	// first arguments could be a type if the call is to "new"
-		if P.tok != Scanner.IDENT && P.TryType() {
+		// - exclude type names because they could be expression starts
+		// - exclude "("'s because function types are not allowed and they indicate an expression
+		if P.tok != Scanner.IDENT && P.tok != Scanner.LPAREN && P.TryType() {
 		   	if P.tok == Scanner.COMMA {
 			   	 P.Next();
 				 if P.tok != Scanner.RPAREN {
