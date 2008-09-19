@@ -21,7 +21,7 @@ func GetEnv(key string) string {
 	n := len(key);
 	for i := 0; i < sys.envc(); i++ {
 		v := sys.envv(i);
-		if v[0 : n] == key {
+		if n < len(v) && v[0 : n] == key && v[n] == '=' {
 			return v[n + 1 : len(v)];  // +1: trim "="
 		}
 	}

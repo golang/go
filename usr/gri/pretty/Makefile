@@ -12,8 +12,6 @@ test: pretty
 	pretty *.go
 	pretty ../gosrc/*.go
 	pretty $(GOROOT)/test/sieve.go
-	pretty $(GOROOT)/test/bugs/*.go  # some files legally don't compile
-	pretty $(GOROOT)/test/fixedbugs/*.go  # some files legally don't compile
 	pretty $(GOROOT)/src/pkg/*.go
 	pretty $(GOROOT)/src/lib/flag.go
 	pretty $(GOROOT)/src/lib/fmt.go
