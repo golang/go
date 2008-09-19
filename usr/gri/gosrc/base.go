@@ -14,11 +14,10 @@ export type Node struct {
   left, right *Node;
   val bool;
   f Foo;
-  const, type, var, package int;
 }
 
-export func (p *Node) case(x int) {};
+export func (p *Node) F(x int) {};
 
 export type I interface {
-  func();
+  f();
 }

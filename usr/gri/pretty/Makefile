@@ -10,8 +10,10 @@ pretty: pretty.6
 
 test: pretty
 	pretty *.go
-	pretty $(GOROOT)/test/fixedbugs/*.go  # some files legally don't compile
+	pretty ../gosrc/*.go
 	pretty $(GOROOT)/test/sieve.go
+	pretty $(GOROOT)/test/bugs/*.go  # some files legally don't compile
+	pretty $(GOROOT)/test/fixedbugs/*.go  # some files legally don't compile
 	pretty $(GOROOT)/src/pkg/*.go
 	pretty $(GOROOT)/src/lib/flag.go
 	pretty $(GOROOT)/src/lib/fmt.go
@@ -19,7 +21,7 @@ test: pretty
 	pretty $(GOROOT)/src/lib/math/*.go
 	pretty $(GOROOT)/src/lib/container/*.go
 	pretty $(GOROOT)/src/syscall/*.go
-	echo "PASSED"
+	echo "DONE"
 
 install: pretty
 	cp pretty $(HOME)/bin/pretty

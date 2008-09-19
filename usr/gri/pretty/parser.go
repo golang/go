@@ -453,7 +453,7 @@ func (P *Parser) TryType() bool {
 	case Scanner.LBRACK: P.ParseArrayType();
 	case Scanner.CHAN, Scanner.ARROW: P.ParseChannelType();
 	case Scanner.INTERFACE: P.ParseInterfaceType();
-	case Scanner.LPAREN: P.ParseFunctionType();
+	case Scanner.LPAREN: P.ParseSignature();
 	case Scanner.MAP: P.ParseMapType();
 	case Scanner.STRUCT: P.ParseStructType();
 	case Scanner.MUL: P.ParsePointerType();

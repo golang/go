@@ -46,15 +46,6 @@ type F5 (a, b int, c float) (z T5, ok bool)
 type F6 (a int, b float) bool
 type F7 (a int, b float, c, d *bool) bool
 
-export type M0 (p T5) . ();
-type (
-	M1 (p T5) . (a int);
-	M2 (p T5) . (a, b int, c float);
-	M3 (p T5) . () bool;
-	M4 (p T5) . (a int) (z T5, ok bool);
-)
-export type M5 (p T5) . (a, b int, c float) (z T5, ok bool);
-
 type T6 chan int
 type T7 <- chan *T6
 type T8 chan <- *T6
