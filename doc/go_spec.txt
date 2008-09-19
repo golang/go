@@ -52,6 +52,8 @@ Open issues according to gri:
 [ ] iant suggests to use abstract/precise int for len(), cap() - good idea
     (issue: what happens in len() + const - what is the type?)
 [ ] Do composite literals create a new literal each time (gri thinks yes)
+[ ] should binary <- be at lowest precedence level? when is a send/receive non-blocking?
+[ ] consider syntactic notation for composite literals to make them parseable w/o type information
 -->
 
 Contents
