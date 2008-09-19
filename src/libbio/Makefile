@@ -61,3 +61,5 @@ y.tab.c: $(YFILES)
 clean:
 	rm -f $(OFILES) *.6 6.out $(LIB)
 
+nuke: clean
+	rm -f $(GOROOT)/lib/$(LIB)

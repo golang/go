@@ -6,7 +6,7 @@
 
 rm -f $GOROOT/pkg/*
 
-for i in os math
+for i in os math net time
 do
 	cd $i
 	make nuke

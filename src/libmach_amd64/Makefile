@@ -82,4 +82,8 @@ $(LIB): $(OFILES)
 $(OFILES): $(HFILES)
 
 clean:
-	rm -f $(OFILES) $(LIB)
+	rm -f *.$O $(LIB)
+
+nuke: clean
+	rm -f $(GOROOT)/lib/$(LIB)
+
