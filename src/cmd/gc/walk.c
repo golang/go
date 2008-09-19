@@ -915,6 +915,8 @@ loop:
 	case ONOT:
 	case OANDAND:
 	case OOROR:
+		if(n->left->type == T)
+			goto ret;
 		et = n->left->type->etype;
 		if(et != TBOOL)
 			goto badt;
@@ -923,6 +925,8 @@ loop:
 
 	case OEQ:
 	case ONE:
+		if(n->left->type == T)
+			goto ret;
 		et = n->left->type->etype;
 		if(!okforeq[et])
 			goto badt;
@@ -933,6 +937,8 @@ loop:
 	case OLE:
 	case OGE:
 	case OGT:
+		if(n->left->type == T)
+			goto ret;
 		et = n->left->type->etype;
 		if(!okforadd[et])
 			if(!isptrto(n->left->type, TSTRING))
@@ -945,12 +951,16 @@ loop:
 	case OMUL:
 	case ODIV:
 	case OPLUS:
+		if(n->left->type == T)
+			goto ret;
 		et = n->left->type->etype;
 		if(!okforadd[et])
 			goto badt;
 		break;
 
 	case OMINUS:
+		if(n->left->type == T)
+			goto ret;
 		et = n->left->type->etype;
 		if(!okforadd[et])
 			goto badt;
@@ -974,6 +984,8 @@ loop:
 	case OXOR:
 	case OMOD:
 	case OCOM:
+		if(n->left->type == T)
+			goto ret;
 		et = n->left->type->etype;
 		if(!okforand[et])
 			goto badt;
