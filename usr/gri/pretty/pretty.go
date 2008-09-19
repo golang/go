@@ -19,9 +19,20 @@ var (
 )
 
 
+func Usage() {
+	print("usage: pretty { flags } { files }\n");
+	Flag.PrintDefaults();
+	sys.exit(0);
+}
+
+
 func main() {
 	Flag.Parse();
 	
+	if Flag.NFlag() == 0 && Flag.NArg() == 0 {
+		Usage();
+	}
+
 	// process files
 	for i := 0; i < Flag.NArg(); i++ {
 	    src_file := Flag.Arg(i);
