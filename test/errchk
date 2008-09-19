@@ -1,0 +1,74 @@
+#!/bin/bash
+# Copyright 2009 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# This script checks that the compilers emits the errors which we
+# expect.  Usage: errchk COMPILER [OPTS] SOURCEFILE.  This will run
+# the command COMPILER [OPTS] SOURCEFILE.  The compilation is expected
+# to fail; if it succeeds, this script will report an error.  The
+# stderr output of the compiler will be matched against comments in
+# SOURCEFILE.  For each line of the source file which should generate
+# an error, there should be a comment of the form // ERROR "regexp".
+# If the compiler generates an error for a line which has no such
+# commnt, this script will report an error.  Likewise if the compiler
+# does not generate an error for a line which has a comment, or if the
+# error message does not match the <regexp>.  The <regexp> is
+# interpreted by egrep.
+
+if test $# -lt 2; then
+  echo 1>&2 "Usage: errchk COMPILER [OPTS] SOURCEFILE"
+  exit 1
+fi
+
+ARGCOUNT=$#
+SOURCEFILE=${!ARGCOUNT}
+
+TMPOUT=/tmp/errchk-out-$$
+TMPERR=/tmp/errchk-err-$$
+TMPALL=/tmp/errchk-all-$$
+TMPTMP=/tmp/errchk-tmp-$$
+TMPSTAT=/tmp/errchk-stat-$$
+rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT
+
+trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT" 0 1 2 3 14 15
+
+if $* >$TMPOUT 2>$TMPERR; then
+  echo 1>&2 "errchk: command succeeded unexpectedly: " "$@"
+  cat $TMPOUT
+  cat 1>&2 $TMPERR
+  rm -f $TMPOUT $TMPERR
+  exit 1
+fi
+
+cat $TMPOUT $TMPERR > $TMPALL
+
+header=0
+echo 0 > $TMPSTAT
+pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
+  lineno=`echo $line | sed -e 's/^[ ]*\([0-9]*\).*$/\1/'`
+  regexp=`echo $line | sed -e 's|.*// ERROR "\([^"]*\)".*$|\1|'`
+  errmsg=`grep "$SOURCEFILE:$lineno" <$TMPALL`
+  grep -v "$SOURCEFILE:$lineno" < $TMPALL > $TMPTMP
+  mv -f $TMPTMP $TMPALL
+  if test -z "$errmsg"; then
+    echo 1>&2 "errchk: $SOURCEFILE: missing expected error message on line $lineno: '$regexp'"
+    echo 1 > $TMPSTAT
+  elif ! echo "$errmsg" | egrep -q "$regexp"; then
+    echo 1>&2 "errchk: $SOURCEFILE: error message on line $lineno does not match '$regexp'"
+    echo 1>&2 $errmsg
+    echo 1 > $TMPSTAT
+  fi
+done
+
+if test -s $TMPALL; then
+  echo 1>&2 "errchk: $SOURCEFILE: unmatched error messages:"
+  echo 1>&2 "=================================================="
+  cat 1>&2 $TMPALL
+  echo 1>&2 "=================================================="
+  echo 1 > $TMPSTAT
+fi
+
+status=`cat $TMPSTAT`
+
+exit $status
