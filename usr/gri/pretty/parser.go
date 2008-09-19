@@ -292,71 +292,24 @@ func (P *Parser) ParseResult() {
 }
 
 
-// Signatures
+// Function types
 //
 // (params)
 // (params) type
 // (params) (results)
 
-func (P *Parser) ParseSignature() {
-	P.Trace("Signature");
-	
-	P.OpenScope();
-	P.level--;
-
-	P.ParseParameters();
-	P.ParseResult();
-
-	P.level++;
-	P.CloseScope();
-	
-	P.Ecart();
-}
-
-
-// Named signatures
-//
-//        ident (params)
-//        ident (params) type
-//        ident (params) (results)
-// (recv) ident (params)
-// (recv) ident (params) type
-// (recv) ident (params) (results)
-
-func (P *Parser) ParseNamedSignature() *AST.Ident {
-	P.Trace("NamedSignature");
-	
-	P.OpenScope();
-	P.level--;
-
-	if P.tok == Scanner.LPAREN {
-		recv_pos := P.pos;
-		n := P.ParseParameters();
-		if n != 1 {
-			P.Error(recv_pos, "must have exactly one receiver");
-			panic("UNIMPLEMENTED (ParseNamedSignature)");
-			// TODO do something useful here
-		}
-	}
-	
-	ident := P.ParseIdent();
-
-	P.ParseParameters();
-	
-	P.ParseResult();
-	P.level++;
-	P.CloseScope();
-	
-	P.Ecart();
-	return ident;
-}
-
-
 func (P *Parser) ParseFunctionType() {
 	P.Trace("FunctionType");
 	
-	typ := P.ParseSignature();
+	P.OpenScope();
+	P.level--;
 
+	P.ParseParameters();
+	P.ParseResult();
+
+	P.level++;
+	P.CloseScope();
+	
 	P.Ecart();
 }
 
@@ -365,15 +318,7 @@ func (P *Parser) ParseMethodDecl() {
 	P.Trace("MethodDecl");
 	
 	ident := P.ParseIdent();
-	P.OpenScope();
-	P.level--;
-	
-	P.ParseParameters();
-	
-	//r0 := sig.entries.len;
-	P.ParseResult();
-	P.level++;
-	P.CloseScope();
+	P.ParseFunctionType();
 	P.Optional(Scanner.SEMICOLON);
 	
 	P.Ecart();
@@ -453,7 +398,7 @@ func (P *Parser) TryType() bool {
 	case Scanner.LBRACK: P.ParseArrayType();
 	case Scanner.CHAN, Scanner.ARROW: P.ParseChannelType();
 	case Scanner.INTERFACE: P.ParseInterfaceType();
-	case Scanner.LPAREN: P.ParseSignature();
+	case Scanner.LPAREN: P.ParseFunctionType();
 	case Scanner.MAP: P.ParseMapType();
 	case Scanner.STRUCT: P.ParseStructType();
 	case Scanner.MUL: P.ParsePointerType();
@@ -523,7 +468,7 @@ func (P *Parser) ParseFunctionLit() AST.Expr {
 	P.Trace("FunctionLit");
 	
 	P.Expect(Scanner.FUNC);
-	P.ParseSignature();  // replace this with ParseFunctionType() and it won't work - 6g bug?
+	P.ParseFunctionType();
 	P.ParseBlock();
 	
 	P.Ecart();
@@ -639,8 +584,8 @@ func (P *Parser) ParseOperand(ident *AST.Ident) AST.Expr {
 }
 
 
-func (P *Parser) ParseSelectorOrTypeAssertion(x AST.Expr) AST.Expr {
-	P.Trace("SelectorOrTypeAssertion");
+func (P *Parser) ParseSelectorOrTypeGuard(x AST.Expr) AST.Expr {
+	P.Trace("SelectorOrTypeGuard");
 
 	P.Expect(Scanner.PERIOD);
 	pos := P.pos;
@@ -682,6 +627,8 @@ func (P *Parser) ParseCall(x AST.Expr) AST.Expr {
 	   	// first arguments could be a type if the call is to "new"
 		// - exclude type names because they could be expression starts
 		// - exclude "("'s because function types are not allowed and they indicate an expression
+		// - still a problem for "new(*T)" (the "*")
+		// - possibility: make "new" a keyword again (or disallow "*" types in new)
 		if P.tok != Scanner.IDENT && P.tok != Scanner.LPAREN && P.TryType() {
 		   	if P.tok == Scanner.COMMA {
 			   	 P.Next();
@@ -706,7 +653,7 @@ func (P *Parser) ParsePrimaryExpr(ident *AST.Ident) AST.Expr {
 	x := P.ParseOperand(ident);
 	for {
 		switch P.tok {
-		case Scanner.PERIOD: x = P.ParseSelectorOrTypeAssertion(x);
+		case Scanner.PERIOD: x = P.ParseSelectorOrTypeGuard(x);
 		case Scanner.LBRACK: x = P.ParseIndexOrSlice(x);
 		case Scanner.LPAREN: x = P.ParseCall(x);
 		default: goto exit;
@@ -1221,11 +1168,40 @@ func (P *Parser) ParseDecl(exported bool, keyword int) {
 }
 
 
+// Function declarations
+//
+// func        ident (params)
+// func        ident (params) type
+// func        ident (params) (results)
+// func (recv) ident (params)
+// func (recv) ident (params) type
+// func (recv) ident (params) (results)
+
 func (P *Parser) ParseFuncDecl(exported bool) {
 	P.Trace("FuncDecl");
 	
 	P.Expect(Scanner.FUNC);
-	ident := P.ParseNamedSignature();
+	
+	
+	P.OpenScope();
+	P.level--;
+
+	if P.tok == Scanner.LPAREN {
+		recv_pos := P.pos;
+		n := P.ParseParameters();
+		if n != 1 {
+			P.Error(recv_pos, "must have exactly one receiver");
+		}
+	}
+	
+	ident := P.ParseIdent();
+	
+	P.ParseFunctionType();
+	
+	P.level++;
+	P.CloseScope();
+
+
 	if P.tok == Scanner.SEMICOLON {
 		// forward declaration
 		P.Next();
