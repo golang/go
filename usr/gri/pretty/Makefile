@@ -8,9 +8,9 @@ L=6l
 pretty: pretty.6
 	$(L) -o pretty pretty.6
 
-test: all
+test: pretty
 	pretty *.go
-	# pretty $(GOROOT)/test/fixedbugs/*.go  # some files legally don't compile
+	pretty $(GOROOT)/test/fixedbugs/*.go  # some files legally don't compile
 	pretty $(GOROOT)/test/sieve.go
 	pretty $(GOROOT)/src/pkg/*.go
 	pretty $(GOROOT)/src/lib/flag.go
@@ -19,8 +19,6 @@ test: all
 	pretty $(GOROOT)/src/lib/math/*.go
 	pretty $(GOROOT)/src/lib/container/*.go
 	pretty $(GOROOT)/src/syscall/*.go
-	pretty base.go decls.go
-	pretty -token_chan base.go decls.go
 	echo "PASSED"
 
 install: pretty

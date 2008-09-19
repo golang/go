@@ -32,6 +32,7 @@ func main() {
                 return;
             }
 
+	    print("- ", src_file, "\n");
 	    scanner := new(Scanner.Scanner);
             scanner.Open(src_file, src);
 

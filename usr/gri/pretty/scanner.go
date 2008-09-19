@@ -777,7 +777,7 @@ export type Token struct {
 
 
 func (S *Scanner) TokenStream() *<-chan *Token {
-     	ch := new(chan *Token);
+     	ch := new(chan *Token, 100);
 	go func(S *Scanner, ch *chan <- *Token) {
 		for {
 			t := new(Token);
