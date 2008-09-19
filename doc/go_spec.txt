@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 17, 2008)
+(September 19, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -20,7 +20,7 @@ Any part may change substantially as design progresses.
 Open issues according to gri:
 [ ] clarification on interface types, rules
 [ ] methods for all types
-[ ] remove "any"
+[x] remove "any"
 [ ] convert should not be used for composite literals anymore,
 	in fact, convert() should go away
 [ ] syntax for var args
@@ -34,12 +34,12 @@ Open issues according to gri:
 [ ] new(arraytype, n1, n2): spec only talks about length, not capacity
     (should only use new(arraytype, n) - this will allow later
 	 extension to multi-dim arrays w/o breaking the language)
-[ ] & needed to get a function pointer from a function?
+[x] & needed to get a function pointer from a function? (NO - there is the "func" keyword - 9/19/08)
 [ ] comparison operators: can we compare interfaces?
 [ ] optional semicolons: too complicated and unclear
 [ ] like to have assert() in the language, w/ option to disable code gen for it
 [ ] composite types should uniformly create an instance instead of a pointer
-[ ] func literal like a composite type - should probably require the '&' to get
+[x] func literal like a composite type - should probably require the '&' to get
     address
 [ ] meaning of nil
 [ ] clarify slice rules
@@ -52,8 +52,12 @@ Open issues according to gri:
 [ ] iant suggests to use abstract/precise int for len(), cap() - good idea
     (issue: what happens in len() + const - what is the type?)
 [ ] Do composite literals create a new literal each time (gri thinks yes)
-[ ] should binary <- be at lowest precedence level? when is a send/receive non-blocking?
+[x] should binary <- be at lowest precedence level? when is a send/receive non-blocking? (NO - 9/19/08)
 [ ] consider syntactic notation for composite literals to make them parseable w/o type information
+
+
+Decisions in need of integration into the doc:
+[ ] pair assignment is required to get map, and receive ok.
 -->
 
 Contents
@@ -96,6 +100,7 @@ Contents
 
 	Expressions
 		Operands
+			Constants
 			Qualified identifiers
 				Iota
 			Composite Literals
@@ -114,6 +119,8 @@ Contents
 			Logical operators
 			Address operators
 			Communication operators
+			
+		Constant expressions
 
 	Statements
 		Label declarations
@@ -503,11 +510,11 @@ The following identifiers are predeclared:
 
 	byte, ushort, uint, ulong, short, int, long, float, double, ptrint
 	
-- the predeclared constants
+- the predeclared constants:
 
 	true, false, iota, nil
 	
-- the predeclared functions (note: this list is likely to change)
+- the predeclared functions (note: this list is likely to change):
 
 	cap(), convert(), len(), new(), panic(), print(), typeof(), ...
 
@@ -521,7 +528,8 @@ are unknown in general).
 Const declarations
 ----
 
-A constant declaration gives a name to the value of a constant expression.
+A constant declaration gives a name to the value of a constant expression
+(§Constant expressions).
 
 	ConstDecl = "const" ( ConstSpec | "(" ConstSpecList [ ";" ] ")" ).
 	ConstSpec = identifier [ Type ] "=" Expression .
@@ -1196,6 +1204,15 @@ Operands denote the elementary values in an expression.
 	BasicLit = int_lit | float_lit | char_lit | string_lit .
 
 
+Constants
+----
+
+An operand is called ``constant'' if it is a literal of a basic type
+(including the predeclared constants "true" and "false"), the predeclared
+constant "nil", or a parenthesized constant expression (§Constant expressions).
+Constants have values that are known at compile-time.
+
+
 Qualified identifiers
 ----
 
@@ -1258,6 +1275,8 @@ or a list of expression pairs for map literals.
 If LiteralType is a TypeName, the denoted type must be an array, map, or
 structure.  The types of the expressions must match the respective key, element,
 and field types of the literal type; there is no automatic type conversion.
+LiteralType is the type of the literal: To get a pointer to the literal, the
+address operator "&" must be used.
 
 Given
 
@@ -1268,20 +1287,22 @@ we can write
 
 	pi := Num{Rat{22, 7}, 3.14159, "pi"};
 
-For array literals, if the length is present the constructed array has that many
-elements; trailing elements are given the approprate zero value for that type.
-If it is absent, the length of the array is the number of elements. It is an error
-if the specified length is less than the number of elements in the expression list.
-In either case, the length is known at compile type and thus the type of an
-array literal is always a fixed array type.
+
+The length of a fixed array literal is the length specified in LiteralType.
+If fewer elements are specified in the composite literal, the missing elements
+are set to the approprate zero value for the array element type. It is an error
+to provide more elements then specified in LiteralType.
+
+The length of an open array literal is the number of elements specified in the
+composite literal.
 
 	primes := [6]int{2, 3, 5, 7, 9, 11};
-	weekdays := []string{"mon", "tue", "wed", "thu", "fri", "sat", "sun"};
+	weekdays := &[]string{"mon", "tue", "wed", "thu", "fri", "sat", "sun"};
 
 Map literals are similar except the elements of the expression list are
 key-value pairs separated by a colon:
 
-	m := map[string]int{"good": 0, "bad": 1, "indifferent": 7};
+	m := &map[string]int{"good": 0, "bad": 1, "indifferent": 7};
 
 TODO: Consider adding helper syntax for nested composites
 (avoids repeating types but complicates the spec needlessly.)
@@ -1712,6 +1733,20 @@ If a receive expression is used in a tuple assignment of the form
 the receive operation becomes non-blocking, and the boolean variable
 "ok" will be set to "true" if the receive operation succeeded, and set
 to "false" otherwise.
+
+
+Constant expressions
+----
+
+A constant expression is an expression whose operands are all constants
+(§Constants). Additionally, the result of the predeclared functions
+below (with appropriate arguments) is also constant:
+
+	len(a)		if a is a fixed array
+
+TODO: Complete this list as needed.
+
+Constant expressions can be evaluated at compile time.
 
 
 Statements
