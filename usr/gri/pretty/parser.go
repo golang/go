@@ -136,16 +136,19 @@ func (P *Parser) ParseIdent() *AST.Ident {
 }
 
 
-func (P *Parser) ParseIdentList() {
+func (P *Parser) ParseIdentList() int {
 	P.Trace("IdentList");
 
 	P.ParseIdent();
+	n := 1;
 	for P.tok == Scanner.COMMA {
 		P.Next();
 		P.ParseIdent();
+		n++;
 	}
 
 	P.Ecart();
+	return n;
 }
 
 
@@ -154,6 +157,10 @@ func (P *Parser) ParseQualifiedIdent(ident *AST.Ident) AST.Expr {
 
 	if ident == nil {
 		ident = P.ParseIdent();
+	}
+	if P.tok == Scanner.PERIOD {
+	   	 P.Next();
+		 ident = P.ParseIdent();
 	}
 	
 	P.Ecart();
@@ -204,6 +211,7 @@ func (P *Parser) ParseArrayType() {
 		P.ParseExpression();
 	}
 	P.Expect(Scanner.RBRACK);
+	P.ParseType();
 
 	P.Ecart();	
 }
@@ -227,39 +235,43 @@ func (P *Parser) ParseChannelType() {
 }
 
 
-func (P *Parser) ParseVarDeclList() {
+func (P *Parser) ParseVarDeclList() int {
 	P.Trace("VarDeclList");
 	
-	P.ParseIdentList();
+	n := P.ParseIdentList();
 	P.ParseVarType();
 	
 	P.Ecart();
+	return n;
 }
 
 
-func (P *Parser) ParseParameterList() {
+func (P *Parser) ParseParameterList() int {
 	P.Trace("ParameterList");
 	
-	P.ParseVarDeclList();
+	n := P.ParseVarDeclList();
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParseVarDeclList();
+		n += P.ParseVarDeclList();
 	}
 	
 	P.Ecart();
+	return n;
 }
 
 
-func (P *Parser) ParseParameters() {
+func (P *Parser) ParseParameters() int {
 	P.Trace("Parameters");
 	
+	n := 0;
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
-		P.ParseParameterList();
+		n = P.ParseParameterList();
 	}
 	P.Expect(Scanner.RPAREN);
 	
 	P.Ecart();
+	return n;
 }
 
 
@@ -268,7 +280,7 @@ func (P *Parser) ParseResult() {
 	
 	if P.tok == Scanner.LPAREN {
 		// one or more named results
-		// TODO: here we allow empty returns - should proably fix this
+		// TODO: here we allow empty returns - should probably fix this
 		P.ParseParameters();
 
 	} else {
@@ -316,14 +328,11 @@ func (P *Parser) ParseNamedSignature() *AST.Ident {
 	
 	P.OpenScope();
 	P.level--;
-	p0 := 0;
 
 	if P.tok == Scanner.LPAREN {
 		recv_pos := P.pos;
-		P.ParseParameters();
-		//p0 = sig.entries.len;
-		if p0 != 1 {
-			print("p0 = ", p0, "\n");
+		n := P.ParseParameters();
+		if n != 1 {
 			P.Error(recv_pos, "must have exactly one receiver");
 			panic("UNIMPLEMENTED (ParseNamedSignature)");
 			// TODO do something useful here
@@ -334,7 +343,6 @@ func (P *Parser) ParseNamedSignature() *AST.Ident {
 
 	P.ParseParameters();
 	
-	//r0 := sig.entries.len;
 	P.ParseResult();
 	P.level++;
 	P.CloseScope();
@@ -348,7 +356,7 @@ func (P *Parser) ParseFunctionType() {
 	P.Trace("FunctionType");
 	
 	typ := P.ParseSignature();
-	
+
 	P.Ecart();
 }
 
@@ -515,7 +523,7 @@ func (P *Parser) ParseFunctionLit() AST.Expr {
 	P.Trace("FunctionLit");
 	
 	P.Expect(Scanner.FUNC);
-	P.ParseFunctionType();
+	P.ParseSignature();  // replace this with ParseFunctionType() and it won't work - 6g bug?
 	P.ParseBlock();
 	
 	P.Ecart();
@@ -671,7 +679,17 @@ func (P *Parser) ParseCall(x AST.Expr) AST.Expr {
 
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
-		P.ParseExpressionList();
+	   	// first arguments could be a type if the call is to "new"
+		if P.tok != Scanner.IDENT && P.TryType() {
+		   	if P.tok == Scanner.COMMA {
+			   	 P.Next();
+				 if P.tok != Scanner.RPAREN {
+				    	  P.ParseExpressionList();
+				 }
+			}
+		} else {
+			P.ParseExpressionList();
+		}
 	}
 	P.Expect(Scanner.RPAREN);
 	
@@ -866,7 +884,7 @@ func (P *Parser) ParseControlFlowStat(tok int) {
 }
 
 
-func (P *Parser) ParseIfStat() *AST.IfStat {
+func (P *Parser) ParseIfStat() {
 	P.Trace("IfStat");
 	
 	P.Expect(Scanner.IF);
@@ -895,7 +913,6 @@ func (P *Parser) ParseIfStat() *AST.IfStat {
 	P.CloseScope();
 	
 	P.Ecart();
-	return nil;
 }
 
 
@@ -1152,7 +1169,7 @@ func (P *Parser) ParseTypeSpec(exported bool) {
 func (P *Parser) ParseVarSpec(exported bool) {
 	P.Trace("VarSpec");
 	
-	list := P.ParseIdentList();
+	P.ParseIdentList();
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
 		P.ParseExpressionList();
