@@ -14,6 +14,12 @@ export type Error struct {
 
 var ErrorTab = new(map[int64] *Error);
 
+export func NewError(s string) *Error {
+	e := new(Error);
+	e.s = s
+	return e
+}
+
 export func ErrnoToError(errno int64) *Error {
 	if errno == 0 {
 		return nil
@@ -22,8 +28,7 @@ export func ErrnoToError(errno int64) *Error {
 	if ok {
 		return err
 	}
-	e := new(Error);
-	e.s = syscall.errstr(errno);
+	e := NewError(syscall.errstr(errno));
 	ErrorTab[errno] = e;
 	return e;
 }
