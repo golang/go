@@ -12,19 +12,13 @@ import (
 	"syscall"
 )
 
-func NewError(s string) *os.Error {
-	e := new(os.Error);
-	e.s = s;
-	return e
-}
-
 export var (
-	BadAddress = NewError("malformed address");
-	MissingAddress = NewError("missing address");
-	UnknownNetwork = NewError("unknown network");
-	UnknownHost = NewError("unknown host");
-	UnknownPort = NewError("unknown port");
-	UnknownSocketFamily = NewError("unknown socket family");
+	BadAddress = os.NewError("malformed address");
+	MissingAddress = os.NewError("missing address");
+	UnknownNetwork = os.NewError("unknown network");
+	UnknownHost = os.NewError("unknown host");
+	UnknownPort = os.NewError("unknown port");
+	UnknownSocketFamily = os.NewError("unknown socket family");
 )
 
 // Split "host:port" into "host" and "port".
