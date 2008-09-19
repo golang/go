@@ -6,8 +6,6 @@
 
 set -e
 
-echo; echo; echo %%%% making lib %%%%; echo
-
 for i in os math
 do
 	echo; echo; echo %%%% making lib/$i %%%%; echo

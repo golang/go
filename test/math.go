@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -30,7 +30,7 @@ func	ck(a,b float64);
 func
 main()
 {
-	for i:=0; i<length; i=i+1 {
+	for i:=0; i<length; i++ {
 		f := vf[i];
 
 		ck(asin[i], math.asin(f/10));
@@ -66,7 +66,7 @@ ck(a,b float64)
 	}
 
 	if d > e {
-		panic a, " ", b, "\n";
+		panic(a, " ", b, "\n");
 	}
 }
 
