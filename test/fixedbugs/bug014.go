@@ -7,8 +7,8 @@
 package main
 
 func main() {
-	var c00 uint8 = '\0';  // three octal required; should not compile
-	var c01 uint8 = '\07';  // three octal required; should not compile
-	var cx0 uint8 = '\x0';  // two hex required; should not compile
-	var cx1 uint8 = '\x';  // two hex required; REALLY should not compile
+	var c00 uint8 = '\0';  // ERROR "oct|char"
+	var c01 uint8 = '\07';  // ERROR "oct|char"
+	var cx0 uint8 = '\x0';  // ERROR "hex|char"
+	var cx1 uint8 = '\x';  // ERROR "hex|char"
 }

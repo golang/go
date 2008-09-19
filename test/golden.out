@@ -1,8 +1,4 @@
 
-=========== ./func1.go
-func1.go:12: var a redeclared in this block
-     previous declaration at func1.go:12
-
 =========== ./helloworld.go
 hello, world
 
@@ -200,9 +196,6 @@ pc: 0x2615
 	main·main(1, 0, 1606414952, ...)
 	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
 
-
-=========== fixedbugs/bug015.go
-fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32

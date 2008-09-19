@@ -13,6 +13,6 @@ func f1(a int) (int, float) {  // BUG (not caught by compiler): multiple return 
 }
 
 
-func f2(a int) (a int, b float) {  // return value names must be different from parameter names
+func f2(a int) (a int, b float) {  // ERROR "redeclared|definition"
 	return 8, 8.0;
 }
