@@ -275,13 +275,33 @@ func (P *Parser) ParseParameters() int {
 }
 
 
+func (P *Parser) ParseResultList() {
+	P.Trace("ResultList");
+
+	P.ParseType();
+	for P.tok == Scanner.COMMA {
+		P.Next();
+		P.ParseType();
+	}
+	if P.tok != Scanner.RPAREN {
+		P.ParseType();
+	}
+
+	P.Ecart();
+}
+
+
 func (P *Parser) ParseResult() {
 	P.Trace("Result");
 	
 	if P.tok == Scanner.LPAREN {
-		// one or more named results
-		// TODO: here we allow empty returns - should probably fix this
-		P.ParseParameters();
+		P.Next();
+		P.ParseResultList();
+		for P.tok == Scanner.COMMA {
+			P.Next();
+			P.ParseResultList();
+		}
+		P.Expect(Scanner.RPAREN);
 
 	} else {
 		// anonymous result
@@ -503,8 +523,6 @@ func (P *Parser) ParseExpressionPairList() {
 func (P *Parser) ParseCompositeLit() AST.Expr {
 	P.Trace("CompositeLit");
 	
-	P.Expect(Scanner.HASH);
-	P.ParseType();
 	P.Expect(Scanner.LBRACE);
 	// TODO: should allow trailing ','
 	if P.tok != Scanner.RBRACE {
@@ -549,9 +567,6 @@ func (P *Parser) ParseOperand(ident *AST.Ident) AST.Expr {
 	} else {
 	
 		switch P.tok {
-		case Scanner.IDENT:
-			panic("UNREACHABLE");
-			
 		case Scanner.LPAREN:
 			P.Next();
 			x = P.ParseExpression();
@@ -570,11 +585,17 @@ func (P *Parser) ParseOperand(ident *AST.Ident) AST.Expr {
 			P.ParseFunctionLit();
 			
 		case Scanner.HASH:
+			P.Next();
+			P.ParseType();
 			P.ParseCompositeLit();
 
 		default:
-			P.Error(P.pos, "operand expected");
-			P.Next();  // make progress
+			if P.tok != Scanner.IDENT && P.TryType() {
+				P.ParseCompositeLit();
+			} else {
+				P.Error(P.pos, "operand expected");
+				P.Next();  // make progress
+			}
 		}
 	
 	}
@@ -1152,14 +1173,14 @@ func (P *Parser) ParseDecl(exported bool, keyword int) {
 	P.Expect(keyword);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
-		for P.tok == Scanner.IDENT {
+		for P.tok != Scanner.RPAREN {
 			P.ParseSpec(exported, keyword);
 			if P.tok != Scanner.RPAREN {
 				// P.Expect(Scanner.SEMICOLON);
 				P.Optional(Scanner.SEMICOLON);  // TODO this seems wrong! (needed for math.go)
 			}
 		}
-		P.Next();
+		P.Next();  // consume ")"
 	} else {
 		P.ParseSpec(exported, keyword);
 	}
