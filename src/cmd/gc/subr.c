@@ -1225,6 +1225,20 @@ isinter(Type *t)
 }
 
 int
+ismethod(Type *t)
+{
+	// OLD WAY
+	if(isptrto(t, TSTRUCT))
+		return 1;
+	return 0;
+
+	// NEW WAY - but doesnt work yet
+	if(t != T && t->method != T)
+		return 1;
+	return 0;
+}
+
+int
 bytearraysz(Type *t)
 {
 	if(t == T)

@@ -478,7 +478,7 @@ dumpsignatures(void)
 			continue;
 
 		et = t->etype;
-		if(et != TSTRUCT && et != TINTER)
+		if(t->method == T && et != TINTER)
 			continue;
 
 		s = d->dsym;
@@ -549,7 +549,7 @@ dumpsignatures(void)
 
 		t = d->dtype;
 		et = t->etype;
-		if(et != TSTRUCT && et != TINTER)
+		if(t->method == T && et != TINTER)
 			continue;
 
 		s = d->dsym;
