@@ -201,6 +201,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 	return;
 
 asynch:
+//prints("\nasend\n");
 	while(c->qcount >= c->dataqsiz) {
 		// (rsc) should check for pres != nil
 		sg = allocsg(c);
@@ -208,6 +209,7 @@ asynch:
 		enqueue(&c->sendq, sg);
 		unlock(&chanlock);
 		sys·gosched();
+
 		lock(&chanlock);
 	}
 	if(ep != nil)
@@ -218,10 +220,12 @@ asynch:
 	sg = dequeue(&c->recvq, c);
 	if(sg != nil) {
 		gp = sg->g;
+		gp->param = sg;
 		freesg(c, sg);
 		unlock(&chanlock);
+//prints("wakeup\n");
 		ready(gp);
-	}else
+	} else
 		unlock(&chanlock);
 }
 
@@ -290,10 +294,11 @@ asynch:
 	sg = dequeue(&c->sendq, c);
 	if(sg != nil) {
 		gp = sg->g;
+		gp->param = sg;
 		freesg(c, sg);
 		unlock(&chanlock);
 		ready(gp);
-	}else
+	} else
 		unlock(&chanlock);
 }
 
@@ -523,7 +528,6 @@ sys·selectgo(Select *sel)
 	for(i=0; i<sel->ncase; i++) {
 		cas = &sel->scase[o];
 		c = cas->chan;
-
 		if(c->dataqsiz > 0) {
 			if(cas->send) {
 				if(c->qcount < c->dataqsiz)
@@ -532,7 +536,7 @@ sys·selectgo(Select *sel)
 				if(c->qcount > 0)
 					goto asynr;
 			}
-		}
+		} else
 
 		if(cas->send) {
 			sg = dequeue(&c->recvq, c);
@@ -557,23 +561,29 @@ sys·selectgo(Select *sel)
 		if(c->dataqsiz > 0) {
 			if(cas->send) {
 				if(c->qcount < c->dataqsiz) {
-					prints("second pass asyn send\n");
+					prints("selectgo: pass 2 async send\n");
 					goto asyns;
 				}
+				sg = allocsg(c);
+				sg->offset = o;
+				enqueue(&c->sendq, sg);
 			} else {
 				if(c->qcount > 0) {
-					prints("second pass asyn recv\n");
+					prints("selectgo: pass 2 async recv\n");
 					goto asynr;
 				}
+				sg = allocsg(c);
+				sg->offset = o;
+				enqueue(&c->recvq, sg);
 			}
-		}
+		} else
 
 		if(cas->send) {
 			sg = dequeue(&c->recvq, c);
 			if(sg != nil) {
-				prints("second pass syn send\n");
+				prints("selectgo: pass 2 sync send\n");
 				g->selgen++;
-				goto gots;	// probably an error
+				goto gots;
 			}
 			sg = allocsg(c);
 			sg->offset = o;
@@ -582,9 +592,9 @@ sys·selectgo(Select *sel)
 		} else {
 			sg = dequeue(&c->sendq, c);
 			if(sg != nil) {
-				prints("second pass syn recv\n");
+				prints("selectgo: pass 2 sync recv\n");
 				g->selgen++;
-				goto gotr;	// probably an error
+				goto gotr;
 			}
 			sg = allocsg(c);
 			sg->offset = o;
@@ -596,9 +606,6 @@ sys·selectgo(Select *sel)
 			o -= sel->ncase;
 	}
 
-	// send and recv paths to sleep for a rendezvous
-	// (rsc) not correct to set Gwaiting after queueing;
-	// might already have been readied.
 	g->status = Gwaiting;
 	unlock(&chanlock);
 	sys·gosched();
@@ -623,6 +630,12 @@ sys·selectgo(Select *sel)
 		prints("\n");
 	}
 
+	if(c->dataqsiz > 0) {
+		if(cas->send)
+			goto asyns;
+		goto asynr;
+	}
+
 	if(!cas->send) {
 		if(cas->u.elemp != nil)
 			c->elemalg->copy(c->elemsize, cas->u.elemp, sg->elem);
@@ -632,10 +645,31 @@ sys·selectgo(Select *sel)
 	goto retc;
 
 asynr:
+	if(cas->u.elemp != nil)
+		c->elemalg->copy(c->elemsize, cas->u.elemp, c->recvdataq->elem);
+	c->recvdataq = c->recvdataq->link;
+	c->qcount--;
+	sg = dequeue(&c->sendq, c);
+	if(sg != nil) {
+		gp = sg->g;
+		freesg(c, sg);
+		ready(gp);
+	}
+	goto retc;
+
 asyns:
-	unlock(&chanlock);
-	throw("asyn");
-	return;	// compiler doesn't know throw doesn't return
+	if(cas->u.elem != nil)
+		c->elemalg->copy(c->elemsize, c->senddataq->elem, cas->u.elem);
+	c->senddataq = c->senddataq->link;
+	c->qcount++;
+	sg = dequeue(&c->recvq, c);
+	if(sg != nil) {
+		gp = sg->g;
+		gp->param = sg;
+		freesg(c, sg);
+		ready(gp);
+	}
+	goto retc;
 
 gotr:
 	// recv path to wakeup the sender (sg)
