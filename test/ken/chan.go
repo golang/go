@@ -262,6 +262,9 @@ main()
 	tests(10);
 	tests(100);
 
-	print("tots=", tots, " totr=", totr, "\n");
+	if tots != totr || tots != 3648 {
+		print("tots=", tots, " totr=", totr, "\n");
+		sys.exit(1);
+	}
 	sys.exit(0);
 }

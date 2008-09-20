@@ -1,4 +1,7 @@
 
+=========== ./dialgoogle.go
+/Users/r/go/pkg/net.a:4 dialgoogle.go:5: os is becoming a package behind your back
+
 =========== ./helloworld.go
 hello, world
 
@@ -277,10 +280,13 @@ fixedbugs/bug073.go:9: illegal types for operand: RSH
 	(<int32>INT32)
 
 =========== fixedbugs/bug081.go
-fixedbugs/bug081.go:5: syntax error
+fixedbugs/bug081.go:5: x is var, not type
 
 =========== fixedbugs/bug086.go
 fixedbugs/bug086.go:5: function ends without a return statement
 
 =========== fixedbugs/bug091.go
 fixedbugs/bug091.go:14: label exit not defined
+
+=========== fixedbugs/bug103.go
+fixedbugs/bug103.go:8: function requires a return type
