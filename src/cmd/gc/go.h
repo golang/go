@@ -563,6 +563,7 @@ int	isptrto(Type*, int);
 int	isptrarray(Type*);
 int	isptrdarray(Type*);
 int	isinter(Type*);
+int	ismethod(Type*);
 int	bytearraysz(Type*);
 int	eqtype(Type*, Type*, int);
 void	argtype(Node*, Type*);
