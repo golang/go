@@ -8,32 +8,42 @@ package main
 
 import	rand "rand"
 
+type	Chan
+struct
+{
+	sc,rc	*chan int;	// send and recv chan
+	sv,rv	int;		// send and recv seq
+}
+
 var
 (
-	c0	*chan int;
-	c1	*chan int;
-	c2	*chan int;
-	c3	*chan int;
-	n	int;
-	End	int	= 1000;
-	totr	int;
-	tots	int;
+	nproc		int;
+	cval		int;
+	End		int	= 10000;
+	totr,tots	int;
+	nc		*Chan;
 )
 
 func
-mkchan(c uint)
+init()
 {
-	n = 0;
+	nc = new(Chan);
+}
 
-	c0 = new(chan int, c);
-	c1 = new(chan int, c);
-	c2 = new(chan int, c);
-	c3 = new(chan int, c);
-
-//	print("c0=", c0, "\n");
-//	print("c1=", c1, "\n");
-//	print("c2=", c2, "\n");
-//	print("c3=", c3, "\n");
+func
+mkchan(c,n int) *[]*Chan
+{
+	ca := new([]*Chan, n);
+	for i:=0; i<n; i++ {
+		cval = cval+100;
+		ch := new(Chan);
+		ch.sc = new(chan int, c);
+		ch.rc = ch.sc;
+		ch.sv = cval;
+		ch.rv = cval;
+		ca[i] = ch;
+	}
+	return ca;
 }
 
 func
@@ -48,42 +58,82 @@ expect(v, v0 int) (newv int)
 	panic("got ", v, " expected ", v0+1, "\n");
 }
 
-func
-send(c *chan int, v0 int)
+func (c *Chan)
+send() bool
 {
-	n++;
+//	print("send ", c.sv, "\n");
+	tots++;
+	c.sv = expect(c.sv, c.sv);
+	if c.sv == End {
+		c.sc = nil
+		return true;
+	}
+	return false;
+}
+
+func
+send(c *Chan)
+{
+	nproc++;	// total goroutines running
 	for {
 		for r:=rand.nrand(10); r>=0; r-- {
 			sys.gosched();
 		}
-		c <- v0;
-		tots++;
-		v0 = expect(v0, v0);
-		if v0 == End {
+		c.sc <- c.sv;
+		if c.send() {
 			break;
 		}
 	}
-	n--;
+	nproc--;
+}
+
+func (c *Chan)
+recv(v int) bool
+{
+//	print("recv ", v, "\n");
+	totr++;
+	c.rv = expect(c.rv, v);
+	if c.rv == End {
+		c.rc = nil;
+		return true;
+	}
+	return false;
 }
 
 func
-selsend()
+recv(c *Chan)
 {
 	var v int;
 
-	a := 4;		// local chans running
-	n += a;		// total chans running
-	v0 := 100;
-	v1 := 200;
-	v2 := 300;
-	v3 := 400;
+	nproc++;	// total goroutines running
+	for {
+		for r:=rand.nrand(10); r>=0; r-- {
+			sys.gosched();
+		}
+		v = <-c.rc;
+		if c.recv(v) {
+			break;
+		}
+	}
+	nproc--;
+}
 
-	// local copies of the chans
-	// so we can nil them out
-	l0 := c0;
-	l1 := c1;
-	l2 := c2;
-	l3 := c3;
+func
+sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan)
+{
+	var v int;
+
+	nproc++;	// total goroutines running
+	a := 0;		// local chans running
+
+	if r0.rc != nil { a++ }
+	if r1.rc != nil { a++ }
+	if r2.rc != nil { a++ }
+	if r3.rc != nil { a++ }
+	if s0.sc != nil { a++ }
+	if s1.sc != nil { a++ }
+	if s2.sc != nil { a++ }
+	if s3.sc != nil { a++ }
 
 	for {
 		for r:=rand.nrand(5); r>=0; r-- {
@@ -91,136 +141,118 @@ selsend()
 		}
 
 		select {
-		case l0 <- v0:
-			v0 = expect(v0, v0);
-			if v0 == End {
-				l0 = nil;
+		case v = <-r0.rc:
+			if r0.recv(v) {
 				a--;
 			}
-		case l1 <- v1:
-			v1 = expect(v1, v1);
-			if v1 == End {
-				l1 = nil;
+		case v = <-r1.rc:
+			if r1.recv(v) {
 				a--;
 			}
-		case l2 <- v2:
-			v2 = expect(v2, v2);
-			if v2 == End {
-				l2 = nil;
+		case v = <-r2.rc:
+			if r2.recv(v) {
 				a--;
 			}
-		case l3 <- v3:
-			v3 = expect(v3, v3);
-			if v3 == End {
-				l3 = nil;
+		case v = <-r3.rc:
+			if r3.recv(v) {
+				a--;
+			}
+		case s0.sc <- s0.sv:
+			if s0.send() {
+				a--;
+			}
+		case s1.sc <- s1.sv:
+			if s1.send() {
+				a--;
+			}
+		case s2.sc <- s2.sv:
+			if s2.send() {
+				a--;
+			}
+		case s3.sc <- s3.sv:
+			if s3.send() {
 				a--;
 			}
 		}
-
-		tots++;
 		if a == 0 {
 			break;
 		}
 	}
-	n -= 4;
-}
-
-func
-recv(c *chan int, v0 int)
-{
-	var v int;
-
-	n++;
-	for i:=0; i<100; i++ {
-		for r:=rand.nrand(10); r>=0; r-- {
-			sys.gosched();
-		}
-		v = <- c;
-		totr++;
-		v0 = expect(v0, v);
-		if v0 == End {
-			break;
-		}
-	}
-	n--;
-}
-
-func
-selrecv()
-{
-	var v int;
-
-	a := 4;		// local chans running
-	n += a;		// total chans running
-	v0 := 100;
-	v1 := 200;
-	v2 := 300;
-	v3 := 400;
-
-	for {
-		for r:=rand.nrand(5); r>=0; r-- {
-			sys.gosched();
-		}
-
-		select {
-		case v = <- c0:
-			v0 = expect(v0, v);
-			if v0 == End {
-				a--;
-			}
-		case v = <- c1:
-			v1 = expect(v1, v);
-			if v1 == End {
-				a--;
-			}
-		case v = <- c2:
-			v2 = expect(v2, v);
-			if v2 == End {
-				a--;
-			}
-		case v = <- c3:
-			v3 = expect(v3, v);
-			if v3 == End {
-				a--;
-			}
-		}
-
-		totr++;
-		if a == 0 {
-			break;
-		}
-	}
-	n -= 4;
+	nproc--;
 }
 
 // direct send to direct recv
 func
-test1(c *chan int, v0 int)
+test1(c *Chan)
 {
-	go send(c, v0);
-	go recv(c, v0);
+	go send(c);
+	go recv(c);
 }
 
 // direct send to select recv
 func
-test2()
+test2(c int)
 {
-	go send(c0, 100);
-	go send(c1, 200);
-	go send(c2, 300);
-	go send(c3, 400);
-	go selrecv();
+	ca := mkchan(c,4);
+
+	go send(ca[0]);
+	go send(ca[1]);
+	go send(ca[2]);
+	go send(ca[3]);
+
+	go sel(ca[0],ca[1],ca[2],ca[3], nc,nc,nc,nc);
 }
 
 // select send to direct recv
 func
-test3()
+test3(c int)
 {
-	go recv(c0, 100);
-	go recv(c1, 200);
-	go recv(c2, 300);
-	go recv(c3, 400);
-	go selsend();
+	ca := mkchan(c,4);
+
+	go recv(ca[0]);
+	go recv(ca[1]);
+	go recv(ca[2]);
+	go recv(ca[3]);
+
+	go sel(nc,nc,nc,nc, ca[0],ca[1],ca[2],ca[3]);
+}
+
+// select send to select recv
+func
+test4(c int)
+{
+	ca := mkchan(c,4);
+
+	go sel(nc,nc,nc,nc, ca[0],ca[1],ca[2],ca[3]);
+	go sel(ca[0],ca[1],ca[2],ca[3], nc,nc,nc,nc);
+}
+
+func
+test5(c int)
+{
+	ca := mkchan(c,8);
+
+	go sel(ca[4],ca[5],ca[6],ca[7], ca[0],ca[1],ca[2],ca[3]);
+	go sel(ca[0],ca[1],ca[2],ca[3], ca[4],ca[5],ca[6],ca[7]);
+}
+
+func
+test6(c int)
+{
+	ca := mkchan(c,12);
+
+	go send(ca[4]);
+	go send(ca[5]);
+	go send(ca[6]);
+	go send(ca[7]);
+
+	go recv(ca[8]);
+	go recv(ca[9]);
+	go recv(ca[10]);
+	go recv(ca[11]);
+
+	go sel(ca[4],ca[5],ca[6],ca[7], ca[0],ca[1],ca[2],ca[3]);
+	go sel(ca[0],ca[1],ca[2],ca[3], ca[8],ca[9],ca[10],ca[11]);
 }
 
 // wait for outstanding tests to finish
@@ -228,28 +260,35 @@ func
 wait()
 {
 	sys.gosched();
-	for n != 0 {
+	for nproc != 0 {
 		sys.gosched();
 	}
 }
 
 // run all tests with specified buffer size
 func
-tests(c uint)
+tests(c int)
 {
-	mkchan(c);
-	test1(c0, 100);
-	test1(c1, 200);
-	test1(c2, 300);
-	test1(c3, 400);
+	ca := mkchan(c,4);
+	test1(ca[0]);
+	test1(ca[1]);
+	test1(ca[2]);
+	test1(ca[3]);
 	wait();
 
-	mkchan(c);
-	test2();
+	test2(c);
 	wait();
 
-	mkchan(c);
-	test3();
+	test3(c);
+	wait();
+
+	test4(c);
+	wait();
+
+	test5(c);
+	wait();
+
+	test6(c);
 	wait();
 }
 
@@ -257,13 +296,20 @@ tests(c uint)
 func
 main()
 {
+
 	tests(0);
 	tests(1);
 	tests(10);
 	tests(100);
 
-	if tots != totr || tots != 3648 {
-		print("tots=", tots, " totr=", totr, "\n");
+	t :=	4			// buffer sizes
+		* (	4*4		// tests 1,2,3,4 channels
+			+ 8		// test 5 channels
+			+ 12		// test 6 channels
+		) * 76;			// sends/recvs on a channel
+
+	if tots != t || totr != t {
+		print("tots=", tots, " totr=", totr, " sb=", t, "\n");
 		sys.exit(1);
 	}
 	sys.exit(0);

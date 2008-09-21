@@ -652,6 +652,7 @@ asynr:
 	sg = dequeue(&c->sendq, c);
 	if(sg != nil) {
 		gp = sg->g;
+		gp->param = sg;
 		freesg(c, sg);
 		ready(gp);
 	}

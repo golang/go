@@ -563,7 +563,7 @@ loop:
 			goto ret;
 		}
 
-		// structure literal
+		// array literal
 		if(t->etype == TARRAY) {
 			r = arraylit(n);
 			indir(n, r);
@@ -2149,9 +2149,13 @@ chanop(Node *n, int top)
 		if(t == T)
 			break;
 
-		a = n->left;				// hint
-		if(n->left == N)
+		if(n->left != N) {
+			// async buf size
+			a = nod(OCONV, n->left, N);
+			a->type = types[TUINT32];
+		} else
 			a = nodintconst(0);
+
 		r = a;
 		a = nodintconst(algtype(t->type));	// elem algorithm
 		r = list(a, r);
@@ -2991,10 +2995,10 @@ arraylit(Node *n)
 
 	if(t->bound < 0) {
 		// make it a closed array
-		// should there be a type copy here?
 		r = listfirst(&saver, &n->left);
 		for(idx=0; r!=N; idx++)
 			r = listnext(&saver);
+		t = deep(t);
 		t->bound = idx;
 	}
 
