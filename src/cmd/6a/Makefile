@@ -33,7 +33,7 @@ y.tab.h: $(YFILES)
 	yacc $(YFLAGS) $(YFILES)
 
 y.tab.c: y.tab.h
-	# do nothing
+	test -f y.tab.c && touch y.tab.c
 
 clean:
 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
