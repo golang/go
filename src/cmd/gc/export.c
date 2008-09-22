@@ -143,7 +143,10 @@ dumpexporttype(Sym *s)
 		if(et < 0 || et >= nelem(types) || types[et] == T)
 			fatal("dumpexporttype: basic type: %S %E", s, et);
 		/* type 5 */
-		Bprint(bout, "\ttype %lS %d\n", s, et);
+		Bprint(bout, "\ttype ");
+		if(s->export != 0)
+			Bprint(bout, "!");
+		Bprint(bout, "%lS %d\n", s, et);
 		break;
 
 	case TARRAY:
@@ -298,11 +301,6 @@ renamepkg(Node *n)
 	if(n->psym == pkgimportname)
 		if(pkgmyname != S)
 			n->psym = pkgmyname;
-
-	if(n->psym->lexical != LPACK) {
-		warn("%S is becoming a package behind your back", n->psym);
-		n->psym->lexical = LPACK;
-	}
 }
 
 Sym*
@@ -425,16 +423,21 @@ importaddtyp(Node *ss, Type *t)
 	Sym *s;
 
 	s = getimportsym(ss);
-	if(s->otype == T) {
-		addtyp(newtype(s), t, PEXTERN);
-		return;
+	if(ss->etype){	// exported
+		if(s->otype == T || !eqtype(t, s->otype, 0)) {
+			if(s->otype != T)
+				print("redeclaring %S %lT => %lT\n", s, s->otype, t);
+			addtyp(newtype(s), t, PEXTERN);
+			/*
+			 * mark as export to avoid conflicting export bits
+			 * in multi-file package.
+			 */
+			s->export = 1;
+		}
+	}else{
+		s->otype = t;
+		t->sym = s;
 	}
-	if(!eqtype(t, s->otype, 0)) {
-		print("redeclaring %S %lT => %lT\n", s, s->otype, t);
-		addtyp(newtype(s), t, PEXTERN);
-		return;
-	}
-//	print("sametype %S %lT => %lT\n", s, s->otype, t);
 }
 
 /*

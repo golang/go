@@ -729,3 +729,4 @@ void	dowidth(Type*);
 void	argspace(int32);
 Node*	nodarg(Type*, int);
 void	nodconst(Node*, Type*, vlong);
+Type*	deep(Type*);
