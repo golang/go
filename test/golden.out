@@ -128,17 +128,7 @@ BUG: compilation succeeds incorrectly
 throw: ifaces2i: nil pointer
 SIGSEGV: segmentation violation
 Faulting address: 0x0
-pc: 0x1c11
-
-0x1c11?zi
-	throw(30465, 0, 0, ...)
-	throw(0x7701, 0x0, 0x0, ...)
-0x2113?zi
-	sys·ifaces2i(31496, 0, 31536, ...)
-	sys·ifaces2i(0x7b08, 0x7b30, 0x0, ...)
-0x136f?zi
-	main·main(1, 0, 1606414952, ...)
-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+pc: xxx
 
 BUG: fails incorrectly
 
@@ -152,18 +142,12 @@ BUG: fails incorrectly
 =========== bugs/bug095.go
 found 2, expected 1
 
-panic on line 352 PC=0x139e
-0x139e?zi
-	main·main(1, 0, 1606414952, ...)
-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+panic on line 352 PC=xxx
 BUG wrong result
 
 =========== bugs/bug097.go
 
-panic on line 354 PC=0x13bc
-0x13bc?zi
-	main·main(1, 0, 1606414952, ...)
-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+panic on line 354 PC=xxx
 BUG wrong result
 
 =========== bugs/bug098.go
@@ -176,28 +160,14 @@ BUG should compile
 done1
 SIGSEGV: segmentation violation
 Faulting address: 0x0
-pc: 0x0
-
-0x0?zi
-	panic(5070, 0, 45192, ...)
-	panic(0x13ce, 0xb088, 0xb088, ...)
+pc: xxx
 
 
 =========== bugs/bug102.go
 throw: index out of range
 SIGSEGV: segmentation violation
 Faulting address: 0x0
-pc: 0x2615
-
-0x2615?zi
-	throw(31052, 0, 0, ...)
-	throw(0x794c, 0x0, 0x1315, ...)
-0x2569?zi
-	sys·throwindex(45096, 0, 0, ...)
-	sys·throwindex(0xb028, 0x0, 0x0, ...)
-0x1315?zi
-	main·main(1, 0, 1606414952, ...)
-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+pc: xxx
 
 
 =========== fixedbugs/bug016.go

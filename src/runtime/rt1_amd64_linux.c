@@ -140,7 +140,7 @@ sighandler(int32 sig, siginfo* info, void** context)
 	if(panicking)	// traceback already printed
 		sys·exit(2);
 
-        struct sigcontext *sc = &(((struct ucontext *)context)->uc_mcontext);
+	struct sigcontext *sc = &(((struct ucontext *)context)->uc_mcontext);
 
 	if(sig < 0 || sig >= NSIG){
 		prints("Signal ");
@@ -149,13 +149,15 @@ sighandler(int32 sig, siginfo* info, void** context)
 		prints(sigtab[sig].name);
 	}
 
-        prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
-        prints("\npc: 0x");  sys·printpointer((void *)sc->rip);
-        prints("\n\n");
+	prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
+	prints("\npc: 0x");  sys·printpointer((void *)sc->rip);
+	prints("\n\n");
 
-	traceback((void *)sc->rip, (void *)sc->rsp, (void *)sc->r15);
-	tracebackothers((void*)sc->r15);
-	print_sigcontext(sc);
+	if(gotraceback()){
+		traceback((void *)sc->rip, (void *)sc->rsp, (void *)sc->r15);
+		tracebackothers((void*)sc->r15);
+		print_sigcontext(sc);
+	}
 
 	sys·breakpoint();
 	sys·exit(2);
