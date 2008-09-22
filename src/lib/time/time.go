@@ -152,8 +152,8 @@ export func UTC() (t *Time, err *os.Error) {
 
 // TODO: Should this return an error?
 export func SecondsToLocalTime(sec int64) *Time {
-	zone, offset, ok := time.LookupTimezone(sec)
-	if !ok {
+	zone, offset, err := time.LookupTimezone(sec)
+	if err != nil {
 		return SecondsToUTC(sec)
 	}
 	t := SecondsToUTC(sec+int64(offset));
