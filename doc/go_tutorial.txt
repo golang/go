@@ -12,7 +12,7 @@ language, intended for programmers familiar with C or C++. It is not a comprehen
 guide to the language; at the moment the document closest to that is the draft
 specification:
 
-	/doc/go_lang.html
+	/doc/go_spec.html
 
 To check out the compiler and tools and be ready to run Go programs, see
 
@@ -456,7 +456,7 @@ Here is the first function in "progs/sieve.go":
 --PROG progs/sieve.go /Send/ /^}/
 
 The function "Generate" sends the sequence 2, 3, 4, 5, ... to its
-argument channel, "ch", using the binary communications operator "&lt-".
+argument channel, "ch", using the binary communications operator "&lt;-".
 Channels block, so if there's no recipient for the the value on "ch",
 the send operation will wait until one becomes available.
 
