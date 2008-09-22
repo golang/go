@@ -25,6 +25,7 @@ for i in \
 	io.go\
 	bufio.go\
 	strings.go\
+	once.go\
 
 do
 	base=$(basename $i .go)
