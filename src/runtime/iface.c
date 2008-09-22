@@ -4,6 +4,8 @@
 
 #include "runtime.h"
 
+static	int32	debug	= 0;
+
 typedef	struct	Sigt	Sigt;
 typedef	struct	Sigi	Sigi;
 typedef	struct	Map	Map;
@@ -33,19 +35,79 @@ struct	Map
 };
 
 static	Map*	hash[1009];
-static	int32	debug	= 0;
+
+static void
+printsigi(Sigi *si)
+{
+	int32 i, n;
+	byte *name;
+
+	sys·printpointer(si);
+	prints("{");
+	n = si[0].offset;
+	for(i=1; i<n; i++) {
+		name = si[i].name;
+		if(name == nil) {
+			prints("<nil>");
+			break;
+		}
+		prints("[");
+		sys·printint(i);
+		prints("]\"");
+		prints((int8*)name);
+		prints("\"");
+		sys·printint(si[i].hash);
+		prints("/");
+		sys·printint(si[i].offset);
+	}
+	prints("}");
+}
+
+static void
+printsigt(Sigt *st)
+{
+	int32 i;
+	byte *name;
+
+	sys·printpointer(st);
+	prints("{");
+	for(i=0;; i++) {
+		name = st[i].name;
+		if(name == nil)
+			break;
+		prints("[");
+		sys·printint(i);
+		prints("]\"");
+		prints((int8*)name);
+		prints("\"");
+		sys·printint(st[i].hash);
+		prints("/");
+		sys·printpointer(st[i].fun);
+	}
+	prints("}");
+}
+
+static void
+printiface(Map *im, void *it)
+{
+	prints("(");
+	sys·printpointer(im);
+	prints(",");
+	sys·printpointer(it);
+	prints(")");
+}
 
 static Map*
-hashmap(Sigi *si, Sigt *ss)
+hashmap(Sigi *si, Sigt *st)
 {
-	int32 ns, ni;
+	int32 nt, ni;
 	uint32 ihash, h;
 	byte *sname, *iname;
 	Map *m;
 
-	h = ((uint32)(uint64)si + (uint32)(uint64)ss) % nelem(hash);
+	h = ((uint32)(uint64)si + (uint32)(uint64)st) % nelem(hash);
 	for(m=hash[h]; m!=nil; m=m->link) {
-		if(m->sigi == si && m->sigt == ss) {
+		if(m->sigi == si && m->sigt == st) {
 			if(m->bad) {
 				throw("bad hashmap");
 				m = nil;
@@ -58,10 +120,10 @@ hashmap(Sigi *si, Sigt *ss)
 	ni = si[0].offset;	// first word has size
 	m = mal(sizeof(*m) + ni*sizeof(m->fun[0]));
 	m->sigi = si;
-	m->sigt = ss;
+	m->sigt = st;
 
 	ni = 1;			// skip first word
-	ns = 0;
+	nt = 0;
 
 loop1:
 	// pick up next name from
@@ -78,7 +140,7 @@ loop1:
 loop2:
 	// pick up and comapre next name
 	// from structure signature
-	sname = ss[ns].name;
+	sname = st[nt].name;
 	if(sname == nil) {
 		prints((int8*)iname);
 		prints(": ");
@@ -89,40 +151,18 @@ loop2:
 		return nil;
 	}
 
-	if(ihash != ss[ns].hash ||
+	if(ihash != st[nt].hash ||
 	   strcmp(sname, iname) != 0) {
-		ns++;
+		nt++;
 		goto loop2;
 	}
 
-	m->fun[si[ni].offset] = ss[ns].fun;
+	m->fun[si[ni].offset] = st[nt].fun;
 	ni++;
 	goto loop1;
 }
 
-static void
-printsigi(Sigi *si)
-{
-	sys·printpointer(si);
-}
-
-static void
-printsigt(Sigt *st)
-{
-	sys·printpointer(st);
-}
-
-static void
-printiface(Map *im, void *it)
-{
-	prints("(");
-	sys·printpointer(im);
-	prints(",");
-	sys·printpointer(it);
-	prints(")");
-}
-
-// ifaceT2I(sigi *byte, sigt *byte, elem any) (ret interface{});
+// ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
 void
 sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
 {
@@ -149,7 +189,7 @@ sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
 	FLUSH(&retim);
 }
 
-// ifaceI2T(sigt *byte, iface interface{}) (ret any);
+// ifaceI2T(sigt *byte, iface any) (ret any);
 void
 sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
 {
@@ -178,14 +218,14 @@ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
 	FLUSH(&ret);
 }
 
-// ifaceI2I(sigi *byte, iface interface{}) (ret interface{});
+// ifaceI2I(sigi *byte, iface any) (ret any);
 void
 sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
 {
 
 	if(debug) {
 		prints("I2I sigi=");
-		sys·printpointer(si);
+		printsigi(si);
 		prints(" iface=");
 		printiface(im, it);
 		prints("\n");
@@ -208,4 +248,10 @@ sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
 	}
 
 	FLUSH(&retim);
+}
+
+void
+sys·printinter(Map *im, void *it)
+{
+	printiface(im, it);
 }

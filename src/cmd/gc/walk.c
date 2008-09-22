@@ -552,6 +552,7 @@ loop:
 		// interface and structure
 		et = isandss(n->type, l);
 		if(et != Inone) {
+if(et == I2I) dump("conv", n);
 			indir(n, ifaceop(n->type, l, et));
 			goto ret;
 		}
@@ -1626,14 +1627,19 @@ loop:
 	default:
 		if(l->type == T)
 			goto out;
-		if(!isptr[l->type->etype]) {
-			badtype(n->op, l->type, T);
-			l = listnext(&save);
-			goto loop;
+		if(isinter(l->type)) {
+			on = syslook("printinter", 1);
+			argtype(on, l->type);		// any-1
+			break;
 		}
-		on = syslook("printpointer", 1);
-		argtype(on, l->type->type);	// any-1
-		break;
+		if(isptr[l->type->etype]) {
+			on = syslook("printpointer", 1);
+			argtype(on, l->type->type);	// any-1
+			break;
+		}
+		badtype(n->op, l->type, T);
+		l = listnext(&save);
+		goto loop;
 
 	case Wlitint:
 	case Wtint:
@@ -2490,7 +2496,7 @@ ifaceop(Type *tl, Node *n, int op)
 		fatal("ifaceop: unknown op %d\n", op);
 
 	case I2T:
-		// ifaceI2T(sigt *byte, iface interface{}) (ret any);
+		// ifaceI2T(sigt *byte, iface any) (ret any);
 
 		a = n;				// interface
 		r = a;
@@ -2503,12 +2509,13 @@ ifaceop(Type *tl, Node *n, int op)
 		r = list(a, r);
 
 		on = syslook("ifaceI2T", 1);
+		argtype(on, tr);
 		argtype(on, tl);
 
 		break;
 
 	case T2I:
-		// ifaceT2I(sigi *byte, sigt *byte, elem any) (ret interface{});
+		// ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
 
 		a = n;				// elem
 		r = a;
@@ -2530,6 +2537,7 @@ ifaceop(Type *tl, Node *n, int op)
 
 		on = syslook("ifaceT2I", 1);
 		argtype(on, tr);
+		argtype(on, tl);
 
 		break;
 
@@ -2538,16 +2546,17 @@ ifaceop(Type *tl, Node *n, int op)
 
 		a = n;				// interface
 		r = a;
-		s = signame(tr);		// sigi
+
+		s = signame(tl);		// sigi
 		if(s == S)
 			fatal("ifaceop: signame I2I");
 		a = s->oname;
 		a = nod(OADDR, a, N);
 		r = list(a, r);
-		on = syslook("ifaceI2I", 1);
-		argtype(on, n->type);
-		argtype(on, tr);
 
+		on = syslook("ifaceI2I", 1);
+		argtype(on, tr);
+		argtype(on, tl);
 		break;
 	}
 

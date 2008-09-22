@@ -16,6 +16,7 @@ func	printfloat(double);
 func	printint(int64);
 func	printstring(string);
 func	printpointer(*any);
+func	printinter(any);
 
 func	catstring(string, string) string;
 func	cmpstring(string, string) int32;
@@ -24,8 +25,8 @@ func	indexstring(string, int32) byte;
 func	intstring(int64) string;
 func	byteastring(*byte, int32) string;
 
-func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret interface{});
-func	ifaceI2T(sigt *byte, iface interface{}) (ret any);
+func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
+func	ifaceI2T(sigt *byte, iface any) (ret any);
 func	ifaceI2I(sigi *byte, iface any) (ret any);
 
 func	argc() int32;
@@ -90,6 +91,7 @@ export
 	printint
 	printstring
 	printpointer
+	printinter
 
 	// op string
 	catstring
