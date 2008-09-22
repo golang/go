@@ -37,13 +37,14 @@ TEXT	_rt0_amd64(SB),7,$-8
 	CALL	schedinit(SB)
 
 	// create a new goroutine to start program
-
 	PUSHQ	$mainstart(SB)		// entry
 	PUSHQ	$16			// arg size
 	CALL	sys·newproc(SB)
+	POPQ	AX
+	POPQ	AX
+	
+	// start this M
 	CALL	mstart(SB)
-	POPQ	AX
-	POPQ	AX
 
 	CALL	notok(SB)		// never returns
 	RET
@@ -52,6 +53,10 @@ TEXT mainstart(SB),7,$0
 	CALL	main·init_function(SB)
 	CALL	initdone(SB)
 	CALL	main·main(SB)
+	PUSHQ	$0
+	CALL	sys·exit(SB)
+	POPQ	AX
+	CALL	notok(SB)
 	RET
 
 TEXT	sys·breakpoint(SB),7,$0
