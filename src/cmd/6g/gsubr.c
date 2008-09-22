@@ -294,45 +294,6 @@ nodconst(Node *n, Type *t, vlong v)
 	}
 }
 
-Sym*
-signame(Type *t)
-{
-	Sym *s;
-	char *e;
-
-loop:
-	if(t == T)
-		fatal("signame: nil type");
-
-	switch(t->etype) {
-	default:
-		e = "sigs";
-		break;
-
-	case TPTR32:
-	case TPTR64:
-		t = t->type;
-		goto loop;
-
-	case TSTRUCT:
-	case TINTER:
-		e = "sigi";
-		break;
-	}
-
-	s = t->sym;
-	if(s == S)
-		fatal("signame: no sym for type");
-
-	// mark it as used so signature will be generated
-	if(s->local == 1)
-		s->local = 2;
-
-	snprint(namebuf, sizeof(namebuf), "%s_%s", e, s->name);
-	s = pkglookup(namebuf, s->opackage);
-	return s;
-}
-
 void
 nodtypesig(Node *n, Type *t)
 {
@@ -1055,8 +1016,10 @@ naddr(Node *n, Addr *a)
 		a->etype = n->etype;
 		a->offset = n->xoffset;
 		a->sym = n->sym;
-		if(a->sym == S)
+		if(a->sym == S) {
 			a->sym = lookup(".noname");
+			fatal("noname");
+		}
 		if(n->method) {
 			if(n->type != T)
 			if(n->type->sym != S)

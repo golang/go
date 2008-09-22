@@ -10,6 +10,14 @@ static	Type*	sw3(Node*, Type*);
 static	Node*	curfn;
 static	Node*	addtop;
 
+enum
+{
+	Inone,
+	I2T,
+	I2I,
+	T2I
+};
+
 // can this code branch reach the end
 // without an undcontitional RETURN
 // this is hard, so it is conservative
@@ -494,15 +502,6 @@ loop:
 	case OINDREG:
 		goto ret;
 
-	case OS2I:
-	case OI2S:
-	case OI2I:
-		if(top != Erv)
-			goto nottop;
-		n->addable = 0;
-		walktype(n->left, Erv);
-		goto ret;
-
 	case OCONV:
 		if(top == Etop)
 			goto nottop;
@@ -551,9 +550,9 @@ loop:
 			goto ret;
 
 		// interface and structure
-		r = isandss(n->type, l);
-		if(r != N) {
-			indir(n, r);
+		et = isandss(n->type, l);
+		if(et != Inone) {
+			indir(n, ifaceop(n->type, l, et));
 			goto ret;
 		}
 
@@ -2454,18 +2453,7 @@ arrayop(Node *n, int top)
 	return r;
 }
 
-void
-diagnamed(Type *t)
-{
-	if(isinter(t))
-		if(t->sym == S)
-			yyerror("interface type must be named");
-	if(ismethod(t))
-		if(t->type == T || t->type->sym == S)
-			yyerror("structure type must be named");
-}
-
-Node*
+int
 isandss(Type *lt, Node *r)
 {
 	Type *rt;
@@ -2474,32 +2462,98 @@ isandss(Type *lt, Node *r)
 
 	rt = r->type;
 	if(isinter(lt)) {
-		if(ismethod(rt)) {
-			o = OS2I;
-			goto ret;
-		}
-		if(isinter(rt)) {
-			o = OI2I;
-			goto ret;
-		}
+		if(ismethod(rt))
+			return T2I;
+		if(isinter(rt) && !eqtype(rt, lt, 0))
+			return I2I;
 	}
 
 	if(ismethod(lt)) {
-		if(isinter(rt)) {
-			o = OI2S;
-			goto ret;
-		}
+		if(isinter(rt))
+			return I2T;
 	}
 
-	return N;
+	return Inone;
+}
 
-ret:
-	diagnamed(lt);
-	diagnamed(rt);
+Node*
+ifaceop(Type *tl, Node *n, int op)
+{
+	Type *tr;
+	Node *r, *a, *on;
+	Sym *s;
 
-	n = nod(o, r, N);
-	n->type = lt;
-	return n;
+	tr = n->type;
+
+	switch(op) {
+	default:
+		fatal("ifaceop: unknown op %d\n", op);
+
+	case I2T:
+		// ifaceI2T(sigt *byte, iface interface{}) (ret any);
+
+		a = n;				// interface
+		r = a;
+
+		s = signame(tl);		// sigi
+		if(s == S)
+			fatal("ifaceop: signame I2T");
+		a = s->oname;
+		a = nod(OADDR, a, N);
+		r = list(a, r);
+
+		on = syslook("ifaceI2T", 1);
+		argtype(on, tl);
+
+		break;
+
+	case T2I:
+		// ifaceT2I(sigi *byte, sigt *byte, elem any) (ret interface{});
+
+		a = n;				// elem
+		r = a;
+
+		s = signame(tr);		// sigt
+		if(s == S)
+			fatal("ifaceop: signame-1 T2I: %lT", tr);
+		a = s->oname;
+		a = nod(OADDR, a, N);
+		r = list(a, r);
+
+		s = signame(tl);		// sigi
+		if(s == S) {
+			fatal("ifaceop: signame-2 T2I: %lT", tl);
+		}
+		a = s->oname;
+		a = nod(OADDR, a, N);
+		r = list(a, r);
+
+		on = syslook("ifaceT2I", 1);
+		argtype(on, tr);
+
+		break;
+
+	case I2I:
+		// ifaceI2I(sigi *byte, iface any-1) (ret any-2);
+
+		a = n;				// interface
+		r = a;
+		s = signame(tr);		// sigi
+		if(s == S)
+			fatal("ifaceop: signame I2I");
+		a = s->oname;
+		a = nod(OADDR, a, N);
+		r = list(a, r);
+		on = syslook("ifaceI2I", 1);
+		argtype(on, n->type);
+		argtype(on, tr);
+
+		break;
+	}
+
+	r = nod(OCALL, on, r);
+	walktype(r, Erv);
+	return r;
 }
 
 Node*
@@ -2507,6 +2561,7 @@ convas(Node *n)
 {
 	Node *l, *r;
 	Type *lt, *rt;
+	int et;
 
 	if(n->op != OAS)
 		fatal("convas: not OAS %O", n->op);
@@ -2542,10 +2597,9 @@ convas(Node *n)
 	if(eqtype(lt, rt, 0))
 		goto out;
 
-	r = isandss(lt, r);
-	if(r != N) {
-		n->right = r;
-		walktype(n, Etop);
+	et = isandss(lt, r);
+	if(et != Inone) {
+		n->right = ifaceop(lt, r, et);
 		goto out;
 	}
 
@@ -2994,11 +3048,15 @@ arraylit(Node *n)
 		fatal("arraylit: not array");
 
 	if(t->bound < 0) {
+		// make a shallow copy
+		t = typ(0);
+		*t = *n->type;
+		n->type = t;
+
 		// make it a closed array
 		r = listfirst(&saver, &n->left);
 		for(idx=0; r!=N; idx++)
 			r = listnext(&saver);
-		t = deep(t);
 		t->bound = idx;
 	}
 

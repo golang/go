@@ -260,7 +260,7 @@ enum
 	ODCLFUNC, ODCLFIELD, ODCLARG,
 	OLIST, OCMP,
 	OPTR, OARRAY,
-	ORETURN, OFOR, OIF, OSWITCH, OI2S, OS2I, OI2I,
+	ORETURN, OFOR, OIF, OSWITCH,
 	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL,
 	OGOTO, OPROC, ONEW, OEMPTY, OSELECT,
 	OLEN, OCAP, OPANIC, OPRINT, OTYPEOF,
@@ -564,6 +564,7 @@ int	isptrarray(Type*);
 int	isptrdarray(Type*);
 int	isinter(Type*);
 int	ismethod(Type*);
+Sym*	signame(Type*);
 int	bytearraysz(Type*);
 int	eqtype(Type*, Type*, int);
 void	argtype(Node*, Type*);
@@ -692,7 +693,8 @@ Node*	mapop(Node*, int);
 Type*	fixchan(Type*);
 Node*	chanop(Node*, int);
 Node*	arrayop(Node*, int);
-Node*	isandss(Type*, Node*);
+Node*	ifaceop(Type*, Node*, int);
+int	isandss(Type*, Node*);
 Node*	convas(Node*);
 void	arrayconv(Type*, Node*);
 Node*	colas(Node*, Node*);
