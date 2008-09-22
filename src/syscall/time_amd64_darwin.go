@@ -15,5 +15,5 @@ export func gettimeofday() (sec, nsec, errno int64) {
 	if err != 0 {
 		return 0, 0, err
 	}
-	return r1, r2, 0
+	return r1, r2*1000, 0
 }
