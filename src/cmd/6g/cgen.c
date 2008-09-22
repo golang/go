@@ -667,21 +667,33 @@ ret:
 int32
 stkof(Node *n)
 {
+	Type *t;
+	Iter flist;
+
 	switch(n->op) {
-//	case OS2I:
-//		return 2*widthptr;
-//	case OI2I:
-//		return 1*widthptr;
 	case OINDREG:
 		return n->xoffset;
+
+	case OCALLMETH:
+	case OCALLINTER:
+	case OCALL:
+		t = n->left->type;
+		if(isptr[t->etype])
+			t = t->type;
+
+		t = structfirst(&flist, getoutarg(t));
+		if(t != T)
+			return t->width;
+		break;
 	}
+
 	// botch - probably failing to recognize address
 	// arithmetic on the above. eg INDEX and DOT
-	return -1;
+	return -1000;
 }
 
 void
-sgen(Node *n, Node *ns, uint32 w)
+sgen(Node *n, Node *ns, int32 w)
 {
 	Node nodl, nodr;
 	int32 c, q, odst, osrc;
@@ -697,12 +709,11 @@ sgen(Node *n, Node *ns, uint32 w)
 	}
 
 	// offset on the stack
-	odst = stkof(ns);
 	osrc = stkof(n);
-	if(osrc < 0)
-		odst = odst;
-	if(odst < 0)
-		osrc = odst;
+	odst = stkof(ns);
+//print("\nnsrc=%N\n", n);
+//print("ndst=%N\n", ns);
+//print("osrc=%d odst=%d w=%d\n", osrc, odst, w);
 
 	nodreg(&nodl, types[tptr], D_DI);
 	nodreg(&nodr, types[tptr], D_SI);
@@ -720,7 +731,7 @@ sgen(Node *n, Node *ns, uint32 w)
 
 	// if we are copying forward on the stack and
 	// the src and dst overlap, then reverse direction
-	if(odst > osrc && odst-osrc < w) {
+	if(osrc < odst && odst < osrc+w) {
 		// reverse direction
 		gins(ASTD, N, N);		// set direction flag
 		if(c > 0) {
