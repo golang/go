@@ -1693,7 +1693,12 @@ latype:
 	}
 |	LNAME
 	{
-		yyerror("%s is var, not type", $1->name);
+		yyerror("no type %s", $1->name);
+		YYERROR;
+	}
+|	lpack '.' LNAME
+	{
+		yyerror("no type %s.%s", context, $3->name);
 		YYERROR;
 	}
 

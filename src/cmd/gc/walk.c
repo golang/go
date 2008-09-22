@@ -2691,6 +2691,8 @@ multi:
 	case OCALL:
 		walktype(nr->left, Erv);
 		t = nr->left->type;
+		if(t != T && t->etype == tptr)
+			t = t->type;
 		if(t == T || t->etype != TFUNC)
 			goto badt;
 		if(t->outtuple != cl)
