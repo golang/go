@@ -373,7 +373,7 @@ agen_inter(Node *n, Node *res)
 	default:
 		fatal("agen_inter %O\n", n->op);
 
-	case OS2I:
+//	case OS2I:
 		// ifaces2i(*sigi, *sigs, i.map, i.s)
 		// i.s is input
 		// (i.map, i.s) is output
@@ -398,7 +398,7 @@ agen_inter(Node *n, Node *res)
 		o = 2*widthptr;
 		break;
 
-	case OI2I:
+//	case OI2I:
 		// ifacei2i(*sigi, i.map, i.s)
 		// (i.map, i.s) is input
 		// (i.map, i.s) is output
@@ -424,7 +424,7 @@ agen_inter(Node *n, Node *res)
 		o = 1*widthptr;
 		break;
 
-	case OI2S:
+//	case OI2S:
 		// ifacei2s(*sigs, i.map, i.s)
 		// (i.map, i.s) is input
 		// i.s is output

@@ -34,9 +34,6 @@ typedef	double			float64;
 typedef	uint8			bool;
 typedef	uint8			byte;
 typedef	struct	String		*string;
-typedef	struct	Sigs		Sigs;
-typedef	struct	Sigi		Sigi;
-typedef	struct	Map		Map;
 typedef	struct	Array		Array;
 typedef	struct	Gobuf		Gobuf;
 typedef	struct	G		G;
@@ -95,18 +92,6 @@ struct String
 	int32	len;
 	byte	str[1];
 };
-struct	Sigs
-{
-	byte*	name;
-	uint32	hash;
-	void	(*fun)(void);
-};
-struct	Sigi
-{
-	byte*	name;
-	uint32	hash;
-	uint32	offset;
-};
 
 struct	Array
 {				// must not move anything
@@ -114,15 +99,6 @@ struct	Array
 	uint32	nel;		// number of elements
 	uint32	cap;		// allocate3d number of elements
 	byte	b[8];		// actual array - may not be contig
-};
-struct	Map
-{
-	Sigi*	si;
-	Sigs*	ss;
-	Map*	link;
-	int32	bad;
-	int32	unused;
-	void	(*fun[])(void);
 };
 struct	Gobuf
 {
@@ -305,9 +281,6 @@ void	sys·cmpstring(string, string, int32);
 void	sys·slicestring(string, int32, int32, string);
 void	sys·indexstring(string, int32, byte);
 void	sys·intstring(int64, string);
-void	sys·ifaces2i(Sigi*, Sigs*, Map*, void*);
-void	sys·ifacei2i(Sigi*, Map*, void*);
-void	sys·ifacei2s(Sigs*, Map*, void*);
 
 /*
  * User go-called

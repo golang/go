@@ -644,9 +644,6 @@ opnames[] =
 	[OPTR]		= "PTR",
 	[ORETURN]	= "RETURN",
 	[ORSH]		= "RSH",
-	[OI2S]		= "I2S",
-	[OS2I]		= "S2I",
-	[OI2I]		= "I2I",
 	[OSLICE]	= "SLICE",
 	[OSUB]		= "SUB",
 	[OSELECT]	= "SELECT",
@@ -1238,6 +1235,58 @@ ismethod(Type *t)
 	return 0;
 }
 
+Sym*
+signame(Type *t)
+{
+	Sym *s, *ss;
+	char *e;
+
+loop:
+	if(t == T) {
+		print("signame: nil type\n");
+		goto bad;
+	}
+
+	switch(t->etype) {
+	default:
+		e = "sigs";
+		break;
+
+	case TPTR32:
+	case TPTR64:
+		t = t->type;
+		goto loop;
+
+	case TINTER:
+		e = "sigi";
+		break;
+	}
+
+	s = t->sym;
+	if(s == S) {
+		print("signame: no type name\n");
+		goto bad;
+	}
+	if(s->name[0] == '_') {
+//		print("signame: temp type name %S\n", s);
+		goto bad;
+	}
+
+	snprint(namebuf, sizeof(namebuf), "%s_%s", e, s->name);
+	ss = pkglookup(namebuf, s->opackage);
+	if(ss->oname == N) {
+		ss->oname = newname(ss);
+		ss->oname->type = types[TUINT8];
+		ss->oname->class = PEXTERN;
+		ss->local = s->local;
+//print("signame: %d %lS\n", ss->local, ss);
+	}
+	return ss;
+
+bad:
+	return S;
+}
+
 int
 bytearraysz(Type *t)
 {
@@ -1620,9 +1669,6 @@ ullmancalc(Node *n)
 	case ONAME:
 		ul = 0;
 		goto out;
-	case OS2I:
-	case OI2S:
-	case OI2I:
 	case OCALL:
 	case OCALLMETH:
 	case OCALLINTER:

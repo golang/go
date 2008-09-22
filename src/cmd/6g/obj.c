@@ -161,8 +161,6 @@ dumpobj(void)
 		}
 	}
 	Bterm(bout);
-return;
-	Bterm(bout);
 }
 
 Bputdot(Biobuf *b)
@@ -477,31 +475,14 @@ dumpsignatures(void)
 		if(t == T)
 			continue;
 
-		et = t->etype;
-		if(t->method == T && et != TINTER)
-			continue;
-
-		s = d->dsym;
+		s = signame(t);
 		if(s == S)
 			continue;
 
-		if(s->name[0] == '_')
-			continue;
-
-		// if it was imported
-		if(s->local == 0)
-			continue;
-
-// until i can figure out
-// when/if it is used, do them all
-//		// if not used and not exported
-//		if(s->local == 1 && !s->export)
-//			continue;
-
 		x = mal(sizeof(*d));
 		x->op = OTYPE;
-		x->dsym = s;
-		x->dtype = t;
+		x->dsym = d->dsym;
+		x->dtype = d->dtype;
 		x->forw = signatlist;
 		signatlist = x;
 	}
@@ -548,9 +529,15 @@ dumpsignatures(void)
 			continue;
 
 		t = d->dtype;
-		et = t->etype;
-		if(t->method == T && et != TINTER)
+		at.sym = signame(t);
+		if(at.sym == S)
 			continue;
+		if(!at.sym->local)
+			continue;
+
+//print("SIGNAME = %lS\n", at.sym);
+
+		et = t->etype;
 
 		s = d->dsym;
 		if(s == S)
@@ -562,14 +549,13 @@ dumpsignatures(void)
 		if(strcmp(s->opackage, package) != 0)
 			continue;
 
-		at.sym = signame(t);
 
 		a = nil;
 		o = 0;
 
-		f = t->type;
-		if(et != TINTER)
-			f = t->method;
+		f = t->method;
+		if(et == TINTER)
+			f = t->type;
 
 		for(; f!=T; f=f->down) {
 			if(f->type->etype != TFUNC)

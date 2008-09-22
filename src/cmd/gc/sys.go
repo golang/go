@@ -23,7 +23,10 @@ func	slicestring(string, int32, int32) string;
 func	indexstring(string, int32) byte;
 func	intstring(int64) string;
 func	byteastring(*byte, int32) string;
-func	mkiface(*byte, *byte, *struct{}) interface{};
+
+func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret interface{});
+func	ifaceI2T(sigt *byte, iface interface{}) (ret any);
+func	ifaceI2I(sigi *byte, iface any) (ret any);
 
 func	argc() int32;
 func	envc() int32;
@@ -95,7 +98,11 @@ export
 	indexstring
 	intstring
 	byteastring
-	mkiface
+
+	// interface
+	ifaceT2I
+	ifaceI2T
+	ifaceI2I
 
 	// args
 	argc

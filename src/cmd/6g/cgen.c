@@ -154,10 +154,6 @@ cgen(Node *n, Node *res)
 		regfree(&n1);
 		break;
 
-	case OS2I:
-	case OI2I:
-	case OI2S:
-
 	case OINDEXPTR:
 	case OINDEX:
 	case ODOT:
@@ -343,12 +339,6 @@ agen(Node *n, Node *res)
 	case OCALL:
 		cgen_call(n, 0);
 		cgen_aret(n, res);
-		break;
-
-	case OS2I:
-	case OI2I:
-	case OI2S:
-		agen_inter(n, res);
 		break;
 
 	case OINDEXPTR:
@@ -678,10 +668,10 @@ int32
 stkof(Node *n)
 {
 	switch(n->op) {
-	case OS2I:
-		return 2*widthptr;
-	case OI2I:
-		return 1*widthptr;
+//	case OS2I:
+//		return 2*widthptr;
+//	case OI2I:
+//		return 1*widthptr;
 	case OINDREG:
 		return n->xoffset;
 	}
