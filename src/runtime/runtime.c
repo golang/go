@@ -6,6 +6,17 @@
 
 int32	panicking = 0;
 
+int32
+gotraceback(void)
+{
+	byte *p;
+
+	p = getenv("GOTRACEBACK");
+	if(p == nil || p[0] == '\0')
+		return 1;	// default is on
+	return atoi(p);
+}
+
 void
 sys·panicl(int32 lno)
 {
@@ -17,8 +28,10 @@ sys·panicl(int32 lno)
 	sys·printpc(&lno);
 	prints("\n");
 	sp = (uint8*)&lno;
-	traceback(sys·getcallerpc(&lno), sp, g);
-	tracebackothers(g);
+	if(gotraceback()){
+		traceback(sys·getcallerpc(&lno), sp, g);
+		tracebackothers(g);
+	}
 	panicking = 1;
 	sys·breakpoint();  // so we can grab it in a debugger
 	sys·exit(2);

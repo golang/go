@@ -212,6 +212,7 @@ void	mcpy(byte*, byte*, uint32);
 void*	mal(uint32);
 uint32	cmpstring(string, string);
 void	initsig(void);
+int32	gotraceback(void);
 void	traceback(uint8 *pc, uint8 *sp, G* gp);
 void	tracebackothers(G*);
 int32	open(byte*, int32, ...);
