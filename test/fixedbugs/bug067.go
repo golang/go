@@ -6,6 +6,10 @@
 
 package main
 
+var c *chan int
+
 func main() {
-	go func() { print("ok\n") } ();
+	c = new(chan int)
+	go func() { print("ok\n"); c <- 0 } ();
+	<-c
 }
