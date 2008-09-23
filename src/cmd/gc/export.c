@@ -164,7 +164,8 @@ dumpexporttype(Sym *s)
 
 	case TPTR32:
 	case TPTR64:
-		reexport(t->type);
+		if(t->type != T && t->type->sym == S)
+			reexport(t->type);
 
 		/* type 6 */
 		Bprint(bout, "\ttype ");
