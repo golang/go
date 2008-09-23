@@ -54,8 +54,11 @@ func main() {
 	    }
 
 	    parser := new(Parser.Parser);
-	    parser.Open(silent.BVal(), verbose.BVal(), scanner, tstream);
+	    parser.Open(verbose.BVal(), scanner, tstream);
 
-	    parser.ParseProgram();
+	    prog := parser.ParseProgram();
+		if !silent.BVal() {
+			Printer.Print(prog);
+		}
 	}
 }

@@ -4,14 +4,54 @@
 
 package AST
 
+
+// ----------------------------------------------------------------------------
+// Visitor
+
+export type Visitor interface {
+	// Basics
+	DoNil(x *Nil);
+	DoIdent(x *Ident);
+	
+	// Declarations
+	DoFuncDecl(x *FuncDecl);
+	
+	// Expressions
+	DoBinary(x *Binary);
+	DoUnary(x *Unary);
+	DoLiteral(x *Literal);
+	DoPair(x *Pair);
+	DoIndex(x *Index);
+	DoCall(x *Call);
+	DoSelector(x *Selector);
+	
+	// Statements
+	DoBlock(x *Block);
+	DoExprStat(x *ExprStat);
+	DoAssignment(x *Assignment);
+	DoIf(x *If);
+	DoFor(x *For);
+	DoSwitch(x *Switch);
+	DoReturn(x *Return);
+	
+	// Program
+	DoProgram(x *Program);
+}
+
+
+// ----------------------------------------------------------------------------
+// An AST Node
+
+export type Node interface {
+	Visit(x Visitor);
+}
+
+
 // ----------------------------------------------------------------------------
 // Lists
 
-export type Element interface {}
-
-
 export type List struct {
-	a *[] Element
+	a *[] Node
 }
 
 
@@ -20,17 +60,17 @@ func (p *List) len() int {
 }
 
 
-func (p *List) at(i int) Element {
+func (p *List) at(i int) Node {
 	return p.a[i];
 }
 
 
-func (p *List) Add (x Element) {
+func (p *List) Add (x Node) {
 	a := p.a;
 	n := len(a);
 
 	if n == cap(a) {
-		b := new([] interface {}, 2*n);
+		b := new([] Node, 2*n);
 		for i := 0; i < n; i++ {
 			b[i] = a[i];
 		}
@@ -45,15 +85,54 @@ func (p *List) Add (x Element) {
 
 export func NewList() *List {
 	p := new(List);
-	p.a = new([] interface {}, 10);
+	p.a = new([] Node, 10) [0 : 0];
 	return p;
 }
+
+
+// ----------------------------------------------------------------------------
+// Basics
+
+export type Nil struct {
+	// The Node "nil" value
+}
+
+export var NIL *Nil = new(Nil);
+
+
+export type Ident struct {
+	pos int;
+	val string;
+}
+
+
+func (x *Nil)   Visit(v Visitor)  { v.DoNil(x); }
+func (x *Ident) Visit(v Visitor)  { v.DoIdent(x); }
+
+
+// ----------------------------------------------------------------------------
+// Declarations
+
+export type Decl interface {
+	Visit(x Visitor);
+}
+
+
+export type FuncDecl struct {
+	pos int;
+	ident *Ident;
+	body *Block;
+}
+
+
+func (x *FuncDecl) Visit(v Visitor)  { v.DoFuncDecl(x); }
 
 
 // ----------------------------------------------------------------------------
 // Expressions
 
 export type Expr interface {
+	Visit(x Visitor);
 }
 
 
@@ -68,6 +147,13 @@ export type Index struct {
 	pos int;
 	x Expr;
 	index Expr;
+}
+
+
+export type Call struct {
+	pos int;
+	fun Expr;
+	args *List;
 }
 
 
@@ -98,20 +184,79 @@ export type Literal struct {
 }
 
 
+func (x *Binary)   Visit(v Visitor)  { v.DoBinary(x); }
+func (x *Unary)    Visit(v Visitor)  { v.DoUnary(x); }
+func (x *Literal)  Visit(v Visitor)  { v.DoLiteral(x); }
+func (x *Pair)     Visit(v Visitor)  { v.DoPair(x); }
+func (x *Index)    Visit(v Visitor)  { v.DoIndex(x); }
+func (x *Call)     Visit(v Visitor)  { v.DoCall(x); }
+func (x *Selector) Visit(v Visitor)  { v.DoSelector(x); }
+
+
 // ----------------------------------------------------------------------------
 // Statements
 
-
-// ----------------------------------------------------------------------------
-// Visitor
-
-export type Visitor interface {
-  DoBinary(x *Binary);
-  //DoUnary(x *Unary);
-  //DoLiteral(x *Literal);
+export type Stat interface {
+	Visit(x Visitor);
 }
 
 
-func (x *Binary)  Visit(v Visitor)  { v.DoBinary(x); }
-//func (x *Unary)   Visit(v Visitor)  { v.DoUnary(x); }
-//func (x *Literal) Visit(v Visitor)  { v.DoLiteral(x); }
+export type Block struct {
+	pos int;
+	stats *List;
+}
+
+
+export type ExprStat struct {
+	expr Expr;
+}
+
+
+export type Assignment struct {
+	pos int;
+	tok int;
+	lhs, rhs *List;
+}
+
+
+export type If struct {
+	pos int;
+	cond Expr;
+	then, else_ *Block;
+}
+
+
+export type For struct {
+}
+
+
+export type Switch struct {
+}
+
+
+export type Return struct {
+	pos int;
+	res *List;
+}
+
+
+func (x *Block)       Visit(v Visitor)  { v.DoBlock(x); }
+func (x *ExprStat)    Visit(v Visitor)  { v.DoExprStat(x); }
+func (x *Assignment)  Visit(v Visitor)  { v.DoAssignment(x); }
+func (x *If)          Visit(v Visitor)  { v.DoIf(x); }
+func (x *For)         Visit(v Visitor)  { v.DoFor(x); }
+func (x *Switch)      Visit(v Visitor)  { v.DoSwitch(x); }
+func (x *Return)      Visit(v Visitor)  { v.DoReturn(x); }
+
+
+// ----------------------------------------------------------------------------
+// Program
+
+export type Program struct {
+	pos int;
+	ident *Ident;
+	decls *List;
+}
+
+
+func (x *Program) Visit(v Visitor)  { v.DoProgram(x); }
