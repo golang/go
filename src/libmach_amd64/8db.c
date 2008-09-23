@@ -30,6 +30,9 @@
 #include <libc.h>
 #include <bio.h>
 #include <mach_amd64.h>
+#include <ureg_amd64.h>
+
+typedef struct Ureg Ureg_amd64;
 
 /*
  * i386-specific debugger interface
@@ -46,8 +49,10 @@ static	int	i386das(Map*, uvlong, char*, int);
 static	int	i386instlen(Map*, uvlong);
 
 static	char	STARTSYM[] =	"_main";
+static	char	GOSTARTSYM[] =	"sys·goexit";
 static	char	PROFSYM[] =	"_mainp";
 static	char	FRAMENAME[] =	".frame";
+static	char	RETFROMNEWSTACK[] = "retfromnewstack";
 static char *excname[] =
 {
 [0]	"divide error",
@@ -119,13 +124,46 @@ i386excep(Map *map, Rgetter rget)
 		return excname[c];
 }
 
+// borrowed from src/runtime/runtime.h
+struct	Stktop
+{
+	uint8*	oldbase;
+	uint8*	oldsp;
+	uint64	magic;
+	uint8*	oldguard;
+};
+
+struct	G
+{
+	uvlong	stackguard;	// must not move
+	uvlong	stackbase;	// must not move
+	uvlong	stack0;		// first stack segment
+	// rest not needed
+};
+
 static int
 i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 {
 	int i;
 	uvlong osp;
-	Symbol s, f;
+	Symbol s, f, s1;
+	extern Mach mamd64;
+	int isamd64;
+	struct Stktop *stktop;
+	struct G g;
+	uvlong r15;
+	uvlong retfromnewstack;
 
+	isamd64 = (mach == &mamd64);
+	retfromnewstack = 0;
+	if(isamd64) {
+		get8(map, offsetof(Ureg_amd64, r15), &r15);
+		get8(map, r15+offsetof(struct G, stackguard), &g.stackguard);
+		get8(map, r15+offsetof(struct G, stackbase), &g.stackbase);
+		get8(map, r15+offsetof(struct G, stack0), &g.stack0);
+		if(lookup(0, RETFROMNEWSTACK, &s))
+			retfromnewstack = s.value;
+	}
 	USED(link);
 	osp = 0;
 	i = 0;
@@ -134,8 +172,23 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 			break;
 		osp = sp;
 
-		if(strcmp(STARTSYM, s.name) == 0 || strcmp(PROFSYM, s.name) == 0)
+		if(strcmp(STARTSYM, s.name) == 0 ||
+		   strcmp(GOSTARTSYM, s.name) == 0 ||
+		   strcmp(PROFSYM, s.name) == 0)
 			break;
+
+		if(pc == retfromnewstack) {
+			stktop = (struct Stktop*)g.stackbase;
+			get8(map, (uvlong)&stktop->oldbase, &g.stackbase);
+			get8(map, (uvlong)&stktop->oldguard, &g.stackguard);
+			get8(map, (uvlong)&stktop->oldsp, &sp);
+			get8(map, sp+8, &pc);
+			(*trace)(map, pc, sp +  8, &s1);
+			sp += 16;  // two irrelevant calls on stack - morestack, plus the call morestack made
+			continue;
+			break;
+		}
+		s1 = s;
 
 		if(pc != s.value) {	/* not at first instruction */
 			if(findlocal(&s, FRAMENAME, &f) == 0)
@@ -148,7 +201,8 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 		if(pc == 0)
 			break;
 
-		(*trace)(map, pc, sp, &s);
+		if (pc != retfromnewstack)
+			(*trace)(map, pc, sp, &s1);
 		sp += mach->szaddr;
 
 		if(++i > 1000)
