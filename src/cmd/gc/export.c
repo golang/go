@@ -236,13 +236,6 @@ dumpexporttype(Sym *s)
 		Bprint(bout, "%lS %d %lS\n", s, t->chan, t->type->sym);
 		break;
 	}
-
-	for(f=t->method; f!=T; f=f->down) {
-		if(f->etype != TFIELD)
-			fatal("dumpexporttype: method not field: %lT", f);
-		reexport(f->type);
-		Bprint(bout, "\tfunc %S %lS\n", f->sym, f->type->sym);
-	}
 }
 
 void
@@ -269,6 +262,34 @@ dumpe(Sym *s)
 }
 
 void
+dumpm(Sym *s)
+{
+	Type *t, *f;
+
+	switch(s->lexical) {
+	default:
+		return;
+
+	case LATYPE:
+	case LBASETYPE:
+		break;
+	}
+
+	t = s->otype;
+	if(t == T) {
+		yyerror("type exported but not defined: %S", s);
+		return;
+	}
+
+	for(f=t->method; f!=T; f=f->down) {
+		if(f->etype != TFIELD)
+			fatal("dumpexporttype: method not field: %lT", f);
+		reexport(f->type);
+		Bprint(bout, "\tfunc %S %lS\n", f->sym, f->type->sym);
+	}
+}
+
+void
 dumpexport(void)
 {
 	Dcl *d;
@@ -281,10 +302,16 @@ dumpexport(void)
 
 	Bprint(bout, "    package %s\n", package);
 
-	// print it depth first
+	// first pass dump vars/types depth first
 	for(d=exportlist->forw; d!=D; d=d->forw) {
 		lineno = d->lineno;
 		dumpe(d->dsym);
+	}
+
+	// second pass dump methods
+	for(d=exportlist->forw; d!=D; d=d->forw) {
+		lineno = d->lineno;
+		dumpm(d->dsym);
 	}
 
 	Bprint(bout, "   ))\n");
