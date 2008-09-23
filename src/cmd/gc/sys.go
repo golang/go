@@ -24,6 +24,7 @@ func	slicestring(string, int32, int32) string;
 func	indexstring(string, int32) byte;
 func	intstring(int64) string;
 func	byteastring(*byte, int32) string;
+func	arraystring(*[]byte) string;
 
 func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
 func	ifaceI2T(sigt *byte, iface any) (ret any);
@@ -100,6 +101,7 @@ export
 	indexstring
 	intstring
 	byteastring
+	arraystring
 
 	// interface
 	ifaceT2I
