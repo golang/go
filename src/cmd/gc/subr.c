@@ -1243,7 +1243,7 @@ signame(Type *t)
 
 loop:
 	if(t == T) {
-		print("signame: nil type\n");
+//		print("signame: nil type\n");
 		goto bad;
 	}
 
@@ -1264,7 +1264,7 @@ loop:
 
 	s = t->sym;
 	if(s == S) {
-		print("signame: no type name\n");
+//		print("signame: no type name\n");
 		goto bad;
 	}
 	if(s->name[0] == '_') {
