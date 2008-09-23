@@ -13,7 +13,8 @@ import Printer "printer"
 
 
 var (
-    verbose = Flag.Bool("v", false, nil, "verbose mode");
+    silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
+    verbose = Flag.Bool("v", false, nil, "verbose mode: trace parsing");
     sixg = Flag.Bool("6g", false, nil, "6g compatibility mode");
     tokenchan = Flag.Bool("token_chan", false, nil, "use token channel for scanner-parser connection");
 )
@@ -53,7 +54,7 @@ func main() {
 	    }
 
 	    parser := new(Parser.Parser);
-	    parser.Open(verbose.BVal(), scanner, tstream);
+	    parser.Open(silent.BVal(), verbose.BVal(), scanner, tstream);
 
 	    parser.ParseProgram();
 	}
