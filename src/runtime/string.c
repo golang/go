@@ -164,3 +164,12 @@ sys·byteastring(byte *a, int32 l, string s)
 	mcpy(s->str, a, l);
 	FLUSH(&s);
 }
+
+void
+sys·arraystring(Array *b, string s)
+{
+	s = mal(sizeof(s->len)+b->nel);
+	s->len = b->nel;
+	mcpy(s->str, b->array, s->len);
+	FLUSH(&s);
+}

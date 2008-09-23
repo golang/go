@@ -1824,25 +1824,11 @@ stringop(Node *n, int top)
 		break;
 
 	case OARRAY:
-		// byteastring(*byte, int32) string;
-		t = n->left->type;
-		l = bytearraysz(t);
-
-		// &a[0]
-		c = nodintconst(0);
-		r = nod(OINDEX, n->left, c);
-		r = nod(OADDR, r, N);
-
-		if(l >= 0) {
-			// static size
-			c = nodintconst(l);
-		} else {
-			// dynamic size
-			c = nod(OLEN, n->left, N);
-		}
-		r = list(r, c);
-
-		on = syslook("byteastring", 0);
+		// arraystring(*[]byte) string;
+		r = n->left;
+		if(!isptr[r->type->etype])
+			r = nod(OADDR, r, N);
+		on = syslook("arraystring", 0);
 		r = nod(OCALL, on, r);
 		break;
 	}
