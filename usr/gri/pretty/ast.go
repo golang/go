@@ -13,7 +13,11 @@ export type Visitor interface {
 	DoNil(x *Nil);
 	DoIdent(x *Ident);
 	
+	// Types
+	DoFunctionType(x *FunctionType);
+	
 	// Declarations
+	//DoVarDeclList(x *VarDeclList);
 	DoFuncDecl(x *FuncDecl);
 	
 	// Expressions
@@ -29,8 +33,8 @@ export type Visitor interface {
 	DoBlock(x *Block);
 	DoExprStat(x *ExprStat);
 	DoAssignment(x *Assignment);
-	DoIf(x *If);
-	DoFor(x *For);
+	DoIfStat(x *IfStat);
+	DoForStat(x *ForStat);
 	DoSwitch(x *Switch);
 	DoReturn(x *Return);
 	
@@ -111,6 +115,24 @@ func (x *Ident) Visit(v Visitor)  { v.DoIdent(x); }
 
 
 // ----------------------------------------------------------------------------
+// Types
+
+export type Type interface {
+	Visit(x Visitor);
+}
+
+
+export type FunctionType struct {
+	recv *VarDeclList;
+	params *List;
+	result *List;
+}
+
+
+func (x *FunctionType) Visit(v Visitor)  { v.DoFunctionType(x); }
+
+
+// ----------------------------------------------------------------------------
 // Declarations
 
 export type Decl interface {
@@ -118,14 +140,22 @@ export type Decl interface {
 }
 
 
+export type VarDeclList struct {
+	idents *List;
+	typ *Node;
+}
+
+
 export type FuncDecl struct {
 	pos int;
 	ident *Ident;
+	typ *FunctionType;
 	body *Block;
 }
 
 
-func (x *FuncDecl) Visit(v Visitor)  { v.DoFuncDecl(x); }
+func (x *VarDeclList) Visit(v Visitor)  { /*v.DoVarDeclList(x);*/ }
+func (x *FuncDecl)    Visit(v Visitor)  { v.DoFuncDecl(x); }
 
 
 // ----------------------------------------------------------------------------
@@ -219,14 +249,17 @@ export type Assignment struct {
 }
 
 
-export type If struct {
+export type IfStat struct {
 	pos int;
+	init Stat;
 	cond Expr;
 	then, else_ *Block;
 }
 
 
-export type For struct {
+export type ForStat struct {
+	pos int;
+	body *Block;
 }
 
 
@@ -243,8 +276,8 @@ export type Return struct {
 func (x *Block)       Visit(v Visitor)  { v.DoBlock(x); }
 func (x *ExprStat)    Visit(v Visitor)  { v.DoExprStat(x); }
 func (x *Assignment)  Visit(v Visitor)  { v.DoAssignment(x); }
-func (x *If)          Visit(v Visitor)  { v.DoIf(x); }
-func (x *For)         Visit(v Visitor)  { v.DoFor(x); }
+func (x *IfStat)      Visit(v Visitor)  { v.DoIfStat(x); }
+func (x *ForStat)     Visit(v Visitor)  { v.DoForStat(x); }
 func (x *Switch)      Visit(v Visitor)  { v.DoSwitch(x); }
 func (x *Return)      Visit(v Visitor)  { v.DoReturn(x); }
 

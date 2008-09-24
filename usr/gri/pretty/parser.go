@@ -137,19 +137,18 @@ func (P *Parser) ParseIdent() *AST.Ident {
 }
 
 
-func (P *Parser) ParseIdentList() int {
+func (P *Parser) ParseIdentList() *AST.List {
 	P.Trace("IdentList");
 
-	P.ParseIdent();
-	n := 1;
+	list := AST.NewList();
+	list.Add(P.ParseIdent());
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParseIdent();
-		n++;
+		list.Add(P.ParseIdent());
 	}
 
 	P.Ecart();
-	return n;
+	return list;
 }
 
 
@@ -243,43 +242,47 @@ func (P *Parser) ParseChannelType() {
 }
 
 
-func (P *Parser) ParseVarDeclList() int {
+func (P *Parser) ParseVarDeclList() *AST.VarDeclList {
 	P.Trace("VarDeclList");
 	
-	n := P.ParseIdentList();
+	res := new(AST.VarDeclList);
+	res.idents = P.ParseIdentList();
 	P.ParseVarType();
 	
 	P.Ecart();
-	return n;
+	return res;
 }
 
 
-func (P *Parser) ParseParameterList() int {
+// Returns a list of AST.VarDeclList
+func (P *Parser) ParseParameterList() *AST.List {
 	P.Trace("ParameterList");
 	
-	n := P.ParseVarDeclList();
+	list := AST.NewList();
+	list.Add(P.ParseVarDeclList());
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		n += P.ParseVarDeclList();
+		list.Add(P.ParseVarDeclList());
 	}
 	
 	P.Ecart();
-	return n;
+	return list;
 }
 
 
-func (P *Parser) ParseParameters() int {
+// Returns a list of AST.VarDeclList
+func (P *Parser) ParseParameters() *AST.List {
 	P.Trace("Parameters");
 	
-	n := 0;
+	var list *AST.List;
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
-		n = P.ParseParameterList();
+		list = P.ParseParameterList();
 	}
 	P.Expect(Scanner.RPAREN);
 	
 	P.Ecart();
-	return n;
+	return list;
 }
 
 
@@ -299,7 +302,7 @@ func (P *Parser) ParseResultList() {
 }
 
 
-func (P *Parser) ParseResult() {
+func (P *Parser) ParseResult() *AST.List {
 	P.Trace("Result");
 	
 	if P.tok == Scanner.LPAREN {
@@ -317,6 +320,7 @@ func (P *Parser) ParseResult() {
 	}
 
 	P.Ecart();
+	return nil
 }
 
 
@@ -326,19 +330,21 @@ func (P *Parser) ParseResult() {
 // (params) type
 // (params) (results)
 
-func (P *Parser) ParseFunctionType() {
+func (P *Parser) ParseFunctionType() *AST.FunctionType {
 	P.Trace("FunctionType");
 	
 	P.OpenScope();
 	P.level--;
 
-	P.ParseParameters();
-	P.ParseResult();
+	typ := new(AST.FunctionType);
+	typ.params = P.ParseParameters();
+	typ.result = P.ParseResult();
 
 	P.level++;
 	P.CloseScope();
 	
 	P.Ecart();
+	return typ;
 }
 
 
@@ -892,25 +898,31 @@ func (P *Parser) ParseControlFlowStat(tok int) {
 }
 
 
-func (P *Parser) ParseIfStat() *AST.If {
+func (P *Parser) ParseIfStat() *AST.IfStat {
 	P.Trace("IfStat");
 
-	x := new(AST.If);
+	x := new(AST.IfStat);
 	x.pos, x.cond = P.pos, AST.NIL;
 	
+	var init, cond AST.Node = AST.NIL, AST.NIL;
 	P.Expect(Scanner.IF);
 	P.OpenScope();
 	if P.tok != Scanner.LBRACE {
 		if P.tok != Scanner.SEMICOLON {
-			P.ParseSimpleStat();
+			init = P.ParseSimpleStat();
 		}
 		if P.tok == Scanner.SEMICOLON {
 			P.Next();
 			if P.tok != Scanner.LBRACE {
-				x.cond = P.ParseExpression();
+				cond = P.ParseExpression();
+			} else {
+				cond = init;
+				init = AST.NIL;
 			}
 		}
 	}
+	x.init, x.cond = init, cond;
+	
 	x.then = P.ParseBlock();
 	if P.tok == Scanner.ELSE {
 		P.Next();
@@ -931,8 +943,11 @@ func (P *Parser) ParseIfStat() *AST.If {
 }
 
 
-func (P *Parser) ParseForStat() {
+func (P *Parser) ParseForStat() *AST.ForStat {
 	P.Trace("ForStat");
+	
+	stat := new(AST.ForStat);
+	stat.pos = P.pos;
 	
 	P.Expect(Scanner.FOR);
 	P.OpenScope();
@@ -951,10 +966,11 @@ func (P *Parser) ParseForStat() {
 			}
 		}
 	}
-	P.ParseBlock();
+	stat.body = P.ParseBlock();
 	P.CloseScope();
 	
 	P.Ecart();
+	return stat;
 }
 
 
@@ -1113,7 +1129,7 @@ func (P *Parser) TryStatement() (AST.Stat, bool) {
 	case Scanner.IF:
 		stat = P.ParseIfStat();
 	case Scanner.FOR:
-		P.ParseForStat();
+		stat = P.ParseForStat();
 	case Scanner.SWITCH:
 		P.ParseSwitchStat();
 	case Scanner.RANGE:
@@ -1247,40 +1263,42 @@ func (P *Parser) ParseDecl(exported bool, keyword int) {
 func (P *Parser) ParseFuncDecl(exported bool) *AST.FuncDecl {
 	P.Trace("FuncDecl");
 	
-	pos := P.pos;
+	fun := new(AST.FuncDecl);
+	fun.pos = P.pos;
+
 	P.Expect(Scanner.FUNC);
 
 	P.OpenScope();
 	P.level--;
 
+	var recv *AST.VarDeclList;
 	if P.tok == Scanner.LPAREN {
 		recv_pos := P.pos;
-		n := P.ParseParameters();
+		recv := P.ParseParameters().at(0);
+		/*
 		if n != 1 {
 			P.Error(recv_pos, "must have exactly one receiver");
 		}
+		*/
 	}
 	
-	ident := P.ParseIdent();
-	
-	P.ParseFunctionType();
+	fun.ident = P.ParseIdent();
+	fun.typ = P.ParseFunctionType();
+	fun.typ.recv = recv;
 	
 	P.level++;
 	P.CloseScope();
 
-    var body *AST.Block;
 	if P.tok == Scanner.SEMICOLON {
 		// forward declaration
 		P.Next();
 	} else {
-		body = P.ParseBlock();
+		fun.body = P.ParseBlock();
 	}
 	
 	P.Ecart();
 	
-	x := new(AST.FuncDecl);
-	x.pos, x.ident, x.body = pos, ident, body;
-	return x;
+	return fun;
 }
 
 
