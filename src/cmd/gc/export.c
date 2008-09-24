@@ -507,7 +507,9 @@ importaddtyp(Node *ss, Type *t)
 
 	s = getimportsym(ss);
 	if(s->otype != T && !eqtype(t, s->otype, 0)) {
-		yyerror("import redeclaration of %S %lT => %lT\n", s, s->otype, t);
+		if(!isptrto(t, TFORW))
+			yyerror("import redeclaration of %lS %lT => %lT\n",
+				s, s->otype, t);
 		s->otype = t;
 	}
 
