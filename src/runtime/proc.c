@@ -285,24 +285,25 @@ gfget(void)
 void
 ready(G *g)
 {
-	// Wait for g to stop running (for example, it migh
-	// have queued itself on a channel but not yet gotten
-	// a chance to call sys·gosched and actually go to sleep).
-	notesleep(&g->stopped);
-
 	lock(&sched);
 	readylocked(g);
 	unlock(&sched);
 }
 
-// Mark g ready to run.  Sched is already locked,
-// and g is known not to be running right now
-// (i.e., ready has slept on g->stopped or the g was
-// just allocated in sys·newproc).
+// Mark g ready to run.  Sched is already locked.
+// G might be running already and about to stop.
+// The sched lock protects g->status from changing underfoot.
 static void
 readylocked(G *g)
 {
 	M *m;
+	
+	if(g->m){
+		// Running on another machine.
+		// Ready it when it stops.
+		g->readyonstop = 1;
+		return;
+	}
 
 	// Mark runnable.
 	if(g->status == Grunnable || g->status == Grunning)
@@ -382,7 +383,7 @@ scheduler(void)
 
 		// Just finished running m->curg.
 		gp = m->curg;
-		gp->m = nil;	// for debugger
+		gp->m = nil;
 		switch(gp->status){
 		case Grunnable:
 		case Gdead:
@@ -398,15 +399,18 @@ scheduler(void)
 				sys·exit(0);
 			break;
 		}
-		notewakeup(&gp->stopped);
+		if(gp->readyonstop){
+			gp->readyonstop = 0;
+			readylocked(gp);
+		}
 	}
 
 	// Find (or wait for) g to run.  Unlocks sched.
 	gp = nextgandunlock();
-	noteclear(&gp->stopped);
+	gp->readyonstop = 0;
 	gp->status = Grunning;
 	m->curg = gp;
-	gp->m = m;	// for debugger
+	gp->m = m;
 	g = gp;
 	gogo(&gp->sched);
 }

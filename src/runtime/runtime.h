@@ -123,7 +123,7 @@ struct	G
 	int32	goid;
 	int32	selgen;		// valid sudog pointer
 	G*	schedlink;
-	Note	stopped;
+	bool		readyonstop;
 	M*	m;	// for debuggers
 };
 struct	Mem
