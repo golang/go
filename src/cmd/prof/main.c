@@ -252,7 +252,7 @@ dumphistogram()
 			x = pcs[i];
 			func(b2, sizeof(b2), x->pc);
 			if(j > 0 && strcmp(b1, b2) == 0) {
-				pcs[i-1]->count += x->count;
+				pcs[j-1]->count += x->count;
 			} else {
 				strcpy(b1, b2);
 				pcs[j++] = x;
