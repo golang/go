@@ -204,16 +204,6 @@ unimplemented(int8 *name)
 	*(int32*)1231 = 1231;
 }
 
-void
-sys·sleep(int64 ms)
-{
-	struct timeval tv;
-
-	tv.tv_sec = ms/1000;
-	tv.tv_usec = ms%1000 * 1000;
-	select(0, nil, nil, nil, &tv);
-}
-
 // Thread-safe allocation of a semaphore.
 // Psema points at a kernel semaphore key.
 // It starts out zero, meaning no semaphore.

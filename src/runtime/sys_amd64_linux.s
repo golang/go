@@ -182,17 +182,6 @@ TEXT clone(SB),7,$0
 	SYSCALL
 	JMP	-3(PC)	// keep exiting
 
-// int64 select(int32, void*, void*, void*, struct timeval*)
-TEXT select(SB),7,$0
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVQ	24(SP), DX
-	MOVQ	32(SP), R10
-	MOVQ	40(SP), R8
-	MOVL	$23, AX
-	SYSCALL
-	RET
-
 TEXT sigaltstack(SB),7,$-8
 	MOVQ	new+8(SP), DI
 	MOVQ	old+16(SP), SI
