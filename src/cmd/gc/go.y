@@ -129,9 +129,13 @@ import_package:
 import_there:
 	hidden_import_list_r ')' ')'
 	{
+		checkimports();
 		unimportfile();
 	}
 |	LIMPORT '(' '(' hidden_import_list_r ')' ')'
+	{
+		checkimports();
+	}
 
 /*
  * declarations

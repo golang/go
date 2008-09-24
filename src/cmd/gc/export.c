@@ -28,15 +28,11 @@ exportsym(Sym *s)
 }
 
 void
-reexport(Type *t)
+makeexportsym(Type *t)
 {
 	Sym *s;
 
-	if(t == T)
-		fatal("reexport: type nil");
-
-	s = t->sym;
-	if(s == S/* || s->name[0] == '_'*/) {
+	if(t->sym == S) {
 		exportgen++;
 		snprint(namebuf, sizeof(namebuf), "_e%s_%.3ld", filename, exportgen);
 		s = lookup(namebuf);
@@ -44,6 +40,18 @@ reexport(Type *t)
 		s->otype = t;
 		t->sym = s;
 	}
+}
+
+void
+reexport(Type *t)
+{
+	Sym *s;
+
+	if(t == T)
+		fatal("reexport: type nil");
+
+	makeexportsym(t);
+	s = t->sym;
 	dumpexporttype(s);
 }
 
@@ -164,14 +172,17 @@ dumpexporttype(Sym *s)
 
 	case TPTR32:
 	case TPTR64:
-		if(t->type != T && t->type->sym == S)
-			reexport(t->type);
+		if(t->type == T)
+			fatal("dumpexporttype: ptr %S", s);
+		makeexportsym(t->type); /* forw declare */
 
 		/* type 6 */
 		Bprint(bout, "\ttype ");
 		if(s->export != 0)
 			Bprint(bout, "!");
 		Bprint(bout, "%lS *%lS\n", s, t->type->sym);
+
+		reexport(t->type);
 		break;
 
 	case TFUNC:
@@ -220,7 +231,7 @@ dumpexporttype(Sym *s)
 		reexport(t->type);
 		reexport(t->down);
 
-		/* type 6 */
+		/* type 1 */
 		Bprint(bout, "\ttype ");
 		if(s->export != 0)
 			Bprint(bout, "!");
@@ -323,6 +334,50 @@ dumpexport(void)
 /*
  * ******* import *******
  */
+
+void
+checkimports(void)
+{
+	Sym *s;
+	Type *t, *t1;
+	uint32 h;
+	int et;
+
+	for(h=0; h<NHASH; h++)
+	for(s = hash[h]; s != S; s = s->link) {
+		t = s->otype;
+		if(t == T)
+			continue;
+
+		et = t->etype;
+		switch(t->etype) {
+		case TFORW:
+			print("ci-1: %S %lT\n", s, t);
+			break;
+
+		case TPTR32:
+		case TPTR64:
+			if(t->type == T) {
+				print("ci-2: %S %lT\n", s, t);
+				break;
+			}
+
+			t1 = t->type;
+			if(t1 == T) {
+				print("ci-3: %S %lT\n", s, t1);
+				break;
+			}
+
+			et = t1->etype;
+			if(et == TFORW) {
+				print("%L: ci-4: %S %lT\n", lineno, s, t);
+				break;
+			}
+			break;
+		}
+	}
+}
+
 void
 renamepkg(Node *n)
 {
@@ -451,21 +506,13 @@ importaddtyp(Node *ss, Type *t)
 	Sym *s;
 
 	s = getimportsym(ss);
-	if(ss->etype){	// exported
-		if(s->otype == T || !eqtype(t, s->otype, 0)) {
-			if(s->otype != T)
-				print("redeclaring %S %lT => %lT\n", s, s->otype, t);
-			addtyp(newtype(s), t, PEXTERN);
-			/*
-			 * mark as export to avoid conflicting export bits
-			 * in multi-file package.
-			 */
-			s->export = 1;
-		}
-	}else{
+	if(s->otype != T && !eqtype(t, s->otype, 0)) {
+		yyerror("import redeclaration of %S %lT => %lT\n", s, s->otype, t);
 		s->otype = t;
-		t->sym = s;
 	}
+
+	if(s->otype == T)
+		addtyp(newtype(s), t, PEXTERN);
 }
 
 /*
