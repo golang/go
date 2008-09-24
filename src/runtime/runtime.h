@@ -43,6 +43,7 @@ typedef	struct	Alg		Alg;
 typedef	struct	Lock		Lock;
 typedef	union	Note	Note;
 typedef	struct	Mem		Mem;
+typedef	struct	Usema	Usema;
 
 /*
  * per cpu declaration
@@ -77,6 +78,11 @@ struct	Lock
 	uint32	key;
 	uint32	sema;	// for OS X
 };
+struct	Usema
+{
+	uint32	u;
+	uint32	k;
+};
 union	Note
 {
 	struct {	// Linux
@@ -84,7 +90,7 @@ union	Note
 	};
 	struct {	// OS X
 		int32	wakeup;
-		uint32	sema;
+		Usema	sema;
 	};
 };
 struct String
