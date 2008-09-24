@@ -262,7 +262,7 @@ xadd(uint32 volatile *val, int32 delta)
 // releases the lock by decrementing l->key, l->key will
 // be >0, so it will increment the semaphore to wake up
 // one of the others.  This is the same algorithm used
-// in Plan 9's user-space locks.
+// in Plan 9's user-level locks.
 //
 // Note that semaphores are never destroyed (the kernel
 // will clean up when the process exits).  We assume for now
@@ -287,6 +287,25 @@ unlock(Lock *l)
 }
 
 
+// User-level semaphore implementation:
+// try to do the operations in user space on u,
+// but when it's time to block, fall back on the kernel semaphore k.
+// This is the same algorithm used in Plan 9.
+void
+usemacquire(Usema *s)
+{
+	if((int32)xadd(&s->u, -1) < 0)
+		semacquire(s->k);
+}
+
+void
+usemrelease(Usema *s)
+{
+	if((int32)xadd(&s->u, 1) <= 0)
+		semrelease(s->k);
+}
+
+
 // Event notifications.
 void
 noteclear(Note *n)
@@ -297,19 +316,19 @@ noteclear(Note *n)
 void
 notesleep(Note *n)
 {
-	if(n->sema == 0)
-		initsema(&n->sema);
+	if(n->sema.k == 0)
+		initsema(&n->sema.k);
 	while(!n->wakeup)
-		semacquire(n->sema);
+		usemacquire(&n->sema);
 }
 
 void
 notewakeup(Note *n)
 {
-	if(n->sema == 0)
-		initsema(&n->sema);
+	if(n->sema.k == 0)
+		initsema(&n->sema.k);
 	n->wakeup = 1;
-	semrelease(n->sema);
+	usemrelease(&n->sema);
 }
 
 
