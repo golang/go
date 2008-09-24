@@ -51,7 +51,6 @@ struct stat {	// really a stat64
 
 void bsdthread_create(void*, M*, G*, void(*)(void));
 void bsdthread_register(void);
-int64 select(int32, void*, void*, void*, struct timeval*);
 
 
 // Mach calls

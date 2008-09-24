@@ -189,17 +189,6 @@ TEXT bsdthread_register(SB),7,$-8
 	CALL	notok(SB)
 	RET
 
-// int64 select(int32, void*, void*, void*, void*)
-TEXT select(SB),7,$0
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVQ	24(SP), DX
-	MOVQ	32(SP), R10
-	MOVQ	40(SP), R8
-	MOVL	$(0x2000000+407), AX	// select_nocancel
-	SYSCALL
-	RET
-
 // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
 
 // uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)

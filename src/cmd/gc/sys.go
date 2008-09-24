@@ -76,7 +76,6 @@ func	writefile(string, string) (bool);	// write string into file; boolean status
 func	bytestorune(*byte, int32, int32) (int32, int32);	// convert bytes to runes	
 func	stringtorune(string, int32, int32) (int32, int32);	// convert bytes to runes	
 
-func	sleep(ms int64);
 func	exit(int32);
 
 export
@@ -163,6 +162,5 @@ export
 	stringtorune
 
 	// system calls
-	sleep
 	exit
 	;
