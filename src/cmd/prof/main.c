@@ -3,10 +3,10 @@
 // license that can be found in the LICENSE file.
 
 #include <u.h>
+#include <time.h>
 #include <libc.h>
 #include <bio.h>
 #include <ctype.h>
-#include <time.h>
 
 #include <ureg_amd64.h>
 #include <mach_amd64.h>
@@ -88,14 +88,18 @@ regprint(void)
 }
 
 int
-sample()
+sample(void)
 {
 	int i;
+	static int n;
 
+	n++;
 	ctlproc(pid, "stop");
 	for(i = 0; i < sizeof ureg; i+=8) {
 		if(get8(map, (uvlong)i, &((uvlong*)&ureg)[i/8]) < 0) {
-			fprint(2, "prof: can't read registers at %d: %r\n", i);
+			if(n == 1)
+				fprint(2, "prof: can't read registers at %d: %r\n", i);
+			ctlproc(pid, "start");
 			return 0;
 		}
 	}
@@ -106,9 +110,13 @@ sample()
 uvlong nextpc;
 
 void
-ptrace(Map *map, uvlong pc, uvlong sp, Symbol *sym)
+xptrace(Map *map, uvlong pc, uvlong sp, Symbol *sym)
 {
 	char buf[1024];
+	if(sym == nil){
+		print("syms\n");
+		return;
+	}
 	if(nextpc == 0)
 		nextpc = sym->value;
 	print("%s(", sym->name);
@@ -128,7 +136,7 @@ stacktracepcsp(uvlong pc, uvlong sp)
 	nextpc = 0;
 	if(machdata->ctrace==nil)
 		fprint(2, "no machdata->ctrace\n");
-	else if(machdata->ctrace(map, pc, sp, 0, ptrace) <= 0)
+	else if(machdata->ctrace(map, pc, sp, 0, xptrace) <= 0)
 		fprint(2, "no stack frame: pc=%#p sp=%#p\n", pc, sp);
 }
 
@@ -172,7 +180,8 @@ printpc(uvlong pc, uvlong sp)
 	}
 }
 
-void samples()
+void
+samples(void)
 {
 	int msec;
 	struct timespec req;
@@ -334,6 +343,7 @@ main(int argc, char *argv[])
 		fprint(2, "prof: crack header for %s: %r\n", file);
 		exit(1);
 	}
+	ctlproc(pid, "start");
 	samples();
 	detachproc(map);
 	dumphistogram();
