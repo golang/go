@@ -36,13 +36,11 @@ func (P *Printer) Print(x AST.Node) {
 
 
 func (P *Printer) PrintList(p *AST.List) {
-	if p != nil {
-		for i := 0; i < p.len(); i++ {
-			if i > 0 {
-				P.String(", ");
-			}
-			P.Print(p.at(i));
+	for i := 0; i < p.len(); i++ {
+		if i > 0 {
+			P.String(", ");
 		}
+		P.Print(p.at(i));
 	}
 }
 
@@ -52,7 +50,6 @@ func (P *Printer) PrintList(p *AST.List) {
 
 func (P *Printer) DoNil(x *AST.Nil) {
 	P.String("?");
-	P.NewLine(0);
 }
 
 
@@ -76,14 +73,89 @@ func (P *Printer) DoFunctionType(x *AST.FunctionType) {
 }
 
 
+func (P *Printer) DoArrayType(x *AST.ArrayType) {
+	P.String("[");
+	P.Print(x.len_);
+	P.String("] ");
+	P.Print(x.elt);
+}
+
+
+func (P *Printer) DoStructType(x *AST.StructType) {
+	P.String("struct {");
+	if x.fields.len() > 0 {
+		P.NewLine(1);
+		for i := 0; i < x.fields.len(); i++ {
+			if i > 0 {
+				P.NewLine(0);
+			}
+			P.Print(x.fields.at(i));
+			P.String(";");
+		}
+		P.NewLine(-1);
+	}
+	P.String("}");
+}
+
+
+func (P *Printer) DoMapType(x *AST.MapType) {
+}
+
+
+func (P *Printer) DoChannelType(x *AST.ChannelType) {
+	P.String("chan ");
+	P.Print(x.elt);
+}
+
+
+func (P *Printer) DoInterfaceType(x *AST.InterfaceType) {
+}
+
+
+func (P *Printer) DoPointerType(x *AST.PointerType) {
+	P.String("*");
+	P.Print(x.base);
+}
+
+
 // ----------------------------------------------------------------------------
 // Declarations
 
 func (P *Printer) DoBlock(x *AST.Block);
 
 
-//func (P *Printer) DoVarDeclList(x *VarDeclList) {
-//}
+func (P *Printer) DoConstDecl(x *AST.ConstDecl) {
+	P.Print(x.ident);
+	P.String(" ");
+	P.Print(x.typ);
+	P.String(" = ");
+	P.Print(x.val);
+}
+
+
+func (P *Printer) DoTypeDecl(x *AST.TypeDecl) {
+	P.Print(x.ident);
+	P.String(" ");
+	P.Print(x.typ);
+}
+
+
+func (P *Printer) DoVarDecl(x *AST.VarDecl) {
+	P.PrintList(x.idents);
+	P.String(" ");
+	P.Print(x.typ);
+	if x.vals != nil {
+		P.String(" = ");
+		P.PrintList(x.vals);
+	}
+}
+
+
+func (P *Printer) DoVarDeclList(x *AST.VarDeclList) {
+	P.PrintList(x.idents);
+	P.String(" ");
+	P.Print(x.typ);
+}
 
 
 func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
@@ -102,6 +174,30 @@ func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
 	}
 	P.NewLine(0);
 	P.NewLine(0);
+	P.NewLine(0);
+}
+
+
+func (P *Printer) DoDeclaration(x *AST.Declaration) {
+	P.String(Scanner.TokenName(x.tok));
+	P.String(" ");
+	switch x.decls.len() {
+	case 0:
+		P.String("()");
+	case 1:
+		P.Print(x.decls.at(0));
+	default:
+		P.String("(");
+		P.NewLine(1);
+		for i := 0; i < x.decls.len(); i++ {
+			if i > 0 {
+				P.NewLine(0);
+			}
+			P.Print(x.decls.at(i));
+		}
+		P.NewLine(-1);
+		P.String(")");
+	}
 	P.NewLine(0);
 }
 
@@ -214,14 +310,77 @@ func (P *Printer) DoForStat(x *AST.ForStat) {
 }
 
 
-func (P *Printer) DoSwitch(x *AST.Switch) {
-	P.String("switch ");
+/*
+func AnalyzeCase(x *AST.SwitchStat) bool {
+	for i := 0; i < x.cases.len(); i++ {
+		clause := x.cases.at(i).(AST.CaseClause);
+		if clause.stats.len() > 1 {
+			return false;
+		}
+	}
+	return true;
+}
+*/
+
+
+func (P *Printer) DoCaseClause(x *AST.CaseClause) {
+	if x.exprs != nil {
+		P.String("case ");
+		P.PrintList(x.exprs);
+		P.String(":");
+	} else {
+		P.String("default:");
+	}
+	
+	n := x.stats.len();
+	m := n;
+	if x.falls {
+		m++;
+	}
+	
+	if m == 0 {
+		P.NewLine(0);
+	} else {
+		P.NewLine(1);
+		for i := 0; i < n; i++ {
+			if i > 0 {
+				P.NewLine(0);
+			}
+			P.Print(x.stats.at(i));
+		}
+		if x.falls {
+			if n > 0 {
+				P.NewLine(0);
+			}
+			P.String("fallthrough;");
+		}
+		P.NewLine(-1);
+	}
 }
 
 
-func (P *Printer) DoReturn(x *AST.Return) {
+func (P *Printer) DoSwitchStat(x *AST.SwitchStat) {
+	P.String("switch ");
+	P.String("{");
+	P.NewLine(0);
+	for i := 0; i < x.cases.len(); i++ {
+		P.Print(x.cases.at(i));
+	}
+	P.NewLine(0);
+	P.String("}");
+}
+
+
+func (P *Printer) DoReturnStat(x *AST.ReturnStat) {
 	P.String("return ");
 	P.PrintList(x.res);
+	P.String(";");
+}
+
+
+func (P *Printer) DoIncDecStat(x *AST.IncDecStat) {
+	P.Print(x.expr);
+	P.String(Scanner.TokenName(x.tok));
 	P.String(";");
 }
 
