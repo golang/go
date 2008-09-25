@@ -166,6 +166,8 @@ SIGSEGV: segmentation violation
 Faulting address: 0x0
 pc: xxx
 
+=========== bugs/bug104.go
+BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
