@@ -49,6 +49,7 @@ export type Visitor interface {
 	DoSwitchStat(x *SwitchStat);
 	DoReturnStat(x *ReturnStat);
 	DoIncDecStat(x *IncDecStat);
+	DoControlFlowStat(x *ControlFlowStat);
 	
 	// Program
 	DoProgram(x *Program);
@@ -65,6 +66,9 @@ export type Node interface {
 
 // ----------------------------------------------------------------------------
 // Lists
+//
+// If p is a list and p == nil, then p.len() == 0.
+// Thus, empty lists can be represented by nil.
 
 export type List struct {
 	a *[] Node
@@ -335,19 +339,26 @@ export type Assignment struct {
 }
 
 
+export type ControlClause struct {
+	init Stat;
+	expr Expr;
+	post Stat;
+	has_init, has_expr, has_post bool;
+}
+
+
 export type IfStat struct {
 	pos int;  // position of "if"
-	init Stat;
-	cond Expr;
-	then, else_ *Block;
+	ctrl *ControlClause;
+	then *Block;
+	else_ Stat;
+	has_else bool;
 }
 
 
 export type ForStat struct {
 	pos int;  // position of "for"
-	init Stat;
-	cond Expr;
-	post Stat;
+	ctrl *ControlClause;
 	body *Block;
 }
 
@@ -362,15 +373,14 @@ export type CaseClause struct {
 
 export type SwitchStat struct {
 	pos int;  // position of "switch"
-	init Stat;
-	tag Expr;
+	ctrl *ControlClause;
 	cases *List;  // list of *CaseClause
 }
 
 
 export type ReturnStat struct {
 	pos int;  // position of "return"
-	res *List;
+	res *List;  // list of Expr
 }
 
 
@@ -381,16 +391,23 @@ export type IncDecStat struct {
 }
 
 
-func (x *Block)       Visit(v Visitor)  { v.DoBlock(x); }
-func (x *ExprStat)    Visit(v Visitor)  { v.DoExprStat(x); }
-func (x *Assignment)  Visit(v Visitor)  { v.DoAssignment(x); }
-func (x *IfStat)      Visit(v Visitor)  { v.DoIfStat(x); }
-func (x *ForStat)     Visit(v Visitor)  { v.DoForStat(x); }
-func (x *CaseClause)  Visit(v Visitor)  { v.DoCaseClause(x); }
-func (x *SwitchStat)  Visit(v Visitor)  { v.DoSwitchStat(x); }
-func (x *ReturnStat)  Visit(v Visitor)  { v.DoReturnStat(x); }
-func (x *IncDecStat)  Visit(v Visitor)  { v.DoIncDecStat(x); }
+export type ControlFlowStat struct {
+	pos int;  // position of token
+	tok int;
+	label *Ident;  // nil, if no label
+}
 
+
+func (x *Block)            Visit(v Visitor)  { v.DoBlock(x); }
+func (x *ExprStat)         Visit(v Visitor)  { v.DoExprStat(x); }
+func (x *Assignment)       Visit(v Visitor)  { v.DoAssignment(x); }
+func (x *IfStat)           Visit(v Visitor)  { v.DoIfStat(x); }
+func (x *ForStat)          Visit(v Visitor)  { v.DoForStat(x); }
+func (x *CaseClause)       Visit(v Visitor)  { v.DoCaseClause(x); }
+func (x *SwitchStat)       Visit(v Visitor)  { v.DoSwitchStat(x); }
+func (x *ReturnStat)       Visit(v Visitor)  { v.DoReturnStat(x); }
+func (x *IncDecStat)       Visit(v Visitor)  { v.DoIncDecStat(x); }
+func (x *ControlFlowStat)  Visit(v Visitor)  { v.DoControlFlowStat(x); }
 
 // ----------------------------------------------------------------------------
 // Program
