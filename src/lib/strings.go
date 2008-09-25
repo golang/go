@@ -87,7 +87,7 @@ export func split(s, sep string) *[]string {
 // Join list of strings with separators between them.
 export func join(a *[]string, sep string) string {
 	if len(a) == 0 {
-		return 0
+		return ""
 	}
 	if len(a) == 1 {
 		return a[0]
