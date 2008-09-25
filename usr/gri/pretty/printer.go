@@ -8,7 +8,8 @@ import Scanner "scanner"
 import AST "ast"
 
 
-type Printer /* implements AST.Visitor */ struct {
+// Printer implements AST.Visitor
+type Printer struct {
 	indent int;
 }
 
@@ -49,7 +50,7 @@ func (P *Printer) PrintList(p *AST.List) {
 // Basics
 
 func (P *Printer) DoNil(x *AST.Nil) {
-	P.String("?");
+	P.String("<NIL>");
 }
 
 
@@ -162,7 +163,7 @@ func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
 	P.String("func ");
 	if x.typ.recv != nil {
 		P.String("(");
-		P.PrintList(x.typ.recv.idents);
+		P.DoVarDeclList(x.typ.recv);
 		P.String(") ");
 	}
 	P.DoIdent(x.ident);
@@ -193,6 +194,7 @@ func (P *Printer) DoDeclaration(x *AST.Declaration) {
 			if i > 0 {
 				P.NewLine(0);
 			}
+			//print("*** i = ", i, "\n");
 			P.Print(x.decls.at(i));
 		}
 		P.NewLine(-1);
@@ -291,21 +293,38 @@ func (P *Printer) DoAssignment(x *AST.Assignment) {
 }
 
 
+func (P *Printer) PrintControlClause(x *AST.ControlClause) {
+	if x.has_init {
+		P.String(" ");
+		P.Print(x.init);
+		P.String(";");
+	}
+	if x.has_expr {
+		P.String(" ");
+		P.Print(x.expr);
+	}
+	if x.has_post {
+		P.String("; ");
+		P.Print(x.post);
+	}
+	P.String(" ");
+}
+
+
 func (P *Printer) DoIfStat(x *AST.IfStat) {
-	P.String("if ");
-	P.Print(x.init);
-	P.String("; ");
-	P.Print(x.cond);
+	P.String("if");
+	P.PrintControlClause(x.ctrl);
 	P.DoBlock(x.then);
-	if x.else_ != nil {
+	if x.has_else {
 		P.String(" else ");
-		P.DoBlock(x.else_);
+		P.Print(x.else_);
 	}
 }
 
 
 func (P *Printer) DoForStat(x *AST.ForStat) {
-	P.String("for ");
+	P.String("for");
+	P.PrintControlClause(x.ctrl);
 	P.DoBlock(x.body);
 }
 
@@ -360,7 +379,8 @@ func (P *Printer) DoCaseClause(x *AST.CaseClause) {
 
 
 func (P *Printer) DoSwitchStat(x *AST.SwitchStat) {
-	P.String("switch ");
+	P.String("switch");
+	P.PrintControlClause(x.ctrl);
 	P.String("{");
 	P.NewLine(0);
 	for i := 0; i < x.cases.len(); i++ {
@@ -381,6 +401,16 @@ func (P *Printer) DoReturnStat(x *AST.ReturnStat) {
 func (P *Printer) DoIncDecStat(x *AST.IncDecStat) {
 	P.Print(x.expr);
 	P.String(Scanner.TokenName(x.tok));
+	P.String(";");
+}
+
+
+func (P *Printer) DoControlFlowStat(x *AST.ControlFlowStat) {
+	P.String(Scanner.TokenName(x.tok));
+	if x.label != nil {
+		P.String(" ");
+		P.Print(x.label);
+	}
 	P.String(";");
 }
 

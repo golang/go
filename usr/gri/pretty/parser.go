@@ -404,7 +404,7 @@ func (P *Parser) ParseMapType() *AST.MapType {
 
 func (P *Parser) ParseStructType() *AST.StructType {
 	P.Trace("StructType");
-	
+
 	typ := new(AST.StructType);
 	typ.pos = P.pos;
 	typ.fields = AST.NewList();
@@ -912,99 +912,91 @@ func (P *Parser) ParseGoStat() {
 func (P *Parser) ParseReturnStat() *AST.ReturnStat {
 	P.Trace("ReturnStat");
 	
-	ret := new(AST.ReturnStat);
-	ret.pos = P.pos;
+	stat := new(AST.ReturnStat);
+	stat.pos = P.pos;
 	
 	P.Expect(Scanner.RETURN);
 	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
-		ret.res = P.ParseExpressionList();
+		stat.res = P.ParseExpressionList();
 	}
 	
 	P.Ecart();
-	return ret;
+	return stat;
 }
 
 
-func (P *Parser) ParseControlFlowStat(tok int) {
+func (P *Parser) ParseControlFlowStat(tok int) *AST.ControlFlowStat {
 	P.Trace("ControlFlowStat");
+	
+	stat := new(AST.ControlFlowStat);
+	stat.pos, stat.tok = P.pos, P.tok;
 	
 	P.Expect(tok);
 	if P.tok == Scanner.IDENT {
-		P.ParseIdent();
+		stat.label = P.ParseIdent();
 	}
 	
 	P.Ecart();
+	return stat;
 }
 
 
-func (P *Parser) ParseStatHeader(keyword int) (init_ AST.Stat, expr_ AST.Expr, post_ AST.Stat) {
+func (P *Parser) ParseControlClause(keyword int) *AST.ControlClause {
 	P.Trace("StatHeader");
 	
-	var (
-		init AST.Stat = AST.NIL;
-		expr AST.Expr = AST.NIL;
-		post AST.Stat = AST.NIL;
-	)
-	
-	has_init, has_expr, has_post := false, false, false;
+	ctrl := new(AST.ControlClause);
+	ctrl.init, ctrl.expr, ctrl.post = AST.NIL, AST.NIL, AST.NIL;
 
 	P.Expect(keyword);
 	if P.tok != Scanner.LBRACE {
 		if P.tok != Scanner.SEMICOLON {
-			init = P.ParseSimpleStat();
-			has_init = true;
+			ctrl.init = P.ParseSimpleStat();
+			ctrl.has_init = true;
 		}
 		if P.tok == Scanner.SEMICOLON {
 			P.Next();
+			if P.tok != Scanner.SEMICOLON && P.tok != Scanner.LBRACE {
+				ctrl.expr = P.ParseExpression();
+				ctrl.has_expr = true;
+			}
 			if keyword == Scanner.FOR {
-				if P.tok != Scanner.SEMICOLON {
-					expr = P.ParseExpression();
-					has_expr = true;
-				}
 				P.Expect(Scanner.SEMICOLON);
 				if P.tok != Scanner.LBRACE {
-					post = P.ParseSimpleStat();
-					has_post = true;
-				}
-			} else {
-				if P.tok != Scanner.LBRACE {
-					expr = P.ParseExpression();
-					has_expr = true;
+					ctrl.post = P.ParseSimpleStat();
+					ctrl.has_post = true;
 				}
 			}
+		} else {
+			ctrl.expr, ctrl.has_expr = ctrl.init, ctrl.has_init;
+			ctrl.init, ctrl.has_init = AST.NIL, false;
 		}
 	}
 
 	P.Ecart();
-	return init, expr, post;
+	return ctrl;
 }
 
 
 func (P *Parser) ParseIfStat() *AST.IfStat {
 	P.Trace("IfStat");
 
-	x := new(AST.IfStat);
-	x.pos = P.pos;
-	var dummy AST.Stat;
-		
-	x.init, x.cond, dummy = P.ParseStatHeader(Scanner.IF);
-	
-	x.then = P.ParseBlock();
+	stat := new(AST.IfStat);
+	stat.pos = P.pos;
+	stat.ctrl = P.ParseControlClause(Scanner.IF);
+	stat.then = P.ParseBlock();
 	if P.tok == Scanner.ELSE {
 		P.Next();
-		b := new(AST.Block);
-		b.stats = AST.NewList();
 		if P.tok == Scanner.IF {
-			b.stats.Add(P.ParseIfStat());
+			stat.else_ = P.ParseIfStat();
 		} else {
-			// TODO should be P.ParseBlock()
-			b.stats.Add(P.ParseStatement());
+			// TODO: Should be P.ParseBlock().
+			stat.else_ = P.ParseStatement();
 		}
-		x.else_ = b;
+		stat.has_else = true;
 	}
 	
 	P.Ecart();
-	return x;
+	return stat;
 }
 
 
@@ -1014,7 +1006,7 @@ func (P *Parser) ParseForStat() *AST.ForStat {
 	stat := new(AST.ForStat);
 	stat.pos = P.pos;
 	
-	P.ParseStatHeader(Scanner.FOR);
+	stat.ctrl = P.ParseControlClause(Scanner.FOR);
 	stat.body = P.ParseBlock();
 	
 	P.Ecart();
@@ -1065,10 +1057,8 @@ func (P *Parser) ParseSwitchStat() *AST.SwitchStat {
 	
 	stat := new(AST.SwitchStat);
 	stat.pos = P.pos;
-	stat.init = AST.NIL;
+	stat.ctrl = P.ParseControlClause(Scanner.SWITCH);
 	stat.cases = AST.NewList();
-
-	P.ParseStatHeader(Scanner.SWITCH);
 	
 	P.Expect(Scanner.LBRACE);
 	for P.tok == Scanner.CASE || P.tok == Scanner.DEFAULT {
@@ -1169,7 +1159,7 @@ func (P *Parser) TryStatement() (stat_ AST.Stat, ok_ bool) {
 	case Scanner.RETURN:
 		stat = P.ParseReturnStat();
 	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
-		P.ParseControlFlowStat(P.tok);
+		stat = P.ParseControlFlowStat(P.tok);
 	case Scanner.LBRACE:
 		stat = P.ParseBlock();
 	case Scanner.IF:
@@ -1219,7 +1209,7 @@ func (P *Parser) ParseImportSpec() {
 }
 
 
-func (P *Parser) ParseConstSpec(exported bool) AST.Decl {
+func (P *Parser) ParseConstSpec(exported bool) *AST.ConstDecl {
 	P.Trace("ConstSpec");
 	
 	decl := new(AST.ConstDecl);
@@ -1237,7 +1227,7 @@ func (P *Parser) ParseConstSpec(exported bool) AST.Decl {
 }
 
 
-func (P *Parser) ParseTypeSpec(exported bool) AST.Decl {
+func (P *Parser) ParseTypeSpec(exported bool) *AST.TypeDecl {
 	P.Trace("TypeSpec");
 
 	decl := new(AST.TypeDecl);
@@ -1249,7 +1239,7 @@ func (P *Parser) ParseTypeSpec(exported bool) AST.Decl {
 }
 
 
-func (P *Parser) ParseVarSpec(exported bool) AST.Decl {
+func (P *Parser) ParseVarSpec(exported bool) *AST.VarDecl {
 	P.Trace("VarSpec");
 	
 	decl := new(AST.VarDecl);
@@ -1270,7 +1260,7 @@ func (P *Parser) ParseVarSpec(exported bool) AST.Decl {
 }
 
 
-// TODO With method variables, we wouldn't need this dispatch function.
+// TODO Replace this by using function pointers derived from methods.
 func (P *Parser) ParseSpec(exported bool, keyword int) AST.Decl {
 	var decl AST.Decl = AST.NIL;
 	switch keyword {
@@ -1333,13 +1323,14 @@ func (P *Parser) ParseFuncDecl(exported bool) *AST.FuncDecl {
 
 	var recv *AST.VarDeclList;
 	if P.tok == Scanner.LPAREN {
-		recv_pos := P.pos;
-		recv := P.ParseParameters().at(0);
-		/*
-		if n != 1 {
-			P.Error(recv_pos, "must have exactly one receiver");
+		pos := P.pos;
+		tmp := P.ParseParameters();
+		if tmp.len() > 0 {
+			recv = tmp.at(0);
 		}
-		*/
+		if recv.idents.len() != 1 {
+			P.Error(pos, "must have exactly one receiver");
+		}
 	}
 	
 	fun.ident = P.ParseIdent();
