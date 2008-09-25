@@ -34,7 +34,7 @@ rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT
 trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT" 0 1 2 3 14 15
 
 if $* >$TMPOUT 2>$TMPERR; then
-  echo 1>&2 "errchk: command succeeded unexpectedly: " "$@"
+  echo 1>&2 "BUG: errchk: command succeeded unexpectedly: " "$@"
   cat $TMPOUT
   cat 1>&2 $TMPERR
   rm -f $TMPOUT $TMPERR
@@ -52,17 +52,17 @@ pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
   grep -v "$SOURCEFILE:$lineno" < $TMPALL > $TMPTMP
   mv -f $TMPTMP $TMPALL
   if test -z "$errmsg"; then
-    echo 1>&2 "errchk: $SOURCEFILE: missing expected error message on line $lineno: '$regexp'"
+    echo 1>&2 "BUG: errchk: $SOURCEFILE: missing expected error message on line $lineno: '$regexp'"
     echo 1 > $TMPSTAT
   elif ! echo "$errmsg" | egrep -q "$regexp"; then
-    echo 1>&2 "errchk: $SOURCEFILE: error message on line $lineno does not match '$regexp'"
+    echo 1>&2 "BUG: errchk: $SOURCEFILE: error message on line $lineno does not match '$regexp'"
     echo 1>&2 $errmsg
     echo 1 > $TMPSTAT
   fi
 done
 
 if test -s $TMPALL; then
-  echo 1>&2 "errchk: $SOURCEFILE: unmatched error messages:"
+  echo 1>&2 "BUG: errchk: $SOURCEFILE: unmatched error messages:"
   echo 1>&2 "=================================================="
   cat 1>&2 $TMPALL
   echo 1>&2 "=================================================="
