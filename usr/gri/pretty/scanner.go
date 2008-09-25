@@ -11,6 +11,7 @@ import Utils "utils"
 export const (
 	ILLEGAL = iota;
 	EOF;
+	IDENT;
 	INT;
 	FLOAT;
 	STRING;
@@ -73,9 +74,6 @@ export const (
 	LAND;
 	LOR;
 	
-	// IDENT must be immediately before keywords
-	IDENT;
-
 	// keywords
 	KEYWORDS_BEG;
 	BREAK;
@@ -115,6 +113,7 @@ export func TokenName(tok int) string {
 	switch (tok) {
 	case ILLEGAL: return "illegal";
 	case EOF: return "eof";
+	case IDENT: return "ident";
 	case INT: return "int";
 	case FLOAT: return "float";
 	case STRING: return "string";
@@ -177,8 +176,6 @@ export func TokenName(tok int) string {
 	case LAND: return "&&";
 	case LOR: return "||";
 
-	case IDENT: return "ident";
-
 	case BREAK: return "break";
 	case CASE: return "case";
 	case CHAN: return "chan";
@@ -207,6 +204,26 @@ export func TokenName(tok int) string {
 	}
 	
 	return "???";
+}
+
+
+export func Precedence(tok int) int {
+	// TODO should use a map or array here for lookup
+	switch tok {
+	case LOR:
+		return 1;
+	case LAND:
+		return 2;
+	case ARROW:
+		return 3;
+	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
+		return 4;
+	case ADD, SUB, OR, XOR:
+		return 5;
+	case MUL, QUO, REM, SHL, SHR, AND:
+		return 6;
+	}
+	return 0;
 }
 
 

@@ -11,6 +11,7 @@ import AST "ast"
 // Printer implements AST.Visitor
 type Printer struct {
 	indent int;
+	prec int;  // operator precedence
 }
 
 
@@ -32,7 +33,10 @@ func (P *Printer) String(s string) {
 
 
 func (P *Printer) Print(x AST.Node) {
+	outer := P.prec;
+	P.prec = 0;
 	x.Visit(P);
+	P.prec = outer;
 }
 
 
@@ -63,14 +67,9 @@ func (P *Printer) DoIdent(x *AST.Ident) {
 // Types
 
 func (P *Printer) DoFunctionType(x *AST.FunctionType) {
-	/*
-	if x.recv != nil {
-		P.DoVarDeclList(x.recv);
-	}
-	*/
 	P.String("(");
 	P.PrintList(x.params);
-	P.String(") ");
+	P.String(")");
 }
 
 
@@ -100,6 +99,10 @@ func (P *Printer) DoStructType(x *AST.StructType) {
 
 
 func (P *Printer) DoMapType(x *AST.MapType) {
+	P.String("[");
+	P.Print(x.key);
+	P.String("] ");
+	P.Print(x.val);
 }
 
 
@@ -110,6 +113,19 @@ func (P *Printer) DoChannelType(x *AST.ChannelType) {
 
 
 func (P *Printer) DoInterfaceType(x *AST.InterfaceType) {
+	P.String("interface {");
+	if x.methods.len() > 0 {
+		P.NewLine(1);
+		for i := 0; i < x.methods.len(); i++ {
+			if i > 0 {
+				P.NewLine(0);
+			}
+			P.Print(x.methods.at(i));
+			P.String(";");
+		}
+		P.NewLine(-1);
+	}
+	P.String("}");
 }
 
 
@@ -123,6 +139,15 @@ func (P *Printer) DoPointerType(x *AST.PointerType) {
 // Declarations
 
 func (P *Printer) DoBlock(x *AST.Block);
+
+
+func (P *Printer) DoImportDecl(x *AST.ImportDecl) {
+	if x.ident != nil {
+		P.Print(x.ident);
+		P.String(" ");
+	}
+	P.String(x.file);
+}
 
 
 func (P *Printer) DoConstDecl(x *AST.ConstDecl) {
@@ -168,6 +193,7 @@ func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
 	}
 	P.DoIdent(x.ident);
 	P.DoFunctionType(x.typ);
+	P.String(" ");
 	if x.body != nil {
 		P.DoBlock(x.body);
 	} else {
@@ -176,6 +202,12 @@ func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
 	P.NewLine(0);
 	P.NewLine(0);
 	P.NewLine(0);
+}
+
+
+func (P *Printer) DoMethodDecl(x *AST.MethodDecl) {
+	P.DoIdent(x.ident);
+	P.DoFunctionType(x.typ);
 }
 
 
@@ -208,11 +240,22 @@ func (P *Printer) DoDeclaration(x *AST.Declaration) {
 // Expressions
 
 func (P *Printer) DoBinary(x *AST.Binary) {
-	print("(");
+	outer := P.prec;
+	P.prec = Scanner.Precedence(x.tok);
+	
+	if P.prec < outer {
+		print("(");
+	}
+	
 	P.Print(x.x);
 	P.String(" " + Scanner.TokenName(x.tok) + " ");
 	P.Print(x.y);
-	print(")");
+	
+	if P.prec < outer {
+		print(")");
+	}
+
+	P.prec = outer; 
 }
 
 
@@ -261,27 +304,30 @@ func (P *Printer) DoSelector(x *AST.Selector) {
 // Statements
 
 func (P *Printer) DoBlock(x *AST.Block) {
-	if x == nil || x.stats == nil {
-		P.NewLine(0);
-		return;
-	}
-
 	P.String("{");
-	P.NewLine(1);
-	for i := 0; i < x.stats.len(); i++ {
-		if i > 0 {
-			P.NewLine(0);
+	if x.stats != nil {
+		P.NewLine(1);
+		for i := 0; i < x.stats.len(); i++ {
+			if i > 0 {
+				P.NewLine(0);
+			}
+			P.Print(x.stats.at(i));
 		}
-		P.Print(x.stats.at(i));
+		P.NewLine(-1);
 	}
-	P.NewLine(-1);
 	P.String("}");
+}
+
+
+func (P *Printer) DoLabel(x *AST.Label) {
+	P.Print(x.ident);
+	P.String(":");
 }
 
 
 func (P *Printer) DoExprStat(x *AST.ExprStat) {
 	P.Print(x.expr);
-	P.String(";");
+	//P.String(";");
 }
 
 
@@ -289,7 +335,7 @@ func (P *Printer) DoAssignment(x *AST.Assignment) {
 	P.PrintList(x.lhs);
 	P.String(" " + Scanner.TokenName(x.tok) + " ");
 	P.PrintList(x.rhs);
-	P.String(";");
+	//P.String(";");
 }
 
 
@@ -401,7 +447,7 @@ func (P *Printer) DoReturnStat(x *AST.ReturnStat) {
 func (P *Printer) DoIncDecStat(x *AST.IncDecStat) {
 	P.Print(x.expr);
 	P.String(Scanner.TokenName(x.tok));
-	P.String(";");
+	//P.String(";");
 }
 
 
@@ -411,6 +457,13 @@ func (P *Printer) DoControlFlowStat(x *AST.ControlFlowStat) {
 		P.String(" ");
 		P.Print(x.label);
 	}
+	P.String(";");
+}
+
+
+func (P *Printer) DoGoStat(x *AST.GoStat) {
+	P.String("go ");
+	P.Print(x.expr);
 	P.String(";");
 }
 

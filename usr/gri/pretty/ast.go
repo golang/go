@@ -23,11 +23,13 @@ export type Visitor interface {
 	DoPointerType(x *PointerType);
 	
 	// Declarations
+	DoImportDecl(x *ImportDecl);
 	DoConstDecl(x *ConstDecl);
 	DoTypeDecl(x *TypeDecl);
 	DoVarDecl(x *VarDecl);
 	DoVarDeclList(x *VarDeclList);
 	DoFuncDecl(x *FuncDecl);
+	DoMethodDecl(x *MethodDecl);
 	DoDeclaration(x *Declaration);
 	
 	// Expressions
@@ -40,6 +42,7 @@ export type Visitor interface {
 	DoSelector(x *Selector);
 	
 	// Statements
+	DoLabel(x *Label);
 	DoBlock(x *Block);
 	DoExprStat(x *ExprStat);
 	DoAssignment(x *Assignment);
@@ -50,7 +53,8 @@ export type Visitor interface {
 	DoReturnStat(x *ReturnStat);
 	DoIncDecStat(x *IncDecStat);
 	DoControlFlowStat(x *ControlFlowStat);
-	
+	DoGoStat(x *GoStat);
+
 	// Program
 	DoProgram(x *Program);
 }
@@ -71,7 +75,7 @@ export type Node interface {
 // Thus, empty lists can be represented by nil.
 
 export type List struct {
-	a *[] Node
+	a *[] Node;
 }
 
 
@@ -176,6 +180,8 @@ export type PointerType struct {
 
 
 export type InterfaceType struct {
+	pos int;  // position of "interface"
+	methods *List;  // list of *MethodDecl
 }
 
 
@@ -207,6 +213,12 @@ export type Decl interface {
 export type VarDeclList struct {
 	idents *List;
 	typ Type;
+}
+
+
+export type ImportDecl struct {
+	ident *Ident;
+	file string;
 }
 
 
@@ -245,11 +257,19 @@ export type FuncDecl struct {
 }
 
 
+export type MethodDecl struct {
+	ident *Ident;
+	typ *FunctionType;
+}
+
+
 func (x *VarDeclList)  Visit(v Visitor)  { v.DoVarDeclList(x); }
+func (x *ImportDecl)   Visit(v Visitor)  { v.DoImportDecl(x); }
 func (x *ConstDecl)    Visit(v Visitor)  { v.DoConstDecl(x); }
 func (x *TypeDecl)     Visit(v Visitor)  { v.DoTypeDecl(x); }
 func (x *VarDecl)      Visit(v Visitor)  { v.DoVarDecl(x); }
 func (x *FuncDecl)     Visit(v Visitor)  { v.DoFuncDecl(x); }
+func (x *MethodDecl)   Visit(v Visitor)  { v.DoMethodDecl(x); }
 func (x *Declaration)  Visit(v Visitor)  { v.DoDeclaration(x); }
 
 
@@ -318,6 +338,12 @@ func (x *Selector) Visit(v Visitor)  { v.DoSelector(x); }
 
 export type Stat interface {
 	Visit(x Visitor);
+}
+
+
+export type Label struct {
+	pos int;  // position of ":"
+	ident Expr;  // should be ident
 }
 
 
@@ -398,7 +424,14 @@ export type ControlFlowStat struct {
 }
 
 
+export type GoStat struct {
+	pos int;  // position of "go"
+	expr Expr;
+}
+
+
 func (x *Block)            Visit(v Visitor)  { v.DoBlock(x); }
+func (x *Label)            Visit(v Visitor)  { v.DoLabel(x); }
 func (x *ExprStat)         Visit(v Visitor)  { v.DoExprStat(x); }
 func (x *Assignment)       Visit(v Visitor)  { v.DoAssignment(x); }
 func (x *IfStat)           Visit(v Visitor)  { v.DoIfStat(x); }
@@ -408,6 +441,8 @@ func (x *SwitchStat)       Visit(v Visitor)  { v.DoSwitchStat(x); }
 func (x *ReturnStat)       Visit(v Visitor)  { v.DoReturnStat(x); }
 func (x *IncDecStat)       Visit(v Visitor)  { v.DoIncDecStat(x); }
 func (x *ControlFlowStat)  Visit(v Visitor)  { v.DoControlFlowStat(x); }
+func (x *GoStat)           Visit(v Visitor)  { v.DoGoStat(x); }
+
 
 // ----------------------------------------------------------------------------
 // Program

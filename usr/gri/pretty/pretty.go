@@ -40,11 +40,14 @@ func main() {
 
 	    src, ok := Platform.ReadSourceFile(src_file);
 	    if !ok {
-                print("cannot open ", src_file, "\n");
-                return;
-            }
+			print("cannot open ", src_file, "\n");
+			sys.exit(1);
+		}
 
-	    print("- ", src_file, "\n");
+		if silent.BVal() {
+			print("- ", src_file, "\n");
+		}
+
 	    scanner := new(Scanner.Scanner);
             scanner.Open(src_file, src);
 
@@ -57,6 +60,11 @@ func main() {
 	    parser.Open(verbose.BVal(), scanner, tstream);
 
 	    prog := parser.ParseProgram();
+		
+		if scanner.nerrors > 0 {
+			sys.exit(1);
+		}
+		
 		if !silent.BVal() {
 			Printer.Print(prog);
 		}
