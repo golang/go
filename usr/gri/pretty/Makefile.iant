@@ -28,11 +28,17 @@ install: pretty
 clean:
 	rm -f pretty *.o  *~
 
-pretty.o:	parser.o printer.o platform.o scanner.o
+pretty.o:	parser.o printer.o platform.o scanner.o flag.o
 
 parser.o:	ast.o scanner.o utils.o printer.o
 
 scanner.o:	utils.o platform.o
+
+flag.o:	fmt.o
+	$(GO) -O2 -c -g $(GOROOT)/src/lib/flag.go
+
+fmt.o:
+	$(GO) -O2 -c -g $(GOROOT)/src/lib/fmt.go
 
 .SUFFIXES:
 .SUFFIXES: .go .o
@@ -49,7 +55,8 @@ PRETTY_OBJS = \
 	printer.o \
 	scanner.o \
 	utils.o \
-
+	flag.o \
+	fmt.o \
 
 pretty: $(PRETTY_OBJS)
 	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)

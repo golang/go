@@ -110,9 +110,9 @@ func (P *Parser) CloseScope() {
 // ----------------------------------------------------------------------------
 // Common productions
 
-func (P *Parser) TryType() (AST.Type, bool);
+func (P *Parser) TryType() (typ AST.Type, ok bool);
 func (P *Parser) ParseExpression() AST.Expr;
-func (P *Parser) TryStatement() (AST.Stat, bool);
+func (P *Parser) TryStatement() (stat AST.Stat, ok bool);
 func (P *Parser) ParseDeclaration() AST.Node;
 
 
@@ -444,7 +444,7 @@ func (P *Parser) ParsePointerType() *AST.PointerType {
 
 
 // Returns false if no type was found.
-func (P *Parser) TryType() (AST.Type, bool) {
+func (P *Parser) TryType() (typ_ AST.Type, ok_ bool) {
 	P.Trace("Type (try)");
 	
 	var typ AST.Type = AST.NIL;
@@ -937,7 +937,7 @@ func (P *Parser) ParseControlFlowStat(tok int) {
 }
 
 
-func (P *Parser) ParseStatHeader(keyword int) (AST.Stat, AST.Expr, AST.Stat) {
+func (P *Parser) ParseStatHeader(keyword int) (init_ AST.Stat, expr_ AST.Expr, post_ AST.Stat) {
 	P.Trace("StatHeader");
 	
 	var (
@@ -1150,7 +1150,7 @@ func (P *Parser) ParseSelectStat() {
 }
 
 
-func (P *Parser) TryStatement() (AST.Stat, bool) {
+func (P *Parser) TryStatement() (stat_ AST.Stat, ok_ bool) {
 	P.Trace("Statement (try)");
 	indent := P.indent;
 
