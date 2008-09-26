@@ -82,3 +82,12 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
 	r, e := syscall.write(fd.fd, &b[0], int64(len(s)));
 	return int(r), ErrnoToError(e)
 }
+
+export func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
+	var p [2]int64
+	r, e := syscall.pipe(&p);
+	if e != 0 {
+		return nil, nil, ErrnoToError(e)
+	}
+	return NewFD(p[0]), NewFD(p[1]), nil
+}
