@@ -40,7 +40,9 @@ export type Visitor interface {
 	DoIndex(x *Index);
 	DoCall(x *Call);
 	DoSelector(x *Selector);
-	
+	DoCompositeLit(x *CompositeLit);
+	DoFunctionLit(x *FunctionLit);
+
 	// Statements
 	DoLabel(x *Label);
 	DoBlock(x *Block);
@@ -167,9 +169,16 @@ export type MapType struct {
 }
 
 
+export const /* chan mode */ (
+	FULL = iota;
+	RECV;
+	SEND;
+)
+
 export type ChannelType struct {
 	pos int;  // position of "chan" or "<-" (if before "chan")
 	elt Type;
+	mode int;
 }
 
 
@@ -324,13 +333,29 @@ export type Literal struct {
 }
 
 
-func (x *Binary)   Visit(v Visitor)  { v.DoBinary(x); }
-func (x *Unary)    Visit(v Visitor)  { v.DoUnary(x); }
-func (x *Literal)  Visit(v Visitor)  { v.DoLiteral(x); }
-func (x *Pair)     Visit(v Visitor)  { v.DoPair(x); }
-func (x *Index)    Visit(v Visitor)  { v.DoIndex(x); }
-func (x *Call)     Visit(v Visitor)  { v.DoCall(x); }
-func (x *Selector) Visit(v Visitor)  { v.DoSelector(x); }
+export type CompositeLit struct {
+	pos int;  // position of "{"
+	typ Type;
+	vals *List  // list of Expr
+}
+
+
+export type FunctionLit struct {
+	pos int;  // position of "func"
+	typ *FunctionType;
+	body *Block;
+}
+
+
+func (x *Binary)       Visit(v Visitor)  { v.DoBinary(x); }
+func (x *Unary)        Visit(v Visitor)  { v.DoUnary(x); }
+func (x *Literal)      Visit(v Visitor)  { v.DoLiteral(x); }
+func (x *Pair)         Visit(v Visitor)  { v.DoPair(x); }
+func (x *Index)        Visit(v Visitor)  { v.DoIndex(x); }
+func (x *Call)         Visit(v Visitor)  { v.DoCall(x); }
+func (x *Selector)     Visit(v Visitor)  { v.DoSelector(x); }
+func (x *CompositeLit) Visit(v Visitor)  { v.DoCompositeLit(x); }
+func (x *FunctionLit)  Visit(v Visitor)  { v.DoFunctionLit(x); }
 
 
 // ----------------------------------------------------------------------------

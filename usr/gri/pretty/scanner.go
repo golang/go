@@ -794,14 +794,14 @@ export type Token struct {
 
 
 func (S *Scanner) TokenStream() *<-chan *Token {
-     	ch := new(chan *Token, 100);
+	ch := new(chan *Token, 100);
 	go func(S *Scanner, ch *chan <- *Token) {
 		for {
 			t := new(Token);
 			t.tok, t.pos, t.val = S.Scan();
 			ch <- t;
 			if t.tok == EOF {
-			   break;
+				break;
 			}
 		}
 	}(S, ch);
