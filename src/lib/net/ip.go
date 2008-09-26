@@ -10,7 +10,7 @@
 // This library accepts either size of byte array but always
 // returns 16-byte addresses.
 
-package ip
+package net
 
 export const (
 	IPv4len = 4;

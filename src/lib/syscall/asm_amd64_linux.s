@@ -48,24 +48,3 @@ TEXT syscall·Syscall6(SB),7,$-8
 	MOVQ	DX, 72(SP)	// r2
 	MOVQ	$0, 80(SP)	// errno
 	RET
-
-// conversion operators - really just casts
-TEXT	syscall·BytePtr(SB),7,$-8
-	MOVQ	8(SP), AX
-	MOVQ	AX, 16(SP)
-	RET
-
-TEXT	syscall·Int32Ptr(SB),7,$-8
-	MOVQ	8(SP), AX
-	MOVQ	AX, 16(SP)
-	RET
-
-TEXT	syscall·Int64Ptr(SB),7,$-8
-	MOVQ	8(SP), AX
-	MOVQ	AX, 16(SP)
-	RET
-
-TEXT	syscall·StatPtr(SB),7,$-8
-	MOVQ	8(SP), AX
-	MOVQ	AX, 16(SP)
-	RET
