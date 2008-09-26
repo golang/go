@@ -452,7 +452,7 @@ asmb(void)
 			INITRND);		/* alignment */
 
 		linuxphdr(0x6474e551,		/* gok - type = gok */
-			1L+2L+4L,		/* gok - flags = PF_X+PF_R */
+			1L+2L+4L,		/* gok - flags = PF_X+PF_W+PF_R */
 			0,			/* file offset */
 			0,			/* vaddr */
 			0,			/* paddr */
@@ -472,9 +472,9 @@ asmb(void)
 			0);			/* entsize */
 
 		stroffset = 1;  /* 0 means no name, so start at 1 */
-		fo = 0;
-		va = INITRND;
-		w = HEADR+textsize;
+		fo = HEADR;
+		va = (INITTEXT & ~((vlong)INITRND - 1)) + HEADR;
+		w = textsize;
 
 		linuxshdr(".text",		/* name */
 			1,			/* type */
@@ -527,7 +527,7 @@ asmb(void)
 			w,			/* size */
 			0,			/* link */
 			0,			/* info */
-			8,			/* align */
+			1,			/* align */
 			0);			/* entsize */
 
 		if (debug['s'])
@@ -537,28 +537,28 @@ asmb(void)
 		w = symsize;
 
 		linuxshdr(".gosymtab",		/* name */
-			7,			/* type */
+			1,			/* type 1 = SHT_PROGBITS */
 			0,			/* flags */
 			0,			/* addr */
 			fo,			/* off */
 			w,			/* size */
 			0,			/* link */
 			0,			/* info */
-			8,			/* align */
+			1,			/* align */
 			24);			/* entsize */
 		
 		fo += w;
 		w = lcsize;
 
 		linuxshdr(".gopclntab",		/* name */
-			7,			/* type */
+			1,			/* type 1 = SHT_PROGBITS*/
 			0,			/* flags */
 			0,			/* addr */
 			fo,			/* off */
 			w,			/* size */
 			0,			/* link */
 			0,			/* info */
-			8,			/* align */
+			1,			/* align */
 			24);			/* entsize */
 		break;
 	}
