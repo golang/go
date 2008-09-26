@@ -56,6 +56,8 @@
 %type	<type>		structtype interfacetype convtype
 %type	<type>		Achantype Bchantype
 
+%type	<val>		hidden_constant
+
 %left			LOROR
 %left			LANDAND
 %left			LCOMM
@@ -1555,11 +1557,11 @@ hidden_import:
 	}
 
 	/* constants */
-|	LCONST hidden_importsym LLITERAL
+|	LCONST hidden_importsym hidden_constant
 	{
 		doimportc1($2, &$3);
 	}
-|	LCONST hidden_importsym hidden_importsym LLITERAL
+|	LCONST hidden_importsym hidden_importsym hidden_constant
 	{
 		doimportc2($2, $3, &$4);
 	}
@@ -1614,6 +1616,23 @@ hidden_import:
 	{
 		// method
 		doimport9($2, $3);
+	}
+
+hidden_constant:
+	LLITERAL
+|	'-' LLITERAL
+	{
+		$$ = $2;
+		switch($$.ctype){
+		case CTINT:
+			mpnegfix($$.u.xval);
+			break;
+		case CTFLT:
+			mpnegflt($$.u.fval);
+			break;
+		default:
+			yyerror("bad negated constant");
+		}
 	}
 
 isym:
