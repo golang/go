@@ -186,7 +186,6 @@ struct	SigTab
  */
 extern	Alg	algarray[3];
 extern	string	emptystring;
-M*	allm;
 G*	allg;
 int32	goidgen;
 extern	int32	gomaxprocs;

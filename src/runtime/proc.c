@@ -297,7 +297,7 @@ static void
 readylocked(G *g)
 {
 	M *m;
-	
+
 	if(g->m){
 		// Running on another machine.
 		// Ready it when it stops.
@@ -346,7 +346,7 @@ nextgandunlock(void)
 
 	mput(m);
 	if(sched.mcount == sched.mwait)
-		prints("warning: all goroutines are asleep - deadlock!\n");
+		throw("all goroutines are asleep - deadlock!");
 	m->nextg = nil;
 	noteclear(&m->havenextg);
 	unlock(&sched);
@@ -377,7 +377,7 @@ scheduler(void)
 		// Jumped here via gosave/gogo, so didn't
 		// execute lock(&sched) above.
 		lock(&sched);
-		
+
 		if(sched.predawn)
 			throw("init sleeping");
 

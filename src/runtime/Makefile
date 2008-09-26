@@ -59,5 +59,5 @@ sys_file.$O:	sys_file.c sys_types.h $(OS_H)
 %.$O:	%.s
 	$(AS) $<
 
-runtime.acid: runtime.h
-	$(CC) -a runtime.h >runtime.acid
+runtime.acid: runtime.h proc.c
+	$(CC) -a proc.c >runtime.acid
