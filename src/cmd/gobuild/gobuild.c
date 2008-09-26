@@ -20,6 +20,8 @@ int chatty;
 int devnull;	// fd of /dev/null
 int makefile;	// generate Makefile
 char *thechar;	// object character
+char *goos;
+char *goarch;
 
 // Info about when to compile a particular file.
 typedef struct Job Job;
@@ -133,6 +135,36 @@ goobj(char *file, char *suffix)
 	return smprint("%.*s.%s", utfnlen(file, p-file), file, suffix);
 }
 
+// Format name using $(GOOS) and $(GOARCH).
+int
+dollarfmt(Fmt *f)
+{
+	char *s;
+	Rune r;
+	int n;
+
+	s = va_arg(f->args, char*);
+	if(s == nil){
+		fmtstrcpy(f, "<nil>");
+		return 0;
+	}
+	for(; *s; s+=n){
+		n = strlen(goarch);
+		if(strncmp(s, goarch, n) == 0){
+			fmtstrcpy(f, "$(GOARCH)");
+			continue;
+		}
+		n = strlen(goos);
+		if(strncmp(s, goos, n) == 0){
+			fmtstrcpy(f, "$(GOOS)");
+			continue;
+		}
+		n = chartorune(&r, s);
+		fmtrune(f, r);
+	}
+	return 0;
+}
+
 // Makefile preamble template.
 char preamble[] =
 	"O=%s\n"
@@ -166,12 +198,13 @@ void
 main(int argc, char **argv)
 {
 	int i, o, p, n, pass, nar, njob, nthis, nnext, oargc;
-	char **ar, **next, **this, **tmp, *goarch, *goroot, *pkgname, *pkgpath, **oargv;
+	char **ar, **next, **this, **tmp, *goroot, *pkgname, *pkgpath, **oargv;
 	Job *job;
 	Biobuf bout;
 
 	oargc = argc;
 	oargv = argv;
+	fmtinstall('$', dollarfmt);
 
 	ARGBEGIN{
 	default:
@@ -187,6 +220,9 @@ main(int argc, char **argv)
 	if(argc < 2)
 		usage();
 
+	goos = getenv("GOOS");
+	if(goos == nil)
+		sysfatal("no $GOOS");
 	goarch = getenv("GOARCH");
 	if(goarch == nil)
 		sysfatal("no $GOARCH");
@@ -309,7 +345,7 @@ main(int argc, char **argv)
 				p = job[i].pass;
 				Bprint(&bout, "\nO%d=\\\n", p+1);
 			}
-			Bprint(&bout, "\t%s\\\n", goobj(job[i].name, "$O"));
+			Bprint(&bout, "\t%$\\\n", goobj(job[i].name, "$O"));
 		}
 		Bprint(&bout, "\n");
 
@@ -321,9 +357,11 @@ main(int argc, char **argv)
 
 		// a1: $(O1)
 		//	$(AS) grc $(PKG) $(O1)
+		//	rm -f $(O1)
 		for(i=0; i<pass; i++){
 			Bprint(&bout, "a%d:\t$(O%d)\n", i+1, i+1);
 			Bprint(&bout, "\t$(AR) grc $(PKG) $(O%d)\n", i+1);
+			Bprint(&bout, "\trm -f $(O%d)\n", i+1);
 		}
 		Bprint(&bout, "\n");
 
