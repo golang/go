@@ -212,6 +212,7 @@ func (P *Parser) ParseArrayType() *AST.ArrayType {
 	
 	typ := new(AST.ArrayType);
 	typ.pos = P.pos;
+	typ.len_ = AST.NIL;
 	
 	P.Expect(Scanner.LBRACK);
 	if P.tok != Scanner.RBRACK {
@@ -231,15 +232,18 @@ func (P *Parser) ParseChannelType() *AST.ChannelType {
 	
 	typ := new(AST.ChannelType);
 	typ.pos = P.pos;
+	typ.mode = AST.FULL;
 	
 	if P.tok == Scanner.CHAN {
 		P.Next();
 		if P.tok == Scanner.ARROW {
 			P.Next();
+			typ.mode = AST.SEND;
 		}
 	} else {
 		P.Expect(Scanner.ARROW);
 		P.Expect(Scanner.CHAN);
+		typ.mode = AST.RECV;
 	}
 	typ.elt = P.ParseVarType();
 
@@ -532,91 +536,106 @@ func (P *Parser) ParseBlock() *AST.Block {
 // ----------------------------------------------------------------------------
 // Expressions
 
-func (P *Parser) ParseExpressionList() *AST.List {
+func (P *Parser) ParseExpressionList(list *AST.List) {
 	P.Trace("ExpressionList");
 
-	p := AST.NewList();
-	p.Add(P.ParseExpression());
+	list.Add(P.ParseExpression());
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		p.Add(P.ParseExpression());
+		list.Add(P.ParseExpression());
 	}
 	
 	P.Ecart();
-	return p;
 }
 
 
-func (P *Parser) ParseFunctionLit() AST.Expr {
+func (P *Parser) ParseNewExpressionList() *AST.List {
+	list := AST.NewList();
+	P.ParseExpressionList(list);
+	return list;
+}
+
+
+func (P *Parser) ParseFunctionLit() *AST.FunctionLit {
 	P.Trace("FunctionLit");
 	
+	fun := new(AST.FunctionLit);
+	fun.pos = P.pos;
+	
 	P.Expect(Scanner.FUNC);
-	P.ParseFunctionType();
-	P.ParseBlock();
+	fun.typ = P.ParseFunctionType();
+	fun.body = P.ParseBlock();
 	
 	P.Ecart();
-	var x AST.Expr;
-	return x;
+	return fun;
 }
 
 
 func (P *Parser) ParseExpressionPair() AST.Expr {
 	P.Trace("ExpressionPair");
 
-	x := P.ParseExpression();
-	pos := P.pos;
+	p := new(AST.Pair);
+	p.x = P.ParseExpression();
+	p.pos = P.pos;
 	P.Expect(Scanner.COLON);
-	y := P.ParseExpression();
-	
-	z := new(AST.Pair);
-	z.pos, z.x, z.y = pos, x, y;
-	
-	P.Ecart();
-	return z;
-}
-
-
-func (P *Parser) ParseExpressionPairList() *AST.List {
-	P.Trace("ExpressionPairList");
-
-	p := AST.NewList();
-	p.Add(P.ParseExpressionPair());
-	for P.tok == Scanner.COMMA {
-		p.Add(P.ParseExpressionPair());
-	}
+	p.y = P.ParseExpression();
 	
 	P.Ecart();
 	return p;
 }
 
 
-func (P *Parser) ParseCompositeLit() AST.Expr {
+func (P *Parser) ParseExpressionPairList(list *AST.List) {
+	P.Trace("ExpressionPairList");
+
+	list.Add(P.ParseExpressionPair());
+	for P.tok == Scanner.COMMA {
+		list.Add(P.ParseExpressionPair());
+	}
+	
+	P.Ecart();
+}
+
+
+func (P *Parser) ParseCompositeLit(typ AST.Type) AST.Expr {
 	P.Trace("CompositeLit");
+	
+	lit := new(AST.CompositeLit);
+	lit.pos = P.pos;
+	lit.typ = typ;
+	lit.vals = AST.NewList();
 	
 	P.Expect(Scanner.LBRACE);
 	// TODO: should allow trailing ','
 	if P.tok != Scanner.RBRACE {
-		P.ParseExpression();
+		x := P.ParseExpression();
 		if P.tok == Scanner.COMMA {
 			P.Next();
+			lit.vals.Add(x);
 			if P.tok != Scanner.RBRACE {
-				P.ParseExpressionList();
+				P.ParseExpressionList(lit.vals);
 			}
 		} else if P.tok == Scanner.COLON {
+			p := new(AST.Pair);
+			p.pos = P.pos;
+			p.x = x;
 			P.Next();
-			P.ParseExpression();
+			p.y = P.ParseExpression();
+			lit.vals.Add(p);
 			if P.tok == Scanner.COMMA {
 				P.Next();
 				if P.tok != Scanner.RBRACE {
-					P.ParseExpressionPairList();
+					P.ParseExpressionPairList(lit.vals);
 				}
 			}
+		} else {
+			lit.vals.Add(x);
 		}
 	}
 	P.Expect(Scanner.RBRACE);
 
 	P.Ecart();
-	return nil;
+	return lit;
 }
 
 
@@ -645,15 +664,15 @@ func (P *Parser) ParseOperand() AST.Expr {
 		
 	case Scanner.HASH:
 		P.Next();
-		P.ParseType();
-		P.ParseCompositeLit();
+		typ := P.ParseType();
+		P.ParseCompositeLit(typ);
 		op = AST.NIL;
 
 	default:
 		if P.tok != Scanner.IDENT {
 			typ, ok := P.TryType();
 			if ok {
-				op = P.ParseCompositeLit();
+				op = P.ParseCompositeLit(typ);
 				break;
 			}
 		}
@@ -712,11 +731,14 @@ func (P *Parser) ParseIndexOrSlice(x AST.Expr) AST.Expr {
 }
 
 
-func (P *Parser) ParseCall(x AST.Expr) AST.Expr {
+func (P *Parser) ParseCall(x AST.Expr) *AST.Call {
 	P.Trace("Call");
 
-	pos := P.pos;
-	var args *AST.List = nil;
+	call := new(AST.Call);
+	call.pos = P.pos;
+	call.fun = x;
+	call.args = nil;
+	
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
 	   	// first arguments could be a type if the call is to "new"
@@ -727,24 +749,24 @@ func (P *Parser) ParseCall(x AST.Expr) AST.Expr {
 		if P.tok != Scanner.IDENT && P.tok != Scanner.LPAREN {
 			typ, ok := P.TryType();
 			if ok {
+				call.args = AST.NewList();
+				call.args.Add(typ);
 				if P.tok == Scanner.COMMA {
 					P.Next();
 					if P.tok != Scanner.RPAREN {
-						args = P.ParseExpressionList();
+						P.ParseExpressionList(call.args);
 					}
 				}
 			} else {
-				args = P.ParseExpressionList();
+				call.args = P.ParseNewExpressionList();
 			}
 		} else {
-			args = P.ParseExpressionList();
+			call.args = P.ParseNewExpressionList();
 		}
 	}
 	P.Expect(Scanner.RPAREN);
 	
 	P.Ecart();
-	call := new(AST.Call);
-	call.pos, call.fun, call.args = pos, x, args;
 	return call;
 }
 
@@ -837,7 +859,7 @@ func (P *Parser) ParseSimpleStat() AST.Stat {
 	P.Trace("SimpleStat");
 	
 	var stat AST.Stat = AST.NIL;
-	x := P.ParseExpressionList();
+	x := P.ParseNewExpressionList();
 	
 	switch P.tok {
 	case Scanner.COLON:
@@ -860,7 +882,7 @@ func (P *Parser) ParseSimpleStat() AST.Stat {
 		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
 		pos, tok := P.pos, P.tok;
 		P.Next();
-		y := P.ParseExpressionList();
+		y := P.ParseNewExpressionList();
 		a := new(AST.Assignment);
 		a.pos, a.tok, a.lhs, a.rhs = pos, tok, x, y;
 		stat = a;
@@ -915,7 +937,7 @@ func (P *Parser) ParseReturnStat() *AST.ReturnStat {
 	
 	P.Expect(Scanner.RETURN);
 	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
-		stat.res = P.ParseExpressionList();
+		stat.res = P.ParseNewExpressionList();
 	}
 	
 	P.Ecart();
@@ -1020,7 +1042,7 @@ func (P *Parser) ParseCase() *AST.CaseClause {
 	
 	if P.tok == Scanner.CASE {
 		P.Next();
-		clause.exprs = P.ParseExpressionList();
+		clause.exprs = P.ParseNewExpressionList();
 	} else {
 		P.Expect(Scanner.DEFAULT);
 	}
@@ -1218,6 +1240,7 @@ func (P *Parser) ParseConstSpec(exported bool) *AST.ConstDecl {
 	decl.ident = P.ParseIdent();
 	var ok bool;
 	decl.typ, ok = P.TryType();
+	decl.val = AST.NIL;
 	
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
@@ -1248,12 +1271,13 @@ func (P *Parser) ParseVarSpec(exported bool) *AST.VarDecl {
 	decl.idents = P.ParseIdentList();
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
-		decl.vals = P.ParseExpressionList();
+		decl.typ = AST.NIL;
+		decl.vals = P.ParseNewExpressionList();
 	} else {
 		decl.typ = P.ParseVarType();
 		if P.tok == Scanner.ASSIGN {
 			P.Next();
-			decl.vals = P.ParseExpressionList();
+			decl.vals = P.ParseNewExpressionList();
 		}
 	}
 	

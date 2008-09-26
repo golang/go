@@ -107,7 +107,11 @@ func (P *Printer) DoMapType(x *AST.MapType) {
 
 
 func (P *Printer) DoChannelType(x *AST.ChannelType) {
-	P.String("chan ");
+	switch x.mode {
+	case AST.FULL: P.String("chan ");
+	case AST.RECV: P.String("<-chan ");
+	case AST.SEND: P.String("chan <- ");
+	}
 	P.Print(x.elt);
 }
 
@@ -226,8 +230,8 @@ func (P *Printer) DoDeclaration(x *AST.Declaration) {
 			if i > 0 {
 				P.NewLine(0);
 			}
-			//print("*** i = ", i, "\n");
 			P.Print(x.decls.at(i));
+			P.String(";");
 		}
 		P.NewLine(-1);
 		P.String(")");
@@ -300,6 +304,22 @@ func (P *Printer) DoSelector(x *AST.Selector) {
 }
 
 
+func (P *Printer) DoCompositeLit(x *AST.CompositeLit) {
+	P.Print(x.typ);
+	P.String("{");
+	P.PrintList(x.vals);
+	P.String("}");
+}
+
+
+func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
+	P.String("func ");
+	P.Print(x.typ);
+	P.String(" ");
+	P.Print(x.body);
+}
+
+
 // ----------------------------------------------------------------------------
 // Statements
 
@@ -320,8 +340,10 @@ func (P *Printer) DoBlock(x *AST.Block) {
 
 
 func (P *Printer) DoLabel(x *AST.Label) {
+	P.NewLine(-1);
 	P.Print(x.ident);
 	P.String(":");
+	P.indent++;
 }
 
 
