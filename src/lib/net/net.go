@@ -81,7 +81,7 @@ func dtoi(s string) (n int, ok bool) {
 // Convert "host:port" into IP address and port.
 // For now, host and port must be numeric literals.
 // Eventually, we'll have name resolution.
-func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.Error) {
+func HostPortToIP(net string, hostport string) (ipaddr *[]byte, iport int, err *os.Error) {
 	var host, port string;
 	host, port, err = SplitHostPort(hostport);
 	if err != nil {
