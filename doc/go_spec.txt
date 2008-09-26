@@ -49,6 +49,8 @@ Open issues according to gri:
 [ ] Do composite literals create a new literal each time (gri thinks yes)
 [ ] consider syntactic notation for composite literals to make them parseable w/o type information
 [ ] nil and interfaces - can we test for nil, what does it mean, etc.
+[ ] type switch or some form of type test needed
+[ ] what is the meaning of typeof()
 
 
 Decisions in need of integration into the doc:
@@ -1343,10 +1345,6 @@ Implementation restriction: A function literal can reference only
 its parameters, global variables, and variables declared within the
 function literal.
 
-TODO: Should a function literal return a value of the function type
-instead of the pointer to the function? Seems more consistent with
-the other uses and composite literals.
-
 
 Primary expressions
 ----
@@ -1812,9 +1810,7 @@ Note that ++ and -- are not operators for expressions.
 Assignments
 ----
 
-	Assignment = SingleAssignment | TupleAssignment .
-	SingleAssignment = PrimaryExpr assign_op Expression .
-	TupleAssignment = PrimaryExprList assign_op ExpressionList .
+	Assignment = PrimaryExprList assign_op ExpressionList .
 	PrimaryExprList = PrimaryExpr { "," PrimaryExpr } .
 	
 	assign_op = [ add_op | mul_op ] "=" .
@@ -2035,12 +2031,13 @@ Go statements
 ----
 
 A go statement starts the execution of a function as an independent
-concurrent thread of control within the same address space.  Unlike
-with a function, the next line of the program does not wait for the
-function to complete.
+concurrent thread of control within the same address space. PrimaryExpr
+must evaluate into a function call.
 
-	GoStat = "go" Call .
+	GoStat = "go" PrimaryExpr .
 
+Unlike with a regular function call, program execution does not wait
+for the invoked function to complete.
 
 	go Server()
 	go func(ch chan <- bool) { for { sleep(10); ch <- true; }} (c)
@@ -2597,6 +2594,7 @@ TODO: is there a way to override the default for package main or the
 default for the function name main.main?
 
 
+<!--
 ----
 ----
 UNUSED PARTS OF OLD DOCUMENT go_lang.txt - KEEP AROUND UNTIL NOT NEEDED ANYMORE
@@ -2752,13 +2750,6 @@ There is also a built-in string type, which represents immutable
 strings of bytes.
 
 
-Syntax
-----
-
-The syntax of statements and expressions in Go borrows from the C tradition;
-declarations are loosely derived from the Pascal tradition to allow more
-comprehensible composability of types.
-
 Interface of a type
 ----
 
@@ -2802,47 +2793,6 @@ TODO: details about reflection
 END]
 
 
-Equivalence of types
----
-
-TODO: We may need to rethink this because of the new ways interfaces work.
-
-Types are structurally equivalent: Two types are equivalent (``equal'') if they
-are constructed the same way from equivalent types.
-
-For instance, all variables declared as "*int" have equivalent type,
-as do all variables declared as "map [string] *chan int".
-
-More precisely, two struct types are equivalent if they have exactly the same fields
-in the same order, with equal field names and types. For all other composite types,
-the types of the components must be equivalent. Additionally, for equivalent arrays,
-the lengths must be equal (or absent), and for channel types the mode must be equal
-(">", "<", or none). The names of receivers, parameters, or result values of functions
-are ignored for the purpose of type equivalence.
-
-For instance, the struct type
-
-	struct {
-		a int;
-		b int;
-		f *(m *[32] float, x int, y int) bool
-	}
-	
-is equivalent to
-
-	struct {
-		a, b int;
-		f *F
-	}
-	
-where "F" is declared as "func (a *[30 + 2] float, b, c int) (ok bool)".
-
-Finally, two interface types are equivalent if they both declare the same set of
-methods: For each method in the first interface type there is a method in the
-second interface type with the same method name and equivalent function type,
-and vice versa. Note that the declaration order of the methods is not relevant.
-
-
 [OLD
 The nil value
 ----
@@ -2867,45 +2817,4 @@ pointer or interface value.
 By default, pointers are initialized to nil.
 
 TODO: This needs to be revisited.
-
-[OLD
-TODO: how does this definition jibe with using nil to specify
-conversion failure if the result is not of pointer type, such
-as an any variable holding an int?
-
-TODO: if interfaces were explicitly pointers, this gets simpler.
-END]
-
-
-Expressions
-----
-
-Expression syntax is based on that of C but with fewer precedence levels.
-
-	Expression = BinaryExpr | UnaryExpr | PrimaryExpr .
-	BinaryExpr = Expression binary_op Expression .
-	UnaryExpr = unary_op Expression .
-
-	PrimaryExpr =
-		identifier | Literal | "(" Expression ")" | "iota" |
-		Call | Conversion | Allocation | Index |
-		Expression "." identifier | Expression "." "(" Type ")" .
-
-	Call = Expression "(" [ ExpressionList ] ")" .
-	Conversion =
-		"convert" "(" Type [ "," ExpressionList ] ")" | ConversionType "(" [ ExpressionList ] ")" .
-	ConversionType = TypeName | ArrayType | MapType | StructType | InterfaceType .
-	Allocation = "new" "(" Type [ "," ExpressionList ] ")" .
-	Index = SimpleIndex | Slice .
-	SimpleIndex = Expression "[" Expression"]" .
-	Slice = Expression "[" Expression ":" Expression "]" .
-
-
-
-TODO
-----
-
-- TODO: type switch?
-- TODO: words about slices
-- TODO: really lock down semicolons
-- TODO: need to talk (perhaps elsewhere) about libraries, sys.exit(), etc.
+-->
