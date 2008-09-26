@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// $G $F.go && $L $F.$A && ./$A.out
+// $G $F.go && $L $F.$A && GOMAXPROCS=2 ./$A.out
 
 package main
 
 import (
 	"net";
 	"flag";
+	"io";
 	"os";
 	"syscall"
 )
@@ -27,6 +28,20 @@ func StringToBuf(s string) *[]byte
 	return b;
 }
 
+func Readn(fd io.Read, buf *[]byte) (n int, err *os.Error) {
+	n = 0;
+	for n < len(buf) {
+		nn, e := fd.Read(buf[n:len(buf)]);
+		if nn > 0 {
+			n += nn
+		}
+		if e != nil {
+			return n, e
+		}
+	}
+	return n, nil
+}
+
 
 // fd is already connected to www.google.com port 80.
 // Run an HTTP request to fetch the main page.
@@ -35,7 +50,7 @@ func FetchGoogle(fd net.Conn) {
 	n, errno := fd.Write(req);
 
 	buf := new([1000]byte);
-	n, errno = fd.Read(buf);
+	n, errno = Readn(fd, buf);
 
 	fd.Close();
 	if n < 1000 {
