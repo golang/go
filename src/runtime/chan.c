@@ -198,12 +198,18 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 	sg = g->param;
 	freesg(c, sg);
 	unlock(&chanlock);
+	if(pres != nil)
+		*pres = true;
 	return;
 
 asynch:
 //prints("\nasend\n");
 	while(c->qcount >= c->dataqsiz) {
-		// (rsc) should check for pres != nil
+		if(pres != nil) {
+			unlock(&chanlock);
+			*pres = false;
+			return;
+		}
 		sg = allocsg(c);
 		g->status = Gwaiting;
 		enqueue(&c->sendq, sg);
@@ -227,6 +233,8 @@ asynch:
 		ready(gp);
 	} else
 		unlock(&chanlock);
+	if(pres != nil)
+		*pres = true;
 }
 
 static void
@@ -277,10 +285,17 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 	c->elemalg->copy(c->elemsize, ep, sg->elem);
 	freesg(c, sg);
 	unlock(&chanlock);
+	if(pres != nil)
+		*pres = true;
 	return;
 
 asynch:
 	while(c->qcount <= 0) {
+		if(pres != nil) {
+			unlock(&chanlock);
+			*pres = false;
+			return;
+		}
 		sg = allocsg(c);
 		g->status = Gwaiting;
 		enqueue(&c->recvq, sg);
@@ -300,6 +315,8 @@ asynch:
 		ready(gp);
 	} else
 		unlock(&chanlock);
+	if(pres != nil)
+		*pres = true;
 }
 
 // chansend1(hchan *chan any, elem any);

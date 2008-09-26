@@ -52,61 +52,63 @@ func main() {
 	var s string;
 	var ok bool;
 
-	c32 := new(chan int32);
-	c64 := new(chan int64);
-	cb := new(chan bool);
-	cs := new(chan string);
-
-	i32, ok = <-c32;
-	if ok { panic("blocked i32sender") }
-
-	i64, ok = <-c64;
-	if ok { panic("blocked i64sender") }
-
-	b, ok = <-cb;
-	if ok { panic("blocked bsender") }
-
-	s, ok = <-cs;
-	if ok { panic("blocked ssender") }
-
-	go i32receiver(c32);
-	pause();
-	ok = c32 <- 123;
-	if !ok { panic("i32receiver") }
-	go i32sender(c32);
-	pause();
-	i32, ok = <-c32;
-	if !ok { panic("i32sender") }
-	if i32 != 234 { panic("i32sender value") }
-
-	go i64receiver(c64);
-	pause();
-	ok = c64 <- 123456;
-	if !ok { panic("i64receiver") }
-	go i64sender(c64);
-	pause();
-	i64, ok = <-c64;
-	if !ok { panic("i64sender") }
-	if i64 != 234567 { panic("i64sender value") }
-
-	go breceiver(cb);
-	pause();
-	ok = cb <- true;
-	if !ok { panic("breceiver") }
-	go bsender(cb);
-	pause();
-	b, ok = <-cb;
-	if !ok { panic("bsender") }
-	if !b{ panic("bsender value") }
-
-	go sreceiver(cs);
-	pause();
-	ok = cs <- "hello";
-	if !ok { panic("sreceiver") }
-	go ssender(cs);
-	pause();
-	s, ok = <-cs;
-	if !ok { panic("ssender") }
-	if s != "hello again" { panic("ssender value") }
+	for buffer := 0; buffer < 2; buffer++ {
+		c32 := new(chan int32, buffer);
+		c64 := new(chan int64, buffer);
+		cb := new(chan bool, buffer);
+		cs := new(chan string, buffer);
+	
+		i32, ok = <-c32;
+		if ok { panic("blocked i32sender") }
+	
+		i64, ok = <-c64;
+		if ok { panic("blocked i64sender") }
+	
+		b, ok = <-cb;
+		if ok { panic("blocked bsender") }
+	
+		s, ok = <-cs;
+		if ok { panic("blocked ssender") }
+	
+		go i32receiver(c32);
+		pause();
+		ok = c32 <- 123;
+		if !ok { panic("i32receiver") }
+		go i32sender(c32);
+		pause();
+		i32, ok = <-c32;
+		if !ok { panic("i32sender") }
+		if i32 != 234 { panic("i32sender value") }
+	
+		go i64receiver(c64);
+		pause();
+		ok = c64 <- 123456;
+		if !ok { panic("i64receiver") }
+		go i64sender(c64);
+		pause();
+		i64, ok = <-c64;
+		if !ok { panic("i64sender") }
+		if i64 != 234567 { panic("i64sender value") }
+	
+		go breceiver(cb);
+		pause();
+		ok = cb <- true;
+		if !ok { panic("breceiver") }
+		go bsender(cb);
+		pause();
+		b, ok = <-cb;
+		if !ok { panic("bsender") }
+		if !b{ panic("bsender value") }
+	
+		go sreceiver(cs);
+		pause();
+		ok = cs <- "hello";
+		if !ok { panic("sreceiver") }
+		go ssender(cs);
+		pause();
+		s, ok = <-cs;
+		if !ok { panic("ssender") }
+		if s != "hello again" { panic("ssender value") }
+	}
 	print("PASS\n")
 }
