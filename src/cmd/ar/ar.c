@@ -121,6 +121,8 @@ int	oflag;
 int	uflag;
 int	vflag;
 
+int	errors;
+
 Arfile *astart, *amiddle, *aend;	/* Temp file control block pointers */
 int	allobj = 1;			/* set when all members are object files of the same type */
 int	symdefsize;			/* size of symdef file */
@@ -246,6 +248,8 @@ main(int argc, char *argv[])
 		}
 		argv++;
 	}
+	if (errors)
+		cp = "error";
 	exits(cp);
 }
 /*
@@ -307,8 +311,10 @@ rcmd(char *arname, int count, char **files)
 		}
 		bfile = Bopen(file, OREAD);
 		if (!bfile) {
-			if (count != 0)
+			if (count != 0) {
 				fprint(2, "ar: cannot open %s\n", file);
+				errors++;
+			}
 			scanobj(&bar, ap, bp->size);
 			arcopy(&bar, ap, bp);
 			continue;
@@ -339,9 +345,10 @@ rcmd(char *arname, int count, char **files)
 			continue;
 		files[i] = 0;
 		bfile = Bopen(file, OREAD);
-		if (!bfile)
-			fprint(2, "ar: %s cannot open\n", file);
-		else {
+		if (!bfile) {
+			fprint(2, "ar: cannot open %s\n", file);
+			errors++;
+		} else {
 			mesg('a', file);
 			d = dirfstat(Bfildes(bfile));
 			if (d == nil)
@@ -553,9 +560,10 @@ qcmd(char *arname, int count, char **files)
 		file = files[i];
 		files[i] = 0;
 		bfile = Bopen(file, OREAD);
-		if(!bfile)
-			fprint(2, "ar: %s cannot open\n", file);
-		else {
+		if(!bfile) {
+			fprint(2, "ar: cannot open %s\n", file);
+			errors++;
+		} else {
 			mesg('q', file);
 			armove(bfile, 0, bp);
 			if (!arwrite(fd, bp))
