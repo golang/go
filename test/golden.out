@@ -169,6 +169,9 @@ pc: xxx
 =========== bugs/bug104.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
 
+=========== bugs/bug107.go
+BUG: errchk: command succeeded unexpectedly:  6g bugs/bug107.go
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
 
