@@ -139,7 +139,7 @@ static int
 me(kern_return_t r)
 {
 	int i;
-	
+
 	if(r == 0)
 		return 0;
 
@@ -217,7 +217,7 @@ addpid(int pid, int force)
 		pthread_cond_init(&cond, nil);
 		first = 0;
 	}
-	
+
 	if(!force){
 		for(i=0; i<nthr; i++)
 			if(thr[i].pid == pid)
@@ -269,7 +269,7 @@ idtotable(int id)
 {
 	if(id >= 0)
 		return addpid(id, 1);
-	
+
 	id = -(id+1);
 	if(id >= nthr)
 		return nil;
@@ -280,7 +280,7 @@ static int
 idtopid(int id)
 {
 	Thread *t;
-	
+
 	if((t = idtotable(id)) == nil)
 		return -1;
 	return t->pid;
@@ -290,7 +290,7 @@ static mach_port_t
 idtotask(int id)
 {
 	Thread *t;
-	
+
 	if((t = idtotable(id)) == nil)
 		return -1;
 	return t->task;
@@ -300,7 +300,7 @@ static mach_port_t
 idtothread(int id)
 {
 	Thread *t;
-	
+
 	if((t = idtotable(id)) == nil)
 		return -1;
 	return t->thread;
@@ -338,11 +338,12 @@ procthreadpids(int id, int **thread)
 	Thread *t;
 	int i, n, pid;
 	int *out;
-	
+
 	t = idtotable(id);
 	if(t == nil)
 		return -1;
 	pid = t->pid;
+	addpid(pid, 1);	// force refresh of thread list
 	n = 0;
 	for(i=0; i<nthr; i++)
 		if(thr[i].pid == pid)
@@ -390,7 +391,7 @@ machsegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 	uintptr nn;
 	mach_port_t task;
 	int r;
-	
+
 	task = idtotask(map->pid);
 	if(task == -1)
 		return -1;
@@ -493,7 +494,7 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 		werrstr("no such id");
 		return -1;
 	}
-	
+
 	if((reg = go2darwin(addr)) < 0 || reg+n > sizeof u){
 		if(isr){
 			memset(v, 0, n);
@@ -526,7 +527,7 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 			werrstr("thread_set_state: %r");
 			return -1;
 		}
-		
+
 		if(me(thread_resume(thread)) < 0){
 			werrstr("thread_resume: %r");
 			return -1;
@@ -583,7 +584,7 @@ threadstart(Thread *t, int singlestep)
 			(thread_state_t)&regs,
 			x86_THREAD_STATE64_COUNT)) < 0)
 		return -1;
-	
+
 	// Run.
 	n = sizeof info;
 	if(me(thread_info(t->thread, THREAD_BASIC_INFO, (thread_info_t)&info, &n)) < 0)
@@ -630,12 +631,12 @@ havet:
 	if(ncode > nelem(t->code))
 		ncode = nelem(t->code);
 	memmove(t->code, code, ncode*sizeof t->code[0]);
-	
+
 	// Synchronize with waitstop below.
 	pthread_mutex_lock(&mu);
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mu);
-	
+
 	// Suspend thread, so that we can look at it & restart it later.
 	if(me(thread_suspend(thread)) < 0)
 		fprint(2, "catch_exception_raise thread_suspend: %r\n");
@@ -732,10 +733,10 @@ ctlproc(int id, char *msg)
 			return -1;
 		return waitstop(t);
 	}
-	
+
 	if(strcmp(msg, "waitstop") == 0)
 		return waitstop(t);
-	
+
 	// sysstop not available on OS X
 
 	werrstr("unknown control message");
@@ -746,13 +747,13 @@ char*
 procstatus(int id)
 {
 	Thread *t;
-	
+
 	if((t = idtotable(id)) == nil)
 		return "gone!";
-	
+
 	if(threadstopped(t))
 		return "Stopped";
-	
+
 	return "Running";
 }
 
