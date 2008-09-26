@@ -2499,8 +2499,17 @@ functions defined in its source. Since a package may contain more
 than one source file, there may be more than one init() function, but
 only one per source file.
 
+Initialization code may contain "go" statements, but the functions
+they invoke do not begin execution until initialization is complete.
+Therefore, all initialization code is run in a single thread of
+execution.
+
+Furthermore, an "init()" function cannot be referred to from anywhere
+in a program. In particular, "init()" cannot be called explicitly, nor
+can a pointer to "init" be assigned to a function variable).
+
 If a package has imports, the imported packages are initialized
-before initializing the package itself.    If multiple packages import
+before initializing the package itself. If multiple packages import
 a package P, P will be initialized only once.
 
 The importing of packages, by construction, guarantees that there can
