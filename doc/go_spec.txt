@@ -826,11 +826,12 @@ combining the elements of "s1" and "s2" in sequence.
 "len(s1)".  The length of a string is the number
 of bytes within. Unlike in C, there is no terminal NUL byte.
 - Creation 1: a string can be created from an integer value by a conversion;
-the result is a string containing the UTF-8 encoding of that code point.
+the result is a string containing the UTF-8 encoding of that code point
+(§Conversions).
 "string('x')" yields "x"; "string(0x1234)" yields the equivalent of "\u1234"
 
 - Creation 2: a string can by created from an array of integer values (maybe
-just array of bytes) by a conversion:
+just array of bytes) by a conversion (§Conversions):
 
 	a [3]byte; a[0] = 'a'; a[1] = 'b'; a[2] = 'c';  string(a) == "abc";
 
@@ -1098,6 +1099,9 @@ particular to dereference a channel pointer.
 
 	var ch *chan int;
 	ch = new(chan int);  // new returns type *chan int
+
+TODO(gri): Do we need the channel conversion? It's enough to just keep
+the assignment rule.
 
 
 Function types
@@ -2295,83 +2299,15 @@ by functions and parameter types instead of lots of prose.
 Conversions
 ----
 
-TODO: gri believes this section is too complicated. Instead we should
-replace this with: 1) proper conversions of basic types, 2) compound
-literals, and 3) type assertions.
+Conversions syntactically look like function calls of the form
 
-Conversions create new values of a specified type derived from the
-elements of a list of expressions of a different type.
+	T(value)
 
-The most general conversion takes the form of a call to "convert",
-with the result type and a list of expressions as arguments:
+where "T" is the type name of an arithmetic type or string (§Basic types),
+and "value" is the value of an expression which can be converted to a value
+of result type "T".
 
-	convert(int, PI * 1000.0);
-	convert([]int, 1, 2, 3, 4);
-
-If the result type is a basic type, pointer type, or
-interface type, there must be exactly one expression and there is a
-specific set of permitted conversions, detailed later in the section.
-These conversions are called ``simple conversions''.
-TODO: if interfaces were explicitly pointers, this gets simpler.
-
-	convert(int, 3.14159);
-	convert(uint32, ^0);
-	convert(interface{}, new(S))
-	convert(*AStructType, interface_value)
-
-For other result types - arrays, maps, structs - the expressions
-form a list of values to be assigned to successive elements of the
-resulting value.  If the type is an array or map, the list may even be
-empty.  Unlike in a simple conversion, the types of the expressions
-must be equivalent to the types of the elements of the result type;
-the individual values are not converted.  For instance, if result
-type is []int, the expressions must be all of type int, not float or
-uint.  (For maps, the successive elements must be key-value pairs).
-For arrays and struct types, if fewer elements are provided than
-specified by the result type, the missing elements are
-initialized to the respective ``zero'' value for that element type.
-
-These conversions are called ``compound conversions''.
-
-	convert([]int)  // empty array of ints
-	convert([]int, 1, 2, 3)
-	convert([5]int, 1, 2);  // == convert([5]int, 1, 2, 0, 0, 0)
-	convert(map[string]int, "1", 1, "2", 2)
-	convert(struct{ x int; y float }, 3, sqrt(2.0))
-
-TODO: are interface/struct and 'any' conversions legal? they're not
-equivalent, just compatible. convert([]any, 1, "hi", nil);
-
-There is syntactic help to make conversion expressions simpler to write.
-
-If the result type is of ConversionType (a type name, array type,
-map type, struct type, or interface type, essentially anything
-except a pointer), the conversion can be rewritten to look
-syntactically like a call to a function whose name is the type:
-
-	int(PI * 1000.0);
-	AStructType(an_interface_variable);
-	struct{ x int, y float }{3, sqrt(2.0)}
-	[]int{1, 2, 3, 4};
-	map[string]int{"1", 1, "2", 2};
-	
-This notation is convenient for declaring and initializing
-variables of composite type:
-
-	primes := []int{2, 3, 5, 7, 9, 11, 13};
-
-Simple conversions can also be written as a parenthesized type after
-an expression and a period.  Although intended for ease of conversion
-within a method call chain, this form works in any expression context.
-TODO: should it?
-
-	var s *AStructType = vec.index(2).(*AStructType);
-	fld := vec.index(2).(*AStructType).field;
-	a := foo[i].(string);
-
-As said, for compound conversions the element types must be equivalent.
-For simple conversions, the types can differ but only some combinations
-are permitted:
+The following conversion rules apply:
 
 1) Between integer types.  If the value is a signed quantity, it is
 sign extended to implicit infinite precision; otherwise it is zero
@@ -2385,31 +2321,24 @@ now we define it as a ``best effort'' conversion.  The conversion
 always succeeds but the value may be a NaN or other problematic
 result.  TODO: clarify?
 
-3) Conversions between interfaces and compatible interfaces and struct
-pointers.  Invalid conversions (that is, conversions between
-incompatible types) yield nil values. TODO: is nil right here? Or
-should incompatible conversions fail immediately?
+3) Strings permit two special conversions.
 
-4) Conversions between ``any'' values and arbitrary types.  Invalid
-conversions yield nil values. TODO: is nil right here? Or should
-incompatible conversions fail immediately?
-
-5) Strings permit two special conversions.
-
-5a) Converting an integer value yields a string containing the UTF-8
+3a) Converting an integer value yields a string containing the UTF-8
 representation of the integer.
 
 	string(0x65e5)  // "\u65e5"
 
-5b) Converting an array of uint8s yields a string whose successive
+3b) Converting an array of uint8s yields a string whose successive
 bytes are those of the array.  (Recall byte is a synonym for uint8.)
 
 	string([]byte{'h', 'e', 'l', 'l', 'o'}) // "hello"
 
-Note that there is no linguistic mechanism to convert between pointers
+There is no linguistic mechanism to convert between pointers
 and integers. A library may be provided under restricted circumstances
-to acccess this conversion in low-level code but it will not be available
-in general.
+to acccess this conversion in low-level code.
+
+TODO: Do we allow interface/ptr conversions in this form or do they
+have to be written as type guards? (§Type guards)
 
 
 Allocation
