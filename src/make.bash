@@ -8,7 +8,7 @@ export MAKEFLAGS=-j4
 
 bash clean.bash
 
-for i in lib9 libbio libmach_amd64 libregexp cmd runtime syscall lib
+for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib
 do
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i

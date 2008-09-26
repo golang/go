@@ -6,7 +6,7 @@
 
 set -e
 
-for i in os math
+for i in syscall os math
 do
 	echo; echo; echo %%%% making lib/$i %%%%; echo
 	cd $i

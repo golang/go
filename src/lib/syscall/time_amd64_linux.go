@@ -6,14 +6,11 @@ package syscall
 
 import syscall "syscall"
 
-func	Int64Ptr(s *int64) int64;
-
 export func gettimeofday() (sec, nsec, errno int64) {
-	const GETTIMEOFDAY = 96
-	var tv [2]int64;	// struct timeval
-	r1, r2, err := syscall.Syscall(GETTIMEOFDAY, Int64Ptr(&tv[0]), 0, 0);
-	if err != 0 {
-		return 0, 0, err
+	var tv Timeval;
+	r1, r2, e := Syscall(SYS_GETTIMEOFDAY, TimevalPtr(&tv), 0, 0);
+	if e != 0 {
+		return 0, 0, e
 	}
-	return tv[0], tv[1]*1000, 0
+	return int64(tv.sec), int64(tv.usec*1000), 0
 }
