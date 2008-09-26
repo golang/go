@@ -31,7 +31,7 @@ int registers;	// print registers
 int stacks;		// print stack traces
 
 void
-Usage()
+Usage(void)
 {
 	fprint(2, "Usage: prof -p pid [-t total_secs] [-d delta_msec] [6.out]\n");
 	fprint(2, "\tformats (default -h):\n");
