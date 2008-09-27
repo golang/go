@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 26, 2008)
+(September 27, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -51,6 +51,7 @@ Open issues according to gri:
 [ ] nil and interfaces - can we test for nil, what does it mean, etc.
 [ ] type switch or some form of type test needed
 [ ] what is the meaning of typeof()
+[ ] at the moment: type T S; strips any methods of S. It probably shouldn't.
 
 
 Decisions in need of integration into the doc:
@@ -975,6 +976,9 @@ to arrays and arrays.
 Struct types
 ----
 
+TODO: The language below needs to be adjusted for inlined types. The syntax
+is probably all right.
+
 A struct is a composite type consisting of a fixed number of elements,
 called fields, with possibly different types. The struct type declaration
 specifies the name and type for each field. The scope of each field identifier
@@ -983,7 +987,7 @@ it is also visible within field selectors (§Primary Expressions).
 
 	StructType = "struct" "{" [ FieldDeclList [ ";" ] ] "}" .
 	FieldDeclList = FieldDecl { ";" FieldDecl } .
-	FieldDecl = IdentifierList FieldType .
+	FieldDecl = [ IdentifierList ] FieldType .
 	FieldType = Type .
 
 Type equality: Two struct types are equal only if both have the same number
