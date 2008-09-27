@@ -806,6 +806,7 @@ addtyp(Type *n, Type *t, int ctxt)
 	t->sym = s;
 	t->vargen = vargen;
 
+	dowidth(t);
 	for(f=s->forwtype; f!=T; f=f->nforw) {
 		if(!isptr[f->etype])
 			fatal("addtyp: forward");
