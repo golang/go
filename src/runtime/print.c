@@ -52,7 +52,7 @@ sys·printfloat(float64 v)
 	int32 e, s, i, n;
 	float64 h;
 
-	n = 5;	// digits printed
+	n = 7;	// digits printed
 	e = 0;	// exp
 	s = 0;	// sign
 	if(v != 0) {
