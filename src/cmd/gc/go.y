@@ -1256,6 +1256,17 @@ structdcl:
 		$$ = nod(ODCLFIELD, $1, N);
 		$$->type = $2;
 	}
+|	new_name
+	{
+		// must be a latype
+		$$ = nod(ODCLFIELD, N, N);
+		$$->type = $1;
+	}
+|	LIMPORT structdcl
+	{
+		$$ = $2;
+		$$->etype = OIMPORT;
+	}
 
 interfacedcl:
 	new_name ',' interfacedcl

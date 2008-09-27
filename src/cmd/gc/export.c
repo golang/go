@@ -6,15 +6,9 @@
 #include	"y.tab.h"
 
 void
-exportsym(Sym *s)
+addexportsym(Sym *s)
 {
 	Dcl *d, *r;
-
-	if(s == S)
-		return;
-	if(s->export != 0)
-		return;
-	s->export = 1;
 
 	d = mal(sizeof(*d));
 	d->dsym = s;
@@ -25,6 +19,18 @@ exportsym(Sym *s)
 	d->back = r->back;
 	r->back->forw = d;
 	r->back = d;
+}
+
+void
+exportsym(Sym *s)
+{
+	if(s == S)
+		return;
+	if(s->export != 0)
+		return;
+	s->export = 1;
+
+	addexportsym(s);
 }
 
 void
@@ -45,14 +51,10 @@ makeexportsym(Type *t)
 void
 reexport(Type *t)
 {
-	Sym *s;
-
 	if(t == T)
 		fatal("reexport: type nil");
-
 	makeexportsym(t);
-	s = t->sym;
-	dumpexporttype(s);
+	dumpexporttype(t->sym);
 }
 
 void
@@ -130,7 +132,7 @@ dumpexporttype(Sym *s)
 {
 	Type *t, *f;
 	Sym *ts;
-	int et;
+	int et, forw;
 
 	if(s->exported != 0)
 		return;
@@ -174,15 +176,17 @@ dumpexporttype(Sym *s)
 	case TPTR64:
 		if(t->type == T)
 			fatal("dumpexporttype: ptr %S", s);
-		makeexportsym(t->type); /* forw declare */
+		makeexportsym(t->type);
+		ts = t->type->sym;
+		if(ts->exported == 0)
+			addexportsym(ts);
 
 		/* type 6 */
 		Bprint(bout, "\ttype ");
 		if(s->export != 0)
 			Bprint(bout, "!");
-		Bprint(bout, "%lS *%lS\n", s, t->type->sym);
+		Bprint(bout, "%lS *%lS\n", s, ts);
 
-		reexport(t->type);
 		break;
 
 	case TFUNC:
@@ -262,12 +266,15 @@ dumpe(Sym *s)
 		break;
 	case LATYPE:
 	case LBASETYPE:
+//print("TYPE %S\n", s);
 		dumpexporttype(s);
 		break;
 	case LNAME:
+//print("VAR %S\n", s);
 		dumpexportvar(s);
 		break;
 	case LACONST:
+//print("CONST %S\n", s);
 		dumpexportconst(s);
 		break;
 	}
@@ -326,6 +333,12 @@ dumpexport(void)
 		dumpm(d->dsym);
 	}
 
+	// third pass pick up redefs from previous passes
+	for(d=exportlist->forw; d!=D; d=d->forw) {
+		lineno = d->lineno;
+		dumpe(d->dsym);
+	}
+
 	Bprint(bout, "   ))\n");
 
 	lineno = lno;
@@ -342,6 +355,8 @@ checkimports(void)
 	Type *t, *t1;
 	uint32 h;
 	int et;
+
+return;
 
 	for(h=0; h<NHASH; h++)
 	for(s = hash[h]; s != S; s = s->link) {
@@ -511,8 +526,9 @@ importaddtyp(Node *ss, Type *t)
 		// the new type is the same as the old type
 		if(eqtype(t, s->otype, 0))
 			return;
-		if(isptrto(t, TFORW))
+		if(isptrto(t, TFORW)) {
 			return;	// hard part
+		}
 		warn("redeclare import %S from %lT to %lT",
 			s, s->otype, t);
 		return;
