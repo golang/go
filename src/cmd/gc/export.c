@@ -506,15 +506,18 @@ importaddtyp(Node *ss, Type *t)
 	Sym *s;
 
 	s = getimportsym(ss);
-	if(s->otype != T && !eqtype(t, s->otype, 0)) {
-		if(!isptrto(t, TFORW))
-			yyerror("import redeclaration of %lS %lT => %lT\n",
-				s, s->otype, t);
-		s->otype = t;
+	if(s->otype != T) {
+		// here we should try to discover if
+		// the new type is the same as the old type
+		if(eqtype(t, s->otype, 0))
+			return;
+		if(isptrto(t, TFORW))
+			return;	// hard part
+		warn("redeclare import %S from %lT to %lT",
+			s, s->otype, t);
+		return;
 	}
-
-	if(s->otype == T)
-		addtyp(newtype(s), t, PEXTERN);
+	addtyp(newtype(s), t, PEXTERN);
 }
 
 /*
