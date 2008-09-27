@@ -90,7 +90,7 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 
 	// 1-byte version, then 15 bytes of padding
 	var p *[]byte
-	if p = data.Read(16); p == nil || p[0] != 0 && p[0] != 2 {
+	if p = data.Read(16); p == nil || p[0] != 0 && p[0] != '2' {
 		return nil, BadZoneinfo
 	}
 	vers := p[0]
