@@ -386,6 +386,9 @@ agen(Node *n, Node *res)
 		// i is in &n1
 		// w is width
 
+		if(w == 0)
+			fatal("index is zero width");
+
 		if(isptrdarray(nl->type)) {
 			regalloc(&n2, types[tptr], res);
 			gmove(res, &n2);
