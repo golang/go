@@ -2933,13 +2933,10 @@ reorder3(Node *n)
 			if(c2 > c1) {
 				if(vmatch1(l1->left, l2->right)) {
 					q = nod(OXXX, N, N);
-					tempname(q, l2->right->type);
+					tempname(q, l1->right->type);
 					q = nod(OAS, l1->left, q);
 					l1->left = q->right;
-					if(r == N)
-						r = q;
-					else
-						r = list(r, q);
+					r = list(r, q);
 					break;
 				}
 			}
