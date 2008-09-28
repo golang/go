@@ -152,22 +152,25 @@ func (P *Parser) ParseIdentList() *AST.List {
 }
 
 
-func (P *Parser) ParseQualifiedIdent() AST.Expr {
+func (P *Parser) ParseQualifiedIdent(ident *AST.Ident) AST.Expr {
 	P.Trace("QualifiedIdent");
 
-	var x AST.Expr = P.ParseIdent();
-	if P.tok == Scanner.PERIOD {
+	if ident == nil {
+		ident = P.ParseIdent();
+	}
+	var qident AST.Expr = ident;
+	for P.tok == Scanner.PERIOD {
 		pos := P.pos;
 		P.Next();
 		y := P.ParseIdent();
 
 		z := new(AST.Selector);
-		z.pos, z.x, z.field = pos, x, y.val;
-		x = z;
+		z.pos, z.x, z.field = pos, qident, y.val;
+		qident = z;
 	}
 	
 	P.Ecart();
-	return x;
+	return qident;
 }
 
 
@@ -200,7 +203,7 @@ func (P *Parser) ParseVarType() AST.Type {
 func (P *Parser) ParseTypeName() AST.Type {
 	P.Trace("TypeName");
 	
-	typ := P.ParseQualifiedIdent();
+	typ := P.ParseQualifiedIdent(nil);
 
 	P.Ecart();
 	return typ;
@@ -256,8 +259,26 @@ func (P *Parser) ParseVarDeclList() *AST.VarDeclList {
 	P.Trace("VarDeclList");
 	
 	vars := new(AST.VarDeclList);
-	vars.idents = P.ParseIdentList();
-	vars.typ = P.ParseVarType();
+	if P.tok == Scanner.IDENT {
+		vars.idents = P.ParseIdentList();
+		typ, ok := P.TryType();
+		if ok {
+			vars.typ = typ;
+		} else {
+			// we had an anonymous var, and the ident may be it's typename
+			// or the package name of a qualified identifier representing
+			// the typename
+			if vars.idents.len() == 1 {
+				vars.typ = P.ParseQualifiedIdent(vars.idents.at(0));
+				vars.idents = nil;
+			} else {
+				P.Error(P.pos, "type expected");
+				vars.typ = AST.NIL;
+			}
+		}
+	} else {
+		vars.typ = P.ParseVarType();
+	}
 	
 	P.Ecart();
 	return vars;
@@ -987,7 +1008,11 @@ func (P *Parser) ParseControlClause(keyword int) *AST.ControlClause {
 				}
 			}
 		} else {
-			ctrl.expr, ctrl.has_expr = ctrl.init, ctrl.has_init;
+			//ctrl.expr, ctrl.has_expr = ctrl.init, ctrl.has_init;
+			
+			ctrl.expr = ctrl.init;
+			ctrl.has_expr = ctrl.has_init;
+			
 			ctrl.init, ctrl.has_init = AST.NIL, false;
 		}
 	}

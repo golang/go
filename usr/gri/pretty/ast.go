@@ -220,7 +220,7 @@ export type Decl interface {
 
 
 export type VarDeclList struct {
-	idents *List;
+	idents *List;  // possibly nil
 	typ Type;
 }
 

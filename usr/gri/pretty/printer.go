@@ -182,8 +182,10 @@ func (P *Printer) DoVarDecl(x *AST.VarDecl) {
 
 
 func (P *Printer) DoVarDeclList(x *AST.VarDeclList) {
-	P.PrintList(x.idents);
-	P.String(" ");
+	if x.idents != nil {
+		P.PrintList(x.idents);	
+		P.String(" ");
+	}
 	P.Print(x.typ);
 }
 
