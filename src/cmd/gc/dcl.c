@@ -237,7 +237,7 @@ methodname(Node *n, Type *t)
 	return newname(lookup(namebuf));
 
 bad:
-	yyerror("illegal <this> pointer: %T", t);
+	yyerror("illegal <this> type: %T", t);
 	return n;
 }
 
@@ -271,6 +271,15 @@ addmethod(Node *n, Type *t, int local)
 	pa = pa->type;		// ptr to this type
 	if(pa == T)
 		goto bad;
+
+	switch(algtype(pa)) {
+	default:
+		goto bad;
+	case ASIMP:
+	case APTR:
+	case ASTRING:
+		break;
+	}
 
 	// optionally rip off ptr to type
 	ptr = 0;

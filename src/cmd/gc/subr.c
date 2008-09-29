@@ -280,6 +280,28 @@ nod(int op, Node *nleft, Node *nright)
 	return n;
 }
 
+int
+algtype(Type *t)
+{
+	int a;
+
+	a = AUNK;
+	if(issimple[t->etype])
+		a = ASIMP;	// simple mem
+	else
+	if(isptrto(t, TSTRING))
+		a = ASTRING;	// string
+	else
+	if(isptr[t->etype])
+		a = APTR;	// pointer
+	else
+	if(isinter(t))
+		a = AINTER;	// interface
+//	else
+//		fatal("algtype: cant find type %T", t);
+	return a;
+}
+
 Node*
 list(Node *a, Node *b)
 {

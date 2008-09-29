@@ -1258,9 +1258,13 @@ structdcl:
 	}
 |	new_name
 	{
-		// must be a latype
+		// must be  latype
 		$$ = nod(ODCLFIELD, N, N);
-		$$->type = $1;
+		$$->type = $1->sym->otype;
+		if($1->sym->lexical != LATYPE) {
+			yyerror("unnamed structure field must be a type");
+			$$->type = types[TINT32];
+		};
 	}
 |	LIMPORT structdcl
 	{
@@ -1691,7 +1695,7 @@ hidden_importfield:
  * to check whether the rest of the grammar is free of
  * reduce/reduce conflicts, comment this section out by
  * removing the slash on the next line.
- */
+ *
 lpack:
 	LATYPE
 	{
