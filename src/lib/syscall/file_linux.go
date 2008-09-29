@@ -78,7 +78,12 @@ export func unlink(name string) (ret int64, errno int64) {
 	if !StringToBytes(&namebuf, name) {
 		return -1, ENAMETOOLONG
 	}
-	const SYSUNLINK = 87;
 	r1, r2, err := Syscall(SYS_UNLINK, BytePtr(&namebuf[0]), 0, 0);
 	return r1, err;
 }
+
+export func fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
+	r1, r2, err := Syscall(SYS_FCNTL, fd, cmd, arg)
+	return r1, err
+}
+
