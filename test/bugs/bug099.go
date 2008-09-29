@@ -30,7 +30,7 @@ func main() {
 	i := NewI(0);
 	Use(i);
 	print("done1\n");
-	
+
 	// Again, without temporary
 	// Crashes because x.F is 0.
 	Use(NewI(0));
