@@ -34,6 +34,13 @@ enum
 	PRIME7		= 10067,
 	PRIME8		= 10079,
 	PRIME9		= 10091,
+
+	AUNK		= 100,
+	// these values are known by runtime
+	ASIMP		= 0,
+	ASTRING,
+	APTR,
+	AINTER,
 };
 
 /*
@@ -553,6 +560,7 @@ Node*	nod(int, Node*, Node*);
 Node*	list(Node*, Node*);
 Type*	typ(int);
 Dcl*	dcl(void);
+int	algtype(Type*);
 Node*	rev(Node*);
 Node*	unrev(Node*);
 void	dodump(Node*, int);

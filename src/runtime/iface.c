@@ -14,6 +14,9 @@ struct	Sigt
 {
 	byte*	name;
 	uint32	hash;
+	uint32	offset;		// offset of substruct
+	uint32	width;		// width of type
+	uint32	elemalg;	// algorithm of type
 	void	(*fun)(void);
 };
 
@@ -21,7 +24,7 @@ struct	Sigi
 {
 	byte*	name;
 	uint32	hash;
-	uint32	offset;
+	uint32	perm;		// location of fun in Sigt
 };
 
 struct	Map
@@ -44,7 +47,7 @@ printsigi(Sigi *si)
 
 	sys·printpointer(si);
 	prints("{");
-	n = si[0].offset;
+	n = si[0].perm;		// first entry has size
 	for(i=1; i<n; i++) {
 		name = si[i].name;
 		if(name == nil) {
@@ -56,9 +59,9 @@ printsigi(Sigi *si)
 		prints("]\"");
 		prints((int8*)name);
 		prints("\"");
-		sys·printint(si[i].hash);
+		sys·printint(si[i].hash%999);
 		prints("/");
-		sys·printint(si[i].offset);
+		sys·printint(si[i].perm);
 	}
 	prints("}");
 }
@@ -80,7 +83,13 @@ printsigt(Sigt *st)
 		prints("]\"");
 		prints((int8*)name);
 		prints("\"");
-		sys·printint(st[i].hash);
+		sys·printint(st[i].hash%999);
+		prints("/");
+		sys·printint(st[i].offset);
+		prints(",");
+		sys·printint(st[i].width);
+		prints(",");
+		sys·printint(st[i].elemalg);
 		prints("/");
 		sys·printpointer(st[i].fun);
 	}
@@ -117,7 +126,7 @@ hashmap(Sigi *si, Sigt *st)
 		}
 	}
 
-	ni = si[0].offset;	// first word has size
+	ni = si[0].perm;	// first entry has size
 	m = mal(sizeof(*m) + ni*sizeof(m->fun[0]));
 	m->sigi = si;
 	m->sigt = st;
@@ -157,7 +166,7 @@ loop2:
 		goto loop2;
 	}
 
-	m->fun[si[ni].offset] = st[nt].fun;
+	m->fun[si[ni].perm] = st[nt].fun;
 	ni++;
 	goto loop1;
 }

@@ -591,13 +591,15 @@ dumpsignatures(void)
 		a = lsort(a, sigcmp);
 		ot = 0;
 
+		// first field of an interface signature
+		// contains the count and is not a real entry
 		if(et == TINTER) {
 			o = 0;
 			for(b=a; b!=nil; b=b->link)
 				o++;
 
 			// sigi[0].name = ""
-			ot = rnd(ot, maxround);
+			ot = rnd(ot, maxround);	// array of structures
 			p = pc;
 			gins(ADATA, N, N);
 			p->from = at;
@@ -636,7 +638,7 @@ dumpsignatures(void)
 		for(b=a; b!=nil; b=b->link) {
 
 			// sigx[++].name = "fieldname"
-			ot = rnd(ot, maxround);
+			ot = rnd(ot, maxround);	// array of structures
 			p = pc;
 			gins(ADATA, N, N);
 			p->from = at;
@@ -669,6 +671,15 @@ dumpsignatures(void)
 				p->to.offset = b->offset;
 				ot += wi;
 			} else {
+				// leave space for 3 ints
+				// offset, algorithm and width
+				ot = rnd(ot, wi);
+				ot += wi;
+				ot = rnd(ot, wi);
+				ot += wi;
+				ot = rnd(ot, wi);
+				ot += wi;
+
 				// sigs[++].fun = &method
 				ot = rnd(ot, widthptr);
 				p = pc;

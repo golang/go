@@ -1884,28 +1884,6 @@ bad:
 	return T;
 }
 
-static int
-algtype(Type *t)
-{
-	int a;
-
-	a = 100;
-	if(issimple[t->etype])
-		a = 0;		// simple mem
-	else
-	if(isptrto(t, TSTRING))
-		a = 1;		// string
-	else
-	if(isptr[t->etype])
-		a = 2;		// pointer
-	else
-	if(isinter(t))
-		a = 3;		// interface
-	else
-		fatal("algtype: cant find type %T", t);
-	return a;
-}
-
 Node*
 mapop(Node *n, int top)
 {
