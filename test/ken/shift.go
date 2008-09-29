@@ -51,22 +51,16 @@ main()
 	testi( int(1234) >>    0, 0,0,1);
 	testi( int(1234) <<    5, 0,1,0);
 	testi( int(1234) >>    5, 0,1,1);
-	testi( int(1234) << 1025, 0,2,0);
-	testi( int(1234) >> 1025, 0,2,1);
 
 	testi(int(-1234) <<    0, 1,0,0);
 	testi(int(-1234) >>    0, 1,0,1);
 	testi(int(-1234) <<    5, 1,1,0);
 	testi(int(-1234) >>    5, 1,1,1);
-	testi(int(-1234) << 1025, 1,2,0);
-	testi(int(-1234) >> 1025, 1,2,1);
 
 	testu(uint(5678) <<    0, 2,0,0);
 	testu(uint(5678) >>    0, 2,0,1);
 	testu(uint(5678) <<    5, 2,1,0);
 	testu(uint(5678) >>    5, 2,1,1);
-	testu(uint(5678) << 1025, 2,2,0);
-	testu(uint(5678) >> 1025, 2,2,1);
 
 	/*
 	 * test variable evaluations
