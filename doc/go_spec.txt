@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 27, 2008)
+(September 29, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -380,8 +380,8 @@ do not interpret backslashes at all.
 	raw_string_lit = "`" { utf8_char } "`" .
 	interpreted_string_lit = """ { unicode_value | byte_value } """ .
 
-A string literal has type "string".  Its value is constructed by
-taking the byte values formed by the successive elements of the
+A string literal has type "string" (§Strings).  Its value is constructed
+by taking the byte values formed by the successive elements of the
 literal.  For byte_values, these are the literal bytes; for
 unicode_values, these are the bytes of the UTF-8 encoding of the
 corresponding Unicode code points.  Note that
@@ -412,6 +412,13 @@ These examples all represent the same string:
 	"\U000065e5\U0000672c\U00008a9e"  // The explicit Unicode code points
 	"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // The explicit UTF-8 bytes
 
+Adjacent strings separated only by whitespace (including comments)
+are concatenated into a single string. The following two lines
+represent the same string:
+
+	"Alea iacta est."
+	"Alea" /* The die */ `iacta est` /* is cast */ "."
+
 The language does not canonicalize Unicode text or evaluate combining
 forms.  The text of source code is passed uninterpreted.
 
@@ -428,10 +435,10 @@ Operators and delimitors
 The following special character sequences serve as operators or delimitors:
 
 	+    &     +=    &=     &&    ==    !=    (    )
-	-    |     -=    |=     ||    <     >=    [    ]
-	*    ^     *=    ^=     <-    >     <=    {    }
-	/    <<    /=    <<=          ++    --    =    :=
-	%    >>    %=    >>=    !     .     ,     ;    :
+	-    |     -=    |=     ||    <     <=    [    ]
+	*    ^     *=    ^=     <-    >     >=    {    }
+	/    <<    /=    <<=    ++    =     :=    .    :
+	%    >>    %=    >>=    --    !     ...   ,    ;
 
 
 Reserved words
@@ -985,11 +992,10 @@ specifies the name and type for each field. The scope of each field identifier
 extends from the point of the declaration to the end of the struct type, but
 it is also visible within field selectors (§Primary Expressions).
 
-	StructType = "struct" "{" [ FieldDeclList [ ";" ] ] "}" .
-	FieldDeclList = FieldDecl { ";" FieldDecl } .
-	FieldDecl = [ IdentifierList ] FieldType .
-	FieldType = Type .
-
+	StructType = "struct" "{" [ FieldList [ ";" ] ] "}" .
+	FieldList = FieldDecl { ";" FieldDecl } .
+	FieldDecl = [ IdentifierList ] Type .
+	
 Type equality: Two struct types are equal only if both have the same number
 of fields in the same order and and the field types are equal
 (note that the field names do not have to match).
@@ -1115,8 +1121,8 @@ A function type denotes the set of all functions with the same parameter
 and result types.
 
 	FunctionType = "(" [ ParameterList ] ")" [ Result ] .
-	ParameterList = ParameterSection { "," ParameterSection } .
-	ParameterSection = [ IdentifierList ] Type .
+	ParameterList = ParameterDecl { "," ParameterDecl } .
+	ParameterDecl = [ IdentifierList ] Type .
 	Result = Type | "(" ParameterList ")" .
 
 In ParameterList, the parameter names (IdentifierList) either must all be
