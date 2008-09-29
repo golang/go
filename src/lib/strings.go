@@ -168,29 +168,22 @@ export func itoa(i int) string {
 	}
 	
 	neg := false;	// negative
-	bigneg := false;	// largest negative number
+	u := uint(i);
 	if i < 0 {
 		neg = true;
-		i = -i;
-		if i < 0 {
-			bigneg = true;	// is largest negative int
-			i--	// now positive
-		}
+		u = -u;
 	}
 
 	// Assemble decimal in reverse order.
 	var b [32]byte;
 	bp := len(b);
-	for ; i > 0; i /= 10 {
+	for ; u > 0; u /= 10 {
 		bp--;
-		b[bp] = byte(i%10) + '0'
+		b[bp] = byte(u%10) + '0'
 	}
 	if neg {	// add sign
 		bp--;
 		b[bp] = '-'
-	}
-	if bigneg {	// account for i-- above
-		b[len(b)-1]++
 	}
 	
 	// BUG return string(b[bp:len(b)])
