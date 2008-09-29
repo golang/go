@@ -37,14 +37,6 @@ Hello World!
 =========== ken/rob2.go
 (defn foo (add 12 34))
 
-=========== ken/shift.go
-ken/shift.go:50: stupid shift: 1025
-ken/shift.go:51: stupid shift: 1025
-ken/shift.go:57: stupid shift: 1025
-ken/shift.go:58: stupid shift: 1025
-ken/shift.go:64: stupid shift: 1025
-ken/shift.go:65: stupid shift: 1025
-
 =========== ken/simpprint.go
 hello world
 
@@ -171,6 +163,10 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
 
 =========== bugs/bug107.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug107.go
+
+=========== bugs/bug108.go
+bugs/bug108.go:4: stupid shift: 1025
+BUG: errchk: command succeeded unexpectedly:  6g bugs/bug108.go
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
