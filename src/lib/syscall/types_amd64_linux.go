@@ -37,6 +37,9 @@ export const (
 	O_NDELAY = O_NONBLOCK;
 	O_SYNC = 0x1000;
 	O_TRUNC = 0x200;
+
+	F_GETFL = 3;
+	F_SETFL = 4;
 )
 
 export type Stat struct {
@@ -145,5 +148,25 @@ export func LingerPtr(l *Linger) int64;
 
 // Events (epoll)
 
-// TODO
+export const (
+	// EpollEvent.events
+	EPOLLIN = 0x1;
+	EPOLLOUT = 0x4;
+	EPOLLRDHUP = 0x2000;
+	EPOLLPRI = 0x2;
+	EPOLLERR = 0x8;
+	EPOLLET = 0x80000000;
+	EPOLLONESHOT = 0x40000000;
 
+	// op
+	EPOLL_CTL_ADD = 0x1;
+	EPOLL_CTL_MOD = 0x3;
+	EPOLL_CTL_DEL = 0x2;
+)
+
+export type EpollEvent struct {
+	events uint32;
+	fd int32;
+	pad int32;
+}
+export func EpollEventPtr(ev *EpollEvent) int64;

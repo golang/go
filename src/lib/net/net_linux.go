@@ -25,11 +25,21 @@ export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.
 	return syscall.SockaddrInet4ToSockaddr(sa), nil
 }
 
+var IPv6zero [16]byte;
+
 export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	p = ToIPv6(p)
 	if p == nil || port < 0 || port > 0xFFFF {
 		return nil, os.EINVAL
 	}
+
+	// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
+	// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
+	// which it refuses to do.  Rewrite to the IPv6 all zeros.
+	if p4 := ToIPv4(p); p4 != nil && p4[0] == 0 && p4[1] == 0 && p4[2] == 0 && p4[3] == 0 {
+		p = &IPv6zero;
+	}
+
 	sa := new(syscall.SockaddrInet6);
 	sa.family = syscall.AF_INET6;
 	sa.port[0] = byte(port>>8);

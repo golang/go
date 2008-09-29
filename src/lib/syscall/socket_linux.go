@@ -95,5 +95,23 @@ export func getsockopt(fd, level, opt, valueptr, lenptr int64) (ret int64, errno
 }
 */
 
-// TODO: epoll
+export func epoll_create(size int64) (ret int64, errno int64) {
+	r1, r2, err := syscall.Syscall(SYS_EPOLL_CREATE, size, 0, 0);
+	return r1, err
+}
+
+export func epoll_ctl(epfd, op, fd int64, ev *EpollEvent) int64 {
+	r1, r2, err := syscall.Syscall6(SYS_EPOLL_CTL, epfd, op, fd, EpollEventPtr(ev), 0, 0);
+	return err
+}
+
+export func epoll_wait(epfd int64, ev *[]EpollEvent, msec int64) (ret int64, err int64) {
+	var evptr, nev int64;
+	if ev != nil && len(ev) > 0 {
+		nev = int64(len(ev));
+		evptr = EpollEventPtr(&ev[0])
+	}
+	r1, r2, err1 := syscall.Syscall6(SYS_EPOLL_WAIT, epfd, evptr, nev, msec, 0, 0);
+	return r1, err1
+}
 
