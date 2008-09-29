@@ -5,10 +5,10 @@
 // license that can be found in the LICENSE file.
 
 package main
-import ip "ip"
-func f() (ip int) {
-     // In the next line "ip" should refer to the result variable, not
+import os "os"
+func f() (os int) {
+     // In the next line "os" should refer to the result variable, not
      // to the package.
-     v := ip.ParseIP("")	// ERROR "undefined"
+     v := os.Open("", 0, 0)	// ERROR "undefined"
      return 0
 }
