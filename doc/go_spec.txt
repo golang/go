@@ -36,7 +36,6 @@ Open issues according to gri:
 [ ] optional semicolons: too complicated and unclear
 [ ] like to have assert() in the language, w/ option to disable code gen for it
 [ ] composite types should uniformly create an instance instead of a pointer
-[ ] meaning of nil
 [ ] clarify slice rules
 [ ] something on tuples?
 [ ] semantics of statements
@@ -62,6 +61,7 @@ Decisions in need of integration into the doc:
     for array composites
 
 Closed issues:
+[x] meaning of nil
 [x] remove "any"
 [x] methods for all types
 [x] should binary <- be at lowest precedence level? when is a send/receive non-blocking? (NO - 9/19/08)
@@ -94,13 +94,10 @@ Contents
 		Export declarations
 
 	Types
-		Type interfaces
-
 		Basic types
 			Arithmetic types
 			Booleans
 			Strings
-
 		Array types
 		Struct types
 		Pointer types
@@ -743,25 +740,26 @@ There are basic types and composite types. Basic types are predeclared.
 Composite types are arrays, maps, channels, structures, functions, pointers,
 and interfaces. They are constructed from other (basic or composite) types.
 
-The 'static type' (or simply 'type') of a variable is the type defined by
-the variable's declaration. The 'dynamic type' of a variable is the actual
-type of the value stored in a variable at runtime. Except for variables of
-interface type, the static and dynamic type of variables is always the same.
-
-Variables of interface type may hold values of different types during
-execution. However, the dynamic type of the variable is always compatible
-with the static type of the variable.
-
 	Type =
 		TypeName | ArrayType | ChannelType | InterfaceType |
 		FunctionType | MapType | StructType | PointerType .
 	TypeName = QualifiedIdent.
 
+The ``interface'' of a type is the set of methods bound to it
+(§Method declarations). The interface of a pointer type is the interface
+of the pointer base type (§Pointer types). All types have an interface;
+if they have no methods associated with them, their interface is
+called the ``empty'' interface.
 
-Type interfaces
-----
+The ``static type'' (or simply ``type'') of a variable is the type defined by
+the variable's declaration. The ``dynamic type'' of a variable is the actual
+type of the value stored in a variable at runtime. Except for variables of
+interface type, the dynamic type of a variable is always its static type.
 
-TODO fill in this section
+Variables of interface type may hold values with different dynamic types
+during execution. However, its dynamic type is always compatible with
+the static type of the interface variable (§Interface types).
+
 
 Basic types
 ----
@@ -1182,8 +1180,9 @@ Assignment compatibility: A function pointer can be assigned to a function
 Interface types
 ----
 
-An interface type denotes the set of all types that implement the
-set of methods specified by the interface type.
+Type interfaces may be specified explicitly by interface types.
+An interface type denotes the set of all types that implement at least
+the set of methods specified by the interface type, and the value "nil".
 
 	InterfaceType = "interface" "{" [ MethodList [ ";" ] ] "}" .
 	MethodList = MethodSpec { ";" MethodSpec } .
@@ -2280,9 +2279,9 @@ A method declaration is a function declaration with a receiver. The receiver
 is the first parameter of the method, and the receiver type must be specified
 as a type name, or as a pointer to a type name. The type specified by the
 type name is called ``receiver base type''. The receiver base type must be a
-type declared in the current file. The method is said to be ``bound'' to
-the receiver base type; specifically it is declared within the scope of
-that type (§Type interfaces).
+type declared in the current file, and it must not be a pointer type.
+The method is said to be ``bound'' to the receiver base type; specifically
+it is declared within the scope of that type (§Types).
 
 	MethodDecl = "func" Receiver identifier FunctionType ( ";" | Block ) .
 	Receiver = "(" identifier [ "*" ] TypeName ")" .
