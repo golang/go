@@ -54,7 +54,7 @@ bugs/bug020.go:7: type of a structure field cannot be an open array
 BUG should compile
 
 =========== bugs/bug026.go
-sys·printstring: main·sigi_I: not defined
+sys·printstring: main·sigs_I: not defined
 BUG: known to fail incorrectly
 
 =========== bugs/bug032.go
@@ -102,41 +102,28 @@ bugs/bug087.go:8: illegal combination of literals LEN 9
 bugs/bug087.go:8: illegal combination of literals LEN 9
 BUG: fails incorrectly
 
-=========== bugs/bug088.go
-bugs/bug088.dir/bug1.go:8: shape error across :=
-bugs/bug088.dir/bug1.go:8: a2: undefined
-bugs/bug088.dir/bug1.go:8: b2: undefined
-bugs/bug088.dir/bug1.go:8: illegal types for operand: AS
-	(<(bug0)P.int32>INT32)
-BUG: fails incorrectly
-
 =========== bugs/bug090.go
 BUG: compilation succeeds incorrectly
 
 =========== bugs/bug093.go
-throw: ifaces2i: nil pointer
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-BUG: fails incorrectly
+M
 
 =========== bugs/bug094.go
 bugs/bug094.go:11: left side of := must be a name
 bad top
-.   LITERAL-I0 l(353)
+.   LITERAL-I0 l(369)
 bugs/bug094.go:11: fatal error: walktype: top=3 LITERAL
 BUG: fails incorrectly
 
 =========== bugs/bug095.go
 found 2, expected 1
 
-panic on line 352 PC=xxx
+panic on line 368 PC=xxx
 BUG wrong result
 
 =========== bugs/bug097.go
 
-panic on line 354 PC=xxx
+panic on line 370 PC=xxx
 BUG wrong result
 
 =========== bugs/bug098.go
@@ -147,22 +134,12 @@ BUG should compile
 
 =========== bugs/bug099.go
 done1
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
 
-
-=========== bugs/bug102.go
-throw: index out of range
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-=========== bugs/bug104.go
-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
-
-=========== bugs/bug107.go
-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug107.go
+=========== bugs/bug105.go
+bugs/bug105.go:8: P: undefined
+bugs/bug105.go:9: illegal types for operand: RETURN
+	(<int32>INT32)
+BUG: should compile
 
 =========== bugs/bug108.go
 bugs/bug108.go:4: stupid shift: 1025
@@ -210,7 +187,7 @@ fixedbugs/bug035.go:7: var f redeclared in this block
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(348) t=<T> nil
+fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(364) t=<T> nil
 
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: var x redeclared in this block
