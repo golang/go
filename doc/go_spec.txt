@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 29, 2008)
+(September 30, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -54,13 +54,14 @@ Open issues according to gri:
 [ ] talk about underflow/overflow of 2's complement numbers (defined vs not defined).
 [ ] 6g allows: interface { f F } where F is a function type. fine, but then we should
     also allow: func f F {}, where F is a function type.
+[ ] provide composite literal notation to address array indices: []int{ 0: x1, 1: x2, ... }
 
 Decisions in need of integration into the doc:
 [ ] pair assignment is required to get map, and receive ok.
-[ ] change wording on array composite literals: the types are always fixed arrays
-    for array composites
 
 Closed issues:
+[x] change wording on array composite literals: the types are always fixed arrays
+    for array composites
 [x] meaning of nil
 [x] remove "any"
 [x] methods for all types
@@ -1011,29 +1012,29 @@ it is also visible within field selectors (§Primary Expressions).
 		f *();
 	}
 
-A struct may contain ``embedded types''. An embedded type is declared with
+A struct may contain ``anonymous fields'', which are declared with
 a type name but no explicit field name. Instead, the type name acts as the
 field name.
 
-	// A struct with a single embedded type T.
+	// A struct with a single anonymous field of type T.
 	struct {
 		x, y int;
 		T;
 	}
 
 As with all scopes, each field name must be unique within a single struct
-(§Declarations and scope rules); consequently, the name of an embedded type
-must not conflict with the name of any other field or embedded type within
-the scope of the struct.
+(§Declarations and scope rules). Consequently, the type name of an anonymous
+field must not conflict with the field name (or type name for an anonymous
+field) of any other field within the struct.
 
-Fields and methods (§Method declarations) of an embedded type become directly
-accessible as fields and methods of the struct without the need to specify the
-embedded type (§TODO).
+Fields and methods (§Method declarations) of an anonymous field become directly
+accessible as fields and methods of the struct without the need to provide the
+type name of the respective anonymous field (§TODO).
 
 Type equality: Two struct types are equal only if both have the same number
-of fields in the same order, corresponding fields are either both embedded
-types or they are not, and the corresponding field types are equal.
-Specifically, field names don't have to match.
+of fields in the same order, corresponding fields are either both named or
+anonymous, and the corresponding field types are equal. Specifically,
+field names don't have to match.
 
 Assignment compatibility: Structs are assignment compatible to variables of
 equal type only.
@@ -1263,9 +1264,10 @@ Constants
 ----
 
 An operand is called ``constant'' if it is a literal of a basic type
-(including the predeclared constants "true" and "false"), the predeclared
-constant "nil", or a parenthesized constant expression (§Constant expressions).
-Constants have values that are known at compile-time.
+(including the predeclared constants "true" and "false", and the values
+denoted by "iota"), the predeclared constant "nil", or a parenthesized
+constant expression (§Constant expressions). Constants have values that
+are known at compile-time.
 
 
 Qualified identifiers
@@ -1330,8 +1332,10 @@ or a list of expression pairs for map literals.
 If LiteralType is a TypeName, the denoted type must be an array, map, or
 structure.  The types of the expressions must match the respective key, element,
 and field types of the literal type; there is no automatic type conversion.
-LiteralType is the type of the literal: To get a pointer to the literal, the
-address operator "&" must be used.
+Composite literals are values of the type specified by LiteralType; to get
+a pointer to the literal, the address operator "&" must be used.
+
+Implementation restriction: Currently, map literals are pointers to maps.
 
 Given
 
@@ -1343,16 +1347,17 @@ we can write
 	pi := Num{Rat{22, 7}, 3.14159, "pi"};
 
 
-The length of a fixed array literal is the length specified in LiteralType.
-If fewer elements are specified in the composite literal, the missing elements
-are set to the approprate zero value for the array element type. It is an error
-to provide more elements then specified in LiteralType.
+Array literals are always fixed arrays: If no array length is specified in
+LiteralType, the array length is the number of elements provided in the composite
+literal. Otherwise the array length is the length specified in LiteralType.
+In the latter case, fewer elements than the array length may be provided in the
+literal, and the missing elements are set to the appropriate zero value for
+the array element type. It is an error to provide more elements then specified
+in LiteralType.
 
-The length of an open array literal is the number of elements specified in the
-composite literal.
-
-	primes := [6]int{2, 3, 5, 7, 9, 11};
-	weekdays := &[]string{"mon", "tue", "wed", "thu", "fri", "sat", "sun"};
+	buffer := [10]string{};  // len(buffer) == 10
+	primes := [6]int{2, 3, 5, 7, 9, 11};  // len(primes) == 6
+	weekenddays := &[]string{"sat", "sun"};  // len(weekenddays) == 2
 
 Map literals are similar except the elements of the expression list are
 key-value pairs separated by a colon:
