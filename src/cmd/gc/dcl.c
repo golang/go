@@ -335,7 +335,7 @@ addmethod(Node *n, Type *t, int local)
 	return;
 
 bad:
-	yyerror("unknown method pointer: %T %S %S", pa, sf, st);
+	yyerror("unknown method pointer: %T %S", pa, sf);
 }
 
 /*

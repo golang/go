@@ -288,7 +288,7 @@ void
 dumpm(Sym *s)
 {
 	Type *t, *f;
-	Dcl *back, *d1;
+	Dcl *back, *d;
 
 	switch(s->lexical) {
 	default:
@@ -313,12 +313,10 @@ dumpm(Sym *s)
 		reexport(f->type);
 		Bprint(bout, "\tfunc %S %lS\n", f->sym, f->type->sym);
 	
-		if(back != exportlist->back) {
-			// redo first pass on new entries
-			for(d1=back; d1!=D; d1=d1->forw) {
-				lineno = d1->lineno;
-				dumpe(d1->dsym);
-			}
+		// redo first pass on new entries
+		for(d=back; d!=D; d=d->forw) {
+			lineno = d->lineno;
+			dumpe(d->dsym);
 		}
 	}
 }
@@ -326,7 +324,7 @@ dumpm(Sym *s)
 void
 dumpexport(void)
 {
-	Dcl *d, *d1;
+	Dcl *d;
 	int32 lno;
 
 	lno = lineno;
