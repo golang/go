@@ -279,7 +279,7 @@ func (c *ConnBase) SetLinger(sec int) *os.Error {
 // PreferIPv4 here should fall back to the IPv4 socket interface when possible.
 const PreferIPv4 = false
 
-func InternetSocket(netw, laddr, raddr string, proto int64) (fd *FD, err *os.Error) {
+func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Error) {
 	// Parse addresses (unless they are empty).
 	var lip, rip *[]byte
 	var lport, rport int
@@ -292,13 +292,13 @@ rport = 0;
 lerr = nil;
 rerr = nil
 	if laddr != "" {
-		lip, lport, lerr = HostPortToIP(netw, laddr)
+		lip, lport, lerr = HostPortToIP(net, laddr)
 		if lerr != nil {
 			return nil, lerr
 		}
 	}
 	if raddr != "" {
-		rip, rport, rerr = HostPortToIP(netw, raddr)
+		rip, rport, rerr = HostPortToIP(net, raddr)
 		if rerr != nil {
 			return nil, rerr
 		}
@@ -307,7 +307,7 @@ rerr = nil
 	// Figure out IP version.
 	// If network has a suffix like "tcp4", obey it.
 	vers := 0;
-	switch netw[len(netw)-1] {
+	switch net[len(net)-1] {
 	case '4':
 		vers = 4
 	case '6':
@@ -429,11 +429,11 @@ func NewConnTCP(fd *FD, raddr string) *ConnTCP {
 	return c
 }
 
-export func DialTCP(netw, laddr, raddr string) (c *ConnTCP, err *os.Error) {
+export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
 	}
-	fd, e := InternetSocket(netw, laddr, raddr, syscall.SOCK_STREAM)
+	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_STREAM)
 	if e != nil {
 		return nil, e
 	}
@@ -496,26 +496,26 @@ var noconn NoConn
 // Eventually, we plan to allow names in addition to IP addresses,
 // but that requires writing a DNS library.
 
-export func Dial(netw, laddr, raddr string) (c Conn, err *os.Error) {
-	switch netw {
+export func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
+	switch net {
 	case "tcp", "tcp4", "tcp6":
-		c, err := DialTCP(netw, laddr, raddr)
+		c, err := DialTCP(net, laddr, raddr)
 		if err != nil {
 			return &noconn, err
 		}
 		return c, nil
 /*
 	case "udp", "udp4", "upd6":
-		c, err := DialUDP(netw, laddr, raddr)
+		c, err := DialUDP(net, laddr, raddr)
 		return c, err
 	case "ether":
-		c, err := DialEther(netw, laddr, raddr)
+		c, err := DialEther(net, laddr, raddr)
 		return c, err
 	case "ipv4":
-		c, err := DialIPv4(netw, laddr, raddr)
+		c, err := DialIPv4(net, laddr, raddr)
 		return c, err
 	case "ipv6":
-		c, err := DialIPv6(netw, laddr, raddr)
+		c, err := DialIPv6(net, laddr, raddr)
 		return c, err
 */
 	}
@@ -541,8 +541,8 @@ export type ListenerTCP struct {
 	laddr string
 }
 
-export func ListenTCP(netw, laddr string) (l *ListenerTCP, err *os.Error) {
-	fd, e := InternetSocket(netw, laddr, "", syscall.SOCK_STREAM)
+export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
+	fd, e := InternetSocket(net, laddr, "", syscall.SOCK_STREAM)
 	if e != nil {
 		return nil, e
 	}
@@ -588,10 +588,10 @@ func (l *ListenerTCP) Close() *os.Error {
 	return l.fd.Close()
 }
 
-export func Listen(netw, laddr string) (l Listener, err *os.Error) {
-	switch netw {
+export func Listen(net, laddr string) (l Listener, err *os.Error) {
+	switch net {
 	case "tcp", "tcp4", "tcp6":
-		l, err := ListenTCP(netw, laddr)
+		l, err := ListenTCP(net, laddr)
 		if err != nil {
 			return &nolistener, err
 		}
