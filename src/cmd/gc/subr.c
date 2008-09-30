@@ -392,6 +392,21 @@ unrev(Node *na)
 	return i;
 }
 
+/*
+ * na and nb are reversed lists.
+ * append them into one big reversed list.
+ */
+Node*
+appendr(Node *na, Node *nb)
+{
+	Node **l, *n;
+
+	for(l=&nb; (n=*l)->op == OLIST; l=&n->left)
+		;
+	*l = nod(OLIST, na, *l);
+	return nb;
+}
+
 Type*
 aindex(Node *b, Type *t)
 {
@@ -1071,7 +1086,7 @@ Nconv(Fmt *fp)
 		}
 		snprint(buf, sizeof(buf), "%O-%s%J", n->op, buf1, n);
 		break;
-		
+
 	case OASOP:
 		snprint(buf, sizeof(buf), "%O-%O%J", n->op, n->etype, n);
 		break;
@@ -1167,7 +1182,7 @@ loop:
 		*p++ = 'n';
 		break;
 	}
-	goto loop;	
+	goto loop;
 
 out:
 	return fmtstrcpy(fp, buf);
@@ -1739,69 +1754,28 @@ loop:
 }
 
 /*
- * this routine gets the parsing of
- * a parameter list that can have
- * name, type and name-type.
- * it must distribute lone names
- * with trailing types to give every
- * name a type. (a,b,c int) comes out
- * (a int, b int, c int).
+ * this routine gets called to propagate the type
+ * of the last decl up to the arguments before it.
+ * (a,b,c int) comes out (a int, b int, c int).
  */
 Node*
-cleanidlist(Node *r)
+cleanidlist(Node *na)
 {
-	Node *t, *n, *nn, *l;
-	Type *dt;
+	Node *last, *n;
 
-	t = N;		// untyped name
-	nn = r;		// next node to take
+	if(na->op != OLIST)
+		return na;
 
-loop:
-	n = nn;
-	if(n == N) {
-		if(t != N) {
-			yyerror("syntax error in parameter list");
-			dt = types[TINT32];
-			goto distrib;
-		}
-		return r;
-	}
+	for(last=na; last->op == OLIST; last=last->right)
+		;
+	if(last->op != ODCLFIELD)
+		fatal("cleanidlist: %O", last->op);
+	if(last->type == T)
+		fatal("cleanidlist: no type");
 
-	l = n;
-	nn = N;
-	if(l->op == OLIST) {
-		nn = l->right;
-		l = l->left;
-	}
-
-	if(l->op != ODCLFIELD)
-		fatal("cleanformal: %O", n->op);
-
-	if(l->type == T) {
-		if(t == N)
-			t = n;
-		goto loop;
-	}
-
-	if(t == N)
-		goto loop;
-
-	dt = l->type;	// type to be distributed
-
-distrib:
-	while(t != n) {
-		if(t->op != OLIST) {
-			if(t->type == T)
-				t->type = dt;
-			break;
-		}
-		if(t->left->type == T)
-			t->left->type = dt;
-		t = t->right;
-	}
-
-	t = N;
-	goto loop;
+	for(n=na; n->op == OLIST; n=n->right)
+		n->left->type = last->type;
+	return na;
 }
 
 /*

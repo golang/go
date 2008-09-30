@@ -28,10 +28,10 @@
 %token			LLSH LRSH LINC LDEC LCOMM
 %token			LIGNORE
 
-%type	<sym>		sym sym1 sym2 keyword laconst lname latype non_type_sym
+%type	<sym>		sym sym1 sym2 keyword laconst lname latype lpackatype
 %type	<node>		xdcl xdcl_list_r oxdcl_list
 %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
-%type	<node>		oarg_type_list arg_type_list_r arg_type
+%type	<node>		oarg_type_list arg_type_list_r arg_chunk arg_chunk_list_r arg_type_list
 %type	<node>		else_stmt1 else_stmt2 inc_stmt noninc_stmt
 %type	<node>		complex_stmt compound_stmt ostmt_list
 %type	<node>		stmt_list_r Astmt_list_r Bstmt_list_r
@@ -41,7 +41,7 @@
 %type	<node>		range_header range_body range_stmt select_stmt
 %type	<node>		simple_stmt osimple_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
-%type	<node>		name name_name onew_name new_name new_name_list_r non_type_new_name
+%type	<node>		name onew_name new_name new_name_list_r
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl
@@ -52,6 +52,7 @@
 %type	<node>		typedcl Atypedcl Btypedcl
 
 %type	<type>		fntype fnlitdcl Afntype Bfntype fullAtype
+%type	<type>		non_name_Atype non_name_type
 %type	<type>		type Atype Btype indcl new_type fullBtype
 %type	<type>		structtype interfacetype convtype
 %type	<type>		Achantype Bchantype
@@ -837,7 +838,10 @@ lname:
 
 latype:
 	LATYPE
-|	lpack '.' LATYPE
+|	lpackatype
+
+lpackatype:
+	lpack '.' LATYPE
 	{
 		$$ = $3;
 		context = nil;
@@ -848,20 +852,8 @@ latype:
  *	newname is used before declared
  *	oldname is used after declared
  */
-name_name:
-	LNAME
-	{
-		$$ = newname($1);
-	}
-
 new_name:
 	sym1
-	{
-		$$ = newname($1);
-	}
-
-non_type_new_name:
-	non_type_sym
 	{
 		$$ = newname($1);
 	}
@@ -886,12 +878,6 @@ sym:
 
 sym1:
 	sym
-|	keyword
-
-non_type_sym:
-	LNAME
-|	LACONST
-|	LPACK
 |	keyword
 
 sym2:
@@ -945,8 +931,21 @@ type:
 	fullAtype
 |	fullBtype
 
+non_name_type:
+	non_name_Atype
+|	Afntype
+|	Achantype
+|	fullBtype
+
 Atype:
-	latype
+	LATYPE
+	{
+		$$ = oldtype($1);
+	}
+|	non_name_Atype
+
+non_name_Atype:
+	lpackatype
 	{
 		$$ = oldtype($1);
 	}
@@ -1296,27 +1295,67 @@ indcl:
 			yyerror("illegal type for function literal");
 	}
 
-arg_type:
-	name_name
+/*
+ * function arguments.
+ *
+ * the hard part is that when we're reading a list of names,
+ * we don't know if they are going to be the names of
+ * parameters (like "a,b,c int") or the types of anonymous
+ * parameters (like "int, string, bool").
+ *
+ * an arg_chunk is a comma-separated list of arguments
+ * that ends in an obvious type, either "a, b, c x" or "a, b, c, *x".
+ * in the first case, a, b, c are parameters of type x.
+ * in the second case, a, b, c, and *x are types of anonymous parameters.
+ */
+arg_chunk:
+	new_name_list_r type
 	{
-		$$ = nod(ODCLFIELD, $1, N);
+		$$ = nametodcl($1, $2);
 	}
-|	type
+|	non_name_type
 	{
-		$$ = nod(ODCLFIELD, N, N);
-		$$->type = $1;
+		$$ = anondcl($1);
 	}
-|	non_type_new_name type
+|	new_name_list_r ',' non_name_type
 	{
-		$$ = nod(ODCLFIELD, $1, N);
-		$$->type = $2;
+		$1 = nametoanondcl($1);
+		$$ = appendr($1, anondcl($3));
 	}
 
-arg_type_list_r:
-	arg_type
-|	arg_type_list_r ',' arg_type
+arg_chunk_list_r:
+	arg_chunk
+|	arg_chunk_list_r ',' arg_chunk
 	{
-		$$ = nod(OLIST, $1, $3);
+		$$ = appendr($1, $3);
+	}
+
+/*
+ * an arg type list is a sequence of arg chunks,
+ * possibly ending in a list of names (plain "a,b,c"),
+ * which must be the types of anonymous parameters.
+ */
+arg_type_list_r:
+	arg_chunk_list_r
+|	arg_chunk_list_r ',' new_name_list_r
+	{
+		$3 = nametoanondcl($3);
+		$$ = appendr($1, $3);
+	}
+|	new_name_list_r
+	{
+		$$ = nametoanondcl($1);
+	}
+
+/*
+ * arg type is just list of arg_chunks, except for the
+ * special case of a simple comma-separated list of names.
+ */
+arg_type_list:
+	arg_type_list_r
+	{
+		$$ = rev($1);
+		checkarglist($$);
 	}
 
 /*
@@ -1550,10 +1589,7 @@ oarg_type_list:
 	{
 		$$ = N;
 	}
-|	arg_type_list_r
-	{
-		$$ = cleanidlist(rev($1));
-	}
+|	arg_type_list
 
 /*
  * import syntax from header of

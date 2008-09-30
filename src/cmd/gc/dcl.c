@@ -740,7 +740,7 @@ addvar(Node *n, Type *t, int ctxt)
 		} else
 			yyerror("var %S redeclared in this block", s);
 	}
-		
+
 	if(ctxt != PEXTERN)
 		pushdcl(s);
 
@@ -936,6 +936,90 @@ forwdcl(Sym *s)
 	t->nforw = s->forwtype;
 	s->forwtype = t;
 	return t;
+}
+
+/*
+ * n is a node with a name (or a reversed list of them).
+ * make it an anonymous declaration of that name's type.
+ */
+Node*
+nametoanondcl(Node *na)
+{
+	Node **l, *n;
+	Type *t;
+
+	for(l=&na; (n=*l)->op == OLIST; l=&n->left)
+		n->right = nametoanondcl(n->right);
+
+	if(n->sym->lexical != LATYPE && n->sym->lexical != LBASETYPE) {
+		yyerror("%s is not a type", n->sym->name);
+		t = typ(TINT32);
+	} else
+		t = oldtype(n->sym);
+	n = nod(ODCLFIELD, N, N);
+	n->type = t;
+	*l = n;
+	return na;
+}
+
+/*
+ * n is a node with a name (or a reversed list of them).
+ * make it a declaration of the given type.
+ */
+Node*
+nametodcl(Node *na, Type *t)
+{
+	Node **l, *n;
+
+	for(l=&na; (n=*l)->op == OLIST; l=&n->left)
+		n->right = nametodcl(n->right, t);
+
+	n = nod(ODCLFIELD, n, N);
+	n->type = t;
+	*l = n;
+	return na;
+}
+
+/*
+ * make an anonymous declaration for t
+ */
+Node*
+anondcl(Type *t)
+{
+	Node *n;
+
+	n = nod(ODCLFIELD, N, N);
+	n->type = t;
+	return n;
+}
+
+/*
+ * check that the list of declarations is either all anonymous or all named
+ */
+void
+checkarglist(Node *n)
+{
+	if(n->op != OLIST)
+		return;
+	if(n->left->op != ODCLFIELD)
+		fatal("checkarglist");
+	if(n->left->left != N) {
+		for(n=n->right; n->op == OLIST; n=n->right)
+			if(n->left->left == N)
+				goto mixed;
+		if(n->left == N)
+			goto mixed;
+	} else {
+		for(n=n->right; n->op == OLIST; n=n->right)
+			if(n->left->left != N)
+				goto mixed;
+		if(n->left != N)
+			goto mixed;
+	}
+	return;
+
+mixed:
+	yyerror("cannot mix anonymous and named function arguments");
 }
 
 // hand-craft the following initialization code
