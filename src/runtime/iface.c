@@ -131,44 +131,34 @@ hashmap(Sigi *si, Sigt *st)
 	m->sigi = si;
 	m->sigt = st;
 
-	ni = 1;			// skip first word
 	nt = 0;
+	for(ni=1; (iname=si[ni].name) != nil; ni++) {	// ni=1: skip first word
+		// pick up next name from
+		// interface signature
+		ihash = si[ni].hash;
 
-loop1:
-	// pick up next name from
-	// interface signature
-	iname = si[ni].name;
-	if(iname == nil) {
-		m->link = hash[h];
-		hash[h] = m;
-		// prints("new hashmap\n");
-		return m;
+		for(;; nt++) {
+			// pick up and compare next name
+			// from structure signature
+			sname = st[nt].name;
+			if(sname == nil) {
+				prints((int8*)iname);
+				prints(": ");
+				throw("hashmap: failed to find method");
+				m->bad = 1;
+				m->link = hash[h];
+				hash[h] = m;
+				return nil;
+			}
+			if(ihash == st[nt].hash && strcmp(sname, iname) == 0)
+				break;
+		}
+		m->fun[si[ni].perm] = st[nt].fun;
 	}
-	ihash = si[ni].hash;
-
-loop2:
-	// pick up and comapre next name
-	// from structure signature
-	sname = st[nt].name;
-	if(sname == nil) {
-		prints((int8*)iname);
-		prints(": ");
-		throw("hashmap: failed to find method");
-		m->bad = 1;
-		m->link = hash[h];
-		hash[h] = m;
-		return nil;
-	}
-
-	if(ihash != st[nt].hash ||
-	   strcmp(sname, iname) != 0) {
-		nt++;
-		goto loop2;
-	}
-
-	m->fun[si[ni].perm] = st[nt].fun;
-	ni++;
-	goto loop1;
+	m->link = hash[h];
+	hash[h] = m;
+	// prints("new hashmap\n");
+	return m;
 }
 
 // ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
@@ -196,6 +186,7 @@ sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
 	}
 
 	FLUSH(&retim);
+	FLUSH(&retit);
 }
 
 // ifaceI2T(sigt *byte, iface any) (ret any);
@@ -257,6 +248,7 @@ sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
 	}
 
 	FLUSH(&retim);
+	FLUSH(&retit);
 }
 
 void
