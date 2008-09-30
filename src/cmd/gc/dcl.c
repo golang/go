@@ -335,7 +335,7 @@ addmethod(Node *n, Type *t, int local)
 	return;
 
 bad:
-	yyerror("unknown method pointer: %T", pa);
+	yyerror("unknown method pointer: %T %S %S", pa, sf, st);
 }
 
 /*
@@ -748,6 +748,7 @@ addvar(Node *n, Type *t, int ctxt)
 	s->oname = n;
 	s->offset = 0;
 	s->vblock = block;
+	s->lexical = LNAME;
 
 	n->type = t;
 	n->vargen = gen;
