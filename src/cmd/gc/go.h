@@ -562,6 +562,7 @@ Dcl*	dcl(void);
 int	algtype(Type*);
 Node*	rev(Node*);
 Node*	unrev(Node*);
+Node*	appendr(Node*, Node*);
 void	dodump(Node*, int);
 void	dump(char*, Node*);
 Type*	aindex(Node*, Type*);
@@ -648,6 +649,9 @@ Type*	newtype(Sym*);
 Type*	oldtype(Sym*);
 Type*	forwdcl(Sym*);
 void	fninit(Node*);
+Node*	nametoanondcl(Node*);
+Node*	nametodcl(Node*, Type*);
+Node*	anondcl(Type*);
 
 /*
  *	export.c
