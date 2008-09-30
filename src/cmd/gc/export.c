@@ -176,6 +176,10 @@ dumpexporttype(Sym *s)
 	case TPTR64:
 		if(t->type == T)
 			fatal("dumpexporttype: ptr %S", s);
+		if(t->type->etype == TFORW) {
+			yyerror("export of a undefined forward reference: %S", s);
+			break;
+		}
 		makeexportsym(t->type);
 		ts = t->type->sym;
 		if(ts->exported == 0)

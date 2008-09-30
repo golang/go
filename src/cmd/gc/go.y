@@ -800,8 +800,11 @@ pexpr:
 	}
 |	convtype '{' keyexpr_list '}'
 	{
-		// struct literal and conversions
-		$$ = nod(OCONV, rev($3), N);
+		// composite literal
+		$$ = rev($3);
+		if($$ == N)
+			$$ = nod(OEMPTY, N, N);
+		$$ = nod(OCONV, $$, N);
 		$$->type = $1;
 	}
 |	fnliteral
@@ -1266,11 +1269,6 @@ structdcl:
 			$$->type = types[TINT32];
 		};
 	}
-|	LIMPORT structdcl
-	{
-		$$ = $2;
-		$$->etype = OIMPORT;
-	}
 
 interfacedcl:
 	new_name ',' interfacedcl
@@ -1695,7 +1693,7 @@ hidden_importfield:
  * to check whether the rest of the grammar is free of
  * reduce/reduce conflicts, comment this section out by
  * removing the slash on the next line.
- *
+ */
 lpack:
 	LATYPE
 	{
