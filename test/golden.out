@@ -1,4 +1,8 @@
 
+=========== ./func3.go
+BUG: errchk func3
+BUG: errchk: func3.go: missing expected error message on line 14: 'type'
+
 =========== ./helloworld.go
 hello, world
 
@@ -69,8 +73,8 @@ BUG: map increment
 
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
-	(<int32>INT32)
-	({<u><int32>INT32;<v><int32>INT32;})
+	int32
+	struct { u int32; v int32; }
 BUG: compilation should succeed
 
 =========== bugs/bug074.go
@@ -86,8 +90,8 @@ BUG: succeeds incorrectly
 
 =========== bugs/bug080.go
 bugs/bug080.go:12: illegal types for operand: CALL
-	(<int32>INT32)
-	({<x><int32>INT32;<y><float32>FLOAT32;})
+	int32
+	struct { x int32; y float32; }
 BUG: fails incorrectly
 
 =========== bugs/bug083.go
@@ -128,8 +132,8 @@ BUG wrong result
 
 =========== bugs/bug098.go
 bugs/bug098.go:10: illegal types for operand: AS
-	(*MAP[<int32>INT32]<int32>INT32)
-	(**MAP[<int32>INT32]<int32>INT32)
+	*M
+	**M
 BUG should compile
 
 =========== bugs/bug099.go
@@ -138,7 +142,7 @@ done1
 =========== bugs/bug105.go
 bugs/bug105.go:8: P: undefined
 bugs/bug105.go:9: illegal types for operand: RETURN
-	(<int32>INT32)
+	int32
 BUG: should compile
 
 =========== bugs/bug108.go
@@ -147,17 +151,17 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug108.go
 
 =========== bugs/bug109.go
 bugs/bug109.go:5: illegal types for operand: MUL
-	(<float64>FLOAT64)
-	(<float32>FLOAT32)
+	float64
+	float32
 bugs/bug109.go:5: illegal types for operand: AS
-	(<float64>FLOAT64)
+	float64
 bugs/bug109.go:6: illegal types for operand: RETURN
-	(<float32>FLOAT32)
-	(<float64>FLOAT64)
+	float32
+	float64
 BUG: should compile
 
 =========== fixedbugs/bug016.go
-fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
+fixedbugs/bug016.go:7: overflow converting constant to uint32
 
 =========== fixedbugs/bug025.go
 fixedbugs/bug025.go:7: variable exported but not defined: Foo
@@ -195,7 +199,7 @@ fixedbugs/bug039.go:6: var x redeclared in this block
      previous declaration at fixedbugs/bug039.go:5
 
 =========== fixedbugs/bug049.go
-fixedbugs/bug049.go:6: illegal conversion of constant to <string>*STRING
+fixedbugs/bug049.go:6: illegal conversion of constant to string
 
 =========== fixedbugs/bug050.go
 fixedbugs/bug050.go:3: package statement must be first
@@ -205,9 +209,9 @@ sys.6:1 fixedbugs/bug050.go:3: syntax error
 fixedbugs/bug051.go:10: expression must be a constant
 
 =========== fixedbugs/bug062.go
-fixedbugs/bug062.go:6: illegal conversion of constant to <string>*STRING
+fixedbugs/bug062.go:6: illegal conversion of constant to string
 fixedbugs/bug062.go:6: illegal types for operand: AS
-	(<string>*STRING)
+	string
 
 =========== fixedbugs/bug067.go
 ok
@@ -224,17 +228,17 @@ broke
 =========== fixedbugs/bug072.go
 fixedbugs/bug072.go:6: bug: undefined
 fixedbugs/bug072.go:6: illegal types for operand: CONV
-	(<string>*STRING)
+	string
 fixedbugs/bug072.go:6: illegal types for operand: CONV
-	(<string>*STRING)
+	string
 
 =========== fixedbugs/bug073.go
 fixedbugs/bug073.go:8: illegal types for operand: LSH
-	(<int32>INT32)
-	(<int32>INT32)
+	int32
+	int32
 fixedbugs/bug073.go:9: illegal types for operand: RSH
-	(<int32>INT32)
-	(<int32>INT32)
+	int32
+	int32
 
 =========== fixedbugs/bug081.go
 fixedbugs/bug081.go:5: syntax error
