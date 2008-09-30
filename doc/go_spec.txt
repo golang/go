@@ -52,11 +52,14 @@ Open issues according to gri:
 [ ] type switch or some form of type test needed
 [ ] what is the meaning of typeof()
 [ ] at the moment: type T S; strips any methods of S. It probably shouldn't.
-
+[ ] talk about underflow/overflow of 2's complement numbers (defined vs not defined).
+[ ] 6g allows: interface { f F } where F is a function type. fine, but then we should
+    also allow: func f F {}, where F is a function type.
 
 Decisions in need of integration into the doc:
 [ ] pair assignment is required to get map, and receive ok.
-
+[ ] change wording on array composite literals: the types are always fixed arrays
+    for array composites
 
 Closed issues:
 [x] remove "any"
@@ -64,7 +67,6 @@ Closed issues:
 [x] should binary <- be at lowest precedence level? when is a send/receive non-blocking? (NO - 9/19/08)
 [x] func literal like a composite type - should probably require the '&' to get address (NO)
 [x] & needed to get a function pointer from a function? (NO - there is the "func" keyword - 9/19/08)
-
 -->
 
 Contents
@@ -77,7 +79,7 @@ Contents
 	Source code representation
 		Characters
 		Letters and digits
-		
+
 	Vocabulary
 		Identifiers
 		Numeric literals
@@ -92,11 +94,13 @@ Contents
 		Export declarations
 
 	Types
+		Type interfaces
+
 		Basic types
 			Arithmetic types
 			Booleans
 			Strings
-			
+
 		Array types
 		Struct types
 		Pointer types
@@ -119,14 +123,14 @@ Contents
 			Slices
 			Type guards
 			Calls
-			
+
 		Operators
 			Arithmetic operators
 			Comparison operators
 			Logical operators
 			Address operators
 			Communication operators
-			
+
 		Constant expressions
 
 	Statements
@@ -147,11 +151,11 @@ Contents
 		Goto statements
 
 	Function declarations
-		Methods (type-bound functions)
-		Predeclared functions
-			Length and capacity
-			Conversions
-			Allocation
+	Method declarations
+	Predeclared functions
+		Length and capacity
+		Conversions
+		Allocation
 
 	Packages
 
@@ -754,6 +758,11 @@ with the static type of the variable.
 	TypeName = QualifiedIdent.
 
 
+Type interfaces
+----
+
+TODO fill in this section
+
 Basic types
 ----
 
@@ -983,9 +992,6 @@ to arrays and arrays.
 Struct types
 ----
 
-TODO: The language below needs to be adjusted for inlined types. The syntax
-is probably all right.
-
 A struct is a composite type consisting of a fixed number of elements,
 called fields, with possibly different types. The struct type declaration
 specifies the name and type for each field. The scope of each field identifier
@@ -995,10 +1001,6 @@ it is also visible within field selectors (§Primary Expressions).
 	StructType = "struct" "{" [ FieldList [ ";" ] ] "}" .
 	FieldList = FieldDecl { ";" FieldDecl } .
 	FieldDecl = [ IdentifierList ] Type .
-	
-Type equality: Two struct types are equal only if both have the same number
-of fields in the same order and and the field types are equal
-(note that the field names do not have to match).
 
 	// An empty struct.
 	struct {}
@@ -1010,7 +1012,31 @@ of fields in the same order and and the field types are equal
 		a *[]int;
 		f *();
 	}
-	
+
+A struct may contain ``embedded types''. An embedded type is declared with
+a type name but no explicit field name. Instead, the type name acts as the
+field name.
+
+	// A struct with a single embedded type T.
+	struct {
+		x, y int;
+		T;
+	}
+
+As with all scopes, each field name must be unique within a single struct
+(§Declarations and scope rules); consequently, the name of an embedded type
+must not conflict with the name of any other field or embedded type within
+the scope of the struct.
+
+Fields and methods (§Method declarations) of an embedded type become directly
+accessible as fields and methods of the struct without the need to specify the
+embedded type (§TODO).
+
+Type equality: Two struct types are equal only if both have the same number
+of fields in the same order, corresponding fields are either both embedded
+types or they are not, and the corresponding field types are equal.
+Specifically, field names don't have to match.
+
 Assignment compatibility: Structs are assignment compatible to variables of
 equal type only.
 
@@ -1156,11 +1182,12 @@ Assignment compatibility: A function pointer can be assigned to a function
 Interface types
 ----
 
-An interface type denotes a set of methods.
+An interface type denotes the set of all types that implement the
+set of methods specified by the interface type.
 
 	InterfaceType = "interface" "{" [ MethodList [ ";" ] ] "}" .
-	MethodList = Method { ";" Method } .
-	Method = identifier FunctionType .
+	MethodList = MethodSpec { ";" MethodSpec } .
+	MethodSpec = identifier FunctionType .
 
 	// A basic file interface.
 	type File interface {
@@ -2246,15 +2273,25 @@ Implementation restrictions: Functions can only be declared at the global level.
 A function must be declared or forward-declared before it can be invoked.
 
 
-Methods
+Method declarations
 ----
 
-A method declaration declares a function with a receiver.
+A method declaration is a function declaration with a receiver. The receiver
+is the first parameter of the method, and the receiver type must be specified
+as a type name, or as a pointer to a type name. The type specified by the
+type name is called ``receiver base type''. The receiver base type must be a
+type declared in the current file. The method is said to be ``bound'' to
+the receiver base type; specifically it is declared within the scope of
+that type (§Type interfaces).
 
 	MethodDecl = "func" Receiver identifier FunctionType ( ";" | Block ) .
-	Receiver = "(" identifier Type ")" .
+	Receiver = "(" identifier [ "*" ] TypeName ")" .
 
-A method is bound to the type of its receiver.
+All methods bound to a receiver base type must have the same receiver type:
+Either all receiver types are pointers to the base type or they are the base
+type. (TODO: This restriction can be relaxed at the cost of more complicated
+assignment rules to interface types).
+
 For instance, given type Point, the declarations
 
 	func (p *Point) Length() float {
@@ -2266,8 +2303,10 @@ For instance, given type Point, the declarations
 		p.y = p.y * factor;
 	}
 
-create methods for type *Point.  Note that methods may appear anywhere
-after the declaration of the receiver type and may be forward-declared.
+bind the methods "Length" and "Scale" to the receiver base type "Point".
+
+Method declarations may appear anywhere after the declaration of the receiver
+base type and may be forward-declared.
 
 
 Predeclared functions
