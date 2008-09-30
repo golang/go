@@ -933,28 +933,125 @@ out:
 	return fmtstrcpy(fp, buf);
 }
 
+static char *basicnames[] = {
+[TINT8]	"int8",
+[TUINT8]	"uint8",
+[TINT16]	"int16",
+[TUINT16]	"uint16",
+[TINT32]	"int32",
+[TUINT32]	"uint32",
+[TINT64]	"int64",
+[TUINT64]	"uint64",
+[TFLOAT32]	"float32",
+[TFLOAT64]	"float64",
+[TFLOAT80]	"float80",
+[TBOOL]	"bool",
+[TSTRING]	"string"
+};
+
+int
+Tpretty(Fmt *fp, Type *t)
+{
+	Type *t1;
+
+	if(t->etype != TFIELD && t->sym != S && t->sym->name[0] != '_')
+		return fmtprint(fp, "%S", t->sym);
+	
+	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil)
+		return fmtprint(fp, "%s", basicnames[t->etype]);
+	
+	switch(t->etype) {
+	case TPTR32:
+	case TPTR64:
+		return fmtprint(fp, "*%T", t->type);
+	
+	case TFUNC:
+		fmtprint(fp, "(");
+		for(t1=t->type->down->down->type; t1; t1=t1->down) {
+			fmtprint(fp, "%T", t1);
+			if(t1->down)
+				fmtprint(fp, ", ");
+		}
+		fmtprint(fp, ")");
+		t1 = t->type->down->type;
+		if(t1 != T) {
+			if(t1->down == T && t1->etype != TFIELD)
+				fmtprint(fp, " %T", t1);
+			else {
+				fmtprint(fp, " (");
+				for(; t1; t1=t1->down) {
+					fmtprint(fp, "%T", t1);
+					if(t1->down)
+						fmtprint(fp, ", ");
+				}
+				fmtprint(fp, ")");
+			}
+		}
+		return 0;
+	
+	case TARRAY:
+		if(t->bound >= 0)
+			return fmtprint(fp, "[%d]%T", (int)t->bound, t->type);
+		return fmtprint(fp, "[]%T", t->type);
+
+	case TCHAN:
+		return fmtprint(fp, "chan %T", t->type);
+	
+	case TMAP:
+		return fmtprint(fp, "map[%T] %T", t->down, t->type);
+	
+	case TINTER:
+		fmtprint(fp, "interface {");
+		for(t1=t->type; t1!=T; t1=t1->down) {
+			fmtprint(fp, " %S %T;", t1->sym, t1);
+		}
+		return fmtprint(fp, " }"); 
+	
+	case TSTRUCT:
+		fmtprint(fp, "struct {");
+		for(t1=t->type; t1!=T; t1=t1->down) {
+			fmtprint(fp, " %T;", t1);
+		}
+		return fmtprint(fp, " }");
+	
+	case TFIELD:
+		if(t->sym == S || t->sym->name[0] == '_')
+			return fmtprint(fp, "%T", t->type);
+		return fmtprint(fp, "%S %T", t->sym, t->type);
+	}
+
+	// Don't know how to handle - fall back to detailed prints.
+	return -1;
+}
+
 int
 Tconv(Fmt *fp)
 {
 	char buf[500], buf1[500];
 	Type *t, *t1;
 	int et;
-
+	
 	t = va_arg(fp->args, Type*);
 	if(t == T)
 		return fmtstrcpy(fp, "<T>");
 
 	t->trecur++;
+	if(t->trecur > 5) {
+		strncat(buf, "...", sizeof(buf));
+		goto out;
+	}
+
+	if(!debug['t'] && Tpretty(fp, t) >= 0) {
+		t->trecur--;
+		return 0;
+	}
+
 	et = t->etype;
 
 	strcpy(buf, "");
 	if(t->sym != S) {
 		if(t->sym->name[0] != '_')
 		snprint(buf, sizeof(buf), "<%S>", t->sym);
-	}
-	if(t->trecur > 5) {
-		strncat(buf, "...", sizeof(buf));
-		goto out;
 	}
 
 	switch(et) {
