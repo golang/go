@@ -348,7 +348,7 @@ we have a second implementation of the "Reader" interface.
 
 --PROG progs/cat_rot13.go /type.Rot13/ /end.of.Rot13/
 
-(The "rot13" function called on line 39 is trivial and not worth reproducing.)
+(The "rot13" function called on line 38 is trivial and not worth reproducing.)
 
 To use the new feature, we define a flag:
 
@@ -358,6 +358,8 @@ and use it from within a mostly unchanged "cat()" function:
 
 --PROG progs/cat_rot13.go /func.cat/ /^}/
 
+(We could also do the wrapping in "main" and leave "cat()" mostly alone, except
+for changing the type of the argument.)
 Lines 53 and 54 set it all up: If the "rot13" flag is true, wrap the "Reader"
 we received into a "Rot13" and proceed.  Note that the interface variables
 are values, not pointers: the argument is of type "Reader", not "*Reader",
@@ -374,7 +376,7 @@ Here it is in action:
 </pre>
 
 Fans of dependency injection may take cheer from how easily interfaces
-made substituting the implementation of a file descriptor.
+allow us to substitute the implementation of a file descriptor.
 
 Interfaces are a distinct feature of Go.  An interface is implemented by a
 type if the type implements all the methods declared in the interface.
@@ -526,7 +528,7 @@ With channels, it's possible to serve multiple independent client goroutines wit
 writing an actual multiplexer.  The trick is to send the server a channel in the message,
 which it will then use to reply to the original sender.
 A realistic client-server program is a lot of code, so here is a very simple substitute
-to illustrate the idea.  It starts by defining "Request" type, which embeds a channel
+to illustrate the idea.  It starts by defining a "Request" type, which embeds a channel
 that will be used for the reply.
 
 --PROG progs/server.go /type.Request/ /^}/
