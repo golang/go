@@ -47,11 +47,9 @@ Open issues according to gri:
     (issue: what happens in len() + const - what is the type?)
 [ ] Do composite literals create a new literal each time (gri thinks yes)
 [ ] consider syntactic notation for composite literals to make them parseable w/o type information
-[ ] nil and interfaces - can we test for nil, what does it mean, etc.
 [ ] type switch or some form of type test needed
 [ ] what is the meaning of typeof()
 [ ] at the moment: type T S; strips any methods of S. It probably shouldn't.
-[ ] talk about underflow/overflow of 2's complement numbers (defined vs not defined).
 [ ] 6g allows: interface { f F } where F is a function type. fine, but then we should
     also allow: func f F {}, where F is a function type.
 [ ] provide composite literal notation to address array indices: []int{ 0: x1, 1: x2, ... }
@@ -60,6 +58,8 @@ Decisions in need of integration into the doc:
 [ ] pair assignment is required to get map, and receive ok.
 
 Closed issues:
+[x] nil and interfaces - can we test for nil, what does it mean, etc.
+[x] talk about underflow/overflow of 2's complement numbers (defined vs not defined).
 [x] change wording on array composite literals: the types are always fixed arrays
     for array composites
 [x] meaning of nil
@@ -1249,6 +1249,11 @@ TODO(gri) This may be overly constraining. What about "len(a) + c" where
 c is an ideal number? Is len(a) of type int, or of an ideal number? Probably
 should be ideal number, because for fixed arrays, it is a constant.
 
+If an exceptional condition occurs during the evaluation of an expression
+(that is, if the result is not mathematically defined or not in the range
+of representable values for its type), the behavior is undefined. For
+instance, the behavior of integer under- or overflow is not defined.
+
 
 Operands
 ----
@@ -1511,9 +1516,6 @@ Operators combine operands into expressions.
 
 	unary_op = "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
 
-TODO: If we allow non-blocking sends only in the form "ok = ch <- x", it doesn't
-make sense to give binary "<-" precedence 3. It should be at the lowest level. TBD.
-
 The operand types in binary operations must be equal, with the following exceptions:
 
 	- The right operand in a shift operation must be
@@ -1625,7 +1627,8 @@ Comparison operators
 
 Comparison operators yield a boolean result. All comparison operators apply
 to strings and numeric types. The operators "==" and "!=" also apply to
-boolean values and to pointer types (including the value "nil").
+boolean values and to pointer types (including the value "nil"). Finally,
+"==" and "!=" can also be used to compare interface types against "nil".
 
 	==    equal
 	!=    not equal
@@ -1634,7 +1637,12 @@ boolean values and to pointer types (including the value "nil").
 	>     greater
 	>=    greater or equal
 
-TODO: Can we/should we be able to compare interfaces?
+Strings are compared byte-wise (lexically).
+
+Interfaces can be tested against "nil" (§Interface types).
+For a value "v" of interface type, "v == nil" is true only if the predeclared
+constant "nil" is assigned explicitly to "v" (§Assignments), or "v" has not
+been modified since creation (§Program initialization and execution).
 
 
 Logical operators
@@ -1845,11 +1853,22 @@ Expression statements
 IncDec statements
 ----
 
+The "++" and "--" statements increment or decrement their operands
+by the (ideal) constant value 1.
+
 	IncDecStat = Expression ( "++" | "--" ) .
+	
+The following assignment statements (§Assignments) are semantically
+equivalent:
 
-	a[i]++
+	IncDec statement    Assignment
+	x++                 x += 1
+	x--                 x -= 1
 
-Note that ++ and -- are not operators for expressions.
+Both operators apply to integer and floating point types only.
+
+Note that increment and decrement are statements, not expressions.
+For instance, "x++" cannot be used as an operand in an expression.
 
 
 Assignments
@@ -2522,12 +2541,12 @@ Program initialization and execution
 ----
 
 When memory is allocated to store a value, either through a declaration
-or new(), and no explicit initialization is provided, the memory is
+or "new()", and no explicit initialization is provided, the memory is
 given a default initialization.  Each element of such a value is
 set to the ``zero'' for that type: "false" for booleans, "0" for integers,
-"0.0" for floats, '''' for strings, and nil for pointers.  This intialization
-is done recursively, so for instance each element of an array of integers will
-be set to 0 if no other value is specified.
+"0.0" for floats, '''' for strings, and "nil" for pointers and interfaces.
+This intialization is done recursively, so for instance each element of an
+array of integers will be set to 0 if no other value is specified.
 
 These two simple declarations are equivalent:
 
