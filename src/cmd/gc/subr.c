@@ -1845,9 +1845,9 @@ loop:
 
 	yyerror("illegal types for operand: %O", o);
 	if(tl != T)
-		print("	(%lT)\n", tl);
+		print("	%lT\n", tl);
 	if(tr != T)
-		print("	(%lT)\n", tr);
+		print("	%lT\n", tr);
 }
 
 /*
