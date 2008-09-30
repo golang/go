@@ -287,11 +287,6 @@ loop:
 		walkselect(n);
 		goto ret;
 
-	case OEMPTY:
-		if(top != Etop)
-			goto nottop;
-		goto ret;
-
 	case OIF:
 		if(top != Etop)
 			goto nottop;
@@ -500,16 +495,18 @@ loop:
 
 	case OFALL:
 	case OINDREG:
+	case OEMPTY:
 		goto ret;
 
 	case OCONV:
 		if(top == Etop)
 			goto nottop;
-		walktype(n->left, Erv);
 
 		l = n->left;
 		if(l == N)
 			goto ret;
+		walktype(l, Erv);
+
 		t = n->type;
 		if(t == T)
 			goto ret;
@@ -552,7 +549,6 @@ loop:
 		// interface and structure
 		et = isandss(n->type, l);
 		if(et != Inone) {
-if(et == I2I) dump("conv", n);
 			indir(n, ifaceop(n->type, l, et));
 			goto ret;
 		}
@@ -2980,14 +2976,10 @@ structlit(Node *n)
 
 	l = structfirst(&savel, &n->type);
 	r = listfirst(&saver, &n->left);
+	if(r != N && r->op == OEMPTY)
+		r = N;
 
 loop:
-	if(l != T && l->etype == TFIELD && l->type->etype == TFUNC) {
-		// skip methods
-		l = structnext(&savel);
-		goto loop;
-	}
-
 	if(l == T || r == N) {
 		if(l != T)
 			yyerror("struct literal expect expr of type %T", l);
@@ -3027,6 +3019,8 @@ arraylit(Node *n)
 
 		// make it a closed array
 		r = listfirst(&saver, &n->left);
+		if(r != N && r->op == OEMPTY)
+			r = N;
 		for(idx=0; r!=N; idx++)
 			r = listnext(&saver);
 		t->bound = idx;
@@ -3037,6 +3031,8 @@ arraylit(Node *n)
 
 	idx = 0;
 	r = listfirst(&saver, &n->left);
+	if(r != N && r->op == OEMPTY)
+		r = N;
 
 loop:
 	if(r == N)
@@ -3075,6 +3071,8 @@ maplit(Node *n)
 	addtop = list(addtop, a);
 
 	r = listfirst(&saver, &n->left);
+	if(r != N && r->op == OEMPTY)
+		r = N;
 
 loop:
 	if(r == N) {
