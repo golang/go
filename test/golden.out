@@ -176,6 +176,7 @@ hi
 4 0
 
 =========== fixedbugs/bug029.go
+fixedbugs/bug029.go:6: f is not a type
 fixedbugs/bug029.go:6: syntax error
 fixedbugs/bug029.go:6: syntax error
 
@@ -236,7 +237,7 @@ fixedbugs/bug073.go:9: illegal types for operand: RSH
 	(<int32>INT32)
 
 =========== fixedbugs/bug081.go
-fixedbugs/bug081.go:5: no type x
+fixedbugs/bug081.go:5: syntax error
 
 =========== fixedbugs/bug086.go
 fixedbugs/bug086.go:5: function ends without a return statement
