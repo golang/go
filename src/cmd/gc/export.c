@@ -263,7 +263,7 @@ dumpe(Sym *s)
 {
 	switch(s->lexical) {
 	default:
-		yyerror("unknown export symbol: %S", s, s->lexical);
+		yyerror("unknown export symbol: %S", s);
 		break;
 	case LPACK:
 		yyerror("package export symbol: %S", s);
@@ -288,6 +288,7 @@ void
 dumpm(Sym *s)
 {
 	Type *t, *f;
+	Dcl *back, *d1;
 
 	switch(s->lexical) {
 	default:
@@ -305,17 +306,27 @@ dumpm(Sym *s)
 	}
 
 	for(f=t->method; f!=T; f=f->down) {
+		back = exportlist->back;
+
 		if(f->etype != TFIELD)
 			fatal("dumpexporttype: method not field: %lT", f);
 		reexport(f->type);
 		Bprint(bout, "\tfunc %S %lS\n", f->sym, f->type->sym);
+	
+		if(back != exportlist->back) {
+			// redo first pass on new entries
+			for(d1=back; d1!=D; d1=d1->forw) {
+				lineno = d1->lineno;
+				dumpe(d1->dsym);
+			}
+		}
 	}
 }
 
 void
 dumpexport(void)
 {
-	Dcl *d;
+	Dcl *d, *d1;
 	int32 lno;
 
 	lno = lineno;
@@ -335,12 +346,6 @@ dumpexport(void)
 	for(d=exportlist->forw; d!=D; d=d->forw) {
 		lineno = d->lineno;
 		dumpm(d->dsym);
-	}
-
-	// third pass pick up redefs from previous passes
-	for(d=exportlist->forw; d!=D; d=d->forw) {
-		lineno = d->lineno;
-		dumpe(d->dsym);
 	}
 
 	Bprint(bout, "   ))\n");
