@@ -10,54 +10,25 @@ import Utils "utils"
 
 export const (
 	ILLEGAL = iota;
-	EOF;
+
 	IDENT;
 	INT;
 	FLOAT;
 	STRING;
+	EOF;
 
-	COMMA;
-	COLON;
-	SEMICOLON;
-	PERIOD;
-
-	LPAREN;
-	RPAREN;
-	LBRACK;
-	RBRACK;
-	LBRACE;
-	RBRACE;
-	
-	ASSIGN;
-	DEFINE;
-	
-	INC;
-	DEC;
-	NOT;
-	
-	AND;
-	OR;
-	XOR;
-	
 	ADD;
 	SUB;
 	MUL;
 	QUO;
 	REM;
 	
-	EQL;
-	NEQ;
-	LSS;
-	LEQ;
-	GTR;
-	GEQ;
-
+	AND;
+	OR;
+	XOR;
 	SHL;
 	SHR;
 	
-	ARROW;
-	HASH;
-
 	ADD_ASSIGN;
 	SUB_ASSIGN;
 	MUL_ASSIGN;
@@ -67,13 +38,40 @@ export const (
 	AND_ASSIGN;
 	OR_ASSIGN;
 	XOR_ASSIGN;
-	
 	SHL_ASSIGN;
 	SHR_ASSIGN;
 
 	LAND;
 	LOR;
+	ARROW;
+	INC;
+	DEC;
 	
+	EQL;
+	NEQ;
+	LSS;
+	LEQ;
+	GTR;
+	GEQ;
+
+	ASSIGN;
+	DEFINE;
+	NOT;
+	ELLIPSIS;
+	HASH;
+	
+	LPAREN;
+	RPAREN;
+	LBRACK;
+	RBRACK;
+	LBRACE;
+	RBRACE;
+	
+	COMMA;
+	SEMICOLON;
+	COLON;
+	PERIOD;
+
 	// keywords
 	KEYWORDS_BEG;
 	BREAK;
@@ -81,21 +79,25 @@ export const (
 	CHAN;
 	CONST;
 	CONTINUE;
+	
 	DEFAULT;
 	ELSE;
 	EXPORT;
 	FALLTHROUGH;
 	FOR;
+	
 	FUNC;
 	GO;
 	GOTO;
 	IF;
 	IMPORT;
+	
 	INTERFACE;
 	MAP;
 	PACKAGE;
 	RANGE;
 	RETURN;
+	
 	SELECT;
 	STRUCT;
 	SWITCH;
@@ -105,61 +107,28 @@ export const (
 )
 
 
-var Keywords *map [string] int;
-var VerboseMsgs bool;  // error message customization
-
-
 export func TokenName(tok int) string {
 	switch (tok) {
-	case ILLEGAL: return "illegal";
-	case EOF: return "eof";
-	case IDENT: return "ident";
-	case INT: return "int";
-	case FLOAT: return "float";
-	case STRING: return "string";
-
-	case COMMA: return ",";
-	case COLON: return ":";
-	case SEMICOLON: return ";";
-	case PERIOD: return ".";
-
-	case LPAREN: return "(";
-	case RPAREN: return ")";
-	case LBRACK: return "[";
-	case RBRACK: return "]";
-	case LBRACE: return "LBRACE";
-	case RBRACE: return "RBRACE";
-
-	case ASSIGN: return "=";
-	case DEFINE: return ":=";
+	case ILLEGAL: return "ILLEGAL";
 	
-	case INC: return "++";
-	case DEC: return "--";
-	case NOT: return "!";
+	case IDENT: return "IDENT";
+	case INT: return "INT";
+	case FLOAT: return "FLOAT";
+	case STRING: return "STRING";
+	case EOF: return "EOF";
 
-	case AND: return "&";
-	case OR: return "|";
-	case XOR: return "^";
-	
 	case ADD: return "+";
 	case SUB: return "-";
 	case MUL: return "*";
 	case QUO: return "/";
 	case REM: return "%";
 	
-	case EQL: return "==";
-	case NEQ: return "!=";
-	case LSS: return "<";
-	case LEQ: return "<=";
-	case GTR: return ">";
-	case GEQ: return ">=";
-
+	case AND: return "&";
+	case OR: return "|";
+	case XOR: return "^";
 	case SHL: return "<<";
 	case SHR: return ">>";
 	
-	case ARROW: return "<-";
-	case HASH: return "#";
-
 	case ADD_ASSIGN: return "+=";
 	case SUB_ASSIGN: return "-=";
 	case MUL_ASSIGN: return "+=";
@@ -169,33 +138,64 @@ export func TokenName(tok int) string {
 	case AND_ASSIGN: return "&=";
 	case OR_ASSIGN: return "|=";
 	case XOR_ASSIGN: return "^=";
-
 	case SHL_ASSIGN: return "<<=";
 	case SHR_ASSIGN: return ">>=";
 
 	case LAND: return "&&";
 	case LOR: return "||";
+	case ARROW: return "<-";
+	case INC: return "++";
+	case DEC: return "--";
+
+	case EQL: return "==";
+	case NEQ: return "!=";
+	case LSS: return "<";
+	case LEQ: return "<=";
+	case GTR: return ">";
+	case GEQ: return ">=";
+
+	case ASSIGN: return "=";
+	case DEFINE: return ":=";
+	case NOT: return "!";
+	case ELLIPSIS: return "...";
+	case HASH: return "#";
+
+	case LPAREN: return "(";
+	case RPAREN: return ")";
+	case LBRACK: return "[";
+	case RBRACK: return "]";
+	case LBRACE: return "LBRACE";
+	case RBRACE: return "RBRACE";
+
+	case COMMA: return ",";
+	case SEMICOLON: return ";";
+	case COLON: return ":";
+	case PERIOD: return ".";
 
 	case BREAK: return "break";
 	case CASE: return "case";
 	case CHAN: return "chan";
 	case CONST: return "const";
 	case CONTINUE: return "continue";
+
 	case DEFAULT: return "default";
 	case ELSE: return "else";
 	case EXPORT: return "export";
 	case FALLTHROUGH: return "fallthrough";
 	case FOR: return "for";
+
 	case FUNC: return "func";
 	case GO: return "go";
 	case GOTO: return "goto";
 	case IF: return "if";
 	case IMPORT: return "import";
+
 	case INTERFACE: return "interface";
 	case MAP: return "map";
 	case PACKAGE: return "package";
 	case RANGE: return "range";
 	case RETURN: return "return";
+
 	case SELECT: return "select";
 	case STRUCT: return "struct";
 	case SWITCH: return "switch";
@@ -203,7 +203,7 @@ export func TokenName(tok int) string {
 	case VAR: return "var";
 	}
 	
-	return "???";
+	panic("UNREACHABLE");
 }
 
 
@@ -227,10 +227,14 @@ export func Precedence(tok int) int {
 }
 
 
+var Keywords *map [string] int;
+var VerboseMsgs bool;  // error message customization
+
+
 func init() {
 	Keywords = new(map [string] int);
 	
-	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
+	for i := KEYWORDS_BEG + 1; i < KEYWORDS_END; i++ {
 	  Keywords[TokenName(i)] = i;
 	}
 	
@@ -277,7 +281,6 @@ export type Scanner struct {
 
 // Read the next Unicode char into S.ch.
 // S.ch < 0 means end-of-file.
-//
 func (S *Scanner) Next() {
 	const (
 		Bit1 = 7;
@@ -718,12 +721,12 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
 }
 
 
-func (S *Scanner) Scan() (tok, pos int, val string) {
+func (S *Scanner) Scan() (pos, tok int, val string) {
 	S.SkipWhitespace();
 	
 	ch := S.ch;
-	tok = ILLEGAL;
 	pos = S.chpos;
+	tok = ILLEGAL;
 	
 	switch {
 	case is_letter(ch): tok, val = S.ScanIdentifier();
@@ -739,6 +742,12 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
 		case '.':
 			if digit_val(S.ch) < 10 {
 				tok, val = S.ScanNumber(true);
+			} else if S.ch == '.' {
+				S.Next();
+				if S.ch == '.' {
+					S.Next();
+					tok = ELLIPSIS;
+				}
 			} else {
 				tok = PERIOD;
 			}
@@ -782,7 +791,7 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
 		}
 	}
 	
-	return tok, pos, val;
+	return pos, tok, val;
 }
 
 
@@ -798,7 +807,7 @@ func (S *Scanner) TokenStream() *<-chan *Token {
 	go func(S *Scanner, ch *chan <- *Token) {
 		for {
 			t := new(Token);
-			t.tok, t.pos, t.val = S.Scan();
+			t.pos, t.tok, t.val = S.Scan();
 			ch <- t;
 			if t.tok == EOF {
 				break;
