@@ -11,6 +11,10 @@ pretty: pretty.6
 test: pretty
 	pretty -s *.go
 	pretty -s ../gosrc/*.go
+	pretty -s $(GOROOT)/test/235.go
+	pretty -s $(GOROOT)/test/args.go
+	pretty -s $(GOROOT)/test/bufiolib.go
+	pretty -s $(GOROOT)/test/char_lit.go
 	pretty -s $(GOROOT)/test/sieve.go
 	pretty -s $(GOROOT)/src/pkg/*.go
 	pretty -s $(GOROOT)/src/lib/flag.go
@@ -18,7 +22,24 @@ test: pretty
 	pretty -s $(GOROOT)/src/lib/rand.go
 	pretty -s $(GOROOT)/src/lib/math/*.go
 	pretty -s $(GOROOT)/src/lib/container/*.go
-	pretty -s $(GOROOT)/src/syscall/*.go
+	pretty -s $(GOROOT)/src/lib/syscall/*.go
+	echo "DONE"
+
+testnoisy: pretty
+	pretty *.go
+	pretty ../gosrc/*.go
+	pretty $(GOROOT)/test/235.go
+	pretty $(GOROOT)/test/args.go
+	pretty $(GOROOT)/test/bufiolib.go
+	pretty $(GOROOT)/test/char_lit.go
+	pretty $(GOROOT)/test/sieve.go
+	pretty $(GOROOT)/src/pkg/*.go
+	pretty $(GOROOT)/src/lib/flag.go
+	pretty $(GOROOT)/src/lib/fmt.go
+	pretty $(GOROOT)/src/lib/rand.go
+	pretty $(GOROOT)/src/lib/math/*.go
+	pretty $(GOROOT)/src/lib/container/*.go
+	pretty $(GOROOT)/src/lib/syscall/*.go
 	echo "DONE"
 
 install: pretty
