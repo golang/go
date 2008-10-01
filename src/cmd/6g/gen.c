@@ -896,11 +896,15 @@ cgen_as(Node *nl, Node *nr, int op)
 	if(nl == N)
 		return;
 
-	tl = nl->type;
-	if(tl == T)
-		return;
-
 	if(nr == N || isnil(nr)) {
+		if(nl->op == OLIST) {
+			cgen_as(nl->left, nr, op);
+			cgen_as(nl->right, nr, op);
+			return;
+		}
+		tl = nl->type;
+		if(tl == T)
+			return;
 		if(isfat(tl)) {
 			/* clear a fat object */
 			if(debug['g'])
@@ -977,6 +981,10 @@ cgen_as(Node *nl, Node *nr, int op)
 		nr->addable = 1;
 		ullmancalc(nr);
 	}
+
+	tl = nl->type;
+	if(tl == T)
+		return;
 
 	cgen(nr, nl);
 
