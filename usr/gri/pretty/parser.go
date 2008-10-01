@@ -152,13 +152,12 @@ func (P *Parser) ParseIdentList() *AST.List {
 }
 
 
-func (P *Parser) ParseQualifiedIdent(ident *AST.Ident) AST.Expr {
+func (P *Parser) ParseQualifiedIdent() AST.Expr {
 	P.Trace("QualifiedIdent");
 
-	if ident == nil {
-		ident = P.ParseIdent();
-	}
+	ident := P.ParseIdent();
 	var qident AST.Expr = ident;
+
 	for P.tok == Scanner.PERIOD {
 		pos := P.pos;
 		P.Next();
@@ -203,7 +202,7 @@ func (P *Parser) ParseVarType() AST.Type {
 func (P *Parser) ParseTypeName() AST.Type {
 	P.Trace("TypeName");
 	
-	typ := P.ParseQualifiedIdent(nil);
+	typ := P.ParseQualifiedIdent();
 
 	P.Ecart();
 	return typ;
@@ -257,27 +256,22 @@ func (P *Parser) ParseChannelType() *AST.ChannelType {
 
 func (P *Parser) ParseVarDeclList() *AST.VarDeclList {
 	P.Trace("VarDeclList");
-	
+
 	vars := new(AST.VarDeclList);
-	if P.tok == Scanner.IDENT {
-		vars.idents = P.ParseIdentList();
-		typ, ok := P.TryType();
-		if ok {
-			vars.typ = typ;
-		} else {
-			// we had an anonymous var, and the ident may be it's typename
-			// or the package name of a qualified identifier representing
-			// the typename
-			if vars.idents.len() == 1 {
-				vars.typ = P.ParseQualifiedIdent(vars.idents.at(0));
-				vars.idents = nil;
-			} else {
-				P.Error(P.pos, "type expected");
-				vars.typ = AST.NIL;
-			}
-		}
-	} else {
-		vars.typ = P.ParseVarType();
+	vars.idents = AST.NewList();
+	vars.typ = AST.NIL;
+	
+	vars.idents.Add(P.ParseType());
+	for P.tok == Scanner.COMMA {
+		P.Next();
+		vars.idents.Add(P.ParseType());
+	}
+	
+	var ok bool;
+	vars.typ, ok = P.TryType();
+
+	if !ok {
+		// we must have a list of types
 	}
 	
 	P.Ecart();
@@ -285,7 +279,7 @@ func (P *Parser) ParseVarDeclList() *AST.VarDeclList {
 }
 
 
-// Returns a list of AST.VarDeclList
+// Returns a list of *AST.VarDeclList or Type
 func (P *Parser) ParseParameterList() *AST.List {
 	P.Trace("ParameterList");
 	
