@@ -14,9 +14,9 @@ export type Parser struct {
 	scanner *Scanner.Scanner;
 	tokchan *<-chan *Scanner.Token;
 	
-	// Token
-	tok int;  // one token look-ahead
+	// Scanner.Token
 	pos int;  // token source position
+	tok int;  // one token look-ahead
 	val string;  // token value (for IDENT, NUMBER, STRING only)
 
 	// Nesting level
@@ -54,7 +54,7 @@ func (P *Parser) Ecart() {
 
 func (P *Parser) Next() {
 	if P.tokchan == nil {
-		P.tok, P.pos, P.val = P.scanner.Scan();
+		P.pos, P.tok, P.val = P.scanner.Scan();
 	} else {
 		t := <-P.tokchan;
 		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
@@ -336,22 +336,22 @@ func (P *Parser) ParseResultList() {
 func (P *Parser) ParseResult() *AST.List {
 	P.Trace("Result");
 	
+	var result *AST.List;
 	if P.tok == Scanner.LPAREN {
-		P.Next();
-		P.ParseResultList();
-		for P.tok == Scanner.COMMA {
-			P.Next();
-			P.ParseResultList();
-		}
-		P.Expect(Scanner.RPAREN);
-
+		result = P.ParseParameters();
 	} else {
-		// anonymous result
-		P.TryType();
+		typ, ok := P.TryType();
+		if ok {
+			vars := new(AST.VarDeclList);
+			vars.typ = typ;
+			list := AST.NewList();
+			list.Add(vars);
+			result = list;
+		}
 	}
 
 	P.Ecart();
-	return nil
+	return result;
 }
 
 
@@ -1008,11 +1008,7 @@ func (P *Parser) ParseControlClause(keyword int) *AST.ControlClause {
 				}
 			}
 		} else {
-			//ctrl.expr, ctrl.has_expr = ctrl.init, ctrl.has_init;
-			
-			ctrl.expr = ctrl.init;
-			ctrl.has_expr = ctrl.has_init;
-			
+			ctrl.expr, ctrl.has_expr = ctrl.init, ctrl.has_init;
 			ctrl.init, ctrl.has_init = AST.NIL, false;
 		}
 	}

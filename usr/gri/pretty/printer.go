@@ -10,25 +10,50 @@ import AST "ast"
 
 // Printer implements AST.Visitor
 type Printer struct {
-	indent int;
+	level int;  // true scope level
+	indent int;  // indentation level
+	semi bool;  // pending ";"
+	newl bool;  // pending "\n"
 	prec int;  // operator precedence
 }
 
 
-func (P *Printer) NewLine(delta int) {
-	P.indent += delta;
-	if P.indent < 0 {
-		panic("negative indent");
+func (P *Printer) String(s string) {
+	if P.semi && P.level > 0 {  // no semicolons at level 0
+		print(";");
 	}
-	print("\n");
-	for i := P.indent; i > 0; i-- {
-		print("\t");
+	if P.newl {
+		print("\n");
+		for i := P.indent; i > 0; i-- {
+			print("\t");
+		}
 	}
+	print(s);
+	P.newl, P.semi = false, false;
 }
 
 
-func (P *Printer) String(s string) {
-	print(s);
+func (P *Printer) NewLine() {  // explicit "\n"
+	print("\n");
+	P.semi, P.newl = false, true;
+}
+
+
+func (P *Printer) OpenScope(paren string) {
+	P.semi, P.newl = false, false;
+	P.String(paren);
+	P.level++;
+	P.indent++;
+	P.newl = true;
+}
+
+
+func (P *Printer) CloseScope(paren string) {
+	P.level--;
+	P.indent--;
+	P.newl = true;
+	P.String(paren);
+	P.semi, P.newl = false, true;
 }
 
 
@@ -70,6 +95,11 @@ func (P *Printer) DoFunctionType(x *AST.FunctionType) {
 	P.String("(");
 	P.PrintList(x.params);
 	P.String(")");
+	if x.result != nil {
+		P.String(" (");
+		P.PrintList(x.result);
+		P.String(")");
+	}
 }
 
 
@@ -82,19 +112,13 @@ func (P *Printer) DoArrayType(x *AST.ArrayType) {
 
 
 func (P *Printer) DoStructType(x *AST.StructType) {
-	P.String("struct {");
-	if x.fields.len() > 0 {
-		P.NewLine(1);
-		for i := 0; i < x.fields.len(); i++ {
-			if i > 0 {
-				P.NewLine(0);
-			}
-			P.Print(x.fields.at(i));
-			P.String(";");
-		}
-		P.NewLine(-1);
+	P.String("struct ");
+	P.OpenScope("{");
+	for i := 0; i < x.fields.len(); i++ {
+		P.Print(x.fields.at(i));
+		P.newl, P.semi = true, true;
 	}
-	P.String("}");
+	P.CloseScope("}");
 }
 
 
@@ -117,19 +141,13 @@ func (P *Printer) DoChannelType(x *AST.ChannelType) {
 
 
 func (P *Printer) DoInterfaceType(x *AST.InterfaceType) {
-	P.String("interface {");
-	if x.methods.len() > 0 {
-		P.NewLine(1);
-		for i := 0; i < x.methods.len(); i++ {
-			if i > 0 {
-				P.NewLine(0);
-			}
-			P.Print(x.methods.at(i));
-			P.String(";");
-		}
-		P.NewLine(-1);
+	P.String("interface ");
+	P.OpenScope("{");
+	for i := 0; i < x.methods.len(); i++ {
+		P.Print(x.methods.at(i));
+		P.newl, P.semi = true, true;
 	}
-	P.String("}");
+	P.CloseScope("}");
 }
 
 
@@ -160,6 +178,7 @@ func (P *Printer) DoConstDecl(x *AST.ConstDecl) {
 	P.Print(x.typ);
 	P.String(" = ");
 	P.Print(x.val);
+	P.semi = true;
 }
 
 
@@ -167,6 +186,7 @@ func (P *Printer) DoTypeDecl(x *AST.TypeDecl) {
 	P.Print(x.ident);
 	P.String(" ");
 	P.Print(x.typ);
+	P.semi = true;
 }
 
 
@@ -178,6 +198,7 @@ func (P *Printer) DoVarDecl(x *AST.VarDecl) {
 		P.String(" = ");
 		P.PrintList(x.vals);
 	}
+	P.semi = true;
 }
 
 
@@ -199,15 +220,13 @@ func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
 	}
 	P.DoIdent(x.ident);
 	P.DoFunctionType(x.typ);
-	P.String(" ");
 	if x.body != nil {
 		P.DoBlock(x.body);
 	} else {
-		P.String(";");
+		P.String(" ;");
 	}
-	P.NewLine(0);
-	P.NewLine(0);
-	P.NewLine(0);
+	P.NewLine();
+	P.NewLine();
 }
 
 
@@ -226,19 +245,17 @@ func (P *Printer) DoDeclaration(x *AST.Declaration) {
 	case 1:
 		P.Print(x.decls.at(0));
 	default:
-		P.String("(");
-		P.NewLine(1);
+		P.OpenScope(" (");
 		for i := 0; i < x.decls.len(); i++ {
-			if i > 0 {
-				P.NewLine(0);
-			}
 			P.Print(x.decls.at(i));
-			P.String(";");
+			P.newl, P.semi = true, true;
 		}
-		P.NewLine(-1);
-		P.String(")");
+		P.CloseScope(")");
 	}
-	P.NewLine(0);
+	if P.level == 0 {
+		P.NewLine();
+	}
+	P.newl = true;
 }
 
 
@@ -326,23 +343,18 @@ func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
 // Statements
 
 func (P *Printer) DoBlock(x *AST.Block) {
-	P.String("{");
-	if x.stats != nil {
-		P.NewLine(1);
-		for i := 0; i < x.stats.len(); i++ {
-			if i > 0 {
-				P.NewLine(0);
-			}
-			P.Print(x.stats.at(i));
-		}
-		P.NewLine(-1);
+	P.OpenScope("{");
+	for i := 0; i < x.stats.len(); i++ {
+		P.Print(x.stats.at(i));
+		P.newl = true;
 	}
-	P.String("}");
+	P.CloseScope("}");
 }
 
 
 func (P *Printer) DoLabel(x *AST.Label) {
-	P.NewLine(-1);
+	P.indent--;
+	P.newl = true;
 	P.Print(x.ident);
 	P.String(":");
 	P.indent++;
@@ -351,7 +363,7 @@ func (P *Printer) DoLabel(x *AST.Label) {
 
 func (P *Printer) DoExprStat(x *AST.ExprStat) {
 	P.Print(x.expr);
-	//P.String(";");
+	P.semi = true;
 }
 
 
@@ -359,7 +371,7 @@ func (P *Printer) DoAssignment(x *AST.Assignment) {
 	P.PrintList(x.lhs);
 	P.String(" " + Scanner.TokenName(x.tok) + " ");
 	P.PrintList(x.rhs);
-	//P.String(";");
+	P.semi = true;
 }
 
 
@@ -367,15 +379,19 @@ func (P *Printer) PrintControlClause(x *AST.ControlClause) {
 	if x.has_init {
 		P.String(" ");
 		P.Print(x.init);
-		P.String(";");
+		P.semi = true;
+		P.String("");
 	}
 	if x.has_expr {
 		P.String(" ");
 		P.Print(x.expr);
+		P.semi = false;
 	}
 	if x.has_post {
-		P.String("; ");
+		P.semi = true;
+		P.String(" ");
 		P.Print(x.post);
+		P.semi = false;
 	}
 	P.String(" ");
 }
@@ -386,6 +402,7 @@ func (P *Printer) DoIfStat(x *AST.IfStat) {
 	P.PrintControlClause(x.ctrl);
 	P.DoBlock(x.then);
 	if x.has_else {
+		P.newl = false;
 		P.String(" else ");
 		P.Print(x.else_);
 	}
@@ -399,19 +416,6 @@ func (P *Printer) DoForStat(x *AST.ForStat) {
 }
 
 
-/*
-func AnalyzeCase(x *AST.SwitchStat) bool {
-	for i := 0; i < x.cases.len(); i++ {
-		clause := x.cases.at(i).(AST.CaseClause);
-		if clause.stats.len() > 1 {
-			return false;
-		}
-	}
-	return true;
-}
-*/
-
-
 func (P *Printer) DoCaseClause(x *AST.CaseClause) {
 	if x.exprs != nil {
 		P.String("case ");
@@ -421,57 +425,42 @@ func (P *Printer) DoCaseClause(x *AST.CaseClause) {
 		P.String("default:");
 	}
 	
-	n := x.stats.len();
-	m := n;
+	P.OpenScope("");
+	for i := 0; i < x.stats.len(); i++ {
+		P.Print(x.stats.at(i));
+		P.newl = true;
+	}
 	if x.falls {
-		m++;
+		P.String("fallthrough");
 	}
-	
-	if m == 0 {
-		P.NewLine(0);
-	} else {
-		P.NewLine(1);
-		for i := 0; i < n; i++ {
-			if i > 0 {
-				P.NewLine(0);
-			}
-			P.Print(x.stats.at(i));
-		}
-		if x.falls {
-			if n > 0 {
-				P.NewLine(0);
-			}
-			P.String("fallthrough;");
-		}
-		P.NewLine(-1);
-	}
+	P.CloseScope("");
 }
 
 
 func (P *Printer) DoSwitchStat(x *AST.SwitchStat) {
-	P.String("switch");
+	P.String("switch ");
 	P.PrintControlClause(x.ctrl);
-	P.String("{");
-	P.NewLine(0);
+	P.OpenScope("{");
+	P.indent--;
 	for i := 0; i < x.cases.len(); i++ {
 		P.Print(x.cases.at(i));
 	}
-	P.NewLine(0);
-	P.String("}");
+	P.indent++;
+	P.CloseScope("}");
 }
 
 
 func (P *Printer) DoReturnStat(x *AST.ReturnStat) {
 	P.String("return ");
 	P.PrintList(x.res);
-	P.String(";");
+	P.semi = true;
 }
 
 
 func (P *Printer) DoIncDecStat(x *AST.IncDecStat) {
 	P.Print(x.expr);
 	P.String(Scanner.TokenName(x.tok));
-	//P.String(";");
+	P.semi = true;
 }
 
 
@@ -481,14 +470,14 @@ func (P *Printer) DoControlFlowStat(x *AST.ControlFlowStat) {
 		P.String(" ");
 		P.Print(x.label);
 	}
-	P.String(";");
+	P.semi = true;
 }
 
 
 func (P *Printer) DoGoStat(x *AST.GoStat) {
 	P.String("go ");
 	P.Print(x.expr);
-	P.String(";");
+	P.semi = true;
 }
 
 
@@ -498,10 +487,12 @@ func (P *Printer) DoGoStat(x *AST.GoStat) {
 func (P *Printer) DoProgram(x *AST.Program) {
 	P.String("package ");
 	P.DoIdent(x.ident);
-	P.NewLine(0);
+	P.NewLine();
 	for i := 0; i < x.decls.len(); i++ {
 		P.Print(x.decls.at(i));
 	}
+	P.newl = true;
+	P.String("");
 }
 
 
