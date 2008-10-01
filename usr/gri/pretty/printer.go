@@ -49,10 +49,10 @@ func (P *Printer) OpenScope(paren string) {
 
 
 func (P *Printer) CloseScope(paren string) {
-	P.level--;
 	P.indent--;
-	P.newl = true;
+	P.semi = false;
 	P.String(paren);
+	P.level--;
 	P.semi, P.newl = false, true;
 }
 
@@ -221,6 +221,7 @@ func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
 	P.DoIdent(x.ident);
 	P.DoFunctionType(x.typ);
 	if x.body != nil {
+		P.String(" ");
 		P.DoBlock(x.body);
 	} else {
 		P.String(" ;");
