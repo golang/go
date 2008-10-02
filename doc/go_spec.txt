@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(September 30, 2008)
+(October 1 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -18,6 +18,8 @@ Any part may change substantially as design progresses.
 
 <!--
 Open issues according to gri:
+[ ] anonymous types are written using a type name, which can be a qualified identifier.
+    this might be a problem when referring to such a field using the type name.
 [ ] clarification on interface types, rules
 [ ] convert should not be used for composite literals anymore,
 	in fact, convert() should go away
@@ -53,6 +55,7 @@ Open issues according to gri:
 [ ] 6g allows: interface { f F } where F is a function type. fine, but then we should
     also allow: func f F {}, where F is a function type.
 [ ] provide composite literal notation to address array indices: []int{ 0: x1, 1: x2, ... }
+    and struct field names (both seem easy to do).
 
 Decisions in need of integration into the doc:
 [ ] pair assignment is required to get map, and receive ok.
@@ -439,8 +442,8 @@ The following special character sequences serve as operators or delimitors:
 	+    &     +=    &=     &&    ==    !=    (    )
 	-    |     -=    |=     ||    <     <=    [    ]
 	*    ^     *=    ^=     <-    >     >=    {    }
-	/    <<    /=    <<=    ++    =     :=    .    :
-	%    >>    %=    >>=    --    !     ...   ,    ;
+	/    <<    /=    <<=    ++    =     :=    ,    ;
+	%    >>    %=    >>=    --    !     ...   .    :
 
 
 Reserved words
@@ -450,8 +453,8 @@ The following words are reserved and must not be used as identifiers:
 
 	break        default      func         interface    select
 	case         else         go           map          struct
-	const        export       goto         package      switch
-	chan         fallthrough  if           range        type
+	chan         export       goto         package      switch
+	const        fallthrough  if           range        type
 	continue     for          import       return       var
 
 
@@ -999,7 +1002,7 @@ it is also visible within field selectors (§Primary Expressions).
 
 	StructType = "struct" "{" [ FieldList [ ";" ] ] "}" .
 	FieldList = FieldDecl { ";" FieldDecl } .
-	FieldDecl = [ IdentifierList ] Type .
+	FieldDecl = IdentifierList Type | TypeName .
 
 	// An empty struct.
 	struct {}
@@ -1014,7 +1017,7 @@ it is also visible within field selectors (§Primary Expressions).
 
 A struct may contain ``anonymous fields'', which are declared with
 a type name but no explicit field name. Instead, the type name acts as the
-field name.
+field name. Anonymous fields must not be interface types.
 
 	// A struct with a single anonymous field of type T.
 	struct {
