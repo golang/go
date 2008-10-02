@@ -693,7 +693,9 @@ opnames[] =
 	[OFALL]		= "FALL",
 	[OXFALL]	= "XFALL",
 	[OPANIC]	= "PANIC",
+	[OPANICN]	= "PANICN",
 	[OPRINT]	= "PRINT",
+	[OPRINTN]	= "PRINTN",
 	[OXXX]		= "XXX",
 };
 

@@ -17,6 +17,8 @@ func	printint(int64);
 func	printstring(string);
 func	printpointer(*any);
 func	printinter(any);
+func	printnl();
+func	printsp();
 
 func	catstring(string, string) string;
 func	cmpstring(string, string) int32;
@@ -92,6 +94,8 @@ export
 	printstring
 	printpointer
 	printinter
+	printnl
+	printsp
 
 	// op string
 	catstring

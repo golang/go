@@ -166,3 +166,15 @@ sys·printstring(string v)
 	if(v != nil)
 		sys·write(1, v->str, v->len);
 }
+
+void
+sys·printsp(void)
+{
+	sys·write(1, " ", 1);
+}
+
+void
+sys·printnl(void)
+{
+	sys·write(1, "\n", 1);
+}
