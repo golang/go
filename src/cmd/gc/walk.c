@@ -124,7 +124,9 @@ loop:
 	case OSEND:
 	case ORECV:
 	case OPRINT:
+	case OPRINTN:
 	case OPANIC:
+	case OPANICN:
 	case OFOR:
 	case OIF:
 	case OSWITCH:
@@ -203,14 +205,28 @@ loop:
 		if(top != Etop)
 			goto nottop;
 		walktype(n->left, Erv);
-		indir(n, prcompat(n->left));
+		indir(n, prcompat(n->left, 0));
+		goto ret;
+
+	case OPRINTN:
+		if(top != Etop)
+			goto nottop;
+		walktype(n->left, Erv);
+		indir(n, prcompat(n->left, 1));
 		goto ret;
 
 	case OPANIC:
 		if(top != Etop)
 			goto nottop;
 		walktype(n->left, Erv);
-		indir(n, list(prcompat(n->left), nodpanic(n->lineno)));
+		indir(n, list(prcompat(n->left, 0), nodpanic(n->lineno)));
+		goto ret;
+
+	case OPANICN:
+		if(top != Etop)
+			goto nottop;
+		walktype(n->left, Erv);
+		indir(n, list(prcompat(n->left, 1), nodpanic(n->lineno)));
 		goto ret;
 
 	case OLITERAL:
@@ -1598,21 +1614,31 @@ ascompat(Type *t1, Type *t2)
 }
 
 Node*
-prcompat(Node *n)
+prcompat(Node *n, int fmt)
 {
 	Node *l, *r;
 	Node *on;
 	Type *t;
 	Iter save;
-	int w;
+	int w, notfirst;
 
 	r = N;
 	l = listfirst(&save, &n);
+	notfirst = 0;
 
 loop:
 	if(l == N) {
+		if(fmt) {
+			on = syslook("printnl", 0);
+			r = list(r, nod(OCALL, on, N));
+		}
 		walktype(r, Etop);
 		return r;
+	}
+
+	if(notfirst) {
+		on = syslook("printsp", 0);
+		r = list(r, nod(OCALL, on, N));
 	}
 
 	w = whatis(l);
@@ -1663,12 +1689,10 @@ loop:
 		l->type = t;
 	}
 
-	if(r == N)
-		r = nod(OCALL, on, l);
-	else
-		r = list(r, nod(OCALL, on, l));
+	r = list(r, nod(OCALL, on, l));
 
 out:
+	notfirst = fmt;
 	l = listnext(&save);
 	goto loop;
 }

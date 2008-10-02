@@ -18,7 +18,7 @@
 %token	<sym>		LPACKAGE LIMPORT LEXPORT
 %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
 %token	<sym>		LCOLAS LFALL LRETURN
-%token	<sym>		LNEW LLEN LCAP LTYPEOF LPANIC LPRINT
+%token	<sym>		LNEW LLEN LCAP LTYPEOF LPANIC LPANICN LPRINT LPRINTN
 %token	<sym>		LVAR LTYPE LCONST LCONVERT LSELECT
 %token	<sym>		LFOR LIF LELSE LSWITCH LCASE LDEFAULT
 %token	<sym>		LBREAK LCONTINUE LGO LGOTO LRANGE
@@ -361,9 +361,17 @@ noninc_stmt:
 	{
 		$$ = nod(OPRINT, $3, N);
 	}
+|	LPRINTN '(' oexpr_list ')'
+	{
+		$$ = nod(OPRINTN, $3, N);
+	}
 |	LPANIC '(' oexpr_list ')'
 	{
 		$$ = nod(OPANIC, $3, N);
+	}
+|	LPANICN '(' oexpr_list ')'
+	{
+		$$ = nod(OPANICN, $3, N);
 	}
 
 inc_stmt:
@@ -896,7 +904,9 @@ keyword:
 |	LLEN
 |	LCAP
 |	LPANIC
+|	LPANICN
 |	LPRINT
+|	LPRINTN
 |	LNEW
 |	LBASETYPE
 |	LTYPEOF
