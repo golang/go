@@ -20,6 +20,7 @@ compile(Node *fn)
 	Node nod1;
 	Prog *ptxt;
 	int32 lno;
+	Type *t;
 
 if(newproc == N) {
 	newproc = nod(ONAME, N, N);
@@ -55,6 +56,17 @@ if(throwreturn == N) {
 
 	curfn = fn;
 	dowidth(curfn->type);
+
+	if(curfn->type->outnamed) {
+		// add clearing of the output parameters
+		t = structfirst(&pl, getoutarg(curfn->type));
+		while(t != T) {
+			if(t->nname != N && t->nname->sym->name[0] != '_') {
+				curfn->nbody = list(nod(OAS, t->nname, N), curfn->nbody);
+			}
+			t = structnext(&pl);
+		}
+	}
 
 	walk(curfn);
 	if(nerrors != 0)
