@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 1 2008)
+(October 2 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -2119,18 +2119,24 @@ cases all referring to communication operations.
 
 	SelectStat = "select" "{" { CommClause } "}" .
 	CommClause = CommCase [ StatementList [ ";" ] ] .
-	CommCase = ( "default" | ( "case" ( SendCase | RecvCase) ) ) ":" .
-	SendCase = SendExpr .
-	RecvCase = RecvExpr .
+	CommCase = ( "default" | ( "case" ( SendExpr | RecvExpr) ) ) ":" .
 	SendExpr =  Expression "<-" Expression .
 	RecvExpr =  [ PrimaryExpr ( "=" | ":=" ) ] "<-" Expression .
 
-The select statement evaluates all the channel (pointers) involved.
-If any of the channels can proceed, the corresponding communication
-and statements are evaluated.  Otherwise, if there is a default case,
-that executes; if not, the statement blocks until one of the
-communications can complete.  A channel pointer may be nil, which is
-equivalent to that case not being present in the select statement.
+First, for all the send and receive expressions in the select
+statement, the channel expression is evaluated.  If any of the
+resulting channels can proceed, one is chosen and the corresponding
+communication (including the value to be sent, if any) and statements
+are evaluated.  Otherwise, if there is a default case, that executes;
+if not, the statement blocks until one of the communications can
+complete.  The channels are not re-evaluated.  A channel pointer
+may be nil, which is equivalent to that case not being present in
+the select statement.
+
+Note that since all the channels are evaluated, any side effects in
+that evaluation will occur for all the channels in the select.  On the
+other hand, for sends, only the communication that proceeds has
+its right-hand-side expression evaluated.
 
 If the channel sends or receives an interface type, its
 communication can proceed only if the type of the communication
