@@ -8,7 +8,7 @@ package main
 
 type T *struct {}
 
-func (x T) M () {}  // not clear why this shouldn't work
+func (x T) M () {}  // ERROR "pointer"
 
 /*
 bug046.go:7: illegal <this> pointer
