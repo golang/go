@@ -1088,7 +1088,7 @@ walkswitch(Node *sw, Type*(*call)(Node*, Type*))
 	if(n->op == OLIST)
 		n = n->left;
 	if(n->op == OEMPTY)
-		return;
+		return T;
 
 	for(; n!=N; n=n->right) {
 		if(n->op != OCASE)
@@ -1156,7 +1156,6 @@ selcase(Node *n, Node *var)
 {
 	Node *a, *r, *on, *c;
 	Type *t;
-	Iter iter;
 
 	c = n->left;
 	if(c->op == ORECV)
@@ -1167,12 +1166,12 @@ selcase(Node *n, Node *var)
 
 	t = fixchan(c->left->type);
 	if(t == T)
-		return;
+		return N;
 
 	convlit(c->right, t->type);
 	if(!ascompat(t->type, c->right->type)) {
 		badtype(c->op, t->type, c->right->type);
-		return;
+		return N;
 	}
 
 	// selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
@@ -1197,7 +1196,7 @@ recv:
 
 	t = fixchan(c->left->type);
 	if(t == T)
-		return;
+		return N;
 
 	// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
 	on = syslook("selectrecv", 1);
@@ -1220,13 +1219,13 @@ recv2:
 
 	t = fixchan(c->right->type);
 	if(t == T)
-		return;
+		return N;
 
 	walktype(c->left, Elv);	// elem
 	convlit(c->left, t->type);
 	if(!ascompat(t->type, c->left->type)) {
 		badtype(c->op, t->type, c->left->type);
-		return;
+		return N;
 	}
 
 	// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
@@ -1375,7 +1374,7 @@ walkselect(Node *sel)
 Type*
 lookdot(Node *n, Type *f)
 {
-	Type *r, *c;
+	Type *r;
 	Sym *s;
 
 	r = T;
@@ -1398,7 +1397,6 @@ lookdot(Node *n, Type *f)
 void
 walkdot(Node *n)
 {
-	Node *mn;
 	Type *t, *f;
 
 	if(n->left == N || n->right == N)
@@ -1607,7 +1605,6 @@ prcompat(Node *n)
 	Type *t;
 	Iter save;
 	int w;
-	char *name;
 
 	r = N;
 	l = listfirst(&save, &n);
@@ -1736,8 +1733,6 @@ Node*
 stringop(Node *n, int top)
 {
 	Node *r, *c, *on;
-	Type *t;
-	int32 l;
 
 	switch(n->op) {
 	default:
@@ -1886,7 +1881,7 @@ mapop(Node *n, int top)
 	Node *r, *a;
 	Type *t;
 	Node *on;
-	int alg1, alg2, cl, cr;
+	int cl, cr;
 
 //dump("mapop", n);
 
@@ -2097,7 +2092,7 @@ chanop(Node *n, int top)
 	Node *r, *a;
 	Type *t;
 	Node *on;
-	int alg, cl, cr;
+	int cl, cr;
 
 //dump("chanop", n);
 
@@ -2423,8 +2418,6 @@ int
 isandss(Type *lt, Node *r)
 {
 	Type *rt;
-	Node *n;
-	int o;
 
 	rt = r->type;
 	if(isinter(lt)) {
