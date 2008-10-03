@@ -163,6 +163,7 @@ dumpobj(void)
 	Bterm(bout);
 }
 
+void
 Bputdot(Biobuf *b)
 {
 	// put out middle dot ·

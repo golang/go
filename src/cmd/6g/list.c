@@ -316,9 +316,9 @@ Yconv(Fmt *fp)
 	p = str;
 	for(i=0; i<sconsize; i++) {
 		c = a[i] & 0xff;
-		if(c >= 'a' && c <= 'z' ||
-		   c >= 'A' && c <= 'Z' ||
-		   c >= '0' && c <= '9') {
+		if((c >= 'a' && c <= 'z') ||
+		   (c >= 'A' && c <= 'Z') ||
+		   (c >= '0' && c <= '9')) {
 			*p++ = c;
 			continue;
 		}

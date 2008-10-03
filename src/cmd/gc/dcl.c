@@ -640,8 +640,6 @@ addvar(Node *n, Type *t, int ctxt)
 {
 	Dcl *r, *d;
 	Sym *s;
-	Type *ot;
-	Node *on;
 	int gen;
 
 	if(n==N || n->sym == S || n->op != ONAME || t == T)
@@ -965,9 +963,8 @@ mixed:
 void
 fninit(Node *n)
 {
-	Node *done, *any;
+	Node *done;
 	Node *a, *fn, *r;
-	Iter iter;
 	uint32 h;
 	Sym *s;
 

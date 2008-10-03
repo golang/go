@@ -200,7 +200,6 @@ importfile(Val *f)
 	Biobuf *imp;
 	char *file;
 	int32 c;
-	char *p;
 	int len;
 
 	if(f->ctype != CTSTR) {

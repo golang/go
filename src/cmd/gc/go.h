@@ -591,6 +591,8 @@ Type*	ptrto(Type*);
 Node*	cleanidlist(Node*);
 Node*	syslook(char*, int);
 Node*	treecopy(Node*);
+int	isselect(Node*);
+void	tempname(Node*, Type*);
 
 Type**	getthis(Type*);
 Type**	getoutarg(Type*);
