@@ -117,8 +117,6 @@ void
 allocparams(void)
 {
 	Dcl *d;
-	Iter list;
-	Type *t;
 	Node *n;
 	uint32 w;
 
@@ -153,7 +151,6 @@ gen(Node *n, Label *labloop)
 	int32 lno;
 	Prog *scontin, *sbreak;
 	Prog *p1, *p2, *p3;
-	Sym *s;
 	Node *l;
 	Label *lab;
 
@@ -723,7 +720,7 @@ void
 cgen_call(Node *n, int proc)
 {
 	Type *t;
-	Node nod, afun, regax;
+	Node nod, afun;
 
 	if(n == N)
 		return;
@@ -823,7 +820,7 @@ cgen_callret(Node *n, Node *res)
 void
 cgen_aret(Node *n, Node *res)
 {
-	Node nod1, nod2;
+	Node nod1;
 	Type *fp, *t;
 	Iter flist;
 
@@ -858,7 +855,6 @@ cgen_asop(Node *n)
 {
 	Node n1, n2, n3, n4;
 	Node *nl, *nr;
-	int32 lno;
 
 	nl = n->left;
 	nr = n->right;
@@ -1069,7 +1065,7 @@ void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
 	Node ax, dx, n3, tmpax, tmpdx;
-	int a, rax, rdx;
+	int rax, rdx;
 
 	rax = reg[D_AX];
 	rdx = reg[D_DX];

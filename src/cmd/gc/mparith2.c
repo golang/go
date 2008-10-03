@@ -484,7 +484,7 @@ mpmovecfix(Mpint *a, vlong c)
 void
 mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 {
-	int i, nn, dn;
+	int i;
 
 	mpmovefixfix(r, n);
 	mpmovecfix(q, 0);

@@ -780,7 +780,6 @@ Lconv(Fmt *fp)
 	if(n == 0)
 		strcat(str, "<epoch>");
 
-ret:
 	return fmtstrcpy(fp, str);
 }
 
@@ -1458,8 +1457,6 @@ signame(Type *t)
 {
 	Sym *s, *ss;
 	char *e;
-	Type *t1;
-	int n;
 	char buf[NSYMB];
 
 	if(t == T)

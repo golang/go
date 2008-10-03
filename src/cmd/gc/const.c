@@ -9,7 +9,6 @@ void
 convlit(Node *n, Type *t)
 {
 	int et;
-	Node *n1;
 
 	if(n == N || t == T)
 		return;

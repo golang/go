@@ -836,7 +836,7 @@ nodconst(&nodc, types[TUINT64], 1);
 	if(a == AMOVQ ||
 	   a == AMOVSD ||
 	   a == AMOVSS ||
-	   a == AMOVL && f->type->width == t->type->width)	/* TO DO: check AMOVL */
+	   (a == AMOVL && f->type->width == t->type->width))	/* TO DO: check AMOVL */
 		if(samaddr(f, t))
 			return;
 	gins(a, f, t);
