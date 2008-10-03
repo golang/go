@@ -1598,9 +1598,12 @@ ascompat(Type *t1, Type *t2)
 //	if(eqtype(t2, nilptr, 0))
 //		return 1;
 
-	if(isinter(t1))
-		if(ismethod(t2) || isinter(t2))
+	if(isinter(t1)) {
+		if(isinter(t2))
 			return 1;
+		if(ismethod(t2))
+			return 1;
+	}
 
 	if(isinter(t2))
 		if(ismethod(t1))
@@ -2445,15 +2448,20 @@ isandss(Type *lt, Node *r)
 
 	rt = r->type;
 	if(isinter(lt)) {
-		if(ismethod(rt))
+		if(isinter(rt)) {
+			if(!eqtype(rt, lt, 0))
+				return I2I;
+			return Inone;
+		}
+		if(ismethod(rt) != T)
 			return T2I;
-		if(isinter(rt) && !eqtype(rt, lt, 0))
-			return I2I;
+		return Inone;
 	}
 
-	if(ismethod(lt)) {
-		if(isinter(rt))
+	if(isinter(rt)) {
+		if(ismethod(lt) != T)
 			return I2T;
+		return Inone;
 	}
 
 	return Inone;

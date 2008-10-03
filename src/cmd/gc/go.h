@@ -571,7 +571,7 @@ int	isptrto(Type*, int);
 int	isptrarray(Type*);
 int	isptrdarray(Type*);
 int	isinter(Type*);
-int	ismethod(Type*);
+Type*	ismethod(Type*);
 Sym*	signame(Type*);
 int	bytearraysz(Type*);
 int	eqtype(Type*, Type*, int);

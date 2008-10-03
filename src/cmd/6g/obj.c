@@ -580,10 +580,13 @@ dumpsignatures(void)
 				a->name = sp+1;
 			
 			a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
-			a->offset = o;
+			a->perm = o;
 			snprint(namebuf, sizeof(namebuf), "%s_%s",
 				at.sym->name+5, f->sym->name);
 			a->sym = lookup(namebuf);
+			a->offset = 0;
+			a->elemalg = 0;
+			a->width = 0;
 
 			o++;
 		}
@@ -660,7 +663,18 @@ dumpsignatures(void)
 			ot += wi;
 
 			if(et == TINTER) {
-				// sigi[++].offset = offset of method
+				// sigi[++].perm = mapped offset of method
+				ot = rnd(ot, wi);
+				p = pc;
+				gins(ADATA, N, N);
+				p->from = at;
+				p->from.offset = ot;
+				p->from.scale = wi;
+				p->to = ac;
+				p->to.offset = b->perm;
+				ot += wi;
+			} else {
+				// sigt[++].offset = of embeded struct
 				ot = rnd(ot, wi);
 				p = pc;
 				gins(ADATA, N, N);
@@ -670,17 +684,30 @@ dumpsignatures(void)
 				p->to = ac;
 				p->to.offset = b->offset;
 				ot += wi;
-			} else {
-				// leave space for 3 ints
-				// offset, algorithm and width
+
+				// sigt[++].width = type size
 				ot = rnd(ot, wi);
-				ot += wi;
-				ot = rnd(ot, wi);
-				ot += wi;
-				ot = rnd(ot, wi);
+				p = pc;
+				gins(ADATA, N, N);
+				p->from = at;
+				p->from.offset = ot;
+				p->from.scale = wi;
+				p->to = ac;
+				p->to.offset = b->width;
 				ot += wi;
 
-				// sigs[++].fun = &method
+				// sigt[++].elemalg = type algorithm
+				ot = rnd(ot, wi);
+				p = pc;
+				gins(ADATA, N, N);
+				p->from = at;
+				p->from.offset = ot;
+				p->from.scale = wi;
+				p->to = ac;
+				p->to.offset = b->elemalg;
+				ot += wi;
+
+				// sigt[++].fun = &method
 				ot = rnd(ot, widthptr);
 				p = pc;
 				gins(ADATA, N, N);
