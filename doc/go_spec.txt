@@ -1756,8 +1756,10 @@ a channel and a value (expression):
 	ch <- 3
 
 In this form, the send operation is an (expression) statement that
-blocks until the send can proceed, at which point the value is
-transmitted on the channel.
+sends the value on the channel. Both the channel and the expression
+are evaluated before communication begins.  Communication blocks
+until the send can proceed, at which point the value is transmitted
+on the channel.
 
 If the send operation appears in an expression context, the value
 of the expression is a boolean and the operation is non-blocking.
@@ -1775,6 +1777,7 @@ success of the operation.  If the program does not test the value,
 the operation blocks until it succeeds.
 
 TODO: Adjust the above depending on how we rule on the ok semantics.
+For instance, does the sent expression get evaluated if ok is false?
 
 The receive operation uses the prefix unary operator "<-".
 The value of the expression is the value received:
@@ -2123,20 +2126,20 @@ cases all referring to communication operations.
 	SendExpr =  Expression "<-" Expression .
 	RecvExpr =  [ PrimaryExpr ( "=" | ":=" ) ] "<-" Expression .
 
-First, for all the send and receive expressions in the select
-statement, the channel expression is evaluated.  If any of the
-resulting channels can proceed, one is chosen and the corresponding
-communication (including the value to be sent, if any) and statements
-are evaluated.  Otherwise, if there is a default case, that executes;
+For all the send and receive expressions in the select
+statement, the channel expression is evaluated.  Any values
+that appear on the right hand side of send expressions are also
+evaluated. If any of the resulting channels can proceed, one is
+chosen and the corresponding communication and statements are
+evaluated.  Otherwise, if there is a default case, that executes;
 if not, the statement blocks until one of the communications can
-complete.  The channels are not re-evaluated.  A channel pointer
-may be nil, which is equivalent to that case not being present in
-the select statement.
+complete.  The channels and send expressions are not re-evaluated.
+A channel pointer may be nil, which is equivalent to that case not
+being present in the select statement.
 
-Note that since all the channels are evaluated, any side effects in
-that evaluation will occur for all the channels in the select.  On the
-other hand, for sends, only the communication that proceeds has
-its right-hand-side expression evaluated.
+Since all the channels and send expressions are evaluated, any side
+effects in that evaluation will occur for all the communications
+in the select.
 
 If the channel sends or receives an interface type, its
 communication can proceed only if the type of the communication
