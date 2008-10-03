@@ -170,7 +170,7 @@ dowidth(Type *t)
 
 	case TFUNC:
 		// function is 3 cated structures
-		w = widstruct(*getthis(t), 0, 0);
+		w = widstruct(*getthis(t), 0, 1);
 		w = widstruct(*getinarg(t), w, 0);
 		w = widstruct(*getoutarg(t), w, 1);
 		t->argwid = w;

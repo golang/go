@@ -15,8 +15,6 @@ struct	Sigt
 	byte*	name;
 	uint32	hash;
 	uint32	offset;		// offset of substruct
-	uint32	width;		// width of type
-	uint32	elemalg;	// algorithm of type
 	void	(*fun)(void);
 };
 
@@ -47,13 +45,10 @@ printsigi(Sigi *si)
 
 	sys·printpointer(si);
 	prints("{");
-	n = si[0].perm;		// first entry has size
-	for(i=1; i<n; i++) {
+	for(i=1;; i++) {
 		name = si[i].name;
-		if(name == nil) {
-			prints("<nil>");
+		if(name == nil)
 			break;
-		}
 		prints("[");
 		sys·printint(i);
 		prints("]\"");
@@ -74,7 +69,10 @@ printsigt(Sigt *st)
 
 	sys·printpointer(st);
 	prints("{");
-	for(i=0;; i++) {
+	sys·printint(st[0].hash);	// first element has alg
+	prints(",");
+	sys·printint(st[0].offset);	// first element has width
+	for(i=1;; i++) {
 		name = st[i].name;
 		if(name == nil)
 			break;
@@ -86,10 +84,6 @@ printsigt(Sigt *st)
 		sys·printint(st[i].hash%999);
 		prints("/");
 		sys·printint(st[i].offset);
-		prints(",");
-		sys·printint(st[i].width);
-		prints(",");
-		sys·printint(st[i].elemalg);
 		prints("/");
 		sys·printpointer(st[i].fun);
 	}
@@ -165,6 +159,7 @@ hashmap(Sigi *si, Sigt *st)
 void
 sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
 {
+//	int32 alg, wid;
 
 	if(debug) {
 		prints("T2I sigi=");
@@ -177,7 +172,11 @@ sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
 	}
 
 	retim = hashmap(si, st);
-	retit = elem;
+
+//	alg = st->hash;
+//	wid = st->offset;
+//	algarray[alg].copy(wid, &retit, &elem);
+	retit = elem;		// for speed could do this
 
 	if(debug) {
 		prints("T2I ret=");
@@ -193,6 +192,7 @@ sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
 void
 sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
 {
+//	int32 alg, wid;
 
 	if(debug) {
 		prints("I2T sigt=");
@@ -208,7 +208,11 @@ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
 	if(im->sigt != st)
 		throw("ifaceI2T: wrong type");
 
+//	alg = st->hash;
+//	wid = st->offset;
+//	algarray[alg].copy(wid, &ret, &it);
 	ret = it;
+
 	if(debug) {
 		prints("I2T ret=");
 		sys·printpointer(ret);

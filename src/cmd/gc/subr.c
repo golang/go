@@ -1418,36 +1418,24 @@ signame(Type *t)
 	Sym *s, *ss;
 	char *e;
 
-loop:
-	if(t == T) {
-//		print("signame: nil type\n");
+	if(t == T)
 		goto bad;
-	}
-
-	switch(t->etype) {
-	default:
-		e = "sigs";
-		break;
-
-	case TPTR32:
-	case TPTR64:
-		t = t->type;
-		goto loop;
-
-	case TINTER:
-		e = "sigi";
-		break;
-	}
 
 	s = t->sym;
-	if(s == S) {
-//		print("signame: no type name\n");
-		goto bad;
+	if(s == S || s->name[0] == '_') {
+		if(isptr[t->etype]) {
+			t = t->type;
+			if(t == T)
+				goto bad;
+		}
+		s = t->sym;
+		if(s == S || s->name[0] == '_')
+			goto bad;
 	}
-	if(s->name[0] == '_') {
-//		print("signame: temp type name %S\n", s);
-		goto bad;
-	}
+
+	e = "sigt";
+	if(t->etype == TINTER)
+		e = "sigi";
 
 	snprint(namebuf, sizeof(namebuf), "%s_%s", e, s->name);
 	ss = pkglookup(namebuf, s->opackage);
