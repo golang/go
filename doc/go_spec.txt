@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 2 2008)
+(October 3 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -18,8 +18,6 @@ Any part may change substantially as design progresses.
 
 <!--
 Open issues according to gri:
-[ ] anonymous types are written using a type name, which can be a qualified identifier.
-    this might be a problem when referring to such a field using the type name.
 [ ] clarification on interface types, rules
 [ ] convert should not be used for composite literals anymore,
 	in fact, convert() should go away
@@ -56,11 +54,16 @@ Open issues according to gri:
     also allow: func f F {}, where F is a function type.
 [ ] provide composite literal notation to address array indices: []int{ 0: x1, 1: x2, ... }
     and struct field names (both seem easy to do).
+[ ] reopening & and func issue: Seems inconsistent as both &func(){} and func(){} are
+    permitted.
+
 
 Decisions in need of integration into the doc:
 [ ] pair assignment is required to get map, and receive ok.
 
 Closed issues:
+[x] anonymous types are written using a type name, which can be a qualified identifier.
+    this might be a problem when referring to such a field using the type name.
 [x] nil and interfaces - can we test for nil, what does it mean, etc.
 [x] talk about underflow/overflow of 2's complement numbers (defined vs not defined).
 [x] change wording on array composite literals: the types are always fixed arrays
@@ -461,31 +464,49 @@ The following words are reserved and must not be used as identifiers:
 Declarations and scope rules
 ----
 
-Every identifier in a program must be declared; some identifiers, such as "int"
-and "true", are predeclared. A declaration associates an identifier
-with a language entity (package, constant, type, variable, function, or method)
-and may specify properties of that entity such as its type.
+A declaration ``binds'' an identifier with a language entity (such as
+a package, constant, type, struct field, variable, parameter, result,
+function, method) and specifies properties of that entity such as its type.
 
 	Declaration = [ "export" ] ( ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl ) .
 
-The ``scope'' of a language entity named 'x' extends textually from the point
-immediately after the identifier 'x' in the declaration to the end of the
-surrounding block (package, function, struct, or interface), excluding any
-nested scopes that redeclare 'x'. The entity is said to be local to its scope.
-Declarations in the package scope are ``global'' declarations.
+Every identifier in a program must be declared; some identifiers, such as "int"
+and "true", are predeclared.
 
-The following scope rules apply:
+The ``scope'' of an identifier is the extent of source text within which the
+identifier can be used to refer to the bound entity. No identifier may be declared
+twice in a single scope. Go is lexically scoped: An identifier refers to the entity
+it is bound to only within the scope of the identifier.
 
-	1. No identifier may be declared twice in a single scope.
-	2. A language entity may only be referred to within its scope.
-	3. Field and method identifiers may be used only to select elements
-	   from the corresponding types, and only after those types are fully
-	   declared.  In effect, the field selector operator
-	   "." temporarily re-opens the scope of such identifiers (§Expressions).
-	4. Forward declaration: A type of the form "*T" may be mentioned at a point
-	   where "T" is not yet declared. The full declaration of "T" must be within a
-	   block containing the forward declaration, and the forward declaration
-	   refers to the innermost such full declaration.
+For instance, for variable "x", the scope of identifier "x" is the extent of
+source text within which "x" refers to that particular variable. It is illegal
+to declare another identifier "x" within the same scope.
+
+The scope of an identifier depends on the entity declared.
+
+	1. The scope of predeclared identifiers is the entire source file, excluding
+	   any scopes in nested blocks that redeclare the identifier.
+
+	2. The scope of an identifier referring to a constant, type, variable,
+	   function, method or package extends textually from the point of the
+	   identifier in the declaration to the end of the innermost surrounding
+	   block. It excludes any scopes in nested blocks that redeclare the
+	   identifier.
+
+	3. The scope of a parameter or result identifier is the body of the
+	   corresponding function or method. It excludes any scopes in nested
+	   blocks that redeclare the identifier.
+
+	4. The scope of a field or method identifier is selectors for the
+	   corresponding type containing the field or method (§Selectors).
+
+	5. Implicit forward declaration: An identifier "T" may be used textually
+	   before the beginning of the scope of "T", but only to denote a pointer
+	   type of the form "*T". The full declaration of "T" must follow within
+	   the same block containing the forward declaration.
+
+An entity is said to be ``local'' to its scope. Declarations in the package
+scope are ``global'' declarations.
 
 Global declarations optionally may be marked for export with the reserved word
 "export". Local declarations can never be exported.
@@ -1016,19 +1037,20 @@ it is also visible within field selectors (§Primary Expressions).
 	}
 
 A struct may contain ``anonymous fields'', which are declared with
-a type name but no explicit field name. Instead, the type name acts as the
-field name. Anonymous fields must not be interface types.
+a type name but no explicit field name. Instead, the unqualified type
+name acts as the field name. Anonymous fields must not be interface types.
 
-	// A struct with a single anonymous field of type T.
+	// A struct with two anonymous fields of type T1 and P.T2
 	struct {
-		x, y int;
-		T;
+		T1;        // the field name is T1
+		P.T2;      // the field name is the unqualified type name T2
+		x, y int;  
 	}
 
 As with all scopes, each field name must be unique within a single struct
-(§Declarations and scope rules). Consequently, the type name of an anonymous
-field must not conflict with the field name (or type name for an anonymous
-field) of any other field within the struct.
+(§Declarations and scope rules). Consequently, the unqualified type name of
+an anonymous field must not conflict with the field name (or unqualified
+type name for an anonymous field) of any other field within the struct.
 
 Fields and methods (§Method declarations) of an anonymous field become directly
 accessible as fields and methods of the struct without the need to provide the
@@ -1851,7 +1873,7 @@ TODO write this section
 Expression statements
 ----
 
-	ExpressionStat = Expression .
+	ExpressionStat = PrimaryExpr .
 
 	f(x+y)
 
@@ -1987,9 +2009,11 @@ Switches provide multi-way execution.
 	Case = ( "case" ExpressionList | "default" ) ":" .
 
 There can be at most one default case in a switch statement.
-
 The reserved word "fallthrough" indicates that the control should flow from
 the end of this case clause to the first statement of the next clause.
+
+Each case clause effectively acts as a block for scoping purposes
+($Declarations and scope rules).
 
 The expressions do not need to be constants. They will
 be evaluated top to bottom until the first successful non-default case is reached.
@@ -2125,6 +2149,9 @@ cases all referring to communication operations.
 	CommCase = ( "default" | ( "case" ( SendExpr | RecvExpr) ) ) ":" .
 	SendExpr =  Expression "<-" Expression .
 	RecvExpr =  [ PrimaryExpr ( "=" | ":=" ) ] "<-" Expression .
+
+Each communication clause acts as a block for the purpose of scoping
+(§Declarations and scope rules).
 
 For all the send and receive expressions in the select
 statement, the channel expression is evaluated.  Any values
@@ -2459,6 +2486,8 @@ followed by a series of declarations.
 
 	Package = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
 
+The source text following the package clause acts like a block for scoping
+purposes ($Declarations and scope rules).
 
 Every source file identifies the package to which it belongs.
 The file must begin with a package clause.
