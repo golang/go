@@ -53,7 +53,7 @@ mainlex(int argc, char *argv[])
 	fmtinstall('Z', Zconv);		// escaped string
 	fmtinstall('L', Lconv);		// line number
 	fmtinstall('B', Bconv);		// big numbers
-	
+
 	lexinit();
 	lineno = 1;
 	block = 1;
@@ -227,7 +227,7 @@ importfile(Val *f)
 
 	/*
 	 * position the input right
-	 * after (( and return
+	 * after $$ and return
 	 */
 	pushedio = curio;
 	curio.bin = imp;
@@ -237,12 +237,12 @@ importfile(Val *f)
 		c = getc();
 		if(c == EOF)
 			break;
-		if(c != '(')
+		if(c != '$')
 			continue;
 		c = getc();
 		if(c == EOF)
 			break;
-		if(c != '(')
+		if(c != '$')
 			continue;
 		return;
 	}
@@ -586,9 +586,9 @@ l0:
 
 lx:
 	if(c > 0xff)
-		DBG("lex: TOKEN %s\n", lexname(c));
+		DBG("%L lex: TOKEN %s\n", lineno, lexname(c));
 	else
-		DBG("lex: TOKEN '%c'\n", c);
+		DBG("%L lex: TOKEN '%c'\n", lineno, c);
 	return c;
 
 asop:

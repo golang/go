@@ -39,10 +39,12 @@ y.tab.h: $(YFILES)
 y.tab.c: y.tab.h
 	test -f y.tab.c && touch y.tab.c
 
-sysimport.c:	sys.go mksys.bash
-	bash mksys.bash
+sysimport.c:	sys.go mksys.c
+	gcc -o mksys mksys.c
+	6g sys.go
+	./mksys sys.6 >_sysimport.c && mv _sysimport.c sysimport.c
 
 clean:
-	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
+	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB) _sysimport.c
 
 install: $(LIB)

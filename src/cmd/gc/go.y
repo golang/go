@@ -45,8 +45,6 @@
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl
-%type	<node>		hidden_importsym_list_r ohidden_importsym_list hidden_importsym isym
-%type	<node>		hidden_importfield_list_r ohidden_importfield_list hidden_importfield
 %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
 %type	<node>		keyexpr_list keyval_list_r keyval
 %type	<node>		typedcl Atypedcl Btypedcl
@@ -58,6 +56,14 @@
 %type	<type>		Achantype Bchantype
 
 %type	<val>		hidden_constant
+%type	<node>		hidden_dcl
+%type	<type>		hidden_type hidden_type1 hidden_type2
+%type	<node>		hidden_structdcl_list ohidden_structdcl_list hidden_structdcl_list_r
+%type	<node>		hidden_interfacedcl_list ohidden_interfacedcl_list hidden_interfacedcl_list_r
+%type	<node>		hidden_interfacedcl
+%type	<node>		hidden_funarg_list ohidden_funarg_list hidden_funarg_list_r
+%type	<node>		hidden_funres ohidden_funres hidden_importsym
+%type	<lint>		oexport
 
 %left			LOROR
 %left			LANDAND
@@ -65,6 +71,7 @@
 %left			LEQ LNE LLE LGE LLT LGT
 %left			'+' '-' '|' '^'
 %left			'*' '/' '%' '&' LLSH LRSH
+
 %%
 file:
 	package import_there imports oxdcl_list
@@ -130,12 +137,12 @@ import_package:
 	}
 
 import_there:
-	hidden_import_list_r ')' ')'
+	hidden_import_list_r '$' '$'
 	{
 		checkimports();
 		unimportfile();
 	}
-|	LIMPORT '(' '(' hidden_import_list_r ')' ')'
+|	LIMPORT '$' '$' hidden_import_list_r '$' '$'
 	{
 		checkimports();
 	}
@@ -889,8 +896,7 @@ sym1:
 |	keyword
 
 sym2:
-	sym
-|	keyword
+	sym1
 
 /*
  * keywords that we can
@@ -1124,14 +1130,12 @@ Afntype:
 	'(' oarg_type_list ')' Afnres
 	{
 		$$ = functype(N, $2, $4);
-		funcnam($$, nil);
 	}
 
 Bfntype:
 	'(' oarg_type_list ')' Bfnres
 	{
 		$$ = functype(N, $2, $4);
-		funcnam($$, nil);
 	}
 
 fnlitdcl:
@@ -1175,8 +1179,7 @@ fnbody:
 		if($$ == N)
 			$$ = nod(ORETURN, N, N);
 	}
-|	';'
-	{
+|	{
 		$$ = N;
 	}
 
@@ -1296,7 +1299,6 @@ indcl:
 	{
 		// without func keyword
 		$$ = functype(fakethis(), $2, $4);
-		funcnam($$, nil);
 	}
 |	latype
 	{
@@ -1357,10 +1359,6 @@ arg_type_list_r:
 		$$ = nametoanondcl($1);
 	}
 
-/*
- * arg type is just list of arg_chunks, except for the
- * special case of a simple comma-separated list of names.
- */
 arg_type_list:
 	arg_type_list_r
 	{
@@ -1493,18 +1491,43 @@ hidden_import_list_r:
 	hidden_import
 |	hidden_import_list_r hidden_import
 
-hidden_importsym_list_r:
-	hidden_importsym
-|	hidden_importsym_list_r hidden_importsym
+hidden_funarg_list_r:
+	hidden_dcl
+|	hidden_funarg_list_r ',' hidden_dcl
 	{
-		$$ = nod(OLIST, $1, $2);
+		$$ = nod(OLIST, $1, $3);
 	}
 
-hidden_importfield_list_r:
-	hidden_importfield
-|	hidden_importfield_list_r hidden_importfield
+hidden_funarg_list:
+	hidden_funarg_list_r
 	{
-		$$ = nod(OLIST, $1, $2);
+		$$ = rev($1);
+	}
+
+hidden_structdcl_list_r:
+	hidden_dcl
+|	hidden_structdcl_list_r ';' hidden_dcl
+	{
+		$$ = nod(OLIST, $1, $3);
+	}
+
+hidden_structdcl_list:
+	hidden_structdcl_list_r
+	{
+		$$ = rev($1);
+	}
+
+hidden_interfacedcl_list_r:
+	hidden_interfacedcl
+|	hidden_interfacedcl_list_r ';' hidden_interfacedcl
+	{
+		$$ = nod(OLIST, $1, $3);
+	}
+
+hidden_interfacedcl_list:
+	hidden_interfacedcl_list_r
+	{
+		$$ = rev($1);
 	}
 
 keyval_list_r:
@@ -1577,104 +1600,183 @@ oxdcl_list:
 		$$ = rev($1);
 	}
 
-ohidden_importsym_list:
-	{
-		$$ = N;
-	}
-|	hidden_importsym_list_r
-	{
-		$$ = rev($1);
-	}
-
-ohidden_importfield_list:
-	{
-		$$ = N;
-	}
-|	hidden_importfield_list_r
-	{
-		$$ = rev($1);
-	}
-
 oarg_type_list:
 	{
 		$$ = N;
 	}
 |	arg_type_list
 
+ohidden_funarg_list:
+	{
+		$$ = N;
+	}
+|	hidden_funarg_list
+
+ohidden_structdcl_list:
+	{
+		$$ = N;
+	}
+|	hidden_structdcl_list
+
+ohidden_interfacedcl_list:
+	{
+		$$ = N;
+	}
+|	hidden_interfacedcl_list
+
+oexport:
+	{
+		$$ = 0;
+	}
+|	LEXPORT
+	{
+		$$ = 1;
+	}
+
 /*
  * import syntax from header of
  * an output package
  */
 hidden_import:
-	/* leftover import ignored */
-	LPACKAGE sym
+	LPACKAGE sym1
 	/* variables */
-|	LVAR hidden_importsym hidden_importsym
+|	oexport LVAR hidden_importsym hidden_type
 	{
-		// var
-		doimportv1($2, $3);
+		importvar($1, $3, $4);
+	}
+|	oexport LCONST hidden_importsym '=' hidden_constant
+	{
+		importconst($1, $3, T, &$5);
+	}
+|	oexport LCONST hidden_importsym hidden_type '=' hidden_constant
+	{
+		importconst($1, $3, $4, &$6);
+	}
+|	oexport LTYPE hidden_importsym hidden_type
+	{
+		importtype($1, $3, $4);
+	}
+|	oexport LFUNC hidden_importsym '(' ohidden_funarg_list ')' ohidden_funres
+	{
+		importvar($1, $3, functype(N, $5, $7));
+	}
+|	oexport LFUNC '(' hidden_funarg_list ')' sym1 '(' ohidden_funarg_list ')' ohidden_funres
+	{
+		// have to put oexport here to avoid shift/reduce
+		// with non-method func.  but it isn't allowed.
+		if($1)
+			yyerror("cannot export method");
+		if($4->op != ODCLFIELD) {
+			yyerror("bad receiver in method");
+			YYERROR;
+		}
+		importmethod($6, functype($4, $8, $10));
 	}
 
-	/* constants */
-|	LCONST hidden_importsym hidden_constant
+hidden_type:
+	hidden_type1
+|	hidden_type2
+
+hidden_type1:
+	hidden_importsym
 	{
-		doimportc1($2, &$3);
+		$$ = pkgtype($1->sym->name, $1->psym->name);
 	}
-|	LCONST hidden_importsym hidden_importsym hidden_constant
+|	LATYPE
 	{
-		doimportc2($2, $3, &$4);
+		$$ = oldtype($1);
+	}
+|	'[' ']' hidden_type
+	{
+		$$ = aindex(N, $3);
+	}
+|	'[' LLITERAL ']' hidden_type
+	{
+		Node *n;
+
+		n = nod(OLITERAL, N, N);
+		n->val = $2;
+		$$ = aindex(n, $4);
+	}
+|	LMAP '[' hidden_type ']' hidden_type
+	{
+		$$ = typ(TMAP);
+		$$->down = $3;
+		$$->type = $5;
+	}
+|	LSTRUCT '{' ohidden_structdcl_list '}'
+	{
+		$$ = dostruct($3, TSTRUCT);
+	}
+|	LINTERFACE '{' ohidden_interfacedcl_list '}'
+	{
+		$$ = dostruct($3, TINTER);
+		$$ = sortinter($$);
+	}
+|	'*' hidden_type
+	{
+		dowidth($2);
+		$$ = ptrto($2);
+	}
+|	LCOMM LCHAN hidden_type
+	{
+		$$ = typ(TCHAN);
+		$$->type = $3;
+		$$->chan = Crecv;
+	}
+|	LCHAN LCOMM hidden_type1
+	{
+		$$ = typ(TCHAN);
+		$$->type = $3;
+		$$->chan = Csend;
 	}
 
-	/* types */
-|	LTYPE hidden_importsym '[' hidden_importsym ']' hidden_importsym
+hidden_type2:
+	LCHAN hidden_type
 	{
-		// type map
-		doimport1($2, $4, $6);
+		$$ = typ(TCHAN);
+		$$->type = $2;
+		$$->chan = Cboth;
 	}
-|	LTYPE hidden_importsym '[' LLITERAL ']' hidden_importsym
+|	'(' ohidden_funarg_list ')' ohidden_funres
 	{
-		// type array
-		doimport2($2, &$4, $6);
+		$$ = functype(N, $2, $4);
 	}
-|	LTYPE hidden_importsym '[' ']' hidden_importsym
+
+hidden_dcl:
+	sym1 hidden_type
 	{
-		// type array
-		doimport2($2, nil, $5);
+		$$ = nod(ODCLFIELD, newname($1), N);
+		$$->type = $2;
 	}
-|	LTYPE hidden_importsym '(' ohidden_importsym_list ')'
+|	'?' hidden_type
 	{
-		// type function
-		doimport3($2, $4);
+		$$ = nod(ODCLFIELD, N, N);
+		$$->type = $2;
 	}
-|	LTYPE hidden_importsym '{' ohidden_importfield_list '}'
+
+hidden_interfacedcl:
+	sym1 '(' ohidden_funarg_list ')' ohidden_funres
 	{
-		// type structure
-		doimport4($2, $4);
+		$$ = nod(ODCLFIELD, newname($1), N);
+		$$->type = functype(fakethis(), $3, $5);
 	}
-|	LTYPE hidden_importsym LLITERAL
+
+ohidden_funres:
 	{
-		// type basic
-		doimport5($2, &$3);
+		$$ = N;
 	}
-|	LTYPE hidden_importsym '*' hidden_importsym
+|	hidden_funres
+
+hidden_funres:
+	'(' ohidden_funarg_list ')'
 	{
-		// type pointer
-		doimport6($2, $4);
+		$$ = $2;
 	}
-|	LTYPE hidden_importsym LLT ohidden_importfield_list LGT
+|	hidden_type1
 	{
-		// type interface
-		doimport7($2, $4);
-	}
-|	LTYPE hidden_importsym LLITERAL hidden_importsym
-	{
-		// type interface
-		doimport8($2, &$3, $4);
-	}
-|	LFUNC sym1 hidden_importsym
-	{
-		// method
-		doimport9($2, $3);
+		$$ = nod(ODCLFIELD, N, N);
+		$$->type = $1;
 	}
 
 hidden_constant:
@@ -1694,37 +1796,13 @@ hidden_constant:
 		}
 	}
 
-isym:
+hidden_importsym:
 	sym1 '.' sym2
 	{
 		$$ = nod(OIMPORT, N, N);
 		$$->osym = $1;
 		$$->psym = $1;
 		$$->sym = $3;
-		renamepkg($$);
-	}
-|	'(' sym1 ')' sym1 '.' sym2
-	{
-		$$ = nod(OIMPORT, N, N);
-		$$->osym = $2;
-		$$->psym = $4;
-		$$->sym = $6;
-		renamepkg($$);
-	}
-
-hidden_importsym:
-	isym
-|	'!' isym
-	{
-		$$ = $2;
-		$$->etype = 1;
-	}
-
-hidden_importfield:
-	sym1 isym
-	{
-		$$ = $2;
-		$$->fsym = $1;
 	}
 
 /*
@@ -1739,7 +1817,7 @@ hidden_importfield:
  * to check whether the rest of the grammar is free of
  * reduce/reduce conflicts, comment this section out by
  * removing the slash on the next line.
- */
+ *
 lpack:
 	LATYPE
 	{

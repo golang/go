@@ -131,7 +131,7 @@ char	*pkgdata;		/* pkgdef data */
 char	*pkgstmt;		/* string "package foo" */
 int	dupfound;			/* flag for duplicate symbol */
 Hashchain	*hash[NHASH];		/* hash table of text symbols */
-	
+
 #define	ARNAMESIZE	sizeof(astart->tail->hdr.name)
 
 char	poname[ARNAMESIZE+1];		/* name of pivot member */
@@ -630,7 +630,7 @@ int
 strstrn(char *line, int len, char *sub)
 {
 	int i;
-	int sublen; 
+	int sublen;
 
 	sublen = strlen(sub);
 	for (i = 0; i < len - sublen; i++)
@@ -654,20 +654,20 @@ scanpkg(Biobuf *b, long size)
 	int first;
 
 	/*
-	 * scan until ((
+	 * scan until $$
 	 */
 	for (n=0; n<size; ) {
 		c = Bgetc(b);
 		if(c == Beof)
 			break;
 		n++;
-		if(c != '(')
+		if(c != '$')
 			continue;
 		c = Bgetc(b);
 		if(c == Beof)
 			break;
 		n++;
-		if(c != '(')
+		if(c != '$')
 			continue;
 		goto foundstart;
 	}
@@ -691,9 +691,9 @@ foundstart:
 			first = 0;
 			continue;
 		}
-		if (strstrn(line, Blinelen(b), "))"))
+		if (strstrn(line, Blinelen(b), "$$"))
 			goto foundend;
-		end = Boffset(b);  // before closing ))
+		end = Boffset(b);  // before closing $$
 	}
 bad:
 	fprint(2, "ar: bad package import section in %s\n", file);
@@ -706,9 +706,9 @@ foundend:
 		/* this is the first package */
 		pkgstmt = armalloc(strlen(pkg)+1);
 		strcpy(pkgstmt, pkg);
-		pkgdefsize = 7 + 3 + strlen(pkg);	/* "import\n((\npackage foo\n" */
+		pkgdefsize = 7 + 3 + strlen(pkg);	/* "import\n$$\npackage foo\n" */
 		pkgdata = armalloc(pkgdefsize);
-		sprint(pkgdata, "import\n((\n%s", pkgstmt);
+		sprint(pkgdata, "import\n$$\n%s", pkgstmt);
 	} else {
 		if (strcmp(pkg, pkgstmt) != 0) {
 			fprint(2, "ar: inconsistent package name\n");
@@ -1018,7 +1018,7 @@ rl(int fd)
 	headlen = Boffset(&b);
 	len += headlen;
 	if (gflag) {
-		len += SAR_HDR + pkgdefsize + 3; /* +3 for "))\n" */
+		len += SAR_HDR + pkgdefsize + 3; /* +3 for "$$\n" */
 		if (len & 1)
 			len++;
 	}
@@ -1037,7 +1037,7 @@ rl(int fd)
 		Bputc(&b, 0);
 
 	if (gflag) {
-		len = pkgdefsize + 3;  /* for "))\n" at close */
+		len = pkgdefsize + 3;  /* for "$$\n" at close */
 		sprint(a.date, "%-12ld", time(0));
 		sprint(a.uid, "%-6d", 0);
 		sprint(a.gid, "%-6d", 0);
@@ -1053,7 +1053,7 @@ rl(int fd)
 
 		if (Bwrite(&b, pkgdata, pkgdefsize) != pkgdefsize)
 			wrerr();
-		if (Bwrite(&b, "))\n", 3) != 3)
+		if (Bwrite(&b, "$$\n", 3) != 3)
 			wrerr();
 		if(len&0x01)
 			Bputc(&b, 0);

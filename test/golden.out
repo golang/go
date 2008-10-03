@@ -1,6 +1,5 @@
 
 =========== ./func3.go
-BUG: errchk func3
 BUG: errchk: func3.go: missing expected error message on line 14: 'type'
 
 =========== ./helloworld.go
@@ -58,7 +57,7 @@ bugs/bug020.go:7: type of a structure field cannot be an open array
 BUG should compile
 
 =========== bugs/bug026.go
-sys·printstring: main·sigs_I: not defined
+sys·printnl: main·sigt_I: not defined
 BUG: known to fail incorrectly
 
 =========== bugs/bug032.go
@@ -74,11 +73,11 @@ BUG: map increment
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
 	int32
-	struct { u int32; v int32; }
+	struct { u int32; v int32 }
 BUG: compilation should succeed
 
 =========== bugs/bug074.go
-bugs/bug074.go:6: syntax error
+bugs/bug074.go:6: syntax error near string
 bugs/bug074.go:7: x: undefined
 BUG: compiler crashes - Bus error
 
@@ -91,7 +90,7 @@ BUG: succeeds incorrectly
 =========== bugs/bug080.go
 bugs/bug080.go:12: illegal types for operand: CALL
 	int32
-	struct { x int32; y float32; }
+	struct { x int32; y float32 }
 BUG: fails incorrectly
 
 =========== bugs/bug083.go
@@ -115,19 +114,19 @@ M
 =========== bugs/bug094.go
 bugs/bug094.go:11: left side of := must be a name
 bad top
-.   LITERAL-I0 l(369)
+.   LITERAL-I0 l(81)
 bugs/bug094.go:11: fatal error: walktype: top=3 LITERAL
 BUG: fails incorrectly
 
 =========== bugs/bug095.go
 found 2, expected 1
 
-panic on line 368 PC=xxx
+panic on line 80 PC=xxx
 BUG wrong result
 
 =========== bugs/bug097.go
 
-panic on line 370 PC=xxx
+panic on line 82 PC=xxx
 BUG wrong result
 
 =========== bugs/bug098.go
@@ -164,7 +163,7 @@ BUG: should compile
 fixedbugs/bug016.go:7: overflow converting constant to uint32
 
 =========== fixedbugs/bug025.go
-fixedbugs/bug025.go:7: variable exported but not defined: Foo
+fixedbugs/bug025.go:7: variable exported but not defined: main.Foo
 
 =========== fixedbugs/bug027.go
 hi
@@ -181,8 +180,8 @@ hi
 
 =========== fixedbugs/bug029.go
 fixedbugs/bug029.go:6: f is not a type
-fixedbugs/bug029.go:6: syntax error
-fixedbugs/bug029.go:6: syntax error
+fixedbugs/bug029.go:6: syntax error near func
+fixedbugs/bug029.go:6: syntax error near int
 
 =========== fixedbugs/bug035.go
 fixedbugs/bug035.go:6: var i redeclared in this block
@@ -192,7 +191,7 @@ fixedbugs/bug035.go:7: var f redeclared in this block
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(364) t=<T> nil
+fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(76) t=<T> nil
 
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: var x redeclared in this block
@@ -203,7 +202,7 @@ fixedbugs/bug049.go:6: illegal conversion of constant to string
 
 =========== fixedbugs/bug050.go
 fixedbugs/bug050.go:3: package statement must be first
-sys.6:1 fixedbugs/bug050.go:3: syntax error
+sys.6:1 fixedbugs/bug050.go:3: syntax error near package
 
 =========== fixedbugs/bug051.go
 fixedbugs/bug051.go:10: expression must be a constant
@@ -241,7 +240,7 @@ fixedbugs/bug073.go:9: illegal types for operand: RSH
 	int32
 
 =========== fixedbugs/bug081.go
-fixedbugs/bug081.go:5: syntax error
+fixedbugs/bug081.go:5: syntax error near x
 
 =========== fixedbugs/bug086.go
 fixedbugs/bug086.go:5: function ends without a return statement
