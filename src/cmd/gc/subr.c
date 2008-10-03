@@ -22,6 +22,8 @@ yyerror(char *fmt, ...)
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
+	if(strcmp(fmt, "syntax error") == 0)
+		print(" near %s", namebuf);
 	print("\n");
 	if(debug['h'])
 		*(int*)0 = 0;
@@ -921,6 +923,7 @@ Sconv(Fmt *fp)
 	if(s->name != nil)
 		nam = s->name;
 
+	if(!(fp->flags & FmtShort))
 	if(strcmp(pkg, package) || strcmp(opk, package) || (fp->flags & FmtLong)) {
 		if(strcmp(opk, pkg) == 0) {
 			snprint(buf, sizeof(buf), "%s.%s", pkg, nam);
@@ -948,7 +951,7 @@ static char *basicnames[] = {
 [TFLOAT64]	"float64",
 [TFLOAT80]	"float80",
 [TBOOL]	"bool",
-[TSTRING]	"string"
+[TANY]	"any",
 };
 
 int
@@ -956,41 +959,65 @@ Tpretty(Fmt *fp, Type *t)
 {
 	Type *t1;
 
-	if(t->etype != TFIELD && t->sym != S && t->sym->name[0] != '_')
+	if(t->etype != TFIELD
+	&& t->sym != S
+	&& t->sym->name[0] != '_'
+	&& !(fp->flags&FmtLong))
 		return fmtprint(fp, "%S", t->sym);
-	
+
 	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil)
 		return fmtprint(fp, "%s", basicnames[t->etype]);
-	
+
 	switch(t->etype) {
 	case TPTR32:
 	case TPTR64:
+		if(t->type && t->type->etype == TSTRING)
+			return fmtprint(fp, "string");
 		return fmtprint(fp, "*%T", t->type);
-	
+
 	case TFUNC:
+		// t->type is method struct
+		// t->type->down is result struct
+		// t->type->down->down is arg struct
+		if(t->thistuple && !(fp->flags&FmtSharp) && !(fp->flags&FmtShort)) {
+			fmtprint(fp, "method(");
+			for(t1=getthisx(t)->type; t1; t1=t1->down) {
+				fmtprint(fp, "%T", t1);
+				if(t1->down)
+					fmtprint(fp, ", ");
+			}
+			fmtprint(fp, ")");
+		}
+
 		fmtprint(fp, "(");
-		for(t1=t->type->down->down->type; t1; t1=t1->down) {
+		for(t1=getinargx(t)->type; t1; t1=t1->down) {
 			fmtprint(fp, "%T", t1);
 			if(t1->down)
 				fmtprint(fp, ", ");
 		}
 		fmtprint(fp, ")");
-		t1 = t->type->down->type;
-		if(t1 != T) {
-			if(t1->down == T && t1->etype != TFIELD)
+		switch(t->outtuple) {
+		case 0:
+			break;
+		case 1:
+			t1 = getoutargx(t)->type;
+			if(t1->etype != TFIELD) {
 				fmtprint(fp, " %T", t1);
-			else {
-				fmtprint(fp, " (");
-				for(; t1; t1=t1->down) {
-					fmtprint(fp, "%T", t1);
-					if(t1->down)
-						fmtprint(fp, ", ");
-				}
-				fmtprint(fp, ")");
+				break;
 			}
+		default:
+			t1 = getoutargx(t)->type;
+			fmtprint(fp, " (");
+			for(; t1; t1=t1->down) {
+				fmtprint(fp, "%T", t1);
+				if(t1->down)
+					fmtprint(fp, ", ");
+			}
+			fmtprint(fp, ")");
+			break;
 		}
 		return 0;
-	
+
 	case TARRAY:
 		if(t->bound >= 0)
 			return fmtprint(fp, "[%d]%T", (int)t->bound, t->type);
@@ -998,28 +1025,42 @@ Tpretty(Fmt *fp, Type *t)
 
 	case TCHAN:
 		return fmtprint(fp, "chan %T", t->type);
-	
+
 	case TMAP:
 		return fmtprint(fp, "map[%T] %T", t->down, t->type);
-	
+
 	case TINTER:
 		fmtprint(fp, "interface {");
 		for(t1=t->type; t1!=T; t1=t1->down) {
-			fmtprint(fp, " %S %T;", t1->sym, t1);
+			fmtprint(fp, " %hS %hT", t1->sym, t1->type);
+			if(t1->down)
+				fmtprint(fp, ";");
 		}
-		return fmtprint(fp, " }"); 
-	
+		return fmtprint(fp, " }");
+
 	case TSTRUCT:
 		fmtprint(fp, "struct {");
 		for(t1=t->type; t1!=T; t1=t1->down) {
-			fmtprint(fp, " %T;", t1);
+			fmtprint(fp, " %T", t1);
+			if(t1->down)
+				fmtprint(fp, ";");
 		}
 		return fmtprint(fp, " }");
-	
+
 	case TFIELD:
-		if(t->sym == S || t->sym->name[0] == '_')
+		if(t->sym == S || t->sym->name[0] == '_') {
+			if(exporting)
+				fmtprint(fp, "? ");
 			return fmtprint(fp, "%T", t->type);
-		return fmtprint(fp, "%S %T", t->sym, t->type);
+		}
+		return fmtprint(fp, "%hS %T", t->sym, t->type);
+
+	case TFORW:
+		if(exporting)
+			yyerror("undefined type %S", t->sym);
+		if(t->sym)
+			return fmtprint(fp, "undefined %S", t->sym);
+		return fmtprint(fp, "undefined");
 	}
 
 	// Don't know how to handle - fall back to detailed prints.
@@ -1032,7 +1073,7 @@ Tconv(Fmt *fp)
 	char buf[500], buf1[500];
 	Type *t, *t1;
 	int et;
-	
+
 	t = va_arg(fp->args, Type*);
 	if(t == T)
 		return fmtstrcpy(fp, "<T>");
@@ -1417,6 +1458,9 @@ signame(Type *t)
 {
 	Sym *s, *ss;
 	char *e;
+	Type *t1;
+	int n;
+	char buf[NSYMB];
 
 	if(t == T)
 		goto bad;
@@ -1437,8 +1481,8 @@ signame(Type *t)
 	if(t->etype == TINTER)
 		e = "sigi";
 
-	snprint(namebuf, sizeof(namebuf), "%s_%s", e, s->name);
-	ss = pkglookup(namebuf, s->opackage);
+	snprint(buf, sizeof(buf), "%s_%s", e, s->name);
+	ss = pkglookup(buf, s->opackage);
 	if(ss->oname == N) {
 		ss->oname = newname(ss);
 		ss->oname->type = types[TUINT8];

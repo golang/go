@@ -50,10 +50,10 @@ dodcltype(Type *n, Type *t)
 		t = nt;
 		t->sym = S;
 	}
-	if(exportadj)
-		exportsym(n->sym);
 	n->sym->local = 1;
 	addtyp(n, t, dclcontext);
+	if(exportadj)
+		exportsym(n->sym);
 }
 
 void
@@ -70,8 +70,6 @@ loop:
 		n = n->right;
 		goto loop;
 	}
-	if(exportadj)
-		exportsym(n->sym);
 
 	if(n->op != ONAME)
 		fatal("dodclconst: not a name");
@@ -84,6 +82,9 @@ loop:
 
 	s->oconst = e;
 	s->lexical = LACONST;
+
+	if(exportadj)
+		exportsym(n->sym);
 
 	r = autodcl;
 	if(dclcontext == PEXTERN)
@@ -142,51 +143,6 @@ functype(Node *this, Node *in, Node *out)
 	return t;
 }
 
-void
-funcnam(Type *t, char *nam)
-{
-	Node *n;
-	Sym *s;
-	char buf[100];
-
-	if(nam == nil) {
-		vargen++;
-		snprint(buf, sizeof(buf), "_f%s_%.3ld", filename, vargen);
-		nam = buf;
-	}
-
-	if(t->etype != TFUNC)
-		fatal("funcnam: not func %T\n", t);
-
-	if(t->thistuple > 0) {
-		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_t%s_%.3ld", filename, vargen);
-		s = lookup(namebuf);
-		addtyp(newtype(s), t->type, PEXTERN);
-		n = newname(s);
-		n->vargen = vargen;
-		t->type->nname = n;
-	}
-	if(t->outtuple > 0) {
-		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_o%s_%.3ld", filename, vargen);
-		s = lookup(namebuf);
-		addtyp(newtype(s), t->type->down, PEXTERN);
-		n = newname(s);
-		n->vargen = vargen;
-		t->type->down->nname = n;
-	}
-	if(t->intuple > 0) {
-		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_i%s_%.3ld", filename, vargen);
-		s = lookup(namebuf);
-		addtyp(newtype(s), t->type->down->down, PEXTERN);
-		n = newname(s);
-		n->vargen = vargen;
-		t->type->down->down->nname = n;
-	}
-}
-
 int
 methcmp(Type *t1, Type *t2)
 {
@@ -218,6 +174,7 @@ Node*
 methodname(Node *n, Type *t)
 {
 	Sym *s;
+	char buf[NSYMB];
 
 	if(t == T)
 		goto bad;
@@ -233,8 +190,8 @@ methodname(Node *n, Type *t)
 	if(s == S)
 		goto bad;
 
-	snprint(namebuf, sizeof(namebuf), "%s_%s", s->name, n->sym->name);
-	return newname(lookup(namebuf));
+	snprint(buf, sizeof(buf), "%s_%s", s->name, n->sym->name);
+	return newname(pkglookup(buf, t->sym->opackage));
 
 bad:
 	yyerror("illegal <this> type: %T", t);
@@ -366,7 +323,6 @@ funchdr(Node *n)
 	if(on == N) {
 		// initial declaration or redeclaration
 		// declare fun name, argument types and argument names
-		funcnam(n->type, s->name);
 		n->nname->type = n->type;
 		if(n->type->thistuple == 0)
 			addvar(n->nname, n->type, PEXTERN);
@@ -462,6 +418,7 @@ stotype(Node *n, Type **t)
 {
 	Type *f;
 	Iter save;
+	char buf[100];
 
 	n = listfirst(&save, &n);
 
@@ -490,8 +447,8 @@ loop:
 		f->nname = n->left;
 	} else {
 		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_e%s_%.3ld", filename, vargen);
-		f->nname = newname(lookup(namebuf));
+		snprint(buf, sizeof(buf), "_e%s_%.3ld", filename, vargen);
+		f->nname = newname(lookup(buf));
 	}
 	f->sym = f->nname->sym;
 
@@ -600,6 +557,7 @@ poptodcl(void)
 	}
 	if(d == S)
 		fatal("poptodcl: no mark");
+	dclstack = d;
 }
 
 void
@@ -689,17 +647,6 @@ addvar(Node *n, Type *t, int ctxt)
 	if(n==N || n->sym == S || n->op != ONAME || t == T)
 		fatal("addvar: n=%N t=%T nil", n, t);
 
-	ot = t;
-	if(isptr[ot->etype])
-		ot = ot->type;
-
-	if(ot->etype == TSTRUCT && ot->vargen == 0) {
-		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_s%s_%.3ld", filename, vargen);
-		s = lookup(namebuf);
-		addtyp(newtype(s), ot, PEXTERN);
-	}
-
 	s = n->sym;
 	vargen++;
 	gen = vargen;
@@ -783,7 +730,8 @@ addtyp(Type *n, Type *t, int ctxt)
 		pushdcl(s);
 
 	if(t->sym != S)
-		warn("addtyp: renaming %S/%lT to %S/%lT", t->sym, t->sym->otype, s, n);
+		warn("addtyp: renaming type %S/%lT to %S/%lT",
+			t->sym, t->sym->otype, s, n);
 
 	vargen++;
 	s->vargen = vargen;

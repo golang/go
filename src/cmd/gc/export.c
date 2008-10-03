@@ -5,6 +5,8 @@
 #include	"go.h"
 #include	"y.tab.h"
 
+void dumpsym(Sym*);
+
 void
 addexportsym(Sym *s)
 {
@@ -33,28 +35,21 @@ exportsym(Sym *s)
 	addexportsym(s);
 }
 
-void
-makeexportsym(Type *t)
-{
-	Sym *s;
-
-	if(t->sym == S) {
-		exportgen++;
-		snprint(namebuf, sizeof(namebuf), "_e%s_%.3ld", filename, exportgen);
-		s = lookup(namebuf);
-		s->lexical = LATYPE;
-		s->otype = t;
-		t->sym = s;
-	}
-}
 
 void
-reexport(Type *t)
+dumpprereq(Type *t)
 {
 	if(t == T)
-		fatal("reexport: type nil");
-	makeexportsym(t);
-	dumpexporttype(t->sym);
+		return;
+
+	if(t->printed)
+		return;
+	t->printed = 1;
+
+	if(t->sym != S && t->etype != TFIELD && t->sym->name[0] != '_')
+		dumpsym(t->sym);
+	dumpprereq(t->type);
+	dumpprereq(t->down);
 }
 
 void
@@ -63,24 +58,21 @@ dumpexportconst(Sym *s)
 	Node *n;
 	Type *t;
 
-	if(s->exported != 0)
-		return;
-	s->exported = 1;
-
 	n = s->oconst;
 	if(n == N || n->op != OLITERAL)
 		fatal("dumpexportconst: oconst nil: %S", s);
 
 	t = n->type;	// may or may not be specified
 	if(t != T)
-		reexport(t);
+		dumpprereq(t);
 
-	Bprint(bout, "\tconst ");
+	Bprint(bout, "\t");
 	if(s->export != 0)
-		Bprint(bout, "!");
-	Bprint(bout, "%lS ", s);
+		Bprint(bout, "export ");
+	Bprint(bout, "const %lS ", s);
 	if(t != T)
-		Bprint(bout, "%lS ", t->sym);
+		Bprint(bout, "%#T ", t);
+	Bprint(bout, " = ");
 
 	switch(n->val.ctype) {
 	default:
@@ -108,10 +100,6 @@ dumpexportvar(Sym *s)
 	Node *n;
 	Type *t;
 
-	if(s->exported != 0)
-		return;
-	s->exported = 1;
-
 	n = s->oname;
 	if(n == N || n->type == T) {
 		yyerror("variable exported but not defined: %S", s);
@@ -119,148 +107,36 @@ dumpexportvar(Sym *s)
 	}
 
 	t = n->type;
-	reexport(t);
+	dumpprereq(t);
 
-	Bprint(bout, "\tvar ");
+	Bprint(bout, "\t");
 	if(s->export != 0)
-		Bprint(bout, "!");
-	Bprint(bout, "%lS %lS\n", s, t->sym);
+		Bprint(bout, "export ");
+	if(t->etype == TFUNC)
+		Bprint(bout, "func ");
+	else
+		Bprint(bout, "var ");
+	Bprint(bout, "%lS %#T\n", s, t);
 }
 
 void
 dumpexporttype(Sym *s)
 {
-	Type *t, *f;
-	Sym *ts;
-	int et, forw;
+	Bprint(bout, "\t");
+	if(s->export != 0)
+		Bprint(bout, "export ");
+	Bprint(bout, "type %lS %l#T\n",  s, s->otype);
+}
+
+void
+dumpsym(Sym *s)
+{
+	Type *f;
 
 	if(s->exported != 0)
 		return;
 	s->exported = 1;
 
-	t = s->otype;
-	if(t == T) {
-		yyerror("type exported but not defined: %S", s);
-		return;
-	}
-
-	if(t->sym != s)
-		fatal("dumpexporttype: cross reference: %S", s);
-
-	et = t->etype;
-	switch(et) {
-	default:
-		if(et < 0 || et >= nelem(types) || types[et] == T)
-			fatal("dumpexporttype: basic type: %S %E", s, et);
-		/* type 5 */
-		Bprint(bout, "\ttype ");
-		if(s->export != 0)
-			Bprint(bout, "!");
-		Bprint(bout, "%lS %d\n", s, et);
-		break;
-
-	case TARRAY:
-		reexport(t->type);
-
-		/* type 2 */
-		Bprint(bout, "\ttype ");
-		if(s->export != 0)
-			Bprint(bout, "!");
-		if(t->bound >= 0)
-			Bprint(bout, "%lS [%lud] %lS\n", s, t->bound, t->type->sym);
-		else
-			Bprint(bout, "%lS [] %lS\n", s, t->type->sym);
-		break;
-
-	case TPTR32:
-	case TPTR64:
-		if(t->type == T)
-			fatal("dumpexporttype: ptr %S", s);
-		if(t->type->etype == TFORW) {
-			yyerror("export of a undefined forward reference: %S", s);
-			break;
-		}
-		makeexportsym(t->type);
-		ts = t->type->sym;
-		if(ts->exported == 0)
-			addexportsym(ts);
-
-		/* type 6 */
-		Bprint(bout, "\ttype ");
-		if(s->export != 0)
-			Bprint(bout, "!");
-		Bprint(bout, "%lS *%lS\n", s, ts);
-
-		break;
-
-	case TFUNC:
-		for(f=t->type; f!=T; f=f->down) {
-			if(f->etype != TSTRUCT)
-				fatal("dumpexporttype: funct not field: %T", f);
-			reexport(f);
-		}
-
-		/* type 3 */
-		Bprint(bout, "\ttype ");
-		if(s->export != 0)
-			Bprint(bout, "!");
-		Bprint(bout, "%lS (", s);
-		for(f=t->type; f!=T; f=f->down) {
-			if(f != t->type)
-				Bprint(bout, " ");
-			Bprint(bout, "%lS", f->sym);
-		}
-		Bprint(bout, ")\n");
-		break;
-
-	case TSTRUCT:
-	case TINTER:
-		for(f=t->type; f!=T; f=f->down) {
-			if(f->etype != TFIELD)
-				fatal("dumpexporttype: funct not field: %lT", f);
-			reexport(f->type);
-		}
-
-		/* type 4 */
-		Bprint(bout, "\ttype ");
-		if(s->export)
-			Bprint(bout, "!");
-		Bprint(bout, "%lS %c", s, (et==TSTRUCT)? '{': '<');
-		for(f=t->type; f!=T; f=f->down) {
-			ts = f->type->sym;
-			if(f != t->type)
-				Bprint(bout, " ");
-			Bprint(bout, "%s %lS", f->sym->name, ts);
-		}
-		Bprint(bout, "%c\n", (et==TSTRUCT)? '}': '>');
-		break;
-
-	case TMAP:
-		reexport(t->type);
-		reexport(t->down);
-
-		/* type 1 */
-		Bprint(bout, "\ttype ");
-		if(s->export != 0)
-			Bprint(bout, "!");
-		Bprint(bout, "%lS [%lS] %lS\n", s, t->down->sym, t->type->sym);
-		break;
-
-	case TCHAN:
-		reexport(t->type);
-
-		/* type 8 */
-		Bprint(bout, "\ttype ");
-		if(s->export != 0)
-			Bprint(bout, "!");
-		Bprint(bout, "%lS %d %lS\n", s, t->chan, t->type->sym);
-		break;
-	}
-}
-
-void
-dumpe(Sym *s)
-{
 	switch(s->lexical) {
 	default:
 		yyerror("unknown export symbol: %S", s);
@@ -270,54 +146,19 @@ dumpe(Sym *s)
 		break;
 	case LATYPE:
 	case LBASETYPE:
-//print("TYPE %S\n", s);
 		dumpexporttype(s);
+		for(f=s->otype->method; f!=T; f=f->down) {
+			dumpprereq(f);
+			Bprint(bout, "\tfunc (%#T) %hS %#T\n",
+				f->type->type->type, f->sym, f->type);
+		}
 		break;
 	case LNAME:
-//print("VAR %S\n", s);
 		dumpexportvar(s);
 		break;
 	case LACONST:
-//print("CONST %S\n", s);
 		dumpexportconst(s);
 		break;
-	}
-}
-
-void
-dumpm(Sym *s)
-{
-	Type *t, *f;
-	Dcl *back, *d;
-
-	switch(s->lexical) {
-	default:
-		return;
-
-	case LATYPE:
-	case LBASETYPE:
-		break;
-	}
-
-	t = s->otype;
-	if(t == T) {
-		yyerror("type exported but not defined: %S", s);
-		return;
-	}
-
-	for(f=t->method; f!=T; f=f->down) {
-		back = exportlist->back;
-
-		if(f->etype != TFIELD)
-			fatal("dumpexporttype: method not field: %lT", f);
-		reexport(f->type);
-		Bprint(bout, "\tfunc %S %lS\n", f->sym, f->type->sym);
-	
-		// redo first pass on new entries
-		for(d=back; d!=D; d=d->forw) {
-			lineno = d->lineno;
-			dumpe(d->dsym);
-		}
 	}
 }
 
@@ -326,29 +167,174 @@ dumpexport(void)
 {
 	Dcl *d;
 	int32 lno;
+	char *pkg;
 
+	exporting = 1;
 	lno = lineno;
 
 	Bprint(bout, "   import\n");
-	Bprint(bout, "   ((\n");
+	Bprint(bout, "   $$\n");
 
 	Bprint(bout, "    package %s\n", package);
+	pkg = package;
+	package = "$nopkg";
 
-	// first pass dump vars/types depth first
 	for(d=exportlist->forw; d!=D; d=d->forw) {
 		lineno = d->lineno;
-		dumpe(d->dsym);
+		dumpsym(d->dsym);
 	}
 
-	// second pass dump methods
-	for(d=exportlist->forw; d!=D; d=d->forw) {
-		lineno = d->lineno;
-		dumpm(d->dsym);
-	}
+	package = pkg;
 
-	Bprint(bout, "   ))\n");
+	Bprint(bout, "\n$$\n");
 
 	lineno = lno;
+	exporting = 0;
+}
+
+/*
+ * import
+ */
+
+/*
+ * look up and maybe declare pkg.name, which should match lexical
+ */
+Sym*
+pkgsym(char *name, char *pkg, int lexical)
+{
+	Sym *s;
+
+	s = pkglookup(name, pkg);
+	switch(lexical) {
+	case LATYPE:
+		if(s->oname)
+			yyerror("%s.%s is not a type", name, pkg);
+		break;
+	case LNAME:
+		if(s->otype)
+			yyerror("%s.%s is not a name", name, pkg);
+		break;
+	}
+	s->lexical = lexical;
+	return s;
+}
+
+/*
+ * return the sym for ss, which should match lexical
+ */
+Sym*
+importsym(Node *ss, int lexical)
+{
+	Sym *s;
+
+	renamepkg(ss);
+
+	if(ss->op != OIMPORT)
+		fatal("importsym: oops1 %N", ss);
+
+	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
+
+	/* TODO botch - need some diagnostic checking for the following assignment */
+	s->opackage = ss->osym->name;
+	return s;
+}
+
+/*
+ * return the type pkg.name, forward declaring if needed
+ */
+Type*
+pkgtype(char *name, char *pkg)
+{
+	Sym *s;
+	Type *t;
+
+	// botch
+	// s = pkgsym(name, pkg, LATYPE);
+	Node *n;
+	n = nod(OIMPORT, N, N);
+	n->sym = lookup(name);
+	n->psym = lookup(pkg);
+	n->osym = n->psym;
+	renamepkg(n);
+	s = importsym(n, LATYPE);
+
+	if(s->otype == T) {
+		t = typ(TFORW);
+		t->sym = s;
+		s->otype = t;
+	}
+	return s->otype;
+}
+
+void
+importconst(int export, Node *ss, Type *t, Val *v)
+{
+	Node *n;
+	Sym *s;
+
+	n = nod(OLITERAL, N, N);
+	n->val = *v;
+	n->type = t;
+
+	s = importsym(ss, LNAME);
+	if(s->oconst != N) {
+		// TODO: check if already the same.
+		return;
+	}
+
+	dodclconst(newname(s), n);
+
+	if(debug['e'])
+		print("import const %S\n", s);
+}
+
+void
+importvar(int export, Node *ss, Type *t)
+{
+	Sym *s;
+
+	s = importsym(ss, LNAME);
+	if(s->oname != N) {
+		if(eqtype(t, s->oname->type, 0))
+			return;
+		warn("redeclare import var %S from %T to %T",
+			s, s->oname->type, t);
+	}
+	addvar(newname(s), t, PEXTERN);
+
+	if(debug['e'])
+		print("import var %S %lT\n", s, t);
+}
+
+void
+importtype(int export, Node *ss, Type *t)
+{
+	Sym *s;
+
+	s = importsym(ss, LATYPE);
+	if(s->otype != T) {
+		if(eqtype(t, s->otype, 0))
+			return;
+		if(s->otype->etype != TFORW) {
+			warn("redeclare import type %S from %T to %T",
+				s, s->otype, t);
+			s->otype = typ(0);
+		}
+	}
+	if(s->otype == T)
+		s->otype = typ(0);
+	*s->otype = *t;
+	s->otype->sym = s;
+
+	if(debug['e'])
+		print("import type %S %lT\n", s, t);
+}
+
+void
+importmethod(Sym *s, Type *t)
+{
+	dowidth(t);
+	addmethod(newname(s), t, 0);
 }
 
 /*
@@ -400,376 +386,12 @@ return;
 	}
 }
 
+
+
 void
 renamepkg(Node *n)
 {
 	if(n->psym == pkgimportname)
 		if(pkgmyname != S)
 			n->psym = pkgmyname;
-}
-
-Sym*
-getimportsym(Node *ss)
-{
-	char *pkg;
-	Sym *s;
-
-	if(ss->op != OIMPORT)
-		fatal("getimportsym: oops1 %N", ss);
-
-	pkg = ss->psym->name;
-	s = pkglookup(ss->sym->name, pkg);
-
-	/* botch - need some diagnostic checking for the following assignment */
-	s->opackage = ss->osym->name;
-	return s;
-}
-
-Type*
-importlooktype(Node *n)
-{
-	Sym *s;
-
-	s = getimportsym(n);
-	if(s->otype == T)
-		fatal("importlooktype: oops2 %S", s);
-	return s->otype;
-}
-
-Type**
-importstotype(Node *fl, Type **t, Type *uber)
-{
-	Type *f;
-	Iter save;
-	Node *n;
-
-	n = listfirst(&save, &fl);
-
-loop:
-	if(n == N) {
-		*t = T;
-		return t;
-	}
-	f = typ(TFIELD);
-	f->type = importlooktype(n);
-
-	if(n->fsym != S) {
-		f->nname = newname(n->fsym);
-	} else {
-		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_m%.3ld", vargen);
-		f->nname = newname(lookup(namebuf));
-	}
-	f->sym = f->nname->sym;
-
-	*t = f;
-	t = &f->down;
-
-	n = listnext(&save);
-	goto loop;
-}
-
-int
-importcount(Type *t)
-{
-	int i;
-	Type *f;
-
-	if(t == T || t->etype != TSTRUCT)
-		fatal("importcount: not a struct: %N", t);
-
-	i = 0;
-	for(f=t->type; f!=T; f=f->down)
-		i = i+1;
-	return i;
-}
-
-void
-importfuncnam(Type *t)
-{
-	Node *n;
-	Type *t1;
-
-	if(t->etype != TFUNC)
-		fatal("importfuncnam: not func %T", t);
-
-	if(t->thistuple > 0) {
-		t1 = t->type;
-		if(t1->sym == S)
-			fatal("importfuncnam: no this");
-		n = newname(t1->sym);
-		vargen++;
-		n->vargen = vargen;
-		t1->nname = n;
-	}
-	if(t->outtuple > 0) {
-		t1 = t->type->down;
-		if(t1->sym == S)
-			fatal("importfuncnam: no output");
-		n = newname(t1->sym);
-		vargen++;
-		n->vargen = vargen;
-		t1->nname = n;
-	}
-	if(t->intuple > 0) {
-		t1 = t->type->down->down;
-		if(t1->sym == S)
-			fatal("importfuncnam: no input");
-		n = newname(t1->sym);
-		vargen++;
-		n->vargen = vargen;
-		t1->nname = n;
-	}
-}
-
-void
-importaddtyp(Node *ss, Type *t)
-{
-	Sym *s;
-
-	s = getimportsym(ss);
-	if(s->otype != T) {
-		// here we should try to discover if
-		// the new type is the same as the old type
-		if(eqtype(t, s->otype, 0))
-			return;
-		if(isptrto(t, TFORW)) {
-			return;	// hard part
-		}
-		warn("redeclare import %S from %lT to %lT",
-			s, s->otype, t);
-		return;
-	}
-	addtyp(newtype(s), t, PEXTERN);
-}
-
-/*
- * LCONST importsym LITERAL
- * untyped constant
- */
-void
-doimportc1(Node *ss, Val *v)
-{
-	Node *n;
-	Sym *s;
-
-	n = nod(OLITERAL, N, N);
-	n->val = *v;
-
-	s = getimportsym(ss);
-	if(s->oconst == N) {
-		// botch sould ask if already declared the same
-		dodclconst(newname(s), n);
-	}
-}
-
-/*
- * LCONST importsym importsym LITERAL
- * typed constant
- */
-void
-doimportc2(Node *ss, Node *st, Val *v)
-{
-	Node *n;
-	Type *t;
-	Sym *s;
-
-	n = nod(OLITERAL, N, N);
-	n->val = *v;
-
-	t = importlooktype(st);
-	n->type = t;
-
-	s = getimportsym(ss);
-	if(s->oconst == N) {
-		// botch sould ask if already declared the same
-		dodclconst(newname(s), n);
-	}
-}
-
-/*
- * LVAR importsym importsym
- * variable
- */
-void
-doimportv1(Node *ss, Node *st)
-{
-	Type *t;
-	Sym *s;
-
-	t = importlooktype(st);
-	s = getimportsym(ss);
-	if(s->oname == N || !eqtype(t, s->oname->type, 0)) {
-		addvar(newname(s), t, dclcontext);
-	}
-}
-
-/*
- * LTYPE importsym [ importsym ] importsym
- * array type
- */
-void
-doimport1(Node *ss, Node *si, Node *st)
-{
-	Type *t;
-	Sym *s;
-
-	t = typ(TMAP);
-	s = pkglookup(si->sym->name, si->psym->name);
-	t->down = s->otype;
-	s = pkglookup(st->sym->name, st->psym->name);
-	t->type = s->otype;
-
-	importaddtyp(ss, t);
-}
-
-/*
- * LTYPE importsym [ LLITERAL ] importsym
- * array type
- */
-void
-doimport2(Node *ss, Val *b, Node *st)
-{
-	Type *t;
-	Sym *s;
-
-	t = typ(TARRAY);
-	t->bound = -1;
-	if(b != nil)
-		t->bound = mpgetfix(b->u.xval);
-	s = pkglookup(st->sym->name, st->psym->name);
-	t->type = s->otype;
-
-	importaddtyp(ss, t);
-}
-
-/*
- * LTYPE importsym '(' importsym_list ')'
- * function/method type
- */
-void
-doimport3(Node *ss, Node *n)
-{
-	Type *t;
-
-	t = typ(TFUNC);
-
-	t->type = importlooktype(n->left);
-	t->type->down = importlooktype(n->right->left);
-	t->type->down->down = importlooktype(n->right->right);
-
-	t->thistuple = importcount(t->type);
-	t->outtuple = importcount(t->type->down);
-	t->intuple = importcount(t->type->down->down);
-	dowidth(t);
-	importfuncnam(t);
-
-	importaddtyp(ss, t);
-}
-
-/*
- * LTYPE importsym '{' importsym_list '}'
- * structure type
- */
-void
-doimport4(Node *ss, Node *n)
-{
-	Type *t;
-
-	t = typ(TSTRUCT);
-	importstotype(n, &t->type, t);
-	dowidth(t);
-
-	importaddtyp(ss, t);
-}
-
-/*
- * LTYPE importsym LLITERAL
- * basic type
- */
-void
-doimport5(Node *ss, Val *v)
-{
-	int et;
-	Type *t;
-
-	et = mpgetfix(v->u.xval);
-	if(et <= 0 || et >= nelem(types) || types[et] == T)
-		fatal("doimport5: bad type index: %E", et);
-
-	t = typ(et);
-	t->sym = S;
-
-	importaddtyp(ss, t);
-}
-
-/*
- * LTYPE importsym * importsym
- * pointer type
- */
-void
-doimport6(Node *ss, Node *st)
-{
-	Type *t;
-	Sym *s;
-
-	s = pkglookup(st->sym->name, st->psym->name);
-	t = s->otype;
-	if(t == T)
-		t = forwdcl(s);
-	else
-		t = ptrto(t);
-
-	importaddtyp(ss, t);
-}
-
-/*
- * LTYPE importsym '<' importsym '>'
- * interface type
- */
-void
-doimport7(Node *ss, Node *n)
-{
-	Type *t;
-
-	t = typ(TINTER);
-	importstotype(n, &t->type, t);
-	dowidth(t);
-
-	importaddtyp(ss, t);
-}
-
-/*
- * LTYPE importsym chdir importsym
- * interface type
- */
-void
-doimport8(Node *ss, Val *v, Node *st)
-{
-	Type *t;
-	Sym *s;
-	int dir;
-
-	s = pkglookup(st->sym->name, st->psym->name);
-	dir = mpgetfix(v->u.xval);
-
-	t = typ(TCHAN);
-	s = pkglookup(st->sym->name, st->psym->name);
-	t->type = s->otype;
-	t->chan = dir;
-
-	importaddtyp(ss, t);
-}
-
-/*
- * LFUNC importsym sym
- * method type
- */
-void
-doimport9(Sym *sf, Node *ss)
-{
-	Sym *sfun;
-
-	sfun = getimportsym(ss);
-	addmethod(newname(sf), sfun->otype, 0);
 }

@@ -123,6 +123,7 @@ struct	Type
 	uchar	recur;		// to detect loops
 	uchar	trecur;		// to detect loops
 	uchar	methptr;	// 1=direct 2=pointer
+	uchar	printed;
 
 	// TFUNCT
 	uchar	thistuple;
@@ -464,6 +465,8 @@ EXTERN	char*	hunk;
 EXTERN	int32	nhunk;
 EXTERN	int32	thunk;
 
+EXTERN	int	exporting;
+
 /*
  *	y.tab.c
  */
@@ -652,6 +655,7 @@ void	fninit(Node*);
 Node*	nametoanondcl(Node*);
 Node*	nametodcl(Node*, Type*);
 Node*	anondcl(Type*);
+void	checkarglist(Node*);
 
 /*
  *	export.c
@@ -675,6 +679,12 @@ void	doimport6(Node*, Node*);
 void	doimport7(Node*, Node*);
 void	doimport8(Node*, Val*, Node*);
 void	doimport9(Sym*, Node*);
+void	importconst(int, Node *ss, Type *t, Val *v);
+void	importmethod(Sym *s, Type *t);
+void	importtype(int, Node *ss, Type *t);
+void	importvar(int, Node *ss, Type *t);
+void	checkimports(void);
+Type*	pkgtype(char*, char*);
 
 /*
  *	walk.c
