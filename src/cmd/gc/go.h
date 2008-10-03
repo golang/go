@@ -122,7 +122,7 @@ struct	Type
 	uchar	chan;
 	uchar	recur;		// to detect loops
 	uchar	trecur;		// to detect loops
-	uchar	methptr;	// all methods are pointers to this type
+	uchar	methptr;	// 1=direct 2=pointer
 
 	// TFUNCT
 	uchar	thistuple;

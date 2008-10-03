@@ -485,6 +485,7 @@ dumpsignatures(void)
 		x->dtype = d->dtype;
 		x->forw = signatlist;
 		signatlist = x;
+//print("SIG = %lS %lS %lT\n", d->dsym, s, t);
 	}
 
 	/*
@@ -585,8 +586,6 @@ dumpsignatures(void)
 				at.sym->name+5, f->sym->name);
 			a->sym = lookup(namebuf);
 			a->offset = 0;
-			a->elemalg = 0;
-			a->width = 0;
 
 			o++;
 		}
@@ -594,23 +593,25 @@ dumpsignatures(void)
 		a = lsort(a, sigcmp);
 		ot = 0;
 
-		// first field of an interface signature
-		// contains the count and is not a real entry
+		// sigi[0].name = ""
+		ot = rnd(ot, maxround);	// array of structures
+		p = pc;
+		gins(ADATA, N, N);
+		p->from = at;
+		p->from.offset = ot;
+		p->from.scale = widthptr;
+		p->to = ao;
+		p->to.offset = stringo;
+		ot += widthptr;
+
+		datastring("", 1);
+
 		if(et == TINTER) {
+			// first field of an interface signature
+			// contains the count and is not a real entry
 			o = 0;
 			for(b=a; b!=nil; b=b->link)
 				o++;
-
-			// sigi[0].name = ""
-			ot = rnd(ot, maxround);	// array of structures
-			p = pc;
-			gins(ADATA, N, N);
-			p->from = at;
-			p->from.offset = ot;
-			p->from.scale = widthptr;
-			p->to = ao;
-			p->to.offset = stringo;
-			ot += widthptr;
 
 			// sigi[0].hash = 0
 			ot = rnd(ot, wi);
@@ -634,8 +635,39 @@ dumpsignatures(void)
 			p->to.offset = o;
 			ot += wi;
 
-			datastring("", 1);
+		} else {
+			// first field of an type signature contains
+			// the element parameters and is not a real entry
 
+			t = d->dtype;
+			if(t->methptr & 2)
+				t = types[tptr];
+
+			// sigi[0].hash = elemalg
+			ot = rnd(ot, wi);
+			p = pc;
+			gins(ADATA, N, N);
+			p->from = at;
+			p->from.offset = ot;
+			p->from.scale = wi;
+			p->to = ac;
+			p->to.offset = algtype(t);
+			ot += wi;
+
+			// sigi[0].offset = width
+			ot = rnd(ot, wi);
+			p = pc;
+			gins(ADATA, N, N);
+			p->from = at;
+			p->from.offset = ot;
+			p->from.scale = wi;
+			p->to = ac;
+			p->to.offset = t->width;
+			ot += wi;
+
+			// skip the function
+			ot = rnd(ot, widthptr);
+			ot += widthptr;
 		}
 
 		for(b=a; b!=nil; b=b->link) {
@@ -683,28 +715,6 @@ dumpsignatures(void)
 				p->from.scale = wi;
 				p->to = ac;
 				p->to.offset = b->offset;
-				ot += wi;
-
-				// sigt[++].width = type size
-				ot = rnd(ot, wi);
-				p = pc;
-				gins(ADATA, N, N);
-				p->from = at;
-				p->from.offset = ot;
-				p->from.scale = wi;
-				p->to = ac;
-				p->to.offset = b->width;
-				ot += wi;
-
-				// sigt[++].elemalg = type algorithm
-				ot = rnd(ot, wi);
-				p = pc;
-				gins(ADATA, N, N);
-				p->from = at;
-				p->from.offset = ot;
-				p->from.scale = wi;
-				p->to = ac;
-				p->to.offset = b->elemalg;
 				ot += wi;
 
 				// sigt[++].fun = &method
