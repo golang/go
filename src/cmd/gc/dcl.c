@@ -250,7 +250,6 @@ addmethod(Node *n, Type *t, int local)
 {
 	Type *f, *d, *pa;
 	Sym *st, *sf;
-	int ptr;
 
 	// get field sym
 	if(n == N)
@@ -272,29 +271,11 @@ addmethod(Node *n, Type *t, int local)
 	if(pa == T)
 		goto bad;
 
-	switch(algtype(pa)) {
-	default:
-		goto bad;
-	case ASIMP:
-	case APTR:
-	case ASTRING:
-		break;
-	}
-
-	// optionally rip off ptr to type
-	ptr = 0;
-	if(isptr[pa->etype]) {
-		if(pa->sym == S || pa->sym->name[0] == '_') {
-			ptr = 1;
-			pa = pa->type;
-			if(pa == T)
-				goto bad;
-		}
-	}
-	if(pa->etype == TINTER)
-		yyerror("no methods on interfaces");
-
 	// and finally the receiver sym
+	f = ismethod(pa);
+	if(f == T)
+		goto bad;
+	pa = f;
 	st = pa->sym;
 	if(st == S)
 		goto bad;
@@ -305,11 +286,6 @@ addmethod(Node *n, Type *t, int local)
 
 	n = nod(ODCLFIELD, newname(sf), N);
 	n->type = t;
-
-	if(pa->method == T)
-		pa->methptr = ptr;
-	if(pa->methptr != ptr)
-		yyerror("combination of direct and ptr receivers of: %S", st);
 
 	d = T;	// last found
 	for(f=pa->method; f!=T; f=f->down) {
@@ -331,7 +307,7 @@ addmethod(Node *n, Type *t, int local)
 		stotype(n, &d->down);
 
 	if(dflag())
-		print("method         %S of type %s%S\n", sf, (ptr? "*":""), st);
+		print("method         %S of type %T\n", sf, pa);
 	return;
 
 bad:
@@ -450,8 +426,10 @@ funcargs(Type *ft)
 			all |= 2;
 		t = structnext(&save);
 	}
+
+	// this test is remarkedly similar to checkarglist
 	if(all == 3)
-		yyerror("output parameters are all named or not named");
+		yyerror("cannot mix anonymous and named output arguments");
 
 	ft->outnamed = 0;
 	if(all == 1)

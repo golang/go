@@ -1357,18 +1357,59 @@ isinter(Type *t)
 	return 0;
 }
 
-int
+Type*
 ismethod(Type *t)
 {
-	// OLD WAY
-	if(isptrto(t, TSTRUCT))
-		return 1;
-	return 0;
+	int a;
+	Sym *s;
 
-	// NEW WAY - but doesnt work yet
-	if(t != T && t->method != T)
-		return 1;
-	return 0;
+	if(t == T)
+		return T;
+
+	a = algtype(t);
+
+	// direct receiver
+	s = t->sym;
+	if(s != S && s->name[0] != '_') {
+		if(t->methptr == 2)
+			goto both;
+		t->methptr |= 1;
+		goto out;
+	}
+
+	// pointer receiver
+	if(!isptr[t->etype])
+		return T;
+
+	t = t->type;
+	if(t == T)
+		return T;
+
+	s = t->sym;
+	if(s != S && s->name[0] != '_') {
+		if(t->methptr == 1)
+			goto both;
+		t->methptr |= 2;
+		goto out;
+	}
+
+	return T;
+
+both:
+	yyerror("type %T used as both direct and indirect method", t);
+	t->methptr = 3;
+
+out:
+	switch(a) {
+	default:
+		yyerror("type %T cannot be used as a method", t);
+	case ASIMP:
+	case APTR:
+	case ASTRING:
+		break;
+	}
+
+	return t;
 }
 
 Sym*

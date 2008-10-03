@@ -58,7 +58,10 @@ struct Sig
 	char*	name;
 	Sym*	sym;
 	uint32	hash;
+	int32	perm;
 	int32	offset;
+	int32	width;
+	int32	elemalg;
 	Sig*	link;
 };
 
