@@ -33,7 +33,7 @@ int stacks;		// print stack traces
 void
 Usage(void)
 {
-	fprint(2, "Usage: prof -p pid [-t total_secs] [-d delta_msec] [6.out]\n");
+	fprint(2, "Usage: prof -p pid [-t total_secs] [-d delta_msec] [6.out args ...]\n");
 	fprint(2, "\tformats (default -h):\n");
 	fprint(2, "\t\t-h: histograms\n");
 	fprint(2, "\t\t-f: dynamic functions\n");
@@ -284,6 +284,33 @@ dumphistogram()
 }
 
 int
+startprocess(char **argv)
+{
+	int pid;
+
+	if((pid = fork()) == 0) {
+		pid = getpid();
+		if(ctlproc(pid, "hang") < 0){
+			fprint(2, "prof: child process could not hang\n");
+			exits(0);
+		}
+		execv(argv[0], argv);
+		fprint(2, "prof: could not exec %s: %r\n", argv[0]);
+		exits(0);
+	}
+
+	if(pid == -1) {
+		fprint(2, "prof: could not fork\n");
+		exit(1);
+	}
+	if(ctlproc(pid, "attached") < 0 || ctlproc(pid, "waitstop") < 0) {
+		fprint(2, "prof: could not attach to child process: %r\n");
+		exit(1);
+	}
+	return pid;
+}
+
+int
 main(int argc, char *argv[])
 {
 	ARGBEGIN{
@@ -304,6 +331,7 @@ main(int argc, char *argv[])
 		break;
 	case 'h':
 		histograms = 1;
+		break;
 	case 'l':
 		linenums = 1;
 		break;
@@ -314,7 +342,7 @@ main(int argc, char *argv[])
 		stacks = 1;
 		break;
 	}ARGEND
-	if(pid <= 0)
+	if(pid <= 0 && argc == 0)
 		Usage();
 	if(functions+linenums+registers+stacks == 0)
 		histograms = 1;
@@ -329,6 +357,8 @@ main(int argc, char *argv[])
 		fprint(2, "prof: can't open %s: %r\n", file);
 		exit(1);
 	}
+	if(pid <= 0)
+		pid = startprocess(argv);
 	map = attachproc(pid, &fhdr);
 	if(map == nil) {
 		fprint(2, "prof: can't attach to %d: %r\n", pid);
