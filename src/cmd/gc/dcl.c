@@ -176,22 +176,15 @@ methodname(Node *n, Type *t)
 	Sym *s;
 	char buf[NSYMB];
 
+	// caller has already called ismethod to obtain t
 	if(t == T)
 		goto bad;
-
-	// method receiver must be typename or *typename
-	s = S;
-	if(t->sym != S)
-		s = t->sym;
-	if(isptr[t->etype])
-		t = t->type;
-	if(t->sym != S)
-		s = t->sym;
+	s = t->sym;
 	if(s == S)
 		goto bad;
 
 	snprint(buf, sizeof(buf), "%s_%s", s->name, n->sym->name);
-	return newname(pkglookup(buf, t->sym->opackage));
+	return newname(pkglookup(buf, s->opackage));
 
 bad:
 	yyerror("illegal <this> type: %T", t);

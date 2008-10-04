@@ -1230,7 +1230,7 @@ recv:
 	r = list(a, r);
 	goto out;
 
-recv2:	
+recv2:
 	walktype(c->right, Erv);	// chan
 
 	t = fixchan(c->right->type);
@@ -1399,6 +1399,7 @@ lookdot(Node *n, Type *f)
 	for(; f!=T; f=f->down) {
 		if(f->sym == S)
 			continue;
+	//	if(strcmp(f->sym->name, s->name) != 0)
 		if(f->sym != s)
 			continue;
 		if(r != T) {
@@ -1430,6 +1431,7 @@ walkdot(Node *n)
 	if(t == T)
 		return;
 
+	// as a structure field or pointer to structure field
 	if(isptr[t->etype]) {
 		t = t->type;
 		if(t == T)
@@ -1437,7 +1439,6 @@ walkdot(Node *n)
 		n->op = ODOTPTR;
 	}
 
-	// as a structure field
 	if(t->etype == TSTRUCT || t->etype == TINTER) {
 		f = lookdot(n->right, t->type);
 		if(f != T) {
@@ -1450,9 +1451,13 @@ walkdot(Node *n)
 		}
 	}
 
-	f = lookdot(n->right, t->method);
+	// as a method
+	f = T;
+	t = ismethod(n->left->type);
+	if(t != T)
+		f = lookdot(n->right, t->method);
 	if(f == T) {
-		yyerror("undefined DOT %S", n->right->sym);
+		yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
 		return;
 	}
 
@@ -1883,7 +1888,7 @@ fixchan(Type *tm)
 {
 	Type *t;
 
-	if(tm == T) 
+	if(tm == T)
 		goto bad;
 	t = tm->type;
 	if(t == T)
@@ -2298,7 +2303,7 @@ fixarray(Type *tm)
 bad:
 	yyerror("not an array: %lT", tm);
 	return T;
-	
+
 }
 
 Node*

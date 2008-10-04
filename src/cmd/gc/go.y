@@ -1113,9 +1113,15 @@ fndcl:
 	}
 |	'(' oarg_type_list ')' new_name '(' oarg_type_list ')' fnres
 	{
+		Type *t;
+
 		b0stack = dclstack;	// mark base for fn literals
 		$$ = nod(ODCLFUNC, N, N);
-		$$->nname = methodname($4, $2->type);
+		t = ismethod($2->type);
+		if(t != T)
+			$$->nname = methodname($4, t);
+		else
+			$$->nname = $4;
 		$$->type = functype($2, $6, $8);
 		funchdr($$);
 
