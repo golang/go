@@ -59,7 +59,7 @@ mplshw(Mpint *a)
 	a1 = &a->a[Mpprec-1];
 	for(i=1; i<Mpprec; i++) {
 		a1[0] = a1[-1];
-		*a1--;
+		a1--;
 	}
 	a1[0] = 0;
 }
@@ -102,7 +102,7 @@ mprshw(Mpint *a)
 	a1 = &a->a[0];
 	for(i=1; i<Mpprec; i++) {
 		a1[0] = a1[1];
-		*a1++;
+		a1++;
 	}
 	a1[0] = 0;
 	if(a->neg && lo == 0)
