@@ -295,20 +295,6 @@ nodconst(Node *n, Type *t, vlong v)
 }
 
 void
-nodtypesig(Node *n, Type *t)
-{
-	memset(n, 0, sizeof(*n));
-	n->op = ONAME;
-	n->type = types[TUINT8];
-	n->etype = TUINT8;
-	n->xoffset = 0;
-	n->sym = signame(t);
-	n->class = PEXTERN;
-	n->addable = 1;
-	n->ullman = 0;
-}
-
-void
 gconreg(int as, vlong c, int reg)
 {
 	Node n1, n2;

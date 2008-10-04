@@ -200,8 +200,8 @@ struct	Node
 
 struct	Sym
 {
-	ushort	tblock;
-	ushort	vblock;
+	ushort	tblock;		// blocknumber for type
+	ushort	vblock;		// blocknumber for variable
 
 	uchar	undef;		// a diagnostic has been generated
 	uchar	export;		// marked as export
@@ -227,10 +227,12 @@ typedef	struct	Dcl	Dcl;
 struct	Dcl
 {
 	uchar	op;
+	ushort	block;
+	int32	lineno;
+
 	Sym*	dsym;		// for printing only
 	Node*	dnode;		// oname
 	Type*	dtype;		// otype
-	int32	lineno;
 
 	Dcl*	forw;
 	Dcl*	back;		// sentinel has pointer to last
@@ -575,7 +577,7 @@ int	isptrarray(Type*);
 int	isptrdarray(Type*);
 int	isinter(Type*);
 Type*	ismethod(Type*);
-Sym*	signame(Type*);
+Sym*	signame(Type*, int);
 int	bytearraysz(Type*);
 int	eqtype(Type*, Type*, int);
 void	argtype(Node*, Type*);

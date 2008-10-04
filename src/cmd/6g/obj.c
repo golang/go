@@ -476,7 +476,7 @@ dumpsignatures(void)
 		if(t == T)
 			continue;
 
-		s = signame(t);
+		s = signame(t, 0);
 		if(s == S)
 			continue;
 
@@ -485,6 +485,7 @@ dumpsignatures(void)
 		x->dsym = d->dsym;
 		x->dtype = d->dtype;
 		x->forw = signatlist;
+		x->block = 0;
 		signatlist = x;
 //print("SIG = %lS %lS %lT\n", d->dsym, s, t);
 	}
@@ -531,11 +532,14 @@ dumpsignatures(void)
 			continue;
 
 		t = d->dtype;
-		at.sym = signame(t);
+		at.sym = signame(t, d->block);
 		if(at.sym == S)
 			continue;
-		if(!at.sym->local)
+
+		// make unique
+		if(at.sym->local != 1)
 			continue;
+		at.sym->local = 2;
 
 //print("SIGNAME = %lS\n", at.sym);
 
@@ -550,7 +554,6 @@ dumpsignatures(void)
 
 		if(strcmp(s->opackage, package) != 0)
 			continue;
-
 
 		a = nil;
 		o = 0;
