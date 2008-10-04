@@ -2491,7 +2491,7 @@ ifaceop(Type *tl, Node *n, int op)
 		a = n;				// interface
 		r = a;
 
-		s = signame(tl);		// sigi
+		s = signame(tl, 0);		// sigi
 		if(s == S)
 			fatal("ifaceop: signame I2T");
 		a = s->oname;
@@ -2510,14 +2510,14 @@ ifaceop(Type *tl, Node *n, int op)
 		a = n;				// elem
 		r = a;
 
-		s = signame(tr);		// sigt
+		s = signame(tr, 0);		// sigt
 		if(s == S)
 			fatal("ifaceop: signame-1 T2I: %lT", tr);
 		a = s->oname;
 		a = nod(OADDR, a, N);
 		r = list(a, r);
 
-		s = signame(tl);		// sigi
+		s = signame(tl, 0);		// sigi
 		if(s == S) {
 			fatal("ifaceop: signame-2 T2I: %lT", tl);
 		}
@@ -2537,7 +2537,7 @@ ifaceop(Type *tl, Node *n, int op)
 		a = n;				// interface
 		r = a;
 
-		s = signame(tl);		// sigi
+		s = signame(tl, 0);		// sigi
 		if(s == S)
 			fatal("ifaceop: signame I2I");
 		a = s->oname;

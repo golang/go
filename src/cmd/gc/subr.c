@@ -1453,10 +1453,11 @@ out:
 }
 
 Sym*
-signame(Type *t)
+signame(Type *t, int block)
 {
 	Sym *s, *ss;
 	char *e;
+	Dcl *x;
 	char buf[NSYMB];
 
 	if(t == T)
@@ -1478,7 +1479,22 @@ signame(Type *t)
 	if(t->etype == TINTER)
 		e = "sigi";
 
-	snprint(buf, sizeof(buf), "%s_%s", e, s->name);
+	if(block == 0)
+		block = s->tblock;
+
+	if(block > 1) {
+		snprint(buf, sizeof(buf), "%s_%d%s", e, block, s->name);
+
+		// record internal type for signature generation
+		x = mal(sizeof(*x));
+		x->op = OTYPE;
+		x->dsym = s;
+		x->dtype = s->otype;
+		x->forw = signatlist;
+		x->block = block;
+		signatlist = x;
+	} else
+		snprint(buf, sizeof(buf), "%s_%s", e, s->name);
 	ss = pkglookup(buf, s->opackage);
 	if(ss->oname == N) {
 		ss->oname = newname(ss);
