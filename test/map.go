@@ -412,8 +412,6 @@ func main() {
 		}
 	}
 	
-	print("skipping increment test until bug060 is fixed\n");
-	return;
 
 	// tests for structured map element updates
 	for i := 0; i < count; i++ {
