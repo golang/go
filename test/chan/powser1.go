@@ -17,17 +17,17 @@ type rat struct  {
 	num, den  int64;	// numerator, denominator
 }
 
-func (u *rat) pr(){
+type item *rat;
+
+func (u item) pr(){
 	if u.den==1 { print(u.num) }
 	else { print(u.num, "/", u.den) }
 	print(" ")
 }
 
-func (u *rat) eq(c *rat) bool {
+func (u item) eq(c item) bool {
 	return u.num == c.num && u.den == c.den
 }
-
-type item *rat;
 
 type dch struct {
 	req *chan  int;
@@ -425,7 +425,7 @@ func Poly(a [] *rat) PS{
 	begin func(a [] *rat, Z PS){
 		j:=0;
 		done:=0;
-		for j=len(a); !done&&j>0; j=j-1) 
+		for j=len(a); !done&&j>0; j=j-1)
 			if(a[j-1].num!=0) done=1;
 		i:=0;
 		for(; i<j; i=i+1) put(a[i],Z);
@@ -610,7 +610,7 @@ func Init() {
 	Twos = Rep(itor(2));
 }
 
-func check(U PS, c *rat, count int, str string) {
+func check(U PS, c item, count int, str string) {
 	for i := 0; i < count; i++ {
 		r := get(U)
 		if !r.eq(c) {
