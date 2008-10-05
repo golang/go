@@ -5,9 +5,6 @@ BUG: errchk: func3.go: missing expected error message on line 14: 'type'
 =========== ./helloworld.go
 hello, world
 
-=========== ./map.go
-skipping increment test until bug060 is fixed
-
 =========== ./peano.go
 0! = 1
 1! = 1
@@ -56,19 +53,11 @@ PASS
 bugs/bug020.go:7: type of a structure field cannot be an open array
 BUG should compile
 
-=========== bugs/bug026.go
-sys·printnl: main·sigt_I: not defined
-BUG: known to fail incorrectly
-
 =========== bugs/bug032.go
 BUG: compilation succeeds incorrectly
 
 =========== bugs/bug041.go
 BUG: compilation succeeds incorrectly
-
-=========== bugs/bug060.go
-map does not increment
-BUG: map increment
 
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
