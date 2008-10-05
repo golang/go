@@ -2104,6 +2104,8 @@ mapop(Node *n, int top)
 		a = nod(n->etype, a, n->right);		// m[tmpi] op right
 		a = nod(OAS, n->left, a);		// map[tmpi] = map[tmpi] op right
 		r = nod(OLIST, r, a);
+		walktype(r, Etop);
+		break;
 	}
 	return r;
 
