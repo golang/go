@@ -453,7 +453,7 @@ agen(Node *n, Node *res)
 	case OIND:
 		cgen(nl, res);
 		break;
-		
+
 	case ODOT:
 		t = nl->type;
 		agen(nl, res);
@@ -632,7 +632,7 @@ bgen(Node *n, int true, Prog *to)
 			tempname(&tmp, nr->type);
 			gmove(&n1, &tmp);
 			regfree(&n1);
-			
+
 			regalloc(&n1, nl->type, N);
 			cgen(nl, &n1);
 
@@ -710,6 +710,9 @@ sgen(Node *n, Node *ns, int32 w)
 	if(n->ullman >= UINF && ns->ullman >= UINF) {
 		fatal("sgen UINF");
 	}
+
+	if(w < 0)
+		fatal("sgen copy %d", w);
 
 	// offset on the stack
 	osrc = stkof(n);

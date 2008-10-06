@@ -48,6 +48,7 @@
 %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
 %type	<node>		keyexpr_list keyval_list_r keyval
 %type	<node>		typedcl Atypedcl Btypedcl
+%type	<type>		typedclname
 
 %type	<type>		fntype fnlitdcl Afntype Bfntype fullAtype
 %type	<type>		non_name_Atype non_name_type
@@ -137,14 +138,23 @@ import_package:
 	}
 
 import_there:
-	hidden_import_list_r '$' '$'
+	hidden_import_list '$' '$'
 	{
 		checkimports();
 		unimportfile();
 	}
-|	LIMPORT '$' '$' hidden_import_list_r '$' '$'
+|	LIMPORT '$' '$' hidden_import_list '$' '$'
 	{
 		checkimports();
+	}
+
+hidden_import_list:
+	{
+		defercheckwidth();
+	}
+	hidden_import_list_r
+	{
+		resumecheckwidth();
 	}
 
 /*
@@ -317,16 +327,37 @@ typedcl:
 	Atypedcl
 |	Btypedcl
 
-Atypedcl:
-	new_type fullAtype
+typedclname:
+	new_type
 	{
-		dodcltype($1, $2);
+		$$ = dodcltype($1);
+		defercheckwidth();
 	}
 
-Btypedcl:
-	new_type fullBtype
+Atypedcl:
+	typedclname fullAtype
 	{
-		dodcltype($1, $2);
+		updatetype($1, $2);
+		resumecheckwidth();
+	}
+|	typedclname LSTRUCT
+	{
+		updatetype($1, typ(TFORWSTRUCT));
+		resumecheckwidth();
+	}
+/*
+|	typedclname LINTERFACE
+	{
+		updatetype($1, typ(TFORWINTER));
+		resumecheckwidth();
+	}
+*/
+
+Btypedcl:
+	typedclname fullBtype
+	{
+		updatetype($1, $2);
+		resumecheckwidth();
 	}
 
 else_stmt1:
@@ -991,7 +1022,6 @@ non_name_Atype:
 |	interfacetype
 |	'*' fullAtype
 	{
-		dowidth($2);
 		$$ = ptrto($2);
 	}
 
@@ -1033,15 +1063,15 @@ Btype:
 	}
 |	'*' fullBtype
 	{
-		dowidth($2);
 		$$ = ptrto($2);
 	}
 |	'*' lname
 	{
-		// dont know if this is an error or not
-		if(dclcontext != PEXTERN)
-			yyerror("forward type in function body %s", $2->name);
-		$$ = forwdcl($2);
+		Type *t;
+
+		t = dodcltype(newtype($2));
+		updatetype(t, typ(TFORWSTRUCT));
+		$$ = ptrto(t);
 	}
 
 Bchantype:
@@ -1721,7 +1751,7 @@ hidden_type1:
 	}
 |	'*' hidden_type
 	{
-		dowidth($2);
+		checkwidth($2);
 		$$ = ptrto($2);
 	}
 |	LCOMM LCHAN hidden_type
@@ -1823,7 +1853,7 @@ hidden_importsym:
  * to check whether the rest of the grammar is free of
  * reduce/reduce conflicts, comment this section out by
  * removing the slash on the next line.
- *
+ */
 lpack:
 	LATYPE
 	{
@@ -1867,6 +1897,5 @@ latype:
 		yyerror("no type %s.%s", context, $3->name);
 		YYERROR;
 	}
-
 /**/
 

@@ -1543,7 +1543,7 @@ eqtype(Type *t1, Type *t2, int d)
 		t1 = t1->type;
 		t2 = t2->type;
 		for(;;) {
-			if(!eqtype(t1, t2, 0))
+			if(!eqtype(t1, t2, d+1))
 				return 0;
 			if(t1 == T)
 				return 1;

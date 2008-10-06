@@ -105,6 +105,14 @@ dowidth(Type *t)
 	if(t == T)
 		return;
 
+	if(t->width == -2) {
+		yyerror("invalid recursive type %T", t);
+		t->width = 0;
+		return;
+	}
+
+	t->width = -2;
+
 	w = 0;
 	switch(t->etype) {
 	default:
@@ -136,6 +144,7 @@ dowidth(Type *t)
 		w = 10;
 		break;
 	case TINTER:		// implemented as 2 pointers
+	case TFORWINTER:
 		offmod(t);
 		w = 2*wptr;
 		break;
@@ -148,7 +157,9 @@ dowidth(Type *t)
 		dowidth(t->type);
 		w = wptr;
 		break;
-	case TFORW:		// implemented as pointer
+	case TFORW:		// should have been filled in
+	case TFORWSTRUCT:
+		yyerror("incomplete type %T", t);
 		w = wptr;
 		break;
 	case TANY:		// implemented as pointer

@@ -97,13 +97,6 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug093.go
 M
 
-=========== bugs/bug094.go
-bugs/bug094.go:11: left side of := must be a name
-bad top
-.   LITERAL-I0 l(81)
-bugs/bug094.go:11: fatal error: walktype: top=3 LITERAL
-BUG: fails incorrectly
-
 =========== bugs/bug095.go
 found 2, expected 1
 
@@ -232,7 +225,8 @@ fixedbugs/bug081.go:5: syntax error near x
 fixedbugs/bug086.go:5: function ends without a return statement
 
 =========== fixedbugs/bug091.go
-fixedbugs/bug091.go:14: label exit not defined
+fixedbugs/bug091.go:15: c: undefined
+fixedbugs/bug091.go:15: fatal error: addvar: n=NAME-i G0 a(1) l(85) t=<T> nil
 
 =========== fixedbugs/bug103.go
 fixedbugs/bug103.go:8: function requires a return type

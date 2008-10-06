@@ -253,7 +253,7 @@ loop:
 		if(n->type == T) {
 			s = n->sym;
 			if(s->undef == 0) {
-				yyerror("walktype: %N undeclared", n);
+				yyerror("walktype: %S undeclared", s);
 				s->undef = 1;
 			}
 		}
@@ -334,7 +334,6 @@ loop:
 		if(t == T)
 			goto ret;
 
-		dowidth(t);
 		if(n->left->op == ODOTMETH)
 			n->op = OCALLMETH;
 		if(n->left->op == ODOTINTER)
@@ -348,6 +347,7 @@ loop:
 			goto ret;
 		}
 
+		dowidth(t);
 		n->type = *getoutarg(t);
 		switch(t->outtuple) {
 		case 0:
