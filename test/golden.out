@@ -1,7 +1,4 @@
 
-=========== ./func3.go
-BUG: errchk: func3.go: missing expected error message on line 14: 'type'
-
 =========== ./helloworld.go
 hello, world
 
