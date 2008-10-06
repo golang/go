@@ -300,6 +300,7 @@ importvar(int export, Node *ss, Type *t)
 		warn("redeclare import var %S from %T to %T",
 			s, s->oname->type, t);
 	}
+	checkwidth(t);
 	addvar(newname(s), t, PEXTERN);
 
 	if(debug['e'])
@@ -325,6 +326,7 @@ importtype(int export, Node *ss, Type *t)
 		s->otype = typ(0);
 	*s->otype = *t;
 	s->otype->sym = s;
+	checkwidth(s->otype);
 
 	if(debug['e'])
 		print("import type %S %lT\n", s, t);
@@ -333,7 +335,7 @@ importtype(int export, Node *ss, Type *t)
 void
 importmethod(Sym *s, Type *t)
 {
-	dowidth(t);
+	checkwidth(t);
 	addmethod(newname(s), t, 0);
 }
 

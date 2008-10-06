@@ -672,7 +672,7 @@ cgen_proc(Node *n)
 		cgen_call(n->left, 1);
 		break;
 	}
-		
+
 }
 
 void
@@ -802,7 +802,10 @@ cgen_as(Node *nl, Node *nr, int op)
 			if(debug['g'])
 				dump("\nclearfat", nl);
 
+			if(nl->type->width < 0)
+				fatal("clearfat %T %lld", nl->type, nl->type->width);
 			w = nl->type->width;
+
 			if(w > 0)
 				gconreg(AMOVQ, 0, D_AX);
 

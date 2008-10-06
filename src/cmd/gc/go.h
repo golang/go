@@ -146,9 +146,6 @@ struct	Type
 	// TFIELD
 	Type*	down;		// also used in TMAP
 
-	// TPTR
-	Type*	nforw;
-
 	// TARRAY
 	int32	bound;		// negative is dynamic array
 };
@@ -215,7 +212,6 @@ struct	Sym
 	Node*	oname;		// ONAME node if a var
 	Type*	otype;		// TYPE node if a type
 	Node*	oconst;		// OLITERAL node if a const
-	Type*	forwtype;	// TPTR iff forward declared
 	vlong	offset;		// stack location if automatic
 	int32	lexical;
 	int32	vargen;		// unique variable number
@@ -322,8 +318,10 @@ enum
 	TFIELD,
 	TANY,
 	TSTRING,
+	TFORWSTRUCT,
+	TFORWINTER,
 
-	NTYPE,			// 26
+	NTYPE,			// 28
 };
 enum
 {
@@ -624,7 +622,8 @@ int	Zconv(Fmt*);
  *	dcl.c
  */
 void	dodclvar(Node*, Type*);
-void	dodcltype(Type*, Type*);
+Type*	dodcltype(Type*);
+void	updatetype(Type*, Type*);
 void	dodclconst(Node*, Node*);
 void	defaultlit(Node*);
 int	listcount(Node*);
@@ -648,18 +647,21 @@ void	markdclstack(void);
 void	testdclstack(void);
 Sym*	pushdcl(Sym*);
 void	addvar(Node*, Type*, int);
-void	addtyp(Type*, Type*, int);
+void	addtyp(Type*, int);
+void	addconst(Node*, Node*, int);
 Node*	fakethis(void);
 Node*	newname(Sym*);
 Node*	oldname(Sym*);
 Type*	newtype(Sym*);
 Type*	oldtype(Sym*);
-Type*	forwdcl(Sym*);
 void	fninit(Node*);
 Node*	nametoanondcl(Node*);
 Node*	nametodcl(Node*, Type*);
 Node*	anondcl(Type*);
 void	checkarglist(Node*);
+void	checkwidth(Type*);
+void	defercheckwidth(void);
+void	resumecheckwidth(void);
 
 /*
  *	export.c

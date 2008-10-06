@@ -20,38 +20,14 @@ dflag(void)
 void
 dodclvar(Node *n, Type *t)
 {
-
-loop:
 	if(n == N)
 		return;
 
-	if(n->op == OLIST) {
+	for(; n->op == OLIST; n = n->right)
 		dodclvar(n->left, t);
-		n = n->right;
-		goto loop;
-	}
 
-	if(exportadj)
-		exportsym(n->sym);
+	dowidth(t);
 	addvar(n, t, dclcontext);
-}
-
-void
-dodcltype(Type *n, Type *t)
-{
-	Type *nt;
-
-	if(n == T)
-		return;
-	if(t->sym != S) {
-		// botch -- should be a complete deep copy
-		nt = typ(Txxx);
-		*nt = *t;
-		t = nt;
-		t->sym = S;
-	}
-	n->sym->local = 1;
-	addtyp(n, t, dclcontext);
 	if(exportadj)
 		exportsym(n->sym);
 }
@@ -59,48 +35,92 @@ dodcltype(Type *n, Type *t)
 void
 dodclconst(Node *n, Node *e)
 {
-	Sym *s;
-	Dcl *r, *d;
-
-loop:
 	if(n == N)
 		return;
-	if(n->op == OLIST) {
-		dodclconst(n->left, e);
-		n = n->right;
-		goto loop;
-	}
 
-	if(n->op != ONAME)
-		fatal("dodclconst: not a name");
+	for(; n->op == OLIST; n=n->right)
+		dodclconst(n, e);
 
-	if(e->op != OLITERAL) {
-		yyerror("expression must be a constant");
-		return;
-	}
-	s = n->sym;
-
-	s->oconst = e;
-	s->lexical = LACONST;
-
+	addconst(n, e, dclcontext);
 	if(exportadj)
 		exportsym(n->sym);
-
-	r = autodcl;
-	if(dclcontext == PEXTERN)
-		r = externdcl;
-
-	d = dcl();
-	d->dsym = s;
-	d->dnode = e;
-	d->op = OCONST;
-
-	r->back->forw = d;
-	r->back = d;
-
-	if(dflag())
-		print("const-dcl %S %N\n", n->sym, n->sym->oconst);
 }
+
+/*
+ * introduce a type named n
+ * but it is an unknown type for now
+ */
+Type*
+dodcltype(Type *n)
+{
+	Sym *s;
+
+	// if n has been forward declared,
+	// use the Type* created then
+	s = n->sym;
+	if(s->tblock == block) {
+		switch(s->otype->etype) {
+		case TFORWSTRUCT:
+		case TFORWINTER:
+			return s->otype;
+		}
+	}
+
+	// otherwise declare a new type
+	addtyp(n, dclcontext);
+	n->sym->local = 1;
+	if(exportadj)
+		exportsym(n->sym);
+	return n;
+}
+
+/*
+ * now we know what n is: it's t
+ */
+void
+updatetype(Type *n, Type *t)
+{
+	Sym *s;
+
+	s = n->sym;
+	if(s == S || s->otype != n)
+		fatal("updatetype %T = %T", n, t);
+
+	switch(n->etype) {
+	case TFORW:
+		break;
+
+	case TFORWSTRUCT:
+		if(t->etype != TSTRUCT) {
+			yyerror("%T forward declared as struct", n);
+			return;
+		}
+		break;
+
+	case TFORWINTER:
+		if(t->etype != TINTER) {
+			yyerror("%T forward declared as interface", n);
+			return;
+		}
+		break;
+
+	default:
+		fatal("updatetype %T / %T", n, t);
+	}
+
+	*n = *t;
+	n->sym = s;
+
+	// catch declaration of incomplete type
+	switch(n->etype) {
+	case TFORWSTRUCT:
+	case TFORWINTER:
+		break;
+	default:
+		checkwidth(n);
+	}
+}
+
 
 /*
  * return nelem of list
@@ -139,7 +159,7 @@ functype(Node *this, Node *in, Node *out)
 	t->outtuple = listcount(out);
 	t->intuple = listcount(in);
 
-	dowidth(t);
+	checkwidth(t);
 	return t;
 }
 
@@ -200,6 +220,9 @@ addmethod(Node *n, Type *t, int local)
 {
 	Type *f, *d, *pa;
 	Sym *st, *sf;
+
+	pa = nil;
+	sf = nil;
 
 	// get field sym
 	if(n == N)
@@ -465,7 +488,7 @@ dostruct(Node *n, int et)
 
 	t = typ(et);
 	stotype(n, &t->type);
-	dowidth(t);
+	checkwidth(t);
 	return t;
 }
 
@@ -484,12 +507,13 @@ dcopy(Sym *a, Sym *b)
 	a->oconst = b->oconst;
 	a->package = b->package;
 	a->opackage = b->opackage;
-	a->forwtype = b->forwtype;
 	a->lexical = b->lexical;
 	a->undef = b->undef;
 	a->vargen = b->vargen;
 	a->vblock = b->vblock;
 	a->tblock = b->tblock;
+	a->local = b->local;
+	a->offset = b->offset;
 }
 
 Sym*
@@ -639,14 +663,6 @@ addvar(Node *n, Type *t, int ctxt)
 		fatal("addvar: n=%N t=%T nil", n, t);
 
 	s = n->sym;
-	vargen++;
-	gen = vargen;
-
-	r = autodcl;
-	if(ctxt == PEXTERN) {
-		r = externdcl;
-		gen = 0;
-	}
 
 	if(s->vblock == block) {
 		if(s->oname != N) {
@@ -657,8 +673,16 @@ addvar(Node *n, Type *t, int ctxt)
 			yyerror("var %S redeclared in this block", s);
 	}
 
-	if(ctxt != PEXTERN)
+	if(ctxt == PEXTERN) {
+		r = externdcl;
+		gen = 0;
+vargen++;	// just for diffing output against old compiler
+	} else {
+		r = autodcl;
+		vargen++;
+		gen = vargen;
 		pushdcl(s);
+	}
 
 	s->vargen = gen;
 	s->oname = n;
@@ -687,65 +711,34 @@ addvar(Node *n, Type *t, int ctxt)
 }
 
 void
-addtyp(Type *n, Type *t, int ctxt)
+addtyp(Type *n, int ctxt)
 {
 	Dcl *r, *d;
 	Sym *s;
-	Type *f, *ot;
 
-	if(n==T || n->sym == S || t == T)
-		fatal("addtyp: n=%T t=%T nil", n, t);
+	if(n==T || n->sym == S)
+		fatal("addtyp: n=%T t=%T nil", n);
 
 	s = n->sym;
 
-	r = autodcl;
-	if(ctxt == PEXTERN) {
-		ot = s->otype;
-		if(ot != T) {
-			// allow nil interface to be
-			// redeclared as an interface
-			if(ot->etype == TINTER && ot->type == T && t->etype == TINTER) {
-				if(dflag())
-					print("forew  typ-dcl %S G%ld %T\n", s, s->vargen, t);
-				s->otype = t;
-				return;
-			}
-		}
+	if(ctxt == PEXTERN)
 		r = externdcl;
+	else {
+		r = autodcl;
+		pushdcl(s);
 	}
+vargen++;	// just for diffing output against old compiler
 
 	if(s->tblock == block)
 		yyerror("type %S redeclared in this block %d", s, block);
 
-	if(ctxt != PEXTERN)
-		pushdcl(s);
-
-	if(t->sym != S)
-		warn("addtyp: renaming type %S/%lT to %S/%lT",
-			t->sym, t->sym->otype, s, n);
-
-	vargen++;
-	s->vargen = vargen;
-	s->otype = t;
+	s->otype = n;
 	s->lexical = LATYPE;
 	s->tblock = block;
 
-	t->sym = s;
-	t->vargen = vargen;
-
-	if(s->forwtype != T) {
-		dowidth(t);
-		for(f=s->forwtype; f!=T; f=f->nforw) {
-			if(!isptr[f->etype])
-				fatal("addtyp: forward");
-			f->type = t;
-		}
-		s->forwtype = T;
-	}
-
 	d = dcl();
 	d->dsym = s;
-	d->dtype = t;
+	d->dtype = n;
 	d->op = OTYPE;
 
 	r->back->forw = d;
@@ -753,10 +746,48 @@ addtyp(Type *n, Type *t, int ctxt)
 
 	if(dflag()) {
 		if(ctxt == PEXTERN)
-			print("extern typ-dcl %S G%ld %T\n", s, s->vargen, t);
+			print("extern typ-dcl %S G%ld %T\n", s, s->vargen, n);
 		else
-			print("auto   typ-dcl %S G%ld %T\n", s, s->vargen, t);
+			print("auto   typ-dcl %S G%ld %T\n", s, s->vargen, n);
 	}
+}
+
+void
+addconst(Node *n, Node *e, int ctxt)
+{
+	Sym *s;
+	Dcl *r, *d;
+
+	if(n->op != ONAME)
+		fatal("addconst: not a name");
+
+	if(e->op != OLITERAL) {
+		yyerror("expression must be a constant");
+		return;
+	}
+
+	s = n->sym;
+
+	if(ctxt == PEXTERN)
+		r = externdcl;
+	else {
+		r = autodcl;
+		pushdcl(s);
+	}
+
+	s->oconst = e;
+	s->lexical = LACONST;
+
+	d = dcl();
+	d->dsym = s;
+	d->dnode = e;
+	d->op = OCONST;
+
+	r->back->forw = d;
+	r->back = d;
+
+	if(dflag())
+		print("const-dcl %S %N\n", n->sym, n->sym->oconst);
 }
 
 Node*
@@ -850,9 +881,6 @@ forwdcl(Sym *s)
 
 	t = typ(TFORW);
 	t = ptrto(t);
-
-	t->nforw = s->forwtype;
-	s->forwtype = t;
 	return t;
 }
 
@@ -1037,4 +1065,76 @@ fninit(Node *n)
 
 	popdcl();
 	compile(fn);
+}
+
+
+/*
+ * when a type's width should be known, we call checkwidth
+ * to compute it.  during a declaration like
+ *
+ *	type T *struct { next T }
+ *
+ * it is necessary to defer the calculation of the struct width
+ * until after T has been initialized to be a pointer to that struct.
+ * similarly, during import processing structs may be used
+ * before their definition.  in those situations, calling
+ * defercheckwidth() stops width calculations until
+ * resumecheckwidth() is called, at which point all the
+ * checkwidths that were deferred are executed.
+ * sometimes it is okay to
+ */
+typedef struct TypeList TypeList;
+struct TypeList {
+	Type *t;
+	TypeList *next;
+};
+
+static TypeList *tlfree;
+static TypeList *tlq;
+static int defercalc;
+
+void
+checkwidth(Type *t)
+{
+	TypeList *l;
+
+	if(!defercalc) {
+		dowidth(t);
+		return;
+	}
+
+	l = tlfree;
+	if(l != nil)
+		tlfree = l->next;
+	else
+		l = mal(sizeof *l);
+
+	l->t = t;
+	l->next = tlq;
+	tlq = l;
+}
+
+void
+defercheckwidth(void)
+{
+	if(defercalc)
+		fatal("defercheckwidth");
+	defercalc = 1;
+}
+
+void
+resumecheckwidth(void)
+{
+	TypeList *l, *next;
+
+	if(!defercalc)
+		fatal("restartcheckwidth");
+	defercalc = 0;
+
+	for(l = tlq; l != nil; l = tlq) {
+		dowidth(l->t);
+		tlq = l->next;
+		l->next = tlfree;
+		tlfree = l;
+	}
 }
