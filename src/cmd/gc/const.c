@@ -143,6 +143,9 @@ evconst(Node *n)
 	Mpint *xval;
 	Mpflt *fval;
 
+	xval = nil;
+	fval = nil;
+
 	nl = n->left;
 	if(nl == N)
 		return;
