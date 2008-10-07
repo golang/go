@@ -28,14 +28,28 @@
 %token			LLSH LRSH LINC LDEC LCOMM
 %token			LIGNORE
 
+/*
+ * the go semicolon rules are:
+ *
+ *  1. all statements and declarations are terminated by semicolons
+ *  2. semicolons can be omitted at top level.
+ *  3. semicolons can be omitted before and after the closing ) or }
+ *	on a list of statements or declarations.
+ *
+ * thus the grammar must distinguish productions that
+ * can omit the semicolon terminator and those that can't.
+ * names like Astmt, Avardcl, etc. can drop the semicolon.
+ * names like Bstmt, Bvardcl, etc. can't.
+ */
+
 %type	<sym>		sym sym1 sym2 keyword laconst lname latype lpackatype
 %type	<node>		xdcl xdcl_list_r oxdcl_list
 %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
 %type	<node>		oarg_type_list arg_type_list_r arg_chunk arg_chunk_list_r arg_type_list
-%type	<node>		else_stmt1 else_stmt2 inc_stmt noninc_stmt
+%type	<node>		Aelse_stmt Belse_stmt
 %type	<node>		complex_stmt compound_stmt ostmt_list
 %type	<node>		stmt_list_r Astmt_list_r Bstmt_list_r
-%type	<node>		Astmt Bstmt Cstmt Dstmt
+%type	<node>		Astmt Bstmt
 %type	<node>		for_stmt for_body for_header
 %type	<node>		if_stmt if_body if_header
 %type	<node>		range_header range_body range_stmt select_stmt
@@ -47,14 +61,16 @@
 %type	<node>		structdcl_list_r structdcl
 %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
 %type	<node>		keyexpr_list keyval_list_r keyval
-%type	<node>		typedcl Atypedcl Btypedcl
-%type	<type>		typedclname
 
-%type	<type>		fntype fnlitdcl Afntype Bfntype fullAtype
-%type	<type>		non_name_Atype non_name_type
-%type	<type>		type Atype Btype indcl new_type fullBtype
-%type	<type>		structtype interfacetype convtype
-%type	<type>		Achantype Bchantype
+%type	<type>		typedclname new_type
+%type	<type>		type Atype Btype
+%type	<type>		othertype Aothertype Bothertype
+%type	<type>		chantype Achantype Bchantype
+%type	<type>		fntype Afntype Bfntype
+%type	<type>		nametype structtype interfacetype convtype
+%type	<type>		non_name_type Anon_fn_type Bnon_fn_type
+%type	<type>		Anon_chan_type Bnon_chan_type
+%type	<type>		indcl fnlitdcl
 
 %type	<val>		hidden_constant
 %type	<node>		hidden_dcl
@@ -249,7 +265,7 @@ vardcl:
 |	Bvardcl
 
 Avardcl:
-	new_name_list_r fullAtype
+	new_name_list_r Atype
 	{
 		$$ = rev($1);
 		dodclvar($$, $2);
@@ -258,7 +274,7 @@ Avardcl:
 	}
 
 Bvardcl:
-	new_name_list_r fullBtype
+	new_name_list_r Btype
 	{
 		$$ = rev($1);
 		dodclvar($$, $2);
@@ -323,10 +339,6 @@ constdcl1:
 		iota += 1;
 	}
 
-typedcl:
-	Atypedcl
-|	Btypedcl
-
 typedclname:
 	new_type
 	{
@@ -334,8 +346,19 @@ typedclname:
 		defercheckwidth();
 	}
 
+typedcl:
+	Atypedcl
+|	Btypedcl
+
 Atypedcl:
-	typedclname fullAtype
+	typedclname Atype
+	{
+		updatetype($1, $2);
+		resumecheckwidth();
+	}
+
+Btypedcl:
+	typedclname Btype
 	{
 		updatetype($1, $2);
 		resumecheckwidth();
@@ -345,26 +368,17 @@ Atypedcl:
 		updatetype($1, typ(TFORWSTRUCT));
 		resumecheckwidth();
 	}
-/*
 |	typedclname LINTERFACE
 	{
 		updatetype($1, typ(TFORWINTER));
 		resumecheckwidth();
 	}
-*/
 
-Btypedcl:
-	typedclname fullBtype
-	{
-		updatetype($1, $2);
-		resumecheckwidth();
-	}
-
-else_stmt1:
+Aelse_stmt:
 	complex_stmt
 |	compound_stmt
 
-else_stmt2:
+Belse_stmt:
 	simple_stmt
 |	semi_stmt
 |	';'
@@ -373,10 +387,6 @@ else_stmt2:
 	}
 
 simple_stmt:
-	inc_stmt
-|	noninc_stmt
-
-noninc_stmt:
 	expr
 	{
 		$$ = $1;
@@ -411,9 +421,7 @@ noninc_stmt:
 	{
 		$$ = nod(OPANICN, $3, N);
 	}
-
-inc_stmt:
-	expr LINC
+|	expr LINC
 	{
 		$$ = nod(OASOP, $1, literal(1));
 		$$->etype = OADD;
@@ -441,7 +449,7 @@ complex_stmt:
 		popdcl();
 		$$ = $2;
 	}
-|	LIF if_stmt LELSE else_stmt1
+|	LIF if_stmt LELSE Aelse_stmt
 	{
 		popdcl();
 		$$ = $2;
@@ -516,7 +524,7 @@ semi_stmt:
 	{
 		$$ = nod(ORETURN, $2, N);
 	}
-|	LIF if_stmt LELSE else_stmt2
+|	LIF if_stmt LELSE Belse_stmt
 	{
 		popdcl();
 		$$ = $2;
@@ -974,98 +982,103 @@ convtype:
 	}
 |	structtype
 
+/*
+ * to avoid parsing conflicts, type is split into
+ *	named types
+ *	channel types
+ *	function types
+ *	any other type
+ *
+ * (and also into A/B as described above).
+ *
+ * the type system makes additional restrictions,
+ * but those are not implemented in the grammar.
+ */
 type:
-	fullAtype
-|	fullBtype
-
-non_name_type:
-	non_name_Atype
-|	Afntype
-|	Achantype
-|	fullBtype
+	Atype
+|	Btype
 
 Atype:
+	Achantype
+|	Afntype
+|	Aothertype
+
+Btype:
+	nametype
+|	Bchantype
+|	Bfntype
+|	Bothertype
+
+non_name_type:
+	chantype
+|	fntype
+|	othertype
+
+Anon_chan_type:
+	Afntype
+|	Aothertype
+
+Bnon_chan_type:
+	nametype
+|	Bfntype
+|	Bothertype
+
+Anon_fn_type:
+	Achantype
+|	Aothertype
+
+Bnon_fn_type:
+	nametype
+|	Bchantype
+|	Bothertype
+
+
+nametype:
 	LATYPE
 	{
 		$$ = oldtype($1);
 	}
-|	non_name_Atype
 
-non_name_Atype:
+othertype:
+	Aothertype
+|	Bothertype
+
+Aothertype:
+	'[' oexpr ']' Atype
+	{
+		$$ = aindex($2, $4);
+	}
+|	LCOMM LCHAN Atype
+	{
+		$$ = typ(TCHAN);
+		$$->type = $3;
+		$$->chan = Crecv;
+	}
+|	LCHAN LCOMM Anon_chan_type
+	{
+		$$ = typ(TCHAN);
+		$$->type = $3;
+		$$->chan = Csend;
+	}
+|	LMAP '[' type ']' Atype
+	{
+		$$ = typ(TMAP);
+		$$->down = $3;
+		$$->type = $5;
+	}
+|	'*' Atype
+	{
+		$$ = ptrto($2);
+	}
+|	structtype
+|	interfacetype
+
+Bothertype:
 	lpackatype
 	{
 		$$ = oldtype($1);
 	}
-|	'[' oexpr ']' fullAtype
-	{
-		$$ = aindex($2, $4);
-	}
-|	LCOMM LCHAN fullAtype
-	{
-		$$ = typ(TCHAN);
-		$$->type = $3;
-		$$->chan = Crecv;
-	}
-|	LCHAN LCOMM Atype  /* not full Atype */
-	{
-		$$ = typ(TCHAN);
-		$$->type = $3;
-		$$->chan = Csend;
-	}
-|	LMAP '[' type ']' fullAtype
-	{
-		$$ = typ(TMAP);
-		$$->down = $3;
-		$$->type = $5;
-	}
-|	structtype
-|	interfacetype
-|	'*' fullAtype
-	{
-		$$ = ptrto($2);
-	}
-
-Achantype:
-	LCHAN fullAtype
-	{
-		$$ = typ(TCHAN);
-		$$->type = $2;
-		$$->chan = Cboth;
-	}
-
-fullAtype:
-	Atype
-|	Afntype
-|	Achantype
-
-Btype:
-	'[' oexpr ']' fullBtype
-	{
-		$$ = aindex($2, $4);
-	}
-|	LCOMM LCHAN fullBtype
-	{
-		$$ = typ(TCHAN);
-		$$->type = $3;
-		$$->chan = Crecv;
-	}
-|	LCHAN LCOMM Btype  // not full Btype
-	{
-		$$ = typ(TCHAN);
-		$$->type = $3;
-		$$->chan = Csend;
-	}
-|	LMAP '[' type ']' fullBtype
-	{
-		$$ = typ(TMAP);
-		$$->down = $3;
-		$$->type = $5;
-	}
-|	'*' fullBtype
-	{
-		$$ = ptrto($2);
-	}
-|	'*' lname
+|	'*' lname	/* TODO(rsc): yank */
 	{
 		Type *t;
 
@@ -1073,19 +1086,52 @@ Btype:
 		updatetype(t, typ(TFORWSTRUCT));
 		$$ = ptrto(t);
 	}
+|	'[' oexpr ']' Btype
+	{
+		$$ = aindex($2, $4);
+	}
+|	LCOMM LCHAN Btype
+	{
+		$$ = typ(TCHAN);
+		$$->type = $3;
+		$$->chan = Crecv;
+	}
+|	LCHAN LCOMM Bnon_chan_type
+	{
+		$$ = typ(TCHAN);
+		$$->type = $3;
+		$$->chan = Csend;
+	}
+|	LMAP '[' type ']' Btype
+	{
+		$$ = typ(TMAP);
+		$$->down = $3;
+		$$->type = $5;
+	}
+|	'*' Btype
+	{
+		$$ = ptrto($2);
+	}
 
-Bchantype:
-	LCHAN fullBtype
+chantype:
+	Achantype
+|	Bchantype
+
+Achantype:
+	LCHAN Atype
 	{
 		$$ = typ(TCHAN);
 		$$->type = $2;
 		$$->chan = Cboth;
 	}
 
-fullBtype:
-	Btype
-|	Bfntype
-|	Bchantype
+Bchantype:
+	LCHAN Btype
+	{
+		$$ = typ(TCHAN);
+		$$->type = $2;
+		$$->chan = Cboth;
+	}
 
 structtype:
 	LSTRUCT '{' structdcl_list_r osemi '}'
@@ -1224,7 +1270,18 @@ fnres:
 |	Bfnres
 
 Afnres:
-	Atype
+	Anon_fn_type
+	{
+		$$ = nod(ODCLFIELD, N, N);
+		$$->type = $1;
+		$$ = cleanidlist($$);
+	}
+
+Bfnres:
+	{
+		$$ = N;
+	}
+|	Bnon_fn_type
 	{
 		$$ = nod(ODCLFIELD, N, N);
 		$$->type = $1;
@@ -1233,17 +1290,6 @@ Afnres:
 |	'(' oarg_type_list ')'
 	{
 		$$ = $2;
-	}
-
-Bfnres:
-	{
-		$$ = N;
-	}
-|	Btype
-	{
-		$$ = nod(ODCLFIELD, N, N);
-		$$->type = $1;
-		$$ = cleanidlist($$);
 	}
 
 /*
@@ -1403,8 +1449,7 @@ arg_type_list:
 	}
 
 /*
- * need semi in front NO
- * need semi in back  NO
+ * statement that doesn't need semicolon terminator
  */
 Astmt:
 	complex_stmt
@@ -1418,71 +1463,36 @@ Astmt:
 	{
 		$$ = N;
 	}
-
-/*
- * need semi in front NO
- * need semi in back  YES
- */
-Bstmt:
-	semi_stmt
-|	Bcommon_dcl
-|	error Bstmt
-	{
-		$$ = N;
-	}
-
-/*
- * need semi in front YES
- * need semi in back  YES
- */
-Cstmt:
-	noninc_stmt
-
-/*
- * need semi in front YES
- * need semi in back  NO
- */
-Dstmt:
-	inc_stmt
 |	new_name ':'
 	{
 		$$ = nod(OLABEL, $1, N);
 	}
+|	Bstmt ';'
 
 /*
- * statement list that ends AorD
+ * statement that does
+ */
+Bstmt:
+	semi_stmt
+|	Bcommon_dcl
+|	simple_stmt
+
+/*
+ * statement list that doesn't need semicolon terminator
  */
 Astmt_list_r:
 	Astmt
-|	Dstmt
 |	Astmt_list_r Astmt
 	{
 		$$ = list($1, $2);
 	}
-|	Astmt_list_r Dstmt
-	{
-		$$ = list($1, $2);
-	}
-|	Bstmt_list_r Astmt
-	{
-		$$ = list($1, $2);
-	}
 
 /*
- * statement list that ends BorC
+ * statement list that needs semicolon terminator
  */
 Bstmt_list_r:
 	Bstmt
-|	Cstmt
 |	Astmt_list_r Bstmt
-	{
-		$$ = list($1, $2);
-	}
-|	Astmt_list_r Cstmt
-	{
-		$$ = list($1, $2);
-	}
-|	Bstmt_list_r Bstmt
 	{
 		$$ = list($1, $2);
 	}
