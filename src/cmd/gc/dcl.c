@@ -62,12 +62,15 @@ dodcltype(Type *n)
 		switch(s->otype->etype) {
 		case TFORWSTRUCT:
 		case TFORWINTER:
-			return s->otype;
+			n = s->otype;
+			goto found;
 		}
 	}
 
 	// otherwise declare a new type
 	addtyp(n, dclcontext);
+
+found:
 	n->sym->local = 1;
 	if(exportadj)
 		exportsym(n->sym);
