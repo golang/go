@@ -6,6 +6,10 @@
 
 package main
 
+type (
+	Type struct;
+	Object struct;
+)
 
 type Scope struct {
 	entries *map[string] *Object;

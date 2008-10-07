@@ -13,6 +13,11 @@ package Globals
 
 // ----------------------------------------------------------------------------
 
+type Type struct
+type Scope struct
+type Elem struct
+type Compilation struct
+
 export type Object struct {
 	exported bool;
 	pos int;  // source position (< 0 if unknown position)
@@ -86,7 +91,7 @@ export type Compilation struct {
 	// environment
 	flags *Flags;
 	env *Environment;
-	
+
 	// TODO use open arrays eventually
 	pkg_list [256] *Package;  // pkg_list[0] is the current package
 	pkg_ref int;
@@ -199,7 +204,7 @@ func (L *List) at(i int) *Elem {
 	for ; i > 0; i-- {
 		p = p.next;
 	}
-	
+
 	return p;
 }
 

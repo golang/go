@@ -6,6 +6,7 @@
 
 package main
 
+type T struct
 type S struct {
   p *T  // BUG T never declared
 }

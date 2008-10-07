@@ -98,6 +98,12 @@ func atob(str string) (value bool, ok bool) {
 	return false, false
 }
 
+type (
+	BoolValue struct;
+	IntValue struct;
+	StringValue struct;
+)
+
 // -- Bool Value
 type BoolValue struct {
 	val bool;
