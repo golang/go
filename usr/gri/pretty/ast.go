@@ -8,11 +8,54 @@ package AST
 // ----------------------------------------------------------------------------
 // Visitor
 
+type (
+	Nil struct;
+	Ident struct;
+	ArrayType struct;
+	StructType struct;
+	MapType struct;
+	ChannelType struct;
+	PointerType struct;
+	InterfaceType struct;
+	FunctionType struct;
+	VarDeclList struct;
+	ImportDecl struct;
+	ConstDecl struct;
+	TypeDecl struct;
+	VarDecl struct;
+	Declaration struct;
+	FuncDecl struct;
+	MethodDecl struct;
+	Selector struct;
+	Index struct;
+	Call struct;
+	Pair struct;
+	Binary struct;
+	Unary struct;
+	Literal struct;
+	CompositeLit struct;
+	FunctionLit struct;
+	Label struct;
+	Block struct;
+	ExprStat struct;
+	Assignment struct;
+	ControlClause struct;
+	IfStat struct;
+	ForStat struct;
+	CaseClause struct;
+	SwitchStat struct;
+	ReturnStat struct;
+	IncDecStat struct;
+	ControlFlowStat struct;
+	GoStat struct;
+	Program struct;
+)
+
 export type Visitor interface {
 	// Basics
 	DoNil(x *Nil);
 	DoIdent(x *Ident);
-	
+
 	// Types
 	DoFunctionType(x *FunctionType);
 	DoArrayType(x *ArrayType);
@@ -21,7 +64,7 @@ export type Visitor interface {
 	DoChannelType(x *ChannelType);
 	DoInterfaceType(x *InterfaceType);
 	DoPointerType(x *PointerType);
-	
+
 	// Declarations
 	DoImportDecl(x *ImportDecl);
 	DoConstDecl(x *ConstDecl);
@@ -31,7 +74,7 @@ export type Visitor interface {
 	DoFuncDecl(x *FuncDecl);
 	DoMethodDecl(x *MethodDecl);
 	DoDeclaration(x *Declaration);
-	
+
 	// Expressions
 	DoBinary(x *Binary);
 	DoUnary(x *Unary);

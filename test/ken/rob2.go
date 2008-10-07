@@ -9,6 +9,12 @@ package main
 
 const nilchar = 0;
 
+type (
+	Atom struct;
+	List struct;
+	Slist struct;
+)
+
 type Atom struct {
 	str		string;
 	integer		int;
