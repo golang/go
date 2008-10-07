@@ -1078,14 +1078,6 @@ Bothertype:
 	{
 		$$ = oldtype($1);
 	}
-|	'*' lname	/* TODO(rsc): yank */
-	{
-		Type *t;
-
-		t = dodcltype(newtype($2));
-		updatetype(t, typ(TFORWSTRUCT));
-		$$ = ptrto(t);
-	}
 |	'[' oexpr ']' Btype
 	{
 		$$ = aindex($2, $4);
