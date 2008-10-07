@@ -235,9 +235,9 @@ sys·bytestorune(byte *str, int32 off, int32 length, int32 outrune, int32 outcou
 }
 
 void
-sys·stringtorune(string str, int32 off, int32 length, int32 outrune, int32 outcount)
+sys·stringtorune(string str, int32 off, int32 outrune, int32 outcount)
 {
-	outcount = charntorune(&outrune, str->str + off, length);
+	outcount = charntorune(&outrune, str->str + off, str->len - off);
 	FLUSH(&outrune);
 	FLUSH(&outcount);
 }

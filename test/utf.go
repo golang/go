@@ -21,7 +21,7 @@ func main() {
 	var l = len(s);
 	for w, i, j := 0,0,0; i < l; i += w {
 		var r int32;
-		r, w = sys.stringtorune(s, i, l);
+		r, w = sys.stringtorune(s, i);
 		if w == 0 { panic("zero width in string") }
 		if r != chars[j] { panic("wrong value from string") }
 		j++;

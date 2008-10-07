@@ -293,4 +293,4 @@ void	sys·intstring(int64, string);
  */
 void	sys·readfile(string, string, bool);
 void	sys·bytestorune(byte*, int32, int32, int32, int32);
-void	sys·stringtorune(string, int32, int32, int32, int32);
+void	sys·stringtorune(string, int32, int32, int32);
