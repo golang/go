@@ -872,21 +872,6 @@ oldtype(Sym *s)
 	return t;
 }
 
-Type*
-forwdcl(Sym *s)
-{
-	Type *t;
-
-	// this type has no meaning and
-	// will cause an error if referenced.
-	// it will be patched when/if the
-	// type is ever assigned.
-
-	t = typ(TFORW);
-	t = ptrto(t);
-	return t;
-}
-
 /*
  * n is a node with a name (or a reversed list of them).
  * make it an anonymous declaration of that name's type.
@@ -1120,8 +1105,9 @@ checkwidth(Type *t)
 void
 defercheckwidth(void)
 {
-	if(defercalc)
-		fatal("defercheckwidth");
+	// we get out of sync on syntax errors, so don't be pedantic.
+	// if(defercalc)
+	//	fatal("defercheckwidth");
 	defercalc = 1;
 }
 
