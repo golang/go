@@ -22,7 +22,7 @@ func StringToBytes(s string) *[]byte {
 	return b
 }
 
-// Should be in language!  
+// Should be in language!
 func Copy(p *[]byte, q *[]byte) {
 	for i := 0; i < len(p); i++ {
 		p[i] = q[i]
@@ -36,17 +36,17 @@ type ByteReader struct {
 
 func NewByteReader(p *[]byte) io.Read {
 	b := new(ByteReader);
-	b.p = p
+	b.p = p;
 	return b
 }
 
 func (b *ByteReader) Read(p *[]byte) (int, *os.Error) {
-	n := len(p)
+	n := len(p);
 	if n > len(b.p) {
 		n = len(b.p)
 	}
 	Copy(p[0:n], b.p[0:n]);
-	b.p = b.p[n:len(b.p)]
+	b.p = b.p[n:len(b.p)];
 	return n, nil
 }
 
@@ -58,12 +58,12 @@ type HalfByteReader struct {
 
 func NewHalfByteReader(p *[]byte) io.Read {
 	b := new(HalfByteReader);
-	b.p = p
+	b.p = p;
 	return b
 }
 
 func (b *HalfByteReader) Read(p *[]byte) (int, *os.Error) {
-	n := len(p)/2
+	n := len(p)/2;
 	if n == 0 && len(p) > 0 {
 		n = 1
 	}
@@ -71,7 +71,7 @@ func (b *HalfByteReader) Read(p *[]byte) (int, *os.Error) {
 		n = len(b.p)
 	}
 	Copy(p[0:n], b.p[0:n]);
-	b.p = b.p[n:len(b.p)]
+	b.p = b.p[n:len(b.p)];
 	return n, nil
 }
 
@@ -82,12 +82,12 @@ type Rot13Reader struct {
 
 func NewRot13Reader(r io.Read) *Rot13Reader {
 	r13 := new(Rot13Reader);
-	r13.r = r
+	r13.r = r;
 	return r13
 }
 
 func (r13 *Rot13Reader) Read(p *[]byte) (int, *os.Error) {
-	n, e := r13.r.Read(p)
+	n, e := r13.r.Read(p);
 	if e != nil {
 		return n, e
 	}
@@ -100,7 +100,7 @@ func (r13 *Rot13Reader) Read(p *[]byte) (int, *os.Error) {
 			}
 		}
 	}
-	return n, nil	
+	return n, nil
 }
 
 func MakeByteReader(p *[]byte) io.Read {
@@ -119,9 +119,9 @@ var readmakers = []*(p *[]byte) io.Read {
 // Call ReadLineString (which ends up calling everything else)
 // to accumulate the text of a file.
 func ReadLines(b *bufio.BufRead) string {
-	s := ""
+	s := "";
 	for {
-		s1, e := b.ReadLineString('\n', true)
+		s1, e := b.ReadLineString('\n', true);
 		if e == bufio.EndOfFile {
 			break
 		}
@@ -136,9 +136,9 @@ func ReadLines(b *bufio.BufRead) string {
 // Call ReadByte to accumulate the text of a file
 func ReadBytes(buf *bufio.BufRead) string {
 	var b [1000]byte;
-	nb := 0
+	nb := 0;
 	for {
-		c, e := buf.ReadByte()
+		c, e := buf.ReadByte();
 		if e == bufio.EndOfFile {
 			break
 		}
@@ -146,7 +146,7 @@ func ReadBytes(buf *bufio.BufRead) string {
 			panic("GetBytes: "+e.String())
 		}
 		b[nb] = c;
-		nb++
+		nb++;
 	}
 	// BUG return string(b[0:nb]) ?
 	return string(b)[0:nb]
@@ -155,11 +155,11 @@ func ReadBytes(buf *bufio.BufRead) string {
 // Call Read to accumulate the text of a file
 func Reads(buf *bufio.BufRead, m int) string {
 	var b [1000]byte;
-	nb := 0
+	nb := 0;
 	for {
 		// BUG parens around (&b) should not be needed
 		n, e := buf.Read((&b)[nb:nb+m]);
-		nb += n
+		nb += n;
 		if e == bufio.EndOfFile {
 			break
 		}
@@ -190,7 +190,7 @@ func TestBufRead() {
 	// work around 6g bug101
 	readmakers[0] = &NewByteReader;
 	readmakers[1] = &NewHalfByteReader;
-	
+
 	bufreaders[0] = &Read1;
 	bufreaders[1] = &Read2;
 	bufreaders[2] = &Read3;
@@ -199,7 +199,7 @@ func TestBufRead() {
 	bufreaders[5] = &Read7;
 	bufreaders[6] = &ReadBytes;
 	bufreaders[7] = &ReadLines;
-	
+
 	bufsizes[0] = 1;
 	bufsizes[1] = 2;
 	bufsizes[2] = 3;
@@ -218,17 +218,17 @@ func TestBufRead() {
 	bufsizes[15] = 128;
 	bufsizes[16] = 1024;
 	bufsizes[17] = 4096;
-	
-	var texts [31]string
+
+	var texts [31]string;
 	str := "";
-	all := ""
+	all := "";
 	for i := 0; i < len(texts)-1; i++ {
 		texts[i] = str + "\n";
 		all += texts[i];
 		str += string(i%26+'a')
 	}
 	texts[len(texts)-1] = all;
-	
+
 	// BUG 6g should not need nbr temporary (bug099)
 	nbr := NewByteReader(StringToBytes("hello world"));
 	b, e := bufio.NewBufRead(nbr);
@@ -242,11 +242,11 @@ func TestBufRead() {
 
 	for h := 0; h < len(texts); h++ {
 		text := texts[h];
-		textbytes := StringToBytes(text)
+		textbytes := StringToBytes(text);
 		for i := 0; i < len(readmakers); i++ {
-			readmaker := readmakers[i]
+			readmaker := readmakers[i];
 			for j := 0; j < len(bufreaders); j++ {
-				bufreader := bufreaders[j]
+				bufreader := bufreaders[j];
 				for k := 0; k < len(bufsizes); k++ {
 					bufsize := bufsizes[k];
 					read := readmaker(textbytes);
@@ -288,7 +288,7 @@ func (w *ByteWriter) Write(p *[]byte) (int, *os.Error) {
 		w.p = newp
 	}
 	Copy(w.p[w.n:w.n+len(p)], p);
-	w.n += len(p)
+	w.n += len(p);
 	return len(p), nil
 }
 
@@ -296,7 +296,7 @@ func (w *ByteWriter) GetBytes() *[]byte {
 	return w.p[0:w.n]
 }
 
-// Accumulates bytes written into a byte array 
+// Accumulates bytes written into a byte array
 // but Write only takes half of what you give it.
 type HalfByteWriter struct {
 	bw WriteBuffer
@@ -304,14 +304,14 @@ type HalfByteWriter struct {
 
 func NewHalfByteWriter() WriteBuffer {
 	w := new(HalfByteWriter);
-	w.bw = NewByteWriter()
+	w.bw = NewByteWriter();
 	return w
 }
 
 func (w *HalfByteWriter) Write(p *[]byte) (int, *os.Error) {
 	n := (len(p)+1) / 2;
 	// BUG return w.bw.Write(p[0:n])
-	r, e := w.bw.Write(p[0:n])
+	r, e := w.bw.Write(p[0:n]);
 	return r, e
 }
 
@@ -320,7 +320,7 @@ func (w *HalfByteWriter) GetBytes() *[]byte {
 }
 
 func TestBufWrite() {
-	var data [8192]byte
+	var data [8192]byte;
 
 	var writers [2]*()WriteBuffer;
 	writers[0] = &NewByteWriter;
@@ -334,7 +334,7 @@ func TestBufWrite() {
 			for k := 0; k < len(writers); k++ {
 				nwrite := bufsizes[i];
 				bs := bufsizes[j];
-	
+
 				// Write nwrite bytes using buffer size bs.
 				// Check that the right amount makes it out
 				// and that the data is correct.
@@ -344,18 +344,18 @@ func TestBufWrite() {
 				if e != nil {
 					panic("NewBufWriteSize error: "+e.String())
 				}
-				n, e1 := buf.Write((&data)[0:nwrite])
+				n, e1 := buf.Write((&data)[0:nwrite]);
 				if e1 != nil {
 					panic("buf.Write error "+e1.String())
 				}
 				if n != nwrite {
 					panic("buf.Write wrong count")
 				}
-				e = buf.Flush()
+				e = buf.Flush();
 				if e != nil {
 					panic("buf.Flush error "+e.String())
 				}
-				
+
 				written := write.GetBytes();
 				if len(written) != nwrite {
 					panic("wrong amount written")

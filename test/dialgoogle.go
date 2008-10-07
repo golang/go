@@ -59,7 +59,7 @@ func FetchGoogle(fd net.Conn) {
 }
 
 func TestDial(network, addr string) {
-	fd, err := net.Dial(network, "", addr)
+	fd, err := net.Dial(network, "", addr);
 	if err != nil {
 		panic("net.Dial ", network, " ", addr, ": ", err.String())
 	}
@@ -67,7 +67,7 @@ func TestDial(network, addr string) {
 }
 
 func TestDialTCP(network, addr string) {
-	fd, err := net.DialTCP(network, "", addr)
+	fd, err := net.DialTCP(network, "", addr);
 	if err != nil {
 		panic("net.DialTCP ", network, " ", addr, ": ", err.String())
 	}
@@ -87,20 +87,20 @@ var addrs = []string {
 
 func main()
 {
-	flag.Parse()
+	flag.Parse();
 	// If no ipv6 tunnel, don't try the last address.
 	if !ipv6 {
 		addrs[len(addrs)-1] = ""
 	}
 
 	for i := 0; i < len(addrs); i++ {
-		addr := addrs[i]
+		addr := addrs[i];
 		if addr == "" {
 			continue
 		}
 	//	print(addr, "\n");
 		TestDial("tcp", addr);
-		TestDialTCP("tcp", addr)
+		TestDialTCP("tcp", addr);
 		if addr[0] != '[' {
 			TestDial("tcp4", addr);
 			TestDialTCP("tcp4", addr)

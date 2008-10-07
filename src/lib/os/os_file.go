@@ -84,7 +84,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
 }
 
 export func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
-	var p [2]int64
+	var p [2]int64;
 	r, e := syscall.pipe(&p);
 	if e != 0 {
 		return nil, nil, ErrnoToError(e)

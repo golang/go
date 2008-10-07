@@ -48,7 +48,7 @@ func Serve(network, addr string, listening, done *chan<- int) {
 		if err != nil {
 			break;
 		}
-		echodone := new(chan int)
+		echodone := new(chan int);
 		go Echo(fd, echodone);
 		<-echodone;	// make sure Echo stops
 		l.Close();

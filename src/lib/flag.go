@@ -36,7 +36,7 @@ package flag
  *	Integer flags accept 1234, 0664, 0x1234 and may be negative.
  *	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
  */
- 
+
 import fmt "fmt"
 
 //export Bool, Int, String
@@ -71,13 +71,13 @@ func atoi(s string) (value int64, ok bool) {
 	var base int64 = 10;
 	i := 0;
 	if s[0] == '0' {
-		base = 8
+		base = 8;
 		if len(s) > 1 && (s[1] == 'x' || s[1] == 'X') {
 			base = 16;
 			i += 2;
 		}
 	}
-	var n int64 = 0
+	var n int64 = 0;
 	for ; i < len(s); i++ {
 		k := ctoi(int64(s[i]));
 		if k >= base {
@@ -91,7 +91,7 @@ func atoi(s string) (value int64, ok bool) {
 func atob(str string) (value bool, ok bool) {
 	switch str {
 		case "1", "t", "T", "true", "TRUE", "True":
-			return true, true
+			return true, true;
 		case "0", "f", "F", "false", "FALSE", "False":
 			return false, true
 	}
@@ -395,7 +395,7 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 		return false, -1
 	}
 	if s[1] == '-' {
-		num_minuses++
+		num_minuses++;
 		if len(s) == 2 {	// "--" terminates the flags
 			return false, index + 1
 		}
@@ -456,7 +456,7 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 				print("invalid integer value ", value, " for flag: -", name, "\n");
 				Usage();
 			}
-			flag.value.AsInt().Set(k)
+			flag.value.AsInt().Set(k);
 		case flag.value.IsString():
 			if !has_value {
 				print("flag needs an argument: -", name, "\n");

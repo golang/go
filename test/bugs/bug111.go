@@ -17,7 +17,7 @@ export type Stucky struct {
 }
 
 func (s *Stucky) Me() Iffy {
-	ncall++
+	ncall++;
 	return s
 }
 

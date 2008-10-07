@@ -134,7 +134,7 @@ func Get() int
 		peekc = -1;
 	} else {
 		c = convert(int, input[inputindex]);
-		inputindex++
+		inputindex++;
 		if c == '\n' {
 			lineno = lineno + 1;
 		}

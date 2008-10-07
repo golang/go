@@ -24,7 +24,7 @@ export func NewPollster() (p *Pollster, err *os.Error) {
 	if p.kq, e = syscall.kqueue(); e != 0 {
 		return nil, os.ErrnoToError(e)
 	}
-	p.events = (&p.eventbuf)[0:0]
+	p.events = (&p.eventbuf)[0:0];
 	return p, nil
 }
 
@@ -44,7 +44,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
 	//	rather than waiting for real event
 	// EV_ONESHOT - delete the event the first time it triggers
-	ev.flags = syscall.EV_ADD | syscall.EV_RECEIPT
+	ev.flags = syscall.EV_ADD | syscall.EV_RECEIPT;
 	if !repeat {
 		ev.flags |= syscall.EV_ONESHOT
 	}
@@ -64,7 +64,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 
 func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
 	for len(p.events) == 0 {
-		nn, e := syscall.kevent(p.kq, nil, &p.eventbuf, nil)
+		nn, e := syscall.kevent(p.kq, nil, &p.eventbuf, nil);
 		if e != 0 {
 			if e == syscall.EAGAIN || e == syscall.EINTR {
 				continue
@@ -85,6 +85,6 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
 }
 
 func (p *Pollster) Close() *os.Error {
-	r, e := syscall.close(p.kq)
+	r, e := syscall.close(p.kq);
 	return os.ErrnoToError(e)
 }

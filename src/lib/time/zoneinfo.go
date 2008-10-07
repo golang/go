@@ -31,16 +31,16 @@ type Data struct {
 
 func (d *Data) Read(n int) *[]byte {
 	if d.p == nil || len(d.p) < n {
-		d.p = nil
+		d.p = nil;
 		return nil
 	}
 	p := d.p[0:n];
-	d.p = d.p[n:len(d.p)]
+	d.p = d.p[n:len(d.p)];
 	return p
 }
 
 func (d *Data) Big4() (n uint32, ok bool) {
-	p := d.Read(4)
+	p := d.Read(4);
 	if p == nil {
 		return 0, false
 	}
@@ -48,7 +48,7 @@ func (d *Data) Big4() (n uint32, ok bool) {
 }
 
 func (d *Data) Byte() (n byte, ok bool) {
-	p := d.Read(1)
+	p := d.Read(1);
 	if p == nil {
 		return 0, false
 	}
@@ -89,11 +89,11 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 	}
 
 	// 1-byte version, then 15 bytes of padding
-	var p *[]byte
+	var p *[]byte;
 	if p = data.Read(16); p == nil || p[0] != 0 && p[0] != '2' {
 		return nil, BadZoneinfo
 	}
-	vers := p[0]
+	vers := p[0];
 
 	// six big-endian 32-bit integers:
 	//	number of UTC/local indicators
@@ -110,9 +110,9 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 		NZone;
 		NChar
 	)
-	var n [6]int
+	var n [6]int;
 	for i := 0; i < 6; i++ {
-		nn, ok := data.Big4()
+		nn, ok := data.Big4();
 		if !ok {
 			return nil, BadZoneinfo
 		}
@@ -156,19 +156,19 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 	// Now we can build up a useful data structure.
 	// First the zone information.
 	//	utcoff[4] isdst[1] nameindex[1]
-	zone := new([]Zone, n[NZone])
+	zone := new([]Zone, n[NZone]);
 	for i := 0; i < len(zone); i++ {
 		var ok bool;
-		var n uint32
+		var n uint32;
 		if n, ok = zonedata.Big4(); !ok {
 			return nil, BadZoneinfo
 		}
-		zone[i].utcoff = int(n)
-		var b byte
+		zone[i].utcoff = int(n);
+		var b byte;
 		if b, ok = zonedata.Byte(); !ok {
 			return nil, BadZoneinfo
 		}
-		zone[i].isdst = b != 0
+		zone[i].isdst = b != 0;
 		if b, ok = zonedata.Byte(); !ok || int(b) >= len(abbrev) {
 			return nil, BadZoneinfo
 		}
@@ -176,14 +176,14 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 	}
 
 	// Now the transition time info.
-	zt = new([]Zonetime, n[NTime])
+	zt = new([]Zonetime, n[NTime]);
 	for i := 0; i < len(zt); i++ {
 		var ok bool;
-		var n uint32
+		var n uint32;
 		if n, ok = txtimes.Big4(); !ok {
 			return nil, BadZoneinfo
 		}
-		zt[i].time = int32(n)
+		zt[i].time = int32(n);
 		if int(txzones[i]) >= len(zone) {
 			return nil, BadZoneinfo
 		}
@@ -199,35 +199,35 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 }
 
 func ReadFile(name string, max int) (p *[]byte, err *os.Error) {
-	fd, e := os.Open(name, os.O_RDONLY, 0)
+	fd, e := os.Open(name, os.O_RDONLY, 0);
 	if e != nil {
 		return nil, e
 	}
 	p = new([]byte, max+1)[0:0];
-	n := 0
+	n := 0;
 	for len(p) < max {
-		nn, e := fd.Read(p[n:cap(p)])
+		nn, e := fd.Read(p[n:cap(p)]);
 		if e != nil {
-			fd.Close()
+			fd.Close();
 			return nil, e
 		}
 		if nn == 0 {
-			fd.Close()
+			fd.Close();
 			return p, nil
 		}
 		p = p[0:n+nn]
 	}
-	fd.Close()
+	fd.Close();
 	return nil, BadZoneinfo	// too long
 }
 
 
 func ReadZoneinfoFile(name string) (tx *[]Zonetime, err *os.Error) {
-	data, e := ReadFile(name, MaxFileSize)
+	data, e := ReadFile(name, MaxFileSize);
 	if e != nil {
 		return nil, e
 	}
-	tx, err = ParseZoneinfo(data)
+	tx, err = ParseZoneinfo(data);
 	return tx, err
 }
 
@@ -238,13 +238,13 @@ func SetupZone() {
 	// TODO: /etc/localtime is the default time zone info
 	// for the system, but libc allows setting an environment
 	// variable in order to direct reading a different file
-	// (in /usr/share/zoneinfo).  We should check that 
+	// (in /usr/share/zoneinfo).  We should check that
 	// environment variable.
 	zones, zoneerr = ReadZoneinfoFile("/etc/localtime");
 }
 
 export func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
-	once.Do(&SetupZone)
+	once.Do(&SetupZone);
 	if zoneerr != nil || zones == nil || len(zones) == 0 {
 		return "GMT", 0, zoneerr
 	}
@@ -259,6 +259,6 @@ export func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
 			tz = tz[m:len(tz)]
 		}
 	}
-	z := tz[0].zone
+	z := tz[0].zone;
 	return z.name, z.utcoff, nil
 }

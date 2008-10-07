@@ -19,7 +19,7 @@ export const (
 
 // Make the 4 bytes into an IPv4 address (in IPv6 form)
 func MakeIPv4(a, b, c, d byte) *[]byte {
-	p := new([]byte, IPv6len)
+	p := new([]byte, IPv6len);
 	for i := 0; i < 10; i++ {
 		p[i] = 0
 	}
@@ -28,7 +28,7 @@ func MakeIPv4(a, b, c, d byte) *[]byte {
 	p[12] = a;
 	p[13] = b;
 	p[14] = c;
-	p[15] = d
+	p[15] = d;
 	return p
 }
 
@@ -107,11 +107,11 @@ export func DefaultMask(p *[]byte) *[]byte {
 
 // Apply mask to ip, returning new address.
 export func Mask(ip *[]byte, mask *[]byte) *[]byte {
-	n := len(ip)
+	n := len(ip);
 	if n != len(mask) {
 		return nil
 	}
-	out := new([]byte, n)
+	out := new([]byte, n);
 	for i := 0; i < n; i++ {
 		out[i] = ip[i] & mask[i];
 	}
@@ -169,9 +169,9 @@ export func IPToString(p *[]byte) string {
 
 	// Find longest run of zeros.
 	e0 := -1;
-	e1 := -1
+	e1 := -1;
 	for i := 0; i < 16; i+=2 {
-		j := i
+		j := i;
 		for j < 16 && p[j] == 0 && p[j+1] == 0 {
 			j += 2
 		}
@@ -186,7 +186,7 @@ export func IPToString(p *[]byte) string {
 	for i := 0; i < 16; i += 2 {
 		if i == e0 {
 			s += "::";
-			i = e1
+			i = e1;
 			if i >= 16 {
 				break
 			}
@@ -201,16 +201,16 @@ export func IPToString(p *[]byte) string {
 // If mask is a sequence of 1 bits followed by 0 bits,
 // return the number of 1 bits.
 func SimpleMaskLength(mask *[]byte) int {
-	var i int
+	var i int;
 	for i = 0; i < len(mask); i++ {
 		if mask[i] != 0xFF {
 			break
 		}
 	}
 	n := 8*i;
-	v := mask[i]
+	v := mask[i];
 	for v & 0x80 != 0 {
-		n++
+		n++;
 		v <<= 1
 	}
 	if v != 0 {
@@ -227,12 +227,12 @@ func SimpleMaskLength(mask *[]byte) int {
 export func MaskToString(mask *[]byte) string {
 	switch len(mask) {
 	case 4:
-		n := SimpleMaskLength(mask)
+		n := SimpleMaskLength(mask);
 		if n >= 0 {
 			return itod(uint(n+(IPv6len-IPv4len)*8))
 		}
 	case 16:
-		n := SimpleMaskLength(mask)
+		n := SimpleMaskLength(mask);
 		if n >= 0 {
 			return itod(uint(n))
 		}
@@ -253,7 +253,7 @@ func dtoi(s string, i int) (n int, i1 int, ok bool) {
 	}
 	n = 0;
 	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
-		n = n*10 + int(s[i] - '0')
+		n = n*10 + int(s[i] - '0');
 		if n >= Big {
 			return 0, i, false
 		}
@@ -277,7 +277,7 @@ func xtoi(s string, i int) (n int, i1 int, ok bool) {
 
 	n = 0;
 	for ; i < len(s) && ishex(s[i]); i++ {
-		n *= 16
+		n *= 16;
 		if '0' <= s[i] && s[i] <= '9' {
 			n += int(s[i] - '0')
 		} else if 'a' <= s[i] && s[i] <= 'f' {
@@ -294,20 +294,20 @@ func xtoi(s string, i int) (n int, i1 int, ok bool) {
 
 // Parse IPv4 address (d.d.d.d).
 func ParseIPv4(s string) *[]byte {
-	var p [IPv4len]byte
-	i := 0
+	var p [IPv4len]byte;
+	i := 0;
 	for j := 0; j < IPv4len; j++ {
 		if j > 0 {
 			if s[i] != '.' {
 				return nil
 			}
-			i++
+			i++;
 		}
 		var (
 			n int;
 			ok bool
 		)
-		n, i, ok = dtoi(s, i)
+		n, i, ok = dtoi(s, i);
 		if !ok || n > 0xFF {
 			return nil
 		}
@@ -335,7 +335,7 @@ func ParseIPv6(s string) *[]byte {
 	// Might have leading ellipsis
 	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
 		ellipsis = 0;
-		i = 2
+		i = 2;
 		// Might be only ellipsis
 		if i == len(s) {
 			return p
@@ -346,7 +346,7 @@ func ParseIPv6(s string) *[]byte {
 	j := 0;
 L:	for j < IPv6len {
 		// Hex number.
-		n, i1, ok := xtoi(s, i)
+		n, i1, ok := xtoi(s, i);
 		if !ok || n > 0xFFFF {
 			return nil
 		}
@@ -371,7 +371,7 @@ L:	for j < IPv6len {
 			p[j+2] = p4[14];
 			p[j+3] = p4[15];
 			i = len(s);
-			j += 4
+			j += 4;
 			break
 		}
 
@@ -381,7 +381,7 @@ L:	for j < IPv6len {
 		j += 2;
 
 		// Stop at end of string.
-		i = i1
+		i = i1;
 		if i == len(s) {
 			break
 		}
@@ -390,7 +390,7 @@ L:	for j < IPv6len {
 		if s[i] != ':' && i+1 == len(s) {
 			return nil
 		}
-		i++
+		i++;
 
 		// Look for ellipsis.
 		if s[i] == ':' {
@@ -414,7 +414,7 @@ L:	for j < IPv6len {
 		if ellipsis < 0 {
 			return nil
 		}
-		n := IPv6len - j
+		n := IPv6len - j;
 		for k := j-1; k >= ellipsis; k-- {
 			p[k+n] = p[k]
 		}
@@ -426,7 +426,7 @@ L:	for j < IPv6len {
 }
 
 export func ParseIP(s string) *[]byte {
-	p := ParseIPv4(s)
+	p := ParseIPv4(s);
 	if p != nil {
 		return p
 	}

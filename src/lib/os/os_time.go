@@ -11,7 +11,7 @@ import (
 
 export func Time() (sec int64, nsec int64, err *Error) {
 	var errno int64;
-	sec, nsec, errno = syscall.gettimeofday()
+	sec, nsec, errno = syscall.gettimeofday();
 	if errno != 0 {
 		return 0, 0, ErrnoToError(errno)
 	}

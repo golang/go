@@ -9,7 +9,7 @@ package main
 var c *chan int
 
 func main() {
-	c = new(chan int)
+	c = new(chan int);
 	go func() { print("ok\n"); c <- 0 } ();
 	<-c
 }

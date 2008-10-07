@@ -32,7 +32,7 @@ var jobmap = new(map[*()]*Job)
 func Server() {
 	for {
 		req := <-service;
-		job, present := jobmap[req.f]
+		job, present := jobmap[req.f];
 		if !present {
 			job = new(Job);
 			job.doit = new(chan bool, 1);
@@ -48,8 +48,8 @@ export func Do(f *()) {
 	// If not there, ask map server to make one.
 	// TODO: Uncomment use of jobmap[f] once
 	// maps are thread-safe.
-	var job *Job
-	var present bool
+	var job *Job;
+	var present bool;
 	// job, present = jobmap[f]
 	if !present {
 		c := new(chan *Job);
