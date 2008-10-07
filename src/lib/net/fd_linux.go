@@ -34,7 +34,7 @@ export func NewPollster() (p *Pollster, err *os.Error) {
 	if p.epfd, e = syscall.epoll_create(16); e != 0 {
 		return nil, os.ErrnoToError(e)
 	}
-	p.events = new(map[int64] uint)
+	p.events = new(map[int64] uint);
 	return p, nil
 }
 
@@ -42,7 +42,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 	var ev syscall.EpollEvent
 	var already bool;
 	ev.fd = int32(fd);
-	ev.events, already = p.events[fd]
+	ev.events, already = p.events[fd];
 	if !repeat {
 		ev.events |= syscall.EPOLLONESHOT
 	}
@@ -52,7 +52,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 		ev.events |= Write
 	}
 
-	var op int64
+	var op int64;
 	if already {
 		op = syscall.EPOLL_CTL_MOD
 	} else {
@@ -61,14 +61,14 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 	if e := syscall.epoll_ctl(p.epfd, op, fd, &ev); e != 0 {
 		return os.ErrnoToError(e)
 	}
-	p.events[fd] = ev.events
+	p.events[fd] = ev.events;
 	return nil
 }
 
 func (p *Pollster) StopWaiting(fd int64, bits uint) {
-	events, already := p.events[fd]
+	events, already := p.events[fd];
 	if !already {
-		print("Epoll unexpected fd=", fd, "\n")
+		print("Epoll unexpected fd=", fd, "\n");
 		return
 	}
 
@@ -81,7 +81,7 @@ func (p *Pollster) StopWaiting(fd int64, bits uint) {
 	// Disable the given bits.
 	// If we're still waiting for other events, modify the fd
 	// event in the kernel.  Otherwise, delete it.
-	events &= ^bits
+	events &= ^bits;
 	if int32(events) & ^syscall.EPOLLONESHOT != 0 {
 		var ev syscall.EpollEvent;
 		ev.fd = int32(fd);
@@ -102,35 +102,35 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
 	// Get an event.
 	var evarray [1]syscall.EpollEvent;
 	ev := &evarray[0];
-	n, e := syscall.epoll_wait(p.epfd, &evarray, -1)
+	n, e := syscall.epoll_wait(p.epfd, &evarray, -1);
 	for e == syscall.EAGAIN || e == syscall.EINTR {
 		n, e = syscall.epoll_wait(p.epfd, &evarray, -1)
 	}
 	if e != 0 {
 		return -1, 0, os.ErrnoToError(e)
 	}
-	fd = int64(ev.fd)
+	fd = int64(ev.fd);
 
 	if ev.events & Write != 0 {
-		p.StopWaiting(fd, Write)
+		p.StopWaiting(fd, Write);
 		return fd, 'w', nil
 	}
 	if ev.events & Read != 0 {
-		p.StopWaiting(fd, Read)
+		p.StopWaiting(fd, Read);
 		return fd, 'r', nil
 	}
 
 	// Other events are error conditions - wake whoever is waiting.
-	events, already := p.events[fd]
+	events, already := p.events[fd];
 	if events & Write != 0 {
-		p.StopWaiting(fd, Write)
+		p.StopWaiting(fd, Write);
 		return fd, 'w', nil
 	}
-	p.StopWaiting(fd, Read)
+	p.StopWaiting(fd, Read);
 	return fd, 'r', nil
 }
 
 func (p *Pollster) Close() *os.Error {
-	r, e := syscall.close(p.epfd)
+	r, e := syscall.close(p.epfd);
 	return os.ErrnoToError(e)
 }

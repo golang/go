@@ -12,14 +12,14 @@ import (
 // Seconds since January 1, 1970 00:00:00 GMT
 export func Seconds() (sec int64, err *os.Error) {
 	var nsec int64;
-	sec, nsec, err = os.Time()
+	sec, nsec, err = os.Time();
 	return sec, err
 }
 
 // Nanoseconds since January 1, 1970 00:00:00 GMT
 export func Nanoseconds() (nsec int64, err *os.Error) {
 	var sec int64;
-	sec, nsec, err = os.Time()
+	sec, nsec, err = os.Time();
 	return sec*1e9 + nsec, err
 }
 
@@ -75,7 +75,7 @@ export func SecondsToUTC(sec int64) *Time {
 	day := sec/SecondsPerDay;
 	sec -= day*SecondsPerDay;
 	if sec < 0 {
-		day--
+		day--;
 		sec += SecondsPerDay
 	}
 
@@ -85,7 +85,7 @@ export func SecondsToUTC(sec int64) *Time {
 	t.second = int(sec%60);
 
 	// Day 0 = January 1, 1970 was a Thursday
-	t.weekday = int((day + Thursday) % 7)
+	t.weekday = int((day + Thursday) % 7);
 	if t.weekday < 0 {
 		t.weekday += 7
 	}
@@ -95,7 +95,7 @@ export func SecondsToUTC(sec int64) *Time {
 	// (2001 begins 4-, 100-, and 400-year cycles ending in a leap year.)
 	day -= Days1970To2001;
 
-	year := int64(2001)
+	year := int64(2001);
 	if day < 0 {
 		// Go back enough 400 year cycles to make day positive.
 		n := -day/DaysPer400Years + 1;
@@ -143,7 +143,7 @@ export func SecondsToUTC(sec int64) *Time {
 
 export func UTC() (t *Time, err *os.Error) {
 	var sec int64;
-	sec, err = Seconds()
+	sec, err = Seconds();
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ export func UTC() (t *Time, err *os.Error) {
 
 // TODO: Should this return an error?
 export func SecondsToLocalTime(sec int64) *Time {
-	zone, offset, err := time.LookupTimezone(sec)
+	zone, offset, err := time.LookupTimezone(sec);
 	if err != nil {
 		return SecondsToUTC(sec)
 	}
@@ -164,7 +164,7 @@ export func SecondsToLocalTime(sec int64) *Time {
 
 export func LocalTime() (t *Time, err *os.Error) {
 	var sec int64;
-	sec, err = Seconds()
+	sec, err = Seconds();
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ export func LocalTime() (t *Time, err *os.Error) {
 func (t *Time) Seconds() int64 {
 	// First, accumulate days since January 1, 2001.
 	// Using 2001 instead of 1970 makes the leap-year
-	// handling easier (see SecondsToUTC), because 
+	// handling easier (see SecondsToUTC), because
 	// it is at the beginning of the 4-, 100-, and 400-year cycles.
 	day := int64(0);
 
@@ -225,7 +225,7 @@ func (t *Time) Seconds() int64 {
 	sec += Days1970To2001 * SecondsPerDay;
 
 	// Account for local time zone.
-	sec -= int64(t.zoneoffset)
+	sec -= int64(t.zoneoffset);
 	return sec
 }
 
@@ -282,7 +282,7 @@ func Decimal(dst *[]byte, n int) {
 
 func AddString(buf *[]byte, bp int, s string) int {
 	n := len(s);
-	Copy(buf[bp:bp+n], s)
+	Copy(buf[bp:bp+n], s);
 	return bp+n
 }
 
@@ -290,21 +290,21 @@ func AddString(buf *[]byte, bp int, s string) int {
 // Not exported.
 func Format(t *Time, fmt string) string {
 	buf := new([]byte, 128);
-	bp := 0
+	bp := 0;
 
 	for i := 0; i < len(fmt); i++ {
 		if fmt[i] == '%' {
-			i++
+			i++;
 			switch fmt[i] {
 			case 'A':	// %A full weekday name
-				bp = AddString(buf, bp, LongDayNames[t.weekday])
+				bp = AddString(buf, bp, LongDayNames[t.weekday]);
 			case 'a':	// %a abbreviated weekday name
-				bp = AddString(buf, bp, ShortDayNames[t.weekday])
+				bp = AddString(buf, bp, ShortDayNames[t.weekday]);
 			case 'b':	// %b abbreviated month name
-				bp = AddString(buf, bp, ShortMonthNames[t.month-1])
+				bp = AddString(buf, bp, ShortMonthNames[t.month-1]);
 			case 'd':	// %d day of month (01-31)
 				Decimal(buf[bp:bp+2], t.day);
-				bp += 2
+				bp += 2;
 			case 'e':	// %e day of month ( 1-31)
 				if t.day >= 10 {
 					Decimal(buf[bp:bp+2], t.day)
@@ -312,24 +312,24 @@ func Format(t *Time, fmt string) string {
 					buf[bp] = ' ';
 					buf[bp+1] = byte(t.day + '0')
 				}
-				bp += 2
+				bp += 2;
 			case 'H':	// %H hour 00-23
 				Decimal(buf[bp:bp+2], t.hour);
-				bp += 2
+				bp += 2;
 			case 'M':	// %M minute 00-59
 				Decimal(buf[bp:bp+2], t.minute);
-				bp += 2
+				bp += 2;
 			case 'S':	// %S second 00-59
 				Decimal(buf[bp:bp+2], t.second);
-				bp += 2
+				bp += 2;
 			case 'Y':	// %Y year 2008
 				Decimal(buf[bp:bp+4], int(t.year));
-				bp += 4
+				bp += 4;
 			case 'y':	// %y year 08
 				Decimal(buf[bp:bp+2], int(t.year%100));
-				bp += 2
+				bp += 2;
 			case 'Z':
-				bp = AddString(buf, bp, t.zone)
+				bp = AddString(buf, bp, t.zone);
 			default:
 				buf[bp] = '%';
 				buf[bp+1] = fmt[i];
@@ -337,7 +337,7 @@ func Format(t *Time, fmt string) string {
 			}
 		} else {
 			buf[bp] = fmt[i];
-			bp++
+			bp++;
 		}
 	}
 	return string(buf[0:bp])

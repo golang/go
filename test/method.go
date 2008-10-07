@@ -40,7 +40,7 @@ func main() {
 	var p P;
 	var pp *P1;
 	var t T;
-	var pt *T1
+	var pt *T1;
 
 	if s.val() != 1 { panicln("s.val:", s.val()) }
 	if ps.val() != 2 { panicln("ps.val:", ps.val()) }

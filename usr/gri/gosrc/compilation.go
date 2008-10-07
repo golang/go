@@ -29,12 +29,12 @@ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data s
 	if ok {
 		return data, ok;
 	}
-	
+
 	if filename[0] == '/' {
 		// absolute path
 		panic(`don't know how to handle absolute import file path "` + filename + `"`);
 	}
-	
+
 	// relative path
 	// try relative to the $GOROOT/pkg directory
 	std_filename := Platform.GOROOT + "/pkg/" + filename;
@@ -42,11 +42,11 @@ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data s
 	if ok {
 		return data, ok;
 	}
-	
+
 	if !update {
 		return "", false;
 	}
-	
+
 	// TODO BIG HACK - fix this!
 	// look for a src file
 	// see if it just works
@@ -58,13 +58,13 @@ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data s
 			return data, ok;
 		}
 	}
-	
+
 	return "", false;
 }
 
 
 export func Import(comp *Globals.Compilation, pkg_file string) *Globals.Package {
-	data, ok := ReadImport(comp, pkg_file, comp.flags.update_packages)
+	data, ok := ReadImport(comp, pkg_file, comp.flags.update_packages);
 	var pkg *Globals.Package;
 	if ok {
 		pkg = Importer.Import(comp, data);
@@ -88,14 +88,14 @@ export func Compile(comp *Globals.Compilation, src_file string) {
 		print("cannot open ", src_file, "\n");
 		return;
 	}
-	
+
 	if comp.flags.verbosity > 0 {
 		print(src_file, "\n");
 	}
 
 	scanner := new(Scanner.Scanner);
 	scanner.Open(src_file, src);
-	
+
 	var tstream *chan *Scanner.Token;
 	if comp.flags.token_chan {
 		tstream = new(chan *Scanner.Token, 100);
@@ -109,16 +109,16 @@ export func Compile(comp *Globals.Compilation, src_file string) {
 	if parser.S.nerrors > 0 {
 		return;
 	}
-	
+
 	if !comp.flags.ast {
 		return;
 	}
-	
+
 	Verifier.Verify(comp);
-	
+
 	if comp.flags.print_interface {
 		Printer.PrintObject(comp, comp.pkg_list[0].obj, false);
 	}
-	
+
 	Export(comp, src_file);
 }

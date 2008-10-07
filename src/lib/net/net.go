@@ -24,7 +24,7 @@ export var (
 // Host cannot contain colons unless it is bracketed.
 func SplitHostPort(hostport string) (host, port string, err *os.Error) {
 	// The port starts after the last colon.
-	var i int
+	var i int;
 	for i = len(hostport)-1; i >= 0; i-- {
 		if hostport[i] == ':' {
 			break
@@ -69,7 +69,7 @@ func xdtoi(s string) (n int, ok bool) {
 	}
 	n = 0;
 	for i := 0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
-		n = n*10 + int(s[i] - '0')
+		n = n*10 + int(s[i] - '0');
 		if n >= 1000000 {	// bigger than we need
 			return 0, false
 		}
@@ -108,12 +108,12 @@ func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.E
 func SockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
 	switch sa.family {
 	case syscall.AF_INET, syscall.AF_INET6:
-		addr, port, e := SockaddrToIP(sa)
+		addr, port, e := SockaddrToIP(sa);
 		if e != nil {
 			return "", e
 		}
 		host := IPToString(addr);
-		return JoinHostPort(host, strings.itoa(port)), nil
+		return JoinHostPort(host, strings.itoa(port)), nil;
 	default:
 		return "", UnknownSocketFamily
 	}
@@ -136,28 +136,28 @@ func Socket(f, p, t int64, la, ra *syscall.Sockaddr) (fd *FD, err *os.Error) {
 	}
 
 	// Allow reuse of recently-used addresses.
-	syscall.setsockopt_int(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	syscall.setsockopt_int(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1);
 
-	var r int64
+	var r int64;
 	if la != nil {
-		r, e = syscall.bind(s, la)
+		r, e = syscall.bind(s, la);
 		if e != 0 {
-			syscall.close(s)
+			syscall.close(s);
 			return nil, os.ErrnoToError(e)
 		}
 	}
 
 	if ra != nil {
-		r, e = syscall.connect(s, ra)
+		r, e = syscall.connect(s, ra);
 		if e != 0 {
-			syscall.close(s)
+			syscall.close(s);
 			return nil, os.ErrnoToError(e)
 		}
 	}
 
-	fd, err = NewFD(s)
+	fd, err = NewFD(s);
 	if err != nil {
-		syscall.close(s)
+		syscall.close(s);
 		return nil, err
 	}
 
@@ -179,12 +179,12 @@ func (c *ConnBase) FD() int64 {
 }
 
 func (c *ConnBase) Read(b *[]byte) (n int, err *os.Error) {
-	n, err = c.fd.Read(b)
+	n, err = c.fd.Read(b);
 	return n, err
 }
 
 func (c *ConnBase) Write(b *[]byte) (n int, err *os.Error) {
-	n, err = c.fd.Write(b)
+	n, err = c.fd.Write(b);
 	return n, err
 }
 
@@ -192,7 +192,7 @@ func (c *ConnBase) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
 	if c == nil {
 		return -1, "", os.EINVAL
 	}
-	n, err = c.Read(b)
+	n, err = c.Read(b);
 	return n, c.raddr, err
 }
 
@@ -203,7 +203,7 @@ func (c *ConnBase) WriteTo(raddr string, b *[]byte) (n int, err *os.Error) {
 	if raddr != c.raddr {
 		return -1, os.EINVAL
 	}
-	n, err = c.Write(b)
+	n, err = c.Write(b);
 	return n, err
 }
 
@@ -264,7 +264,7 @@ func (c *ConnBase) SetKeepAlive(keepalive bool) *os.Error {
 }
 
 func (c *ConnBase) SetLinger(sec int) *os.Error {
-	e := syscall.setsockopt_linger(c.FD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec)
+	e := syscall.setsockopt_linger(c.FD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec);
 	return os.ErrnoToError(e);
 }
 
@@ -281,24 +281,24 @@ const PreferIPv4 = false
 
 func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Error) {
 	// Parse addresses (unless they are empty).
-	var lip, rip *[]byte
-	var lport, rport int
-	var lerr, rerr *os.Error
+	var lip, rip *[]byte;
+	var lport, rport int;
+	var lerr, rerr *os.Error;
 // BUG 6g doesn't zero var lists
 lip = nil;
 rip = nil;
 lport = 0;
 rport = 0;
 lerr = nil;
-rerr = nil
+rerr = nil;
 	if laddr != "" {
-		lip, lport, lerr = HostPortToIP(net, laddr)
+		lip, lport, lerr = HostPortToIP(net, laddr);
 		if lerr != nil {
 			return nil, lerr
 		}
 	}
 	if raddr != "" {
-		rip, rport, rerr = HostPortToIP(net, raddr)
+		rip, rport, rerr = HostPortToIP(net, raddr);
 		if rerr != nil {
 			return nil, rerr
 		}
@@ -309,9 +309,9 @@ rerr = nil
 	vers := 0;
 	switch net[len(net)-1] {
 	case '4':
-		vers = 4
+		vers = 4;
 	case '6':
-		vers = 6
+		vers = 6;
 	default:
 		// Otherwise, guess.
 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
@@ -324,8 +324,8 @@ rerr = nil
 		}
 	}
 
-	var cvt *(addr *[]byte, port int) (sa *syscall.Sockaddr, err *os.Error)
-	var family int64
+	var cvt *(addr *[]byte, port int) (sa *syscall.Sockaddr, err *os.Error);
+	var family int64;
 	if vers == 4 {
 		cvt = &IPv4ToSockaddr;
 		family = syscall.AF_INET
@@ -337,7 +337,7 @@ rerr = nil
 	var la, ra *syscall.Sockaddr;
 // BUG
 la = nil;
-ra = nil
+ra = nil;
 	if lip != nil {
 		la, lerr = cvt(lip, lport);
 		if lerr != nil {
@@ -372,19 +372,19 @@ func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
 
 // Wrappers
 func (c *ConnTCP) Read(b *[]byte) (n int, err *os.Error) {
-	n, err = (&c.base).Read(b)
+	n, err = (&c.base).Read(b);
 	return n, err
 }
 func (c *ConnTCP) Write(b *[]byte) (n int, err *os.Error) {
-	n, err = (&c.base).Write(b)
+	n, err = (&c.base).Write(b);
 	return n, err
 }
 func (c *ConnTCP) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
-	n, raddr, err = (&c.base).ReadFrom(b)
+	n, raddr, err = (&c.base).ReadFrom(b);
 	return n, raddr, err
 }
 func (c *ConnTCP) WriteTo(raddr string, b *[]byte) (n int, err *os.Error) {
-	n, err = (&c.base).WriteTo(raddr, b)
+	n, err = (&c.base).WriteTo(raddr, b);
 	return n, err
 }
 func (c *ConnTCP) Close() *os.Error {
@@ -433,7 +433,7 @@ export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
 	}
-	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_STREAM)
+	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_STREAM);
 	if e != nil {
 		return nil, e
 	}
@@ -499,23 +499,23 @@ var noconn NoConn
 export func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
-		c, err := DialTCP(net, laddr, raddr)
+		c, err := DialTCP(net, laddr, raddr);
 		if err != nil {
 			return &noconn, err
 		}
-		return c, nil
+		return c, nil;
 /*
 	case "udp", "udp4", "upd6":
-		c, err := DialUDP(net, laddr, raddr)
-		return c, err
+		c, err := DialUDP(net, laddr, raddr);
+		return c, err;
 	case "ether":
-		c, err := DialEther(net, laddr, raddr)
-		return c, err
+		c, err := DialEther(net, laddr, raddr);
+		return c, err;
 	case "ipv4":
-		c, err := DialIPv4(net, laddr, raddr)
-		return c, err
+		c, err := DialIPv4(net, laddr, raddr);
+		return c, err;
 	case "ipv6":
-		c, err := DialIPv6(net, laddr, raddr)
+		c, err := DialIPv6(net, laddr, raddr);
 		return c, err
 */
 	}
@@ -542,17 +542,17 @@ export type ListenerTCP struct {
 }
 
 export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
-	fd, e := InternetSocket(net, laddr, "", syscall.SOCK_STREAM)
+	fd, e := InternetSocket(net, laddr, "", syscall.SOCK_STREAM);
 	if e != nil {
 		return nil, e
 	}
-	r, e1 := syscall.listen(fd.fd, ListenBacklog())
+	r, e1 := syscall.listen(fd.fd, ListenBacklog());
 	if e1 != 0 {
-		syscall.close(fd.fd)
+		syscall.close(fd.fd);
 		return nil, os.ErrnoToError(e1)
 	}
 	l = new(ListenerTCP);
-	l.fd = fd
+	l.fd = fd;
 	return l, nil
 }
 
@@ -561,20 +561,20 @@ func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
 		return nil, "", os.EINVAL
 	}
 	var sa syscall.Sockaddr;
-	fd, e := l.fd.Accept(&sa)
+	fd, e := l.fd.Accept(&sa);
 	if e != nil {
 		return nil, "", e
 	}
-	raddr, err = SockaddrToHostPort(&sa)
+	raddr, err = SockaddrToHostPort(&sa);
 	if err != nil {
-		fd.Close()
+		fd.Close();
 		return nil, "", err
 	}
 	return NewConnTCP(fd, raddr), raddr, nil
 }
 
 func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
-	c1, r1, e1 := l.AcceptTCP()
+	c1, r1, e1 := l.AcceptTCP();
 	if e1 != nil {
 		return &noconn, "", e1
 	}
@@ -591,7 +591,7 @@ func (l *ListenerTCP) Close() *os.Error {
 export func Listen(net, laddr string) (l Listener, err *os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
-		l, err := ListenTCP(net, laddr)
+		l, err := ListenTCP(net, laddr);
 		if err != nil {
 			return &nolistener, err
 		}

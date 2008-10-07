@@ -57,7 +57,7 @@ func main() {
 		sec := UTCTests[i].seconds;
 		golden := &UTCTests[i].golden;
 		t := time.SecondsToUTC(sec);
-		newsec := t.Seconds()
+		newsec := t.Seconds();
 		if newsec != sec {
 			panic("SecondsToUTC and back ", sec, " ", newsec)
 		}
@@ -72,7 +72,7 @@ func main() {
 		sec := LocalTests[i].seconds;
 		golden := &LocalTests[i].golden;
 		t := time.SecondsToLocalTime(sec);
-		newsec := t.Seconds()
+		newsec := t.Seconds();
 		if newsec != sec {
 			panic("SecondsToLocalTime and back ", sec, " ", newsec)
 		}

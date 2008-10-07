@@ -65,7 +65,7 @@ srand(seed int32)
 	for i := -20; i < LEN; i++ {
 		x = seedrand(x);
 		if i >= 0 {
-			var u int64
+			var u int64;
 			u = int64(x) << 20;
 			x = seedrand(x);
 			u ^= int64(x) << 10;
@@ -121,7 +121,7 @@ nrand63(n int64) int64
 		return 0
 	}
 	max := int64((1<<63)-1 - (1<<63) % uint64(n));
-	v := rand63()
+	v := rand63();
 	for v > max {
 		v = rand63()
 	}

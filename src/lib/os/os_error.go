@@ -16,7 +16,7 @@ var ErrorTab = new(map[int64] *Error);
 
 export func NewError(s string) *Error {
 	e := new(Error);
-	e.s = s
+	e.s = s;
 	return e
 }
 
@@ -24,7 +24,7 @@ export func ErrnoToError(errno int64) *Error {
 	if errno == 0 {
 		return nil
 	}
-	err, ok := ErrorTab[errno]
+	err, ok := ErrorTab[errno];
 	if ok {
 		return err
 	}

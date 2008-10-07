@@ -8,8 +8,8 @@
 package main
 
 func main() {
-	var s string
-	var ok bool
+	var s string;
+	var ok bool;
 
 	s, ok = sys.readfile("readfile.go");
 	if !ok {

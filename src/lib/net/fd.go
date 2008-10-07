@@ -28,11 +28,11 @@ export type FD struct {
 
 // Make reads and writes on fd return EAGAIN instead of blocking.
 func SetNonblock(fd int64) *os.Error {
-	flags, e := syscall.fcntl(fd, syscall.F_GETFL, 0)
+	flags, e := syscall.fcntl(fd, syscall.F_GETFL, 0);
 	if e != 0 {
 		return os.ErrnoToError(e)
 	}
-	flags, e = syscall.fcntl(fd, syscall.F_SETFL, flags | syscall.O_NONBLOCK)
+	flags, e = syscall.fcntl(fd, syscall.F_SETFL, flags | syscall.O_NONBLOCK);
 	if e != 0 {
 		return os.ErrnoToError(e)
 	}
@@ -87,7 +87,7 @@ func NewPollServer() (s *PollServer, err *os.Error) {
 	if err = SetNonblock(s.pr.fd); err != nil {
 	Error:
 		s.pr.Close();
-		s.pw.Close()
+		s.pw.Close();
 		return nil, err
 	}
 	if err = SetNonblock(s.pw.fd); err != nil {
@@ -97,40 +97,40 @@ func NewPollServer() (s *PollServer, err *os.Error) {
 		goto Error
 	}
 	if err = s.poll.AddFD(s.pr.fd, 'r', true); err != nil {
-		s.poll.Close()
+		s.poll.Close();
 		goto Error
 	}
-	s.pending = new(map[int64] *FD)
-	go s.Run()
+	s.pending = new(map[int64] *FD);
+	go s.Run();
 	return s, nil
 }
 
 func (s *PollServer) AddFD(fd *FD, mode int) {
 	if err := s.poll.AddFD(fd.fd, mode, false); err != nil {
-		print("PollServer AddFD: ", err.String(), "\n")
+		print("PollServer AddFD: ", err.String(), "\n");
 		return
 	}
 
-	key := fd.fd << 1
+	key := fd.fd << 1;
 	if mode == 'r' {
-		fd.ncr++
+		fd.ncr++;
 	} else {
-		fd.ncw++
-		key++
+		fd.ncw++;
+		key++;
 	}
 	s.pending[key] = fd
 }
 
 func (s *PollServer) LookupFD(fd int64, mode int) *FD {
-	key := fd << 1
+	key := fd << 1;
 	if mode == 'w' {
-		key++
+		key++;
 	}
-	netfd, ok := s.pending[key]
+	netfd, ok := s.pending[key];
 	if !ok {
 		return nil
 	}
-	s.pending[key] = nil, false
+	s.pending[key] = nil, false;
 	return netfd
 }
 
@@ -139,7 +139,7 @@ func (s *PollServer) Run() {
 	for {
 		fd, mode, err := s.poll.WaitFD();
 		if err != nil {
-			print("PollServer WaitFD: ", err.String(), "\n")
+			print("PollServer WaitFD: ", err.String(), "\n");
 			return
 		}
 		if fd == s.pr.fd {
@@ -156,19 +156,19 @@ func (s *PollServer) Run() {
 				s.AddFD(fd, 'w')
 			}
 		} else {
-			netfd := s.LookupFD(fd, mode)
+			netfd := s.LookupFD(fd, mode);
 			if netfd == nil {
-				print("PollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n")
+				print("PollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n");
 				continue
 			}
 			if mode == 'r' {
 				for netfd.ncr > 0 {
-					netfd.ncr--
+					netfd.ncr--;
 					netfd.cr <- netfd
 				}
 			} else {
 				for netfd.ncw > 0 {
-					netfd.ncw--
+					netfd.ncw--;
 					netfd.cw <- netfd
 				}
 			}
@@ -200,7 +200,7 @@ func (s *PollServer) WaitWrite(fd *FD) {
 var pollserver *PollServer
 
 func StartServer() {
-	p, err := NewPollServer()
+	p, err := NewPollServer();
 	if err != nil {
 		print("Start PollServer: ", err.String(), "\n")
 	}
@@ -228,7 +228,7 @@ func (fd *FD) Close() *os.Error {
 	}
 	e := fd.osfd.Close();
 	fd.osfd = nil;
-	fd.fd = -1
+	fd.fd = -1;
 	return e
 }
 
@@ -236,7 +236,7 @@ func (fd *FD) Read(p *[]byte) (n int, err *os.Error) {
 	if fd == nil || fd.osfd == nil {
 		return -1, os.EINVAL
 	}
-	n, err = fd.osfd.Read(p)
+	n, err = fd.osfd.Read(p);
 	for err == os.EAGAIN {
 		pollserver.WaitRead(fd);
 		n, err = fd.osfd.Read(p)
@@ -249,7 +249,7 @@ func (fd *FD) Write(p *[]byte) (n int, err *os.Error) {
 		return -1, os.EINVAL
 	}
 	err = nil;
-	nn := 0
+	nn := 0;
 	for nn < len(p) && err == nil {
 		n, err = fd.osfd.Write(p[nn:len(p)]);
 		for err == os.EAGAIN {
@@ -270,7 +270,7 @@ func (fd *FD) Accept(sa *syscall.Sockaddr) (nfd *FD, err *os.Error) {
 	if fd == nil || fd.osfd == nil {
 		return nil, os.EINVAL
 	}
-	s, e := syscall.accept(fd.fd, sa)
+	s, e := syscall.accept(fd.fd, sa);
 	for e == syscall.EAGAIN {
 		pollserver.WaitRead(fd);
 		s, e = syscall.accept(fd.fd, sa)
@@ -279,7 +279,7 @@ func (fd *FD) Accept(sa *syscall.Sockaddr) (nfd *FD, err *os.Error) {
 		return nil, os.ErrnoToError(e)
 	}
 	if nfd, err = NewFD(s); err != nil {
-		syscall.close(s)
+		syscall.close(s);
 		return nil, err
 	}
 	return nfd, nil

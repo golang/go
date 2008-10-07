@@ -20,11 +20,11 @@ export type ReadWrite interface {
 }
 
 export func WriteString(w Write, s string) (n int, err *os.Error) {
-	b := new([]byte, len(s)+1)
+	b := new([]byte, len(s)+1);
 	if !syscall.StringToBytes(b, s) {
 		return -1, os.EINVAL
 	}
 	// BUG return w.Write(b[0:len(s)])
-	r, e := w.Write(b[0:len(s)])
+	r, e := w.Write(b[0:len(s)]);
 	return r, e
 }

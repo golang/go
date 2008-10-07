@@ -55,13 +55,13 @@ export func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
 	}
 	b = new(BufRead);
 	b.buf = new([]byte, size);
-	b.rd = rd
+	b.rd = rd;
 	return b, nil
 }
 
 export func NewBufRead(rd io.Read) (b *BufRead, err *os.Error) {
 	// 6g BUG return NewBufReadSize(rd, DefaultBufSize)
-	r, e := NewBufReadSize(rd, DefaultBufSize)
+	r, e := NewBufReadSize(rd, DefaultBufSize);
 	return r, e
 }
 
@@ -70,7 +70,7 @@ func (b *BufRead) Fill() *os.Error {
 	if b.err != nil {
 		return b.err
 	}
-	
+
 	// Slide existing data to beginning.
 	if b.w >  b.r {
 		CopySlice(b.buf[0:b.w-b.r], b.buf[b.r:b.w]);
@@ -81,12 +81,12 @@ func (b *BufRead) Fill() *os.Error {
 	b.r = 0;
 
 	// Read new data.
-	n, e := b.rd.Read(b.buf[b.w:len(b.buf)])
+	n, e := b.rd.Read(b.buf[b.w:len(b.buf)]);
 	if e != nil {
-		b.err = e
+		b.err = e;
 		return e
 	}
-	b.w += n
+	b.w += n;
 	return nil
 }
 
@@ -95,11 +95,11 @@ func (b *BufRead) Fill() *os.Error {
 // If nn < len(p), also returns an error explaining
 // why the read is short.
 func (b *BufRead) Read(p *[]byte) (nn int, err *os.Error) {
-	nn = 0
+	nn = 0;
 	for len(p) > 0 {
-		n := len(p)
+		n := len(p);
 		if b.w == b.r {
-			b.Fill()
+			b.Fill();
 			if b.err != nil {
 				return nn, b.err
 			}
@@ -122,7 +122,7 @@ func (b *BufRead) Read(p *[]byte) (nn int, err *os.Error) {
 // If no byte available, returns error.
 func (b *BufRead) ReadByte() (c byte, err *os.Error) {
 	if b.w == b.r {
-		b.Fill()
+		b.Fill();
 		if b.err != nil {
 			return 0, b.err
 		}
@@ -131,7 +131,7 @@ func (b *BufRead) ReadByte() (c byte, err *os.Error) {
 		}
 	}
 	c = b.buf[b.r];
-	b.r++
+	b.r++;
 	return c, nil
 }
 
@@ -143,7 +143,7 @@ func (b *BufRead) UnreadByte() *os.Error {
 	if b.r <= 0 {
 		return PhaseError
 	}
-	b.r--
+	b.r--;
 	return nil
 }
 
@@ -167,20 +167,20 @@ func (b *BufRead) Buffered() int {
 // returning a slice pointing at the bytes in the buffer.
 // The bytes stop being valid at the next read call.
 // Fails if the line doesn't fit in the buffer.
-// For internal (or advanced) use only.   
+// For internal (or advanced) use only.
 // Use ReadLineString or ReadLineBytes instead.
 func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
 	if b.err != nil {
 		return nil, b.err
 	}
-	
+
 	// Look in buffer.
 	if i := FindByte(b.buf[b.r:b.w], delim); i >= 0 {
 		line1 := b.buf[b.r:b.r+i+1];
 		b.r += i+1;
 		return line1, nil
 	}
-	
+
 	// Read more into buffer, until buffer fills or we find delim.
 	for {
 		n := b.Buffered();
@@ -191,34 +191,34 @@ func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
 		if b.Buffered() == n {	// no data added; end of file
 			return nil, EndOfFile
 		}
-	
+
 		// Search new part of buffer
 		if i := FindByte(b.buf[n:b.w], delim); i >= 0 {
 			line := b.buf[0:n+i+1];
-			b.r = n+i+1
+			b.r = n+i+1;
 			return line, nil
 		}
-		
+
 		// Buffer is full?
 		if b.Buffered() >= len(b.buf) {
 			return nil, BufferFull
 		}
 	}
-	
+
 	// BUG 6g bug100
 	return nil, nil
 }
 
 // Read until the first occurrence of delim in the input,
 // returning a new byte array containing the line.
-// If an error happens, returns the data (without a delimiter) 
+// If an error happens, returns the data (without a delimiter)
 // and the error.  (Can't leave the data in the buffer because
 // we might have read more than the buffer size.)
 func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
 	if b.err != nil {
 		return nil, b.err
 	}
-	
+
 	// Use ReadLineSlice to look for array,
 	// accumulating full buffers.
 	var frag *[]byte;
@@ -236,22 +236,22 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
 			err = e;
 			break
 		}
-		
+
 		// Read bytes out of buffer.
 		buf := new([]byte, b.Buffered());
 		var n int;
 		n, e = b.Read(buf);
 		if e != nil {
 			frag = buf[0:n];
-			err = e
+			err = e;
 			break
 		}
 		if n != len(buf) {
 			frag = buf[0:n];
-			err = InternalError
+			err = InternalError;
 			break
 		}
-		
+
 		// Grow list if needed.
 		if full == nil {
 			full = new([]*[]byte, 16);
@@ -266,11 +266,11 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
 
 		// Save buffer
 		full[nfull] = buf;
-		nfull++
+		nfull++;
 	}
-	
+
 	// Allocate new buffer to hold the full pieces and the fragment.
-	n := 0
+	n := 0;
 	for i := 0; i < nfull; i++ {
 		n += len(full[i])
 	}
@@ -280,7 +280,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
 
 	// Copy full pieces and fragment in.
 	buf := new([]byte, n);
-	n = 0
+	n = 0;
 	for i := 0; i < nfull; i++ {
 		CopySlice(buf[n:n+len(full[i])], full[i]);
 		n += len(full[i])
@@ -303,7 +303,7 @@ func ToString(p *[]byte) string {
 // returning a new string containing the line.
 // If savedelim, keep delim in the result; otherwise chop it off.
 func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *os.Error) {
-	bytes, e := b.ReadLineBytes(delim)
+	bytes, e := b.ReadLineBytes(delim);
 	if e != nil {
 		return ToString(bytes), e
 	}
@@ -329,13 +329,13 @@ export func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error) 
 	}
 	b = new(BufWrite);
 	b.buf = new([]byte, size);
-	b.wr = wr
+	b.wr = wr;
 	return b, nil
 }
 
 export func NewBufWrite(wr io.Write) (b *BufWrite, err *os.Error) {
 	// 6g BUG return NewBufWriteSize(wr, DefaultBufSize)
-	r, e := NewBufWriteSize(wr, DefaultBufSize)
+	r, e := NewBufWriteSize(wr, DefaultBufSize);
 	return r, e
 }
 
@@ -344,10 +344,10 @@ func (b *BufWrite) Flush() *os.Error {
 	if b.err != nil {
 		return b.err
 	}
-	n := 0
+	n := 0;
 	for n < b.n {
 		m, e := b.wr.Write(b.buf[n:b.n]);
-		n += m
+		n += m;
 		if m == 0 && e == nil {
 			e = ShortWrite
 		}
@@ -356,11 +356,11 @@ func (b *BufWrite) Flush() *os.Error {
 				CopySlice(b.buf[0:b.n-n], b.buf[n:b.n])
 			}
 			b.n -= n;
-			b.err = e
+			b.err = e;
 			return e
 		}
 	}
-	b.n = 0
+	b.n = 0;
 	return nil
 }
 
@@ -376,9 +376,9 @@ func (b *BufWrite) Write(p *[]byte) (nn int, err *os.Error) {
 	if b.err != nil {
 		return 0, b.err
 	}
-	nn = 0
+	nn = 0;
 	for len(p) > 0 {
-		n := b.Available()
+		n := b.Available();
 		if n <= 0 {
 			if b.Flush(); b.err != nil {
 				break
@@ -404,7 +404,7 @@ func (b *BufWrite) WriteByte(c byte) *os.Error {
 		return b.err
 	}
 	b.buf[b.n] = c;
-	b.n++
+	b.n++;
 	return nil
 }
 

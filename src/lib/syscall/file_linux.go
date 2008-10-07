@@ -83,7 +83,7 @@ export func unlink(name string) (ret int64, errno int64) {
 }
 
 export func fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
-	r1, r2, err := Syscall(SYS_FCNTL, fd, cmd, arg)
+	r1, r2, err := Syscall(SYS_FCNTL, fd, cmd, arg);
 	return r1, err
 }
 

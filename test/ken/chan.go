@@ -65,7 +65,7 @@ send() bool
 	tots++;
 	c.sv = expect(c.sv, c.sv);
 	if c.sv == End {
-		c.sc = nil
+		c.sc = nil;
 		return true;
 	}
 	return false;

@@ -137,7 +137,7 @@ func getn(in *[]*dch, n int) *[]item {
 		dat[i] = nil;
 	}
 	for n=2*n; n>0; n-- {
-		seqno++
+		seqno++;
 
 		select{
 		case req[0] <- seqno:
@@ -337,7 +337,7 @@ func Add(U, V PS) PS{
 				copy(V,Z);
 			case 2:
 				Z.dat <- uv[0];
-				copy(U,Z)
+				copy(U,Z);
 			case 3:
 				Z.dat <- finis;
 			}
@@ -612,7 +612,7 @@ func Init() {
 
 func check(U PS, c item, count int, str string) {
 	for i := 0; i < count; i++ {
-		r := get(U)
+		r := get(U);
 		if !r.eq(c) {
 			print("got: ");
 			r.pr();
@@ -665,7 +665,7 @@ func main() {
 		checka(in, a, "Integ");  // 0 1 1/2 1/3 1/4 1/5
 		check(Cmul(neg(one), Twos), itor(-2), 10, "CMul");  // -1 -1 -1 -1 -1
 		check(Sub(Ones, Twos), itor(-1), 0, "Sub Ones Twos");  // -1 -1 -1 -1 -1
-		m := Mul(Ones, Ones)
+		m := Mul(Ones, Ones);
 		// BUG: want array initializer
 		for i:=0; i < N; i++ {
 			a[i] = itor(int64(i+1))
