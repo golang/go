@@ -1,4 +1,4 @@
-char *sysimport =
+char *sysimport = 
 	"package sys\n"
 	"type sys.any any\n"
 	"type sys.uint32 uint32\n"
@@ -66,7 +66,7 @@ char *sysimport =
 	"export func sys.readfile (? sys.string) (? sys.string, ? sys.bool)\n"
 	"export func sys.writefile (? sys.string, ? sys.string) (? sys.bool)\n"
 	"export func sys.bytestorune (? *sys.uint8, ? sys.int32, ? sys.int32) (? sys.int32, ? sys.int32)\n"
-	"export func sys.stringtorune (? sys.string, ? sys.int32, ? sys.int32) (? sys.int32, ? sys.int32)\n"
+	"export func sys.stringtorune (? sys.string, ? sys.int32) (? sys.int32, ? sys.int32)\n"
 	"export func sys.exit (? sys.int32)\n"
 	"\n"
 	"$$\n";

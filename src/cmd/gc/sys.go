@@ -76,7 +76,7 @@ export func	goexit();
 export func	readfile(string) (string, bool);	// read file into string; boolean status
 export func	writefile(string, string) (bool);	// write string into file; boolean status
 export func	bytestorune(*byte, int32, int32) (int32, int32);	// convert bytes to runes
-export func	stringtorune(string, int32, int32) (int32, int32);	// convert bytes to runes
+export func	stringtorune(string, int32) (int32, int32);	// convert bytes to runes
 
 export func	exit(int32);
 
