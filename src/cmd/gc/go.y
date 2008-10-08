@@ -117,6 +117,7 @@ imports:
 import:
 	LIMPORT import_stmt
 |	LIMPORT '(' import_stmt_list_r osemi ')'
+|	LIMPORT '(' ')'
 
 import_stmt:
 	import_here import_package import_there
@@ -223,6 +224,10 @@ Acommon_dcl:
 	{
 		$$ = rev($3);
 	}
+|	LVAR '(' ')'
+	{
+		$$ = N;
+	}
 |	LCONST '(' constdcl osemi ')'
 	{
 		iota = 0;
@@ -235,11 +240,19 @@ Acommon_dcl:
 		lastconst = N;
 		$$ = N;
 	}
+|	LCONST '(' ')'
+	{
+		$$ = N;
+	}
 |	LTYPE Atypedcl
 	{
 		$$ = N;
 	}
 |	LTYPE '(' typedcl_list_r osemi ')'
+	{
+		$$ = N;
+	}
+|	LTYPE '(' ')'
 	{
 		$$ = N;
 	}
