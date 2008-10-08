@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 3 2008)
+(October 7, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -33,7 +33,6 @@ Open issues according to gri:
     (should only use new(arraytype, n) - this will allow later
 	 extension to multi-dim arrays w/o breaking the language)
 [ ] comparison operators: can we compare interfaces?
-[ ] optional semicolons: too complicated and unclear
 [ ] like to have assert() in the language, w/ option to disable code gen for it
 [ ] composite types should uniformly create an instance instead of a pointer
 [ ] clarify slice rules
@@ -55,13 +54,18 @@ Open issues according to gri:
 [ ] provide composite literal notation to address array indices: []int{ 0: x1, 1: x2, ... }
     and struct field names (both seem easy to do).
 [ ] reopening & and func issue: Seems inconsistent as both &func(){} and func(){} are
-    permitted.
+    permitted. Suggestion: func literals are pointers. We need to use & for all other
+	functions. This would be in consistency with the declaration of function pointer
+	variables and the use of '&' to convert methods into function pointers.
+[ ] Conversions: can we say: "type T int; T(3.0)" ?
+[ ] Is . import implemented?
 
 
 Decisions in need of integration into the doc:
 [ ] pair assignment is required to get map, and receive ok.
 
 Closed issues:
+[x] optional semicolons: too complicated and unclear
 [x] anonymous types are written using a type name, which can be a qualified identifier.
     this might be a problem when referring to such a field using the type name.
 [x] nil and interfaces - can we test for nil, what does it mean, etc.
@@ -93,6 +97,7 @@ Contents
 		Character and string literals
 		Operators and delimitors
 		Reserved words
+		Optional semicolons
 
 	Declarations and scope rules
 		Const declarations
@@ -196,6 +201,9 @@ examples are indented.
 Lower-case production names are used to identify productions that cannot
 be broken by white space or comments; they are usually tokens. Other
 productions are in CamelCase.
+
+Productions with names ending in List never produces the empty phrase.
+For instance, an ExpressionList always contains at least one expression.
 
 
 Source code representation
@@ -461,49 +469,73 @@ The following words are reserved and must not be used as identifiers:
 	continue     for          import       return       var
 
 
+Optional semicolons
+----
+
+Semicolons are used to terminate all declarations and statements.
+The following rules apply:
+
+	1) Semicolons can be omitted after declarations at the top
+	   (package) level.
+
+	2) Semicolons can be omitted before and after a closing
+	   parentheses ")" or brace "}" on a list of declarations
+	   or statements.
+
+Semicolons that are subject to these rules are represented using
+the OptSemicolon production:
+
+	OptSemicolon = [ ";" ] .
+
+
 Declarations and scope rules
 ----
 
-A declaration ``binds'' an identifier with a language entity (such as
+A declaration ``binds'' an identifier to a language entity (such as
 a package, constant, type, struct field, variable, parameter, result,
 function, method) and specifies properties of that entity such as its type.
 
-	Declaration = [ "export" ] ( ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl ) .
+	Declaration =
+		[ "export" ]
+		( ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl )
+		OptSemicolon .
 
 Every identifier in a program must be declared; some identifiers, such as "int"
 and "true", are predeclared.
 
 The ``scope'' of an identifier is the extent of source text within which the
-identifier can be used to refer to the bound entity. No identifier may be declared
-twice in a single scope. Go is lexically scoped: An identifier refers to the entity
-it is bound to only within the scope of the identifier.
+identifier denotes the bound entity. No identifier may be declared twice in a
+single scope. Go is lexically scoped: An identifier denotes the entity it is
+bound to only within the scope of the identifier.
 
-For instance, for variable "x", the scope of identifier "x" is the extent of
-source text within which "x" refers to that particular variable. It is illegal
-to declare another identifier "x" within the same scope.
+For instance, for a variable named "x", the scope of identifier "x" is the
+extent of source text within which "x" denotes that particular variable.
+It is illegal to declare another identifier "x" within the same scope.
 
-The scope of an identifier depends on the entity declared.
+The scope of an identifier depends on the entity declared. The scope for
+an identifier always excludes scopes redeclaring the identifier in nested
+blocks. An identifier declared in a nested block is said to ``shadow'' the
+same identifier declared in an outer block.
 
-	1. The scope of predeclared identifiers is the entire source file, excluding
-	   any scopes in nested blocks that redeclare the identifier.
+	1. The scope of predeclared identifiers is the entire source file.
 
-	2. The scope of an identifier referring to a constant, type, variable,
-	   function, method or package extends textually from the point of the
-	   identifier in the declaration to the end of the innermost surrounding
-	   block. It excludes any scopes in nested blocks that redeclare the
-	   identifier.
+	2. The scope of an identifier denoting a type, function or package
+	   extends textually from the point of the identifier in the declaration
+	   to the end of the innermost surrounding block.
 
-	3. The scope of a parameter or result identifier is the body of the
-	   corresponding function or method. It excludes any scopes in nested
-	   blocks that redeclare the identifier.
+	3. The scope of a constant or variable extends textually from
+	   after the declaration to the end of the innermost surrounding
+	   block.
 
-	4. The scope of a field or method identifier is selectors for the
+	4. The scope of a parameter or result identifier is the body of the
+	   corresponding function.
+
+	5. The scope of a field or method identifier is selectors for the
 	   corresponding type containing the field or method (§Selectors).
-
-	5. Implicit forward declaration: An identifier "T" may be used textually
-	   before the beginning of the scope of "T", but only to denote a pointer
-	   type of the form "*T". The full declaration of "T" must follow within
-	   the same block containing the forward declaration.
+	   
+	6. The scope of a label is the body of the innermost surrounding
+	   function and does not intersect with any non-label scope. Thus,
+	   each function has its own private label scope.
 
 An entity is said to be ``local'' to its scope. Declarations in the package
 scope are ``global'' declarations.
@@ -520,11 +552,6 @@ all structure fields and all structure and interface methods are exported also.
 
 	export const pi float = 3.14159265
 	export func Parse(source string);
-
-The scope of a label 'x' is the entire block of the surrounding function excluding
-any nested function. Thus, each function has its own private label scope, and
-identifiers for labels never conflict with any non-label identifier. Within a
-function a label 'x' may only be declared once (§Label declarations).
 
 Note that at the moment the old-style export via ExportDecl is still supported.
 
@@ -568,12 +595,12 @@ are unknown in general).
 Const declarations
 ----
 
-A constant declaration gives a name to the value of a constant expression
-(§Constant expressions).
+A constant declaration binds an identifier to the value of a constant
+expression (§Constant expressions).
 
-	ConstDecl = "const" ( ConstSpec | "(" ConstSpecList [ ";" ] ")" ).
-	ConstSpec = identifier [ Type ] "=" Expression .
-	ConstSpecList = ConstSpec { ";" ConstSpecOptExpr }.
+	ConstDecl = "const" ( ConstSpec | "(" ConstSpecList ")" ).
+	ConstSpec = identifier [ CompleteType ] "=" Expression .
+	ConstSpecList = ConstSpec OptSemicolon { ConstSpecOptExpr OptSemicolon }.
  	ConstSpecOptExpr = identifier [ Type ] [ "=" Expression ] .
 
 	const pi float = 3.14159265
@@ -587,7 +614,7 @@ The constant expression may be omitted, in which case the expression is
 the last expression used after the reserved word "const". If no such expression
 exists, the constant expression cannot be omitted.
 
-Together with the "iota" constant generator (described later),
+Together with the "iota" constant generator (§Iota),
 implicit repetition permits light-weight declaration of enumerated
 values:
 
@@ -647,16 +674,16 @@ underflow.
 Type declarations
 ----
 
-A type declaration introduces a name for a type.
+A type declaration specifies a new type and binds an identifier to it.
 
-	TypeDecl = "type" ( TypeSpec | "(" TypeSpecList [ ";" ] ")" ).
+	TypeDecl = "type" ( TypeSpec | "(" TypeSpecList ")" ).
 	TypeSpec = identifier Type .
-	TypeSpecList = TypeSpec { ";" TypeSpec }.
+	TypeSpecList = TypeSpec OptSemicolon { TypeSpec OptSemicolon }.
 
-The name refers to an incomplete type until the type specification is complete.
-Incomplete types can be referred to only by pointer types. Consequently, in a
-type declaration a type may not refer to itself unless it does so with a pointer
-type.
+A struct or interface type may be forward-declared (§Struct types,
+§Interface types). A forward-declared type is incomplete (§Types)
+until it is fully declared. The full declaration must must follow
+within the same block containing the forward declaration.
 
 	type IntArray [16] int
 
@@ -669,18 +696,24 @@ type.
 		left, right *TreeNode;
 		value Point;
 	}
+	
+	type Comparable interface {
+		cmp(Comparable) int
+	}
 
 
 Variable declarations
 ----
 
-A variable declaration creates a variable and gives it a type and a name.
-It may optionally give the variable an initial value; in some forms of
-declaration the type of the initial value defines the type of the variable.
+A variable declaration creates a variable, binds an identifier to it and
+gives it a type. It may optionally give the variable an initial value.
+The variable type must be a complete type (§Types).
+In some forms of declaration the type of the initial value defines the type
+of the variable.
 
-	VarDecl = "var" ( VarSpec | "(" VarSpecList [ ";" ] ")" ) .
-	VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
-	VarSpecList = VarSpec { ";" VarSpec } .
+	VarDecl = "var" ( VarSpec | "(" VarSpecList ")" ) .
+	VarSpec = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
+	VarSpecList = VarSpec OptSemicolon { VarSpec OptSemicolon } .
 
 	IdentifierList = identifier { "," identifier } .
 	ExpressionList = Expression { "," Expression } .
@@ -738,7 +771,8 @@ That is, one can export global functions, types, and so on but not
 local variables or structure fields.
 
 Exporting an identifier makes the identifier visible externally to the
-package.  If the identifier represents a type, the type structure is
+package.  If the identifier represents a type, it must be a complete
+type (§Types) and the type structure is
 exported as well.  The exported identifiers may appear later in the
 source than the export directive itself, but it is an error to specify
 an identifier not declared anywhere in the source file containing the
@@ -769,12 +803,26 @@ and interfaces. They are constructed from other (basic or composite) types.
 		TypeName | ArrayType | ChannelType | InterfaceType |
 		FunctionType | MapType | StructType | PointerType .
 	TypeName = QualifiedIdent.
+	
+Types may be ``complete'' or ''incomplete''. Basic, pointer, function and
+interface types are always complete (although their components, such
+as the base type of a pointer type, may be incomplete). All other types are
+complete when they are fully declared. Incomplete types are subject to
+usage restrictions; for instance a variable type cannot be an incomplete
+type.
+
+	CompleteType = Type .
 
 The ``interface'' of a type is the set of methods bound to it
 (§Method declarations). The interface of a pointer type is the interface
 of the pointer base type (§Pointer types). All types have an interface;
 if they have no methods associated with them, their interface is
 called the ``empty'' interface.
+
+TODO: Since methods are added one at a time, the interface of a type may
+be different at different points in the source text. Thus, static checking
+may give different results then dynamic checking which is problematic.
+Need to resolve.
 
 The ``static type'' (or simply ``type'') of a variable is the type defined by
 the variable's declaration. The ``dynamic type'' of a variable is the actual
@@ -784,7 +832,7 @@ interface type, the dynamic type of a variable is always its static type.
 Variables of interface type may hold values with different dynamic types
 during execution. However, its dynamic type is always compatible with
 the static type of the interface variable (§Interface types).
-
+	
 
 Basic types
 ----
@@ -887,14 +935,14 @@ designated by indices which are integers between 0 and the length - 1.
 An array type specifies the array element type and an optional array
 length which must be a compile-time constant expression of a (signed or
 unsigned) int type. If present, the array length and its value is part of
-the array type.
+the array type. The element type must be a complete type (§Types).
 
 If the length is present in the declaration, the array is called
 ``fixed array''; if the length is absent, the array is called ``open array''.
 
 	ArrayType = "[" [ ArrayLength ] "]" ElementType .
 	ArrayLength = Expression .
-	ElementType = Type .
+	ElementType = CompleteType .
 
 Type equality: Two array types are equal only if both have the same element
 type and if both are either fixed arrays with the same array length, or both
@@ -1016,14 +1064,14 @@ Struct types
 ----
 
 A struct is a composite type consisting of a fixed number of elements,
-called fields, with possibly different types. The struct type declaration
-specifies the name and type for each field. The scope of each field identifier
-extends from the point of the declaration to the end of the struct type, but
-it is also visible within field selectors (§Primary Expressions).
+called fields, with possibly different types. A struct type declares
+an identifier and type for each field. Within a struct type no field
+identifier may be declared twice and all field types must be complete
+types (§Types).
 
-	StructType = "struct" "{" [ FieldList [ ";" ] ] "}" .
+	StructType = "struct" [ "{" [ FieldList [ ";" ] ] "}" ] .
 	FieldList = FieldDecl { ";" FieldDecl } .
-	FieldDecl = IdentifierList Type | TypeName .
+	FieldDecl = IdentifierList CompleteType | TypeName .
 
 	// An empty struct.
 	struct {}
@@ -1037,8 +1085,8 @@ it is also visible within field selectors (§Primary Expressions).
 	}
 
 A struct may contain ``anonymous fields'', which are declared with
-a type name but no explicit field name. Instead, the unqualified type
-name acts as the field name. Anonymous fields must not be interface types.
+a type name but no explicit field identifier. Instead, the unqualified type
+name acts as the field identifier. Anonymous fields must not be interface types.
 
 	// A struct with two anonymous fields of type T1 and P.T2
 	struct {
@@ -1047,14 +1095,22 @@ name acts as the field name. Anonymous fields must not be interface types.
 		x, y int;  
 	}
 
-As with all scopes, each field name must be unique within a single struct
-(§Declarations and scope rules). Consequently, the unqualified type name of
-an anonymous field must not conflict with the field name (or unqualified
-type name for an anonymous field) of any other field within the struct.
+The unqualified type name of an anonymous field must not conflict with the
+field identifier (or unqualified type name for an anonymous field) of any
+other field within the struct.
 
 Fields and methods (§Method declarations) of an anonymous field become directly
 accessible as fields and methods of the struct without the need to provide the
 type name of the respective anonymous field (§TODO).
+
+Forward declaration:
+A struct type consisting of only the reserved word "struct" may be used in
+a type declaration; it declares an incomplete struct type (§Type declarations).
+This allows the construction of mutually recursive types such as:
+
+	type S2 struct // forward declaration of S2
+	type S1 struct { s2 *S2 }
+	type S2 struct { s1 *S1 }
 
 Type equality: Two struct types are equal only if both have the same number
 of fields in the same order, corresponding fields are either both named or
@@ -1077,20 +1133,16 @@ type, called the ``base type'' of the pointer, and the value "nil".
 	*int
 	*map[string] *chan
 
-For pointer types (only), the pointer base type may be an
-identifier referring to an incomplete (not yet fully defined) or undeclared
-type. This allows the construction of recursive and mutually recursive types
+The pointer base type may be denoted by an identifier referring to an
+incomplete type (§Types), possibly declared via a forward declaration.
+This allows the construction of recursive and mutually recursive types
 such as:
 
 	type S struct { s *S }
 
+	type S2 struct // forward declaration of S2
 	type S1 struct { s2 *S2 }
 	type S2 struct { s1 *S1 }
-
-If the base type is an undeclared identifier, the declaration implicitly
-forward-declares an (incomplete) type with the respective name. Any such
-forward-declared type must be completely declared in the same or an outer
-scope.
 
 Type equality: Two pointer types are equal only if both have equal
 base types.
@@ -1106,13 +1158,13 @@ Map types
 
 A map is a composite type consisting of a variable number of entries
 called (key, value) pairs. For a given map, the keys and values must
-each be of a specific type called the key and value type, respectively.
-Upon creation, a map is empty and values may be added and removed
+each be of a specific complete type (§Types) called the key and value type,
+respectively. Upon creation, a map is empty and values may be added and removed
 during execution.  The number of entries in a map is called its length.
 
 	MapType = "map" "[" KeyType "]" ValueType .
-	KeyType = Type .
-	ValueType = Type .
+	KeyType = CompleteType .
+	ValueType = CompleteType .
 
 	map [string] int
 	map [struct { pid int; name string }] *chan Buffer
@@ -1138,7 +1190,8 @@ Channel types
 ----
 
 A channel provides a mechanism for two concurrently executing functions
-to synchronize execution and exchange values of a specified type.
+to synchronize execution and exchange values of a specified type. This
+type must be a complete type (§Types).
 
 Upon creation, a channel can be used both to send and to receive.
 By conversion or assignment, a 'full' channel may be constrained only to send or
@@ -1210,12 +1263,12 @@ Type interfaces may be specified explicitly by interface types.
 An interface type denotes the set of all types that implement at least
 the set of methods specified by the interface type, and the value "nil".
 
-	InterfaceType = "interface" "{" [ MethodList [ ";" ] ] "}" .
+	InterfaceType = "interface" [ "{" [ MethodList [ ";" ] ] "}" ] .
 	MethodList = MethodSpec { ";" MethodSpec } .
 	MethodSpec = identifier FunctionType .
 
 	// A basic file interface.
-	type File interface {
+	interface {
 		Read(b Buffer) bool;
 		Write(b Buffer) bool;
 		Close();
@@ -1251,6 +1304,26 @@ and S1 and S2 also implement
 	func (p T) unlock() { ... }
 
 they implement the Lock interface as well as the File interface.
+
+Forward declaration:
+A interface type consisting of only the reserved word "interface" may be used in
+a type declaration; it declares an incomplete interface type (§Type declarations).
+This allows the construction of mutually recursive types such as:
+
+	type T2 interface
+	type T1 interface {
+		foo(T2) int;
+	}
+	type T2 interface {
+		bar(T1) int;
+	}
+
+Type equivalence: Two interface types are equal only if both declare the same
+number of methods with the same names, and corresponding (by name) methods
+have the same function types.
+
+Assignment compatibility: A value can be assigned to an interface variable
+if the static type of the value implements the interface.
 
 
 Expressions
@@ -1401,10 +1474,12 @@ TODO: Consider adding helper syntax for nested composites
 Function Literals
 ----
 
-Function literals represent anonymous functions.
+A function literal represents an anonymous function. It consists of a
+specification of the function type and the function body. The parameter
+and result types of the function type must all be complete types (§Types).
 
 	FunctionLit = "func" FunctionType Block .
-	Block = "{" [ StatementList [ ";" ] ] "}" .
+	Block = "{" [ StatementList ] "}" .
 
 The type of a function literal is a pointer to the function type.
 
@@ -1452,6 +1527,10 @@ Given a pointer p to a struct, one writes
 	p.f
 to access field f of the struct.
 
+TODO: Complete this section:
+- type rules
+- conflict resolution rules for anonymous fields
+
 
 Indexes
 ----
@@ -1459,6 +1538,8 @@ Indexes
 Given an array or map pointer, one writes
 	p[i]
 to access an element.  
+
+TODO: Complete this section:
 
 
 Slices
@@ -1847,21 +1928,21 @@ Statements
 Statements control execution.
 
 	Statement =
-		Declaration | LabelDecl |
-		SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
-		Block | IfStat | SwitchStat | SelectStat | ForStat | RangeStat |
-	
+		( SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
+		  Block | IfStat | SwitchStat | SelectStat | ForStat | RangeStat )
+		OptSemicolon .
+
 	SimpleStat =
 		ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
-		
-Semicolons are used to separate individual statements of a statement list.
-They are optional immediately before or after a closing curly brace "}",
-immediately after "++" or "--", and immediately before a reserved word.
 
-	StatementList = Statement { [ ";" ] Statement } .
+	DeclOrStat =
+		Declaration | LabelDecl | Statement .
 
+	StatementList = DeclOrStat { DeclOrStat } .
 
-TODO: This still seems to be more complicated then necessary.
+Note that for the purpose of optional semicolons, a label declaration is neither
+a declaration nor a statement. Specifically, no semicolon is allowed immediately
+after a label declaration.
 
 
 Label declarations
@@ -2005,7 +2086,7 @@ Switch statements
 Switches provide multi-way execution.
 
 	SwitchStat = "switch" [ [ Simplestat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
-	CaseClause = Case [ StatementList [ ";" ] ] [ "fallthrough" [ ";" ] ] .
+	CaseClause = Case [ StatementList ] [ "fallthrough" OptSemicolon ] .
 	Case = ( "case" ExpressionList | "default" ) ":" .
 
 There can be at most one default case in a switch statement.
@@ -2145,7 +2226,7 @@ will proceed.  It looks similar to a switch statement but with the
 cases all referring to communication operations.
 
 	SelectStat = "select" "{" { CommClause } "}" .
-	CommClause = CommCase [ StatementList [ ";" ] ] .
+	CommClause = CommCase [ StatementList ] .
 	CommCase = ( "default" | ( "case" ( SendExpr | RecvExpr) ) ) ":" .
 	SendExpr =  Expression "<-" Expression .
 	RecvExpr =  [ PrimaryExpr ( "=" | ":=" ) ] "<-" Expression .
@@ -2236,7 +2317,7 @@ the elements of the return value.
 		return -7.0, -4.0;
 	}
 
-The second method to return values
+A second method to return values
 is to use those names within the function as variables
 to be assigned explicitly; the return statement will then provide no
 values:
@@ -2311,13 +2392,12 @@ is erroneous because the jump to label L skips the creation of v.
 Function declarations
 ----
 
+A function declaration binds an identifier to a function.
 Functions contain declarations and statements.  They may be
-recursive.  Functions may be anonymous and appear as
-literals in expressions.
+recursive. Except for forward declarations (see below), the parameter
+and result types of the function type must all be complete types (§Type declarations).
 
-A function declaration declares an identifier of type function.
-
-	FunctionDecl = "func" identifier FunctionType ( ";" | Block ) .
+	FunctionDecl = "func" identifier FunctionType [ Block ] .
 	
 	func min(x int, y int) int {
 		if x < y {
@@ -2328,7 +2408,7 @@ A function declaration declares an identifier of type function.
 
 A function declaration without a block serves as a forward declaration:
 
-	func MakeNode(left, right *Node) *Node;
+	func MakeNode(left, right *Node) *Node
 
 
 Implementation restrictions: Functions can only be declared at the global level.
@@ -2344,9 +2424,9 @@ as a type name, or as a pointer to a type name. The type specified by the
 type name is called ``receiver base type''. The receiver base type must be a
 type declared in the current file, and it must not be a pointer type.
 The method is said to be ``bound'' to the receiver base type; specifically
-it is declared within the scope of that type (§Types).
+it is declared within the scope of that type (§Type declarations).
 
-	MethodDecl = "func" Receiver identifier FunctionType ( ";" | Block ) .
+	MethodDecl = "func" Receiver identifier FunctionType [ Block ] .
 	Receiver = "(" identifier [ "*" ] TypeName ")" .
 
 All methods bound to a receiver base type must have the same receiver type:
@@ -2484,7 +2564,7 @@ Packages
 A package is a package clause, optionally followed by import declarations,
 followed by a series of declarations.
 
-	Package = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
+	Package = PackageClause { ImportDecl OptSemicolon } { Declaration } .
 
 The source text following the package clause acts like a block for scoping
 purposes ($Declarations and scope rules).
@@ -2500,9 +2580,9 @@ The file must begin with a package clause.
 A package can gain access to exported items from another package
 through an import declaration:
 
-	ImportDecl = "import" ( ImportSpec | "(" ImportSpecList [ ";" ] ")" ) .
+	ImportDecl = "import" ( ImportSpec | "(" ImportSpecList ")" ) .
 	ImportSpec = [ "." | PackageName ] PackageFileName .
-	ImportSpecList = ImportSpec { ";" ImportSpec } .
+	ImportSpecList = ImportSpec OptSemicolon { ImportSpec OptSemicolon } .
 
 An import statement makes the exported contents of the named
 package file accessible in this package.
