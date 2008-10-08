@@ -15,12 +15,13 @@ export type Parser struct {
 	tokchan *<-chan *Scanner.Token;
 	
 	// Scanner.Token
+	old int;  // previous token
 	pos int;  // token source position
 	tok int;  // one token look-ahead
 	val string;  // token value (for IDENT, NUMBER, STRING only)
 
 	// Nesting level
-	level int;  // 0 = global scope, -1 = function/struct scope of global functions/structs, etc.
+	level int;  // 0 = global scope, -1 = function scope of global functions, etc.
 };
 
 
@@ -53,6 +54,7 @@ func (P *Parser) Ecart() {
 
 
 func (P *Parser) Next() {
+	P.old = P.tok;
 	if P.tokchan == nil {
 		P.pos, P.tok, P.val = P.scanner.Scan();
 	} else {
@@ -71,6 +73,7 @@ func (P *Parser) Open(verbose bool, scanner *Scanner.Scanner, tokchan *<-chan *S
 	P.indent = 0;
 	P.scanner = scanner;
 	P.tokchan = tokchan;
+	P.old = Scanner.ILLEGAL;
 	P.Next();
 	P.level = 0;
 }
@@ -114,6 +117,18 @@ func (P *Parser) TryType() (typ AST.Type, ok bool);
 func (P *Parser) ParseExpression() AST.Expr;
 func (P *Parser) TryStatement() (stat AST.Stat, ok bool);
 func (P *Parser) ParseDeclaration() AST.Node;
+
+
+func (P *Parser) OptSemicolon(tok int) {
+	P.Trace("OptSemicolon");
+	if P.tok == Scanner.SEMICOLON {
+		P.Next();
+	} else if P.level != 0 || P.old != tok || P.tok != tok {
+		// TODO FIX THIS
+		// P.Expect(Scanner.SEMICOLON);
+	}
+	P.Ecart();
+}
 
 
 func (P *Parser) ParseIdent() *AST.Ident {
@@ -380,7 +395,6 @@ func (P *Parser) ParseMethodDecl() *AST.MethodDecl {
 	decl := new(AST.MethodDecl);
 	decl.ident = P.ParseIdent();
 	decl.typ = P.ParseFunctionType();
-	P.Optional(Scanner.SEMICOLON);
 	
 	P.Ecart();
 	return decl;
@@ -395,16 +409,18 @@ func (P *Parser) ParseInterfaceType() *AST.InterfaceType {
 	typ.methods = AST.NewList();
 	
 	P.Expect(Scanner.INTERFACE);
-	P.Expect(Scanner.LBRACE);
-	P.OpenScope();
-	P.level--;
-	for P.tok == Scanner.IDENT {
-		typ.methods.Add(P.ParseMethodDecl());
-	}
-	P.level++;
-	P.CloseScope();
-	P.Expect(Scanner.RBRACE);
 	
+	if P.tok == Scanner.LBRACE {
+		P.Next();
+		for P.tok == Scanner.IDENT {
+			typ.methods.Add(P.ParseMethodDecl());
+			if P.tok != Scanner.RBRACE {
+				P.Expect(Scanner.SEMICOLON);
+			}
+		}
+		P.Expect(Scanner.RBRACE);
+	}
+
 	P.Ecart();
 	return typ;
 }
@@ -435,20 +451,19 @@ func (P *Parser) ParseStructType() *AST.StructType {
 	typ.fields = AST.NewList();
 	
 	P.Expect(Scanner.STRUCT);
-	P.Expect(Scanner.LBRACE);
-	P.OpenScope();
-	P.level--;
-	for P.tok == Scanner.IDENT {
-		typ.fields.Add(P.ParseVarDeclList());
-		if P.tok != Scanner.RBRACE {
-			P.Expect(Scanner.SEMICOLON);
-		}
-	}
-	P.Optional(Scanner.SEMICOLON);
-	P.level++;
-	P.CloseScope();
-	P.Expect(Scanner.RBRACE);
 	
+	if P.tok == Scanner.LBRACE {
+		P.Next();
+		for P.tok == Scanner.IDENT {
+			typ.fields.Add(P.ParseVarDeclList());
+			if P.tok != Scanner.RBRACE {
+				P.Expect(Scanner.SEMICOLON);
+			}
+		}
+		P.Optional(Scanner.SEMICOLON);
+		P.Expect(Scanner.RBRACE);
+	}
+
 	P.Ecart();
 	return typ;
 }
@@ -498,12 +513,14 @@ func (P *Parser) ParseStatement() AST.Stat {
 	P.Trace("Statement");
 	
 	stat, ok := P.TryStatement();
-	if !ok {
+	if ok {
+		P.OptSemicolon(Scanner.RBRACE);
+	} else {
 		P.Error(P.pos, "statement expected");
 		P.Next();  // make progress
 	}
-	P.Ecart();
 	
+	P.Ecart();
 	return stat;
 }
 
@@ -1326,10 +1343,7 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Declaration {
 		P.Next();
 		for P.tok != Scanner.RPAREN {
 			decl.decls.Add(P.ParseSpec(exported, keyword));
-			if P.tok != Scanner.RPAREN {
-				// P.Expect(Scanner.SEMICOLON);
-				P.Optional(Scanner.SEMICOLON);  // TODO this seems wrong! (needed for math.go)
-			}
+			P.OptSemicolon(Scanner.RPAREN);
 		}
 		P.Next();  // consume ")"
 	} else {
@@ -1350,8 +1364,8 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Declaration {
 // func (recv) ident (params) type
 // func (recv) ident (params) (results)
 
-func (P *Parser) ParseFuncDecl(exported bool) *AST.FuncDecl {
-	P.Trace("FuncDecl");
+func (P *Parser) ParseFunctionDecl(exported bool) *AST.FuncDecl {
+	P.Trace("FunctionDecl");
 	
 	fun := new(AST.FuncDecl);
 	fun.pos = P.pos;
@@ -1380,10 +1394,7 @@ func (P *Parser) ParseFuncDecl(exported bool) *AST.FuncDecl {
 	P.level++;
 	P.CloseScope();
 
-	if P.tok == Scanner.SEMICOLON {
-		// forward declaration
-		P.Next();
-	} else {
+	if P.tok == Scanner.LBRACE {
 		fun.body = P.ParseBlock();
 	}
 	
@@ -1437,7 +1448,7 @@ func (P *Parser) ParseDeclaration() AST.Node {
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
 		node = P.ParseDecl(exported, P.tok);
 	case Scanner.FUNC:
-		node = P.ParseFuncDecl(exported);
+		node = P.ParseFunctionDecl(exported);
 	case Scanner.EXPORT:
 		if exported {
 			P.Error(P.pos, "cannot mark export declaration for export");
@@ -1452,7 +1463,9 @@ func (P *Parser) ParseDeclaration() AST.Node {
 			P.Next();  // make progress
 		}
 	}
-	
+
+	P.OptSemicolon(Scanner.RBRACE);
+
 	if indent != P.indent {
 		panic("imbalanced tracing code (Declaration)");
 	}
@@ -1471,7 +1484,6 @@ func (P *Parser) ParseProgram() *AST.Program {
 	pos := P.pos;
 	P.Expect(Scanner.PACKAGE);
 	ident := P.ParseIdent();
-	P.Optional(Scanner.SEMICOLON);
 	
 	decls := AST.NewList();
 	{	P.OpenScope();
@@ -1486,7 +1498,6 @@ func (P *Parser) ParseProgram() *AST.Program {
 		
 		for P.tok != Scanner.EOF {
 			decls.Add(P.ParseDeclaration());
-			P.Optional(Scanner.SEMICOLON);
 		}
 		
 		if P.level != 0 {
