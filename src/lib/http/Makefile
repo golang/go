@@ -45,12 +45,16 @@ O4=\
 $(PKG): a1 a2 a3 a4
 a1:	$(O1)
 	$(AR) grc $(PKG) $(O1)
+	rm -f $(O1)
 a2:	$(O2)
 	$(AR) grc $(PKG) $(O2)
+	rm -f $(O2)
 a3:	$(O3)
 	$(AR) grc $(PKG) $(O3)
+	rm -f $(O3)
 a4:	$(O4)
 	$(AR) grc $(PKG) $(O4)
+	rm -f $(O4)
 
 $(O1): nuke
 $(O2): a1

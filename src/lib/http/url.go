@@ -17,11 +17,11 @@ export var (
 func IsHex(c byte) bool {
 	switch {
 	case '0' <= c && c <= '9':
-		return true
+		return true;
 	case 'a' <= c && c <= 'f':
-		return true
+		return true;
 	case 'A' <= c && c <= 'F':
-		return true
+		return true;
 	}
 	return false
 }
@@ -29,11 +29,11 @@ func IsHex(c byte) bool {
 func UnHex(c byte) byte {
 	switch {
 	case '0' <= c && c <= '9':
-		return c - '0'
+		return c - '0';
 	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10
+		return c - 'a' + 10;
 	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10
+		return c - 'A' + 10;
 	}
 	return 0
 }
@@ -41,12 +41,12 @@ func UnHex(c byte) byte {
 // Unescape %xx into hex.
 export func URLUnescape(s string) (string, *os.Error) {
 	// Count %, check that they're well-formed.
-	n := 0
+	n := 0;
 	for i := 0; i < len(s); {
 		if s[i] == '%' {
-			n++
+			n++;
 			if !IsHex(s[i+1]) || !IsHex(s[i+2]) {
-				return "", BadURL
+				return "", BadURL;
 			}
 			i += 3
 		} else {
@@ -59,19 +59,19 @@ export func URLUnescape(s string) (string, *os.Error) {
 	}
 
 	t := new([]byte, len(s)-2*n);
-	j := 0
+	j := 0;
 	for i := 0; i < len(s); {
 		if s[i] == '%' {
 			t[j] = UnHex(s[i+1]) << 4 | UnHex(s[i+2]);
-			j++
-			i += 3
+			j++;
+			i += 3;
 		} else {
 			t[j] = s[i];
-			j++
-			i++
+			j++;
+			i++;
 		}
 	}
-	return string(t), nil
+	return string(t), nil;
 }
 
 export type URL struct {
@@ -130,14 +130,14 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
 		return nil, BadURL
 	}
 	url = new(URL);
-	url.raw = rawurl
+	url.raw = rawurl;
 
 	// Split off possible leading "http:", "mailto:", etc.
-	var path string
+	var path string;
 	if url.scheme, path, err = GetScheme(rawurl); err != nil {
 		return nil, err
 	}
-	url.rawpath = path
+	url.rawpath = path;
 
 	// RFC 2396: a relative URI (no scheme) has a ?query,
 	// but absolute URIs only have query if path begins with /

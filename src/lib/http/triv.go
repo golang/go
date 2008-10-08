@@ -22,7 +22,7 @@ func Echo(conn *http.Conn, req *http.Request) {
 }
 
 func main() {
-	err := http.ListenAndServe("0.0.0.0:12345", &Echo)
+	err := http.ListenAndServe("0.0.0.0:12345", &Echo);
 	if err != nil {
 		panic("ListenAndServe: ", err.String())
 	}

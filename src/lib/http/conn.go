@@ -15,7 +15,7 @@ import (
 type RWC interface {
 	Read(p *[]byte) (n int, err *os.Error);
 	Write(p *[]byte) (n int, err *os.Error);
-	Close() *os.Error
+	Close() *os.Error;
 }
 
 // Active HTTP connection (server side).
@@ -48,7 +48,7 @@ func (c *Conn) ReadRequest() (req *Request, err *os.Error) {
 
 	// TODO: Proper handling of (lack of) Connection: close,
 	// and chunked transfer encoding on output.
-	c.close = true
+	c.close = true;
 	return req, nil
 }
 

@@ -58,7 +58,7 @@ func ReadLineBytes(b *bufio.BufRead) (p *[]byte, err *os.Error) {
 	}
 
 	// Chop off trailing white space.
-	var i int
+	var i int;
 	for i = len(p); i > 0; i-- {
 		if c := p[i-1]; c != ' ' && c != '\r' && c != '\t' && c != '\n' {
 			break
@@ -69,7 +69,7 @@ func ReadLineBytes(b *bufio.BufRead) (p *[]byte, err *os.Error) {
 
 // ReadLineByte, but convert the bytes into a string.
 func ReadLine(b *bufio.BufRead) (s string, err *os.Error) {
-	p, e := ReadLineBytes(b)
+	p, e := ReadLineBytes(b);
 	if e != nil {
 		return "", e
 	}
@@ -81,7 +81,7 @@ func ReadLine(b *bufio.BufRead) (s string, err *os.Error) {
 // and the Value can continue on multiple lines if each continuation line
 // starts with a space.
 func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
-	line, e := ReadLineBytes(b)
+	line, e := ReadLineBytes(b);
 	if e != nil {
 		return "", "", e
 	}
@@ -94,7 +94,7 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
 		switch line[i] {
 		case ' ':
 			// Key field has space - no good.
-			return "", "", BadHeader
+			return "", "", BadHeader;
 		case ':':
 			key = string(line[0:i]);
 			// Skip initial space before value.
@@ -103,7 +103,7 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
 					break
 				}
 			}
-			value = string(line[i:len(line)])
+			value = string(line[i:len(line)]);
 
 			// Look for extension lines, which must begin with space.
 			for {
@@ -114,7 +114,7 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
 				}
 				if c != ' ' {
 					// Not leading space; stop.
-					b.UnreadByte()
+					b.UnreadByte();
 					break
 				}
 
@@ -124,13 +124,13 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
 						return "", "", e
 					}
 				}
-				b.UnreadByte()
+				b.UnreadByte();
 
 				// Read the rest of the line and add to value.
 				if line, e = ReadLineBytes(b); e != nil {
 					return "", "", e
 				}
-				value += " " + string(line)
+				value += " " + string(line);
 
 				if len(value) >= MaxValueLength {
 					return "", "", ValueTooLong
@@ -148,13 +148,13 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
 // returning value, string position where the digits stopped,
 // and whether there was a valid number (digits, not too big).
 func atoi(s string, i int) (n, i1 int, ok bool) {
-	const Big = 1000000
+	const Big = 1000000;
 	if i >= len(s) || s[i] < '0' || s[i] > '9' {
 		return 0, 0, false
 	}
-	n = 0
+	n = 0;
 	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
-		n = n*10 + int(s[i]-'0')
+		n = n*10 + int(s[i]-'0');
 		if n > Big {
 			return 0, 0, false
 		}
@@ -167,12 +167,12 @@ func ParseHTTPVersion(vers string) (int, int, bool) {
 	if vers[0:5] != "HTTP/" {
 		return 0, 0, false
 	}
-	major, i, ok := atoi(vers, 5)
+	major, i, ok := atoi(vers, 5);
 	if !ok || i >= len(vers) || vers[i] != '.' {
 		return 0, 0, false
 	}
 	var minor int;
-	minor, i, ok = atoi(vers, i+1)
+	minor, i, ok = atoi(vers, i+1);
 	if !ok || i != len(vers) {
 		return 0, 0, false
 	}
@@ -184,16 +184,16 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 	req = new(Request);
 
 	// First line: GET /index.html HTTP/1.0
-	var s string
+	var s string;
 	if s, err = ReadLine(b); err != nil {
 		return nil, err
 	}
 
-	var f *[]string
+	var f *[]string;
 	if f = strings.split(s, " "); len(f) != 3 {
 		return nil, BadRequest
 	}
-	req.method, req.rawurl, req.proto = f[0], f[1], f[2]
+	req.method, req.rawurl, req.proto = f[0], f[1], f[2];
 	var ok bool;
 	if req.pmajor, req.pminor, ok = ParseHTTPVersion(req.proto); !ok {
 		return nil, BadHTTPVersion
@@ -205,9 +205,9 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 
 	// Subsequent lines: Key: value.
 	nheader := 0;
-	req.header = new(map[string] string)
+	req.header = new(map[string] string);
 	for {
-		var key, value string
+		var key, value string;
 		if key, value, err = ReadKeyValue(b); err != nil {
 			return nil, err
 		}
@@ -221,7 +221,7 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 		// RFC 2616 says that if you send the same header key
 		// multiple times, it has to be semantically equivalent
 		// to concatenating the values separated by commas.
-		oldvalue, present := req.header[key]
+		oldvalue, present := req.header[key];
 		if present {
 			req.header[key] = oldvalue+","+value
 		} else {
