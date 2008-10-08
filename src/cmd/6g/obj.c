@@ -466,6 +466,7 @@ dumpsignatures(void)
 	Addr at, ao, ac, ad;
 	Prog *p;
 	char *sp;
+	char buf[NSYMB];
 
 	// copy externdcl list to signatlist
 	for(d=externdcl; d!=D; d=d->forw) {
@@ -583,7 +584,7 @@ dumpsignatures(void)
 			sp = strchr(s1->name, '_');
 			if(sp != nil)
 				a->name = sp+1;
-			
+
 			a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
 			a->perm = o;
 			snprint(namebuf, sizeof(namebuf), "%s_%s",
@@ -608,7 +609,9 @@ dumpsignatures(void)
 		p->to.offset = stringo;
 		ot += widthptr;
 
-		datastring("", 1);
+		// save type name for runtime error message
+		snprint(buf, sizeof buf, "%T", t);
+		datastring(buf, strlen(buf)+1);
 
 		if(et == TINTER) {
 			// first field of an interface signature
@@ -733,6 +736,7 @@ dumpsignatures(void)
 				ot += widthptr;
 			}
 			datastring(b->name, strlen(b->name)+1);
+
 		}
 
 		// nil field name at end

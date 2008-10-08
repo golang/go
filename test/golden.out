@@ -2,6 +2,20 @@
 =========== ./helloworld.go
 hello, world
 
+=========== ./interface1.go
+./interface1.go:5: syntax error near package
+./interface1.go:31: illegal types for operand: AS
+	interface { Next () (*Inst) }
+	*Inst
+
+=========== ./interface2.go
+cannot convert type S to interface I: missing method Foo
+throw: interface conversion
+SIGSEGV: segmentation violation
+Faulting address: 0x0
+pc: xxx
+
+
 =========== ./peano.go
 0! = 1
 1! = 1
@@ -63,6 +77,7 @@ bugs/bug064.go:15: illegal types for operand: CALL
 BUG: compilation should succeed
 
 =========== bugs/bug074.go
+bugs/bug074.go:6: syntax error near string
 bugs/bug074.go:6: syntax error near string
 bugs/bug074.go:7: x: undefined
 BUG: compiler crashes - Bus error

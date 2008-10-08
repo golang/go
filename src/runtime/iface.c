@@ -40,7 +40,7 @@ static	Map*	hash[1009];
 static void
 printsigi(Sigi *si)
 {
-	int32 i, n;
+	int32 i;
 	byte *name;
 
 	sys·printpointer(si);
@@ -125,7 +125,7 @@ hashmap(Sigi *si, Sigt *st)
 	m->sigi = si;
 	m->sigt = st;
 
-	nt = 0;
+	nt = 1;
 	for(ni=1; (iname=si[ni].name) != nil; ni++) {	// ni=1: skip first word
 		// pick up next name from
 		// interface signature
@@ -136,9 +136,14 @@ hashmap(Sigi *si, Sigt *st)
 			// from structure signature
 			sname = st[nt].name;
 			if(sname == nil) {
+				prints("cannot convert type ");
+				prints((int8*)st[0].name);
+				prints(" to interface ");
+				prints((int8*)si[0].name);
+				prints(": missing method ");
 				prints((int8*)iname);
-				prints(": ");
-				throw("hashmap: failed to find method");
+				prints("\n");
+				throw("interface conversion");
 				m->bad = 1;
 				m->link = hash[h];
 				hash[h] = m;
