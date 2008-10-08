@@ -373,16 +373,10 @@ func (P *Parser) ParseResult() *AST.List {
 func (P *Parser) ParseFunctionType() *AST.FunctionType {
 	P.Trace("FunctionType");
 	
-	P.OpenScope();
-	P.level--;
-
 	typ := new(AST.FunctionType);
 	typ.pos = P.pos;
 	typ.params = P.ParseParameters();
 	typ.result = P.ParseResult();
-
-	P.level++;
-	P.CloseScope();
 	
 	P.Ecart();
 	return typ;
@@ -1341,6 +1335,8 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Declaration {
 	P.Expect(keyword);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
+		decl.decls.Add(P.ParseSpec(exported, keyword));
+		P.OptSemicolon(Scanner.RPAREN);
 		for P.tok != Scanner.RPAREN {
 			decl.decls.Add(P.ParseSpec(exported, keyword));
 			P.OptSemicolon(Scanner.RPAREN);
@@ -1418,7 +1414,9 @@ func (P *Parser) ParseExportDecl() {
 	}
 	for P.tok == Scanner.IDENT {
 		ident := P.ParseIdent();
-		P.Optional(Scanner.COMMA);  // TODO this seems wrong
+		if P.tok == Scanner.COMMA {
+			P.Next();  // TODO this seems wrong
+		}
 	}
 	if has_paren {
 		P.Expect(Scanner.RPAREN)
