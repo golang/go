@@ -1406,6 +1406,10 @@ ismethod(Type *t)
 	if(t == T)
 		return T;
 
+	// no interfaces
+	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
+		return T;
+
 	a = algtype(t);
 
 	// direct receiver
