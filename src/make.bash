@@ -6,6 +6,12 @@
 set -e
 export MAKEFLAGS=-j4
 
+if ! test -f $GOROOT/include/u.h
+then
+	echo '$GOROOT is not set correctly or not exported' 1>&2
+	exit 1
+fi
+
 bash clean.bash
 
 for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib
