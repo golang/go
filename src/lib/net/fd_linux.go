@@ -39,7 +39,7 @@ export func NewPollster() (p *Pollster, err *os.Error) {
 }
 
 func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
-	var ev syscall.EpollEvent
+	var ev syscall.EpollEvent;
 	var already bool;
 	ev.fd = int32(fd);
 	ev.events, already = p.events[fd];
