@@ -33,7 +33,7 @@ do
 	6g -o $GOROOT/pkg/$base.6 $i
 done
 
-for i in net time
+for i in net time http
 do
 	echo; echo; echo %%%% making lib/$i %%%%; echo
 	cd $i
