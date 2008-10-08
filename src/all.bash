@@ -5,40 +5,4 @@
 
 set -e
 bash make.bash
-
-xcd() {
-	builtin cd $1
-	echo --- cd $1
-}
-
-(xcd ../usr/gri/gosrc
-make clean
-time make
-make test
-)
-
-(xcd ../usr/gri/pretty
-make clean
-time make
-make test
-)
-
-(xcd ../usr/r/rpc
-make clean
-time make
-chanrun
-)
-
-(xcd ../usr/r/refl
-rm -f *.6 6.out
-6g refl.go
-6g printf.go
-6g main.go
-6l main.6
-6.out
-)
-
-(xcd ../test
-./run
-)
-
+bash run.bash
