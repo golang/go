@@ -18,16 +18,16 @@ import (
 
 // Serve a new connection.
 func ServeConnection(fd net.Conn, raddr string, f *(*Conn, *Request)) {
-	c, err := NewConn(fd)
+	c, err := NewConn(fd);
 	if err != nil {
 		return
 	}
 	for {
-		req, err := c.ReadRequest()
+		req, err := c.ReadRequest();
 		if err != nil {
 			break
 		}
-		f(c, req)
+		f(c, req);
 		if c.close {
 			break
 		}
@@ -44,7 +44,7 @@ export func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
 	}
 
 	for {
-		rw, raddr, e := l.Accept()
+		rw, raddr, e := l.Accept();
 		if e != nil {
 			return e
 		}
@@ -55,11 +55,11 @@ export func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
 
 // Web server: listen on address, call f for each request.
 export func ListenAndServe(addr string, f *(*Conn, *Request)) *os.Error {
-	l, e := net.Listen("tcp", addr)
+	l, e := net.Listen("tcp", addr);
 	if e != nil {
 		return e
 	}
 	e = Serve(l, f);
-	l.Close()
+	l.Close();
 	return e
 }
