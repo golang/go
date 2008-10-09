@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 7, 2008)
+(October 8, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -97,7 +97,6 @@ Contents
 		Character and string literals
 		Operators and delimitors
 		Reserved words
-		Optional semicolons
 
 	Declarations and scope rules
 		Const declarations
@@ -290,7 +289,7 @@ A floating point literal represents a mathematically ideal floating point
 constant of arbitrary precision, or 'ideal float'.
 
 	float_lit =
-		decimals "." [ decimals ] [exponent ] |
+		decimals "." [ decimals ] [ exponent ] |
 		decimals exponent |
 		"." decimals [ exponent ] .
 	decimals = decimal_digit { decimal_digit } .
@@ -469,25 +468,6 @@ The following words are reserved and must not be used as identifiers:
 	continue     for          import       return       var
 
 
-Optional semicolons
-----
-
-Semicolons are used to terminate all declarations and statements.
-The following rules apply:
-
-	1) Semicolons can be omitted after declarations at the top
-	   (package) level.
-
-	2) Semicolons can be omitted before and after a closing
-	   parentheses ")" or brace "}" on a list of declarations
-	   or statements.
-
-Semicolons that are subject to these rules are represented using
-the OptSemicolon production:
-
-	OptSemicolon = [ ";" ] .
-
-
 Declarations and scope rules
 ----
 
@@ -497,8 +477,7 @@ function, method) and specifies properties of that entity such as its type.
 
 	Declaration =
 		[ "export" ]
-		( ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl )
-		OptSemicolon .
+		( ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl ) .
 
 Every identifier in a program must be declared; some identifiers, such as "int"
 and "true", are predeclared.
@@ -598,9 +577,9 @@ Const declarations
 A constant declaration binds an identifier to the value of a constant
 expression (§Constant expressions).
 
-	ConstDecl = "const" ( ConstSpec | "(" ConstSpecList ")" ).
+	ConstDecl = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
 	ConstSpec = identifier [ CompleteType ] "=" Expression .
-	ConstSpecList = ConstSpec OptSemicolon { ConstSpecOptExpr OptSemicolon }.
+	ConstSpecList = ConstSpec { ";" ConstSpecOptExpr } [ ";" ] .
  	ConstSpecOptExpr = identifier [ Type ] [ "=" Expression ] .
 
 	const pi float = 3.14159265
@@ -676,9 +655,9 @@ Type declarations
 
 A type declaration specifies a new type and binds an identifier to it.
 
-	TypeDecl = "type" ( TypeSpec | "(" TypeSpecList ")" ).
+	TypeDecl = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ).
 	TypeSpec = identifier Type .
-	TypeSpecList = TypeSpec OptSemicolon { TypeSpec OptSemicolon }.
+	TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
 
 A struct or interface type may be forward-declared (§Struct types,
 §Interface types). A forward-declared type is incomplete (§Types)
@@ -711,9 +690,9 @@ The variable type must be a complete type (§Types).
 In some forms of declaration the type of the initial value defines the type
 of the variable.
 
-	VarDecl = "var" ( VarSpec | "(" VarSpecList ")" ) .
+	VarDecl = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
 	VarSpec = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
-	VarSpecList = VarSpec OptSemicolon { VarSpec OptSemicolon } .
+	VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
 
 	IdentifierList = identifier { "," identifier } .
 	ExpressionList = Expression { "," Expression } .
@@ -1069,8 +1048,8 @@ an identifier and type for each field. Within a struct type no field
 identifier may be declared twice and all field types must be complete
 types (§Types).
 
-	StructType = "struct" [ "{" [ FieldList [ ";" ] ] "}" ] .
-	FieldList = FieldDecl { ";" FieldDecl } .
+	StructType = "struct" [ "{" [ FieldList ] "}" ] .
+	FieldList = FieldDecl { ";" FieldDecl } [ ";" ] .
 	FieldDecl = IdentifierList CompleteType | TypeName .
 
 	// An empty struct.
@@ -1263,8 +1242,8 @@ Type interfaces may be specified explicitly by interface types.
 An interface type denotes the set of all types that implement at least
 the set of methods specified by the interface type, and the value "nil".
 
-	InterfaceType = "interface" [ "{" [ MethodList [ ";" ] ] "}" ] .
-	MethodList = MethodSpec { ";" MethodSpec } .
+	InterfaceType = "interface" [ "{" [ MethodList ] "}" ] .
+	MethodList = MethodSpec { ";" MethodSpec } [ ";" ] .
 	MethodSpec = identifier FunctionType .
 
 	// A basic file interface.
@@ -1928,27 +1907,36 @@ Statements
 Statements control execution.
 
 	Statement =
-		( SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
-		  Block | IfStat | SwitchStat | SelectStat | ForStat | RangeStat )
-		OptSemicolon .
+		Declaration | LabelDecl | EmptyStat |
+		SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
+		FallthroughStat | Block | IfStat | SwitchStat | SelectStat | ForStat |
+		RangeStat .
 
 	SimpleStat =
 		ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
 
-	DeclOrStat =
-		Declaration | LabelDecl | Statement .
+Statements in a statement list are separated by semicolons, which can be
+omitted in some cases as expressed by the OptSemicolon production.
+They are optional immediately after a closing parenthesis ")" terminating a
+list of declarations, or a closing brace terminating a type declaration or
+a block. Specifically, they cannot be omitted after the closing brace of a
+composite literal.
 
-	StatementList = DeclOrStat { DeclOrStat } .
-
-Note that for the purpose of optional semicolons, a label declaration is neither
-a declaration nor a statement. Specifically, no semicolon is allowed immediately
-after a label declaration.
+	StatementList = Statement { OptSemicolon Statement } [ ";" ] .
 
 
 Label declarations
 ----
 
 TODO write this section
+
+
+Empty statements
+----
+
+The empty statement does nothing.
+
+	EmptyStat = .
 
 
 Expression statements
@@ -1958,6 +1946,8 @@ Expression statements
 
 	f(x+y)
 
+TODO: specify restrictions. 6g only appears to allow calls here.
+
 
 IncDec statements
 ----
@@ -1965,7 +1955,7 @@ IncDec statements
 The "++" and "--" statements increment or decrement their operands
 by the (ideal) constant value 1.
 
-	IncDecStat = Expression ( "++" | "--" ) .
+	IncDecStat = PrimaryExpr ( "++" | "--" ) .
 	
 The following assignment statements (§Assignments) are semantically
 equivalent:
@@ -2086,12 +2076,13 @@ Switch statements
 Switches provide multi-way execution.
 
 	SwitchStat = "switch" [ [ Simplestat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
-	CaseClause = Case [ StatementList ] [ "fallthrough" OptSemicolon ] .
+	CaseClause = Case [ StatementList ] .
 	Case = ( "case" ExpressionList | "default" ) ":" .
 
-There can be at most one default case in a switch statement.
-The reserved word "fallthrough" indicates that the control should flow from
-the end of this case clause to the first statement of the next clause.
+There can be at most one default case in a switch statement. In a case clause,
+the last statement only may be a fallthrough statement ($Fallthrough statement).
+It indicates that the control should flow from the end of this case clause to
+the first statement of the next clause.
 
 Each case clause effectively acts as a block for scoping purposes
 ($Declarations and scope rules).
@@ -2389,6 +2380,17 @@ instance, this example:
 is erroneous because the jump to label L skips the creation of v.
 
 
+Fallthrough statements
+----
+
+A fallthrough statement transfers control to the first statement of the
+next case clause in a switch statement (§Switch statements). It may only
+be used in a switch statement, and only as the last statement in a case
+clause of the switch statement.
+
+	FallthroughStat = "fallthrough" .
+
+
 Function declarations
 ----
 
@@ -2564,7 +2566,7 @@ Packages
 A package is a package clause, optionally followed by import declarations,
 followed by a series of declarations.
 
-	Package = PackageClause { ImportDecl OptSemicolon } { Declaration } .
+	Package = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
 
 The source text following the package clause acts like a block for scoping
 purposes ($Declarations and scope rules).
@@ -2582,7 +2584,7 @@ through an import declaration:
 
 	ImportDecl = "import" ( ImportSpec | "(" ImportSpecList ")" ) .
 	ImportSpec = [ "." | PackageName ] PackageFileName .
-	ImportSpecList = ImportSpec OptSemicolon { ImportSpec OptSemicolon } .
+	ImportSpecList = ImportSpec { ";" ImportSpec } [ ";" ] .
 
 An import statement makes the exported contents of the named
 package file accessible in this package.
