@@ -87,3 +87,11 @@ export func fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
 	return r1, err
 }
 
+export func mkdir(name string, perm int64) (ret int64, errno int64) {
+	var namebuf [NameBufsize]byte;
+	if !StringToBytes(&namebuf, name) {
+		return -1, ENAMETOOLONG
+	}
+	r1, r2, err := Syscall(SYS_MKDIR, BytePtr(&namebuf[0]), perm, 0);
+	return r1, err;
+}

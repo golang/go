@@ -91,3 +91,8 @@ export func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
 	}
 	return NewFD(p[0]), NewFD(p[1]), nil
 }
+
+export func Mkdir(name string, perm int) *Error {
+	r, e := syscall.mkdir(name, int64(perm));
+	return ErrnoToError(e)
+}
