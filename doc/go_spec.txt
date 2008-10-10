@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 9, 2008)
+(October 10, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -17,16 +17,38 @@ Any part may change substantially as design progresses.
 
 
 <!--
-Open issues according to gri:
+Timeline (9/5/08):
+- threads: 1 month
+- reflection code: 2 months
+- proto buf support: 3 months
+- GC: 6 months
+- debugger
+- Jan 1, 2009: enough support to write interesting programs
+
+
+Missing:
+[ ] partial export of structs, methods
+[ ] syntax for var args
+[ ] range statement: to be defined more reasonably
+[ ] reflection support
+[ ] packages of multiple files
+[ ] Helper syntax for composite types: allow names/indices for maps/arrays,
+    remove need for type in elements of composites
+
+
+Todo's:
 [ ] clarification on interface types, rules
+[ ] clarify slice rules
+[ ] clarify tuples
+[ ] need to talk about precise int/floats clearly
+[ ] iant suggests to use abstract/precise int for len(), cap() - good idea
+    (issue: what happens in len() + const - what is the type?)
+
+
+Open issues:
 [ ] convert should not be used for composite literals anymore,
 	in fact, convert() should go away
-[ ] syntax for var args
-[ ] reflection support in the language
-[ ] partial export of structs, methods
 [ ] if statement: else syntax must be fixed
-[ ] range statement: to be defined more reasonably
-[ ] packages of multiple files: dealing with it is convoluted
 [ ] should we have a shorter list of alias types? (byte, int, uint, float)
 [ ] old-style export decls (still needed, but ideally should go away)
 [ ] new(arraytype, n1, n2): spec only talks about length, not capacity
@@ -35,15 +57,9 @@ Open issues according to gri:
 [ ] comparison operators: can we compare interfaces?
 [ ] like to have assert() in the language, w/ option to disable code gen for it
 [ ] composite types should uniformly create an instance instead of a pointer
-[ ] clarify slice rules
-[ ] something on tuples?
 [ ] semantics of statements
 [ ] need for type switch? (or use type guard with ok in tuple assignment?)
-[ ] can we add methods to types defined in another package?
 [ ] do we need anything on package vs file names?
-[ ] need to talk about precise int/floats clearly
-[ ] iant suggests to use abstract/precise int for len(), cap() - good idea
-    (issue: what happens in len() + const - what is the type?)
 [ ] Do composite literals create a new literal each time (gri thinks yes)
 [ ] consider syntactic notation for composite literals to make them parseable w/o type information
 [ ] type switch or some form of type test needed
@@ -67,7 +83,9 @@ Open issues according to gri:
 Decisions in need of integration into the doc:
 [ ] pair assignment is required to get map, and receive ok.
 
-Closed issues:
+
+Closed:
+[x] can we add methods to types defined in another package? (probably not)
 [x] optional semicolons: too complicated and unclear
 [x] anonymous types are written using a type name, which can be a qualified identifier.
     this might be a problem when referring to such a field using the type name.
@@ -197,7 +215,7 @@ The syntax of PEBNF can be expressed in itself:
 	Parameters = "<" production_name { "," production_name } ">" .
 	Expression = Alternative { "|" Alternative } .
 	Alternative = Term { Term } .
-	Term = production_name [ Arguments ] | token | Group | Option | Repetition .
+	Term = production_name [ Arguments ] | token [ "..." token ] | Group | Option | Repetition .
 	Arguments = "<" Expression { "," Expression } ">" .
 	Group = "(" Expression ")" .
 	Option = "[" Expression ")" .
@@ -221,6 +239,9 @@ The parameterized production for such lists is:
 	List<P> = P { ";" P } [ ";" ] .
 
 In this case, P stands for the actual list element.
+
+Where possible, recursive productions are used to express evaluation order
+and operator precedence syntactically (for instance for expressions).
 
 A production may be referenced from various places in this document
 but is usually defined close to its first use.  Productions and code
@@ -1503,7 +1524,14 @@ function literal.
 Primary expressions
 ----
 	
-	PrimaryExpr = Operand { Selector | Index | Slice | TypeGuard | Call } .
+	PrimaryExpr =
+		Operand |
+		PrimaryExpr Selector |
+		PrimaryExpr Index |
+		PrimaryExpr Slice |
+		PrimaryExpr TypeGuard |
+		PrimaryExpr Call .
+
 	Selector = "." identifier .
 	Index = "[" Expression "]" .
 	Slice = "[" Expression ":" Expression "]" .
@@ -1657,9 +1685,9 @@ Operators
 
 Operators combine operands into expressions.
 
-	Expression = UnaryExpr { binary_op Expression } .
-	UnaryExpr = unary_op UnaryExpr | PrimaryExpr .
-	
+	Expression = UnaryExpr | Expression binaryOp UnaryExpr .
+	UnaryExpr = PrimaryExpr | unary_op UnaryExpr .
+
 	binary_op = log_op | com_op | rel_op | add_op | mul_op .
 	log_op = "||" | "&&" .
 	com_op = "<-" .
@@ -1680,7 +1708,9 @@ The operand types in binary operations must be equal, with the following excepti
 	- If both operands are ideal numbers, the conversion is to ideal floats
 	  if one of the operands is an ideal float (relevant for "/" and "%").
 
-Unary operators have the highest precedence.
+Unary operators have the highest precedence. They are evaluated from
+right to left.
+
 There are six precedence levels for binary operators:
 multiplication operators bind strongest, followed by addition
 operators, comparison operators, communication operators,
@@ -1695,7 +1725,7 @@ lowest precedence:
 		2             &&
 		1             ||
 
-Operators of the same precedence associate from left to right.
+Binary operators of the same precedence associate from left to right.
 For instance, "x / y / z" stands for "(x / y) / z".
 
 Examples
@@ -2017,7 +2047,7 @@ The empty statement does nothing.
 Expression statements
 ----
 
-	ExpressionStat = PrimaryExpr .
+	ExpressionStat = Expression .
 
 	f(x+y)
 
@@ -2030,7 +2060,7 @@ IncDec statements
 The "++" and "--" statements increment or decrement their operands
 by the (ideal) constant value 1.
 
-	IncDecStat = PrimaryExpr ( "++" | "--" ) .
+	IncDecStat = Expression ( "++" | "--" ) .
 	
 The following assignment statements (§Assignments) are semantically
 equivalent:
@@ -2048,8 +2078,7 @@ For instance, "x++" cannot be used as an operand in an expression.
 Assignments
 ----
 
-	Assignment = PrimaryExprList assign_op ExpressionList .
-	PrimaryExprList = PrimaryExpr { "," PrimaryExpr } .
+	Assignment = ExpressionList assign_op ExpressionList .
 	
 	assign_op = [ add_op | mul_op ] "=" .
 
@@ -2272,10 +2301,10 @@ Go statements
 ----
 
 A go statement starts the execution of a function as an independent
-concurrent thread of control within the same address space. PrimaryExpr
+concurrent thread of control within the same address space. The expression
 must evaluate into a function call.
 
-	GoStat = "go" PrimaryExpr .
+	GoStat = "go" Expression .
 
 Unlike with a regular function call, program execution does not wait
 for the invoked function to complete.
@@ -2295,7 +2324,7 @@ cases all referring to communication operations.
 	CommClause = CommCase [ StatementList ] .
 	CommCase = ( "default" | ( "case" ( SendExpr | RecvExpr) ) ) ":" .
 	SendExpr =  Expression "<-" Expression .
-	RecvExpr =  [ PrimaryExpr ( "=" | ":=" ) ] "<-" Expression .
+	RecvExpr =  [ Expression ( "=" | ":=" ) ] "<-" Expression .
 
 Each communication clause acts as a block for the purpose of scoping
 (§Declarations and scope rules).
