@@ -58,7 +58,6 @@ export const (
 	DEFINE;
 	NOT;
 	ELLIPSIS;
-	HASH;
 	
 	LPAREN;
 	RPAREN;
@@ -158,7 +157,6 @@ export func TokenName(tok int) string {
 	case DEFINE: return ":=";
 	case NOT: return "!";
 	case ELLIPSIS: return "...";
-	case HASH: return "#";
 
 	case LPAREN: return "(";
 	case RPAREN: return ")";
@@ -784,7 +782,6 @@ func (S *Scanner) Scan() (pos, tok int, val string) {
 		case '!': tok = S.Select2(NOT, NEQ);
 		case '&': tok = S.Select3(AND, AND_ASSIGN, '&', LAND);
 		case '|': tok = S.Select3(OR, OR_ASSIGN, '|', LOR);
-		case '#': tok = HASH;
 		default:
 			S.Error(pos, "illegal character " + CharString(ch));
 			tok = ILLEGAL;
