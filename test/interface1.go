@@ -6,8 +6,6 @@
 
 package main
 
-package main
-
 type Inst interface {
 	Next()	*Inst;
 }
