@@ -11,18 +11,11 @@ pretty: pretty.6
 test: pretty
 	pretty -s *.go
 	pretty -s ../gosrc/*.go
-	pretty -s $(GOROOT)/test/235.go
-	pretty -s $(GOROOT)/test/args.go
-	pretty -s $(GOROOT)/test/bufiolib.go
-	pretty -s $(GOROOT)/test/char_lit.go
-	pretty -s $(GOROOT)/test/sieve.go
+	pretty -s $(GOROOT)/test/*.go
 	pretty -s $(GOROOT)/src/pkg/*.go
-	pretty -s $(GOROOT)/src/lib/flag.go
-	pretty -s $(GOROOT)/src/lib/fmt.go
-	pretty -s $(GOROOT)/src/lib/rand.go
-	pretty -s $(GOROOT)/src/lib/math/*.go
-	pretty -s $(GOROOT)/src/lib/container/*.go
-	pretty -s $(GOROOT)/src/lib/syscall/*.go
+	pretty -s $(GOROOT)/src/lib/*.go
+	pretty -s $(GOROOT)/src/lib/*/*.go
+	pretty -s $(GOROOT)/usr/r/*/*.go
 	echo "DONE"
 
 testnoisy: pretty
@@ -40,6 +33,17 @@ testnoisy: pretty
 	pretty $(GOROOT)/src/lib/math/*.go
 	pretty $(GOROOT)/src/lib/container/*.go
 	pretty $(GOROOT)/src/lib/syscall/*.go
+	echo "DONE"
+
+# These tests don't work yet
+testfull: pretty
+	pretty *.go
+	pretty ../gosrc/*.go
+	pretty $(GOROOT)/test/*.go
+	pretty $(GOROOT)/src/pkg/*.go
+	pretty $(GOROOT)/src/lib/*.go
+	pretty $(GOROOT)/src/lib/*/*.go
+	pretty $(GOROOT)/usr/r/*/*.go
 	echo "DONE"
 
 install: pretty

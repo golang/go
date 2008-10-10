@@ -18,10 +18,13 @@ export type Parser struct {
 	pos int;  // token source position
 	tok int;  // one token look-ahead
 	val string;  // token value (for IDENT, NUMBER, STRING only)
-	semi bool;  // true if a semicolon was inserted by the previous statement
+	
+	// Non-syntactic parser control
+	opt_semi bool;  // true if semicolon is optional
 
-	// Nesting level
-	level int;  // 0 = global scope, -1 = function scope of global functions, etc.
+	// Nesting levels
+	expr_lev int;  // 0 = control clause level, 1 = expr inside ()'s
+	scope_lev int;  // 0 = global scope, 1 = function scope of global functions, etc.
 };
 
 
@@ -60,7 +63,7 @@ func (P *Parser) Next() {
 		t := <-P.tokchan;
 		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
 	}
-	P.semi = false;
+	P.opt_semi = false;
 	if P.verbose {
 		P.PrintIndent();
 		print("[", P.pos, "] ", Scanner.TokenName(P.tok), "\n");
@@ -74,7 +77,8 @@ func (P *Parser) Open(verbose bool, scanner *Scanner.Scanner, tokchan *<-chan *S
 	P.scanner = scanner;
 	P.tokchan = tokchan;
 	P.Next();
-	P.level = 0;
+	P.expr_lev = 1;
+	P.scope_lev = 0;
 }
 
 
@@ -95,17 +99,6 @@ func (P *Parser) OptSemicolon() {
 	if P.tok == Scanner.SEMICOLON {
 		P.Next();
 	}
-}
-
-
-// ----------------------------------------------------------------------------
-// Scopes
-
-func (P *Parser) OpenScope() {
-}
-
-
-func (P *Parser) CloseScope() {
 }
 
 
@@ -498,8 +491,8 @@ func (P *Parser) ParseStatementList() *AST.List {
 		stats.Add(P.ParseStatement());
 		if P.tok == Scanner.SEMICOLON {
 			P.Next();
-		} else if P.semi {
-			P.semi = false;  // consume inserted ";"
+		} else if P.opt_semi {
+			P.opt_semi = false;  // "consume" optional semicolon
 		} else {
 			break;
 		}
@@ -517,14 +510,12 @@ func (P *Parser) ParseBlock() *AST.Block {
 	block.pos = P.pos;
 	
 	P.Expect(Scanner.LBRACE);
-	P.OpenScope();
 	if P.tok != Scanner.RBRACE {
 		block.stats = P.ParseStatementList();
 	}
 	P.OptSemicolon();
-	P.CloseScope();
 	P.Expect(Scanner.RBRACE);
-	P.semi = true;  // allow optional semicolon
+	P.opt_semi = true;
 	
 	P.Ecart();
 	return block;
@@ -562,7 +553,9 @@ func (P *Parser) ParseFunctionLit() *AST.FunctionLit {
 	
 	P.Expect(Scanner.FUNC);
 	fun.typ = P.ParseFunctionType();
+	P.scope_lev++;
 	fun.body = P.ParseBlock();
+	P.scope_lev--;
 	
 	P.Ecart();
 	return fun;
@@ -588,52 +581,11 @@ func (P *Parser) ParseExpressionPairList(list *AST.List) {
 
 	list.Add(P.ParseExpressionPair());
 	for P.tok == Scanner.COMMA {
+		P.Next();
 		list.Add(P.ParseExpressionPair());
 	}
 	
 	P.Ecart();
-}
-
-
-func (P *Parser) ParseCompositeLit(typ AST.Type) AST.Expr {
-	P.Trace("CompositeLit");
-	
-	lit := new(AST.CompositeLit);
-	lit.pos = P.pos;
-	lit.typ = typ;
-	lit.vals = AST.NewList();
-	
-	P.Expect(Scanner.LBRACE);
-	// TODO: should allow trailing ','
-	if P.tok != Scanner.RBRACE {
-		x := P.ParseExpression();
-		if P.tok == Scanner.COMMA {
-			P.Next();
-			lit.vals.Add(x);
-			if P.tok != Scanner.RBRACE {
-				P.ParseExpressionList(lit.vals);
-			}
-		} else if P.tok == Scanner.COLON {
-			p := new(AST.Pair);
-			p.pos = P.pos;
-			p.x = x;
-			P.Next();
-			p.y = P.ParseExpression();
-			lit.vals.Add(p);
-			if P.tok == Scanner.COMMA {
-				P.Next();
-				if P.tok != Scanner.RBRACE {
-					P.ParseExpressionPairList(lit.vals);
-				}
-			}
-		} else {
-			lit.vals.Add(x);
-		}
-	}
-	P.Expect(Scanner.RBRACE);
-
-	P.Ecart();
-	return lit;
 }
 
 
@@ -648,31 +600,34 @@ func (P *Parser) ParseOperand() AST.Expr {
 		
 	case Scanner.LPAREN:
 		P.Next();
+		P.expr_lev++;
 		op = P.ParseExpression();
+		P.expr_lev--;
 		P.Expect(Scanner.RPAREN);
 
-	case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
+	case Scanner.INT, Scanner.FLOAT:
 		lit := new(AST.Literal);
 		lit.pos, lit.tok, lit.val = P.pos, P.tok, P.val;
 		op = lit;
 		P.Next();
 
+	case Scanner.STRING:
+		lit := new(AST.Literal);
+		lit.pos, lit.tok = P.pos, P.tok;
+		for P.tok == Scanner.STRING {
+			lit.val += P.val;
+			P.Next();
+		}
+		op = lit;
+
 	case Scanner.FUNC:
 		op = P.ParseFunctionLit();
 		
-	case Scanner.HASH:
-		P.Next();
-		typ := P.ParseType();
-		P.ParseCompositeLit(typ);
-		op = AST.NIL;
-
 	default:
-		if P.tok != Scanner.IDENT {
-			typ, ok := P.TryType();
-			if ok {
-				op = P.ParseCompositeLit(typ);
-				break;
-			}
+		typ, ok := P.TryType();
+		if ok {
+			op = typ;
+			break;
 		}
 
 		P.Error(P.pos, "operand expected");
@@ -739,33 +694,53 @@ func (P *Parser) ParseCall(x AST.Expr) *AST.Call {
 	
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
-	   	// first arguments could be a type if the call is to "new"
-		// - exclude type names because they could be expression starts
-		// - exclude "("'s because function types are not allowed and they indicate an expression
-		// - still a problem for "new(*T)" (the "*")
-		// - possibility: make "new" a keyword again (or disallow "*" types in new)
-		if P.tok != Scanner.IDENT && P.tok != Scanner.LPAREN {
-			typ, ok := P.TryType();
-			if ok {
-				call.args = AST.NewList();
-				call.args.Add(typ);
-				if P.tok == Scanner.COMMA {
-					P.Next();
-					if P.tok != Scanner.RPAREN {
-						P.ParseExpressionList(call.args);
-					}
-				}
-			} else {
-				call.args = P.ParseNewExpressionList();
-			}
-		} else {
-			call.args = P.ParseNewExpressionList();
-		}
+		call.args = P.ParseNewExpressionList();
 	}
 	P.Expect(Scanner.RPAREN);
 	
 	P.Ecart();
 	return call;
+}
+
+
+func (P *Parser) ParseCompositeLit(typ AST.Type) AST.Expr {
+	P.Trace("CompositeLit");
+	
+	lit := new(AST.CompositeLit);
+	lit.pos = P.pos;
+	lit.typ = typ;
+	lit.vals = AST.NewList();
+	
+	P.Expect(Scanner.LBRACE);
+	if P.tok != Scanner.RBRACE {
+		x := P.ParseExpression();
+		if P.tok == Scanner.COMMA {
+			P.Next();
+			lit.vals.Add(x);
+			if P.tok != Scanner.RBRACE {
+				P.ParseExpressionList(lit.vals);
+			}
+		} else if P.tok == Scanner.COLON {
+			p := new(AST.Pair);
+			p.pos = P.pos;
+			p.x = x;
+			P.Next();
+			p.y = P.ParseExpression();
+			lit.vals.Add(p);
+			if P.tok == Scanner.COMMA {
+				P.Next();
+				if P.tok != Scanner.RBRACE {
+					P.ParseExpressionPairList(lit.vals);
+				}
+			}
+		} else {
+			lit.vals.Add(x);
+		}
+	}
+	P.Expect(Scanner.RBRACE);
+
+	P.Ecart();
+	return lit;
 }
 
 
@@ -778,6 +753,12 @@ func (P *Parser) ParsePrimaryExpr() AST.Expr {
 		case Scanner.PERIOD: x = P.ParseSelectorOrTypeGuard(x);
 		case Scanner.LBRACK: x = P.ParseIndexOrSlice(x);
 		case Scanner.LPAREN: x = P.ParseCall(x);
+		case Scanner.LBRACE:
+			if P.expr_lev > 0 {
+				x = P.ParseCompositeLit(x);
+			} else {
+				goto exit;
+			}
 		default: goto exit;
 		}
 	}
@@ -872,7 +853,7 @@ func (P *Parser) ParseSimpleStat() AST.Stat {
 			l.ident = AST.NIL;
 		}
 		P.Next();  // consume ":"
-		P.semi = true;  // allow optional semicolon
+		P.opt_semi = true;
 		stat = l;
 		
 	case
@@ -969,6 +950,8 @@ func (P *Parser) ParseControlClause(keyword int) *AST.ControlClause {
 
 	P.Expect(keyword);
 	if P.tok != Scanner.LBRACE {
+		prev_lev := P.expr_lev;
+		P.expr_lev = 0;
 		if P.tok != Scanner.SEMICOLON {
 			ctrl.init = P.ParseSimpleStat();
 			ctrl.has_init = true;
@@ -990,6 +973,7 @@ func (P *Parser) ParseControlClause(keyword int) *AST.ControlClause {
 			ctrl.expr, ctrl.has_expr = ctrl.init, ctrl.has_init;
 			ctrl.init, ctrl.has_init = AST.NIL, false;
 		}
+		P.expr_lev = prev_lev;
 	}
 
 	P.Ecart();
@@ -1079,7 +1063,7 @@ func (P *Parser) ParseSwitchStat() *AST.SwitchStat {
 		stat.cases.Add(P.ParseCaseClause());
 	}
 	P.Expect(Scanner.RBRACE);
-	P.semi = true;  // allow optional semicolon
+	P.opt_semi = true;
 
 	P.Ecart();
 	return stat;
@@ -1127,7 +1111,7 @@ func (P *Parser) ParseSelectStat() {
 		P.ParseCommClause();
 	}
 	P.Expect(Scanner.RBRACE);
-	P.semi = true;  // allow optional semicolon
+	P.opt_semi = true;
 	
 	P.Ecart();
 }
@@ -1172,7 +1156,11 @@ func (P *Parser) ParseStatement() AST.Stat {
 	case Scanner.FUNC:
 		// for now we do not allow local function declarations
 		fallthrough;
-	case Scanner.MUL, Scanner.ARROW, Scanner.IDENT, Scanner.LPAREN:
+	case
+		// only the tokens that are legal top-level expression starts
+		Scanner.IDENT, Scanner.INT, Scanner.FLOAT, Scanner.STRING, Scanner.LPAREN,  // operand
+		Scanner.LBRACK, Scanner.STRUCT,  // composite type
+		Scanner.MUL, Scanner.AND, Scanner.ARROW:  // unary
 		stat = P.ParseSimpleStat();
 	case Scanner.GO:
 		stat = P.ParseGoStat();
@@ -1259,7 +1247,7 @@ func (P *Parser) ParseTypeSpec(exported bool) *AST.TypeDecl {
 	decl := new(AST.TypeDecl);
 	decl.ident = P.ParseIdent();
 	decl.typ = P.ParseType();
-	P.semi = true;  // allow optional semicolon
+	P.opt_semi = true;
 	
 	P.Ecart();
 	return decl;
@@ -1320,7 +1308,7 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Declaration {
 			}
 		}
 		P.Expect(Scanner.RPAREN);
-		P.semi = true;  // allow optional semicolon
+		P.opt_semi = true;
 		
 	} else {
 		decl.decls.Add(P.ParseSpec(exported, keyword));
@@ -1348,9 +1336,6 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.FuncDecl {
 
 	P.Expect(Scanner.FUNC);
 
-	P.OpenScope();
-	P.level--;
-
 	var recv *AST.VarDeclList;
 	if P.tok == Scanner.LPAREN {
 		pos := P.pos;
@@ -1367,11 +1352,10 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.FuncDecl {
 	fun.typ = P.ParseFunctionType();
 	fun.typ.recv = recv;
 	
-	P.level++;
-	P.CloseScope();
-
 	if P.tok == Scanner.LBRACE {
+		P.scope_lev++;
 		fun.body = P.ParseBlock();
+		P.scope_lev--;
 	}
 	
 	P.Ecart();
@@ -1414,7 +1398,7 @@ func (P *Parser) ParseDeclaration() AST.Node {
 
 	exported := false;
 	if P.tok == Scanner.EXPORT {
-		if P.level == 0 {
+		if P.scope_lev == 0 {
 			exported = true;
 		} else {
 			P.Error(P.pos, "local declarations cannot be exported");
@@ -1456,34 +1440,21 @@ func (P *Parser) ParseDeclaration() AST.Node {
 func (P *Parser) ParseProgram() *AST.Program {
 	P.Trace("Program");
 	
-	P.OpenScope();
 	pos := P.pos;
 	P.Expect(Scanner.PACKAGE);
 	ident := P.ParseIdent();
 	
 	decls := AST.NewList();
-	{	P.OpenScope();
-		if P.level != 0 {
-			panic("incorrect scope level");
-		}
+	for P.tok == Scanner.IMPORT {
+		decls.Add(P.ParseDecl(false, Scanner.IMPORT));
+		P.OptSemicolon();
+	}
 		
-		for P.tok == Scanner.IMPORT {
-			decls.Add(P.ParseDecl(false, Scanner.IMPORT));
-			P.OptSemicolon();
-		}
-		
-		for P.tok != Scanner.EOF {
-			decls.Add(P.ParseDeclaration());
-			P.OptSemicolon();
-		}
-		
-		if P.level != 0 {
-			panic("incorrect scope level");
-		}
-		P.CloseScope();
+	for P.tok != Scanner.EOF {
+		decls.Add(P.ParseDeclaration());
+		P.OptSemicolon();
 	}
 	
-	P.CloseScope();
 	P.Ecart();
 	
 	x := new(AST.Program);
