@@ -59,6 +59,9 @@ Open issues according to gri:
 	variables and the use of '&' to convert methods into function pointers.
 [ ] Conversions: can we say: "type T int; T(3.0)" ?
 [ ] Is . import implemented?
+[ ] Do we allow empty statements? If so, do we allow empty statements after a label?
+    and if so, does a label followed by an empty statement (a semicolon) still denote
+	a for loop that is following, and can break L be used inside it?
 
 
 Decisions in need of integration into the doc:
@@ -1980,14 +1983,21 @@ Statements control execution.
 	SimpleStat =
 		ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
 
+
 Statements in a statement list are separated by semicolons, which can be
 omitted in some cases as expressed by the OptSemicolon production.
-They are optional immediately after a closing parenthesis ")" terminating a
-list of declarations, or a closing brace terminating a type declaration or
-a block. Specifically, they cannot be omitted after the closing brace of a
-composite literal.
 
-	StatementList = Statement { OptSemicolon Statement } [ ";" ] .
+	StatementList = Statement { OptSemicolon Statement } .
+
+A semicolon may be omitted immediately following:
+
+	- a closing parenthesis ")" ending a list of declarations (§Declarations and scope rules)
+	- a closing brace "}" ending a type declaration (§Type declarations)
+	- a closing brace "}" ending a block (including switch and select statements)
+	- a label declaration (§Label declarations)
+
+In all other cases a semicolon is required to separate two statements. Since there
+is an empty statement, a statement list can always be ``terminated'' with a semicolon.
 
 
 Label declarations
