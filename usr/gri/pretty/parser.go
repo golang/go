@@ -15,10 +15,10 @@ export type Parser struct {
 	tokchan *<-chan *Scanner.Token;
 	
 	// Scanner.Token
-	old int;  // previous token
 	pos int;  // token source position
 	tok int;  // one token look-ahead
 	val string;  // token value (for IDENT, NUMBER, STRING only)
+	semi bool;  // true if a semicolon was inserted by the previous statement
 
 	// Nesting level
 	level int;  // 0 = global scope, -1 = function scope of global functions, etc.
@@ -54,13 +54,13 @@ func (P *Parser) Ecart() {
 
 
 func (P *Parser) Next() {
-	P.old = P.tok;
 	if P.tokchan == nil {
 		P.pos, P.tok, P.val = P.scanner.Scan();
 	} else {
 		t := <-P.tokchan;
 		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
 	}
+	P.semi = false;
 	if P.verbose {
 		P.PrintIndent();
 		print("[", P.pos, "] ", Scanner.TokenName(P.tok), "\n");
@@ -73,7 +73,6 @@ func (P *Parser) Open(verbose bool, scanner *Scanner.Scanner, tokchan *<-chan *S
 	P.indent = 0;
 	P.scanner = scanner;
 	P.tokchan = tokchan;
-	P.old = Scanner.ILLEGAL;
 	P.Next();
 	P.level = 0;
 }
@@ -92,8 +91,8 @@ func (P *Parser) Expect(tok int) {
 }
 
 
-func (P *Parser) Optional(tok int) {
-	if P.tok == tok {
+func (P *Parser) OptSemicolon() {
+	if P.tok == Scanner.SEMICOLON {
 		P.Next();
 	}
 }
@@ -115,20 +114,8 @@ func (P *Parser) CloseScope() {
 
 func (P *Parser) TryType() (typ AST.Type, ok bool);
 func (P *Parser) ParseExpression() AST.Expr;
-func (P *Parser) TryStatement() (stat AST.Stat, ok bool);
+func (P *Parser) ParseStatement() AST.Stat;
 func (P *Parser) ParseDeclaration() AST.Node;
-
-
-func (P *Parser) OptSemicolon(tok int) {
-	P.Trace("OptSemicolon");
-	if P.tok == Scanner.SEMICOLON {
-		P.Next();
-	} else if P.level != 0 || P.old != tok || P.tok != tok {
-		// TODO FIX THIS
-		// P.Expect(Scanner.SEMICOLON);
-	}
-	P.Ecart();
-}
 
 
 func (P *Parser) ParseIdent() *AST.Ident {
@@ -454,7 +441,7 @@ func (P *Parser) ParseStructType() *AST.StructType {
 				P.Expect(Scanner.SEMICOLON);
 			}
 		}
-		P.Optional(Scanner.SEMICOLON);
+		P.OptSemicolon();
 		P.Expect(Scanner.RBRACE);
 	}
 
@@ -503,31 +490,16 @@ func (P *Parser) TryType() (typ_ AST.Type, ok_ bool) {
 // ----------------------------------------------------------------------------
 // Blocks
 
-func (P *Parser) ParseStatement() AST.Stat {
-	P.Trace("Statement");
-	
-	stat, ok := P.TryStatement();
-	if ok {
-		P.OptSemicolon(Scanner.RBRACE);
-	} else {
-		P.Error(P.pos, "statement expected");
-		P.Next();  // make progress
-	}
-	
-	P.Ecart();
-	return stat;
-}
-
-
 func (P *Parser) ParseStatementList() *AST.List {
 	P.Trace("StatementList");
 	
 	stats := AST.NewList();
-	for {
-		stat, ok := P.TryStatement();
-		if ok {
-			stats.Add(stat);
-			P.Optional(Scanner.SEMICOLON);
+	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+		stats.Add(P.ParseStatement());
+		if P.tok == Scanner.SEMICOLON {
+			P.Next();
+		} else if P.semi {
+			P.semi = false;  // consume inserted ";"
 		} else {
 			break;
 		}
@@ -546,13 +518,13 @@ func (P *Parser) ParseBlock() *AST.Block {
 	
 	P.Expect(Scanner.LBRACE);
 	P.OpenScope();
-	
-	if P.tok != Scanner.RBRACE && P.tok != Scanner.SEMICOLON {
+	if P.tok != Scanner.RBRACE {
 		block.stats = P.ParseStatementList();
 	}
-	P.Optional(Scanner.SEMICOLON);
+	P.OptSemicolon();
 	P.CloseScope();
 	P.Expect(Scanner.RBRACE);
+	P.semi = true;  // allow optional semicolon
 	
 	P.Ecart();
 	return block;
@@ -801,14 +773,15 @@ func (P *Parser) ParsePrimaryExpr() AST.Expr {
 	P.Trace("PrimaryExpr");
 	
 	x := P.ParseOperand();
-	L: for {
+	for {
 		switch P.tok {
 		case Scanner.PERIOD: x = P.ParseSelectorOrTypeGuard(x);
 		case Scanner.LBRACK: x = P.ParseIndexOrSlice(x);
 		case Scanner.LPAREN: x = P.ParseCall(x);
-		default: break L;
+		default: goto exit;
 		}
 	}
+exit:
 
 	P.Ecart();
 	return x;
@@ -899,6 +872,7 @@ func (P *Parser) ParseSimpleStat() AST.Stat {
 			l.ident = AST.NIL;
 		}
 		P.Next();  // consume ":"
+		P.semi = true;  // allow optional semicolon
 		stat = l;
 		
 	case
@@ -1083,14 +1057,8 @@ func (P *Parser) ParseCaseClause() *AST.CaseClause {
 	P.Trace("CaseClause");
 
 	clause := P.ParseCase();
-	if P.tok != Scanner.FALLTHROUGH && P.tok != Scanner.RBRACE {
+	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE {
 		clause.stats = P.ParseStatementList();
-		P.Optional(Scanner.SEMICOLON);
-	}
-	if P.tok == Scanner.FALLTHROUGH {
-		P.Next();
-		clause.falls = true;
-		P.Optional(Scanner.SEMICOLON);
 	}
 	
 	P.Ecart();
@@ -1107,10 +1075,11 @@ func (P *Parser) ParseSwitchStat() *AST.SwitchStat {
 	stat.cases = AST.NewList();
 	
 	P.Expect(Scanner.LBRACE);
-	for P.tok == Scanner.CASE || P.tok == Scanner.DEFAULT {
+	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 		stat.cases.Add(P.ParseCaseClause());
 	}
 	P.Expect(Scanner.RBRACE);
+	P.semi = true;  // allow optional semicolon
 
 	P.Ecart();
 	return stat;
@@ -1122,19 +1091,10 @@ func (P *Parser) ParseCommCase() {
   
   if P.tok == Scanner.CASE {
 	P.Next();
-	if P.tok == Scanner.GTR {
-		// send
+	P.ParseExpression();
+	if P.tok == Scanner.ASSIGN || P.tok == Scanner.DEFINE {
 		P.Next();
-		P.ParseExpression();
-		P.Expect(Scanner.EQL);
-		P.ParseExpression();
-	} else {
-		// receive
-		if P.tok != Scanner.LSS {
-			P.ParseIdent();
-			P.Expect(Scanner.ASSIGN);
-		}
-		P.Expect(Scanner.LSS);
+		P.Expect(Scanner.ARROW);
 		P.ParseExpression();
 	}
   } else {
@@ -1152,21 +1112,7 @@ func (P *Parser) ParseCommClause() {
 	P.ParseCommCase();
 	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE {
 		P.ParseStatementList();
-		P.Optional(Scanner.SEMICOLON);
 	}
-	
-	P.Ecart();
-}
-
-
-func (P *Parser) ParseRangeStat() {
-	P.Trace("RangeStat");
-	
-	P.Expect(Scanner.RANGE);
-	P.ParseIdentList();
-	P.Expect(Scanner.DEFINE);
-	P.ParseExpression();
-	P.ParseBlock();
 	
 	P.Ecart();
 }
@@ -1180,18 +1126,46 @@ func (P *Parser) ParseSelectStat() {
 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 		P.ParseCommClause();
 	}
-	P.Next();
+	P.Expect(Scanner.RBRACE);
+	P.semi = true;  // allow optional semicolon
 	
 	P.Ecart();
 }
 
 
-func (P *Parser) TryStatement() (stat_ AST.Stat, ok_ bool) {
-	P.Trace("Statement (try)");
+func (P *Parser) ParseFallthroughStat() {
+	P.Trace("FallthroughStat");
+	
+	P.Expect(Scanner.FALLTHROUGH);
+
+	P.Ecart();
+}
+
+
+func (P *Parser) ParseEmptyStat() {
+	P.Trace("EmptyStat");
+	P.Ecart();
+}
+
+
+func (P *Parser) ParseRangeStat() {
+	P.Trace("RangeStat");
+	
+	P.Expect(Scanner.RANGE);
+	P.ParseIdentList();
+	P.Expect(Scanner.DEFINE);
+	P.ParseExpression();
+	P.ParseBlock();
+	
+	P.Ecart();;
+}
+
+
+func (P *Parser) ParseStatement() AST.Stat {
+	P.Trace("Statement");
 	indent := P.indent;
 
 	var stat AST.Stat = AST.NIL;
-	res := true;
 	switch P.tok {
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
 		stat = P.ParseDeclaration();
@@ -1218,16 +1192,17 @@ func (P *Parser) TryStatement() (stat_ AST.Stat, ok_ bool) {
 		P.ParseRangeStat();
 	case Scanner.SELECT:
 		P.ParseSelectStat();
+	case Scanner.FALLTHROUGH:
+		P.ParseFallthroughStat();
 	default:
-		// no statement found
-		res = false;
+		P.ParseEmptyStat();  // for complete tracing output only
 	}
 
 	if indent != P.indent {
 		panic("imbalanced tracing code (Statement)");
 	}
 	P.Ecart();
-	return stat, res;
+	return stat;
 }
 
 
@@ -1284,6 +1259,7 @@ func (P *Parser) ParseTypeSpec(exported bool) *AST.TypeDecl {
 	decl := new(AST.TypeDecl);
 	decl.ident = P.ParseIdent();
 	decl.typ = P.ParseType();
+	P.semi = true;  // allow optional semicolon
 	
 	P.Ecart();
 	return decl;
@@ -1335,13 +1311,17 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Declaration {
 	P.Expect(keyword);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
-		decl.decls.Add(P.ParseSpec(exported, keyword));
-		P.OptSemicolon(Scanner.RPAREN);
-		for P.tok != Scanner.RPAREN {
+		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
 			decl.decls.Add(P.ParseSpec(exported, keyword));
-			P.OptSemicolon(Scanner.RPAREN);
+			if P.tok == Scanner.SEMICOLON {
+				P.Next();
+			} else {
+				break;
+			}
 		}
-		P.Next();  // consume ")"
+		P.Expect(Scanner.RPAREN);
+		P.semi = true;  // allow optional semicolon
+		
 	} else {
 		decl.decls.Add(P.ParseSpec(exported, keyword));
 	}
@@ -1462,8 +1442,6 @@ func (P *Parser) ParseDeclaration() AST.Node {
 		}
 	}
 
-	P.OptSemicolon(Scanner.RBRACE);
-
 	if indent != P.indent {
 		panic("imbalanced tracing code (Declaration)");
 	}
@@ -1491,11 +1469,12 @@ func (P *Parser) ParseProgram() *AST.Program {
 		
 		for P.tok == Scanner.IMPORT {
 			decls.Add(P.ParseDecl(false, Scanner.IMPORT));
-			P.Optional(Scanner.SEMICOLON);
+			P.OptSemicolon();
 		}
 		
 		for P.tok != Scanner.EOF {
 			decls.Add(P.ParseDeclaration());
+			P.OptSemicolon();
 		}
 		
 		if P.level != 0 {
