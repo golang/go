@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 8, 2008)
+(October 9, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -179,30 +179,50 @@ Introduction
 Notation
 ----
 
-The syntax is specified using Extended Backus-Naur Form (EBNF). 
-In particular:
+The syntax is specified using Parameterized Extended Backus-Naur Form (PEBNF).
+Specifically, productions are expressions constructed from terms and the
+following operators:
 
 - |   separates alternatives (least binding strength)
 - ()  groups
 - []  specifies an option (0 or 1 times)
 - {}  specifies repetition (0 to n times)
 
-Lexical symbols are enclosed in double quotes '''' (the
+The syntax of PEBNF can be expressed in itself:
+
+	Production = production_name [ Parameters ] "=" Expression .
+	Parameters = "<" production_name { "," production_name } ">" .
+	Expression = Alternative { "|" Alternative } .
+	Alternative = Term { Term } .
+	Term = production_name [ Arguments ] | token | Group | Option | Repetition .
+	Arguments = "<" Expression { "," Expression } ">" .
+	Group = "(" Expression ")" .
+	Option = "[" Expression ")" .
+	Repetition = "{" Expression "}" .
+
+Lower-case production names are used to identify productions that cannot
+be broken by white space or comments; they are usually tokens. Other
+production names are in CamelCase.
+
+Tokens (lexical symbols) are enclosed in double quotes '''' (the
 double quote symbol is written as ''"'').
 
 The form "a ... b" represents the set of characters from "a" through "b" as
 alternatives.
 
+Productions can be parameterized. To get the actual production the parameter is
+substituted with the argument provided where the production name is used. For
+instance, there are various forms of semicolon-separated lists in the grammar.
+The parameterized production for such lists is:
+
+	List<P> = P { ";" P } [ ";" ] .
+
+In this case, P stands for the actual list element.
+
 A production may be referenced from various places in this document
 but is usually defined close to its first use.  Productions and code
 examples are indented.
 
-Lower-case production names are used to identify productions that cannot
-be broken by white space or comments; they are usually tokens. Other
-productions are in CamelCase.
-
-Productions with names ending in List never produces the empty phrase.
-For instance, an ExpressionList always contains at least one expression.
 
 
 Source code representation
@@ -478,6 +498,14 @@ function, method) and specifies properties of that entity such as its type.
 	Declaration =
 		[ "export" ]
 		( ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl ) .
+		
+Except for function, method and abbreviated variable declarations (using ":="),
+all declarations follow the same pattern. There is either a single declaration
+of the form P, or an optional semicolon-separated list of declarations of the
+form P surrounded by parentheses:
+
+	Decl<P> = P | "(" [ List<P> ] ")" .
+	List<P> = P { ";" P } [ ";" ] .
 
 Every identifier in a program must be declared; some identifiers, such as "int"
 and "true", are predeclared.
@@ -577,10 +605,8 @@ Const declarations
 A constant declaration binds an identifier to the value of a constant
 expression (§Constant expressions).
 
-	ConstDecl = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
-	ConstSpec = identifier [ CompleteType ] "=" Expression .
-	ConstSpecList = ConstSpec { ";" ConstSpecOptExpr } [ ";" ] .
- 	ConstSpecOptExpr = identifier [ Type ] [ "=" Expression ] .
+	ConstDecl = "const" Decl<ConstSpec> .
+	ConstSpec = identifier [ CompleteType ] [ "=" Expression ] .
 
 	const pi float = 3.14159265
 	const e = 2.718281828
@@ -655,9 +681,8 @@ Type declarations
 
 A type declaration specifies a new type and binds an identifier to it.
 
-	TypeDecl = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ).
+	TypeDecl = "type" Decl<TypeSpec> .
 	TypeSpec = identifier Type .
-	TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
 
 A struct or interface type may be forward-declared (§Struct types,
 §Interface types). A forward-declared type is incomplete (§Types)
@@ -690,9 +715,8 @@ The variable type must be a complete type (§Types).
 In some forms of declaration the type of the initial value defines the type
 of the variable.
 
-	VarDecl = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
+	VarDecl = "var" Decl<VarSpec> .
 	VarSpec = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
-	VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
 
 	IdentifierList = identifier { "," identifier } .
 	ExpressionList = Expression { "," Expression } .
@@ -1048,8 +1072,7 @@ an identifier and type for each field. Within a struct type no field
 identifier may be declared twice and all field types must be complete
 types (§Types).
 
-	StructType = "struct" [ "{" [ FieldList ] "}" ] .
-	FieldList = FieldDecl { ";" FieldDecl } [ ";" ] .
+	StructType = "struct" [ "{" [ List<FieldDecl> ] "}" ] .
 	FieldDecl = IdentifierList CompleteType | TypeName .
 
 	// An empty struct.
@@ -1242,8 +1265,7 @@ Type interfaces may be specified explicitly by interface types.
 An interface type denotes the set of all types that implement at least
 the set of methods specified by the interface type, and the value "nil".
 
-	InterfaceType = "interface" [ "{" [ MethodList ] "}" ] .
-	MethodList = MethodSpec { ";" MethodSpec } [ ";" ] .
+	InterfaceType = "interface" [ "{" [ List<MethodSpec> ] "}" ] .
 	MethodSpec = identifier FunctionType .
 
 	// A basic file interface.
@@ -1502,23 +1524,66 @@ Primary expressions
 Selectors
 ----
 
-Given a pointer p to a struct, one writes
-	p.f
-to access field f of the struct.
+A primary expression of the form
 
-TODO: Complete this section:
-- type rules
-- conflict resolution rules for anonymous fields
+	x.f
+
+denotes the field or method f of the value denoted by x (or of *x if
+x is of pointer type). The identifier f is called the ``selector''.
+The following rules apply:
+
+For x of type S or *S where S is a struct type (§Struct types):
+
+	1) If f is declared as a (named or anonymous) field of S then x.f denotes
+	   that field.
+
+	2) If f is declared (or forward-declared) as a method of S textually
+	   before x.f then x.f denotes that method and x becomes the receiver
+	   of f.
+
+	3) Otherwise, if there is single anononymous field A of S such that
+	   x.A.f denotes a valid field according to 1) or 2), then x.f is
+	   a shortcut for x.A.f, and x.A becomes the receiver of f.
+	   If there is none or more then one anonymous field of S satisfying
+	   this criterion, x.f is illegal.
+
+
+For x of type I or *I where I is an interface type (§Interface types):
+
+	- If f is a method declared in I then x.f denotes the actual method with
+	  name f of the value assigned to the variable x and x becomes the receiver
+	  of f. If no value or nil was assigned to x, x.f is illegal.
+
+Otherwise, x.f is illegal.
 
 
 Indexes
 ----
 
-Given an array or map pointer, one writes
-	p[i]
-to access an element.  
+A primary expression of the form
 
-TODO: Complete this section:
+	a[x]
+
+denotes the array or map element x. The value x is called the
+``array index'' or ``map key'', respectively. The following
+rules apply:
+
+For a of type A or *A where A is an array type (§Array types):
+
+	- x must be an integer value and 0 <= x < len(a)
+	- a[x] is the array element at index x and the type of a[x]
+	  is the element type of A
+
+For a of type *M, where M is a map type (§Map types):
+
+	- x must be of the same type as the key type of M
+	  and the map must contain an entry with key x
+	- a[x] is the map value with key x and the type of a[x]
+	  is the value type of M
+
+Otherwise a[x] is illegal.
+
+TODO: Need to expand map rules for assignments of the form v, ok = m[k].
 
 
 Slices
@@ -2582,9 +2647,8 @@ The file must begin with a package clause.
 A package can gain access to exported items from another package
 through an import declaration:
 
-	ImportDecl = "import" ( ImportSpec | "(" ImportSpecList ")" ) .
+	ImportDecl = "import" Decl<ImportSpec> .
 	ImportSpec = [ "." | PackageName ] PackageFileName .
-	ImportSpecList = ImportSpec { ";" ImportSpec } [ ";" ] .
 
 An import statement makes the exported contents of the named
 package file accessible in this package.
