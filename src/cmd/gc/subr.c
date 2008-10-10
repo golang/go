@@ -1507,6 +1507,10 @@ signame(Type *t, int block)
 		ss->local = s->local;
 //print("signame: %d %lS\n", ss->local, ss);
 	}
+
+	if(strcmp(ss->name, "sigt_int32") == 0)
+		warn("int32 -> interface");
+
 	return ss;
 
 bad:
