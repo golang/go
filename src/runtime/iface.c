@@ -231,7 +231,6 @@ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
 void
 sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
 {
-
 	if(debug) {
 		prints("I2I sigi=");
 		printsigi(si);
@@ -241,14 +240,16 @@ sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
 	}
 
 	if(im == nil) {
-		throw("ifaceI2I: nil map");
-		return;
+		// If incoming interface is uninitialized (zeroed)
+		// make the outgoing interface zeroed as well.
+		retim = nil;
+		retit = nil;
+	} else {
+		retit = it;
+		retim = im;
+		if(im->sigi != si)
+			retim = hashmap(si, im->sigt);
 	}
-
-	retit = it;
-	retim = im;
-	if(im->sigi != si)
-		retim = hashmap(si, im->sigt);
 
 	if(debug) {
 		prints("I2I ret=");
