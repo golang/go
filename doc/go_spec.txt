@@ -54,7 +54,6 @@ Open issues:
 [ ] new(arraytype, n1, n2): spec only talks about length, not capacity
     (should only use new(arraytype, n) - this will allow later
 	 extension to multi-dim arrays w/o breaking the language)
-[ ] comparison operators: can we compare interfaces?
 [ ] like to have assert() in the language, w/ option to disable code gen for it
 [ ] composite types should uniformly create an instance instead of a pointer
 [ ] semantics of statements
@@ -85,6 +84,7 @@ Decisions in need of integration into the doc:
 
 
 Closed:
+[x] comparison operators: can we compare interfaces?
 [x] can we add methods to types defined in another package? (probably not)
 [x] optional semicolons: too complicated and unclear
 [x] anonymous types are written using a type name, which can be a qualified identifier.
@@ -1348,7 +1348,7 @@ number of methods with the same names, and corresponding (by name) methods
 have the same function types.
 
 Assignment compatibility: A value can be assigned to an interface variable
-if the static type of the value implements the interface.
+if the static type of the value implements the interface or if the value is "nil".
 
 
 Expressions
@@ -1810,8 +1810,7 @@ Comparison operators
 
 Comparison operators yield a boolean result. All comparison operators apply
 to strings and numeric types. The operators "==" and "!=" also apply to
-boolean values and to pointer types (including the value "nil"). Finally,
-"==" and "!=" can also be used to compare interface types against "nil".
+boolean values, pointer and interface types (including the value "nil").
 
 	==    equal
 	!=    not equal
@@ -1822,7 +1821,9 @@ boolean values and to pointer types (including the value "nil"). Finally,
 
 Strings are compared byte-wise (lexically).
 
-Interfaces can be tested against "nil" (§Interface types).
+Pointers are equal if they point to the same value.
+
+Interfaces are equal if both their dynamic types and values are equal.
 For a value "v" of interface type, "v == nil" is true only if the predeclared
 constant "nil" is assigned explicitly to "v" (§Assignments), or "v" has not
 been modified since creation (§Program initialization and execution).
