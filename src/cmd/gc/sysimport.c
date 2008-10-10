@@ -68,5 +68,6 @@ char *sysimport =
 	"export func sys.bytestorune (? *sys.uint8, ? sys.int32, ? sys.int32) (? sys.int32, ? sys.int32)\n"
 	"export func sys.stringtorune (? sys.string, ? sys.int32) (? sys.int32, ? sys.int32)\n"
 	"export func sys.exit (? sys.int32)\n"
+	"export func sys.BUG_intereq (a interface { }, b interface { }) (? sys.bool)\n"
 	"\n"
 	"$$\n";

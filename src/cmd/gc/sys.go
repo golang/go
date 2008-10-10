@@ -80,3 +80,4 @@ export func	stringtorune(string, int32) (int32, int32);	// convert bytes to rune
 
 export func	exit(int32);
 
+export func	BUG_intereq(a, b interface{}) bool;	// should not be necessary
