@@ -21,9 +21,7 @@ export var ErrBadBackslash = os.NewError("illegal backslash escape");
 // An instruction executed by the NFA
 type Inst interface {
 	Type()	int;	// the type of this instruction: CHAR, ANY, etc.
-	This()	int;	// the index of this instruction
 	Next()	int;	// the index of the instruction to execute after this one
-	SetThis(i int);
 	SetNext(i int);
 	Print(ind string);
 }
@@ -58,9 +56,7 @@ type Start struct {
 }
 
 func (start *Start) Type() int { return START }
-func (start *Start) This() int { return start.this }
 func (start *Start) Next() int { return start.next }
-func (start *Start) SetThis(i int) { start.this = i }
 func (start *Start) SetNext(i int) { start.next = i }
 func (start *Start) Print(ind string) { print(ind, "start") }
 
@@ -71,9 +67,7 @@ type End struct {
 }
 
 func (end *End) Type() int { return END }
-func (end *End) This() int { return end.this }
 func (end *End) Next() int { return end.next }
-func (end *End) SetThis(i int) { end.this = i }
 func (end *End) SetNext(i int) { end.next = i }
 func (end *End) Print(ind string) { print(ind, "end") }
 
@@ -84,9 +78,7 @@ type Bot struct {
 }
 
 func (bot *Bot) Type() int { return BOT }
-func (bot *Bot) This() int { return bot.this }
 func (bot *Bot) Next() int { return bot.next }
-func (bot *Bot) SetThis(i int) { bot.this = i }
 func (bot *Bot) SetNext(i int) { bot.next = i }
 func (bot *Bot) Print(ind string) { print(ind, "bot") }
 
@@ -97,9 +89,7 @@ type Eot struct {
 }
 
 func (eot *Eot) Type() int { return EOT }
-func (eot *Eot) This() int { return eot.this }
 func (eot *Eot) Next() int { return eot.next }
-func (eot *Eot) SetThis(i int) { eot.this = i }
 func (eot *Eot) SetNext(i int) { eot.next = i }
 func (eot *Eot) Print(ind string) { print(ind, "eot") }
 
@@ -112,9 +102,7 @@ type Char struct {
 }
 
 func (char *Char) Type() int { return CHAR }
-func (char *Char) This() int { return char.this }
 func (char *Char) Next() int { return char.next }
-func (char *Char) SetThis(i int) { char.this = i }
 func (char *Char) SetNext(i int) { char.next = i }
 func (char *Char) Print(ind string) { print(ind, "char ", string(char.char)) }
 
@@ -131,9 +119,7 @@ type Any struct {
 }
 
 func (any *Any) Type() int { return ANY }
-func (any *Any) This() int { return any.this }
 func (any *Any) Next() int { return any.next }
-func (any *Any) SetThis(i int) { any.this = i }
 func (any *Any) SetNext(i int) { any.next = i }
 func (any *Any) Print(ind string) { print(ind, "any") }
 
@@ -144,9 +130,7 @@ type Bra struct {
 }
 
 func (bra *Bra) Type() int { return BRA }
-func (bra *Bra) This() int { return bra.this }
 func (bra *Bra) Next() int { return bra.next }
-func (bra *Bra) SetThis(i int) { bra.this = i }
 func (bra *Bra) SetNext(i int) { bra.next = i }
 func (bra *Bra) Print(ind string) { print(ind , "bra"); }
 
@@ -158,9 +142,7 @@ type Ebra struct {
 }
 
 func (ebra *Ebra) Type() int { return BRA }
-func (ebra *Ebra) This() int { return ebra.this }
 func (ebra *Ebra) Next() int { return ebra.next }
-func (ebra *Ebra) SetThis(i int) { ebra.this = i }
 func (ebra *Ebra) SetNext(i int) { ebra.next = i }
 func (ebra *Ebra) Print(ind string) { print(ind , "ebra ", ebra.n); }
 
@@ -172,9 +154,7 @@ type Alt struct {
 }
 
 func (alt *Alt) Type() int { return ALT }
-func (alt *Alt) This() int { return alt.this }
 func (alt *Alt) Next() int { return alt.next }
-func (alt *Alt) SetThis(i int) { alt.this = i }
 func (alt *Alt) SetNext(i int) { alt.next = i }
 func (alt *Alt) Print(ind string) { print(ind , "alt(", alt.left, ")"); }
 
@@ -185,9 +165,7 @@ type Nop struct {
 }
 
 func (nop *Nop) Type() int { return NOP }
-func (nop *Nop) This() int { return nop.this }
 func (nop *Nop) Next() int { return nop.next }
-func (nop *Nop) SetThis(i int) { nop.this = i }
 func (nop *Nop) SetNext(i int) { nop.next = i }
 func (nop *Nop) Print(ind string) { print(ind, "nop") }
 
@@ -198,7 +176,6 @@ func (re *RE) AddInst(inst Inst) int {
 	}
 	re.inst[re.ninst] = inst;
 	i := re.ninst;
-	inst.SetThis(re.ninst);
 	re.ninst++;
 	inst.SetNext(re.ninst);
 	return i;
@@ -275,10 +252,12 @@ func special(c int) bool {
 
 func (p *Parser) Term() (start, end int) {
 	switch c := p.c(); c {
-	case ')', '|', EOF:
+	case '|', EOF:
 		return NULL, NULL;
 	case '*', '+', '|':
 		p.re.Error(ErrBareClosure);
+	case ')':
+		p.re.Error(ErrUnmatchedRpar);
 	case '.':
 		p.nextc();
 		start = p.re.AddInst(new(Any));
