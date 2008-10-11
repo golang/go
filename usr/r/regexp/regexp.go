@@ -6,12 +6,19 @@
 
 package regexp
 
-import os "os"
+import (
+	"os";
+	"vector";
+)
+
 
 export var ErrUnimplemented = os.NewError("unimplemented");
 export var ErrInternal = os.NewError("internal error");
 export var ErrUnmatchedLpar = os.NewError("unmatched '('");
 export var ErrUnmatchedRpar = os.NewError("unmatched ')'");
+export var ErrUnmatchedLbkt = os.NewError("unmatched '['");
+export var ErrUnmatchedRbkt = os.NewError("unmatched ']'");
+export var ErrBadRange = os.NewError("bad range in character class");
 export var ErrExtraneousBackslash = os.NewError("extraneous backslash");
 export var ErrEmpty = os.NewError("empty subexpression or alternation");
 export var ErrBadClosure = os.NewError("repeated closure (**, ++, etc.)");
@@ -23,23 +30,27 @@ type Inst interface {
 	Type()	int;	// the type of this instruction: CHAR, ANY, etc.
 	Next()	Inst;	// the instruction to execute after this one
 	SetNext(i Inst);
-	Print(ind string);
+	Index()	int;
+	SetIndex(i int);
+	Print();
 }
 
 type RE struct {
 	expr	string;	// the original expression
 	ch	*chan<- *RE;	// reply channel when we're done
-	error *os.Error;	// compile- or run-time error; nil if OK
+	error	*os.Error;	// compile- or run-time error; nil if OK
+	inst	*vector.Vector;
 	start	Inst;
 }
 
 const (
-	START	// beginning of program: marker to start
+	START	// beginning of program: indexer to start
 		= iota;
 	END;		// end of program: success
 	BOT;		// '^' beginning of text
 	EOT;		// '$' end of text
 	CHAR;	// 'a' regular character
+	CHARCLASS;	// [a-z] character class
 	ANY;		// '.' any character
 	BRA;		// '(' parenthesized expression
 	EBRA;	// ')'; end of '(' parenthesized expression
@@ -50,54 +61,68 @@ const (
 // --- START start of program
 type Start struct {
 	next	Inst;
+	index	int;
 }
 
 func (start *Start) Type() int { return START }
 func (start *Start) Next() Inst { return start.next }
 func (start *Start) SetNext(i Inst) { start.next = i }
-func (start *Start) Print(ind string) { print(ind, "start") }
+func (start *Start) Index() int { return start.index }
+func (start *Start) SetIndex(i int) { start.index = i }
+func (start *Start) Print() { print("start") }
 
 // --- END end of program
 type End struct {
 	next	Inst;
+	index	int;
 }
 
 func (end *End) Type() int { return END }
 func (end *End) Next() Inst { return end.next }
 func (end *End) SetNext(i Inst) { end.next = i }
-func (end *End) Print(ind string) { print(ind, "end") }
+func (end *End) Index() int { return end.index }
+func (end *End) SetIndex(i int) { end.index = i }
+func (end *End) Print() { print("end") }
 
 // --- BOT beginning of text
 type Bot struct {
 	next	Inst;
+	index	int;
 }
 
 func (bot *Bot) Type() int { return BOT }
 func (bot *Bot) Next() Inst { return bot.next }
 func (bot *Bot) SetNext(i Inst) { bot.next = i }
-func (bot *Bot) Print(ind string) { print(ind, "bot") }
+func (bot *Bot) Index() int { return bot.index }
+func (bot *Bot) SetIndex(i int) { bot.index = i }
+func (bot *Bot) Print() { print("bot") }
 
 // --- EOT end of text
 type Eot struct {
 	next	Inst;
+	index	int;
 }
 
 func (eot *Eot) Type() int { return EOT }
 func (eot *Eot) Next() Inst { return eot.next }
 func (eot *Eot) SetNext(i Inst) { eot.next = i }
-func (eot *Eot) Print(ind string) { print(ind, "eot") }
+func (eot *Eot) Index() int { return eot.index }
+func (eot *Eot) SetIndex(i int) { eot.index = i }
+func (eot *Eot) Print() { print("eot") }
 
 // --- CHAR a regular character
 type Char struct {
 	next	Inst;
 	char	int;
-	set	bool;
+	index	int;
 }
 
 func (char *Char) Type() int { return CHAR }
 func (char *Char) Next() Inst { return char.next }
 func (char *Char) SetNext(i Inst) { char.next = i }
-func (char *Char) Print(ind string) { print(ind, "char ", string(char.char)) }
+func (char *Char) Index() int { return char.index }
+func (char *Char) SetIndex(i int) { char.index = i }
+func (char *Char) Print() { print("char ", string(char.char)) }
 
 func NewChar(char int) *Char {
 	c := new(Char);
@@ -105,64 +130,131 @@ func NewChar(char int) *Char {
 	return c;
 }
 
+// --- CHARCLASS [a-z]
+
+type CClassChar int;	// BUG: Shouldn't be necessary but 6g won't put ints into vectors
+
+type CharClass struct {
+	next	Inst;
+	index	int;
+	char	int;
+	negate	bool;	// is character class negated? ([^a-z])
+	// Vector of CClassChar, stored pairwise: [a-z] is (a,z); x is (x,x):
+	ranges	*vector.Vector;
+}
+
+func (cclass *CharClass) Type() int { return CHAR }
+func (cclass *CharClass) Next() Inst { return cclass.next }
+func (cclass *CharClass) SetNext(i Inst) { cclass.next = i }
+func (cclass *CharClass) Index() int { return cclass.index }
+func (cclass *CharClass) SetIndex(i int) { cclass.index = i }
+func (cclass *CharClass) Print() {
+	print("charclass");
+	if cclass.negate {
+		print(" (negated)");
+	}
+	for i := 0; i < cclass.ranges.Len(); i += 2 {
+		l := cclass.ranges.At(i).(CClassChar);
+		r := cclass.ranges.At(i+1).(CClassChar);
+		if l == r {
+			print(" [", string(l), "]");
+		} else {
+			print(" [", string(l), "-", string(r), "]");
+		}
+	}
+}
+
+func (cclass *CharClass) AddRange(a, b CClassChar) {
+	// range is a through b inclusive
+	cclass.ranges.Append(a);
+	cclass.ranges.Append(b);
+}
+
+func NewCharClass() *CharClass {
+	c := new(CharClass);
+	c.ranges = vector.New();
+	return c;
+}
+
 // --- ANY any character
 type Any struct {
 	next	Inst;
+	index	int;
 }
 
 func (any *Any) Type() int { return ANY }
 func (any *Any) Next() Inst { return any.next }
 func (any *Any) SetNext(i Inst) { any.next = i }
-func (any *Any) Print(ind string) { print(ind, "any") }
+func (any *Any) Index() int { return any.index }
+func (any *Any) SetIndex(i int) { any.index = i }
+func (any *Any) Print() { print("any") }
 
 // --- BRA parenthesized expression
 type Bra struct {
 	next	Inst;
+	index	int;
 	n	int;	// subexpression number
 }
 
 func (bra *Bra) Type() int { return BRA }
 func (bra *Bra) Next() Inst { return bra.next }
 func (bra *Bra) SetNext(i Inst) { bra.next = i }
-func (bra *Bra) Print(ind string) { print(ind , "bra"); }
+func (bra *Bra) Index() int { return bra.index }
+func (bra *Bra) SetIndex(i int) { bra.index = i }
+func (bra *Bra) Print() { print("bra"); }
 
 // --- EBRA end of parenthesized expression
 type Ebra struct {
 	next	Inst;
+	index	int;
 	n	int;	// subexpression number
 }
 
 func (ebra *Ebra) Type() int { return BRA }
 func (ebra *Ebra) Next() Inst { return ebra.next }
 func (ebra *Ebra) SetNext(i Inst) { ebra.next = i }
-func (ebra *Ebra) Print(ind string) { print(ind , "ebra ", ebra.n); }
+func (ebra *Ebra) Index() int { return ebra.index }
+func (ebra *Ebra) SetIndex(i int) { ebra.index = i }
+func (ebra *Ebra) Print() { print("ebra ", ebra.n); }
 
 // --- ALT alternation
 type Alt struct {
 	next	Inst;
+	index	int;
 	left	Inst;	// other branch
 }
 
 func (alt *Alt) Type() int { return ALT }
 func (alt *Alt) Next() Inst { return alt.next }
 func (alt *Alt) SetNext(i Inst) { alt.next = i }
-func (alt *Alt) Print(ind string) { print(ind , "alt(", alt.left, ")"); }
+func (alt *Alt) Index() int { return alt.index }
+func (alt *Alt) SetIndex(i int) { alt.index = i }
+func (alt *Alt) Print() { print("alt(", alt.left.Index(), ")"); }
 
 // --- NOP no operation
 type Nop struct {
 	next	Inst;
+	index	int;
 }
 
 func (nop *Nop) Type() int { return NOP }
 func (nop *Nop) Next() Inst { return nop.next }
 func (nop *Nop) SetNext(i Inst) { nop.next = i }
-func (nop *Nop) Print(ind string) { print(ind, "nop") }
+func (nop *Nop) Index() int { return nop.index }
+func (nop *Nop) SetIndex(i int) { nop.index = i }
+func (nop *Nop) Print() { print("nop") }
 
 // report error and exit compiling/executing goroutine
 func (re *RE) Error(err *os.Error) {
 	re.error = err;
 	re.ch <- re;
 	sys.goexit();
+}
+
+func (re *RE) Add(i Inst) Inst {
+	i.SetIndex(re.inst.Len());
+	re.inst.Append(i);
+	return i;
 }
 
 type Parser struct {
@@ -183,7 +275,8 @@ func (p *Parser) nextc() int {
 	if p.pos >= len(p.re.expr) {
 		p.ch = EOF
 	} else {
-		c, w := sys.stringtorune(p.re.expr, p.pos);	// TODO: stringotorune shoudl take a string*
+		// TODO: stringotorune should take a string*
+		c, w := sys.stringtorune(p.re.expr, p.pos);
 		p.ch = c;
 		p.pos += w;
 	}
@@ -205,11 +298,13 @@ Grammar:
 	concatenation:
 		{ closure }
 	closure:
-		term { '*' | '+' | '?' }
+		term [ '*' | '+' | '?' ]
 	term:
+		'^'
+		'$'
 		'.'
 		character
-		characterclass
+		'[' character-ranges ']'
 		'(' regexp ')'
 
 */
@@ -230,13 +325,74 @@ func isEQ(i,j Inst) bool {
 }
 
 func special(c int) bool {
-	s := `\.+*?()|[-]`;
+	s := `\.+*?()|[]`;
 	for i := 0; i < len(s); i++ {
 		if c == int(s[i]) {
 			return true
 		}
 	}
 	return false
+}
+
+func specialcclass(c int) bool {
+	s := `\-[]`;
+	for i := 0; i < len(s); i++ {
+		if c == int(s[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Parser) CharClass() Inst {
+	cc := NewCharClass();
+	p.re.Add(cc);
+	if p.c() == '^' {
+		cc.negate = true;
+		p.nextc();
+	}
+	left := -1;
+	for {
+		switch c := p.c(); c {
+		case ']', EOF:
+			if left >= 0 {
+				p.re.Error(ErrBadRange);
+			}
+			return cc;
+		case '-':	// do this before backslash processing
+			p.re.Error(ErrBadRange);
+		case '\\':
+			c = p.nextc();
+			switch {
+			case c == EOF:
+				p.re.Error(ErrExtraneousBackslash);
+			case c == 'n':
+				c = '\n';
+			case specialcclass(c):
+				// c is as delivered
+			default:
+				p.re.Error(ErrBadBackslash);
+			}
+			fallthrough;
+		default:
+			p.nextc();
+			switch {
+			case left < 0:	// first of pair
+				if p.c() == '-' {	// range
+					p.nextc();
+					left = c;
+				} else {	// single char
+					cc.AddRange(c, c);
+				}
+			case left <= c:	// second of pair
+				cc.AddRange(left, c);
+				left = -1;
+			default:
+				p.re.Error(ErrBadRange);
+			}
+		}
+	}
+	return NULL
 }
 
 func (p *Parser) Term() (start, end Inst) {
@@ -250,9 +406,27 @@ func (p *Parser) Term() (start, end Inst) {
 			p.re.Error(ErrUnmatchedRpar);
 		}
 		return NULL, NULL;
+	case ']':
+		p.re.Error(ErrUnmatchedRbkt);
+	case '^':
+		p.nextc();
+		start = p.re.Add(new(Bot));
+		return start, start;
+	case '$':
+		p.nextc();
+		start = p.re.Add(new(Eot));
+		return start, start;
 	case '.':
 		p.nextc();
-		start = new(Any);
+		start = p.re.Add(new(Any));
+		return start, start;
+	case '[':
+		p.nextc();
+		start = p.CharClass();
+		if p.c() != ']' {
+			p.re.Error(ErrUnmatchedLbkt);
+		}
+		p.nextc();
 		return start, start;
 	case '(':
 		p.nextc();
@@ -265,7 +439,9 @@ func (p *Parser) Term() (start, end Inst) {
 		p.nextc();
 		p.nbra++;
 		bra := new(Bra);
+		p.re.Add(bra);
 		ebra := new(Ebra);
+		p.re.Add(ebra);
 		bra.n = p.nbra;
 		ebra.n = p.nbra;
 		if isNULL(start) {
@@ -292,6 +468,7 @@ func (p *Parser) Term() (start, end Inst) {
 	default:
 		p.nextc();
 		start = NewChar(c);
+		p.re.Add(start);
 		return start, start
 	}
 	panic("unreachable");
@@ -306,6 +483,7 @@ func (p *Parser) Closure() (start, end Inst) {
 	case '*':
 		// (start,end)*:
 		alt := new(Alt);
+		p.re.Add(alt);
 		end.SetNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
 		start = alt;	// alt becomes new (start, end)
@@ -313,13 +491,16 @@ func (p *Parser) Closure() (start, end Inst) {
 	case '+':
 		// (start,end)+:
 		alt := new(Alt);
+		p.re.Add(alt);
 		end.SetNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
 		end = alt;	// start is unchanged; end is alt
 	case '?':
 		// (start,end)?:
 		alt := new(Alt);
+		p.re.Add(alt);
 		nop := new(Nop);
+		p.re.Add(nop);
 		alt.left = start;	// alternate branch is start
 		alt.next = nop;	// follow on to nop
 		end.SetNext(nop);	// after end, go to nop
@@ -338,17 +519,13 @@ func (p *Parser) Closure() (start, end Inst) {
 func (p *Parser) Concatenation() (start, end Inst) {
 	start, end = NULL, NULL;
 	for {
-		switch p.c() {
-		case '|', ')', EOF:
-			if isNULL(start) {	// this is the empty string
-				nop := new(Nop);
-				return nop, nop;
-			}
-			return start, end;
-		}
 		nstart, nend := p.Closure();
 		switch {
 		case isNULL(nstart):	// end of this concatenation
+			if isNULL(start) {	// this is the empty string
+				nop := p.re.Add(new(Nop));
+				return nop, nop;
+			}
 			return start, end;
 		case isNULL(start):	// this is first element of concatenation
 			start, end = nstart, nend;
@@ -362,9 +539,6 @@ func (p *Parser) Concatenation() (start, end Inst) {
 
 func (p *Parser) Regexp() (start, end Inst) {
 	start, end = p.Concatenation();
-	if isNULL(start) {
-		return NULL, NULL
-	}
 	for {
 		switch p.c() {
 		default:
@@ -372,15 +546,12 @@ func (p *Parser) Regexp() (start, end Inst) {
 		case '|':
 			p.nextc();
 			nstart, nend := p.Concatenation();
-			// xyz|(nothing) is xyz or nop
-			if isNULL(nstart) {
-				nop := new(Nop);
-				nstart, nend = nop, nop;
-			}
 			alt := new(Alt);
+			p.re.Add(alt);
 			alt.left = start;
 			alt.next = nstart;
 			nop := new(Nop);
+			p.re.Add(nop);
 			end.SetNext(nop);
 			nend.SetNext(nop);
 			start, end = alt, nop;
@@ -396,70 +567,47 @@ func UnNop(i Inst) Inst {
 	return i
 }
 
-func (re *RE) EliminateNops(start Inst) {
-	for i := start; i.Type() != END; i = i.Next() {	// last one is END
-		i.SetNext(UnNop(i.Next()));
-		if i.Type() == ALT {
-			alt := i.(*Alt);
+func (re *RE) EliminateNops() {
+	for i := 0; i < re.inst.Len(); i++ {
+		inst := re.inst.At(i).(Inst);
+		if inst.Type() == END {
+			continue
+		}
+		inst.SetNext(UnNop(inst.Next()));
+		if inst.Type() == ALT {
+			alt := inst.(*Alt);
 			alt.left = UnNop(alt.left);
-			re.EliminateNops(alt.left);
 		}
 	}
 }
 
-// use a 'done' array to know where we've already printed.
-// the output is not pretty but it is serviceable.
-func (re *RE) Dump(ind string, inst Inst, done *[]Inst) {
-	// see if we've been here, and mark it
-	for i := 0; i < len(done); i++ {
-		if isEQ(inst, done[i]) {
-			print(ind, inst, ": -> ", inst.Next(), "...\n");
-			return;
+func (re *RE) Dump() {
+	for i := 0; i < re.inst.Len(); i++ {
+		inst := re.inst.At(i).(Inst);
+		print(inst.Index(), ": ");
+		inst.Print();
+		if inst.Type() != END {
+			print(" -> ", inst.Next().Index())
 		}
+		print("\n");
 	}
-	slot := len(done);
-	done= done[0:slot+1];
-	done[slot] = inst;
-
-	if isNULL(inst) {
-		println("NULL");
-		return;
-	}
-	if inst.Type() == END { print(inst, ": END\n"); return }
-	print(ind, inst, ": ");
-	inst.Print("");
-	print(" -> ", inst.Next(), "\n");
-	switch inst.Type() {
-	case END:
-		return;
-	case ALT:
-		re.Dump(ind + "\t", inst.(*Alt).left, done);
-	}
-	re.Dump(ind, inst.Next(), done);
-}
-
-func (re *RE) DumpAll() {
-	re.Dump("", re.start, new([]Inst, 1000)[0:0]);
 }
 
 func (re *RE) DoParse() {
 	parser := NewParser(re);
 	start := new(Start);
+	re.Add(start);
 	s, e := parser.Regexp();
-	if isNULL(s) {
-		if !isNULL(e) { re.Error(ErrInternal) }
-		e = start;
-	}
 	start.next = s;
 	re.start = start;
-	e.SetNext(new(End));
+	e.SetNext(re.Add(new(End)));
 
-	re.DumpAll();
+	re.Dump();
 	println();
 
-	re.EliminateNops(re.start);
+	re.EliminateNops();
 
-	re.DumpAll();
+	re.Dump();
 	println();
 
 	re.Error(ErrUnimplemented);
@@ -468,6 +616,7 @@ func (re *RE) DoParse() {
 func Compiler(str string, ch *chan *RE) {
 	re := new(RE);
 	re.expr = str;
+	re.inst = vector.New();
 	re.ch = ch;
 	re.DoParse();
 	ch <- re;
