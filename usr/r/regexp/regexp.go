@@ -21,8 +21,8 @@ export var ErrBadBackslash = os.NewError("illegal backslash escape");
 // An instruction executed by the NFA
 type Inst interface {
 	Type()	int;	// the type of this instruction: CHAR, ANY, etc.
-	Next()	int;	// the index of the instruction to execute after this one
-	SetNext(i int);
+	Next()	Inst;	// the instruction to execute after this one
+	SetNext(i Inst);
 	Print(ind string);
 }
 
@@ -30,8 +30,6 @@ type RE struct {
 	expr	string;	// the original expression
 	ch	*chan<- *RE;	// reply channel when we're done
 	error *os.Error;	// compile- or run-time error; nil if OK
-	ninst	int;
-	inst *[]Inst;
 	start	Inst;
 }
 
@@ -51,59 +49,54 @@ const (
 
 // --- START start of program
 type Start struct {
-	this	int;
-	next	int;
+	next	Inst;
 }
 
 func (start *Start) Type() int { return START }
-func (start *Start) Next() int { return start.next }
-func (start *Start) SetNext(i int) { start.next = i }
+func (start *Start) Next() Inst { return start.next }
+func (start *Start) SetNext(i Inst) { start.next = i }
 func (start *Start) Print(ind string) { print(ind, "start") }
 
 // --- END end of program
 type End struct {
-	this	int;
-	next	int;
+	next	Inst;
 }
 
 func (end *End) Type() int { return END }
-func (end *End) Next() int { return end.next }
-func (end *End) SetNext(i int) { end.next = i }
+func (end *End) Next() Inst { return end.next }
+func (end *End) SetNext(i Inst) { end.next = i }
 func (end *End) Print(ind string) { print(ind, "end") }
 
 // --- BOT beginning of text
 type Bot struct {
-	this	int;
-	next	int;
+	next	Inst;
 }
 
 func (bot *Bot) Type() int { return BOT }
-func (bot *Bot) Next() int { return bot.next }
-func (bot *Bot) SetNext(i int) { bot.next = i }
+func (bot *Bot) Next() Inst { return bot.next }
+func (bot *Bot) SetNext(i Inst) { bot.next = i }
 func (bot *Bot) Print(ind string) { print(ind, "bot") }
 
 // --- EOT end of text
 type Eot struct {
-	this	int;
-	next	int;
+	next	Inst;
 }
 
 func (eot *Eot) Type() int { return EOT }
-func (eot *Eot) Next() int { return eot.next }
-func (eot *Eot) SetNext(i int) { eot.next = i }
+func (eot *Eot) Next() Inst { return eot.next }
+func (eot *Eot) SetNext(i Inst) { eot.next = i }
 func (eot *Eot) Print(ind string) { print(ind, "eot") }
 
 // --- CHAR a regular character
 type Char struct {
-	this	int;
-	next	int;
+	next	Inst;
 	char	int;
 	set	bool;
 }
 
 func (char *Char) Type() int { return CHAR }
-func (char *Char) Next() int { return char.next }
-func (char *Char) SetNext(i int) { char.next = i }
+func (char *Char) Next() Inst { return char.next }
+func (char *Char) SetNext(i Inst) { char.next = i }
 func (char *Char) Print(ind string) { print(ind, "char ", string(char.char)) }
 
 func NewChar(char int) *Char {
@@ -114,72 +107,56 @@ func NewChar(char int) *Char {
 
 // --- ANY any character
 type Any struct {
-	this	int;
-	next	int;
+	next	Inst;
 }
 
 func (any *Any) Type() int { return ANY }
-func (any *Any) Next() int { return any.next }
-func (any *Any) SetNext(i int) { any.next = i }
+func (any *Any) Next() Inst { return any.next }
+func (any *Any) SetNext(i Inst) { any.next = i }
 func (any *Any) Print(ind string) { print(ind, "any") }
 
 // --- BRA parenthesized expression
 type Bra struct {
-	this	int;
-	next	int;
+	next	Inst;
+	n	int;	// subexpression number
 }
 
 func (bra *Bra) Type() int { return BRA }
-func (bra *Bra) Next() int { return bra.next }
-func (bra *Bra) SetNext(i int) { bra.next = i }
+func (bra *Bra) Next() Inst { return bra.next }
+func (bra *Bra) SetNext(i Inst) { bra.next = i }
 func (bra *Bra) Print(ind string) { print(ind , "bra"); }
 
 // --- EBRA end of parenthesized expression
 type Ebra struct {
-	this	int;
-	next	int;
+	next	Inst;
 	n	int;	// subexpression number
 }
 
 func (ebra *Ebra) Type() int { return BRA }
-func (ebra *Ebra) Next() int { return ebra.next }
-func (ebra *Ebra) SetNext(i int) { ebra.next = i }
+func (ebra *Ebra) Next() Inst { return ebra.next }
+func (ebra *Ebra) SetNext(i Inst) { ebra.next = i }
 func (ebra *Ebra) Print(ind string) { print(ind , "ebra ", ebra.n); }
 
 // --- ALT alternation
 type Alt struct {
-	this	int;
-	next	int;
-	left	int;	// other branch
+	next	Inst;
+	left	Inst;	// other branch
 }
 
 func (alt *Alt) Type() int { return ALT }
-func (alt *Alt) Next() int { return alt.next }
-func (alt *Alt) SetNext(i int) { alt.next = i }
+func (alt *Alt) Next() Inst { return alt.next }
+func (alt *Alt) SetNext(i Inst) { alt.next = i }
 func (alt *Alt) Print(ind string) { print(ind , "alt(", alt.left, ")"); }
 
 // --- NOP no operation
 type Nop struct {
-	this	int;
-	next	int;
+	next	Inst;
 }
 
 func (nop *Nop) Type() int { return NOP }
-func (nop *Nop) Next() int { return nop.next }
-func (nop *Nop) SetNext(i int) { nop.next = i }
+func (nop *Nop) Next() Inst { return nop.next }
+func (nop *Nop) SetNext(i Inst) { nop.next = i }
 func (nop *Nop) Print(ind string) { print(ind, "nop") }
-
-
-func (re *RE) AddInst(inst Inst) int {
-	if re.ninst >= cap(re.inst) {
-		panic("write the code to grow inst")
-	}
-	re.inst[re.ninst] = inst;
-	i := re.ninst;
-	re.ninst++;
-	inst.SetNext(re.ninst);
-	return i;
-}
 
 // report error and exit compiling/executing goroutine
 func (re *RE) Error(err *os.Error) {
@@ -190,7 +167,8 @@ func (re *RE) Error(err *os.Error) {
 
 type Parser struct {
 	re	*RE;
-	nbra	int;
+	nbra	int;	// number of brackets in expression, for subexpressions
+	nlpar	int;	// number of unclosed lpars
 	pos	int;
 	ch	int;
 }
@@ -236,9 +214,20 @@ Grammar:
 
 */
 
-func (p *Parser) Regexp() (start, end int)
+func (p *Parser) Regexp() (start, end Inst)
 
-const NULL = -1
+var NULL Inst
+type BUGinter interface{}
+
+// same as i == NULL.  TODO: remove when 6g lets me do i == NULL
+func isNULL(i Inst) bool {
+	return sys.BUG_intereq(i.(BUGinter), NULL.(BUGinter))
+}
+
+// same as i == j.  TODO: remove when 6g lets me do i == j
+func isEQ(i,j Inst) bool {
+	return sys.BUG_intereq(i.(BUGinter), j.(BUGinter))
+}
 
 func special(c int) bool {
 	s := `\.+*?()|[-]`;
@@ -250,39 +239,43 @@ func special(c int) bool {
 	return false
 }
 
-func (p *Parser) Term() (start, end int) {
+func (p *Parser) Term() (start, end Inst) {
 	switch c := p.c(); c {
 	case '|', EOF:
 		return NULL, NULL;
 	case '*', '+', '|':
 		p.re.Error(ErrBareClosure);
 	case ')':
-		p.re.Error(ErrUnmatchedRpar);
+		if p.nlpar == 0 {
+			p.re.Error(ErrUnmatchedRpar);
+		}
+		return NULL, NULL;
 	case '.':
 		p.nextc();
-		start = p.re.AddInst(new(Any));
+		start = new(Any);
 		return start, start;
 	case '(':
 		p.nextc();
+		p.nlpar++;
 		start, end = p.Regexp();
 		if p.c() != ')' {
 			p.re.Error(ErrUnmatchedLpar);
 		}
+		p.nlpar--;
 		p.nextc();
 		p.nbra++;
 		bra := new(Bra);
-		brai := p.re.AddInst(bra);
 		ebra := new(Ebra);
-		ebrai := p.re.AddInst(ebra);
+		bra.n = p.nbra;
 		ebra.n = p.nbra;
-		if start == NULL {
-			if end != NULL { p.re.Error(ErrInternal) }
-			start = ebrai
+		if isNULL(start) {
+			if !isNULL(end) { p.re.Error(ErrInternal) }
+			start = ebra
 		} else {
-			p.re.inst[end].SetNext(ebrai);
+			end.SetNext(ebra);
 		}
 		bra.SetNext(start);
-		return brai, ebrai;
+		return bra, ebra;
 	case '\\':
 		c = p.nextc();
 		switch {
@@ -298,44 +291,40 @@ func (p *Parser) Term() (start, end int) {
 		fallthrough;
 	default:
 		p.nextc();
-		start = p.re.AddInst(NewChar(c));
+		start = NewChar(c);
 		return start, start
 	}
 	panic("unreachable");
 }
 
-func (p *Parser) Closure() (start, end int) {
+func (p *Parser) Closure() (start, end Inst) {
 	start, end = p.Term();
-	if start == NULL {
+	if isNULL(start) {
 		return start, end
 	}
 	switch p.c() {
 	case '*':
 		// (start,end)*:
 		alt := new(Alt);
-		alti := p.re.AddInst(alt);
-		p.re.inst[end].SetNext(alti);	// after end, do alt
+		end.SetNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
-		start = alti;	// alt becomes new (start, end)
-		end = alti;
+		start = alt;	// alt becomes new (start, end)
+		end = alt;
 	case '+':
 		// (start,end)+:
 		alt := new(Alt);
-		alti := p.re.AddInst(alt);
-		p.re.inst[end].SetNext(alti);	// after end, do alt
+		end.SetNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
-		end = alti;	// start is unchanged; end is alt
+		end = alt;	// start is unchanged; end is alt
 	case '?':
 		// (start,end)?:
 		alt := new(Alt);
-		alti := p.re.AddInst(alt);
 		nop := new(Nop);
-		nopi := p.re.AddInst(nop);
 		alt.left = start;	// alternate branch is start
-		alt.next = nopi;	// follow on to nop
-		p.re.inst[end].SetNext(nopi);	// after end, go to nop
-		start = alti;	// start is now alt
-		end = nopi;	// end is nop pointed to by both branches
+		alt.next = nop;	// follow on to nop
+		end.SetNext(nop);	// after end, go to nop
+		start = alt;	// start is now alt
+		end = nop;	// end is nop pointed to by both branches
 	default:
 		return start, end;
 	}
@@ -346,26 +335,34 @@ func (p *Parser) Closure() (start, end int) {
 	return start, end;
 }
 
-func (p *Parser) Concatenation() (start, end int) {
+func (p *Parser) Concatenation() (start, end Inst) {
 	start, end = NULL, NULL;
 	for {
+		switch p.c() {
+		case '|', ')', EOF:
+			if isNULL(start) {	// this is the empty string
+				nop := new(Nop);
+				return nop, nop;
+			}
+			return start, end;
+		}
 		nstart, nend := p.Closure();
 		switch {
-		case nstart == NULL:	// end of this concatenation
+		case isNULL(nstart):	// end of this concatenation
 			return start, end;
-		case start == NULL:	// this is first element of concatenation
+		case isNULL(start):	// this is first element of concatenation
 			start, end = nstart, nend;
 		default:
-			p.re.inst[end].SetNext(nstart);
+			end.SetNext(nstart);
 			end = nend;
 		}
 	}
 	panic("unreachable");
 }
 
-func (p *Parser) Regexp() (start, end int) {
+func (p *Parser) Regexp() (start, end Inst) {
 	start, end = p.Concatenation();
-	if start == NULL {
+	if isNULL(start) {
 		return NULL, NULL
 	}
 	for {
@@ -376,70 +373,93 @@ func (p *Parser) Regexp() (start, end int) {
 			p.nextc();
 			nstart, nend := p.Concatenation();
 			// xyz|(nothing) is xyz or nop
-			if nstart == NULL {
-				nopi := p.re.AddInst(new(Nop));
-				nstart, nend = nopi, nopi;
+			if isNULL(nstart) {
+				nop := new(Nop);
+				nstart, nend = nop, nop;
 			}
 			alt := new(Alt);
-			alti := p.re.AddInst(alt);
 			alt.left = start;
 			alt.next = nstart;
 			nop := new(Nop);
-			nopi := p.re.AddInst(nop);
-			p.re.inst[end].SetNext(nopi);
-			p.re.inst[nend].SetNext(nopi);
-			start, end = alti, nopi;
+			end.SetNext(nop);
+			nend.SetNext(nop);
+			start, end = alt, nop;
 		}
 	}
 	panic("unreachable");
 }
 
-func (re *RE) UnNop(i int) int {
-	for re.inst[i].Type() == NOP {
-		i = re.inst[i].Next()
+func UnNop(i Inst) Inst {
+	for i.Type() == NOP {
+		i = i.Next()
 	}
 	return i
 }
 
-func (re *RE) EliminateNops() {
-	for i := 0; i < re.ninst - 1; i++ {	// last one is END
-		inst := re.inst[i];
-		inst.SetNext(re.UnNop(inst.Next()));
-		if inst.Type() == ALT {
-			alt := inst.(*Alt);
-			alt.left = re.UnNop(alt.left)
+func (re *RE) EliminateNops(start Inst) {
+	for i := start; i.Type() != END; i = i.Next() {	// last one is END
+		i.SetNext(UnNop(i.Next()));
+		if i.Type() == ALT {
+			alt := i.(*Alt);
+			alt.left = UnNop(alt.left);
+			re.EliminateNops(alt.left);
 		}
 	}
+}
+
+// use a 'done' array to know where we've already printed.
+// the output is not pretty but it is serviceable.
+func (re *RE) Dump(ind string, inst Inst, done *[]Inst) {
+	// see if we've been here, and mark it
+	for i := 0; i < len(done); i++ {
+		if isEQ(inst, done[i]) {
+			print(ind, inst, ": -> ", inst.Next(), "...\n");
+			return;
+		}
+	}
+	slot := len(done);
+	done= done[0:slot+1];
+	done[slot] = inst;
+
+	if isNULL(inst) {
+		println("NULL");
+		return;
+	}
+	if inst.Type() == END { print(inst, ": END\n"); return }
+	print(ind, inst, ": ");
+	inst.Print("");
+	print(" -> ", inst.Next(), "\n");
+	switch inst.Type() {
+	case END:
+		return;
+	case ALT:
+		re.Dump(ind + "\t", inst.(*Alt).left, done);
+	}
+	re.Dump(ind, inst.Next(), done);
+}
+
+func (re *RE) DumpAll() {
+	re.Dump("", re.start, new([]Inst, 1000)[0:0]);
 }
 
 func (re *RE) DoParse() {
 	parser := NewParser(re);
 	start := new(Start);
-	starti := re.AddInst(start);
 	s, e := parser.Regexp();
-	if s == NULL {
-		if e != NULL { re.Error(ErrInternal) }
-		e = starti;
+	if isNULL(s) {
+		if !isNULL(e) { re.Error(ErrInternal) }
+		e = start;
 	}
 	start.next = s;
-	re.inst[e].SetNext(re.AddInst(new(End)));
+	re.start = start;
+	e.SetNext(new(End));
 
-	for i := 0; i < re.ninst; i++ {
-		inst := re.inst[i];
-		print(i, ":\t");
-		inst.Print("\t");
-		print(" -> ", inst.Next(), "\n");
-	}
+	re.DumpAll();
 	println();
 
-	re.EliminateNops();
+	re.EliminateNops(re.start);
 
-	for i := 0; i < re.ninst; i++ {
-		inst := re.inst[i];
-		print(i, ":\t");
-		inst.Print("\t");
-		print(" -> ", inst.Next(), "\n");
-	}
+	re.DumpAll();
 	println();
 
 	re.Error(ErrUnimplemented);
@@ -447,7 +467,6 @@ func (re *RE) DoParse() {
 
 func Compiler(str string, ch *chan *RE) {
 	re := new(RE);
-	re.inst = new([]Inst, 100);
 	re.expr = str;
 	re.ch = ch;
 	re.DoParse();
