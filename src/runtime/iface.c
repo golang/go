@@ -261,6 +261,53 @@ sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
 	FLUSH(&retit);
 }
 
+// ifaceeq(i1 any, i2 any) (ret bool);
+void
+sys·ifaceeq(Map *im1, void *it1, Map *im2, void *it2, byte ret)
+{
+	if(debug) {
+		prints("Ieq i1=");
+		printiface(im1, it1);
+		prints(" i2=");
+		printiface(im2, it2);
+		prints("\n");
+	}
+
+	ret = false;
+
+	// are they both nil
+	if(im1 == nil) {
+		if(im2 == nil)
+			goto yes;
+		goto no;
+	}
+	if(im2 == nil)
+		goto no;
+
+	// values
+	if(it1 != it2)
+		goto no;
+
+	// types
+	if(im1 == im2)
+		goto yes;
+	if(im1->sigt == im2->sigt)
+		goto yes;
+	if(im1->sigt->hash != im2->sigt->hash)
+		goto no;
+
+
+yes:
+	ret = true;
+no:
+	if(debug) {
+		prints("Ieq ret=");
+		sys·printbool(ret);
+		prints("\n");
+	}
+	FLUSH(&ret);
+}
+
 void
 sys·printinter(Map *im, void *it)
 {

@@ -1063,6 +1063,7 @@ lexinit(void)
 
 		case TPTR32:
 		case TPTR64:
+		case TINTER:
 			okforeq[i] = 1;
 			break;
 		}

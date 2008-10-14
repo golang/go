@@ -31,6 +31,7 @@ char *sysimport =
 	"export func sys.ifaceT2I (sigi *sys.uint8, sigt *sys.uint8, elem sys.any) (ret sys.any)\n"
 	"export func sys.ifaceI2T (sigt *sys.uint8, iface sys.any) (ret sys.any)\n"
 	"export func sys.ifaceI2I (sigi *sys.uint8, iface sys.any) (ret sys.any)\n"
+	"export func sys.ifaceeq (i1 sys.any, i2 sys.any) (ret sys.bool)\n"
 	"export func sys.argc () (? sys.int32)\n"
 	"export func sys.envc () (? sys.int32)\n"
 	"export func sys.argv (? sys.int32) (? sys.string)\n"
