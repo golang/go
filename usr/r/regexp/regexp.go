@@ -11,6 +11,8 @@ import (
 	"vector";
 )
 
+export var debug = false;
+
 
 export var ErrUnimplemented = os.NewError("unimplemented");
 export var ErrInternal = os.NewError("internal error");
@@ -20,7 +22,6 @@ export var ErrUnmatchedLbkt = os.NewError("unmatched '['");
 export var ErrUnmatchedRbkt = os.NewError("unmatched ']'");
 export var ErrBadRange = os.NewError("bad range in character class");
 export var ErrExtraneousBackslash = os.NewError("extraneous backslash");
-export var ErrEmpty = os.NewError("empty subexpression or alternation");
 export var ErrBadClosure = os.NewError("repeated closure (**, ++, etc.)");
 export var ErrBareClosure = os.NewError("closure applies to nothing");
 export var ErrBadBackslash = os.NewError("illegal backslash escape");
@@ -41,10 +42,11 @@ type RE struct {
 	error	*os.Error;	// compile- or run-time error; nil if OK
 	inst	*vector.Vector;
 	start	Inst;
+	nbra	int;	// number of brackets in expression, for subexpressions
 }
 
 const (
-	START	// beginning of program: indexer to start
+	START	// beginning of program
 		= iota;
 	END;		// end of program: success
 	BOT;		// '^' beginning of text
@@ -113,8 +115,8 @@ func (eot *Eot) Print() { print("eot") }
 // --- CHAR a regular character
 type Char struct {
 	next	Inst;
-	char	int;
 	index	int;
+	char	int;
 }
 
 func (char *Char) Type() int { return CHAR }
@@ -143,7 +145,7 @@ type CharClass struct {
 	ranges	*vector.Vector;
 }
 
-func (cclass *CharClass) Type() int { return CHAR }
+func (cclass *CharClass) Type() int { return CHARCLASS }
 func (cclass *CharClass) Next() Inst { return cclass.next }
 func (cclass *CharClass) SetNext(i Inst) { cclass.next = i }
 func (cclass *CharClass) Index() int { return cclass.index }
@@ -168,6 +170,17 @@ func (cclass *CharClass) AddRange(a, b CClassChar) {
 	// range is a through b inclusive
 	cclass.ranges.Append(a);
 	cclass.ranges.Append(b);
+}
+
+func (cclass *CharClass) Matches(c int) bool {
+	for i := 0; i < cclass.ranges.Len(); i = i+2 {
+		min := cclass.ranges.At(i).(CClassChar);
+		max := cclass.ranges.At(i+1).(CClassChar);
+		if min <= c && c <= max {
+			return !cclass.negate
+		}
+	}
+	return cclass.negate
 }
 
 func NewCharClass() *CharClass {
@@ -210,7 +223,7 @@ type Ebra struct {
 	n	int;	// subexpression number
 }
 
-func (ebra *Ebra) Type() int { return BRA }
+func (ebra *Ebra) Type() int { return EBRA }
 func (ebra *Ebra) Next() Inst { return ebra.next }
 func (ebra *Ebra) SetNext(i Inst) { ebra.next = i }
 func (ebra *Ebra) Index() int { return ebra.index }
@@ -259,7 +272,6 @@ func (re *RE) Add(i Inst) Inst {
 
 type Parser struct {
 	re	*RE;
-	nbra	int;	// number of brackets in expression, for subexpressions
 	nlpar	int;	// number of unclosed lpars
 	pos	int;
 	ch	int;
@@ -313,16 +325,6 @@ func (p *Parser) Regexp() (start, end Inst)
 
 var NULL Inst
 type BUGinter interface{}
-
-// same as i == NULL.  TODO: remove when 6g lets me do i == NULL
-func isNULL(i Inst) bool {
-	return sys.BUG_intereq(i.(BUGinter), NULL.(BUGinter))
-}
-
-// same as i == j.  TODO: remove when 6g lets me do i == j
-func isEQ(i,j Inst) bool {
-	return sys.BUG_intereq(i.(BUGinter), j.(BUGinter))
-}
 
 func special(c int) bool {
 	s := `\.+*?()|[]`;
@@ -437,15 +439,15 @@ func (p *Parser) Term() (start, end Inst) {
 		}
 		p.nlpar--;
 		p.nextc();
-		p.nbra++;
 		bra := new(Bra);
 		p.re.Add(bra);
 		ebra := new(Ebra);
 		p.re.Add(ebra);
-		bra.n = p.nbra;
-		ebra.n = p.nbra;
-		if isNULL(start) {
-			if !isNULL(end) { p.re.Error(ErrInternal) }
+		p.re.nbra++;	// increment first so first subexpr is \1
+		bra.n = p.re.nbra;
+		ebra.n = p.re.nbra;
+		if start == NULL {
+			if end == NULL { p.re.Error(ErrInternal) }
 			start = ebra
 		} else {
 			end.SetNext(ebra);
@@ -476,7 +478,7 @@ func (p *Parser) Term() (start, end Inst) {
 
 func (p *Parser) Closure() (start, end Inst) {
 	start, end = p.Term();
-	if isNULL(start) {
+	if start == NULL {
 		return start, end
 	}
 	switch p.c() {
@@ -521,13 +523,13 @@ func (p *Parser) Concatenation() (start, end Inst) {
 	for {
 		nstart, nend := p.Closure();
 		switch {
-		case isNULL(nstart):	// end of this concatenation
-			if isNULL(start) {	// this is the empty string
+		case nstart == NULL:	// end of this concatenation
+			if start == NULL {	// this is the empty string
 				nop := p.re.Add(new(Nop));
 				return nop, nop;
 			}
 			return start, end;
-		case isNULL(start):	// this is first element of concatenation
+		case start == NULL:	// this is first element of concatenation
 			start, end = nstart, nend;
 		default:
 			end.SetNext(nstart);
@@ -602,16 +604,19 @@ func (re *RE) DoParse() {
 	re.start = start;
 	e.SetNext(re.Add(new(End)));
 
-	re.Dump();
-	println();
+	if debug {
+		re.Dump();
+		println();
+	}
 
 	re.EliminateNops();
 
-	re.Dump();
-	println();
-
-	re.Error(ErrUnimplemented);
+	if debug {
+		re.Dump();
+		println();
+	}
 }
+
 
 func Compiler(str string, ch *chan *RE) {
 	re := new(RE);
@@ -624,13 +629,138 @@ func Compiler(str string, ch *chan *RE) {
 
 // Public interface has only execute functionality (not yet implemented)
 export type Regexp interface {
-	// Execute() bool
+	Execute(s string) *[]int
 }
 
-// compile in separate goroutine; wait for result
+// Compile in separate goroutine; wait for result
 export func Compile(str string) (regexp Regexp, error *os.Error) {
 	ch := new(chan *RE);
 	go Compiler(str, ch);
 	re := <-ch;
 	return re, re.error
+}
+
+type State struct {
+	inst	Inst;	// next instruction to execute
+	match	*[]int;	// pairs of bracketing submatches. 0th is start,end
+}
+
+// Append new state to to-do list.  Leftmost-longest wins so avoid
+// adding a state that's already active.
+func AddState(s *[]State, inst Inst, match *[]int) *[]State {
+	index := inst.Index();
+	l := len(s);
+	pos := match[0];
+	// TODO: Once the state is a vector and we can do insert, have inputs always
+	// go in order correctly and this "earlier" test is never necessary,
+	for i := 0; i < l; i++ {
+		if s[i].inst.Index() == index && // same instruction
+		   s[i].match[0] < pos {	// earlier match already going; lefmost wins
+		   	return s
+		 }
+	}
+	if l == cap(s) {
+		s1 := new([]State, 2*l)[0:l];
+		for i := 0; i < l; i++ {
+			s1[i] = s[i];
+		}
+		s = s1;
+	}
+	s = s[0:l+1];
+	s[l].inst = inst;
+	s[l].match = match;
+	return s;
+}
+
+func (re *RE) DoExecute(str string, pos int) *[]int {
+	var s [2]*[]State;	// TODO: use a vector when State values (not ptrs) can be vector elements
+	s[0] = new([]State, 10)[0:0];
+	s[1] = new([]State, 10)[0:0];
+	in, out := 0, 1;
+	var final State;
+	found := false;
+	for pos <= len(str) {
+		if !found {
+			// prime the pump if we haven't seen a match yet
+			match := new([]int, 2*(re.nbra+1));
+			match[0]  = pos;
+			s[out] = AddState(s[out], re.start.Next(), match);
+		}
+		in, out = out, in;	// old out state is new in state
+		s[out] = s[out][0:0];	// clear out state
+		if len(s[in]) == 0 {
+			// machine has completed
+			break;
+		}
+		c := EOF;
+		if pos < len(str) {
+			c = int(str[pos])
+		}
+//println("position ", pos, "char", string(c), "in", in, "out", out, "len in", len(s[in]));
+		for i := 0; i < len(s[in]); i++ {
+			state := s[in][i];
+//state.inst.Print(); print("\n");
+			switch s[in][i].inst.Type() {
+			case BOT:
+				if pos == 0 {
+					s[in] = AddState(s[in], state.inst.Next(), state.match)
+				}
+			case EOT:
+				if pos == len(str) {
+					s[in] = AddState(s[in], state.inst.Next(), state.match)
+				}
+			case CHAR:
+				if c == state.inst.(*Char).char {
+					s[out] = AddState(s[out], state.inst.Next(), state.match)
+				}
+			case CHARCLASS:
+				if state.inst.(*CharClass).Matches(c) {
+					s[out] = AddState(s[out], state.inst.Next(), state.match)
+				}
+			case ANY:
+				if c != EOF {
+					s[out] = AddState(s[out], state.inst.Next(), state.match)
+				}
+			case BRA:
+				n := state.inst.(*Bra).n;
+				state.match[2*n] = pos;
+				s[in] = AddState(s[in], state.inst.Next(), state.match);
+			case EBRA:
+				n := state.inst.(*Ebra).n;
+				state.match[2*n+1] = pos;
+				s[in] = AddState(s[in], state.inst.Next(), state.match);
+			case ALT:
+				s[in] = AddState(s[in], state.inst.(*Alt).left, state.match);
+				// give other branch a copy of this match vector
+				s1 := new([]int, 2*(re.nbra+1));
+				for i := 0; i < len(s1); i++ {
+					s1[i] = state.match[i]
+				}
+				s[in] = AddState(s[in], state.inst.Next(), s1);
+			case END:
+				// choose leftmost longest
+				if !found ||	// first
+				   state.match[0] < final.match[0] ||	// leftmost
+				   (state.match[0] == final.match[0] && pos > final.match[1])  {	// longest
+					final = state;
+					final.match[1] = pos;
+				}
+				found = true;
+			default:
+				state.inst.Print();
+				panic("unknown instruction in execute");
+			}
+		}
+		pos++;
+	}
+	if !found {
+		return nil
+	}
+//if found { println("found: from ", final.match[0], "to", final.match[1] )}
+	return final.match;
+}
+
+
+func (re *RE) Execute(s string) *[]int {
+	return re.DoExecute(s, 0)
 }
