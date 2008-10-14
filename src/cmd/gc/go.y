@@ -178,7 +178,11 @@ hidden_import_list:
  * declarations
  */
 xdcl:
-	common_dcl
+	{ stksize = initstksize; } common_dcl
+	{
+		$$ = $2;
+		initstksize = stksize;
+	}
 |	xfndcl
 	{
 		$$ = N;
@@ -187,10 +191,11 @@ xdcl:
 	{
 		$$ = N;
 	}
-|	LEXPORT { exportadj = 1; } common_dcl
+|	LEXPORT { exportadj = 1; stksize = initstksize; } common_dcl
 	{
 		$$ = $3;
 		exportadj = 0;
+		initstksize = stksize;
 	}
 |	LEXPORT '(' export_list_r ')'
 	{

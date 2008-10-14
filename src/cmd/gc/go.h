@@ -451,7 +451,8 @@ EXTERN	Node*	lastconst;
 EXTERN	int32	vargen;
 EXTERN	int32	exportgen;
 EXTERN	int32	maxarg;
-EXTERN	int32	stksize;
+EXTERN	int32	stksize;		// stack size for current frame
+EXTERN	int32	initstksize;		// stack size for init function
 EXTERN	ushort	blockgen;		// max block number
 EXTERN	ushort	block;			// current block number
 
