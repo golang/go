@@ -30,6 +30,7 @@ convlit(Node *n, Type *t)
 	case TFUNC:
 	case TCHAN:
 	case TMAP:
+	case TSTRUCT:
 //	case TPTR32:
 //	case TPTR64:
 		return;
