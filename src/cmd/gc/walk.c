@@ -2572,9 +2572,7 @@ ifaceop(Type *tl, Node *n, int op)
 		if(op == ONE)
 			r = nod(ONOT, r, N);
 
-		dump("bef", r);
 		walktype(r, Erv);
-		dump("aft", r);
 		return r;
 	}
 
