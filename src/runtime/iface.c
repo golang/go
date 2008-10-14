@@ -13,8 +13,8 @@ typedef	struct	Map	Map;
 struct	Sigt
 {
 	byte*	name;
-	uint32	hash;
-	uint32	offset;		// offset of substruct
+	uint32	hash;		// hash of type // first is alg
+	uint32	offset;		// offset of substruct // first is width
 	void	(*fun)(void);
 };
 
@@ -265,6 +265,8 @@ sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
 void
 sys·ifaceeq(Map *im1, void *it1, Map *im2, void *it2, byte ret)
 {
+	int32 alg, wid;
+
 	if(debug) {
 		prints("Ieq i1=");
 		printiface(im1, it1);
@@ -284,18 +286,17 @@ sys·ifaceeq(Map *im1, void *it1, Map *im2, void *it2, byte ret)
 	if(im2 == nil)
 		goto no;
 
-	// values
-	if(it1 != it2)
+	// value
+	alg = im1->sigt->hash;
+	if(alg != im2->sigt->hash)
 		goto no;
 
-	// types
-	if(im1 == im2)
-		goto yes;
-	if(im1->sigt == im2->sigt)
-		goto yes;
-	if(im1->sigt->hash != im2->sigt->hash)
+	wid = im1->sigt->offset;
+	if(wid != im2->sigt->offset)
 		goto no;
 
+	if(!algarray[alg].equal(wid, &it1, &it2))
+		goto no;
 
 yes:
 	ret = true;
