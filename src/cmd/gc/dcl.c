@@ -987,7 +987,7 @@ fninit(Node *n)
 	// (2)
 
 	maxarg = 0;
-	stksize = 0;
+	stksize = initstksize;
 
 	snprint(namebuf, sizeof(namebuf), "init_%s_function", filename);
 
