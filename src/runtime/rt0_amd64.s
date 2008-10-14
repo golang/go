@@ -132,22 +132,3 @@ TEXT cas(SB), 7, $0
 	RET
 	MOVL	$1, AX
 	RET
-
-// func BUG_intereq(a, b interface{}) bool {
-//	return a == b
-// }
-// TODO: delete once 6g can compile a == b on interfaces.
-TEXT sys·BUG_intereq(SB),7,$0
-	// First interface at 8(SP) and 16(SP)
-	// Second interface at 24(SP) and 32(SP)
-	// Answer at 40(SP)
-	MOVQ 8(SP), AX
-	CMPQ AX, 24(SP)
-	JNE 6(PC)
-	MOVQ 16(SP), AX
-	CMPQ AX, 32(SP)
-	JNE 3(PC)
-	MOVQ $1, 40(SP)
-	RET
-	MOVQ $0, 40(SP)
-	RET
