@@ -681,7 +681,7 @@ loop:
 		convlit(n->right, n->left->type);
 		if(n->left->type == T || n->right->type == T)
 			goto ret;
-		if(!ascompat(n->left->type, n->right->type))
+		if(!eqtype(n->left->type, n->right->type, 0))
 			goto badt;
 
 		switch(n->op) {
@@ -952,6 +952,10 @@ loop:
 		et = n->left->type->etype;
 		if(!okforeq[et])
 			goto badt;
+		if(isinter(n->left->type)) {
+			indir(n, ifaceop(T, n, n->op));
+			goto ret;
+		}
 		t = types[TBOOL];
 		break;
 
@@ -2550,6 +2554,28 @@ ifaceop(Type *tl, Node *n, int op)
 		argtype(on, tr);
 		argtype(on, tl);
 		break;
+
+	case OEQ:
+	case ONE:
+		// ifaceeq(i1 any-1, i2 any-2) (ret bool);
+		a = n->right;				// i2
+		r = a;
+
+		a = n->left;				// i1
+		r = list(a, r);
+
+		on = syslook("ifaceeq", 1);
+		argtype(on, n->right->type);
+		argtype(on, n->left->type);
+
+		r = nod(OCALL, on, r);
+		if(op == ONE)
+			r = nod(ONOT, r, N);
+
+		dump("bef", r);
+		walktype(r, Erv);
+		dump("aft", r);
+		return r;
 	}
 
 	r = nod(OCALL, on, r);

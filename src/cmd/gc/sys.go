@@ -31,6 +31,7 @@ export func	arraystring(*[]byte) string;
 export func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
 export func	ifaceI2T(sigt *byte, iface any) (ret any);
 export func	ifaceI2I(sigi *byte, iface any) (ret any);
+export func	ifaceeq(i1 any, i2 any) (ret bool);
 
 export func	argc() int32;
 export func	envc() int32;
