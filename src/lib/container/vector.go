@@ -56,6 +56,10 @@ func (v *Vector) Remove(i int) Element {
 }
 
 
+func (v *Vector) Reset() {
+	v.elem = v.elem[0:0];
+}
+
 func (v *Vector) Insert(i int, e Element) {
 	n := v.Len();
 	// range check unnecessary - done by runtime
