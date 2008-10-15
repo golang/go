@@ -3,8 +3,7 @@
 hello, world
 
 =========== ./interface1.go
-./interface1.go:5: syntax error near package
-./interface1.go:31: illegal types for operand: AS
+./interface1.go:29: illegal types for operand: AS
 	interface { Next () (*Inst) }
 	*Inst
 
@@ -115,12 +114,12 @@ M
 =========== bugs/bug095.go
 found 2, expected 1
 
-panic on line 80 PC=xxx
+panic on line 81 PC=xxx
 BUG wrong result
 
 =========== bugs/bug097.go
 
-panic on line 82 PC=xxx
+panic on line 83 PC=xxx
 BUG wrong result
 
 =========== bugs/bug098.go
@@ -128,9 +127,6 @@ bugs/bug098.go:10: illegal types for operand: AS
 	*M
 	**M
 BUG should compile
-
-=========== bugs/bug099.go
-done1
 
 =========== bugs/bug105.go
 bugs/bug105.go:8: P: undefined
@@ -185,7 +181,7 @@ fixedbugs/bug035.go:7: var f redeclared in this block
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(76) t=<T> nil
+fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(77) t=<T> nil
 
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: var x redeclared in this block
@@ -241,7 +237,7 @@ fixedbugs/bug086.go:5: function ends without a return statement
 
 =========== fixedbugs/bug091.go
 fixedbugs/bug091.go:15: c: undefined
-fixedbugs/bug091.go:15: fatal error: addvar: n=NAME-i G0 a(1) l(85) t=<T> nil
+fixedbugs/bug091.go:15: fatal error: addvar: n=NAME-i G0 a(1) l(86) t=<T> nil
 
 =========== fixedbugs/bug103.go
 fixedbugs/bug103.go:8: function requires a return type
