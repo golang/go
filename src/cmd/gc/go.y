@@ -60,7 +60,7 @@
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl
 %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
-%type	<node>		keyexpr_list keyval_list_r keyval
+%type	<node>		keyexpr_list braced_keyexpr_list keyval_list_r keyval
 
 %type	<type>		typedclname new_type
 %type	<type>		type Atype Btype
@@ -871,7 +871,7 @@ pexpr:
 		$$ = nod(OCONV, $3, N);
 		$$->type = oldtype($1);
 	}
-|	convtype '{' keyexpr_list '}'
+|	convtype '{' braced_keyexpr_list '}'
 	{
 		// composite literal
 		$$ = rev($3);
@@ -1598,7 +1598,32 @@ keyexpr_list:
 	{
 		$$ = rev($1);
 	}
-|	oexpr_list
+|	expr_list
+
+/*
+ * have to spell this out using _r lists to avoid yacc conflict
+ */
+braced_keyexpr_list:
+	{
+		$$ = N;
+	}
+|	keyval_list_r
+	{
+		$$ = rev($1);
+	}
+|	keyval_list_r ','
+	{
+		$$ = rev($1);
+	}
+|	expr_list_r
+	{
+		$$ = rev($1);
+	}
+|	expr_list_r ','
+	{
+		$$ = rev($1);
+	}
+
 
 /*
  * the one compromise of a
