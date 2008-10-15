@@ -29,7 +29,6 @@ func Use(x I) {
 func main() {
 	i := NewI(0);
 	Use(i);
-	print("done1\n");
 
 	// Again, without temporary
 	// Crashes because x.F is 0.
