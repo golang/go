@@ -10,22 +10,22 @@ import (
 )
 
 var good_re = []string{
-	``
-,	`.`
-,	`^.$`
-,	`a`
-,	`a*`
-,	`a+`
-,	`a?`
-,	`a|b`
-,	`a*|b*`
-,	`(a*|b)(c*|d)`
-,	`[a-z]`
-,	`[a-abc-c\-\]\[]`
-,	`[a-z]+`
-,	`[]`
-,	`[abc]`
-,	`[^1234]`
+	``,
+	`.`,
+	`^.$`,
+	`a`,
+	`a*`,
+	`a+`,
+	`a?`,
+	`a|b`,
+	`a*|b*`,
+	`(a*|b)(c*|d)`,
+	`[a-z]`,
+	`[a-abc-c\-\]\[]`,
+	`[a-z]+`,
+	`[]`,
+	`[abc]`,
+	`[^1234]`,
 }
 
 // TODO: nice to do this with a map but we don't have an iterator
@@ -45,7 +45,7 @@ var bad_re = []StringError{
 	StringError{ `a*+`,	regexp.ErrBadClosure },	
 	StringError{ `a??`,	regexp.ErrBadClosure },	
 	StringError{ `*`,	 	regexp.ErrBareClosure },	
-	StringError{ `\x`,	regexp.ErrBadBackslash }
+	StringError{ `\x`,	regexp.ErrBadBackslash },
 }
 
 type Vec [20]int;
@@ -56,17 +56,33 @@ type Tester struct {
 	match	Vec;
 }
 
+const END = -1000
+
 var matches = []Tester {
-	Tester{ ``,	"",	Vec{0,0, -1,-1} },
-	Tester{ `a`,	"a",	Vec{0,1, -1,-1} },
-	Tester{ `b`,	"abc",	Vec{1,2, -1,-1} },
-	Tester{ `.`,	"a",	Vec{0,1, -1,-1} },
-	Tester{ `.*`,	"abcdef",	Vec{0,6, -1,-1} },
-	Tester{ `^abcd$`,	"abcd",	Vec{0,4, -1,-1} },
-	Tester{ `^bcd'`,	"abcdef",	Vec{-1,-1} },
-	Tester{ `^abcd$`,	"abcde",	Vec{-1,-1} },
-	Tester{ `a+`,	"baaab",	Vec{1, 4, -1,-1} },
-	Tester{ `a*`,	"baaab",	Vec{0, 0, -1,-1} }
+	Tester{ ``,	"",	Vec{0,0, END} },
+	Tester{ `a`,	"a",	Vec{0,1, END} },
+	Tester{ `b`,	"abc",	Vec{1,2, END} },
+	Tester{ `.`,	"a",	Vec{0,1, END} },
+	Tester{ `.*`,	"abcdef",	Vec{0,6, END} },
+	Tester{ `^abcd$`,	"abcd",	Vec{0,4, END} },
+	Tester{ `^bcd'`,	"abcdef",	Vec{END} },
+	Tester{ `^abcd$`,	"abcde",	Vec{END} },
+	Tester{ `a+`,	"baaab",	Vec{1,4, END} },
+	Tester{ `a*`,	"baaab",	Vec{0,0, END} },
+	Tester{ `[a-z]+`,	"abcd",	Vec{0,4, END} },
+	Tester{ `[^a-z]+`,	"ab1234cd",	Vec{2,6, END} },
+	Tester{ `[a\-\]z]+`,	"az]-bcz",	Vec{0,4, END} },
+	Tester{ `[日本語]+`,	"日本語日本語",	Vec{0,18, END} },
+	Tester{ `()`,	"",	Vec{0,0, 0,0, END} },
+	Tester{ `(a)`,	"a",	Vec{0,1, 0,1, END} },
+	Tester{ `(.)(.)`,	"日a",	Vec{0,4, 0,3, 3,4, END} },
+	Tester{ `(.*)`,	"",	Vec{0,0, 0,0, END} },
+	Tester{ `(.*)`,	"abcd",	Vec{0,4, 0,4, END} },
+	Tester{ `(..)(..)`,	"abcd",	Vec{0,4, 0,2, 2,4, END} },
+	Tester{ `(([^xyz]*)(d))`,	"abcd",	Vec{0,4, 0,4, 0,3, 3,4, END} },
+	Tester{ `((a|b|c)*(d))`,	"abcd",	Vec{0,4, 0,4, 2,3, 3,4, END} },
+	Tester{ `(((a|b|c)*)(d))`,	"abcd",	Vec{0,4, 0,4, 0,3, 2,3, 3,4, END} },
+	Tester{ `a*(|(b))c*`,	"aacc",	Vec{0,4, 2,2, -1,-1, END} },
 }
 
 func Compile(expr string, error *os.Error) regexp.Regexp {
@@ -83,15 +99,19 @@ func MarkedLen(m *[] int) int {
 		return 0
 	}
 	var i int;
-	for i = 0; i < len(m) && m[i] >= 0; i = i+2 {
+	for i = 0; i < len(m) && m[i] != END; i = i+2 {
 	}
 	return i
 }
 
 func PrintVec(m *[] int) {
 	l := MarkedLen(m);
-	for i := 0; i < l && m[i] >= 0; i = i+2 {
-		print(m[i], ",", m[i+1], " ")
+	if l == 0 {
+		print("<no match>");
+	} else {
+		for i := 0; i < l && m[i] != END; i = i+2 {
+			print(m[i], ",", m[i+1], " ")
+		}
 	}
 }
 
@@ -122,6 +142,7 @@ func Match(expr string, str string, match *[]int) {
 }
 
 func main() {
+	//regexp.debug = true;
 	if sys.argc() > 1 {
 		Compile(sys.argv(1), nil);
 		sys.exit(0);

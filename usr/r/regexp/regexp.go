@@ -287,7 +287,6 @@ func (p *Parser) nextc() int {
 	if p.pos >= len(p.re.expr) {
 		p.ch = EOF
 	} else {
-		// TODO: stringotorune should take a string*
 		c, w := sys.stringtorune(p.re.expr, p.pos);
 		p.ch = c;
 		p.pos += w;
@@ -433,6 +432,8 @@ func (p *Parser) Term() (start, end Inst) {
 	case '(':
 		p.nextc();
 		p.nlpar++;
+		p.re.nbra++;	// increment first so first subexpr is \1
+		nbra := p.re.nbra;
 		start, end = p.Regexp();
 		if p.c() != ')' {
 			p.re.Error(ErrUnmatchedLpar);
@@ -443,9 +444,8 @@ func (p *Parser) Term() (start, end Inst) {
 		p.re.Add(bra);
 		ebra := new(Ebra);
 		p.re.Add(ebra);
-		p.re.nbra++;	// increment first so first subexpr is \1
-		bra.n = p.re.nbra;
-		ebra.n = p.re.nbra;
+		bra.n = nbra;
+		ebra.n = nbra;
 		if start == NULL {
 			if end == NULL { p.re.Error(ErrInternal) }
 			start = ebra
@@ -479,7 +479,7 @@ func (p *Parser) Term() (start, end Inst) {
 func (p *Parser) Closure() (start, end Inst) {
 	start, end = p.Term();
 	if start == NULL {
-		return start, end
+		return
 	}
 	switch p.c() {
 	case '*':
@@ -509,13 +509,13 @@ func (p *Parser) Closure() (start, end Inst) {
 		start = alt;	// start is now alt
 		end = nop;	// end is nop pointed to by both branches
 	default:
-		return start, end;
+		return
 	}
 	switch p.nextc() {
 	case '*', '+', '?':
 		p.re.Error(ErrBadClosure);
 	}
-	return start, end;
+	return
 }
 
 func (p *Parser) Concatenation() (start, end Inst) {
@@ -528,7 +528,7 @@ func (p *Parser) Concatenation() (start, end Inst) {
 				nop := p.re.Add(new(Nop));
 				return nop, nop;
 			}
-			return start, end;
+			return;
 		case start == NULL:	// this is first element of concatenation
 			start, end = nstart, nend;
 		default:
@@ -544,7 +544,7 @@ func (p *Parser) Regexp() (start, end Inst) {
 	for {
 		switch p.c() {
 		default:
-			return start, end;
+			return;
 		case '|':
 			p.nextc();
 			nstart, nend := p.Concatenation();
@@ -683,6 +683,9 @@ func (re *RE) DoExecute(str string, pos int) *[]int {
 		if !found {
 			// prime the pump if we haven't seen a match yet
 			match := new([]int, 2*(re.nbra+1));
+			for i := 0; i < len(match); i++ {
+				match[i] = -1;	// no match seen; catches cases like "a(b)?c" on "ac"
+			}
 			match[0]  = pos;
 			s[out] = AddState(s[out], re.start.Next(), match);
 		}
@@ -692,14 +695,13 @@ func (re *RE) DoExecute(str string, pos int) *[]int {
 			// machine has completed
 			break;
 		}
+		charwidth := 1;
 		c := EOF;
 		if pos < len(str) {
-			c = int(str[pos])
+			c, charwidth = sys.stringtorune(str, pos);
 		}
-//println("position ", pos, "char", string(c), "in", in, "out", out, "len in", len(s[in]));
 		for i := 0; i < len(s[in]); i++ {
 			state := s[in][i];
-//state.inst.Print(); print("\n");
 			switch s[in][i].inst.Type() {
 			case BOT:
 				if pos == 0 {
@@ -751,12 +753,11 @@ func (re *RE) DoExecute(str string, pos int) *[]int {
 				panic("unknown instruction in execute");
 			}
 		}
-		pos++;
+		pos += charwidth;
 	}
 	if !found {
 		return nil
 	}
-//if found { println("found: from ", final.match[0], "to", final.match[1] )}
 	return final.match;
 }
 
