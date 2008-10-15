@@ -5,16 +5,22 @@
 A=6
 G=$(A)g
 L=$(A)l
+PKG=$(GOROOT)/pkg/regexp.$A
 
-all: main
+test:	main.$A test.$A
+	$L -o test test.$A
+	./test
 
-main:	main.6
-	$L -o main main.6
+install:	regexp.$A
+	cp regexp.$A $(PKG)
 
-main.6: regexp.6
+main:	main.$A
+	$L -o main main.$A
+
+main.$A: regexp.$A
 
 clean:
-	rm -f *.6 main
+	rm -f *.6 test
 
 %.6:	%.go
 	$G $<

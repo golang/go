@@ -10,6 +10,12 @@ xcd() {
 	echo --- cd $1
 }
 
+(xcd lib/regexp
+make clean
+time make
+make test
+)
+
 (xcd ../usr/gri/gosrc
 make clean
 time make

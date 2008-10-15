@@ -34,7 +34,7 @@ type StringError struct {
 	err	*os.Error;
 }
 var bad_re = []StringError{
-	StringError{ `*`,	 	regexp.ErrBareClosure },	
+	StringError{ `*`,	 	regexp.ErrBareClosure },
 	StringError{ `(abc`,	regexp.ErrUnmatchedLpar },	
 	StringError{ `abc)`,	regexp.ErrUnmatchedRpar },	
 	StringError{ `x[a-z`,	regexp.ErrUnmatchedLbkt },	
