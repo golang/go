@@ -1607,19 +1607,11 @@ braced_keyexpr_list:
 	{
 		$$ = N;
 	}
-|	keyval_list_r
+|	keyval_list_r ocomma
 	{
 		$$ = rev($1);
 	}
-|	keyval_list_r ','
-	{
-		$$ = rev($1);
-	}
-|	expr_list_r
-	{
-		$$ = rev($1);
-	}
-|	expr_list_r ','
+|	expr_list_r ocomma
 	{
 		$$ = rev($1);
 	}
