@@ -5,11 +5,10 @@
 package Printer
 
 import Scanner "scanner"
-import AST "ast"
+import Node "node"
 
 
-// Printer implements AST.Visitor
-type Printer struct {
+export type Printer struct {
 	level int;  // true scope level
 	indent int;  // indentation level
 	semi bool;  // pending ";"
@@ -57,302 +56,154 @@ func (P *Printer) CloseScope(paren string) {
 }
 
 
-func (P *Printer) Print(x AST.Node) {
-	outer := P.prec;
-	P.prec = 0;
-	x.Visit(P);
-	P.prec = outer;
-}
-
-
-func (P *Printer) PrintList(p *AST.List) {
-	for i := 0; i < p.len(); i++ {
-		if i > 0 {
-			P.String(", ");
-		}
-		P.Print(p.at(i));
-	}
-}
-
-
-// ----------------------------------------------------------------------------
-// Basics
-
-func (P *Printer) DoNil(x *AST.Nil) {
-	P.String("<NIL>");
-}
-
-
-func (P *Printer) DoIdent(x *AST.Ident) {
-	P.String(x.val);
-}
-
-
 // ----------------------------------------------------------------------------
 // Types
 
-func (P *Printer) DoFunctionType(x *AST.FunctionType) {
-	P.String("(");
-	P.PrintList(x.params);
-	P.String(")");
-	if x.result != nil {
-		P.String(" (");
-		P.PrintList(x.result);
-		P.String(")");
-	}
-}
+func (P *Printer) Expr(x *Node.Expr)
 
+func (P *Printer) Type(t *Node.Type) {
+	switch t.tok {
+	case Scanner.IDENT:
+		P.Expr(t.expr);
 
-func (P *Printer) DoArrayType(x *AST.ArrayType) {
-	P.String("[");
-	P.Print(x.len_);
-	P.String("] ");
-	P.Print(x.elt);
-}
-
-
-func (P *Printer) DoStructType(x *AST.StructType) {
-	P.String("struct ");
-	P.OpenScope("{");
-	for i := 0; i < x.fields.len(); i++ {
-		P.Print(x.fields.at(i));
-		P.newl, P.semi = true, true;
-	}
-	P.CloseScope("}");
-}
-
-
-func (P *Printer) DoMapType(x *AST.MapType) {
-	P.String("[");
-	P.Print(x.key);
-	P.String("] ");
-	P.Print(x.val);
-}
-
-
-func (P *Printer) DoChannelType(x *AST.ChannelType) {
-	switch x.mode {
-	case AST.FULL: P.String("chan ");
-	case AST.RECV: P.String("<-chan ");
-	case AST.SEND: P.String("chan <- ");
-	}
-	P.Print(x.elt);
-}
-
-
-func (P *Printer) DoInterfaceType(x *AST.InterfaceType) {
-	P.String("interface ");
-	P.OpenScope("{");
-	for i := 0; i < x.methods.len(); i++ {
-		P.Print(x.methods.at(i));
-		P.newl, P.semi = true, true;
-	}
-	P.CloseScope("}");
-}
-
-
-func (P *Printer) DoPointerType(x *AST.PointerType) {
-	P.String("*");
-	P.Print(x.base);
-}
-
-
-// ----------------------------------------------------------------------------
-// Declarations
-
-func (P *Printer) DoBlock(x *AST.Block);
-
-
-func (P *Printer) DoImportDecl(x *AST.ImportDecl) {
-	if x.ident != nil {
-		P.Print(x.ident);
-		P.String(" ");
-	}
-	P.String(x.file);
-}
-
-
-func (P *Printer) DoConstDecl(x *AST.ConstDecl) {
-	P.Print(x.ident);
-	P.String(" ");
-	P.Print(x.typ);
-	P.String(" = ");
-	P.Print(x.val);
-	P.semi = true;
-}
-
-
-func (P *Printer) DoTypeDecl(x *AST.TypeDecl) {
-	P.Print(x.ident);
-	P.String(" ");
-	P.Print(x.typ);
-	P.semi = true;
-}
-
-
-func (P *Printer) DoVarDecl(x *AST.VarDecl) {
-	P.PrintList(x.idents);
-	P.String(" ");
-	P.Print(x.typ);
-	if x.vals != nil {
-		P.String(" = ");
-		P.PrintList(x.vals);
-	}
-	P.semi = true;
-}
-
-
-func (P *Printer) DoVarDeclList(x *AST.VarDeclList) {
-	if x.idents != nil {
-		P.PrintList(x.idents);	
-		P.String(" ");
-	}
-	P.Print(x.typ);
-}
-
-
-func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
-	P.String("func ");
-	if x.typ.recv != nil {
-		P.String("(");
-		P.DoVarDeclList(x.typ.recv);
-		P.String(") ");
-	}
-	P.DoIdent(x.ident);
-	P.DoFunctionType(x.typ);
-	if x.body != nil {
-		P.String(" ");
-		P.DoBlock(x.body);
-	} else {
-		P.String(" ;");
-	}
-	P.NewLine();
-	P.NewLine();
-}
-
-
-func (P *Printer) DoMethodDecl(x *AST.MethodDecl) {
-	P.DoIdent(x.ident);
-	P.DoFunctionType(x.typ);
-}
-
-
-func (P *Printer) DoDeclaration(x *AST.Declaration) {
-	P.String(Scanner.TokenName(x.tok));
-	P.String(" ");
-	switch x.decls.len() {
-	case 0:
-		P.String("()");
-	case 1:
-		P.Print(x.decls.at(0));
-	default:
-		P.OpenScope(" (");
-		for i := 0; i < x.decls.len(); i++ {
-			P.Print(x.decls.at(i));
-			P.newl, P.semi = true, true;
+	case Scanner.LBRACK:
+		P.String("[");
+		if t.expr != nil {
+			P.Expr(t.expr);
 		}
-		P.CloseScope(")");
+		P.String("] ");
+		P.Type(t.elt);
+
+	case Scanner.STRUCT:
+		P.String("struct");
+		if t.list != nil {
+			P.OpenScope(" {");
+			/*
+			for i := 0; i < x.fields.len(); i++ {
+				P.Print(x.fields.at(i));
+				P.newl, P.semi = true, true;
+			}
+			*/
+			P.CloseScope("}");
+		}
+
+	case Scanner.MAP:
+		P.String("[");
+		P.Type(t.key);
+		P.String("] ");
+		P.Type(t.elt);
+
+	case Scanner.CHAN:
+		switch t.mode {
+		case Node.FULL: P.String("chan ");
+		case Node.RECV: P.String("<-chan ");
+		case Node.SEND: P.String("chan <- ");
+		}
+		P.Type(t.elt);
+
+	case Scanner.INTERFACE:
+		P.String("interface");
+		if t.list != nil {
+			P.OpenScope(" {");
+			/*
+			for i := 0; i < x.methods.len(); i++ {
+				P.Print(x.methods.at(i));
+				P.newl, P.semi = true, true;
+			}
+			*/
+			P.CloseScope("}");
+		}
+
+	case Scanner.MUL:
+		P.String("*");
+		P.Type(t.elt);
+
+	case Scanner.LPAREN:
+		P.String("(");
+		//P.PrintList(x.params);
+		P.String(")");
+		/*
+		if x.result != nil {
+			P.String(" (");
+			P.PrintList(x.result);
+			P.String(")");
+		}
+		*/
+
+	default:
+		panic("UNREACHABLE");
 	}
-	if P.level == 0 {
-		P.NewLine();
-	}
-	P.newl = true;
 }
 
 
 // ----------------------------------------------------------------------------
 // Expressions
 
-func (P *Printer) DoBinary(x *AST.Binary) {
-	outer := P.prec;
-	P.prec = Scanner.Precedence(x.tok);
-	
-	if P.prec < outer {
-		print("(");
-	}
-	
-	P.Print(x.x);
-	P.String(" " + Scanner.TokenName(x.tok) + " ");
-	P.Print(x.y);
-	
-	if P.prec < outer {
-		print(")");
+func (P *Printer) Val(tok int, val *Node.Val) {
+	P.String(val.s);  // for now
+}
+
+
+func (P *Printer) Expr(x *Node.Expr) {
+	if x == nil {
+		return;  // empty expression list
 	}
 
-	P.prec = outer; 
-}
+	switch x.tok {
+	case Scanner.IDENT:
+		P.String(x.ident);
 
+	case Scanner.INT, Scanner.STRING, Scanner.FLOAT:
+		P.Val(x.tok, x.val);
 
-func (P *Printer) DoUnary(x *AST.Unary) {
-	P.String(Scanner.TokenName(x.tok));
-	P.Print(x.x);
-}
-
-
-func (P *Printer) DoLiteral(x *AST.Literal) {
-	P.String(x.val);
-}
-
-
-func (P *Printer) DoPair(x *AST.Pair) {
-	P.Print(x.x);
-	P.String(" : ");
-	P.Print(x.y);
-}
-
-
-func (P *Printer) DoIndex(x *AST.Index) {
-	P.Print(x.x);
-	P.String("[");
-	P.Print(x.index);
-	P.String("]");
-}
-
-
-func (P *Printer) DoCall(x *AST.Call) {
-	P.Print(x.fun);
-	P.String("(");
-	P.PrintList(x.args);
-	P.String(")");
-}
-
-
-func (P *Printer) DoSelector(x *AST.Selector) {
-	P.Print(x.x);
-	P.String(".");
-	P.String(x.field);
-}
-
-
-func (P *Printer) DoCompositeLit(x *AST.CompositeLit) {
-	P.Print(x.typ);
-	P.String("{");
-	P.PrintList(x.vals);
-	P.String("}");
-}
-
-
-func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
-	P.String("func ");
-	P.Print(x.typ);
-	P.String(" ");
-	P.Print(x.body);
+	case Scanner.LPAREN:
+		// calls
+		P.Expr(x.x);
+		P.String("(");
+		P.Expr(x.y);
+		P.String(")");
+		
+	case Scanner.LBRACK:
+		P.Expr(x.x);
+		P.String("[");
+		P.Expr(x.y);
+		P.String("]");
+		
+	default:
+		if x.x == nil {
+			// unary expression
+			P.String(Scanner.TokenName(x.tok));
+			P.Expr(x.y);
+		} else {
+			// binary expression: print ()'s if necessary
+			// TODO: pass precedence as parameter instead
+			outer := P.prec;
+			P.prec = Scanner.Precedence(x.tok);
+			if P.prec < outer {
+				print("(");
+			}
+			P.Expr(x.x);
+			if x.tok != Scanner.PERIOD && x.tok != Scanner.COMMA {
+				P.String(" ");
+			}
+			P.String(Scanner.TokenName(x.tok));
+			if x.tok != Scanner.PERIOD {
+				P.String(" ");
+			}
+			P.Expr(x.y);
+			if P.prec < outer {
+				print(")");
+			}
+			P.prec = outer; 
+		}
+	}
 }
 
 
 // ----------------------------------------------------------------------------
 // Statements
 
-func (P *Printer) DoBlock(x *AST.Block) {
-	P.OpenScope("{");
-	for i := 0; i < x.stats.len(); i++ {
-		P.Print(x.stats.at(i));
-		P.newl = true;
-	}
-	P.CloseScope("}");
-}
-
-
+/*
 func (P *Printer) DoLabel(x *AST.Label) {
 	P.indent--;
 	P.newl = true;
@@ -376,28 +227,6 @@ func (P *Printer) DoAssignment(x *AST.Assignment) {
 }
 
 
-func (P *Printer) PrintControlClause(x *AST.ControlClause) {
-	if x.has_init {
-		P.String(" ");
-		P.Print(x.init);
-		P.semi = true;
-		P.String("");
-	}
-	if x.has_expr {
-		P.String(" ");
-		P.Print(x.expr);
-		P.semi = false;
-	}
-	if x.has_post {
-		P.semi = true;
-		P.String(" ");
-		P.Print(x.post);
-		P.semi = false;
-	}
-	P.String(" ");
-}
-
-
 func (P *Printer) DoIfStat(x *AST.IfStat) {
 	P.String("if");
 	P.PrintControlClause(x.ctrl);
@@ -408,101 +237,208 @@ func (P *Printer) DoIfStat(x *AST.IfStat) {
 		P.Print(x.else_);
 	}
 }
+*/
 
 
-func (P *Printer) DoForStat(x *AST.ForStat) {
-	P.String("for");
-	P.PrintControlClause(x.ctrl);
-	P.DoBlock(x.body);
-}
+func (P *Printer) Stat(s *Node.Stat)
 
-
-func (P *Printer) DoCaseClause(x *AST.CaseClause) {
-	if x.exprs != nil {
-		P.String("case ");
-		P.PrintList(x.exprs);
-		P.String(":");
-	} else {
-		P.String("default:");
-	}
-	
-	P.OpenScope("");
-	for i := 0; i < x.stats.len(); i++ {
-		P.Print(x.stats.at(i));
+func (P *Printer) StatementList(list *Node.List) {
+	for i, n := 0, list.len(); i < n; i++ {
+		P.Stat(list.at(i).(*Node.Stat));
 		P.newl = true;
 	}
-	if x.falls {
-		P.String("fallthrough");
-	}
-	P.CloseScope("");
 }
 
 
-func (P *Printer) DoSwitchStat(x *AST.SwitchStat) {
-	P.String("switch ");
-	P.PrintControlClause(x.ctrl);
+func (P *Printer) Block(list *Node.List) {
 	P.OpenScope("{");
-	P.indent--;
-	for i := 0; i < x.cases.len(); i++ {
-		P.Print(x.cases.at(i));
-	}
-	P.indent++;
+	P.StatementList(list);
 	P.CloseScope("}");
 }
 
 
-func (P *Printer) DoReturnStat(x *AST.ReturnStat) {
-	P.String("return ");
-	P.PrintList(x.res);
-	P.semi = true;
-}
-
-
-func (P *Printer) DoIncDecStat(x *AST.IncDecStat) {
-	P.Print(x.expr);
-	P.String(Scanner.TokenName(x.tok));
-	P.semi = true;
-}
-
-
-func (P *Printer) DoControlFlowStat(x *AST.ControlFlowStat) {
-	P.String(Scanner.TokenName(x.tok));
-	if x.label != nil {
+func (P *Printer) ControlClause(s *Node.Stat) {
+	if s.init != nil {
 		P.String(" ");
-		P.Print(x.label);
+		P.Stat(s.init);
+		P.semi = true;
+		P.String("");
 	}
-	P.semi = true;
+	if s.expr != nil {
+		P.String(" ");
+		P.Expr(s.expr);
+		P.semi = false;
+	}
+	if s.post != nil {
+		P.semi = true;
+		P.String(" ");
+		P.Stat(s.post);
+		P.semi = false;
+	}
+	P.String(" ");
 }
 
 
-func (P *Printer) DoGoStat(x *AST.GoStat) {
-	P.String("go ");
-	P.Print(x.expr);
-	P.semi = true;
+func (P *Printer) Declaration(d *Node.Decl);
+
+func (P *Printer) Stat(s *Node.Stat) {
+	if s == nil {  // TODO remove this check
+		P.String("<nil stat>");
+		return;
+	}
+	switch s.tok {
+	case 0: // TODO use a real token const
+		P.Expr(s.expr);
+		P.semi = true;
+
+	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+		P.Declaration(s.decl);
+
+	case Scanner.DEFINE, Scanner.ASSIGN, Scanner.ADD_ASSIGN,
+		Scanner.SUB_ASSIGN, Scanner.MUL_ASSIGN, Scanner.QUO_ASSIGN,
+		Scanner.REM_ASSIGN, Scanner.AND_ASSIGN, Scanner.OR_ASSIGN,
+		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
+		P.String(Scanner.TokenName(s.tok));
+		P.String(" ");
+		P.Expr(s.expr);
+		P.semi = true;
+
+	case Scanner.INC, Scanner.DEC:
+		P.Expr(s.expr);
+		P.String(Scanner.TokenName(s.tok));
+		P.semi = true;
+
+	case Scanner.IF, Scanner.FOR, Scanner.SWITCH, Scanner.SELECT:
+		P.String(Scanner.TokenName(s.tok));
+		P.ControlClause(s);
+		P.Block(s.block);
+		
+	case Scanner.CASE, Scanner.DEFAULT:
+		P.String(Scanner.TokenName(s.tok));
+		if s.expr != nil {
+			P.String(" ");
+			P.Expr(s.expr);
+		}
+		P.String(":");
+		P.OpenScope("");
+		P.StatementList(s.block);
+		P.CloseScope("");
+		
+	case Scanner.GO, Scanner.RETURN, Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
+		P.String("go ");
+		P.Expr(s.expr);
+		P.semi = true;
+
+	default:
+		P.String("<stat>");
+		P.semi = true;
+	}
+}
+
+
+// ----------------------------------------------------------------------------
+// Declarations
+
+
+/*
+func (P *Printer) DoImportDecl(x *AST.ImportDecl) {
+	if x.ident != nil {
+		P.Print(x.ident);
+		P.String(" ");
+	}
+	P.String(x.file);
+}
+
+
+func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
+	P.String("func ");
+	if x.typ.recv != nil {
+		P.String("(");
+		P.DoVarDeclList(x.typ.recv);
+		P.String(") ");
+	}
+	P.DoIdent(x.ident);
+	P.DoFunctionType(x.typ);
+	if x.body != nil {
+		P.String(" ");
+		P.DoBlock(x.body);
+	} else {
+		P.String(" ;");
+	}
+	P.NewLine();
+	P.NewLine();
+
+}
+
+
+func (P *Printer) DoMethodDecl(x *AST.MethodDecl) {
+	//P.DoIdent(x.ident);
+	//P.DoFunctionType(x.typ);
+}
+*/
+
+
+func (P *Printer) Declaration(d *Node.Decl) {
+	if d.tok == Scanner.FUNC || d.ident == nil {
+		if d.exported {
+			P.String("export ");
+		}
+		P.String(Scanner.TokenName(d.tok));
+		P.String(" ");
+	}
+
+	if d.ident == nil {
+		switch d.list.len() {
+		case 0:
+			P.String("()");
+		case 1:
+			P.Declaration(d.list.at(0).(*Node.Decl));
+		default:
+			P.OpenScope("(");
+			for i := 0; i < d.list.len(); i++ {
+				P.Declaration(d.list.at(i).(*Node.Decl));
+				P.newl, P.semi = true, true;
+			}
+			P.CloseScope(")");
+		}
+
+	} else {
+		P.Expr(d.ident);
+		if d.typ != nil {
+			P.String(" ");
+			P.Type(d.typ);
+		}
+		if d.val != nil {
+			P.String(" = ");
+			P.Expr(d.val);
+		}
+		if d.list != nil {
+			if d.tok != Scanner.FUNC {
+				panic("must be a func declaration");
+			}
+			P.String(" ");
+			P.Block(d.list);
+		}
+	}
+
+	if P.level == 0 {
+		P.NewLine();
+	}
+
+	P.newl = true;
 }
 
 
 // ----------------------------------------------------------------------------
 // Program
 
-func (P *Printer) DoProgram(x *AST.Program) {
+func (P *Printer) Program(p *Node.Program) {
 	P.String("package ");
-	P.DoIdent(x.ident);
+	P.Expr(p.ident);
 	P.NewLine();
-	for i := 0; i < x.decls.len(); i++ {
-		P.Print(x.decls.at(i));
+	for i := 0; i < p.decls.len(); i++ {
+		P.Declaration(p.decls.at(i));
 	}
 	P.newl = true;
 	P.String("");
 }
-
-
-// ----------------------------------------------------------------------------
-// Driver
-
-export func Print(x AST.Node) {
-	var P Printer;
-	(&P).Print(x);
-	print("\n");
-}
-
