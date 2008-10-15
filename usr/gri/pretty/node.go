@@ -6,9 +6,9 @@ package Node
 
 import Scanner "scanner"
 
-type Node interface {}
 
 type (
+	Node interface {};
 	Type struct;
 	Expr struct;
 	Stat struct;
@@ -56,20 +56,6 @@ func (p *List) Add (x Node) {
 }
 
 
-/*
-func (p *List) Print() {
-	print("(");
-	for i, n := 0, p.len(); i < n; i++ {
-		if i > 0 {
-			print(", ");
-		}
-		p.at(i).Print();
-	}
-	print(")");
-}
-*/
-
-
 export func NewList() *List {
 	p := new(List);
 	p.a = new([] Node, 10) [0 : 0];
@@ -110,19 +96,11 @@ export func NewType(pos, tok int) *Type {
 // Expression pairs are represented as binary expressions with operator ":"
 // Expression lists are represented as binary expressions with operator ","
 
-export type Val struct {
-	i int;
-	f float;
-	s string;
-	t *Type;
-}
-
-
 export type Expr struct {
 	pos, tok int;
 	x, y *Expr;  // binary (x, y) and unary (y) expressions
-	ident string;  // identifiers
-	val *Val;  // literals
+	s string;  // identifiers and literals
+	t *Type;  // declarations and composite literals
 }
 
 
@@ -138,28 +116,6 @@ func (x *Expr) len() int {
 }
 
 
-/*
-func (x *Expr) Print() {
-	switch {
-	case x == nil:
-		print("nil");
-	case x.val != nil:
-		print(x.val.s);
-	default:
-		if x.x == nil {
-			print(Scanner.TokenName(x.tok));
-		} else {
-			x.x.Print();
-			print(" ");
-			print(Scanner.TokenName(x.tok));
-			print(" ");
-		}
-		x.y.Print();
-	}
-}
-*/
-
-
 export func NewExpr(pos, tok int, x, y *Expr) *Expr {
 	e := new(Expr);
 	e.pos, e.tok, e.x, e.y = pos, tok, x, y;
@@ -167,16 +123,9 @@ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
 }
 
 
-export func NewIdent(pos int, ident string) *Expr {
+export func NewLit(pos, tok int, s string) *Expr {
 	e := new(Expr);
-	e.pos, e.tok, e.ident = pos, Scanner.IDENT, ident;
-	return e;
-}
-
-
-export func NewVal(pos, tok int, val *Val) *Expr {
-	e := new(Expr);
-	e.pos, e.tok, e.val = pos, tok, val;
+	e.pos, e.tok, e.s = pos, tok, s;
 	return e;
 }
 
@@ -186,9 +135,8 @@ export func NewVal(pos, tok int, val *Val) *Expr {
 
 export type Stat struct {
 	pos, tok int;
-	init *Stat;
-	expr *Expr;
-	post *Stat;
+	init, post *Stat;
+	lhs, expr *Expr;
 	block *List;
 	decl *Decl;
 }
@@ -203,14 +151,6 @@ export func NewStat(pos, tok int) *Stat {
 
 // ----------------------------------------------------------------------------
 // Declarations
-
-export type VarDeclList struct {
-}
-
-
-func (d *VarDeclList) Print() {
-}
-
 
 export type Decl struct {
 	pos, tok int;

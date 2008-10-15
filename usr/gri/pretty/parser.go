@@ -66,7 +66,7 @@ func (P *Parser) Next() {
 	P.opt_semi = false;
 	if P.verbose {
 		P.PrintIndent();
-		print("[", P.pos, "] ", Scanner.TokenName(P.tok), "\n");
+		print("[", P.pos, "] ", Scanner.TokenString(P.tok), "\n");
 	}
 }
 
@@ -89,7 +89,7 @@ func (P *Parser) Error(pos int, msg string) {
 
 func (P *Parser) Expect(tok int) {
 	if P.tok != tok {
-		P.Error(P.pos, "expected '" + Scanner.TokenName(tok) + "', found '" + Scanner.TokenName(P.tok) + "'");
+		P.Error(P.pos, "expected '" + Scanner.TokenString(tok) + "', found '" + Scanner.TokenString(P.tok) + "'");
 	}
 	P.Next();  // make progress in any case
 }
@@ -116,10 +116,10 @@ func (P *Parser) ParseIdent() *Node.Expr {
 
 	var x *Node.Expr;
 	if P.tok == Scanner.IDENT {
-		x = Node.NewIdent(P.pos, P.val);
+		x = Node.NewLit(P.pos, Scanner.IDENT, P.val);
 		if P.verbose {
 			P.PrintIndent();
-			print("Ident = \"", x.val, "\"\n");
+			print("Ident = \"", x.s, "\"\n");
 		}
 		P.Next();
 	} else {
@@ -238,24 +238,35 @@ func (P *Parser) ParseChannelType() *Node.Type {
 }
 
 
-func (P *Parser) ParseVarDeclList() *Node.VarDeclList {
+func (P *Parser) ParseVarDeclList() {
 	P.Trace("VarDeclList");
 
-	list := new(Node.VarDeclList);
-	P.ParseType();
+	list := Node.NewList();
+	list.Add(P.ParseType());
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParseType();
+		list.Add(P.ParseType());
 	}
-	
+
 	typ := P.TryType();
 
-	if typ == nil {
-		// we must have a list of types
+	if typ != nil {
+		// all list entries must be identifiers;
+		// convert the list into an expression list of identifiers
+		for i, n := 0, list.len(); i < n; i++ {
+			t := list.at(i).(*Node.Type);
+			if t.tok == Scanner.IDENT && t.expr.tok == Scanner.IDENT {
+				x := t.expr;
+			} else {
+				P.Error(t.pos, "identifier expected");
+			}
+		}
+	} else {
+		// all list entries are types
+		
 	}
 	
 	P.Ecart();
-	return list;
 }
 
 
@@ -263,10 +274,10 @@ func (P *Parser) ParseParameterList() *Node.List {
 	P.Trace("ParameterList");
 	
 	list := Node.NewList();
-	list.Add(P.ParseVarDeclList());
+	P.ParseVarDeclList();
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		list.Add(P.ParseVarDeclList());
+		P.ParseVarDeclList();
 	}
 	
 	P.Ecart();
@@ -394,7 +405,7 @@ func (P *Parser) ParseStructType() *Node.Type {
 		P.Next();
 		t.list = Node.NewList();
 		for P.tok == Scanner.IDENT {
-			t.list.Add(P.ParseVarDeclList());
+			P.ParseVarDeclList();
 			if P.tok != Scanner.RBRACE {
 				P.Expect(Scanner.SEMICOLON);
 			}
@@ -529,18 +540,13 @@ func (P *Parser) ParseOperand() *Node.Expr {
 		P.expr_lev--;
 		P.Expect(Scanner.RPAREN);
 
-	case Scanner.INT, Scanner.FLOAT:
-		val := new(Node.Val);
-		val.s = P.val;
-		x = Node.NewVal(P.pos, P.tok, val);
+	case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
+		x = Node.NewLit(P.pos, P.tok, P.val);
 		P.Next();
-
-	case Scanner.STRING:
-		val := new(Node.Val);
-		val.s = P.val;
-		x = Node.NewVal(P.pos, Scanner.STRING, val);
-		for P.Next(); P.tok == Scanner.STRING; P.Next() {
-			val.s += P.val;
+		if x.tok == Scanner.STRING {
+			for ; P.tok == Scanner.STRING; P.Next() {
+				x.s += P.val;
+			}
 		}
 
 	case Scanner.FUNC:
@@ -744,12 +750,12 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
 	P.Trace("SimpleStat");
 	
 	var s *Node.Stat;
-	list := P.ParseExpressionList();
+	x := P.ParseExpressionList();
 	
 	switch P.tok {
 	case Scanner.COLON:
 		// label declaration
-		if list.len() == 1 {
+		if x.len() == 1 {
 		} else {
 			P.Error(P.pos, "illegal label declaration");
 		}
@@ -763,21 +769,22 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
 		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
 		s = Node.NewStat(P.pos, P.tok);
 		P.Next();
+		s.lhs = x;
 		s.expr = P.ParseExpressionList();
 
 	default:
 		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
 			s = Node.NewStat(P.pos, P.tok);
-			if list.len() == 1 {
-				s.expr = list;
+			if x.len() == 1 {
+				s.expr = x;
 			} else {
 				P.Error(P.pos, "more then one operand");
 			}
 			P.Next();
 		} else {
 			s = Node.NewStat(P.pos, 0);  // TODO give this a token value
-			if list.len() == 1 {
-				s.expr = list;
+			if x.len() == 1 {
+				s.expr = x;
 			} else {
 				P.Error(P.pos, "syntax error");
 			}
@@ -830,7 +837,7 @@ func (P *Parser) ParseControlFlowStat(tok int) *Node.Stat {
 
 
 func (P *Parser) ParseControlClause(keyword int) *Node.Stat {
-	P.Trace("StatHeader");
+	P.Trace("ControlClause");
 	
 	s := Node.NewStat(P.pos, keyword);
 	P.Expect(keyword);
@@ -872,9 +879,9 @@ func (P *Parser) ParseIfStat() *Node.Stat {
 	if P.tok == Scanner.ELSE {
 		P.Next();
 		if P.tok == Scanner.IF {
-			P.ParseIfStat();
+			s.post = P.ParseIfStat();
 		} else {
-			P.ParseStatement();
+			s.post = P.ParseStatement();
 		}
 	}
 	
@@ -1005,12 +1012,6 @@ func (P *Parser) ParseFallthroughStat() *Node.Stat {
 }
 
 
-func (P *Parser) ParseEmptyStat() {
-	P.Trace("EmptyStat");
-	P.Ecart();
-}
-
-
 func (P *Parser) ParseRangeStat() *Node.Stat {
 	P.Trace("RangeStat");
 	
@@ -1023,6 +1024,12 @@ func (P *Parser) ParseRangeStat() *Node.Stat {
 	
 	P.Ecart();
 	return s;
+}
+
+
+func (P *Parser) ParseEmptyStat() {
+	P.Trace("EmptyStat");
+	P.Ecart();
 }
 
 

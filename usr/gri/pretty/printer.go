@@ -13,7 +13,6 @@ export type Printer struct {
 	indent int;  // indentation level
 	semi bool;  // pending ";"
 	newl bool;  // pending "\n"
-	prec int;  // operator precedence
 }
 
 
@@ -29,6 +28,11 @@ func (P *Printer) String(s string) {
 	}
 	print(s);
 	P.newl, P.semi = false, false;
+}
+
+
+func (P *Printer) Token(tok int) {
+	P.String(Scanner.TokenString(tok));
 }
 
 
@@ -139,106 +143,68 @@ func (P *Printer) Type(t *Node.Type) {
 // ----------------------------------------------------------------------------
 // Expressions
 
-func (P *Printer) Val(tok int, val *Node.Val) {
-	P.String(val.s);  // for now
-}
-
-
-func (P *Printer) Expr(x *Node.Expr) {
+func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 	if x == nil {
 		return;  // empty expression list
 	}
 
 	switch x.tok {
-	case Scanner.IDENT:
-		P.String(x.ident);
+	case Scanner.IDENT, Scanner.INT, Scanner.STRING, Scanner.FLOAT:
+		P.String(x.s);
 
-	case Scanner.INT, Scanner.STRING, Scanner.FLOAT:
-		P.Val(x.tok, x.val);
+	case Scanner.COMMA:
+		P.Expr1(x.x, 0);
+		P.String(", ");
+		P.Expr1(x.y, 0);
 
-	case Scanner.LPAREN:
-		// calls
-		P.Expr(x.x);
-		P.String("(");
-		P.Expr(x.y);
-		P.String(")");
+	case Scanner.PERIOD:
+		P.Expr1(x.x, 8);
+		P.String(".");
+		P.Expr1(x.y, 8);
 		
 	case Scanner.LBRACK:
-		P.Expr(x.x);
+		P.Expr1(x.x, 8);
 		P.String("[");
-		P.Expr(x.y);
+		P.Expr1(x.y, 0);
 		P.String("]");
+
+	case Scanner.LPAREN:
+		P.Expr1(x.x, 8);
+		P.String("(");
+		P.Expr1(x.y, 0);
+		P.String(")");
 		
 	default:
 		if x.x == nil {
 			// unary expression
-			P.String(Scanner.TokenName(x.tok));
-			P.Expr(x.y);
+			P.Token(x.tok);
+			P.Expr1(x.y, 7);
 		} else {
 			// binary expression: print ()'s if necessary
-			// TODO: pass precedence as parameter instead
-			outer := P.prec;
-			P.prec = Scanner.Precedence(x.tok);
-			if P.prec < outer {
+			prec := Scanner.Precedence(x.tok);
+			if prec < prec1 {
 				print("(");
 			}
-			P.Expr(x.x);
-			if x.tok != Scanner.PERIOD && x.tok != Scanner.COMMA {
-				P.String(" ");
-			}
-			P.String(Scanner.TokenName(x.tok));
-			if x.tok != Scanner.PERIOD {
-				P.String(" ");
-			}
-			P.Expr(x.y);
-			if P.prec < outer {
+			P.Expr1(x.x, prec);
+			P.String(" ");
+			P.Token(x.tok);
+			P.String(" ");
+			P.Expr1(x.y, prec);
+			if prec < prec1 {
 				print(")");
 			}
-			P.prec = outer; 
 		}
 	}
 }
 
 
+func (P *Printer) Expr(x *Node.Expr) {
+	P.Expr1(x, 0);
+}
+
+
 // ----------------------------------------------------------------------------
 // Statements
-
-/*
-func (P *Printer) DoLabel(x *AST.Label) {
-	P.indent--;
-	P.newl = true;
-	P.Print(x.ident);
-	P.String(":");
-	P.indent++;
-}
-
-
-func (P *Printer) DoExprStat(x *AST.ExprStat) {
-	P.Print(x.expr);
-	P.semi = true;
-}
-
-
-func (P *Printer) DoAssignment(x *AST.Assignment) {
-	P.PrintList(x.lhs);
-	P.String(" " + Scanner.TokenName(x.tok) + " ");
-	P.PrintList(x.rhs);
-	P.semi = true;
-}
-
-
-func (P *Printer) DoIfStat(x *AST.IfStat) {
-	P.String("if");
-	P.PrintControlClause(x.ctrl);
-	P.DoBlock(x.then);
-	if x.has_else {
-		P.newl = false;
-		P.String(" else ");
-		P.Print(x.else_);
-	}
-}
-*/
-
 
 func (P *Printer) Stat(s *Node.Stat)
 
@@ -250,9 +216,15 @@ func (P *Printer) StatementList(list *Node.List) {
 }
 
 
-func (P *Printer) Block(list *Node.List) {
+func (P *Printer) Block(list *Node.List, indent bool) {
 	P.OpenScope("{");
+	if !indent {
+		P.indent--;
+	}
 	P.StatementList(list);
+	if !indent {
+		P.indent++;
+	}
 	P.CloseScope("}");
 }
 
@@ -269,7 +241,7 @@ func (P *Printer) ControlClause(s *Node.Stat) {
 		P.Expr(s.expr);
 		P.semi = false;
 	}
-	if s.post != nil {
+	if s.tok == Scanner.FOR && s.post != nil {
 		P.semi = true;
 		P.String(" ");
 		P.Stat(s.post);
@@ -286,6 +258,7 @@ func (P *Printer) Stat(s *Node.Stat) {
 		P.String("<nil stat>");
 		return;
 	}
+
 	switch s.tok {
 	case 0: // TODO use a real token const
 		P.Expr(s.expr);
@@ -298,23 +271,43 @@ func (P *Printer) Stat(s *Node.Stat) {
 		Scanner.SUB_ASSIGN, Scanner.MUL_ASSIGN, Scanner.QUO_ASSIGN,
 		Scanner.REM_ASSIGN, Scanner.AND_ASSIGN, Scanner.OR_ASSIGN,
 		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
-		P.String(Scanner.TokenName(s.tok));
+		P.Expr(s.lhs);
+		P.String(" ");
+		P.Token(s.tok);
 		P.String(" ");
 		P.Expr(s.expr);
 		P.semi = true;
 
 	case Scanner.INC, Scanner.DEC:
 		P.Expr(s.expr);
-		P.String(Scanner.TokenName(s.tok));
+		P.Token(s.tok);
 		P.semi = true;
 
-	case Scanner.IF, Scanner.FOR, Scanner.SWITCH, Scanner.SELECT:
-		P.String(Scanner.TokenName(s.tok));
+	case Scanner.LBRACE:
+		P.Block(s.block, true);
+
+	case Scanner.IF:
+		P.String("if");
 		P.ControlClause(s);
-		P.Block(s.block);
-		
+		P.Block(s.block, true);
+		if s.post != nil {
+			P.newl = false;
+			P.String(" else ");
+			P.Stat(s.post);
+		}
+
+	case Scanner.FOR:
+		P.String("for");
+		P.ControlClause(s);
+		P.Block(s.block, true);
+
+	case Scanner.SWITCH, Scanner.SELECT:
+		P.Token(s.tok);
+		P.ControlClause(s);
+		P.Block(s.block, false);
+
 	case Scanner.CASE, Scanner.DEFAULT:
-		P.String(Scanner.TokenName(s.tok));
+		P.Token(s.tok);
 		if s.expr != nil {
 			P.String(" ");
 			P.Expr(s.expr);
@@ -323,9 +316,10 @@ func (P *Printer) Stat(s *Node.Stat) {
 		P.OpenScope("");
 		P.StatementList(s.block);
 		P.CloseScope("");
-		
+
 	case Scanner.GO, Scanner.RETURN, Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
-		P.String("go ");
+		P.Token(s.tok);
+		P.String(" ");
 		P.Expr(s.expr);
 		P.semi = true;
 
@@ -341,15 +335,6 @@ func (P *Printer) Stat(s *Node.Stat) {
 
 
 /*
-func (P *Printer) DoImportDecl(x *AST.ImportDecl) {
-	if x.ident != nil {
-		P.Print(x.ident);
-		P.String(" ");
-	}
-	P.String(x.file);
-}
-
-
 func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
 	P.String("func ");
 	if x.typ.recv != nil {
@@ -383,7 +368,7 @@ func (P *Printer) Declaration(d *Node.Decl) {
 		if d.exported {
 			P.String("export ");
 		}
-		P.String(Scanner.TokenName(d.tok));
+		P.Token(d.tok);
 		P.String(" ");
 	}
 
@@ -417,10 +402,11 @@ func (P *Printer) Declaration(d *Node.Decl) {
 				panic("must be a func declaration");
 			}
 			P.String(" ");
-			P.Block(d.list);
+			P.Block(d.list, true);
 		}
 	}
 
+	// extra newline at the top level
 	if P.level == 0 {
 		P.NewLine();
 	}
