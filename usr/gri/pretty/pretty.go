@@ -7,7 +7,6 @@ package main
 import Flag "flag"
 import Platform "platform"
 import Scanner "scanner"
-import AST "ast"  // should not be needed
 import Parser "parser"
 import Printer "printer"
 
@@ -66,7 +65,8 @@ func main() {
 		}
 		
 		if !silent.BVal() {
-			Printer.Print(prog);
+			var P Printer.Printer;
+			(&P).Program(prog);
 		}
 	}
 }
