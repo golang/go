@@ -106,7 +106,7 @@ export const (
 )
 
 
-export func TokenName(tok int) string {
+export func TokenString(tok int) string {
 	switch (tok) {
 	case ILLEGAL: return "ILLEGAL";
 	
@@ -233,7 +233,7 @@ func init() {
 	Keywords = new(map [string] int);
 	
 	for i := KEYWORDS_BEG + 1; i < KEYWORDS_END; i++ {
-	  Keywords[TokenName(i)] = i;
+	  Keywords[TokenString(i)] = i;
 	}
 	
 	// Provide column information in error messages for gri only...
