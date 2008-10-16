@@ -6,6 +6,14 @@
 
 static	int32	debug	= 0;
 
+enum
+{
+	ASIMP		= 0,
+	ASTRING,
+	APTR,
+	AINTER,
+};
+
 typedef	struct	Sigt	Sigt;
 typedef	struct	Sigi	Sigi;
 typedef	struct	Map	Map;
@@ -13,8 +21,8 @@ typedef	struct	Map	Map;
 struct	Sigt
 {
 	byte*	name;
-	uint32	hash;		// hash of type // first is alg
-	uint32	offset;		// offset of substruct // first is width
+	uint32	hash;		// hash of type		// first is alg
+	uint32	offset;		// offset of substruct	// first is width
 	void	(*fun)(void);
 };
 
@@ -22,7 +30,7 @@ struct	Sigi
 {
 	byte*	name;
 	uint32	hash;
-	uint32	perm;		// location of fun in Sigt
+	uint32	perm;		// location of fun in Sigt // first is size
 };
 
 struct	Map
@@ -36,6 +44,27 @@ struct	Map
 };
 
 static	Map*	hash[1009];
+
+#define	END	nil,0,0,nil
+
+Sigi	sys·sigi_inter[2] =	{ (byte*)"sys·nilinter", 0, 0, nil, 0, 0 };
+
+Sigt	sys·sigt_int8[2] =	{ (byte*)"sys·int8", ASIMP, 1, nil, END };
+Sigt	sys·sigt_int16[2] =	{ (byte*)"sys·int16", ASIMP, 2, nil, END };
+Sigt	sys·sigt_int32[2] =	{ (byte*)"sys·int32", ASIMP, 4, nil, END };
+Sigt	sys·sigt_int64[2] =	{ (byte*)"sys·int64", ASIMP, 8, nil, END };
+
+Sigt	sys·sigt_uint8[2] =	{ (byte*)"sys·uint8", ASIMP, 1, nil, END };
+Sigt	sys·sigt_uint16[2] =	{ (byte*)"sys·uint16", ASIMP, 2, nil, END };
+Sigt	sys·sigt_uint32[2] =	{ (byte*)"sys·uint32", ASIMP, 4, nil, END };
+Sigt	sys·sigt_uint64[2] =	{ (byte*)"sys·uint64", ASIMP, 8, nil, END };
+
+Sigt	sys·sigt_float32[2] =	{ (byte*)"sys·float32", ASIMP, 4, nil, END };
+Sigt	sys·sigt_float64[2] =	{ (byte*)"sys·float64", ASIMP, 8, nil, END };
+//Sigt	sys·sigt_float80[2] =	{ (byte*)"sys·float80", ASIMP, 0, nil, END };
+
+Sigt	sys·sigt_bool[2] =	{ (byte*)"sys·bool", ASIMP, 1, nil, END };
+Sigt	sys·sigt_string[2] =	{ (byte*)"sys·string", ASTRING, 8, nil, END };
 
 static void
 printsigi(Sigi *si)
@@ -126,7 +155,11 @@ hashmap(Sigi *si, Sigt *st)
 	m->sigt = st;
 
 	nt = 1;
-	for(ni=1; (iname=si[ni].name) != nil; ni++) {	// ni=1: skip first word
+	for(ni=1;; ni++) {	// ni=1: skip first word
+		iname = si[ni].name;
+		if(iname == nil)
+			break;
+
 		// pick up next name from
 		// interface signature
 		ihash = si[ni].hash;

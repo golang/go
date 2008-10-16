@@ -1397,6 +1397,16 @@ isinter(Type *t)
 	return 0;
 }
 
+int
+isnilinter(Type *t)
+{
+	if(!isinter(t))
+		return 0;
+	if(t->type != T)
+		return 0;
+	return 1;
+}
+
 Type*
 ismethod(Type *t)
 {
@@ -1457,6 +1467,75 @@ out:
 }
 
 Sym*
+globalsig(Type *t)
+{
+	int et;
+	Sym *s;
+	char buf[NSYMB];
+	char *glob;
+
+	if(t == T)
+		return S;
+
+	glob = "sys";
+	et = t->etype;
+	switch(et) {
+	default:
+		return S;
+
+	case TINTER:
+		if(isnilinter(t)) {
+			snprint(buf, sizeof(buf), "%s_%s", "sigi", "inter");
+			goto out;
+		}
+		return S;
+
+	case TPTR32:
+	case TPTR64:
+		if(isptrto(t, TSTRING)) {
+			et = TSTRING;
+			break;
+		}
+		return S;
+
+	case TINT8:
+	case TINT16:
+	case TINT32:
+	case TINT64:
+
+	case TUINT8:
+	case TUINT16:
+	case TUINT32:
+	case TUINT64:
+
+	case TFLOAT32:
+	case TFLOAT64:
+	case TFLOAT80:
+
+	case TBOOL:
+		break;
+	}
+	if(t->sym == S)
+		return S;
+	if(t->method != T)
+		return S;
+	if(strcmp(t->sym->name, types[et]->sym->name) != 0)
+		return S;
+	snprint(buf, sizeof(buf), "%s_%S", "sigt", t->sym);
+
+out:
+	s = pkglookup(buf, glob);
+	if(s->oname == N) {
+		s->oname = newname(s);
+		s->oname->type = types[TUINT8];
+		s->oname->class = PEXTERN;
+		s->local = s->local;
+	}
+//print("*** %lT %lS\n", t, s);
+	return s;
+}
+
+Sym*
 signame(Type *t, int block)
 {
 	Sym *s, *ss;
@@ -1479,6 +1558,10 @@ signame(Type *t, int block)
 			goto bad;
 	}
 
+	ss = globalsig(t);
+	if(ss != S)
+		return ss;
+
 	e = "sigt";
 	if(t->etype == TINTER)
 		e = "sigi";
@@ -1499,6 +1582,7 @@ signame(Type *t, int block)
 		signatlist = x;
 	} else
 		snprint(buf, sizeof(buf), "%s_%s", e, s->name);
+
 	ss = pkglookup(buf, s->opackage);
 	if(ss->oname == N) {
 		ss->oname = newname(ss);
@@ -1507,9 +1591,6 @@ signame(Type *t, int block)
 		ss->local = s->local;
 //print("signame: %d %lS\n", ss->local, ss);
 	}
-
-	if(strcmp(ss->name, "sigt_int32") == 0)
-		warn("int32 -> interface");
 
 	return ss;
 

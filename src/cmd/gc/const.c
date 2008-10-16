@@ -41,23 +41,37 @@ convlit(Node *n, Type *t)
 		goto bad1;
 
 	case Wlitnil:
-		if(!isptr[et] && et != TINTER)
-			goto bad1;
 		if(isptrto(t, TSTRING))
 			goto bad1;
-		break;
+		if(isptr[et])
+			break;
+		if(et == TINTER)
+			break;
+		return;
 
 	case Wlitstr:
+		if(isnilinter(t)) {
+			defaultlit(n);
+			return;
+		}
 		if(isptrto(t, TSTRING))
 			break;
 		goto bad1;
 
 	case Wlitbool:
+		if(isnilinter(t)) {
+			defaultlit(n);
+			return;
+		}
 		if(et == TBOOL)
 			break;
 		goto bad1;
 
 	case Wlitint:
+		if(isnilinter(t)) {
+			defaultlit(n);
+			return;
+		}
 		if(isptrto(t, TSTRING)) {
 			Rune rune;
 			int l;
@@ -82,9 +96,9 @@ convlit(Node *n, Type *t)
 			break;
 		}
 		if(isfloat[et]) {
+			// int to float
 			Mpint *xv;
 
-			// int to float
 			xv = n->val.u.xval;
 			if(mpcmpfixflt(xv, minfltval[et]) < 0)
 				goto bad2;
@@ -98,10 +112,14 @@ convlit(Node *n, Type *t)
 		goto bad1;
 
 	case Wlitfloat:
+		if(isnilinter(t)) {
+			defaultlit(n);
+			return;
+		}
 		if(isint[et]) {
+			// float to int
 			Mpflt *fv;
 
-			// float to int
 			fv = n->val.u.fval;
 			if(mpcmpfltfix(fv, minintval[et]) < 0)
 				goto bad2;
