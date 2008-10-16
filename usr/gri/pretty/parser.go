@@ -786,6 +786,8 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
 	case Scanner.COLON:
 		// label declaration
 		if x.len() == 1 {
+			s = Node.NewStat(P.pos, Scanner.COLON);
+			s.expr = x;
 		} else {
 			P.Error(P.pos, "illegal label declaration");
 		}
@@ -810,7 +812,7 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
 			} else {
 				P.Error(P.pos, "more then one operand");
 			}
-			P.Next();
+			P.Next();  // consume "++" or "--"
 		} else {
 			s = Node.NewStat(P.pos, 0);  // TODO give this a token value
 			if x.len() == 1 {
@@ -857,7 +859,7 @@ func (P *Parser) ParseControlFlowStat(tok int) *Node.Stat {
 	
 	s := Node.NewStat(P.pos, tok);
 	P.Expect(tok);
-	if P.tok == Scanner.IDENT {
+	if tok != Scanner.FALLTHROUGH && P.tok == Scanner.IDENT {
 		s.expr = P.ParseIdent();
 	}
 	
@@ -911,7 +913,16 @@ func (P *Parser) ParseIfStat() *Node.Stat {
 		if P.tok == Scanner.IF {
 			s.post = P.ParseIfStat();
 		} else {
-			s.post = P.ParseStatement();
+			// For 6g compliance - should really be P.ParseBlock()
+			t := P.ParseStatement();
+			if t.tok != Scanner.LBRACE {
+				// wrap in a block if we don't have one
+				t1 := Node.NewStat(P.pos, Scanner.LBRACE);
+				t1.block = Node.NewList();
+				t1.block.Add(t);
+				t = t1;
+			}
+			s.post = t;
 		}
 	}
 	
@@ -1031,17 +1042,6 @@ func (P *Parser) ParseSelectStat() *Node.Stat {
 }
 
 
-func (P *Parser) ParseFallthroughStat() *Node.Stat {
-	P.Trace("FallthroughStat");
-	
-	s := Node.NewStat(P.pos, Scanner.FALLTHROUGH);
-	P.Expect(Scanner.FALLTHROUGH);
-
-	P.Ecart();
-	return s;
-}
-
-
 func (P *Parser) ParseRangeStat() *Node.Stat {
 	P.Trace("RangeStat");
 	
@@ -1073,7 +1073,8 @@ func (P *Parser) ParseStatement() *Node.Stat {
 		s = Node.NewStat(P.pos, P.tok);
 		s.decl = P.ParseDeclaration();
 	case Scanner.FUNC:
-		// for now we do not allow local function declarations
+		// for now we do not allow local function declarations,
+		// instead we assume this starts a function literal
 		fallthrough;
 	case
 		// only the tokens that are legal top-level expression starts
@@ -1085,7 +1086,7 @@ func (P *Parser) ParseStatement() *Node.Stat {
 		s = P.ParseGoStat();
 	case Scanner.RETURN:
 		s = P.ParseReturnStat();
-	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
+	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO, Scanner.FALLTHROUGH:
 		s = P.ParseControlFlowStat(P.tok);
 	case Scanner.LBRACE:
 		s = Node.NewStat(P.pos, Scanner.LBRACE);
@@ -1100,8 +1101,6 @@ func (P *Parser) ParseStatement() *Node.Stat {
 		s = P.ParseRangeStat();
 	case Scanner.SELECT:
 		s = P.ParseSelectStat();
-	case Scanner.FALLTHROUGH:
-		s = P.ParseFallthroughStat();
 	default:
 		P.ParseEmptyStat();  // for complete tracing output only
 	}

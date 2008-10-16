@@ -12,7 +12,7 @@ export type Printer struct {
 	level int;  // true scope level
 	indent int;  // indentation level
 	semi bool;  // pending ";"
-	newl bool;  // pending "\n"
+	newl int;  // pending "\n"'s
 }
 
 
@@ -20,14 +20,19 @@ func (P *Printer) String(pos int, s string) {
 	if P.semi && P.level > 0 {  // no semicolons at level 0
 		print(";");
 	}
-	if P.newl {
-		print("\n");
+	
+	if P.newl > 0 {
+		for i := P.newl; i > 0; i-- {
+			print("\n");
+		}
 		for i := P.indent; i > 0; i-- {
 			print("\t");
 		}
 	}
+
 	print(s);
-	P.newl, P.semi = false, false;
+
+	P.semi, P.newl = false, 0;
 }
 
 
@@ -41,18 +46,12 @@ func (P *Printer) Token(pos int, tok int) {
 }
 
 
-func (P *Printer) NewLine() {  // explicit "\n"
-	print("\n");
-	P.semi, P.newl = false, true;
-}
-
-
 func (P *Printer) OpenScope(paren string) {
-	P.semi, P.newl = false, false;
+	P.semi, P.newl = false, 0;
 	P.String(0, paren);
 	P.level++;
 	P.indent++;
-	P.newl = true;
+	P.newl = 1;
 }
 
 
@@ -61,7 +60,7 @@ func (P *Printer) CloseScope(paren string) {
 	P.semi = false;
 	P.String(0, paren);
 	P.level--;
-	P.semi, P.newl = false, true;
+	P.semi, P.newl = false, 1;
 }
 
 
@@ -95,7 +94,7 @@ func (P *Printer) Fields(list *Node.List) {
 		if i > 0 {
 			if prev == Scanner.TYPE {
 				P.String(0, ";");
-				P.newl = true;
+				P.newl = 1;
 			} else if prev == x.tok {
 				P.String(0, ", ");
 			} else {
@@ -105,7 +104,7 @@ func (P *Printer) Fields(list *Node.List) {
 		P.Expr(x);
 		prev = x.tok;
 	}
-	P.newl = true;
+	P.newl = 1;
 }
 
 
@@ -261,7 +260,7 @@ func (P *Printer) Stat(s *Node.Stat)
 func (P *Printer) StatementList(list *Node.List) {
 	for i, n := 0, list.len(); i < n; i++ {
 		P.Stat(list.at(i).(*Node.Stat));
-		P.newl = true;
+		P.newl = 1;
 	}
 }
 
@@ -310,16 +309,27 @@ func (P *Printer) Stat(s *Node.Stat) {
 
 	switch s.tok {
 	case 0: // TODO use a real token const
+		// expression statement
 		P.Expr(s.expr);
 		P.semi = true;
 
+	case Scanner.COLON:
+		// label declaration
+		P.indent--;
+		P.Expr(s.expr);
+		P.Token(s.pos, s.tok);
+		P.indent++;
+		P.semi = false;
+		
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+		// declaration
 		P.Declaration(s.decl, false);
 
 	case Scanner.DEFINE, Scanner.ASSIGN, Scanner.ADD_ASSIGN,
 		Scanner.SUB_ASSIGN, Scanner.MUL_ASSIGN, Scanner.QUO_ASSIGN,
 		Scanner.REM_ASSIGN, Scanner.AND_ASSIGN, Scanner.OR_ASSIGN,
 		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
+		// assignment
 		P.Expr(s.lhs);
 		P.Blank();
 		P.Token(s.pos, s.tok);
@@ -333,6 +343,7 @@ func (P *Printer) Stat(s *Node.Stat) {
 		P.semi = true;
 
 	case Scanner.LBRACE:
+		// block
 		P.Block(s.block, true);
 
 	case Scanner.IF:
@@ -340,7 +351,7 @@ func (P *Printer) Stat(s *Node.Stat) {
 		P.ControlClause(s);
 		P.Block(s.block, true);
 		if s.post != nil {
-			P.newl = false;
+			P.newl = 0;
 			P.String(0, " else ");
 			P.Stat(s.post);
 		}
@@ -366,10 +377,12 @@ func (P *Printer) Stat(s *Node.Stat) {
 		P.StatementList(s.block);
 		P.CloseScope("");
 
-	case Scanner.GO, Scanner.RETURN, Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
+	case Scanner.GO, Scanner.RETURN, Scanner.FALLTHROUGH, Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
 		P.Token(s.pos, s.tok);
-		P.Blank();
-		P.Expr(s.expr);
+		if s.expr != nil {
+			P.Blank();
+			P.Expr(s.expr);
+		}
 		P.semi = true;
 
 	default:
@@ -430,16 +443,18 @@ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
 		P.OpenScope("(");
 		for i := 0; i < d.list.len(); i++ {
 			P.Declaration(d.list.at(i).(*Node.Decl), true);
-			P.newl, P.semi = true, true;
+			P.semi, P.newl = true, 1;
 		}
 		P.CloseScope(")");
 
 	} else {
 		P.Expr(d.ident);
+		
 		if d.typ != nil {
 			P.Blank();
 			P.Type(d.typ);
 		}
+
 		if d.val != nil {
 			if d.tok == Scanner.IMPORT {
 				P.Blank();
@@ -448,6 +463,7 @@ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
 			}
 			P.Expr(d.val);
 		}
+
 		if d.list != nil {
 			if d.tok != Scanner.FUNC {
 				panic("must be a func declaration");
@@ -456,13 +472,18 @@ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
 			P.Block(d.list, true);
 		}
 	}
+	
+	P.newl = 1;
 
+	// extra newline after a function declaration
+	if d.tok == Scanner.FUNC {
+		P.newl++;
+	}
+	
 	// extra newline at the top level
 	if P.level == 0 {
-		P.NewLine();
+		P.newl++;
 	}
-
-	P.newl = true;
 }
 
 
@@ -472,10 +493,10 @@ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
 func (P *Printer) Program(p *Node.Program) {
 	P.String(p.pos, "package ");
 	P.Expr(p.ident);
-	P.NewLine();
+	P.newl = 2;
 	for i := 0; i < p.decls.len(); i++ {
 		P.Declaration(p.decls.at(i), false);
 	}
-	P.newl = true;
+	P.newl = 1;
 	P.String(0, "");  // flush
 }
