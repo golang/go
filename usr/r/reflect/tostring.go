@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Reflection library.
+// Formatting of types for debugging.
+
 package reflect
 
 import (
@@ -28,6 +31,8 @@ func FieldsToString(t Type) string {
 func ToString(typ Type) string {
 	var str string;
 	switch(typ.Kind()) {
+	case MissingKind:
+		return "missing";
 	case Int8Kind:
 		return "int8";
 	case Int16Kind:
