@@ -131,18 +131,19 @@ func (P *Parser) ParseIdent() *Node.Expr {
 }
 
 
-func (P *Parser) ParseIdentList() *Node.List {
+func (P *Parser) ParseIdentList() *Node.Expr {
 	P.Trace("IdentList");
 
-	list := Node.NewList();
-	list.Add(P.ParseIdent());
-	for P.tok == Scanner.COMMA {
+	x := P.ParseIdent();
+	if P.tok == Scanner.COMMA {
+		pos := P.pos;
 		P.Next();
-		list.Add(P.ParseIdent());
+		y := P.ParseIdentList();
+		x := Node.NewExpr(pos, Scanner.COMMA, x, y);
 	}
 
 	P.Ecart();
-	return list;
+	return x;
 }
 
 
@@ -241,6 +242,7 @@ func (P *Parser) ParseChannelType() *Node.Type {
 func (P *Parser) ParseVarDeclList(list *Node.List) {
 	P.Trace("VarDeclList");
 
+	// parse a list of types
 	i0 := list.len();
 	list.Add(P.ParseType());
 	for P.tok == Scanner.COMMA {
@@ -250,6 +252,7 @@ func (P *Parser) ParseVarDeclList(list *Node.List) {
 
 	typ := P.TryType();
 
+	// convert the list into a list of (type) expressions
 	if typ != nil {
 		// all list entries must be identifiers
 		// convert the type entries into identifiers
@@ -263,14 +266,14 @@ func (P *Parser) ParseVarDeclList(list *Node.List) {
 			}
 		}
 		// add type
-		list.Add(Node.NewTypeExpr(typ.pos, typ));
+		list.Add(Node.NewTypeExpr(typ));
 
 	} else {
 		// all list entries are types
 		// convert all type entries into type expressions
 		for i, n := i0, list.len(); i < n; i++ {
 			t := list.at(i).(*Node.Type);
-			list.set(i, Node.NewTypeExpr(t.pos, t));
+			list.set(i, Node.NewTypeExpr(t));
 		}
 		
 		if P.tok == Scanner.COMMA {
@@ -339,7 +342,7 @@ func (P *Parser) ParseResult() *Node.Type {
 		if typ != nil {
 			t = Node.NewType(P.pos, Scanner.STRUCT);
 			t.list = Node.NewList();
-			t.list.Add(Node.NewTypeExpr(typ.pos, typ));
+			t.list.Add(Node.NewTypeExpr(typ));
 		}
 	}
 
@@ -572,7 +575,7 @@ func (P *Parser) ParseOperand() *Node.Expr {
 	default:
 		t := P.TryType();
 		if t != nil {
-			x = Node.NewTypeExpr(t.pos, t);
+			x = Node.NewTypeExpr(t);
 		} else {
 			P.Error(P.pos, "operand expected");
 			P.Next();  // make progress
@@ -653,31 +656,42 @@ func (P *Parser) ParseCall(x *Node.Expr) *Node.Expr {
 }
 
 
+func (P *Parser) ParseExpressionPairList(mode int) *Node.Expr {
+	P.Trace("ExpressionPairList");
+	
+	x := P.ParseExpressionPair(mode);
+	if mode == 0 {
+		// first expression determines mode
+		if x.tok == Scanner.COLON {
+			mode = 2;
+		} else {
+			mode = 1;
+		}
+	}
+	if P.tok == Scanner.COMMA {
+		pos := P.pos;
+		P.Next();
+		if P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+			y := P.ParseExpressionPairList(mode);
+			x = Node.NewExpr(pos, Scanner.COMMA, x, y);
+		}
+	}
+	
+	P.Ecart();
+	return x;
+}
+
+
 func (P *Parser) ParseCompositeLit(t *Node.Type) *Node.Expr {
 	P.Trace("CompositeLit");
 
-	mode := 0;
+	pos := P.pos;
 	P.Expect(Scanner.LBRACE);
-	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
-		x := P.ParseExpressionPair(mode);
-		if mode == 0 {
-			// first expression determines mode
-			if x.tok == Scanner.COLON {
-				mode = 2;
-			} else {
-				mode = 1;
-			}
-		}
-		if P.tok == Scanner.COMMA {
-			P.Next();
-		} else {
-			break;
-		}
-	}
+	x := P.ParseExpressionPairList(0);
 	P.Expect(Scanner.RBRACE);
 	
 	P.Ecart();
-	return Node.NewLit(P.pos, Scanner.INT, "0");  // "null" expr
+	return Node.NewExpr(pos, Scanner.LBRACE, Node.NewTypeExpr(t), x);
 }
 
 
@@ -780,16 +794,16 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
 	P.Trace("SimpleStat");
 	
 	var s *Node.Stat;
+
 	x := P.ParseExpressionList();
 	
 	switch P.tok {
 	case Scanner.COLON:
 		// label declaration
-		if x.len() == 1 {
-			s = Node.NewStat(P.pos, Scanner.COLON);
-			s.expr = x;
-		} else {
-			P.Error(P.pos, "illegal label declaration");
+		s = Node.NewStat(P.pos, Scanner.COLON);
+		s.expr = x;
+		if x.len() != 1 {
+			P.Error(x.pos, "illegal label declaration");
 		}
 		P.Next();  // consume ":"
 		P.opt_semi = true;
@@ -803,23 +817,22 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
 		P.Next();
 		s.lhs = x;
 		s.expr = P.ParseExpressionList();
+		if l, r := x.len(), s.expr.len(); l > 1 && r > 1 && l != r {
+			P.Error(x.pos, "arity of lhs doesn't match rhs");
+		}
 
 	default:
+		var pos, tok int;
 		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
-			s = Node.NewStat(P.pos, P.tok);
-			if x.len() == 1 {
-				s.expr = x;
-			} else {
-				P.Error(P.pos, "more then one operand");
-			}
-			P.Next();  // consume "++" or "--"
+			pos, tok = P.pos, P.tok;
+			P.Next();
 		} else {
-			s = Node.NewStat(P.pos, 0);  // TODO give this a token value
-			if x.len() == 1 {
-				s.expr = x;
-			} else {
-				P.Error(P.pos, "syntax error");
-			}
+			pos, tok = x.pos, 0;  // TODO give this a token value
+		}
+		s = Node.NewStat(pos, tok);
+		s.expr = x;
+		if x.len() != 1 {
+			P.Error(x.pos, "only one expression allowed");
 		}
 	}
 	
@@ -1173,15 +1186,15 @@ func (P *Parser) ParseVarSpec(exported bool) *Node.Decl {
 	P.Trace("VarSpec");
 	
 	d := Node.NewDecl(P.pos, Scanner.VAR, exported);
-	P.ParseIdentList();
+	d.ident = P.ParseIdentList();
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
-		P.ParseExpressionList();
+		d.val = P.ParseExpressionList();
 	} else {
-		P.ParseVarType();
+		d.typ = P.ParseVarType();
 		if P.tok == Scanner.ASSIGN {
 			P.Next();
-			P.ParseExpressionList();
+			d.val = P.ParseExpressionList();
 		}
 	}
 	
@@ -1246,20 +1259,20 @@ func (P *Parser) ParseFunctionDecl(exported bool) *Node.Decl {
 	
 	d := Node.NewDecl(P.pos, Scanner.FUNC, exported);
 	P.Expect(Scanner.FUNC);
+	
+	var recv *Node.Type;
 	if P.tok == Scanner.LPAREN {
 		pos := P.pos;
-		recv := P.ParseParameters();
-		// TODO: fix this
-		/*
-		if recv.list.len() != 1 {
+		recv = P.ParseParameters();
+		if recv.nfields() != 1 {
 			P.Error(pos, "must have exactly one receiver");
 		}
-		*/
 	}
 	
 	d.ident = P.ParseIdent();
 	d.typ = P.ParseFunctionType();
-	
+	d.typ.key = recv;
+
 	if P.tok == Scanner.LBRACE {
 		P.scope_lev++;
 		d.list = P.ParseBlock();

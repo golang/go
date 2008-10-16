@@ -69,37 +69,7 @@ export func NewList() *List {
 
 
 // ----------------------------------------------------------------------------
-// Types
-
-export const /* channel mode */ (
-	FULL = iota;
-	SEND;
-	RECV;
-)
-
-
-export type Type struct {
-	pos, tok int;
-	expr *Expr;  // type name, array length
-	mode int;  // channel mode
-	key *Type;  // map key
-	elt *Type;  // array element, map or channel value, or pointer base type
-	list *List;  // struct fields, interface methods, function parameters
-}
-
-
-export func NewType(pos, tok int) *Type {
-	t := new(Type);
-	t.pos, t.tok = pos, tok;
-	return t;
-}
-
-
-// ----------------------------------------------------------------------------
 // Expressions
-//
-// Expression pairs are represented as binary expressions with operator ":"
-// Expression lists are represented as binary expressions with operator ","
 
 export type Expr struct {
 	pos, tok int;
@@ -135,9 +105,53 @@ export func NewLit(pos, tok int, s string) *Expr {
 }
 
 
-export func NewTypeExpr(pos int, t *Type) *Expr {
+// ----------------------------------------------------------------------------
+// Types
+
+export const /* channel mode */ (
+	FULL = iota;
+	SEND;
+	RECV;
+)
+
+
+export type Type struct {
+	pos, tok int;
+	expr *Expr;  // type name, array length
+	mode int;  // channel mode
+	key *Type;  // receiver type, map key
+	elt *Type;  // array element, map or channel value, or pointer base type, result type
+	list *List;  // struct fields, interface methods, function parameters
+}
+
+
+func (t *Type) nfields() int {
+	nx, nt := 0, 0;
+	for i, n := 0, t.list.len(); i < n; i++ {
+		if t.list.at(i).(*Expr).tok == Scanner.TYPE {
+			nt++;
+		} else {
+			nx++;
+		}
+	}
+	if nx == 0 {
+		return nt;
+	}
+	return nx;
+}
+
+
+export func NewType(pos, tok int) *Type {
+	t := new(Type);
+	t.pos, t.tok = pos, tok;
+	return t;
+}
+
+
+// requires complete Type type
+export func NewTypeExpr(t *Type) *Expr {
 	e := new(Expr);
-	e.pos, e.tok, e.t = pos, Scanner.TYPE, t;
+	e.pos, e.tok, e.t = t.pos, Scanner.TYPE, t;
 	return e;
 }
 

@@ -70,7 +70,8 @@ func (P *Printer) CloseScope(paren string) {
 func (P *Printer) Type(t *Node.Type)
 func (P *Printer) Expr(x *Node.Expr)
 
-func (P *Printer) Parameters(list *Node.List) {
+func (P *Printer) Parameters(pos int, list *Node.List) {
+	P.String(pos, "(");
 	var prev int;
 	for i, n := 0, list.len(); i < n; i++ {
 		x := list.at(i).(*Node.Expr);
@@ -84,6 +85,7 @@ func (P *Printer) Parameters(list *Node.List) {
 		P.Expr(x);
 		prev = x.tok;
 	}
+	P.String(0, ")");
 }
 
 
@@ -123,7 +125,7 @@ func (P *Printer) Type(t *Node.Type) {
 		if t.expr != nil {
 			P.Expr(t.expr);
 		}
-		P.String(0, "] ");
+		P.String(0, "]");
 		P.Type(t.elt);
 
 	case Scanner.STRUCT:
@@ -137,7 +139,7 @@ func (P *Printer) Type(t *Node.Type) {
 	case Scanner.MAP:
 		P.String(t.pos, "[");
 		P.Type(t.key);
-		P.String(0, "] ");
+		P.String(0, "]");
 		P.Type(t.elt);
 
 	case Scanner.CHAN:
@@ -168,13 +170,10 @@ func (P *Printer) Type(t *Node.Type) {
 		P.Type(t.elt);
 
 	case Scanner.LPAREN:
-		P.String(t.pos, "(");
-		P.Parameters(t.list);
-		P.String(0, ")");
+		P.Parameters(t.pos, t.list);
 		if t.elt != nil {
-			P.String(0, " (");
-			P.Parameters(t.elt.list);
-			P.String(0, ")");
+			P.Blank();
+			P.Parameters(0, t.elt.list);
 		}
 
 	default:
@@ -192,9 +191,6 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 	}
 
 	switch x.tok {
-	case Scanner.VAR:
-		panic("UNIMPLEMENTED (VAR)");
-		
 	case Scanner.TYPE:
 		P.Type(x.t);
 
@@ -222,6 +218,12 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 		P.String(x.pos, "(");
 		P.Expr1(x.y, 0);
 		P.String(0, ")");
+
+	case Scanner.LBRACE:
+		P.Expr1(x.x, 8);
+		P.String(x.pos, "{");
+		P.Expr1(x.y, 0);
+		P.String(0, "}");
 		
 	default:
 		if x.x == nil {
@@ -396,35 +398,6 @@ func (P *Printer) Stat(s *Node.Stat) {
 // Declarations
 
 
-/*
-func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
-	P.String("func ");
-	if x.typ.recv != nil {
-		P.String("(");
-		P.DoVarDeclList(x.typ.recv);
-		P.String(") ");
-	}
-	P.DoIdent(x.ident);
-	P.DoFunctionType(x.typ);
-	if x.body != nil {
-		P.String(" ");
-		P.DoBlock(x.body);
-	} else {
-		P.String(" ;");
-	}
-	P.NewLine();
-	P.NewLine();
-
-}
-
-
-func (P *Printer) DoMethodDecl(x *AST.MethodDecl) {
-	//P.DoIdent(x.ident);
-	//P.DoFunctionType(x.typ);
-}
-*/
-
-
 func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
 	if d == nil {  // TODO remove this check
 		P.String(0, "<nil decl>");
@@ -448,6 +421,11 @@ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
 		P.CloseScope(")");
 
 	} else {
+		if d.tok == Scanner.FUNC && d.typ.key != nil {
+			P.Parameters(0, d.typ.key.list);
+			P.Blank();
+		}
+
 		P.Expr(d.ident);
 		
 		if d.typ != nil {
@@ -470,6 +448,10 @@ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
 			}
 			P.Blank();
 			P.Block(d.list, true);
+		}
+		
+		if d.tok != Scanner.TYPE {
+			P.semi = true;
 		}
 	}
 	
