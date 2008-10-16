@@ -575,6 +575,8 @@ int	isptrto(Type*, int);
 int	isptrarray(Type*);
 int	isptrdarray(Type*);
 int	isinter(Type*);
+int	isnilinter(Type*);
+Sym*	globalsig(Type*);
 Type*	ismethod(Type*);
 Sym*	signame(Type*, int);
 int	bytearraysz(Type*);
