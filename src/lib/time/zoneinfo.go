@@ -80,7 +80,7 @@ type Zonetime struct {
 }
 
 func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
-	data1 := Data(bytes);
+	data1 := Data{bytes};
 	data := &data1;
 
 	// 4-byte magic "TZif"
@@ -120,21 +120,21 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 	}
 
 	// Transition times.
-	txtimes1 := Data(data.Read(n[NTime]*4));
+	txtimes1 := Data{data.Read(n[NTime]*4)};
 	txtimes := &txtimes1;
 
 	// Time zone indices for transition times.
 	txzones := data.Read(n[NTime]);
 
 	// Zone info structures
-	zonedata1 := Data(data.Read(n[NZone]*6));
+	zonedata1 := Data{data.Read(n[NZone]*6)};
 	zonedata := &zonedata1;
 
 	// Time zone abbreviations.
 	abbrev := data.Read(n[NChar]);
 
 	// Leap-second time pairs
-	leapdata1 := Data(data.Read(n[NLeap]*8));
+	leapdata1 := Data{data.Read(n[NLeap]*8)};
 	leapdata := &leapdata1;
 
 	// Whether tx times associated with local time types
