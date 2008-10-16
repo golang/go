@@ -53,6 +53,7 @@ mainlex(int argc, char *argv[])
 	fmtinstall('Z', Zconv);		// escaped string
 	fmtinstall('L', Lconv);		// line number
 	fmtinstall('B', Bconv);		// big numbers
+	fmtinstall('W', Wconv);		// whatis numbers (Wlitint)
 
 	lexinit();
 	lineno = 1;

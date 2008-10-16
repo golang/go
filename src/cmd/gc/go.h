@@ -598,6 +598,7 @@ Node*	syslook(char*, int);
 Node*	treecopy(Node*);
 int	isselect(Node*);
 void	tempname(Node*, Type*);
+int	iscomposite(Type*);
 
 Type**	getthis(Type*);
 Type**	getoutarg(Type*);
@@ -621,6 +622,7 @@ int	Oconv(Fmt*);
 int	Sconv(Fmt*);
 int	Tconv(Fmt*);
 int	Nconv(Fmt*);
+int	Wconv(Fmt*);
 int	Zconv(Fmt*);
 
 /*

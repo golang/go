@@ -822,6 +822,8 @@ etnames[] =
 	[TSTRING]	= "STRING",
 	[TCHAN]		= "CHAN",
 	[TANY]		= "ANY",
+	[TFORWINTER]	= "FORWINTER",
+	[TFORWSTRUCT]	= "FORWSTRUCT",
 };
 
 int
@@ -1327,6 +1329,36 @@ out:
 	return fmtstrcpy(fp, buf);
 }
 
+
+static char*
+wnames[] =
+{
+	[Wnil] =	"Wnil",
+	[Wtnil] =	"Wtnil",
+
+	[Wtfloat] =	"Wtfloat",
+	[Wtint] =	"Wtint",
+	[Wtbool] =	"Wtbool",
+	[Wtstr] =	"Wtstr",
+
+	[Wlitfloat] =	"float constant",
+	[Wlitint] =	"int constant",
+	[Wlitbool] =	"bool",
+	[Wlitstr] =	"string",
+	[Wlitnil] =	"nil",
+};
+
+int
+Wconv(Fmt *fp)
+{
+	char buf[500];
+	int w;
+
+	w = va_arg(fp->args, int);
+	if(w < 0 || w >= nelem(wnames) || wnames[w] == nil)
+		return fmtprint(fp, "W-%d", w);
+	return fmtstrcpy(fp, wnames[w]);
+}
 int
 isnil(Node *n)
 {
@@ -1464,6 +1496,20 @@ out:
 	}
 
 	return t;
+}
+
+int
+iscomposite(Type *t)
+{
+	if(t == T)
+		return 0;
+	switch(t->etype) {
+	case TMAP:
+	case TARRAY:
+	case TSTRUCT:
+		return 1;
+	}
+	return 0;
 }
 
 Sym*
