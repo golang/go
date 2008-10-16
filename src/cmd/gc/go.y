@@ -754,8 +754,6 @@ uexpr:
 	}
 |	'&' uexpr
 	{
-		if($2->op == OCONV && !func)
-			yyerror("& of composite literal at top level");
 		$$ = nod(OADDR, $2, N);
 	}
 |	'+' uexpr
@@ -1181,13 +1179,11 @@ xfndcl:
 	{
 		maxarg = 0;
 		stksize = 0;
-		func++;
 	} fndcl fnbody
 	{
 		$$ = $3;
 		$$->nbody = $4;
 		funcbody($$);
-		func--;
 	}
 
 fndcl:
@@ -1207,15 +1203,22 @@ fndcl:
 
 		b0stack = dclstack;	// mark base for fn literals
 		$$ = nod(ODCLFUNC, N, N);
-		t = ismethod($2->type);
-		if(t != T)
-			$$->nname = methodname($4, t);
-		else
+		if(listcount($2) == 1) {
+			t = ismethod($2->type);
 			$$->nname = $4;
-		$$->type = functype($2, $6, $8);
-		funchdr($$);
+			if(t != T)
+				$$->nname = methodname($4, t);
+			$$->type = functype($2, $6, $8);
+			funchdr($$);
+			addmethod($4, $$->type, 1);
+		} else {
+			/* declare it as a function */
+			yyerror("unknown method receiver");
+			$$->nname = $4;
+			$$->type = functype(N, $6, $8);
+			funchdr($$);
+		}
 
-		addmethod($4, $$->type, 1);
 	}
 
 fntype:
