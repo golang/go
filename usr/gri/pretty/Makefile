@@ -58,17 +58,6 @@ testnoisy: pretty
 	pretty $(GOROOT)/usr/r/*/*.go
 	echo "DONE"
 
-# These tests don't work yet
-testfull: pretty
-	pretty *.go
-	pretty ../gosrc/*.go
-	pretty $(GOROOT)/test/*.go
-	pretty $(GOROOT)/src/pkg/*.go
-	pretty $(GOROOT)/src/lib/*.go
-	pretty $(GOROOT)/src/lib/*/*.go
-	pretty $(GOROOT)/usr/r/*/*.go
-	echo "DONE"
-
 install: pretty
 	cp pretty $(HOME)/bin/pretty
 

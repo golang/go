@@ -139,7 +139,7 @@ func (P *Parser) ParseIdentList() *Node.Expr {
 		pos := P.pos;
 		P.Next();
 		y := P.ParseIdentList();
-		x := Node.NewExpr(pos, Scanner.COMMA, x, y);
+		x = Node.NewExpr(pos, Scanner.COMMA, x, y);
 	}
 
 	P.Ecart();
@@ -369,14 +369,13 @@ func (P *Parser) ParseFunctionType() *Node.Type {
 }
 
 
-func (P *Parser) ParseMethodDecl() *Node.Decl {
+func (P *Parser) ParseMethodSpec(list *Node.List) {
 	P.Trace("MethodDecl");
 	
-	P.ParseIdent();
-	P.ParseFunctionType();
+	list.Add(P.ParseIdent());
+	list.Add(Node.NewTypeExpr(P.ParseFunctionType()));
 	
 	P.Ecart();
-	return nil;
 }
 
 
@@ -387,8 +386,9 @@ func (P *Parser) ParseInterfaceType() *Node.Type {
 	P.Expect(Scanner.INTERFACE);
 	if P.tok == Scanner.LBRACE {
 		P.Next();
+		t.list = Node.NewList();
 		for P.tok == Scanner.IDENT {
-			P.ParseMethodDecl();
+			P.ParseMethodSpec(t.list);
 			if P.tok != Scanner.RBRACE {
 				P.Expect(Scanner.SEMICOLON);
 			}
@@ -591,16 +591,15 @@ func (P *Parser) ParseOperand() *Node.Expr {
 func (P *Parser) ParseSelectorOrTypeGuard(x *Node.Expr) *Node.Expr {
 	P.Trace("SelectorOrTypeGuard");
 
-	pos := P.pos;
+	x = Node.NewExpr(P.pos, Scanner.PERIOD, x, nil);
 	P.Expect(Scanner.PERIOD);
 	
 	if P.tok == Scanner.IDENT {
-		y := P.ParseIdent();
-		x = Node.NewExpr(pos, Scanner.PERIOD, x, y);
+		x.y = P.ParseIdent();
 		
 	} else {
 		P.Expect(Scanner.LPAREN);
-		P.ParseType();
+		x.t = P.ParseType();
 		P.Expect(Scanner.RPAREN);
 	}
 	
