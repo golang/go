@@ -468,6 +468,8 @@ EXTERN	int32	thunk;
 
 EXTERN	int	exporting;
 
+EXTERN	int	func;
+
 /*
  *	y.tab.c
  */
