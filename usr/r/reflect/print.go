@@ -5,97 +5,96 @@
 package reflect
 
 import (
-	"reflect"
+	"reflect";
+	"strings";
 )
 
-// Implemented as a function rather than a method to keep the
-// Type interface small.  TODO: should this return a string?
-export func Print(typ Type) {
+export func ToString(typ Type) string
+
+func FieldsToString(t Type) string {
+	s := t.(StructType);
+	var str string;
+	for i := 0; i < s.Len(); i++ {
+		str1, t := s.Field(i);
+		str1 +=  " " + ToString(t);
+		if i < s.Len() - 1 {
+			str1 += "; ";
+		}
+		str += str1;
+	}
+	return str;
+}
+
+func ToString(typ Type) string {
+	var str string;
 	switch(typ.Kind()) {
 	case Int8Kind:
-		print("int8");
+		return "int8";
 	case Int16Kind:
-		print("int16");
+		return "int16";
 	case Int32Kind:
-		print("int32");
+		return "int32";
 	case Int64Kind:
-		print("int64");
+		return "int64";
 	case Uint8Kind:
-		print("uint8");
+		return "uint8";
 	case Uint16Kind:
-		print("uint16");
+		return "uint16";
 	case Uint32Kind:
-		print("uint32");
+		return "uint32";
 	case Uint64Kind:
-		print("uint64");
+		return "uint64";
 	case Float32Kind:
-		print("float32");
+		return "float32";
 	case Float64Kind:
-		print("float64");
+		return "float64";
 	case Float80Kind:
-		print("float80");
+		return "float80";
 	case StringKind:
-		print("string");
+		return "string";
 	case PtrKind:
 		p := typ.(PtrType);
-		print("*");
-		Print(p.Sub());
+		return "*" + ToString(p.Sub());
 	case ArrayKind:
 		a := typ.(ArrayType);
-		if a.Len() >= 0 {
-			print("[", a.Len(), "]")
+		if a.Len() < 0 {
+			str = "[]"
 		} else {
-			print("[]")
+			str = "[" + strings.itoa(a.Len()) +  "]"
 		}
-		Print(a.Elem());
+		return str + ToString(a.Elem());
 	case MapKind:
 		m := typ.(MapType);
-		print("map[");
-		Print(m.Key());
-		print("]");
-		Print(m.Elem());
+		str = "map[" + ToString(m.Key()) + "]";
+		return str + ToString(m.Elem());
 	case ChanKind:
 		c := typ.(ChanType);
 		switch c.Dir() {
 		case RecvDir:
-			print("<-chan");
+			str = "<-chan";
 		case SendDir:
-			print("chan<-");
+			str = "chan<-";
 		case BothDir:
-			print("chan");
+			str = "chan";
 		default:
-			panicln("reflect.Print: unknown chan direction");
+			panicln("reflect.ToString: unknown chan direction");
 		}
-		Print(c.Elem());
+		return str + ToString(c.Elem());
 	case StructKind:
-		s := typ.(StructType);
-		print("struct{");
-		for i := 0; i < s.Len(); i++ {
-			n, t := s.Field(i);
-			print(n, " ");
-			Print(t);
-			if i < s.Len() - 1 {
-				print("; ");
-			}
-		}
-		print("}");
+		return "struct{" + FieldsToString(typ) + "}";
 	case FuncKind:
 		f := typ.(FuncType);
-		print("func ");
+		str = "func";
 		if f.Receiver() != nil {
-			print("(");
-			Print(f.Receiver());
-			print(")");
+			str += "(" + FieldsToString(f.Receiver()) + ")";
 		}
-		print("(");
-		Print(f.In());
-		print(")");
+		str += "(" + FieldsToString(f.In()) + ")";
 		if f.Out() != nil {
-			print("(");
-			Print(f.Out());
-			print(")");
+			str += "(" + FieldsToString(f.Out()) + ")";
 		}
+		return str;
 	default:
-		panicln("can't print type ", typ.Kind());
+		panicln("reflect.ToString: can't print type ", typ.Kind());
 	}
+	return "reflect.ToString: can't happen";
 }
