@@ -521,13 +521,15 @@ loop:
 		l = n->left;
 		if(l == N)
 			goto ret;
+
 		walktype(l, Erv);
 
 		t = n->type;
 		if(t == T)
 			goto ret;
 
-		convlit(l, t);
+		if(!iscomposite(t))
+			convlit(l, t);
 
 		// nil conversion
 		if(eqtype(t, l->type, 0)) {
@@ -589,7 +591,8 @@ loop:
 			goto ret;
 		}
 
-		badtype(n->op, l->type, t);
+		if(l->type != T)
+			yyerror("cannot convert %T to %T", l->type, t);
 		goto ret;
 
 	case ORETURN:

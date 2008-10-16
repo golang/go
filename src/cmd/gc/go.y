@@ -872,6 +872,8 @@ pexpr:
 	{
 		$$ = nod(OCONV, $3, N);
 		$$->type = oldtype($1);
+		if(iscomposite($$->type))
+			yyerror("illegal conversion type %T", $$->type);
 	}
 |	convtype '{' braced_keyexpr_list '}'
 	{
@@ -879,6 +881,8 @@ pexpr:
 		$$ = rev($3);
 		if($$ == N)
 			$$ = nod(OEMPTY, N, N);
+		if(!iscomposite($1))
+			yyerror("illegal composite literal type %T", $1);
 		$$ = nod(OCONV, $$, N);
 		$$->type = $1;
 	}

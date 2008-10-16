@@ -41,7 +41,7 @@ if $* >$TMPOUT 2>$TMPERR; then
   exit 1
 fi
 
-cat $TMPOUT $TMPERR > $TMPALL
+cat $TMPOUT $TMPERR | grep -v '^	' > $TMPALL
 
 header=0
 echo 0 > $TMPSTAT

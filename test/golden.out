@@ -1,4 +1,23 @@
 
+=========== ./convlit.go
+BUG: convlit.go fails
+BUG: errchk: ./convlit.go: missing expected error message on line 16: 'conver'
+BUG: errchk: ./convlit.go: missing expected error message on line 17: 'conver'
+BUG: errchk: ./convlit.go: missing expected error message on line 18: 'conver'
+BUG: errchk: ./convlit.go: missing expected error message on line 22: 'convert'
+BUG: errchk: ./convlit.go: missing expected error message on line 23: 'overflow'
+BUG: errchk: ./convlit.go: missing expected error message on line 24: 'overflow'
+BUG: errchk: ./convlit.go: unmatched error messages:
+==================================================
+./convlit.go:8: cannot convert non-integer constant to int32
+./convlit.go:11: overflow converting constant to int32
+./convlit.go:12: overflow converting constant to float32
+./convlit.go:8: cannot convert non-integer constant to int32
+./convlit.go:9: cannot convert non-integer constant to int32
+./convlit.go:11: overflow converting constant to int32
+./convlit.go:12: overflow converting constant to float32
+==================================================
+
 =========== ./helloworld.go
 hello, world
 
@@ -106,7 +125,16 @@ bugs/bug087.go:8: illegal combination of literals LEN 9
 BUG: fails incorrectly
 
 =========== bugs/bug090.go
-BUG: compilation succeeds incorrectly
+bugs/bug090.go:32: cannot convert non-integer constant to int32
+bugs/bug090.go:32: illegal types for operand: AS
+	int32
+bugs/bug090.go:34: cannot convert non-integer constant to int32
+bugs/bug090.go:34: illegal types for operand: CALL
+	bool
+bugs/bug090.go:40: cannot convert non-integer constant to int32
+bugs/bug090.go:40: illegal types for operand: AS
+	int32
+	float64
 
 =========== bugs/bug093.go
 M
@@ -181,14 +209,15 @@ fixedbugs/bug035.go:7: var f redeclared in this block
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(77) t=<T> nil
+fixedbugs/bug037.go:6: illegal types for operand: AS
+	undefined
 
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: var x redeclared in this block
      previous declaration at fixedbugs/bug039.go:5
 
 =========== fixedbugs/bug049.go
-fixedbugs/bug049.go:6: illegal conversion of constant to string
+fixedbugs/bug049.go:6: illegal conversion of nil to string
 
 =========== fixedbugs/bug050.go
 fixedbugs/bug050.go:3: package statement must be first
@@ -198,7 +227,7 @@ sys.6:1 fixedbugs/bug050.go:3: syntax error near package
 fixedbugs/bug051.go:10: expression must be a constant
 
 =========== fixedbugs/bug062.go
-fixedbugs/bug062.go:6: illegal conversion of constant to string
+fixedbugs/bug062.go:6: illegal conversion of nil to string
 fixedbugs/bug062.go:6: illegal types for operand: AS
 	string
 
@@ -216,10 +245,6 @@ broke
 
 =========== fixedbugs/bug072.go
 fixedbugs/bug072.go:6: bug: undefined
-fixedbugs/bug072.go:6: illegal types for operand: CONV
-	string
-fixedbugs/bug072.go:6: illegal types for operand: CONV
-	string
 
 =========== fixedbugs/bug073.go
 fixedbugs/bug073.go:8: illegal types for operand: LSH
@@ -237,7 +262,8 @@ fixedbugs/bug086.go:5: function ends without a return statement
 
 =========== fixedbugs/bug091.go
 fixedbugs/bug091.go:15: c: undefined
-fixedbugs/bug091.go:15: fatal error: addvar: n=NAME-i G0 a(1) l(86) t=<T> nil
+fixedbugs/bug091.go:15: illegal types for operand: AS
+	undefined
 
 =========== fixedbugs/bug103.go
 fixedbugs/bug103.go:8: function requires a return type

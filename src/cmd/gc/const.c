@@ -8,7 +8,7 @@
 void
 convlit(Node *n, Type *t)
 {
-	int et;
+	int et, wt;
 
 	if(n == N || t == T)
 		return;
@@ -25,18 +25,10 @@ convlit(Node *n, Type *t)
 	}
 
 	et = t->etype;
-	switch(et) {
-	case TARRAY:
-	case TFUNC:
-	case TCHAN:
-	case TMAP:
-	case TSTRUCT:
-//	case TPTR32:
-//	case TPTR64:
-		return;
-	}
 
-	switch(whatis(n)) {
+	wt = whatis(n);
+
+	switch(wt) {
 	default:
 		goto bad1;
 
@@ -125,6 +117,8 @@ convlit(Node *n, Type *t)
 				goto bad2;
 			if(mpcmpfltfix(fv, maxintval[et]) > 0)
 				goto bad2;
+			if(floor(mpgetflt(fv)) != mpgetflt(fv))
+				goto bad3;
 			n->val.u.xval = mal(sizeof(*n->val.u.xval));
 			mpmovefltfix(n->val.u.xval, fv);
 			n->val.ctype = CTINT;
@@ -144,11 +138,15 @@ convlit(Node *n, Type *t)
 	return;
 
 bad1:
-	yyerror("illegal conversion of constant to %T", t);
+	yyerror("illegal conversion of %W to %T", wt, t);
 	return;
 
 bad2:
 	yyerror("overflow converting constant to %T", t);
+	return;
+
+bad3:
+	yyerror("cannot convert non-integer constant to %T", t);
 	return;
 }
 
@@ -212,7 +210,7 @@ evconst(Node *n)
 			nl->val.ctype = CTFLT;
 			wl = whatis(nl);
 		} else {
-			yyerror("illegal combination of literals %E %E", nl->etype, nr->etype);
+			yyerror("illegal combination of literals %O %E, %E", n->op, wl, wr);
 			return;
 		}
 	}
@@ -230,7 +228,7 @@ evconst(Node *n)
 
 	switch(TUP(n->op, wl)) {
 	default:
-		yyerror("illegal combination of literals %O %E", n->op, nl->etype);
+		yyerror("illegal literal %O %E", n->op, wl);
 		return;
 
 	case TUP(OADD, Wlitint):

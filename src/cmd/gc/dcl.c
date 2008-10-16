@@ -27,6 +27,13 @@ dodclvar(Node *n, Type *t)
 		dodclvar(n->left, t);
 
 	dowidth(t);
+
+	// in case of type checking error,
+	// use "undefined" type for variable type,
+	// to avoid fatal in addvar.
+	if(t == T)
+		t = typ(TFORW);
+
 	addvar(n, t, dclcontext);
 	if(exportadj)
 		exportsym(n->sym);
