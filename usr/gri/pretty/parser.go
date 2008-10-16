@@ -238,10 +238,10 @@ func (P *Parser) ParseChannelType() *Node.Type {
 }
 
 
-func (P *Parser) ParseVarDeclList() {
+func (P *Parser) ParseVarDeclList(list *Node.List) {
 	P.Trace("VarDeclList");
 
-	list := Node.NewList();
+	i0 := list.len();
 	list.Add(P.ParseType());
 	for P.tok == Scanner.COMMA {
 		P.Next();
@@ -251,19 +251,31 @@ func (P *Parser) ParseVarDeclList() {
 	typ := P.TryType();
 
 	if typ != nil {
-		// all list entries must be identifiers;
-		// convert the list into an expression list of identifiers
-		for i, n := 0, list.len(); i < n; i++ {
+		// all list entries must be identifiers
+		// convert the type entries into identifiers
+		for i, n := i0, list.len(); i < n; i++ {
 			t := list.at(i).(*Node.Type);
 			if t.tok == Scanner.IDENT && t.expr.tok == Scanner.IDENT {
-				x := t.expr;
+				list.set(i, t.expr);
 			} else {
+				list.set(i, Node.NewLit(t.pos, Scanner.IDENT, "bad"));
 				P.Error(t.pos, "identifier expected");
 			}
 		}
+		// add type
+		list.Add(Node.NewTypeExpr(typ.pos, typ));
+
 	} else {
 		// all list entries are types
+		// convert all type entries into type expressions
+		for i, n := i0, list.len(); i < n; i++ {
+			t := list.at(i).(*Node.Type);
+			list.set(i, Node.NewTypeExpr(t.pos, t));
+		}
 		
+		if P.tok == Scanner.COMMA {
+			panic("internal parser error");
+		}
 	}
 	
 	P.Ecart();
@@ -274,10 +286,10 @@ func (P *Parser) ParseParameterList() *Node.List {
 	P.Trace("ParameterList");
 	
 	list := Node.NewList();
-	P.ParseVarDeclList();
+	P.ParseVarDeclList(list);
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParseVarDeclList();
+		P.ParseVarDeclList(list);
 	}
 	
 	P.Ecart();
@@ -285,18 +297,18 @@ func (P *Parser) ParseParameterList() *Node.List {
 }
 
 
-func (P *Parser) ParseParameters() *Node.List {
+func (P *Parser) ParseParameters() *Node.Type {
 	P.Trace("Parameters");
 	
-	var list *Node.List;
+	t := Node.NewType(P.pos, Scanner.STRUCT);
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
-		list = P.ParseParameterList();
+		t.list = P.ParseParameterList();
 	}
 	P.Expect(Scanner.RPAREN);
 	
 	P.Ecart();
-	return list;
+	return t;
 }
 
 
@@ -316,18 +328,23 @@ func (P *Parser) ParseResultList() {
 }
 
 
-func (P *Parser) ParseResult() *Node.List {
+func (P *Parser) ParseResult() *Node.Type {
 	P.Trace("Result");
 	
-	var list *Node.List;
+	var t *Node.Type;
 	if P.tok == Scanner.LPAREN {
-		list = P.ParseParameters();
+		t = P.ParseParameters();
 	} else {
 		typ := P.TryType();
+		if typ != nil {
+			t = Node.NewType(P.pos, Scanner.STRUCT);
+			t.list = Node.NewList();
+			t.list.Add(Node.NewTypeExpr(typ.pos, typ));
+		}
 	}
 
 	P.Ecart();
-	return list;
+	return t;
 }
 
 
@@ -341,8 +358,8 @@ func (P *Parser) ParseFunctionType() *Node.Type {
 	P.Trace("FunctionType");
 	
 	t := Node.NewType(P.pos, Scanner.LPAREN);
-	t.list = P.ParseParameters();
-	P.ParseResult();
+	t.list = P.ParseParameters().list;  // TODO find better solution
+	t.elt = P.ParseResult();
 	
 	P.Ecart();
 	return t;
@@ -405,7 +422,7 @@ func (P *Parser) ParseStructType() *Node.Type {
 		P.Next();
 		t.list = Node.NewList();
 		for P.tok == Scanner.IDENT {
-			P.ParseVarDeclList();
+			P.ParseVarDeclList(t.list);
 			if P.tok != Scanner.RBRACE {
 				P.Expect(Scanner.SEMICOLON);
 			}
@@ -521,7 +538,7 @@ func (P *Parser) ParseFunctionLit() *Node.Expr {
 	P.scope_lev--;
 	
 	P.Ecart();
-	return nil;
+	return Node.NewLit(P.pos, Scanner.INT, "0");  // "null" expr
 }
 
 
@@ -550,16 +567,17 @@ func (P *Parser) ParseOperand() *Node.Expr {
 		}
 
 	case Scanner.FUNC:
-		P.ParseFunctionLit();
+		x = P.ParseFunctionLit();
 		
 	default:
-		typ := P.TryType();
-		if typ != nil {
-			break;
+		t := P.TryType();
+		if t != nil {
+			x = Node.NewTypeExpr(t.pos, t);
+		} else {
+			P.Error(P.pos, "operand expected");
+			P.Next();  // make progress
+			x = Node.NewLit(P.pos, Scanner.INT, "0");  // "null" expr
 		}
-
-		P.Error(P.pos, "operand expected");
-		P.Next();  // make progress
 	}
 
 	P.Ecart();
@@ -635,7 +653,7 @@ func (P *Parser) ParseCall(x *Node.Expr) *Node.Expr {
 }
 
 
-func (P *Parser) ParseCompositeLit() {
+func (P *Parser) ParseCompositeLit(t *Node.Type) *Node.Expr {
 	P.Trace("CompositeLit");
 
 	mode := 0;
@@ -659,6 +677,7 @@ func (P *Parser) ParseCompositeLit() {
 	P.Expect(Scanner.RBRACE);
 	
 	P.Ecart();
+	return Node.NewLit(P.pos, Scanner.INT, "0");  // "null" expr
 }
 
 
@@ -673,8 +692,19 @@ func (P *Parser) ParsePrimaryExpr() *Node.Expr {
 		case Scanner.LPAREN: x = P.ParseCall(x);
 		case Scanner.LBRACE:
 			if P.expr_lev > 0 {
-				P.ParseCompositeLit();
+				var t *Node.Type;
+				if x.tok == Scanner.TYPE {
+					t = x.t;
+				} else if x.tok == Scanner.IDENT {
+					// assume a type name
+					t = Node.NewType(x.pos, Scanner.IDENT);
+					t.expr = x;
+				} else {
+					P.Error(x.pos, "type expected for composite literal");
+				}
+				x = P.ParseCompositeLit(t);
 			} else {
+				// composites inside control clauses must be parenthesized
 				goto exit;
 			}
 		default: goto exit;
@@ -1100,6 +1130,7 @@ func (P *Parser) ParseImportSpec() *Node.Decl {
 	
 	if P.tok == Scanner.STRING {
 		// TODO eventually the scanner should strip the quotes
+		d.val = Node.NewLit(P.pos, Scanner.STRING, P.val);
 		P.Next();
 	} else {
 		P.Expect(Scanner.STRING);  // use Expect() error handling
@@ -1218,15 +1249,11 @@ func (P *Parser) ParseFunctionDecl(exported bool) *Node.Decl {
 	P.Expect(Scanner.FUNC);
 	if P.tok == Scanner.LPAREN {
 		pos := P.pos;
-		P.ParseParameters();
+		recv := P.ParseParameters();
+		// TODO: fix this
 		/*
-		if tmp.len() > 0 {
-			//recv = tmp.at(0);
-		}
-		*/
-		/*
-		if recv.idents.len() != 1 {
-			//P.Error(pos, "must have exactly one receiver");
+		if recv.list.len() != 1 {
+			P.Error(pos, "must have exactly one receiver");
 		}
 		*/
 	}

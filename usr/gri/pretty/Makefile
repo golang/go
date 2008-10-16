@@ -36,18 +36,26 @@ test: pretty
 testnoisy: pretty
 	pretty *.go
 	pretty ../gosrc/*.go
+	#pretty $(GOROOT)/test/*.go  # contains incorrect programs
 	pretty $(GOROOT)/test/235.go
 	pretty $(GOROOT)/test/args.go
 	pretty $(GOROOT)/test/bufiolib.go
 	pretty $(GOROOT)/test/char_lit.go
-	pretty $(GOROOT)/test/sieve.go
+	pretty $(GOROOT)/test/complit.go
+	pretty $(GOROOT)/test/const.go
+	pretty $(GOROOT)/test/dialgoogle.go
+	pretty $(GOROOT)/test/empty.go
+	pretty $(GOROOT)/test/env.go
+	pretty $(GOROOT)/test/float_lit.go
+	pretty $(GOROOT)/test/fmt_test.go
+	pretty $(GOROOT)/test/for.go
+	pretty $(GOROOT)/test/func.go
+	pretty $(GOROOT)/test/func1.go
+	pretty $(GOROOT)/test/func2.go
 	pretty $(GOROOT)/src/pkg/*.go
-	pretty $(GOROOT)/src/lib/flag.go
-	pretty $(GOROOT)/src/lib/fmt.go
-	pretty $(GOROOT)/src/lib/rand.go
-	pretty $(GOROOT)/src/lib/math/*.go
-	pretty $(GOROOT)/src/lib/container/*.go
-	pretty $(GOROOT)/src/lib/syscall/*.go
+	pretty $(GOROOT)/src/lib/*.go
+	pretty $(GOROOT)/src/lib/*/*.go
+	pretty $(GOROOT)/usr/r/*/*.go
 	echo "DONE"
 
 # These tests don't work yet

@@ -38,6 +38,11 @@ func (p *List) at(i int) Node {
 }
 
 
+func (p *List) set(i int, x Node) {
+	p.a[i] = x;
+}
+
+
 func (p *List) Add (x Node) {
 	a := p.a;
 	n := len(a);
@@ -100,7 +105,7 @@ export type Expr struct {
 	pos, tok int;
 	x, y *Expr;  // binary (x, y) and unary (y) expressions
 	s string;  // identifiers and literals
-	t *Type;  // declarations and composite literals
+	t *Type;  // operands that are types
 }
 
 
@@ -126,6 +131,13 @@ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
 export func NewLit(pos, tok int, s string) *Expr {
 	e := new(Expr);
 	e.pos, e.tok, e.s = pos, tok, s;
+	return e;
+}
+
+
+export func NewTypeExpr(pos int, t *Type) *Expr {
+	e := new(Expr);
+	e.pos, e.tok, e.t = pos, Scanner.TYPE, t;
 	return e;
 }
 
