@@ -8,6 +8,19 @@ GO = /home/iant/go/bin/gccgo
 
 LDFLAGS = -Wl,-R,/home/iant/go/lib
 
+PRETTY_OBJS = \
+	node.o \
+	pretty.o \
+	parser.o \
+	platform.o \
+	printer.o \
+	scanner.o \
+	utils.o \
+	flag.o \
+	fmt.o \
+
+pretty: $(PRETTY_OBJS)
+	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
 
 test: pretty
 	pretty -s *.go
@@ -47,19 +60,3 @@ fmt.o:
 
 .go.o:
 	$(GO) -O2 -c -g $<
-
-
-PRETTY_OBJS = \
-	node.o \
-	pretty.o \
-	parser.o \
-	platform.o \
-	printer.o \
-	scanner.o \
-	utils.o \
-	flag.o \
-	fmt.o \
-
-pretty: $(PRETTY_OBJS)
-	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
-

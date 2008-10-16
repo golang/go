@@ -201,7 +201,7 @@ export func TokenString(tok int) string {
 	case VAR: return "var";
 	}
 	
-	panic("UNREACHABLE");
+	return "token(" + Utils.IntToString(tok, 10) + ")";
 }
 
 
