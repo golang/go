@@ -125,6 +125,13 @@ dumpexporttype(Sym *s)
 	Bprint(bout, "\t");
 	if(s->export != 0)
 		Bprint(bout, "export ");
+	switch (s->otype->etype) {
+	case TFORW:
+	case TFORWSTRUCT:
+	case TFORWINTER:
+		yyerror("export of incomplete type %T", s->otype);
+		return;
+	}
 	Bprint(bout, "type %lS %l#T\n",  s, s->otype);
 }
 
