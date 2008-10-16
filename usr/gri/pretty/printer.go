@@ -90,6 +90,7 @@ func (P *Printer) Parameters(pos int, list *Node.List) {
 
 
 func (P *Printer) Fields(list *Node.List) {
+	P.OpenScope(" {");
 	var prev int;
 	for i, n := 0, list.len(); i < n; i++ {
 		x := list.at(i).(*Node.Expr);
@@ -107,6 +108,7 @@ func (P *Printer) Fields(list *Node.List) {
 		prev = x.tok;
 	}
 	P.newl = 1;
+	P.CloseScope("}");
 }
 
 
@@ -128,12 +130,11 @@ func (P *Printer) Type(t *Node.Type) {
 		P.String(0, "]");
 		P.Type(t.elt);
 
-	case Scanner.STRUCT:
-		P.String(t.pos, "struct");
+	case Scanner.STRUCT, Scanner.INTERFACE:
+		P.Token(t.pos, t.tok);
 		if t.list != nil {
-			P.OpenScope(" {");
+			P.Blank();
 			P.Fields(t.list);
-			P.CloseScope("}");
 		}
 
 	case Scanner.MAP:
@@ -151,19 +152,6 @@ func (P *Printer) Type(t *Node.Type) {
 		}
 		P.String(t.pos, m);
 		P.Type(t.elt);
-
-	case Scanner.INTERFACE:
-		P.String(t.pos, "interface");
-		if t.list != nil {
-			P.OpenScope(" {");
-			/*
-			for i := 0; i < x.methods.len(); i++ {
-				P.Print(x.methods.at(i));
-				P.newl, P.semi = true, true;
-			}
-			*/
-			P.CloseScope("}");
-		}
 
 	case Scanner.MUL:
 		P.String(t.pos, "*");
@@ -192,40 +180,54 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 
 	switch x.tok {
 	case Scanner.TYPE:
+		// type expr
 		P.Type(x.t);
 
 	case Scanner.IDENT, Scanner.INT, Scanner.STRING, Scanner.FLOAT:
+		// literal
 		P.String(x.pos, x.s);
 
 	case Scanner.COMMA:
+		// list
 		P.Expr1(x.x, 0);
 		P.String(x.pos, ", ");
 		P.Expr1(x.y, 0);
 
 	case Scanner.PERIOD:
+		// selector or type guard
 		P.Expr1(x.x, 8);  // 8 == highest precedence
 		P.String(x.pos, ".");
-		P.Expr1(x.y, 8);
+		if x.y != nil {
+			P.Expr1(x.y, 8);
+		} else {
+			P.String(0, "(");
+			P.Type(x.t);
+			P.String(0, ")");
+		}
 		
 	case Scanner.LBRACK:
+		// index
 		P.Expr1(x.x, 8);
 		P.String(x.pos, "[");
 		P.Expr1(x.y, 0);
 		P.String(0, "]");
 
 	case Scanner.LPAREN:
+		// call
 		P.Expr1(x.x, 8);
 		P.String(x.pos, "(");
 		P.Expr1(x.y, 0);
 		P.String(0, ")");
 
 	case Scanner.LBRACE:
+		// composite
 		P.Expr1(x.x, 8);
 		P.String(x.pos, "{");
 		P.Expr1(x.y, 0);
 		P.String(0, "}");
 		
 	default:
+		// unary and binary expressions
 		if x.x == nil {
 			// unary expression
 			P.Token(x.pos, x.tok);
@@ -281,21 +283,30 @@ func (P *Printer) Block(list *Node.List, indent bool) {
 
 
 func (P *Printer) ControlClause(s *Node.Stat) {
-	if s.init != nil {
+	has_post := s.tok == Scanner.FOR && s.post != nil;  // post also used by "if"
+	if s.init == nil && !has_post {
+		// no semicolons required
+		if s.expr != nil {
+			P.Blank();
+			P.Expr(s.expr);
+		}
+	} else {
+		// all semicolons required
 		P.Blank();
-		P.Stat(s.init);
+		if s.init != nil {
+			P.Stat(s.init);
+		}
 		P.semi = true;
-	}
-	if s.expr != nil {
 		P.Blank();
-		P.Expr(s.expr);
-		P.semi = false;
-	}
-	if s.tok == Scanner.FOR && s.post != nil {
-		P.semi = true;
-		P.Blank();
-		P.Stat(s.post);
-		P.semi = false;
+		if s.expr != nil {
+			P.Expr(s.expr);
+		}
+		if has_post {
+			P.semi = true;
+			P.Blank();
+			P.Stat(s.post);
+			P.semi = false
+		}
 	}
 	P.Blank();
 }
@@ -375,9 +386,11 @@ func (P *Printer) Stat(s *Node.Stat) {
 			P.Expr(s.expr);
 		}
 		P.String(0, ":");
-		P.OpenScope("");
+		P.indent++;
+		P.newl = 1;
 		P.StatementList(s.block);
-		P.CloseScope("");
+		P.indent--;
+		P.newl = 1;
 
 	case Scanner.GO, Scanner.RETURN, Scanner.FALLTHROUGH, Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
 		P.Token(s.pos, s.tok);
