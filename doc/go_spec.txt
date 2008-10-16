@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 10, 2008)
+(October 15, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -60,7 +60,6 @@ Open issues:
 [ ] need for type switch? (or use type guard with ok in tuple assignment?)
 [ ] do we need anything on package vs file names?
 [ ] Do composite literals create a new literal each time (gri thinks yes)
-[ ] consider syntactic notation for composite literals to make them parseable w/o type information
 [ ] type switch or some form of type test needed
 [ ] what is the meaning of typeof()
 [ ] at the moment: type T S; strips any methods of S. It probably shouldn't.
@@ -73,10 +72,18 @@ Open issues:
 	functions. This would be in consistency with the declaration of function pointer
 	variables and the use of '&' to convert methods into function pointers.
 [ ] Conversions: can we say: "type T int; T(3.0)" ?
+	We could allow converting structurally equivalent types into each other this way.
+	May play together with "type T1 T2" where we give another type name to T2.
 [ ] Is . import implemented?
 [ ] Do we allow empty statements? If so, do we allow empty statements after a label?
     and if so, does a label followed by an empty statement (a semicolon) still denote
 	a for loop that is following, and can break L be used inside it?
+[ ] comparison of non-basic types: what do we allow? what do we allow in interfaces
+	what about maps (require ==, copy and hash)
+	maybe: no maps with non-basic type keys, and no interface comparison unless
+	with nil
+[ ] consider syntactic notation for composite literals to make them parseable w/o type information
+	(require ()'s in control clauses)
 
 
 Decisions in need of integration into the doc:
@@ -100,6 +107,7 @@ Closed:
 [x] func literal like a composite type - should probably require the '&' to get address (NO)
 [x] & needed to get a function pointer from a function? (NO - there is the "func" keyword - 9/19/08)
 -->
+
 
 Contents
 ----
@@ -1359,18 +1367,20 @@ operators and function invocations on operands. An expression has a value and
 a type.
 
 The type of a constant expression may be an ideal number. The type of such expressions
-is implicitly converted into the 'expected type' required for the expression.
+is implicitly converted into the 'expected numeric type' required for the expression.
 The conversion is legal if the (ideal) expression value is a member of the
-set represented by the expected type. Otherwise the expression is erroneous.
+set represented by the expected numeric type. In all other cases, and specifically
+if the expected type is not a numeric type, the expression is erroneous.
 
-For instance, if the expected type is int32, any ideal number
-which fits into an int32 without loss of precision can be legally converted.
-Along the same lines, a negative ideal integer cannot be converted into a uint
-without loss of the sign; such a conversion is illegal.
+For instance, if the expected numeric type is a uint32, any ideal number
+which fits into a uint32 without loss of precision can be legally converted.
+Thus, the values 991, 42.0, and 1e9 are ok, but -1, 3.14, or 1e100 are not.
 
+<!--
 TODO(gri) This may be overly constraining. What about "len(a) + c" where
 c is an ideal number? Is len(a) of type int, or of an ideal number? Probably
 should be ideal number, because for fixed arrays, it is a constant.
+-->
 
 If an exceptional condition occurs during the evaluation of an expression
 (that is, if the result is not mathematically defined or not in the range
