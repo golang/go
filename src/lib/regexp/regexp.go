@@ -134,14 +134,12 @@ func NewChar(char int) *Char {
 
 // --- CHARCLASS [a-z]
 
-type CClassChar int;	// BUG: Shouldn't be necessary but 6g won't put ints into vectors
-
 type CharClass struct {
 	next	Inst;
 	index	int;
 	char	int;
 	negate	bool;	// is character class negated? ([^a-z])
-	// Vector of CClassChar, stored pairwise: [a-z] is (a,z); x is (x,x):
+	// Vector of int, stored pairwise: [a-z] is (a,z); x is (x,x):
 	ranges	*vector.Vector;
 }
 
@@ -156,8 +154,8 @@ func (cclass *CharClass) Print() {
 		print(" (negated)");
 	}
 	for i := 0; i < cclass.ranges.Len(); i += 2 {
-		l := cclass.ranges.At(i).(CClassChar);
-		r := cclass.ranges.At(i+1).(CClassChar);
+		l := cclass.ranges.At(i).(int);
+		r := cclass.ranges.At(i+1).(int);
 		if l == r {
 			print(" [", string(l), "]");
 		} else {
@@ -166,7 +164,7 @@ func (cclass *CharClass) Print() {
 	}
 }
 
-func (cclass *CharClass) AddRange(a, b CClassChar) {
+func (cclass *CharClass) AddRange(a, b int) {
 	// range is a through b inclusive
 	cclass.ranges.Append(a);
 	cclass.ranges.Append(b);
@@ -174,8 +172,8 @@ func (cclass *CharClass) AddRange(a, b CClassChar) {
 
 func (cclass *CharClass) Matches(c int) bool {
 	for i := 0; i < cclass.ranges.Len(); i = i+2 {
-		min := cclass.ranges.At(i).(CClassChar);
-		max := cclass.ranges.At(i+1).(CClassChar);
+		min := cclass.ranges.At(i).(int);
+		max := cclass.ranges.At(i+1).(int);
 		if min <= c && c <= max {
 			return !cclass.negate
 		}
@@ -323,7 +321,6 @@ Grammar:
 func (p *Parser) Regexp() (start, end Inst)
 
 var NULL Inst
-type BUGinter interface{}
 
 func special(c int) bool {
 	s := `\.+*?()|[]`;
