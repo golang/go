@@ -94,17 +94,8 @@ bugs/bug064.go:15: illegal types for operand: CALL
 	struct { u int32; v int32 }
 BUG: compilation should succeed
 
-=========== bugs/bug074.go
-bugs/bug074.go:6: syntax error near string
-bugs/bug074.go:6: syntax error near string
-bugs/bug074.go:7: x: undefined
-BUG: compiler crashes - Bus error
-
 =========== bugs/bug077.go
 BUG: known to succeed incorrectly
-
-=========== bugs/bug079.go
-BUG: succeeds incorrectly
 
 =========== bugs/bug080.go
 bugs/bug080.go:12: illegal types for operand: CALL
@@ -123,21 +114,6 @@ BUG: fails incorrectly
 bugs/bug087.go:8: illegal combination of literals LEN 9
 bugs/bug087.go:8: illegal combination of literals LEN 9
 BUG: fails incorrectly
-
-=========== bugs/bug090.go
-bugs/bug090.go:32: cannot convert non-integer constant to int32
-bugs/bug090.go:32: illegal types for operand: AS
-	int32
-bugs/bug090.go:34: cannot convert non-integer constant to int32
-bugs/bug090.go:34: illegal types for operand: CALL
-	bool
-bugs/bug090.go:40: cannot convert non-integer constant to int32
-bugs/bug090.go:40: illegal types for operand: AS
-	int32
-	float64
-
-=========== bugs/bug093.go
-M
 
 =========== bugs/bug095.go
 found 2, expected 1
@@ -254,16 +230,36 @@ fixedbugs/bug073.go:9: illegal types for operand: RSH
 	int32
 	int32
 
+=========== fixedbugs/bug074.go
+fixedbugs/bug074.go:6: syntax error near string
+fixedbugs/bug074.go:6: syntax error near string
+fixedbugs/bug074.go:7: x: undefined
+
 =========== fixedbugs/bug081.go
 fixedbugs/bug081.go:5: syntax error near x
 
 =========== fixedbugs/bug086.go
 fixedbugs/bug086.go:5: function ends without a return statement
 
+=========== fixedbugs/bug090.go
+fixedbugs/bug090.go:32: cannot convert non-integer constant to int32
+fixedbugs/bug090.go:32: illegal types for operand: AS
+	int32
+fixedbugs/bug090.go:34: cannot convert non-integer constant to int32
+fixedbugs/bug090.go:34: illegal types for operand: CALL
+	bool
+fixedbugs/bug090.go:40: cannot convert non-integer constant to int32
+fixedbugs/bug090.go:40: illegal types for operand: AS
+	int32
+	float64
+
 =========== fixedbugs/bug091.go
 fixedbugs/bug091.go:15: c: undefined
 fixedbugs/bug091.go:15: illegal types for operand: AS
 	undefined
+
+=========== fixedbugs/bug093.go
+M
 
 =========== fixedbugs/bug103.go
 fixedbugs/bug103.go:8: function requires a return type
