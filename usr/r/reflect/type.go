@@ -25,6 +25,7 @@ export const (
 	Int32Kind;
 	Int64Kind;
 	Int8Kind;
+	InterfaceKind;
 	MapKind;
 	PtrKind;
 	StringKind;
@@ -241,26 +242,45 @@ func (t *StructTypeStruct) Len() int {
 	return len(t.field)
 }
 
-func Struct(field *[]Field) *StructTypeStruct {
-	t := new(StructTypeStruct);
-	t.field = field;
-	return t;
-}
-
 func NewStructTypeStruct(field *[]Field) *StructTypeStruct {
 	t := new(StructTypeStruct);
 	t.field = field;
 	return t;
 }
 
+export type InterfaceType interface {
+	Field(int)	(name string, typ Type);
+	Len()	int;
+}
+
+type InterfaceTypeStruct struct {
+	field	*[]Field;
+}
+
+func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type) {
+	return t.field[i].name, t.field[i].typ.Get()
+}
+
+func (t *InterfaceTypeStruct) Len() int {
+	return len(t.field)
+}
+
+func NewInterfaceTypeStruct(field *[]Field) *InterfaceTypeStruct {
+	t := new(InterfaceTypeStruct);
+	t.field = field;
+	return t;
+}
+
+func (t *InterfaceTypeStruct) Kind() int {
+	return InterfaceKind
+}
+
 export type FuncType interface {
-	Receiver()	StructType;
 	In()	StructType;
 	Out()	StructType;
 }
 
 type FuncTypeStruct struct {
-	receiver	*StructTypeStruct;
 	in	*StructTypeStruct;
 	out	*StructTypeStruct;
 }
@@ -269,44 +289,23 @@ func (t *FuncTypeStruct) Kind() int {
 	return FuncKind
 }
 
-func (t *FuncTypeStruct) Receiver() StructType {
-	return t.receiver
-}
-
 func (t *FuncTypeStruct) In() StructType {
 	return t.in
 }
 
 func (t *FuncTypeStruct) Out() StructType {
+	if t.out == nil {	// nil.(StructType) != nil so make sure caller sees real nil
+		return nil
+	}
 	return t.out
 }
 
-func NewFuncTypeStruct(receiver, in, out *StructTypeStruct) *FuncTypeStruct {
+func NewFuncTypeStruct(in, out *StructTypeStruct) *FuncTypeStruct {
 	t := new(FuncTypeStruct);
-	t.receiver = receiver;
 	t.in = in;
 	t.out = out;
 	return t;
 }
-
-////////////////////////
-//helpers for early bootstrap and debugging
-func Stub(n string, t Type) *StubType {
-	s := new(StubType);
-	s.name = n;
-	s.typ = t;
-	return s;
-}
-export var PtrInt8 Type = NewPtrTypeStruct(Stub("i", Int8));
-export var PtrPtrInt8 Type = NewPtrTypeStruct(Stub("i", PtrInt8));
-export var ArrayFloat32 Type = NewArrayTypeStruct(100, Stub("f", Float32));
-export var MapStringInt16 Type = NewMapTypeStruct(Stub("s", String), Stub("i", Int16));
-export var ChanArray Type = NewChanTypeStruct(RecvDir, Stub("a", ArrayFloat32));
-var F1 = Field{"i", Stub("i", Int64)};
-var Fields = []Field{F1};
-export var Structure = NewStructTypeStruct(&Fields);
-export var Function Type = NewFuncTypeStruct(Structure, Structure, Structure);
-////////////////////////
 
 // Cache of expanded types keyed by type name.
 var types *map[string] *Type	// BUG TODO: should be Type not *Type
@@ -380,7 +379,7 @@ func init() {
 	typename =
 		name '.' name
 	fieldlist =
-		[ field { ',' field } ]
+		[ field { [ ',' | ';' ] field } ]
 	field =
 		identifier stubtype
 	arraytype =
@@ -402,12 +401,13 @@ func init() {
 
 */
 
+// Helper functions for token scanning
 func isdigit(c uint8) bool {
 	return '0' <= c && c <= '9'
 }
 
 func special(c uint8) bool {
-	s := "*[](){}<";	// Note: '.' is not in this list.  "P.T" is an identifer, as is "?".
+	s := "*[](){}<;,";	// Note: '.' is not in this list.  "P.T" is an identifer, as is "?".
 	for i := 0; i < len(s); i++ {
 		if c == s[i] {
 			return true
@@ -416,12 +416,14 @@ func special(c uint8) bool {
 	return false;
 }
 
+// Simple parser for type strings
 type Parser struct {
-	str	string;
-	index	int;
-	token	string;
+	str	string;	// string being parsed
+	token	string;	// the token being parsed now
+	index	int;	// next character position in str
 }
 
+// Load next token into p.token
 func (p *Parser) Next() {
 	token := "";
 	for ; p.index < len(p.str) && p.str[p.index] == ' '; p.index++ {
@@ -434,28 +436,15 @@ func (p *Parser) Next() {
 	c, w := sys.stringtorune(p.str, p.index);
 	p.index += w;
 	switch {
-	case c == '*':
-		p.token = "*";
-		return;
-	case c == '[':
-		p.token = "[";
-		return;
-	case c == ']':
-		p.token = "]";
-		return;
-	case c == '(':
-		p.token = "(";
-		return;
-	case c == ')':
-		p.token = ")";
-		return;
 	case c == '<':
-		if p.index < len(p.str) && p.str[p.index+1] == '-' {
+		if p.index < len(p.str) && p.str[p.index] == '-' {
 			p.index++;
 			p.token = "<-";
 			return;
 		}
-		p.token = "<";	// shouldn't happen but let the parser figure it out
+		fallthrough;	// shouldn't happen but let the parser figure it out
+	case special(uint8(c)):
+		p.token = string(c);
 		return;
 	case isdigit(uint8(c)):
 		for p.index < len(p.str) && isdigit(p.str[p.index]) {
@@ -464,7 +453,7 @@ func (p *Parser) Next() {
 		p.token = p.str[start : p.index];
 		return;
 	}
-	for p.index < len(p.str) && !special(p.str[p.index]) {
+	for p.index < len(p.str) && p.str[p.index] != ' ' && !special(p.str[p.index]) {
 		p.index++
 	}
 	p.token = p.str[start : p.index];
@@ -507,27 +496,127 @@ func (p *Parser) Map() *StubType {
 	return NewStubType(NewMapTypeStruct(keytype, elemtype));
 }
 
-func (p *Parser) Simple() *StubType {
+func (p *Parser) Chan(dir int) *StubType {
+	if p.token == "<-" {
+		if dir != BothDir {
+			return MissingStub
+		}
+		p.Next();
+		dir = SendDir;
+	}
+	elemtype := p.Type();
+	return NewStubType(NewChanTypeStruct(dir, elemtype));
+}
+
+// Parse array of fields for struct, interface, and func arguments
+func (p *Parser) Fields(sep string) *[]Field {
+	a := new([]Field, 10);
+	nf := 0;
+	for p.token != "" && !special(p.token[0]) {
+		if nf == len(a) {
+			a1 := new([]Field, 2*nf);
+			for i := 0; i < nf; i++ {
+				a1[i] = a[i];
+			}
+			a = a1;
+		}
+		a[nf].name = p.token;
+		p.Next();
+		a[nf].typ = p.Type();
+		nf++;
+		if p.token != sep {
+			break;
+		}
+		p.Next();	// skip separator
+	}
+	return a[0:nf];
+}
+
+func (p *Parser) Struct() *StubType {
+	f := p.Fields(";");
+	if p.token != "}" {
+		return MissingStub;
+	}
+	p.Next();
+	return NewStubType(NewStructTypeStruct(f));
+}
+
+func (p *Parser) Interface() *StubType {
+	f := p.Fields(";");
+	if p.token != "}" {
+		return MissingStub;
+	}
+	p.Next();
+	return NewStubType(NewInterfaceTypeStruct(f));
+}
+
+func (p *Parser) Func() *StubType {
+	// may be 1 or 2 parenthesized lists
+	f1 := NewStructTypeStruct(p.Fields(","));
+	if p.token != ")" {
+		return MissingStub;
+	}
+	p.Next();
+	if p.token != "(" {
+		// 1 list: the in parameters only
+		return NewStubType(NewFuncTypeStruct(f1, nil));
+	}
+	p.Next();
+	f2 := NewStructTypeStruct(p.Fields(","));
+	if p.token != ")" {
+		return MissingStub;
+	}
+	p.Next();
+	// 2 lists: the in and out parameters are present
+	return NewStubType(NewFuncTypeStruct(f1, f2));
+}
+
+func (p *Parser) Type() *StubType {
+	dir := BothDir;
 	switch {
 	case p.token == "":
 		return nil;
 	case p.token == "*":
 		p.Next();
-		return NewStubType(NewPtrTypeStruct(p.Simple()));
+		return NewStubType(NewPtrTypeStruct(p.Type()));
 	case p.token == "[":
 		p.Next();
 		return p.Array();
 	case p.token == "map":
 		p.Next();
 		return p.Map();
+	case p.token == "<-":
+		p.Next();
+		dir = RecvDir;
+		if p.token != "chan" {
+			return MissingStub;
+		}
+		fallthrough;
+	case p.token == "chan":
+		p.Next();
+		return p.Chan(dir);
+	case p.token == "struct":
+		p.Next();
+		if p.token != "{" {
+			return MissingStub
+		}
+		p.Next();
+		return p.Struct();
+	case p.token == "interface":
+		p.Next();
+		if p.token != "{" {
+			return MissingStub
+		}
+		p.Next();
+		return p.Interface();
+	case p.token == "(":
+		p.Next();
+		return p.Func();
 	case isdigit(p.token[0]):
 		p.Next();
-		print("reflect.Simple: number encountered\n");	// TODO: remove
 		return MissingStub;
 	case special(p.token[0]):
-		// TODO: get chans right
 		p.Next();
-		print("reflect.Simple: special character encountered\n");	// TODO: remove
 		return MissingStub;
 	}
 	// must be an identifier. is it basic? if so, we have a stub
@@ -543,7 +632,6 @@ func (p *Parser) Simple() *StubType {
 		}
 	}
 	if ndot != 1 {
-		print("reflect.Simple: illegal identifier ", p.token, "\n");	// TODO: remove
 		p.Next();
 		return MissingStub;
 	}
@@ -551,10 +639,6 @@ func (p *Parser) Simple() *StubType {
 	s.name = p.token;
 	p.Next();
 	return s;
-}
-
-func (p *Parser) Type() *StubType {
-	return p.Simple();
 }
 
 export func ParseTypeString(str string) Type {
