@@ -142,7 +142,7 @@ func ExprType(x *Node.Expr) *Node.Type {
 func (P *Parser) NoType(x *Node.Expr) *Node.Expr {
 	if x != nil && x.tok == Scanner.TYPE {
 		P.Error(x.pos, "expected expression, found type");
-		x = Node.NewLit(x.pos, Scanner.INT, 0);
+		x = Node.NewLit(x.pos, Scanner.INT, "");
 	}
 	return x;
 }
