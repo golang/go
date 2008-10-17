@@ -104,6 +104,9 @@ export const (
 	TYPE;
 	VAR;
 	KEYWORDS_END;
+	
+	// AST use only
+	EXPRSTAT;
 )
 
 
@@ -201,6 +204,8 @@ export func TokenString(tok int) string {
 	case SWITCH: return "switch";
 	case TYPE: return "type";
 	case VAR: return "var";
+	
+	case EXPRSTAT: return "EXPRSTAT";
 	}
 	
 	return "token(" + Utils.IntToString(tok, 10) + ")";
@@ -268,10 +273,12 @@ func digit_val(ch int) int {
 
 
 export type Scanner struct {
+	// error handling
 	filename string;  // error reporting only
 	nerrors int;  // number of errors
 	errpos int;  // last error position
-	
+
+	// scanning
 	src string;  // scanned source
 	pos int;  // current reading position
 	ch int;  // one char look-ahead
@@ -400,24 +407,30 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
 }
 
 
+func (S *Scanner) ErrorMsg(pos int, msg string) {
+	print(S.filename);
+	if pos >= 0 {
+		// print position
+		line, col := S.LineCol(pos);
+		if VerboseMsgs {
+			print(":", line, ":", col);
+		} else {
+			print(":", line);
+		}
+	}
+	print(": ", msg, "\n");
+}
+
+
 func (S *Scanner) Error(pos int, msg string) {
 	const errdist = 10;
 	delta := pos - S.errpos;  // may be negative!
 	if delta < 0 {
 		delta = -delta;
 	}
+	
 	if delta > errdist || S.nerrors == 0 /* always report first error */ {
-		print(S.filename);
-		if pos >= 0 {
-			// print position
-			line, col := S.LineCol(pos);
-			if VerboseMsgs {
-				print(":", line, ":", col);
-			} else {
-				print(":", line);
-			}
-		}
-		print(": ", msg, "\n");
+		S.ErrorMsg(pos, msg);
 		S.nerrors++;
 		S.errpos = pos;
 	}

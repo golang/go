@@ -74,8 +74,10 @@ export func NewList() *List {
 export type Expr struct {
 	pos, tok int;
 	x, y *Expr;  // binary (x, y) and unary (y) expressions
+	// TODO find a more space efficient way to hold these
 	s string;  // identifiers and literals
-	t *Type;  // operands that are types
+	t *Type;  // type expressions, function literal types
+	block *List;  // stats for function literals
 }
 
 
@@ -106,6 +108,9 @@ export func NewLit(pos, tok int, s string) *Expr {
 	e.pos, e.tok, e.s = pos, tok, s;
 	return e;
 }
+
+
+export var BadExpr = NewExpr(0, Scanner.ILLEGAL, nil, nil);
 
 
 // ----------------------------------------------------------------------------
@@ -159,6 +164,9 @@ export func NewTypeExpr(t *Type) *Expr {
 }
 
 
+export var BadType = NewType(0, Scanner.ILLEGAL);
+
+
 // ----------------------------------------------------------------------------
 // Statements
 
@@ -176,6 +184,9 @@ export func NewStat(pos, tok int) *Stat {
 	s.pos, s.tok = pos, tok;
 	return s;
 }
+
+
+export var BadStat = NewStat(0, Scanner.ILLEGAL);
 
 
 // ----------------------------------------------------------------------------
@@ -198,6 +209,9 @@ export func NewDecl(pos, tok int, exported bool) *Decl {
 	d.pos, d.tok, d.exported = pos, tok, exported;
 	return d;
 }
+
+
+export var BadDecl = NewDecl(0, Scanner.ILLEGAL, false);
 
 
 // ----------------------------------------------------------------------------

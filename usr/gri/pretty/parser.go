@@ -65,6 +65,7 @@ func (P *Parser) Next0() {
 		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
 	}
 	P.opt_semi = false;
+	
 	if P.verbose {
 		P.PrintIndent();
 		print("[", P.pos, "] ", Scanner.TokenString(P.tok), "\n");
@@ -75,6 +76,13 @@ func (P *Parser) Next0() {
 func (P *Parser) Next() {
 	for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
 		P.comments.Add(Node.NewComment(P.pos, P.val));
+		if P.val == "/*ERROR*/" {
+			// the position of the next token is the position of the next expected error
+
+		} else if P.val == "/*SYNC*/" {
+			// synchronized at the next token
+			
+		}
 	}
 }
 
@@ -111,6 +119,26 @@ func (P *Parser) OptSemicolon() {
 }
 
 
+// ----------------------------------------------------------------------------
+// AST support
+
+func ExprType(x *Node.Expr) *Node.Type {
+	var t *Node.Type;
+	if x.tok == Scanner.TYPE {
+		t = x.t;
+	} else if x.tok == Scanner.IDENT {
+		// assume a type name
+		t = Node.NewType(x.pos, Scanner.IDENT);
+		t.expr = x;
+	} else if x.tok == Scanner.PERIOD && x.y != nil && ExprType(x.x) != nil {
+		// possibly a qualified (type) identifier
+		t = Node.NewType(x.pos, Scanner.IDENT);
+		t.expr = x;
+	}
+	return t;
+}
+
+
 func (P *Parser) NoType(x *Node.Expr) *Node.Expr {
 	if x != nil && x.tok == Scanner.TYPE {
 		P.Error(x.pos, "expected expression, found type");
@@ -137,7 +165,7 @@ func (P *Parser) ParseDeclaration() *Node.Decl;
 func (P *Parser) ParseIdent() *Node.Expr {
 	P.Trace("Ident");
 
-	var x *Node.Expr;
+	x := Node.BadExpr;
 	if P.tok == Scanner.IDENT {
 		x = Node.NewLit(P.pos, Scanner.IDENT, P.val);
 		if P.verbose {
@@ -176,13 +204,14 @@ func (P *Parser) ParseIdentList() *Node.Expr {
 func (P *Parser) ParseType() *Node.Type {
 	P.Trace("Type");
 	
-	typ := P.TryType();
-	if typ == nil {
+	t := P.TryType();
+	if t == nil {
 		P.Error(P.pos, "type expected");
+		t = Node.BadType;
 	}
 	
 	P.Ecart();
-	return typ;
+	return t;
 }
 
 
@@ -474,11 +503,10 @@ func (P *Parser) ParsePointerType() *Node.Type {
 }
 
 
-// Returns nil if no type was found.
 func (P *Parser) TryType() *Node.Type {
 	P.Trace("Type (try)");
 	
-	var t *Node.Type;
+	t := Node.BadType;
 	switch P.tok {
 	case Scanner.IDENT: t = P.ParseTypeName();
 	case Scanner.LBRACK: t = P.ParseArrayType();
@@ -488,6 +516,7 @@ func (P *Parser) TryType() *Node.Type {
 	case Scanner.MAP: t = P.ParseMapType();
 	case Scanner.STRUCT: t = P.ParseStructType();
 	case Scanner.MUL: t = P.ParsePointerType();
+	default: t = nil;  // no type found
 	}
 
 	P.Ecart();
@@ -503,7 +532,11 @@ func (P *Parser) ParseStatementList() *Node.List {
 	
 	list := Node.NewList();
 	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
-		list.Add(P.ParseStatement());
+		s := P.ParseStatement();
+		if s != nil {
+			// not the empty statement
+			list.Add(s);
+		}
 		if P.tok == Scanner.SEMICOLON {
 			P.Next();
 		} else if P.opt_semi {
@@ -542,7 +575,7 @@ func (P *Parser) ParseBlock() *Node.List {
 // ----------------------------------------------------------------------------
 // Expressions
 
-// TODO: Make this non-recursive.
+// TODO make this non-recursive
 func (P *Parser) ParseExpressionList() *Node.Expr {
 	P.Trace("ExpressionList");
 
@@ -562,26 +595,29 @@ func (P *Parser) ParseExpressionList() *Node.Expr {
 func (P *Parser) ParseFunctionLit() *Node.Expr {
 	P.Trace("FunctionLit");
 	
+	x := Node.NewLit(P.pos, Scanner.FUNC, "");
 	P.Expect(Scanner.FUNC);
-	P.ParseFunctionType();
+	x.t = P.ParseFunctionType();
 	P.scope_lev++;
-	P.ParseBlock();
+	x.block = P.ParseBlock();
 	P.scope_lev--;
 	
 	P.Ecart();
-	return Node.NewLit(P.pos, Scanner.INT, "0");  // "null" expr
+	return x;
 }
 
 
 func (P *Parser) ParseOperand() *Node.Expr {
 	P.Trace("Operand");
 
-	var x *Node.Expr;
+	x := Node.BadExpr;
 	switch P.tok {
 	case Scanner.IDENT:
 		x = P.ParseIdent();
 		
 	case Scanner.LPAREN:
+		// TODO we could have a function type here as in: new(*())
+		// (currently not working)
 		P.Next();
 		P.expr_lev++;
 		x = P.ParseExpression();
@@ -607,7 +643,6 @@ func (P *Parser) ParseOperand() *Node.Expr {
 		} else {
 			P.Error(P.pos, "operand expected");
 			P.Next();  // make progress
-			x = Node.NewLit(P.pos, Scanner.INT, "0");  // "null" expr
 		}
 	}
 
@@ -697,6 +732,7 @@ func (P *Parser) ParseCall(x *Node.Expr) *Node.Expr {
 }
 
 
+// TODO make this non-recursive
 func (P *Parser) ParseExpressionPairList(mode int) *Node.Expr {
 	P.Trace("ExpressionPairList");
 	
@@ -726,10 +762,12 @@ func (P *Parser) ParseExpressionPairList(mode int) *Node.Expr {
 func (P *Parser) ParseCompositeLit(t *Node.Type) *Node.Expr {
 	P.Trace("CompositeLit");
 	
-	pos := P.pos;
-	P.Expect(Scanner.LBRACE);
-	x := P.NewExpr(pos, Scanner.LBRACE, nil, P.ParseExpressionPairList(0));
+	x := P.NewExpr(P.pos, Scanner.LBRACE, nil, nil);
 	x.t = t;
+	P.Expect(Scanner.LBRACE);
+	if P.tok != Scanner.RBRACE {
+		x.y = P.ParseExpressionPairList(0);
+	}
 	P.Expect(Scanner.RBRACE);
 	
 	P.Ecart();
@@ -752,13 +790,7 @@ func (P *Parser) ParsePrimaryExpr() *Node.Expr {
 			// (composites inside control clauses must be parenthesized)
 			var t *Node.Type;
 			if P.expr_lev > 0 {
-				if x.tok == Scanner.TYPE {
-					t = x.t;
-				} else if x.tok == Scanner.IDENT {
-					// assume a type name
-					t = Node.NewType(x.pos, Scanner.IDENT);
-					t.expr = x;
-				}
+				t = ExprType(x);
 			}
 			if t != nil {
 				x = P.ParseCompositeLit(t);
@@ -768,8 +800,8 @@ func (P *Parser) ParsePrimaryExpr() *Node.Expr {
 		default: goto exit;
 		}
 	}
+	
 exit:
-
 	P.Ecart();
 	return x;
 }
@@ -778,7 +810,7 @@ exit:
 func (P *Parser) ParseUnaryExpr() *Node.Expr {
 	P.Trace("UnaryExpr");
 	
-	var x *Node.Expr;
+	x := Node.BadExpr;
 	switch P.tok {
 	case Scanner.ADD, Scanner.SUB, Scanner.MUL, Scanner.NOT, Scanner.XOR, Scanner.ARROW, Scanner.AND:
 		pos, tok := P.pos, P.tok;
@@ -840,8 +872,7 @@ func (P *Parser) ParseExpression() *Node.Expr {
 func (P *Parser) ParseSimpleStat() *Node.Stat {
 	P.Trace("SimpleStat");
 	
-	var s *Node.Stat;
-
+	s := Node.BadStat;
 	x := P.ParseExpressionList();
 	
 	switch P.tok {
@@ -874,7 +905,7 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
 			pos, tok = P.pos, P.tok;
 			P.Next();
 		} else {
-			pos, tok = x.pos, 0;  // TODO give this a token value
+			pos, tok = x.pos, Scanner.EXPRSTAT;
 		}
 		s = Node.NewStat(pos, tok);
 		s.expr = x;
@@ -974,15 +1005,18 @@ func (P *Parser) ParseIfStat() *Node.Stat {
 			s.post = P.ParseIfStat();
 		} else {
 			// For 6g compliance - should really be P.ParseBlock()
-			t := P.ParseStatement();
-			if t.tok != Scanner.LBRACE {
-				// wrap in a block if we don't have one
-				t1 := Node.NewStat(P.pos, Scanner.LBRACE);
-				t1.block = Node.NewList();
-				t1.block.Add(t);
-				t = t1;
+			s1 := P.ParseStatement();
+			if s1 != nil {
+				// not the empty statement
+				if s1.tok != Scanner.LBRACE {
+					// wrap in a block if we don't have one
+					b := Node.NewStat(P.pos, Scanner.LBRACE);
+					b.block = Node.NewList();
+					b.block.Add(s1);
+					s1 = b;
+				}
+				s.post = s1;
 			}
-			s.post = t;
 		}
 	}
 	
@@ -1117,17 +1151,11 @@ func (P *Parser) ParseRangeStat() *Node.Stat {
 }
 
 
-func (P *Parser) ParseEmptyStat() {
-	P.Trace("EmptyStat");
-	P.Ecart();
-}
-
-
 func (P *Parser) ParseStatement() *Node.Stat {
 	P.Trace("Statement");
 	indent := P.indent;
 
-	var s *Node.Stat;
+	s := Node.BadStat;
 	switch P.tok {
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
 		s = Node.NewStat(P.pos, P.tok);
@@ -1162,7 +1190,8 @@ func (P *Parser) ParseStatement() *Node.Stat {
 	case Scanner.SELECT:
 		s = P.ParseSelectStat();
 	default:
-		P.ParseEmptyStat();  // for complete tracing output only
+		// empty statement
+		s = nil;
 	}
 
 	if indent != P.indent {
@@ -1250,7 +1279,7 @@ func (P *Parser) ParseVarSpec(exported bool) *Node.Decl {
 }
 
 
-// TODO Replace this by using function pointers derived from methods.
+// TODO replace this by using function pointers derived from methods
 func (P *Parser) ParseSpec(exported bool, keyword int) *Node.Decl {
 	switch keyword {
 	case Scanner.IMPORT: return P.ParseImportSpec();
@@ -1266,7 +1295,7 @@ func (P *Parser) ParseSpec(exported bool, keyword int) *Node.Decl {
 func (P *Parser) ParseDecl(exported bool, keyword int) *Node.Decl {
 	P.Trace("Decl");
 	
-	var d *Node.Decl;
+	d := Node.BadDecl;
 	P.Expect(keyword);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
@@ -1334,30 +1363,9 @@ func (P *Parser) ParseFunctionDecl(exported bool) *Node.Decl {
 func (P *Parser) ParseExportDecl() *Node.Decl {
 	P.Trace("ExportDecl");
 	
-	// TODO This is deprecated syntax and should go away eventually.
-	// (Also at the moment the syntax is everything goes...)
-	//P.Expect(Scanner.EXPORT);
-
 	d := Node.NewDecl(P.pos, Scanner.EXPORT, false);
-	
-	has_paren := false;
-	if P.tok == Scanner.LPAREN {
-		P.Next();
-		has_paren = true;
-	}
 	d.ident = P.ParseIdentList();
-	/*
-	for P.tok == Scanner.IDENT {
-		P.ParseIdent();
-		if P.tok == Scanner.COMMA {
-			P.Next();  // TODO this seems wrong
-		}
-	}
-	*/
-	if has_paren {
-		P.Expect(Scanner.RPAREN)
-	}
-	
+
 	P.Ecart();
 	return d;
 }
@@ -1367,8 +1375,7 @@ func (P *Parser) ParseDeclaration() *Node.Decl {
 	P.Trace("Declaration");
 	indent := P.indent;
 	
-	var d *Node.Decl;
-
+	d := Node.BadDecl;
 	exported := false;
 	if P.tok == Scanner.EXPORT {
 		if P.scope_lev == 0 {
