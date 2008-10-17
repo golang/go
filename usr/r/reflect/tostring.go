@@ -14,14 +14,14 @@ import (
 
 export func ToString(typ Type) string
 
-func FieldsToString(t Type) string {
+func FieldsToString(t Type, sep string) string {
 	s := t.(StructType);
 	var str string;
 	for i := 0; i < s.Len(); i++ {
 		str1, t := s.Field(i);
 		str1 +=  " " + ToString(t);
 		if i < s.Len() - 1 {
-			str1 += "; ";
+			str1 += sep + " ";
 		}
 		str += str1;
 	}
@@ -86,16 +86,15 @@ func ToString(typ Type) string {
 		}
 		return str + ToString(c.Elem());
 	case StructKind:
-		return "struct{" + FieldsToString(typ) + "}";
+		return "struct{" + FieldsToString(typ, ";") + "}";
+	case InterfaceKind:
+		return "interface{" + FieldsToString(typ, ";") + "}";
 	case FuncKind:
 		f := typ.(FuncType);
 		str = "func";
-		if f.Receiver() != nil {
-			str += "(" + FieldsToString(f.Receiver()) + ")";
-		}
-		str += "(" + FieldsToString(f.In()) + ")";
+		str += "(" + FieldsToString(f.In(), ",") + ")";
 		if f.Out() != nil {
-			str += "(" + FieldsToString(f.Out()) + ")";
+			str += "(" + FieldsToString(f.Out(), ",") + ")";
 		}
 		return str;
 	default:
