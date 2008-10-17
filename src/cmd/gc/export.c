@@ -122,6 +122,7 @@ dumpexportvar(Sym *s)
 void
 dumpexporttype(Sym *s)
 {
+	dumpprereq(s->otype);
 	Bprint(bout, "\t");
 	if(s->export != 0)
 		Bprint(bout, "export ");
