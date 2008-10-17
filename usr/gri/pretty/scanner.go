@@ -15,6 +15,7 @@ export const (
 	INT;
 	FLOAT;
 	STRING;
+	COMMENT;
 	EOF;
 
 	ADD;
@@ -114,6 +115,7 @@ export func TokenString(tok int) string {
 	case INT: return "INT";
 	case FLOAT: return "FLOAT";
 	case STRING: return "STRING";
+	case COMMENT: return "COMMENT";
 	case EOF: return "EOF";
 
 	case ADD: return "+";
@@ -469,29 +471,37 @@ func (S *Scanner) SkipWhitespace() {
 }
 
 
-func (S *Scanner) SkipComment() {
-	// '/' already consumed
+func (S *Scanner) ScanComment() string {
+	// first '/' already consumed
+	pos := S.chpos - 1;
+	
 	if S.ch == '/' {
 		// comment
-		S.Next();
-		for S.ch != '\n' && S.ch >= 0 {
+		for S.ch >= 0 {
 			S.Next();
+			if S.ch == '\n' {
+				S.Next();
+				goto exit;
+			}
 		}
 		
 	} else {
 		/* comment */
-		pos := S.chpos - 1;
 		S.Expect('*');
 		for S.ch >= 0 {
 			ch := S.ch;
 			S.Next();
 			if ch == '*' && S.ch == '/' {
 				S.Next();
-				return;
+				goto exit;
 			}
 		}
-		S.Error(pos, "comment not terminated");
 	}
+	
+	S.Error(pos, "comment not terminated");
+
+exit:
+	return S.src[pos : S.chpos];
 }
 
 
@@ -762,12 +772,10 @@ func (S *Scanner) Scan() (pos, tok int, val string) {
 		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
-				S.SkipComment();
-				// cannot simply return because of 6g bug
-				tok, pos, val = S.Scan();
-				return tok, pos, val;
+				tok, val = COMMENT, S.ScanComment();
+			} else {
+				tok = S.Select2(QUO, QUO_ASSIGN);
 			}
-			tok = S.Select2(QUO, QUO_ASSIGN);
 		case '%': tok = S.Select2(REM, REM_ASSIGN);
 		case '^': tok = S.Select2(XOR, XOR_ASSIGN);
 		case '<':

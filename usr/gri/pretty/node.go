@@ -92,6 +92,9 @@ func (x *Expr) len() int {
 
 
 export func NewExpr(pos, tok int, x, y *Expr) *Expr {
+	if x != nil && x.tok == Scanner.TYPE || y != nil && y.tok == Scanner.TYPE {
+		panic("no type expression allowed");
+	}
 	e := new(Expr);
 	e.pos, e.tok, e.x, e.y = pos, tok, x, y;
 	return e;
@@ -200,10 +203,24 @@ export func NewDecl(pos, tok int, exported bool) *Decl {
 // ----------------------------------------------------------------------------
 // Program
 
+export type Comment struct {
+	pos int;
+	text string;
+}
+
+
+export func NewComment(pos int, text string) *Comment {
+	c := new(Comment);
+	c.pos, c.text = pos, text;
+	return c;
+}
+
+
 export type Program struct {
 	pos int;  // tok is Scanner.PACKAGE
 	ident *Expr;
 	decls *List;
+	comments *List;
 }
 
 

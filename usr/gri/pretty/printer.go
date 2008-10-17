@@ -9,10 +9,16 @@ import Node "node"
 
 
 export type Printer struct {
+	// formatting control
 	level int;  // true scope level
 	indent int;  // indentation level
 	semi bool;  // pending ";"
 	newl int;  // pending "\n"'s
+
+	// comments
+	clist *Node.List;
+	cindex int;
+	cpos int;
 }
 
 
@@ -20,6 +26,27 @@ func (P *Printer) String(pos int, s string) {
 	if P.semi && P.level > 0 {  // no semicolons at level 0
 		print(";");
 	}
+	
+	/*
+	for pos > P.cpos {
+		// we have a comment
+		c := P.clist.at(P.cindex).(*Node.Comment);
+		if c.text[1] == '/' {
+			print("  " + c.text);
+			if P.newl <= 0 {
+				P.newl = 1;  // line comments must have a newline
+			}
+		} else {
+			print(c.text);
+		}
+		P.cindex++;
+		if P.cindex < P.clist.len() {
+			P.cpos = P.clist.at(P.cindex).(*Node.Comment).pos;
+		} else {
+			P.cpos = 1000000000;  // infinite
+		}
+	}
+	*/
 	
 	if P.newl > 0 {
 		for i := P.newl; i > 0; i-- {
@@ -221,7 +248,7 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 
 	case Scanner.LBRACE:
 		// composite
-		P.Expr1(x.x, 8);
+		P.Type(x.t);
 		P.String(x.pos, "{");
 		P.Expr1(x.y, 0);
 		P.String(0, "}");
@@ -488,6 +515,15 @@ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
 // Program
 
 func (P *Printer) Program(p *Node.Program) {
+	// TODO should initialize all fields?
+	P.clist = p.comments;
+	P.cindex = 0;
+	if p.comments.len() > 0 {
+		P.cpos = p.comments.at(0).(*Node.Comment).pos;
+	} else {
+		P.cpos = 1000000000;  // infinite
+	}
+
 	P.String(p.pos, "package ");
 	P.Expr(p.ident);
 	P.newl = 2;
