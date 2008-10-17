@@ -309,14 +309,30 @@ func NewFuncTypeStruct(in, out *StructTypeStruct) *FuncTypeStruct {
 
 // Cache of expanded types keyed by type name.
 var types *map[string] *Type	// BUG TODO: should be Type not *Type
+
 // List of typename, typestring pairs
 var typestrings *map[string] string
+
 // Map of basic types to prebuilt StubTypes
 var basicstubs *map[string] *StubType
 
 var MissingStub *StubType;
 
+// The database stored in the maps is global; use locking to guarantee safety.
+var lockchan *chan bool  // Channel with buffer of 1, used as a mutex
+
+func Lock() {
+	lockchan <- true	// block if buffer is full
+}
+
+func Unlock() {
+	<-lockchan	// release waiters
+}
+
 func init() {
+	lockchan = new(chan bool, 1);	// unlocked at creation - buffer is empty
+	Lock();	// not necessary because of init ordering but be safe.
+
 	types = new(map[string] *Type);
 	typestrings = new(map[string] string);
 	basicstubs = new(map[string] *StubType);
@@ -352,10 +368,9 @@ func init() {
 	basicstubs["float80"] = NewStubType(Float80);
 	basicstubs["string"] = NewStubType(String);
 
-	typestrings["P.integer"] = "int32";
-	return;
-	typestrings["P.S"] =  "struct {t *P.T}";
-	typestrings["P.T"] = "struct {c *(? *chan P.S, *int)}";
+	typestrings["P.integer"] = "int32";	// TODO: for testing; remove
+
+	Unlock();
 }
 
 /*
@@ -648,7 +663,7 @@ export func ParseTypeString(str string) Type {
 	return p.Type().Get();
 }
 
-// Look up type string associated with name.
+// Look up type string associated with name.  Lock is held.
 func TypeNameToTypeString(name string) string {
 	s, ok := typestrings[name];
 	if !ok {
@@ -660,8 +675,10 @@ func TypeNameToTypeString(name string) string {
 
 // Type is known by name.  Find (and create if necessary) its real type.
 func ExpandType(name string) Type {
+	Lock();
 	t, ok := types[name];
 	if ok {
+		Unlock();
 		return *t
 	}
 	types[name] = &Missing;	// prevent recursion; will overwrite
@@ -669,5 +686,6 @@ func ExpandType(name string) Type {
 	p := new(Type);
 	*p = t1;
 	types[name] = p;
+	Unlock();
 	return t1;
 }

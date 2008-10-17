@@ -39,6 +39,6 @@ func main() {
 	t = reflect.ParseTypeString("*(a int8, b int32)");
 	s = reflect.ToString(t); print(s, "\n");
 
-	t = reflect.ParseTypeString("struct {c *(? *chan *int32, ? *int8)}");
+	t = reflect.ParseTypeString("struct {c *(? *chan *P.integer, ? *int8)}");
 	s = reflect.ToString(t); print(s, "\n");
 }
