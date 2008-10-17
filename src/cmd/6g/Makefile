@@ -25,7 +25,7 @@ LIB=\
 	../gc/gc.a$O
 
 $(TARG): $(OFILES) $(LIB)
-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9
+	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9 -lm
 
 $(OFILES): $(HFILES)
 
