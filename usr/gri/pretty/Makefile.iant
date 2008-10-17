@@ -23,17 +23,7 @@ pretty: $(PRETTY_OBJS)
 	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
 
 test: pretty
-	pretty -s *.go
-	pretty -s ../gosrc/*.go
-	pretty -s $(GOROOT)/test/sieve.go
-	pretty -s $(GOROOT)/src/pkg/*.go
-	pretty -s $(GOROOT)/src/lib/flag.go
-	pretty -s $(GOROOT)/src/lib/fmt.go
-	pretty -s $(GOROOT)/src/lib/rand.go
-	pretty -s $(GOROOT)/src/lib/math/*.go
-	pretty -s $(GOROOT)/src/lib/container/*.go
-	pretty -s $(GOROOT)/src/syscall/*.go
-	echo "DONE"
+	test.sh
 
 install: pretty
 	cp pretty $(HOME)/bin/pretty

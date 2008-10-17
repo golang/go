@@ -90,6 +90,12 @@ func (P *Printer) CloseScope(paren string) {
 	P.semi, P.newl = false, 1;
 }
 
+func (P *Printer) Error(pos int, tok int, msg string) {
+	P.String(0, "<");
+	P.Token(pos, tok);
+	P.String(0, " " + msg + ">");
+}
+
 
 // ----------------------------------------------------------------------------
 // Types
@@ -140,11 +146,6 @@ func (P *Printer) Fields(list *Node.List) {
 
 
 func (P *Printer) Type(t *Node.Type) {
-	if t == nil {  // TODO remove this check
-		P.String(0, "<nil type>");
-		return;
-	}
-
 	switch t.tok {
 	case Scanner.IDENT:
 		P.Expr(t.expr);
@@ -192,13 +193,15 @@ func (P *Printer) Type(t *Node.Type) {
 		}
 
 	default:
-		panic("UNREACHABLE");
+		P.Error(t.pos, t.tok, "type");
 	}
 }
 
 
 // ----------------------------------------------------------------------------
 // Expressions
+
+func (P *Printer) Block(list *Node.List, indent bool);
 
 func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 	if x == nil {
@@ -213,6 +216,13 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 	case Scanner.IDENT, Scanner.INT, Scanner.STRING, Scanner.FLOAT:
 		// literal
 		P.String(x.pos, x.s);
+
+	case Scanner.FUNC:
+		// function literal
+		P.String(x.pos, "func");
+		P.Type(x.t);
+		P.Block(x.block, true);
+		P.newl = 0;
 
 	case Scanner.COMMA:
 		// list
@@ -344,13 +354,8 @@ func (P *Printer) ControlClause(s *Node.Stat) {
 func (P *Printer) Declaration(d *Node.Decl, parenthesized bool);
 
 func (P *Printer) Stat(s *Node.Stat) {
-	if s == nil {  // TODO remove this check
-		P.String(0, "<nil stat>");
-		return;
-	}
-
 	switch s.tok {
-	case 0: // TODO use a real token const
+	case Scanner.EXPRSTAT:
 		// expression statement
 		P.Expr(s.expr);
 		P.semi = true;
@@ -430,8 +435,7 @@ func (P *Printer) Stat(s *Node.Stat) {
 		P.semi = true;
 
 	default:
-		P.String(s.pos, "<stat>");
-		P.semi = true;
+		P.Error(s.pos, s.tok, "stat");
 	}
 }
 
@@ -441,11 +445,6 @@ func (P *Printer) Stat(s *Node.Stat) {
 
 
 func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
-	if d == nil {  // TODO remove this check
-		P.String(0, "<nil decl>");
-		return;
-	}
-
 	if !parenthesized {
 		if d.exported {
 			P.String(0, "export ");
