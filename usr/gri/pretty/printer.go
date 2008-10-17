@@ -47,7 +47,7 @@ func (P *Printer) Token(pos int, tok int) {
 
 
 func (P *Printer) OpenScope(paren string) {
-	P.semi, P.newl = false, 0;
+	//P.semi, P.newl = false, 0;
 	P.String(0, paren);
 	P.level++;
 	P.indent++;
@@ -138,7 +138,7 @@ func (P *Printer) Type(t *Node.Type) {
 		}
 
 	case Scanner.MAP:
-		P.String(t.pos, "[");
+		P.String(t.pos, "map [");
 		P.Type(t.key);
 		P.String(0, "]");
 		P.Type(t.elt);
@@ -301,11 +301,13 @@ func (P *Printer) ControlClause(s *Node.Stat) {
 		if s.expr != nil {
 			P.Expr(s.expr);
 		}
-		if has_post {
+		if s.tok == Scanner.FOR {
 			P.semi = true;
-			P.Blank();
-			P.Stat(s.post);
-			P.semi = false
+			if has_post {
+				P.Blank();
+				P.Stat(s.post);
+				P.semi = false
+			}
 		}
 	}
 	P.Blank();
@@ -425,7 +427,7 @@ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
 		P.Blank();
 	}
 
-	if d.ident == nil {
+	if d.tok != Scanner.FUNC && d.list != nil {
 		P.OpenScope("(");
 		for i := 0; i < d.list.len(); i++ {
 			P.Declaration(d.list.at(i).(*Node.Decl), true);

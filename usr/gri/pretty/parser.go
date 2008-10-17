@@ -1283,29 +1283,35 @@ func (P *Parser) ParseFunctionDecl(exported bool) *Node.Decl {
 }
 
 
-func (P *Parser) ParseExportDecl() {
+func (P *Parser) ParseExportDecl() *Node.Decl {
 	P.Trace("ExportDecl");
 	
 	// TODO This is deprecated syntax and should go away eventually.
 	// (Also at the moment the syntax is everything goes...)
 	//P.Expect(Scanner.EXPORT);
 
+	d := Node.NewDecl(P.pos, Scanner.EXPORT, false);
+	
 	has_paren := false;
 	if P.tok == Scanner.LPAREN {
 		P.Next();
 		has_paren = true;
 	}
+	d.ident = P.ParseIdentList();
+	/*
 	for P.tok == Scanner.IDENT {
 		P.ParseIdent();
 		if P.tok == Scanner.COMMA {
 			P.Next();  // TODO this seems wrong
 		}
 	}
+	*/
 	if has_paren {
 		P.Expect(Scanner.RPAREN)
 	}
 	
 	P.Ecart();
+	return d;
 }
 
 
@@ -1335,10 +1341,10 @@ func (P *Parser) ParseDeclaration() *Node.Decl {
 			P.Error(P.pos, "cannot mark export declaration for export");
 		}
 		P.Next();
-		P.ParseExportDecl();
+		d = P.ParseExportDecl();
 	default:
 		if exported && (P.tok == Scanner.IDENT || P.tok == Scanner.LPAREN) {
-			P.ParseExportDecl();
+			d = P.ParseExportDecl();
 		} else {
 			P.Error(P.pos, "declaration expected");
 			P.Next();  // make progress
