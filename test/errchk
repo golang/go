@@ -43,6 +43,15 @@ fi
 
 cat $TMPOUT $TMPERR | grep -v '^	' > $TMPALL
 
+didbug=false
+bug() {
+  if ! $didbug
+  then
+    echo 1>&2 -n BUG: ''
+    didbug=true
+  fi
+}
+
 header=0
 echo 0 > $TMPSTAT
 pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
@@ -52,17 +61,20 @@ pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
   grep -v "$SOURCEFILE:$lineno" < $TMPALL > $TMPTMP
   mv -f $TMPTMP $TMPALL
   if test -z "$errmsg"; then
-    echo 1>&2 "BUG: errchk: $SOURCEFILE: missing expected error message on line $lineno: '$regexp'"
+    bug
+    echo 1>&2 "errchk: $SOURCEFILE: missing expected error message on line $lineno: '$regexp'"
     echo 1 > $TMPSTAT
   elif ! echo "$errmsg" | egrep -q "$regexp"; then
-    echo 1>&2 "BUG: errchk: $SOURCEFILE: error message on line $lineno does not match '$regexp'"
+    bug
+    echo 1>&2 "errchk: $SOURCEFILE: error message on line $lineno does not match '$regexp'"
     echo 1>&2 $errmsg
     echo 1 > $TMPSTAT
   fi
 done
 
 if test -s $TMPALL; then
-  echo 1>&2 "BUG: errchk: $SOURCEFILE: unmatched error messages:"
+  bug
+  echo 1>&2 "errchk: $SOURCEFILE: unmatched error messages:"
   echo 1>&2 "=================================================="
   cat 1>&2 $TMPALL
   echo 1>&2 "=================================================="
