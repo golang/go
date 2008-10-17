@@ -14,7 +14,7 @@ import Printer "printer"
 var (
     silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
     verbose = Flag.Bool("v", false, nil, "verbose mode: trace parsing");
-    sixg = Flag.Bool("6g", false, nil, "6g compatibility mode");
+    //sixg = Flag.Bool("6g", false, nil, "6g compatibility mode");
     tokenchan = Flag.Bool("token_chan", false, nil, "use token channel for scanner-parser connection");
 )
 
@@ -35,35 +35,31 @@ func main() {
 
 	// process files
 	for i := 0; i < Flag.NArg(); i++ {
-	    src_file := Flag.Arg(i);
+		src_file := Flag.Arg(i);
 
-	    src, ok := Platform.ReadSourceFile(src_file);
-	    if !ok {
+		src, ok := Platform.ReadSourceFile(src_file);
+		if !ok {
 			print("cannot open ", src_file, "\n");
 			sys.exit(1);
 		}
 
-		if silent.BVal() {
-			print("- ", src_file, "\n");
+		scanner := new(Scanner.Scanner);
+		scanner.Open(src_file, src);
+
+		var tstream *<-chan *Scanner.Token;
+		if tokenchan.BVal() {
+			tstream = scanner.TokenStream();
 		}
 
-	    scanner := new(Scanner.Scanner);
-            scanner.Open(src_file, src);
+		parser := new(Parser.Parser);
+		parser.Open(verbose.BVal(), scanner, tstream);
 
-	    var tstream *<-chan *Scanner.Token;
-            if tokenchan.BVal() {
-                tstream = scanner.TokenStream();
-	    }
+		prog := parser.ParseProgram();
 
-	    parser := new(Parser.Parser);
-	    parser.Open(verbose.BVal(), scanner, tstream);
-
-	    prog := parser.ParseProgram();
-		
 		if scanner.nerrors > 0 {
 			sys.exit(1);
 		}
-		
+
 		if !silent.BVal() {
 			var P Printer.Printer;
 			(&P).Program(prog);

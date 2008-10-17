@@ -13,6 +13,7 @@ export type Parser struct {
 	indent uint;
 	scanner *Scanner.Scanner;
 	tokchan *<-chan *Scanner.Token;
+	comments *Node.List;
 	
 	// Scanner.Token
 	pos int;  // token source position
@@ -56,7 +57,7 @@ func (P *Parser) Ecart() {
 }
 
 
-func (P *Parser) Next() {
+func (P *Parser) Next0() {
 	if P.tokchan == nil {
 		P.pos, P.tok, P.val = P.scanner.Scan();
 	} else {
@@ -71,11 +72,19 @@ func (P *Parser) Next() {
 }
 
 
+func (P *Parser) Next() {
+	for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
+		P.comments.Add(Node.NewComment(P.pos, P.val));
+	}
+}
+
+
 func (P *Parser) Open(verbose bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
 	P.verbose = verbose;
 	P.indent = 0;
 	P.scanner = scanner;
 	P.tokchan = tokchan;
+	P.comments = Node.NewList();
 	P.Next();
 	P.expr_lev = 1;
 	P.scope_lev = 0;
@@ -99,6 +108,20 @@ func (P *Parser) OptSemicolon() {
 	if P.tok == Scanner.SEMICOLON {
 		P.Next();
 	}
+}
+
+
+func (P *Parser) NoType(x *Node.Expr) *Node.Expr {
+	if x != nil && x.tok == Scanner.TYPE {
+		P.Error(x.pos, "expected expression, found type");
+		x = Node.NewLit(x.pos, Scanner.INT, 0);
+	}
+	return x;
+}
+
+
+func (P *Parser) NewExpr(pos, tok int, x, y *Node.Expr) *Node.Expr {
+	return Node.NewExpr(pos, tok, P.NoType(x), P.NoType(y));
 }
 
 
@@ -139,7 +162,7 @@ func (P *Parser) ParseIdentList() *Node.Expr {
 		pos := P.pos;
 		P.Next();
 		y := P.ParseIdentList();
-		x = Node.NewExpr(pos, Scanner.COMMA, x, y);
+		x = P.NewExpr(pos, Scanner.COMMA, x, y);
 	}
 
 	P.Ecart();
@@ -181,7 +204,7 @@ func (P *Parser) ParseQualifiedIdent() *Node.Expr {
 		pos := P.pos;
 		P.Next();
 		y := P.ParseIdent();
-		x = Node.NewExpr(pos, Scanner.PERIOD, x, y);
+		x = P.NewExpr(pos, Scanner.PERIOD, x, y);
 	}
 	
 	P.Ecart();
@@ -442,12 +465,12 @@ func (P *Parser) ParseStructType() *Node.Type {
 func (P *Parser) ParsePointerType() *Node.Type {
 	P.Trace("PointerType");
 	
-	typ := Node.NewType(P.pos, Scanner.MUL);
+	t := Node.NewType(P.pos, Scanner.MUL);
 	P.Expect(Scanner.MUL);
-	typ.elt = P.ParseType();
+	t.elt = P.ParseType();
 	
 	P.Ecart();
-	return typ;
+	return t;
 }
 
 
@@ -490,6 +513,11 @@ func (P *Parser) ParseStatementList() *Node.List {
 		}
 	}
 	
+	// Try to provide a good error message
+	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+		P.Error(P.pos, "expected end of statement list (semicolon missing?)");
+	}
+
 	P.Ecart();
 	return list;
 }
@@ -523,7 +551,7 @@ func (P *Parser) ParseExpressionList() *Node.Expr {
 		pos := P.pos;
 		P.Next();
 		y := P.ParseExpressionList();
-		x = Node.NewExpr(pos, Scanner.COMMA, x, y);
+		x = P.NewExpr(pos, Scanner.COMMA, x, y);
 	}
 	
 	P.Ecart();
@@ -591,7 +619,7 @@ func (P *Parser) ParseOperand() *Node.Expr {
 func (P *Parser) ParseSelectorOrTypeGuard(x *Node.Expr) *Node.Expr {
 	P.Trace("SelectorOrTypeGuard");
 
-	x = Node.NewExpr(P.pos, Scanner.PERIOD, x, nil);
+	x = P.NewExpr(P.pos, Scanner.PERIOD, x, nil);
 	P.Expect(Scanner.PERIOD);
 	
 	if P.tok == Scanner.IDENT {
@@ -619,7 +647,7 @@ func (P *Parser) ParseExpressionPair(mode int) *Node.Expr {
 		pos := P.pos;
 		P.Expect(Scanner.COLON);
 		y := P.ParseExpression();
-		x = Node.NewExpr(pos, Scanner.COLON, x, y);
+		x = P.NewExpr(pos, Scanner.COLON, x, y);
 	}
 
 	P.Ecart();
@@ -636,17 +664,31 @@ func (P *Parser) ParseIndex(x *Node.Expr) *Node.Expr {
 	P.Expect(Scanner.RBRACK);
 	
 	P.Ecart();
-	return Node.NewExpr(pos, Scanner.LBRACK, x, i);
+	return P.NewExpr(pos, Scanner.LBRACK, x, i);
 }
 
+
+func (P *Parser) ParseBinaryExpr(prec1 int) *Node.Expr
 
 func (P *Parser) ParseCall(x *Node.Expr) *Node.Expr {
 	P.Trace("Call");
 
-	x = Node.NewExpr(P.pos, Scanner.LPAREN, x, nil);
+	x = P.NewExpr(P.pos, Scanner.LPAREN, x, nil);
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
-		x.y = P.ParseExpressionList();
+		// the very first argument may be a type if the function called is new()
+		// call ParseBinaryExpr() which allows type expressions
+		y := P.ParseBinaryExpr(1);
+		if P.tok == Scanner.COMMA {
+			pos := P.pos;
+			P.Next();
+			z := P.ParseExpressionList();
+			// create list manually because NewExpr checks for type expressions
+			z = P.NewExpr(pos, Scanner.COMMA, nil, z);
+			z.x = y;
+			y = z;
+		}
+		x.y = y;
 	}
 	P.Expect(Scanner.RPAREN);
 	
@@ -672,7 +714,7 @@ func (P *Parser) ParseExpressionPairList(mode int) *Node.Expr {
 		P.Next();
 		if P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 			y := P.ParseExpressionPairList(mode);
-			x = Node.NewExpr(pos, Scanner.COMMA, x, y);
+			x = P.NewExpr(pos, Scanner.COMMA, x, y);
 		}
 	}
 	
@@ -683,14 +725,15 @@ func (P *Parser) ParseExpressionPairList(mode int) *Node.Expr {
 
 func (P *Parser) ParseCompositeLit(t *Node.Type) *Node.Expr {
 	P.Trace("CompositeLit");
-
+	
 	pos := P.pos;
 	P.Expect(Scanner.LBRACE);
-	x := P.ParseExpressionPairList(0);
+	x := P.NewExpr(pos, Scanner.LBRACE, nil, P.ParseExpressionPairList(0));
+	x.t = t;
 	P.Expect(Scanner.RBRACE);
 	
 	P.Ecart();
-	return Node.NewExpr(pos, Scanner.LBRACE, Node.NewTypeExpr(t), x);
+	return x;
 }
 
 
@@ -704,20 +747,22 @@ func (P *Parser) ParsePrimaryExpr() *Node.Expr {
 		case Scanner.LBRACK: x = P.ParseIndex(x);
 		case Scanner.LPAREN: x = P.ParseCall(x);
 		case Scanner.LBRACE:
+			// assume a composite literal only if x could be a type
+			// and if we are not inside control clause (expr_lev > 0)
+			// (composites inside control clauses must be parenthesized)
+			var t *Node.Type;
 			if P.expr_lev > 0 {
-				var t *Node.Type;
 				if x.tok == Scanner.TYPE {
 					t = x.t;
 				} else if x.tok == Scanner.IDENT {
 					// assume a type name
 					t = Node.NewType(x.pos, Scanner.IDENT);
 					t.expr = x;
-				} else {
-					P.Error(x.pos, "type expected for composite literal");
 				}
+			}
+			if t != nil {
 				x = P.ParseCompositeLit(t);
 			} else {
-				// composites inside control clauses must be parenthesized
 				goto exit;
 			}
 		default: goto exit;
@@ -735,18 +780,21 @@ func (P *Parser) ParseUnaryExpr() *Node.Expr {
 	
 	var x *Node.Expr;
 	switch P.tok {
-	case
-		Scanner.ADD, Scanner.SUB,
-		Scanner.NOT, Scanner.XOR,
-		Scanner.MUL, Scanner.ARROW,
-		Scanner.AND:
-			pos, tok := P.pos, P.tok;
-			P.Next();
-			y := P.ParseUnaryExpr();
-			x = Node.NewExpr(pos, tok, nil, y);
-			
-		default:
-			x = P.ParsePrimaryExpr();
+	case Scanner.ADD, Scanner.SUB, Scanner.MUL, Scanner.NOT, Scanner.XOR, Scanner.ARROW, Scanner.AND:
+		pos, tok := P.pos, P.tok;
+		P.Next();
+		y := P.ParseUnaryExpr();
+		if tok == Scanner.MUL && y.tok == Scanner.TYPE {
+			// pointer type
+			t := Node.NewType(pos, Scanner.MUL);
+			t.elt = y.t;
+			x = Node.NewTypeExpr(t);
+		} else {
+			x = P.NewExpr(pos, tok, nil, y);
+		}
+	
+	default:
+		x = P.ParsePrimaryExpr();
 	}
 	
 	P.Ecart();
@@ -763,7 +811,7 @@ func (P *Parser) ParseBinaryExpr(prec1 int) *Node.Expr {
 			pos, tok := P.pos, P.tok;
 			P.Next();
 			y := P.ParseBinaryExpr(prec + 1);
-			x = Node.NewExpr(pos, tok, x, y);
+			x = P.NewExpr(pos, tok, x, y);
 		}
 	}
 	
@@ -776,8 +824,8 @@ func (P *Parser) ParseExpression() *Node.Expr {
 	P.Trace("Expression");
 	indent := P.indent;
 	
-	x := P.ParseBinaryExpr(1);
-	
+	x := P.NoType(P.ParseBinaryExpr(1));
+
 	if indent != P.indent {
 		panic("imbalanced tracing code (Expression)");
 	}
@@ -1379,6 +1427,8 @@ func (P *Parser) ParseProgram() *Node.Program {
 		p.decls.Add(P.ParseDeclaration());
 		P.OptSemicolon();
 	}
+	
+	p.comments = P.comments;
 	
 	P.Ecart();
 	return p;
