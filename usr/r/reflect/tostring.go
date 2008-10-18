@@ -12,14 +12,15 @@ import (
 	"strings";
 )
 
-export func ToString(typ Type) string
+export func TypeToString(typ Type) string
+export func ValueToString(val Value) string
 
-func FieldsToString(t Type, sep string) string {
+func TypeFieldsToString(t Type, sep string) string {
 	s := t.(StructType);
 	var str string;
 	for i := 0; i < s.Len(); i++ {
 		str1, t := s.Field(i);
-		str1 +=  " " + ToString(t);
+		str1 +=  " " + TypeToString(t);
 		if i < s.Len() - 1 {
 			str1 += sep + " ";
 		}
@@ -28,7 +29,7 @@ func FieldsToString(t Type, sep string) string {
 	return str;
 }
 
-func ToString(typ Type) string {
+func TypeToString(typ Type) string {
 	var str string;
 	switch(typ.Kind()) {
 	case MissingKind:
@@ -59,7 +60,7 @@ func ToString(typ Type) string {
 		return "string";
 	case PtrKind:
 		p := typ.(PtrType);
-		return "*" + ToString(p.Sub());
+		return "*" + TypeToString(p.Sub());
 	case ArrayKind:
 		a := typ.(ArrayType);
 		if a.Len() < 0 {
@@ -67,11 +68,11 @@ func ToString(typ Type) string {
 		} else {
 			str = "[" + strings.itoa(a.Len()) +  "]"
 		}
-		return str + ToString(a.Elem());
+		return str + TypeToString(a.Elem());
 	case MapKind:
 		m := typ.(MapType);
-		str = "map[" + ToString(m.Key()) + "]";
-		return str + ToString(m.Elem());
+		str = "map[" + TypeToString(m.Key()) + "]";
+		return str + TypeToString(m.Elem());
 	case ChanKind:
 		c := typ.(ChanType);
 		switch c.Dir() {
@@ -82,23 +83,67 @@ func ToString(typ Type) string {
 		case BothDir:
 			str = "chan";
 		default:
-			panicln("reflect.ToString: unknown chan direction");
+			panicln("reflect.TypeToString: unknown chan direction");
 		}
-		return str + ToString(c.Elem());
+		return str + TypeToString(c.Elem());
 	case StructKind:
-		return "struct{" + FieldsToString(typ, ";") + "}";
+		return "struct{" + TypeFieldsToString(typ, ";") + "}";
 	case InterfaceKind:
-		return "interface{" + FieldsToString(typ, ";") + "}";
+		return "interface{" + TypeFieldsToString(typ, ";") + "}";
 	case FuncKind:
 		f := typ.(FuncType);
 		str = "func";
-		str += "(" + FieldsToString(f.In(), ",") + ")";
+		str += "(" + TypeFieldsToString(f.In(), ",") + ")";
 		if f.Out() != nil {
-			str += "(" + FieldsToString(f.Out(), ",") + ")";
+			str += "(" + TypeFieldsToString(f.Out(), ",") + ")";
 		}
 		return str;
 	default:
-		panicln("reflect.ToString: can't print type ", typ.Kind());
+		panicln("reflect.TypeToString: can't print type ", typ.Kind());
 	}
-	return "reflect.ToString: can't happen";
+	return "reflect.TypeToString: can't happen";
+}
+
+// TODO: want an unsigned one too
+func integer(v int64) string {
+	return strings.itol(v);
+}
+
+func ValueToString(val Value) string {
+	var str string;
+	typ := val.Type();
+	switch(val.Kind()) {
+	case MissingKind:
+		return "missing";
+	case Int8Kind:
+		return integer(int64(val.(Int8Value).Get()));
+	case Int16Kind:
+		return integer(int64(val.(Int16Value).Get()));
+	case Int32Kind:
+		return integer(int64(val.(Int32Value).Get()));
+	case Int64Kind:
+		return integer(int64(val.(Int64Value).Get()));
+	case Uint8Kind:
+		return integer(int64(val.(Uint8Value).Get()));
+	case Uint16Kind:
+		return integer(int64(val.(Uint16Value).Get()));
+	case Uint32Kind:
+		return integer(int64(val.(Uint32Value).Get()));
+	case Uint64Kind:
+		return integer(int64(val.(Uint64Value).Get()));
+	case Float32Kind:
+		return "float32";
+	case Float64Kind:
+		return "float64";
+	case Float80Kind:
+		return "float80";
+	case StringKind:
+		return val.(StringValue).Get();
+	case PtrKind:
+		p := typ.(PtrType);
+		return ValueToString(p.Sub());
+	default:
+		panicln("reflect.ValueToString: can't print type ", val.Kind());
+	}
+	return "reflect.ValueToString: can't happen";
 }
