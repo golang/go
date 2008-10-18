@@ -118,7 +118,7 @@ export func join(a *[]string, sep string) string {
 
 // Convert decimal string to integer.
 // TODO: Doesn't check for overflow.
-export func atoi(s string) (i int, ok bool) {
+export func atol(s string) (i int64, ok bool) {
 	// empty string bad
 	if len(s) == 0 { 
 		return 0, false
@@ -149,12 +149,12 @@ export func atoi(s string) (i int, ok bool) {
 	}
 
 	// parse number
-	n := 0;
+	n := int64(0);
 	for i := 0; i < len(s); i++ {
 		if s[i] < '0' || s[i] > '9' {
 			return 0, false
 		}
-		n = n*10 + int(s[i] - '0')
+		n = n*10 + int64(s[i] - '0')
 	}
 	if neg {
 		n = -n
@@ -162,7 +162,13 @@ export func atoi(s string) (i int, ok bool) {
 	return n, true
 }
 
-export func itoa(i int) string {
+export func atoi(s string) (i int, ok bool) {
+	ii, okok := atoi(s);
+	i = int32(ii);
+	return i, okok
+}
+
+export func itol(i int64) string {
 	if i == 0 {
 		return "0"
 	}
@@ -188,4 +194,8 @@ export func itoa(i int) string {
 	
 	// BUG return string(b[bp:len(b)])
 	return string((&b)[bp:len(b)])
+}
+
+export func itoa(i int) string {
+	return itol(int64(i));
 }
