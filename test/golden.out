@@ -34,6 +34,14 @@ Faulting address: 0x0
 pc: xxx
 
 
+=========== ./interface3.go
+cannot convert type S to interface I2: missing method Name
+throw: interface conversion
+SIGSEGV: segmentation violation
+Faulting address: 0x0
+pc: xxx
+
+
 =========== ./peano.go
 0! = 1
 1! = 1
