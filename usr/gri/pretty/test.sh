@@ -8,43 +8,44 @@ TMP1=test_tmp1.go
 TMP2=test_tmp2.go
 COUNT=0
 
+count() {
+	let COUNT=$COUNT+1
+	let M=$COUNT%10
+	if [ $M == 0 ]; then
+		echo -n "."
+	fi
+}
+
+
 apply1() {
 	#echo $1 $2
 	$1 $2
-	let COUNT=$COUNT+1
+	count
 }
+
 
 apply() {
 	for F in \
 		$GOROOT/usr/gri/pretty/*.go \
 		$GOROOT/usr/gri/gosrc/*.go \
-		$GOROOT/test/235.go \
-		$GOROOT/test/args.go \
-		$GOROOT/test/bufiolib.go \
-		$GOROOT/test/char_lit.go \
-		$GOROOT/test/complit.go \
-		$GOROOT/test/const.go \
-		$GOROOT/test/dialgoogle.go \
-		$GOROOT/test/empty.go \
-		$GOROOT/test/env.go \
-		$GOROOT/test/float_lit.go \
-		$GOROOT/test/fmt_test.go \
-		$GOROOT/test/for.go \
-		$GOROOT/test/func.go \
-		$GOROOT/test/func1.go \
-		$GOROOT/test/func2.go \
+		$GOROOT/test/*.go \
 		$GOROOT/src/pkg/*.go \
 		$GOROOT/src/lib/*.go \
 		$GOROOT/src/lib/*/*.go \
 		$GOROOT/usr/r/*/*.go
 	do
-		apply1 $1 $F
+		case `basename $F` in
+		selftest.go | func3.go ) ;; # skip - these are test cases for syntax errors
+		* ) apply1 $1 $F ;;
+		esac
 	done
 }
+
 
 cleanup() {
 	rm -f $TMP1 $TMP2
 }
+
 
 silent() {
 	cleanup
@@ -55,6 +56,7 @@ silent() {
 		exit 1
 	fi
 }
+
 
 idempotent() {
 	cleanup
@@ -68,6 +70,7 @@ idempotent() {
 	fi
 }
 
+
 runtest() {
 	#echo "Testing silent mode"
 	cleanup
@@ -77,6 +80,7 @@ runtest() {
 	cleanup
 	$1 idempotent $2
 }
+
 
 runtests() {
 	if [ $# == 0 ]; then
@@ -88,8 +92,21 @@ runtests() {
 	fi
 }
 
+
+# run selftest always
+pretty -t selftest.go > $TMP1
+if [ $? != 0 ]; then
+	cat $TMP1
+	echo "Error (selftest): pretty -t selftest.go"
+	exit 1
+fi
+count
+
+
+# run over all .go files
 runtests $*
 cleanup
-let COUNT=$COUNT/2  # divide by number of tests in runtest
-echo "PASSED ($COUNT files)"
 
+# done
+echo
+echo "PASSED ($COUNT tests)"

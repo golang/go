@@ -1,0 +1,32 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import P0 /* ERROR expected */ ; /* SYNC */
+import P1 /* ERROR expected */ Flags /* SYNC */
+import P2 /* ERROR expected */ 42 /* SYNC */
+
+
+type S0 struct {
+	f0, f1, f2;
+}
+
+
+func /* ERROR receiver */ () f0() {} /* SYNC */
+func /* ERROR receiver */ (*S0, *S0) f1() {} /* SYNC */
+
+
+func f0(a b, c /* ERROR type */ ) {}
+
+
+func f1() {
+}
+
+
+func main () {
+}
+
+
+func /* ERROR EOF */

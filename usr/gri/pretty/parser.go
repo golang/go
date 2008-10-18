@@ -9,8 +9,11 @@ import Node "node"
 
 
 export type Parser struct {
-	verbose bool;
+	// Tracing/debugging
+	verbose, sixg bool;
 	indent uint;
+	
+	// Scanner
 	scanner *Scanner.Scanner;
 	tokchan *<-chan *Scanner.Token;
 	comments *Node.List;
@@ -76,23 +79,19 @@ func (P *Parser) Next0() {
 func (P *Parser) Next() {
 	for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
 		P.comments.Add(Node.NewComment(P.pos, P.val));
-		if P.val == "/*ERROR*/" {
-			// the position of the next token is the position of the next expected error
-
-		} else if P.val == "/*SYNC*/" {
-			// synchronized at the next token
-			
-		}
 	}
 }
 
 
-func (P *Parser) Open(verbose bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
+func (P *Parser) Open(verbose, sixg bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
 	P.verbose = verbose;
+	P.sixg = sixg;
 	P.indent = 0;
+	
 	P.scanner = scanner;
 	P.tokchan = tokchan;
 	P.comments = Node.NewList();
+	
 	P.Next();
 	P.expr_lev = 1;
 	P.scope_lev = 0;
@@ -106,7 +105,12 @@ func (P *Parser) Error(pos int, msg string) {
 
 func (P *Parser) Expect(tok int) {
 	if P.tok != tok {
-		P.Error(P.pos, "expected '" + Scanner.TokenString(tok) + "', found '" + Scanner.TokenString(P.tok) + "'");
+		msg := "expected '" + Scanner.TokenString(tok) + "', found '" + Scanner.TokenString(P.tok) + "'";
+		switch P.tok {
+		case Scanner.IDENT, Scanner.INT, Scanner.FLOAT, Scanner.STRING:
+			msg += " " + P.val;
+		}
+		P.Error(P.pos, msg);
 	}
 	P.Next();  // make progress in any case
 }
@@ -291,18 +295,41 @@ func (P *Parser) ParseChannelType() *Node.Type {
 }
 
 
+// TODO: The code below (ParseVarDecl, ParseVarDeclList) is all too
+// complicated. There must be a better way to do this.
+
+func (P *Parser) ParseVarDecl(expect_ident bool) *Node.Type {
+	t := Node.BadType;
+	if expect_ident {
+		x := P.ParseIdent();
+		t = Node.NewType(x.pos, Scanner.IDENT);
+		t.expr = x;
+	} else {
+		t = P.ParseType();
+	}
+	return t;
+}
+
+
 func (P *Parser) ParseVarDeclList(list *Node.List) {
 	P.Trace("VarDeclList");
 
 	// parse a list of types
 	i0 := list.len();
-	list.Add(P.ParseType());
+	list.Add(P.ParseVarDecl(i0 > 0));
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		list.Add(P.ParseType());
+		list.Add(P.ParseVarDecl(i0 > 0));
 	}
 
-	typ := P.TryType();
+	var typ *Node.Type;
+	if i0 > 0 {
+		// not the first parameter section; we must have a type
+		typ = P.ParseType();
+	} else {
+		// first parameter section; we may have a type
+		typ = P.TryType();
+	}
 
 	// convert the list into a list of (type) expressions
 	if typ != nil {
@@ -313,7 +340,7 @@ func (P *Parser) ParseVarDeclList(list *Node.List) {
 			if t.tok == Scanner.IDENT && t.expr.tok == Scanner.IDENT {
 				list.set(i, t.expr);
 			} else {
-				list.set(i, Node.NewLit(t.pos, Scanner.IDENT, "bad"));
+				list.set(i, Node.BadExpr);
 				P.Error(t.pos, "identifier expected");
 			}
 		}
@@ -559,11 +586,8 @@ func (P *Parser) ParseStatementList() *Node.List {
 func (P *Parser) ParseBlock() *Node.List {
 	P.Trace("Block");
 	
-	var s *Node.List;
 	P.Expect(Scanner.LBRACE);
-	if P.tok != Scanner.RBRACE {
-		s = P.ParseStatementList();
-	}
+	s := P.ParseStatementList();
 	P.Expect(Scanner.RBRACE);
 	P.opt_semi = true;
 	
@@ -1001,11 +1025,9 @@ func (P *Parser) ParseIfStat() *Node.Stat {
 	s.block = P.ParseBlock();
 	if P.tok == Scanner.ELSE {
 		P.Next();
-		if P.tok == Scanner.IF {
-			s.post = P.ParseIfStat();
-		} else {
-			// For 6g compliance - should really be P.ParseBlock()
-			s1 := P.ParseStatement();
+		s1 := Node.BadStat;
+		if P.sixg {
+			s1 = P.ParseStatement();
 			if s1 != nil {
 				// not the empty statement
 				if s1.tok != Scanner.LBRACE {
@@ -1017,7 +1039,13 @@ func (P *Parser) ParseIfStat() *Node.Stat {
 				}
 				s.post = s1;
 			}
+		} else if P.tok == Scanner.IF {
+			s1 = P.ParseIfStat();
+		} else {
+			s1 = Node.NewStat(P.pos, Scanner.LBRACE);
+			s1.block = P.ParseBlock();
 		}
+		s.post = s1;
 	}
 	
 	P.Ecart();
