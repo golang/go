@@ -1120,7 +1120,6 @@ lexinit(void)
 		}
 
 		t->sym = s;
-		t->recur = 1;	// supresses printing beyond name
 
 		dowidth(t);
 		types[etype] = t;
