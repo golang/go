@@ -686,7 +686,6 @@ addvar(Node *n, Type *t, int ctxt)
 	if(ctxt == PEXTERN) {
 		r = externdcl;
 		gen = 0;
-vargen++;	// just for diffing output against old compiler
 	} else {
 		r = autodcl;
 		vargen++;
@@ -737,7 +736,6 @@ addtyp(Type *n, int ctxt)
 		r = autodcl;
 		pushdcl(s);
 	}
-vargen++;	// just for diffing output against old compiler
 
 	if(s->tblock == block)
 		yyerror("type %S redeclared in this block %d", s, block);
