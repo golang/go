@@ -36,45 +36,58 @@ export const (
 	Uint8Kind;
 )
 
+var ptrsize int
+var interfacesize int
+
 var MissingString = "missing"	// syntactic name for undefined type names
 
-type Type interface {
+export type Type interface {
 	Kind()	int;
+	Size()	int;
 }
 
+// -- Basic
+
 type BasicType struct{
-	kind	int
+	kind	int;
+	size	int;
 }
 
 func (t *BasicType) Kind() int {
 	return t.kind
 }
 
-func NewBasicType(k int) Type {
+func (t *BasicType) Size() int {
+	return t.size
+}
+
+func NewBasicType(k, size int) Type {
 	t := new(BasicType);
 	t.kind = k;
+	t.size = size;
 	return t;
 }
 
-// Basic types
+// Prebuilt basic types
 export var (
-	Missing = NewBasicType(MissingKind);
-	Int8 = NewBasicType(Int8Kind);
-	Int16 = NewBasicType(Int16Kind);
-	Int32 = NewBasicType(Int32Kind);
-	Int64 = NewBasicType(Int64Kind);
-	Uint8 = NewBasicType(Uint8Kind);
-	Uint16 = NewBasicType(Uint16Kind);
-	Uint32 = NewBasicType(Uint32Kind);
-	Uint64 = NewBasicType(Uint64Kind);
-	Float32 = NewBasicType(Float32Kind);
-	Float64 = NewBasicType(Float64Kind);
-	Float80 = NewBasicType(Float80Kind);
-	String = NewBasicType(StringKind);
+	Missing = NewBasicType(MissingKind, 1);
+	Int8 = NewBasicType(Int8Kind, 1);
+	Int16 = NewBasicType(Int16Kind, 2);
+	Int32 = NewBasicType(Int32Kind, 4);
+	Int64 = NewBasicType(Int64Kind, 8);
+	Uint8 = NewBasicType(Uint8Kind, 1);
+	Uint16 = NewBasicType(Uint16Kind, 2);
+	Uint32 = NewBasicType(Uint32Kind, 4);
+	Uint64 = NewBasicType(Uint64Kind, 8);
+	Float32 = NewBasicType(Float32Kind, 4);
+	Float64 = NewBasicType(Float64Kind, 8);
+	Float80 = NewBasicType(Float80Kind, 10);	// TODO: strange size?
+	String = NewBasicType(StringKind, 8);	// implemented as a pointer
 )
 
 // Stub types allow us to defer evaluating type names until needed.
 // If the name is empty, the type must be non-nil.
+
 type StubType struct {
 	name	string;
 	typ		Type;
@@ -99,6 +112,8 @@ func NewNamedStubType(n string) *StubType {
 	return s;
 }
 
+// -- Pointer
+
 export type PtrType interface {
 	Sub()	Type
 }
@@ -111,6 +126,10 @@ func (t *PtrTypeStruct) Kind() int {
 	return PtrKind
 }
 
+func (t *PtrTypeStruct) Size() int {
+	return ptrsize
+}
+
 func (t *PtrTypeStruct) Sub() Type {
 	return t.sub.Get()
 }
@@ -120,6 +139,8 @@ func NewPtrTypeStruct(sub *StubType) *PtrTypeStruct {
 	t.sub = sub;
 	return t;
 }
+
+// -- Array
 
 export type ArrayType interface {
 	Len()	int;
@@ -133,6 +154,13 @@ type ArrayTypeStruct struct {
 
 func (t *ArrayTypeStruct) Kind() int {
 	return ArrayKind
+}
+
+func (t *ArrayTypeStruct) Size() int {
+	if t.len < 0 {
+		return ptrsize	// open arrays are pointers to structures
+	}
+	return t.len * t.elem.Get().Size();
 }
 
 func (t *ArrayTypeStruct) Len() int {
@@ -151,6 +179,8 @@ func NewArrayTypeStruct(len int, elem *StubType) *ArrayTypeStruct {
 	return t;
 }
 
+// -- Map
+
 export type MapType interface {
 	Key()	Type;
 	Elem()	Type;
@@ -163,6 +193,11 @@ type MapTypeStruct struct {
 
 func (t *MapTypeStruct) Kind() int {
 	return MapKind
+}
+
+func (t *MapTypeStruct) Size() int {
+	panic("reflect.type: map.Size(): cannot happen");
+	return 0
 }
 
 func (t *MapTypeStruct) Key() Type {
@@ -179,6 +214,8 @@ func NewMapTypeStruct(key, elem *StubType) *MapTypeStruct {
 	t.elem = elem;
 	return t;
 }
+
+// -- Chan
 
 export type ChanType interface {
 	Dir()	int;
@@ -199,6 +236,11 @@ type ChanTypeStruct struct {
 func (t *ChanTypeStruct) Kind() int {
 	return ChanKind
 }
+	
+func (t *ChanTypeStruct) Size() int {
+	panic("reflect.type: chan.Size(): cannot happen");
+	return 0
+}
 
 func (t *ChanTypeStruct) Dir() int {
 	// -1 is open array?  TODO
@@ -216,6 +258,8 @@ func NewChanTypeStruct(dir int, elem *StubType) *ChanTypeStruct {
 	return t;
 }
 
+// -- Struct
+
 export type StructType interface {
 	Field(int)	(name string, typ Type);
 	Len()	int;
@@ -224,6 +268,7 @@ export type StructType interface {
 type Field struct {
 	name	string;
 	typ	*StubType;
+	size	int;
 }
 
 type StructTypeStruct struct {
@@ -232,6 +277,25 @@ type StructTypeStruct struct {
 
 func (t *StructTypeStruct) Kind() int {
 	return StructKind
+}
+
+// TODO: not portable; depends on 6g
+func (t *StructTypeStruct) Size() int {
+	size := 0;
+	for i := 0; i < len(t.field); i++ {
+		elemsize := t.field[i].typ.Get().Size();
+		// pad until at (elemsize mod 8) boundary
+		align := elemsize - 1;
+		if align > 7 {	// BUG: we know structs are at 8-aligned
+			align = 7
+		}
+		if align > 0 {
+			size = (size + align) & ^align;
+		}
+		size += elemsize;
+	}
+	size = (size + 7) & ^7;
+	return size;
 }
 
 func (t *StructTypeStruct) Field(i int) (name string, typ Type) {
@@ -247,6 +311,8 @@ func NewStructTypeStruct(field *[]Field) *StructTypeStruct {
 	t.field = field;
 	return t;
 }
+
+// -- Interface
 
 export type InterfaceType interface {
 	Field(int)	(name string, typ Type);
@@ -275,6 +341,12 @@ func (t *InterfaceTypeStruct) Kind() int {
 	return InterfaceKind
 }
 
+func (t *InterfaceTypeStruct) Size() int {
+	return interfacesize
+}
+
+// -- Func
+
 export type FuncType interface {
 	In()	StructType;
 	Out()	StructType;
@@ -287,6 +359,11 @@ type FuncTypeStruct struct {
 
 func (t *FuncTypeStruct) Kind() int {
 	return FuncKind
+}
+
+func (t *FuncTypeStruct) Size() int {
+	panic("reflect.type: func.Size(): cannot happen");
+	return 0
 }
 
 func (t *FuncTypeStruct) In() StructType {
@@ -330,6 +407,9 @@ func Unlock() {
 }
 
 func init() {
+	ptrsize = 8;	// TODO: compute this
+	interfacesize = 2*ptrsize;	// TODO: compute this
+
 	lockchan = new(chan bool, 1);	// unlocked at creation - buffer is empty
 	Lock();	// not necessary because of init ordering but be safe.
 
