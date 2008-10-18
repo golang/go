@@ -12,10 +12,11 @@ import Printer "printer"
 
 
 var (
-    silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
-    verbose = Flag.Bool("v", false, nil, "verbose mode: trace parsing");
-    //sixg = Flag.Bool("6g", false, nil, "6g compatibility mode");
-    tokenchan = Flag.Bool("token_chan", false, nil, "use token channel for scanner-parser connection");
+	silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
+	verbose = Flag.Bool("v", false, nil, "verbose mode: trace parsing");
+	sixg = Flag.Bool("6g", true, nil, "6g compatibility mode");
+	testmode = Flag.Bool("t", false, nil, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
+	tokenchan = Flag.Bool("token_chan", false, nil, "use token channel for scanner-parser connection");
 )
 
 
@@ -44,7 +45,7 @@ func main() {
 		}
 
 		scanner := new(Scanner.Scanner);
-		scanner.Open(src_file, src);
+		scanner.Open(src_file, src, testmode.BVal());
 
 		var tstream *<-chan *Scanner.Token;
 		if tokenchan.BVal() {
@@ -52,7 +53,7 @@ func main() {
 		}
 
 		parser := new(Parser.Parser);
-		parser.Open(verbose.BVal(), scanner, tstream);
+		parser.Open(verbose.BVal(), sixg.BVal(), scanner, tstream);
 
 		prog := parser.ParseProgram();
 
@@ -60,7 +61,7 @@ func main() {
 			sys.exit(1);
 		}
 
-		if !silent.BVal() {
+		if !silent.BVal() && !testmode.BVal() {
 			var P Printer.Printer;
 			(&P).Program(prog);
 		}

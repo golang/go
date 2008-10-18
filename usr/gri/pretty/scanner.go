@@ -277,12 +277,16 @@ export type Scanner struct {
 	filename string;  // error reporting only
 	nerrors int;  // number of errors
 	errpos int;  // last error position
-
+	
 	// scanning
 	src string;  // scanned source
 	pos int;  // current reading position
 	ch int;  // one char look-ahead
 	chpos int;  // position of ch
+
+	// testmode
+	testmode bool;
+	testpos int;
 }
 
 
@@ -419,11 +423,29 @@ func (S *Scanner) ErrorMsg(pos int, msg string) {
 		}
 	}
 	print(": ", msg, "\n");
+	
+	S.nerrors++;
+	S.errpos = pos;
+
+	if S.nerrors >= 10 {
+		sys.exit(1);
+	}
 }
 
 
 func (S *Scanner) Error(pos int, msg string) {
-	const errdist = 10;
+	// check for expected errors (test mode)
+	if S.testpos < 0 || pos == S.testpos {
+		// test mode:
+		// S.testpos < 0:  // follow-up errors are expected and ignored
+		// S.testpos == 0:  // an error is expected at S.testpos and ignored
+		S.testpos = -1;
+		return;
+	}
+	
+	// only report errors that are sufficiently far away from the previous error
+	// in the hope to avoid most follow-up errors
+	const errdist = 20;
 	delta := pos - S.errpos;  // may be negative!
 	if delta < 0 {
 		delta = -delta;
@@ -431,24 +453,28 @@ func (S *Scanner) Error(pos int, msg string) {
 	
 	if delta > errdist || S.nerrors == 0 /* always report first error */ {
 		S.ErrorMsg(pos, msg);
-		S.nerrors++;
-		S.errpos = pos;
-	}
-	
-	if S.nerrors >= 10 {
-		sys.exit(1);
-	}
+	}	
 }
 
 
-func (S *Scanner) Open(filename, src string) {
+func (S *Scanner) ExpectNoErrors() {
+	// set the next expected error position to one after eof
+	// (the eof position is a legal error position!)
+	S.testpos = len(S.src) + 1;
+}
+
+
+func (S *Scanner) Open(filename, src string, testmode bool) {
 	S.filename = filename;
 	S.nerrors = 0;
 	S.errpos = 0;
 	
 	S.src = src;
 	S.pos = 0;
-	S.Next();
+	S.testmode = testmode;
+	
+	S.ExpectNoErrors();  // after setting S.src
+	S.Next();  // after S.ExpectNoErrrors()
 }
 
 
@@ -514,7 +540,29 @@ func (S *Scanner) ScanComment() string {
 	S.Error(pos, "comment not terminated");
 
 exit:
-	return S.src[pos : S.chpos];
+	comment := S.src[pos : S.chpos];
+	if S.testmode {
+		// interpret ERROR and SYNC comments
+		oldpos := -1;
+		switch {
+		case len(comment) >= 8 && comment[3 : 8] == "ERROR" :
+			// an error is expected at the next token position
+			oldpos = S.testpos;
+			S.SkipWhitespace();
+			S.testpos = S.chpos;
+		case len(comment) >= 7 && comment[3 : 7] == "SYNC" :
+			// scanning/parsing synchronized again - no (follow-up) errors expected
+			oldpos = S.testpos;
+			S.ExpectNoErrors();
+		}
+	
+		if 0 <= oldpos && oldpos <= len(S.src) {
+			// the previous error was not found
+			S.ErrorMsg(oldpos, "ERROR not found");
+		}
+	}
+	
+	return comment;
 }
 
 
