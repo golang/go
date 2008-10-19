@@ -161,7 +161,7 @@ func (P *Parser) NewExpr(pos, tok int, x, y *Node.Expr) *Node.Expr {
 // Common productions
 
 func (P *Parser) TryType() *Node.Type;
-func (P *Parser) ParseExpression() *Node.Expr;
+func (P *Parser) ParseExpression(prec int) *Node.Expr;
 func (P *Parser) ParseStatement() *Node.Stat;
 func (P *Parser) ParseDeclaration() *Node.Decl;
 
@@ -262,7 +262,7 @@ func (P *Parser) ParseArrayType() *Node.Type {
 	t := Node.NewType(P.pos, Scanner.LBRACK);
 	P.Expect(Scanner.LBRACK);
 	if P.tok != Scanner.RBRACK {
-		t.expr = P.ParseExpression();
+		t.expr = P.ParseExpression(1);
 	}
 	P.Expect(Scanner.RBRACK);
 	t.elt = P.ParseType();
@@ -603,7 +603,7 @@ func (P *Parser) ParseBlock() *Node.List {
 func (P *Parser) ParseExpressionList() *Node.Expr {
 	P.Trace("ExpressionList");
 
-	x := P.ParseExpression();
+	x := P.ParseExpression(1);
 	if P.tok == Scanner.COMMA {
 		pos := P.pos;
 		P.Next();
@@ -644,7 +644,7 @@ func (P *Parser) ParseOperand() *Node.Expr {
 		// (currently not working)
 		P.Next();
 		P.expr_lev++;
-		x = P.ParseExpression();
+		x = P.ParseExpression(1);
 		P.expr_lev--;
 		P.Expect(Scanner.RPAREN);
 
@@ -695,31 +695,12 @@ func (P *Parser) ParseSelectorOrTypeGuard(x *Node.Expr) *Node.Expr {
 }
 
 
-// mode = 0: single or pair accepted
-// mode = 1: single only accepted
-// mode = 2: pair only accepted
-func (P *Parser) ParseExpressionPair(mode int) *Node.Expr {
-	P.Trace("ExpressionPair");
-
-	x := P.ParseExpression();
-	if mode == 0 && P.tok == Scanner.COLON || mode == 2 {
-		pos := P.pos;
-		P.Expect(Scanner.COLON);
-		y := P.ParseExpression();
-		x = P.NewExpr(pos, Scanner.COLON, x, y);
-	}
-
-	P.Ecart();
-	return x;
-}
-
-
 func (P *Parser) ParseIndex(x *Node.Expr) *Node.Expr {
 	P.Trace("IndexOrSlice");
 	
 	pos := P.pos;
 	P.Expect(Scanner.LBRACK);
-	i := P.ParseExpressionPair(0);
+	i := P.ParseExpression(0);
 	P.Expect(Scanner.RBRACK);
 	
 	P.Ecart();
@@ -736,7 +717,7 @@ func (P *Parser) ParseCall(x *Node.Expr) *Node.Expr {
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
 		// the very first argument may be a type if the function called is new()
-		// call ParseBinaryExpr() which allows type expressions
+		// call ParseBinaryExpr() which allows type expressions (instead of ParseExpression)
 		y := P.ParseBinaryExpr(1);
 		if P.tok == Scanner.COMMA {
 			pos := P.pos;
@@ -756,29 +737,34 @@ func (P *Parser) ParseCall(x *Node.Expr) *Node.Expr {
 }
 
 
-// TODO make this non-recursive
-func (P *Parser) ParseExpressionPairList(mode int) *Node.Expr {
-	P.Trace("ExpressionPairList");
+func (P *Parser) ParseCompositeList(mode int) *Node.Expr {
+	x := P.ParseExpression(0);
 	
-	x := P.ParseExpressionPair(mode);
-	if mode == 0 {
-		// first expression determines mode
+	switch mode {
+	case 0:  // first element determines mode
+		mode = 1;
 		if x.tok == Scanner.COLON {
 			mode = 2;
-		} else {
-			mode = 1;
+		}
+	case 1:
+		if x.tok == Scanner.COLON {
+			P.Error(x.x.pos, "single value expected; found pair");
+		}
+	case 2:
+		if x.tok != Scanner.COLON {
+			P.Error(x.pos, "key:value pair expected; found single value");
 		}
 	}
+
 	if P.tok == Scanner.COMMA {
 		pos := P.pos;
 		P.Next();
-		if P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
-			y := P.ParseExpressionPairList(mode);
+		if P.tok != Scanner.RBRACE {
+			y := P.ParseCompositeList(mode);
 			x = P.NewExpr(pos, Scanner.COMMA, x, y);
 		}
 	}
-	
-	P.Ecart();
+
 	return x;
 }
 
@@ -790,7 +776,7 @@ func (P *Parser) ParseCompositeLit(t *Node.Type) *Node.Expr {
 	x.t = t;
 	P.Expect(Scanner.LBRACE);
 	if P.tok != Scanner.RBRACE {
-		x.y = P.ParseExpressionPairList(0);
+		x.y = P.ParseCompositeList(0);
 	}
 	P.Expect(Scanner.RBRACE);
 	
@@ -876,11 +862,14 @@ func (P *Parser) ParseBinaryExpr(prec1 int) *Node.Expr {
 }
 
 
-func (P *Parser) ParseExpression() *Node.Expr {
+func (P *Parser) ParseExpression(prec int) *Node.Expr {
 	P.Trace("Expression");
 	indent := P.indent;
-	
-	x := P.NoType(P.ParseBinaryExpr(1));
+
+	if prec < 0 {
+		panic("precedence must be >= 0");
+	}
+	x := P.NoType(P.ParseBinaryExpr(prec));
 
 	if indent != P.indent {
 		panic("imbalanced tracing code (Expression)");
@@ -948,7 +937,7 @@ func (P *Parser) ParseGoStat() *Node.Stat {
 	
 	s := Node.NewStat(P.pos, Scanner.GO);
 	P.Expect(Scanner.GO);
-	s.expr = P.ParseExpression();
+	s.expr = P.ParseExpression(1);
 	
 	P.Ecart();
 	return s;
@@ -997,7 +986,7 @@ func (P *Parser) ParseControlClause(keyword int) *Node.Stat {
 		if P.tok == Scanner.SEMICOLON {
 			P.Next();
 			if P.tok != Scanner.SEMICOLON && P.tok != Scanner.LBRACE {
-				s.expr = P.ParseExpression();
+				s.expr = P.ParseExpression(1);
 			}
 			if keyword == Scanner.FOR {
 				P.Expect(Scanner.SEMICOLON);
@@ -1117,11 +1106,11 @@ func (P *Parser) ParseCommCase() *Node.Stat {
 	s := Node.NewStat(P.pos, Scanner.CASE);
 	if P.tok == Scanner.CASE {
 		P.Next();
-		P.ParseExpression();
+		P.ParseExpression(1);
 		if P.tok == Scanner.ASSIGN || P.tok == Scanner.DEFINE {
 			P.Next();
 			P.Expect(Scanner.ARROW);
-			P.ParseExpression();
+			P.ParseExpression(1);
 		}
 	} else {
 		P.Expect(Scanner.DEFAULT);
@@ -1171,7 +1160,7 @@ func (P *Parser) ParseRangeStat() *Node.Stat {
 	P.Expect(Scanner.RANGE);
 	P.ParseIdentList();
 	P.Expect(Scanner.DEFINE);
-	s.expr = P.ParseExpression();
+	s.expr = P.ParseExpression(1);
 	s.block = P.ParseBlock();
 	
 	P.Ecart();
@@ -1265,7 +1254,7 @@ func (P *Parser) ParseConstSpec(exported bool) *Node.Decl {
 	d.typ = P.TryType();
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
-		d.val = P.ParseExpression();
+		d.val = P.ParseExpression(1);
 	}
 	
 	P.Ecart();
