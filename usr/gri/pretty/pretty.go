@@ -15,6 +15,7 @@ var (
 	silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
 	verbose = Flag.Bool("v", false, nil, "verbose mode: trace parsing");
 	sixg = Flag.Bool("6g", true, nil, "6g compatibility mode");
+	columns = Flag.Bool("columns", Platform.USER == "gri", nil, "print column info in error messages");
 	testmode = Flag.Bool("t", false, nil, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
 	tokenchan = Flag.Bool("token_chan", false, nil, "use token channel for scanner-parser connection");
 )
@@ -45,7 +46,7 @@ func main() {
 		}
 
 		scanner := new(Scanner.Scanner);
-		scanner.Open(src_file, src, testmode.BVal());
+		scanner.Open(src_file, src, columns.BVal(), testmode.BVal());
 
 		var tstream *<-chan *Scanner.Token;
 		if tokenchan.BVal() {

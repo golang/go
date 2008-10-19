@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 package Scanner
-
-import Platform "platform"
 import Utils "utils"
 
 
@@ -213,8 +211,9 @@ export func TokenString(tok int) string {
 
 
 export func Precedence(tok int) int {
-	// TODO should use a map or array here for lookup
 	switch tok {
+	case COLON:
+		return 0;
 	case LOR:
 		return 1;
 	case LAND:
@@ -228,23 +227,18 @@ export func Precedence(tok int) int {
 	case MUL, QUO, REM, SHL, SHR, AND:
 		return 6;
 	}
-	return 0;
+	return -1;
 }
 
 
 var Keywords *map [string] int;
-var VerboseMsgs bool;  // error message customization
 
 
 func init() {
 	Keywords = new(map [string] int);
-	
 	for i := KEYWORDS_BEG + 1; i < KEYWORDS_END; i++ {
-	  Keywords[TokenString(i)] = i;
+		Keywords[TokenString(i)] = i;
 	}
-	
-	// Provide column information in error messages for gri only...
-	VerboseMsgs = Platform.USER == "gri";
 }
 
 
@@ -277,7 +271,8 @@ export type Scanner struct {
 	filename string;  // error reporting only
 	nerrors int;  // number of errors
 	errpos int;  // last error position
-	
+	columns bool;  // if set, print columns in error messages
+
 	// scanning
 	src string;  // scanned source
 	pos int;  // current reading position
@@ -416,7 +411,7 @@ func (S *Scanner) ErrorMsg(pos int, msg string) {
 	if pos >= 0 {
 		// print position
 		line, col := S.LineCol(pos);
-		if VerboseMsgs {
+		if S.columns {
 			print(":", line, ":", col);
 		} else {
 			print(":", line);
@@ -464,13 +459,14 @@ func (S *Scanner) ExpectNoErrors() {
 }
 
 
-func (S *Scanner) Open(filename, src string, testmode bool) {
+func (S *Scanner) Open(filename, src string, columns, testmode bool) {
 	S.filename = filename;
 	S.nerrors = 0;
 	S.errpos = 0;
 	
 	S.src = src;
 	S.pos = 0;
+	S.columns = columns;
 	S.testmode = testmode;
 	
 	S.ExpectNoErrors();  // after setting S.src
