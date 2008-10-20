@@ -126,8 +126,6 @@ int	errors;
 Arfile *astart, *amiddle, *aend;	/* Temp file control block pointers */
 int	allobj = 1;			/* set when all members are object files of the same type */
 int	symdefsize;			/* size of symdef file */
-int	pkgdefsize;			/* size of pkgdef data */
-char	*pkgdata;		/* pkgdef data */
 char	*pkgstmt;		/* string "package foo" */
 int	dupfound;			/* flag for duplicate symbol */
 Hashchain	*hash[NHASH];		/* hash table of text symbols */
@@ -143,7 +141,8 @@ void	arcopy(Biobuf*, Arfile*, Armember*);
 int	arcreate(char*);
 void	arfree(Arfile*);
 void	arinsert(Arfile*, Armember*);
-char	*armalloc(int);
+void	*armalloc(int);
+char *arstrdup(char*);
 void	armove(Biobuf*, Arfile*, Armember*);
 void	arread(Biobuf*, Armember*, int);
 void	arstream(int, Arfile*);
@@ -151,8 +150,10 @@ int	arwrite(int, Armember*);
 int	bamatch(char*, char*);
 int	duplicate(char*);
 Armember *getdir(Biobuf*);
+void	getpkgdef(char**, int*);
 int	getspace(void);
 void	install(char*, Arfile*, Arfile*, Arfile*, int);
+void	loadpkgdata(char*, int);
 void	longt(Armember*);
 int	match(int, char**);
 void	mesg(int, char*);
@@ -648,9 +649,7 @@ scanpkg(Biobuf *b, long size)
 	long n;
 	int c;
 	long start, end, pkgsize;
-	char* data;
-	char* line;
-	char pkg[1024];
+	char *data, *line, pkgbuf[1024], *pkg;
 	int first;
 
 	/*
@@ -675,6 +674,7 @@ scanpkg(Biobuf *b, long size)
 	return;
 
 foundstart:
+	pkg = nil;
 	/* how big is it? */
 	first = 1;
 	start = end = 0;
@@ -683,10 +683,15 @@ foundstart:
 		if (line == 0)
 			goto bad;
 		if (first && strstrn(line, Blinelen(b), "package ")) {
-			if (Blinelen(b) > sizeof(pkg)-1)
+			if (Blinelen(b) > sizeof(pkgbuf)-1)
 				goto bad;
-			memmove(pkg, line, Blinelen(b));
-			pkg[Blinelen(b)] = '\0';
+			memmove(pkgbuf, line, Blinelen(b));
+			pkgbuf[Blinelen(b)] = '\0';
+			pkg = pkgbuf;
+			while(*pkg == ' ' || *pkg == '\t')
+				pkg++;
+			if(strncmp(pkg, "package ", 8) != 0)
+				goto bad;
 			start = Boffset(b);  // after package statement
 			first = 0;
 			continue;
@@ -702,29 +707,24 @@ bad:
 foundend:
 	if (start == 0 || end == 0)
 		goto bad;
-	if (pkgdefsize == 0) {
+	if (pkgstmt == nil) {
 		/* this is the first package */
-		pkgstmt = armalloc(strlen(pkg)+1);
-		strcpy(pkgstmt, pkg);
-		pkgdefsize = 7 + 3 + strlen(pkg);	/* "import\n$$\npackage foo\n" */
-		pkgdata = armalloc(pkgdefsize);
-		sprint(pkgdata, "import\n$$\n%s", pkgstmt);
+		pkgstmt = arstrdup(pkg);
 	} else {
 		if (strcmp(pkg, pkgstmt) != 0) {
 			fprint(2, "ar: inconsistent package name\n");
 			return;
 		}
 	}
+
 	pkgsize = end-start;
-	data = armalloc(pkgdefsize + pkgsize);  /* should chain instead of reallocate */
-	memmove(data, pkgdata, pkgdefsize);
+	data = armalloc(pkgsize);
 	Bseek(b, start, 0);
-	if (Bread(b, data+pkgdefsize, pkgsize) != pkgsize) {
+	if (Bread(b, data, pkgsize) != pkgsize) {
 		fprint(2, "ar: error reading package import section in %s\n", file);
 		return;
 	}
-	pkgdefsize += pkgsize;
-	pkgdata = data;
+	loadpkgdata(data, pkgsize);
 }
 
 /*
@@ -740,11 +740,9 @@ objsym(Sym *s, void *p)
 	if (s->type != 'T' &&  s->type != 'D')
 		return;
 	ap = (Arfile*)p;
-	as = (Arsymref*)armalloc(sizeof(Arsymref));
+	as = armalloc(sizeof(Arsymref));
 	as->offset = ap->size;
-	n = strlen(s->name);
-	as->name = armalloc(n+1);
-	strcpy(as->name, s->name);
+	as->name = arstrdup(s->name);
 	if(s->type == 'T' && duplicate(as->name)) {
 		dupfound = 1;
 		fprint(2, "duplicate text symbol: %s\n", as->name);
@@ -753,6 +751,7 @@ objsym(Sym *s, void *p)
 		return;
 	}
 	as->type = s->type;
+	n = strlen(s->name);
 	symdefsize += 4+(n+1)+1;
 	as->len = n;
 	as->next = ap->sym;
@@ -763,23 +762,32 @@ objsym(Sym *s, void *p)
  *	Check the symbol table for duplicate text symbols
  */
 int
-duplicate(char *name)
+hashstr(char *name)
 {
-	Hashchain *p;
-	char *cp;
 	int h;
+	char *cp;
 
 	h = 0;
 	for(cp = name; *cp; h += *cp++)
 		h *= 1119;
 	if(h < 0)
 		h = ~h;
-	h %= NHASH;
+	return h;
+}
+
+int
+duplicate(char *name)
+{
+	Hashchain *p;
+	char *cp;
+	int h;
+
+	h = hashstr(name) % NHASH;
 
 	for(p = hash[h]; p; p = p->next)
 		if(strcmp(p->name, name) == 0)
 			return 1;
-	p = (Hashchain*) armalloc(sizeof(Hashchain));
+	p = armalloc(sizeof(Hashchain));
 	p->next = hash[h];
 	p->name = name;
 	hash[h] = p;
@@ -989,12 +997,16 @@ install(char *arname, Arfile *astart, Arfile *amiddle, Arfile *aend, int createf
 void
 rl(int fd)
 {
-
 	Biobuf b;
 	char *cp;
 	struct ar_hdr a;
 	long len;
 	int headlen;
+	char *pkgdefdata;
+	int pkgdefsize;
+
+	pkgdefdata = nil;
+	pkgdefsize = 0;
 
 	Binit(&b, fd, OWRITE);
 	Bseek(&b,seek(fd,0,1), 0);
@@ -1018,7 +1030,8 @@ rl(int fd)
 	headlen = Boffset(&b);
 	len += headlen;
 	if (gflag) {
-		len += SAR_HDR + pkgdefsize + 3; /* +3 for "$$\n" */
+		getpkgdef(&pkgdefdata, &pkgdefsize);
+		len += SAR_HDR + pkgdefsize;
 		if (len & 1)
 			len++;
 	}
@@ -1037,7 +1050,7 @@ rl(int fd)
 		Bputc(&b, 0);
 
 	if (gflag) {
-		len = pkgdefsize + 3;  /* for "$$\n" at close */
+		len = pkgdefsize;
 		sprint(a.date, "%-12ld", time(0));
 		sprint(a.uid, "%-6d", 0);
 		sprint(a.gid, "%-6d", 0);
@@ -1051,9 +1064,7 @@ rl(int fd)
 		if(HEADER_IO(Bwrite, &b, a))
 				wrerr();
 
-		if (Bwrite(&b, pkgdata, pkgdefsize) != pkgdefsize)
-			wrerr();
-		if (Bwrite(&b, "$$\n", 3) != 3)
+		if (Bwrite(&b, pkgdefdata, pkgdefsize) != pkgdefsize)
 			wrerr();
 		if(len&0x01)
 			Bputc(&b, 0);
@@ -1242,7 +1253,7 @@ newtempfile(char *name)		/* allocate a file control block */
 {
 	Arfile *ap;
 
-	ap = (Arfile *) armalloc(sizeof(Arfile));
+	ap = armalloc(sizeof(Arfile));
 	ap->fname = name;
 	return ap;
 }
@@ -1250,7 +1261,7 @@ newtempfile(char *name)		/* allocate a file control block */
 Armember *
 newmember(void)			/* allocate a member buffer */
 {
-	return (Armember *)armalloc(sizeof(Armember));
+	return armalloc(sizeof(Armember));
 }
 
 void
@@ -1368,11 +1379,11 @@ getspace(void)
 {
 fprint(2, "IN GETSPACE\n");
 	if (astart && astart->head && page(astart))
-			return 1;
+		return 1;
 	if (amiddle && amiddle->head && page(amiddle))
-			return 1;
+		return 1;
 	if (aend && aend->head && page(aend))
-			return 1;
+		return 1;
 	return 0;
 }
 
@@ -1395,7 +1406,7 @@ arfree(Arfile *ap)		/* free a member buffer */
  *	fails we try to reclaim space by spilling previously allocated
  *	member buffers.
  */
-char *
+void *
 armalloc(int n)
 {
 	char *cp;
@@ -1411,3 +1422,305 @@ armalloc(int n)
 	exits("malloc");
 	return 0;
 }
+
+char *
+arstrdup(char *s)
+{
+	char *t;
+
+	t = armalloc(strlen(s) + 1);
+	strcpy(t, s);
+	return t;
+}
+
+
+/*
+ *	package import data
+ */
+typedef struct Import Import;
+struct Import
+{
+	Import *hash;	// next in hash table
+	int export;	// marked as export?
+	char *prefix;	// "type", "var", "func", "const"
+	char *name;
+	char *def;
+	char *file;
+};
+enum {
+	NIHASH = 1024
+};
+Import *ihash[NIHASH];
+int nimport;
+
+Import *
+ilookup(char *name)
+{
+	int h;
+	Import *x;
+	
+	h = hashstr(name) % NIHASH;
+	for(x=ihash[h]; x; x=x->hash)
+		if(x->name[0] == name[0] && strcmp(x->name, name) == 0)
+			return x;
+	x = armalloc(sizeof *x);
+	x->name = name;
+	x->hash = ihash[h];
+	ihash[h] = x;
+	nimport++;
+	return x;
+}
+
+int parsemethod(char**, char*, char**);
+int parsepkgdata(char**, char*, int*, char**, char**, char**);
+
+void
+loadpkgdata(char *data, int len)
+{
+	int export;
+	char *p, *ep, *prefix, *name, *def;
+	Import *x;
+
+	file = arstrdup(file);	
+	p = data;
+	ep = data + len;
+	while(parsepkgdata(&p, ep, &export, &prefix, &name, &def) > 0) {
+		x = ilookup(name);
+		if(x->prefix == nil) {
+			x->prefix = prefix;
+			x->def = def;
+			x->file = file;
+			x->export = export;
+		} else {
+			if(strcmp(x->prefix, prefix) != 0) {
+				fprint(2, "ar: conflicting definitions for %s\n", name);
+				fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
+				fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
+				errors++;
+			}
+			else if(strcmp(x->def, def) != 0) {
+				fprint(2, "ar: conflicting definitions for %s\n", name);
+				fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
+				fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
+				errors++;
+			}
+			
+			// okay if some .6 say export and others don't.
+			// all it takes is one.
+			if(export)
+				x->export = 1;
+		}
+	}
+}
+
+int
+parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, char **defp)
+{
+	char *p, *prefix, *name, *def, *edef, *meth;
+	int n;
+	
+	// skip white space
+	p = *pp;
+	while(p < ep && (*p == ' ' || *p == '\t'))
+		p++;
+	if(p == ep)
+		return 0;
+
+	// [export ]
+	*exportp = 0;
+	if(p + 7 <= ep && strncmp(p, "export ", 7) == 0) {
+		*exportp = 1;
+		p += 7;
+	}
+
+	// prefix: (var|type|func|const) 	
+	prefix = p;
+	
+	prefix = p;
+	if(p + 6 > ep)
+		return -1;
+	if(strncmp(p, "var ", 4) == 0)
+		p += 4;
+	else if(strncmp(p, "type ", 5) == 0)
+		p += 5;
+	else if(strncmp(p, "func ", 5) == 0)
+		p += 5;
+	else if(strncmp(p, "const ", 6) == 0)
+		p += 6;
+	else{
+		fprint(2, "ar: confused in pkg data near <<%.20s>>\n", p);
+		errors++;
+		return -1;
+	}
+	p[-1] = '\0';
+	
+	// name: a.b followed by space
+	name = p;
+	while(p < ep && *p != ' ')
+		p++;
+	if(p >= ep)
+		return -1;
+	*p++ = '\0';
+
+	// def: free form to new line
+	def = p;
+	while(p < ep && *p != '\n')
+		p++;
+	if(p >= ep)
+		return -1;
+	edef = p;
+	*p++ = '\0';
+	
+	// include methods on successive lines in def of named type
+	while(parsemethod(&p, ep, &meth) > 0) {
+		*edef++ = '\n';	// overwrites '\0'
+		if(edef+1 > meth) {
+			// We want to indent methods with a single \t.
+			// 6g puts at least one char of indent before all method defs,
+			// so there will be room for the \t.  If the method def wasn't
+			// indented we could do something more complicated,
+			// but for now just diagnose the problem and assume
+			// 6g will keep indenting for us.
+			fprint(2, "ar: %s: expected methods to be indented %p %p %.10s\n", file, edef, meth, meth);
+			errors++;
+			return -1;
+		}
+		*edef++ = '\t';
+		n = strlen(meth);
+		memmove(edef, meth, n);
+		edef += n;
+	}
+
+	// done
+	*pp = p;
+	*prefixp = prefix;
+	*namep = name;
+	*defp = def;
+	return 1;
+}
+
+int
+parsemethod(char **pp, char *ep, char **methp)
+{
+	char *p, *prefix, *name, *def;
+	int n;
+	
+	// skip white space
+	p = *pp;
+	while(p < ep && (*p == ' ' || *p == '\t'))
+		p++;
+	if(p == ep)
+		return 0;
+
+	// if it says "func (", it's a method
+	if(p + 6 >= ep || strncmp(p, "func (", 6) != 0)
+		return 0;
+	
+	// definition to end of line
+	*methp = p;
+	while(p < ep && *p != '\n')
+		p++;
+	if(p >= ep) {
+		fprint(2, "ar: lost end of line in method definition\n");
+		*pp = ep;
+		return -1;
+	}
+	*p++ = '\0';
+	*pp = p;
+	return 1;
+}
+
+int
+importcmp(const void *va, const void *vb)
+{
+	Import *a, *b;
+	int i;
+	
+	a = *(Import**)va;
+	b = *(Import**)vb;
+	
+	i = strcmp(a->prefix, b->prefix);
+	if(i != 0) {
+		// rewrite so "type" comes first
+		if(strcmp(a->prefix, "type") == 0)
+			return -1;
+		if(strcmp(b->prefix, "type") == 0)
+			return 1;
+		return i;
+	}
+	return strcmp(a->name, b->name);
+}
+
+char*
+strappend(char *s, char *t)
+{
+	int n;
+	
+	n = strlen(t);
+	memmove(s, t, n);
+	return s+n;
+}
+
+void
+getpkgdef(char **datap, int *lenp)
+{
+	Fmt f;
+	int i, j, len;
+	char *data, *p, *ep;
+	Import **all, *x;
+
+	// make a list of all the exports and count string sizes
+	all = armalloc(nimport*sizeof all[0]);
+	j = 0;
+	len = 7 + 3 + strlen(pkgstmt) + 1;	// import\n$$\npkgstmt\n
+	for(i=0; i<NHASH; i++) {
+		for(x=ihash[i]; x; x=x->hash) {
+			all[j++] = x;
+			len += strlen(x->prefix) + 1
+				+ strlen(x->name) + 1
+				+ strlen(x->def) + 1;
+			if(x->export)
+				len += 7;
+		}
+	}
+	if(j != nimport) {
+		fprint(2, "ar: import count mismatch (internal error)\n");
+		exits("oops");
+	}
+	len += 3;	// $$\n
+
+	// sort exports (unnecessary but nicer to look at)
+	qsort(all, nimport, sizeof all[0], importcmp);
+
+	// print them into buffer
+	data = armalloc(len);
+	
+	// import\n
+	// $$\n
+	// pkgstmt\n
+	p = data;
+	p = strappend(p, "import\n$$\n");
+	p = strappend(p, pkgstmt);
+	p = strappend(p, "\n");
+	for(i=0; i<nimport; i++) {
+		x = all[i];
+		// [export] prefix name def\n
+		if(x->export)
+			p = strappend(p, "export ");
+		p = strappend(p, x->prefix);
+		p = strappend(p, " ");
+		p = strappend(p, x->name);
+		p = strappend(p, " ");
+		p = strappend(p, x->def);
+		p = strappend(p, "\n");
+	}
+	p = strappend(p, "$$\n");
+	if(p != data+len) {
+		fprint(2, "ar: internal math error\n");
+		exits("oops");
+	}
+
+	*datap = data;
+	*lenp = len;
+}
+
