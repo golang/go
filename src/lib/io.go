@@ -19,6 +19,12 @@ export type ReadWrite interface {
 	Write(p *[]byte) (n int, err *os.Error);
 }
 
+export type ReadWriteClose interface {
+	Read(p *[]byte) (n int, err *os.Error);
+	Write(p *[]byte) (n int, err *os.Error);
+	Close() *os.Error;
+}
+
 export func WriteString(w Write, s string) (n int, err *os.Error) {
 	b := new([]byte, len(s)+1);
 	if !syscall.StringToBytes(b, s) {
