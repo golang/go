@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 15, 2008)
+(October 20, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -1135,7 +1135,7 @@ other field within the struct.
 
 Fields and methods (§Method declarations) of an anonymous field become directly
 accessible as fields and methods of the struct without the need to provide the
-type name of the respective anonymous field (§TODO).
+type name of the respective anonymous field (§Selectors).
 
 Forward declaration:
 A struct type consisting of only the reserved word "struct" may be used in
@@ -1709,17 +1709,21 @@ Operators combine operands into expressions.
 
 The operand types in binary operations must be equal, with the following exceptions:
 
-	- The right operand in a shift operation must be
-	  an unsigned int (§Arithmetic operators).
-
-	- Otherwise, ideal number operands are
-	  converted to match the type of the other operand (§Expression).
+	- If one operand has numeric type and the other operand is
+	  an ideal number, the ideal number is converted to match the type of
+	  the other operand (§Expression).
 
 	- If both operands are ideal numbers, the conversion is to ideal floats
 	  if one of the operands is an ideal float (relevant for "/" and "%").
 
+	- The right operand in a shift operation must be always be an unsigned int
+	  (or an ideal number that can be safely converted into an unsigned int)
+	  (§Arithmetic operators).
+
 Unary operators have the highest precedence. They are evaluated from
-right to left.
+right to left. Note that "++" and "--" are outside the unary operator
+hierachy (they are statements) and they apply to the operand on the left.
+Specifically, "*p++" means "(*p)++" in Go (as opposed to "*(p++)" in C).
 
 There are six precedence levels for binary operators:
 multiplication operators bind strongest, followed by addition
