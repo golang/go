@@ -190,11 +190,6 @@ func (obj *Object) Copy() *Object {
 // ----------------------------------------------------------------------------
 // List methods
 
-func (L* List) len_() int {
-	return L.len_;
-}
-
-
 func (L *List) at(i int) *Elem {
 	if i < 0 || L.len_ <= i {
 		panic("index out of bounds");
