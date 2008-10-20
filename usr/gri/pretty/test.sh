@@ -71,6 +71,17 @@ idempotent() {
 }
 
 
+valid() {
+	cleanup
+	pretty $1 > $TMP1
+	6g -o /dev/null $TMP1
+	if [ $? != 0 ]; then
+		echo "Error (validity test): test.sh $1"
+		exit 1
+	fi
+}
+
+
 runtest() {
 	#echo "Testing silent mode"
 	cleanup
@@ -79,6 +90,10 @@ runtest() {
 	#echo "Testing idempotency"
 	cleanup
 	$1 idempotent $2
+
+	#echo "Testing validity"
+	#cleanup
+	#$1 valid $2
 }
 
 

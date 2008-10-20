@@ -4,11 +4,14 @@
 
 package Printer
 
+import Strings "strings"
 import Scanner "scanner"
 import AST "ast"
 
 
 export type Printer struct {
+	pos int;  // actual output position
+
 	// formatting control
 	level int;  // true scope level
 	indent int;  // indentation level
@@ -22,11 +25,19 @@ export type Printer struct {
 }
 
 
+// Bottleneck interface - all output goes through here.
+func (P *Printer) print(s string) {
+	print(s);
+	// TODO do we need the code below?
+	// P.pos += Strings.utflen(s);
+}
+
+
 func (P *Printer) String(pos int, s string) {
 	if P.semi && P.level > 0 {  // no semicolons at level 0
 		print(";");
 	}
-	
+
 	/*
 	for pos > P.cpos {
 		// we have a comment
@@ -47,7 +58,7 @@ func (P *Printer) String(pos int, s string) {
 		}
 	}
 	*/
-	
+
 	if P.newl > 0 {
 		for i := P.newl; i > 0; i-- {
 			print("\n");
@@ -226,9 +237,10 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 
 	case Scanner.COMMA:
 		// list
-		P.Expr1(x.x, 0);
+		// (don't use binary expression printing because of different spacing)
+		P.Expr1(x.x, Scanner.LowestPrec);
 		P.String(x.pos, ", ");
-		P.Expr1(x.y, 0);
+		P.Expr1(x.y, Scanner.LowestPrec);
 
 	case Scanner.PERIOD:
 		// selector or type guard
@@ -253,36 +265,38 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		// call
 		P.Expr1(x.x, Scanner.HighestPrec);
 		P.String(x.pos, "(");
-		P.Expr1(x.y, 0);
+		P.Expr1(x.y, Scanner.LowestPrec);
 		P.String(0, ")");
 
 	case Scanner.LBRACE:
 		// composite
 		P.Type(x.t);
 		P.String(x.pos, "{");
-		P.Expr1(x.y, 0);
+		P.Expr1(x.y, Scanner.LowestPrec);
 		P.String(0, "}");
 		
 	default:
-		// unary and binary expressions
+		// unary and binary expressions including ":" for pairs
+		prec := Scanner.UnaryPrec;
+		if x.x != nil {
+			prec = Scanner.Precedence(x.tok);
+		}
+		if prec < prec1 {
+			P.String(0, "(");
+		}
 		if x.x == nil {
 			// unary expression
 			P.Token(x.pos, x.tok);
-			P.Expr1(x.y, Scanner.UnaryPrec);
 		} else {
-			// binary expression: print ()'s if necessary
-			prec := Scanner.Precedence(x.tok);
-			if prec < prec1 {
-				P.String(0, "(");
-			}
+			// binary expression
 			P.Expr1(x.x, prec);
 			P.Blank();
 			P.Token(x.pos, x.tok);
 			P.Blank();
-			P.Expr1(x.y, prec);
-			if prec < prec1 {
-				P.String(0, ")");
-			}
+		}
+		P.Expr1(x.y, prec);
+		if prec < prec1 {
+			P.String(0, ")");
 		}
 	}
 }

@@ -190,11 +190,16 @@ func (P *Parser) ParseIdentList() *AST.Expr {
 	P.Trace("IdentList");
 
 	x := P.ParseIdent();
-	if P.tok == Scanner.COMMA {
+	for first := true; P.tok == Scanner.COMMA; {
 		pos := P.pos;
 		P.Next();
-		y := P.ParseIdentList();
-		x = P.NewExpr(pos, Scanner.COMMA, x, y);
+		y := P.ParseIdent();
+		if first {
+			x = P.NewExpr(pos, Scanner.COMMA, x, y);
+			first = false;
+		} else {
+			x.y = P.NewExpr(pos, Scanner.COMMA, x.y, y);
+		}
 	}
 
 	P.Ecart();
@@ -741,7 +746,7 @@ func (P *Parser) ParseCall(x *AST.Expr) *AST.Expr {
 }
 
 
-func (P *Parser) ParseCompositeList() *AST.Expr {
+func (P *Parser) ParseCompositeElements() *AST.Expr {
 	x := P.ParseExpression(0);
 	if P.tok == Scanner.COMMA {
 		pos := P.pos;
@@ -792,7 +797,7 @@ func (P *Parser) ParseCompositeLit(t *AST.Type) *AST.Expr {
 	x.t = t;
 	P.Expect(Scanner.LBRACE);
 	if P.tok != Scanner.RBRACE {
-		x.y = P.ParseCompositeList();
+		x.y = P.ParseCompositeElements();
 	}
 	P.Expect(Scanner.RBRACE);
 	
