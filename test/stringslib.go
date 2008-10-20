@@ -98,11 +98,15 @@ func main() {
 		n, ok = strings.atoi("20ba"); if n != 0 || ok { panic("atoi 20ba") }
 		n, ok = strings.atoi("hello"); if n != 0 || ok { panic("hello") }
 	}
+
+	if strings.ftoa(1e6) != "+1.000000e+06" { panic("ftoa 1e6") }
+	if strings.ftoa(-1e-6) != "-1.000000e-06" { panic("ftoa -1e-6") }
+	if strings.ftoa(-1.234567e-6) != "-1.234567e-06" { panic("ftoa -1.234567e-6") }
 	
 	if itoa(0) != "0" { panic("itoa 0") }
 	if itoa(12345) != "12345" { panic("itoa 12345") }
 	if itoa(-1<<31) != "-2147483648" { panic("itoa 1<<31") }
-	
+
 	// should work if int == int64: is there some way to know?
 	// if itoa(-1<<63) != "-9223372036854775808" { panic("itoa 1<<63") }
 }
