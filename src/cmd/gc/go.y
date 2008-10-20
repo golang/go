@@ -1378,15 +1378,19 @@ structdcl:
 		$$ = nod(ODCLFIELD, $1, N);
 		$$->type = $2;
 	}
-|	new_name
+|	LATYPE
 	{
-		// must be  latype
-		$$ = nod(ODCLFIELD, N, N);
-		$$->type = $1->sym->otype;
-		if($1->sym->lexical != LATYPE) {
-			yyerror("unnamed structure field must be a type");
-			$$->type = types[TINT32];
-		};
+		$$ = nod(ODCLFIELD, newname($1), N);
+		$$->type = oldtype($1);
+		$$->embedded = 1;
+	}
+|	lpack '.' LATYPE
+	{
+		$$ = newname(lookup($3->name));
+		$$ = nod(ODCLFIELD, $$, N);
+		$$->type = oldtype($3);
+		$$->embedded = 1;
+		context = nil;
 	}
 
 interfacedcl:

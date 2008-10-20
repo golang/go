@@ -471,6 +471,7 @@ loop:
 
 	if(n->left != N && n->left->op == ONAME) {
 		f->nname = n->left;
+		f->embedded = n->embedded;
 	} else {
 		vargen++;
 		snprint(buf, sizeof(buf), "_e%s_%.3ld", filename, vargen);

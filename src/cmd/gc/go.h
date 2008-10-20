@@ -124,6 +124,7 @@ struct	Type
 	uchar	trecur;		// to detect loops
 	uchar	methptr;	// 1=direct 2=pointer
 	uchar	printed;
+	uchar	embedded;	// TFIELD embedded type
 
 	// TFUNCT
 	uchar	thistuple;
@@ -161,6 +162,7 @@ struct	Node
 	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
 	uchar	method;		// OCALLMETH name
 	uchar	iota;		// OLITERAL made from iota
+	uchar	embedded;	// ODCLFIELD embedded type
 
 	// most nodes
 	Node*	left;
