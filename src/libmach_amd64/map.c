@@ -80,6 +80,7 @@ setmap(Map *map, int fd, uvlong b, uvlong e, vlong f, char *name, Maprw *rw)
 	return 1;
 }
 
+/*
 static uvlong
 stacktop(int pid)
 {
@@ -110,6 +111,7 @@ stacktop(int pid)
 		return 0;
 	return strtoull(cp, 0, 16);
 }
+*/
 
 int
 findseg(Map *map, char *name)

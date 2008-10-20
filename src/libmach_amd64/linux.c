@@ -30,6 +30,7 @@
 #include <u.h>
 #include <sys/ptrace.h>
 #include <sys/signal.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <libc.h>
 #include <bio.h>
@@ -132,9 +133,7 @@ ptraceattach(int pid)
 Map*
 attachproc(int pid, Fhdr *fp)
 {
-	char buf[64];
 	Map *map;
-	vlong n;
 
 	if(ptraceattach(pid) < 0)
 		return nil;
@@ -264,7 +263,7 @@ procnotes(int pid, char ***pnotes)
 int
 ctlproc(int pid, char *msg)
 {
-	int i, p, status;
+	int i;
 
 	if(strcmp(msg, "attached") == 0){
 		for(i=0; i<nattached; i++)

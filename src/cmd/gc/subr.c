@@ -1351,7 +1351,6 @@ wnames[] =
 int
 Wconv(Fmt *fp)
 {
-	char buf[500];
 	int w;
 
 	w = va_arg(fp->args, int);

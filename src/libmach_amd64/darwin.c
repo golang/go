@@ -24,12 +24,15 @@
 #include <sys/ptrace.h>
 #include <sys/signal.h>
 #include <mach/mach.h>
+#include <mach/mach_traps.h>
 #include <errno.h>
 #include <libc.h>
 #include <bio.h>
 #include <mach_amd64.h>
 #include <ureg_amd64.h>
 typedef struct Ureg Ureg;
+
+extern mach_port_t mach_reply_port(void);	// should be in system headers, is not
 
 // Mach-error wrapper.
 // Takes a mach return code and converts it into 0 / -1,
@@ -197,7 +200,7 @@ enum {
 static Thread*
 addpid(int pid, int force)
 {
-	int i, j, r;
+	int i, j;
 	mach_port_t task;
 	mach_port_t *thread;
 	uint nthread;
@@ -276,6 +279,7 @@ idtotable(int id)
 	return &thr[id];
 }
 
+/*
 static int
 idtopid(int id)
 {
@@ -285,6 +289,7 @@ idtopid(int id)
 		return -1;
 	return t->pid;
 }
+*/
 
 static mach_port_t
 idtotask(int id)
@@ -388,7 +393,6 @@ proctextfile(int pid)
 static int
 machsegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 {
-	uintptr nn;
 	mach_port_t task;
 	int r;
 
@@ -397,6 +401,7 @@ machsegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 		return -1;
 
 	if(isr){
+		vm_size_t nn;
 		nn = n;
 		if(me(vm_read_overwrite(task, addr, n, (uintptr)v, &nn)) < 0)
 			return -1;
@@ -477,7 +482,7 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 {
 	uint nn;
 	mach_port_t thread;
-	int reg, r;
+	int reg;
 	union {
 		x86_thread_state64_t regs;
 		uchar p[1];
@@ -547,7 +552,6 @@ threadstopped(Thread *t)
 {
 	struct thread_basic_info info;
 	uint size;
-	int r;
 
 	size = sizeof info;
 	if(me(thread_info(t->thread, THREAD_BASIC_INFO, (thread_info_t)&info, &size)) <  0){
@@ -568,7 +572,7 @@ threadstart(Thread *t, int singlestep)
 	x86_thread_state64_t regs;
 
 	if(!threadstopped(t))
-		return;
+		return 0;
 
 	// Set or clear the processor single-step flag, as appropriate.
 	n = x86_THREAD_STATE64_COUNT;
@@ -667,7 +671,7 @@ int
 ctlproc(int id, char *msg)
 {
 	Thread *t;
-	int status, r;
+	int status;
 
 	// Hang/attached dance is for debugging newly exec'ed programs.
 	// After fork, the child does ctlproc("hang") before exec,

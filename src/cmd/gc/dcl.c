@@ -1120,7 +1120,7 @@ defercheckwidth(void)
 void
 resumecheckwidth(void)
 {
-	TypeList *l, *next;
+	TypeList *l;
 
 	if(!defercalc)
 		fatal("restartcheckwidth");
