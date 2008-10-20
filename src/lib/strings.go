@@ -168,7 +168,7 @@ export func atoi(s string) (i int, ok bool) {
 	return i, okok
 }
 
-export func itol(i int64) string {
+export func ltoa(i int64) string {
 	if i == 0 {
 		return "0"
 	}
@@ -197,5 +197,70 @@ export func itol(i int64) string {
 }
 
 export func itoa(i int) string {
-	return itol(int64(i));
+	return ltoa(int64(i));
+}
+
+// Convert float64 to string.  No control over format.
+// Result not great; only useful for simple debugging.
+export func dtoa(v float64) string {
+	var buf [20]byte;
+
+	const n = 7;	// digits printed
+	e := 0;	// exp
+	var sign byte = '+';
+	if(v != 0) {
+		// sign
+		if(v < 0) {
+			v = -v;
+			sign = '-';
+		}
+
+		// normalize
+		for v >= 10 {
+			e++;
+			v /= 10;
+		}
+		for v < 1 {
+			e--;
+			v *= 10;
+		}
+
+		// round
+		var h float64 = 5;
+		for i := 0; i < n; i++ {
+			h /= 10;
+		}
+		v += h;
+		if v >= 10 {
+			e++;
+			v /= 10;
+		}
+	}
+
+	// format +d.dddd+edd
+	buf[0] = sign;
+	for i := 0; i < n; i++ {
+		s := int64(v);
+		buf[i+2] = byte(s)+'0';
+		v -= float64(s);
+		v *= 10;
+	}
+	buf[1] = buf[2];
+	buf[2] = '.';
+
+	buf[n+2] = 'e';
+	buf[n+3] = '+';
+	if e < 0 {
+		e = -e;
+		buf[n+3] = '-';
+	}
+
+	// TODO: exponents > 99?
+	buf[n+4] = byte((e/10) + '0');
+	buf[n+5] = byte((e%10) + '0');
+	return string(buf)[0:n+6];	// TODO: should be able to slice buf
+}
+
+export func ftoa(v float) string {
+	return dtoa(float64(v));
 }
