@@ -19,11 +19,11 @@ clean:
 
 pretty.6:	parser.6 printer.6 platform.6 scanner.6
 
-printer.6:	node.6 scanner.6
+printer.6:	ast.6 scanner.6
 
-parser.6:	scanner.6 utils.6 printer.6 node.6
+parser.6:	scanner.6 utils.6 printer.6 ast.6
 
-node.6:	scanner.6
+ast.6:	scanner.6
 
 scanner.6:	utils.6 platform.6
 
