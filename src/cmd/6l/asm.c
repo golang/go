@@ -900,7 +900,6 @@ putstrtab(char* name) {
 int
 linuxstrtable(void)
 {
-	char *name;
 	int size;
 
 	size = 0;

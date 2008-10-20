@@ -454,7 +454,8 @@ void
 objfile(char *file)
 {
 	int32 off, esym, cnt, l;
-	int f, work;
+	int work;
+	Biobuf *f;
 	Sym *s;
 	char magbuf[SARMAG];
 	char name[100], pname[150];
@@ -473,22 +474,22 @@ objfile(char *file)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f ldobj: %s\n", cputime(), file);
 	Bflush(&bso);
-	f = open(file, 0);
-	if(f < 0) {
+	f = Bopen(file, 0);
+	if(f == nil) {
 		diag("cannot open file: %s", file);
 		errorexit();
 	}
-	l = read(f, magbuf, SARMAG);
+	l = Bread(f, magbuf, SARMAG);
 	if(l != SARMAG || strncmp(magbuf, ARMAG, SARMAG)){
 		/* load it as a regular file */
-		l = seek(f, 0L, 2);
-		seek(f, 0L, 0);
+		l = Bseek(f, 0L, 2);
+		Bseek(f, 0L, 0);
 		ldobj(f, l, file);
-		close(f);
+		Bterm(f);
 		return;
 	}
 
-	l = read(f, &arhdr, SAR_HDR);
+	l = Bread(f, &arhdr, SAR_HDR);
 	if(l != SAR_HDR) {
 		diag("%s: short read on archive file symbol header", file);
 		goto out;
@@ -504,12 +505,12 @@ objfile(char *file)
 	/*
 	 * just bang the whole symbol file into memory
 	 */
-	seek(f, off, 0);
+	Bseek(f, off, 0);
 	cnt = esym - off;
 	start = malloc(cnt + 10);
-	cnt = read(f, start, cnt);
+	cnt = Bread(f, start, cnt);
 	if(cnt <= 0){
-		close(f);
+		Bterm(f);
 		return;
 	}
 	stop = &start[cnt];
@@ -533,8 +534,8 @@ objfile(char *file)
 			l |= (e[2] & 0xff) << 8;
 			l |= (e[3] & 0xff) << 16;
 			l |= (e[4] & 0xff) << 24;
-			seek(f, l, 0);
-			l = read(f, &arhdr, SAR_HDR);
+			Bseek(f, l, 0);
+			l = Bread(f, &arhdr, SAR_HDR);
 			if(l != SAR_HDR)
 				goto bad;
 			if(strncmp(arhdr.fmag, ARFMAG, sizeof(arhdr.fmag)))
@@ -554,7 +555,7 @@ objfile(char *file)
 bad:
 	diag("%s: bad or out of date archive", file);
 out:
-	close(f);
+	Bterm(f);
 }
 
 int
@@ -791,7 +792,7 @@ nopout(Prog *p)
 }
 
 uchar*
-readsome(int f, uchar *buf, uchar *good, uchar *stop, int max)
+readsome(Biobuf *f, uchar *buf, uchar *good, uchar *stop, int max)
 {
 	int n;
 
@@ -801,14 +802,14 @@ readsome(int f, uchar *buf, uchar *good, uchar *stop, int max)
 	n = MAXIO - n;
 	if(n > max)
 		n = max;
-	n = read(f, stop, n);
+	n = Bread(f, stop, n);
 	if(n <= 0)
 		return 0;
 	return stop + n;
 }
 
 void
-ldobj(int f, int32 c, char *pn)
+ldobj(Biobuf *f, int32 c, char *pn)
 {
 	vlong ipc;
 	Prog *p, *t;
