@@ -32,7 +32,7 @@
 #define	SARMAG	8
 
 #define	ARFMAG	"`\n"
-#define SARNAME	16
+#define SARNAME	64
 
 struct	ar_hdr
 {

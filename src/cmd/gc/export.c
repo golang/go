@@ -154,12 +154,14 @@ dumpsym(Sym *s)
 		break;
 	case LATYPE:
 	case LBASETYPE:
-		dumpexporttype(s);
-		for(f=s->otype->method; f!=T; f=f->down) {
+		// TODO(rsc): sort methods by name
+		for(f=s->otype->method; f!=T; f=f->down)
 			dumpprereq(f);
+
+		dumpexporttype(s);
+		for(f=s->otype->method; f!=T; f=f->down)
 			Bprint(bout, "\tfunc (%#T) %hS %#T\n",
 				f->type->type->type, f->sym, f->type);
-		}
 		break;
 	case LNAME:
 		dumpexportvar(s);
