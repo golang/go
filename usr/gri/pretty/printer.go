@@ -232,10 +232,10 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 
 	case Scanner.PERIOD:
 		// selector or type guard
-		P.Expr1(x.x, 8);  // 8 == highest precedence
+		P.Expr1(x.x, Scanner.HighestPrec);
 		P.String(x.pos, ".");
 		if x.y != nil {
-			P.Expr1(x.y, 8);
+			P.Expr1(x.y, Scanner.HighestPrec);
 		} else {
 			P.String(0, "(");
 			P.Type(x.t);
@@ -244,14 +244,14 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 		
 	case Scanner.LBRACK:
 		// index
-		P.Expr1(x.x, 8);
+		P.Expr1(x.x, Scanner.HighestPrec);
 		P.String(x.pos, "[");
 		P.Expr1(x.y, 0);
 		P.String(0, "]");
 
 	case Scanner.LPAREN:
 		// call
-		P.Expr1(x.x, 8);
+		P.Expr1(x.x, Scanner.HighestPrec);
 		P.String(x.pos, "(");
 		P.Expr1(x.y, 0);
 		P.String(0, ")");
@@ -268,7 +268,7 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 		if x.x == nil {
 			// unary expression
 			P.Token(x.pos, x.tok);
-			P.Expr1(x.y, 7);  // 7 == unary operator precedence
+			P.Expr1(x.y, Scanner.UnaryPrec);
 		} else {
 			// binary expression: print ()'s if necessary
 			prec := Scanner.Precedence(x.tok);
@@ -289,7 +289,7 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 
 
 func (P *Printer) Expr(x *Node.Expr) {
-	P.Expr1(x, 0);
+	P.Expr1(x, Scanner.LowestPrec);
 }
 
 
@@ -371,18 +371,6 @@ func (P *Printer) Stat(s *Node.Stat) {
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
 		// declaration
 		P.Declaration(s.decl, false);
-
-	case Scanner.DEFINE, Scanner.ASSIGN, Scanner.ADD_ASSIGN,
-		Scanner.SUB_ASSIGN, Scanner.MUL_ASSIGN, Scanner.QUO_ASSIGN,
-		Scanner.REM_ASSIGN, Scanner.AND_ASSIGN, Scanner.OR_ASSIGN,
-		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
-		// assignment
-		P.Expr(s.lhs);
-		P.Blank();
-		P.Token(s.pos, s.tok);
-		P.Blank();
-		P.Expr(s.expr);
-		P.semi = true;
 
 	case Scanner.INC, Scanner.DEC:
 		P.Expr(s.expr);

@@ -904,13 +904,15 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
 		Scanner.SUB_ASSIGN, Scanner.MUL_ASSIGN, Scanner.QUO_ASSIGN,
 		Scanner.REM_ASSIGN, Scanner.AND_ASSIGN, Scanner.OR_ASSIGN,
 		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
-		s = Node.NewStat(P.pos, P.tok);
+		// assignment
+		pos, tok := P.pos, P.tok;
 		P.Next();
-		s.lhs = x;
-		s.expr = P.ParseExpressionList();
-		if l, r := x.len(), s.expr.len(); l > 1 && r > 1 && l != r {
+		y := P.ParseExpressionList();
+		if xl, yl := x.len(), y.len(); xl > 1 && yl > 1 && xl != yl {
 			P.Error(x.pos, "arity of lhs doesn't match rhs");
 		}
+		s = Node.NewStat(x.pos, Scanner.EXPRSTAT);
+		s.expr = Node.NewExpr(pos, tok, x, y);
 
 	default:
 		var pos, tok int;

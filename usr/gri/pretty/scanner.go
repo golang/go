@@ -210,6 +210,13 @@ export func TokenString(tok int) string {
 }
 
 
+export const (
+	LowestPrec = -1;
+	UnaryPrec = 7;
+	HighestPrec = 8;
+)
+
+
 export func Precedence(tok int) int {
 	switch tok {
 	case COLON:
@@ -227,7 +234,7 @@ export func Precedence(tok int) int {
 	case MUL, QUO, REM, SHL, SHR, AND:
 		return 6;
 	}
-	return -1;
+	return LowestPrec;
 }
 
 
