@@ -1390,31 +1390,49 @@ walkselect(Node *sel)
 	lineno = lno;
 }
 
-/*
- * allowable type combinations for
- * normal binary operations.
- */
 Type*
-lookdot(Node *n, Type *f)
+lookdot(Node *n, Type *f, int d)
 {
-	Type *r;
-	Sym *s;
+	Type *r, *r1;
+	Sym *s, *sf;
 
 	r = T;
 	s = n->sym;
 
 	for(; f!=T; f=f->down) {
-		if(f->sym == S)
+		sf = f->sym;
+		if(sf == S)
 			continue;
-	//	if(strcmp(f->sym->name, s->name) != 0)
-		if(f->sym != s)
-			continue;
-		if(r != T) {
-			yyerror("ambiguous DOT reference %S", s);
-			break;
+
+		// depth=0 -- look directly in structure
+		if(d == 0) {
+			if(sf != s)
+				continue;
+			if(r != T)
+				goto ambig;
+			r = f;
+			n->xoffset = f->width;
 		}
-		r = f;
+
+		// depth>0 -- look into unnamed substructures
+		if(d > 0 && f->embedded) {
+			if(f->type == T)
+				continue;
+			if(f->type->etype != TSTRUCT && f->type->etype != TINTER)
+				continue;
+			r1 = lookdot(n, f->type->type, d-1);
+			if(r1 == T)
+				continue;
+			if(r != T)
+				goto ambig;
+			r = r1;
+			n->xoffset += f->width;
+		}
 	}
+	return r;
+
+ambig:
+	yyerror("ambiguous DOT reference %S", s);
 	return r;
 }
 
@@ -1422,6 +1440,7 @@ void
 walkdot(Node *n)
 {
 	Type *t, *f;
+	int d;
 
 	if(n->left == N || n->right == N)
 		return;
@@ -1447,14 +1466,16 @@ walkdot(Node *n)
 	}
 
 	if(t->etype == TSTRUCT || t->etype == TINTER) {
-		f = lookdot(n->right, t->type);
-		if(f != T) {
-			n->xoffset = f->width;
-			n->right = f->nname;		// substitute real name
-			n->type = f->type;
-			if(t->etype == TINTER)
-				n->op = ODOTINTER;
-			return;
+		for(d=0; d<=5; d++) {
+			f = lookdot(n->right, t->type, d);
+			if(f != T) {
+				n->xoffset = n->right->xoffset;
+				n->right = f->nname;		// substitute real name
+				n->type = f->type;
+				if(t->etype == TINTER)
+					n->op = ODOTINTER;
+				return;
+			}
 		}
 	}
 
@@ -1462,7 +1483,7 @@ walkdot(Node *n)
 	f = T;
 	t = ismethod(n->left->type);
 	if(t != T)
-		f = lookdot(n->right, t->method);
+		f = lookdot(n->right, t->method, 0);
 	if(f == T) {
 		yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
 		return;
