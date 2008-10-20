@@ -92,7 +92,7 @@ Pconv(Fmt *fp)
 			p->as, &p->from, &p->to);
 		break;
 
-	defaul:
+	default:
 		sprint(str, "	%A	%D,%lD", p->as, &p->from, &p->to);
 		break;
 	}

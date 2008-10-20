@@ -1364,7 +1364,7 @@ igetl(Map *map, Instr *ip, uint32 *lp)
 
 /*
  *  get 8 bytes of the instruction
- */
+ *
 static int
 igetq(Map *map, Instr *ip, vlong *qp)
 {
@@ -1380,6 +1380,7 @@ igetq(Map *map, Instr *ip, vlong *qp)
 	*qp = q;
 	return 1;
 }
+ */
 
 static int
 getdisp(Map *map, Instr *ip, int mod, int rm, int code, int pcrel)
@@ -1958,11 +1959,11 @@ pea(Instr *ip)
 {
 	if (ip->mod == 3) {
 		if (ip->osize == 'B')
-			bprint(ip, (ip->rex & REXB? breg64: breg)[ip->base]);
+			bprint(ip, (ip->rex & REXB? breg64: breg)[(uchar)ip->base]);
 		else if(ip->rex & REXB)
 			bprint(ip, "%s%s", ANAME(ip), reg[ip->base+8]);
 		else
-			bprint(ip, "%s%s", ANAME(ip), reg[ip->base]);
+			bprint(ip, "%s%s", ANAME(ip), reg[(uchar)ip->base]);
 		return;
 	}
 	if (ip->segment)

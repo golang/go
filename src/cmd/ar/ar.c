@@ -779,7 +779,6 @@ int
 duplicate(char *name)
 {
 	Hashchain *p;
-	char *cp;
 	int h;
 
 	h = hashstr(name) % NHASH;
@@ -1602,8 +1601,7 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
 int
 parsemethod(char **pp, char *ep, char **methp)
 {
-	char *p, *prefix, *name, *def;
-	int n;
+	char *p;
 	
 	// skip white space
 	p = *pp;
@@ -1664,16 +1662,15 @@ strappend(char *s, char *t)
 void
 getpkgdef(char **datap, int *lenp)
 {
-	Fmt f;
 	int i, j, len;
-	char *data, *p, *ep;
+	char *data, *p;
 	Import **all, *x;
 
 	// make a list of all the exports and count string sizes
 	all = armalloc(nimport*sizeof all[0]);
 	j = 0;
 	len = 7 + 3 + strlen(pkgstmt) + 1;	// import\n$$\npkgstmt\n
-	for(i=0; i<NHASH; i++) {
+	for(i=0; i<NIHASH; i++) {
 		for(x=ihash[i]; x; x=x->hash) {
 			all[j++] = x;
 			len += strlen(x->prefix) + 1
