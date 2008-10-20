@@ -5,7 +5,7 @@
 package Printer
 
 import Scanner "scanner"
-import Node "node"
+import AST "ast"
 
 
 export type Printer struct {
@@ -16,7 +16,7 @@ export type Printer struct {
 	newl int;  // pending "\n"'s
 
 	// comments
-	clist *Node.List;
+	clist *AST.List;
 	cindex int;
 	cpos int;
 }
@@ -30,7 +30,7 @@ func (P *Printer) String(pos int, s string) {
 	/*
 	for pos > P.cpos {
 		// we have a comment
-		c := P.clist.at(P.cindex).(*Node.Comment);
+		c := P.clist.at(P.cindex).(*AST.Comment);
 		if c.text[1] == '/' {
 			print("  " + c.text);
 			if P.newl <= 0 {
@@ -41,7 +41,7 @@ func (P *Printer) String(pos int, s string) {
 		}
 		P.cindex++;
 		if P.cindex < P.clist.len() {
-			P.cpos = P.clist.at(P.cindex).(*Node.Comment).pos;
+			P.cpos = P.clist.at(P.cindex).(*AST.Comment).pos;
 		} else {
 			P.cpos = 1000000000;  // infinite
 		}
@@ -100,14 +100,14 @@ func (P *Printer) Error(pos int, tok int, msg string) {
 // ----------------------------------------------------------------------------
 // Types
 
-func (P *Printer) Type(t *Node.Type)
-func (P *Printer) Expr(x *Node.Expr)
+func (P *Printer) Type(t *AST.Type)
+func (P *Printer) Expr(x *AST.Expr)
 
-func (P *Printer) Parameters(pos int, list *Node.List) {
+func (P *Printer) Parameters(pos int, list *AST.List) {
 	P.String(pos, "(");
 	var prev int;
 	for i, n := 0, list.len(); i < n; i++ {
-		x := list.at(i).(*Node.Expr);
+		x := list.at(i).(*AST.Expr);
 		if i > 0 {
 			if prev == x.tok || prev == Scanner.TYPE {
 				P.String(0, ", ");
@@ -122,11 +122,11 @@ func (P *Printer) Parameters(pos int, list *Node.List) {
 }
 
 
-func (P *Printer) Fields(list *Node.List) {
+func (P *Printer) Fields(list *AST.List) {
 	P.OpenScope(" {");
 	var prev int;
 	for i, n := 0, list.len(); i < n; i++ {
-		x := list.at(i).(*Node.Expr);
+		x := list.at(i).(*AST.Expr);
 		if i > 0 {
 			if prev == Scanner.TYPE {
 				P.String(0, ";");
@@ -145,7 +145,7 @@ func (P *Printer) Fields(list *Node.List) {
 }
 
 
-func (P *Printer) Type(t *Node.Type) {
+func (P *Printer) Type(t *AST.Type) {
 	switch t.tok {
 	case Scanner.IDENT:
 		P.Expr(t.expr);
@@ -174,9 +174,9 @@ func (P *Printer) Type(t *Node.Type) {
 	case Scanner.CHAN:
 		var m string;
 		switch t.mode {
-		case Node.FULL: m = "chan ";
-		case Node.RECV: m = "<-chan ";
-		case Node.SEND: m = "chan <- ";
+		case AST.FULL: m = "chan ";
+		case AST.RECV: m = "<-chan ";
+		case AST.SEND: m = "chan <- ";
 		}
 		P.String(t.pos, m);
 		P.Type(t.elt);
@@ -201,9 +201,9 @@ func (P *Printer) Type(t *Node.Type) {
 // ----------------------------------------------------------------------------
 // Expressions
 
-func (P *Printer) Block(list *Node.List, indent bool);
+func (P *Printer) Block(list *AST.List, indent bool);
 
-func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
+func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 	if x == nil {
 		return;  // empty expression list
 	}
@@ -288,7 +288,7 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
 }
 
 
-func (P *Printer) Expr(x *Node.Expr) {
+func (P *Printer) Expr(x *AST.Expr) {
 	P.Expr1(x, Scanner.LowestPrec);
 }
 
@@ -296,17 +296,17 @@ func (P *Printer) Expr(x *Node.Expr) {
 // ----------------------------------------------------------------------------
 // Statements
 
-func (P *Printer) Stat(s *Node.Stat)
+func (P *Printer) Stat(s *AST.Stat)
 
-func (P *Printer) StatementList(list *Node.List) {
+func (P *Printer) StatementList(list *AST.List) {
 	for i, n := 0, list.len(); i < n; i++ {
-		P.Stat(list.at(i).(*Node.Stat));
+		P.Stat(list.at(i).(*AST.Stat));
 		P.newl = 1;
 	}
 }
 
 
-func (P *Printer) Block(list *Node.List, indent bool) {
+func (P *Printer) Block(list *AST.List, indent bool) {
 	P.OpenScope("{");
 	if !indent {
 		P.indent--;
@@ -319,7 +319,7 @@ func (P *Printer) Block(list *Node.List, indent bool) {
 }
 
 
-func (P *Printer) ControlClause(s *Node.Stat) {
+func (P *Printer) ControlClause(s *AST.Stat) {
 	has_post := s.tok == Scanner.FOR && s.post != nil;  // post also used by "if"
 	if s.init == nil && !has_post {
 		// no semicolons required
@@ -351,9 +351,9 @@ func (P *Printer) ControlClause(s *Node.Stat) {
 }
 
 
-func (P *Printer) Declaration(d *Node.Decl, parenthesized bool);
+func (P *Printer) Declaration(d *AST.Decl, parenthesized bool);
 
-func (P *Printer) Stat(s *Node.Stat) {
+func (P *Printer) Stat(s *AST.Stat) {
 	switch s.tok {
 	case Scanner.EXPRSTAT:
 		// expression statement
@@ -432,7 +432,7 @@ func (P *Printer) Stat(s *Node.Stat) {
 // Declarations
 
 
-func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
+func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 	if !parenthesized {
 		if d.exported {
 			P.String(0, "export ");
@@ -444,7 +444,7 @@ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
 	if d.tok != Scanner.FUNC && d.list != nil {
 		P.OpenScope("(");
 		for i := 0; i < d.list.len(); i++ {
-			P.Declaration(d.list.at(i).(*Node.Decl), true);
+			P.Declaration(d.list.at(i).(*AST.Decl), true);
 			P.semi, P.newl = true, 1;
 		}
 		P.CloseScope(")");
@@ -501,12 +501,12 @@ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
 // ----------------------------------------------------------------------------
 // Program
 
-func (P *Printer) Program(p *Node.Program) {
+func (P *Printer) Program(p *AST.Program) {
 	// TODO should initialize all fields?
 	P.clist = p.comments;
 	P.cindex = 0;
 	if p.comments.len() > 0 {
-		P.cpos = p.comments.at(0).(*Node.Comment).pos;
+		P.cpos = p.comments.at(0).(*AST.Comment).pos;
 	} else {
 		P.cpos = 1000000000;  // infinite
 	}

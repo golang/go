@@ -295,6 +295,21 @@ export type Scanner struct {
 // Read the next Unicode char into S.ch.
 // S.ch < 0 means end-of-file.
 func (S *Scanner) Next() {
+	if S.pos < len(S.src) {
+		// assume ascii
+		r, w := int(S.src[S.pos]), 1;
+		if r > 0x80 {
+			// wasn't ascii
+			r, w = sys.stringtorune(S.src, S.pos);
+		}
+		S.ch = r;
+		S.chpos = S.pos;
+		S.pos += w;
+	} else {
+		S.ch = -1;  // eof
+		S.chpos = len(S.src);
+	}
+/*
 	const (
 		Bit1 = 7;
 		Bitx = 6;
@@ -389,6 +404,7 @@ bad:
 	S.chpos = S.pos;
 	S.pos += 1;
 	return;
+*/
 }
 
 

@@ -9,7 +9,7 @@ GO = /home/iant/go/bin/gccgo
 LDFLAGS = -Wl,-R,/home/iant/go/lib
 
 PRETTY_OBJS = \
-	node.o \
+	ast.o \
 	pretty.o \
 	parser.o \
 	platform.o \
@@ -33,11 +33,11 @@ clean:
 
 pretty.o:	parser.o printer.o platform.o scanner.o flag.o
 
-parser.o:	node.o scanner.o utils.o printer.o
+parser.o:	ast.o scanner.o utils.o printer.o
 
 scanner.o:	utils.o platform.o
 
-node.o:	scanner.o
+ast.o:	scanner.o
 
 flag.o:	fmt.o
 	$(GO) -O2 -c -g $(GOROOT)/src/lib/flag.go

@@ -5,7 +5,7 @@
 package Parser
 
 import Scanner "scanner"
-import Node "node"
+import AST "ast"
 
 
 export type Parser struct {
@@ -16,7 +16,7 @@ export type Parser struct {
 	// Scanner
 	scanner *Scanner.Scanner;
 	tokchan *<-chan *Scanner.Token;
-	comments *Node.List;
+	comments *AST.List;
 	
 	// Scanner.Token
 	pos int;  // token source position
@@ -78,7 +78,7 @@ func (P *Parser) Next0() {
 
 func (P *Parser) Next() {
 	for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
-		P.comments.Add(Node.NewComment(P.pos, P.val));
+		P.comments.Add(AST.NewComment(P.pos, P.val));
 	}
 }
 
@@ -90,7 +90,7 @@ func (P *Parser) Open(verbose, sixg bool, scanner *Scanner.Scanner, tokchan *<-c
 	
 	P.scanner = scanner;
 	P.tokchan = tokchan;
-	P.comments = Node.NewList();
+	P.comments = AST.NewList();
 	
 	P.Next();
 	P.expr_lev = 1;
@@ -126,52 +126,52 @@ func (P *Parser) OptSemicolon() {
 // ----------------------------------------------------------------------------
 // AST support
 
-func ExprType(x *Node.Expr) *Node.Type {
-	var t *Node.Type;
+func ExprType(x *AST.Expr) *AST.Type {
+	var t *AST.Type;
 	if x.tok == Scanner.TYPE {
 		t = x.t;
 	} else if x.tok == Scanner.IDENT {
 		// assume a type name
-		t = Node.NewType(x.pos, Scanner.IDENT);
+		t = AST.NewType(x.pos, Scanner.IDENT);
 		t.expr = x;
 	} else if x.tok == Scanner.PERIOD && x.y != nil && ExprType(x.x) != nil {
 		// possibly a qualified (type) identifier
-		t = Node.NewType(x.pos, Scanner.IDENT);
+		t = AST.NewType(x.pos, Scanner.IDENT);
 		t.expr = x;
 	}
 	return t;
 }
 
 
-func (P *Parser) NoType(x *Node.Expr) *Node.Expr {
+func (P *Parser) NoType(x *AST.Expr) *AST.Expr {
 	if x != nil && x.tok == Scanner.TYPE {
 		P.Error(x.pos, "expected expression, found type");
-		x = Node.NewLit(x.pos, Scanner.INT, "");
+		x = AST.NewLit(x.pos, Scanner.INT, "");
 	}
 	return x;
 }
 
 
-func (P *Parser) NewExpr(pos, tok int, x, y *Node.Expr) *Node.Expr {
-	return Node.NewExpr(pos, tok, P.NoType(x), P.NoType(y));
+func (P *Parser) NewExpr(pos, tok int, x, y *AST.Expr) *AST.Expr {
+	return AST.NewExpr(pos, tok, P.NoType(x), P.NoType(y));
 }
 
 
 // ----------------------------------------------------------------------------
 // Common productions
 
-func (P *Parser) TryType() *Node.Type;
-func (P *Parser) ParseExpression(prec int) *Node.Expr;
-func (P *Parser) ParseStatement() *Node.Stat;
-func (P *Parser) ParseDeclaration() *Node.Decl;
+func (P *Parser) TryType() *AST.Type;
+func (P *Parser) ParseExpression(prec int) *AST.Expr;
+func (P *Parser) ParseStatement() *AST.Stat;
+func (P *Parser) ParseDeclaration() *AST.Decl;
 
 
-func (P *Parser) ParseIdent() *Node.Expr {
+func (P *Parser) ParseIdent() *AST.Expr {
 	P.Trace("Ident");
 
-	x := Node.BadExpr;
+	x := AST.BadExpr;
 	if P.tok == Scanner.IDENT {
-		x = Node.NewLit(P.pos, Scanner.IDENT, P.val);
+		x = AST.NewLit(P.pos, Scanner.IDENT, P.val);
 		if P.verbose {
 			P.PrintIndent();
 			print("Ident = \"", x.s, "\"\n");
@@ -186,7 +186,7 @@ func (P *Parser) ParseIdent() *Node.Expr {
 }
 
 
-func (P *Parser) ParseIdentList() *Node.Expr {
+func (P *Parser) ParseIdentList() *AST.Expr {
 	P.Trace("IdentList");
 
 	x := P.ParseIdent();
@@ -205,13 +205,13 @@ func (P *Parser) ParseIdentList() *Node.Expr {
 // ----------------------------------------------------------------------------
 // Types
 
-func (P *Parser) ParseType() *Node.Type {
+func (P *Parser) ParseType() *AST.Type {
 	P.Trace("Type");
 	
 	t := P.TryType();
 	if t == nil {
 		P.Error(P.pos, "type expected");
-		t = Node.BadType;
+		t = AST.BadType;
 	}
 	
 	P.Ecart();
@@ -219,7 +219,7 @@ func (P *Parser) ParseType() *Node.Type {
 }
 
 
-func (P *Parser) ParseVarType() *Node.Type {
+func (P *Parser) ParseVarType() *AST.Type {
 	P.Trace("VarType");
 	
 	typ := P.ParseType();
@@ -229,7 +229,7 @@ func (P *Parser) ParseVarType() *Node.Type {
 }
 
 
-func (P *Parser) ParseQualifiedIdent() *Node.Expr {
+func (P *Parser) ParseQualifiedIdent() *AST.Expr {
 	P.Trace("QualifiedIdent");
 
 	x := P.ParseIdent();
@@ -245,10 +245,10 @@ func (P *Parser) ParseQualifiedIdent() *Node.Expr {
 }
 
 
-func (P *Parser) ParseTypeName() *Node.Type {
+func (P *Parser) ParseTypeName() *AST.Type {
 	P.Trace("TypeName");
 	
-	t := Node.NewType(P.pos, P.tok);
+	t := AST.NewType(P.pos, P.tok);
 	t.expr = P.ParseQualifiedIdent();
 
 	P.Ecart();
@@ -256,10 +256,10 @@ func (P *Parser) ParseTypeName() *Node.Type {
 }
 
 
-func (P *Parser) ParseArrayType() *Node.Type {
+func (P *Parser) ParseArrayType() *AST.Type {
 	P.Trace("ArrayType");
 	
-	t := Node.NewType(P.pos, Scanner.LBRACK);
+	t := AST.NewType(P.pos, Scanner.LBRACK);
 	P.Expect(Scanner.LBRACK);
 	if P.tok != Scanner.RBRACK {
 		t.expr = P.ParseExpression(1);
@@ -272,21 +272,21 @@ func (P *Parser) ParseArrayType() *Node.Type {
 }
 
 
-func (P *Parser) ParseChannelType() *Node.Type {
+func (P *Parser) ParseChannelType() *AST.Type {
 	P.Trace("ChannelType");
 	
-	t := Node.NewType(P.pos, Scanner.CHAN);
-	t.mode = Node.FULL;
+	t := AST.NewType(P.pos, Scanner.CHAN);
+	t.mode = AST.FULL;
 	if P.tok == Scanner.CHAN {
 		P.Next();
 		if P.tok == Scanner.ARROW {
 			P.Next();
-			t.mode = Node.SEND;
+			t.mode = AST.SEND;
 		}
 	} else {
 		P.Expect(Scanner.ARROW);
 		P.Expect(Scanner.CHAN);
-		t.mode = Node.RECV;
+		t.mode = AST.RECV;
 	}
 	t.elt = P.ParseVarType();
 
@@ -298,11 +298,11 @@ func (P *Parser) ParseChannelType() *Node.Type {
 // TODO: The code below (ParseVarDecl, ParseVarDeclList) is all too
 // complicated. There must be a better way to do this.
 
-func (P *Parser) ParseVarDecl(expect_ident bool) *Node.Type {
-	t := Node.BadType;
+func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
+	t := AST.BadType;
 	if expect_ident {
 		x := P.ParseIdent();
-		t = Node.NewType(x.pos, Scanner.IDENT);
+		t = AST.NewType(x.pos, Scanner.IDENT);
 		t.expr = x;
 	} else {
 		t = P.ParseType();
@@ -311,7 +311,7 @@ func (P *Parser) ParseVarDecl(expect_ident bool) *Node.Type {
 }
 
 
-func (P *Parser) ParseVarDeclList(list *Node.List) {
+func (P *Parser) ParseVarDeclList(list *AST.List) {
 	P.Trace("VarDeclList");
 
 	// parse a list of types
@@ -322,7 +322,7 @@ func (P *Parser) ParseVarDeclList(list *Node.List) {
 		list.Add(P.ParseVarDecl(i0 > 0));
 	}
 
-	var typ *Node.Type;
+	var typ *AST.Type;
 	if i0 > 0 {
 		// not the first parameter section; we must have a type
 		typ = P.ParseType();
@@ -336,23 +336,23 @@ func (P *Parser) ParseVarDeclList(list *Node.List) {
 		// all list entries must be identifiers
 		// convert the type entries into identifiers
 		for i, n := i0, list.len(); i < n; i++ {
-			t := list.at(i).(*Node.Type);
+			t := list.at(i).(*AST.Type);
 			if t.tok == Scanner.IDENT && t.expr.tok == Scanner.IDENT {
 				list.set(i, t.expr);
 			} else {
-				list.set(i, Node.BadExpr);
+				list.set(i, AST.BadExpr);
 				P.Error(t.pos, "identifier expected");
 			}
 		}
 		// add type
-		list.Add(Node.NewTypeExpr(typ));
+		list.Add(AST.NewTypeExpr(typ));
 
 	} else {
 		// all list entries are types
 		// convert all type entries into type expressions
 		for i, n := i0, list.len(); i < n; i++ {
-			t := list.at(i).(*Node.Type);
-			list.set(i, Node.NewTypeExpr(t));
+			t := list.at(i).(*AST.Type);
+			list.set(i, AST.NewTypeExpr(t));
 		}
 		
 		if P.tok == Scanner.COMMA {
@@ -364,10 +364,10 @@ func (P *Parser) ParseVarDeclList(list *Node.List) {
 }
 
 
-func (P *Parser) ParseParameterList() *Node.List {
+func (P *Parser) ParseParameterList() *AST.List {
 	P.Trace("ParameterList");
 	
-	list := Node.NewList();
+	list := AST.NewList();
 	P.ParseVarDeclList(list);
 	for P.tok == Scanner.COMMA {
 		P.Next();
@@ -379,10 +379,10 @@ func (P *Parser) ParseParameterList() *Node.List {
 }
 
 
-func (P *Parser) ParseParameters() *Node.Type {
+func (P *Parser) ParseParameters() *AST.Type {
 	P.Trace("Parameters");
 	
-	t := Node.NewType(P.pos, Scanner.STRUCT);
+	t := AST.NewType(P.pos, Scanner.STRUCT);
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
 		t.list = P.ParseParameterList();
@@ -410,18 +410,18 @@ func (P *Parser) ParseResultList() {
 }
 
 
-func (P *Parser) ParseResult() *Node.Type {
+func (P *Parser) ParseResult() *AST.Type {
 	P.Trace("Result");
 	
-	var t *Node.Type;
+	var t *AST.Type;
 	if P.tok == Scanner.LPAREN {
 		t = P.ParseParameters();
 	} else {
 		typ := P.TryType();
 		if typ != nil {
-			t = Node.NewType(P.pos, Scanner.STRUCT);
-			t.list = Node.NewList();
-			t.list.Add(Node.NewTypeExpr(typ));
+			t = AST.NewType(P.pos, Scanner.STRUCT);
+			t.list = AST.NewList();
+			t.list.Add(AST.NewTypeExpr(typ));
 		}
 	}
 
@@ -436,10 +436,10 @@ func (P *Parser) ParseResult() *Node.Type {
 // (params) type
 // (params) (results)
 
-func (P *Parser) ParseFunctionType() *Node.Type {
+func (P *Parser) ParseFunctionType() *AST.Type {
 	P.Trace("FunctionType");
 	
-	t := Node.NewType(P.pos, Scanner.LPAREN);
+	t := AST.NewType(P.pos, Scanner.LPAREN);
 	t.list = P.ParseParameters().list;  // TODO find better solution
 	t.elt = P.ParseResult();
 	
@@ -448,24 +448,24 @@ func (P *Parser) ParseFunctionType() *Node.Type {
 }
 
 
-func (P *Parser) ParseMethodSpec(list *Node.List) {
+func (P *Parser) ParseMethodSpec(list *AST.List) {
 	P.Trace("MethodDecl");
 	
 	list.Add(P.ParseIdent());
-	list.Add(Node.NewTypeExpr(P.ParseFunctionType()));
+	list.Add(AST.NewTypeExpr(P.ParseFunctionType()));
 	
 	P.Ecart();
 }
 
 
-func (P *Parser) ParseInterfaceType() *Node.Type {
+func (P *Parser) ParseInterfaceType() *AST.Type {
 	P.Trace("InterfaceType");
 	
-	t := Node.NewType(P.pos, Scanner.INTERFACE);
+	t := AST.NewType(P.pos, Scanner.INTERFACE);
 	P.Expect(Scanner.INTERFACE);
 	if P.tok == Scanner.LBRACE {
 		P.Next();
-		t.list = Node.NewList();
+		t.list = AST.NewList();
 		for P.tok == Scanner.IDENT {
 			P.ParseMethodSpec(t.list);
 			if P.tok != Scanner.RBRACE {
@@ -480,10 +480,10 @@ func (P *Parser) ParseInterfaceType() *Node.Type {
 }
 
 
-func (P *Parser) ParseMapType() *Node.Type {
+func (P *Parser) ParseMapType() *AST.Type {
 	P.Trace("MapType");
 	
-	t := Node.NewType(P.pos, Scanner.MAP);
+	t := AST.NewType(P.pos, Scanner.MAP);
 	P.Expect(Scanner.MAP);
 	P.Expect(Scanner.LBRACK);
 	t.key = P.ParseVarType();
@@ -495,14 +495,14 @@ func (P *Parser) ParseMapType() *Node.Type {
 }
 
 
-func (P *Parser) ParseStructType() *Node.Type {
+func (P *Parser) ParseStructType() *AST.Type {
 	P.Trace("StructType");
 
-	t := Node.NewType(P.pos, Scanner.STRUCT);
+	t := AST.NewType(P.pos, Scanner.STRUCT);
 	P.Expect(Scanner.STRUCT);
 	if P.tok == Scanner.LBRACE {
 		P.Next();
-		t.list = Node.NewList();
+		t.list = AST.NewList();
 		for P.tok == Scanner.IDENT {
 			P.ParseVarDeclList(t.list);
 			if P.tok != Scanner.RBRACE {
@@ -518,10 +518,10 @@ func (P *Parser) ParseStructType() *Node.Type {
 }
 
 
-func (P *Parser) ParsePointerType() *Node.Type {
+func (P *Parser) ParsePointerType() *AST.Type {
 	P.Trace("PointerType");
 	
-	t := Node.NewType(P.pos, Scanner.MUL);
+	t := AST.NewType(P.pos, Scanner.MUL);
 	P.Expect(Scanner.MUL);
 	t.elt = P.ParseType();
 	
@@ -530,10 +530,10 @@ func (P *Parser) ParsePointerType() *Node.Type {
 }
 
 
-func (P *Parser) TryType() *Node.Type {
+func (P *Parser) TryType() *AST.Type {
 	P.Trace("Type (try)");
 	
-	t := Node.BadType;
+	t := AST.BadType;
 	switch P.tok {
 	case Scanner.IDENT: t = P.ParseTypeName();
 	case Scanner.LBRACK: t = P.ParseArrayType();
@@ -554,10 +554,10 @@ func (P *Parser) TryType() *Node.Type {
 // ----------------------------------------------------------------------------
 // Blocks
 
-func (P *Parser) ParseStatementList() *Node.List {
+func (P *Parser) ParseStatementList() *AST.List {
 	P.Trace("StatementList");
 	
-	list := Node.NewList();
+	list := AST.NewList();
 	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 		s := P.ParseStatement();
 		if s != nil {
@@ -583,7 +583,7 @@ func (P *Parser) ParseStatementList() *Node.List {
 }
 
 
-func (P *Parser) ParseBlock() *Node.List {
+func (P *Parser) ParseBlock() *AST.List {
 	P.Trace("Block");
 	
 	P.Expect(Scanner.LBRACE);
@@ -599,27 +599,31 @@ func (P *Parser) ParseBlock() *Node.List {
 // ----------------------------------------------------------------------------
 // Expressions
 
-// TODO make this non-recursive
-func (P *Parser) ParseExpressionList() *Node.Expr {
+func (P *Parser) ParseExpressionList() *AST.Expr {
 	P.Trace("ExpressionList");
 
 	x := P.ParseExpression(1);
-	if P.tok == Scanner.COMMA {
+	for first := true; P.tok == Scanner.COMMA; {
 		pos := P.pos;
 		P.Next();
-		y := P.ParseExpressionList();
-		x = P.NewExpr(pos, Scanner.COMMA, x, y);
+		y := P.ParseExpression(1);
+		if first {
+			x = P.NewExpr(pos, Scanner.COMMA, x, y);
+			first = false;
+		} else {
+			x.y = P.NewExpr(pos, Scanner.COMMA, x.y, y);
+		}
 	}
-	
+
 	P.Ecart();
 	return x;
 }
 
 
-func (P *Parser) ParseFunctionLit() *Node.Expr {
+func (P *Parser) ParseFunctionLit() *AST.Expr {
 	P.Trace("FunctionLit");
 	
-	x := Node.NewLit(P.pos, Scanner.FUNC, "");
+	x := AST.NewLit(P.pos, Scanner.FUNC, "");
 	P.Expect(Scanner.FUNC);
 	x.t = P.ParseFunctionType();
 	P.scope_lev++;
@@ -631,10 +635,10 @@ func (P *Parser) ParseFunctionLit() *Node.Expr {
 }
 
 
-func (P *Parser) ParseOperand() *Node.Expr {
+func (P *Parser) ParseOperand() *AST.Expr {
 	P.Trace("Operand");
 
-	x := Node.BadExpr;
+	x := AST.BadExpr;
 	switch P.tok {
 	case Scanner.IDENT:
 		x = P.ParseIdent();
@@ -649,7 +653,7 @@ func (P *Parser) ParseOperand() *Node.Expr {
 		P.Expect(Scanner.RPAREN);
 
 	case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
-		x = Node.NewLit(P.pos, P.tok, P.val);
+		x = AST.NewLit(P.pos, P.tok, P.val);
 		P.Next();
 		if x.tok == Scanner.STRING {
 			for ; P.tok == Scanner.STRING; P.Next() {
@@ -663,7 +667,7 @@ func (P *Parser) ParseOperand() *Node.Expr {
 	default:
 		t := P.TryType();
 		if t != nil {
-			x = Node.NewTypeExpr(t);
+			x = AST.NewTypeExpr(t);
 		} else {
 			P.Error(P.pos, "operand expected");
 			P.Next();  // make progress
@@ -675,7 +679,7 @@ func (P *Parser) ParseOperand() *Node.Expr {
 }
 
 
-func (P *Parser) ParseSelectorOrTypeGuard(x *Node.Expr) *Node.Expr {
+func (P *Parser) ParseSelectorOrTypeGuard(x *AST.Expr) *AST.Expr {
 	P.Trace("SelectorOrTypeGuard");
 
 	x = P.NewExpr(P.pos, Scanner.PERIOD, x, nil);
@@ -695,7 +699,7 @@ func (P *Parser) ParseSelectorOrTypeGuard(x *Node.Expr) *Node.Expr {
 }
 
 
-func (P *Parser) ParseIndex(x *Node.Expr) *Node.Expr {
+func (P *Parser) ParseIndex(x *AST.Expr) *AST.Expr {
 	P.Trace("IndexOrSlice");
 	
 	pos := P.pos;
@@ -708,9 +712,9 @@ func (P *Parser) ParseIndex(x *Node.Expr) *Node.Expr {
 }
 
 
-func (P *Parser) ParseBinaryExpr(prec1 int) *Node.Expr
+func (P *Parser) ParseBinaryExpr(prec1 int) *AST.Expr
 
-func (P *Parser) ParseCall(x *Node.Expr) *Node.Expr {
+func (P *Parser) ParseCall(x *AST.Expr) *AST.Expr {
 	P.Trace("Call");
 
 	x = P.NewExpr(P.pos, Scanner.LPAREN, x, nil);
@@ -737,46 +741,58 @@ func (P *Parser) ParseCall(x *Node.Expr) *Node.Expr {
 }
 
 
-func (P *Parser) ParseCompositeList(mode int) *Node.Expr {
+func (P *Parser) ParseCompositeList() *AST.Expr {
 	x := P.ParseExpression(0);
-	
-	switch mode {
-	case 0:  // first element determines mode
-		mode = 1;
-		if x.tok == Scanner.COLON {
-			mode = 2;
-		}
-	case 1:
-		if x.tok == Scanner.COLON {
-			P.Error(x.x.pos, "single value expected; found pair");
-		}
-	case 2:
-		if x.tok != Scanner.COLON {
-			P.Error(x.pos, "key:value pair expected; found single value");
-		}
-	}
-
 	if P.tok == Scanner.COMMA {
 		pos := P.pos;
 		P.Next();
-		if P.tok != Scanner.RBRACE {
-			y := P.ParseCompositeList(mode);
-			x = P.NewExpr(pos, Scanner.COMMA, x, y);
+		
+		// first element determines mode
+		singles := true;
+		if x.tok == Scanner.COLON {
+			singles = false;
+		}
+		
+		for first := true; P.tok != Scanner.RBRACE && P.tok != Scanner.EOF; {
+			y := P.ParseExpression(0);
+
+			if singles {
+				if y.tok == Scanner.COLON {
+					P.Error(y.x.pos, "single value expected; found pair");
+				}
+			} else {
+				if y.tok != Scanner.COLON {
+					P.Error(y.pos, "key:value pair expected; found single value");
+				}
+			}
+			
+			if first {
+				x = P.NewExpr(pos, Scanner.COMMA, x, y);
+			} else {
+				x.y = P.NewExpr(pos, Scanner.COMMA, x.y, y);
+			}
+		
+			if P.tok == Scanner.COMMA {
+				pos = P.pos;
+				P.Next();
+			} else {
+				break;
+			}
+
 		}
 	}
-
 	return x;
 }
 
 
-func (P *Parser) ParseCompositeLit(t *Node.Type) *Node.Expr {
+func (P *Parser) ParseCompositeLit(t *AST.Type) *AST.Expr {
 	P.Trace("CompositeLit");
 	
 	x := P.NewExpr(P.pos, Scanner.LBRACE, nil, nil);
 	x.t = t;
 	P.Expect(Scanner.LBRACE);
 	if P.tok != Scanner.RBRACE {
-		x.y = P.ParseCompositeList(0);
+		x.y = P.ParseCompositeList();
 	}
 	P.Expect(Scanner.RBRACE);
 	
@@ -785,7 +801,7 @@ func (P *Parser) ParseCompositeLit(t *Node.Type) *Node.Expr {
 }
 
 
-func (P *Parser) ParsePrimaryExpr() *Node.Expr {
+func (P *Parser) ParsePrimaryExpr() *AST.Expr {
 	P.Trace("PrimaryExpr");
 	
 	x := P.ParseOperand();
@@ -798,7 +814,7 @@ func (P *Parser) ParsePrimaryExpr() *Node.Expr {
 			// assume a composite literal only if x could be a type
 			// and if we are not inside control clause (expr_lev > 0)
 			// (composites inside control clauses must be parenthesized)
-			var t *Node.Type;
+			var t *AST.Type;
 			if P.expr_lev > 0 {
 				t = ExprType(x);
 			}
@@ -817,10 +833,10 @@ exit:
 }
 
 
-func (P *Parser) ParseUnaryExpr() *Node.Expr {
+func (P *Parser) ParseUnaryExpr() *AST.Expr {
 	P.Trace("UnaryExpr");
 	
-	x := Node.BadExpr;
+	x := AST.BadExpr;
 	switch P.tok {
 	case Scanner.ADD, Scanner.SUB, Scanner.MUL, Scanner.NOT, Scanner.XOR, Scanner.ARROW, Scanner.AND:
 		pos, tok := P.pos, P.tok;
@@ -828,9 +844,9 @@ func (P *Parser) ParseUnaryExpr() *Node.Expr {
 		y := P.ParseUnaryExpr();
 		if tok == Scanner.MUL && y.tok == Scanner.TYPE {
 			// pointer type
-			t := Node.NewType(pos, Scanner.MUL);
+			t := AST.NewType(pos, Scanner.MUL);
 			t.elt = y.t;
-			x = Node.NewTypeExpr(t);
+			x = AST.NewTypeExpr(t);
 		} else {
 			x = P.NewExpr(pos, tok, nil, y);
 		}
@@ -844,7 +860,7 @@ func (P *Parser) ParseUnaryExpr() *Node.Expr {
 }
 
 
-func (P *Parser) ParseBinaryExpr(prec1 int) *Node.Expr {
+func (P *Parser) ParseBinaryExpr(prec1 int) *AST.Expr {
 	P.Trace("BinaryExpr");
 	
 	x := P.ParseUnaryExpr();
@@ -862,7 +878,7 @@ func (P *Parser) ParseBinaryExpr(prec1 int) *Node.Expr {
 }
 
 
-func (P *Parser) ParseExpression(prec int) *Node.Expr {
+func (P *Parser) ParseExpression(prec int) *AST.Expr {
 	P.Trace("Expression");
 	indent := P.indent;
 
@@ -882,16 +898,16 @@ func (P *Parser) ParseExpression(prec int) *Node.Expr {
 // ----------------------------------------------------------------------------
 // Statements
 
-func (P *Parser) ParseSimpleStat() *Node.Stat {
+func (P *Parser) ParseSimpleStat() *AST.Stat {
 	P.Trace("SimpleStat");
 	
-	s := Node.BadStat;
+	s := AST.BadStat;
 	x := P.ParseExpressionList();
 	
 	switch P.tok {
 	case Scanner.COLON:
 		// label declaration
-		s = Node.NewStat(P.pos, Scanner.COLON);
+		s = AST.NewStat(P.pos, Scanner.COLON);
 		s.expr = x;
 		if x.len() != 1 {
 			P.Error(x.pos, "illegal label declaration");
@@ -911,8 +927,8 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
 		if xl, yl := x.len(), y.len(); xl > 1 && yl > 1 && xl != yl {
 			P.Error(x.pos, "arity of lhs doesn't match rhs");
 		}
-		s = Node.NewStat(x.pos, Scanner.EXPRSTAT);
-		s.expr = Node.NewExpr(pos, tok, x, y);
+		s = AST.NewStat(x.pos, Scanner.EXPRSTAT);
+		s.expr = AST.NewExpr(pos, tok, x, y);
 
 	default:
 		var pos, tok int;
@@ -922,7 +938,7 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
 		} else {
 			pos, tok = x.pos, Scanner.EXPRSTAT;
 		}
-		s = Node.NewStat(pos, tok);
+		s = AST.NewStat(pos, tok);
 		s.expr = x;
 		if x.len() != 1 {
 			P.Error(x.pos, "only one expression allowed");
@@ -934,10 +950,10 @@ func (P *Parser) ParseSimpleStat() *Node.Stat {
 }
 
 
-func (P *Parser) ParseGoStat() *Node.Stat {
+func (P *Parser) ParseGoStat() *AST.Stat {
 	P.Trace("GoStat");
 	
-	s := Node.NewStat(P.pos, Scanner.GO);
+	s := AST.NewStat(P.pos, Scanner.GO);
 	P.Expect(Scanner.GO);
 	s.expr = P.ParseExpression(1);
 	
@@ -946,10 +962,10 @@ func (P *Parser) ParseGoStat() *Node.Stat {
 }
 
 
-func (P *Parser) ParseReturnStat() *Node.Stat {
+func (P *Parser) ParseReturnStat() *AST.Stat {
 	P.Trace("ReturnStat");
 	
-	s := Node.NewStat(P.pos, Scanner.RETURN);
+	s := AST.NewStat(P.pos, Scanner.RETURN);
 	P.Expect(Scanner.RETURN);
 	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
 		s.expr = P.ParseExpressionList();
@@ -960,10 +976,10 @@ func (P *Parser) ParseReturnStat() *Node.Stat {
 }
 
 
-func (P *Parser) ParseControlFlowStat(tok int) *Node.Stat {
+func (P *Parser) ParseControlFlowStat(tok int) *AST.Stat {
 	P.Trace("ControlFlowStat");
 	
-	s := Node.NewStat(P.pos, tok);
+	s := AST.NewStat(P.pos, tok);
 	P.Expect(tok);
 	if tok != Scanner.FALLTHROUGH && P.tok == Scanner.IDENT {
 		s.expr = P.ParseIdent();
@@ -974,10 +990,10 @@ func (P *Parser) ParseControlFlowStat(tok int) *Node.Stat {
 }
 
 
-func (P *Parser) ParseControlClause(keyword int) *Node.Stat {
+func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
 	P.Trace("ControlClause");
 	
-	s := Node.NewStat(P.pos, keyword);
+	s := AST.NewStat(P.pos, keyword);
 	P.Expect(keyword);
 	if P.tok != Scanner.LBRACE {
 		prev_lev := P.expr_lev;
@@ -1009,22 +1025,22 @@ func (P *Parser) ParseControlClause(keyword int) *Node.Stat {
 }
 
 
-func (P *Parser) ParseIfStat() *Node.Stat {
+func (P *Parser) ParseIfStat() *AST.Stat {
 	P.Trace("IfStat");
 
 	s := P.ParseControlClause(Scanner.IF);
 	s.block = P.ParseBlock();
 	if P.tok == Scanner.ELSE {
 		P.Next();
-		s1 := Node.BadStat;
+		s1 := AST.BadStat;
 		if P.sixg {
 			s1 = P.ParseStatement();
 			if s1 != nil {
 				// not the empty statement
 				if s1.tok != Scanner.LBRACE {
 					// wrap in a block if we don't have one
-					b := Node.NewStat(P.pos, Scanner.LBRACE);
-					b.block = Node.NewList();
+					b := AST.NewStat(P.pos, Scanner.LBRACE);
+					b.block = AST.NewList();
 					b.block.Add(s1);
 					s1 = b;
 				}
@@ -1033,7 +1049,7 @@ func (P *Parser) ParseIfStat() *Node.Stat {
 		} else if P.tok == Scanner.IF {
 			s1 = P.ParseIfStat();
 		} else {
-			s1 = Node.NewStat(P.pos, Scanner.LBRACE);
+			s1 = AST.NewStat(P.pos, Scanner.LBRACE);
 			s1.block = P.ParseBlock();
 		}
 		s.post = s1;
@@ -1044,7 +1060,7 @@ func (P *Parser) ParseIfStat() *Node.Stat {
 }
 
 
-func (P *Parser) ParseForStat() *Node.Stat {
+func (P *Parser) ParseForStat() *AST.Stat {
 	P.Trace("ForStat");
 	
 	s := P.ParseControlClause(Scanner.FOR);
@@ -1055,10 +1071,10 @@ func (P *Parser) ParseForStat() *Node.Stat {
 }
 
 
-func (P *Parser) ParseCase() *Node.Stat {
+func (P *Parser) ParseCase() *AST.Stat {
 	P.Trace("Case");
 	
-	s := Node.NewStat(P.pos, P.tok);
+	s := AST.NewStat(P.pos, P.tok);
 	if P.tok == Scanner.CASE {
 		P.Next();
 		s.expr = P.ParseExpressionList();
@@ -1072,7 +1088,7 @@ func (P *Parser) ParseCase() *Node.Stat {
 }
 
 
-func (P *Parser) ParseCaseClause() *Node.Stat {
+func (P *Parser) ParseCaseClause() *AST.Stat {
 	P.Trace("CaseClause");
 
 	s := P.ParseCase();
@@ -1085,11 +1101,11 @@ func (P *Parser) ParseCaseClause() *Node.Stat {
 }
 
 
-func (P *Parser) ParseSwitchStat() *Node.Stat {
+func (P *Parser) ParseSwitchStat() *AST.Stat {
 	P.Trace("SwitchStat");
 	
 	s := P.ParseControlClause(Scanner.SWITCH);
-	s.block = Node.NewList();
+	s.block = AST.NewList();
 	P.Expect(Scanner.LBRACE);
 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 		s.block.Add(P.ParseCaseClause());
@@ -1102,10 +1118,10 @@ func (P *Parser) ParseSwitchStat() *Node.Stat {
 }
 
 
-func (P *Parser) ParseCommCase() *Node.Stat {
+func (P *Parser) ParseCommCase() *AST.Stat {
 	P.Trace("CommCase");
 
-	s := Node.NewStat(P.pos, Scanner.CASE);
+	s := AST.NewStat(P.pos, Scanner.CASE);
 	if P.tok == Scanner.CASE {
 		P.Next();
 		P.ParseExpression(1);
@@ -1124,7 +1140,7 @@ func (P *Parser) ParseCommCase() *Node.Stat {
 }
 
 
-func (P *Parser) ParseCommClause() *Node.Stat {
+func (P *Parser) ParseCommClause() *AST.Stat {
 	P.Trace("CommClause");
 	
 	s := P.ParseCommCase();
@@ -1137,11 +1153,11 @@ func (P *Parser) ParseCommClause() *Node.Stat {
 }
 
 
-func (P *Parser) ParseSelectStat() *Node.Stat {
+func (P *Parser) ParseSelectStat() *AST.Stat {
 	P.Trace("SelectStat");
 	
-	s := Node.NewStat(P.pos, Scanner.SELECT);
-	s.block = Node.NewList();
+	s := AST.NewStat(P.pos, Scanner.SELECT);
+	s.block = AST.NewList();
 	P.Expect(Scanner.SELECT);
 	P.Expect(Scanner.LBRACE);
 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
@@ -1155,10 +1171,10 @@ func (P *Parser) ParseSelectStat() *Node.Stat {
 }
 
 
-func (P *Parser) ParseRangeStat() *Node.Stat {
+func (P *Parser) ParseRangeStat() *AST.Stat {
 	P.Trace("RangeStat");
 	
-	s := Node.NewStat(P.pos, Scanner.RANGE);
+	s := AST.NewStat(P.pos, Scanner.RANGE);
 	P.Expect(Scanner.RANGE);
 	P.ParseIdentList();
 	P.Expect(Scanner.DEFINE);
@@ -1170,14 +1186,14 @@ func (P *Parser) ParseRangeStat() *Node.Stat {
 }
 
 
-func (P *Parser) ParseStatement() *Node.Stat {
+func (P *Parser) ParseStatement() *AST.Stat {
 	P.Trace("Statement");
 	indent := P.indent;
 
-	s := Node.BadStat;
+	s := AST.BadStat;
 	switch P.tok {
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
-		s = Node.NewStat(P.pos, P.tok);
+		s = AST.NewStat(P.pos, P.tok);
 		s.decl = P.ParseDeclaration();
 	case Scanner.FUNC:
 		// for now we do not allow local function declarations,
@@ -1196,7 +1212,7 @@ func (P *Parser) ParseStatement() *Node.Stat {
 	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO, Scanner.FALLTHROUGH:
 		s = P.ParseControlFlowStat(P.tok);
 	case Scanner.LBRACE:
-		s = Node.NewStat(P.pos, Scanner.LBRACE);
+		s = AST.NewStat(P.pos, Scanner.LBRACE);
 		s.block = P.ParseBlock();
 	case Scanner.IF:
 		s = P.ParseIfStat();
@@ -1224,10 +1240,10 @@ func (P *Parser) ParseStatement() *Node.Stat {
 // ----------------------------------------------------------------------------
 // Declarations
 
-func (P *Parser) ParseImportSpec() *Node.Decl {
+func (P *Parser) ParseImportSpec() *AST.Decl {
 	P.Trace("ImportSpec");
 	
-	d := Node.NewDecl(P.pos, Scanner.IMPORT, false);
+	d := AST.NewDecl(P.pos, Scanner.IMPORT, false);
 	if P.tok == Scanner.PERIOD {
 		P.Error(P.pos, `"import ." not yet handled properly`);
 		P.Next();
@@ -1237,7 +1253,7 @@ func (P *Parser) ParseImportSpec() *Node.Decl {
 	
 	if P.tok == Scanner.STRING {
 		// TODO eventually the scanner should strip the quotes
-		d.val = Node.NewLit(P.pos, Scanner.STRING, P.val);
+		d.val = AST.NewLit(P.pos, Scanner.STRING, P.val);
 		P.Next();
 	} else {
 		P.Expect(Scanner.STRING);  // use Expect() error handling
@@ -1248,10 +1264,10 @@ func (P *Parser) ParseImportSpec() *Node.Decl {
 }
 
 
-func (P *Parser) ParseConstSpec(exported bool) *Node.Decl {
+func (P *Parser) ParseConstSpec(exported bool) *AST.Decl {
 	P.Trace("ConstSpec");
 	
-	d := Node.NewDecl(P.pos, Scanner.CONST, exported);
+	d := AST.NewDecl(P.pos, Scanner.CONST, exported);
 	d.ident = P.ParseIdent();
 	d.typ = P.TryType();
 	if P.tok == Scanner.ASSIGN {
@@ -1264,10 +1280,10 @@ func (P *Parser) ParseConstSpec(exported bool) *Node.Decl {
 }
 
 
-func (P *Parser) ParseTypeSpec(exported bool) *Node.Decl {
+func (P *Parser) ParseTypeSpec(exported bool) *AST.Decl {
 	P.Trace("TypeSpec");
 
-	d := Node.NewDecl(P.pos, Scanner.TYPE, exported);
+	d := AST.NewDecl(P.pos, Scanner.TYPE, exported);
 	d.ident = P.ParseIdent();
 	d.typ = P.ParseType();
 	P.opt_semi = true;
@@ -1277,10 +1293,10 @@ func (P *Parser) ParseTypeSpec(exported bool) *Node.Decl {
 }
 
 
-func (P *Parser) ParseVarSpec(exported bool) *Node.Decl {
+func (P *Parser) ParseVarSpec(exported bool) *AST.Decl {
 	P.Trace("VarSpec");
 	
-	d := Node.NewDecl(P.pos, Scanner.VAR, exported);
+	d := AST.NewDecl(P.pos, Scanner.VAR, exported);
 	d.ident = P.ParseIdentList();
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
@@ -1299,7 +1315,7 @@ func (P *Parser) ParseVarSpec(exported bool) *Node.Decl {
 
 
 // TODO replace this by using function pointers derived from methods
-func (P *Parser) ParseSpec(exported bool, keyword int) *Node.Decl {
+func (P *Parser) ParseSpec(exported bool, keyword int) *AST.Decl {
 	switch keyword {
 	case Scanner.IMPORT: return P.ParseImportSpec();
 	case Scanner.CONST: return P.ParseConstSpec(exported);
@@ -1311,15 +1327,15 @@ func (P *Parser) ParseSpec(exported bool, keyword int) *Node.Decl {
 }
 
 
-func (P *Parser) ParseDecl(exported bool, keyword int) *Node.Decl {
+func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
 	P.Trace("Decl");
 	
-	d := Node.BadDecl;
+	d := AST.BadDecl;
 	P.Expect(keyword);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
-		d = Node.NewDecl(P.pos, keyword, exported);
-		d.list = Node.NewList();
+		d = AST.NewDecl(P.pos, keyword, exported);
+		d.list = AST.NewList();
 		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
 			d.list.Add(P.ParseSpec(exported, keyword));
 			if P.tok == Scanner.SEMICOLON {
@@ -1349,13 +1365,13 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *Node.Decl {
 // func (recv) ident (params) type
 // func (recv) ident (params) (results)
 
-func (P *Parser) ParseFunctionDecl(exported bool) *Node.Decl {
+func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
 	P.Trace("FunctionDecl");
 	
-	d := Node.NewDecl(P.pos, Scanner.FUNC, exported);
+	d := AST.NewDecl(P.pos, Scanner.FUNC, exported);
 	P.Expect(Scanner.FUNC);
 	
-	var recv *Node.Type;
+	var recv *AST.Type;
 	if P.tok == Scanner.LPAREN {
 		pos := P.pos;
 		recv = P.ParseParameters();
@@ -1379,10 +1395,10 @@ func (P *Parser) ParseFunctionDecl(exported bool) *Node.Decl {
 }
 
 
-func (P *Parser) ParseExportDecl() *Node.Decl {
+func (P *Parser) ParseExportDecl() *AST.Decl {
 	P.Trace("ExportDecl");
 	
-	d := Node.NewDecl(P.pos, Scanner.EXPORT, false);
+	d := AST.NewDecl(P.pos, Scanner.EXPORT, false);
 	d.ident = P.ParseIdentList();
 
 	P.Ecart();
@@ -1390,11 +1406,11 @@ func (P *Parser) ParseExportDecl() *Node.Decl {
 }
 
 
-func (P *Parser) ParseDeclaration() *Node.Decl {
+func (P *Parser) ParseDeclaration() *AST.Decl {
 	P.Trace("Declaration");
 	indent := P.indent;
 	
-	d := Node.BadDecl;
+	d := AST.BadDecl;
 	exported := false;
 	if P.tok == Scanner.EXPORT {
 		if P.scope_lev == 0 {
@@ -1436,14 +1452,14 @@ func (P *Parser) ParseDeclaration() *Node.Decl {
 // ----------------------------------------------------------------------------
 // Program
 
-func (P *Parser) ParseProgram() *Node.Program {
+func (P *Parser) ParseProgram() *AST.Program {
 	P.Trace("Program");
 	
-	p := Node.NewProgram(P.pos);
+	p := AST.NewProgram(P.pos);
 	P.Expect(Scanner.PACKAGE);
 	p.ident = P.ParseIdent();
 	
-	p.decls = Node.NewList();
+	p.decls = AST.NewList();
 	for P.tok == Scanner.IMPORT {
 		p.decls.Add(P.ParseDecl(false, Scanner.IMPORT));
 		P.OptSemicolon();
