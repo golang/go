@@ -22,5 +22,8 @@ main.$A: regexp.$A
 clean:
 	rm -f *.6 test
 
+nuke: clean
+	rm -f $(PKG)
+
 %.6:	%.go
 	$G $<
