@@ -11,16 +11,9 @@ import (
 	"os"
 )
 
-// Read/write/close interface.
-type RWC interface {
-	Read(p *[]byte) (n int, err *os.Error);
-	Write(p *[]byte) (n int, err *os.Error);
-	Close() *os.Error;
-}
-
 // Active HTTP connection (server side).
 export type Conn struct {
-	rwc RWC;
+	rwc io.ReadWriteClose;
 	br *bufio.BufRead;
 	bw *bufio.BufWrite;
 	close bool;
@@ -28,7 +21,7 @@ export type Conn struct {
 }
 
 // Create new connection from rwc.
-export func NewConn(rwc RWC) (c *Conn, err *os.Error) {
+export func NewConn(rwc io.ReadWriteClose) (c *Conn, err *os.Error) {
 	c = new(Conn);
 	c.rwc = rwc;
 	if c.br, err = bufio.NewBufRead(rwc); err != nil {
