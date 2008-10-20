@@ -173,7 +173,7 @@ export var BadType = NewType(0, Scanner.ILLEGAL);
 export type Stat struct {
 	pos, tok int;
 	init, post *Stat;
-	lhs, expr *Expr;
+	expr *Expr;
 	block *List;
 	decl *Decl;
 }
