@@ -19,7 +19,7 @@ make test
 (xcd ../usr/gri/gosrc
 make clean
 time make
-make test
+# make test
 )
 
 (xcd ../usr/gri/pretty
