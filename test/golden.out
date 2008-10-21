@@ -112,7 +112,7 @@ bugs/bug080.go:12: illegal types for operand: CALL
 BUG: fails incorrectly
 
 =========== bugs/bug083.go
-BUG: succeeds incorrectly
+bugs/bug083.dir/bug1.go:5: syntax error near T0
 
 =========== bugs/bug085.go
 bugs/bug085.go:8: P: undefined
@@ -165,7 +165,7 @@ BUG: should compile
 fixedbugs/bug016.go:7: overflow converting constant to uint32
 
 =========== fixedbugs/bug025.go
-fixedbugs/bug025.go:7: variable exported but not defined: main.Foo
+fixedbugs/bug025.go:7: variable exported but not defined: Foo
 
 =========== fixedbugs/bug027.go
 hi

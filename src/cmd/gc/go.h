@@ -135,6 +135,7 @@ struct	Type
 	Type*	method;
 
 	Sym*	sym;
+	Sym*	xsym;		// export sym
 	int32	vargen;		// unique name for OTYPE/ONAME
 
 	Node*	nname;
@@ -442,6 +443,7 @@ EXTERN	Dcl*	paramdcl;
 EXTERN	Dcl*	externdcl;
 EXTERN	Dcl*	exportlist;
 EXTERN	Dcl*	signatlist;
+EXTERN	Dcl*	typelist;
 EXTERN	int	dclcontext;	// PEXTERN/PAUTO
 EXTERN	int	importflag;
 EXTERN	int	inimportsys;

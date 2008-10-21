@@ -77,6 +77,9 @@ mainlex(int argc, char *argv[])
 	exportlist = mal(sizeof(*exportlist));
 	exportlist->back = exportlist;
 
+	typelist = mal(sizeof(*typelist));
+	typelist->back = typelist;
+
 	// function field skeleton
 	fskel = nod(OLIST, N, nod(OLIST, N, N));
 	fskel->left = nod(ODCLFIELD, N, N);
@@ -1112,13 +1115,8 @@ lexinit(void)
 			continue;
 		}
 		t = typ(etype);
-		switch(etype) {
-		case TSTRING:
-		case TCHAN:
-		case TMAP:
+		if(etype == TSTRING)
 			t = ptrto(t);
-		}
-
 		t->sym = s;
 
 		dowidth(t);
