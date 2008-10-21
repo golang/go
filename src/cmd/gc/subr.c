@@ -963,7 +963,6 @@ Tpretty(Fmt *fp, Type *t)
 
 	if(t->etype != TFIELD
 	&& t->sym != S
-	&& t->sym->name[0] != '_'
 	&& !(fp->flags&FmtLong)) {
 		s = t->sym;
 		if(t == types[t->etype] || t == types[TSTRING])
@@ -1117,10 +1116,8 @@ Tconv(Fmt *fp)
 	et = t->etype;
 
 	strcpy(buf, "");
-	if(t->sym != S) {
-		if(t->sym->name[0] != '_')
+	if(t->sym != S)
 		snprint(buf, sizeof(buf), "<%S>", t->sym);
-	}
 
 	switch(et) {
 	default:
@@ -1479,7 +1476,7 @@ ismethod(Type *t)
 
 	// direct receiver
 	s = t->sym;
-	if(s != S && s->name[0] != '_') {
+	if(s != S) {
 		if(t->methptr == 2)
 			goto both;
 		t->methptr |= 1;
@@ -1495,7 +1492,7 @@ ismethod(Type *t)
 		return T;
 
 	s = t->sym;
-	if(s != S && s->name[0] != '_') {
+	if(s != S) {
 		if(t->methptr == 1)
 			goto both;
 		t->methptr |= 2;
@@ -1616,14 +1613,14 @@ signame(Type *t, int block)
 		goto bad;
 
 	s = t->sym;
-	if(s == S || s->name[0] == '_') {
+	if(s == S) {
 		if(isptr[t->etype]) {
 			t = t->type;
 			if(t == T)
 				goto bad;
 		}
 		s = t->sym;
-		if(s == S || s->name[0] == '_')
+		if(s == S)
 			goto bad;
 	}
 
