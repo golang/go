@@ -129,11 +129,6 @@ found 2, expected 1
 panic on line 74 PC=xxx
 BUG wrong result
 
-=========== bugs/bug097.go
-
-panic on line 76 PC=xxx
-BUG wrong result
-
 =========== bugs/bug098.go
 bugs/bug098.go:10: illegal types for operand: AS
 	*M

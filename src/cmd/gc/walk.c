@@ -895,6 +895,36 @@ loop:
 	case OADDR:
 		if(top != Erv)
 			goto nottop;
+		if(n->left->op == OCONV && iscomposite(n->left->type)) {
+			// turn &Point{1, 2} into allocation.
+			// initialize with
+			//	nvar := new(Point);
+			//	*nvar = Point{1, 2};
+			// and replace expression with nvar
+
+			// TODO(rsc): might do a better job (fewer copies) later
+			Node *nnew, *nvar, *nas;
+
+			walktype(n->left, Elv);
+			if(n->left == N)
+				goto ret;
+
+			nvar = nod(0, N, N);
+			tempname(nvar, ptrto(n->left->type));
+
+			nnew = nod(ONEW, N, N);
+			nnew->type = nvar->type;
+			nnew = newcompat(nnew);
+			
+			nas = nod(OAS, nvar, nnew);
+			addtop = list(addtop, nas);
+			
+			nas = nod(OAS, nod(OIND, nvar, N), n->left);
+			addtop = list(addtop, nas);
+
+			indir(n, nvar);
+			goto ret;
+		}
 		walktype(n->left, Elv);
 		if(n->left == N)
 			goto ret;
