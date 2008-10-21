@@ -40,7 +40,6 @@ applydot() {
 apply() {
 	for F in \
 		$GOROOT/usr/gri/pretty/*.go \
-		$GOROOT/usr/gri/gosrc/*.go \
 		$GOROOT/test/*.go \
 		$GOROOT/src/pkg/*.go \
 		$GOROOT/src/lib/*.go \
