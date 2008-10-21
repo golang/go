@@ -1391,61 +1391,101 @@ walkselect(Node *sel)
 }
 
 Type*
-lookdot(Node *n, Type *f, int d)
+methtype(Type *t)
 {
-	Type *r, *r1;
-	Sym *s, *sf;
+	Sym *s;
+
+	// this is ismethod() without diagnostics
+	if(t == T)
+		return T;
+	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
+		return T;
+	s = t->sym;
+	if(s != S && s->name[0] != '_')
+		return t;
+	if(!isptr[t->etype])
+		return T;
+	t = t->type;
+	if(t == T)
+		return T;
+	s = t->sym;
+	if(s != S && s->name[0] != '_')
+		return t;
+	return T;
+}
+
+Type*
+lookdot1(Node *n, Type *f)
+{
+	Type *r;
+	Sym *s;
 
 	r = T;
 	s = n->sym;
 
 	for(; f!=T; f=f->down) {
-		sf = f->sym;
-		if(sf == S)
+		if(f->sym == S)
 			continue;
-
-		// depth=0 -- look directly in structure
-		if(d == 0) {
-			if(sf != s)
-				continue;
-			if(r != T)
-				goto ambig;
-			r = f;
-			n->xoffset = f->width;
+		if(f->sym != s)
+			continue;
+		if(r != T) {
+			yyerror("ambiguous DOT reference %S", s);
+			break;
 		}
-
-		// depth>0 -- look into unnamed substructures
-		if(d > 0 && f->embedded) {
-			if(f->type == T)
-				continue;
-			if(f->type->etype != TSTRUCT && f->type->etype != TINTER)
-				continue;
-			r1 = lookdot(n, f->type->type, d-1);
-			if(r1 == T)
-				continue;
-			if(r != T)
-				goto ambig;
-			r = r1;
-			n->xoffset += f->width;
-		}
+		r = f;
 	}
 	return r;
+}
 
-ambig:
-	yyerror("ambiguous DOT reference %S", s);
-	return r;
+int
+lookdot(Node *n, Type *t)
+{
+	Type *f1, *f2;
+
+	f1 = T;
+	if(t->etype == TSTRUCT || t->etype == TINTER)
+		f1 = lookdot1(n->right, t->type);
+
+	f2 = methtype(n->left->type);
+	if(f2 != T)
+		f2 = lookdot1(n->right, f2->method);
+
+	if(f1 != T) {
+		if(f2 != T)
+			yyerror("ambiguous DOT reference %S as both field and method",
+				n->right->sym);
+		n->right = f1->nname;		// substitute real name
+		n->xoffset = f1->width;
+		n->type = f1->type;
+		if(t->etype == TINTER)
+			n->op = ODOTINTER;
+		return 1;
+	}
+
+	if(f2 != T) {
+		n->right = methodname(n->right, ismethod(n->left->type));
+		n->xoffset = f2->width;
+		n->type = f2->type;
+		n->op = ODOTMETH;
+		return 1;
+	}
+
+	return 0;
 }
 
 void
 walkdot(Node *n)
 {
 	Type *t, *f;
-	int d;
 
 	if(n->left == N || n->right == N)
 		return;
-	if(n->op == ODOTINTER || n->op == ODOTMETH)
+	switch(n->op) {
+	case ODOTINTER:
+	case ODOTMETH:
+	case ODOTPTR:
 		return;	// already done
+	}
 
 	walktype(n->left, Erv);
 	if(n->right->op != ONAME) {
@@ -1465,34 +1505,31 @@ walkdot(Node *n)
 		n->op = ODOTPTR;
 	}
 
-	if(t->etype == TSTRUCT || t->etype == TINTER) {
-		for(d=0; d<=5; d++) {
-			f = lookdot(n->right, t->type, d);
-			if(f != T) {
-				n->xoffset = n->right->xoffset;
-				n->right = f->nname;		// substitute real name
-				n->type = f->type;
-				if(t->etype == TINTER)
-					n->op = ODOTINTER;
-				return;
-			}
-		}
-	}
-
-	// as a method
-	f = T;
-	t = ismethod(n->left->type);
-	if(t != T)
-		f = lookdot(n->right, t->method, 0);
-	if(f == T) {
+	if(!lookdot(n, t))
 		yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
-		return;
-	}
+}
 
-	n->xoffset = f->width;
-	n->right = methodname(n->right, t);
-	n->type = f->type;
-	n->op = ODOTMETH;
+int
+adddot1(Node *n, int d)
+{
+	return 1;
+}
+
+void
+adddot(Node *n)
+{
+	int d;
+
+	walktype(n->left, Erv);
+	if(n->left->type == T)
+		return;
+	if(n->right->op != ONAME)
+		return;
+
+	for(d=0; d<5; d++)
+		if(adddot1(n, d))
+			break;
+//	dump("adddot", n);
 }
 
 Node*
