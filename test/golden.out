@@ -27,7 +27,7 @@ hello, world
 	*Inst
 
 =========== ./interface2.go
-cannot convert type S to interface I: missing method Foo
+cannot convert type *main.S_interface2 to interface main.I_interface2: missing method Foo
 throw: interface conversion
 SIGSEGV: segmentation violation
 Faulting address: 0x0
@@ -35,7 +35,7 @@ pc: xxx
 
 
 =========== ./interface3.go
-cannot convert type S to interface I2: missing method Name
+cannot convert type *main.S_interface3 to interface main.I2_interface3: missing method Name
 throw: interface conversion
 SIGSEGV: segmentation violation
 Faulting address: 0x0
@@ -126,12 +126,12 @@ BUG: fails incorrectly
 =========== bugs/bug095.go
 found 2, expected 1
 
-panic on line 81 PC=xxx
+panic on line 74 PC=xxx
 BUG wrong result
 
 =========== bugs/bug097.go
 
-panic on line 83 PC=xxx
+panic on line 76 PC=xxx
 BUG wrong result
 
 =========== bugs/bug098.go

@@ -609,8 +609,12 @@ dumpsignatures(void)
 		p->to.offset = stringo;
 		ot += widthptr;
 
-		// save type name for runtime error message
-		snprint(buf, sizeof buf, "%T", t);
+		// save type name for runtime error message.
+		// TODO(rsc): the * is a botch but right more often than not.
+		if(et == TINTER)
+			snprint(buf, sizeof buf, "%#T", t);
+		else
+			snprint(buf, sizeof buf, "*%#T", t);
 		datastring(buf, strlen(buf)+1);
 
 		if(et == TINTER) {
