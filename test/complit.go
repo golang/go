@@ -22,6 +22,11 @@ func eq(a *[]*R) {
 	}
 }
 
+type P struct { a, b int };
+func NewP(a, b int) *P {
+	return &P{a, b}
+}
+
 func main() {
 	var t T;
 	t = T{0, 7.2, "hi", &t};
@@ -57,4 +62,8 @@ func main() {
 	if len(m) != 3 { panic("m") }
 
 	eq(&[]*R{itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)});
+	
+	p1 := NewP(1, 2);
+	p2 := NewP(1, 2);
+	if p1 == p2 { panic("NewP") }
 }

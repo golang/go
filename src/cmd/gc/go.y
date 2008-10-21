@@ -754,8 +754,6 @@ uexpr:
 	}
 |	'&' uexpr
 	{
-		if($2->op == OCONV && !func)
-			yyerror("& of composite literal at top level");
 		$$ = nod(OADDR, $2, N);
 	}
 |	'+' uexpr
@@ -1186,13 +1184,11 @@ xfndcl:
 	{
 		maxarg = 0;
 		stksize = 0;
-		func++;
 	} fndcl fnbody
 	{
 		$$ = $3;
 		$$->nbody = $4;
 		funcbody($$);
-		func--;
 	}
 
 fndcl:
