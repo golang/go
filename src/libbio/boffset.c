@@ -23,13 +23,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include	"lib9.h"
+#include	<u.h>
+#include	<libc.h>
 #include	<bio.h>
 
-off_t
+vlong
 Boffset(Biobuf *bp)
 {
-	off_t n;
+	vlong n;
 
 	switch(bp->state) {
 	default:
