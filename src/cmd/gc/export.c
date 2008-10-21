@@ -42,7 +42,7 @@ dumpprereq(Type *t)
 	if(t == T)
 		return;
 
-	if(t->printed)
+	if(t->printed || t == types[t->etype] || t == types[TSTRING])
 		return;
 	t->printed = 1;
 
@@ -133,7 +133,7 @@ dumpexporttype(Sym *s)
 		yyerror("export of incomplete type %T", s->otype);
 		return;
 	}
-	Bprint(bout, "type %lS %l#T\n",  s, s->otype);
+	Bprint(bout, "type %#T %l#T\n",  s->otype, s->otype);
 }
 
 void
@@ -160,7 +160,7 @@ dumpsym(Sym *s)
 
 		dumpexporttype(s);
 		for(f=s->otype->method; f!=T; f=f->down)
-			Bprint(bout, "\tfunc (%#T) %hS %#T\n",
+			Bprint(bout, "\tfunc (%#T) %hS %#hT\n",
 				f->type->type->type, f->sym, f->type);
 		break;
 	case LNAME:
@@ -173,33 +173,47 @@ dumpsym(Sym *s)
 }
 
 void
+dumptype(Type *t)
+{
+	// no need to re-dump type if already exported
+	if(t->printed)
+		return;
+
+	// no need to dump type if it's not ours (was imported)
+	if(t->sym != S && t->sym->otype == t && !t->sym->local)
+		return;
+
+	Bprint(bout, "type %#T %l#T\n",  t, t);
+}
+
+void
 dumpexport(void)
 {
 	Dcl *d;
 	int32 lno;
-	char *pkg;
 
-	exporting = 1;
 	lno = lineno;
 
 	Bprint(bout, "   import\n");
-	Bprint(bout, "   $$\n");
+	Bprint(bout, "   $$  // exports\n");
 
 	Bprint(bout, "    package %s\n", package);
-	pkg = package;
-	package = "$nopkg";
 
 	for(d=exportlist->forw; d!=D; d=d->forw) {
 		lineno = d->lineno;
 		dumpsym(d->dsym);
 	}
 
-	package = pkg;
+	Bprint(bout, "\n$$  // local types\n");
+
+	for(d=typelist->forw; d!=D; d=d->forw) {
+		lineno = d->lineno;
+		dumptype(d->dtype);
+	}
 
 	Bprint(bout, "\n$$\n");
 
 	lineno = lno;
-	exporting = 0;
 }
 
 /*
@@ -243,9 +257,9 @@ importsym(Node *ss, int lexical)
 		fatal("importsym: oops1 %N", ss);
 
 	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
-
 	/* TODO botch - need some diagnostic checking for the following assignment */
 	s->opackage = ss->osym->name;
+	s->export = 1;
 	return s;
 }
 

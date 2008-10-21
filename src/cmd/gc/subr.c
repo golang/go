@@ -959,12 +959,25 @@ int
 Tpretty(Fmt *fp, Type *t)
 {
 	Type *t1;
+	Sym *s;
 
 	if(t->etype != TFIELD
 	&& t->sym != S
 	&& t->sym->name[0] != '_'
-	&& !(fp->flags&FmtLong))
-		return fmtprint(fp, "%S", t->sym);
+	&& !(fp->flags&FmtLong)) {
+		s = t->sym;
+		if(t == types[t->etype] || t == types[TSTRING])
+			return fmtprint(fp, "%s", s->name);
+		if(exporting) {
+			if(t->xsym != S)
+				s = t->xsym;
+			if(strcmp(s->opackage, package) == 0)
+			if(s->otype != t || !s->export)
+				return fmtprint(fp, "%lS_%s", s, filename);
+			return fmtprint(fp, "%lS", s);
+		}
+		return fmtprint(fp, "%S", s);
+	}
 
 	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil)
 		return fmtprint(fp, "%s", basicnames[t->etype]);
@@ -1068,12 +1081,14 @@ Tpretty(Fmt *fp, Type *t)
 	return -1;
 }
 
+
+
 int
 Tconv(Fmt *fp)
 {
 	char buf[500], buf1[500];
 	Type *t, *t1;
-	int et;
+	int et, exp;
 
 	t = va_arg(fp->args, Type*);
 	if(t == T)
@@ -1085,9 +1100,18 @@ Tconv(Fmt *fp)
 		goto out;
 	}
 
-	if(!debug['t'] && Tpretty(fp, t) >= 0) {
-		t->trecur--;
-		return 0;
+	if(!debug['t']) {
+		exp = (fp->flags & FmtSharp);
+		if(exp)
+			exporting++;
+		if(Tpretty(fp, t) >= 0) {
+			t->trecur--;
+			if(exp)
+				exporting--;
+			return 0;
+		}
+		if(exp)
+			exporting--;
 	}
 
 	et = t->etype;

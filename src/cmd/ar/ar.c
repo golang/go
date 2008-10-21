@@ -674,8 +674,13 @@ scanpkg(Biobuf *b, long size)
 	return;
 
 foundstart:
-	pkg = nil;
+	/* found $$; skip rest of line */
+	while((c = Bgetc(b)) != '\n')
+		if(c == Beof)
+			goto bad;
+
 	/* how big is it? */
+	pkg = nil;
 	first = 1;
 	start = end = 0;
 	for (n=0; n<size; n+=Blinelen(b)) {
@@ -1457,7 +1462,7 @@ ilookup(char *name)
 {
 	int h;
 	Import *x;
-	
+
 	h = hashstr(name) % NIHASH;
 	for(x=ihash[h]; x; x=x->hash)
 		if(x->name[0] == name[0] && strcmp(x->name, name) == 0)
@@ -1480,7 +1485,7 @@ loadpkgdata(char *data, int len)
 	char *p, *ep, *prefix, *name, *def;
 	Import *x;
 
-	file = arstrdup(file);	
+	file = arstrdup(file);
 	p = data;
 	ep = data + len;
 	while(parsepkgdata(&p, ep, &export, &prefix, &name, &def) > 0) {
@@ -1503,7 +1508,7 @@ loadpkgdata(char *data, int len)
 				fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
 				errors++;
 			}
-			
+
 			// okay if some .6 say export and others don't.
 			// all it takes is one.
 			if(export)
@@ -1517,7 +1522,7 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
 {
 	char *p, *prefix, *name, *def, *edef, *meth;
 	int n;
-	
+
 	// skip white space
 	p = *pp;
 	while(p < ep && (*p == ' ' || *p == '\t'))
@@ -1532,9 +1537,9 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
 		p += 7;
 	}
 
-	// prefix: (var|type|func|const) 	
+	// prefix: (var|type|func|const)
 	prefix = p;
-	
+
 	prefix = p;
 	if(p + 6 > ep)
 		return -1;
@@ -1552,7 +1557,7 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
 		return -1;
 	}
 	p[-1] = '\0';
-	
+
 	// name: a.b followed by space
 	name = p;
 	while(p < ep && *p != ' ')
@@ -1569,7 +1574,7 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
 		return -1;
 	edef = p;
 	*p++ = '\0';
-	
+
 	// include methods on successive lines in def of named type
 	while(parsemethod(&p, ep, &meth) > 0) {
 		*edef++ = '\n';	// overwrites '\0'
@@ -1602,7 +1607,7 @@ int
 parsemethod(char **pp, char *ep, char **methp)
 {
 	char *p;
-	
+
 	// skip white space
 	p = *pp;
 	while(p < ep && (*p == ' ' || *p == '\t'))
@@ -1613,7 +1618,7 @@ parsemethod(char **pp, char *ep, char **methp)
 	// if it says "func (", it's a method
 	if(p + 6 >= ep || strncmp(p, "func (", 6) != 0)
 		return 0;
-	
+
 	// definition to end of line
 	*methp = p;
 	while(p < ep && *p != '\n')
@@ -1633,10 +1638,10 @@ importcmp(const void *va, const void *vb)
 {
 	Import *a, *b;
 	int i;
-	
+
 	a = *(Import**)va;
 	b = *(Import**)vb;
-	
+
 	i = strcmp(a->prefix, b->prefix);
 	if(i != 0) {
 		// rewrite so "type" comes first
@@ -1653,7 +1658,7 @@ char*
 strappend(char *s, char *t)
 {
 	int n;
-	
+
 	n = strlen(t);
 	memmove(s, t, n);
 	return s+n;
@@ -1691,7 +1696,7 @@ getpkgdef(char **datap, int *lenp)
 
 	// print them into buffer
 	data = armalloc(len);
-	
+
 	// import\n
 	// $$\n
 	// pkgstmt\n

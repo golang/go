@@ -725,6 +725,8 @@ addtyp(Type *n, int ctxt)
 {
 	Dcl *r, *d;
 	Sym *s;
+	char *p;
+	static int typgen;
 
 	if(n==T || n->sym == S)
 		fatal("addtyp: n=%T t=%T nil", n);
@@ -736,6 +738,9 @@ addtyp(Type *n, int ctxt)
 	else {
 		r = autodcl;
 		pushdcl(s);
+		p = smprint("%s_%d", s->name, ++typgen);
+		n->xsym = lookup(p);
+		free(p);
 	}
 
 	if(s->tblock == block)
@@ -750,6 +755,16 @@ addtyp(Type *n, int ctxt)
 	d->dtype = n;
 	d->op = OTYPE;
 
+	d->back = r->back;
+	r->back->forw = d;
+	r->back = d;
+
+	d = dcl();
+	d->dtype = n;
+	d->op = OTYPE;
+
+	r = typelist;
+	d->back = r->back;
 	r->back->forw = d;
 	r->back = d;
 
@@ -791,7 +806,7 @@ addconst(Node *n, Node *e, int ctxt)
 	d->dsym = s;
 	d->dnode = e;
 	d->op = OCONST;
-
+	d->back = r->back;
 	r->back->forw = d;
 	r->back = d;
 
