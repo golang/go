@@ -32,6 +32,7 @@ export func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
 export func	ifaceI2T(sigt *byte, iface any) (ret any);
 export func	ifaceI2I(sigi *byte, iface any) (ret any);
 export func	ifaceeq(i1 any, i2 any) (ret bool);
+export func	reflect(i interface { }) (uint64, string);
 
 export func	argc() int32;
 export func	envc() int32;
@@ -80,4 +81,3 @@ export func	bytestorune(*byte, int32, int32) (int32, int32);	// convert bytes to
 export func	stringtorune(string, int32) (int32, int32);	// convert bytes to runes
 
 export func	exit(int32);
-

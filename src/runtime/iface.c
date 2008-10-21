@@ -47,24 +47,24 @@ static	Map*	hash[1009];
 
 #define	END	nil,0,0,nil
 
-Sigi	sys·sigi_inter[2] =	{ (byte*)"sys·nilinter", 0, 0, nil, 0, 0 };
+Sigi	sys·sigi_inter[2] =	{ (byte*)"interface {}", 0, 0, nil, 0, 0 };
 
-Sigt	sys·sigt_int8[2] =	{ (byte*)"sys·int8", ASIMP, 1, nil, END };
-Sigt	sys·sigt_int16[2] =	{ (byte*)"sys·int16", ASIMP, 2, nil, END };
-Sigt	sys·sigt_int32[2] =	{ (byte*)"sys·int32", ASIMP, 4, nil, END };
-Sigt	sys·sigt_int64[2] =	{ (byte*)"sys·int64", ASIMP, 8, nil, END };
+Sigt	sys·sigt_int8[2] =	{ (byte*)"int8", ASIMP, 1, nil, END };
+Sigt	sys·sigt_int16[2] =	{ (byte*)"int16", ASIMP, 2, nil, END };
+Sigt	sys·sigt_int32[2] =	{ (byte*)"int32", ASIMP, 4, nil, END };
+Sigt	sys·sigt_int64[2] =	{ (byte*)"int64", ASIMP, 8, nil, END };
 
-Sigt	sys·sigt_uint8[2] =	{ (byte*)"sys·uint8", ASIMP, 1, nil, END };
-Sigt	sys·sigt_uint16[2] =	{ (byte*)"sys·uint16", ASIMP, 2, nil, END };
-Sigt	sys·sigt_uint32[2] =	{ (byte*)"sys·uint32", ASIMP, 4, nil, END };
-Sigt	sys·sigt_uint64[2] =	{ (byte*)"sys·uint64", ASIMP, 8, nil, END };
+Sigt	sys·sigt_uint8[2] =	{ (byte*)"uint8", ASIMP, 1, nil, END };
+Sigt	sys·sigt_uint16[2] =	{ (byte*)"uint16", ASIMP, 2, nil, END };
+Sigt	sys·sigt_uint32[2] =	{ (byte*)"uint32", ASIMP, 4, nil, END };
+Sigt	sys·sigt_uint64[2] =	{ (byte*)"uint64", ASIMP, 8, nil, END };
 
-Sigt	sys·sigt_float32[2] =	{ (byte*)"sys·float32", ASIMP, 4, nil, END };
-Sigt	sys·sigt_float64[2] =	{ (byte*)"sys·float64", ASIMP, 8, nil, END };
-//Sigt	sys·sigt_float80[2] =	{ (byte*)"sys·float80", ASIMP, 0, nil, END };
+Sigt	sys·sigt_float32[2] =	{ (byte*)"float32", ASIMP, 4, nil, END };
+Sigt	sys·sigt_float64[2] =	{ (byte*)"float64", ASIMP, 8, nil, END };
+//Sigt	sys·sigt_float80[2] =	{ (byte*)"float80", ASIMP, 0, nil, END };
 
-Sigt	sys·sigt_bool[2] =	{ (byte*)"sys·bool", ASIMP, 1, nil, END };
-Sigt	sys·sigt_string[2] =	{ (byte*)"sys·string", ASTRING, 8, nil, END };
+Sigt	sys·sigt_bool[2] =	{ (byte*)"bool", ASIMP, 1, nil, END };
+Sigt	sys·sigt_string[2] =	{ (byte*)"string", ASTRING, 8, nil, END };
 
 static void
 printsigi(Sigi *si)
@@ -130,7 +130,7 @@ printiface(Map *im, void *it)
 }
 
 static Map*
-hashmap(Sigi *si, Sigt *st)
+hashmap(Sigi *si, Sigt *st, int32 canfail)
 {
 	int32 nt, ni;
 	uint32 ihash, h;
@@ -141,7 +141,8 @@ hashmap(Sigi *si, Sigt *st)
 	for(m=hash[h]; m!=nil; m=m->link) {
 		if(m->sigi == si && m->sigt == st) {
 			if(m->bad) {
-				throw("bad hashmap");
+				if(!canfail)
+					throw("bad hashmap");
 				m = nil;
 			}
 			// prints("old hashmap\n");
@@ -169,14 +170,16 @@ hashmap(Sigi *si, Sigt *st)
 			// from structure signature
 			sname = st[nt].name;
 			if(sname == nil) {
-				prints("cannot convert type ");
-				prints((int8*)st[0].name);
-				prints(" to interface ");
-				prints((int8*)si[0].name);
-				prints(": missing method ");
-				prints((int8*)iname);
-				prints("\n");
-				throw("interface conversion");
+				if(!canfail) {
+					prints("cannot convert type ");
+					prints((int8*)st[0].name);
+					prints(" to interface ");
+					prints((int8*)si[0].name);
+					prints(": missing method ");
+					prints((int8*)iname);
+					prints("\n");
+					throw("interface conversion");
+				}
 				m->bad = 1;
 				m->link = hash[h];
 				hash[h] = m;
@@ -209,7 +212,7 @@ sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
 		prints("\n");
 	}
 
-	retim = hashmap(si, st);
+	retim = hashmap(si, st, 0);
 
 //	alg = st->hash;
 //	wid = st->offset;
@@ -281,7 +284,7 @@ sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
 		retit = it;
 		retim = im;
 		if(im->sigi != si)
-			retim = hashmap(si, im->sigt);
+			retim = hashmap(si, im->sigt, 0);
 	}
 
 	if(debug) {
@@ -346,4 +349,27 @@ void
 sys·printinter(Map *im, void *it)
 {
 	printiface(im, it);
+}
+
+void
+sys·reflect(Map *im, void *it, uint64 retit, string rettype)
+{
+	string s;
+	int32 n;
+	byte *type;
+
+	if(im == nil) {
+		retit = 0;
+		rettype = nil;
+	} else {
+		retit = (uint64)it;
+		type = im->sigt->name;
+		n = findnull((int8*)type);
+		s = mal(sizeof *s + n + 1);
+		s->len = n;
+		mcpy(s->str, type, n);
+		rettype = s;
+	}
+	FLUSH(&retit);
+	FLUSH(&rettype);
 }
