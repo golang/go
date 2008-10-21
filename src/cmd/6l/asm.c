@@ -546,7 +546,7 @@ asmb(void)
 			0,			/* info */
 			1,			/* align */
 			24);			/* entsize */
-		
+
 		fo += w;
 		w = lcsize;
 
@@ -612,10 +612,8 @@ datblk(int32 s, int32 n)
 		if(l < 0) {
 			if(l+c <= 0)
 				continue;
-			while(l < 0) {
-				l++;
-				i++;
-			}
+			i = -l;
+			l = 0;
 		}
 		if(l >= n)
 			continue;
@@ -662,6 +660,16 @@ datblk(int32 s, int32 n)
 				l++;
 			}
 			break;
+
+		case D_SBIG:
+			if(debug['a'] && i == 0)
+				outa(c, (uchar*)p->to.sbig, nil, l+s+INITDAT);
+			for(; i<c; i++) {
+				buf.dbuf[l] = p->to.sbig[i];
+				l++;
+			}
+			break;
+
 		default:
 			o = p->to.offset;
 			if(p->to.type == D_ADDR) {

@@ -821,6 +821,8 @@ enum
 	D_FILE,
 	D_FILE1,
 
+	D_SBIG,	/* internal use by 6l only */
+
 	D_INDIR,	/* additive */
 
 	T_TYPE		= 1<<0,
