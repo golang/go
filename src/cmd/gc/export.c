@@ -46,7 +46,7 @@ dumpprereq(Type *t)
 		return;
 	t->printed = 1;
 
-	if(t->sym != S && t->etype != TFIELD && t->sym->name[0] != '_')
+	if(t->sym != S && t->etype != TFIELD)
 		dumpsym(t->sym);
 	dumpprereq(t->type);
 	dumpprereq(t->down);
