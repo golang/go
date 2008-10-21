@@ -9,13 +9,14 @@ TARG=\
 
 OFILES=\
 	asm.$O\
+	compat.$O\
+	enam.$O\
+	go.$O\
+	list.$O\
 	obj.$O\
 	optab.$O\
 	pass.$O\
 	span.$O\
-	list.$O\
-	compat.$O\
-	enam.$O\
 
 HFILES=\
 	l.h\

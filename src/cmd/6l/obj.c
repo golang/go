@@ -368,6 +368,7 @@ main(int argc, char *argv[])
 		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
 		objfile(a);
 	}
+	definetypestrings();
 
 	firstp = firstp->link;
 	if(firstp == P)
@@ -785,7 +786,7 @@ nopout(Prog *p)
 }
 
 void
-ldobj(Biobuf *f, int32 len, char *pn)
+ldobj(Biobuf *f, int64 len, char *pn)
 {
 	vlong ipc;
 	Prog *p, *t;
@@ -797,6 +798,7 @@ ldobj(Biobuf *f, int32 len, char *pn)
 	char **nfilen, *line, *name;
 	int ntext, n, c1, c2, c3;
 	vlong eof;
+	vlong import0, import1;
 
 	eof = Boffset(f) + len;
 
@@ -808,7 +810,8 @@ ldobj(Biobuf *f, int32 len, char *pn)
 		free(filen);
 		filen = nfilen;
 	}
-	filen[files++] = strdup(pn);
+	pn = strdup(pn);
+	filen[files++] = pn;
 
 	di = S;
 
@@ -830,6 +833,7 @@ ldobj(Biobuf *f, int32 len, char *pn)
 	}
 
 	/* skip over exports and other info -- ends with \n!\n */
+	import0 = Boffset(f);
 	c1 = '\n';	// the last line ended in \n
 	c2 = Bgetc(f);
 	c3 = Bgetc(f);
@@ -840,6 +844,11 @@ ldobj(Biobuf *f, int32 len, char *pn)
 		if(c3 == Beof)
 			goto eof;
 	}
+	import1 = Boffset(f);
+
+	Bseek(f, import0, 0);
+	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
+	Bseek(f, import1, 0);
 
 newloop:
 	memset(h, 0, sizeof(h));

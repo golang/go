@@ -61,6 +61,7 @@ struct	Adr
 		char	u0scon[8];
 		Prog	*u0cond;	/* not used, but should be D_BRANCH */
 		Ieee	u0ieee;
+		char	*u0sbig;
 	} u0;
 	union
 	{
@@ -76,6 +77,7 @@ struct	Adr
 #define	scon	u0.u0scon
 #define	cond	u0.u0cond
 #define	ieee	u0.u0ieee
+#define	sbig	u0.u0sbig
 
 #define	autom	u1.u1autom
 #define	sym	u1.u1sym
@@ -377,6 +379,7 @@ void	ckoff(Sym*, int32);
 Prog*	copyp(Prog*);
 double	cputime(void);
 void	datblk(int32, int32);
+void	definetypestrings(void);
 void	diag(char*, ...);
 void	dodata(void);
 void	doinit(void);
@@ -396,7 +399,8 @@ void	histtoauto(void);
 double	ieeedtod(Ieee*);
 int32	ieeedtof(Ieee*);
 void	import(void);
-void	ldobj(Biobuf*, int32, char*);
+void	ldobj(Biobuf*, int64, char*);
+void	ldpkg(Biobuf*, int64, char*);
 void	loadlib(void);
 void	listinit(void);
 Sym*	lookup(char*, int);
