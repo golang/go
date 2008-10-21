@@ -17,13 +17,26 @@ count() {
 }
 
 
+# apply to one file
 apply1() {
 	#echo $1 $2
-	$1 $2
-	count
+	case `basename $F` in
+	selftest.go | func3.go ) ;; # skip - these are test cases for syntax errors
+	* ) $1 $2; count ;;
+	esac
 }
 
 
+# apply to local files
+applydot() {
+	for F in *.go
+	do
+		apply1 $1 $F
+	done
+}
+
+
+# apply to all files in the list
 apply() {
 	for F in \
 		$GOROOT/usr/gri/pretty/*.go \
@@ -34,10 +47,7 @@ apply() {
 		$GOROOT/src/lib/*/*.go \
 		$GOROOT/usr/r/*/*.go
 	do
-		case `basename $F` in
-		selftest.go | func3.go ) ;; # skip - these are test cases for syntax errors
-		* ) apply1 $1 $F ;;
-		esac
+		apply1 $1 $F
 	done
 }
 
@@ -85,21 +95,22 @@ valid() {
 runtest() {
 	#echo "Testing silent mode"
 	cleanup
-	$1 silent $2
+	$1 silent
 
 	#echo "Testing idempotency"
 	cleanup
-	$1 idempotent $2
-
-	#echo "Testing validity"
-	#cleanup
-	#$1 valid $2
+	$1 idempotent
 }
 
 
 runtests() {
 	if [ $# == 0 ]; then
 		runtest apply
+		# verify the pretty-printed files can be compiled with 6g again
+		# do it in local directory only because of the prerequisites required
+		#echo "Testing validity"
+		cleanup
+		applydot valid
 	else
 		for F in $*; do
 			runtest apply1 $F
