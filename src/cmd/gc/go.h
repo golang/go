@@ -124,7 +124,7 @@ struct	Type
 	uchar	trecur;		// to detect loops
 	uchar	methptr;	// 1=direct 2=pointer
 	uchar	printed;
-	uchar	embedded;	// TFIELD embedded type
+	uchar	imbedded;	// TFIELD imbedded type
 
 	// TFUNCT
 	uchar	thistuple;
@@ -163,7 +163,7 @@ struct	Node
 	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
 	uchar	method;		// OCALLMETH name
 	uchar	iota;		// OLITERAL made from iota
-	uchar	embedded;	// ODCLFIELD embedded type
+	uchar	imbedded;	// ODCLFIELD imbedded type
 
 	// most nodes
 	Node*	left;
@@ -673,6 +673,7 @@ void	checkarglist(Node*);
 void	checkwidth(Type*);
 void	defercheckwidth(void);
 void	resumecheckwidth(void);
+Node*	imbedded(Sym*);
 
 /*
  *	export.c
@@ -713,6 +714,7 @@ void	walkstate(Node*);
 void	walktype(Node*, int);
 void	walkas(Node*);
 void	walkbool(Node*);
+void	adddot(Node*);
 Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
 int	casebody(Node*);
 void	walkselect(Node*);
