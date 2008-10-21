@@ -23,14 +23,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include	"lib9.h"
+#include	<u.h>
+#include	<libc.h>
 #include	<bio.h>
 
-off_t
-Bseek(Biobuf *bp, off_t offset, int base)
+vlong
+Bseek(Biobuf *bp, vlong offset, int base)
 {
 	vlong n, d;
 	int bufsz;
+
+	if(sizeof(offset) != sizeof(off_t)) {
+		fprint(2, "Bseek: libbio compiled with %d-byte offset\n", sizeof(off_t));
+		abort();
+	}
 
 	switch(bp->state) {
 	default:

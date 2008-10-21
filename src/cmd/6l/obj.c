@@ -558,75 +558,69 @@ out:
 	Bterm(f);
 }
 
-int
-zaddr(uchar *p, Adr *a, Sym *h[])
+int32
+Bget4(Biobuf *f)
 {
-	int c, t, i;
+	uchar p[4];
+
+	if(Bread(f, p, 4) != 4)
+		return 0;
+	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+}
+
+void
+zaddr(Biobuf *f, Adr *a, Sym *h[])
+{
+	int t;
 	int32 l;
 	Sym *s;
 	Auto *u;
 
-	t = p[0];
-	c = 1;
+	t = Bgetc(f);
 	if(t & T_INDEX) {
-		a->index = p[c];
-		a->scale = p[c+1];
-		c += 2;
+		a->index = Bgetc(f);
+		a->scale = Bgetc(f);
 	} else {
 		a->index = D_NONE;
 		a->scale = 0;
 	}
 	a->offset = 0;
 	if(t & T_OFFSET) {
-		/*
-		 * Hack until Charles fixes the compiler.
-		a->offset = (int32)(p[c] | (p[c+1]<<8) | (p[c+2]<<16) | (p[c+3]<<24));
-		 */
-		l = p[c] | (p[c+1]<<8) | (p[c+2]<<16) | (p[c+3]<<24);
-		a->offset = l;
-		c += 4;
+		a->offset = Bget4(f);
 		if(t & T_64) {
-			l = p[c] | (p[c+1]<<8) | (p[c+2]<<16) | (p[c+3]<<24);
-			a->offset = ((vlong)l<<32) | (a->offset & 0xFFFFFFFFUL);
-			c += 4;
+			a->offset &= 0xFFFFFFFFULL;
+			a->offset |= (vlong)Bget4(f) << 32;
 		}
 	}
 	a->sym = S;
-	if(t & T_SYM) {
-		a->sym = h[p[c]];
-		c++;
-	}
+	if(t & T_SYM)
+		a->sym = h[Bgetc(f)];
 	a->type = D_NONE;
 	if(t & T_FCONST) {
-		a->ieee.l = p[c] | (p[c+1]<<8) | (p[c+2]<<16) | (p[c+3]<<24);
-		a->ieee.h = p[c+4] | (p[c+5]<<8) | (p[c+6]<<16) | (p[c+7]<<24);
-		c += 8;
+		a->ieee.l = Bget4(f);
+		a->ieee.h = Bget4(f);
 		a->type = D_FCONST;
 	} else
 	if(t & T_SCONST) {
-		for(i=0; i<NSNAME; i++)
-			a->scon[i] = p[c+i];
-		c += NSNAME;
+		Bread(f, a->scon, NSNAME);
 		a->type = D_SCONST;
 	}
-	if(t & T_TYPE) {
-		a->type = p[c];
-		c++;
-	}
+	if(t & T_TYPE)
+		a->type = Bgetc(f);
 	s = a->sym;
 	if(s == S)
-		return c;
+		return;
 
 	t = a->type;
 	if(t != D_AUTO && t != D_PARAM)
-		return c;
+		return;
 	l = a->offset;
 	for(u=curauto; u; u=u->link) {
 		if(u->asym == s)
 		if(u->type == t) {
 			if(u->aoffset > l)
 				u->aoffset = l;
-			return c;
+			return;
 		}
 	}
 
@@ -636,7 +630,6 @@ zaddr(uchar *p, Adr *a, Sym *h[])
 	u->asym = s;
 	u->aoffset = l;
 	u->type = t;
-	return c;
 }
 
 void
@@ -791,36 +784,21 @@ nopout(Prog *p)
 	p->to.type = D_NONE;
 }
 
-uchar*
-readsome(Biobuf *f, uchar *buf, uchar *good, uchar *stop, int max)
-{
-	int n;
-
-	n = stop - good;
-	memmove(buf, good, stop - good);
-	stop = buf + n;
-	n = MAXIO - n;
-	if(n > max)
-		n = max;
-	n = Bread(f, stop, n);
-	if(n <= 0)
-		return 0;
-	return stop + n;
-}
-
 void
-ldobj(Biobuf *f, int32 c, char *pn)
+ldobj(Biobuf *f, int32 len, char *pn)
 {
 	vlong ipc;
 	Prog *p, *t;
-	uchar *bloc, *bsize, *stop;
 	int v, o, r, skip, mode;
 	Sym *h[NSYM], *s, *di;
 	uint32 sig;
 	static int files;
 	static char **filen;
-	char **nfilen;
-	int ntext;
+	char **nfilen, *line, *name;
+	int ntext, n, c1, c2, c3;
+	vlong eof;
+
+	eof = Boffset(f) + len;
 
 	ntext = 0;
 
@@ -835,37 +813,33 @@ ldobj(Biobuf *f, int32 c, char *pn)
 	di = S;
 
 	/* check the header */
-	bsize = readsome(f, buf.xbuf, buf.xbuf, buf.xbuf, c);
-	if(bsize == 0)
+	line = Brdline(f, '\n');
+	if(line == nil) {
+		if(Blinelen(f) > 0) {
+			diag("%s: malformed object file", pn);
+			return;
+		}
 		goto eof;
-	bloc = buf.xbuf;
-	r = bsize - bloc;
-	if(r < 7)
-		goto eof;
-	if(memcmp(bloc, thestring, strlen(thestring)) != 0) {
-		diag("file not %s\n", thestring);
+	}
+	n = Blinelen(f) - 1;
+	if(n != strlen(thestring) || strncmp(line, thestring, n) != 0) {
+		if(line)
+			line[n] = '\0';
+		diag("file not %s [%s]\n", thestring, line);
 		return;
 	}
 
-hloop:
-	/* skip over exports */
-	while(bloc+3 <= bsize) {
-		if(bloc[0] == '\n' && bloc[1] == '!' && bloc[2] == '\n') {
-			bloc += 3;
-			c -= 3;
-			goto newloop;
-		}
-		bloc++;
-		c--;
+	/* skip over exports and other info -- ends with \n!\n */
+	c1 = '\n';	// the last line ended in \n
+	c2 = Bgetc(f);
+	c3 = Bgetc(f);
+	while(c1 != '\n' || c2 != '!' || c3 != '\n') {
+		c1 = c2;
+		c2 = c3;
+		c3 = Bgetc(f);
+		if(c3 == Beof)
+			goto eof;
 	}
-	bsize = readsome(f, buf.xbuf, bloc, bsize, c);
-	if(bsize == 0)
-		goto eof;
-	bloc = buf.xbuf;
-	r = bsize - bloc;
-	if(r < 3)
-		goto eof;
-	goto hloop;
 
 newloop:
 	memset(h, 0, sizeof(h));
@@ -876,55 +850,38 @@ newloop:
 	mode = 64;
 
 loop:
-	if(c <= 0)
+	if(f->state == Bracteof || Boffset(f) >= eof)
 		goto eof;
-	r = bsize - bloc;
-	if(r < 100 && r < c) {		/* enough for largest prog */
-		bsize = readsome(f, buf.xbuf, bloc, bsize, c);
-		if(bsize == 0)
-			goto eof;
-		bloc = buf.xbuf;
-		goto loop;
-	}
-	o = bloc[0] | (bloc[1] << 8);
+	o = Bgetc(f);
+	if(o == Beof)
+		goto eof;
+	o |= Bgetc(f) << 8;
 	if(o <= AXXX || o >= ALAST) {
 		if(o < 0)
 			goto eof;
-		diag("%s: opcode out of range %d", pn, o);
+		diag("%s:#%lld: opcode out of range: %#ux", pn, Boffset(f), o);
 		print("	probably not a .6 file\n");
 		errorexit();
 	}
 
 	if(o == ANAME || o == ASIGNAME) {
 		sig = 0;
-		if(o == ASIGNAME) {
-			sig = bloc[2] | (bloc[3]<<8) | (bloc[4]<<16) | (bloc[5]<<24);
-			bloc += 4;
-			c -= 4;
-		}
-		stop = memchr(&bloc[4], 0, bsize-&bloc[4]);
-		if(stop == 0){
-			bsize = readsome(f, buf.xbuf, bloc, bsize, c);
-			if(bsize == 0)
-				goto eof;
-			bloc = buf.xbuf;
-			stop = memchr(&bloc[4], 0, bsize-&bloc[4]);
-			if(stop == 0){
-				fprint(2, "%s: name too long\n", pn);
-				errorexit();
-			}
-		}
-		v = bloc[2];	/* type */
-		o = bloc[3];	/* sym */
-		bloc += 4;
-		c -= 4;
-
+		if(o == ASIGNAME)
+			sig = Bget4(f);
+		v = Bgetc(f);	/* type */
+		o = Bgetc(f);	/* sym */
 		r = 0;
 		if(v == D_STATIC)
 			r = version;
-		s = lookup((char*)bloc, r);
-		c -= &stop[1] - bloc;
-		bloc = stop + 1;
+		name = Brdline(f, '\0');
+		if(name == nil) {
+			if(Blinelen(f) > 0) {
+				fprint(2, "%s: name too long\n", pn);
+				errorexit();
+			}
+			goto eof;
+		}
+		s = lookup(name, r);
 
 		if(debug['S'] && r == 0)
 			sig = 1729;
@@ -959,13 +916,11 @@ loop:
 
 	p = mal(sizeof(*p));
 	p->as = o;
-	p->line = bloc[2] | (bloc[3] << 8) | (bloc[4] << 16) | (bloc[5] << 24);
+	p->line = Bget4(f);
 	p->back = 2;
 	p->mode = mode;
-	r = zaddr(bloc+6, &p->from, h) + 6;
-	r += zaddr(bloc+r, &p->to, h);
-	bloc += r;
-	c -= r;
+	zaddr(f, &p->from, h);
+	zaddr(f, &p->to, h);
 
 	if(debug['W'])
 		print("%P\n", p);
@@ -989,9 +944,9 @@ loop:
 			curtext->to.autom = curauto;
 		curauto = 0;
 		curtext = P;
-		if(c)
-			goto newloop;
-		return;
+		if(Boffset(f) == eof)
+			return;
+		goto newloop;
 
 	case AGLOBL:
 		s = p->from.sym;

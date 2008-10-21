@@ -422,7 +422,7 @@ vlong	vaddr(Adr*);
 void	wput(ushort);
 void	xdefine(char*, int, vlong);
 void	xfol(Prog*);
-int	zaddr(uchar*, Adr*, Sym*[]);
+void	zaddr(Biobuf*, Adr*, Sym*[]);
 void	zerosig(char*);
 
 void	machseg(char*, vlong, vlong, vlong, vlong, uint32, uint32, uint32, uint32);
