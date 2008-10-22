@@ -12,7 +12,7 @@ import (
 	"strings";
 )
 
-export func TypeToString(typ Type) string
+export func TypeToString(typ Type, expand bool) string
 export func ValueToString(val Value) string
 
 type HasFields interface {
@@ -24,7 +24,7 @@ func TypeFieldsToString(t HasFields, sep string) string {
 	var str string;
 	for i := 0; i < t.Len(); i++ {
 		str1, typ, offset := t.Field(i);
-		str1 +=  " " + TypeToString(typ);
+		str1 +=  " " + TypeToString(typ, false);
 		if i < t.Len() - 1 {
 			str1 += sep + " ";
 		}
@@ -33,9 +33,9 @@ func TypeFieldsToString(t HasFields, sep string) string {
 	return str;
 }
 
-func TypeToString(typ Type) string {
+func TypeToString(typ Type, expand bool) string {
 	var str string;
-	if name := typ.Name(); name != "" {
+	if name := typ.Name(); !expand && name != "" {
 		return name
 	}
 	switch(typ.Kind()) {
@@ -67,7 +67,7 @@ func TypeToString(typ Type) string {
 		return "string";
 	case PtrKind:
 		p := typ.(PtrType);
-		return "*" + TypeToString(p.Sub());
+		return "*" + TypeToString(p.Sub(), false);
 	case ArrayKind:
 		a := typ.(ArrayType);
 		if a.Open() {
@@ -75,11 +75,11 @@ func TypeToString(typ Type) string {
 		} else {
 			str = "[" + strings.ltoa(int64(a.Len())) +  "]"
 		}
-		return str + TypeToString(a.Elem());
+		return str + TypeToString(a.Elem(), false);
 	case MapKind:
 		m := typ.(MapType);
-		str = "map[" + TypeToString(m.Key()) + "]";
-		return str + TypeToString(m.Elem());
+		str = "map[" + TypeToString(m.Key(), false) + "]";
+		return str + TypeToString(m.Elem(), false);
 	case ChanKind:
 		c := typ.(ChanType);
 		switch c.Dir() {
@@ -92,7 +92,7 @@ func TypeToString(typ Type) string {
 		default:
 			panicln("reflect.TypeToString: unknown chan direction");
 		}
-		return str + TypeToString(c.Elem());
+		return str + TypeToString(c.Elem(), false);
 	case StructKind:
 		return "struct{" + TypeFieldsToString(typ, ";") + "}";
 	case InterfaceKind:
@@ -151,13 +151,13 @@ func ValueToString(val Value) string {
 		return val.(StringValue).Get();
 	case PtrKind:
 		v := val.(PtrValue);
-		return TypeToString(typ) + "(" + integer(int64(v.Addr())) + ")";
+		return TypeToString(typ, false) + "(" + integer(int64(v.Indirect())) + ")";
 	case ArrayKind:
 		t := typ.(ArrayType);
 		v := val.(ArrayValue);
-		str += TypeToString(t);
+		str += TypeToString(t, false);
 		str += "{";
-		for i := 0; i < v.Len(); i++ {
+		for i := uint64(0); i < v.Len(); i++ {
 			if i > 0 {
 				str += ", "
 			}
@@ -168,7 +168,7 @@ func ValueToString(val Value) string {
 	case MapKind:
 		t := typ.(MapType);
 		v := val.(ArrayValue);
-		str = TypeToString(t);
+		str = TypeToString(t, false);
 		str += "{";
 		str += "<can't iterate on maps>";
 		str += "}";
@@ -178,7 +178,7 @@ func ValueToString(val Value) string {
 	case StructKind:
 		t := typ.(StructType);
 		v := val.(StructValue);
-		str += TypeToString(t);	// TODO: use the name?
+		str += TypeToString(t, false);
 		str += "{";
 		for i := 0; i < v.Len(); i++ {
 			if i > 0 {
