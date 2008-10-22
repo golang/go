@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Reflection library.
-// Formatting of types for debugging.
+// Formatting of types and values for debugging.
 
 package reflect
 
@@ -15,13 +15,17 @@ import (
 export func TypeToString(typ Type) string
 export func ValueToString(val Value) string
 
-func TypeFieldsToString(t Type, sep string) string {
-	s := t.(StructType);
+type HasFields interface {
+	Field(i int)	(name string, typ Type, offset uint64);
+	Len()	int;
+}
+
+func TypeFieldsToString(t HasFields, sep string) string {
 	var str string;
-	for i := 0; i < s.Len(); i++ {
-		str1, t := s.Field(i);
-		str1 +=  " " + TypeToString(t);
-		if i < s.Len() - 1 {
+	for i := 0; i < t.Len(); i++ {
+		str1, typ, offset := t.Field(i);
+		str1 +=  " " + TypeToString(typ);
+		if i < t.Len() - 1 {
 			str1 += sep + " ";
 		}
 		str += str1;
@@ -33,7 +37,7 @@ func TypeToString(typ Type) string {
 	var str string;
 	switch(typ.Kind()) {
 	case MissingKind:
-		return "missing";
+		return "$missing$";
 	case Int8Kind:
 		return "int8";
 	case Int16Kind:
@@ -63,10 +67,10 @@ func TypeToString(typ Type) string {
 		return "*" + TypeToString(p.Sub());
 	case ArrayKind:
 		a := typ.(ArrayType);
-		if a.Len() < 0 {
+		if a.Open() {
 			str = "[]"
 		} else {
-			str = "[" + strings.itoa(a.Len()) +  "]"
+			str = "[" + strings.ltoa(int64(a.Len())) +  "]"
 		}
 		return str + TypeToString(a.Elem());
 	case MapKind:
@@ -92,8 +96,7 @@ func TypeToString(typ Type) string {
 		return "interface{" + TypeFieldsToString(typ, ";") + "}";
 	case FuncKind:
 		f := typ.(FuncType);
-		str = "func";
-		str += "(" + TypeFieldsToString(f.In(), ",") + ")";
+		str = "(" + TypeFieldsToString(f.In(), ",") + ")";
 		if f.Out() != nil {
 			str += "(" + TypeFieldsToString(f.Out(), ",") + ")";
 		}
@@ -106,7 +109,11 @@ func TypeToString(typ Type) string {
 
 // TODO: want an unsigned one too
 func integer(v int64) string {
-	return strings.itol(v);
+	return strings.ltoa(v);
+}
+
+func floatingpoint(v float64) string {
+	return strings.dtoa(v);
 }
 
 func ValueToString(val Value) string {
@@ -132,16 +139,56 @@ func ValueToString(val Value) string {
 	case Uint64Kind:
 		return integer(int64(val.(Uint64Value).Get()));
 	case Float32Kind:
-		return "float32";
+		return floatingpoint(float64(val.(Float32Value).Get()));
 	case Float64Kind:
-		return "float64";
+		return floatingpoint(float64(val.(Float64Value).Get()));
 	case Float80Kind:
 		return "float80";
 	case StringKind:
 		return val.(StringValue).Get();
 	case PtrKind:
-		p := typ.(PtrType);
-		return ValueToString(p.Sub());
+		v := val.(PtrValue);
+		return TypeToString(typ) + "(" + integer(int64(v.Addr())) + ")";
+	case ArrayKind:
+		t := typ.(ArrayType);
+		v := val.(ArrayValue);
+		str += TypeToString(t);
+		str += "{";
+		for i := 0; i < v.Len(); i++ {
+			if i > 0 {
+				str += ", "
+			}
+			str += ValueToString(v.Elem(i));
+		}
+		str += "}";
+		return str;
+	case MapKind:
+		t := typ.(MapType);
+		v := val.(ArrayValue);
+		str = TypeToString(t);
+		str += "{";
+		str += "<can't iterate on maps>";
+		str += "}";
+		return str;
+	case ChanKind:
+		return "can't print chans yet";
+	case StructKind:
+		t := typ.(StructType);
+		v := val.(StructValue);
+		str += TypeToString(t);	// TODO: use the name?
+		str += "{";
+		for i := 0; i < v.Len(); i++ {
+			if i > 0 {
+				str += ", "
+			}
+			str += ValueToString(v.Field(i));
+		}
+		str += "}";
+		return str;
+	case InterfaceKind:
+		return "can't print interfaces yet";
+	case FuncKind:
+		return "can't print funcs yet";
 	default:
 		panicln("reflect.ValueToString: can't print type ", val.Kind());
 	}

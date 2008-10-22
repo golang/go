@@ -34,19 +34,23 @@ func valuedump(s string) {
 	case reflect.Uint64Kind:
 		v.(reflect.Uint64Value).Put(64);
 	case reflect.Float32Kind:
-		v.(reflect.Float32Value).Put(320.0);
+		v.(reflect.Float32Value).Put(32.0);
 	case reflect.Float64Kind:
-		v.(reflect.Float32Value).Put(640.0);
+		v.(reflect.Float64Value).Put(64.0);
 	case reflect.StringKind:
 		v.(reflect.StringValue).Put("stringy cheese");
 	}
 	print(s, " value = ", reflect.ValueToString(v), "\n");
 }
 
+export type empty interface {}
+
+export type T struct { a int; b float64 }
+
 func main() {
 	var s string;
 	var t reflect.Type;
-	
+
 	typedump("int8");
 	typedump("int16");
 	typedump("int32");
@@ -82,5 +86,28 @@ func main() {
 	valuedump("uint16");
 	valuedump("uint32");
 	valuedump("uint64");
+	valuedump("float32");
+	valuedump("float64");
 	valuedump("string");
+	valuedump("*int8");
+	valuedump("**int8");
+	valuedump("[32]int32");
+	valuedump("**P.integer");
+	valuedump("[32]int32");
+	valuedump("[]int8");
+	valuedump("*map[string]int32");
+	valuedump("*chan<-string");
+	valuedump("struct {c *chan *int32; d float32}");
+	valuedump("*(a int8, b int32)");
+	valuedump("struct {c *(? *chan *P.integer, ? *int8)}");
+	valuedump("struct {a int8; b int32}");
+	valuedump("struct {a int8; b int8; b int32}");
+	valuedump("struct {a int8; b int8; c int8; b int32}");
+	valuedump("struct {a int8; b int8; c int8; d int8; b int32}");
+	valuedump("struct {a int8; b int8; c int8; d int8; e int8; b int32}");
+
+	v := new(T);
+	a, b := sys.reflect(v.(empty));
+	println(a, b);
+	typedump(b);
 }
