@@ -35,6 +35,9 @@ func TypeFieldsToString(t HasFields, sep string) string {
 
 func TypeToString(typ Type) string {
 	var str string;
+	if name := typ.Name(); name != "" {
+		return name
+	}
 	switch(typ.Kind()) {
 	case MissingKind:
 		return "$missing$";

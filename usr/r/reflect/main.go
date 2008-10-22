@@ -9,12 +9,12 @@ import (
 )
 
 func typedump(s string) {
-	t := reflect.ParseTypeString(s);
+	t := reflect.ParseTypeString("", s);
 	print(reflect.TypeToString(t),"; size = ", t.Size(), "\n");
 }
 
 func valuedump(s string) {
-	t := reflect.ParseTypeString(s);
+	t := reflect.ParseTypeString("", s);
 	v := reflect.NewInitValue(t);
 	switch v.Kind() {
 	case reflect.Int8Kind:
