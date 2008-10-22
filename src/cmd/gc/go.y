@@ -73,7 +73,7 @@
 %type	<type>		indcl fnlitdcl
 
 %type	<val>		hidden_constant
-%type	<node>		hidden_dcl
+%type	<node>		hidden_dcl hidden_structdcl
 %type	<type>		hidden_type hidden_type1 hidden_type2
 %type	<node>		hidden_structdcl_list ohidden_structdcl_list hidden_structdcl_list_r
 %type	<node>		hidden_interfacedcl_list ohidden_interfacedcl_list hidden_interfacedcl_list_r
@@ -1580,8 +1580,8 @@ hidden_funarg_list:
 	}
 
 hidden_structdcl_list_r:
-	hidden_dcl
-|	hidden_structdcl_list_r ';' hidden_dcl
+	hidden_structdcl
+|	hidden_structdcl_list_r ';' hidden_structdcl
 	{
 		$$ = nod(OLIST, $1, $3);
 	}
@@ -1845,6 +1845,17 @@ hidden_dcl:
 	{
 		$$ = nod(ODCLFIELD, N, N);
 		$$->type = $2;
+	}
+
+hidden_structdcl:
+	sym1 hidden_type
+	{
+		$$ = nod(ODCLFIELD, newname($1), N);
+		$$->type = $2;
+	}
+|	'?' hidden_type
+	{
+		$$ = embedded($2->sym);
 	}
 
 hidden_interfacedcl:
