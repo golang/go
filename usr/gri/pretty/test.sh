@@ -21,7 +21,8 @@ count() {
 apply1() {
 	#echo $1 $2
 	case `basename $F` in
-	selftest.go | func3.go ) ;; # skip - these are test cases for syntax errors
+	selftest.go | func3.go ) ;;  # skip - these are test cases for syntax errors
+	newfn.go ) ;;  # skip these - cannot parse w/o type information
 	* ) $1 $2; count ;;
 	esac
 }
