@@ -11,7 +11,7 @@ export type Type interface
 
 export func ExpandType(name string) Type
 
-//export var GlobalTypeStrings = sys.typestrings;
+export func typestrings() string	// implemented in C; declared here
 
 export const (
 	MissingKind = iota;
@@ -36,33 +36,39 @@ export const (
 	Uint8Kind;
 )
 
-var ptrsize int
-var interfacesize int
+var ptrsize uint64
+var interfacesize uint64
 
-var MissingString = "missing"	// syntactic name for undefined type names
+var MissingString = "$missing$"	// syntactic name for undefined type names
 
 export type Type interface {
 	Kind()	int;
-	Size()	int;
+	Size()	uint64;
 }
 
 // -- Basic
 
 type BasicType struct{
+	name	string;
 	kind	int;
-	size	int;
+	size	uint64;
+}
+
+func (t *BasicType) Name() string {
+	return t.name
 }
 
 func (t *BasicType) Kind() int {
 	return t.kind
 }
 
-func (t *BasicType) Size() int {
+func (t *BasicType) Size() uint64 {
 	return t.size
 }
 
-func NewBasicType(k, size int) Type {
+func NewBasicType(n string, k int, size uint64) Type {
 	t := new(BasicType);
+	t.name = n;
 	t.kind = k;
 	t.size = size;
 	return t;
@@ -70,19 +76,19 @@ func NewBasicType(k, size int) Type {
 
 // Prebuilt basic types
 export var (
-	Missing = NewBasicType(MissingKind, 1);
-	Int8 = NewBasicType(Int8Kind, 1);
-	Int16 = NewBasicType(Int16Kind, 2);
-	Int32 = NewBasicType(Int32Kind, 4);
-	Int64 = NewBasicType(Int64Kind, 8);
-	Uint8 = NewBasicType(Uint8Kind, 1);
-	Uint16 = NewBasicType(Uint16Kind, 2);
-	Uint32 = NewBasicType(Uint32Kind, 4);
-	Uint64 = NewBasicType(Uint64Kind, 8);
-	Float32 = NewBasicType(Float32Kind, 4);
-	Float64 = NewBasicType(Float64Kind, 8);
-	Float80 = NewBasicType(Float80Kind, 10);	// TODO: strange size?
-	String = NewBasicType(StringKind, 8);	// implemented as a pointer
+	Missing = NewBasicType(MissingString, MissingKind, 1);
+	Int8 = NewBasicType("int8", Int8Kind, 1);
+	Int16 = NewBasicType("int16", Int16Kind, 2);
+	Int32 = NewBasicType("int32", Int32Kind, 4);
+	Int64 = NewBasicType("int64", Int64Kind, 8);
+	Uint8 = NewBasicType("uint8", Uint8Kind, 1);
+	Uint16 = NewBasicType("uint16", Uint16Kind, 2);
+	Uint32 = NewBasicType("uint32", Uint32Kind, 4);
+	Uint64 = NewBasicType("uint64", Uint64Kind, 8);
+	Float32 = NewBasicType("float32", Float32Kind, 4);
+	Float64 = NewBasicType("float64", Float64Kind, 8);
+	Float80 = NewBasicType("float80", Float80Kind, 10);	// TODO: strange size?
+	String = NewBasicType("string", StringKind, 8);	// implemented as a pointer
 )
 
 // Stub types allow us to defer evaluating type names until needed.
@@ -126,7 +132,7 @@ func (t *PtrTypeStruct) Kind() int {
 	return PtrKind
 }
 
-func (t *PtrTypeStruct) Size() int {
+func (t *PtrTypeStruct) Size() uint64 {
 	return ptrsize
 }
 
@@ -143,28 +149,34 @@ func NewPtrTypeStruct(sub *StubType) *PtrTypeStruct {
 // -- Array
 
 export type ArrayType interface {
-	Len()	int;
+	Open()	bool;
+	Len()	uint64;
 	Elem()	Type;
 }
 
 type ArrayTypeStruct struct {
 	elem	*StubType;
-	len	int;
+	open	bool;	// otherwise fixed size
+	len	uint64;
 }
 
 func (t *ArrayTypeStruct) Kind() int {
 	return ArrayKind
 }
 
-func (t *ArrayTypeStruct) Size() int {
-	if t.len < 0 {
+func (t *ArrayTypeStruct) Size() uint64 {
+	if t.open {
 		return ptrsize	// open arrays are pointers to structures
 	}
 	return t.len * t.elem.Get().Size();
 }
 
-func (t *ArrayTypeStruct) Len() int {
-	// -1 is open array?  TODO
+func (t *ArrayTypeStruct) Open() bool {
+	return t.open
+}
+
+func (t *ArrayTypeStruct) Len() uint64 {
+	// what about open array?  TODO
 	return t.len
 }
 
@@ -172,8 +184,9 @@ func (t *ArrayTypeStruct) Elem() Type {
 	return t.elem.Get()
 }
 
-func NewArrayTypeStruct(len int, elem *StubType) *ArrayTypeStruct {
+func NewArrayTypeStruct(open bool, len uint64, elem *StubType) *ArrayTypeStruct {
 	t := new(ArrayTypeStruct);
+	t.open = open;
 	t.len = len;
 	t.elem = elem;
 	return t;
@@ -195,7 +208,7 @@ func (t *MapTypeStruct) Kind() int {
 	return MapKind
 }
 
-func (t *MapTypeStruct) Size() int {
+func (t *MapTypeStruct) Size() uint64 {
 	panic("reflect.type: map.Size(): cannot happen");
 	return 0
 }
@@ -236,8 +249,8 @@ type ChanTypeStruct struct {
 func (t *ChanTypeStruct) Kind() int {
 	return ChanKind
 }
-	
-func (t *ChanTypeStruct) Size() int {
+
+func (t *ChanTypeStruct) Size() uint64 {
 	panic("reflect.type: chan.Size(): cannot happen");
 	return 0
 }
@@ -261,14 +274,15 @@ func NewChanTypeStruct(dir int, elem *StubType) *ChanTypeStruct {
 // -- Struct
 
 export type StructType interface {
-	Field(int)	(name string, typ Type);
+	Field(int)	(name string, typ Type, offset uint64);
 	Len()	int;
 }
 
 type Field struct {
 	name	string;
 	typ	*StubType;
-	size	int;
+	size	uint64;
+	offset	uint64;
 }
 
 type StructTypeStruct struct {
@@ -280,26 +294,30 @@ func (t *StructTypeStruct) Kind() int {
 }
 
 // TODO: not portable; depends on 6g
-func (t *StructTypeStruct) Size() int {
-	size := 0;
+func (t *StructTypeStruct) Size() uint64 {
+	size := uint64(0);
 	for i := 0; i < len(t.field); i++ {
 		elemsize := t.field[i].typ.Get().Size();
 		// pad until at (elemsize mod 8) boundary
 		align := elemsize - 1;
-		if align > 7 {	// BUG: we know structs are at 8-aligned
+		if align > 7 {	// BUG: we know structs are 8-aligned
 			align = 7
 		}
 		if align > 0 {
 			size = (size + align) & ^align;
 		}
+		t.field[i].offset = size;
 		size += elemsize;
 	}
-	size = (size + 7) & ^7;
+	size = (size + 7) & ((1<<64 - 1) & ^7);
 	return size;
 }
 
-func (t *StructTypeStruct) Field(i int) (name string, typ Type) {
-	return t.field[i].name, t.field[i].typ.Get()
+func (t *StructTypeStruct) Field(i int) (name string, typ Type, offset uint64) {
+	if t.field[i].offset == 0 {
+		t.Size();	// will compute offsets
+	}
+	return t.field[i].name, t.field[i].typ.Get(), t.field[i].offset
 }
 
 func (t *StructTypeStruct) Len() int {
@@ -315,7 +333,7 @@ func NewStructTypeStruct(field *[]Field) *StructTypeStruct {
 // -- Interface
 
 export type InterfaceType interface {
-	Field(int)	(name string, typ Type);
+	Field(int)	(name string, typ Type, offset uint64);
 	Len()	int;
 }
 
@@ -323,8 +341,8 @@ type InterfaceTypeStruct struct {
 	field	*[]Field;
 }
 
-func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type) {
-	return t.field[i].name, t.field[i].typ.Get()
+func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, offset uint64) {
+	return t.field[i].name, t.field[i].typ.Get(), 0
 }
 
 func (t *InterfaceTypeStruct) Len() int {
@@ -341,7 +359,7 @@ func (t *InterfaceTypeStruct) Kind() int {
 	return InterfaceKind
 }
 
-func (t *InterfaceTypeStruct) Size() int {
+func (t *InterfaceTypeStruct) Size() uint64 {
 	return interfacesize
 }
 
@@ -361,7 +379,7 @@ func (t *FuncTypeStruct) Kind() int {
 	return FuncKind
 }
 
-func (t *FuncTypeStruct) Size() int {
+func (t *FuncTypeStruct) Size() uint64 {
 	panic("reflect.type: func.Size(): cannot happen");
 	return 0
 }
@@ -388,10 +406,11 @@ func NewFuncTypeStruct(in, out *StructTypeStruct) *FuncTypeStruct {
 var types *map[string] *Type	// BUG TODO: should be Type not *Type
 
 // List of typename, typestring pairs
-var typestrings *map[string] string
+var typestring *map[string] string
+var initialized bool = false
 
 // Map of basic types to prebuilt StubTypes
-var basicstubs *map[string] *StubType
+var basicstub *map[string] *StubType
 
 var MissingStub *StubType;
 
@@ -414,11 +433,11 @@ func init() {
 	Lock();	// not necessary because of init ordering but be safe.
 
 	types = new(map[string] *Type);
-	typestrings = new(map[string] string);
-	basicstubs = new(map[string] *StubType);
+	typestring = new(map[string] string);
+	basicstub = new(map[string] *StubType);
 
 	// Basics go into types table
-	types["missing"] = &Missing;
+	types[MissingString] = &Missing;
 	types["int8"] = &Int8;
 	types["int16"] = &Int16;
 	types["int32"] = &Int32;
@@ -434,21 +453,19 @@ func init() {
 
 	// Basics get prebuilt stubs
 	MissingStub = NewStubType(Missing);
-	basicstubs["missing"] = MissingStub;
-	basicstubs["int8"] = NewStubType(Int8);
-	basicstubs["int16"] = NewStubType(Int16);
-	basicstubs["int32"] = NewStubType(Int32);
-	basicstubs["int64"] = NewStubType(Int64);
-	basicstubs["uint8"] = NewStubType(Uint8);
-	basicstubs["uint16"] = NewStubType(Uint16);
-	basicstubs["uint32"] = NewStubType(Uint32);
-	basicstubs["uint64"] = NewStubType(Uint64);
-	basicstubs["float32"] = NewStubType(Float32);
-	basicstubs["float64"] = NewStubType(Float64);
-	basicstubs["float80"] = NewStubType(Float80);
-	basicstubs["string"] = NewStubType(String);
-
-	typestrings["P.integer"] = "int32";	// TODO: for testing; remove
+	basicstub[MissingString] = MissingStub;
+	basicstub["int8"] = NewStubType(Int8);
+	basicstub["int16"] = NewStubType(Int16);
+	basicstub["int32"] = NewStubType(Int32);
+	basicstub["int64"] = NewStubType(Int64);
+	basicstub["uint8"] = NewStubType(Uint8);
+	basicstub["uint16"] = NewStubType(Uint16);
+	basicstub["uint32"] = NewStubType(Uint32);
+	basicstub["uint64"] = NewStubType(Uint64);
+	basicstub["float32"] = NewStubType(Float32);
+	basicstub["float64"] = NewStubType(Float64);
+	basicstub["float80"] = NewStubType(Float80);
+	basicstub["string"] = NewStubType(String);
 
 	Unlock();
 }
@@ -557,7 +574,8 @@ func (p *Parser) Next() {
 func (p *Parser) Type() *StubType
 
 func (p *Parser) Array() *StubType {
-	size := -1;
+	size := uint64(0);
+	open := true;
 	if p.token != "]" {
 		if len(p.token) == 0 || !isdigit(p.token[0]) {
 			return MissingStub
@@ -565,16 +583,17 @@ func (p *Parser) Array() *StubType {
 		// write our own (trivial and simpleminded) atoi to avoid dependency
 		size = 0;
 		for i := 0; i < len(p.token); i++ {
-			size = size * 10 + int(p.token[i]) - '0'
+			size = size * 10 + uint64(p.token[i]) - '0'
 		}
 		p.Next();
+		open = false;
 	}
 	if p.token != "]" {
 		return MissingStub
 	}
 	p.Next();
 	elemtype := p.Type();
-	return NewStubType(NewArrayTypeStruct(size, elemtype));
+	return NewStubType(NewArrayTypeStruct(open, size, elemtype));
 }
 
 func (p *Parser) Map() *StubType {
@@ -715,7 +734,7 @@ func (p *Parser) Type() *StubType {
 		return MissingStub;
 	}
 	// must be an identifier. is it basic? if so, we have a stub
-	if s, ok := basicstubs[p.token]; ok {
+	if s, ok := basicstub[p.token]; ok {
 		p.Next();
 		return s
 	}
@@ -743,12 +762,50 @@ export func ParseTypeString(str string) Type {
 	return p.Type().Get();
 }
 
+// Create typestring map from reflect.typestrings() data.  Lock is held.
+func InitializeTypeStrings() {
+	if initialized {
+		return
+	}
+	initialized = true;
+	s := typestrings();
+	slen := len(s);
+	for i := 0; i < slen; {
+		// "reflect.PtrType interface { Sub () (? reflect.Type) }\n"
+		// find the identifier
+		idstart := i;
+		for ; i < slen && s[i] != ' '; i++ {
+		}
+		if i == slen {
+			print("reflect.InitializeTypeStrings: bad identifier\n");
+			return;
+		}
+		idend := i;
+		i++;
+		// find the end of the line, terminating the type
+		typestart := i;
+		for ; i < slen && s[i] != '\n'; i++ {
+		}
+		if i == slen {
+			print("reflect.InitializeTypeStrings: bad type string\n");
+			return;
+		}
+		typeend := i;
+		i++;	//skip newline
+		typestring[s[idstart:idend]] = s[typestart:typeend];
+	}
+}
+
 // Look up type string associated with name.  Lock is held.
 func TypeNameToTypeString(name string) string {
-	s, ok := typestrings[name];
+	s, ok := typestring[name];
 	if !ok {
-		s = MissingString;
-		typestrings[name] = s;
+		InitializeTypeStrings();
+		s, ok = typestring[name];
+		if !ok {
+			s = MissingString;
+			typestring[name] = s;
+		}
 	}
 	return s
 }
