@@ -937,6 +937,8 @@ loop:
 	case OIND:
 		if(top == Etop)
 			goto nottop;
+		if(top == Elv)	// even if n is lvalue, n->left is rvalue
+			top = Erv;
 		walktype(n->left, top);
 		if(n->left == N)
 			goto ret;
