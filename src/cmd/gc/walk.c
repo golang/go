@@ -1507,13 +1507,13 @@ void
 walkdot(Node *n)
 {
 	Type *t, *f;
+	int d;
 
 	if(n->left == N || n->right == N)
 		return;
 	switch(n->op) {
 	case ODOTINTER:
 	case ODOTMETH:
-	case ODOTPTR:
 		return;	// already done
 	}
 
@@ -1537,29 +1537,6 @@ walkdot(Node *n)
 
 	if(!lookdot(n, t))
 		yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
-}
-
-int
-adddot1(Node *n, int d)
-{
-	return 1;
-}
-
-void
-adddot(Node *n)
-{
-	int d;
-
-	walktype(n->left, Erv);
-	if(n->left->type == T)
-		return;
-	if(n->right->op != ONAME)
-		return;
-
-	for(d=0; d<5; d++)
-		if(adddot1(n, d))
-			break;
-//	dump("adddot", n);
 }
 
 Node*
@@ -3243,4 +3220,97 @@ loop:
 
 	r = listnext(&saver);
 	goto loop;
+}
+
+int
+lookdot0(Sym *s, Type *t)
+{
+	Type *f, *u;
+	int c;
+
+	u = t;
+	if(isptr[u->etype])
+		u = u->type;
+
+	c = 0;
+	if(u->etype == TSTRUCT || u->etype == TINTER) {
+		for(f=u->type; f!=T; f=f->down)
+			if(f->sym == s)
+				c++;
+	}
+//BOTCH need method
+	return c;
+}
+
+static	Node*	dotlist;
+
+int
+adddot1(Sym *s, Type *t, int d)
+{
+	Type *f, *u;
+	int c, a;
+
+	if(d == 0)
+		return lookdot0(s, t);
+
+	u = t;
+	if(isptr[u->etype])
+		u = u->type;
+	if(u->etype != TSTRUCT && u->etype != TINTER)
+		return 0;
+
+	c = 0;
+	for(f=u->type; f!=T; f=f->down) {
+		if(!f->embedded)
+			continue;
+		if(f->sym == S)
+			continue;
+		a = adddot1(s, f->type, d-1);
+		if(a != 0 && c == 0) {
+			dotlist = nod(ODOT, dotlist, N);
+			dotlist->type = f;
+		}
+		c += a;
+	}
+	return c;
+}
+
+Node*
+adddot(Node *n)
+{
+	Type *t;
+	Sym *s;
+	Node *l;
+	int c, d;
+
+	walktype(n->left, Erv);
+	t = n->left->type;
+	if(t == T)
+		return n;
+
+	if(n->right->op != ONAME)
+		return n;
+	s = n->right->sym;
+	if(s == S)
+		return n;
+
+	dotlist = N;
+	for(d=0; d<5; d++) {
+		c = adddot1(s, t, d);
+		if(c > 0)
+			goto out;
+	}
+	return n;
+
+out:
+	if(c > 1)
+		yyerror("ambiguous DOT reference %S", s);
+
+	// rebuild elided dots
+	for(l=dotlist; l!=N; l=l->left) {
+		n = nod(ODOT, n, n->right);
+		n->left->right = newname(l->type->sym);
+	}
+
+	return n;
 }

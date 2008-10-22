@@ -58,7 +58,7 @@
 %type	<node>		name onew_name new_name new_name_list_r
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl
-%type	<node>		structdcl_list_r structdcl imbed
+%type	<node>		structdcl_list_r structdcl embed
 %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
 %type	<node>		keyexpr_list braced_keyexpr_list keyval_list_r keyval
 
@@ -820,7 +820,7 @@ pexpr:
 |	pexpr '.' sym2
 	{
 		$$ = nod(ODOT, $1, newname($3));
-		adddot($$);
+		$$ = adddot($$);
 	}
 |	pexpr '.' '(' type ')'
 	{
@@ -1375,21 +1375,21 @@ structdcl:
 		$$ = nod(ODCLFIELD, $1, N);
 		$$->type = $2;
 	}
-|	imbed
-|	'*' imbed
+|	embed
+|	'*' embed
 	{
 		$$ = $2;
 		$$->type = ptrto($$->type);
 	}
 
-imbed:
+embed:
 	LATYPE
 	{
-		$$ = imbedded($1);
+		$$ = embedded($1);
 	}
 |	lpack '.' LATYPE
 	{
-		$$ = imbedded($3);
+		$$ = embedded($3);
 		context = nil;
 	}
 

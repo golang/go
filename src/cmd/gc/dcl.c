@@ -471,7 +471,7 @@ loop:
 
 	if(n->left != N && n->left->op == ONAME) {
 		f->nname = n->left;
-		f->imbedded = n->imbedded;
+		f->embedded = n->embedded;
 	} else {
 		vargen++;
 		snprint(buf, sizeof(buf), "_e%s_%.3ld", filename, vargen);
@@ -1150,17 +1150,17 @@ resumecheckwidth(void)
 }
 
 Node*
-imbedded(Sym *s)
+embedded(Sym *s)
 {
 	Node *n;
 
 	n = newname(lookup(s->name));
 	n = nod(ODCLFIELD, n, N);
-	n->imbedded = 1;
+	n->embedded = 1;
 	if(s == S)
 		return n;
 	n->type = oldtype(s);
 	if(isptr[n->type->etype])
-		yyerror("imbedded type cannot be a pointer");
+		yyerror("embedded type cannot be a pointer");
 	return n;
 }
