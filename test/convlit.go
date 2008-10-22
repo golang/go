@@ -17,11 +17,11 @@ var x7 = float(1e1000);
 
 // implicit conversions merit scrutiny
 var s string;
-var bad1 string = 1;	// ERROR "conver"
-var bad2 = s + 1;		// ERROR "conver"
-var bad3 = s + 'a';	// ERROR "conver"
-var bad4 = "a" + 1;	// ERROR "literals"
-var bad5 = "a" + 'a';	// ERROR "literals"
+var bad1 string = 1;	// ERROR "conver|incompatible"
+var bad2 = s + 1;		// ERROR "conver|incompatible"
+var bad3 = s + 'a';	// ERROR "conver|incompatible"
+var bad4 = "a" + 1;	// ERROR "literals|incompatible"
+var bad5 = "a" + 'a';	// ERROR "literals|incompatible"
 
 var bad6 int = 1.5;	// ERROR "convert"
 var bad7 int = 1e100;	// ERROR "overflow"
