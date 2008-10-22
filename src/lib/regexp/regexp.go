@@ -14,7 +14,6 @@ import (
 export var debug = false;
 
 
-export var ErrUnimplemented = os.NewError("unimplemented");
 export var ErrInternal = os.NewError("internal error");
 export var ErrUnmatchedLpar = os.NewError("unmatched '('");
 export var ErrUnmatchedRpar = os.NewError("unmatched ')'");
@@ -397,7 +396,7 @@ func (p *Parser) Term() (start, end Inst) {
 	switch c := p.c(); c {
 	case '|', EOF:
 		return NULL, NULL;
-	case '*', '+', '|':
+	case '*', '+':
 		p.re.Error(ErrBareClosure);
 	case ')':
 		if p.nlpar == 0 {
