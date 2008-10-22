@@ -1824,6 +1824,10 @@ newcompat(Node *n)
 
 	t = t->type;
 	switch(t->etype) {
+	case TFUNC:
+		yyerror("cannot make new %T", t);
+		break;
+
 	case TMAP:
 		r = mapop(n, Erv);
 		return r;
