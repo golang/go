@@ -11,6 +11,7 @@ import (
 	"reflect";
 )
 
+
 type Addr uint64	// TODO: where are ptrint/intptr etc?
 
 export type Value interface {
@@ -24,31 +25,20 @@ type Creator *(typ Type, addr Addr) Value
 
 // Conversion functions, implemented in assembler
 func AddrToPtrAddr(Addr) *Addr
-func PtrAddrToAddr(*Addr) Addr
 func AddrToPtrInt8(Addr) *int8
-func PtrInt8ToAddr(*int8) Addr
 func AddrToPtrInt16(Addr) *int16
-func PtrInt16ToAddr(*int16) Addr
 func AddrToPtrInt32(Addr) *int32
-func PtrInt32ToAddr(*int32) Addr
 func AddrToPtrInt64(Addr) *int64
-func PtrInt64ToAddr(*int64) Addr
 func AddrToPtrUint8(Addr) *uint8
 func PtrUint8ToAddr(*uint8) Addr
 func AddrToPtrUint16(Addr) *uint16
-func PtrUint16ToAddr(*uint16) Addr
 func AddrToPtrUint32(Addr) *uint32
-func PtrUint32ToAddr(*uint32) Addr
 func AddrToPtrUint64(Addr) *uint64
 func PtrUint64ToAddr(*uint64) Addr
 func AddrToPtrFloat32(Addr) *float32
-func PtrFloat32ToAddr(*float32) Addr
 func AddrToPtrFloat64(Addr) *float64
-func PtrFloat64ToAddr(*float64) Addr
 func AddrToPtrFloat80(Addr) *float80
-func PtrFloat80ToAddr(*float80) Addr
 func AddrToPtrString(Addr) *string
-func PtrStringToAddr(*string) Addr
 
 // -- Int8
 
@@ -60,7 +50,7 @@ export type Int8Value interface {
 }
 
 type Int8ValueStruct struct {
-	p	*int8
+	addr	Addr
 }
 
 func (v *Int8ValueStruct) Kind() int {
@@ -72,16 +62,16 @@ func (v *Int8ValueStruct) Type() Type {
 }
 
 func (v *Int8ValueStruct) Get() int8 {
-	return *v.p
+	return *AddrToPtrInt8(v.addr)
 }
 
 func (v *Int8ValueStruct) Put(i int8) {
-	*v.p = i
+	*AddrToPtrInt8(v.addr) = i
 }
 
 func Int8Creator(typ Type, addr Addr) Value {
 	v := new(Int8ValueStruct);
-	v.p = AddrToPtrInt8(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -95,7 +85,7 @@ export type Int16Value interface {
 }
 
 type Int16ValueStruct struct {
-	p	*int16
+	addr	Addr
 }
 
 func (v *Int16ValueStruct) Kind() int {
@@ -107,16 +97,16 @@ func (v *Int16ValueStruct) Type() Type {
 }
 
 func (v *Int16ValueStruct) Get() int16 {
-	return *v.p
+	return *AddrToPtrInt16(v.addr)
 }
 
 func (v *Int16ValueStruct) Put(i int16) {
-	*v.p = i
+	*AddrToPtrInt16(v.addr) = i
 }
 
 func Int16Creator(typ Type, addr Addr) Value {
 	v := new(Int16ValueStruct);
-	v.p = AddrToPtrInt16(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -130,7 +120,7 @@ export type Int32Value interface {
 }
 
 type Int32ValueStruct struct {
-	p	*int32
+	addr	Addr
 }
 
 func (v *Int32ValueStruct) Type() Type {
@@ -142,16 +132,16 @@ func (v *Int32ValueStruct) Kind() int {
 }
 
 func (v *Int32ValueStruct) Get() int32 {
-	return *v.p
+	return *AddrToPtrInt32(v.addr)
 }
 
 func (v *Int32ValueStruct) Put(i int32) {
-	*v.p = i
+	*AddrToPtrInt32(v.addr) = i
 }
 
 func Int32Creator(typ Type, addr Addr) Value {
 	v := new(Int32ValueStruct);
-	v.p = AddrToPtrInt32(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -165,7 +155,7 @@ export type Int64Value interface {
 }
 
 type Int64ValueStruct struct {
-	p	*int64
+	addr	Addr
 }
 
 func (v *Int64ValueStruct) Kind() int {
@@ -177,16 +167,16 @@ func (v *Int64ValueStruct) Type() Type {
 }
 
 func (v *Int64ValueStruct) Get() int64 {
-	return *v.p
+	return *AddrToPtrInt64(v.addr)
 }
 
 func (v *Int64ValueStruct) Put(i int64) {
-	*v.p = i
+	*AddrToPtrInt64(v.addr) = i
 }
 
 func Int64Creator(typ Type, addr Addr) Value {
 	v := new(Int64ValueStruct);
-	v.p = AddrToPtrInt64(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -200,7 +190,7 @@ export type Uint8Value interface {
 }
 
 type Uint8ValueStruct struct {
-	p	*uint8
+	addr	Addr
 }
 
 func (v *Uint8ValueStruct) Kind() int {
@@ -212,16 +202,16 @@ func (v *Uint8ValueStruct) Type() Type {
 }
 
 func (v *Uint8ValueStruct) Get() uint8 {
-	return *v.p
+	return *AddrToPtrUint8(v.addr)
 }
 
 func (v *Uint8ValueStruct) Put(i uint8) {
-	*v.p = i
+	*AddrToPtrUint8(v.addr) = i
 }
 
 func Uint8Creator(typ Type, addr Addr) Value {
 	v := new(Uint8ValueStruct);
-	v.p = AddrToPtrUint8(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -235,7 +225,7 @@ export type Uint16Value interface {
 }
 
 type Uint16ValueStruct struct {
-	p	*uint16
+	addr	Addr
 }
 
 func (v *Uint16ValueStruct) Kind() int {
@@ -247,16 +237,16 @@ func (v *Uint16ValueStruct) Type() Type {
 }
 
 func (v *Uint16ValueStruct) Get() uint16 {
-	return *v.p
+	return *AddrToPtrUint16(v.addr)
 }
 
 func (v *Uint16ValueStruct) Put(i uint16) {
-	*v.p = i
+	*AddrToPtrUint16(v.addr) = i
 }
 
 func Uint16Creator(typ Type, addr Addr) Value {
 	v := new(Uint16ValueStruct);
-	v.p = AddrToPtrUint16(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -270,7 +260,7 @@ export type Uint32Value interface {
 }
 
 type Uint32ValueStruct struct {
-	p	*uint32
+	addr	Addr
 }
 
 func (v *Uint32ValueStruct) Kind() int {
@@ -282,16 +272,16 @@ func (v *Uint32ValueStruct) Type() Type {
 }
 
 func (v *Uint32ValueStruct) Get() uint32 {
-	return *v.p
+	return *AddrToPtrUint32(v.addr)
 }
 
 func (v *Uint32ValueStruct) Put(i uint32) {
-	*v.p = i
+	*AddrToPtrUint32(v.addr) = i
 }
 
 func Uint32Creator(typ Type, addr Addr) Value {
 	v := new(Uint32ValueStruct);
-	v.p = AddrToPtrUint32(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -305,7 +295,7 @@ export type Uint64Value interface {
 }
 
 type Uint64ValueStruct struct {
-	p	*uint64
+	addr	Addr
 }
 
 func (v *Uint64ValueStruct) Kind() int {
@@ -317,16 +307,16 @@ func (v *Uint64ValueStruct) Type() Type {
 }
 
 func (v *Uint64ValueStruct) Get() uint64 {
-	return *v.p
+	return *AddrToPtrUint64(v.addr)
 }
 
 func (v *Uint64ValueStruct) Put(i uint64) {
-	*v.p = i
+	*AddrToPtrUint64(v.addr) = i
 }
 
 func Uint64Creator(typ Type, addr Addr) Value {
 	v := new(Uint64ValueStruct);
-	v.p = AddrToPtrUint64(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -340,7 +330,7 @@ export type Float32Value interface {
 }
 
 type Float32ValueStruct struct {
-	p	*float32
+	addr	Addr
 }
 
 func (v *Float32ValueStruct) Kind() int {
@@ -352,16 +342,16 @@ func (v *Float32ValueStruct) Type() Type {
 }
 
 func (v *Float32ValueStruct) Get() float32 {
-	return *v.p
+	return *AddrToPtrFloat32(v.addr)
 }
 
 func (v *Float32ValueStruct) Put(f float32) {
-	*v.p = f
+	*AddrToPtrFloat32(v.addr) = f
 }
 
 func Float32Creator(typ Type, addr Addr) Value {
 	v := new(Float32ValueStruct);
-	v.p = AddrToPtrFloat32(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -375,7 +365,7 @@ export type Float64Value interface {
 }
 
 type Float64ValueStruct struct {
-	p	*float64
+	addr	Addr
 }
 
 func (v *Float64ValueStruct) Kind() int {
@@ -387,16 +377,16 @@ func (v *Float64ValueStruct) Type() Type {
 }
 
 func (v *Float64ValueStruct) Get() float64 {
-	return *v.p
+	return *AddrToPtrFloat64(v.addr)
 }
 
 func (v *Float64ValueStruct) Put(f float64) {
-	*v.p = f
+	*AddrToPtrFloat64(v.addr) = f
 }
 
 func Float64Creator(typ Type, addr Addr) Value {
 	v := new(Float64ValueStruct);
-	v.p = AddrToPtrFloat64(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -410,7 +400,7 @@ export type Float80Value interface {
 }
 
 type Float80ValueStruct struct {
-	p	*float80
+	addr	Addr
 }
 
 func (v *Float80ValueStruct) Kind() int {
@@ -424,18 +414,18 @@ func (v *Float80ValueStruct) Type() Type {
 /*
 BUG: can't gen code for float80s
 func (v *Float80ValueStruct) Get() float80 {
-	return *v.p
+	return *AddrToPtrFloat80(v.addr)
 	return 0;
 }
 
 func (v *Float80ValueStruct) Put(f float80) {
-	*v.p = f
+	*AddrToPtrFloat80(v.addr) = f
 }
 */
 
 func Float80Creator(typ Type, addr Addr) Value {
 	v := new(Float80ValueStruct);
-	v.p = AddrToPtrFloat80(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -449,7 +439,7 @@ export type StringValue interface {
 }
 
 type StringValueStruct struct {
-	p	*string
+	addr	Addr
 }
 
 func (v *StringValueStruct) Kind() int {
@@ -461,16 +451,16 @@ func (v *StringValueStruct) Type() Type {
 }
 
 func (v *StringValueStruct) Get() string {
-	return *v.p
+	return *AddrToPtrString(v.addr)
 }
 
 func (v *StringValueStruct) Put(s string) {
-	*v.p = s
+	*AddrToPtrString(v.addr) = s
 }
 
 func StringCreator(typ Type, addr Addr) Value {
 	v := new(StringValueStruct);
-	v.p = AddrToPtrString(addr);
+	v.addr = addr;
 	return v;
 }
 
@@ -480,11 +470,11 @@ export type PtrValue interface {
 	Kind()	int;
 	Sub()	Value;
 	Type()	Type;
-	Addr()	Addr;
+	Indirect()	Addr;
 }
 
 type PtrValueStruct struct {
-	p	*Addr;
+	addr	Addr;
 	typ	Type;
 }
 
@@ -496,19 +486,16 @@ func (v *PtrValueStruct) Type() Type {
 	return v.typ
 }
 
-func (v *PtrValueStruct) Sub() Value {
-	return NewValueAddr(v.typ, *v.p);
+func (v *PtrValueStruct) Indirect() Addr {
+	return *AddrToPtrAddr(v.addr)
 }
 
-func (v *PtrValueStruct) Addr() Addr {
-	return *v.p
+func (v *PtrValueStruct) Sub() Value {
+	return NewValueAddr(v.typ.(PtrType).Sub(), v.Indirect());
 }
 
 func PtrCreator(typ Type, addr Addr) Value {
-	v := new(PtrValueStruct);
-	v.p = AddrToPtrAddr(addr);
-	v.typ = typ;
-	return v;
+	return &PtrValueStruct{addr, typ};
 }
 
 // -- Array	TODO: finish and test
@@ -517,15 +504,23 @@ export type ArrayValue interface {
 	Kind()	int;
 	Type()	Type;
 	Open()	bool;
-	Len()	int;
-	Elem(i int)	Value;
+	Len()	uint64;
+	Elem(i uint64)	Value;
 }
 
 type OpenArrayValueStruct struct {
-	data	Addr;
+	addr	Addr;
 	typ	Type;
-	len	int;
+	elemtype	Type;
+	elemsize	uint64;
 }
+/*
+	Run-time representation of open arrays looks like this:
+		struct	Array {
+			byte*	array;		// actual data
+			uint32	nel;		// number of elements
+		};
+*/
 
 func (v *OpenArrayValueStruct) Kind() int {
 	return ArrayKind
@@ -539,21 +534,21 @@ func (v *OpenArrayValueStruct) Open() bool {
 	return true
 }
 
-func (v *OpenArrayValueStruct) Len() int {
-	return v.len	// TODO: probably want this to be dynamic
+func (v *OpenArrayValueStruct) Len() uint64 {
+	return uint64(*AddrToPtrInt32(v.addr+8));
 }
 
-func (v *OpenArrayValueStruct) Elem(i int) Value {
-	panic("open array value element");
-	return nil
+func (v *OpenArrayValueStruct) Elem(i uint64) Value {
+	base := *AddrToPtrAddr(v.addr);
+	return NewValueAddr(v.elemtype, base + i * v.elemsize);
 }
 
 type FixedArrayValueStruct struct {
-	data	Addr;
+	addr	Addr;
 	typ	Type;
-	len	int;
 	elemtype	Type;
 	elemsize	uint64;
+	len	uint64;
 }
 
 func (v *FixedArrayValueStruct) Kind() int {
@@ -568,12 +563,12 @@ func (v *FixedArrayValueStruct) Open() bool {
 	return false
 }
 
-func (v *FixedArrayValueStruct) Len() int {
+func (v *FixedArrayValueStruct) Len() uint64 {
 	return v.len
 }
 
-func (v *FixedArrayValueStruct) Elem(i int) Value {
-	return NewValueAddr(v.elemtype, v.data + uint64(i) * v.elemsize);
+func (v *FixedArrayValueStruct) Elem(i uint64) Value {
+	return NewValueAddr(v.elemtype, v.addr + i * v.elemsize);
 	return nil
 }
 
@@ -581,15 +576,18 @@ func ArrayCreator(typ Type, addr Addr) Value {
 	arraytype := typ.(ArrayType);
 	if arraytype.Open() {
 		v := new(OpenArrayValueStruct);
-		v.data = addr;
+		v.addr = addr;
 		v.typ = typ;
+		v.elemtype = arraytype.Elem();
+		v.elemsize = v.elemtype.Size();
 		return v;
 	}
 	v := new(FixedArrayValueStruct);
-	v.data = addr;
+	v.addr = addr;
 	v.typ = typ;
 	v.elemtype = arraytype.Elem();
-	v.elemsize = arraytype.Len();
+	v.elemsize = v.elemtype.Size();
+	v.len = arraytype.Len();
 	return v;
 }
 
@@ -603,7 +601,7 @@ export type MapValue interface {
 }
 
 type MapValueStruct struct {
-	data	Addr;
+	addr	Addr;
 	typ	Type;
 	len	int;
 }
@@ -628,7 +626,7 @@ func (v *MapValueStruct) Elem(key Value) Value {
 func MapCreator(typ Type, addr Addr) Value {
 	arraytype := typ.(MapType);
 	v := new(MapValueStruct);
-	v.data = addr;
+	v.addr = addr;
 	v.typ = typ;
 	return v;
 }
@@ -641,7 +639,7 @@ export type ChanValue interface {
 }
 
 type ChanValueStruct struct {
-	data	Addr;
+	addr	Addr;
 	typ	Type;
 	len	int;
 }
@@ -656,7 +654,7 @@ func (v *ChanValueStruct) Type() Type {
 
 func ChanCreator(typ Type, addr Addr) Value {
 	v := new(ChanValueStruct);
-	v.data = addr;
+	v.addr = addr;
 	v.typ = typ;
 	return v;
 }
@@ -671,6 +669,7 @@ export type StructValue interface {
 }
 
 type StructValueStruct struct {
+	addr	Addr;
 	typ	Type;
 	field	*[]Value;
 }
@@ -694,6 +693,7 @@ func (v *StructValueStruct) Field(i int) Value {
 func StructCreator(typ Type, addr Addr) Value {
 	t := typ.(StructType);
 	v := new(StructValueStruct);
+	v.addr = addr;
 	nfield := t.Len();
 	v.field = new([]Value, nfield);
 	for i := 0; i < nfield; i++ {
@@ -712,7 +712,7 @@ export type InterfaceValue interface {
 }
 
 type InterfaceValueInterface struct {
-	data	Addr;
+	addr	Addr;
 	typ	Type;
 }
 
@@ -726,7 +726,7 @@ func (v *InterfaceValueInterface) Type() Type {
 
 func InterfaceCreator(typ Type, addr Addr) Value {
 	v := new(InterfaceValueInterface);
-	v.data = addr;
+	v.addr = addr;
 	v.typ = typ;
 	return v;
 }
@@ -739,7 +739,7 @@ export type FuncValue interface {
 }
 
 type FuncValueFunc struct {
-	data	Addr;
+	addr	Addr;
 	typ	Type;
 }
 
@@ -753,7 +753,7 @@ func (v *FuncValueFunc) Type() Type {
 
 func FuncCreator(typ Type, addr Addr) Value {
 	v := new(FuncValueFunc);
-	v.data = addr;
+	v.addr = addr;
 	v.typ = typ;
 	return v;
 }
@@ -791,8 +791,16 @@ func NewValueAddr(typ Type, addr Addr) Value {
 	return c(typ, addr);
 }
 
-// TODO: do this better
 export func NewInitValue(typ Type) Value {
+	// Some values cannot be made this way.
+	switch typ.Kind() {
+	case FuncKind, ChanKind, MapKind:	// must be pointers, at least for now (TODO?)
+		return nil;
+	case ArrayKind:
+		if typ.(ArrayType).Open() {
+			return nil
+		}
+	}
 	size := typ.Size();
 	if size == 0 {
 		size = 1;
@@ -801,10 +809,14 @@ export func NewInitValue(typ Type) Value {
 	return NewValueAddr(typ, PtrUint8ToAddr(&data[0]));
 }
 
-// TODO: do this better
-export func NewValue(e interface {}) Value {
-//	typestring, addr := sys.whathe(e);
-//	typ := ParseTypeString(typestring);
-//	return NewValueAddr(typ, addr);
-return nil
+export type Empty interface {}
+
+export func NewValue(e Empty) Value {
+	value, typestring  := sys.reflect(e);
+	typ := ParseTypeString("", typestring);
+	// Content of interface is a value; need a permanent copy to take its address
+	// so we can modify the contents. Values contain pointers to 'values'.
+	ap := new(uint64);
+	*ap = value;
+	return NewValueAddr(typ, PtrUint64ToAddr(ap));
 }

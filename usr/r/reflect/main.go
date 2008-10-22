@@ -10,7 +10,7 @@ import (
 
 func typedump(s string) {
 	t := reflect.ParseTypeString("", s);
-	print(reflect.TypeToString(t),"; size = ", t.Size(), "\n");
+	print(reflect.TypeToString(t, true),"; size = ", t.Size(), "\n");
 }
 
 func valuedump(s string) {
@@ -45,12 +45,13 @@ func valuedump(s string) {
 
 export type empty interface {}
 
-export type T struct { a int; b float64 }
+export type T struct { a int; b float64; c string; d *int }
 
 func main() {
 	var s string;
 	var t reflect.Type;
 
+if false{
 	typedump("int8");
 	typedump("int16");
 	typedump("int32");
@@ -77,7 +78,7 @@ func main() {
 	typedump("struct {a int8; b int8; c int8; b int32}");
 	typedump("struct {a int8; b int8; c int8; d int8; b int32}");
 	typedump("struct {a int8; b int8; c int8; d int8; e int8; b int32}");
-	
+
 	valuedump("int8");
 	valuedump("int16");
 	valuedump("int32");
@@ -105,9 +106,50 @@ func main() {
 	valuedump("struct {a int8; b int8; c int8; b int32}");
 	valuedump("struct {a int8; b int8; c int8; d int8; b int32}");
 	valuedump("struct {a int8; b int8; c int8; d int8; e int8; b int32}");
-
-	v := new(T);
-	a, b := sys.reflect(v.(empty));
-	println(a, b);
-	typedump(b);
+}
+{	var tmp = 123;
+	value := reflect.NewValue(tmp);
+	println(reflect.ValueToString(value));
+}
+{	var tmp = 123.4;
+	value := reflect.NewValue(tmp);
+	println(reflect.ValueToString(value));
+}
+{	var tmp = "abc";
+	value := reflect.NewValue(tmp);
+	println(reflect.ValueToString(value));
+}
+{
+	var i int = 7;
+	var tmp = &T{123, 456.0, "hello", &i};
+	value := reflect.NewValue(tmp);
+	println(reflect.ValueToString(value.(reflect.PtrValue).Sub()));
+}
+{
+	type C chan *T;	// TODO: should not be necessary
+	var tmp = new(C);
+	value := reflect.NewValue(tmp);
+	println(reflect.ValueToString(value));
+}
+{
+	type A [10]int;
+	var tmp A = A{1,2,3,4,5,6,7,8,9,10};
+	value := reflect.NewValue(&tmp);
+	println(reflect.TypeToString(value.Type().(reflect.PtrType).Sub(), true));
+	println(reflect.TypeToString(value.(reflect.PtrValue).Sub().Type(), true));
+	println(reflect.ValueToString(value.(reflect.PtrValue).Sub()));
+	value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.Int32Value).Put(123);
+	println(reflect.ValueToString(value.(reflect.PtrValue).Sub()));
+}
+{
+	type AA []int;
+	tmp1 := [10]int{1,2,3,4,5,6,7,8,9,10};
+	var tmp *AA = &tmp1;
+	value := reflect.NewValue(tmp);
+	println(reflect.TypeToString(value.Type().(reflect.PtrType).Sub(), true));
+	println(reflect.TypeToString(value.(reflect.PtrValue).Sub().Type(), true));
+	println(reflect.ValueToString(value.(reflect.PtrValue).Sub()));
+	value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.Int32Value).Put(123);
+	println(reflect.ValueToString(value.(reflect.PtrValue).Sub()));
+}
 }
