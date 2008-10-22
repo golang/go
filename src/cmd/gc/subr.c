@@ -1061,7 +1061,7 @@ Tpretty(Fmt *fp, Type *t)
 		return fmtprint(fp, " }");
 
 	case TFIELD:
-		if(t->sym == S || t->sym->name[0] == '_') {
+		if(t->sym == S || t->sym->name[0] == '_' || t->embedded) {
 			if(exporting)
 				fmtprint(fp, "? ");
 			return fmtprint(fp, "%T", t->type);
