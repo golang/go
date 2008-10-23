@@ -1002,10 +1002,8 @@ naddr(Node *n, Addr *a)
 		a->etype = n->etype;
 		a->offset = n->xoffset;
 		a->sym = n->sym;
-		if(a->sym == S) {
+		if(a->sym == S)
 			a->sym = lookup(".noname");
-			fatal("noname");
-		}
 		if(n->method) {
 			if(n->type != T)
 			if(n->type->sym != S)

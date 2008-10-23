@@ -472,12 +472,8 @@ loop:
 	if(n->left != N && n->left->op == ONAME) {
 		f->nname = n->left;
 		f->embedded = n->embedded;
-	} else {
-		vargen++;
-		snprint(buf, sizeof(buf), "_e%s_%.3ld", filename, vargen);
-		f->nname = newname(lookup(buf));
+		f->sym = f->nname->sym;
 	}
-	f->sym = f->nname->sym;
 
 	*t = f;
 	t = &f->down;
