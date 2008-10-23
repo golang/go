@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 20, 2008)
+(October 23, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -843,8 +843,8 @@ Types may be ``complete'' or ''incomplete''. Basic, pointer, function and
 interface types are always complete (although their components, such
 as the base type of a pointer type, may be incomplete). All other types are
 complete when they are fully declared. Incomplete types are subject to
-usage restrictions; for instance a variable type cannot be an incomplete
-type.
+usage restrictions; for instance the type of a variable must be complete
+where the variable is declared.
 
 	CompleteType = Type .
 
@@ -1118,20 +1118,29 @@ types (§Types).
 		f *();
 	}
 
-A struct may contain ``anonymous fields'', which are declared with
-a type name but no explicit field identifier. Instead, the unqualified type
-name acts as the field identifier. Anonymous fields must not be interface types.
+A struct may contain ``anonymous fields'', which are declared with a type
+but no explicit field identifier. An anonymous field type must be specified as
+a type name "T", or as a pointer to a type name ``*T'', and T itself may not be
+a pointer or interface type. The unqualified type acts as the field identifier.
 
-	// A struct with two anonymous fields of type T1 and P.T2
+	// A struct with four anonymous fields of type T1, *T2, P.T3 and *P.T4
 	struct {
 		T1;        // the field name is T1
-		P.T2;      // the field name is the unqualified type name T2
+		*T2;       // the field name is T2
+		P.T3;      // the field name is the unqualified type name T3
+		*P.T4;     // the field name is the unqualified type name T4
 		x, y int;  
 	}
 
 The unqualified type name of an anonymous field must not conflict with the
 field identifier (or unqualified type name for an anonymous field) of any
-other field within the struct.
+other field within the struct. The following declaration is illegal:
+
+	struct {
+		T;         // conflicts with anonymous field *T and *P.T
+		*T;        // conflicts with anonymous field T and *P.T
+		*P.T;      // conflicts with anonymous field T and *T
+	}
 
 Fields and methods (§Method declarations) of an anonymous field become directly
 accessible as fields and methods of the struct without the need to provide the
@@ -1570,32 +1579,77 @@ A primary expression of the form
 	x.f
 
 denotes the field or method f of the value denoted by x (or of *x if
-x is of pointer type). The identifier f is called the ``selector''.
-The following rules apply:
+x is of pointer type). The identifier f is called the (field or method)
+``selector''.
 
-For x of type S or *S where S is a struct type (§Struct types):
+A selector f may denote a field f declared in a type T, or it may refer
+to a field f declared in a nested anonymous field of T. Analogously,
+f may denote a method f of T, or it may refer to a method f of the type
+of a nested anonymous field of T. The number of anonymous fields traversed
+to get to the field or method is called its ``depth'' in T.
 
-	1) If f is declared as a (named or anonymous) field of S then x.f denotes
-	   that field.
+More precisely, the depth of a field or method f declared in T is zero.
+The depth of a field or method f declared anywhere inside
+an anonymous field A declared in T is the depth of f in A plus one.
 
-	2) If f is declared (or forward-declared) as a method of S textually
-	   before x.f then x.f denotes that method and x becomes the receiver
-	   of f.
+The following rules apply to selectors:
 
-	3) Otherwise, if there is single anononymous field A of S such that
-	   x.A.f denotes a valid field according to 1) or 2), then x.f is
-	   a shortcut for x.A.f, and x.A becomes the receiver of f.
-	   If there is none or more then one anonymous field of S satisfying
-	   this criterion, x.f is illegal.
+1) For a value x of type T or *T where T is not an interface type,
+x.f denotes the field or method at the shallowest depth in T where there
+is such an f. The type of x.f is the type of the field or method f.
+If there is not exactly one f with shallowest depth, the selector
+expression is illegal.
+
+2) For a variable x of type I or *I where I is an interface type,
+x.f denotes the actual method with name f of the value assigned
+to x if there is such a method. The type of x.f is the type
+of the method f. If no value or nil was assigned to x, x.f is illegal.
+
+3) In all other cases, x.f is illegal.
+
+Thus, selectors automatically dereference pointers as necessary. For instance,
+for an x of type *T where T declares an f, x.f is a shortcut for (*x).f.
+Furthermore, for an x of type T containing an anonymous field A declared as *A
+inside T, and where A contains a field f, x.f is a shortcut for (*x.A).f
+(assuming that the selector is legal in the first place).
+
+The following examples illustrate selector use in more detail. Given the
+declarations:
+
+	type T0 struct {
+		x int;
+	}
+
+	func (recv *T0) M0()
+
+	type T1 struct {
+		y int;
+	}
+
+	func (recv T1) M1()
+
+	type T2 struct {
+		z int;
+		T1;
+		*T0;
+	}
+
+	func (recv *T2) M2()
+
+	var p *T2;  // with p != nil and p.T1 != nil
+
+we can write:
+
+	p.z         // (*p).z
+	p.y         // ((*p).T1).y
+	p.x         // (*(*p).T0).x
+
+	p.M2        // (*p).M2
+	p.M1        // ((*p).T1).M1
+	p.M0        // ((*p).T0).M0
 
 
-For x of type I or *I where I is an interface type (§Interface types):
-
-	- If f is a method declared in I then x.f denotes the actual method with
-	  name f of the value assigned to the variable x and x becomes the receiver
-	  of f. If no value or nil was assigned to x, x.f is illegal.
-
-Otherwise, x.f is illegal.
+TODO: Specify what happens to receivers.
 
 
 Indexes
