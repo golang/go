@@ -110,6 +110,10 @@ type BoolValue struct {
 	p *bool;
 }
 
+func NewBoolValue(val bool, p *bool) *BoolValue {
+	return &BoolValue{val, p}
+}
+
 func (b *BoolValue) AsBool() *BoolValue {
 	return b
 }
@@ -153,17 +157,14 @@ func (b *BoolValue) Str() string {
 	return "false"
 }
 
-func NewBoolValue(b bool, p *bool) *BoolValue {
-	v := new(BoolValue);
-	v.val = b;
-	v.p = p;
-	return v;
-}
-
 // -- Int Value
 type IntValue struct {
 	val	int64;
 	p	*int64;
+}
+
+func NewIntValue(val int64, p *int64) *IntValue {
+	return &IntValue{val, p}
 }
 
 func (i *IntValue) AsBool() *BoolValue {
@@ -206,18 +207,14 @@ func (i *IntValue) Str() string {
 	return fmt.New().D(i.val).str()
 }
 
-func
-NewIntValue(i int64, p *int64) *IntValue {
-	v := new(IntValue);
-	v.val = i;
-	v.p = p;
-	return v;
-}
-
 // -- String Value
 type StringValue struct {
 	val	string;
 	p	*string;
+}
+
+func NewStringValue(val string, p *string) *StringValue {
+	return &StringValue{val, p}
 }
 
 func (e *StringValue) AsBool() *BoolValue {
@@ -257,13 +254,6 @@ func (s *StringValue) Set(val string) {
 
 func (s *StringValue) Str() string {
 	return `"` + s.val + `"`
-}
-
-func NewStringValue(s string, p *string) *StringValue {
-	v := new(StringValue);
-	v.val = s;
-	v.p = p;
-	return v;
 }
 
 // -- Value interface

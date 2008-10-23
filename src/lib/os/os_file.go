@@ -16,9 +16,7 @@ export func NewFD(fd int64) *FD {
 	if fd < 0 {
 		return nil
 	}
-	n := new(FD);
-	n.fd = fd;
-	return n;
+	return &FD{fd}
 }
 
 export var (
