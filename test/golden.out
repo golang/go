@@ -1,9 +1,9 @@
 
 =========== ./convlit.go
 BUG: convlit.go fails
-BUG: errchk: ./convlit.go: missing expected error message on line 16: 'conver'
-errchk: ./convlit.go: missing expected error message on line 17: 'conver'
-errchk: ./convlit.go: missing expected error message on line 18: 'conver'
+BUG: errchk: ./convlit.go: missing expected error message on line 16: 'conver|incompatible'
+errchk: ./convlit.go: missing expected error message on line 17: 'conver|incompatible'
+errchk: ./convlit.go: missing expected error message on line 18: 'conver|incompatible'
 errchk: ./convlit.go: missing expected error message on line 22: 'convert'
 errchk: ./convlit.go: missing expected error message on line 23: 'overflow'
 errchk: ./convlit.go: missing expected error message on line 24: 'overflow'
@@ -126,7 +126,7 @@ BUG: fails incorrectly
 =========== bugs/bug095.go
 found 2, expected 1
 
-panic on line 74 PC=xxx
+panic on line 83 PC=xxx
 BUG wrong result
 
 =========== bugs/bug098.go
