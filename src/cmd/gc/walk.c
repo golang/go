@@ -3224,6 +3224,8 @@ loop:
 	goto loop;
 }
 
+static	int	prdot = 0;
+
 int
 lookdot0(Sym *s, Type *t)
 {
@@ -3240,11 +3242,21 @@ lookdot0(Sym *s, Type *t)
 			if(f->sym == s)
 				c++;
 	}
-//BOTCH need method
+	u = methtype(t);
+	if(u != T) {
+		for(f=u->method; f!=T; f=f->down)
+			if(f->sym == s)
+{
+if(prdot)
+print("found method %S\n", s);
+				c++;
+}
+	}
 	return c;
 }
 
-static	Node*	dotlist;
+enum	{ maxembed = 10 };	// max depth search for embedded types
+static	Sym*	dotlist[maxembed+1];	// maxembed..1
 
 int
 adddot1(Sym *s, Type *t, int d)
@@ -3268,10 +3280,8 @@ adddot1(Sym *s, Type *t, int d)
 		if(f->sym == S)
 			continue;
 		a = adddot1(s, f->type, d-1);
-		if(a != 0 && c == 0) {
-			dotlist = nod(ODOT, dotlist, N);
-			dotlist->type = f;
-		}
+		if(a != 0 && c == 0)
+			dotlist[d] = f->sym;
 		c += a;
 	}
 	return c;
@@ -3296,23 +3306,33 @@ adddot(Node *n)
 	if(s == S)
 		return n;
 
-	dotlist = N;
-	for(d=0; d<5; d++) {
+	for(d=0; d<maxembed; d++) {
 		c = adddot1(s, t, d);
 		if(c > 0)
 			goto out;
 	}
+if(prdot) {
+print("missed");
+dump("", n);
+}
 	return n;
 
 out:
 	if(c > 1)
 		yyerror("ambiguous DOT reference %S", s);
 
+if(prdot)
+if(d > 0)
+print("add dots:");
 	// rebuild elided dots
-	for(l=dotlist; l!=N; l=l->left) {
+	for(c=d; c>0; c--) {
 		n = nod(ODOT, n, n->right);
-		n->left->right = newname(l->type->sym);
+		n->left->right = newname(dotlist[c]);
+if(prdot)
+print(" %S", dotlist[c]);
 	}
-
+if(prdot)
+if(d > 0)
+print("\n");
 	return n;
 }

@@ -1855,7 +1855,11 @@ hidden_structdcl:
 	}
 |	'?' hidden_type
 	{
-		$$ = embedded($2->sym);
+		if(isptr[$2->etype]) {
+			$$ = embedded($2->type->sym);
+			$$->type = ptrto($$->type);
+		} else
+			$$ = embedded($2->sym);
 	}
 
 hidden_interfacedcl:
