@@ -584,6 +584,8 @@ int	isinter(Type*);
 int	isnilinter(Type*);
 Sym*	globalsig(Type*);
 Type*	ismethod(Type*);
+Type*	methtype(Type*);
+int	needaddr(Type*);
 Sym*	signame(Type*, int);
 int	bytearraysz(Type*);
 int	eqtype(Type*, Type*, int);

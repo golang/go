@@ -1423,30 +1423,6 @@ walkselect(Node *sel)
 }
 
 Type*
-methtype(Type *t)
-{
-	Sym *s;
-
-	// this is ismethod() without diagnostics
-	if(t == T)
-		return T;
-	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
-		return T;
-	s = t->sym;
-	if(s != S && s->name[0] != '_')
-		return t;
-	if(!isptr[t->etype])
-		return T;
-	t = t->type;
-	if(t == T)
-		return T;
-	s = t->sym;
-	if(s != S && s->name[0] != '_')
-		return t;
-	return T;
-}
-
-Type*
 lookdot1(Node *n, Type *f)
 {
 	Type *r;
@@ -1495,6 +1471,10 @@ lookdot(Node *n, Type *t)
 	}
 
 	if(f2 != T) {
+		if(needaddr(n->left->type)) {
+			n->left = nod(OADDR, n->left, N);
+			n->left->type = ptrto(n->left->left->type);
+		}
 		n->right = methodname(n->right, ismethod(n->left->type));
 		n->xoffset = f2->width;
 		n->type = f2->type;
