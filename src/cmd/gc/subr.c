@@ -1518,6 +1518,51 @@ out:
 	return t;
 }
 
+/*
+ * this is ismethod() without side effects
+ */
+Type*
+methtype(Type *t)
+{
+	Sym *s;
+
+	if(t == T)
+		return T;
+	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
+		return T;
+	s = t->sym;
+	if(s != S)
+		return t;
+	if(!isptr[t->etype])
+		return T;
+	t = t->type;
+	if(t == T)
+		return T;
+	s = t->sym;
+	if(s != S)
+		return t;
+	return T;
+}
+
+/*
+ * this is another ismethod()
+ * returns 1 if t=T and method wants *T
+ */
+int
+needaddr(Type *t)
+{
+	Sym *s;
+
+	if(t == T)
+		return 0;
+	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
+		return 0;
+	s = t->sym;
+	if(s != S && t->methptr == 2)
+		return 1;
+	return 0;
+}
+
 int
 iscomposite(Type *t)
 {
