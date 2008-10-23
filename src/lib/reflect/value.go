@@ -53,6 +53,10 @@ type Int8ValueStruct struct {
 	addr	Addr
 }
 
+func Int8Creator(typ Type, addr Addr) Value {
+	return &Int8ValueStruct{addr}
+}
+
 func (v *Int8ValueStruct) Kind() int {
 	return Int8Kind
 }
@@ -69,12 +73,6 @@ func (v *Int8ValueStruct) Put(i int8) {
 	*AddrToPtrInt8(v.addr) = i
 }
 
-func Int8Creator(typ Type, addr Addr) Value {
-	v := new(Int8ValueStruct);
-	v.addr = addr;
-	return v;
-}
-
 // -- Int16
 
 export type Int16Value interface {
@@ -86,6 +84,10 @@ export type Int16Value interface {
 
 type Int16ValueStruct struct {
 	addr	Addr
+}
+
+func Int16Creator(typ Type, addr Addr) Value {
+	return &Int16ValueStruct{addr}
 }
 
 func (v *Int16ValueStruct) Kind() int {
@@ -104,12 +106,6 @@ func (v *Int16ValueStruct) Put(i int16) {
 	*AddrToPtrInt16(v.addr) = i
 }
 
-func Int16Creator(typ Type, addr Addr) Value {
-	v := new(Int16ValueStruct);
-	v.addr = addr;
-	return v;
-}
-
 // -- Int32
 
 export type Int32Value interface {
@@ -121,6 +117,10 @@ export type Int32Value interface {
 
 type Int32ValueStruct struct {
 	addr	Addr
+}
+
+func Int32Creator(typ Type, addr Addr) Value {
+	return &Int32ValueStruct{addr}
 }
 
 func (v *Int32ValueStruct) Type() Type {
@@ -139,12 +139,6 @@ func (v *Int32ValueStruct) Put(i int32) {
 	*AddrToPtrInt32(v.addr) = i
 }
 
-func Int32Creator(typ Type, addr Addr) Value {
-	v := new(Int32ValueStruct);
-	v.addr = addr;
-	return v;
-}
-
 // -- Int64
 
 export type Int64Value interface {
@@ -152,6 +146,10 @@ export type Int64Value interface {
 	Get()	int64;
 	Put(int64);
 	Type()	Type;
+}
+
+func Int64Creator(typ Type, addr Addr) Value {
+	return &Int64ValueStruct{addr}
 }
 
 type Int64ValueStruct struct {
@@ -174,12 +172,6 @@ func (v *Int64ValueStruct) Put(i int64) {
 	*AddrToPtrInt64(v.addr) = i
 }
 
-func Int64Creator(typ Type, addr Addr) Value {
-	v := new(Int64ValueStruct);
-	v.addr = addr;
-	return v;
-}
-
 // -- Uint8
 
 export type Uint8Value interface {
@@ -191,6 +183,10 @@ export type Uint8Value interface {
 
 type Uint8ValueStruct struct {
 	addr	Addr
+}
+
+func Uint8Creator(typ Type, addr Addr) Value {
+	return &Uint8ValueStruct{addr}
 }
 
 func (v *Uint8ValueStruct) Kind() int {
@@ -209,12 +205,6 @@ func (v *Uint8ValueStruct) Put(i uint8) {
 	*AddrToPtrUint8(v.addr) = i
 }
 
-func Uint8Creator(typ Type, addr Addr) Value {
-	v := new(Uint8ValueStruct);
-	v.addr = addr;
-	return v;
-}
-
 // -- Uint16
 
 export type Uint16Value interface {
@@ -226,6 +216,10 @@ export type Uint16Value interface {
 
 type Uint16ValueStruct struct {
 	addr	Addr
+}
+
+func Uint16Creator(typ Type, addr Addr) Value {
+	return &Uint16ValueStruct{addr}
 }
 
 func (v *Uint16ValueStruct) Kind() int {
@@ -244,12 +238,6 @@ func (v *Uint16ValueStruct) Put(i uint16) {
 	*AddrToPtrUint16(v.addr) = i
 }
 
-func Uint16Creator(typ Type, addr Addr) Value {
-	v := new(Uint16ValueStruct);
-	v.addr = addr;
-	return v;
-}
-
 // -- Uint32
 
 export type Uint32Value interface {
@@ -261,6 +249,10 @@ export type Uint32Value interface {
 
 type Uint32ValueStruct struct {
 	addr	Addr
+}
+
+func Uint32Creator(typ Type, addr Addr) Value {
+	return &Uint32ValueStruct{addr}
 }
 
 func (v *Uint32ValueStruct) Kind() int {
@@ -279,12 +271,6 @@ func (v *Uint32ValueStruct) Put(i uint32) {
 	*AddrToPtrUint32(v.addr) = i
 }
 
-func Uint32Creator(typ Type, addr Addr) Value {
-	v := new(Uint32ValueStruct);
-	v.addr = addr;
-	return v;
-}
-
 // -- Uint64
 
 export type Uint64Value interface {
@@ -296,6 +282,10 @@ export type Uint64Value interface {
 
 type Uint64ValueStruct struct {
 	addr	Addr
+}
+
+func Uint64Creator(typ Type, addr Addr) Value {
+	return &Uint64ValueStruct{addr}
 }
 
 func (v *Uint64ValueStruct) Kind() int {
@@ -314,12 +304,6 @@ func (v *Uint64ValueStruct) Put(i uint64) {
 	*AddrToPtrUint64(v.addr) = i
 }
 
-func Uint64Creator(typ Type, addr Addr) Value {
-	v := new(Uint64ValueStruct);
-	v.addr = addr;
-	return v;
-}
-
 // -- Float32
 
 export type Float32Value interface {
@@ -331,6 +315,10 @@ export type Float32Value interface {
 
 type Float32ValueStruct struct {
 	addr	Addr
+}
+
+func Float32Creator(typ Type, addr Addr) Value {
+	return &Float32ValueStruct{addr}
 }
 
 func (v *Float32ValueStruct) Kind() int {
@@ -349,12 +337,6 @@ func (v *Float32ValueStruct) Put(f float32) {
 	*AddrToPtrFloat32(v.addr) = f
 }
 
-func Float32Creator(typ Type, addr Addr) Value {
-	v := new(Float32ValueStruct);
-	v.addr = addr;
-	return v;
-}
-
 // -- Float64
 
 export type Float64Value interface {
@@ -366,6 +348,10 @@ export type Float64Value interface {
 
 type Float64ValueStruct struct {
 	addr	Addr
+}
+
+func Float64Creator(typ Type, addr Addr) Value {
+	return &Float64ValueStruct{addr}
 }
 
 func (v *Float64ValueStruct) Kind() int {
@@ -384,12 +370,6 @@ func (v *Float64ValueStruct) Put(f float64) {
 	*AddrToPtrFloat64(v.addr) = f
 }
 
-func Float64Creator(typ Type, addr Addr) Value {
-	v := new(Float64ValueStruct);
-	v.addr = addr;
-	return v;
-}
-
 // -- Float80
 
 export type Float80Value interface {
@@ -401,6 +381,10 @@ export type Float80Value interface {
 
 type Float80ValueStruct struct {
 	addr	Addr
+}
+
+func Float80Creator(typ Type, addr Addr) Value {
+	return &Float80ValueStruct{addr}
 }
 
 func (v *Float80ValueStruct) Kind() int {
@@ -423,12 +407,6 @@ func (v *Float80ValueStruct) Put(f float80) {
 }
 */
 
-func Float80Creator(typ Type, addr Addr) Value {
-	v := new(Float80ValueStruct);
-	v.addr = addr;
-	return v;
-}
-
 // -- String
 
 export type StringValue interface {
@@ -440,6 +418,10 @@ export type StringValue interface {
 
 type StringValueStruct struct {
 	addr	Addr
+}
+
+func StringCreator(typ Type, addr Addr) Value {
+	return &StringValueStruct{addr}
 }
 
 func (v *StringValueStruct) Kind() int {
@@ -456,12 +438,6 @@ func (v *StringValueStruct) Get() string {
 
 func (v *StringValueStruct) Put(s string) {
 	*AddrToPtrString(v.addr) = s
-}
-
-func StringCreator(typ Type, addr Addr) Value {
-	v := new(StringValueStruct);
-	v.addr = addr;
-	return v;
 }
 
 // -- Pointer
@@ -603,7 +579,10 @@ export type MapValue interface {
 type MapValueStruct struct {
 	addr	Addr;
 	typ	Type;
-	len	int;
+}
+
+func MapCreator(typ Type, addr Addr) Value {
+	return &MapValueStruct{addr, typ}
 }
 
 func (v *MapValueStruct) Kind() int {
@@ -615,20 +594,12 @@ func (v *MapValueStruct) Type() Type {
 }
 
 func (v *MapValueStruct) Len() int {
-	return v.len	// TODO: probably want this to be dynamic
+	return 0	// TODO: probably want this to be dynamic
 }
 
 func (v *MapValueStruct) Elem(key Value) Value {
 	panic("map value element");
 	return nil
-}
-
-func MapCreator(typ Type, addr Addr) Value {
-	arraytype := typ.(MapType);
-	v := new(MapValueStruct);
-	v.addr = addr;
-	v.typ = typ;
-	return v;
 }
 
 // -- Chan
@@ -641,7 +612,10 @@ export type ChanValue interface {
 type ChanValueStruct struct {
 	addr	Addr;
 	typ	Type;
-	len	int;
+}
+
+func ChanCreator(typ Type, addr Addr) Value {
+	return &ChanValueStruct{addr, typ}
 }
 
 func (v *ChanValueStruct) Kind() int {
@@ -650,13 +624,6 @@ func (v *ChanValueStruct) Kind() int {
 
 func (v *ChanValueStruct) Type() Type {
 	return v.typ
-}
-
-func ChanCreator(typ Type, addr Addr) Value {
-	v := new(ChanValueStruct);
-	v.addr = addr;
-	v.typ = typ;
-	return v;
 }
 
 // -- Struct
@@ -711,24 +678,21 @@ export type InterfaceValue interface {
 	Type()	Type;
 }
 
-type InterfaceValueInterface struct {
+type InterfaceValueStruct struct {
 	addr	Addr;
 	typ	Type;
 }
 
-func (v *InterfaceValueInterface) Kind() int {
+func InterfaceCreator(typ Type, addr Addr) Value {
+	return &InterfaceValueStruct{addr, typ}
+}
+
+func (v *InterfaceValueStruct) Kind() int {
 	return InterfaceKind
 }
 
-func (v *InterfaceValueInterface) Type() Type {
+func (v *InterfaceValueStruct) Type() Type {
 	return v.typ
-}
-
-func InterfaceCreator(typ Type, addr Addr) Value {
-	v := new(InterfaceValueInterface);
-	v.addr = addr;
-	v.typ = typ;
-	return v;
 }
 
 // -- Func
@@ -738,24 +702,21 @@ export type FuncValue interface {
 	Type()	Type;
 }
 
-type FuncValueFunc struct {
+type FuncValueStruct struct {
 	addr	Addr;
 	typ	Type;
 }
 
-func (v *FuncValueFunc) Kind() int {
+func FuncCreator(typ Type, addr Addr) Value {
+	return &FuncValueStruct{addr, typ}
+}
+
+func (v *FuncValueStruct) Kind() int {
 	return FuncKind
 }
 
-func (v *FuncValueFunc) Type() Type {
+func (v *FuncValueStruct) Type() Type {
 	return v.typ
-}
-
-func FuncCreator(typ Type, addr Addr) Value {
-	v := new(FuncValueFunc);
-	v.addr = addr;
-	v.typ = typ;
-	return v;
 }
 
 var creator *map[int] Creator

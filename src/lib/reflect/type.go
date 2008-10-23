@@ -55,6 +55,10 @@ type BasicType struct{
 	size	uint64;
 }
 
+func NewBasicType(name string, kind int, size uint64) Type {
+	return &BasicType{kind, name, size}
+}
+
 func (t *BasicType) Name() string {
 	return t.name
 }
@@ -65,14 +69,6 @@ func (t *BasicType) Kind() int {
 
 func (t *BasicType) Size() uint64 {
 	return t.size
-}
-
-func NewBasicType(n string, k int, size uint64) Type {
-	t := new(BasicType);
-	t.name = n;
-	t.kind = k;
-	t.size = size;
-	return t;
 }
 
 // Prebuilt basic types
@@ -100,18 +96,15 @@ type StubType struct {
 	typ		Type;
 }
 
+func NewStubType(name string, typ Type) *StubType {
+	return &StubType{name, typ}
+}
+
 func (t *StubType) Get() Type {
 	if t.typ == nil {
 		t.typ = ExpandType(t.name)
 	}
 	return t.typ
-}
-
-func NewStubType(name string, t Type) *StubType {
-	s := new(StubType);
-	s.name = name;
-	s.typ = t;
-	return s;
 }
 
 // -- Pointer
@@ -123,6 +116,10 @@ export type PtrType interface {
 type PtrTypeStruct struct {
 	name	string;
 	sub	*StubType;
+}
+
+func NewPtrTypeStruct(name string, sub *StubType) *PtrTypeStruct {
+	return &PtrTypeStruct{name, sub}
 }
 
 func (t *PtrTypeStruct) Kind() int {
@@ -141,13 +138,6 @@ func (t *PtrTypeStruct) Sub() Type {
 	return t.sub.Get()
 }
 
-func NewPtrTypeStruct(name string, sub *StubType) *PtrTypeStruct {
-	t := new(PtrTypeStruct);
-	t.name = name;
-	t.sub = sub;
-	return t;
-}
-
 // -- Array
 
 export type ArrayType interface {
@@ -161,6 +151,10 @@ type ArrayTypeStruct struct {
 	elem	*StubType;
 	open	bool;	// otherwise fixed size
 	len	uint64;
+}
+
+func NewArrayTypeStruct(name string, open bool, len uint64, elem *StubType) *ArrayTypeStruct {
+	return &ArrayTypeStruct{name, elem, open, len}
 }
 
 func (t *ArrayTypeStruct) Kind() int {
@@ -191,15 +185,6 @@ func (t *ArrayTypeStruct) Elem() Type {
 	return t.elem.Get()
 }
 
-func NewArrayTypeStruct(name string, open bool, len uint64, elem *StubType) *ArrayTypeStruct {
-	t := new(ArrayTypeStruct);
-	t.name = name;
-	t.open = open;
-	t.len = len;
-	t.elem = elem;
-	return t;
-}
-
 // -- Map
 
 export type MapType interface {
@@ -211,6 +196,10 @@ type MapTypeStruct struct {
 	name	string;
 	key	*StubType;
 	elem	*StubType;
+}
+
+func NewMapTypeStruct(name string, key, elem *StubType) *MapTypeStruct {
+	return &MapTypeStruct{name, key, elem}
 }
 
 func (t *MapTypeStruct) Kind() int {
@@ -234,14 +223,6 @@ func (t *MapTypeStruct) Elem() Type {
 	return t.elem.Get()
 }
 
-func NewMapTypeStruct(name string, key, elem *StubType) *MapTypeStruct {
-	t := new(MapTypeStruct);
-	t.name = name;
-	t.key = key;
-	t.elem = elem;
-	return t;
-}
-
 // -- Chan
 
 export type ChanType interface {
@@ -259,6 +240,10 @@ type ChanTypeStruct struct {
 	name	string;
 	elem	*StubType;
 	dir	int;
+}
+
+func NewChanTypeStruct(name string, dir int, elem *StubType) *ChanTypeStruct {
+	return &NewChanTypeStruct{name, elem, dir}
 }
 
 func (t *ChanTypeStruct) Kind() int {
@@ -283,14 +268,6 @@ func (t *ChanTypeStruct) Elem() Type {
 	return t.elem.Get()
 }
 
-func NewChanTypeStruct(name string, dir int, elem *StubType) *ChanTypeStruct {
-	t := new(ChanTypeStruct);
-	t.name = name;
-	t.dir = dir;
-	t.elem = elem;
-	return t;
-}
-
 // -- Struct
 
 export type StructType interface {
@@ -308,6 +285,10 @@ type Field struct {
 type StructTypeStruct struct {
 	name	string;
 	field	*[]Field;
+}
+
+func NewStructTypeStruct(name string, field *[]Field) *StructTypeStruct {
+	return &StructTypeStruct{name, field}
 }
 
 func (t *StructTypeStruct) Kind() int {
@@ -349,13 +330,6 @@ func (t *StructTypeStruct) Len() int {
 	return len(t.field)
 }
 
-func NewStructTypeStruct(name string, field *[]Field) *StructTypeStruct {
-	t := new(StructTypeStruct);
-	t.name = name;
-	t.field = field;
-	return t;
-}
-
 // -- Interface
 
 export type InterfaceType interface {
@@ -368,19 +342,16 @@ type InterfaceTypeStruct struct {
 	field	*[]Field;
 }
 
+func NewInterfaceTypeStruct(name string, field *[]Field) *InterfaceTypeStruct {
+	return &InterfaceTypeStruct{name, field}
+}
+
 func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, offset uint64) {
 	return t.field[i].name, t.field[i].typ.Get(), 0
 }
 
 func (t *InterfaceTypeStruct) Len() int {
 	return len(t.field)
-}
-
-func NewInterfaceTypeStruct(name string, field *[]Field) *InterfaceTypeStruct {
-	t := new(InterfaceTypeStruct);
-	t.name = name;
-	t.field = field;
-	return t;
 }
 
 func (t *InterfaceTypeStruct) Kind() int {
@@ -408,6 +379,10 @@ type FuncTypeStruct struct {
 	out	*StructTypeStruct;
 }
 
+func NewFuncTypeStruct(name string, in, out *StructTypeStruct) *FuncTypeStruct {
+	return &FuncTypeStruct{name, in, out}
+}
+
 func (t *FuncTypeStruct) Kind() int {
 	return FuncKind
 }
@@ -430,14 +405,6 @@ func (t *FuncTypeStruct) Out() StructType {
 		return nil
 	}
 	return t.out
-}
-
-func NewFuncTypeStruct(name string, in, out *StructTypeStruct) *FuncTypeStruct {
-	t := new(FuncTypeStruct);
-	t.name = name;
-	t.in = in;
-	t.out = out;
-	return t;
 }
 
 // Cache of expanded types keyed by type name.

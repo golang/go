@@ -17,20 +17,13 @@ const (
 	DefaultBufSize = 4096
 )
 
-func NewError(s string) *os.Error {
-	// BUG return &os.Error{s};
-	e := new(os.Error);
-	e.s = s;
-	return e
-}
-
 export var (
-	EndOfFile = NewError("end of file");
-	PhaseError = NewError("phase error");
-	BufferFull = NewError("buffer full");
-	InternalError = NewError("bufio internal error");
-	BadBufSize = NewError("bad bufio size");
-	ShortWrite = NewError("short write");
+	EndOfFile = os.NewError("end of file");
+	PhaseError = os.NewError("phase error");
+	BufferFull = os.NewError("buffer full");
+	InternalError = os.NewError("bufio internal error");
+	BadBufSize = os.NewError("bad bufio size");
+	ShortWrite = os.NewError("short write");
 )
 
 func CopySlice(dst *[]byte, src *[]byte) {
@@ -43,10 +36,10 @@ func CopySlice(dst *[]byte, src *[]byte) {
 // Buffered input.
 
 export type BufRead struct {
-	err *os.Error;
 	buf *[]byte;
-	r, w int;
 	rd io.Read;
+	r, w int;
+	err *os.Error;
 }
 
 export func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
