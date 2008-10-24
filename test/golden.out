@@ -182,9 +182,9 @@ fixedbugs/bug029.go:6: syntax error near int
 
 =========== fixedbugs/bug035.go
 fixedbugs/bug035.go:6: var i redeclared in this block
-     previous declaration at fixedbugs/bug035.go:5
+	previous declaration at fixedbugs/bug035.go:5
 fixedbugs/bug035.go:7: var f redeclared in this block
-     previous declaration at fixedbugs/bug035.go:5
+	previous declaration at fixedbugs/bug035.go:5
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
@@ -193,7 +193,7 @@ fixedbugs/bug037.go:6: illegal types for operand: AS
 
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: var x redeclared in this block
-     previous declaration at fixedbugs/bug039.go:5
+	previous declaration at fixedbugs/bug039.go:5
 
 =========== fixedbugs/bug049.go
 fixedbugs/bug049.go:6: illegal conversion of nil to string
