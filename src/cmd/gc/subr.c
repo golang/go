@@ -1773,7 +1773,7 @@ eqtype(Type *t1, Type *t2, int d)
 			if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
 				return 0;
 
-			if(!eqtype(t1, t2, 0))
+			if(!eqtype(t1->type, t2->type, 0))
 				return 0;
 
 			t1 = t1->down;
