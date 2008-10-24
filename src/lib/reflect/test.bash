@@ -1,15 +1,12 @@
+#!/bin/bash
 # Copyright 2009 The Go Authors.  All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-#!/bin/bash
+set -e
 
-rm -f $GOROOT/pkg/*
-
-for i in syscall os math net time http reflect regexp
-do
-	cd $i
-	make nuke
-	cd ..
-done
-
+make
+6g test.go
+6l test.6
+6.out
+rm -f *.6 6.out
