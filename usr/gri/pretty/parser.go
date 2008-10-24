@@ -309,6 +309,9 @@ func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
 		x := P.ParseIdent();
 		t = AST.NewType(x.pos, Scanner.IDENT);
 		t.expr = x;
+	} else if P.tok == Scanner.ELLIPSIS {
+		t = AST.NewType(P.pos, Scanner.ELLIPSIS);
+		P.Next();
 	} else {
 		t = P.ParseType();
 	}
@@ -316,26 +319,32 @@ func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
 }
 
 
-func (P *Parser) ParseVarDeclList(list *AST.List) {
+func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
 	P.Trace("VarDeclList");
 
 	// parse a list of types
 	i0 := list.len();
-	list.Add(P.ParseVarDecl(i0 > 0));
-	for P.tok == Scanner.COMMA {
-		P.Next();
+	for {
 		list.Add(P.ParseVarDecl(i0 > 0));
+		if P.tok == Scanner.COMMA {
+			P.Next();
+		} else {
+			break;
+		}
 	}
 
-	var typ *AST.Type;
-	if i0 > 0 {
+	typ := P.TryType();
+	if typ == nil && P.tok == Scanner.ELLIPSIS {
+		typ = AST.NewType(P.pos, Scanner.ELLIPSIS);
+		P.Next();
+	}
+	
+	if i0 > 0 && typ == nil {
 		// not the first parameter section; we must have a type
-		typ = P.ParseType();
-	} else {
-		// first parameter section; we may have a type
-		typ = P.TryType();
+		P.Error(P.pos, "type expected");
+		typ = AST.BadType;
 	}
-
+	
 	// convert the list into a list of (type) expressions
 	if typ != nil {
 		// all list entries must be identifiers
@@ -355,7 +364,11 @@ func (P *Parser) ParseVarDeclList(list *AST.List) {
 	} else {
 		// all list entries are types
 		// convert all type entries into type expressions
-		for i, n := i0, list.len(); i < n; i++ {
+		if i0 > 0 {
+			panic("internal parser error");
+		}
+		
+		for i, n := 0, list.len(); i < n; i++ {
 			t := list.at(i).(*AST.Type);
 			list.set(i, AST.NewTypeExpr(t));
 		}
@@ -369,14 +382,14 @@ func (P *Parser) ParseVarDeclList(list *AST.List) {
 }
 
 
-func (P *Parser) ParseParameterList() *AST.List {
+func (P *Parser) ParseParameterList(ellipsis_ok bool) *AST.List {
 	P.Trace("ParameterList");
 	
 	list := AST.NewList();
-	P.ParseVarDeclList(list);
+	P.ParseVarDeclList(list, ellipsis_ok);
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParseVarDeclList(list);
+		P.ParseVarDeclList(list, ellipsis_ok);
 	}
 	
 	P.Ecart();
@@ -384,13 +397,13 @@ func (P *Parser) ParseParameterList() *AST.List {
 }
 
 
-func (P *Parser) ParseParameters() *AST.Type {
+func (P *Parser) ParseParameters(ellipsis_ok bool) *AST.Type {
 	P.Trace("Parameters");
 	
 	t := AST.NewType(P.pos, Scanner.STRUCT);
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
-		t.list = P.ParseParameterList();
+		t.list = P.ParseParameterList(ellipsis_ok);
 	}
 	P.Expect(Scanner.RPAREN);
 	
@@ -420,7 +433,7 @@ func (P *Parser) ParseResult() *AST.Type {
 	
 	var t *AST.Type;
 	if P.tok == Scanner.LPAREN {
-		t = P.ParseParameters();
+		t = P.ParseParameters(false);
 	} else {
 		typ := P.TryType();
 		if typ != nil {
@@ -445,7 +458,7 @@ func (P *Parser) ParseFunctionType() *AST.Type {
 	P.Trace("FunctionType");
 	
 	t := AST.NewType(P.pos, Scanner.LPAREN);
-	t.list = P.ParseParameters().list;  // TODO find better solution
+	t.list = P.ParseParameters(true).list;  // TODO find better solution
 	t.elt = P.ParseResult();
 	
 	P.Ecart();
@@ -509,7 +522,7 @@ func (P *Parser) ParseStructType() *AST.Type {
 		P.Next();
 		t.list = AST.NewList();
 		for P.tok == Scanner.IDENT {
-			P.ParseVarDeclList(t.list);
+			P.ParseVarDeclList(t.list, false);
 			if P.tok != Scanner.RBRACE {
 				P.Expect(Scanner.SEMICOLON);
 			}
@@ -1423,7 +1436,7 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
 	var recv *AST.Type;
 	if P.tok == Scanner.LPAREN {
 		pos := P.pos;
-		recv = P.ParseParameters();
+		recv = P.ParseParameters(true);
 		if recv.nfields() != 1 {
 			P.Error(pos, "must have exactly one receiver");
 		}

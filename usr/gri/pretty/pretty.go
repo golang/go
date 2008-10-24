@@ -6,18 +6,19 @@ package main
 
 import Flag "flag"
 import Platform "platform"
-import Scanner "scanner"
-import Parser "parser"
 import Printer "printer"
+import Compilation "compilation"
 
 
 var (
+	flags Compilation.Flags;
 	silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
-	verbose = Flag.Bool("v", false, nil, "verbose mode: trace parsing");
-	sixg = Flag.Bool("6g", true, nil, "6g compatibility mode");
-	columns = Flag.Bool("columns", Platform.USER == "gri", nil, "print column info in error messages");
-	testmode = Flag.Bool("t", false, nil, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
-	tokenchan = Flag.Bool("token_chan", false, nil, "use token channel for scanner-parser connection");
+	verbose = Flag.Bool("v", false, &flags.verbose, "verbose mode: trace parsing");
+	sixg = Flag.Bool("6g", true, &flags.sixg, "6g compatibility mode");
+	deps = Flag.Bool("d", false, &flags.deps, "print dependency information only");
+	columns = Flag.Bool("columns", Platform.USER == "gri", &flags.columns, "print column info in error messages");
+	testmode = Flag.Bool("t", false, &flags.testmode, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
+	tokenchan = Flag.Bool("token_chan", false, &flags.tokenchan, "use token channel for scanner-parser connection");
 )
 
 
@@ -45,26 +46,21 @@ func main() {
 			sys.exit(1);
 		}
 
-		scanner := new(Scanner.Scanner);
-		scanner.Open(src_file, src, columns.BVal(), testmode.BVal());
+		C := Compilation.Compile(src_file, src, &flags);
 
-		var tstream *<-chan *Scanner.Token;
-		if tokenchan.BVal() {
-			tstream = scanner.TokenStream();
-		}
-
-		parser := new(Parser.Parser);
-		parser.Open(verbose.BVal(), sixg.BVal(), scanner, tstream);
-
-		prog := parser.ParseProgram();
-
-		if scanner.nerrors > 0 {
+		if C.nerrors > 0 {
 			sys.exit(1);
 		}
+		
+		if flags.deps {
+			print("deps\n");
+			panic("UNIMPLEMENTED");
+			return;
+		}
 
-		if !silent.BVal() && !testmode.BVal() {
+		if !silent.BVal() && !flags.testmode {
 			var P Printer.Printer;
-			(&P).Program(prog);
+			(&P).Program(C.prog);
 		}
 	}
 }
