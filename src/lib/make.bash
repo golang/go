@@ -6,7 +6,18 @@
 
 set -e
 
-for i in syscall os math
+# Don't sort the files in the for loop - some of the orderings matter.
+rm -f *.6
+for i in \
+	strings.go\
+
+do
+	base=$(basename $i .go)
+	echo 6g -o $GOROOT/pkg/$base.6 $i
+	6g -o $GOROOT/pkg/$base.6 $i
+done
+
+for i in syscall os math reflect fmt
 do
 	echo; echo; echo %%%% making lib/$i %%%%; echo
 	cd $i
@@ -17,14 +28,12 @@ done
 # Don't sort the files in the for loop - some of the orderings matter.
 rm -f *.6
 for i in \
-	fmt.go\
 	flag.go\
 	container/vector.go\
 	rand.go\
 	sort.go\
 	io.go\
 	bufio.go\
-	strings.go\
 	once.go\
 
 do
@@ -33,7 +42,7 @@ do
 	6g -o $GOROOT/pkg/$base.6 $i
 done
 
-for i in net time http reflect regexp
+for i in net time http regexp
 do
 	echo; echo; echo %%%% making lib/$i %%%%; echo
 	cd $i
