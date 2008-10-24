@@ -279,8 +279,10 @@ addmethod(Node *n, Type *t, int local)
 			d = f;
 			continue;
 		}
-		if(!eqtype(t, f->type, 0))
+		if(!eqtype(t, f->type, 0)) {
 			yyerror("method redeclared: %S of type %S", sf, st);
+			print("\t%T\n\t%T\n", f->type, t);
+		}
 		return;
 	}
 
@@ -340,7 +342,8 @@ funchdr(Node *n)
 			if(!eqargs(n->type, on->type))
 				yyerror("forward declarations not the same: %S", s);
 		} else {
-			yyerror("redeclare of function: %S", s);
+			yyerror("function redeclared: %S", s);
+			print("\t%T\n\t%T\n", on->type, n->type);
 			on = N;
 		}
 	}
