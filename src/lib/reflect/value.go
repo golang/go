@@ -148,12 +148,12 @@ export type Int64Value interface {
 	Type()	Type;
 }
 
-func Int64Creator(typ Type, addr Addr) Value {
-	return &Int64ValueStruct{addr}
-}
-
 type Int64ValueStruct struct {
 	addr	Addr
+}
+
+func Int64Creator(typ Type, addr Addr) Value {
+	return &Int64ValueStruct{addr}
 }
 
 func (v *Int64ValueStruct) Kind() int {

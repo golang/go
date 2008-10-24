@@ -243,7 +243,7 @@ type ChanTypeStruct struct {
 }
 
 func NewChanTypeStruct(name string, dir int, elem *StubType) *ChanTypeStruct {
-	return &NewChanTypeStruct{name, elem, dir}
+	return &ChanTypeStruct{name, elem, dir}
 }
 
 func (t *ChanTypeStruct) Kind() int {
