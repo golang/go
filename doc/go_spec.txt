@@ -59,7 +59,6 @@ Open issues:
 [ ] semantics of statements
 [ ] need for type switch? (or use type guard with ok in tuple assignment?)
 [ ] do we need anything on package vs file names?
-[ ] Do composite literals create a new literal each time (gri thinks yes)
 [ ] type switch or some form of type test needed
 [ ] what is the meaning of typeof()
 [ ] at the moment: type T S; strips any methods of S. It probably shouldn't.
@@ -91,6 +90,8 @@ Decisions in need of integration into the doc:
 
 
 Closed:
+[x] Do composite literals create a new literal each time (gri thinks yes) (Russ is putting in a change
+    to this effect, essentially)
 [x] comparison operators: can we compare interfaces?
 [x] can we add methods to types defined in another package? (probably not)
 [x] optional semicolons: too complicated and unclear
@@ -1479,7 +1480,8 @@ or a list of expression pairs for map literals.
 If LiteralType is a TypeName, the denoted type must be an array, map, or
 structure.  The types of the expressions must match the respective key, element,
 and field types of the literal type; there is no automatic type conversion.
-Composite literals are values of the type specified by LiteralType; to get
+Composite literals are values of the type specified by LiteralType; that is
+a new value is created every time the literal is evaluated. To get
 a pointer to the literal, the address operator "&" must be used.
 
 Implementation restriction: Currently, map literals are pointers to maps.
