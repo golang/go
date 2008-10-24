@@ -6,7 +6,7 @@
 
 rm -f $GOROOT/pkg/*
 
-for i in syscall os math net time http reflect regexp
+for i in syscall os math fmt net time http reflect regexp
 do
 	cd $i
 	make nuke
