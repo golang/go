@@ -285,6 +285,7 @@ export type Scanner struct {
 	pos int;  // current reading position
 	ch int;  // one char look-ahead
 	chpos int;  // position of ch
+	linepos int;  // position of beginning of line
 
 	// testmode
 	testmode bool;
@@ -298,8 +299,8 @@ func (S *Scanner) Next() {
 	if S.pos < len(S.src) {
 		// assume ascii
 		r, w := int(S.src[S.pos]), 1;
-		if r > 0x80 {
-			// wasn't ascii
+		if r >= 0x80 {
+			// not ascii
 			r, w = sys.stringtorune(S.src, S.pos);
 		}
 		S.ch = r;
@@ -430,17 +431,16 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
 
 
 func (S *Scanner) ErrorMsg(pos int, msg string) {
-	print(S.filename);
+	print(S.filename, ":");
 	if pos >= 0 {
 		// print position
 		line, col := S.LineCol(pos);
+		print(line, ":");
 		if S.columns {
-			print(":", line, ":", col);
-		} else {
-			print(":", line);
+			print(col, ":");
 		}
 	}
-	print(": ", msg, "\n");
+	print(" ", msg, "\n");
 	
 	S.nerrors++;
 	S.errpos = pos;
@@ -486,14 +486,15 @@ func (S *Scanner) Open(filename, src string, columns, testmode bool) {
 	S.filename = filename;
 	S.nerrors = 0;
 	S.errpos = 0;
+	S.columns = columns;
 	
 	S.src = src;
 	S.pos = 0;
-	S.columns = columns;
+	S.linepos = 0;
+
 	S.testmode = testmode;
-	
-	S.ExpectNoErrors();  // after setting S.src
-	S.Next();  // after S.ExpectNoErrrors()
+	S.ExpectNoErrors();  // S.src must be set
+	S.Next();  // S.ExpectNoErrrors() must be called before
 }
 
 
@@ -535,10 +536,10 @@ func (S *Scanner) ScanComment() string {
 	
 	if S.ch == '/' {
 		// comment
+		S.Next();
 		for S.ch >= 0 {
 			S.Next();
 			if S.ch == '\n' {
-				S.Next();
 				goto exit;
 			}
 		}
@@ -550,7 +551,6 @@ func (S *Scanner) ScanComment() string {
 			ch := S.ch;
 			S.Next();
 			if ch == '*' && S.ch == '/' {
-				S.Next();
 				goto exit;
 			}
 		}
@@ -559,7 +559,9 @@ func (S *Scanner) ScanComment() string {
 	S.Error(pos, "comment not terminated");
 
 exit:
+	S.Next();
 	comment := S.src[pos : S.chpos];
+
 	if S.testmode {
 		// interpret ERROR and SYNC comments
 		oldpos := -1;

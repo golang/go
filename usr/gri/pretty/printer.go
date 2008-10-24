@@ -238,9 +238,9 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 	case Scanner.COMMA:
 		// list
 		// (don't use binary expression printing because of different spacing)
-		P.Expr1(x.x, Scanner.LowestPrec);
+		P.Expr(x.x);
 		P.String(x.pos, ", ");
-		P.Expr1(x.y, Scanner.LowestPrec);
+		P.Expr(x.y);
 
 	case Scanner.PERIOD:
 		// selector or type guard
@@ -265,14 +265,14 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		// call
 		P.Expr1(x.x, Scanner.HighestPrec);
 		P.String(x.pos, "(");
-		P.Expr1(x.y, Scanner.LowestPrec);
+		P.Expr(x.y);
 		P.String(0, ")");
 
 	case Scanner.LBRACE:
 		// composite
 		P.Type(x.t);
 		P.String(x.pos, "{");
-		P.Expr1(x.y, Scanner.LowestPrec);
+		P.Expr(x.y);
 		P.String(0, "}");
 		
 	default:
