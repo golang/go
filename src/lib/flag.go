@@ -111,6 +111,9 @@ type BoolValue struct {
 }
 
 func NewBoolValue(val bool, p *bool) *BoolValue {
+	if p != nil {
+		*p = val
+	}
 	return &BoolValue{val, p}
 }
 
@@ -164,6 +167,9 @@ type IntValue struct {
 }
 
 func NewIntValue(val int64, p *int64) *IntValue {
+	if p != nil {
+		*p = val
+	}
 	return &IntValue{val, p}
 }
 
@@ -214,6 +220,9 @@ type StringValue struct {
 }
 
 func NewStringValue(val string, p *string) *StringValue {
+	if p != nil {
+		*p = val
+	}
 	return &StringValue{val, p}
 }
 
@@ -397,7 +406,7 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 		}
 	}
 	name := s[num_minuses : len(s)];
-	if len(name) == 0 || name[0] == '-' || name[0]=='=' {
+	if len(name) == 0 || name[0] == '-' || name[0] == '=' {
 		print("bad flag syntax: ", s, "\n");
 		Usage();
 	}
