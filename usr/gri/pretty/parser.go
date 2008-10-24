@@ -93,7 +93,7 @@ func (P *Parser) Open(verbose, sixg bool, scanner *Scanner.Scanner, tokchan *<-c
 	P.comments = AST.NewList();
 	
 	P.Next();
-	P.expr_lev = 1;
+	P.expr_lev = 0;
 	P.scope_lev = 0;
 }
 
@@ -631,13 +631,37 @@ func (P *Parser) ParseFunctionLit() *AST.Expr {
 	x := AST.NewLit(P.pos, Scanner.FUNC, "");
 	P.Expect(Scanner.FUNC);
 	x.t = P.ParseFunctionType();
+	P.expr_lev++;
 	P.scope_lev++;
 	x.block = P.ParseBlock();
 	P.scope_lev--;
+	P.expr_lev--;
 	
 	P.Ecart();
 	return x;
 }
+
+
+/*
+func (P *Parser) ParseNewCall() *AST.Expr {
+	P.Trace("NewCall");
+	
+	x := AST.NewExpr(P.pos, Scanner.NEW, nil, nil);
+	P.Next();
+	P.Expect(Scanner.LPAREN);
+	P.expr_lev++;
+	x.t = P.ParseType();
+	if P.tok == Scanner.COMMA {
+		P.Next();
+		x.y = P.ParseExpressionList();
+	}
+	P.expr_lev--;
+	P.Expect(Scanner.RPAREN);
+	
+	P.Ecart();
+	return x;
+}
+*/
 
 
 func (P *Parser) ParseOperand() *AST.Expr {
@@ -668,7 +692,12 @@ func (P *Parser) ParseOperand() *AST.Expr {
 
 	case Scanner.FUNC:
 		x = P.ParseFunctionLit();
-		
+
+	/*
+	case Scanner.NEW:
+		x = P.ParseNewCall();
+	*/
+
 	default:
 		t := P.TryType();
 		if t != nil {
@@ -709,7 +738,9 @@ func (P *Parser) ParseIndex(x *AST.Expr) *AST.Expr {
 	
 	pos := P.pos;
 	P.Expect(Scanner.LBRACK);
+	P.expr_lev++;
 	i := P.ParseExpression(0);
+	P.expr_lev--;
 	P.Expect(Scanner.RBRACK);
 	
 	P.Ecart();
@@ -719,25 +750,35 @@ func (P *Parser) ParseIndex(x *AST.Expr) *AST.Expr {
 
 func (P *Parser) ParseBinaryExpr(prec1 int) *AST.Expr
 
-func (P *Parser) ParseCall(x *AST.Expr) *AST.Expr {
+func (P *Parser) ParseCall(x0 *AST.Expr) *AST.Expr {
 	P.Trace("Call");
 
-	x = P.NewExpr(P.pos, Scanner.LPAREN, x, nil);
+	x := P.NewExpr(P.pos, Scanner.LPAREN, x0, nil);
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
-		// the very first argument may be a type if the function called is new()
-		// call ParseBinaryExpr() which allows type expressions (instead of ParseExpression)
-		y := P.ParseBinaryExpr(1);
-		if P.tok == Scanner.COMMA {
-			pos := P.pos;
-			P.Next();
-			z := P.ParseExpressionList();
-			// create list manually because NewExpr checks for type expressions
-			z = P.NewExpr(pos, Scanner.COMMA, nil, z);
-			z.x = y;
-			y = z;
+		P.expr_lev++;
+		var t *AST.Type;
+		if x0.tok == Scanner.IDENT && x0.s == "new" {
+			// heuristic: assume it's a new(T, ...) call, try to parse a type
+			t = P.TryType();
 		}
-		x.y = y;
+		if t != nil {
+			// we found a type
+			x.y = AST.NewTypeExpr(t);
+			if P.tok == Scanner.COMMA {
+				pos := P.pos;
+				P.Next();
+				y := P.ParseExpressionList();
+				// create list manually because NewExpr checks for type expressions
+				z := AST.NewExpr(pos, Scanner.COMMA, nil, y);
+				z.x = x.y;
+				x.y = z;
+			}
+		} else {
+			// normal argument list
+			x.y = P.ParseExpressionList();
+		}
+		P.expr_lev--;
 	}
 	P.Expect(Scanner.RPAREN);
 	
@@ -817,10 +858,10 @@ func (P *Parser) ParsePrimaryExpr() *AST.Expr {
 		case Scanner.LPAREN: x = P.ParseCall(x);
 		case Scanner.LBRACE:
 			// assume a composite literal only if x could be a type
-			// and if we are not inside control clause (expr_lev > 0)
+			// and if we are not inside control clause (expr_lev >= 0)
 			// (composites inside control clauses must be parenthesized)
 			var t *AST.Type;
-			if P.expr_lev > 0 {
+			if P.expr_lev >= 0 {
 				t = ExprType(x);
 			}
 			if t != nil {
@@ -1002,7 +1043,7 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
 	P.Expect(keyword);
 	if P.tok != Scanner.LBRACE {
 		prev_lev := P.expr_lev;
-		P.expr_lev = 0;
+		P.expr_lev = -1;
 		if P.tok != Scanner.SEMICOLON {
 			s.init = P.ParseSimpleStat();
 		}
@@ -1129,12 +1170,15 @@ func (P *Parser) ParseCommCase() *AST.Stat {
 	s := AST.NewStat(P.pos, Scanner.CASE);
 	if P.tok == Scanner.CASE {
 		P.Next();
-		P.ParseExpression(1);
+		x := P.ParseExpression(1);
 		if P.tok == Scanner.ASSIGN || P.tok == Scanner.DEFINE {
+			pos, tok := P.pos, P.tok;
 			P.Next();
 			P.Expect(Scanner.ARROW);
-			P.ParseExpression(1);
+			y := P.ParseExpression(1);
+			x = AST.NewExpr(pos, tok, x, y);
 		}
+		s.expr = x;
 	} else {
 		P.Expect(Scanner.DEFAULT);
 	}

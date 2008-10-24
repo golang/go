@@ -8,7 +8,7 @@ import Scanner "scanner"
 
 
 type (
-	Node interface {};
+	Any interface {};
 	Type struct;
 	Expr struct;
 	Stat struct;
@@ -23,7 +23,7 @@ type (
 // Thus, empty lists can be represented by nil.
 
 export type List struct {
-	a *[] Node;
+	a *[] Any;
 }
 
 
@@ -33,22 +33,22 @@ func (p *List) len() int {
 }
 
 
-func (p *List) at(i int) Node {
+func (p *List) at(i int) Any {
 	return p.a[i];
 }
 
 
-func (p *List) set(i int, x Node) {
+func (p *List) set(i int, x Any) {
 	p.a[i] = x;
 }
 
 
-func (p *List) Add (x Node) {
+func (p *List) Add (x Any) {
 	a := p.a;
 	n := len(a);
 
 	if n == cap(a) {
-		b := new([] Node, 2*n);
+		b := new([] Any, 2*n);
 		for i := 0; i < n; i++ {
 			b[i] = a[i];
 		}
@@ -63,8 +63,16 @@ func (p *List) Add (x Node) {
 
 export func NewList() *List {
 	p := new(List);
-	p.a = new([] Node, 10) [0 : 0];
+	p.a = new([] Any, 10) [0 : 0];
 	return p;
+}
+
+
+// ----------------------------------------------------------------------------
+// All nodes have a source position and and token.
+
+export type Node struct {
+	pos, tok int;
 }
 
 
@@ -72,7 +80,7 @@ export func NewList() *List {
 // Expressions
 
 export type Expr struct {
-	pos, tok int;
+	Node;
 	x, y *Expr;  // binary (x, y) and unary (y) expressions
 	// TODO find a more space efficient way to hold these
 	s string;  // identifiers and literals
@@ -124,7 +132,7 @@ export const /* channel mode */ (
 
 
 export type Type struct {
-	pos, tok int;
+	Node;
 	expr *Expr;  // type name, array length
 	mode int;  // channel mode
 	key *Type;  // receiver type, map key
@@ -171,7 +179,7 @@ export var BadType = NewType(0, Scanner.ILLEGAL);
 // Statements
 
 export type Stat struct {
-	pos, tok int;
+	Node;
 	init, post *Stat;
 	expr *Expr;
 	block *List;
@@ -193,7 +201,7 @@ export var BadStat = NewStat(0, Scanner.ILLEGAL);
 // Declarations
 
 export type Decl struct {
-	pos, tok int;
+	Node;
 	exported bool;
 	ident *Expr;  // nil for ()-style declarations
 	typ *Type;
