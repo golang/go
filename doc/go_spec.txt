@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 23, 2008)
+(October 24, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -1269,7 +1269,7 @@ and result types.
 
 	FunctionType = "(" [ ParameterList ] ")" [ Result ] .
 	ParameterList = ParameterDecl { "," ParameterDecl } .
-	ParameterDecl = [ IdentifierList ] Type .
+	ParameterDecl = [ IdentifierList ] ( Type | "..." ) .
 	Result = Type | "(" ParameterList ")" .
 
 In ParameterList, the parameter names (IdentifierList) either must all be
@@ -1277,13 +1277,20 @@ present, or all be absent. If the parameters are named, each name stands
 for one parameter of the specified type. If the parameters are unnamed, each
 type stands for one parameter of that type.
 
+For the last incoming parameter only, instead of a parameter type one
+may write "...". The ellipsis indicates that the last parameter stands
+for an arbitrary number of additional arguments of any type (including
+no additional arguments). If the parameters are named, the identifier
+list immediately preceding "..." must contain only one identifier (the
+name of the last parameter).
+
 	()
 	(x int)
 	() int
-	(string)
+	(string, float, ...)
 	(a, b int, z float) bool
 	(a, b int, z float) (bool)
-	(a, b int, z float) (success bool)
+	(a, b int, z float, opt ...) (success bool)
 	(int, int, float) (float, *[]int)
 
 A variable can hold only a pointer to a function, not a function value.
