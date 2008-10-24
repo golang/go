@@ -11,6 +11,7 @@ LDFLAGS = -Wl,-R,/home/iant/go/lib
 PRETTY_OBJS = \
 	ast.o \
 	pretty.o \
+	compilation.go \
 	parser.o \
 	platform.o \
 	printer.o \
@@ -31,13 +32,19 @@ install: pretty
 clean:
 	rm -f pretty *.o  *~
 
-pretty.o:	parser.o printer.o platform.o scanner.o flag.o
 
-parser.o:	ast.o scanner.o utils.o printer.o
+pretty.o:	printer.o platform.o compilation.o
+
+compilation.o:	scanner.o parser.o ast.o
+
+printer.o:	ast.o scanner.o
+
+parser.o:	scanner.o utils.o printer.o ast.o
+
+ast.o:	scanner.o
 
 scanner.o:	utils.o platform.o
 
-ast.o:	scanner.o
 
 flag.o:	fmt.o
 	$(GO) -O2 -c -g $(GOROOT)/src/lib/flag.go

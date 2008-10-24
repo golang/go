@@ -134,14 +134,13 @@ func (P *Printer) Parameters(pos int, list *AST.List) {
 
 
 func (P *Printer) Fields(list *AST.List) {
-	P.OpenScope(" {");
+	P.OpenScope("{");
 	var prev int;
 	for i, n := 0, list.len(); i < n; i++ {
 		x := list.at(i).(*AST.Expr);
 		if i > 0 {
 			if prev == Scanner.TYPE {
-				P.String(0, ";");
-				P.newl = 1;
+				P.semi, P.newl = true, 1;
 			} else if prev == x.tok {
 				P.String(0, ", ");
 			} else {
@@ -202,6 +201,9 @@ func (P *Printer) Type(t *AST.Type) {
 			P.Blank();
 			P.Parameters(0, t.elt.list);
 		}
+
+	case Scanner.ELLIPSIS:
+		P.String(t.pos, "...");
 
 	default:
 		P.Error(t.pos, t.tok, "type");
