@@ -1763,9 +1763,11 @@ eqtype(Type *t1, Type *t2, int d)
 		return 1;
 
 	case TFUNC:
+		// Loop over structs: receiver, in, out.
 		t1 = t1->type;
 		t2 = t2->type;
 		for(;;) {
+			Type *ta, *tb;
 			if(t1 == t2)
 				break;
 			if(t1 == T || t2 == T)
@@ -1773,8 +1775,19 @@ eqtype(Type *t1, Type *t2, int d)
 			if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
 				return 0;
 
-			if(!eqtype(t1->type, t2->type, 0))
-				return 0;
+			// Loop over fields in structs, checking type only.
+			ta = t1->type;
+			tb = t2->type;
+			while(ta != tb) {
+				if(ta == T || tb == T)
+					return 0;
+				if(ta->etype != TFIELD || tb->etype != TFIELD)
+					return 0;
+				if(!eqtype(ta->type, tb->type, 0))
+					return 0;
+				ta = ta->down;
+				tb = tb->down;
+			}
 
 			t1 = t1->down;
 			t2 = t2->down;
