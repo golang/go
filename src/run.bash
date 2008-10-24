@@ -10,6 +10,12 @@ xcd() {
 	echo --- cd $1
 }
 
+(xcd lib/reflect
+make clean
+time make
+bash test.bash
+)
+
 (xcd lib/regexp
 make clean
 time make
