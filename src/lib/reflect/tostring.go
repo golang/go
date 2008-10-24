@@ -151,7 +151,7 @@ func ValueToString(val Value) string {
 		return val.(StringValue).Get();
 	case PtrKind:
 		v := val.(PtrValue);
-		return TypeToString(typ, false) + "(" + integer(int64(v.Indirect())) + ")";
+		return TypeToString(typ, false) + "(" + integer(int64(v.Get())) + ")";
 	case ArrayKind:
 		t := typ.(ArrayType);
 		v := val.(ArrayValue);

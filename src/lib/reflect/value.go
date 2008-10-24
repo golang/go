@@ -444,9 +444,9 @@ func (v *StringValueStruct) Put(s string) {
 
 export type PtrValue interface {
 	Kind()	int;
-	Sub()	Value;
 	Type()	Type;
-	Indirect()	Addr;
+	Sub()	Value;
+	Get()	Addr;
 }
 
 type PtrValueStruct struct {
@@ -462,12 +462,12 @@ func (v *PtrValueStruct) Type() Type {
 	return v.typ
 }
 
-func (v *PtrValueStruct) Indirect() Addr {
+func (v *PtrValueStruct) Get() Addr {
 	return *AddrToPtrAddr(v.addr)
 }
 
 func (v *PtrValueStruct) Sub() Value {
-	return NewValueAddr(v.typ.(PtrType).Sub(), v.Indirect());
+	return NewValueAddr(v.typ.(PtrType).Sub(), v.Get());
 }
 
 func PtrCreator(typ Type, addr Addr) Value {
