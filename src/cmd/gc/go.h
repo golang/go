@@ -208,6 +208,7 @@ struct	Sym
 	uchar	exported;	// exported
 	uchar	sym;		// huffman encoding in object file
 	uchar	local;		// created in this file
+	uchar	uniq;		// imbedded field name first found
 
 	char*	opackage;	// original package name
 	char*	package;	// package name
@@ -397,6 +398,16 @@ struct	Io
 	int	peekc;
 	char*	cp;	// used for content when bin==nil
 };
+
+typedef	struct	Dlist	Dlist;
+struct	Dlist
+{
+	Sym*	sym;
+	uchar	ptr;
+	int	offset;
+};
+
+EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds
 
 EXTERN	Io	curio;
 EXTERN	Io	pushedio;
@@ -631,6 +642,13 @@ int	Nconv(Fmt*);
 int	Wconv(Fmt*);
 int	Zconv(Fmt*);
 
+int	lookdot0(Sym*, Type*);
+int	adddot1(Sym*, Type*, int);
+Node*	adddot(Node*);
+void	expand0(Type*);
+void	expand1(Type*, int);
+void	expandmeth(Sym*, Type*);
+
 /*
  *	dcl.c
  */
@@ -748,7 +766,6 @@ Node*	arraylit(Node*);
 Node*	maplit(Node*);
 Node*	selectas(Node*, Node*);
 Node*	old2new(Node*, Type*);
-Node*	adddot(Node*);
 
 /*
  *	const.c

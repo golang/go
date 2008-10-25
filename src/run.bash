@@ -6,8 +6,9 @@
 set -e
 
 xcd() {
-	builtin cd $1
+	echo
 	echo --- cd $1
+	builtin cd $1
 }
 
 (xcd lib/reflect
@@ -41,7 +42,7 @@ rm -f *.6 6.out
 6g printf.go
 6g main.go
 6l main.6
-6.out
+./6.out
 )
 
 (xcd ../test

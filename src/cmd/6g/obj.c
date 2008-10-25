@@ -455,84 +455,122 @@ sigcmp(Sig *a, Sig *b)
 	return strcmp(a->name, b->name);
 }
 
+static	Addr	at, ao, ac, ad;
+static	int	wi, ot;
+
 void
-dumpsignatures(void)
+ginsatoa(int fscale, int toffset)
+{
+	Prog *p;
+
+	p = pc;
+	ot = rnd(ot, fscale);
+
+	gins(ADATA, N, N);
+	p->from = at;
+	p->from.offset = ot;
+	p->from.scale = fscale;
+	p->to = ao;
+	p->to.offset = toffset;
+	ot += fscale;
+}
+
+void
+gensatac(int fscale, int toffset)
+{
+	Prog *p;
+
+	p = pc;
+	ot = rnd(ot, fscale);
+
+	gins(ADATA, N, N);
+	p->from = at;
+	p->from.offset = ot;
+	p->from.scale = fscale;
+	p->to = ac;
+	p->to.offset = toffset;
+	ot += fscale;
+}
+
+void
+gensatad(Sym *s)
+{
+	Prog *p;
+
+	p = pc;
+	ot = rnd(ot, widthptr);
+
+	gins(ADATA, N, N);
+	p->from = at;
+	p->from.offset = ot;
+	p->from.scale = widthptr;
+	p->to = ad;
+	p->to.sym = s;
+	ot += widthptr;
+}
+
+void
+gentramp(Type *t, Sig *b)
+{
+	Sym *e;
+	int c, d;
+
+	e = lookup(b->name);
+	for(d=0; d<nelem(dotlist); d++) {
+		c = adddot1(e, t, d);
+		if(c == 1)
+			goto out;
+	}
+	fatal("gentramp");
+
+out:
+	print("gentramp %d\n", d);
+	print("	t    = %lT\n", t);
+	print("	name = %s\n", b->name);
+	print("	sym  = %S\n", b->sym);
+	print("	hash = 0x%ux\n", b->hash);
+
+	for(c=d-1; c>=0; c--) {
+		print("	%d %d %S\n",
+			dotlist[c].ptr,
+			dotlist[c].offset,
+			dotlist[c].sym);
+	}
+
+//TEXT	main·S_test2(SB),7,$0
+//	MOVQ	8(SP), AX
+//	MOVQ	XX(AX), AX
+//	ADDQ	$XX, AX
+//	MOVQ	AX, 8(SP)
+//	JMP	main·Sub_test2(SB)
+}
+
+void
+dumpsigt(void)
 {
 	Dcl *d, *x;
 	Type *t, *f;
 	Sym *s1, *s;
-	int et, o, wi, ot;
+	int et, o;
 	Sig *a, *b;
-	Addr at, ao, ac, ad;
 	Prog *p;
 	char *sp;
 	char buf[NSYMB];
-
-	// copy externdcl list to signatlist
-	for(d=externdcl; d!=D; d=d->forw) {
-		if(d->op != OTYPE)
-			continue;
-
-		t = d->dtype;
-		if(t == T)
-			continue;
-
-		s = signame(t, 0);
-		if(s == S)
-			continue;
-
-		x = mal(sizeof(*d));
-		x->op = OTYPE;
-		x->dsym = d->dsym;
-		x->dtype = d->dtype;
-		x->forw = signatlist;
-		x->block = 0;
-		signatlist = x;
-//print("SIG = %lS %lS %lT\n", d->dsym, s, t);
-	}
 
 	/*
 	 * put all the names into a linked
 	 * list so that it may be generated in sorted order.
 	 * the runtime will be linear rather than quadradic
 	 */
-
-	memset(&at, 0, sizeof(at));
-	memset(&ao, 0, sizeof(ao));
-	memset(&ac, 0, sizeof(ac));
-	memset(&ad, 0, sizeof(ad));
-
-	// sig structure
-	at.type = D_EXTERN;
-	at.index = D_NONE;
-	at.sym = S;			// fill in
-	at.offset = 0;			// fill in
-
-	// $string
-	ao.type = D_ADDR;
-	ao.index = D_STATIC;
-	ao.etype = TINT32;
-	ao.sym = symstringo;
-	ao.offset = 0;			// fill in
-
-	// constant
-	ac.type = D_CONST;
-	ac.index = D_NONE;
-	ac.offset = 0;			// fill in
-
-	// $method
-	ad.type = D_ADDR;
-	ad.index = D_EXTERN;
-	ad.sym = S;			// fill in
-	ad.offset = 0;
-
-	wi = types[TINT32]->width;
-
 	for(d=signatlist; d!=D; d=d->forw) {
 		if(d->op != OTYPE)
 			continue;
 
 		t = d->dtype;
+		et = t->etype;
+		if(et == TINTER)
+			continue;
+
 		at.sym = signame(t, d->block);
 		if(at.sym == S)
 			continue;
@@ -541,10 +579,6 @@ dumpsignatures(void)
 		if(at.sym->local != 1)
 			continue;
 		at.sym->local = 2;
-
-//print("SIGNAME = %lS\n", at.sym);
-
-		et = t->etype;
 
 		s = d->dsym;
 		if(s == S)
@@ -556,14 +590,157 @@ dumpsignatures(void)
 		if(strcmp(s->opackage, package) != 0)
 			continue;
 
+		expandmeth(s, t);
+
 		a = nil;
 		o = 0;
+		for(f=t->method; f!=T; f=f->down) {
+			if(f->type->etype != TFUNC)
+				continue;
 
-		f = t->method;
-		if(et == TINTER)
-			f = t->type;
+			if(f->etype != TFIELD)
+				fatal("dumpsignatures: not field");
 
-		for(; f!=T; f=f->down) {
+			s1 = f->sym;
+			if(s1 == nil)
+				continue;
+
+			b = mal(sizeof(*b));
+			b->link = a;
+			a = b;
+
+			a->name = s1->name;
+			a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
+			a->perm = o;
+			snprint(namebuf, sizeof(namebuf), "%s_%s",
+				at.sym->name+5, f->sym->name);
+			a->sym = lookup(namebuf);
+			a->offset = f->embedded;	// need trampoline
+
+			o++;
+		}
+
+		a = lsort(a, sigcmp);
+		ot = 0;
+		ot = rnd(ot, maxround);	// base structure
+
+		// sigi[0].name = ""
+		ginsatoa(widthptr, stringo);
+
+		// save type name for runtime error message.
+		// TODO(rsc): the * is a botch but right more often than not.
+		snprint(buf, sizeof buf, "*%#T", t);
+		datastring(buf, strlen(buf)+1);
+
+		// first field of an type signature contains
+		// the element parameters and is not a real entry
+
+		t = d->dtype;
+		if(t->methptr & 2)
+			t = types[tptr];
+
+		// sigi[0].hash = elemalg
+		gensatac(wi, algtype(t));
+
+		// sigi[0].offset = width
+		gensatac(wi, t->width);
+
+		// skip the function
+		gensatac(widthptr, 0);
+
+		for(b=a; b!=nil; b=b->link) {
+			ot = rnd(ot, maxround);	// base structure
+
+			// sigx[++].name = "fieldname"
+			ginsatoa(widthptr, stringo);
+
+			// sigx[++].hash = hashcode
+			gensatac(wi, b->hash);
+
+			// sigt[++].offset = of embeded struct
+			gensatac(wi, 0);
+
+			// sigt[++].fun = &method
+			gensatad(b->sym);
+
+			datastring(b->name, strlen(b->name)+1);
+
+			if(b->offset)
+				gentramp(d->dtype, b);
+		}
+
+		// nil field name at end
+		ot = rnd(ot, maxround);
+		gensatac(widthptr, 0);
+
+		p = pc;
+		gins(AGLOBL, N, N);
+		p->from = at;
+		p->to = ac;
+		p->to.offset = ot;
+	}
+
+	if(stringo > 0) {
+		p = pc;
+		gins(AGLOBL, N, N);
+		p->from = ao;
+		p->to = ac;
+		p->to.offset = stringo;
+	}
+
+}
+
+void
+dumpsigi(void)
+{
+	Dcl *d, *x;
+	Type *t, *f;
+	Sym *s1, *s;
+	int et, o;
+	Sig *a, *b;
+	Prog *p;
+	char *sp;
+	char buf[NSYMB];
+
+	/*
+	 * put all the names into a linked
+	 * list so that it may be generated in sorted order.
+	 * the runtime will be linear rather than quadradic
+	 */
+
+	for(d=signatlist; d!=D; d=d->forw) {
+		if(d->op != OTYPE)
+			continue;
+
+		t = d->dtype;
+		et = t->etype;
+		if(et != TINTER)
+			continue;
+
+		at.sym = signame(t, d->block);
+		if(at.sym == S)
+			continue;
+
+		// make unique
+		if(at.sym->local != 1)
+			continue;
+		at.sym->local = 2;
+
+		s = d->dsym;
+		if(s == S)
+			continue;
+
+		if(s->name[0] == '_')
+			continue;
+
+		if(strcmp(s->opackage, package) != 0)
+			continue;
+
+//print("sigi: %S\n", s);
+
+		a = nil;
+		o = 0;
+		for(f=t->type; f!=T; f=f->down) {
 			if(f->type->etype != TFUNC)
 				continue;
 
@@ -597,162 +774,47 @@ dumpsignatures(void)
 
 		a = lsort(a, sigcmp);
 		ot = 0;
+		ot = rnd(ot, maxround);	// base structure
 
 		// sigi[0].name = ""
-		ot = rnd(ot, maxround);	// array of structures
-		p = pc;
-		gins(ADATA, N, N);
-		p->from = at;
-		p->from.offset = ot;
-		p->from.scale = widthptr;
-		p->to = ao;
-		p->to.offset = stringo;
-		ot += widthptr;
+		ginsatoa(widthptr, stringo);
 
 		// save type name for runtime error message.
 		// TODO(rsc): the * is a botch but right more often than not.
-		if(et == TINTER)
-			snprint(buf, sizeof buf, "%#T", t);
-		else
-			snprint(buf, sizeof buf, "*%#T", t);
+		snprint(buf, sizeof buf, "%#T", t);
 		datastring(buf, strlen(buf)+1);
 
-		if(et == TINTER) {
-			// first field of an interface signature
-			// contains the count and is not a real entry
-			o = 0;
-			for(b=a; b!=nil; b=b->link)
-				o++;
+		// first field of an interface signature
+		// contains the count and is not a real entry
 
-			// sigi[0].hash = 0
-			ot = rnd(ot, wi);
-			p = pc;
-			gins(ADATA, N, N);
-			p->from = at;
-			p->from.offset = ot;
-			p->from.scale = wi;
-			p->to = ac;
-			p->to.offset = 0;
-			ot += wi;
+		// sigi[0].hash = 0
+		gensatac(wi, 0);
 
-			// sigi[0].offset = count
-			ot = rnd(ot, wi);
-			p = pc;
-			gins(ADATA, N, N);
-			p->from = at;
-			p->from.offset = ot;
-			p->from.scale = wi;
-			p->to = ac;
-			p->to.offset = o;
-			ot += wi;
-
-		} else {
-			// first field of an type signature contains
-			// the element parameters and is not a real entry
-
-			t = d->dtype;
-			if(t->methptr & 2)
-				t = types[tptr];
-
-			// sigi[0].hash = elemalg
-			ot = rnd(ot, wi);
-			p = pc;
-			gins(ADATA, N, N);
-			p->from = at;
-			p->from.offset = ot;
-			p->from.scale = wi;
-			p->to = ac;
-			p->to.offset = algtype(t);
-			ot += wi;
-
-			// sigi[0].offset = width
-			ot = rnd(ot, wi);
-			p = pc;
-			gins(ADATA, N, N);
-			p->from = at;
-			p->from.offset = ot;
-			p->from.scale = wi;
-			p->to = ac;
-			p->to.offset = t->width;
-			ot += wi;
-
-			// skip the function
-			ot = rnd(ot, widthptr);
-			ot += widthptr;
-		}
+		// sigi[0].offset = count
+		o = 0;
+		for(b=a; b!=nil; b=b->link)
+			o++;
+		gensatac(wi, o);
 
 		for(b=a; b!=nil; b=b->link) {
+//print("	%s\n", b->name);
+			ot = rnd(ot, maxround);	// base structure
 
 			// sigx[++].name = "fieldname"
-			ot = rnd(ot, maxround);	// array of structures
-			p = pc;
-			gins(ADATA, N, N);
-			p->from = at;
-			p->from.offset = ot;
-			p->from.scale = widthptr;
-			p->to = ao;
-			p->to.offset = stringo;
-			ot += widthptr;
+			ginsatoa(widthptr, stringo);
 
 			// sigx[++].hash = hashcode
-			ot = rnd(ot, wi);
-			p = pc;
-			gins(ADATA, N, N);
-			p->from = at;
-			p->from.offset = ot;
-			p->from.scale = wi;
-			p->to = ac;
-			p->to.offset = b->hash;
-			ot += wi;
+			gensatac(wi, b->hash);
 
-			if(et == TINTER) {
-				// sigi[++].perm = mapped offset of method
-				ot = rnd(ot, wi);
-				p = pc;
-				gins(ADATA, N, N);
-				p->from = at;
-				p->from.offset = ot;
-				p->from.scale = wi;
-				p->to = ac;
-				p->to.offset = b->perm;
-				ot += wi;
-			} else {
-				// sigt[++].offset = of embeded struct
-				ot = rnd(ot, wi);
-				p = pc;
-				gins(ADATA, N, N);
-				p->from = at;
-				p->from.offset = ot;
-				p->from.scale = wi;
-				p->to = ac;
-				p->to.offset = b->offset;
-				ot += wi;
+			// sigi[++].perm = mapped offset of method
+			gensatac(wi, b->perm);
 
-				// sigt[++].fun = &method
-				ot = rnd(ot, widthptr);
-				p = pc;
-				gins(ADATA, N, N);
-				p->from = at;
-				p->from.offset = ot;
-				p->from.scale = widthptr;
-				p->to = ad;
-				p->to.sym = b->sym;
-				ot += widthptr;
-			}
 			datastring(b->name, strlen(b->name)+1);
-
 		}
 
 		// nil field name at end
 		ot = rnd(ot, maxround);
-		p = pc;
-		gins(ADATA, N, N);
-		p->from = at;
-		p->from.offset = ot;
-		p->from.scale = widthptr;
-		p->to = ac;
-		p->to.offset = 0;
-		ot += widthptr;
+		gensatac(widthptr, 0);
 
 		p = pc;
 		gins(AGLOBL, N, N);
@@ -768,4 +830,68 @@ dumpsignatures(void)
 		p->to = ac;
 		p->to.offset = stringo;
 	}
+}
+
+void
+dumpsignatures(void)
+{
+	Dcl *d, *x;
+	Type *t;
+	Sym *s;
+
+	memset(&at, 0, sizeof(at));
+	memset(&ao, 0, sizeof(ao));
+	memset(&ac, 0, sizeof(ac));
+	memset(&ad, 0, sizeof(ad));
+
+	wi = types[TINT32]->width;
+
+	// sig structure
+	at.type = D_EXTERN;
+	at.index = D_NONE;
+	at.sym = S;			// fill in
+	at.offset = 0;			// fill in
+
+	// $string
+	ao.type = D_ADDR;
+	ao.index = D_STATIC;
+	ao.etype = TINT32;
+	ao.sym = symstringo;
+	ao.offset = 0;			// fill in
+
+	// constant
+	ac.type = D_CONST;
+	ac.index = D_NONE;
+	ac.offset = 0;			// fill in
+
+	// $method
+	ad.type = D_ADDR;
+	ad.index = D_EXTERN;
+	ad.sym = S;			// fill in
+	ad.offset = 0;
+
+	// copy externdcl list to signatlist
+	for(d=externdcl; d!=D; d=d->forw) {
+		if(d->op != OTYPE)
+			continue;
+
+		t = d->dtype;
+		if(t == T)
+			continue;
+
+		s = signame(t, 0);
+		if(s == S)
+			continue;
+
+		x = mal(sizeof(*d));
+		x->op = OTYPE;
+		x->dsym = d->dsym;
+		x->dtype = d->dtype;
+		x->forw = signatlist;
+		x->block = 0;
+		signatlist = x;
+//print("SIG = %lS %lS %lT\n", d->dsym, s, t);
+	}
+	dumpsigi();
+	dumpsigt();
 }
