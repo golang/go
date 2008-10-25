@@ -2377,3 +2377,251 @@ getinargx(Type *t)
 {
 	return *getinarg(t);
 }
+
+/*
+ * code to resolve elided DOTs
+ * in embedded types
+ */
+
+// search depth 0 --
+// return count of fields+methods
+// found with a given name
+int
+lookdot0(Sym *s, Type *t)
+{
+	Type *f, *u;
+	int c;
+
+	u = t;
+	if(isptr[u->etype])
+		u = u->type;
+
+	c = 0;
+	if(u->etype == TSTRUCT || u->etype == TINTER) {
+		for(f=u->type; f!=T; f=f->down)
+			if(f->sym == s)
+				c++;
+	}
+	u = methtype(t);
+	if(u != T) {
+		for(f=u->method; f!=T; f=f->down)
+			if(f->sym == s && f->embedded == 0)
+				c++;
+	}
+	return c;
+}
+
+// search depth d --
+// return count of fields+methods
+// found at search depth.
+// answer is in dotlist array and
+// count of number of ways is returned.
+int
+adddot1(Sym *s, Type *t, int d)
+{
+	Type *f, *u;
+	int c, a;
+
+	if(t->trecur)
+		return 0;
+	t->trecur = 1;
+
+	if(d == 0) {
+		c = lookdot0(s, t);
+		goto out;
+	}
+
+	c = 0;
+	u = t;
+	if(isptr[u->etype])
+		u = u->type;
+	if(u->etype != TSTRUCT && u->etype != TINTER)
+		goto out;
+
+	d--;
+	for(f=u->type; f!=T; f=f->down) {
+		if(!f->embedded)
+			continue;
+		if(f->sym == S)
+			continue;
+		a = adddot1(s, f->type, d);
+		if(a != 0 && c == 0) {
+			dotlist[d].sym = f->sym;
+			dotlist[d].offset = f->width;
+			dotlist[d].ptr = 0;
+			if(isptr[f->type->etype])
+				dotlist[d].ptr = 1;
+		}
+		c += a;
+	}
+
+out:
+	t->trecur = 0;
+	return c;
+}
+
+// in T.field
+// find missing fields that
+// will give shortest unique addressing.
+// modify the tree with missing type names.
+Node*
+adddot(Node *n)
+{
+	Type *t;
+	Sym *s;
+	Node *l;
+	int c, d;
+
+	walktype(n->left, Erv);
+	t = n->left->type;
+	if(t == T)
+		return n;
+
+	if(n->right->op != ONAME)
+		return n;
+	s = n->right->sym;
+	if(s == S)
+		return n;
+
+	for(d=0; d<nelem(dotlist); d++) {
+		c = adddot1(s, t, d);
+		if(c > 0)
+			goto out;
+	}
+	return n;
+
+out:
+	if(c > 1)
+		yyerror("ambiguous DOT reference %S", s);
+
+	// rebuild elided dots
+	for(c=d-1; c>=0; c--) {
+		n = nod(ODOT, n, n->right);
+		n->left->right = newname(dotlist[c].sym);
+	}
+	return n;
+}
+
+
+/*
+ * code to help generate trampoline
+ * functions for methods on embedded
+ * subtypes.
+ * these are approx the same as
+ * the corresponding adddot routines
+ * except that they expect to be called
+ * with unique tasks and they return
+ * the actual methods.
+ */
+
+typedef	struct	Symlink	Symlink;
+struct	Symlink
+{
+	Type*		field;
+	uchar		good;
+	Symlink*	link;
+};
+static	Symlink*	slist;
+
+void
+expand0(Type *t)
+{
+	Type *f, *u;
+	Symlink *sl;
+
+	u = t;
+	if(isptr[u->etype])
+		u = u->type;
+
+	u = methtype(t);
+	if(u != T) {
+		for(f=u->method; f!=T; f=f->down) {
+			if(f->sym->uniq)
+				continue;
+			f->sym->uniq = 1;
+			sl = mal(sizeof(*sl));
+			sl->field = f;
+			sl->link = slist;
+			slist = sl;
+		}
+	}
+}
+
+void
+expand1(Type *t, int d)
+{
+	Type *f, *u;
+
+	if(t->trecur)
+		return;
+	if(d == 0)
+		return;
+	t->trecur = 1;
+
+	if(d != nelem(dotlist)-1)
+		expand0(t);
+
+	u = t;
+	if(isptr[u->etype])
+		u = u->type;
+	if(u->etype != TSTRUCT && u->etype != TINTER)
+		goto out;
+
+	for(f=u->type; f!=T; f=f->down) {
+		if(!f->embedded)
+			continue;
+		if(f->sym == S)
+			continue;
+		expand1(f->type, d-1);
+	}
+
+out:
+	t->trecur = 0;
+}
+
+void
+expandmeth(Sym *s, Type *t)
+{
+	Symlink *sl;
+	Type *f;
+	int c, d;
+
+	if(s == S)
+		return;
+	if(t == T)
+		return;
+	if(strcmp(s->name, "S") != 0)
+		return;
+
+	// generate all reachable methods
+	slist = nil;
+	expand1(t, nelem(dotlist)-1);
+
+	// check each method to be uniquely reachable
+	for(sl=slist; sl!=nil; sl=sl->link) {
+		for(d=0; d<nelem(dotlist); d++) {
+			c = adddot1(sl->field->sym, t, d);
+			if(c == 0)
+				continue;
+			if(c == 1)
+				sl->good = 1;
+			break;
+		}
+	}
+
+//print("expand %S: %lT", s, t);
+	for(sl=slist; sl!=nil; sl=sl->link) {
+		if(sl->good) {
+			// add it to the base type method list
+			f = typ(TFIELD);
+			*f = *sl->field;
+			f->embedded = 1;	// needs a trampoline
+
+			f->down = t->method;
+			t->method = f;
+
+//print(" %T", f);
+		}
+	}
+//print("\n");
+}

@@ -9,7 +9,7 @@ pretty: pretty.6
 	$(L) -o pretty pretty.6
 
 test: pretty
-	test.sh
+	./test.sh
 
 install: pretty
 	cp pretty $(HOME)/bin/pretty

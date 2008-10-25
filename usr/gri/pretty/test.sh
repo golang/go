@@ -61,7 +61,7 @@ cleanup() {
 
 silent() {
 	cleanup
-	pretty -s $1 > $TMP1
+	./pretty -s $1 > $TMP1
 	if [ $? != 0 ]; then
 		cat $TMP1
 		echo "Error (silent mode test): test.sh $1"
@@ -72,8 +72,8 @@ silent() {
 
 idempotent() {
 	cleanup
-	pretty $1 > $TMP1
-	pretty $TMP1 > $TMP2
+	./pretty $1 > $TMP1
+	./pretty $TMP1 > $TMP2
 	cmp -s $TMP1 $TMP2
 	if [ $? != 0 ]; then
 		diff $TMP1 $TMP2
@@ -85,7 +85,7 @@ idempotent() {
 
 valid() {
 	cleanup
-	pretty $1 > $TMP1
+	./pretty $1 > $TMP1
 	6g -o /dev/null $TMP1
 	if [ $? != 0 ]; then
 		echo "Error (validity test): test.sh $1"
@@ -122,7 +122,7 @@ runtests() {
 
 
 # run selftest always
-pretty -t selftest.go > $TMP1
+./pretty -t selftest.go > $TMP1
 if [ $? != 0 ]; then
 	cat $TMP1
 	echo "Error (selftest): pretty -t selftest.go"
