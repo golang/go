@@ -173,7 +173,7 @@ loop:
 	if(p->as == ATEXT)
 		curtext = p;
 	if(p->as == AJMP)
-	if((q = p->pcond) != P) {
+	if((q = p->pcond) != P && q->as != ATEXT) {
 		p->mark = 1;
 		p = q;
 		if(p->mark == 0)
