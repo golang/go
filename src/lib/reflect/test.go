@@ -149,7 +149,7 @@ func main() {
 		var i int = 7;
 		var tmp = &T{123, 456.0, "hello", &i};
 		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.T{123, +4.560000e+02, hello, *int32(134980)}");
+		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.T{123, +4.560000e+02, hello, *int32(@)}");
 	}
 	{
 		type C chan *T;	// TODO: should not be necessary
