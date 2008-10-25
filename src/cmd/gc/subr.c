@@ -2585,8 +2585,6 @@ expandmeth(Sym *s, Type *t)
 		return;
 	if(t == T)
 		return;
-	if(strcmp(s->name, "S") != 0)
-		return;
 
 	// generate all reachable methods
 	slist = nil;
