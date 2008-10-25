@@ -2586,12 +2586,15 @@ expandmeth(Sym *s, Type *t)
 	if(t == T)
 		return;
 
+//print("s=%S t=%lT\n", s, t);
+
 	// generate all reachable methods
 	slist = nil;
 	expand1(t, nelem(dotlist)-1);
 
 	// check each method to be uniquely reachable
 	for(sl=slist; sl!=nil; sl=sl->link) {
+		sl->field->sym->uniq = 0;
 		for(d=0; d<nelem(dotlist); d++) {
 			c = adddot1(sl->field->sym, t, d);
 			if(c == 0)
@@ -2604,6 +2607,7 @@ expandmeth(Sym *s, Type *t)
 
 	for(sl=slist; sl!=nil; sl=sl->link) {
 		if(sl->good) {
+//print("	%lT\n", sl->field);
 			// add it to the base type method list
 			f = typ(TFIELD);
 			*f = *sl->field;
