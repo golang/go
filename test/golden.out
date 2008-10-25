@@ -156,6 +156,9 @@ bugs/bug109.go:6: illegal types for operand: RETURN
 	float64
 BUG: should compile
 
+=========== bugs/bug113.go
+BUG: should not succeed
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint32
 
