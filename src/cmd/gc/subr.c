@@ -2445,13 +2445,8 @@ adddot1(Sym *s, Type *t, int d)
 		if(f->sym == S)
 			continue;
 		a = adddot1(s, f->type, d);
-		if(a != 0 && c == 0) {
-			dotlist[d].sym = f->sym;
-			dotlist[d].offset = f->width;
-			dotlist[d].ptr = 0;
-			if(isptr[f->type->etype])
-				dotlist[d].ptr = 1;
-		}
+		if(a != 0 && c == 0)
+			dotlist[d].field = f;
 		c += a;
 	}
 
@@ -2497,7 +2492,7 @@ out:
 	// rebuild elided dots
 	for(c=d-1; c>=0; c--) {
 		n = nod(ODOT, n, n->right);
-		n->left->right = newname(dotlist[c].sym);
+		n->left->right = newname(dotlist[c].field->sym);
 	}
 	return n;
 }
@@ -2609,7 +2604,6 @@ expandmeth(Sym *s, Type *t)
 		}
 	}
 
-//print("expand %S: %lT", s, t);
 	for(sl=slist; sl!=nil; sl=sl->link) {
 		if(sl->good) {
 			// add it to the base type method list
@@ -2620,8 +2614,6 @@ expandmeth(Sym *s, Type *t)
 			f->down = t->method;
 			t->method = f;
 
-//print(" %T", f);
 		}
 	}
-//print("\n");
 }
