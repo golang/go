@@ -402,9 +402,7 @@ struct	Io
 typedef	struct	Dlist	Dlist;
 struct	Dlist
 {
-	Sym*	sym;
-	uchar	ptr;
-	int	offset;
+	Type*	field;
 };
 
 EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds

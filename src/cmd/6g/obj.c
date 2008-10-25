@@ -513,7 +513,9 @@ void
 gentramp(Type *t, Sig *b)
 {
 	Sym *e;
-	int c, d;
+	int c, d, o;
+	Prog *p;
+	Type *f;
 
 	e = lookup(b->name);
 	for(d=0; d<nelem(dotlist); d++) {
@@ -524,25 +526,74 @@ gentramp(Type *t, Sig *b)
 	fatal("gentramp");
 
 out:
-	print("gentramp %d\n", d);
-	print("	t    = %lT\n", t);
-	print("	name = %s\n", b->name);
-	print("	sym  = %S\n", b->sym);
-	print("	hash = 0x%ux\n", b->hash);
+//	print("gentramp %d\n", d);
+//	print("	t    = %lT\n", t);
+//	print("	name = %s\n", b->name);
+//	print("	sym  = %S\n", b->sym);
+//	print("	hash = 0x%ux\n", b->hash);
 
+	//TEXT	main·S_test2(SB),7,$0
+	p = pc;
+	gins(ATEXT, N, N);
+	p->from.type = D_EXTERN;
+	p->from.sym = b->sym;
+	p->to.type = D_CONST;
+	p->to.offset = 0;
+	p->from.scale = 7;
+//print("1. %P\n", p);
+
+	//MOVQ	8(SP), AX
+	p = pc;
+	gins(AMOVQ, N, N);
+	p->from.type = D_INDIR+D_SP;
+	p->from.offset = 8;
+	p->to.type = D_AX;
+//print("2. %P\n", p);
+
+	o = 0;
 	for(c=d-1; c>=0; c--) {
-		print("	%d %d %S\n",
-			dotlist[c].ptr,
-			dotlist[c].offset,
-			dotlist[c].sym);
+		f = dotlist[c].field;
+		o += f->width;
+		if(!isptr[f->type->etype])
+			continue;
+		//MOVQ	o(AX), AX
+		p = pc;
+		gins(AMOVQ, N, N);
+		p->from.type = D_INDIR+D_AX;
+		p->from.offset = o;
+		p->to.type = D_AX;
+//print("3. %P\n", p);
+		o = 0;
+	}
+	if(o != 0) {
+		//ADDQ	$XX, AX
+		p = pc;
+		gins(AADDQ, N, N);
+		p->from.type = D_CONST;
+		p->from.offset = o;
+		p->to.type = D_AX;
+//print("4. %P\n", p);
 	}
 
-//TEXT	main·S_test2(SB),7,$0
-//	MOVQ	8(SP), AX
-//	MOVQ	XX(AX), AX
-//	ADDQ	$XX, AX
-//	MOVQ	AX, 8(SP)
-//	JMP	main·Sub_test2(SB)
+	//MOVQ	AX, 8(SP)
+	p = pc;
+	gins(AMOVQ, N, N);
+	p->from.type = D_AX;
+	p->to.type = D_INDIR+D_SP;
+	p->to.offset = 8;
+//print("5. %P\n", p);
+
+	f = dotlist[0].field;
+	//JMP	main·Sub_test2(SB)
+	snprint(namebuf, sizeof(namebuf), "%s_%s",
+		f->sym->name, b->name);
+	if(isptr[f->type->etype])
+		f = f->type;
+	p = pc;
+	gins(AJMP, N, N);
+	p->to.type = D_EXTERN;
+	p->to.sym = pkglookup(namebuf, f->type->sym->opackage);
+//print("6. %P\n", p);
 }
 
 void
