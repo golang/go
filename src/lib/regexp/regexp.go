@@ -35,6 +35,17 @@ type Inst interface {
 	Print();
 }
 
+// Fields and methods common to all instructions
+type Common struct {
+	next	Inst;
+	index	int;
+}
+
+func (c *Common) Next() Inst { return c.next }
+func (c *Common) SetNext(i Inst) { c.next = i }
+func (c *Common) Index() int { return c.index }
+func (c *Common) SetIndex(i int) { c.index = i }
+
 type RE struct {
 	expr	string;	// the original expression
 	ch	*chan<- *RE;	// reply channel when we're done
@@ -61,68 +72,43 @@ const (
 
 // --- START start of program
 type Start struct {
-	next	Inst;
-	index	int;
+	Common
 }
 
 func (start *Start) Type() int { return START }
-func (start *Start) Next() Inst { return start.next }
-func (start *Start) SetNext(i Inst) { start.next = i }
-func (start *Start) Index() int { return start.index }
-func (start *Start) SetIndex(i int) { start.index = i }
 func (start *Start) Print() { print("start") }
 
 // --- END end of program
 type End struct {
-	next	Inst;
-	index	int;
+	Common
 }
 
 func (end *End) Type() int { return END }
-func (end *End) Next() Inst { return end.next }
-func (end *End) SetNext(i Inst) { end.next = i }
-func (end *End) Index() int { return end.index }
-func (end *End) SetIndex(i int) { end.index = i }
 func (end *End) Print() { print("end") }
 
 // --- BOT beginning of text
 type Bot struct {
-	next	Inst;
-	index	int;
+	Common
 }
 
 func (bot *Bot) Type() int { return BOT }
-func (bot *Bot) Next() Inst { return bot.next }
-func (bot *Bot) SetNext(i Inst) { bot.next = i }
-func (bot *Bot) Index() int { return bot.index }
-func (bot *Bot) SetIndex(i int) { bot.index = i }
 func (bot *Bot) Print() { print("bot") }
 
 // --- EOT end of text
 type Eot struct {
-	next	Inst;
-	index	int;
+	Common
 }
 
 func (eot *Eot) Type() int { return EOT }
-func (eot *Eot) Next() Inst { return eot.next }
-func (eot *Eot) SetNext(i Inst) { eot.next = i }
-func (eot *Eot) Index() int { return eot.index }
-func (eot *Eot) SetIndex(i int) { eot.index = i }
 func (eot *Eot) Print() { print("eot") }
 
 // --- CHAR a regular character
 type Char struct {
-	next	Inst;
-	index	int;
+	Common;
 	char	int;
 }
 
 func (char *Char) Type() int { return CHAR }
-func (char *Char) Next() Inst { return char.next }
-func (char *Char) SetNext(i Inst) { char.next = i }
-func (char *Char) Index() int { return char.index }
-func (char *Char) SetIndex(i int) { char.index = i }
 func (char *Char) Print() { print("char ", string(char.char)) }
 
 func NewChar(char int) *Char {
@@ -134,8 +120,7 @@ func NewChar(char int) *Char {
 // --- CHARCLASS [a-z]
 
 type CharClass struct {
-	next	Inst;
-	index	int;
+	Common;
 	char	int;
 	negate	bool;	// is character class negated? ([^a-z])
 	// Vector of int, stored pairwise: [a-z] is (a,z); x is (x,x):
@@ -143,10 +128,7 @@ type CharClass struct {
 }
 
 func (cclass *CharClass) Type() int { return CHARCLASS }
-func (cclass *CharClass) Next() Inst { return cclass.next }
-func (cclass *CharClass) SetNext(i Inst) { cclass.next = i }
-func (cclass *CharClass) Index() int { return cclass.index }
-func (cclass *CharClass) SetIndex(i int) { cclass.index = i }
+
 func (cclass *CharClass) Print() {
 	print("charclass");
 	if cclass.negate {
@@ -188,70 +170,45 @@ func NewCharClass() *CharClass {
 
 // --- ANY any character
 type Any struct {
-	next	Inst;
-	index	int;
+	Common
 }
 
 func (any *Any) Type() int { return ANY }
-func (any *Any) Next() Inst { return any.next }
-func (any *Any) SetNext(i Inst) { any.next = i }
-func (any *Any) Index() int { return any.index }
-func (any *Any) SetIndex(i int) { any.index = i }
 func (any *Any) Print() { print("any") }
 
 // --- BRA parenthesized expression
 type Bra struct {
-	next	Inst;
-	index	int;
+	Common;
 	n	int;	// subexpression number
 }
 
 func (bra *Bra) Type() int { return BRA }
-func (bra *Bra) Next() Inst { return bra.next }
-func (bra *Bra) SetNext(i Inst) { bra.next = i }
-func (bra *Bra) Index() int { return bra.index }
-func (bra *Bra) SetIndex(i int) { bra.index = i }
-func (bra *Bra) Print() { print("bra"); }
+func (bra *Bra) Print() { print("bra", bra.n); }
 
 // --- EBRA end of parenthesized expression
 type Ebra struct {
-	next	Inst;
-	index	int;
+	Common;
 	n	int;	// subexpression number
 }
 
 func (ebra *Ebra) Type() int { return EBRA }
-func (ebra *Ebra) Next() Inst { return ebra.next }
-func (ebra *Ebra) SetNext(i Inst) { ebra.next = i }
-func (ebra *Ebra) Index() int { return ebra.index }
-func (ebra *Ebra) SetIndex(i int) { ebra.index = i }
 func (ebra *Ebra) Print() { print("ebra ", ebra.n); }
 
 // --- ALT alternation
 type Alt struct {
-	next	Inst;
-	index	int;
+	Common;
 	left	Inst;	// other branch
 }
 
 func (alt *Alt) Type() int { return ALT }
-func (alt *Alt) Next() Inst { return alt.next }
-func (alt *Alt) SetNext(i Inst) { alt.next = i }
-func (alt *Alt) Index() int { return alt.index }
-func (alt *Alt) SetIndex(i int) { alt.index = i }
 func (alt *Alt) Print() { print("alt(", alt.left.Index(), ")"); }
 
 // --- NOP no operation
 type Nop struct {
-	next	Inst;
-	index	int;
+	Common
 }
 
 func (nop *Nop) Type() int { return NOP }
-func (nop *Nop) Next() Inst { return nop.next }
-func (nop *Nop) SetNext(i Inst) { nop.next = i }
-func (nop *Nop) Index() int { return nop.index }
-func (nop *Nop) SetIndex(i int) { nop.index = i }
 func (nop *Nop) Print() { print("nop") }
 
 // report error and exit compiling/executing goroutine
@@ -312,7 +269,7 @@ Grammar:
 		'$'
 		'.'
 		character
-		'[' character-ranges ']'
+		'[' [ '^' ] character-ranges ']'
 		'(' regexp ')'
 
 */

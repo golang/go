@@ -47,28 +47,33 @@ export type Type interface {
 	Size()	uint64;
 }
 
-// -- Basic
-
-type BasicType struct{
+// Fields and methods common to all types
+type Common struct {
 	kind	int;
 	name	string;
 	size	uint64;
 }
 
+func (c *Common) Name() string {
+	return c.name
+}
+
+func (c *Common) Kind() int {
+	return c.kind
+}
+
+func (c *Common) Size() uint64 {
+	return c.size
+}
+
+// -- Basic
+
+type BasicType struct {
+	Common
+}
+
 func NewBasicType(name string, kind int, size uint64) Type {
-	return &BasicType{kind, name, size}
-}
-
-func (t *BasicType) Name() string {
-	return t.name
-}
-
-func (t *BasicType) Kind() int {
-	return t.kind
-}
-
-func (t *BasicType) Size() uint64 {
-	return t.size
+	return &BasicType{ Common{kind, name, size} }
 }
 
 // Prebuilt basic types
@@ -114,24 +119,12 @@ export type PtrType interface {
 }
 
 type PtrTypeStruct struct {
-	name	string;
+	Common;
 	sub	*StubType;
 }
 
 func NewPtrTypeStruct(name string, sub *StubType) *PtrTypeStruct {
-	return &PtrTypeStruct{name, sub}
-}
-
-func (t *PtrTypeStruct) Kind() int {
-	return PtrKind
-}
-
-func (t *PtrTypeStruct) Name() string {
-	return t.name
-}
-
-func (t *PtrTypeStruct) Size() uint64 {
-	return ptrsize
+	return &PtrTypeStruct{ Common{PtrKind, name, ptrsize}, sub}
 }
 
 func (t *PtrTypeStruct) Sub() Type {
@@ -147,22 +140,14 @@ export type ArrayType interface {
 }
 
 type ArrayTypeStruct struct {
-	name	string;
+	Common;
 	elem	*StubType;
 	open	bool;	// otherwise fixed size
 	len	uint64;
 }
 
 func NewArrayTypeStruct(name string, open bool, len uint64, elem *StubType) *ArrayTypeStruct {
-	return &ArrayTypeStruct{name, elem, open, len}
-}
-
-func (t *ArrayTypeStruct) Kind() int {
-	return ArrayKind
-}
-
-func (t *ArrayTypeStruct) Name() string {
-	return t.name
+	return &ArrayTypeStruct{ Common{ArrayKind, name, 0}, elem, open, len}
 }
 
 func (t *ArrayTypeStruct) Size() uint64 {
@@ -193,21 +178,13 @@ export type MapType interface {
 }
 
 type MapTypeStruct struct {
-	name	string;
+	Common;
 	key	*StubType;
 	elem	*StubType;
 }
 
 func NewMapTypeStruct(name string, key, elem *StubType) *MapTypeStruct {
-	return &MapTypeStruct{name, key, elem}
-}
-
-func (t *MapTypeStruct) Kind() int {
-	return MapKind
-}
-
-func (t *MapTypeStruct) Name() string {
-	return t.name
+	return &MapTypeStruct{ Common{MapKind, name, 0}, key, elem}
 }
 
 func (t *MapTypeStruct) Size() uint64 {
@@ -237,21 +214,13 @@ export const (	// channel direction
 )
 
 type ChanTypeStruct struct {
-	name	string;
+	Common;
 	elem	*StubType;
 	dir	int;
 }
 
 func NewChanTypeStruct(name string, dir int, elem *StubType) *ChanTypeStruct {
-	return &ChanTypeStruct{name, elem, dir}
-}
-
-func (t *ChanTypeStruct) Kind() int {
-	return ChanKind
-}
-
-func (t *ChanTypeStruct) Name() string {
-	return t.name
+	return &ChanTypeStruct{ Common{ChanKind, name, 0}, elem, dir}
 }
 
 func (t *ChanTypeStruct) Size() uint64 {
@@ -260,7 +229,6 @@ func (t *ChanTypeStruct) Size() uint64 {
 }
 
 func (t *ChanTypeStruct) Dir() int {
-	// -1 is open array?  TODO
 	return t.dir
 }
 
@@ -283,24 +251,19 @@ type Field struct {
 }
 
 type StructTypeStruct struct {
-	name	string;
+	Common;
 	field	*[]Field;
 }
 
 func NewStructTypeStruct(name string, field *[]Field) *StructTypeStruct {
-	return &StructTypeStruct{name, field}
-}
-
-func (t *StructTypeStruct) Kind() int {
-	return StructKind
-}
-
-func (t *StructTypeStruct) Name() string {
-	return t.name
+	return &StructTypeStruct{ Common{StructKind, name, 0}, field}
 }
 
 // TODO: not portable; depends on 6g
 func (t *StructTypeStruct) Size() uint64 {
+	if t.size > 0 {
+		return t.size
+	}
 	size := uint64(0);
 	for i := 0; i < len(t.field); i++ {
 		elemsize := t.field[i].typ.Get().Size();
@@ -316,6 +279,7 @@ func (t *StructTypeStruct) Size() uint64 {
 		size += elemsize;
 	}
 	size = (size + 7) & ((1<<64 - 1) & ^7);
+	t.size = size;
 	return size;
 }
 
@@ -338,12 +302,12 @@ export type InterfaceType interface {
 }
 
 type InterfaceTypeStruct struct {
-	name	string;
+	Common;
 	field	*[]Field;
 }
 
 func NewInterfaceTypeStruct(name string, field *[]Field) *InterfaceTypeStruct {
-	return &InterfaceTypeStruct{name, field}
+	return &InterfaceTypeStruct{ Common{InterfaceKind, name, interfacesize}, field }
 }
 
 func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, offset uint64) {
@@ -354,18 +318,6 @@ func (t *InterfaceTypeStruct) Len() int {
 	return len(t.field)
 }
 
-func (t *InterfaceTypeStruct) Kind() int {
-	return InterfaceKind
-}
-
-func (t *InterfaceTypeStruct) Name() string {
-	return t.name
-}
-
-func (t *InterfaceTypeStruct) Size() uint64 {
-	return interfacesize
-}
-
 // -- Func
 
 export type FuncType interface {
@@ -374,21 +326,13 @@ export type FuncType interface {
 }
 
 type FuncTypeStruct struct {
-	name	string;
+	Common;
 	in	*StructTypeStruct;
 	out	*StructTypeStruct;
 }
 
 func NewFuncTypeStruct(name string, in, out *StructTypeStruct) *FuncTypeStruct {
-	return &FuncTypeStruct{name, in, out}
-}
-
-func (t *FuncTypeStruct) Kind() int {
-	return FuncKind
-}
-
-func (t *FuncTypeStruct) Name() string {
-	return t.name
+	return &FuncTypeStruct{ Common{FuncKind, name, 0}, in, out }
 }
 
 func (t *FuncTypeStruct) Size() uint64 {
