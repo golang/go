@@ -42,7 +42,7 @@
  * names like Bstmt, Bvardcl, etc. can't.
  */
 
-%type	<sym>		sym sym1 sym2 keyword laconst lname latype lpackatype
+%type	<sym>		sym sym1 sym2 sym3 keyword laconst lname latype lpackatype
 %type	<node>		xdcl xdcl_list_r oxdcl_list
 %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
 %type	<node>		oarg_type_list arg_type_list_r arg_chunk arg_chunk_list_r arg_type_list
@@ -55,6 +55,7 @@
 %type	<node>		range_header range_body range_stmt select_stmt
 %type	<node>		simple_stmt osimple_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
+%type	<node>		exprsym3_list_r exprsym3
 %type	<node>		name onew_name new_name new_name_list_r
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl
@@ -414,13 +415,16 @@ simple_stmt:
 		$$ = nod(OASOP, $1, $3);
 		$$->etype = $2;			// rathole to pass opcode
 	}
-|	expr_list '=' expr_list
+|	exprsym3_list_r '=' expr_list
 	{
-		$$ = nod(OAS, $1, $3);
+		$$ = rev($1);
+		$$ = nod(OAS, $$, $3);
 	}
-|	expr_list LCOLAS expr_list
+|	exprsym3_list_r LCOLAS expr_list
 	{
-		$$ = nod(OAS, colas($1, $3), $3);
+		$$ = rev($1);
+		$$ = colas($$, $3);
+		$$ = nod(OAS, $$, $3);
 		addtotop($$);
 	}
 |	LPRINT '(' oexpr_list ')'
@@ -961,15 +965,11 @@ sym2:
 	sym1
 
 /*
- * keywords that we can
- * use as variable/type names
+ * keywords that can be variables
+ * but are not already legal expressions
  */
-keyword:
-	LNIL
-|	LTRUE
-|	LFALSE
-|	LIOTA
-|	LLEN
+sym3:
+	LLEN
 |	LCAP
 |	LPANIC
 |	LPANICN
@@ -979,6 +979,17 @@ keyword:
 |	LBASETYPE
 |	LTYPEOF
 |	LCONVERT
+
+/*
+ * keywords that we can
+ * use as variable/type names
+ */
+keyword:
+	sym3
+|	LNIL
+|	LTRUE
+|	LFALSE
+|	LIOTA
 
 name:
 	lname
@@ -1544,6 +1555,20 @@ new_name_list_r:
 		$$ = nod(OLIST, $1, $3);
 	}
 
+exprsym3:
+	expr
+|	sym3
+	{
+		$$ = newname($1);
+	}
+
+exprsym3_list_r:
+	exprsym3
+|	exprsym3_list_r ',' exprsym3
+	{
+		$$ = nod(OLIST, $1, $3);
+	}
+
 export_list_r:
 	export
 |	export_list_r ocomma export
@@ -1924,7 +1949,7 @@ hidden_importsym:
  * to check whether the rest of the grammar is free of
  * reduce/reduce conflicts, comment this section out by
  * removing the slash on the next line.
- */
+ *
 lpack:
 	LATYPE
 	{
