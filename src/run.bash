@@ -36,15 +36,6 @@ make test
 )
 
 
-(xcd ../usr/r/refl
-rm -f *.6 6.out
-6g refl.go
-6g printf.go
-6g main.go
-6l main.6
-./6.out
-)
-
 (xcd ../test
 ./run
 )
