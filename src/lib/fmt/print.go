@@ -4,6 +4,11 @@
 
 package fmt
 
+/*
+	C-like printf, but because of reflection knowledge does not need
+	to be told about sizes and signedness (no %llud etc. - just %d).
+*/
+
 import (
 	"fmt";
 	"reflect";
