@@ -5,10 +5,12 @@
 package fmt
 
 /*
+	Raw formatter. See print.go for a more palatable interface.
+
 	f := fmt.New();
 	print f.d(1234).s("\n").str();  // create string, print it
 	f.d(-1234).s("\n").put();  // print string
-	f.ud(^0).putnl();  // print string with automatic newline
+	f.ud(1<<63).putnl();  // print string with automatic newline
 */
 
 // export Fmt, New;
