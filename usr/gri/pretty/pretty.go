@@ -40,27 +40,18 @@ func main() {
 	for i := 0; i < Flag.NArg(); i++ {
 		src_file := Flag.Arg(i);
 
-		src, ok := Platform.ReadSourceFile(src_file);
-		if !ok {
-			print("cannot open ", src_file, "\n");
-			sys.exit(1);
-		}
-
-		C := Compilation.Compile(src_file, src, &flags);
-
-		if C.nerrors > 0 {
-			sys.exit(1);
-		}
-		
 		if flags.deps {
-			print("deps\n");
-			panic("UNIMPLEMENTED");
-			return;
-		}
-
-		if !silent.BVal() && !flags.testmode {
-			var P Printer.Printer;
-			(&P).Program(C.prog);
+			Compilation.ComputeDeps(src_file, &flags);
+			
+		} else {
+			prog, nerrors := Compilation.Compile(src_file, &flags);
+			if nerrors > 0 {
+				return;
+			}
+			if !silent.BVal() && !flags.testmode {
+				var P Printer.Printer;
+				(&P).Program(prog);
+			}
 		}
 	}
 }

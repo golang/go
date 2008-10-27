@@ -33,17 +33,19 @@ clean:
 	rm -f pretty *.o  *~
 
 
-pretty.o:	printer.o platform.o compilation.o
+pretty.o:	 platform.o printer.o compilation.o
 
-compilation.o:	scanner.o parser.o ast.o
+compilation.o:	 platform.o scanner.o parser.o ast.o
 
-printer.o:	ast.o scanner.o
+ast.o:	 scanner.o
 
-parser.o:	scanner.o utils.o printer.o ast.o
+scanner.o:	 utils.o
 
-ast.o:	scanner.o
+parser.o:	 scanner.o ast.o
 
-scanner.o:	utils.o platform.o
+platform.o:	 utils.o
+
+printer.o:	 scanner.o ast.o
 
 
 flag.o:	fmt.o
