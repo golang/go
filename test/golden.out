@@ -126,7 +126,7 @@ BUG: fails incorrectly
 =========== bugs/bug095.go
 found 2, expected 1
 
-panic on line 83 PC=xxx
+panic on line 74 PC=xxx
 BUG wrong result
 
 =========== bugs/bug098.go
