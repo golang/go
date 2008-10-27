@@ -10,7 +10,7 @@ import AST "ast"
 
 export type Parser struct {
 	// Tracing/debugging
-	verbose, sixg bool;
+	verbose, sixg, deps bool;
 	indent uint;
 	
 	// Scanner
@@ -83,9 +83,10 @@ func (P *Parser) Next() {
 }
 
 
-func (P *Parser) Open(verbose, sixg bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
+func (P *Parser) Open(verbose, sixg, deps bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
 	P.verbose = verbose;
 	P.sixg = sixg;
+	P.deps = deps;
 	P.indent = 0;
 	
 	P.scanner = scanner;
@@ -1187,9 +1188,12 @@ func (P *Parser) ParseCommCase() *AST.Stat {
 		if P.tok == Scanner.ASSIGN || P.tok == Scanner.DEFINE {
 			pos, tok := P.pos, P.tok;
 			P.Next();
-			P.Expect(Scanner.ARROW);
-			y := P.ParseExpression(1);
-			x = AST.NewExpr(pos, tok, x, y);
+			if P.tok == Scanner.ARROW {
+				y := P.ParseExpression(1);
+				x = AST.NewExpr(pos, tok, x, y);
+			} else {
+				P.Expect(Scanner.ARROW);  // use Expect() error handling
+			}
 		}
 		s.expr = x;
 	} else {
@@ -1526,10 +1530,12 @@ func (P *Parser) ParseProgram() *AST.Program {
 		p.decls.Add(P.ParseDecl(false, Scanner.IMPORT));
 		P.OptSemicolon();
 	}
-		
-	for P.tok != Scanner.EOF {
-		p.decls.Add(P.ParseDeclaration());
-		P.OptSemicolon();
+	
+	if !P.deps {
+		for P.tok != Scanner.EOF {
+			p.decls.Add(P.ParseDeclaration());
+			P.OptSemicolon();
+		}
 	}
 	
 	p.comments = P.comments;

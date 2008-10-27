@@ -43,7 +43,7 @@ func (p *List) set(i int, x Any) {
 }
 
 
-func (p *List) Add (x Any) {
+func (p *List) Add(x Any) {
 	a := p.a;
 	n := len(a);
 
@@ -58,6 +58,23 @@ func (p *List) Add (x Any) {
 	a = a[0 : n + 1];
 	a[n] = x;
 	p.a = a;
+}
+
+
+func (p *List) Pop() Any {
+	a := p.a;
+	n := len(a);
+	
+	var x Any;
+	if n > 0 {
+		x = a[n - 1];
+		a = a[0 : n - 1];
+		p.a = a;
+	} else {
+		panic("pop from empty list");
+	}
+	
+	return x;
 }
 
 

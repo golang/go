@@ -41,7 +41,7 @@ func init() {
 // I/O
 
 export const (
-	MAGIC_obj_file = "@gri-go.7@v0";  // make it clear thar it cannot be a source file
+	MAGIC_obj_file = "@gri-go.7@v0";  // make it clear that it cannot be a source file
 	src_file_ext = ".go";
 	obj_file_ext = ".7";
 )
