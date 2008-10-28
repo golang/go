@@ -20,7 +20,8 @@ type Word uint32
 
 const N = 4;
 const L = 28;  // = sizeof(Word) * 8
-const M = 1 << L - 1;
+const B = 1 << L;
+const M = B - 1;
 
 
 // TODO replace this with a Go built-in assert
@@ -28,6 +29,11 @@ func ASSERT(p bool) {
 	if !p {
 		panic("ASSERT failed");
 	}
+}
+
+
+func IsSmall(x Word) bool {
+	return x < 1 << N;
 }
 
 
@@ -88,8 +94,7 @@ func (x *Natural) Sub (y *Natural) *Natural {
 
 // Computes x = x*a + c (in place) for "small" a's.
 func (x* Natural) Mul1Add(a, c Word) *Natural {
-	ASSERT(0 <= a && a < 1 << N);
-	ASSERT(0 <= c && c < 1 << N);
+	ASSERT(IsSmall(a) && IsSmall(c));
 	if (x.IsZero() || a == 0) && c == 0 {
 		return NatZero;
 	}
@@ -118,10 +123,10 @@ func Mul1(x, y Word) (z Word, c Word) {
 	y1 := y >> L2;
 
 	z10 := x0*y0;
-	z21 := x1*y0 + x0*y1 + (z10 >> L2);
+	z21 := x1*y0 + x0*y1 + z10 >> L2;
 
-	cc := x1*y1 + (z21 >> L2);  
-	zz := ((z21 & M2) << L2) | (z10 & M2);
+	cc := x1*y1 + z21 >> L2;  
+	zz := z21 & M2 << L2 | z10 & M2;
 	return zz, cc
 }
 
@@ -158,7 +163,7 @@ func (x *Natural) Mul (y *Natural) *Natural {
 				k++;
 			}
 			if c != 0 {
-				z[k] = Word(c);
+				z[k] = c;
 				k++;
 			}
 		}
@@ -235,7 +240,7 @@ func (x *Natural) Or (y *Natural) *Natural {
 	xl := len(x);
 	yl := len(y);
 	if xl < yl {
-		return y.And(x);
+		return y.Or(x);
 	}
 	ASSERT(xl >= yl);
 	z := new(Natural, xl);
@@ -252,7 +257,7 @@ func (x *Natural) Xor (y *Natural) *Natural {
 	xl := len(x);
 	yl := len(y);
 	if xl < yl {
-		return y.And(x);
+		return y.Xor(x);
 	}
 	ASSERT(xl >= yl);
 	z := new(Natural, xl);
@@ -279,29 +284,18 @@ func Copy(x *Natural) *Natural {
 }
 
 
-// Computes x = x div d (in place) for "small" d's. Returns x mod d.
+// Computes x = x div d (in place) for "small" d's. Returns updated x, x mod d.
 func (x *Natural) Mod1 (d Word) (*Natural, Word) {
-	ASSERT(0 < d && d < (1 << N));
+	ASSERT(IsSmall(d));
 	xl := len(x);
+	
 	c := Word(0);
-
-	i := xl;
-	for i > 0 {
-		i--;
+	for i := xl - 1; i >= 0; i-- {
 		c = c << L + x[i];
-
-		q := c / d;
-		x[i] = q;
-
-		//x[i] = c / d;  // BUG
-
-		c = c % d;
+		x[i], c = c / d, c %d;
 	}
 	if xl > 0 && x[xl - 1] == 0 {
 		x = x[0 : xl - 1];
-		if xl - 1 == 0 && len(x) != 0 {
-			panic();
-		}
 	}
 
 	return x, c;
@@ -337,7 +331,7 @@ export func NatFromWord(x Word) *Natural {
 	switch {
 	case x == 0:
 		z = NatZero;
-	case x < 2 << L:
+	case x < B:
 		z = new(Natural, 1);
 		z[0] = x;
 		return z;
@@ -456,6 +450,20 @@ func (x *Integer) Cmp (y *Integer) int {
 }
 
 
+func (x *Integer) String() string {
+	if x.mant.IsZero() {
+		return "0";
+	}
+	var s string;
+	if x.sign {
+		s = "-" + x.mant.String();
+	} else {
+		s = x.mant.String();
+	}
+	return s;
+}
+
+	
 export func IntFromString(s string) *Integer {
 	// get sign, if any
 	sign := false;
