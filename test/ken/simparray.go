@@ -6,29 +6,29 @@
 
 package main
 
-var b[10] float;
+var b[10] float32;
 
 func
 main()
 {
-	var a[10] float;
+	var a[10] float32;
 
-	for i:=short(5); i<10; i=i+1 {
-		a[i] = float(i);
+	for i:=int16(5); i<10; i=i+1 {
+		a[i] = float32(i);
 	}
 
-	s1 := float(0);
+	s1 := float32(0);
 	for i:=5; i<10; i=i+1 {
 		s1 = s1 + a[i];
 	}
 
 	if s1 != 35 { panic(s1); }
 
-	for i:=short(5); i<10; i=i+1 {
-		b[i] = float(i);
+	for i:=int16(5); i<10; i=i+1 {
+		b[i] = float32(i);
 	}
 
-	s2 := float(0);
+	s2 := float32(0);
 	for i:=5; i<10; i=i+1 {
 		s2 = s2 + b[i];
 	}

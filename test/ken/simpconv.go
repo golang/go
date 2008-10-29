@@ -7,6 +7,7 @@
 package main
 
 type vlong int64;
+type short int16;
 
 func
 main()
