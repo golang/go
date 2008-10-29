@@ -176,121 +176,142 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
 }
 
 // decimal
-func (f *Fmt) d(a int32) *Fmt {
-	f.pad(f.integer(int64(a), 10, true, &ldigits));
-	f.clearflags();
-	return f;
-}
-
-func (f *Fmt) D(a int64) *Fmt {
+func (f *Fmt) d64(a int64) *Fmt {
 	f.pad(f.integer(a, 10, true, &ldigits));
 	f.clearflags();
 	return f;
 }
+	
+func (f *Fmt) d32(a int32) *Fmt {
+	return f.d64(int64(a));
+}
+
+func (f *Fmt) d(a int) *Fmt {
+	return f.d64(int64(a));
+}
 
 // unsigned decimal
-func (f *Fmt) ud(a int32) *Fmt {
-	f.pad(f.integer(int64(uint32(a)), 10, false, &ldigits));
+func (f *Fmt) ud64(a uint64) *Fmt {
+	f.pad(f.integer(int64(a), 10, false, &ldigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) uD(a int64) *Fmt {
-	f.pad(f.integer(a, 10, false, &ldigits));
-	f.clearflags();
-	return f;
+func (f *Fmt) ud32(a uint32) *Fmt {
+	return f.ud64(uint64(a));
+}
+
+func (f *Fmt) ud(a uint) *Fmt {
+	return f.ud64(uint64(a));
 }
 
 // hexdecimal
-func (f *Fmt) x(a int32) *Fmt {
-	f.pad(f.integer(int64(a), 16, true, &ldigits));
-	f.clearflags();
-	return f;
-}
-
-func (f *Fmt) X(a int64) *Fmt {
+func (f *Fmt) x64(a int64) *Fmt {
 	f.pad(f.integer(a, 16, true, &ldigits));
 	f.clearflags();
 	return f;
 }
 
+func (f *Fmt) x32(a int32) *Fmt {
+	return f.x64(int64(a));
+}
+
+func (f *Fmt) x(a int) *Fmt {
+	return f.x64(int64(a));
+}
+
 // unsigned hexdecimal
-func (f *Fmt) ux(a int32) *Fmt {
-	f.pad(f.integer(int64(uint32(a)), 16, false, &ldigits));
+func (f *Fmt) ux64(a uint64) *Fmt {
+	f.pad(f.integer(int64(a), 16, false, &ldigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) uX(a int64) *Fmt {
-	f.pad(f.integer(a, 16, false, &ldigits));
-	f.clearflags();
-	return f;
+func (f *Fmt) ux32(a uint32) *Fmt {
+	return f.ux64(uint64(a));
+}
+
+func (f *Fmt) ux(a uint) *Fmt {
+	return f.ux64(uint64(a));
 }
 
 // HEXADECIMAL
-func (f *Fmt) Ux(a int32) *Fmt {
-	f.pad(f.integer(int64(a), 16, true, &udigits));
-	f.clearflags();
-	return f;
-}
-
-func (f *Fmt) UX(a int64) *Fmt {
+func (f *Fmt) X64(a int64) *Fmt {
 	f.pad(f.integer(a, 16, true, &udigits));
 	f.clearflags();
 	return f;
 }
 
+func (f *Fmt) X32(a int32) *Fmt {
+	return f.X64(int64(a));
+}
+
+func (f *Fmt) X(a int) *Fmt {
+	return f.X64(int64(a));
+}
+
 // unsigned HEXADECIMAL
-func (f *Fmt) uUx(a int32) *Fmt {
-	f.pad(f.integer(int64(uint32(a)), 16, false, &udigits));
+func (f *Fmt) uX64(a uint64) *Fmt {
+	f.pad(f.integer(int64(a), 16, false, &udigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) uUX(a int64) *Fmt {
-	f.pad(f.integer(a, 16, false, &udigits));
-	f.clearflags();
-	return f;
+func (f *Fmt) uX32(a uint32) *Fmt {
+	return f.uX64(uint64(a));
+}
+
+func (f *Fmt) uX(a uint) *Fmt {
+	return f.uX64(uint64(a));
 }
 
 // octal
-func (f *Fmt) o(a int32) *Fmt {
-	f.pad(f.integer(int64(a), 8, true, &ldigits));
-	f.clearflags();
-	return f;
-}
-
-func (f *Fmt) O(a int64) *Fmt {
+func (f *Fmt) o64(a int64) *Fmt {
 	f.pad(f.integer(a, 8, true, &ldigits));
 	f.clearflags();
 	return f;
 }
 
+func (f *Fmt) o32(a int32) *Fmt {
+	return f.o64(int64(a));
+}
+
+func (f *Fmt) o(a int) *Fmt {
+	return f.o64(int64(a));
+}
+
+
 // unsigned octal
-func (f *Fmt) uo(a int32) *Fmt {
-	f.pad(f.integer(int64(uint32(a)), 8, false, &ldigits));
+func (f *Fmt) uo64(a uint64) *Fmt {
+	f.pad(f.integer(int64(a), 8, false, &ldigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) uO(a int64) *Fmt {
-	f.pad(f.integer(a, 8, false, &ldigits));
+func (f *Fmt) uo32(a uint32) *Fmt {
+	return f.uo64(uint64(a));
+}
+
+func (f *Fmt) uo(a uint) *Fmt {
+	return f.uo64(uint64(a));
+}
+
+
+// unsigned binary
+func (f *Fmt) b64(a uint64) *Fmt {
+	f.pad(f.integer(int64(a), 2, false, &ldigits));
 	f.clearflags();
 	return f;
 }
 
-// binary
-func (f *Fmt) b(a int32) *Fmt {
-	f.pad(f.integer(int64(uint32(a)), 2, false, &ldigits));
-	f.clearflags();
-	return f;
+func (f *Fmt) b32(a uint32) *Fmt {
+	return f.b64(uint64(a));
 }
 
-func (f *Fmt) B(a int64) *Fmt {
-	f.pad(f.integer(a, 2, false, &ldigits));
-	f.clearflags();
-	return f;
+func (f *Fmt) b(a uint) *Fmt {
+	return f.b64(uint64(a));
 }
+
 
 // character
 func (f *Fmt) c(a int) *Fmt {
@@ -388,7 +409,7 @@ func(f *Fmt) InfOrNan(a float64) bool {
 }
 
 // float64
-func (f *Fmt) E(a float64) *Fmt {
+func (f *Fmt) e64(a float64) *Fmt {
 	var negative bool;
 	var g float64;
 	var exp int;
@@ -431,7 +452,7 @@ func (f *Fmt) E(a float64) *Fmt {
 }
 
 // float64
-func (f *Fmt) F(a float64) *Fmt {
+func (f *Fmt) f64(a float64) *Fmt {
 	var negative bool;
 	var g float64;
 	var exp int;
@@ -440,7 +461,7 @@ func (f *Fmt) F(a float64) *Fmt {
 	}
 	negative, exp, g = unpack(a);
 	if exp > 19 || exp < -19 {  // too big for this sloppy code
-		return f.E(a);
+		return f.e64(a);
 	}
 	prec := 6;
 	if f.prec_present {
@@ -468,7 +489,7 @@ func (f *Fmt) F(a float64) *Fmt {
 }
 
 // float64
-func (f *Fmt) G(a float64) *Fmt {
+func (f *Fmt) g64(a float64) *Fmt {
 	if f.InfOrNan(a) {
 		return f;
 	}
@@ -482,8 +503,8 @@ func (f *Fmt) G(a float64) *Fmt {
 		f1.p(f.prec);
 		f2.p(f.prec);
 	}
-	efmt := f1.E(a).str();
-	ffmt := f2.F(a).str();
+	efmt := f1.e64(a).str();
+	ffmt := f2.f64(a).str();
 	// ffmt can return e in my bogus world; don't trim trailing 0s if so.
 	f_is_e := false;
 	for i := 0; i < len(ffmt); i++ {
@@ -510,16 +531,28 @@ func (f *Fmt) G(a float64) *Fmt {
 }
 
 // float
+func (x *Fmt) f32(a float32) *Fmt {
+	return x.f64(float64(a))
+}
+
 func (x *Fmt) f(a float) *Fmt {
-	return x.F(float64(a))
+	return x.f64(float64(a))
 }
 
 // float
+func (x *Fmt) e32(a float32) *Fmt {
+	return x.e64(float64(a))
+}
+
 func (x *Fmt) e(a float) *Fmt {
-	return x.E(float64(a))
+	return x.e64(float64(a))
 }
 
 // float
+func (x *Fmt) g32(a float32) *Fmt {
+	return x.g64(float64(a))
+}
+
 func (x *Fmt) g(a float) *Fmt {
-	return x.G(float64(a))
+	return x.g64(float64(a))
 }

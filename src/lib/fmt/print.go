@@ -270,16 +270,16 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			// int
 			case 'b':
 				if v, signed, ok := getInt(field); ok {
-					s = p.fmt.B(v).str()	// always unsigned
+					s = p.fmt.b64(uint64(v)).str()	// always unsigned
 				} else {
 					s = "%b%"
 				}
 			case 'd':
 				if v, signed, ok := getInt(field); ok {
 					if signed {
-						s = p.fmt.D(v).str()
+						s = p.fmt.d64(v).str()
 					} else {
-						s = p.fmt.uD(v).str()
+						s = p.fmt.ud64(uint64(v)).str()
 					}
 				} else {
 					s = "%d%"
@@ -287,9 +287,9 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			case 'o':
 				if v, signed, ok := getInt(field); ok {
 					if signed {
-						s = p.fmt.O(v).str()
+						s = p.fmt.o64(v).str()
 					} else {
-						s = p.fmt.uO(v).str()
+						s = p.fmt.uo64(uint64(v)).str()
 					}
 				} else {
 					s= "%o%"
@@ -297,9 +297,9 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			case 'x':
 				if v, signed, ok := getInt(field); ok {
 					if signed {
-						s = p.fmt.X(v).str()
+						s = p.fmt.x64(v).str()
 					} else {
-						s = p.fmt.uX(v).str()
+						s = p.fmt.ux64(uint64(v)).str()
 					}
 				} else {
 					s = "%x%"
@@ -308,19 +308,19 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			// float
 			case 'e':
 				if v, ok := getFloat(field); ok {
-					s = p.fmt.E(v).str()
+					s = p.fmt.e64(v).str()
 				} else {
 					s = "%e%"
 				}
 			case 'f':
 				if v, ok := getFloat(field); ok {
-					s = p.fmt.F(v).str()
+					s = p.fmt.f64(v).str()
 				} else {
 					s = "%f%";
 				}
 			case 'g':
 				if v, ok := getFloat(field); ok {
-					s = p.fmt.G(v).str()
+					s = p.fmt.g64(v).str()
 				} else {
 					s = "%g%"
 				}
@@ -336,7 +336,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			// pointer
 			case 'p':
 				if v, ok := getPtr(field); ok {
-					s = "0x" + p.fmt.uX(int64(v)).str()
+					s = "0x" + p.fmt.uX64(v).str()
 				} else {
 					s = "%p%"
 				}
@@ -365,13 +365,13 @@ func (p *P) doprint(v reflect.StructValue, is_println bool) {
 		switch field.Kind() {
 		case reflect.Int8Kind, reflect.Int16Kind, reflect.Int32Kind, reflect.Int64Kind:
 			v, signed, ok := getInt(field);
-			s = p.fmt.D(v).str();
+			s = p.fmt.d64(v).str();
 		case reflect.Uint8Kind, reflect.Uint16Kind, reflect.Uint32Kind, reflect.Uint64Kind:
 			v, signed, ok := getInt(field);
-			s = p.fmt.uD(v).str();
+			s = p.fmt.ud64(uint64(v)).str();
 		case reflect.Float32Kind, reflect.Float64Kind, reflect.Float80Kind:
 			v, ok := getFloat(field);
-			s = p.fmt.G(v).str();
+			s = p.fmt.g64(v).str();
 		case reflect.StringKind:
 			v, ok := getString(field);
 			s = p.fmt.s(v).str();
@@ -379,7 +379,7 @@ func (p *P) doprint(v reflect.StructValue, is_println bool) {
 			v, ok := getPtr(field);
 			p.add('0');
 			p.add('x');
-			s = p.fmt.uX(int64(v)).str();
+			s = p.fmt.uX64(v).str();
 		default:
 			s = "???";
 		}
