@@ -41,30 +41,11 @@ func TypeToString(typ Type, expand bool) string {
 	switch(typ.Kind()) {
 	case MissingKind:
 		return "$missing$";
-	case Int8Kind:
-		return "int8";
-	case Int16Kind:
-		return "int16";
-	case Int32Kind:
-		return "int32";
-	case Int64Kind:
-		return "int64";
-	case Uint8Kind:
-		return "uint8";
-	case Uint16Kind:
-		return "uint16";
-	case Uint32Kind:
-		return "uint32";
-	case Uint64Kind:
-		return "uint64";
-	case Float32Kind:
-		return "float32";
-	case Float64Kind:
-		return "float64";
-	case Float80Kind:
-		return "float80";
-	case StringKind:
-		return "string";
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+	     UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
+	     FloatKind, Float32Kind, Float64Kind, Float80Kind:
+	     StringKind:
+		return typ.Name();
 	case PtrKind:
 		p := typ.(PtrType);
 		return "*" + TypeToString(p.Sub(), false);
@@ -125,6 +106,8 @@ func ValueToString(val Value) string {
 	switch(val.Kind()) {
 	case MissingKind:
 		return "missing";
+	case IntKind:
+		return integer(int64(val.(IntValue).Get()));
 	case Int8Kind:
 		return integer(int64(val.(Int8Value).Get()));
 	case Int16Kind:
@@ -133,6 +116,8 @@ func ValueToString(val Value) string {
 		return integer(int64(val.(Int32Value).Get()));
 	case Int64Kind:
 		return integer(int64(val.(Int64Value).Get()));
+	case UintKind:
+		return integer(int64(val.(UintValue).Get()));
 	case Uint8Kind:
 		return integer(int64(val.(Uint8Value).Get()));
 	case Uint16Kind:
@@ -141,6 +126,8 @@ func ValueToString(val Value) string {
 		return integer(int64(val.(Uint32Value).Get()));
 	case Uint64Kind:
 		return integer(int64(val.(Uint64Value).Get()));
+	case FloatKind:
+		return floatingpoint(float64(val.(FloatValue).Get()));
 	case Float32Kind:
 		return floatingpoint(float64(val.(Float32Value).Get()));
 	case Float64Kind:

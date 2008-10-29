@@ -17,10 +17,12 @@ export const (
 	MissingKind = iota;
 	ArrayKind;
 	ChanKind;
+	FloatKind;
 	Float32Kind;
 	Float64Kind;
 	Float80Kind;
 	FuncKind;
+	IntKind;
 	Int16Kind;
 	Int32Kind;
 	Int64Kind;
@@ -30,6 +32,7 @@ export const (
 	PtrKind;
 	StringKind;
 	StructKind;
+	UintKind;
 	Uint16Kind;
 	Uint32Kind;
 	Uint64Kind;
@@ -79,14 +82,17 @@ func NewBasicType(name string, kind int, size uint64) Type {
 // Prebuilt basic types
 export var (
 	Missing = NewBasicType(MissingString, MissingKind, 1);
+	Int = NewBasicType("int", IntKind, 4);	// TODO: need to know how big an int is
 	Int8 = NewBasicType("int8", Int8Kind, 1);
 	Int16 = NewBasicType("int16", Int16Kind, 2);
 	Int32 = NewBasicType("int32", Int32Kind, 4);
 	Int64 = NewBasicType("int64", Int64Kind, 8);
+	Uint = NewBasicType("uint", UintKind, 4);	// TODO: need to know how big a uint is
 	Uint8 = NewBasicType("uint8", Uint8Kind, 1);
 	Uint16 = NewBasicType("uint16", Uint16Kind, 2);
 	Uint32 = NewBasicType("uint32", Uint32Kind, 4);
 	Uint64 = NewBasicType("uint64", Uint64Kind, 8);
+	Float = NewBasicType("float", FloatKind, 4);	// TODO: need to know how big a float is
 	Float32 = NewBasicType("float32", Float32Kind, 4);
 	Float64 = NewBasicType("float64", Float64Kind, 8);
 	Float80 = NewBasicType("float80", Float80Kind, 10);	// TODO: strange size?
@@ -387,14 +393,17 @@ func init() {
 
 	// Basics go into types table
 	types[MissingString] = &Missing;
+	types["int"] = &Int;
 	types["int8"] = &Int8;
 	types["int16"] = &Int16;
 	types["int32"] = &Int32;
 	types["int64"] = &Int64;
+	types["uint"] = &Uint;
 	types["uint8"] = &Uint8;
 	types["uint16"] = &Uint16;
 	types["uint32"] = &Uint32;
 	types["uint64"] = &Uint64;
+	types["float"] = &Float;
 	types["float32"] = &Float32;
 	types["float64"] = &Float64;
 	types["float80"] = &Float80;
@@ -403,14 +412,17 @@ func init() {
 	// Basics get prebuilt stubs
 	MissingStub = NewStubType(MissingString, Missing);
 	basicstub[MissingString] = MissingStub;
+	basicstub["int"] = NewStubType("int", Int);
 	basicstub["int8"] = NewStubType("int8", Int8);
 	basicstub["int16"] = NewStubType("int16", Int16);
 	basicstub["int32"] = NewStubType("int32", Int32);
 	basicstub["int64"] = NewStubType("int64", Int64);
+	basicstub["uint"] = NewStubType("uint", Uint);
 	basicstub["uint8"] = NewStubType("uint8", Uint8);
 	basicstub["uint16"] = NewStubType("uint16", Uint16);
 	basicstub["uint32"] = NewStubType("uint32", Uint32);
 	basicstub["uint64"] = NewStubType("uint64", Uint64);
+	basicstub["float"] = NewStubType("float", Float);
 	basicstub["float32"] = NewStubType("float32", Float32);
 	basicstub["float64"] = NewStubType("float64", Float64);
 	basicstub["float80"] = NewStubType("float80", Float80);
