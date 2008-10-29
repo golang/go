@@ -20,7 +20,7 @@ func main() {
 	}
 	var l = len(s);
 	for w, i, j := 0,0,0; i < l; i += w {
-		var r int32;
+		var r int;
 		r, w = sys.stringtorune(s, i);
 		if w == 0 { panic("zero width in string") }
 		if r != chars[j] { panic("wrong value from string") }
@@ -43,7 +43,7 @@ func main() {
 	a[10] = 0xaa;
 	a[11] = 0x9e;
 	for w, i, j := 0,0,0; i < L; i += w {
-		var r int32;
+		var r int;
 		r, w = sys.bytestorune(&a[0], i, L);
 		if w == 0 { panic("zero width in bytes") }
 		if r != chars[j] { panic("wrong value from bytes") }
