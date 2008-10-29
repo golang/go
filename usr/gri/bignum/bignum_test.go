@@ -20,24 +20,44 @@ var (
 )
 
 
-func TEST(msg string, b bool) {
+var test_msg string;
+func TEST(n int, b bool) {
 	if !b {
-		panic("TEST failed: ", msg, "\n");
+		panic("TEST failed: ", test_msg, "(", n, ")\n");
 	}
 }
 
 
 func TestConv() {
-	TEST("TC1", a.Cmp(Bignum.NewNat(991)) == 0);
-	TEST("TC2", b.Cmp(Bignum.Fact(20)) == 0);
-	TEST("TC3", c.Cmp(Bignum.Fact(100)) == 0);
-	TEST("TC4", a.String(10) == sa);
-	TEST("TC5", b.String(10) == sb);
-	TEST("TC6", c.String(10) == sc);
+	test_msg = "TestConv";
+	TEST(0, a.Cmp(Bignum.NewNat(991)) == 0);
+	TEST(1, b.Cmp(Bignum.Fact(20)) == 0);
+	TEST(2, c.Cmp(Bignum.Fact(100)) == 0);
+	TEST(3, a.String(10) == sa);
+	TEST(4, b.String(10) == sb);
+	TEST(5, c.String(10) == sc);
+}
+
+
+func TestShift() {
+	test_msg = "TestShiftA";
+	TEST(0, b.Shl(0).Cmp(b) == 0);
+	TEST(1, c.Shl(1).Cmp(c) > 0);
+	
+	test_msg = "TestShiftB";
+	{	const m = 3;
+		p := b;
+		f := Bignum.NewNat(1<<m);
+		for i := 0; i < 100; i++ {
+			TEST(i, b.Shl(uint(i*m)).Cmp(p) == 0);
+			p = p.Mul(f);
+		}
+	}
 }
 
 
 func main() {
 	TestConv();
+	TestShift();
 	print("PASSED\n");
 }

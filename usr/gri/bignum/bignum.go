@@ -10,20 +10,36 @@ package Bignum
 // - Natural	unsigned integer numbers
 // - Integer	signed integer numbers
 // - Rational	rational numbers
-// - Number		scaled rational numbers (contain exponent)
 
 
 // ----------------------------------------------------------------------------
 // Representation
+//
+// A natural number of the form
+//
+//   x = x[n-1]*B^(n-1) + x[n-2]*B^(n-2) + ... + x[1]*B + x[0]
+//
+// with 0 <= x[i] < B and 0 <= i < n is stored in an array of length n,
+// with the digits x[i] as the array elements. 0 is represented as an
+// empty array (length == 0).
+//
+// A natural number is normalized if the array contains no leading 0 digits.
+// During arithmetic operations, denormalized values may occur which are
+// always normalized before returning the final result.
+//
+// The base B is chosen as large as possible on a given platform but there
+// are a few constraints besides the largest unsigned integer type available.
+// TODO describe the constraints.
 
-type Word uint64
-const LogW = 32;
+type Word uint64;
+const LogW = 64;
 
 const LogH = 4;  // bits for a hex digit (= "small" number)
 const H = 1 << LogH;
 
-const L = LogW - LogH;  // must be even (for Mul1)
-const B = 1 << L;
+const LogB = LogW - LogH;
+const L = LogB;
+const B = 1 << LogB;
 const M = B - 1;
 
 
@@ -53,18 +69,13 @@ func assert(p bool) {
 }
 
 
-func init() {
-	assert(L % 2 == 0);  // L must be even
-}
-
-
 func IsSmall(x Word) bool {
 	return x < H;
 }
 
 
-func Update(x Word) (Word, Word) {
-	return x & M, x >> L;
+func Split(x Word) (Word, Word) {
+	return x>>L, x&M;
 }
 
 
@@ -95,27 +106,27 @@ export func NewNat(x Word) *Natural {
 		return z;
 	default:
 		z = new(Natural, 2);
-		z[0], z[1] = Update(x);
+		z[1], z[0] = Split(x);
 	}
 	return z;
 }
 
 
 func Normalize(x *Natural) *Natural {
-	i := len(x);
-	for i > 0 && x[i - 1] == 0 { i-- }
-	if i < len(x) {
-		x = x[0 : i];  // trim leading 0's
+	n := len(x);
+	for n > 0 && x[n - 1] == 0 { n-- }
+	if n < len(x) {
+		x = x[0 : n];  // trim leading 0's
 	}
 	return x;
 }
 
 
 func Normalize3(x *Natural3) *Natural3 {
-	i := len(x);
-	for i > 0 && x[i - 1] == 0 { i-- }
-	if i < len(x) {
-		x = x[0 : i];  // trim leading 0's
+	n := len(x);
+	for n > 0 && x[n - 1] == 0 { n-- }
+	if n < len(x) {
+		x = x[0 : n];  // trim leading 0's
 	}
 	return x;
 }
@@ -137,8 +148,8 @@ func (x *Natural) Add(y *Natural) *Natural {
 
 	i := 0;
 	c := Word(0);
-	for i < m { z[i], c = Update(x[i] + y[i] + c); i++; }
-	for i < n { z[i], c = Update(x[i] + c); i++; }
+	for ; i < m; i++ { c, z[i] = Split(x[i] + y[i] + c); }
+	for ; i < n; i++ { c, z[i] = Split(x[i] + c); }
 	z[i] = c;
 
 	return Normalize(z);
@@ -153,8 +164,8 @@ func (x *Natural) Sub(y *Natural) *Natural {
 
 	i := 0;
 	c := Word(0);
-	for i < m { z[i], c = Update(x[i] - y[i] + c); i++; }
-	for i < n { z[i], c = Update(x[i] + c); i++; }
+	for ; i < m; i++ { c, z[i] = Split(x[i] - y[i] + c); }
+	for ; i < n; i++ { c, z[i] = Split(x[i] + c); }
 	assert(c == 0);  // x.Sub(y) must be called with x >= y
 
 	return Normalize(z);
@@ -170,64 +181,61 @@ func (x* Natural) MulAdd1(a, c Word) *Natural {
 	n := len(x);
 
 	z := new(Natural, n + 1);
-	for i := 0; i < n; i++ { z[i], c = Update(x[i] * a + c); }
+	for i := 0; i < n; i++ { c, z[i] = Split(x[i]*a + c); }
 	z[n] = c;
 
 	return Normalize(z);
 }
 
 
-// Returns z = (x * y) div B, c = (x * y) mod B.
+// Returns c = x*y div B, z = x*y mod B.
 func Mul1(x, y Word) (Word, Word) {
-	const L2 = (L + 1) / 2;  // TODO check if we can run with odd L
-	const B2 = 1 << L2;
-	const M2 = B2 - 1;
-	
-	x0 := x & M2;
-	x1 := x >> L2;
+	// Split x and y into 2 sub-digits each (in base sqrt(B)),
+	// multiply the digits separately while avoiding overflow,
+	// and return the product as two separate digits.
 
-	y0 := y & M2;
-	y1 := y >> L2;
+	const L0 = (L + 1)/2;
+	const L1 = L - L0;
+	const DL = L0 - L1;  // 0 or 1
+	const b  = 1<<L0;
+	const m  = b - 1;
 
-	z0 := x0*y0;
-	z1 := x1*y0 + x0*y1 + z0 >> L2;  z0 &= M2;
-	z2 := x1*y1 + z1 >> L2;  z1 &= M2;
+	// split x and y into sub-digits
+	// x = (x1*b + x0)
+	// y = (y1*b + y0)
+	x1, x0 := x>>L0, x&m;
+	y1, y0 := y>>L0, y&m;
+
+	// x*y = t2*b^2 + t1*b + t0
+	t0 := x0*y0;
+	t1 := x1*y0 + x0*y1;
+	t2 := x1*y1;
+
+	// compute the result digits but avoid overflow
+	// z = z1*B + z0 = x*y
+	z0 := (t1<<L0 + t0)&M;
+	z1 := t2<<DL + (t1 + t0>>L0)>>L1;
 	
-	return z1 << L2 | z0, z2;
+	return z1, z0;
 }
 
 
 func (x *Natural) Mul(y *Natural) *Natural {
-	if x.IsZero() || y.IsZero() {
-		return NatZero;
-	}
-	xl := len(x);
-	yl := len(y);
-	if xl < yl {
-		return y.Mul(x);  // for speed
-	}
-	assert(xl >= yl && yl > 0);
+	n := len(x);
+	m := len(y);
+	z := new(Natural, n + m);
 
-	// initialize z
-	zl := xl + yl;
-	z := new(Natural, zl);
-
-	for j := 0; j < yl; j++ {
+	for j := 0; j < m; j++ {
 		d := y[j];
 		if d != 0 {
-			k := j;
 			c := Word(0);
-			for i := 0; i < xl; i++ {
-				// compute z[k] += x[i] * d + c;
-				t := z[k] + c;
-				var z1 Word;
-				z1, c = Mul1(x[i], d);
-				t += z1;
-				z[k] = t & M;
-				c += t >> L;
-				k++;
+			for i := 0; i < n; i++ {
+				// z[i+j] += x[i]*d + c;
+				z1, z0 := Mul1(x[i], d);
+				c, z[i+j] = Split(z[i+j] + z0 + c);
+				c += z1;
 			}
-			z[k] = c;
+			z[n+j] = c;
 		}
 	}
 
@@ -235,33 +243,33 @@ func (x *Natural) Mul(y *Natural) *Natural {
 }
 
 
-func Shl1(x Word, s int) (Word, Word) {
-	return 0, 0
+// BUG use these until 6g shifts are working properly
+func shl(x Word, s uint) Word {
+	return x << s;
 }
 
 
-func Shr1(x Word, s int) (Word, Word) {
-	return 0, 0
+func shr(x Word, s uint) Word {
+	return x >> s;
 }
 
 
-func (x *Natural) Shl(s int) *Natural {
-	panic("incomplete");
+func Shl1(x, c Word, s uint) (Word, Word) {
+	assert(s <= LogB);
+	return shr(x, (LogB - s)), shl(x, s)&M | c
+}
+
+
+func (x *Natural) Shl(s uint) *Natural {
+	n := len(x);
+	si := int(s/LogB);
+	s = s%LogB;
+	z := new(Natural, n + si + 1);
 	
-	if s == 0 {
-		return x;
-	}
-	
-	S := s/L;
-	s = s%L;
-	n := len(x) + S + 1;
-	z := new(Natural, n);
-	
+	i := 0;
 	c := Word(0);
-	for i := 0; i < n; i++ {
-		z[i + S], c = Shl1(x[i], s);
-	}
-	z[n + S] = c;
+	for ; i < n; i++ { c, z[i+si] = Shl1(x[i], c, s); }
+	z[i+si] = c;
 	
 	return Normalize(z);
 }
@@ -269,10 +277,6 @@ func (x *Natural) Shl(s int) *Natural {
 
 func (x *Natural) Shr(s uint) *Natural {
 	panic("incomplete");
-	
-	if s == 0 {
-		return x;
-	}
 	return nil
 }
 
@@ -359,15 +363,21 @@ func (x *Natural) Cmp(y *Natural) int {
 }
 
 
+func Log1(x Word) int {
+	n := -1;
+	for x != 0 { x >>= 1; n++; }
+	return n;
+}
+
+
 func (x *Natural) Log() int {
 	n := len(x);
-	if n == 0 { return 0; }
-	assert(n > 0);
-	
-	c := (n - 1) * L;
-	for t := x[n - 1]; t != 0; t >>= 1 { c++ };
-
-	return c;
+	if n > 0 {
+		n = (n - 1)*L + Log1(x[n - 1]);
+	} else {
+		n = -1;
+	}
+	return n;
 }
 
 
@@ -381,8 +391,8 @@ func (x *Natural) And(y *Natural) *Natural {
 	z := new(Natural, n);
 
 	i := 0;
-	for i < m { z[i] = x[i] & y[i]; i++; }
-	for i < n { z[i] = x[i]; i++; }
+	for ; i < m; i++ { z[i] = x[i] & y[i]; }
+	for ; i < n; i++ { z[i] = x[i]; }
 
 	return Normalize(z);
 }
@@ -398,8 +408,8 @@ func (x *Natural) Or(y *Natural) *Natural {
 	z := new(Natural, n);
 
 	i := 0;
-	for i < m { z[i] = x[i] | y[i]; i++; }
-	for i < n { z[i] = x[i]; i++; }
+	for ; i < m; i++ { z[i] = x[i] | y[i]; }
+	for ; i < n; i++ { z[i] = x[i]; }
 
 	return Normalize(z);
 }
@@ -415,8 +425,8 @@ func (x *Natural) Xor(y *Natural) *Natural {
 	z := new(Natural, n);
 
 	i := 0;
-	for i < m { z[i] = x[i] ^ y[i]; i++; }
-	for i < n { z[i] = x[i]; i++; }
+	for ; i < m; i++ { z[i] = x[i] ^ y[i]; }
+	for ; i < n; i++ { z[i] = x[i]; }
 
 	return Normalize(z);
 }
@@ -437,9 +447,8 @@ func (x *Natural) DivMod1(d Word) (*Natural, Word) {
 
 	c := Word(0);
 	for i := len(x) - 1; i >= 0; i-- {
-		var LL Word = L;  // BUG shift broken for const L
-		c = c << LL + x[i];
-		x[i] = c / d;
+		c = c<<L + x[i];
+		x[i] = c/d;
 		c %= d;
 	}
 
@@ -456,7 +465,7 @@ func (x *Natural) String(base Word) string {
 	// TODO n is too small for bases < 10!!!
 	assert(base >= 10);  // for now
 	// approx. length: 1 char for 3 bits
-	n := x.Log()/3 + 1;  // +1 (round up)
+	n := x.Log()/3 + 10;  // +10 (round up) - what is the right number?
 	s := new([]byte, n);
 
 	// convert
@@ -480,7 +489,7 @@ func MulRange(a, b Word) *Natural {
 	case a == b: return NewNat(a);
 	case a + 1 == b: return NewNat(a).Mul(NewNat(b));
 	}
-	m := (a + b) >> 1;
+	m := (a + b)>>1;
 	assert(a <= m && m < b);
 	return MulRange(a, m).Mul(MulRange(m + 1, b));
 }
@@ -670,13 +679,4 @@ func (x *Rational) Cmp(y *Rational) int {
 export func RatFromString(s string) *Rational {
 	panic("UNIMPLEMENTED");
 	return nil;
-}
-
-
-// ----------------------------------------------------------------------------
-// Scaled numbers
-
-export type Number struct {
-	mant *Rational;
-	exp Integer;
 }
