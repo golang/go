@@ -22,7 +22,7 @@ func
 sinus(arg float64, quad int) float64
 {
 	var e, f, ysq, x, y, temp1, temp2 float64;
-	var k long;
+	var k int32;
 
 	x = arg;
 	if(x < 0) {
@@ -36,7 +36,7 @@ sinus(arg float64, quad int) float64
 		temp1,f = sys.modf(0.25*e);
 		quad = int(e - 4*f);
 	} else {
-		k = long(x);
+		k = int32(x);
 		y = x - float64(k);
 		quad = (quad + int(k)) & 3;
 	}

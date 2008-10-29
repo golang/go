@@ -26,7 +26,7 @@ export func
 tan(arg float64) float64
 {
 	var temp, e, x, xsq float64;
-	var i long;
+	var i int32;
 	var flag, sign bool;
 
 	flag = false;
@@ -38,7 +38,7 @@ tan(arg float64) float64
 	}
 	x = x * piu4;   /* overflow? */
 	e,x = sys.modf(x);
-	i = long(e);
+	i = int32(e);
 
 	switch i & 3 {
 	case 1:
