@@ -2204,7 +2204,7 @@ chanop(Node *n, int top)
 		if(n->left != N) {
 			// async buf size
 			a = nod(OCONV, n->left, N);
-			a->type = types[TUINT32];
+			a->type = types[TINT];
 		} else
 			a = nodintconst(0);
 
