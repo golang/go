@@ -133,12 +133,13 @@ gclean(void)
 void
 regalloc(Node *n, Type *t, Node *o)
 {
-	int i;
+	int i, et;
 
 	if(t == T)
 		fatal("regalloc: t nil");
-
-	switch(t->etype) {
+	et = simtype[t->etype];
+	
+	switch(et) {
 	case TINT8:
 	case TUINT8:
 	case TINT16:
@@ -313,8 +314,8 @@ gmove(Node *f, Node *t)
 	Node nod, nod1, nod2, nod3, nodc;
 	Prog *p1, *p2;
 
-	ft = f->type->etype;
-	tt = t->type->etype;
+	ft = simtype[f->type->etype];
+	tt = simtype[t->type->etype];
 
 	t64 = 0;
 	if(tt == TINT64 || tt == TUINT64 || tt == TPTR64)
@@ -1106,7 +1107,7 @@ optoas(int op, Type *t)
 		fatal("optoas: t is nil");
 
 	a = AGOK;
-	switch(CASE(op, t->etype)) {
+	switch(CASE(op, simtype[t->etype])) {
 	default:
 		fatal("optoas: no entry %O-%T", op, t);
 		break;

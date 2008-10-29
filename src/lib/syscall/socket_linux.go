@@ -61,7 +61,7 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
 }
 
 export func setsockopt_int(fd, level, opt int64, value int) int64 {
-	n := int32(opt);
+	n := int(opt);
 	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4);
 	return e
 }

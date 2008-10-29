@@ -22,31 +22,6 @@ main(int argc, char *argv[])
 static	int	wptr	= 8;	// width of a pointer
 static	int	wmax	= 8;	// max rounding
 
-/*
- * additionally, go declares several platform-specific type aliases:
- * ushort, short, uint, int, uint32, int32, float, and double.  The bit
- */
-static char*
-typedefs[] =
-{
-	"short",	"int16",	// shorts
-	"ushort",	"uint16",
-
-	"int",		"int32",	// ints
-	"uint",		"uint32",
-//	"rune",		"uint32",
-
-	"long",		"int64",	// longs
-	"ulong",	"uint64",
-
-//	"vlong",	"int64",	// vlongs
-//	"uvlong",	"uint64",
-
-	"float",	"float32",	// floats
-	"double",	"float64",
-
-};
-
 uint32
 rnd(uint32 o, uint32 r)
 {
@@ -114,11 +89,12 @@ dowidth(Type *t)
 	t->width = -2;
 
 	w = 0;
-	switch(t->etype) {
+	switch(simtype[t->etype]) {
 	default:
 		fatal("dowidth: unknown type: %E", t->etype);
 		break;
 
+	/* compiler-specific stuff */
 	case TINT8:
 	case TUINT8:
 	case TBOOL:		// bool is int8
@@ -208,11 +184,30 @@ besetptr(void)
 		tptr = TPTR64;
 }
 
+/*
+ * additionally, go declares several platform-specific type aliases:
+ * int, uint, float, and uptrint
+ */
+static	struct
+{
+	char*	name;
+	int	etype;
+	int	sameas;
+}
+typedefs[] =
+{
+	"int",		TINT,		TINT32,
+	"uint",		TUINT,		TUINT32,
+	"uptrint",	TUINTPTR,	TUINT64,
+	"float",	TFLOAT,		TFLOAT32,
+};
+
 void
 belexinit(int lextype)
 {
-	int i;
-	Sym *s0, *s1;
+	int i, etype, sameas;
+	Sym *s;
+	Type *t;
 
 	zprog.link = P;
 	zprog.as = AGOK;
@@ -221,14 +216,37 @@ belexinit(int lextype)
 	zprog.from.scale = 0;
 	zprog.to = zprog.from;
 
-	for(i=0; i<nelem(typedefs); i+=2) {
-		s1 = lookup(typedefs[i+1]);
-		if(s1->lexical != lextype)
-			yyerror("need %s to define %s",
-				typedefs[i+1], typedefs[i+0]);
-		s0 = lookup(typedefs[i+0]);
-		s0->lexical = s1->lexical;
-		s0->otype = s1->otype;
+	for(i=0; i<nelem(typedefs); i++) {
+		s = lookup(typedefs[i].name);
+		s->lexical = lextype;
+
+		etype = typedefs[i].etype;
+		if(etype < 0 || etype >= nelem(types))
+			fatal("lexinit: %s bad etype", s->name);
+		sameas = typedefs[i].sameas;
+		if(sameas < 0 || sameas >= nelem(types))
+			fatal("lexinit: %s bad sameas", s->name);
+		simtype[etype] = sameas;
+
+		t = types[etype];
+		if(t != T)
+			fatal("lexinit: %s already defined", s->name);
+
+		t = typ(etype);
+		t->sym = s;
+
+		dowidth(t);
+		types[etype] = t;
+		s->otype = t;
+
+		if(minfltval[sameas] != nil)
+			minfltval[etype] = minfltval[sameas];
+		if(maxfltval[sameas] != nil)
+			maxfltval[etype] = maxfltval[sameas];
+		if(minintval[sameas] != nil)
+			minintval[etype] = minintval[sameas];
+		if(maxintval[sameas] != nil)
+			maxintval[etype] = maxintval[sameas];
 	}
 
 	symstringo = lookup(".stringo");	// strings

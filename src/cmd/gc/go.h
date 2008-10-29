@@ -302,15 +302,18 @@ enum
 	TINT16,	TUINT16,
 	TINT32,	TUINT32,
 	TINT64,	TUINT64,
+	TINT, TUINT, TUINTPTR,
 
-	TFLOAT32,		// 9
+	TFLOAT32,		// 12
 	TFLOAT64,
 	TFLOAT80,
+	TFLOAT,
 
-	TBOOL,			// 12
+	TBOOL,			// 16
 
-	TPTR32, TPTR64,		// 13
+	TPTR32, TPTR64,		// 17
 
+	TDDD,			// 19
 	TFUNC,
 	TARRAY,
 	T_old_DARRAY,
@@ -325,7 +328,7 @@ enum
 	TFORWSTRUCT,
 	TFORWINTER,
 
-	NTYPE,			// 28
+	NTYPE,
 };
 enum
 {
@@ -396,6 +399,7 @@ struct	Io
 	Biobuf*	bin;
 	int32	ilineno;
 	int	peekc;
+	int	peekc1;	// second peekc for ...
 	char*	cp;	// used for content when bin==nil
 };
 
@@ -433,6 +437,7 @@ EXTERN	char*	filename;	// name to uniqify names
 EXTERN	int	exportadj;	// declaration is being exported
 
 EXTERN	Type*	types[NTYPE];
+EXTERN	uchar	simtype[NTYPE];
 EXTERN	uchar	isptr[NTYPE];
 EXTERN	uchar	isint[NTYPE];
 EXTERN	uchar	isfloat[NTYPE];

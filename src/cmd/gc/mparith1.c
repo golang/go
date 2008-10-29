@@ -4,7 +4,7 @@
 
 #include "go.h"
 
-/// uses arihmetic
+/// uses arithmetic
 
 int
 mpcmpfixflt(Mpint *a, Mpflt *b)

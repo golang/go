@@ -353,7 +353,7 @@ loop:
 		case 0:
 			if(top == Erv) {
 				yyerror("function requires a return type");
-				n->type = types[TINT32];
+				n->type = types[TINT];
 			}
 			break;
 
@@ -645,8 +645,8 @@ loop:
 		evconst(n);
 		if(n->op == OLITERAL)
 			goto ret;
-		convlit(n->right, types[TUINT32]);
-		convlit(n->left, types[TINT32]);
+		convlit(n->right, types[TUINT]);
+		convlit(n->left, types[TINT]);
 		if(n->left->type == T || n->right->type == T)
 			goto ret;
 		if(issigned[n->right->type->etype])
@@ -734,10 +734,10 @@ loop:
 			break;
 		case TARRAY:
 			if(t->bound >= 0)
-				nodconst(n, types[TINT32], t->bound);
+				nodconst(n, types[TINT], t->bound);
 			break;
 		}
-		n->type = types[TINT32];
+		n->type = types[TINT];
 		goto ret;
 
 	case OCAP:
@@ -755,10 +755,10 @@ loop:
 			goto badt;
 		case TARRAY:
 			if(t->bound >= 0)
-				nodconst(n, types[TINT32], t->bound);
+				nodconst(n, types[TINT], t->bound);
 			break;
 		}
-		n->type = types[TINT32];
+		n->type = types[TINT];
 		goto ret;
 
 	case OINDEX:
@@ -785,7 +785,7 @@ loop:
 			if(top != Erv)
 				goto nottop;
 			if(n->right->type == T) {
-				convlit(n->right, types[TINT32]);
+				convlit(n->right, types[TINT]);
 				if(n->right->type == T)
 					goto ret;
 			}
@@ -825,7 +825,7 @@ loop:
 		case TARRAY:
 			// right side must be an int
 			if(n->right->type == T) {
-				convlit(n->right, types[TINT32]);
+				convlit(n->right, types[TINT]);
 				if(n->right->type == T)
 					break;
 			}
@@ -1110,7 +1110,7 @@ sw1(Node *c, Type *place)
 Type*
 sw2(Node *c, Type *place)
 {
-	return types[TINT32];	// botch
+	return types[TINT];	// botch
 }
 
 /*
@@ -1406,7 +1406,7 @@ walkselect(Node *sel)
 	on = syslook("newselect", 0);
 
 	r = nod(OXXX, N, N);
-	nodconst(r, types[TINT32], count);	// count
+	nodconst(r, types[TINT], count);	// count
 	r = nod(OCALL, on, r);
 	r = nod(OAS, var, r);
 
@@ -1870,10 +1870,10 @@ stringop(Node *n, int top)
 	case OSLICE:
 		// sys_slicestring(s, lb, hb)
 		r = nod(OCONV, n->right->left, N);
-		r->type = types[TINT32];
+		r->type = types[TINT];
 
 		c = nod(OCONV, n->right->right, N);
-		c->type = types[TINT32];
+		c->type = types[TINT];
 
 		r = list(r, c);
 		r = list(n->left, r);
@@ -1890,7 +1890,7 @@ stringop(Node *n, int top)
 			c->type = c->left->type->type;
 		}
 		r = nod(OCONV, n->right, N);
-		r->type = types[TINT32];
+		r->type = types[TINT];
 		r = list(c, r);
 		on = syslook("indexstring", 0);
 		r = nod(OCALL, on, r);
@@ -1984,9 +1984,9 @@ mapop(Node *n, int top)
 		if(top != Erv)
 			goto nottop;
 
-		// newmap(keysize uint32, valsize uint32,
-		//	keyalg uint32, valalg uint32,
-		//	hint uint32) (hmap *map[any-1]any-2);
+		// newmap(keysize int, valsize int,
+		//	keyalg int, valalg int,
+		//	hint int) (hmap *map[any-1]any-2);
 
 		t = fixmap(n->type);
 		if(t == T)
@@ -2194,8 +2194,8 @@ chanop(Node *n, int top)
 		fatal("chanop: unknown op %O", n->op);
 
 	case ONEW:
-		// newchan(elemsize uint32, elemalg uint32,
-		//	hint uint32) (hmap *chan[any-1]);
+		// newchan(elemsize int, elemalg int,
+		//	hint int) (hmap *chan[any-1]);
 
 		t = fixchan(n->type);
 		if(t == T)
@@ -2380,12 +2380,12 @@ arrayop(Node *n, int top)
 		fatal("darrayop: unknown op %O", n->op);
 
 	case ONEW:
-		// newarray(nel uint32, max uint32, width uint32) (ary *[]any)
+		// newarray(nel int, max int, width int) (ary *[]any)
 		t = fixarray(n->type);
 
 		a = nodintconst(t->type->width);	// width
 		a = nod(OCONV, a, N);
-		a->type = types[TUINT32];
+		a->type = types[TINT];
 		r = a;
 
 		a = listfirst(&save, &n->left);		// max
@@ -2393,7 +2393,7 @@ arrayop(Node *n, int top)
 		if(a == N)
 			a = nodintconst(0);
 		a = nod(OCONV, a, N);
-		a->type = types[TUINT32];
+		a->type = types[TINT];
 		r = list(a, r);
 
 		a = listfirst(&save, &n->left);		// nel
@@ -2403,7 +2403,7 @@ arrayop(Node *n, int top)
 			a = nodintconst(t->bound);
 		}
 		a = nod(OCONV, a, N);
-		a->type = types[TUINT32];
+		a->type = types[TINT];
 		r = list(a, r);
 
 		on = syslook("newarray", 1);
@@ -2421,12 +2421,12 @@ arrayop(Node *n, int top)
 		break;
 
 	case OAS:
-		// arrays2d(old *any, nel uint32) (ary *[]any)
+		// arrays2d(old *any, nel int) (ary *[]any)
 		t = fixarray(n->right->type);
 
 		a = nodintconst(t->bound);		// nel
 		a = nod(OCONV, a, N);
-		a->type = types[TUINT32];
+		a->type = types[TINT];
 		r = a;
 
 		a = n->right;				// old
@@ -2445,20 +2445,20 @@ arrayop(Node *n, int top)
 		if(isptrarray(n->left->type))
 			goto slicestatic;
 
-		// arrayslices(old *[]any, lb uint32, hb uint32, width uint32) (ary *[]any)
+		// arrayslices(old *[]any, lb int, hb int, width int) (ary *[]any)
 		t = fixarray(n->left->type);
 
 		a = nodintconst(t->type->width);	// width
 		a = nod(OCONV, a, N);
-		a->type = types[TUINT32];
+		a->type = types[TINT];
 		r = a;
 
 		a = nod(OCONV, n->right->right, N);	// hb
-		a->type = types[TUINT32];
+		a->type = types[TINT];
 		r = list(a, r);
 
 		a = nod(OCONV, n->right->left, N);	// lb
-		a->type = types[TUINT32];
+		a->type = types[TINT];
 		r = list(a, r);
 
 		a = n->left;				// old
@@ -2472,25 +2472,25 @@ arrayop(Node *n, int top)
 		break;
 
 	slicestatic:
-		// arrayslices(old *any, nel uint32, lb uint32, hb uint32, width uint32) (ary *[]any)
+		// arrayslices(old *any, nel int, lb int, hb int, width int) (ary *[]any)
 		t = fixarray(n->left->type);
 
 		a = nodintconst(t->type->width);	// width
 		a = nod(OCONV, a, N);
-		a->type = types[TUINT32];
+		a->type = types[TINT];
 		r = a;
 
 		a = nod(OCONV, n->right->right, N);	// hb
-		a->type = types[TUINT32];
+		a->type = types[TINT];
 		r = list(a, r);
 
 		a = nod(OCONV, n->right->left, N);	// lb
-		a->type = types[TUINT32];
+		a->type = types[TINT];
 		r = list(a, r);
 
 		a = nodintconst(t->bound);		// nel
 		a = nod(OCONV, a, N);
-		a->type = types[TUINT32];
+		a->type = types[TINT];
 		r = list(a, r);
 
 		a = n->left;				// old
