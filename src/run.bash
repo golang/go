@@ -15,28 +15,27 @@ xcd() {
 make clean
 time make
 bash test.bash
-)
+) || exit $?
 
 (xcd lib/regexp
 make clean
 time make
 make test
-)
+) || exit $?
 
 (xcd ../usr/gri/gosrc
 make clean
 time make
 # make test
-)
+) || exit $?
 
 (xcd ../usr/gri/pretty
 make clean
 time make
 make test
-)
-
+) || exit $?
 
 (xcd ../test
 ./run
-)
+) || exit $?
 
