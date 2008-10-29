@@ -1650,7 +1650,7 @@ globalsig(Type *t)
 		return S;
 	if(strcmp(t->sym->name, types[et]->sym->name) != 0)
 		return S;
-	snprint(buf, sizeof(buf), "%s_%S", "sigt", types[simtype[et]]->sym);
+	snprint(buf, sizeof(buf), "%s_%S", "sigt", t->sym);
 
 out:
 	s = pkglookup(buf, glob);
