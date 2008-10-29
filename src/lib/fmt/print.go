@@ -158,6 +158,8 @@ func (p *P) sprintln(v reflect.Empty) string {
 
 func getInt(v reflect.Value) (val int64, signed, ok bool) {
 	switch v.Kind() {
+	case reflect.IntKind:
+		return int64(v.(reflect.IntValue).Get()), true, true;
 	case reflect.Int8Kind:
 		return int64(v.(reflect.Int8Value).Get()), true, true;
 	case reflect.Int16Kind:
@@ -166,6 +168,8 @@ func getInt(v reflect.Value) (val int64, signed, ok bool) {
 		return int64(v.(reflect.Int32Value).Get()), true, true;
 	case reflect.Int64Kind:
 		return int64(v.(reflect.Int64Value).Get()), true, true;
+	case reflect.UintKind:
+		return int64(v.(reflect.UintValue).Get()), false, true;
 	case reflect.Uint8Kind:
 		return int64(v.(reflect.Uint8Value).Get()), false, true;
 	case reflect.Uint16Kind:
@@ -188,6 +192,8 @@ func getString(v reflect.Value) (val string, ok bool) {
 
 func getFloat(v reflect.Value) (val float64, ok bool) {
 	switch v.Kind() {
+	case reflect.FloatKind:
+		return float64(v.(reflect.FloatValue).Get()), true;
 	case reflect.Float32Kind:
 		return float64(v.(reflect.Float32Value).Get()), true;
 	case reflect.Float64Kind:
@@ -363,13 +369,13 @@ func (p *P) doprint(v reflect.StructValue, is_println bool) {
 			p.add(' ')
 		}
 		switch field.Kind() {
-		case reflect.Int8Kind, reflect.Int16Kind, reflect.Int32Kind, reflect.Int64Kind:
+		case reflect.IntKind, reflect.Int8Kind, reflect.Int16Kind, reflect.Int32Kind, reflect.Int64Kind:
 			v, signed, ok := getInt(field);
 			s = p.fmt.d64(v).str();
-		case reflect.Uint8Kind, reflect.Uint16Kind, reflect.Uint32Kind, reflect.Uint64Kind:
+		case reflect.UintKind, reflect.Uint8Kind, reflect.Uint16Kind, reflect.Uint32Kind, reflect.Uint64Kind:
 			v, signed, ok := getInt(field);
 			s = p.fmt.ud64(uint64(v)).str();
-		case reflect.Float32Kind, reflect.Float64Kind, reflect.Float80Kind:
+		case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind, reflect.Float80Kind:
 			v, ok := getFloat(field);
 			s = p.fmt.g64(v).str();
 		case reflect.StringKind:
