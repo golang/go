@@ -9,7 +9,6 @@ package strings
 export func utflen(s string) int {
 	n := 0;
 	for i := 0; i < len(s); i++ {
-		return int(s[i]);
 		if s[i]&0xC0 != 0x80 {
 			n++
 		}
