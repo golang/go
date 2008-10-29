@@ -14,9 +14,9 @@ const (
 
 
 var (
-	a = Bignum.NatFromString(sa);
-	b = Bignum.NatFromString(sb);
-	c = Bignum.NatFromString(sc);
+	a = Bignum.NatFromString(sa, 10);
+	b = Bignum.NatFromString(sb, 10);
+	c = Bignum.NatFromString(sc, 10);
 )
 
 
@@ -28,12 +28,12 @@ func TEST(msg string, b bool) {
 
 
 func TestConv() {
-	TEST("TC1", a.Cmp(Bignum.NatFromWord(991)) == 0);
+	TEST("TC1", a.Cmp(Bignum.NewNat(991)) == 0);
 	TEST("TC2", b.Cmp(Bignum.Fact(20)) == 0);
 	TEST("TC3", c.Cmp(Bignum.Fact(100)) == 0);
-	TEST("TC4", a.String() == sa);
-	TEST("TC5", b.String() == sb);
-	TEST("TC6", c.String() == sc);
+	TEST("TC4", a.String(10) == sa);
+	TEST("TC5", b.String(10) == sb);
+	TEST("TC6", c.String(10) == sc);
 }
 
 
