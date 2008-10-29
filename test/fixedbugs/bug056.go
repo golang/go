@@ -6,7 +6,7 @@
 
 package main
 
-func frexp() (a int, b double) {
+func frexp() (a int, b float64) {
 	return 1, 2.0
 }
 
