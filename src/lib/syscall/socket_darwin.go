@@ -35,7 +35,7 @@ export func listen(fd, n int64) (ret int64, err int64) {
 }
 
 export func accept(fd int64, sa *Sockaddr) (ret int64, err int64) {
-	n := SizeofSockaddr;
+	var n int32 = SizeofSockaddr;
 	r1, r2, e := Syscall(SYS_ACCEPT, fd, SockaddrPtr(sa), Int32Ptr(&n));
 	return r1, e
 }
@@ -49,7 +49,7 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
 }
 
 export func setsockopt_int(fd, level, opt int64, value int) int64 {
-	n := int(opt);
+	var n int32 = int32(opt);
 	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4);
 	return e
 }
@@ -58,7 +58,7 @@ export func setsockopt_tv(fd, level, opt, nsec int64) int64 {
 	var tv Timeval;
 	nsec += 999;
 	tv.sec = int64(nsec/1000000000);
-	tv.usec = uint(nsec%1000000000);
+	tv.usec = uint32(nsec%1000000000);
 	r1, e := setsockopt(fd, level, opt, TimevalPtr(&tv), 4);
 	return e
 }
@@ -67,10 +67,10 @@ export func setsockopt_linger(fd, level, opt int64, sec int) int64 {
 	var l Linger;
 	if sec != 0 {
 		l.yes = 1;
-		l.sec = sec
+		l.sec = int32(sec);
 	} else {
 		l.yes = 0;
-		l.sec = 0
+		l.sec = 0;
 	}
 	r1, err := setsockopt(fd, level, opt, LingerPtr(&l), 8);
 	return err

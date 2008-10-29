@@ -20,7 +20,7 @@ const NPows10 = 160;
 
 var ldigits string = "0123456789abcdef"  // var not const because we take its address
 var udigits string = "0123456789ABCDEF"
-var pows10 [NPows10] double;
+var pows10 [NPows10] float64;
 
 func init() {
 	pows10[0] = 1.0e0;
@@ -311,8 +311,8 @@ func (f *Fmt) s(s string) *Fmt {
 	return f;
 }
 
-func pow10(n int) double {
-	var d double;
+func pow10(n int) float64 {
+	var d float64;
 
 	neg := false;
 	if n < 0 {
@@ -344,7 +344,7 @@ func pow10(n int) double {
 	return d;
 }
 
-func unpack(a double) (negative bool, exp int, num double) {
+func unpack(a float64) (negative bool, exp int, num float64) {
 	if a == 0 {
 		return false, 0, 0.0
 	}
@@ -355,7 +355,7 @@ func unpack(a double) (negative bool, exp int, num double) {
 	// find g,e such that a = g*10^e.
 	// guess 10-exponent using 2-exponent, then fine tune.
 	g, e2 := sys.frexp(a);
-	e := int(double(e2) * .301029995663981);
+	e := int(float64(e2) * .301029995663981);
 	g = a * pow10(-e);
 	for g < 1 {
 		e--;
@@ -369,7 +369,7 @@ func unpack(a double) (negative bool, exp int, num double) {
 }
 
 // check for Inf, NaN
-func(f *Fmt) InfOrNan(a double) bool {
+func(f *Fmt) InfOrNan(a float64) bool {
 	if sys.isInf(a, 0) {
 		if sys.isInf(a, 1) {
 			f.pad("Inf");
@@ -387,10 +387,10 @@ func(f *Fmt) InfOrNan(a double) bool {
 	return false;
 }
 
-// double
-func (f *Fmt) E(a double) *Fmt {
+// float64
+func (f *Fmt) E(a float64) *Fmt {
 	var negative bool;
-	var g double;
+	var g float64;
 	var exp int;
 	if f.InfOrNan(a) {
 		return f;
@@ -430,10 +430,10 @@ func (f *Fmt) E(a double) *Fmt {
 	return f;
 }
 
-// double
-func (f *Fmt) F(a double) *Fmt {
+// float64
+func (f *Fmt) F(a float64) *Fmt {
 	var negative bool;
-	var g double;
+	var g float64;
 	var exp int;
 	if f.InfOrNan(a) {
 		return f;
@@ -453,7 +453,7 @@ func (f *Fmt) F(a double) *Fmt {
 		gi := int64(g);
 		s = New().integer(gi, 10, true, &ldigits);
 		s = s + ".";
-		g -= double(gi);
+		g -= float64(gi);
 		s = s + New().p(prec).integer(int64(g*pow10(prec) + .5), 10, true, &ldigits);
 	} else {
 		g *= pow10(prec + exp);
@@ -467,8 +467,8 @@ func (f *Fmt) F(a double) *Fmt {
 	return f;
 }
 
-// double
-func (f *Fmt) G(a double) *Fmt {
+// float64
+func (f *Fmt) G(a float64) *Fmt {
 	if f.InfOrNan(a) {
 		return f;
 	}
@@ -511,15 +511,15 @@ func (f *Fmt) G(a double) *Fmt {
 
 // float
 func (x *Fmt) f(a float) *Fmt {
-	return x.F(double(a))
+	return x.F(float64(a))
 }
 
 // float
 func (x *Fmt) e(a float) *Fmt {
-	return x.E(double(a))
+	return x.E(float64(a))
 }
 
 // float
 func (x *Fmt) g(a float) *Fmt {
-	return x.G(double(a))
+	return x.G(float64(a))
 }

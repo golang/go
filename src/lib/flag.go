@@ -353,7 +353,7 @@ export func Arg(i int) string {
 	return sys.argv(i)
 }
 
-export func NArg() int32 {
+export func NArg() int {
 	return sys.argc() - flags.first_arg
 }
 

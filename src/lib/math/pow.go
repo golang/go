@@ -14,7 +14,7 @@ export func
 pow(arg1,arg2 float64) float64
 {
 	var temp float64;
-	var l long;
+	var l int32;
 
 	if arg2 < 0 {
 		return 1/pow(arg1, -arg2);
@@ -32,7 +32,7 @@ pow(arg1,arg2 float64) float64
 			panic(sys.NaN());
 		}
 
-		l = long(temp);
+		l = int32(temp);
 		if l&1 != 0 {
 			return -pow(-arg1, arg2);
 		}
@@ -50,7 +50,7 @@ pow(arg1,arg2 float64) float64
 		return exp(arg2 * log(arg1));
 	}
 
-	l = long(temp);
+	l = int32(temp);
 	temp = 1;
 	for {
 		if l&1 != 0 {
