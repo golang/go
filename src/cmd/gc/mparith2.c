@@ -149,12 +149,13 @@ mpneg(Mpint *a)
 	a1 = &a->a[0];
 	c = 0;
 	for(i=0; i<Mpprec; i++) {
-		x = c - *a1;
-		*a1++ = x;
-
+		x = -*a1 -c;
 		c = 0;
-		if(x < 0)
+		if(x < 0) {
+			x += Mpbase;
 			c = 1;
+		}
+		*a1++ = x;
 	}
 }
 
@@ -295,8 +296,8 @@ mporfixfix(Mpint *a, Mpint *b)
 	a1 = &a->a[0];
 	b1 = &b->a[0];
 	for(i=0; i<Mpprec; i++) {
-		x = *a1;
-		*a1++ = x | *b1++;
+		x = *a1 | *b1++;
+		*a1++ = x;
 	}
 
 	if(b->neg)
@@ -329,8 +330,8 @@ mpandfixfix(Mpint *a, Mpint *b)
 	a1 = &a->a[0];
 	b1 = &b->a[0];
 	for(i=0; i<Mpprec; i++) {
-		x = *a1;
-		*a1++ = x & *b1++;
+		x = *a1 & *b1++;
+		*a1++ = x;
 	}
 
 	if(b->neg)
@@ -363,8 +364,8 @@ mpxorfixfix(Mpint *a, Mpint *b)
 	a1 = &a->a[0];
 	b1 = &b->a[0];
 	for(i=0; i<Mpprec; i++) {
-		x = *a1;
-		*a1++ = x ^ *b1++;
+		x = *a1 ^ *b1++;
+		*a1++ = x;
 	}
 
 	if(b->neg)
