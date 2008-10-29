@@ -164,7 +164,7 @@ export func atol(s string) (i int64, ok bool) {
 
 export func atoi(s string) (i int, ok bool) {
 	ii, okok := atol(s);
-	i = int32(ii);
+	i = int(ii);
 	return i, okok
 }
 

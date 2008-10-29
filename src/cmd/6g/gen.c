@@ -839,6 +839,8 @@ cgen_as(Node *nl, Node *nr, int op)
 			fatal("cgen_as: tl %T", tl);
 			break;
 
+		case TINT:
+		case TUINT:
 		case TINT8:
 		case TUINT8:
 		case TINT16:
@@ -847,11 +849,13 @@ cgen_as(Node *nl, Node *nr, int op)
 		case TUINT32:
 		case TINT64:
 		case TUINT64:
+		case TUINTPTR:
 			nr->val.u.xval = mal(sizeof(*nr->val.u.xval));
 			mpmovecfix(nr->val.u.xval, 0);
 			nr->val.ctype = CTINT;
 			break;
 
+		case TFLOAT:
 		case TFLOAT32:
 		case TFLOAT64:
 		case TFLOAT80:
@@ -1029,7 +1033,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	a = optoas(op, nl->type);
 
 	if(nr->op == OLITERAL) {
-		regalloc(&n1, nr->type, res);
+		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
 		gins(a, nr, &n1);
 		gmove(&n1, res);
@@ -1065,7 +1069,6 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		cgen(nr, &n1);
 		cgen(nl, &n2);
 	}
-
 	// test and fix up large shifts
 	nodconst(&n3, types[TUINT32], nl->type->width*8);
 	gins(optoas(OCMP, types[TUINT32]), &n1, &n3);

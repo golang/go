@@ -340,7 +340,7 @@ nodintconst(int32 v)
 	c->val.u.xval = mal(sizeof(*c->val.u.xval));
 	mpmovecfix(c->val.u.xval, v);
 	c->val.ctype = CTINT;
-	c->type = types[TINT32];
+	c->type = types[TINT];
 	ullmancalc(c);
 	return c;
 }
@@ -578,15 +578,19 @@ whatis(Node *n)
 		return Wtnil;
 
 	switch(t->etype) {
+	case TINT:
 	case TINT8:
 	case TINT16:
 	case TINT32:
 	case TINT64:
+	case TUINT:
 	case TUINT8:
 	case TUINT16:
 	case TUINT32:
 	case TUINT64:
+	case TUINTPTR:
 		return Wtint;
+	case TFLOAT:
 	case TFLOAT32:
 	case TFLOAT64:
 	case TFLOAT80:
@@ -796,6 +800,8 @@ s%~	%%g
 static char*
 etnames[] =
 {
+	[TINT]		= "INT",
+	[TUINT]		= "UINT",
 	[TINT8]		= "INT8",
 	[TUINT8]	= "UINT8",
 	[TINT16]	= "INT16",
@@ -804,6 +810,8 @@ etnames[] =
 	[TUINT32]	= "UINT32",
 	[TINT64]	= "INT64",
 	[TUINT64]	= "UINT64",
+	[TUINTPTR]	= "UINTPTR",
+	[TFLOAT]	= "FLOAT",
 	[TFLOAT32]	= "FLOAT32",
 	[TFLOAT64]	= "FLOAT64",
 	[TFLOAT80]	= "FLOAT80",
@@ -939,20 +947,26 @@ out:
 	return fmtstrcpy(fp, buf);
 }
 
-static char *basicnames[] = {
-[TINT8]	"int8",
-[TUINT8]	"uint8",
-[TINT16]	"int16",
-[TUINT16]	"uint16",
-[TINT32]	"int32",
-[TUINT32]	"uint32",
-[TINT64]	"int64",
-[TUINT64]	"uint64",
-[TFLOAT32]	"float32",
-[TFLOAT64]	"float64",
-[TFLOAT80]	"float80",
-[TBOOL]	"bool",
-[TANY]	"any",
+static char*
+basicnames[] =
+{
+	[TINT]		= "int",
+	[TUINT]		= "uint",
+	[TINT8]		= "int8",
+	[TUINT8]	= "uint8",
+	[TINT16]	= "int16",
+	[TUINT16]	= "uint16",
+	[TINT32]	= "int32",
+	[TUINT32]	= "uint32",
+	[TINT64]	= "int64",
+	[TUINT64]	= "uint64",
+	[TUINTPTR]	= "uintptr",
+	[TFLOAT]	= "float",
+	[TFLOAT32]	= "float32",
+	[TFLOAT64]	= "float64",
+	[TFLOAT80]	= "float80",
+	[TBOOL]		= "bool",
+	[TANY]		= "any",
 };
 
 int
@@ -1609,16 +1623,20 @@ globalsig(Type *t)
 		}
 		return S;
 
+	case TINT:
 	case TINT8:
 	case TINT16:
 	case TINT32:
 	case TINT64:
 
+	case TUINT:
 	case TUINT8:
 	case TUINT16:
 	case TUINT32:
 	case TUINT64:
+	case TUINTPTR:
 
+	case TFLOAT:
 	case TFLOAT32:
 	case TFLOAT64:
 	case TFLOAT80:

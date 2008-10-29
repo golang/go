@@ -444,10 +444,10 @@ defaultlit(Node *n)
 	case CTINT:
 	case CTSINT:
 	case CTUINT:
-		n->type = types[TINT32];
+		n->type = types[TINT];
 		break;
 	case CTFLT:
-		n->type = types[TFLOAT64];
+		n->type = types[TFLOAT];
 		break;
 	case CTBOOL:
 		n->type = types[TBOOL];

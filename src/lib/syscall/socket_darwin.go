@@ -49,7 +49,7 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
 }
 
 export func setsockopt_int(fd, level, opt int64, value int) int64 {
-	n := int32(opt);
+	n := int(opt);
 	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4);
 	return e
 }
@@ -58,7 +58,7 @@ export func setsockopt_tv(fd, level, opt, nsec int64) int64 {
 	var tv Timeval;
 	nsec += 999;
 	tv.sec = int64(nsec/1000000000);
-	tv.usec = uint32(nsec%1000000000);
+	tv.usec = uint(nsec%1000000000);
 	r1, e := setsockopt(fd, level, opt, TimevalPtr(&tv), 4);
 	return e
 }

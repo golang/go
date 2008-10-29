@@ -69,6 +69,7 @@ mainlex(int argc, char *argv[])
 	if(curio.bin == nil)
 		fatal("cant open: %s", infile);
 	curio.peekc = 0;
+	curio.peekc1 = 0;
 
 	externdcl = mal(sizeof(*externdcl));
 	externdcl->back = externdcl;
@@ -235,6 +236,7 @@ importfile(Val *f)
 	pushedio = curio;
 	curio.bin = imp;
 	curio.peekc = 0;
+	curio.peekc1 = 0;
 	curio.infile = file;
 	for(;;) {
 		c = getc();
@@ -280,6 +282,7 @@ cannedimports(void)
 	pushedio = curio;
 	curio.bin = nil;
 	curio.peekc = 0;
+	curio.peekc1 = 0;
 	curio.infile = file;
 	curio.cp = sysimport;
 
@@ -290,7 +293,7 @@ cannedimports(void)
 int32
 yylex(void)
 {
-	int c, c1;
+	int c, c1, clen;
 	vlong v;
 	char *cp;
 	Rune rune;
@@ -334,28 +337,37 @@ l0:
 			c1 = 0;
 			goto casedot;
 		}
+		if(c1 == '.') {
+			c1 = getc();
+			if(c1 == '.') {
+				c = LDDD;
+				goto lx;
+			}
+			ungetc(c1);
+			c1 = '.';
+		}
 		break;
 
 	case '"':
 		/* "..." */
 		strcpy(namebuf, "\"<string>\"");
 		cp = mal(sizeof(int32));
-		c1 = sizeof(int32);
+		clen = sizeof(int32);
 
 	caseq:
 		for(;;) {
 			if(escchar('"', &escflag, &v))
 				break;
 			if(v < Runeself || escflag) {
-				cp = remal(cp, c1, 1);
-				cp[c1++] = v;
+				cp = remal(cp, clen, 1);
+				cp[clen++] = v;
 			} else {
 				// botch - this limits size of runes
 				rune = v;
 				c = runelen(rune);
-				cp = remal(cp, c1, c);
-				runetochar(cp+c1, &rune);
-				c1 += c;
+				cp = remal(cp, clen, c);
+				runetochar(cp+clen, &rune);
+				clen += c;
 			}
 		}
 		goto catem;
@@ -364,36 +376,66 @@ l0:
 		/* `...` */
 		strcpy(namebuf, "`<string>`");
 		cp = mal(sizeof(int32));
-		c1 = sizeof(int32);
+		clen = sizeof(int32);
 
 	casebq:
 		for(;;) {
 			c = getc();
 			if(c == EOF || c == '`')
 				break;
-			cp = remal(cp, c1, 1);
-			cp[c1++] = c;
+			cp = remal(cp, clen, 1);
+			cp[clen++] = c;
 		}
+		goto catem;
 
 	catem:
-		for(;;) {
-			/* it takes 2 peekc's to skip comments */
-			c = getc();
-			if(isspace(c))
-				continue;
-			if(c == '"')
-				goto caseq;
-			if(c == '`')
-				goto casebq;
-			ungetc(c);
-			break;
+		c = getc();
+		if(isspace(c))
+			goto catem;
+
+		// skip comments
+		if(c == '/') {
+			c1 = getc();
+			if(c1 == '*') {
+				for(;;) {
+					c = getr();
+					while(c == '*') {
+						c = getr();
+						if(c == '/')
+							goto catem;
+					}
+					if(c == EOF) {
+						yyerror("eof in comment");
+						errorexit();
+					}
+				}
+			}
+			if(c1 == '/') {
+				for(;;) {
+					c = getr();
+					if(c == '\n')
+						goto catem;
+					if(c == EOF) {
+						yyerror("eof in comment");
+						errorexit();
+					}
+				}
+			}
+			ungetc(c1);
 		}
 
-		*(int32*)cp = c1-sizeof(int32);	// length
+		// cat adjacent strings
+		if(c == '"')
+			goto caseq;
+		if(c == '`')
+			goto casebq;
+		ungetc(c);
+
+		*(int32*)cp = clen-sizeof(int32);	// length
 		do {
-			cp = remal(cp, c1, 1);
-			cp[c1++] = 0;
-		} while(c1 & MAXALIGN);
+			cp = remal(cp, clen, 1);
+			cp[clen++] = 0;
+		} while(clen & MAXALIGN);
 		yylval.val.u.sval = (String*)cp;
 		yylval.val.ctype = CTSTR;
 		DBG("lex: string literal\n");
@@ -753,7 +795,8 @@ getc(void)
 
 	c = curio.peekc;
 	if(c != 0) {
-		curio.peekc = 0;
+		curio.peekc = curio.peekc1;
+		curio.peekc1 = 0;
 		if(c == '\n')
 			lineno++;
 		return c;
@@ -783,6 +826,7 @@ getc(void)
 void
 ungetc(int c)
 {
+	curio.peekc1 = curio.peekc;
 	curio.peekc = c;
 	if(c == '\n')
 		lineno--;
@@ -968,7 +1012,6 @@ static	struct
 
 	"bool",		LBASETYPE,	TBOOL,
 	"byte",		LBASETYPE,	TUINT8,
-	"char",		LBASETYPE,	TUINT8,		// temp??
 	"string",	LBASETYPE,	TSTRING,
 
 	"any",		LBASETYPE,	TANY,
@@ -1028,15 +1071,25 @@ lexinit(void)
 	Type *t;
 	Sym *s;
 
+	for(i=0; i<NTYPE; i++)
+		simtype[i] = i;
+
 	besetptr();
 
 	for(i=TINT8; i<=TUINT64; i++)
 		isint[i] = 1;
+	isint[TINT] = 1;
+	isint[TUINT] = 1;
+	isint[TUINTPTR] = 1;
+
 	for(i=TFLOAT32; i<=TFLOAT80; i++)
 		isfloat[i] = 1;
+	isfloat[TFLOAT] = 1;
+
 	isptr[TPTR32] = 1;
 	isptr[TPTR64] = 1;
 
+	issigned[TINT] = 1;
 	issigned[TINT8] = 1;
 	issigned[TINT16] = 1;
 	issigned[TINT32] = 1;
@@ -1091,7 +1144,6 @@ lexinit(void)
 	mpatoflt(minfltval[TFLOAT32], "-3.40282347e+38");
 	mpatoflt(maxfltval[TFLOAT64], "1.7976931348623157e+308");
 	mpatoflt(minfltval[TFLOAT64], "-1.7976931348623157e+308");
-
 
 	/*
 	 * initialize basic types array

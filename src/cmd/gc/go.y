@@ -17,7 +17,7 @@
 %token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
 %token	<sym>		LPACKAGE LIMPORT LEXPORT
 %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
-%token	<sym>		LCOLAS LFALL LRETURN
+%token	<sym>		LCOLAS LFALL LRETURN LDDD
 %token	<sym>		LNEW LLEN LCAP LTYPEOF LPANIC LPANICN LPRINT LPRINTN
 %token	<sym>		LVAR LTYPE LCONST LCONVERT LSELECT
 %token	<sym>		LFOR LIF LELSE LSWITCH LCASE LDEFAULT
@@ -71,7 +71,7 @@
 %type	<type>		nametype structtype interfacetype convtype
 %type	<type>		non_name_type Anon_fn_type Bnon_fn_type
 %type	<type>		Anon_chan_type Bnon_chan_type
-%type	<type>		indcl fnlitdcl
+%type	<type>		indcl fnlitdcl dotdotdot
 
 %type	<val>		hidden_constant
 %type	<node>		hidden_dcl hidden_structdcl
@@ -1047,6 +1047,13 @@ non_name_type:
 	chantype
 |	fntype
 |	othertype
+|	dotdotdot
+
+dotdotdot:
+	LDDD
+	{
+		$$ = typ(TDDD);
+	}
 
 Anon_chan_type:
 	Afntype
@@ -1444,6 +1451,10 @@ indcl:
  */
 arg_chunk:
 	new_name_list_r type
+	{
+		$$ = nametodcl($1, $2);
+	}
+|	new_name_list_r dotdotdot
 	{
 		$$ = nametodcl($1, $2);
 	}

@@ -44,7 +44,7 @@ export func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
 }
 
 export func pipe(fds *[2]int64) (ret int64, errno int64) {
-	var t [2] int32;
+	var t [2] int;
 	r1, r2, err := Syscall(SYS_PIPE, Int32Ptr(&t[0]), 0, 0);
 	if r1 < 0 {
 		return r1, err;
