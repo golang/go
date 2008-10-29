@@ -9,13 +9,13 @@ errchk: ./convlit.go: missing expected error message on line 23: 'overflow'
 errchk: ./convlit.go: missing expected error message on line 24: 'overflow'
 BUG: errchk: ./convlit.go: unmatched error messages:
 ==================================================
-./convlit.go:8: cannot convert non-integer constant to int32
-./convlit.go:11: overflow converting constant to int32
-./convlit.go:12: overflow converting constant to float32
-./convlit.go:8: cannot convert non-integer constant to int32
-./convlit.go:9: cannot convert non-integer constant to int32
-./convlit.go:11: overflow converting constant to int32
-./convlit.go:12: overflow converting constant to float32
+./convlit.go:8: cannot convert non-integer constant to int
+./convlit.go:11: overflow converting constant to int
+./convlit.go:12: overflow converting constant to float
+./convlit.go:8: cannot convert non-integer constant to int
+./convlit.go:9: cannot convert non-integer constant to int
+./convlit.go:11: overflow converting constant to int
+./convlit.go:12: overflow converting constant to float
 ==================================================
 
 =========== ./helloworld.go
@@ -98,8 +98,8 @@ BUG: compilation succeeds incorrectly
 
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
-	int32
-	struct { u int32; v int32 }
+	int
+	struct { u int; v int }
 BUG: compilation should succeed
 
 =========== bugs/bug077.go
@@ -107,8 +107,8 @@ BUG: known to succeed incorrectly
 
 =========== bugs/bug080.go
 bugs/bug080.go:12: illegal types for operand: CALL
-	int32
-	struct { x int32; y float32 }
+	int
+	struct { x int; y float }
 BUG: fails incorrectly
 
 =========== bugs/bug083.go
@@ -138,7 +138,7 @@ BUG should compile
 =========== bugs/bug105.go
 bugs/bug105.go:8: P: undefined
 bugs/bug105.go:9: illegal types for operand: RETURN
-	int32
+	int
 BUG: should compile
 
 =========== bugs/bug108.go
@@ -159,8 +159,13 @@ BUG: should compile
 =========== bugs/bug113.go
 BUG: should not succeed
 
+=========== bugs/bug114.go
+(-1) & ((1<<32) - 1) is 1073741823 should be 4294967295
+
+panic on line 78 PC=xxx
+
 =========== fixedbugs/bug016.go
-fixedbugs/bug016.go:7: overflow converting constant to uint32
+fixedbugs/bug016.go:7: overflow converting constant to uint
 
 =========== fixedbugs/bug025.go
 fixedbugs/bug025.go:7: variable exported but not defined: Foo
@@ -230,11 +235,11 @@ fixedbugs/bug072.go:6: bug: undefined
 
 =========== fixedbugs/bug073.go
 fixedbugs/bug073.go:8: illegal types for operand: LSH
-	int32
-	int32
+	int
+	int
 fixedbugs/bug073.go:9: illegal types for operand: RSH
-	int32
-	int32
+	int
+	int
 
 =========== fixedbugs/bug074.go
 fixedbugs/bug074.go:6: syntax error near string
@@ -248,15 +253,15 @@ fixedbugs/bug081.go:5: syntax error near x
 fixedbugs/bug086.go:5: function ends without a return statement
 
 =========== fixedbugs/bug090.go
-fixedbugs/bug090.go:32: cannot convert non-integer constant to int32
+fixedbugs/bug090.go:32: cannot convert non-integer constant to int
 fixedbugs/bug090.go:32: illegal types for operand: AS
-	int32
-fixedbugs/bug090.go:34: cannot convert non-integer constant to int32
+	int
+fixedbugs/bug090.go:34: cannot convert non-integer constant to int
 fixedbugs/bug090.go:34: illegal types for operand: CALL
 	bool
-fixedbugs/bug090.go:40: cannot convert non-integer constant to int32
+fixedbugs/bug090.go:40: cannot convert non-integer constant to int
 fixedbugs/bug090.go:40: illegal types for operand: AS
-	int32
+	int
 	float64
 
 =========== fixedbugs/bug091.go
