@@ -7,7 +7,7 @@
 package main
 
 func
-pow10(pow int) double
+pow10(pow int) float64
 {
 	if pow < 0 { return 1/pow10(-pow); }
 	if pow > 0 { return pow10(pow-1)*10; }
@@ -15,9 +15,9 @@ pow10(pow int) double
 }
 
 func
-close(da double, ia, ib int64, pow int) bool
+close(da float64, ia, ib int64, pow int) bool
 {
-	db := double(ia) / double(ib);
+	db := float64(ia) / float64(ib);
 	db *= pow10(pow);
 
 	if da == 0 {
