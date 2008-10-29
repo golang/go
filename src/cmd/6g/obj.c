@@ -616,12 +616,10 @@ dumpsigt(void)
 	for(d=signatlist; d!=D; d=d->forw) {
 		if(d->op != OTYPE)
 			continue;
-
 		t = d->dtype;
 		et = t->etype;
 		if(et == TINTER)
 			continue;
-
 		at.sym = signame(t, d->block);
 		if(at.sym == S)
 			continue;
