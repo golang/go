@@ -210,7 +210,7 @@ func (i *IntValue) Set(val int64) {
 }
 
 func (i *IntValue) Str() string {
-	return fmt.New().D(i.val).str()
+	return fmt.New().d64(i.val).str()
 }
 
 // -- String Value
