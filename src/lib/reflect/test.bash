@@ -8,5 +8,5 @@ set -e
 make
 6g test.go
 6l test.6
-6.out
+./6.out
 rm -f *.6 6.out
