@@ -21,7 +21,7 @@ export type Pollster struct {
 	epfd int64;
 
 	// Events we're already waiting for
-	events *map[int64] uint;
+	events *map[int64] uint32;
 }
 
 export func NewPollster() (p *Pollster, err *os.Error) {
@@ -34,7 +34,7 @@ export func NewPollster() (p *Pollster, err *os.Error) {
 	if p.epfd, e = syscall.epoll_create(16); e != 0 {
 		return nil, os.ErrnoToError(e)
 	}
-	p.events = new(map[int64] uint);
+	p.events = new(map[int64] uint32);
 	return p, nil
 }
 
@@ -81,7 +81,7 @@ func (p *Pollster) StopWaiting(fd int64, bits uint) {
 	// Disable the given bits.
 	// If we're still waiting for other events, modify the fd
 	// event in the kernel.  Otherwise, delete it.
-	events &= ^bits;
+	events &= ^uint32(bits);
 	if int32(events) & ^syscall.EPOLLONESHOT != 0 {
 		var ev syscall.EpollEvent;
 		ev.fd = int32(fd);
