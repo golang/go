@@ -14,7 +14,7 @@ func main() {
   var v1 int = i;
   if foo1(v1) != 1 { panicln(1) }
   var v2 int32 = i.(int).(int32);
-  if foo1(v2) != 1 { panicln(2) }
+  if foo2(v2) != 1 { panicln(2) }
   var v3 int32 = i; // This implicit type conversion should fail at runtime.
-  if foo1(v3) != 1 { panicln(3) }
+  if foo2(v3) != 1 { panicln(3) }
 }
