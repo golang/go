@@ -44,7 +44,6 @@ apply() {
 		$GOROOT/test/*.go \
 		$GOROOT/test/bugs/*.go \
 		$GOROOT/test/fixedbugs/*.go \
-		$GOROOT/src/pkg/*.go \
 		$GOROOT/src/lib/*.go \
 		$GOROOT/src/lib/*/*.go \
 		$GOROOT/usr/r/*/*.go
