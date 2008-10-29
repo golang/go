@@ -49,6 +49,8 @@ func valuedump(s, t string) {
 	typ := reflect.ParseTypeString("", s);
 	v := reflect.NewInitValue(typ);
 	switch v.Kind() {
+	case reflect.IntKind:
+		v.(reflect.IntValue).Put(132);
 	case reflect.Int8Kind:
 		v.(reflect.Int8Value).Put(8);
 	case reflect.Int16Kind:
@@ -57,6 +59,8 @@ func valuedump(s, t string) {
 		v.(reflect.Int32Value).Put(32);
 	case reflect.Int64Kind:
 		v.(reflect.Int64Value).Put(64);
+	case reflect.UintKind:
+		v.(reflect.UintValue).Put(132);
 	case reflect.Uint8Kind:
 		v.(reflect.Uint8Value).Put(8);
 	case reflect.Uint16Kind:
@@ -65,6 +69,8 @@ func valuedump(s, t string) {
 		v.(reflect.Uint32Value).Put(32);
 	case reflect.Uint64Kind:
 		v.(reflect.Uint64Value).Put(64);
+	case reflect.FloatKind:
+		v.(reflect.FloatValue).Put(3200.0);
 	case reflect.Float32Kind:
 		v.(reflect.Float32Value).Put(32.0);
 	case reflect.Float64Kind:
@@ -83,14 +89,17 @@ func main() {
 	var s string;
 	var t reflect.Type;
 
+	typedump("int", "int");
 	typedump("int8", "int8");
 	typedump("int16", "int16");
 	typedump("int32", "int32");
 	typedump("int64", "int64");
+	typedump("uint", "uint");
 	typedump("uint8", "uint8");
 	typedump("uint16", "uint16");
 	typedump("uint32", "uint32");
 	typedump("uint64", "uint64");
+	typedump("float", "float");
 	typedump("float32", "float32");
 	typedump("float64", "float64");
 	typedump("float80", "float80");
@@ -149,7 +158,7 @@ func main() {
 		var i int = 7;
 		var tmp = &T{123, 456.0, "hello", &i};
 		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.T{123, +4.560000e+02, hello, *int32(@)}");
+		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.T{123, +4.560000e+02, hello, *int(@)}");
 	}
 	{
 		type C chan *T;	// TODO: should not be necessary
@@ -162,7 +171,7 @@ func main() {
 		var tmp A = A{1,2,3,4,5,6,7,8,9,10};
 		value := reflect.NewValue(&tmp);
 		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.A_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
-		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.Int32Value).Put(123);
+		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Put(123);
 		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.A_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
 	}
 	{
@@ -171,7 +180,7 @@ func main() {
 		var tmp *AA = &tmp1;
 		value := reflect.NewValue(tmp);
 		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.AA_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
-		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.Int32Value).Put(123);
+		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Put(123);
 		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.AA_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
 	}
 }

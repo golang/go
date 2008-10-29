@@ -41,20 +41,48 @@ type Creator *(typ Type, addr Addr) Value
 
 // Conversion functions, implemented in assembler
 func AddrToPtrAddr(Addr) *Addr
+func AddrToPtrInt(Addr) *int
 func AddrToPtrInt8(Addr) *int8
 func AddrToPtrInt16(Addr) *int16
 func AddrToPtrInt32(Addr) *int32
 func AddrToPtrInt64(Addr) *int64
+func AddrToPtrUint(Addr) *uint
 func AddrToPtrUint8(Addr) *uint8
 func PtrUint8ToAddr(*uint8) Addr
 func AddrToPtrUint16(Addr) *uint16
 func AddrToPtrUint32(Addr) *uint32
 func AddrToPtrUint64(Addr) *uint64
 func PtrUint64ToAddr(*uint64) Addr
+func AddrToPtrFloat(Addr) *float
 func AddrToPtrFloat32(Addr) *float32
 func AddrToPtrFloat64(Addr) *float64
 func AddrToPtrFloat80(Addr) *float80
 func AddrToPtrString(Addr) *string
+
+// -- Int
+
+export type IntValue interface {
+	Kind()	int;
+	Get()	int;
+	Put(int);
+	Type()	Type;
+}
+
+type IntValueStruct struct {
+	CommonV
+}
+
+func IntCreator(typ Type, addr Addr) Value {
+	return &IntValueStruct{ CommonV{IntKind, typ, addr} }
+}
+
+func (v *IntValueStruct) Get() int {
+	return *AddrToPtrInt(v.addr)
+}
+
+func (v *IntValueStruct) Put(i int) {
+	*AddrToPtrInt(v.addr) = i
+}
 
 // -- Int8
 
@@ -156,6 +184,31 @@ func (v *Int64ValueStruct) Put(i int64) {
 	*AddrToPtrInt64(v.addr) = i
 }
 
+// -- Uint
+
+export type UintValue interface {
+	Kind()	int;
+	Get()	uint;
+	Put(uint);
+	Type()	Type;
+}
+
+type UintValueStruct struct {
+	CommonV
+}
+
+func UintCreator(typ Type, addr Addr) Value {
+	return &UintValueStruct{ CommonV{UintKind, typ, addr} }
+}
+
+func (v *UintValueStruct) Get() uint {
+	return *AddrToPtrUint(v.addr)
+}
+
+func (v *UintValueStruct) Put(i uint) {
+	*AddrToPtrUint(v.addr) = i
+}
+
 // -- Uint8
 
 export type Uint8Value interface {
@@ -254,6 +307,31 @@ func (v *Uint64ValueStruct) Get() uint64 {
 
 func (v *Uint64ValueStruct) Put(i uint64) {
 	*AddrToPtrUint64(v.addr) = i
+}
+
+// -- Float
+
+export type FloatValue interface {
+	Kind()	int;
+	Get()	float;
+	Put(float);
+	Type()	Type;
+}
+
+type FloatValueStruct struct {
+	CommonV
+}
+
+func FloatCreator(typ Type, addr Addr) Value {
+	return &FloatValueStruct{ CommonV{FloatKind, typ, addr} }
+}
+
+func (v *FloatValueStruct) Get() float {
+	return *AddrToPtrFloat(v.addr)
+}
+
+func (v *FloatValueStruct) Put(f float) {
+	*AddrToPtrFloat(v.addr) = f
 }
 
 // -- Float32
@@ -572,14 +650,17 @@ var creator *map[int] Creator
 
 func init() {
 	creator = new(map[int] Creator);
+	creator[IntKind] = &IntCreator;
 	creator[Int8Kind] = &Int8Creator;
 	creator[Int16Kind] = &Int16Creator;
 	creator[Int32Kind] = &Int32Creator;
 	creator[Int64Kind] = &Int64Creator;
+	creator[UintKind] = &UintCreator;
 	creator[Uint8Kind] = &Uint8Creator;
 	creator[Uint16Kind] = &Uint16Creator;
 	creator[Uint32Kind] = &Uint32Creator;
 	creator[Uint64Kind] = &Uint64Creator;
+	creator[FloatKind] = &FloatCreator;
 	creator[Float32Kind] = &Float32Creator;
 	creator[Float64Kind] = &Float64Creator;
 	creator[Float80Kind] = &Float80Creator;

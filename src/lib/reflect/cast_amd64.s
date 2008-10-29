@@ -11,6 +11,16 @@ TEXT reflect·PtrAddrToAddr(SB),7,$-8
 	MOVQ	AX, 16(SP)
 	RET
 
+TEXT reflect·AddrToPtrInt(SB),7,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
+	RET
+
+TEXT reflect·PtrIntToAddr(SB),7,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
+	RET
+
 TEXT reflect·AddrToPtrInt8(SB),7,$-8
 	MOVQ	8(SP), AX
 	MOVQ	AX, 16(SP)
@@ -51,6 +61,16 @@ TEXT reflect·PtrInt64ToAddr(SB),7,$-8
 	MOVQ	AX, 16(SP)
 	RET
 
+TEXT reflect·AddrToPtrUint(SB),7,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
+	RET
+
+TEXT reflect·PtrUintToAddr(SB),7,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
+	RET
+
 TEXT reflect·AddrToPtrUint8(SB),7,$-8
 	MOVQ	8(SP), AX
 	MOVQ	AX, 16(SP)
@@ -87,6 +107,16 @@ TEXT reflect·AddrToPtrUint64(SB),7,$-8
 	RET
 
 TEXT reflect·PtrUint64ToAddr(SB),7,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
+	RET
+
+TEXT reflect·AddrToPtrFloat(SB),7,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
+	RET
+
+TEXT reflect·PtrFloatToAddr(SB),7,$-8
 	MOVQ	8(SP), AX
 	MOVQ	AX, 16(SP)
 	RET
