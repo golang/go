@@ -66,6 +66,11 @@ Sigt	sys·sigt_float64[2] =	{ (byte*)"float64", ASIMP, 8, nil, END };
 Sigt	sys·sigt_bool[2] =	{ (byte*)"bool", ASIMP, 1, nil, END };
 Sigt	sys·sigt_string[2] =	{ (byte*)"string", ASTRING, 8, nil, END };
 
+Sigt	sys·sigt_int[2] =	{ (byte*)"int", ASIMP, 4, nil, END };
+Sigt	sys·sigt_uint[2] =	{ (byte*)"uint", ASIMP, 4, nil, END };
+Sigt	sys·sigt_uintptr[2] =	{ (byte*)"uintptr", ASIMP, 8, nil, END };
+Sigt	sys·sigt_float[2] =	{ (byte*)"float", ASIMP, 4, nil, END };
+
 static void
 printsigi(Sigi *si)
 {
