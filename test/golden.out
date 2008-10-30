@@ -264,3 +264,19 @@ M
 
 =========== fixedbugs/bug103.go
 fixedbugs/bug103.go:8: function requires a return type
+
+=========== bugs/bug115.go
+bugs/bug115.go:8: overflow converting constant to uint
+BUG: bug115 should compile
+
+=========== bugs/bug116.go
+-5>>1 = -2 want -3
+-4>>1 = -3 want -2
+-3>>1 = -1 want -2
+-2>>1 = -2 want -1
+-1>>1 = 0 want -1
+errors
+
+panic on line 92 PC=xxx
+BUG: bug116
+
