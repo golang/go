@@ -2192,8 +2192,10 @@ cleanidlist(Node *na)
 	if(last->type == T)
 		fatal("cleanidlist: no type");
 
-	for(n=na; n->op == OLIST; n=n->right)
+	for(n=na; n->op == OLIST; n=n->right) {
 		n->left->type = last->type;
+		n->left->val = last->val;
+	}
 	return na;
 }
 
