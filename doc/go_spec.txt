@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 28, 2008)
+(October 30, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -1094,7 +1094,8 @@ identifier may be declared twice and all field types must be complete
 types (§Types).
 
 	StructType = "struct" [ "{" [ List<FieldDecl> ] "}" ] .
-	FieldDecl = IdentifierList CompleteType | TypeName .
+	FieldDecl = (IdentifierList CompleteType | TypeName) [ Tag ] .
+	Tag = string_lit .
 
 	// An empty struct.
 	struct {}
@@ -1134,6 +1135,20 @@ other field within the struct. The following declaration is illegal:
 Fields and methods (§Method declarations) of an anonymous field become directly
 accessible as fields and methods of the struct without the need to provide the
 type name of the respective anonymous field (§Selectors).
+
+A field declaration may be followed by an optional string literal tag which
+becomes an ``attribute'' for all the identifiers in the corresponding
+field declaration. The tags are available via the reflection library but
+are ignored otherwise. A tag may contain arbitrary application-specific
+information (for instance protocol buffer field information).
+
+	// A struct corresponding to the EventIdMessage protocol buffer.
+	// The tag strings contain the protocol buffer field tags.
+	struct {
+		time_usec uint64 "1";
+		server_ip uint32 "2";
+		process_id uint32 "3";
+	}
 
 Forward declaration:
 A struct type consisting of only the reserved word "struct" may be used in
