@@ -1892,10 +1892,11 @@ hidden_dcl:
 	}
 
 hidden_structdcl:
-	sym1 hidden_type
+	sym1 hidden_type oliteral
 	{
 		$$ = nod(ODCLFIELD, newname($1), N);
 		$$->type = $2;
+		$$->val = $3;
 	}
 |	'?' hidden_type
 	{
