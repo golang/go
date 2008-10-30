@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 24, 2008)
+(October 28, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -28,9 +28,7 @@ Timeline (9/5/08):
 
 Missing:
 [ ] partial export of structs, methods
-[ ] syntax for var args
 [ ] range statement: to be defined more reasonably
-[ ] reflection support
 [ ] packages of multiple files
 [ ] Helper syntax for composite types: allow names/indices for maps/arrays,
     remove need for type in elements of composites
@@ -46,10 +44,10 @@ Todo's:
 
 
 Open issues:
+[ ] semantics of type decl and where methods are attached
 [ ] convert should not be used for composite literals anymore,
 	in fact, convert() should go away
 [ ] if statement: else syntax must be fixed
-[ ] should we have a shorter list of alias types? (byte, int, uint, float)
 [ ] old-style export decls (still needed, but ideally should go away)
 [ ] new(arraytype, n1, n2): spec only talks about length, not capacity
     (should only use new(arraytype, n) - this will allow later
@@ -73,7 +71,7 @@ Open issues:
 [ ] Conversions: can we say: "type T int; T(3.0)" ?
 	We could allow converting structurally equivalent types into each other this way.
 	May play together with "type T1 T2" where we give another type name to T2.
-[ ] Is . import implemented?
+[ ] Is . import implemented / do we still need it?
 [ ] Do we allow empty statements? If so, do we allow empty statements after a label?
     and if so, does a label followed by an empty statement (a semicolon) still denote
 	a for loop that is following, and can break L be used inside it?
@@ -87,9 +85,13 @@ Open issues:
 
 Decisions in need of integration into the doc:
 [ ] pair assignment is required to get map, and receive ok.
+[ ] len() returns an int, new(array_type, n) n must be an int
 
 
 Closed:
+[x] should we have a shorter list of alias types? (byte, int, uint, float) - done
+[x] reflection support
+[x] syntax for var args
 [x] Do composite literals create a new literal each time (gri thinks yes) (Russ is putting in a change
     to this effect, essentially)
 [x] comparison operators: can we compare interfaces?
@@ -610,12 +612,12 @@ The following identifiers are predeclared:
 
 - all basic types:
 
-	bool, uint8, uint16, uint32, uint64, int8, int16, int32, int64,
+	bool, byte, uint8, uint16, uint32, uint64, int8, int16, int32, int64,
 	float32, float64, float80, string
 	
-- and their alias types:
+- a set of platform-specific convenience types:
 
-	byte, ushort, uint, ulong, short, int, long, float, double, ptrint
+	uint, int, float, uintptr
 	
 - the predeclared constants:
 
@@ -623,13 +625,7 @@ The following identifiers are predeclared:
 	
 - the predeclared functions (note: this list is likely to change):
 
-	cap(), convert(), len(), new(), panic(), print(), typeof(), ...
-
-
-TODO(gri) We should think hard about reducing the alias type list to:
-byte, uint, int, float, ptrint (note that for instance the C++ style
-guide is explicit about not using short, long, etc. because their sizes
-are unknown in general).
+	cap(), convert(), len(), new(), panic(), panicln(), print(), println(), typeof(), ...
 
 
 Const declarations
@@ -881,6 +877,10 @@ and strings.
 Arithmetic types
 ----
 
+The following list enumerates all platform-independent numeric types:
+
+	byte     same as uint8 (for convenience)
+
 	uint8    the set of all unsigned 8-bit integers
 	uint16   the set of all unsigned 16-bit integers
 	uint32   the set of all unsigned 32-bit integers
@@ -895,35 +895,23 @@ Arithmetic types
 	float64  the set of all valid IEEE-754 64-bit floating point numbers
 	float80  the set of all valid IEEE-754 80-bit floating point numbers
 
-Additionally, Go declares several platform-specific type aliases; the
-bit width of these types is ``natural'' for the respective types for the
-given platform.  For instance, int is usually the same as int32 on a
-32-bit architecture, or int64 on a 64-bit architecture.
+Additionally, Go declares a set of platform-specific numeric types for
+convenience:
 
-The integer sizes are defined such that short is at least 16 bits, int
-is at least 32 bits, and long is at least 64 bits (and ditto for the
-unsigned equivalents).  Also, the sizes are such that short <= int <=
-long.  Similarly, float is at least 32 bits, double is at least 64
-bits, and the sizes have float <= double.
+	uint     at least 32 bits, at most the size of the largest uint type
+	int      at least 32 bits, at most the size of the largest int type
+	float    at least 32 bits, at most the size of the largest float type
+	uintptr  smallest uint type large enough to store the uninterpreted
+	         bits of a pointer value
 
-	byte     alias for uint8
-	ushort   uint16 <= ushort <= uint
-	uint     uint32 <= uint <= ulong
-	ulong    uint64 <= ulong
+For instance, int might have the same size as int32 on a 32-bit
+architecture, or int64 on a 64-bit architecture.
 
-	short    int16 <= short <= int
-	int      int32 <= int <= long
-	long     int64 <= long
-
-	float    float32 <= float <= double
-	double   float64 <= double
-
-An arithmetic type ``ptrint'' is also defined.  It is an unsigned
-integer type that is the smallest natural integer type of the machine
-large enough to store the uninterpreted bits of a pointer value.
-
-Generally, programmers should use these types rather than the explicitly
-sized types to maximize portability.
+Except for byte, which is an alias for uint8, all numeric types
+are different from each other to avoid portability issues. Conversions
+are required when different numeric types are mixed in an expression or assignment.
+For instance, int32 and int are not the same type even though they may have
+the same size on a particular platform.
 
 
 Booleans
@@ -2724,7 +2712,7 @@ type-specific list of expressions. It allocates memory for a variable
 of type "T" and returns a pointer of type "*T" to that variable. The
 memory is initialized as described in the section on initial values.
 
-	new(type, [optional list of expressions])
+	new(type [, optional list of expressions])
 
 For instance
 
@@ -2740,6 +2728,21 @@ buffered channels, and maps.
 	ap := new([]int, 10);            # a pointer to an open array of 10 ints
 	c := new(chan int, 10);          # a pointer to a channel with a buffer size of 10
 	m := new(map[string] int, 100);  # a pointer to a map with initial space for 100 elements
+
+For arrays, a third argument may be provided to specify the array capacity:
+
+	bp := new([]byte, 0, 1024);      # a pointer to an empty open array with capacity 1024
+
+<!--
+TODO gri thinks that we should not use this notation to specify the capacity
+for the following reasons: a) It precludes the future use of that argument as the length
+for multi-dimensional open arrays (which we may need at some point) and b) the
+effect of "new(T, l, c)" is trivially obtained via "new(T, c)[0 : l]", doesn't
+require extra explanation, and leaves options open.
+Finally, if there is a performance concern (the single new() may be faster
+then the new() with slice, the compiler can trivially rewrite the slice version
+into a faster internal call that doesn't do slicing).
+-->
 
 
 Packages
