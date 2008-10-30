@@ -1395,11 +1395,16 @@ structdcl:
 		$$->type = $2;
 		$$->val = $3;
 	}
-|	embed
-|	'*' embed
+|	embed oliteral
+	{
+		$$ = $1;
+		$$->val = $2;
+	}
+|	'*' embed oliteral
 	{
 		$$ = $2;
 		$$->type = ptrto($$->type);
+		$$->val = $3;
 	}
 
 embed:
@@ -1898,13 +1903,14 @@ hidden_structdcl:
 		$$->type = $2;
 		$$->val = $3;
 	}
-|	'?' hidden_type
+|	'?' hidden_type oliteral
 	{
 		if(isptr[$2->etype]) {
 			$$ = embedded($2->type->sym);
 			$$->type = ptrto($$->type);
 		} else
 			$$ = embedded($2->sym);
+		$$->val = $3;
 	}
 
 hidden_interfacedcl:
