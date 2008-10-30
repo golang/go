@@ -450,10 +450,12 @@ stotype(Node *n, Type **t)
 	Type *f;
 	Iter save;
 	char buf[100];
+	String *note;
 
 	n = listfirst(&save, &n);
 
 loop:
+	note = nil;
 	if(n == N) {
 		*t = T;
 		return t;
@@ -471,8 +473,20 @@ loop:
 	if(n->type->etype == TARRAY && n->type->bound < 0)
 		yyerror("type of a structure field cannot be an open array");
 
+	switch(n->val.ctype) {
+	case CTSTR:
+		note = n->val.u.sval;
+		break;
+	default:
+		yyerror("structure field annotation must be string");
+	case CTxxx:
+		note = nil;
+		break;
+	}
+
 	f = typ(TFIELD);
 	f->type = n->type;
+	f->note = note;
 
 	if(n->left != N && n->left->op == ONAME) {
 		f->nname = n->left;

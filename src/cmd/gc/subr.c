@@ -1078,9 +1078,12 @@ Tpretty(Fmt *fp, Type *t)
 		if(t->sym == S || t->embedded) {
 			if(exporting)
 				fmtprint(fp, "? ");
-			return fmtprint(fp, "%T", t->type);
-		}
-		return fmtprint(fp, "%hS %T", t->sym, t->type);
+			fmtprint(fp, "%T", t->type);
+		} else
+			fmtprint(fp, "%hS %T", t->sym, t->type);
+		if(t->note)
+			fmtprint(fp, " \"%Z\"", t->note);
+		return 0;
 
 	case TFORW:
 		if(exporting)

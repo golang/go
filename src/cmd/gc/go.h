@@ -147,6 +147,7 @@ struct	Type
 
 	// TFIELD
 	Type*	down;		// also used in TMAP
+	String*	note;			// literal string annotation
 
 	// TARRAY
 	int32	bound;		// negative is dynamic array

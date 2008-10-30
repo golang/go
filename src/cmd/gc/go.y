@@ -72,6 +72,7 @@
 %type	<type>		non_name_type Anon_fn_type Bnon_fn_type
 %type	<type>		Anon_chan_type Bnon_chan_type
 %type	<type>		indcl fnlitdcl dotdotdot
+%type	<val>		oliteral
 
 %type	<val>		hidden_constant
 %type	<node>		hidden_dcl hidden_structdcl
@@ -1388,10 +1389,11 @@ structdcl:
 		$$ = nod(ODCLFIELD, $1, N);
 		$$ = nod(OLIST, $$, $3);
 	}
-|	new_name type
+|	new_name type oliteral
 	{
 		$$ = nod(ODCLFIELD, $1, N);
 		$$->type = $2;
+		$$->val = $3;
 	}
 |	embed
 |	'*' embed
@@ -1760,6 +1762,12 @@ oexport:
 	{
 		$$ = 1;
 	}
+
+oliteral:
+	{
+		$$.ctype = CTxxx;
+	}
+|	LLITERAL
 
 /*
  * import syntax from header of
