@@ -1047,13 +1047,16 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	regalloc(&n1, nr->type, &n1);
 
 	// clean out the CL register
-	if(rcl && !samereg(res, &n1)) {
+	if(rcl) {
 		regalloc(&n2, types[TINT64], N);
 		gins(AMOVQ, &n1, &n2);
 		regfree(&n1);
 
 		reg[D_CX] = 0;
-		cgen_shift(op, nl, nr, res);
+		if(samereg(res, &n1))
+			cgen_shift(op, nl, nr, &n2);
+		else
+			cgen_shift(op, nl, nr, res);
 		reg[D_CX] = rcl;
 
 		gins(AMOVQ, &n2, &n1);
