@@ -40,17 +40,34 @@ func TestConv() {
 
 
 func TestShift() {
-	test_msg = "TestShiftA";
+	test_msg = "TestShift1L";
 	TEST(0, b.Shl(0).Cmp(b) == 0);
 	TEST(1, c.Shl(1).Cmp(c) > 0);
 	
-	test_msg = "TestShiftB";
+	test_msg = "TestShift1R";
+	TEST(0, b.Shr(0).Cmp(b) == 0);
+	TEST(1, c.Shr(1).Cmp(c) < 0);
+
+	test_msg = "TestShift2";
+	for i := 0; i < 100; i++ {
+		TEST(i, c.Shl(uint(i)).Shr(uint(i)).Cmp(c) == 0);
+	}
+
+	test_msg = "TestShift3L";
 	{	const m = 3;
 		p := b;
 		f := Bignum.NewNat(1<<m);
 		for i := 0; i < 100; i++ {
 			TEST(i, b.Shl(uint(i*m)).Cmp(p) == 0);
 			p = p.Mul(f);
+		}
+	}
+
+	test_msg = "TestShift3R";
+	{	p := c;
+		for i := 0; c.Cmp(Bignum.NatZero) == 0; i++ {
+			TEST(i, c.Shr(uint(i)).Cmp(p) == 0);
+			p = p.Shr(1);
 		}
 	}
 }
