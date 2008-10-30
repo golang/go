@@ -7,7 +7,7 @@ errchk: ./convlit.go: missing expected error message on line 18: 'conver|incompa
 errchk: ./convlit.go: missing expected error message on line 22: 'convert'
 errchk: ./convlit.go: missing expected error message on line 23: 'overflow'
 errchk: ./convlit.go: missing expected error message on line 24: 'overflow'
-BUG: errchk: ./convlit.go: unmatched error messages:
+errchk: ./convlit.go: unmatched error messages:
 ==================================================
 ./convlit.go:8: cannot convert non-integer constant to int
 ./convlit.go:11: overflow converting constant to int
@@ -20,11 +20,6 @@ BUG: errchk: ./convlit.go: unmatched error messages:
 
 =========== ./helloworld.go
 hello, world
-
-=========== ./interface1.go
-./interface1.go:29: illegal types for operand: AS
-	interface { Next () (*Inst) }
-	*Inst
 
 =========== ./interface2.go
 cannot convert type *main.S_interface2 to interface main.I_interface2: missing method Foo
@@ -145,14 +140,9 @@ BUG: should compile
 bugs/bug108.go:4: stupid shift: 1025
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug108.go
 
-=========== bugs/bug113.go
-BUG: should not succeed
-
-=========== bugs/bug114.go
-(-1) & ((1<<32) - 1) is 1073741823 should be 4294967295
-
-panic on line 78 PC=xxx
-BUG: bug114 failed
+=========== bugs/bug115.go
+bugs/bug115.go:8: overflow converting constant to uint
+BUG: bug115 should compile
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
@@ -265,18 +255,9 @@ M
 =========== fixedbugs/bug103.go
 fixedbugs/bug103.go:8: function requires a return type
 
-=========== bugs/bug115.go
-bugs/bug115.go:8: overflow converting constant to uint
-BUG: bug115 should compile
-
-=========== bugs/bug116.go
--5>>1 = -2 want -3
--4>>1 = -3 want -2
--3>>1 = -1 want -2
--2>>1 = -2 want -1
--1>>1 = 0 want -1
-errors
-
-panic on line 92 PC=xxx
-BUG: bug116
+=========== fixedbugs/bug113.go
+throw: ifaceI2T: wrong type
+SIGSEGV: segmentation violation
+Faulting address: 0x0
+pc: xxx
 
