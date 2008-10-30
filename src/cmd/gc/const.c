@@ -12,6 +12,7 @@ convlit(Node *n, Type *t)
 
 	if(n == N || t == T)
 		return;
+
 	switch(n->op) {
 	default:
 		return;
@@ -25,7 +26,6 @@ convlit(Node *n, Type *t)
 	}
 
 	et = t->etype;
-
 	wt = whatis(n);
 
 	switch(wt) {

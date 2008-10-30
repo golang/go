@@ -84,7 +84,7 @@ mprsh(Mpint *a)
 		if(x & 1)
 			c = Mpbase;
 	}
-	if(a->neg && lo == 0)
+	if(a->neg && lo != 0)
 		mpaddcfix(a, -1);
 }
 
@@ -105,7 +105,7 @@ mprshw(Mpint *a)
 		a1++;
 	}
 	a1[0] = 0;
-	if(a->neg && lo == 0)
+	if(a->neg && lo != 0)
 		mpaddcfix(a, -1);
 }
 
