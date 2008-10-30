@@ -701,7 +701,7 @@ foundstart:
 			first = 0;
 			continue;
 		}
-		if (strstrn(line, Blinelen(b), "$$"))
+		if(line[0] == '$' && line[1] == '$')
 			goto foundend;
 		end = Boffset(b);  // before closing $$
 	}

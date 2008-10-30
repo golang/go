@@ -91,14 +91,16 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 		return;
 	}
 
-	// first $$ marks beginning of exports
-	p0 = strstr(data, "$$");
+	// first \n$$ marks beginning of exports - skip rest of line
+	p0 = strstr(data, "\n$$");
 	if(p0 == nil)
 		return;
-	p0 += 2;
+	p0 += 3;
 	while(*p0 != '\n' && *p0 != '\0')
 		p0++;
-	p1 = strstr(p0, "$$");
+
+	// second marks end of exports / beginning of local data
+	p1 = strstr(p0, "\n$$");
 	if(p1 == nil) {
 		fprint(2, "6l: cannot find end of exports in %s\n", filename);
 		return;
@@ -118,10 +120,13 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 	loadpkgdata(filename, p0, p1 - p0);
 
 	// local types begin where exports end.
-	p0 = p1;
+	// skip rest of line after $$ we found above
+	p0 = p1 + 3;
 	while(*p0 != '\n' && *p0 != '\0')
 		p0++;
-	p1 = strstr(p0, "$$");
+
+	// local types end at next \n$$.
+	p1 = strstr(p0, "\n$$");
 	if(p1 == nil) {
 		fprint(2, "6l: cannot find end of local types in %s\n", filename);
 		return;

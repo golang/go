@@ -195,7 +195,7 @@ dumpexport(void)
 	lno = lineno;
 
 	Bprint(bout, "   import\n");
-	Bprint(bout, "   $$  // exports\n");
+	Bprint(bout, "\n$$  // exports\n");
 
 	Bprint(bout, "    package %s\n", package);
 
