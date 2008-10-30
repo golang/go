@@ -29,9 +29,11 @@ TMPERR=/tmp/errchk-err-$$
 TMPALL=/tmp/errchk-all-$$
 TMPTMP=/tmp/errchk-tmp-$$
 TMPSTAT=/tmp/errchk-stat-$$
-rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT
+TMPBUG=/tmp/errchk-bug-$$
 
-trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT" 0 1 2 3 14 15
+rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT $TMPBUG
+
+trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT $TMPBUG" 0 1 2 3 14 15
 
 if $* >$TMPOUT 2>$TMPERR; then
   echo 1>&2 "BUG: errchk: command succeeded unexpectedly: " "$@"
@@ -43,12 +45,11 @@ fi
 
 cat $TMPOUT $TMPERR | grep -v '^	' > $TMPALL
 
-didbug=false
 bug() {
-  if ! $didbug
+  if ! test -f $TMPBUG
   then
     echo 1>&2 -n BUG: ''
-    didbug=true
+    echo >$TMPBUG
   fi
 }
 
