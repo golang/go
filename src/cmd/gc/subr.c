@@ -1360,6 +1360,10 @@ loop:
 		*p++ = '\\';
 		*p++ = 'n';
 		break;
+	case '\"':
+		*p++ = '\\';
+		*p++ = c;
+		break;
 	}
 	goto loop;
 
