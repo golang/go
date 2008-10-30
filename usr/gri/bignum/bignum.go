@@ -146,11 +146,10 @@ func (x *Natural) Add(y *Natural) *Natural {
 	assert(n >= m);
 	z := new(Natural, n + 1);
 
-	i := 0;
 	c := Word(0);
-	for ; i < m; i++ { c, z[i] = Split(x[i] + y[i] + c); }
-	for ; i < n; i++ { c, z[i] = Split(x[i] + c); }
-	z[i] = c;
+	for i := 0; i < m; i++ { c, z[i] = Split(x[i] + y[i] + c); }
+	for i := m; i < n; i++ { c, z[i] = Split(x[i] + c); }
+	z[n] = c;
 
 	return Normalize(z);
 }
@@ -162,10 +161,9 @@ func (x *Natural) Sub(y *Natural) *Natural {
 	assert(n >= m);
 	z := new(Natural, n);
 
-	i := 0;
 	c := Word(0);
-	for ; i < m; i++ { c, z[i] = Split(x[i] - y[i] + c); }
-	for ; i < n; i++ { c, z[i] = Split(x[i] + c); }
+	for i := 0; i < m; i++ { c, z[i] = Split(x[i] - y[i] + c); }
+	for i := m; i < n; i++ { c, z[i] = Split(x[i] + c); }
 	assert(c == 0);  // x.Sub(y) must be called with x >= y
 
 	return Normalize(z);
@@ -175,12 +173,9 @@ func (x *Natural) Sub(y *Natural) *Natural {
 // Computes x = x*a + c (in place) for "small" a's.
 func (x* Natural) MulAdd1(a, c Word) *Natural {
 	assert(IsSmall(a-1) && IsSmall(c));
-	if x.IsZero() || a == 0 {
-		return NewNat(c);
-	}
 	n := len(x);
-
 	z := new(Natural, n + 1);
+
 	for i := 0; i < n; i++ { c, z[i] = Split(x[i]*a + c); }
 	z[n] = c;
 
@@ -243,41 +238,44 @@ func (x *Natural) Mul(y *Natural) *Natural {
 }
 
 
-// BUG use these until 6g shifts are working properly
-func shl(x Word, s uint) Word {
-	return x << s;
-}
-
-
-func shr(x Word, s uint) Word {
-	return x >> s;
-}
-
-
 func Shl1(x, c Word, s uint) (Word, Word) {
 	assert(s <= LogB);
-	return shr(x, (LogB - s)), shl(x, s)&M | c
+	return x >> (LogB - s), x << s & M | c
+}
+
+
+func Shr1(x, c Word, s uint) (Word, Word) {
+	assert(s <= LogB);
+	return x << (LogB - s) & M, x >> s | c
 }
 
 
 func (x *Natural) Shl(s uint) *Natural {
 	n := len(x);
-	si := int(s/LogB);
-	s = s%LogB;
+	si := int(s / LogB);
+	s = s % LogB;
 	z := new(Natural, n + si + 1);
 	
-	i := 0;
 	c := Word(0);
-	for ; i < n; i++ { c, z[i+si] = Shl1(x[i], c, s); }
-	z[i+si] = c;
+	for i := 0; i < n; i++ { c, z[i+si] = Shl1(x[i], c, s); }
+	z[n+si] = c;
 	
 	return Normalize(z);
 }
 
 
 func (x *Natural) Shr(s uint) *Natural {
-	panic("incomplete");
-	return nil
+	n := len(x);
+	si := int(s / LogB);
+	if si >= n { si = n; }
+	s = s % LogB;
+	assert(si <= n);
+	z := new(Natural, n - si);
+	
+	c := Word(0);
+	for i := n - 1; i >= si; i-- { c, z[i-si] = Shr1(x[i], c, s); }
+	
+	return Normalize(z);
 }
 
 
@@ -390,9 +388,8 @@ func (x *Natural) And(y *Natural) *Natural {
 	assert(n >= m);
 	z := new(Natural, n);
 
-	i := 0;
-	for ; i < m; i++ { z[i] = x[i] & y[i]; }
-	for ; i < n; i++ { z[i] = x[i]; }
+	for i := 0; i < m; i++ { z[i] = x[i] & y[i]; }
+	for i := m; i < n; i++ { z[i] = x[i]; }
 
 	return Normalize(z);
 }
@@ -407,9 +404,8 @@ func (x *Natural) Or(y *Natural) *Natural {
 	assert(n >= m);
 	z := new(Natural, n);
 
-	i := 0;
-	for ; i < m; i++ { z[i] = x[i] | y[i]; }
-	for ; i < n; i++ { z[i] = x[i]; }
+	for i := 0; i < m; i++ { z[i] = x[i] | y[i]; }
+	for i := m; i < n; i++ { z[i] = x[i]; }
 
 	return Normalize(z);
 }
@@ -424,9 +420,8 @@ func (x *Natural) Xor(y *Natural) *Natural {
 	assert(n >= m);
 	z := new(Natural, n);
 
-	i := 0;
-	for ; i < m; i++ { z[i] = x[i] ^ y[i]; }
-	for ; i < n; i++ { z[i] = x[i]; }
+	for i := 0; i < m; i++ { z[i] = x[i] ^ y[i]; }
+	for i := m; i < n; i++ { z[i] = x[i]; }
 
 	return Normalize(z);
 }
