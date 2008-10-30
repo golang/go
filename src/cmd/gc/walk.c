@@ -170,6 +170,8 @@ walktype(Node *n, int top)
 	int et, cl, cr;
 	int32 lno;
 
+	if(n == N)
+		return;
 	lno = setlineno(n);
 
 	/*
@@ -645,8 +647,10 @@ loop:
 		evconst(n);
 		if(n->op == OLITERAL)
 			goto ret;
-		convlit(n->right, types[TUINT]);
-		convlit(n->left, types[TINT]);
+		if(n->left->type == T)
+			convlit(n->left, types[TINT]);
+		if(n->right->type == T)
+			convlit(n->right, types[TUINT]);
 		if(n->left->type == T || n->right->type == T)
 			goto ret;
 		if(issigned[n->right->type->etype])
