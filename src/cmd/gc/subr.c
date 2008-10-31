@@ -1361,6 +1361,7 @@ loop:
 		*p++ = 'n';
 		break;
 	case '\"':
+	case '\\':
 		*p++ = '\\';
 		*p++ = c;
 		break;
