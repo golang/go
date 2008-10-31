@@ -1325,53 +1325,40 @@ treecopy(Node *n)
 int
 Zconv(Fmt *fp)
 {
-	char *s, *se;
-	char *p;
-	char buf[500];
-	int c;
+	Rune r;
 	String *sp;
+	char *s, *se;
 
 	sp = va_arg(fp->args, String*);
-	if(sp == nil) {
-		snprint(buf, sizeof(buf), "<nil>");
-		goto out;
-	}
+	if(sp == nil)
+		return fmtstrcpy(fp, "<nil>");
+
 	s = sp->s;
 	se = s + sp->len;
-
-	p = buf;
-
-loop:
-	c = *s++;
-	if(s > se)
-		c = 0;
-	switch(c) {
-	default:
-		*p++ = c;
-		break;
-	case 0:
-		*p = 0;
-		goto out;
-	case '\t':
-		*p++ = '\\';
-		*p++ = 't';
-		break;
-	case '\n':
-		*p++ = '\\';
-		*p++ = 'n';
-		break;
-	case '\"':
-	case '\\':
-		*p++ = '\\';
-		*p++ = c;
-		break;
+	while(s < se) {
+		s += chartorune(&r, s);
+		switch(r) {
+		default:
+			fmtrune(fp, r);
+			break;
+		case '\0':
+			fmtstrcpy(fp, "\\x00");
+			break;
+		case '\t':
+			fmtstrcpy(fp, "\\t");
+			break;
+		case '\n':
+			fmtstrcpy(fp, "\\n");
+			break;
+		case '\"':
+		case '\\':
+			fmtrune(fp, '\\');
+			fmtrune(fp, r);
+			break;
+		}
 	}
-	goto loop;
-
-out:
-	return fmtstrcpy(fp, buf);
+	return 0;
 }
-
 
 static char*
 wnames[] =
