@@ -58,6 +58,7 @@ func AddrToPtrFloat32(Addr) *float32
 func AddrToPtrFloat64(Addr) *float64
 func AddrToPtrFloat80(Addr) *float80
 func AddrToPtrString(Addr) *string
+func AddrToPtrBool(Addr) *bool
 
 // -- Int
 
@@ -438,6 +439,31 @@ func (v *StringValueStruct) Put(s string) {
 	*AddrToPtrString(v.addr) = s
 }
 
+// -- Bool
+
+export type BoolValue interface {
+	Kind()	int;
+	Get()	bool;
+	Put(bool);
+	Type()	Type;
+}
+
+type BoolValueStruct struct {
+	CommonV
+}
+
+func BoolCreator(typ Type, addr Addr) Value {
+	return &BoolValueStruct{ CommonV{BoolKind, typ, addr} }
+}
+
+func (v *BoolValueStruct) Get() bool {
+	return *AddrToPtrBool(v.addr)
+}
+
+func (v *BoolValueStruct) Put(b bool) {
+	*AddrToPtrBool(v.addr) = b
+}
+
 // -- Pointer
 
 export type PtrValue interface {
@@ -665,6 +691,7 @@ func init() {
 	creator[Float64Kind] = &Float64Creator;
 	creator[Float80Kind] = &Float80Creator;
 	creator[StringKind] = &StringCreator;
+	creator[BoolKind] = &BoolCreator;
 	creator[PtrKind] = &PtrCreator;
 	creator[ArrayKind] = &ArrayCreator;
 	creator[MapKind] = &MapCreator;

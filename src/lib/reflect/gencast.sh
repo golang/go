@@ -36,4 +36,5 @@ Float32
 Float64
 Float80
 String
+Bool
 !

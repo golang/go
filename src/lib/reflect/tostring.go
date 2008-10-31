@@ -162,6 +162,12 @@ func ValueToString(val Value) string {
 		return "float80";
 	case StringKind:
 		return val.(StringValue).Get();
+	case BoolKind:
+		if val.(BoolValue).Get() {
+			return "true"
+		} else {
+			return "false"
+		}
 	case PtrKind:
 		v := val.(PtrValue);
 		return TypeToString(typ, false) + "(" + integer(int64(v.Get())) + ")";
