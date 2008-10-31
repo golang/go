@@ -262,6 +262,38 @@ func (x *Natural) Mul(y *Natural) *Natural {
 }
 
 
+func Pop1(x Digit) uint {
+	n := uint(0);
+	for x != 0 {
+		x &= x-1;
+		n++;
+	}
+	return n;
+}
+
+
+func (x *Natural) Pop() uint {
+	n := uint(0);
+	for i := len(x) - 1; i >= 0; i-- {
+		n += Pop1(x[i]);
+	}
+	return n;
+}
+
+
+func (x *Natural) Pow(n uint) *Natural {
+	z := Nat(1);
+	for n > 0 {
+		// z * x^n == x^n0
+		if n&1 == 1 {
+			z = z.Mul(x);
+		}
+		x, n = x.Mul(x), n/2;
+	}
+	return z;
+}
+
+
 func Shl1(x, c Digit, s uint) (Digit, Digit) {
 	assert(s <= LogB);
 	return x >> (LogB - s), x << s & M | c
@@ -490,7 +522,7 @@ func (x *Natural) Cmp(y *Natural) int {
 
 func Log1(x Digit) int {
 	n := -1;
-	for x != 0 { x >>= 1; n++; }
+	for x != 0 { x = x >> 1; n++; }  // BUG >>= broken for uint64
 	return n;
 }
 
@@ -624,6 +656,15 @@ export func Fact(n Digit) *Natural {
 }
 
 
+func (x *Natural) Gcd(y *Natural) *Natural {
+	// Euclidean algorithm.
+	for !y.IsZero() {
+		x, y = y, x.Mod(y);
+	}
+	return x;
+}
+
+
 func HexValue(ch byte) Digit {
 	d := Digit(1 << LogH);
 	switch {
@@ -645,6 +686,23 @@ export func NatFromString(s string, base Digit) *Natural {
 		} else {
 			break;
 		}
+	}
+	return x;
+}
+
+
+// ----------------------------------------------------------------------------
+// Algorithms
+
+export type T interface {
+	IsZero() bool;
+	Mod(y T) bool;
+}
+
+export func Gcd(x, y T) T {
+	// Euclidean algorithm.
+	for !y.IsZero() {
+		x, y = y, x.Mod(y);
 	}
 	return x;
 }
@@ -717,6 +775,18 @@ func (x *Integer) Mul(y *Integer) *Integer {
 }
 
 
+func (x *Integer) Quo(y *Integer) *Integer {
+	panic("UNIMPLEMENTED");
+	return nil;
+}
+
+
+func (x *Integer) Rem(y *Integer) *Integer {
+	panic("UNIMPLEMENTED");
+	return nil;
+}
+
+
 func (x *Integer) Div(y *Integer) *Integer {
 	panic("UNIMPLEMENTED");
 	return nil;
@@ -765,29 +835,36 @@ export type Rational struct {
 }
 
 
-func NewRat(a, b *Integer) *Rational {
-	// TODO normalize the rational
-	return &Rational{a, b};
+func (x *Rational) Normalize() *Rational {
+	f := x.a.mant.Gcd(x.b.mant);
+	x.a.mant = x.a.mant.Div(f);
+	x.b.mant = x.b.mant.Div(f);
+	return x;
+}
+
+
+func Rat(a, b *Integer) *Rational {
+	return (&Rational{a, b}).Normalize();
 }
 
 
 func (x *Rational) Add(y *Rational) *Rational {
-	return NewRat((x.a.Mul(y.b)).Add(x.b.Mul(y.a)), x.b.Mul(y.b));
+	return Rat((x.a.Mul(y.b)).Add(x.b.Mul(y.a)), x.b.Mul(y.b));
 }
 
 
 func (x *Rational) Sub(y *Rational) *Rational {
-	return NewRat((x.a.Mul(y.b)).Sub(x.b.Mul(y.a)), x.b.Mul(y.b));
+	return Rat((x.a.Mul(y.b)).Sub(x.b.Mul(y.a)), x.b.Mul(y.b));
 }
 
 
 func (x *Rational) Mul(y *Rational) *Rational {
-	return NewRat(x.a.Mul(y.a), x.b.Mul(y.b));
+	return Rat(x.a.Mul(y.a), x.b.Mul(y.b));
 }
 
 
 func (x *Rational) Div(y *Rational) *Rational {
-	return NewRat(x.a.Mul(y.b), x.b.Mul(y.a));
+	return Rat(x.a.Mul(y.b), x.b.Mul(y.a));
 }
 
 
