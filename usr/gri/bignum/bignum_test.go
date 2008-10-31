@@ -129,11 +129,47 @@ func TestMod() {
 }
 
 
+func TestGcd() {
+	test_msg = "TestGcdA";
+	f := Big.Nat(99991);
+	TEST_EQ(0, b.Mul(f).Gcd(c.Mul(f)), Big.MulRange(1, 20).Mul(f));
+}
+
+
+func TestPow() {
+	test_msg = "TestPowA";
+	TEST_EQ(0, Big.Nat(2).Pow(0), Big.Nat(1));
+
+	test_msg = "TestPowB";
+	for i := uint(0); i < 100; i++ {
+		TEST_EQ(i, Big.Nat(2).Pow(i), Big.Nat(1).Shl(i));
+	}
+}
+
+
+func TestPop() {
+	test_msg = "TestPopA";
+	TEST(0, Big.Nat(0).Pop() == 0);
+	TEST(1, Big.Nat(1).Pop() == 1);
+	TEST(2, Big.Nat(10).Pop() == 2);
+	TEST(3, Big.Nat(30).Pop() == 4);
+	TEST(4, Big.Nat(0x1248f).Shl(33).Pop() == 8);
+
+	test_msg = "TestPopB";
+	for i := uint(0); i < 100; i++ {
+		TEST(i, Big.Nat(1).Shl(i).Sub(Big.Nat(1)).Pop() == i);
+	}
+}
+
+
 func main() {
 	TestConv();
 	TestShift();
 	TestMul();
 	TestDiv();
 	TestMod();
+	TestGcd();
+	TestPow();
+	TestPop();
 	print("PASSED\n");
 }
