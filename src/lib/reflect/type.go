@@ -16,6 +16,7 @@ export func typestrings() string	// implemented in C; declared here
 export const (
 	MissingKind = iota;
 	ArrayKind;
+	BoolKind;
 	ChanKind;
 	FloatKind;
 	Float32Kind;
@@ -82,6 +83,7 @@ func NewBasicType(name string, kind int, size uint64) Type {
 // Prebuilt basic types
 export var (
 	Missing = NewBasicType(MissingString, MissingKind, 1);
+	Bool = NewBasicType("bool", BoolKind, 1); // TODO: need to know how big a bool is
 	Int = NewBasicType("int", IntKind, 4);	// TODO: need to know how big an int is
 	Int8 = NewBasicType("int8", Int8Kind, 1);
 	Int16 = NewBasicType("int16", Int16Kind, 2);
@@ -409,6 +411,7 @@ func init() {
 	types["float64"] = &Float64;
 	types["float80"] = &Float80;
 	types["string"] = &String;
+	types["bool"] = &Bool;
 
 	// Basics get prebuilt stubs
 	MissingStub = NewStubType(MissingString, Missing);
@@ -428,6 +431,7 @@ func init() {
 	basicstub["float64"] = NewStubType("float64", Float64);
 	basicstub["float80"] = NewStubType("float80", Float80);
 	basicstub["string"] = NewStubType("string", String);
+	basicstub["bool"] = NewStubType("bool", Bool);
 
 	Unlock();
 }

@@ -77,6 +77,8 @@ func valuedump(s, t string) {
 		v.(reflect.Float64Value).Put(64.0);
 	case reflect.StringKind:
 		v.(reflect.StringValue).Put("stringy cheese");
+	case reflect.BoolKind:
+		v.(reflect.BoolValue).Put(true);
 	}
 	assert(reflect.ValueToString(v), t);
 }
@@ -132,6 +134,7 @@ func main() {
 	valuedump("float32", "+3.200000e+01");
 	valuedump("float64", "+6.400000e+01");
 	valuedump("string", "stringy cheese");
+	valuedump("bool", "true");
 	valuedump("*int8", "*int8(0)");
 	valuedump("**int8", "**int8(0)");
 	valuedump("[5]int32", "[5]int32{0, 0, 0, 0, 0}");
