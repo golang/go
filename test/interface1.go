@@ -30,6 +30,6 @@ func AddInst(Inst) *Inst {
 func main() {
 	re := new(Regexp);
 	print("call addinst\n");
-	var x Inst = AddInst(new(Start));	// ERROR "illegal"
+	var x Inst = AddInst(new(Start));	// ERROR "illegal|incompatible"
 	print("return from  addinst\n");
 }
