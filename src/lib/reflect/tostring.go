@@ -15,16 +15,42 @@ import (
 export func TypeToString(typ Type, expand bool) string
 export func ValueToString(val Value) string
 
+func DoubleQuote(s string) string {
+	out := "\"";
+	for i := 0; i < len(s); i++ {
+		c := s[i];
+		switch c {
+		case '\n':
+			out += `\n`;
+		case '\t':
+			out += `\t`;
+		case '\x00':
+			out += `\0`;
+		case '"':
+			out += `\"`;
+		case '\\':
+			out += `\\`;
+		default:
+			out += string(c);
+		}
+	}
+	out += "\"";
+	return out;
+}
+
 type HasFields interface {
-	Field(i int)	(name string, typ Type, offset uint64);
+	Field(i int)	(name string, typ Type, tag string, offset uint64);
 	Len()	int;
 }
 
 func TypeFieldsToString(t HasFields, sep string) string {
 	var str string;
 	for i := 0; i < t.Len(); i++ {
-		str1, typ, offset := t.Field(i);
+		str1, typ, tag, offset := t.Field(i);
 		str1 +=  " " + TypeToString(typ, false);
+		if tag != "" {
+			str1 += " " + DoubleQuote(tag);
+		}
 		if i < t.Len() - 1 {
 			str1 += sep + " ";
 		}

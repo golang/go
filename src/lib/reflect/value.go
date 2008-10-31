@@ -609,7 +609,7 @@ func StructCreator(typ Type, addr Addr) Value {
 	nfield := t.Len();
 	v := &StructValueStruct{ CommonV{StructKind, typ, addr}, new([]Value, nfield) };
 	for i := 0; i < nfield; i++ {
-		name, ftype, offset := t.Field(i);
+		name, ftype, str, offset := t.Field(i);
 		v.field[i] = NewValueAddr(ftype, addr + offset);
 	}
 	v.typ = typ;
