@@ -452,10 +452,12 @@ func init() {
 		functiontype
 	typename =
 		name '.' name
+	doublequotedstring = 
+		string in " ";  escapes are \0 (NUL) \n \t \" \\
 	fieldlist =
 		[ field { [ ',' | ';' ] field } ]
 	field =
-		identifier stubtype
+		identifier stubtype [ doublequotedstring ]
 	arraytype =
 		'[' [ number ] ']' stubtype
 	structtype =
