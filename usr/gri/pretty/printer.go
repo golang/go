@@ -139,7 +139,7 @@ func (P *Printer) Fields(list *AST.List) {
 	for i, n := 0, list.len(); i < n; i++ {
 		x := list.at(i).(*AST.Expr);
 		if i > 0 {
-			if prev == Scanner.TYPE {
+			if prev == Scanner.TYPE && x.tok != Scanner.STRING || prev == Scanner.STRING {
 				P.semi, P.newl = true, 1;
 			} else if prev == x.tok {
 				P.String(0, ", ");
