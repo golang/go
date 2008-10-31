@@ -326,7 +326,7 @@ func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
 	// parse a list of types
 	i0 := list.len();
 	for {
-		list.Add(P.ParseVarDecl(i0 > 0));
+		list.Add(P.ParseVarDecl(ellipsis_ok /* param list */ && i0 > 0));
 		if P.tok == Scanner.COMMA {
 			P.Next();
 		} else {
@@ -340,7 +340,7 @@ func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
 		P.Next();
 	}
 	
-	if i0 > 0 && typ == nil {
+	if ellipsis_ok /* param list */ && i0 > 0 && typ == nil {
 		// not the first parameter section; we must have a type
 		P.Error(P.pos, "type expected");
 		typ = AST.BadType;
@@ -365,17 +365,9 @@ func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
 	} else {
 		// all list entries are types
 		// convert all type entries into type expressions
-		if i0 > 0 {
-			panic("internal parser error");
-		}
-		
-		for i, n := 0, list.len(); i < n; i++ {
+		for i, n := i0, list.len(); i < n; i++ {
 			t := list.at(i).(*AST.Type);
 			list.set(i, AST.NewTypeExpr(t));
-		}
-		
-		if P.tok == Scanner.COMMA {
-			panic("internal parser error");
 		}
 	}
 	
@@ -514,6 +506,8 @@ func (P *Parser) ParseMapType() *AST.Type {
 }
 
 
+func (P *Parser) ParseOperand() *AST.Expr
+
 func (P *Parser) ParseStructType() *AST.Type {
 	P.Trace("StructType");
 
@@ -522,10 +516,16 @@ func (P *Parser) ParseStructType() *AST.Type {
 	if P.tok == Scanner.LBRACE {
 		P.Next();
 		t.list = AST.NewList();
-		for P.tok == Scanner.IDENT {
+		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 			P.ParseVarDeclList(t.list, false);
-			if P.tok != Scanner.RBRACE {
-				P.Expect(Scanner.SEMICOLON);
+			if P.tok == Scanner.STRING {
+				// ParseOperand takes care of string concatenation
+				t.list.Add(P.ParseOperand());
+			}
+			if P.tok == Scanner.SEMICOLON {
+				P.Next();
+			} else {
+				break;
 			}
 		}
 		P.OptSemicolon();

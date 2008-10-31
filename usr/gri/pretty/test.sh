@@ -21,7 +21,7 @@ count() {
 apply1() {
 	#echo $1 $2
 	case `basename $F` in
-	selftest.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
+	selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
 	bug068.go | bug088.go | bug083.go | bug106.go ) ;;  # skip - files contain syntax errors
 	* ) $1 $2; count ;;
 	esac
@@ -120,11 +120,11 @@ runtests() {
 }
 
 
-# run selftest always
-./pretty -t selftest.go > $TMP1
+# run selftest1 always
+./pretty -t selftest1.go > $TMP1
 if [ $? != 0 ]; then
 	cat $TMP1
-	echo "Error (selftest): pretty -t selftest.go"
+	echo "Error (selftest1): pretty -t selftest1.go"
 	exit 1
 fi
 count
