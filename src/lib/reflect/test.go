@@ -119,7 +119,7 @@ func main() {
 	typedump("struct {a int8; b int8; c int8; d int8; b int32}", "struct{a int8; b int8; c int8; d int8; b int32}");
 	typedump("struct {a int8; b int8; c int8; d int8; e int8; b int32}", "struct{a int8; b int8; c int8; d int8; e int8; b int32}");
 	typedump("struct {a int8 \"hi there\"; }", "struct{a int8 \"hi there\"}");
-	typedump("struct {a int8 \"hi \\0there\\t\\n\\\"\\\\\"; }", "struct{a int8 \"hi \\0there\\t\\n\\\"\\\\\"}");
+	typedump("struct {a int8 \"hi \\x00there\\t\\n\\\"\\\\\"; }", "struct{a int8 \"hi \\x00there\\t\\n\\\"\\\\\"}");
 
 	valuedump("int8", "8");
 	valuedump("int16", "16");

@@ -453,7 +453,7 @@ func init() {
 	typename =
 		name '.' name
 	doublequotedstring = 
-		string in " ";  escapes are \0 (NUL) \n \t \" \\
+		string in " ";  escapes are \x00 (NUL) \n \t \" \\
 	fieldlist =
 		[ field { [ ',' | ';' ] field } ]
 	field =
@@ -492,6 +492,10 @@ func special(c uint8) bool {
 	return false;
 }
 
+func hex00(s string, i int) bool {
+	return i + 2 < len(s) && s[i] == '0' && s[i+1] == '0'
+}
+
 // Process backslashes.  String known to be well-formed.
 // Initial double-quote is left in, as an indication this token is a string.
 func unescape(s string, backslash bool) string {
@@ -509,8 +513,13 @@ func unescape(s string, backslash bool) string {
 				c = '\n';
 			case 't':
 				c = '\t';
-			case '0':	// it's not a legal go string but \0 means NUL
-				c = '\x00';
+			case 'x':
+				if hex00(s, i+1) {
+					i += 2;
+					c = 0;
+					break;
+				}
+			// otherwise just put an 'x'; erroneous but safe.
 			// default is correct already; \\ is \; \" is "
 			}
 		}
