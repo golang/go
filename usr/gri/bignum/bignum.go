@@ -99,6 +99,15 @@ export func Dump3(x *[]Digit3) {
 
 // ----------------------------------------------------------------------------
 // Natural numbers
+//
+// Naming conventions
+//
+// B, b   bases
+// c      carry
+// x, y   operands
+// z      result
+// n, m   n = len(x), m = len(y)
+
 
 export type Natural []Digit;
 export var NatZero *Natural = new(Natural, 0);
@@ -156,8 +165,8 @@ func (x *Natural) Add(y *Natural) *Natural {
 	z := new(Natural, n + 1);
 
 	c := Digit(0);
-	for i := 0; i < m; i++ { c, z[i] = Split(x[i] + y[i] + c); }
-	for i := m; i < n; i++ { c, z[i] = Split(x[i] + c); }
+	for i := 0; i < m; i++ { c, z[i] = Split(c + x[i] + y[i]); }
+	for i := m; i < n; i++ { c, z[i] = Split(c + x[i]); }
 	z[n] = c;
 
 	return Normalize(z);
@@ -171,8 +180,14 @@ func (x *Natural) Sub(y *Natural) *Natural {
 	z := new(Natural, n);
 
 	c := Digit(0);
-	for i := 0; i < m; i++ { c, z[i] = Split(x[i] - y[i] + c); }  // TODO verify asr!!!
-	for i := m; i < n; i++ { c, z[i] = Split(x[i] + c); }
+	for i := 0; i < m; i++ {
+		t := c + x[i] - y[i];
+		c, z[i] = Digit(int64(t)>>L), t&M;  // arithmetic shift!
+	}
+	for i := m; i < n; i++ {
+		t := c + x[i];
+		c, z[i] = Digit(int64(t)>>L), t&M;  // arithmetic shift!
+	}
 	assert(c == 0);  // x.Sub(y) must be called with x >= y
 
 	return Normalize(z);
@@ -185,7 +200,7 @@ func (x* Natural) MulAdd1(a, c Digit) *Natural {
 	n := len(x);
 	z := new(Natural, n + 1);
 
-	for i := 0; i < n; i++ { c, z[i] = Split(x[i]*a + c); }
+	for i := 0; i < n; i++ { c, z[i] = Split(c + x[i]*a); }
 	z[n] = c;
 
 	return Normalize(z);
@@ -234,9 +249,9 @@ func (x *Natural) Mul(y *Natural) *Natural {
 		if d != 0 {
 			c := Digit(0);
 			for i := 0; i < n; i++ {
-				// z[i+j] += x[i]*d + c;
+				// z[i+j] += c + x[i]*d;
 				z1, z0 := Mul1(x[i], d);
-				c, z[i+j] = Split(z[i+j] + z0 + c);
+				c, z[i+j] = Split(c + z[i+j] + z0);
 				c += z1;
 			}
 			z[n+j] = c;
@@ -336,7 +351,7 @@ func Split3(x Digit) (Digit, Digit3) {
 func Product(x *[]Digit3, y Digit) {
 	n := len(x);
 	c := Digit(0);
-	for i := 0; i < n; i++ { c, x[i] = Split3(Digit(x[i])*y + c) }
+	for i := 0; i < n; i++ { c, x[i] = Split3(c + Digit(x[i])*y) }
 	assert(c == 0);
 }
 
@@ -413,7 +428,8 @@ func DivMod(x, y *[]Digit3) (*[]Digit3, *[]Digit3) {
 			// subtract y*q
 			c := Digit(0);
 			for j := 0; j < m; j++ {
-				c, x[i+j] = Split3(c + Digit(x[i+j]) - Digit(y[j])*q);
+				t := c + Digit(x[i+j]) - Digit(y[j])*q;  // arithmetic shift!
+				c, x[i+j] = Digit(int64(t)>>L3), Digit3(t&M3);
 			}
 			
 			// correct if trial digit was too large
@@ -423,6 +439,7 @@ func DivMod(x, y *[]Digit3) (*[]Digit3, *[]Digit3) {
 				for j := 0; j < m; j++ {
 					c, x[i+j] = Split3(c + Digit(x[i+j]) + Digit(y[j]));
 				}
+				assert(c + Digit(x[k]) == 0);
 				// correct trial digit
 				q--;
 			}

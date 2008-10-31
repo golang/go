@@ -30,9 +30,9 @@ func TEST(n uint, b bool) {
 
 func TEST_EQ(n uint, x, y *Big.Natural) {
 	if x.Cmp(y) != 0 {
-		println("TEST failed: ", test_msg, "(", n, ")\n");
-		println("x = ", x.String(10));
-		println("y = ", y.String(10));
+		println("TEST failed:", test_msg, "(", n, ")\n");
+		println("x =", x.String(10));
+		println("y =", y.String(10));
 		panic();
 	}
 }
@@ -122,7 +122,7 @@ func TestMod() {
 			TEST_EQ(i, c.Add(d).Mod(c), d);
 		} else {
 			TEST_EQ(i, c.Add(d).Div(c), Big.Nat(2));
-			//TEST_EQ(i, c.Add(d).Mod(c), d.Sub(c));
+			TEST_EQ(i, c.Add(d).Mod(c), d.Sub(c));
 			break;
 		}
 	}
