@@ -25,7 +25,7 @@ func DoubleQuote(s string) string {
 		case '\t':
 			out += `\t`;
 		case '\x00':
-			out += `\0`;
+			out += `\x00`;
 		case '"':
 			out += `\"`;
 		case '\\':
