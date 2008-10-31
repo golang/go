@@ -245,13 +245,14 @@ func (t *ChanTypeStruct) Elem() Type {
 // -- Struct
 
 export type StructType interface {
-	Field(int)	(name string, typ Type, offset uint64);
+	Field(int)	(name string, typ Type, tag string, offset uint64);
 	Len()	int;
 }
 
 type Field struct {
 	name	string;
 	typ	*StubType;
+	tag	string;
 	size	uint64;
 	offset	uint64;
 }
@@ -289,11 +290,11 @@ func (t *StructTypeStruct) Size() uint64 {
 	return size;
 }
 
-func (t *StructTypeStruct) Field(i int) (name string, typ Type, offset uint64) {
+func (t *StructTypeStruct) Field(i int) (name string, typ Type, tag string, offset uint64) {
 	if t.field[i].offset == 0 {
 		t.Size();	// will compute offsets
 	}
-	return t.field[i].name, t.field[i].typ.Get(), t.field[i].offset
+	return t.field[i].name, t.field[i].typ.Get(), t.field[i].tag, t.field[i].offset
 }
 
 func (t *StructTypeStruct) Len() int {
@@ -303,7 +304,7 @@ func (t *StructTypeStruct) Len() int {
 // -- Interface
 
 export type InterfaceType interface {
-	Field(int)	(name string, typ Type, offset uint64);
+	Field(int)	(name string, typ Type, tag string, offset uint64);
 	Len()	int;
 }
 
@@ -316,8 +317,8 @@ func NewInterfaceTypeStruct(name string, field *[]Field) *InterfaceTypeStruct {
 	return &InterfaceTypeStruct{ Common{InterfaceKind, name, interfacesize}, field }
 }
 
-func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, offset uint64) {
-	return t.field[i].name, t.field[i].typ.Get(), 0
+func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, tag string, offset uint64) {
+	return t.field[i].name, t.field[i].typ.Get(), "", 0
 }
 
 func (t *InterfaceTypeStruct) Len() int {
@@ -489,6 +490,33 @@ func special(c uint8) bool {
 	return false;
 }
 
+// Process backslashes.  String known to be well-formed.
+// Initial double-quote is left in, as an indication this token is a string.
+func unescape(s string, backslash bool) string {
+	if !backslash {
+		return s
+	}
+	out := "\"";
+	for i := 1; i < len(s); i++ {
+		c := s[i];
+		if c == '\\' {
+			i++;
+			c = s[i];
+			switch c {
+			case 'n':
+				c = '\n';
+			case 't':
+				c = '\t';
+			case '0':	// it's not a legal go string but \0 means NUL
+				c = '\x00';
+			// default is correct already; \\ is \; \" is "
+			}
+		}
+		out += string(c);
+	}
+	return out;
+}
+
 // Simple parser for type strings
 type Parser struct {
 	str	string;	// string being parsed
@@ -524,6 +552,23 @@ func (p *Parser) Next() {
 			p.index++
 		}
 		p.token = p.str[start : p.index];
+		return;
+	case c == '"':	// double-quoted string for struct field annotation
+		backslash := false;
+		for p.index < len(p.str) && p.str[p.index] != '"' {
+			if p.str[p.index] == '\\' {
+				if p.index+1 == len(p.str) {	// bad final backslash
+					break;
+				}
+				p.index++;	// skip (and accept) backslash
+				backslash = true;
+			}
+			p.index++
+		}
+		p.token = unescape(p.str[start : p.index], backslash);
+		if p.index < len(p.str) {	// properly terminated string
+			p.index++;	// skip the terminating double-quote
+		}
 		return;
 	}
 	for p.index < len(p.str) && p.str[p.index] != ' ' && !special(p.str[p.index]) {
@@ -598,6 +643,10 @@ func (p *Parser) Fields(sep string) *[]Field {
 		a[nf].name = p.token;
 		p.Next();
 		a[nf].typ = p.Type("");
+		if p.token != "" && p.token[0] == '"' {
+			a[nf].tag = p.token[1:len(p.token)];
+			p.Next();
+		}
 		nf++;
 		if p.token != sep {
 			break;
