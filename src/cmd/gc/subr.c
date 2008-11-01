@@ -818,6 +818,7 @@ etnames[] =
 	[TBOOL]		= "BOOL",
 	[TPTR32]	= "PTR32",
 	[TPTR64]	= "PTR64",
+	[TDDD]		= "DDD",
 	[TFUNC]		= "FUNC",
 	[TARRAY]	= "ARRAY",
 //	[TDARRAY]	= "DARRAY",
@@ -1453,8 +1454,12 @@ isselect(Node *n)
 int
 isinter(Type *t)
 {
-	if(t != T && t->etype == TINTER)
-		return 1;
+	if(t != T) {
+		if(t->etype == TINTER)
+			return 1;
+		if(t->etype == TDDD)
+			return 1;
+	}
 	return 0;
 }
 
@@ -1466,6 +1471,14 @@ isnilinter(Type *t)
 	if(t->type != T)
 		return 0;
 	return 1;
+}
+
+int
+isddd(Type *t)
+{
+	if(t != T && t->etype == TDDD)
+		return 1;
+	return 0;
 }
 
 Type*
@@ -1604,6 +1617,7 @@ globalsig(Type *t)
 		return S;
 
 	case TINTER:
+	case TDDD:
 		if(isnilinter(t)) {
 			snprint(buf, sizeof(buf), "%s_%s", "sigi", "inter");
 			goto out;
@@ -1670,6 +1684,10 @@ signame(Type *t, int block)
 	if(t == T)
 		goto bad;
 
+	ss = globalsig(t);
+	if(ss != S)
+		return ss;
+
 	s = t->sym;
 	if(s == S) {
 		if(isptr[t->etype]) {
@@ -1681,10 +1699,6 @@ signame(Type *t, int block)
 		if(s == S)
 			goto bad;
 	}
-
-	ss = globalsig(t);
-	if(ss != S)
-		return ss;
 
 	e = "sigt";
 	if(t->etype == TINTER)

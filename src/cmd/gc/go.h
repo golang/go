@@ -597,6 +597,7 @@ int	isptrarray(Type*);
 int	isptrdarray(Type*);
 int	isinter(Type*);
 int	isnilinter(Type*);
+int	isddd(Type*);
 Sym*	globalsig(Type*);
 Type*	ismethod(Type*);
 Type*	methtype(Type*);
