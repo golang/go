@@ -197,7 +197,7 @@ func getFloat(v reflect.Value) (val float64, ok bool) {
 	case reflect.Float32Kind:
 		return float64(v.(reflect.Float32Value).Get()), true;
 	case reflect.Float64Kind:
-		return float64(v.(reflect.Float32Value).Get()), true;
+		return float64(v.(reflect.Float64Value).Get()), true;
 	case reflect.Float80Kind:
 		break;	// TODO: what to do here?
 	}
@@ -273,6 +273,14 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 		fieldnum++;
 		s := "";
 		switch c {
+			// bool
+			case 't':
+				if field.(reflect.BoolValue).Get() {
+					s = "true";
+				} else {
+					s = "false";
+				}
+
 			// int
 			case 'b':
 				if v, signed, ok := getInt(field); ok {
@@ -369,6 +377,8 @@ func (p *P) doprint(v reflect.StructValue, is_println bool) {
 			p.add(' ')
 		}
 		switch field.Kind() {
+		case reflect.BoolKind:
+			s = p.fmt.boolean(field.(reflect.BoolValue).Get()).str();
 		case reflect.IntKind, reflect.Int8Kind, reflect.Int16Kind, reflect.Int32Kind, reflect.Int64Kind:
 			v, signed, ok := getInt(field);
 			s = p.fmt.d64(v).str();
