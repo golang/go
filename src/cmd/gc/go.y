@@ -1871,6 +1871,10 @@ hidden_type1:
 		$$->type = $3;
 		$$->chan = Csend;
 	}
+|	LDDD
+	{
+		$$ = typ(TDDD);
+	}
 
 hidden_type2:
 	LCHAN hidden_type

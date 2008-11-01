@@ -968,6 +968,7 @@ basicnames[] =
 	[TFLOAT80]	= "float80",
 	[TBOOL]		= "bool",
 	[TANY]		= "any",
+	[TDDD]		= "...",
 };
 
 int
