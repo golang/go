@@ -1557,6 +1557,7 @@ isfat(Type *t)
 	case TSTRUCT:
 	case TARRAY:
 	case TINTER:	// maybe remove later
+	case TDDD:	// maybe remove later
 		return 1;
 	}
 	return 0;

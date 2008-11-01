@@ -1555,10 +1555,7 @@ loop:
 
 	a = nod(OAS, l, r);
 	a = convas(a);
-	if(nn == N)
-		nn = a;
-	else
-		nn = list(a, nn);
+	nn = list(a, nn);
 
 	l = listnext(&savel);
 	r = listnext(&saver);
@@ -1595,15 +1592,115 @@ loop:
 
 	a = nod(OAS, l, nodarg(r, fp));
 	a = convas(a);
-	if(nn == N)
-		nn = a;
-	else
-		nn = list(a, nn);
+	nn = list(a, nn);
 
 	l = listnext(&savel);
 	r = structnext(&saver);
 
 	goto loop;
+}
+
+/*
+ * make a tsig for the structure
+ * carrying the ... arguments
+ */
+Type*
+sigtype(Type *st)
+{
+	Dcl *x;
+	Sym *s;
+	Type *t;
+	static int sigdddgen;
+
+	dowidth(st);
+
+	sigdddgen++;
+	snprint(namebuf, sizeof(namebuf), "dsigddd_%d", sigdddgen);
+	s = lookup(namebuf);
+	t = newtype(s);
+	t = dodcltype(t);
+	updatetype(t, st);
+
+	// record internal type for signature generation
+	x = mal(sizeof(*x));
+	x->op = OTYPE;
+	x->dsym = s;
+	x->dtype = s->otype;
+	x->forw = signatlist;
+	x->block = block;
+	signatlist = x;
+
+	return s->otype;
+}
+
+/*
+ * package all the arguments that
+ * match a ... parameter into an
+ * automatic structure.
+ * then call the ... arg (interface)
+ * with a pointer to the structure
+ */
+Node*
+mkdotargs(Node *r, Iter *saver, Node *nn, Type *l, int fp)
+{
+	Type *t, *st, *ft;
+	Node *a, *n, *var;
+	Iter saven;
+
+	n = N;			// list of assignments
+
+	st = typ(TSTRUCT);	// generated structure
+	ft = T;			// last field
+	while(r != N) {
+		defaultlit(r);
+
+		// generate the next structure field
+		t = typ(TFIELD);
+		t->type = r->type;
+		if(ft == T)
+			st->type = t;
+		else
+			ft->down = t;
+		ft = t;
+
+		a = nod(OAS, N, r);
+		n = list(n, a);
+		r = listnext(saver);
+	}
+
+	// make a named type for the struct
+	st = sigtype(st);
+
+	// now we have the size, make the struct
+	var = nod(OXXX, N, N);
+	tempname(var, st);
+
+	// assign the fields to the struct
+	n = rev(n);
+	r = listfirst(&saven, &n);
+	t = st->type;
+	while(r != N) {
+		r->left = nod(OXXX, N, N);
+		*r->left = *var;
+		r->left->type = r->right->type;
+		r->left->xoffset += t->width;
+		nn = list(r, nn);
+		r = listnext(&saven);
+		t = t->down;
+	}
+
+	// last thing is to put assignment
+	// of a pointer to the structure to
+	// the DDD parameter
+
+	a = nod(OADDR, var, N);
+	a->type = ptrto(st);
+	a = nod(OAS, nodarg(l, fp), a);
+	a = convas(a);
+
+	nn = list(a, nn);
+
+	return nn;
 }
 
 Node*
@@ -1622,7 +1719,21 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
 	l = structfirst(&savel, nl);
 	r = listfirst(&saver, nr);
 	nn = N;
+
 loop:
+	if(l != T && isddd(l->type)) {
+		if(r != T && isddd(r->type)) {
+			goto more;
+		}
+
+		nn = mkdotargs(r, &saver, nn, l, fp);
+
+		l = structnext(&savel);
+		if(l != T)
+			yyerror("... must be last argument");
+		return rev(nn);
+	}
+
 	if(l == T || r == N) {
 		if(l != T || r != N)
 			yyerror("error in shape across %O", op);
@@ -1634,12 +1745,10 @@ loop:
 		return N;
 	}
 
+more:
 	a = nod(OAS, nodarg(l, fp), r);
 	a = convas(a);
-	if(nn == N)
-		nn = a;
-	else
-		nn = list(a, nn);
+	nn = list(a, nn);
 
 	l = structnext(&savel);
 	r = listnext(&saver);
@@ -2518,6 +2627,8 @@ isandss(Type *lt, Node *r)
 	rt = r->type;
 	if(isinter(lt)) {
 		if(isinter(rt)) {
+			if(isnilinter(lt) && isnilinter(rt))
+				return Inone;
 			if(!eqtype(rt, lt, 0))
 				return I2I;
 			return Inone;
@@ -2649,6 +2760,9 @@ convas(Node *n)
 	if(n->op != OAS)
 		fatal("convas: not OAS %O", n->op);
 
+	lt = T;
+	rt = T;
+
 	l = n->left;
 	r = n->right;
 	if(l == N || r == N)
@@ -2747,10 +2861,7 @@ colas(Node *nl, Node *nr)
 		walktype(r, Erv);
 		defaultlit(r);
 		a = old2new(l, r->type);
-		if(n == N)
-			n = a;
-		else
-			n = list(n, a);
+		n = list(n, a);
 
 		l = listnext(&savel);
 		r = listnext(&saver);
@@ -2785,10 +2896,7 @@ multi:
 		t = structfirst(&saver, getoutarg(t));
 		while(l != N) {
 			a = old2new(l, t->type);
-			if(n == N)
-				n = a;
-			else
-				n = list(n, a);
+			n = list(n, a);
 			l = listnext(&savel);
 			t = structnext(&saver);
 		}
@@ -2877,16 +2985,12 @@ loop2:
 	if(l == N) {
 		r = rev(r);
 		g = rev(g);
-		if(g != N)
-			f = list(g, f);
+		f = list(g, f);
 		r = list(f, r);
 		return r;
 	}
 	if(l->ullman < UINF) {
-		if(r == N)
-			r = l;
-		else
-			r = list(l, r);
+		r = list(l, r);
 		goto more;
 	}
 	if(f == N) {
@@ -2898,19 +3002,12 @@ loop2:
 	a = nod(OXXX, N, N);
 	tempname(a, l->right->type);
 	a = nod(OAS, a, l->right);
-
-	if(g == N)
-		g = a;
-	else
-		g = list(a, g);
+	g = list(a, g);
 
 	// put normal arg assignment on list
 	// with fncall replaced by tempname
 	l->right = a->left;
-	if(r == N)
-		r = l;
-	else
-		r = list(l, r);
+	r = list(l, r);
 
 more:
 	l = listnext(&save);
@@ -3040,20 +3137,14 @@ reorder3(Node *n)
 	q = N;
 	l1 = listfirst(&save1, &n);
 	while(l1 != N) {
-		if(q == N)
-			q = l1;
-		else
-			q = list(q, l1);
+		q = list(q, l1);
 		l1 = listnext(&save1);
 	}
 
 	r = rev(r);
 	l1 = listfirst(&save1, &r);
 	while(l1 != N) {
-		if(q == N)
-			q = l1;
-		else
-			q = list(q, l1);
+		q = list(q, l1);
 		l1 = listnext(&save1);
 	}
 

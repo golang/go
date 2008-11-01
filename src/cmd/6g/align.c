@@ -119,6 +119,9 @@ dowidth(Type *t)
 	case TFLOAT80:
 		w = 10;
 		break;
+	case TDDD:
+		w = 2*wptr;
+		break;
 	case TINTER:		// implemented as 2 pointers
 	case TFORWINTER:
 		offmod(t);
