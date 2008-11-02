@@ -60,6 +60,21 @@ func AddrToPtrFloat80(Addr) *float80
 func AddrToPtrString(Addr) *string
 func AddrToPtrBool(Addr) *bool
 
+// -- Missing
+
+export type MissingValue interface {
+	Kind()	int;
+	Type()	Type;
+}
+
+type MissingValueStruct struct {
+	CommonV
+}
+
+func MissingCreator(typ Type, addr Addr) Value {
+	return &MissingValueStruct{ CommonV{IntKind, typ, addr} }
+}
+
 // -- Int
 
 export type IntValue interface {
@@ -676,6 +691,7 @@ var creator *map[int] Creator
 
 func init() {
 	creator = new(map[int] Creator);
+	creator[MissingKind] = &MissingCreator;
 	creator[IntKind] = &IntCreator;
 	creator[Int8Kind] = &Int8Creator;
 	creator[Int16Kind] = &Int16Creator;

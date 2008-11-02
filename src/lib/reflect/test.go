@@ -91,6 +91,7 @@ func main() {
 	var s string;
 	var t reflect.Type;
 
+	typedump("missing", "$missing$");
 	typedump("int", "int");
 	typedump("int8", "int8");
 	typedump("int16", "int16");
@@ -106,6 +107,7 @@ func main() {
 	typedump("float64", "float64");
 	typedump("float80", "float80");
 	typedump("int8", "int8");
+	typedump("whoknows.whatsthis", "$missing$");
 	typedump("**int8", "**int8");
 	typedump("**P.integer", "**P.integer");
 	typedump("[32]int32", "[32]int32");
