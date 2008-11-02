@@ -83,11 +83,11 @@ export type Writer interface {
 }
 
 func (p *P) doprintf(format string, v reflect.StructValue);
-func (p *P) doprint(v reflect.StructValue, addspace bool);
+func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool);
 
 // These routines end in 'f' and take a format string.
 
-func (p *P) fprintf(w Writer, format string, a reflect.Empty) (n int, error *os.Error) {
+func (p *P) fprintf(w Writer, format string, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p.doprintf(format, v);
 	n, error = w.Write(p.buf[0:p.n]);
@@ -95,12 +95,12 @@ func (p *P) fprintf(w Writer, format string, a reflect.Empty) (n int, error *os.
 	return n, error;
 }
 
-func (p *P) printf(format string, v reflect.Empty) (n int, errno *os.Error) {
+func (p *P) printf(format string, v ...) (n int, errno *os.Error) {
 	n, errno = p.fprintf(os.Stdout, format, v);
 	return n, errno;
 }
 
-func (p *P) sprintf(format string, v reflect.Empty) string {
+func (p *P) sprintf(format string, v ...) string {
 	p.doprintf(format, reflect.NewValue(v).(reflect.StructValue));
 	s := string(p.buf)[0 : p.n];
 	p.reset();
@@ -110,21 +110,21 @@ func (p *P) sprintf(format string, v reflect.Empty) string {
 // These routines do not take a format string and add spaces only
 // when the operand on neither side is a string.
 
-func (p *P) fprint(w Writer, a reflect.Empty) (n int, error *os.Error) {
+func (p *P) fprint(w Writer, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
-	p.doprint(v, false);
+	p.doprint(v, false, false);
 	n, error = w.Write(p.buf[0:p.n]);
 	p.reset();
 	return n, error;
 }
 
-func (p *P) print(v reflect.Empty) (n int, errno *os.Error) {
+func (p *P) print(v ...) (n int, errno *os.Error) {
 	n, errno = p.fprint(os.Stdout, v);
 	return n, errno;
 }
 
-func (p *P) sprint(v reflect.Empty) string {
-	p.doprint(reflect.NewValue(v).(reflect.StructValue), false);
+func (p *P) sprint(v ...) string {
+	p.doprint(reflect.NewValue(v).(reflect.StructValue), false, false);
 	s := string(p.buf)[0 : p.n];
 	p.reset();
 	return s;
@@ -134,21 +134,21 @@ func (p *P) sprint(v reflect.Empty) string {
 // always add spaces between operands, and add a newline
 // after the last operand.
 
-func (p *P) fprintln(w Writer, a reflect.Empty) (n int, error *os.Error) {
+func (p *P) fprintln(w Writer, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
-	p.doprint(v, true);
+	p.doprint(v, true, true);
 	n, error = w.Write(p.buf[0:p.n]);
 	p.reset();
 	return n, error;
 }
 
-func (p *P) println(v reflect.Empty) (n int, errno *os.Error) {
+func (p *P) println(v ...) (n int, errno *os.Error) {
 	n, errno = p.fprintln(os.Stdout, v);
 	return n, errno;
 }
 
-func (p *P) sprintln(v reflect.Empty) string {
-	p.doprint(reflect.NewValue(v).(reflect.StructValue), true);
+func (p *P) sprintln(v ...) string {
+	p.doprint(reflect.NewValue(v).(reflect.StructValue), true, true);
 	s := string(p.buf)[0 : p.n];
 	p.reset();
 	return s;
@@ -362,19 +362,19 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 	}
 }
 
-func (p *P) doprint(v reflect.StructValue, is_println bool) {
+func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool) {
 	prev_string := false;
 	for fieldnum := 0; fieldnum < v.Len();  fieldnum++ {
 		// always add spaces if we're doing println
 		field := v.Field(fieldnum);
 		s := "";
-		if is_println {
-			if fieldnum > 0 {
+		if fieldnum > 0 {
+			if addspace {
+				p.add(' ')
+			} else if field.Kind() != reflect.StringKind && !prev_string{
+				// if not doing println, add spaces if neither side is a string
 				p.add(' ')
 			}
-		} else if field.Kind() != reflect.StringKind && !prev_string{
-			// if not doing println, add spaces if neither side is a string
-			p.add(' ')
 		}
 		switch field.Kind() {
 		case reflect.BoolKind:
@@ -396,13 +396,17 @@ func (p *P) doprint(v reflect.StructValue, is_println bool) {
 			p.add('0');
 			p.add('x');
 			s = p.fmt.uX64(v).str();
+		case reflect.StructKind:
+			p.add('{');
+			p.doprint(field, true, false);
+			p.add('}');
 		default:
 			s = "???";
 		}
 		p.addstr(s);
 		prev_string = field.Kind() == reflect.StringKind;
 	}
-	if is_println {
+	if addnewline {
 		p.add('\n')
 	}
 }
