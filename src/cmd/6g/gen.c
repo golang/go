@@ -752,12 +752,12 @@ cgen_asop(Node *n)
 	}
 
 	if(nr->ullman > nl->ullman) {
-		regalloc(&n2, nl->type, N);
+		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
 		igen(nl, &n1, N);
 	} else {
 		igen(nl, &n1, N);
-		regalloc(&n2, nl->type, N);
+		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
 	}
 
@@ -766,7 +766,7 @@ cgen_asop(Node *n)
 	n3.right = &n2;
 	n3.op = n->etype;
 
-	regalloc(&n4, nr->type, N);
+	regalloc(&n4, nl->type, N);
 	cgen(&n3, &n4);
 	gmove(&n4, &n1);
 
