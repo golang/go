@@ -1640,7 +1640,7 @@ sigtype(Type *st)
  * with a pointer to the structure
  */
 Node*
-mkdotargs(Node *r, Iter *saver, Node *nn, Type *l, int fp)
+mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
 {
 	Type *t, *st, *ft;
 	Node *a, *n, *var;
@@ -1664,7 +1664,11 @@ mkdotargs(Node *r, Iter *saver, Node *nn, Type *l, int fp)
 
 		a = nod(OAS, N, r);
 		n = list(n, a);
-		r = listnext(saver);
+		if(rr != N) {
+			r = rr;
+			rr = N;
+		} else
+			r = listnext(saver);
 	}
 
 	// make a named type for the struct
@@ -1705,8 +1709,8 @@ mkdotargs(Node *r, Iter *saver, Node *nn, Type *l, int fp)
 Node*
 ascompatte(int op, Type **nl, Node **nr, int fp)
 {
-	Type *l;
-	Node *r, *nn, *a;
+	Type *l, *ll;
+	Node *r, *rr, *nn, *a;
 	Iter savel, saver;
 
 	/*
@@ -1721,15 +1725,28 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
 
 loop:
 	if(l != T && isddd(l->type)) {
-		if(r != N && isddd(r->type)) {
-			goto more;
+		// the ddd parameter must be last
+		ll = structnext(&savel);
+		if(ll != T)
+			yyerror("... must be last argument");
+
+		// special case --
+		// only if we are assigning a single ddd
+		// argument to a ddd parameter then it is
+		// passed thru unencapsulated
+		rr = listnext(&saver);
+		if(r != N && rr == N && isddd(r->type)) {
+			a = nod(OAS, nodarg(l, fp), r);
+			a = convas(a);
+			nn = list(a, nn);
+			return rev(nn);
 		}
 
-		nn = mkdotargs(r, &saver, nn, l, fp);
+		// normal case -- make a structure of all
+		// remaining arguments and pass a pointer to
+		// it to the ddd parameter (empty interface)
+		nn = mkdotargs(r, rr, &saver, nn, l, fp);
 
-		l = structnext(&savel);
-		if(l != T)
-			yyerror("... must be last argument");
 		return rev(nn);
 	}
 
