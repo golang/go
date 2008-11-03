@@ -135,7 +135,6 @@ struct	Type
 	Type*	method;
 
 	Sym*	sym;
-	Sym*	xsym;		// export sym
 	int32	vargen;		// unique name for OTYPE/ONAME
 
 	Node*	nname;
@@ -190,7 +189,6 @@ struct	Node
 	Val	val;
 
 	Sym*	osym;		// import
-	Sym*	fsym;		// import
 	Sym*	psym;		// import
 	Sym*	sym;		// various
 	int32	vargen;		// unique name for OTYPE/ONAME
@@ -665,6 +663,7 @@ void	defaultlit(Node*);
 int	listcount(Node*);
 void	addmethod(Node*, Type*, int);
 Node*	methodname(Node*, Type*);
+Sym*	methodsym(Sym*, Type*);
 Type*	functype(Node*, Node*, Node*);
 char*	thistypenam(Node*);
 void	funcnam(Type*, char*);

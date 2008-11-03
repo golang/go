@@ -984,12 +984,17 @@ Tpretty(Fmt *fp, Type *t)
 		if(t == types[t->etype] || t == types[TSTRING])
 			return fmtprint(fp, "%s", s->name);
 		if(exporting) {
-			if(t->xsym != S)
-				s = t->xsym;
+			if(fp->flags & FmtShort)
+				fmtprint(fp, "%hS", s);
+			else
+				fmtprint(fp, "%lS", s);
 			if(strcmp(s->opackage, package) == 0)
-			if(s->otype != t || !s->export)
-				return fmtprint(fp, "%lS_%s", s, filename);
-			return fmtprint(fp, "%lS", s);
+			if(s->otype != t || !s->export) {
+				fmtprint(fp, "·%s", filename);
+				if(t->vargen)
+					fmtprint(fp, "·%d", t->vargen);
+			}
+			return 0;
 		}
 		return fmtprint(fp, "%S", s);
 	}
@@ -1606,12 +1611,11 @@ globalsig(Type *t)
 	int et;
 	Sym *s;
 	char buf[NSYMB];
-	char *glob;
+	char *sigx;
 
 	if(t == T)
 		return S;
 
-	glob = "sys";
 	et = t->etype;
 	switch(et) {
 	default:
@@ -1620,7 +1624,8 @@ globalsig(Type *t)
 	case TINTER:
 	case TDDD:
 		if(isnilinter(t)) {
-			snprint(buf, sizeof(buf), "%s_%s", "sigi", "inter");
+			sigx = "sigi";
+			strcpy(buf, "inter");
 			goto out;
 		}
 		return S;
@@ -1660,10 +1665,11 @@ globalsig(Type *t)
 		return S;
 	if(strcmp(t->sym->name, types[et]->sym->name) != 0)
 		return S;
-	snprint(buf, sizeof(buf), "%s_%S", "sigt", t->sym);
+	sigx = "sigt";
+	snprint(buf, sizeof(buf), "%#T", t);
 
 out:
-	s = pkglookup(buf, glob);
+	s = pkglookup(buf, sigx);
 	if(s->oname == N) {
 		s->oname = newname(s);
 		s->oname->type = types[TUINT8];
@@ -1709,8 +1715,6 @@ signame(Type *t, int block)
 		block = s->tblock;
 
 	if(block > 1) {
-		snprint(buf, sizeof(buf), "%s_%d%s", e, block, s->name);
-
 		// record internal type for signature generation
 		x = mal(sizeof(*x));
 		x->op = OTYPE;
@@ -1719,10 +1723,9 @@ signame(Type *t, int block)
 		x->forw = signatlist;
 		x->block = block;
 		signatlist = x;
-	} else
-		snprint(buf, sizeof(buf), "%s_%s", e, s->name);
-
-	ss = pkglookup(buf, s->opackage);
+	}
+	snprint(buf, sizeof(buf), "%#T", t);
+	ss = pkglookup(buf, e);
 	if(ss->oname == N) {
 		ss->oname = newname(ss);
 		ss->oname->type = types[TUINT8];
@@ -2494,7 +2497,6 @@ adddot(Node *n)
 {
 	Type *t;
 	Sym *s;
-	Node *l;
 	int c, d;
 
 	walktype(n->left, Erv);

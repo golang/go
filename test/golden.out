@@ -22,7 +22,7 @@ errchk: ./convlit.go: unmatched error messages:
 hello, world
 
 =========== ./interface2.go
-cannot convert type *main.S_interface2 to interface main.I_interface2: missing method Foo
+cannot convert type *main.S·interface2 to interface main.I·interface2: missing method Foo
 throw: interface conversion
 SIGSEGV: segmentation violation
 Faulting address: 0x0
@@ -30,7 +30,7 @@ pc: xxx
 
 
 =========== ./interface3.go
-cannot convert type *main.S_interface3 to interface main.I2_interface3: missing method Name
+cannot convert type *main.S·interface3 to interface main.I2·interface3: missing method Name
 throw: interface conversion
 SIGSEGV: segmentation violation
 Faulting address: 0x0

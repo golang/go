@@ -47,29 +47,29 @@ static	Map*	hash[1009];
 
 #define	END	nil,0,0,nil
 
-Sigi	sys·sigi_inter[2] =	{ (byte*)"interface {}", 0, 0, nil, 0, 0 };
+Sigi	sigi·inter[2] =	{ (byte*)"interface {}", 0, 0, nil, 0, 0 };
 
-Sigt	sys·sigt_int8[2] =	{ (byte*)"int8", ASIMP, 1, nil, END };
-Sigt	sys·sigt_int16[2] =	{ (byte*)"int16", ASIMP, 2, nil, END };
-Sigt	sys·sigt_int32[2] =	{ (byte*)"int32", ASIMP, 4, nil, END };
-Sigt	sys·sigt_int64[2] =	{ (byte*)"int64", ASIMP, 8, nil, END };
+Sigt	sigt·int8[2] =	{ (byte*)"int8", ASIMP, 1, nil, END };
+Sigt	sigt·int16[2] =	{ (byte*)"int16", ASIMP, 2, nil, END };
+Sigt	sigt·int32[2] =	{ (byte*)"int32", ASIMP, 4, nil, END };
+Sigt	sigt·int64[2] =	{ (byte*)"int64", ASIMP, 8, nil, END };
 
-Sigt	sys·sigt_uint8[2] =	{ (byte*)"uint8", ASIMP, 1, nil, END };
-Sigt	sys·sigt_uint16[2] =	{ (byte*)"uint16", ASIMP, 2, nil, END };
-Sigt	sys·sigt_uint32[2] =	{ (byte*)"uint32", ASIMP, 4, nil, END };
-Sigt	sys·sigt_uint64[2] =	{ (byte*)"uint64", ASIMP, 8, nil, END };
+Sigt	sigt·uint8[2] =	{ (byte*)"uint8", ASIMP, 1, nil, END };
+Sigt	sigt·uint16[2] =	{ (byte*)"uint16", ASIMP, 2, nil, END };
+Sigt	sigt·uint32[2] =	{ (byte*)"uint32", ASIMP, 4, nil, END };
+Sigt	sigt·uint64[2] =	{ (byte*)"uint64", ASIMP, 8, nil, END };
 
-Sigt	sys·sigt_float32[2] =	{ (byte*)"float32", ASIMP, 4, nil, END };
-Sigt	sys·sigt_float64[2] =	{ (byte*)"float64", ASIMP, 8, nil, END };
-//Sigt	sys·sigt_float80[2] =	{ (byte*)"float80", ASIMP, 0, nil, END };
+Sigt	sigt·float32[2] =	{ (byte*)"float32", ASIMP, 4, nil, END };
+Sigt	sigt·float64[2] =	{ (byte*)"float64", ASIMP, 8, nil, END };
+//Sigt	sigt·float80[2] =	{ (byte*)"float80", ASIMP, 0, nil, END };
 
-Sigt	sys·sigt_bool[2] =	{ (byte*)"bool", ASIMP, 1, nil, END };
-Sigt	sys·sigt_string[2] =	{ (byte*)"string", ASTRING, 8, nil, END };
+Sigt	sigt·bool[2] =	{ (byte*)"bool", ASIMP, 1, nil, END };
+Sigt	sigt·string[2] =	{ (byte*)"string", ASTRING, 8, nil, END };
 
-Sigt	sys·sigt_int[2] =	{ (byte*)"int", ASIMP, 4, nil, END };
-Sigt	sys·sigt_uint[2] =	{ (byte*)"uint", ASIMP, 4, nil, END };
-Sigt	sys·sigt_uintptr[2] =	{ (byte*)"uintptr", ASIMP, 8, nil, END };
-Sigt	sys·sigt_float[2] =	{ (byte*)"float", ASIMP, 4, nil, END };
+Sigt	sigt·int[2] =	{ (byte*)"int", ASIMP, 4, nil, END };
+Sigt	sigt·uint[2] =	{ (byte*)"uint", ASIMP, 4, nil, END };
+Sigt	sigt·uintptr[2] =	{ (byte*)"uintptr", ASIMP, 8, nil, END };
+Sigt	sigt·float[2] =	{ (byte*)"float", ASIMP, 4, nil, END };
 
 static void
 printsigi(Sigi *si)
