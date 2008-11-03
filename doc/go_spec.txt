@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(October 30, 2008)
+(November 3, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -41,17 +41,17 @@ Todo's:
 [ ] need to talk about precise int/floats clearly
 [ ] iant suggests to use abstract/precise int for len(), cap() - good idea
     (issue: what happens in len() + const - what is the type?)
+[ ] need to be specific on (unsigned) integer operations: one must be able
+	to rely on wrap-around on overflow
 
 
 Open issues:
 [ ] semantics of type decl and where methods are attached
+	what about: type MyInt int (does it produce a new (incompatible) int)?
 [ ] convert should not be used for composite literals anymore,
 	in fact, convert() should go away
 [ ] if statement: else syntax must be fixed
 [ ] old-style export decls (still needed, but ideally should go away)
-[ ] new(arraytype, n1, n2): spec only talks about length, not capacity
-    (should only use new(arraytype, n) - this will allow later
-	 extension to multi-dim arrays w/o breaking the language)
 [ ] like to have assert() in the language, w/ option to disable code gen for it
 [ ] composite types should uniformly create an instance instead of a pointer
 [ ] semantics of statements
@@ -86,9 +86,14 @@ Open issues:
 Decisions in need of integration into the doc:
 [ ] pair assignment is required to get map, and receive ok.
 [ ] len() returns an int, new(array_type, n) n must be an int
+[ ] passing a "..." arg to another "..." parameter doesn't wrap the argument again
+	(so "..." args can be passed down easily)
 
 
 Closed:
+[x] new(arraytype, n1, n2): spec only talks about length, not capacity
+    (should only use new(arraytype, n) - this will allow later
+	 extension to multi-dim arrays w/o breaking the language) - documented
 [x] should we have a shorter list of alias types? (byte, int, uint, float) - done
 [x] reflection support
 [x] syntax for var args
@@ -1140,7 +1145,7 @@ A field declaration may be followed by an optional string literal tag which
 becomes an ``attribute'' for all the identifiers in the corresponding
 field declaration. The tags are available via the reflection library but
 are ignored otherwise. A tag may contain arbitrary application-specific
-information (for instance protocol buffer field information).
+information.
 
 	// A struct corresponding to the EventIdMessage protocol buffer.
 	// The tag strings contain the protocol buffer field tags.
@@ -1907,6 +1912,8 @@ Interfaces are equal if both their dynamic types and values are equal.
 For a value "v" of interface type, "v == nil" is true only if the predeclared
 constant "nil" is assigned explicitly to "v" (§Assignments), or "v" has not
 been modified since creation (§Program initialization and execution).
+
+TODO: Should we allow general comparison via interfaces? Problematic.
 
 
 Logical operators
