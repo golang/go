@@ -116,23 +116,9 @@ export func join(a *[]string, sep string) string {
 	return string(b)
 }
 
-// Convert decimal string to integer.
+// Convert decimal string to unsigned integer.
 // TODO: Doesn't check for overflow.
-export func atol(s string) (i int64, ok bool) {
-	// empty string bad
-	if len(s) == 0 { 
-		return 0, false
-	}
-	
-	// pick off leading sign
-	neg := false;
-	if s[0] == '+' {
-		s = s[1:len(s)]
-	} else if s[0] == '-' {
-		neg = true;
-		s = s[1:len(s)]
-	}
-	
+export func atoui64(s string) (i uint64, ok bool) {
 	// empty string bad
 	if len(s) == 0 { 
 		return 0, false
@@ -149,21 +135,53 @@ export func atol(s string) (i int64, ok bool) {
 	}
 
 	// parse number
-	n := int64(0);
+	n := uint64(0);
 	for i := 0; i < len(s); i++ {
 		if s[i] < '0' || s[i] > '9' {
 			return 0, false
 		}
-		n = n*10 + int64(s[i] - '0')
+		n = n*10 + uint64(s[i] - '0')
 	}
+	return n, true
+}
+
+// Convert decimal string to integer.
+// TODO: Doesn't check for overflow.
+export func atoi64(s string) (i int64, ok bool) {
+	// empty string bad
+	if len(s) == 0 {
+		return 0, false
+	}
+
+	// pick off leading sign
+	neg := false;
+	if s[0] == '+' {
+		s = s[1:len(s)]
+	} else if s[0] == '-' {
+		neg = true;
+		s = s[1:len(s)]
+	}
+
+	var un uint64;
+	un, ok = atoui64(s);
+	if !ok {
+		return 0, false
+	}
+	n := int64(un);
 	if neg {
 		n = -n
 	}
 	return n, true
 }
 
+export func atoui(s string) (i uint, ok bool) {
+	ii, okok := atoui64(s);
+	i = uint(ii);
+	return i, okok
+}
+
 export func atoi(s string) (i int, ok bool) {
-	ii, okok := atol(s);
+	ii, okok := atoi64(s);
 	i = int(ii);
 	return i, okok
 }
