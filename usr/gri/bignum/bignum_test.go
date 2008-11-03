@@ -38,14 +38,54 @@ func TEST_EQ(n uint, x, y *Big.Natural) {
 }
 
 
+func TestLog2() {
+	test_msg = "TestLog2A";
+	TEST(0, Big.Nat(1).Log2() == 0);
+	TEST(1, Big.Nat(2).Log2() == 1);
+	TEST(2, Big.Nat(3).Log2() == 1);
+	TEST(3, Big.Nat(4).Log2() == 2);
+	
+	test_msg = "TestLog2B";
+	for i := uint(0); i < 100; i++ {
+		TEST(i, Big.Nat(1).Shl(i).Log2() == int(i));
+	}
+}
+
+
 func TestConv() {
-	test_msg = "TestConv";
+	test_msg = "TestConvA";
 	TEST(0, a.Cmp(Big.Nat(991)) == 0);
 	TEST(1, b.Cmp(Big.Fact(20)) == 0);
 	TEST(2, c.Cmp(Big.Fact(100)) == 0);
 	TEST(3, a.String(10) == sa);
 	TEST(4, b.String(10) == sb);
 	TEST(5, c.String(10) == sc);
+
+	test_msg = "TestConvB";
+	t := c.Mul(c);
+	for base := uint(2); base <= 16; base++ {
+		TEST_EQ(base, Big.NatFromString(t.String(base), base), t);
+	}
+}
+
+
+func Sum(n uint, scale *Big.Natural) *Big.Natural {
+	s := Big.Nat(0);
+	for ; n > 0; n-- {
+		s = s.Add(Big.Nat(uint64(n)).Mul(scale));
+	}
+	return s;
+}
+
+
+func TestAdd() {
+	test_msg = "TestAddA";
+
+	test_msg = "TestAddB";
+	for i := uint(0); i < 100; i++ {
+		t := Big.Nat(uint64(i));
+		TEST_EQ(i, Sum(i, c), t.Mul(t).Add(t).Shr(1).Mul(c));
+	}
 }
 
 
@@ -163,7 +203,9 @@ func TestPop() {
 
 
 func main() {
+	TestLog2();
 	TestConv();
+	TestAdd();
 	TestShift();
 	TestMul();
 	TestDiv();
