@@ -25,6 +25,13 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 	// store local copy of per-process data block that we can write as we unwind
 	mcpy((byte*)&g, (byte*)r15, sizeof(G));
 
+	// if the PC is zero, it's probably due to a nil function pointer.
+	// pop the failed frame.
+	if(pc == nil) {
+		pc = ((uint8**)sp)[0];
+		sp += 8;
+	}
+
 	counter = 0;
 	name = "panic";
 	for(;;){
