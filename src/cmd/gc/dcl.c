@@ -200,8 +200,8 @@ methcmp(Type *t1, Type *t2)
 	return 1;
 }
 
-Node*
-methodname(Node *n, Type *t)
+Sym*
+methodsym(Sym *nsym, Type *t)
 {
 	Sym *s;
 	char buf[NSYMB];
@@ -213,12 +213,24 @@ methodname(Node *n, Type *t)
 	if(s == S)
 		goto bad;
 
-	snprint(buf, sizeof(buf), "%s_%s", s->name, n->sym->name);
-	return newname(pkglookup(buf, s->opackage));
+	snprint(buf, sizeof(buf), "%#hT·%s", t, nsym->name);
+//print("methodname %s\n", buf);
+	return pkglookup(buf, s->opackage);
 
 bad:
 	yyerror("illegal <this> type: %T", t);
-	return n;
+	return S;
+}
+
+Node*
+methodname(Node *n, Type *t)
+{
+	Sym *s;
+	
+	s = methodsym(n->sym, t);
+	if(s == S)
+		return n;
+	return newname(s);
 }
 
 /*
@@ -449,7 +461,6 @@ stotype(Node *n, Type **t)
 {
 	Type *f;
 	Iter save;
-	char buf[100];
 	String *note;
 
 	n = listfirst(&save, &n);
@@ -740,7 +751,6 @@ addtyp(Type *n, int ctxt)
 {
 	Dcl *r, *d;
 	Sym *s;
-	char *p;
 	static int typgen;
 
 	if(n==T || n->sym == S)
@@ -753,9 +763,7 @@ addtyp(Type *n, int ctxt)
 	else {
 		r = autodcl;
 		pushdcl(s);
-		p = smprint("%s_%d", s->name, ++typgen);
-		n->xsym = lookup(p);
-		free(p);
+		n->vargen = ++typgen;
 	}
 
 	if(s->tblock == block)
@@ -1168,8 +1176,19 @@ Node*
 embedded(Sym *s)
 {
 	Node *n;
+	char *name;
+	
+	// Names sometimes have disambiguation junk
+	// appended after a center dot.  Discard it when
+	// making the name for the embedded struct field.
+	enum { CenterDot = 0xB7 };
+	name = s->name;
+	if(utfrune(s->name, CenterDot)) {
+		name = strdup(s->name);
+		*utfrune(name, CenterDot) = 0;
+	}
 
-	n = newname(lookup(s->name));
+	n = newname(lookup(name));
 	n = nod(ODCLFIELD, n, N);
 	n->embedded = 1;
 	if(s == S)

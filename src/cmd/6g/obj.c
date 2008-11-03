@@ -516,6 +516,7 @@ gentramp(Type *t, Sig *b)
 	int c, d, o;
 	Prog *p;
 	Type *f;
+	Sym *msym;
 
 	e = lookup(b->name);
 	for(d=0; d<nelem(dotlist); d++) {
@@ -585,14 +586,12 @@ out:
 
 	f = dotlist[0].field;
 	//JMP	main·Sub_test2(SB)
-	snprint(namebuf, sizeof(namebuf), "%s_%s",
-		f->sym->name, b->name);
 	if(isptr[f->type->etype])
 		f = f->type;
 	p = pc;
 	gins(AJMP, N, N);
 	p->to.type = D_EXTERN;
-	p->to.sym = pkglookup(namebuf, f->type->sym->opackage);
+	p->to.sym = methodsym(lookup(b->name), f->type);
 //print("6. %P\n", p);
 }
 
@@ -661,9 +660,7 @@ dumpsigt(void)
 			a->name = s1->name;
 			a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
 			a->perm = o;
-			snprint(namebuf, sizeof(namebuf), "%s_%s",
-				at.sym->name+5, f->sym->name);
-			a->sym = lookup(namebuf);
+			a->sym = methodsym(f->sym, t);
 			a->offset = f->embedded;	// need trampoline
 
 			o++;
@@ -813,9 +810,7 @@ dumpsigi(void)
 
 			a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
 			a->perm = o;
-			snprint(namebuf, sizeof(namebuf), "%s_%s",
-				at.sym->name+5, f->sym->name);
-			a->sym = lookup(namebuf);
+			a->sym = methodsym(f->sym, t);
 			a->offset = 0;
 
 			o++;
