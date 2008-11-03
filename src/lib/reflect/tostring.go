@@ -67,12 +67,11 @@ func TypeToString(typ Type, expand bool) string {
 	switch(typ.Kind()) {
 	case MissingKind:
 		return "$missing$";
-	case DotDotDotKind:
-		return "...";
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
 	     UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
-	     FloatKind, Float32Kind, Float64Kind, Float80Kind:
-	     StringKind:
+	     FloatKind, Float32Kind, Float64Kind, Float80Kind,
+	     StringKind,
+	     DotDotDotKind:
 		return typ.Name();
 	case PtrKind:
 		p := typ.(PtrType);
