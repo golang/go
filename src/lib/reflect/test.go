@@ -124,6 +124,7 @@ func main() {
 	typedump("struct {a int8; b int8; c int8; d int8; e int8; b int32}", "struct{a int8; b int8; c int8; d int8; e int8; b int32}");
 	typedump("struct {a int8 \"hi there\"; }", "struct{a int8 \"hi there\"}");
 	typedump("struct {a int8 \"hi \\x00there\\t\\n\\\"\\\\\"; }", "struct{a int8 \"hi \\x00there\\t\\n\\\"\\\\\"}");
+	typedump("struct {f *(args ...)}", "struct{f *(args ...)}");
 
 	valuedump("int8", "8");
 	valuedump("int16", "16");

@@ -18,6 +18,7 @@ export const (
 	ArrayKind;
 	BoolKind;
 	ChanKind;
+	DotDotDotKind;
 	FloatKind;
 	Float32Kind;
 	Float64Kind;
@@ -44,6 +45,7 @@ var ptrsize uint64
 var interfacesize uint64
 
 var MissingString = "$missing$"	// syntactic name for undefined type names
+var DotDotDotString = "..."
 
 export type Type interface {
 	Kind()	int;
@@ -83,6 +85,7 @@ func NewBasicType(name string, kind int, size uint64) Type {
 // Prebuilt basic types
 export var (
 	Missing = NewBasicType(MissingString, MissingKind, 1);
+	DotDotDot = NewBasicType(DotDotDotString, DotDotDotKind, 16);	// TODO(r): size of interface?
 	Bool = NewBasicType("bool", BoolKind, 1); // TODO: need to know how big a bool is
 	Int = NewBasicType("int", IntKind, 4);	// TODO: need to know how big an int is
 	Int8 = NewBasicType("int8", Int8Kind, 1);
@@ -371,6 +374,7 @@ var initialized bool = false
 var basicstub *map[string] *StubType
 
 var MissingStub *StubType;
+var DotDotDotStub *StubType;
 
 // The database stored in the maps is global; use locking to guarantee safety.
 var lockchan *chan bool  // Channel with buffer of 1, used as a mutex
@@ -396,6 +400,7 @@ func init() {
 
 	// Basics go into types table
 	types[MissingString] = &Missing;
+	types[DotDotDotString] = &DotDotDot;
 	types["int"] = &Int;
 	types["int8"] = &Int8;
 	types["int16"] = &Int16;
@@ -415,7 +420,9 @@ func init() {
 
 	// Basics get prebuilt stubs
 	MissingStub = NewStubType(MissingString, Missing);
+	DotDotDotStub = NewStubType(DotDotDotString, DotDotDot);
 	basicstub[MissingString] = MissingStub;
+	basicstub[DotDotDotString] = DotDotDotStub;
 	basicstub["int"] = NewStubType("int", Int);
 	basicstub["int8"] = NewStubType("int8", Int8);
 	basicstub["int16"] = NewStubType("int16", Int16);
@@ -556,6 +563,13 @@ func (p *Parser) Next() {
 		if p.index < len(p.str) && p.str[p.index] == '-' {
 			p.index++;
 			p.token = "<-";
+			return;
+		}
+		fallthrough;	// shouldn't happen but let the parser figure it out
+	case c == '.':
+		if p.index < len(p.str)+2 && p.str[p.index-1:p.index+2] == DotDotDotString {
+			p.index += 2;
+			p.token = DotDotDotString;
 			return;
 		}
 		fallthrough;	// shouldn't happen but let the parser figure it out
