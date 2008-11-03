@@ -907,7 +907,7 @@ void
 dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 {
 	int a;
-	Node n3;
+	Node n3, n4;
 	Type *t;
 
 	t = nl->type;
@@ -919,25 +919,25 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 	}
 	a = optoas(op, t);
 
-	if(!issigned[t->etype]) {
-		nodconst(&n3, t, 0);
-		gmove(&n3, dx);
-	}
-
 	regalloc(&n3, nr->type, N);
 	if(nl->ullman >= nr->ullman) {
 		cgen(nl, ax);
-		if(issigned[t->etype])
+		if(!issigned[t->etype]) {
+			nodconst(&n4, t, 0);
+			gmove(&n4, dx);
+		} else
 			gins(optoas(OFOR, t), N, N);
 		cgen(nr, &n3);
-		gins(a, &n3, N);
 	} else {
 		cgen(nr, &n3);
 		cgen(nl, ax);
-		if(issigned[t->etype])
+		if(!issigned[t->etype]) {
+			nodconst(&n4, t, 0);
+			gmove(&n4, dx);
+		} else
 			gins(optoas(OFOR, t), N, N);
-		gins(a, &n3, N);
 	}
+	gins(a, &n3, N);
 	regfree(&n3);
 
 	if(op == ODIV)
