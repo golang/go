@@ -1492,8 +1492,7 @@ lookdot(Node *n, Type *t)
 void
 walkdot(Node *n)
 {
-	Type *t, *f;
-	int d;
+	Type *t;
 
 	if(n->left == N || n->right == N)
 		return;
@@ -1722,7 +1721,7 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
 
 loop:
 	if(l != T && isddd(l->type)) {
-		if(r != T && isddd(r->type)) {
+		if(r != N && isddd(r->type)) {
 			goto more;
 		}
 
