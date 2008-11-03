@@ -171,23 +171,23 @@ func main() {
 		type C chan *T;	// TODO: should not be necessary
 		var tmp = new(C);
 		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value), "*main.C_test(@)");
+		assert(reflect.ValueToString(value), "*main.C·test(@)");
 	}
 	{
 		type A [10]int;
 		var tmp A = A{1,2,3,4,5,6,7,8,9,10};
 		value := reflect.NewValue(&tmp);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.A_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.A·test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
 		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Put(123);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.A_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.A·test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
 	}
 	{
 		type AA []int;
 		tmp1 := [10]int{1,2,3,4,5,6,7,8,9,10};	// TODO: should not be necessary to use tmp1
 		var tmp *AA = &tmp1;
 		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.AA_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.AA·test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
 		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Put(123);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.AA_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.AA·test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
 	}
 }
