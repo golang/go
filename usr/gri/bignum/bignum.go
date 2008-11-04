@@ -180,7 +180,7 @@ func Mul11(x, y Digit) (Digit, Digit) {
 	// z = z1*B + z0 = x*y
 	z0 := (t1<<W2 + t0)&M;
 	z1 := t2<<DW + (t1 + t0>>W2)>>(W-W2);
-	
+
 	return z1, z0;
 }
 
@@ -453,17 +453,17 @@ func DivMod(x, y *[]Digit2) (*[]Digit2, *[]Digit2) {
 	assert(n+1 <= cap(x));  // space for one extra digit
 	x = x[0 : n + 1];
 	assert(x[n] == 0);
-	
+
 	if m == 1 {
 		// division by single digit
 		// result is shifted left by 1 in place!
 		x[0] = Div1(x[1 : n+1], x[0 : n], y[0]);
-		
+
 	} else if m > n {
 		// y > x => quotient = 0, remainder = x
 		// TODO in this case we shouldn't even unpack x and y
 		m = n;
-		
+
 	} else {
 		// general case
 		assert(2 <= m && m <= n);
@@ -478,12 +478,12 @@ func DivMod(x, y *[]Digit2) (*[]Digit2, *[]Digit2) {
 			Mul1(y, y, Digit2(f));
 		}
 		assert(B2/2 <= y[m-1] && y[m-1] < B2);  // incorrect scaling
-		
+
 		y1, y2 := Digit(y[m-1]), Digit(y[m-2]);
 		d2 := Digit(y1)<<W2 + Digit(y2);
 		for i := n-m; i >= 0; i-- {
 			k := i+m;
-			
+
 			// compute trial digit (Knuth)
 			var q Digit;
 			{	x0, x1, x2 := Digit(x[k]), Digit(x[k-1]), Digit(x[k-2]);
@@ -496,14 +496,14 @@ func DivMod(x, y *[]Digit2) (*[]Digit2, *[]Digit2) {
 					q--
 				}
 			}
-			
+
 			// subtract y*q
 			c := Digit(0);
 			for j := 0; j < m; j++ {
 				t := c + Digit(x[i+j]) - Digit(y[j])*q;
 				c, x[i+j] = Digit(int64(t)>>W2), Digit2(t&M2);  // requires arithmetic shift!
 			}
-			
+
 			// correct if trial digit was too large
 			if c + Digit(x[k]) != 0 {
 				// add y
@@ -516,10 +516,10 @@ func DivMod(x, y *[]Digit2) (*[]Digit2, *[]Digit2) {
 				// correct trial digit
 				q--;
 			}
-			
+
 			x[k] = Digit2(q);
 		}
-		
+
 		// undo normalization for remainder
 		if f != 1 {
 			c := Div1(x[0 : m], x[0 : m], Digit2(f));
@@ -553,9 +553,9 @@ func (x *Natural) Shl(s uint) *Natural {
 	n := uint(len(x));
 	m := n + s/W;
 	z := new(Natural, m+1);
-	
+
 	z[m] = Shl(z[m-n : m], x, s%W);
-	
+
 	return Normalize(z);
 }
 
@@ -567,9 +567,9 @@ func (x *Natural) Shr(s uint) *Natural {
 		m = 0;
 	}
 	z := new(Natural, m);
-	
+
 	Shr(z, x[n-m : n], s%W);
-	
+
 	return Normalize(z);
 }
 
@@ -629,7 +629,7 @@ func (x *Natural) Cmp(y *Natural) int {
 
 	i := n - 1;
 	for i > 0 && x[i] == y[i] { i--; }
-	
+
 	d := 0;
 	switch {
 	case x[i] < y[i]: d = -1;
@@ -679,7 +679,7 @@ func (x *Natural) String(base uint) string {
 	if len(x) == 0 {
 		return "0";
 	}
-	
+
 	// allocate buffer for conversion
 	assert(2 <= base && base <= 16);
 	n := (x.Log2() + 1) / Log2(Digit(base)) + 1;  // +1: round up
@@ -688,7 +688,7 @@ func (x *Natural) String(base uint) string {
 	// don't destroy x
 	t := new(Natural, len(x));
 	Or1(t, x, 0);  // copy
-	
+
 	// convert
 	i := n;
 	for !t.IsZero() {
@@ -730,7 +730,8 @@ func MulAdd1(x *Natural, d, c Digit) *Natural {
 
 
 // Determines base (octal, decimal, hexadecimal) if base == 0.
-export func NatFromString(s string, base uint, slen *int) *Natural {
+// Returns the number and base.
+export func NatFromString(s string, base uint, slen *int) (*Natural, uint) {
 	// determine base if necessary
 	i, n := 0, len(s);
 	if base == 0 {
@@ -743,7 +744,7 @@ export func NatFromString(s string, base uint, slen *int) *Natural {
 			}
 		}
 	}
-	
+
 	// convert string
 	assert(2 <= base && base <= 16);
 	x := Nat(0);
@@ -761,7 +762,7 @@ export func NatFromString(s string, base uint, slen *int) *Natural {
 		*slen = i;
 	}
 
-	return x;
+	return x, base;
 }
 
 
@@ -1104,7 +1105,8 @@ func (x *Integer) String(base uint) string {
 
 	
 // Determines base (octal, decimal, hexadecimal) if base == 0.
-export func IntFromString(s string, base uint, slen *int) *Integer {
+// Returns the number and base.
+export func IntFromString(s string, base uint, slen *int) (*Integer, uint) {
 	// get sign, if any
 	sign := false;
 	if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
@@ -1112,14 +1114,15 @@ export func IntFromString(s string, base uint, slen *int) *Integer {
 		s = s[1 : len(s)];
 	}
 
-	z := MakeInt(sign, NatFromString(s, base, slen));
+	var mant *Natural;
+	mant, base = NatFromString(s, base, slen);
 
 	// correct slen if necessary
 	if slen != nil && sign {
 		*slen++;
 	}
 
-	return z;
+	return MakeInt(sign, mant), base;
 }
 
 
@@ -1222,24 +1225,33 @@ func (x *Rational) String(base uint) string {
 
 
 // Determines base (octal, decimal, hexadecimal) if base == 0.
-export func RatFromString(s string, base uint, slen *int) *Rational {
+// Returns the number and base of the nominator.
+export func RatFromString(s string, base uint, slen *int) (*Rational, uint) {
 	// read nominator
 	var alen, blen int;
-	a := IntFromString(s, base, &alen);
+	a, abase := IntFromString(s, base, &alen);
 	b := Nat(1);
-	
-	// read denominator, if any
-	if alen < len(s) && s[alen] == '/' {
-		alen++;
-		if alen < len(s) {
-			b = NatFromString(s[alen : len(s)], base, &blen);
+
+	// read denominator or fraction, if any
+	if alen < len(s) {
+		ch := s[alen];
+		if ch == '/' {
+			alen++;
+			b, base = NatFromString(s[alen : len(s)], base, &blen);
+		} else if ch == '.' {
+			alen++;
+			b, base = NatFromString(s[alen : len(s)], abase, &blen);
+			assert(base == abase);
+			f := Nat(base).Pow(uint(blen));
+			a = MakeInt(a.sign, a.mant.Mul(f).Add(b));
+			b = f;
 		}
 	}
-	
+
 	// provide number of string bytes consumed if necessary
 	if slen != nil {
 		*slen = alen + blen;
 	}
 
-	return MakeRat(a, b);
+	return MakeRat(a, b), abase;
 }
