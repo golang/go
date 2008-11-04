@@ -491,6 +491,4 @@ func main() {
 	// Rationals
 	// TODO add more tests
 	RatConv();
-
-	print("PASSED\n");
 }
