@@ -35,6 +35,7 @@ for i in \
 	io.go\
 	bufio.go\
 	once.go\
+	bignum.go\
 
 do
 	base=$(basename $i .go)
