@@ -16,22 +16,40 @@ const (
 )
 
 
+func NatFromString(s string, base uint, slen *int) *Big.Natural {
+	x, dummy := Big.NatFromString(s, base, slen);
+	return x;
+}
+
+
+func IntFromString(s string, base uint, slen *int) *Big.Integer {
+	x, dummy := Big.IntFromString(s, base, slen);
+	return x;
+}
+
+
+func RatFromString(s string, base uint, slen *int) *Big.Rational {
+	x, dummy := Big.RatFromString(s, base, slen);
+	return x;
+}
+
+
 var (
 	nat_zero = Big.Nat(0);
 	nat_one = Big.Nat(1);
 	nat_two = Big.Nat(2);
-	
-	a = Big.NatFromString(sa, 10, nil);
-	b = Big.NatFromString(sb, 10, nil);
-	c = Big.NatFromString(sc, 10, nil);
-	p = Big.NatFromString(sp, 10, nil);
+
+	a = NatFromString(sa, 10, nil);
+	b = NatFromString(sb, 10, nil);
+	c = NatFromString(sc, 10, nil);
+	p = NatFromString(sp, 10, nil);
 
 	int_zero = Big.Int(0);
 	int_one = Big.Int(1);
 	int_two = Big.Int(2);
-	
-	ip = Big.IntFromString(sp, 10, nil);
-	
+
+	ip = IntFromString(sp, 10, nil);
+
 	rat_zero = Big.Rat(0, 1);
 	rat_half = Big.Rat(1, 2);
 	rat_one = Big.Rat(1, 1);
@@ -89,17 +107,17 @@ func NatConv() {
 
 	test_msg = "NatConvB";
 	var slen int;
-	NAT_EQ(0, Big.NatFromString("0", 0, nil), nat_zero);
-	NAT_EQ(1, Big.NatFromString("123", 0, nil), Big.Nat(123));
-	NAT_EQ(2, Big.NatFromString("077", 0, nil), Big.Nat(7*8 + 7));
-	NAT_EQ(3, Big.NatFromString("0x1f", 0, nil), Big.Nat(1*16 + 15));
-	NAT_EQ(4, Big.NatFromString("0x1fg", 0, &slen), Big.Nat(1*16 + 15));
+	NAT_EQ(0, NatFromString("0", 0, nil), nat_zero);
+	NAT_EQ(1, NatFromString("123", 0, nil), Big.Nat(123));
+	NAT_EQ(2, NatFromString("077", 0, nil), Big.Nat(7*8 + 7));
+	NAT_EQ(3, NatFromString("0x1f", 0, nil), Big.Nat(1*16 + 15));
+	NAT_EQ(4, NatFromString("0x1fg", 0, &slen), Big.Nat(1*16 + 15));
 	TEST(4, slen == 4);
-	
+
 	test_msg = "NatConvC";
 	t := c.Mul(c);
 	for base := uint(2); base <= 16; base++ {
-		NAT_EQ(base, Big.NatFromString(t.String(base), base, nil), t);
+		NAT_EQ(base, NatFromString(t.String(base), base, nil), t);
 	}
 }
 
@@ -107,16 +125,16 @@ func NatConv() {
 func IntConv() {
 	test_msg = "IntConv";
 	var slen int;
-	INT_EQ(0, Big.IntFromString("0", 0, nil), int_zero);
-	INT_EQ(1, Big.IntFromString("-0", 0, nil), int_zero);
-	INT_EQ(2, Big.IntFromString("123", 0, nil), Big.Int(123));
-	INT_EQ(3, Big.IntFromString("-123", 0, nil), Big.Int(-123));
-	INT_EQ(4, Big.IntFromString("077", 0, nil), Big.Int(7*8 + 7));
-	INT_EQ(5, Big.IntFromString("-077", 0, nil), Big.Int(-(7*8 + 7)));
-	INT_EQ(6, Big.IntFromString("0x1f", 0, nil), Big.Int(1*16 + 15));
-	INT_EQ(7, Big.IntFromString("-0x1f", 0, nil), Big.Int(-(1*16 + 15)));
-	INT_EQ(8, Big.IntFromString("0x1fg", 0, &slen), Big.Int(1*16 + 15));
-	INT_EQ(9, Big.IntFromString("-0x1fg", 0, &slen), Big.Int(-(1*16 + 15)));
+	INT_EQ(0, IntFromString("0", 0, nil), int_zero);
+	INT_EQ(1, IntFromString("-0", 0, nil), int_zero);
+	INT_EQ(2, IntFromString("123", 0, nil), Big.Int(123));
+	INT_EQ(3, IntFromString("-123", 0, nil), Big.Int(-123));
+	INT_EQ(4, IntFromString("077", 0, nil), Big.Int(7*8 + 7));
+	INT_EQ(5, IntFromString("-077", 0, nil), Big.Int(-(7*8 + 7)));
+	INT_EQ(6, IntFromString("0x1f", 0, nil), Big.Int(1*16 + 15));
+	INT_EQ(7, IntFromString("-0x1f", 0, nil), Big.Int(-(1*16 + 15)));
+	INT_EQ(8, IntFromString("0x1fg", 0, &slen), Big.Int(1*16 + 15));
+	INT_EQ(9, IntFromString("-0x1fg", 0, &slen), Big.Int(-(1*16 + 15)));
 	TEST(10, slen == 5);
 }
 
@@ -124,12 +142,16 @@ func IntConv() {
 func RatConv() {
 	test_msg = "RatConv";
 	var slen int;
-	RAT_EQ(0, Big.RatFromString("0", 0, nil), rat_zero);
-	RAT_EQ(1, Big.RatFromString("0/", 0, nil), rat_zero);
-	RAT_EQ(2, Big.RatFromString("0/1", 0, nil), rat_zero);
-	RAT_EQ(3, Big.RatFromString("010/8", 0, nil), rat_one);
-	RAT_EQ(4, Big.RatFromString("20/0xa", 0, &slen), rat_two);
-	TEST(5, slen == 6);
+	RAT_EQ(0, RatFromString("0", 0, nil), rat_zero);
+	RAT_EQ(1, RatFromString("0/1", 0, nil), rat_zero);
+	RAT_EQ(2, RatFromString("0/01", 0, nil), rat_zero);
+	RAT_EQ(3, RatFromString("0x14/10", 0, &slen), rat_two);
+	TEST(4, slen == 7);
+	RAT_EQ(5, RatFromString("0.", 0, nil), rat_zero);
+	RAT_EQ(6, RatFromString("0.001f", 10, nil), Big.Rat(1, 1000));
+	RAT_EQ(7, RatFromString("10101.0101", 2, nil), Big.Rat(0x155, 1<<4));
+	RAT_EQ(8, RatFromString("-0003.145926", 10, &slen), Big.Rat(-3145926, 1000000));
+	TEST(9, slen == 12);
 }
 
 
@@ -213,11 +235,11 @@ func NatMul() {
 	test_msg = "NatMulA";
 	NAT_EQ(0, Mul(c, nat_zero), nat_zero);
 	NAT_EQ(1, Mul(c, nat_one), c);
-	
+
 	test_msg = "NatMulB";
 	NAT_EQ(0, b.Mul(Big.MulRange(0, 100)), nat_zero);
 	NAT_EQ(1, b.Mul(Big.MulRange(21, 100)), c);
-	
+
 	test_msg = "NatMulC";
 	const n = 100;
 	p := b.Mul(c).Shl(n);
@@ -234,7 +256,7 @@ func NatDiv() {
 	NAT_EQ(2, b.Div(c), nat_zero);
 	NAT_EQ(4, nat_one.Shl(100).Div(nat_one.Shl(90)), nat_one.Shl(10));
 	NAT_EQ(5, c.Div(b), Big.MulRange(21, 100));
-	
+
 	test_msg = "NatDivB";
 	const n = 100;
 	p := Big.Fact(n);
@@ -315,7 +337,7 @@ func NatShift() {
 	test_msg = "NatShift1L";
 	TEST(0, b.Shl(0).Cmp(b) == 0);
 	TEST(1, c.Shl(1).Cmp(c) > 0);
-	
+
 	test_msg = "NatShift1R";
 	TEST(0, b.Shr(0).Cmp(b) == 0);
 	TEST(1, c.Shr(1).Cmp(c) < 0);
@@ -349,7 +371,7 @@ func IntShift() {
 	test_msg = "IntShift1L";
 	TEST(0, ip.Shl(0).Cmp(ip) == 0);
 	TEST(1, ip.Shl(1).Cmp(ip) > 0);
-	
+
 	test_msg = "IntShift1R";
 	TEST(0, ip.Shr(0).Cmp(ip) == 0);
 	TEST(1, ip.Shr(1).Cmp(ip) < 0);
@@ -376,7 +398,7 @@ func IntShift() {
 			p = p.Shr(1);
 		}
 	}
-	
+
 	test_msg = "IntShift4R";
 	//INT_EQ(0, Big.Int(-43).Shr(1), Big.Int(-43 >> 1));
 	//INT_EQ(1, ip.Neg().Shr(10), ip.Neg().Div(Big.Int(1).Shl(10)));
@@ -456,17 +478,17 @@ func main() {
 	NatGcd();
 	NatPow();
 	NatPop();
-	
+
 	// Integers
 	// TODO add more tests
 	IntConv();
 	IntQuoRem();
 	IntDivMod();
 	IntShift();
-	
+
 	// Rationals
 	// TODO add more tests
 	RatConv();
-	
+
 	print("PASSED\n");
 }
