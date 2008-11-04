@@ -33,6 +33,7 @@ export func	ifaceI2T(sigt *byte, iface any) (ret any);
 export func	ifaceI2I(sigi *byte, iface any) (ret any);
 export func	ifaceeq(i1 any, i2 any) (ret bool);
 export func	reflect(i interface { }) (uint64, string);
+export func	unreflect(uint64, string) (ret interface { });
 
 export func	argc() int;
 export func	envc() int;

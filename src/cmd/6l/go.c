@@ -7,6 +7,7 @@
 // accumulate all type information from .6 files.
 // check for inconsistencies.
 // define gotypestrings variable if needed.
+// define gotypesigs variable if needed.
 
 // TODO:
 //	include type info for non-exported types.
@@ -301,6 +302,16 @@ importcmp(const void *va, const void *vb)
 	return strcmp(a->name, b->name);
 }
 
+static int
+symcmp(const void *va, const void *vb)
+{
+	Sym *a, *b;
+
+	a = *(Sym**)va;
+	b = *(Sym**)vb;
+	return strcmp(a->name, b->name);
+}
+
 // if there is an undefined reference to gotypestrings,
 // create it.  c declaration is
 //	extern char gotypestrings[];
@@ -309,7 +320,7 @@ importcmp(const void *va, const void *vb)
 void
 definetypestrings(void)
 {
-	int i, j, len, n;
+	int i, j, len, n, w;
 	char *p;
 	Import **all, *x;
 	Fmt f;
@@ -376,27 +387,79 @@ definetypestrings(void)
 	// (had to add D_SBIG even to do that; the compiler
 	// would have generated 8-byte chunks.)
 	for(i=0; i<n; i+=100) {
-		prog = mal(sizeof *prog);
-		prog->as = ADATA;
-		prog->width = 100;
-		if(prog->width > n - i)
-			prog->width = n - i;
-		prog->from.scale = prog->width;
-		prog->from.type = D_EXTERN;
-		prog->from.sym = s;
-		prog->from.offset = i;
+		w = 100;
+		if(w > n - i)
+			w = n - i;
+		prog = newdata(s, i, w, D_EXTERN);
 		prog->to.type = D_SBIG;
 		prog->to.sbig = p + i;
-
-		if(edatap == P)
-			datap = prog;
-		else
-			edatap->link = prog;
-		edatap = prog;
-		prog->link = P;
 	}
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f typestrings %d\n", cputime(), n);
 }
 
+// if there is an undefined reference to gotypesigs, create it.
+// c declaration is
+//	extern Sigt *gotypesigs[];
+//	extern int ngotypesigs;
+// used by sys.unreflect runtime.
+void
+definetypesigs(void)
+{
+	int i, j, n;
+	Sym **all, *s, *x;
+	Prog *prog;
+
+	if(debug['g'])
+		return;
+
+	if(debug['v'])
+		Bprint(&bso, "%5.2f definetypesigs\n", cputime());
+
+	s = lookup("gotypesigs", 0);
+	if(s->type == 0)
+		return;
+	if(s->type != SXREF) {
+		diag("gotypesigs already defined");
+		return;
+	}
+	s->type = SDATA;
+
+	// make a list of all the sigt symbols.
+	n = 0;
+	for(i=0; i<NHASH; i++)
+		for(x = hash[i]; x; x=x->link)
+			if(memcmp(x->name, "sigt·", 6) == 0)
+				n++;
+	all = mal(n*sizeof all[0]);
+	j = 0;
+	for(i=0; i<NHASH; i++)
+		for(x = hash[i]; x; x=x->link)
+			if(memcmp(x->name, "sigt·", 6) == 0)
+				all[j++] = x;
+
+	// sort them by name
+	qsort(all, n, sizeof all[0], symcmp);
+
+	// emit array as sequence of references.
+	enum { PtrSize = 8 };
+	for(i=0; i<n; i++) {
+		prog = newdata(s, PtrSize*i, PtrSize, D_EXTERN);
+		prog->to.type = D_ADDR;
+		prog->to.index = D_EXTERN;
+		prog->to.sym = all[i];
+	}
+	s->value = PtrSize*n;
+
+	// emit count
+	s = lookup("ngotypesigs", 0);
+	s->type = SDATA;
+	s->value = sizeof(int32);
+	prog = newdata(s, 0, sizeof(int32), D_EXTERN);
+	prog->to.offset = n;
+
+	if(debug['v'])
+		Bprint(&bso, "%5.2f typestrings %d\n", cputime(), n);
+
+}

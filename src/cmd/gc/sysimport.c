@@ -25,6 +25,7 @@ char *sysimport =
 	"export func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
 	"export func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
 	"export func sys.reflect (i interface { }) (? uint64, ? string)\n"
+	"export func sys.unreflect (? uint64, ? string) (ret interface { })\n"
 	"export func sys.argc () (? int)\n"
 	"export func sys.envc () (? int)\n"
 	"export func sys.argv (? int) (? string)\n"

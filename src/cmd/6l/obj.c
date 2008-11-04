@@ -369,6 +369,7 @@ main(int argc, char *argv[])
 		objfile(a);
 	}
 	definetypestrings();
+	definetypesigs();
 
 	firstp = firstp->link;
 	if(firstp == P)
