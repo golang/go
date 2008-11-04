@@ -238,8 +238,6 @@ sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
 void
 sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
 {
-//	int32 alg, wid;
-
 	if(debug) {
 		prints("I2T sigt=");
 		printsigt(st);
@@ -250,22 +248,44 @@ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
 
 	if(im == nil)
 		throw("ifaceI2T: nil map");
-
 	if(im->sigt != st)
 		throw("ifaceI2T: wrong type");
-
-//	alg = st->hash;
-//	wid = st->offset;
-//	algarray[alg].copy(wid, &ret, &it);
 	ret = it;
-
 	if(debug) {
 		prints("I2T ret=");
 		sys·printpointer(ret);
 		prints("\n");
 	}
-
 	FLUSH(&ret);
+}
+
+// ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
+void
+sys·ifaceI2T2(Sigt *st, Map *im, void *it, void *ret, bool ok)
+{
+	if(debug) {
+		prints("I2T2 sigt=");
+		printsigt(st);
+		prints(" iface=");
+		printiface(im, it);
+		prints("\n");
+	}
+
+	if(im == nil || im->sigt != st) {
+		ret = 0;
+		ok = 0;
+	} else {
+		ret = it;
+		ok = 1;
+	}
+	if(debug) {
+		prints("I2T2 ret=");
+		sys·printpointer(ret);
+		sys·printbool(ok);
+		prints("\n");
+	}
+	FLUSH(&ret);
+	FLUSH(&ok);
 }
 
 // ifaceI2I(sigi *byte, iface any) (ret any);
@@ -300,6 +320,49 @@ sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
 
 	FLUSH(&retim);
 	FLUSH(&retit);
+}
+
+// ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
+void
+sys·ifaceI2I2(Sigi *si, Map *im, void *it, Map *retim, void *retit, bool ok)
+{
+	if(debug) {
+		prints("I2I2 sigi=");
+		printsigi(si);
+		prints(" iface=");
+		printiface(im, it);
+		prints("\n");
+	}
+
+	if(im == nil) {
+		// If incoming interface is uninitialized (zeroed)
+		// make the outgoing interface zeroed as well.
+		retim = nil;
+		retit = nil;
+		ok = 1;
+	} else {
+		retit = it;
+		retim = im;
+		ok = 1;
+		if(im->sigi != si) {
+			retim = hashmap(si, im->sigt, 1);
+			if(retim == nil) {
+				retit = nil;
+				retim = nil;
+				ok = 0;
+			}
+		}
+	}
+
+	if(debug) {
+		prints("I2I ret=");
+		printiface(retim, retit);
+		prints("\n");
+	}
+
+	FLUSH(&retim);
+	FLUSH(&retit);
+	FLUSH(&ok);
 }
 
 // ifaceeq(i1 any, i2 any) (ret bool);

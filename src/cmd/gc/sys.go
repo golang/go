@@ -30,7 +30,9 @@ export func	arraystring(*[]byte) string;
 
 export func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
 export func	ifaceI2T(sigt *byte, iface any) (ret any);
+export func	ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
 export func	ifaceI2I(sigi *byte, iface any) (ret any);
+export func	ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
 export func	ifaceeq(i1 any, i2 any) (ret bool);
 export func	reflect(i interface { }) (uint64, string);
 export func	unreflect(uint64, string) (ret interface { });
