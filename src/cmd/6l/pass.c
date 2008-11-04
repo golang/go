@@ -926,7 +926,7 @@ ckoff(Sym *s, int32 v)
 		diag("relocation offset %ld for %s out of range", v, s->name);
 }
 
-static Prog*
+Prog*
 newdata(Sym *s, int o, int w, int t)
 {
 	Prog *p;

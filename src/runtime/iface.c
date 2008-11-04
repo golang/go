@@ -378,3 +378,75 @@ sys·reflect(Map *im, void *it, uint64 retit, string rettype)
 	FLUSH(&retit);
 	FLUSH(&rettype);
 }
+
+extern Sigt *gotypesigs[];
+extern int32 ngotypesigs;
+
+static Sigt*
+fakesigt(string type)
+{
+	// TODO(rsc): Cache these by type string.
+	Sigt *sigt;
+
+	// Must be pointer in order for alg, width to be right.
+	if(type == nil || type->len == 0 || type->str[0] != '*') {
+		// TODO(rsc): What to do here?
+		prints("bad unreflect type: ");
+		sys·printstring(type);
+		prints("\n");
+		throw("unreflect");
+	}
+	sigt = mal(2*sizeof sigt[0]);
+	sigt[0].name = mal(type->len + 1);
+	mcpy(sigt[0].name, type->str, type->len);
+	sigt[0].hash = ASIMP;	// alg
+	sigt[0].offset = sizeof(void*);	// width
+	return sigt;
+}
+
+static int32
+cmpstringchars(string a, uint8 *b)
+{
+	int32 i;
+
+	for(i=0;; i++) {
+		if(i == a->len) {
+			if(b[i] == 0)
+				return 0;
+			return -1;
+		}
+		if(b[i] == 0)
+			return 1;
+		if(a->str[i] != b[i]) {
+			if((uint8)a->str[i] < (uint8)b[i])
+				return -1;
+			return 1;
+		}
+	}
+}
+
+static Sigt*
+findtype(string type)
+{
+	int32 i;
+
+	for(i=0; i<ngotypesigs; i++)
+		if(cmpstringchars(type, gotypesigs[i]->name) == 0)
+			return gotypesigs[i];
+	return fakesigt(type);
+}
+
+void
+sys·unreflect(uint64 it, string type, Map *retim, void *retit)
+{
+	if(cmpstring(type, emptystring) == 0) {
+		retim = 0;
+		retit = 0;
+	} else {
+		retim = hashmap(sigi·inter, findtype(type), 0);
+		retit = (void*)it;
+	}
+	FLUSH(&retim);
+	FLUSH(&retit);
+}
+
