@@ -18,13 +18,13 @@ import (
 const Runeself = 0x80
 const AllocSize = 32
 
-export type P struct {
+type P struct {
 	n	int;
 	buf	*[]byte;
 	fmt	*Fmt;
 }
 
-export func Printer() *P {
+func Printer() *P {
 	p := new(P);
 	p.fmt = fmt.New();
 	return p;
@@ -74,8 +74,11 @@ func (p *P) add(c int) {
 	}
 }
 
-func (p *P) reset() {
-	p.n = 0;
+// Implement Write so we can call fprintf on a P, for
+// recursive use in custom verbs.
+func (p *P) Write(b *[]byte) (ret int, err *os.Error) {
+	p.addbytes(b, 0, len(b));
+	return len(b), nil;
 }
 
 export type Writer interface {
@@ -87,46 +90,46 @@ func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool);
 
 // These routines end in 'f' and take a format string.
 
-func (p *P) fprintf(w Writer, format string, a ...) (n int, error *os.Error) {
+export func fprintf(w Writer, format string, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+	p := Printer();
 	p.doprintf(format, v);
 	n, error = w.Write(p.buf[0:p.n]);
-	p.reset();
 	return n, error;
 }
 
-func (p *P) printf(format string, v ...) (n int, errno *os.Error) {
-	n, errno = p.fprintf(os.Stdout, format, v);
+export func printf(format string, v ...) (n int, errno *os.Error) {
+	n, errno = fprintf(os.Stdout, format, v);
 	return n, errno;
 }
 
-func (p *P) sprintf(format string, v ...) string {
+export func sprintf(format string, v ...) string {
+	p := Printer();
 	p.doprintf(format, reflect.NewValue(v).(reflect.StructValue));
 	s := string(p.buf)[0 : p.n];
-	p.reset();
 	return s;
 }
 
 // These routines do not take a format string and add spaces only
 // when the operand on neither side is a string.
 
-func (p *P) fprint(w Writer, a ...) (n int, error *os.Error) {
+export func fprint(w Writer, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+	p := Printer();
 	p.doprint(v, false, false);
 	n, error = w.Write(p.buf[0:p.n]);
-	p.reset();
 	return n, error;
 }
 
-func (p *P) print(v ...) (n int, errno *os.Error) {
-	n, errno = p.fprint(os.Stdout, v);
+export func print(v ...) (n int, errno *os.Error) {
+	n, errno = fprint(os.Stdout, v);
 	return n, errno;
 }
 
-func (p *P) sprint(v ...) string {
+export func sprint(v ...) string {
+	p := Printer();
 	p.doprint(reflect.NewValue(v).(reflect.StructValue), false, false);
 	s := string(p.buf)[0 : p.n];
-	p.reset();
 	return s;
 }
 
@@ -134,23 +137,23 @@ func (p *P) sprint(v ...) string {
 // always add spaces between operands, and add a newline
 // after the last operand.
 
-func (p *P) fprintln(w Writer, a ...) (n int, error *os.Error) {
+export func fprintln(w Writer, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+	p := Printer();
 	p.doprint(v, true, true);
 	n, error = w.Write(p.buf[0:p.n]);
-	p.reset();
 	return n, error;
 }
 
-func (p *P) println(v ...) (n int, errno *os.Error) {
-	n, errno = p.fprintln(os.Stdout, v);
+export func println(v ...) (n int, errno *os.Error) {
+	n, errno = fprintln(os.Stdout, v);
 	return n, errno;
 }
 
-func (p *P) sprintln(v ...) string {
+export func sprintln(v ...) string {
+	p := Printer();
 	p.doprint(reflect.NewValue(v).(reflect.StructValue), true, true);
 	s := string(p.buf)[0 : p.n];
-	p.reset();
 	return s;
 }
 
