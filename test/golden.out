@@ -37,6 +37,9 @@ Faulting address: 0x0
 pc: xxx
 
 
+=========== ./method2.go
+BUG: errchk: command succeeded unexpectedly:  6g ./method2.go
+
 =========== ./peano.go
 0! = 1
 1! = 1
@@ -121,7 +124,7 @@ BUG: fails incorrectly
 =========== bugs/bug095.go
 found 2, expected 1
 
-panic on line 74 PC=xxx
+panic on line 77 PC=xxx
 BUG wrong result
 
 =========== bugs/bug098.go
