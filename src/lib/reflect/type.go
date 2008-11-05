@@ -41,8 +41,9 @@ export const (
 	Uint8Kind;
 )
 
-var ptrsize uint64
-var interfacesize uint64
+// Int is guaranteed large enough to store a size.
+var ptrsize int
+var interfacesize int
 
 var MissingString = "$missing$"	// syntactic name for undefined type names
 var DotDotDotString = "..."
@@ -52,7 +53,7 @@ export type Type interface {
 	Name()	string;
 	String()	string;
 	SetString(string);	// TODO: remove when no longer needed
-	Size()	uint64;
+	Size()	int;
 }
 
 // Fields and methods common to all types
@@ -60,7 +61,7 @@ type Common struct {
 	kind	int;
 	str	string;
 	name	string;
-	size	uint64;
+	size	int;
 }
 
 func (c *Common) Kind() int {
@@ -79,7 +80,7 @@ func (c *Common) SetString(s string) {
 	c.str = s
 }
 
-func (c *Common) Size() uint64 {
+func (c *Common) Size() int {
 	return c.size
 }
 
@@ -89,7 +90,7 @@ type BasicType struct {
 	Common
 }
 
-func NewBasicType(name string, kind int, size uint64) Type {
+func NewBasicType(name string, kind int, size int) Type {
 	return &BasicType{ Common{kind, name, name, size} }
 }
 
@@ -157,7 +158,7 @@ func (t *PtrTypeStruct) Sub() Type {
 
 export type ArrayType interface {
 	Open()	bool;
-	Len()	uint64;
+	Len()	int;
 	Elem()	Type;
 }
 
@@ -165,14 +166,14 @@ type ArrayTypeStruct struct {
 	Common;
 	elem	*StubType;
 	open	bool;	// otherwise fixed size
-	len	uint64;
+	len	int;
 }
 
-func NewArrayTypeStruct(name, typestring string, open bool, len uint64, elem *StubType) *ArrayTypeStruct {
+func NewArrayTypeStruct(name, typestring string, open bool, len int, elem *StubType) *ArrayTypeStruct {
 	return &ArrayTypeStruct{ Common{ArrayKind, typestring, name, 0}, elem, open, len}
 }
 
-func (t *ArrayTypeStruct) Size() uint64 {
+func (t *ArrayTypeStruct) Size() int {
 	if t.open {
 		return ptrsize	// open arrays are pointers to structures
 	}
@@ -183,7 +184,7 @@ func (t *ArrayTypeStruct) Open() bool {
 	return t.open
 }
 
-func (t *ArrayTypeStruct) Len() uint64 {
+func (t *ArrayTypeStruct) Len() int {
 	// what about open array?  TODO
 	return t.len
 }
@@ -209,7 +210,7 @@ func NewMapTypeStruct(name, typestring string, key, elem *StubType) *MapTypeStru
 	return &MapTypeStruct{ Common{MapKind, typestring, name, 0}, key, elem}
 }
 
-func (t *MapTypeStruct) Size() uint64 {
+func (t *MapTypeStruct) Size() int {
 	panic("reflect.type: map.Size(): cannot happen");
 	return 0
 }
@@ -245,7 +246,7 @@ func NewChanTypeStruct(name, typestring string, dir int, elem *StubType) *ChanTy
 	return &ChanTypeStruct{ Common{ChanKind, typestring, name, 0}, elem, dir}
 }
 
-func (t *ChanTypeStruct) Size() uint64 {
+func (t *ChanTypeStruct) Size() int {
 	panic("reflect.type: chan.Size(): cannot happen");
 	return 0
 }
@@ -261,7 +262,7 @@ func (t *ChanTypeStruct) Elem() Type {
 // -- Struct
 
 export type StructType interface {
-	Field(int)	(name string, typ Type, tag string, offset uint64);
+	Field(int)	(name string, typ Type, tag string, offset int);
 	Len()	int;
 }
 
@@ -269,8 +270,8 @@ type Field struct {
 	name	string;
 	typ	*StubType;
 	tag	string;
-	size	uint64;
-	offset	uint64;
+	size	int;
+	offset	int;
 }
 
 type StructTypeStruct struct {
@@ -283,11 +284,11 @@ func NewStructTypeStruct(name, typestring string, field *[]Field) *StructTypeStr
 }
 
 // TODO: not portable; depends on 6g
-func (t *StructTypeStruct) Size() uint64 {
+func (t *StructTypeStruct) Size() int {
 	if t.size > 0 {
 		return t.size
 	}
-	size := uint64(0);
+	size := 0;
 	for i := 0; i < len(t.field); i++ {
 		elemsize := t.field[i].typ.Get().Size();
 		// pad until at (elemsize mod 8) boundary
@@ -301,12 +302,13 @@ func (t *StructTypeStruct) Size() uint64 {
 		t.field[i].offset = size;
 		size += elemsize;
 	}
-	size = (size + 7) & ((1<<64 - 1) & ^7);
+	structalignmask := 7;	// TODO: knows that size fits in int32 (also can't use const here)
+	size = (size + structalignmask) & ^(structalignmask);
 	t.size = size;
 	return size;
 }
 
-func (t *StructTypeStruct) Field(i int) (name string, typ Type, tag string, offset uint64) {
+func (t *StructTypeStruct) Field(i int) (name string, typ Type, tag string, offset int) {
 	if t.field[i].offset == 0 {
 		t.Size();	// will compute offsets
 	}
@@ -320,7 +322,7 @@ func (t *StructTypeStruct) Len() int {
 // -- Interface
 
 export type InterfaceType interface {
-	Field(int)	(name string, typ Type, tag string, offset uint64);
+	Field(int)	(name string, typ Type, tag string, offset int);
 	Len()	int;
 }
 
@@ -333,7 +335,7 @@ func NewInterfaceTypeStruct(name, typestring string, field *[]Field) *InterfaceT
 	return &InterfaceTypeStruct{ Common{InterfaceKind, typestring, name, interfacesize}, field }
 }
 
-func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, tag string, offset uint64) {
+func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, tag string, offset int) {
 	return t.field[i].name, t.field[i].typ.Get(), "", 0
 }
 
@@ -358,7 +360,7 @@ func NewFuncTypeStruct(name, typestring string, in, out *StructTypeStruct) *Func
 	return &FuncTypeStruct{ Common{FuncKind, typestring, name, 0}, in, out }
 }
 
-func (t *FuncTypeStruct) Size() uint64 {
+func (t *FuncTypeStruct) Size() int {
 	panic("reflect.type: func.Size(): cannot happen");
 	return 0
 }
@@ -622,7 +624,7 @@ func (p *Parser) Next() {
 func (p *Parser) Type(name string) *StubType
 
 func (p *Parser) Array(name string, tokstart int) *StubType {
-	size := uint64(0);
+	size := 0;
 	open := true;
 	if p.token != "]" {
 		if len(p.token) == 0 || !isdigit(p.token[0]) {
@@ -631,7 +633,7 @@ func (p *Parser) Array(name string, tokstart int) *StubType {
 		// write our own (trivial and simpleminded) atoi to avoid dependency
 		size = 0;
 		for i := 0; i < len(p.token); i++ {
-			size = size * 10 + uint64(p.token[i]) - '0'
+			size = size * 10 + int(p.token[i]) - '0'
 		}
 		p.Next();
 		open = false;
