@@ -912,14 +912,13 @@ out:
 int
 Sconv(Fmt *fp)
 {
-	char buf[500];
 	Sym *s;
 	char *opk, *pkg, *nam;
 
 	s = va_arg(fp->args, Sym*);
 	if(s == S) {
-		snprint(buf, sizeof(buf), "<S>");
-		goto out;
+		fmtstrcpy(fp, "<S>");
+		return 0;
 	}
 
 	pkg = "<nil>";
@@ -934,18 +933,12 @@ Sconv(Fmt *fp)
 		nam = s->name;
 
 	if(!(fp->flags & FmtShort))
-	if(strcmp(pkg, package) || strcmp(opk, package) || (fp->flags & FmtLong)) {
-		if(strcmp(opk, pkg) == 0) {
-			snprint(buf, sizeof(buf), "%s.%s", pkg, nam);
-			goto out;
-		}
-		snprint(buf, sizeof(buf), "(%s)%s.%s", opk, pkg, nam);
-		goto out;
+	if(strcmp(opk, package) || (fp->flags & FmtLong)) {
+		fmtprint(fp, "%s.%s", opk, nam);
+		return 0;
 	}
-	snprint(buf, sizeof(buf), "%s", nam);
-
-out:
-	return fmtstrcpy(fp, buf);
+	fmtstrcpy(fp, nam);
+	return 0;
 }
 
 static char*
