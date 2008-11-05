@@ -557,11 +557,19 @@ type Parser struct {
 	str	string;	// string being parsed
 	token	string;	// the token being parsed now
 	tokstart	int;	// starting position of token
+	prevend	int;	// (one after) ending position of previous token
 	index	int;	// next character position in str
+}
+
+// Return typestring starting at position i.
+// Trim trailing blanks.
+func (p *Parser) TypeString(i int) string {
+	return p.str[i:p.prevend];
 }
 
 // Load next token into p.token
 func (p *Parser) Next() {
+	p.prevend = p.index;
 	token := "";
 	for ; p.index < len(p.str) && p.str[p.index] == ' '; p.index++ {
 	}
@@ -643,7 +651,7 @@ func (p *Parser) Array(name string, tokstart int) *StubType {
 	}
 	p.Next();
 	elemtype := p.Type("");
-	return NewStubType(name, NewArrayTypeStruct(name, p.str[tokstart:p.index], open, size, elemtype));
+	return NewStubType(name, NewArrayTypeStruct(name, p.TypeString(tokstart), open, size, elemtype));
 }
 
 func (p *Parser) Map(name string, tokstart int) *StubType {
@@ -657,7 +665,7 @@ func (p *Parser) Map(name string, tokstart int) *StubType {
 	}
 	p.Next();
 	elemtype := p.Type("");
-	return NewStubType(name, NewMapTypeStruct(name, p.str[tokstart:p.index], keytype, elemtype));
+	return NewStubType(name, NewMapTypeStruct(name, p.TypeString(tokstart), keytype, elemtype));
 }
 
 func (p *Parser) Chan(name string, tokstart, dir int) *StubType {
@@ -669,7 +677,7 @@ func (p *Parser) Chan(name string, tokstart, dir int) *StubType {
 		dir = SendDir;
 	}
 	elemtype := p.Type("");
-	return NewStubType(name, NewChanTypeStruct(name, p.str[tokstart:p.index], dir, elemtype));
+	return NewStubType(name, NewChanTypeStruct(name, p.TypeString(tokstart), dir, elemtype));
 }
 
 // Parse array of fields for struct, interface, and func arguments
@@ -713,9 +721,8 @@ func (p *Parser) Struct(name string, tokstart int) *StubType {
 	if p.token != "}" {
 		return MissingStub;
 	}
-	ts := p.str[tokstart:p.index];
 	p.Next();
-	return NewStubType(name, NewStructTypeStruct(name, ts, f));
+	return NewStubType(name, NewStructTypeStruct(name, p.TypeString(tokstart), f));
 }
 
 func (p *Parser) Interface(name string, tokstart int) *StubType {
@@ -723,9 +730,8 @@ func (p *Parser) Interface(name string, tokstart int) *StubType {
 	if p.token != "}" {
 		return MissingStub;
 	}
-	ts := p.str[tokstart:p.index];
 	p.Next();
-	return NewStubType(name, NewInterfaceTypeStruct(name, ts, f));
+	return NewStubType(name, NewInterfaceTypeStruct(name, p.TypeString(tokstart), f));
 }
 
 func (p *Parser) Func(name string, tokstart int) *StubType {
@@ -734,16 +740,15 @@ func (p *Parser) Func(name string, tokstart int) *StubType {
 	if p.token != ")" {
 		return MissingStub;
 	}
-	end := p.index;
 	p.Next();
 	if p.token != "(" {
 		// 1 list: the in parameters are a list.  Is there a single out parameter?
 		if p.token == "" || p.token == "}" || p.token == "," || p.token == ";" {
-			return NewStubType(name, NewFuncTypeStruct(name, p.str[tokstart:end], f1, nil));
+			return NewStubType(name, NewFuncTypeStruct(name, p.TypeString(tokstart), f1, nil));
 		}
 		// A single out parameter.
 		f2 := NewStructTypeStruct("", "", p.OneField());
-		return NewStubType(name, NewFuncTypeStruct(name, p.str[tokstart:end], f1, f2));
+		return NewStubType(name, NewFuncTypeStruct(name, p.TypeString(tokstart), f1, f2));
 	} else {
 		p.Next();
 	}
@@ -751,10 +756,9 @@ func (p *Parser) Func(name string, tokstart int) *StubType {
 	if p.token != ")" {
 		return MissingStub;
 	}
-	end = p.index;
 	p.Next();
 	// 2 lists: the in and out parameters are present
-	return NewStubType(name, NewFuncTypeStruct(name, p.str[tokstart:end], f1, f2));
+	return NewStubType(name, NewFuncTypeStruct(name, p.TypeString(tokstart), f1, f2));
 }
 
 func (p *Parser) Type(name string) *StubType {
@@ -766,7 +770,7 @@ func (p *Parser) Type(name string) *StubType {
 	case p.token == "*":
 		p.Next();
 		sub := p.Type("");
-		return NewStubType(name, NewPtrTypeStruct(name, p.str[tokstart:p.index], sub));
+		return NewStubType(name, NewPtrTypeStruct(name, p.TypeString(tokstart), sub));
 	case p.token == "[":
 		p.Next();
 		return p.Array(name, tokstart);

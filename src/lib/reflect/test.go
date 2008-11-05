@@ -250,4 +250,10 @@ func main() {
 	assert(t.String(), "chan<-string");
 	ct = t.(reflect.ChanType);
 	assert(ct.Elem().String(), "string");
+
+	// make sure tag strings are not part of element type
+	t = reflect.ParseTypeString("", "struct{d *[]uint32 \"TAG\"}");
+	st = t.(reflect.StructType);
+	name, typ, tag, offset = st.Field(0);
+	assert(typ.String(), "*[]uint32");
 }
