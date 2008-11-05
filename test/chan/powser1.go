@@ -19,13 +19,13 @@ type rat struct  {
 
 type item *rat;
 
-func (u item) pr(){
+func (u *rat) pr(){
 	if u.den==1 { print(u.num) }
 	else { print(u.num, "/", u.den) }
 	print(" ")
 }
 
-func (u item) eq(c item) bool {
+func (u *rat) eq(c item) bool {
 	return u.num == c.num && u.den == c.den
 }
 
