@@ -14,8 +14,10 @@ enum
 {
 	Inone,
 	I2T,
+	I2T2,
 	I2I,
-	T2I
+	I2I2,
+	T2I,
 };
 
 // can this code branch reach the end
@@ -460,6 +462,33 @@ loop:
 				if(l == N)
 					break;
 				indir(n, l);
+				goto ret;
+			}
+			break;
+
+		case OCONV:
+			if(cl == 2 && cr == 1) {
+				// a,b = i.(T)
+				if(r->left == N)
+					break;
+				et = isandss(r->type, r->left);
+				switch(et) {
+				case I2T:
+					et = I2T2;
+					break;
+				case I2I:
+					et = I2I2;
+					break;
+				default:
+					et = Inone;
+					break;
+				}
+				if(et == Inone)
+					break;
+				r = ifaceop(r->type, r->left, et);
+				l = ascompatet(n->op, &n->left, &r->type, 0);
+				if(l != N)
+					indir(n, list(r, reorder2(l)));
 				goto ret;
 			}
 			break;
@@ -2667,6 +2696,15 @@ isandss(Type *lt, Node *r)
 	return Inone;
 }
 
+static	char*
+ifacename[] =
+{
+	[I2T]	= "ifaceI2T",
+	[I2T2]	= "ifaceI2T2",
+	[I2I]	= "ifaceI2I",
+	[I2I2]	= "ifaceI2I2",
+};
+
 Node*
 ifaceop(Type *tl, Node *n, int op)
 {
@@ -2678,26 +2716,7 @@ ifaceop(Type *tl, Node *n, int op)
 
 	switch(op) {
 	default:
-		fatal("ifaceop: unknown op %d\n", op);
-
-	case I2T:
-		// ifaceI2T(sigt *byte, iface any) (ret any);
-
-		a = n;				// interface
-		r = a;
-
-		s = signame(tl);		// sigi
-		if(s == S)
-			fatal("ifaceop: signame I2T");
-		a = s->oname;
-		a = nod(OADDR, a, N);
-		r = list(a, r);
-
-		on = syslook("ifaceI2T", 1);
-		argtype(on, tr);
-		argtype(on, tl);
-
-		break;
+		fatal("ifaceop: unknown op %O\n", op);
 
 	case T2I:
 		// ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
@@ -2726,22 +2745,26 @@ ifaceop(Type *tl, Node *n, int op)
 
 		break;
 
+	case I2T:
+	case I2T2:
 	case I2I:
-		// ifaceI2I(sigi *byte, iface any-1) (ret any-2);
+	case I2I2:
+		// iface[IT]2[IT][2](sigt *byte, iface any) (ret any[, ok bool]);
 
 		a = n;				// interface
 		r = a;
 
 		s = signame(tl);		// sigi
 		if(s == S)
-			fatal("ifaceop: signame I2I");
+			fatal("ifaceop: signame %d", op);
 		a = s->oname;
 		a = nod(OADDR, a, N);
 		r = list(a, r);
 
-		on = syslook("ifaceI2I", 1);
+		on = syslook(ifacename[op], 1);
 		argtype(on, tr);
 		argtype(on, tl);
+
 		break;
 
 	case OEQ:
