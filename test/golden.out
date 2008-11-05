@@ -150,6 +150,9 @@ bugs/bug117.go:10: illegal types for operand: RETURN
 	int
 BUG: should compile
 
+=========== bugs/bug118.go
+BUG should compile
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
 
