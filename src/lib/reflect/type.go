@@ -671,10 +671,10 @@ func (p *Parser) Chan(name string, tokstart, dir int) *StubType {
 }
 
 // Parse array of fields for struct, interface, and func arguments
-func (p *Parser) Fields(sep string) *[]Field {
+func (p *Parser) Fields(sep, term string) *[]Field {
 	a := new([]Field, 10);
 	nf := 0;
-	for p.token != "" && !special(p.token[0]) {
+	for p.token != "" && p.token != term {
 		if nf == len(a) {
 			a1 := new([]Field, 2*nf);
 			for i := 0; i < nf; i++ {
@@ -698,8 +698,16 @@ func (p *Parser) Fields(sep string) *[]Field {
 	return a[0:nf];
 }
 
+// A single type packaged as a field for a function return
+func (p *Parser) OneField() *[]Field {
+	a := new([]Field, 1);
+	a[0].name = "";
+	a[0].typ = p.Type("");
+	return a;
+}
+
 func (p *Parser) Struct(name string, tokstart int) *StubType {
-	f := p.Fields(";");
+	f := p.Fields(";", "}");
 	if p.token != "}" {
 		return MissingStub;
 	}
@@ -709,7 +717,7 @@ func (p *Parser) Struct(name string, tokstart int) *StubType {
 }
 
 func (p *Parser) Interface(name string, tokstart int) *StubType {
-	f := p.Fields(";");
+	f := p.Fields(";", "}");
 	if p.token != "}" {
 		return MissingStub;
 	}
@@ -720,18 +728,24 @@ func (p *Parser) Interface(name string, tokstart int) *StubType {
 
 func (p *Parser) Func(name string, tokstart int) *StubType {
 	// may be 1 or 2 parenthesized lists
-	f1 := NewStructTypeStruct("", "", p.Fields(","));
+	f1 := NewStructTypeStruct("", "", p.Fields(",", ")"));
 	if p.token != ")" {
 		return MissingStub;
 	}
 	end := p.index;
 	p.Next();
 	if p.token != "(" {
-		// 1 list: the in parameters only
-		return NewStubType(name, NewFuncTypeStruct(name, p.str[tokstart:end], f1, nil));
+		// 1 list: the in parameters are a list.  Is there a single out parameter?
+		if p.token == "" || p.token == "}" || p.token == "," || p.token == ";" {
+			return NewStubType(name, NewFuncTypeStruct(name, p.str[tokstart:end], f1, nil));
+		}
+		// A single out parameter.
+		f2 := NewStructTypeStruct("", "", p.OneField());
+		return NewStubType(name, NewFuncTypeStruct(name, p.str[tokstart:end], f1, f2));
+	} else {
+		p.Next();
 	}
-	p.Next();
-	f2 := NewStructTypeStruct("", "", p.Fields(","));
+	f2 := NewStructTypeStruct("", "", p.Fields(",", ")"));
 	if p.token != ")" {
 		return MissingStub;
 	}
