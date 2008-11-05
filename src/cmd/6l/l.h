@@ -113,6 +113,7 @@ struct	Sym
 	short	become;
 	short	frame;
 	uchar	subtype;
+	uchar	dupok;
 	ushort	file;
 	vlong	value;
 	int32	sig;

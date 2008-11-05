@@ -972,6 +972,8 @@ loop:
 		}
 		if(p->to.offset > s->value)
 			s->value = p->to.offset;
+		if(p->from.scale & DUPOK)
+			s->dupok = 1;
 		goto loop;
 
 	case ADYNT:
@@ -1017,6 +1019,12 @@ loop:
 
 	case ADATA:
 	data:
+		// Assume that AGLOBL comes after ADATA.
+		// If we've seen an AGLOBL that said this sym was DUPOK,
+		// ignore any more ADATA we see, which must be
+		// redefinitions.
+		if(p->from.sym != S && p->from.sym->dupok)
+			goto loop;
 		if(edatap == P)
 			datap = p;
 		else

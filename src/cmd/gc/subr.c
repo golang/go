@@ -1606,134 +1606,53 @@ iscomposite(Type *t)
 }
 
 Sym*
-globalsig(Type *t)
+signame(Type *t)
 {
-	int et;
-	Sym *s;
-	char buf[NSYMB];
-	char *sigx;
-
-	if(t == T)
-		return S;
-
-	et = t->etype;
-	switch(et) {
-	default:
-		return S;
-
-	case TINTER:
-	case TDDD:
-		if(isnilinter(t)) {
-			sigx = "sigi";
-			strcpy(buf, "inter");
-			goto out;
-		}
-		return S;
-
-	case TPTR32:
-	case TPTR64:
-		if(isptrto(t, TSTRING)) {
-			et = TSTRING;
-			break;
-		}
-		return S;
-
-	case TINT:
-	case TINT8:
-	case TINT16:
-	case TINT32:
-	case TINT64:
-
-	case TUINT:
-	case TUINT8:
-	case TUINT16:
-	case TUINT32:
-	case TUINT64:
-	case TUINTPTR:
-
-	case TFLOAT:
-	case TFLOAT32:
-	case TFLOAT64:
-	case TFLOAT80:
-
-	case TBOOL:
-		break;
-	}
-	if(t->sym == S)
-		return S;
-	if(t->method != T)
-		return S;
-	if(strcmp(t->sym->name, types[et]->sym->name) != 0)
-		return S;
-	sigx = "sigt";
-	snprint(buf, sizeof(buf), "%#T", t);
-
-out:
-	s = pkglookup(buf, sigx);
-	if(s->oname == N) {
-		s->oname = newname(s);
-		s->oname->type = types[TUINT8];
-		s->oname->class = PEXTERN;
-		s->local = s->local;
-	}
-//print("*** %lT %lS\n", t, s);
-	return s;
-}
-
-Sym*
-signame(Type *t, int block)
-{
-	Sym *s, *ss;
+	Sym *ss;
 	char *e;
 	Dcl *x;
 	char buf[NSYMB];
 
+//print("signame %T\n", t);
 	if(t == T)
 		goto bad;
-
-	ss = globalsig(t);
-	if(ss != S)
-		return ss;
-
-	s = t->sym;
-	if(s == S) {
-		if(isptr[t->etype]) {
-			t = t->type;
-			if(t == T)
-				goto bad;
-		}
-		s = t->sym;
-		if(s == S)
-			goto bad;
-	}
 
 	e = "sigt";
 	if(t->etype == TINTER)
 		e = "sigi";
 
-	if(block == 0)
-		block = s->tblock;
-
-	if(block > 1) {
-		// record internal type for signature generation
-		x = mal(sizeof(*x));
-		x->op = OTYPE;
-		x->dsym = s;
-		x->dtype = s->otype;
-		x->forw = signatlist;
-		x->block = block;
-		signatlist = x;
-	}
+	// name is exported name, like *[]byte or *Struct or Interface
+	// (special symbols don't bother the linker).
 	snprint(buf, sizeof(buf), "%#T", t);
+
+	// special case: empty interface is named sigi.empty
+	// so that it can be referred to by the runtime.
+	if(strcmp(buf, "interface { }") == 0)
+		strcpy(buf, "empty");
+
 	ss = pkglookup(buf, e);
 	if(ss->oname == N) {
 		ss->oname = newname(ss);
 		ss->oname->type = types[TUINT8];
 		ss->oname->class = PEXTERN;
-		ss->local = s->local;
-//print("signame: %d %lS\n", ss->local, ss);
 	}
 
+	if(!t->siggen) {
+//print("siggen %T\n", t);
+		// special case: don't generate the empty interface
+		if(strcmp(buf, "empty") == 0)
+			goto out;
+
+		// record internal type for signature generation
+		x = mal(sizeof(*x));
+		x->op = OTYPE;
+		x->dtype = t;
+		x->forw = signatlist;
+		t->siggen = 1;
+		signatlist = x;
+	}
+
+out:
 	return ss;
 
 bad:
