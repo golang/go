@@ -116,7 +116,7 @@ func put(dat item, out *dch){
 	out.dat <- dat;
 }
 
-func get(in *dch) item{
+func get(in *dch) *rat {
 	seqno++;
 	in.req <- seqno;
 	return <-in.dat;
@@ -610,7 +610,7 @@ func Init() {
 	Twos = Rep(itor(2));
 }
 
-func check(U PS, c item, count int, str string) {
+func check(U PS, c *rat, count int, str string) {
 	for i := 0; i < count; i++ {
 		r := get(U);
 		if !r.eq(c) {
