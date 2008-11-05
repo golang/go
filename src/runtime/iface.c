@@ -122,9 +122,17 @@ hashmap(Sigi *si, Sigt *st, int32 canfail)
 	for(m=hash[h]; m!=nil; m=m->link) {
 		if(m->sigi == si && m->sigt == st) {
 			if(m->bad) {
-				if(!canfail)
-					throw("bad hashmap");
 				m = nil;
+				if(!canfail) {
+					// this can only happen if the conversion
+					// was already done once using the , ok form
+					// and we have a cached negative result.
+					// the cached result doesn't record which
+					// interface function was missing, so jump
+					// down to the interface check, which will
+					// give a better error.
+					goto throw;
+				}
 			}
 			// prints("old hashmap\n");
 			return m;
@@ -136,6 +144,7 @@ hashmap(Sigi *si, Sigt *st, int32 canfail)
 	m->sigi = si;
 	m->sigt = st;
 
+throw:
 	nt = 1;
 	for(ni=1;; ni++) {	// ni=1: skip first word
 		iname = si[ni].name;
@@ -222,10 +231,23 @@ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
 		prints("\n");
 	}
 
-	if(im == nil)
-		throw("ifaceI2T: nil map");
-	if(im->sigt != st)
-		throw("ifaceI2T: wrong type");
+	if(im == nil) {
+		prints("interface is nil, not ");
+		prints((int8*)st[0].name);
+		prints("\n");
+		throw("interface conversion");
+	}
+
+	if(im->sigt != st) {
+		prints((int8*)im->sigi[0].name);
+		prints(" is ");
+		prints((int8*)im->sigt[0].name);
+		prints(", not ");
+		prints((int8*)st[0].name);
+		prints("\n");
+		throw("interface conversion");
+	}
+
 	ret = it;
 	if(debug) {
 		prints("I2T ret=");
