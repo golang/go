@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(November 3, 2008)
+(November 4, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -43,6 +43,10 @@ Todo's:
     (issue: what happens in len() + const - what is the type?)
 [ ] need to be specific on (unsigned) integer operations: one must be able
 	to rely on wrap-around on overflow
+[ ] what are the permissible ranges for the indices in slices? The spec
+	doesn't correspond to the implementation. The spec is wrong when it
+	comes to the first index i: it should allow (at least) the range 0 <= i <= len(a).
+	also: document different semantics for strings and arrays (strings cannot be grown).
 
 
 Open issues:
@@ -168,6 +172,7 @@ Contents
 			Slices
 			Type guards
 			Calls
+				Parameter passing
 
 		Operators
 			Arithmetic operators
@@ -1759,6 +1764,70 @@ argument.  For instance, the method "Scale" has type
 However, a function declared this way is not a method.
 
 There is no distinct method type and there are no method literals.
+
+
+Parameter passing
+----
+
+TODO expand this section (right now only "..." parameters are covered).
+
+Inside a function, the type of the "..." parameter is the empty interface
+"interface {}". The dynamic type of the parameter - that is, the type of
+the actual value stored in the parameter - is of the form (in pseudo-
+notation)
+
+	*struct {
+		arg(0) typeof(arg(0));
+		arg(1) typeof(arg(1));
+		arg(2) typeof(arg(2));
+		...
+		arg(n-1) typeof(arg(n-1));
+	}
+
+where the "arg(i)"'s correspond to the actual arguments passed in place
+of the "..." parameter (the parameter and type names are for illustration
+only). Reflection code may be used to access the struct value and its fields.
+Thus, arguments provided in place of a "..." parameter are wrapped into
+a corresponding struct, and a pointer to the struct is passed to the
+function instead of the actual arguments.
+
+For instance, given the function
+
+	func f(x int, s string, f_extra ...)
+
+and the call
+
+	f(42, "foo", 3.14, true, &[]int{1, 2, 3})
+
+Upon invocation, the parameters "3.14", "true", and "*[3]int{1, 2, 3}"
+are wrapped into a struct and the pointer to the struct is passed to f.
+In f the type of parameter "f_extra" is "interface{}".
+The dynamic type of "f_extra" is the type of the actual value assigned
+to it upon invocation (the field names "arg0", "arg1", "arg2" are made
+up for illustration only, they are not accessible via reflection):
+
+	*struct {
+		arg0 float;
+		arg1 bool;
+		arg2 *[3]int;
+	}
+
+The values of the fields "arg0", "arg1", and "arg2" are "3.14", "true",
+and "*[3]int{1, 2, 3}".
+
+As a special case, if a function passes a "..." parameter as the argument
+for a "..." parameter of a function, the parameter is not wrapped again into
+a struct. Instead it is passed along unchanged. For instance, the function
+f may call a function g with declaration
+
+	func g(x int, g_extra ...)
+
+as
+
+	g(x, f_extra);
+
+Inside g, the actual value stored in g_extra is the same as the value stored
+in f_extra.
 
 
 Operators
