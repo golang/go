@@ -50,22 +50,33 @@ var DotDotDotString = "..."
 export type Type interface {
 	Kind()	int;
 	Name()	string;
+	String()	string;
+	SetString(string);	// TODO: remove when no longer needed
 	Size()	uint64;
 }
 
 // Fields and methods common to all types
 type Common struct {
 	kind	int;
+	str	string;
 	name	string;
 	size	uint64;
+}
+
+func (c *Common) Kind() int {
+	return c.kind
 }
 
 func (c *Common) Name() string {
 	return c.name
 }
 
-func (c *Common) Kind() int {
-	return c.kind
+func (c *Common) String() string {
+	return c.str
+}
+
+func (c *Common) SetString(s string) {
+	c.str = s
 }
 
 func (c *Common) Size() uint64 {
@@ -79,7 +90,7 @@ type BasicType struct {
 }
 
 func NewBasicType(name string, kind int, size uint64) Type {
-	return &BasicType{ Common{kind, name, size} }
+	return &BasicType{ Common{kind, name, name, size} }
 }
 
 // Prebuilt basic types
@@ -134,8 +145,8 @@ type PtrTypeStruct struct {
 	sub	*StubType;
 }
 
-func NewPtrTypeStruct(name string, sub *StubType) *PtrTypeStruct {
-	return &PtrTypeStruct{ Common{PtrKind, name, ptrsize}, sub}
+func NewPtrTypeStruct(name, typestring string, sub *StubType) *PtrTypeStruct {
+	return &PtrTypeStruct{ Common{PtrKind, typestring, name, ptrsize}, sub}
 }
 
 func (t *PtrTypeStruct) Sub() Type {
@@ -157,8 +168,8 @@ type ArrayTypeStruct struct {
 	len	uint64;
 }
 
-func NewArrayTypeStruct(name string, open bool, len uint64, elem *StubType) *ArrayTypeStruct {
-	return &ArrayTypeStruct{ Common{ArrayKind, name, 0}, elem, open, len}
+func NewArrayTypeStruct(name, typestring string, open bool, len uint64, elem *StubType) *ArrayTypeStruct {
+	return &ArrayTypeStruct{ Common{ArrayKind, typestring, name, 0}, elem, open, len}
 }
 
 func (t *ArrayTypeStruct) Size() uint64 {
@@ -194,8 +205,8 @@ type MapTypeStruct struct {
 	elem	*StubType;
 }
 
-func NewMapTypeStruct(name string, key, elem *StubType) *MapTypeStruct {
-	return &MapTypeStruct{ Common{MapKind, name, 0}, key, elem}
+func NewMapTypeStruct(name, typestring string, key, elem *StubType) *MapTypeStruct {
+	return &MapTypeStruct{ Common{MapKind, typestring, name, 0}, key, elem}
 }
 
 func (t *MapTypeStruct) Size() uint64 {
@@ -230,8 +241,8 @@ type ChanTypeStruct struct {
 	dir	int;
 }
 
-func NewChanTypeStruct(name string, dir int, elem *StubType) *ChanTypeStruct {
-	return &ChanTypeStruct{ Common{ChanKind, name, 0}, elem, dir}
+func NewChanTypeStruct(name, typestring string, dir int, elem *StubType) *ChanTypeStruct {
+	return &ChanTypeStruct{ Common{ChanKind, typestring, name, 0}, elem, dir}
 }
 
 func (t *ChanTypeStruct) Size() uint64 {
@@ -267,8 +278,8 @@ type StructTypeStruct struct {
 	field	*[]Field;
 }
 
-func NewStructTypeStruct(name string, field *[]Field) *StructTypeStruct {
-	return &StructTypeStruct{ Common{StructKind, name, 0}, field}
+func NewStructTypeStruct(name, typestring string, field *[]Field) *StructTypeStruct {
+	return &StructTypeStruct{ Common{StructKind, typestring, name, 0}, field}
 }
 
 // TODO: not portable; depends on 6g
@@ -318,8 +329,8 @@ type InterfaceTypeStruct struct {
 	field	*[]Field;
 }
 
-func NewInterfaceTypeStruct(name string, field *[]Field) *InterfaceTypeStruct {
-	return &InterfaceTypeStruct{ Common{InterfaceKind, name, interfacesize}, field }
+func NewInterfaceTypeStruct(name, typestring string, field *[]Field) *InterfaceTypeStruct {
+	return &InterfaceTypeStruct{ Common{InterfaceKind, typestring, name, interfacesize}, field }
 }
 
 func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, tag string, offset uint64) {
@@ -343,8 +354,8 @@ type FuncTypeStruct struct {
 	out	*StructTypeStruct;
 }
 
-func NewFuncTypeStruct(name string, in, out *StructTypeStruct) *FuncTypeStruct {
-	return &FuncTypeStruct{ Common{FuncKind, name, 0}, in, out }
+func NewFuncTypeStruct(name, typestring string, in, out *StructTypeStruct) *FuncTypeStruct {
+	return &FuncTypeStruct{ Common{FuncKind, typestring, name, 0}, in, out }
 }
 
 func (t *FuncTypeStruct) Size() uint64 {
@@ -543,6 +554,7 @@ func unescape(s string, backslash bool) string {
 type Parser struct {
 	str	string;	// string being parsed
 	token	string;	// the token being parsed now
+	tokstart	int;	// starting position of token
 	index	int;	// next character position in str
 }
 
@@ -551,6 +563,7 @@ func (p *Parser) Next() {
 	token := "";
 	for ; p.index < len(p.str) && p.str[p.index] == ' '; p.index++ {
 	}
+	p.tokstart = p.index;
 	if p.index >= len(p.str) {
 		p.token = "";
 		return;
@@ -608,7 +621,7 @@ func (p *Parser) Next() {
 
 func (p *Parser) Type(name string) *StubType
 
-func (p *Parser) Array(name string) *StubType {
+func (p *Parser) Array(name string, tokstart int) *StubType {
 	size := uint64(0);
 	open := true;
 	if p.token != "]" {
@@ -628,10 +641,10 @@ func (p *Parser) Array(name string) *StubType {
 	}
 	p.Next();
 	elemtype := p.Type("");
-	return NewStubType(name, NewArrayTypeStruct(name, open, size, elemtype));
+	return NewStubType(name, NewArrayTypeStruct(name, p.str[tokstart:p.index], open, size, elemtype));
 }
 
-func (p *Parser) Map(name string) *StubType {
+func (p *Parser) Map(name string, tokstart int) *StubType {
 	if p.token != "[" {
 		return MissingStub
 	}
@@ -642,10 +655,10 @@ func (p *Parser) Map(name string) *StubType {
 	}
 	p.Next();
 	elemtype := p.Type("");
-	return NewStubType(name, NewMapTypeStruct(name, keytype, elemtype));
+	return NewStubType(name, NewMapTypeStruct(name, p.str[tokstart:p.index], keytype, elemtype));
 }
 
-func (p *Parser) Chan(name string, dir int) *StubType {
+func (p *Parser) Chan(name string, tokstart, dir int) *StubType {
 	if p.token == "<-" {
 		if dir != BothDir {
 			return MissingStub
@@ -654,7 +667,7 @@ func (p *Parser) Chan(name string, dir int) *StubType {
 		dir = SendDir;
 	}
 	elemtype := p.Type("");
-	return NewStubType(name, NewChanTypeStruct(name, dir, elemtype));
+	return NewStubType(name, NewChanTypeStruct(name, p.str[tokstart:p.index], dir, elemtype));
 }
 
 // Parse array of fields for struct, interface, and func arguments
@@ -685,59 +698,65 @@ func (p *Parser) Fields(sep string) *[]Field {
 	return a[0:nf];
 }
 
-func (p *Parser) Struct(name string) *StubType {
+func (p *Parser) Struct(name string, tokstart int) *StubType {
 	f := p.Fields(";");
 	if p.token != "}" {
 		return MissingStub;
 	}
+	ts := p.str[tokstart:p.index];
 	p.Next();
-	return NewStubType(name, NewStructTypeStruct(name, f));
+	return NewStubType(name, NewStructTypeStruct(name, ts, f));
 }
 
-func (p *Parser) Interface(name string) *StubType {
+func (p *Parser) Interface(name string, tokstart int) *StubType {
 	f := p.Fields(";");
 	if p.token != "}" {
 		return MissingStub;
 	}
+	ts := p.str[tokstart:p.index];
 	p.Next();
-	return NewStubType(name, NewInterfaceTypeStruct(name, f));
+	return NewStubType(name, NewInterfaceTypeStruct(name, ts, f));
 }
 
-func (p *Parser) Func(name string) *StubType {
+func (p *Parser) Func(name string, tokstart int) *StubType {
 	// may be 1 or 2 parenthesized lists
-	f1 := NewStructTypeStruct("", p.Fields(","));
+	f1 := NewStructTypeStruct("", "", p.Fields(","));
 	if p.token != ")" {
 		return MissingStub;
 	}
+	end := p.index;
 	p.Next();
 	if p.token != "(" {
 		// 1 list: the in parameters only
-		return NewStubType(name, NewFuncTypeStruct(name, f1, nil));
+		return NewStubType(name, NewFuncTypeStruct(name, p.str[tokstart:end], f1, nil));
 	}
 	p.Next();
-	f2 := NewStructTypeStruct("", p.Fields(","));
+	f2 := NewStructTypeStruct("", "", p.Fields(","));
 	if p.token != ")" {
 		return MissingStub;
 	}
+	end = p.index;
 	p.Next();
 	// 2 lists: the in and out parameters are present
-	return NewStubType(name, NewFuncTypeStruct(name, f1, f2));
+	return NewStubType(name, NewFuncTypeStruct(name, p.str[tokstart:end], f1, f2));
 }
 
 func (p *Parser) Type(name string) *StubType {
 	dir := BothDir;
+	tokstart := p.tokstart;
 	switch {
 	case p.token == "":
 		return nil;
 	case p.token == "*":
 		p.Next();
-		return NewStubType(name, NewPtrTypeStruct(name, p.Type("")));
+		sub := p.Type("");
+		return NewStubType(name, NewPtrTypeStruct(name, p.str[tokstart:p.index], sub));
 	case p.token == "[":
 		p.Next();
-		return p.Array(name);
+		return p.Array(name, tokstart);
 	case p.token == "map":
 		p.Next();
-		return p.Map(name);
+		return p.Map(name, tokstart);
 	case p.token == "<-":
 		p.Next();
 		dir = RecvDir;
@@ -747,24 +766,24 @@ func (p *Parser) Type(name string) *StubType {
 		fallthrough;
 	case p.token == "chan":
 		p.Next();
-		return p.Chan(name, dir);
+		return p.Chan(name, tokstart, dir);
 	case p.token == "struct":
 		p.Next();
 		if p.token != "{" {
 			return MissingStub
 		}
 		p.Next();
-		return p.Struct(name);
+		return p.Struct(name, tokstart);
 	case p.token == "interface":
 		p.Next();
 		if p.token != "{" {
 			return MissingStub
 		}
 		p.Next();
-		return p.Interface(name);
+		return p.Interface(name, tokstart);
 	case p.token == "(":
 		p.Next();
-		return p.Func(name);
+		return p.Func(name, tokstart);
 	case isdigit(p.token[0]):
 		p.Next();
 		return MissingStub;
