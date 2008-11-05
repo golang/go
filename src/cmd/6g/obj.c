@@ -516,7 +516,6 @@ gentramp(Type *t, Sig *b)
 	int c, d, o;
 	Prog *p;
 	Type *f;
-	Sym *msym;
 
 	e = lookup(b->name);
 	for(d=0; d<nelem(dotlist); d++) {
@@ -596,292 +595,213 @@ out:
 }
 
 void
-dumpsigt(void)
+dumpsigt(Type *t0, Sym *s)
 {
-	Dcl *d, *x;
-	Type *t, *f;
-	Sym *s1, *s;
-	int et, o;
+	Type *f, *t;
+	Sym *s1;
+	int o;
 	Sig *a, *b;
 	Prog *p;
-	char *sp;
 	char buf[NSYMB];
 
-	/*
-	 * put all the names into a linked
-	 * list so that it may be generated in sorted order.
-	 * the runtime will be linear rather than quadradic
-	 */
-	for(d=signatlist; d!=D; d=d->forw) {
-		if(d->op != OTYPE)
-			continue;
-		t = d->dtype;
-		et = t->etype;
-		if(et == TINTER)
-			continue;
-		at.sym = signame(t, d->block);
-		if(at.sym == S)
+	at.sym = s;
+
+	t = t0;
+	if(isptr[t->etype] && t->type->sym != S) {
+		t = t->type;
+		expandmeth(t->sym, t);
+	}
+
+	a = nil;
+	o = 0;
+	for(f=t->method; f!=T; f=f->down) {
+		if(f->type->etype != TFUNC)
 			continue;
 
-		// make unique
-		if(at.sym->local != 1)
-			continue;
-		at.sym->local = 2;
+		if(f->etype != TFIELD)
+			fatal("dumpsignatures: not field");
 
-		s = d->dsym;
-		if(s == S)
+		s1 = f->sym;
+		if(s1 == nil)
 			continue;
 
-		if(s->name[0] == '_')
-			continue;
+		b = mal(sizeof(*b));
+		b->link = a;
+		a = b;
 
-		if(strcmp(s->opackage, package) != 0)
-			continue;
+		a->name = s1->name;
+		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
+		a->perm = o;
+		a->sym = methodsym(f->sym, t);
+		a->offset = f->embedded;	// need trampoline
 
-		expandmeth(s, t);
+		o++;
+	}
 
-		a = nil;
-		o = 0;
-		for(f=t->method; f!=T; f=f->down) {
-			if(f->type->etype != TFUNC)
-				continue;
+	a = lsort(a, sigcmp);
+	ot = 0;
+	ot = rnd(ot, maxround);	// base structure
 
-			if(f->etype != TFIELD)
-				fatal("dumpsignatures: not field");
+	// sigi[0].name = ""
+	ginsatoa(widthptr, stringo);
 
-			s1 = f->sym;
-			if(s1 == nil)
-				continue;
+	// save type name for runtime error message.
+	snprint(buf, sizeof buf, "%#T", t0);
+	datastring(buf, strlen(buf)+1);
 
-			b = mal(sizeof(*b));
-			b->link = a;
-			a = b;
+	// first field of an type signature contains
+	// the element parameters and is not a real entry
+	if(t->methptr & 2)
+		t = types[tptr];
 
-			a->name = s1->name;
-			a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
-			a->perm = o;
-			a->sym = methodsym(f->sym, t);
-			a->offset = f->embedded;	// need trampoline
+	// sigi[0].hash = elemalg
+	gensatac(wi, algtype(t));
 
-			o++;
-		}
+	// sigi[0].offset = width
+	gensatac(wi, t->width);
 
-		a = lsort(a, sigcmp);
-		ot = 0;
+	// skip the function
+	gensatac(widthptr, 0);
+
+	for(b=a; b!=nil; b=b->link) {
 		ot = rnd(ot, maxround);	// base structure
 
-		// sigi[0].name = ""
+		// sigx[++].name = "fieldname"
 		ginsatoa(widthptr, stringo);
 
-		// save type name for runtime error message.
-		// TODO(rsc): the * is a botch but right more often than not.
-		snprint(buf, sizeof buf, "*%#T", t);
-		datastring(buf, strlen(buf)+1);
+		// sigx[++].hash = hashcode
+		gensatac(wi, b->hash);
 
-		// first field of an type signature contains
-		// the element parameters and is not a real entry
+		// sigt[++].offset = of embeded struct
+		gensatac(wi, 0);
 
-		t = d->dtype;
-		if(t->methptr & 2)
-			t = types[tptr];
+		// sigt[++].fun = &method
+		gensatad(b->sym);
 
-		// sigi[0].hash = elemalg
-		gensatac(wi, algtype(t));
+		datastring(b->name, strlen(b->name)+1);
 
-		// sigi[0].offset = width
-		gensatac(wi, t->width);
-
-		// skip the function
-		gensatac(widthptr, 0);
-
-		for(b=a; b!=nil; b=b->link) {
-			ot = rnd(ot, maxround);	// base structure
-
-			// sigx[++].name = "fieldname"
-			ginsatoa(widthptr, stringo);
-
-			// sigx[++].hash = hashcode
-			gensatac(wi, b->hash);
-
-			// sigt[++].offset = of embeded struct
-			gensatac(wi, 0);
-
-			// sigt[++].fun = &method
-			gensatad(b->sym);
-
-			datastring(b->name, strlen(b->name)+1);
-
-			if(b->offset)
-				gentramp(d->dtype, b);
-		}
-
-		// nil field name at end
-		ot = rnd(ot, maxround);
-		gensatac(widthptr, 0);
-
-		p = pc;
-		gins(AGLOBL, N, N);
-		p->from = at;
-		p->to = ac;
-		p->to.offset = ot;
+		if(b->offset)
+			gentramp(t0, b);
 	}
 
-	if(stringo > 0) {
-		p = pc;
-		gins(AGLOBL, N, N);
-		p->from = ao;
-		p->to = ac;
-		p->to.offset = stringo;
-	}
+	// nil field name at end
+	ot = rnd(ot, maxround);
+	gensatac(widthptr, 0);
 
+	// set DUPOK to allow other .6s to contain
+	// the same signature.  only one will be chosen.
+	p = pc;
+	gins(AGLOBL, N, N);
+	p->from = at;
+	p->from.scale = DUPOK;
+	p->to = ac;
+	p->to.offset = ot;
 }
 
 void
-dumpsigi(void)
+dumpsigi(Type *t, Sym *s)
 {
-	Dcl *d, *x;
-	Type *t, *f;
-	Sym *s1, *s;
-	int et, o;
+	Type *f;
+	Sym *s1;
+	int o;
 	Sig *a, *b;
 	Prog *p;
 	char *sp;
 	char buf[NSYMB];
 
-	/*
-	 * put all the names into a linked
-	 * list so that it may be generated in sorted order.
-	 * the runtime will be linear rather than quadradic
-	 */
+	at.sym = s;
 
-	for(d=signatlist; d!=D; d=d->forw) {
-		if(d->op != OTYPE)
+	a = nil;
+	o = 0;
+	for(f=t->type; f!=T; f=f->down) {
+		if(f->type->etype != TFUNC)
 			continue;
 
-		t = d->dtype;
-		et = t->etype;
-		if(et != TINTER)
+		if(f->etype != TFIELD)
+			fatal("dumpsignatures: not field");
+
+		s1 = f->sym;
+		if(s1 == nil)
+			continue;
+		if(s1->name[0] == '_')
 			continue;
 
-		at.sym = signame(t, d->block);
-		if(at.sym == S)
-			continue;
+		b = mal(sizeof(*b));
+		b->link = a;
+		a = b;
 
-		// make unique
-		if(at.sym->local != 1)
-			continue;
-		at.sym->local = 2;
+		a->name = s1->name;
+		sp = strchr(s1->name, '_');
+		if(sp != nil)
+			a->name = sp+1;
 
-		s = d->dsym;
-		if(s == S)
-			continue;
+		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
+		a->perm = o;
+		a->sym = methodsym(f->sym, t);
+		a->offset = 0;
 
-		if(s->name[0] == '_')
-			continue;
+		o++;
+	}
 
-		if(strcmp(s->opackage, package) != 0)
-			continue;
+	a = lsort(a, sigcmp);
+	ot = 0;
+	ot = rnd(ot, maxround);	// base structure
 
-//print("sigi: %S\n", s);
+	// sigi[0].name = ""
+	ginsatoa(widthptr, stringo);
 
-		a = nil;
-		o = 0;
-		for(f=t->type; f!=T; f=f->down) {
-			if(f->type->etype != TFUNC)
-				continue;
+	// save type name for runtime error message.
+	snprint(buf, sizeof buf, "%#T", t);
+	datastring(buf, strlen(buf)+1);
 
-			if(f->etype != TFIELD)
-				fatal("dumpsignatures: not field");
+	// first field of an interface signature
+	// contains the count and is not a real entry
 
-			s1 = f->sym;
-			if(s1 == nil)
-				continue;
-			if(s1->name[0] == '_')
-				continue;
+	// sigi[0].hash = 0
+	gensatac(wi, 0);
 
-			b = mal(sizeof(*b));
-			b->link = a;
-			a = b;
+	// sigi[0].offset = count
+	o = 0;
+	for(b=a; b!=nil; b=b->link)
+		o++;
+	gensatac(wi, o);
 
-			a->name = s1->name;
-			sp = strchr(s1->name, '_');
-			if(sp != nil)
-				a->name = sp+1;
-
-			a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
-			a->perm = o;
-			a->sym = methodsym(f->sym, t);
-			a->offset = 0;
-
-			o++;
-		}
-
-		a = lsort(a, sigcmp);
-		ot = 0;
+	for(b=a; b!=nil; b=b->link) {
+//print("	%s\n", b->name);
 		ot = rnd(ot, maxround);	// base structure
 
-		// sigi[0].name = ""
+		// sigx[++].name = "fieldname"
 		ginsatoa(widthptr, stringo);
 
-		// save type name for runtime error message.
-		// TODO(rsc): the * is a botch but right more often than not.
-		snprint(buf, sizeof buf, "%#T", t);
-		datastring(buf, strlen(buf)+1);
+		// sigx[++].hash = hashcode
+		gensatac(wi, b->hash);
 
-		// first field of an interface signature
-		// contains the count and is not a real entry
+		// sigi[++].perm = mapped offset of method
+		gensatac(wi, b->perm);
 
-		// sigi[0].hash = 0
-		gensatac(wi, 0);
-
-		// sigi[0].offset = count
-		o = 0;
-		for(b=a; b!=nil; b=b->link)
-			o++;
-		gensatac(wi, o);
-
-		for(b=a; b!=nil; b=b->link) {
-//print("	%s\n", b->name);
-			ot = rnd(ot, maxround);	// base structure
-
-			// sigx[++].name = "fieldname"
-			ginsatoa(widthptr, stringo);
-
-			// sigx[++].hash = hashcode
-			gensatac(wi, b->hash);
-
-			// sigi[++].perm = mapped offset of method
-			gensatac(wi, b->perm);
-
-			datastring(b->name, strlen(b->name)+1);
-		}
-
-		// nil field name at end
-		ot = rnd(ot, maxround);
-		gensatac(widthptr, 0);
-
-		p = pc;
-		gins(AGLOBL, N, N);
-		p->from = at;
-		p->to = ac;
-		p->to.offset = ot;
+		datastring(b->name, strlen(b->name)+1);
 	}
 
-	if(stringo > 0) {
-		p = pc;
-		gins(AGLOBL, N, N);
-		p->from = ao;
-		p->to = ac;
-		p->to.offset = stringo;
-	}
+	// nil field name at end
+	ot = rnd(ot, maxround);
+	gensatac(widthptr, 0);
+
+	p = pc;
+	gins(AGLOBL, N, N);
+	p->from = at;
+	p->from.scale = DUPOK;
+	p->to = ac;
+	p->to.offset = ot;
 }
 
 void
 dumpsignatures(void)
 {
+	int et;
 	Dcl *d, *x;
 	Type *t;
-	Sym *s;
+	Sym *s, *s1;
+	Prog *p;
 
 	memset(&at, 0, sizeof(at));
 	memset(&ao, 0, sizeof(ao));
@@ -923,19 +843,60 @@ dumpsignatures(void)
 		if(t == T)
 			continue;
 
-		s = signame(t, 0);
+		s = signame(t);
 		if(s == S)
 			continue;
 
 		x = mal(sizeof(*d));
 		x->op = OTYPE;
-		x->dsym = d->dsym;
-		x->dtype = d->dtype;
+		if(t->etype == TINTER)
+			x->dtype = t;
+		else
+			x->dtype = ptrto(t);
 		x->forw = signatlist;
 		x->block = 0;
 		signatlist = x;
 //print("SIG = %lS %lS %lT\n", d->dsym, s, t);
 	}
-	dumpsigi();
-	dumpsigt();
+
+	// process signatlist
+	for(d=signatlist; d!=D; d=d->forw) {
+		if(d->op != OTYPE)
+			continue;
+		t = d->dtype;
+		et = t->etype;
+		s = signame(t);
+		if(s == S)
+			continue;
+
+		// only emit one
+		if(s->siggen)
+			continue;
+		s->siggen = 1;
+
+//print("dosig %T\n", t);
+		// don't emit signatures for *NamedStruct or interface if
+		// they were defined by other packages.
+		// (optimization)
+		s1 = S;
+		if(isptr[et] && t->type != T)
+			s1 = t->type->sym;
+		else if(et == TINTER)
+			s1 = t->sym;
+		if(s1 != S && strcmp(s1->opackage, package) != 0)
+			continue;
+
+		if(et == TINTER)
+			dumpsigi(t, s);
+		else
+			dumpsigt(t, s);
+	}
+
+	if(stringo > 0) {
+		p = pc;
+		gins(AGLOBL, N, N);
+		p->from = ao;
+		p->to = ac;
+		p->to.offset = stringo;
+	}
 }

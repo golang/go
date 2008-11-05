@@ -919,10 +919,10 @@ loop:
 			nnew = nod(ONEW, N, N);
 			nnew->type = nvar->type;
 			nnew = newcompat(nnew);
-			
+
 			nas = nod(OAS, nvar, nnew);
 			addtop = list(addtop, nas);
-			
+
 			nas = nod(OAS, nod(OIND, nvar, N), n->left);
 			addtop = list(addtop, nas);
 
@@ -1761,7 +1761,7 @@ loop:
 		return N;
 	}
 
-more:
+
 	a = nod(OAS, nodarg(l, fp), r);
 	a = convas(a);
 	nn = list(a, nn);
@@ -1786,6 +1786,8 @@ ascompat(Type *t1, Type *t2)
 //	if(eqtype(t2, nilptr, 0))
 //		return 1;
 
+	if(isnilinter(t1))
+		return 1;
 	if(isinter(t1)) {
 		if(isinter(t2))
 			return 1;
@@ -1793,6 +1795,8 @@ ascompat(Type *t1, Type *t2)
 			return 1;
 	}
 
+	if(isnilinter(t2))
+		return 1;
 	if(isinter(t2))
 		if(ismethod(t1))
 			return 1;
@@ -2649,13 +2653,13 @@ isandss(Type *lt, Node *r)
 				return I2I;
 			return Inone;
 		}
-		if(ismethod(rt) != T)
+		if(isnilinter(lt) || ismethod(rt) != T)
 			return T2I;
 		return Inone;
 	}
 
 	if(isinter(rt)) {
-		if(ismethod(lt) != T)
+		if(isnilinter(rt) || ismethod(lt) != T)
 			return I2T;
 		return Inone;
 	}
@@ -2682,7 +2686,7 @@ ifaceop(Type *tl, Node *n, int op)
 		a = n;				// interface
 		r = a;
 
-		s = signame(tl, 0);		// sigi
+		s = signame(tl);		// sigi
 		if(s == S)
 			fatal("ifaceop: signame I2T");
 		a = s->oname;
@@ -2701,14 +2705,14 @@ ifaceop(Type *tl, Node *n, int op)
 		a = n;				// elem
 		r = a;
 
-		s = signame(tr, 0);		// sigt
+		s = signame(tr);		// sigt
 		if(s == S)
 			fatal("ifaceop: signame-1 T2I: %lT", tr);
 		a = s->oname;
 		a = nod(OADDR, a, N);
 		r = list(a, r);
 
-		s = signame(tl, 0);		// sigi
+		s = signame(tl);		// sigi
 		if(s == S) {
 			fatal("ifaceop: signame-2 T2I: %lT", tl);
 		}
@@ -2728,7 +2732,7 @@ ifaceop(Type *tl, Node *n, int op)
 		a = n;				// interface
 		r = a;
 
-		s = signame(tl, 0);		// sigi
+		s = signame(tl);		// sigi
 		if(s == S)
 			fatal("ifaceop: signame I2I");
 		a = s->oname;

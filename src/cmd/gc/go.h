@@ -125,6 +125,7 @@ struct	Type
 	uchar	methptr;	// 1=direct 2=pointer
 	uchar	printed;
 	uchar	embedded;	// TFIELD embedded type
+	uchar	siggen;
 
 	// TFUNCT
 	uchar	thistuple;
@@ -208,6 +209,7 @@ struct	Sym
 	uchar	sym;		// huffman encoding in object file
 	uchar	local;		// created in this file
 	uchar	uniq;		// imbedded field name first found
+	uchar	siggen;		// signature generated
 
 	char*	opackage;	// original package name
 	char*	package;	// package name
@@ -596,11 +598,10 @@ int	isptrdarray(Type*);
 int	isinter(Type*);
 int	isnilinter(Type*);
 int	isddd(Type*);
-Sym*	globalsig(Type*);
 Type*	ismethod(Type*);
 Type*	methtype(Type*);
 int	needaddr(Type*);
-Sym*	signame(Type*, int);
+Sym*	signame(Type*);
 int	bytearraysz(Type*);
 int	eqtype(Type*, Type*, int);
 void	argtype(Node*, Type*);
