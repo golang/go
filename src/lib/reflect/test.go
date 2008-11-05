@@ -88,7 +88,6 @@ export type empty interface {}
 export type T struct { a int; b float64; c string; d *int }
 
 func main() {
-//NOTE: INTERFACES PARSE INCORRECTLY: parser's Fields() stops at '('
 	var s string;
 	var t reflect.Type;
 
@@ -224,12 +223,17 @@ func main() {
 	name, typ, tag, offset = st.Field(1);
 	assert(typ.String(), "float32");
 
-	//TODO! this is bad - can't put a method in an interface!
-	t = reflect.ParseTypeString("", "interface {a int}");
-	assert(t.String(), "interface {a int}");
+	t = reflect.ParseTypeString("", "interface {a() *int}");
+	assert(t.String(), "interface {a() *int}");
 
 	t = reflect.ParseTypeString("", "*(a int8, b int32)");
 	assert(t.String(), "*(a int8, b int32)");
+
+	t = reflect.ParseTypeString("", "*(a int8, b int32) float");
+	assert(t.String(), "*(a int8, b int32) float");
+
+	t = reflect.ParseTypeString("", "*(a int8, b int32) (a float, b float)");
+	assert(t.String(), "*(a int8, b int32) (a float, b float)");
 
 	t = reflect.ParseTypeString("", "[32]int32");
 	assert(t.String(), "[32]int32");
