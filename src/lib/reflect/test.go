@@ -88,9 +88,11 @@ export type empty interface {}
 export type T struct { a int; b float64; c string; d *int }
 
 func main() {
+//NOTE: INTERFACES PARSE INCORRECTLY: parser's Fields() stops at '('
 	var s string;
 	var t reflect.Type;
 
+	// Types
 	typedump("missing", "$missing$");
 	typedump("int", "int");
 	typedump("int8", "int8");
@@ -126,6 +128,7 @@ func main() {
 	typedump("struct {a int8 \"hi \\x00there\\t\\n\\\"\\\\\"; }", "struct{a int8 \"hi \\x00there\\t\\n\\\"\\\\\"}");
 	typedump("struct {f *(args ...)}", "struct{f *(args ...)}");
 
+	// Values
 	valuedump("int8", "8");
 	valuedump("int16", "16");
 	valuedump("int32", "32");
@@ -191,4 +194,56 @@ func main() {
 		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Put(123);
 		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.AA·test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
 	}
+
+	var pt reflect.PtrType;
+	var st reflect.StructType;
+	var mt reflect.MapType;
+	var at reflect.ArrayType;
+	var ct reflect.ChanType;
+	var name string;
+	var typ reflect.Type;
+	var tag string;
+	var offset uint64;
+
+	// Type strings
+	t = reflect.ParseTypeString("", "int8");
+	assert(t.String(), "int8");
+
+	t = reflect.ParseTypeString("", "*int8");
+	assert(t.String(), "*int8");
+	pt = t.(reflect.PtrType);
+	assert(pt.Sub().String(), "int8");
+
+	t = reflect.ParseTypeString("", "*struct {c *chan *int32; d float32}");
+	assert(t.String(), "*struct {c *chan *int32; d float32}");
+	pt = t.(reflect.PtrType);
+	assert(pt.Sub().String(), "struct {c *chan *int32; d float32}");
+	st = pt.Sub().(reflect.StructType);
+	name, typ, tag, offset = st.Field(0);
+	assert(typ.String(), "*chan *int32");
+	name, typ, tag, offset = st.Field(1);
+	assert(typ.String(), "float32");
+
+	//TODO! this is bad - can't put a method in an interface!
+	t = reflect.ParseTypeString("", "interface {a int}");
+	assert(t.String(), "interface {a int}");
+
+	t = reflect.ParseTypeString("", "*(a int8, b int32)");
+	assert(t.String(), "*(a int8, b int32)");
+
+	t = reflect.ParseTypeString("", "[32]int32");
+	assert(t.String(), "[32]int32");
+	at = t.(reflect.ArrayType);
+	assert(at.Elem().String(), "int32");
+
+	t = reflect.ParseTypeString("", "map[string]*int32");
+	assert(t.String(), "map[string]*int32");
+	mt = t.(reflect.MapType);
+	assert(mt.Key().String(), "string");
+	assert(mt.Elem().String(), "*int32");
+
+	t = reflect.ParseTypeString("", "chan<-string");
+	assert(t.String(), "chan<-string");
+	ct = t.(reflect.ChanType);
+	assert(ct.Elem().String(), "string");
 }

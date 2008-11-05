@@ -11,33 +11,7 @@ import (
 	"reflect";
 )
 
-
 type Addr uint64	// TODO: where are ptrint/intptr etc?
-
-export type Value interface {
-	Kind()	int;
-	Type()	Type;
-}
-
-// Common fields and functionality for all values
-
-type Common struct {
-	kind	int;
-	typ	Type;
-	addr	Addr;
-}
-
-func (c *Common) Kind() int {
-	return c.kind
-}
-
-func (c *Common) Type() Type {
-	return c.typ
-}
-
-func NewValueAddr(typ Type, addr Addr) Value
-
-type Creator *(typ Type, addr Addr) Value
 
 // Conversion functions, implemented in assembler
 func AddrToPtrAddr(Addr) *Addr
@@ -59,6 +33,39 @@ func AddrToPtrFloat64(Addr) *float64
 func AddrToPtrFloat80(Addr) *float80
 func AddrToPtrString(Addr) *string
 func AddrToPtrBool(Addr) *bool
+
+export type Empty interface {}	// TODO(r): Delete when no longer needed?
+
+export type Value interface {
+	Kind()	int;
+	Type()	Type;
+	Unreflect()	Empty;
+}
+
+// Common fields and functionality for all values
+
+type Common struct {
+	kind	int;
+	typ	Type;
+	addr	Addr;
+}
+
+func (c *Common) Kind() int {
+	return c.kind
+}
+
+func (c *Common) Type() Type {
+	return c.typ
+}
+
+func (c *Common) Unreflect() Empty {
+	return sys.unreflect(*AddrToPtrAddr(c.addr), c.typ.String());
+}
+
+func NewValueAddr(typ Type, addr Addr) Value
+
+type Creator *(typ Type, addr Addr) Value
+
 
 // -- Missing
 
@@ -742,8 +749,6 @@ export func NewInitValue(typ Type) Value {
 	data := new([]uint8, size);
 	return NewValueAddr(typ, PtrUint8ToAddr(&data[0]));
 }
-
-export type Empty interface {}
 
 export func NewValue(e Empty) Value {
 	value, typestring  := sys.reflect(e);
