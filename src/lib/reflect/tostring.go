@@ -39,7 +39,7 @@ func DoubleQuote(s string) string {
 }
 
 type HasFields interface {
-	Field(i int)	(name string, typ Type, tag string, offset uint64);
+	Field(i int)	(name string, typ Type, tag string, offset int);
 	Len()	int;
 }
 
@@ -177,7 +177,7 @@ func ValueToString(val Value) string {
 		v := val.(ArrayValue);
 		str += TypeToString(t, false);
 		str += "{";
-		for i := uint64(0); i < v.Len(); i++ {
+		for i := 0; i < v.Len(); i++ {
 			if i > 0 {
 				str += ", "
 			}

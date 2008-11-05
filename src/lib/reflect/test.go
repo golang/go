@@ -202,7 +202,7 @@ func main() {
 	var name string;
 	var typ reflect.Type;
 	var tag string;
-	var offset uint64;
+	var offset int;
 
 	// Type strings
 	t = reflect.ParseTypeString("", "int8");

@@ -39,7 +39,7 @@ export type Empty interface {}	// TODO(r): Delete when no longer needed?
 export type Value interface {
 	Kind()	int;
 	Type()	Type;
-	Unreflect()	Empty;
+	Interface()	Empty;
 }
 
 // Common fields and functionality for all values
@@ -58,7 +58,7 @@ func (c *Common) Type() Type {
 	return c.typ
 }
 
-func (c *Common) Unreflect() Empty {
+func (c *Common) Interface() Empty {
 	return sys.unreflect(*AddrToPtrAddr(c.addr), c.typ.String());
 }
 
@@ -517,14 +517,14 @@ export type ArrayValue interface {
 	Kind()	int;
 	Type()	Type;
 	Open()	bool;
-	Len()	uint64;
-	Elem(i uint64)	Value;
+	Len()	int;
+	Elem(i int)	Value;
 }
 
 type OpenArrayValueStruct struct {
 	Common;
 	elemtype	Type;
-	elemsize	uint64;
+	elemsize	int;
 }
 
 /*
@@ -539,32 +539,32 @@ func (v *OpenArrayValueStruct) Open() bool {
 	return true
 }
 
-func (v *OpenArrayValueStruct) Len() uint64 {
-	return uint64(*AddrToPtrInt32(v.addr+8));
+func (v *OpenArrayValueStruct) Len() int {
+	return int(*AddrToPtrInt32(v.addr+8));
 }
 
-func (v *OpenArrayValueStruct) Elem(i uint64) Value {
+func (v *OpenArrayValueStruct) Elem(i int) Value {
 	base := *AddrToPtrAddr(v.addr);
-	return NewValueAddr(v.elemtype, base + i * v.elemsize);
+	return NewValueAddr(v.elemtype, base + Addr(i * v.elemsize));
 }
 
 type FixedArrayValueStruct struct {
 	Common;
 	elemtype	Type;
-	elemsize	uint64;
-	len	uint64;
+	elemsize	int;
+	len	int;
 }
 
 func (v *FixedArrayValueStruct) Open() bool {
 	return false
 }
 
-func (v *FixedArrayValueStruct) Len() uint64 {
+func (v *FixedArrayValueStruct) Len() int {
 	return v.len
 }
 
-func (v *FixedArrayValueStruct) Elem(i uint64) Value {
-	return NewValueAddr(v.elemtype, v.addr + i * v.elemsize);
+func (v *FixedArrayValueStruct) Elem(i int) Value {
+	return NewValueAddr(v.elemtype, v.addr + Addr(i * v.elemsize));
 	return nil
 }
 
@@ -658,7 +658,7 @@ func StructCreator(typ Type, addr Addr) Value {
 	v := &StructValueStruct{ Common{StructKind, typ, addr}, new([]Value, nfield) };
 	for i := 0; i < nfield; i++ {
 		name, ftype, str, offset := t.Field(i);
-		v.field[i] = NewValueAddr(ftype, addr + offset);
+		v.field[i] = NewValueAddr(ftype, addr + Addr(offset));
 	}
 	v.typ = typ;
 	return v;
