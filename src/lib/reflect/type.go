@@ -289,12 +289,13 @@ func (t *StructTypeStruct) Size() int {
 		return t.size
 	}
 	size := 0;
+	structalignmask := 7;	// BUG: we know structs are 8-aligned
 	for i := 0; i < len(t.field); i++ {
 		elemsize := t.field[i].typ.Get().Size();
 		// pad until at (elemsize mod 8) boundary
 		align := elemsize - 1;
-		if align > 7 {	// BUG: we know structs are 8-aligned
-			align = 7
+		if align > structalignmask {
+			align = structalignmask
 		}
 		if align > 0 {
 			size = (size + align) & ^align;
@@ -302,7 +303,6 @@ func (t *StructTypeStruct) Size() int {
 		t.field[i].offset = size;
 		size += elemsize;
 	}
-	structalignmask := 7;	// TODO: knows that size fits in int32 (also can't use const here)
 	size = (size + structalignmask) & ^(structalignmask);
 	t.size = size;
 	return size;
