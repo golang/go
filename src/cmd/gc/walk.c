@@ -469,6 +469,7 @@ loop:
 		case OCONV:
 			if(cl == 2 && cr == 1) {
 				// a,b = i.(T)
+				walktype(r->left, Erv);
 				if(r->left == N)
 					break;
 				et = isandss(r->type, r->left);
@@ -2964,6 +2965,20 @@ multi:
 		n = list(n, a);
 		break;
 
+	case OCONV:
+		// a,b := i.(T)
+		if(cl != 2)
+			goto badt;
+		walktype(nr->left, Erv);
+		if(!isinter(nr->left->type))
+			goto badt;
+		// a,b = iface
+		a = old2new(nl->left, nr->type);
+		n = a;
+		a = old2new(nl->right, types[TBOOL]);
+		n = list(n, a);
+		break;
+
 	case ORECV:
 		if(cl != 2)
 			goto badt;
@@ -2975,6 +2990,7 @@ multi:
 		n = a;
 		a = old2new(nl->right, types[TBOOL]);
 		n = list(n, a);
+		break;
 	}
 	n = rev(n);
 	return n;
