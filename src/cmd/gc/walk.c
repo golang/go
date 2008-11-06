@@ -3053,6 +3053,7 @@ loop1:
 		fatal("reorder1 OLIST");
 
 	t++;
+	ullmancalc(l);
 	if(l->ullman >= UINF)
 		c++;
 	l = listnext(&save);
@@ -3072,6 +3073,7 @@ loop2:
 		r = list(f, r);
 		return r;
 	}
+	ullmancalc(l);
 	if(l->ullman < UINF) {
 		r = list(l, r);
 		goto more;
@@ -3123,6 +3125,7 @@ loop1:
 	if(l->op == OLIST)
 		fatal("reorder2 OLIST");
 
+	ullmancalc(l);
 	if(l->ullman >= UINF)
 		c++;
 	l = listnext(&save);

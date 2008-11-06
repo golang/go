@@ -28,7 +28,7 @@ if(newproc == N) {
 	newproc->sym = pkglookup("newproc", "sys");
 	newproc->class = PEXTERN;
 	newproc->addable = 1;
-	newproc->ullman = 0;
+	newproc->ullman = 1;
 }
 
 if(throwindex == N) {
@@ -36,7 +36,7 @@ if(throwindex == N) {
 	throwindex->sym = pkglookup("throwindex", "sys");
 	throwindex->class = PEXTERN;
 	throwindex->addable = 1;
-	throwindex->ullman = 0;
+	throwindex->ullman = 1;
 }
 
 if(throwreturn == N) {
@@ -44,7 +44,7 @@ if(throwreturn == N) {
 	throwreturn->sym = pkglookup("throwreturn", "sys");
 	throwreturn->class = PEXTERN;
 	throwreturn->addable = 1;
-	throwreturn->ullman = 0;
+	throwreturn->ullman = 1;
 }
 
 	if(fn->nbody == N)
