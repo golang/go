@@ -15,6 +15,23 @@ import (
 	"os";
 )
 
+export type Writer interface {
+	Write(b *[]byte) (ret int, err *os.Error);
+}
+
+// Representation of printer state passed to custom formatters.
+// Provides access to the Writer interface plus information about
+// the active formatting verb.
+export type FormatHelper interface {
+	Write(b *[]byte) (ret int, err *os.Error);
+	Width()	(wid int, ok bool);
+	Precision()	(prec int, ok bool);
+}
+
+export type Formatter interface {
+	Format(f FormatHelper, c int);
+}
+
 const Runeself = 0x80
 const AllocSize = 32
 
@@ -22,12 +39,24 @@ type P struct {
 	n	int;
 	buf	*[]byte;
 	fmt	*Fmt;
+	wid	int;
+	wid_ok	bool;
+	prec	int;
+	prec_ok	bool;
 }
 
 func Printer() *P {
 	p := new(P);
 	p.fmt = fmt.New();
 	return p;
+}
+
+func (p *P) Width() (wid int, ok bool) {
+	return p.wid, p.wid_ok
+}
+
+func (p *P) Precision() (prec int, ok bool) {
+	return p.prec, p.prec_ok
 }
 
 func (p *P) ensure(n int) {
@@ -79,10 +108,6 @@ func (p *P) add(c int) {
 func (p *P) Write(b *[]byte) (ret int, err *os.Error) {
 	p.addbytes(b, 0, len(b));
 	return len(b), nil;
-}
-
-export type Writer interface {
-	Write(b *[]byte) (ret int, err *os.Error);
 }
 
 func (p *P) doprintf(format string, v reflect.StructValue);
@@ -159,6 +184,14 @@ export func sprintln(v ...) string {
 
 // Getters for the fields of the argument structure.
 
+func getBool(v reflect.Value) (val bool, ok bool) {
+	switch v.Kind() {
+	case reflect.BoolKind:
+		return v.(reflect.BoolValue).Get(), true;
+	}
+	return false, false
+}
+
 func getInt(v reflect.Value) (val int64, signed, ok bool) {
 	switch v.Kind() {
 	case reflect.IntKind:
@@ -215,7 +248,7 @@ func getPtr(v reflect.Value) (val uint64, ok bool) {
 	return 0, false;
 }
 
-// Convert ASCII to integer.
+// Convert ASCII to integer.  n is 0 (and got is false) if no number present.
 
 func parsenum(s string, start, end int) (n int, got bool, newi int) {
 	if start >= end {
@@ -248,18 +281,12 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			i += w;
 			continue;
 		}
-		var got bool;
 		// saw % - do we have %20 (width)?
-		w, got, i = parsenum(format, i+1, end);
-		if got {
-			p.fmt.w(w);
-		}
+		p.wid, p.wid_ok, i = parsenum(format, i+1, end);
+		p.prec_ok = false;
 		// do we have %.20 (precision)?
 		if i < end && format[i] == '.' {
-			w, got, i = parsenum(format, i+1, end);
-			if got {
-				p.fmt.p(w);
-			}
+			p.prec, p.prec_ok, i = parsenum(format, i+1, end);
 		}
 		c, w = sys.stringtorune(format, i);
 		i += w;
@@ -269,19 +296,35 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			continue;
 		}
 		if fieldnum >= v.Len() {	// out of operands
-			p.addstr("???");
+			p.add('%');
+			p.add(c);
+			p.addstr("(missing)");
 			continue;
 		}
 		field := v.Field(fieldnum);
 		fieldnum++;
+		if formatter, ok := field.Interface().(Formatter); ok {
+			formatter.Format(p, c);
+			continue;
+		}
 		s := "";
+		if p.wid_ok {
+			p.fmt.w(p.wid);
+		}
+		if p.prec_ok {
+			p.fmt.p(p.prec);
+		}
 		switch c {
 			// bool
 			case 't':
-				if field.(reflect.BoolValue).Get() {
-					s = "true";
+				if v, ok := getBool(field); ok {
+					if v {
+						s = "true";
+					} else {
+						s = "false";
+					}
 				} else {
-					s = "false";
+					goto badtype;
 				}
 
 			// int
@@ -289,7 +332,13 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 				if v, signed, ok := getInt(field); ok {
 					s = p.fmt.b64(uint64(v)).str()	// always unsigned
 				} else {
-					s = "%b%"
+					goto badtype
+				}
+			case 'c':
+				if v, signed, ok := getInt(field); ok {
+					s = p.fmt.c(int(v)).str()
+				} else {
+					goto badtype
 				}
 			case 'd':
 				if v, signed, ok := getInt(field); ok {
@@ -299,7 +348,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 						s = p.fmt.ud64(uint64(v)).str()
 					}
 				} else {
-					s = "%d%"
+					goto badtype
 				}
 			case 'o':
 				if v, signed, ok := getInt(field); ok {
@@ -309,7 +358,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 						s = p.fmt.uo64(uint64(v)).str()
 					}
 				} else {
-					s= "%o%"
+					goto badtype
 				}
 			case 'x':
 				if v, signed, ok := getInt(field); ok {
@@ -319,7 +368,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 						s = p.fmt.ux64(uint64(v)).str()
 					}
 				} else {
-					s = "%x%"
+					goto badtype
 				}
 
 			// float
@@ -327,19 +376,19 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 				if v, ok := getFloat(field); ok {
 					s = p.fmt.e64(v).str()
 				} else {
-					s = "%e%"
+					goto badtype
 				}
 			case 'f':
 				if v, ok := getFloat(field); ok {
 					s = p.fmt.f64(v).str()
 				} else {
-					s = "%f%";
+					goto badtype
 				}
 			case 'g':
 				if v, ok := getFloat(field); ok {
 					s = p.fmt.g64(v).str()
 				} else {
-					s = "%g%"
+					goto badtype
 				}
 
 			// string
@@ -347,7 +396,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 				if v, ok := getString(field); ok {
 					s = p.fmt.s(v).str()
 				} else {
-					s = "%s%"
+					goto badtype
 				}
 
 			// pointer
@@ -355,13 +404,24 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 				if v, ok := getPtr(field); ok {
 					s = "0x" + p.fmt.uX64(v).str()
 				} else {
-					s = "%p%"
+					goto badtype
 				}
 
 			default:
-				s = "?" + string(c) + "?";
+			badtype:
+				s = "%" + string(c) + "(" + field.Type().String() + ")%";
 		}
 		p.addstr(s);
+	}
+	if fieldnum < v.Len() {
+		p.addstr("?(extra ");
+		for ; fieldnum < v.Len(); fieldnum++ {
+			p.addstr(v.Field(fieldnum).Type().String());
+			if fieldnum + 1 < v.Len() {
+				p.addstr(", ");
+			}
+		}
+		p.addstr(")");
 	}
 }
 
@@ -404,7 +464,7 @@ func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool) {
 			p.doprint(field, true, false);
 			p.add('}');
 		default:
-			s = "???";
+			s = "?" + field.Type().String() + "?";
 		}
 		p.addstr(s);
 		prev_string = field.Kind() == reflect.StringKind;
