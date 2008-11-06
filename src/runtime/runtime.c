@@ -347,6 +347,23 @@ sys·NaN(float64 out)
 	FLUSH(&out);
 }
 
+// func float32bits(float32) uint32; // raw bits of float32
+void
+sys·float32bits(float32 din, uint32 iou)
+{
+	iou = *(uint32*)&din;
+	FLUSH(&iou);
+}
+
+// func float64bits(float64) uint64; // raw bits of float64
+void
+sys·float64bits(float64 din, uint64 iou)
+{
+	iou = *(uint64*)&din;
+	FLUSH(&iou);
+}
+
+
 static int32	argc;
 static uint8**	argv;
 static int32	envc;
