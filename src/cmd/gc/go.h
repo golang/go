@@ -478,6 +478,8 @@ EXTERN	ushort	block;			// current block number
 EXTERN	Node*	retnil;
 EXTERN	Node*	fskel;
 
+EXTERN	Node*	addtop;
+
 EXTERN	char*	context;
 EXTERN	int	thechar;
 EXTERN	char*	thestring;
