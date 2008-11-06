@@ -7,6 +7,7 @@
 package main
 
 import Big "bignum"
+import Fmt "fmt"
 
 const (
 	sa = "991";
@@ -71,8 +72,8 @@ func TEST(n uint, b bool) {
 func NAT_EQ(n uint, x, y *Big.Natural) {
 	if x.Cmp(y) != 0 {
 		println("TEST failed:", test_msg, "(", n, ")");
-		println("x =", x.String(10));
-		println("y =", y.String(10));
+		println("x =", x.String());
+		println("y =", y.String());
 		panic();
 	}
 }
@@ -81,8 +82,8 @@ func NAT_EQ(n uint, x, y *Big.Natural) {
 func INT_EQ(n uint, x, y *Big.Integer) {
 	if x.Cmp(y) != 0 {
 		println("TEST failed:", test_msg, "(", n, ")");
-		println("x =", x.String(10));
-		println("y =", y.String(10));
+		println("x =", x.String());
+		println("y =", y.String());
 		panic();
 	}
 }
@@ -91,8 +92,8 @@ func INT_EQ(n uint, x, y *Big.Integer) {
 func RAT_EQ(n uint, x, y *Big.Rational) {
 	if x.Cmp(y) != 0 {
 		println("TEST failed:", test_msg, "(", n, ")");
-		println("x =", x.String(10));
-		println("y =", y.String(10));
+		println("x =", x.String());
+		println("y =", y.String());
 		panic();
 	}
 }
@@ -103,9 +104,9 @@ func NatConv() {
 	NAT_EQ(0, a, Big.Nat(991));
 	NAT_EQ(1, b, Big.Fact(20));
 	NAT_EQ(2, c, Big.Fact(100));
-	TEST(3, a.String(10) == sa);
-	TEST(4, b.String(10) == sb);
-	TEST(5, c.String(10) == sc);
+	TEST(3, a.String() == sa);
+	TEST(4, b.String() == sb);
+	TEST(5, c.String() == sc);
 
 	test_msg = "NatConvB";
 	var slen int;
@@ -119,8 +120,13 @@ func NatConv() {
 	test_msg = "NatConvC";
 	t := c.Mul(c);
 	for base := uint(2); base <= 16; base++ {
-		NAT_EQ(base, NatFromString(t.String(base), base, nil), t);
+		NAT_EQ(base, NatFromString(t.ToString(base), base, nil), t);
 	}
+
+	test_msg = "NatConvD";
+	x := Big.Nat(100);
+	y, b := Big.NatFromString(Fmt.sprintf("%b", x), 2, nil);
+	NAT_EQ(0, y, x);
 }
 
 
@@ -162,8 +168,8 @@ func Add(x, y *Big.Natural) *Big.Natural {
 	z2 := y.Add(x);
 	if z1.Cmp(z2) != 0 {
 		println("addition not symmetric");
-		println("x =", x.String(10));
-		println("y =", y.String(10));
+		println("x =", x.String());
+		println("y =", y.String());
 		panic();
 	}
 	return z1;
@@ -197,20 +203,20 @@ func Mul(x, y *Big.Natural) *Big.Natural {
 	z2 := y.Mul(x);
 	if z1.Cmp(z2) != 0 {
 		println("multiplication not symmetric");
-		println("x =", x.String(10));
-		println("y =", y.String(10));
+		println("x =", x.String());
+		println("y =", y.String());
 		panic();
 	}
 	if !x.IsZero() && z1.Div(x).Cmp(y) != 0 {
 		println("multiplication/division not inverse (A)");
-		println("x =", x.String(10));
-		println("y =", y.String(10));
+		println("x =", x.String());
+		println("y =", y.String());
 		panic();
 	}
 	if !y.IsZero() && z1.Div(y).Cmp(x) != 0 {
 		println("multiplication/division not inverse (B)");
-		println("x =", x.String(10));
-		println("y =", y.String(10));
+		println("x =", x.String());
+		println("y =", y.String());
 		panic();
 	}
 	return z1;

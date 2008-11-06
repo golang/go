@@ -11,6 +11,7 @@ package Bignum
 // - Integer	signed integer numbers
 // - Rational	rational numbers
 
+import Fmt "fmt"
 
 // ----------------------------------------------------------------------------
 // Internal representation
@@ -675,7 +676,7 @@ func DivMod1(x *Natural, d Digit) (*Natural, Digit) {
 }
 
 
-func (x *Natural) String(base uint) string {
+func (x *Natural) ToString(base uint) string {
 	if len(x) == 0 {
 		return "0";
 	}
@@ -699,6 +700,27 @@ func (x *Natural) String(base uint) string {
 	};
 
 	return string(s[i : n]);
+}
+
+
+func (x *Natural) String() string {
+	return x.ToString(10);
+}
+
+
+func FmtBase(c int) uint {
+	switch c {
+	case 'b': return 2;
+	case 'o': return 8;
+	case 'x': return 16;
+	}
+	return 10;
+}
+
+
+func (x *Natural) Format(h Fmt.Formatter, c int) {
+	t := x.ToString(FmtBase(c));  // BUG in 6g
+	Fmt.fprintf(h, "%s", t);
 }
 
 
@@ -1092,7 +1114,7 @@ func (x *Integer) Cmp(y *Integer) int {
 }
 
 
-func (x *Integer) String(base uint) string {
+func (x *Integer) ToString(base uint) string {
 	if x.mant.IsZero() {
 		return "0";
 	}
@@ -1100,10 +1122,21 @@ func (x *Integer) String(base uint) string {
 	if x.sign {
 		s = "-";
 	}
-	return s + x.mant.String(base);
+	return s + x.mant.ToString(base);
 }
 
 	
+func (x *Integer) String() string {
+	return x.ToString(10);
+}
+
+
+func (x *Integer) Format(h Fmt.Formatter, c int) {
+	t := x.ToString(FmtBase(c));  // BUG in 6g
+	Fmt.fprintf(h, "%s", t);
+}
+
+
 // Determines base (octal, decimal, hexadecimal) if base == 0.
 // Returns the number and base.
 export func IntFromString(s string, base uint, slen *int) (*Integer, uint) {
@@ -1215,12 +1248,23 @@ func (x *Rational) Cmp(y *Rational) int {
 }
 
 
-func (x *Rational) String(base uint) string {
-	s := x.a.String(base);
+func (x *Rational) ToString(base uint) string {
+	s := x.a.ToString(base);
 	if !x.IsInt() {
-		s += "/" + x.b.String(base);
+		s += "/" + x.b.ToString(base);
 	}
 	return s;
+}
+
+
+func (x *Rational) String() string {
+	return x.ToString(10);
+}
+
+
+func (x *Rational) Format(h Fmt.Formatter, c int) {
+	t := x.ToString(FmtBase(c));  // BUG in 6g
+	Fmt.fprintf(h, "%s", t);
 }
 
 
