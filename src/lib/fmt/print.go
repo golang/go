@@ -22,14 +22,18 @@ export type Writer interface {
 // Representation of printer state passed to custom formatters.
 // Provides access to the Writer interface plus information about
 // the active formatting verb.
-export type FormatHelper interface {
+export type Formatter interface {
 	Write(b *[]byte) (ret int, err *os.Error);
 	Width()	(wid int, ok bool);
 	Precision()	(prec int, ok bool);
 }
 
-export type Formatter interface {
-	Format(f FormatHelper, c int);
+export type Format interface {
+	Format(f Formatter, c int);
+}
+
+export type String interface {
+	String() string
 }
 
 const Runeself = 0x80
@@ -303,7 +307,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 		}
 		field := v.Field(fieldnum);
 		fieldnum++;
-		if formatter, ok := field.Interface().(Formatter); ok {
+		if formatter, ok := field.Interface().(Format); ok {
 			formatter.Format(p, c);
 			continue;
 		}
@@ -438,6 +442,11 @@ func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool) {
 				// if not doing println, add spaces if neither side is a string
 				p.add(' ')
 			}
+		}
+		if stringer, ok := field.Interface().(String); ok {
+			p.addstr(stringer.String());
+			prev_string = false;	// this value is not a string
+			continue;
 		}
 		switch field.Kind() {
 		case reflect.BoolKind:
