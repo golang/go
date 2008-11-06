@@ -4,7 +4,8 @@
 
 #include "runtime.h"
 
-int32	panicking = 0;
+int32	panicking	= 0;
+int32	maxround	= 8;
 
 int32
 gotraceback(void)
@@ -91,6 +92,8 @@ rnd(uint32 n, uint32 m)
 {
 	uint32 r;
 
+	if(m > maxround)
+		m = maxround;
 	r = n % m;
 	if(r)
 		n += m-r;
