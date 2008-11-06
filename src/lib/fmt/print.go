@@ -28,11 +28,11 @@ export type Formatter interface {
 	Precision()	(prec int, ok bool);
 }
 
-export type Format interface {
+type Format interface {
 	Format(f Formatter, c int);
 }
 
-export type String interface {
+type String interface {
 	String() string
 }
 
@@ -132,9 +132,10 @@ export func printf(format string, v ...) (n int, errno *os.Error) {
 	return n, errno;
 }
 
-export func sprintf(format string, v ...) string {
+export func sprintf(format string, a ...) string {
+	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
-	p.doprintf(format, reflect.NewValue(v).(reflect.StructValue));
+	p.doprintf(format, v);
 	s := string(p.buf)[0 : p.n];
 	return s;
 }
@@ -155,9 +156,10 @@ export func print(v ...) (n int, errno *os.Error) {
 	return n, errno;
 }
 
-export func sprint(v ...) string {
+export func sprint(a ...) string {
+	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
-	p.doprint(reflect.NewValue(v).(reflect.StructValue), false, false);
+	p.doprint(v, false, false);
 	s := string(p.buf)[0 : p.n];
 	return s;
 }
@@ -179,9 +181,10 @@ export func println(v ...) (n int, errno *os.Error) {
 	return n, errno;
 }
 
-export func sprintln(v ...) string {
+export func sprintln(a ...) string {
+	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
-	p.doprint(reflect.NewValue(v).(reflect.StructValue), true, true);
+	p.doprint(v, true, true);
 	s := string(p.buf)[0 : p.n];
 	return s;
 }
