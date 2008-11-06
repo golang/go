@@ -469,7 +469,7 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 
 	i = sel->ncase;
 	if(i >= sel->tcase)
-		throw("selectsend: too many cases");
+		throw("selectrecv: too many cases");
 	sel->ncase = i+1;
 	cas = &sel->scase[i];
 
@@ -480,6 +480,44 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 	eo = rnd(eo+sizeof(c), sizeof(byte*));
 	cas->so = rnd(eo+sizeof(byte*), 1);
 	cas->send = 0;
+	cas->u.elemp = *(byte**)((byte*)&sel + eo);
+
+	if(debug) {
+		prints("newselect s=");
+		sys·printpointer(sel);
+		prints(" pc=");
+		sys·printpointer(cas->pc);
+		prints(" chan=");
+		sys·printpointer(cas->chan);
+		prints(" so=");
+		sys·printint(cas->so);
+		prints(" send=");
+		sys·printint(cas->send);
+		prints("\n");
+	}
+}
+
+void
+sys·selectdefault(Select *sel)
+{
+	int32 i, eo;
+	Scase *cas;
+	Hchan *c;
+	
+	c = nil;
+	i = sel->ncase;
+	if(i >= sel->tcase)
+		throw("selectdefault: too many cases");
+	sel->ncase = i+1;
+	cas = &sel->scase[i];
+
+	cas->pc = sys·getcallerpc(&sel);
+	cas->chan = c;
+
+	eo = rnd(sizeof(sel), sizeof(c));
+	eo = rnd(eo+sizeof(c), sizeof(byte*));
+	cas->so = rnd(eo+sizeof(byte*), 1);
+	cas->send = 2;
 	cas->u.elemp = *(byte**)((byte*)&sel + eo);
 
 	if(debug) {
