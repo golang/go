@@ -865,7 +865,7 @@ newname(Sym *s)
 	n->sym = s;
 	n->type = T;
 	n->addable = 1;
-	n->ullman = 0;
+	n->ullman = 1;
 	return n;
 }
 
@@ -886,7 +886,7 @@ oldname(Sym *s)
 		n->sym = s;
 		n->type = T;
 		n->addable = 1;
-		n->ullman = 0;
+		n->ullman = 1;
 	}
 	return n;
 }

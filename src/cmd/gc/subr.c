@@ -2048,7 +2048,7 @@ ullmancalc(Node *n)
 	switch(n->op) {
 	case OLITERAL:
 	case ONAME:
-		ul = 0;
+		ul = 1;
 		goto out;
 	case OCALL:
 	case OCALLMETH:
@@ -2056,10 +2056,10 @@ ullmancalc(Node *n)
 		ul = UINF;
 		goto out;
 	}
-	ul = 0;
+	ul = 1;
 	if(n->left != N)
 		ul = n->left->ullman;
-	ur = 0;
+	ur = 1;
 	if(n->right != N)
 		ur = n->right->ullman;
 	if(ul == ur)

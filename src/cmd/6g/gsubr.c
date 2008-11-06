@@ -1640,7 +1640,7 @@ tempname(Node *n, Type *t)
 	n->etype = t->etype;
 	n->class = PAUTO;
 	n->addable = 1;
-	n->ullman = 0;
+	n->ullman = 1;
 
 	dowidth(t);
 	w = t->width;
