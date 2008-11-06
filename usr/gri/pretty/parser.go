@@ -1181,7 +1181,7 @@ func (P *Parser) ParseSwitchStat() *AST.Stat {
 func (P *Parser) ParseCommCase() *AST.Stat {
 	P.Trace("CommCase");
 
-	s := AST.NewStat(P.pos, Scanner.CASE);
+	s := AST.NewStat(P.pos, P.tok);
 	if P.tok == Scanner.CASE {
 		P.Next();
 		x := P.ParseExpression(1);
