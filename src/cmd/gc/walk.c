@@ -8,7 +8,6 @@ static	Type*	sw1(Node*, Type*);
 static	Type*	sw2(Node*, Type*);
 static	Type*	sw3(Node*, Type*);
 static	Node*	curfn;
-static	Node*	addtop;
 
 enum
 {
@@ -65,6 +64,8 @@ walk(Node *fn)
 	if(curfn->type->outtuple)
 		if(walkret(curfn->nbody))
 			yyerror("function ends without a return statement");
+	if(addtop != N)
+		fatal("addtop in walk");
 	walkstate(curfn->nbody);
 	if(debug['W']) {
 		snprint(s, sizeof(s), "after %S", curfn->nname->sym);
@@ -1543,6 +1544,9 @@ void
 walkdot(Node *n)
 {
 	Type *t;
+
+	addtop = list(addtop, n->ninit);
+	n->ninit = N;
 
 	if(n->left == N || n->right == N)
 		return;

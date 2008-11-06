@@ -303,6 +303,9 @@ Bvardcl:
 	}
 |	new_name_list_r type '=' expr_list
 	{
+		if(addtop != N)
+			fatal("new_name_list_r type '=' expr_list");
+
 		$$ = rev($1);
 		dodclvar($$, $2);
 
@@ -423,6 +426,9 @@ simple_stmt:
 	}
 |	exprsym3_list_r LCOLAS expr_list
 	{
+		if(addtop != N)
+			fatal("exprsym3_list_r LCOLAS expr_list");
+
 		$$ = rev($1);
 		$$ = colas($$, $3);
 		$$ = nod(OAS, $$, $3);

@@ -2417,20 +2417,20 @@ adddot(Node *n)
 	walktype(n->left, Erv);
 	t = n->left->type;
 	if(t == T)
-		return n;
+		goto ret;
 
 	if(n->right->op != ONAME)
-		return n;
+		goto ret;
 	s = n->right->sym;
 	if(s == S)
-		return n;
+		goto ret;
 
 	for(d=0; d<nelem(dotlist); d++) {
 		c = adddot1(s, t, d);
 		if(c > 0)
 			goto out;
 	}
-	return n;
+	goto ret;
 
 out:
 	if(c > 1)
@@ -2441,6 +2441,9 @@ out:
 		n = nod(ODOT, n, n->right);
 		n->left->right = newname(dotlist[c].field->sym);
 	}
+ret:
+	n->ninit = list(addtop, n->ninit);
+	addtop = N;
 	return n;
 }
 
