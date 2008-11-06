@@ -1447,6 +1447,9 @@ isselect(Node *n)
 	s = pkglookup("selectrecv", "sys");
 	if(s == n->sym)
 		return 1;
+	s = pkglookup("selectdefault", "sys");
+	if(s == n->sym)
+		return 1;
 	return 0;
 }
 

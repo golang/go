@@ -53,6 +53,7 @@ char *sysimport =
 	"export func sys.newselect (size int) (sel *uint8)\n"
 	"export func sys.selectsend (sel *uint8, hchan *chan any, elem any) (selected bool)\n"
 	"export func sys.selectrecv (sel *uint8, hchan *chan any, elem *any) (selected bool)\n"
+	"export func sys.selectdefault (sel *uint8) (selected bool)\n"
 	"export func sys.selectgo (sel *uint8)\n"
 	"export func sys.newarray (nel int, cap int, width int) (ary *[]any)\n"
 	"export func sys.arraysliced (old *[]any, lb int, hb int, width int) (ary *[]any)\n"

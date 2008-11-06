@@ -190,6 +190,7 @@ G*	allg;
 int32	goidgen;
 extern	int32	gomaxprocs;
 extern	int32	panicking;
+extern	int32	maxround;
 
 /*
  * common functions and data

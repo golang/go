@@ -1246,6 +1246,8 @@ selcase(Node *n, Node *var)
 	Node *a, *r, *on, *c;
 	Type *t;
 
+	if(n->left == N)
+		goto dflt;
 	c = n->left;
 	if(c->op == ORECV)
 		goto recv;
@@ -1329,6 +1331,14 @@ recv2:
 	r = list(a, r);
 	a = var;			// sel-var
 	r = list(a, r);
+	goto out;
+
+dflt:
+	// selectdefault(sel *byte);
+	on = syslook("selectdefault", 0);
+	a = var;
+	r = a;				// sel-var
+	goto out;
 
 out:
 	a = nod(OCALL, on, r);
@@ -1367,8 +1377,8 @@ walkselect(Node *sel)
 {
 	Iter iter;
 	Node *n, *oc, *on, *r;
-	Node *var, *bod, *res;
-	int count;
+	Node *var, *bod, *res, *def;
+	int count, op;
 	int32 lno;
 
 	lno = setlineno(sel);
@@ -1385,6 +1395,7 @@ walkselect(Node *sel)
 	res = N;	// entire select body
 	bod = N;	// body of each case
 	oc = N;		// last case
+	def = N;	// default case
 
 	for(count=0; n!=N; n=listnext(&iter)) {
 		setlineno(n);
@@ -1395,15 +1406,22 @@ walkselect(Node *sel)
 			break;
 
 		case OXCASE:
-			switch(n->left->op) {
+			if(n->left == N) {
+				op = ORECV;	// actual value not used
+				if(def != N)
+					yyerror("only one default select allowed");
+				def = n;
+			} else
+				op = n->left->op;
+			switch(op) {
 			default:
-				yyerror("select cases must be send or recv");
+				yyerror("select cases must be send, recv or default");
 				break;
 
 			case OAS:
 				// convert new syntax (a=recv(chan)) to (recv(a,chan))
 				if(n->left->right == N || n->left->right->op != ORECV) {
-					yyerror("select cases must be send or recv");
+					yyerror("select cases must be send, recv or default");
 					break;
 				}
 				n->left->right->right = n->left->right->left;
@@ -1419,6 +1437,8 @@ walkselect(Node *sel)
 				oc = selcase(n, var);
 				res = list(res, oc);
 				break;
+
+				
 			}
 			bod = N;
 			count++;

@@ -68,6 +68,7 @@ export func	chansend2(hchan *chan any, elem any) (pres bool);
 export func	newselect(size int) (sel *byte);
 export func	selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
 export func	selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+export func	selectdefault(sel *byte) (selected bool);
 export func	selectgo(sel *byte);
 
 export func	newarray(nel int, cap int, width int) (ary *[]any);

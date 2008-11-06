@@ -497,14 +497,14 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 	}
 }
 
+
+// selectrecv(sel *byte) (selected bool);
 void
-sys·selectdefault(Select *sel)
+sys·selectdefault(Select *sel, ...)
 {
-	int32 i, eo;
+	int32 i;
 	Scase *cas;
-	Hchan *c;
 	
-	c = nil;
 	i = sel->ncase;
 	if(i >= sel->tcase)
 		throw("selectdefault: too many cases");
@@ -512,13 +512,11 @@ sys·selectdefault(Select *sel)
 	cas = &sel->scase[i];
 
 	cas->pc = sys·getcallerpc(&sel);
-	cas->chan = c;
+	cas->chan = nil;
 
-	eo = rnd(sizeof(sel), sizeof(c));
-	eo = rnd(eo+sizeof(c), sizeof(byte*));
-	cas->so = rnd(eo+sizeof(byte*), 1);
+	cas->so = rnd(sizeof(sel), 1);
 	cas->send = 2;
-	cas->u.elemp = *(byte**)((byte*)&sel + eo);
+	cas->u.elemp = nil;
 
 	if(debug) {
 		prints("newselect s=");
