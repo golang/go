@@ -39,6 +39,8 @@ char *sysimport =
 	"export func sys.isNaN (? float64) (? bool)\n"
 	"export func sys.Inf (? int) (? float64)\n"
 	"export func sys.NaN () (? float64)\n"
+	"export func sys.float32bits (? float32) (? uint32)\n"
+	"export func sys.float64bits (? float64) (? uint64)\n"
 	"export func sys.newmap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap *map[any] any)\n"
 	"export func sys.mapaccess1 (hmap *map[any] any, key any) (val any)\n"
 	"export func sys.mapaccess2 (hmap *map[any] any, key any) (val any, pres bool)\n"

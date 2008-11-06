@@ -49,6 +49,8 @@ export func	isInf(float64, int) bool;		// test for infinity
 export func	isNaN(float64) bool;			// test for not-a-number
 export func	Inf(int) float64;			// return signed Inf
 export func	NaN() float64;				// return a NaN
+export func	float32bits(float32) uint32;		// raw bits
+export func	float64bits(float64) uint64;		// raw bits
 
 export func	newmap(keysize int, valsize int,
 			keyalg int, valalg int,
