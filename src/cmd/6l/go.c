@@ -451,6 +451,8 @@ definetypesigs(void)
 		prog->to.sym = all[i];
 	}
 	s->value = PtrSize*n;
+	if(n == 0)
+		s->value = 1;	// must have non-zero size or 6l complains
 
 	// emit count
 	s = lookup("ngotypesigs", 0);

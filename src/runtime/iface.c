@@ -449,14 +449,6 @@ fakesigt(string type)
 	// TODO(rsc): Cache these by type string.
 	Sigt *sigt;
 
-	// Must be pointer in order for alg, width to be right.
-	if(type == nil || type->len == 0 || type->str[0] != '*') {
-		// TODO(rsc): What to do here?
-		prints("bad unreflect type: ");
-		sys·printstring(type);
-		prints("\n");
-		throw("unreflect");
-	}
 	sigt = mal(2*sizeof sigt[0]);
 	sigt[0].name = mal(type->len + 1);
 	mcpy(sigt[0].name, type->str, type->len);
