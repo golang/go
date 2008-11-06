@@ -52,7 +52,7 @@ struct	Scase
 {
 	Hchan*	chan;			// chan
 	byte*	pc;			// return pc
-	uint16	send;			// 0-recv 1-send
+	uint16	send;			// 0-recv 1-send 2-default
 	uint16	so;			// vararg of selected bool
 	union {
 		byte	elem[8];	// element (send)
@@ -504,7 +504,7 @@ void
 sys·selectgo(Select *sel)
 {
 	uint32 p, o, i;
-	Scase *cas;
+	Scase *cas, *dfl;
 	Hchan *c;
 	SudoG *sg;
 	G *gp;
@@ -542,8 +542,13 @@ sys·selectgo(Select *sel)
 	lock(&chanlock);
 
 	// pass 1 - look for something already waiting
+	dfl = nil;
 	for(i=0; i<sel->ncase; i++) {
 		cas = &sel->scase[o];
+		if(cas->send == 2) {	// default
+			dfl = cas;
+			continue;
+		}
 		c = cas->chan;
 		if(c->dataqsiz > 0) {
 			if(cas->send) {
@@ -569,6 +574,12 @@ sys·selectgo(Select *sel)
 		if(o >= sel->ncase)
 			o -= sel->ncase;
 	}
+	
+	if(dfl != nil) {
+		cas = dfl;
+		goto retc;
+	}
+		
 
 	// pass 2 - enqueue on all chans
 	for(i=0; i<sel->ncase; i++) {
