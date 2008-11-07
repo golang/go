@@ -138,6 +138,7 @@ void	cgen_callinter(Node*, Node*, int);
 void	cgen_proc(Node*);
 void	cgen_callret(Node*, Node*);
 void	cgen_div(int, Node*, Node*, Node*);
+void	cgen_bmul(int, Node*, Node*, Node*);
 void	cgen_shift(int, Node*, Node*, Node*);
 void	genpanic(void);
 int	needconvert(Type*, Type*);

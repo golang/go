@@ -122,7 +122,10 @@ cgen(Node *n, Node *res)
 	case OADD:
 	case OMUL:
 		a = optoas(n->op, nl->type);
-		goto sbop;
+		if(a != AIMULB)
+			goto sbop;
+		cgen_bmul(n->op, nl, nr, res);
+		break;
 
 	// asymmetric binary
 	case OSUB:

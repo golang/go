@@ -1096,6 +1096,35 @@ ret:
 }
 
 void
+cgen_bmul(int op, Node *nl, Node *nr, Node *res)
+{
+	Node n1, n2;
+	Type *t;
+	int a;
+
+	t = types[TUINT16];
+	if(issigned[nl->type->etype])
+		t = types[TINT16];
+
+	if(nl->ullman >= nr->ullman) {
+		regalloc(&n1, t, nl);
+		cgen(nl, &n1);
+		regalloc(&n2, t, nr);
+		cgen(nr, &n2);
+	} else {
+		regalloc(&n2, t, nr);
+		cgen(nr, &n2);
+		regalloc(&n1, t, nl);
+		cgen(nl, &n1);
+	}
+	a = optoas(op, t);
+	gins(a, &n2, &n1);
+	gmove(&n1, res);
+	regfree(&n1);
+	regfree(&n2);
+}
+
+void
 checklabels(void)
 {
 	Label *l, *m;
