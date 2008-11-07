@@ -408,6 +408,8 @@ sys·newselect(int32 size, Select *sel)
 	if(debug) {
 		prints("newselect s=");
 		sys·printpointer(sel);
+		prints("newselect size=");
+		sys·printint(size);
 		prints("\n");
 	}
 }
@@ -523,8 +525,6 @@ sys·selectdefault(Select *sel, ...)
 		sys·printpointer(sel);
 		prints(" pc=");
 		sys·printpointer(cas->pc);
-		prints(" chan=");
-		sys·printpointer(cas->chan);
 		prints(" so=");
 		sys·printint(cas->so);
 		prints(" send=");
@@ -544,7 +544,6 @@ sys·selectgo(Select *sel)
 	Hchan *c;
 	SudoG *sg;
 	G *gp;
-
 	byte *as;
 
 	if(xxx) {
@@ -581,31 +580,35 @@ sys·selectgo(Select *sel)
 	dfl = nil;
 	for(i=0; i<sel->ncase; i++) {
 		cas = &sel->scase[o];
+
 		if(cas->send == 2) {	// default
 			dfl = cas;
-			continue;
+			goto next1;
 		}
+
 		c = cas->chan;
 		if(c->dataqsiz > 0) {
 			if(cas->send) {
 				if(c->qcount < c->dataqsiz)
 					goto asyns;
-			} else {
-				if(c->qcount > 0)
-					goto asynr;
+				goto next1;
 			}
-		} else
+			if(c->qcount > 0)
+				goto asynr;
+			goto next1;
+		}
 
 		if(cas->send) {
 			sg = dequeue(&c->recvq, c);
 			if(sg != nil)
 				goto gots;
-		} else {
-			sg = dequeue(&c->sendq, c);
-			if(sg != nil)
-				goto gotr;
+			goto next1;
 		}
+		sg = dequeue(&c->sendq, c);
+		if(sg != nil)
+			goto gotr;
 
+	next1:
 		o += p;
 		if(o >= sel->ncase)
 			o -= sel->ncase;
@@ -631,16 +634,17 @@ sys·selectgo(Select *sel)
 				sg = allocsg(c);
 				sg->offset = o;
 				enqueue(&c->sendq, sg);
-			} else {
-				if(c->qcount > 0) {
-					prints("selectgo: pass 2 async recv\n");
-					goto asynr;
-				}
-				sg = allocsg(c);
-				sg->offset = o;
-				enqueue(&c->recvq, sg);
+				goto next2;
 			}
-		} else
+			if(c->qcount > 0) {
+				prints("selectgo: pass 2 async recv\n");
+				goto asynr;
+			}
+			sg = allocsg(c);
+			sg->offset = o;
+			enqueue(&c->recvq, sg);
+			goto next2;
+		}
 
 		if(cas->send) {
 			sg = dequeue(&c->recvq, c);
@@ -653,18 +657,19 @@ sys·selectgo(Select *sel)
 			sg->offset = o;
 			c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
 			enqueue(&c->sendq, sg);
-		} else {
-			sg = dequeue(&c->sendq, c);
-			if(sg != nil) {
-				prints("selectgo: pass 2 sync recv\n");
-				g->selgen++;
-				goto gotr;
-			}
-			sg = allocsg(c);
-			sg->offset = o;
-			enqueue(&c->recvq, sg);
+			goto next2;
 		}
+		sg = dequeue(&c->sendq, c);
+		if(sg != nil) {
+			prints("selectgo: pass 2 sync recv\n");
+			g->selgen++;
+			goto gotr;
+		}
+		sg = allocsg(c);
+		sg->offset = o;
+		enqueue(&c->recvq, sg);
 
+	next2:
 		o += p;
 		if(o >= sel->ncase)
 			o -= sel->ncase;
