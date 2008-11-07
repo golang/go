@@ -220,7 +220,7 @@ export func itoa(i int) string {
 
 // Convert float64 to string.  No control over format.
 // Result not great; only useful for simple debugging.
-export func dtoa(v float64) string {
+export func f64toa(v float64) string {
 	var buf [20]byte;
 
 	const n = 7;	// digits printed
@@ -280,5 +280,107 @@ export func dtoa(v float64) string {
 }
 
 export func ftoa(v float) string {
-	return dtoa(float64(v));
+	return f64toa(float64(v));
+}
+
+export func f32toa(v float32) string {
+	return f64toa(float64(v));
+}
+
+// Simple conversion of string to floating point.
+// TODO: make much better. THIS CODE IS VERY WEAK.
+// Lets through some poor cases such as "." and "e4" and "1e-".  Fine.
+export func atof64(s string) (f float64, ok bool) {
+	// empty string bad
+	if len(s) == 0 {
+		return 0, false
+	}
+
+	// pick off leading sign
+	neg := false;
+	if s[0] == '+' {
+		s = s[1:len(s)]
+	} else if s[0] == '-' {
+		neg = true;
+		s = s[1:len(s)]
+	}
+
+	// parse number
+	// first, left of the decimal point.
+	n := uint64(0);
+	i := 0;
+	for ; i < len(s); i++ {
+		if s[i] == '.' || s[i] == 'e' || s[i] == 'E' {
+			break
+		}
+		if s[i] < '0' || s[i] > '9' {
+			return 0, false
+		}
+		n = n*10 + uint64(s[i] - '0')
+	}
+	result := float64(n);
+	if i != len(s) {
+		frac := uint64(0);
+		scale := float64(1);
+		// decimal and fraction
+		if s[i] == '.' {
+			i++;
+			for ; i < len(s); i++ {
+				if s[i] == 'e' || s[i] == 'E' {
+					break
+				}
+				if s[i] < '0' || s[i] > '9' {
+					return 0, false
+				}
+				frac = frac*10 + uint64(s[i] - '0');
+				scale = scale * 10.0;
+			}
+		}
+		result += float64(frac)/scale;
+		// exponent
+		if i != len(s) {	// must be 'e' or 'E'
+			i++;
+			eneg := false;
+			if i < len(s) && s[i] == '-' {
+				eneg = true;
+				i++;
+			} else if i < len(s) && s[i] == '+' {
+				i++;
+			}
+			// this works ok for "1e+" - fine.
+			exp := uint64(0);
+			for ; i < len(s); i++ {
+				if s[i] < '0' || s[i] > '9' {
+					return 0, false
+				}
+				exp = exp*10 + uint64(s[i] - '0');
+			}
+			if eneg {
+				for exp > 0 {
+					result /= 10.0;
+					exp--;
+				}
+			} else {
+				for exp > 0 {
+					result *= 10.0;
+					exp--;
+				}
+			}
+		}
+	}
+
+	if neg {
+		result = -result
+	}
+	return result, true
+}
+
+export func atof(s string) (f float, ok bool) {
+	a, b := atof64(s);
+	return float(a), b;
+}
+
+export func atof32(s string) (f float32, ok bool) {
+	a, b := atof64(s);
+	return float32(a), b;
 }

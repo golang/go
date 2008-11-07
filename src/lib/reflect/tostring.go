@@ -124,7 +124,7 @@ func integer(v int64) string {
 }
 
 func floatingpoint(v float64) string {
-	return strings.dtoa(v);
+	return strings.f64toa(v);
 }
 
 func ValueToString(val Value) string {
