@@ -86,7 +86,7 @@ main()
 	u64 = 765432;	ia[12] = u64;
 
 	s = ia[0];	if s != "xxx" { panicln(0,s); }
-	i32 = ia[1].(int).(int32);
+	i32 = int32(ia[1].(int));
 			if i32 != 12345 { panicln(1,i32); }
 	b = ia[2];	if b != true { panicln(2,b); }
 
