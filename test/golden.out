@@ -153,10 +153,6 @@ BUG: should compile
 =========== bugs/bug118.go
 BUG should compile
 
-=========== bugs/bug119.go
-
-panic on line 82 PC=xxx
-BUG should not panic
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
 
