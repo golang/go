@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(November 4, 2008)
+(November 7, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -157,6 +157,7 @@ Contents
 		Channel types
 		Function types
 		Interface types
+		Type equality
 
 	Expressions
 		Operands
@@ -289,15 +290,15 @@ implementation, Go treats these as distinct characters.
 Characters
 ----
 
-In the grammar we use the notation
+In the grammar the term
 
 	utf8_char
 
-to refer to an arbitrary Unicode code point encoded in UTF-8. We use
+denotes an arbitrary Unicode code point encoded in UTF-8. Similarly,
 
 	non_ascii
 
-to refer to the subset of "utf8_char" code points with values >= 128.
+denotes the subset of "utf8_char" code points with values >= 128.
 
 
 Letters and digits
@@ -719,6 +720,7 @@ Type declarations
 ----
 
 A type declaration specifies a new type and binds an identifier to it.
+The identifier is called the ``type name''; it denotes the type.
 
 	TypeDecl = "type" Decl<TypeSpec> .
 	TypeSpec = identifier Type .
@@ -834,18 +836,24 @@ TODO: export as a mechanism for public and private struct fields?
 Types
 ----
 
-A type specifies the set of values that variables of that type may
-assume, and the operators that are applicable.
+A type specifies the set of values that variables of that type may assume
+and the operators that are applicable.
 
-There are basic types and composite types. Basic types are predeclared.
-Composite types are arrays, maps, channels, structures, functions, pointers,
-and interfaces. They are constructed from other (basic or composite) types.
+A type may be specified by a type name (§Type declarations)
+or a type literal.
 
-	Type =
-		TypeName | ArrayType | ChannelType | InterfaceType |
-		FunctionType | MapType | StructType | PointerType .
+	Type = TypeName | TypeLit .
 	TypeName = QualifiedIdent.
-	
+	TypeLit =
+		ArrayType | StructType | PointerType | FunctionType |
+		ChannelType | MapType | InterfaceType .
+
+There are basic types and composite types. Basic types are predeclared and
+denoted by their type names.
+Composite types are arrays, maps, channels, structures, functions, pointers,
+and interfaces. They are constructed from other (basic or composite) types
+and denoted by their type names or by type literals.
+
 Types may be ``complete'' or ''incomplete''. Basic, pointer, function and
 interface types are always complete (although their components, such
 as the base type of a pointer type, may be incomplete). All other types are
@@ -868,7 +876,7 @@ Need to resolve.
 
 The ``static type'' (or simply ``type'') of a variable is the type defined by
 the variable's declaration. The ``dynamic type'' of a variable is the actual
-type of the value stored in a variable at runtime. Except for variables of
+type of the value stored in a variable at run-time. Except for variables of
 interface type, the dynamic type of a variable is always its static type.
 
 Variables of interface type may hold values with different dynamic types
@@ -977,10 +985,6 @@ If the length is present in the declaration, the array is called
 	ArrayType = "[" [ ArrayLength ] "]" ElementType .
 	ArrayLength = Expression .
 	ElementType = CompleteType .
-
-Type equality: Two array types are equal only if both have the same element
-type and if both are either fixed arrays with the same array length, or both
-are open arrays.
 
 The length of an array "a" can be discovered using the built-in function
 
@@ -1169,11 +1173,6 @@ This allows the construction of mutually recursive types such as:
 	type S1 struct { s2 *S2 }
 	type S2 struct { s1 *S1 }
 
-Type equality: Two struct types are equal only if both have the same number
-of fields in the same order, corresponding fields are either both named or
-anonymous, and the corresponding field types are equal. Specifically,
-field names don't have to match.
-
 Assignment compatibility: Structs are assignment compatible to variables of
 equal type only.
 
@@ -1200,9 +1199,6 @@ such as:
 	type S2 struct // forward declaration of S2
 	type S1 struct { s2 *S2 }
 	type S2 struct { s1 *S1 }
-
-Type equality: Two pointer types are equal only if both have equal
-base types.
 
 Assignment compatibility: A pointer is assignment compatible to a variable
 of pointer type, only if both types are equal.
@@ -1235,9 +1231,6 @@ Allocation: A map may only be used as a base type of a pointer type.
 There are no variables, parameters, array, struct, or map fields of
 map type, only of pointers to maps.
 
-Type equivalence: Two map types are equal only if both have equal
-key and value types.
-
 Assignment compatibility: A pointer to a map type is assignment
 compatible to a variable of pointer to map type only if both types
 are equal.
@@ -1251,17 +1244,18 @@ to synchronize execution and exchange values of a specified type. This
 type must be a complete type (§Types).
 
 Upon creation, a channel can be used both to send and to receive.
-By conversion or assignment, a 'full' channel may be constrained only to send or
-to receive. Such a restricted channel is called a 'send channel' or a 'receive channel'.
+By conversion or assignment, a channel may be constrained only to send or
+to receive. This constraint is called a channel's ``direction''; either
+bi-directional (unconstrained), send, or receive.
 
-	ChannelType = FullChannel | SendChannel | RecvChannel .
-	FullChannel = "chan" ValueType .
+	ChannelType = Channel | SendChannel | RecvChannel .
+	Channel = "chan" ValueType .
 	SendChannel = "chan" "<-" ValueType .
 	RecvChannel = "<-" "chan" ValueType .
 
-	chan T         // a channel that can exchange values of type T
-	chan <- float  // a channel that can only be used to send floats
-	<-chan int     // a channel that can receive only ints
+	chan T         // can send and receive values of type T
+	chan <- float  // can only be used to send floats
+	<-chan int     // can receive only ints
 
 Channel variables always have type pointer to channel.
 It is an error to attempt to use a channel value and in
@@ -1311,11 +1305,6 @@ In particular, v := func() {} creates a variable of type *(). To call the
 function referenced by v, one writes v(). It is illegal to dereference a
 function pointer.
 
-Type equality: Two function types are equal if both have the same number
-of parameters and result values and if corresponding parameter and result
-types are equal. In particular, the parameter and result names are ignored
-for the purpose of type equivalence.
-
 Assignment compatibility: A function pointer can be assigned to a function
 (pointer) variable only if both function types are equal.
 
@@ -1337,9 +1326,9 @@ the set of methods specified by the interface type, and the value "nil".
 		Close();
 	}
 
-Any type whose interface has, possibly as a subset, the complete
-set of methods of an interface I is said to implement interface I.
-For instance, if two types S1 and S2 have the methods
+Any type (including interface types) whose interface has, possibly as a
+subset, the complete set of methods of an interface I is said to implement
+interface I. For instance, if two types S1 and S2 have the methods
 
 	func (p T) Read(b Buffer) bool { return ... }
 	func (p T) Write(b Buffer) bool { return ... }
@@ -1354,14 +1343,14 @@ All types implement the empty interface:
 	interface {}
 
 In general, a type implements an arbitrary number of interfaces.
-For instance, if we have
+For instance, consider the interface
 
 	type Lock interface {
 		lock();
 		unlock();
 	}
 
-and S1 and S2 also implement
+If S1 and S2 also implement
 
 	func (p T) lock() { ... }
 	func (p T) unlock() { ... }
@@ -1381,12 +1370,118 @@ This allows the construction of mutually recursive types such as:
 		bar(T1) int;
 	}
 
-Type equivalence: Two interface types are equal only if both declare the same
-number of methods with the same names, and corresponding (by name) methods
-have the same function types.
-
 Assignment compatibility: A value can be assigned to an interface variable
 if the static type of the value implements the interface or if the value is "nil".
+
+
+Type equality
+----
+
+Types may be ``different'', ``structurally equal'', or ``identical''.
+Go is a type-safe language; generally different types cannot be mixed
+in binary operations, and values cannot be assigned to variables of different
+types. However, values may be assigned to variables of structually
+equal types. Finally, type guards succeed only if the dynamic type
+is identical to or implements the type tested against (§Type guards).
+
+Structural type equality (equality for short) is defined by these rules:
+
+Two type names denote equal types if the types in the corresponding declarations
+are equal. Two type literals specify equal types if they have the same
+literal structure and corresponding components have equal types. Loosely
+speaking, two types are equal if their values have the same layout in memory.
+More precisely:
+
+	- Two array types are equal if they have equal element types and if they
+	  are either fixed arrays with the same array length, or they are open
+	  arrays.
+
+	- Two struct types are equal if they have the same number of fields in the
+	  same order, corresponding fields are either both named or both anonymous,
+	  and corresponding field types are equal. Note that field names
+	  do not have to match.
+
+	- Two pointer types are equal if they have equal base types.
+
+	- Two function types are equal if they have the same number of parameters
+	  and result values and if corresponding parameter and result types are
+	  equal (a "..." parameter is equal to another "..." parameter).
+	  Note that parameter and result names do not have to match.
+
+	- Two channel types are equal if they have equal value types and
+	  the same direction.
+
+	- Two map types are equal if they have equal key and value types.
+
+	- Two interface types are equal if they have the same set of methods
+	  with the same names and equal function types. Note that the order
+	  of the methods in the respective type declarations is irrelevant.
+
+
+Type identity is defined by these rules:
+
+Two type names denote identical types if they originate in the same
+type declaration. Two type literals specify identical types if they have the
+same literal structure and corresponding components have identical types.
+More precisely:
+
+	- Two array types are identical if they have identical element types and if
+	  they are either fixed arrays with the same array length, or they are open
+	  arrays.
+
+	- Two struct types are identical if they have the same number of fields in
+	  the same order, corresponding fields either have both the same name or
+	  are both anonymous, and corresponding field types are identical.
+
+	- Two pointer types are identical if they have identical base types.
+
+	- Two function types are identical if they have the same number of
+	  parameters and result values both with the same (or absent) names, and
+	  if corresponding parameter and result types are identical (a "..."
+	  parameter is identical to another "..." parameter with the same name).
+
+	- Two channel types are identical if they have identical value types and
+	  the same direction.
+
+	- Two map types are identical if they have identical key and value types.
+
+	- Two interface types are identical if they have the same set of methods
+	  with the same names and identical function types. Note that the order
+	  of the methods in the respective type declarations is irrelevant.
+
+Note that the type denoted by a type name is identical only to the type literal
+in the type name's declaration.
+
+Finally, two types are different if they are not structurally equal.
+(By definition, they cannot be identical, either).
+
+For instance, given the declarations
+
+	type (
+		T0 []string;
+		T1 []string
+		T2 struct { a, b int };
+		T3 struct { a, c int };
+		T4 *(int, float) *T0
+		T5 *(x int, y float) *[]string
+	)
+
+these are some types that are equal
+
+	T0 and T0
+	T0 and []string
+	T2 and T3
+	T4 and T5
+	T3 and struct { a int; int }
+
+and these are some types that are identical
+
+	T0 and T0
+	[]int and []int
+	struct { a, b *T5 } and struct { a, b *T5 }
+
+As an example, "T0" and "T1" are equal but not identical because they have
+different declarations.
 
 
 Expressions
@@ -1511,7 +1606,7 @@ Given
 	type Rat struct { num, den int };
 	type Num struct { r Rat; f float; s string };
 
-we can write
+one can write
 
 	pi := Num{Rat{22, 7}, 3.14159, "pi"};
 
@@ -1576,7 +1671,7 @@ Primary expressions
 	Selector = "." identifier .
 	Index = "[" Expression "]" .
 	Slice = "[" Expression ":" Expression "]" .
-	TypeGuard = "." "(" QualifiedIdent ")" .
+	TypeGuard = "." "(" Type ")" .
 	Call = "(" [ ExpressionList ] ")" .
 
 
@@ -1660,7 +1755,7 @@ declarations:
 
 	var p *T2;  // with p != nil and p.T1 != nil
 
-we can write:
+one can write:
 
 	p.z         // (*p).z
 	p.y         // ((*p).T1).y
@@ -1734,7 +1829,41 @@ would have no effect on ``a''.
 Type guards
 ----
 
-TODO: write this section
+For an expression "x" and a type "T", the primary expression
+
+	x.(T)
+
+asserts that the value stored in "x" is an element of type "T" (§Types).
+The notation ".(T)" is called a ``type guard'', and "x.(T)" is called
+a ``guarded expression''. The type of "x" must be an interface type.
+
+More precisely, if "T" is not an interface type, the expression asserts
+that the dynamic type of "x" is identical to the type "T" (§Types).
+If "T" is an interface type, the expression asserts that the dynamic type
+of T implements the interface "T" (§Interface types). Because it can be
+verified statically, a type guard in which the static type of "x" implements
+the interface "T" is illegal. The type guard is said to succeed if the
+assertion holds.
+
+If the type guard succeeds, the value of the guarded expression is the value
+stored in "x" and its type is "T". If the type guard fails, a run-time
+exception occurs. In other words, even though the dynamic type of "x"
+is only known at run-time, the type of the guarded expression "x.(T)" is
+known to be "T" in a correct program.
+
+As a special form, if a guarded expression is used in an assignment
+
+	v, ok = x.(T)
+	v, ok := x.(T)
+
+the result of the guarded expression is a pair of values with types "(T, bool)".
+If the type guard succeeds, the expression returns the pair "(x.(T), true)";
+that is, the value stored in "x" (of type "T") is assigned to "v", and "ok"
+is set to true. If the type guard fails, the value in "v" is set to the initial
+value for the type of "v" (§Program initialization and execution), and "ok" is
+set to false. No run-time exception occurs in this case.
+
+TODO add examples
 
 
 Calls
@@ -1773,7 +1902,7 @@ TODO expand this section (right now only "..." parameters are covered).
 
 Inside a function, the type of the "..." parameter is the empty interface
 "interface {}". The dynamic type of the parameter - that is, the type of
-the actual value stored in the parameter - is of the form (in pseudo-
+the value stored in the parameter - is of the form (in pseudo-
 notation)
 
 	*struct {
@@ -1791,7 +1920,7 @@ Thus, arguments provided in place of a "..." parameter are wrapped into
 a corresponding struct, and a pointer to the struct is passed to the
 function instead of the actual arguments.
 
-For instance, given the function
+For instance, consider the function
 
 	func f(x int, s string, f_extra ...)
 
@@ -1802,7 +1931,7 @@ and the call
 Upon invocation, the parameters "3.14", "true", and "*[3]int{1, 2, 3}"
 are wrapped into a struct and the pointer to the struct is passed to f.
 In f the type of parameter "f_extra" is "interface{}".
-The dynamic type of "f_extra" is the type of the actual value assigned
+The dynamic type of "f_extra" is the type of the value assigned
 to it upon invocation (the field names "arg0", "arg1", "arg2" are made
 up for illustration only, they are not accessible via reflection):
 
@@ -1826,7 +1955,7 @@ as
 
 	g(x, f_extra);
 
-Inside g, the actual value stored in g_extra is the same as the value stored
+Inside g, the value stored in g_extra is the same as the value stored
 in f_extra.
 
 
@@ -2028,7 +2157,7 @@ pointer to function.  Consider the type T with method M:
 	func (tp *T) M(a int) int;
 	var t *T;
 
-To construct the address of method M, we write
+To construct the address of method M, one writes
 
 	&t.M
 
@@ -2185,12 +2314,6 @@ A semicolon may be omitted immediately following:
 
 In all other cases a semicolon is required to separate two statements. Since there
 is an empty statement, a statement list can always be ``terminated'' with a semicolon.
-
-
-Label declarations
-----
-
-TODO write this section
 
 
 Empty statements
@@ -2584,14 +2707,14 @@ values:
 Break statements
 ----
 
-Within a for or switch statement, a break statement terminates execution of
-the innermost for or switch statement.
+Within a for, switch, or select statement, a break statement terminates
+execution of the innermost such statement.
 
 	BreakStat = "break" [ identifier ].
 
-If there is an identifier, it must be the label name of an enclosing
-for or switch
-statement, and that is the one whose execution terminates.
+If there is an identifier, it must be a label marking an enclosing
+for, switch, or select statement, and that is the one whose execution
+terminates.
 
 	L: for i < n {
 		switch i {
@@ -2611,12 +2734,14 @@ loop at the post statement.
 The optional identifier is analogous to that of a break statement.
 
 
-Label declaration
+Label declarations
 ----
 
 A label declaration serves as the target of a goto, break or continue statement.
 
 	LabelDecl = identifier ":" .
+
+Example:
 
 	Error:
 
@@ -2771,7 +2896,7 @@ yields a valid value; there is no signal for overflow.
 
 2) Between integer and floating point types, or between floating point
 types.  To avoid overdefining the properties of the conversion, for
-now we define it as a ``best effort'' conversion.  The conversion
+now it is defined as a ``best effort'' conversion.  The conversion
 always succeeds but the value may be a NaN or other problematic
 result.  TODO: clarify?
 
@@ -2801,7 +2926,8 @@ Allocation
 The built-in function "new()" takes a type "T", optionally followed by a
 type-specific list of expressions. It allocates memory for a variable
 of type "T" and returns a pointer of type "*T" to that variable. The
-memory is initialized as described in the section on initial values.
+memory is initialized as described in the section on initial values
+(§Program initialization and execution).
 
 	new(type [, optional list of expressions])
 
@@ -3095,7 +3221,7 @@ If a type defines all methods of an interface, it
 implements that interface and thus can be used where that interface is
 required.  Unless used through a variable of interface type, methods
 can always be statically bound (they are not ``virtual''), and incur no
-runtime overhead compared to an ordinary function.
+run-time overhead compared to an ordinary function.
 
 [OLD
 Interface types, building on structures with methods, provide
@@ -3112,7 +3238,7 @@ structures.  If a structure implements all methods of an interface, it
 implements that interface and thus can be used where that interface is
 required.  Unless used through a variable of interface type, methods
 can always be statically bound (they are not ``virtual''), and incur no
-runtime overhead compared to an ordinary function.
+run-time overhead compared to an ordinary function.
 END]
 
 Go has no explicit notion of classes, sub-classes, or inheritance.
