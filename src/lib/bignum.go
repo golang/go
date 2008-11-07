@@ -841,6 +841,11 @@ export func Fact(n uint) *Natural {
 }
 
 
+export func Binomial(n, k uint) *Natural {
+	return MulRange(n-k+1, n).Div(MulRange(1, k));
+}
+
+
 func (x *Natural) Gcd(y *Natural) *Natural {
 	// Euclidean algorithm.
 	for !y.IsZero() {
