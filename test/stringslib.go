@@ -109,4 +109,9 @@ func main() {
 
 	// should work if int == int64: is there some way to know?
 	// if itoa(-1<<63) != "-9223372036854775808" { panic("itoa 1<<63") }
+
+	{
+		a, ok := strings.atof64("-1.2345e4");
+		if !ok || a != -12345. { panic(a, "atof64 -1.2345e4") }
+	}
 }
