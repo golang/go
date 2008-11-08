@@ -58,7 +58,7 @@ export func stat(name string, buf *Stat) (ret int64, errno int64) {
 	if !StringToBytes(&namebuf, name) {
 		return -1, ENAMETOOLONG
 	}
-	r1, r2, err := Syscall(SYS_STAT, BytePtr(&namebuf[0]), StatPtr(buf), 0);
+	r1, r2, err := Syscall(SYS_STAT64, BytePtr(&namebuf[0]), StatPtr(buf), 0);
 	return r1, err;
 }
 
