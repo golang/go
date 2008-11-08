@@ -7,11 +7,128 @@ package Printer
 import Strings "strings"
 import Scanner "scanner"
 import AST "ast"
+import Flag "flag"
+import Fmt "fmt"
+
+var tabwith = Flag.Int("tabwidth", 4, nil, "tab width");
+
+
+// ----------------------------------------------------------------------------
+// Support
+
+func assert(p bool) {
+	if !p {
+		panic("assert failed");
+	}
+}
+
+
+func PrintBlanks(n int) {
+	// TODO make this faster
+	for ; n > 0; n-- {
+		print(" ");
+	}
+}
+
+
+// ----------------------------------------------------------------------------
+// Implemententation of flexible tab stops.
+// (http://nickgravgaard.com/elastictabstops/index.html)
+
+type Buffer struct {
+	lines AST.List;  // a list of lines; and each line is a list of strings
+	widths AST.List;
+}
+
+
+func (b *Buffer) Newline() {
+	b.lines.Add(AST.NewList());
+}
+
+
+func (b *Buffer) Init() {
+	b.lines.Init();
+	b.widths.Init();
+	b.Newline();
+}
+
+
+func (b *Buffer) ComputeWidths() {
+	// iterate through all columns j
+	for j := 0; ; j++ {
+		width := -1;  // initial column width
+		
+		// iterate through all lines i
+		for i := 0; i < b.lines.len(); i++ {
+			line := b.lines.at(i).(*AST.List);
+			if j < line.len() {
+				// the j.th column exists in this line
+				w := len(line.at(j).(string));
+				if w > width {
+					width = w;
+				}
+			}
+		}
+	
+		if width >= 0 {
+			assert(b.widths.len() == j);
+			b.widths.Add(width);
+		} else {
+			// no column j - we are done
+			return;
+		}
+	}
+}
+
+
+func (b *Buffer) Flush() {
+	b.ComputeWidths();
+	
+	// print the lines
+	for i := 0; i < b.lines.len(); i++ {
+		line := b.lines.at(i).(*AST.List);
+		for j := 0; j < line.len(); j++ {
+			s := line.at(j).(string);
+			d := b.widths.at(j).(int) - len(s);
+			assert(d >= 0);
+			if d < int(tabwith.IVal()) {
+				d = int(tabwith.IVal());
+			}
+			PrintBlanks(d);  // +1 padding
+			print(s);
+		}
+		println();
+	}
+	
+	b.lines.Clear();
+	b.widths.Clear();
+	b.Newline();
+}
+
+
+func (b *Buffer) Indent(n int) {
+	line := b.lines.at(b.lines.len() - 1).(*AST.List);
+	for ; n > 0; n-- {
+		line.Add("");
+	}
+}
+
+
+func (b *Buffer) Print(s string) {
+	i := b.lines.len() - 1;
+	line := b.lines.at(i).(*AST.List);
+	j := line.len() - 1;
+	if j < 0 {
+		line.Add(s);
+	} else {
+		line.set(j, line.at(j).(string) + s);
+	}
+}
 
 
 export type Printer struct {
-	pos int;  // actual output position
-
+	buf Buffer;
+	
 	// formatting control
 	level int;  // true scope level
 	indent int;  // indentation level
@@ -25,24 +142,22 @@ export type Printer struct {
 }
 
 
-// Bottleneck interface - all output goes through here.
-func (P *Printer) print(s string) {
-	print(s);
-	// TODO do we need the code below?
-	// P.pos += Strings.utflen(s);
-}
-
+const NEW_CODE = false;
 
 func (P *Printer) String(pos int, s string) {
 	if P.semi && P.level > 0 {  // no semicolons at level 0
-		print(";");
+		if NEW_CODE {
+			P.buf.Print(";");
+		} else {
+			print(";");
+		}
 	}
 
 	/*
 	for pos > P.cpos {
 		// we have a comment
 		c := P.clist.at(P.cindex).(*AST.Comment);
-		if c.text[1] == '/' {
+		if len(c.text) > 1 && c.text[1] == '/' {
 			print("  " + c.text);
 			if P.newl <= 0 {
 				P.newl = 1;  // line comments must have a newline
@@ -60,15 +175,30 @@ func (P *Printer) String(pos int, s string) {
 	*/
 
 	if P.newl > 0 {
-		for i := P.newl; i > 0; i-- {
-			print("\n");
+		if NEW_CODE {
+			P.buf.Flush();
 		}
-		for i := P.indent; i > 0; i-- {
-			print("\t");
+		for i := P.newl; i > 0; i-- {
+			if NEW_CODE {
+				P.buf.Newline();
+			} else {
+				print("\n");
+			}
+		}
+		if NEW_CODE {
+			P.buf.Indent(P.indent);
+		} else {
+			for i := P.indent; i > 0; i-- {
+				print("\t");
+			}
 		}
 	}
 
-	print(s);
+	if NEW_CODE {
+		P.buf.Print(s);
+	} else {
+		print(s);
+	}
 
 	P.semi, P.newl = false, 0;
 }
@@ -519,6 +649,8 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 
 func (P *Printer) Program(p *AST.Program) {
 	// TODO should initialize all fields?
+	P.buf.Init();
+	
 	P.clist = p.comments;
 	P.cindex = 0;
 	if p.comments.len() > 0 {
@@ -527,6 +659,7 @@ func (P *Printer) Program(p *AST.Program) {
 		P.cpos = 1000000000;  // infinite
 	}
 
+	// Print package
 	P.String(p.pos, "package ");
 	P.Expr(p.ident);
 	P.newl = 2;
@@ -534,5 +667,6 @@ func (P *Printer) Program(p *AST.Program) {
 		P.Declaration(p.decls.at(i), false);
 	}
 	P.newl = 1;
+
 	P.String(0, "");  // flush
 }

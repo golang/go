@@ -77,8 +77,13 @@ func (P *Parser) Next0() {
 
 
 func (P *Parser) Next() {
-	for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
-		P.comments.Add(AST.NewComment(P.pos, P.val));
+	P.Next0();
+	if P.tok == Scanner.COMMENT {
+		pos, s := P.pos, P.val;
+		for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
+			s += P.val;
+		}
+		P.comments.Add(AST.NewComment(pos, s));
 	}
 }
 
