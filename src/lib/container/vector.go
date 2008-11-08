@@ -42,6 +42,12 @@ func (v *Vector) At(i int) Element {
 }
 
 
+func (v *Vector) Set(i int, e Element) {
+	// range check unnecessary - done by runtime
+	v.elem[i] = e;
+}
+
+
 func (v *Vector) Remove(i int) Element {
 	ret := v.elem[i];
 	n := v.Len();
