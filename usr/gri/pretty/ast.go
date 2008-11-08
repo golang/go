@@ -27,6 +27,11 @@ export type List struct {
 }
 
 
+func (p *List) Init() {
+	p.a = new([] Any, 10) [0 : 0];
+}
+
+
 func (p *List) len() int {
 	if p == nil { return 0; }
 	return len(p.a);
@@ -78,9 +83,14 @@ func (p *List) Pop() Any {
 }
 
 
+func (p *List) Clear() {
+	p.a = p.a[0 : 0];
+}
+
+
 export func NewList() *List {
 	p := new(List);
-	p.a = new([] Any, 10) [0 : 0];
+	p.Init();
 	return p;
 }
 

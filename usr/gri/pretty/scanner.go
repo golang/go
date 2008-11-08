@@ -109,7 +109,7 @@ export const (
 
 
 export func TokenString(tok int) string {
-	switch (tok) {
+	switch tok {
 	case ILLEGAL: return "ILLEGAL";
 	
 	case IDENT: return "IDENT";
@@ -246,11 +246,6 @@ func init() {
 	for i := KEYWORDS_BEG + 1; i < KEYWORDS_END; i++ {
 		Keywords[TokenString(i)] = i;
 	}
-}
-
-
-func is_whitespace(ch int) bool {
-	return ch == ' ' || ch == '\r' || ch == '\n' || ch == '\t';
 }
 
 
@@ -524,9 +519,17 @@ func (S *Scanner) Expect(ch int) {
 
 
 func (S *Scanner) SkipWhitespace() {
-	for is_whitespace(S.ch) {
+	for S.ch == ' ' || S.ch == '\r' {
 		S.Next();
 	}
+}
+
+
+func (S *Scanner) ScanWhitespace() string {
+	// first char ('\n' or '\t', 1 byte) already consumed
+	pos := S.chpos - 1;
+	S.SkipWhitespace();
+	return S.src[pos : S.chpos];
 }
 
 
@@ -686,7 +689,7 @@ func (S *Scanner) ScanEscape(quote int) string {
 	ch := S.ch;
 	pos := S.chpos;
 	S.Next();
-	switch (ch) {
+	switch ch {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\':
 		return string(ch);
 		
@@ -825,6 +828,7 @@ func (S *Scanner) Scan() (pos, tok int, val string) {
 		S.Next();  // always make progress
 		switch ch {
 		case -1: tok = EOF;
+		case '\n', '\t': tok, val = COMMENT, S.ScanWhitespace();
 		case '"': tok, val = STRING, S.ScanString();
 		case '\'': tok, val = INT, S.ScanChar();
 		case '`': tok, val = STRING, S.ScanRawString();
