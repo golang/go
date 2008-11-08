@@ -1098,30 +1098,42 @@ ret:
 void
 cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 {
-	Node n1, n2;
+	Node n1, n2, n3;
 	Type *t;
 	int a;
 
+	if(nl->ullman >= nr->ullman) {
+		regalloc(&n1, nl->type, res);
+		cgen(nl, &n1);
+		regalloc(&n2, nr->type, N);
+		cgen(nr, &n2);
+	} else {
+		regalloc(&n2, nr->type, N);
+		cgen(nr, &n2);
+		regalloc(&n1, nl->type, res);
+		cgen(nl, &n1);
+	}
+
+	// copy to short registers
 	t = types[TUINT16];
 	if(issigned[nl->type->etype])
 		t = types[TINT16];
 
-	if(nl->ullman >= nr->ullman) {
-		regalloc(&n1, t, nl);
-		cgen(nl, &n1);
-		regalloc(&n2, t, nr);
-		cgen(nr, &n2);
-	} else {
-		regalloc(&n2, t, nr);
-		cgen(nr, &n2);
-		regalloc(&n1, t, nl);
-		cgen(nl, &n1);
-	}
+	regalloc(&n3, t, &n2);
+	cgen(&n2, &n3);
+	regfree(&n3);
+
+	regalloc(&n3, t, &n1);
+	cgen(&n1, &n3);
+
 	a = optoas(op, t);
 	gins(a, &n2, &n1);
-	gmove(&n1, res);
+	cgen(&n3, &n1);
+	cgen(&n1, res);
+
 	regfree(&n1);
 	regfree(&n2);
+	regfree(&n3);
 }
 
 void
