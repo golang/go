@@ -695,6 +695,7 @@ func FuncCreator(typ Type, addr Addr) Value {
 }
 
 var creator *map[int] Creator
+var typecache *map[string] *Type
 
 func init() {
 	creator = new(map[int] Creator);
@@ -722,6 +723,8 @@ func init() {
 	creator[StructKind] = &StructCreator;
 	creator[InterfaceKind] = &InterfaceCreator;
 	creator[FuncKind] = &FuncCreator;
+
+	typecache = new(map[string] *Type);
 }
 
 func NewValueAddr(typ Type, addr Addr) Value {
@@ -752,10 +755,16 @@ export func NewInitValue(typ Type) Value {
 
 export func NewValue(e Empty) Value {
 	value, typestring  := sys.reflect(e);
-	typ := ParseTypeString("", typestring);
+	p, ok := typecache[typestring];
+	if !ok {
+		typ := ParseTypeString("", typestring);
+		p = new(Type);
+		*p = typ;
+		typecache[typestring] = p;
+	}
 	// Content of interface is a value; need a permanent copy to take its address
 	// so we can modify the contents. Values contain pointers to 'values'.
 	ap := new(uint64);
 	*ap = value;
-	return NewValueAddr(typ, PtrUint64ToAddr(ap));
+	return NewValueAddr(*p, PtrUint64ToAddr(ap));
 }
