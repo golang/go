@@ -121,7 +121,7 @@ BUG: fails incorrectly
 =========== bugs/bug095.go
 found 2, expected 1
 
-panic on line 77 PC=xxx
+panic on line 80 PC=xxx
 BUG wrong result
 
 =========== bugs/bug098.go
@@ -149,9 +149,6 @@ bugs/bug117.go:9: undefined DOT get on PS
 bugs/bug117.go:10: illegal types for operand: RETURN
 	int
 BUG: should compile
-
-=========== bugs/bug118.go
-BUG should compile
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
@@ -265,7 +262,8 @@ M
 fixedbugs/bug103.go:8: function requires a return type
 
 =========== fixedbugs/bug113.go
-throw: ifaceI2T: wrong type
+main.I·bug113 is int, not int32
+throw: interface conversion
 SIGSEGV: segmentation violation
 Faulting address: 0x0
 pc: xxx
