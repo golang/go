@@ -561,8 +561,8 @@ type Parser struct {
 	index	int;	// next character position in str
 }
 
-// Return typestring starting at position i.
-// Trim trailing blanks.
+// Return typestring starting at position i.  It will finish at the
+// end of the previous token (before trailing white space).
 func (p *Parser) TypeString(i int) string {
 	return p.str[i:p.prevend];
 }
