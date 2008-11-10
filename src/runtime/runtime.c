@@ -172,7 +172,7 @@ static	uint64	uvnan		= 0x7FF0000000000001ULL;
 static	uint64	uvinf		= 0x7FF0000000000000ULL;
 static	uint64	uvneginf	= 0xFFF0000000000000ULL;
 
-static int32
+bool
 isInf(float64 d, int32 sign)
 {
 	uint64 x;
@@ -199,7 +199,7 @@ NaN(void)
 	return *(float64*)&uvnan;
 }
 
-static int32
+bool
 isNaN(float64 d)
 {
 	uint64 x;
