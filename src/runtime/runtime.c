@@ -161,60 +161,84 @@ sys·mal(uint32 n, uint8 *ret)
 	FLUSH(&ret);
 }
 
-enum
-{
-	NANEXP		= 2047<<20,
-	NANMASK		= 2047<<20,
-	NANSIGN		= 1<<31,
-};
-
 static	uint64	uvnan		= 0x7FF0000000000001ULL;
 static	uint64	uvinf		= 0x7FF0000000000000ULL;
 static	uint64	uvneginf	= 0xFFF0000000000000ULL;
 
+static uint32
+float32tobits(float32 f)
+{
+	// The obvious cast-and-pointer code is technically
+	// not valid, and gcc miscompiles it.  Use a union instead.
+	union {
+		float32 f;
+		uint32 i;
+	} u;
+	u.f = f;
+	return u.i;
+}
+
+static uint64
+float64tobits(float64 f)
+{
+	// The obvious cast-and-pointer code is technically
+	// not valid, and gcc miscompiles it.  Use a union instead.
+	union {
+		float64 f;
+		uint64 i;
+	} u;
+	u.f = f;
+	return u.i;
+}
+
+static float64
+float64frombits(uint64 i)
+{
+	// The obvious cast-and-pointer code is technically
+	// not valid, and gcc miscompiles it.  Use a union instead.
+	union {
+		float64 f;
+		uint64 i;
+	} u;
+	u.i = i;
+	return u.f;
+}
+
 bool
-isInf(float64 d, int32 sign)
+isInf(float64 f, int32 sign)
 {
 	uint64 x;
 
-	x = *(uint64*)&d;
-	if(sign == 0) {
-		if(x == uvinf || x == uvneginf)
-			return 1;
-		return 0;
-	}
-	if(sign > 0) {
-		if(x == uvinf)
-			return 1;
-		return 0;
-	}
-	if(x == uvneginf)
-		return 1;
-	return 0;
+	x = float64tobits(f);
+	if(sign == 0)
+		return x == uvinf || x == uvneginf;
+	if(sign > 0)
+		return x == uvinf;
+	return x == uvneginf;
 }
 
 static float64
 NaN(void)
 {
-	return *(float64*)&uvnan;
+	return float64frombits(uvnan);
 }
 
 bool
-isNaN(float64 d)
+isNaN(float64 f)
 {
 	uint64 x;
 
-	x = *(uint64*)&d;
-	return (uint32)(x>>32)==0x7FF00000 && !isInf(d, 0);
+	x = float64tobits(f);
+	return ((uint32)(x>>52) & 0x7FF) == 0x7FF && !isInf(f, 0);
 }
 
 static float64
 Inf(int32 sign)
 {
 	if(sign >= 0)
-		return *(float64*)&uvinf;
+		return float64frombits(uvinf);
 	else
-		return *(float64*)&uvneginf;
+		return float64frombits(uvneginf);
 }
 
 enum
@@ -233,11 +257,11 @@ frexp(float64 d, int32 *ep)
 		*ep = 0;
 		return 0;
 	}
-	x = *(uint64*)&d;
+	x = float64tobits(d);
 	*ep = (int32)((x >> SHIFT) & MASK) - BIAS;
 	x &= ~((uint64)MASK << SHIFT);
 	x |= (uint64)BIAS << SHIFT;
-	return *(float64*)&x;
+	return float64frombits(x);
 }
 
 static float64
@@ -247,7 +271,7 @@ ldexp(float64 d, int32 e)
 
 	if(d == 0)
 		return 0;
-	x = *(uint64*)&d;
+	x = float64tobits(d);
 	e += (int32)(x >> SHIFT) & MASK;
 	if(e <= 0)
 		return 0;	/* underflow */
@@ -258,7 +282,7 @@ ldexp(float64 d, int32 e)
 	}
 	x &= ~((uint64)MASK << SHIFT);
 	x |= (uint64)e << SHIFT;
-	return *(float64*)&x;
+	return float64frombits(x);
 }
 
 static float64
@@ -278,7 +302,7 @@ modf(float64 d, float64 *ip)
 		return d;
 	}
 
-	x = *(uint64*)&d;
+	x = float64tobits(d);
 	e = (int32)((x >> SHIFT) & MASK) - BIAS;
 
 	/*
@@ -286,7 +310,7 @@ modf(float64 d, float64 *ip)
 	 */
 	if(e <= 64-11)
 		x &= ~(((uint64)1 << (64LL-11LL-e))-1);
-	dd = *(float64*)&x;
+	dd = float64frombits(x);
 	*ip = dd;
 	return d - dd;
 }
@@ -351,7 +375,7 @@ sys·NaN(float64 out)
 void
 sys·float32bits(float32 din, uint32 iou)
 {
-	iou = *(uint32*)&din;
+	iou = float32tobits(din);
 	FLUSH(&iou);
 }
 
@@ -359,7 +383,7 @@ sys·float32bits(float32 din, uint32 iou)
 void
 sys·float64bits(float64 din, uint64 iou)
 {
-	iou = *(uint64*)&din;
+	iou = float64tobits(din);
 	FLUSH(&iou);
 }
 
