@@ -52,6 +52,20 @@ sys·printfloat(float64 v)
 	int32 e, s, i, n;
 	float64 h;
 
+	if(isNaN(v)) {
+		sys·write(1, "NaN", 3);
+		return;
+	}
+	if(isInf(v, 0)) {
+		sys·write(1, "+Inf", 4);
+		return;
+	}
+	if(isInf(v, -1)) {
+		sys·write(1, "+Inf", 4);
+		return;
+	}
+
+
 	n = 7;	// digits printed
 	e = 0;	// exp
 	s = 0;	// sign
@@ -103,27 +117,17 @@ sys·printfloat(float64 v)
 		buf[n+3] = '-';
 	}
 
-	buf[n+4] = (e/10) + '0';
-	buf[n+5] = (e%10) + '0';
-	sys·write(1, buf, n+6);
+	buf[n+4] = (e/100) + '0';
+	buf[n+5] = (e/10)%10 + '0';
+	buf[n+6] = (e%10) + '0';
+	sys·write(1, buf, n+7);
 }
 
 void
-sys·printint(int64 v)
+sys·printuint(uint64 v)
 {
 	byte buf[100];
-	int32 i, s, big;
-
-	big = 0;
-	s = 0;
-	if(v < 0) {
-		v = -v;
-		s = 1;
-		if(v < 0) {
-			big = 1;
-			v--;
-		}
-	}
+	int32 i;
 
 	for(i=nelem(buf)-1; i>0; i--) {
 		buf[i] = v%10 + '0';
@@ -131,14 +135,17 @@ sys·printint(int64 v)
 			break;
 		v = v/10;
 	}
-	if(s){
-		i--;
-		buf[i] = '-';
-	}
-	if(big){
-		buf[nelem(buf)-1]++;
-	}
 	sys·write(1, buf+i, nelem(buf)-i);
+}
+
+void
+sys·printint(int64 v)
+{
+	if(v < 0) {
+		sys·write(1, "-", 1);
+		v = -v;
+	}
+	sys·printuint(v);
 }
 
 void

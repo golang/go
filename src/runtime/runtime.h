@@ -288,6 +288,8 @@ void	sys·cmpstring(string, string, int32);
 void	sys·slicestring(string, int32, int32, string);
 void	sys·indexstring(string, int32, byte);
 void	sys·intstring(int64, string);
+bool	isInf(float64, int32);
+bool	isNaN(float64);
 
 /*
  * User go-called
