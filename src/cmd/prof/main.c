@@ -19,7 +19,7 @@ int fd;
 Map *map;
 Map	*symmap;
 struct Ureg ureg;
-int total_sec = 10;
+int total_sec = 0;
 int delta_msec = 100;
 int collapse = 1;	// collapse histogram trace points in same function
 
@@ -94,7 +94,6 @@ sample(void)
 	static int n;
 
 	n++;
-	ctlproc(pid, "stop");
 	for(i = 0; i < sizeof ureg; i+=8) {
 		if(get8(map, (uvlong)i, &((uvlong*)&ureg)[i/8]) < 0) {
 			if(n == 1)
@@ -103,7 +102,6 @@ sample(void)
 			return 0;
 		}
 	}
-	ctlproc(pid, "start");
 	return 1;
 }
 
@@ -145,7 +143,7 @@ addtohistogram(uvlong pc, uvlong sp)
 {
 	int h;
 	PC *x;
-	
+
 	h = pc % Ncounters;
 	for(x = counters[h]; x != NULL; x = x->next) {
 		if(x->pc == pc) {
@@ -188,10 +186,14 @@ samples(void)
 
 	req.tv_sec = delta_msec/1000;
 	req.tv_nsec = 1000000*(delta_msec % 1000);
-	for(msec = 0; msec < 1000*total_sec; msec += delta_msec) {
-		if(!sample())
+	for(msec = 0; total_sec <= 0 || msec < 1000*total_sec; msec += delta_msec) {
+		ctlproc(pid, "stop");
+		if(!sample()) {
+			ctlproc(pid, "start");
 			break;
+		}
 		printpc(ureg.ip, ureg.sp);
+		ctlproc(pid, "start");
 		nanosleep(&req, NULL);
 	}
 }
