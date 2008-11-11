@@ -154,6 +154,8 @@ dowidth(Type *t)
 		break;
 
 	case TSTRUCT:
+		if(t->funarg)
+			fatal("dowidth fn struct %T", t);
 		w = widstruct(t, 0, 1);
 		offmod(t);
 		break;
