@@ -161,9 +161,9 @@ functype(Node *this, Node *in, Node *out)
 
 	t = typ(TFUNC);
 
-	t->type = dostruct(this, TSTRUCT);
-	t->type->down = dostruct(out, TSTRUCT);
-	t->type->down->down = dostruct(in, TSTRUCT);
+	t->type = dostruct(this, TFUNC);
+	t->type->down = dostruct(out, TFUNC);
+	t->type->down->down = dostruct(in, TFUNC);
 
 	t->thistuple = listcount(this);
 	t->outtuple = listcount(out);
@@ -498,6 +498,7 @@ loop:
 	f = typ(TFIELD);
 	f->type = n->type;
 	f->note = note;
+	f->width = BADWIDTH;
 
 	if(n->left != N && n->left->op == ONAME) {
 		f->nname = n->left;
@@ -517,15 +518,23 @@ Type*
 dostruct(Node *n, int et)
 {
 	Type *t;
+	int funarg;
 
 	/*
 	 * convert a parsed id/type list into
 	 * a type for struct/interface/arglist
 	 */
 
+	funarg = 0;
+	if(et == TFUNC) {
+		funarg = 1;
+		et = TSTRUCT;
+	}
 	t = typ(et);
+	t->funarg = funarg;
 	stotype(n, &t->type);
-	checkwidth(t);
+	if(!funarg)
+		checkwidth(t);
 	return t;
 }
 
@@ -1129,6 +1138,11 @@ void
 checkwidth(Type *t)
 {
 	TypeList *l;
+
+	// function arg structs should not be checked
+	// outside of the enclosing function.
+	if(t->funarg)
+		fatal("checkwidth %T", t);
 
 	if(!defercalc) {
 		dowidth(t);

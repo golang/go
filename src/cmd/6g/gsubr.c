@@ -243,6 +243,8 @@ nodarg(Type *t, int fp)
 	n = nod(ONAME, N, N);
 	n->type = t->type;
 	n->sym = t->sym;
+	if(t->width == BADWIDTH)
+		fatal("nodarg: offset not computed for %T", t);
 	n->xoffset = t->width;
 	n->addable = 1;
 

@@ -41,6 +41,8 @@ enum
 	ASTRING,
 	APTR,
 	AINTER,
+	
+	BADWIDTH	= -1000000000
 };
 
 /*
@@ -126,6 +128,7 @@ struct	Type
 	uchar	printed;
 	uchar	embedded;	// TFIELD embedded type
 	uchar	siggen;
+	uchar	funarg;
 
 	// TFUNCT
 	uchar	thistuple;
