@@ -59,7 +59,8 @@ done | # clean up some stack noise
 		s/ PC=0x[0-9a-f]*/ PC=xxx/
 		s/^pc: 0x[0-9a-f]*/pc: xxx/
 		/^Trace\/breakpoint trap/d
-		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/' > run.out
+		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
+		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d' > run.out
 
 case $failed in
 1)
