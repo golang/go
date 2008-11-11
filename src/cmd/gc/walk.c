@@ -597,13 +597,6 @@ loop:
 		if(isptrarray(t) && isptrdarray(l->type))
 			goto ret;
 
-		// interface and structure
-		et = isandss(n->type, l);
-		if(et != Inone) {
-			indir(n, ifaceop(n->type, l, et));
-			goto ret;
-		}
-
 		// structure literal
 		if(t->etype == TSTRUCT) {
 			indir(n, structlit(n));
@@ -621,6 +614,13 @@ loop:
 		if(t->etype == TMAP) {
 			r = maplit(n);
 			indir(n, r);
+			goto ret;
+		}
+
+		// interface and structure
+		et = isandss(n->type, l);
+		if(et != Inone) {
+			indir(n, ifaceop(n->type, l, et));
 			goto ret;
 		}
 
