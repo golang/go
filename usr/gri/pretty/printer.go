@@ -36,95 +36,116 @@ func PrintBlanks(n int) {
 // (http://nickgravgaard.com/elastictabstops/index.html)
 
 type Buffer struct {
+	segment string;  // current line segment
 	lines AST.List;  // a list of lines; and each line is a list of strings
-	widths AST.List;
+}
+
+
+func (b *Buffer) Line(i int) *AST.List {
+	return b.lines.at(i).(*AST.List);
+}
+
+
+func (b *Buffer) Tab() {
+	b.lines.at(b.lines.len() - 1).(*AST.List).Add(b.segment);
+	b.segment = "";
 }
 
 
 func (b *Buffer) Newline() {
+	b.Tab();  // add last segment to current line
 	b.lines.Add(AST.NewList());
+}
+
+
+func (b *Buffer) Print(s string) {
+	b.segment += s;
 }
 
 
 func (b *Buffer) Init() {
 	b.lines.Init();
-	b.widths.Init();
-	b.Newline();
+	b.lines.Add(AST.NewList());
 }
 
 
-func (b *Buffer) ComputeWidths() {
-	// iterate through all columns j
-	for j := 0; ; j++ {
-		width := -1;  // initial column width
-		
-		// iterate through all lines i
-		for i := 0; i < b.lines.len(); i++ {
-			line := b.lines.at(i).(*AST.List);
-			if j < line.len() {
-				// the j.th column exists in this line
-				w := len(line.at(j).(string));
-				if w > width {
-					width = w;
+func (b *Buffer) PrintLines(line0, line1 int, widths *AST.List) {
+	for i := line0; i < line1; i++ {
+		nsep := 0;
+		line := b.Line(i);
+		for j := 0; j < line.len(); j++ {
+			s := line.at(j).(string);
+			PrintBlanks(nsep);
+			print(s);
+			if j < widths.len() {
+				nsep = widths.at(j).(int) - len(s);
+				assert(nsep >= 0);
+				if nsep < int(tabwith.IVal()) {
+					nsep = int(tabwith.IVal());
 				}
+			} else {
+				nsep = 0;
 			}
 		}
-	
-		if width >= 0 {
-			assert(b.widths.len() == j);
-			b.widths.Add(width);
+		println();
+	}
+}
+
+
+func (b *Buffer) Format(line0, line1 int, widths *AST.List) {
+	i0, i1 := line0, line0;
+	column := widths.len();
+	width := -1;
+	for i := line0; i < line1; i++ {
+		line := b.Line(i);
+		if column < line.len() - 1 {
+			if width < 0 {
+				// column start
+				i1 = i;
+				b.PrintLines(i0, i1, widths);
+			}
+			w := len(line.at(column).(string));
+			if w > width {
+				width = w;
+			}
 		} else {
-			// no column j - we are done
-			return;
+			if width >= 0 {
+				// column end
+				i0 = i;
+				widths.Add(width);
+				b.Format(i1, i0, widths);
+				widths.Pop();
+				width = -1;
+			}
 		}
 	}
+	b.PrintLines(i0, line1, widths);
+}
+
+
+func (b *Buffer) Dump() {
+	for i := 0; i < b.lines.len(); i++ {
+		line := b.Line(i);
+		print("(", i, ") ");
+		for j := 0; j < line.len(); j++ {
+			print("[", line.at(j).(string), "]");
+		}
+		print("\n");
+	}
+	print("\n");
 }
 
 
 func (b *Buffer) Flush() {
-	b.ComputeWidths();
-	
-	// print the lines
-	for i := 0; i < b.lines.len(); i++ {
-		line := b.lines.at(i).(*AST.List);
-		for j := 0; j < line.len(); j++ {
-			s := line.at(j).(string);
-			d := b.widths.at(j).(int) - len(s);
-			assert(d >= 0);
-			if d < int(tabwith.IVal()) {
-				d = int(tabwith.IVal());
-			}
-			PrintBlanks(d);  // +1 padding
-			print(s);
-		}
-		println();
-	}
-	
+	b.Tab();  // add last segment to current line
+	b.Format(0, b.lines.len(), AST.NewList());
 	b.lines.Clear();
-	b.widths.Clear();
-	b.Newline();
+	b.lines.Add(AST.NewList());
 }
 
 
-func (b *Buffer) Indent(n int) {
-	line := b.lines.at(b.lines.len() - 1).(*AST.List);
-	for ; n > 0; n-- {
-		line.Add("");
-	}
-}
-
-
-func (b *Buffer) Print(s string) {
-	i := b.lines.len() - 1;
-	line := b.lines.at(i).(*AST.List);
-	j := line.len() - 1;
-	if j < 0 {
-		line.Add(s);
-	} else {
-		line.set(j, line.at(j).(string) + s);
-	}
-}
-
+// ----------------------------------------------------------------------------
+// Printer
 
 export type Printer struct {
 	buf Buffer;
@@ -142,28 +163,42 @@ export type Printer struct {
 }
 
 
-const NEW_CODE = false;
+func CountNewlinesAndTabs(s string) (int, int, string) {
+	nls, tabs := 0, 0;
+	for i := 0; i < len(s); i++ {
+		switch ch := s[i]; ch {
+		case '\n': nls++;
+		case '\t': tabs++;
+		case ' ':
+		default:
+			// non-whitespace char
+			assert(ch == '/');
+			return nls, tabs, s[i : len(s)];
+		}
+	}
+	return nls, tabs, "";
+}
+
 
 func (P *Printer) String(pos int, s string) {
 	if P.semi && P.level > 0 {  // no semicolons at level 0
-		if NEW_CODE {
-			P.buf.Print(";");
-		} else {
-			print(";");
-		}
+		P.buf.Print(";");
 	}
 
 	/*
 	for pos > P.cpos {
 		// we have a comment
-		c := P.clist.at(P.cindex).(*AST.Comment);
-		if len(c.text) > 1 && c.text[1] == '/' {
-			print("  " + c.text);
+		comment := P.clist.at(P.cindex).(*AST.Comment);
+		nls, tabs, text := CountNewlinesAndTabs(comment.text);
+		
+		if nls == 0 && len(text) > 1 && text[1] == '/' {
+			P.buf.Tab();
+			P.buf.Print(text);
 			if P.newl <= 0 {
-				P.newl = 1;  // line comments must have a newline
+				//P.newl = 1;  // line comments must have a newline
 			}
 		} else {
-			print(c.text);
+			P.buf.Print(text);
 		}
 		P.cindex++;
 		if P.cindex < P.clist.len() {
@@ -175,30 +210,19 @@ func (P *Printer) String(pos int, s string) {
 	*/
 
 	if P.newl > 0 {
-		if NEW_CODE {
-			P.buf.Flush();
-		}
-		for i := P.newl; i > 0; i-- {
-			if NEW_CODE {
+		P.buf.Newline();
+		if P.newl > 1 {
+			for i := P.newl; i > 1; i-- {
+				//P.buf.Flush();
 				P.buf.Newline();
-			} else {
-				print("\n");
 			}
 		}
-		if NEW_CODE {
-			P.buf.Indent(P.indent);
-		} else {
-			for i := P.indent; i > 0; i-- {
-				print("\t");
-			}
+		for i := P.indent; i > 0; i-- {
+			P.buf.Tab();
 		}
 	}
 
-	if NEW_CODE {
-		P.buf.Print(s);
-	} else {
-		print(s);
-	}
+	P.buf.Print(s);
 
 	P.semi, P.newl = false, 0;
 }
@@ -668,5 +692,5 @@ func (P *Printer) Program(p *AST.Program) {
 	}
 	P.newl = 1;
 
-	P.String(0, "");  // flush
+	P.buf.Flush();  // TODO should not access P.buf directly here
 }
