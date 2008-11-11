@@ -98,7 +98,6 @@ sample(void)
 		if(get8(map, (uvlong)i, &((uvlong*)&ureg)[i/8]) < 0) {
 			if(n == 1)
 				fprint(2, "prof: can't read registers at %d: %r\n", i);
-			ctlproc(pid, "start");
 			return 0;
 		}
 	}
@@ -136,6 +135,8 @@ stacktracepcsp(uvlong pc, uvlong sp)
 		fprint(2, "no machdata->ctrace\n");
 	else if(machdata->ctrace(map, pc, sp, 0, xptrace) <= 0)
 		fprint(2, "no stack frame: pc=%#p sp=%#p\n", pc, sp);
+	else
+		print("\n");
 }
 
 void
