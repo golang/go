@@ -97,9 +97,6 @@ bugs/bug064.go:15: illegal types for operand: CALL
 	struct { u int; v int }
 BUG: compilation should succeed
 
-=========== bugs/bug077.go
-BUG: known to succeed incorrectly
-
 =========== bugs/bug080.go
 bugs/bug080.go:12: illegal types for operand: CALL
 	int
