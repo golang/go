@@ -91,6 +91,17 @@ func main() {
 	var s string;
 	var t reflect.Type;
 
+{
+	var ip *int32;
+	var i int32 = 1234;
+	vip := reflect.NewValue(&ip);
+	vi := reflect.NewValue(i);
+	vip.(reflect.PtrValue).Sub().(reflect.PtrValue).SetSub(vi);
+	if *ip != 1234 {
+		panicln("SetSub failure", *ip);
+	}
+}
+
 	// Types
 	typedump("missing", "$missing$");
 	typedump("int", "int");
