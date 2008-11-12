@@ -204,6 +204,19 @@ float64frombits(uint64 i)
 	return u.f;
 }
 
+static float32
+float32frombits(uint32 i)
+{
+	// The obvious cast-and-pointer code is technically
+	// not valid, and gcc miscompiles it.  Use a union instead.
+	union {
+		float32 f;
+		uint32 i;
+	} u;
+	u.i = i;
+	return u.f;
+}
+
 bool
 isInf(float64 f, int32 sign)
 {
@@ -387,6 +400,21 @@ sys·float64bits(float64 din, uint64 iou)
 	FLUSH(&iou);
 }
 
+// func float32frombits(uint32) float32; // raw bits to float32
+void
+sys·float32frombits(uint32 uin, float32 dou)
+{
+	dou = float32frombits(uin);
+	FLUSH(&dou);
+}
+
+// func float64frombits(uint64) float64; // raw bits to float64
+void
+sys·float64frombits(uint64 uin, float64 dou)
+{
+	dou = float64frombits(uin);
+	FLUSH(&dou);
+}
 
 static int32	argc;
 static uint8**	argv;
