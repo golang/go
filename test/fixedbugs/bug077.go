@@ -8,10 +8,5 @@ package main
 
 func main() {
 	var exit int;
-exit:  // this shouldn't be legal
+exit:
 }
-
-/*
-Within a scope, an identifier should have only one association - it cannot be
-a variable and a label at the same time.
-*/
