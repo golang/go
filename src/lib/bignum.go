@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package Bignum
+package bignum
 
 // A package for arbitrary precision arithmethic.
 // It implements the following numeric types:
@@ -1076,27 +1076,42 @@ func (x *Integer) Shl(s uint) *Integer {
 func (x *Integer) Shr(s uint) *Integer {
 	z := MakeInt(x.sign, x.mant.Shr(s));
 	if x.IsNeg() {
-		panic("UNIMPLEMENTED");
+		panic("UNIMPLEMENTED Integer.Shr() of negative values");
 	}
 	return z;
 }
 
 
 func (x *Integer) And(y *Integer) *Integer {
-	panic("UNIMPLEMENTED");
-	return nil;
+	var z *Integer;
+	if !x.sign && !y.sign {
+		z = MakeInt(false, x.mant.And(y.mant));
+	} else {
+		panic("UNIMPLEMENTED Integer.And() of negative values");
+	}
+	return z;
 }
 
 
 func (x *Integer) Or(y *Integer) *Integer {
-	panic("UNIMPLEMENTED");
-	return nil;
+	var z *Integer;
+	if !x.sign && !y.sign {
+		z = MakeInt(false, x.mant.Or(y.mant));
+	} else {
+		panic("UNIMPLEMENTED Integer.Or() of negative values");
+	}
+	return z;
 }
 
 
 func (x *Integer) Xor(y *Integer) *Integer {
-	panic("UNIMPLEMENTED");
-	return nil;
+	var z *Integer;
+	if !x.sign && !y.sign {
+		z = MakeInt(false, x.mant.Xor(y.mant));
+	} else {
+		panic("UNIMPLEMENTED Integer.Xor() of negative values");
+	}
+	return z;
 }
 
 
