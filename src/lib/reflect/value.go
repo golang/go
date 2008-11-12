@@ -39,6 +39,7 @@ export type Empty interface {}	// TODO(r): Delete when no longer needed?
 export type Value interface {
 	Kind()	int;
 	Type()	Type;
+	Addr()	Addr;
 	Interface()	Empty;
 }
 
@@ -56,6 +57,10 @@ func (c *Common) Kind() int {
 
 func (c *Common) Type() Type {
 	return c.typ
+}
+
+func (c *Common) Addr() Addr {
+	return c.addr
 }
 
 func (c *Common) Interface() Empty {
@@ -493,6 +498,7 @@ export type PtrValue interface {
 	Type()	Type;
 	Sub()	Value;
 	Get()	Addr;
+	SetSub(Value);
 }
 
 type PtrValueStruct struct {
@@ -505,6 +511,10 @@ func (v *PtrValueStruct) Get() Addr {
 
 func (v *PtrValueStruct) Sub() Value {
 	return NewValueAddr(v.typ.(PtrType).Sub(), v.Get());
+}
+
+func (v *PtrValueStruct) SetSub(subv Value)  {
+	*AddrToPtrAddr(v.addr) = subv.Addr();
 }
 
 func PtrCreator(typ Type, addr Addr) Value {
