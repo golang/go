@@ -642,6 +642,17 @@ gmove(Node *f, Node *t)
 /*
  * load
  */
+	if(ft == TVLONG || ft == TUVLONG)
+	if(f->op == OCONST)
+	if(f->vconst > 0x7fffffffLL || f->vconst < -0x7fffffffLL)
+	if(t->op != OREGISTER) {
+		regalloc(&nod, f, Z);
+		gmove(f, &nod);
+		gmove(&nod, t);
+		regfree(&nod);
+		return;
+	}
+
 	if(f->op == ONAME || f->op == OINDREG ||
 	   f->op == OIND || f->op == OINDEX)
 	switch(ft) {
