@@ -51,6 +51,8 @@ export func	Inf(int) float64;			// return signed Inf
 export func	NaN() float64;				// return a NaN
 export func	float32bits(float32) uint32;		// raw bits
 export func	float64bits(float64) uint64;		// raw bits
+export func	float32frombits(uint32) float32;		// raw bits
+export func	float64frombits(uint64) float64;		// raw bits
 
 export func	newmap(keysize int, valsize int,
 			keyalg int, valalg int,
