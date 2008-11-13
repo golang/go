@@ -91,17 +91,6 @@ func main() {
 	var s string;
 	var t reflect.Type;
 
-{
-	var ip *int32;
-	var i int32 = 1234;
-	vip := reflect.NewValue(&ip);
-	vi := reflect.NewValue(i);
-	vip.(reflect.PtrValue).Sub().(reflect.PtrValue).SetSub(vi);
-	if *ip != 1234 {
-		panicln("SetSub failure", *ip);
-	}
-}
-
 	// Types
 	typedump("missing", "$missing$");
 	typedump("int", "int");
@@ -203,6 +192,17 @@ func main() {
 		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.AA·test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
 		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Put(123);
 		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.AA·test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+	}
+
+	{
+		var ip *int32;
+		var i int32 = 1234;
+		vip := reflect.NewValue(&ip);
+		vi := reflect.NewValue(i);
+		vip.(reflect.PtrValue).Sub().(reflect.PtrValue).SetSub(vi);
+		if *ip != 1234 {
+			panicln("SetSub failure", *ip);
+		}
 	}
 
 	var pt reflect.PtrType;
