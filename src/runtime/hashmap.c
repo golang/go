@@ -125,6 +125,7 @@ hash_init (struct hash *h,
 
 	if(datasize < sizeof (void *))
 		datasize = sizeof (void *);
+	datasize = rnd(datasize, 8);
 	init_sizes (hint, &init_power, &max_power);
 	h->datasize = datasize;
 	h->max_power = max_power;
