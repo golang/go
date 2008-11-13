@@ -65,7 +65,7 @@ type FullRead struct {
 }
 
 func (fd *FullRead) Read(p *[]byte) (n int, err *os.Error) {
-	n, err = Readn(fd, p);
+	n, err = Readn(fd.fd, p);
 	return n, err
 }
 
