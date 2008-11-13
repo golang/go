@@ -52,6 +52,8 @@ run(char **argv, int showoutput)
 		if(!showoutput){
 			dup(devnull, 1);
 			dup(devnull, 2);
+		}else{
+			dup(2, 1);
 		}
 		if(devnull > 2)
 			close(devnull);
@@ -173,15 +175,17 @@ char preamble[] =
 	"AS=$(O)a\n"
 	"AR=$(O)ar\n"
 	"\n"
-	"PKG=$(GOROOT)/pkg/%s.a\n"
+	"PKG=%s.a\n"
+	"PKGDIR=$(GOROOT)/pkg%s\n"
 	"\n"
 	"install: $(PKG)\n"
+	"\tmv $(PKG) $(PKGDIR)/$(PKG)\n"
 	"\n"
 	"nuke: clean\n"
-	"\trm -f $(PKG)\n"
+	"\trm -f $(PKGDIR)/$(PKG)\n"
 	"\n"
 	"clean:\n"
-	"\trm -f *.$O *.a\n"
+	"\trm -f *.$O *.a $(PKG)\n"
 	"\n"
 	"%%.$O: %%.go\n"
 	"\t$(GC) $*.go\n"
@@ -198,7 +202,7 @@ void
 main(int argc, char **argv)
 {
 	int i, o, p, n, pass, nar, njob, nthis, nnext, oargc;
-	char **ar, **next, **this, **tmp, *goroot, *pkgname, *pkgpath, **oargv;
+	char **ar, **next, **this, **tmp, *goroot, *pkgname, *pkgpath, *pkgdir, **oargv, *q;
 	Job *job;
 	Biobuf bout;
 
@@ -241,7 +245,17 @@ main(int argc, char **argv)
 		usage();
 	}
 
-	pkgpath = smprint("%s/pkg/%s.a", goroot, pkgname);
+	q = strrchr(pkgname, '/');
+	if(q) {
+		pkgdir = pkgname;
+		*q++ = '\0';
+		pkgname = q;
+		pkgdir = smprint("/%s", pkgdir);
+	} else {
+		pkgdir = "";
+	}
+
+	pkgpath = smprint("%s.a", pkgname);
 	unlink(pkgpath);
 	if(chatty)
 		fprint(2, "pkg %s\n", pkgpath);
@@ -275,6 +289,9 @@ main(int argc, char **argv)
 	ar[0] = smprint("%sar", thechar);
 	ar[1] = "grc";
 	ar[2] = pkgpath;
+	ar[3] = nil;
+	if(run(ar, 1) < 0)
+		sysfatal("ar: %r");
 
 	njob = 0;
 
@@ -333,7 +350,7 @@ main(int argc, char **argv)
 			Bprint(&bout, " %s", oargv[i]);
 		}
 		Bprint(&bout, "\n");
-		Bprint(&bout, preamble, thechar, pkgname);
+		Bprint(&bout, preamble, thechar, pkgname, pkgdir);
 
 		// O2=\
 		//	os_file.$O\

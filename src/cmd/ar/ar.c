@@ -1671,6 +1671,12 @@ getpkgdef(char **datap, int *lenp)
 	char *data, *p;
 	Import **all, *x;
 
+	if(pkgstmt == nil) {
+		*datap = nil;
+		*lenp = 0;
+		return;
+	}
+
 	// make a list of all the exports and count string sizes
 	all = armalloc(nimport*sizeof all[0]);
 	j = 0;
