@@ -542,6 +542,10 @@ objfile(char *file)
 				goto bad;
 			if(strncmp(arhdr.fmag, ARFMAG, sizeof(arhdr.fmag)))
 				goto bad;
+			l = SARNAME;
+			while(l > 0 && arhdr.name[l-1] == ' ')
+				l--;
+			sprint(pname, "%s(%.*s)", file, l, arhdr.name);
 			l = atolwhex(arhdr.size);
 			ldobj(f, l, pname);
 			if(s->type == SXREF) {
@@ -635,9 +639,9 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 }
 
 void
-addlib(char *obj)
+addlib(char *src, char *obj)
 {
-	char name[1024], comp[256], *p;
+	char name[1024], comp[256], *p, *q;
 	int i;
 
 	if(histfrogp <= 0)
@@ -685,6 +689,23 @@ addlib(char *obj)
 		strcat(name, "/");
 		strcat(name, comp);
 	}
+	if(debug['v'])
+		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
+
+	p = strrchr(src, '/');
+	q = strrchr(name, '/');
+	if(p != nil && q != nil && p - src == q - name && memcmp(src, name, p - src) == 0) {
+		// leading paths are the same.
+		// if the source file refers to an object in its own directory
+		// and we are inside an archive, ignore the reference, in the hope
+		// that the archive contains that object too.
+		if(strchr(obj, '(')) {
+			if(debug['v'])
+				Bprint(&bso, "%5.2f ignored srcdir object %s\n", cputime(), name);
+			return;
+		}
+	}
+
 	for(i=0; i<libraryp; i++)
 		if(strcmp(name, library[i]) == 0)
 			return;
@@ -700,6 +721,22 @@ addlib(char *obj)
 	strcpy(p, obj);
 	libraryobj[libraryp] = p;
 	libraryp++;
+}
+
+void
+copyhistfrog(char *buf, int nbuf)
+{
+	char *p, *ep;
+	int i;
+
+	p = buf;
+	ep = buf + nbuf;
+	i = 0;
+	for(i=0; i<histfrogp; i++) {
+		p = seprint(p, ep, "%s", histfrog[i]->name+1);
+		if(i+1<histfrogp && (p == buf || p[-1] != '/'))
+			p = seprint(p, ep, "/");
+	}
 }
 
 void
@@ -800,7 +837,9 @@ ldobj(Biobuf *f, int64 len, char *pn)
 	int ntext, n, c1, c2, c3;
 	vlong eof;
 	vlong import0, import1;
+	char src[1024];
 
+	src[0] = '\0';
 	eof = Boffset(f) + len;
 
 	ntext = 0;
@@ -938,10 +977,12 @@ loop:
 	switch(p->as) {
 	case AHISTORY:
 		if(p->to.offset == -1) {
-			addlib(pn);
+			addlib(src, pn);
 			histfrogp = 0;
 			goto loop;
 		}
+		if(src[0] == '\0')
+			copyhistfrog(src, sizeof src);
 		addhist(p->line, D_FILE);		/* 'z' */
 		if(p->to.offset)
 			addhist(p->to.offset, D_FILE1);	/* 'Z' */

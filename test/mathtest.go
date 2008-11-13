@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// $G $F.go && $L $F.$A && (./$A.out || echo BUG: math fails)
 
 package main
 
-import math "math"
+import (
+	"fmt";
+	"math";
+)
 
 const	length	= 10;
 
@@ -57,7 +61,7 @@ ck(a,b float64)
 		d = -d;
 	}
 
-	e := 1e-14;
+	e := float64(1e-13);
 	if a != 0 {
 		e = e*a;
 		if e < 0 {
@@ -66,7 +70,7 @@ ck(a,b float64)
 	}
 
 	if d > e {
-		panic(a, " ", b, "\n");
+		panic(fmt.sprintf("%.17g %.17g", a, b));
 	}
 }
 
