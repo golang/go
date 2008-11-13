@@ -18,7 +18,7 @@ LIBOFILES=\
 	rt2_$(GOARCH).$O\
 	sys_$(GOARCH)_$(GOOS).$O\
 	runtime.$O\
-	map.$O\
+	hashmap.$O\
 	chan.$O\
 	iface.$O\
 	array.$O\
@@ -30,7 +30,7 @@ LIBOFILES=\
 
 OFILES=$(RT0OFILES) $(LIBOFILES)
 OS_H=$(GOARCH)_$(GOOS).h
-HFILES=runtime.h $(OS_H_)
+HFILES=runtime.h hashmap.h $(OS_H_)
 
 install: rt0 $(LIB) runtime.acid
 	cp $(RT0OFILES) $(GOROOT)/lib
