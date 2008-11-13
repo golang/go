@@ -255,6 +255,16 @@ func getPtr(v reflect.Value) (val uint64, ok bool) {
 	return 0, false;
 }
 
+func getArrayPtr(v reflect.Value) (val reflect.ArrayValue, ok bool) {
+	if v.Kind() == reflect.PtrKind {
+		v = v.(reflect.PtrValue).Sub();
+		if v.Kind() == reflect.ArrayKind {
+			return v.(reflect.ArrayValue), true;
+		}
+	}
+	return nil, false;
+}
+
 // Convert ASCII to integer.  n is 0 (and got is false) if no number present.
 
 func parsenum(s string, start, end int) (n int, got bool, newi int) {
@@ -275,6 +285,56 @@ func parsenum(s string, start, end int) (n int, got bool, newi int) {
 		isnum = true;
 	}
 	return num, isnum, start;
+}
+
+func (p *P) printField(field reflect.Value) (was_string bool) {
+	if stringer, ok := field.Interface().(String); ok {
+		p.addstr(stringer.String());
+		return false;	// this value is not a string
+	}
+	s := "";
+	switch field.Kind() {
+	case reflect.BoolKind:
+		s = p.fmt.boolean(field.(reflect.BoolValue).Get()).str();
+	case reflect.IntKind, reflect.Int8Kind, reflect.Int16Kind, reflect.Int32Kind, reflect.Int64Kind:
+		v, signed, ok := getInt(field);
+		s = p.fmt.d64(v).str();
+	case reflect.UintKind, reflect.Uint8Kind, reflect.Uint16Kind, reflect.Uint32Kind, reflect.Uint64Kind:
+		v, signed, ok := getInt(field);
+		s = p.fmt.ud64(uint64(v)).str();
+	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind, reflect.Float80Kind:
+		v, ok := getFloat(field);
+		s = p.fmt.g64(v).str();
+	case reflect.StringKind:
+		v, ok := getString(field);
+		s = p.fmt.s(v).str();
+		was_string = true;
+	case reflect.PtrKind:
+		// pointer to array?
+		if v, ok := getArrayPtr(field); ok {
+			p.addstr("&[");
+			for i := 0; i < v.Len(); i++ {
+				if i > 0 {
+					p.addstr(" ");
+				}
+				p.printField(v.Elem(i));
+			}
+			p.addstr("]");
+			break;
+		}
+		v, ok := getPtr(field);
+		p.add('0');
+		p.add('x');
+		s = p.fmt.uX64(v).str();
+	case reflect.StructKind:
+		p.add('{');
+		p.doprint(field, true, false);
+		p.add('}');
+	default:
+		s = "?" + field.Type().String() + "?";
+	}
+	p.addstr(s);
+	return was_string;
 }
 
 func (p *P) doprintf(format string, v reflect.StructValue) {
@@ -310,9 +370,11 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 		}
 		field := v.Field(fieldnum);
 		fieldnum++;
-		if formatter, ok := field.Interface().(Format); ok {
-			formatter.Format(p, c);
-			continue;
+		if c != 'T' {	// don't want thing to describe itself if we're asking for its type
+			if formatter, ok := field.Interface().(Format); ok {
+				formatter.Format(p, c);
+				continue;
+			}
 		}
 		s := "";
 		if p.wid_ok {
@@ -414,6 +476,14 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 					goto badtype
 				}
 
+			// arbitrary value; do your best
+			case 'v':
+				p.printField(field);
+
+			// the value's type
+			case 'T':
+				s = field.Type().String();
+
 			default:
 			badtype:
 				s = "%" + string(c) + "(" + field.Type().String() + ")%";
@@ -437,7 +507,6 @@ func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool) {
 	for fieldnum := 0; fieldnum < v.Len();  fieldnum++ {
 		// always add spaces if we're doing println
 		field := v.Field(fieldnum);
-		s := "";
 		if fieldnum > 0 {
 			if addspace {
 				p.add(' ')
@@ -446,40 +515,8 @@ func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool) {
 				p.add(' ')
 			}
 		}
-		if stringer, ok := field.Interface().(String); ok {
-			p.addstr(stringer.String());
-			prev_string = false;	// this value is not a string
-			continue;
-		}
-		switch field.Kind() {
-		case reflect.BoolKind:
-			s = p.fmt.boolean(field.(reflect.BoolValue).Get()).str();
-		case reflect.IntKind, reflect.Int8Kind, reflect.Int16Kind, reflect.Int32Kind, reflect.Int64Kind:
-			v, signed, ok := getInt(field);
-			s = p.fmt.d64(v).str();
-		case reflect.UintKind, reflect.Uint8Kind, reflect.Uint16Kind, reflect.Uint32Kind, reflect.Uint64Kind:
-			v, signed, ok := getInt(field);
-			s = p.fmt.ud64(uint64(v)).str();
-		case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind, reflect.Float80Kind:
-			v, ok := getFloat(field);
-			s = p.fmt.g64(v).str();
-		case reflect.StringKind:
-			v, ok := getString(field);
-			s = p.fmt.s(v).str();
-		case reflect.PtrKind:
-			v, ok := getPtr(field);
-			p.add('0');
-			p.add('x');
-			s = p.fmt.uX64(v).str();
-		case reflect.StructKind:
-			p.add('{');
-			p.doprint(field, true, false);
-			p.add('}');
-		default:
-			s = "?" + field.Type().String() + "?";
-		}
-		p.addstr(s);
-		prev_string = field.Kind() == reflect.StringKind;
+		was_string := p.printField(field);
+		prev_string = was_string;
 	}
 	if addnewline {
 		p.add('\n')
