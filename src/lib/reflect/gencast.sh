@@ -37,4 +37,5 @@ Float64
 Float80
 String
 Bool
+RuntimeArray
 !

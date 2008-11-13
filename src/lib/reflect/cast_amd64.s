@@ -171,3 +171,13 @@ TEXT reflect·PtrBoolToAddr(SB),7,$-8
 	MOVQ	AX, 16(SP)
 	RET
 
+TEXT reflect·AddrToPtrRuntimeArray(SB),7,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
+	RET
+
+TEXT reflect·PtrRuntimeArrayToAddr(SB),7,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
+	RET
+
