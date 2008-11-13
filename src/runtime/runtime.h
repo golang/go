@@ -215,6 +215,7 @@ void	throw(int8*);
 uint32	rnd(uint32, uint32);
 void	prints(int8*);
 void	mcpy(byte*, byte*, uint32);
+void	mmov(byte*, byte*, uint32);
 void*	mal(uint32);
 uint32	cmpstring(string, string);
 void	initsig(void);

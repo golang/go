@@ -87,6 +87,28 @@ mcpy(byte *t, byte *f, uint32 n)
 	}
 }
 
+void
+mmov(byte *t, byte *f, uint32 n)
+{
+	if(t < f) {
+		while(n > 0) {
+			*t = *f;
+			t++;
+			f++;
+			n--;
+		}
+	} else {
+		t += n;
+		f += n;
+		while(n > 0) {
+			t--;
+			f--;
+			*t = *f;
+			n--;
+		}
+	}
+}
+
 uint32
 rnd(uint32 n, uint32 m)
 {
@@ -582,9 +604,17 @@ check(void)
 static uint64
 memhash(uint32 s, void *a)
 {
-	USED(s, a);
-	prints("memhash\n");
-	return 0x12345;
+	byte *b;
+	uint64 hash;
+
+	b = a;
+	hash = 33054211828000289ULL;
+	while(s > 0) {
+		hash = (hash ^ *b) * 23344194077549503ULL;
+		b++;
+		s--;
+	}
+	return hash;
 }
 
 static uint32
@@ -644,9 +674,7 @@ memcopy(uint32 s, void *a, void *b)
 static uint64
 stringhash(uint32 s, string *a)
 {
-	USED(s, a);
-	prints("stringhash\n");
-	return 0x12345;
+	return memhash((*a)->len, (*a)->str);
 }
 
 static uint32
@@ -677,9 +705,7 @@ stringcopy(uint32 s, string *a, string *b)
 static uint64
 pointerhash(uint32 s, void **a)
 {
-	USED(s, a);
-	prints("pointerhash\n");
-	return 0x12345;
+	return memhash(s, *a);
 }
 
 static uint32
