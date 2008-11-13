@@ -103,9 +103,6 @@ bugs/bug080.go:12: illegal types for operand: CALL
 	struct { x int; y float }
 BUG: fails incorrectly
 
-=========== bugs/bug083.go
-bugs/bug083.dir/bug1.go:5: syntax error near T0
-
 =========== bugs/bug085.go
 bugs/bug085.go:8: P: undefined
 BUG: fails incorrectly
@@ -231,6 +228,9 @@ fixedbugs/bug074.go:7: x: undefined
 
 =========== fixedbugs/bug081.go
 fixedbugs/bug081.go:5: syntax error near x
+
+=========== fixedbugs/bug083.go
+fixedbugs/bug083.dir/bug1.go:5: syntax error near T0
 
 =========== fixedbugs/bug086.go
 fixedbugs/bug086.go:5: function ends without a return statement
