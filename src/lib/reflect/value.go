@@ -514,6 +514,11 @@ func (v *PtrValueStruct) Sub() Value {
 }
 
 func (v *PtrValueStruct) SetSub(subv Value)  {
+	a := v.typ.(PtrType).Sub().String();
+	b := subv.Type().String();
+	if a != b {
+		panicln("reflect: incompatible types in PtrValue.SetSub:", a, b);
+	}
 	*AddrToPtrAddr(v.addr) = subv.Addr();
 }
 
