@@ -24,9 +24,14 @@ export type Vector struct {
 }
 
 
+func (v *Vector) Init() {
+	v.elem = new([]Element, 8) [0 : 0];  // capacity must be > 0!
+}
+
+
 export func New() *Vector {
 	v := new(Vector);
-	v.elem = new([]Element, 8) [0 : 0];  // capacity must be > 0!
+	v.Init();
 	return v;
 }
 
@@ -37,13 +42,11 @@ func (v *Vector) Len() int {
 
 
 func (v *Vector) At(i int) Element {
-	// range check unnecessary - done by runtime
 	return v.elem[i];
 }
 
 
 func (v *Vector) Set(i int, e Element) {
-	// range check unnecessary - done by runtime
 	v.elem[i] = e;
 }
 
@@ -51,24 +54,25 @@ func (v *Vector) Set(i int, e Element) {
 func (v *Vector) Remove(i int) Element {
 	ret := v.elem[i];
 	n := v.Len();
-	// range check unnecessary - done by runtime
 	for j := i + 1; j < n; j++ {
 		v.elem[j - 1] = v.elem[j];
 	}
-	var e Element;
-	v.elem[n - 1] = e;  // don't set to nil - may not be legal in the future
+	v.elem[n - 1] = nil;  // support GC, nil out entry
 	v.elem = v.elem[0 : n - 1];
 	return ret;
 }
 
 
 func (v *Vector) Reset() {
+	// support GC, nil out entries
+	for j := len(v.elem) - 1; j >= 0; j-- {
+		v.elem[j] = nil;
+	}
 	v.elem = v.elem[0:0];
 }
 
 func (v *Vector) Insert(i int, e Element) {
 	n := v.Len();
-	// range check unnecessary - done by runtime
 
 	// grow array by doubling its capacity
 	if n == cap(v.elem) {
