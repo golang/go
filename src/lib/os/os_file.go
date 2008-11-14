@@ -57,7 +57,10 @@ func (fd *FD) Read(b *[]byte) (ret int, err *Error) {
 	if fd == nil {
 		return -1, EINVAL
 	}
-	r, e := syscall.read(fd.fd, &b[0], int64(len(b)));
+	var r, e int64;
+	if len(b) > 0 {  // because we access b[0]
+		r, e = syscall.read(fd.fd, &b[0], int64(len(b)));
+	}
 	return int(r), ErrnoToError(e)
 }
 
@@ -65,7 +68,10 @@ func (fd *FD) Write(b *[]byte) (ret int, err *Error) {
 	if fd == nil {
 		return -1, EINVAL
 	}
-	r, e := syscall.write(fd.fd, &b[0], int64(len(b)));
+	var r, e int64;
+	if len(b) > 0 {  // because we access b[0]
+		r, e = syscall.write(fd.fd, &b[0], int64(len(b)));
+	}
 	return int(r), ErrnoToError(e)
 }
 
