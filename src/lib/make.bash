@@ -4,49 +4,52 @@
 
 #!/bin/bash
 
+function buildfiles() {
+	rm -f *.6
+	for i
+	do
+		base=$(basename $i .go)
+		echo 6g -o $GOROOT/pkg/$base.6 $i
+		6g -o $GOROOT/pkg/$base.6 $i
+	done
+}
+
+function builddirs() {
+	for i
+	do
+		echo; echo; echo %%%% making lib/$i %%%%; echo
+		cd $i
+		make install
+		cd ..
+	done
+}
+
 set -e
-
-# Don't sort the files in the for loop - some of the orderings matter.
 rm -f *.6
-for i in \
-	strings.go\
 
-do
-	base=$(basename $i .go)
-	echo 6g -o $GOROOT/pkg/$base.6 $i
-	6g -o $GOROOT/pkg/$base.6 $i
-done
+# Don't sort the elements of the lists - some of the orderings matter.
 
-for i in syscall os math reflect fmt
-do
-	echo; echo; echo %%%% making lib/$i %%%%; echo
-	cd $i
-	make install
-	cd ..
-done
+buildfiles	strings.go
 
-# Don't sort the files in the for loop - some of the orderings matter.
-rm -f *.6
-for i in \
-	flag.go\
-	container/vector.go\
-	rand.go\
-	sort.go\
-	io.go\
-	bufio.go\
-	once.go\
-	bignum.go\
+builddirs	syscall \
+		math \
+		os	\
+		reflect \
+	
+buildfiles	io.go
 
-do
-	base=$(basename $i .go)
-	echo 6g -o $GOROOT/pkg/$base.6 $i
-	6g -o $GOROOT/pkg/$base.6 $i
-done
+builddirs	fmt
 
-for i in net time http regexp
-do
-	echo; echo; echo %%%% making lib/$i %%%%; echo
-	cd $i
-	make install
-	cd ..
-done
+buildfiles	flag.go\
+		container/vector.go\
+		rand.go\
+		sort.go\
+		bufio.go\
+		once.go\
+		bignum.go\
+	
+builddirs	net\
+		time\
+		http\
+		regexp\
+
