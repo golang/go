@@ -43,6 +43,11 @@ func (p *List) at(i int) Any {
 }
 
 
+func (p *List) last() Any {
+	return p.a[len(p.a) - 1];
+}
+
+
 func (p *List) set(i int, x Any) {
 	p.a[i] = x;
 }

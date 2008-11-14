@@ -32,7 +32,7 @@ time make
 (xcd ../usr/gri/pretty
 make clean
 time make
-make test
+make smoketest
 ) || exit $?
 
 (xcd ../test

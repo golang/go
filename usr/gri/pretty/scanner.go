@@ -518,22 +518,29 @@ func (S *Scanner) Expect(ch int) {
 }
 
 
-func (S *Scanner) SkipWhitespace() {
-	for S.ch == ' ' || S.ch == '\r' {
+func (S *Scanner) SkipWhitespace() int {
+	pos := -1;  // no new line position yet
+	
+	if S.chpos == 0 {
+		// file beginning is always start of a new line
+		pos = 0;
+	}
+	
+	for {
+		switch S.ch {
+		case '\t', '\r', ' ':  // nothing to do
+		case '\n': pos = S.pos;  // remember start of new line
+		default: goto exit;
+		}
 		S.Next();
 	}
+
+exit:
+	return pos;
 }
 
 
-func (S *Scanner) ScanWhitespace() string {
-	// first char ('\n' or '\t', 1 byte) already consumed
-	pos := S.chpos - 1;
-	S.SkipWhitespace();
-	return S.src[pos : S.chpos];
-}
-
-
-func (S *Scanner) ScanComment() string {
+func (S *Scanner) ScanComment(nlpos int) string {
 	// first '/' already consumed
 	pos := S.chpos - 1;
 	
@@ -543,6 +550,9 @@ func (S *Scanner) ScanComment() string {
 		for S.ch >= 0 {
 			S.Next();
 			if S.ch == '\n' {
+				// '\n' terminates comment but we do not include
+				// it in the comment (otherwise we cannot see the
+				// start of a newline in SkipWhitespace()).
 				goto exit;
 			}
 		}
@@ -554,6 +564,7 @@ func (S *Scanner) ScanComment() string {
 			ch := S.ch;
 			S.Next();
 			if ch == '*' && S.ch == '/' {
+				S.Next();
 				goto exit;
 			}
 		}
@@ -562,7 +573,6 @@ func (S *Scanner) ScanComment() string {
 	S.Error(pos, "comment not terminated");
 
 exit:
-	S.Next();
 	comment := S.src[pos : S.chpos];
 
 	if S.testmode {
@@ -586,6 +596,16 @@ exit:
 		}
 	}
 	
+	if nlpos < 0 {
+		// not only whitespace before comment on this line
+		comment = " " + comment;
+	} else if nlpos == pos {
+		// comment starts at the beginning of the line
+		comment = "\n" + comment;
+	} else {
+		// only whitespace before comment on this line
+		comment = "\t" + comment;
+	}
 	return comment;
 }
 
@@ -815,20 +835,17 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
 
 
 func (S *Scanner) Scan() (pos, tok int, val string) {
-	S.SkipWhitespace();
+	nlpos := S.SkipWhitespace();
 	
-	ch := S.ch;
-	pos = S.chpos;
-	tok = ILLEGAL;
+	pos, tok = S.chpos, ILLEGAL;
 	
-	switch {
+	switch ch := S.ch; {
 	case is_letter(ch): tok, val = S.ScanIdentifier();
 	case digit_val(ch) < 10: tok, val = S.ScanNumber(false);
 	default:
 		S.Next();  // always make progress
 		switch ch {
 		case -1: tok = EOF;
-		case '\n', '\t': tok, val = COMMENT, S.ScanWhitespace();
 		case '"': tok, val = STRING, S.ScanString();
 		case '\'': tok, val = INT, S.ScanChar();
 		case '`': tok, val = STRING, S.ScanRawString();
@@ -858,7 +875,7 @@ func (S *Scanner) Scan() (pos, tok int, val string) {
 		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
-				tok, val = COMMENT, S.ScanComment();
+				tok, val = COMMENT, S.ScanComment(nlpos);
 			} else {
 				tok = S.Select2(QUO, QUO_ASSIGN);
 			}

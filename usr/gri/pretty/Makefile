@@ -11,6 +11,9 @@ pretty: pretty.6
 test: pretty
 	./test.sh
 
+smoketest: pretty
+	./test.sh parser.go
+
 install: pretty
 	cp pretty $(HOME)/bin/pretty
 
