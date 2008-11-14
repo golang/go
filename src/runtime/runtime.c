@@ -674,6 +674,7 @@ memcopy(uint32 s, void *a, void *b)
 static uint64
 stringhash(uint32 s, string *a)
 {
+	USED(s);
 	return memhash((*a)->len, (*a)->str);
 }
 
