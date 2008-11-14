@@ -11,16 +11,13 @@ package fmt
 
 import (
 	"fmt";
+	"io";
 	"reflect";
 	"os";
 )
 
-export type Writer interface {
-	Write(b *[]byte) (ret int, err *os.Error);
-}
-
 // Representation of printer state passed to custom formatters.
-// Provides access to the Writer interface plus information about
+// Provides access to the io.Write interface plus information about
 // the active formatting verb.
 export type Formatter interface {
 	Write(b *[]byte) (ret int, err *os.Error);
@@ -119,7 +116,7 @@ func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool);
 
 // These routines end in 'f' and take a format string.
 
-export func fprintf(w Writer, format string, a ...) (n int, error *os.Error) {
+export func fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
 	p.doprintf(format, v);
@@ -143,7 +140,7 @@ export func sprintf(format string, a ...) string {
 // These routines do not take a format string and add spaces only
 // when the operand on neither side is a string.
 
-export func fprint(w Writer, a ...) (n int, error *os.Error) {
+export func fprint(w io.Write, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
 	p.doprint(v, false, false);
@@ -168,7 +165,7 @@ export func sprint(a ...) string {
 // always add spaces between operands, and add a newline
 // after the last operand.
 
-export func fprintln(w Writer, a ...) (n int, error *os.Error) {
+export func fprintln(w io.Write, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
 	p.doprint(v, true, true);
@@ -310,22 +307,25 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 		s = p.fmt.s(v).str();
 		was_string = true;
 	case reflect.PtrKind:
-		// pointer to array?
-		if v, ok := getArrayPtr(field); ok {
-			p.addstr("&[");
-			for i := 0; i < v.Len(); i++ {
-				if i > 0 {
-					p.addstr(" ");
+		if v, ok := getPtr(field); v == 0 {
+			s = "<nil>"
+		} else {
+			// pointer to array?
+			if a, ok := getArrayPtr(field); ok {
+				p.addstr("&[");
+				for i := 0; i < a.Len(); i++ {
+					if i > 0 {
+						p.addstr(" ");
+					}
+					p.printField(a.Elem(i));
 				}
-				p.printField(v.Elem(i));
+				p.addstr("]");
+			} else {
+				p.add('0');
+				p.add('x');
+				s = p.fmt.uX64(v).str();
 			}
-			p.addstr("]");
-			break;
 		}
-		v, ok := getPtr(field);
-		p.add('0');
-		p.add('x');
-		s = p.fmt.uX64(v).str();
 	case reflect.StructKind:
 		p.add('{');
 		p.doprint(field, true, false);
@@ -471,7 +471,11 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			// pointer
 			case 'p':
 				if v, ok := getPtr(field); ok {
-					s = "0x" + p.fmt.uX64(v).str()
+					if v == nil {
+						s = "<nil>"
+					} else {
+						s = "0x" + p.fmt.uX64(v).str()
+					}
 				} else {
 					goto badtype
 				}
