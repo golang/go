@@ -4,7 +4,7 @@
 
 extern char gotypestrings[];	// really a go String, but we don't have the definition here
 
-void FLUSH(void *v) { }
+void FLUSH(void*) { }
 
 void reflect·typestrings(void *s) {
 	s = gotypestrings;

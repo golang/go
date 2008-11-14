@@ -321,13 +321,13 @@ main(int argc, char *argv[])
 		collapse = 0;
 		break;
 	case 'd':
-		delta_msec = atoi(EARGF(Usage));
+		delta_msec = atoi(EARGF(Usage()));
 		break;
 	case 't':
-		total_sec = atoi(EARGF(Usage));
+		total_sec = atoi(EARGF(Usage()));
 		break;
 	case 'p':
-		pid = atoi(EARGF(Usage));
+		pid = atoi(EARGF(Usage()));
 		break;
 	case 'f':
 		functions = 1;
