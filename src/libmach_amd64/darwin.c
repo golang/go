@@ -31,6 +31,7 @@
 #include <mach_amd64.h>
 #include <ureg_amd64.h>
 typedef struct Ureg Ureg;
+#undef waitpid	/* want Unix waitpid, not Plan 9 */
 
 extern mach_port_t mach_reply_port(void);	// should be in system headers, is not
 
@@ -185,6 +186,7 @@ static int nthr;
 static pthread_mutex_t mu;
 static pthread_cond_t cond;
 static void* excthread(void*);
+static void* waitthread(void*);
 static mach_port_t excport;
 
 enum {
@@ -215,9 +217,10 @@ addpid(int pid, int force)
 		pthread_t p;
 
 		excport = mach_reply_port();
-		pthread_create(&p, nil, excthread, nil);
 		pthread_mutex_init(&mu, nil);
 		pthread_cond_init(&cond, nil);
+		pthread_create(&p, nil, excthread, nil);
+		pthread_create(&p, nil, waitthread, (void*)(uintptr)pid);
 		first = 0;
 	}
 
@@ -483,6 +486,7 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 	uint nn;
 	mach_port_t thread;
 	int reg;
+	char buf[100];
 	union {
 		x86_thread_state64_t regs;
 		uchar p[1];
@@ -517,7 +521,11 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 	if(me(thread_get_state(thread, x86_THREAD_STATE64, (thread_state_t)&u.regs, &nn)) < 0){
 		if(!isr)
 			thread_resume(thread);
-		werrstr("thread_get_state: %r");
+		rerrstr(buf, sizeof buf);
+		if(strcmp(buf, "send invalid dest") == 0)
+			werrstr("process exited");
+		else
+			werrstr("thread_get_state: %r");
 		return -1;
 	}
 
@@ -636,14 +644,15 @@ havet:
 		ncode = nelem(t->code);
 	memmove(t->code, code, ncode*sizeof t->code[0]);
 
+	// Suspend thread, so that we can look at it & restart it later.
+	if(me(thread_suspend(thread)) < 0)
+		fprint(2, "catch_exception_raise thread_suspend: %r\n");
+
 	// Synchronize with waitstop below.
 	pthread_mutex_lock(&mu);
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mu);
 
-	// Suspend thread, so that we can look at it & restart it later.
-	if(me(thread_suspend(thread)) < 0)
-		fprint(2, "catch_exception_raise thread_suspend: %r\n");
 	return KERN_SUCCESS;
 }
 
@@ -656,12 +665,29 @@ excthread(void *v)
 	return 0;
 }
 
+// Wait for pid to exit.
+static int exited;
+static void*
+waitthread(void *v)
+{
+	int pid, status;
+
+	pid = (int)(uintptr)v;
+	waitpid(pid, &status, 0);
+	exited = 1;
+	// Synchronize with waitstop below.
+	pthread_mutex_lock(&mu);
+	pthread_cond_broadcast(&cond);
+	pthread_mutex_unlock(&mu);
+	return nil;
+}
+
 // Wait for thread t to stop.
 static int
 waitstop(Thread *t)
 {
 	pthread_mutex_lock(&mu);
-	while(!threadstopped(t))
+	while(!exited && !threadstopped(t))
 		pthread_cond_wait(&cond, &mu);
 	pthread_mutex_unlock(&mu);
 	return 0;

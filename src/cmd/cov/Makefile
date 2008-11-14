@@ -4,20 +4,20 @@
 
 include ../../Make.conf
 
-# The directory is prof because the source is portable and general.
-# We call the binary 6prof to avoid confusion and because this binary
+# The directory is cov because the source is portable and general.
+# We call the binary 6cov to avoid confusion and because this binary
 # is linked only with amd64 and x86 support.
 
-TARG=6prof
+TARG=6cov
 OFILES=\
 	main.$O\
+	tree.$O\
 
-#HFILES=\
-#	defs.h\
-#	fns.h\
+HFILES=\
+	tree.h\
 
 $(TARG): $(OFILES)
-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lbio -l9
+	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lregexp9 -lbio -l9
 
 clean:
 	rm -f $(OFILES) $(TARG)
