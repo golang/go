@@ -13,8 +13,12 @@ export const (
 	INT;
 	FLOAT;
 	STRING;
-	COMMENT;
 	EOF;
+
+	COMMENT_BB;
+	COMMENT_BW;
+	COMMENT_WB;
+	COMMENT_WW;
 
 	ADD;
 	SUB;
@@ -116,8 +120,12 @@ export func TokenString(tok int) string {
 	case INT: return "INT";
 	case FLOAT: return "FLOAT";
 	case STRING: return "STRING";
-	case COMMENT: return "COMMENT";
 	case EOF: return "EOF";
+
+	case COMMENT_BB: return "COMMENT_BB";
+	case COMMENT_BW: return "COMMENT_BW";
+	case COMMENT_WB: return "COMMENT_WB";
+	case COMMENT_WW: return "COMMENT_WW";
 
 	case ADD: return "+";
 	case SUB: return "-";
@@ -518,29 +526,23 @@ func (S *Scanner) Expect(ch int) {
 }
 
 
-func (S *Scanner) SkipWhitespace() int {
-	pos := -1;  // no new line position yet
-	
-	if S.chpos == 0 {
-		// file beginning is always start of a new line
-		pos = 0;
-	}
-	
+// Returns true if a newline was seen, returns false otherwise.
+func (S *Scanner) SkipWhitespace() bool {
+	sawnl := S.chpos == 0;  // file beginning is always start of a new line
 	for {
 		switch S.ch {
 		case '\t', '\r', ' ':  // nothing to do
-		case '\n': pos = S.pos;  // remember start of new line
-		default: goto exit;
+		case '\n': sawnl = true;
+		default: return sawnl;
 		}
 		S.Next();
 	}
-
-exit:
-	return pos;
+	panic("UNREACHABLE");
+	return false;
 }
 
 
-func (S *Scanner) ScanComment(nlpos int) string {
+func (S *Scanner) ScanComment(leading_ws bool) (tok int, val string) {
 	// first '/' already consumed
 	pos := S.chpos - 1;
 	
@@ -575,6 +577,12 @@ func (S *Scanner) ScanComment(nlpos int) string {
 exit:
 	comment := S.src[pos : S.chpos];
 
+	// skip whitespace but stop at line end
+	for S.ch == '\t' || S.ch == '\r' || S.ch == ' ' {
+		S.Next();
+	}
+	trailing_ws := S.ch == '\n';
+
 	if S.testmode {
 		// interpret ERROR and SYNC comments
 		oldpos := -1;
@@ -595,18 +603,22 @@ exit:
 			S.ErrorMsg(oldpos, "ERROR not found");
 		}
 	}
-	
-	if nlpos < 0 {
-		// not only whitespace before comment on this line
-		comment = " " + comment;
-	} else if nlpos == pos {
-		// comment starts at the beginning of the line
-		comment = "\n" + comment;
+
+	if leading_ws {
+		if trailing_ws {
+			tok = COMMENT_WW;
+		} else {
+			tok = COMMENT_WB;
+		}
 	} else {
-		// only whitespace before comment on this line
-		comment = "\t" + comment;
+		if trailing_ws {
+			tok = COMMENT_BW;
+		} else {
+			tok = COMMENT_BB;
+		}
 	}
-	return comment;
+
+	return tok, comment;
 }
 
 
@@ -835,7 +847,7 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
 
 
 func (S *Scanner) Scan() (pos, tok int, val string) {
-	nlpos := S.SkipWhitespace();
+	sawnl := S.SkipWhitespace();
 	
 	pos, tok = S.chpos, ILLEGAL;
 	
@@ -875,7 +887,7 @@ func (S *Scanner) Scan() (pos, tok int, val string) {
 		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
-				tok, val = COMMENT, S.ScanComment(nlpos);
+				tok, val = S.ScanComment(sawnl);
 			} else {
 				tok = S.Select2(QUO, QUO_ASSIGN);
 			}

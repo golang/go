@@ -258,14 +258,14 @@ export var BadDecl = NewDecl(0, Scanner.ILLEGAL, false);
 // Program
 
 export type Comment struct {
-	pos int;
+	pos, tok int;
 	text string;
 }
 
 
-export func NewComment(pos int, text string) *Comment {
+export func NewComment(pos, tok int, text string) *Comment {
 	c := new(Comment);
-	c.pos, c.text = pos, text;
+	c.pos, c.tok, c.text = pos, tok, text;
 	return c;
 }
 

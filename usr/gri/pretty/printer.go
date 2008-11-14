@@ -234,45 +234,36 @@ func (P *Printer) String(pos int, s string) {
 		assert(len(text) >= 3);  // classification char + "//" or "/*"
 		
 		// classify comment
-		switch text[0] {
-		case ' ':
-			// not only white space before comment on the same line
-			// - put into next cell if //-style comment
-			// - preceed with a space if /*-style comment
-			//print("[case a][", text[1 : len(text)], "]");
-			if text[2] == '/' {
-				P.buf.Tab();
-			} else {
-				P.buf.Print(" ");
-			}
+		switch comment.tok {
+		case Scanner.COMMENT_BB:
+			// black space before and after comment on the same line
+			// - print surrounded by blanks
+			P.buf.Print(" ");
+			P.buf.Print(text);
+			P.buf.Print(" ");
+
+		case Scanner.COMMENT_BW:
+			// only white space after comment on the same line
+			// - put into next cell
+			P.buf.Tab();
+			P.buf.Print(text);
 			
-			/*
-		case '\n':
-			// comment starts at beginning of line
-			// - reproduce exactly
-			//print("[case b][", text[1 : len(text)], "]");
-			if !P.buf.AtLineBegin() {
-				P.buf.Newline();
-			}
-			*/
-			
-		case '\n', '\t':
+		case Scanner.COMMENT_WW, Scanner.COMMENT_WB:
 			// only white space before comment on the same line
 			// - indent
-			//print("[case c][", text[1 : len(text)], "]");
 			if !P.buf.EmptyLine() {
 				P.buf.Newline();
 			}
 			for i := P.indent; i > 0; i-- {
 				P.buf.Tab();
 			}
+			P.buf.Print(text);
 
 		default:
 			panic("UNREACHABLE");
 		}
 		
-		P.buf.Print(text[1 : len(text)]);
-		if text[2] == '/' {
+		if text[1] == '/' {
 			// line comments must end in newline
 			// TODO should we set P.newl instead?
 			P.buf.Newline();

@@ -77,8 +77,15 @@ func (P *Parser) Next0() {
 
 
 func (P *Parser) Next() {
-	for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
-		P.comments.Add(AST.NewComment(P.pos, P.val));
+	// TODO This is too expensive for every token - fix
+	for P.Next0();
+		P.tok == Scanner.COMMENT_WW ||
+		P.tok == Scanner.COMMENT_WB ||
+		P.tok == Scanner.COMMENT_BW ||
+		P.tok == Scanner.COMMENT_BB ;
+		P.Next0() 
+	{
+		P.comments.Add(AST.NewComment(P.pos, P.tok, P.val));
 	}
 }
 
