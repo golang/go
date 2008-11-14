@@ -11,6 +11,7 @@ import Flag "flag"
 import Fmt "fmt"
 
 var tabwith = Flag.Int("tabwidth", 4, nil, "tab width");
+var comments = Flag.Bool("comments", false, nil, "enable printing of comments");
 
 
 // ----------------------------------------------------------------------------
@@ -33,11 +34,27 @@ func PrintBlanks(n int) {
 
 // ----------------------------------------------------------------------------
 // Implemententation of flexible tab stops.
-// (http://nickgravgaard.com/elastictabstops/index.html)
+
+// Buffer is a representation for a list of lines consisting of
+// cells. A new cell is added for each Tab() call, and a new line
+// is added for each Newline() call.
+//
+// The lines are formatted and printed such that all cells in a column
+// of adjacent cells have the same width (by adding padding). For more
+// details see: http://nickgravgaard.com/elastictabstops/index.html .
 
 type Buffer struct {
-	segment string;  // current line segment
-	lines AST.List;  // a list of lines; and each line is a list of strings
+	cell string;  // current cell (last cell in last line, not in lines yet)
+	lines AST.List;  // list of lines; each line is a list of cells (strings)
+	widths AST.List;  // list of column widths - (re-)used during formatting
+}
+
+
+// Implementation
+// (Do not use these functions outside the Buffer implementation).
+
+func (b *Buffer) AddLine() {
+	b.lines.Add(AST.NewList());
 }
 
 
@@ -46,83 +63,12 @@ func (b *Buffer) Line(i int) *AST.List {
 }
 
 
-func (b *Buffer) Tab() {
-	b.lines.at(b.lines.len() - 1).(*AST.List).Add(b.segment);
-	b.segment = "";
+func (b *Buffer) LastLine() *AST.List {
+	return b.lines.last().(*AST.List);
 }
 
 
-func (b *Buffer) Newline() {
-	b.Tab();  // add last segment to current line
-	b.lines.Add(AST.NewList());
-}
-
-
-func (b *Buffer) Print(s string) {
-	b.segment += s;
-}
-
-
-func (b *Buffer) Init() {
-	b.lines.Init();
-	b.lines.Add(AST.NewList());
-}
-
-
-func (b *Buffer) PrintLines(line0, line1 int, widths *AST.List) {
-	for i := line0; i < line1; i++ {
-		nsep := 0;
-		line := b.Line(i);
-		for j := 0; j < line.len(); j++ {
-			s := line.at(j).(string);
-			PrintBlanks(nsep);
-			print(s);
-			if j < widths.len() {
-				nsep = widths.at(j).(int) - len(s);
-				assert(nsep >= 0);
-				if nsep < int(tabwith.IVal()) {
-					nsep = int(tabwith.IVal());
-				}
-			} else {
-				nsep = 0;
-			}
-		}
-		println();
-	}
-}
-
-
-func (b *Buffer) Format(line0, line1 int, widths *AST.List) {
-	i0, i1 := line0, line0;
-	column := widths.len();
-	width := -1;
-	for i := line0; i < line1; i++ {
-		line := b.Line(i);
-		if column < line.len() - 1 {
-			if width < 0 {
-				// column start
-				i1 = i;
-				b.PrintLines(i0, i1, widths);
-			}
-			w := len(line.at(column).(string));
-			if w > width {
-				width = w;
-			}
-		} else {
-			if width >= 0 {
-				// column end
-				i0 = i;
-				widths.Add(width);
-				b.Format(i1, i0, widths);
-				widths.Pop();
-				width = -1;
-			}
-		}
-	}
-	b.PrintLines(i0, line1, widths);
-}
-
-
+// debugging support
 func (b *Buffer) Dump() {
 	for i := 0; i < b.lines.len(); i++ {
 		line := b.Line(i);
@@ -136,11 +82,114 @@ func (b *Buffer) Dump() {
 }
 
 
-func (b *Buffer) Flush() {
-	b.Tab();  // add last segment to current line
-	b.Format(0, b.lines.len(), AST.NewList());
-	b.lines.Clear();
-	b.lines.Add(AST.NewList());
+func (b *Buffer) PrintLines(line0, line1 int) {
+	for i := line0; i < line1; i++ {
+		line := b.Line(i);
+		for j := 0; j < line.len(); j++ {
+			s := line.at(j).(string);
+			print(s);
+			if j < b.widths.len() {
+				nsep := b.widths.at(j).(int) - len(s);
+				assert(nsep >= 0);
+				PrintBlanks(nsep);
+			} else {
+				assert(j == b.widths.len());
+			}
+		}
+		println();
+	}
+}
+
+
+func (b *Buffer) Format(line0, line1 int) {
+	column := b.widths.len();
+	
+	last := line0;
+	for this := line0; this < line1; this++ {
+		line := b.Line(this);
+		
+		if column < line.len() - 1 {
+			// cell exists in this column
+			// (note that the last cell per line is ignored)
+			
+			// print unprinted lines until beginning of block
+			b.PrintLines(last, this);
+			last = this;
+			
+			// column block begin
+			width := int(tabwith.IVal());  // minimal width
+			for ; this < line1; this++ {
+				line := b.Line(this);
+				if column < line.len() - 1 {
+					// cell exists in this column
+					// update width
+					w := len(line.at(column).(string)) + 1; // 1 = minimum space between cells
+					if w > width {
+						width = w;
+					}
+				} else {
+					break
+				}
+			}
+			// column block end
+
+			// format and print all columns to the right of this column
+			// (we know the widths of this column and all columns to the left)
+			b.widths.Add(width);
+			b.Format(last, this);
+			b.widths.Pop();
+			last = this;
+		}
+	}
+
+	// print unprinted lines until end
+	b.PrintLines(last, line1);
+}
+
+
+// Buffer interface
+// (Use these functions to interact with Buffers).
+
+func (b *Buffer) Init() {
+	b.lines.Init();
+	b.widths.Init();
+	b.AddLine();  // the very first line
+}
+
+
+func (b *Buffer) EmptyLine() bool {
+	return b.LastLine().len() == 0 && len(b.cell) == 0;
+}
+
+
+func (b *Buffer) Tab() {
+	b.LastLine().Add(b.cell);
+	b.cell = "";
+}
+
+
+func (b *Buffer) Newline() {
+	b.Tab();  // add last cell to current line
+	
+	if b.LastLine().len() == 1 {
+		// The current line has only one cell which does not have an impact
+		// on the formatting of the following lines (the last cell per line
+		// is ignored by Format), thus we can print the buffer contents.
+		assert(b.widths.len() == 0);
+		b.Format(0, b.lines.len());
+		assert(b.widths.len() == 0);
+		
+		// reset the buffer
+		b.lines.Clear();
+	}
+	
+	b.AddLine();
+	assert(len(b.cell) == 0);
+}
+
+
+func (b *Buffer) Print(s string) {
+	b.cell += s;
 }
 
 
@@ -151,6 +200,7 @@ export type Printer struct {
 	buf Buffer;
 	
 	// formatting control
+	lastpos int;  // pos after last string
 	level int;  // true scope level
 	indent int;  // indentation level
 	semi bool;  // pending ";"
@@ -163,43 +213,75 @@ export type Printer struct {
 }
 
 
-func CountNewlinesAndTabs(s string) (int, int, string) {
-	nls, tabs := 0, 0;
-	for i := 0; i < len(s); i++ {
-		switch ch := s[i]; ch {
-		case '\n': nls++;
-		case '\t': tabs++;
-		case ' ':
-		default:
-			// non-whitespace char
-			assert(ch == '/');
-			return nls, tabs, s[i : len(s)];
-		}
-	}
-	return nls, tabs, "";
-}
-
-
 func (P *Printer) String(pos int, s string) {
+	if pos == 0 {
+		pos = P.lastpos;  // estimate
+	}
+
 	if P.semi && P.level > 0 {  // no semicolons at level 0
 		P.buf.Print(";");
 	}
 
-	/*
-	for pos > P.cpos {
-		// we have a comment
-		comment := P.clist.at(P.cindex).(*AST.Comment);
-		nls, tabs, text := CountNewlinesAndTabs(comment.text);
+	//print("--", pos, "[", s, "]\n");
+	
+	at_line_begin := false;
+	for comments.BVal() && P.cpos < pos {
+		//print("cc", P.cpos, "\n");
 		
-		if nls == 0 && len(text) > 1 && text[1] == '/' {
-			P.buf.Tab();
-			P.buf.Print(text);
-			if P.newl <= 0 {
-				//P.newl = 1;  // line comments must have a newline
+		// we have a comment that comes before s
+		comment := P.clist.at(P.cindex).(*AST.Comment);
+		text := comment.text;
+		assert(len(text) >= 3);  // classification char + "//" or "/*"
+		
+		// classify comment
+		switch text[0] {
+		case ' ':
+			// not only white space before comment on the same line
+			// - put into next cell if //-style comment
+			// - preceed with a space if /*-style comment
+			//print("[case a][", text[1 : len(text)], "]");
+			if text[2] == '/' {
+				P.buf.Tab();
+			} else {
+				P.buf.Print(" ");
 			}
-		} else {
-			P.buf.Print(text);
+			
+			/*
+		case '\n':
+			// comment starts at beginning of line
+			// - reproduce exactly
+			//print("[case b][", text[1 : len(text)], "]");
+			if !P.buf.AtLineBegin() {
+				P.buf.Newline();
+			}
+			*/
+			
+		case '\n', '\t':
+			// only white space before comment on the same line
+			// - indent
+			//print("[case c][", text[1 : len(text)], "]");
+			if !P.buf.EmptyLine() {
+				P.buf.Newline();
+			}
+			for i := P.indent; i > 0; i-- {
+				P.buf.Tab();
+			}
+
+		default:
+			panic("UNREACHABLE");
 		}
+		
+		P.buf.Print(text[1 : len(text)]);
+		if text[2] == '/' {
+			// line comments must end in newline
+			// TODO should we set P.newl instead?
+			P.buf.Newline();
+			for i := P.indent; i > 0; i-- {
+				P.buf.Tab();
+			}
+			at_line_begin = true;
+		}
+
 		P.cindex++;
 		if P.cindex < P.clist.len() {
 			P.cpos = P.clist.at(P.cindex).(*AST.Comment).pos;
@@ -207,8 +289,11 @@ func (P *Printer) String(pos int, s string) {
 			P.cpos = 1000000000;  // infinite
 		}
 	}
-	*/
 
+	if at_line_begin && P.newl > 0 {
+		P.newl--;
+	}
+	
 	if P.newl > 0 {
 		P.buf.Newline();
 		if P.newl > 1 {
@@ -224,12 +309,19 @@ func (P *Printer) String(pos int, s string) {
 
 	P.buf.Print(s);
 
+	P.lastpos = pos + len(s);
 	P.semi, P.newl = false, 0;
 }
 
 
 func (P *Printer) Blank() {
 	P.String(0, " ");
+}
+
+
+func (P *Printer) Tab() {
+	P.String(0, "");
+	P.buf.Tab();
 }
 
 
@@ -254,6 +346,7 @@ func (P *Printer) CloseScope(paren string) {
 	P.level--;
 	P.semi, P.newl = false, 1;
 }
+
 
 func (P *Printer) Error(pos int, tok int, msg string) {
 	P.String(0, "<");
@@ -298,7 +391,7 @@ func (P *Printer) Fields(list *AST.List) {
 			} else if prev == x.tok {
 				P.String(0, ", ");
 			} else {
-				P.Blank();
+				P.Tab();
 			}
 		}
 		P.Expr(x);
@@ -605,7 +698,7 @@ func (P *Printer) Stat(s *AST.Stat) {
 func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 	if !parenthesized {
 		if d.exported {
-			P.String(0, "export ");
+			P.String(d.pos, "export ");
 		}
 		P.Token(d.pos, d.tok);
 		P.Blank();
@@ -633,10 +726,9 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 		}
 
 		if d.val != nil {
-			if d.tok == Scanner.IMPORT {
-				P.Blank();
-			} else {
-				P.String(0, " = ");
+			P.Tab();
+			if d.tok != Scanner.IMPORT {
+				P.String(0, "= ");
 			}
 			P.Expr(d.val);
 		}
@@ -690,7 +782,8 @@ func (P *Printer) Program(p *AST.Program) {
 	for i := 0; i < p.decls.len(); i++ {
 		P.Declaration(p.decls.at(i), false);
 	}
-	P.newl = 1;
+	P.newl = 2;	// TODO we should be able to do this with 1 instead of 2
+				// but we are loosing the last buffer flush in that case
 
-	P.buf.Flush();  // TODO should not access P.buf directly here
+	P.String(0, "");  // flush buffer
 }

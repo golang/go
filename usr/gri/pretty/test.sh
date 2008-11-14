@@ -96,11 +96,11 @@ valid() {
 runtest() {
 	#echo "Testing silent mode"
 	cleanup
-	$1 silent
+	$1 silent $2
 
 	#echo "Testing idempotency"
 	cleanup
-	$1 idempotent
+	$1 idempotent $2
 }
 
 
