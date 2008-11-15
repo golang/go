@@ -193,10 +193,16 @@ xdcl:
 	{
 		$$ = N;
 	}
-|	LEXPORT { exportadj = 1; stksize = initstksize; } common_dcl
+|	LEXPORT { dcladj = exportsym; stksize = initstksize; } common_dcl
 	{
 		$$ = $3;
-		exportadj = 0;
+		dcladj = 0;
+		initstksize = stksize;
+	}
+|	LPACKAGE { dcladj = packagesym; stksize = initstksize; } common_dcl
+	{
+		$$ = $3;
+		dcladj = 0;
 		initstksize = stksize;
 	}
 |	LEXPORT '(' export_list_r ')'
@@ -207,6 +213,12 @@ xdcl:
 	{
 		if($2 != N && $2->nname != N)
 			exportsym($2->nname->sym);
+		$$ = N;
+	}
+|	LPACKAGE xfndcl
+	{
+		if($2 != N && $2->nname != N)
+			packagesym($2->nname->sym);
 		$$ = N;
 	}
 |	';'
@@ -1772,6 +1784,10 @@ oexport:
 |	LEXPORT
 	{
 		$$ = 1;
+	}
+|	LPACKAGE
+	{
+		$$ = 2;
 	}
 
 oliteral:

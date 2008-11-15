@@ -1445,7 +1445,7 @@ typedef struct Import Import;
 struct Import
 {
 	Import *hash;	// next in hash table
-	int export;	// marked as export?
+	char *export;	// marked as export or package?
 	char *prefix;	// "type", "var", "func", "const"
 	char *name;
 	char *def;
@@ -1476,12 +1476,12 @@ ilookup(char *name)
 }
 
 int parsemethod(char**, char*, char**);
-int parsepkgdata(char**, char*, int*, char**, char**, char**);
+int parsepkgdata(char**, char*, char**, char**, char**, char**);
 
 void
 loadpkgdata(char *data, int len)
 {
-	int export;
+	char *export;
 	char *p, *ep, *prefix, *name, *def;
 	Import *x;
 
@@ -1509,16 +1509,24 @@ loadpkgdata(char *data, int len)
 				errors++;
 			}
 
-			// okay if some .6 say export and others don't.
-			// all it takes is one.
-			if(export)
-				x->export = 1;
+			// okay if some .6 say export/package and others don't.
+			// all it takes is one.  not okay if some say export
+			// and others say package.
+			if(export) {
+				if(x->export == nil)
+					x->export = export;
+				else if(strcmp(x->export, export) != 0) {
+					fprint(2, "ar: conflicting scopes for %s\n", name);
+					fprint(2, "%s:\t%s\n", x->file, x->export);
+					fprint(2, "%s:\t%s\n", file, export);
+				}
+			}
 		}
 	}
 }
 
 int
-parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, char **defp)
+parsepkgdata(char **pp, char *ep, char **exportp, char **prefixp, char **namep, char **defp)
 {
 	char *p, *prefix, *name, *def, *edef, *meth;
 	int n;
@@ -1530,11 +1538,14 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
 	if(p == ep)
 		return 0;
 
-	// [export ]
+	// [export|package ]
 	*exportp = 0;
 	if(p + 7 <= ep && strncmp(p, "export ", 7) == 0) {
-		*exportp = 1;
+		*exportp = "export";
 		p += 7;
+	} else if(p + 8 <= ep && strncmp(p, "package ", 8) == 0) {
+		*exportp = "package";
+		p += 8;
 	}
 
 	// prefix: (var|type|func|const)
@@ -1672,8 +1683,10 @@ getpkgdef(char **datap, int *lenp)
 	Import **all, *x;
 
 	if(pkgstmt == nil) {
-		*datap = nil;
-		*lenp = 0;
+		// Write out non-empty, parseable __.PKGDEF,
+		// so that import of an empty archive works.
+		*datap = "import\n$$\npackage __emptypackage__\n$$\n";
+		*lenp = strlen(*datap);
 		return;
 	}
 
@@ -1688,7 +1701,7 @@ getpkgdef(char **datap, int *lenp)
 				+ strlen(x->name) + 1
 				+ strlen(x->def) + 1;
 			if(x->export)
-				len += 7;
+				len += strlen(x->export) + 1;
 		}
 	}
 	if(j != nimport) {
@@ -1712,9 +1725,11 @@ getpkgdef(char **datap, int *lenp)
 	p = strappend(p, "\n");
 	for(i=0; i<nimport; i++) {
 		x = all[i];
-		// [export] prefix name def\n
-		if(x->export)
-			p = strappend(p, "export ");
+		// [export|package] prefix name def\n
+		if(x->export) {
+			p = strappend(p, x->export);
+			p = strappend(p, " ");
+		}
 		p = strappend(p, x->prefix);
 		p = strappend(p, " ");
 		p = strappend(p, x->name);

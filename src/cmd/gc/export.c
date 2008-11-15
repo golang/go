@@ -28,13 +28,30 @@ exportsym(Sym *s)
 {
 	if(s == S)
 		return;
-	if(s->export != 0)
+	if(s->export != 0) {
+		if(s->export != 1)
+			yyerror("export/package mismatch: %S", s);
 		return;
+	}
 	s->export = 1;
 
 	addexportsym(s);
 }
 
+void
+packagesym(Sym *s)
+{
+	if(s == S)
+		return;
+	if(s->export != 0) {
+		if(s->export != 2)
+			yyerror("export/package mismatch: %S", s);
+		return;
+	}
+	s->export = 2;
+
+	addexportsym(s);
+}
 
 void
 dumpprereq(Type *t)
@@ -67,8 +84,10 @@ dumpexportconst(Sym *s)
 		dumpprereq(t);
 
 	Bprint(bout, "\t");
-	if(s->export != 0)
+	if(s->export == 1)
 		Bprint(bout, "export ");
+	else if(s->export == 2)
+		Bprint(bout, "package ");
 	Bprint(bout, "const %lS ", s);
 	if(t != T)
 		Bprint(bout, "%#T ", t);
@@ -110,8 +129,10 @@ dumpexportvar(Sym *s)
 	dumpprereq(t);
 
 	Bprint(bout, "\t");
-	if(s->export != 0)
+	if(s->export == 1)
 		Bprint(bout, "export ");
+	else if(s->export == 2)
+		Bprint(bout, "package ");
 	if(t->etype == TFUNC)
 		Bprint(bout, "func ");
 	else
@@ -124,8 +145,10 @@ dumpexporttype(Sym *s)
 {
 	dumpprereq(s->otype);
 	Bprint(bout, "\t");
-	if(s->export != 0)
+	if(s->export == 1)
 		Bprint(bout, "export ");
+	else if(s->export == 2)
+		Bprint(bout, "package ");
 	switch (s->otype->etype) {
 	case TFORW:
 	case TFORWSTRUCT:
@@ -290,11 +313,20 @@ pkgtype(char *name, char *pkg)
 	return s->otype;
 }
 
+static int
+mypackage(Node *ss)
+{
+	return strcmp(ss->psym->name, package) == 0;
+}
+
 void
 importconst(int export, Node *ss, Type *t, Val *v)
 {
 	Node *n;
 	Sym *s;
+
+	if(export == 2 && !mypackage(ss))
+		return;
 
 	n = nod(OLITERAL, N, N);
 	n->val = *v;
@@ -307,6 +339,7 @@ importconst(int export, Node *ss, Type *t, Val *v)
 	}
 
 	dodclconst(newname(s), n);
+	s->export = export;
 
 	if(debug['e'])
 		print("import const %S\n", s);
@@ -317,6 +350,9 @@ importvar(int export, Node *ss, Type *t)
 {
 	Sym *s;
 
+	if(export == 2 && !mypackage(ss))
+		return;
+
 	s = importsym(ss, LNAME);
 	if(s->oname != N) {
 		if(eqtype(t, s->oname->type, 0))
@@ -326,6 +362,7 @@ importvar(int export, Node *ss, Type *t)
 	}
 	checkwidth(t);
 	addvar(newname(s), t, PEXTERN);
+	s->export = export;
 
 	if(debug['e'])
 		print("import var %S %lT\n", s, t);
@@ -351,6 +388,14 @@ importtype(int export, Node *ss, Type *t)
 	*s->otype = *t;
 	s->otype->sym = s;
 	checkwidth(s->otype);
+
+	// If type name should not be visible to importers,
+	// hide it by setting the lexical type to name.
+	// This will make references in the ordinary program
+	// (but not the import sections) look at s->oname,
+	// which is nil, as for an undefined name.
+	if(export == 0 || (export == 2 && !mypackage(ss)))
+		s->lexical = LNAME;
 
 	if(debug['e'])
 		print("import type %S %lT\n", s, t);

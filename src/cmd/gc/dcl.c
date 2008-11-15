@@ -35,8 +35,8 @@ dodclvar(Node *n, Type *t)
 		t = typ(TFORW);
 
 	addvar(n, t, dclcontext);
-	if(exportadj)
-		exportsym(n->sym);
+	if(dcladj)
+		dcladj(n->sym);
 }
 
 void
@@ -49,8 +49,8 @@ dodclconst(Node *n, Node *e)
 		dodclconst(n, e);
 
 	addconst(n, e, dclcontext);
-	if(exportadj)
-		exportsym(n->sym);
+	if(dcladj)
+		dcladj(n->sym);
 }
 
 /*
@@ -79,8 +79,8 @@ dodcltype(Type *n)
 
 found:
 	n->sym->local = 1;
-	if(exportadj)
-		exportsym(n->sym);
+	if(dcladj)
+		dcladj(n->sym);
 	return n;
 }
 
@@ -226,7 +226,7 @@ Node*
 methodname(Node *n, Type *t)
 {
 	Sym *s;
-	
+
 	s = methodsym(n->sym, t);
 	if(s == S)
 		return n;
@@ -1191,7 +1191,7 @@ embedded(Sym *s)
 {
 	Node *n;
 	char *name;
-	
+
 	// Names sometimes have disambiguation junk
 	// appended after a center dot.  Discard it when
 	// making the name for the embedded struct field.
