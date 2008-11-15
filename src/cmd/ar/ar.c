@@ -1519,6 +1519,7 @@ loadpkgdata(char *data, int len)
 					fprint(2, "ar: conflicting scopes for %s\n", name);
 					fprint(2, "%s:\t%s\n", x->file, x->export);
 					fprint(2, "%s:\t%s\n", file, export);
+					errors++;
 				}
 			}
 		}
