@@ -85,9 +85,6 @@ PASS
 bugs/bug020.go:7: type of a structure field cannot be an open array
 BUG should compile
 
-=========== bugs/bug032.go
-BUG: compilation succeeds incorrectly
-
 =========== bugs/bug041.go
 BUG: compilation succeeds incorrectly
 
