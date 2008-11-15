@@ -209,6 +209,7 @@ struct	Sym
 	uchar	undef;		// a diagnostic has been generated
 	uchar	export;		// marked as export
 	uchar	exported;	// exported
+	uchar	imported;	// imported
 	uchar	sym;		// huffman encoding in object file
 	uchar	local;		// created in this file
 	uchar	uniq;		// imbedded field name first found

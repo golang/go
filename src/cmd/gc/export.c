@@ -270,7 +270,7 @@ pkgsym(char *name, char *pkg, int lexical)
  * return the sym for ss, which should match lexical
  */
 Sym*
-importsym(Node *ss, int lexical)
+importsym(int export, Node *ss, int lexical)
 {
 	Sym *s;
 
@@ -282,7 +282,12 @@ importsym(Node *ss, int lexical)
 	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
 	/* TODO botch - need some diagnostic checking for the following assignment */
 	s->opackage = ss->osym->name;
-	s->export = 1;
+	if(export) {
+		if(s->export != export && s->export != 0)
+			yyerror("export/package mismatch: %S", s);
+		s->export = export;
+	}
+	s->imported = 1;
 	return s;
 }
 
@@ -303,7 +308,7 @@ pkgtype(char *name, char *pkg)
 	n->psym = lookup(pkg);
 	n->osym = n->psym;
 	renamepkg(n);
-	s = importsym(n, LATYPE);
+	s = importsym(0, n, LATYPE);
 
 	if(s->otype == T) {
 		t = typ(TFORW);
@@ -332,14 +337,13 @@ importconst(int export, Node *ss, Type *t, Val *v)
 	n->val = *v;
 	n->type = t;
 
-	s = importsym(ss, LNAME);
+	s = importsym(export, ss, LNAME);
 	if(s->oconst != N) {
 		// TODO: check if already the same.
 		return;
 	}
 
 	dodclconst(newname(s), n);
-	s->export = export;
 
 	if(debug['e'])
 		print("import const %S\n", s);
@@ -353,7 +357,7 @@ importvar(int export, Node *ss, Type *t)
 	if(export == 2 && !mypackage(ss))
 		return;
 
-	s = importsym(ss, LNAME);
+	s = importsym(export, ss, LNAME);
 	if(s->oname != N) {
 		if(eqtype(t, s->oname->type, 0))
 			return;
@@ -373,7 +377,7 @@ importtype(int export, Node *ss, Type *t)
 {
 	Sym *s;
 
-	s = importsym(ss, LATYPE);
+	s = importsym(export, ss, LATYPE);
 	if(s->otype != T) {
 		if(eqtype(t, s->otype, 0))
 			return;
