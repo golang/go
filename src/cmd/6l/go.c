@@ -188,11 +188,15 @@ parsepkgdata(char *file, char **pp, char *ep, int *exportp, char **prefixp, char
 	if(p == ep || strncmp(p, "$$\n", 3) == 0)
 		return 0;
 
-	// [export ]
+	// [export|package ]
 	*exportp = 0;
 	if(p + 7 <= ep && strncmp(p, "export ", 7) == 0) {
 		*exportp = 1;
 		p += 7;
+	}
+	else if(p + 8 <= ep && strncmp(p, "package ", 8) == 0) {
+		*exportp = 2;
+		p += 8;
 	}
 
 	// prefix: (var|type|func|const)
@@ -210,7 +214,7 @@ parsepkgdata(char *file, char **pp, char *ep, int *exportp, char **prefixp, char
 	else if(strncmp(p, "const ", 6) == 0)
 		p += 6;
 	else{
-		fprint(2, "ar: confused in pkg data near <<%.20s>>\n", p);
+		fprint(2, "6l: confused in pkg data near <<%.20s>>\n", p);
 		nerrors++;
 		return -1;
 	}
@@ -283,7 +287,7 @@ parsemethod(char **pp, char *ep, char **methp)
 	while(p < ep && *p != '\n')
 		p++;
 	if(p >= ep) {
-		fprint(2, "ar: lost end of line in method definition\n");
+		fprint(2, "6l: lost end of line in method definition\n");
 		*pp = ep;
 		return -1;
 	}

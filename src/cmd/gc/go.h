@@ -41,7 +41,7 @@ enum
 	ASTRING,
 	APTR,
 	AINTER,
-	
+
 	BADWIDTH	= -1000000000
 };
 
@@ -438,7 +438,7 @@ EXTERN	Sym*	pkgimportname;	// package name from imported package
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	sysimport;
 EXTERN	char*	filename;	// name to uniqify names
-EXTERN	int	exportadj;	// declaration is being exported
+EXTERN	void	(*dcladj)(Sym*);	// declaration is being exported/packaged
 
 EXTERN	Type*	types[NTYPE];
 EXTERN	uchar	simtype[NTYPE];
@@ -710,6 +710,7 @@ Node*	embedded(Sym*);
  */
 void	renamepkg(Node*);
 void	exportsym(Sym*);
+void	packagesym(Sym*);
 void	dumpe(Sym*);
 void	dumpexport(void);
 void	dumpexporttype(Sym*);
