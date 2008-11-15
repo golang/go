@@ -1094,8 +1094,7 @@ loop:
 	goto ret;
 
 nottop:
-	dump("bad top", n);
-	fatal("walktype: top=%d %O", top, n->op);
+	yyerror("didn't expect %O here", n->op);
 	goto ret;
 
 badt:
@@ -2360,8 +2359,7 @@ shape:
 	return N;
 
 nottop:
-	dump("bad top", n);
-	fatal("mapop: top=%d %O", top, n->op);
+	yyerror("didn't expect %O here", n->op);
 	return N;
 }
 

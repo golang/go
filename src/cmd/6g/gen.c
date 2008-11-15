@@ -358,15 +358,158 @@ ret:
 	lineno = lno;
 }
 
+Case*
+csort(Case *l, int(*f)(Case*, Case*))
+{
+	Case *l1, *l2, *le;
+
+	if(l == 0 || l->slink == 0)
+		return l;
+
+	l1 = l;
+	l2 = l;
+	for(;;) {
+		l2 = l2->slink;
+		if(l2 == 0)
+			break;
+		l2 = l2->slink;
+		if(l2 == 0)
+			break;
+		l1 = l1->slink;
+	}
+
+	l2 = l1->slink;
+	l1->slink = 0;
+	l1 = csort(l, f);
+	l2 = csort(l2, f);
+
+	/* set up lead element */
+	if((*f)(l1, l2) < 0) {
+		l = l1;
+		l1 = l1->slink;
+	} else {
+		l = l2;
+		l2 = l2->slink;
+	}
+	le = l;
+
+	for(;;) {
+		if(l1 == 0) {
+			while(l2) {
+				le->slink = l2;
+				le = l2;
+				l2 = l2->slink;
+			}
+			le->slink = 0;
+			break;
+		}
+		if(l2 == 0) {
+			while(l1) {
+				le->slink = l1;
+				le = l1;
+				l1 = l1->slink;
+			}
+			break;
+		}
+		if((*f)(l1, l2) < 0) {
+			le->slink = l1;
+			le = l1;
+			l1 = l1->slink;
+		} else {
+			le->slink = l2;
+			le = l2;
+			l2 = l2->slink;
+		}
+	}
+	le->slink = 0;
+	return l;
+}
+
+int
+casecmp(Case *c1, Case *c2)
+{
+	int w;
+
+	w = whatis(c1->scase);
+	if(w != whatis(c2->scase))
+		fatal("casecmp");
+
+	switch(w) {
+	case Wlitfloat:
+		return mpcmpfltflt(c1->scase->val.u.fval, c2->scase->val.u.fval);
+	case Wlitint:
+		return mpcmpfixfix(c1->scase->val.u.xval, c2->scase->val.u.xval);
+	case Wlitstr:
+		return cmpslit(c1->scase, c2->scase);
+//	case Wlitbool:
+//	case Wlitnil:
+	}
+
+}
+
+void
+swconst(Case *sa, int nc, Node *n1, Node *tmp)
+{
+	Case *s, *sb;
+	Prog *p1, *p2, *p3;
+	int n;
+
+	// small number of cases --
+	// test them sequentially
+	if(nc < 4) {
+		for(s=sa; s!=C; s=s->slink) {
+			setlineno(s->scase);
+			memset(n1, 0, sizeof(*n1));
+			n1->op = OEQ;
+			n1->left = tmp;
+			n1->right = s->scase;
+			walktype(n1, Erv);
+			bgen(n1, 1, s->sprog);
+		}
+		return;
+	}
+
+	// large number of cases --
+	// find the middle and recur on each half
+
+	n = nc/2;
+	for(s=sa; s!=C; s=s->slink) {
+		n--;
+		if(n == 0)
+			break;
+	}
+	n = nc/2;
+	sb = s->slink;
+	s->slink = C;
+
+	p1 = gbranch(AJMP, T);			// goto midcmp
+	p2 = pc;				// low half of switch
+	swconst(sa, n, n1, tmp);
+
+	p3 = gbranch(AJMP, T);			// goto end
+	patch(p1, pc);
+
+	setlineno(s->scase);
+	memset(n1, 0, sizeof(*n1));
+	n1->op = OLE;
+	n1->left = tmp;
+	n1->right = s->scase;
+	walktype(n1, Erv);
+	bgen(n1, 1, p2);
+
+	swconst(sb, nc-n, n1, tmp);		// high half of switch
+	patch(p3, pc);
+}
+
 void
 swgen(Node *n)
 {
 	Node *c1, *c2;
 	Node n1, tmp;
-	Case *s0, *se, *s;
+	Case *s0, *se, *s, *sa;
 	Prog *p1, *dflt;
 	int32 lno;
-	int any;
+	int any, nc, w;
 	Iter save1, save2;
 
 // botch - put most of this code in
@@ -404,7 +547,7 @@ swgen(Node *n)
 			patch(gbranch(AJMP, T), breakpc);
 		any = 1;
 
-		// over case expressions
+		// loop over case expressions
 		c2 = listfirst(&save2, &c1->left);
 		if(c2 == N)
 			dflt = pc;
@@ -439,7 +582,28 @@ swgen(Node *n)
 	tempname(&tmp, n->ntest->type);
 	cgen(n->ntest, &tmp);
 
+	sa = C;		// base of constant cases
+	nc = 0;
 	for(s=s0; s!=C; s=s->slink) {
+		switch(whatis(s->scase)) {
+		case Wlitfloat:
+		case Wlitint:
+		case Wlitstr:
+//		case Wlitbool:
+//		case Wlitnil:
+			nc++;
+			if(sa == C)
+				sa = s;
+			se = s;
+			continue;
+		}
+		if(sa != C) {
+			se->slink = C;
+			sa = csort(sa, casecmp);
+			swconst(sa, nc, &n1, &tmp);
+			nc = 0;
+			sa = C;
+		}
 		setlineno(s->scase);
 		memset(&n1, 0, sizeof(n1));
 		n1.op = OEQ;
@@ -447,6 +611,11 @@ swgen(Node *n)
 		n1.right = s->scase;
 		walktype(&n1, Erv);
 		bgen(&n1, 1, s->sprog);
+	}
+	if(sa != C) {
+		se->slink = C;
+		sa = csort(sa, casecmp);
+		swconst(sa, nc, &n1, &tmp);
 	}
 	if(dflt != P) {
 		patch(gbranch(AJMP, T), dflt);
