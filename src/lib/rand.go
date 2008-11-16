@@ -14,6 +14,7 @@ package	rand
 // urand32 - return random uint32
 // nrand, nrand31, nrand63 - return 0 <= random < n
 // frand, frand64, frand32 - return 0 <= random float, float64, float32 < 1
+// perm gives a random permutation map[int]int
 
 const
 (
@@ -160,6 +161,22 @@ export func
 frand() float
 {
 	return float(frand64())
+}
+
+export func
+perm(n int) *map[int]int
+{
+	m := new(map[int]int);
+	for i:=0; i<n; i++ {
+		m[i] = i;
+	}
+	for i:=0; i<n; i++ {
+		j := nrand(n);
+		t := m[i];
+		m[i] = m[j];
+		m[j] = t;
+	}
+	return m;
 }
 
 func
