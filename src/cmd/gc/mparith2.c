@@ -459,6 +459,17 @@ mpgetfix(Mpint *a)
 	return v;
 }
 
+double
+mpgetfixflt(Mpint *a)
+{
+	// answer might not fit in intermediate vlong, so format
+	// to string and then let the string routine convert.
+	char buf[1000];
+
+	snprint(buf, sizeof buf, "%B", a);
+	return strtod(buf, nil);
+}
+
 void
 mpmovecfix(Mpint *a, vlong c)
 {
