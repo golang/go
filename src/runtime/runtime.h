@@ -15,6 +15,7 @@ typedef	signed long long int	int64;
 typedef	unsigned long long int	uint64;
 typedef	float			float32;
 typedef	double			float64;
+typedef	uint64		uintptr;
 
 /*
  * get rid of C types
@@ -69,6 +70,10 @@ enum
 	true	= 1,
 	false	= 0,
 };
+enum
+{
+	SmallFreeClasses = 168,	// number of small free lists in malloc
+};
 
 /*
  * structures
@@ -103,7 +108,7 @@ struct	Array
 {				// must not move anything
 	byte*	array;		// actual data
 	uint32	nel;		// number of elements
-	uint32	cap;		// allocate3d number of elements
+	uint32	cap;		// allocated number of elements
 	byte	b[8];		// actual array - may not be contig
 };
 struct	Gobuf
@@ -152,6 +157,7 @@ struct	M
 	M*	schedlink;
 	Mem	mem;
 	uint32	machport;	// Return address for Mach IPC (OS X)
+	void*	freelist[SmallFreeClasses];
 };
 struct	Stktop
 {
