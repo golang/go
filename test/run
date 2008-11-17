@@ -44,12 +44,15 @@ do
 			cat $TMP1FILE
 			cat $TMP2FILE
 			echo >&2 fail: $i
-		elif test -s $TMP1FILE
+		elif test -s $TMP1FILE || test -s $TMP2FILE
 		then
 			echo
 			echo "===========" $i
 			cat $TMP1FILE
 			cat $TMP2FILE
+		elif [ $dir = "bugs" ]
+		then
+			echo $i succeeded with no output.
 		fi
 	done
 done | # clean up some stack noise
