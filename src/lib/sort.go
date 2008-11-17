@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package Sort
+package sort
 
 export type SortInterface interface {
 	len() int;
@@ -10,43 +10,112 @@ export type SortInterface interface {
 	swap(i, j int);
 }
 
-
-func Pivot(data SortInterface, a, b int) int {
-	// if we have at least 10 elements, find a better median
-	// by selecting the median of 3 elements and putting it
-	// at position a
-	if b - a >= 10 {
-		m0 := (a + b) / 2;
-		m1 := a;
-		m2 := b - 1;
-		// bubble sort on 3 elements
-		if data.less(m1, m0) { data.swap(m1, m0); }
-		if data.less(m2, m1) { data.swap(m2, m1); }
-		if data.less(m1, m0) { data.swap(m1, m0); }
-		// "m0 <= m1 <= m2"
+func min(a, b int) int {
+	if a < b {
+		return a;
 	}
-	
-	m := a;
-	for i := a + 1; i < b; i++ {
-		if data.less(i, a) {
-			m++;
-			data.swap(i, m);
+	return b;
+}
+
+// Insertion sort
+func InsertionSort(data SortInterface, a, b int) {
+	for i := a+1; i < b; i++ {
+		for j := i; j > a && data.less(j, j-1); j-- {
+			data.swap(j, j-1);
 		}
 	}
-	data.swap(a, m);
-	
-	return m;
 }
 
+// Quicksort, following Bentley and McIlroy,
+// ``Engineering a Sort Function,'' SP&E November 1993.
 
-func Quicksort(data SortInterface, a, b int) {
-	if a + 1 < b {
-		m := Pivot(data, a, b);
-		Quicksort(data, 0, m);
-		Quicksort(data, m + 1, b);
+// Move the median of the three values data[a], data[b], data[c] into data[a].
+func MedianOfThree(data SortInterface, a, b, c int) {
+	m0 := b;
+	m1 := a;
+	m2 := c;
+
+	// bubble sort on 3 elements
+	if data.less(m1, m0) { data.swap(m1, m0); }
+	if data.less(m2, m1) { data.swap(m2, m1); }
+	if data.less(m1, m0) { data.swap(m1, m0); }
+	// now data[m0] <= data[m1] <= data[m2]
+}
+
+func SwapRange(data SortInterface, a, b, n int) {
+	for i := 0; i < n; i++ {
+		data.swap(a+i, b+i);
 	}
 }
 
+func Pivot(data SortInterface, lo, hi int) (midlo, midhi int) {
+	m := (lo+hi)/2;
+	if hi - lo > 40 {
+		// Tukey's ``Ninther,'' median of three medians of three.
+		s := (hi - lo) / 8;
+		MedianOfThree(data, lo, lo+s, lo+2*s);
+		MedianOfThree(data, m, m-s, m+s);
+		MedianOfThree(data, hi-1, hi-1-s, hi-1-2*s);
+	}
+	MedianOfThree(data, lo, m, hi-1);
+
+	// Invariants are:
+	//	data[lo] = pivot (set up by ChoosePivot)
+	//	data[lo <= i < a] = pivot
+	//	data[a <= i < b] < pivot
+	//	data[b <= i < c] is unexamined
+	//	data[c <= i < d] > pivot
+	//	data[d <= i < hi] = pivot
+	//
+	// Once b meets c, can swap the "= pivot" sections
+	// into the middle of the array.
+	pivot := lo;
+	a, b, c, d := lo+1, lo+1, hi, hi;
+	for b < c {
+		if data.less(b, pivot) {	// data[b] < pivot
+			b++;
+			continue;
+		}
+		if !data.less(pivot, b) {	// data[b] = pivot
+			data.swap(a, b);
+			a++;
+			b++;
+			continue;
+		}
+		if data.less(pivot, c-1) {	// data[c-1] > pivot
+			c--;
+			continue;
+		}
+		if !data.less(c-1, pivot) {	// data[c-1] = pivot
+			data.swap(c-1, d-1);
+			c--;
+			d--;
+			continue;
+		}
+		// data[b] > pivot; data[c-1] < pivot
+		data.swap(b, c-1);
+		b++;
+		c--;
+	}
+
+	n := min(b-a, a-lo);
+	SwapRange(data, lo, b-n, n);
+
+	n = min(hi-d, d-c);
+	SwapRange(data, c, hi-n, n);
+
+	return lo+b-a, hi-(d-c);
+}
+
+func Quicksort(data SortInterface, a, b int) {
+	if b - a > 7 {
+		mlo, mhi := Pivot(data, a, b);
+		Quicksort(data, a, mlo);
+		Quicksort(data, mhi, b);
+	} else if b - a > 1 {
+		InsertionSort(data, a, b);
+	}
+}
 
 export func Sort(data SortInterface) {
 	Quicksort(data, 0, data.len());
