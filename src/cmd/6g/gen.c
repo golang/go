@@ -6,6 +6,7 @@
 #undef	EXTERN
 #define	EXTERN
 #include "gg.h"
+//#include "opt.h"
 
 enum
 {
@@ -91,6 +92,11 @@ if(throwreturn == N) {
 	gen(curfn->nbody, L);
 	gclean();
 	checklabels();
+
+//	if(debug['N']) {
+//		regopt(ptxt);
+//		debug['N'] = 0;
+//	}
 
 	if(curfn->type->outtuple != 0) {
 		gins(ACALL, N, throwreturn);
@@ -432,7 +438,7 @@ casecmp(Case *c1, Case *c2)
 
 	w = whatis(c1->scase);
 	if(w != whatis(c2->scase))
-		fatal("casecmp");
+		fatal("casecmp1");
 
 	switch(w) {
 	case Wlitfloat:
@@ -445,6 +451,8 @@ casecmp(Case *c1, Case *c2)
 //	case Wlitnil:
 	}
 
+	fatal("casecmp2");
+	return 0;
 }
 
 void
