@@ -63,7 +63,7 @@ enum
 	MAP_SHARED	= 0x0001,
 	MAP_PRIVATE	= 0x0002,
 	MAP_FIXED	= 0x0010,
-	MAP_ANON	= 0x1000,
+	MAP_ANON	= 0x1000,	// not on Linux - TODO(rsc)
 };
 
 void
