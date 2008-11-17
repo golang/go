@@ -230,12 +230,24 @@ func getString(v reflect.Value) (val string, ok bool) {
 	return "", false;
 }
 
-func getFloat(v reflect.Value) (val float64, ok bool) {
+func getFloat32(v reflect.Value) (val float32, ok bool) {
+	switch v.Kind() {
+	case reflect.Float32Kind:
+		return float32(v.(reflect.Float32Value).Get()), true;
+	case reflect.FloatKind:
+		if v.Type().Size()*8 == 32 {
+			return float32(v.(reflect.FloatValue).Get()), true;
+		}
+	}
+	return 0.0, false;
+}
+
+func getFloat64(v reflect.Value) (val float64, ok bool) {
 	switch v.Kind() {
 	case reflect.FloatKind:
-		return float64(v.(reflect.FloatValue).Get()), true;
-	case reflect.Float32Kind:
-		return float64(v.(reflect.Float32Value).Get()), true;
+		if v.Type().Size()*8 == 64 {
+			return float64(v.(reflect.FloatValue).Get()), true;
+		}
 	case reflect.Float64Kind:
 		return float64(v.(reflect.Float64Value).Get()), true;
 	case reflect.Float80Kind:
@@ -299,9 +311,20 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 	case reflect.UintKind, reflect.Uint8Kind, reflect.Uint16Kind, reflect.Uint32Kind, reflect.Uint64Kind:
 		v, signed, ok := getInt(field);
 		s = p.fmt.ud64(uint64(v)).str();
-	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind, reflect.Float80Kind:
-		v, ok := getFloat(field);
+	case reflect.Float32Kind:
+		v, ok := getFloat32(field);
+		s = p.fmt.g32(v).str();
+	case reflect.Float64Kind, reflect.Float80Kind:
+		v, ok := getFloat64(field);
 		s = p.fmt.g64(v).str();
+	case reflect.FloatKind:
+		if field.Type().Size()*8 == 32 {
+			v, ok := getFloat32(field);
+			s = p.fmt.g32(v).str();
+		} else {
+			v, ok := getFloat64(field);
+			s = p.fmt.g64(v).str();
+		}
 	case reflect.StringKind:
 		v, ok := getString(field);
 		s = p.fmt.s(v).str();
@@ -400,6 +423,10 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			case 'b':
 				if v, signed, ok := getInt(field); ok {
 					s = p.fmt.b64(uint64(v)).str()	// always unsigned
+				} else if v, ok := getFloat32(field); ok {
+					s = p.fmt.fb32(v).str()
+				} else if v, ok := getFloat64(field); ok {
+					s = p.fmt.fb64(v).str()
 				} else {
 					goto badtype
 				}
@@ -442,19 +469,25 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 
 			// float
 			case 'e':
-				if v, ok := getFloat(field); ok {
+				if v, ok := getFloat32(field); ok {
+					s = p.fmt.e32(v).str()
+				} else if v, ok := getFloat64(field); ok {
 					s = p.fmt.e64(v).str()
 				} else {
 					goto badtype
 				}
 			case 'f':
-				if v, ok := getFloat(field); ok {
+				if v, ok := getFloat32(field); ok {
+					s = p.fmt.f32(v).str()
+				} else if v, ok := getFloat64(field); ok {
 					s = p.fmt.f64(v).str()
 				} else {
 					goto badtype
 				}
 			case 'g':
-				if v, ok := getFloat(field); ok {
+				if v, ok := getFloat32(field); ok {
+					s = p.fmt.g32(v).str()
+				} else if v, ok := getFloat64(field); ok {
 					s = p.fmt.g64(v).str()
 				} else {
 					goto badtype

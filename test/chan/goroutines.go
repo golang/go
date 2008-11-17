@@ -10,7 +10,7 @@
 package main
 
 import (
-	"strings";
+	"strconv";
 )
 
 func f(left, right *chan int) {
@@ -21,7 +21,7 @@ func main() {
 	var n = 10000;
 	if sys.argc() > 1 {
 		var ok bool;
-		n, ok = strings.atoi(sys.argv(1));
+		n, ok = strconv.atoi(sys.argv(1));
 		if !ok {
 			print("bad arg\n");
 			sys.exit(1);

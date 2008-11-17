@@ -31,10 +31,11 @@ rm -f *.6
 
 buildfiles	strings.go
 
-builddirs	syscall \
-		math \
-		os	\
-		reflect \
+builddirs	syscall\
+		math\
+		os\
+		strconv\
+		reflect\
 	
 buildfiles	io.go
 

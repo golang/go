@@ -9,7 +9,7 @@ package reflect
 
 import (
 	"reflect";
-	"strings";
+	"strconv";
 )
 
 export func TypeToString(typ Type, expand bool) string
@@ -81,7 +81,7 @@ func TypeToString(typ Type, expand bool) string {
 		if a.Open() {
 			str = "[]"
 		} else {
-			str = "[" + strings.ltoa(int64(a.Len())) +  "]"
+			str = "[" + strconv.itoa64(int64(a.Len())) +  "]"
 		}
 		return str + TypeToString(a.Elem(), false);
 	case MapKind:
@@ -120,11 +120,7 @@ func TypeToString(typ Type, expand bool) string {
 
 // TODO: want an unsigned one too
 func integer(v int64) string {
-	return strings.ltoa(v);
-}
-
-func floatingpoint(v float64) string {
-	return strings.f64toa(v);
+	return strconv.itoa64(v);
 }
 
 func ValueToString(val Value) string {
@@ -154,11 +150,15 @@ func ValueToString(val Value) string {
 	case Uint64Kind:
 		return integer(int64(val.(Uint64Value).Get()));
 	case FloatKind:
-		return floatingpoint(float64(val.(FloatValue).Get()));
+		if strconv.floatsize == 32 {
+			return strconv.ftoa32(float32(val.(FloatValue).Get()), 'g', -1);
+		} else {
+			return strconv.ftoa64(float64(val.(FloatValue).Get()), 'g', -1);
+		}
 	case Float32Kind:
-		return floatingpoint(float64(val.(Float32Value).Get()));
+		return strconv.ftoa32(val.(Float32Value).Get(), 'g', -1);
 	case Float64Kind:
-		return floatingpoint(float64(val.(Float64Value).Get()));
+		return strconv.ftoa64(val.(Float64Value).Get(), 'g', -1);
 	case Float80Kind:
 		return "float80";
 	case StringKind:

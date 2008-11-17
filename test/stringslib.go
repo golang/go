@@ -6,7 +6,10 @@
 
 package main
 
-import strings "strings"
+import (
+	"strconv";
+	"strings";
+)
 
 func split(s, sep string) *[]string {
 	a := strings.split(s, sep);
@@ -31,8 +34,8 @@ func explode(s string) *[]string {
 }
 
 func itoa(i int) string {
-	s := strings.itoa(i);
-	n, ok := strings.atoi(s);
+	s := strconv.itoa(i);
+	n, ok := strconv.atoi(s);
 	if n != i {
 		print("itoa: ", i, " ", s, "\n");
 		panic("itoa")
@@ -91,17 +94,17 @@ func main() {
 	}
 	
 	{
-		n, ok := strings.atoi("0"); if n != 0 || !ok { panic("atoi 0") }
-		n, ok = strings.atoi("-1"); if n != -1 || !ok { panic("atoi -1") }
-		n, ok = strings.atoi("+345"); if n != 345 || !ok { panic("atoi +345") }
-		n, ok = strings.atoi("9999"); if n != 9999 || !ok { panic("atoi 9999") }
-		n, ok = strings.atoi("20ba"); if n != 0 || ok { panic("atoi 20ba") }
-		n, ok = strings.atoi("hello"); if n != 0 || ok { panic("hello") }
+		n, ok := strconv.atoi("0"); if n != 0 || !ok { panic("atoi 0") }
+		n, ok = strconv.atoi("-1"); if n != -1 || !ok { panic("atoi -1") }
+		n, ok = strconv.atoi("+345"); if n != 345 || !ok { panic("atoi +345") }
+		n, ok = strconv.atoi("9999"); if n != 9999 || !ok { panic("atoi 9999") }
+		n, ok = strconv.atoi("20ba"); if n != 0 || ok { panic("atoi 20ba") }
+		n, ok = strconv.atoi("hello"); if n != 0 || ok { panic("hello") }
 	}
 
-	if strings.ftoa(1e6) != "+1.000000e+06" { panic("ftoa 1e6") }
-	if strings.ftoa(-1e-6) != "-1.000000e-06" { panic("ftoa -1e-6") }
-	if strings.ftoa(-1.234567e-6) != "-1.234567e-06" { panic("ftoa -1.234567e-6") }
+	if strconv.ftoa(1e6, 'e', 6) != "1.000000e+06" { panic("ftoa 1e6") }
+	if strconv.ftoa(-1e-6, 'e', 6) != "-1.000000e-06" { panic("ftoa -1e-6") }
+	if strconv.ftoa(-1.234567e-6, 'e', 6) != "-1.234567e-06" { panic("ftoa -1.234567e-6") }
 	
 	if itoa(0) != "0" { panic("itoa 0") }
 	if itoa(12345) != "12345" { panic("itoa 12345") }
@@ -111,7 +114,7 @@ func main() {
 	// if itoa(-1<<63) != "-9223372036854775808" { panic("itoa 1<<63") }
 
 	{
-		a, ok := strings.atof64("-1.2345e4");
+		a, overflow, ok := strconv.atof64("-1.2345e4");
 		if !ok || a != -12345. { panic(a, "atof64 -1.2345e4") }
 	}
 }

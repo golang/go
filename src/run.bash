@@ -11,6 +11,12 @@ xcd() {
 	builtin cd $1
 }
 
+(xcd lib/strconv
+make clean
+time make
+bash test.bash
+) || exit $?
+
 (xcd lib/reflect
 make clean
 time make

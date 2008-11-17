@@ -72,9 +72,9 @@ func valuedump(s, t string) {
 	case reflect.FloatKind:
 		v.(reflect.FloatValue).Set(3200.0);
 	case reflect.Float32Kind:
-		v.(reflect.Float32Value).Set(32.0);
+		v.(reflect.Float32Value).Set(32.1);
 	case reflect.Float64Kind:
-		v.(reflect.Float64Value).Set(64.0);
+		v.(reflect.Float64Value).Set(64.2);
 	case reflect.StringKind:
 		v.(reflect.StringValue).Set("stringy cheese");
 	case reflect.BoolKind:
@@ -136,8 +136,8 @@ func main() {
 	valuedump("uint16", "16");
 	valuedump("uint32", "32");
 	valuedump("uint64", "64");
-	valuedump("float32", "+3.200000e+01");
-	valuedump("float64", "+6.400000e+01");
+	valuedump("float32", "32.1");
+	valuedump("float64", "64.2");
 	valuedump("string", "stringy cheese");
 	valuedump("bool", "true");
 	valuedump("*int8", "*int8(0)");
@@ -146,7 +146,7 @@ func main() {
 	valuedump("**P.integer", "**P.integer(0)");
 	valuedump("*map[string]int32", "*map[string]int32(0)");
 	valuedump("*chan<-string", "*chan<-string(0)");
-	valuedump("struct {c *chan *int32; d float32}", "struct{c *chan*int32; d float32}{*chan*int32(0), +0.000000e+00}");
+	valuedump("struct {c *chan *int32; d float32}", "struct{c *chan*int32; d float32}{*chan*int32(0), 0}");
 	valuedump("*(a int8, b int32)", "*(a int8, b int32)(0)");
 	valuedump("struct {c *(? *chan *P.integer, ? *int8)}", "struct{c *(? *chan*P.integer, ? *int8)}{*(? *chan*P.integer, ? *int8)(0)}");
 	valuedump("struct {a int8; b int32}", "struct{a int8; b int32}{0, 0}");
@@ -158,7 +158,7 @@ func main() {
 	}
 	{	var tmp = 123.4;
 		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value), "+1.234000e+02");
+		assert(reflect.ValueToString(value), "123.4");
 	}
 	{	var tmp = "abc";
 		value := reflect.NewValue(tmp);
@@ -166,9 +166,9 @@ func main() {
 	}
 	{
 		var i int = 7;
-		var tmp = &T{123, 456.0, "hello", &i};
+		var tmp = &T{123, 456.75, "hello", &i};
 		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.T{123, +4.560000e+02, hello, *int(@)}");
+		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.T{123, 456.75, hello, *int(@)}");
 	}
 	{
 		type C chan *T;	// TODO: should not be necessary
