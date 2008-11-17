@@ -19,8 +19,21 @@ var tests = []Test {
 	Test{ 456.7, "456.7", "456.7" },
 	Test{ 1e23+8.5e6, "1e23+8.5e6", "1.0000000000000001e+23" },
 	Test{ 100000000000000008388608, "100000000000000008388608", "1.0000000000000001e+23" },
+	Test{ 1e23+8388609, "1e23+8388609", "1.0000000000000001e+23" },
+
+	// "x" = the floating point value from converting the string x.
+	// These are exactly representable in 64-bit floating point:
+	//	1e23-8388608
+	//	1e23+8388608
+	// The former has an even mantissa, so "1e23" rounds to 1e23-8388608.
+	// If "1e23+8388608" is implemented as "1e23" + "8388608",
+	// that ends up computing 1e23-8388608 + 8388608 = 1e23,
+	// which rounds back to 1e23-8388608.
+	// The correct answer, of course, would be "1e23+8388608" = 1e23+8388608.
+	// This is not going to be correct until 6g has multiprecision floating point.
+	// A simpler case is "1e23+1", which should also round to 1e23+8388608.
 	Test{ 1e23+8.388608e6, "1e23+8.388608e6", "1.0000000000000001e+23" },
-	Test{ 1e23+8.388609e6, "1e23+8.388609e6", "1.0000000000000001e+23" },
+	Test{ 1e23+1, "1e23+1", "1.0000000000000001e+23" },
 }
 
 func main() {
@@ -30,6 +43,12 @@ func main() {
 		v := strconv.ftoa64(t.f, 'g', -1);
 		if v != t.out {
 			println("Bad float64 const:", t.in, "want", t.out, "got", v);
+			x, overflow, ok := strconv.atof64(t.out);
+			if !ok {
+				panicln("bug120: strconv.atof64", t.out);
+			}
+			println("\twant exact:", strconv.ftoa64(x, 'g', 1000));
+			println("\tgot exact: ", strconv.ftoa64(t.f, 'g', 1000));
 			ok = false;
 		}
 	}

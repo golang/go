@@ -76,7 +76,7 @@ func ints() {
 func floats() {
 	assert(f0 == c0, "f0");
 	assert(f1 == c1, "f1");
-	assert(fhuge > fhuge_1, "fhuge");
+	assert(fhuge == fhuge_1, "fhuge");	// float64 can't distinguish fhuge, fhuge_1.
 	assert(fhuge_1 + 1 == fhuge, "fhuge 1");
 	assert(fhuge + fm1 +1  == fhuge, "fm1");
 	assert(f3div2 == 1.5, "3./2.");

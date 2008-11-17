@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include <u.h>
+#include <errno.h>
 #include "go.h"
 
 /// uses arithmetic
@@ -149,7 +151,7 @@ mpcomfix(Mpint *a)
 void
 mpmovefixflt(Mpflt *a, Mpint *b)
 {
-	mpmovecflt(a, mpgetfix(b));
+	mpmovecflt(a, mpgetfixflt(b));
 }
 
 void
@@ -200,6 +202,15 @@ mpatoflt(Mpflt *a, char *as)
 {
 	int dp, c, f, ef, ex, zer;
 	char *s;
+	double f64;
+
+	/* until Mpflt is really mp, use strtod to get rounding right */
+	errno = 0;
+	f64 = strtod(as, &s);
+	mpmovecflt(a, f64);
+	if(errno != 0)
+		a->ovf = 1;
+	return;
 
 	s = as;
 	dp = 0;		/* digits after decimal point */
@@ -279,14 +290,14 @@ mpatoflt(Mpflt *a, char *as)
 	return;
 
 bad:
-	warn("set ovf in mpatof");
+	warn("set ovf in mpatof: %s", as);
 	mpmovecflt(a, 0.0);
 }
 
 //
 // fixed point input
 // required syntax is [+-][0[x]]d*
-// 
+//
 void
 mpatofix(Mpint *a, char *as)
 {

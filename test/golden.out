@@ -11,11 +11,10 @@ errchk: ./convlit.go: unmatched error messages:
 ==================================================
 ./convlit.go:8: cannot convert non-integer constant to int
 ./convlit.go:11: overflow converting constant to int
-./convlit.go:12: overflow converting constant to float
+./convlit.go:12: overflow in float constant
 ./convlit.go:8: cannot convert non-integer constant to int
 ./convlit.go:9: cannot convert non-integer constant to int
 ./convlit.go:11: overflow converting constant to int
-./convlit.go:12: overflow converting constant to float
 ==================================================
 
 =========== ./helloworld.go
@@ -36,6 +35,9 @@ SIGSEGV: segmentation violation
 Faulting address: 0x0
 pc: xxx
 
+
+=========== ./method2.go
+BUG: errchk: command succeeded unexpectedly:  6g ./method2.go
 
 =========== ./peano.go
 0! = 1
@@ -88,6 +90,9 @@ BUG should compile
 =========== bugs/bug041.go
 BUG: compilation succeeds incorrectly
 
+=========== bugs/bug046.go
+BUG: errchk: command succeeded unexpectedly:  6g bugs/bug046.go
+
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
 	int
@@ -114,6 +119,9 @@ bugs/bug098.go:10: illegal types for operand: AS
 	*M
 	**M
 BUG should compile
+
+=========== bugs/bug104.go
+BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
 
 =========== bugs/bug105.go
 bugs/bug105.go:8: P: undefined
@@ -142,13 +150,12 @@ panic on line 85 PC=xxx
 BUG: should not fail
 
 =========== bugs/bug120.go
-Bad float64 const: 456.7 want 456.7 got 456.70000000000005
-Bad float64 const: 100000000000000008388608 want 1.0000000000000001e+23 got 2.0037642052907827e+17
 Bad float64 const: 1e23+8.388608e6 want 1.0000000000000001e+23 got 1e+23
-bug120
-
-panic on line 139 PC=xxx
-BUG: bug120
+	want exact: 100000000000000008388608
+	got exact:  99999999999999991611392
+Bad float64 const: 1e23+1 want 1.0000000000000001e+23 got 1e+23
+	want exact: 100000000000000008388608
+	got exact:  99999999999999991611392
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint

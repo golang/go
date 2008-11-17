@@ -558,6 +558,7 @@ void	mprshfixfix(Mpint *a, Mpint *b);
 void	mpxorfixfix(Mpint *a, Mpint *b);
 void	mpcomfix(Mpint *a);
 vlong	mpgetfix(Mpint *a);
+double	mpgetfixflt(Mpint *a);
 
 /*
  *	mparith3.c

@@ -25,7 +25,7 @@ var bad5 = "a" + 'a';	// ERROR "literals|incompatible"
 
 var bad6 int = 1.5;	// ERROR "convert"
 var bad7 int = 1e100;	// ERROR "overflow"
-var bad8 float = 1e1000;	// ERROR "overflow"
+var bad8 float32 = 1e200;	// ERROR "overflow"
 
 // but these implicit conversions are okay
 var good1 string = "a";
