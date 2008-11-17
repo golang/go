@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(November 7, 2008)
+(November 13, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -85,6 +85,8 @@ Open issues:
 	with nil
 [ ] consider syntactic notation for composite literals to make them parseable w/o type information
 	(require ()'s in control clauses)
+[ ] global var decls: "var a, b, c int = 0, 0, 0" is ok, but "var a, b, c = 0, 0, 0" is not
+	(seems inconsistent with "var a = 0", and ":=" notation)
 
 
 Decisions in need of integration into the doc:
@@ -542,7 +544,7 @@ a package, constant, type, struct field, variable, parameter, result,
 function, method) and specifies properties of that entity such as its type.
 
 	Declaration =
-		[ "export" ]
+		[ "export" | "package" ]
 		( ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl ) .
 		
 Except for function, method and abbreviated variable declarations (using ":="),
@@ -822,7 +824,7 @@ source than the export directive itself, but it is an error to specify
 an identifier not declared anywhere in the source file containing the
 export directive.
 
-	ExportDecl = "export" ExportIdentifier { "," ExportIdentifier } .
+	ExportDecl = [ "package" ] "export" ExportIdentifier { "," ExportIdentifier } .
 	ExportIdentifier = QualifiedIdent .
 
 	export sin, cos
