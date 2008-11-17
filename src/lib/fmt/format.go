@@ -4,6 +4,8 @@
 
 package fmt
 
+import "strconv"
+
 /*
 	Raw formatter. See print.go for a more palatable interface.
 
@@ -181,7 +183,7 @@ func (f *Fmt) d64(a int64) *Fmt {
 	f.clearflags();
 	return f;
 }
-	
+
 func (f *Fmt) d32(a int32) *Fmt {
 	return f.d64(int64(a));
 }
@@ -332,227 +334,82 @@ func (f *Fmt) s(s string) *Fmt {
 	return f;
 }
 
-func pow10(n int) float64 {
-	var d float64;
+// floating-point
 
-	neg := false;
-	if n < 0 {
-		if n < -307 {  // DBL_MIN_10_EXP
-			return 0.;
-		}
-		neg = true;
-		n = -n;
-	}else if n > 308 { // DBL_MAX_10_EXP
-		return 1.79769e+308; // HUGE_VAL
+func Prec(f *Fmt, def int) int {
+	if f.prec_present {
+		return f.prec;
 	}
-
-	if n < NPows10 {
-		d = pows10[n];
-	} else {
-		d = pows10[NPows10-1];
-		for {
-			n -= NPows10 - 1;
-			if n < NPows10 {
-				d *= pows10[n];
-				break;
-			}
-			d *= pows10[NPows10 - 1];
-		}
-	}
-	if neg {
-		return 1/d;
-	}
-	return d;
+	return def;
 }
 
-func unpack(a float64) (negative bool, exp int, num float64) {
-	if a == 0 {
-		return false, 0, 0.0
-	}
-	neg := a < 0;
-	if neg {
-		a = -a;
-	}
-	// find g,e such that a = g*10^e.
-	// guess 10-exponent using 2-exponent, then fine tune.
-	g, e2 := sys.frexp(a);
-	e := int(float64(e2) * .301029995663981);
-	g = a * pow10(-e);
-	for g < 1 {
-		e--;
-		g = a * pow10(-e);
-	}
-	for g >= 10 {
-		e++;
-		g = a * pow10(-e);
-	}
-	return neg, e, g;
-}
-
-// check for Inf, NaN
-func(f *Fmt) InfOrNan(a float64) bool {
-	if sys.isInf(a, 0) {
-		if sys.isInf(a, 1) {
-			f.pad("Inf");
-		} else {
-			f.pad("-Inf");
-		}
-		f.clearflags();
-		return true;
-	}
-	if sys.isNaN(a) {
-		f.pad("NaN");
-		f.clearflags();
-		return true;
-	}
-	return false;
+func FmtString(f *Fmt, s string) *Fmt {
+	f.pad(s);
+	f.clearflags();
+	return f;
 }
 
 // float64
 func (f *Fmt) e64(a float64) *Fmt {
-	var negative bool;
-	var g float64;
-	var exp int;
-	if f.InfOrNan(a) {
-		return f;
-	}
-	negative, exp, g = unpack(a);
-	prec := 6;
-	if f.prec_present {
-		prec = f.prec;
-	}
-	prec++;  // one digit left of decimal
-	var s string;
-	// multiply by 10^prec to get decimal places; put decimal after first digit
-	if g == 0 {
-		// doesn't work for zero - fake it
-		s = "000000000000000000000000000000000000000000000000000000000000";
-		if prec < len(s) {
-			s = s[0:prec];
-		} else {
-			prec = len(s);
-		}
-	} else {
-		g *= pow10(prec);
-		s = f.integer(int64(g + .5), 10, true, &ldigits);  // get the digits into a string
-	}
-	s = s[0:1] + "." + s[1:prec];  // insert a decimal point
-	// print exponent with leading 0 if appropriate.
-	es := New().p(2).integer(int64(exp), 10, true, &ldigits);
-	if exp >= 0 {
-		es = "+" + es;  // TODO: should do this with a fmt flag
-	}
-	s = s + "e" + es;
-	if negative {
-		s = "-" + s;
-	}
-	f.pad(s);
-	f.clearflags();
-	return f;
+	return FmtString(f, strconv.ftoa64(a, 'e', Prec(f, 6)));
 }
 
-// float64
 func (f *Fmt) f64(a float64) *Fmt {
-	var negative bool;
-	var g float64;
-	var exp int;
-	if f.InfOrNan(a) {
-		return f;
-	}
-	negative, exp, g = unpack(a);
-	if exp > 19 || exp < -19 {  // too big for this sloppy code
-		return f.e64(a);
-	}
-	prec := 6;
-	if f.prec_present {
-		prec = f.prec;
-	}
-	// prec is number of digits after decimal point
-	s := "NO";
-	if exp >= 0 {
-		g *= pow10(exp);
-		gi := int64(g);
-		s = New().integer(gi, 10, true, &ldigits);
-		s = s + ".";
-		g -= float64(gi);
-		s = s + New().p(prec).integer(int64(g*pow10(prec) + .5), 10, true, &ldigits);
-	} else {
-		g *= pow10(prec + exp);
-		s = "0." + New().p(prec).integer(int64(g + .5), 10, true, &ldigits);
-	}
-	if negative {
-		s = "-" + s;
-	}
-	f.pad(s);
-	f.clearflags();
-	return f;
+	return FmtString(f, strconv.ftoa64(a, 'f', Prec(f, 6)));
 }
 
-// float64
 func (f *Fmt) g64(a float64) *Fmt {
-	if f.InfOrNan(a) {
-		return f;
-	}
-	f1 := New();
-	f2 := New();
-	if f.wid_present {
-		f1.w(f.wid);
-		f2.w(f.wid);
-	}
-	if f.prec_present {
-		f1.p(f.prec);
-		f2.p(f.prec);
-	}
-	efmt := f1.e64(a).str();
-	ffmt := f2.f64(a).str();
-	// ffmt can return e in my bogus world; don't trim trailing 0s if so.
-	f_is_e := false;
-	for i := 0; i < len(ffmt); i++ {
-		if ffmt[i] == 'e' {
-			f_is_e = true;
-			break;
-		}
-	}
-	if !f_is_e {
-		// strip trailing zeros
-		l := len(ffmt);
-		for ffmt[l-1]=='0' {
-			l--;
-		}
-		ffmt = ffmt[0:l];
-	}
-	if len(efmt) < len(ffmt) {
-		f.pad(efmt);
-	} else {
-		f.pad(ffmt);
-	}
-	f.clearflags();
-	return f;
+	return FmtString(f, strconv.ftoa64(a, 'g', Prec(f, -1)));
+}
+
+func (f *Fmt) fb64(a float64) *Fmt {
+	return FmtString(f, strconv.ftoa64(a, 'b', 0));
+}
+
+// float32
+// cannot defer to float64 versions
+// because it will get rounding wrong in corner cases.
+func (f *Fmt) e32(a float32) *Fmt {
+	return FmtString(f, strconv.ftoa32(a, 'e', Prec(f, -1)));
+}
+
+func (f *Fmt) f32(a float32) *Fmt {
+	return FmtString(f, strconv.ftoa32(a, 'f', Prec(f, 6)));
+}
+
+func (f *Fmt) g32(a float32) *Fmt {
+	return FmtString(f, strconv.ftoa32(a, 'g', Prec(f, -1)));
+}
+
+func (f *Fmt) fb32(a float32) *Fmt {
+	return FmtString(f, strconv.ftoa32(a, 'b', 0));
 }
 
 // float
-func (x *Fmt) f32(a float32) *Fmt {
-	return x.f64(float64(a))
-}
-
 func (x *Fmt) f(a float) *Fmt {
+	if strconv.floatsize == 32 {
+		return x.f32(float32(a))
+	}
 	return x.f64(float64(a))
-}
-
-// float
-func (x *Fmt) e32(a float32) *Fmt {
-	return x.e64(float64(a))
 }
 
 func (x *Fmt) e(a float) *Fmt {
+	if strconv.floatsize == 32 {
+		return x.e32(float32(a))
+	}
 	return x.e64(float64(a))
 }
 
-// float
-func (x *Fmt) g32(a float32) *Fmt {
+func (x *Fmt) g(a float) *Fmt {
+	if strconv.floatsize == 32 {
+		return x.g32(float32(a))
+	}
 	return x.g64(float64(a))
 }
 
-func (x *Fmt) g(a float) *Fmt {
-	return x.g64(float64(a))
+func (x *Fmt) fb(a float) *Fmt {
+	if strconv.floatsize == 32 {
+		return x.fb32(float32(a))
+	}
+	return x.fb64(float64(a))
 }

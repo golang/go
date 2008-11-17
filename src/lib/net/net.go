@@ -7,8 +7,8 @@ package net
 import (
 	"os";
 	"net";
-	"strings";
-	"syscall"
+	"strconv";
+	"syscall";
 )
 
 export var (
@@ -113,7 +113,7 @@ func SockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
 			return "", e
 		}
 		host := IPToString(addr);
-		return JoinHostPort(host, strings.itoa(port)), nil;
+		return JoinHostPort(host, strconv.itoa(port)), nil;
 	default:
 		return "", UnknownSocketFamily
 	}
