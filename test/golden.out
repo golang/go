@@ -109,12 +109,6 @@ bugs/bug087.go:8: illegal combination of literals LEN 9
 bugs/bug087.go:8: illegal combination of literals LEN 9
 BUG: fails incorrectly
 
-=========== bugs/bug095.go
-found 2, expected 1
-
-panic on line 80 PC=xxx
-BUG wrong result
-
 =========== bugs/bug098.go
 bugs/bug098.go:10: illegal types for operand: AS
 	*M
