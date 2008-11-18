@@ -22,7 +22,14 @@ $(TARG): $(OFILES)
 clean:
 	rm -f $(OFILES) $(TARG)
 
-install: $(TARG)
+install: install-$(GOOS)
+install-linux: install-default
+
+# on Darwin, have to install and setgid; see $GOROOT/src/sudo.bash
+install-darwin: $(TARG)
+	@true
+
+install-default: $(TARG)
 	cp $(TARG) $(BIN)/$(TARG)
 
 $(OFILES): $(HFILES)

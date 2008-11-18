@@ -28,3 +28,9 @@ do
 	cd ..
 done
 
+case "`uname`" in
+Darwin)
+	echo;
+	echo %%% run sudo.bash to install debuggers
+	echo
+esac
