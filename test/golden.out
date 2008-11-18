@@ -125,7 +125,7 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
 
 =========== bugs/bug105.go
 bugs/bug105.go:8: P: undefined
-bugs/bug105.go:8: illegal types for operand: RETURN
+bugs/bug105.go:9: illegal types for operand: RETURN
 	int
 BUG: should compile
 
@@ -139,7 +139,7 @@ BUG: bug115 should compile
 
 =========== bugs/bug117.go
 bugs/bug117.go:9: undefined DOT get on PS
-bugs/bug117.go:9: illegal types for operand: RETURN
+bugs/bug117.go:10: illegal types for operand: RETURN
 	int
 BUG: should compile
 
@@ -168,6 +168,9 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug123.go
 
 =========== bugs/bug124.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug124.go
+
+=========== bugs/bug125.go
+BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
