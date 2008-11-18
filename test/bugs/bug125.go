@@ -8,7 +8,7 @@ package main
 
 import (
 	OS "os"  // should require semicolon here; this is no different from other decls
-	IO "io"
+	IO "io"  // ERROR "missing"
 )
 
 func main() {
