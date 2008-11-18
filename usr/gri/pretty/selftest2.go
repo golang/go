@@ -22,14 +22,14 @@ var (
 
 
 func main() {
-// the prolog
+// the prologue
 	for i := 0; i <= 10 /* limit */; i++ {
 		println(i);  // the index
 		println(i + 1);  // the index + 1
 		println(i + 1000);  // the index + 1000
 		println();
 	}
-// the epilog
+// the epilogue
 	println("foo");  // foo
 	println("foobar");  // foobar
 var x int;

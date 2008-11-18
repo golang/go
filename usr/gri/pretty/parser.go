@@ -469,8 +469,14 @@ func (P *Parser) ParseFunctionType() *AST.Type {
 func (P *Parser) ParseMethodSpec(list *AST.List) {
 	P.Trace("MethodDecl");
 	
-	list.Add(P.ParseIdent());
-	list.Add(AST.NewTypeExpr(P.ParseFunctionType()));
+	list.Add(P.ParseIdentList());
+	t := AST.BadType;
+	if P.sixg {
+		t = P.ParseType();
+	} else {
+		t = P.ParseFunctionType();
+	}
+	list.Add(AST.NewTypeExpr(t));
 	
 	P.Ecart();
 }
@@ -1485,7 +1491,8 @@ func (P *Parser) ParseDeclaration() *AST.Decl {
 	
 	d := AST.BadDecl;
 	exported := false;
-	if P.tok == Scanner.EXPORT {
+	// TODO don't use bool flag for export
+	if P.tok == Scanner.EXPORT || P.tok == Scanner.PACKAGE {
 		if P.scope_lev == 0 {
 			exported = true;
 		} else {
