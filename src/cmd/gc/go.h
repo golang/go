@@ -419,6 +419,7 @@ EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds
 EXTERN	Io	curio;
 EXTERN	Io	pushedio;
 EXTERN	int32	lineno;
+EXTERN	int32	prevlineno;
 EXTERN	char*	pathname;
 EXTERN	Hist*	hist;
 EXTERN	Hist*	ehist;

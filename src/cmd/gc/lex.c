@@ -300,6 +300,8 @@ yylex(void)
 	int escflag;
 	Sym *s;
 
+	prevlineno = lineno;
+
 l0:
 	c = getc();
 	if(isspace(c))

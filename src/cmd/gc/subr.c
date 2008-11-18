@@ -269,6 +269,7 @@ dcl(void)
 	return d;
 }
 
+extern int yychar;
 Node*
 nod(int op, Node *nleft, Node *nright)
 {
@@ -278,7 +279,10 @@ nod(int op, Node *nleft, Node *nright)
 	n->op = op;
 	n->left = nleft;
 	n->right = nright;
-	n->lineno = lineno;
+	if(yychar <= 0)	// no lookahead
+		n->lineno = lineno;
+	else
+		n->lineno = prevlineno;
 	return n;
 }
 
