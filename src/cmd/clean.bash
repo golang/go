@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-for i in 6l 6a 6c 6g gc cc ar db nm blyacc acid cov prof
+for i in cc 6l 6a 6c gc 6g ar db nm blyacc acid cov gobuild prof
 do
 	cd $i
 	make clean
