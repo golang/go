@@ -6,13 +6,13 @@
 # Using all the test*.go files in the current directory, write out a file
 # _testmain.go that runs all its tests. Compile everything and run the
 # tests.
+# If files are named on the command line, use them instead of test*.go.
 
 set -e
 
-gofiles=$(echo test*.go)
+gofiles=${*:-$(echo test*.go)}
 ofiles=$(echo $gofiles | sed 's/\.go/.6/g')
 files=$(echo $gofiles | sed 's/\.go//g')
-echo $ofiles
 
 for i in $gofiles
 do
