@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(November 13, 2008)
+(November 17, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -87,6 +87,7 @@ Open issues:
 	(require ()'s in control clauses)
 [ ] global var decls: "var a, b, c int = 0, 0, 0" is ok, but "var a, b, c = 0, 0, 0" is not
 	(seems inconsistent with "var a = 0", and ":=" notation)
+[ ] const decls: "const a, b = 1, 2" is not allowed - why not? Should be symmetric to vars.
 
 
 Decisions in need of integration into the doc:
@@ -142,6 +143,8 @@ Contents
 		Reserved words
 
 	Declarations and scope rules
+		Predeclared identifiers
+		Exported declarations
 		Const declarations
 		Type declarations
 		Variable declarations
@@ -556,7 +559,7 @@ form P surrounded by parentheses:
 	List<P> = P { ";" P } [ ";" ] .
 
 Every identifier in a program must be declared; some identifiers, such as "int"
-and "true", are predeclared.
+and "true", are predeclared (§Predeclared identifiers).
 
 The ``scope'' of an identifier is the extent of source text within which the
 identifier denotes the bound entity. No identifier may be declared twice in a
@@ -595,50 +598,60 @@ same identifier declared in an outer block.
 An entity is said to be ``local'' to its scope. Declarations in the package
 scope are ``global'' declarations.
 
-Global declarations optionally may be marked for export with the reserved word
-"export". Local declarations can never be exported.
-Identifiers declared in exported declarations (and no other identifiers)
-are made visible to clients of this package, that is, other packages that import
-this package.
 
-If the declaration defines a type, the type structure is exported as well. In
-particular, if the declaration defines a new "struct" or "interface" type,
-all structure fields and all structure and interface methods are exported also.
+Predeclared identifiers
+----
+
+The following identifiers are predeclared:
+
+All basic types:
+
+	bool, byte, uint8, uint16, uint32, uint64, int8, int16, int32, int64,
+	float32, float64, float80, string
+	
+A set of platform-specific convenience types:
+
+	uint, int, float, uintptr
+	
+The predeclared constants:
+
+	true, false, iota, nil
+	
+The predeclared functions (note: this list is likely to change):
+
+	cap(), convert(), len(), new(), panic(), panicln(), print(), println(), typeof(), ...
+
+
+Exported declarations
+----
+
+Global declarations optionally may be marked for ``export'', thus making the
+declared identifier accessible outside the current source file. Another source
+file may then import the package (§Packages) and access exported identifiers
+via qualified identifiers (§Qualified identifiers). Local declarations can
+never be marked for export.
+
+There are two kinds of exports: If a declaration in a package P is marked with
+the keyword "export", the declared identifier is accessible in any file
+importing P; this is called ``unrestricted export''. If a declaration is
+marked with the keyword "package", the declared identifier is only accessible
+in files belonging to the same package P; this is called ``package-restricted''
+export.
+
+If the identifier represents a type, it must be a complete type (§Types) and
+the type structure is exported as well. In particular, if the declaration
+defines a "struct" or "interface" type, all structure fields and all structure
+and interface methods are exported also.
 
 	export const pi float = 3.14159265
 	export func Parse(source string);
 
-Note that at the moment the old-style export via ExportDecl is still supported.
+	package type Node *struct { val int; next *Node }
 
 TODO: Eventually we need to be able to restrict visibility of fields and methods.
 (gri) The default should be no struct fields and methods are automatically exported.
 Export should be identifier-based: an identifier is either exported or not, and thus
 visible or not in importing package.
-
-TODO: Need some text with respect to QualifiedIdents.
-
-	QualifiedIdent = [ PackageName "." ] identifier .
-	PackageName = identifier .
-
-
-The following identifiers are predeclared:
-
-- all basic types:
-
-	bool, byte, uint8, uint16, uint32, uint64, int8, int16, int32, int64,
-	float32, float64, float80, string
-	
-- a set of platform-specific convenience types:
-
-	uint, int, float, uintptr
-	
-- the predeclared constants:
-
-	true, false, iota, nil
-	
-- the predeclared functions (note: this list is likely to change):
-
-	cap(), convert(), len(), new(), panic(), panicln(), print(), println(), typeof(), ...
 
 
 Const declarations
@@ -807,6 +820,10 @@ this construct can be used to declare local temporary variables.
 Export declarations
 ----
 
+TODO:
+1) rephrase this section (much of it covered by Exported declarations)
+2) rethink need for this kind of export
+
 Global identifiers may be exported, thus making the
 exported identifier visible outside the package.  Another package may
 then import the identifier to use it.
@@ -829,10 +846,6 @@ export directive.
 
 	export sin, cos
 	export math.abs
-
-TODO: complete this section
-
-TODO: export as a mechanism for public and private struct fields?
 
 
 Types
@@ -1319,13 +1332,12 @@ An interface type denotes the set of all types that implement at least
 the set of methods specified by the interface type, and the value "nil".
 
 	InterfaceType = "interface" [ "{" [ List<MethodSpec> ] "}" ] .
-	MethodSpec = identifier FunctionType .
+	MethodSpec = IdentifierList FunctionType .
 
 	// A basic file interface.
 	interface {
-		Read(b Buffer) bool;
-		Write(b Buffer) bool;
-		Close();
+		Read, Write	(b Buffer) bool;
+		Close		();
 	}
 
 Any type (including interface types) whose interface has, possibly as a
@@ -1348,8 +1360,7 @@ In general, a type implements an arbitrary number of interfaces.
 For instance, consider the interface
 
 	type Lock interface {
-		lock();
-		unlock();
+		lock, unlock	();
 	}
 
 If S1 and S2 also implement
@@ -1538,7 +1549,12 @@ are known at compile-time.
 Qualified identifiers
 ----
 
-TODO(gri) write this section
+A qualified identifier is an identifier qualified by a package name.
+
+TODO(gri) expand this section.
+
+	QualifiedIdent = { PackageName "." } identifier .
+	PackageName = identifier .
 
 
 Iota
