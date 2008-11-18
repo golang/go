@@ -1,0 +1,51 @@
+#!/bin/bash
+# Copyright 2009 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# Using all the test*.go files in the current directory, write out a file
+# _testmain.go that runs all its tests. Compile everything and run the
+# tests.
+
+set -e
+
+gofiles=$(echo test*.go)
+ofiles=$(echo $gofiles | sed 's/\.go/.6/g')
+files=$(echo $gofiles | sed 's/\.go//g')
+echo $ofiles
+
+for i in $gofiles
+do
+	6g $i
+done
+
+# They all compile; now generate the code to call them.
+
+{
+	# package spec
+	echo 'package main'
+	echo
+	# imports
+	for i in $files
+	do
+		echo 'import "./'$i'"'
+	done
+	echo 'import "testing"'
+	# test array
+	echo
+	echo 'var tests = &[]testing.Test {'
+	for i in $(6nm $ofiles | grep ' T .*·Test' | sed 's/.* //; s/·/./')
+	do
+		echo '	testing.Test{ "'$i'", &'$i' },'
+	done
+	echo '}'
+	# body
+	echo
+	echo 'func main() {'
+	echo '	testing.Main(tests)'
+	echo '}'
+}>_testmain.go
+
+6g _testmain.go
+6l _testmain.6
+6.out
