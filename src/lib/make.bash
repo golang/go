@@ -48,6 +48,7 @@ buildfiles	flag.go\
 		bufio.go\
 		once.go\
 		bignum.go\
+		testing.go\
 	
 builddirs	net\
 		time\
