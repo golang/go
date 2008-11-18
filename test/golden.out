@@ -157,6 +157,15 @@ Bad float64 const: 1e23+1 want 1.0000000000000001e+23 got 1e+23
 	want exact: 100000000000000008388608
 	got exact:  99999999999999991611392
 
+=========== bugs/bug121.go
+BUG: compilation succeeds incorrectly
+
+=========== bugs/bug122.go
+BUG: compilation succeeds incorrectly
+
+=========== bugs/bug123.go
+BUG: errchk: command succeeded unexpectedly:  6g bugs/bug123.go
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
 
