@@ -160,6 +160,29 @@ missing(uvlong pc, uvlong epc)
 			return;
 	}
 
+	if(epc - pc == 2 || epc -pc == 3) {
+		// check for XORL inside shift.
+		// (on x86 have to implement large shift with explicit zeroing).
+		//	f+90 0x00002c9f	CMPL	CX,$20
+		//	f+93 0x00002ca2	JCS	f+97(SB)
+		//	f+95 0x00002ca4	XORL	AX,AX <<<
+		//	f+97 0x00002ca6	SHLL	CL,AX
+		//	f+99 0x00002ca8	MOVL	$1,CX
+		//
+		//	f+c8 0x00002cd7	CMPL	CX,$40
+		//	f+cb 0x00002cda	JCS	f+d0(SB)
+		//	f+cd 0x00002cdc	XORQ	AX,AX <<<
+		//	f+d0 0x00002cdf	SHLQ	CL,AX
+		//	f+d3 0x00002ce2	MOVQ	$1,CX
+		buf[0] = 0;
+		machdata->das(text, pc, 0, buf, sizeof buf);
+		if(strncmp(buf, "XOR", 3) == 0) {
+			machdata->das(text, epc, 0, buf, sizeof buf);
+			if(strncmp(buf, "SHL", 3) == 0 || strncmp(buf, "SHR", 3) == 0)
+				return;
+		}
+	}
+
 	// show first instruction to make clear where we were.
 	machdata->das(text, pc, 0, buf, sizeof buf);
 
