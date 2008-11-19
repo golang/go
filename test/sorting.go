@@ -158,9 +158,9 @@ type TestingData struct {
 	nswap int;
 }
 
-func (d *TestingData) len() int { return len(d.data); }
-func (d *TestingData) less(i, j int) bool { return d.data[i] < d.data[j]; }
-func (d *TestingData) swap(i, j int) {
+func (d *TestingData) Len() int { return len(d.data); }
+func (d *TestingData) Less(i, j int) bool { return d.data[i] < d.data[j]; }
+func (d *TestingData) Swap(i, j int) {
 	if d.nswap >= d.maxswap {
 		panicln("used", d.nswap, "swaps sorting", len(d.data), "array");
 	}
