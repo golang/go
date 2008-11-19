@@ -10,7 +10,10 @@
 
 package strconv
 
-import "strconv"
+import (
+	"os";
+	"strconv";
+)
 
 // TODO(rsc): Better truncation handling.
 func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
@@ -314,43 +317,49 @@ func DecimalToFloat32(neg bool, d *Decimal, trunc bool) (f float32, ok bool) {
 // returns f, false, true, where f is the nearest floating point
 // number rounded using IEEE754 unbiased rounding.
 //
-// If s is not syntactically well-formed, returns ok == false.
+// If s is not syntactically well-formed, returns err = os.EINVAL.
 //
 // If s is syntactically well-formed but is more than 1/2 ULP
 // away from the largest floating point number of the given size,
-// returns f = ±Inf, overflow = true, ok = true.
-export func atof64(s string) (f float64, overflow bool, ok bool) {
-	neg, d, trunc, ok1 := StringToDecimal(s);
-	if !ok1 {
-		return 0, false, false;
+// returns f = ±Inf, err = os.ERANGE.
+export func atof64(s string) (f float64, err *os.Error) {
+	neg, d, trunc, ok := StringToDecimal(s);
+	if !ok {
+		return 0, os.EINVAL;
 	}
 	if f, ok := DecimalToFloat64(neg, d, trunc); ok {
-		return f, false, true;
+		return f, nil;
 	}
-	b, overflow1 := DecimalToFloatBits(neg, d, trunc, &float64info);
-	return sys.float64frombits(b), overflow1, true;
+	b, ovf := DecimalToFloatBits(neg, d, trunc, &float64info);
+	f = sys.float64frombits(b);
+	if ovf {
+		err = os.ERANGE;
+	}
+	return f, err
 }
 
-export func atof32(s string) (f float32, overflow bool, ok bool) {
-	neg, d, trunc, ok1 := StringToDecimal(s);
-	if !ok1 {
-		return 0, false, false;
+export func atof32(s string) (f float32, err *os.Error) {
+	neg, d, trunc, ok := StringToDecimal(s);
+	if !ok {
+		return 0, os.EINVAL;
 	}
 	if f, ok := DecimalToFloat32(neg, d, trunc); ok {
-		return f, false, true;
+		return f, nil;
 	}
-	b, overflow1 := DecimalToFloatBits(neg, d, trunc, &float32info);
-	return sys.float32frombits(uint32(b)), overflow1, true;
+	b, ovf := DecimalToFloatBits(neg, d, trunc, &float32info);
+	f = sys.float32frombits(uint32(b));
+	if ovf {
+		err = os.ERANGE;
+	}
+	return f, err
 }
 
-export func atof(s string) (f float, overflow bool, ok bool) {
+export func atof(s string) (f float, err *os.Error) {
 	if floatsize == 32 {
-		var f1 float32;
-		f1, overflow, ok = atof32(s);
-		return float(f1), overflow, ok;
+		f1, err1 := atof32(s);
+		return float(f1), err1;
 	}
-	var f1 float64;
-	f1, overflow, ok = atof64(s);
-	return float(f1), overflow, ok;
+	f1, err1 := atof64(s);
+	return float(f1), err1;
 }
 

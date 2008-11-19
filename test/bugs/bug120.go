@@ -43,8 +43,8 @@ func main() {
 		v := strconv.ftoa64(t.f, 'g', -1);
 		if v != t.out {
 			println("Bad float64 const:", t.in, "want", t.out, "got", v);
-			x, overflow, ok := strconv.atof64(t.out);
-			if !ok {
+			x, err := strconv.atof64(t.out);
+			if err != nil {
 				panicln("bug120: strconv.atof64", t.out);
 			}
 			println("\twant exact:", strconv.ftoa64(x, 'g', 1000));
@@ -53,6 +53,6 @@ func main() {
 		}
 	}
 	if !ok {
-		panicln("bug120");
+		sys.exit(1);
 	}
 }
