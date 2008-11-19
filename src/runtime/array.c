@@ -38,6 +38,19 @@ sys·newarray(uint32 nel, uint32 cap, uint32 width, Array* ret)
 	}
 }
 
+static void
+throwslice(uint32 lb, uint32 hb, uint32 n)
+{
+	prints("slice[");
+	sys·printint(lb);
+	prints(":");
+	sys·printint(hb);
+	prints("] of [");
+	sys·printint(n);
+	prints("] array\n");
+	throw("array slice");
+}
+
 // arraysliced(old *[]any, lb uint32, hb uint32, width uint32) (ary *[]any);
 void
 sys·arraysliced(Array* old, uint32 lb, uint32 hb, uint32 width, Array* ret)
@@ -62,7 +75,7 @@ sys·arraysliced(Array* old, uint32 lb, uint32 hb, uint32 width, Array* ret)
 			sys·printint(old->cap);
 			prints("\n");
 		}
-		throw("sys·arraysliced: new size exceeds old size");
+		throwslice(lb, hb, old->cap);
 	}
 
 	// new array is inside old array
@@ -109,7 +122,7 @@ sys·arrayslices(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Arra
 			sys·printint(width);
 			prints("\n");
 		}
-		throw("sys·arrayslices: new size exceeds cap");
+		throwslice(lb, hb, nel);
 	}
 
 	// new array is inside old array
