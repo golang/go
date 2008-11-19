@@ -76,3 +76,37 @@ export func MakeFullReader(fd Read) Read {
 	}
 	return &FullRead{fd}
 }
+
+// Copies n bytes (or until EOF is reached) from src to dst.
+// Returns the number of bytes copied and the error, if any.
+export func Copyn(src Read, dst Write, n int) (c int, err *os.Error) {
+	buf := new([]byte, 32*1024);  // BUG 6g crashes on non-pointer array slices
+	c = 0;
+	for c < n {
+		l := n - c;
+		if l > len(buf) {
+			l = len(buf)
+		}
+		nr, er := src.Read(buf[0 : l]);
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0 : nr]);
+			if nw != nr || ew != nil {
+				c += nw;
+				if ew == nil {
+					ew = os.EIO
+				}
+				err = ew;
+				break;
+			}
+			c += nr;
+		}
+		if er != nil {
+			err = er;
+			break;
+		}
+		if nr == 0 {
+			break;
+		}
+	}
+	return c, err
+}
