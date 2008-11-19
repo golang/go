@@ -54,4 +54,4 @@ builddirs	net\
 		time\
 		http\
 		regexp\
-
+		container/array\
