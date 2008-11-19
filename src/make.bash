@@ -14,6 +14,7 @@ fi
 
 bash clean.bash
 
+rm -f $HOME/bin/quietgcc
 cp quietgcc.bash $HOME/bin/quietgcc
 chmod +x $HOME/bin/quietgcc
 
