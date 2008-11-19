@@ -5,9 +5,9 @@
 package sort
 
 export type SortInterface interface {
-	len() int;
-	less(i, j int) bool;
-	swap(i, j int);
+	Len() int;
+	Less(i, j int) bool;
+	Swap(i, j int);
 }
 
 func min(a, b int) int {
@@ -20,8 +20,8 @@ func min(a, b int) int {
 // Insertion sort
 func InsertionSort(data SortInterface, a, b int) {
 	for i := a+1; i < b; i++ {
-		for j := i; j > a && data.less(j, j-1); j-- {
-			data.swap(j, j-1);
+		for j := i; j > a && data.Less(j, j-1); j-- {
+			data.Swap(j, j-1);
 		}
 	}
 }
@@ -36,15 +36,15 @@ func MedianOfThree(data SortInterface, a, b, c int) {
 	m2 := c;
 
 	// bubble sort on 3 elements
-	if data.less(m1, m0) { data.swap(m1, m0); }
-	if data.less(m2, m1) { data.swap(m2, m1); }
-	if data.less(m1, m0) { data.swap(m1, m0); }
+	if data.Less(m1, m0) { data.Swap(m1, m0); }
+	if data.Less(m2, m1) { data.Swap(m2, m1); }
+	if data.Less(m1, m0) { data.Swap(m1, m0); }
 	// now data[m0] <= data[m1] <= data[m2]
 }
 
 func SwapRange(data SortInterface, a, b, n int) {
 	for i := 0; i < n; i++ {
-		data.swap(a+i, b+i);
+		data.Swap(a+i, b+i);
 	}
 }
 
@@ -72,28 +72,28 @@ func Pivot(data SortInterface, lo, hi int) (midlo, midhi int) {
 	pivot := lo;
 	a, b, c, d := lo+1, lo+1, hi, hi;
 	for b < c {
-		if data.less(b, pivot) {	// data[b] < pivot
+		if data.Less(b, pivot) {	// data[b] < pivot
 			b++;
 			continue;
 		}
-		if !data.less(pivot, b) {	// data[b] = pivot
-			data.swap(a, b);
+		if !data.Less(pivot, b) {	// data[b] = pivot
+			data.Swap(a, b);
 			a++;
 			b++;
 			continue;
 		}
-		if data.less(pivot, c-1) {	// data[c-1] > pivot
+		if data.Less(pivot, c-1) {	// data[c-1] > pivot
 			c--;
 			continue;
 		}
-		if !data.less(c-1, pivot) {	// data[c-1] = pivot
-			data.swap(c-1, d-1);
+		if !data.Less(c-1, pivot) {	// data[c-1] = pivot
+			data.Swap(c-1, d-1);
 			c--;
 			d--;
 			continue;
 		}
 		// data[b] > pivot; data[c-1] < pivot
-		data.swap(b, c-1);
+		data.Swap(b, c-1);
 		b++;
 		c--;
 	}
@@ -118,14 +118,14 @@ func Quicksort(data SortInterface, a, b int) {
 }
 
 export func Sort(data SortInterface) {
-	Quicksort(data, 0, data.len());
+	Quicksort(data, 0, data.Len());
 }
 
 
 export func IsSorted(data SortInterface) bool {
-	n := data.len();
+	n := data.Len();
 	for i := n - 1; i > 0; i-- {
-		if data.less(i, i - 1) {
+		if data.Less(i, i - 1) {
 			return false;
 		}
 	}
@@ -139,27 +139,27 @@ export type IntArray struct {
 	data *[]int;
 }
 
-func (p *IntArray) len() int            { return len(p.data); }
-func (p *IntArray) less(i, j int) bool  { return p.data[i] < p.data[j]; }
-func (p *IntArray) swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+func (p *IntArray) Len() int            { return len(p.data); }
+func (p *IntArray) Less(i, j int) bool  { return p.data[i] < p.data[j]; }
+func (p *IntArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
 
 
 export type FloatArray struct {
 	data *[]float;
 }
 
-func (p *FloatArray) len() int            { return len(p.data); }
-func (p *FloatArray) less(i, j int) bool  { return p.data[i] < p.data[j]; }
-func (p *FloatArray) swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+func (p *FloatArray) Len() int            { return len(p.data); }
+func (p *FloatArray) Less(i, j int) bool  { return p.data[i] < p.data[j]; }
+func (p *FloatArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
 
 
 export type StringArray struct {
 	data *[]string;
 }
 
-func (p *StringArray) len() int            { return len(p.data); }
-func (p *StringArray) less(i, j int) bool  { return p.data[i] < p.data[j]; }
-func (p *StringArray) swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+func (p *StringArray) Len() int            { return len(p.data); }
+func (p *StringArray) Less(i, j int) bool  { return p.data[i] < p.data[j]; }
+func (p *StringArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
 
 
 // Convenience wrappers for common cases
