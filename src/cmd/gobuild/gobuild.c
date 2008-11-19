@@ -227,6 +227,9 @@ getpkg(char *file)
 					return pkg[i];
 				}
 			}
+			// don't put main in the package list
+			if(strcmp(p, "main") == 0)
+				return "main";
 			npkg++;
 			pkg = erealloc(pkg, npkg*sizeof pkg[0]);
 			pkg[i] = emalloc(strlen(p)+1);
@@ -284,6 +287,10 @@ char preamble[] =
 	"\n"
 	"test: packages\n"
 	"\tgotest\n"
+	"\n"
+	"coverage: packages\n"
+	"\tgotest\n"
+	"\t6cov -g `pwd` | grep -v '^test.*\\.go:'\n"
 	"\n"
 	"%%.$O: %%.go\n"
 	"\t$(GC) $*.go\n"
@@ -485,6 +492,8 @@ main(int argc, char **argv)
 		job[njob].name = argv[i];
 		job[njob].pass = -1;
 		job[njob].pkg = getpkg(argv[i]);
+		if(job[njob].pkg && strcmp(job[njob].pkg, "main") == 0)
+			continue;
 		njob++;
 	}
 

@@ -18,6 +18,10 @@ clean:
 test: packages
 	gotest
 
+coverage: packages
+	gotest
+	6cov -g `pwd` | grep -v '^test.*\.go:'
+
 %.$O: %.go
 	$(GC) $*.go
 
@@ -39,11 +43,7 @@ O3=\
 O4=\
 	server.$O\
 
-O5=\
-	triv.$O\
-
-http.a: a1 a2 a3 a4 a5
-main.a: a1 a2 a3 a4 a5
+http.a: a1 a2 a3 a4
 
 a1:	$(O1)
 	$(AR) grc http.a url.$O
@@ -61,26 +61,19 @@ a4:	$(O4)
 	$(AR) grc http.a server.$O
 	rm -f $(O4)
 
-a5:	$(O5)
-	$(AR) grc main.a triv.$O
-	rm -f $(O5)
-
 newpkg: clean
 	$(AR) grc http.a
-	$(AR) grc main.a
 
 $(O1): newpkg
 $(O2): a1
 $(O3): a2
 $(O4): a3
-$(O5): a4
 
 nuke: clean
-	rm -f $(GOROOT)/pkg/http.a $(GOROOT)/pkg/main.a
+	rm -f $(GOROOT)/pkg/http.a
 
-packages: http.a main.a
+packages: http.a
 
 install: packages
 	cp http.a $(GOROOT)/pkg/http.a
-	cp main.a $(GOROOT)/pkg/main.a
 
