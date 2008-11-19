@@ -135,15 +135,16 @@ setfilename(char *file)
 }
 
 int
-arsize(Biobuf *b, char *name){
+arsize(Biobuf *b, char *name)
+{
 	struct ar_hdr *a;
 
 	if((a = Brdline(b, '\n')) == nil)
-		return 0;
+		return -1;
 	if(Blinelen(b) != sizeof(struct ar_hdr))
-		return 0;
+		return -1;
 	if(strncmp(a->name, name, strlen(name)) != 0)
-		return 0;
+		return -1;
 	return atoi(a->size);
 }
 
@@ -162,7 +163,7 @@ skiptopkgdef(Biobuf *b)
 		return 0;
 	/* symbol table is first; skip it */
 	sz = arsize(b, "__.SYMDEF");
-	if(sz <= 0)
+	if(sz < 0)
 		return 0;
 	Bseek(b, sz, 1);
 	/* package export block is second */
@@ -184,16 +185,20 @@ findpkg(String *name)
 	}
 
 	// BOTCH need to get .6 from backend
-	snprint(namebuf, sizeof(namebuf), "%Z.6", name);
-	if(access(namebuf, 0) >= 0)
-		return 1;
+
+	// try .a before .6.  important for building libraries:
+	// if there is an array.6 in the array.a library,
+	// want to find all of array.a, not just array.6.
 	snprint(namebuf, sizeof(namebuf), "%Z.a", name);
 	if(access(namebuf, 0) >= 0)
 		return 1;
-	snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.6", goroot, name);
+	snprint(namebuf, sizeof(namebuf), "%Z.6", name);
 	if(access(namebuf, 0) >= 0)
 		return 1;
 	snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.a", goroot, name);
+	if(access(namebuf, 0) >= 0)
+		return 1;
+	snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.6", goroot, name);
 	if(access(namebuf, 0) >= 0)
 		return 1;
 	return 0;
