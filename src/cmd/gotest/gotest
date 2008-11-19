@@ -8,9 +8,28 @@
 # tests.
 # If files are named on the command line, use them instead of test*.go.
 
-set -e
+gofiles=""
+loop=true
+while $loop; do
+	case "x$1" in
+	x-*)
+		loop=false
+		;;
+	x)
+		loop=false
+		;;
+	*)
+		gofiles="$gofiles $1"
+		shift
+		;;
+	esac
+done
 
-gofiles=${*:-$(echo test*.go)}
+case "x$gofiles" in
+x)
+	gofiles=$(echo test*.go)
+esac
+
 ofiles=$(echo $gofiles | sed 's/\.go/.6/g')
 files=$(echo $gofiles | sed 's/\.go//g')
 
@@ -19,8 +38,10 @@ do
 	6g $i
 done
 
-# They all compile; now generate the code to call them.
+set -e
 
+# They all compile; now generate the code to call them.
+trap "rm -f _testmain.go _testmain.6 6.out" 0 1 2 3 14 15
 {
 	# package spec
 	echo 'package main'
@@ -48,4 +69,4 @@ done
 
 6g _testmain.go
 6l _testmain.6
-6.out
+6.out "$@"
