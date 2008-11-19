@@ -32,7 +32,10 @@ package flag
  *		-flag=x
  *		-flag x
  *	One or two minus signs may be used; they are equivalent.
- *	A lone -- terminates the parsing of the command line.
+ *
+ *	Flag parsing stops just before the first non-flag argument
+ *	("-" is a non-flag argument) or after the terminator "--".
+ *
  *	Integer flags accept 1234, 0664, 0x1234 and may be negative.
  *	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
  */
@@ -397,7 +400,7 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 	}
 	num_minuses := 1;
 	if len(s) == 1 {
-		return false, -1
+		return false, index
 	}
 	if s[1] == '-' {
 		num_minuses++;
