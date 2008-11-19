@@ -280,7 +280,7 @@ char preamble[] =
 	"default: packages\n"
 	"\n"
 	"clean:\n"
-	"\trm -f *.$O *.a\n"
+	"\trm -f *.$O *.a $O.out\n"
 	"\n"
 	"test: packages\n"
 	"\tgotest\n"

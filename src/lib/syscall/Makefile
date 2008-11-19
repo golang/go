@@ -15,7 +15,7 @@ AR=$(O)ar
 default: packages
 
 clean:
-	rm -f *.$O *.a
+	rm -f *.$O *.a $O.out
 
 test: packages
 	gotest
