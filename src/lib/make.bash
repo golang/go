@@ -18,9 +18,7 @@ function builddirs() {
 	for i
 	do
 		echo; echo; echo %%%% making lib/$i %%%%; echo
-		cd $i
-		make install
-		cd ..
+		(cd $i; make install)
 	done
 }
 
@@ -35,6 +33,7 @@ builddirs	syscall\
 		math\
 		os\
 		strconv\
+		container/array\
 		reflect\
 	
 buildfiles	io.go
@@ -54,4 +53,3 @@ builddirs	net\
 		time\
 		http\
 		regexp\
-		container/array\
