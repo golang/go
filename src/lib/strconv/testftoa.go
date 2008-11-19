@@ -3,7 +3,11 @@
 // license that can be found in the LICENSE file.
 
 package strconv
-import "strconv"
+
+import (
+	"strconv";
+	"testing"
+)
 
 type Test struct {
 	f float64;
@@ -86,25 +90,21 @@ var ftests = []Test {
 	Test{ -1, 'b', -1, "-4503599627370496p-52" },
 }
 
-export func TestFtoa() bool {
-	ok := true;
+export func TestFtoa(t *testing.T) {
 	if strconv.floatsize != 32 {
 		panic("floatsize: ", strconv.floatsize);
 	}
 	for i := 0; i < len(ftests); i++ {
-		t := &ftests[i];
-		s := strconv.ftoa64(t.f, t.fmt, t.prec);
-		if s != t.s {
-			println("test", t.f, string(t.fmt), t.prec, "want", t.s, "got", s);
-			ok = false;
+		test := &ftests[i];
+		s := strconv.ftoa64(test.f, test.fmt, test.prec);
+		if s != test.s {
+			t.Errorf("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
 		}
-		if float64(float32(t.f)) == t.f && t.fmt != 'b' {
-			s := strconv.ftoa32(float32(t.f), t.fmt, t.prec);
-			if s != t.s {
-				println("test32", t.f, string(t.fmt), t.prec, "want", t.s, "got", s);
-				ok = false;
+		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
+			s := strconv.ftoa32(float32(test.f), test.fmt, test.prec);
+			if s != test.s {
+				t.Errorf("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
 			}
 		}
 	}
-	return ok;
 }

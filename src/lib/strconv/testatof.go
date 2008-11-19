@@ -6,7 +6,8 @@ package strconv
 import (
 	"fmt";
 	"os";
-	"strconv"
+	"strconv";
+	"testing"
 )
 
 type Test struct {
@@ -90,48 +91,43 @@ var tests = []Test {
 	Test{ ".e-1", "0", os.EINVAL },
 }
 
-func XTestAtof(opt bool) bool {
+func XTestAtof(t *testing.T, opt bool) {
 	oldopt := strconv.optimize;
 	strconv.optimize = opt;
-	ok := true;
 	for i := 0; i < len(tests); i++ {
-		t := &tests[i];
-		out, err := strconv.atof64(t.in);
+		test := &tests[i];
+		out, err := strconv.atof64(test.in);
 		outs := strconv.ftoa64(out, 'g', -1);
-		if outs != t.out || err != t.err {
-			fmt.printf("strconv.atof64(%v) = %v, %v want %v, %v\n",
-				t.in, out, err, t.out, t.err);
-			ok = false;
+		if outs != test.out || err != test.err {
+			t.Errorf("strconv.atof64(%v) = %v, %v want %v, %v\n",
+				test.in, out, err, test.out, test.err);
 		}
 
 		if float64(float32(out)) == out {
-			out32, err := strconv.atof32(t.in);
+			out32, err := strconv.atof32(test.in);
 			outs := strconv.ftoa32(out32, 'g', -1);
-			if outs != t.out || err != t.err {
-				fmt.printf("strconv.atof32(%v) = %v, %v want %v, %v  # %v\n",
-					t.in, out32, err, t.out, t.err, out);
-				ok = false;
+			if outs != test.out || err != test.err {
+				t.Errorf("strconv.atof32(%v) = %v, %v want %v, %v  # %v\n",
+					test.in, out32, err, test.out, test.err, out);
 			}
 		}
 
 		if floatsize == 64 || float64(float32(out)) == out {
-			outf, err := strconv.atof(t.in);
+			outf, err := strconv.atof(test.in);
 			outs := strconv.ftoa(outf, 'g', -1);
-			if outs != t.out || err != t.err {
-				fmt.printf("strconv.ftoa(%v) = %v, %v want %v, %v  # %v\n",
-					t.in, outf, err, t.out, t.err, out);
-				ok = false;
+			if outs != test.out || err != test.err {
+				t.Errorf("strconv.ftoa(%v) = %v, %v want %v, %v  # %v\n",
+					test.in, outf, err, test.out, test.err, out);
 			}
 		}
 	}
 	strconv.optimize = oldopt;
-	return ok;
 }
 
-export func TestAtof() bool {
-	return XTestAtof(true);
+export func TestAtof(t *testing.T) {
+	XTestAtof(t, true);
 }
 
-export func TestAtofSlow() bool {
-	return XTestAtof(false);
+export func TestAtofSlow(t *testing.T) {
+	XTestAtof(t, false);
 }

@@ -6,7 +6,8 @@ package strconv
 
 import (
 	"fmt";
-	"strconv"
+	"strconv";
+	"testing";
 )
 
 type ShiftTest struct {
@@ -28,18 +29,16 @@ var shifttests = []ShiftTest {
 	ShiftTest{ 1953125, 9, "1000000000" },
 }
 
-export func TestDecimalShift() bool {
+export func TestDecimalShift(t *testing.T) {
 	ok := true;
 	for i := 0; i < len(shifttests); i++ {
-		t := &shifttests[i];
-		s := strconv.NewDecimal(t.i).Shift(t.shift).String();
-		if s != t.out {
-			fmt.printf("Decimal %v << %v = %v, want %v\n",
-				t.i, t.shift, s, t.out);
-			ok = false;
+		test := &shifttests[i];
+		s := strconv.NewDecimal(test.i).Shift(test.shift).String();
+		if s != test.out {
+			t.Errorf("Decimal %v << %v = %v, want %v\n",
+				test.i, test.shift, s, test.out);
 		}
 	}
-	return ok;
 }
 
 type RoundTest struct {
@@ -67,30 +66,25 @@ var roundtests = []RoundTest {
 	RoundTest{ 12999999, 4, "12990000", "13000000", "13000000", 13000000 },
 }
 
-export func TestDecimalRound() bool {
-	ok := true;
+export func TestDecimalRound(t *testing.T) {
 	for i := 0; i < len(roundtests); i++ {
-		t := &roundtests[i];
-		s := strconv.NewDecimal(t.i).RoundDown(t.nd).String();
-		if s != t.down {
-			fmt.printf("Decimal %v RoundDown %d = %v, want %v\n",
-				t.i, t.nd, s, t.down);
-			ok = false;
+		test := &roundtests[i];
+		s := strconv.NewDecimal(test.i).RoundDown(test.nd).String();
+		if s != test.down {
+			t.Errorf("Decimal %v RoundDown %d = %v, want %v\n",
+				test.i, test.nd, s, test.down);
 		}
-		s = strconv.NewDecimal(t.i).Round(t.nd).String();
-		if s != t.round {
-			fmt.printf("Decimal %v Round %d = %v, want %v\n",
-				t.i, t.nd, s, t.down);
-			ok = false;
+		s = strconv.NewDecimal(test.i).Round(test.nd).String();
+		if s != test.round {
+			t.Errorf("Decimal %v Round %d = %v, want %v\n",
+				test.i, test.nd, s, test.down);
 		}
-		s = strconv.NewDecimal(t.i).RoundUp(t.nd).String();
-		if s != t.up {
-			fmt.printf("Decimal %v RoundUp %d = %v, want %v\n",
-				t.i, t.nd, s, t.up);
-			ok = false;
+		s = strconv.NewDecimal(test.i).RoundUp(test.nd).String();
+		if s != test.up {
+			t.Errorf("Decimal %v RoundUp %d = %v, want %v\n",
+				test.i, test.nd, s, test.up);
 		}
 	}
-	return ok;
 }
 
 type RoundIntTest struct {
@@ -112,17 +106,14 @@ var roundinttests = []RoundIntTest {
 	RoundIntTest{ 1000, 0, 1000 },
 }
 
-export func TestDecimalRoundedInteger() bool {
-	ok := true;
+export func TestDecimalRoundedInteger(t *testing.T) {
 	for i := 0; i < len(roundinttests); i++ {
-		t := roundinttests[i];
+		test := roundinttests[i];
 		// TODO: should be able to use int := here.
-		int1 := strconv.NewDecimal(t.i).Shift(t.shift).RoundedInteger();
-		if int1 != t.int {
-			fmt.printf("Decimal %v >> %v RoundedInteger = %v, want %v\n",
-				t.i, t.shift, int1, t.int);
-			ok = false;
+		int1 := strconv.NewDecimal(test.i).Shift(test.shift).RoundedInteger();
+		if int1 != test.int {
+			t.Errorf("Decimal %v >> %v RoundedInteger = %v, want %v\n",
+				test.i, test.shift, int1, test.int);
 		}
 	}
-	return ok;
 }

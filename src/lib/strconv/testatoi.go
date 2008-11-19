@@ -6,7 +6,8 @@ package strconv
 import (
 	"os";
 	"fmt";
-	"strconv"
+	"strconv";
+	"testing"
 )
 
 type Uint64Test struct {
@@ -102,32 +103,26 @@ var int32tests = []Int32Test {
 	Int32Test{ "-2147483649", -1<<31, os.ERANGE },
 }
 
-export func TestAtoui64() bool {
-	ok := true;
+export func TestAtoui64(t *testing.T) {
 	for i := 0; i < len(uint64tests); i++ {
-		t := &uint64tests[i];
-		out, err := strconv.atoui64(t.in);
-		if t.out != out || t.err != err {
-			fmt.printf("strconv.atoui64(%v) = %v, %v want %v, %v\n",
-				t.in, out, err, t.out, t.err);
-			ok = false;
+		test := &uint64tests[i];
+		out, err := strconv.atoui64(test.in);
+		if test.out != out || test.err != err {
+			t.Errorf("strconv.atoui64(%v) = %v, %v want %v, %v\n",
+				test.in, out, err, test.out, test.err);
 		}
 	}
-	return ok;
 }
 
-export func TestAtoi64() bool {
-	ok := true;
+export func TestAtoi64(t *testing.T) {
 	for i := 0; i < len(int64tests); i++ {
-		t := &int64tests[i];
-		out, err := strconv.atoi64(t.in);
-		if t.out != out || t.err != err {
-			fmt.printf("strconv.atoi64(%v) = %v, %v want %v, %v\n",
-				t.in, out, err, t.out, t.err);
-			ok = false;
+		test := &int64tests[i];
+		out, err := strconv.atoi64(test.in);
+		if test.out != out || test.err != err {
+			t.Errorf("strconv.atoi64(%v) = %v, %v want %v, %v\n",
+				test.in, out, err, test.out, test.err);
 		}
 	}
-	return ok;
 }
 
 func IntSize1() uint {
@@ -135,61 +130,52 @@ func IntSize1() uint {
 	if tmp<<16<<16 == 0 {
 		return 32;
 	}
-println("tmp<<32 = ", tmp<<32);
 	return 64;
 }
 
-export func TestAtoui() bool {
-	ok := true;
+export func TestAtoui(t *testing.T) {
 	switch IntSize1() {
 	case 32:
 		for i := 0; i < len(uint32tests); i++ {
-			t := &uint32tests[i];
-			out, err := strconv.atoui(t.in);
-			if t.out != uint32(out) || t.err != err {
-				fmt.printf("strconv.atoui(%v) = %v, %v want %v, %v\n",
-					t.in, out, err, t.out, t.err);
-				ok = false;
+			test := &uint32tests[i];
+			out, err := strconv.atoui(test.in);
+			if test.out != uint32(out) || test.err != err {
+				t.Errorf("strconv.atoui(%v) = %v, %v want %v, %v\n",
+					test.in, out, err, test.out, test.err);
 			}
 		}
 	case 64:
 		for i := 0; i < len(uint64tests); i++ {
-			t := &uint64tests[i];
-			out, err := strconv.atoui(t.in);
-			if t.out != uint64(out) || t.err != err {
-				fmt.printf("strconv.atoui(%v) = %v, %v want %v, %v\n",
-					t.in, out, err, t.out, t.err);
-				ok = false;
+			test := &uint64tests[i];
+			out, err := strconv.atoui(test.in);
+			if test.out != uint64(out) || test.err != err {
+				t.Errorf("strconv.atoui(%v) = %v, %v want %v, %v\n",
+					test.in, out, err, test.out, test.err);
 			}
 		}
 	}
-	return ok;
 }
 
-export func TestAtoi() bool {
-	ok := true;
+export func TestAtoi(t *testing.T) {
 	switch IntSize1() {
 	case 32:
 		for i := 0; i < len(int32tests); i++ {
-			t := &int32tests[i];
-			out, err := strconv.atoi(t.in);
-			if t.out != int32(out) || t.err != err {
-				fmt.printf("strconv.atoi(%v) = %v, %v want %v, %v\n",
-					t.in, out, err, t.out, t.err);
-				ok = false;
+			test := &int32tests[i];
+			out, err := strconv.atoi(test.in);
+			if test.out != int32(out) || test.err != err {
+				t.Errorf("strconv.atoi(%v) = %v, %v want %v, %v\n",
+					test.in, out, err, test.out, test.err);
 			}
 		}
 	case 64:
 		for i := 0; i < len(int64tests); i++ {
-			t := &int64tests[i];
-			out, err := strconv.atoi(t.in);
-			if t.out != int64(out) || t.err != err {
-				fmt.printf("strconv.atoi(%v) = %v, %v want %v, %v\n",
-					t.in, out, err, t.out, t.err);
-				ok = false;
+			test := &int64tests[i];
+			out, err := strconv.atoi(test.in);
+			if test.out != int64(out) || test.err != err {
+				t.Errorf("strconv.atoi(%v) = %v, %v want %v, %v\n",
+					test.in, out, err, test.out, test.err);
 			}
 		}
 	}
-	return ok;
 }
 
