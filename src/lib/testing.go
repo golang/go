@@ -21,6 +21,11 @@ export type Test struct {
 export func Main(tests *[]Test) {
 	flag.Parse();
 	ok := true;
+	if len(tests) == 0 {
+		println("warning: no tests available");
+	} else if chatty {
+		println(len(tests), "tests to run");
+	}
 	for i := 0; i < len(tests); i++ {
 		if chatty {
 			println("=== RUN ", tests[i].name);
