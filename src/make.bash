@@ -14,6 +14,9 @@ fi
 
 bash clean.bash
 
+cp quietgcc.bash $HOME/bin/quietgcc
+chmod +x $HOME/bin/quietgcc
+
 for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib
 do
 	echo; echo; echo %%%% making $i %%%%; echo
