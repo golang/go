@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package regexp
 
 import (
 	"os";
 	"regexp";
+	"testing";
 )
 
 var good_re = []string{
@@ -85,11 +86,10 @@ var matches = []Tester {
 	Tester{ `a*(|(b))c*`,	"aacc",	Vec{0,4, 2,2, -1,-1, END} },
 }
 
-func Compile(expr string, error *os.Error) regexp.Regexp {
+func CompileTest(t *testing.T, expr string, error *os.Error) regexp.Regexp {
 	re, err := regexp.Compile(expr);
 	if err != error {
-		print("compiling `", expr, "`; unexpected error: ", err.String(), "\n");
-		sys.exit(1);
+		t.Error("compiling `", expr, "`; unexpected error: ", err.String());
 	}
 	return re
 }
@@ -104,13 +104,13 @@ func MarkedLen(m *[] int) int {
 	return i
 }
 
-func PrintVec(m *[] int) {
+func PrintVec(t *testing.T, m *[] int) {
 	l := MarkedLen(m);
 	if l == 0 {
-		print("<no match>");
+		t.Log("\t<no match>");
 	} else {
 		for i := 0; i < l && m[i] != END; i = i+2 {
-			print(m[i], ",", m[i+1], " ")
+			t.Log("\t", m[i], ",", m[i+1])
 		}
 	}
 }
@@ -128,33 +128,35 @@ func Equal(m1, m2 *[]int) bool {
 	return true
 }
 
-func Match(expr string, str string, match *[]int) {
-	re := Compile(expr, nil);
+func MatchTest(t *testing.T, expr string, str string, match *[]int) {
+	re := CompileTest(t, expr, nil);
+	if re == nil {
+		return
+	}
 	m := re.Execute(str);
 	if !Equal(m, match) {
-		print("failure on `", expr, "` matching `", str, "`:\n");
-		PrintVec(m);
-		print("\nshould be:\n");
-		PrintVec(match);
-		print("\n");
-		sys.exit(1);
+		t.Error("failure on `", expr, "` matching `", str, "`:");
+		PrintVec(t, m);
+		t.Log("should be:");
+		PrintVec(t, match);
 	}
 }
 
-func main() {
-	//regexp.debug = true;
-	if sys.argc() > 1 {
-		Compile(sys.argv(1), nil);
-		sys.exit(0);
-	}
+export func TestGoodCompile(t *testing.T) {
 	for i := 0; i < len(good_re); i++ {
-		Compile(good_re[i], nil);
+		CompileTest(t, good_re[i], nil);
 	}
+}
+
+export func TestBadCompile(t *testing.T) {
 	for i := 0; i < len(bad_re); i++ {
-		Compile(bad_re[i].re, bad_re[i].err)
+		CompileTest(t, bad_re[i].re, bad_re[i].err)
 	}
+}
+
+export func TestMatch(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
-		t := &matches[i];
-		Match(t.re, t.text, &t.match)
+		test := &matches[i];
+		MatchTest(t, test.re, test.text, &test.match)
 	}
 }
