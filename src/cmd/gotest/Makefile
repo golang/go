@@ -10,5 +10,5 @@ clean:
 	@true
 
 install: $(TARG)
-	test -f $(BIN)/$(TARG) && chmod u+w $(BIN)/$(TARG)
+	! test -f $(BIN)/$(TARG) || chmod u+w $(BIN)/$(TARG)
 	cp $(TARG) $(BIN)/$(TARG)
