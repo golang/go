@@ -82,11 +82,9 @@ export func MakeFullReader(fd Read) Read {
 export func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
 	buf := new([]byte, 32*1024);
 	for written < n {
-		var l int;
-		if n - written > int64(len(buf)) {
-			l = len(buf);
-		} else {
-			l = int(n - written);
+		l := len(buf);
+		if d := n - written; d < int64(l) {
+			l = int(d);
 		}
 		nr, er := src.Read(buf[0 : l]);
 		if nr > 0 {
