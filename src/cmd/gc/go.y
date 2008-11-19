@@ -1624,7 +1624,6 @@ import_stmt_list_r:
 |	import_stmt_list_r osemi import_stmt
 
 hidden_import_list_r:
-	hidden_import
 |	hidden_import_list_r hidden_import
 
 hidden_funarg_list_r:
