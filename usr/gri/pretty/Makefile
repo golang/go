@@ -5,6 +5,11 @@
 G=6g
 L=6l
 
+all: untab pretty
+
+untab: untab.6
+	$(L) -o untab untab.6
+	
 pretty: pretty.6
 	$(L) -o pretty pretty.6
 
@@ -34,6 +39,7 @@ platform.6:	 utils.6
 
 printer.6:	 scanner.6 ast.6 tabwriter.6
 
+untab.6:	tabwriter.6
 
 %.6:	%.go
 	$(G) $(F) $<
