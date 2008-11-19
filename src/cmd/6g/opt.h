@@ -149,6 +149,7 @@ Bits	blsh(uint);
 int	beq(Bits, Bits);
 int	bset(Bits, uint);
 int	Qconv(Fmt *fp);
+int	bitno(int32);
 
 /*
  * reg.c
