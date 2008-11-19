@@ -18,6 +18,10 @@ clean:
 test: packages
 	gotest
 
+coverage: packages
+	gotest
+	6cov -g `pwd` | grep -v '^test.*\.go:'
+
 %.$O: %.go
 	$(GC) $*.go
 
