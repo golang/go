@@ -13,8 +13,11 @@ import IO "io"
 import OS "os"
 import TabWriter "tabwriter"
 
-var tabwith = Flag.Int("tabwidth", 4, nil, "tab width");
-var comments = Flag.Bool("comments", false, nil, "enable printing of comments");
+var (
+	usetabs = Flag.Bool("usetabs", false, nil, "align with tabs instead of blanks");
+	tabwidth = Flag.Int("tabwidth", 4, nil, "tab width");
+	comments = Flag.Bool("comments", false, nil, "enable printing of comments");
+)
 
 
 // ----------------------------------------------------------------------------
@@ -594,7 +597,7 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 
 func (P *Printer) Program(p *AST.Program) {
 	// TODO should initialize all fields?
-	P.writer = TabWriter.MakeTabWriter(OS.Stdout, 4);
+	P.writer = TabWriter.MakeTabWriter(OS.Stdout, usetabs.BVal(), int(tabwidth.IVal()));
 	
 	P.clist = p.comments;
 	P.cindex = 0;
