@@ -16,7 +16,11 @@ type Test struct {
 }
 
 var tests = []Test {
+	Test{ "", "0", os.EINVAL },
 	Test{ "1", "1", nil },
+	Test{ "+1", "1", nil },
+	Test{ "1x", "0", os.EINVAL },
+	Test{ "1.1.", "0", os.EINVAL },
 	Test{ "1e23", "1e+23", nil },
 	Test{ "100000000000000000000000", "1e+23", nil },
 	Test{ "1e-100", "1e-100", nil },
@@ -29,6 +33,7 @@ var tests = []Test {
 	Test{ "-1", "-1", nil },
 	Test{ "-0", "0", nil },
 	Test{ "1e-20", "1e-20", nil },
+	Test{ "625e-3", "0.625", nil },
 
 	// largest float64
 	Test{ "1.7976931348623157e308", "1.7976931348623157e+308", nil },
@@ -85,7 +90,9 @@ var tests = []Test {
 	Test{ ".e-1", "0", os.EINVAL },
 }
 
-export func TestAtof() bool {
+func XTestAtof(opt bool) bool {
+	oldopt := strconv.optimize;
+	strconv.optimize = opt;
 	ok := true;
 	for i := 0; i < len(tests); i++ {
 		t := &tests[i];
@@ -96,6 +103,35 @@ export func TestAtof() bool {
 				t.in, out, err, t.out, t.err);
 			ok = false;
 		}
+
+		if float64(float32(out)) == out {
+			out32, err := strconv.atof32(t.in);
+			outs := strconv.ftoa32(out32, 'g', -1);
+			if outs != t.out || err != t.err {
+				fmt.printf("strconv.atof32(%v) = %v, %v want %v, %v  # %v\n",
+					t.in, out32, err, t.out, t.err, out);
+				ok = false;
+			}
+		}
+
+		if floatsize == 64 || float64(float32(out)) == out {
+			outf, err := strconv.atof(t.in);
+			outs := strconv.ftoa(outf, 'g', -1);
+			if outs != t.out || err != t.err {
+				fmt.printf("strconv.ftoa(%v) = %v, %v want %v, %v  # %v\n",
+					t.in, outf, err, t.out, t.err, out);
+				ok = false;
+			}
+		}
 	}
+	strconv.optimize = oldopt;
 	return ok;
+}
+
+export func TestAtof() bool {
+	return XTestAtof(true);
+}
+
+export func TestAtofSlow() bool {
+	return XTestAtof(false);
 }

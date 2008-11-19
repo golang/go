@@ -42,6 +42,9 @@ func (a *Decimal) String() string {
 	buf := new([]byte, n);
 	w := 0;
 	switch {
+	case a.nd == 0:
+		return "0";
+
 	case a.dp <= 0:
 		// zeros fill space between decimal point and digits
 		buf[w] = '0';
@@ -136,10 +139,11 @@ func RightShift(a *Decimal, k uint) {
 	for ; n>>k == 0; r++ {
 		if r >= a.nd {
 			if n == 0 {
+				// a == 0; shouldn't get here, but handle anyway.
 				a.nd = 0;
 				return;
 			}
-			for n >> k == 0 {
+			for n>>k == 0 {
 				n = n*10;
 				r++;
 			}
@@ -276,7 +280,7 @@ func LeftShift(a *Decimal, k uint) {
 
 	if w != 0 {
 		// TODO: Remove - has no business panicking.
-		panic("fmt: bad LeftShift");
+		panicln("strconv: bad LeftShift", w);
 	}
 	a.nd += delta;
 	a.dp += delta;
@@ -287,6 +291,8 @@ func LeftShift(a *Decimal, k uint) {
 // Returns receiver for convenience.
 func (a *Decimal) Shift(k int) *Decimal {
 	switch {
+	case a.nd == 0:
+		// nothing to do: a == 0
 	case k > 0:
 		for k > MaxShift {
 			LeftShift(a, MaxShift);

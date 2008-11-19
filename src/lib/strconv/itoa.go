@@ -8,9 +8,9 @@ export func itoa64(i int64) string {
 	if i == 0 {
 		return "0"
 	}
-	
+
 	neg := false;	// negative
-	u := uint(i);
+	u := uint64(i);
 	if i < 0 {
 		neg = true;
 		u = -u;
@@ -27,7 +27,7 @@ export func itoa64(i int64) string {
 		bp--;
 		b[bp] = '-'
 	}
-	
+
 	// BUG return string(b[bp:len(b)])
 	return string((&b)[bp:len(b)])
 }
