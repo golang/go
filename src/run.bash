@@ -14,7 +14,7 @@ xcd() {
 (xcd lib/strconv
 make clean
 time make
-bash test.bash
+make test
 ) || exit $?
 
 (xcd lib/reflect
