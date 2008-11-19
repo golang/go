@@ -8,13 +8,6 @@ set -x
 
 make clean
 make
-6g testatof.go
-6l testatof.6
-6.out
-6g testftoa.go
-6l testftoa.6
-6.out
-6g testfp.go
-6l testfp.6
-6.out
-rm -f *.6 6.out
+# make test
+# ./test
+# rm -f *.6 6.out test

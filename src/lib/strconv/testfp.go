@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
-
+package strconv
 import (
 	"bufio";
 	"fmt";
@@ -26,15 +25,15 @@ func pow2(i int) float64 {
 
 // Wrapper around strconv.atof64.  Handles dddddp+ddd (binary exponent)
 // itself, passes the rest on to strconv.atof64.
-func atof64(s string) (f float64, ok bool) {
+func myatof64(s string) (f float64, ok bool) {
 	a := strings.split(s, "p");
 	if len(a) == 2 {
-		n, ok := strconv.atoi64(a[0]);
-		if !ok {
+		n, err := strconv.atoi64(a[0]);
+		if err != nil {
 			return 0, false;
 		}
-		e, ok1 := strconv.atoi(a[1]);
-		if !ok1 {
+		e, err1 := strconv.atoi(a[1]);
+		if err1 != nil {
 			println("bad e", a[1]);
 			return 0, false;
 		}
@@ -61,8 +60,8 @@ func atof64(s string) (f float64, ok bool) {
 		}
 		return v*pow2(e), true;
 	}
-	f1, overflow, ok1 := strconv.atof64(s);
-	if !ok1 {
+	f1, err := strconv.atof64(s);
+	if err != nil {
 		return 0, false;
 	}
 	return f1, true;
@@ -70,30 +69,29 @@ func atof64(s string) (f float64, ok bool) {
 
 // Wrapper around strconv.atof32.  Handles dddddp+ddd (binary exponent)
 // itself, passes the rest on to strconv.atof32.
-func atof32(s string) (f float32, ok bool) {
+func myatof32(s string) (f float32, ok bool) {
 	a := strings.split(s, "p");
 	if len(a) == 2 {
-		n, ok := strconv.atoi(a[0]);
-		if !ok {
+		n, err := strconv.atoi(a[0]);
+		if err != nil {
 			println("bad n", a[0]);
 			return 0, false;
 		}
-		e, ok1 := strconv.atoi(a[1]);
-		if !ok1 {
+		e, err1 := strconv.atoi(a[1]);
+		if err1 != nil {
 			println("bad p", a[1]);
 			return 0, false;
 		}
 		return float32(float64(n)*pow2(e)), true;
 	}
-	f1, overflow, ok1 := strconv.atof32(s);
-	if !ok1 {
+	f1, err1 := strconv.atof32(s);
+	if err1 != nil {
 		return 0, false;
 	}
 	return f1, true;
 }
 
-func main()
-{
+export func TestFp() bool {
 	fd, err := os.Open("testfp.txt", os.O_RDONLY, 0);
 	if err != nil {
 		panicln("testfp: open testfp.txt:", err.String());
@@ -128,14 +126,14 @@ func main()
 		switch a[0] {
 		case "float64":
 			var ok bool;
-			v, ok = atof64(a[2]);
+			v, ok = myatof64(a[2]);
 			if !ok {
 				print("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
 				continue;
 			}
 			s = fmt.sprintf(a[1], v);
 		case "float32":
-			v1, ok := atof32(a[2]);
+			v1, ok := myatof32(a[2]);
 			if !ok {
 				print("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
 				continue;
@@ -150,7 +148,5 @@ func main()
 		}
 //else print("testfp.txt:", lineno, ": worked! ", s, "\n");
 	}
-	if !ok {
-		panicln("testfp failed");
-	}
+	return ok;
 }
