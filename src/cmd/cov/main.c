@@ -21,7 +21,7 @@ typedef struct Ureg Ureg;
 void
 usage(void)
 {
-	fprint(2, "usage: cov 6.out [-lv] [-g regexp] [args...]\n");
+	fprint(2, "usage: cov [-lv] [-g regexp] [6.out args...]\n");
 	fprint(2, "-g specifies pattern of interesting functions or files\n");
 	exits("usage");
 }
@@ -162,7 +162,7 @@ missing(uvlong pc, uvlong epc)
 
 	if(epc - pc == 2 || epc -pc == 3) {
 		// check for XORL inside shift.
-		// (on x86 have to implement large shift with explicit zeroing).
+		// (on x86 have to implement large left or unsigned right shift with explicit zeroing).
 		//	f+90 0x00002c9f	CMPL	CX,$20
 		//	f+93 0x00002ca2	JCS	f+97(SB)
 		//	f+95 0x00002ca4	XORL	AX,AX <<<
@@ -179,6 +179,24 @@ missing(uvlong pc, uvlong epc)
 		if(strncmp(buf, "XOR", 3) == 0) {
 			machdata->das(text, epc, 0, buf, sizeof buf);
 			if(strncmp(buf, "SHL", 3) == 0 || strncmp(buf, "SHR", 3) == 0)
+				return;
+		}
+	}
+
+	if(epc - pc == 3) {
+		// check for SAR inside shift.
+		// (on x86 have to implement large signed right shift as >>31).
+		//	f+36 0x00016216	CMPL	CX,$20
+		//	f+39 0x00016219	JCS	f+3e(SB)
+		//	f+3b 0x0001621b	SARL	$1f,AX <<<
+		//	f+3e 0x0001621e	SARL	CL,AX
+		//	f+40 0x00016220	XORL	CX,CX
+		//	f+42 0x00016222	CMPL	CX,AX
+		buf[0] = 0;
+		machdata->das(text, pc, 0, buf, sizeof buf);
+		if(strncmp(buf, "SAR", 3) == 0) {
+			machdata->das(text, epc, 0, buf, sizeof buf);
+			if(strncmp(buf, "SAR", 3) == 0)
 				return;
 		}
 	}
@@ -379,8 +397,10 @@ main(int argc, char **argv)
 	getwd(cwd, sizeof cwd);
 	ncwd = strlen(cwd);
 
-	if(argc < 1)
-		usage();
+	if(argc == 0) {
+		*--argv = "6.out";
+		argc++;
+	}
 	fd = open(argv[0], OREAD);
 	if(fd < 0)
 		sysfatal("open %s: %r", argv[0]);
