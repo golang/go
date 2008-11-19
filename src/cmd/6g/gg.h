@@ -39,6 +39,7 @@ struct	Prog
 	Addr	from;		// src address
 	Addr	to;		// dst address
 	Prog*	link;		// next instruction in this func
+	void*	reg;		// pointer to containing Reg struct
 };
 #define	P	((Prog*)0)
 
@@ -102,7 +103,6 @@ EXTERN	Pool*	poolast;
 EXTERN	Biobuf*	bout;
 EXTERN	int32	dynloc;
 EXTERN	uchar	reg[D_NONE];
-EXTERN	ushort	txt[NTYPE*NTYPE];
 EXTERN	int32	maxround;
 EXTERN	int32	widthptr;
 EXTERN	Sym*	symstringo;	// string objects

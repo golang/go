@@ -11,6 +11,7 @@ HFILES=\
 	../gc/go.h\
 	../6l/6.out.h\
 	gg.h\
+	opt.h\
 
 OFILES=\
 	list.$O\
@@ -19,6 +20,9 @@ OFILES=\
 	cgen.$O\
 	gsubr.$O\
 	obj.$O\
+	peep.$O\
+	reg.$O\
+	bits.$O\
 	../6l/enam.$O\
 
 LIB=\
