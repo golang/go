@@ -88,6 +88,7 @@ func (b *ByteArray) Append(s *[]byte) {
 export type TabWriter struct {
 	// configuration
 	writer IO.Write;
+	usetabs bool;
 	tabwidth int;
 
 	// current state
@@ -103,8 +104,9 @@ func (b *TabWriter) AddLine() {
 }
 
 
-func (b *TabWriter) Init(writer IO.Write, tabwidth int) {
+func (b *TabWriter) Init(writer IO.Write, usetabs bool, tabwidth int) {
 	b.writer = writer;
+	b.usetabs = usetabs;
 	b.tabwidth = tabwidth;
 	
 	b.buf.Init(1024);
@@ -141,15 +143,33 @@ func (b *TabWriter) Dump() {
 }
 
 
+var Tabs = &[]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'}
 var Blanks = &[]byte{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}
 var Newline = &[]byte{'\n'}
 
-func (b *TabWriter) WriteBlanks(n int) {
-	for n >= len(Blanks) {
-		m, err := b.writer.Write(Blanks);
-		n -= len(Blanks);
+
+func (b *TabWriter) Padding(textwidth, cellwidth int) {
+	n := cellwidth - textwidth;
+	if n < 0 {
+		panic("internal error");
 	}
-	m, err := b.writer.Write(Blanks[0 : n]);
+	if b.usetabs {
+		if cellwidth % b.tabwidth != 0 {
+			panic("internal error");  // cellwidth should be a multiple of tabwidth
+		}
+		n = (n + b.tabwidth - 1) / b.tabwidth;
+		for n > len(Tabs) {
+			m, err := b.writer.Write(Tabs);
+			n -= len(Tabs);
+		}
+		m, err := b.writer.Write(Tabs[0 : n]);
+	} else {
+		for n > len(Blanks) {
+			m, err := b.writer.Write(Blanks);
+			n -= len(Blanks);
+		}
+		m, err := b.writer.Write(Blanks[0 : n]);
+	}
 }
 
 
@@ -164,7 +184,7 @@ func (b *TabWriter) PrintLines(pos int, line0, line1 int) int {
 			}
 			pos += w;
 			if j < b.widths.Len() {
-				b.WriteBlanks(b.widths.At(j).(int) - w);
+				b.Padding(w, b.widths.At(j).(int));
 			}
 		}
 		m, err := b.writer.Write(Newline);
@@ -205,6 +225,11 @@ func (b *TabWriter) Format(pos int, line0, line1 int) int {
 			}
 			// column block end
 
+			if b.usetabs {
+				// make width a multiple of the tab width
+				width = ((width + b.tabwidth - 1) / b.tabwidth) * b.tabwidth;
+			}
+			
 			// format and print all columns to the right of this column
 			// (we know the widths of this column and all columns to the left)
 			b.widths.Append(width);
@@ -277,8 +302,8 @@ func (b *TabWriter) Write(buf *[]byte) (i int, err *OS.Error) {
 }
 
 
-export func MakeTabWriter(writer IO.Write, tabwidth int) *TabWriter {
+export func MakeTabWriter(writer IO.Write, usetabs bool, tabwidth int) *TabWriter {
 	b := new(TabWriter);
-	b.Init(writer, tabwidth);
+	b.Init(writer, usetabs, tabwidth);
 	return b;
 }

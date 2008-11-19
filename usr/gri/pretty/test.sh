@@ -22,7 +22,7 @@ apply1() {
 	#echo $1 $2
 	case `basename $F` in
 	selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
-	bug068.go | bug088.go | bug083.go | bug106.go ) ;;  # skip - files contain syntax errors
+	bug068.go | bug088.go | bug083.go | bug106.go | bug125.go ) ;;  # skip - files contain syntax errors
 	* ) $1 $2; count ;;
 	esac
 }
