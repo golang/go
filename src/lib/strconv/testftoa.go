@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
-
+package strconv
 import "strconv"
 
 type Test struct {
@@ -13,7 +12,8 @@ type Test struct {
 	s string;
 }
 
-var tests = []Test {
+// TODO: Should be able to call this tests but it conflicts with testatof.go
+var ftests = []Test {
 	Test{ 1, 'e', 5, "1.00000e+00" },
 	Test{ 1, 'f', 5, "1.00000" },
 	Test{ 1, 'g', 5, "1" },
@@ -70,27 +70,25 @@ var tests = []Test {
 	Test{ 32, 'g', -1, "32" },
 }
 
-func main() {
-	bad := 0;
+export func TestFtoa() bool {
+	ok := true;
 	if strconv.floatsize != 32 {
 		panic("floatsize: ", strconv.floatsize);
 	}
-	for i := 0; i < len(tests); i++ {
-		t := &tests[i];
+	for i := 0; i < len(ftests); i++ {
+		t := &ftests[i];
 		s := strconv.ftoa64(t.f, t.fmt, t.prec);
 		if s != t.s {
 			println("test", t.f, string(t.fmt), t.prec, "want", t.s, "got", s);
-			bad++;
+			ok = false;
 		}
 		if float64(float32(t.f)) == t.f {
 			s := strconv.ftoa32(float32(t.f), t.fmt, t.prec);
 			if s != t.s {
 				println("test32", t.f, string(t.fmt), t.prec, "want", t.s, "got", s);
-				bad++;
+				ok = false;
 			}
 		}	
 	}
-	if bad != 0 {
-		panic("failed");
-	}
+	return ok;
 }
