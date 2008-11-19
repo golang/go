@@ -8,7 +8,7 @@ package regexp
 
 import (
 	"os";
-	"vector";
+	"array";
 )
 
 export var debug = false;
@@ -50,7 +50,7 @@ type RE struct {
 	expr	string;	// the original expression
 	ch	*chan<- *RE;	// reply channel when we're done
 	error	*os.Error;	// compile- or run-time error; nil if OK
-	inst	*vector.Vector;
+	inst	*array.Array;
 	start	Inst;
 	nbra	int;	// number of brackets in expression, for subexpressions
 }
@@ -123,8 +123,8 @@ type CharClass struct {
 	Common;
 	char	int;
 	negate	bool;	// is character class negated? ([^a-z])
-	// Vector of int, stored pairwise: [a-z] is (a,z); x is (x,x):
-	ranges	*vector.Vector;
+	// array of int, stored pairwise: [a-z] is (a,z); x is (x,x):
+	ranges	*array.IntArray;
 }
 
 func (cclass *CharClass) Type() int { return CHARCLASS }
@@ -135,8 +135,8 @@ func (cclass *CharClass) Print() {
 		print(" (negated)");
 	}
 	for i := 0; i < cclass.ranges.Len(); i += 2 {
-		l := cclass.ranges.At(i).(int);
-		r := cclass.ranges.At(i+1).(int);
+		l := cclass.ranges.At(i);
+		r := cclass.ranges.At(i+1);
 		if l == r {
 			print(" [", string(l), "]");
 		} else {
@@ -147,14 +147,14 @@ func (cclass *CharClass) Print() {
 
 func (cclass *CharClass) AddRange(a, b int) {
 	// range is a through b inclusive
-	cclass.ranges.Append(a);
-	cclass.ranges.Append(b);
+	cclass.ranges.Push(a);
+	cclass.ranges.Push(b);
 }
 
 func (cclass *CharClass) Matches(c int) bool {
 	for i := 0; i < cclass.ranges.Len(); i = i+2 {
-		min := cclass.ranges.At(i).(int);
-		max := cclass.ranges.At(i+1).(int);
+		min := cclass.ranges.At(i);
+		max := cclass.ranges.At(i+1);
 		if min <= c && c <= max {
 			return !cclass.negate
 		}
@@ -164,7 +164,7 @@ func (cclass *CharClass) Matches(c int) bool {
 
 func NewCharClass() *CharClass {
 	c := new(CharClass);
-	c.ranges = vector.New();
+	c.ranges = array.NewIntArray(0);
 	return c;
 }
 
@@ -220,7 +220,7 @@ func (re *RE) Error(err *os.Error) {
 
 func (re *RE) Add(i Inst) Inst {
 	i.SetIndex(re.inst.Len());
-	re.inst.Append(i);
+	re.inst.Push(i);
 	return i;
 }
 
@@ -574,7 +574,7 @@ func (re *RE) DoParse() {
 func Compiler(str string, ch *chan *RE) {
 	re := new(RE);
 	re.expr = str;
-	re.inst = vector.New();
+	re.inst = array.New(0);
 	re.ch = ch;
 	re.DoParse();
 	ch <- re;
