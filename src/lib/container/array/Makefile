@@ -33,18 +33,25 @@ coverage: packages
 
 O1=\
 	array.$O\
+
+O2=\
 	intarray.$O\
 
-array.a: a1
+array.a: a1 a2
 
 a1:	$(O1)
-	$(AR) grc array.a array.$O intarray.$O
+	$(AR) grc array.a array.$O
 	rm -f $(O1)
+
+a2:	$(O2)
+	$(AR) grc array.a intarray.$O
+	rm -f $(O2)
 
 newpkg: clean
 	$(AR) grc array.a
 
 $(O1): newpkg
+$(O2): a1
 
 nuke: clean
 	rm -f $(GOROOT)/pkg/array.a
