@@ -257,5 +257,4 @@ belexinit(int lextype)
 	symstringo = lookup(".stringo");	// strings
 
 	listinit();
-	buildtxt();
 }
