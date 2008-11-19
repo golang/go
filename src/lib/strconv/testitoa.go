@@ -8,6 +8,7 @@ import (
 	"fmt";
 	"os";
 	"strconv";
+	"testing";
 )
 
 type Int64Test struct {
@@ -41,26 +42,22 @@ var xint64tests = []Int64Test {
 	Int64Test{ -1<<63, "-9223372036854775808" },
 }
 
-export func TestItoa() bool {
-	ok := true;
+export func TestItoa(t *testing.T) {
 	for i := 0; i < len(xint64tests); i++ {
-		t := xint64tests[i];
-		s := strconv.itoa64(t.in);
-		if s != t.out {
-			fmt.printf("strconv.itoa64(%v) = %v want %v\n",
-				t.in, s, t.out);
-			ok = false;
+		test := xint64tests[i];
+		s := strconv.itoa64(test.in);
+		if s != test.out {
+			t.Error("strconv.itoa64(%v) = %v want %v\n",
+				test.in, s, test.out);
 		}
-		if int64(int(t.in)) == t.in {
-			s := strconv.itoa(int(t.in));
-			if s != t.out {
-				fmt.printf("strconv.itoa(%v) = %v want %v\n",
-					t.in, s, t.out);
-				ok = false;
+		if int64(int(test.in)) == test.in {
+			s := strconv.itoa(int(test.in));
+			if s != test.out {
+				t.Error("strconv.itoa(%v) = %v want %v\n",
+					test.in, s, test.out);
 			}
 		}
 	}
-	return ok;
 }
 
 // TODO: Use once there is a strconv.uitoa

@@ -9,6 +9,7 @@ import (
 	"os";
 	"strconv";
 	"strings";
+	"testing";
 )
 
 func pow2(i int) float64 {
@@ -91,7 +92,7 @@ func myatof32(s string) (f float32, ok bool) {
 	return f1, true;
 }
 
-export func TestFp() bool {
+export func TestFp(t *testing.T) {
 	fd, err := os.Open("testfp.txt", os.O_RDONLY, 0);
 	if err != nil {
 		panicln("testfp: open testfp.txt:", err.String());
@@ -103,7 +104,6 @@ export func TestFp() bool {
 	}
 
 	lineno := 0;
-	ok := true;
 	for {
 		line, err2 := b.ReadLineString('\n', false);
 		if err2 == bufio.EndOfFile {
@@ -118,7 +118,7 @@ export func TestFp() bool {
 		}
 		a := strings.split(line, " ");
 		if len(a) != 4 {
-			print("testfp.txt:", lineno, ": wrong field count\n");
+			t.Errorf("testfp.txt:", lineno, ": wrong field count\n");
 			continue;
 		}
 		var s string;
@@ -128,25 +128,23 @@ export func TestFp() bool {
 			var ok bool;
 			v, ok = myatof64(a[2]);
 			if !ok {
-				print("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
+				t.Errorf("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
 				continue;
 			}
 			s = fmt.sprintf(a[1], v);
 		case "float32":
 			v1, ok := myatof32(a[2]);
 			if !ok {
-				print("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
+				t.Errorf("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
 				continue;
 			}
 			s = fmt.sprintf(a[1], v1);
 			v = float64(v1);
 		}
 		if s != a[3] {
-			print("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
+			t.Errorf("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
 				"want ", a[3], " got ", s, "\n");
-			ok = false;
 		}
 //else print("testfp.txt:", lineno, ": worked! ", s, "\n");
 	}
-	return ok;
 }
