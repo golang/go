@@ -69,4 +69,4 @@ trap "rm -f _testmain.go _testmain.6 6.out" 0 1 2 3 14 15
 
 6g _testmain.go
 6l _testmain.6
-6.out "$@"
+./6.out "$@"
