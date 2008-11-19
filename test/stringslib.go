@@ -35,7 +35,7 @@ func explode(s string) *[]string {
 
 func itoa(i int) string {
 	s := strconv.itoa(i);
-	n, ok := strconv.atoi(s);
+	n, err := strconv.atoi(s);
 	if n != i {
 		print("itoa: ", i, " ", s, "\n");
 		panic("itoa")
@@ -92,20 +92,20 @@ func main() {
 		a := split(faces, "");
 		if len(a) != 3 || a[0] != "☺" || a[1] != "☻" || a[2] != "☹" { panic("split faces empty") }
 	}
-	
+
 	{
-		n, ok := strconv.atoi("0"); if n != 0 || !ok { panic("atoi 0") }
-		n, ok = strconv.atoi("-1"); if n != -1 || !ok { panic("atoi -1") }
-		n, ok = strconv.atoi("+345"); if n != 345 || !ok { panic("atoi +345") }
-		n, ok = strconv.atoi("9999"); if n != 9999 || !ok { panic("atoi 9999") }
-		n, ok = strconv.atoi("20ba"); if n != 0 || ok { panic("atoi 20ba") }
-		n, ok = strconv.atoi("hello"); if n != 0 || ok { panic("hello") }
+		n, err := strconv.atoi("0"); if n != 0 || err != nil { panic("atoi 0") }
+		n, err = strconv.atoi("-1"); if n != -1 || err != nil { panic("atoi -1") }
+		n, err = strconv.atoi("+345"); if n != 345 || err != nil { panic("atoi +345") }
+		n, err = strconv.atoi("9999"); if n != 9999 || err != nil { panic("atoi 9999") }
+		n, err = strconv.atoi("20ba"); if n != 0 || err == nil { panic("atoi 20ba") }
+		n, err = strconv.atoi("hello"); if n != 0 || err == nil { panic("hello") }
 	}
 
 	if strconv.ftoa(1e6, 'e', 6) != "1.000000e+06" { panic("ftoa 1e6") }
 	if strconv.ftoa(-1e-6, 'e', 6) != "-1.000000e-06" { panic("ftoa -1e-6") }
 	if strconv.ftoa(-1.234567e-6, 'e', 6) != "-1.234567e-06" { panic("ftoa -1.234567e-6") }
-	
+
 	if itoa(0) != "0" { panic("itoa 0") }
 	if itoa(12345) != "12345" { panic("itoa 12345") }
 	if itoa(-1<<31) != "-2147483648" { panic("itoa 1<<31") }
@@ -114,7 +114,7 @@ func main() {
 	// if itoa(-1<<63) != "-9223372036854775808" { panic("itoa 1<<63") }
 
 	{
-		a, overflow, ok := strconv.atof64("-1.2345e4");
-		if !ok || a != -12345. { panic(a, "atof64 -1.2345e4") }
+		a, err := strconv.atof64("-1.2345e4");
+		if err != nil || a != -12345. { panic(a, "atof64 -1.2345e4") }
 	}
 }

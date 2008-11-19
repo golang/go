@@ -10,6 +10,7 @@
 package main
 
 import (
+	"os";
 	"strconv";
 )
 
@@ -20,9 +21,9 @@ func f(left, right *chan int) {
 func main() {
 	var n = 10000;
 	if sys.argc() > 1 {
-		var ok bool;
-		n, ok = strconv.atoi(sys.argv(1));
-		if !ok {
+		var err *os.Error;
+		n, err = strconv.atoi(sys.argv(1));
+		if err != nil {
 			print("bad arg\n");
 			sys.exit(1);
 		}

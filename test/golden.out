@@ -125,7 +125,7 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
 
 =========== bugs/bug105.go
 bugs/bug105.go:8: P: undefined
-bugs/bug105.go:9: illegal types for operand: RETURN
+bugs/bug105.go:8: illegal types for operand: RETURN
 	int
 BUG: should compile
 
@@ -139,7 +139,7 @@ BUG: bug115 should compile
 
 =========== bugs/bug117.go
 bugs/bug117.go:9: undefined DOT get on PS
-bugs/bug117.go:10: illegal types for operand: RETURN
+bugs/bug117.go:9: illegal types for operand: RETURN
 	int
 BUG: should compile
 
@@ -156,6 +156,7 @@ Bad float64 const: 1e23+8.388608e6 want 1.0000000000000001e+23 got 1e+23
 Bad float64 const: 1e23+1 want 1.0000000000000001e+23 got 1e+23
 	want exact: 100000000000000008388608
 	got exact:  99999999999999991611392
+BUG: bug120
 
 =========== bugs/bug121.go
 BUG: compilation succeeds incorrectly
