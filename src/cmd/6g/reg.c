@@ -36,7 +36,7 @@
 #define	P2R(p)	(Reg*)(p->reg)
 #define	MAGIC	0xb00fbabe
 
-static	first	= 1;
+static	int	first	= 1;
 static	void	dumpit(char *str, Reg *r0);
 static	int	noreturn(Prog *p);
 
@@ -73,8 +73,8 @@ rcmp(const void *a1, const void *a2)
 void
 regopt(Prog *firstp)
 {
-	Reg *r, *r1, *r2;
-	Prog *p1, *p;
+	Reg *r, *r1;
+	Prog *p;
 	int i, z, nr;
 	uint32 vreg;
 	Bits bit;

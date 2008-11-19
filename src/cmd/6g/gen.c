@@ -6,6 +6,7 @@
 #undef	EXTERN
 #define	EXTERN
 #include "gg.h"
+#include "opt.h"
 
 enum
 {
@@ -515,7 +516,7 @@ swgen(Node *n)
 	Case *s0, *se, *s, *sa;
 	Prog *p1, *dflt;
 	int32 lno;
-	int any, nc, w;
+	int any, nc;
 	Iter save1, save2;
 
 // botch - put most of this code in
