@@ -40,7 +40,7 @@ export func WriteString(w Write, s string) (n int, err *os.Error) {
 	return r, e
 }
 
-// Read until buffer is full,  EOF, or error
+// Read until buffer is full, EOF, or error
 export func Readn(fd Read, buf *[]byte) (n int, err *os.Error) {
 	n = 0;
 	for n < len(buf) {
@@ -79,26 +79,61 @@ export func MakeFullReader(fd Read) Read {
 
 // Copies n bytes (or until EOF is reached) from src to dst.
 // Returns the number of bytes copied and the error, if any.
-export func Copyn(src Read, dst Write, n int) (c int, err *os.Error) {
-	buf := new([]byte, 32*1024);  // BUG 6g crashes on non-pointer array slices
-	c = 0;
-	for c < n {
-		l := n - c;
-		if l > len(buf) {
-			l = len(buf)
+export func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
+	buf := new([]byte, 32*1024);
+	for written < n {
+		var l int;
+		if n - written > int64(len(buf)) {
+			l = len(buf);
+		} else {
+			l = int(n - written);
 		}
 		nr, er := src.Read(buf[0 : l]);
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0 : nr]);
-			if nw != nr || ew != nil {
-				c += nw;
-				if ew == nil {
-					ew = os.EIO
-				}
+			if nw > 0 {
+				written += int64(nw);
+			}
+			if ew != nil {
 				err = ew;
 				break;
 			}
-			c += nr;
+			if nr != nw {
+				err = os.EIO;
+				break;
+			}
+		}
+		if er != nil {
+			err = er;
+			break;
+		}
+		if nr == 0 {
+			err = ErrEOF;
+			break;
+		}
+	}
+	return written, err
+}
+
+// Copies from src to dst until EOF is reached.
+// Returns the number of bytes copied and the error, if any.
+export func Copy(src Read, dst Write) (written int64, err *os.Error) {
+	buf := new([]byte, 32*1024);
+	for {
+		nr, er := src.Read(buf);
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0:nr]);
+			if nw > 0 {
+				written += int64(nw);
+			}
+			if ew != nil {
+				err = ew;
+				break;
+			}
+			if nr != nw {
+				err = os.EIO;
+				break;
+			}
 		}
 		if er != nil {
 			err = er;
@@ -108,5 +143,6 @@ export func Copyn(src Read, dst Write, n int) (c int, err *os.Error) {
 			break;
 		}
 	}
-	return c, err
+	return written, err
 }
+
