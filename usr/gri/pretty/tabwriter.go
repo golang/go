@@ -85,7 +85,7 @@ func (b *ByteArray) Append(s *[]byte) {
 // of adjacent cells have the same width (by adding padding). For more
 // details see: http://nickgravgaard.com/elastictabstops/index.html .
 
-type TabWriter struct {
+export type TabWriter struct {
 	// configuration
 	writer IO.Write;
 	tabwidth int;
@@ -232,26 +232,25 @@ func (b *TabWriter) Tab() {
 
 func (b *TabWriter) Newline() {
 	b.Tab();  // add last cell to current line
-	
+
 	if b.LastLine().Len() == 1 {
 		// The current line has only one cell which does not have an impact
 		// on the formatting of the following lines (the last cell per line
 		// is ignored by Format), thus we can print the TabWriter contents.
 		if b.widths.Len() != 0 {
-			panic();
+			panic("internal error");
 		}
-		//b.Dump();
 		b.Format(0, 0, b.lines.Len());
 		if b.widths.Len() != 0 {
-			panic();
+			panic("internal error");
 		}
-		
-		// reset the TabWriter
+
+		// reset TabWriter
 		b.width = 0;
 		b.buf.Clear();
 		b.lines.Reset();
 	}
-	
+
 	b.AddLine();
 }
 
@@ -278,7 +277,7 @@ func (b *TabWriter) Write(buf *[]byte) (i int, err *OS.Error) {
 }
 
 
-export func MakeTabWriter(writer IO.Write, tabwidth int) IO.Write {
+export func MakeTabWriter(writer IO.Write, tabwidth int) *TabWriter {
 	b := new(TabWriter);
 	b.Init(writer, tabwidth);
 	return b;
