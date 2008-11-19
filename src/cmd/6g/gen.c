@@ -99,10 +99,9 @@ if(throwreturn == N) {
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
-//	if(debug['N']) {
-//		regopt(ptxt);
-//		debug['N'] = 0;
-//	}
+	if(debug['N']) {
+		regopt(ptxt);
+	}
 
 	// fill in argument size
 	ptxt->to.offset = rnd(curfn->type->argwid, maxround);

@@ -90,6 +90,15 @@ dumpobj(void)
 	}
 	sym = 1;
 
+	// fix up pc
+	pcloc = 0;
+	for(pl=plist; pl!=nil; pl=pl->link) {
+		for(p=pl->firstpc; p!=P; p=p->link) {
+			p->loc = pcloc;
+			pcloc++;
+		}
+	}
+
 	// put out functions
 	for(pl=plist; pl!=nil; pl=pl->link) {
 
@@ -204,8 +213,13 @@ zaddr(Biobuf *b, Addr *a, int s)
 		t |= T_SYM;
 
 	switch(a->type) {
+
+	case D_BRANCH:
+		a->offset = a->branch->loc;
+
 	default:
 		t |= T_TYPE;
+
 	case D_NONE:
 		if(a->offset != 0) {
 			t |= T_OFFSET;

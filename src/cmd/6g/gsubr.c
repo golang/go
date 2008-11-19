@@ -830,76 +830,6 @@ gmove(Node *f, Node *t)
 }
 
 void
-buildtxt(void)
-{
-	Type t1, t2;
-	int i, j, a;
-
-	memset(&t1, 0, sizeof(t1));
-	memset(&t2, 0, sizeof(t2));
-
-	for(i=0; i<NTYPE; i++)
-	for(j=0; j<NTYPE; j++) {
-		a = AGOK;
-		txt[i*NTYPE+j] = a;
-		t1.etype = i;
-		t2.etype = j;
-
-		if(isint[i] || isptr[i] || i==TBOOL) {
-			if(isint[j] || isptr[j] || j==TBOOL) {
-				dowidth(&t1);
-				dowidth(&t2);
-				if(t1.width >= t2.width) {
-					a = AMOVL;
-					if(t1.width >= 8)
-						a = AMOVQ;
-					txt[i*NTYPE+j] = a;
-					continue;
-				}
-				switch(i) {
-				case TINT8:
-					a = AMOVBLSX;
-					if(t1.width >= 8)
-						a = AMOVBQSX;
-					break;
-				case TINT16:
-					a = AMOVWLSX;
-					if(t1.width >= 8)
-						a = AMOVWQSX;
-					break;
-				case TINT32:
-					a = AMOVLQSX;
-					break;
-				case TBOOL:
-				case TUINT8:
-					a = AMOVBLZX;
-					if(t1.width >= 8)
-						a = AMOVBQZX;
-					break;
-				case TUINT16:
-					a = AMOVWLZX;
-					if(t1.width >= 8)
-						a = AMOVLQZX;
-					break;
-				case TPTR32:
-				case TUINT32:
-					a = AMOVWQZX;
-					break;
-				}
-				txt[i*NTYPE+j] = a;
-				continue;
-			}
-			if(isfloat[j]) {
-			}
-		}
-		if(isint[j] || isptr[j] || j==TBOOL) {
-			if(isfloat[i]) {
-			}
-		}
-	}
-}
-
-void
 regsalloc(Node *f, Type *t)
 {
 	fatal("regsalloc");
@@ -1000,7 +930,9 @@ naddr(Node *n, Addr *a)
 		break;
 
 	case ONAME:
-		a->etype = n->etype;
+		a->etype = 0;
+		if(n->type != T)
+			a->etype = n->type->etype;
 		a->offset = n->xoffset;
 		a->sym = n->sym;
 		if(a->sym == S)
