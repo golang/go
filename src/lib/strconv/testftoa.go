@@ -12,6 +12,8 @@ type Test struct {
 	s string;
 }
 
+func fdiv(a, b float64) float64 { return a / b }	// keep compiler in the dark
+
 // TODO: Should be able to call this tests but it conflicts with testatof.go
 var ftests = []Test {
 	Test{ 1, 'e', 5, "1.00000e+00" },
@@ -66,8 +68,22 @@ var ftests = []Test {
 	Test{ 1e23+8.5e6, 'e', -1, "1.0000000000000001e+23" },
 	Test{ 1e23+8.5e6, 'f', -1, "100000000000000010000000" },
 	Test{ 1e23+8.5e6, 'g', -1, "1.0000000000000001e+23" },
-	
+
+	Test{ fdiv(5e-304, 1e20), 'g', -1, "5e-324" },
+	Test{ fdiv(-5e-304, 1e20), 'g', -1, "-5e-324" },
+
 	Test{ 32, 'g', -1, "32" },
+	Test{ 32, 'g', 0, "3e+01" },
+
+	Test{ 100, 'x', -1, "%x" },
+
+	Test{ sys.NaN(), 'g', -1, "NaN" },
+	Test{ -sys.NaN(), 'g', -1, "NaN" },
+	Test{ sys.Inf(0), 'g', -1, "+Inf" },
+	Test{ sys.Inf(-1), 'g', -1,  "-Inf" },
+	Test{ -sys.Inf(0), 'g', -1, "-Inf" },
+
+	Test{ -1, 'b', -1, "-4503599627370496p-52" },
 }
 
 export func TestFtoa() bool {
@@ -82,13 +98,13 @@ export func TestFtoa() bool {
 			println("test", t.f, string(t.fmt), t.prec, "want", t.s, "got", s);
 			ok = false;
 		}
-		if float64(float32(t.f)) == t.f {
+		if float64(float32(t.f)) == t.f && t.fmt != 'b' {
 			s := strconv.ftoa32(float32(t.f), t.fmt, t.prec);
 			if s != t.s {
 				println("test32", t.f, string(t.fmt), t.prec, "want", t.s, "got", s);
 				ok = false;
 			}
-		}	
+		}
 	}
 	return ok;
 }

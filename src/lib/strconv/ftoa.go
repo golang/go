@@ -144,6 +144,12 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
 // that will let the original floating point value be precisely
 // reconstructed.  Size is original floating point size (64 or 32).
 func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo) {
+	// If mantissa is zero, the number is zero; stop now.
+	if mant == 0 {
+		d.nd = 0;
+		return;
+	}
+
 	// TODO: Unless exp == minexp, if the number of digits in d
 	// is less than 17, it seems unlikely that it could not be
 	// the shortest possible number already.  So maybe we can

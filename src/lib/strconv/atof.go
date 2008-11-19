@@ -15,6 +15,8 @@ import (
 	"strconv";
 )
 
+package var optimize = true	// can change for testing
+
 // TODO(rsc): Better truncation handling.
 func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
 	i := 0;
@@ -182,16 +184,7 @@ func DecimalToFloatBits(neg bool, d *Decimal, trunc bool, flt *FloatInfo) (b uin
 
 	// Denormalized?
 	if mant&(1<<flt.mantbits) == 0 {
-		if exp != flt.bias+1 {
-			// TODO: remove - has no business panicking
-			panicln("DecimalToFloatBits", exp, flt.bias+1);
-		}
-		exp--;
-	} else {
-		if exp <= flt.bias {
-			// TODO: remove - has no business panicking
-			panicln("DecimalToFloatBits1", exp, flt.bias);
-		}
+		exp = flt.bias;
 	}
 	goto out;
 
@@ -327,8 +320,10 @@ export func atof64(s string) (f float64, err *os.Error) {
 	if !ok {
 		return 0, os.EINVAL;
 	}
-	if f, ok := DecimalToFloat64(neg, d, trunc); ok {
-		return f, nil;
+	if optimize {
+		if f, ok := DecimalToFloat64(neg, d, trunc); ok {
+			return f, nil;
+		}
 	}
 	b, ovf := DecimalToFloatBits(neg, d, trunc, &float64info);
 	f = sys.float64frombits(b);
@@ -343,8 +338,10 @@ export func atof32(s string) (f float32, err *os.Error) {
 	if !ok {
 		return 0, os.EINVAL;
 	}
-	if f, ok := DecimalToFloat32(neg, d, trunc); ok {
-		return f, nil;
+	if optimize {
+		if f, ok := DecimalToFloat32(neg, d, trunc); ok {
+			return f, nil;
+		}
 	}
 	b, ovf := DecimalToFloatBits(neg, d, trunc, &float32info);
 	f = sys.float32frombits(uint32(b));

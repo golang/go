@@ -16,6 +16,7 @@ type Uint64Test struct {
 }
 
 var uint64tests = []Uint64Test {
+	Uint64Test{ "", 0, os.EINVAL },
 	Uint64Test{ "0", 0, nil },
 	Uint64Test{ "1", 1, nil },
 	Uint64Test{ "12345", 12345, nil },
@@ -24,6 +25,7 @@ var uint64tests = []Uint64Test {
 	Uint64Test{ "98765432100", 98765432100, nil },
 	Uint64Test{ "18446744073709551615", 1<<64-1, nil },
 	Uint64Test{ "18446744073709551616", 1<<64-1, os.ERANGE },
+	Uint64Test{ "18446744073709551620", 1<<64-1, os.ERANGE },
 }
 
 type Int64Test struct {
@@ -33,6 +35,7 @@ type Int64Test struct {
 }
 
 var int64tests = []Int64Test {
+	Int64Test{ "", 0, os.EINVAL },
 	Int64Test{ "0", 0, nil },
 	Int64Test{ "-0", 0, nil },
 	Int64Test{ "1", 1, nil },
@@ -60,6 +63,7 @@ type Uint32Test struct {
 }
 
 var uint32tests = []Uint32Test {
+	Uint32Test{ "", 0, os.EINVAL },
 	Uint32Test{ "0", 0, nil },
 	Uint32Test{ "1", 1, nil },
 	Uint32Test{ "12345", 12345, nil },
@@ -77,6 +81,7 @@ type Int32Test struct {
 }
 
 var int32tests = []Int32Test {
+	Int32Test{ "", 0, os.EINVAL },
 	Int32Test{ "0", 0, nil },
 	Int32Test{ "-0", 0, nil },
 	Int32Test{ "1", 1, nil },
