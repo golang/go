@@ -20,7 +20,7 @@ test: packages
 
 coverage: packages
 	gotest
-	6cov -g `pwd` | grep -v '^test.*\.go:'
+	6cov -g `pwd` | grep -v '_test\.go:'
 
 %.$O: %.go
 	$(GC) $*.go
@@ -32,35 +32,29 @@ coverage: packages
 	$(AS) $*.s
 
 O1=\
+	fd_$(GOOS).$O\
 	ip.$O\
 
 O2=\
-	fd_$(GOOS).$O\
+	fd.$O\
 	net_$(GOOS).$O\
 
 O3=\
-	fd.$O\
-
-O4=\
 	net.$O\
 
-net.a: a1 a2 a3 a4
+net.a: a1 a2 a3
 
 a1:	$(O1)
-	$(AR) grc net.a ip.$O
+	$(AR) grc net.a fd_$(GOOS).$O ip.$O
 	rm -f $(O1)
 
 a2:	$(O2)
-	$(AR) grc net.a fd_$(GOOS).$O net_$(GOOS).$O
+	$(AR) grc net.a fd.$O net_$(GOOS).$O
 	rm -f $(O2)
 
 a3:	$(O3)
-	$(AR) grc net.a fd.$O
-	rm -f $(O3)
-
-a4:	$(O4)
 	$(AR) grc net.a net.$O
-	rm -f $(O4)
+	rm -f $(O3)
 
 newpkg: clean
 	$(AR) grc net.a
@@ -68,7 +62,6 @@ newpkg: clean
 $(O1): newpkg
 $(O2): a1
 $(O3): a2
-$(O4): a3
 
 nuke: clean
 	rm -f $(GOROOT)/pkg/net.a

@@ -22,7 +22,7 @@ test: packages
 
 coverage: packages
 	gotest
-	6cov -g `pwd` | grep -v '^test.*\.go:'
+	6cov -g `pwd` | grep -v '_test\.go:'
 
 %.$O: %.go
 	$(GC) $*.go
