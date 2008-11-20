@@ -20,7 +20,7 @@ test: packages
 
 coverage: packages
 	gotest
-	6cov -g `pwd` | grep -v '^test.*\.go:'
+	6cov -g `pwd` | grep -v '_test\.go:'
 
 %.$O: %.go
 	$(GC) $*.go
@@ -35,9 +35,9 @@ O1=\
 	os_error.$O\
 
 O2=\
-	os_env.$O\
 	os_file.$O\
 	os_time.$O\
+	os_env.$O\
 
 os.a: a1 a2
 
@@ -46,7 +46,7 @@ a1:	$(O1)
 	rm -f $(O1)
 
 a2:	$(O2)
-	$(AR) grc os.a os_env.$O os_file.$O os_time.$O
+	$(AR) grc os.a os_file.$O os_time.$O os_env.$O
 	rm -f $(O2)
 
 newpkg: clean
