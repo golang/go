@@ -6,56 +6,82 @@ package math
 
 import "math"
 
-/*
-	arg1 ^ arg2 (exponentiation)
- */
-
-export func Pow(arg1,arg2 float64) float64 {
-	if arg2 < 0 {
-		return 1/Pow(arg1, -arg2);
+// x^y: exponentation
+export func Pow(x, y float64) float64 {
+	// TODO: x or y NaN, ±Inf, maybe ±0.
+	switch {
+	case y == 0:
+		return 1;
+	case y == 1:
+		return x;
+	case x == 0 && y > 0:
+		return 0;
+	case x == 0 && y < 0:
+		return sys.Inf(1);
+	case y == 0.5:
+		return Sqrt(x);
+	case y == -0.5:
+		return 1 / Sqrt(x);
 	}
-	if arg1 <= 0 {
-		if(arg1 == 0) {
-			if arg2 <= 0 {
-				return sys.NaN();
+
+	absy := y;
+	flip := false;
+	if absy < 0 {
+		absy = -absy;
+		flip = true;
+	}
+	yi, yf := sys.modf(absy);
+	if yf != 0 && x < 0 {
+		return sys.NaN();
+	}
+	if yi >= 1<<63 {
+		return Exp(y * Log(x));
+	}
+
+	ans := float64(1);
+
+	// ans *= x^yf
+	if yf != 0 {
+		if yf > 0.5 {
+			yf--;
+			yi++;
+		}
+		ans = Exp(yf * Log(x));
+	}
+
+	// ans *= x^yi
+	// by multiplying in successive squarings
+	// of x according to bits of yi.
+	// accumulate powers of two into exp.
+	// will still have to do ans *= 2^exp later.
+	x1, xe := sys.frexp(x);
+	exp := 0;
+	if i := int64(yi); i != 0 {
+		for {
+			if i&1 == 1 {
+				ans *= x1;
+				exp += xe;
 			}
-			return 0;
-		}
-
-		temp := Floor(arg2);
-		if temp != arg2 {
-			panic(sys.NaN());
-		}
-
-		l := int32(temp);
-		if l&1 != 0 {
-			return -Pow(-arg1, arg2);
-		}
-		return Pow(-arg1, arg2);
-	}
-
-	temp := Floor(arg2);
-	if temp != arg2 {
-		if arg2-temp == .5 {
-			if temp == 0 {
-				return Sqrt(arg1);
+			i >>= 1;
+			if i == 0 {
+				break;
 			}
-			return Pow(arg1, temp) * Sqrt(arg1);
+			x1 *= x1;
+			xe <<= 1;
+			if x1 < .5 {
+				x1 += x1;
+				xe--;
+			}
 		}
-		return Exp(arg2 * Log(arg1));
 	}
 
-	l := int32(temp);
-	temp = 1;
-	for {
-		if l&1 != 0 {
-			temp = temp*arg1;
-		}
-		l >>= 1;
-		if l == 0 {
-			return temp;
-		}
-		arg1 *= arg1;
+	// ans *= 2^exp
+	// if flip { ans = 1 / ans }
+	// but in the opposite order
+	if flip {
+		ans = 1 / ans;
+		exp = -exp;
 	}
-	panic("unreachable")
+	return sys.ldexp(ans, exp);
 }
+
