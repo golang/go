@@ -5,28 +5,28 @@
 package main
 
 import (
-	OS "os";
-	IO "io";
-	Flag "flag";
-	Fmt "fmt";
-	TabWriter "tabwriter";
+	"os";
+	"io";
+	"flag";
+	"fmt";
+	"tabwriter";
 )
 
 
 var (
-	usetabs = Flag.Bool("usetabs", false, nil, "align with tabs instead of blanks");
-	tabwidth = Flag.Int("tabwidth", 4, nil, "tab width");
+	usetabs = flag.Bool("usetabs", false, nil, "align with tabs instead of blanks");
+	tabwidth = flag.Int("tabwidth", 4, nil, "tab width");
 )
 
 
-func Error(fmt string, params ...) {
-	Fmt.printf(fmt, params);
+func Error(format string, params ...) {
+	fmt.printf(format, params);
 	sys.exit(1);
 }
 
 
-func Untab(name string, src *OS.FD, dst *TabWriter.TabWriter) {
-	n, err := IO.Copyn(src, dst, 2e9 /* inf */);  // TODO use Copy
+func Untab(name string, src *os.FD, dst *tabwriter.TabWriter) {
+	n, err := io.Copy(src, dst);
 	if err != nil {
 		Error("error while processing %s (%v)", name, err);
 	}
@@ -35,12 +35,12 @@ func Untab(name string, src *OS.FD, dst *TabWriter.TabWriter) {
 
 
 func main() {
-	Flag.Parse();
-	dst := TabWriter.MakeTabWriter(OS.Stdout, usetabs.BVal(), int(tabwidth.IVal()));
-	if Flag.NArg() > 0 {
-		for i := 0; i < Flag.NArg(); i++ {
-			name := Flag.Arg(i);
-			src, err := OS.Open(name, OS.O_RDONLY, 0);
+	flag.Parse();
+	dst := tabwriter.MakeTabWriter(os.Stdout, usetabs.BVal(), int(tabwidth.IVal()));
+	if flag.NArg() > 0 {
+		for i := 0; i < flag.NArg(); i++ {
+			name := flag.Arg(i);
+			src, err := os.Open(name, os.O_RDONLY, 0);
 			if err != nil {
 				Error("could not open %s (%v)\n", name, err);
 			}
@@ -49,6 +49,6 @@ func main() {
 		}
 	} else {
 		// no files => use stdin
-		Untab("/dev/stdin", OS.Stdin, dst);
+		Untab("/dev/stdin", os.Stdin, dst);
 	}
 }

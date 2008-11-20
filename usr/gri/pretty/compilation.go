@@ -4,6 +4,7 @@
 
 package Compilation
 
+import "array"
 import OS "os"
 import Platform "platform"
 import Scanner "scanner"
@@ -61,7 +62,7 @@ func FileExists(name string) bool {
 }
 
 
-func AddDeps(globalset *map [string] bool, wset *AST.List, src_file string, flags *Flags) {
+func AddDeps(globalset *map [string] bool, wset *array.Array, src_file string, flags *Flags) {
 	dummy, found := globalset[src_file];
 	if !found {
 		globalset[src_file] = true;
@@ -71,13 +72,13 @@ func AddDeps(globalset *map [string] bool, wset *AST.List, src_file string, flag
 			return;
 		}
 		
-		nimports := prog.decls.len();
+		nimports := prog.decls.Len();
 		if nimports > 0 {
 			print(src_file, ".6:\t");
 			
 			localset := new(map [string] bool);
 			for i := 0; i < nimports; i++ {
-				decl := prog.decls.at(i).(*AST.Decl);
+				decl := prog.decls.At(i).(*AST.Decl);
 				assert(decl.tok == Scanner.IMPORT && decl.val.tok == Scanner.STRING);
 				src := decl.val.s;
 				src = src[1 : len(src) - 1];  // strip "'s
@@ -87,7 +88,7 @@ func AddDeps(globalset *map [string] bool, wset *AST.List, src_file string, flag
 				if !found {
 					localset[src] = true;
 					if FileExists(src + ".go") {
-						wset.Add(src);
+						wset.Push(src);
 						print(" ", src, ".6");
 					} else if
 						FileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
@@ -107,9 +108,9 @@ func AddDeps(globalset *map [string] bool, wset *AST.List, src_file string, flag
 
 export func ComputeDeps(src_file string, flags *Flags) {
 	globalset := new(map [string] bool);
-	wset := AST.NewList();
-	wset.Add(src_file);
-	for wset.len() > 0 {
+	wset := array.New(0);
+	wset.Push(src_file);
+	for wset.Len() > 0 {
 		AddDeps(globalset, wset, wset.Pop().(string), flags);
 	}
 }

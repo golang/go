@@ -5,14 +5,15 @@
 package tabwriter
 
 import (
-	OS "os";
-	IO "io";
-	Vector "vector";
+	"os";
+	"io";
+	"array";
 )
 
 
 // ----------------------------------------------------------------------------
 // ByteArray
+// TODO move this into std lib eventually
 
 type ByteArray struct {
 	a *[]byte;
@@ -75,7 +76,7 @@ func (b *ByteArray) Append(s *[]byte) {
 
 
 // ----------------------------------------------------------------------------
-// Implemententation of flexible tab stops.
+// Implementation of flexible tab stops.
 
 // TabWriter is a representation for a list of lines consisting of
 // cells. A new cell is added for each Tab() call, and a new line
@@ -87,42 +88,42 @@ func (b *ByteArray) Append(s *[]byte) {
 
 export type TabWriter struct {
 	// configuration
-	writer IO.Write;
+	writer io.Write;
 	usetabs bool;
 	tabwidth int;
 
 	// current state
 	buf ByteArray;  // the collected text w/o tabs and newlines
 	width int;  // width of last incomplete cell
-	lines Vector.Vector;  // list of lines; each line is a list of cell widths
-	widths Vector.Vector;  // list of column widths - (re-)used during formatting
+	lines array.Array;  // list of lines; each line is a list of cell widths
+	widths array.IntArray;  // list of column widths - (re-)used during formatting
 }
 
 
 func (b *TabWriter) AddLine() {
-	b.lines.Append(Vector.New());
+	b.lines.Push(array.NewIntArray(0));
 }
 
 
-func (b *TabWriter) Init(writer IO.Write, usetabs bool, tabwidth int) {
+func (b *TabWriter) Init(writer io.Write, usetabs bool, tabwidth int) {
 	b.writer = writer;
 	b.usetabs = usetabs;
 	b.tabwidth = tabwidth;
 	
 	b.buf.Init(1024);
-	b.lines.Init();
-	b.widths.Init();
+	b.lines.Init(0);
+	b.widths.Init(0);
 	b.AddLine();  // the very first line
 }
 
 
-func (b *TabWriter) Line(i int) *Vector.Vector {
-	return b.lines.At(i).(*Vector.Vector);
+func (b *TabWriter) Line(i int) *array.IntArray {
+	return b.lines.At(i).(*array.IntArray);
 }
 
 
-func (b *TabWriter) LastLine() *Vector.Vector {
-	return b.lines.At(b.lines.Len() - 1).(*Vector.Vector);
+func (b *TabWriter) LastLine() *array.IntArray {
+	return b.lines.At(b.lines.Len() - 1).(*array.IntArray);
 }
 
 
@@ -133,7 +134,7 @@ func (b *TabWriter) Dump() {
 		line := b.Line(i);
 		print("(", i, ") ");
 		for j := 0; j < line.Len(); j++ {
-			w := line.At(j).(int);
+			w := line.At(j);
 			print("[", string(b.buf.a[pos : pos + w]), "]");
 			pos += w;
 		}
@@ -177,14 +178,14 @@ func (b *TabWriter) PrintLines(pos int, line0, line1 int) int {
 	for i := line0; i < line1; i++ {
 		line := b.Line(i);
 		for j := 0; j < line.Len(); j++ {
-			w := line.At(j).(int);
+			w := line.At(j);
 			m, err := b.writer.Write(b.buf.a[pos : pos + w]);
 			if m != w {
 				panic();
 			}
 			pos += w;
 			if j < b.widths.Len() {
-				b.Padding(w, b.widths.At(j).(int));
+				b.Padding(w, b.widths.At(j));
 			}
 		}
 		m, err := b.writer.Write(Newline);
@@ -215,7 +216,7 @@ func (b *TabWriter) Format(pos int, line0, line1 int) int {
 				if column < line.Len() - 1 {
 					// cell exists in this column
 					// update width
-					w := line.At(column).(int) + 1; // 1 = minimum space between cells
+					w := line.At(column) + 1; // 1 = minimum space between cells
 					if w > width {
 						width = w;
 					}
@@ -232,9 +233,9 @@ func (b *TabWriter) Format(pos int, line0, line1 int) int {
 			
 			// format and print all columns to the right of this column
 			// (we know the widths of this column and all columns to the left)
-			b.widths.Append(width);
+			b.widths.Push(width);
 			pos = b.Format(pos, last, this);
-			b.widths.Remove(b.widths.Len() - 1);
+			b.widths.Pop();
 			last = this;
 		}
 	}
@@ -250,7 +251,7 @@ func (b *TabWriter) EmptyLine() bool {
 
 
 func (b *TabWriter) Tab() {
-	b.LastLine().Append(b.width);
+	b.LastLine().Push(b.width);
 	b.width = 0;
 }
 
@@ -273,14 +274,14 @@ func (b *TabWriter) Newline() {
 		// reset TabWriter
 		b.width = 0;
 		b.buf.Clear();
-		b.lines.Reset();
+		b.lines.Init(0);
 	}
 
 	b.AddLine();
 }
 
 
-func (b *TabWriter) Write(buf *[]byte) (i int, err *OS.Error) {
+func (b *TabWriter) Write(buf *[]byte) (i int, err *os.Error) {
 	i0, n := 0, len(buf);
 	for i = 0; i < n; i++ {
 		switch buf[i] {
@@ -302,7 +303,7 @@ func (b *TabWriter) Write(buf *[]byte) (i int, err *OS.Error) {
 }
 
 
-export func MakeTabWriter(writer IO.Write, usetabs bool, tabwidth int) *TabWriter {
+export func MakeTabWriter(writer io.Write, usetabs bool, tabwidth int) *TabWriter {
 	b := new(TabWriter);
 	b.Init(writer, usetabs, tabwidth);
 	return b;

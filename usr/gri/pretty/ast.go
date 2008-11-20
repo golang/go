@@ -4,7 +4,10 @@
 
 package AST
 
-import Scanner "scanner"
+import (
+	"array";
+	Scanner "scanner";
+)
 
 
 type (
@@ -14,90 +17,6 @@ type (
 	Stat struct;
 	Decl struct;
 )
-
-
-// ----------------------------------------------------------------------------
-// Lists
-//
-// If p is a list and p == nil, then p.len() == 0.
-// Thus, empty lists can be represented by nil.
-
-export type List struct {
-	a *[] Any;
-}
-
-
-func (p *List) Init() {
-	p.a = new([] Any, 10) [0 : 0];
-}
-
-
-func (p *List) len() int {
-	if p == nil { return 0; }
-	return len(p.a);
-}
-
-
-func (p *List) at(i int) Any {
-	return p.a[i];
-}
-
-
-func (p *List) last() Any {
-	return p.a[len(p.a) - 1];
-}
-
-
-func (p *List) set(i int, x Any) {
-	p.a[i] = x;
-}
-
-
-func (p *List) Add(x Any) {
-	a := p.a;
-	n := len(a);
-
-	if n == cap(a) {
-		b := new([] Any, 2*n);
-		for i := 0; i < n; i++ {
-			b[i] = a[i];
-		}
-		a = b;
-	}
-
-	a = a[0 : n + 1];
-	a[n] = x;
-	p.a = a;
-}
-
-
-func (p *List) Pop() Any {
-	a := p.a;
-	n := len(a);
-	
-	var x Any;
-	if n > 0 {
-		x = a[n - 1];
-		a = a[0 : n - 1];
-		p.a = a;
-	} else {
-		panic("pop from empty list");
-	}
-	
-	return x;
-}
-
-
-func (p *List) Clear() {
-	p.a = p.a[0 : 0];
-}
-
-
-export func NewList() *List {
-	p := new(List);
-	p.Init();
-	return p;
-}
 
 
 // ----------------------------------------------------------------------------
@@ -117,11 +36,11 @@ export type Expr struct {
 	// TODO find a more space efficient way to hold these
 	s string;  // identifiers and literals
 	t *Type;  // type expressions, function literal types
-	block *List;  // stats for function literals
+	block *array.Array;  // stats for function literals
 }
 
 
-func (x *Expr) len() int {
+func (x *Expr) Len() int {
 	if x == nil {
 		return 0;
 	}
@@ -169,14 +88,17 @@ export type Type struct {
 	mode int;  // channel mode
 	key *Type;  // receiver type, map key
 	elt *Type;  // array element, map or channel value, or pointer base type, result type
-	list *List;  // struct fields, interface methods, function parameters
+	list *array.Array;  // struct fields, interface methods, function parameters
 }
 
 
 func (t *Type) nfields() int {
+	if t.list == nil {
+		return 0;
+	}
 	nx, nt := 0, 0;
-	for i, n := 0, t.list.len(); i < n; i++ {
-		if t.list.at(i).(*Expr).tok == Scanner.TYPE {
+	for i, n := 0, t.list.Len(); i < n; i++ {
+		if t.list.At(i).(*Expr).tok == Scanner.TYPE {
 			nt++;
 		} else {
 			nx++;
@@ -214,7 +136,7 @@ export type Stat struct {
 	Node;
 	init, post *Stat;
 	expr *Expr;
-	block *List;
+	block *array.Array;
 	decl *Decl;
 }
 
@@ -240,7 +162,7 @@ export type Decl struct {
 	val *Expr;
 	// list of *Decl for ()-style declarations
 	// list of *Stat for func declarations (or nil for forward decl)
-	list *List;
+	list *array.Array;
 }
 
 
@@ -273,8 +195,8 @@ export func NewComment(pos, tok int, text string) *Comment {
 export type Program struct {
 	pos int;  // tok is Scanner.PACKAGE
 	ident *Expr;
-	decls *List;
-	comments *List;
+	decls *array.Array;
+	comments *array.Array;
 }
 
 
