@@ -4,7 +4,7 @@
 
 package math
 
-import	math "math"
+import "math"
 
 /*
  * asin(arg) and acos(arg) return the arcsin, arccos,
@@ -18,9 +18,7 @@ const
 	pio2 = .15707963267948966192313216e1
 )
 
-export func
-asin(arg float64)float64
-{
+export func Asin(arg float64) float64 {
 	var temp, x float64;
 	var sign bool;
 
@@ -34,11 +32,11 @@ asin(arg float64)float64
 		return sys.NaN();
 	}
 
-	temp = sqrt(1 - x*x);
+	temp = Sqrt(1 - x*x);
 	if x > 0.7 {
-		temp = pio2 - atan(temp/x);
+		temp = pio2 - Atan(temp/x);
 	} else {
-		temp = atan(x/temp);
+		temp = Atan(x/temp);
 	}
 
 	if sign {
@@ -47,11 +45,9 @@ asin(arg float64)float64
 	return temp;
 }
 
-export func
-acos(arg float64)float64
-{
+export func Acos(arg float64) float64 {
 	if(arg > 1 || arg < -1) {
 		return sys.NaN();
 	}
-	return pio2 - asin(arg);
+	return pio2 - Asin(arg);
 }

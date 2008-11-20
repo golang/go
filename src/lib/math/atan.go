@@ -13,7 +13,6 @@ package math
  *	coefficients are #5077 from Hart & Cheney. (19.56D)
  */
 
-
 const
 (
 	p4	= .161536412982230228262e2;
@@ -36,13 +35,9 @@ const
  *	xatan evaluates a series valid in the
  *	range [-0.414...,+0.414...]. (tan(pi/8))
  */
-func
-xatan(arg float64) float64
-{
-	var argsq, value float64;
-
-	argsq = arg*arg;
-	value = ((((p4*argsq + p3)*argsq + p2)*argsq + p1)*argsq + p0);
+func Xatan(arg float64) float64 {
+	argsq := arg*arg;
+	value := ((((p4*argsq + p3)*argsq + p2)*argsq + p1)*argsq + p0);
 	value = value/(((((argsq + q4)*argsq + q3)*argsq + q2)*argsq + q1)*argsq + q0);
 	return value*arg;
 }
@@ -51,29 +46,23 @@ xatan(arg float64) float64
  *	satan reduces its argument (known to be positive)
  *	to the range [0,0.414...] and calls xatan.
  */
-func
-satan(arg float64) float64
-{
-
+func Satan(arg float64) float64 {
 	if arg < sq2m1 {
-		return xatan(arg);
+		return Xatan(arg);
 	}
 	if arg > sq2p1 {
-		return pio2 - xatan(1/arg);
+		return pio2 - Xatan(1/arg);
 	}
-	return pio4 + xatan((arg-1)/(arg+1));
+	return pio4 + Xatan((arg-1)/(arg+1));
 }
 
 /*
  *	atan makes its argument positive and
  *	calls the inner routine satan.
  */
-export func
-atan(arg float64) float64
-{
-
+export func Atan(arg float64) float64 {
 	if arg > 0 {
-		return satan(arg);
+		return Satan(arg);
 	}
-	return -satan(-arg);
+	return -Satan(-arg);
 }

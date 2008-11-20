@@ -18,25 +18,22 @@ const
         piu2	=  .6366197723675813430755350e0;	// 2/pi
 )
 
-func
-sinus(arg float64, quad int) float64
-{
-	var e, f, ysq, x, y, temp1, temp2 float64;
-	var k int32;
-
-	x = arg;
+func Sinus(arg float64, quad int) float64 {
+	x := arg;
 	if(x < 0) {
 		x = -x;
 		quad = quad+2;
 	}
 	x = x * piu2;	/* underflow? */
+	var y float64;
 	if x > 32764 {
-		e,y = sys.modf(x);
+		var e float64;
+		e, y = sys.modf(x);
 		e = e + float64(quad);
-		temp1,f = sys.modf(0.25*e);
+		temp1, f := sys.modf(0.25*e);
 		quad = int(e - 4*f);
 	} else {
-		k = int32(x);
+		k := int32(x);
 		y = x - float64(k);
 		quad = (quad + int(k)) & 3;
 	}
@@ -48,23 +45,19 @@ sinus(arg float64, quad int) float64
 		y = -y;
 	}
 
-	ysq = y*y;
-	temp1 = ((((p4*ysq+p3)*ysq+p2)*ysq+p1)*ysq+p0)*y;
-	temp2 = ((((ysq+q3)*ysq+q2)*ysq+q1)*ysq+q0);
+	ysq := y*y;
+	temp1 := ((((p4*ysq+p3)*ysq+p2)*ysq+p1)*ysq+p0)*y;
+	temp2 := ((((ysq+q3)*ysq+q2)*ysq+q1)*ysq+q0);
 	return temp1/temp2;
 }
 
-export func
-cos(arg float64) float64
-{
+export func Cos(arg float64) float64 {
 	if arg < 0 {
 		arg = -arg;
 	}
-	return sinus(arg, 1);
+	return Sinus(arg, 1);
 }
 
-export func
-sin(arg float64) float64
-{
-	return sinus(arg, 0);
+export func Sin(arg float64) float64 {
+	return Sinus(arg, 0);
 }

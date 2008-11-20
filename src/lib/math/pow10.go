@@ -16,22 +16,18 @@ package math
 const	tabsize		= 70;
 var	tab[tabsize]	float64;
 
-export func
-pow10(e int) float64 
-{
+export func Pow10(e int) float64 {
 	if e < 0 {
-		return 1/pow10(-e);
+		return 1/Pow10(-e);
 	}
 	if e < tabsize {
 		return tab[e];
 	}
 	m := e/2;
-	return pow10(m) * pow10(e-m);
+	return Pow10(m) * Pow10(e-m);
 }
 
-func
-init()
-{
+func init() {
 	tab[0] = 1.0e0;
 	tab[1] = 1.0e1;
 	for i:=2; i<tabsize; i++ {

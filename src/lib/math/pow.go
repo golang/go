@@ -4,20 +4,15 @@
 
 package math
 
-import		math "math"
+import "math"
 
 /*
 	arg1 ^ arg2 (exponentiation)
  */
 
-export func
-pow(arg1,arg2 float64) float64
-{
-	var temp float64;
-	var l int32;
-
+export func Pow(arg1,arg2 float64) float64 {
 	if arg2 < 0 {
-		return 1/pow(arg1, -arg2);
+		return 1/Pow(arg1, -arg2);
 	}
 	if arg1 <= 0 {
 		if(arg1 == 0) {
@@ -27,30 +22,30 @@ pow(arg1,arg2 float64) float64
 			return 0;
 		}
 
-		temp = floor(arg2);
+		temp := Floor(arg2);
 		if temp != arg2 {
 			panic(sys.NaN());
 		}
 
-		l = int32(temp);
+		l := int32(temp);
 		if l&1 != 0 {
-			return -pow(-arg1, arg2);
+			return -Pow(-arg1, arg2);
 		}
-		return pow(-arg1, arg2);
+		return Pow(-arg1, arg2);
 	}
 
-	temp = floor(arg2);
+	temp := Floor(arg2);
 	if temp != arg2 {
 		if arg2-temp == .5 {
 			if temp == 0 {
-				return sqrt(arg1);
+				return Sqrt(arg1);
 			}
-			return pow(arg1, temp) * sqrt(arg1);
+			return Pow(arg1, temp) * Sqrt(arg1);
 		}
-		return exp(arg2 * log(arg1));
+		return Exp(arg2 * Log(arg1));
 	}
 
-	l = int32(temp);
+	l := int32(temp);
 	temp = 1;
 	for {
 		if l&1 != 0 {
