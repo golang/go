@@ -11,34 +11,37 @@ xcd() {
 	builtin cd $1
 }
 
-(xcd lib/strconv
-make clean
-time make
-make test
-) || exit $?
+maketest() {
+	for i
+	do
+		(
+			xcd $i
+			make clean
+			time make
+			make test
+		) || exit $?
+	done
+}
 
-(xcd lib/reflect
-make clean
-time make
-make test
-) || exit $?
+maketest \
+	lib/math\
+	lib/reflect\
+	lib/regexp\
+	lib/strconv\
 
-(xcd lib/regexp
+# all of these are subtly different
+# from what maketest does.
+
+(xcd ../usr/gri/pretty
 make clean
 time make
-make test
+make smoketest
 ) || exit $?
 
 (xcd ../usr/gri/gosrc
 make clean
 time make
 # make test
-) || exit $?
-
-(xcd ../usr/gri/pretty
-make clean
-time make
-make smoketest
 ) || exit $?
 
 (xcd ../test
