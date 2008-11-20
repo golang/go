@@ -111,6 +111,17 @@ func (p *Array) Pop() Element {
 
 
 // Partial SortInterface support
+
+export type LessInterface interface {
+	Less(y Element) bool
+}
+
+
+func (p *Array) Less(i, j int) bool {
+	return p.a[i].(LessInterface).Less(p.a[j])
+}
+
+
 func (p *Array) Swap(i, j int) {
 	a := p.a;
 	a[i], a[j] = a[j], a[i]
