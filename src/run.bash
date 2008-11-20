@@ -20,7 +20,7 @@ make test
 (xcd lib/reflect
 make clean
 time make
-bash test.bash
+make test
 ) || exit $?
 
 (xcd lib/regexp

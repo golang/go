@@ -290,7 +290,7 @@ char preamble[] =
 	"\n"
 	"coverage: packages\n"
 	"\tgotest\n"
-	"\t6cov -g `pwd` | grep -v '^test.*\\.go:'\n"
+	"\t6cov -g `pwd` | grep -v '^.*test\\.go:'\n"
 	"\n"
 	"%%.$O: %%.go\n"
 	"\t$(GC) $*.go\n"
@@ -487,7 +487,7 @@ main(int argc, char **argv)
 	njob = 0;
 	job = emalloc(argc*sizeof job[0]);
 	for(i=0; i<argc; i++) {
-		if(strncmp(argv[i], "test", 4) == 0)
+		if(strstr(argv[i], "test.go") != nil)
 			continue;
 		job[njob].name = argv[i];
 		job[njob].pass = -1;

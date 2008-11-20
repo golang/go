@@ -27,7 +27,7 @@ done
 
 case "x$gofiles" in
 x)
-	gofiles=$(echo test*.go)
+	gofiles=$(echo *test.go)
 esac
 
 ofiles=$(echo $gofiles | sed 's/\.go/.6/g')

@@ -20,7 +20,7 @@ test: packages
 
 coverage: packages
 	gotest
-	6cov -g `pwd` | grep -v '^test.*\.go:'
+	6cov -g `pwd` | grep -v '^.*test\.go:'
 
 %.$O: %.go
 	$(GC) $*.go
@@ -33,8 +33,8 @@ coverage: packages
 
 O1=\
 	atoi.$O\
-	itoa.$O\
 	decimal.$O\
+	itoa.$O\
 
 O2=\
 	ftoa.$O\
@@ -45,7 +45,7 @@ O3=\
 strconv.a: a1 a2 a3
 
 a1:	$(O1)
-	$(AR) grc strconv.a atoi.$O itoa.$O decimal.$O
+	$(AR) grc strconv.a atoi.$O decimal.$O itoa.$O
 	rm -f $(O1)
 
 a2:	$(O2)
