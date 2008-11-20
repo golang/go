@@ -6,7 +6,7 @@ package math
 
 import "math"
 
-// x^y: exponentation
+// x^y: exponentiation
 export func Pow(x, y float64) float64 {
 	// TODO: x or y NaN, ±Inf, maybe ±0.
 	switch {
@@ -38,7 +38,9 @@ export func Pow(x, y float64) float64 {
 		return Exp(y * Log(x));
 	}
 
-	ans := float64(1);
+	// ans = a1 * 2^ae (= 1 for now).
+	a1 := float64(1);
+	ae := 0;
 
 	// ans *= x^yf
 	if yf != 0 {
@@ -46,42 +48,33 @@ export func Pow(x, y float64) float64 {
 			yf--;
 			yi++;
 		}
-		ans = Exp(yf * Log(x));
+		a1 = Exp(yf * Log(x));
 	}
 
 	// ans *= x^yi
 	// by multiplying in successive squarings
 	// of x according to bits of yi.
 	// accumulate powers of two into exp.
-	// will still have to do ans *= 2^exp later.
 	x1, xe := sys.frexp(x);
-	exp := 0;
-	if i := int64(yi); i != 0 {
-		for {
-			if i&1 == 1 {
-				ans *= x1;
-				exp += xe;
-			}
-			i >>= 1;
-			if i == 0 {
-				break;
-			}
-			x1 *= x1;
-			xe <<= 1;
-			if x1 < .5 {
-				x1 += x1;
-				xe--;
-			}
+	for i := int64(yi); i != 0; i >>= 1 {
+		if i&1 == 1 {
+			a1 *= x1;
+			ae += xe;
+		}
+		x1 *= x1;
+		xe <<= 1;
+		if x1 < .5 {
+			x1 += x1;
+			xe--;
 		}
 	}
 
-	// ans *= 2^exp
+	// ans = a1*2^ae
 	// if flip { ans = 1 / ans }
 	// but in the opposite order
 	if flip {
-		ans = 1 / ans;
-		exp = -exp;
+		a1 = 1 / a1;
+		ae = -ae;
 	}
-	return sys.ldexp(ans, exp);
+	return sys.ldexp(a1, ae);
 }
-
