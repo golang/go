@@ -4,6 +4,7 @@
 
 package Printer
 
+import "array"
 import Strings "strings"
 import Scanner "scanner"
 import AST "ast"
@@ -44,7 +45,7 @@ export type Printer struct {
 	newl int;  // pending "\n"'s
 
 	// comments
-	clist *AST.List;
+	clist *array.Array;
 	cindex int;
 	cpos int;
 }
@@ -71,7 +72,7 @@ func (P *Printer) String(pos int, s string) {
 		//print("cc", P.cpos, "\n");
 		
 		// we have a comment that comes before s
-		comment := P.clist.at(P.cindex).(*AST.Comment);
+		comment := P.clist.At(P.cindex).(*AST.Comment);
 		text := comment.text;
 		assert(len(text) >= 3);  // classification char + "//" or "/*"
 		
@@ -115,8 +116,8 @@ func (P *Printer) String(pos int, s string) {
 		}
 
 		P.cindex++;
-		if P.cindex < P.clist.len() {
-			P.cpos = P.clist.at(P.cindex).(*AST.Comment).pos;
+		if P.cindex < P.clist.Len() {
+			P.cpos = P.clist.At(P.cindex).(*AST.Comment).pos;
 		} else {
 			P.cpos = 1000000000;  // infinite
 		}
@@ -191,43 +192,47 @@ func (P *Printer) Error(pos int, tok int, msg string) {
 func (P *Printer) Type(t *AST.Type)
 func (P *Printer) Expr(x *AST.Expr)
 
-func (P *Printer) Parameters(pos int, list *AST.List) {
+func (P *Printer) Parameters(pos int, list *array.Array) {
 	P.String(pos, "(");
-	var prev int;
-	for i, n := 0, list.len(); i < n; i++ {
-		x := list.at(i).(*AST.Expr);
-		if i > 0 {
-			if prev == x.tok || prev == Scanner.TYPE {
-				P.String(0, ", ");
-			} else {
-				P.Blank();
+	if list != nil {
+		var prev int;
+		for i, n := 0, list.Len(); i < n; i++ {
+			x := list.At(i).(*AST.Expr);
+			if i > 0 {
+				if prev == x.tok || prev == Scanner.TYPE {
+					P.String(0, ", ");
+				} else {
+					P.Blank();
+				}
 			}
+			P.Expr(x);
+			prev = x.tok;
 		}
-		P.Expr(x);
-		prev = x.tok;
 	}
 	P.String(0, ")");
 }
 
 
-func (P *Printer) Fields(list *AST.List) {
+func (P *Printer) Fields(list *array.Array) {
 	P.OpenScope("{");
-	var prev int;
-	for i, n := 0, list.len(); i < n; i++ {
-		x := list.at(i).(*AST.Expr);
-		if i > 0 {
-			if prev == Scanner.TYPE && x.tok != Scanner.STRING || prev == Scanner.STRING {
-				P.semi, P.newl = true, 1;
-			} else if prev == x.tok {
-				P.String(0, ", ");
-			} else {
-				P.Tab();
+	if list != nil {
+		var prev int;
+		for i, n := 0, list.Len(); i < n; i++ {
+			x := list.At(i).(*AST.Expr);
+			if i > 0 {
+				if prev == Scanner.TYPE && x.tok != Scanner.STRING || prev == Scanner.STRING {
+					P.semi, P.newl = true, 1;
+				} else if prev == x.tok {
+					P.String(0, ", ");
+				} else {
+					P.Tab();
+				}
 			}
+			P.Expr(x);
+			prev = x.tok;
 		}
-		P.Expr(x);
-		prev = x.tok;
+		P.newl = 1;
 	}
-	P.newl = 1;
 	P.CloseScope("}");
 }
 
@@ -291,7 +296,7 @@ func (P *Printer) Type(t *AST.Type) {
 // ----------------------------------------------------------------------------
 // Expressions
 
-func (P *Printer) Block(list *AST.List, indent bool);
+func (P *Printer) Block(list *array.Array, indent bool);
 
 func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 	if x == nil {
@@ -391,15 +396,17 @@ func (P *Printer) Expr(x *AST.Expr) {
 
 func (P *Printer) Stat(s *AST.Stat)
 
-func (P *Printer) StatementList(list *AST.List) {
-	for i, n := 0, list.len(); i < n; i++ {
-		P.Stat(list.at(i).(*AST.Stat));
-		P.newl = 1;
+func (P *Printer) StatementList(list *array.Array) {
+	if list != nil {
+		for i, n := 0, list.Len(); i < n; i++ {
+			P.Stat(list.At(i).(*AST.Stat));
+			P.newl = 1;
+		}
 	}
 }
 
 
-func (P *Printer) Block(list *AST.List, indent bool) {
+func (P *Printer) Block(list *array.Array, indent bool) {
 	P.OpenScope("{");
 	if !indent {
 		P.indent--;
@@ -536,8 +543,8 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 
 	if d.tok != Scanner.FUNC && d.list != nil {
 		P.OpenScope("(");
-		for i := 0; i < d.list.len(); i++ {
-			P.Declaration(d.list.at(i).(*AST.Decl), true);
+		for i := 0; i < d.list.Len(); i++ {
+			P.Declaration(d.list.At(i).(*AST.Decl), true);
 			P.semi, P.newl = true, 1;
 		}
 		P.CloseScope(")");
@@ -601,8 +608,8 @@ func (P *Printer) Program(p *AST.Program) {
 	
 	P.clist = p.comments;
 	P.cindex = 0;
-	if p.comments.len() > 0 {
-		P.cpos = p.comments.at(0).(*AST.Comment).pos;
+	if p.comments.Len() > 0 {
+		P.cpos = p.comments.At(0).(*AST.Comment).pos;
 	} else {
 		P.cpos = 1000000000;  // infinite
 	}
@@ -611,8 +618,8 @@ func (P *Printer) Program(p *AST.Program) {
 	P.String(p.pos, "package ");
 	P.Expr(p.ident);
 	P.newl = 2;
-	for i := 0; i < p.decls.len(); i++ {
-		P.Declaration(p.decls.at(i), false);
+	for i := 0; i < p.decls.Len(); i++ {
+		P.Declaration(p.decls.At(i), false);
 	}
 	P.newl = 2;	// TODO we should be able to do this with 1 instead of 2
 				// but we are loosing the last buffer flush in that case

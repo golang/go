@@ -4,6 +4,7 @@
 
 package Parser
 
+import "array"
 import Scanner "scanner"
 import AST "ast"
 
@@ -16,7 +17,7 @@ export type Parser struct {
 	// Scanner
 	scanner *Scanner.Scanner;
 	tokchan *<-chan *Scanner.Token;
-	comments *AST.List;
+	comments *array.Array;
 	
 	// Scanner.Token
 	pos int;  // token source position
@@ -85,7 +86,7 @@ func (P *Parser) Next() {
 		P.tok == Scanner.COMMENT_BB ;
 		P.Next0() 
 	{
-		P.comments.Add(AST.NewComment(P.pos, P.tok, P.val));
+		P.comments.Push(AST.NewComment(P.pos, P.tok, P.val));
 	}
 }
 
@@ -98,7 +99,7 @@ func (P *Parser) Open(verbose, sixg, deps bool, scanner *Scanner.Scanner, tokcha
 	
 	P.scanner = scanner;
 	P.tokchan = tokchan;
-	P.comments = AST.NewList();
+	P.comments = array.New(0);
 	
 	P.Next();
 	P.expr_lev = 0;
@@ -327,13 +328,13 @@ func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
 }
 
 
-func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
+func (P *Parser) ParseVarDeclList(list *array.Array, ellipsis_ok bool) {
 	P.Trace("VarDeclList");
 
 	// parse a list of types
-	i0 := list.len();
+	i0 := list.Len();
 	for {
-		list.Add(P.ParseVarDecl(ellipsis_ok /* param list */ && i0 > 0));
+		list.Push(P.ParseVarDecl(ellipsis_ok /* param list */ && i0 > 0));
 		if P.tok == Scanner.COMMA {
 			P.Next();
 		} else {
@@ -357,24 +358,24 @@ func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
 	if typ != nil {
 		// all list entries must be identifiers
 		// convert the type entries into identifiers
-		for i, n := i0, list.len(); i < n; i++ {
-			t := list.at(i).(*AST.Type);
+		for i, n := i0, list.Len(); i < n; i++ {
+			t := list.At(i).(*AST.Type);
 			if t.tok == Scanner.IDENT && t.expr.tok == Scanner.IDENT {
-				list.set(i, t.expr);
+				list.Set(i, t.expr);
 			} else {
-				list.set(i, AST.BadExpr);
+				list.Set(i, AST.BadExpr);
 				P.Error(t.pos, "identifier expected");
 			}
 		}
 		// add type
-		list.Add(AST.NewTypeExpr(typ));
+		list.Push(AST.NewTypeExpr(typ));
 
 	} else {
 		// all list entries are types
 		// convert all type entries into type expressions
-		for i, n := i0, list.len(); i < n; i++ {
-			t := list.at(i).(*AST.Type);
-			list.set(i, AST.NewTypeExpr(t));
+		for i, n := i0, list.Len(); i < n; i++ {
+			t := list.At(i).(*AST.Type);
+			list.Set(i, AST.NewTypeExpr(t));
 		}
 	}
 	
@@ -382,10 +383,10 @@ func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
 }
 
 
-func (P *Parser) ParseParameterList(ellipsis_ok bool) *AST.List {
+func (P *Parser) ParseParameterList(ellipsis_ok bool) *array.Array {
 	P.Trace("ParameterList");
 	
-	list := AST.NewList();
+	list := array.New(0);
 	P.ParseVarDeclList(list, ellipsis_ok);
 	for P.tok == Scanner.COMMA {
 		P.Next();
@@ -438,8 +439,8 @@ func (P *Parser) ParseResult() *AST.Type {
 		typ := P.TryType();
 		if typ != nil {
 			t = AST.NewType(P.pos, Scanner.STRUCT);
-			t.list = AST.NewList();
-			t.list.Add(AST.NewTypeExpr(typ));
+			t.list = array.New(0);
+			t.list.Push(AST.NewTypeExpr(typ));
 		}
 	}
 
@@ -466,17 +467,17 @@ func (P *Parser) ParseFunctionType() *AST.Type {
 }
 
 
-func (P *Parser) ParseMethodSpec(list *AST.List) {
+func (P *Parser) ParseMethodSpec(list *array.Array) {
 	P.Trace("MethodDecl");
 	
-	list.Add(P.ParseIdentList());
+	list.Push(P.ParseIdentList());
 	t := AST.BadType;
 	if P.sixg {
 		t = P.ParseType();
 	} else {
 		t = P.ParseFunctionType();
 	}
-	list.Add(AST.NewTypeExpr(t));
+	list.Push(AST.NewTypeExpr(t));
 	
 	P.Ecart();
 }
@@ -489,7 +490,7 @@ func (P *Parser) ParseInterfaceType() *AST.Type {
 	P.Expect(Scanner.INTERFACE);
 	if P.tok == Scanner.LBRACE {
 		P.Next();
-		t.list = AST.NewList();
+		t.list = array.New(0);
 		for P.tok == Scanner.IDENT {
 			P.ParseMethodSpec(t.list);
 			if P.tok != Scanner.RBRACE {
@@ -528,12 +529,12 @@ func (P *Parser) ParseStructType() *AST.Type {
 	P.Expect(Scanner.STRUCT);
 	if P.tok == Scanner.LBRACE {
 		P.Next();
-		t.list = AST.NewList();
+		t.list = array.New(0);
 		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 			P.ParseVarDeclList(t.list, false);
 			if P.tok == Scanner.STRING {
 				// ParseOperand takes care of string concatenation
-				t.list.Add(P.ParseOperand());
+				t.list.Push(P.ParseOperand());
 			}
 			if P.tok == Scanner.SEMICOLON {
 				P.Next();
@@ -586,15 +587,15 @@ func (P *Parser) TryType() *AST.Type {
 // ----------------------------------------------------------------------------
 // Blocks
 
-func (P *Parser) ParseStatementList() *AST.List {
+func (P *Parser) ParseStatementList() *array.Array {
 	P.Trace("StatementList");
 	
-	list := AST.NewList();
+	list := array.New(0);
 	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 		s := P.ParseStatement();
 		if s != nil {
 			// not the empty statement
-			list.Add(s);
+			list.Push(s);
 		}
 		if P.tok == Scanner.SEMICOLON {
 			P.Next();
@@ -615,7 +616,7 @@ func (P *Parser) ParseStatementList() *AST.List {
 }
 
 
-func (P *Parser) ParseBlock() *AST.List {
+func (P *Parser) ParseBlock() *array.Array {
 	P.Trace("Block");
 	
 	P.Expect(Scanner.LBRACE);
@@ -982,7 +983,7 @@ func (P *Parser) ParseSimpleStat() *AST.Stat {
 		// label declaration
 		s = AST.NewStat(P.pos, Scanner.COLON);
 		s.expr = x;
-		if x.len() != 1 {
+		if x.Len() != 1 {
 			P.Error(x.pos, "illegal label declaration");
 		}
 		P.Next();  // consume ":"
@@ -997,7 +998,7 @@ func (P *Parser) ParseSimpleStat() *AST.Stat {
 		pos, tok := P.pos, P.tok;
 		P.Next();
 		y := P.ParseExpressionList();
-		if xl, yl := x.len(), y.len(); xl > 1 && yl > 1 && xl != yl {
+		if xl, yl := x.Len(), y.Len(); xl > 1 && yl > 1 && xl != yl {
 			P.Error(x.pos, "arity of lhs doesn't match rhs");
 		}
 		s = AST.NewStat(x.pos, Scanner.EXPRSTAT);
@@ -1013,7 +1014,7 @@ func (P *Parser) ParseSimpleStat() *AST.Stat {
 		}
 		s = AST.NewStat(pos, tok);
 		s.expr = x;
-		if x.len() != 1 {
+		if x.Len() != 1 {
 			P.Error(x.pos, "only one expression allowed");
 		}
 	}
@@ -1113,8 +1114,8 @@ func (P *Parser) ParseIfStat() *AST.Stat {
 				if s1.tok != Scanner.LBRACE {
 					// wrap in a block if we don't have one
 					b := AST.NewStat(P.pos, Scanner.LBRACE);
-					b.block = AST.NewList();
-					b.block.Add(s1);
+					b.block = array.New(0);
+					b.block.Push(s1);
 					s1 = b;
 				}
 				s.post = s1;
@@ -1178,10 +1179,10 @@ func (P *Parser) ParseSwitchStat() *AST.Stat {
 	P.Trace("SwitchStat");
 	
 	s := P.ParseControlClause(Scanner.SWITCH);
-	s.block = AST.NewList();
+	s.block = array.New(0);
 	P.Expect(Scanner.LBRACE);
 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
-		s.block.Add(P.ParseCaseClause());
+		s.block.Push(P.ParseCaseClause());
 	}
 	P.Expect(Scanner.RBRACE);
 	P.opt_semi = true;
@@ -1236,11 +1237,11 @@ func (P *Parser) ParseSelectStat() *AST.Stat {
 	P.Trace("SelectStat");
 	
 	s := AST.NewStat(P.pos, Scanner.SELECT);
-	s.block = AST.NewList();
+	s.block = array.New(0);
 	P.Expect(Scanner.SELECT);
 	P.Expect(Scanner.LBRACE);
 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
-		s.block.Add(P.ParseCommClause());
+		s.block.Push(P.ParseCommClause());
 	}
 	P.Expect(Scanner.RBRACE);
 	P.opt_semi = true;
@@ -1414,9 +1415,9 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
 	if P.tok == Scanner.LPAREN {
 		P.Next();
 		d = AST.NewDecl(P.pos, keyword, exported);
-		d.list = AST.NewList();
+		d.list = array.New(0);
 		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
-			d.list.Add(P.ParseSpec(exported, keyword));
+			d.list.Push(P.ParseSpec(exported, keyword));
 			if P.tok == Scanner.SEMICOLON {
 				P.Next();
 			} else {
@@ -1539,15 +1540,15 @@ func (P *Parser) ParseProgram() *AST.Program {
 	P.Expect(Scanner.PACKAGE);
 	p.ident = P.ParseIdent();
 	
-	p.decls = AST.NewList();
+	p.decls = array.New(0);
 	for P.tok == Scanner.IMPORT {
-		p.decls.Add(P.ParseDecl(false, Scanner.IMPORT));
+		p.decls.Push(P.ParseDecl(false, Scanner.IMPORT));
 		P.OptSemicolon();
 	}
 	
 	if !P.deps {
 		for P.tok != Scanner.EOF {
-			p.decls.Add(P.ParseDeclaration());
+			p.decls.Push(P.ParseDeclaration());
 			P.OptSemicolon();
 		}
 	}
