@@ -21,7 +21,7 @@ typedef struct Ureg Ureg;
 void
 usage(void)
 {
-	fprint(2, "usage: cov [-lv] [-g regexp] [6.out args...]\n");
+	fprint(2, "usage: cov [-lsv] [-g regexp] [-m minlines] [6.out args...]\n");
 	fprint(2, "-g specifies pattern of interesting functions or files\n");
 	exits("usage");
 }
@@ -37,12 +37,14 @@ int chatty;
 int fd;
 int longnames;
 int pid;
+int doshowsrc;
 Map *mem;
 Map *text;
 Fhdr fhdr;
 Reprog *grep;
 char cwd[1000];
 int ncwd;
+int minlines = -1000;
 
 Tree breakpoints;	// code ranges not run
 
@@ -106,6 +108,37 @@ ran(uvlong pc, uvlong epc)
 	}
 }
 
+void
+showsrc(char *file, int line1, int line2)
+{
+	Biobuf *b;
+	char *p;
+	int n, stop;
+
+	if((b = Bopen(file, OREAD)) == nil) {
+		print("\topen %s: %r\n", file);
+		return;
+	}
+
+	for(n=1; n<line1 && (p = Brdstr(b, '\n', 1)) != nil; n++)
+		free(p);
+
+	// print up to five lines (this one and 4 more).
+	// if there are more than five lines, print 4 and "..."
+	stop = n+4;
+	if(stop > line2)
+		stop = line2;
+	if(stop < line2)
+		stop--;
+	for(; n<=stop && (p = Brdstr(b, '\n', 1)) != nil; n++) {
+		print("  %d %s\n", n, p);
+		free(p);
+	}
+	if(n < line2)
+		print("  ...\n");
+	Bterm(b);
+}
+
 /*
  * if s is in the current directory or below,
  * return the relative path.
@@ -125,20 +158,36 @@ shortname(char *s)
 void
 missing(uvlong pc, uvlong epc)
 {
-	char src1[1000];
-	char src2[1000];
+	char file[1000];
+	int line1, line2;
 	char buf[100];
 	Symbol s;
 	char *p;
+	uvlong uv;
 
-	if(!findsym(pc, CTEXT, &s) || !fileline(src1, sizeof src1, pc) || !fileline(src2, sizeof src2, pc)) {
+	if(!findsym(pc, CTEXT, &s) || !fileline(file, sizeof file, pc)) {
+	notfound:
 		print("%#llux-%#llux\n", pc, epc);
 		return;
 	}
+	p = strrchr(file, ':');
+	*p++ = 0;
+	line1 = atoi(p);
+	for(uv=pc; uv<epc; ) {
+		if(!fileline(file, sizeof file, epc-2))
+			goto notfound;
+		uv += machdata->instsize(text, uv);
+	}
+	p = strrchr(file, ':');
+	*p++ = 0;
+	line2 = atoi(p);
+
+	if(line2+1-line2 < minlines)
+		return;
 
 	if(pc == s.value) {
 		// never entered function
-		print("%s %s never called (%#llux-%#llux)\n", shortname(src1), s.name, pc, epc);
+		print("%s:%d %s never called (%#llux-%#llux)\n", shortname(file), line1, s.name, pc, epc);
 		return;
 	}
 	if(pc <= s.value+13) {
@@ -204,13 +253,14 @@ missing(uvlong pc, uvlong epc)
 	// show first instruction to make clear where we were.
 	machdata->das(text, pc, 0, buf, sizeof buf);
 
-	// cut filename off src2, leaving just line number.
-	p = strrchr(src2, ':');
-	if(p != nil)
-		p++;
+	if(line1 != line2)
+		print("%s:%d,%d %#llux-%#llux %s\n",
+			shortname(file), line1, line2, pc, epc, buf);
 	else
-		p = src2;
-	print("%s,%s %s %#llux-%#llux %s\n", shortname(src1), p, s.name, pc, epc, buf);
+		print("%s:%d %#llux-%#llux %s\n",
+			shortname(file), line1, pc, epc, buf);
+	if(doshowsrc)
+		showsrc(file, line1, line2);
 }
 
 /*
@@ -386,6 +436,12 @@ main(int argc, char **argv)
 		break;
 	case 'l':
 		longnames++;
+		break;
+	case 'n':
+		minlines = atoi(EARGF(usage()));
+		break;
+	case 's':
+		doshowsrc = 1;
 		break;
 	case 'v':
 		chatty++;
