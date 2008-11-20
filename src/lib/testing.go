@@ -74,6 +74,9 @@ func TRunner(t *T, test *Test) {
 
 export func Main(tests *[]Test) {
 	ok := true;
+	if len(tests) == 0 {
+		println("gotest: warning: no tests to run");
+	}
 	for i := 0; i < len(tests); i++ {
 		if chatty {
 			println("=== RUN ", tests[i].name);
