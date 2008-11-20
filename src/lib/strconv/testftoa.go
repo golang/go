@@ -98,12 +98,12 @@ export func TestFtoa(t *testing.T) {
 		test := &ftests[i];
 		s := strconv.ftoa64(test.f, test.fmt, test.prec);
 		if s != test.s {
-			t.Errorf("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
+			t.Error("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
 		}
 		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
 			s := strconv.ftoa32(float32(test.f), test.fmt, test.prec);
 			if s != test.s {
-				t.Errorf("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
+				t.Error("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
 			}
 		}
 	}
