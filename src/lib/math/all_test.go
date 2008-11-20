@@ -50,7 +50,7 @@ var atan = []float64 {
 var exp = []float64 {
 	  1.4533071302642137e+02,
 	  2.2958822575694450e+03,
-	  7.5814542574851664e-01,
+	  7.5814542574851666e-01,
 	  6.6668778421791010e-03,
 	  1.5310493273896035e+04,
 	  1.8659907517999329e+01,
@@ -156,13 +156,12 @@ var tanh = []float64 {
 	 -9.9999994291374019e-01,
 }
 
-func Close(a,b float64) bool {
+func Tolerance(a,b,e float64) bool {
 	d := a-b;
 	if d < 0 {
 		d = -d;
 	}
 
-	e := float64(1e-14);
 	if a != 0 {
 		e = e*a;
 		if e < 0 {
@@ -171,10 +170,16 @@ func Close(a,b float64) bool {
 	}
 	return d < e;
 }
+func Close(a,b float64) bool {
+	return Tolerance(a, b, 1e-14);
+}
+func VeryClose(a,b float64) bool {
+	return Tolerance(a, b, 4e-16);
+}
 
 export func TestAsin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Asin(vf[i]/10); !Close(asin[i], f) {
+		if f := math.Asin(vf[i]/10); !VeryClose(asin[i], f) {
 			t.Errorf("math.Asin(%g) = %g, want %g\n", vf[i]/10, f, asin[i]);
 		}
 	}
@@ -182,7 +187,7 @@ export func TestAsin(t *testing.T) {
 
 export func TestAtan(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Atan(vf[i]); !Close(atan[i], f) {
+		if f := math.Atan(vf[i]); !VeryClose(atan[i], f) {
 			t.Errorf("math.Atan(%g) = %g, want %g\n", vf[i], f, atan[i]);
 		}
 	}
@@ -190,7 +195,7 @@ export func TestAtan(t *testing.T) {
 
 export func TestExp(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Exp(vf[i]); !Close(exp[i], f) {
+		if f := math.Exp(vf[i]); !VeryClose(exp[i], f) {
 			t.Errorf("math.Exp(%g) = %g, want %g\n", vf[i], f, exp[i]);
 		}
 	}
@@ -198,7 +203,7 @@ export func TestExp(t *testing.T) {
 
 export func TestFloor(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Floor(vf[i]); !Close(floor[i], f) {
+		if f := math.Floor(vf[i]); floor[i] != f {
 			t.Errorf("math.Floor(%g) = %g, want %g\n", vf[i], f, floor[i]);
 		}
 	}
@@ -207,9 +212,13 @@ export func TestFloor(t *testing.T) {
 export func TestLog(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := math.Fabs(vf[i]);
-		if f := math.Log(a); !Close(log[i], f) {
-			t.Errorf("math.Log(%g) = %g, want %g\n", a, f, floor[i]);
+		if f := math.Log(a); log[i] != f {
+			t.Errorf("math.Log(%g) = %g, want %g\n", a, f, log[i]);
 		}
+	}
+	const Ln10 = 2.30258509299404568401799145468436421;
+	if f := math.Log(10); f != Ln10 {
+		t.Errorf("math.Log(%g) = %g, want %g\n", 10, f, Ln10);
 	}
 }
 
@@ -231,7 +240,7 @@ export func TestSin(t *testing.T) {
 
 export func TestSinh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Sinh(vf[i]); !Close(sinh[i], f) {
+		if f := math.Sinh(vf[i]); !VeryClose(sinh[i], f) {
 			t.Errorf("math.Sinh(%g) = %g, want %g\n", vf[i], f, sinh[i]);
 		}
 	}
@@ -240,7 +249,7 @@ export func TestSinh(t *testing.T) {
 export func TestSqrt(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := math.Fabs(vf[i]);
-		if f := math.Sqrt(a); !Close(sqrt[i], f) {
+		if f := math.Sqrt(a); !VeryClose(sqrt[i], f) {
 			t.Errorf("math.Sqrt(%g) = %g, want %g\n", a, f, floor[i]);
 		}
 	}
@@ -256,7 +265,7 @@ export func TestTan(t *testing.T) {
 
 export func TestTanh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Tanh(vf[i]); !Close(tanh[i], f) {
+		if f := math.Tanh(vf[i]); !VeryClose(tanh[i], f) {
 			t.Errorf("math.Tanh(%g) = %g, want %g\n", vf[i], f, tanh[i]);
 		}
 	}
@@ -265,9 +274,8 @@ export func TestTanh(t *testing.T) {
 export func TestHypot(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := math.Fabs(tanh[i]*math.Sqrt(2));
-		if f := math.Hypot(tanh[i], tanh[i]); !Close(a, f) {
+		if f := math.Hypot(tanh[i], tanh[i]); !VeryClose(a, f) {
 			t.Errorf("math.Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a);
 		}
 	}
 }
-

@@ -6,42 +6,132 @@ package math
 
 import "math"
 
-/*
- *	exp returns the exponential func of its
- *	floating-point argument.
- *
- *	The coefficients are #1069 from Hart and Cheney. (22.35D)
- */
+// The original C code, the long comment, and the constants
+// below are from FreeBSD's /usr/src/lib/msun/src/e_exp.c
+// and came with this notice.  The go code is a simplified
+// version of the original C.
+//
+// ====================================================
+// Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.
+//
+// Permission to use, copy, modify, and distribute this
+// software is freely granted, provided that this notice
+// is preserved.
+// ====================================================
+//
+//
+// exp(x)
+// Returns the exponential of x.
+//
+// Method
+//   1. Argument reduction:
+//      Reduce x to an r so that |r| <= 0.5*ln2 ~ 0.34658.
+//      Given x, find r and integer k such that
+//
+//               x = k*ln2 + r,  |r| <= 0.5*ln2.
+//
+//      Here r will be represented as r = hi-lo for better
+//      accuracy.
+//
+//   2. Approximation of exp(r) by a special rational function on
+//      the interval [0,0.34658]:
+//      Write
+//          R(r**2) = r*(exp(r)+1)/(exp(r)-1) = 2 + r*r/6 - r**4/360 + ...
+//      We use a special Remes algorithm on [0,0.34658] to generate
+//      a polynomial of degree 5 to approximate R. The maximum error
+//      of this polynomial approximation is bounded by 2**-59. In
+//      other words,
+//          R(z) ~ 2.0 + P1*z + P2*z**2 + P3*z**3 + P4*z**4 + P5*z**5
+//      (where z=r*r, and the values of P1 to P5 are listed below)
+//      and
+//          |                  5          |     -59
+//          | 2.0+P1*z+...+P5*z   -  R(z) | <= 2
+//          |                             |
+//      The computation of exp(r) thus becomes
+//                             2*r
+//              exp(r) = 1 + -------
+//                            R - r
+//                                 r*R1(r)
+//                     = 1 + r + ----------- (for better accuracy)
+//                                2 - R1(r)
+//      where
+//                               2       4             10
+//              R1(r) = r - (P1*r  + P2*r  + ... + P5*r   ).
+//
+//   3. Scale back to obtain exp(x):
+//      From step 1, we have
+//         exp(x) = 2^k * exp(r)
+//
+// Special cases:
+//      exp(INF) is INF, exp(NaN) is NaN;
+//      exp(-INF) is 0, and
+//      for finite argument, only exp(0)=1 is exact.
+//
+// Accuracy:
+//      according to an error analysis, the error is always less than
+//      1 ulp (unit in the last place).
+//
+// Misc. info.
+//      For IEEE double
+//          if x >  7.09782712893383973096e+02 then exp(x) overflow
+//          if x < -7.45133219101941108420e+02 then exp(x) underflow
+//
+// Constants:
+// The hexadecimal values are the intended ones for the following
+// constants. The decimal values may be used, provided that the
+// compiler will convert from decimal to binary accurately enough
+// to produce the hexadecimal values shown.
 
-const
-(
-	p0	= .2080384346694663001443843411e7;
-	p1	= .3028697169744036299076048876e5;
-	p2	= .6061485330061080841615584556e2;
-	q0	= .6002720360238832528230907598e7;
-	q1	= .3277251518082914423057964422e6;
-	q2	= .1749287689093076403844945335e4;
-	log2e	= .14426950408889634073599247e1;
-	sqrt2	= .14142135623730950488016887e1;
-	maxf	= 10000;
+export const (
+	Ln2				= 0.693147180559945309417232121458176568;
+	HalfLn2			= 0.346573590279972654708616060729088284;
+
+	Ln2Hi	= 6.93147180369123816490e-01;
+	Ln2Lo	= 1.90821492927058770002e-10;
+	Log2e	= 1.44269504088896338700e+00;
+
+	P1   =  1.66666666666666019037e-01; /* 0x3FC55555; 0x5555553E */
+	P2   = -2.77777777770155933842e-03; /* 0xBF66C16C; 0x16BEBD93 */
+	P3   =  6.61375632143793436117e-05; /* 0x3F11566A; 0xAF25DE2C */
+	P4   = -1.65339022054652515390e-06; /* 0xBEBBBD41; 0xC5D26BF1 */
+	P5   =  4.13813679705723846039e-08; /* 0x3E663769; 0x72BEA4D0 */
+
+	Overflow	= 7.09782712893383973096e+02;
+	Underflow	= -7.45133219101941108420e+02;
+	NearZero	= 1.0/(1<<28);		// 2^-28
 )
 
-export func Exp(arg float64) float64 {
-	if arg == 0. {
+export func Exp(x float64) float64 {
+	// special cases
+	switch {
+	case sys.isNaN(x) || sys.isInf(x, 1):
+		return x;
+	case sys.isInf(x, -1):
+		return 0;
+	case x > Overflow:
+		return sys.Inf(1);
+	case x < Underflow:
+		return 0;
+	case -NearZero < x && x < NearZero:
 		return 1;
 	}
-	if arg < -maxf {
-		return 0;
-	}
-	if arg > maxf {
-		return sys.Inf(1)
-	}
 
-	x := arg*log2e;
-	ent := int(Floor(x));
-	fract := (x-float64(ent)) - 0.5;
-	xsq := fract*fract;
-	temp1 := ((p2*xsq+p1)*xsq+p0)*fract;
-	temp2 := ((xsq+q2)*xsq+q1)*xsq + q0;
-	return sys.ldexp(sqrt2*(temp2+temp1)/(temp2-temp1), ent);
+	// reduce; computed as r = hi - lo for extra precision.
+	var k int;
+	switch {
+	case x < 0:
+		k = int(Log2e*x - 0.5);
+	case x > 0:
+		k = int(Log2e*x + 0.5);
+	}
+	hi := x - float64(k)*Ln2Hi;
+	lo := float64(k)*Ln2Lo;
+	r := hi - lo;
+
+	// compute
+	t := r * r;
+	c := r - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))));
+	y := 1 - ((lo - (r*c)/(2-c)) - hi);
+	// TODO(rsc): make sure sys.ldexp can handle boundary k
+	return sys.ldexp(y, k);
 }
