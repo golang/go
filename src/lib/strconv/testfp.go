@@ -118,7 +118,7 @@ export func TestFp(t *testing.T) {
 		}
 		a := strings.split(line, " ");
 		if len(a) != 4 {
-			t.Errorf("testfp.txt:", lineno, ": wrong field count\n");
+			t.Error("testfp.txt:", lineno, ": wrong field count\n");
 			continue;
 		}
 		var s string;
@@ -128,21 +128,21 @@ export func TestFp(t *testing.T) {
 			var ok bool;
 			v, ok = myatof64(a[2]);
 			if !ok {
-				t.Errorf("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
+				t.Error("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
 				continue;
 			}
 			s = fmt.sprintf(a[1], v);
 		case "float32":
 			v1, ok := myatof32(a[2]);
 			if !ok {
-				t.Errorf("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
+				t.Error("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
 				continue;
 			}
 			s = fmt.sprintf(a[1], v1);
 			v = float64(v1);
 		}
 		if s != a[3] {
-			t.Errorf("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
+			t.Error("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
 				"want ", a[3], " got ", s, "\n");
 		}
 //else print("testfp.txt:", lineno, ": worked! ", s, "\n");
