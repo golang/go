@@ -22,23 +22,18 @@ const
         piu4	=  .1273239544735162686151070107e+1;	// 4/pi
 )
 
-export func
-tan(arg float64) float64
-{
-	var temp, e, x, xsq float64;
-	var i int32;
-	var flag, sign bool;
-
-	flag = false;
-	sign = false;
-	x = arg;
+export func Tan(arg float64) float64 {
+	flag := false;
+	sign := false;
+	x := arg;
 	if(x < 0) {
 		x = -x;
 		sign = true;
 	}
 	x = x * piu4;   /* overflow? */
-	e,x = sys.modf(x);
-	i = int32(e);
+	var e float64;
+	e, x = sys.modf(x);
+	i := int32(e);
 
 	switch i & 3 {
 	case 1:
@@ -54,8 +49,8 @@ tan(arg float64) float64
 		sign = !sign;
 	}
 
-	xsq = x*x;
-	temp = ((((p4*xsq+p3)*xsq+p2)*xsq+p1)*xsq+p0)*x;
+	xsq := x*x;
+	temp := ((((p4*xsq+p3)*xsq+p2)*xsq+p1)*xsq+p0)*x;
 	temp = temp/(((xsq+q2)*xsq+q1)*xsq+q0);
 
 	if flag {

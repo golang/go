@@ -11,12 +11,7 @@ package math
  *	calls frexp
  */
 
-export func
-sqrt(arg float64) float64
-{
-	var x, temp float64;
-	var exp, i int;
-
+export func Sqrt(arg float64) float64 {
 	if sys.isInf(arg, 1) {
 		return arg;
 	}
@@ -28,7 +23,7 @@ sqrt(arg float64) float64
 		return 0;
 	}
 
-	x,exp = sys.frexp(arg);
+	x,exp := sys.frexp(arg);
 	for x < 0.5 {
 		x = x*2;
 		exp = exp-1;
@@ -38,7 +33,7 @@ sqrt(arg float64) float64
 		x = x*2;
 		exp = exp-1;
 	}
-	temp = 0.5 * (1+x);
+	temp := 0.5 * (1+x);
 
 	for exp > 60 {
 		temp = temp * float64(1<<30);
@@ -56,7 +51,7 @@ sqrt(arg float64) float64
 		temp = temp / float64(exp);
 	}
 
-	for i=0; i<=4; i=i+1 {
+	for i:=0; i<=4; i++ {
 		temp = 0.5*(temp + arg/temp);
 	}
 	return temp;

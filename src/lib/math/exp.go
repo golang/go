@@ -4,7 +4,7 @@
 
 package math
 
-import	math "math"
+import "math"
 
 /*
  *	exp returns the exponential func of its
@@ -26,12 +26,7 @@ const
 	maxf	= 10000;
 )
 
-export func
-exp(arg float64) float64
-{
-	var x, fract, temp1, temp2, xsq float64;
-	var ent int;
-
+export func Exp(arg float64) float64 {
 	if arg == 0. {
 		return 1;
 	}
@@ -42,11 +37,11 @@ exp(arg float64) float64
 		return sys.Inf(1)
 	}
 
-	x = arg*log2e;
-	ent = int(floor(x));
-	fract = (x-float64(ent)) - 0.5;
-	xsq = fract*fract;
-	temp1 = ((p2*xsq+p1)*xsq+p0)*fract;
-	temp2 = ((xsq+q2)*xsq+q1)*xsq + q0;
+	x := arg*log2e;
+	ent := int(Floor(x));
+	fract := (x-float64(ent)) - 0.5;
+	xsq := fract*fract;
+	temp1 := ((p2*xsq+p1)*xsq+p0)*fract;
+	temp2 := ((xsq+q2)*xsq+q1)*xsq + q0;
 	return sys.ldexp(sqrt2*(temp2+temp1)/(temp2-temp1), ent);
 }

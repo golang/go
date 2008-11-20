@@ -12,11 +12,7 @@ package math
  *	Vol. 27, Number 6, pp. 577-581, Nov. 1983
  */
 
-export func
-hypot(p, q float64) float64
-{
-	var r, s, pfac float64;
-
+export func Hypot(p, q float64) float64 {
 	if p < 0 {
 		p = -p;
 	}
@@ -25,22 +21,20 @@ hypot(p, q float64) float64
 	}
 
 	if p < q {
-		r = p;
-		p = q;
-		q = r;
+		p, q = q, p;
 	}
 
 	if p == 0 {
 		return 0;
 	}
 
-	pfac = p;
+	pfac := p;
 	q = q/p;
-	r = q;
+	r := q;
 	p = 1;
 	for {
 		r = r*r;
-		s = r+4;
+		s := r+4;
 		if s == 4 {
 			return p*pfac;
 		}

@@ -9,25 +9,18 @@ package math
  * (resp least >=)
  */
 
-export func
-floor(arg float64) float64
-{
-	var fract, d float64;
-
-	d = arg;
-	if d < 0 {
-		d,fract = sys.modf(-d);
+export func Floor(arg float64) float64 {
+	if arg < 0 {
+		d, fract := sys.modf(-arg);
 		if fract != 0.0 {
 			d = d+1;
 		}
 		return -d;
 	}
-	d,fract = sys.modf(d);
+	d, fract := sys.modf(arg);
 	return d;
 }
 
-export func
-ceil(arg float64) float64
-{
-	return -floor(-arg);
+export func Ceil(arg float64) float64 {
+	return -Floor(-arg);
 }

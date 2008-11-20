@@ -4,7 +4,7 @@
 
 package math
 
-import		math "math"
+import "math"
 
 /*
  *	tanh(arg) computes the hyperbolic tangent of its floating
@@ -14,18 +14,16 @@ import		math "math"
  *	would cause overflow improperly.
  */
 
-export func
-tanh(arg float64) float64
-{
+export func Tanh(arg float64) float64 {
 	if arg < 0 {
 		arg = -arg;
 		if arg > 21 {
 			return -1;
 		}
-		return -sinh(arg)/cosh(arg);
+		return -Sinh(arg)/Cosh(arg);
 	}
 	if arg > 21 {
 		return 1;
 	}
-	return sinh(arg)/cosh(arg);
+	return Sinh(arg)/Cosh(arg);
 }

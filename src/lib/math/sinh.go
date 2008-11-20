@@ -4,7 +4,7 @@
 
 package math
 
-import	math "math"
+import "math"
 
 /*
  *	sinh(arg) returns the hyperbolic sine of its floating-
@@ -31,27 +31,23 @@ const
 	q2	= -0.173678953558233699533450911e+3;
 )
 
-export func
-sinh(arg float64) float64
-{
-	var temp, argsq float64;
-	var sign bool;
-
-	sign = false;
+export func Sinh(arg float64) float64 {
+	sign := false;
 	if arg < 0 {
 		arg = -arg;
 		sign = true;
 	}
 
+	var temp float64;
 	switch true {
 	case arg > 21:
-		temp = exp(arg)/2;
+		temp = Exp(arg)/2;
 
 	case arg > 0.5:
-		temp = (exp(arg) - exp(-arg))/2;
+		temp = (Exp(arg) - Exp(-arg))/2;
 
 	default:
-		argsq = arg*arg;
+		argsq := arg*arg;
 		temp = (((p3*argsq+p2)*argsq+p1)*argsq+p0)*arg;
 		temp = temp/(((argsq+q2)*argsq+q1)*argsq+q0);
 	}
@@ -62,14 +58,12 @@ sinh(arg float64) float64
 	return temp;
 }
 
-export func
-cosh(arg float64) float64
-{
+export func Cosh(arg float64) float64 {
 	if arg < 0 {
 		arg = - arg;
 	}
 	if arg > 21 {
-		return exp(arg)/2;
+		return Exp(arg)/2;
 	}
-	return (exp(arg) + exp(-arg))/2;
+	return (Exp(arg) + Exp(-arg))/2;
 }

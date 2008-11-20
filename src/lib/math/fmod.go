@@ -8,13 +8,7 @@ package math
  *	floating-point mod func without infinity or NaN checking
  */
 
-export func
-fmod(x, y float64) float64
-{
-	var yexp, rexp int;
-	var r, yfr, rfr float64;
-	var sign bool;
-
+export func Fmod(x, y float64) float64 {
 	if y == 0 {
 		return x;
 	}
@@ -22,17 +16,16 @@ fmod(x, y float64) float64
 		y = -y;
 	}
 
-	yfr,yexp = sys.frexp(y);
-	sign = false;
+	yfr, yexp := sys.frexp(y);
+	sign := false;
+	r := x;
 	if x < 0 {
 		r = -x;
 		sign = true;
-	} else {
-		r = x;
 	}
 
 	for r >= y {
-		rfr,rexp = sys.frexp(r);
+		rfr, rexp := sys.frexp(r);
 		if rfr < yfr {
 			rexp = rexp - 1;
 		}
