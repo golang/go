@@ -14,6 +14,16 @@ func init() {
 	flag.Bool("chatty", false, &chatty, "chatty");
 }
 
+// Insert tabs after newlines - but not the last one
+func Tabify(s string) string {
+	for i := 0; i < len(s) - 1; i++ {	// -1 because if last char is newline, don't bother
+		if s[i] == '\n' {
+			return s[0:i+1] + "\t" + Tabify(s[i+1:len(s)]);
+		}
+	}
+	return s
+}
+
 export type T struct {
 	errors	string;
 	failed	bool;
@@ -31,11 +41,11 @@ func (t *T) FailNow() {
 }
 
 func (t *T) Log(args ...) {
-	t.errors += "\t" + fmt.sprintln(args);
+	t.errors += "\t" + Tabify(fmt.sprintln(args));
 }
 
 func (t *T) Logf(format string, args ...) {
-	t.errors += fmt.sprintf("\t" + format, args);
+	t.errors += Tabify(fmt.sprintf("\t" + format, args));
 	l := len(t.errors);
 	if l > 0 && t.errors[l-1] != '\n' {
 		t.errors += "\n"
