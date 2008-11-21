@@ -121,10 +121,11 @@ asmb(void)
 {
 	Prog *p;
 	int32 v, magic;
-	int a;
+	int a, np;
 	uchar *op1;
-	vlong vl, va, fo, w;
+	vlong vl, va, fo, w, symo;
 	int strtabsize;
+	vlong symdatva = 0x99LL<<32;
 
 	strtabsize = 0;
 
@@ -221,6 +222,7 @@ asmb(void)
 	symsize = 0;
 	spsize = 0;
 	lcsize = 0;
+	symo = 0;
 	if(!debug['s']) {
 		if(debug['v'])
 			Bprint(&bso, "%5.2f sym\n", cputime());
@@ -230,15 +232,17 @@ asmb(void)
 		case 2:
 		case 5:
 			debug['s'] = 1;
-			seek(cout, HEADR+textsize+datsize, 0);
+			symo = HEADR+textsize+datsize;
 			break;
 		case 6:
-			seek(cout, rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND), 0);
+			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND);
 			break;
 		case 7:
-			seek(cout, rnd(HEADR+textsize, INITRND)+datsize+strtabsize, 0);
+			symo = rnd(HEADR+textsize, INITRND)+datsize+strtabsize;
+			symo = rnd(symo, INITRND);
 			break;
 		}
+		seek(cout, symo+8, 0);
 		if(!debug['s'])
 			asmsym();
 		if(debug['v'])
@@ -251,6 +255,10 @@ asmb(void)
 			asmlc();
 		if(dlm)
 			asmdyn();
+		cflush();
+		seek(cout, symo, 0);
+		lputl(symsize);
+		lputl(lcsize);
 		cflush();
 	} else
 	if(dlm){
@@ -352,7 +360,7 @@ asmb(void)
 		if (debug['s'])
 			lputl(4);			/* number of loads */
 		else
-			lputl(6);			/* number of loads */
+			lputl(7);			/* number of loads */
 		lputl(machheadr()-32);		/* size of loads */
 		lputl(1);			/* flags - no undefines */
 		lputl(0);			/* reserved */
@@ -394,6 +402,13 @@ asmb(void)
 		machstack(va+HEADR);
 
 		if (!debug['s']) {
+			machseg("__SYMDAT",
+				symdatva,		/* vaddr */
+				8+symsize+lcsize,		/* vsize */
+				symo, 8+symsize+lcsize,	/* fileoffset filesize */
+				7, 5,			/* protects */
+				0, 0);			/* sections flags */
+
 			v += rnd(datsize, INITRND);
 			machsymseg(v,symsize);	/* fileoffset,filesize */
 			v += symsize;
@@ -413,11 +428,14 @@ asmb(void)
 		lputl(1L);			/* version = CURRENT */
 		llputl(entryvalue());		/* entry vaddr */
 		llputl(64L);			/* offset to first phdr */
-		llputl(64L+56*3);		/* offset to first shdr */
+		np = 3;
+		if(!debug['s'])
+			np++;
+		llputl(64L+56*np);		/* offset to first shdr */
 		lputl(0L);			/* processor specific flags */
 		wputl(64);			/* Ehdr size */
 		wputl(56);			/* Phdr size */
-		wputl(3);			/* # of Phdrs */
+		wputl(np);			/* # of Phdrs */
 		wputl(64);			/* Shdr size */
 		if (!debug['s'])
 			wputl(7);			/* # of Shdrs */
@@ -450,6 +468,17 @@ asmb(void)
 			w,			/* file size */
 			w+bsssize,		/* memory size */
 			INITRND);		/* alignment */
+
+		if(!debug['s']) {
+			linuxphdr(1,			/* data - type = PT_LOAD */
+				2L+4L,			/* data - flags = PF_W+PF_R */
+				symo,		/* file offset */
+				symdatva,			/* vaddr */
+				symdatva,			/* paddr */
+				8+symsize+lcsize,			/* file size */
+				8+symsize+lcsize,		/* memory size */
+				INITRND);		/* alignment */
+		}
 
 		linuxphdr(0x6474e551,		/* gok - type = gok */
 			1L+2L+4L,		/* gok - flags = PF_X+PF_W+PF_R */
@@ -533,7 +562,7 @@ asmb(void)
 		if (debug['s'])
 			break;
 
-		fo += w;
+		fo = symo+8;
 		w = symsize;
 
 		linuxshdr(".gosymtab",		/* name */
@@ -829,6 +858,7 @@ machheadr(void)
 	a += 20;	/* bss sect */
 	a += 46;	/* stack sect */
 	if (!debug['s']) {
+		a += 18;	/* symdat seg */
 		a += 4;	/* symtab seg */
 		a += 4;	/* lctab seg */
 	}
@@ -853,6 +883,7 @@ linuxheadr(void)
 	a += 64;	/* .bss sect */
 	a += 64;	/* .shstrtab sect - strings for headers */
 	if (!debug['s']) {
+		a += 56;	/* symdat seg */
 		a += 64;	/* .gosymtab sect */
 		a += 64;	/* .gopclntab sect */
 	}

@@ -52,6 +52,7 @@ int	nflag;
 int	sflag;
 int	uflag;
 int	Tflag;
+int	tflag;
 
 Sym	**fnames;		/* file path translation table */
 Sym	**symptr;
@@ -90,6 +91,7 @@ main(int argc, char *argv[])
 	case 'n':	nflag = 1; break;
 	case 's':	sflag = 1; break;
 	case 'u':	uflag = 1; break;
+	case 't':	tflag = 1; break;
 	case 'T':	Tflag = 1; break;
 	} ARGEND
 	if (argc == 0)
@@ -298,7 +300,7 @@ printsyms(Sym **symptr, long nsym)
 
 	if(!sflag)
 		qsort(symptr, nsym, sizeof(*symptr), (void*)cmp);
-	
+
 	wid = 0;
 	for (i=0; i<nsym; i++) {
 		s = symptr[i];
@@ -306,7 +308,7 @@ printsyms(Sym **symptr, long nsym)
 			wid = 8;
 		else if (s->value >= 0x100000000LL && wid == 8)
 			wid = 16;
-	}	
+	}
 	for (i=0; i<nsym; i++) {
 		s = symptr[i];
 		if (multifile && !hflag)
@@ -322,7 +324,10 @@ printsyms(Sym **symptr, long nsym)
 			Bprint(&bout, "%*llux ", wid, s->value);
 		else
 			Bprint(&bout, "%*s ", wid, "");
-		Bprint(&bout, "%c %s\n", s->type, cp);
+		Bprint(&bout, "%c %s", s->type, cp);
+		if(tflag && s->gotype && s->gotype[0])
+			Bprint(&bout, " %s", s->gotype);
+		Bprint(&bout, "\n");
 	}
 }
 

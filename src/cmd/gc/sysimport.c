@@ -1,4 +1,4 @@
-char *sysimport = 
+char *sysimport =
 	"package sys\n"
 	"export func sys.mal (? int32) (? *any)\n"
 	"export func sys.breakpoint ()\n"
@@ -70,5 +70,6 @@ char *sysimport =
 	"export func sys.bytestorune (? *uint8, ? int, ? int) (? int, ? int)\n"
 	"export func sys.stringtorune (? string, ? int) (? int, ? int)\n"
 	"export func sys.exit (? int)\n"
+	"export func sys.symdat () (symtab *[]uint8, pclntab *[]uint8)\n"
 	"\n"
 	"$$\n";

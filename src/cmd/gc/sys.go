@@ -89,3 +89,6 @@ export func	bytestorune(*byte, int, int) (int, int);	// convert bytes to runes
 export func	stringtorune(string, int) (int, int);	// convert bytes to runes
 
 export func	exit(int);
+
+export func	symdat() (symtab *[]byte, pclntab *[]byte);
+
