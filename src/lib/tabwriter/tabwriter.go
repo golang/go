@@ -61,12 +61,12 @@ func (b *ByteArray) Append(s *[]byte) {
 
 
 // ----------------------------------------------------------------------------
-// Tabwriter is a filter implementing the IO.Write interface. It assumes
+// Writer is a filter implementing the io.Write interface. It assumes
 // that the incoming bytes represent ASCII encoded text consisting of
 // lines of tab-separated "cells". Cells in adjacent lines constitute
-// a column. Tabwriter rewrites the incoming text such that all cells
-// in a column have the same width; thus it effectively aligns cells.
-// It does this by adding padding where necessary.
+// a column. Writer rewrites the incoming text such that all cells in
+// a column have the same width; thus it effectively aligns cells. It
+// does this by adding padding where necessary.
 //
 // Formatting can be controlled via parameters:
 //
@@ -84,7 +84,7 @@ func (b *ByteArray) Append(s *[]byte) {
 //      pendant cell and tab width.
 
 
-export type TabWriter struct {
+export type Writer struct {
 	// TODO should not export any of the fields
 	// configuration
 	writer io.Write;
@@ -100,12 +100,12 @@ export type TabWriter struct {
 }
 
 
-func (b *TabWriter) AddLine() {
+func (b *Writer) AddLine() {
 	b.lines.Push(array.NewIntArray(0));
 }
 
 
-func (b *TabWriter) Init(writer io.Write, tabwidth, padding int, usetabs bool) *TabWriter {
+func (b *Writer) Init(writer io.Write, tabwidth, padding int, usetabs bool) *Writer {
 	b.writer = writer;
 	b.tabwidth = tabwidth;
 	b.padding = padding;
@@ -120,18 +120,18 @@ func (b *TabWriter) Init(writer io.Write, tabwidth, padding int, usetabs bool) *
 }
 
 
-func (b *TabWriter) Line(i int) *array.IntArray {
+func (b *Writer) Line(i int) *array.IntArray {
 	return b.lines.At(i).(*array.IntArray);
 }
 
 
-func (b *TabWriter) LastLine() *array.IntArray {
+func (b *Writer) LastLine() *array.IntArray {
 	return b.lines.At(b.lines.Len() - 1).(*array.IntArray);
 }
 
 
 // debugging support
-func (b *TabWriter) Dump() {
+func (b *Writer) Dump() {
 	pos := 0;
 	for i := 0; i < b.lines.Len(); i++ {
 		line := b.Line(i);
@@ -147,7 +147,7 @@ func (b *TabWriter) Dump() {
 }
 
 
-func (b *TabWriter) Write0(buf *[]byte) *os.Error {
+func (b *Writer) Write0(buf *[]byte) *os.Error {
 	n, err := b.writer.Write(buf);
 	if n != len(buf) && err == nil {
 		err = os.EIO;
@@ -161,7 +161,7 @@ var Blanks = &[]byte{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}
 var Newline = &[]byte{'\n'}
 
 
-func (b *TabWriter) WritePadding(textw, cellw int) (err *os.Error) {
+func (b *Writer) WritePadding(textw, cellw int) (err *os.Error) {
 	if b.usetabs {
 		// make cell width a multiple of tabwidth
 		cellw = ((cellw + b.tabwidth - 1) / b.tabwidth) * b.tabwidth;
@@ -192,7 +192,7 @@ exit:
 }
 
 
-func (b *TabWriter) WriteLines(pos0 int, line0, line1 int) (pos int, err *os.Error) {
+func (b *Writer) WriteLines(pos0 int, line0, line1 int) (pos int, err *os.Error) {
 	pos = pos0;
 	for i := line0; i < line1; i++ {
 		line := b.Line(i);
@@ -233,7 +233,7 @@ func utflen(buf *[]byte) int {
 }
 
 
-func (b *TabWriter) Format(pos0 int, line0, line1 int) (pos int, err *os.Error) {
+func (b *Writer) Format(pos0 int, line0, line1 int) (pos int, err *os.Error) {
 	pos = pos0;
 	column := b.widths.Len();	
 	last := line0;
@@ -284,13 +284,13 @@ exit:
 }
 
 
-func (b *TabWriter) Append(buf *[]byte) {
+func (b *Writer) Append(buf *[]byte) {
 	b.buf.Append(buf);
 	b.width += len(buf);
 }
 
 
-/* export */ func (b *TabWriter) Flush() *os.Error {
+/* export */ func (b *Writer) Flush() *os.Error {
 	dummy, err := b.Format(0, 0, b.lines.Len());
 	// reset (even in the presence of errors)
 	b.buf.Clear();
@@ -301,7 +301,7 @@ func (b *TabWriter) Append(buf *[]byte) {
 }
 
 
-/* export */ func (b *TabWriter) Write(buf *[]byte) (written int, err *os.Error) {
+/* export */ func (b *Writer) Write(buf *[]byte) (written int, err *os.Error) {
 	i0, n := 0, len(buf);
 	
 	// split text into cells
@@ -319,7 +319,7 @@ func (b *TabWriter) Append(buf *[]byte) {
 					// The last line has only one cell which does not have an
 					// impact on the formatting of the following lines (the
 					// last cell per line is ignored by Format), thus we can
-					// flush the TabWriter contents.
+					// flush the Writer contents.
 					err = b.Flush();
 					if err != nil {
 						return i0, err;
@@ -338,6 +338,6 @@ func (b *TabWriter) Append(buf *[]byte) {
 }
 
 
-export func New(writer io.Write, tabwidth, padding int, usetabs bool) *TabWriter {
-	return new(TabWriter).Init(writer, tabwidth, padding, usetabs)
+export func New(writer io.Write, tabwidth, padding int, usetabs bool) *Writer {
+	return new(Writer).Init(writer, tabwidth, padding, usetabs)
 }
