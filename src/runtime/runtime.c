@@ -23,9 +23,7 @@ sys·panicl(int32 lno)
 {
 	uint8 *sp;
 
-	prints("\npanic on line ");
-	sys·printint(lno);
-	prints(" ");
+	prints("\npanic ");
 	sys·printpc(&lno);
 	prints("\n");
 	sp = (uint8*)&lno;

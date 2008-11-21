@@ -146,7 +146,7 @@ BUG: should compile
 =========== bugs/bug119.go
 3 74256
 
-panic on line 85 PC=xxx
+panic PC=xxx
 BUG: should not fail
 
 =========== bugs/bug120.go
