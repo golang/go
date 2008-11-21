@@ -63,34 +63,38 @@ func (b *ByteArray) Append(s *[]byte) {
 // ----------------------------------------------------------------------------
 // Writer is a filter implementing the io.Write interface. It assumes
 // that the incoming bytes represent ASCII encoded text consisting of
-// lines of tab-separated "cells". Cells in adjacent lines constitute
+// lines of tab-terminated "cells". Cells in adjacent lines constitute
 // a column. Writer rewrites the incoming text such that all cells in
 // a column have the same width; thus it effectively aligns cells. It
 // does this by adding padding where necessary.
 //
+// Note that any text at the end of a line that is not tab-terminated
+// is not a cell and does not enforce alignment of cells in adjacent
+// rows. To make it a cell it needs to be tab-terminated. (For more
+// information see http://nickgravgaard.com/elastictabstops/index.html)
+//
 // Formatting can be controlled via parameters:
 //
-// tabwidth  the minimal with of a cell
-// padding   additional padding
-// usetabs   use tabs instead of blanks for padding
-//           (for correct-looking results, tabwidth must correspond
-//           to the tabwidth in the editor used to look at the result)
-//
-// (See alse http://nickgravgaard.com/elastictabstops/index.html)
+// cellwidth  minimal cell width
+// padding    additional cell padding
+// padchar    ASCII char used for padding
+//            if padchar == '\t', the Writer will assume that the
+//            width of a '\t' in the formatted output is tabwith,
+//            and cells are left-aligned independent of align_left
+//            (for correct-looking results, cellwidth must correspond
+//            to the tabwidth in the editor used to look at the result)
 
-// TODO Should support UTF-8
-// TODO Should probably implement a couple of trivial customization options
-//      such as arbitrary padding character, left/right alignment, and inde-
-//      pendant cell and tab width.
+// TODO Should support UTF-8 (requires more complicated width bookkeeping)
 
 
 export type Writer struct {
 	// TODO should not export any of the fields
 	// configuration
 	writer io.Write;
-	tabwidth int;
+	cellwidth int;
 	padding int;
-	usetabs bool;
+	padbytes [8]byte;
+	align_left bool;
 
 	// current state
 	buf ByteArray;  // the collected text w/o tabs and newlines
@@ -105,11 +109,20 @@ func (b *Writer) AddLine() {
 }
 
 
-func (b *Writer) Init(writer io.Write, tabwidth, padding int, usetabs bool) *Writer {
+func (b *Writer) Init(writer io.Write, cellwidth, padding int, padchar byte, align_left bool) *Writer {
+	if cellwidth < 0 {
+		panic("negative cellwidth");
+	}
+	if padding < 0 {
+		panic("negative padding");
+	}
 	b.writer = writer;
-	b.tabwidth = tabwidth;
+	b.cellwidth = cellwidth;
 	b.padding = padding;
-	b.usetabs = usetabs;
+	for i := len(b.padbytes) - 1; i >= 0; i-- {
+		b.padbytes[i] = padchar;
+	}
+	b.align_left = align_left || padchar == '\t';  // tab enforces left-alignment
 	
 	b.buf.Init(1024);
 	b.lines.Init(0);
@@ -156,15 +169,12 @@ func (b *Writer) Write0(buf *[]byte) *os.Error {
 }
 
 
-var Tabs = &[]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'}
-var Blanks = &[]byte{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}
 var Newline = &[]byte{'\n'}
 
-
 func (b *Writer) WritePadding(textw, cellw int) (err *os.Error) {
-	if b.usetabs {
-		// make cell width a multiple of tabwidth
-		cellw = ((cellw + b.tabwidth - 1) / b.tabwidth) * b.tabwidth;
+	if b.padbytes[0] == '\t' {
+		// make cell width a multiple of cellwidth
+		cellw = ((cellw + b.cellwidth - 1) / b.cellwidth) * b.cellwidth;
 	}
 
 	n := cellw - textw;
@@ -172,20 +182,18 @@ func (b *Writer) WritePadding(textw, cellw int) (err *os.Error) {
 		panic("internal error");
 	}
 
-	padding := Blanks;
-	if b.usetabs {
-		n = (n + b.tabwidth - 1) / b.tabwidth;
-		padding = Tabs;
+	if b.padbytes[0] == '\t' {
+		n = (n + b.cellwidth - 1) / b.cellwidth;
 	}
 	
-	for n > len(padding) {
-		err = b.Write0(padding);
+	for n > len(b.padbytes) {
+		err = b.Write0(&b.padbytes);
 		if err != nil {
 			goto exit;
 		}
-		n -= len(padding);
+		n -= len(b.padbytes);
 	}
-	err = b.Write0(padding[0 : n]);
+	err = b.Write0((&b.padbytes)[0 : n]);  // BUG 6g should not require ()'s
 
 exit:
 	return err;
@@ -198,16 +206,33 @@ func (b *Writer) WriteLines(pos0 int, line0, line1 int) (pos int, err *os.Error)
 		line := b.Line(i);
 		for j := 0; j < line.Len(); j++ {
 			w := line.At(j);
-			err = b.Write0(b.buf.a[pos : pos + w]);
-			if err != nil {
-				goto exit;
-			}
-			pos += w;
-			if j < b.widths.Len() {
-				err = b.WritePadding(w, b.widths.At(j));
+
+			if b.align_left {
+				err = b.Write0(b.buf.a[pos : pos + w]);
 				if err != nil {
 					goto exit;
 				}
+				pos += w;
+				if j < b.widths.Len() {
+					err = b.WritePadding(w, b.widths.At(j));
+					if err != nil {
+						goto exit;
+					}
+				}
+
+			} else {  // align right
+
+				if j < b.widths.Len() {
+					err = b.WritePadding(w, b.widths.At(j));
+					if err != nil {
+						goto exit;
+					}
+				}
+				err = b.Write0(b.buf.a[pos : pos + w]);
+				if err != nil {
+					goto exit;
+				}
+				pos += w;
 			}
 		}
 		err = b.Write0(Newline);
@@ -252,7 +277,7 @@ func (b *Writer) Format(pos0 int, line0, line1 int) (pos int, err *os.Error) {
 			last = this;
 			
 			// column block begin
-			width := b.tabwidth;  // minimal width
+			width := b.cellwidth;  // minimal width
 			for ; this < line1; this++ {
 				line = b.Line(this);
 				if column < line.Len() - 1 {
@@ -338,6 +363,6 @@ func (b *Writer) Append(buf *[]byte) {
 }
 
 
-export func New(writer io.Write, tabwidth, padding int, usetabs bool) *Writer {
-	return new(Writer).Init(writer, tabwidth, padding, usetabs)
+export func New(writer io.Write, cellwidth, padding int, padchar byte, align_left bool) *Writer {
+	return new(Writer).Init(writer, cellwidth, padding, padchar, align_left)
 }
