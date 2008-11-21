@@ -6,10 +6,8 @@
 
 rm -f $GOROOT/pkg/*
 
-for i in syscall os math fmt net time http reflect regexp
+for i in syscall math os strconv container/array reflect fmt tabwriter net time http regexp
 do
-	cd $i
-	make nuke
-	cd ..
+	(cd $i; make nuke)
 done
 

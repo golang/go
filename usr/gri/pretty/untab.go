@@ -25,7 +25,7 @@ func Error(format string, params ...) {
 }
 
 
-func Untab(name string, src *os.FD, dst *tabwriter.TabWriter) {
+func Untab(name string, src *os.FD, dst *tabwriter.Writer) {
 	n, err := io.Copy(src, dst);
 	if err != nil {
 		Error("error while processing %s (%v)", name, err);

@@ -38,7 +38,8 @@ builddirs	syscall\
 	
 buildfiles	io.go
 
-builddirs	fmt
+builddirs	fmt\
+		tabwriter\
 
 buildfiles	flag.go\
 		container/vector.go\

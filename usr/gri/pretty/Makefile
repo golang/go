@@ -37,9 +37,7 @@ parser.6:	 scanner.6 ast.6
 
 platform.6:	 utils.6
 
-printer.6:	 scanner.6 ast.6 tabwriter.6
-
-untab.6:	tabwriter.6
+printer.6:	 scanner.6 ast.6
 
 %.6:	%.go
 	$(G) $(F) $<
