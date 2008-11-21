@@ -70,7 +70,7 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 
 		/* print this frame */
 		prints("0x");
-		sys·printpointer(callpc);
+		sys·printpointer(callpc  - 1);	// -1 to get to CALL instr.
 		prints("?zi\n");
 		prints("\t");
 		prints(name);
