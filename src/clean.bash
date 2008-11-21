@@ -7,7 +7,7 @@ for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib
 do
 	cd $i
 	case $i in
-	cmd | lib)
+	cmd)
 		bash clean.bash
 		;;
 	*)

@@ -23,7 +23,7 @@ do
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i
 	case $i in
-	cmd | lib)
+	cmd)
 		bash make.bash
 		;;
 	*)
