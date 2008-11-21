@@ -16,6 +16,7 @@ DIRS=\
 	reflect\
 	regexp\
 	strconv\
+	tabwriter\
 	time\
 
 FILES=\
@@ -66,7 +67,7 @@ install: install.dirs install.files
 nuke: nuke.dirs clean.files
 	rm -f $(GOROOT)/pkg/*
 
-# dependencies - should auto-generate
+# TODO: dependencies - should auto-generate
 
 bignum.6: fmt.dirinstall
 bufio.6: io.install os.dirinstall
@@ -75,10 +76,11 @@ io.6: os.dirinstall syscall.dirinstall
 testing.6: flag.install fmt.dirinstall
 
 fmt.dirinstall: io.install reflect.dirinstall strconv.dirinstall
-http.dirinstall: bufio.install io.install net.dirinstall os.dirinstall strings.install 
+http.dirinstall: bufio.install io.install net.dirinstall os.dirinstall strings.install
 net.dirinstall: once.install os.dirinstall strconv.dirinstall
 os.dirinstall: syscall.dirinstall
 regexp.dirinstall: os.dirinstall
 reflect.dirinstall: strconv.dirinstall
 strconv.dirinstall: os.dirinstall
+tabwriter.dirinstall: os.dirinstall io.install container/array.dirinstall
 time.dirinstall: once.install os.dirinstall
