@@ -32,7 +32,7 @@ void
 sys·printpc(void *p)
 {
 	prints("PC=0x");
-	sys·printpointer(sys·getcallerpc(p));
+	sys·printpointer((byte*)sys·getcallerpc(p) - 1);	// -1 to get to CALL instr.
 }
 
 void
