@@ -36,7 +36,11 @@ func Untab(name string, src *os.FD, dst *tabwriter.Writer) {
 
 func main() {
 	flag.Parse();
-	dst := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, usetabs.BVal());
+	padchar := byte(' ');
+	if usetabs.BVal() {
+		padchar = '\t';
+	}
+	dst := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true);
 	if flag.NArg() > 0 {
 		for i := 0; i < flag.NArg(); i++ {
 			name := flag.Arg(i);

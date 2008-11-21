@@ -604,7 +604,11 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 
 func (P *Printer) Program(p *AST.Program) {
 	// TODO should initialize all fields?
-	P.writer = TabWriter.New(OS.Stdout, int(tabwidth.IVal()), 1, usetabs.BVal());
+	padchar := byte(' ');
+	if usetabs.BVal() {
+		padchar = '\t';
+	}
+	P.writer = TabWriter.New(OS.Stdout, int(tabwidth.IVal()), 1, padchar, true);
 	
 	P.clist = p.comments;
 	P.cindex = 0;
