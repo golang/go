@@ -87,6 +87,7 @@ static	uvlong	firstinstr;		/* as found from symtab; needed for amd64 */
 
 static void	cleansyms(void);
 static int32	decodename(Biobuf*, Sym*);
+static int32	decodegotype(Biobuf*, Sym*);
 static short	*encfname(char*);
 static int 	fline(char*, int, int32, Hist*, Hist**);
 static void	fillsym(Sym*, Symbol*);
@@ -151,6 +152,10 @@ syminit(int fd, Fhdr *fp)
 		if(i < 0)
 			return -1;
 		size += i+svalsz+sizeof(p->type);
+		i = decodegotype(&b, p);
+		if(i < 0)
+			return -1;
+		size += i;
 
 		/* count global & auto vars, text symbols, and file names */
 		switch (p->type) {
@@ -290,6 +295,27 @@ decodename(Biobuf *bp, Sym *p)
 		}
 		strcpy(p->name, cp);
 	}
+	return n;
+}
+
+static int32
+decodegotype(Biobuf *bp, Sym *p)
+{
+	char *cp;
+	int32 n;
+
+	cp = Brdline(bp, '\0');
+	if(cp == 0) {
+		werrstr("can't read go type");
+		return -1;
+	}
+	n = Blinelen(bp);
+	p->gotype = malloc(n);
+	if(p->gotype == 0) {
+		werrstr("can't malloc %ld bytes", n);
+		return -1;
+	}
+	strcpy(p->gotype, cp);
 	return n;
 }
 

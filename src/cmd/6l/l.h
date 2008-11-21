@@ -397,6 +397,8 @@ int	find2(int32, int);
 void	follow(void);
 void	addstachmark(void);
 void	gethunk(void);
+void	gotypestrings(void);
+char*	gotypefor(char*);
 void	histtoauto(void);
 double	ieeedtod(Ieee*);
 int32	ieeedtof(Ieee*);

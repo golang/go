@@ -84,6 +84,7 @@ struct	Sym
 	uint	sig;
 	char	type;
 	char	*name;
+	char *gotype;
 };
 /*
  * End of Plan 9 a.out.h

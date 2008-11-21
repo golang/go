@@ -150,9 +150,9 @@ xdefine(char *p, int t, vlong v)
 }
 
 void
-putsymb(char *s, int t, vlong v, int ver)
+putsymb(char *s, int t, vlong v, int ver, char *go)
 {
-	int i, f, l;
+	int i, j, f, l;
 
 	if(t == 'f')
 		s++;
@@ -181,7 +181,13 @@ putsymb(char *s, int t, vlong v, int ver)
 			cput(s[i]);
 		cput(0);
 	}
-	symsize += l + 1 + i + 1;
+	j = 0;
+	if(go) {
+		for(j=0; go[j]; j++)
+			cput(go[j]);
+	}
+	cput(0);
+	symsize += l + 1 + i + 1 + j + 1;
 
 	if(debug['n']) {
 		if(t == 'z' || t == 'Z') {
@@ -194,9 +200,9 @@ putsymb(char *s, int t, vlong v, int ver)
 			return;
 		}
 		if(ver)
-			Bprint(&bso, "%c %.8llux %s<%d>\n", t, v, s, ver);
+			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, s, ver, go);
 		else
-			Bprint(&bso, "%c %.8llux %s\n", t, v, s);
+			Bprint(&bso, "%c %.8llux %s %s\n", t, v, s, go);
 	}
 }
 
@@ -210,25 +216,25 @@ asmsym(void)
 
 	s = lookup("etext", 0);
 	if(s->type == STEXT)
-		putsymb(s->name, 'T', s->value, s->version);
+		putsymb(s->name, 'T', s->value, s->version, nil);
 
 	for(h=0; h<NHASH; h++)
 		for(s=hash[h]; s!=S; s=s->link)
 			switch(s->type) {
 			case SCONST:
-				putsymb(s->name, 'D', s->value, s->version);
+				putsymb(s->name, 'D', s->value, s->version, gotypefor(s->name));
 				continue;
 
 			case SDATA:
-				putsymb(s->name, 'D', s->value+INITDAT, s->version);
+				putsymb(s->name, 'D', s->value+INITDAT, s->version, gotypefor(s->name));
 				continue;
 
 			case SBSS:
-				putsymb(s->name, 'B', s->value+INITDAT, s->version);
+				putsymb(s->name, 'B', s->value+INITDAT, s->version, gotypefor(s->name));
 				continue;
 
 			case SFILE:
-				putsymb(s->name, 'f', s->value, s->version);
+				putsymb(s->name, 'f', s->value, s->version, nil);
 				continue;
 			}
 
@@ -240,22 +246,23 @@ asmsym(void)
 		/* filenames first */
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_FILE)
-				putsymb(a->asym->name, 'z', a->aoffset, 0);
+				putsymb(a->asym->name, 'z', a->aoffset, 0, nil);
 			else
 			if(a->type == D_FILE1)
-				putsymb(a->asym->name, 'Z', a->aoffset, 0);
+				putsymb(a->asym->name, 'Z', a->aoffset, 0, nil);
 
-		putsymb(s->name, 'T', s->value, s->version);
+		putsymb(s->name, 'T', s->value, s->version, gotypefor(s->name));
 
 		/* frame, auto and param after */
-		putsymb(".frame", 'm', p->to.offset+8, 0);
+		putsymb(".frame", 'm', p->to.offset+8, 0, nil);
 
+		/* TODO(rsc): Add types for D_AUTO and D_PARAM */
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_AUTO)
-				putsymb(a->asym->name, 'a', -a->aoffset, 0);
+				putsymb(a->asym->name, 'a', -a->aoffset, 0, nil);
 			else
 			if(a->type == D_PARAM)
-				putsymb(a->asym->name, 'p', a->aoffset, 0);
+				putsymb(a->asym->name, 'p', a->aoffset, 0, nil);
 	}
 	if(debug['v'] || debug['n'])
 		Bprint(&bso, "symsize = %lud\n", symsize);

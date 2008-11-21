@@ -743,3 +743,34 @@ algarray[3] =
 //	{	pointerhash,	pointerequal,	pointerprint,	pointercopy	},  // 2
 	{	memhash,	memequal,	memprint,	memcopy	},  // 2 - treat pointers as ints
 };
+
+
+// Return a pointer to a byte array containing the symbol table segment.
+//
+// NOTE(rsc): I expect that we will clean up both the method of getting
+// at the symbol table and the exact format of the symbol table at some
+// point in the future.  It probably needs to be better integrated with
+// the type strings table too.  This is just a quick way to get started
+// and figure out what we want from/can do with it.
+void
+sys·symdat(Array *symtab, Array *pclntab)
+{
+	Array *a;
+	int32 *v;
+
+	v = (int32*)(0x99LL<<32);	/* known to 6l */
+
+	a = mal(sizeof *a);
+	a->nel = v[0];
+	a->cap = a->nel;
+	a->array = (byte*)&v[2];
+	symtab = a;
+	FLUSH(&symtab);
+
+	a = mal(sizeof *a);
+	a->nel = v[1];
+	a->cap = a->nel;
+	a->array = (byte*)&v[2] + v[0];
+	pclntab = a;
+	FLUSH(&pclntab);
+}
