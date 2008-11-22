@@ -30,17 +30,25 @@ FILES=\
 	sort\
 	strings\
 	testing\
+	utf8\
+
+TEST=\
+	utf8\
 
 clean.dirs: $(addsuffix .dirclean, $(DIRS))
 install.dirs: $(addsuffix .dirinstall, $(DIRS))
 install.files: $(addsuffix .install, $(FILES))
 nuke.dirs: $(addsuffix .dirnuke, $(DIRS))
+test.files: $(addsuffix .test, $(TEST))
 
 %.6: container/%.go
 	$(GC) container/$*.go
 
 %.6: %.go
 	$(GC) $*.go
+
+%.test: %.6
+	gotest $*_test.go
 
 %.clean:
 	rm -f $*.6
@@ -66,6 +74,8 @@ install: install.dirs install.files
 
 nuke: nuke.dirs clean.files
 	rm -f $(GOROOT)/pkg/*
+
+test: test.files
 
 # TODO: dependencies - should auto-generate
 

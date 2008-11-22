@@ -83,6 +83,7 @@ func TRunner(t *T, test *Test) {
 }
 
 export func Main(tests *[]Test) {
+	flag.Parse();
 	ok := true;
 	if len(tests) == 0 {
 		println("gotest: warning: no tests to run");
