@@ -32,6 +32,8 @@ maketest \
 # all of these are subtly different
 # from what maketest does.
 
+(xcd lib; make test) || exit $?
+
 (xcd ../usr/gri/pretty
 make clean
 time make
