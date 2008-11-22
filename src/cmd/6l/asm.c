@@ -409,10 +409,8 @@ asmb(void)
 				7, 5,			/* protects */
 				0, 0);			/* sections flags */
 
-			v += rnd(datsize, INITRND);
-			machsymseg(v,symsize);	/* fileoffset,filesize */
-			v += symsize;
-			machsymseg(v,lcsize);	/* fileoffset,filesize */
+			machsymseg(symo+8,symsize);	/* fileoffset,filesize */
+			machsymseg(symo+8+symsize,lcsize);	/* fileoffset,filesize */
 		}
 		break;
 	case 7:
