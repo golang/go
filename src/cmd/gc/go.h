@@ -284,6 +284,7 @@ enum
 	OEQ, ONE, OLT, OLE, OGE, OGT,
 	OADD, OSUB, OOR, OXOR,
 	OMUL, ODIV, OMOD, OLSH, ORSH, OAND,
+	OINC, ODEC,	// placeholders - not used
 	OFUNC,
 	OLABEL,
 	OBREAK,

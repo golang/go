@@ -31,6 +31,7 @@
 #include "gg.h"
 #include "opt.h"
 
+
 static int
 needc(Prog *p)
 {
@@ -67,7 +68,7 @@ rnops(Reg *r)
 	Reg *r1;
 
 	if(r != R)
-	for(;;){
+	for(;;) {
 		p = r->prog;
 		if(p->as != ANOP || p->from.type != D_NONE || p->to.type != D_NONE)
 			break;
@@ -103,6 +104,8 @@ peep(void)
 			r2->link = r1;
 
 			r2->prog = p;
+			p->reg = r2;
+
 			r2->p1 = r;
 			r->s1 = r2;
 			r2->s1 = r1;
@@ -119,9 +122,10 @@ peep(void)
 		}
 	}
 
-	pc = 0;	/* speculating it won't kill */
-
 loop1:
+
+	if(debug['P'] && debug['v'])
+		dumpit("loop1", firstr);
 
 	t = 0;
 	for(r=firstr; r!=R; r=r->link) {
@@ -186,13 +190,15 @@ loop1:
 			if(p->from.offset == -1){
 				if(p->as == AADDQ)
 					p->as = ADECQ;
-				else if(p->as == AADDL)
+				else
+				if(p->as == AADDL)
 					p->as = ADECL;
 				else
 					p->as = ADECW;
 				p->from = zprog.from;
 			}
-			else if(p->from.offset == 1){
+			else
+			if(p->from.offset == 1){
 				if(p->as == AADDQ)
 					p->as = AINCQ;
 				else if(p->as == AADDL)
@@ -211,16 +217,19 @@ loop1:
 			if(p->from.offset == -1) {
 				if(p->as == ASUBQ)
 					p->as = AINCQ;
-				else if(p->as == ASUBL)
+				else
+				if(p->as == ASUBL)
 					p->as = AINCL;
 				else
 					p->as = AINCW;
 				p->from = zprog.from;
 			}
-			else if(p->from.offset == 1){
+			else
+			if(p->from.offset == 1){
 				if(p->as == ASUBQ)
 					p->as = ADECQ;
-				else if(p->as == ASUBL)
+				else
+				if(p->as == ASUBL)
 					p->as = ADECL;
 				else
 					p->as = ADECW;
@@ -239,9 +248,14 @@ excise(Reg *r)
 	Prog *p;
 
 	p = r->prog;
+	if(debug['P'] && debug['v'])
+		print("%P ===delete===\n", p);
+
 	p->as = ANOP;
 	p->from = zprog.from;
 	p->to = zprog.to;
+
+	ostats.ndelmov++;
 }
 
 Reg*

@@ -176,12 +176,14 @@ cgen(Node *n, Node *res)
 			gins(optoas(OCMP, types[tptr]), &n1, &n2);
 			p1 = gbranch(optoas(OEQ, types[tptr]), T);
 
-			n1.op = OINDREG;
-			n1.type = types[TINT32];
-			gmove(&n1, res);
+			n2 = n1;
+			n2.op = OINDREG;
+			n2.type = types[TINT32];
+			gmove(&n2, &n1);
 
 			patch(p1, pc);
 
+			gmove(&n1, res);
 			regfree(&n1);
 			break;
 		}

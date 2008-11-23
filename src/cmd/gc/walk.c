@@ -1094,7 +1094,20 @@ loop:
 	goto ret;
 
 nottop:
-	yyerror("didn't expect %O here", n->op);
+	switch(top) {
+	default:
+		yyerror("didn't expect %O here", n->op);
+		break;
+	case Etop:
+		yyerror("operation %O not allowed in statement context", n->op);
+		break;
+	case Elv:
+		yyerror("operation %O not allowed in assignment context", n->op);
+		break;
+	case Erv:
+		yyerror("operation %O not allowed in expression context", n->op);
+		break;
+	}
 	goto ret;
 
 badt:

@@ -60,7 +60,6 @@ struct	Bits
 	uint32	b[BITS];
 };
 
-
 struct	Reg
 {
 
@@ -75,14 +74,12 @@ struct	Reg
 	Bits	regdiff;
 	Bits	act;
 
-	int32	regu;
-	int32	loop;		/* could be shorter */
-	int32	rpo;		/* reverse post ordering */
+	int32	regu;		// register used bitmap
+	int32	rpo;		// reverse post ordering
 	int32	active;
 
-//	uint32	magic;
-//	int32	pc;
-//	Reg*	log5;
+	uint16	loop;		// x5 for every loop
+	uchar	refset;		// diagnostic generated
 
 	Reg*	p1;
 	Reg*	p2;
@@ -130,10 +127,9 @@ EXTERN	Bits	externs;
 EXTERN	Bits	params;
 EXTERN	Bits	consts;
 EXTERN	Bits	addrs;
+EXTERN	Bits	ovar;
 EXTERN	int	change;
 EXTERN	Bits	zbits;
-EXTERN	uchar	typechlpfd[NTYPE];	// botch
-EXTERN	uchar	typev[NTYPE];		// botch
 EXTERN	int32	maxnr;
 EXTERN	int32*	idom;
 
@@ -150,6 +146,15 @@ int	beq(Bits, Bits);
 int	bset(Bits, uint);
 int	Qconv(Fmt *fp);
 int	bitno(int32);
+struct
+{
+	int32	ncvtreg;
+	int32	nspill;
+	int32	nreload;
+	int32	ndelmov;
+	int32	nvar;
+	int32	naddr;
+} ostats;
 
 /*
  * reg.c
@@ -167,6 +172,8 @@ void	paint1(Reg*, int);
 uint32	paint2(Reg*, int);
 void	paint3(Reg*, int, int32, int);
 void	addreg(Adr*, int);
+void	dumpit(char *str, Reg *r0);
+int	noreturn(Prog *p);
 
 /*
  * peep.c
