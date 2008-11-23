@@ -56,7 +56,7 @@
 %type	<node>		simple_stmt osimple_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
 %type	<node>		exprsym3_list_r exprsym3
-%type	<node>		name onew_name new_name new_name_list_r
+%type	<node>		name onew_name new_name new_name_list_r new_field
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl embed
@@ -958,6 +958,12 @@ new_name:
 		$$ = newname($1);
 	}
 
+new_field:
+	sym2
+	{
+		$$ = newname($1);
+	}
+
 new_type:
 	sym1
 	{
@@ -980,8 +986,16 @@ sym1:
 	sym
 |	keyword
 
+/*
+ * keywords that can be field names
+ * pretty much any name can be allowed
+ * limited only by good taste
+ */
 sym2:
 	sym1
+|	LTYPE
+|	LFUNC
+|	LVAR
 
 /*
  * keywords that can be variables
@@ -1402,12 +1416,12 @@ interfacedcl_list_r:
 	}
 
 structdcl:
-	new_name ',' structdcl
+	new_field ',' structdcl
 	{
 		$$ = nod(ODCLFIELD, $1, N);
 		$$ = nod(OLIST, $$, $3);
 	}
-|	new_name type oliteral
+|	new_field type oliteral
 	{
 		$$ = nod(ODCLFIELD, $1, N);
 		$$->type = $2;
@@ -2000,7 +2014,7 @@ hidden_importsym:
  * to check whether the rest of the grammar is free of
  * reduce/reduce conflicts, comment this section out by
  * removing the slash on the next line.
- */
+ *
 lpack:
 	LATYPE
 	{
