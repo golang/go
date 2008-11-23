@@ -100,9 +100,8 @@ if(throwreturn == N) {
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
-	if(debug['N']) {
+	if(!debug['N'] || debug['R'] || debug['P'])
 		regopt(ptxt);
-	}
 
 	// fill in argument size
 	ptxt->to.offset = rnd(curfn->type->argwid, maxround);
@@ -918,6 +917,33 @@ cgen_asop(Node *n)
 	nl = n->left;
 	nr = n->right;
 
+	if(nl->addable && nr->op == OLITERAL)
+	switch(n->etype) {
+	case OADD:
+		if(!isint[nl->type->etype])
+			goto com;
+		if(mpgetfix(nr->val.u.xval) != 1)
+			goto com;
+		gins(optoas(OINC, nl->type), N, nl);
+		goto ret;
+	case OSUB:
+		if(!isint[nl->type->etype])
+			goto com;
+		if(mpgetfix(nr->val.u.xval) != 1)
+			goto com;
+		gins(optoas(ODEC, nl->type), N, nl);
+		goto ret;
+
+	com:
+	case OXOR:
+	case OAND:
+	case OOR:
+		if(!isint[nl->type->etype])
+			break;
+		gins(optoas(n->etype, nl->type), nr, nl);
+		goto ret;
+	}
+
 	if(nr->ullman >= UINF && nl->ullman >= UINF) {
 		tempname(&n1, nr->type);
 		cgen(nr, &n1);
@@ -960,10 +986,12 @@ cgen_as(Node *nl, Node *nr, int op)
 	Node nc, n1;
 	Type *tl;
 	uint32 w, c;
+	int iszer;
 
 	if(nl == N)
 		return;
 
+	iszer = 0;
 	if(nr == N || isnil(nr)) {
 		if(nl->op == OLIST) {
 			cgen_as(nl->left, nr, op);
@@ -1008,6 +1036,7 @@ cgen_as(Node *nl, Node *nr, int op)
 		}
 
 		/* invent a "zero" for the rhs */
+		iszer = 1;
 		nr = &nc;
 		memset(nr, 0, sizeof(*nr));
 		switch(tl->etype) {
@@ -1062,6 +1091,9 @@ cgen_as(Node *nl, Node *nr, int op)
 		return;
 
 	cgen(nr, nl);
+	if(iszer && nl->addable)
+		gins(ANOP, nl, N);	// used
+		
 
 ret:
 	;

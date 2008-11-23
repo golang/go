@@ -34,11 +34,8 @@
 #include "opt.h"
 
 #define	P2R(p)	(Reg*)(p->reg)
-#define	MAGIC	0xb00fbabe
 
 static	int	first	= 1;
-static	void	dumpit(char *str, Reg *r0);
-static	int	noreturn(Prog *p);
 
 Reg*
 rega(void)
@@ -71,6 +68,30 @@ rcmp(const void *a1, const void *a2)
 }
 
 void
+setoutvar(void)
+{
+	Type *t;
+	Node *n;
+	Addr a;
+	Iter save;
+	Bits bit;
+	int z;
+
+	t = structfirst(&save, getoutarg(curfn->type));
+	while(t != T) {
+		n = nodarg(t, 1);
+		a = zprog.from;
+		naddr(n, &a);
+		bit = mkvar(R, &a);
+		for(z=0; z<BITS; z++)
+			ovar.b[z] |= bit.b[z];
+		t = structnext(&save);
+	}
+//if(bany(b))
+//print("ovars = %Q\n", &ovar);
+}
+
+void
 regopt(Prog *firstp)
 {
 	Reg *r, *r1;
@@ -93,7 +114,11 @@ regopt(Prog *firstp)
 		params.b[z] = 0;
 		consts.b[z] = 0;
 		addrs.b[z] = 0;
+		ovar.b[z] = 0;
 	}
+
+	// build list of return variables
+	setoutvar();
 
 	/*
 	 * pass 1
@@ -221,6 +246,15 @@ regopt(Prog *firstp)
 		/*
 		 * right side read+write
 		 */
+		case AINCB:
+		case AINCL:
+		case AINCQ:
+		case AINCW:
+		case ADECB:
+		case ADECL:
+		case ADECQ:
+		case ADECW:
+
 		case AADDB:
 		case AADDL:
 		case AADDQ:
@@ -380,7 +414,9 @@ regopt(Prog *firstp)
 	}
 	if(firstr == R)
 		return;
-//dumpit("pass1", firstr);
+
+	if(debug['R'] && debug['v'])
+		dumpit("pass1", firstr);
 
 	/*
 	 * pass 2
@@ -396,7 +432,7 @@ regopt(Prog *firstp)
 			if(r1 == R)
 				fatal("rnil %P", p);
 			if(r1 == r) {
-				fatal("ref to self %P", p);
+				//fatal("ref to self %P", p);
 				continue;
 			}
 			r->s2 = r1;
@@ -404,7 +440,9 @@ regopt(Prog *firstp)
 			r1->p2 = r;
 		}
 	}
-//dumpit("pass2", firstr);
+
+	if(debug['R'] && debug['v'])
+		dumpit("pass2", firstr);
 
 	/*
 	 * pass 2.5
@@ -414,7 +452,9 @@ regopt(Prog *firstp)
 		r->active = 0;
 	change = 0;
 	loopit(firstr, nr);
-//dumpit("pass2.5", firstr);
+
+	if(debug['R'] && debug['v'])
+		dumpit("pass2.5", firstr);
 
 	/*
 	 * pass 3
@@ -443,7 +483,8 @@ loop11:
 	if(change)
 		goto loop1;
 
-//dumpit("pass3", firstr);
+	if(debug['R'] && debug['v'])
+		dumpit("pass3", firstr);
 
 	/*
 	 * pass 4
@@ -458,7 +499,8 @@ loop2:
 	if(change)
 		goto loop2;
 
-//dumpit("pass4", firstr);
+	if(debug['R'] && debug['v'])
+		dumpit("pass4", firstr);
 
 	/*
 	 * pass 5
@@ -470,10 +512,11 @@ loop2:
 		for(z=0; z<BITS; z++)
 			bit.b[z] = (r->refahead.b[z] | r->calahead.b[z]) &
 			  ~(externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z]);
-		if(bany(&bit)) {
-			warn("used and not set: %Q", bit);
-			if(debug['R'] && !debug['w'])
-				print("used and not set: %Q\n", bit);
+		if(bany(&bit) && !r->refset) {
+			// should never happen - all variables are preset
+			if(debug['w'])
+				print("%L: used and not set: %Q\n", r->prog->lineno, bit);
+			r->refset = 1;
 		}
 	}
 	for(r = firstr; r != R; r = r->link)
@@ -484,10 +527,10 @@ loop2:
 		for(z=0; z<BITS; z++)
 			bit.b[z] = r->set.b[z] &
 			  ~(r->refahead.b[z] | r->calahead.b[z] | addrs.b[z]);
-		if(bany(&bit)) {
-			warn("set and not used: %Q", bit);
-			if(debug['R'])
-				print("set and not used: %Q\n", bit);
+		if(bany(&bit) && !r->refset) {
+			if(debug['w'])
+				print("%L: set and not used: %Q\n", r->prog->lineno, bit);
+			r->refset = 1;
 			excise(r);
 		}
 		for(z=0; z<BITS; z++)
@@ -497,20 +540,15 @@ loop2:
 			rgp->enter = r;
 			rgp->varno = i;
 			change = 0;
-			if(debug['R'] && debug['v'])
-				print("\n");
 			paint1(r, i);
 			bit.b[i/32] &= ~(1L<<(i%32));
-			if(change <= 0) {
-				if(debug['R'])
-					print("%L$%d: %Q\n",
-						r->prog->lineno, change, blsh(i));
+			if(change <= 0)
 				continue;
-			}
 			rgp->cost = change;
 			nregion++;
 			if(nregion >= NRGN) {
-				fatal("too many regions");
+				if(debug['R'] && debug['v'])
+					print("too many regions\n");
 				goto brk;
 			}
 			rgp++;
@@ -534,11 +572,14 @@ brk:
 		rgp++;
 	}
 
+	if(debug['R'] && debug['v'])
+		dumpit("pass6", firstr);
+
 	/*
 	 * pass 7
 	 * peep-hole on basic block
 	 */
-	if(debug['P']) {
+	if(!debug['R'] || debug['P']) {
 		peep();
 	}
 
@@ -547,13 +588,42 @@ brk:
 	 * free aux structures
 	 */
 	for(p=firstp; p!=P; p=p->link) {
-		while(p->link && p->link->as == ANOP)
+		while(p->link != P && p->link->as == ANOP)
 			p->link = p->link->link;
+		if(p->to.type == D_BRANCH)
+			while(p->to.branch != P && p->to.branch->as == ANOP)
+				p->to.branch = p->to.branch->link;
 	}
 
 	if(r1 != R) {
 		r1->link = freer;
 		freer = firstr;
+	}
+
+	if(debug['R']) {
+		if(ostats.ncvtreg ||
+		   ostats.nspill ||
+		   ostats.nreload ||
+		   ostats.ndelmov ||
+		   ostats.nvar ||
+		   ostats.naddr ||
+		   0)
+			print("\nstats\n");
+
+		if(ostats.ncvtreg)
+			print("	%4ld cvtreg\n", ostats.ncvtreg);
+		if(ostats.nspill)
+			print("	%4ld spill\n", ostats.nspill);
+		if(ostats.nreload)
+			print("	%4ld reload\n", ostats.nreload);
+		if(ostats.ndelmov)
+			print("	%4ld delmov\n", ostats.ndelmov);
+		if(ostats.nvar)
+			print("	%4ld delmov\n", ostats.nvar);
+		if(ostats.naddr)
+			print("	%4ld delmov\n", ostats.naddr);
+
+		memset(&ostats, 0, sizeof(ostats));
 	}
 }
 
@@ -585,7 +655,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	a->etype = v->etype;
 	a->type = v->name;
 
-	// need to chean this up with wptr and
+	// need to clean this up with wptr and
 	// some of the defaults
 	p1->as = AMOVL;
 	switch(v->etype) {
@@ -611,7 +681,7 @@ addmove(Reg *r, int bn, int rn, int f)
 		p1->as = AMOVSS;
 		break;
 	case TFLOAT64:
-		p1->as = AMOVSS;
+		p1->as = AMOVSD;
 		break;
 	case TINT:
 	case TUINT:
@@ -631,8 +701,9 @@ addmove(Reg *r, int bn, int rn, int f)
 		if(v->etype == TUINT16)
 			p1->as = AMOVW;
 	}
-//	if(debug['R'])
-		print("%P\t.a%P\n", p, p1);
+	if(debug['R'] && debug['v'])
+		print("%P ===add=== %P\n", p, p1);
+	ostats.nspill++;
 }
 
 uint32
@@ -670,8 +741,10 @@ mkvar(Reg *r, Adr *a)
 	 * mark registers used
 	 */
 	t = a->type;
-	r->regu |= doregbits(t);
-	r->regu |= doregbits(a->index);
+	if(r != R) {
+		r->regu |= doregbits(t);
+		r->regu |= doregbits(a->index);
+	}
 
 	switch(t) {
 	default:
@@ -682,6 +755,7 @@ mkvar(Reg *r, Adr *a)
 		for(z=0; z<BITS; z++)
 			addrs.b[z] |= bit.b[z];
 		a->type = t;
+		ostats.naddr++;
 		goto none;
 	case D_EXTERN:
 	case D_STATIC:
@@ -727,6 +801,7 @@ mkvar(Reg *r, Adr *a)
 	v->etype = et;
 	if(debug['R'])
 		print("bit=%2d et=%2d %D\n", i, et, a);
+	ostats.nvar++;
 
 out:
 	bit = blsh(i);
@@ -738,7 +813,8 @@ out:
 			params.b[z] |= bit.b[z];
 	if(v->etype != et) {
 		/* funny punning */
-print("pun %d %d %S\n", v->etype, et, s);
+		if(debug['R'])
+			print("pun %d %d %S\n", v->etype, et, s);
 		for(z=0; z<BITS; z++)
 			addrs.b[z] |= bit.b[z];
 	}
@@ -787,9 +863,10 @@ prop(Reg *r, Bits ref, Bits cal)
 
 		case ARET:
 			for(z=0; z<BITS; z++) {
-				cal.b[z] = externs.b[z];
+				cal.b[z] = externs.b[z] | ovar.b[z];
 				ref.b[z] = 0;
 			}
+			break;
 		}
 		for(z=0; z<BITS; z++) {
 			ref.b[z] = (ref.b[z] & ~r1->set.b[z]) |
@@ -1044,9 +1121,6 @@ paint1(Reg *r, int bn)
 
 	if(LOAD(r) & ~(r->set.b[z]&~(r->use1.b[z]|r->use2.b[z])) & bb) {
 		change -= CLOAD * r->loop;
-		if(debug['R'] && debug['v'])
-			print("%ld%P\tld %Q $%d\n", r->loop,
-				r->prog, blsh(bn), change);
 	}
 	for(;;) {
 		r->act.b[z] |= bb;
@@ -1054,23 +1128,14 @@ paint1(Reg *r, int bn)
 
 		if(r->use1.b[z] & bb) {
 			change += CREF * r->loop;
-			if(debug['R'] && debug['v'])
-				print("%ld%P\tu1 %Q $%d\n", r->loop,
-					p, blsh(bn), change);
 		}
 
 		if((r->use2.b[z]|r->set.b[z]) & bb) {
 			change += CREF * r->loop;
-			if(debug['R'] && debug['v'])
-				print("%ld%P\tu2 %Q $%d\n", r->loop,
-					p, blsh(bn), change);
 		}
 
 		if(STORE(r) & r->regdiff.b[z] & bb) {
 			change -= CLOAD * r->loop;
-			if(debug['R'] && debug['v'])
-				print("%ld%P\tst %Q $%d\n", r->loop,
-					p, blsh(bn), change);
 		}
 
 		if(r->refbehind.b[z] & bb)
@@ -1226,18 +1291,18 @@ paint3(Reg *r, int bn, int32 rb, int rn)
 		p = r->prog;
 
 		if(r->use1.b[z] & bb) {
-			if(debug['R'])
+			if(debug['R'] && debug['v'])
 				print("%P", p);
 			addreg(&p->from, rn);
-			if(debug['R'])
-				print("\t.c%P\n", p);
+			if(debug['R'] && debug['v'])
+				print(" ===change== %P\n", p);
 		}
 		if((r->use2.b[z]|r->set.b[z]) & bb) {
-			if(debug['R'])
+			if(debug['R'] && debug['v'])
 				print("%P", p);
 			addreg(&p->to, rn);
-			if(debug['R'])
-				print("\t.c%P\n", p);
+			if(debug['R'] && debug['v'])
+				print(" ===change== %P\n", p);
 		}
 
 		if(STORE(r) & r->regdiff.b[z] & bb)
@@ -1272,6 +1337,8 @@ addreg(Adr *a, int rn)
 	a->sym = 0;
 	a->offset = 0;
 	a->type = rn;
+
+	ostats.ncvtreg++;
 }
 
 int32
@@ -1286,8 +1353,7 @@ RtoB(int r)
 int
 BtoR(int32 b)
 {
-
-	b &= 0xffffL;
+	b &= 0x3fffL;		// no R14 or R15
 	if(b == 0)
 		return 0;
 	return bitno(b) + D_AX;
@@ -1317,7 +1383,7 @@ BtoF(int32 b)
 	return bitno(b) - 16 + FREGMIN;
 }
 
-static void
+void
 dumpit(char *str, Reg *r0)
 {
 	Reg *r, *r1;
@@ -1380,7 +1446,7 @@ dumpit(char *str, Reg *r0)
 
 static Sym*	symlist[10];
 
-static int
+int
 noreturn(Prog *p)
 {
 	Sym *s;
@@ -1388,6 +1454,7 @@ noreturn(Prog *p)
 
 	if(symlist[0] == S) {
 		symlist[0] = pkglookup("throwindex", "sys");
+		symlist[1] = pkglookup("panicl", "sys");
 	}
 
 	s = p->to.sym;

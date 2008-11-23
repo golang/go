@@ -383,7 +383,7 @@ gmove(Node *f, Node *t)
 	case TPTR32:
 		a = AMOVL;
 		if(t64)
-			a = AMOVLQZX;	/* could probably use plain MOVL */
+			a = AMOVLQZX;
 		goto ld;
 	case TINT64:
 		if(isfloat[tt]) {
@@ -480,50 +480,50 @@ gmove(Node *f, Node *t)
 /*
  * integer to integer
  ********
-		a = AGOK;	break;
+ *		a = AGOK;	break;
 
-	case CASE(TBOOL, TBOOL):
-	case CASE(TINT8, TBOOL):
-	case CASE(TUINT8, TBOOL):
-	case CASE(TINT16, TBOOL):
-	case CASE(TUINT16, TBOOL):
-	case CASE(TINT32, TBOOL):
-	case CASE(TUINT32, TBOOL):
-	case CASE(TPTR64, TBOOL):
+ *	case CASE(TBOOL, TBOOL):
+ *	case CASE(TINT8, TBOOL):
+ *	case CASE(TUINT8, TBOOL):
+ *	case CASE(TINT16, TBOOL):
+ *	case CASE(TUINT16, TBOOL):
+ *	case CASE(TINT32, TBOOL):
+ *	case CASE(TUINT32, TBOOL):
+ *	case CASE(TPTR64, TBOOL):
 
-	case CASE(TBOOL, TINT8):
-	case CASE(TINT8, TINT8):
-	case CASE(TUINT8, TINT8):
-	case CASE(TINT16, TINT8):
-	case CASE(TUINT16, TINT8):
-	case CASE(TINT32, TINT8):
-	case CASE(TUINT32, TINT8):
-	case CASE(TPTR64, TINT8):
+ *	case CASE(TBOOL, TINT8):
+ *	case CASE(TINT8, TINT8):
+ *	case CASE(TUINT8, TINT8):
+ *	case CASE(TINT16, TINT8):
+ *	case CASE(TUINT16, TINT8):
+ *	case CASE(TINT32, TINT8):
+ *	case CASE(TUINT32, TINT8):
+ *	case CASE(TPTR64, TINT8):
 
-	case CASE(TBOOL, TUINT8):
-	case CASE(TINT8, TUINT8):
-	case CASE(TUINT8, TUINT8):
-	case CASE(TINT16, TUINT8):
-	case CASE(TUINT16, TUINT8):
-	case CASE(TINT32, TUINT8):
-	case CASE(TUINT32, TUINT8):
-	case CASE(TPTR64, TUINT8):
+ *	case CASE(TBOOL, TUINT8):
+ *	case CASE(TINT8, TUINT8):
+ *	case CASE(TUINT8, TUINT8):
+ *	case CASE(TINT16, TUINT8):
+ *	case CASE(TUINT16, TUINT8):
+ *	case CASE(TINT32, TUINT8):
+ *	case CASE(TUINT32, TUINT8):
+ *	case CASE(TPTR64, TUINT8):
 
-	case CASE(TINT16, TINT16):
-	case CASE(TUINT16, TINT16):
-	case CASE(TINT32, TINT16):
-	case CASE(TUINT32, TINT16):
-	case CASE(TPTR64, TINT16):
+ *	case CASE(TINT16, TINT16):
+ *	case CASE(TUINT16, TINT16):
+ *	case CASE(TINT32, TINT16):
+ *	case CASE(TUINT32, TINT16):
+ *	case CASE(TPTR64, TINT16):
 
-	case CASE(TINT16, TUINT16):
-	case CASE(TUINT16, TUINT16):
-	case CASE(TINT32, TUINT16):
-	case CASE(TUINT32, TUINT16):
-	case CASE(TPTR64, TUINT16):
+ *	case CASE(TINT16, TUINT16):
+ *	case CASE(TUINT16, TUINT16):
+ *	case CASE(TINT32, TUINT16):
+ *	case CASE(TUINT32, TUINT16):
+ *	case CASE(TPTR64, TUINT16):
 
-	case CASE(TINT64, TUINT):
-	case CASE(TINT64, TUINT32):
-	case CASE(TUINT64, TUINT32):
+ *	case CASE(TINT64, TUINT):
+ *	case CASE(TINT64, TUINT32):
+ *	case CASE(TUINT64, TUINT32):
  *****/
 		a = AMOVL;
 		break;
@@ -534,25 +534,21 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT64, TINT8):
 	case CASE(TUINT64, TINT16):
 	case CASE(TUINT64, TINT32):
+		a = AMOVLQSX;		// this looks bad
+		break;
+
 	case CASE(TINT32, TINT64):
 	case CASE(TINT32, TPTR64):
 		a = AMOVLQSX;
-//		if(f->op == OCONST) {
-//			f->val.vval &= (uvlong)0xffffffffU;
-//			if(f->val.vval & 0x80000000)
-//				f->val.vval |= (vlong)0xffffffff << 32;
-//			a = AMOVQ;
-//		}
 		break;
 
 	case CASE(TUINT32, TINT64):
 	case CASE(TUINT32, TUINT64):
 	case CASE(TUINT32, TPTR64):
-		a = AMOVL;	/* same effect as AMOVLQZX */
-//		if(f->op == OCONST) {
-//			f->val.vval &= (uvlong)0xffffffffU;
-//			a = AMOVQ;
-//		}
+	case CASE(TPTR32, TINT64):
+	case CASE(TPTR32, TUINT64):
+	case CASE(TPTR32, TPTR64):
+		a = AMOVLQZX;
 		break;
 
 	case CASE(TPTR64, TINT64):
@@ -1237,6 +1233,50 @@ optoas(int op, Type *t)
 
 	case CASE(OSUB, TFLOAT64):
 		a = ASUBSD;
+		break;
+
+	case CASE(OINC, TINT8):
+	case CASE(OINC, TUINT8):
+		a = AINCB;
+		break;
+
+	case CASE(OINC, TINT16):
+	case CASE(OINC, TUINT16):
+		a = AINCW;
+		break;
+
+	case CASE(OINC, TINT32):
+	case CASE(OINC, TUINT32):
+	case CASE(OINC, TPTR32):
+		a = AINCL;
+		break;
+
+	case CASE(OINC, TINT64):
+	case CASE(OINC, TUINT64):
+	case CASE(OINC, TPTR64):
+		a = AINCQ;
+		break;
+
+	case CASE(ODEC, TINT8):
+	case CASE(ODEC, TUINT8):
+		a = ADECB;
+		break;
+
+	case CASE(ODEC, TINT16):
+	case CASE(ODEC, TUINT16):
+		a = ADECW;
+		break;
+
+	case CASE(ODEC, TINT32):
+	case CASE(ODEC, TUINT32):
+	case CASE(ODEC, TPTR32):
+		a = ADECL;
+		break;
+
+	case CASE(ODEC, TINT64):
+	case CASE(ODEC, TUINT64):
+	case CASE(ODEC, TPTR64):
+		a = ADECQ;
 		break;
 
 	case CASE(OMINUS, TINT8):
