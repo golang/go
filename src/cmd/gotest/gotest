@@ -55,7 +55,10 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
 	# test array
 	echo
 	echo 'var tests = &[]testing.Test {'
-	for i in $(6nm -s $ofiles | grep ' T .*·Test' | sed 's/.* //; s/·/./')
+	# test functions are named TestFoo
+	# the grep -v eliminates methods and other special names
+	# that have multiple dots.
+	for i in $(6nm -s $ofiles | grep ' T .*·Test[A-Z]' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
 	do
 		echo '	testing.Test{ "'$i'", &'$i' },'
 	done
