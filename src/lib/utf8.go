@@ -7,10 +7,10 @@
 package utf8
 
 export const (
-	UTFMax = 4;
 	RuneError = 0xFFFD;
 	RuneSelf = 0x80;
-	RuneMax = 1<<21 - 1;
+	RuneMax = 0x10FFFF;
+	UTFMax = 4;
 )
 
 const (
@@ -33,7 +33,8 @@ const (
 )
 
 func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
-	if len(p) < 1 {
+	n := len(p);
+	if n < 1 {
 		return RuneError, 0, true;
 	}
 	c0 := p[0];
@@ -49,7 +50,7 @@ func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
 	}
 
 	// need first continuation byte
-	if len(p) < 2 {
+	if n < 2 {
 		return RuneError, 1, true
 	}
 	c1 := p[1];
@@ -67,7 +68,7 @@ func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
 	}
 
 	// need second continuation byte
-	if len(p) < 3 {
+	if n < 3 {
 		return RuneError, 1, true
 	}
 	c2 := p[2];
@@ -85,10 +86,85 @@ func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
 	}
 
 	// need third continuation byte
-	if len(p) < 4 {
+	if n < 4 {
 		return RuneError, 1, true
 	}
 	c3 := p[3];
+	if c3 < Tx || T2 <= c3 {
+		return RuneError, 1, false
+	}
+
+	// 4-byte, 21-bit sequence?
+	if c0 < T5 {
+		rune = int(c0&Mask4)<<18 | int(c1&Maskx)<<12 | int(c2&Maskx)<<6 | int(c3&Maskx);
+		if rune <= Rune3Max {
+			return RuneError, 1, false
+		}
+		return rune, 4, false
+	}
+
+	// error
+	return RuneError, 1, false
+}
+
+func DecodeRuneInStringInternal(s string, i int) (rune, size int, short bool) {
+	n := len(s) - i;
+	if n < 1 {
+		return RuneError, 0, true;
+	}
+	c0 := s[i];
+
+	// 1-byte, 7-bit sequence?
+	if c0 < Tx {
+		return int(c0), 1, false
+	}
+
+	// unexpected continuation byte?
+	if c0 < T2 {
+		return RuneError, 1, false
+	}
+
+	// need first continuation byte
+	if n < 2 {
+		return RuneError, 1, true
+	}
+	c1 := s[i+1];
+	if c1 < Tx || T2 <= c1 {
+		return RuneError, 1, false
+	}
+
+	// 2-byte, 11-bit sequence?
+	if c0 < T3 {
+		rune = int(c0&Mask2)<<6 | int(c1&Maskx);
+		if rune <= Rune1Max {
+			return RuneError, 1, false
+		}
+		return rune, 2, false
+	}
+
+	// need second continuation byte
+	if n < 3 {
+		return RuneError, 1, true
+	}
+	c2 := s[i+2];
+	if c2 < Tx || T2 <= c2 {
+		return RuneError, 1, false
+	}
+
+	// 3-byte, 16-bit sequence?
+	if c0 < T4 {
+		rune = int(c0&Mask3)<<12 | int(c1&Maskx)<<6 | int(c2&Maskx);
+		if rune <= Rune2Max {
+			return RuneError, 1, false
+		}
+		return rune, 3, false
+	}
+
+	// need third continuation byte
+	if n < 4 {
+		return RuneError, 1, true
+	}
+	c3 := s[i+3];
 	if c3 < Tx || T2 <= c3 {
 		return RuneError, 1, false
 	}
@@ -111,9 +187,20 @@ export func FullRune(p *[]byte) bool {
 	return !short
 }
 
+export func FullRuneInString(s string, i int) bool {
+	rune, size, short := DecodeRuneInStringInternal(s, i);
+	return !short
+}
+
 export func DecodeRune(p *[]byte) (rune, size int) {
 	var short bool;
 	rune, size, short = DecodeRuneInternal(p);
+	return;
+}
+
+export func DecodeRuneInString(s string, i int) (rune, size int) {
+	var short bool;
+	rune, size, short = DecodeRuneInStringInternal(s, i);
 	return;
 }
 
