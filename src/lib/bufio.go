@@ -3,12 +3,8 @@
 // license that can be found in the LICENSE file.
 
 package bufio
-
-import (
-	"os";
-	"io";
-	"utf8";
-)
+import "os"
+import "io"
 
 
 // TODO:
@@ -69,7 +65,7 @@ func (b *BufRead) Fill() *os.Error {
 	}
 
 	// Slide existing data to beginning.
-	if b.w > b.r {
+	if b.w >  b.r {
 		CopySlice(b.buf[0:b.w-b.r], b.buf[b.r:b.w]);
 		b.w -= b.r;
 	} else {
@@ -142,30 +138,6 @@ func (b *BufRead) UnreadByte() *os.Error {
 	}
 	b.r--;
 	return nil
-}
-
-// Read a single Unicode character; returns the rune and its size.
-func (b *BufRead) ReadRune() (rune int, size int, err *os.Error) {
-	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) {
-		n := b.w - b.r;
-		b.Fill();
-		if b.err != nil {
-			return 0, 0, b.err
-		}
-		if b.w - b.r == n {
-			// no bytes read
-			if b.r == b.w {
-				return 0, 0, EndOfFile
-			}
-			break;
-		}
-	}
-	rune, size = int(b.buf[b.r]), 1;
-	if rune >= 0x80 {
-		rune, size = utf8.DecodeRune(b.buf[b.r:b.w]);
-	}
-	b.r += size;
-	return rune, size, nil
 }
 
 // Helper function: look for byte c in array p,

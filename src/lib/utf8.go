@@ -7,7 +7,6 @@
 package utf8
 
 export const (
-	UTFMax = 4;
 	RuneError = 0xFFFD;
 	RuneSelf = 0x80;
 	RuneMax = 1<<21 - 1;
