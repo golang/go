@@ -9,6 +9,7 @@ GC=6g
 DIRS=\
 	container/array\
 	fmt\
+	hash\
 	http\
 	math\
 	net\
@@ -86,6 +87,7 @@ io.6: os.dirinstall syscall.dirinstall
 testing.6: flag.install fmt.dirinstall
 
 fmt.dirinstall: io.install reflect.dirinstall strconv.dirinstall
+hash.dirinstall: os.dirinstall
 http.dirinstall: bufio.install io.install net.dirinstall os.dirinstall strings.install
 net.dirinstall: once.install os.dirinstall strconv.dirinstall
 os.dirinstall: syscall.dirinstall
