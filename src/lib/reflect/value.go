@@ -36,13 +36,14 @@ func AddrToPtrString(Addr) *string
 func AddrToPtrBool(Addr) *bool
 func AddrToPtrRuntimeArray(Addr) *RuntimeArray
 func PtrRuntimeArrayToAddr(*RuntimeArray) Addr
-func AddrToPtrInterface(Addr) *interface{}
+
+export type Empty interface {}	// TODO(r): Delete when no longer needed?
 
 export type Value interface {
 	Kind()	int;
 	Type()	Type;
 	Addr()	Addr;
-	Interface()	interface {};
+	Interface()	Empty;
 }
 
 // Common fields and functionality for all values
@@ -65,7 +66,7 @@ func (c *Common) Addr() Addr {
 	return c.addr
 }
 
-func (c *Common) Interface() interface {} {
+func (c *Common) Interface() Empty {
 	return sys.unreflect(*AddrToPtrAddr(c.addr), c.typ.String());
 }
 
@@ -713,15 +714,10 @@ func StructCreator(typ Type, addr Addr) Value {
 export type InterfaceValue interface {
 	Kind()	int;
 	Type()	Type;
-	Get()	interface {};
 }
 
 type InterfaceValueStruct struct {
 	Common
-}
-
-func (v *InterfaceValueStruct) Get() interface{} {
-	return *AddrToPtrInterface(v.addr);
 }
 
 func InterfaceCreator(typ Type, addr Addr) Value {
@@ -828,7 +824,7 @@ export func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
 	return NewValueAddr(typ, PtrRuntimeArrayToAddr(array));
 }
 
-export func NewValue(e interface {}) Value {
+export func NewValue(e Empty) Value {
 	value, typestring  := sys.reflect(e);
 	p, ok := typecache[typestring];
 	if !ok {

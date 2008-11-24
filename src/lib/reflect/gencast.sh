@@ -38,5 +38,4 @@ Float80
 String
 Bool
 RuntimeArray
-Interface
 !
