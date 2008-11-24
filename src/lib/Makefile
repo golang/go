@@ -54,7 +54,7 @@ test.files: $(addsuffix .test, $(TEST))
 	rm -f $*.6
 
 %.install: %.6
-	cp $*.6 $(GOROOT)/pkg/$*.6
+	mv $*.6 $(GOROOT)/pkg/$*.6
 
 %.dirclean:
 	+cd $* && make clean
@@ -91,6 +91,7 @@ net.dirinstall: once.install os.dirinstall strconv.dirinstall
 os.dirinstall: syscall.dirinstall
 regexp.dirinstall: os.dirinstall
 reflect.dirinstall: strconv.dirinstall
-strconv.dirinstall: os.dirinstall
+strconv.dirinstall: os.dirinstall utf8.install
 tabwriter.dirinstall: os.dirinstall io.install container/array.dirinstall
 time.dirinstall: once.install os.dirinstall
+
