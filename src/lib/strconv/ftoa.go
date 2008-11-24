@@ -94,7 +94,9 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
 
 	// Round appropriately.
 	// Negative precision means "only as much as needed to be exact."
+	shortest := false;
 	if prec < 0 {
+		shortest = true;
 		RoundShortest(d, mant, exp, flt);
 		switch fmt {
 		case 'e':
@@ -130,8 +132,13 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
 		}
 		// %e is used if the exponent from the conversion
 		// is less than -4 or greater than or equal to the precision.
+		// if precision was the shortest possible, use precision 6 for this decision.
+		eprec := prec;
+		if shortest {
+			eprec = 6
+		}
 		exp := d.dp - 1;
-		if exp < -4 || exp >= prec {
+		if exp < -4 || exp >= eprec {
 			return FmtE(neg, d, prec - 1);
 		}
 		return FmtF(neg, d, Max(prec - d.dp, 0));
