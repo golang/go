@@ -406,17 +406,44 @@ agen(Node *n, Node *res)
 		if(w == 0)
 			fatal("index is zero width");
 
+		// constant index
 		if(whatis(nr) == Wlitint) {
+			v = mpgetfix(nr->val.u.xval);
 			if(isptrdarray(nl->type)) {
+
+				if(!debug['B']) {
+					n1 = n3;
+					n1.op = OINDREG;
+					n1.type = types[tptr];
+					n1.xoffset = offsetof(Array, nel);
+					nodconst(&n2, types[TUINT64], v);
+					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+					gins(ACALL, N, throwindex);
+					patch(p1, pc);
+				}
+
 				n1 = n3;
 				n1.op = OINDREG;
 				n1.type = types[tptr];
 				n1.xoffset = offsetof(Array, array);
 				gmove(&n1, &n3);
+			} else
+			if(!debug['B']) {
+				if(v < 0)
+					yyerror("out of bounds on array");
+				else
+				if(isptrarray(nl->type)) {
+					if(v >= nl->type->type->bound)
+						yyerror("out of bounds on array");
+				} else
+				if(v >= nl->type->bound)
+					yyerror("out of bounds on array");
 			}
-			v = mpgetfix(nr->val.u.xval);
+
 			nodconst(&n2, types[tptr], v*w);
 			gins(optoas(OADD, types[tptr]), &n2, &n3);
+
 			gmove(&n3, res);
 			regfree(&n3);
 			break;
@@ -443,8 +470,8 @@ agen(Node *n, Node *res)
 				if(isptrarray(nl->type))
 					nodconst(&n1, types[TUINT64], nl->type->type->bound);
 			}
-			gins(optoas(OCMP, types[TUINT64]), &n2, &n1);
-			p1 = gbranch(optoas(OLT, types[TUINT64]), T);
+			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
+			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
 			gins(ACALL, N, throwindex);
 			patch(p1, pc);
 		}
