@@ -283,3 +283,14 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 		println(a[i]);
 	}
 }
+
+export func TestInterfaceGet(t *testing.T) {
+	var inter struct { e interface{ } };
+	inter.e = 123.456;
+	v1 := reflect.NewValue(&inter);
+	v2 := v1.(reflect.PtrValue).Sub().(reflect.StructValue).Field(0);
+	assert(v2.Type().String(), "interface { }");
+	i2 := v2.(reflect.InterfaceValue).Get();
+	v3 := reflect.NewValue(i2);
+	assert(v3.Type().String(), "float");
+}
