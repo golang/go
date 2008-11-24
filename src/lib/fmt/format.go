@@ -4,9 +4,7 @@
 
 package fmt
 
-import (
-	"strconv";
-)
+import "strconv"
 
 /*
 	Raw formatter. See print.go for a more palatable interface.
@@ -41,22 +39,11 @@ export type Fmt struct {
 	wid_present bool;
 	prec int;
 	prec_present bool;
-	// flags
-	minus bool;
-	plus bool;
-	sharp bool;
-	space bool;
-	zero bool;
 }
 
 func (f *Fmt) clearflags() {
 	f.wid_present = false;
 	f.prec_present = false;
-	f.minus = false;
-	f.plus = false;
-	f.sharp = false;
-	f.space = false;
-	f.zero = false;
 }
 
 func (f *Fmt) clearbuf() {
@@ -114,28 +101,24 @@ func (f *Fmt) w(x int) *Fmt {
 	return f;
 }
 
-// append s to buf, padded on left (w > 0) or right (w < 0 or f.minus)
+// append s to buf, padded on left (w > 0) or right (w < 0)
 // padding is in bytes, not characters (agrees with ANSIC C, not Plan 9 C)
 func (f *Fmt) pad(s string) {
 	if f.wid_present && f.wid != 0 {
-		left := !f.minus;
+		left := true;
 		w := f.wid;
 		if w < 0 {
 			left = false;
 			w = -w;
 		}
 		w -= len(s);
-		padchar := byte(' ');
-		if left && f.zero {
-			padchar = '0';
-		}
 		if w > 0 {
 			if w > NByte {
 				w = NByte;
 			}
 			buf := new([]byte, w);
 			for i := 0; i < w; i++ {
-				buf[i] = padchar;
+				buf[i] = ' ';
 			}
 			if left {
 				s = string(buf) + s;
@@ -180,34 +163,15 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
 	if negative {
 		a = -a;
 	}
-
-	// two ways to ask for extra leading zero digits: %.3d or %03d.
-	// apparently the first cancels the second.
-	prec := 0;
+	i := putint(&buf, NByte-1, uint64(base), uint64(a), digits);
 	if f.prec_present {
-		prec = f.prec;
-		f.zero = false;
-	} else if f.zero && f.wid_present && !f.minus && f.wid > 0{
-		prec = f.wid;
-		if negative || f.plus || f.space {
-			prec--;  // leave room for sign
+		for i > 0 && f.prec > (NByte-1-i) {
+			buf[i] = '0';
+			i--;
 		}
 	}
-
-	i := putint(&buf, NByte-1, uint64(base), uint64(a), digits);
-	for i > 0 && prec > (NByte-1-i) {
-		buf[i] = '0';
-		i--;
-	}
-
 	if negative {
 		buf[i] = '-';
-		i--;
-	} else if f.plus {
-		buf[i] = '+';
-		i--;
-	} else if f.space {
-		buf[i] = ' ';
 		i--;
 	}
 	return string(buf)[i+1:NByte];
@@ -370,44 +334,6 @@ func (f *Fmt) s(s string) *Fmt {
 	return f;
 }
 
-// hexadecimal string
-func (f *Fmt) sx(s string) *Fmt {
-	t := "";
-	for i := 0; i < len(s); i++ {
-		v := s[i];
-		t += string(ldigits[v>>4]);
-		t += string(ldigits[v&0xF]);
-	}
-	f.pad(t);
-	f.clearflags();
-	return f;
-}
-
-func (f *Fmt) sX(s string) *Fmt {
-	t := "";
-	for i := 0; i < len(s); i++ {
-		v := s[i];
-		t += string(udigits[v>>4]);
-		t += string(udigits[v&0xF]);
-	}
-	f.pad(t);
-	f.clearflags();
-	return f;
-}
-
-// quoted string
-func (f *Fmt) q(s string) *Fmt {
-	var quoted string;
-	if f.sharp && strconv.CanBackquote(s) {
-		quoted = "`"+s+"`";
-	} else {
-		quoted = strconv.Quote(s);
-	}
-	f.pad(quoted);
-	f.clearflags();
-	return f;
-}
-
 // floating-point
 
 func Prec(f *Fmt, def int) int {
@@ -444,7 +370,7 @@ func (f *Fmt) fb64(a float64) *Fmt {
 // cannot defer to float64 versions
 // because it will get rounding wrong in corner cases.
 func (f *Fmt) e32(a float32) *Fmt {
-	return FmtString(f, strconv.ftoa32(a, 'e', Prec(f, 6)));
+	return FmtString(f, strconv.ftoa32(a, 'e', Prec(f, -1)));
 }
 
 func (f *Fmt) f32(a float32) *Fmt {

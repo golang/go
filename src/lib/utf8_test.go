@@ -44,6 +44,27 @@ var utf8map = []Utf8Map {
 	Utf8Map{ 0x10ffff, "\xf4\x8f\xbf\xbf" },
 }
 
+func CEscape(s *[]byte) string {
+	t := "\"";
+	for i := 0; i < len(s); i++ {
+		switch {
+		case s[i] == '\\' || s[i] == '"':
+			t += `\`;
+			t += string(s[i]);
+		case s[i] == '\n':
+			t += `\n`;
+		case s[i] == '\t':
+			t += `\t`;
+		case ' ' <= s[i] && s[i] <= '~':
+			t += string(s[i]);
+		default:
+			t += fmt.sprintf(`\x%02x`, s[i]);
+		}
+	}
+	t += "\"";
+	return t;
+}
+
 func Bytes(s string) *[]byte {
 	b := new([]byte, len(s)+1);
 	if !syscall.StringToBytes(b, s) {
@@ -57,19 +78,10 @@ export func TestFullRune(t *testing.T) {
 		m := utf8map[i];
 		b := Bytes(m.str);
 		if !utf8.FullRune(b) {
-			t.Errorf("FullRune(%q) (rune %04x) = false, want true", b, m.rune);
+			t.Errorf("FullRune(%s) (rune %04x) = false, want true", CEscape(b), m.rune);
 		}
-		s := "xx"+m.str;
-		if !utf8.FullRuneInString(s, 2) {
-			t.Errorf("FullRuneInString(%q, 2) (rune %04x) = false, want true", s, m.rune);
-		}
-		b1 := b[0:len(b)-1];
-		if utf8.FullRune(b1) {
-			t.Errorf("FullRune(%q) = true, want false", b1);
-		}
-		s1 := "xxx"+string(b1);
-		if utf8.FullRuneInString(s1, 3) {
-			t.Errorf("FullRune(%q, 3) = true, want false", s1);
+		if b1 := b[0:len(b)-1]; utf8.FullRune(b1) {
+			t.Errorf("FullRune(%s) = true, want false", CEscape(b1));
 		}
 	}
 }
@@ -94,7 +106,7 @@ export func TestEncodeRune(t *testing.T) {
 		n := utf8.EncodeRune(m.rune, &buf);
 		b1 := (&buf)[0:n];
 		if !EqualBytes(b, b1) {
-			t.Errorf("EncodeRune(0x%04x) = %q want %q", m.rune, b1, b);
+			t.Errorf("EncodeRune(0x%04x) = %s want %s", m.rune, CEscape(b1), CEscape(b));
 		}
 	}
 }
@@ -105,38 +117,23 @@ export func TestDecodeRune(t *testing.T) {
 		b := Bytes(m.str);
 		rune, size := utf8.DecodeRune(b);
 		if rune != m.rune || size != len(b) {
-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
-		}
-		s := "xx"+m.str;
-		rune, size = utf8.DecodeRuneInString(s, 2);
-		if rune != m.rune || size != len(b) {
-			t.Errorf("DecodeRune(%q, 2) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
+			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b), rune, size, m.rune, len(b));
 		}
 
 		// there's an extra byte that Bytes left behind - make sure trailing byte works
 		rune, size = utf8.DecodeRune(b[0:cap(b)]);
 		if rune != m.rune || size != len(b) {
-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
-		}
-		s = "x"+m.str+"\x00";
-		rune, size = utf8.DecodeRuneInString(s, 1);
-		if rune != m.rune || size != len(b) {
-			t.Errorf("DecodeRuneInString(%q, 1) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
+			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b), rune, size, m.rune, len(b));
 		}
 
 		// make sure missing bytes fail
+		rune, size = utf8.DecodeRune(b[0:len(b)-1]);
 		wantsize := 1;
 		if wantsize >= len(b) {
 			wantsize = 0;
 		}
-		rune, size = utf8.DecodeRune(b[0:len(b)-1]);
 		if rune != RuneError || size != wantsize {
-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b[0:len(b)-1], rune, size, RuneError, wantsize);
-		}
-		s = "xxx"+m.str[0:len(m.str)-1];
-		rune, size = utf8.DecodeRuneInString(s, 3);
-		if rune != RuneError || size != wantsize {
-			t.Errorf("DecodeRuneInString(%q, 3) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, wantsize);
+			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b[0:len(b)-1]), rune, size, RuneError, wantsize);
 		}
 
 		// make sure bad sequences fail
@@ -147,12 +144,7 @@ export func TestDecodeRune(t *testing.T) {
 		}
 		rune, size = utf8.DecodeRune(b);
 		if rune != RuneError || size != 1 {
-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, RuneError, 1);
-		}
-		s = "xxxx"+string(b);
-		rune, size = utf8.DecodeRune(b);
-		if rune != RuneError || size != 1 {
-			t.Errorf("DecodeRuneInString(%q, 4) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, 1);
+			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b), rune, size, RuneError, 1);
 		}
 	}
 }
