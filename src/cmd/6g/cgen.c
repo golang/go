@@ -351,9 +351,12 @@ agen(Node *n, Node *res)
 		if(nr->addable)
 			goto iprad;
 		if(nl->addable) {
-			regalloc(&n1, nr->type, N);
-			cgen(nr, &n1);
-			cgen(nl, res);
+			if(whatis(nr) != Wlitint) {
+				regalloc(&n1, nr->type, N);
+				cgen(nr, &n1);
+			}
+			regalloc(&n3, types[tptr], res);
+			cgen(nl, &n3);
 			goto index;
 		}
 		cgen(nr, res);
@@ -361,9 +364,12 @@ agen(Node *n, Node *res)
 		gmove(res, &tmp);
 
 	iprad:
-		cgen(nl, res);
-		regalloc(&n1, nr->type, N);
-		cgen(nr, &n1);
+		regalloc(&n3, types[tptr], res);
+		cgen(nl, &n3);
+		if(whatis(nr) != Wlitint) {
+			regalloc(&n1, nr->type, N);
+			cgen(nr, &n1);
+		}
 		goto index;
 
 	case OINDEX:
@@ -371,9 +377,12 @@ agen(Node *n, Node *res)
 		if(nr->addable)
 			goto irad;
 		if(nl->addable) {
-			regalloc(&n1, nr->type, N);
-			cgen(nr, &n1);
-			agen(nl, res);
+			if(whatis(nr) != Wlitint) {
+				regalloc(&n1, nr->type, N);
+				cgen(nr, &n1);
+			}
+			regalloc(&n3, types[tptr], res);
+			agen(nl, &n3);
 			goto index;
 		}
 		cgen(nr, res);
@@ -381,66 +390,39 @@ agen(Node *n, Node *res)
 		gmove(res, &tmp);
 
 	irad:
-		agen(nl, res);
-		regalloc(&n1, nr->type, N);
-		cgen(nr, &n1);
+		regalloc(&n3, types[tptr], res);
+		agen(nl, &n3);
+		if(whatis(nr) != Wlitint) {
+			regalloc(&n1, nr->type, N);
+			cgen(nr, &n1);
+		}
 		goto index;
 
 	index:
-		// &a is in res
-		// i is in &n1
+		// &a is in &n3 (allocated in res)
+		// i is in &n1 (if not constant)
 		// w is width
 
 		if(w == 0)
 			fatal("index is zero width");
 
-		if(isptrdarray(nl->type)) {
-			regalloc(&n2, types[tptr], res);
-			gmove(res, &n2);
-
-			if(!debug['B']) {
-				// check bounds
-				n3 = n2;
-				n3.op = OINDREG;
-				n3.type = types[tptr];
-				n3.xoffset = offsetof(Array, nel);
-				gins(optoas(OCMP, types[TUINT32]), &n1, &n3);
-
-				p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-
-				gins(ACALL, N, throwindex);
-				patch(p1, pc);
-			}
-
-			// fetch array base from dope
-			n3 = n2;
-			n3.op = OINDREG;
-			n3.type = types[tptr];
-			n3.xoffset = offsetof(Array, array);
-			gins(AMOVQ, &n3, &n2);
-			gmove(&n2, res);
-			regfree(&n2);
-		} else
-			if(!debug['B']) {
-				// check bounds
-				nodconst(&n3, types[TUINT32], nl->type->bound);
-				if(isptrarray(nl->type))
-					nodconst(&n3, types[TUINT32], nl->type->type->bound);
-				gins(optoas(OCMP, types[TUINT32]), &n1, &n3);
-
-				p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-				gins(ACALL, N, throwindex);
-				patch(p1, pc);
-			}
-
 		if(whatis(nr) == Wlitint) {
-			regfree(&n1);
+			if(isptrdarray(nl->type)) {
+				n1 = n3;
+				n1.op = OINDREG;
+				n1.type = types[tptr];
+				n1.xoffset = offsetof(Array, array);
+				gmove(&n1, &n3);
+			}
 			v = mpgetfix(nr->val.u.xval);
 			nodconst(&n2, types[tptr], v*w);
-			gins(optoas(OADD, types[tptr]), &n2, res);
+			gins(optoas(OADD, types[tptr]), &n2, &n3);
+			gmove(&n3, res);
+			regfree(&n3);
 			break;
 		}
 
+		// type of the index
 		t = types[TUINT64];
 		if(issigned[n1.type->etype])
 			t = types[TINT64];
@@ -449,10 +431,41 @@ agen(Node *n, Node *res)
 		gmove(&n1, &n2);
 		regfree(&n1);
 
-		nodconst(&n3, t, w);			// w
-		gins(optoas(OMUL, t), &n3, &n2);
-		gins(optoas(OADD, types[tptr]), &n2, res);
+		if(!debug['B']) {
+			// check bounds
+			if(isptrdarray(nl->type)) {
+				n1 = n3;
+				n1.op = OINDREG;
+				n1.type = types[tptr];
+				n1.xoffset = offsetof(Array, nel);
+			} else {
+				nodconst(&n1, types[TUINT64], nl->type->bound);
+				if(isptrarray(nl->type))
+					nodconst(&n1, types[TUINT64], nl->type->type->bound);
+			}
+			gins(optoas(OCMP, types[TUINT64]), &n2, &n1);
+			p1 = gbranch(optoas(OLT, types[TUINT64]), T);
+			gins(ACALL, N, throwindex);
+			patch(p1, pc);
+		}
+
+		if(w != 1) {
+			nodconst(&n1, t, w);			// w
+			gins(optoas(OMUL, t), &n1, &n2);
+		}
+
+		if(isptrdarray(nl->type)) {
+			n1 = n3;
+			n1.op = OINDREG;
+			n1.type = types[tptr];
+			n1.xoffset = offsetof(Array, array);
+			gmove(&n1, &n3);
+		}
+		gins(optoas(OADD, types[tptr]), &n2, &n3);
+		gmove(&n3, res);
+
 		regfree(&n2);
+		regfree(&n3);
 		break;
 
 	case OIND:
