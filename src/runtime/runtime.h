@@ -19,32 +19,35 @@ typedef	uint64		uintptr;
 
 /*
  * get rid of C types
+ * the / / / forces a syntax error immediately,
+ * which will show "last name: XXunsigned".
  */
-#define	unsigned		XXunsigned
-#define	signed			XXsigned
-#define	char			XXchar
-#define	short			XXshort
-#define	int			XXint
-#define	long			XXlong
-#define	float			XXfloat
-#define	double			XXdouble
+#define	unsigned		XXunsigned / / /
+#define	signed			XXsigned / / /
+#define	char			XXchar / / /
+#define	short			XXshort / / /
+#define	int			XXint / / /
+#define	long			XXlong / / /
+#define	float			XXfloat / / /
+#define	double			XXdouble / / /
 
 /*
  * defined types
  */
 typedef	uint8			bool;
 typedef	uint8			byte;
-typedef	struct	String		*string;
-typedef	struct	Array		Array;
-typedef	struct	Gobuf		Gobuf;
-typedef	struct	G		G;
-typedef	struct	M		M;
-typedef	struct	Stktop		Stktop;
 typedef	struct	Alg		Alg;
+typedef	struct	Array		Array;
+typedef	struct	Func		Func;
+typedef	struct	G		G;
+typedef	struct	Gobuf		Gobuf;
 typedef	struct	Lock		Lock;
-typedef	union	Note	Note;
+typedef	struct	M		M;
 typedef	struct	Mem		Mem;
-typedef	struct	Usema	Usema;
+typedef	union	Note		Note;
+typedef	struct	Stktop		Stktop;
+typedef	struct	String		*string;
+typedef	struct	Usema		Usema;
 
 /*
  * per cpu declaration
@@ -179,6 +182,18 @@ struct	SigTab
 	int8	*name;
 };
 
+// (will be) shared with go; edit ../cmd/6g/sys.go too.
+// should move out of sys.go eventually.
+// also eventually, the loaded symbol table should
+// be closer to this form.
+struct	Func
+{
+	string	name;
+	string	type;
+	uint64	entry;
+	int64	frame;
+};
+
 /*
  * defined macros
  *    you need super-goru privilege
@@ -202,7 +217,7 @@ extern	int32	maxround;
  * common functions and data
  */
 int32	strcmp(byte*, byte*);
-int32	findnull(int8*);
+int32	findnull(byte*);
 void	dump(byte*, int32);
 int32	runetochar(byte*, int32);
 int32	chartorune(uint32*, byte*);
@@ -220,10 +235,12 @@ void*	getu(void);
 void	throw(int8*);
 uint32	rnd(uint32, uint32);
 void	prints(int8*);
+byte*	mchr(byte*, byte, byte*);
 void	mcpy(byte*, byte*, uint32);
 void	mmov(byte*, byte*, uint32);
 void*	mal(uint32);
 uint32	cmpstring(string, string);
+string	gostring(byte*);
 void	initsig(void);
 int32	gotraceback(void);
 void	traceback(uint8 *pc, uint8 *sp, G* gp);
@@ -243,6 +260,7 @@ void	sigaltstack(void*, void*);
 void	signalstack(byte*, int32);
 G*	malg(int32);
 void	minit(void);
+Func*	findfunc(uint64);
 
 /*
  * mutual exclusion locks.  in the uncontended case,

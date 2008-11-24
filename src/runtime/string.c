@@ -8,13 +8,26 @@ static	int32	empty		= 0;
 string	emptystring	= (string)&empty;
 
 int32
-findnull(int8 *s)
+findnull(byte *s)
 {
 	int32 l;
 
 	for(l=0; s[l]!=0; l++)
 		;
 	return l;
+}
+
+string
+gostring(byte *str)
+{
+	int32 l;
+	string s;
+
+	l = findnull(str);
+	s = mal(sizeof(s->len)+l+1);
+	s->len = l;
+	mcpy(s->str, str, l+1);
+	return s;
 }
 
 void

@@ -420,21 +420,12 @@ sys·printinter(Map *im, void *it)
 void
 sys·reflect(Map *im, void *it, uint64 retit, string rettype)
 {
-	string s;
-	int32 n;
-	byte *type;
-
 	if(im == nil) {
 		retit = 0;
 		rettype = nil;
 	} else {
 		retit = (uint64)it;
-		type = im->sigt->name;
-		n = findnull((int8*)type);
-		s = mal(sizeof *s + n + 1);
-		s->len = n;
-		mcpy(s->str, type, n);
-		rettype = s;
+		rettype = gostring(im->sigt->name);
 	}
 	FLUSH(&retit);
 	FLUSH(&rettype);

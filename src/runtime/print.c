@@ -25,7 +25,7 @@ dump(byte *p, int32 n)
 void
 prints(int8 *s)
 {
-	sys·write(1, s, findnull(s));
+	sys·write(1, s, findnull((byte*)s));
 }
 
 void

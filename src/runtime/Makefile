@@ -26,6 +26,7 @@ LIBOFILES=\
 	rune.$O\
 	proc.$O\
 	string.$O\
+	symtab.$O\
 	sys_file.$O\
 
 OFILES=$(RT0OFILES) $(LIBOFILES)
@@ -61,3 +62,4 @@ sys_file.$O:	sys_file.c sys_types.h $(OS_H)
 
 runtime.acid: runtime.h proc.c
 	$(CC) -a proc.c >runtime.acid
+

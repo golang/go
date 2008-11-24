@@ -107,6 +107,15 @@ mmov(byte *t, byte *f, uint32 n)
 	}
 }
 
+byte*
+mchr(byte *p, byte c, byte *ep)
+{
+	for(; p < ep; p++)
+		if(*p == c)
+			return p;
+	return nil;
+}
+
 uint32
 rnd(uint32 n, uint32 m)
 {
@@ -464,7 +473,7 @@ getenv(int8 *s)
 	byte *v, *bs;
 
 	bs = (byte*)s;
-	len = findnull(s);
+	len = findnull(bs);
 	for(i=0; i<envc; i++){
 		v = envv[i];
 		for(j=0; j<len; j++)
@@ -509,21 +518,10 @@ sys·envc(int32 v)
 void
 sys·argv(int32 i, string s)
 {
-	uint8* str;
-	int32 l;
-
-	if(i < 0 || i >= argc) {
+	if(i >= 0 && i < argc)
+		s = gostring(argv[i]);
+	else
 		s = emptystring;
-		goto out;
-	}
-
-	str = argv[i];
-	l = findnull((int8*)str);
-	s = mal(sizeof(s->len)+l);
-	s->len = l;
-	mcpy(s->str, str, l);
-
-out:
 	FLUSH(&s);
 }
 
@@ -531,21 +529,10 @@ out:
 void
 sys·envv(int32 i, string s)
 {
-	uint8* str;
-	int32 l;
-
-	if(i < 0 || i >= envc) {
+	if(i >= 0 && i < envc)
+		s = gostring(envv[i]);
+	else
 		s = emptystring;
-		goto out;
-	}
-
-	str = envv[i];
-	l = findnull((int8*)str);
-	s = mal(sizeof(s->len)+l);
-	s->len = l;
-	mcpy(s->str, str, l);
-
-out:
 	FLUSH(&s);
 }
 
@@ -742,33 +729,3 @@ algarray[3] =
 	{	memhash,	memequal,	memprint,	memcopy	},  // 2 - treat pointers as ints
 };
 
-
-// Return a pointer to a byte array containing the symbol table segment.
-//
-// NOTE(rsc): I expect that we will clean up both the method of getting
-// at the symbol table and the exact format of the symbol table at some
-// point in the future.  It probably needs to be better integrated with
-// the type strings table too.  This is just a quick way to get started
-// and figure out what we want from/can do with it.
-void
-sys·symdat(Array *symtab, Array *pclntab)
-{
-	Array *a;
-	int32 *v;
-
-	v = (int32*)(0x99LL<<32);	/* known to 6l */
-
-	a = mal(sizeof *a);
-	a->nel = v[0];
-	a->cap = a->nel;
-	a->array = (byte*)&v[2];
-	symtab = a;
-	FLUSH(&symtab);
-
-	a = mal(sizeof *a);
-	a->nel = v[1];
-	a->cap = a->nel;
-	a->array = (byte*)&v[2] + v[0];
-	pclntab = a;
-	FLUSH(&pclntab);
-}
