@@ -186,6 +186,19 @@ export func sprintln(a ...) string {
 	return s;
 }
 
+
+// Get the i'th arg of the struct value.
+// If the arg itself is an interface, return a value for
+// the thing inside the interface, not the interface itself.
+func getField(v reflect.StructValue, i int) reflect.Value {
+	val := v.Field(i);
+	if val.Kind() == reflect.InterfaceKind {
+		inter := val.(reflect.InterfaceValue).Get();
+		return reflect.NewValue(inter);
+	}
+	return val;
+}
+
 // Getters for the fields of the argument structure.
 
 func getBool(v reflect.Value) (val bool, ok bool) {
@@ -226,6 +239,9 @@ func getString(v reflect.Value) (val string, ok bool) {
 	switch v.Kind() {
 	case reflect.StringKind:
 		return v.(reflect.StringValue).Get(), true;
+	}
+	if valb, okb := v.Interface().(*[]byte); okb {
+		return string(valb), true;
 	}
 	return "", false;
 }
@@ -279,12 +295,6 @@ func getArrayPtr(v reflect.Value) (val reflect.ArrayValue, ok bool) {
 func parsenum(s string, start, end int) (n int, got bool, newi int) {
 	if start >= end {
 		return 0, false, end
-	}
-	if s[start] == '-' {
-		a, b, c := parsenum(s, start+1, end);
-		if b {
-			return -a, b, c;
-		}
 	}
 	isnum := false;
 	num := 0;
@@ -371,10 +381,28 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			i += w;
 			continue;
 		}
-		// saw % - do we have %20 (width)?
-		p.wid, p.wid_ok, i = parsenum(format, i+1, end);
+		i++;
+		// flags
+		F: for ; i < end; i++ {
+			switch format[i] {
+			case '#':
+				p.fmt.sharp = true;
+			case '0':
+				p.fmt.zero = true;
+			case '+':
+				p.fmt.plus = true;
+			case '-':
+				p.fmt.minus = true;
+			case ' ':
+				p.fmt.space = true;
+			default:
+				break F;
+			}
+		}
+		// do we have 20 (width)?
+		p.wid, p.wid_ok, i = parsenum(format, i, end);
 		p.prec_ok = false;
-		// do we have %.20 (precision)?
+		// do we have .20 (precision)?
 		if i < end && format[i] == '.' {
 			p.prec, p.prec_ok, i = parsenum(format, i+1, end);
 		}
@@ -391,7 +419,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			p.addstr("(missing)");
 			continue;
 		}
-		field := v.Field(fieldnum);
+		field := getField(v, fieldnum);
 		fieldnum++;
 		if c != 'T' {	// don't want thing to describe itself if we're asking for its type
 			if formatter, ok := field.Interface().(Format); ok {
@@ -463,6 +491,20 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 					} else {
 						s = p.fmt.ux64(uint64(v)).str()
 					}
+				} else if v, ok := getString(field); ok {
+					s = p.fmt.sx(v).str();
+				} else {
+					goto badtype
+				}
+			case 'X':
+				if v, signed, ok := getInt(field); ok {
+					if signed {
+						s = p.fmt.X64(v).str()
+					} else {
+						s = p.fmt.uX64(uint64(v)).str()
+					}
+				} else if v, ok := getString(field); ok {
+					s = p.fmt.sX(v).str();
 				} else {
 					goto badtype
 				}
@@ -500,6 +542,12 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 				} else {
 					goto badtype
 				}
+			case 'q':
+				if v, ok := getString(field); ok {
+					s = p.fmt.q(v).str()
+				} else {
+					goto badtype
+				}
 
 			// pointer
 			case 'p':
@@ -530,7 +578,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 	if fieldnum < v.Len() {
 		p.addstr("?(extra ");
 		for ; fieldnum < v.Len(); fieldnum++ {
-			p.addstr(v.Field(fieldnum).Type().String());
+			p.addstr(getField(v, fieldnum).Type().String());
 			if fieldnum + 1 < v.Len() {
 				p.addstr(", ");
 			}
@@ -543,7 +591,7 @@ func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool) {
 	prev_string := false;
 	for fieldnum := 0; fieldnum < v.Len();  fieldnum++ {
 		// always add spaces if we're doing println
-		field := v.Field(fieldnum);
+		field := getField(v, fieldnum);
 		if fieldnum > 0 {
 			if addspace {
 				p.add(' ')
