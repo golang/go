@@ -206,12 +206,17 @@ getpkg(char *file)
 	char *p, *q;
 	int i;
 
-	if(!suffix(file, ".go"))
-		return nil;
 	if((b = Bopen(file, OREAD)) == nil)
 		sysfatal("open %s: %r", file);
 	while((p = Brdline(b, '\n')) != nil) {
 		p[Blinelen(b)-1] = '\0';
+		if(!suffix(file, ".go")) {
+			if(*p != '/' || *(p+1) != '/')
+				continue;
+			p += 2;
+		}
+		if(strstr(p, "gobuild: ignore"))
+			return "main";
 		while(*p == ' ' || *p == '\t')
 			p++;
 		if(strncmp(p, "package", 7) == 0 && (p[7] == ' ' || p[7] == '\t')) {
@@ -487,7 +492,7 @@ main(int argc, char **argv)
 	njob = 0;
 	job = emalloc(argc*sizeof job[0]);
 	for(i=0; i<argc; i++) {
-		if(suffix(argv[i], "_test.go") != nil)
+		if(suffix(argv[i], "_test.go"))
 			continue;
 		job[njob].name = argv[i];
 		job[njob].pass = -1;
