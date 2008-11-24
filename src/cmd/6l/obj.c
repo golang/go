@@ -402,7 +402,6 @@ main(int argc, char *argv[])
 			doprof1();
 		else
 			doprof2();
-	addstackmark();
 	span();
 	doinit();
 	asmb();

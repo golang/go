@@ -6,8 +6,6 @@
 
 extern int32	debug;
 
-static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
-
 extern uint8 end;
 
 void
@@ -18,7 +16,8 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 	uint8* callpc;
 	int32 counter;
 	int32 i;
-	int8* name;
+	string name;
+	Func *f;
 	G g;
 	Stktop *stktop;
 
@@ -33,7 +32,7 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 	}
 
 	counter = 0;
-	name = "panic";
+	name = gostring((byte*)"panic");
 	for(;;){
 		callpc = pc;
 		if((uint8*)retfromnewstack == pc) {
@@ -46,21 +45,11 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 			sp += 16;  // two irrelevant calls on stack - morestack, plus the call morestack made
 			continue;
 		}
-		/* find SP offset by stepping back through instructions to SP offset marker */
-		while(pc > (uint8*)0x1000+sizeof spmark-1) {
-			if(pc >= &end)
-				return;
-			for(spp = spmark; *spp != '\0' && *pc++ == (uint8)*spp++; )
-				;
-			if(*spp == '\0'){
-				spoff = *pc++;
-				spoff += *pc++ << 8;
-				spoff += *pc++ << 16;
-				name = (int8*)pc;
-				sp += spoff + 8;
-				break;
-			}
-		}
+		f = findfunc((uint64)callpc);
+		if(f == nil)
+			return;
+		name = f->name;
+		sp += f->frame;
 		if(counter++ > 100){
 			prints("stack trace terminated\n");
 			break;
@@ -73,7 +62,7 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 		sys·printpointer(callpc  - 1);	// -1 to get to CALL instr.
 		prints("?zi\n");
 		prints("\t");
-		prints(name);
+		sys·printstring(name);
 		prints("(");
 		for(i = 0; i < 3; i++){
 			if(i != 0)
@@ -82,7 +71,7 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 		}
 		prints(", ...)\n");
 		prints("\t");
-		prints(name);
+		sys·printstring(name);
 		prints("(");
 		for(i = 0; i < 3; i++){
 			if(i != 0)
