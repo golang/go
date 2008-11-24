@@ -1,0 +1,238 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package sort
+
+import (
+	"fmt";
+	"rand";
+	"sort";
+	"testing";
+)
+
+func BentleyMcIlroyTests();
+
+
+var ints = []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
+var floats = []float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
+var strings = []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
+
+export func TestSortIntArray(t *testing.T) {
+	data := ints;
+	a := sort.IntArray{&data};
+	sort.Sort(&a);
+	if !sort.IsSorted(&a) {
+		t.Errorf("sorted %v", ints);
+		t.Errorf("   got %v", data);
+	}
+}
+
+export func TestSortFloatArray(t *testing.T) {
+	data := floats;
+	a := sort.FloatArray{&data};
+	sort.Sort(&a);
+	if !sort.IsSorted(&a) {
+		t.Errorf("sorted %v", floats);
+		t.Errorf("   got %v", data);
+	}
+}
+
+export func TestSortStringArray(t *testing.T) {
+	data := strings;
+	a := sort.StringArray{&data};
+	sort.Sort(&a);
+	if !sort.IsSorted(&a) {
+		t.Errorf("sorted %v", strings);
+		t.Errorf("   got %v", data);
+	}
+}
+
+export func TestSortInts(t *testing.T) {
+	data := ints;
+	sort.SortInts(&data);
+	if !sort.IntsAreSorted(&data) {
+		t.Errorf("sorted %v", ints);
+		t.Errorf("   got %v", data);
+	}
+}
+
+export func TestSortFloats(t *testing.T) {
+	data := floats;
+	sort.SortFloats(&data);
+	if !sort.FloatsAreSorted(&data) {
+		t.Errorf("sorted %v", floats);
+		t.Errorf("   got %v", data);
+	}
+}
+
+export func TestSortStrings(t *testing.T) {
+	data := strings;
+	sort.SortStrings(&data);
+	if !sort.StringsAreSorted(&data) {
+		t.Errorf("sorted %v", strings);
+		t.Errorf("   got %v", data);
+	}
+}
+
+export func TestSortLargeRandom(t *testing.T) {
+	data := new([]int, 1000000);
+	for i := 0; i < len(data); i++ {
+		data[i] = rand.rand() % 100;
+	}
+	if sort.IntsAreSorted(data) {
+		t.Fatalf("terrible rand.rand");
+	}
+	sort.SortInts(data);
+	if !sort.IntsAreSorted(data) {
+		t.Errorf("sort didn't sort - 1M ints");
+	}
+}
+
+const (
+	Sawtooth = iota;
+	Rand;
+	Stagger;
+	Plateau;
+	Shuffle;
+	NDist;
+)
+
+const (
+	Copy = iota;
+	Reverse;
+	ReverseFirstHalf;
+	ReverseSecondHalf;
+	Sorted;
+	Dither;
+	NMode;
+);
+
+type TestingData struct {
+	desc string;
+	t *testing.T;
+	data *[]int;
+	maxswap int;	// number of swaps allowed
+	nswap int;
+}
+
+func (d *TestingData) Len() int { return len(d.data); }
+func (d *TestingData) Less(i, j int) bool { return d.data[i] < d.data[j]; }
+func (d *TestingData) Swap(i, j int) {
+	if d.nswap >= d.maxswap {
+		d.t.Errorf("%s: used %d swaps sorting array of %d", d.desc, d.nswap, len(d.data));
+		d.t.FailNow();
+	}
+	d.nswap++;
+	d.data[i], d.data[j] = d.data[j], d.data[i];
+}
+
+func Lg(n int) int {
+	i := 0;
+	for 1<<uint(i) < n {
+		i++;
+	}
+	return i;
+}
+
+func Min(a, b int) int {
+	if a < b {
+		return a;
+	}
+	return b;
+}
+
+export func TestBentleyMcIlroy(t *testing.T) {
+	sizes := []int{100, 1023, 1024, 1025};
+	dists := []string{"sawtooth", "rand", "stagger", "plateau", "shuffle"};
+	modes := []string{"copy", "reverse", "reverse1", "reverse2", "sort", "dither"};
+	var tmp1, tmp2 [1025]int;
+	for ni := 0; ni < len(sizes); ni++ {
+		n := sizes[ni];
+		for m := 1; m < 2*n; m *= 2 {
+			for dist := 0; dist < NDist; dist++ {
+				j := 0;
+				k := 1;
+				data := (&tmp1)[0:n];
+				for i := 0; i < n; i++ {
+					switch dist {
+					case Sawtooth:
+						data[i] = i % m;
+					case Rand:
+						data[i] = rand.rand() % m;
+					case Stagger:
+						data[i] = (i*m + i) % n;
+					case Plateau:
+						data[i] = Min(i, m);
+					case Shuffle:
+						if rand.rand() % m != 0 {
+							j += 2;
+							data[i] = j;
+						} else {
+							k += 2;
+							data[i] = k;
+						}
+					}
+				}
+
+				mdata := (&tmp2)[0:n];
+				for mode := 0; mode < NMode; mode++ {
+					switch mode {
+					case Copy:
+						for i := 0; i < n; i++ {
+							mdata[i] = data[i];
+						}
+					case Reverse:
+						for i := 0; i < n; i++ {
+							mdata[i] = data[n-i-1];
+						}
+					case ReverseFirstHalf:
+						for i := 0; i < n/2; i++ {
+							mdata[i] = data[n/2-i-1];
+						}
+						for i := n/2; i < n; i++ {
+							mdata[i] = data[i];
+						}
+					case ReverseSecondHalf:
+						for i := 0; i < n/2; i++ {
+							mdata[i] = data[i];
+						}
+						for i := n/2; i < n; i++ {
+							mdata[i] = data[n-(i-n/2)-1];
+						}
+					case Sorted:
+						for i := 0; i < n; i++ {
+							mdata[i] = data[i];
+						}
+						// sort.SortInts is known to be correct
+						// because mode Sort runs after mode Copy.
+						sort.SortInts(mdata);
+					case Dither:
+						for i := 0; i < n; i++ {
+							mdata[i] = data[i] + i%5;
+						}
+					}
+
+					desc := fmt.sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
+					d := &TestingData{desc, t, mdata[0:n], n*Lg(n)*12/10, 0};
+					sort.Sort(d);
+
+					// If we were testing C qsort, we'd have to make a copy
+					// of the array and sort it ourselves and then compare
+					// x against it, to ensure that qsort was only permuting
+					// the data, not (for example) overwriting it with zeros.
+					//
+					// In go, we don't have to be so paranoid: since the only
+					// mutating method sort.Sort can call is TestingData.swap,
+					// it suffices here just to check that the final array is sorted.
+					if !sort.IntsAreSorted(mdata) {
+						t.Errorf("%s: ints not sorted", desc);
+						t.Errorf("\t%v", mdata);
+						t.FailNow();
+					}
+				}
+			}
+		}
+	}
+}
+

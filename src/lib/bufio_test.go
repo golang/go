@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// $G $F.go && $L $F.$A && ./$A.out
-
-package main
+package bufio
 
 import (
-	"os";
-	"io";
 	"bufio";
+	"fmt";
+	"io";
+	"os";
 	"syscall";
-	"rand"
+	"testing";
 )
 
 func StringToBytes(s string) *[]byte {
@@ -103,26 +102,22 @@ func (r13 *Rot13Reader) Read(p *[]byte) (int, *os.Error) {
 	return n, nil
 }
 
-func MakeByteReader(p *[]byte) io.Read {
-	return NewByteReader(p)
+type Readmaker struct {
+	name string;
+	fn *(*[]byte) io.Read;
 }
-func MakeHalfByteReader(p *[]byte) io.Read {
-	return NewHalfByteReader(p)
+var readmakers = []Readmaker {
+	Readmaker{ "full", func(p *[]byte) io.Read { return NewByteReader(p) } },
+	Readmaker{ "half", func(p *[]byte) io.Read { return NewHalfByteReader(p) } },
 }
-
-var readmakers = []*(p *[]byte) io.Read {
-	&NewByteReader,
-	&NewHalfByteReader
-}
-
 
 // Call ReadLineString (which ends up calling everything else)
 // to accumulate the text of a file.
-func ReadLines(b *bufio.BufRead) string {
+func ReadLines(b *BufRead) string {
 	s := "";
 	for {
 		s1, e := b.ReadLineString('\n', true);
-		if e == bufio.EndOfFile {
+		if e == EndOfFile {
 			break
 		}
 		if e != nil {
@@ -134,12 +129,12 @@ func ReadLines(b *bufio.BufRead) string {
 }
 
 // Call ReadByte to accumulate the text of a file
-func ReadBytes(buf *bufio.BufRead) string {
+func ReadBytes(buf *BufRead) string {
 	var b [1000]byte;
 	nb := 0;
 	for {
 		c, e := buf.ReadByte();
-		if e == bufio.EndOfFile {
+		if e == EndOfFile {
 			break
 		}
 		if e != nil {
@@ -153,32 +148,33 @@ func ReadBytes(buf *bufio.BufRead) string {
 }
 
 // Call Read to accumulate the text of a file
-func Reads(buf *bufio.BufRead, m int) string {
+func Reads(buf *BufRead, m int) string {
 	var b [1000]byte;
 	nb := 0;
 	for {
 		// BUG parens around (&b) should not be needed
 		n, e := buf.Read((&b)[nb:nb+m]);
 		nb += n;
-		if e == bufio.EndOfFile {
+		if e == EndOfFile {
 			break
 		}
 	}
-	// BUG 6g bug102 - out of bounds error on empty byte array -> string
-	if nb == 0 { return "" }
 	return string((&b)[0:nb])
 }
 
-func Read1(b *bufio.BufRead) string { return Reads(b, 1) }
-func Read2(b *bufio.BufRead) string { return Reads(b, 2) }
-func Read3(b *bufio.BufRead) string { return Reads(b, 3) }
-func Read4(b *bufio.BufRead) string { return Reads(b, 4) }
-func Read5(b *bufio.BufRead) string { return Reads(b, 5) }
-func Read7(b *bufio.BufRead) string { return Reads(b, 7) }
-
-var bufreaders = []*(b *bufio.BufRead) string {
-	&Read1, &Read2, &Read3, &Read4, &Read5, &Read7,
-	&ReadBytes, &ReadLines
+type Bufreader struct {
+	name string;
+	fn *(*BufRead) string;
+}
+var bufreaders = []Bufreader {
+	Bufreader{ "1", func(b *BufRead) string { return Reads(b, 1) } },
+	Bufreader{ "2", func(b *BufRead) string { return Reads(b, 2) } },
+	Bufreader{ "3", func(b *BufRead) string { return Reads(b, 3) } },
+	Bufreader{ "4", func(b *BufRead) string { return Reads(b, 4) } },
+	Bufreader{ "5", func(b *BufRead) string { return Reads(b, 5) } },
+	Bufreader{ "7", func(b *BufRead) string { return Reads(b, 7) } },
+	Bufreader{ "bytes", &ReadBytes },
+	Bufreader{ "lines", &ReadLines },
 }
 
 var bufsizes = []int {
@@ -186,39 +182,19 @@ var bufsizes = []int {
 	23, 32, 46, 64, 93, 128, 1024, 4096
 }
 
-func TestBufRead() {
-	// work around 6g bug101
-	readmakers[0] = &NewByteReader;
-	readmakers[1] = &NewHalfByteReader;
+export func TestBufReadSimple(t *testing.T) {
+	b, e := NewBufRead(NewByteReader(StringToBytes("hello world")));
+	if s := ReadBytes(b); s != "hello world" {
+		t.Errorf("simple hello world test failed: got %q", s);
+	}
 
-	bufreaders[0] = &Read1;
-	bufreaders[1] = &Read2;
-	bufreaders[2] = &Read3;
-	bufreaders[3] = &Read4;
-	bufreaders[4] = &Read5;
-	bufreaders[5] = &Read7;
-	bufreaders[6] = &ReadBytes;
-	bufreaders[7] = &ReadLines;
+	b, e = NewBufRead(NewRot13Reader(NewByteReader(StringToBytes("hello world"))));
+	if s := ReadBytes(b); s != "uryyb jbeyq" {
+		t.Error("rot13 hello world test failed: got %q", s);
+	}
+}
 
-	bufsizes[0] = 1;
-	bufsizes[1] = 2;
-	bufsizes[2] = 3;
-	bufsizes[3] = 4;
-	bufsizes[4] = 5;
-	bufsizes[5] = 6;
-	bufsizes[6] = 7;
-	bufsizes[7] = 8;
-	bufsizes[8] = 9;
-	bufsizes[9] = 10;
-	bufsizes[10] = 23;
-	bufsizes[11] = 32;
-	bufsizes[12] = 46;
-	bufsizes[13] = 64;
-	bufsizes[14] = 93;
-	bufsizes[15] = 128;
-	bufsizes[16] = 1024;
-	bufsizes[17] = 4096;
-
+export func TestBufRead(t *testing.T) {
 	var texts [31]string;
 	str := "";
 	all := "";
@@ -229,40 +205,27 @@ func TestBufRead() {
 	}
 	texts[len(texts)-1] = all;
 
-	// BUG 6g should not need nbr temporary (bug099)
-	nbr := NewByteReader(StringToBytes("hello world"));
-	b, e := bufio.NewBufRead(nbr);
-	if ReadBytes(b) != "hello world" { panic("hello world") }
-
-	// BUG 6g should not need nbr nor nbr1 (bug009)
-	nbr = NewByteReader(StringToBytes("hello world"));
-	nbr1 := NewRot13Reader(nbr);
-	b, e = bufio.NewBufRead(nbr1);
-	if ReadBytes(b) != "uryyb jbeyq" { panic("hello world") }
-
 	for h := 0; h < len(texts); h++ {
 		text := texts[h];
 		textbytes := StringToBytes(text);
 		for i := 0; i < len(readmakers); i++ {
-			readmaker := readmakers[i];
 			for j := 0; j < len(bufreaders); j++ {
-				bufreader := bufreaders[j];
 				for k := 0; k < len(bufsizes); k++ {
+					readmaker := readmakers[i];
+					bufreader := bufreaders[j];
 					bufsize := bufsizes[k];
-					read := readmaker(textbytes);
-					buf, e := bufio.NewBufReadSize(read, bufsize);
-					s := bufreader(buf);
+					read := readmaker.fn(textbytes);
+					buf, e := NewBufReadSize(read, bufsize);
+					s := bufreader.fn(buf);
 					if s != text {
-						print("Failed: ", h, " ", i, " ", j, " ", k, " ", len(s), " ", len(text), "\n");
-						print("<", s, ">\nshould be <", text, ">\n");
-						panic("bufio result")
+						t.Errorf("reader=%s fn=%s bufsize=%d want=%q got=%q",
+							readmaker.name, bufreader.name, bufsize, text, s);
 					}
 				}
 			}
 		}
 	}
 }
-
 
 type WriteBuffer interface {
 	Write(p *[]byte) (int, *os.Error);
@@ -298,6 +261,7 @@ func (w *ByteWriter) GetBytes() *[]byte {
 
 // Accumulates bytes written into a byte array
 // but Write only takes half of what you give it.
+// TODO: Could toss this -- Write() is not supposed to do that.
 type HalfByteWriter struct {
 	bw WriteBuffer
 }
@@ -319,15 +283,20 @@ func (w *HalfByteWriter) GetBytes() *[]byte {
 	return w.bw.GetBytes()
 }
 
-func TestBufWrite() {
+type Writemaker struct {
+	name string;
+	fn *()WriteBuffer;
+}
+export func TestBufWrite(t *testing.T) {
 	var data [8192]byte;
 
-	var writers [2]*()WriteBuffer;
-	writers[0] = &NewByteWriter;
-	writers[1] = &NewHalfByteWriter;
+	var writers = []Writemaker {
+		Writemaker{ "full", &NewByteWriter },
+		Writemaker{ "half", &NewHalfByteWriter },
+	};
 
 	for i := 0; i < len(data); i++ {
-		data[i] = byte(rand.rand())
+		data[i] = byte(' '+ i%('~'-' '));
 	}
 	for i := 0; i < len(bufsizes); i++ {
 		for j := 0; j < len(bufsizes); j++ {
@@ -339,30 +308,31 @@ func TestBufWrite() {
 				// Check that the right amount makes it out
 				// and that the data is correct.
 
-				write := writers[k]();
-				buf, e := bufio.NewBufWriteSize(write, bs);
+				write := writers[k].fn();
+				buf, e := NewBufWriteSize(write, bs);
+				context := fmt.sprintf("write=%s nwrite=%d bufsize=%d", writers[k].name, nwrite, bs);
 				if e != nil {
-					panic("NewBufWriteSize error: "+e.String())
+					t.Errorf("%s: NewBufWriteSize %d: %v", context, bs, e);
+					continue;
 				}
 				n, e1 := buf.Write((&data)[0:nwrite]);
-				if e1 != nil {
-					panic("buf.Write error "+e1.String())
+				if e1 != nil || n != nwrite {
+					t.Errorf("%s: buf.Write %d = %d, %v", context, nwrite, n, e1);
+					continue;
 				}
-				if n != nwrite {
-					panic("buf.Write wrong count")
-				}
-				e = buf.Flush();
-				if e != nil {
-					panic("buf.Flush error "+e.String())
+				if e = buf.Flush(); e != nil {
+					t.Errorf("%s: buf.Flush = %v", context, e);
 				}
 
 				written := write.GetBytes();
 				if len(written) != nwrite {
-					panic("wrong amount written")
+					t.Errorf("%s: %d bytes written", context, len(written));
 				}
 				for l := 0; l < len(written); l++ {
 					if written[i] != data[i] {
-						panic("wrong bytes written")
+						t.Errorf("%s: wrong bytes written");
+						t.Errorf("want=%s", (&data)[0:len(written)]);
+						t.Errorf("have=%s", written);
 					}
 				}
 			}
@@ -370,8 +340,3 @@ func TestBufWrite() {
 	}
 }
 
-
-func main() {
-	TestBufRead();
-	TestBufWrite()
-}
