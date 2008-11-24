@@ -33,8 +33,9 @@ coverage: packages
 
 O1=\
 	atoi.$O\
-	decimal.$O\
 	itoa.$O\
+	decimal.$O\
+	quote.$O\
 
 O2=\
 	ftoa.$O\
@@ -45,7 +46,7 @@ O3=\
 strconv.a: a1 a2 a3
 
 a1:	$(O1)
-	$(AR) grc strconv.a atoi.$O decimal.$O itoa.$O
+	$(AR) grc strconv.a atoi.$O itoa.$O decimal.$O quote.$O
 	rm -f $(O1)
 
 a2:	$(O2)
