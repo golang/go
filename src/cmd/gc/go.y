@@ -993,9 +993,6 @@ sym1:
  */
 sym2:
 	sym1
-|	LTYPE
-|	LFUNC
-|	LVAR
 
 /*
  * keywords that can be variables
@@ -2014,7 +2011,7 @@ hidden_importsym:
  * to check whether the rest of the grammar is free of
  * reduce/reduce conflicts, comment this section out by
  * removing the slash on the next line.
- *
+ */
 lpack:
 	LATYPE
 	{
