@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+rm -f $GOROOT/pkg/*.[6a]
 for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib
 do
 	cd $i
