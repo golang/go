@@ -138,11 +138,6 @@ func (b *Writer) Line(i int) *array.IntArray {
 }
 
 
-func (b *Writer) LastLine() *array.IntArray {
-	return b.lines.At(b.lines.Len() - 1).(*array.IntArray);
-}
-
-
 // debugging support
 func (b *Writer) Dump() {
 	pos := 0;
@@ -235,7 +230,17 @@ func (b *Writer) WriteLines(pos0 int, line0, line1 int) (pos int, err *os.Error)
 				pos += w;
 			}
 		}
-		err = b.Write0(Newline);
+		
+		if i+1 == b.lines.Len() {
+			// last buffered line - we don't have a newline, so just write
+			// any outstanding buffered data
+			err = b.Write0(b.buf.a[pos : pos + b.width]);
+			pos += b.width;
+			b.width = 0;
+		} else {
+			// not the last line - write newline
+			err = b.Write0(Newline);
+		}
 		if err != nil {
 			goto exit;
 		}
@@ -243,18 +248,6 @@ func (b *Writer) WriteLines(pos0 int, line0, line1 int) (pos int, err *os.Error)
 
 exit:
 	return pos, err;
-}
-
-
-// TODO use utflen for correct formatting
-func utflen(buf *[]byte) int {
-	n := 0;
-	for i := 0; i < len(buf); i++ {
-		if buf[i]&0xC0 != 0x80 {
-			n++
-		}
-	}
-	return n
 }
 
 
@@ -336,22 +329,21 @@ func (b *Writer) Append(buf *[]byte) {
 			i0 = i + 1;  // exclude ch from (next) cell
 
 			// terminate cell
-			b.LastLine().Push(b.width);
+			last := b.Line(b.lines.Len() - 1);
+			last.Push(b.width);
 			b.width = 0;
 
 			if ch == '\n' {
-				if b.LastLine().Len() == 1 {
-					// The last line has only one cell which does not have an
-					// impact on the formatting of the following lines (the
+				b.AddLine();
+				if last.Len() == 1 {
+					// The previous line has only one cell which does not have
+					// an impact on the formatting of the following lines (the
 					// last cell per line is ignored by Format), thus we can
 					// flush the Writer contents.
 					err = b.Flush();
 					if err != nil {
 						return i0, err;
 					}
-				} else {
-					// We can't flush yet - just add a new line.
-					b.AddLine();
 				}
 			}
 		}
