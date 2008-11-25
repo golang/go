@@ -11,6 +11,7 @@ DIRS=\
 	fmt\
 	hash\
 	http\
+	io\
 	math\
 	net\
 	os\
@@ -25,7 +26,6 @@ FILES=\
 	bufio\
 	vector\
 	flag\
-	io\
 	once\
 	rand\
 	sort\
@@ -81,19 +81,19 @@ test: test.files
 # TODO: dependencies - should auto-generate
 
 bignum.6: fmt.dirinstall
-bufio.6: io.install os.dirinstall
+bufio.6: io.dirinstall os.dirinstall
 flag.6: fmt.dirinstall
-io.6: os.dirinstall syscall.dirinstall
 testing.6: flag.install fmt.dirinstall
 
-fmt.dirinstall: io.install reflect.dirinstall strconv.dirinstall
+fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
 hash.dirinstall: os.dirinstall
-http.dirinstall: bufio.install io.install net.dirinstall os.dirinstall strings.install
+http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall strings.install
+io.dirinstall: os.dirinstall syscall.dirinstall
 net.dirinstall: once.install os.dirinstall strconv.dirinstall
 os.dirinstall: syscall.dirinstall
 regexp.dirinstall: os.dirinstall
 reflect.dirinstall: strconv.dirinstall
 strconv.dirinstall: os.dirinstall utf8.install
-tabwriter.dirinstall: os.dirinstall io.install container/array.dirinstall
+tabwriter.dirinstall: os.dirinstall io.dirinstall container/array.dirinstall
 time.dirinstall: once.install os.dirinstall
 
