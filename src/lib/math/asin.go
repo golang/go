@@ -46,7 +46,7 @@ export func Asin(arg float64) float64 {
 }
 
 export func Acos(arg float64) float64 {
-	if(arg > 1 || arg < -1) {
+	if arg > 1 || arg < -1 {
 		return sys.NaN();
 	}
 	return pio2 - Asin(arg);
