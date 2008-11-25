@@ -24,7 +24,6 @@ DIRS=\
 FILES=\
 	bignum\
 	bufio\
-	vector\
 	flag\
 	once\
 	rand\
