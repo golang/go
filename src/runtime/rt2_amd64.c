@@ -11,8 +11,6 @@ extern uint8 end;
 void
 traceback(uint8 *pc, uint8 *sp, void* r15)
 {
-	int32 spoff;
-	int8* spp;
 	uint8* callpc;
 	int32 counter;
 	int32 i;
@@ -60,7 +58,11 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 		/* print this frame */
 		prints("0x");
 		sys·printpointer(callpc  - 1);	// -1 to get to CALL instr.
-		prints("?zi\n");
+		prints("?zi ");
+		sys·printstring(f->src);
+		prints(":");
+		sys·printint(funcline(f, (uint64)callpc-1));	// -1 to get to CALL instr.
+		prints("\n");
 		prints("\t");
 		sys·printstring(name);
 		prints("(");
