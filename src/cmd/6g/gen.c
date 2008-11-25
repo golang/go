@@ -921,26 +921,35 @@ cgen_asop(Node *n)
 	switch(n->etype) {
 	case OADD:
 		if(!isint[nl->type->etype])
-			goto com;
+			break;
 		if(mpgetfix(nr->val.u.xval) != 1)
-			goto com;
+			break;
 		gins(optoas(OINC, nl->type), N, nl);
 		goto ret;
 	case OSUB:
 		if(!isint[nl->type->etype])
-			goto com;
+			break;
 		if(mpgetfix(nr->val.u.xval) != 1)
-			goto com;
+			break;
 		gins(optoas(ODEC, nl->type), N, nl);
 		goto ret;
+	}
 
-	com:
+	if(nl->addable)
+	switch(n->etype) {
 	case OXOR:
 	case OAND:
 	case OOR:
+	case OADD:
+	case OSUB:
 		if(!isint[nl->type->etype])
 			break;
-		gins(optoas(n->etype, nl->type), nr, nl);
+		if(!isint[nr->type->etype])
+			break;
+		regalloc(&n2, nr->type, N);
+		cgen(nr, &n2);
+		gins(optoas(n->etype, nl->type), &n2, nl);
+		regfree(&n2);
 		goto ret;
 	}
 
