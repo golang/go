@@ -189,9 +189,13 @@ struct	SigTab
 struct	Func
 {
 	string	name;
-	string	type;
-	uint64	entry;
-	int64	frame;
+	string	type;	// go type string
+	string	src;	// src file name
+	uint64	entry;	// entry pc
+	int64	frame;	// stack frame size
+	Array	pcln;	// pc/ln tab for this func
+	int64	pc0;	// starting pc, ln for table
+	int32	ln0;
 };
 
 /*
@@ -261,6 +265,7 @@ void	signalstack(byte*, int32);
 G*	malg(int32);
 void	minit(void);
 Func*	findfunc(uint64);
+int32	funcline(Func*, uint64);
 
 /*
  * mutual exclusion locks.  in the uncontended case,
