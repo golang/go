@@ -29,15 +29,100 @@ export type Flags struct {
 }
 
 
+type ErrorHandler struct {
+	filename string;
+	src string;
+	nerrors int;
+	nwarnings int;
+	errpos int;
+	columns bool;
+}
+
+
+func (h *ErrorHandler) Init(filename, src string, columns bool) {
+	h.filename = filename;
+	h.src = src;
+	h.nerrors = 0;
+	h.nwarnings = 0;
+	h.errpos = 0;
+	h.columns = columns;
+}
+
+
+// Compute (line, column) information for a given source position.
+func (h *ErrorHandler) LineCol(pos int) (line, col int) {
+	line = 1;
+	lpos := 0;
+	
+	src := h.src;
+	if pos > len(src) {
+		pos = len(src);
+	}
+
+	for i := 0; i < pos; i++ {
+		if src[i] == '\n' {
+			line++;
+			lpos = i;
+		}
+	}
+	
+	return line, pos - lpos;
+}
+
+
+func (h *ErrorHandler) ErrorMsg(pos int, msg string) {
+	print(h.filename, ":");
+	if pos >= 0 {
+		// print position
+		line, col := h.LineCol(pos);
+		print(line, ":");
+		if h.columns {
+			print(col, ":");
+		}
+	}
+	print(" ", msg, "\n");
+	
+	h.nerrors++;
+	h.errpos = pos;
+
+	if h.nerrors >= 10 {
+		sys.exit(1);
+	}
+}
+
+
+func (h *ErrorHandler) Error(pos int, msg string) {
+	// only report errors that are sufficiently far away from the previous error
+	// in the hope to avoid most follow-up errors
+	const errdist = 20;
+	delta := pos - h.errpos;  // may be negative!
+	if delta < 0 {
+		delta = -delta;
+	}
+	
+	if delta > errdist || h.nerrors == 0 /* always report first error */ {
+		h.ErrorMsg(pos, msg);
+	}	
+}
+
+
+func (h *ErrorHandler) Warning(pos int, msg string) {
+	panic("UNIMPLEMENTED");
+}
+
+
 export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	src, ok := Platform.ReadSourceFile(src_file);
 	if !ok {
 		print("cannot open ", src_file, "\n");
 		return nil, 1;
 	}
+	
+	var err ErrorHandler;
+	err.Init(src_file, src, flags.columns);
 
 	var scanner Scanner.Scanner;
-	scanner.Open(src_file, src, flags.columns, flags.testmode);
+	scanner.Init(&err, src, flags.testmode);
 
 	var tstream *<-chan *Scanner.Token;
 	if flags.tokenchan {
@@ -48,7 +133,7 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	parser.Open(flags.verbose, flags.sixg, flags.deps, &scanner, tstream);
 
 	prog := parser.ParseProgram();
-	return prog, scanner.nerrors;
+	return prog, err.nerrors;
 }
 
 
