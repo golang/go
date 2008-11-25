@@ -45,6 +45,7 @@ var fmttests = []FmtTest{
 	// basic bytes
 	FmtTest{ "%s",	Bytes("abc"),	"abc" },
 	FmtTest{ "%x",	Bytes("abc"),	"616263" },
+	FmtTest{ "% x",	Bytes("abc"),	"61 62 63" },
 	FmtTest{ "%x",	Bytes("xyz"),	"78797a" },
 	FmtTest{ "%X",	Bytes("xyz"),	"78797A" },
 	FmtTest{ "%q",	Bytes("abc"),	`"abc"` },

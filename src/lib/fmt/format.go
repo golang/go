@@ -374,6 +374,9 @@ func (f *Fmt) s(s string) *Fmt {
 func (f *Fmt) sx(s string) *Fmt {
 	t := "";
 	for i := 0; i < len(s); i++ {
+		if i > 0 && f.space {
+			t += " ";
+		}
 		v := s[i];
 		t += string(ldigits[v>>4]);
 		t += string(ldigits[v&0xF]);
