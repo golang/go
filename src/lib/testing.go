@@ -86,7 +86,7 @@ export func Main(tests *[]Test) {
 	flag.Parse();
 	ok := true;
 	if len(tests) == 0 {
-		println("gotest: warning: no tests to run");
+		println("testing: warning: no tests to run");
 	}
 	for i := 0; i < len(tests); i++ {
 		if chatty {

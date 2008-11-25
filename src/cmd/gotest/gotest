@@ -55,12 +55,21 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
 	# test array
 	echo
 	echo 'var tests = &[]testing.Test {'
-	# test functions are named TestFoo
-	# the grep -v eliminates methods and other special names
-	# that have multiple dots.
-	for i in $(6nm -s $ofiles | grep ' T .*·Test[A-Z]' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+	for ofile in $ofiles
 	do
-		echo '	testing.Test{ "'$i'", &'$i' },'
+		# test functions are named TestFoo
+		# the grep -v eliminates methods and other special names
+		# that have multiple dots.
+		pattern='Test([^a-z].*)?'
+		tests=$(6nm -s $ofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+		if [ "x$tests" = x ]; then
+			echo 'gotest: warning: no tests matching '$pattern' in '$ofile 1>&2
+		else
+			for i in $tests
+			do
+				echo '	testing.Test{ "'$i'", &'$i' },'
+			done
+		fi
 	done
 	echo '}'
 	# body
