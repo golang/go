@@ -139,7 +139,8 @@ testfdfault()
 		a[i] = 0;
 	}
 	print("should fault\n");
-	a[80] = 0;
+	x := 80;
+	a[x] = 0;
 	print("bad\n");
 }
 
