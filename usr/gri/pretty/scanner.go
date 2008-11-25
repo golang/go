@@ -3,6 +3,8 @@
 // license that can be found in the LICENSE file.
 
 package Scanner
+
+import "utf8"
 import Utils "utils"
 
 
@@ -276,15 +278,17 @@ func digit_val(ch int) int {
 }
 
 
+export type ErrorHandler interface {
+	Error(pos int, msg string);
+	Warning(pos int, msg string);
+}
+
+
 export type Scanner struct {
-	// error handling
-	filename string;  // error reporting only
-	nerrors int;  // number of errors
-	errpos int;  // last error position
-	columns bool;  // if set, print columns in error messages
+	err ErrorHandler;
 
 	// scanning
-	src string;  // scanned source
+	src string;  // source
 	pos int;  // current reading position
 	ch int;  // one char look-ahead
 	chpos int;  // position of ch
@@ -304,7 +308,7 @@ func (S *Scanner) Next() {
 		r, w := int(S.src[S.pos]), 1;
 		if r >= 0x80 {
 			// not ascii
-			r, w = sys.stringtorune(S.src, S.pos);
+			r, w = utf8.DecodeRuneInString(S.src, S.pos);
 		}
 		S.ch = r;
 		S.chpos = S.pos;
@@ -312,144 +316,6 @@ func (S *Scanner) Next() {
 	} else {
 		S.ch = -1;  // eof
 		S.chpos = len(S.src);
-	}
-/*
-	const (
-		Bit1 = 7;
-		Bitx = 6;
-		Bit2 = 5;
-		Bit3 = 4;
-		Bit4 = 3;
-
-		T1 = (1 << (Bit1 + 1) - 1) ^ 0xFF;  // 0000 0000
-		Tx = (1 << (Bitx + 1) - 1) ^ 0xFF;  // 1000 0000
-		T2 = (1 << (Bit2 + 1) - 1) ^ 0xFF;  // 1100 0000
-		T3 = (1 << (Bit3 + 1) - 1) ^ 0xFF;  // 1110 0000
-		T4 = (1 << (Bit4 + 1) - 1) ^ 0xFF;  // 1111 0000
-
-		Rune1 = 1 << (Bit1 + 0*Bitx) - 1;  // 0000 0000 0111 1111
-		Rune2 = 1 << (Bit2 + 1*Bitx) - 1;  // 0000 0111 1111 1111
-		Rune3 = 1 << (Bit3 + 2*Bitx) - 1;  // 1111 1111 1111 1111
-
-		Maskx = 0x3F;  // 1 << Bitx - 1;  // 0011 1111
-		Testx = 0xC0;  // Maskx ^ 0xFF;  // 1100 0000
-
-		Bad	= 0xFFFD;  // Runeerror
-	);
-
-	src := S.src;
-	lim := len(src);
-	pos := S.pos;
-	
-	// 1-byte sequence
-	// 0000-007F => T1
-	if pos >= lim {
-		S.ch = -1;  // end of file
-		S.chpos = lim;
-		return;
-	}
-	c0 := int(src[pos]);
-	pos++;
-	if c0 < Tx {
-		S.ch = c0;
-		S.chpos = S.pos;
-		S.pos = pos;
-		return;
-	}
-
-	// 2-byte sequence
-	// 0080-07FF => T2 Tx
-	if pos >= lim {
-		goto bad;
-	}
-	c1 := int(src[pos]) ^ Tx;
-	pos++;
-	if c1 & Testx != 0 {
-		goto bad;
-	}
-	if c0 < T3 {
-		if c0 < T2 {
-			goto bad;
-		}
-		r := (c0 << Bitx | c1) & Rune2;
-		if  r <= Rune1 {
-			goto bad;
-		}
-		S.ch = r;
-		S.chpos = S.pos;
-		S.pos = pos;
-		return;
-	}
-
-	// 3-byte sequence
-	// 0800-FFFF => T3 Tx Tx
-	if pos >= lim {
-		goto bad;
-	}
-	c2 := int(src[pos]) ^ Tx;
-	pos++;
-	if c2 & Testx != 0 {
-		goto bad;
-	}
-	if c0 < T4 {
-		r := (((c0 << Bitx | c1) << Bitx) | c2) & Rune3;
-		if r <= Rune2 {
-			goto bad;
-		}
-		S.ch = r;
-		S.chpos = S.pos;
-		S.pos = pos;
-		return;
-	}
-
-	// bad encoding
-bad:
-	S.ch = Bad;
-	S.chpos = S.pos;
-	S.pos += 1;
-	return;
-*/
-}
-
-
-// Compute (line, column) information for a given source position.
-func (S *Scanner) LineCol(pos int) (line, col int) {
-	line = 1;
-	lpos := 0;
-	
-	src := S.src;
-	if pos > len(src) {
-		pos = len(src);
-	}
-
-	for i := 0; i < pos; i++ {
-		if src[i] == '\n' {
-			line++;
-			lpos = i;
-		}
-	}
-	
-	return line, pos - lpos;
-}
-
-
-func (S *Scanner) ErrorMsg(pos int, msg string) {
-	print(S.filename, ":");
-	if pos >= 0 {
-		// print position
-		line, col := S.LineCol(pos);
-		print(line, ":");
-		if S.columns {
-			print(col, ":");
-		}
-	}
-	print(" ", msg, "\n");
-	
-	S.nerrors++;
-	S.errpos = pos;
-
-	if S.nerrors >= 10 {
-		sys.exit(1);
 	}
 }
 
@@ -464,17 +330,7 @@ func (S *Scanner) Error(pos int, msg string) {
 		return;
 	}
 	
-	// only report errors that are sufficiently far away from the previous error
-	// in the hope to avoid most follow-up errors
-	const errdist = 20;
-	delta := pos - S.errpos;  // may be negative!
-	if delta < 0 {
-		delta = -delta;
-	}
-	
-	if delta > errdist || S.nerrors == 0 /* always report first error */ {
-		S.ErrorMsg(pos, msg);
-	}	
+	S.err.Error(pos, msg);
 }
 
 
@@ -485,11 +341,8 @@ func (S *Scanner) ExpectNoErrors() {
 }
 
 
-func (S *Scanner) Open(filename, src string, columns, testmode bool) {
-	S.filename = filename;
-	S.nerrors = 0;
-	S.errpos = 0;
-	S.columns = columns;
+func (S *Scanner) Init(err ErrorHandler, src string, testmode bool) {
+	S.err = err;
 	
 	S.src = src;
 	S.pos = 0;
@@ -600,7 +453,7 @@ exit:
 	
 		if 0 <= oldpos && oldpos <= len(S.src) {
 			// the previous error was not found
-			S.ErrorMsg(oldpos, "ERROR not found");
+			S.Error(oldpos, "ERROR not found");  // TODO this should call ErrorMsg
 		}
 	}
 
