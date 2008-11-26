@@ -17,10 +17,7 @@ export const (
 	STRING;
 	EOF;
 
-	COMMENT_BB;
-	COMMENT_BW;
-	COMMENT_WB;
-	COMMENT_WW;
+	COMMENT;
 
 	ADD;
 	SUB;
@@ -124,10 +121,7 @@ export func TokenString(tok int) string {
 	case STRING: return "STRING";
 	case EOF: return "EOF";
 
-	case COMMENT_BB: return "COMMENT_BB";
-	case COMMENT_BW: return "COMMENT_BW";
-	case COMMENT_WB: return "COMMENT_WB";
-	case COMMENT_WW: return "COMMENT_WW";
+	case COMMENT: return "COMMENT";
 
 	case ADD: return "+";
 	case SUB: return "-";
@@ -285,10 +279,12 @@ export type ErrorHandler interface {
 
 
 export type Scanner struct {
+	// setup
 	err ErrorHandler;
+	src string;  // source
+	scan_comments bool;
 
 	// scanning
-	src string;  // source
 	pos int;  // current reading position
 	ch int;  // one char look-ahead
 	chpos int;  // position of ch
@@ -341,10 +337,11 @@ func (S *Scanner) ExpectNoErrors() {
 }
 
 
-func (S *Scanner) Init(err ErrorHandler, src string, testmode bool) {
+func (S *Scanner) Init(err ErrorHandler, src string, scan_comments, testmode bool) {
 	S.err = err;
-	
 	S.src = src;
+	S.scan_comments = scan_comments;
+
 	S.pos = 0;
 	S.linepos = 0;
 
@@ -379,41 +376,43 @@ func (S *Scanner) Expect(ch int) {
 }
 
 
-// Returns true if a newline was seen, returns false otherwise.
-func (S *Scanner) SkipWhitespace() bool {
-	sawnl := S.chpos == 0;  // file beginning is always start of a new line
+func (S *Scanner) SkipWhitespace() {
 	for {
 		switch S.ch {
-		case '\t', '\r', ' ':  // nothing to do
-		case '\n': sawnl = true;
-		default: return sawnl;
+		case '\t', '\r', ' ':
+			// nothing to do
+		case '\n':
+			if S.scan_comments {
+				return;
+			}
+		default:
+			return;
 		}
 		S.Next();
 	}
 	panic("UNREACHABLE");
-	return false;
 }
 
 
-func (S *Scanner) ScanComment(leading_ws bool) (tok int, val string) {
+func (S *Scanner) ScanComment() string {
 	// first '/' already consumed
 	pos := S.chpos - 1;
 	
 	if S.ch == '/' {
-		// comment
+		//-style comment
 		S.Next();
 		for S.ch >= 0 {
 			S.Next();
 			if S.ch == '\n' {
 				// '\n' terminates comment but we do not include
-				// it in the comment (otherwise we cannot see the
+				// it in the comment (otherwise we don't see the
 				// start of a newline in SkipWhitespace()).
 				goto exit;
 			}
 		}
 		
 	} else {
-		/* comment */
+		/*-style comment */
 		S.Expect('*');
 		for S.ch >= 0 {
 			ch := S.ch;
@@ -429,12 +428,6 @@ func (S *Scanner) ScanComment(leading_ws bool) (tok int, val string) {
 
 exit:
 	comment := S.src[pos : S.chpos];
-
-	// skip whitespace but stop at line end
-	for S.ch == '\t' || S.ch == '\r' || S.ch == ' ' {
-		S.Next();
-	}
-	trailing_ws := S.ch == '\n';
 
 	if S.testmode {
 		// interpret ERROR and SYNC comments
@@ -457,21 +450,7 @@ exit:
 		}
 	}
 
-	if leading_ws {
-		if trailing_ws {
-			tok = COMMENT_WW;
-		} else {
-			tok = COMMENT_WB;
-		}
-	} else {
-		if trailing_ws {
-			tok = COMMENT_BW;
-		} else {
-			tok = COMMENT_BB;
-		}
-	}
-
-	return tok, comment;
+	return comment;
 }
 
 
@@ -700,7 +679,7 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
 
 
 func (S *Scanner) Scan() (pos, tok int, val string) {
-	sawnl := S.SkipWhitespace();
+L:	S.SkipWhitespace();
 	
 	pos, tok = S.chpos, ILLEGAL;
 	
@@ -711,6 +690,7 @@ func (S *Scanner) Scan() (pos, tok int, val string) {
 		S.Next();  // always make progress
 		switch ch {
 		case -1: tok = EOF;
+		case '\n': tok, val = COMMENT, "\n";
 		case '"': tok, val = STRING, S.ScanString();
 		case '\'': tok, val = INT, S.ScanChar();
 		case '`': tok, val = STRING, S.ScanRawString();
@@ -740,7 +720,10 @@ func (S *Scanner) Scan() (pos, tok int, val string) {
 		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
-				tok, val = S.ScanComment(sawnl);
+				tok, val = COMMENT, S.ScanComment();
+				if !S.scan_comments {
+					goto L;
+				}
 			} else {
 				tok = S.Select2(QUO, QUO_ASSIGN);
 			}

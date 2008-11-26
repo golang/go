@@ -49,8 +49,7 @@ func main() {
 				return;
 			}
 			if !silent.BVal() && !flags.testmode {
-				var P Printer.Printer;
-				(&P).Program(prog);
+				Printer.Print(prog);
 			}
 		}
 	}
