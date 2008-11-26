@@ -76,27 +76,27 @@ struct ucontext {
 void
 print_sigcontext(struct sigcontext *sc)
 {
-	prints("\nrax     0x");  sys·printpointer((void*)sc->rax);
-	prints("\nrbx     0x");  sys·printpointer((void*)sc->rbx);
-	prints("\nrcx     0x");  sys·printpointer((void*)sc->rcx);
-	prints("\nrdx     0x");  sys·printpointer((void*)sc->rdx);
-	prints("\nrdi     0x");  sys·printpointer((void*)sc->rdi);
-	prints("\nrsi     0x");  sys·printpointer((void*)sc->rsi);
-	prints("\nrbp     0x");  sys·printpointer((void*)sc->rbp);
-	prints("\nrsp     0x");  sys·printpointer((void*)sc->rsp);
-	prints("\nr8      0x");  sys·printpointer((void*)sc->r8 );
-	prints("\nr9      0x");  sys·printpointer((void*)sc->r9 );
-	prints("\nr10     0x");  sys·printpointer((void*)sc->r10);
-	prints("\nr11     0x");  sys·printpointer((void*)sc->r11);
-	prints("\nr12     0x");  sys·printpointer((void*)sc->r12);
-	prints("\nr13     0x");  sys·printpointer((void*)sc->r13);
-	prints("\nr14     0x");  sys·printpointer((void*)sc->r14);
-	prints("\nr15     0x");  sys·printpointer((void*)sc->r15);
-	prints("\nrip     0x");  sys·printpointer((void*)sc->rip);
-	prints("\nrflags  0x");  sys·printpointer((void*)sc->eflags);
-	prints("\ncs      0x");  sys·printpointer((void*)sc->cs);
-	prints("\nfs      0x");  sys·printpointer((void*)sc->fs);
-	prints("\ngs      0x");  sys·printpointer((void*)sc->gs);
+	prints("\nrax     ");  sys·printhex(sc->rax);
+	prints("\nrbx     ");  sys·printhex(sc->rbx);
+	prints("\nrcx     ");  sys·printhex(sc->rcx);
+	prints("\nrdx     ");  sys·printhex(sc->rdx);
+	prints("\nrdi     ");  sys·printhex(sc->rdi);
+	prints("\nrsi     ");  sys·printhex(sc->rsi);
+	prints("\nrbp     ");  sys·printhex(sc->rbp);
+	prints("\nrsp     ");  sys·printhex(sc->rsp);
+	prints("\nr8      ");  sys·printhex(sc->r8 );
+	prints("\nr9      ");  sys·printhex(sc->r9 );
+	prints("\nr10     ");  sys·printhex(sc->r10);
+	prints("\nr11     ");  sys·printhex(sc->r11);
+	prints("\nr12     ");  sys·printhex(sc->r12);
+	prints("\nr13     ");  sys·printhex(sc->r13);
+	prints("\nr14     ");  sys·printhex(sc->r14);
+	prints("\nr15     ");  sys·printhex(sc->r15);
+	prints("\nrip     ");  sys·printhex(sc->rip);
+	prints("\nrflags  ");  sys·printhex(sc->eflags);
+	prints("\ncs      ");  sys·printhex(sc->cs);
+	prints("\nfs      ");  sys·printhex(sc->fs);
+	prints("\ngs      ");  sys·printhex(sc->gs);
 	prints("\n");
 }
 
@@ -149,8 +149,8 @@ sighandler(int32 sig, siginfo* info, void** context)
 		prints(sigtab[sig].name);
 	}
 
-	prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
-	prints("\npc: 0x");  sys·printpointer((void *)sc->rip);
+	prints("\nFaulting address: ");  sys·printpointer(info->si_addr);
+	prints("\npc: ");  sys·printhex(sc->rip);
 	prints("\n\n");
 
 	if(gotraceback()){

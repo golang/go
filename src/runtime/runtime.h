@@ -155,6 +155,7 @@ struct	M
 	byte*	moresp;
 	int32	siz1;
 	int32	siz2;
+	int32	id;
 	Note	havenextg;
 	G*	nextg;
 	M*	schedlink;
@@ -196,6 +197,8 @@ struct	Func
 	Array	pcln;	// pc/ln tab for this func
 	int64	pc0;	// starting pc, ln for table
 	int32	ln0;
+	int32	args;	// number of 32-bit in/out args
+	int32	locals;	// number of 32-bit locals
 };
 
 /*
@@ -239,6 +242,7 @@ void*	getu(void);
 void	throw(int8*);
 uint32	rnd(uint32, uint32);
 void	prints(int8*);
+void	printf(int8*, ...);
 byte*	mchr(byte*, byte, byte*);
 void	mcpy(byte*, byte*, uint32);
 void	mmov(byte*, byte*, uint32);
@@ -313,6 +317,8 @@ void	sys·printint(int64);
 void	sys·printstring(string);
 void	sys·printpc(void*);
 void	sys·printpointer(void*);
+void	sys·printuint(uint64);
+void	sys·printhex(uint64);
 void	sys·catstring(string, string, string);
 void	sys·cmpstring(string, string, int32);
 void	sys·slicestring(string, int32, int32, string);

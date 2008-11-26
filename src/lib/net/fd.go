@@ -248,9 +248,11 @@ func (fd *FD) Write(p *[]byte) (n int, err *os.Error) {
 	if fd == nil || fd.osfd == nil {
 		return -1, os.EINVAL
 	}
+	// TODO(rsc): Lock fd while writing to avoid interlacing writes.
 	err = nil;
 	nn := 0;
 	for nn < len(p) && err == nil {
+		// TODO(rsc): If os.FD.Write loops, have to use syscall instead.
 		n, err = fd.osfd.Write(p[nn:len(p)]);
 		for err == os.EAGAIN {
 			pollserver.WaitWrite(fd);
