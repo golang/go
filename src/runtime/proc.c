@@ -10,6 +10,7 @@ M	m0;
 G	g0;	// idle goroutine for m0
 
 static	int32	debug	= 0;
+static	Lock	debuglock;
 
 // Go scheduler
 //
@@ -49,8 +50,10 @@ struct Sched {
 
 	M *mhead;	// ms waiting for work
 	int32 mwait;	// number of ms waiting for work
-	int32 mcount;	// number of ms that are alive
-	int32 mmax;	// max number of ms allowed
+	int32 mcount;	// number of ms that have been created
+	int32 mcpu;	// number of ms executing on cpu
+	int32 mcpumax;	// max number of ms allowed on cpu
+	int32 msyscall;	// number of ms in system calls
 
 	int32 predawn;	// running initialization, don't run new gs.
 };
@@ -64,7 +67,7 @@ static void mput(M*);	// put/get on mhead
 static M* mget(void);
 static void gfput(G*);	// put/get on gfree
 static G* gfget(void);
-static void mnew(void);	// kick off new m
+static void matchmg(void);	// match ms to gs
 static void readylocked(G*);	// ready, but sched is locked
 
 // Scheduler loop.
@@ -88,10 +91,10 @@ schedinit(void)
 	int32 n;
 	byte *p;
 
-	sched.mmax = 1;
+	sched.mcpumax = 1;
 	p = getenv("GOMAXPROCS");
 	if(p != nil && (n = atoi(p)) != 0)
-		sched.mmax = n;
+		sched.mcpumax = n;
 	sched.mcount = 1;
 	sched.predawn = 1;
 }
@@ -100,26 +103,24 @@ schedinit(void)
 void
 initdone(void)
 {
-	int32 i;
-
 	// Let's go.
 	sched.predawn = 0;
 
-	// There's already one m (us).
 	// If main·init_function started other goroutines,
 	// kick off new ms to handle them, like ready
 	// would have, had it not been pre-dawn.
-	for(i=1; i<sched.gcount && i<sched.mmax; i++)
-		mnew();
+	lock(&sched);
+	matchmg();
+	unlock(&sched);
 }
 
 void
 sys·goexit(void)
 {
-	if(debug){
-		prints("goexit goid=");
-		sys·printint(g->goid);
-		prints("\n");
+	if(debug > 1){
+		lock(&debuglock);
+		printf("goexit goid=%d\n", g->goid);
+		unlock(&debuglock);
 	}
 	g->status = Gmoribund;
 	sys·gosched();
@@ -146,10 +147,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 	byte *stk, *sp;
 	G *newg;
 
-//prints("newproc siz=");
-//sys·printint(siz);
-//prints(" fn=");
-//sys·printpointer(fn);
+//printf("newproc siz=%d fn=%p", siz, fn);
 
 	siz = (siz+7) & ~7;
 	if(siz > 1024)
@@ -189,9 +187,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 	readylocked(newg);
 	unlock(&sched);
 
-//prints(" goid=");
-//sys·printint(newg->goid);
-//prints("\n");
+//printf(" goid=%d\n", newg->goid);
 }
 
 void
@@ -202,9 +198,7 @@ tracebackothers(G *me)
 	for(g = allg; g != nil; g = g->alllink) {
 		if(g == me || g->status == Gdead)
 			continue;
-		prints("\ngoroutine ");
-		sys·printint(g->goid);
-		prints(":\n");
+		printf("\ngoroutine %d:\n", g->goid);
 		traceback(g->sched.PC, g->sched.SP+8, g);  // gogo adjusts SP by 8 (not portable!)
 	}
 }
@@ -296,8 +290,6 @@ ready(G *g)
 static void
 readylocked(G *g)
 {
-	M *m;
-
 	if(g->m){
 		// Running on another machine.
 		// Ready it when it stops.
@@ -310,42 +302,49 @@ readylocked(G *g)
 		throw("bad g->status in ready");
 	g->status = Grunnable;
 
-	// Before we've gotten to main·main,
-	// only queue new gs, don't run them
-	// or try to allocate new ms for them.
-	// That includes main·main itself.
-	if(sched.predawn){
-		gput(g);
-	}
-
-	// Else if there's an m waiting, give it g.
-	else if((m = mget()) != nil){
-		m->nextg = g;
-		notewakeup(&m->havenextg);
-	}
-
-	// Else put g on queue, kicking off new m if needed.
-	else{
-		gput(g);
-		if(sched.mcount < sched.mmax)
-			mnew();
-	}
+	gput(g);
+	if(!sched.predawn)
+		matchmg();
 }
 
 // Get the next goroutine that m should run.
 // Sched must be locked on entry, is unlocked on exit.
+// Makes sure that at most $GOMAXPROCS gs are
+// running on cpus (not in system calls) at any given time.
 static G*
 nextgandunlock(void)
 {
 	G *gp;
 
-	if((gp = gget()) != nil){
+	// On startup, each m is assigned a nextg and
+	// has already been accounted for in mcpu.
+	if(m->nextg != nil) {
+		gp = m->nextg;
+		m->nextg = nil;
 		unlock(&sched);
+		if(debug > 1) {
+			lock(&debuglock);
+			printf("m%d nextg found g%d\n", m->id, gp->goid);
+			unlock(&debuglock);
+		}
 		return gp;
 	}
 
+	// Otherwise, look for work.
+	if(sched.mcpu < sched.mcpumax && (gp=gget()) != nil) {
+		sched.mcpu++;
+		unlock(&sched);
+		if(debug > 1) {
+			lock(&debuglock);
+			printf("m%d nextg got g%d\n", m->id, gp->goid);
+			unlock(&debuglock);
+		}
+		return gp;
+	}
+
+	// Otherwise, sleep.
 	mput(m);
-	if(sched.mcount == sched.mwait)
+	if(sched.mcpu == 0 && sched.msyscall == 0)
 		throw("all goroutines are asleep - deadlock!");
 	m->nextg = nil;
 	noteclear(&m->havenextg);
@@ -355,6 +354,11 @@ nextgandunlock(void)
 	if((gp = m->nextg) == nil)
 		throw("bad m->nextg in nextgoroutine");
 	m->nextg = nil;
+	if(debug > 1) {
+		lock(&debuglock);
+		printf("m%d nextg woke g%d\n", m->id, gp->goid);
+		unlock(&debuglock);
+	}
 	return gp;
 }
 
@@ -364,6 +368,47 @@ mstart(void)
 {
 	minit();
 	scheduler();
+}
+
+// Kick of new ms as needed (up to mcpumax).
+// There are already `other' other cpus that will
+// start looking for goroutines shortly.
+// Sched is locked.
+static void
+matchmg(void)
+{
+	M *m;
+	G *g;
+
+	if(debug > 1 && sched.ghead != nil) {
+		lock(&debuglock);
+		printf("matchmg mcpu=%d mcpumax=%d gwait=%d\n", sched.mcpu, sched.mcpumax, sched.gwait);
+		unlock(&debuglock);
+	}
+
+	while(sched.mcpu < sched.mcpumax && (g = gget()) != nil){
+		sched.mcpu++;
+		if((m = mget()) != nil){
+			if(debug > 1) {
+				lock(&debuglock);
+				printf("wakeup m%d g%d\n", m->id, g->goid);
+				unlock(&debuglock);
+			}
+			m->nextg = g;
+			notewakeup(&m->havenextg);
+		}else{
+			m = mal(sizeof(M));
+			m->g0 = malg(1024);
+			m->nextg = g;
+			m->id = sched.mcount++;
+			if(debug) {
+				lock(&debuglock);
+				printf("alloc m%d g%d\n", m->id, g->goid);
+				unlock(&debuglock);
+			}
+			newosproc(m, m->g0, m->g0->stackbase, mstart);
+		}
+	}
 }
 
 // Scheduler loop: find g to run, run it, repeat.
@@ -384,6 +429,12 @@ scheduler(void)
 		// Just finished running m->curg.
 		gp = m->curg;
 		gp->m = nil;
+		sched.mcpu--;
+		if(debug > 1) {
+			lock(&debuglock);
+			printf("m%d sched g%d status %d\n", m->id, gp->goid, gp->status);
+			unlock(&debuglock);
+		}
 		switch(gp->status){
 		case Grunnable:
 		case Gdead:
@@ -409,6 +460,11 @@ scheduler(void)
 	gp = nextgandunlock();
 	gp->readyonstop = 0;
 	gp->status = Grunning;
+	if(debug > 1) {
+		lock(&debuglock);
+		printf("m%d run g%d\n", m->id, gp->goid);
+		unlock(&debuglock);
+	}
 	m->curg = gp;
 	gp->m = m;
 	g = gp;
@@ -428,22 +484,59 @@ sys·gosched(void)
 	}
 }
 
-// Fork off a new m.  Sched must be locked.
-static void
-mnew(void)
+// The goroutine g is about to enter a system call.
+// Record that it's not using the cpu anymore.
+// This is called only from the go syscall library, not
+// from the low-level system calls used by the runtime.
+// The "arguments" are syscall.Syscall's stack frame
+void
+sys·entersyscall(uint64 callerpc, int64 trap)
 {
-	M *m;
+	USED(callerpc);
 
-	sched.mcount++;
-	if(debug){
-		sys·printint(sched.mcount);
-		prints(" threads\n");
+	if(debug > 1) {
+		lock(&debuglock);
+		printf("m%d g%d enter syscall %D\n", m->id, g->goid, trap);
+		unlock(&debuglock);
+	}
+	lock(&sched);
+	sched.mcpu--;
+	sched.msyscall++;
+	if(sched.gwait != 0)
+		matchmg();
+	unlock(&sched);
+}
+
+// The goroutine g exited its system call.
+// Arrange for it to run on a cpu again.
+// This is called only from the go syscall library, not
+// from the low-level system calls used by the runtime.
+void
+sys·exitsyscall(void)
+{
+	if(debug > 1) {
+		lock(&debuglock);
+		printf("m%d g%d exit syscall mcpu=%d mcpumax=%d\n", m->id, g->goid, sched.mcpu, sched.mcpumax);
+		unlock(&debuglock);
 	}
 
-	m = mal(sizeof(M));
-	m->g0 = malg(1024);
-	newosproc(m, m->g0, m->g0->stackbase, mstart);
+	lock(&sched);
+	sched.msyscall--;
+	sched.mcpu++;
+	// Fast path - if there's room for this m, we're done.
+	if(sched.mcpu <= sched.mcpumax) {
+		unlock(&sched);
+		return;
+	}
+	unlock(&sched);
+
+	// Slow path - all the cpus are taken.
+	// The scheduler will ready g and put this m to sleep.
+	// When the scheduler takes g awa from m,
+	// it will undo the sched.mcpu++ above.
+	sys·gosched();
 }
+
 
 //
 // the calling sequence for a routine tha
@@ -475,9 +568,7 @@ oldstack(void)
 	uint32 siz2;
 	byte *sp;
 
-// prints("oldstack m->cret = ");
-// sys·printpointer((void*)m->cret);
-// prints("\n");
+// printf("oldstack m->cret=%p\n", m->cret);
 
 	top = (Stktop*)m->curg->stackbase;
 

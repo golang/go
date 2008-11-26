@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// $G $F.go && $L $F.$A && GOMAXPROCS=3 ./$A.out
-// # TODO(rsc): GOMAXPROCS will go away eventually.
-// # 3 is one for Echo, one for Serve, one for Connect.
+// $G $F.go && $L $F.$A && ./$A.out
 
 package main
 import (

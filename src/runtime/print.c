@@ -28,11 +28,74 @@ prints(int8 *s)
 	sys·write(1, s, findnull((byte*)s));
 }
 
+// Very simple printf.  Only for debugging prints.
+// Do not add to this without checking with Rob.
+void
+printf(int8 *s, ...)
+{
+	int8 *p, *lp;
+	byte *arg;
+
+	lp = p = s;
+	arg = (byte*)(&s+1);
+	for(; *p; p++) {
+		if(*p != '%')
+			continue;
+		if(p > lp)
+			sys·write(1, lp, p-lp);
+		p++;
+		switch(*p) {
+		case 'd':
+			sys·printint(*(int32*)arg);
+			arg += 4;
+			break;
+		case 'D':
+			if(((uint32)(uint64)arg)&4)
+				arg += 4;
+			sys·printint(*(int64*)arg);
+			arg += 8;
+			break;
+		case 'x':
+			sys·printhex(*(int32*)arg);
+			arg += 4;
+			break;
+		case 'X':
+			if(((uint32)(uint64)arg)&4)
+				arg += 4;
+			sys·printhex(*(int64*)arg);
+			arg += 8;
+			break;
+		case 'p':
+			if(((uint32)(uint64)arg)&4)
+				arg += 4;
+			sys·printpointer(*(void**)arg);
+			arg += 8;
+			break;
+		case 's':
+			if(((uint32)(uint64)arg)&4)
+				arg += 4;
+			prints(*(int8**)arg);
+			arg += 8;
+			break;
+		case 'S':
+			if(((uint32)(uint64)arg)&4)
+				arg += 4;
+			sys·printstring(*(string*)arg);
+			arg += 8;
+			break;
+		}
+		lp = p+1;
+	}
+	if(p > lp)
+		sys·write(1, lp, p-lp);
+}
+
+
 void
 sys·printpc(void *p)
 {
-	prints("PC=0x");
-	sys·printpointer((byte*)sys·getcallerpc(p) - 1);	// -1 to get to CALL instr.
+	prints("PC=");
+	sys·printhex((uint64)sys·getcallerpc(p));
 }
 
 void
@@ -149,22 +212,26 @@ sys·printint(int64 v)
 }
 
 void
-sys·printpointer(void *p)
+sys·printhex(uint64 v)
 {
-	uint64 v;
+	static int8 *dig = "0123456789abcdef";
 	byte buf[100];
 	int32 i;
 
-	v = (int64)p;
-	for(i=nelem(buf)-1; i>0; i--) {
-		buf[i] = v%16 + '0';
-		if(buf[i] > '9')
-			buf[i] += 'a'-'0'-10;
-		if(v < 16)
-			break;
-		v = v/16;
-	}
+	i=nelem(buf);
+	for(; v>0; v/=16)
+		buf[--i] = dig[v%16];
+	if(i == nelem(buf))
+		buf[--i] = '0';
+	buf[--i] = 'x';
+	buf[--i] = '0';
 	sys·write(1, buf+i, nelem(buf)-i);
+}
+
+void
+sys·printpointer(void *p)
+{
+	sys·printhex((uint64)p);
 }
 
 void
