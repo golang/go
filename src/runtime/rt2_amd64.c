@@ -30,7 +30,6 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 	}
 
 	counter = 0;
-	name = gostring((byte*)"panic");
 	for(;;){
 		callpc = pc;
 		if((uint8*)retfromnewstack == pc) {
@@ -44,10 +43,15 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 			continue;
 		}
 		f = findfunc((uint64)callpc);
-		if(f == nil)
+		if(f == nil) {
+			printf("%p unknown pc\n", callpc);
 			return;
+		}
 		name = f->name;
-		sp += f->frame;
+		if(f->frame < 8)	// assembly funcs say 0 but lie
+			sp += 8;
+		else
+			sp += f->frame;
 		if(counter++ > 100){
 			prints("stack trace terminated\n");
 			break;
@@ -55,32 +59,23 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 		if((pc = ((uint8**)sp)[-1]) <= (uint8*)0x1000)
 			break;
 
-		/* print this frame */
-		prints("0x");
-		sys·printpointer(callpc  - 1);	// -1 to get to CALL instr.
-		prints("?zi ");
-		sys·printstring(f->src);
-		prints(":");
-		sys·printint(funcline(f, (uint64)callpc-1));	// -1 to get to CALL instr.
-		prints("\n");
-		prints("\t");
-		sys·printstring(name);
-		prints("(");
-		for(i = 0; i < 3; i++){
+		// print this frame
+		//	main+0xf /home/rsc/go/src/runtime/x.go:23
+		//		main(0x1, 0x2, 0x3)
+		printf("%S", name);
+		if((uint64)callpc > f->entry)
+			printf("+%X", (uint64)callpc - f->entry);
+		printf(" %S:%d\n", f->src, funcline(f, (uint64)callpc-1));	// -1 to get to CALL instr.
+		printf("\t%S(", name);
+		for(i = 0; i < f->args; i++) {
 			if(i != 0)
 				prints(", ");
-			sys·printint(((uint32*)sp)[i]);
+			sys·printhex(((uint32*)sp)[i]);
+			if(i >= 4) {
+				prints(", ...");
+				break;
+			}
 		}
-		prints(", ...)\n");
-		prints("\t");
-		sys·printstring(name);
-		prints("(");
-		for(i = 0; i < 3; i++){
-			if(i != 0)
-				prints(", ");
-			prints("0x");
-			sys·printpointer(((void**)sp)[i]);
-		}
-		prints(", ...)\n");
+		prints(")\n");
 	}
 }

@@ -127,6 +127,16 @@ dofunc(Sym *sym)
 		if(nfunc > 0 && func != nil)
 			func[nfunc-1].frame = sym->value;
 		break;
+	case 'p':
+		if(nfunc > 0 && func != nil) {
+			f = &func[nfunc-1];
+			// args counts 32-bit words.
+			// sym->value is the arg's offset.
+			// don't know width of this arg, so assume it is 64 bits.
+			if(f->args < sym->value/4 + 2)
+				f->args = sym->value/4 + 2;
+		}
+		break;
 	case 'f':
 		if(fname == nil) {
 			if(sym->value >= nfname)
