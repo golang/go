@@ -122,7 +122,7 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	err.Init(src_file, src, flags.columns);
 
 	var scanner Scanner.Scanner;
-	scanner.Init(&err, src, flags.testmode);
+	scanner.Init(&err, src, true, flags.testmode);
 
 	var tstream *<-chan *Scanner.Token;
 	if flags.tokenchan {

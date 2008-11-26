@@ -4,20 +4,20 @@
 
 package Printer
 
-import "array"
-import Strings "strings"
-import Scanner "scanner"
-import AST "ast"
-import Flag "flag"
-import Fmt "fmt"
-import IO "io"
-import OS "os"
-import TabWriter "tabwriter"
+import (
+	"os";
+	"array";
+	"tabwriter";
+	"flag";
+	"fmt";
+	Scanner "scanner";
+	AST "ast";
+)
 
 var (
-	tabwidth = Flag.Int("tabwidth", 4, nil, "tab width");
-	usetabs = Flag.Bool("usetabs", false, nil, "align with tabs instead of blanks");
-	comments = Flag.Bool("comments", false, nil, "enable printing of comments");
+	tabwidth = flag.Int("tabwidth", 4, nil, "tab width");
+	usetabs = flag.Bool("usetabs", true, nil, "align with tabs instead of blanks");
+	comments = flag.Bool("comments", false, nil, "enable printing of comments");
 )
 
 
@@ -34,25 +34,60 @@ func assert(p bool) {
 // ----------------------------------------------------------------------------
 // Printer
 
-export type Printer struct {
-	writer IO.Write;
+type Printer struct {
+	// output
+	writer *tabwriter.Writer;
 	
+	// comments
+	comments *array.Array;
+	cindex int;
+	cpos int;
+
 	// formatting control
 	lastpos int;  // pos after last string
 	level int;  // true scope level
 	indent int;  // indentation level
 	semi bool;  // pending ";"
 	newl int;  // pending "\n"'s
-
-	// comments
-	clist *array.Array;
-	cindex int;
-	cpos int;
 }
 
 
-func (P *Printer) Printf(fmt string, s ...) {
-	Fmt.fprintf(P.writer, fmt, s);
+func (P *Printer) NextComment() {
+	P.cindex++;
+	if P.comments != nil && P.cindex < P.comments.Len() {
+		P.cpos = P.comments.At(P.cindex).(*AST.Comment).pos;
+	} else {
+		P.cpos = 1<<30;  // infinite
+	}
+}
+
+
+func (P *Printer) Init(writer *tabwriter.Writer, comments *array.Array) {
+	// writer
+	padchar := byte(' ');
+	if usetabs.BVal() {
+		padchar = '\t';
+	}
+	P.writer = tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true);
+
+	// comments
+	P.comments = comments;
+	P.cindex = -1;
+	P.NextComment();
+	
+	// formatting control initialized correctly by default
+}
+
+
+// ----------------------------------------------------------------------------
+// Printing support
+
+func (P *Printer) Printf(format string, s ...) {
+	n, err := fmt.fprintf(P.writer, format, s);
+	if err != nil {
+		panic("print error - exiting");
+	}
+	P.lastpos += n;
 }
 
 
@@ -60,6 +95,7 @@ func (P *Printer) String(pos int, s string) {
 	if pos == 0 {
 		pos = P.lastpos;  // estimate
 	}
+	P.lastpos = pos;
 
 	if P.semi && P.level > 0 {  // no semicolons at level 0
 		P.Printf(";");
@@ -67,66 +103,78 @@ func (P *Printer) String(pos int, s string) {
 
 	//print("--", pos, "[", s, "]\n");
 	
+	src_nl := 0;
 	at_line_begin := false;
 	for comments.BVal() && P.cpos < pos {
 		//print("cc", P.cpos, "\n");
 		
-		// we have a comment that comes before s
-		comment := P.clist.At(P.cindex).(*AST.Comment);
-		text := comment.text;
-		assert(len(text) >= 3);  // classification char + "//" or "/*"
+		// we have a comment/newline that comes before s
+		comment := P.comments.At(P.cindex).(*AST.Comment);
+		ctext := comment.text;
 		
-		// classify comment
-		switch comment.tok {
-		case Scanner.COMMENT_BB:
-			// black space before and after comment on the same line
-			// - print surrounded by blanks
-			P.Printf(" %s ", text);
+		if ctext == "\n" {
+			// found a newline in src
+			src_nl++;
 
-		case Scanner.COMMENT_BW:
-			// only white space after comment on the same line
-			// - put into next cell
-			P.Printf("\t%s", text);
-			
-		case Scanner.COMMENT_WW, Scanner.COMMENT_WB:
-			// only white space before comment on the same line
-			// - indent
-			/*
-			if !P.buf.EmptyLine() {
-				P.buf.Newline();
-			}
-			*/
-			for i := P.indent; i > 0; i-- {
-				P.Printf("\t");
-			}
-			P.Printf("%s", text);
-
-		default:
-			panic("UNREACHABLE");
-		}
-		
-		if text[1] == '/' {
-			// line comments must end in newline
-			// TODO should we set P.newl instead?
-			P.Printf("\n");
-			for i := P.indent; i > 0; i-- {
-				P.Printf("\t");
-			}
-			at_line_begin = true;
-		}
-
-		P.cindex++;
-		if P.cindex < P.clist.Len() {
-			P.cpos = P.clist.At(P.cindex).(*AST.Comment).pos;
 		} else {
-			P.cpos = 1000000000;  // infinite
+			// classify comment
+			assert(len(ctext) >= 3);  // classification char + "//" or "/*"
+			//-style comment
+			if src_nl > 0 || P.cpos == 0 {
+				// only white space before comment on this line
+				// or file starts with comment
+				// - indent
+				P.Printf("\n");
+				for i := P.indent; i > 0; i-- {
+					P.Printf("\t");
+				}
+				P.Printf("%s", ctext);
+			} else {
+				// black space before comment on this line
+				if ctext[1] == '/' {
+					//-style comment
+					// - put in next cell
+					P.Printf("\t%s", ctext);
+				} else {
+					/*-style comment */
+					// - print surrounded by blanks
+					P.Printf(" %s ", ctext);
+				}
+			}
+
+			if ctext[1] == '/' {
+				//-style comments must end in newline
+				if P.newl == 0 {
+					P.newl = 1;
+				}
+				/*
+				// TODO should we set P.newl instead?
+				P.Printf("\n");
+				for i := P.indent; i > 0; i-- {
+					P.Printf("\t");
+				}
+				at_line_begin = true;
+				*/
+			}
+			
+			src_nl = 0;
 		}
+
+		P.NextComment();
 	}
 
 	if at_line_begin && P.newl > 0 {
 		P.newl--;
 	}
 	
+	if src_nl > P.newl {
+		P.newl = src_nl;
+	}
+
+	if P.newl > 2 {
+		P.newl = 2;
+	}
+
 	if P.newl > 0 {
 		P.Printf("\n");
 		if P.newl > 1 {
@@ -141,18 +189,12 @@ func (P *Printer) String(pos int, s string) {
 
 	P.Printf("%s", s);
 
-	P.lastpos = pos + len(s);
 	P.semi, P.newl = false, 0;
 }
 
 
 func (P *Printer) Blank() {
 	P.String(0, " ");
-}
-
-
-func (P *Printer) Tab() {
-	P.String(0, "\t");
 }
 
 
@@ -225,7 +267,7 @@ func (P *Printer) Fields(list *array.Array) {
 				} else if prev == x.tok {
 					P.String(0, ", ");
 				} else {
-					P.Tab();
+					P.String(0, "\t");
 				}
 			}
 			P.Expr(x);
@@ -565,7 +607,7 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 		}
 
 		if d.val != nil {
-			P.Tab();
+			P.String(0, "\t");
 			if d.tok != Scanner.IMPORT {
 				P.String(0, "= ");
 			}
@@ -603,30 +645,37 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 // Program
 
 func (P *Printer) Program(p *AST.Program) {
-	// TODO should initialize all fields?
-	padchar := byte(' ');
-	if usetabs.BVal() {
-		padchar = '\t';
-	}
-	P.writer = TabWriter.New(OS.Stdout, int(tabwidth.IVal()), 1, padchar, true);
-	
-	P.clist = p.comments;
-	P.cindex = 0;
-	if p.comments.Len() > 0 {
-		P.cpos = p.comments.At(0).(*AST.Comment).pos;
-	} else {
-		P.cpos = 1000000000;  // infinite
-	}
-
-	// Print package
 	P.String(p.pos, "package ");
 	P.Expr(p.ident);
 	P.newl = 2;
 	for i := 0; i < p.decls.Len(); i++ {
 		P.Declaration(p.decls.At(i), false);
 	}
-	P.newl = 2;	// TODO we should be able to do this with 1 instead of 2
-				// but we are loosing the last buffer flush in that case
+	
+	// end program with '\n'
+	P.newl = 1;
+}
 
-	P.String(0, "");  // flush buffer
+
+// ----------------------------------------------------------------------------
+// External interface
+
+export func Print(prog *AST.Program) {
+	// setup
+	padchar := byte(' ');
+	if usetabs.BVal() {
+		padchar = '\t';
+	}
+	writer := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true);
+	var P Printer;
+	P.Init(writer, prog.comments);
+
+	P.Program(prog);
+	
+	// flush
+	P.String(0, "");
+	err := P.writer.Flush();
+	if err != nil {
+		panic("print error - exiting");
+	}
 }
