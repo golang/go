@@ -21,6 +21,14 @@ var (
 )
 
 
+func f0(a, b int) int {
+	if a < b {
+		a = a + 1;  // estimate
+	}
+	return b;
+}
+
+
 func main() {
 // the prologue
 	for i := 0; i <= 10 /* limit */; i++ {
@@ -32,5 +40,5 @@ func main() {
 // the epilogue
 	println("foo");  // foo
 	println("foobar");  // foobar
-var x int;
+var x int;  // declare x
 }

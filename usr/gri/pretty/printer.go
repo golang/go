@@ -15,6 +15,7 @@ import (
 )
 
 var (
+	debug = flag.Bool("debug", false, nil, "print debugging information");
 	tabwidth = flag.Int("tabwidth", 4, nil, "tab width");
 	usetabs = flag.Bool("usetabs", true, nil, "align with tabs instead of blanks");
 	comments = flag.Bool("comments", false, nil, "enable printing of comments");
@@ -22,17 +23,27 @@ var (
 
 
 // ----------------------------------------------------------------------------
-// Support
-
-func assert(p bool) {
-	if !p {
-		panic("assert failed");
-	}
-}
-
-
-// ----------------------------------------------------------------------------
 // Printer
+
+// A variety of separators which are printed in a delayed fashion;
+// depending on the next token.
+const (
+	none = iota;
+	blank;
+	tab;
+	comma;
+	semicolon;
+)
+
+
+// Additional printing state to control the output. Fine-tuning
+// can be achieved by adding more specific state.
+const (
+	inline = iota;
+	lineend;
+	funcend;
+)
+
 
 type Printer struct {
 	// output
@@ -47,8 +58,8 @@ type Printer struct {
 	lastpos int;  // pos after last string
 	level int;  // true scope level
 	indent int;  // indentation level
-	semi bool;  // pending ";"
-	newl int;  // pending "\n"'s
+	separator int;  // pending separator
+	state int;  // state info
 }
 
 
@@ -87,114 +98,139 @@ func (P *Printer) Printf(format string, s ...) {
 	if err != nil {
 		panic("print error - exiting");
 	}
-	P.lastpos += n;
+}
+
+
+func (P *Printer) Newline() {
+	P.Printf("\n");
+	for i := P.indent; i > 0; i-- {
+		P.Printf("\t");
+	}
 }
 
 
 func (P *Printer) String(pos int, s string) {
+	// correct pos if necessary
 	if pos == 0 {
 		pos = P.lastpos;  // estimate
 	}
-	P.lastpos = pos;
 
-	if P.semi && P.level > 0 {  // no semicolons at level 0
-		P.Printf(";");
+	// --------------------------------
+	// print pending separator, if any
+	// - keep track of white space printed for better comment formatting
+	trailing_blank := false;
+	trailing_tab := false;
+	switch P.separator {
+	case none:	// nothing to do
+	case blank:
+		P.Printf(" ");
+		trailing_blank = true;
+	case tab:
+		P.Printf("\t");
+		trailing_tab = true;
+	case comma:
+		P.Printf(",");
+		if P.state == inline {
+			P.Printf(" ");
+			trailing_blank = true;
+		}
+	case semicolon:
+		if P.level > 0 {	// no semicolons at level 0
+			P.Printf(";");
+			if P.state == inline {
+				P.Printf(" ");
+				trailing_blank = true;
+			}
+		}
+	default:	panic("UNREACHABLE");
 	}
+	P.separator = none;
 
-	//print("--", pos, "[", s, "]\n");
-	
-	src_nl := 0;
-	at_line_begin := false;
+	// --------------------------------
+	// interleave comments, if any
+	nlcount := 0;
 	for comments.BVal() && P.cpos < pos {
-		//print("cc", P.cpos, "\n");
-		
-		// we have a comment/newline that comes before s
+		// we have a comment/newline that comes before the string
 		comment := P.comments.At(P.cindex).(*AST.Comment);
 		ctext := comment.text;
 		
 		if ctext == "\n" {
-			// found a newline in src
-			src_nl++;
+			// found a newline in src - count them
+			nlcount++;
 
 		} else {
-			// classify comment
-			assert(len(ctext) >= 3);  // classification char + "//" or "/*"
+			// classify comment (len(ctext) >= 2)
 			//-style comment
-			if src_nl > 0 || P.cpos == 0 {
+			if nlcount > 0 || P.cpos == 0 {
 				// only white space before comment on this line
 				// or file starts with comment
 				// - indent
-				P.Printf("\n");
-				for i := P.indent; i > 0; i-- {
-					P.Printf("\t");
-				}
-				P.Printf("%s", ctext);
+				P.Newline();
 			} else {
 				// black space before comment on this line
 				if ctext[1] == '/' {
 					//-style comment
 					// - put in next cell
-					P.Printf("\t%s", ctext);
+					if !trailing_tab {
+						P.Printf("\t");
+					}
 				} else {
 					/*-style comment */
 					// - print surrounded by blanks
-					P.Printf(" %s ", ctext);
+					if !trailing_blank && !trailing_tab {
+						P.Printf(" ");
+					}
+					ctext += " ";
 				}
 			}
+			
+			if debug.BVal() {
+				P.Printf("[%d]", P.cpos);
+			}
+			P.Printf("%s", ctext);
 
 			if ctext[1] == '/' {
 				//-style comments must end in newline
-				if P.newl == 0 {
-					P.newl = 1;
+				if P.state == inline {  // don't override non-inline states
+					P.state = lineend;
 				}
-				/*
-				// TODO should we set P.newl instead?
-				P.Printf("\n");
-				for i := P.indent; i > 0; i-- {
-					P.Printf("\t");
-				}
-				at_line_begin = true;
-				*/
 			}
 			
-			src_nl = 0;
+			nlcount = 0;
 		}
 
 		P.NextComment();
 	}
 
-	if at_line_begin && P.newl > 0 {
-		P.newl--;
+	// --------------------------------
+	// adjust formatting depending on state
+	switch P.state {
+	case inline:	// nothing to do
+	case funcend:
+		P.Printf("\n\n");
+		fallthrough;
+	case lineend:
+		P.Newline();
+	default:	panic("UNREACHABLE");
 	}
-	
-	if src_nl > P.newl {
-		P.newl = src_nl;
-	}
+	P.state = inline;
 
-	if P.newl > 2 {
-		P.newl = 2;
+	// --------------------------------
+	// print string
+	if debug.BVal() {
+		P.Printf("[%d]", pos);
 	}
-
-	if P.newl > 0 {
-		P.Printf("\n");
-		if P.newl > 1 {
-			for i := P.newl; i > 1; i-- {
-				P.Printf("\n");
-			}
-		}
-		for i := P.indent; i > 0; i-- {
-			P.Printf("\t");
-		}
-	}
-
 	P.Printf("%s", s);
 
-	P.semi, P.newl = false, 0;
+	// --------------------------------
+	// done
+	P.lastpos = pos + len(s);  // rough estimate
 }
 
 
-func (P *Printer) Blank() {
-	P.String(0, " ");
+func (P *Printer) Separator(separator int) {
+	P.separator = separator;
+	P.String(0, "");
 }
 
 
@@ -204,20 +240,17 @@ func (P *Printer) Token(pos int, tok int) {
 
 
 func (P *Printer) OpenScope(paren string) {
-	//P.semi, P.newl = false, 0;
 	P.String(0, paren);
 	P.level++;
 	P.indent++;
-	P.newl = 1;
+	P.state = lineend;
 }
 
 
-func (P *Printer) CloseScope(paren string) {
+func (P *Printer) CloseScope(pos int, paren string) {
 	P.indent--;
-	P.semi = false;
-	P.String(0, paren);
+	P.String(pos, paren);
 	P.level--;
-	P.semi, P.newl = false, 1;
 }
 
 
@@ -242,9 +275,9 @@ func (P *Printer) Parameters(pos int, list *array.Array) {
 			x := list.At(i).(*AST.Expr);
 			if i > 0 {
 				if prev == x.tok || prev == Scanner.TYPE {
-					P.String(0, ", ");
+					P.Separator(comma);
 				} else {
-					P.Blank();
+					P.Separator(blank);
 				}
 			}
 			P.Expr(x);
@@ -255,7 +288,7 @@ func (P *Printer) Parameters(pos int, list *array.Array) {
 }
 
 
-func (P *Printer) Fields(list *array.Array) {
+func (P *Printer) Fields(list *array.Array, end int) {
 	P.OpenScope("{");
 	if list != nil {
 		var prev int;
@@ -263,19 +296,20 @@ func (P *Printer) Fields(list *array.Array) {
 			x := list.At(i).(*AST.Expr);
 			if i > 0 {
 				if prev == Scanner.TYPE && x.tok != Scanner.STRING || prev == Scanner.STRING {
-					P.semi, P.newl = true, 1;
+					P.separator = semicolon;
+					P.state = lineend;
 				} else if prev == x.tok {
-					P.String(0, ", ");
+					P.separator = comma;
 				} else {
-					P.String(0, "\t");
+					P.separator = tab;
 				}
 			}
 			P.Expr(x);
 			prev = x.tok;
 		}
-		P.newl = 1;
+		P.state = lineend;
 	}
-	P.CloseScope("}");
+	P.CloseScope(end, "}");
 }
 
 
@@ -295,8 +329,8 @@ func (P *Printer) Type(t *AST.Type) {
 	case Scanner.STRUCT, Scanner.INTERFACE:
 		P.Token(t.pos, t.tok);
 		if t.list != nil {
-			P.Blank();
-			P.Fields(t.list);
+			P.separator = blank;
+			P.Fields(t.list, t.end);
 		}
 
 	case Scanner.MAP:
@@ -322,7 +356,7 @@ func (P *Printer) Type(t *AST.Type) {
 	case Scanner.LPAREN:
 		P.Parameters(t.pos, t.list);
 		if t.elt != nil {
-			P.Blank();
+			P.separator = blank;
 			P.Parameters(0, t.elt.list);
 		}
 
@@ -338,7 +372,7 @@ func (P *Printer) Type(t *AST.Type) {
 // ----------------------------------------------------------------------------
 // Expressions
 
-func (P *Printer) Block(list *array.Array, indent bool);
+func (P *Printer) Block(list *array.Array, end int, indent bool);
 
 func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 	if x == nil {
@@ -358,8 +392,8 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		// function literal
 		P.String(x.pos, "func");
 		P.Type(x.t);
-		P.Block(x.block, true);
-		P.newl = 0;
+		P.Block(x.block, x.end, true);
+		P.state = inline;
 
 	case Scanner.COMMA:
 		// list
@@ -416,9 +450,9 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		} else {
 			// binary expression
 			P.Expr1(x.x, prec);
-			P.Blank();
+			P.separator = blank;
 			P.Token(x.pos, x.tok);
-			P.Blank();
+			P.separator = blank;
 		}
 		P.Expr1(x.y, prec);
 		if prec < prec1 {
@@ -442,13 +476,13 @@ func (P *Printer) StatementList(list *array.Array) {
 	if list != nil {
 		for i, n := 0, list.Len(); i < n; i++ {
 			P.Stat(list.At(i).(*AST.Stat));
-			P.newl = 1;
+			P.state = lineend;
 		}
 	}
 }
 
 
-func (P *Printer) Block(list *array.Array, indent bool) {
+func (P *Printer) Block(list *array.Array, end int, indent bool) {
 	P.OpenScope("{");
 	if !indent {
 		P.indent--;
@@ -457,39 +491,42 @@ func (P *Printer) Block(list *array.Array, indent bool) {
 	if !indent {
 		P.indent++;
 	}
-	P.CloseScope("}");
+	P.separator = none;
+	P.CloseScope(end, "}");
 }
 
 
 func (P *Printer) ControlClause(s *AST.Stat) {
 	has_post := s.tok == Scanner.FOR && s.post != nil;  // post also used by "if"
+
+	P.separator = blank;
 	if s.init == nil && !has_post {
 		// no semicolons required
 		if s.expr != nil {
-			P.Blank();
 			P.Expr(s.expr);
 		}
 	} else {
 		// all semicolons required
-		P.Blank();
+		// (they are not separators, print them explicitly)
 		if s.init != nil {
 			P.Stat(s.init);
+			P.separator = none;
 		}
-		P.semi = true;
-		P.Blank();
+		P.Printf(";");
+		P.separator = blank;
 		if s.expr != nil {
 			P.Expr(s.expr);
+			P.separator = none;
 		}
 		if s.tok == Scanner.FOR {
-			P.semi = true;
+			P.Printf(";");
+			P.separator = blank;
 			if has_post {
-				P.Blank();
 				P.Stat(s.post);
-				P.semi = false
 			}
 		}
 	}
-	P.Blank();
+	P.separator = blank;
 }
 
 
@@ -500,7 +537,7 @@ func (P *Printer) Stat(s *AST.Stat) {
 	case Scanner.EXPRSTAT:
 		// expression statement
 		P.Expr(s.expr);
-		P.semi = true;
+		P.separator = semicolon;
 
 	case Scanner.COLON:
 		// label declaration
@@ -508,7 +545,7 @@ func (P *Printer) Stat(s *AST.Stat) {
 		P.Expr(s.expr);
 		P.Token(s.pos, s.tok);
 		P.indent++;
-		P.semi = false;
+		P.separator = none;
 		
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
 		// declaration
@@ -517,52 +554,53 @@ func (P *Printer) Stat(s *AST.Stat) {
 	case Scanner.INC, Scanner.DEC:
 		P.Expr(s.expr);
 		P.Token(s.pos, s.tok);
-		P.semi = true;
+		P.separator = semicolon;
 
 	case Scanner.LBRACE:
 		// block
-		P.Block(s.block, true);
+		P.Block(s.block, s.end, true);
 
 	case Scanner.IF:
 		P.String(s.pos, "if");
 		P.ControlClause(s);
-		P.Block(s.block, true);
+		P.Block(s.block, s.end, true);
 		if s.post != nil {
-			P.newl = 0;
-			P.String(0, " else ");
+			P.separator = blank;
+			P.String(0, "else");
+			P.separator = blank;
 			P.Stat(s.post);
 		}
 
 	case Scanner.FOR:
 		P.String(s.pos, "for");
 		P.ControlClause(s);
-		P.Block(s.block, true);
+		P.Block(s.block, s.end, true);
 
 	case Scanner.SWITCH, Scanner.SELECT:
 		P.Token(s.pos, s.tok);
 		P.ControlClause(s);
-		P.Block(s.block, false);
+		P.Block(s.block, s.end, false);
 
 	case Scanner.CASE, Scanner.DEFAULT:
 		P.Token(s.pos, s.tok);
 		if s.expr != nil {
-			P.Blank();
+			P.separator = blank;
 			P.Expr(s.expr);
 		}
 		P.String(0, ":");
 		P.indent++;
-		P.newl = 1;
+		P.state = lineend;
 		P.StatementList(s.block);
 		P.indent--;
-		P.newl = 1;
+		P.state = lineend;
 
 	case Scanner.GO, Scanner.RETURN, Scanner.FALLTHROUGH, Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
 		P.Token(s.pos, s.tok);
 		if s.expr != nil {
-			P.Blank();
+			P.separator = blank;
 			P.Expr(s.expr);
 		}
-		P.semi = true;
+		P.separator = semicolon;
 
 	default:
 		P.Error(s.pos, s.tok, "stat");
@@ -580,28 +618,29 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 			P.String(d.pos, "export ");
 		}
 		P.Token(d.pos, d.tok);
-		P.Blank();
+		P.separator = blank;
 	}
 
 	if d.tok != Scanner.FUNC && d.list != nil {
 		P.OpenScope("(");
 		for i := 0; i < d.list.Len(); i++ {
 			P.Declaration(d.list.At(i).(*AST.Decl), true);
-			P.semi, P.newl = true, 1;
+			P.separator = semicolon;
+			P.state = lineend;
 		}
-		P.CloseScope(")");
+		P.CloseScope(d.end, ")");
 
 	} else {
 		if d.tok == Scanner.FUNC && d.typ.key != nil {
 			P.Parameters(0, d.typ.key.list);
-			P.Blank();
+			P.separator = blank;
 		}
 
 		P.Expr(d.ident);
 		
 		if d.typ != nil {
 			if d.tok != Scanner.FUNC {
-				P.Blank();
+				P.separator = blank;
 			}
 			P.Type(d.typ);
 		}
@@ -618,25 +657,19 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 			if d.tok != Scanner.FUNC {
 				panic("must be a func declaration");
 			}
-			P.Blank();
-			P.Block(d.list, true);
+			P.separator = blank;
+			P.Block(d.list, d.end, true);
 		}
 		
 		if d.tok != Scanner.TYPE {
-			P.semi = true;
+			P.separator = semicolon;
 		}
 	}
 	
-	P.newl = 1;
-
-	// extra newline after a function declaration
 	if d.tok == Scanner.FUNC {
-		P.newl++;
-	}
-	
-	// extra newline at the top level
-	if P.level == 0 {
-		P.newl++;
+		P.state = funcend;
+	} else {
+		P.state = lineend;
 	}
 }
 
@@ -647,13 +680,11 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 func (P *Printer) Program(p *AST.Program) {
 	P.String(p.pos, "package ");
 	P.Expr(p.ident);
-	P.newl = 2;
+	P.state = lineend;
 	for i := 0; i < p.decls.Len(); i++ {
 		P.Declaration(p.decls.At(i), false);
 	}
-	
-	// end program with '\n'
-	P.newl = 1;
+	P.state = lineend;
 }
 
 

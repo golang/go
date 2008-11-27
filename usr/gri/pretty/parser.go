@@ -399,6 +399,7 @@ func (P *Parser) ParseParameters(ellipsis_ok bool) *AST.Type {
 	if P.tok != Scanner.RPAREN {
 		t.list = P.ParseParameterList(ellipsis_ok);
 	}
+	t.end = P.pos;
 	P.Expect(Scanner.RPAREN);
 	
 	P.Ecart();
@@ -434,6 +435,7 @@ func (P *Parser) ParseResult() *AST.Type {
 			t = AST.NewType(P.pos, Scanner.STRUCT);
 			t.list = array.New(0);
 			t.list.Push(AST.NewTypeExpr(typ));
+			t.end = P.pos;
 		}
 	}
 
@@ -453,6 +455,7 @@ func (P *Parser) ParseFunctionType() *AST.Type {
 	
 	t := AST.NewType(P.pos, Scanner.LPAREN);
 	t.list = P.ParseParameters(true).list;  // TODO find better solution
+	t.end = P.pos;
 	t.elt = P.ParseResult();
 	
 	P.Ecart();
@@ -490,6 +493,7 @@ func (P *Parser) ParseInterfaceType() *AST.Type {
 				P.Expect(Scanner.SEMICOLON);
 			}
 		}
+		t.end = P.pos;
 		P.Expect(Scanner.RBRACE);
 	}
 
@@ -536,6 +540,7 @@ func (P *Parser) ParseStructType() *AST.Type {
 			}
 		}
 		P.OptSemicolon();
+		t.end = P.pos;
 		P.Expect(Scanner.RBRACE);
 	}
 
@@ -609,16 +614,17 @@ func (P *Parser) ParseStatementList() *array.Array {
 }
 
 
-func (P *Parser) ParseBlock() *array.Array {
+func (P *Parser) ParseBlock() (slist *array.Array, end int) {
 	P.Trace("Block");
 	
 	P.Expect(Scanner.LBRACE);
-	s := P.ParseStatementList();
+	slist = P.ParseStatementList();
+	end = P.pos;
 	P.Expect(Scanner.RBRACE);
 	P.opt_semi = true;
 	
 	P.Ecart();
-	return s;
+	return slist, end;
 }
 
 
@@ -654,7 +660,7 @@ func (P *Parser) ParseFunctionLit() *AST.Expr {
 	x.t = P.ParseFunctionType();
 	P.expr_lev++;
 	P.scope_lev++;
-	x.block = P.ParseBlock();
+	x.block, x.end = P.ParseBlock();
 	P.scope_lev--;
 	P.expr_lev--;
 	
@@ -1096,7 +1102,7 @@ func (P *Parser) ParseIfStat() *AST.Stat {
 	P.Trace("IfStat");
 
 	s := P.ParseControlClause(Scanner.IF);
-	s.block = P.ParseBlock();
+	s.block, s.end = P.ParseBlock();
 	if P.tok == Scanner.ELSE {
 		P.Next();
 		s1 := AST.BadStat;
@@ -1117,7 +1123,7 @@ func (P *Parser) ParseIfStat() *AST.Stat {
 			s1 = P.ParseIfStat();
 		} else {
 			s1 = AST.NewStat(P.pos, Scanner.LBRACE);
-			s1.block = P.ParseBlock();
+			s1.block, s1.end = P.ParseBlock();
 		}
 		s.post = s1;
 	}
@@ -1131,7 +1137,7 @@ func (P *Parser) ParseForStat() *AST.Stat {
 	P.Trace("ForStat");
 	
 	s := P.ParseControlClause(Scanner.FOR);
-	s.block = P.ParseBlock();
+	s.block, s.end = P.ParseBlock();
 	
 	P.Ecart();
 	return s;
@@ -1252,7 +1258,7 @@ func (P *Parser) ParseRangeStat() *AST.Stat {
 	P.ParseIdentList();
 	P.Expect(Scanner.DEFINE);
 	s.expr = P.ParseExpression(1);
-	s.block = P.ParseBlock();
+	s.block, s.end = P.ParseBlock();
 	
 	P.Ecart();
 	return s;
@@ -1286,7 +1292,7 @@ func (P *Parser) ParseStatement() *AST.Stat {
 		s = P.ParseControlFlowStat(P.tok);
 	case Scanner.LBRACE:
 		s = AST.NewStat(P.pos, Scanner.LBRACE);
-		s.block = P.ParseBlock();
+		s.block, s.end = P.ParseBlock();
 	case Scanner.IF:
 		s = P.ParseIfStat();
 	case Scanner.FOR:
@@ -1417,6 +1423,7 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
 				break;
 			}
 		}
+		d.end = P.pos;
 		P.Expect(Scanner.RPAREN);
 		P.opt_semi = true;
 		
@@ -1459,7 +1466,7 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
 
 	if P.tok == Scanner.LBRACE {
 		P.scope_lev++;
-		d.list = P.ParseBlock();
+		d.list, d.end = P.ParseBlock();
 		P.scope_lev--;
 	}
 	

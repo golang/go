@@ -36,7 +36,7 @@ export type Expr struct {
 	// TODO find a more space efficient way to hold these
 	s string;  // identifiers and literals
 	t *Type;  // type expressions, function literal types
-	block *array.Array;  // stats for function literals
+	block *array.Array; end int;  // stats for function literals
 }
 
 
@@ -88,7 +88,7 @@ export type Type struct {
 	mode int;  // channel mode
 	key *Type;  // receiver type, map key
 	elt *Type;  // array element, map or channel value, or pointer base type, result type
-	list *array.Array;  // struct fields, interface methods, function parameters
+	list *array.Array; end int;  // struct fields, interface methods, function parameters
 }
 
 
@@ -136,7 +136,7 @@ export type Stat struct {
 	Node;
 	init, post *Stat;
 	expr *Expr;
-	block *array.Array;
+	block *array.Array; end int;  // bkock end position
 	decl *Decl;
 }
 
@@ -162,7 +162,7 @@ export type Decl struct {
 	val *Expr;
 	// list of *Decl for ()-style declarations
 	// list of *Stat for func declarations (or nil for forward decl)
-	list *array.Array;
+	list *array.Array; end int;
 }
 
 
