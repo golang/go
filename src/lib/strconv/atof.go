@@ -216,6 +216,7 @@ func DecimalToFloat64Int(neg bool, d *Decimal) float64 {
 	}
 	return f;
 }
+
 func DecimalToFloat32Int(neg bool, d *Decimal) float32 {
 	f := float32(0);
 	for i := 0; i < d.nd; i++ {
