@@ -1183,6 +1183,7 @@ func (P *Parser) ParseSwitchStat() *AST.Stat {
 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 		s.block.Push(P.ParseCaseClause());
 	}
+	s.end = P.pos;
 	P.Expect(Scanner.RBRACE);
 	P.opt_semi = true;
 
