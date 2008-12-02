@@ -1106,7 +1106,9 @@ func (P *Parser) ParseIfStat() *AST.Stat {
 	if P.tok == Scanner.ELSE {
 		P.Next();
 		s1 := AST.BadStat;
-		if P.sixg {
+		if P.tok == Scanner.IF {
+			s1 = P.ParseIfStat();
+		} else if P.sixg {
 			s1 = P.ParseStatement();
 			if s1 != nil {
 				// not the empty statement
@@ -1119,8 +1121,6 @@ func (P *Parser) ParseIfStat() *AST.Stat {
 				}
 				s.post = s1;
 			}
-		} else if P.tok == Scanner.IF {
-			s1 = P.ParseIfStat();
 		} else {
 			s1 = AST.NewStat(P.pos, Scanner.LBRACE);
 			s1.block, s1.end = P.ParseBlock();
@@ -1320,10 +1320,10 @@ func (P *Parser) ParseStatement() *AST.Stat {
 // ----------------------------------------------------------------------------
 // Declarations
 
-func (P *Parser) ParseImportSpec() *AST.Decl {
+func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
 	P.Trace("ImportSpec");
 	
-	d := AST.NewDecl(P.pos, Scanner.IMPORT, false);
+	d := AST.NewDecl(pos, Scanner.IMPORT, false);
 	if P.tok == Scanner.PERIOD {
 		P.Error(P.pos, `"import ." not yet handled properly`);
 		P.Next();
@@ -1344,10 +1344,10 @@ func (P *Parser) ParseImportSpec() *AST.Decl {
 }
 
 
-func (P *Parser) ParseConstSpec(exported bool) *AST.Decl {
+func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
 	P.Trace("ConstSpec");
 	
-	d := AST.NewDecl(P.pos, Scanner.CONST, exported);
+	d := AST.NewDecl(pos, Scanner.CONST, exported);
 	d.ident = P.ParseIdent();
 	d.typ = P.TryType();
 	if P.tok == Scanner.ASSIGN {
@@ -1360,10 +1360,10 @@ func (P *Parser) ParseConstSpec(exported bool) *AST.Decl {
 }
 
 
-func (P *Parser) ParseTypeSpec(exported bool) *AST.Decl {
+func (P *Parser) ParseTypeSpec(exported bool, pos int) *AST.Decl {
 	P.Trace("TypeSpec");
 
-	d := AST.NewDecl(P.pos, Scanner.TYPE, exported);
+	d := AST.NewDecl(pos, Scanner.TYPE, exported);
 	d.ident = P.ParseIdent();
 	d.typ = P.ParseType();
 	P.opt_semi = true;
@@ -1373,10 +1373,10 @@ func (P *Parser) ParseTypeSpec(exported bool) *AST.Decl {
 }
 
 
-func (P *Parser) ParseVarSpec(exported bool) *AST.Decl {
+func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
 	P.Trace("VarSpec");
 	
-	d := AST.NewDecl(P.pos, Scanner.VAR, exported);
+	d := AST.NewDecl(pos, Scanner.VAR, exported);
 	d.ident = P.ParseIdentList();
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
@@ -1395,12 +1395,12 @@ func (P *Parser) ParseVarSpec(exported bool) *AST.Decl {
 
 
 // TODO replace this by using function pointers derived from methods
-func (P *Parser) ParseSpec(exported bool, keyword int) *AST.Decl {
+func (P *Parser) ParseSpec(exported bool, pos int, keyword int) *AST.Decl {
 	switch keyword {
-	case Scanner.IMPORT: return P.ParseImportSpec();
-	case Scanner.CONST: return P.ParseConstSpec(exported);
-	case Scanner.TYPE: return P.ParseTypeSpec(exported);
-	case Scanner.VAR: return P.ParseVarSpec(exported);
+	case Scanner.IMPORT: return P.ParseImportSpec(pos);
+	case Scanner.CONST: return P.ParseConstSpec(exported, pos);
+	case Scanner.TYPE: return P.ParseTypeSpec(exported, pos);
+	case Scanner.VAR: return P.ParseVarSpec(exported, pos);
 	}
 	panic("UNREACHABLE");
 	return nil;
@@ -1411,13 +1411,14 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
 	P.Trace("Decl");
 	
 	d := AST.BadDecl;
+	pos := P.pos;
 	P.Expect(keyword);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
-		d = AST.NewDecl(P.pos, keyword, exported);
+		d = AST.NewDecl(pos, keyword, exported);
 		d.list = array.New(0);
 		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
-			d.list.Push(P.ParseSpec(exported, keyword));
+			d.list.Push(P.ParseSpec(exported, pos, keyword));
 			if P.tok == Scanner.SEMICOLON {
 				P.Next();
 			} else {
@@ -1429,7 +1430,7 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
 		P.opt_semi = true;
 		
 	} else {
-		d = P.ParseSpec(exported, keyword);
+		d = P.ParseSpec(exported, pos, keyword);
 	}
 	
 	P.Ecart();

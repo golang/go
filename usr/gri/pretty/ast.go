@@ -136,7 +136,7 @@ export type Stat struct {
 	Node;
 	init, post *Stat;
 	expr *Expr;
-	block *array.Array; end int;  // bkock end position
+	block *array.Array; end int;  // block end position
 	decl *Decl;
 }
 
