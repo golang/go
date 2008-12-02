@@ -76,18 +76,18 @@ struct	Array
 
 enum
 {
-	Mpscale	= 29,		/* safely smaller than bits in a long */
-	Mpprec	= 10,		/* Mpscale*Mpprec is max number of bits */
-	Mpbase	= 1L<<Mpscale,
+	Mpscale	= 29,		// safely smaller than bits in a long
+	Mpprec	= 16,		// Mpscale*Mpprec is max number of bits
+	Mpnorm	= Mpprec - 1,	// significant words in a normalized float
+	Mpbase	= 1L << Mpscale,
 	Mpsign	= Mpbase >> 1,
-	Mpmask	= Mpbase -1,
-	Debug	= 1,
+	Mpmask	= Mpbase - 1,
+	Mpdebug	= 0,
 };
 
 typedef	struct	Mpint	Mpint;
 struct	Mpint
 {
-	vlong	val;
 	long	a[Mpprec];
 	uchar	neg;
 	uchar	ovf;
@@ -96,8 +96,8 @@ struct	Mpint
 typedef	struct	Mpflt	Mpflt;
 struct	Mpflt
 {
-	double	val;
-	uchar	ovf;
+	Mpint	val;
+	short	exp;
 };
 
 typedef	struct	Val	Val;
@@ -551,7 +551,9 @@ void	mpmovecfix(Mpint *a, vlong v);
 int	mptestfix(Mpint *a);
 void	mpaddfixfix(Mpint *a, Mpint *b);
 void	mpmulfixfix(Mpint *a, Mpint *b);
+void	mpmulfract(Mpint *a, Mpint *b);
 void	mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d);
+void	mpdivfract(Mpint *a, Mpint *b);
 void	mpnegfix(Mpint *a);
 void	mpandfixfix(Mpint *a, Mpint *b);
 void	mplshfixfix(Mpint *a, Mpint *b);
@@ -560,7 +562,7 @@ void	mprshfixfix(Mpint *a, Mpint *b);
 void	mpxorfixfix(Mpint *a, Mpint *b);
 void	mpcomfix(Mpint *a);
 vlong	mpgetfix(Mpint *a);
-double	mpgetfixflt(Mpint *a);
+void	mpshiftfix(Mpint *a, int s);
 
 /*
  *	mparith3.c
@@ -573,6 +575,8 @@ void	mpmulfltflt(Mpflt *a, Mpflt *b);
 void	mpdivfltflt(Mpflt *a, Mpflt *b);
 void	mpnegflt(Mpflt *a);
 double	mpgetflt(Mpflt *a);
+int	Fconv(Fmt*);
+void	mpnorm(Mpflt *a);
 
 /*
  *	subr.c

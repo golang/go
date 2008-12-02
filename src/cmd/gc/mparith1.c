@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <u.h>
-#include <errno.h>
-#include "go.h"
+#include	"go.h"
 
 /// uses arithmetic
 
@@ -14,7 +12,7 @@ mpcmpfixflt(Mpint *a, Mpflt *b)
 	char buf[500];
 	Mpflt c;
 
-	sprint(buf, "%B", a);
+	snprint(buf, sizeof(buf), "%B", a);
 	mpatoflt(&c, buf);
 	return mpcmpfltflt(&c, b);
 }
@@ -25,7 +23,7 @@ mpcmpfltfix(Mpflt *a, Mpint *b)
 	char buf[500];
 	Mpflt c;
 
-	sprint(buf, "%B", b);
+	snprint(buf, sizeof(buf), "%B", b);
 	mpatoflt(&c, buf);
 	return mpcmpfltflt(a, &c);
 }
@@ -71,17 +69,17 @@ mpcmpfltc(Mpflt *b, double c)
 void
 mpsubfixfix(Mpint *a, Mpint *b)
 {
-	mpnegfix(b);
+	mpnegfix(a);
 	mpaddfixfix(a, b);
-	mpnegfix(b);
+	mpnegfix(a);
 }
 
 void
 mpsubfltflt(Mpflt *a, Mpflt *b)
 {
-	mpnegflt(b);
+	mpnegflt(a);
 	mpaddfltflt(a, b);
-	mpnegflt(b);
+	mpnegflt(a);
 }
 
 void
@@ -151,7 +149,9 @@ mpcomfix(Mpint *a)
 void
 mpmovefixflt(Mpflt *a, Mpint *b)
 {
-	mpmovecflt(a, mpgetfixflt(b));
+	a->val = *b;
+	a->exp = 0;
+	mpnorm(a);
 }
 
 void
@@ -172,25 +172,18 @@ mpmovefltflt(Mpflt *a, Mpflt *b)
 	*a = *b;
 }
 
-//
-// power of ten
-//
-static	double
-tentab[] = { 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9 };
-
-static double
-dppow10(int n)
+static	double	tab[] = { 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7 };
+static void
+mppow10flt(Mpflt *a, int p)
 {
-	int i;
-
-	if(n < 0)
-		return 1.0/dppow10(-n);
-
-	if(n < nelem(tentab))
-		return tentab[n];
-
-	i = n/2;
-	return dppow10(i) * dppow10(n-i);
+	if(p < nelem(tab)) {
+		mpmovecflt(a, tab[p]);
+		return;
+	}
+	mppow10flt(a, p>>1);
+	mpmulfltflt(a, a);
+	if(p & 1)
+		mpmulcflt(a, 10);
 }
 
 //
@@ -200,17 +193,9 @@ dppow10(int n)
 void
 mpatoflt(Mpflt *a, char *as)
 {
+	Mpflt b;
 	int dp, c, f, ef, ex, zer;
 	char *s;
-	double f64;
-
-	/* until Mpflt is really mp, use strtod to get rounding right */
-	errno = 0;
-	f64 = strtod(as, &s);
-	mpmovecflt(a, f64);
-	if(errno != 0)
-		a->ovf = 1;
-	return;
 
 	s = as;
 	dp = 0;		/* digits after decimal point */
@@ -283,21 +268,28 @@ mpatoflt(Mpflt *a, char *as)
 
 	if(dp)
 		dp--;
-	if(mpcmpfltc(a, 0.0) != 0)
-		mpmulcflt(a, dppow10(ex-dp));
+	if(mpcmpfltc(a, 0.0) != 0) {
+		if(ex >= dp) {
+			mppow10flt(&b, ex-dp);
+			mpmulfltflt(a, &b);
+		} else {
+			mppow10flt(&b, dp-ex);
+			mpdivfltflt(a, &b);
+		}
+	}
 	if(f)
 		mpnegflt(a);
 	return;
 
 bad:
-	warn("set ovf in mpatof: %s", as);
+	warn("set ovf in mpatof");
 	mpmovecflt(a, 0.0);
 }
 
 //
 // fixed point input
 // required syntax is [+-][0[x]]d*
-//
+// 
 void
 mpatofix(Mpint *a, char *as)
 {
@@ -409,4 +401,18 @@ Bconv(Fmt *fp)
 	if(f)
 		*--p = '-';
 	return fmtstrcpy(fp, p);
+}
+
+int
+Fconv(Fmt *fp)
+{
+	char buf[500];
+	Mpflt *fval;
+
+	fval = va_arg(fp->args, Mpflt*);
+	if(fval->exp >= 0)
+		snprint(buf, sizeof(buf), "(%B*2^%d)", &fval->val, fval->exp);
+	else
+		snprint(buf, sizeof(buf), "(%B/2^%d)", &fval->val, -fval->exp);
+	return fmtstrcpy(fp, buf);
 }

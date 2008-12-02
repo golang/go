@@ -53,6 +53,7 @@ mainlex(int argc, char *argv[])
 	fmtinstall('Z', Zconv);		// escaped string
 	fmtinstall('L', Lconv);		// line number
 	fmtinstall('B', Bconv);		// big numbers
+	fmtinstall('F', Fconv);		// big float numbers
 	fmtinstall('W', Wconv);		// whatis numbers (Wlitint)
 
 	lexinit();
@@ -786,7 +787,7 @@ caseout:
 
 	yylval.val.u.fval = mal(sizeof(*yylval.val.u.fval));
 	mpatoflt(yylval.val.u.fval, namebuf);
-	if(yylval.val.u.fval->ovf) {
+	if(yylval.val.u.fval->val.ovf) {
 		yyerror("overflow in float constant");
 		mpmovecflt(yylval.val.u.fval, 0.0);
 	}

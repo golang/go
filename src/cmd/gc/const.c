@@ -126,10 +126,28 @@ convlit(Node *n, Type *t)
 		}
 		if(isfloat[et]) {
 			// float to float
-			if(mpcmpfltflt(n->val.u.fval, minfltval[et]) < 0)
+			double d;
+			float f;
+			Mpflt *fv;
+
+			fv = n->val.u.fval;
+			if(mpcmpfltflt(fv, minfltval[et]) < 0)
 				goto bad2;
-			if(mpcmpfltflt(n->val.u.fval, maxfltval[et]) > 0)
+			if(mpcmpfltflt(fv, maxfltval[et]) > 0)
 				goto bad2;
+//			switch(et) {
+//			case TFLOAT64:
+//				d = mpgetflt(fv);
+//				mpmovecflt(fv, d);
+//				break;
+//
+//			case TFLOAT32:
+//				d = mpgetflt(fv);
+//				f = d;
+//				d = f;
+//				mpmovecflt(fv, d);
+//				break;
+//			}
 			break;
 		}
 		goto bad1;
