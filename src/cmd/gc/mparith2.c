@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "go.h"
+#include	"go.h"
 
 //
 // return the significant
@@ -159,6 +159,31 @@ mpneg(Mpint *a)
 	}
 }
 
+void
+mpshiftfix(Mpint *a, int s)
+{
+	if(s >= 0) {
+		while(s >= Mpscale) {
+			mplshw(a);
+			s -= Mpscale;
+		}
+		while(s > 0) {
+			mplsh(a);
+			s--;
+		}
+	} else {
+		s = -s;
+		while(s >= Mpscale) {
+			mprshw(a);
+			s -= Mpscale;
+		}
+		while(s > 0) {
+			mprsh(a);
+			s--;
+		}
+	}
+}
+
 /// implements fix arihmetic
 
 void
@@ -272,6 +297,45 @@ mpmulfixfix(Mpint *a, Mpint *b)
 	mpmovefixfix(a, &q);
 	if(a->ovf)
 		warn("set ovf in mpmulfixfix");
+}
+
+void
+mpmulfract(Mpint *a, Mpint *b)
+{
+
+	int i, j;
+	long *a1, x;
+	Mpint s, q;
+
+	if(a->ovf || b->ovf) {
+		warn("ovf in mpmulflt");
+		a->ovf = 1;
+		return;
+	}
+
+	mpmovefixfix(&s, b);
+	a1 = &a->a[Mpprec];
+	s.neg = 0;
+	mpmovecfix(&q, 0);
+
+	for(i=0; i<Mpprec; i++) {
+		x = *--a1;
+		if(x == 0) {
+			mprshw(&s);
+			continue;
+		}
+		for(j=0; j<Mpscale; j++) {
+			x <<= 1;
+			if(x & Mpbase)
+				mpaddfixfix(&q, &s);
+			mprsh(&s);
+		}
+	}
+
+	q.neg = a->neg ^ b->neg;
+	mpmovefixfix(a, &q);
+	if(a->ovf)
+		warn("set ovf in mpmulflt");
 }
 
 void
@@ -394,14 +458,7 @@ mplshfixfix(Mpint *a, Mpint *b)
 		return;
 	}
 
-	while(s >= Mpscale) {
-		mplshw(a);
-		s -= Mpscale;
-	}
-	while(s > 0) {
-		mplsh(a);
-		s--;
-	}
+	mpshiftfix(a, s);
 }
 
 void
@@ -425,14 +482,7 @@ mprshfixfix(Mpint *a, Mpint *b)
 		return;
 	}
 
-	while(s >= Mpscale) {
-		mprshw(a);
-		s -= Mpscale;
-	}
-	while(s > 0) {
-		mprsh(a);
-		s--;
-	}
+	mpshiftfix(a, -s);
 }
 
 void
@@ -457,17 +507,6 @@ mpgetfix(Mpint *a)
 	if(a->neg)
 		v = -v;
 	return v;
-}
-
-double
-mpgetfixflt(Mpint *a)
-{
-	// answer might not fit in intermediate vlong, so format
-	// to string and then let the string routine convert.
-	char buf[1000];
-
-	snprint(buf, sizeof buf, "%B", a);
-	return strtod(buf, nil);
 }
 
 void
@@ -530,6 +569,36 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 			mpsubfixfix(r, d);
 		}
 	}
+}
+
+void
+mpdivfract(Mpint *a, Mpint *b)
+{
+	Mpint n, d;
+	int i, j, neg;
+	long *a1, x;
+
+	mpmovefixfix(&n, a);	// numerator
+	mpmovefixfix(&d, b);	// denominator
+	a1 = &a->a[Mpprec];	// quotient
+
+	neg = n.neg ^ d.neg;
+	n.neg = 0;
+	d.neg = 0;
+
+	for(i=0; i<Mpprec; i++) {
+		x = 0;
+		for(j=0; j<Mpscale; j++) {
+			x <<= 1;
+			if(mpcmp(&d, &n) <= 0) {
+				x |= 1;
+				mpsubfixfix(&n, &d);
+			}
+			mprsh(&d);
+		}
+		*--a1 = x;
+	}
+	a->neg = neg;
 }
 
 int
