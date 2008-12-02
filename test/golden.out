@@ -173,6 +173,9 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug124.go
 =========== bugs/bug125.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
 
+=========== bugs/bug126.go
+BUG: errchk: command succeeded unexpectedly:  6g bugs/bug126.go
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
 
