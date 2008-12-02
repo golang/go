@@ -9,7 +9,6 @@ LIB=\
 
 HFILES=\
 	go.h\
-	mparith.h\
 	y.tab.h\
 
 YFILES=\
