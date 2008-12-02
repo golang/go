@@ -11,14 +11,12 @@ LDFLAGS = -Wl,-R,/home/iant/go/lib
 PRETTY_OBJS = \
 	ast.o \
 	pretty.o \
-	compilation.go \
+	compilation.o \
 	parser.o \
 	platform.o \
 	printer.o \
 	scanner.o \
-	utils.o \
-	flag.o \
-	fmt.o \
+	utils.o
 
 pretty: $(PRETTY_OBJS)
 	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
@@ -47,12 +45,6 @@ platform.o:	 utils.o
 
 printer.o:	 scanner.o ast.o
 
-
-flag.o:	fmt.o
-	$(GO) -O2 -c -g $(GOROOT)/src/lib/flag.go
-
-fmt.o:
-	$(GO) -O2 -c -g $(GOROOT)/src/lib/fmt.go
 
 .SUFFIXES:
 .SUFFIXES: .go .o
