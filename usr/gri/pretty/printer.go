@@ -16,17 +16,16 @@ import (
 
 var (
 	debug = flag.Bool("debug", false, nil, "print debugging information");
-	tabwidth = flag.Int("tabwidth", 4, nil, "tab width");
+	tabwidth = flag.Int("tabwidth", 8, nil, "tab width");
 	usetabs = flag.Bool("usetabs", true, nil, "align with tabs instead of blanks");
-	comments = flag.Bool("comments", false, nil, "enable printing of comments");
+	comments = flag.Bool("comments", true, nil, "enable printing of comments");
 )
 
 
 // ----------------------------------------------------------------------------
 // Printer
 
-// A variety of separators which are printed in a delayed fashion;
-// depending on the next token.
+// Separators are printed in a delayed fashion, depending on the next token.
 const (
 	none = iota;
 	blank;
@@ -36,28 +35,35 @@ const (
 )
 
 
+// Formatting actions control formatting parameters during printing.
+const (
+	no_action = iota;
+	open_scope;
+	close_scope;
+)
+
+
 type Printer struct {
 	// output
 	writer *tabwriter.Writer;
 	
 	// comments
-	comments *array.Array;
-	cindex int;
-	cpos int;
+	comments *array.Array;  // the list of all comments
+	cindex int;  // the current comments index
+	cpos int;  // the position of the next comment
 
 	// current state
 	lastpos int;  // pos after last string
-	level int;  // true scope level
-	indentation int;  // indentation level
+	level int;  // scope level
+	indentation int;  // indentation level (may be different from scope level)
 	
-	// formatting control
+	// formatting parameters
 	separator int;  // pending separator
 	newlines int;  // pending newlines
-}
-
-
-func (P *Printer) PendingComment(pos int) bool {
-	return comments.BVal() && P.cpos < pos;
+	
+	// formatting action
+	action int;  // action executed on formatting parameters
+	lastaction int;  // action for last string
 }
 
 
@@ -84,7 +90,7 @@ func (P *Printer) Init(writer *tabwriter.Writer, comments *array.Array) {
 	P.cindex = -1;
 	P.NextComment();
 	
-	// formatting control initialized correctly by default
+	// formatting parameters & action initialized correctly by default
 }
 
 
@@ -154,13 +160,13 @@ func (P *Printer) String(pos int, s string) {
 	// --------------------------------
 	// interleave comments, if any
 	nlcount := 0;
-	for P.PendingComment(pos) {
+	for comments.BVal() && P.cpos < pos {
 		// we have a comment/newline that comes before the string
 		comment := P.comments.At(P.cindex).(*AST.Comment);
 		ctext := comment.text;
 		
 		if ctext == "\n" {
-			// found a newline in src - count them
+			// found a newline in src - count it
 			nlcount++;
 
 		} else {
@@ -175,9 +181,19 @@ func (P *Printer) String(pos int, s string) {
 				// black space before comment on this line
 				if ctext[1] == '/' {
 					//-style comment
-					// - put in next cell
-					if trailing_char != '\t' {
-						P.Printf("\t");
+					// - put in next cell unless a scope was just opened
+					//   in which case we print 2 blanks (otherwise the
+					//   entire scope gets indented like the next cell)
+					if P.lastaction == open_scope {
+						switch trailing_char {
+						case ' ': P.Printf(" ");  // one space already printed
+						case '\t': // do nothing
+						default: P.Printf("  ");
+						}
+					} else {
+						if trailing_char != '\t' {
+							P.Printf("\t");
+						}
 					}
 				} else {
 					/*-style comment */
@@ -206,6 +222,24 @@ func (P *Printer) String(pos int, s string) {
 
 		P.NextComment();
 	}
+	
+	// --------------------------------
+	// handle extra newlines
+	if nlcount > 0 {
+		P.newlines += nlcount - 1;
+	}
+
+	// --------------------------------
+	// interpret control
+	// (any pending separator or comment must be printed in previous state)
+	switch P.action {
+	case none:
+	case open_scope:
+	case close_scope:
+		P.indentation--;
+	default:
+		panic("UNREACHABLE");
+	}
 
 	// --------------------------------
 	// adjust formatting depending on state
@@ -218,6 +252,22 @@ func (P *Printer) String(pos int, s string) {
 		P.Printf("[%d]", pos);
 	}
 	P.Printf("%s", s);
+
+	// --------------------------------
+	// interpret control
+	switch P.action {
+	case none:
+	case open_scope:
+		P.level++;
+		P.indentation++;
+		//P.newlines = 1;
+	case close_scope:
+		P.level--;
+	default:
+		panic("UNREACHABLE");
+	}
+	P.lastaction = P.action;
+	P.action = none;
 
 	// --------------------------------
 	// done
@@ -233,21 +283,6 @@ func (P *Printer) Separator(separator int) {
 
 func (P *Printer) Token(pos int, tok int) {
 	P.String(pos, Scanner.TokenString(tok));
-}
-
-
-func (P *Printer) OpenScope(pos int, paren string) {
-	P.String(pos, paren);
-	P.level++;
-	P.indentation++;
-	P.newlines = 1;
-}
-
-
-func (P *Printer) CloseScope(pos int, paren string) {
-	P.indentation--;
-	P.String(pos, paren);
-	P.level--;
 }
 
 
@@ -286,8 +321,11 @@ func (P *Printer) Parameters(pos int, list *array.Array) {
 
 
 func (P *Printer) Fields(list *array.Array, end int) {
-	P.OpenScope(0, "{");
+	P.action = open_scope;
+	P.String(0, "{");
+
 	if list != nil {
+		P.newlines = 1;
 		var prev int;
 		for i, n := 0, list.Len(); i < n; i++ {
 			x := list.At(i).(*AST.Expr);
@@ -306,7 +344,9 @@ func (P *Printer) Fields(list *array.Array, end int) {
 		}
 		P.newlines = 1;
 	}
-	P.CloseScope(end, "}");
+
+	P.action = close_scope;
+	P.String(end, "}");
 }
 
 
@@ -396,7 +436,8 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		// list
 		// (don't use binary expression printing because of different spacing)
 		P.Expr(x.x);
-		P.String(x.pos, ", ");
+		P.String(x.pos, ",");
+		P.separator = blank;
 		P.Expr(x.y);
 
 	case Scanner.PERIOD:
@@ -471,6 +512,7 @@ func (P *Printer) Stat(s *AST.Stat)
 
 func (P *Printer) StatementList(list *array.Array) {
 	if list != nil {
+		P.newlines = 1;
 		for i, n := 0, list.Len(); i < n; i++ {
 			P.Stat(list.At(i).(*AST.Stat));
 			P.newlines = 1;
@@ -480,7 +522,8 @@ func (P *Printer) StatementList(list *array.Array) {
 
 
 func (P *Printer) Block(pos int, list *array.Array, end int, indent bool) {
-	P.OpenScope(pos, "{");
+	P.action = open_scope;
+	P.String(pos, "{");
 	if !indent {
 		P.indentation--;
 	}
@@ -489,7 +532,8 @@ func (P *Printer) Block(pos int, list *array.Array, end int, indent bool) {
 		P.indentation++;
 	}
 	P.separator = none;
-	P.CloseScope(end, "}");
+	P.action = close_scope;
+	P.String(end, "}");
 }
 
 
@@ -586,7 +630,6 @@ func (P *Printer) Stat(s *AST.Stat) {
 		}
 		P.String(0, ":");
 		P.indentation++;
-		P.newlines = 1;
 		P.StatementList(s.block);
 		P.indentation--;
 		P.newlines = 1;
@@ -611,20 +654,26 @@ func (P *Printer) Stat(s *AST.Stat) {
 func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 	if !parenthesized {
 		if d.exported {
-			P.String(d.pos, "export ");
+			P.String(d.pos, "export");
+			P.separator = blank;
 		}
 		P.Token(d.pos, d.tok);
 		P.separator = blank;
 	}
 
 	if d.tok != Scanner.FUNC && d.list != nil {
-		P.OpenScope(0, "(");
-		for i := 0; i < d.list.Len(); i++ {
-			P.Declaration(d.list.At(i).(*AST.Decl), true);
-			P.separator = semicolon;
+		P.action = open_scope;
+		P.String(0, "(");
+		if d.list.Len() > 0 {
 			P.newlines = 1;
+			for i := 0; i < d.list.Len(); i++ {
+				P.Declaration(d.list.At(i).(*AST.Decl), true);
+				P.separator = semicolon;
+				P.newlines = 1;
+			}
 		}
-		P.CloseScope(d.end, ")");
+		P.action = close_scope;
+		P.String(d.end, ")");
 
 	} else {
 		if d.tok == Scanner.FUNC && d.typ.key != nil {
@@ -636,6 +685,9 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 		
 		if d.typ != nil {
 			if d.tok != Scanner.FUNC {
+				// TODO would like to change this to a tab separator
+				// but currently this causes trouble when the type is
+				// a struct/interface (fields are indented wrongly)
 				P.separator = blank;
 			}
 			P.Type(d.typ);
@@ -644,7 +696,8 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 		if d.val != nil {
 			P.String(0, "\t");
 			if d.tok != Scanner.IMPORT {
-				P.String(0, "= ");
+				P.String(0, "=");
+				P.separator = blank;
 			}
 			P.Expr(d.val);
 		}
@@ -670,7 +723,8 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 // Program
 
 func (P *Printer) Program(p *AST.Program) {
-	P.String(p.pos, "package ");
+	P.String(p.pos, "package");
+	P.separator = blank;
 	P.Expr(p.ident);
 	P.newlines = 1;
 	for i := 0; i < p.decls.Len(); i++ {
