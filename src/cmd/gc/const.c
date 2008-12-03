@@ -6,6 +6,34 @@
 #define	TUP(x,y)	(((x)<<16)|(y))
 
 void
+truncfltlit(Mpflt *fv, Type *t)
+{
+	double d;
+	float f;
+
+	if(t == T)
+		return;
+
+	// convert large precision literal floating
+	// into limited precision (float64 or float32)
+	// botch -- this assumes that compiler fp
+	//    has same precision as runtime fp
+	switch(t->etype) {
+	case TFLOAT64:
+		d = mpgetflt(fv);
+		mpmovecflt(fv, d);
+		break;
+
+	case TFLOAT32:
+		d = mpgetflt(fv);
+		f = d;
+		d = f;
+		mpmovecflt(fv, d);
+		break;
+	}
+}
+
+void
 convlit(Node *n, Type *t)
 {
 	int et, wt;
@@ -90,15 +118,18 @@ convlit(Node *n, Type *t)
 		if(isfloat[et]) {
 			// int to float
 			Mpint *xv;
+			Mpflt *fv;
 
 			xv = n->val.u.xval;
 			if(mpcmpfixflt(xv, minfltval[et]) < 0)
 				goto bad2;
 			if(mpcmpfixflt(xv, maxfltval[et]) > 0)
 				goto bad2;
-			n->val.u.fval = mal(sizeof(*n->val.u.fval));
-			mpmovefixflt(n->val.u.fval, xv);
+			fv = mal(sizeof(*n->val.u.fval));
+			n->val.u.fval = fv;
+			mpmovefixflt(fv, xv);
 			n->val.ctype = CTFLT;
+			truncfltlit(fv, t);
 			break;
 		}
 		goto bad1;
@@ -126,8 +157,6 @@ convlit(Node *n, Type *t)
 		}
 		if(isfloat[et]) {
 			// float to float
-			double d;
-			float f;
 			Mpflt *fv;
 
 			fv = n->val.u.fval;
@@ -135,24 +164,13 @@ convlit(Node *n, Type *t)
 				goto bad2;
 			if(mpcmpfltflt(fv, maxfltval[et]) > 0)
 				goto bad2;
-//			switch(et) {
-//			case TFLOAT64:
-//				d = mpgetflt(fv);
-//				mpmovecflt(fv, d);
-//				break;
-//
-//			case TFLOAT32:
-//				d = mpgetflt(fv);
-//				f = d;
-//				d = f;
-//				mpmovecflt(fv, d);
-//				break;
-//			}
+			truncfltlit(fv, t);
 			break;
 		}
 		goto bad1;
 	}
 	n->type = t;
+	
 	return;
 
 bad1:
@@ -442,6 +460,7 @@ ret:
 	} else
 	if(wl == Wlitfloat) {
 		n->val.u.fval = fval;
+		truncfltlit(fval, n->type);
 	}
 }
 

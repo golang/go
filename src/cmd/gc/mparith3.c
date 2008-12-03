@@ -176,10 +176,14 @@ mpgetflt(Mpflt *a)
 		mpnorm(a);
 	}
 
-	while((a->val.a[Mpnorm-1] & (1L<<(Mpscale-1))) == 0) {
+	while((a->val.a[Mpnorm-1] & Mpsign) == 0) {
 		mpshiftfix(&a->val, 1);
 		a->exp -= 1;
 	}
+
+	// the magic numbers (64, 63, 53, 10) are
+	// IEEE specific. this should be done machine
+	// independently or in the 6g half of the compiler
 
 	// pick up the mantissa in a uvlong
 	s = 63;
@@ -191,13 +195,14 @@ mpgetflt(Mpflt *a)
 	if(s > 0)
 		v = (v<<s) | (a->val.a[i]>>(Mpscale-s));
 
-	// should do this in multi precision
 	// 63 bits of mantissa being rounded to 53
+	// should do this in multi precision
 	if((v&0x3ffULL) != 0x200ULL || (v&0x400) != 0)
-		v += 0x200ULL;		// round
-	v &= ~0x3ffULL;
+		v += 0x200ULL;		// round toward even
+
+	v >>= 10;
 	f = (double)(v);
-	f = ldexp(f, Mpnorm*Mpscale + a->exp - 63);
+	f = ldexp(f, Mpnorm*Mpscale + a->exp - 53);
 
 	if(a->val.neg)
 		f = -f;
