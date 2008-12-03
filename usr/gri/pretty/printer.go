@@ -348,7 +348,7 @@ func (P *Printer) Fields(list *array.Array, end int) {
 	P.state = opening_scope;
 	P.String(0, "{");
 
-	if list != nil {
+	if list.Len() > 0 {
 		P.newlines = 1;
 		var prev int;
 		for i, n := 0, list.Len(); i < n; i++ {
@@ -547,6 +547,7 @@ func (P *Printer) StatementList(list *array.Array) {
 		for i, n := 0, list.Len(); i < n; i++ {
 			P.Stat(list.At(i).(*AST.Stat));
 			P.newlines = 1;
+			P.state = inside_list;
 		}
 	}
 }
