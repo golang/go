@@ -60,6 +60,12 @@ func f1(tag int) {
 }
 
 
+func f2(tag int) {
+	type T1 struct {}
+	var x T
+}
+
+
 func main() {
 // the prologue
 	for i := 0; i <= 10 /* limit */; i++ {
