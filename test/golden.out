@@ -11,10 +11,11 @@ errchk: ./convlit.go: unmatched error messages:
 ==================================================
 ./convlit.go:8: cannot convert non-integer constant to int
 ./convlit.go:11: overflow converting constant to int
-./convlit.go:12: overflow in float constant
+./convlit.go:12: overflow converting constant to float
 ./convlit.go:8: cannot convert non-integer constant to int
 ./convlit.go:9: cannot convert non-integer constant to int
 ./convlit.go:11: overflow converting constant to int
+./convlit.go:12: overflow converting constant to float
 ==================================================
 
 =========== ./helloworld.go
@@ -150,9 +151,6 @@ panic PC=xxx
 BUG: should not fail
 
 =========== bugs/bug120.go
-Bad float64 const: 1e23+8.388608e6 want 1.0000000000000001e+23 got 1e+23
-	want exact: 100000000000000008388608
-	got exact:  99999999999999991611392
 Bad float64 const: 1e23+1 want 1.0000000000000001e+23 got 1e+23
 	want exact: 100000000000000008388608
 	got exact:  99999999999999991611392
@@ -175,6 +173,14 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
 
 =========== bugs/bug126.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug126.go
+
+=========== bugs/bug127.go
+BUG: errchk: command succeeded unexpectedly:  6g bugs/bug127.go
+
+=========== bugs/bug128.go
+bugs/bug128.go:5: switch statement must have case labels
+bugs/bug128.go:9: switch statement must have case labels
+BUG: should compile
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
