@@ -194,13 +194,14 @@ void
 mpatoflt(Mpflt *a, char *as)
 {
 	Mpflt b;
-	int dp, c, f, ef, ex, zer;
+	int dp, c, f, ef, ex, eb, zer;
 	char *s;
 
 	s = as;
 	dp = 0;		/* digits after decimal point */
 	f = 0;		/* sign */
 	ex = 0;		/* exponent */
+	eb = 0;		/* binary point */
 	zer = 1;	/* zero */
 
 	mpmovecflt(a, 0.0);
@@ -239,6 +240,10 @@ mpatoflt(Mpflt *a, char *as)
 				dp++;
 			continue;
 
+		case 'P':
+		case 'p':
+			eb = 1;
+
 		case 'E':
 		case 'e':
 			ex = 0;
@@ -266,6 +271,13 @@ mpatoflt(Mpflt *a, char *as)
 		break;
 	}
 
+	if(eb) {
+		if(dp)
+			goto bad;
+		a->exp += ex;
+		goto out;
+	}
+
 	if(dp)
 		dp--;
 	if(mpcmpfltc(a, 0.0) != 0) {
@@ -277,6 +289,8 @@ mpatoflt(Mpflt *a, char *as)
 			mpdivfltflt(a, &b);
 		}
 	}
+
+out:
 	if(f)
 		mpnegflt(a);
 	return;
@@ -407,12 +421,30 @@ int
 Fconv(Fmt *fp)
 {
 	char buf[500];
-	Mpflt *fval;
+	Mpflt *fvp, fv;
 
-	fval = va_arg(fp->args, Mpflt*);
-	if(fval->exp >= 0)
-		snprint(buf, sizeof(buf), "(%B*2^%d)", &fval->val, fval->exp);
-	else
-		snprint(buf, sizeof(buf), "(%B/2^%d)", &fval->val, -fval->exp);
+	fvp = va_arg(fp->args, Mpflt*);
+	if(sigfig(fvp) == 0) {
+		snprint(buf, sizeof(buf), "0p+0");
+		goto out;
+	}
+	fv = *fvp;
+
+	while(fv.val.a[0] == 0) {
+		mpshiftfix(&fv.val, -Mpscale);
+		fv.exp += Mpscale;
+	}
+	while((fv.val.a[0]&1) == 0) {
+		mpshiftfix(&fv.val, -1);
+		fv.exp += 1;
+	}
+
+	if(fv.exp >= 0) {
+		snprint(buf, sizeof(buf), "%Bp+%d", &fv.val, fv.exp);
+		goto out;
+	}
+	snprint(buf, sizeof(buf), "%Bp-%d", &fv.val, -fv.exp);
+
+out:
 	return fmtstrcpy(fp, buf);
 }

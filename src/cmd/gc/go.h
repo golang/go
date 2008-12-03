@@ -567,6 +567,8 @@ void	mpshiftfix(Mpint *a, int s);
 /*
  *	mparith3.c
  */
+int	sigfig(Mpflt *a);
+void	mpnorm(Mpflt *a);
 void	mpmovefltflt(Mpflt *a, Mpflt *b);
 void	mpmovecflt(Mpflt *a, double f);
 int	mptestflt(Mpflt *a);
@@ -576,7 +578,6 @@ void	mpdivfltflt(Mpflt *a, Mpflt *b);
 void	mpnegflt(Mpflt *a);
 double	mpgetflt(Mpflt *a);
 int	Fconv(Fmt*);
-void	mpnorm(Mpflt *a);
 
 /*
  *	subr.c
