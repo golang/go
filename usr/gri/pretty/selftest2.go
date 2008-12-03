@@ -4,7 +4,25 @@
 
 package main
 
-import Fmt "fmt"
+import (
+	"array";  // not needed
+	"utf8";  // not needed
+	Fmt "fmt"
+)
+
+
+const /* enum */ (
+	EnumTag0 = iota;
+	EnumTag1;
+	EnumTag2;
+	EnumTag3;
+	EnumTag4;
+	EnumTag5;
+	EnumTag6;
+	EnumTag7;
+	EnumTag8;
+	EnumTag9;
+)
 
 
 type T struct {
@@ -26,6 +44,16 @@ func f0(a, b int) int {
 		a = a + 1;  // estimate
 	}
 	return b;
+}
+
+
+func f1(tag int) {
+	switch tag {
+	case
+		EnumTag0, EnumTag1, EnumTag2, EnumTag3, EnumTag4,
+		EnumTag5, EnumTag6, EnumTag7, EnumTag8, EnumTag9: break;
+	default:
+	}
 }
 
 
