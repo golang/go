@@ -10,10 +10,12 @@ package syscall
 
 export func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
 export func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
+export func RawSyscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
 
 export func BytePtr(b *byte) int64;
 export func Int32Ptr(p *int32) int64;
 export func Int64Ptr(p *int64) int64;
+export func BytePtrPtr(b **byte) int64;
 
 /*
  * Used to convert file names to byte arrays for passing to kernel,

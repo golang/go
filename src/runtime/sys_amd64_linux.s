@@ -63,7 +63,7 @@ TEXT	sys·write(SB),7,$0-24
 	SYSCALL
 	RET
 
-TEXT	sys·rt_sigaction(SB),7,$0-32
+TEXT	rt_sigaction(SB),7,$0-32
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
@@ -79,6 +79,14 @@ TEXT	sigtramp(SB),7,$24-16
 	MOVQ	DX,16(SP)
 	CALL	sighandler(SB)
 	RET
+
+TEXT sigignore(SB),7,$0
+	RET
+
+TEXT sigreturn(SB),7,$0
+	MOVL	$15, AX	// rt_sigreturn
+	SYSCALL
+	INT $3	// not reached
 
 TEXT	sys·mmap(SB),7,$0-32
 	MOVQ	8(SP), DI

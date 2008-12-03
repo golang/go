@@ -23,6 +23,29 @@ export type Timeval struct {
 export func TimevalPtr(t *Timeval) int64;
 
 
+// Processes
+
+export type Rusage struct {
+	utime	Timeval;
+	stime	Timeval;
+	maxrss	int64;
+	ixrss	int64;
+	idrss	int64;
+	isrss	int64;
+	minflt	int64;
+	majflt	int64;
+	nswap	int64;
+	inblock	int64;
+	oublock	int64;
+	msgsnd	int64;
+	msgrcv	int64;
+	nsignals	int64;
+	nvcsw	int64;
+	nivcsw	int64;
+}
+export func RusagePtr(r *Rusage) int64;
+
+
 // Files
 
 export const (
@@ -38,8 +61,13 @@ export const (
 	O_SYNC = 0x80;
 	O_TRUNC = 0x400;
 
+	F_GETFD = 1;
+	F_SETFD = 2;
+
 	F_GETFL = 3;
 	F_SETFL = 4;
+
+	FD_CLOEXEC = 1;
 )
 
 export type Stat struct {

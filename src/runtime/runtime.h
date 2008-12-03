@@ -48,6 +48,7 @@ typedef	union	Note		Note;
 typedef	struct	Stktop		Stktop;
 typedef	struct	String		*string;
 typedef	struct	Usema		Usema;
+typedef	struct	SigTab	SigTab;
 
 /*
  * per cpu declaration
@@ -179,8 +180,14 @@ struct	Alg
 };
 struct	SigTab
 {
-	int32	catch;
+	int32	flags;
 	int8	*name;
+};
+enum
+{
+	SigCatch = 1<<0,
+	SigIgnore = 1<<1,
+	SigRestart = 1<<2,
 };
 
 // (will be) shared with go; edit ../cmd/6g/sys.go too.
@@ -305,8 +312,6 @@ uint8*	sys·mmap(byte*, uint32, int32, int32, int32, uint32);
 void	sys·memclr(byte*, uint32);
 void	sys·setcallerpc(void*, void*);
 void*	sys·getcallerpc(void*);
-void	sys·sigaction(int64, void*, void*);
-void	sys·rt_sigaction(int64, void*, void*, uint64);
 
 /*
  * runtime go-called

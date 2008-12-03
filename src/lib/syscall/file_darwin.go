@@ -94,3 +94,9 @@ export func mkdir(name string, perm int64) (ret int64, errno int64) {
 	r1, r2, err := Syscall(SYS_MKDIR, BytePtr(&namebuf[0]), perm, 0);
 	return r1, err;
 }
+
+export func dup2(fd1, fd2 int64) (ret int64, errno int64) {
+	r1, r2, err := Syscall(SYS_DUP2, fd1, fd2, 0);
+	return r1, err;
+}
+
