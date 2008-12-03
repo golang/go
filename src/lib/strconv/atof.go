@@ -110,13 +110,15 @@ var powtab = []int{
 }
 
 func DecimalToFloatBits(neg bool, d *Decimal, trunc bool, flt *FloatInfo) (b uint64, overflow bool) {
-	// Zero is always a special case.
-	if d.nd == 0 {
-		return 0, false
-	}
-
 	var exp int;
 	var mant uint64;
+
+	// Zero is always a special case.
+	if d.nd == 0 {
+		mant = 0;
+		exp = flt.bias;
+		goto out;
+	}
 
 	// Obvious overflow/underflow.
 	// These bounds are for 64-bit floats.
@@ -212,7 +214,7 @@ func DecimalToFloat64Int(neg bool, d *Decimal) float64 {
 		f = f*10 + float64(d.d[i] - '0');
 	}
 	if neg {
-		f = -f;
+		f *= -1;	// BUG work around 6g f = -f.
 	}
 	return f;
 }
@@ -223,7 +225,7 @@ func DecimalToFloat32Int(neg bool, d *Decimal) float32 {
 		f = f*10 + float32(d.d[i] - '0');
 	}
 	if neg {
-		f = -f;
+		f *= -1;	// BUG work around 6g f = -f.
 	}
 	return f;
 }
