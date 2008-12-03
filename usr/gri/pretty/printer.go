@@ -320,7 +320,7 @@ func (P *Printer) Error(pos int, tok int, msg string) {
 // ----------------------------------------------------------------------------
 // Types
 
-func (P *Printer) Type(t *AST.Type)
+func (P *Printer) Type(t *AST.Type) int
 func (P *Printer) Expr(x *AST.Expr)
 
 func (P *Printer) Parameters(pos int, list *array.Array) {
@@ -374,7 +374,11 @@ func (P *Printer) Fields(list *array.Array, end int) {
 }
 
 
-func (P *Printer) Type(t *AST.Type) {
+// Returns the separator (semicolon or none) required if
+// the type is terminating a declaration or statement.
+func (P *Printer) Type(t *AST.Type) int {
+	separator := semicolon;
+
 	switch t.tok {
 	case Scanner.IDENT:
 		P.Expr(t.expr);
@@ -385,7 +389,7 @@ func (P *Printer) Type(t *AST.Type) {
 			P.Expr(t.expr);
 		}
 		P.String(0, "]");
-		P.Type(t.elt);
+		separator = P.Type(t.elt);
 
 	case Scanner.STRUCT, Scanner.INTERFACE:
 		P.Token(t.pos, t.tok);
@@ -393,12 +397,13 @@ func (P *Printer) Type(t *AST.Type) {
 			P.separator = blank;
 			P.Fields(t.list, t.end);
 		}
+		separator = none;
 
 	case Scanner.MAP:
 		P.String(t.pos, "map [");
 		P.Type(t.key);
 		P.String(0, "]");
-		P.Type(t.elt);
+		separator = P.Type(t.elt);
 
 	case Scanner.CHAN:
 		var m string;
@@ -408,11 +413,11 @@ func (P *Printer) Type(t *AST.Type) {
 		case AST.SEND: m = "chan <- ";
 		}
 		P.String(t.pos, m);
-		P.Type(t.elt);
+		separator = P.Type(t.elt);
 
 	case Scanner.MUL:
 		P.String(t.pos, "*");
-		P.Type(t.elt);
+		separator = P.Type(t.elt);
 
 	case Scanner.LPAREN:
 		P.Parameters(t.pos, t.list);
@@ -433,6 +438,8 @@ func (P *Printer) Type(t *AST.Type) {
 	default:
 		P.Error(t.pos, t.tok, "type");
 	}
+
+	return separator;
 }
 
 
@@ -685,8 +692,6 @@ func (P *Printer) Stat(s *AST.Stat) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-// TODO This code is unreadable! Clean up AST and rewrite this.
-
 func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 	if !parenthesized {
 		if d.exported {
@@ -698,6 +703,7 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 	}
 
 	if d.tok != Scanner.FUNC && d.list != nil {
+		// group of parenthesized declarations
 		P.state = opening_scope;
 		P.String(0, "(");
 		if d.list.Len() > 0 {
@@ -712,43 +718,56 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 		P.String(d.end, ")");
 
 	} else {
-		if d.tok == Scanner.FUNC && d.typ.key != nil {
-			P.Parameters(0, d.typ.key.list);
-			P.separator = blank;
-		}
-
-		P.Expr(d.ident);
-		
-		if d.typ != nil {
-			if d.tok != Scanner.FUNC {
-				// TODO would like to change this to a tab separator
-				// but currently this causes trouble when the type is
-				// a struct/interface (fields are indented wrongly)
-				P.separator = blank;
+		// single declaration
+		switch d.tok {
+		case Scanner.IMPORT:
+			if d.ident != nil {
+				P.Expr(d.ident);
+			} else {
+				P.String(d.val.pos, "");  // flush pending ';' separator/newlines
 			}
-			P.Type(d.typ);
 			P.separator = tab;
-		}
+			P.Expr(d.val);
+			P.separator = semicolon;
 
-		if d.val != nil {
-			if d.tok != Scanner.IMPORT {
+		case Scanner.EXPORT:
+			P.Expr(d.ident);
+			P.separator = semicolon;
+
+		case Scanner.TYPE:
+			P.Expr(d.ident);
+			P.separator = blank;  // TODO switch to tab? (but indentation problem with structs)
+			P.separator = P.Type(d.typ);
+
+		case Scanner.CONST, Scanner.VAR:
+			P.Expr(d.ident);
+			if d.typ != nil {
+				P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
+				P.separator = P.Type(d.typ);
+			}
+			if d.val != nil {
 				P.separator = tab;
 				P.String(0, "=");
 				P.separator = blank;
+				P.Expr(d.val);
 			}
-			P.Expr(d.val);
-		}
-
-		if d.list != nil {
-			if d.tok != Scanner.FUNC {
-				panic("must be a func declaration");
-			}
-			P.separator = blank;
-			P.Block(0, d.list, d.end, true);
-		}
-		
-		if d.tok != Scanner.TYPE {
 			P.separator = semicolon;
+
+		case Scanner.FUNC:
+			if d.typ.key != nil {
+				// method: print receiver
+				P.Parameters(0, d.typ.key.list);
+				P.separator = blank;
+			}
+			P.Expr(d.ident);
+			P.separator = P.Type(d.typ);
+			if d.list != nil {
+				P.separator = blank;
+				P.Block(0, d.list, d.end, true);
+			}
+
+		default:
+			P.Error(d.pos, d.tok, "decl");
 		}
 	}
 	
@@ -787,7 +806,7 @@ export func Print(prog *AST.Program) {
 	P.Program(prog);
 	
 	// flush
-	P.String(0, "");
+	P.String(0, "");  // flush pending separator/newlines
 	err := P.writer.Flush();
 	if err != nil {
 		panic("print error - exiting");
