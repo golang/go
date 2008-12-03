@@ -105,7 +105,7 @@ dumpexportconst(Sym *s)
 		Bprint(bout, "0x%llux\n", n->val.u.bval);
 		break;
 	case CTFLT:
-		Bprint(bout, "%.17e\n", mpgetflt(n->val.u.fval));
+		Bprint(bout, "%F\n", n->val.u.fval);
 		break;
 	case CTSTR:
 		Bprint(bout, "\"%Z\"\n", n->val.u.sval);

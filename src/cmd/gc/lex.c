@@ -742,6 +742,8 @@ dc:
 		goto casedot;
 	if(c == 'e' || c == 'E')
 		goto casee;
+	if(c == 'p' || c == 'P')
+		goto casep;
 
 ncu:
 	*cp = 0;
@@ -780,6 +782,22 @@ casee:
 		*cp++ = c;
 		c = getc();
 	}
+	goto caseout;
+
+casep:
+	*cp++ = 'p';
+	c = getc();
+	if(c == '+' || c == '-') {
+		*cp++ = c;
+		c = getc();
+	}
+	if(!isdigit(c))
+		yyerror("malformed fp constant exponent");
+	while(isdigit(c)) {
+		*cp++ = c;
+		c = getc();
+	}
+	goto caseout;
 
 caseout:
 	*cp = 0;
