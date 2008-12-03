@@ -476,11 +476,6 @@ agen(Node *n, Node *res)
 			patch(p1, pc);
 		}
 
-		if(w != 1) {
-			nodconst(&n1, t, w);			// w
-			gins(optoas(OMUL, t), &n1, &n2);
-		}
-
 		if(isptrdarray(nl->type)) {
 			n1 = n3;
 			n1.op = OINDREG;
@@ -488,9 +483,20 @@ agen(Node *n, Node *res)
 			n1.xoffset = offsetof(Array, array);
 			gmove(&n1, &n3);
 		}
-		gins(optoas(OADD, types[tptr]), &n2, &n3);
-		gmove(&n3, res);
 
+		if(w == 1 || w == 2 || w == 4 || w == 8) {
+			p1 = gins(ALEAQ, &n2, &n3);
+			p1->from.scale = w;
+			p1->from.index = p1->from.type;
+			p1->from.type = p1->to.type + D_INDIR;
+		} else {
+			nodconst(&n1, t, w);
+			gins(optoas(OMUL, t), &n1, &n2);
+			gins(optoas(OADD, types[tptr]), &n2, &n3);
+			gmove(&n3, res);
+		}
+
+		gmove(&n3, res);
 		regfree(&n2);
 		regfree(&n3);
 		break;
