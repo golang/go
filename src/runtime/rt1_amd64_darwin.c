@@ -4,7 +4,7 @@
 
 #include "runtime.h"
 #include "amd64_darwin.h"
-#include "signals.h"
+#include "signals_darwin.h"
 
 typedef uint64 __uint64_t;
 
@@ -100,15 +100,14 @@ static _STRUCT_X86_FLOAT_STATE64 *get___fs(_STRUCT_MCONTEXT64 *ptr) {
 
 /*
  * This assembler routine takes the args from registers, puts them on the stack,
- * and calls sighandler().
+ * and calls the registered handler.
  */
-extern void sigtramp();
-
+extern void sigtramp(void);
 /*
  * Rudimentary reverse-engineered definition of signal interface.
  * You'd think it would be documented.
  */
-typedef struct siginfo {
+struct siginfo {
 	int32	si_signo;		/* signal number */
 	int32	si_errno;		/* errno association */
 	int32	si_code;		/* signal code */
@@ -117,21 +116,17 @@ typedef struct siginfo {
 	int32	si_status;		/* exit value */
 	void	*si_addr;		/* faulting address */
 	/* more stuff here */
-} siginfo;
+};
 
-
-typedef struct  sigaction {
- 	union {
-		void (*sa_handler)(int32);
-		void (*sa_sigaction)(int32, siginfo *, void *);
-	} u;				/* signal handler */
-	void (*sa_trampoline)(void);	/* kernel callback point; calls sighandler() */
-	uint8 sa_mask[4];		/* signal mask to apply */
-	int32 sa_flags;			/* see signal options below */
-} sigaction;
+struct sigaction {
+	void (*sa_handler)(int32, struct siginfo*, void*);	// actual handler
+	void (*sa_trampoline)(void);	// assembly trampoline
+	uint32 sa_mask;		// signal mask during handler
+	int32 sa_flags;			// flags below
+};
 
 void
-sighandler(int32 sig, siginfo *info, void *context)
+sighandler(int32 sig, struct siginfo *info, void *context)
 {
 	if(panicking)	// traceback already printed
 		sys·exit(2);
@@ -159,14 +154,16 @@ sighandler(int32 sig, siginfo *info, void *context)
 	sys·exit(2);
 }
 
+void
+sigignore(int32, struct siginfo*, void*)
+{
+}
+
 struct stack_t {
 	byte *sp;
 	int64 size;
 	int32 flags;
 };
-
-sigaction a;
-extern void sigtramp(void);
 
 void
 signalstack(byte *p, int32 n)
@@ -179,21 +176,39 @@ signalstack(byte *p, int32 n)
 	sigaltstack(&st, nil);
 }
 
+void	sigaction(int64, void*, void*);
+
+enum {
+	SA_SIGINFO = 0x40,
+	SA_RESTART = 0x02,
+	SA_ONSTACK = 0x01,
+	SA_USERTRAMP = 0x100,
+	SA_64REGSET = 0x200,
+};
+
 void
 initsig(void)
 {
 	int32 i;
+	static struct sigaction sa;
 
-	a.u.sa_sigaction = (void*)sigtramp;
-	a.sa_flags |= 0x41;  /* SA_SIGINFO, SA_ONSTACK */
-	for(i=0; i<sizeof(a.sa_mask); i++)
-		a.sa_mask[i] = 0xFF;
-	a.sa_trampoline = sigtramp;
-
-	for(i = 0; i <NSIG; i++)
-		if(sigtab[i].catch){
-			sys·sigaction(i, &a, (void*)0);
+	sa.sa_flags |= SA_SIGINFO|SA_ONSTACK;
+	sa.sa_mask = 0; // 0xFFFFFFFFU;
+	sa.sa_trampoline = sigtramp;
+	for(i = 0; i<NSIG; i++) {
+		if(sigtab[i].flags) {
+			if(sigtab[i].flags & SigCatch) {
+				sa.sa_handler = sighandler;
+			} else {
+				sa.sa_handler = sigignore;
+			}
+			if(sigtab[i].flags & SigRestart)
+				sa.sa_flags |= SA_RESTART;
+			else
+				sa.sa_flags &= ~SA_RESTART;
+			sigaction(i, &sa, nil);
 		}
+	}
 }
 
 static void

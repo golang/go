@@ -54,3 +54,21 @@ ok6:
 	MOVQ	$0, 80(SP)	// errno
 	CALL	sys·exitsyscall(SB)
 	RET
+
+TEXT syscall·RawSyscall(SB),7,$0
+	MOVQ	16(SP), DI
+	MOVQ	24(SP), SI
+	MOVQ	32(SP), DX
+	MOVQ	8(SP), AX	// syscall entry
+	ADDQ	$0x2000000, AX
+	SYSCALL
+	JCC	ok1
+	MOVQ	$-1, 40(SP)	// r1
+	MOVQ	$0, 48(SP)	// r2
+	MOVQ	AX, 56(SP)  // errno
+	RET
+ok1:
+	MOVQ	AX, 40(SP)	// r1
+	MOVQ	DX, 48(SP)	// r2
+	MOVQ	$0, 56(SP)	// errno
+	RET

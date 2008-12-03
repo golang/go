@@ -73,7 +73,7 @@ TEXT	write(SB),7,$-8
 	SYSCALL
 	RET
 
-TEXT	sys·sigaction(SB),7,$-8
+TEXT	sigaction(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 sig
 	MOVQ	16(SP), SI		// arg 2 act
 	MOVQ	24(SP), DX		// arg 3 oact
@@ -85,13 +85,19 @@ TEXT	sys·sigaction(SB),7,$-8
 	CALL	notok(SB)
 	RET
 
-TEXT sigtramp(SB),7,$24
+TEXT sigtramp(SB),7,$40
 	MOVQ	32(R14), R15	// g = m->gsignal
 	MOVL	DX,0(SP)
 	MOVQ	CX,8(SP)
 	MOVQ	R8,16(SP)
-	CALL	sighandler(SB)
-	RET
+	MOVQ	R8, 24(SP)	// save ucontext
+	MOVQ	SI, 32(SP)	// save infostyle
+	CALL	DI
+	MOVL	$(0x2000000+184), AX	// sigreturn(ucontext, infostyle)
+	MOVQ	24(SP), DI	// saved ucontext
+	MOVQ	32(SP), SI	// saved infostyle
+	SYSCALL
+	INT $3	// not reached
 
 TEXT	sys·mmap(SB),7,$-8
 	MOVQ	8(SP), DI		// arg 1 addr

@@ -8,6 +8,11 @@ TEXT	syscall·BytePtr(SB),7,$-8
 	MOVQ	AX, 16(SP)
 	RET
 
+TEXT	syscall·BytePtrPtr(SB),7,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
+	RET
+
 TEXT	syscall·Int32Ptr(SB),7,$-8
 	MOVQ	8(SP), AX
 	MOVQ	AX, 16(SP)
@@ -49,6 +54,11 @@ TEXT	syscall·TimespecPtr(SB),7,$-8
 	RET
 
 TEXT	syscall·TimevalPtr(SB),7,$-8
+	MOVQ	8(SP), AX
+	MOVQ	AX, 16(SP)
+	RET
+
+TEXT	syscall·RusagePtr(SB),7,$-8
 	MOVQ	8(SP), AX
 	MOVQ	AX, 16(SP)
 	RET
