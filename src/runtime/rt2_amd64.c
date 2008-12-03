@@ -9,64 +9,49 @@ extern int32	debug;
 extern uint8 end;
 
 void
-traceback(uint8 *pc, uint8 *sp, void* r15)
+traceback(byte *pc0, byte *sp, G *g)
 {
-	uint8* callpc;
-	int32 counter;
-	int32 i;
-	string name;
+	Stktop *stk;
+	uint64 pc;
+	int32 i, n;
 	Func *f;
-	G g;
-	Stktop *stktop;
 
-	// store local copy of per-process data block that we can write as we unwind
-	mcpy((byte*)&g, (byte*)r15, sizeof(G));
+	pc = (uint64)pc0;
 
-	// if the PC is zero, it's probably due to a nil function pointer.
-	// pop the failed frame.
-	if(pc == nil) {
-		pc = ((uint8**)sp)[0];
+	// If the PC is zero, it's likely a nil function call.
+	// Start in the caller's frame.
+	if(pc == 0) {
+		pc = *(uint64*)sp;
 		sp += 8;
 	}
 
-	counter = 0;
-	for(;;){
-		callpc = pc;
-		if((uint8*)retfromnewstack == pc) {
-			// call site is retfromnewstack(); pop to earlier stack block to get true caller
-			stktop = (Stktop*)g.stackbase;
-			g.stackbase = stktop->oldbase;
-			g.stackguard = stktop->oldguard;
-			sp = stktop->oldsp;
-			pc = ((uint8**)sp)[1];
-			sp += 16;  // two irrelevant calls on stack - morestack, plus the call morestack made
-			continue;
+	stk = (Stktop*)g->stackbase;
+	for(n=0; n<100; n++) {
+		while(pc == (uint64)retfromnewstack) {
+			// pop to earlier stack block
+			sp = stk->oldsp;
+			stk = (Stktop*)stk->oldbase;
+			pc = *(uint64*)(sp+8);
+			sp += 16;	// two irrelevant calls on stack: morestack plus its call
 		}
-		f = findfunc((uint64)callpc);
+		f = findfunc(pc);
 		if(f == nil) {
-			printf("%p unknown pc\n", callpc);
+			printf("%p unknown pc\n", pc);
 			return;
 		}
-		name = f->name;
 		if(f->frame < 8)	// assembly funcs say 0 but lie
 			sp += 8;
 		else
 			sp += f->frame;
-		if(counter++ > 100){
-			prints("stack trace terminated\n");
-			break;
-		}
-		if((pc = ((uint8**)sp)[-1]) <= (uint8*)0x1000)
-			break;
 
 		// print this frame
 		//	main+0xf /home/rsc/go/src/runtime/x.go:23
 		//		main(0x1, 0x2, 0x3)
-		printf("%S", name);
-		if((uint64)callpc > f->entry)
-			printf("+%X", (uint64)callpc - f->entry);
-		printf(" %S:%d\n", f->src, funcline(f, (uint64)callpc-1));	// -1 to get to CALL instr.
-		printf("\t%S(", name);
+		printf("%S", f->name);
+		if(pc > f->entry)
+			printf("+%X", pc - f->entry);
+		printf(" %S:%d\n", f->src, funcline(f, pc-1));	// -1 to get to CALL instr.
+		printf("\t%S(", f->name);
 		for(i = 0; i < f->args; i++) {
 			if(i != 0)
 				prints(", ");
@@ -77,5 +62,10 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
 			}
 		}
 		prints(")\n");
+
+		pc = *(uint64*)(sp-8);
+		if(pc <= 0x1000)
+			return;
 	}
+	prints("...\n");
 }
