@@ -25,6 +25,9 @@ const /* enum */ (
 )
 
 
+type S struct {}
+
+
 type T struct {
 	x, y int;
 	s string;
