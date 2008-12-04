@@ -1212,3 +1212,86 @@ embedded(Sym *s)
 		yyerror("embedded type cannot be a pointer");
 	return n;
 }
+
+/*
+ * declare variables from grammar
+ * new_name_list [type] = expr_list
+ */
+Node*
+variter(Node *vv, Type *t, Node *ee)
+{
+	Iter viter, eiter;
+	Node *v, *e, *r, *a;
+
+	vv = rev(vv);
+	ee = rev(ee);
+
+	v = listfirst(&viter, &vv);
+	e = listfirst(&eiter, &ee);
+	r = N;
+
+loop:
+	if(v == N && e == N)
+		return rev(r);
+	
+	if(v == N || e == N) {
+		yyerror("shape error in var dcl");
+		return rev(r);
+	}
+
+	a = nod(OAS, v, N);
+	if(t == T) {
+		gettype(e, a);
+		defaultlit(e);
+		dodclvar(v, e->type);
+	} else
+		dodclvar(v, t);
+	a->right = e;
+
+	r = list(r, a);
+
+	v = listnext(&viter);
+	e = listnext(&eiter);
+	goto loop;
+}
+
+/*
+ * declare constants from grammar
+ * new_name_list [type] [= expr_list]
+ */
+void
+constiter(Node *vv, Type *t, Node *cc)
+{
+	Iter viter, citer;
+	Node *v, *c, *a;
+
+	if(cc == N)
+		cc = lastconst;
+	lastconst = cc;
+	vv = rev(vv);
+	cc = rev(treecopy(cc));
+
+	v = listfirst(&viter, &vv);
+	c = listfirst(&citer, &cc);
+
+loop:
+	if(v == N && c == N) {
+		iota += 1;
+		return;
+	}
+	
+	if(v == N || c == N) {
+		yyerror("shape error in var dcl");
+		iota += 1;
+		return;
+	}
+
+	gettype(c, N);
+	if(t != T)
+		convlit(c, t);
+	dodclconst(v, c);
+
+	v = listnext(&viter);
+	c = listnext(&citer);
+	goto loop;
+}

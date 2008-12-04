@@ -713,6 +713,8 @@ void	checkwidth(Type*);
 void	defercheckwidth(void);
 void	resumecheckwidth(void);
 Node*	embedded(Sym*);
+Node*	variter(Node*, Type*, Node*);
+void	constiter(Node*, Type*, Node*);
 
 /*
  *	export.c
