@@ -277,6 +277,8 @@ G*	malg(int32);
 void	minit(void);
 Func*	findfunc(uint64);
 int32	funcline(Func*, uint64);
+void*	stackalloc(uint32);
+void	stackfree(void*);
 
 /*
  * mutual exclusion locks.  in the uncontended case,

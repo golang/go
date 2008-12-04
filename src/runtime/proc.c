@@ -567,6 +567,7 @@ oldstack(void)
 	Stktop *top;
 	uint32 siz2;
 	byte *sp;
+	uint64 oldsp, oldpc, oldbase, oldguard;
 
 // printf("oldstack m->cret=%p\n", m->cret);
 
@@ -581,13 +582,34 @@ oldstack(void)
 		mcpy(top->oldsp+16, sp, siz2);
 	}
 
-	// call  no more functions after this point - stackguard disagrees with SP
-	m->curg->stackbase = top->oldbase;
-	m->curg->stackguard = top->oldguard;
-	m->morestack.SP = top->oldsp+8;
-	m->morestack.PC = (byte*)(*(uint64*)(top->oldsp+8));
+	oldsp = (uint64)top->oldsp + 8;
+	oldpc = *(uint64*)(top->oldsp + 8);
+	oldbase = (uint64)top->oldbase;
+	oldguard = (uint64)top->oldguard;
 
+	stackfree((byte*)m->curg->stackguard - 512 - 160);
+
+	m->curg->stackbase = (byte*)oldbase;
+	m->curg->stackguard = (byte*)oldguard;
+	m->morestack.SP = (byte*)oldsp;
+	m->morestack.PC = (byte*)oldpc;
+
+	// These two lines must happen in sequence;
+	// once g has been changed, must switch to g's stack
+	// before calling any non-assembly functions.
+	// TODO(rsc): Perhaps make the new g a parameter
+	// to gogoret and setspgoto, so that g is never
+	// explicitly assigned to without also setting
+	// the stack pointer.
+	g = m->curg;
 	gogoret(&m->morestack, m->cret);
+}
+
+void
+lessstack(void)
+{
+	g = m->g0;
+	setspgoto(m->sched.SP, oldstack, nil);
 }
 
 void
@@ -611,7 +633,7 @@ newstack(void)
 
 	if(siz1 < 4096)
 		siz1 = 4096;
-	stk = mal(siz1 + 1024);
+	stk = stackalloc(siz1 + 1024);
 	stk += 512;
 
 	top = (Stktop*)(stk+siz1-sizeof(*top));
@@ -658,3 +680,4 @@ sys·morestack(uint64 u)
 
 	*(int32*)234 = 123;	// never return
 }
+
