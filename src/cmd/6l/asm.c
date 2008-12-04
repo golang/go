@@ -121,7 +121,7 @@ asmb(void)
 {
 	Prog *p;
 	int32 v, magic;
-	int a, np;
+	int a, nl, np;
 	uchar *op1;
 	vlong vl, va, fo, w, symo;
 	int strtabsize;
@@ -357,10 +357,12 @@ asmb(void)
 		lputl((1<<24)|7);		/* cputype - x86/ABI64 */
 		lputl(3);			/* subtype - x86 */
 		lputl(2);			/* file type - mach executable */
-		if (debug['s'])
-			lputl(4);			/* number of loads */
-		else
-			lputl(7);			/* number of loads */
+		nl = 4;
+		if (!debug['s'])
+			nl += 3;
+		if (!debug['d'])	// -d = turn off "dynamic loader"
+			nl += 2;
+		lputl(nl);			/* number of loads */
 		lputl(machheadr()-32);		/* size of loads */
 		lputl(1);			/* flags - no undefines */
 		lputl(0);			/* reserved */
@@ -399,6 +401,7 @@ asmb(void)
 			0,0,0,0,		/* offset align reloc nreloc */
 			1);			/* flag - zero fill */
 
+		machdylink();
 		machstack(va+HEADR);
 
 		if (!debug['s']) {
@@ -824,6 +827,32 @@ machsect(char *name, char *seg, vlong addr, vlong size, uint32 off,
 	lputl(0);	/* reserved */
 }
 
+// Emit a section requesting the dynamic loader
+// but giving it no work to do (an empty dynamic symbol table).
+// This is enough to make the Apple tracing programs (like dtrace)
+// accept the binary, so that one can run dtruss on a 6.out.
+// The dynamic linker loads at 0x8fe00000, so if we want to
+// be able to build >2GB binaries, we're going to need to move
+// the text segment to 4G like Apple does.
+void
+machdylink(void)
+{
+	int i;
+
+	if(debug['d'])
+		return;
+
+	lputl(11);	/* LC_DYSYMTAB */
+	lputl(80);	/* byte count */
+	for(i=0; i<18; i++)
+		lputl(0);
+
+	lputl(14);	/* LC_LOAD_DYLINKER */
+	lputl(28);	/* byte count */
+	lputl(12);	/* offset to string */
+	strnput("/usr/lib/dyld", 16);
+}
+
 void
 machstack(vlong e)
 {
@@ -855,6 +884,10 @@ machheadr(void)
 	a += 20;	/* data sect */
 	a += 20;	/* bss sect */
 	a += 46;	/* stack sect */
+	if (!debug['d']) {
+		a += 20;	/* dysymtab */
+		a += 7;	/* load dylinker */
+	}
 	if (!debug['s']) {
 		a += 18;	/* symdat seg */
 		a += 4;	/* symtab seg */
