@@ -438,6 +438,7 @@ void	machseg(char*, vlong, vlong, vlong, vlong, uint32, uint32, uint32, uint32);
 void	machsymseg(uint32, uint32);
 void	machsect(char*, char*, vlong, vlong, uint32, uint32, uint32, uint32, uint32);
 void	machstack(vlong);
+void	machdylink(void);
 uint32	machheadr(void);
 
 uint32	linuxheadr(void);
