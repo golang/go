@@ -34,6 +34,10 @@ FILES=\
 	utf8\
 
 TEST=\
+	bignum\
+	bufio\
+	sort\
+	strings\
 	utf8\
 
 clean.dirs: $(addsuffix .dirclean, $(DIRS))
