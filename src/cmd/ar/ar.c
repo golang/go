@@ -670,7 +670,7 @@ scanpkg(Biobuf *b, long size)
 			continue;
 		goto foundstart;
 	}
-	fprint(2, "ar: warning: no package import section in %s\n", file);
+	// fprint(2, "ar: warning: no package import section in %s\n", file);
 	return;
 
 foundstart:
