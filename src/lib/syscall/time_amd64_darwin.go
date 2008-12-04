@@ -16,3 +16,9 @@ export func gettimeofday() (sec, nsec, errno int64) {
 	}
 	return r1, r2*1000, 0
 }
+
+export func nstotimeval(ns int64, tv *Timeval) {
+	ns += 999;	// round up
+	tv.sec = int64(ns/1000000000);
+	tv.usec = uint32(ns%1000000000 / 1000);
+}
