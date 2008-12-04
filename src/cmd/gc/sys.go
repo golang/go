@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 
-package SYS	// rename to avoid redeclaration
+package SYS	// rename to avoid redeclaration errors
 
 export func	mal(int32) *any;
 export func	breakpoint();
@@ -92,3 +92,5 @@ export func	exit(int);
 
 export func	symdat() (symtab *[]byte, pclntab *[]byte);
 
+export func	semacquire(sema *int32);
+export func	semrelease(sema *int32);
