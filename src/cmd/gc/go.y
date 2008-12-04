@@ -318,60 +318,37 @@ Bvardcl:
 		if(addtop != N)
 			fatal("new_name_list_r type '=' expr_list");
 
-		$$ = rev($1);
-		dodclvar($$, $2);
-
-		$$ = nod(OAS, $$, $4);
+		$$ = variter($1, $2, $4);
 		addtotop($$);
 	}
-|	new_name '=' expr
+|	new_name_list_r '=' expr_list
 	{
-		$$ = nod(OAS, $1, N);
-		gettype($3, $$);
-		defaultlit($3);
-		dodclvar($1, $3->type);
-		$$->right = $3;
+		if(addtop != N)
+			fatal("new_name_list_r '=' expr_list");
+
+		$$ = variter($1, T, $3);
+		addtotop($$);
 	}
 
 constdcl:
-	new_name type '=' expr
+	new_name_list_r type '=' expr_list
 	{
-		Node *c = treecopy($4);
-		gettype(c, N);
-		convlit(c, $2);
-		dodclconst($1, c);
-
-		lastconst = $4;
-		iota += 1;
+		constiter($1, $2, $4);
 	}
-|	new_name '=' expr
+|	new_name_list_r '=' expr_list
 	{
-		Node *c = treecopy($3);
-		gettype(c, N);
-		dodclconst($1, c);
-
-		lastconst = $3;
-		iota += 1;
+		constiter($1, T, $3);
 	}
 
 constdcl1:
 	constdcl
-|	new_name type
+|	new_name_list_r type
 	{
-		Node *c = treecopy(lastconst);
-		gettype(c, N);
-		convlit(c, $2);
-		dodclconst($1, c);
-
-		iota += 1;
+		constiter($1, $2, N);
 	}
-|	new_name
+|	new_name_list_r
 	{
-		Node *c = treecopy(lastconst);
-		gettype(c, N);
-		dodclconst($1, c);
-
-		iota += 1;
+		constiter($1, T, N);
 	}
 
 typedclname:
