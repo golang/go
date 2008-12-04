@@ -42,7 +42,7 @@ TEXT	_rt0_amd64(SB),7,$-8
 	CALL	sys·newproc(SB)
 	POPQ	AX
 	POPQ	AX
-	
+
 	// start this M
 	CALL	mstart(SB)
 
@@ -89,10 +89,10 @@ TEXT gosave(SB), 7, $0
  * support for morestack
  */
 
-// return point when leaving new stack.  save AX, jmp to oldstack to switch back
+// return point when leaving new stack.  save AX, jmp to lessstack to switch back
 TEXT retfromnewstack(SB), 7, $0
 	MOVQ	AX, 16(R14)	// save AX in m->cret
-	MOVQ	$oldstack(SB), AX
+	MOVQ	$lessstack(SB), AX
 	JMP	AX
 
 // gogo, returning 2nd arg instead of 1
