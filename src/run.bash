@@ -24,10 +24,14 @@ maketest() {
 }
 
 maketest \
+	lib/fmt\
+	lib/hash\
 	lib/math\
 	lib/reflect\
 	lib/regexp\
 	lib/strconv\
+	lib/tabwriter\
+	lib/time\
 
 # all of these are subtly different
 # from what maketest does.
