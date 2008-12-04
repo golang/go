@@ -25,6 +25,7 @@ LIBOFILES=\
 	print.$O\
 	rune.$O\
 	proc.$O\
+	sema.$O\
 	stack.$O\
 	string.$O\
 	symtab.$O\

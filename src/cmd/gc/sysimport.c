@@ -71,5 +71,7 @@ char *sysimport =
 	"export func sys.stringtorune (? string, ? int) (? int, ? int)\n"
 	"export func sys.exit (? int)\n"
 	"export func sys.symdat () (symtab *[]uint8, pclntab *[]uint8)\n"
+	"export func sys.semacquire (sema *int32)\n"
+	"export func sys.semrelease (sema *int32)\n"
 	"\n"
 	"$$\n";

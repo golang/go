@@ -18,6 +18,7 @@ DIRS=\
 	reflect\
 	regexp\
 	strconv\
+	sync\
 	tabwriter\
 	time\
 
@@ -95,4 +96,5 @@ reflect.dirinstall: strconv.dirinstall
 strconv.dirinstall: os.dirinstall utf8.install
 tabwriter.dirinstall: os.dirinstall io.dirinstall container/array.dirinstall
 time.dirinstall: once.install os.dirinstall
+sync.dirinstall:
 

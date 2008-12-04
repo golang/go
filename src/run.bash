@@ -34,6 +34,12 @@ maketest \
 
 (xcd lib; make test) || exit $?
 
+(xcd lib/sync;
+make clean;
+time make
+GOMAXPROCS=10 make test
+) || exit $?
+
 (xcd ../usr/gri/pretty
 make clean
 time make
