@@ -10,6 +10,7 @@ import (
 	"tabwriter";
 	"flag";
 	"fmt";
+	"htmlwriter";
 	Scanner "scanner";
 	AST "ast";
 )
@@ -24,6 +25,7 @@ var (
 	maxnewlines = flag.Int("maxnewlines", 3, nil, "max. number of consecutive newlines");
 
 	// formatting control
+	html = flag.Bool("html", false, nil, "generate html");
 	comments = flag.Bool("comments", true, nil, "print comments");
 	optsemicolons = flag.Bool("optsemicolons", false, nil, "print optional semicolons");
 )
@@ -53,7 +55,7 @@ const (
 
 type Printer struct {
 	// output
-	writer *tabwriter.Writer;
+	writer *htmlwriter.Writer;
 	
 	// comments
 	comments *array.Array;  // the list of all comments
@@ -90,14 +92,10 @@ func (P *Printer) NextComment() {
 }
 
 
-func (P *Printer) Init(writer *tabwriter.Writer, comments *array.Array) {
+func (P *Printer) Init(writer *htmlwriter.Writer, comments *array.Array) {
 	// writer
-	padchar := byte(' ');
-	if usetabs.BVal() {
-		padchar = '\t';
-	}
-	P.writer = tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true);
-
+	P.writer = writer;
+	
 	// comments
 	P.comments = comments;
 	P.cindex = -1;
@@ -299,12 +297,6 @@ func (P *Printer) String(pos int, s string) {
 }
 
 
-func (P *Printer) Separator(separator int) {
-	P.separator = separator;
-	P.String(0, "");
-}
-
-
 func (P *Printer) Token(pos int, tok int) {
 	P.String(pos, Scanner.TokenString(tok));
 }
@@ -314,6 +306,47 @@ func (P *Printer) Error(pos int, tok int, msg string) {
 	P.String(0, "<");
 	P.Token(pos, tok);
 	P.String(0, " " + msg + ">");
+}
+
+
+// ----------------------------------------------------------------------------
+// HTML support
+// TODO Move this to html writer
+
+func (P *Printer) HtmlPrologue(title string) {
+	if html.BVal() {
+		P.String(0,
+			"<html>\n"
+			"<head>\n"
+			"	<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n"
+			"	<title>" + title + "</title>\n"
+			"	<style type=\"text/css\">\n"
+			"	</style>\n"
+			"</head>\n"
+			"<body>\n"
+			"<pre>\n"
+		)
+	}
+}
+
+
+func (P *Printer) HtmlEpilogue() {
+	if html.BVal() {
+		P.String(0,
+			"</pre>\n"
+			"</body>\n"
+			"<html>\n"
+		)
+	}
+}
+
+
+func (P *Printer) HtmlIdentifier(pos int, ident string) {
+	if html.BVal() {
+		P.String(pos, `<a href="#` + ident + `">` + ident + `</a>`);
+	} else {
+		P.String(pos, ident);
+	}
 }
 
 
@@ -331,9 +364,9 @@ func (P *Printer) Parameters(pos int, list *array.Array) {
 			x := list.At(i).(*AST.Expr);
 			if i > 0 {
 				if prev == x.tok || prev == Scanner.TYPE {
-					P.Separator(comma);
+					P.separator = comma;
 				} else {
-					P.Separator(blank);
+					P.separator = blank;
 				}
 			}
 			P.Expr(x);
@@ -458,7 +491,10 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		// type expr
 		P.Type(x.t);
 
-	case Scanner.IDENT, Scanner.INT, Scanner.STRING, Scanner.FLOAT:
+	case Scanner.IDENT:
+		P.HtmlIdentifier(x.pos, x.s);
+	
+	case Scanner.INT, Scanner.STRING, Scanner.FLOAT:
 		// literal
 		P.String(x.pos, x.s);
 
@@ -799,16 +835,16 @@ export func Print(prog *AST.Program) {
 	if usetabs.BVal() {
 		padchar = '\t';
 	}
-	writer := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true);
+	twriter := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true);
+	hwriter := htmlwriter.New(twriter);
 	var P Printer;
-	P.Init(writer, prog.comments);
+	P.Init(hwriter, prog.comments);
 
+	P.HtmlPrologue("<the source>");
 	P.Program(prog);
+	P.HtmlEpilogue();
 	
-	// flush
 	P.String(0, "");  // flush pending separator/newlines
-	err := P.writer.Flush();
-	if err != nil {
-		panic("print error - exiting");
-	}
+	hwriter.Flush();  // ignore errors
+	twriter.Flush();  // ignore errors
 }

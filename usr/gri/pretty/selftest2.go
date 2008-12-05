@@ -61,7 +61,7 @@ func f1(tag int) {
 
 
 func f2(tag int) {
-	type T1 struct {}
+	type T struct {}
 	var x T
 }
 
