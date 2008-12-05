@@ -31,3 +31,7 @@ test%: test%.$O $(OFILES)
 
 clean:
 	rm -f *.$O $(TARG)
+
+runtime: allocator.$O malloc.$O pagemap.$O triv.$O stack.$O
+	6ar grc $(GOROOT)/lib/lib_$(GOARCH)_$(GOOS).a $^
+

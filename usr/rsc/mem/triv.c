@@ -36,6 +36,7 @@ trivalloc(int32 size)
 	static byte *p;
 	static int32 n;
 	byte *v;
+	uint64 oldfoot;
 
 	if(allocator·frozen)
 		throw("allocator frozen");
@@ -44,6 +45,7 @@ trivalloc(int32 size)
 //sys·printint(size);
 //prints("\n");
 
+	oldfoot = allocator·footprint;
 	if(size < 4096) {	// TODO: Tune constant.
 		size = (size + Round) & ~Round;
 		if(size > n) {
@@ -53,12 +55,20 @@ trivalloc(int32 size)
 		}
 		v = p;
 		p += size;
-		return v;
+		goto out;
 	}
 	if(size & PageMask)
 		size += (1<<PageShift) - (size & PageMask);
 	v = sys·mmap(nil, size, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
 	allocator·footprint += size;
+
+out:
+	if((oldfoot>>24) != (allocator·footprint>>24))
+		printf("memory footprint = %D MB for %D MB\n", allocator·footprint>>20, allocator·allocated>>20);
+	if(allocator·footprint >= 2LL<<30) {
+		prints("out of memory\n");
+		sys·exit(1);
+	}
 	return v;
 }
 

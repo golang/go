@@ -10,3 +10,4 @@ export func memset(*byte, int, int)
 export var footprint int64
 export var frozen bool
 export func testsizetoclass()
+export var allocated int64

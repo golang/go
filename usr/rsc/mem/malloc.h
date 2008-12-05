@@ -24,9 +24,13 @@ struct PageMap
 	void *level0[PMLevelSize];
 };
 
+extern int64 allocator·allocated;
 extern int64 allocator·footprint;
 extern bool allocator·frozen;
 
 void* trivalloc(int32);
 void* pmlookup(PageMap*, uintptr);
 void* pminsert(PageMap*, uintptr, void*);
+
+void*	alloc(int32);
+void	free(void*);
