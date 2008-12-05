@@ -7,6 +7,6 @@
 package main
 func main() {
         var x int64 = 0;
-        println(x != nil);	// ERROR ".*"
-        println(0 != nil);	// ERROR ".*"
+        println(x != nil);	// ERROR "illegal|incompatible"
+        println(0 != nil);	// ERROR "illegal|incompatible"
 }
