@@ -4,30 +4,17 @@
 
 package strings
 
-// Count UTF-8 sequences in s.
-// Assumes s is well-formed.
-export func utflen(s string) int {
-	n := 0;
-	for i := 0; i < len(s); i++ {
-		if s[i]&0xC0 != 0x80 {
-			n++
-		}
-	}
-	return n
-}
+import "utf8"
 
 // Split string into array of UTF-8 sequences (still strings)
 export func explode(s string) *[]string {
-	a := new([]string, utflen(s));
+	a := new([]string, utf8.RuneCountInString(s, 0, len(s)));
 	j := 0;
+	var size, rune int;
 	for i := 0; i < len(a); i++ {
-		ej := j;
-		ej++;
-		for ej < len(s) && (s[ej]&0xC0) == 0x80 {
-			ej++
-		}
-		a[i] = s[j:ej];
-		j = ej
+		rune, size = utf8.DecodeRuneInString(s, j);
+		a[i] = string(rune);
+		j += size;
 	}
 	return a
 }
@@ -35,7 +22,7 @@ export func explode(s string) *[]string {
 // Count non-overlapping instances of sep in s.
 export func count(s, sep string) int {
 	if sep == "" {
-		return utflen(s)+1
+		return utf8.RuneCountInString(s, 0, len(s))+1
 	}
 	c := sep[0];
 	n := 0;
@@ -83,7 +70,7 @@ export func split(s, sep string) *[]string {
 	a[na] = s[start:len(s)];
 	return a
 }
-	
+
 // Join list of strings with separators between them.
 export func join(a *[]string, sep string) string {
 	if len(a) == 0 {

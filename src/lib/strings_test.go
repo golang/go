@@ -79,21 +79,3 @@ export func TestSplit(t *testing.T) {
 	}
 }
 
-// TODO: utflen shouldn't even be in strings.
-type UtflenTest struct {
-	in string;
-	out int;
-}
-var utflentests = []UtflenTest {
-	UtflenTest{ abcd, 4 },
-	UtflenTest{ faces, 3 },
-	UtflenTest{ commas, 7 },
-}
-export func TestUtflen(t *testing.T) {
-	for i := 0; i < len(utflentests); i++ {
-		tt := utflentests[i];
-		if out := strings.utflen(tt.in); out != tt.out {
-			t.Errorf("utflen(%q) = %d, want %d", tt.in, out, tt.out);
-		}
-	}
-}

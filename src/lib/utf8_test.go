@@ -156,3 +156,25 @@ export func TestDecodeRune(t *testing.T) {
 		}
 	}
 }
+
+type RuneCountTest struct {
+	in string;
+	out int;
+}
+var runecounttests = []RuneCountTest {
+	RuneCountTest{ "abcd", 4 },
+	RuneCountTest{ "☺☻☹", 3 },
+	RuneCountTest{ "1,2,3,4", 7 },
+	RuneCountTest{ "\xe2\x00", 2 },
+}
+export func TestRuneCount(t *testing.T) {
+	for i := 0; i < len(runecounttests); i++ {
+		tt := runecounttests[i];
+		if out := utf8.RuneCountInString(tt.in, 0, len(tt.in)); out != tt.out {
+			t.Errorf("RuneCountInString(%q) = %d, want %d", tt.in, out, tt.out);
+		}
+		if out := utf8.RuneCount(Bytes(tt.in)); out != tt.out {
+			t.Errorf("RuneCount(%q) = %d, want %d", tt.in, out, tt.out);
+		}
+	}
+}

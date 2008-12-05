@@ -88,6 +88,7 @@ bignum.6: fmt.dirinstall
 bufio.6: io.dirinstall os.dirinstall
 flag.6: fmt.dirinstall
 testing.6: flag.install fmt.dirinstall
+strings.6: utf8.install
 
 fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
 hash.dirinstall: os.dirinstall
