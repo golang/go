@@ -277,9 +277,7 @@ loop:
 		if(top != Etop)
 			goto nottop;
 
-		if(!casebody(n->nbody))
-			yyerror("switch statement must have case labels");
-
+		casebody(n->nbody);
 		if(n->ntest == N)
 			n->ntest = booltrue;
 		walkstate(n->ninit);

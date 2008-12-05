@@ -536,6 +536,8 @@ swgen(Node *n)
 	c1 = listfirst(&save1, &n->nbody);
 	while(c1 != N) {
 		setlineno(c1);
+		if(c1->op == OEMPTY)
+			break;
 		if(c1->op != OCASE) {
 			if(s0 == C && dflt == P)
 				yyerror("unreachable statements in a switch");
