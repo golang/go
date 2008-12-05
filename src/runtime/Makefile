@@ -22,11 +22,11 @@ LIBOFILES=\
 	chan.$O\
 	iface.$O\
 	array.$O\
+	mem.$O\
 	print.$O\
 	rune.$O\
 	proc.$O\
 	sema.$O\
-	stack.$O\
 	string.$O\
 	symtab.$O\
 	sys_file.$O\

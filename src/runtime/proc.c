@@ -53,9 +53,12 @@ struct Sched {
 	int32 mcount;	// number of ms that have been created
 	int32 mcpu;	// number of ms executing on cpu
 	int32 mcpumax;	// max number of ms allowed on cpu
+	int32 gomaxprocs;
 	int32 msyscall;	// number of ms in system calls
 
 	int32 predawn;	// running initialization, don't run new gs.
+
+	Note	stopped;	// one g can wait here for ms to stop
 };
 
 Sched sched;
@@ -91,10 +94,11 @@ schedinit(void)
 	int32 n;
 	byte *p;
 
-	sched.mcpumax = 1;
+	sched.gomaxprocs = 1;
 	p = getenv("GOMAXPROCS");
 	if(p != nil && (n = atoi(p)) != 0)
-		sched.mcpumax = n;
+		sched.gomaxprocs = n;
+	sched.mcpumax = sched.gomaxprocs;
 	sched.mcount = 1;
 	sched.predawn = 1;
 }
@@ -134,7 +138,7 @@ malg(int32 stacksize)
 
 	// 160 is the slop amount known to the stack growth code
 	g = mal(sizeof(G));
-	stk = mal(160 + stacksize);
+	stk = stackalloc(160 + stacksize);
 	g->stack0 = stk;
 	g->stackguard = stk + 160;
 	g->stackbase = stk + 160 + stacksize;
@@ -348,6 +352,7 @@ nextgandunlock(void)
 		throw("all goroutines are asleep - deadlock!");
 	m->nextg = nil;
 	noteclear(&m->havenextg);
+	notewakeup(&sched.stopped);
 	unlock(&sched);
 
 	notesleep(&m->havenextg);
@@ -360,6 +365,33 @@ nextgandunlock(void)
 		unlock(&debuglock);
 	}
 	return gp;
+}
+
+// TODO(rsc): Remove. This is only temporary,
+// for the mark and sweep collector.
+void
+stoptheworld(void)
+{
+	lock(&sched);
+	sched.mcpumax = 1;
+	while(sched.mcpu > 1) {
+		noteclear(&sched.stopped);
+		unlock(&sched);
+		notesleep(&sched.stopped);
+		lock(&sched);
+	}
+	unlock(&sched);
+}
+
+// TODO(rsc): Remove. This is only temporary,
+// for the mark and sweep collector.
+void
+starttheworld(void)
+{
+	lock(&sched);
+	sched.mcpumax = sched.gomaxprocs;
+	matchmg();
+	unlock(&sched);
 }
 
 // Called to start an M.
@@ -500,11 +532,15 @@ sys·entersyscall(uint64 callerpc, int64 trap)
 		unlock(&debuglock);
 	}
 	lock(&sched);
+	g->status = Gsyscall;
 	sched.mcpu--;
 	sched.msyscall++;
 	if(sched.gwait != 0)
 		matchmg();
 	unlock(&sched);
+	// leave SP around for gc; poison PC to make sure it's not used
+	g->sched.SP = (byte*)&callerpc;
+	g->sched.PC = (byte*)0xdeadbeef;
 }
 
 // The goroutine g exited its system call.
@@ -521,6 +557,7 @@ sys·exitsyscall(void)
 	}
 
 	lock(&sched);
+	g->status = Grunning;
 	sched.msyscall--;
 	sched.mcpu++;
 	// Fast path - if there's room for this m, we're done.

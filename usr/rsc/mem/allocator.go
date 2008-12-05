@@ -11,3 +11,5 @@ export var footprint int64
 export var frozen bool
 export func testsizetoclass()
 export var allocated int64
+export func find(uint64) (obj *byte, size int64, ref *int32, ok bool)
+export func gc()

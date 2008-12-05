@@ -20,6 +20,8 @@ default: $(TARG)
 OFILES=\
 	allocator.$O\
 	malloc.$O\
+	mem.$O\
+	ms.$O\
 	pagemap.$O\
 	triv.$O\
 
@@ -32,6 +34,5 @@ test%: test%.$O $(OFILES)
 clean:
 	rm -f *.$O $(TARG)
 
-runtime: allocator.$O malloc.$O pagemap.$O triv.$O stack.$O
+runtime: $(OFILES)
 	6ar grc $(GOROOT)/lib/lib_$(GOARCH)_$(GOOS).a $^
-

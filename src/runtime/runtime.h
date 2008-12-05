@@ -65,6 +65,7 @@ enum
 	Gidle,
 	Grunnable,
 	Grunning,
+	Gsyscall,
 	Gwaiting,
 	Gmoribund,
 	Gdead,
@@ -280,6 +281,11 @@ int32	funcline(Func*, uint64);
 void*	stackalloc(uint32);
 void	stackfree(void*);
 
+// TODO(rsc): Remove. These are only temporary,
+// for the mark and sweep collector.
+void	stoptheworld(void);
+void	starttheworld(void);
+
 /*
  * mutual exclusion locks.  in the uncontended case,
  * as fast as spin locks (just a few user-level instructions),
@@ -340,3 +346,5 @@ bool	isNaN(float64);
 void	sys·readfile(string, string, bool);
 void	sys·bytestorune(byte*, int32, int32, int32, int32);
 void	sys·stringtorune(string, int32, int32, int32);
+void	sys·semacquire(uint32*);
+void	sys·semrelease(uint32*);

@@ -18,36 +18,8 @@
 
 #include "malloc.h"
 
-typedef struct Span Span;
-typedef struct Central Central;
-
-// A Span contains metadata about a range of pages.
-enum {
-	SpanInUse = 0,	// span has been handed out by allocator
-	SpanFree = 1,	// span is in central free list
-};
-struct Span
-{
-	Span *next;	// in free lists
-	byte *base;	// first byte in span
-	uintptr length;	// number of pages in span
-	int32 cl;
-	int32 state;	// state (enum above)
-//	int ref;	// reference count if state == SpanInUse (for GC)
-//	void *type;	// object type if state == SpanInUse (for GC)
-};
-
-// The Central cache contains a list of free spans,
-// as well as free lists of small blocks.
-struct Central
-{
-	Lock;
-	Span *free[256];
-	Span *large;	// free spans >= MaxPage pages
-};
-
-static Central central;
-static PageMap spanmap;
+Central central;
+PageMap spanmap;
 
 // Insert a new span into the map.
 static void
@@ -86,6 +58,39 @@ spanofptr(void *v)
 
 static void freespan(Span*);
 
+// Linked list of spans.
+// TODO(rsc): Remove - should be able to walk pagemap.
+Span *spanfirst;
+Span *spanlast;
+static void
+addtolist(Span *s)
+{
+	if(spanlast) {
+		s->aprev = spanlast;
+		s->aprev->anext = s;
+	} else {
+		s->aprev = nil;
+		spanfirst = s;
+	}
+	s->anext = nil;
+	spanlast = s;
+}
+
+/*
+static void
+delfromlist(Span *s)
+{
+	if(s->aprev)
+		s->aprev->anext = s->anext;
+	else
+		spanfirst = s->anext;
+	if(s->anext)
+		s->anext->aprev = s->aprev;
+	else
+		spanlast = s->aprev;
+}
+*/
+
 // Allocate a span of at least n pages.
 static Span*
 allocspan(int32 npage)
@@ -122,6 +127,7 @@ allocspan(int32 npage)
 //printf("New span %d for %d\n", allocnpage, npage);
 	s->base = trivalloc(allocnpage<<PageShift);
 	insertspan(s);
+	addtolist(s);
 
 havespan:
 	// If span is bigger than needed, redistribute the remainder.
@@ -131,6 +137,7 @@ havespan:
 		s1->length = s->length - npage;
 		shrinkspan(s, npage);
 		insertspan(s1);
+		addtolist(s1);
 		freespan(s1);
 	}
 	s->state = SpanInUse;
@@ -138,6 +145,7 @@ havespan:
 }
 
 // Free a span.
+// TODO(rsc): Coalesce adjacent free spans.
 static void
 freespan(Span *s)
 {
@@ -161,7 +169,7 @@ freespan(Span *s)
 
 // Small objects are kept on per-size free lists in the M.
 // There are SmallFreeClasses (defined in runtime.h) different lists.
-static int32 classtosize[SmallFreeClasses] = {
+int32 classtosize[SmallFreeClasses] = {
 	/*
 	seq 8 8 127 | sed 's/$/,/' | fmt
 	seq 128 16 255 | sed 's/$/,/' | fmt
@@ -257,16 +265,24 @@ centralgrab(int32 cl, int32 *pn)
 	chunk = (chunk+PageMask) & ~PageMask;
 	s = allocspan(chunk>>PageShift);
 //printf("New class %d\n", cl);
+
 	s->state = SpanInUse;
 	s->cl = cl;
 	siz = classtosize[cl];
-	n = chunk/siz;
+	n = chunk/(siz+sizeof(s->refbase[0]));
 	p = s->base;
 //printf("centralgrab cl=%d siz=%d n=%d\n", cl, siz, n);
-	for(i=0; i<n-1; i++) {
-		*(void**)p = p+siz;
+	for(i=0; i<n; i++) {
+		if(i < n-1)
+			*(void**)p = p+siz;
 		p += siz;
 	}
+	s->refbase = (int32*)p;
+
+	// TODO(rsc): Remove - only for mark/sweep
+	for(i=0; i<n; i++)
+		s->refbase[i] = RefFree;
+
 	*pn = n;
 	return s->base;
 }
@@ -292,9 +308,20 @@ allocsmall(int32 cl)
 		unlock(&central);
 	}
 
-//printf("alloc from cl %d\n", cl);
+//printf("alloc from cl %d %p\n", cl, p);
 	// advance linked list.
 	m->freelist[cl] = *p;
+
+	// TODO(rsc): If cl > 0, can store ref ptr in *(p+1),
+	// avoiding call to findobj.
+	// Or could get rid of RefFree, which is only truly
+	// necessary for mark/sweep.
+	int32 *ref;
+	if(!findobj(p, nil, nil, &ref))
+		throw("bad findobj");
+	if(*ref != RefFree)
+		throw("double alloc");
+	*ref = 0;
 
 	// Blocks on free list are zeroed except for
 	// the linked list pointer that we just used.  Zero it.
@@ -315,6 +342,7 @@ alloclarge(int32 np)
 	unlock(&central);
 	s->state = SpanInUse;
 	s->cl = -1;
+	s->ref = 0;
 	return s->base;
 }
 
@@ -347,13 +375,62 @@ allocator·malloc(int32 n, byte *out)
 	FLUSH(&out);
 }
 
+// Check whether v points into a known memory block.
+// If so, return true with
+//	*obj = base pointer of object (can pass to free)
+//	*size = size of object
+//	*ref = pointer to ref count for object
+// Object might already be freed, in which case *ref == RefFree.
+bool
+findobj(void *v, void **obj, int64 *size, int32 **ref)
+{
+	Span *s;
+	int32 siz, off, indx;
+
+	s = spanofptr(v);
+	if(s == nil || s->state != SpanInUse)
+		return false;
+
+	// Big object
+	if(s->cl < 0) {
+		if(obj)
+			*obj = s->base;
+		if(size)
+			*size = s->length<<PageShift;
+		if(ref)
+			*ref = &s->ref;
+		return true;
+	}
+
+	// Small object
+	if((byte*)v >= (byte*)s->refbase)
+		return false;
+	siz = classtosize[s->cl];
+	off = (byte*)v - (byte*)s->base;
+	indx = off/siz;
+	if(obj)
+		*obj = s->base + indx*siz;
+	if(size)
+		*size = siz;
+	if(ref)
+		*ref = s->refbase + indx;
+	return true;
+}
+
+void
+allocator·find(uint64 ptr, byte *obj, int64 siz, int32 *ref, bool ok)
+{
+	ok = findobj((void*)ptr, &obj, &siz, &ref);
+	FLUSH(&ok);
+}
+
 // Free object with base pointer v.
 void
 free(void *v)
 {
 	void **p;
 	Span *s;
-	int32 siz, off;
+	int32 siz, off, n;
 
 	s = spanofptr(v);
 	if(s->state != SpanInUse)
@@ -365,6 +442,9 @@ free(void *v)
 			throw("free - invalid pointer2");
 		// TODO: For large spans, maybe just return the
 		// memory to the operating system and let it zero it.
+		if(s->ref != 0 && s->ref != RefManual && s->ref != RefStack)
+			throw("free - bad ref count");
+		s->ref = RefFree;
 		sys·memclr(s->base, s->length << PageShift);
 //printf("Free big %D\n", s->length);
 		allocator·allocated -= s->length << PageShift;
@@ -375,10 +455,17 @@ free(void *v)
 	}
 
 	// Small object should be aligned properly.
+	if((byte*)v >= (byte*)s->refbase)
+		throw("free - invalid pointer4");
+
 	siz = classtosize[s->cl];
 	off = (byte*)v - (byte*)s->base;
 	if(off%siz)
 		throw("free - invalid pointer3");
+	n = off/siz;
+	if(s->refbase[n] != 0 && s->refbase[n] != RefManual && s->refbase[n] != RefStack)
+		throw("free - bad ref count1");
+	s->refbase[n] = RefFree;
 
 	// Zero and add to free list.
 	sys·memclr(v, siz);
