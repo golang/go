@@ -1348,11 +1348,11 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
 	P.Trace("ConstSpec");
 	
 	d := AST.NewDecl(pos, Scanner.CONST, exported);
-	d.ident = P.ParseIdent();
+	d.ident = P.ParseIdentList();
 	d.typ = P.TryType();
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
-		d.val = P.ParseExpression(1);
+		d.val = P.ParseExpressionList();
 	}
 	
 	P.Ecart();
