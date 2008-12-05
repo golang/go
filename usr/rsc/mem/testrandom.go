@@ -6,7 +6,8 @@ package main
 
 import (
 	"allocator";
-	"rand"
+	"rand";
+	"syscall"
 )
 
 var footprint int64;
@@ -52,6 +53,11 @@ func main() {
 		}
 		siz := rand.rand() >> (11 + rand.urand32() % 20);
 		base := allocator.malloc(siz);
+		ptr := uint64(syscall.BytePtr(base))+uint64(siz/2);
+		obj, size, ref, ok := allocator.find(ptr);
+		if obj != base || *ref != 0 || !ok {
+			panicln("find", siz, obj, ref, ok);
+		}
 		blocks[b].base = base;
 		blocks[b].siz = siz;
 		allocated += int64(siz);
