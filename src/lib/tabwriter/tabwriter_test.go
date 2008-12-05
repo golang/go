@@ -189,24 +189,24 @@ export func Test(t *testing.T) {
 
 	Check(
 		t, 8, 1, ' ', true,
-		"a\tb\tc\n"
-		"aa\tbbb\tcccc\tddddd\n"
+		"本\tb\tc\n"
+		"aa\t\u672c\u672c\u672c\tcccc\tddddd\n"
 		"aaa\tbbbb\n",
 
-		"a       b       c\n"
-		"aa      bbb     cccc    ddddd\n"
+		"本       b       c\n"
+		"aa      本本本     cccc    ddddd\n"
 		"aaa     bbbb\n"
 	);
 
 	Check(
 		t, 8, 1, ' ', false,
-		"a\tb\tc\t\n"
-		"aa\tbbb\tcccc\tddddd\t\n"
-		"aaa\tbbbb\t\n",
+		"a\tè\tc\t\n"
+		"aa\tèèè\tcccc\tddddd\t\n"
+		"aaa\tèèèè\t\n",
 
-		"       a       b       c\n"
-		"      aa     bbb    cccc   ddddd\n"
-		"     aaa    bbbb\n"
+		"       a       è       c\n"
+		"      aa     èèè    cccc   ddddd\n"
+		"     aaa    èèèè\n"
 	);
 
 	Check(
@@ -233,7 +233,7 @@ export func Test(t *testing.T) {
 
 	Check(
 		t, 4, 1, '-', true,
-		"4444\t333\t22\t1\t333\n"
+		"4444\t日本語\t22\t1\t333\n"
 		"999999999\t22\n"
 		"7\t22\n"
 		"\t\t\t88888888\n"
@@ -241,7 +241,7 @@ export func Test(t *testing.T) {
 		"666666\t666666\t666666\t4444\n"
 		"1\t1\t999999999\t0000000000\n",
 
-		"4444------333-22--1---333\n"
+		"4444------日本語-22--1---333\n"
 		"999999999-22\n"
 		"7---------22\n"
 		"------------------88888888\n"
