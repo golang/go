@@ -67,6 +67,12 @@ const (
 	t;
 )
 
+const (
+	abit, amask = 1 << iota, 1 << iota - 1;
+	bbit, bmask = 1 << iota, 1 << iota - 1;
+	cbit, cmask = 1 << iota, 1 << iota - 1;
+)
+
 func main() {
 	assert(x == 0, "x");
 	assert(y == 1, "y");
@@ -104,4 +110,11 @@ func main() {
 
 	assert(s == "a", "s");
 	assert(t == "b", "t");
+
+	assert(abit == 1, "abit");
+	assert(amask == 0, "amask");
+	assert(bbit == 2, "bbit");
+	assert(bmask == 1, "bmask");
+	assert(cbit == 4, "cbit");
+	assert(cmask == 3, "cmask");
 }
