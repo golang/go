@@ -107,13 +107,7 @@ allocspan(int32 npage)
 		if(s->length >= npage) {
 			*l = s->next;
 			s->next = nil;
-if(s->length > npage) {
-prints("Chop span");
-sys·printint(s->length);
-prints(" for ");
-sys·printint(npage);
-prints("\n");
-}
+//if(s->length > npage) printf("Chop span %D for %d\n", s->length, npage);
 			goto havespan;
 		}
 	}
@@ -125,11 +119,7 @@ prints("\n");
 	if(allocnpage < (1<<20>>PageShift))	// TODO: Tune
 		allocnpage = (1<<20>>PageShift);
 	s->length = allocnpage;
-prints("New span ");
-sys·printint(allocnpage);
-prints(" for ");
-sys·printint(npage);
-prints("\n");
+//printf("New span %d for %d\n", allocnpage, npage);
 	s->base = trivalloc(allocnpage<<PageShift);
 	insertspan(s);
 
@@ -237,21 +227,13 @@ allocator·testsizetoclass(void)
 	for(i=0; i<nelem(classtosize); i++) {
 		for(; n <= classtosize[i]; n++) {
 			if(sizetoclass(n) != i) {
-				prints("sizetoclass ");
-				sys·printint(n);
-				prints(" = ");
-				sys·printint(sizetoclass(n));
-				prints(" want ");
-				sys·printint(i);
-				prints("\n");
+				printf("sizetoclass %d = %d want %d\n", n, sizetoclass(n), i);
 				throw("testsizetoclass");
 			}
 		}
 	}
 	if (n != 32768+1) {
-		prints("testsizetoclass stopped at ");
-		sys·printint(n);
-		prints("\n");
+		printf("testsizetoclass stopped at %d\n", n);
 		throw("testsizetoclass");
 	}
 }
@@ -274,20 +256,19 @@ centralgrab(int32 cl, int32 *pn)
 	}
 	chunk = (chunk+PageMask) & ~PageMask;
 	s = allocspan(chunk>>PageShift);
-prints("New Class ");
-sys·printint(cl);
-prints("\n");
+//printf("New class %d\n", cl);
 	s->state = SpanInUse;
 	s->cl = cl;
 	siz = classtosize[cl];
 	n = chunk/siz;
 	p = s->base;
+//printf("centralgrab cl=%d siz=%d n=%d\n", cl, siz, n);
 	for(i=0; i<n-1; i++) {
 		*(void**)p = p+siz;
 		p += siz;
 	}
 	*pn = n;
-	return p;
+	return s->base;
 }
 
 // Allocate a small object of size class cl.
@@ -305,11 +286,13 @@ allocsmall(int32 cl)
 	if(p == nil) {
 		// otherwise grab some blocks from central cache.
 		lock(&central);
+//printf("centralgrab for %d\n", cl);
 		p = centralgrab(cl, &n);
 		// TODO: update local counters using n
 		unlock(&central);
 	}
 
+//printf("alloc from cl %d\n", cl);
 	// advance linked list.
 	m->freelist[cl] = *p;
 
@@ -327,9 +310,7 @@ alloclarge(int32 np)
 	Span *s;
 
 	lock(&central);
-//prints("Alloc span ");
-//sys·printint(np);
-//prints("\n");
+//printf("Alloc span %d\n", np);
 	s = allocspan(np);
 	unlock(&central);
 	s->state = SpanInUse;
@@ -346,17 +327,16 @@ alloc(int32 n)
 	if(n < LargeSize) {
 		cl = sizetoclass(n);
 		if(cl < 0 || cl >= SmallFreeClasses) {
-			sys·printint(n);
-			prints(" -> ");
-			sys·printint(cl);
-			prints("\n");
+			printf("%d -> %d\n", n, cl);
 			throw("alloc - logic error");
 		}
-		return allocsmall(sizetoclass(n));
+		allocator·allocated += classtosize[cl];
+		return allocsmall(cl);
 	}
 
 	// count number of pages; careful about overflow for big n.
 	np = (n>>PageShift) + (((n&PageMask)+PageMask)>>PageShift);
+	allocator·allocated += (uint64)np<<PageShift;
 	return alloclarge(np);
 }
 
@@ -386,9 +366,8 @@ free(void *v)
 		// TODO: For large spans, maybe just return the
 		// memory to the operating system and let it zero it.
 		sys·memclr(s->base, s->length << PageShift);
-//prints("Free big ");
-//sys·printint(s->length);
-//prints("\n");
+//printf("Free big %D\n", s->length);
+		allocator·allocated -= s->length << PageShift;
 		lock(&central);
 		freespan(s);
 		unlock(&central);
@@ -403,9 +382,11 @@ free(void *v)
 
 	// Zero and add to free list.
 	sys·memclr(v, siz);
+	allocator·allocated -= siz;
 	p = v;
 	*p = m->freelist[s->cl];
 	m->freelist[s->cl] = p;
+//printf("Free siz %d cl %d\n", siz, s->cl);
 }
 
 void
@@ -421,23 +402,5 @@ allocator·memset(byte *v, int32 c, int32 n)
 
 	for(i=0; i<n; i++)
 		v[i] = c;
-}
-
-// Allocate stack segment.
-// Must be done without holding locks, because
-// calling any function might trigger another stack segment allocation.
-void*
-allocstack(int32 n)
-{
-	// TODO
-	USED(n);
-	return nil;
-}
-
-void
-freestack(void *v)
-{
-	// TODO
-	USED(v);
 }
 
