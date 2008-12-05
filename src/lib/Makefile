@@ -97,7 +97,7 @@ io.dirinstall: os.dirinstall syscall.dirinstall
 net.dirinstall: once.install os.dirinstall strconv.dirinstall
 os.dirinstall: syscall.dirinstall
 regexp.dirinstall: os.dirinstall
-reflect.dirinstall: strconv.dirinstall
+reflect.dirinstall: strconv.dirinstall sync.dirinstall
 strconv.dirinstall: os.dirinstall utf8.install
 tabwriter.dirinstall: os.dirinstall io.dirinstall container/array.dirinstall
 time.dirinstall: once.install os.dirinstall

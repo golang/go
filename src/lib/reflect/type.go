@@ -7,6 +7,8 @@
 
 package reflect
 
+import "sync"
+
 export type Type interface
 
 export func ExpandType(name string) Type
@@ -390,21 +392,20 @@ var MissingStub *StubType;
 var DotDotDotStub *StubType;
 
 // The database stored in the maps is global; use locking to guarantee safety.
-var lockchan *chan bool  // Channel with buffer of 1, used as a mutex
+var typestringlock sync.Mutex
 
 func Lock() {
-	lockchan <- true	// block if buffer is full
+	typestringlock.Lock()
 }
 
 func Unlock() {
-	<-lockchan	// release waiters
+	typestringlock.Unlock()
 }
 
 func init() {
 	ptrsize = 8;	// TODO: compute this
 	interfacesize = 2*ptrsize;	// TODO: compute this
 
-	lockchan = new(chan bool, 1);	// unlocked at creation - buffer is empty
 	Lock();	// not necessary because of init ordering but be safe.
 
 	types = new(map[string] *Type);
