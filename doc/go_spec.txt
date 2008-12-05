@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(November 17, 2008)
+(December 4, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -85,9 +85,6 @@ Open issues:
 	with nil
 [ ] consider syntactic notation for composite literals to make them parseable w/o type information
 	(require ()'s in control clauses)
-[ ] global var decls: "var a, b, c int = 0, 0, 0" is ok, but "var a, b, c = 0, 0, 0" is not
-	(seems inconsistent with "var a = 0", and ":=" notation)
-[ ] const decls: "const a, b = 1, 2" is not allowed - why not? Should be symmetric to vars.
 
 
 Decisions in need of integration into the doc:
@@ -98,6 +95,9 @@ Decisions in need of integration into the doc:
 
 
 Closed:
+[x] global var decls: "var a, b, c int = 0, 0, 0" is ok, but "var a, b, c = 0, 0, 0" is not
+	(seems inconsistent with "var a = 0", and ":=" notation)
+[x] const decls: "const a, b = 1, 2" is not allowed - why not? Should be symmetric to vars.
 [x] new(arraytype, n1, n2): spec only talks about length, not capacity
     (should only use new(arraytype, n) - this will allow later
 	 extension to multi-dim arrays w/o breaking the language) - documented
@@ -146,6 +146,7 @@ Contents
 		Predeclared identifiers
 		Exported declarations
 		Const declarations
+			Iota
 		Type declarations
 		Variable declarations
 		Export declarations
@@ -168,7 +169,6 @@ Contents
 		Operands
 			Constants
 			Qualified identifiers
-				Iota
 			Composite Literals
 			Function Literals
 
@@ -273,7 +273,6 @@ and operator precedence syntactically (for instance for expressions).
 A production may be referenced from various places in this document
 but is usually defined close to its first use.  Productions and code
 examples are indented.
-
 
 
 Source code representation
@@ -661,22 +660,40 @@ A constant declaration binds an identifier to the value of a constant
 expression (§Constant expressions).
 
 	ConstDecl = "const" Decl<ConstSpec> .
-	ConstSpec = identifier [ CompleteType ] [ "=" Expression ] .
+	ConstSpec = IdentifierList [ CompleteType ] [ "=" ExpressionList ] .
 
-	const pi float = 3.14159265
+	IdentifierList = identifier { "," identifier } .
+	ExpressionList = Expression { "," Expression } .
+
+A constant declaration binds a list of identifiers (the names of the constants)
+to the values of a list of constant expressions. The number of identifiers must 
+be equal to the number of expressions, with the i'th identifier on the left
+corresponding to the i'th expression on the right. If CompleteType is omitted,
+the types of the constants are the types of the corresponding expressions;
+different expressions may have different types. If CompleteType is present,
+the type of all constants is the type specified, and the types of all
+expressions in ExpressionList must be assignment-compatible with the
+constant type.
+
+	const pi float64 = 3.14159265358979323846
 	const e = 2.718281828
 	const (
-		one int = 1;
-		two = 3
+		size int64 = 1024;
+		eof = -1;
 	)
+	const a, b, c = 3, 4, "foo"  // a = 3, b = 4, c = "foo"
+	const u, v float = 0, 3      // u = 0.0, v = 3.0
 
-The constant expression may be omitted, in which case the expression is
-the last expression used after the reserved word "const". If no such expression
-exists, the constant expression cannot be omitted.
+As a special case, within a parenthesized "const" declaration list the
+ExpressionList may be omitted from any but the first declaration. Such an empty
+ExpressionList is equivalent to the textual substitution of the first preceding
+non-empty ExpressionList in the same "const" declaration list.
+That is, omitting the list of expressions is equivalent to repeating the
+previous list. The number of identifiers must be equal to the number of
+expressions in the previous list.
 
-Together with the "iota" constant generator (§Iota),
-implicit repetition permits light-weight declaration of enumerated
-values:
+Together with the "iota" constant generator implicit repetition of
+ExpressionLists permit light-weight declaration of enumerated values (§Iota):
 
 	const (
 		Sunday = iota;
@@ -688,12 +705,6 @@ values:
 		Partyday;
 	)
 
-The initializing expression of a constant may contain only other
-constants.  This is illegal:
-
-	var i int = 10;
-	const c = i;  // error
-
 The initializing expression for a numeric constant is evaluated
 using the principles described in the section on numeric literals:
 constants are mathematical values given a size only upon assignment
@@ -702,7 +713,7 @@ may require precision significantly larger than any concrete type
 in the language.  Thus the following is legal:
 
 	const Huge = 1 << 100;
-	var Four int8 = Huge >> 98;
+	const Four int8 = Huge >> 98;
 
 A given numeric constant expression is, however, defined to be
 either an integer or a floating point value, depending on the syntax
@@ -717,18 +728,82 @@ yields a floating point constant of value 2.5 (1.5 + 1); its
 constituent expressions are evaluated using different rules for
 division.
 
-If the type is specified, the resulting constant has the named type.
-
-If the type is missing from the constant declaration, the constant
+If the type is missing from a numeric constant declaration, the constant
 represents a value of abitrary precision, either integer or floating
 point, determined by the type of the initializing expression. Such
 a constant may be assigned to any variable that can represent its
 value accurately, regardless of type.  For instance, 3 can be
-assigned to any int variable but also to any floating point variable,
-while 1e12 can be assigned to a float32, float64, or even int64.
-It is erroneous to assign a value with a non-zero fractional
-part to an integer, or if the assignment would overflow or
-underflow.
+assigned to any integer variable but also to any floating point variable,
+while 1e12 can be assigned to a "float32", "float64", or even "int64".
+It is erroneous to assign a value with a non-zero fractional part
+to an integer, or if the assignment would overflow or underflow.
+
+
+Iota
+----
+
+Within a constant declaration, the predeclared operand "iota" represents
+successive elements of an integer sequence. It is reset to 0 whenever the
+reserved word "const" appears in the source and increments with each
+semicolon. For instance, "iota" can be used to construct a set of related
+constants:
+
+	const (            // iota is set to 0
+		enum0 = iota;  // sets enum0 to 0, etc.
+		enum1 = iota;
+		enum2 = iota
+	)
+
+	const (
+		a = 1 << iota;  // a == 1 (iota has been reset)
+		b = 1 << iota;  // b == 2
+		c = 1 << iota;  // c == 4
+	)
+
+	const (
+		u       = iota * 42;  // u == 0     (ideal integer)
+		v float = iota * 42;  // v == 42.0  (float)
+		w       = iota * 42;  // w == 84    (ideal integer)
+	)
+
+	const x = iota;  // x == 0 (iota has been reset)
+	const y = iota;  // y == 0 (iota has been reset)
+
+Within an ExpressionList, the value of all "iota"'s is the same because "iota"
+is only incremented at each semicolon:
+
+	const (
+		base0, mask0 int64 = 1 << iota, i << iota - 1;  // base0 == 1, mask0 = 0
+		base1, mask1 int64 = 1 << iota, i << iota - 1;  // base1 == 2, mask1 = 1
+		base2, mask2 int64 = 1 << iota, i << iota - 1;  // base2 == 4, mask2 = 3
+	)
+
+Since the ExpressionList in constant declarations repeats implicitly
+if omitted, some of the examples above can be abbreviated:
+
+	const (
+		enum0 = iota;
+		enum1;
+		enum2
+	)
+
+	const (
+		a = 1 << iota;
+		b;
+		c;
+	)
+
+	const (
+		u = iota * 42;
+		v float;
+		w;
+	)
+
+	const (
+		base0, mask0 int64 = 1 << iota, i << iota - 1;
+		base1, mask1 int64;
+		base2, mask2 int64;
+	)
 
 
 Type declarations
@@ -774,16 +849,13 @@ of the variable.
 	VarDecl = "var" Decl<VarSpec> .
 	VarSpec = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
 
-	IdentifierList = identifier { "," identifier } .
-	ExpressionList = Expression { "," Expression } .
-
 	var i int
 	var u, v, w float
 	var k = 0
 	var x, y float = -1.0, -2.0
 	var (
 		i int;
-		u, v = 2.0, 3.0
+		u, v, s = 2.0, 3.0, "bar"
 	)
 
 If the expression list is present, it must have the same number of elements
@@ -803,13 +875,13 @@ of the variable is "int" or "float" respectively:
 
 The syntax
 
-	SimpleVarDecl = identifier ":=" Expression .
+	SimpleVarDecl = IdentifierList ":=" ExpressionList .
 
 is shorthand for
 
-	var identifier = Expression.
+	"var" ExpressionList = ExpressionList .
 
-	i := 0
+	i, j := 0, 10;
 	f := func() int { return 7; }
 	ch := new(chan int);
 	
@@ -1555,47 +1627,6 @@ TODO(gri) expand this section.
 
 	QualifiedIdent = { PackageName "." } identifier .
 	PackageName = identifier .
-
-
-Iota
-----
-
-Within a declaration, the predeclared operand "iota"
-represents successive elements of an integer sequence.
-It is reset to zero whenever the reserved word "const"
-introduces a new declaration and increments as each identifier
-is declared. For instance, "iota" can be used to construct
-a set of related constants:
-
-	const (
-		enum0 = iota;  // sets enum0 to 0, etc.
-		enum1 = iota;
-		enum2 = iota
-	)
-
-	const (
-		a = 1 << iota;  // sets a to 1 (iota has been reset)
-		b = 1 << iota;  // sets b to 2
-		c = 1 << iota;  // sets c to 4
-	)
-	
-	const x = iota;  // sets x to 0
-	const y = iota;  // sets y to 0
-
-Since the expression in constant declarations repeats implicitly
-if omitted, the first two examples above can be abbreviated:
-
-	const (
-		enum0 = iota;  // sets enum0 to 0, etc.
-		enum1;
-		enum2
-	)
-
-	const (
-		a = 1 << iota;  // sets a to 1 (iota has been reset)
-		b;  // sets b to 2
-		c;  // sets c to 4
-	)
 
 
 Composite Literals
