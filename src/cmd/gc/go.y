@@ -52,7 +52,7 @@
 %type	<node>		Astmt Bstmt
 %type	<node>		for_stmt for_body for_header
 %type	<node>		if_stmt if_body if_header select_stmt
-%type	<node>		simple_stmt osimple_stmt semi_stmt
+%type	<node>		simple_stmt osimple_stmt orange_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
 %type	<node>		exprsym3_list_r exprsym3
 %type	<node>		name onew_name new_name new_name_list_r new_field
@@ -416,7 +416,6 @@ simple_stmt:
 	{
 		if(addtop != N)
 			fatal("exprsym3_list_r LCOLAS expr_list");
-
 		$$ = rev($1);
 		$$ = colas($$, $3);
 		$$ = nod(OAS, $$, $3);
@@ -555,30 +554,61 @@ compound_stmt:
 		popdcl();
 	}
 
-for_header:
-	osimple_stmt ';' osimple_stmt ';' osimple_stmt
+ocolas:
+|	LCOLAS
+
+orange_stmt:
+	osimple_stmt
+|	exprsym3_list_r '=' LRANGE expr
 	{
+		$$ = nod(ORANGE, $1, $4);
+		$$->etype = 0;	// := flag
+	}
+|	exprsym3 ':' exprsym3 '=' LRANGE expr
+	{
+		$$ = nod(OLIST, $1, $3);
+		$$ = nod(ORANGE, $$, $6);
+		$$->etype = 0;
+	}
+|	exprsym3_list_r ocolas LRANGE expr
+	{
+		$$ = nod(ORANGE, $1, $4);
+		$$->etype = 1;
+	}
+|	exprsym3 ':' exprsym3 ocolas LRANGE expr
+	{
+		$$ = nod(OLIST, $1, $3);
+		$$ = nod(ORANGE, $$, $6);
+		$$->etype = 1;
+	}
+
+for_header:
+	osimple_stmt ';' orange_stmt ';' osimple_stmt
+	{
+		if($3 != N && $3->op == ORANGE) {
+			$$ = dorange($3);
+			$$->ninit = list($$->ninit, $1);
+			$$->nincr = list($$->nincr, $5);
+			break;
+		}
 		// init ; test ; incr
 		$$ = nod(OFOR, N, N);
 		$$->ninit = $1;
 		$$->ntest = $3;
 		$$->nincr = $5;
 	}
-|	osimple_stmt
+|	orange_stmt
 	{
-		// test
+		// range
+		if($1 != N && $1->op == ORANGE) {
+			$$ = dorange($1);
+			break;
+		}
+		// normal test
 		$$ = nod(OFOR, N, N);
 		$$->ninit = N;
 		$$->ntest = $1;
 		$$->nincr = N;
-	}
-|	new_name ':' new_name LRANGE expr
-	{
-		$$ = dorange($1, $3, $5, 1);
-	}
-|	new_name LRANGE expr
-	{
-		$$ = dorange($1, N, $3, 1);
 	}
 
 for_body:

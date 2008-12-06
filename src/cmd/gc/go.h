@@ -300,7 +300,7 @@ enum
 	ONAME, ONONAME,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
 	ODCLFUNC, ODCLFIELD, ODCLARG,
-	OLIST, OCMP, OPTR, OARRAY,
+	OLIST, OCMP, OPTR, OARRAY, ORANGE,
 	ORETURN, OFOR, OIF, OSWITCH,
 	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL,
 	OGOTO, OPROC, ONEW, OEMPTY, OSELECT,
@@ -806,7 +806,7 @@ int	isandss(Type*, Node*);
 Node*	convas(Node*);
 void	arrayconv(Type*, Node*);
 Node*	colas(Node*, Node*);
-Node*	dorange(Node*, Node*, Node*, int);
+Node*	dorange(Node*);
 Node*	reorder1(Node*);
 Node*	reorder2(Node*);
 Node*	reorder3(Node*);
