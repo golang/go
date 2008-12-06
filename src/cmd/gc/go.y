@@ -51,8 +51,7 @@
 %type	<node>		stmt_list_r Astmt_list_r Bstmt_list_r
 %type	<node>		Astmt Bstmt
 %type	<node>		for_stmt for_body for_header
-%type	<node>		if_stmt if_body if_header
-%type	<node>		range_header range_body range_stmt select_stmt
+%type	<node>		if_stmt if_body if_header select_stmt
 %type	<node>		simple_stmt osimple_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
 %type	<node>		exprsym3_list_r exprsym3
@@ -478,11 +477,6 @@ complex_stmt:
 		popdcl();
 		$$ = $2;
 	}
-|	LRANGE range_stmt
-	{
-		popdcl();
-		$$ = $2;
-	}
 |	LCASE expr_list ':'
 	{
 		// will be converted to OCASE
@@ -578,12 +572,20 @@ for_header:
 		$$->ntest = $1;
 		$$->nincr = N;
 	}
+|	new_name ':' new_name LRANGE expr
+	{
+		$$ = dorange($1, $3, $5, 1);
+	}
+|	new_name LRANGE expr
+	{
+		$$ = dorange($1, N, $3, 1);
+	}
 
 for_body:
 	for_header compound_stmt
 	{
 		$$ = $1;
-		$$->nbody = $2;
+		$$->nbody = list($$->nbody, $2);
 	}
 
 for_stmt:
@@ -621,36 +623,6 @@ if_stmt:
 	{
 		markdcl();
 	} if_body
-	{
-		$$ = $2;
-	}
-
-range_header:
-	new_name LCOLAS expr
-	{
-		$$ = N;
-	}
-|	new_name ',' new_name LCOLAS expr
-	{
-		$$ = N;
-	}
-|	new_name ',' new_name '=' expr
-	{
-		yyerror("range statement only allows := assignment");
-		$$ = N;
-	}
-
-range_body:
-	range_header compound_stmt
-	{
-		$$ = $1;
-		$$->nbody = $2;
-	}
-
-range_stmt:
-	{
-		markdcl();
-	} range_body
 	{
 		$$ = $2;
 	}

@@ -649,7 +649,7 @@ donothing(uint32 s, void *a, void *b)
 	USED(b);
 }
 
-typedef	struct hash	Hmap;
+typedef	struct	hash	Hmap;
 static	int32	debug	= 0;
 
 // newmap(keysize uint32, valsize uint32,
@@ -857,6 +857,89 @@ sys·mapassign2(Hmap *h, ...)
 		sys·printint(hit);
 		prints("; res=");
 		sys·printpointer(res);
+		prints("\n");
+	}
+}
+
+// mapiterinit(hmap *map[any]any, hiter *any);
+void
+sys·mapiterinit(Hmap *h, struct hash_iter *it)
+{
+	hash_iter_init(h, it);
+	it->data = hash_next(it);
+	if(debug) {
+		prints("sys·mapiterinit: map=");
+		sys·printpointer(h);
+		prints("; iter=");
+		sys·printpointer(it);
+		prints("; data=");
+		sys·printpointer(it->data);
+		prints("\n");
+	}
+}
+
+// mapiternext(hiter *any);
+void
+sys·mapiternext(struct hash_iter *it)
+{
+	it->data = hash_next(it);
+	if(debug) {
+		prints("sys·mapiternext: iter=");
+		sys·printpointer(it);
+		prints("; data=");
+		sys·printpointer(it->data);
+		prints("\n");
+	}
+}
+
+// mapiter1(hiter *any) (key any);
+void
+sys·mapiter1(struct hash_iter *it, ...)
+{
+	Hmap *h;
+	byte *ak, *res;
+
+	h = it->h;
+	ak = (byte*)&it + h->ko;
+
+	res = it->data;
+	if(res == nil)
+		throw("sys·mapiter2: key:val nil pointer");
+
+	h->keyalg->copy(h->keysize, ak, res);
+
+	if(debug) {
+		prints("mapiter2: iter=");
+		sys·printpointer(it);
+		prints("; map=");
+		sys·printpointer(h);
+		prints("\n");
+	}
+}
+
+// mapiter2(hiter *any) (key any, val any);
+void
+sys·mapiter2(struct hash_iter *it, ...)
+{
+	Hmap *h;
+	byte *ak, *av, *res;
+
+	h = it->h;
+	ak = (byte*)&it + h->ko;
+	av = (byte*)&it + h->vo;
+
+	res = it->data;
+	if(res == nil)
+		throw("sys·mapiter2: key:val nil pointer");
+
+	h->keyalg->copy(h->keysize, ak, res);
+	h->valalg->copy(h->valsize, av, res+h->keysize);
+
+	if(debug) {
+		prints("mapiter2: iter=");
+		sys·printpointer(it);
+		prints("; map=");
+		sys·printpointer(h);
 		prints("\n");
 	}
 }

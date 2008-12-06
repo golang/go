@@ -74,6 +74,33 @@ struct	Array
 	uchar	b;		// actual array - may not be contig
 };
 
+/*
+ * note this is the runtime representation
+ * of hashmap iterator. it is probably
+ * insafe to use it this way, but it puts
+ * all the changes in one place.
+ * only flag is referenced from go.
+ * actual placement does not matter as long
+ * as the size is >= actual size.
+ */
+typedef	struct	Hiter	Hiter;
+struct	Hiter
+{
+	uchar	data[8];		// return val from next
+	int32	elemsize;		// size of elements in table */
+	int32	changes;		// number of changes observed last time */
+	int32	i;			// stack pointer in subtable_state */
+	uchar	last[8];		// last hash value returned */
+	uchar	h[8];			// the hash table */
+	struct
+	{
+		uchar	sub[8];		// pointer into subtable */
+		uchar	start[8];	// pointer into start of subtable */
+		uchar	end[8];		// pointer into end of subtable */
+		uchar	pad[8];
+	} sub[4];
+};
+
 enum
 {
 	Mpscale	= 29,		// safely smaller than bits in a long
@@ -779,6 +806,7 @@ int	isandss(Type*, Node*);
 Node*	convas(Node*);
 void	arrayconv(Type*, Node*);
 Node*	colas(Node*, Node*);
+Node*	dorange(Node*, Node*, Node*, int);
 Node*	reorder1(Node*);
 Node*	reorder2(Node*);
 Node*	reorder3(Node*);

@@ -51,8 +51,8 @@ export func	Inf(int) float64;			// return signed Inf
 export func	NaN() float64;				// return a NaN
 export func	float32bits(float32) uint32;		// raw bits
 export func	float64bits(float64) uint64;		// raw bits
-export func	float32frombits(uint32) float32;		// raw bits
-export func	float64frombits(uint64) float64;		// raw bits
+export func	float32frombits(uint32) float32;	// raw bits
+export func	float64frombits(uint64) float64;	// raw bits
 
 export func	newmap(keysize int, valsize int,
 			keyalg int, valalg int,
@@ -61,6 +61,10 @@ export func	mapaccess1(hmap *map[any]any, key any) (val any);
 export func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
 export func	mapassign1(hmap *map[any]any, key any, val any);
 export func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
+export func	mapiterinit(hmap *map[any]any, hiter *any);
+export func	mapiternext(hiter *any);
+export func	mapiter1(hiter *any) (key any);
+export func	mapiter2(hiter *any) (key any, val any);
 
 export func	newchan(elemsize int, elemalg int, hint int) (hchan *chan any);
 export func	chanrecv1(hchan *chan any) (elem any);
