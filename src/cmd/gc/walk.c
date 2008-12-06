@@ -3033,6 +3033,110 @@ badt:
 	return nl;
 }
 
+Node*
+dorange(Node *k, Node *v, Node *m, int local)
+{
+	Node *n, *hk, *on, *r, *a;
+	Type *t, *th;
+
+	if(!local)
+		fatal("only local varables now");
+
+	n = nod(OFOR, N, N);
+
+	walktype(m, Erv);
+	t = m->type;
+	if(t == T)
+		goto out;
+	if(t->etype == TARRAY)
+		goto ary;
+	if(isptrto(t, TARRAY)) {
+		t = t->type;
+		goto ary;
+	}
+	if(t->etype == TMAP)
+		goto map;
+	if(isptrto(t, TMAP)) {
+		t = t->type;
+		goto map;
+	}
+
+	yyerror("range must be over map/array");
+	goto out;
+
+ary:
+	hk = nod(OXXX, N, N);		// hidden key
+	tempname(hk, types[TINT]);	// maybe TINT32
+
+	n->ninit = nod(OAS, hk, literal(0));
+	n->ntest = nod(OLT, hk, nod(OLEN, m, N));
+	n->nincr = nod(OASOP, hk, literal(1));
+	n->nincr->etype = OADD;
+
+	k = old2new(k, hk->type);
+	n->nbody = nod(OAS, k, hk);
+
+	if(v != N) {
+		v = old2new(v, t->type);
+		n->nbody = list(n->nbody,
+			nod(OAS, v, nod(OINDEX, m, hk)) );
+	}
+	goto out;
+
+map:
+	th = typ(TARRAY);
+	th->type = ptrto(types[TUINT8]);
+	th->bound = (sizeof(struct Hiter) + types[tptr]->width - 1) /
+			types[tptr]->width;
+	hk = nod(OXXX, N, N);		// hidden iterator
+	tempname(hk, th);		// hashmap hash_iter
+
+	on = syslook("mapiterinit", 1);
+	argtype(on, t->down);
+	argtype(on, t->type);
+	argtype(on, th);
+	r = nod(OADDR, hk, N);
+	r = list(m, r);
+	r = nod(OCALL, on, r);
+	n->ninit = r;
+
+	r = nod(OINDEX, hk, literal(0));
+	a = nod(OLITERAL, N, N);
+	a->val.ctype = CTNIL;
+	r = nod(ONE, r, a);
+	n->ntest = r;
+
+	on = syslook("mapiternext", 1);
+	argtype(on, th);
+	r = nod(OADDR, hk, N);
+	r = nod(OCALL, on, r);
+	n->nincr = r;
+
+	k = old2new(k, t->down);
+	if(v == N) {
+		on = syslook("mapiter1", 1);
+		argtype(on, th);
+		argtype(on, t->down);
+		r = nod(OADDR, hk, N);
+		r = nod(OCALL, on, r);
+		n->nbody = nod(OAS, k, r);
+		goto out;
+	}
+	v = old2new(v, t->type);
+	on = syslook("mapiter2", 1);
+	argtype(on, th);
+	argtype(on, t->down);
+	argtype(on, t->type);
+	r = nod(OADDR, hk, N);
+	r = nod(OCALL, on, r);
+	n->nbody = nod(OAS, nod(OLIST, k, v), r);
+
+	goto out;
+
+out:
+	return n;
+}
+
 /*
  * from ascompat[te]
  * evaluating actual function arguments.

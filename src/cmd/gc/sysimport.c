@@ -1,4 +1,4 @@
-char *sysimport =
+char *sysimport = 
 	"package sys\n"
 	"export func sys.mal (? int32) (? *any)\n"
 	"export func sys.breakpoint ()\n"
@@ -48,6 +48,10 @@ char *sysimport =
 	"export func sys.mapaccess2 (hmap *map[any] any, key any) (val any, pres bool)\n"
 	"export func sys.mapassign1 (hmap *map[any] any, key any, val any)\n"
 	"export func sys.mapassign2 (hmap *map[any] any, key any, val any, pres bool)\n"
+	"export func sys.mapiterinit (hmap *map[any] any, hiter *any)\n"
+	"export func sys.mapiternext (hiter *any)\n"
+	"export func sys.mapiter1 (hiter *any) (key any)\n"
+	"export func sys.mapiter2 (hiter *any) (key any, val any)\n"
 	"export func sys.newchan (elemsize int, elemalg int, hint int) (hchan *chan any)\n"
 	"export func sys.chanrecv1 (hchan *chan any) (elem any)\n"
 	"export func sys.chanrecv2 (hchan *chan any) (elem any, pres bool)\n"

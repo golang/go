@@ -1263,7 +1263,7 @@ void
 constiter(Node *vv, Type *t, Node *cc)
 {
 	Iter viter, citer;
-	Node *v, *c, *a;
+	Node *v, *c;
 
 	if(cc == N)
 		cc = lastconst;

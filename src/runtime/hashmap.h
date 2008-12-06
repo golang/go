@@ -72,24 +72,25 @@
 #define	memcpy(a,b,c)	mcpy((byte*)(a),(byte*)(b),(uint32)(c))
 #define	assert(a)	if(!(a)) throw("assert")
 
-struct hash;	    /* opaque */
-struct hash_subtable;   /* opaque */
-struct hash_entry;      /* opaque */
+struct hash;		/* opaque */
+struct hash_subtable;	/* opaque */
+struct hash_entry;	/* opaque */
 
 typedef	uint64 uintptr_t;
 typedef uintptr_t hash_hash_t;
 
 struct hash_iter {
-	int32 elemsize;	 /* size of elements in table */
-	int32 changes;	  /* number of changes observed last time */
-	int32 i;		/* stack pointer in subtable_state */
-	hash_hash_t last_hash; /* last hash value returned */
-	struct hash *h;       /* the hash table */
+	uint8*	data;		/* returned from next */
+	int32	elemsize;	/* size of elements in table */
+	int32	changes;	/* number of changes observed last time */
+	int32	i;		/* stack pointer in subtable_state */
+	hash_hash_t last_hash;	/* last hash value returned */
+	struct hash *h;		/* the hash table */
 	struct hash_iter_sub {
-		struct hash_entry *e;    /* pointer into subtable */
-		struct hash_entry *start;  /* start of subtable */
-		struct hash_entry *end;  /* end of subtable */
-	} subtable_state[16];   /* Should be large enough unless the hashing is
+		struct hash_entry *e;		/* pointer into subtable */
+		struct hash_entry *start;	/* start of subtable */
+		struct hash_entry *end;		/* end of subtable */
+	} subtable_state[4];	/* Should be large enough unless the hashing is
 				   so bad that many distinct data values hash
 				   to the same hash value.  */
 };
