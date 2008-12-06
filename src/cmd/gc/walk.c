@@ -3033,14 +3033,32 @@ badt:
 	return nl;
 }
 
+/*
+ * rewrite a range statement
+ * k and v are names/new_names
+ * m is an array or map
+ * local is =/0 or :=/1
+ */
 Node*
-dorange(Node *k, Node *v, Node *m, int local)
+dorange(Node *nn)
 {
+	Node *k, *v, *m;
 	Node *n, *hk, *on, *r, *a;
 	Type *t, *th;
+	int local;
 
-	if(!local)
-		fatal("only local varables now");
+	if(nn->op != ORANGE)
+		fatal("dorange not ORANGE");
+
+	k = nn->left;
+	m = nn->right;
+	local = nn->etype;
+
+	v = N;
+	if(k->op == OLIST) {
+		v = k->right;
+		k = k->left;
+	}
 
 	n = nod(OFOR, N, N);
 
@@ -3073,11 +3091,13 @@ ary:
 	n->nincr = nod(OASOP, hk, literal(1));
 	n->nincr->etype = OADD;
 
-	k = old2new(k, hk->type);
+	if(local)
+		k = old2new(k, hk->type);
 	n->nbody = nod(OAS, k, hk);
 
 	if(v != N) {
-		v = old2new(v, t->type);
+		if(local)
+			v = old2new(v, t->type);
 		n->nbody = list(n->nbody,
 			nod(OAS, v, nod(OINDEX, m, hk)) );
 	}
@@ -3112,7 +3132,8 @@ map:
 	r = nod(OCALL, on, r);
 	n->nincr = r;
 
-	k = old2new(k, t->down);
+	if(local)
+		k = old2new(k, t->down);
 	if(v == N) {
 		on = syslook("mapiter1", 1);
 		argtype(on, th);
@@ -3122,7 +3143,8 @@ map:
 		n->nbody = nod(OAS, k, r);
 		goto out;
 	}
-	v = old2new(v, t->type);
+	if(local)
+		v = old2new(v, t->type);
 	on = syslook("mapiter2", 1);
 	argtype(on, th);
 	argtype(on, t->down);

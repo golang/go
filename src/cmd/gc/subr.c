@@ -687,6 +687,7 @@ opnames[] =
 	[OREGISTER]	= "REGISTER",
 	[OINDREG]	= "INDREG",
 	[OSEND]		= "SEND",
+	[ORANGE]	= "RANGE",
 	[ORECV]		= "RECV",
 	[OPTR]		= "PTR",
 	[ORETURN]	= "RETURN",
