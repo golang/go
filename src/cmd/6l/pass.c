@@ -362,7 +362,7 @@ patch(void)
 	for(p = firstp; p != P; p = p->link) {
 		if(p->as == ATEXT)
 			curtext = p;
-		if(p->as == ACALL || p->as == AJMP) {
+		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
 			s = p->to.sym;
 			if(s) {
 				if(debug['c'])
