@@ -13,15 +13,22 @@
 int
 main(int argc, char **argv)
 {
+	char *name;
 	FILE *fin;
-	char buf[1024], *p, *q;
+	char buf[1024], initfunc[1024], *p, *q;
 
 	if(argc != 2) {
-		fprintf(stderr, "usage: mksys sys.6\n");
+		fprintf(stderr, "usage: sys sys\n");
+		fprintf(stderr, "in file $1.6 s/PACKAGE/$1/\n");
 		exit(1);
 	}
-	if((fin = fopen(argv[1], "r")) == NULL) {
-		fprintf(stderr, "open %s: %s\n", argv[1], strerror(errno));
+
+	name = argv[1];
+	snprintf(initfunc, sizeof(initfunc), "init_%s_function", name);
+
+	snprintf(buf, sizeof(buf), "%s.6", name);
+	if((fin = fopen(buf, "r")) == NULL) {
+		fprintf(stderr, "open %s: %s\n", buf, strerror(errno));
 		exit(1);
 	}
 
@@ -33,7 +40,7 @@ main(int argc, char **argv)
 	exit(1);
 
 begin:
-	printf("char *sysimport = \n");
+	printf("char *%simport = \n", name);
 
 	// process imports, stopping at $$ that closes them
 	while(fgets(buf, sizeof buf, fin) != NULL) {
@@ -45,17 +52,21 @@ begin:
 		for(p=buf; *p==' ' || *p == '\t'; p++)
 			;
 
-		// cut out decl of init_sys_function - it doesn't exist
-		if(strstr(buf, "init_sys_function"))
+		// cut out decl of init_$1_function - it doesn't exist
+		if(strstr(buf, initfunc))
 			continue;
 
-		// sys.go claims to be in package SYS to avoid
-		// conflicts during "6g sys.go".  rename SYS to sys.
-		for(q=p; *q; q++)
-			if(memcmp(q, "SYS", 3) == 0)
-				memmove(q, "sys", 3);
+		// sys.go claims to be in package PACKAGE to avoid
+		// conflicts during "6g sys.go".  rename PACKAGE to $2.
+		printf("\t\"");
+		while(q = strstr(p, "PACKAGE")) {
+			*q = 0;
+			printf("%s", p);	// up to the substitution
+			printf("%s", name);	// the sub name
+			p = q+7;		// continue with rest
+		}
 
-		printf("\t\"%s\\n\"\n", p);
+		printf("%s\\n\"\n", p);
 	}
 	fprintf(stderr, "did not find end of imports\n");
 	exit(1);

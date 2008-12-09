@@ -79,3 +79,8 @@ char *sysimport =
 	"export func sys.semrelease (sema *int32)\n"
 	"\n"
 	"$$\n";
+char *unsafeimport = 
+	"package unsafe\n"
+	"export type unsafe.pointer *any\n"
+	"\n"
+	"$$\n";

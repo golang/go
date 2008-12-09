@@ -39,10 +39,13 @@ y.tab.h: $(YFILES)
 y.tab.c: y.tab.h
 	test -f y.tab.c && touch y.tab.c
 
-sysimport.c:	sys.go mksys.c
+sysimport.c:	sys.go unsafe.go mksys.c
 	gcc -o mksys mksys.c
 	6g sys.go
-	./mksys sys.6 >_sysimport.c && mv _sysimport.c sysimport.c
+	6g unsafe.go
+	./mksys sys >_sysimport.c &&\
+		./mksys unsafe >>_sysimport.c &&\
+		mv _sysimport.c sysimport.c
 
 clean:
 	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB) _sysimport.c

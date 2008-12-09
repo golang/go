@@ -203,7 +203,7 @@ typedefs[] =
 {
 	"int",		TINT,		TINT32,
 	"uint",		TUINT,		TUINT32,
-	"uptrint",	TUINTPTR,	TUINT64,
+	"uintptr",	TUINTPTR,	TUINT64,
 	"float",	TFLOAT,		TFLOAT32,
 };
 

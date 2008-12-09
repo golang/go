@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 
-package SYS	// rename to avoid redeclaration errors
+package PACKAGE
 
 export func	mal(int32) *any;
 export func	breakpoint();
