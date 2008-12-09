@@ -145,8 +145,8 @@ export func SecondsToUTC(sec int64) *Time {
 	return t;
 }
 
-export func UTC() (t *Time, err *os.Error) {
-	return SecondsToUTC(Seconds()), nil
+export func UTC() *Time {
+	return SecondsToUTC(Seconds())
 }
 
 // TODO: Should this return an error?
@@ -161,8 +161,8 @@ export func SecondsToLocalTime(sec int64) *Time {
 	return t
 }
 
-export func LocalTime() (t *Time, err *os.Error) {
-	return SecondsToLocalTime(Seconds()), nil
+export func LocalTime() *Time {
+	return SecondsToLocalTime(Seconds())
 }
 
 // Compute number of seconds since January 1, 1970.
