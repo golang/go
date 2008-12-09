@@ -14,13 +14,11 @@ export type Timespec struct {
 	sec	int64;
 	nsec	uint64;
 }
-export func TimespecPtr(t *Timespec) int64;
 
 export type Timeval struct {
 	sec	int64;
 	usec	uint32;
 }
-export func TimevalPtr(t *Timeval) int64;
 
 
 // Processes
@@ -43,7 +41,6 @@ export type Rusage struct {
 	nvcsw	int64;
 	nivcsw	int64;
 }
-export func RusagePtr(r *Rusage) int64;
 
 
 // Files
@@ -91,7 +88,6 @@ export type Stat struct {
 	lspare uint32;
 	qspare [2]uint64;
 }
-export func StatPtr(s *Stat) int64;
 
 
 // Sockets
@@ -163,13 +159,11 @@ export type Sockaddr struct {
 	opaque	[126]byte
 }
 export const SizeofSockaddr = 128
-export func SockaddrPtr(s *Sockaddr) int64;
 
 export type Linger struct {
 	yes int32;
 	sec int32;
 }
-export func LingerPtr(l *Linger) int64;
 
 
 // Events (kqueue, kevent)
@@ -215,5 +209,4 @@ export type Kevent struct {
 	data int64;
 	udata int64;
 }
-export func KeventPtr(e *Kevent) int64;
 

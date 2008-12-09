@@ -4,11 +4,14 @@
 
 package syscall
 
-import syscall "syscall"
+import (
+	"syscall";
+	"unsafe";
+)
 
 export func gettimeofday() (sec, nsec, errno int64) {
 	var tv Timeval;
-	r1, r2, e := Syscall(SYS_GETTIMEOFDAY, TimevalPtr(&tv), 0, 0);
+	r1, r2, e := Syscall(SYS_GETTIMEOFDAY, int64(uintptr(unsafe.pointer(&tv))), 0, 0);
 	if e != 0 {
 		return 0, 0, e
 	}

@@ -14,13 +14,11 @@ export type Timespec struct {
 	sec	int64;
 	nsec	uint64;
 }
-export func TimespecPtr(t *Timespec) int64;
 
 export type Timeval struct {
 	sec	int64;
 	usec	uint64;
 }
-export func TimevalPtr(t *Timeval) int64;
 
 
 // Processes
@@ -43,7 +41,6 @@ export type Rusage struct {
 	nvcsw	int64;
 	nivcsw	int64;
 }
-export func RusagePtr(r *Rusage) int64;
 
 
 // Files
@@ -87,7 +84,6 @@ export type Stat struct {
 	ctime	Timespec;
 	_unused	[3]int64
 }
-export func StatPtr(s *Stat) int64;
 
 
 // Sockets
@@ -165,13 +161,11 @@ export type Sockaddr struct {
 	opaque	[126]byte
 }
 export const SizeofSockaddr = 128
-export func SockaddrPtr(s *Sockaddr) int64;
 
 export type Linger struct {
 	yes int32;
 	sec int32;
 }
-export func LingerPtr(l *Linger) int64;
 
 
 // Events (epoll)
@@ -197,4 +191,3 @@ export type EpollEvent struct {
 	fd int32;
 	pad int32;
 }
-export func EpollEventPtr(ev *EpollEvent) int64;

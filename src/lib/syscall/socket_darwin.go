@@ -7,7 +7,10 @@
 // DO NOT USE DIRECTLY.
 
 package syscall
-import "syscall"
+import (
+	"syscall";
+	"unsafe";
+)
 
 export func SockaddrToSockaddrInet4(s *Sockaddr) *SockaddrInet4;
 export func SockaddrToSockaddrInet6(s *Sockaddr) *SockaddrInet6;
@@ -20,12 +23,12 @@ export func socket(domain, proto, typ int64) (ret int64, err int64) {
 }
 
 export func connect(fd int64, sa *Sockaddr) (ret int64, err int64) {
-	r1, r2, e := Syscall(SYS_CONNECT, fd, SockaddrPtr(sa), int64(sa.len));
+	r1, r2, e := Syscall(SYS_CONNECT, fd, int64(uintptr(unsafe.pointer(sa))), int64(sa.len));
 	return r1, e
 }
 
 export func bind(fd int64, sa *Sockaddr) (ret int64, err int64) {
-	r1, r2, e := Syscall(SYS_BIND, fd, SockaddrPtr(sa), int64(sa.len));
+	r1, r2, e := Syscall(SYS_BIND, fd, int64(uintptr(unsafe.pointer(sa))), int64(sa.len));
 	return r1, e
 }
 
@@ -36,7 +39,7 @@ export func listen(fd, n int64) (ret int64, err int64) {
 
 export func accept(fd int64, sa *Sockaddr) (ret int64, err int64) {
 	var n int32 = SizeofSockaddr;
-	r1, r2, e := Syscall(SYS_ACCEPT, fd, SockaddrPtr(sa), Int32Ptr(&n));
+	r1, r2, e := Syscall(SYS_ACCEPT, fd, int64(uintptr(unsafe.pointer(sa))), int64(uintptr(unsafe.pointer(&n))));
 	return r1, e
 }
 
@@ -50,7 +53,7 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
 
 export func setsockopt_int(fd, level, opt int64, value int) int64 {
 	var n int32 = int32(opt);
-	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4);
+	r1, e := setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&n))), 4);
 	return e
 }
 
@@ -59,7 +62,7 @@ export func setsockopt_tv(fd, level, opt, nsec int64) int64 {
 	nsec += 999;
 	tv.sec = int64(nsec/1000000000);
 	tv.usec = uint32(nsec%1000000000);
-	r1, e := setsockopt(fd, level, opt, TimevalPtr(&tv), 4);
+	r1, e := setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&tv))), 4);
 	return e
 }
 
@@ -72,7 +75,7 @@ export func setsockopt_linger(fd, level, opt int64, sec int) int64 {
 		l.yes = 0;
 		l.sec = 0;
 	}
-	r1, err := setsockopt(fd, level, opt, LingerPtr(&l), 8);
+	r1, err := setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&l))), 8);
 	return err
 }
 
@@ -95,15 +98,15 @@ export func kevent(kq int64, changes, events *[]Kevent, timeout *Timespec) (ret 
 	nevent = 0;
 	eventptr = 0;
 	if changes != nil && len(changes) > 0 {
-		changeptr = KeventPtr(&changes[0]);
+		changeptr = int64(uintptr(unsafe.pointer(&changes[0])));
 		nchange = int64(len(changes))
 	}
 	if events != nil && len(events) > 0 {
-		eventptr = KeventPtr(&events[0]);
+		eventptr = int64(uintptr(unsafe.pointer(&events[0])));
 		nevent = int64(len(events))
 	}
 	r1, r2, err := Syscall6(SYS_KEVENT, kq, changeptr, nchange,
-		eventptr, nevent, TimespecPtr(timeout));
+		eventptr, nevent, int64(uintptr(unsafe.pointer(timeout))));
 	return r1, err
 }
 
