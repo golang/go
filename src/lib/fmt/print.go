@@ -272,10 +272,10 @@ func getFloat64(v reflect.Value) (val float64, ok bool) {
 	return 0.0, false;
 }
 
-func getPtr(v reflect.Value) (val uint64, ok bool) {
+func getPtr(v reflect.Value) (val uintptr, ok bool) {
 	switch v.Kind() {
 	case reflect.PtrKind:
-		return v.(reflect.PtrValue).Get(), true;
+		return uintptr(v.(reflect.PtrValue)), true;
 	}
 	return 0, false;
 }
@@ -356,7 +356,7 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 			} else {
 				p.add('0');
 				p.add('x');
-				s = p.fmt.uX64(v).str();
+				s = p.fmt.uX64(uint64(v)).str();
 			}
 		}
 	case reflect.StructKind:
@@ -555,7 +555,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 					if v == nil {
 						s = "<nil>"
 					} else {
-						s = "0x" + p.fmt.uX64(v).str()
+						s = "0x" + p.fmt.uX64(uint64(v)).str()
 					}
 				} else {
 					goto badtype
