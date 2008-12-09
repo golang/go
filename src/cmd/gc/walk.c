@@ -622,6 +622,22 @@ loop:
 			goto ret;
 		}
 
+		// convert to unsafe.pointer
+		if(isptrto(n->type, TANY)) {
+			if(isptr[l->type->etype])
+				goto ret;
+			if(l->type->etype == TUINTPTR)
+				goto ret;
+		}
+
+		// convert from unsafe.pointer
+		if(isptrto(l->type, TANY)) {
+			if(isptr[n->type->etype])
+				goto ret;
+			if(n->type->etype == TUINTPTR)
+				goto ret;
+		}
+
 		if(l->type != T)
 			yyerror("cannot convert %T to %T", l->type, t);
 		goto ret;
