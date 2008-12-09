@@ -6,7 +6,8 @@ package time
 
 import (
 	"syscall";
-	"time"
+	"time";
+	"unsafe";
 )
 
 // TODO(rsc): This implementation of time.Tick is a
@@ -30,7 +31,7 @@ func Ticker(ns int64, c *chan int64) {
 	when := now;
 	for {
 		when += ns;	// next alarm
-		
+
 		// if c <- now took too long, skip ahead
 		if when < now {
 			// one big step
@@ -42,7 +43,7 @@ func Ticker(ns int64, c *chan int64) {
 		}
 
 		syscall.nstotimeval(when - now, &tv);
-		syscall.Syscall6(syscall.SYS_SELECT, 0, 0, 0, 0, syscall.TimevalPtr(&tv), 0);
+		syscall.Syscall6(syscall.SYS_SELECT, 0, 0, 0, 0, int64(uintptr(unsafe.pointer(&tv))), 0);
 		now = time.Nanoseconds();
 		c <- now;
 	}
