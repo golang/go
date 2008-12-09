@@ -6,6 +6,7 @@ package Printer
 
 import (
 	"os";
+	"io";
 	"array";
 	"tabwriter";
 	"flag";
@@ -55,7 +56,8 @@ const (
 
 type Printer struct {
 	// output
-	writer *htmlwriter.Writer;
+	text io.Write;
+	tags *htmlwriter.Writer;
 	
 	// comments
 	comments *array.Array;  // the list of all comments
@@ -92,9 +94,10 @@ func (P *Printer) NextComment() {
 }
 
 
-func (P *Printer) Init(writer *htmlwriter.Writer, comments *array.Array) {
-	// writer
-	P.writer = writer;
+func (P *Printer) Init(text io.Write, tags *htmlwriter.Writer, comments *array.Array) {
+	// writers
+	P.text = text;
+	P.tags = tags;
 	
 	// comments
 	P.comments = comments;
@@ -109,7 +112,7 @@ func (P *Printer) Init(writer *htmlwriter.Writer, comments *array.Array) {
 // Printing support
 
 func (P *Printer) Printf(format string, s ...) {
-	n, err := fmt.fprintf(P.writer, format, s);
+	n, err := fmt.fprintf(P.text, format, s);
 	if err != nil {
 		panic("print error - exiting");
 	}
@@ -311,11 +314,10 @@ func (P *Printer) Error(pos int, tok int, msg string) {
 
 // ----------------------------------------------------------------------------
 // HTML support
-// TODO Move this to html writer
 
 func (P *Printer) HtmlPrologue(title string) {
-	if html.BVal() {
-		P.String(0,
+	if P.tags != nil {
+		P.tags.Tag(
 			"<html>\n"
 			"<head>\n"
 			"	<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n"
@@ -331,8 +333,8 @@ func (P *Printer) HtmlPrologue(title string) {
 
 
 func (P *Printer) HtmlEpilogue() {
-	if html.BVal() {
-		P.String(0,
+	if P.tags != nil {
+		P.tags.Tag(
 			"</pre>\n"
 			"</body>\n"
 			"<html>\n"
@@ -342,8 +344,8 @@ func (P *Printer) HtmlEpilogue() {
 
 
 func (P *Printer) HtmlIdentifier(pos int, ident string) {
-	if html.BVal() {
-		P.String(pos, `<a href="#` + ident + `">` + ident + `</a>`);
+	if false && P.tags != nil {
+		P.tags.Tag(`<a href="#` + ident + `">` + ident + `</a>`);
 	} else {
 		P.String(pos, ident);
 	}
@@ -831,20 +833,27 @@ func (P *Printer) Program(p *AST.Program) {
 
 export func Print(prog *AST.Program) {
 	// setup
+	var P Printer;
 	padchar := byte(' ');
 	if usetabs.BVal() {
 		padchar = '\t';
 	}
-	twriter := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true);
-	hwriter := htmlwriter.New(twriter);
-	var P Printer;
-	P.Init(hwriter, prog.comments);
+	var (
+		text = tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true, html.BVal());
+		tags *htmlwriter.Writer;
+	)
+	if html.BVal() {
+		tags = htmlwriter.New(text);
+	}
+	P.Init(text, tags, prog.comments);
 
 	P.HtmlPrologue("<the source>");
 	P.Program(prog);
 	P.HtmlEpilogue();
 	
 	P.String(0, "");  // flush pending separator/newlines
-	hwriter.Flush();  // ignore errors
-	twriter.Flush();  // ignore errors
+	err := text.Flush();
+	if err != nil {
+		panic("print error - exiting");
+	}
 }
