@@ -156,6 +156,7 @@ struct	Type
 	uchar	embedded;	// TFIELD embedded type
 	uchar	siggen;
 	uchar	funarg;
+	uchar	copyany;
 
 	// TFUNCT
 	uchar	thistuple;
