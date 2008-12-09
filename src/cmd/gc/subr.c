@@ -1779,6 +1779,8 @@ loop:
 		goto loop;
 
 	case TANY:
+		if(!st->copyany)
+			return 0;
 		*stp = t;
 		break;
 
@@ -1839,6 +1841,11 @@ deep(Type *t)
 	switch(t->etype) {
 	default:
 		nt = t;	// share from here down
+		break;
+
+	case TANY:
+		nt = shallow(t);
+		nt->copyany = 1;
 		break;
 
 	case TPTR32:
