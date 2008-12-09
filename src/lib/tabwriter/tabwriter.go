@@ -13,7 +13,7 @@ import (
 
 
 // ----------------------------------------------------------------------------
-// ByteArray
+// Basic ByteArray support
 
 type ByteArray struct {
 	a *[]byte;
@@ -22,6 +22,11 @@ type ByteArray struct {
 
 func (b *ByteArray) Init(initial_size int) {
 	b.a = new([]byte, initial_size)[0 : 0];
+}
+
+
+func (b *ByteArray) Len() int {
+	return len(b.a);
 }
 
 
@@ -77,15 +82,16 @@ func (b *ByteArray) Append(s *[]byte) {
 //
 // Formatting can be controlled via parameters:
 //
-// cellwidth  minimal cell width
-// padding    additional cell padding
-// padchar    ASCII char used for padding
-//            if padchar == '\t', the Writer will assume that the
-//            width of a '\t' in the formatted output is tabwith,
-//            and cells are left-aligned independent of align_left
-//            (for correct-looking results, cellwidth must correspond
-//            to the tabwidth in the editor used to look at the result)
-
+// cellwidth	minimal cell width
+// padding      additional cell padding
+// padchar      ASCII char used for padding
+//              if padchar == '\t', the Writer will assume that the
+//              width of a '\t' in the formatted output is cellwidth,
+//              and cells are left-aligned independent of align_left
+//              (for correct-looking results, cellwidth must correspond
+//              to the tabwidth in the viewer displaying the result)
+// filter_html  ignores html tags and handles entities (starting with '&'
+//              and ending in ';') as single characters (width = 1)
 
 export type Writer struct {
 	// TODO should not export any of the fields
@@ -95,15 +101,41 @@ export type Writer struct {
 	padding int;
 	padbytes [8]byte;
 	align_left bool;
+	filter_html bool;
 
 	// current state
+	html_char byte;  // terminating char of html tag/entity, or 0 ('>', ';', or 0)
 	buf ByteArray;  // collected text w/o tabs and newlines
-	size int;  // size of last incomplete cell in bytes
-	width int;  // width of last incomplete cell in runes
+	size int;  // size of incomplete cell in bytes
+	width int;  // width of incomplete cell in runes up to buf[pos] w/o ignored sections
+	pos int;  // buffer position up to which width of incomplete cell has been computed
 	lines_size array.Array;  // list of lines; each line is a list of cell sizes in bytes
 	lines_width array.Array;  // list of lines; each line is a list of cell widths in runes
 	widths array.IntArray;  // list of column widths in runes - re-used during formatting
 }
+
+// Internal representation (current state):
+//
+// - all text written is appended to buf; tabs and newlines are stripped away
+// - at any given time there is a (possibly empty) incomplete cell at the end
+//   (the cell starts after a tab or newline)
+// - size is the number of bytes belonging to the cell so far
+// - width is text width in runes of that cell from the start of the cell to
+//   position pos; html tags and entities are excluded from this width if html
+//   filtering is enabled
+// - the sizes and widths of processed text are kept in the lines_size and
+//   lines_width arrays, which contain an array of sizes or widths for each line
+// - the widths array is a temporary array with current widths used during
+//   formatting; it is kept in Writer because it's re-used
+//
+//                    |<---------- size ---------->|
+//                    |                            |
+//                    |<- width ->|<- ignored ->|  |
+//                    |           |             |  |
+// [---processed---tab------------<tag>...</tag>...]
+// ^                  ^                         ^
+// |                  |                         |
+// buf                start of incomplete cell  pos
 
 
 func (b *Writer) AddLine() {
@@ -112,7 +144,7 @@ func (b *Writer) AddLine() {
 }
 
 
-func (b *Writer) Init(writer io.Write, cellwidth, padding int, padchar byte, align_left bool) *Writer {
+func (b *Writer) Init(writer io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
 	if cellwidth < 0 {
 		panic("negative cellwidth");
 	}
@@ -126,7 +158,8 @@ func (b *Writer) Init(writer io.Write, cellwidth, padding int, padchar byte, ali
 		b.padbytes[i] = padchar;
 	}
 	b.align_left = align_left || padchar == '\t';  // tab enforces left-alignment
-	
+	b.filter_html = filter_html;
+
 	b.buf.Init(1024);
 	b.lines_size.Init(0);
 	b.lines_width.Init(0);
@@ -209,7 +242,7 @@ func (b *Writer) WriteLines(pos0 int, line0, line1 int) (pos int, err *os.Error)
 			s, w := line_size.At(j), line_width.At(j);
 
 			if b.align_left {
-				err = b.Write0(b.buf.a[pos : pos + s]);
+				err = b.Write0(b.buf.Slice(pos, pos + s));
 				if err != nil {
 					goto exit;
 				}
@@ -229,7 +262,7 @@ func (b *Writer) WriteLines(pos0 int, line0, line1 int) (pos int, err *os.Error)
 						goto exit;
 					}
 				}
-				err = b.Write0(b.buf.a[pos : pos + s]);
+				err = b.Write0(b.buf.Slice(pos, pos + s));
 				if err != nil {
 					goto exit;
 				}
@@ -240,9 +273,8 @@ func (b *Writer) WriteLines(pos0 int, line0, line1 int) (pos int, err *os.Error)
 		if i+1 == b.lines_size.Len() {
 			// last buffered line - we don't have a newline, so just write
 			// any outstanding buffered data
-			err = b.Write0(b.buf.a[pos : pos + b.size]);
+			err = b.Write0(b.buf.Slice(pos, pos + b.size));
 			pos += b.size;
-			b.size, b.width = 0, 0;
 		} else {
 			// not the last line - write newline
 			err = b.Write0(Newline);
@@ -308,6 +340,19 @@ exit:
 }
 
 
+/* export */ func (b *Writer) Flush() *os.Error {
+	dummy, err := b.Format(0, 0, b.lines_size.Len());
+	// reset (even in the presence of errors)
+	b.buf.Clear();
+	b.size, b.width = 0, 0;
+	b.pos = 0;
+	b.lines_size.Init(0);
+	b.lines_width.Init(0);
+	b.AddLine();
+	return err;
+}
+
+
 func UnicodeLen(buf *[]byte) int {
 	l := 0;
 	for i := 0; i < len(buf); {
@@ -326,49 +371,70 @@ func UnicodeLen(buf *[]byte) int {
 func (b *Writer) Append(buf *[]byte) {
 	b.buf.Append(buf);
 	b.size += len(buf);
-	b.width += UnicodeLen(buf);
-}
-
-
-/* export */ func (b *Writer) Flush() *os.Error {
-	dummy, err := b.Format(0, 0, b.lines_size.Len());
-	// reset (even in the presence of errors)
-	b.buf.Clear();
-	b.size, b.width = 0, 0;
-	b.lines_size.Init(0);
-	b.lines_width.Init(0);
-	b.AddLine();
-	return err;
 }
 
 
 /* export */ func (b *Writer) Write(buf *[]byte) (written int, err *os.Error) {
 	i0, n := 0, len(buf);
-	
+
 	// split text into cells
 	for i := 0; i < n; i++ {
-		if ch := buf[i]; ch == '\t' || ch == '\n' {
-			b.Append(buf[i0 : i]);
-			i0 = i + 1;  // exclude ch from (next) cell
+		ch := buf[i];
 
-			// terminate cell
-			last_size, last_width := b.Line(b.lines_size.Len() - 1);
-			last_size.Push(b.size);
-			last_width.Push(b.width);
-			b.size, b.width = 0, 0;
+		if b.html_char == 0 {
+			// outside html tag/entity
+			switch ch {
+			case '\t', '\n':
+				b.Append(buf[i0 : i]);
+				i0 = i + 1;  // exclude ch from (next) cell
+				b.width += UnicodeLen(b.buf.Slice(b.pos, b.buf.Len()));
+				b.pos = b.buf.Len();
 
-			if ch == '\n' {
-				b.AddLine();
-				if last_size.Len() == 1 {
-					// The previous line has only one cell which does not have
-					// an impact on the formatting of the following lines (the
-					// last cell per line is ignored by Format), thus we can
-					// flush the Writer contents.
-					err = b.Flush();
-					if err != nil {
-						return i0, err;
+				// terminate cell
+				last_size, last_width := b.Line(b.lines_size.Len() - 1);
+				last_size.Push(b.size);
+				last_width.Push(b.width);
+				b.size, b.width = 0, 0;
+
+				if ch == '\n' {
+					b.AddLine();
+					if last_size.Len() == 1 {
+						// The previous line has only one cell which does not have
+						// an impact on the formatting of the following lines (the
+						// last cell per line is ignored by Format), thus we can
+						// flush the Writer contents.
+						err = b.Flush();
+						if err != nil {
+							return i0, err;
+						}
 					}
 				}
+
+			case '<', '&':
+				if b.filter_html {
+					b.Append(buf[i0 : i]);
+					i0 = i;
+					b.width += UnicodeLen(b.buf.Slice(b.pos, b.buf.Len()));
+					b.pos = -1;  // preventative - should not be used (will cause index out of bounds)
+					if ch == '<' {
+						b.html_char = '>';
+					} else {
+						b.html_char = ';';
+					}
+				}
+			}
+
+		} else {
+			// inside html tag/entity
+			if ch == b.html_char {
+				// reached the end of tag/entity
+				b.Append(buf[i0 : i + 1]);
+				i0 = i + 1;
+				if b.html_char == ';' {
+					b.width++;  // count as one char
+				}
+				b.pos = b.buf.Len();
+				b.html_char = 0;
 			}
 		}
 	}
@@ -379,6 +445,6 @@ func (b *Writer) Append(buf *[]byte) {
 }
 
 
-export func New(writer io.Write, cellwidth, padding int, padchar byte, align_left bool) *Writer {
-	return new(Writer).Init(writer, cellwidth, padding, padchar, align_left)
+export func New(writer io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
+	return new(Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
 }
