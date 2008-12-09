@@ -104,12 +104,12 @@ package:
 	{
 		yyerror("package statement must be first");
 		mkpackage("main");
-		cannedimports();
+		cannedimports("sys.6", sysimport);
 	}
 |	LPACKAGE sym
 	{
 		mkpackage($2->name);
-		cannedimports();
+		cannedimports("sys.6", sysimport);
 	}
 
 imports:
@@ -1086,6 +1086,8 @@ Bnon_fn_type:
 nametype:
 	LATYPE
 	{
+		if($1->otype != T && $1->otype->etype == TANY)
+			yyerror("the any type is restricted");
 		$$ = oldtype($1);
 	}
 

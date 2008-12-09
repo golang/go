@@ -467,6 +467,7 @@ EXTERN	Sym*	pkgmyname;	// my name for package
 EXTERN	Sym*	pkgimportname;	// package name from imported package
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	sysimport;
+extern	char*	unsafeimport;
 EXTERN	char*	filename;	// name to uniqify names
 EXTERN	void	(*dcladj)(Sym*);	// declaration is being exported/packaged
 
@@ -535,7 +536,7 @@ int	yyparse(void);
 int	mainlex(int, char*[]);
 void	setfilename(char*);
 void	importfile(Val*);
-void	cannedimports(void);
+void	cannedimports(char*, char*);
 void	unimportfile();
 int32	yylex(void);
 void	lexinit(void);

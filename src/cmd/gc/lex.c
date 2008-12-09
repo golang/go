@@ -218,6 +218,11 @@ importfile(Val *f)
 		return;
 	}
 
+	if(strcmp(f->u.sval->s, "unsafe") == 0) {
+		cannedimports("unsafe.6", unsafeimport);
+		return;
+	}
+
 	if(!findpkg(f->u.sval))
 		fatal("can't find import: %Z", f->u.sval);
 	imp = Bopen(namebuf, OREAD);
@@ -277,11 +282,8 @@ unimportfile(void)
 }
 
 void
-cannedimports(void)
+cannedimports(char *file, char *cp)
 {
-	char *file;
-
-	file = "sys.6";
 	lineno++;		// if sys.6 is included on line 1,
 	linehist(file, 0);	// the debugger gets confused
 
@@ -290,7 +292,7 @@ cannedimports(void)
 	curio.peekc = 0;
 	curio.peekc1 = 0;
 	curio.infile = file;
-	curio.cp = sysimport;
+	curio.cp = cp;
 
 	pkgmyname = S;
 	inimportsys = 1;
