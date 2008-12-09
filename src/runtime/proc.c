@@ -59,6 +59,7 @@ struct Sched {
 	int32 predawn;	// running initialization, don't run new gs.
 
 	Note	stopped;	// one g can wait here for ms to stop
+	int32 waitstop;	// after setting this flag
 };
 
 Sched sched;
@@ -352,7 +353,10 @@ nextgandunlock(void)
 		throw("all goroutines are asleep - deadlock!");
 	m->nextg = nil;
 	noteclear(&m->havenextg);
-	notewakeup(&sched.stopped);
+	if(sched.waitstop) {
+		sched.waitstop = 0;
+		notewakeup(&sched.stopped);
+	}
 	unlock(&sched);
 
 	notesleep(&m->havenextg);
@@ -376,6 +380,7 @@ stoptheworld(void)
 	sched.mcpumax = 1;
 	while(sched.mcpu > 1) {
 		noteclear(&sched.stopped);
+		sched.waitstop = 1;
 		unlock(&sched);
 		notesleep(&sched.stopped);
 		lock(&sched);
