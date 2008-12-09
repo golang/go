@@ -26,15 +26,32 @@ import (
 
 func Ticker(ns int64, c *chan int64) {
 	var tv syscall.Timeval;
+	now := time.Nanoseconds();
+	when := now;
 	for {
-		syscall.nstotimeval(ns, &tv);
+		when += ns;	// next alarm
+		
+		// if c <- now took too long, skip ahead
+		if when < now {
+			// one big step
+			when += (now-when)/ns * ns;
+		}
+		for when <= now {
+			// little steps until when > now
+			when += ns
+		}
+
+		syscall.nstotimeval(when - now, &tv);
 		syscall.Syscall6(syscall.SYS_SELECT, 0, 0, 0, 0, syscall.TimevalPtr(&tv), 0);
-		nsec, err := time.Nanoseconds();
-		c <- nsec;
+		now = time.Nanoseconds();
+		c <- now;
 	}
 }
 
 export func Tick(ns int64) *chan int64 {
+	if ns <= 0 {
+		return nil
+	}
 	c := new(chan int64);
 	go Ticker(ns, c);
 	return c;

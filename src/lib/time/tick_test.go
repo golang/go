@@ -15,11 +15,11 @@ export func TestTick(t *testing.T) {
 		Count uint64 = 10;
 	);
 	c := Tick(Delta);
-	t0, err := Nanoseconds();
+	t0 := Nanoseconds();
 	for i := 0; i < Count; i++ {
 		<-c;
 	}
-	t1, err1 := Nanoseconds();
+	t1 := Nanoseconds();
 	ns := t1 - t0;
 	target := int64(Delta*Count);
 	slop := target*2/10;
