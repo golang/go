@@ -10,17 +10,21 @@ import (
 )
 
 // Seconds since January 1, 1970 00:00:00 GMT
-export func Seconds() (sec int64, err *os.Error) {
-	var nsec int64;
-	sec, nsec, err = os.Time();
-	return sec, err
+export func Seconds() int64 {
+	sec, nsec, err := os.Time();
+	if err != nil {
+		panic("time: os.Time: ", err.String());
+	}
+	return sec
 }
 
 // Nanoseconds since January 1, 1970 00:00:00 GMT
-export func Nanoseconds() (nsec int64, err *os.Error) {
-	var sec int64;
-	sec, nsec, err = os.Time();
-	return sec*1e9 + nsec, err
+export func Nanoseconds() int64 {
+	sec, nsec, err := os.Time();
+	if err != nil {
+		panic("time: os.Time: ", err.String());
+	}
+	return sec*1e9 + nsec
 }
 
 export const (
@@ -142,12 +146,7 @@ export func SecondsToUTC(sec int64) *Time {
 }
 
 export func UTC() (t *Time, err *os.Error) {
-	var sec int64;
-	sec, err = Seconds();
-	if err != nil {
-		return nil, err
-	}
-	return SecondsToUTC(sec), nil
+	return SecondsToUTC(Seconds()), nil
 }
 
 // TODO: Should this return an error?
@@ -163,12 +162,7 @@ export func SecondsToLocalTime(sec int64) *Time {
 }
 
 export func LocalTime() (t *Time, err *os.Error) {
-	var sec int64;
-	sec, err = Seconds();
-	if err != nil {
-		return nil, err
-	}
-	return SecondsToLocalTime(sec), nil
+	return SecondsToLocalTime(Seconds()), nil
 }
 
 // Compute number of seconds since January 1, 1970.
