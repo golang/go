@@ -32,7 +32,6 @@ coverage: packages
 	$(AS) $*.s
 
 O1=\
-	cast_$(GOARCH).$O\
 	type.$O\
 	typestring.$O\
 
@@ -45,7 +44,7 @@ O3=\
 reflect.a: a1 a2 a3
 
 a1:	$(O1)
-	$(AR) grc reflect.a cast_$(GOARCH).$O type.$O typestring.$O
+	$(AR) grc reflect.a type.$O typestring.$O
 	rm -f $(O1)
 
 a2:	$(O2)

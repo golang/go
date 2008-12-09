@@ -171,7 +171,7 @@ func ValueToString(val Value) string {
 		}
 	case PtrKind:
 		v := val.(PtrValue);
-		return TypeToString(typ, false) + "(" + integer(int64(v.Get())) + ")";
+		return TypeToString(typ, false) + "(" + integer(int64(uintptr(v.Get()))) + ")";
 	case ArrayKind:
 		t := typ.(ArrayType);
 		v := val.(ArrayValue);
