@@ -701,13 +701,12 @@ testdclstack(void)
 static void
 redeclare(char *str, Sym *s)
 {
-	if(s->block != block) {
-		s->block = block;
-		s->lastlineno = lineno;
-		return;
+	if(s->block == block) {
+		yyerror("%s %S redeclared in this block", str, s);
+		print("	previous declaration at %L\n", s->lastlineno);
 	}
-	yyerror("%s %S redeclared in this block %d", str, s, block);
-	print("	previous declaration at %L\n", s->lastlineno);
+	s->block = block;
+	s->lastlineno = lineno;
 }
 
 void
