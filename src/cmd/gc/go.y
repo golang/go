@@ -1087,6 +1087,7 @@ nametype:
 	LATYPE
 	{
 		if($1->otype != T && $1->otype->etype == TANY)
+		if(strcmp(package, "PACKAGE") != 0)
 			yyerror("the any type is restricted");
 		$$ = oldtype($1);
 	}
