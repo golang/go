@@ -152,12 +152,6 @@ BUG: should compile
 panic PC=xxx
 BUG: should not fail
 
-=========== bugs/bug120.go
-Bad float64 const: 1e23+1 want 1.0000000000000001e+23 got 1e+23
-	want exact: 100000000000000008388608
-	got exact:  99999999999999991611392
-BUG: bug120
-
 =========== bugs/bug121.go
 BUG: compilation succeeds incorrectly
 
@@ -291,5 +285,3 @@ SIGSEGV: segmentation violation
 Faulting address: 0x0
 pc: xxx
 
-
-=========== fixedbugs/bug126.go
