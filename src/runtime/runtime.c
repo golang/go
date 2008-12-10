@@ -583,6 +583,8 @@ static uint64
 stringhash(uint32 s, string *a)
 {
 	USED(s);
+	if(*a == nil)
+		return memhash(emptystring->len, emptystring->str);
 	return memhash((*a)->len, (*a)->str);
 }
 
