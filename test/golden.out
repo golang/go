@@ -147,7 +147,7 @@ bugs/bug117.go:9: illegal types for operand: RETURN
 BUG: should compile
 
 =========== bugs/bug119.go
-3 74256
+3
 
 panic PC=xxx
 BUG: should not fail
@@ -167,17 +167,8 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug123.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug123.go
 
-=========== bugs/bug124.go
-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug124.go
-
 =========== bugs/bug125.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
-
-=========== bugs/bug126.go
-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug126.go
-
-=========== bugs/bug127.go
-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug127.go
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
@@ -204,9 +195,9 @@ fixedbugs/bug029.go:6: syntax error near func
 fixedbugs/bug029.go:6: syntax error near int
 
 =========== fixedbugs/bug035.go
-fixedbugs/bug035.go:6: var i redeclared in this block
+fixedbugs/bug035.go:6: variable i redeclared in this block
 	previous declaration at fixedbugs/bug035.go:5
-fixedbugs/bug035.go:7: var f redeclared in this block
+fixedbugs/bug035.go:7: variable f redeclared in this block
 	previous declaration at fixedbugs/bug035.go:5
 
 =========== fixedbugs/bug037.go
@@ -215,7 +206,7 @@ fixedbugs/bug037.go:6: illegal types for operand: AS
 	undefined
 
 =========== fixedbugs/bug039.go
-fixedbugs/bug039.go:6: var x redeclared in this block
+fixedbugs/bug039.go:6: variable x redeclared in this block
 	previous declaration at fixedbugs/bug039.go:5
 
 =========== fixedbugs/bug049.go
@@ -300,3 +291,5 @@ SIGSEGV: segmentation violation
 Faulting address: 0x0
 pc: xxx
 
+
+=========== fixedbugs/bug126.go
