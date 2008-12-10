@@ -14,6 +14,10 @@ import (
 
 type Addr unsafe.pointer	// TODO: where are ptrint/intptr etc?
 
+func EqualType(a, b Type) bool {
+	return a.String() == b.String()
+}
+
 export type Value interface {
 	Kind()	int;
 	Type()	Type;
@@ -490,11 +494,12 @@ func (v *PtrValueStruct) Sub() Value {
 	return NewValueAddr(v.typ.(PtrType).Sub(), v.Get());
 }
 
-func (v *PtrValueStruct) SetSub(subv Value)  {
-	a := v.typ.(PtrType).Sub().String();
-	b := subv.Type().String();
-	if a != b {
-		panicln("reflect: incompatible types in PtrValue.SetSub:", a, b);
+func (v *PtrValueStruct) SetSub(subv Value) {
+	a := v.typ.(PtrType).Sub();
+	b := subv.Type();
+	if !EqualType(a, b) {
+		panicln("reflect: incompatible types in PtrValue.SetSub:",
+			a.String(), b.String());
 	}
 	*v.addr.(*Addr) = subv.Addr();
 }
@@ -805,6 +810,38 @@ export func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
 
 	return NewValueAddr(typ, Addr(array));
 }
+
+export func CopyArray(dst ArrayValue, src ArrayValue, n int) {
+	if n == 0 {
+		return
+	}
+	dt := dst.Type().(ArrayType).Elem();
+	st := src.Type().(ArrayType).Elem();
+	if !EqualType(dt, st) {
+		panicln("reflect: incompatible types in CopyArray:",
+			dt.String(), st.String());
+	}
+	if n < 0 || n > dst.Len() || n > src.Len() {
+		panicln("reflect: CopyArray: invalid count", n);
+	}
+	dstp := uintptr(dst.Elem(0).Addr());
+	srcp := uintptr(src.Elem(0).Addr());
+	end := uintptr(n)*uintptr(dt.Size());
+	if dst.Type().Size() % 8 == 0 {
+		for i := uintptr(0); i < end; i += 8{
+			di := Addr(dstp + i);
+			si := Addr(srcp + i);
+			*di.(*uint64) = *si.(*uint64);
+		}
+	} else {
+		for i := uintptr(0); i < end; i++ {
+			di := Addr(dstp + i);
+			si := Addr(srcp + i);
+			*di.(*byte) = *si.(*byte);
+		}
+	}
+}
+
 
 export func NewValue(e interface {}) Value {
 	value, typestring  := sys.reflect(e);

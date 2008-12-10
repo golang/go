@@ -210,7 +210,9 @@ func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
 			return nil, b.err
 		}
 		if b.Buffered() == n {	// no data added; end of file
-			return nil, EndOfFile
+			line := b.buf[b.r:b.w];
+			b.r = b.w;
+			return line, EndOfFile
 		}
 
 		// Search new part of buffer
