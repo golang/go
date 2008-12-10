@@ -161,7 +161,7 @@ double
 mpgetflt(Mpflt *a)
 {
 	int s, i;
-	uvlong v;
+	uvlong v, vm;
 	double f;
 
 	if(a->val.ovf)
@@ -186,22 +186,31 @@ mpgetflt(Mpflt *a)
 	// independently or in the 6g half of the compiler
 
 	// pick up the mantissa in a uvlong
-	s = 63;
+	s = 53;
 	v = 0;
 	for(i=Mpnorm-1; s>=Mpscale; i--) {
+		v = (v<<Mpscale) | a->val.a[i];
+		s -= Mpscale;
+	}
+	vm = v;
+	if(s > 0)
+		vm = (vm<<s) | (a->val.a[i]>>(Mpscale-s));
+
+	// continue with 64 more bits
+	s += 64;
+	for(; s>=Mpscale; i--) {
 		v = (v<<Mpscale) | a->val.a[i];
 		s -= Mpscale;
 	}
 	if(s > 0)
 		v = (v<<s) | (a->val.a[i]>>(Mpscale-s));
 
-	// 63 bits of mantissa being rounded to 53
-	// should do this in multi precision
-	if((v&0x3ffULL) != 0x200ULL || (v&0x400) != 0)
-		v += 0x200ULL;		// round toward even
+//print("vm=%.16llux v=%.16llux\n", vm, v);
+	// round toward even
+	if(v != (1ULL<<63) || (vm&1ULL) != 0)
+		vm += v>>63;
 
-	v >>= 10;
-	f = (double)(v);
+	f = (double)(vm);
 	f = ldexp(f, Mpnorm*Mpscale + a->exp - 53);
 
 	if(a->val.neg)
