@@ -220,7 +220,7 @@ struct	Func
 /*
  * external data
  */
-extern	Alg	algarray[3];
+extern	Alg	algarray[4];
 extern	string	emptystring;
 G*	allg;
 int32	goidgen;

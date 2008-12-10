@@ -17,10 +17,10 @@ typedef	struct	Scase	Scase;
 struct	SudoG
 {
 	G*	g;		// g and selgen constitute
-	byte	elem[8];	// synch data element
 	int16	offset;		// offset of case number
 	int32	selgen;		// a weak pointer to g
 	SudoG*	link;
+	byte	elem[8];	// synch data element (+ more)
 };
 
 struct	WaitQ
@@ -45,7 +45,7 @@ struct	Hchan
 struct	Link
 {
 	Link*	link;			// asynch queue circular linked list
-	byte	elem[8];		// asynch queue data element
+	byte	elem[8];		// asynch queue data element (+ more)
 };
 
 struct	Scase
@@ -65,7 +65,7 @@ struct	Select
 	uint16	tcase;			// total count of scase[]
 	uint16	ncase;			// currently filled scase[]
 	Select*	link;			// for freelist
-	Scase	scase[1];		// one per case
+	Scase*	scase[1];		// one per case
 };
 
 static	Select*	selfree[20];
@@ -108,7 +108,7 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
 		b = nil;
 		e = nil;
 		for(i=0; i<hint; i++) {
-			d = mal(sizeof(*d));
+			d = mal(sizeof(*d) + c->elemsize - sizeof(d->elem));
 			if(e == nil)
 				e = d;
 			d->link = b;
@@ -430,7 +430,11 @@ sys·selectsend(Select *sel, Hchan *c, ...)
 	if(i >= sel->tcase)
 		throw("selectsend: too many cases");
 	sel->ncase = i+1;
-	cas = &sel->scase[i];
+	cas = sel->scase[i];
+	if(cas == nil) {
+		cas = mal(sizeof *cas + c->elemsize - sizeof(cas->u.elem));
+		sel->scase[i] = cas;
+	}
 
 	cas->pc = sys·getcallerpc(&sel);
 	cas->chan = c;
@@ -473,8 +477,11 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 	if(i >= sel->tcase)
 		throw("selectrecv: too many cases");
 	sel->ncase = i+1;
-	cas = &sel->scase[i];
-
+	cas = sel->scase[i];
+	if(cas == nil) {
+		cas = mal(sizeof *cas);
+		sel->scase[i] = cas;
+	}
 	cas->pc = sys·getcallerpc(&sel);
 	cas->chan = c;
 
@@ -506,13 +513,16 @@ sys·selectdefault(Select *sel, ...)
 {
 	int32 i;
 	Scase *cas;
-	
+
 	i = sel->ncase;
 	if(i >= sel->tcase)
 		throw("selectdefault: too many cases");
 	sel->ncase = i+1;
-	cas = &sel->scase[i];
-
+	cas = sel->scase[i];
+	if(cas == nil) {
+		cas = mal(sizeof *cas);
+		sel->scase[i] = cas;
+	}
 	cas->pc = sys·getcallerpc(&sel);
 	cas->chan = nil;
 
@@ -579,7 +589,7 @@ sys·selectgo(Select *sel)
 	// pass 1 - look for something already waiting
 	dfl = nil;
 	for(i=0; i<sel->ncase; i++) {
-		cas = &sel->scase[o];
+		cas = sel->scase[o];
 
 		if(cas->send == 2) {	// default
 			dfl = cas;
@@ -613,16 +623,16 @@ sys·selectgo(Select *sel)
 		if(o >= sel->ncase)
 			o -= sel->ncase;
 	}
-	
+
 	if(dfl != nil) {
 		cas = dfl;
 		goto retc;
 	}
-		
+
 
 	// pass 2 - enqueue on all chans
 	for(i=0; i<sel->ncase; i++) {
-		cas = &sel->scase[o];
+		cas = sel->scase[o];
 		c = cas->chan;
 
 		if(c->dataqsiz > 0) {
@@ -682,7 +692,7 @@ sys·selectgo(Select *sel)
 	lock(&chanlock);
 	sg = g->param;
 	o = sg->offset;
-	cas = &sel->scase[o];
+	cas = sel->scase[o];
 	c = cas->chan;
 
 	if(xxx) {
@@ -832,7 +842,7 @@ allocsg(Hchan *c)
 	if(sg != nil) {
 		c->free = sg->link;
 	} else
-		sg = mal(sizeof(*sg));
+		sg = mal(sizeof(*sg) + c->elemsize - sizeof(sg->elem));
 	sg->selgen = g->selgen;
 	sg->g = g;
 	sg->offset = 0;
