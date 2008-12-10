@@ -552,7 +552,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			// pointer
 			case 'p':
 				if v, ok := getPtr(field); ok {
-					if v == nil {
+					if v == 0 {
 						s = "<nil>"
 					} else {
 						s = "0x" + p.fmt.uX64(uint64(v)).str()
