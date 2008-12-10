@@ -20,6 +20,7 @@ var quotetests = []QuoteTest {
 	QuoteTest{ "abc\xffdef", `"abc\xffdef"` },
 	QuoteTest{ "\u263a", `"\u263a"` },
 	QuoteTest{ "\U0010ffff", `"\U0010ffff"` },
+	QuoteTest{ "\x04", `"\x04"` },
 }
 
 export func TestQuote(t *testing.T) {

@@ -294,3 +294,36 @@ export func TestInterfaceGet(t *testing.T) {
 	v3 := reflect.NewValue(i2);
 	assert(v3.Type().String(), "float");
 }
+
+export func TestCopyArray(t *testing.T) {
+	a := &[]int{ 1, 2, 3, 4, 10, 9, 8, 7 };
+	b := &[]int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
+	c := &[]int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
+	va := NewValue(a);
+	vb := NewValue(b);
+	for i := 0; i < len(b); i++ {
+		if b[i] != c[i] {
+			t.Fatalf("b != c before test");
+		}
+	}
+	for tocopy := 5; tocopy <= 6; tocopy++ {
+		CopyArray(vb.(PtrValue).Sub(), va.(PtrValue).Sub(), tocopy);
+		for i := 0; i < tocopy; i++ {
+			if a[i] != b[i] {
+				t.Errorf("tocopy=%d a[%d]=%d, b[%d]=%d",
+					tocopy, i, a[i], i, b[i]);
+			}
+		}
+		for i := tocopy; i < len(b); i++ {
+			if b[i] != c[i] {
+				if i < len(a) {
+					t.Errorf("tocopy=%d a[%d]=%d, b[%d]=%d, c[%d]=%d",
+						tocopy, i, a[i], i, b[i], i, c[i]);
+				} else {
+					t.Errorf("tocopy=%d b[%d]=%d, c[%d]=%d",
+						tocopy, i, b[i], i, c[i]);
+				}
+			}
+		}
+	}
+}

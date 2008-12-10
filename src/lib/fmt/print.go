@@ -275,7 +275,7 @@ func getFloat64(v reflect.Value) (val float64, ok bool) {
 func getPtr(v reflect.Value) (val uintptr, ok bool) {
 	switch v.Kind() {
 	case reflect.PtrKind:
-		return uintptr(v.(reflect.PtrValue)), true;
+		return uintptr(v.(reflect.PtrValue).Get()), true;
 	}
 	return 0, false;
 }

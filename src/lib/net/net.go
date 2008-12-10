@@ -359,72 +359,20 @@ ra = nil;
 // TCP connections.
 
 export type ConnTCP struct {
-	base ConnBase
+	ConnBase
 }
 
-// New TCP methods
 func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
 	if c == nil {
 		return os.EINVAL
 	}
-	return setsockopt_int((&c.base).FD(), syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(nodelay))
-}
-
-// Wrappers
-func (c *ConnTCP) Read(b *[]byte) (n int, err *os.Error) {
-	n, err = (&c.base).Read(b);
-	return n, err
-}
-func (c *ConnTCP) Write(b *[]byte) (n int, err *os.Error) {
-	n, err = (&c.base).Write(b);
-	return n, err
-}
-func (c *ConnTCP) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
-	n, raddr, err = (&c.base).ReadFrom(b);
-	return n, raddr, err
-}
-func (c *ConnTCP) WriteTo(raddr string, b *[]byte) (n int, err *os.Error) {
-	n, err = (&c.base).WriteTo(raddr, b);
-	return n, err
-}
-func (c *ConnTCP) Close() *os.Error {
-	return (&c.base).Close()
-}
-func (c *ConnTCP) SetReadBuffer(bytes int) *os.Error {
-	return (&c.base).SetReadBuffer(bytes)
-}
-func (c *ConnTCP) SetWriteBuffer(bytes int) *os.Error {
-	return (&c.base).SetWriteBuffer(bytes)
-}
-func (c *ConnTCP) SetTimeout(nsec int64) *os.Error {
-	return (&c.base).SetTimeout(nsec)
-}
-func (c *ConnTCP) SetReadTimeout(nsec int64) *os.Error {
-	return (&c.base).SetReadTimeout(nsec)
-}
-func (c *ConnTCP) SetWriteTimeout(nsec int64) *os.Error {
-	return (&c.base).SetWriteTimeout(nsec)
-}
-func (c *ConnTCP) SetLinger(sec int) *os.Error {
-	return (&c.base).SetLinger(sec)
-}
-func (c *ConnTCP) SetReuseAddr(reuseaddr bool) *os.Error {
-	return (&c.base).SetReuseAddr(reuseaddr)
-}
-func (c *ConnTCP) BindToDevice(dev string) *os.Error {
-	return (&c.base).BindToDevice(dev)
-}
-func (c *ConnTCP) SetDontRoute(dontroute bool) *os.Error {
-	return (&c.base).SetDontRoute(dontroute)
-}
-func (c *ConnTCP) SetKeepAlive(keepalive bool) *os.Error {
-	return (&c.base).SetKeepAlive(keepalive)
+	return setsockopt_int(c.FD(), syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(nodelay))
 }
 
 func NewConnTCP(fd *FD, raddr string) *ConnTCP {
 	c := new(ConnTCP);
-	c.base.fd = fd;
-	c.base.raddr = raddr;
+	c.fd = fd;
+	c.raddr = raddr;
 	c.SetNoDelay(true);
 	return c
 }
@@ -441,7 +389,31 @@ export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
 }
 
 
-// TODO: UDP connections
+// UDP connections.
+
+// TODO(rsc): UDP headers mode
+
+export type ConnUDP struct {
+	ConnBase
+}
+
+func NewConnUDP(fd *FD, raddr string) *ConnUDP {
+	c := new(ConnUDP);
+	c.fd = fd;
+	c.raddr = raddr;
+	return c
+}
+
+export func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
+	if raddr == "" {
+		return nil, MissingAddress
+	}
+	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_DGRAM);
+	if e != nil {
+		return nil, e
+	}
+	return NewConnUDP(fd, raddr), nil
+}
 
 
 // TODO: raw IP connections
@@ -468,24 +440,6 @@ export type Conn interface {
 	BindToDevice(dev string) *os.Error;
 }
 
-type NoConn struct { unused int }
-func (c *NoConn) Read(b *[]byte) (n int, err *os.Error) { return -1, os.EINVAL }
-func (c *NoConn) Write(b *[]byte) (n int, err *os.Error) { return -1, os.EINVAL }
-func (c *NoConn) ReadFrom(b *[]byte) (n int, addr string, err *os.Error) { return -1, "", os.EINVAL }
-func (c *NoConn) WriteTo(addr string, b *[]byte) (n int, err *os.Error) { return -1, os.EINVAL }
-func (c *NoConn) Close() *os.Error { return nil }
-func (c *NoConn) SetReadBuffer(bytes int) *os.Error { return os.EINVAL }
-func (c *NoConn) SetWriteBuffer(bytes int) *os.Error { return os.EINVAL }
-func (c *NoConn) SetTimeout(nsec int64) *os.Error { return os.EINVAL }
-func (c *NoConn) SetReadTimeout(nsec int64) *os.Error { return os.EINVAL }
-func (c *NoConn) SetWriteTimeout(nsec int64) *os.Error { return os.EINVAL }
-func (c *NoConn) SetLinger(sec int) *os.Error { return os.EINVAL }
-func (c *NoConn) SetReuseAddr(reuseaddr bool) *os.Error { return os.EINVAL }
-func (c *NoConn) SetDontRoute(dontroute bool) *os.Error { return os.EINVAL }
-func (c *NoConn) SetKeepAlive(keepalive bool) *os.Error { return os.EINVAL }
-func (c *NoConn) BindToDevice(dev string) *os.Error { return os.EINVAL }
-
-var noconn NoConn
 
 // Dial's arguments are the network, local address, and remote address.
 // Examples:
@@ -501,13 +455,13 @@ export func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
 	case "tcp", "tcp4", "tcp6":
 		c, err := DialTCP(net, laddr, raddr);
 		if err != nil {
-			return &noconn, err
+			return nil, err
 		}
 		return c, nil;
-/*
 	case "udp", "udp4", "upd6":
 		c, err := DialUDP(net, laddr, raddr);
 		return c, err;
+/*
 	case "ether":
 		c, err := DialEther(net, laddr, raddr);
 		return c, err;
@@ -527,14 +481,6 @@ export type Listener interface {
 	Accept() (c Conn, raddr string, err *os.Error);
 	Close() *os.Error;
 }
-
-type NoListener struct { unused int }
-func (l *NoListener) Accept() (c Conn, raddr string, err *os.Error) {
-	return &noconn, "", os.EINVAL
-}
-func (l *NoListener) Close() *os.Error { return os.EINVAL }
-
-var nolistener NoListener
 
 export type ListenerTCP struct {
 	fd *FD;
@@ -576,7 +522,7 @@ func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
 func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
 	c1, r1, e1 := l.AcceptTCP();
 	if e1 != nil {
-		return &noconn, "", e1
+		return nil, "", e1
 	}
 	return c1, r1, nil
 }
@@ -593,7 +539,7 @@ export func Listen(net, laddr string) (l Listener, err *os.Error) {
 	case "tcp", "tcp4", "tcp6":
 		l, err := ListenTCP(net, laddr);
 		if err != nil {
-			return &nolistener, err
+			return nil, err
 		}
 		return l, nil
 /*

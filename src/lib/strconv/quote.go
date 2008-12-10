@@ -36,6 +36,9 @@ export func Quote(s string) string {
 		case s[i] == '\v':
 			t += `\v`;
 
+		case s[i] < utf8.RuneSelf:
+			t += `\x` + string(ldigits[s[i]>>4]) + string(ldigits[s[i]&0xF]);
+
 		case utf8.FullRuneInString(s, i):
 			r, size := utf8.DecodeRuneInString(s, i);
 			if r == utf8.RuneError && size == 1 {

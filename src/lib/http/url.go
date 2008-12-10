@@ -3,11 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Parse URLs (actually URIs, but that seems overly pedantic).
+// TODO(rsc): Add tests.
 
 package http
 
 import (
-	"os"
+	"os";
+	"strings"
 )
 
 export var (
@@ -150,13 +152,19 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
 
 	// Maybe path is //authority/path
 	if len(path) > 2 && path[0:2] == "//" {
-		url.authority, path = Split(path[2:len(path)], '/', false)
+		url.authority, path = Split(path[2:len(path)], '/', false);
 	}
-	url.userinfo, url.host = Split(url.authority, '@', true);
+
+	// If there's no @, Split's default is wrong.  Check explicitly.
+	if strings.index(url.authority, "@") < 0 {
+		url.host = url.authority;
+	} else {
+		url.userinfo, url.host = Split(url.authority, '@', true);
+	}
 
 	// What's left is the path.
 	// TODO: Canonicalize (remove . and ..)?
-	if url.path, err = URLUnescape(url.path); err != nil {
+	if url.path, err = URLUnescape(path); err != nil {
 		return nil, err
 	}
 
