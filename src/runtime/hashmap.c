@@ -8,6 +8,7 @@
 /* Return a pointer to the struct/union of type "type"
    whose "field" field is addressed by pointer "p". */
 
+
 struct hash {	   /* a hash table; initialize with hash_init() */
 	uint32 count;	  /* elements in table - must be first */
 
@@ -291,7 +292,7 @@ hash_lookup (struct hash *h, void *data, void **pres)
 		int32 shift = HASH_BITS - (st->power + used);
 		int32 index_mask = (1 << st->power) - 1;
 		int32 i = (hash >> shift) & index_mask;	   /* i is the natural position of hash */
-		
+
 		e = HASH_OFFSET (st->entry, i * elemsize); /* e points to element i */
 		e_hash = e->hash;
 		if ((e_hash & HASH_MASK) != HASH_SUBHASH) {      /* a subtable */
@@ -332,7 +333,7 @@ hash_remove (struct hash *h, void *data, void *arg)
 		int32 shift = HASH_BITS - (st->power + used);
 		int32 index_mask = (1 << st->power) - 1;
 		int32 i = (hash >> shift) & index_mask;	   /* i is the natural position of hash */
-		
+
 		e = HASH_OFFSET (st->entry, i * elemsize); /* e points to element i */
 		e_hash = e->hash;
 		if ((e_hash & HASH_MASK) != HASH_SUBHASH) {      /* a subtable */
@@ -378,7 +379,7 @@ hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
 		struct hash_entry *e = start_e;		   /* e is going to range over [start_e, end_e) */
 		struct hash_entry *end_e;
 		hash_hash_t e_hash = e->hash;
-		
+
 		if ((e_hash & HASH_MASK) == HASH_SUBHASH) {      /* a subtable */
 			pst = (struct hash_subtable **) e->data;
 			flags += HASH_MAKE_USED (st->power);
@@ -662,8 +663,8 @@ sys·newmap(uint32 keysize, uint32 valsize,
 {
 	Hmap *h;
 
-	if(keyalg >= 3 ||
-	   valalg >= 3) {
+	if(keyalg >= 4 ||
+	   valalg >= 4) {
 		prints("0<=");
 		sys·printint(keyalg);
 		prints("<");

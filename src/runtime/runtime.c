@@ -644,11 +644,12 @@ pointercopy(uint32 s, void **a, void **b)
 }
 
 Alg
-algarray[3] =
+algarray[4] =
 {
 	{	memhash,	memequal,	memprint,	memcopy	},  // 0
 	{	stringhash,	stringequal,	stringprint,	stringcopy	},  // 1
 //	{	pointerhash,	pointerequal,	pointerprint,	pointercopy	},  // 2
 	{	memhash,	memequal,	memprint,	memcopy	},  // 2 - treat pointers as ints
+	{	memhash,	memequal,	memprint,	memcopy	},  // 3 - treat interfaces as memory
 };
 
