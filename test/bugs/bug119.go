@@ -12,9 +12,9 @@ func foo(a *[]int) int {
 
 func main() {
 	a := &[]int{12};
-	if x := a[0]   ; x != 12 { panicln(1, x) }
-	if x := (*a)[0]; x != 12 { panicln(2, x) }
-	if x := foo(a) ; x != 12 { panicln(3, x) }  // fails (x is incorrect)
+	if x := a[0]   ; x != 12 { panicln(1) }
+	if x := (*a)[0]; x != 12 { panicln(2) }
+	if x := foo(a) ; x != 12 { panicln(3) }  // fails (x is incorrect)
 }
 
 /*
