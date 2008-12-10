@@ -54,7 +54,6 @@ export type Type interface {
 	Kind()	int;
 	Name()	string;
 	String()	string;
-	SetString(string);	// TODO: remove when no longer needed
 	Size()	int;
 }
 
@@ -76,10 +75,6 @@ func (c *Common) Name() string {
 
 func (c *Common) String() string {
 	return c.str
-}
-
-func (c *Common) SetString(s string) {
-	c.str = s
 }
 
 func (c *Common) Size() int {
@@ -379,7 +374,7 @@ func (t *FuncTypeStruct) Out() StructType {
 }
 
 // Cache of expanded types keyed by type name.
-var types *map[string] *Type	// BUG TODO: should be Type not *Type
+var types *map[string] Type
 
 // List of typename, typestring pairs
 var typestring *map[string] string
@@ -408,29 +403,29 @@ func init() {
 
 	Lock();	// not necessary because of init ordering but be safe.
 
-	types = new(map[string] *Type);
+	types = new(map[string] Type);
 	typestring = new(map[string] string);
 	basicstub = new(map[string] *StubType);
 
 	// Basics go into types table
-	types[MissingString] = &Missing;
-	types[DotDotDotString] = &DotDotDot;
-	types["int"] = &Int;
-	types["int8"] = &Int8;
-	types["int16"] = &Int16;
-	types["int32"] = &Int32;
-	types["int64"] = &Int64;
-	types["uint"] = &Uint;
-	types["uint8"] = &Uint8;
-	types["uint16"] = &Uint16;
-	types["uint32"] = &Uint32;
-	types["uint64"] = &Uint64;
-	types["float"] = &Float;
-	types["float32"] = &Float32;
-	types["float64"] = &Float64;
-	types["float80"] = &Float80;
-	types["string"] = &String;
-	types["bool"] = &Bool;
+	types[MissingString] = Missing;
+	types[DotDotDotString] = DotDotDot;
+	types["int"] = Int;
+	types["int8"] = Int8;
+	types["int16"] = Int16;
+	types["int32"] = Int32;
+	types["int64"] = Int64;
+	types["uint"] = Uint;
+	types["uint8"] = Uint8;
+	types["uint16"] = Uint16;
+	types["uint32"] = Uint32;
+	types["uint64"] = Uint64;
+	types["float"] = Float;
+	types["float32"] = Float32;
+	types["float64"] = Float64;
+	types["float80"] = Float80;
+	types["string"] = String;
+	types["bool"] = Bool;
 
 	// Basics get prebuilt stubs
 	MissingStub = NewStubType(MissingString, Missing);
@@ -899,13 +894,11 @@ func ExpandType(name string) Type {
 	t, ok := types[name];
 	if ok {
 		Unlock();
-		return *t
+		return t
 	}
-	types[name] = &Missing;	// prevent recursion; will overwrite
+	types[name] = Missing;	// prevent recursion; will overwrite
 	t1 := ParseTypeString(name, TypeNameToTypeString(name));
-	p := new(Type);
-	*p = t1;
-	types[name] = p;
+	types[name] = t1;
 	Unlock();
 	return t1;
 }
