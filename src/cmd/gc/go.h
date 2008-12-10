@@ -231,8 +231,7 @@ struct	Node
 
 struct	Sym
 {
-	ushort	tblock;		// blocknumber for type
-	ushort	vblock;		// blocknumber for variable
+	ushort	block;		// blocknumber to catch redeclaration
 
 	uchar	undef;		// a diagnostic has been generated
 	uchar	export;		// marked as export
@@ -252,6 +251,7 @@ struct	Sym
 	vlong	offset;		// stack location if automatic
 	int32	lexical;
 	int32	vargen;		// unique variable number
+	int32	lastlineno;	// last declaration for diagnostic
 	Sym*	link;
 };
 #define	S	((Sym*)0)

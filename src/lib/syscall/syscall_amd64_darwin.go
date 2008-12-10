@@ -339,7 +339,7 @@ export const (
 	// SYS_NOSYS = 296;  // { int nosys(void); } { old load_shared_file }
 	// SYS_NOSYS = 297;  // { int nosys(void); } { old reset_shared_file }
 	// SYS_NOSYS = 298;  // { int nosys(void); } { old new_system_shared_regions }
-	SYS_ENOSYS = 299;  // { int enosys(void); } { old shared_region_map_file_np }
+	// SYS_ENOSYS = 299;  // { int enosys(void); } { old shared_region_map_file_np }
 	SYS_ENOSYS = 300;  // { int enosys(void); } { old shared_region_make_private_np }
 	SYS___PTHREAD_MUTEX_DESTROY = 301;  // { int __pthread_mutex_destroy(int mutexid); }
 	SYS___PTHREAD_MUTEX_INIT = 302;  // { int __pthread_mutex_init(user_addr_t  mutex, user_addr_t attr); }
