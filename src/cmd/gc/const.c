@@ -67,7 +67,7 @@ convlit(Node *n, Type *t)
 			break;
 		if(et == TINTER)
 			break;
-		return;
+		goto bad1;
 
 	case Wlitstr:
 		if(isnilinter(t)) {
@@ -212,6 +212,7 @@ evconst(Node *n)
 	case Wlitfloat:
 	case Wlitbool:
 	case Wlitstr:
+	case Wlitnil:
 		break;
 	}
 
@@ -228,6 +229,7 @@ evconst(Node *n)
 	case Wlitfloat:
 	case Wlitbool:
 	case Wlitstr:
+	case Wlitnil:
 		break;
 	}
 
@@ -246,7 +248,7 @@ evconst(Node *n)
 			nl->val.ctype = CTFLT;
 			wl = whatis(nl);
 		} else {
-			yyerror("illegal combination of literals %O %E, %E", n->op, wl, wr);
+			yyerror("illegal combination of literals %O %W, %W", n->op, wl, wr);
 			return;
 		}
 	}
@@ -264,7 +266,7 @@ evconst(Node *n)
 
 	switch(TUP(n->op, wl)) {
 	default:
-		yyerror("illegal literal %O %E", n->op, wl);
+		yyerror("illegal literal %O %W", n->op, wl);
 		return;
 
 	case TUP(OADD, Wlitint):
@@ -311,6 +313,11 @@ evconst(Node *n)
 	case TUP(ODIV, Wlitfloat):
 		mpdivfltflt(fval, nr->val.u.fval);
 		break;
+
+	case TUP(OEQ, Wlitnil):
+		goto settrue;
+	case TUP(ONE, Wlitnil):
+		goto setfalse;
 
 	case TUP(OEQ, Wlitint):
 		if(mpcmpfixfix(xval, nr->val.u.xval) == 0)
