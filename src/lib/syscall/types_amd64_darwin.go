@@ -191,7 +191,7 @@ export const (
 	// flags
 	EV_ONESHOT = 0x0010;
 	EV_CLEAR = 0x0020;
-	EV_RECEIPT = 0x40;
+//	EV_RECEIPT = 0x40;
 	EV_SYSFLAGS = 0xF000;
 	EV_FLAG0 = 0x1000;
 	EV_FLAG1 = 0x2000;

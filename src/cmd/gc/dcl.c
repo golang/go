@@ -65,7 +65,7 @@ dodcltype(Type *n)
 	// if n has been forward declared,
 	// use the Type* created then
 	s = n->sym;
-	if(s->tblock == block) {
+	if(s->block == block) {
 		switch(s->otype->etype) {
 		case TFORWSTRUCT:
 		case TFORWINTER:
@@ -556,8 +556,8 @@ dcopy(Sym *a, Sym *b)
 	a->lexical = b->lexical;
 	a->undef = b->undef;
 	a->vargen = b->vargen;
-	a->vblock = b->vblock;
-	a->tblock = b->tblock;
+	a->block = b->block;
+	a->lastlineno = b->lastlineno;
 	a->local = b->local;
 	a->offset = b->offset;
 }
@@ -602,7 +602,7 @@ popdcl(void)
 	if(d == S)
 		fatal("popdcl: no mark");
 	dclstack = d->link;
-	block = d->vblock;
+	block = d->block;
 }
 
 void
@@ -630,7 +630,7 @@ markdcl(void)
 
 	d = push();
 	d->name = nil;		// used as a mark in fifo
-	d->vblock = block;
+	d->block = block;
 
 	blockgen++;
 	block = blockgen;
@@ -698,6 +698,18 @@ testdclstack(void)
 	}
 }
 
+static void
+redeclare(char *str, Sym *s)
+{
+	if(s->block != block) {
+		s->block = block;
+		s->lastlineno = lineno;
+		return;
+	}
+	yyerror("%s %S redeclared in this block %d", str, s, block);
+	print("	previous declaration at %L\n", s->lastlineno);
+}
+
 void
 addvar(Node *n, Type *t, int ctxt)
 {
@@ -710,15 +722,6 @@ addvar(Node *n, Type *t, int ctxt)
 
 	s = n->sym;
 
-	if(s->vblock == block) {
-		if(s->oname != N) {
-			yyerror("var %S redeclared in this block"
-				"\n\tprevious declaration at %L",
-				s, s->oname->lineno);
-		} else
-			yyerror("var %S redeclared in this block", s);
-	}
-
 	if(ctxt == PEXTERN) {
 		r = externdcl;
 		gen = 0;
@@ -729,10 +732,10 @@ addvar(Node *n, Type *t, int ctxt)
 		pushdcl(s);
 	}
 
+	redeclare("variable", s);
 	s->vargen = gen;
 	s->oname = n;
 	s->offset = 0;
-	s->vblock = block;
 	s->lexical = LNAME;
 
 	n->type = t;
@@ -775,12 +778,9 @@ addtyp(Type *n, int ctxt)
 		n->vargen = ++typgen;
 	}
 
-	if(s->tblock == block)
-		yyerror("type %S redeclared in this block %d", s, block);
-
+	redeclare("type", s);
 	s->otype = n;
 	s->lexical = LATYPE;
-	s->tblock = block;
 
 	d = dcl();
 	d->dsym = s;
@@ -831,6 +831,7 @@ addconst(Node *n, Node *e, int ctxt)
 		pushdcl(s);
 	}
 
+	redeclare("constant", s);
 	s->oconst = e;
 	s->lexical = LACONST;
 
