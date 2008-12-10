@@ -11,7 +11,6 @@ import (
 	"tabwriter";
 	"flag";
 	"fmt";
-	"htmlwriter";
 	Scanner "scanner";
 	AST "ast";
 )
@@ -57,7 +56,6 @@ const (
 type Printer struct {
 	// output
 	text io.Write;
-	tags *htmlwriter.Writer;
 	
 	// comments
 	comments *array.Array;  // the list of all comments
@@ -94,10 +92,9 @@ func (P *Printer) NextComment() {
 }
 
 
-func (P *Printer) Init(text io.Write, tags *htmlwriter.Writer, comments *array.Array) {
+func (P *Printer) Init(text io.Write, comments *array.Array) {
 	// writers
 	P.text = text;
-	P.tags = tags;
 	
 	// comments
 	P.comments = comments;
@@ -110,6 +107,22 @@ func (P *Printer) Init(text io.Write, tags *htmlwriter.Writer, comments *array.A
 
 // ----------------------------------------------------------------------------
 // Printing support
+
+func HtmlEscape(s string) string {
+	if html.BVal() {
+		var esc string;
+		for i := 0; i < len(s); i++ {
+			switch s[i] {
+			case '<': esc = "&lt";
+			case '&': esc = "&amp";
+			default: continue;
+			}
+			return s[0 : i] + esc + HtmlEscape(s[i+1 : len(s)]);
+		}
+	}
+	return s;
+}
+
 
 func (P *Printer) Printf(format string, s ...) {
 	n, err := fmt.fprintf(P.text, format, s);
@@ -135,7 +148,7 @@ func (P *Printer) Newline(n int) {
 }
 
 
-func (P *Printer) String(pos int, s string) {
+func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 	// use estimate for pos if we don't have one
 	if pos == 0 {
 		pos = P.lastpos;
@@ -230,7 +243,7 @@ func (P *Printer) String(pos int, s string) {
 			if debug.BVal() {
 				P.Printf("[%d]", P.cpos);
 			}
-			P.Printf("%s", ctext);
+			P.Printf("%s", HtmlEscape(ctext));
 
 			if ctext[1] == '/' {
 				//-style comments must end in newline
@@ -276,7 +289,7 @@ func (P *Printer) String(pos int, s string) {
 	if debug.BVal() {
 		P.Printf("[%d]", pos);
 	}
-	P.Printf("%s", s);
+	P.Printf("%s%s%s", tag, HtmlEscape(s), endtag);
 
 	// --------------------------------
 	// interpret state
@@ -300,6 +313,11 @@ func (P *Printer) String(pos int, s string) {
 }
 
 
+func (P *Printer) String(pos int, s string) {
+	P.TaggedString(pos, "", s, "");
+}
+
+
 func (P *Printer) Token(pos int, tok int) {
 	P.String(pos, Scanner.TokenString(tok));
 }
@@ -316,36 +334,39 @@ func (P *Printer) Error(pos int, tok int, msg string) {
 // HTML support
 
 func (P *Printer) HtmlPrologue(title string) {
-	if P.tags != nil {
-		P.tags.Tag(
+	if html.BVal() {
+		P.TaggedString(0,
 			"<html>\n"
 			"<head>\n"
 			"	<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n"
-			"	<title>" + title + "</title>\n"
+			"	<title>" + HtmlEscape(title) + "</title>\n"
 			"	<style type=\"text/css\">\n"
 			"	</style>\n"
 			"</head>\n"
 			"<body>\n"
-			"<pre>\n"
+			"<pre>\n",
+			"", ""
 		)
 	}
 }
 
 
 func (P *Printer) HtmlEpilogue() {
-	if P.tags != nil {
-		P.tags.Tag(
+	if html.BVal() {
+		P.TaggedString(0, 
 			"</pre>\n"
 			"</body>\n"
-			"<html>\n"
+			"<html>\n",
+			"", ""
 		)
 	}
 }
 
 
 func (P *Printer) HtmlIdentifier(pos int, ident string) {
-	if false && P.tags != nil {
-		P.tags.Tag(`<a href="#` + ident + `">` + ident + `</a>`);
+	if html.BVal() {
+		// no need to HtmlEscape ident
+		P.TaggedString(pos, `<a href="#` + ident + `">`, ident, `</a>`);
 	} else {
 		P.String(pos, ident);
 	}
@@ -632,14 +653,14 @@ func (P *Printer) ControlClause(s *AST.Stat) {
 			P.Stat(s.init);
 			P.separator = none;
 		}
-		P.Printf(";");
+		P.String(0, ";");
 		P.separator = blank;
 		if s.expr != nil {
 			P.Expr(s.expr);
 			P.separator = none;
 		}
 		if s.tok == Scanner.FOR {
-			P.Printf(";");
+			P.String(0, ";");
 			P.separator = blank;
 			if has_post {
 				P.Stat(s.post);
@@ -838,14 +859,8 @@ export func Print(prog *AST.Program) {
 	if usetabs.BVal() {
 		padchar = '\t';
 	}
-	var (
-		text = tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true, html.BVal());
-		tags *htmlwriter.Writer;
-	)
-	if html.BVal() {
-		tags = htmlwriter.New(text);
-	}
-	P.Init(text, tags, prog.comments);
+	text := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true, html.BVal());
+	P.Init(text, prog.comments);
 
 	P.HtmlPrologue("<the source>");
 	P.Program(prog);
