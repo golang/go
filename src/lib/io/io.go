@@ -144,3 +144,13 @@ export func Copy(src Read, dst Write) (written int64, err *os.Error) {
 	return written, err
 }
 
+// Convert a string to an array of bytes for easy marshaling.
+// Could fill with syscall.StringToBytes but it adds an unnecessary \000
+// so the length would be wrong.
+export func StringBytes(s string) *[]byte {
+	b := new([]byte, len(s));
+	for i := 0; i < len(s); i++ {
+		b[i] = s[i];
+	}
+	return b;
+}
