@@ -2733,7 +2733,12 @@ isandss(Type *lt, Node *r)
 				return I2I;
 			return Inone;
 		}
-		if(isnilinter(lt) || ismethod(rt) != T)
+		if(isnilinter(lt)) {
+			if(!issimple[rt->etype] && !isptr[rt->etype])
+				yyerror("using %T as interface is unimplemented", rt);
+			return T2I;
+		}
+		if(ismethod(rt) != T)
 			return T2I;
 		return Inone;
 	}
