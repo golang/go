@@ -94,7 +94,7 @@ fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
 hash.dirinstall: os.dirinstall
 http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall strings.install
 io.dirinstall: os.dirinstall syscall.dirinstall
-net.dirinstall: once.install os.dirinstall strconv.dirinstall
+net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall
 os.dirinstall: syscall.dirinstall
 regexp.dirinstall: os.dirinstall
 reflect.dirinstall: strconv.dirinstall sync.dirinstall
