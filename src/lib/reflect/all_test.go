@@ -118,7 +118,7 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	typedump("*chan<-string", "*chan<-string");
 	typedump("struct {c *chan *int32; d float32}", "struct{c *chan*int32; d float32}");
 	typedump("*(a int8, b int32)", "*(a int8, b int32)");
-	typedump("struct {c *(? *chan *P.integer, ? *int8)}", "struct{c *(? *chan*P.integer, ? *int8)}");
+	typedump("struct {c *(? *chan *P.integer, ? *int8)}", "struct{c *(*chan*P.integer, *int8)}");
 	typedump("struct {a int8; b int32}", "struct{a int8; b int32}");
 	typedump("struct {a int8; b int8; b int32}", "struct{a int8; b int8; b int32}");
 	typedump("struct {a int8; b int8; c int8; b int32}", "struct{a int8; b int8; c int8; b int32}");
@@ -149,7 +149,7 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	valuedump("*chan<-string", "*chan<-string(0)");
 	valuedump("struct {c *chan *int32; d float32}", "struct{c *chan*int32; d float32}{*chan*int32(0), 0}");
 	valuedump("*(a int8, b int32)", "*(a int8, b int32)(0)");
-	valuedump("struct {c *(? *chan *P.integer, ? *int8)}", "struct{c *(? *chan*P.integer, ? *int8)}{*(? *chan*P.integer, ? *int8)(0)}");
+	valuedump("struct {c *(? *chan *P.integer, ? *int8)}", "struct{c *(*chan*P.integer, *int8)}{*(*chan*P.integer, *int8)(0)}");
 	valuedump("struct {a int8; b int32}", "struct{a int8; b int32}{0, 0}");
 	valuedump("struct {a int8; b int8; b int32}", "struct{a int8; b int8; b int32}{0, 0, 0}");
 
