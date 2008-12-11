@@ -540,6 +540,9 @@ gentramp(Type *t, Sig *b)
 	fatal("gentramp");
 
 out:
+	if(d == 0)
+		return;
+
 //	print("gentramp %d\n", d);
 //	print("	t    = %lT\n", t);
 //	print("	name = %s\n", b->name);
