@@ -690,7 +690,11 @@ func (p *Parser) Fields(sep, term string) *[]Field {
 			}
 			a = a1;
 		}
-		a[nf].name = p.token;
+		name := p.token;
+		if name == "?" {	// used to represent a missing name
+			name = ""
+		}
+		a[nf].name = name;
 		p.Next();
 		a[nf].typ = p.Type("");
 		if p.token != "" && p.token[0] == '"' {

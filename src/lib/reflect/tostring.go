@@ -47,7 +47,10 @@ func TypeFieldsToString(t HasFields, sep string) string {
 	var str string;
 	for i := 0; i < t.Len(); i++ {
 		str1, typ, tag, offset := t.Field(i);
-		str1 +=  " " + TypeToString(typ, false);
+		if str1 != "" {
+			str1 += " "
+		}
+		str1 += TypeToString(typ, false);
 		if tag != "" {
 			str1 += " " + DoubleQuote(tag);
 		}
