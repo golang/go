@@ -12,7 +12,7 @@ import (
 	"unsafe";
 )
 
-type Addr unsafe.pointer	// TODO: where are ptrint/intptr etc?
+type Addr unsafe.pointer
 
 func EqualType(a, b Type) bool {
 	return a.String() == b.String()
@@ -318,6 +318,31 @@ func (v *Uint64ValueStruct) Get() uint64 {
 
 func (v *Uint64ValueStruct) Set(i uint64) {
 	*v.addr.(*uint64) = i
+}
+
+// -- Uintptr
+
+export type UintptrValue interface {
+	Kind()	int;
+	Get()	uintptr;
+	Set(uintptr);
+	Type()	Type;
+}
+
+type UintptrValueStruct struct {
+	Common
+}
+
+func UintptrCreator(typ Type, addr Addr) Value {
+	return &UintptrValueStruct{ Common{UintptrKind, typ, addr} }
+}
+
+func (v *UintptrValueStruct) Get() uintptr {
+	return *v.addr.(*uintptr)
+}
+
+func (v *UintptrValueStruct) Set(i uintptr) {
+	*v.addr.(*uintptr) = i
 }
 
 // -- Float
@@ -727,38 +752,35 @@ func FuncCreator(typ Type, addr Addr) Value {
 	return &FuncValueStruct{ Common{FuncKind, typ, addr} }
 }
 
-var creator *map[int] Creator
-var typecache *map[string] *Type
-
-func init() {
-	creator = new(map[int] Creator);
-	creator[MissingKind] = &MissingCreator;
-	creator[IntKind] = &IntCreator;
-	creator[Int8Kind] = &Int8Creator;
-	creator[Int16Kind] = &Int16Creator;
-	creator[Int32Kind] = &Int32Creator;
-	creator[Int64Kind] = &Int64Creator;
-	creator[UintKind] = &UintCreator;
-	creator[Uint8Kind] = &Uint8Creator;
-	creator[Uint16Kind] = &Uint16Creator;
-	creator[Uint32Kind] = &Uint32Creator;
-	creator[Uint64Kind] = &Uint64Creator;
-	creator[FloatKind] = &FloatCreator;
-	creator[Float32Kind] = &Float32Creator;
-	creator[Float64Kind] = &Float64Creator;
-	creator[Float80Kind] = &Float80Creator;
-	creator[StringKind] = &StringCreator;
-	creator[BoolKind] = &BoolCreator;
-	creator[PtrKind] = &PtrCreator;
-	creator[ArrayKind] = &ArrayCreator;
-	creator[MapKind] = &MapCreator;
-	creator[ChanKind] = &ChanCreator;
-	creator[StructKind] = &StructCreator;
-	creator[InterfaceKind] = &InterfaceCreator;
-	creator[FuncKind] = &FuncCreator;
-
-	typecache = new(map[string] *Type);
+var creator = map[int] Creator {
+	MissingKind : &MissingCreator,
+	IntKind : &IntCreator,
+	Int8Kind : &Int8Creator,
+	Int16Kind : &Int16Creator,
+	Int32Kind : &Int32Creator,
+	Int64Kind : &Int64Creator,
+	UintKind : &UintCreator,
+	Uint8Kind : &Uint8Creator,
+	Uint16Kind : &Uint16Creator,
+	Uint32Kind : &Uint32Creator,
+	Uint64Kind : &Uint64Creator,
+	UintptrKind : &UintptrCreator,
+	FloatKind : &FloatCreator,
+	Float32Kind : &Float32Creator,
+	Float64Kind : &Float64Creator,
+	Float80Kind : &Float80Creator,
+	StringKind : &StringCreator,
+	BoolKind : &BoolCreator,
+	PtrKind : &PtrCreator,
+	ArrayKind : &ArrayCreator,
+	MapKind : &MapCreator,
+	ChanKind : &ChanCreator,
+	StructKind : &StructCreator,
+	InterfaceKind : &InterfaceCreator,
+	FuncKind : &FuncCreator,
 }
+
+var typecache = new(map[string] *Type);
 
 func NewValueAddr(typ Type, addr Addr) Value {
 	c, ok := creator[typ.Kind()];

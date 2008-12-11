@@ -41,6 +41,7 @@ export const (
 	Uint32Kind;
 	Uint64Kind;
 	Uint8Kind;
+	UintptrKind;
 )
 
 // Int is guaranteed large enough to store a size.
@@ -106,6 +107,7 @@ export var (
 	Uint16 = NewBasicType("uint16", Uint16Kind, 2);
 	Uint32 = NewBasicType("uint32", Uint32Kind, 4);
 	Uint64 = NewBasicType("uint64", Uint64Kind, 8);
+	Uintptr = NewBasicType("uintptr", UintptrKind, 8);	// TODO: need to know how big a uintptr is
 	Float = NewBasicType("float", FloatKind, 4);	// TODO: need to know how big a float is
 	Float32 = NewBasicType("float32", Float32Kind, 4);
 	Float64 = NewBasicType("float64", Float64Kind, 8);
@@ -422,6 +424,7 @@ func init() {
 	types["uint16"] = Uint16;
 	types["uint32"] = Uint32;
 	types["uint64"] = Uint64;
+	types["uintptr"] = Uintptr;
 	types["float"] = Float;
 	types["float32"] = Float32;
 	types["float64"] = Float64;
@@ -444,6 +447,7 @@ func init() {
 	basicstub["uint16"] = NewStubType("uint16", Uint16);
 	basicstub["uint32"] = NewStubType("uint32", Uint32);
 	basicstub["uint64"] = NewStubType("uint64", Uint64);
+	basicstub["uintptr"] = NewStubType("uintptr", Uintptr);
 	basicstub["float"] = NewStubType("float", Float);
 	basicstub["float32"] = NewStubType("float32", Float32);
 	basicstub["float64"] = NewStubType("float64", Float64);
