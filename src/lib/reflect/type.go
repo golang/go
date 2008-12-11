@@ -340,6 +340,8 @@ func (t *InterfaceTypeStruct) Len() int {
 	return len(t.field)
 }
 
+var NilInterface = NewInterfaceTypeStruct("nil", "", new([]Field, 0));
+
 // -- Func
 
 export type FuncType interface {
@@ -834,6 +836,10 @@ func (p *Parser) Type(name string) *StubType {
 }
 
 export func ParseTypeString(name, typestring string) Type {
+	if typestring == "" {
+		// If the typestring is empty, it represents (the type of) a nil interface value
+		return NilInterface
+	}
 	p := new(Parser);
 	p.str = typestring;
 	p.Next();

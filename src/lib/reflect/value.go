@@ -59,6 +59,7 @@ type Creator *(typ Type, addr Addr) Value
 export type MissingValue interface {
 	Kind()	int;
 	Type()	Type;
+	Addr()	Addr;
 }
 
 type MissingValueStruct struct {
@@ -66,7 +67,7 @@ type MissingValueStruct struct {
 }
 
 func MissingCreator(typ Type, addr Addr) Value {
-	return &MissingValueStruct{ Common{IntKind, typ, addr} }
+	return &MissingValueStruct{ Common{MissingKind, typ, addr} }
 }
 
 // -- Int
