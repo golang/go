@@ -231,6 +231,8 @@ func getInt(v reflect.Value) (val int64, signed, ok bool) {
 		return int64(v.(reflect.Uint32Value).Get()), false, true;
 	case reflect.Uint64Kind:
 		return int64(v.(reflect.Uint64Value).Get()), false, true;
+	case reflect.UintptrKind:
+		return int64(v.(reflect.UintptrValue).Get()), false, true;
 	}
 	return 0, false, false;
 }
@@ -324,6 +326,10 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 	case reflect.UintKind, reflect.Uint8Kind, reflect.Uint16Kind, reflect.Uint32Kind, reflect.Uint64Kind:
 		v, signed, ok := getInt(field);
 		s = p.fmt.ud64(uint64(v)).str();
+	case reflect.UintptrKind:
+		v, signed, ok := getInt(field);
+		p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
+		s = p.fmt.ux64(uint64(v)).str();
 	case reflect.Float32Kind:
 		v, ok := getFloat32(field);
 		s = p.fmt.g32(v).str();
@@ -357,8 +363,7 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 				}
 				p.addstr("]");
 			} else {
-				p.add('0');
-				p.add('x');
+				p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
 				s = p.fmt.uX64(uint64(v)).str();
 			}
 		}
