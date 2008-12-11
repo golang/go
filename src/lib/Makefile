@@ -12,6 +12,7 @@ DIRS=\
 	hash\
 	http\
 	io\
+	json\
 	math\
 	net\
 	os\
@@ -94,6 +95,8 @@ fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
 hash.dirinstall: os.dirinstall
 http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall strings.install
 io.dirinstall: os.dirinstall syscall.dirinstall
+json.dirinstall: container/array.dirinstall fmt.dirinstall io.dirinstall math.dirinstall \
+	strconv.dirinstall strings.install utf8.install
 net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall
 os.dirinstall: syscall.dirinstall
 regexp.dirinstall: os.dirinstall
