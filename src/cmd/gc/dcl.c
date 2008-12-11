@@ -78,7 +78,7 @@ dodcltype(Type *n)
 	addtyp(n, dclcontext);
 
 found:
-	n->sym->local = 1;
+	n->local = 1;
 	if(dcladj)
 		dcladj(n->sym);
 	return n;
@@ -118,6 +118,8 @@ updatetype(Type *n, Type *t)
 		fatal("updatetype %T / %T", n, t);
 	}
 
+	if(n->local)
+		t->local = 1;
 	*n = *t;
 	n->sym = s;
 
@@ -274,8 +276,8 @@ addmethod(Node *n, Type *t, int local)
 	st = pa->sym;
 	if(st == S)
 		goto bad;
-	if(local && !st->local) {
-		yyerror("method receiver type must be locally defined: %S", st);
+	if(local && !f->local) {
+		yyerror("method receiver type must be locally defined: %T", f);
 		return;
 	}
 
@@ -558,7 +560,6 @@ dcopy(Sym *a, Sym *b)
 	a->vargen = b->vargen;
 	a->block = b->block;
 	a->lastlineno = b->lastlineno;
-	a->local = b->local;
 	a->offset = b->offset;
 }
 
@@ -1233,7 +1234,7 @@ variter(Node *vv, Type *t, Node *ee)
 loop:
 	if(v == N && e == N)
 		return rev(r);
-	
+
 	if(v == N || e == N) {
 		yyerror("shape error in var dcl");
 		return rev(r);
@@ -1279,7 +1280,7 @@ loop:
 		iota += 1;
 		return;
 	}
-	
+
 	if(v == N || c == N) {
 		yyerror("shape error in var dcl");
 		iota += 1;

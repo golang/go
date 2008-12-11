@@ -707,10 +707,12 @@ dumpsigt(Type *t0, Sym *s)
 
 	// set DUPOK to allow other .6s to contain
 	// the same signature.  only one will be chosen.
+	// should only happen for empty signatures
 	p = pc;
 	gins(AGLOBL, N, N);
 	p->from = at;
-	p->from.scale = DUPOK;
+	if(a == nil)
+		p->from.scale = DUPOK;
 	p->to = ac;
 	p->to.offset = ot;
 }
@@ -891,17 +893,20 @@ dumpsignatures(void)
 			continue;
 		s->siggen = 1;
 
-//print("dosig %T\n", t);
-		// don't emit signatures for *NamedStruct or interface if
-		// they were defined by other packages.
-		// (optimization)
+		// don't emit non-trivial signatures for types defined outside this file.
+		// non-trivial signatures might also drag in generated trampolines,
+		// and ar can't handle duplicates of the trampolines.
 		s1 = S;
-		if(isptr[et] && t->type != T)
+		if(isptr[et] && t->type != T) {
 			s1 = t->type->sym;
-		else if(et == TINTER)
+			if(s1 && !t->type->local)
+				continue;
+		}
+		else if(et == TINTER) {
 			s1 = t->sym;
-		if(s1 != S && strcmp(s1->opackage, package) != 0)
-			continue;
+			if(s1 && !t->local)
+				continue;
+		}
 
 		if(et == TINTER)
 			dumpsigi(t, s);

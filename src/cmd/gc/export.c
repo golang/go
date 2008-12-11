@@ -203,7 +203,7 @@ dumptype(Type *t)
 		return;
 
 	// no need to dump type if it's not ours (was imported)
-	if(t->sym != S && t->sym->otype == t && !t->sym->local)
+	if(t->sym != S && t->sym->otype == t && !t->local)
 		return;
 
 	Bprint(bout, "type %#T %l#T\n",  t, t);
