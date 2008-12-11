@@ -26,6 +26,7 @@ maketest() {
 maketest \
 	lib/fmt\
 	lib/hash\
+	lib/json\
 	lib/math\
 	lib/reflect\
 	lib/regexp\
