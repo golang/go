@@ -307,9 +307,12 @@ func parsenum(s string, start, end int) (n int, got bool, newi int) {
 }
 
 func (p *P) printField(field reflect.Value) (was_string bool) {
-	if stringer, ok := field.Interface().(String); ok {
-		p.addstr(stringer.String());
-		return false;	// this value is not a string
+	inter := field.Interface();
+	if inter != nil {
+		if stringer, ok := inter.(String); ok {
+			p.addstr(stringer.String());
+			return false;	// this value is not a string
+		}
 	}
 	s := "";
 	switch field.Kind() {
@@ -363,6 +366,14 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 		p.add('{');
 		p.doprint(field, true, false);
 		p.add('}');
+	case reflect.InterfaceKind:
+		inter := field.(reflect.InterfaceValue).Get();
+		if inter == nil {
+			s = "<nil>"
+		} else {
+			// should never happen since a non-nil interface always has a type
+			s = "<non-nil interface>";
+		}
 	default:
 		s = "?" + field.Type().String() + "?";
 	}
@@ -421,8 +432,9 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 		}
 		field := getField(v, fieldnum);
 		fieldnum++;
-		if c != 'T' {	// don't want thing to describe itself if we're asking for its type
-			if formatter, ok := field.Interface().(Format); ok {
+		inter := field.Interface();
+		if inter != nil && c != 'T' {	// don't want thing to describe itself if we're asking for its type
+			if formatter, ok := inter.(Format); ok {
 				formatter.Format(p, c);
 				continue;
 			}
