@@ -157,6 +157,7 @@ struct	Type
 	uchar	siggen;
 	uchar	funarg;
 	uchar	copyany;
+	uchar	local;		// created in this file
 
 	// TFUNCT
 	uchar	thistuple;
@@ -238,7 +239,6 @@ struct	Sym
 	uchar	exported;	// exported
 	uchar	imported;	// imported
 	uchar	sym;		// huffman encoding in object file
-	uchar	local;		// created in this file
 	uchar	uniq;		// imbedded field name first found
 	uchar	siggen;		// signature generated
 

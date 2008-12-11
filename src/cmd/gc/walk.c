@@ -1465,7 +1465,7 @@ walkselect(Node *sel)
 				res = list(res, oc);
 				break;
 
-				
+
 			}
 			bod = N;
 			count++;
@@ -1699,6 +1699,7 @@ sigtype(Type *st)
 	t = newtype(s);
 	t = dodcltype(t);
 	updatetype(t, st);
+	t->local = 1;
 
 	// record internal type for signature generation
 	x = mal(sizeof(*x));
