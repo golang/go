@@ -1,8 +1,6 @@
 
 =========== ./convlit.go
 BUG: errchk: ./convlit.go: missing expected error message on line 16: 'conver|incompatible'
-errchk: ./convlit.go: missing expected error message on line 17: 'conver|incompatible'
-errchk: ./convlit.go: missing expected error message on line 18: 'conver|incompatible'
 errchk: ./convlit.go: missing expected error message on line 22: 'convert'
 errchk: ./convlit.go: missing expected error message on line 23: 'overflow'
 errchk: ./convlit.go: missing expected error message on line 24: 'overflow'
@@ -14,7 +12,7 @@ errchk: ./convlit.go: unmatched error messages:
 ./convlit.go:8: cannot convert non-integer constant to int
 ./convlit.go:9: cannot convert non-integer constant to int
 ./convlit.go:11: overflow converting constant to int
-./convlit.go:12: overflow converting constant to float
+./convlit.go:11: fatal error: too many errors
 ==================================================
 
 =========== ./helloworld.go
@@ -122,9 +120,6 @@ bugs/bug098.go:10: illegal types for operand: AS
 	*M
 	**M
 BUG should compile
-
-=========== bugs/bug104.go
-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
 
 =========== bugs/bug105.go
 bugs/bug105.go:8: P: undefined
