@@ -164,6 +164,10 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug123.go
 =========== bugs/bug125.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
 
+=========== bugs/bug129.go
+bugs/bug129.go:6: syscall is package, not var
+BUG129
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
 
