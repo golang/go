@@ -50,7 +50,9 @@ export type Fmt struct {
 }
 
 func (f *Fmt) clearflags() {
+	f.wid = 0;
 	f.wid_present = false;
+	f.prec = 0;
 	f.prec_present = false;
 	f.minus = false;
 	f.plus = false;
