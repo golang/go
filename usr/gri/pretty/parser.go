@@ -971,11 +971,24 @@ func (P *Parser) ParseExpression(prec int) *AST.Expr {
 // ----------------------------------------------------------------------------
 // Statements
 
-func (P *Parser) ParseSimpleStat() *AST.Stat {
+func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
 	P.Trace("SimpleStat");
 	
 	s := AST.BadStat;
 	x := P.ParseExpressionList();
+	
+	is_range := false;
+	if range_ok && P.tok == Scanner.COLON {
+		pos := P.pos;
+		P.Next();
+		y := P.ParseExpression(1);
+		if x.Len() == 1 {
+			x = P.NewExpr(pos, Scanner.COLON, x, y);
+			is_range = true;
+		} else {
+			P.Error(pos, "expected initialization, found ':'");
+		}
+	}
 	
 	switch P.tok {
 	case Scanner.COLON:
@@ -987,21 +1000,43 @@ func (P *Parser) ParseSimpleStat() *AST.Stat {
 		}
 		P.Next();  // consume ":"
 		P.opt_semi = true;
-		
+
 	case
 		Scanner.DEFINE, Scanner.ASSIGN, Scanner.ADD_ASSIGN,
 		Scanner.SUB_ASSIGN, Scanner.MUL_ASSIGN, Scanner.QUO_ASSIGN,
 		Scanner.REM_ASSIGN, Scanner.AND_ASSIGN, Scanner.OR_ASSIGN,
 		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
-		// assignment
+		// declaration/assignment
 		pos, tok := P.pos, P.tok;
 		P.Next();
-		y := P.ParseExpressionList();
-		if xl, yl := x.Len(), y.Len(); xl > 1 && yl > 1 && xl != yl {
-			P.Error(x.pos, "arity of lhs doesn't match rhs");
+		y := AST.BadExpr;
+		if P.tok == Scanner.RANGE {
+			range_pos := P.pos;
+			P.Next();
+			y = P.ParseExpression(1);
+			y = P.NewExpr(range_pos, Scanner.RANGE, nil, y);
+			if tok != Scanner.DEFINE && tok != Scanner.ASSIGN {
+				P.Error(pos, "expected '=' or ':=', found '" + Scanner.TokenString(tok) + "'");
+			}
+		} else {
+			y = P.ParseExpressionList();
+			if is_range {
+				P.Error(y.pos, "expected 'range', found expression");
+			}
+			if xl, yl := x.Len(), y.Len(); xl > 1 && yl > 1 && xl != yl {
+				P.Error(x.pos, "arity of lhs doesn't match rhs");
+			}
 		}
 		s = AST.NewStat(x.pos, Scanner.EXPRSTAT);
 		s.expr = AST.NewExpr(pos, tok, x, y);
+
+	case Scanner.RANGE:
+		pos := P.pos;
+		P.Next();
+		y := P.ParseExpression(1);
+		y = P.NewExpr(pos, Scanner.RANGE, nil, y);
+		s = AST.NewStat(x.pos, Scanner.EXPRSTAT);
+		s.expr = AST.NewExpr(pos, Scanner.DEFINE, x, y);
 
 	default:
 		var pos, tok int;
@@ -1072,7 +1107,8 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
 		prev_lev := P.expr_lev;
 		P.expr_lev = -1;
 		if P.tok != Scanner.SEMICOLON {
-			s.init = P.ParseSimpleStat();
+			s.init = P.ParseSimpleStat(keyword == Scanner.FOR);
+			// TODO check for range clause and exit if found
 		}
 		if P.tok == Scanner.SEMICOLON {
 			P.Next();
@@ -1082,7 +1118,7 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
 			if keyword == Scanner.FOR {
 				P.Expect(Scanner.SEMICOLON);
 				if P.tok != Scanner.LBRACE {
-					s.post = P.ParseSimpleStat();
+					s.post = P.ParseSimpleStat(false);
 				}
 			}
 		} else {
@@ -1284,7 +1320,7 @@ func (P *Parser) ParseStatement() *AST.Stat {
 		Scanner.IDENT, Scanner.INT, Scanner.FLOAT, Scanner.STRING, Scanner.LPAREN,  // operand
 		Scanner.LBRACK, Scanner.STRUCT,  // composite type
 		Scanner.MUL, Scanner.AND, Scanner.ARROW:  // unary
-		s = P.ParseSimpleStat();
+		s = P.ParseSimpleStat(false);
 	case Scanner.GO:
 		s = P.ParseGoStat();
 	case Scanner.RETURN:

@@ -582,6 +582,9 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		if x.x == nil {
 			// unary expression
 			P.Token(x.pos, x.tok);
+			if x.tok == Scanner.RANGE {
+				P.separator = blank;
+			}
 		} else {
 			// binary expression
 			P.Expr1(x.x, prec);

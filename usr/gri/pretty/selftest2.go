@@ -11,7 +11,7 @@ import (
 )
 
 
-const /* enum */ (
+const /* enum1 */ (
 	EnumTag0 = iota;
 	EnumTag1;
 	EnumTag2;
@@ -22,6 +22,13 @@ const /* enum */ (
 	EnumTag7;
 	EnumTag8;
 	EnumTag9;
+)
+
+
+const /* enum2 */ (
+	a, b = iota*2 + 1, iota*2;
+	c, d;
+	e, f;
 )
 
 
@@ -37,7 +44,7 @@ type T struct {
 
 var (
 	A = 5;
-	a, b, c int = 0, 0, 0;
+	u, v, w int = 0, 0, 0;
 	foo = "foo";
 )
 
@@ -66,6 +73,41 @@ func f2(tag int) {
 }
 
 
+func f3(a *[]int, m *map[string] int) {
+	println("A1");
+	for i := range a {
+		println(i);
+	}
+
+	println("A2");
+	for i, x := range a {
+		println(i, x);
+	}
+
+	println("A3");
+	for i : x := range a {
+		println(i, x);
+	}
+
+	println("M1");
+	for i range m {
+		println(i);
+	}
+
+	println("M2");
+	for i, x range m {
+		println(i, x);
+	}
+
+	println("M3");
+	var i string;
+	var x int;
+	for i : x = range m {
+		println(i, x);
+	}
+}
+
+
 func main() {
 // the prologue
 	for i := 0; i <= 10 /* limit */; i++ {
@@ -74,6 +116,7 @@ func main() {
 		println(i + 1000);  // the index + 1000
 		println();
 	}
+	f3(&[]int{2, 3, 5, 7}, map[string]int{"two":2, "three":3, "five":5, "seven":7});
 // the epilogue
 	println("foo");  // foo
 	println("foobar");  // foobar
