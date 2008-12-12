@@ -23,6 +23,9 @@ export type Formatter interface {
 	Write(b *[]byte) (ret int, err *os.Error);
 	Width()	(wid int, ok bool);
 	Precision()	(prec int, ok bool);
+
+	// flags
+	Flag(int)	bool;
 }
 
 type Format interface {
@@ -40,10 +43,6 @@ type P struct {
 	n	int;
 	buf	*[]byte;
 	fmt	*Fmt;
-	wid	int;
-	wid_ok	bool;
-	prec	int;
-	prec_ok	bool;
 }
 
 func Printer() *P {
@@ -53,11 +52,27 @@ func Printer() *P {
 }
 
 func (p *P) Width() (wid int, ok bool) {
-	return p.wid, p.wid_ok
+	return p.fmt.wid, p.fmt.wid_present
 }
 
 func (p *P) Precision() (prec int, ok bool) {
-	return p.prec, p.prec_ok
+	return p.fmt.prec, p.fmt.prec_present
+}
+
+func (p *P) Flag(b int) bool {
+	switch b {
+	case '-':
+		return p.fmt.minus;
+	case '+':
+		return p.fmt.plus;
+	case '#':
+		return p.fmt.sharp;
+	case ' ':
+		return p.fmt.space;
+	case '0':
+		return p.fmt.zero;
+	}
+	return false
 }
 
 func (p *P) ensure(n int) {
@@ -369,7 +384,21 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 		}
 	case reflect.StructKind:
 		p.add('{');
-		p.doprint(field, true, false);
+		v := field.(reflect.StructValue);
+		t := v.Type().(reflect.StructType);
+		donames := p.fmt.plus;	// first p.printField clears flag
+		for i := 0; i < v.Len();  i++ {
+			if i > 0 {
+				p.add(' ')
+			}
+			if donames {
+				if name, typ, tag, off := t.Field(i); name != "" {
+					p.addstr(name);
+					p.add('=');
+				}
+			}
+			p.printField(getField(v, i));
+		}
 		p.add('}');
 	case reflect.InterfaceKind:
 		inter := field.(reflect.InterfaceValue).Get();
@@ -398,7 +427,8 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			continue;
 		}
 		i++;
-		// flags
+		// flags and widths
+		p.fmt.clearflags();
 		F: for ; i < end; i++ {
 			switch format[i] {
 			case '#':
@@ -416,11 +446,10 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			}
 		}
 		// do we have 20 (width)?
-		p.wid, p.wid_ok, i = parsenum(format, i, end);
-		p.prec_ok = false;
+		p.fmt.wid, p.fmt.wid_present, i = parsenum(format, i, end);
 		// do we have .20 (precision)?
 		if i < end && format[i] == '.' {
-			p.prec, p.prec_ok, i = parsenum(format, i+1, end);
+			p.fmt.prec, p.fmt.prec_present, i = parsenum(format, i+1, end);
 		}
 		c, w = sys.stringtorune(format, i);
 		i += w;
@@ -445,12 +474,6 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			}
 		}
 		s := "";
-		if p.wid_ok {
-			p.fmt.w(p.wid);
-		}
-		if p.prec_ok {
-			p.fmt.p(p.prec);
-		}
 		switch c {
 			// bool
 			case 't':

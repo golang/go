@@ -6,6 +6,7 @@ package fmt
 
 import (
 	"fmt";
+	"io";
 	"syscall";
 	"testing";
 )
@@ -163,3 +164,77 @@ export func TestSprintf(t *testing.T) {
 	}
 }
 
+type FlagPrinter struct { }
+func (*FlagPrinter) Format(f fmt.Formatter, c int) {
+	s := "%";
+	for i := 0; i < 128; i++ {
+		if f.Flag(i) {
+			s += string(i);
+		}
+	}
+	if w, ok := f.Width(); ok {
+		s += fmt.sprintf("%d", w);
+	}
+	if p, ok := f.Precision(); ok {
+		s += fmt.sprintf(".%d", p);
+	}
+	s += string(c);
+	io.WriteString(f, "["+s+"]");
+}
+
+type FlagTest struct {
+	in string;
+	out string;
+}
+
+var flagtests = []FlagTest {
+	FlagTest{ "%a", "[%a]" },
+	FlagTest{ "%-a", "[%-a]" },
+	FlagTest{ "%+a", "[%+a]" },
+	FlagTest{ "%#a", "[%#a]" },
+	FlagTest{ "% a", "[% a]" },
+	FlagTest{ "%0a", "[%0a]" },
+	FlagTest{ "%1.2a", "[%1.2a]" },
+	FlagTest{ "%-1.2a", "[%-1.2a]" },
+	FlagTest{ "%+1.2a", "[%+1.2a]" },
+	FlagTest{ "%-+1.2a", "[%+-1.2a]" },
+	FlagTest{ "%-+1.2abc", "[%+-1.2a]bc" },
+	FlagTest{ "%-1.2abc", "[%-1.2a]bc" },
+}
+
+export func TestFlagParser(t *testing.T) {
+	var flagprinter FlagPrinter;
+	for i := 0; i < len(flagtests); i++ {
+		tt := flagtests[i];
+		s := fmt.sprintf(tt.in, &flagprinter);
+		if s != tt.out {
+			t.Errorf("sprintf(%q, &flagprinter) => %q, want %q", tt.in, s, tt.out);
+		}
+	}
+}
+
+export func TestStructPrinter(t *testing.T) {
+	var s struct {
+		a string;
+		b string;
+		c int;
+	};
+	s.a = "abc";
+	s.b = "def";
+	s.c = 123;
+	type Test struct {
+		fmt string;
+		out string;
+	}
+	var tests = []Test {
+		Test{ "%v", "{abc def 123}" },
+		Test{ "%+v", "{a=abc b=def c=123}" },
+	};
+	for i := 0; i < len(tests); i++ {
+		tt := tests[i];
+		out := fmt.sprintf(tt.fmt, s);
+		if out != tt.out {
+			t.Errorf("sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out);
+		}
+	}
+}
