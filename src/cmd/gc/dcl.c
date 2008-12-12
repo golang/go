@@ -483,8 +483,18 @@ loop:
 	if(n->op != ODCLFIELD || n->type == T)
 		fatal("stotype: oops %N\n", n);
 
-	if(n->type->etype == TARRAY && n->type->bound < 0)
-		yyerror("type of a structure field cannot be an open array");
+	switch(n->type->etype) {
+	case TARRAY:
+		if(n->type->bound < 0)
+			yyerror("type of a structure field cannot be an open array");
+		break;
+
+	case TCHAN:
+	case TMAP:
+	case TSTRING:
+		yyerror("%T can exist only in pointer form", n->type);
+		break;
+	}
 
 	switch(n->val.ctype) {
 	case CTSTR:
@@ -730,6 +740,15 @@ addvar(Node *n, Type *t, int ctxt)
 		vargen++;
 		gen = vargen;
 		pushdcl(s);
+	}
+
+	if(t != T) {
+		switch(t->etype) {
+		case TCHAN:
+		case TMAP:
+		case TSTRING:
+			yyerror("%T can exist only in pointer form", t);
+		}
 	}
 
 	redeclare("variable", s);
