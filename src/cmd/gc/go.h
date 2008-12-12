@@ -822,6 +822,7 @@ Node*	old2new(Node*, Type*);
 /*
  *	const.c
  */
+void	convlit1(Node*, Type*, int);
 void	convlit(Node*, Type*);
 void	evconst(Node*);
 int	cmpslit(Node *l, Node *r);

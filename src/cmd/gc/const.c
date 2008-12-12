@@ -34,7 +34,7 @@ truncfltlit(Mpflt *fv, Type *t)
 }
 
 void
-convlit(Node *n, Type *t)
+convlit1(Node *n, Type *t, int conv)
 {
 	int et, wt;
 
@@ -92,21 +92,6 @@ convlit(Node *n, Type *t)
 			defaultlit(n);
 			return;
 		}
-		if(isptrto(t, TSTRING)) {
-			Rune rune;
-			int l;
-			String *s;
-
-			rune = mpgetfix(n->val.u.xval);
-			l = runelen(rune);
-			s = mal(sizeof(*s)+l);
-			s->len = l;
-			runetochar((char*)(s->s), &rune);
-
-			n->val.u.sval = s;
-			n->val.ctype = CTSTR;
-			break;
-		}
 		if(isint[et]) {
 			// int to int
 			if(mpcmpfixfix(n->val.u.xval, minintval[et]) < 0)
@@ -130,6 +115,25 @@ convlit(Node *n, Type *t)
 			mpmovefixflt(fv, xv);
 			n->val.ctype = CTFLT;
 			truncfltlit(fv, t);
+			break;
+		}
+		if(!conv)
+			goto bad1;
+
+		// only done as string(CONST)
+		if(isptrto(t, TSTRING)) {
+			Rune rune;
+			int l;
+			String *s;
+
+			rune = mpgetfix(n->val.u.xval);
+			l = runelen(rune);
+			s = mal(sizeof(*s)+l);
+			s->len = l;
+			runetochar((char*)(s->s), &rune);
+
+			n->val.u.sval = s;
+			n->val.ctype = CTSTR;
 			break;
 		}
 		goto bad1;
@@ -184,6 +188,12 @@ bad2:
 bad3:
 	yyerror("cannot convert non-integer constant to %T", t);
 	return;
+}
+
+void
+convlit(Node *n, Type *t)
+{
+	convlit1(n, t, 0);
 }
 
 void

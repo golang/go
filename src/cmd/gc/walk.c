@@ -560,7 +560,7 @@ loop:
 			goto ret;
 
 		if(!iscomposite(t))
-			convlit(l, t);
+			convlit1(l, t, 1);
 
 		// nil conversion
 		if(eqtype(t, l->type, 0)) {
