@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(December 4, 2008)
+(December 12, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -41,8 +41,6 @@ Todo's:
 [ ] need to talk about precise int/floats clearly
 [ ] iant suggests to use abstract/precise int for len(), cap() - good idea
     (issue: what happens in len() + const - what is the type?)
-[ ] need to be specific on (unsigned) integer operations: one must be able
-	to rely on wrap-around on overflow
 [ ] what are the permissible ranges for the indices in slices? The spec
 	doesn't correspond to the implementation. The spec is wrong when it
 	comes to the first index i: it should allow (at least) the range 0 <= i <= len(a).
@@ -95,6 +93,8 @@ Decisions in need of integration into the doc:
 
 
 Closed:
+[x] need to be specific on (unsigned) integer operations: one must be able
+	to rely on wrap-around on overflow
 [x] global var decls: "var a, b, c int = 0, 0, 0" is ok, but "var a, b, c = 0, 0, 0" is not
 	(seems inconsistent with "var a = 0", and ":=" notation)
 [x] const decls: "const a, b = 1, 2" is not allowed - why not? Should be symmetric to vars.
@@ -182,6 +182,7 @@ Contents
 
 		Operators
 			Arithmetic operators
+				Integer overflow
 			Comparison operators
 			Logical operators
 			Address operators
@@ -986,19 +987,31 @@ The following list enumerates all platform-independent numeric types:
 
 	byte     same as uint8 (for convenience)
 
-	uint8    the set of all unsigned 8-bit integers
-	uint16   the set of all unsigned 16-bit integers
-	uint32   the set of all unsigned 32-bit integers
-	uint64   the set of all unsigned 64-bit integers
+	uint8    the set of all unsigned  8-bit integers (0 to 255)
+	uint16   the set of all unsigned 16-bit integers (0 to 65535)
+	uint32   the set of all unsigned 32-bit integers (0 to 4294967295)
+	uint64   the set of all unsigned 64-bit integers (0 to 18446744073709551615)
 
-	int8     the set of all signed 8-bit integers, in 2's complement
-	int16    the set of all signed 16-bit integers, in 2's complement
-	int32    the set of all signed 32-bit integers, in 2's complement
-	int64    the set of all signed 64-bit integers, in 2's complement
+	int8     the set of all signed  8-bit integers (-128 to 127)
+	int16    the set of all signed 16-bit integers (-32768 to 32767)
+	int32    the set of all signed 32-bit integers (-2147483648 to 2147483647)
+	int64    the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
 
 	float32  the set of all valid IEEE-754 32-bit floating point numbers
 	float64  the set of all valid IEEE-754 64-bit floating point numbers
 	float80  the set of all valid IEEE-754 80-bit floating point numbers
+
+Integer types are represented in the usual binary format; the value of
+an n-bit integer is n bits wide. A negative signed integer is represented
+as the two's complement of its absolute value.
+
+<!--
+The representation of signed integers and their exact range is
+implementation-specific, but the set of all positive values (including zero)
+of a signed integer type is always a subset of the corresponding unsigned
+integer type (thus, a positive signed integer can always be converted into
+its corresponding unsigned type without loss).
+-->
 
 Additionally, Go declares a set of platform-specific numeric types for
 convenience:
@@ -1592,11 +1605,6 @@ c is an ideal number? Is len(a) of type int, or of an ideal number? Probably
 should be ideal number, because for fixed arrays, it is a constant.
 -->
 
-If an exceptional condition occurs during the evaluation of an expression
-(that is, if the result is not mathematically defined or not in the range
-of representable values for its type), the behavior is undefined. For
-instance, the behavior of integer under- or overflow is not defined.
-
 
 Operands
 ----
@@ -2129,12 +2137,31 @@ right operand. They implement arithmetic shifts if the left operand is a signed
 integer, and logical shifts if it is an unsigned integer. The shift count must
 be an unsigned integer. There is no upper limit on the shift count. It is
 as if the left operand is shifted "n" times by 1 for a shift count of "n".
+Specifically, "x << 1" is the same as "x*2"; and "x >> 1" is the same as
+"x/2 truncated towards negative infinity".
 
-The unary operators "+", "-", and "^" are defined as follows:
+For integer operands, the unary operators "+", "-", and "^" are defined as
+follows:
 
 	+x                          is 0 + x
 	-x    negation              is 0 - x
-	^x    bitwise complement    is -1 ^ x
+	^x    bitwise complement    is m ^ x  with m = "all bits set to 1"
+
+
+Integer overflow
+----
+
+For unsigned integer values, the operations "+", "-", "*", and "<<" are
+computed modulo 2^n, where n is the bit width of the unsigned integer type
+(§Arithmetic types). Loosely speaking, these unsigned integer operations
+discard high bits upon overflow, and programs may rely on ``wrap around''.
+
+For signed integers, the operations "+", "-", "*", and "<<" may legally
+overflow and the resulting value exists and is deterministically defined
+by the signed integer representation, the operation, and its operands.
+No exception is raised as a result of overflow. As a consequence, a
+compiler may not optimize code under the assumption that overflow does
+not occur. For instance, it may not assume that "x < x + 1" is always true.
 
 
 Comparison operators
