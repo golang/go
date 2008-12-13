@@ -1175,6 +1175,37 @@ optoas(int op, Type *t)
 		a = AUCOMISD;
 		break;
 
+	case CASE(OAS, TBOOL):
+	case CASE(OAS, TINT8):
+	case CASE(OAS, TUINT8):
+		a = AMOVB;
+		break;
+
+	case CASE(OAS, TINT16):
+	case CASE(OAS, TUINT16):
+		a = AMOVW;
+		break;
+
+	case CASE(OAS, TINT32):
+	case CASE(OAS, TUINT32):
+	case CASE(OAS, TPTR32):
+		a = AMOVL;
+		break;
+
+	case CASE(OAS, TINT64):
+	case CASE(OAS, TUINT64):
+	case CASE(OAS, TPTR64):
+		a = AMOVQ;
+		break;
+
+	case CASE(OAS, TFLOAT32):
+		a = AMOVSS;
+		break;
+
+	case CASE(OAS, TFLOAT64):
+		a = AMOVSD;
+		break;
+
 	case CASE(OADD, TINT8):
 	case CASE(OADD, TUINT8):
 		a = AADDB;
@@ -1727,4 +1758,102 @@ setmaxarg(Type *t)
 	w = to->width;
 	if(w > maxarg)
 		maxarg = w;
+}
+
+/*
+ * gather series of offsets
+ * >=0 is direct addressed field
+ * <0 is pointer to next field (+1)
+ */
+int
+dotoffset(Node *n, int *oary, Node **nn)
+{
+	int i;
+
+	switch(n->op) {
+	case ODOT:
+		i = dotoffset(n->left, oary, nn);
+		if(i > 0) {
+			if(oary[i-1] >= 0)
+				oary[i-1] += n->xoffset;
+			else
+				oary[i-1] -= n->xoffset;
+			break;
+		}
+		if(i < 10)
+			oary[i++] = n->xoffset;
+		break;
+
+	case ODOTPTR:
+		i = dotoffset(n->left, oary, nn);
+		if(i < 10)
+			oary[i++] = -(n->xoffset+1);
+		break;
+
+	default:
+		*nn = n;
+		return 0;
+	}
+	if(i >= 10)
+		*nn = N;
+	return i;
+}
+
+int
+sudoaddable(Node *n, Type *t, Addr *a)
+{
+	int et, o, i;
+	int oary[10];
+	Node n1, n2, *nn;
+
+	if(n->type == T || t == T)
+		return 0;
+	et = simtype[n->type->etype];
+	if(et != simtype[t->etype])
+		return 0;
+
+	switch(n->op) {
+	default:
+		return 0;
+
+	case ODOT:
+	case ODOTPTR:
+		o = dotoffset(n, oary, &nn);
+		if(nn == N)
+			return 0;
+
+		if(0) {
+			dump("\nXX", n);
+			dump("YY", nn);
+			for(i=0; i<o; i++)
+				print(" %d", oary[i]);
+			print("\n");
+			return 0;
+		}
+
+		regalloc(&n1, types[tptr], N);
+		n2 = n1;
+		n2.op = OINDREG;
+		if(oary[0] >= 0) {
+			agen(nn, &n1);
+			n2.xoffset = oary[0];
+		} else {
+			cgen(nn, &n1);
+			n2.xoffset = -(oary[0]+1);
+		}
+
+		for(i=1; i<o; i++) {
+			if(oary[i] >= 0)
+				fatal("cant happen");
+			gins(AMOVQ, &n2, &n1);
+			n2.xoffset = -(oary[i]+1);
+		}
+
+		a->type = D_NONE;
+		a->index = D_NONE;
+		naddr(&n2, a);
+		regfree(&n1);
+		break;
+	}
+	return 1;
 }

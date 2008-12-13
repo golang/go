@@ -11,6 +11,7 @@ cgen(Node *n, Node *res)
 	Node n1, n2;
 	int a;
 	Prog *p1, *p2, *p3;
+	Addr addr;
 
 	if(debug['g']) {
 		dump("\ncgen-res", res);
@@ -68,6 +69,21 @@ cgen(Node *n, Node *res)
 		n2.right = &n1;
 		cgen(&n2, res);
 		goto ret;
+	}
+
+	if(sudoaddable(n, res->type, &addr)) {
+		a = optoas(OAS, n->type);
+		if(res->op == OREGISTER) {
+			p1 = gins(a, N, res);
+			p1->from = addr;
+		} else {
+			regalloc(&n1, n->type, N);
+			p1 = gins(a, N, &n1);
+			p1->from = addr;
+			gins(a, &n1, res);
+			regfree(&n1);
+		}
+		return;
 	}
 
 	switch(n->op) {
@@ -269,6 +285,15 @@ abop:	// asymmetric binary
 	if(nl->ullman >= nr->ullman) {
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
+
+if(sudoaddable(nr, nl->type, &addr)) {
+	p1 = gins(a, N, &n1);
+	p1->from = addr;
+	gmove(&n1, res);
+	regfree(&n1);
+	goto ret;
+}
+
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
 	} else {
