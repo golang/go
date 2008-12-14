@@ -1165,15 +1165,10 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 		gmove(dx, res);
 }
 
-/*
- * this is hard because divide
- * is done in a fixed numerator
- * of combined DX:AX registers
- */
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
-	Node ax, dx, n3, tmpax, tmpdx;
+	Node ax, dx;
 	int rax, rdx;
 
 	rax = reg[D_AX];
@@ -1184,64 +1179,12 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 	regalloc(&ax, nl->type, &ax);
 	regalloc(&dx, nl->type, &dx);
 
-	// clean out the AX register
-	if(rax && !samereg(res, &ax)) {
-		if(rdx && !samereg(res, &dx)) {
-			regalloc(&tmpdx, types[TINT64], N);
-			regalloc(&tmpax, types[TINT64], N);
-			regalloc(&n3, nl->type, N);		// dest for div
-
-			gins(AMOVQ, &dx, &tmpdx);
-			gins(AMOVQ, &ax, &tmpax);
-			dodiv(op, nl, nr, &n3, &ax, &dx);
-			gins(AMOVQ, &tmpax, &ax);
-			gins(AMOVQ, &tmpdx, &dx);
-			gmove(&n3, res);
-
-			regfree(&tmpdx);
-			regfree(&tmpax);
-			regfree(&n3);
-			goto ret;
-		}
-		regalloc(&tmpax, types[TINT64], N);
-		regalloc(&n3, nl->type, N);		// dest for div
-
-		gins(AMOVQ, &ax, &tmpax);
-		dodiv(op, nl, nr, &n3, &ax, &dx);
-		gins(AMOVQ, &tmpax, &ax);
-		gmove(&n3, res);
-
-		regfree(&tmpax);
-		regfree(&n3);
-		goto ret;
-	}
-
-	// clean out the DX register
-	if(rdx && !samereg(res, &dx)) {
-		regalloc(&tmpdx, types[TINT64], N);
-		regalloc(&n3, nl->type, N);		// dest for div
-
-		gins(AMOVQ, &dx, &tmpdx);
-		dodiv(op, nl, nr, &n3, &ax, &dx);
-		gins(AMOVQ, &tmpdx, &dx);
-		gmove(&n3, res);
-
-		regfree(&tmpdx);
-		regfree(&n3);
-		goto ret;
-	}
 	dodiv(op, nl, nr, res, &ax, &dx);
 
-ret:
 	regfree(&ax);
 	regfree(&dx);
 }
 
-/*
- * this is hard because shift
- * count is either constant
- * or the CL register
- */
 void
 cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
@@ -1271,25 +1214,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	nodreg(&n1, types[TINT64], D_CX);
 	regalloc(&n1, nr->type, &n1);
 
-	// clean out the CL register
-	if(rcl) {
-		regalloc(&n2, types[TINT64], N);
-		gins(AMOVQ, &n1, &n2);
-		regfree(&n1);
-
-		reg[D_CX] = 0;
-		if(samereg(res, &n1))
-			cgen_shift(op, nl, nr, &n2);
-		else
-			cgen_shift(op, nl, nr, res);
-		reg[D_CX] = rcl;
-
-		gins(AMOVQ, &n2, &n1);
-		regfree(&n2);
-		goto ret;
-	}
-
-	regalloc(&n2, nl->type, res);	// can one shift the CL register
+	regalloc(&n2, nl->type, res);
 	if(nl->ullman >= nr->ullman) {
 		cgen(nl, &n2);
 		cgen(nr, &n1);
