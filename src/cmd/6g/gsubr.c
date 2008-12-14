@@ -113,7 +113,12 @@ ginit(void)
 		reg[i] = 0;
 	for(i=D_X0; i<=D_X7; i++)
 		reg[i] = 0;
-	reg[D_SP]++;
+	reg[D_AX]++;	// for divide
+	reg[D_CX]++;	// for shift
+	reg[D_DI]++;	// for movstring
+	reg[D_DX]++;	// for divide
+	reg[D_SI]++;	// for movstring
+	reg[D_SP]++;	// for stack
 }
 
 void
@@ -121,7 +126,12 @@ gclean(void)
 {
 	int i;
 
-	reg[D_SP]--;
+	reg[D_AX]--;	// for divide
+	reg[D_CX]--;	// for shift
+	reg[D_DI]--;	// for movstring
+	reg[D_DX]--;	// for divide
+	reg[D_SI]--;	// for movstring
+	reg[D_SP]--;	// for stack
 	for(i=D_AX; i<=D_R15; i++)
 		if(reg[i])
 			yyerror("reg %R left allocated\n", i);
@@ -1800,11 +1810,11 @@ dotoffset(Node *n, int *oary, Node **nn)
 }
 
 int
-sudoaddable(Node *n, Type *t, Addr *a)
+sudoaddable(Node *n, Type *t, Addr *a, Node *reg)
 {
 	int et, o, i;
 	int oary[10];
-	Node n1, n2, *nn;
+	Node n1, *nn;
 
 	if(n->type == T || t == T)
 		return 0;
@@ -1831,28 +1841,27 @@ sudoaddable(Node *n, Type *t, Addr *a)
 			return 0;
 		}
 
-		regalloc(&n1, types[tptr], N);
-		n2 = n1;
-		n2.op = OINDREG;
+		regalloc(reg, types[tptr], N);
+		n1 = *reg;
+		n1.op = OINDREG;
 		if(oary[0] >= 0) {
-			agen(nn, &n1);
-			n2.xoffset = oary[0];
+			agen(nn, reg);
+			n1.xoffset = oary[0];
 		} else {
-			cgen(nn, &n1);
-			n2.xoffset = -(oary[0]+1);
+			cgen(nn, reg);
+			n1.xoffset = -(oary[0]+1);
 		}
 
 		for(i=1; i<o; i++) {
 			if(oary[i] >= 0)
 				fatal("cant happen");
-			gins(AMOVQ, &n2, &n1);
-			n2.xoffset = -(oary[i]+1);
+			gins(AMOVQ, &n1, reg);
+			n1.xoffset = -(oary[i]+1);
 		}
 
 		a->type = D_NONE;
 		a->index = D_NONE;
-		naddr(&n2, a);
-		regfree(&n1);
+		naddr(&n1, a);
 		break;
 	}
 	return 1;
