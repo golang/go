@@ -37,6 +37,7 @@ FILES=\
 TEST=\
 	bignum\
 	bufio\
+	once\
 	sort\
 	strings\
 	utf8\
