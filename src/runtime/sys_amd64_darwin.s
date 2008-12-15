@@ -157,7 +157,7 @@ TEXT bsdthread_create(SB),7,$-8
 	MOVQ	m+16(SP), SI	// "arg"
 	MOVQ	stk+8(SP), DX	// stack
 	MOVQ	g+24(SP), R10	// "pthread"
-	MOVQ	$0, R10	// flags
+	MOVQ	$0, R8	// flags
 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
 	SYSCALL
 	JCC 2(PC)
