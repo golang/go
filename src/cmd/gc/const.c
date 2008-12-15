@@ -540,3 +540,21 @@ cmpslit(Node *l, Node *r)
 		return +1;
 	return -1;
 }
+
+int
+smallintconst(Node *n)
+{
+	if(n->op == OLITERAL)
+	switch(simtype[n->type->etype]) {
+	case TINT8:
+	case TUINT8:
+	case TINT16:
+	case TUINT16:
+	case TINT32:
+	case TUINT32:
+	case TBOOL:
+	case TPTR32:
+		return 1;
+	}
+	return 0;
+}
