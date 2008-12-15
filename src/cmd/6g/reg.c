@@ -102,6 +102,7 @@ regopt(Prog *firstp)
 
 	if(first) {
 		fmtinstall('Q', Qconv);
+		exregoffset = D_R13;	// R14,R15 are external
 		first = 0;
 	}
 

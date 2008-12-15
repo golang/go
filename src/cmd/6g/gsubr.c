@@ -113,12 +113,16 @@ ginit(void)
 		reg[i] = 0;
 	for(i=D_X0; i<=D_X7; i++)
 		reg[i] = 0;
+
+//	reg[D_DI]++;	// for movstring
+//	reg[D_SI]++;	// for movstring
+
 	reg[D_AX]++;	// for divide
 	reg[D_CX]++;	// for shift
-	reg[D_DI]++;	// for movstring
 	reg[D_DX]++;	// for divide
-	reg[D_SI]++;	// for movstring
 	reg[D_SP]++;	// for stack
+	reg[D_R14]++;	// reserved for m
+	reg[D_R15]++;	// reserved for u
 }
 
 void
@@ -126,12 +130,16 @@ gclean(void)
 {
 	int i;
 
+//	reg[D_DI]--;	// for movstring
+//	reg[D_SI]--;	// for movstring
+
 	reg[D_AX]--;	// for divide
 	reg[D_CX]--;	// for shift
-	reg[D_DI]--;	// for movstring
 	reg[D_DX]--;	// for divide
-	reg[D_SI]--;	// for movstring
 	reg[D_SP]--;	// for stack
+	reg[D_R14]--;	// reserved for m
+	reg[D_R15]--;	// reserved for u
+
 	for(i=D_AX; i<=D_R15; i++)
 		if(reg[i])
 			yyerror("reg %R left allocated\n", i);
@@ -1810,59 +1818,270 @@ dotoffset(Node *n, int *oary, Node **nn)
 }
 
 int
-sudoaddable(Node *n, Type *t, Addr *a, Node *reg)
+smallintconst(Node *n)
 {
-	int et, o, i;
+	if(n->op == OLITERAL)
+	switch(simtype[n->type->etype]) {
+	case TINT8:
+	case TUINT8:
+	case TINT16:
+	case TUINT16:
+	case TINT32:
+	case TUINT32:
+	case TBOOL:
+	case TPTR32:
+		return 1;
+	}
+	return 0;
+}
+
+enum
+{
+	ODynam	= 1<<0,
+	OPtrto	= 1<<1,
+};
+
+static	Node	clean[20];
+static	int	cleani = 0;
+
+void
+sudoclean(void)
+{
+	if(clean[cleani-1].op != OEMPTY)
+		regfree(&clean[cleani-1]);
+	if(clean[cleani-2].op != OEMPTY)
+		regfree(&clean[cleani-2]);
+	cleani -= 2;
+}
+
+int
+sudoaddable(Node *n, Type *t, Addr *a)
+{
+	int et, o, i, w;
 	int oary[10];
-	Node n1, *nn;
+	vlong v;
+	Node n0, n1, n2, *nn, *l, *r;
+	Node *reg, *reg1;
+	Prog *p1;
+
+	// make a cleanup slot
+	cleani += 2;
+	reg = &clean[cleani-1];
+	reg1 = &clean[cleani-2];
+	reg->op = OEMPTY;
+	reg1->op = OEMPTY;
 
 	if(n->type == T || t == T)
-		return 0;
+		goto no;
 	et = simtype[n->type->etype];
 	if(et != simtype[t->etype])
-		return 0;
+		goto no;
 
 	switch(n->op) {
 	default:
-		return 0;
+		goto no;
 
 	case ODOT:
 	case ODOTPTR:
-		o = dotoffset(n, oary, &nn);
-		if(nn == N)
-			return 0;
+		goto odot;
 
-		if(0) {
-			dump("\nXX", n);
-			dump("YY", nn);
-			for(i=0; i<o; i++)
-				print(" %d", oary[i]);
-			print("\n");
-			return 0;
-		}
+	case OINDEXPTR:
+		goto no;
+	case OINDEX:
+		goto oindex;
+	}
 
-		regalloc(reg, types[tptr], N);
-		n1 = *reg;
-		n1.op = OINDREG;
-		if(oary[0] >= 0) {
-			agen(nn, reg);
-			n1.xoffset = oary[0];
-		} else {
-			cgen(nn, reg);
-			n1.xoffset = -(oary[0]+1);
-		}
+odot:
+	o = dotoffset(n, oary, &nn);
+	if(nn == N)
+		goto no;
 
-		for(i=1; i<o; i++) {
-			if(oary[i] >= 0)
-				fatal("cant happen");
-			gins(AMOVQ, &n1, reg);
-			n1.xoffset = -(oary[i]+1);
-		}
+	if(0) {
+		dump("\nXX", n);
+		dump("YY", nn);
+		for(i=0; i<o; i++)
+			print(" %d", oary[i]);
+		print("\n");
+		goto no;
+	}
+	
+	regalloc(reg, types[tptr], N);
+	n1 = *reg;
+	n1.op = OINDREG;
+	if(oary[0] >= 0) {
+		agen(nn, reg);
+		n1.xoffset = oary[0];
+	} else {
+		cgen(nn, reg);
+		n1.xoffset = -(oary[0]+1);
+	}
 
-		a->type = D_NONE;
-		a->index = D_NONE;
-		naddr(&n1, a);
+	for(i=1; i<o; i++) {
+		if(oary[i] >= 0)
+			fatal("cant happen");
+		gins(AMOVQ, &n1, reg);
+		n1.xoffset = -(oary[i]+1);
+	}
+
+	a->type = D_NONE;
+	a->index = D_NONE;
+	naddr(&n1, a);
+	goto yes;
+
+oindex:
+	l = n->left;
+	r = n->right;
+	if(l->ullman >= UINF || r->ullman >= UINF)
+		goto no;
+
+	// set o to type of array
+	o = 0;
+	if(isptr[l->type->etype]) {
+		o += OPtrto;
+		if(l->type->type->etype != TARRAY)
+			fatal("not ptr ary");
+		if(l->type->type->bound < 0)
+			o += ODynam;
+	} else {
+		if(l->type->etype != TARRAY)
+			fatal("not ary");
+		if(l->type->bound < 0)
+			o += ODynam;
+	}
+
+	w = n->type->width;
+	if(w == 0)
+		fatal("index is zero width");
+	if(whatis(r) == Wlitint)
+		goto oindex_const;
+
+	switch(w) {
+	default:
+		goto no;
+	case 1:
+	case 2:
+	case 4:
+	case 8:
 		break;
 	}
+
+	// load the array (reg)
+	if(l->ullman > r->ullman) {
+		regalloc(reg, types[tptr], N);
+		if(o & OPtrto)
+			cgen(l, reg);
+		else
+			agen(l, reg);
+	}
+
+	// load the index (reg1)
+	t = types[TUINT64];
+	if(issigned[r->type->etype])
+		t = types[TINT64];
+	regalloc(reg1, t, N);
+	cgen(r, reg1);
+
+	// load the array (reg)
+	if(l->ullman <= r->ullman) {
+		regalloc(reg, types[tptr], N);
+		if(o & OPtrto)
+			cgen(l, reg);
+		else
+			agen(l, reg);
+	}
+
+	// check bounds
+	if(!debug['B']) {
+		if(o & ODynam) {
+			n2 = *reg;
+			n2.op = OINDREG;
+			n2.type = types[tptr];
+			n2.xoffset = offsetof(Array, nel);
+		} else {
+			nodconst(&n2, types[TUINT64], l->type->bound);
+			if(o & OPtrto)
+				nodconst(&n2, types[TUINT64], l->type->type->bound);
+		}
+		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
+		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+		gins(ACALL, N, throwindex);
+		patch(p1, pc);
+	}
+
+	if(o & ODynam) {
+		n2 = *reg;
+		n2.op = OINDREG;
+		n2.type = types[tptr];
+		n2.xoffset = offsetof(Array, array);
+		gmove(&n2, reg);
+	}
+
+	naddr(reg1, a);
+	a->offset = 0;
+	a->scale = w;
+	a->index = a->type;
+	a->type = reg->val.u.reg + D_INDIR;
+
+	goto yes;
+
+oindex_const:
+	// index is constant
+	// can check statically and
+	// can multiply by width statically
+
+	regalloc(reg, types[tptr], N);
+	if(o & OPtrto)
+		cgen(l, reg);
+	else
+		agen(l, reg);
+
+	v = mpgetfix(r->val.u.xval);
+	if(o & ODynam) {
+
+		if(!debug['B']) {
+			n1 = *reg;
+			n1.op = OINDREG;
+			n1.type = types[tptr];
+			n1.xoffset = offsetof(Array, nel);
+			nodconst(&n2, types[TUINT64], v);
+			gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+			gins(ACALL, N, throwindex);
+			patch(p1, pc);
+		}
+
+		n1 = *reg;
+		n1.op = OINDREG;
+		n1.type = types[tptr];
+		n1.xoffset = offsetof(Array, array);
+		gmove(&n1, reg);
+
+	} else
+	if(!debug['B']) {
+		if(v < 0) {
+			yyerror("out of bounds on array");
+		} else
+		if(o & OPtrto) {
+			if(v >= l->type->type->bound)
+				yyerror("out of bounds on array");
+		} else
+		if(v >= l->type->bound) {
+			yyerror("out of bounds on array");
+		}
+	}
+
+	n2 = *reg;
+	n2.op = OINDREG;
+	n2.xoffset = v*w;
+	a->type = D_NONE;
+	a->index = D_NONE;
+	naddr(&n2, a);
+	goto yes;
+
+yes:
 	return 1;
+
+no:
+	sudoclean();
+	return 0;
 }

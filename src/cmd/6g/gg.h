@@ -199,7 +199,9 @@ void	tempname(Node*, Type*);
 Plist*	newplist(void);
 int	isfat(Type*);
 void	setmaxarg(Type*);
-int	sudoaddable(Node*, Type*, Addr*, Node*);
+int	smallintconst(Node*);
+void	sudoclean(void);
+int	sudoaddable(Node*, Type*, Addr*);
 
 /*
  * list.c
