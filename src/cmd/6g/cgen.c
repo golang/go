@@ -54,8 +54,7 @@ cgen(Node *n, Node *res)
 		f = 1;	// gen thru register
 		switch(n->op) {
 		case OLITERAL:
-			if(isint[n->type->etype])
-			if(n->type->width <= 4)
+			if(smallintconst(n))
 				f = 0;
 			break;
 		case OREGISTER:
@@ -63,7 +62,7 @@ cgen(Node *n, Node *res)
 			break;
 		}
 
-		if(sudoaddable(res, n->type, &addr, &n1)) {
+		if(sudoaddable(res, n->type, &addr)) {
 			a = optoas(OAS, res->type);
 			if(f) {
 				regalloc(&n2, res->type, N);
@@ -73,7 +72,7 @@ cgen(Node *n, Node *res)
 			} else
 				p1 = gins(a, n, N);
 			p1->to = addr;
-			regfree(&n1);
+			sudoclean();
 			goto ret;
 		}
 
@@ -101,7 +100,7 @@ cgen(Node *n, Node *res)
 		goto ret;
 	}
 
-	if(sudoaddable(n, res->type, &addr, &n1)) {
+	if(sudoaddable(n, res->type, &addr)) {
 		a = optoas(OAS, n->type);
 		if(res->op == OREGISTER) {
 			p1 = gins(a, N, res);
@@ -113,7 +112,7 @@ cgen(Node *n, Node *res)
 			gins(a, &n2, res);
 			regfree(&n2);
 		}
-		regfree(&n1);
+		sudoclean();
 		goto ret;
 	}
 
@@ -317,11 +316,11 @@ abop:	// asymmetric binary
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
 
-		if(sudoaddable(nr, nl->type, &addr, &n2)) {
+		if(sudoaddable(nr, nl->type, &addr)) {
 			p1 = gins(a, N, &n1);
 			p1->from = addr;
 			gmove(&n1, res);
-			regfree(&n2);
+			sudoclean();
 			regfree(&n1);
 			goto ret;
 		}
@@ -724,7 +723,7 @@ bgen(Node *n, int true, Prog *to)
 			a = brcom(a);
 
 		// make simplest on right
-		if(nl->ullman < nr->ullman) {
+		if(nl->op == OLITERAL || nl->ullman < nr->ullman) {
 			a = brrev(a);
 			r = nl;
 			nl = nr;
@@ -755,9 +754,15 @@ bgen(Node *n, int true, Prog *to)
 			break;
 		}
 
-
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);
+
+		if(smallintconst(nr)) {
+			gins(optoas(OCMP, nr->type), &n1, nr);
+			patch(gbranch(a, nr->type), to);
+			regfree(&n1);
+			break;
+		}
 
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
