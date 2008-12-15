@@ -874,22 +874,29 @@ sgen(Node *n, Node *ns, int32 w)
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)-,*(DI)-
 		}
-		// for future optimization
 		// we leave with the flag clear
 		gins(ACLD, N, N);
 	} else {
 		// normal direction
-		gins(ACLD, N, N);		// clear direction flag
-		if(q > 0) {
+		if(q >= 4) {
 			gconreg(AMOVQ, q, D_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
+		} else
+		while(q > 0) {
+			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
+			q--;
 		}
 
-		if(c > 0) {
+		if(c >= 4) {
 			gconreg(AMOVQ, c, D_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
+		
+		} else
+		while(c > 0) {
+			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
+			c--;
 		}
 	}
 }
