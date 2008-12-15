@@ -281,6 +281,22 @@ int32	funcline(Func*, uint64);
 void*	stackalloc(uint32);
 void	stackfree(void*);
 
+#pragma	varargck	argpos	printf	1
+
+#pragma	varargck	type	"d"	int32
+#pragma	varargck	type	"d"	uint32
+#pragma	varargck	type	"D"	int64
+#pragma	varargck	type	"D"	uint64
+#pragma	varargck	type	"x"	int32
+#pragma	varargck	type	"x"	uint32
+#pragma	varargck	type	"X"	int64
+#pragma	varargck	type	"X"	uint64
+#pragma	varargck	type	"p"	void*
+#pragma	varargck	type	"p"	uint64
+#pragma	varargck	type	"s"	int8*
+#pragma	varargck	type	"s"	uint8*
+#pragma	varargck	type	"S"	string
+
 // TODO(rsc): Remove. These are only temporary,
 // for the mark and sweep collector.
 void	stoptheworld(void);
