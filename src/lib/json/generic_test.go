@@ -64,7 +64,7 @@ export func TestJsonMap(t *testing.T) {
 	if mapv == nil {
 		t.Fatalf("StringToJson(%#q) => nil, %v, %v", mapstr, ok, errtok);
 	}
-	for k,v range values {
+	for k,v := range values {
 		if v1 := mapv.Get(k); !Equal(v1, v) {
 			t.Errorf("MapTest: Walk(%#q) => %v, want %v", k, v1, v);
 		}

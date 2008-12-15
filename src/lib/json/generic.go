@@ -114,7 +114,7 @@ func (j *Map) Get(s string) Json {
 func (j *Map) String() string {
 	s := "{";
 	first := true;
-	for k,v range j.m {
+	for k,v := range j.m {
 		if first {
 			first = false;
 		} else {
@@ -188,7 +188,7 @@ export func Equal(a, b Json) bool {
 		if len(m) != len(b.(*Map).m) {
 			return false;
 		}
-		for k,v range m {
+		for k,v := range m {
 			if !Equal(v, b.Get(k)) {
 				return false;
 			}
