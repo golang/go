@@ -195,6 +195,8 @@ dosrcline(Sym *sym)
 	switch(sym->symtype) {
 	case 't':
 	case 'T':
+		if(strcmp(sym->name, (byte*)"etext") == 0)
+			break;
 		f = &func[nf++];
 		f->src = srcstring;
 		f->ln0 += lno;
