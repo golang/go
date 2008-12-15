@@ -419,6 +419,7 @@ simple_stmt:
 		$$ = rev($1);
 		$$ = colas($$, $3);
 		$$ = nod(OAS, $$, $3);
+		$$->colas = 1;
 		addtotop($$);
 	}
 |	LPRINT '(' oexpr_list ')'
@@ -554,9 +555,6 @@ compound_stmt:
 		popdcl();
 	}
 
-ocolas:
-|	LCOLAS
-
 orange_stmt:
 	osimple_stmt
 |	exprsym3_list_r '=' LRANGE expr
@@ -570,12 +568,12 @@ orange_stmt:
 		$$ = nod(ORANGE, $$, $6);
 		$$->etype = 0;
 	}
-|	exprsym3_list_r ocolas LRANGE expr
+|	exprsym3_list_r LCOLAS LRANGE expr
 	{
 		$$ = nod(ORANGE, $1, $4);
 		$$->etype = 1;
 	}
-|	exprsym3 ':' exprsym3 ocolas LRANGE expr
+|	exprsym3 ':' exprsym3 LCOLAS LRANGE expr
 	{
 		$$ = nod(OLIST, $1, $3);
 		$$ = nod(ORANGE, $$, $6);
@@ -592,6 +590,8 @@ for_header:
 			break;
 		}
 		// init ; test ; incr
+		if($5 != N && $5->colas != 0)
+			yyerror("cannot declare in the for-increment");
 		$$ = nod(OFOR, N, N);
 		$$->ninit = $1;
 		$$->ntest = $3;

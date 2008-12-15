@@ -197,6 +197,7 @@ struct	Node
 	uchar	method;		// OCALLMETH name
 	uchar	iota;		// OLITERAL made from iota
 	uchar	embedded;	// ODCLFIELD embedded type
+	uchar	colas;		// OAS resulting from :=
 
 	// most nodes
 	Node*	left;

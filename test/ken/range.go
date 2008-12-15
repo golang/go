@@ -40,7 +40,7 @@ main()
 	 * key only
 	 */
 	i = 0;
-	for k range a {
+	for k := range a {
 		v := a[k];
 		if v != f(k) {
 			panicln("key array range", k, v, a[k]);
@@ -52,7 +52,7 @@ main()
 	}
 
 	i = 0;
-	for k range p {
+	for k := range p {
 		v := p[k];
 		if v != f(k) {
 			panicln("key pointer range", k, v, p[k]);
@@ -64,7 +64,7 @@ main()
 	}
 
 	i = 0;
-	for k range m {
+	for k := range m {
 		v := m[k];
 		if v != f(k) {
 			panicln("key map range", k, v, m[k]);
@@ -79,7 +79,7 @@ main()
 	 * key:value
 	 */
 	i = 0;
-	for k:v range a {
+	for k:v := range a {
 		if v != f(k) {
 			panicln("key:value array range", k, v, a[k]);
 		}
@@ -90,7 +90,7 @@ main()
 	}
 
 	i = 0;
-	for k:v range p {
+	for k:v := range p {
 		if v != f(k) {
 			panicln("key:value pointer range", k, v, p[k]);
 		}
@@ -101,7 +101,7 @@ main()
 	}
 
 	i = 0;
-	for k:v range m {
+	for k:v := range m {
 		if v != f(k) {
 			panicln("key:value map range", k, v, m[k]);
 		}
