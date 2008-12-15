@@ -1037,7 +1037,7 @@ cgen_as(Node *nl, Node *nr, int op)
 {
 	Node nc, n1;
 	Type *tl;
-	uint32 w, c;
+	uint32 w, c, q;
 	int iszer;
 
 	if(nl == N)
@@ -1058,31 +1058,32 @@ cgen_as(Node *nl, Node *nr, int op)
 			if(debug['g'])
 				dump("\nclearfat", nl);
 
-			if(nl->type->width < 0)
-				fatal("clearfat %T %lld", nl->type, nl->type->width);
 			w = nl->type->width;
+			c = w % 8;	// bytes
+			q = w / 8;	// quads
 
-			if(w > 0)
-				gconreg(AMOVQ, 0, D_AX);
+			gconreg(AMOVQ, 0, D_AX);
+			nodreg(&n1, types[tptr], D_DI);
+			agen(nl, &n1);
 
-			if(w > 0) {
-				nodreg(&n1, types[tptr], D_DI);
-				agen(nl, &n1);
-				gins(ACLD, N, N);	// clear direction flag
-			}
-
-			c = w / 8;
-			if(c > 0) {
-				gconreg(AMOVQ, c, D_CX);
+			if(q >= 4) {
+				gconreg(AMOVQ, q, D_CX);
 				gins(AREP, N, N);	// repeat
 				gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
+			} else
+			while(q > 0) {
+				gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
+				q--;
 			}
 
-			c = w % 8;
-			if(c > 0) {
+			if(c >= 4) {
 				gconreg(AMOVQ, c, D_CX);
 				gins(AREP, N, N);	// repeat
 				gins(ASTOSB, N, N);	// STOB AL,*(DI)+
+			} else
+			while(c > 0) {
+				gins(ASTOSB, N, N);	// STOB AL,*(DI)+
+				c--;
 			}
 			goto ret;
 		}

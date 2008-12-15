@@ -26,6 +26,7 @@ TEXT	_rt0_amd64(SB),7,$-8
 	MOVQ	AX, 0(R15)		// 0(R15) is stack limit (w 104b guard)
 	MOVQ	SP, 8(R15)		// 8(R15) is base
 
+	CLD				// convention is D is always left cleared
 	CALL	check(SB)
 
 	MOVL	16(SP), AX		// copy argc
