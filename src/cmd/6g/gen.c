@@ -915,45 +915,11 @@ cgen_asop(Node *n)
 {
 	Node n1, n2, n3, n4;
 	Node *nl, *nr;
+	Prog *p1;
+	Addr addr;
 
 	nl = n->left;
 	nr = n->right;
-
-	if(nl->addable && nr->op == OLITERAL)
-	switch(n->etype) {
-	case OADD:
-		if(!isint[nl->type->etype])
-			break;
-		if(mpgetfix(nr->val.u.xval) != 1)
-			break;
-		gins(optoas(OINC, nl->type), N, nl);
-		goto ret;
-	case OSUB:
-		if(!isint[nl->type->etype])
-			break;
-		if(mpgetfix(nr->val.u.xval) != 1)
-			break;
-		gins(optoas(ODEC, nl->type), N, nl);
-		goto ret;
-	}
-
-	if(nl->addable)
-	switch(n->etype) {
-	case OXOR:
-	case OAND:
-	case OOR:
-	case OADD:
-	case OSUB:
-		if(!isint[nl->type->etype])
-			break;
-		if(!isint[nr->type->etype])
-			break;
-		regalloc(&n2, nr->type, N);
-		cgen(nr, &n2);
-		gins(optoas(n->etype, nl->type), &n2, nl);
-		regfree(&n2);
-		goto ret;
-	}
 
 	if(nr->ullman >= UINF && nl->ullman >= UINF) {
 		tempname(&n1, nr->type);
@@ -964,6 +930,81 @@ cgen_asop(Node *n)
 		goto ret;
 	}
 
+	if(!isint[nl->type->etype])
+		goto hard;
+	if(!isint[nr->type->etype])
+		goto hard;
+
+	switch(n->etype) {
+	case OADD:
+		if(smallintconst(nr))
+		if(mpgetfix(nr->val.u.xval) == 1) {
+			if(nl->addable) {
+				gins(optoas(OINC, nl->type), N, nl);
+				goto ret;
+			}
+			if(sudoaddable(nl, nr->type, &addr)) {
+				p1 = gins(optoas(OINC, nl->type), N, N);
+				p1->to = addr;
+				sudoclean();
+				goto ret;
+			}
+		}
+		break;
+
+	case OSUB:
+		if(smallintconst(nr))
+		if(mpgetfix(nr->val.u.xval) == 1) {
+			if(nl->addable) {
+				gins(optoas(ODEC, nl->type), N, nl);
+				goto ret;
+			}
+			if(sudoaddable(nl, nr->type, &addr)) {
+				p1 = gins(optoas(ODEC, nl->type), N, N);
+				p1->to = addr;
+				sudoclean();
+				goto ret;
+			}
+		}
+		break;
+	}
+
+	switch(n->etype) {
+	case OADD:
+	case OSUB:
+	case OXOR:
+	case OAND:
+	case OOR:
+		if(nl->addable) {
+			if(smallintconst(nr)) {
+				gins(optoas(n->etype, nl->type), nr, nl);
+				goto ret;
+			}
+			regalloc(&n2, nr->type, N);
+			cgen(nr, &n2);
+			gins(optoas(n->etype, nl->type), &n2, nl);
+			regfree(&n2);
+			goto ret;
+		}
+		if(nr->ullman < UINF)
+		if(sudoaddable(nl, nr->type, &addr)) {
+			if(smallintconst(nr)) {
+				p1 = gins(optoas(n->etype, nl->type), nr, N);
+				p1->to = addr;
+				sudoclean();
+				goto ret;
+			}
+			regalloc(&n2, nr->type, N);
+			cgen(nr, &n2);
+			p1 = gins(optoas(n->etype, nl->type), &n2, N);
+			p1->to = addr;
+			regfree(&n2);
+			sudoclean();
+			goto ret;
+		}
+	}
+
+hard:
 	if(nr->ullman > nl->ullman) {
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);

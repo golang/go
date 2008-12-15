@@ -102,6 +102,19 @@ newplist(void)
 	return pl;
 }
 
+static	int	resvd[] =
+{
+//	D_DI,	// for movstring
+//	D_SI,	// for movstring
+
+	D_AX,	// for divide
+	D_CX,	// for shift
+	D_DX,	// for divide
+	D_SP,	// for stack
+	D_R14,	// reserved for m
+	D_R15,	// reserved for u
+};
+
 void
 ginit(void)
 {
@@ -114,15 +127,8 @@ ginit(void)
 	for(i=D_X0; i<=D_X7; i++)
 		reg[i] = 0;
 
-//	reg[D_DI]++;	// for movstring
-//	reg[D_SI]++;	// for movstring
-
-	reg[D_AX]++;	// for divide
-	reg[D_CX]++;	// for shift
-	reg[D_DX]++;	// for divide
-	reg[D_SP]++;	// for stack
-	reg[D_R14]++;	// reserved for m
-	reg[D_R15]++;	// reserved for u
+	for(i=0; i<nelem(resvd); i++)
+		reg[resvd[i]]++;
 }
 
 void
@@ -130,15 +136,8 @@ gclean(void)
 {
 	int i;
 
-//	reg[D_DI]--;	// for movstring
-//	reg[D_SI]--;	// for movstring
-
-	reg[D_AX]--;	// for divide
-	reg[D_CX]--;	// for shift
-	reg[D_DX]--;	// for divide
-	reg[D_SP]--;	// for stack
-	reg[D_R14]--;	// reserved for m
-	reg[D_R15]--;	// reserved for u
+	for(i=0; i<nelem(resvd); i++)
+		reg[resvd[i]]--;
 
 	for(i=D_AX; i<=D_R15; i++)
 		if(reg[i])
@@ -1817,24 +1816,6 @@ dotoffset(Node *n, int *oary, Node **nn)
 	return i;
 }
 
-int
-smallintconst(Node *n)
-{
-	if(n->op == OLITERAL)
-	switch(simtype[n->type->etype]) {
-	case TINT8:
-	case TUINT8:
-	case TINT16:
-	case TUINT16:
-	case TINT32:
-	case TUINT32:
-	case TBOOL:
-	case TPTR32:
-		return 1;
-	}
-	return 0;
-}
-
 enum
 {
 	ODynam	= 1<<0,
@@ -1857,37 +1838,36 @@ sudoclean(void)
 int
 sudoaddable(Node *n, Type *t, Addr *a)
 {
-	int et, o, i, w;
+	int o, i, w;
 	int oary[10];
 	vlong v;
-	Node n0, n1, n2, *nn, *l, *r;
+	Node n1, n2, *nn, *l, *r;
 	Node *reg, *reg1;
 	Prog *p1;
 
-	// make a cleanup slot
-	cleani += 2;
-	reg = &clean[cleani-1];
-	reg1 = &clean[cleani-2];
-	reg->op = OEMPTY;
-	reg1->op = OEMPTY;
-
 	if(n->type == T || t == T)
-		goto no;
-	et = simtype[n->type->etype];
-	if(et != simtype[t->etype])
-		goto no;
+		return 0;
 
 	switch(n->op) {
 	default:
-		goto no;
+		return 0;
 
 	case ODOT:
 	case ODOTPTR:
+		cleani += 2;
+		reg = &clean[cleani-1];
+		reg1 = &clean[cleani-2];
+		reg->op = OEMPTY;
+		reg1->op = OEMPTY;
 		goto odot;
 
 	case OINDEXPTR:
-		goto no;
 	case OINDEX:
+		cleani += 2;
+		reg = &clean[cleani-1];
+		reg1 = &clean[cleani-2];
+		reg->op = OEMPTY;
+		reg1->op = OEMPTY;
 		goto oindex;
 	}
 
@@ -1895,15 +1875,6 @@ odot:
 	o = dotoffset(n, oary, &nn);
 	if(nn == N)
 		goto no;
-
-	if(0) {
-		dump("\nXX", n);
-		dump("YY", nn);
-		for(i=0; i<o; i++)
-			print(" %d", oary[i]);
-		print("\n");
-		goto no;
-	}
 	
 	regalloc(reg, types[tptr], N);
 	n1 = *reg;
@@ -1931,7 +1902,7 @@ odot:
 oindex:
 	l = n->left;
 	r = n->right;
-	if(l->ullman >= UINF || r->ullman >= UINF)
+	if(l->ullman >= UINF && r->ullman >= UINF)
 		goto no;
 
 	// set o to type of array
@@ -1950,8 +1921,6 @@ oindex:
 	}
 
 	w = n->type->width;
-	if(w == 0)
-		fatal("index is zero width");
 	if(whatis(r) == Wlitint)
 		goto oindex_const;
 
