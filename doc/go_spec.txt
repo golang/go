@@ -3,9 +3,9 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-----
 (December 16, 2008)
 
+----
 
 This document is a semi-formal specification of the Go systems
 programming language.
@@ -15,6 +15,7 @@ This document is not ready for external review, it is under active development.
 Any part may change substantially as design progresses.
 </font>
 
+----
 
 <!--
 Timeline (9/5/08):
@@ -128,6 +129,13 @@ Contents
 ----
 
 	Introduction
+		Guiding principles
+		Program structure
+		Modularity, identifiers and scopes
+		Typing, polymorphism, and object-orientation
+		Pointers and garbage collection
+		Values and references
+		Multithreading and channels
 
 	Notation
 
@@ -207,11 +215,11 @@ Contents
 		Goto statements
 
 	Function declarations
-	Method declarations
-	Predeclared functions
-		Length and capacity
-		Conversions
-		Allocation
+		Method declarations
+		Predeclared functions
+			Length and capacity
+			Conversions
+			Allocation
 
 	Packages
 
@@ -223,6 +231,129 @@ Contents
 Introduction
 ----
 
+Go is a new systems programming language intended as an alternative to C++ at
+Google. Its main purpose is to provide a productive and efficient programming
+environment for compiled programs such as servers and distributed systems.
+
+
+Guiding principles
+----
+
+The design of Go is motivated by the following goals (in no particular order):
+
+- very fast compilation, instantaneous incremental compilation
+- strongly typed
+- procedural
+- concise syntax avoiding repetition
+- few, orthogonal, and general concepts
+- support for threading and interprocess communication
+- garbage collection
+- container library written in Go
+- efficient code, comparable to other compiled languages
+
+
+Program structure
+----
+
+A Go program consists of a number of ``packages''.
+
+A package is built from one or more source files, each of which consists
+of a package specifier followed by declarations. There are no statements at
+the top level of a file.
+
+By convention, the package called "main" is the starting point for execution.
+It contains a function, also called "main", that is the first function invoked
+by the run time system after initialization (if a source file within the program
+contains a function "init()", that function will be executed before "main.main()"
+is called).
+
+Source files can be compiled separately (without the source code of packages
+they depend on), but not independently (the compiler does check dependencies
+by consulting the symbol information in compiled packages).
+
+
+Modularity, identifiers and scopes
+----
+
+A package is a collection of import, constant, type, variable, and function
+declarations. Each declaration binds an ``identifier'' with a program entity
+(such as a variable).
+
+In particular, all identifiers in a package are either declared explicitly
+within the package, arise from an import statement, or belong to a small set
+of predeclared identifiers (such as "string").
+
+Scoping follows the usual rules: The scope of an identifier declared within
+a ``block'' generally extends from the declaration of the identifier to the
+end of the block. An identifier shadows identifiers with the same name declared
+in outer scopes. Within a scope, an identifier can be declared at most once.
+
+A package may mark explicitly declared identifiers for ``export'' to make them
+visible to other source files in the same package, or to other packages.
+
+
+Typing, polymorphism, and object-orientation
+----
+
+Go programs are strongly typed. Certain variables may be polymorphic.
+The language provides mechanisms to make use of such polymorphic variables
+type-safe.
+
+Object-oriented programming is supported by interface types.
+Different interface types are independent of each
+other and no explicit hierarchy is required (such as single or
+multiple inheritance explicitly specified through respective type
+declarations).  Interface types only define a set of methods that a
+corresponding implementation must provide.  Thus interface and
+implementation are strictly separated.
+
+An interface is implemented by associating methods with types. If a type
+defines all methods of an interface, it implements that interface and thus
+can be used where that interface is required. Unless used through a variable
+of interface type, methods can always be statically bound (they are not
+``virtual''), and invoking them incurs no extra run-time overhead compared
+to ordinary functions.
+
+Go has no explicit notion of classes, sub-classes, or inheritance.
+These concepts are trivially modeled in Go through the use of
+functions, structures, embedding of types, associated methods, and interfaces.
+
+Go has no explicit notion of type parameters or templates.  Instead,
+containers (such as stacks, lists, etc.) are implemented through the
+use of abstract operations on interface types.
+
+
+Pointers and garbage collection
+----
+
+Variables may be allocated automatically (when entering the scope of
+the variable) or explicitly on the heap.  Pointers are used to refer
+to heap-allocated variables.  Pointers may also be used to point to
+any other variable; such a pointer is obtained by "taking the
+address" of that variable.  Variables are automatically reclaimed when
+they are no longer accessible.  There is no pointer arithmetic in Go.
+
+
+Values and references
+----
+
+All objects have value semantics, but their contents may be accessed
+through different pointers referring to the same object.
+For example, when calling a function with an array, the array is
+passed by value, possibly by making a copy.   To pass a reference,
+one must explicitly pass a pointer to the array.
+
+
+Multithreading and channels
+----
+
+Go supports multithreaded programming directly. A function may
+be invoked as a parallel thread of execution.  Communication and
+synchronization are provided through channels and their associated
+language support.
+
+
+----
 
 Notation
 ----
@@ -274,6 +405,7 @@ A production may be referenced from various places in this document
 but is usually defined close to its first use.  Productions and code
 examples are indented.
 
+----
 
 Source code representation
 ----
@@ -315,6 +447,7 @@ Letters and digits
 
 All non-ASCII code points are considered letters; digits are always ASCII.
 
+----
 
 Vocabulary
 ----
@@ -537,6 +670,8 @@ The following words are reserved and must not be used as identifiers:
 	const        fallthrough  if           range        type
 	continue     for          import       return       var
 
+
+----
 
 Declarations and scope rules
 ----
@@ -921,6 +1056,7 @@ export directive.
 	export sin, cos
 	export math.abs
 
+----
 
 Types
 ----
@@ -1582,6 +1718,8 @@ and these are some types that are identical
 As an example, "T0" and "T1" are equal but not identical because they have
 different declarations.
 
+
+----
 
 Expressions
 ----
@@ -2362,6 +2500,8 @@ TODO: Complete this list as needed.
 Constant expressions can be evaluated at compile time.
 
 
+----
+
 Statements
 ----
 
@@ -2884,6 +3024,8 @@ clause of the switch statement.
 	FallthroughStat = "fallthrough" .
 
 
+----
+
 Function declarations
 ----
 
@@ -3069,6 +3211,8 @@ into a faster internal call that doesn't do slicing).
 -->
 
 
+----
+
 Packages
 ----
 
@@ -3168,6 +3312,8 @@ Here is a complete example Go package that implements a concurrent prime sieve:
 	}
 
 
+----
+
 Program initialization and execution
 ----
 
@@ -3233,229 +3379,3 @@ When main.main() returns, the program exits.
 
 TODO: is there a way to override the default for package main or the
 default for the function name main.main?
-
-
-<!--
-----
-----
-UNUSED PARTS OF OLD DOCUMENT go_lang.txt - KEEP AROUND UNTIL NOT NEEDED ANYMORE
-----
-
-Guiding principles
-----
-
-Go is a new systems programming language intended as an alternative to C++ at
-Google. Its main purpose is to provide a productive and efficient programming
-environment for compiled programs such as servers and distributed systems.
-
-The design is motivated by the following guidelines:
-
-- very fast compilation (1MLOC/s stretch goal); instantaneous incremental compilation
-- procedural
-- strongly typed
-- concise syntax avoiding repetition
-- few, orthogonal, and general concepts
-- support for threading and interprocess communication
-- garbage collection
-- container library written in Go
-- reasonably efficient (C ballpark)
-
-The language should be strong enough that the compiler and run time can be
-written in itself.
-
-
-Program structure
-----
-
-A Go program consists of a number of ``packages''.
-
-A package is built from one or more source files, each of which consists
-of a package specifier followed by import declarations followed by other
-declarations.  There are no statements at the top level of a file.
-
-By convention, one package, by default called main, is the starting point for
-execution. It contains a function, also called main, that is the first function
-invoked by the run time system.
-
-If a source file within the program
-contains a function init(), that function will be executed
-before main.main() is called.
-
-Source files can be compiled separately (without the source
-code of packages they depend on), but not independently (the compiler does
-check dependencies by consulting the symbol information in compiled packages).
-
-
-Modularity, identifiers and scopes
-----
-
-A package is a collection of import, constant, type, variable, and function
-declarations. Each declaration associates an ``identifier'' with a program
-entity (such as a type).
-
-In particular, all identifiers in a package are either
-declared explicitly within the package, arise from an import statement,
-or belong to a small set of predefined identifiers (such as "int32").
-
-A package may make explicitly declared identifiers visible to other
-packages by marking them as exported; there is no ``header file''.
-Imported identifiers cannot be re-exported.
-
-Scoping is essentially the same as in C: The scope of an identifier declared
-within a ``block'' extends from the declaration of the identifier (that is, the
-position immediately after the identifier) to the end of the block. An identifier
-shadows identifiers with the same name declared in outer scopes. Within a
-block, a particular identifier must be declared at most once.
-
-
-Typing, polymorphism, and object-orientation
-----
-
-Go programs are strongly typed.  Certain values can also be
-polymorphic.  The language provides mechanisms to make use of such
-polymorphic values type-safe.
-
-Interface types provide the mechanisms to support object-oriented
-programming. Different interface types are independent of each
-other and no explicit hierarchy is required (such as single or
-multiple inheritance explicitly specified through respective type
-declarations).  Interface types only define a set of methods that a
-corresponding implementation must provide.  Thus interface and
-implementation are strictly separated.
-
-An interface is implemented by associating methods with types.
-If a type defines all methods of an interface, it
-implements that interface and thus can be used where that interface is
-required.  Unless used through a variable of interface type, methods
-can always be statically bound (they are not ``virtual''), and incur no
-run-time overhead compared to an ordinary function.
-
-[OLD
-Interface types, building on structures with methods, provide
-the mechanisms to support object-oriented programming.
-Different interface types are independent of each
-other and no explicit hierarchy is required (such as single or
-multiple inheritance explicitly specified through respective type
-declarations).  Interface types only define a set of methods that a
-corresponding implementation must provide.  Thus interface and
-implementation are strictly separated.
-
-An interface is implemented by associating methods with
-structures.  If a structure implements all methods of an interface, it
-implements that interface and thus can be used where that interface is
-required.  Unless used through a variable of interface type, methods
-can always be statically bound (they are not ``virtual''), and incur no
-run-time overhead compared to an ordinary function.
-END]
-
-Go has no explicit notion of classes, sub-classes, or inheritance.
-These concepts are trivially modeled in Go through the use of
-functions, structures, associated methods, and interfaces.
-
-Go has no explicit notion of type parameters or templates.  Instead,
-containers (such as stacks, lists, etc.) are implemented through the
-use of abstract operations on interface types or polymorphic values.
-
-
-Pointers and garbage collection
-----
-
-Variables may be allocated automatically (when entering the scope of
-the variable) or explicitly on the heap.  Pointers are used to refer
-to heap-allocated variables.  Pointers may also be used to point to
-any other variable; such a pointer is obtained by "taking the
-address" of that variable.  Variables are automatically reclaimed when
-they are no longer accessible.  There is no pointer arithmetic in Go.
-
-
-Multithreading and channels
-----
-
-Go supports multithreaded programming directly. A function may
-be invoked as a parallel thread of execution.  Communication and
-synchronization are provided through channels and their associated
-language support.
-
-
-Values and references
-----
-
-All objects have value semantics, but their contents may be accessed
-through different pointers referring to the same object.
-For example, when calling a function with an array, the array is
-passed by value, possibly by making a copy.   To pass a reference,
-one must explicitly pass a pointer to the array.  For arrays in
-particular, this is different from C.
-
-There is also a built-in string type, which represents immutable
-strings of bytes.
-
-
-Interface of a type
-----
-
-The interface of a type is defined to be the unordered set of methods
-associated with that type. Methods are defined in a later section;
-they are functions bound to a type.
-
-
-[OLD
-It is legal to assign a pointer to a struct to a variable of
-compatible interface type.  It is legal to assign an interface
-variable to any struct pointer variable but if the struct type is
-incompatible the result will be nil.
-END]
-
-
-[OLD
-The polymorphic "any" type
-----
-
-Given a variable of type "any", one can store any value into it by
-plain assignment or implicitly, such as through a function parameter
-or channel operation.  Given an "any" variable v storing an underlying
-value of type T, one may:
-
-	- copy v's value to another variable of type "any"
-	- extract the stored value by an explicit conversion operation T(v)
-	- copy v's value to a variable of type T
-	
-Attempts to convert/extract to an incompatible type will yield nil.
-
-No other operations are defined (yet).
-
-Note that type
-	interface {}
-is a special case that can match any struct type, while type
-	any
-can match any type at all, including basic types, arrays, etc.
-
-TODO: details about reflection
-END]
-
-
-[OLD
-The nil value
-----
-
-The predeclared constant
-
-	nil
-
-represents the ``zero'' value for a pointer type or interface type.
-
-The only operations allowed for nil are to assign it to a pointer or
-interface variable and to compare it for equality or inequality with a
-pointer or interface value.
-
-	var p *int;
-	if p != nil {
-		print(p)
-	} else {
-		print("p points nowhere")
-	}
-
-By default, pointers are initialized to nil.
-
-TODO: This needs to be revisited.
--->
