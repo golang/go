@@ -141,12 +141,6 @@ bugs/bug117.go:9: illegal types for operand: RETURN
 	int
 BUG: should compile
 
-=========== bugs/bug119.go
-3
-
-panic PC=xxx
-BUG: should not fail
-
 =========== bugs/bug121.go
 BUG: compilation succeeds incorrectly
 
