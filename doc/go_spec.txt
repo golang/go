@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
 Robert Griesemer, Rob Pike, Ken Thompson
 
 ----
-(December 12, 2008)
+(December 16, 2008)
 
 
 This document is a semi-formal specification of the Go systems
@@ -503,7 +503,7 @@ are concatenated into a single string. The following two lines
 represent the same string:
 
 	"Alea iacta est."
-	"Alea" /* The die */ `iacta est` /* is cast */ "."
+	"Alea " /* The die */ `iacta est` /* is cast */ "."
 
 The language does not canonicalize Unicode text or evaluate combining
 forms.  The text of source code is passed uninterpreted.
