@@ -386,7 +386,8 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 		p.add('{');
 		v := field.(reflect.StructValue);
 		t := v.Type().(reflect.StructType);
-		donames := p.fmt.plus;	// first p.printField clears flag
+		donames := p.fmt.plus;
+		p.fmt.clearflags();	// clear flags for p.printField
 		for i := 0; i < v.Len();  i++ {
 			if i > 0 {
 				p.add(' ')
