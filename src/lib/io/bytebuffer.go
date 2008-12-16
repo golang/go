@@ -75,7 +75,15 @@ func (b *ByteBuffer) Len() int {
 	return b.len
 }
 
+// If the buffer is empty, Data() should still give a valid array.
+// Use this variable as a surrogate.  It's immutable (can't be
+// grown, can't store any data) so it's safe to share.
+var EmptyByteArray = new([]byte, 0)
+
 func (b *ByteBuffer) Data() *[]byte {
+	if b.buf == nil {
+		return EmptyByteArray
+	}
 	return b.buf[b.off:b.len]
 }
 
