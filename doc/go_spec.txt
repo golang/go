@@ -28,7 +28,6 @@ Timeline (9/5/08):
 
 Missing:
 [ ] partial export of structs, methods
-[ ] range statement: to be defined more reasonably
 [ ] packages of multiple files
 [ ] Helper syntax for composite types: allow names/indices for maps/arrays,
     remove need for type in elements of composites
@@ -56,7 +55,6 @@ Open issues:
 [ ] old-style export decls (still needed, but ideally should go away)
 [ ] like to have assert() in the language, w/ option to disable code gen for it
 [ ] composite types should uniformly create an instance instead of a pointer
-[ ] semantics of statements
 [ ] need for type switch? (or use type guard with ok in tuple assignment?)
 [ ] do we need anything on package vs file names?
 [ ] type switch or some form of type test needed
@@ -93,6 +91,8 @@ Decisions in need of integration into the doc:
 
 
 Closed:
+[x] semantics of statements - we just need to fill in the language, the semantics is mostly clear
+[x] range statement: to be defined more reasonably
 [x] need to be specific on (unsigned) integer operations: one must be able
 	to rely on wrap-around on overflow
 [x] global var decls: "var a, b, c int = 0, 0, 0" is ok, but "var a, b, c = 0, 0, 0" is not
@@ -198,7 +198,6 @@ Contents
 		If statements
 		Switch statements
 		For statements
-		Range statements
 		Go statements
 		Select statements
 		Return statements
@@ -583,7 +582,9 @@ same identifier declared in an outer block.
 
 	3. The scope of a constant or variable extends textually from
 	   after the declaration to the end of the innermost surrounding
-	   block.
+	   block. If the variable is declared in the init statement of an
+	   if, for, or switch statement, the innermost surrounding block
+	   is the block associated with the respective statement.
 
 	4. The scope of a parameter or result identifier is the body of the
 	   corresponding function.
@@ -2369,8 +2370,7 @@ Statements control execution.
 	Statement =
 		Declaration | LabelDecl | EmptyStat |
 		SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
-		FallthroughStat | Block | IfStat | SwitchStat | SelectStat | ForStat |
-		RangeStat .
+		FallthroughStat | Block | IfStat | SwitchStat | SelectStat | ForStat .
 
 	SimpleStat =
 		ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
@@ -2589,68 +2589,99 @@ If the expression is omitted, it is equivalent to "true".
 For statements
 ----
 
-For statements are a combination of the "for" and "while" loops of C.
+A for statement specifies repeated execution of a block. The iteration is
+controlled by a condition, a for clause, or a range clause.
 
-	ForStat = "for" [ Condition | ForClause ] Block .
-	ForClause = [ InitStat ] ";" [ Condition ] ";" [ PostStat ] .
-	
-	InitStat = SimpleStat .
+	ForStat = "for" [ Condition | ForClause | RangeClause ] Block .
 	Condition = Expression .
-	PostStat = SimpleStat .
 
-A SimpleStat is a simple statement such as an assignment, a SimpleVarDecl,
-or an increment or decrement statement. Therefore one may declare a loop
-variable in the init statement.
-
-	for i := 0; i < 10; i++ {
-		print(i, "\n")
-	}
-
-A for statement with just a condition executes until the condition becomes
-false. Thus it is the same as C's while statement.
+In its simplest form, a for statement specifies the repeated execution of
+a block as long as a condition evaluates to true. The condition is evaluated
+before each iteration. The type of the condition expression must be boolean.
+If the condition is absent, it is equivalent to "true".
 
 	for a < b {
 		a *= 2
 	}
 
-If the condition is absent, it is equivalent to "true".
+A for statement with a for clause is also controlled by its condition, but
+additionally it may specify an init and post statement, such as an assignment,
+an increment or decrement statement. The init statement may also be a (simple)
+variable declaration; no variables can be declared in the post statement.
 
-	for {
-		f()
+	ForClause = [ InitStat ] ";" [ Condition ] ";" [ PostStat ] .
+	InitStat = SimpleStat .
+	PostStat = SimpleStat .
+
+For instance, one may declare an iteration variable in the init statement:
+
+	for i := 0; i < 10; i++ {
+		f(i)
+	}
+	
+If present, the init statement is executed once before commencing the iteration;
+the post statement is executed after each execution of the statement block (and
+only if the block was executed). The scope of any variable declared in the init
+statement ends with the end of the for statement block ($Declarations and scope
+rules, Rule 3).
+
+The init and post statement as well as the condition may be omitted; however
+if either the init or post statement are present, the separating semicolons
+must be present. If the condition is absent, it is equivalent to "true".
+The following statements are equivalent:
+
+	for ; cond ; { S() }    is the same as    for cond { S() }
+	for true { S() }        is the same as    for      { S() }
+
+Alternatively, a for statement may be controlled by a range clause. A
+range clause specifies iteration through all entries of an array or map.
+For each entry it first assigns the current index or key to an iteration
+variable - or the current (index, element) or (key, value) pair to a pair
+of iteration variables - and then executes the block. Iteration terminates
+when all entries have been processed, or if the for statement is terminated
+early, for instance by a break or return statement.
+
+	RangeClause = IdentifierList ( "=" | ":=" ) "range" Expression .
+
+The type of the right-hand expression in the range clause must be an array or
+map, or a pointer to an array or map. If it is a pointer, it must not be nil.
+The left-hand identifier list must contain one or two identifiers denoting the
+iteration variables. The first variable is set to the current array index or
+map key, and the second variable, if present, is set to the corresponding
+array element or map value. The types of the array index (int) and element,
+or of the map key and value respectively, must be assignment-compatible to
+the iteration variables.
+
+The iteration variables may be declared by the range clause (":="), in which
+case their scope ends at the end of the for statement block ($Declarations and
+scope rules, Rule 3). In this case their types are the array index and element,
+or the map key and value types, respectively.
+
+	var a [10]string;
+	m := map[string]int{"mon":0, "tue":1, "wed":2, "thu":3, "fri":4, "sat":5, "sun":6};
+	
+	for i, s := range a {
+		// type of i is int
+		// type of s is string
+		// s == a[i]
+		g(i, s)
 	}
 
-
-Range statements
-----
-
-Range statements are a special control structure for iterating over
-the contents of arrays and maps.
-
-	RangeStat = "range" IdentifierList ":=" RangeExpression Block .
-	RangeExpression = Expression .
-
-A range expression must evaluate to an array, map or string. The identifier list must contain
-either one or two identifiers. If the range expression is a map, a single identifier is declared
-to range over the keys of the map; two identifiers range over the keys and corresponding
-values. For arrays and strings, the behavior is analogous for integer indices (the keys) and
-array elements (the values).
-
-	a := []int(1, 2, 3);
-	m := [string]map int("fo",2, "foo",3, "fooo",4)
-
-	range i := a {
-		f(a[i]);
+	var key string;
+	var val interface {};  // value type of m is assignment-compatible to val
+	for key, value = range m {
+		h(key, value)
 	}
+	// key == last map key encountered in iteration
+	// val == map[key]
 
-	range i, v := a {
-		f(v);
-	}
-
-	range k, v := m {
-		assert(len(k) == v);
-	}
-
-TODO: is this right?
+If map entries that have not yet been processed are deleted during iteration,
+they will not be processed. If map entries are inserted during iteration, the
+behavior is implementation-dependent. Likewise, if the range expression is a
+pointer variable, the behavior of assigning to that variable is implementation-
+dependent. Assigning to the iteration variables during iteration simply changes
+the values of those variables for the current iteration; it does not affect any
+subsequent iterations.
 
 
 Go statements
