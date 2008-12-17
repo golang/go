@@ -2038,5 +2038,12 @@ latype:
 		YYERROR;
 	}
 
+nametype:
+	LNAME
+	{
+		yyerror("no type %s", $1->name);
+		YYERROR;
+	}
+
 /**/
 
