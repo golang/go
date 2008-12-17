@@ -240,7 +240,7 @@ fixedbugs/bug074.go:6: syntax error near string
 fixedbugs/bug074.go:7: x: undefined
 
 =========== fixedbugs/bug081.go
-fixedbugs/bug081.go:5: syntax error near x
+fixedbugs/bug081.go:5: no type x
 
 =========== fixedbugs/bug083.go
 fixedbugs/bug083.dir/bug1.go:5: syntax error near T0
