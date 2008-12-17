@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(December 16, 2008)
+(December 17, 2008)
 
 ----
 
@@ -358,45 +358,32 @@ language support.
 Notation
 ----
 
-The syntax is specified using Parameterized Extended Backus-Naur Form (PEBNF).
-Specifically, productions are expressions constructed from terms and the
-following operators:
+The syntax is specified using Extended Backus-Naur Form (EBNF):
 
-- |   separates alternatives (least binding strength)
-- ()  groups
-- []  specifies an option (0 or 1 times)
-- {}  specifies repetition (0 to n times)
-
-The syntax of PEBNF can be expressed in itself:
-
-	Production = production_name [ Parameters ] "=" Expression .
-	Parameters = "<" production_name { "," production_name } ">" .
+	Production = production_name "=" Expression .
 	Expression = Alternative { "|" Alternative } .
 	Alternative = Term { Term } .
-	Term = production_name [ Arguments ] | token [ "..." token ] | Group | Option | Repetition .
-	Arguments = "<" Expression { "," Expression } ">" .
+	Term = production_name | token [ "..." token ] | Group | Option | Repetition .
 	Group = "(" Expression ")" .
 	Option = "[" Expression ")" .
 	Repetition = "{" Expression "}" .
 
+Productions are expressions constructed from terms and the following operators:
+
+	|   separates alternatives (least binding strength)
+	()  groups
+	[]  specifies an option (0 or 1 times)
+	{}  specifies repetition (0 to n times)
+
 Lower-case production names are used to identify productions that cannot
-be broken by white space or comments; they are usually tokens. Other
-production names are in CamelCase.
+be broken by white space or comments; they are tokens. Other production
+names are in CamelCase.
 
 Tokens (lexical symbols) are enclosed in double quotes '''' (the
 double quote symbol is written as ''"'').
 
 The form "a ... b" represents the set of characters from "a" through "b" as
 alternatives.
-
-Productions can be parameterized. To get the actual production the parameter is
-substituted with the argument provided where the production name is used. For
-instance, there are various forms of semicolon-separated lists in the grammar.
-The parameterized production for such lists is:
-
-	List<P> = P { ";" P } [ ";" ] .
-
-In this case, P stands for the actual list element.
 
 Where possible, recursive productions are used to express evaluation order
 and operator precedence syntactically (for instance for expressions).
@@ -684,14 +671,6 @@ function, method) and specifies properties of that entity such as its type.
 		[ "export" | "package" ]
 		( ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl ) .
 		
-Except for function, method and abbreviated variable declarations (using ":="),
-all declarations follow the same pattern. There is either a single declaration
-of the form P, or an optional semicolon-separated list of declarations of the
-form P surrounded by parentheses:
-
-	Decl<P> = P | "(" [ List<P> ] ")" .
-	List<P> = P { ";" P } [ ";" ] .
-
 Every identifier in a program must be declared; some identifiers, such as "int"
 and "true", are predeclared (§Predeclared identifiers).
 
@@ -796,7 +775,8 @@ Const declarations
 A constant declaration binds an identifier to the value of a constant
 expression (§Constant expressions).
 
-	ConstDecl = "const" Decl<ConstSpec> .
+	ConstDecl = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
+	ConstSpecList = ConstSpec { ";" ConstSpec } [ ";" ] .
 	ConstSpec = IdentifierList [ CompleteType ] [ "=" ExpressionList ] .
 
 	IdentifierList = identifier { "," identifier } .
@@ -949,7 +929,8 @@ Type declarations
 A type declaration specifies a new type and binds an identifier to it.
 The identifier is called the ``type name''; it denotes the type.
 
-	TypeDecl = "type" Decl<TypeSpec> .
+	TypeDecl = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
+	TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
 	TypeSpec = identifier Type .
 
 A struct or interface type may be forward-declared (§Struct types,
@@ -983,7 +964,8 @@ The variable type must be a complete type (§Types).
 In some forms of declaration the type of the initial value defines the type
 of the variable.
 
-	VarDecl = "var" Decl<VarSpec> .
+	VarDecl = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
+	VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
 	VarSpec = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
 
 	var i int
@@ -1007,7 +989,7 @@ If the variable type is omitted, and the corresponding initialization expression
 is a constant expression of abstract int or floating point type, the type
 of the variable is "int" or "float" respectively:
 
-	var i = 0  // i has int type
+	var i = 0       // i has int type
 	var f = 3.1415  // f has float type
 
 The syntax
@@ -1344,7 +1326,8 @@ an identifier and type for each field. Within a struct type no field
 identifier may be declared twice and all field types must be complete
 types (§Types).
 
-	StructType = "struct" [ "{" [ List<FieldDecl> ] "}" ] .
+	StructType = "struct" [ "{" [ FieldDeclList ] "}" ] .
+	FieldDeclList = FieldDecl { ";" FieldDecl } [ ";" ] .
 	FieldDecl = (IdentifierList CompleteType | TypeName) [ Tag ] .
 	Tag = string_lit .
 
@@ -1553,7 +1536,8 @@ Type interfaces may be specified explicitly by interface types.
 An interface type denotes the set of all types that implement at least
 the set of methods specified by the interface type, and the value "nil".
 
-	InterfaceType = "interface" [ "{" [ List<MethodSpec> ] "}" ] .
+	InterfaceType = "interface" [ "{" [ MethodSpecList ] "}" ] .
+	MethodSpecList = MethodSpec { ";" MethodSpec } [ ";" ] .
 	MethodSpec = IdentifierList FunctionType .
 
 	// A basic file interface.
@@ -3235,7 +3219,8 @@ The file must begin with a package clause.
 A package can gain access to exported items from another package
 through an import declaration:
 
-	ImportDecl = "import" Decl<ImportSpec> .
+	ImportDecl = "import" ( ImportSpec | "(" [ ImportSpecList ] ")" ) .
+	ImportSpecList = ImportSpec { ";" ImportSpec } [ ";" ] .
 	ImportSpec = [ "." | PackageName ] PackageFileName .
 
 An import statement makes the exported contents of the named
