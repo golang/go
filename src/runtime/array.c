@@ -23,7 +23,7 @@ sys·newarray(uint32 nel, uint32 cap, uint32 width, Array* ret)
 	d->array = d->b;
 
 	ret = d;
-	FLUSH(&d);
+	FLUSH(&ret);
 
 	if(debug) {
 		prints("newarray: nel=");
@@ -33,7 +33,7 @@ sys·newarray(uint32 nel, uint32 cap, uint32 width, Array* ret)
 		prints("; width=");
 		sys·printint(width);
 		prints("; ret=");
-		sys·printpointer(ret);
+		sys·printarray(ret);
 		prints("\n");
 	}
 }
@@ -85,11 +85,11 @@ sys·arraysliced(Array* old, uint32 lb, uint32 hb, uint32 width, Array* ret)
 	d->array = old->array + lb*width;
 
 	ret = d;
-	FLUSH(&d);
+	FLUSH(&ret);
 
 	if(debug) {
 		prints("sys·arrayslices: old=");
-		sys·printpointer(old);
+		sys·printarray(old);
 		prints("; lb=");
 		sys·printint(lb);
 		prints("; hb=");
@@ -97,7 +97,7 @@ sys·arraysliced(Array* old, uint32 lb, uint32 hb, uint32 width, Array* ret)
 		prints("; width=");
 		sys·printint(width);
 		prints("; ret=");
-		sys·printpointer(ret);
+		sys·printarray(ret);
 		prints("\n");
 	}
 }
@@ -132,7 +132,7 @@ sys·arrayslices(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Arra
 	d->array = old + lb*width;
 
 	ret = d;
-	FLUSH(&d);
+	FLUSH(&ret);
 
 	if(debug) {
 		prints("sys·arrayslices: old=");
@@ -146,7 +146,7 @@ sys·arrayslices(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Arra
 		prints("; width=");
 		sys·printint(width);
 		prints("; ret=");
-		sys·printpointer(ret);
+		sys·printarray(ret);
 		prints("\n");
 	}
 }
@@ -164,15 +164,24 @@ sys·arrays2d(byte* old, uint32 nel, Array* ret)
 	d->array = old;
 
 	ret = d;
-	FLUSH(&d);
+	FLUSH(&ret);
 
 	if(debug) {
 		prints("sys·arrays2d: old=");
 		sys·printpointer(old);
-		prints("; nel=");
-		sys·printint(nel);
 		prints("; ret=");
-		sys·printpointer(ret);
+		sys·printarray(ret);
 		prints("\n");
 	}
+}
+
+void
+sys·printarray(Array *a)
+{
+	prints("[");
+	sys·printint(a->nel);
+	prints(",");
+	sys·printint(a->cap);
+	prints("]");
+	sys·printpointer(a->array);
 }
