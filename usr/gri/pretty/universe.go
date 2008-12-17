@@ -5,7 +5,7 @@
 package Universe
 
 import (
-	"array"
+	"array";
 	Globals "globals";
 	Object "object";
 	Type "type";
