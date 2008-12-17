@@ -40,7 +40,7 @@ main(int argc, char **argv)
 	exit(1);
 
 begin:
-	printf("char *%simport = \n", name);
+	printf("char *%simport =\n", name);
 
 	// process imports, stopping at $$ that closes them
 	while(fgets(buf, sizeof buf, fin) != NULL) {
