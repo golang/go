@@ -23,11 +23,11 @@ install: pretty
 	cp pretty $(HOME)/bin/pretty
 
 clean:
-	rm -f pretty *.6  *~
+	rm -f pretty *.6 *.a *~
 
 pretty.6:	 platform.6 printer.6 compilation.6
 
-compilation.6:	 platform.6 scanner.6 parser.6 ast.6
+compilation.6:	 platform.6 scanner.6 parser.6 ast.6 typechecker.6
 
 ast.6:	 scanner.6
 
@@ -38,6 +38,14 @@ parser.6:	 scanner.6 ast.6
 platform.6:	 utils.6
 
 printer.6:	 scanner.6 ast.6
+
+typechecker.6:	ast.6 universe.6 globals.6 type.6
+
+universe.6:	globals.6 object.6 type.6
+
+object.6:	globals.6
+
+type.6:	globals.6 object.6
 
 %.6:	%.go
 	$(G) $(F) $<
