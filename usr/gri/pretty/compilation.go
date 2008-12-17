@@ -10,6 +10,7 @@ import Platform "platform"
 import Scanner "scanner"
 import Parser "parser"
 import AST "ast"
+import TypeChecker "typechecker"
 
 
 func assert(b bool) {
@@ -133,6 +134,11 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	parser.Open(flags.verbose, flags.sixg, flags.deps, &scanner, tstream);
 
 	prog := parser.ParseProgram();
+	
+	if err.nerrors == 0 {
+		TypeChecker.CheckProgram(prog);
+	}
+	
 	return prog, err.nerrors;
 }
 
