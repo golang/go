@@ -1,4 +1,4 @@
-char *sysimport = 
+char *sysimport =
 	"package sys\n"
 	"export func sys.mal (? int32) (? *any)\n"
 	"export func sys.breakpoint ()\n"
@@ -79,7 +79,7 @@ char *sysimport =
 	"export func sys.semrelease (sema *int32)\n"
 	"\n"
 	"$$\n";
-char *unsafeimport = 
+char *unsafeimport =
 	"package unsafe\n"
 	"export type unsafe.pointer *any\n"
 	"\n"
