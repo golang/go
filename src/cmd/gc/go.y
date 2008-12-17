@@ -2037,5 +2037,6 @@ latype:
 		yyerror("no type %s.%s", context, $3->name);
 		YYERROR;
 	}
+
 /**/
 
