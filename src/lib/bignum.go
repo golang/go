@@ -100,7 +100,7 @@ export func Dump(x *[]Digit) {
 
 
 // ----------------------------------------------------------------------------
-// Raw operations on sequences of digits
+// Natural numbers
 //
 // Naming conventions
 //
@@ -108,170 +108,6 @@ export func Dump(x *[]Digit) {
 // x, y   operands
 // z      result
 // n, m   len(x), len(y)
-
-
-func Add1(z, x *[]Digit, c Digit) Digit {
-	n := len(x);
-	for i := 0; i < n; i++ {
-		t := c + x[i];
-		c, z[i] = t>>W, t&M
-	}
-	return c;
-}
-
-
-func Add(z, x, y *[]Digit) Digit {
-	var c Digit;
-	n := len(x);
-	for i := 0; i < n; i++ {
-		t := c + x[i] + y[i];
-		c, z[i] = t>>W, t&M
-	}
-	return c;
-}
-
-
-func Sub1(z, x *[]Digit, c Digit) Digit {
-	n := len(x);
-	for i := 0; i < n; i++ {
-		t := c + x[i];
-		c, z[i] = Digit(int64(t)>>W), t&M;  // requires arithmetic shift!
-	}
-	return c;
-}
-
-
-func Sub(z, x, y *[]Digit) Digit {
-	var c Digit;
-	n := len(x);
-	for i := 0; i < n; i++ {
-		t := c + x[i] - y[i];
-		c, z[i] = Digit(int64(t)>>W), t&M;  // requires arithmetic shift!
-	}
-	return c;
-}
-
-
-// Returns c = x*y div B, z = x*y mod B.
-func Mul11(x, y Digit) (Digit, Digit) {
-	// Split x and y into 2 sub-digits each,
-	// multiply the digits separately while avoiding overflow,
-	// and return the product as two separate digits.
-
-	// This code also works for non-even bit widths W
-	// which is why there are separate constants below
-	// for half-digits.
-	const W2 = (W + 1)/2;
-	const DW = W2*2 - W;  // 0 or 1
-	const B2  = 1<<W2;
-	const M2  = B2 - 1;
-
-	// split x and y into sub-digits
-	// x = (x1*B2 + x0)
-	// y = (y1*B2 + y0)
-	x1, x0 := x>>W2, x&M2;
-	y1, y0 := y>>W2, y&M2;
-
-	// x*y = t2*B2^2 + t1*B2 + t0
-	t0 := x0*y0;
-	t1 := x1*y0 + x0*y1;
-	t2 := x1*y1;
-
-	// compute the result digits but avoid overflow
-	// z = z1*B + z0 = x*y
-	z0 := (t1<<W2 + t0)&M;
-	z1 := t2<<DW + (t1 + t0>>W2)>>(W-W2);
-
-	return z1, z0;
-}
-
-
-func Mul(z, x, y *[]Digit) {
-	n := len(x);
-	m := len(y);
-	for j := 0; j < m; j++ {
-		d := y[j];
-		if d != 0 {
-			c := Digit(0);
-			for i := 0; i < n; i++ {
-				// z[i+j] += c + x[i]*d;
-				z1, z0 := Mul11(x[i], d);
-				t := c + z[i+j] + z0;
-				c, z[i+j] = t>>W, t&M;
-				c += z1;
-			}
-			z[n+j] = c;
-		}
-	}
-}
-
-
-func Shl(z, x *[]Digit, s uint) Digit {
-	assert(s <= W);
-	n := len(x);
-	var c Digit;
-	for i := 0; i < n; i++ {
-		c, z[i] = x[i] >> (W-s), x[i] << s & M | c;
-	}
-	return c;
-}
-
-
-func Shr(z, x *[]Digit, s uint) Digit {
-	assert(s <= W);
-	n := len(x);
-	var c Digit;
-	for i := n - 1; i >= 0; i-- {
-		c, z[i] = x[i] << (W-s) & M, x[i] >> s | c;
-	}
-	return c;
-}
-
-
-func And1(z, x *[]Digit, y Digit) {
-	for i := len(x) - 1; i >= 0; i-- {
-		z[i] = x[i] & y;
-	}
-}
-
-
-func And(z, x, y *[]Digit) {
-	for i := len(x) - 1; i >= 0; i-- {
-		z[i] = x[i] & y[i];
-	}
-}
-
-
-func Or1(z, x *[]Digit, y Digit) {
-	for i := len(x) - 1; i >= 0; i-- {
-		z[i] = x[i] | y;
-	}
-}
-
-
-func Or(z, x, y *[]Digit) {
-	for i := len(x) - 1; i >= 0; i-- {
-		z[i] = x[i] | y[i];
-	}
-}
-
-
-func Xor1(z, x *[]Digit, y Digit) {
-	for i := len(x) - 1; i >= 0; i-- {
-		z[i] = x[i] ^ y;
-	}
-}
-
-
-func Xor(z, x, y *[]Digit) {
-	for i := len(x) - 1; i >= 0; i-- {
-		z[i] = x[i] ^ y[i];
-	}
-}
-
-
-// ----------------------------------------------------------------------------
-// Natural numbers
 
 
 export type Natural []Digit;
@@ -328,12 +164,26 @@ func (x *Natural) Add(y *Natural) *Natural {
 	if n < m {
 		return y.Add(x);
 	}
-
+	
+	c := Digit(0);
 	z := new(Natural, n + 1);
-	c := Add(z[0 : m], x[0 : m], y);
-	z[n] = Add1(z[m : n], x[m : n], c);
+	i := 0;
+	for i < m {
+		t := c + x[i] + y[i];
+		c, z[i] = t>>W, t&M;
+		i++;
+	}
+	for i < n {
+		t := c + x[i];
+		c, z[i] = t>>W, t&M;
+		i++;
+	}
+	if c != 0 {
+		z[i] = c;
+		i++;
+	}
 
-	return Normalize(z);
+	return z[0 : i];
 }
 
 
@@ -343,14 +193,59 @@ func (x *Natural) Sub(y *Natural) *Natural {
 	if n < m {
 		panic("underflow")
 	}
-
+	
+	c := Digit(0);
 	z := new(Natural, n);
-	c := Sub(z[0 : m], x[0 : m], y);
-	if Sub1(z[m : n], x[m : n], c) != 0 {
-		panic("underflow");
+	i := 0;
+	for i < m {
+		t := c + x[i] - y[i];
+		c, z[i] = Digit(int64(t)>>W), t&M;  // requires arithmetic shift!
+		i++;
+	}
+	for i < n {
+		t := c + x[i];
+		c, z[i] = Digit(int64(t)>>W), t&M;  // requires arithmetic shift!
+		i++;
+	}
+	for i > 0 && z[i - 1] == 0 {  // normalize
+		i--;
 	}
 
-	return Normalize(z);
+	return z[0 : i];
+}
+
+
+// Returns c = x*y div B, z = x*y mod B.
+func Mul11(x, y Digit) (Digit, Digit) {
+	// Split x and y into 2 sub-digits each,
+	// multiply the digits separately while avoiding overflow,
+	// and return the product as two separate digits.
+
+	// This code also works for non-even bit widths W
+	// which is why there are separate constants below
+	// for half-digits.
+	const W2 = (W + 1)/2;
+	const DW = W2*2 - W;  // 0 or 1
+	const B2  = 1<<W2;
+	const M2  = B2 - 1;
+
+	// split x and y into sub-digits
+	// x = (x1*B2 + x0)
+	// y = (y1*B2 + y0)
+	x1, x0 := x>>W2, x&M2;
+	y1, y0 := y>>W2, y&M2;
+
+	// x*y = t2*B2^2 + t1*B2 + t0
+	t0 := x0*y0;
+	t1 := x1*y0 + x0*y1;
+	t2 := x1*y1;
+
+	// compute the result digits but avoid overflow
+	// z = z1*B + z0 = x*y
+	z0 := (t1<<W2 + t0)&M;
+	z1 := t2<<DW + (t1 + t0>>W2)>>(W-W2);
+
+	return z1, z0;
 }
 
 
@@ -359,7 +254,20 @@ func (x *Natural) Mul(y *Natural) *Natural {
 	m := len(y);
 
 	z := new(Natural, n + m);
-	Mul(z, x, y);
+	for j := 0; j < m; j++ {
+		d := y[j];
+		if d != 0 {
+			c := Digit(0);
+			for i := 0; i < n; i++ {
+				// z[i+j] += c + x[i]*d;
+				z1, z0 := Mul11(x[i], d);
+				t := c + z[i+j] + z0;
+				c, z[i+j] = t>>W, t&M;
+				c += z1;
+			}
+			z[n+j] = c;
+		}
+	}
 
 	return Normalize(z);
 }
@@ -403,7 +311,7 @@ func Pack(x *[]Digit2) *Natural {
 
 func Mul1(z, x *[]Digit2, y Digit2) Digit2 {
 	n := len(x);
-	var c Digit;
+	c := Digit(0);
 	f := Digit(y);
 	for i := 0; i < n; i++ {
 		t := c + Digit(x[i])*f;
@@ -415,7 +323,7 @@ func Mul1(z, x *[]Digit2, y Digit2) Digit2 {
 
 func Div1(z, x *[]Digit2, y Digit2) Digit2 {
 	n := len(x);
-	var c Digit;
+	c := Digit(0);
 	d := Digit(y);
 	for i := n-1; i >= 0; i-- {
 		t := c*B2 + Digit(x[i]);
@@ -550,6 +458,17 @@ func (x *Natural) DivMod(y *Natural) (*Natural, *Natural) {
 }
 
 
+func Shl(z, x *[]Digit, s uint) Digit {
+	assert(s <= W);
+	n := len(x);
+	c := Digit(0);
+	for i := 0; i < n; i++ {
+		c, z[i] = x[i] >> (W-s), x[i] << s & M | c;
+	}
+	return c;
+}
+
+
 func (x *Natural) Shl(s uint) *Natural {
 	n := uint(len(x));
 	m := n + s/W;
@@ -558,6 +477,17 @@ func (x *Natural) Shl(s uint) *Natural {
 	z[m] = Shl(z[m-n : m], x, s%W);
 
 	return Normalize(z);
+}
+
+
+func Shr(z, x *[]Digit, s uint) Digit {
+	assert(s <= W);
+	n := len(x);
+	c := Digit(0);
+	for i := n - 1; i >= 0; i-- {
+		c, z[i] = x[i] << (W-s) & M, x[i] >> s | c;
+	}
+	return c;
 }
 
 
@@ -582,11 +512,20 @@ func (x *Natural) And(y *Natural) *Natural {
 		return y.And(x);
 	}
 
-	z := new(Natural, n);
-	And(z[0 : m], x[0 : m], y);
-	Or1(z[m : n], x[m : n], 0);
+	z := new(Natural, m);
+	for i := 0; i < m; i++ {
+		z[i] = x[i] & y[i];
+	}
+	// upper bits are 0
 
 	return Normalize(z);
+}
+
+
+func Copy(z, x *[]Digit) {
+	for i, e := range x {
+		z[i] = e
+	}
 }
 
 
@@ -598,10 +537,12 @@ func (x *Natural) Or(y *Natural) *Natural {
 	}
 
 	z := new(Natural, n);
-	Or(z[0 : m], x[0 : m], y);
-	Or1(z[m : n], x[m : n], 0);
+	for i := 0; i < m; i++ {
+		z[i] = x[i] | y[i];
+	}
+	Copy(z[m : n], x[m : n]);
 
-	return Normalize(z);
+	return z;
 }
 
 
@@ -613,8 +554,10 @@ func (x *Natural) Xor(y *Natural) *Natural {
 	}
 
 	z := new(Natural, n);
-	Xor(z[0 : m], x[0 : m], y);
-	Or1(z[m : n], x[m : n], 0);
+	for i := 0; i < m; i++ {
+		z[i] = x[i] ^ y[i];
+	}
+	Copy(z[m : n], x[m : n]);
 
 	return Normalize(z);
 }
@@ -688,7 +631,7 @@ func (x *Natural) ToString(base uint) string {
 
 	// don't destroy x
 	t := new(Natural, len(x));
-	Or1(t, x, 0);  // copy
+	Copy(t, x);
 
 	// convert
 	i := n;
