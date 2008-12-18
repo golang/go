@@ -1,0 +1,89 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package net
+
+import (
+	"net";
+	"flag";
+	"io";
+	"os";
+	"testing";
+)
+
+// If an IPv6 tunnel is running (see go/stubl), we can try dialing a real IPv6 address.
+var ipv6 = false
+var ipv6_flag = flag.Bool("ipv6", false, &ipv6, "assume ipv6 tunnel is present")
+
+// fd is already connected to www.google.com port 80.
+// Run an HTTP request to fetch the main page.
+func FetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
+	req := io.StringBytes("GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
+	n, errno := fd.Write(req);
+
+	buf := new([1000]byte);
+	n, errno = io.Readn(fd, buf);
+
+	if n < 1000 {
+		t.Errorf("FetchGoogle: short HTTP read from %s %s", network, addr);
+		return
+	}
+}
+
+func DoDial(t *testing.T, network, addr string) {
+	fd, err := net.Dial(network, "", addr);
+	if err != nil {
+		t.Errorf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
+		return
+	}
+	FetchGoogle(t, fd, network, addr);
+	fd.Close()
+}
+
+func DoDialTCP(t *testing.T, network, addr string) {
+	fd, err := net.DialTCP(network, "", addr);
+	if err != nil {
+		t.Errorf("net.DialTCP(%q, %q, %q) = _, %v", network, "", addr, err);
+	} else {
+		FetchGoogle(t, fd, network, addr);
+	}
+	fd.Close()
+}
+
+var googleaddrs = []string {
+	"74.125.19.99:80",
+	"www.google.com:80",
+	"74.125.19.99:http",
+	"www.google.com:http",
+	"074.125.019.099:0080",
+	"[::ffff:74.125.19.99]:80",
+	"[::ffff:4a7d:1363]:80",
+	"[0:0:0:0:0000:ffff:74.125.19.99]:80",
+	"[0:0:0:0:000000:ffff:74.125.19.99]:80",
+	"[0:0:0:0:0:ffff::74.125.19.99]:80",
+	"[2001:4860:0:2001::68]:80"	// ipv6.google.com; removed if ipv6 flag not set
+}
+
+export func TestDialGoogle(t *testing.T) {
+	// If no ipv6 tunnel, don't try the last address.
+	if !ipv6 {
+		googleaddrs[len(googleaddrs)-1] = ""
+	}
+
+	for i := 0; i < len(googleaddrs); i++ {
+		addr := googleaddrs[i];
+		if addr == "" {
+			continue
+		}
+		t.Logf("-- %s --", addr);
+		DoDial(t, "tcp", addr);
+		DoDialTCP(t, "tcp", addr);
+		if addr[0] != '[' {
+			DoDial(t, "tcp4", addr);
+			DoDialTCP(t, "tcp4", addr)
+		}
+		DoDial(t, "tcp6", addr);
+		DoDialTCP(t, "tcp6", addr)
+	}
+}

@@ -12,6 +12,10 @@
 
 package net
 
+import (
+	"net"
+)
+
 export const (
 	IPv4len = 4;
 	IPv6len = 16
@@ -240,58 +244,6 @@ export func MaskToString(mask *[]byte) string {
 	return IPToString(mask)
 }
 
-// Parsing.
-
-// Bigger than we need, not too big to worry about overflow
-const Big = 0xFFFFFF
-
-// Decimal to integer starting at &s[i].
-// Returns number, new offset, success.
-func dtoi(s string, i int) (n int, i1 int, ok bool) {
-	if len(s) <= i || s[i] < '0' || s[i] > '9' {
-		return 0, i, false
-	}
-	n = 0;
-	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
-		n = n*10 + int(s[i] - '0');
-		if n >= Big {
-			return 0, i, false
-		}
-	}
-	return n, i, true
-}
-
-// Is b a hex digit?
-func ishex(b byte) bool {
-	return '0' <= b && b <= '9'
-		|| 'a' <= b && b <= 'f'
-		|| 'A' <= b && b <= 'F'
-}
-
-// Hexadecimal to integer starting at &s[i].
-// Returns number, new offset, success.
-func xtoi(s string, i int) (n int, i1 int, ok bool) {
-	if len(s) <= i || !ishex(s[i]) {
-		return 0, i, false
-	}
-
-	n = 0;
-	for ; i < len(s) && ishex(s[i]); i++ {
-		n *= 16;
-		if '0' <= s[i] && s[i] <= '9' {
-			n += int(s[i] - '0')
-		} else if 'a' <= s[i] && s[i] <= 'f' {
-			n += int(s[i] - 'a') + 10
-		} else {
-			n += int(s[i] -'A') + 10
-		}
-		if n >= Big {
-			return 0, i, false
-		}
-	}
-	return n, i, true
-}
-
 // Parse IPv4 address (d.d.d.d).
 func ParseIPv4(s string) *[]byte {
 	var p [IPv4len]byte;
@@ -307,7 +259,7 @@ func ParseIPv4(s string) *[]byte {
 			n int;
 			ok bool
 		)
-		n, i, ok = dtoi(s, i);
+		n, i, ok = Dtoi(s, i);
 		if !ok || n > 0xFF {
 			return nil
 		}
@@ -346,7 +298,7 @@ func ParseIPv6(s string) *[]byte {
 	j := 0;
 L:	for j < IPv6len {
 		// Hex number.
-		n, i1, ok := xtoi(s, i);
+		n, i1, ok := Xtoi(s, i);
 		if !ok || n > 0xFFFF {
 			return nil
 		}
