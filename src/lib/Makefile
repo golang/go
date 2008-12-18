@@ -27,6 +27,7 @@ FILES=\
 	bignum\
 	bufio\
 	flag\
+	malloc\
 	once\
 	rand\
 	sort\

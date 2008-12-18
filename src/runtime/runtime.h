@@ -49,6 +49,7 @@ typedef	struct	Stktop		Stktop;
 typedef	struct	String		*string;
 typedef	struct	Usema		Usema;
 typedef	struct	SigTab	SigTab;
+typedef	struct	MCache	MCache;
 
 /*
  * per cpu declaration
@@ -163,7 +164,7 @@ struct	M
 	M*	schedlink;
 	Mem	mem;
 	uint32	machport;	// Return address for Mach IPC (OS X)
-	void*	freelist[SmallFreeClasses];
+	MCache	*mcache;
 };
 struct	Stktop
 {
@@ -280,6 +281,8 @@ Func*	findfunc(uint64);
 int32	funcline(Func*, uint64);
 void*	stackalloc(uint32);
 void	stackfree(void*);
+MCache*	allocmcache(void);
+void	mallocinit(void);
 
 #pragma	varargck	argpos	printf	1
 
