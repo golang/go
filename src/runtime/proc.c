@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "malloc.h"	/* so that acid generated from proc.c includes malloc data structures */
 
 typedef struct Sched Sched;
 
@@ -94,6 +95,8 @@ schedinit(void)
 {
 	int32 n;
 	byte *p;
+
+	mallocinit();
 
 	sched.gomaxprocs = 1;
 	p = getenv("GOMAXPROCS");
@@ -403,6 +406,8 @@ starttheworld(void)
 void
 mstart(void)
 {
+	if(m->mcache == nil)
+		m->mcache = allocmcache();
 	minit();
 	scheduler();
 }

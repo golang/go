@@ -23,6 +23,12 @@ LIBOFILES=\
 	iface.$O\
 	array.$O\
 	mem.$O\
+	malloc.$O\
+	mcache.$O\
+	mcentral.$O\
+	mfixalloc.$O\
+	mheap.$O\
+	msize.$O\
 	print.$O\
 	rune.$O\
 	proc.$O\
