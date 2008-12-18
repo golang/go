@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(December 17, 2008)
+(December 18, 2008)
 
 ----
 
@@ -3045,10 +3045,12 @@ as a type name, or as a pointer to a type name. The type specified by the
 type name is called ``receiver base type''. The receiver base type must be a
 type declared in the current file, and it must not be a pointer type.
 The method is said to be ``bound'' to the receiver base type; specifically
-it is declared within the scope of that type (§Type declarations).
+it is declared within the scope of that type (§Type declarations). If the
+receiver value is not needed inside the method, its identifier may be omitted
+in the declaration.
 
 	MethodDecl = "func" Receiver identifier FunctionType [ Block ] .
-	Receiver = "(" identifier [ "*" ] TypeName ")" .
+	Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
 
 All methods bound to a receiver base type must have the same receiver type:
 Either all receiver types are pointers to the base type or they are the base
