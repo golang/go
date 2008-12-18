@@ -2,24 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// $G $F.go && $L $F.$A && ./$A.out
+package net
 
-package main
 import (
 	"os";
 	"io";
 	"net";
-	"syscall"
+	"testing";
 )
-
-func StringToBuf(s string) *[]byte  {
-	l := len(s);
-	b := new([]byte, l);
-	for i := 0; i < l; i++ {
-		b[i] = s[i];
-	}
-	return b;
-}
 
 func Echo(fd io.ReadWrite, done *chan<- int) {
 	var buf [1024]byte;
@@ -34,10 +24,10 @@ func Echo(fd io.ReadWrite, done *chan<- int) {
 	done <- 1
 }
 
-func Serve(network, addr string, listening, done *chan<- int) {
+func Serve(t *testing.T, network, addr string, listening, done *chan<- int) {
 	l, err := net.Listen(network, addr);
 	if err != nil {
-		panic("listen: "+err.String());
+		t.Fatalf("net.Listen(%q, %q) = _, %v", network, addr, err);
 	}
 	listening <- 1;
 
@@ -54,44 +44,41 @@ func Serve(network, addr string, listening, done *chan<- int) {
 	done <- 1
 }
 
-func Connect(network, addr string) {
+func Connect(t *testing.T, network, addr string) {
 	fd, err := net.Dial(network, "", addr);
 	if err != nil {
-		panic("connect: "+err.String());
+		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
 	}
 
-	b := StringToBuf("hello, world\n");
+	b := io.StringBytes("hello, world\n");
 	var b1 [100]byte;
 
 	n, errno := fd.Write(b);
 	if n != len(b) {
-		panic("syscall.write in connect");
+		t.Fatalf("fd.Write(%q) = %d, %v", b, n, errno);
 	}
 
 	n, errno = fd.Read(&b1);
 	if n != len(b) {
-		panic("syscall.read in connect");
+		t.Fatalf("fd.Read() = %d, %v", n, errno);
 	}
-
-//	os.Stdout.Write((&b1)[0:n]);
 	fd.Close();
 }
 
-func Test(network, listenaddr, dialaddr string) {
-//	print("Test ", network, " ", listenaddr, " ", dialaddr, "\n");
+func DoTest(t *testing.T, network, listenaddr, dialaddr string) {
+	t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr);
 	listening := new(chan int);
 	done := new(chan int);
-	go Serve(network, listenaddr, listening, done);
+	go Serve(t, network, listenaddr, listening, done);
 	<-listening;	// wait for server to start
-	Connect(network, dialaddr);
+	Connect(t, network, dialaddr);
 	<-done;	// make sure server stopped
 }
 
-func main() {
-	Test("tcp", "0.0.0.0:9999", "127.0.0.1:9999");
-	Test("tcp", "[::]:9999", "[::ffff:127.0.0.1]:9999");
-	Test("tcp", "[::]:9999", "127.0.0.1:9999");
-	Test("tcp", "0.0.0.0:9999", "[::ffff:127.0.0.1]:9999");
-	sys.exit(0);	// supposed to happen on return, doesn't
+export func TestTcpServer(t *testing.T) {
+	DoTest(t,  "tcp", "0.0.0.0:9999", "127.0.0.1:9999");
+	DoTest(t, "tcp", "[::]:9999", "[::ffff:127.0.0.1]:9999");
+	DoTest(t, "tcp", "[::]:9999", "127.0.0.1:9999");
+	DoTest(t, "tcp", "0.0.0.0:9999", "[::ffff:127.0.0.1]:9999");
 }
 

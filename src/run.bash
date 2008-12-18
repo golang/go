@@ -28,6 +28,7 @@ maketest \
 	lib/hash\
 	lib/json\
 	lib/math\
+	lib/net\
 	lib/reflect\
 	lib/regexp\
 	lib/strconv\

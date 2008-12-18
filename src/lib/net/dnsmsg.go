@@ -63,6 +63,14 @@ export const (
 	DNS_ClassCHAOS = 3;
 	DNS_ClassHESIOD = 4;
 	DNS_ClassANY = 255;
+
+	// DNS_Msg.rcode
+	DNS_RcodeSuccess = 0;
+	DNS_RcodeFormatError = 1;
+	DNS_RcodeServerFailure = 2;
+	DNS_RcodeNameError = 3;
+	DNS_RcodeNotImplemented = 4;
+	DNS_RcodeRefused = 5;
 )
 
 // The wire format for the DNS packet header.

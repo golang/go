@@ -16,9 +16,12 @@ export var (
 	MissingAddress = os.NewError("missing address");
 	UnknownNetwork = os.NewError("unknown network");
 	UnknownHost = os.NewError("unknown host");
+	DNS_Error = os.NewError("dns error looking up host");
 	UnknownPort = os.NewError("unknown port");
 	UnknownSocketFamily = os.NewError("unknown socket family");
 )
+
+export func LookupHost(name string) (name1 string, addrs *[]string, err *os.Error)
 
 // Split "host:port" into "host" and "port".
 // Host cannot contain colons unless it is bracketed.
@@ -42,10 +45,8 @@ func SplitHostPort(hostport string) (host, port string, err *os.Error) {
 		host = host[1:len(host)-1]
 	} else {
 		// ... but if there are no brackets, no colons.
-		for i := 0; i < len(host); i++ {
-			if host[i] == ':' {
-				return "", "", BadAddress
-			}
+		if ByteIndex(host, ':') >= 0 {
+			return "", "", BadAddress
 		}
 	}
 	return host, port, nil
@@ -55,26 +56,10 @@ func SplitHostPort(hostport string) (host, port string, err *os.Error) {
 // If host contains colons, will join into "[host]:port".
 func JoinHostPort(host, port string) string {
 	// If host has colons, have to bracket it.
-	for i := 0; i < len(host); i++ {
-		if host[i] == ':' {
-			return "[" + host + "]:" + port
-		}
+	if ByteIndex(host, ':') >= 0 {
+		return "[" + host + "]:" + port
 	}
 	return host + ":" + port
-}
-
-func xdtoi(s string) (n int, ok bool) {
-	if s == "" || s[0] < '0' || s[0] > '9' {
-		return 0, false
-	}
-	n = 0;
-	for i := 0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
-		n = n*10 + int(s[i] - '0');
-		if n >= 1000000 {	// bigger than we need
-			return 0, false
-		}
-	}
-	return n, true
 }
 
 // Convert "host:port" into IP address and port.
@@ -87,18 +72,33 @@ func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.E
 		return nil, 0, err
 	}
 
-	// TODO: Resolve host.
-
+	// Try as an IP address.
 	addr := ParseIP(host);
 	if addr == nil {
-		return nil, 0, UnknownHost
+		// Not an IP address.  Try as a DNS name.
+		hostname, addrs, err := LookupHost(host);
+		if err != nil {
+			return nil, 0, err
+		}
+		if len(addrs) == 0 {
+			return nil, 0, UnknownHost
+		}
+		addr = ParseIP(addrs[0]);
+		if addr == nil {
+			// should not happen
+			return nil, 0, BadAddress
+		}
 	}
 
-	// TODO: Resolve port.
-
-	p, ok := xdtoi(port);
-	if !ok || p < 0 || p > 0xFFFF {
-		return nil, 0, UnknownPort
+	p, i, ok := Dtoi(port, 0);
+	if !ok || i != len(port) {
+		p, ok = LookupPort(net, port);
+		if !ok {
+			return nil, 0, UnknownPort
+		}
+	}
+	if p < 0 || p > 0xFFFF {
+		return nil, 0, BadAddress
 	}
 
 	return addr, p, nil
@@ -284,13 +284,7 @@ func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Erro
 	var lip, rip *[]byte;
 	var lport, rport int;
 	var lerr, rerr *os.Error;
-// BUG 6g doesn't zero var lists
-lip = nil;
-rip = nil;
-lport = 0;
-rport = 0;
-lerr = nil;
-rerr = nil;
+
 	if laddr != "" {
 		lip, lport, lerr = HostPortToIP(net, laddr);
 		if lerr != nil {
@@ -335,9 +329,6 @@ rerr = nil;
 	}
 
 	var la, ra *syscall.Sockaddr;
-// BUG
-la = nil;
-ra = nil;
 	if lip != nil {
 		la, lerr = cvt(lip, lport);
 		if lerr != nil {
