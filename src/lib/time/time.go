@@ -53,13 +53,11 @@ var LeapMonths = []int{
 	31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 }
 
-func Months(year int64) *[]int {
+func Months(year int64) []int {
 	if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
-		return &LeapMonths
-	} else {
-		return &RegularMonths
+		return LeapMonths
 	}
-	return nil	// not reached
+	return RegularMonths
 }
 
 const (
@@ -258,13 +256,13 @@ var ShortMonthNames = []string{
 	"Dec"
 }
 
-func Copy(dst *[]byte, s string) {
+func Copy(dst []byte, s string) {
 	for i := 0; i < len(s); i++ {
 		dst[i] = s[i]
 	}
 }
 
-func Decimal(dst *[]byte, n int) {
+func Decimal(dst []byte, n int) {
 	if n < 0 {
 		n = 0
 	}
@@ -274,7 +272,7 @@ func Decimal(dst *[]byte, n int) {
 	}
 }
 
-func AddString(buf *[]byte, bp int, s string) int {
+func AddString(buf []byte, bp int, s string) int {
 	n := len(s);
 	Copy(buf[bp:bp+n], s);
 	return bp+n

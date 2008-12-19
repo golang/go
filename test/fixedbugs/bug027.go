@@ -11,7 +11,7 @@ type Element interface {
 
 type Vector struct {
 	nelem int;
-	elem *[]Element;
+	elem []Element;
 }
 
 func New() *Vector {

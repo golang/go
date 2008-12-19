@@ -6,7 +6,7 @@
 
 package main
 
-func P(a *[]string) string {
+func P(a []string) string {
 	s := "{";
 	for i := 0; i < 2; i++ {
 		if i > 0 {
@@ -19,7 +19,7 @@ func P(a *[]string) string {
 }
 
 func main() {
-	m := new(map[string] *[]string);
+	m := new(map[string] []string);
 	as := new([2]string);
 	as[0] = "0";
 	as[1] = "1";

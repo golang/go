@@ -13,7 +13,7 @@ import (
 
 
 type Buffer struct {
-	a *[]byte;
+	a []byte;
 }
 
 
@@ -27,7 +27,7 @@ func (b *Buffer) Clear() {
 }
 
 
-func (b *Buffer) Write(buf *[]byte) (written int, err *os.Error) {
+func (b *Buffer) Write(buf []byte) (written int, err *os.Error) {
 	n := len(b.a);
 	m := len(buf);
 	if n + m <= cap(b.a) {

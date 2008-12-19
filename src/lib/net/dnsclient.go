@@ -46,7 +46,7 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) 
 	}
 	out := new(DNS_Msg);
 	out.id = 0x1234;
-	out.question = &[]DNS_Question{
+	out.question = []DNS_Question{
 		DNS_Question{ name, DNS_TypeA, DNS_ClassINET }
 	};
 	out.recursion_desired = true;
@@ -80,21 +80,24 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) 
 	return nil, DNS_NoAnswer
 }
 
+var NIL []string // TODO(rsc)
+
+
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
-// TODO(rsc): Maybe return *[]*[]byte (==*[]IPAddr) instead?
-func Answer(name string, dns *DNS_Msg) (addrs *[]string, err *os.Error) {
+// TODO(rsc): Maybe return [][]byte (==[]IPAddr) instead?
+func Answer(name string, dns *DNS_Msg) (addrs []string, err *os.Error) {
 	addrs = new([]string, len(dns.answer))[0:0];
 
 	if dns.rcode == DNS_RcodeNameError && dns.authoritative {
-		return nil, DNS_NameNotFound	// authoritative "no such host"
+		return NIL, DNS_NameNotFound	// authoritative "no such host"
 	}
 	if dns.rcode != DNS_RcodeSuccess {
 		// None of the error codes make sense
 		// for the query we sent.  If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly.
-		return nil, DNS_ServerFailure
+		return NIL, DNS_ServerFailure
 	}
 
 	// Look for the name.
@@ -123,18 +126,18 @@ Cname:
 			}
 		}
 		if len(addrs) == 0 {
-			return nil, DNS_NameNotFound
+			return NIL, DNS_NameNotFound
 		}
 		return addrs, nil
 	}
 
 	// Too many redirects
-	return nil, DNS_RedirectLoop
+	return NIL, DNS_RedirectLoop
 }
 
 // Do a lookup for a single name, which must be rooted
 // (otherwise Answer will not find the answers).
-func TryOneName(cfg *DNS_Config, name string) (addrs *[]string, err *os.Error) {
+func TryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
 	err = DNS_NoServers;
 	for i := 0; i < len(cfg.servers); i++ {
 		// Calling Dial here is scary -- we have to be sure
@@ -170,7 +173,7 @@ func LoadConfig() {
 	cfg = DNS_ReadConfig();
 }
 
-export func LookupHost(name string) (name1 string, addrs *[]string, err *os.Error) {
+export func LookupHost(name string) (name1 string, addrs []string, err *os.Error) {
 	// TODO(rsc): Pick out obvious non-DNS names to avoid
 	// sending stupid requests to the server?
 

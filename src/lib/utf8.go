@@ -32,7 +32,7 @@ const (
 	Rune4Max = 1<<21 - 1;
 )
 
-func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
+func DecodeRuneInternal(p []byte) (rune, size int, short bool) {
 	n := len(p);
 	if n < 1 {
 		return RuneError, 0, true;
@@ -181,7 +181,7 @@ func DecodeRuneInStringInternal(s string, i int, n int) (rune, size int, short b
 	return RuneError, 1, false
 }
 
-export func FullRune(p *[]byte) bool {
+export func FullRune(p []byte) bool {
 	rune, size, short := DecodeRuneInternal(p);
 	return !short
 }
@@ -191,7 +191,7 @@ export func FullRuneInString(s string, i int) bool {
 	return !short
 }
 
-export func DecodeRune(p *[]byte) (rune, size int) {
+export func DecodeRune(p []byte) (rune, size int) {
 	var short bool;
 	rune, size, short = DecodeRuneInternal(p);
 	return;
@@ -217,7 +217,7 @@ export func RuneLen(rune int) int {
 	return -1;
 }
 
-export func EncodeRune(rune int, p *[]byte) int {
+export func EncodeRune(rune int, p []byte) int {
 	if rune <= Rune1Max {
 		p[0] = byte(rune);
 		return 1;
@@ -247,7 +247,7 @@ export func EncodeRune(rune int, p *[]byte) int {
 	return 4;
 }
 
-export func RuneCount(p *[]byte) int {
+export func RuneCount(p []byte) int {
 	i := 0;
 	var n int;
 	for n = 0; i < len(p); n++ {

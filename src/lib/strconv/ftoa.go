@@ -380,7 +380,7 @@ func FmtB(neg bool, mant uint64, exp int, flt *FloatInfo) string {
 		w--;
 		buf[w] = '-';
 	}
-	return string((&buf)[w:len(buf)]);
+	return string(buf[w:len(buf)]);
 }
 
 func Max(a, b int) int {

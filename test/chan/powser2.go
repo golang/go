@@ -129,7 +129,7 @@ func get(in *dch) *rat {
 
 // Get one item from each of n demand channels
 
-func getn(in *[]*dch, n int) *[]item {
+func getn(in []*dch, n int) []item {
 	// BUG n:=len(in);
 	if n != 2 { panic("bad n in getn") };
 	req := new([2] *chan int);
@@ -164,7 +164,7 @@ func getn(in *[]*dch, n int) *[]item {
 
 // Get one item from each of 2 demand channels
 
-func get2(in0 *dch, in1 *dch)  *[]item {
+func get2(in0 *dch, in1 *dch)  []item {
 	x := new([2] *dch);
 	x[0] = in0;
 	x[1] = in1;
@@ -330,7 +330,7 @@ func Split(U PS) *dch2{
 func Add(U, V PS) PS{
 	Z := mkPS();
 	go func(U, V, Z PS){
-		var uv *[] item;
+		var uv [] item;
 		for {
 			<-Z.req;
 			uv = get2(U,V);
@@ -630,7 +630,7 @@ func check(U PS, c *rat, count int, str string) {
 }
 
 const N=10
-func checka(U PS, a *[]*rat, str string) {
+func checka(U PS, a []*rat, str string) {
 	for i := 0; i < N; i++ {
 		check(U, a[i], 1, str);
 	}

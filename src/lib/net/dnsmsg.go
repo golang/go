@@ -190,7 +190,7 @@ export type DNS_RR_A struct {
 
 // Packing and unpacking.
 //
-// All the packers and unpackers take a (msg *[]byte, off int)
+// All the packers and unpackers take a (msg []byte, off int)
 // and return (off1 int, ok bool).  If they return ok==false, they
 // also return off1==len(msg), so that the next unpacker will
 // also fail.  This lets us avoid checks of ok until the end of a
@@ -215,7 +215,7 @@ var rr_mk = map[int]*()DNS_RR {
 // Pack a domain name s into msg[off:].
 // Domain names are a sequence of counted strings
 // split at the dots.  They end with a zero-length string.
-func PackDomainName(s string, msg *[]byte, off int) (off1 int, ok bool) {
+func PackDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
 	// Add trailing dot to canonicalize name.
 	if n := len(s); n == 0 || s[n-1] != '.' {
 		s += ".";
@@ -264,7 +264,7 @@ func PackDomainName(s string, msg *[]byte, off int) (off1 int, ok bool) {
 // which is where the next record will start.
 // In theory, the pointers are only allowed to jump backward.
 // We let them jump anywhere and stop jumping after a while.
-func UnpackDomainName(msg *[]byte, off int) (s string, off1 int, ok bool) {
+func UnpackDomainName(msg []byte, off int) (s string, off1 int, ok bool) {
 	s = "";
 	ptr := 0;	// number of pointers followed
 Loop:
@@ -317,7 +317,7 @@ Loop:
 
 // Pack a reflect.StructValue into msg.  Struct members can only be uint16, uint32, string,
 // and other (often anonymous) structs.
-func PackStructValue(val reflect.StructValue, msg *[]byte, off int) (off1 int, ok bool) {
+func PackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
 	for i := 0; i < val.Len(); i++ {
 		fld := val.Field(i);
 		name, typ, tag, xxx := val.Type().(reflect.StructType).Field(i);
@@ -375,7 +375,7 @@ func PackStructValue(val reflect.StructValue, msg *[]byte, off int) (off1 int, o
 	return off, true
 }
 
-func PackStruct(any interface{}, msg *[]byte, off int) (off1 int, ok bool) {
+func PackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
 	val := reflect.NewValue(any).(reflect.PtrValue).Sub().(reflect.StructValue);
 	off, ok = PackStructValue(val, msg, off);
 	return off, ok
@@ -383,7 +383,7 @@ func PackStruct(any interface{}, msg *[]byte, off int) (off1 int, ok bool) {
 
 // Unpack a reflect.StructValue from msg.
 // Same restrictions as PackStructValue.
-func UnpackStructValue(val reflect.StructValue, msg *[]byte, off int) (off1 int, ok bool) {
+func UnpackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
 	for i := 0; i < val.Len(); i++ {
 		name, typ, tag, xxx := val.Type().(reflect.StructType).Field(i);
 		fld := val.Field(i);
@@ -437,7 +437,7 @@ func UnpackStructValue(val reflect.StructValue, msg *[]byte, off int) (off1 int,
 	return off, true
 }
 
-func UnpackStruct(any interface{}, msg *[]byte, off int) (off1 int, ok bool) {
+func UnpackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
 	val := reflect.NewValue(any).(reflect.PtrValue).Sub().(reflect.StructValue);
 	off, ok = UnpackStructValue(val, msg, off);
 	return off, ok
@@ -480,7 +480,7 @@ func PrintStruct(any interface{}) string {
 }
 
 // Resource record packer.
-func PackRR(rr DNS_RR, msg *[]byte, off int) (off2 int, ok bool) {
+func PackRR(rr DNS_RR, msg []byte, off int) (off2 int, ok bool) {
 	var off1 int;
 	// pack twice, once to find end of header
 	// and again to find end of packet.
@@ -499,7 +499,7 @@ func PackRR(rr DNS_RR, msg *[]byte, off int) (off2 int, ok bool) {
 }
 
 // Resource record unpacker.
-func UnpackRR(msg *[]byte, off int) (rr DNS_RR, off1 int, ok bool) {
+func UnpackRR(msg []byte, off int) (rr DNS_RR, off1 int, ok bool) {
 	// unpack just the header, to find the rr type and length
 	var h DNS_RR_Header;
 	off0 := off;
@@ -539,16 +539,15 @@ type DNS_Msg_Top struct {
 
 export type DNS_Msg struct {
 	DNS_Msg_Top;
-	question *[]DNS_Question;
-	answer *[]DNS_RR;
-	ns *[]DNS_RR;
-	extra *[]DNS_RR;
+	question []DNS_Question;
+	answer []DNS_RR;
+	ns []DNS_RR;
+	extra []DNS_RR;
 }
 
-var no_questions = new([]DNS_Question, 0)
-var no_rr = new([]DNS_RR, 0)
+var NIL []byte // TODO(rsc): remove
 
-func (dns *DNS_Msg) Pack() (msg *[]byte, ok bool) {
+func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
 	var dh DNS_Header;
 
 	// Convert convenient DNS_Msg into wire-like DNS_Header.
@@ -571,20 +570,8 @@ func (dns *DNS_Msg) Pack() (msg *[]byte, ok bool) {
 	}
 
 	// Prepare variable sized arrays; paper over nils.
-	var question *[]DNS_Question;
-	var answer, ns, extra *[]DNS_RR;
-	if question = dns.question; question == nil {
-		question = no_questions
-	}
-	if answer = dns.answer; answer == nil {
-		answer = no_rr
-	}
-	if ns = dns.ns; ns == nil {
-		ns = no_rr
-	}
-	if extra = dns.extra; extra == nil {
-		extra = no_rr
-	}
+	var question []DNS_Question;
+	var answer, ns, extra []DNS_RR;
 
 	dh.qdcount = uint16(len(question));
 	dh.ancount = uint16(len(answer));
@@ -612,12 +599,12 @@ func (dns *DNS_Msg) Pack() (msg *[]byte, ok bool) {
 		off, ok = PackStruct(extra[i], msg, off);
 	}
 	if !ok {
-		return nil, false
+		return NIL, false
 	}
 	return msg[0:off], true
 }
 
-func (dns *DNS_Msg) Unpack(msg *[]byte) bool {
+func (dns *DNS_Msg) Unpack(msg []byte) bool {
 	// Header.
 	var dh DNS_Header;
 	off := 0;
@@ -663,25 +650,25 @@ func (dns *DNS_Msg) Unpack(msg *[]byte) bool {
 
 func (dns *DNS_Msg) String() string {
 	s := "DNS: "+PrintStruct(&dns.DNS_Msg_Top)+"\n";
-	if dns.question != nil && len(dns.question) > 0 {
+	if len(dns.question) > 0 {
 		s += "-- Questions\n";
 		for i := 0; i < len(dns.question); i++ {
 			s += PrintStruct(&dns.question[i])+"\n";
 		}
 	}
-	if dns.answer != nil && len(dns.answer) > 0 {
+	if len(dns.answer) > 0 {
 		s += "-- Answers\n";
 		for i := 0; i < len(dns.answer); i++ {
 			s += PrintStruct(dns.answer[i])+"\n";
 		}
 	}
-	if dns.ns != nil && len(dns.ns) > 0 {
+	if len(dns.ns) > 0 {
 		s += "-- Name servers\n";
 		for i := 0; i < len(dns.ns); i++ {
 			s += PrintStruct(dns.ns[i])+"\n";
 		}
 	}
-	if dns.extra != nil && len(dns.extra) > 0 {
+	if len(dns.extra) > 0 {
 		s += "-- Extra\n";
 		for i := 0; i < len(dns.extra); i++ {
 			s += PrintStruct(dns.extra[i])+"\n";

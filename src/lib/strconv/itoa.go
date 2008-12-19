@@ -28,8 +28,8 @@ export func itoa64(i int64) string {
 		b[bp] = '-'
 	}
 
-	// BUG return string(b[bp:len(b)])
-	return string((&b)[bp:len(b)])
+	return string(b[bp:len(b)])
+	//return string((&b)[bp:len(b)])
 }
 
 export func itoa(i int) string {

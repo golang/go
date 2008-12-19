@@ -82,7 +82,7 @@ func TRunner(t *T, test *Test) {
 	t.ch <- t;
 }
 
-export func Main(tests *[]Test) {
+export func Main(tests []Test) {
 	flag.Parse();
 	ok := true;
 	if len(tests) == 0 {

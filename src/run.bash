@@ -26,14 +26,15 @@ maketest() {
 maketest \
 	lib/fmt\
 	lib/hash\
-	lib/json\
 	lib/math\
-	lib/net\
 	lib/reflect\
 	lib/regexp\
 	lib/strconv\
 	lib/tabwriter\
 	lib/time\
+
+#	lib/json\
+#	lib/net\
 
 # all of these are subtly different
 # from what maketest does.

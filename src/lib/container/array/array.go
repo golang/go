@@ -10,14 +10,14 @@ export type Element interface {
 
 export type Array struct {
 	// TODO do not export field
-	a *[]Element
+	a []Element
 }
 
 
 func (p *Array) Init(initial_len int) *Array {
 	a := p.a;
 
-	if a == nil || cap(a) < initial_len {
+	if cap(a) == 0 || cap(a) < initial_len {
 		n := 8;  // initial capacity
 		if initial_len > n {
 			n = initial_len

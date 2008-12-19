@@ -693,7 +693,7 @@ export type StructValue interface {
 
 type StructValueStruct struct {
 	Common;
-	field	*[]Value;
+	field	[]Value;
 }
 
 func (v *StructValueStruct) Len() int {
@@ -850,7 +850,7 @@ export func CopyArray(dst ArrayValue, src ArrayValue, n int) {
 	dstp := uintptr(dst.Elem(0).Addr());
 	srcp := uintptr(src.Elem(0).Addr());
 	end := uintptr(n)*uintptr(dt.Size());
-	if dst.Type().Size() % 8 == 0 {
+	if end % 8 == 0 {
 		for i := uintptr(0); i < end; i += 8{
 			di := Addr(dstp + i);
 			si := Addr(srcp + i);

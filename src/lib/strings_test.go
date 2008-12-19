@@ -9,7 +9,7 @@ import (
 	"testing";
 )
 
-func eq(a, b *[]string) bool {
+func eq(a, b []string) bool {
 	if len(a) != len(b) {
 		return false;
 	}
@@ -28,11 +28,11 @@ var dots = "1....2....3....4";
 
 type ExplodeTest struct {
 	s string;
-	a *[]string;
+	a []string;
 }
 var explodetests = []ExplodeTest {
-	ExplodeTest{ abcd,	&[]string{"a", "b", "c", "d"} },
-	ExplodeTest{ faces,	&[]string{"☺", "☻", "☹" } },
+	ExplodeTest{ abcd,	[]string{"a", "b", "c", "d"} },
+	ExplodeTest{ faces,	[]string{"☺", "☻", "☹" } },
 }
 export func TestExplode(t *testing.T) {
 	for i := 0; i < len(explodetests); i++ {
@@ -52,17 +52,17 @@ export func TestExplode(t *testing.T) {
 type SplitTest struct {
 	s string;
 	sep string;
-	a *[]string;
+	a []string;
 }
 var splittests = []SplitTest {
-	SplitTest{ abcd,	"a",	&[]string{"", "bcd"} },
-	SplitTest{ abcd,	"z",	&[]string{"abcd"} },
-	SplitTest{ abcd,	"",	&[]string{"a", "b", "c", "d"} },
-	SplitTest{ commas,	",",	&[]string{"1", "2", "3", "4"} },
-	SplitTest{ dots,	"...",	&[]string{"1", ".2", ".3", ".4"} },
-	SplitTest{ faces,	"☹",	&[]string{"☺☻", ""} },
-	SplitTest{ faces,	"~",	&[]string{faces} },
-	SplitTest{ faces,	"",	&[]string{"☺", "☻", "☹"} },
+	SplitTest{ abcd,	"a",	[]string{"", "bcd"} },
+	SplitTest{ abcd,	"z",	[]string{"abcd"} },
+	SplitTest{ abcd,	"",	[]string{"a", "b", "c", "d"} },
+	SplitTest{ commas,	",",	[]string{"1", "2", "3", "4"} },
+	SplitTest{ dots,	"...",	[]string{"1", ".2", ".3", ".4"} },
+	SplitTest{ faces,	"☹",	[]string{"☺☻", ""} },
+	SplitTest{ faces,	"~",	[]string{faces} },
+	SplitTest{ faces,	"",	[]string{"☺", "☻", "☹"} },
 }
 export func TestSplit(t *testing.T) {
 	for i := 0; i < len(splittests); i++ {

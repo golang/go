@@ -16,7 +16,7 @@ import (
 
 // TODO(r): Do better memory management.
 
-func bytecopy(dst *[]byte, doff int, src *[]byte, soff int, count int) {
+func bytecopy(dst []byte, doff int, src []byte, soff int, count int) {
 	for i := 0; i < count; i++ {
 		dst[doff] = src[soff];
 		doff++;
@@ -25,7 +25,7 @@ func bytecopy(dst *[]byte, doff int, src *[]byte, soff int, count int) {
 }
 
 export type ByteBuffer struct {
-	buf	*[]byte;
+	buf	[]byte;
 	off	int;	// Read from here
 	len	int;	// Write to here
 	cap	int;
@@ -36,9 +36,9 @@ func (b *ByteBuffer) Reset() {
 	b.len = 0;
 }
 
-func (b *ByteBuffer) Write(p *[]byte) (n int, err *os.Error) {
+func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
 	plen := len(p);
-	if b.buf == nil {
+	if len(b.buf) == 0 {
 		b.cap = plen + 1024;
 		b.buf = new([]byte, b.cap);
 		b.len = 0;
@@ -54,9 +54,9 @@ func (b *ByteBuffer) Write(p *[]byte) (n int, err *os.Error) {
 	return plen, nil;
 }
 
-func (b *ByteBuffer) Read(p *[]byte) (n int, err *os.Error) {
+func (b *ByteBuffer) Read(p []byte) (n int, err *os.Error) {
 	plen := len(p);
-	if b.buf == nil {
+	if len(b.buf) == 0 {
 		return 0, nil
 	}
 	if b.off == b.len {	// empty buffer
@@ -75,20 +75,12 @@ func (b *ByteBuffer) Len() int {
 	return b.len
 }
 
-// If the buffer is empty, Data() should still give a valid array.
-// Use this variable as a surrogate.  It's immutable (can't be
-// grown, can't store any data) so it's safe to share.
-var EmptyByteArray = new([]byte, 0)
-
-func (b *ByteBuffer) Data() *[]byte {
-	if b.buf == nil {
-		return EmptyByteArray
-	}
+func (b *ByteBuffer) Data() []byte {
 	return b.buf[b.off:b.len]
 }
 
 
-export func NewByteBufferFromArray(buf *[]byte) *ByteBuffer {
+export func NewByteBufferFromArray(buf []byte) *ByteBuffer {
 	b := new(ByteBuffer);
 	b.buf = buf;
 	b.off = 0;

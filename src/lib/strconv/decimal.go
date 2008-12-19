@@ -27,8 +27,8 @@ func (a *Decimal) RoundDown(nd int) *Decimal;
 func (a *Decimal) RoundedInteger() uint64;
 
 
-func Copy(dst *[]byte, src *[]byte) int;
-func DigitZero(dst *[]byte) int;
+func Copy(dst []byte, src []byte) int;
+func DigitZero(dst []byte) int;
 
 func (a *Decimal) String() string {
 	n := 10 + a.nd;
@@ -52,31 +52,31 @@ func (a *Decimal) String() string {
 		buf[w] = '.';
 		w++;
 		w += DigitZero(buf[w:w+-a.dp]);
-		w += Copy(buf[w:w+a.nd], (&a.d)[0:a.nd]);
+		w += Copy(buf[w:w+a.nd], a.d[0:a.nd]);
 
 	case a.dp < a.nd:
 		// decimal point in middle of digits
-		w += Copy(buf[w:w+a.dp], (&a.d)[0:a.dp]);
+		w += Copy(buf[w:w+a.dp], a.d[0:a.dp]);
 		buf[w] = '.';
 		w++;
-		w += Copy(buf[w:w+a.nd-a.dp], (&a.d)[a.dp:a.nd]);
+		w += Copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
 
 	default:
 		// zeros fill space between digits and decimal point
-		w += Copy(buf[w:w+a.nd], (&a.d)[0:a.nd]);
+		w += Copy(buf[w:w+a.nd], a.d[0:a.nd]);
 		w += DigitZero(buf[w:w+a.dp-a.nd]);
 	}
 	return string(buf[0:w]);
 }
 
-func Copy(dst *[]byte, src *[]byte) int {
+func Copy(dst []byte, src []byte) int {
 	for i := 0; i < len(dst); i++ {
 		dst[i] = src[i];
 	}
 	return len(dst);
 }
 
-func DigitZero(dst *[]byte) int {
+func DigitZero(dst []byte) int {
 	for i := 0; i < len(dst); i++ {
 		dst[i] = '0';
 	}
@@ -236,7 +236,7 @@ var leftcheat = []LeftCheat {
 }
 
 // Is the leading prefix of b lexicographically less than s?
-func PrefixIsLessThan(b *[]byte, s string) bool {
+func PrefixIsLessThan(b []byte, s string) bool {
 	for i := 0; i < len(s); i++ {
 		if i >= len(b) {
 			return true;
@@ -251,7 +251,7 @@ func PrefixIsLessThan(b *[]byte, s string) bool {
 // Binary shift left (/ 2) by k bits.  k <= MaxShift to avoid overflow.
 func LeftShift(a *Decimal, k uint) {
 	delta := leftcheat[k].delta;
-	if PrefixIsLessThan((&a.d)[0:a.nd], leftcheat[k].cutoff) {
+	if PrefixIsLessThan(a.d[0:a.nd], leftcheat[k].cutoff) {
 		delta--;
 	}
 

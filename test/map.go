@@ -10,7 +10,7 @@ import fmt "fmt"
 
 const arraylen = 2; // BUG: shouldn't need this
 
-func P(a *[]string) string {
+func P(a []string) string {
 	s := "{";
 	for i := 0; i < len(a); i++ {
 		if i > 0 {
@@ -34,7 +34,7 @@ func main() {
 	msi := new(map[string] int);
 	mis := new(map[int] string);
 	mss := new(map[string] string);
-	mspa := new(map[string] *[]string);
+	mspa := new(map[string] []string);
 	// BUG need an interface map both ways too
 
 	type T struct {

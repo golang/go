@@ -16,7 +16,7 @@ export func RawSyscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
  * Used to convert file names to byte arrays for passing to kernel,
  * but useful elsewhere too.
  */
-export func StringToBytes(b *[]byte, s string) bool {
+export func StringToBytes(b []byte, s string) bool {
 	if len(s) >= len(b) {
 		return false
 	}

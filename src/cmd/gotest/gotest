@@ -41,7 +41,7 @@ done
 set -e
 
 # They all compile; now generate the code to call them.
-trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+#trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
 {
 	# package spec
 	echo 'package main'
@@ -54,7 +54,7 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
 	echo 'import "testing"'
 	# test array
 	echo
-	echo 'var tests = &[]testing.Test {'
+	echo 'var tests = []testing.Test {'	# TODO(rsc): *&
 	for ofile in $ofiles
 	do
 		# test functions are named TestFoo

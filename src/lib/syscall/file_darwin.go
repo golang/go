@@ -15,7 +15,7 @@ const NameBufsize = 512
 
 export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
 	var namebuf [NameBufsize]byte;
-	if !StringToBytes(&namebuf, name) {
+	if !StringToBytes(namebuf, name) {
 		return -1, ENAMETOOLONG
 	}
 	r1, r2, err := Syscall(SYS_OPEN, int64(uintptr(unsafe.pointer(&namebuf[0]))), mode, perm);
@@ -24,7 +24,7 @@ export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
 
 export func creat(name string, perm int64) (ret int64, errno int64) {
 	var namebuf [NameBufsize]byte;
-	if !StringToBytes(&namebuf, name) {
+	if !StringToBytes(namebuf, name) {
 		return -1, ENAMETOOLONG
 	}
 	r1, r2, err := Syscall(SYS_OPEN, int64(uintptr(unsafe.pointer(&namebuf[0]))), O_CREAT|O_WRONLY|O_TRUNC, perm);
@@ -58,7 +58,7 @@ export func pipe(fds *[2]int64) (ret int64, errno int64) {
 
 export func stat(name string, buf *Stat) (ret int64, errno int64) {
 	var namebuf [NameBufsize]byte;
-	if !StringToBytes(&namebuf, name) {
+	if !StringToBytes(namebuf, name) {
 		return -1, ENAMETOOLONG
 	}
 	r1, r2, err := Syscall(SYS_STAT64, int64(uintptr(unsafe.pointer(&namebuf[0]))), int64(uintptr(unsafe.pointer(buf))), 0);
@@ -77,7 +77,7 @@ export func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
 
 export func unlink(name string) (ret int64, errno int64) {
 	var namebuf [NameBufsize]byte;
-	if !StringToBytes(&namebuf, name) {
+	if !StringToBytes(namebuf, name) {
 		return -1, ENAMETOOLONG
 	}
 	r1, r2, err := Syscall(SYS_UNLINK, int64(uintptr(unsafe.pointer(&namebuf[0]))), 0, 0);
@@ -91,7 +91,7 @@ export func fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
 
 export func mkdir(name string, perm int64) (ret int64, errno int64) {
 	var namebuf [NameBufsize]byte;
-	if !StringToBytes(&namebuf, name) {
+	if !StringToBytes(namebuf, name) {
 		return -1, ENAMETOOLONG
 	}
 	r1, r2, err := Syscall(SYS_MKDIR, int64(uintptr(unsafe.pointer(&namebuf[0]))), perm, 0);

@@ -124,6 +124,7 @@ type StubType struct {
 }
 
 func NewStubType(name string, typ Type) *StubType {
+if typ == nil && len(name) > 0 && name[0] == '*' { panicln("NewStubType", name, typ) }
 	return &StubType{name, typ}
 }
 
@@ -275,10 +276,10 @@ type Field struct {
 
 type StructTypeStruct struct {
 	Common;
-	field	*[]Field;
+	field	[]Field;
 }
 
-func NewStructTypeStruct(name, typestring string, field *[]Field) *StructTypeStruct {
+func NewStructTypeStruct(name, typestring string, field []Field) *StructTypeStruct {
 	return &StructTypeStruct{ Common{StructKind, typestring, name, 0}, field}
 }
 
@@ -327,10 +328,10 @@ export type InterfaceType interface {
 
 type InterfaceTypeStruct struct {
 	Common;
-	field	*[]Field;
+	field	[]Field;
 }
 
-func NewInterfaceTypeStruct(name, typestring string, field *[]Field) *InterfaceTypeStruct {
+func NewInterfaceTypeStruct(name, typestring string, field []Field) *InterfaceTypeStruct {
 	return &InterfaceTypeStruct{ Common{InterfaceKind, typestring, name, interfacesize}, field }
 }
 
@@ -683,7 +684,7 @@ func (p *Parser) Chan(name string, tokstart, dir int) *StubType {
 }
 
 // Parse array of fields for struct, interface, and func arguments
-func (p *Parser) Fields(sep, term string) *[]Field {
+func (p *Parser) Fields(sep, term string) []Field {
 	a := new([]Field, 10);
 	nf := 0;
 	for p.token != "" && p.token != term {
@@ -715,7 +716,7 @@ func (p *Parser) Fields(sep, term string) *[]Field {
 }
 
 // A single type packaged as a field for a function return
-func (p *Parser) OneField() *[]Field {
+func (p *Parser) OneField() []Field {
 	a := new([]Field, 1);
 	a[0].name = "";
 	a[0].typ = p.Type("");

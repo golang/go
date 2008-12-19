@@ -16,7 +16,7 @@ import (
 // Basic ByteArray support
 
 type ByteArray struct {
-	a *[]byte;
+	a []byte;
 }
 
 
@@ -35,12 +35,12 @@ func (b *ByteArray) Clear() {
 }
 
 
-func (b *ByteArray) Slice(i, j int) *[]byte {
+func (b *ByteArray) Slice(i, j int) []byte {
 	return b.a[i : j];  // BUG should really be &b.a[i : j]
 }
 
 
-func (b *ByteArray) Append(s *[]byte) {
+func (b *ByteArray) Append(s []byte) {
 	a := b.a;
 	n := len(a);
 	m := n + len(s);
@@ -194,7 +194,7 @@ func (b *Writer) Dump() {
 }
 
 
-func (b *Writer) Write0(buf *[]byte) *os.Error {
+func (b *Writer) Write0(buf []byte) *os.Error {
 	n, err := b.writer.Write(buf);
 	if n != len(buf) && err == nil {
 		err = os.EIO;
@@ -203,7 +203,7 @@ func (b *Writer) Write0(buf *[]byte) *os.Error {
 }
 
 
-var Newline = &[]byte{'\n'}
+var Newline = []byte{'\n'}
 
 func (b *Writer) WritePadding(textw, cellw int) (err *os.Error) {
 	if b.padbytes[0] == '\t' {
@@ -221,13 +221,13 @@ func (b *Writer) WritePadding(textw, cellw int) (err *os.Error) {
 	}
 	
 	for n > len(b.padbytes) {
-		err = b.Write0(&b.padbytes);
+		err = b.Write0(b.padbytes);
 		if err != nil {
 			goto exit;
 		}
 		n -= len(b.padbytes);
 	}
-	err = b.Write0((&b.padbytes)[0 : n]);  // BUG 6g should not require ()'s
+	err = b.Write0(b.padbytes[0 : n]);
 
 exit:
 	return err;
@@ -353,7 +353,7 @@ exit:
 }
 
 
-func UnicodeLen(buf *[]byte) int {
+func UnicodeLen(buf []byte) int {
 	l := 0;
 	for i := 0; i < len(buf); {
 		if buf[i] < utf8.RuneSelf {
@@ -368,13 +368,13 @@ func UnicodeLen(buf *[]byte) int {
 }
  
 
-func (b *Writer) Append(buf *[]byte) {
+func (b *Writer) Append(buf []byte) {
 	b.buf.Append(buf);
 	b.size += len(buf);
 }
 
 
-/* export */ func (b *Writer) Write(buf *[]byte) (written int, err *os.Error) {
+/* export */ func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
 	i0, n := 0, len(buf);
 
 	// split text into cells

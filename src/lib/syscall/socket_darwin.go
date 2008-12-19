@@ -91,17 +91,17 @@ export func kqueue() (ret int64, errno int64) {
 	return r1, err
 }
 
-export func kevent(kq int64, changes, events *[]Kevent, timeout *Timespec) (ret int64, errno int64) {
+export func kevent(kq int64, changes, events []Kevent, timeout *Timespec) (ret int64, errno int64) {
 	var nchange, changeptr, nevent, eventptr int64;
 	nchange = 0;
 	changeptr = 0;
 	nevent = 0;
 	eventptr = 0;
-	if changes != nil && len(changes) > 0 {
+	if len(changes) > 0 {
 		changeptr = int64(uintptr(unsafe.pointer(&changes[0])));
 		nchange = int64(len(changes))
 	}
-	if events != nil && len(events) > 0 {
+	if len(events) > 0 {
 		eventptr = int64(uintptr(unsafe.pointer(&events[0])));
 		nevent = int64(len(events))
 	}

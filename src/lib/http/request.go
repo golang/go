@@ -45,16 +45,18 @@ export type Request struct {
 	useragent string;
 }
 
+var NIL []byte // TODO(rsc)
+
 // Read a line of bytes (up to \n) from b.
 // Give up if the line exceeds MaxLineLength.
 // The returned bytes are a pointer into storage in
 // the bufio, so they are only valid until the next bufio read.
-func ReadLineBytes(b *bufio.BufRead) (p *[]byte, err *os.Error) {
+func ReadLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
 	if p, err = b.ReadLineSlice('\n'); err != nil {
-		return nil, err
+		return NIL, err
 	}
 	if len(p) >= MaxLineLength {
-		return nil, LineTooLong
+		return NIL, LineTooLong
 	}
 
 	// Chop off trailing white space.
@@ -189,7 +191,7 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 		return nil, err
 	}
 
-	var f *[]string;
+	var f []string;
 	if f = strings.split(s, " "); len(f) != 3 {
 		return nil, BadRequest
 	}

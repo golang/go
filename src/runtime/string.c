@@ -179,10 +179,10 @@ sys·byteastring(byte *a, int32 l, string s)
 }
 
 void
-sys·arraystring(Array *b, string s)
+sys·arraystring(Array b, string s)
 {
-	s = mal(sizeof(s->len)+b->nel);
-	s->len = b->nel;
-	mcpy(s->str, b->array, s->len);
+	s = mal(sizeof(s->len)+b.nel);
+	s->len = b.nel;
+	mcpy(s->str, b.array, s->len);
 	FLUSH(&s);
 }

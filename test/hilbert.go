@@ -29,7 +29,7 @@ var (
 
 type Matrix struct {
 	n, m int;
-	a *[]*Big.Rational;
+	a []*Big.Rational;
 }
 
 

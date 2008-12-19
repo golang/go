@@ -14,7 +14,7 @@ import (
 
 package type File struct {
 	fd *os.FD;
-	data *[]byte;
+	data []byte;
 }
 
 func (f *File) Close() {
@@ -84,7 +84,7 @@ package func CountAnyByte(s string, t string) int {
 }
 
 // Split s at any bytes in t.
-package func SplitAtBytes(s string, t string) *[]string {
+package func SplitAtBytes(s string, t string) []string {
 	a := new([]string, 1+CountAnyByte(s, t));
 	n := 0;
 	last := 0;
@@ -104,7 +104,7 @@ package func SplitAtBytes(s string, t string) *[]string {
 	return a[0:n];
 }
 
-package func GetFields(s string) *[]string {
+package func GetFields(s string) []string {
 	return SplitAtBytes(s, " \r\t\n");
 }
 

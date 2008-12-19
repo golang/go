@@ -26,13 +26,17 @@ export var (
 
 // Simple I/O interface to binary blob of data.
 type Data struct {
-	p *[]byte
+	p []byte;
+	error bool;
 }
 
-func (d *Data) Read(n int) *[]byte {
-	if d.p == nil || len(d.p) < n {
-		d.p = nil;
-		return nil
+var NIL []byte  // TODO(rsc)
+
+func (d *Data) Read(n int) []byte {
+	if len(d.p) < n {
+		d.p = NIL;
+		d.error = true;
+		return NIL;
 	}
 	p := d.p[0:n];
 	d.p = d.p[n:len(d.p)];
@@ -41,7 +45,8 @@ func (d *Data) Read(n int) *[]byte {
 
 func (d *Data) Big4() (n uint32, ok bool) {
 	p := d.Read(4);
-	if p == nil {
+	if len(p) < 4 {
+		d.error = true;
 		return 0, false
 	}
 	return uint32(p[0]) << 24 | uint32(p[1]) << 16 | uint32(p[2]) << 8 | uint32(p[3]), true
@@ -49,7 +54,8 @@ func (d *Data) Big4() (n uint32, ok bool) {
 
 func (d *Data) Byte() (n byte, ok bool) {
 	p := d.Read(1);
-	if p == nil {
+	if len(p) < 1 {
+		d.error = true;
 		return 0, false
 	}
 	return p[0], true
@@ -57,7 +63,7 @@ func (d *Data) Byte() (n byte, ok bool) {
 
 
 // Make a string by stopping at the first NUL
-func ByteString(p *[]byte) string {
+func ByteString(p []byte) string {
 	for i := 0; i < len(p); i++ {
 		if p[i] == 0 {
 			return string(p[0:i])
@@ -70,7 +76,7 @@ func ByteString(p *[]byte) string {
 type Zone struct {
 	utcoff int;
 	isdst bool;
-	name string
+	name string;
 }
 
 type Zonetime struct {
@@ -79,19 +85,21 @@ type Zonetime struct {
 	isstd, isutc bool;	// ignored - no idea what these mean
 }
 
-func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
-	data1 := Data{bytes};
+func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+	var NIL []Zonetime;  // TODO(rsc)
+
+	data1 := Data{bytes, false};
 	data := &data1;
 
 	// 4-byte magic "TZif"
-	if magic := data.Read(4); magic == nil || string(magic) != "TZif" {
-		return nil, BadZoneinfo
+	if magic := data.Read(4); string(magic) != "TZif" {
+		return NIL, BadZoneinfo
 	}
 
 	// 1-byte version, then 15 bytes of padding
-	var p *[]byte;
-	if p = data.Read(16); p == nil || p[0] != 0 && p[0] != '2' {
-		return nil, BadZoneinfo
+	var p []byte;
+	if p = data.Read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
+		return NIL, BadZoneinfo
 	}
 	vers := p[0];
 
@@ -114,27 +122,27 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 	for i := 0; i < 6; i++ {
 		nn, ok := data.Big4();
 		if !ok {
-			return nil, BadZoneinfo
+			return NIL, BadZoneinfo
 		}
 		n[i] = int(nn);
 	}
 
 	// Transition times.
-	txtimes1 := Data{data.Read(n[NTime]*4)};
+	txtimes1 := Data{data.Read(n[NTime]*4), false};
 	txtimes := &txtimes1;
 
 	// Time zone indices for transition times.
 	txzones := data.Read(n[NTime]);
 
 	// Zone info structures
-	zonedata1 := Data{data.Read(n[NZone]*6)};
+	zonedata1 := Data{data.Read(n[NZone]*6), false};
 	zonedata := &zonedata1;
 
 	// Time zone abbreviations.
 	abbrev := data.Read(n[NChar]);
 
 	// Leap-second time pairs
-	leapdata1 := Data{data.Read(n[NLeap]*8)};
+	leapdata1 := Data{data.Read(n[NLeap]*8), false};
 	leapdata := &leapdata1;
 
 	// Whether tx times associated with local time types
@@ -145,8 +153,8 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 	// are specified as UTC or local time.
 	isutc := data.Read(n[NUTCLocal]);
 
-	if data.p == nil {	// ran out of data
-		return nil, BadZoneinfo
+	if data.error {	// ran out of data
+		return NIL, BadZoneinfo
 	}
 
 	// If version == 2, the entire file repeats, this time using
@@ -161,16 +169,16 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 		var ok bool;
 		var n uint32;
 		if n, ok = zonedata.Big4(); !ok {
-			return nil, BadZoneinfo
+			return NIL, BadZoneinfo
 		}
 		zone[i].utcoff = int(n);
 		var b byte;
 		if b, ok = zonedata.Byte(); !ok {
-			return nil, BadZoneinfo
+			return NIL, BadZoneinfo
 		}
 		zone[i].isdst = b != 0;
 		if b, ok = zonedata.Byte(); !ok || int(b) >= len(abbrev) {
-			return nil, BadZoneinfo
+			return NIL, BadZoneinfo
 		}
 		zone[i].name = ByteString(abbrev[b:len(abbrev)])
 	}
@@ -181,11 +189,11 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 		var ok bool;
 		var n uint32;
 		if n, ok = txtimes.Big4(); !ok {
-			return nil, BadZoneinfo
+			return NIL, BadZoneinfo
 		}
 		zt[i].time = int32(n);
 		if int(txzones[i]) >= len(zone) {
-			return nil, BadZoneinfo
+			return NIL, BadZoneinfo
 		}
 		zt[i].zone = &zone[txzones[i]];
 		if i < len(isstd) {
@@ -198,10 +206,11 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
 	return zt, nil
 }
 
-func ReadFile(name string, max int) (p *[]byte, err *os.Error) {
+func ReadFile(name string, max int) (p []byte, err *os.Error) {
+	var NIL []byte; // TODO(rsc)
 	fd, e := os.Open(name, os.O_RDONLY, 0);
 	if e != nil {
-		return nil, e
+		return NIL, e
 	}
 	p = new([]byte, max+1)[0:0];
 	n := 0;
@@ -209,7 +218,7 @@ func ReadFile(name string, max int) (p *[]byte, err *os.Error) {
 		nn, e := fd.Read(p[n:cap(p)]);
 		if e != nil {
 			fd.Close();
-			return nil, e
+			return NIL, e
 		}
 		if nn == 0 {
 			fd.Close();
@@ -218,20 +227,21 @@ func ReadFile(name string, max int) (p *[]byte, err *os.Error) {
 		p = p[0:n+nn]
 	}
 	fd.Close();
-	return nil, BadZoneinfo	// too long
+	return NIL, BadZoneinfo	// too long
 }
 
 
-func ReadZoneinfoFile(name string) (tx *[]Zonetime, err *os.Error) {
+func ReadZoneinfoFile(name string) (tx []Zonetime, err *os.Error) {
+	var NIL []Zonetime;  // TODO(rsc)
 	data, e := ReadFile(name, MaxFileSize);
 	if e != nil {
-		return nil, e
+		return NIL, e
 	}
 	tx, err = ParseZoneinfo(data);
 	return tx, err
 }
 
-var zones *[]Zonetime
+var zones []Zonetime
 var zoneerr *os.Error
 
 func SetupZone() {
@@ -245,7 +255,7 @@ func SetupZone() {
 
 export func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
 	once.Do(&SetupZone);
-	if zoneerr != nil || zones == nil || len(zones) == 0 {
+	if zoneerr != nil || len(zones) == 0 {
 		return "GMT", 0, zoneerr
 	}
 

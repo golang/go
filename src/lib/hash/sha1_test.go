@@ -51,7 +51,7 @@ var golden = []Sha1Test {
 	Sha1Test{ "6627d6904d71420b0bf3886ab629623538689f45", "How can you write a big system without C++?  -Paul Glick" },
 }
 
-func Hex(p *[]byte) string {
+func Hex(p []byte) string {
 	s := "";
 	for i := 0; i < len(p); i++ {
 		v := p[i];

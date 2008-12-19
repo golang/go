@@ -25,10 +25,11 @@ export const (
 	Koopman = 0xeb31d82e;
 )
 
-export type Table [256]uint32
+// TODO(rsc): Change to [256]uint32
+export type Table []uint32
 
-export func MakeTable(poly uint32) *Table {
-	t := new(Table);
+export func MakeTable(poly uint32) Table {
+	t := new(Table, 256);
 	for i := 0; i < 256; i++ {
 		crc := uint32(i);
 		for j := 0; j < 8; j++ {
@@ -47,10 +48,10 @@ export var ieee = MakeTable(IEEE);
 
 export type Digest struct {
 	crc uint32;
-	tab *Table;
+	tab Table;
 }
 
-export func NewDigest(tab *Table) *Digest {
+export func NewDigest(tab Table) *Digest {
 	return &Digest{0, tab};
 }
 
@@ -58,7 +59,7 @@ export func NewIEEEDigest() *Digest {
 	return NewDigest(ieee);
 }
 
-func (d *Digest) Write(p *[]byte) (n int, err *os.Error) {
+func (d *Digest) Write(p []byte) (n int, err *os.Error) {
 	crc := d.crc ^ 0xFFFFFFFF;
 	tab := d.tab;
 	for i := 0; i < len(p); i++ {
@@ -72,7 +73,7 @@ func (d *Digest) Sum32() uint32 {
 	return d.crc
 }
 
-func (d *Digest) Sum() *[]byte {
+func (d *Digest) Sum() []byte {
 	p := new([]byte, 4);
 	s := d.Sum32();
 	p[0] = byte(s>>24);
