@@ -3450,7 +3450,7 @@ loop:
 }
 
 Node*
-arraylit(Node *n)
+oldarraylit(Node *n)
 {
 	Iter saver;
 	Type *t;
@@ -3498,6 +3498,47 @@ loop:
 
 	r = listnext(&saver);
 	goto loop;
+}
+
+Node*
+arraylit(Node *n)
+{
+	Iter saver;
+	Type *t;
+	Node *var, *r, *a, *nas, *nnew, *ncon;
+	int idx;
+
+	t = n->type;
+	if(t->etype != TARRAY)
+		fatal("arraylit: not array");
+
+	if(t->bound >= 0)
+		fatal("arraylit: literal fixed arrays not implemented");
+	
+	var = nod(OXXX, N, N);
+	tempname(var, t);
+	
+	nnew = nod(ONEW, N, N);
+	nnew->type = t;
+	
+	nas = nod(OAS, var, nnew);
+	addtop = list(addtop, nas);
+
+	idx = 0;
+	r = listfirst(&saver, &n->left);
+	if(r != N && r->op == OEMPTY)
+		r = N;
+	while(r != N) {
+		// build list of var[c] = expr
+		a = nodintconst(idx);
+		a = nod(OINDEX, var, a);
+		a = nod(OAS, a, r);
+		addtop = list(addtop, a);
+		idx++;
+		r = listnext(&saver);
+	}
+	nnew->left = nodintconst(idx);
+	return var;
 }
 
 Node*
