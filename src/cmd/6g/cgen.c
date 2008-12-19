@@ -751,6 +751,11 @@ bgen(Node *n, int true, Prog *to)
 		}
 
 		if(isdarray(nl->type)) {
+			// only valid to cmp darray to literal nil
+			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
+				yyerror("illegal array comparison");
+				break;
+			}
 			a = optoas(a, types[tptr]);
 			regalloc(&n1, types[tptr], N);
 			agen(nl, &n1);
