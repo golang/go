@@ -301,7 +301,7 @@ enum{
 	REXX		= 1<<1,	/* extend sib index */
 	REXB		= 1<<0	/* extend modrm r/m, sib base, or opcode reg */
 };
-	
+
 	/* Operand Format codes */
 /*
 %A	-	address size register modifier (!asize -> 'E')
@@ -361,7 +361,7 @@ enum {
 	OPOVER,			/* Operand size override */
 	ADDOVER,		/* Address size override */
 };
-	
+
 static Optable optab0F00[8]=
 {
 [0x00]	0,0,		"MOVW	LDT,%e",
@@ -859,7 +859,7 @@ static Optable optabD8[8+8] =
 [0x0f]	0,0,		"FDIVRD	%f,F0",
 };
 /*
- *	optabD9 and optabDB use the following encoding: 
+ *	optabD9 and optabDB use the following encoding:
  *	if (0 <= modrm <= 2) instruction = optabDx[modrm&0x07];
  *	else instruction = optabDx[(modrm&0x3f)+8];
  *
@@ -1931,7 +1931,7 @@ immediate(Instr *ip, vlong val)
 			w = -w;
 		if (issymref(ip, &s, w, val)) {
 			if (w)
-				bprint(ip, "%s+%lux(SB)", s.name, w);
+				bprint(ip, "%s+%#lux(SB)", s.name, w);
 			else
 				bprint(ip, "%s(SB)", s.name);
 			return;
@@ -1942,7 +1942,7 @@ immediate(Instr *ip, vlong val)
 			if (w < 0)
 				w = -w;
 			if (w < 4096) {
-				bprint(ip, "%s-%lux(SB)", s.name, w);
+				bprint(ip, "%s-%#lux(SB)", s.name, w);
 				return;
 			}
 		}
@@ -2250,7 +2250,7 @@ i386foll(Map *map, uvlong pc, Rgetter rget, uvlong *foll)
 		return 1;
 	default:
 		break;
-	}		
+	}
 	if (strncmp(op->proto,"JMP", 3) == 0 || strncmp(op->proto,"CALL", 4) == 0)
 		return 1;
 	foll[n++] = pc+i.n;
