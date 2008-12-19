@@ -485,7 +485,7 @@ agen(Node *n, Node *res)
 		// constant index
 		if(whatis(nr) == Wlitint) {
 			v = mpgetfix(nr->val.u.xval);
-			if(isptrdarray(nl->type)) {
+			if(isdarray(nl->type)) {
 
 				if(!debug['B']) {
 					n1 = n3;
@@ -536,7 +536,7 @@ agen(Node *n, Node *res)
 
 		if(!debug['B']) {
 			// check bounds
-			if(isptrdarray(nl->type)) {
+			if(isdarray(nl->type)) {
 				n1 = n3;
 				n1.op = OINDREG;
 				n1.type = types[tptr];
@@ -552,7 +552,7 @@ agen(Node *n, Node *res)
 			patch(p1, pc);
 		}
 
-		if(isptrdarray(nl->type)) {
+		if(isdarray(nl->type)) {
 			n1 = n3;
 			n1.op = OINDREG;
 			n1.type = types[tptr];
