@@ -1033,6 +1033,10 @@ loop:
 	case ONE:
 		if(n->left->type == T)
 			goto ret;
+		if(isdarray(n->left->type)) {
+			t = types[TBOOL];
+			break;
+		}
 		et = n->left->type->etype;
 		if(!okforeq[et])
 			goto badt;
