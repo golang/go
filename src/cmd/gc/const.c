@@ -63,11 +63,17 @@ convlit1(Node *n, Type *t, int conv)
 	case Wlitnil:
 		if(isptrto(t, TSTRING))
 			goto bad1;
-		if(isptr[et])
+		switch(et) {
+		default:
+			goto bad1;
+
+		case TPTR32:
+		case TPTR64:
+		case TINTER:
+		case TARRAY:
 			break;
-		if(et == TINTER)
-			break;
-		goto bad1;
+		}
+		break;
 
 	case Wlitstr:
 		if(isnilinter(t)) {

@@ -750,6 +750,20 @@ bgen(Node *n, int true, Prog *to)
 			nr = r;
 		}
 
+		if(isdarray(nl->type)) {
+			a = optoas(a, types[tptr]);
+			regalloc(&n1, types[tptr], N);
+			agen(nl, &n1);
+			n2 = n1;
+			n2.op = OINDREG;
+			n2.xoffset = offsetof(Array,array);
+			nodconst(&tmp, types[tptr], 0);
+			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
+			patch(gbranch(a, types[tptr]), to);
+			regfree(&n1);
+			break;
+		}
+
 		a = optoas(a, nr->type);
 
 		if(nr->ullman >= UINF) {
