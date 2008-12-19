@@ -62,8 +62,6 @@ func JoinHostPort(host, port string) string {
 	return host + ":" + port
 }
 
-var NIL []byte
-
 // Convert "host:port" into IP address and port.
 // For now, host and port must be numeric literals.
 // Eventually, we'll have name resolution.
@@ -71,24 +69,24 @@ func HostPortToIP(net string, hostport string) (ip []byte, iport int, err *os.Er
 	var host, port string;
 	host, port, err = SplitHostPort(hostport);
 	if err != nil {
-		return NIL, 0, err
+		return nil, 0, err
 	}
 
 	// Try as an IP address.
 	addr := ParseIP(host);
-	if len(addr) == 0 {
+	if addr == nil {
 		// Not an IP address.  Try as a DNS name.
 		hostname, addrs, err := LookupHost(host);
 		if err != nil {
-			return NIL, 0, err
+			return nil, 0, err
 		}
 		if len(addrs) == 0 {
-			return NIL, 0, UnknownHost
+			return nil, 0, UnknownHost
 		}
 		addr = ParseIP(addrs[0]);
-		if len(addr) == 0 {
+		if addr == nil {
 			// should not happen
-			return NIL, 0, BadAddress
+			return nil, 0, BadAddress
 		}
 	}
 
@@ -96,11 +94,11 @@ func HostPortToIP(net string, hostport string) (ip []byte, iport int, err *os.Er
 	if !ok || i != len(port) {
 		p, ok = LookupPort(net, port);
 		if !ok {
-			return NIL, 0, UnknownPort
+			return nil, 0, UnknownPort
 		}
 	}
 	if p < 0 || p > 0xFFFF {
-		return NIL, 0, BadAddress
+		return nil, 0, BadAddress
 	}
 
 	return addr, p, nil
@@ -311,7 +309,7 @@ func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Erro
 	default:
 		// Otherwise, guess.
 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
-		if PreferIPv4 && len(ToIPv4(lip)) != 0 && len(ToIPv4(rip)) != 0 {
+		if PreferIPv4 && ToIPv4(lip) != nil && ToIPv4(rip) != nil {
 			vers = 4
 		} else {
 			vers = 6
@@ -329,13 +327,13 @@ func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Erro
 	}
 
 	var la, ra *syscall.Sockaddr;
-	if len(lip) != 0 {
+	if lip != nil {
 		la, lerr = cvt(lip, lport);
 		if lerr != nil {
 			return nil, lerr
 		}
 	}
-	if len(rip) != 0 {
+	if rip != nil {
 		ra, rerr = cvt(rip, rport);
 		if rerr != nil {
 			return nil, rerr
@@ -361,7 +359,7 @@ func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
 }
 
 func NewConnTCP(fd *FD, raddr string) *ConnTCP {
-	c := new(ConnTCP);
+	c := new(*ConnTCP);
 	c.fd = fd;
 	c.raddr = raddr;
 	c.SetNoDelay(true);
@@ -389,7 +387,7 @@ export type ConnUDP struct {
 }
 
 func NewConnUDP(fd *FD, raddr string) *ConnUDP {
-	c := new(ConnUDP);
+	c := new(*ConnUDP);
 	c.fd = fd;
 	c.raddr = raddr;
 	return c
@@ -488,7 +486,7 @@ export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
 		syscall.close(fd.fd);
 		return nil, os.ErrnoToError(e1)
 	}
-	l = new(ListenerTCP);
+	l = new(*ListenerTCP);
 	l.fd = fd;
 	return l, nil
 }

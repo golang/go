@@ -54,7 +54,7 @@ func (h *ErrorHandler) Init(filename, src string, columns bool) {
 func (h *ErrorHandler) LineCol(pos int) (line, col int) {
 	line = 1;
 	lpos := 0;
-	
+
 	src := h.src;
 	if pos > len(src) {
 		pos = len(src);
@@ -66,7 +66,7 @@ func (h *ErrorHandler) LineCol(pos int) (line, col int) {
 			lpos = i;
 		}
 	}
-	
+
 	return line, pos - lpos;
 }
 
@@ -82,7 +82,7 @@ func (h *ErrorHandler) ErrorMsg(pos int, msg string) {
 		}
 	}
 	print(" ", msg, "\n");
-	
+
 	h.nerrors++;
 	h.errpos = pos;
 
@@ -100,10 +100,10 @@ func (h *ErrorHandler) Error(pos int, msg string) {
 	if delta < 0 {
 		delta = -delta;
 	}
-	
+
 	if delta > errdist || h.nerrors == 0 /* always report first error */ {
 		h.ErrorMsg(pos, msg);
-	}	
+	}
 }
 
 
@@ -118,14 +118,14 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 		print("cannot open ", src_file, "\n");
 		return nil, 1;
 	}
-	
+
 	var err ErrorHandler;
 	err.Init(src_file, src, flags.columns);
 
 	var scanner Scanner.Scanner;
 	scanner.Init(&err, src, true, flags.testmode);
 
-	var tstream *<-chan *Scanner.Token;
+	var tstream <-chan *Scanner.Token;
 	if flags.tokenchan {
 		tstream = scanner.TokenStream();
 	}
@@ -134,11 +134,11 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	parser.Open(flags.verbose, flags.sixg, flags.deps, &scanner, tstream);
 
 	prog := parser.ParseProgram();
-	
+
 	if err.nerrors == 0 {
 		TypeChecker.CheckProgram(prog);
 	}
-	
+
 	return prog, err.nerrors;
 }
 
@@ -153,27 +153,27 @@ func FileExists(name string) bool {
 }
 
 
-func AddDeps(globalset *map [string] bool, wset *array.Array, src_file string, flags *Flags) {
+func AddDeps(globalset map [string] bool, wset *array.Array, src_file string, flags *Flags) {
 	dummy, found := globalset[src_file];
 	if !found {
 		globalset[src_file] = true;
-		
+
 		prog, nerrors := Compile(src_file, flags);
 		if nerrors > 0 {
 			return;
 		}
-		
+
 		nimports := prog.decls.Len();
 		if nimports > 0 {
 			print(src_file, ".6:\t");
-			
+
 			localset := new(map [string] bool);
 			for i := 0; i < nimports; i++ {
 				decl := prog.decls.At(i).(*AST.Decl);
 				assert(decl.tok == Scanner.IMPORT && decl.val.tok == Scanner.STRING);
 				src := decl.val.s;
 				src = src[1 : len(src) - 1];  // strip "'s
-				
+
 				// ignore files when they are seen a 2nd time
 				dummy, found := localset[src];
 				if !found {
@@ -184,7 +184,7 @@ func AddDeps(globalset *map [string] bool, wset *array.Array, src_file string, f
 					} else if
 						FileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
 						FileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
-						
+
 					} else {
 						// TODO should collect these and print later
 						//print("missing file: ", src, "\n");

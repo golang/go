@@ -31,7 +31,7 @@ export func DNS_ReadConfig() *DNS_Config {
 	if file == nil {
 		return nil
 	}
-	conf := new(DNS_Config);
+	conf := new(*DNS_Config);
 	conf.servers = new([]string, 3)[0:0];		// small, but the standard limit
 	conf.search = new([]string, 0);
 	conf.ndots = 1;

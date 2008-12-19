@@ -20,7 +20,7 @@ func P(a []string) string {
 
 func main() {
 	m := new(map[string] []string);
-	as := new([2]string);
+	as := new(*[2]string);
 	as[0] = "0";
 	as[1] = "1";
 	m["0"] = as;

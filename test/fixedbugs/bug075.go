@@ -6,9 +6,9 @@
 
 package main
 
-type T struct { m *map[int]int }
+type T struct { m map[int]int }
 func main() {
-	t := new(T);
+	t := new(*T);
 	t.m = new(map[int]int);
 	var x int;
 	var ok bool;

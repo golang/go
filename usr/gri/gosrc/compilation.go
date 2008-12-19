@@ -93,16 +93,16 @@ export func Compile(comp *Globals.Compilation, src_file string) {
 		print(src_file, "\n");
 	}
 
-	scanner := new(Scanner.Scanner);
+	scanner := new(*Scanner.Scanner);
 	scanner.Open(src_file, src);
 
-	var tstream *chan *Scanner.Token;
+	var tstream chan *Scanner.Token;
 	if comp.flags.token_chan {
 		tstream = new(chan *Scanner.Token, 100);
 		go scanner.Server(tstream);
 	}
 
-	parser := new(Parser.Parser);
+	parser := new(*Parser.Parser);
 	parser.Open(comp, scanner, tstream);
 
 	parser.ParseProgram();

@@ -34,7 +34,7 @@ func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
 	}
 
 	// digits
-	b := new(Decimal);
+	b := new(*Decimal);
 	sawdot := false;
 	sawdigits := false;
 	for ; i < len(s); i++ {

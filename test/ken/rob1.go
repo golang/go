@@ -31,7 +31,7 @@ Init()
 func (list *List)
 Insert(i Item)
 {
-	item := new(ListItem);
+	item := new(*ListItem);
 	item.item = i;
 	item.next = list.head;
 	list.head = item;
@@ -69,10 +69,10 @@ Print()
 func
 main()
 {
-	list := new(List);
+	list := new(*List);
 	list.Init();
 	for i := 0; i < 10; i = i + 1 {
-		integer := new(Integer);
+		integer := new(*Integer);
 		integer.Init(i);
 		list.Insert(integer);
 	}

@@ -25,7 +25,7 @@ export const (
 	Koopman = 0xeb31d82e;
 )
 
-// TODO(rsc): Change to [256]uint32
+// TODO(rsc): Change to [256]uint32 once 6g can handle it.
 export type Table []uint32
 
 export func MakeTable(poly uint32) Table {

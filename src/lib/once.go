@@ -13,12 +13,12 @@ package once
 
 type Job struct {
 	done bool;
-	doit *chan bool;	// buffer of 1
+	doit chan bool;	// buffer of 1
 }
 
 type Request struct {
 	f *();
-	reply *chan *Job
+	reply chan *Job
 }
 
 // TODO: Would like to use chan Request but 6g rejects it.
@@ -34,7 +34,7 @@ func Server() {
 		req := <-service;
 		job, present := jobmap[req.f];
 		if !present {
-			job = new(Job);
+			job = new(*Job);
 			job.doit = new(chan bool, 1);
 			job.doit <- true;
 			jobmap[req.f] = job

@@ -166,10 +166,10 @@ main()
 	var s *S;
 
 	// allocate
-	s = new(S);
-	s.Subp = new(Subp);
-	s.Sub.SubSubp = new(SubSubp);
-	s.Subp.SubpSubp = new(SubpSubp);
+	s = new(*S);
+	s.Subp = new(*Subp);
+	s.Sub.SubSubp = new(*SubSubp);
+	s.Subp.SubpSubp = new(*SubpSubp);
 
 	// explicit assignment
 	s.a = 1;

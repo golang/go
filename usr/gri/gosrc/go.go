@@ -42,14 +42,14 @@ func Next() string {
 
 func main() {
 	arg := Next();
-	
+
 	if arg == "" {
 		PrintHelp();
 		return;
 	}
 
 	// collect flags and files
-	flags := new(Globals.Flags);
+	flags := new(*Globals.Flags);
 	files := Globals.NewList();
 	for arg != "" {
 	    switch arg {
@@ -81,20 +81,20 @@ func main() {
 		}
 		arg = Next();
 	}
-	
+
 	// setup environment
-	env := new(Globals.Environment);
+	env := new(*Globals.Environment);
 	env.Import = &Compilation.Import;
 	env.Export = &Compilation.Export;
 	env.Compile = &Compilation.Compile;
-	
+
 	// compile files
 	for p := files.first; p != nil; p = p.next {
 		// setup compilation
-		comp := new(Globals.Compilation);
+		comp := new(*Globals.Compilation);
 		comp.flags = flags;
 		comp.env = env;
-		
+
 		// compile
 		Compilation.Compile(comp, p.str);
 	}

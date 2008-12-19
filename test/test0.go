@@ -8,7 +8,7 @@ package main
 
 const
   a_const = 0
-  
+
 const (
   pi = /* the usual */ 3.14159265358979323;
   e = 2.718281828;
@@ -55,7 +55,7 @@ func swap(x, y int) (u, v int) {
 }
 
 func control_structs() {
-  var p *Point = new(Point).Initialize(2, 3);
+  var p *Point = new(*Point).Initialize(2, 3);
   i := p.Distance();
   var f float = 0.3;
   for {}

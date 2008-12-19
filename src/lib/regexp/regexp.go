@@ -48,7 +48,7 @@ func (c *Common) SetIndex(i int) { c.index = i }
 
 type RE struct {
 	expr	string;	// the original expression
-	ch	*chan<- *RE;	// reply channel when we're done
+	ch	chan<- *RE;	// reply channel when we're done
 	error	*os.Error;	// compile- or run-time error; nil if OK
 	inst	*array.Array;
 	start	Inst;
@@ -112,7 +112,7 @@ func (char *Char) Type() int { return CHAR }
 func (char *Char) Print() { print("char ", string(char.char)) }
 
 func NewChar(char int) *Char {
-	c := new(Char);
+	c := new(*Char);
 	c.char = char;
 	return c;
 }
@@ -163,7 +163,7 @@ func (cclass *CharClass) Matches(c int) bool {
 }
 
 func NewCharClass() *CharClass {
-	c := new(CharClass);
+	c := new(*CharClass);
 	c.ranges = array.NewIntArray(0);
 	return c;
 }
@@ -249,7 +249,7 @@ func (p *Parser) nextc() int {
 }
 
 func NewParser(re *RE) *Parser {
-	parser := new(Parser);
+	parser := new(*Parser);
 	parser.re = re;
 	parser.nextc();	// load p.ch
 	return parser;
@@ -364,15 +364,15 @@ func (p *Parser) Term() (start, end Inst) {
 		p.re.Error(ErrUnmatchedRbkt);
 	case '^':
 		p.nextc();
-		start = p.re.Add(new(Bot));
+		start = p.re.Add(new(*Bot));
 		return start, start;
 	case '$':
 		p.nextc();
-		start = p.re.Add(new(Eot));
+		start = p.re.Add(new(*Eot));
 		return start, start;
 	case '.':
 		p.nextc();
-		start = p.re.Add(new(Any));
+		start = p.re.Add(new(*Any));
 		return start, start;
 	case '[':
 		p.nextc();
@@ -393,9 +393,9 @@ func (p *Parser) Term() (start, end Inst) {
 		}
 		p.nlpar--;
 		p.nextc();
-		bra := new(Bra);
+		bra := new(*Bra);
 		p.re.Add(bra);
-		ebra := new(Ebra);
+		ebra := new(*Ebra);
 		p.re.Add(ebra);
 		bra.n = nbra;
 		ebra.n = nbra;
@@ -437,7 +437,7 @@ func (p *Parser) Closure() (start, end Inst) {
 	switch p.c() {
 	case '*':
 		// (start,end)*:
-		alt := new(Alt);
+		alt := new(*Alt);
 		p.re.Add(alt);
 		end.SetNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
@@ -445,16 +445,16 @@ func (p *Parser) Closure() (start, end Inst) {
 		end = alt;
 	case '+':
 		// (start,end)+:
-		alt := new(Alt);
+		alt := new(*Alt);
 		p.re.Add(alt);
 		end.SetNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
 		end = alt;	// start is unchanged; end is alt
 	case '?':
 		// (start,end)?:
-		alt := new(Alt);
+		alt := new(*Alt);
 		p.re.Add(alt);
-		nop := new(Nop);
+		nop := new(*Nop);
 		p.re.Add(nop);
 		alt.left = start;	// alternate branch is start
 		alt.next = nop;	// follow on to nop
@@ -478,7 +478,7 @@ func (p *Parser) Concatenation() (start, end Inst) {
 		switch {
 		case nstart == NULL:	// end of this concatenation
 			if start == NULL {	// this is the empty string
-				nop := p.re.Add(new(Nop));
+				nop := p.re.Add(new(*Nop));
 				return nop, nop;
 			}
 			return;
@@ -501,11 +501,11 @@ func (p *Parser) Regexp() (start, end Inst) {
 		case '|':
 			p.nextc();
 			nstart, nend := p.Concatenation();
-			alt := new(Alt);
+			alt := new(*Alt);
 			p.re.Add(alt);
 			alt.left = start;
 			alt.next = nstart;
-			nop := new(Nop);
+			nop := new(*Nop);
 			p.re.Add(nop);
 			end.SetNext(nop);
 			nend.SetNext(nop);
@@ -550,12 +550,12 @@ func (re *RE) Dump() {
 
 func (re *RE) DoParse() {
 	parser := NewParser(re);
-	start := new(Start);
+	start := new(*Start);
 	re.Add(start);
 	s, e := parser.Regexp();
 	start.next = s;
 	re.start = start;
-	e.SetNext(re.Add(new(End)));
+	e.SetNext(re.Add(new(*End)));
 
 	if debug {
 		re.Dump();
@@ -571,8 +571,8 @@ func (re *RE) DoParse() {
 }
 
 
-func Compiler(str string, ch *chan *RE) {
-	re := new(RE);
+func Compiler(str string, ch chan *RE) {
+	re := new(*RE);
 	re.expr = str;
 	re.inst = array.New(0);
 	re.ch = ch;

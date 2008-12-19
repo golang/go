@@ -164,9 +164,9 @@ func (x *Natural) Add(y *Natural) *Natural {
 	if n < m {
 		return y.Add(x);
 	}
-	
+
 	c := Digit(0);
-	z := new(Natural, n + 1);
+	z := new(*Natural, n + 1);
 	i := 0;
 	for i < m {
 		t := c + x[i] + y[i];
@@ -193,9 +193,9 @@ func (x *Natural) Sub(y *Natural) *Natural {
 	if n < m {
 		panic("underflow")
 	}
-	
+
 	c := Digit(0);
-	z := new(Natural, n);
+	z := new(*Natural, n);
 	i := 0;
 	for i < m {
 		t := c + x[i] - y[i];
@@ -253,7 +253,7 @@ func (x *Natural) Mul(y *Natural) *Natural {
 	n := len(x);
 	m := len(y);
 
-	z := new(Natural, n + m);
+	z := new(*Natural, n + m);
 	for j := 0; j < m; j++ {
 		d := y[j];
 		if d != 0 {
@@ -296,7 +296,7 @@ func Unpack(x *Natural) []Digit2 {
 
 func Pack(x []Digit2) *Natural {
 	n := (len(x) + 1) / 2;
-	z := new(Natural, n);
+	z := new(*Natural, n);
 	if len(x) & 1 == 1 {
 		// handle odd len(x)
 		n--;
@@ -376,7 +376,7 @@ func DivMod(x, y []Digit2) ([]Digit2, []Digit2) {
 	} else {
 		// general case
 		assert(2 <= m && m <= n);
-		
+
 		// normalize x and y
 		// TODO Instead of multiplying, it would be sufficient to
 		//      shift y such that the normalization condition is
@@ -472,7 +472,7 @@ func Shl(z, x []Digit, s uint) Digit {
 func (x *Natural) Shl(s uint) *Natural {
 	n := uint(len(x));
 	m := n + s/W;
-	z := new(Natural, m+1);
+	z := new(*Natural, m+1);
 
 	z[m] = Shl(z[m-n : m], x, s%W);
 
@@ -497,7 +497,7 @@ func (x *Natural) Shr(s uint) *Natural {
 	if m > n {  // check for underflow
 		m = 0;
 	}
-	z := new(Natural, m);
+	z := new(*Natural, m);
 
 	Shr(z, x[n-m : n], s%W);
 
@@ -512,7 +512,7 @@ func (x *Natural) And(y *Natural) *Natural {
 		return y.And(x);
 	}
 
-	z := new(Natural, m);
+	z := new(*Natural, m);
 	for i := 0; i < m; i++ {
 		z[i] = x[i] & y[i];
 	}
@@ -536,7 +536,7 @@ func (x *Natural) Or(y *Natural) *Natural {
 		return y.Or(x);
 	}
 
-	z := new(Natural, n);
+	z := new(*Natural, n);
 	for i := 0; i < m; i++ {
 		z[i] = x[i] | y[i];
 	}
@@ -553,7 +553,7 @@ func (x *Natural) Xor(y *Natural) *Natural {
 		return y.Xor(x);
 	}
 
-	z := new(Natural, n);
+	z := new(*Natural, n);
 	for i := 0; i < m; i++ {
 		z[i] = x[i] ^ y[i];
 	}
@@ -630,7 +630,7 @@ func (x *Natural) ToString(base uint) string {
 	s := new([]byte, n);
 
 	// don't destroy x
-	t := new(Natural, len(x));
+	t := new(*Natural, len(x));
 	Copy(t, x);
 
 	// convert
@@ -682,7 +682,7 @@ func HexValue(ch byte) uint {
 func MulAdd1(x *Natural, d, c Digit) *Natural {
 	assert(IsSmall(d-1) && IsSmall(c));
 	n := len(x);
-	z := new(Natural, n + 1);
+	z := new(*Natural, n + 1);
 
 	for i := 0; i < n; i++ {
 		t := c + x[i]*d;
@@ -1088,7 +1088,7 @@ func (x *Integer) ToString(base uint) string {
 	return s + x.mant.ToString(base);
 }
 
-	
+
 func (x *Integer) String() string {
 	return x.ToString(10);
 }

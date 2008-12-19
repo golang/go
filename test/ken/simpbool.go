@@ -30,7 +30,7 @@ main()
 	if !!!a { panic(6); }
 
 	var x *s;
-	x = new(s);
+	x = new(*s);
 	x.a = true;
 	x.b = false;
 

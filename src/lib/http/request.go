@@ -37,7 +37,7 @@ export type Request struct {
 	pmajor int;	// 1
 	pminor int;	// 0
 
-	header *map[string] string;
+	header map[string] string;
 
 	close bool;
 	host string;
@@ -45,18 +45,16 @@ export type Request struct {
 	useragent string;
 }
 
-var NIL []byte // TODO(rsc)
-
 // Read a line of bytes (up to \n) from b.
 // Give up if the line exceeds MaxLineLength.
 // The returned bytes are a pointer into storage in
 // the bufio, so they are only valid until the next bufio read.
 func ReadLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
 	if p, err = b.ReadLineSlice('\n'); err != nil {
-		return NIL, err
+		return nil, err
 	}
 	if len(p) >= MaxLineLength {
-		return NIL, LineTooLong
+		return nil, LineTooLong
 	}
 
 	// Chop off trailing white space.
@@ -183,7 +181,7 @@ func ParseHTTPVersion(vers string) (int, int, bool) {
 
 // Read and parse a request from b.
 export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
-	req = new(Request);
+	req = new(*Request);
 
 	// First line: GET /index.html HTTP/1.0
 	var s string;

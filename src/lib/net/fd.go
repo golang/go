@@ -19,8 +19,8 @@ export type FD struct {
 	// immutable until Close
 	fd int64;
 	osfd *os.FD;
-	cr *chan *FD;
-	cw *chan *FD;
+	cr chan *FD;
+	cw chan *FD;
 
 	// owned by fd wait server
 	ncr, ncw int;
@@ -70,15 +70,15 @@ func SetNonblock(fd int64) *os.Error {
 // might help batch requests.
 
 type PollServer struct {
-	cr, cw *chan *FD;	// buffered >= 1
+	cr, cw chan *FD;	// buffered >= 1
 	pr, pw *os.FD;
-	pending *map[int64] *FD;
+	pending map[int64] *FD;
 	poll *Pollster;	// low-level OS hooks
 }
 func (s *PollServer) Run();
 
 func NewPollServer() (s *PollServer, err *os.Error) {
-	s = new(PollServer);
+	s = new(*PollServer);
 	s.cr = new(chan *FD, 1);
 	s.cw = new(chan *FD, 1);
 	if s.pr, s.pw, err = os.Pipe(); err != nil {
@@ -214,7 +214,7 @@ export func NewFD(fd int64) (f *FD, err *os.Error) {
 	if err = SetNonblock(fd); err != nil {
 		return nil, err
 	}
-	f = new(FD);
+	f = new(*FD);
 	f.fd = fd;
 	f.osfd = os.NewFD(fd);
 	f.cr = new(chan *FD, 1);

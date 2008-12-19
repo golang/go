@@ -18,10 +18,8 @@ export type Pollster struct {
 	events []syscall.Kevent;
 }
 
-var NIL []syscall.Kevent;  // TODO(rsc): remove
-
 export func NewPollster() (p *Pollster, err *os.Error) {
-	p = new(Pollster);
+	p = new(*Pollster);
 	var e int64;
 	if p.kq, e = syscall.kqueue(); e != 0 {
 		return nil, os.ErrnoToError(e)
@@ -66,7 +64,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 
 func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
 	for len(p.events) == 0 {
-		nn, e := syscall.kevent(p.kq, NIL, p.eventbuf, nil);
+		nn, e := syscall.kevent(p.kq, nil, p.eventbuf, nil);
 		if e != 0 {
 			if e == syscall.EAGAIN || e == syscall.EINTR {
 				continue

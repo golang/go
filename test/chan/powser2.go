@@ -35,8 +35,8 @@ func (u *rat) eq(c item) bool {
 }
 
 type dch struct {
-	req *chan  int;
-	dat *chan  item;
+	req chan  int;
+	dat chan  item;
 	nam int;
 }
 
@@ -51,7 +51,7 @@ func Init();
 func mkdch() *dch {
 	c := chnameserial % len(chnames);
 	chnameserial++;
-	d := new(dch);
+	d := new(*dch);
 	d.req = new(chan int);
 	d.dat = new(chan item);
 	d.nam = c;
@@ -59,7 +59,7 @@ func mkdch() *dch {
 }
 
 func mkdch2() *dch2 {
-	d2 := new(dch2);
+	d2 := new(*dch2);
 	d2[0] = mkdch();
 	d2[1] = mkdch();
 	return d2;
@@ -79,7 +79,7 @@ func mkdch2() *dch2 {
 // a signal on the release-wait channel tells the next newer
 // generation to begin servicing out[1].
 
-func dosplit(in *dch, out *dch2, wait *chan int ){
+func dosplit(in *dch, out *dch2, wait chan int ){
 	var t *dch;
 	both := false;	// do not service both channels
 
@@ -132,9 +132,9 @@ func get(in *dch) *rat {
 func getn(in []*dch, n int) []item {
 	// BUG n:=len(in);
 	if n != 2 { panic("bad n in getn") };
-	req := new([2] *chan int);
-	dat := new([2] *chan item);
-	out := new([2] item);
+	req := new([] chan int, 2);
+	dat := new([] chan item, 2);
+	out := new([]item, 2);
 	var i int;
 	var it item;
 	for i=0; i<n; i++ {
@@ -165,10 +165,7 @@ func getn(in []*dch, n int) []item {
 // Get one item from each of 2 demand channels
 
 func get2(in0 *dch, in1 *dch)  []item {
-	x := new([2] *dch);
-	x[0] = in0;
-	x[1] = in1;
-	return getn(x, 2);
+	return getn([]*dch{in0, in1}, 2);
 }
 
 func copy(in *dch, out *dch){
@@ -216,7 +213,7 @@ func gcd (u, v int64) int64{
 
 func i2tor(u, v int64) *rat{
 	g := gcd(u,v);
-	r := new(rat);
+	r := new(*rat);
 	if v > 0 {
 		r.num = u/g;
 		r.den = v/g;
@@ -254,7 +251,7 @@ func add(u, v *rat) *rat {
 func mul(u, v *rat) *rat{
 	g1 := gcd(u.num,v.den);
 	g2 := gcd(u.den,v.num);
-	r := new(rat);
+	r := new(*rat);
 	r.num =(u.num/g1)*(v.num/g2);
 	r.den = (u.den/g2)*(v.den/g1);
 	return r;
@@ -654,7 +651,7 @@ func main() {
 		check(Ones, one, 5, "Ones");
 		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1
 		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos"); // 3 3 3 3 3
-		a := new([N] *rat);
+		a := new([]*rat, N);
 		d := Diff(Ones);
 		// BUG: want array initializer
 		for i:=0; i < N; i++ {

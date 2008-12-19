@@ -14,7 +14,7 @@ import (
 	"strconv";
 )
 
-func f(left, right *chan int) {
+func f(left, right chan int) {
 	left <- <-right;
 }
 
@@ -36,6 +36,6 @@ func main() {
 		go f(left, right);
 		left = right;
 	}
-	go func(c *chan int) { c <- 1 }(right);
+	go func(c chan int) { c <- 1 }(right);
 	<-leftmost;
 }

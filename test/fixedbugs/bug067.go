@@ -6,7 +6,7 @@
 
 package main
 
-var c *chan int
+var c chan int
 
 func main() {
 	c = new(chan int);

@@ -33,7 +33,7 @@ func (x *Literal) typ() *Globals.Type {
 
 
 export func NewLiteral(pos int, typ *Globals.Type) *Literal {
-	x := new(Literal);
+	x := new(*Literal);
 	x.pos_ = pos;
 	x.typ_ = typ;
 	return x;
@@ -63,7 +63,7 @@ func (x *Object) typ() *Globals.Type {
 
 
 export func NewObject(pos int, obj* Globals.Object) *Object {
-	x := new(Object);
+	x := new(*Object);
 	x.pos_ = pos;
 	x.obj = obj;
 	return x;
@@ -88,7 +88,7 @@ func (x *Selector) typ() *Globals.Type {
 
 
 export func NewSelector(pos int, typ *Globals.Type) *Selector {
-	x := new(Selector);
+	x := new(*Selector);
 	x.pos_ = pos;
 	x.typ_ = typ;
 	return x;

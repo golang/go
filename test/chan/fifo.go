@@ -23,7 +23,7 @@ func AsynchFifo() {
 	}
 }
 
-func Chain(ch *<-chan int, val int, in *<-chan int, out *chan<- int) {
+func Chain(ch <-chan int, val int, in <-chan int, out chan<- int) {
 	<-in;
 	if <-ch != val {
 		panic(val)

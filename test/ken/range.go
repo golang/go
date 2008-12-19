@@ -10,7 +10,7 @@ const	size	= 16;
 
 var	a	[size]byte;
 var	p	[]byte;
-var	m	*map[int]byte;
+var	m	map[int]byte;
 
 func
 f(k int) byte

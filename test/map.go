@@ -46,8 +46,8 @@ func main() {
 	//mit := new(map[int] T);	// should be able to do a value but:  fatal error: algtype: cant find type <T>{}
 	//mti := new(map[T] int);	// should be able to do a value but:  fatal error: algtype: cant find type <T>{}
 
-	type M map[int] int; 
-	mipM := new(map[int] *M);
+	type M map[int] int;
+	mipM := new(map[int] M);
 
 	const count = 100; // BUG: should be bigger but maps do linear lookup
 	var apT [2*count]*T;
@@ -55,14 +55,14 @@ func main() {
 	for i := 0; i < count; i++ {
 		s := F.d(i).str();
 		f := float(i);
-		apT[i] = new(T);
+		apT[i] = new(*T);
 		apT[i].s = s;
 		apT[i].f = f;
-		apT[2*i] = new(T);	// need twice as many entries as we use, for the nonexistence check
+		apT[2*i] = new(*T);	// need twice as many entries as we use, for the nonexistence check
 		apT[2*i].s = s;
 		apT[2*i].f = f;
 		// BUG t := T(s, f);
-		t := new(T); t.s = s; t.f = f;
+		t := new(*T); t.s = s; t.f = f;
 		// BUG m := M(i, i+1);
 		m := new(M); m[i] = i+1;
 		mib[i] = (i != 0);
@@ -73,7 +73,7 @@ func main() {
 		msi[F.d(i).str()] = i;
 		mss[F.d(i).str()] = F.d(10*i).str();
 		mss[F.d(i).str()] = F.d(10*i).str();
-		as := new([arraylen]string);
+		as := new([]string, arraylen);
 			as[0] = F.d(10*i).str();
 			as[1] = F.d(10*i).str();
 		mspa[F.d(i).str()] = as;
@@ -120,7 +120,7 @@ func main() {
 	if len(mipM) != count {
 		F.s("len(mipM) = ").d(len(mipM)).putnl();
 	}
-	
+
 	// test construction directly
 	for i := 0; i < count; i++ {
 		s := F.d(i).str();
@@ -411,7 +411,7 @@ func main() {
 			}
 		}
 	}
-	
+
 
 	// tests for structured map element updates
 	for i := 0; i < count; i++ {

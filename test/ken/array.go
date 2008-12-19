@@ -95,7 +95,7 @@ testpfpf()
 func
 testpdpf1()
 {
-	a := new([40]int);
+	a := new(*[40]int);
 	setpd(a);
 	res(sumpd(a), 0, 40);
 

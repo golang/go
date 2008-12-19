@@ -30,13 +30,12 @@ type Data struct {
 	error bool;
 }
 
-var NIL []byte  // TODO(rsc)
 
 func (d *Data) Read(n int) []byte {
 	if len(d.p) < n {
-		d.p = NIL;
+		d.p = nil;
 		d.error = true;
-		return NIL;
+		return nil;
 	}
 	p := d.p[0:n];
 	d.p = d.p[n:len(d.p)];
@@ -86,20 +85,19 @@ type Zonetime struct {
 }
 
 func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
-	var NIL []Zonetime;  // TODO(rsc)
 
 	data1 := Data{bytes, false};
 	data := &data1;
 
 	// 4-byte magic "TZif"
 	if magic := data.Read(4); string(magic) != "TZif" {
-		return NIL, BadZoneinfo
+		return nil, BadZoneinfo
 	}
 
 	// 1-byte version, then 15 bytes of padding
 	var p []byte;
 	if p = data.Read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
-		return NIL, BadZoneinfo
+		return nil, BadZoneinfo
 	}
 	vers := p[0];
 
@@ -122,7 +120,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
 	for i := 0; i < 6; i++ {
 		nn, ok := data.Big4();
 		if !ok {
-			return NIL, BadZoneinfo
+			return nil, BadZoneinfo
 		}
 		n[i] = int(nn);
 	}
@@ -154,7 +152,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
 	isutc := data.Read(n[NUTCLocal]);
 
 	if data.error {	// ran out of data
-		return NIL, BadZoneinfo
+		return nil, BadZoneinfo
 	}
 
 	// If version == 2, the entire file repeats, this time using
@@ -169,16 +167,16 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
 		var ok bool;
 		var n uint32;
 		if n, ok = zonedata.Big4(); !ok {
-			return NIL, BadZoneinfo
+			return nil, BadZoneinfo
 		}
 		zone[i].utcoff = int(n);
 		var b byte;
 		if b, ok = zonedata.Byte(); !ok {
-			return NIL, BadZoneinfo
+			return nil, BadZoneinfo
 		}
 		zone[i].isdst = b != 0;
 		if b, ok = zonedata.Byte(); !ok || int(b) >= len(abbrev) {
-			return NIL, BadZoneinfo
+			return nil, BadZoneinfo
 		}
 		zone[i].name = ByteString(abbrev[b:len(abbrev)])
 	}
@@ -189,11 +187,11 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
 		var ok bool;
 		var n uint32;
 		if n, ok = txtimes.Big4(); !ok {
-			return NIL, BadZoneinfo
+			return nil, BadZoneinfo
 		}
 		zt[i].time = int32(n);
 		if int(txzones[i]) >= len(zone) {
-			return NIL, BadZoneinfo
+			return nil, BadZoneinfo
 		}
 		zt[i].zone = &zone[txzones[i]];
 		if i < len(isstd) {
@@ -207,10 +205,9 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
 }
 
 func ReadFile(name string, max int) (p []byte, err *os.Error) {
-	var NIL []byte; // TODO(rsc)
 	fd, e := os.Open(name, os.O_RDONLY, 0);
 	if e != nil {
-		return NIL, e
+		return nil, e
 	}
 	p = new([]byte, max+1)[0:0];
 	n := 0;
@@ -218,7 +215,7 @@ func ReadFile(name string, max int) (p []byte, err *os.Error) {
 		nn, e := fd.Read(p[n:cap(p)]);
 		if e != nil {
 			fd.Close();
-			return NIL, e
+			return nil, e
 		}
 		if nn == 0 {
 			fd.Close();
@@ -227,15 +224,14 @@ func ReadFile(name string, max int) (p []byte, err *os.Error) {
 		p = p[0:n+nn]
 	}
 	fd.Close();
-	return NIL, BadZoneinfo	// too long
+	return nil, BadZoneinfo	// too long
 }
 
 
 func ReadZoneinfoFile(name string) (tx []Zonetime, err *os.Error) {
-	var NIL []Zonetime;  // TODO(rsc)
 	data, e := ReadFile(name, MaxFileSize);
 	if e != nil {
-		return NIL, e
+		return nil, e
 	}
 	tx, err = ParseZoneinfo(data);
 	return tx, err

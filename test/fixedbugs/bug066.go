@@ -12,7 +12,7 @@ type (
 )
 
 type Scope struct {
-	entries *map[string] *Object;
+	entries map[string] *Object;
 }
 
 
