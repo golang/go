@@ -6,7 +6,7 @@
 
 package main
 
-func foo(a *[]int) int {
+func foo(a []int) int {
 	return (*a)[0]  // this seesm to do the wrong thing
 }
 

@@ -90,7 +90,7 @@ func IsSmall(x Digit) bool {
 }
 
 
-export func Dump(x *[]Digit) {
+export func Dump(x []Digit) {
 	print("[", len(x), "]");
 	for i := len(x) - 1; i >= 0; i-- {
 		print(" ", x[i]);
@@ -113,16 +113,16 @@ export func Dump(x *[]Digit) {
 export type Natural []Digit;
 
 var (
-	NatZero *Natural = &Natural{};
-	NatOne *Natural = &Natural{1};
-	NatTwo *Natural = &Natural{2};
-	NatTen *Natural = &Natural{10};
+	NatZero Natural = *&Natural{};
+	NatOne Natural = *&Natural{1};
+	NatTwo Natural = *&Natural{2};
+	NatTen Natural = *&Natural{10};
 )
 
 
 // Creation
 
-export func Nat(x uint) *Natural {
+export func Nat(x uint) Natural {
 	switch x {
 	case 0: return NatZero;
 	case 1: return NatOne;
@@ -130,7 +130,7 @@ export func Nat(x uint) *Natural {
 	case 10: return NatTen;
 	}
 	assert(Digit(x) < B);
-	return &Natural{Digit(x)};
+	return *&Natural{Digit(x)};	// TODO(rsc): *&
 }
 
 
@@ -148,7 +148,7 @@ func (x *Natural) IsZero() bool {
 
 // Operations
 
-func Normalize(x *Natural) *Natural {
+func Normalize(x *Natural) Natural {
 	n := len(x);
 	for n > 0 && x[n - 1] == 0 { n-- }
 	if n < len(x) {
@@ -278,7 +278,7 @@ func (x *Natural) Mul(y *Natural) *Natural {
 // into operands with twice as many digits of half the size (Digit2), do
 // DivMod, and then pack the results again.
 
-func Unpack(x *Natural) *[]Digit2 {
+func Unpack(x *Natural) []Digit2 {
 	n := len(x);
 	z := new([]Digit2, n*2 + 1);  // add space for extra digit (used by DivMod)
 	for i := 0; i < n; i++ {
@@ -294,7 +294,7 @@ func Unpack(x *Natural) *[]Digit2 {
 }
 
 
-func Pack(x *[]Digit2) *Natural {
+func Pack(x []Digit2) *Natural {
 	n := (len(x) + 1) / 2;
 	z := new(Natural, n);
 	if len(x) & 1 == 1 {
@@ -309,7 +309,7 @@ func Pack(x *[]Digit2) *Natural {
 }
 
 
-func Mul1(z, x *[]Digit2, y Digit2) Digit2 {
+func Mul1(z, x []Digit2, y Digit2) Digit2 {
 	n := len(x);
 	c := Digit(0);
 	f := Digit(y);
@@ -321,7 +321,7 @@ func Mul1(z, x *[]Digit2, y Digit2) Digit2 {
 }
 
 
-func Div1(z, x *[]Digit2, y Digit2) Digit2 {
+func Div1(z, x []Digit2, y Digit2) Digit2 {
 	n := len(x);
 	c := Digit(0);
 	d := Digit(y);
@@ -353,7 +353,7 @@ func Div1(z, x *[]Digit2, y Digit2) Digit2 {
 //    minefield. "Software - Practice and Experience 24", (June 1994),
 //    579-601. John Wiley & Sons, Ltd.
 
-func DivMod(x, y *[]Digit2) (*[]Digit2, *[]Digit2) {
+func DivMod(x, y []Digit2) ([]Digit2, []Digit2) {
 	n := len(x);
 	m := len(y);
 	if m == 0 {
@@ -458,7 +458,7 @@ func (x *Natural) DivMod(y *Natural) (*Natural, *Natural) {
 }
 
 
-func Shl(z, x *[]Digit, s uint) Digit {
+func Shl(z, x []Digit, s uint) Digit {
 	assert(s <= W);
 	n := len(x);
 	c := Digit(0);
@@ -480,7 +480,7 @@ func (x *Natural) Shl(s uint) *Natural {
 }
 
 
-func Shr(z, x *[]Digit, s uint) Digit {
+func Shr(z, x []Digit, s uint) Digit {
 	assert(s <= W);
 	n := len(x);
 	c := Digit(0);
@@ -522,7 +522,7 @@ func (x *Natural) And(y *Natural) *Natural {
 }
 
 
-func Copy(z, x *[]Digit) {
+func Copy(z, x []Digit) {
 	for i, e := range x {
 		z[i] = e
 	}

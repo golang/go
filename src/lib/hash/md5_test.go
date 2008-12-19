@@ -49,7 +49,7 @@ var golden = []Md5Test {
 	Md5Test{ "132f7619d33b523b1d9e5bd8e0928355", "How can you write a big system without C++?  -Paul Glick" },
 }
 
-func Hex(p *[]byte) string {
+func Hex(p []byte) string {
 	s := "";
 	for i := 0; i < len(p); i++ {
 		v := p[i];

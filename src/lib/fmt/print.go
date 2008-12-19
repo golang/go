@@ -20,7 +20,7 @@ import (
 // Provides access to the io.Write interface plus information about
 // the active formatting verb.
 export type Formatter interface {
-	Write(b *[]byte) (ret int, err *os.Error);
+	Write(b []byte) (ret int, err *os.Error);
 	Width()	(wid int, ok bool);
 	Precision()	(prec int, ok bool);
 
@@ -41,7 +41,7 @@ const AllocSize = 32
 
 type P struct {
 	n	int;
-	buf	*[]byte;
+	buf	[]byte;
 	fmt	*Fmt;
 }
 
@@ -76,11 +76,8 @@ func (p *P) Flag(b int) bool {
 }
 
 func (p *P) ensure(n int) {
-	if p.buf == nil || len(p.buf) < n {
-		newn := AllocSize;
-		if p.buf != nil {
-			newn += len(p.buf);
-		}
+	if len(p.buf) < n {
+		newn := AllocSize + len(p.buf);
 		if newn < n {
 			newn = n + AllocSize
 		}
@@ -101,7 +98,7 @@ func (p *P) addstr(s string) {
 	}
 }
 
-func (p *P) addbytes(b *[]byte, start, end int) {
+func (p *P) addbytes(b []byte, start, end int) {
 	p.ensure(p.n + end-start);
 	for i := start; i < end; i++ {
 		p.buf[p.n] = b[i];
@@ -121,7 +118,7 @@ func (p *P) add(c int) {
 
 // Implement Write so we can call fprintf on a P, for
 // recursive use in custom verbs.
-func (p *P) Write(b *[]byte) (ret int, err *os.Error) {
+func (p *P) Write(b []byte) (ret int, err *os.Error) {
 	p.addbytes(b, 0, len(b));
 	return len(b), nil;
 }
@@ -257,7 +254,7 @@ func getString(v reflect.Value) (val string, ok bool) {
 	case reflect.StringKind:
 		return v.(reflect.StringValue).Get(), true;
 	}
-	if valb, okb := v.Interface().(*[]byte); okb {
+	if valb, okb := v.Interface().([]byte); okb {
 		return string(valb), true;
 	}
 	return "", false;

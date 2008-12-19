@@ -20,7 +20,7 @@ var strings = []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***
 
 export func TestSortIntArray(t *testing.T) {
 	data := ints;
-	a := sort.IntArray{&data};
+	a := sort.IntArray{data};
 	sort.Sort(&a);
 	if !sort.IsSorted(&a) {
 		t.Errorf("sorted %v", ints);
@@ -30,7 +30,7 @@ export func TestSortIntArray(t *testing.T) {
 
 export func TestSortFloatArray(t *testing.T) {
 	data := floats;
-	a := sort.FloatArray{&data};
+	a := sort.FloatArray{data};
 	sort.Sort(&a);
 	if !sort.IsSorted(&a) {
 		t.Errorf("sorted %v", floats);
@@ -40,7 +40,7 @@ export func TestSortFloatArray(t *testing.T) {
 
 export func TestSortStringArray(t *testing.T) {
 	data := strings;
-	a := sort.StringArray{&data};
+	a := sort.StringArray{data};
 	sort.Sort(&a);
 	if !sort.IsSorted(&a) {
 		t.Errorf("sorted %v", strings);
@@ -50,8 +50,8 @@ export func TestSortStringArray(t *testing.T) {
 
 export func TestSortInts(t *testing.T) {
 	data := ints;
-	sort.SortInts(&data);
-	if !sort.IntsAreSorted(&data) {
+	sort.SortInts(data);
+	if !sort.IntsAreSorted(data) {
 		t.Errorf("sorted %v", ints);
 		t.Errorf("   got %v", data);
 	}
@@ -59,8 +59,8 @@ export func TestSortInts(t *testing.T) {
 
 export func TestSortFloats(t *testing.T) {
 	data := floats;
-	sort.SortFloats(&data);
-	if !sort.FloatsAreSorted(&data) {
+	sort.SortFloats(data);
+	if !sort.FloatsAreSorted(data) {
 		t.Errorf("sorted %v", floats);
 		t.Errorf("   got %v", data);
 	}
@@ -68,8 +68,8 @@ export func TestSortFloats(t *testing.T) {
 
 export func TestSortStrings(t *testing.T) {
 	data := strings;
-	sort.SortStrings(&data);
-	if !sort.StringsAreSorted(&data) {
+	sort.SortStrings(data);
+	if !sort.StringsAreSorted(data) {
 		t.Errorf("sorted %v", strings);
 		t.Errorf("   got %v", data);
 	}
@@ -111,7 +111,7 @@ const (
 type TestingData struct {
 	desc string;
 	t *testing.T;
-	data *[]int;
+	data []int;
 	maxswap int;	// number of swaps allowed
 	nswap int;
 }
@@ -153,7 +153,7 @@ export func TestBentleyMcIlroy(t *testing.T) {
 			for dist := 0; dist < NDist; dist++ {
 				j := 0;
 				k := 1;
-				data := (&tmp1)[0:n];
+				data := tmp1[0:n];
 				for i := 0; i < n; i++ {
 					switch dist {
 					case Sawtooth:
@@ -175,7 +175,7 @@ export func TestBentleyMcIlroy(t *testing.T) {
 					}
 				}
 
-				mdata := (&tmp2)[0:n];
+				mdata := tmp2[0:n];
 				for mode := 0; mode < NMode; mode++ {
 					switch mode {
 					case Copy:

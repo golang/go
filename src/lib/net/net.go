@@ -21,7 +21,7 @@ export var (
 	UnknownSocketFamily = os.NewError("unknown socket family");
 )
 
-export func LookupHost(name string) (name1 string, addrs *[]string, err *os.Error)
+export func LookupHost(name string) (name1 string, addrs []string, err *os.Error)
 
 // Split "host:port" into "host" and "port".
 // Host cannot contain colons unless it is bracketed.
@@ -62,31 +62,33 @@ func JoinHostPort(host, port string) string {
 	return host + ":" + port
 }
 
+var NIL []byte
+
 // Convert "host:port" into IP address and port.
 // For now, host and port must be numeric literals.
 // Eventually, we'll have name resolution.
-func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.Error) {
+func HostPortToIP(net string, hostport string) (ip []byte, iport int, err *os.Error) {
 	var host, port string;
 	host, port, err = SplitHostPort(hostport);
 	if err != nil {
-		return nil, 0, err
+		return NIL, 0, err
 	}
 
 	// Try as an IP address.
 	addr := ParseIP(host);
-	if addr == nil {
+	if len(addr) == 0 {
 		// Not an IP address.  Try as a DNS name.
 		hostname, addrs, err := LookupHost(host);
 		if err != nil {
-			return nil, 0, err
+			return NIL, 0, err
 		}
 		if len(addrs) == 0 {
-			return nil, 0, UnknownHost
+			return NIL, 0, UnknownHost
 		}
 		addr = ParseIP(addrs[0]);
-		if addr == nil {
+		if len(addr) == 0 {
 			// should not happen
-			return nil, 0, BadAddress
+			return NIL, 0, BadAddress
 		}
 	}
 
@@ -94,11 +96,11 @@ func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.E
 	if !ok || i != len(port) {
 		p, ok = LookupPort(net, port);
 		if !ok {
-			return nil, 0, UnknownPort
+			return NIL, 0, UnknownPort
 		}
 	}
 	if p < 0 || p > 0xFFFF {
-		return nil, 0, BadAddress
+		return NIL, 0, BadAddress
 	}
 
 	return addr, p, nil
@@ -178,17 +180,17 @@ func (c *ConnBase) FD() int64 {
 	return c.fd.fd
 }
 
-func (c *ConnBase) Read(b *[]byte) (n int, err *os.Error) {
+func (c *ConnBase) Read(b []byte) (n int, err *os.Error) {
 	n, err = c.fd.Read(b);
 	return n, err
 }
 
-func (c *ConnBase) Write(b *[]byte) (n int, err *os.Error) {
+func (c *ConnBase) Write(b []byte) (n int, err *os.Error) {
 	n, err = c.fd.Write(b);
 	return n, err
 }
 
-func (c *ConnBase) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
+func (c *ConnBase) ReadFrom(b []byte) (n int, raddr string, err *os.Error) {
 	if c == nil {
 		return -1, "", os.EINVAL
 	}
@@ -196,7 +198,7 @@ func (c *ConnBase) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
 	return n, c.raddr, err
 }
 
-func (c *ConnBase) WriteTo(raddr string, b *[]byte) (n int, err *os.Error) {
+func (c *ConnBase) WriteTo(raddr string, b []byte) (n int, err *os.Error) {
 	if c == nil {
 		return -1, os.EINVAL
 	}
@@ -281,7 +283,7 @@ const PreferIPv4 = false
 
 func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Error) {
 	// Parse addresses (unless they are empty).
-	var lip, rip *[]byte;
+	var lip, rip []byte;
 	var lport, rport int;
 	var lerr, rerr *os.Error;
 
@@ -309,16 +311,14 @@ func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Erro
 	default:
 		// Otherwise, guess.
 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
-		if PreferIPv4
-		&& (lip == nil || ToIPv4(lip) != nil)
-		&& (rip == nil || ToIPv4(rip) != nil) {
+		if PreferIPv4 && len(ToIPv4(lip)) != 0 && len(ToIPv4(rip)) != 0 {
 			vers = 4
 		} else {
 			vers = 6
 		}
 	}
 
-	var cvt *(addr *[]byte, port int) (sa *syscall.Sockaddr, err *os.Error);
+	var cvt *(addr []byte, port int) (sa *syscall.Sockaddr, err *os.Error);
 	var family int64;
 	if vers == 4 {
 		cvt = &IPv4ToSockaddr;
@@ -329,13 +329,13 @@ func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Erro
 	}
 
 	var la, ra *syscall.Sockaddr;
-	if lip != nil {
+	if len(lip) != 0 {
 		la, lerr = cvt(lip, lport);
 		if lerr != nil {
 			return nil, lerr
 		}
 	}
-	if rip != nil {
+	if len(rip) != 0 {
 		ra, rerr = cvt(rip, rport);
 		if rerr != nil {
 			return nil, rerr
@@ -414,10 +414,10 @@ export func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
 
 
 export type Conn interface {
-	Read(b *[]byte) (n int, err *os.Error);
-	Write(b *[]byte) (n int, err *os.Error);
-	ReadFrom(b *[]byte) (n int, addr string, err *os.Error);
-	WriteTo(addr string, b *[]byte) (n int, err *os.Error);
+	Read(b []byte) (n int, err *os.Error);
+	Write(b []byte) (n int, err *os.Error);
+	ReadFrom(b []byte) (n int, addr string, err *os.Error);
+	WriteTo(addr string, b []byte) (n int, err *os.Error);
 	Close() *os.Error;
 	SetReadBuffer(bytes int) *os.Error;
 	SetWriteBuffer(bytes int) *os.Error;

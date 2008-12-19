@@ -144,8 +144,8 @@ func (s *PollServer) Run() {
 		}
 		if fd == s.pr.fd {
 			// Drain our wakeup pipe.
-			for nn, e := s.pr.Read(&scratch); nn > 0; {
-				nn, e = s.pr.Read(&scratch)
+			for nn, e := s.pr.Read(scratch); nn > 0; {
+				nn, e = s.pr.Read(scratch)
 			}
 
 			// Read from channels
@@ -178,7 +178,7 @@ func (s *PollServer) Run() {
 
 func (s *PollServer) Wakeup() {
 	var b [1]byte;
-	s.pw.Write(&b)
+	s.pw.Write(b)
 }
 
 func (s *PollServer) WaitRead(fd *FD) {
@@ -232,7 +232,7 @@ func (fd *FD) Close() *os.Error {
 	return e
 }
 
-func (fd *FD) Read(p *[]byte) (n int, err *os.Error) {
+func (fd *FD) Read(p []byte) (n int, err *os.Error) {
 	if fd == nil || fd.osfd == nil {
 		return -1, os.EINVAL
 	}
@@ -244,7 +244,7 @@ func (fd *FD) Read(p *[]byte) (n int, err *os.Error) {
 	return n, err
 }
 
-func (fd *FD) Write(p *[]byte) (n int, err *os.Error) {
+func (fd *FD) Write(p []byte) (n int, err *os.Error) {
 	if fd == nil || fd.osfd == nil {
 		return -1, os.EINVAL
 	}

@@ -108,7 +108,7 @@ export func epoll_ctl(epfd, op, fd int64, ev *EpollEvent) int64 {
 	return err
 }
 
-export func epoll_wait(epfd int64, ev *[]EpollEvent, msec int64) (ret int64, err int64) {
+export func epoll_wait(epfd int64, ev []EpollEvent, msec int64) (ret int64, err int64) {
 	var evptr, nev int64;
 	if ev != nil && len(ev) > 0 {
 		nev = int64(len(ev));

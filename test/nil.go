@@ -21,7 +21,7 @@ func main() {
 	var c *chan int;
 	var t *T;
 	var in IN;
-	var ta *[]IN;
+	var ta []IN;
 
 	i = nil;
 	f = nil;

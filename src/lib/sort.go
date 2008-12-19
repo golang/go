@@ -136,7 +136,7 @@ export func IsSorted(data SortInterface) bool {
 // Convenience types for common cases
 
 export type IntArray struct {
-	data *[]int;
+	data []int;
 }
 
 func (p *IntArray) Len() int            { return len(p.data); }
@@ -145,7 +145,7 @@ func (p *IntArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.da
 
 
 export type FloatArray struct {
-	data *[]float;
+	data []float;
 }
 
 func (p *FloatArray) Len() int            { return len(p.data); }
@@ -154,7 +154,7 @@ func (p *FloatArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.
 
 
 export type StringArray struct {
-	data *[]string;
+	data []string;
 }
 
 func (p *StringArray) Len() int            { return len(p.data); }
@@ -164,11 +164,11 @@ func (p *StringArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p
 
 // Convenience wrappers for common cases
 
-export func SortInts(a *[]int)        { Sort(&IntArray{a}); }
-export func SortFloats(a *[]float)    { Sort(&FloatArray{a}); }
-export func SortStrings(a *[]string)  { Sort(&StringArray{a}); }
+export func SortInts(a []int)        { Sort(&IntArray{a}); }
+export func SortFloats(a []float)    { Sort(&FloatArray{a}); }
+export func SortStrings(a []string)  { Sort(&StringArray{a}); }
 
 
-export func IntsAreSorted(a *[]int) bool       { return IsSorted(&IntArray{a}); }
-export func FloatsAreSorted(a *[]float) bool   { return IsSorted(&FloatArray{a}); }
-export func StringsAreSorted(a *[]string) bool { return IsSorted(&StringArray{a}); }
+export func IntsAreSorted(a []int) bool       { return IsSorted(&IntArray{a}); }
+export func FloatsAreSorted(a []float) bool   { return IsSorted(&FloatArray{a}); }
+export func StringsAreSorted(a []string) bool { return IsSorted(&StringArray{a}); }

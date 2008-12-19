@@ -10,7 +10,7 @@ type Element interface {
 }
 
 type Vector struct {
-	elem *[]Element;
+	elem []Element;
 }
 
 func (v *Vector) At(i int) Element {

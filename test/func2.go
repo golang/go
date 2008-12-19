@@ -15,7 +15,7 @@ func f1(t1, t2, t3);
 func f2(t1, t2, t3 bool);
 func f3(t1, t2, x t3);
 func f4(t1, *t3);
-func (x *t1) f5(y *[]t2) (t1, *t3);
+func (x *t1) f5(y []t2) (t1, *t3);
 func f6() (int, *string);
 func f7(*t2, t3);
 func f8(os int) int;

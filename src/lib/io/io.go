@@ -12,21 +12,21 @@ import (
 export var ErrEOF = os.NewError("EOF")
 
 export type Read interface {
-	Read(p *[]byte) (n int, err *os.Error);
+	Read(p []byte) (n int, err *os.Error);
 }
 
 export type Write interface {
-	Write(p *[]byte) (n int, err *os.Error);
+	Write(p []byte) (n int, err *os.Error);
 }
 
 export type ReadWrite interface {
-	Read(p *[]byte) (n int, err *os.Error);
-	Write(p *[]byte) (n int, err *os.Error);
+	Read(p []byte) (n int, err *os.Error);
+	Write(p []byte) (n int, err *os.Error);
 }
 
 export type ReadWriteClose interface {
-	Read(p *[]byte) (n int, err *os.Error);
-	Write(p *[]byte) (n int, err *os.Error);
+	Read(p []byte) (n int, err *os.Error);
+	Write(p []byte) (n int, err *os.Error);
 	Close() *os.Error;
 }
 
@@ -41,7 +41,7 @@ export func WriteString(w Write, s string) (n int, err *os.Error) {
 }
 
 // Read until buffer is full, EOF, or error
-export func Readn(fd Read, buf *[]byte) (n int, err *os.Error) {
+export func Readn(fd Read, buf []byte) (n int, err *os.Error) {
 	n = 0;
 	for n < len(buf) {
 		nn, e := fd.Read(buf[n:len(buf)]);
@@ -64,7 +64,7 @@ type FullRead struct {
 	fd	Read;
 }
 
-func (fd *FullRead) Read(p *[]byte) (n int, err *os.Error) {
+func (fd *FullRead) Read(p []byte) (n int, err *os.Error) {
 	n, err = Readn(fd.fd, p);
 	return n, err
 }
@@ -147,7 +147,7 @@ export func Copy(src Read, dst Write) (written int64, err *os.Error) {
 // Convert a string to an array of bytes for easy marshaling.
 // Could fill with syscall.StringToBytes but it adds an unnecessary \000
 // so the length would be wrong.
-export func StringBytes(s string) *[]byte {
+export func StringBytes(s string) []byte {
 	b := new([]byte, len(s));
 	for i := 0; i < len(s); i++ {
 		b[i] = s[i];

@@ -9,11 +9,11 @@ import (
 	"testing"
 )
 
-func IPv4(a, b, c, d byte) *[]byte {
-	return &[]byte{ 0,0,0,0, 0,0,0,0, 0,0,255,255, a,b,c,d }
+func IPv4(a, b, c, d byte) []byte {
+	return []byte{ 0,0,0,0, 0,0,0,0, 0,0,255,255, a,b,c,d }
 }
 
-func Equal(a *[]byte, b *[]byte) bool {
+func Equal(a []byte, b []byte) bool {
 	if a == b {
 		return true
 	}
@@ -30,7 +30,7 @@ func Equal(a *[]byte, b *[]byte) bool {
 
 type ParseIPTest struct {
 	in string;
-	out *[]byte;
+	out []byte;
 }
 var parseiptests = []ParseIPTest {
 	ParseIPTest{"127.0.1.2", IPv4(127, 0, 1, 2)},
@@ -39,7 +39,7 @@ var parseiptests = []ParseIPTest {
 	ParseIPTest{"abc", nil},
 	ParseIPTest{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
 	ParseIPTest{"2001:4860:0:2001::68",
-		&[]byte{0x20,0x01, 0x48,0x60, 0,0, 0x20,0x01, 0,0, 0,0, 0,0, 0x00,0x68}},
+		[]byte{0x20,0x01, 0x48,0x60, 0,0, 0x20,0x01, 0,0, 0,0, 0,0, 0x00,0x68}},
 	ParseIPTest{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
 }
 

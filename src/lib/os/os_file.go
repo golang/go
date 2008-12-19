@@ -53,7 +53,7 @@ func (fd *FD) Close() *Error {
 	return ErrnoToError(e)
 }
 
-func (fd *FD) Read(b *[]byte) (ret int, err *Error) {
+func (fd *FD) Read(b []byte) (ret int, err *Error) {
 	if fd == nil {
 		return 0, EINVAL
 	}
@@ -67,7 +67,7 @@ func (fd *FD) Read(b *[]byte) (ret int, err *Error) {
 	return int(r), ErrnoToError(e)
 }
 
-func (fd *FD) Write(b *[]byte) (ret int, err *Error) {
+func (fd *FD) Write(b []byte) (ret int, err *Error) {
 	if fd == nil {
 		return 0, EINVAL
 	}

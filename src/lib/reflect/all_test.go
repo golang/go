@@ -177,23 +177,23 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 		value := reflect.NewValue(tmp);
 		assert(reflect.ValueToString(value), "*reflect.C·all_test(@)");
 	}
-	{
-		type A [10]int;
-		var tmp A = A{1,2,3,4,5,6,7,8,9,10};
-		value := reflect.NewValue(&tmp);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
-		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
-	}
-	{
-		type AA []int;
-		tmp1 := [10]int{1,2,3,4,5,6,7,8,9,10};	// TODO: should not be necessary to use tmp1
-		var tmp *AA = &tmp1;
-		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
-		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
-	}
+//	{
+//		type A [10]int;
+//		var tmp A = A{1,2,3,4,5,6,7,8,9,10};
+//		value := reflect.NewValue(&tmp);
+//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+//		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
+//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+//	}
+//	{
+//		type AA []int;
+//		tmp1 := [10]int{1,2,3,4,5,6,7,8,9,10};	// TODO: should not be necessary to use tmp1
+//		var tmp *AA = &tmp1;
+//		value := reflect.NewValue(tmp);
+//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+//		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
+//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+//	}
 
 	{
 		var ip *int32;
@@ -264,18 +264,19 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	assert(ct.Elem().String(), "string");
 
 	// make sure tag strings are not part of element type
-	t = reflect.ParseTypeString("", "struct{d *[]uint32 \"TAG\"}");
+	t = reflect.ParseTypeString("", "struct{d []uint32 \"TAG\"}");
 	st = t.(reflect.StructType);
 	name, typ, tag, offset = st.Field(0);
-	assert(typ.String(), "*[]uint32");
+	assert(typ.String(), "[]uint32");
 
 	t = reflect.ParseTypeString("", "[]int32");
 	v := reflect.NewOpenArrayValue(t, 5, 10);
 	t1 := reflect.ParseTypeString("", "*[]int32");
 	v1 := reflect.NewInitValue(t1);
+	if v1 == nil { panic("V1 is nil"); }
 	v1.(reflect.PtrValue).SetSub(v);
 	a := v1.Interface().(*[]int32);
-	println(a, len(a), cap(a));
+	println(&a, len(a), cap(a));
 	for i := 0; i < len(a); i++ {
 		v.Elem(i).(reflect.Int32Value).Set(int32(i));
 	}
@@ -296,33 +297,35 @@ export func TestInterfaceGet(t *testing.T) {
 }
 
 export func TestCopyArray(t *testing.T) {
-	a := &[]int{ 1, 2, 3, 4, 10, 9, 8, 7 };
-	b := &[]int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
-	c := &[]int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
-	va := NewValue(a);
-	vb := NewValue(b);
+	a := []int{ 1, 2, 3, 4, 10, 9, 8, 7 };
+	b := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
+	c := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
+	va := NewValue(&a);
+	vb := NewValue(&b);
 	for i := 0; i < len(b); i++ {
 		if b[i] != c[i] {
 			t.Fatalf("b != c before test");
 		}
 	}
-	for tocopy := 5; tocopy <= 6; tocopy++ {
+	for tocopy := 1; tocopy <= 7; tocopy++ {
 		CopyArray(vb.(PtrValue).Sub(), va.(PtrValue).Sub(), tocopy);
 		for i := 0; i < tocopy; i++ {
 			if a[i] != b[i] {
-				t.Errorf("tocopy=%d a[%d]=%d, b[%d]=%d",
+				t.Errorf("1 tocopy=%d a[%d]=%d, b[%d]=%d",
 					tocopy, i, a[i], i, b[i]);
 			}
 		}
 		for i := tocopy; i < len(b); i++ {
 			if b[i] != c[i] {
 				if i < len(a) {
-					t.Errorf("tocopy=%d a[%d]=%d, b[%d]=%d, c[%d]=%d",
+					t.Errorf("2 tocopy=%d a[%d]=%d, b[%d]=%d, c[%d]=%d",
 						tocopy, i, a[i], i, b[i], i, c[i]);
 				} else {
-					t.Errorf("tocopy=%d b[%d]=%d, c[%d]=%d",
+					t.Errorf("3 tocopy=%d b[%d]=%d, c[%d]=%d",
 						tocopy, i, b[i], i, c[i]);
 				}
+			} else {
+				t.Logf("tocopy=%d elem %d is okay\n", tocopy, i);
 			}
 		}
 	}

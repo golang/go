@@ -13,7 +13,7 @@ import (
 	"testing";
 )
 
-func StringToBytes(s string) *[]byte {
+func StringToBytes(s string) []byte {
 	b := new([]byte, len(s));
 	for i := 0; i < len(s); i++ {
 		b[i] = s[i]
@@ -22,7 +22,7 @@ func StringToBytes(s string) *[]byte {
 }
 
 // Should be in language!
-func Copy(p *[]byte, q *[]byte) {
+func Copy(p []byte, q []byte) {
 	for i := 0; i < len(p); i++ {
 		p[i] = q[i]
 	}
@@ -30,16 +30,16 @@ func Copy(p *[]byte, q *[]byte) {
 
 // Reads from p.
 type ByteReader struct {
-	p *[]byte
+	p []byte
 }
 
-func NewByteReader(p *[]byte) io.Read {
+func NewByteReader(p []byte) io.Read {
 	b := new(ByteReader);
 	b.p = p;
 	return b
 }
 
-func (b *ByteReader) Read(p *[]byte) (int, *os.Error) {
+func (b *ByteReader) Read(p []byte) (int, *os.Error) {
 	n := len(p);
 	if n > len(b.p) {
 		n = len(b.p)
@@ -52,16 +52,16 @@ func (b *ByteReader) Read(p *[]byte) (int, *os.Error) {
 
 // Reads from p but only returns half of what you asked for.
 type HalfByteReader struct {
-	p *[]byte
+	p []byte
 }
 
-func NewHalfByteReader(p *[]byte) io.Read {
+func NewHalfByteReader(p []byte) io.Read {
 	b := new(HalfByteReader);
 	b.p = p;
 	return b
 }
 
-func (b *HalfByteReader) Read(p *[]byte) (int, *os.Error) {
+func (b *HalfByteReader) Read(p []byte) (int, *os.Error) {
 	n := len(p)/2;
 	if n == 0 && len(p) > 0 {
 		n = 1
@@ -85,7 +85,7 @@ func NewRot13Reader(r io.Read) *Rot13Reader {
 	return r13
 }
 
-func (r13 *Rot13Reader) Read(p *[]byte) (int, *os.Error) {
+func (r13 *Rot13Reader) Read(p []byte) (int, *os.Error) {
 	n, e := r13.r.Read(p);
 	if e != nil {
 		return n, e
@@ -104,11 +104,11 @@ func (r13 *Rot13Reader) Read(p *[]byte) (int, *os.Error) {
 
 type Readmaker struct {
 	name string;
-	fn *(*[]byte) io.Read;
+	fn *([]byte) io.Read;
 }
 var readmakers = []Readmaker {
-	Readmaker{ "full", func(p *[]byte) io.Read { return NewByteReader(p) } },
-	Readmaker{ "half", func(p *[]byte) io.Read { return NewHalfByteReader(p) } },
+	Readmaker{ "full", func(p []byte) io.Read { return NewByteReader(p) } },
+	Readmaker{ "half", func(p []byte) io.Read { return NewHalfByteReader(p) } },
 }
 
 // Call ReadLineString (which ends up calling everything else)
@@ -152,14 +152,13 @@ func Reads(buf *BufRead, m int) string {
 	var b [1000]byte;
 	nb := 0;
 	for {
-		// BUG parens around (&b) should not be needed
-		n, e := buf.Read((&b)[nb:nb+m]);
+		n, e := buf.Read(b[nb:nb+m]);
 		nb += n;
 		if e == EndOfFile {
 			break
 		}
 	}
-	return string((&b)[0:nb])
+	return string(b[0:nb])
 }
 
 type Bufreader struct {
@@ -228,13 +227,13 @@ export func TestBufRead(t *testing.T) {
 }
 
 type WriteBuffer interface {
-	Write(p *[]byte) (int, *os.Error);
-	GetBytes() *[]byte
+	Write(p []byte) (int, *os.Error);
+	GetBytes() []byte
 }
 
 // Accumulates bytes into a byte array.
 type ByteWriter struct {
-	p *[]byte;
+	p []byte;
 	n int
 }
 
@@ -242,7 +241,7 @@ func NewByteWriter() WriteBuffer {
 	return new(ByteWriter)
 }
 
-func (w *ByteWriter) Write(p *[]byte) (int, *os.Error) {
+func (w *ByteWriter) Write(p []byte) (int, *os.Error) {
 	if w.p == nil {
 		w.p = new([]byte, len(p)+100)
 	} else if w.n + len(p) >= len(w.p) {
@@ -255,7 +254,7 @@ func (w *ByteWriter) Write(p *[]byte) (int, *os.Error) {
 	return len(p), nil
 }
 
-func (w *ByteWriter) GetBytes() *[]byte {
+func (w *ByteWriter) GetBytes() []byte {
 	return w.p[0:w.n]
 }
 
@@ -272,14 +271,14 @@ func NewHalfByteWriter() WriteBuffer {
 	return w
 }
 
-func (w *HalfByteWriter) Write(p *[]byte) (int, *os.Error) {
+func (w *HalfByteWriter) Write(p []byte) (int, *os.Error) {
 	n := (len(p)+1) / 2;
 	// BUG return w.bw.Write(p[0:n])
 	r, e := w.bw.Write(p[0:n]);
 	return r, e
 }
 
-func (w *HalfByteWriter) GetBytes() *[]byte {
+func (w *HalfByteWriter) GetBytes() []byte {
 	return w.bw.GetBytes()
 }
 
@@ -315,7 +314,7 @@ export func TestBufWrite(t *testing.T) {
 					t.Errorf("%s: NewBufWriteSize %d: %v", context, bs, e);
 					continue;
 				}
-				n, e1 := buf.Write((&data)[0:nwrite]);
+				n, e1 := buf.Write(data[0:nwrite]);
 				if e1 != nil || n != nwrite {
 					t.Errorf("%s: buf.Write %d = %d, %v", context, nwrite, n, e1);
 					continue;
@@ -331,7 +330,7 @@ export func TestBufWrite(t *testing.T) {
 				for l := 0; l < len(written); l++ {
 					if written[i] != data[i] {
 						t.Errorf("%s: wrong bytes written");
-						t.Errorf("want=%s", (&data)[0:len(written)]);
+						t.Errorf("want=%s", data[0:len(written)]);
 						t.Errorf("have=%s", written);
 					}
 				}

@@ -30,7 +30,7 @@ export var (
 	ShortWrite = os.NewError("short write");
 )
 
-func CopySlice(dst *[]byte, src *[]byte) {
+func CopySlice(dst []byte, src []byte) {
 	for i := 0; i < len(dst); i++ {
 		dst[i] = src[i]
 	}
@@ -40,7 +40,7 @@ func CopySlice(dst *[]byte, src *[]byte) {
 // Buffered input.
 
 export type BufRead struct {
-	buf *[]byte;
+	buf []byte;
 	rd io.Read;
 	r, w int;
 	err *os.Error;
@@ -91,7 +91,7 @@ func (b *BufRead) Fill() *os.Error {
 // Returns the number of bytes read into p.
 // If nn < len(p), also returns an error explaining
 // why the read is short.
-func (b *BufRead) Read(p *[]byte) (nn int, err *os.Error) {
+func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
 	nn = 0;
 	for len(p) > 0 {
 		n := len(p);
@@ -170,7 +170,7 @@ func (b *BufRead) ReadRune() (rune int, size int, err *os.Error) {
 
 // Helper function: look for byte c in array p,
 // returning its index or -1.
-func FindByte(p *[]byte, c byte) int {
+func FindByte(p []byte, c byte) int {
 	for i := 0; i < len(p); i++ {
 		if p[i] == c {
 			return i
@@ -190,9 +190,12 @@ func (b *BufRead) Buffered() int {
 // Fails if the line doesn't fit in the buffer.
 // For internal (or advanced) use only.
 // Use ReadLineString or ReadLineBytes instead.
-func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
+
+var NIL []byte // TODO(rsc): should be able to use nil
+
+func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
 	if b.err != nil {
-		return nil, b.err
+		return NIL, b.err
 	}
 
 	// Look in buffer.
@@ -207,7 +210,7 @@ func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
 		n := b.Buffered();
 		b.Fill();
 		if b.err != nil {
-			return nil, b.err
+			return NIL, b.err
 		}
 		if b.Buffered() == n {	// no data added; end of file
 			line := b.buf[b.r:b.w];
@@ -224,12 +227,12 @@ func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
 
 		// Buffer is full?
 		if b.Buffered() >= len(b.buf) {
-			return nil, BufferFull
+			return NIL, BufferFull
 		}
 	}
 
 	// BUG 6g bug100
-	return nil, nil
+	return NIL, nil
 }
 
 // Read until the first occurrence of delim in the input,
@@ -237,15 +240,15 @@ func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
 // If an error happens, returns the data (without a delimiter)
 // and the error.  (Can't leave the data in the buffer because
 // we might have read more than the buffer size.)
-func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
+func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 	if b.err != nil {
-		return nil, b.err
+		return NIL, b.err
 	}
 
 	// Use ReadLineSlice to look for array,
 	// accumulating full buffers.
-	var frag *[]byte;
-	var full *[]*[]byte;
+	var frag []byte;
+	var full [][]byte;
 	nfull := 0;
 	err = nil;
 
@@ -276,10 +279,10 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
 		}
 
 		// Grow list if needed.
-		if full == nil {
-			full = new([]*[]byte, 16);
+		if len(full) == 0 {
+			full = new([][]byte, 16);
 		} else if nfull >= len(full) {
-			newfull := new([]*[]byte, len(full)*2);
+			newfull := new([][]byte, len(full)*2);
 			// BUG slice assignment
 			for i := 0; i < len(full); i++ {
 				newfull[i] = full[i];
@@ -297,9 +300,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
 	for i := 0; i < nfull; i++ {
 		n += len(full[i])
 	}
-	if frag != nil {
-		n += len(frag);
-	}
+	n += len(frag);
 
 	// Copy full pieces and fragment in.
 	buf := new([]byte, n);
@@ -308,14 +309,12 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
 		CopySlice(buf[n:n+len(full[i])], full[i]);
 		n += len(full[i])
 	}
-	if frag != nil {
-		CopySlice(buf[n:n+len(frag)], frag)
-	}
+	CopySlice(buf[n:n+len(frag)], frag);
 	return buf, err
 }
 
 // BUG(bugs/bug102.go): string(empty bytes array) throws error
-func ToString(p *[]byte) string {
+func ToString(p []byte) string {
 	if len(p) == 0 {
 		return ""
 	}
@@ -341,7 +340,7 @@ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *
 
 export type BufWrite struct {
 	err *os.Error;
-	buf *[]byte;
+	buf []byte;
 	n int;
 	wr io.Write;
 }
@@ -395,7 +394,7 @@ func (b *BufWrite) Buffered() int {
 	return b.n
 }
 
-func (b *BufWrite) Write(p *[]byte) (nn int, err *os.Error) {
+func (b *BufWrite) Write(p []byte) (nn int, err *os.Error) {
 	if b.err != nil {
 		return 0, b.err
 	}

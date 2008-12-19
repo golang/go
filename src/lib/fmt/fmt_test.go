@@ -26,11 +26,13 @@ type FmtTest struct {
 	out string;
 }
 
-func Bytes(s string) *[]byte {
-	b := new([]byte, len(s)+1);
-	syscall.StringToBytes(b, s);
-	return b[0:len(s)];
-}
+// TODO(rsc): return []byte, but need to be able to pass as interface.
+// func Bytes(s string) []byte {
+// 	b := new([]byte, len(s)+1);
+// 	syscall.StringToBytes(b, s);
+// 	return b[0:len(s)];
+// }
+func Bytes(s string) string { return s }
 
 const B32 uint32 = 1<<32 - 1
 const B64 uint64 = 1<<64 - 1

@@ -15,11 +15,11 @@ func Echo(fd io.ReadWrite, done *chan<- int) {
 	var buf [1024]byte;
 
 	for {
-		n, err := fd.Read(&buf);
+		n, err := fd.Read(buf);
 		if err != nil || n == 0 {
 			break;
 		}
-		fd.Write((&buf)[0:n])
+		fd.Write(buf[0:n])
 	}
 	done <- 1
 }
@@ -58,7 +58,7 @@ func Connect(t *testing.T, network, addr string) {
 		t.Fatalf("fd.Write(%q) = %d, %v", b, n, errno);
 	}
 
-	n, errno = fd.Read(&b1);
+	n, errno = fd.Read(b1);
 	if n != len(b) {
 		t.Fatalf("fd.Read() = %d, %v", n, errno);
 	}

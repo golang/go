@@ -44,7 +44,7 @@ var utf8map = []Utf8Map {
 	Utf8Map{ 0x10ffff, "\xf4\x8f\xbf\xbf" },
 }
 
-func Bytes(s string) *[]byte {
+func Bytes(s string) []byte {
 	b := new([]byte, len(s)+1);
 	if !syscall.StringToBytes(b, s) {
 		panic("StringToBytes failed");
@@ -74,7 +74,7 @@ export func TestFullRune(t *testing.T) {
 	}
 }
 
-func EqualBytes(a, b *[]byte) bool {
+func EqualBytes(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false;
 	}
@@ -91,8 +91,8 @@ export func TestEncodeRune(t *testing.T) {
 		m := utf8map[i];
 		b := Bytes(m.str);
 		var buf [10]byte;
-		n := utf8.EncodeRune(m.rune, &buf);
-		b1 := (&buf)[0:n];
+		n := utf8.EncodeRune(m.rune, buf);
+		b1 := buf[0:n];
 		if !EqualBytes(b, b1) {
 			t.Errorf("EncodeRune(0x%04x) = %q want %q", m.rune, b1, b);
 		}

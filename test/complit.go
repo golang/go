@@ -16,7 +16,7 @@ func itor(a int) *R {
 	return r;
 }
 
-func eq(a *[]*R) {
+func eq(a []*R) {
 	for i := 0; i < len(a); i++ {
 		if a[i].num != i { panic("bad") }
 	}
@@ -41,7 +41,7 @@ func main() {
 	//a3 := [10]int{1,2,3,};  // BUG: trailing commas not allowed
 	//if len(a3) != 10 || a2[3] != 0 { panic("a3") }
 
-	var oai *[]int;
+	var oai []int;
 	oai = &[]int{1,2,3};
 	if len(oai) != 3 { panic("oai") }
 

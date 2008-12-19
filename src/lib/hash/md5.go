@@ -35,9 +35,9 @@ export func NewDigest() *Digest {
 	return d;
 }
 
-package func Block(dig *Digest, p *[]byte) int
+package func Block(dig *Digest, p []byte) int
 
-func (d *Digest) Write(p *[]byte) (nn int, err *os.Error) {
+func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
 	nn = len(p);
 	d.len += uint64(nn);
 	if d.nx > 0 {
@@ -50,7 +50,7 @@ func (d *Digest) Write(p *[]byte) (nn int, err *os.Error) {
 		}
 		d.nx += n;
 		if d.nx == Chunk {
-			Block(d, &d.x);
+			Block(d, d.x);
 			d.nx = 0;
 		}
 		p = p[n:len(p)];
@@ -66,15 +66,15 @@ func (d *Digest) Write(p *[]byte) (nn int, err *os.Error) {
 	return;
 }
 
-func (d *Digest) Sum() *[]byte {
+func (d *Digest) Sum() []byte {
 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
 	len := d.len;
 	var tmp [64]byte;
 	tmp[0] = 0x80;
 	if len%64 < 56 {
-		d.Write((&tmp)[0:56-len%64]);
+		d.Write(tmp[0:56-len%64]);
 	} else {
-		d.Write((&tmp)[0:64+56-len%64]);
+		d.Write(tmp[0:64+56-len%64]);
 	}
 
 	// Length in bits.
@@ -82,7 +82,7 @@ func (d *Digest) Sum() *[]byte {
 	for i := uint(0); i < 8; i++ {
 		tmp[i] = byte(len>>(8*i));
 	}
-	d.Write((&tmp)[0:8]);
+	d.Write(tmp[0:8]);
 
 	if d.nx != 0 {
 		panicln("oops");

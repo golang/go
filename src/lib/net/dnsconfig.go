@@ -14,8 +14,8 @@ import (
 )
 
 export type DNS_Config struct {
-	servers *[]string;	// servers to use
-	search *[]string;	// suffixes to append to local name
+	servers []string;	// servers to use
+	search []string;	// suffixes to append to local name
 	ndots int;		// number of dots in name to trigger absolute lookup
 	timeout int;	// seconds before giving up on packet
 	attempts int;	// lost packets before giving up on server
@@ -53,7 +53,7 @@ export func DNS_ReadConfig() *DNS_Config {
 				// just an IP address.  Otherwise we need DNS
 				// to look it up.
 				name := f[1];
-				if ParseIP(name) != nil {
+				if len(ParseIP(name)) != 0 {
 					a = a[0:n+1];
 					a[n] = name;
 					conf.servers = a;

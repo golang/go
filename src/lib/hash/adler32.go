@@ -26,7 +26,7 @@ export func NewDigest() *Digest {
 	return &Digest{1, 0, 0};
 }
 
-func (d *Digest) Write(p *[]byte) (nn int, err *os.Error) {
+func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
 	a, b, n := d.a, d.b, d.n;
 	for i := 0; i < len(p); i++ {
 		a += uint32(p[i]);
@@ -51,7 +51,7 @@ func (d *Digest) Sum32() uint32 {
 	return b<<16 | a;
 }
 
-func (d *Digest) Sum() *[]byte {
+func (d *Digest) Sum() []byte {
 	p := new([]byte, 4);
 	s := d.Sum32();
 	p[0] = byte(s>>24);

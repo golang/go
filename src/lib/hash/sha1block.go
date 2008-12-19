@@ -17,7 +17,7 @@ const (
 	K3 = 0xCA62C1D6;
 )
 
-package func Block(dig *Digest, p *[]byte) int {
+package func Block(dig *Digest, p []byte) int {
 	var w [80]uint32;
 
 	n := 0;

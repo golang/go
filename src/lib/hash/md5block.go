@@ -90,7 +90,7 @@ var shift2 = []uint { 5, 9, 14, 20 };
 var shift3 = []uint { 4, 11, 16, 23 };
 var shift4 = []uint { 6, 10, 15, 21 };
 
-package func Block(dig *Digest, p *[]byte) int {
+package func Block(dig *Digest, p []byte) int {
 	a := dig.s[0];
 	b := dig.s[1];
 	c := dig.s[2];

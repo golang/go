@@ -11,7 +11,7 @@ import (
 	"unsafe";
 )
 
-export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	p = ToIPv4(p);
 	if p == nil || port < 0 || port > 0xFFFF {
 		return nil, os.EINVAL
@@ -28,7 +28,7 @@ export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.
 
 var IPv6zero [16]byte;
 
-export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	p = ToIPv6(p);
 	if p == nil || port < 0 || port > 0xFFFF {
 		return nil, os.EINVAL
@@ -51,7 +51,7 @@ export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.
 	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
 }
 
-export func SockaddrToIP(sa1 *syscall.Sockaddr) (p *[]byte, port int, err *os.Error) {
+export func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Error) {
 	switch sa1.family {
 	case syscall.AF_INET:
 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet4);

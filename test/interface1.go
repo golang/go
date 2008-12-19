@@ -11,7 +11,7 @@ type Inst interface {
 }
 
 type Regexp struct {
-	code *[]Inst;
+	code []Inst;
 	start	Inst;
 }
 

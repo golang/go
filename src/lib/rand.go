@@ -164,7 +164,7 @@ frand() float
 }
 
 export func
-perm(n int) *[]int
+perm(n int) []int
 {
 	m := new([]int, n);
 	for i:=0; i<n; i++ {

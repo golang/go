@@ -582,7 +582,7 @@ func Compiler(str string, ch *chan *RE) {
 
 // Public interface has only execute functionality (not yet implemented)
 export type Regexp interface {
-	Execute(s string) *[]int
+	Execute(s string) []int
 }
 
 // Compile in separate goroutine; wait for result
@@ -595,12 +595,12 @@ export func Compile(str string) (regexp Regexp, error *os.Error) {
 
 type State struct {
 	inst	Inst;	// next instruction to execute
-	match	*[]int;	// pairs of bracketing submatches. 0th is start,end
+	match	[]int;	// pairs of bracketing submatches. 0th is start,end
 }
 
 // Append new state to to-do list.  Leftmost-longest wins so avoid
 // adding a state that's already active.
-func AddState(s *[]State, inst Inst, match *[]int) *[]State {
+func AddState(s []State, inst Inst, match []int) []State {
 	index := inst.Index();
 	l := len(s);
 	pos := match[0];
@@ -625,8 +625,8 @@ func AddState(s *[]State, inst Inst, match *[]int) *[]State {
 	return s;
 }
 
-func (re *RE) DoExecute(str string, pos int) *[]int {
-	var s [2]*[]State;	// TODO: use a vector when State values (not ptrs) can be vector elements
+func (re *RE) DoExecute(str string, pos int) []int {
+	var s [2][]State;	// TODO: use a vector when State values (not ptrs) can be vector elements
 	s[0] = new([]State, 10)[0:0];
 	s[1] = new([]State, 10)[0:0];
 	in, out := 0, 1;
@@ -708,13 +708,10 @@ func (re *RE) DoExecute(str string, pos int) *[]int {
 		}
 		pos += charwidth;
 	}
-	if !found {
-		return nil
-	}
 	return final.match;
 }
 
 
-func (re *RE) Execute(s string) *[]int {
+func (re *RE) Execute(s string) []int {
 	return re.DoExecute(s, 0)
 }

@@ -20,7 +20,7 @@ func M(f uint64) (in, out *T) {
 }
 
 
-func min(xs *[]uint64) uint64 {
+func min(xs []uint64) uint64 {
 	m := xs[0];
 	for i := 1; i < len(xs); i++ {
 		if xs[i] < m {
@@ -33,7 +33,7 @@ func min(xs *[]uint64) uint64 {
 
 func main() {
 	F := []uint64{2, 3, 5};
-	const n = len(F);
+	var n = len(F);
 	OUT := []uint64{
 		2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 16, 18, 20, 24, 25, 27, 30, 32, 36,
 		40, 45, 48, 50, 54, 60, 64, 72, 75, 80, 81, 90, 96, 100, 108, 120, 125,
