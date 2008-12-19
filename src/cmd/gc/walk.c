@@ -1936,6 +1936,11 @@ loop:
 			argtype(on, l->type->type);	// any-1
 			break;
 		}
+		if(isdarray(l->type)) {
+			on = syslook("printarray", 1);
+			argtype(on, l->type);	// any-1
+			break;
+		}
 		badtype(n->op, l->type, T);
 		l = listnext(&save);
 		goto loop;
