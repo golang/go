@@ -1965,7 +1965,7 @@ oindex:
 			n2 = *reg;
 			n2.op = OINDREG;
 			n2.type = types[tptr];
-			n2.xoffset = offsetof(Array, nel);
+			n2.xoffset = Array_nel;
 		} else {
 			nodconst(&n2, types[TUINT64], l->type->bound);
 			if(o & OPtrto)
@@ -1981,7 +1981,7 @@ oindex:
 		n2 = *reg;
 		n2.op = OINDREG;
 		n2.type = types[tptr];
-		n2.xoffset = offsetof(Array, array);
+		n2.xoffset = Array_array;
 		gmove(&n2, reg);
 	}
 
@@ -2011,7 +2011,7 @@ oindex_const:
 			n1 = *reg;
 			n1.op = OINDREG;
 			n1.type = types[tptr];
-			n1.xoffset = offsetof(Array, nel);
+			n1.xoffset = Array_nel;
 			nodconst(&n2, types[TUINT64], v);
 			gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
@@ -2022,7 +2022,7 @@ oindex_const:
 		n1 = *reg;
 		n1.op = OINDREG;
 		n1.type = types[tptr];
-		n1.xoffset = offsetof(Array, array);
+		n1.xoffset = Array_array;
 		gmove(&n1, reg);
 
 	} else

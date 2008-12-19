@@ -63,20 +63,6 @@ struct	String
 
 /*
  * note this is the runtime representation
- * of the compilers arrays. it is probably
- * insafe to use it this way, but it puts
- * all the changes in one place.
- */
-typedef	struct	Array	Array;
-struct	Array
-{				// must not move anything
-	uchar	array[8];	// pointer to data
-	uchar	nel[4];		// number of elements
-	uchar	cap[4];		// allocated number of elements
-};
-
-/*
- * note this is the runtime representation
  * of hashmap iterator. it is probably
  * insafe to use it this way, but it puts
  * all the changes in one place.

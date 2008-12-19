@@ -151,7 +151,7 @@ dowidth(Type *t)
 		if(t->type == T)
 			break;
 		dowidth(t->type);
-		w = sizeof(Array);
+		w = sizeof_Array;
 		if(t->bound >= 0)
 			w = t->bound * t->type->width;
 		break;
@@ -258,6 +258,11 @@ belexinit(int lextype)
 	}
 
 	symstringo = lookup(".stringo");	// strings
+
+	Array_array = rnd(0, types[tptr]->width);
+	Array_nel = rnd(Array_array+types[tptr]->width, types[TUINT32]->width);
+	Array_cap = rnd(Array_nel+types[TUINT32]->width, types[TUINT32]->width);
+	sizeof_Array = rnd(Array_cap+types[TUINT32]->width, maxround);
 
 	listinit();
 }

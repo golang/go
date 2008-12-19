@@ -1873,6 +1873,8 @@ ascompat(Type *t1, Type *t2)
 //	if(eqtype(t2, nilptr, 0))
 //		return 1;
 
+	if(issarray(t1))
+		return 0;
 	if(isnilinter(t1))
 		return 1;
 	if(isinter(t1)) {
