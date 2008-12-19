@@ -79,6 +79,7 @@ export func TestTcpServer(t *testing.T) {
 	DoTest(t,  "tcp", "0.0.0.0:9997", "127.0.0.1:9997");
 	DoTest(t, "tcp", "[::]:9997", "[::ffff:127.0.0.1]:9997");
 	DoTest(t, "tcp", "[::]:9997", "127.0.0.1:9997");
+	DoTest(t, "tcp", ":9997", "127.0.0.1:9997");
 	DoTest(t, "tcp", "0.0.0.0:9997", "[::ffff:127.0.0.1]:9997");
 }
 

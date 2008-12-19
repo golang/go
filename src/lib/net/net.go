@@ -41,7 +41,7 @@ func SplitHostPort(hostport string) (host, port string, err *os.Error) {
 	port = hostport[i+1:len(hostport)];
 
 	// Can put brackets around host ...
-	if host[0] == '[' && host[len(host)-1] == ']' {
+	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
 		host = host[1:len(host)-1]
 	} else {
 		// ... but if there are no brackets, no colons.
@@ -65,15 +65,26 @@ func JoinHostPort(host, port string) string {
 // Convert "host:port" into IP address and port.
 // For now, host and port must be numeric literals.
 // Eventually, we'll have name resolution.
-func HostPortToIP(net string, hostport string) (ip []byte, iport int, err *os.Error) {
+func HostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Error) {
 	var host, port string;
 	host, port, err = SplitHostPort(hostport);
 	if err != nil {
 		return nil, 0, err
 	}
 
+	var addr []byte;
+	if host == "" {
+		if mode == "listen" {
+			addr = IPnoaddr;	// wildcard - listen to all
+		} else {
+			return nil, 0, MissingAddress;
+		}
+	}
+
 	// Try as an IP address.
-	addr := ParseIP(host);
+	if addr == nil {
+		addr = ParseIP(host);
+	}
 	if addr == nil {
 		// Not an IP address.  Try as a DNS name.
 		hostname, addrs, err := LookupHost(host);
@@ -279,20 +290,20 @@ func (c *ConnBase) SetLinger(sec int) *os.Error {
 // PreferIPv4 here should fall back to the IPv4 socket interface when possible.
 const PreferIPv4 = false
 
-func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Error) {
+func InternetSocket(net, laddr, raddr string, proto int64, mode string) (fd *FD, err *os.Error) {
 	// Parse addresses (unless they are empty).
 	var lip, rip []byte;
 	var lport, rport int;
 	var lerr, rerr *os.Error;
 
 	if laddr != "" {
-		lip, lport, lerr = HostPortToIP(net, laddr);
+		lip, lport, lerr = HostPortToIP(net, laddr, mode);
 		if lerr != nil {
 			return nil, lerr
 		}
 	}
 	if raddr != "" {
-		rip, rport, rerr = HostPortToIP(net, raddr);
+		rip, rport, rerr = HostPortToIP(net, raddr, mode);
 		if rerr != nil {
 			return nil, rerr
 		}
@@ -370,7 +381,7 @@ export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
 	}
-	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_STREAM);
+	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_STREAM, "dial");
 	if e != nil {
 		return nil, e
 	}
@@ -397,7 +408,7 @@ export func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
 	}
-	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_DGRAM);
+	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_DGRAM, "dial");
 	if e != nil {
 		return nil, e
 	}
@@ -477,7 +488,7 @@ export type ListenerTCP struct {
 }
 
 export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
-	fd, e := InternetSocket(net, laddr, "", syscall.SOCK_STREAM);
+	fd, e := InternetSocket(net, laddr, "", syscall.SOCK_STREAM, "listen");
 	if e != nil {
 		return nil, e
 	}
