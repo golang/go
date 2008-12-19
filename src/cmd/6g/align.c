@@ -148,8 +148,11 @@ dowidth(Type *t)
 		w = wptr;
 		break;
 	case TARRAY:
+		if(t->type == T)
+			break;
 		dowidth(t->type);
-		if(t->bound >= 0 && t->type != T)
+		w = sizeof(Array);
+		if(t->bound >= 0)
 			w = t->bound * t->type->width;
 		break;
 

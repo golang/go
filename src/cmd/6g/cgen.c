@@ -185,7 +185,7 @@ cgen(Node *n, Node *res)
 		}
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
-		if(isptrarray(n->type) && isptrdarray(nl->type)) {
+		if(isptrsarray(n->type) && isptrdarray(nl->type)) {
 			// convert dynamic array to static array
 			n2 = n1;
 			n2.op = OINDREG;
@@ -193,10 +193,10 @@ cgen(Node *n, Node *res)
 			n2.type = types[tptr];
 			gins(AMOVQ, &n2, &n1);
 		}
-		if(isptrdarray(n->type) && isptrarray(nl->type)) {
+		if(isptrdarray(n->type) && isptrsarray(nl->type)) {
 			// conver static array to dynamic array
 			// it is assumed that the dope is just before the array
-			nodconst(&n2, types[tptr], offsetof(Array,b));
+			nodconst(&n2, types[tptr], sizeof(Array));
 			gins(ASUBQ, &n2, &n1);
 		}
 		gmove(&n1, res);
@@ -252,6 +252,16 @@ cgen(Node *n, Node *res)
 			regfree(&n1);
 			break;
 		}
+		if(isdarray(nl->type)) {
+			regalloc(&n1, types[tptr], res);
+			agen(nl, &n1);
+			n1.op = OINDREG;
+			n1.type = types[TUINT32];
+			n1.xoffset = offsetof(Array,nel);
+			gmove(&n1, res);
+			regfree(&n1);
+			break;
+		}
 		fatal("cgen: OLEN: unknown type %lT", nl->type);
 		break;
 
@@ -259,6 +269,16 @@ cgen(Node *n, Node *res)
 		if(isptrdarray(nl->type)) {
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
+			n1.op = OINDREG;
+			n1.type = types[TUINT32];
+			n1.xoffset = offsetof(Array,cap);
+			gmove(&n1, res);
+			regfree(&n1);
+			break;
+		}
+		if(isdarray(nl->type)) {
+			regalloc(&n1, types[tptr], res);
+			agen(nl, &n1);
 			n1.op = OINDREG;
 			n1.type = types[TUINT32];
 			n1.xoffset = offsetof(Array,cap);
@@ -489,7 +509,7 @@ agen(Node *n, Node *res)
 				if(v < 0)
 					yyerror("out of bounds on array");
 				else
-				if(isptrarray(nl->type)) {
+				if(isptrsarray(nl->type)) {
 					if(v >= nl->type->type->bound)
 						yyerror("out of bounds on array");
 				} else
@@ -523,7 +543,7 @@ agen(Node *n, Node *res)
 				n1.xoffset = offsetof(Array, nel);
 			} else {
 				nodconst(&n1, types[TUINT64], nl->type->bound);
-				if(isptrarray(nl->type))
+				if(isptrsarray(nl->type))
 					nodconst(&n1, types[TUINT64], nl->type->type->bound);
 			}
 			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
@@ -815,8 +835,9 @@ sgen(Node *n, Node *ns, int32 w)
 	int32 c, q, odst, osrc;
 
 	if(debug['g']) {
-		dump("\nsgen-res", ns);
-		dump("sgen-r", n);
+		print("\nsgen w=%d\n", w);
+		dump("r", n);
+		dump("res", ns);
 	}
 	if(w == 0)
 		return;
@@ -830,9 +851,6 @@ sgen(Node *n, Node *ns, int32 w)
 	// offset on the stack
 	osrc = stkof(n);
 	odst = stkof(ns);
-//print("\nnsrc=%N\n", n);
-//print("ndst=%N\n", ns);
-//print("osrc=%d odst=%d w=%d\n", osrc, odst, w);
 
 	nodreg(&nodl, types[tptr], D_DI);
 	nodreg(&nodr, types[tptr], D_SI);

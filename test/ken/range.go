@@ -9,7 +9,7 @@ package main
 const	size	= 16;
 
 var	a	[size]byte;
-var	p	*[]byte;
+var	p	[]byte;
 var	m	*map[int]byte;
 
 func

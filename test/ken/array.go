@@ -7,7 +7,7 @@
 package	main
 
 export func
-setpd(a *[]int)
+setpd(a []int)
 {
 //	print("setpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
 	for i:=0; i<len(a); i++ {
@@ -16,7 +16,7 @@ setpd(a *[]int)
 }
 
 export func
-sumpd(a *[]int) int
+sumpd(a []int) int
 {
 //	print("sumpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
 	t := 0;
@@ -109,8 +109,8 @@ testpdpf2()
 {
 	var a [80]int;
 
-	setpd(&a);
-	res(sumpd(&a), 0, 80);
+	setpd(a);
+	res(sumpd(a), 0, 80);
 }
 
 // generate bounds error with ptr dynamic

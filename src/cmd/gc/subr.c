@@ -440,6 +440,7 @@ aindex(Node *b, Type *t)
 	r = typ(TARRAY);
 	r->type = t;
 	r->bound = bound;
+	dowidth(r);
 	return r;
 }
 
@@ -1421,7 +1422,7 @@ isptrto(Type *t, int et)
 }
 
 int
-isptrarray(Type *t)
+isptrsarray(Type *t)
 {
 	if(isptrto(t, TARRAY))
 		if(t->type->bound >= 0)
@@ -1435,6 +1436,22 @@ isptrdarray(Type *t)
 	if(isptrto(t, TARRAY))
 		if(t->type->bound < 0)
 			return 1;
+	return 0;
+}
+
+int
+issarray(Type *t)
+{
+	if(t != T && t->etype == TARRAY && t->bound >= 0)
+		return 1;
+	return 0;
+}
+
+int
+isdarray(Type *t)
+{
+	if(t != T && t->etype == TARRAY && t->bound < 0)
+		return 1;
 	return 0;
 }
 

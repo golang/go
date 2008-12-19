@@ -6,7 +6,18 @@
 
 package main
 
-import	rand "rand"
+
+var	randx	int;
+
+func
+nrand(n int) int
+{
+	randx += 10007;
+	if randx >= 1000000 {
+		randx -= 1000000;
+	}
+	return randx%n;
+}
 
 type	Chan
 struct
@@ -31,7 +42,7 @@ init()
 }
 
 func
-mkchan(c,n int) *[]*Chan
+mkchan(c,n int) []*Chan
 {
 	ca := new([]*Chan, n);
 	for i:=0; i<n; i++ {
@@ -76,7 +87,7 @@ send(c *Chan)
 {
 	nproc++;	// total goroutines running
 	for {
-		for r:=rand.nrand(10); r>=0; r-- {
+		for r:=nrand(10); r>=0; r-- {
 			sys.gosched();
 		}
 		c.sc <- c.sv;
@@ -107,7 +118,7 @@ recv(c *Chan)
 
 	nproc++;	// total goroutines running
 	for {
-		for r:=rand.nrand(10); r>=0; r-- {
+		for r:=nrand(10); r>=0; r-- {
 			sys.gosched();
 		}
 		v = <-c.rc;
@@ -136,7 +147,7 @@ sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan)
 	if s3.sc != nil { a++ }
 
 	for {
-		for r:=rand.nrand(5); r>=0; r-- {
+		for r:=nrand(5); r>=0; r-- {
 			sys.gosched();
 		}
 

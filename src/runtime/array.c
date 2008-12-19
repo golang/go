@@ -6,23 +6,20 @@
 
 static	int32	debug	= 0;
 
-// newarray(nel uint32, cap uint32, width uint32) (ary *[]any);
+// newarray(nel int, cap int, width int) (ary []any);
 void
-sys·newarray(uint32 nel, uint32 cap, uint32 width, Array* ret)
+sys·newarray(uint32 nel, uint32 cap, uint32 width, Array ret)
 {
-	Array *d;
 	uint64 size;
 
 	if(cap < nel)
 		cap = nel;
 	size = cap*width;
 
-	d = mal(sizeof(*d) - sizeof(d->b) + size);
-	d->nel = nel;
-	d->cap = cap;
-	d->array = d->b;
+	ret.nel = nel;
+	ret.cap = cap;
+	ret.array = mal(size);
 
-	ret = d;
 	FLUSH(&ret);
 
 	if(debug) {
@@ -33,7 +30,7 @@ sys·newarray(uint32 nel, uint32 cap, uint32 width, Array* ret)
 		prints("; width=");
 		sys·printint(width);
 		prints("; ret=");
-		sys·printarray(ret);
+		sys·printarray(&ret);
 		prints("\n");
 	}
 }
@@ -51,16 +48,15 @@ throwslice(uint32 lb, uint32 hb, uint32 n)
 	throw("array slice");
 }
 
-// arraysliced(old *[]any, lb uint32, hb uint32, width uint32) (ary *[]any);
+// arraysliced(old []any, lb int, hb int, width int) (ary []any);
 void
-sys·arraysliced(Array* old, uint32 lb, uint32 hb, uint32 width, Array* ret)
+sys·arraysliced(Array old, uint32 lb, uint32 hb, uint32 width, Array ret)
 {
-	Array *d;
 
-	if(hb > old->cap || lb > hb) {
+	if(hb > old.cap || lb > hb) {
 		if(debug) {
-			prints("sys·arrayslices: old=");
-			sys·printpointer(old);
+			prints("sys·arraysliced: old=");
+			sys·printarray(&old);
 			prints("; lb=");
 			sys·printint(lb);
 			prints("; hb=");
@@ -70,26 +66,24 @@ sys·arraysliced(Array* old, uint32 lb, uint32 hb, uint32 width, Array* ret)
 			prints("\n");
 
 			prints("oldarray: nel=");
-			sys·printint(old->nel);
+			sys·printint(old.nel);
 			prints("; cap=");
-			sys·printint(old->cap);
+			sys·printint(old.cap);
 			prints("\n");
 		}
-		throwslice(lb, hb, old->cap);
+		throwslice(lb, hb, old.cap);
 	}
 
 	// new array is inside old array
-	d = mal(sizeof(*d) - sizeof(d->b));
-	d->nel = hb-lb;
-	d->cap = old->cap - lb;
-	d->array = old->array + lb*width;
+	ret.nel = hb-lb;
+	ret.cap = old.cap - lb;
+	ret.array = old.array + lb*width;
 
-	ret = d;
 	FLUSH(&ret);
 
 	if(debug) {
-		prints("sys·arrayslices: old=");
-		sys·printarray(old);
+		prints("sys·arraysliced: old=");
+		sys·printarray(&old);
 		prints("; lb=");
 		sys·printint(lb);
 		prints("; hb=");
@@ -97,16 +91,15 @@ sys·arraysliced(Array* old, uint32 lb, uint32 hb, uint32 width, Array* ret)
 		prints("; width=");
 		sys·printint(width);
 		prints("; ret=");
-		sys·printarray(ret);
+		sys·printarray(&ret);
 		prints("\n");
 	}
 }
 
-// arrayslices(old *any, nel uint32, lb uint32, hb uint32, width uint32) (ary *[]any);
+// arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any);
 void
-sys·arrayslices(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Array* ret)
+sys·arrayslices(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Array ret)
 {
-	Array *d;
 
 	if(hb > nel || lb > hb) {
 		if(debug) {
@@ -126,12 +119,10 @@ sys·arrayslices(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Arra
 	}
 
 	// new array is inside old array
-	d = mal(sizeof(*d) - sizeof(d->b));
-	d->nel = hb-lb;
-	d->cap = nel-lb;
-	d->array = old + lb*width;
+	ret.nel = hb-lb;
+	ret.cap = nel-lb;
+	ret.array = old + lb*width;
 
-	ret = d;
 	FLUSH(&ret);
 
 	if(debug) {
@@ -146,31 +137,28 @@ sys·arrayslices(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Arra
 		prints("; width=");
 		sys·printint(width);
 		prints("; ret=");
-		sys·printarray(ret);
+		sys·printarray(&ret);
 		prints("\n");
 	}
 }
 
-// arrays2d(old *any, nel uint32) (ary *[]any)
+// arrays2d(old *any, nel int) (ary []any)
 void
-sys·arrays2d(byte* old, uint32 nel, Array* ret)
+sys·arrays2d(byte* old, uint32 nel, Array ret)
 {
-	Array *d;
 
 	// new dope to old array
-	d = mal(sizeof(*d) - sizeof(d->b));
-	d->nel = nel;
-	d->cap = nel;
-	d->array = old;
+	ret.nel = nel;
+	ret.cap = nel;
+	ret.array = old;
 
-	ret = d;
 	FLUSH(&ret);
 
 	if(debug) {
 		prints("sys·arrays2d: old=");
 		sys·printpointer(old);
 		prints("; ret=");
-		sys·printarray(ret);
+		sys·printarray(&ret);
 		prints("\n");
 	}
 }
@@ -180,7 +168,7 @@ sys·printarray(Array *a)
 {
 	prints("[");
 	sys·printint(a->nel);
-	prints(",");
+	prints("/");
 	sys·printint(a->cap);
 	prints("]");
 	sys·printpointer(a->array);

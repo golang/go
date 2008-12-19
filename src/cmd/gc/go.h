@@ -69,9 +69,8 @@ typedef	struct	Array	Array;
 struct	Array
 {				// must not move anything
 	uchar	array[8];	// pointer to data
-	uint32	nel;		// number of elements
-	uint32	cap;		// allocated number of elements
-	uchar	b;		// actual array - may not be contig
+	uchar	nel[4];		// number of elements
+	uchar	cap[4];		// allocated number of elements
 };
 
 /*
@@ -637,8 +636,10 @@ void	dump(char*, Node*);
 Type*	aindex(Node*, Type*);
 int	isnil(Node*);
 int	isptrto(Type*, int);
-int	isptrarray(Type*);
+int	isptrsarray(Type*);
 int	isptrdarray(Type*);
+int	issarray(Type*);
+int	isdarray(Type*);
 int	isinter(Type*);
 int	isnilinter(Type*);
 int	isddd(Type*);

@@ -857,12 +857,12 @@ pexpr:
 |	LNEW '(' type ')'
 	{
 		$$ = nod(ONEW, N, N);
-		$$->type = ptrto($3);
+		$$->type = $3;
 	}
 |	LNEW '(' type ',' expr_list ')'
 	{
 		$$ = nod(ONEW, $5, N);
-		$$->type = ptrto($3);
+		$$->type = $3;
 	}
 |	LCONVERT '(' type ',' keyexpr_list ')'
 	{
