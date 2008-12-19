@@ -115,7 +115,6 @@ struct	Array
 	byte*	array;		// actual data
 	uint32	nel;		// number of elements
 	uint32	cap;		// allocated number of elements
-	byte	b[8];		// actual array - may not be contig
 };
 struct	Gobuf
 {

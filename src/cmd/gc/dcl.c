@@ -484,11 +484,6 @@ loop:
 		fatal("stotype: oops %N\n", n);
 
 	switch(n->type->etype) {
-	case TARRAY:
-		if(n->type->bound < 0)
-			yyerror("type of a structure field cannot be an open array");
-		break;
-
 	case TCHAN:
 	case TMAP:
 	case TSTRING:

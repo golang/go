@@ -26,7 +26,7 @@ export func	slicestring(string, int, int) string;
 export func	indexstring(string, int) byte;
 export func	intstring(int64) string;
 export func	byteastring(*byte, int) string;
-export func	arraystring(*[]byte) string;
+export func	arraystring([]byte) string;
 
 export func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
 export func	ifaceI2T(sigt *byte, iface any) (ret any);
@@ -79,10 +79,10 @@ export func	selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
 export func	selectdefault(sel *byte) (selected bool);
 export func	selectgo(sel *byte);
 
-export func	newarray(nel int, cap int, width int) (ary *[]any);
-export func	arraysliced(old *[]any, lb int, hb int, width int) (ary *[]any);
-export func	arrayslices(old *any, nel int, lb int, hb int, width int) (ary *[]any);
-export func	arrays2d(old *any, nel int) (ary *[]any);
+export func	newarray(nel int, cap int, width int) (ary []any);
+export func	arraysliced(old []any, lb int, hb int, width int) (ary []any);
+export func	arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any);
+export func	arrays2d(old *any, nel int) (ary []any);
 
 export func	gosched();
 export func	goexit();
