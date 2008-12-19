@@ -215,9 +215,22 @@ struct	Func
 #define	nil		((void*)0)
 
 /*
+ * known to compiler
+ */
+enum
+{
+	ASIMP		= 0,
+	ASTRING,
+	APTR,
+	AINTER,
+	AARRAY,
+	ASTRUCT,
+};
+
+/*
  * external data
  */
-extern	Alg	algarray[4];
+extern	Alg	algarray[];
 extern	string	emptystring;
 G*	allg;
 int32	goidgen;

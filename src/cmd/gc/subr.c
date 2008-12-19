@@ -301,6 +301,12 @@ algtype(Type *t)
 	if(isptr[t->etype])
 		a = APTR;	// pointer
 	else
+	if(t->etype == TARRAY)
+		a = AARRAY;
+	else
+	if(t->etype == TSTRUCT)
+		a = ASTRUCT;
+	else
 	if(isinter(t))
 		a = AINTER;	// interface
 //	else
