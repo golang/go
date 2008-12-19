@@ -580,7 +580,7 @@ memcopy(uint32 s, void *a, void *b)
 }
 
 static uint64
-stringhash(uint32 s, string *a)
+strhash(uint32 s, string *a)
 {
 	USED(s);
 	if(*a == nil)
@@ -589,21 +589,21 @@ stringhash(uint32 s, string *a)
 }
 
 static uint32
-stringequal(uint32 s, string *a, string *b)
+strequal(uint32 s, string *a, string *b)
 {
 	USED(s);
 	return cmpstring(*a, *b) == 0;
 }
 
 static void
-stringprint(uint32 s, string *a)
+strprint(uint32 s, string *a)
 {
 	USED(s);
 	sys·printstring(*a);
 }
 
 static void
-stringcopy(uint32 s, string *a, string *b)
+strcopy(uint32 s, string *a, string *b)
 {
 	USED(s);
 	if(b == nil) {
@@ -614,28 +614,28 @@ stringcopy(uint32 s, string *a, string *b)
 }
 
 static uint64
-pointerhash(uint32 s, void **a)
+ptrhash(uint32 s, void **a)
 {
 	return memhash(s, *a);
 }
 
 static uint32
-pointerequal(uint32 s, void **a, void **b)
+ptrequal(uint32 s, void **a, void **b)
 {
 	USED(s, a, b);
-	prints("pointerequal\n");
+	prints("ptrequal\n");
 	return 0;
 }
 
 static void
-pointerprint(uint32 s, void **a)
+ptrprint(uint32 s, void **a)
 {
 	USED(s, a);
-	prints("pointerprint\n");
+	prints("ptrprint\n");
 }
 
 static void
-pointercopy(uint32 s, void **a, void **b)
+ptrcopy(uint32 s, void **a, void **b)
 {
 	USED(s);
 	if(b == nil) {
@@ -646,12 +646,13 @@ pointercopy(uint32 s, void **a, void **b)
 }
 
 Alg
-algarray[4] =
+algarray[] =
 {
-	{	memhash,	memequal,	memprint,	memcopy	},  // 0
-	{	stringhash,	stringequal,	stringprint,	stringcopy	},  // 1
-//	{	pointerhash,	pointerequal,	pointerprint,	pointercopy	},  // 2
-	{	memhash,	memequal,	memprint,	memcopy	},  // 2 - treat pointers as ints
-	{	memhash,	memequal,	memprint,	memcopy	},  // 3 - treat interfaces as memory
+[ASIMP]		{ memhash, memequal, memprint, memcopy },
+[ASTRING]	{ strhash, strequal, strprint, strcopy },
+[APTR]		{ memhash, memequal, memprint, memcopy },	// TODO: ptr routines
+[AINTER]	{ memhash, memequal, memprint, memcopy },	// TODO: interface routines
+[ASTRUCT]	{ memhash, memequal, memprint, memcopy },	// TODO: what goes here?
+[AARRAY]	{ memhash, memequal, memprint, memcopy },	// TODO: what goes here?
 };
 

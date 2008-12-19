@@ -6,18 +6,13 @@
 
 static	int32	debug	= 0;
 
-enum
-{
-	ASIMP		= 0,
-	ASTRING,
-	APTR,
-	AINTER,
-};
-
 typedef	struct	Sigt	Sigt;
 typedef	struct	Sigi	Sigi;
 typedef	struct	Map	Map;
 
+/*
+ * the layout of Sigt and Sigi are known to the compiler
+ */
 struct	Sigt
 {
 	byte*	name;

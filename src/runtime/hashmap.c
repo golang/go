@@ -663,19 +663,30 @@ sys·newmap(uint32 keysize, uint32 valsize,
 {
 	Hmap *h;
 
-	if(keyalg >= 4 ||
-	   valalg >= 4) {
-		prints("0<=");
-		sys·printint(keyalg);
-		prints("<");
-		sys·printint(nelem(algarray));
-		prints("\n0<=");
-		sys·printint(valalg);
-		prints("<");
-		sys·printint(nelem(algarray));
-		prints("\n");
+	switch(keyalg) {
+	case ASIMP:
+	case ASTRING:
+	case APTR:
+	case AINTER:
+	case AARRAY:
+	case ASTRUCT:
+		break;
+	default:
+		printf("map(keyalg=%d)\n", keyalg);
+		throw("sys·newmap: unsupported map key type");
+	}
 
-		throw("sys·newmap: key/val algorithm out of range");
+	switch(valalg) {
+	case ASIMP:
+	case ASTRING:
+	case APTR:
+	case AINTER:
+	case AARRAY:
+	case ASTRUCT:
+		break;
+	default:
+		printf("map(valalg=%d)\n", valalg);
+		throw("sys·newmap: unsupported map value type");
 	}
 
 	h = mal(sizeof(*h));

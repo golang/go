@@ -86,14 +86,17 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
 	Hchan *c;
 	int32 i;
 
-	if(elemalg >= nelem(algarray)) {
-		prints("0<=");
-		sys·printint(elemalg);
-		prints("<");
-		sys·printint(nelem(algarray));
-		prints("\n");
-
-		throw("sys·newchan: elem algorithm out of range");
+	switch(elemalg){
+	case ASIMP:
+	case ASTRING:
+	case APTR:
+	case AINTER:
+	case AARRAY:
+	case ASTRUCT:
+		break;
+	default:
+		printf("chan(alg=%d)\n", elemalg);
+		throw("sys·newchan: unsupported channel element type");
 	}
 
 	c = mal(sizeof(*c));
