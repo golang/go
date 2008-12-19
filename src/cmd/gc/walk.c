@@ -1995,6 +1995,7 @@ newcompat(Node *n)
 	if(t == T)
 		goto bad;
 
+/*
 	if(isptr[t->etype]) {
 		if(t->type == T)
 			goto bad;
@@ -2012,12 +2013,13 @@ newcompat(Node *n)
 		r->type = n->type;
 		goto ret;
 	}
+*/
 
 	switch(t->etype) {
 	default:
-		goto bad;
-
-	case TSTRUCT:
+//		goto bad;
+//
+//	case TSTRUCT:
 		if(n->left != N)
 			yyerror("dont know what new(,e) means");
 
@@ -3510,7 +3512,7 @@ maplit(Node *n)
 	tempname(var, t);
 
 	a = nod(ONEW, N, N);
-	a->type = t;
+	a->type = t->type;
 	a = nod(OAS, var, a);
 	addtop = list(addtop, a);
 

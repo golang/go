@@ -440,7 +440,7 @@ aindex(Node *b, Type *t)
 	r = typ(TARRAY);
 	r->type = t;
 	r->bound = bound;
-	dowidth(r);
+	checkwidth(r);
 	return r;
 }
 
