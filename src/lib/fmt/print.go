@@ -46,7 +46,7 @@ type P struct {
 }
 
 func Printer() *P {
-	p := new(P);
+	p := new(*P);
 	p.fmt = fmt.New();
 	return p;
 }
@@ -253,10 +253,12 @@ func getString(v reflect.Value) (val string, ok bool) {
 	switch v.Kind() {
 	case reflect.StringKind:
 		return v.(reflect.StringValue).Get(), true;
+	case reflect.PtrKind:
+		if val, ok := v.Interface().(*[]byte); ok {
+			return string(*val), true;
+		}
 	}
-	if valb, okb := v.Interface().([]byte); okb {
-		return string(valb), true;
-	}
+	// TODO(rsc): check for Interface().([]byte) too.
 	return "", false;
 }
 
