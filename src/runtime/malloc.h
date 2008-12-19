@@ -62,7 +62,7 @@
 //	4. If the heap has too much memory, return some to the
 //	   operating system.
 //
-//	TODO(rsc): Steps 2, 3, 4 are not implemented.
+//	TODO(rsc): Step 4 is not implemented.
 //
 // Allocating and freeing a large object uses the page heap
 // directly, bypassing the MCache and MCentral free lists.
@@ -79,6 +79,7 @@ typedef struct MHeapMap	MHeapMap;
 typedef struct MHeapMapCache	MHeapMapCache;
 typedef struct MSpan	MSpan;
 typedef struct MStats	MStats;
+typedef struct MLink	MLink;
 
 enum
 {
@@ -101,6 +102,12 @@ enum
 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
 };
 
+
+// A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
+struct MLink
+{
+	MLink *next;
+};
 
 // SysAlloc obtains a large chunk of memory from the operating system,
 // typically on the order of a hundred kilobytes or a megabyte.
@@ -129,7 +136,7 @@ struct FixAlloc
 {
 	uintptr size;
 	void *(*alloc)(uintptr);
-	void *list;
+	MLink *list;
 	byte *chunk;
 	uint32 nchunk;
 };
@@ -146,6 +153,7 @@ struct MStats
 {
 	uint64	alloc;
 	uint64	sys;
+	uint64	stacks;
 };
 extern MStats mstats;
 
@@ -175,8 +183,9 @@ extern	void	InitSizes(void);
 typedef struct MCacheList MCacheList;
 struct MCacheList
 {
-	void *list;
+	MLink *list;
 	uint32 nlist;
+	uint32 nlistmin;
 };
 
 struct MCache
@@ -230,8 +239,8 @@ struct MCentral
 };
 
 void	MCentral_Init(MCentral *c, int32 sizeclass);
-int32	MCentral_AllocList(MCentral *c, int32 n, void **start, void **end);
-void	MCentral_FreeList(MCentral *c, int32 n, void *start, void *end);
+int32	MCentral_AllocList(MCentral *c, int32 n, MLink **first);
+void	MCentral_FreeList(MCentral *c, int32 n, MLink *first);
 
 
 // Free(v) must be able to determine the MSpan containing v.

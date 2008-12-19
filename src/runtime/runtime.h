@@ -76,10 +76,6 @@ enum
 	true	= 1,
 	false	= 0,
 };
-enum
-{
-	SmallFreeClasses = 168,	// number of small free lists in malloc
-};
 
 /*
  * structures
@@ -158,6 +154,7 @@ struct	M
 	int32	siz1;
 	int32	siz2;
 	int32	id;
+	int32	mallocing;
 	Note	havenextg;
 	G*	nextg;
 	M*	schedlink;

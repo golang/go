@@ -13,7 +13,7 @@ void*
 MCache_Alloc(MCache *c, int32 sizeclass, uintptr size)
 {
 	MCacheList *l;
-	void *v, *start, *end;
+	MLink *first, *v;
 	int32 n;
 
 	// Allocate from list.
@@ -21,41 +21,85 @@ MCache_Alloc(MCache *c, int32 sizeclass, uintptr size)
 	if(l->list == nil) {
 		// Replenish using central lists.
 		n = MCentral_AllocList(&mheap.central[sizeclass],
-			class_to_transfercount[sizeclass], &start, &end);
-		if(n == 0)
-			return nil;
-		l->list = start;
+			class_to_transfercount[sizeclass], &first);
+		l->list = first;
 		l->nlist = n;
 		c->size += n*size;
 	}
 	v = l->list;
-	l->list = *(void**)v;
+	l->list = v->next;
 	l->nlist--;
+	if(l->nlist < l->nlistmin)
+		l->nlistmin = l->nlist;
 	c->size -= size;
 
 	// v is zeroed except for the link pointer
 	// that we used above; zero that.
-	*(void**)v = nil;
+	v->next = nil;
 	return v;
 }
 
-void
-MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size)
+// Take n elements off l and return them to the central free list.
+static void
+ReleaseN(MCache *c, MCacheList *l, int32 n, int32 sizeclass)
 {
+	MLink *first, **lp;
+	int32 i;
+
+	// Cut off first n elements.
+	first = l->list;
+	lp = &l->list;
+	for(i=0; i<n; i++)
+		lp = &(*lp)->next;
+	l->list = *lp;
+	*lp = nil;
+	l->nlist -= n;
+	if(l->nlist < l->nlistmin)
+		l->nlistmin = l->nlist;
+	c->size -= n*class_to_size[sizeclass];
+
+	// Return them to central free list.
+	MCentral_FreeList(&mheap.central[sizeclass], n, first);
+}
+
+void
+MCache_Free(MCache *c, void *v, int32 sizeclass, uintptr size)
+{
+	int32 i, n;
 	MCacheList *l;
+	MLink *p;
 
 	// Put back on list.
 	l = &c->list[sizeclass];
-	*(void**)p = l->list;
+	p = v;
+	p->next = l->list;
 	l->list = p;
 	l->nlist++;
 	c->size += size;
 
 	if(l->nlist >= MaxMCacheListLen) {
-		// TODO(rsc): Release to central cache.
+		// Release a chunk back.
+		ReleaseN(c, l, class_to_transfercount[sizeclass], sizeclass);
 	}
+
 	if(c->size >= MaxMCacheSize) {
-		// TODO(rsc): Scavenge.
+		// Scavenge.
+		for(i=0; i<NumSizeClasses; i++) {
+			l = &c->list[i];
+			n = l->nlistmin;
+
+			// n is the minimum number of elements we've seen on
+			// the list since the last scavenge.  If n > 0, it means that
+			// we could have gotten by with n fewer elements
+			// without needing to consult the central free list.
+			// Move toward that situation by releasing n/2 of them.
+			if(n > 0) {
+				if(n > 1)
+					n /= 2;
+				ReleaseN(c, l, n, i);
+			}
+			l->nlistmin = l->nlist;
+		}
 	}
 }
 

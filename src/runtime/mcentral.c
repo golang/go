@@ -35,42 +35,35 @@ MCentral_Init(MCentral *c, int32 sizeclass)
 // The objects are linked together by their first words.
 // On return, *pstart points at the first object and *pend at the last.
 int32
-MCentral_AllocList(MCentral *c, int32 n, void **pstart, void **pend)
+MCentral_AllocList(MCentral *c, int32 n, MLink **pfirst)
 {
-	void *start, *end, *v;
+	MLink *first, *last, *v;
 	int32 i;
 
-	*pstart = nil;
-	*pend = nil;
 
 	lock(c);
-
 	// Replenish central list if empty.
 	if(MSpanList_IsEmpty(&c->nonempty)) {
 		if(!MCentral_Grow(c)) {
 			unlock(c);
+			*pfirst = nil;
 			return 0;
 		}
 	}
 
 	// Copy from list, up to n.
-	start = nil;
-	end = nil;
-	for(i=0; i<n; i++) {
-		v = MCentral_Alloc(c);
-		if(v == nil)
-			break;
-		if(start == nil)
-			start = v;
-		else
-			*(void**)end = v;
-		end = v;
+	// First one is guaranteed to work, because we just grew the list.
+	first = MCentral_Alloc(c);
+	last = first;
+	for(i=1; i<n && (v = MCentral_Alloc(c)) != nil; i++) {
+		last->next = v;
+		last = v;
 	}
+	last->next = nil;
 	c->nfree -= i;
 
 	unlock(c);
-	*pstart = start;
-	*pend = end;
+	*pfirst = first;
 	return i;
 }
 
@@ -79,18 +72,18 @@ static void*
 MCentral_Alloc(MCentral *c)
 {
 	MSpan *s;
-	void *v;
+	MLink *v;
 
 	if(MSpanList_IsEmpty(&c->nonempty))
 		return nil;
 	s = c->nonempty.next;
+	s->ref++;
 	v = s->freelist;
-	s->freelist = *(void**)v;
+	s->freelist = v->next;
 	if(s->freelist == nil) {
 		MSpanList_Remove(s);
 		MSpanList_Insert(&c->empty, s);
 	}
-	s->ref++;
 	return v;
 }
 
@@ -99,19 +92,18 @@ MCentral_Alloc(MCentral *c)
 // The objects are linked together by their first words.
 // On return, *pstart points at the first object and *pend at the last.
 void
-MCentral_FreeList(MCentral *c, int32 n, void *start, void *end)
+MCentral_FreeList(MCentral *c, int32 n, void *start)
 {
-	void *v, *next;
+	MLink *v, *next;
 
-	// Assume *(void**)end = nil marks end of list.
+	// Assume next == nil marks end of list.
 	// n and end would be useful if we implemented
 	// the transfer cache optimization in the TODO above.
 	USED(n);
-	USED(end);
 
 	lock(c);
 	for(v=start; v; v=next) {
-		next = *(void**)v;
+		next = v->next;
 		MCentral_Free(c, v);
 	}
 	unlock(c);
@@ -122,11 +114,12 @@ static void
 MCentral_Free(MCentral *c, void *v)
 {
 	MSpan *s;
-	PageID p;
+	PageID page;
+	MLink *p, *next;
 
 	// Find span for v.
-	p = (uintptr)v >> PageShift;
-	s = MHeap_Lookup(&mheap, p);
+	page = (uintptr)v >> PageShift;
+	s = MHeap_Lookup(&mheap, page);
 	if(s == nil || s->ref == 0)
 		throw("invalid free");
 
@@ -137,13 +130,21 @@ MCentral_Free(MCentral *c, void *v)
 	}
 
 	// Add v back to s's free list.
-	*(void**)v = s->freelist;
-	s->freelist = v;
+	p = v;
+	p->next = s->freelist;
+	s->freelist = p;
 	c->nfree++;
 
 	// If s is completely freed, return it to the heap.
 	if(--s->ref == 0) {
 		MSpanList_Remove(s);
+		// Freed blocks are zeroed except for the link pointer.
+		// Zero the link pointers so that the page is all zero.
+		for(p=s->freelist; p; p=next) {
+			next = p->next;
+			p->next = nil;
+		}
+		s->freelist = nil;
 		c->nfree -= (s->npages << PageShift) / class_to_size[c->sizeclass];
 		unlock(c);
 		MHeap_Free(&mheap, s);
@@ -157,7 +158,7 @@ static bool
 MCentral_Grow(MCentral *c)
 {
 	int32 n, npages, size;
-	void **tail;
+	MLink **tailp, *v;
 	byte *p, *end;
 	MSpan *s;
 
@@ -171,17 +172,18 @@ MCentral_Grow(MCentral *c)
 	}
 
 	// Carve span into sequence of blocks.
-	tail = &s->freelist;
+	tailp = &s->freelist;
 	p = (byte*)(s->start << PageShift);
 	end = p + (npages << PageShift);
 	size = class_to_size[c->sizeclass];
 	n = 0;
 	for(; p + size <= end; p += size) {
-		*tail = p;
-		tail = (void**)p;
+		v = (MLink*)p;
+		*tailp = v;
+		tailp = &v->next;
 		n++;
 	}
-	*tail = nil;
+	*tailp = nil;
 
 	lock(c);
 	c->nfree += n;

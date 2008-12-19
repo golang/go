@@ -97,6 +97,10 @@ schedinit(void)
 	byte *p;
 
 	mallocinit();
+	
+	// Allocate internal symbol table representation now,
+	// so that we don't need to call malloc when we crash.
+	findfunc(0);
 
 	sched.gomaxprocs = 1;
 	p = getenv("GOMAXPROCS");
@@ -440,7 +444,7 @@ matchmg(void)
 			notewakeup(&m->havenextg);
 		}else{
 			m = mal(sizeof(M));
-			m->g0 = malg(1024);
+			m->g0 = malg(8192);
 			m->nextg = g;
 			m->id = sched.mcount++;
 			if(debug) {

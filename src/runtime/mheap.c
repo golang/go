@@ -98,9 +98,20 @@ HaveSpan:
 	// No matter what, cache span info, because gc needs to be
 	// able to map interior pointer to containing span.
 	s->sizeclass = sizeclass;
-	for(n=0; n<npage; n++) {
+	for(n=0; n<npage; n++)
 		MHeapMap_Set(&h->map, s->start+n, s);
-		if(sizeclass != 0)
+	if(sizeclass == 0) {
+		uintptr tmp;
+
+		// If there are entries for this span, invalidate them,
+		// but don't blow out cache entries about other spans.
+		for(n=0; n<npage; n++)
+			if(MHeapMapCache_GET(&h->mapcache, s->start+n, tmp) != 0)
+				MHeapMapCache_SET(&h->mapcache, s->start+n, 0);
+	} else {
+		// Save cache entries for this span.
+		// If there's a size class, there aren't that many pages.
+		for(n=0; n<npage; n++)
 			MHeapMapCache_SET(&h->mapcache, s->start+n, sizeclass);
 	}
 
@@ -168,6 +179,8 @@ MHeap_Grow(MHeap *h, uintptr npage)
 		return false;
 	}
 
+	// Create a fake "in use" span and free it, so that the
+	// right coalescing happens.
 	s = FixAlloc_Alloc(&h->spanalloc);
 	MSpan_Init(s, (uintptr)v>>PageShift, ask>>PageShift);
 	MHeapMap_Set(&h->map, s->start, s);
@@ -198,8 +211,10 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 {
 	MSpan *t;
 
-	if(s->state != MSpanInUse || s->ref != 0)
+	if(s->state != MSpanInUse || s->ref != 0) {
+		printf("MHeap_FreeLocked - span %p ptr %p state %d ref %d\n", s, s->start<<PageShift, s->state, s->ref);
 		throw("MHeap_FreeLocked - invalid free");
+	}
 	s->state = MSpanFree;
 	MSpanList_Remove(s);
 
