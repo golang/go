@@ -350,7 +350,7 @@ void	sys·printpc(void*);
 void	sys·printpointer(void*);
 void	sys·printuint(uint64);
 void	sys·printhex(uint64);
-void	sys·printarray(Array*);
+void	sys·printarray(Array);
 void	sys·catstring(string, string, string);
 void	sys·cmpstring(string, string, int32);
 void	sys·slicestring(string, int32, int32, string);

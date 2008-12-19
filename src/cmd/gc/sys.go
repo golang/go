@@ -17,6 +17,7 @@ export func	printint(int64);
 export func	printstring(string);
 export func	printpointer(*any);
 export func	printinter(any);
+export func	printarray(any);
 export func	printnl();
 export func	printsp();
 

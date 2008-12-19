@@ -11,6 +11,7 @@ char *sysimport =
 	"export func sys.printstring (? string)\n"
 	"export func sys.printpointer (? *any)\n"
 	"export func sys.printinter (? any)\n"
+	"export func sys.printarray (? any)\n"
 	"export func sys.printnl ()\n"
 	"export func sys.printsp ()\n"
 	"export func sys.catstring (? string, ? string) (? string)\n"
