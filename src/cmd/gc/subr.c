@@ -2140,6 +2140,14 @@ loop:
 		print("	%lT\n", tl);
 	if(tr != T)
 		print("	%lT\n", tr);
+
+	// common mistake: *struct and *interface.
+	if(tl && tr && isptr[tl->etype] && isptr[tr->etype]) {
+		if(tl->type->etype == TSTRUCT && tr->type->etype == TINTER)
+			print("	(*struct vs *interface)\n");
+		else if(tl->type->etype == TINTER && tr->type->etype == TSTRUCT)
+			print("	(*interface vs *struct)\n");
+	}
 }
 
 /*
