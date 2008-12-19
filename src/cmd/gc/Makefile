@@ -46,6 +46,7 @@ y.tab.c: y.tab.h
 # than sys.go (or unsafe.go or mksys.c).
 sysimport.c:	sys.go unsafe.go mksys.c
 	if test -x $(BIN)/6g; then \
+		p4 open sysimport.c; \
 		gcc -o mksys mksys.c; \
 		6g sys.go; \
 		6g unsafe.go; \
