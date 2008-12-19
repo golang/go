@@ -189,14 +189,14 @@ cgen(Node *n, Node *res)
 			// convert dynamic array to static array
 			n2 = n1;
 			n2.op = OINDREG;
-			n2.xoffset = offsetof(Array,array);
+			n2.xoffset = Array_array;
 			n2.type = types[tptr];
 			gins(AMOVQ, &n2, &n1);
 		}
 		if(isptrdarray(n->type) && isptrsarray(nl->type)) {
 			// conver static array to dynamic array
 			// it is assumed that the dope is just before the array
-			nodconst(&n2, types[tptr], sizeof(Array));
+			nodconst(&n2, types[tptr], sizeof_Array);
 			gins(ASUBQ, &n2, &n1);
 		}
 		gmove(&n1, res);
@@ -247,7 +247,7 @@ cgen(Node *n, Node *res)
 			cgen(nl, &n1);
 			n1.op = OINDREG;
 			n1.type = types[TUINT32];
-			n1.xoffset = offsetof(Array,nel);
+			n1.xoffset = Array_nel;
 			gmove(&n1, res);
 			regfree(&n1);
 			break;
@@ -257,7 +257,7 @@ cgen(Node *n, Node *res)
 			agen(nl, &n1);
 			n1.op = OINDREG;
 			n1.type = types[TUINT32];
-			n1.xoffset = offsetof(Array,nel);
+			n1.xoffset = Array_nel;
 			gmove(&n1, res);
 			regfree(&n1);
 			break;
@@ -271,7 +271,7 @@ cgen(Node *n, Node *res)
 			cgen(nl, &n1);
 			n1.op = OINDREG;
 			n1.type = types[TUINT32];
-			n1.xoffset = offsetof(Array,cap);
+			n1.xoffset = Array_cap;
 			gmove(&n1, res);
 			regfree(&n1);
 			break;
@@ -281,7 +281,7 @@ cgen(Node *n, Node *res)
 			agen(nl, &n1);
 			n1.op = OINDREG;
 			n1.type = types[TUINT32];
-			n1.xoffset = offsetof(Array,cap);
+			n1.xoffset = Array_cap;
 			gmove(&n1, res);
 			regfree(&n1);
 			break;
@@ -491,7 +491,7 @@ agen(Node *n, Node *res)
 					n1 = n3;
 					n1.op = OINDREG;
 					n1.type = types[tptr];
-					n1.xoffset = offsetof(Array, nel);
+					n1.xoffset = Array_nel;
 					nodconst(&n2, types[TUINT64], v);
 					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
@@ -502,7 +502,7 @@ agen(Node *n, Node *res)
 				n1 = n3;
 				n1.op = OINDREG;
 				n1.type = types[tptr];
-				n1.xoffset = offsetof(Array, array);
+				n1.xoffset = Array_array;
 				gmove(&n1, &n3);
 			} else
 			if(!debug['B']) {
@@ -540,7 +540,7 @@ agen(Node *n, Node *res)
 				n1 = n3;
 				n1.op = OINDREG;
 				n1.type = types[tptr];
-				n1.xoffset = offsetof(Array, nel);
+				n1.xoffset = Array_nel;
 			} else {
 				nodconst(&n1, types[TUINT64], nl->type->bound);
 				if(isptrsarray(nl->type))
@@ -556,7 +556,7 @@ agen(Node *n, Node *res)
 			n1 = n3;
 			n1.op = OINDREG;
 			n1.type = types[tptr];
-			n1.xoffset = offsetof(Array, array);
+			n1.xoffset = Array_array;
 			gmove(&n1, &n3);
 		}
 
@@ -756,7 +756,7 @@ bgen(Node *n, int true, Prog *to)
 			agen(nl, &n1);
 			n2 = n1;
 			n2.op = OINDREG;
-			n2.xoffset = offsetof(Array,array);
+			n2.xoffset = Array_array;
 			nodconst(&tmp, types[tptr], 0);
 			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
 			patch(gbranch(a, types[tptr]), to);
