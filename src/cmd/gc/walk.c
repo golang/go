@@ -2000,19 +2000,19 @@ Node*
 newcompat(Node *n)
 {
 	Node *r, *on;
-	Type *t;
+	Type *t, *t0;
 
-	t = n->type;
-	if(t == T)
+	t0 = n->type;
+	if(t0 == T)
 		goto bad;
 
-	if(t->etype == TARRAY)
+	if(t0->etype == TARRAY)
 		return arrayop(n, Erv);
 
-	if(!isptr[t->etype] || t->type == T)
+	if(!isptr[t0->etype] || t0->type == T)
 		goto bad;
 
-	t = t->type;
+	t = t0->type;
 	switch(t->etype) {
 	case TSTRING:
 		goto bad;
@@ -2031,7 +2031,7 @@ newcompat(Node *n)
 
 	default:
 		if(n->left != N)
-			yyerror("cannot new(*%T, expr)", t);
+			yyerror("cannot new(%T, expr)", t0);
 		dowidth(t);
 		on = syslook("mal", 1);
 		argtype(on, t);
@@ -2044,7 +2044,7 @@ newcompat(Node *n)
 	return r;
 
 bad:
-	yyerror("cannot new(*%T)", t);
+	yyerror("cannot new(%T)", t0);
 	return n;
 }
 
