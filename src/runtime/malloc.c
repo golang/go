@@ -25,6 +25,10 @@ malloc(uintptr size)
 	MSpan *s;
 	void *v;
 
+	if(m->mallocing)
+		throw("malloc - deadlock");
+	m->mallocing = 1;
+
 	if(size == 0)
 		size = 1;
 
@@ -35,22 +39,24 @@ malloc(uintptr size)
 		c = m->mcache;
 		v = MCache_Alloc(c, sizeclass, size);
 		if(v == nil)
-			return nil;
+			throw("out of memory");
 		mstats.alloc += size;
-		return v;
+	} else {
+		// TODO(rsc): Report tracebacks for very large allocations.
+
+		// Allocate directly from heap.
+		npages = size >> PageShift;
+		if((size & PageMask) != 0)
+			npages++;
+		s = MHeap_Alloc(&mheap, npages, 0);
+		if(s == nil)
+			throw("out of memory");
+		mstats.alloc += npages<<PageShift;
+		v = (void*)(s->start << PageShift);
 	}
 
-	// TODO(rsc): Report tracebacks for very large allocations.
-
-	// Allocate directly from heap.
-	npages = size >> PageShift;
-	if((size & PageMask) != 0)
-		npages++;
-	s = MHeap_Alloc(&mheap, npages, 0);
-	if(s == nil)
-		return nil;
-	mstats.alloc += npages<<PageShift;
-	return (void*)(s->start << PageShift);
+	m->mallocing = 0;
+	return v;
 }
 
 // Free the object whose base pointer is v.
@@ -87,6 +93,34 @@ free(void *v)
 	sys·memclr(v, size);
 	mstats.alloc -= size;
 	MCache_Free(c, v, sizeclass, size);
+}
+
+void
+mlookup(void *v, byte **base, uintptr *size)
+{
+	uintptr n, off;
+	byte *p;
+	MSpan *s;
+
+	s = MHeap_Lookup(&mheap, (uintptr)v>>PageShift);
+	if(s == nil) {
+		*base = nil;
+		*size = 0;
+		return;
+	}
+
+	p = (byte*)((uintptr)s->start<<PageShift);
+	if(s->sizeclass == 0) {
+		// Large object.
+		*base = p;
+		*size = s->npages<<PageShift;
+		return;
+	}
+
+	n = class_to_size[s->sizeclass];
+	off = ((byte*)v - p)/n * n;
+	*base = p+off;
+	*size = n;
 }
 
 MCache*
@@ -144,6 +178,80 @@ SysFree(void *v, uintptr n)
 	// TODO(rsc): call munmap
 }
 
+// Runtime stubs.
+
+extern void *oldmal(uint32);
+
+void*
+mal(uint32 n)
+{
+//return oldmal(n);
+	void *v;
+
+	v = malloc(n);
+
+	if(0) {
+		byte *p;
+		int32 i;
+		p = v;
+		for(i=0; i<n; i++) {
+			if(p[i] != 0) {
+				printf("mal %d => %p: byte %d is non-zero\n", n, v, i);
+				throw("mal");
+			}
+		}
+	}
+
+//printf("mal %d %p\n", n, v);  // |checkmal to check for overlapping returns.
+	return v;
+}
+
+// Stack allocator uses malloc/free most of the time,
+// but if we're in the middle of malloc and need stack,
+// we have to do something else to avoid deadlock.
+// In that case, we fall back on a fixed-size free-list
+// allocator, assuming that inside malloc all the stack
+// frames are small, so that all the stack allocations
+// will be a single size, the minimum (right now, 5k).
+struct {
+	Lock;
+	FixAlloc;
+} stacks;
+
+void*
+stackalloc(uint32 n)
+{
+	void *v;
+
+//return oldmal(n);
+	if(m->mallocing) {
+		lock(&stacks);
+		if(stacks.size == 0)
+			FixAlloc_Init(&stacks, n, SysAlloc);
+		if(stacks.size != n) {
+			printf("stackalloc: in malloc, size=%D want %d", stacks.size, n);
+			throw("stackalloc");
+		}
+		v = FixAlloc_Alloc(&stacks);
+		unlock(&stacks);
+		return v;
+	}
+	return malloc(n);
+}
+
+void
+stackfree(void *v)
+{
+//return;
+
+	if(m->mallocing) {
+		lock(&stacks);
+		FixAlloc_Free(&stacks, v);
+		unlock(&stacks);
+		return;
+	}
+	free(v);
+}
 
 // Go function stubs.
 
@@ -161,9 +269,14 @@ malloc·Free(byte *p)
 }
 
 void
+malloc·Lookup(byte *p, byte *base, uintptr size)
+{
+	mlookup(p, &base, &size);
+}
+
+void
 malloc·GetStats(MStats *s)
 {
 	s = &mstats;
 	FLUSH(&s);
 }
-

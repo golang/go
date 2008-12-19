@@ -23,17 +23,6 @@ enum
 	MAP_ANON	= 0x1000,	// not on Linux - TODO(rsc)
 };
 
-void*
-stackalloc(uint32 n)
-{
-	return mal(n);
-}
-
-void
-stackfree(void*)
-{
-}
-
 // Convenient wrapper around mmap.
 static void*
 brk(uint32 n)
@@ -51,7 +40,7 @@ brk(uint32 n)
 // right here?"  The answer is yes unless we're in the middle of
 // editing the malloc state in m->mem.
 void*
-mal(uint32 n)
+oldmal(uint32 n)
 {
 	byte* v;
 

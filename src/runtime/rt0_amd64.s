@@ -22,7 +22,7 @@ TEXT	_rt0_amd64(SB),7,$-8
 
 	// create istack out of the given (operating system) stack
 
-	LEAQ	(-1024+104)(SP), AX
+	LEAQ	(-8192+104)(SP), AX
 	MOVQ	AX, 0(R15)		// 0(R15) is stack limit (w 104b guard)
 	MOVQ	SP, 8(R15)		// 8(R15) is base
 
