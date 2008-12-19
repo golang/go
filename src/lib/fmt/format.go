@@ -71,7 +71,7 @@ func (f *Fmt) init() {
 }
 
 export func New() *Fmt {
-	f := new(Fmt);
+	f := new(*Fmt);
 	f.init();
 	return f;
 }

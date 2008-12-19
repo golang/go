@@ -175,7 +175,7 @@ func NewArrayTypeStruct(name, typestring string, open bool, len int, elem *StubT
 
 func (t *ArrayTypeStruct) Size() int {
 	if t.open {
-		return ptrsize	// open arrays are pointers to structures
+		return ptrsize*2	// open arrays are 2-word headers
 	}
 	return t.len * t.elem.Get().Size();
 }
@@ -207,12 +207,7 @@ type MapTypeStruct struct {
 }
 
 func NewMapTypeStruct(name, typestring string, key, elem *StubType) *MapTypeStruct {
-	return &MapTypeStruct{ Common{MapKind, typestring, name, 0}, key, elem}
-}
-
-func (t *MapTypeStruct) Size() int {
-	panic("reflect.type: map.Size(): cannot happen");
-	return 0
+	return &MapTypeStruct{ Common{MapKind, typestring, name, ptrsize}, key, elem}
 }
 
 func (t *MapTypeStruct) Key() Type {
@@ -243,12 +238,7 @@ type ChanTypeStruct struct {
 }
 
 func NewChanTypeStruct(name, typestring string, dir int, elem *StubType) *ChanTypeStruct {
-	return &ChanTypeStruct{ Common{ChanKind, typestring, name, 0}, elem, dir}
-}
-
-func (t *ChanTypeStruct) Size() int {
-	panic("reflect.type: chan.Size(): cannot happen");
-	return 0
+	return &ChanTypeStruct{ Common{ChanKind, typestring, name, ptrsize}, elem, dir}
 }
 
 func (t *ChanTypeStruct) Dir() int {
@@ -379,14 +369,14 @@ func (t *FuncTypeStruct) Out() StructType {
 }
 
 // Cache of expanded types keyed by type name.
-var types *map[string] Type
+var types map[string] Type
 
 // List of typename, typestring pairs
-var typestring *map[string] string
+var typestring map[string] string
 var initialized bool = false
 
 // Map of basic types to prebuilt StubTypes
-var basicstub *map[string] *StubType
+var basicstub map[string] *StubType
 
 var MissingStub *StubType;
 var DotDotDotStub *StubType;
@@ -479,7 +469,7 @@ func init() {
 		functiontype
 	typename =
 		name '.' name
-	doublequotedstring = 
+	doublequotedstring =
 		string in " ";  escapes are \x00 (NUL) \n \t \" \\
 	fieldlist =
 		[ field { [ ',' | ';' ] field } ]
@@ -849,7 +839,7 @@ export func ParseTypeString(name, typestring string) Type {
 		// If the typestring is empty, it represents (the type of) a nil interface value
 		return NilInterface
 	}
-	p := new(Parser);
+	p := new(*Parser);
 	p.str = typestring;
 	p.Next();
 	return p.Type(name).Get();

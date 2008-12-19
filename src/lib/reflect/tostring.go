@@ -190,14 +190,15 @@ func ValueToString(val Value) string {
 		return str;
 	case MapKind:
 		t := typ.(MapType);
-		v := val.(ArrayValue);
+		v := val.(MapValue);
 		str = TypeToString(t, false);
 		str += "{";
 		str += "<can't iterate on maps>";
 		str += "}";
 		return str;
 	case ChanKind:
-		return "can't print chans yet";
+		str = TypeToString(typ, false);
+		return str;
 	case StructKind:
 		t := typ.(StructType);
 		v := val.(StructValue);

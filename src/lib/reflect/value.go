@@ -46,6 +46,9 @@ func (c *Common) Addr() Addr {
 }
 
 func (c *Common) Interface() interface {} {
+	if uintptr(c.addr) == 0 {
+		panicln("reflect: address 0 for", c.typ.String());
+	}
 	return sys.unreflect(uint64(uintptr(*c.addr.(*Addr))), c.typ.String());
 }
 
@@ -622,7 +625,7 @@ func (v *FixedArrayValueStruct) Elem(i int) Value {
 func ArrayCreator(typ Type, addr Addr) Value {
 	arraytype := typ.(ArrayType);
 	if arraytype.Open() {
-		v := new(OpenArrayValueStruct);
+		v := new(*OpenArrayValueStruct);
 		v.kind = ArrayKind;
 		v.addr = addr;
 		v.typ = typ;
@@ -631,7 +634,7 @@ func ArrayCreator(typ Type, addr Addr) Value {
 		v.array = addr.(*RuntimeArray);
 		return v;
 	}
-	v := new(FixedArrayValueStruct);
+	v := new(*FixedArrayValueStruct);
 	v.kind = ArrayKind;
 	v.addr = addr;
 	v.typ = typ;
@@ -793,7 +796,7 @@ func NewValueAddr(typ Type, addr Addr) Value {
 export func NewInitValue(typ Type) Value {
 	// Some values cannot be made this way.
 	switch typ.Kind() {
-	case FuncKind, ChanKind, MapKind:	// must be pointers, at least for now (TODO?)
+	case FuncKind:	// must be pointers, at least for now (TODO?)
 		return nil;
 	case ArrayKind:
 		if typ.(ArrayType).Open() {
@@ -821,7 +824,7 @@ export func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
 		return nil
 	}
 
-	array := new(RuntimeArray);
+	array := new(*RuntimeArray);
 	size := typ.Elem().Size() * cap;
 	if size == 0 {
 		size = 1;
@@ -871,13 +874,13 @@ export func NewValue(e interface {}) Value {
 	p, ok := typecache[typestring];
 	if !ok {
 		typ := ParseTypeString("", typestring);
-		p = new(Type);
+		p = new(*Type);
 		*p = typ;
 		typecache[typestring] = p;
 	}
 	// Content of interface is a value; need a permanent copy to take its address
 	// so we can modify the contents. Values contain pointers to 'values'.
-	ap := new(uint64);
+	ap := new(*uint64);
 	*ap = value;
 	return NewValueAddr(*p, ap.(Addr));
 }

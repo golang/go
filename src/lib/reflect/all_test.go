@@ -49,6 +49,9 @@ func typedump(s, t string) {
 func valuedump(s, t string) {
 	typ := reflect.ParseTypeString("", s);
 	v := reflect.NewInitValue(typ);
+	if v == nil {
+		panicln("valuedump", s);
+	}
 	switch v.Kind() {
 	case reflect.IntKind:
 		v.(reflect.IntValue).Set(132);
@@ -114,11 +117,11 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	typedump("**P.integer", "**P.integer");
 	typedump("[32]int32", "[32]int32");
 	typedump("[]int8", "[]int8");
-	typedump("*map[string]int32", "*map[string]int32");
-	typedump("*chan<-string", "*chan<-string");
-	typedump("struct {c *chan *int32; d float32}", "struct{c *chan*int32; d float32}");
+	typedump("map[string]int32", "map[string]int32");
+	typedump("chan<-string", "chan<-string");
+	typedump("struct {c chan *int32; d float32}", "struct{c chan*int32; d float32}");
 	typedump("*(a int8, b int32)", "*(a int8, b int32)");
-	typedump("struct {c *(? *chan *P.integer, ? *int8)}", "struct{c *(*chan*P.integer, *int8)}");
+	typedump("struct {c *(? chan *P.integer, ? *int8)}", "struct{c *(chan*P.integer, *int8)}");
 	typedump("struct {a int8; b int32}", "struct{a int8; b int32}");
 	typedump("struct {a int8; b int8; b int32}", "struct{a int8; b int8; b int32}");
 	typedump("struct {a int8; b int8; c int8; b int32}", "struct{a int8; b int8; c int8; b int32}");
@@ -145,11 +148,11 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	valuedump("**int8", "**int8(0)");
 	valuedump("[5]int32", "[5]int32{0, 0, 0, 0, 0}");
 	valuedump("**P.integer", "**P.integer(0)");
-	valuedump("*map[string]int32", "*map[string]int32(0)");
-	valuedump("*chan<-string", "*chan<-string(0)");
-	valuedump("struct {c *chan *int32; d float32}", "struct{c *chan*int32; d float32}{*chan*int32(0), 0}");
+	valuedump("map[string]int32", "map[string]int32{<can't iterate on maps>}");
+	valuedump("chan<-string", "chan<-string");
+	valuedump("struct {c chan *int32; d float32}", "struct{c chan*int32; d float32}{chan*int32, 0}");
 	valuedump("*(a int8, b int32)", "*(a int8, b int32)(0)");
-	valuedump("struct {c *(? *chan *P.integer, ? *int8)}", "struct{c *(*chan*P.integer, *int8)}{*(*chan*P.integer, *int8)(0)}");
+	valuedump("struct {c *(? chan *P.integer, ? *int8)}", "struct{c *(chan*P.integer, *int8)}{*(chan*P.integer, *int8)(0)}");
 	valuedump("struct {a int8; b int32}", "struct{a int8; b int32}{0, 0}");
 	valuedump("struct {a int8; b int8; b int32}", "struct{a int8; b int8; b int32}{0, 0, 0}");
 
@@ -173,7 +176,7 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	}
 	{
 		type C chan *T;	// TODO: should not be necessary
-		var tmp = new(C);
+		var tmp = new(*C);
 		value := reflect.NewValue(tmp);
 		assert(reflect.ValueToString(value), "*reflect.C·all_test(@)");
 	}
@@ -185,15 +188,14 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 //		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
 //		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
 //	}
-//	{
-//		type AA []int;
-//		tmp1 := [10]int{1,2,3,4,5,6,7,8,9,10};	// TODO: should not be necessary to use tmp1
-//		var tmp *AA = &tmp1;
-//		value := reflect.NewValue(tmp);
-//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
-//		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
-//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
-//	}
+	{
+		type AA []int;
+		var tmp = AA{1,2,3,4,5,6,7,8,9,10};
+		value := reflect.NewValue(&tmp);	// TODO: NewValue(tmp) too
+		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
+		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+	}
 
 	{
 		var ip *int32;
@@ -225,13 +227,13 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	pt = t.(reflect.PtrType);
 	assert(pt.Sub().String(), "int8");
 
-	t = reflect.ParseTypeString("", "*struct {c *chan *int32; d float32}");
-	assert(t.String(), "*struct {c *chan *int32; d float32}");
+	t = reflect.ParseTypeString("", "*struct {c chan *int32; d float32}");
+	assert(t.String(), "*struct {c chan *int32; d float32}");
 	pt = t.(reflect.PtrType);
-	assert(pt.Sub().String(), "struct {c *chan *int32; d float32}");
+	assert(pt.Sub().String(), "struct {c chan *int32; d float32}");
 	st = pt.Sub().(reflect.StructType);
 	name, typ, tag, offset = st.Field(0);
-	assert(typ.String(), "*chan *int32");
+	assert(typ.String(), "chan *int32");
 	name, typ, tag, offset = st.Field(1);
 	assert(typ.String(), "float32");
 
