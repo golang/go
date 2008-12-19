@@ -57,26 +57,26 @@ export func	float64frombits(uint64) float64;	// raw bits
 
 export func	newmap(keysize int, valsize int,
 			keyalg int, valalg int,
-			hint int) (hmap *map[any]any);
-export func	mapaccess1(hmap *map[any]any, key any) (val any);
-export func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
-export func	mapassign1(hmap *map[any]any, key any, val any);
-export func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
-export func	mapiterinit(hmap *map[any]any, hiter *any);
+			hint int) (hmap map[any]any);
+export func	mapaccess1(hmap map[any]any, key any) (val any);
+export func	mapaccess2(hmap map[any]any, key any) (val any, pres bool);
+export func	mapassign1(hmap map[any]any, key any, val any);
+export func	mapassign2(hmap map[any]any, key any, val any, pres bool);
+export func	mapiterinit(hmap map[any]any, hiter *any);
 export func	mapiternext(hiter *any);
 export func	mapiter1(hiter *any) (key any);
 export func	mapiter2(hiter *any) (key any, val any);
 
-export func	newchan(elemsize int, elemalg int, hint int) (hchan *chan any);
-export func	chanrecv1(hchan *chan any) (elem any);
-export func	chanrecv2(hchan *chan any) (elem any, pres bool);
-export func	chanrecv3(hchan *chan any, elem *any) (pres bool);
-export func	chansend1(hchan *chan any, elem any);
-export func	chansend2(hchan *chan any, elem any) (pres bool);
+export func	newchan(elemsize int, elemalg int, hint int) (hchan chan any);
+export func	chanrecv1(hchan chan any) (elem any);
+export func	chanrecv2(hchan chan any) (elem any, pres bool);
+export func	chanrecv3(hchan chan any, elem *any) (pres bool);
+export func	chansend1(hchan chan any, elem any);
+export func	chansend2(hchan chan any, elem any) (pres bool);
 
 export func	newselect(size int) (sel *byte);
-export func	selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
-export func	selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+export func	selectsend(sel *byte, hchan chan any, elem any) (selected bool);
+export func	selectrecv(sel *byte, hchan chan any, elem *any) (selected bool);
 export func	selectdefault(sel *byte) (selected bool);
 export func	selectgo(sel *byte);
 

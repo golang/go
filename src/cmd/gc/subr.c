@@ -1004,9 +1004,26 @@ Tpretty(Fmt *fp, Type *t)
 	switch(t->etype) {
 	case TPTR32:
 	case TPTR64:
-		if(t->type && t->type->etype == TSTRING)
-			return fmtprint(fp, "string");
-		return fmtprint(fp, "*%T", t->type);
+		t1 = t->type;
+		if(t1 != T) {
+			switch(t1->etype) {
+			case TSTRING:
+				return fmtprint(fp, "string");
+			case TMAP:
+				return fmtprint(fp, "map[%T] %T", t1->down, t1->type);
+			case TCHAN:
+				return fmtprint(fp, "chan %T", t1->type);
+			}
+		}
+		return fmtprint(fp, "*%T", t1);
+
+	// Should not see these: should see ptr instead, handled above.
+	case TSTRING:
+		return fmtprint(fp, "STRING", t->type);
+	case TCHAN:
+		return fmtprint(fp, "CHAN %T", t->type);
+	case TMAP:
+		return fmtprint(fp, "MAP[%T] %T", t->down, t->type);
 
 	case TFUNC:
 		// t->type is method struct
@@ -1055,12 +1072,6 @@ Tpretty(Fmt *fp, Type *t)
 		if(t->bound >= 0)
 			return fmtprint(fp, "[%d]%T", (int)t->bound, t->type);
 		return fmtprint(fp, "[]%T", t->type);
-
-	case TCHAN:
-		return fmtprint(fp, "chan %T", t->type);
-
-	case TMAP:
-		return fmtprint(fp, "map[%T] %T", t->down, t->type);
 
 	case TINTER:
 		fmtprint(fp, "interface {");
@@ -1615,11 +1626,12 @@ iscomposite(Type *t)
 	if(t == T)
 		return 0;
 	switch(t->etype) {
-	case TMAP:
 	case TARRAY:
 	case TSTRUCT:
 		return 1;
 	}
+	if(isptr[t->etype] && t->type != T && t->type->etype == TMAP)
+		return 1;
 	return 0;
 }
 
@@ -1638,6 +1650,10 @@ signame(Type *t)
 	e = "sigt";
 	if(t->etype == TINTER)
 		e = "sigi";
+
+	// don't allow arrays in interfaces
+	if(t->etype == TARRAY)
+		goto bad;
 
 	// name is exported name, like *[]byte or *Struct or Interface
 	// (special symbols don't bother the linker).
