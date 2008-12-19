@@ -962,7 +962,7 @@ loop:
 			tempname(nvar, ptrto(n->left->type));
 
 			nnew = nod(ONEW, N, N);
-			nnew->type = nvar->type;
+			nnew->type = n->left->type;
 			nnew = newcompat(nnew);
 
 			nas = nod(OAS, nvar, nnew);
