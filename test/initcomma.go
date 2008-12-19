@@ -7,7 +7,7 @@
 package main
 
 var a = []int { 1, 2, }
-var b = [5]int { }
+var b = []int { }
 var c = []int { 1 }
 
 func main() {

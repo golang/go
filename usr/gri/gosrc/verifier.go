@@ -23,11 +23,11 @@ func Error(msg string) {
 
 type Verifier struct {
 	comp *Globals.Compilation;
-	
+
 	// various sets for marking the graph (and thus avoid cycles)
-	objs *map[*Globals.Object] bool;
-	typs *map[*Globals.Type] bool;
-	pkgs *map[*Globals.Package] bool;
+	objs map[*Globals.Object] bool;
+	typs map[*Globals.Type] bool;
+	pkgs map[*Globals.Package] bool;
 }
 
 
@@ -39,11 +39,11 @@ func (V *Verifier) VerifyType(typ *Globals.Type) {
 		return;  // already verified
 	}
 	V.typs[typ] = true;
-	
+
 	if typ.obj != nil {
 		V.VerifyObject(typ.obj, 0);
 	}
-	
+
 	switch typ.form {
 	case Type.VOID:
 		break;  // TODO for now - remove eventually
@@ -95,10 +95,10 @@ func (V *Verifier) VerifyObject(obj *Globals.Object, pnolev int) {
 		return;  // already verified
 	}
 	V.objs[obj] = true;
-	
+
 	// all objects have a non-nil type
 	V.VerifyType(obj.typ);
-	
+
 	switch obj.kind {
 	case Object.CONST:
 		break;
@@ -130,7 +130,7 @@ func (V *Verifier) VerifyPackage(pkg *Globals.Package, pno int) {
 		return;  // already verified
 	}
 	V.pkgs[pkg] = true;
-	
+
 	V.VerifyObject(pkg.obj, pno);
 	V.VerifyScope(pkg.scope);
 }
@@ -158,6 +158,6 @@ func (V *Verifier) Verify(comp *Globals.Compilation) {
 
 
 export func Verify(comp *Globals.Compilation) {
-	V := new(Verifier);
+	V := new(*Verifier);
 	V.Verify(comp);
 }

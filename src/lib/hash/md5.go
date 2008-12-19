@@ -27,7 +27,7 @@ export type Digest struct {
 }
 
 export func NewDigest() *Digest {
-	d := new(Digest);
+	d := new(*Digest);
 	d.s[0] = A;
 	d.s[1] = B;
 	d.s[2] = C;

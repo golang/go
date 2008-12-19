@@ -27,7 +27,7 @@ func Tabify(s string) string {
 export type T struct {
 	errors	string;
 	failed	bool;
-	ch	*chan *T;
+	ch	chan *T;
 }
 
 func (t *T) Fail() {
@@ -92,7 +92,7 @@ export func Main(tests []Test) {
 		if chatty {
 			println("=== RUN ", tests[i].name);
 		}
-		t := new(T);
+		t := new(*T);
 		t.ch = new(chan *T);
 		go TRunner(t, &tests[i]);
 		<-t.ch;

@@ -26,24 +26,24 @@ export const (
 	RBRACK;
 	LBRACE;
 	RBRACE;
-	
+
 	ASSIGN;
 	DEFINE;
-	
+
 	INC;
 	DEC;
 	NOT;
-	
+
 	AND;
 	OR;
 	XOR;
-	
+
 	ADD;
 	SUB;
 	MUL;
 	QUO;
 	REM;
-	
+
 	EQL;
 	NEQ;
 	LSS;
@@ -53,7 +53,7 @@ export const (
 
 	SHL;
 	SHR;
-	
+
 	ARROW;
 
 	ADD_ASSIGN;
@@ -65,13 +65,13 @@ export const (
 	AND_ASSIGN;
 	OR_ASSIGN;
 	XOR_ASSIGN;
-	
+
 	SHL_ASSIGN;
 	SHR_ASSIGN;
 
 	LAND;
 	LOR;
-	
+
 	// IDENT must be immediately before keywords
 	IDENT;
 
@@ -111,7 +111,7 @@ export const (
 )
 
 
-var Keywords *map [string] int;
+var Keywords map [string] int;
 var VerboseMsgs bool;  // error message customization
 
 
@@ -137,7 +137,7 @@ export func TokenName(tok int) string {
 
 	case ASSIGN: return "=";
 	case DEFINE: return ":=";
-	
+
 	case INC: return "++";
 	case DEC: return "--";
 	case NOT: return "!";
@@ -145,13 +145,13 @@ export func TokenName(tok int) string {
 	case AND: return "&";
 	case OR: return "|";
 	case XOR: return "^";
-	
+
 	case ADD: return "+";
 	case SUB: return "-";
 	case MUL: return "*";
 	case QUO: return "/";
 	case REM: return "%";
-	
+
 	case EQL: return "==";
 	case NEQ: return "!=";
 	case LSS: return "<";
@@ -161,7 +161,7 @@ export func TokenName(tok int) string {
 
 	case SHL: return "<<";
 	case SHR: return ">>";
-	
+
 	case ARROW: return "<-";
 
 	case ADD_ASSIGN: return "+=";
@@ -213,18 +213,18 @@ export func TokenName(tok int) string {
 	case TYPE: return "type";
 	case VAR: return "var";
 	}
-	
+
 	return "???";
 }
 
 
 func init() {
 	Keywords = new(map [string] int);
-	
+
 	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
 	  Keywords[TokenName(i)] = i;
 	}
-	
+
 	// Provide column information in error messages for gri only...
 	VerboseMsgs = Platform.USER == "gri";
 }
@@ -258,7 +258,7 @@ export type Scanner struct {
 	filename string;  // error reporting only
 	nerrors int;  // number of errors
 	errpos int;  // last error position
-	
+
 	src string;  // scanned source
 	pos int;  // current reading position
 	ch int;  // one char look-ahead
@@ -296,7 +296,7 @@ func (S *Scanner) Next() {
 	src := S.src;
 	lim := len(src);
 	pos := S.pos;
-	
+
 	// 1-byte sequence
 	// 0000-007F => T1
 	if pos >= lim {
@@ -371,7 +371,7 @@ bad:
 func (S *Scanner) LineCol(pos int) (line, col int) {
 	line = 1;
 	lpos := 0;
-	
+
 	src := S.src;
 	if pos > len(src) {
 		pos = len(src);
@@ -383,7 +383,7 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
 			lpos = i;
 		}
 	}
-	
+
 	return line, pos - lpos;
 }
 
@@ -409,7 +409,7 @@ func (S *Scanner) Error(pos int, msg string) {
 		S.nerrors++;
 		S.errpos = pos;
 	}
-	
+
 	if S.nerrors >= 10 {
 		sys.exit(1);
 	}
@@ -420,7 +420,7 @@ func (S *Scanner) Open(filename, src string) {
 	S.filename = filename;
 	S.nerrors = 0;
 	S.errpos = 0;
-	
+
 	S.src = src;
 	S.pos = 0;
 	S.Next();
@@ -467,7 +467,7 @@ func (S *Scanner) SkipComment() {
 		for S.ch != '\n' && S.ch >= 0 {
 			S.Next();
 		}
-		
+
 	} else {
 		/* comment */
 		pos := S.chpos - 1;
@@ -491,13 +491,13 @@ func (S *Scanner) ScanIdentifier() (tok int, val string) {
 		S.Next();
 	}
 	val = S.src[pos : S.chpos];
-	
+
 	var present bool;
 	tok, present = Keywords[val];
 	if !present {
 		tok = IDENT;
 	}
-	
+
 	return tok, val;
 }
 
@@ -512,14 +512,14 @@ func (S *Scanner) ScanMantissa(base int) {
 func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
 	pos := S.chpos;
 	tok = INT;
-	
+
 	if seen_decimal_point {
 		tok = FLOAT;
 		pos--;  // '.' is one byte
 		S.ScanMantissa(10);
 		goto exponent;
 	}
-	
+
 	if S.ch == '0' {
 		// int or float
 		S.Next();
@@ -539,18 +539,18 @@ func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
 		}
 		goto exit;
 	}
-	
+
 mantissa:
 	// decimal int or float
 	S.ScanMantissa(10);
-	
+
 	if S.ch == '.' {
 		// float
 		tok = FLOAT;
 		S.Next();
 		S.ScanMantissa(10)
 	}
-	
+
 exponent:
 	if S.ch == 'e' || S.ch == 'E' {
 		// float
@@ -561,7 +561,7 @@ exponent:
 		}
 		S.ScanMantissa(10);
 	}
-	
+
 exit:
 	return tok, S.src[pos : S.chpos];
 }
@@ -580,22 +580,22 @@ func (S *Scanner) ScanDigits(n int, base int) {
 
 func (S *Scanner) ScanEscape() string {
 	// TODO: fix this routine
-	
+
 	ch := S.ch;
 	pos := S.chpos;
 	S.Next();
 	switch (ch) {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"':
 		return string(ch);
-		
+
 	case '0', '1', '2', '3', '4', '5', '6', '7':
 		S.ScanDigits(3 - 1, 8);  // 1 char already read
 		return "";  // TODO fix this
-		
+
 	case 'x':
 		S.ScanDigits(2, 16);
 		return "";  // TODO fix this
-		
+
 	case 'u':
 		S.ScanDigits(4, 16);
 		return "";  // TODO fix this
@@ -642,7 +642,7 @@ func (S *Scanner) ScanString() string {
 			S.ScanEscape();
 		}
 	}
-	
+
 	S.Next();
 	return S.src[pos : S.chpos];
 }
@@ -707,11 +707,11 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
 
 func (S *Scanner) Scan() (tok, pos int, val string) {
 	S.SkipWhitespace();
-	
+
 	ch := S.ch;
 	tok = ILLEGAL;
 	pos = S.chpos;
-	
+
 	switch {
 	case is_letter(ch): tok, val = S.ScanIdentifier();
 	case digit_val(ch) < 10: tok, val = S.ScanNumber(false);
@@ -767,7 +767,7 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
 			tok = ILLEGAL;
 		}
 	}
-	
+
 	return tok, pos, val;
 }
 
@@ -779,9 +779,9 @@ export type Token struct {
 }
 
 
-func (S *Scanner) Server(c *chan *Token) {
+func (S *Scanner) Server(c chan *Token) {
 	for {
-		t := new(Token);
+		t := new(*Token);
 		t.tok, t.pos, t.val = S.Scan();
 		c <- t;
 		if t.tok == EOF {

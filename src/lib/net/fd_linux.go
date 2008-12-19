@@ -21,11 +21,11 @@ export type Pollster struct {
 	epfd int64;
 
 	// Events we're already waiting for
-	events *map[int64] uint32;
+	events map[int64] uint32;
 }
 
 export func NewPollster() (p *Pollster, err *os.Error) {
-	p = new(Pollster);
+	p = new(*Pollster);
 	var e int64;
 
 	// The arg to epoll_create is a hint to the kernel
@@ -102,9 +102,9 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
 	// Get an event.
 	var evarray [1]syscall.EpollEvent;
 	ev := &evarray[0];
-	n, e := syscall.epoll_wait(p.epfd, &evarray, -1);
+	n, e := syscall.epoll_wait(p.epfd, evarray, -1);
 	for e == syscall.EAGAIN || e == syscall.EINTR {
-		n, e = syscall.epoll_wait(p.epfd, &evarray, -1)
+		n, e = syscall.epoll_wait(p.epfd, evarray, -1)
 	}
 	if e != 0 {
 		return -1, 0, os.ErrnoToError(e)

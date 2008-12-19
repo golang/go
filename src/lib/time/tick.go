@@ -18,14 +18,14 @@ import (
 // Also, if timeouts become part of the select statement,
 // perhaps the Ticker is just:
 //
-//	func Ticker(ns int64, c *chan int64) {
+//	func Ticker(ns int64, c chan int64) {
 //		for {
 //			select { timeout ns: }
 //			nsec, err := time.Nanoseconds();
 //			c <- nsec;
 //		}
 
-func Ticker(ns int64, c *chan int64) {
+func Ticker(ns int64, c chan int64) {
 	var tv syscall.Timeval;
 	now := time.Nanoseconds();
 	when := now;
@@ -49,7 +49,7 @@ func Ticker(ns int64, c *chan int64) {
 	}
 }
 
-export func Tick(ns int64) *chan int64 {
+export func Tick(ns int64) chan int64 {
 	if ns <= 0 {
 		return nil
 	}

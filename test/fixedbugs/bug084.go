@@ -18,6 +18,6 @@ var arith Service
 
 func main() {
 	c := new(chan string);
-	a := new(Service);
+	a := new(*Service);
 	go a.Serve(1234);
 }

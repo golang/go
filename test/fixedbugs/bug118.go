@@ -6,7 +6,7 @@
 
 package main
 
-export func Send(c *chan int) int {
+export func Send(c chan int) int {
   select {
   default:
     return 1;

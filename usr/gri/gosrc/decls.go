@@ -52,7 +52,7 @@ type T8 chan <- *T6
 
 type T9 struct {
 	p *T9;
-	q [] *map [int] *T9;
+	q [] map [int] *T9;
 	f *(x, y *T9) *T9;
 }
 

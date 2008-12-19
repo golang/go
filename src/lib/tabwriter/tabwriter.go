@@ -165,7 +165,7 @@ func (b *Writer) Init(writer io.Write, cellwidth, padding int, padchar byte, ali
 	b.lines_width.Init(0);
 	b.widths.Init(0);
 	b.AddLine();  // the very first line
-	
+
 	return b;
 }
 
@@ -219,7 +219,7 @@ func (b *Writer) WritePadding(textw, cellw int) (err *os.Error) {
 	if b.padbytes[0] == '\t' {
 		n = (n + b.cellwidth - 1) / b.cellwidth;
 	}
-	
+
 	for n > len(b.padbytes) {
 		err = b.Write0(b.padbytes);
 		if err != nil {
@@ -269,7 +269,7 @@ func (b *Writer) WriteLines(pos0 int, line0, line1 int) (pos int, err *os.Error)
 				pos += s;
 			}
 		}
-		
+
 		if i+1 == b.lines_size.Len() {
 			// last buffered line - we don't have a newline, so just write
 			// any outstanding buffered data
@@ -291,22 +291,22 @@ exit:
 
 func (b *Writer) Format(pos0 int, line0, line1 int) (pos int, err *os.Error) {
 	pos = pos0;
-	column := b.widths.Len();	
+	column := b.widths.Len();
 	last := line0;
 	for this := line0; this < line1; this++ {
 		line_size, line_width := b.Line(this);
-		
+
 		if column < line_size.Len() - 1 {
 			// cell exists in this column
 			// (note that the last cell per line is ignored)
-			
+
 			// print unprinted lines until beginning of block
 			pos, err = b.WriteLines(pos, last, this);
 			if err != nil {
 				goto exit;
 			}
 			last = this;
-			
+
 			// column block begin
 			width := b.cellwidth;  // minimal width
 			for ; this < line1; this++ {
@@ -334,7 +334,7 @@ func (b *Writer) Format(pos0 int, line0, line1 int) (pos int, err *os.Error) {
 
 	// print unprinted lines until end
 	pos, err = b.WriteLines(pos, last, line1);
-	
+
 exit:
 	return pos, err;
 }
@@ -366,7 +366,7 @@ func UnicodeLen(buf []byte) int {
 	}
 	return l;
 }
- 
+
 
 func (b *Writer) Append(buf []byte) {
 	b.buf.Append(buf);
@@ -438,7 +438,7 @@ func (b *Writer) Append(buf []byte) {
 			}
 		}
 	}
-	
+
 	// append leftover text
 	b.Append(buf[i0 : n]);
 	return n, nil;
@@ -446,5 +446,5 @@ func (b *Writer) Append(buf []byte) {
 
 
 export func New(writer io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
-	return new(Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
+	return new(*Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
 }

@@ -73,7 +73,7 @@ func f2(tag int) {
 }
 
 
-func f3(a *[]int, m *map[string] int) {
+func f3(a *[]int, m map[string] int) {
 	println("A1");
 	for i := range a {
 		println(i);

@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func HammerSemaphore(s *int32, cdone *chan bool) {
+func HammerSemaphore(s *int32, cdone chan bool) {
 	for i := 0; i < 1000; i++ {
 		sys.semacquire(s);
 		sys.semrelease(s);
@@ -20,7 +20,7 @@ func HammerSemaphore(s *int32, cdone *chan bool) {
 }
 
 export func TestSemaphore(t *testing.T) {
-	s := new(int32);
+	s := new(*int32);
 	*s = 1;
 	c := new(chan bool);
 	for i := 0; i < 10; i++ {
@@ -32,7 +32,7 @@ export func TestSemaphore(t *testing.T) {
 }
 
 
-func HammerMutex(m *Mutex, cdone *chan bool) {
+func HammerMutex(m *Mutex, cdone chan bool) {
 	for i := 0; i < 1000; i++ {
 		m.Lock();
 		m.Unlock();
@@ -41,7 +41,7 @@ func HammerMutex(m *Mutex, cdone *chan bool) {
 }
 
 export func TestMutex(t *testing.T) {
-	m := new(Mutex);
+	m := new(*Mutex);
 	c := new(chan bool);
 	for i := 0; i < 10; i++ {
 		go HammerMutex(m, c);

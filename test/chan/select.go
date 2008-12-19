@@ -14,7 +14,7 @@ func GetValue() uint {
   return 1 << shift
 }
 
-func Send(a, b *chan uint) int {
+func Send(a, b chan uint) int {
   var i int;
   LOOP:
     for {

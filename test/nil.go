@@ -17,8 +17,8 @@ func main() {
 	var i *int;
 	var f *float;
 	var s *string;
-	var m *map[float] *int;
-	var c *chan int;
+	var m map[float] *int;
+	var c chan int;
 	var t *T;
 	var in IN;
 	var ta []IN;
@@ -30,6 +30,6 @@ func main() {
 	c = nil;
 	t = nil;
 	i = nil;
-	ta = new([1]IN);
+	ta = new([]IN, 1);
 	ta[0] = nil;
 }

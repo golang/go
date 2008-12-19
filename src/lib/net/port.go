@@ -14,10 +14,10 @@ import (
 	"strconv";
 )
 
-var services *map[string] *map[string] int
+var services map[string] map[string] int
 
 func ReadServices() {
-	services = new(map[string] *map[string] int);
+	services = new(map[string] map[string] int);
 	file := Open("/etc/services");
 	for line, ok := file.ReadLine(); ok; line, ok = file.ReadLine() {
 		// "http 80/tcp www www-http # World Wide Web HTTP"

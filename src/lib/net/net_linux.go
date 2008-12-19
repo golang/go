@@ -16,7 +16,7 @@ export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
 	if p == nil || port < 0 || port > 0xFFFF {
 		return nil, os.EINVAL
 	}
-	sa := new(syscall.SockaddrInet4);
+	sa := new(*syscall.SockaddrInet4);
 	sa.family = syscall.AF_INET;
 	sa.port[0] = byte(port>>8);
 	sa.port[1] = byte(port);
@@ -38,10 +38,10 @@ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
 	// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
 	// which it refuses to do.  Rewrite to the IPv6 all zeros.
 	if p4 := ToIPv4(p); p4 != nil && p4[0] == 0 && p4[1] == 0 && p4[2] == 0 && p4[3] == 0 {
-		p = &IPv6zero;
+		p = IPv6zero;
 	}
 
-	sa := new(syscall.SockaddrInet6);
+	sa := new(*syscall.SockaddrInet6);
 	sa.family = syscall.AF_INET6;
 	sa.port[0] = byte(port>>8);
 	sa.port[1] = byte(port);
@@ -55,14 +55,14 @@ export func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Err
 	switch sa1.family {
 	case syscall.AF_INET:
 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet4);
-		a := ToIPv6(&sa.addr);
+		a := ToIPv6(sa.addr);
 		if a == nil {
 			return nil, 0, os.EINVAL
 		}
 		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
 	case syscall.AF_INET6:
 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet6);
-		a := ToIPv6(&sa.addr);
+		a := ToIPv6(sa.addr);
 		if a == nil {
 			return nil, 0, os.EINVAL
 		}

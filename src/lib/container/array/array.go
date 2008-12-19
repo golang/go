@@ -36,7 +36,7 @@ func (p *Array) Init(initial_len int) *Array {
 
 
 export func New(len int) *Array {
-	return new(Array).Init(len)
+	return new(*Array).Init(len)
 }
 
 

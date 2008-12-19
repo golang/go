@@ -39,8 +39,6 @@ func MakeIPv4(a, b, c, d byte) []byte {
 // Well-known IP addresses
 export var IPv4bcast, IPv4allsys, IPv4allrouter, IPv4prefix, IPallbits, IPnoaddr []byte
 
-var NIL []byte // TODO(rsc)
-
 func init() {
 	IPv4bcast = MakeIPv4(0xff, 0xff, 0xff, 0xff);
 	IPv4allsys = MakeIPv4(0xe0, 0x00, 0x00, 0x01);
@@ -75,7 +73,7 @@ export func ToIPv4(p []byte) []byte {
 	&& p[11] == 0xff {
 		return p[12:16]
 	}
-	return NIL
+	return nil
 }
 
 // Convert p to IPv6 form.
@@ -86,7 +84,7 @@ export func ToIPv6(p []byte) []byte {
 	if len(p) == IPv6len {
 		return p
 	}
-	return NIL
+	return nil
 }
 
 // Default route masks for IPv4.
@@ -97,8 +95,8 @@ export var (
 )
 
 export func DefaultMask(p []byte) []byte {
-	if p = ToIPv4(p); len(p) == 0 {
-		return NIL
+	if p = ToIPv4(p); p == nil {
+		return nil
 	}
 	switch true {
 	case p[0] < 0x80:
@@ -108,14 +106,14 @@ export func DefaultMask(p []byte) []byte {
 	default:
 		return ClassCMask;
 	}
-	return NIL;	// not reached
+	return nil;	// not reached
 }
 
 // Apply mask to ip, returning new address.
 export func Mask(ip []byte, mask []byte) []byte {
 	n := len(ip);
 	if n != len(mask) {
-		return NIL
+		return nil
 	}
 	out := new([]byte, n);
 	for i := 0; i < n; i++ {
@@ -253,7 +251,7 @@ func ParseIPv4(s string) []byte {
 	for j := 0; j < IPv4len; j++ {
 		if j > 0 {
 			if s[i] != '.' {
-				return NIL
+				return nil
 			}
 			i++;
 		}
@@ -263,12 +261,12 @@ func ParseIPv4(s string) []byte {
 		)
 		n, i, ok = Dtoi(s, i);
 		if !ok || n > 0xFF {
-			return NIL
+			return nil
 		}
 		p[j] = byte(n)
 	}
 	if i != len(s) {
-		return NIL
+		return nil
 	}
 	return MakeIPv4(p[0], p[1], p[2], p[3])
 }
@@ -302,22 +300,22 @@ L:	for j < IPv6len {
 		// Hex number.
 		n, i1, ok := Xtoi(s, i);
 		if !ok || n > 0xFFFF {
-			return NIL
+			return nil
 		}
 
 		// If followed by dot, might be in trailing IPv4.
 		if i1 < len(s) && s[i1] == '.' {
 			if ellipsis < 0 && j != IPv6len - IPv4len {
 				// Not the right place.
-				return NIL
+				return nil
 			}
 			if j+IPv4len > IPv6len {
 				// Not enough room.
-				return NIL
+				return nil
 			}
 			p4 := ParseIPv4(s[i:len(s)]);
-			if len(p4) == 0 {
-				return NIL
+			if p4 == nil {
+				return nil
 			}
 			// BUG: p[j:j+4] = p4
 			p[j] = p4[12];
@@ -342,14 +340,14 @@ L:	for j < IPv6len {
 
 		// Otherwise must be followed by colon and more.
 		if s[i] != ':' && i+1 == len(s) {
-			return NIL
+			return nil
 		}
 		i++;
 
 		// Look for ellipsis.
 		if s[i] == ':' {
 			if ellipsis >= 0 {	// already have one
-				return NIL
+				return nil
 			}
 			ellipsis = j;
 			if i++; i == len(s) {	// can be at end
@@ -360,13 +358,13 @@ L:	for j < IPv6len {
 
 	// Must have used entire string.
 	if i != len(s) {
-		return NIL
+		return nil
 	}
 
 	// If didn't parse enough, expand ellipsis.
 	if j < IPv6len {
 		if ellipsis < 0 {
-			return NIL
+			return nil
 		}
 		n := IPv6len - j;
 		for k := j-1; k >= ellipsis; k-- {
@@ -381,7 +379,7 @@ L:	for j < IPv6len {
 
 export func ParseIP(s string) []byte {
 	p := ParseIPv4(s);
-	if len(p) != 0 {
+	if p != nil {
 		return p
 	}
 	return ParseIPv6(s)

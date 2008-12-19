@@ -81,7 +81,7 @@ func (b *ByteBuffer) Data() []byte {
 
 
 export func NewByteBufferFromArray(buf []byte) *ByteBuffer {
-	b := new(ByteBuffer);
+	b := new(*ByteBuffer);
 	b.buf = buf;
 	b.off = 0;
 	b.len = len(buf);

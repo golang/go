@@ -289,8 +289,8 @@ export type Flag struct {
 }
 
 type Flags struct {
-	actual *map[string] *Flag;
-	formal *map[string] *Flag;
+	actual map[string] *Flag;
+	formal map[string] *Flag;
 	first_arg	int;
 	flag_list	*Flag;  // BUG: remove when we can iterate over maps
 }
@@ -318,7 +318,7 @@ func (f *Flag) SVal() string {
 }
 
 func New() *Flags {
-	f := new(Flags);
+	f := new(*Flags);
 	f.first_arg = 1;	// 0 is the program name, 1 is first arg
 	f.actual = new(map[string] *Flag);
 	f.formal = new(map[string] *Flag);
@@ -361,7 +361,7 @@ export func NArg() int {
 }
 
 func Add(name string, value Value, usage string) *Flag {
-	f := new(Flag);
+	f := new(*Flag);
 	f.name = name;
 	f.usage = usage;
 	f.value = value;

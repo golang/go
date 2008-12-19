@@ -41,7 +41,7 @@ done
 set -e
 
 # They all compile; now generate the code to call them.
-#trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
 {
 	# package spec
 	echo 'package main'

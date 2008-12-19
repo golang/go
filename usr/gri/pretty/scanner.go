@@ -24,13 +24,13 @@ export const (
 	MUL;
 	QUO;
 	REM;
-	
+
 	AND;
 	OR;
 	XOR;
 	SHL;
 	SHR;
-	
+
 	ADD_ASSIGN;
 	SUB_ASSIGN;
 	MUL_ASSIGN;
@@ -48,7 +48,7 @@ export const (
 	ARROW;
 	INC;
 	DEC;
-	
+
 	EQL;
 	NEQ;
 	LSS;
@@ -60,14 +60,14 @@ export const (
 	DEFINE;
 	NOT;
 	ELLIPSIS;
-	
+
 	LPAREN;
 	RPAREN;
 	LBRACK;
 	RBRACK;
 	LBRACE;
 	RBRACE;
-	
+
 	COMMA;
 	SEMICOLON;
 	COLON;
@@ -80,32 +80,32 @@ export const (
 	CHAN;
 	CONST;
 	CONTINUE;
-	
+
 	DEFAULT;
 	ELSE;
 	EXPORT;
 	FALLTHROUGH;
 	FOR;
-	
+
 	FUNC;
 	GO;
 	GOTO;
 	IF;
 	IMPORT;
-	
+
 	INTERFACE;
 	MAP;
 	PACKAGE;
 	RANGE;
 	RETURN;
-	
+
 	SELECT;
 	STRUCT;
 	SWITCH;
 	TYPE;
 	VAR;
 	KEYWORDS_END;
-	
+
 	// AST use only
 	EXPRSTAT;
 )
@@ -114,7 +114,7 @@ export const (
 export func TokenString(tok int) string {
 	switch tok {
 	case ILLEGAL: return "ILLEGAL";
-	
+
 	case IDENT: return "IDENT";
 	case INT: return "INT";
 	case FLOAT: return "FLOAT";
@@ -128,13 +128,13 @@ export func TokenString(tok int) string {
 	case MUL: return "*";
 	case QUO: return "/";
 	case REM: return "%";
-	
+
 	case AND: return "&";
 	case OR: return "|";
 	case XOR: return "^";
 	case SHL: return "<<";
 	case SHR: return ">>";
-	
+
 	case ADD_ASSIGN: return "+=";
 	case SUB_ASSIGN: return "-=";
 	case MUL_ASSIGN: return "+=";
@@ -206,10 +206,10 @@ export func TokenString(tok int) string {
 	case SWITCH: return "switch";
 	case TYPE: return "type";
 	case VAR: return "var";
-	
+
 	case EXPRSTAT: return "EXPRSTAT";
 	}
-	
+
 	return "token(" + Utils.IntToString(tok, 10) + ")";
 }
 
@@ -242,7 +242,7 @@ export func Precedence(tok int) int {
 }
 
 
-var Keywords *map [string] int;
+var Keywords map [string] int;
 
 
 func init() {
@@ -325,7 +325,7 @@ func (S *Scanner) Error(pos int, msg string) {
 		S.testpos = -1;
 		return;
 	}
-	
+
 	S.err.Error(pos, msg);
 }
 
@@ -397,7 +397,7 @@ func (S *Scanner) SkipWhitespace() {
 func (S *Scanner) ScanComment() string {
 	// first '/' already consumed
 	pos := S.chpos - 1;
-	
+
 	if S.ch == '/' {
 		//-style comment
 		S.Next();
@@ -410,7 +410,7 @@ func (S *Scanner) ScanComment() string {
 				goto exit;
 			}
 		}
-		
+
 	} else {
 		/*-style comment */
 		S.Expect('*');
@@ -423,7 +423,7 @@ func (S *Scanner) ScanComment() string {
 			}
 		}
 	}
-	
+
 	S.Error(pos, "comment not terminated");
 
 exit:
@@ -443,7 +443,7 @@ exit:
 			oldpos = S.testpos;
 			S.ExpectNoErrors();
 		}
-	
+
 		if 0 <= oldpos && oldpos <= len(S.src) {
 			// the previous error was not found
 			S.Error(oldpos, "ERROR not found");  // TODO this should call ErrorMsg
@@ -460,13 +460,13 @@ func (S *Scanner) ScanIdentifier() (tok int, val string) {
 		S.Next();
 	}
 	val = S.src[pos : S.chpos];
-	
+
 	var present bool;
 	tok, present = Keywords[val];
 	if !present {
 		tok = IDENT;
 	}
-	
+
 	return tok, val;
 }
 
@@ -481,14 +481,14 @@ func (S *Scanner) ScanMantissa(base int) {
 func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
 	pos := S.chpos;
 	tok = INT;
-	
+
 	if seen_decimal_point {
 		tok = FLOAT;
 		pos--;  // '.' is one byte
 		S.ScanMantissa(10);
 		goto exponent;
 	}
-	
+
 	if S.ch == '0' {
 		// int or float
 		S.Next();
@@ -508,18 +508,18 @@ func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
 		}
 		goto exit;
 	}
-	
+
 mantissa:
 	// decimal int or float
 	S.ScanMantissa(10);
-	
+
 	if S.ch == '.' {
 		// float
 		tok = FLOAT;
 		S.Next();
 		S.ScanMantissa(10)
 	}
-	
+
 exponent:
 	if S.ch == 'e' || S.ch == 'E' {
 		// float
@@ -530,7 +530,7 @@ exponent:
 		}
 		S.ScanMantissa(10);
 	}
-	
+
 exit:
 	return tok, S.src[pos : S.chpos];
 }
@@ -549,22 +549,22 @@ func (S *Scanner) ScanDigits(n int, base int) {
 
 func (S *Scanner) ScanEscape(quote int) string {
 	// TODO: fix this routine
-	
+
 	ch := S.ch;
 	pos := S.chpos;
 	S.Next();
 	switch ch {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\':
 		return string(ch);
-		
+
 	case '0', '1', '2', '3', '4', '5', '6', '7':
 		S.ScanDigits(3 - 1, 8);  // 1 char already read
 		return "";  // TODO fix this
-		
+
 	case 'x':
 		S.ScanDigits(2, 16);
 		return "";  // TODO fix this
-		
+
 	case 'u':
 		S.ScanDigits(4, 16);
 		return "";  // TODO fix this
@@ -580,7 +580,7 @@ func (S *Scanner) ScanEscape(quote int) string {
 		}
 		S.Error(pos, "illegal char escape");
 	}
-	
+
 	return "";  // TODO fix this
 }
 
@@ -615,7 +615,7 @@ func (S *Scanner) ScanString() string {
 			S.ScanEscape('"');
 		}
 	}
-	
+
 	S.Next();
 	return S.src[pos : S.chpos];
 }
@@ -680,9 +680,9 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
 
 func (S *Scanner) Scan() (pos, tok int, val string) {
 L:	S.SkipWhitespace();
-	
+
 	pos, tok = S.chpos, ILLEGAL;
-	
+
 	switch ch := S.ch; {
 	case is_letter(ch): tok, val = S.ScanIdentifier();
 	case digit_val(ch) < 10: tok, val = S.ScanNumber(false);
@@ -746,7 +746,7 @@ L:	S.SkipWhitespace();
 			tok = ILLEGAL;
 		}
 	}
-	
+
 	return pos, tok, val;
 }
 
@@ -758,11 +758,11 @@ export type Token struct {
 }
 
 
-func (S *Scanner) TokenStream() *<-chan *Token {
+func (S *Scanner) TokenStream() <-chan *Token {
 	ch := new(chan *Token, 100);
-	go func(S *Scanner, ch *chan <- *Token) {
+	go func(S *Scanner, ch chan <- *Token) {
 		for {
-			t := new(Token);
+			t := new(*Token);
 			t.pos, t.tok, t.val = S.Scan();
 			ch <- t;
 			if t.tok == EOF {

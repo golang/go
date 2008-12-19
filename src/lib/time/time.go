@@ -71,7 +71,7 @@ const (
 )
 
 export func SecondsToUTC(sec int64) *Time {
-	t := new(Time);
+	t := new(*Time);
 
 	// Split into time and day.
 	day := sec/SecondsPerDay;

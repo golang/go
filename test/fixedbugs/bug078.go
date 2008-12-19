@@ -6,7 +6,7 @@
 
 package main
 
-func dosplit(wait *chan int ){
+func dosplit(wait chan int ){
 	select {
 	case <-wait:
 	}

@@ -99,7 +99,7 @@ func (j *Bool) String() string {
 	return "false"
 }
 
-type Map struct { m *map[string]Json; Null }
+type Map struct { m map[string]Json; Null }
 func (j *Map) Kind() int { return MapKind }
 func (j *Map) Get(s string) Json {
 	if j.m == nil {
@@ -212,7 +212,7 @@ type JsonBuilder struct {
 	i int;
 
 	// or to m[k] (can't set ptr = &m[k])
-	m *map[string] Json;
+	m map[string] Json;
 	k string;
 }
 
@@ -273,7 +273,7 @@ func (b *JsonBuilder) Map() {
 }
 
 func (b *JsonBuilder) Elem(i int) Builder {
-	bb := new(JsonBuilder);
+	bb := new(*JsonBuilder);
 	bb.a = b.Get().(*Array).a;
 	bb.i = i;
 	for i >= bb.a.Len() {
@@ -283,7 +283,7 @@ func (b *JsonBuilder) Elem(i int) Builder {
 }
 
 func (b *JsonBuilder) Key(k string) Builder {
-	bb := new(JsonBuilder);
+	bb := new(*JsonBuilder);
 	bb.m = b.Get().(*Map).m;
 	bb.k = k;
 	bb.m[k] = null;
@@ -293,7 +293,7 @@ func (b *JsonBuilder) Key(k string) Builder {
 export func StringToJson(s string) (json Json, ok bool, errtok string) {
 	var errindx int;
 	var j Json;
-	b := new(JsonBuilder);
+	b := new(*JsonBuilder);
 	b.ptr = &j;
 	ok, errindx, errtok = Parse(s, b);
 	if !ok {

@@ -59,7 +59,7 @@ export type List struct {
 export type Scope struct {
 	parent *Scope;
 	entries *List;
-	// entries *map[string] *Object;  // doesn't work properly
+	// entries map[string] *Object;  // doesn't work properly
 }
 
 
@@ -129,7 +129,7 @@ type Elem struct {
 export var Universe_void_t *Type  // initialized by Universe to Universe.void_t
 
 export func NewObject(pos, kind int, ident string) *Object {
-	obj := new(Object);
+	obj := new(*Object);
 	obj.exported = false;
 	obj.pos = pos;
 	obj.kind = kind;
@@ -141,7 +141,7 @@ export func NewObject(pos, kind int, ident string) *Object {
 
 
 export func NewType(form int) *Type {
-	typ := new(Type);
+	typ := new(*Type);
 	typ.ref = -1;  // not yet exported
 	typ.form = form;
 	return typ;
@@ -149,7 +149,7 @@ export func NewType(form int) *Type {
 
 
 export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
-	pkg := new(Package);
+	pkg := new(*Package);
 	pkg.ref = -1;  // not yet exported
 	pkg.file_name = file_name;
 	pkg.key = "<the package key>";  // empty key means package forward declaration
@@ -160,12 +160,12 @@ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
 
 
 export func NewList() *List {
-	return new(List);
+	return new(*List);
 }
 
 
 export func NewScope(parent *Scope) *Scope {
-	scope := new(Scope);
+	scope := new(*Scope);
 	scope.parent = parent;
 	scope.entries = NewList();
 	return scope;
@@ -176,7 +176,7 @@ export func NewScope(parent *Scope) *Scope {
 // Object methods
 
 func (obj *Object) Copy() *Object {
-	copy := new(Object);
+	copy := new(*Object);
 	copy.exported = obj.exported;
 	copy.pos = obj.pos;
 	copy.kind = obj.kind;
@@ -211,7 +211,7 @@ func (L *List) Clear() {
 
 func (L *List) Add() *Elem {
 	L.len_++;
-	e := new(Elem);
+	e := new(*Elem);
 	if L.first == nil {
 		L.first = e;
 	} else {

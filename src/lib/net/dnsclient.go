@@ -44,7 +44,7 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) 
 	if len(name) >= 256 {
 		return nil, DNS_NameTooLong
 	}
-	out := new(DNS_Msg);
+	out := new(*DNS_Msg);
 	out.id = 0x1234;
 	out.question = []DNS_Question{
 		DNS_Question{ name, DNS_TypeA, DNS_ClassINET }
@@ -71,7 +71,7 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) 
 			continue
 		}
 		buf = buf[0:n];
-		in := new(DNS_Msg);
+		in := new(*DNS_Msg);
 		if !in.Unpack(buf) || in.id != out.id {
 			continue
 		}
@@ -80,24 +80,22 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) 
 	return nil, DNS_NoAnswer
 }
 
-var NIL []string // TODO(rsc)
-
 
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
 // TODO(rsc): Maybe return [][]byte (==[]IPAddr) instead?
 func Answer(name string, dns *DNS_Msg) (addrs []string, err *os.Error) {
-	addrs = new([]string, len(dns.answer))[0:0];
+	addrs = new([]string, 0, len(dns.answer));
 
 	if dns.rcode == DNS_RcodeNameError && dns.authoritative {
-		return NIL, DNS_NameNotFound	// authoritative "no such host"
+		return nil, DNS_NameNotFound	// authoritative "no such host"
 	}
 	if dns.rcode != DNS_RcodeSuccess {
 		// None of the error codes make sense
 		// for the query we sent.  If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly.
-		return NIL, DNS_ServerFailure
+		return nil, DNS_ServerFailure
 	}
 
 	// Look for the name.
@@ -126,13 +124,13 @@ Cname:
 			}
 		}
 		if len(addrs) == 0 {
-			return NIL, DNS_NameNotFound
+			return nil, DNS_NameNotFound
 		}
 		return addrs, nil
 	}
 
 	// Too many redirects
-	return NIL, DNS_RedirectLoop
+	return nil, DNS_RedirectLoop
 }
 
 // Do a lookup for a single name, which must be rooted

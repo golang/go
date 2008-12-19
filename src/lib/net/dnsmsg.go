@@ -198,18 +198,18 @@ export type DNS_RR_A struct {
 
 // Map of constructors for each RR wire type.
 var rr_mk = map[int]*()DNS_RR {
-	DNS_TypeCNAME: func() DNS_RR { return new(DNS_RR_CNAME) },
-	DNS_TypeHINFO: func() DNS_RR { return new(DNS_RR_HINFO) },
-	DNS_TypeMB: func() DNS_RR { return new(DNS_RR_MB) },
-	DNS_TypeMG: func() DNS_RR { return new(DNS_RR_MG) },
-	DNS_TypeMINFO: func() DNS_RR { return new(DNS_RR_MINFO) },
-	DNS_TypeMR: func() DNS_RR { return new(DNS_RR_MR) },
-	DNS_TypeMX: func() DNS_RR { return new(DNS_RR_MX) },
-	DNS_TypeNS: func() DNS_RR { return new(DNS_RR_NS) },
-	DNS_TypePTR: func() DNS_RR { return new(DNS_RR_PTR) },
-	DNS_TypeSOA: func() DNS_RR { return new(DNS_RR_SOA) },
-	DNS_TypeTXT: func() DNS_RR { return new(DNS_RR_TXT) },
-	DNS_TypeA: func() DNS_RR { return new(DNS_RR_A) },
+	DNS_TypeCNAME: func() DNS_RR { return new(*DNS_RR_CNAME) },
+	DNS_TypeHINFO: func() DNS_RR { return new(*DNS_RR_HINFO) },
+	DNS_TypeMB: func() DNS_RR { return new(*DNS_RR_MB) },
+	DNS_TypeMG: func() DNS_RR { return new(*DNS_RR_MG) },
+	DNS_TypeMINFO: func() DNS_RR { return new(*DNS_RR_MINFO) },
+	DNS_TypeMR: func() DNS_RR { return new(*DNS_RR_MR) },
+	DNS_TypeMX: func() DNS_RR { return new(*DNS_RR_MX) },
+	DNS_TypeNS: func() DNS_RR { return new(*DNS_RR_NS) },
+	DNS_TypePTR: func() DNS_RR { return new(*DNS_RR_PTR) },
+	DNS_TypeSOA: func() DNS_RR { return new(*DNS_RR_SOA) },
+	DNS_TypeTXT: func() DNS_RR { return new(*DNS_RR_TXT) },
+	DNS_TypeA: func() DNS_RR { return new(*DNS_RR_A) },
 }
 
 // Pack a domain name s into msg[off:].
@@ -545,7 +545,6 @@ export type DNS_Msg struct {
 	extra []DNS_RR;
 }
 
-var NIL []byte // TODO(rsc): remove
 
 func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
 	var dh DNS_Header;
@@ -569,9 +568,11 @@ func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
 		dh.bits |= QR;
 	}
 
-	// Prepare variable sized arrays; paper over nils.
-	var question []DNS_Question;
-	var answer, ns, extra []DNS_RR;
+	// Prepare variable sized arrays.
+	question := dns.question;
+	answer := dns.answer;
+	ns := dns.ns;
+	extra := dns.extra;
 
 	dh.qdcount = uint16(len(question));
 	dh.ancount = uint16(len(answer));
@@ -599,7 +600,7 @@ func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
 		off, ok = PackStruct(extra[i], msg, off);
 	}
 	if !ok {
-		return NIL, false
+		return nil, false
 	}
 	return msg[0:off], true
 }

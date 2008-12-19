@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Adler-32 checksum. 
+// Adler-32 checksum.
 // Defined in RFC 1950:
 //	Adler-32 is composed of two sums accumulated per byte: s1 is
 //	the sum of all bytes, s2 is the sum of all s1 values. Both sums

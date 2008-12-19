@@ -22,7 +22,7 @@ nrand(n int) int
 type	Chan
 struct
 {
-	sc,rc	*chan int;	// send and recv chan
+	sc,rc	chan int;	// send and recv chan
 	sv,rv	int;		// send and recv seq
 }
 
@@ -38,7 +38,7 @@ var
 func
 init()
 {
-	nc = new(Chan);
+	nc = new(*Chan);
 }
 
 func
@@ -47,7 +47,7 @@ mkchan(c,n int) []*Chan
 	ca := new([]*Chan, n);
 	for i:=0; i<n; i++ {
 		cval = cval+100;
-		ch := new(Chan);
+		ch := new(*Chan);
 		ch.sc = new(chan int, c);
 		ch.rc = ch.sc;
 		ch.sv = cval;

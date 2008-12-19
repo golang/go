@@ -64,7 +64,7 @@ func (m *HashMap) Clear() {
 
 func (m *HashMap) Initialize (initial_log2_capacity uint32) {
 	m.log2_capacity_ = initial_log2_capacity;
-	m.map_ = new([1024] Entry);
+	m.map_ = new(*[1024] Entry);
 	m.Clear();
 }
 
@@ -74,7 +74,7 @@ func (m *HashMap) Probe (key *KeyType) *Entry {
 
 	var i uint32 = key.Hash() % m.capacity();
 	ASSERT(0 <= i && i < m.capacity());
-	
+
 	ASSERT(m.occupancy_ < m.capacity());	// guarantees loop termination
 	for m.map_[i].key != nil && !m.map_[i].key.Match(key) {
 		i++;
@@ -82,7 +82,7 @@ func (m *HashMap) Probe (key *KeyType) *Entry {
 			i = 0;
 		}
 	}
-	
+
 	return &m.map_[i];
 }
 
@@ -102,13 +102,13 @@ func (m *HashMap) Lookup (key *KeyType, insert bool) *Entry {
 		p.key = key;
 		p.value = nil;
 		m.occupancy_++;
-	
+
 		// Grow the map if we reached >= 80% occupancy.
 		if m.occupancy_ + m.occupancy_/4 >= m.capacity() {
 			m.Resize();
 			p = m.Probe(key);
 		}
-		
+
 		return p;
 	}
 
@@ -120,10 +120,10 @@ func (m *HashMap) Lookup (key *KeyType, insert bool) *Entry {
 func (m *HashMap) Resize() {
 	var hmap *[1024] Entry = m.map_;
 	var n uint32 = m.occupancy_;
-	
+
 	// Allocate a new map of twice the current size.
 	m.Initialize(m.log2_capacity_ << 1);
-	
+
 	// Rehash all current entries.
 	var i uint32 = 0;
 	for n > 0 {
@@ -157,7 +157,7 @@ func (n *Number) Match(other *KeyType) bool {
 
 
 func MakeNumber (x uint32) *Number {
-	var n *Number = new(Number);
+	var n *Number = new(*Number);
 	n.x = x;
 	return n;
 }
@@ -167,18 +167,18 @@ func main() {
 	//f unc (n int) int { return n + 1; }(1);
 
 	//print "HashMap - gri 2/8/2008\n";
-	
-	var hmap *HashMap = new(HashMap);
+
+	var hmap *HashMap = new(*HashMap);
 	hmap.Initialize(0);
-	
+
 	var x1 *Number = MakeNumber(1001);
 	var x2 *Number = MakeNumber(2002);
 	var x3 *Number = MakeNumber(3003);
-	
+
 	// this doesn't work I think...
 	//hmap.Lookup(x1, true);
 	//hmap.Lookup(x2, true);
 	//hmap.Lookup(x3, true);
-	
+
 	//print "done\n";
 }

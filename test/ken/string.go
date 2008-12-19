@@ -92,7 +92,7 @@ main()
 	}
 
 	/* create string with byte array pointer */
-	z2 := new([3]byte);
+	z2 := new(*[3]byte);
 	z2[0] = 'a';
 	z2[1] = 'b';
 	z2[2] = 'c';

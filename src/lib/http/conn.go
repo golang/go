@@ -22,7 +22,7 @@ export type Conn struct {
 
 // Create new connection from rwc.
 export func NewConn(rwc io.ReadWriteClose) (c *Conn, err *os.Error) {
-	c = new(Conn);
+	c = new(*Conn);
 	c.rwc = rwc;
 	if c.br, err = bufio.NewBufRead(rwc); err != nil {
 		return nil, err

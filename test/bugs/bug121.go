@@ -21,5 +21,5 @@ func (s *S) g() {}
 func (s *S) h() {}  // here we can't write (s *S) T either
 
 func main() {
-	var i I = new(S);
+	var i I = new(*S);
 }

@@ -13,35 +13,35 @@ func pause() {
 	for i:=0; i<100; i++ { sys.gosched() }
 }
 
-func i32receiver(c *chan int32) {
+func i32receiver(c chan int32) {
 	if <-c != 123 { panic("i32 value") }
 }
 
-func i32sender(c *chan int32) {
+func i32sender(c chan int32) {
 	c <- 234
 }
 
-func i64receiver(c *chan int64) {
+func i64receiver(c chan int64) {
 	if <-c != 123456 { panic("i64 value") }
 }
 
-func i64sender(c *chan int64) {
+func i64sender(c chan int64) {
 	c <- 234567
 }
 
-func breceiver(c *chan bool) {
+func breceiver(c chan bool) {
 	if ! <-c { panic("b value") }
 }
 
-func bsender(c *chan bool) {
+func bsender(c chan bool) {
 	c <- true
 }
 
-func sreceiver(c *chan string) {
+func sreceiver(c chan string) {
 	if <-c != "hello" { panic("s value") }
 }
 
-func ssender(c *chan string) {
+func ssender(c chan string) {
 	c <- "hello again"
 }
 
@@ -57,19 +57,19 @@ func main() {
 		c64 := new(chan int64, buffer);
 		cb := new(chan bool, buffer);
 		cs := new(chan string, buffer);
-	
+
 		i32, ok = <-c32;
 		if ok { panic("blocked i32sender") }
-	
+
 		i64, ok = <-c64;
 		if ok { panic("blocked i64sender") }
-	
+
 		b, ok = <-cb;
 		if ok { panic("blocked bsender") }
-	
+
 		s, ok = <-cs;
 		if ok { panic("blocked ssender") }
-	
+
 		go i32receiver(c32);
 		pause();
 		ok = c32 <- 123;
@@ -79,7 +79,7 @@ func main() {
 		i32, ok = <-c32;
 		if !ok { panic("i32sender") }
 		if i32 != 234 { panic("i32sender value") }
-	
+
 		go i64receiver(c64);
 		pause();
 		ok = c64 <- 123456;
@@ -89,7 +89,7 @@ func main() {
 		i64, ok = <-c64;
 		if !ok { panic("i64sender") }
 		if i64 != 234567 { panic("i64sender value") }
-	
+
 		go breceiver(cb);
 		pause();
 		ok = cb <- true;
@@ -99,7 +99,7 @@ func main() {
 		b, ok = <-cb;
 		if !ok { panic("bsender") }
 		if !b{ panic("bsender value") }
-	
+
 		go sreceiver(cs);
 		pause();
 		ok = cs <- "hello";

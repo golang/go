@@ -120,7 +120,7 @@ func (a *Decimal) Assign(v uint64) {
 }
 
 package func NewDecimal(i uint64) *Decimal {
-	a := new(Decimal);
+	a := new(*Decimal);
 	a.Assign(i);
 	return a;
 }

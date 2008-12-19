@@ -131,7 +131,7 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
 	if rawurl == "" {
 		return nil, BadURL
 	}
-	url = new(URL);
+	url = new(*URL);
 	url.raw = rawurl;
 
 	// Split off possible leading "http:", "mailto:", etc.

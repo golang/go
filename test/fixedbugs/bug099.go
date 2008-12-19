@@ -18,7 +18,7 @@ func (s *S) F() int { return 1 }
 // if you take it out (and the 0s below)
 // then the bug goes away.
 func NewI(i int) I {
-	return new(S)
+	return new(*S)
 }
 
 // Uses interface method.

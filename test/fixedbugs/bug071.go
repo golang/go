@@ -14,7 +14,7 @@ func (u *rat) pr() {
 }
 
 type dch struct {
-	dat *chan  *rat;
+	dat chan  *rat;
 }
 
 func dosplit(in *dch){

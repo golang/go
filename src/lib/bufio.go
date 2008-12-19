@@ -50,7 +50,7 @@ export func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
 	}
-	b = new(BufRead);
+	b = new(*BufRead);
 	b.buf = new([]byte, size);
 	b.rd = rd;
 	return b, nil
@@ -191,11 +191,9 @@ func (b *BufRead) Buffered() int {
 // For internal (or advanced) use only.
 // Use ReadLineString or ReadLineBytes instead.
 
-var NIL []byte // TODO(rsc): should be able to use nil
-
 func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
 	if b.err != nil {
-		return NIL, b.err
+		return nil, b.err
 	}
 
 	// Look in buffer.
@@ -210,7 +208,7 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
 		n := b.Buffered();
 		b.Fill();
 		if b.err != nil {
-			return NIL, b.err
+			return nil, b.err
 		}
 		if b.Buffered() == n {	// no data added; end of file
 			line := b.buf[b.r:b.w];
@@ -227,12 +225,12 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
 
 		// Buffer is full?
 		if b.Buffered() >= len(b.buf) {
-			return NIL, BufferFull
+			return nil, BufferFull
 		}
 	}
 
 	// BUG 6g bug100
-	return NIL, nil
+	return nil, nil
 }
 
 // Read until the first occurrence of delim in the input,
@@ -242,7 +240,7 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
 // we might have read more than the buffer size.)
 func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 	if b.err != nil {
-		return NIL, b.err
+		return nil, b.err
 	}
 
 	// Use ReadLineSlice to look for array,
@@ -279,7 +277,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 		}
 
 		// Grow list if needed.
-		if len(full) == 0 {
+		if full == nil {
 			full = new([][]byte, 16);
 		} else if nfull >= len(full) {
 			newfull := new([][]byte, len(full)*2);
@@ -313,26 +311,18 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 	return buf, err
 }
 
-// BUG(bugs/bug102.go): string(empty bytes array) throws error
-func ToString(p []byte) string {
-	if len(p) == 0 {
-		return ""
-	}
-	return string(p)
-}
-
 // Read until the first occurrence of delim in the input,
 // returning a new string containing the line.
 // If savedelim, keep delim in the result; otherwise chop it off.
 func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *os.Error) {
 	bytes, e := b.ReadLineBytes(delim);
 	if e != nil {
-		return ToString(bytes), e
+		return string(bytes), e
 	}
 	if !savedelim {
 		bytes = bytes[0:len(bytes)-1]
 	}
-	return ToString(bytes), nil
+	return string(bytes), nil
 }
 
 
@@ -349,7 +339,7 @@ export func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error) 
 	if size <= 0 {
 		return nil, BadBufSize
 	}
-	b = new(BufWrite);
+	b = new(*BufWrite);
 	b.buf = new([]byte, size);
 	b.wr = wr;
 	return b, nil

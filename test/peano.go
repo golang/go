@@ -25,7 +25,7 @@ func is_zero(x *Number) bool {
 
 
 func add1(x *Number) *Number {
-	e := new(Number);
+	e := new(*Number);
 	e.next = x;
 	return e;
 }
@@ -122,7 +122,7 @@ func verify() {
 
 
 func main() {
-	
+
 	verify();
 	for i := 0; i <= 10; i++ {
 		print(i, "! = ", count(fact(gen(i))), "\n");
