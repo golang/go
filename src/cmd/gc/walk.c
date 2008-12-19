@@ -609,7 +609,7 @@ loop:
 		}
 
 		// map literal
-		if(t->etype == TMAP) {
+		if(isptr[t->etype] && t->type != t && t->type->etype == TMAP) {
 			r = maplit(n);
 			indir(n, r);
 			goto ret;
@@ -944,25 +944,27 @@ loop:
 	case OADDR:
 		if(top != Erv)
 			goto nottop;
-		if(n->left->op == OCONV && iscomposite(n->left->type)) {
+		if(n->left->op == OCONV && n->left->type != T)
+		if(n->left->type->etype == TSTRUCT) {
 			// turn &Point{1, 2} into allocation.
 			// initialize with
-			//	nvar := new(Point);
+			//	nvar := new(*Point);
 			//	*nvar = Point{1, 2};
 			// and replace expression with nvar
 
 			// TODO(rsc): might do a better job (fewer copies) later
 			Node *nnew, *nvar, *nas;
 
+			t = ptrto(n->left->type);
 			walktype(n->left, Elv);
 			if(n->left == N)
 				goto ret;
 
 			nvar = nod(0, N, N);
-			tempname(nvar, ptrto(n->left->type));
+			tempname(nvar, t);
 
 			nnew = nod(ONEW, N, N);
-			nnew->type = n->left->type;
+			nnew->type = t;
 			nnew = newcompat(nnew);
 
 			nas = nod(OAS, nvar, nnew);
@@ -2004,67 +2006,45 @@ newcompat(Node *n)
 	if(t == T)
 		goto bad;
 
-/*
-	if(isptr[t->etype]) {
-		if(t->type == T)
-			goto bad;
-		t = t->type;
+	if(t->etype == TARRAY)
+		return arrayop(n, Erv);
 
-		dowidth(t);
+	if(!isptr[t->etype] || t->type == T)
+		goto bad;
 
-		on = syslook("mal", 1);
-		argtype(on, t);
-
-		r = nodintconst(t->width);
-		r = nod(OCALL, on, r);
-		walktype(r, Erv);
-
-		r->type = n->type;
-		goto ret;
-	}
-*/
-
+	t = t->type;
 	switch(t->etype) {
-	default:
-//		goto bad;
-//
-//	case TSTRUCT:
-		if(n->left != N)
-			yyerror("dont know what new(,e) means");
+	case TSTRING:
+		goto bad;
 
-		dowidth(t);
-
-		on = syslook("mal", 1);
-
-		argtype(on, t);
-
-		r = nodintconst(t->width);
-		r = nod(OCALL, on, r);
-		walktype(r, Erv);
-
-		r->type = ptrto(n->type);
-
-		return r;
+	// the call looks like new(map[int]int)
+	// but internally we see new(*MAP[int]int)
 	case TMAP:
-		n->type = ptrto(n->type);
 		r = mapop(n, Erv);
 		break;
 
+	// the call looks like new(chan int)
+	// but internally we see new(*CHAN int)
 	case TCHAN:
-		n->type = ptrto(n->type);
 		r = chanop(n, Erv);
 		break;
 
-	case TARRAY:
-		r = arrayop(n, Erv);
+	default:
+		if(n->left != N)
+			yyerror("cannot new(*%T, expr)", t);
+		dowidth(t);
+		on = syslook("mal", 1);
+		argtype(on, t);
+		r = nodintconst(t->width);
+		r = nod(OCALL, on, r);
+		walktype(r, Erv);
 		break;
 	}
 
-ret:
 	return r;
 
 bad:
-	fatal("cannot make new %T", t);
+	yyerror("cannot new(*%T)", t);
 	return n;
 }
 
@@ -2233,7 +2213,7 @@ mapop(Node *n, int top)
 
 		// newmap(keysize int, valsize int,
 		//	keyalg int, valalg int,
-		//	hint int) (hmap *map[any-1]any-2);
+		//	hint int) (hmap map[any-1]any-2);
 
 		t = fixmap(n->type);
 		if(t == T)
@@ -2265,7 +2245,7 @@ mapop(Node *n, int top)
 	case OINDEX:
 		if(top != Erv)
 			goto nottop;
-		// mapaccess1(hmap *map[any]any, key any) (val any);
+		// mapaccess1(hmap map[any]any, key any) (val any);
 
 		t = fixmap(n->left->type);
 		if(t == T)
@@ -2311,7 +2291,7 @@ mapop(Node *n, int top)
 		if(cl != 1 || cr != 1)
 			goto shape;
 
-		// mapassign1(hmap *map[any-1]any-2, key any-3, val any-4);
+		// mapassign1(hmap map[any-1]any-2, key any-3, val any-4);
 		if(n->left->op != OINDEX)
 			goto shape;
 
@@ -2338,7 +2318,7 @@ mapop(Node *n, int top)
 		break;
 
 	assign2:
-		// mapassign2(hmap *map[any]any, key any, val any, pres bool);
+		// mapassign2(hmap map[any]any, key any, val any, pres bool);
 		if(n->left->op != OINDEX)
 			goto shape;
 
@@ -2367,7 +2347,7 @@ mapop(Node *n, int top)
 		break;
 
 	access2:
-		// mapaccess2(hmap *map[any-1]any-2, key any-3) (val-4 any, pres bool);
+		// mapaccess2(hmap map[any-1]any-2, key any-3) (val-4 any, pres bool);
 
 //dump("access2", n);
 		if(n->right->op != OINDEX)
@@ -3510,7 +3490,7 @@ arraylit(Node *n)
 {
 	Iter saver;
 	Type *t;
-	Node *var, *r, *a, *nas, *nnew, *ncon;
+	Node *var, *r, *a, *nas, *nnew;
 	int idx;
 
 	t = n->type;
@@ -3519,13 +3499,13 @@ arraylit(Node *n)
 
 	if(t->bound >= 0)
 		fatal("arraylit: literal fixed arrays not implemented");
-	
+
 	var = nod(OXXX, N, N);
 	tempname(var, t);
-	
+
 	nnew = nod(ONEW, N, N);
 	nnew->type = t;
-	
+
 	nas = nod(OAS, var, nnew);
 	addtop = list(addtop, nas);
 
@@ -3554,15 +3534,14 @@ maplit(Node *n)
 	Node *var, *r, *a;
 
 	t = n->type;
-	if(t->etype != TMAP)
-		fatal("maplit: not array");
-	t = ptrto(t);
+	if(!isptr[t->etype] || t->type == T || t->type->etype != TMAP)
+		fatal("maplit: not map");
 
 	var = nod(OXXX, N, N);
 	tempname(var, t);
 
 	a = nod(ONEW, N, N);
-	a->type = t->type;
+	a->type = t;
 	a = nod(OAS, var, a);
 	addtop = list(addtop, a);
 
