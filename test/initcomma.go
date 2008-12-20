@@ -13,5 +13,5 @@ var c = []int { 1 }
 func main() {
 	if len(a) != 2 { panicln("len a", len(a)) }
 	if len(b) != 5 { panicln("len b", len(b)) }
-	if len(c) != 1 { panicln("len a", len(a)) }
+	if len(c) != 1 { panicln("len a", len(c)) }
 }

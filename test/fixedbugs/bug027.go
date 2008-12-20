@@ -17,7 +17,7 @@ type Vector struct {
 func New() *Vector {
 	v := new(*Vector);
 	v.nelem = 0;
-	v.elem = new(*[10]Element);
+	v.elem = new([10]Element);
 	return v;
 }
 

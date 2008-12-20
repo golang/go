@@ -43,7 +43,7 @@ func test1() {
 	}
 
 	for i := 0; i < v.Len(); i++ {
-		x := convert(*S, v.At(i));
+		x := v.At(i).(*S);
 		if x.val != v.Len() - i - 1 {
 			panic("expected ", i, ", found ", x.val, "\n");
 		}
