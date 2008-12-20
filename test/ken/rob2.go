@@ -139,7 +139,7 @@ func Get() int
 		c = peekc;
 		peekc = -1;
 	} else {
-		c = convert(int, input[inputindex]);
+		c = int(input[inputindex]);
 		inputindex++;
 		if c == '\n' {
 			lineno = lineno + 1;
@@ -175,7 +175,7 @@ func NextToken()
 		break;
 	default:
 		for i = 0; i < 100 - 1; {	// sizeof tokenbuf - 1
-			tokenbuf[i] = convert(byte, c);
+			tokenbuf[i] = byte(c);
 			i = i + 1;
 			c = Get();
 			if c == EOF {
@@ -252,7 +252,7 @@ func atoi() int	// BUG: uses tokenbuf; should take argument
 {
 	var v int = 0;
 	for i := 0; i < tokenlen && '0' <= tokenbuf[i] && tokenbuf[i] <= '9'; i = i + 1 {
-		v = 10 * v + convert(int, tokenbuf[i] - '0');
+		v = 10 * v + int(tokenbuf[i] - '0');
 	}
 	return v;
 }

@@ -96,10 +96,10 @@ func
 testpdpf1()
 {
 	a := new(*[40]int);
-	setpd(a);
-	res(sumpd(a), 0, 40);
+	setpd(*a);
+	res(sumpd(*a), 0, 40);
 
-	b := a[5:30];
+	b := (*a)[5:30];
 	res(sumpd(b), 5, 30);
 }
 
