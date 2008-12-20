@@ -559,8 +559,7 @@ loop:
 		if(t == T)
 			goto ret;
 
-		if(!iscomposite(t))
-			convlit1(l, t, 1);
+		convlit1(l, t, 1);
 
 		// nil conversion
 		if(eqtype(t, l->type, 0)) {
@@ -595,26 +594,6 @@ loop:
 		if(issarray(t) && isdarray(l->type))
 			goto ret;
 
-		// structure literal
-		if(t->etype == TSTRUCT) {
-			indir(n, structlit(n));
-			goto ret;
-		}
-
-		// array literal
-		if(t->etype == TARRAY) {
-			r = arraylit(n);
-			indir(n, r);
-			goto ret;
-		}
-
-		// map literal
-		if(isptr[t->etype] && t->type != t && t->type->etype == TMAP) {
-			r = maplit(n);
-			indir(n, r);
-			goto ret;
-		}
-
 		// interface and structure
 		et = isandss(n->type, l);
 		if(et != Inone) {
@@ -640,6 +619,43 @@ loop:
 
 		if(l->type != T)
 			yyerror("cannot convert %T to %T", l->type, t);
+		goto ret;
+
+	case OCOMP:
+		if(top == Etop)
+			goto nottop;
+
+		l = n->left;
+		if(l == N)
+			goto ret;
+
+		walktype(l, Erv);
+
+		t = n->type;
+		if(t == T)
+			goto ret;
+
+		// structure literal
+		if(t->etype == TSTRUCT) {
+			indir(n, structlit(n));
+			goto ret;
+		}
+
+		// array literal
+		if(t->etype == TARRAY) {
+			r = arraylit(n);
+			indir(n, r);
+			goto ret;
+		}
+
+		// map literal
+		if(isptr[t->etype] && t->type != t && t->type->etype == TMAP) {
+			r = maplit(n);
+			indir(n, r);
+			goto ret;
+		}
+
+		yyerror("bad composite literal %T", t);
 		goto ret;
 
 	case ORETURN:
@@ -944,7 +960,7 @@ loop:
 	case OADDR:
 		if(top != Erv)
 			goto nottop;
-		if(n->left->op == OCONV && n->left->type != T)
+		if(n->left->op == OCOMP && n->left->type != T)
 		if(n->left->type->etype == TSTRUCT) {
 			// turn &Point{1, 2} into allocation.
 			// initialize with
@@ -1873,8 +1889,6 @@ ascompat(Type *t1, Type *t2)
 //	if(eqtype(t2, nilptr, 0))
 //		return 1;
 
-	if(issarray(t1))
-		return 0;
 	if(isnilinter(t1))
 		return 1;
 	if(isinter(t1)) {
@@ -2722,11 +2736,8 @@ isandss(Type *lt, Node *r)
 				return I2I;
 			return Inone;
 		}
-		if(isnilinter(lt)) {
-			if(!issimple[rt->etype] && !isptr[rt->etype])
-				yyerror("using %T as interface is unimplemented", rt);
+		if(isnilinter(lt))
 			return T2I;
-		}
 		if(ismethod(rt) != T)
 			return T2I;
 		return Inone;

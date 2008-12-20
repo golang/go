@@ -160,6 +160,8 @@ dowidth(Type *t)
 		if(t->funarg)
 			fatal("dowidth fn struct %T", t);
 		w = widstruct(t, 0, 1);
+		if(w == 0)
+			w = maxround;
 		offmod(t);
 		break;
 

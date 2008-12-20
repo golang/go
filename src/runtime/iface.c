@@ -8,10 +8,10 @@ static	int32	debug	= 0;
 
 typedef	struct	Sigt	Sigt;
 typedef	struct	Sigi	Sigi;
-typedef	struct	Map	Map;
+typedef	struct	Itype	Itype;
 
 /*
- * the layout of Sigt and Sigi are known to the compiler
+ * the layout of Iface, Sigt and Sigi are known to the compiler
  */
 struct	Sigt
 {
@@ -28,17 +28,17 @@ struct	Sigi
 	uint32	perm;		// location of fun in Sigt // first is size
 };
 
-struct	Map
+struct	Itype
 {
 	Sigi*	sigi;
 	Sigt*	sigt;
-	Map*	link;
+	Itype*	link;
 	int32	bad;
 	int32	unused;
 	void	(*fun[])(void);
 };
 
-static	Map*	hash[1009];
+static	Itype*	hash[1009];
 
 Sigi	sigi·empty[2] =	{ (byte*)"interface { }" };
 
@@ -50,6 +50,8 @@ printsigi(Sigi *si)
 
 	sys·printpointer(si);
 	prints("{");
+	prints((int8*)si[0].name);
+	prints(":");
 	for(i=1;; i++) {
 		name = si[i].name;
 		if(name == nil)
@@ -74,6 +76,8 @@ printsigt(Sigt *st)
 
 	sys·printpointer(st);
 	prints("{");
+	prints((int8*)st[0].name);
+	prints(":");
 	sys·printint(st[0].hash);	// first element has alg
 	prints(",");
 	sys·printint(st[0].offset);	// first element has width
@@ -96,22 +100,28 @@ printsigt(Sigt *st)
 }
 
 static void
-printiface(Map *im, void *it)
+printiface(Iface i)
 {
+	int32 j;
+
 	prints("(");
-	sys·printpointer(im);
+	sys·printpointer(i.type);
 	prints(",");
-	sys·printpointer(it);
+	for(j=0; j<nelem(i.data); j++) {
+		if(j > 0)
+			prints(".");
+		sys·printpointer(i.data[0]);
+	}
 	prints(")");
 }
 
-static Map*
-hashmap(Sigi *si, Sigt *st, int32 canfail)
+static Itype*
+itype(Sigi *si, Sigt *st, int32 canfail)
 {
 	int32 nt, ni;
 	uint32 ihash, h;
 	byte *sname, *iname;
-	Map *m;
+	Itype *m;
 
 	h = ((uint32)(uint64)si + (uint32)(uint64)st) % nelem(hash);
 	for(m=hash[h]; m!=nil; m=m->link) {
@@ -129,7 +139,7 @@ hashmap(Sigi *si, Sigt *st, int32 canfail)
 					goto throw;
 				}
 			}
-			// prints("old hashmap\n");
+			// prints("old itype\n");
 			return m;
 		}
 	}
@@ -177,15 +187,22 @@ throw:
 	}
 	m->link = hash[h];
 	hash[h] = m;
-	// prints("new hashmap\n");
+	// prints("new itype\n");
 	return m;
 }
 
 // ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
 void
-sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
+sys·ifaceT2I(Sigi *si, Sigt *st, ...)
 {
-//	int32 alg, wid;
+	byte *elem;
+	Iface *ret;
+	int32 alg, wid;
+
+	elem = (byte*)(&st+1);
+	wid = st->offset;
+	ret = (Iface*)(elem + rnd(wid, 8));
+	ret->type = itype(si, st, 0);
 
 	if(debug) {
 		prints("T2I sigi=");
@@ -193,39 +210,49 @@ sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
 		prints(" sigt=");
 		printsigt(st);
 		prints(" elem=");
-		sys·printpointer(elem);
+		sys·printpointer(*(void**)elem);
 		prints("\n");
 	}
 
-	retim = hashmap(si, st, 0);
-
-//	alg = st->hash;
-//	wid = st->offset;
-//	algarray[alg].copy(wid, &retit, &elem);
-	retit = elem;		// for speed could do this
+	alg = st->hash;
+	wid = st->offset;
+	if(wid <= sizeof ret->data)
+		algarray[alg].copy(wid, ret->data, elem);
+	else{
+		ret->data[0] = mal(wid);
+		if(debug)
+			printf("T2I mal %d %p\n", wid, ret->data[0]);
+		algarray[alg].copy(wid, ret->data[0], elem);
+	}
 
 	if(debug) {
 		prints("T2I ret=");
-		printiface(retim, retit);
+		printiface(*ret);
 		prints("\n");
 	}
 
-	FLUSH(&retim);
-	FLUSH(&retit);
+	FLUSH(&ret);
 }
 
 // ifaceI2T(sigt *byte, iface any) (ret any);
 void
-sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
+sys·ifaceI2T(Sigt *st, Iface i, ...)
 {
+	Itype *im;
+	byte *ret;
+	int32 wid, alg;
+
+	ret = (byte*)(&i+1);
+
 	if(debug) {
 		prints("I2T sigt=");
 		printsigt(st);
 		prints(" iface=");
-		printiface(im, it);
+		printiface(i);
 		prints("\n");
 	}
 
+	im = i.type;
 	if(im == nil) {
 		prints("interface is nil, not ");
 		prints((int8*)st[0].name);
@@ -243,10 +270,16 @@ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
 		throw("interface conversion");
 	}
 
-	ret = it;
+	alg = st->hash;
+	wid = st->offset;
+	if(wid <= sizeof i.data)
+		algarray[alg].copy(wid, ret, i.data);
+	else
+		algarray[alg].copy(wid, ret, i.data[0]);
+
 	if(debug) {
 		prints("I2T ret=");
-		sys·printpointer(ret);
+		sys·printpointer(*(void**)ret);
 		prints("\n");
 	}
 	FLUSH(&ret);
@@ -254,94 +287,113 @@ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
 
 // ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
 void
-sys·ifaceI2T2(Sigt *st, Map *im, void *it, void *ret, bool ok)
+sys·ifaceI2T2(Sigt *st, Iface i, ...)
 {
+	byte *ret;
+	bool *ok;
+	Itype *im;
+	int32 alg, wid;
+
+	ret = (byte*)(&i+1);
+	alg = st->hash;
+	wid = st->offset;
+	ok = (bool*)(ret+rnd(wid, 8));
+
 	if(debug) {
 		prints("I2T2 sigt=");
 		printsigt(st);
 		prints(" iface=");
-		printiface(im, it);
+		printiface(i);
 		prints("\n");
 	}
 
+	im = i.type;
 	if(im == nil || im->sigt != st) {
-		ret = 0;
-		ok = 0;
+		*ok = false;
+		sys·memclr(ret, wid);
 	} else {
-		ret = it;
-		ok = 1;
+		*ok = true;
+		if(wid <= sizeof i.data)
+			algarray[alg].copy(wid, ret, i.data);
+		else
+			algarray[alg].copy(wid, ret, i.data[0]);
 	}
 	if(debug) {
 		prints("I2T2 ret=");
-		sys·printpointer(ret);
-		sys·printbool(ok);
+		sys·printpointer(*(void**)ret);
+		sys·printbool(*ok);
 		prints("\n");
 	}
-	FLUSH(&ret);
-	FLUSH(&ok);
 }
 
 // ifaceI2I(sigi *byte, iface any) (ret any);
 void
-sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
+sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
 {
+	Itype *im;
+	int32 j;
+
 	if(debug) {
 		prints("I2I sigi=");
 		printsigi(si);
 		prints(" iface=");
-		printiface(im, it);
+		printiface(i);
 		prints("\n");
 	}
 
+	im = i.type;
 	if(im == nil) {
 		// If incoming interface is uninitialized (zeroed)
 		// make the outgoing interface zeroed as well.
-		retim = nil;
-		retit = nil;
+		ret.type = nil;
+		for(j=0; j<nelem(ret.data); j++)
+			ret.data[j] = nil;
 	} else {
-		retit = it;
-		retim = im;
+		ret = i;
 		if(im->sigi != si)
-			retim = hashmap(si, im->sigt, 0);
+			ret.type = itype(si, im->sigt, 0);
 	}
 
 	if(debug) {
 		prints("I2I ret=");
-		printiface(retim, retit);
+		printiface(ret);
 		prints("\n");
 	}
 
-	FLUSH(&retim);
-	FLUSH(&retit);
+	FLUSH(&ret);
 }
 
 // ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
 void
-sys·ifaceI2I2(Sigi *si, Map *im, void *it, Map *retim, void *retit, bool ok)
+sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
 {
+	Itype *im;
+	int32 j;
+
 	if(debug) {
 		prints("I2I2 sigi=");
 		printsigi(si);
 		prints(" iface=");
-		printiface(im, it);
+		printiface(i);
 		prints("\n");
 	}
 
+	im = i.type;
 	if(im == nil) {
 		// If incoming interface is uninitialized (zeroed)
 		// make the outgoing interface zeroed as well.
-		retim = nil;
-		retit = nil;
+		ret.type = nil;
+		for(j=0; j<nelem(ret.data); j++)
+			ret.data[j] = nil;
 		ok = 1;
 	} else {
-		retit = it;
-		retim = im;
+		ret = i;
 		ok = 1;
 		if(im->sigi != si) {
-			retim = hashmap(si, im->sigt, 1);
-			if(retim == nil) {
-				retit = nil;
-				retim = nil;
+			ret.type = itype(si, im->sigt, 1);
+			if(ret.type == nil) {
+				for(j=0; j<nelem(ret.data); j++)
+					ret.data[j] = nil;
 				ok = 0;
 			}
 		}
@@ -349,51 +401,55 @@ sys·ifaceI2I2(Sigi *si, Map *im, void *it, Map *retim, void *retit, bool ok)
 
 	if(debug) {
 		prints("I2I ret=");
-		printiface(retim, retit);
+		printiface(ret);
 		prints("\n");
 	}
 
-	FLUSH(&retim);
-	FLUSH(&retit);
+	FLUSH(&ret);
 	FLUSH(&ok);
 }
 
 // ifaceeq(i1 any, i2 any) (ret bool);
 void
-sys·ifaceeq(Map *im1, void *it1, Map *im2, void *it2, byte ret)
+sys·ifaceeq(Iface i1, Iface i2, bool ret)
 {
 	int32 alg, wid;
 
 	if(debug) {
 		prints("Ieq i1=");
-		printiface(im1, it1);
+		printiface(i1);
 		prints(" i2=");
-		printiface(im2, it2);
+		printiface(i2);
 		prints("\n");
 	}
 
 	ret = false;
 
 	// are they both nil
-	if(im1 == nil) {
-		if(im2 == nil)
+	if(i1.type == nil) {
+		if(i2.type == nil)
 			goto yes;
 		goto no;
 	}
-	if(im2 == nil)
+	if(i2.type == nil)
 		goto no;
 
 	// value
-	alg = im1->sigt->hash;
-	if(alg != im2->sigt->hash)
+	alg = i1.type->sigt->hash;
+	if(alg != i2.type->sigt->hash)
 		goto no;
 
-	wid = im1->sigt->offset;
-	if(wid != im2->sigt->offset)
+	wid = i1.type->sigt->offset;
+	if(wid != i2.type->sigt->offset)
 		goto no;
 
-	if(!algarray[alg].equal(wid, &it1, &it2))
-		goto no;
+	if(wid <= sizeof i1.data) {
+		if(!algarray[alg].equal(wid, i1.data, i2.data))
+			goto no;
+	} else {
+		if(!algarray[alg].equal(wid, i1.data[0], i2.data[0]))
+			goto no;
+	}
 
 yes:
 	ret = true;
@@ -407,13 +463,13 @@ no:
 }
 
 void
-sys·printinter(Map *im, void *it)
+sys·printinter(Iface i)
 {
-	printiface(im, it);
+	printiface(i);
 }
 
 void
-sys·reflect(Map *im, void *it, uint64 retit, string rettype)
+sys·reflect(Itype *im, void *it, uint64 retit, string rettype)
 {
 	if(im == nil) {
 		retit = 0;
@@ -476,13 +532,13 @@ findtype(string type)
 }
 
 void
-sys·unreflect(uint64 it, string type, Map *retim, void *retit)
+sys·unreflect(uint64 it, string type, Itype *retim, void *retit)
 {
 	if(cmpstring(type, emptystring) == 0) {
 		retim = 0;
 		retit = 0;
 	} else {
-		retim = hashmap(sigi·empty, findtype(type), 0);
+		retim = itype(sigi·empty, findtype(type), 0);
 		retit = (void*)it;
 	}
 	FLUSH(&retim);

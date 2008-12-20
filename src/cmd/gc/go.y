@@ -60,7 +60,7 @@
 %type	<node>		interfacedcl_list_r interfacedcl
 %type	<node>		structdcl_list_r structdcl embed
 %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
-%type	<node>		keyexpr_list braced_keyexpr_list keyval_list_r keyval
+%type	<node>		braced_keyexpr_list keyval_list_r keyval
 
 %type	<type>		typedclname new_type
 %type	<type>		type Atype Btype
@@ -864,11 +864,6 @@ pexpr:
 		$$ = nod(ONEW, $5, N);
 		$$->type = $3;
 	}
-|	LCONVERT '(' type ',' keyexpr_list ')'
-	{
-		$$ = nod(OCONV, $5, N);
-		$$->type = $3;
-	}
 |	latype '(' expr ')'
 	{
 		$$ = nod(OCONV, $3, N);
@@ -884,7 +879,7 @@ pexpr:
 			$$ = nod(OEMPTY, N, N);
 		if(!iscomposite($1))
 			yyerror("illegal composite literal type %T", $1);
-		$$ = nod(OCONV, $$, N);
+		$$ = nod(OCOMP, $$, N);
 		$$->type = $1;
 	}
 |	fnliteral
@@ -987,7 +982,6 @@ sym3:
 |	LNEW
 |	LBASETYPE
 |	LTYPEOF
-|	LCONVERT
 
 /*
  * keywords that we can
@@ -1673,13 +1667,6 @@ keyval_list_r:
 	{
 		$$ = nod(OLIST, $1, $3);
 	}
-
-keyexpr_list:
-	keyval_list_r
-	{
-		$$ = rev($1);
-	}
-|	expr_list
 
 /*
  * have to spell this out using _r lists to avoid yacc conflict

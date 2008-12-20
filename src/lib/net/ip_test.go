@@ -14,7 +14,7 @@ func IPv4(a, b, c, d byte) []byte {
 }
 
 func Equal(a []byte, b []byte) bool {
-	if a == b {
+	if a == nil && b == nil {
 		return true
 	}
 	if a == nil || b == nil || len(a) != len(b) {
