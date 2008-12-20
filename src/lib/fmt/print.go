@@ -253,12 +253,11 @@ func getString(v reflect.Value) (val string, ok bool) {
 	switch v.Kind() {
 	case reflect.StringKind:
 		return v.(reflect.StringValue).Get(), true;
-	case reflect.PtrKind:
-		if val, ok := v.Interface().(*[]byte); ok {
-			return string(*val), true;
+	case reflect.ArrayKind:
+		if val, ok := v.Interface().([]byte); ok {
+			return string(val), true;
 		}
 	}
-	// TODO(rsc): check for Interface().([]byte) too.
 	return "", false;
 }
 

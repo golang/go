@@ -649,6 +649,7 @@ opnames[] =
 	[OFALL]		= "FALL",
 	[OCONV]		= "CONV",
 	[OCOM]		= "COM",
+	[OCOMP]		= "COMP",
 	[OCONST]	= "CONST",
 	[OCONTINUE]	= "CONTINUE",
 	[ODCLARG]	= "DCLARG",
@@ -1656,10 +1657,6 @@ signame(Type *t)
 	e = "sigt";
 	if(t->etype == TINTER)
 		e = "sigi";
-
-	// don't allow arrays in interfaces
-	if(t->etype == TARRAY)
-		goto bad;
 
 	// name is exported name, like *[]byte or *Struct or Interface
 	// (special symbols don't bother the linker).

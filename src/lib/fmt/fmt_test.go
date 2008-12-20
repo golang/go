@@ -26,15 +26,6 @@ type FmtTest struct {
 	out string;
 }
 
-// TODO(rsc): return []byte, but need to be able to pass as interface.
-func Bytes(s string) *[]byte {
-	b := new([]byte, len(s)+1);
-	syscall.StringToBytes(b, s);
-	bp := new(*[]byte);
-	*bp = b[0:len(s)];
-	return bp;
-}
-
 const B32 uint32 = 1<<32 - 1
 const B64 uint64 = 1<<64 - 1
 
@@ -47,12 +38,12 @@ var fmttests = []FmtTest{
 	FmtTest{ "%q",	"abc",	`"abc"` },
 
 	// basic bytes
-	FmtTest{ "%s",	Bytes("abc"),	"abc" },
-	FmtTest{ "%x",	Bytes("abc"),	"616263" },
-	FmtTest{ "% x",	Bytes("abc"),	"61 62 63" },
-	FmtTest{ "%x",	Bytes("xyz"),	"78797a" },
-	FmtTest{ "%X",	Bytes("xyz"),	"78797A" },
-	FmtTest{ "%q",	Bytes("abc"),	`"abc"` },
+	FmtTest{ "%s",	io.StringBytes("abc"),	"abc" },
+	FmtTest{ "%x",	io.StringBytes("abc"),	"616263" },
+	FmtTest{ "% x",	io.StringBytes("abc"),	"61 62 63" },
+	FmtTest{ "%x",	io.StringBytes("xyz"),	"78797a" },
+	FmtTest{ "%X",	io.StringBytes("xyz"),	"78797A" },
+	FmtTest{ "%q",	io.StringBytes("abc"),	`"abc"` },
 
 	// escaped strings
 	FmtTest{ "%#q",	`abc`,		"`abc`" },

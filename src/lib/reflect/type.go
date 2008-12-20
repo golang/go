@@ -124,7 +124,6 @@ type StubType struct {
 }
 
 func NewStubType(name string, typ Type) *StubType {
-if typ == nil && len(name) > 0 && name[0] == '*' { panicln("NewStubType", name, typ) }
 	return &StubType{name, typ}
 }
 

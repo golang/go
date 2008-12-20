@@ -22,7 +22,7 @@ var reverse_flag = flag.Bool("r", false, &reverse, "reverse");
 var longtest bool;
 var longtest_flag = flag.Bool("l", false, &longtest, "long test");
 
-var b *[]*byte;
+var b []*byte;
 var stats = malloc.GetStats();
 
 func OkAmount(size, n uint64) bool {

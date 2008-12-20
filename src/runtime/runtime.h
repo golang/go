@@ -48,8 +48,10 @@ typedef	union	Note		Note;
 typedef	struct	Stktop		Stktop;
 typedef	struct	String		*string;
 typedef	struct	Usema		Usema;
-typedef	struct	SigTab	SigTab;
-typedef	struct	MCache	MCache;
+typedef	struct	SigTab		SigTab;
+typedef	struct	MCache		MCache;
+typedef	struct	Iface		Iface;
+typedef	struct	Itype		Itype;
 
 /*
  * per cpu declaration
@@ -104,6 +106,11 @@ struct String
 {
 	int32	len;
 	byte	str[1];
+};
+struct Iface
+{
+	Itype *type;
+	void *data[1];	// could make bigger later
 };
 
 struct	Array

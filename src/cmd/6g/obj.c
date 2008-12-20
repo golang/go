@@ -668,14 +668,11 @@ dumpsigt(Type *t0, Sym *s)
 
 	// first field of an type signature contains
 	// the element parameters and is not a real entry
-	if(t->methptr & 2)
-		t = types[tptr];
-
 	// sigi[0].hash = elemalg
-	gensatac(wi, algtype(t));
+	gensatac(wi, algtype(t0));
 
 	// sigi[0].offset = width
-	gensatac(wi, t->width);
+	gensatac(wi, t0->width);
 
 	// skip the function
 	gensatac(widthptr, 0);

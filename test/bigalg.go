@@ -32,15 +32,16 @@ func arraycmptest() {
 	if a == nil || nil == a {
 		println("fail3:", a, "== nil");
 	}
-	if a == NIL || NIL == a {
-		println("fail4:", a, "==", NIL);
+}
+
+func SameArray(a, b []int) bool {
+	if len(a) != len(b) || cap(a) != cap(b) {
+		return false;
 	}
-	if a != a {
-		println("fail5:", a, "!=", a);
+	if len(a) > 0 && &a[0] != &b[0] {
+		return false;
 	}
-	if a1 != a {
-		println("fail6:", a1, "!=", a);
-	}
+	return true;
 }
 
 var t = T{1.5, 123, "hello", 255}
@@ -56,7 +57,7 @@ func maptest() {
 
 	ma[1] = a;
 	a1 := ma[1];
-	if a1 != a {
+	if !SameArray(a, a1) {
 		println("fail: map val array", a, a1);
 	}
 }
@@ -93,13 +94,43 @@ func chantest() {
 
 	t1 := <-ct;
 	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
-		println("fail: chan struct", t1.a, t1.b, t1.c, t1.d);
+		println("fail: map val struct", t1.a, t1.b, t1.c, t1.d);
 	}
 
 	a1 := <-ca;
-	if a1 != a {
-		println("fail: chan array", a, a1);
+	if !SameArray(a, a1) {
+		println("fail: map val array", a, a1);
 	}
+}
+
+type E struct { }
+var e E
+
+func interfacetest() {
+	var i interface{};
+
+	i = a;
+	a1 := i.([]int);
+	if !SameArray(a, a1) {
+		println("interface <-> []int", a, a1);
+	}
+	pa := new(*[]int);
+	*pa = a;
+	i = pa;
+	a1 = *i.(*[]int);
+	if !SameArray(a, a1) {
+		println("interface <-> *[]int", a, a1);
+	}
+
+	i = t;
+	t1 := i.(T);
+	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
+		println("interface <-> struct", t1.a, t1.b, t1.c, t1.d);
+	}
+
+	i = e;
+	e1 := i.(E);
+	// nothing to check; just verify it doesn't crash
 }
 
 func main() {
@@ -107,4 +138,5 @@ func main() {
 	maptest();
 	maptest2();
 	chantest();
+	interfacetest();
 }
