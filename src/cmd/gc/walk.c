@@ -2671,6 +2671,7 @@ arrayop(Node *n, int top)
 		r = nod(OCALL, on, r);
 
 		walktype(r, top);
+		r->type = t;	// if t had a name, going through newarray lost it
 		break;
 
 	case OSLICE:
