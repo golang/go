@@ -33,8 +33,7 @@ FILES=\
 	strings\
 	testing\
 	utf8\
-
-#	bignum\
+	bignum\
 
 TEST=\
 	bufio\
@@ -42,8 +41,7 @@ TEST=\
 	sort\
 	strings\
 	utf8\
-
-#	bignum\
+	bignum\
 
 clean.dirs: $(addsuffix .dirclean, $(DIRS))
 install.dirs: $(addsuffix .dirinstall, $(DIRS))

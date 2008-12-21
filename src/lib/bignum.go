@@ -113,10 +113,10 @@ export func Dump(x []Digit) {
 export type Natural []Digit;
 
 var (
-	NatZero Natural = *&Natural{};
-	NatOne Natural = *&Natural{1};
-	NatTwo Natural = *&Natural{2};
-	NatTen Natural = *&Natural{10};
+	NatZero Natural = Natural{};
+	NatOne Natural = Natural{1};
+	NatTwo Natural = Natural{2};
+	NatTen Natural = Natural{10};
 )
 
 
@@ -148,7 +148,7 @@ func (x *Natural) IsZero() bool {
 
 // Operations
 
-func Normalize(x *Natural) Natural {
+func Normalize(x Natural) Natural {
 	n := len(x);
 	for n > 0 && x[n - 1] == 0 { n-- }
 	if n < len(x) {
@@ -158,15 +158,15 @@ func Normalize(x *Natural) Natural {
 }
 
 
-func (x *Natural) Add(y *Natural) *Natural {
+func (x *Natural) Add(y Natural) Natural {
 	n := len(x);
 	m := len(y);
 	if n < m {
-		return y.Add(x);
+		return y.Add(*x);
 	}
 
 	c := Digit(0);
-	z := new(*Natural, n + 1);
+	z := new(Natural, n + 1);
 	i := 0;
 	for i < m {
 		t := c + x[i] + y[i];
@@ -187,7 +187,7 @@ func (x *Natural) Add(y *Natural) *Natural {
 }
 
 
-func (x *Natural) Sub(y *Natural) *Natural {
+func (x *Natural) Sub(y Natural) Natural {
 	n := len(x);
 	m := len(y);
 	if n < m {
@@ -195,7 +195,7 @@ func (x *Natural) Sub(y *Natural) *Natural {
 	}
 
 	c := Digit(0);
-	z := new(*Natural, n);
+	z := new(Natural, n);
 	i := 0;
 	for i < m {
 		t := c + x[i] - y[i];
@@ -249,11 +249,11 @@ func Mul11(x, y Digit) (Digit, Digit) {
 }
 
 
-func (x *Natural) Mul(y *Natural) *Natural {
+func (x *Natural) Mul(y Natural) Natural {
 	n := len(x);
 	m := len(y);
 
-	z := new(*Natural, n + m);
+	z := new(Natural, n + m);
 	for j := 0; j < m; j++ {
 		d := y[j];
 		if d != 0 {
@@ -278,7 +278,7 @@ func (x *Natural) Mul(y *Natural) *Natural {
 // into operands with twice as many digits of half the size (Digit2), do
 // DivMod, and then pack the results again.
 
-func Unpack(x *Natural) []Digit2 {
+func Unpack(x Natural) []Digit2 {
 	n := len(x);
 	z := new([]Digit2, n*2 + 1);  // add space for extra digit (used by DivMod)
 	for i := 0; i < n; i++ {
@@ -294,9 +294,9 @@ func Unpack(x *Natural) []Digit2 {
 }
 
 
-func Pack(x []Digit2) *Natural {
+func Pack(x []Digit2) Natural {
 	n := (len(x) + 1) / 2;
-	z := new(*Natural, n);
+	z := new(Natural, n);
 	if len(x) & 1 == 1 {
 		// handle odd len(x)
 		n--;
@@ -440,20 +440,20 @@ func DivMod(x, y []Digit2) ([]Digit2, []Digit2) {
 }
 
 
-func (x *Natural) Div(y *Natural) *Natural {
-	q, r := DivMod(Unpack(x), Unpack(y));
+func (x *Natural) Div(y Natural) Natural {
+	q, r := DivMod(Unpack(*x), Unpack(y));
 	return Pack(q);
 }
 
 
-func (x *Natural) Mod(y *Natural) *Natural {
-	q, r := DivMod(Unpack(x), Unpack(y));
+func (x *Natural) Mod(y Natural) Natural {
+	q, r := DivMod(Unpack(*x), Unpack(y));
 	return Pack(r);
 }
 
 
-func (x *Natural) DivMod(y *Natural) (*Natural, *Natural) {
-	q, r := DivMod(Unpack(x), Unpack(y));
+func (x *Natural) DivMod(y Natural) (Natural, Natural) {
+	q, r := DivMod(Unpack(*x), Unpack(y));
 	return Pack(q), Pack(r);
 }
 
@@ -469,12 +469,12 @@ func Shl(z, x []Digit, s uint) Digit {
 }
 
 
-func (x *Natural) Shl(s uint) *Natural {
+func (x *Natural) Shl(s uint) Natural {
 	n := uint(len(x));
 	m := n + s/W;
-	z := new(*Natural, m+1);
+	z := new(Natural, m+1);
 
-	z[m] = Shl(z[m-n : m], x, s%W);
+	z[m] = Shl(z[m-n : m], *x, s%W);
 
 	return Normalize(z);
 }
@@ -491,28 +491,28 @@ func Shr(z, x []Digit, s uint) Digit {
 }
 
 
-func (x *Natural) Shr(s uint) *Natural {
+func (x *Natural) Shr(s uint) Natural {
 	n := uint(len(x));
 	m := n - s/W;
 	if m > n {  // check for underflow
 		m = 0;
 	}
-	z := new(*Natural, m);
+	z := new(Natural, m);
 
-	Shr(z, x[n-m : n], s%W);
+	Shr(z, (*x)[n-m : n], s%W);
 
 	return Normalize(z);
 }
 
 
-func (x *Natural) And(y *Natural) *Natural {
+func (x *Natural) And(y Natural) Natural {
 	n := len(x);
 	m := len(y);
 	if n < m {
-		return y.And(x);
+		return y.And(*x);
 	}
 
-	z := new(*Natural, m);
+	z := new(Natural, m);
 	for i := 0; i < m; i++ {
 		z[i] = x[i] & y[i];
 	}
@@ -529,41 +529,41 @@ func Copy(z, x []Digit) {
 }
 
 
-func (x *Natural) Or(y *Natural) *Natural {
+func (x *Natural) Or(y Natural) Natural {
 	n := len(x);
 	m := len(y);
 	if n < m {
-		return y.Or(x);
+		return y.Or(*x);
 	}
 
-	z := new(*Natural, n);
+	z := new(Natural, n);
 	for i := 0; i < m; i++ {
 		z[i] = x[i] | y[i];
 	}
-	Copy(z[m : n], x[m : n]);
+	Copy(z[m : n], (*x)[m : n]);
 
 	return z;
 }
 
 
-func (x *Natural) Xor(y *Natural) *Natural {
+func (x *Natural) Xor(y Natural) Natural {
 	n := len(x);
 	m := len(y);
 	if n < m {
-		return y.Xor(x);
+		return y.Xor(*x);
 	}
 
-	z := new(*Natural, n);
+	z := new(Natural, n);
 	for i := 0; i < m; i++ {
 		z[i] = x[i] ^ y[i];
 	}
-	Copy(z[m : n], x[m : n]);
+	Copy(z[m : n], (*x)[m : n]);
 
 	return Normalize(z);
 }
 
 
-func (x *Natural) Cmp(y *Natural) int {
+func (x *Natural) Cmp(y Natural) int {
 	n := len(x);
 	m := len(y);
 
@@ -606,7 +606,7 @@ func (x *Natural) Log2() uint {
 
 // Computes x = x div d in place (modifies x) for "small" d's.
 // Returns updated x and x mod d.
-func DivMod1(x *Natural, d Digit) (*Natural, Digit) {
+func DivMod1(x *Natural, d Digit) (Natural, Digit) {
 	assert(0 < d && IsSmall(d - 1));
 
 	c := Digit(0);
@@ -615,7 +615,7 @@ func DivMod1(x *Natural, d Digit) (*Natural, Digit) {
 		c, x[i] = t%d, t/d;
 	}
 
-	return Normalize(x), c;
+	return Normalize(*x), c;
 }
 
 
@@ -630,15 +630,15 @@ func (x *Natural) ToString(base uint) string {
 	s := new([]byte, n);
 
 	// don't destroy x
-	t := new(*Natural, len(x));
-	Copy(t, x);
+	t := new(Natural, len(x));
+	Copy(t, *x);
 
 	// convert
 	i := n;
 	for !t.IsZero() {
 		i--;
 		var d Digit;
-		t, d = DivMod1(t, Digit(base));
+		t, d = DivMod1(&t, Digit(base));
 		s[i] = "0123456789abcdef"[d];
 	};
 
@@ -679,10 +679,10 @@ func HexValue(ch byte) uint {
 
 
 // Computes x = x*d + c for "small" d's.
-func MulAdd1(x *Natural, d, c Digit) *Natural {
+func MulAdd1(x *Natural, d, c Digit) Natural {
 	assert(IsSmall(d-1) && IsSmall(c));
 	n := len(x);
-	z := new(*Natural, n + 1);
+	z := new(Natural, n + 1);
 
 	for i := 0; i < n; i++ {
 		t := c + x[i]*d;
@@ -696,7 +696,7 @@ func MulAdd1(x *Natural, d, c Digit) *Natural {
 
 // Determines base (octal, decimal, hexadecimal) if base == 0.
 // Returns the number and base.
-export func NatFromString(s string, base uint, slen *int) (*Natural, uint) {
+export func NatFromString(s string, base uint, slen *int) (Natural, uint) {
 	// determine base if necessary
 	i, n := 0, len(s);
 	if base == 0 {
@@ -716,7 +716,7 @@ export func NatFromString(s string, base uint, slen *int) (*Natural, uint) {
 	for ; i < n; i++ {
 		d := HexValue(s[i]);
 		if d < base {
-			x = MulAdd1(x, Digit(base), Digit(d));
+			x = MulAdd1(&x, Digit(base), Digit(d));
 		} else {
 			break;
 		}
@@ -752,8 +752,9 @@ func (x *Natural) Pop() uint {
 }
 
 
-func (x *Natural) Pow(n uint) *Natural {
+func (xp *Natural) Pow(n uint) Natural {
 	z := Nat(1);
+	x := *xp;
 	for n > 0 {
 		// z * x^n == x^n0
 		if n&1 == 1 {
@@ -765,32 +766,40 @@ func (x *Natural) Pow(n uint) *Natural {
 }
 
 
-export func MulRange(a, b uint) *Natural {
+export func MulRange(a, b uint) Natural {
 	switch {
 	case a > b: return Nat(1);
 	case a == b: return Nat(a);
-	case a + 1 == b: return Nat(a).Mul(Nat(b));
+	//BUG case a + 1 == b: return Nat(a).Mul(Nat(b));
+	case a + 1 == b:
+		na := Nat(a);
+		nb := Nat(b);
+		return na.Mul(nb);
 	}
 	m := (a + b)>>1;
 	assert(a <= m && m < b);
-	return MulRange(a, m).Mul(MulRange(m + 1, b));
+	//BUG	return MulRange(a, m).Mul(MulRange(m + 1, b));
+	m1 := MulRange(a, m);
+	m2 := MulRange(m + 1, b);
+	return m1.Mul(m2);
 }
 
 
-export func Fact(n uint) *Natural {
+export func Fact(n uint) Natural {
 	// Using MulRange() instead of the basic for-loop
 	// lead to faster factorial computation.
 	return MulRange(2, n);
 }
 
 
-export func Binomial(n, k uint) *Natural {
+export func Binomial(n, k uint) Natural {
 	return MulRange(n-k+1, n).Div(MulRange(1, k));
 }
 
 
-func (x *Natural) Gcd(y *Natural) *Natural {
+func (xp *Natural) Gcd(y Natural) Natural {
 	// Euclidean algorithm.
+	x := *xp;
 	for !y.IsZero() {
 		x, y = y, x.Mod(y);
 	}
@@ -806,13 +815,13 @@ func (x *Natural) Gcd(y *Natural) *Natural {
 
 export type Integer struct {
 	sign bool;
-	mant *Natural;
+	mant Natural;
 }
 
 
 // Creation
 
-export func MakeInt(sign bool, mant *Natural) *Integer {
+export func MakeInt(sign bool, mant Natural) *Integer {
 	if mant.IsZero() {
 		sign = false;  // normalize
 	}
@@ -921,7 +930,7 @@ func (x *Integer) Mul(y *Integer) *Integer {
 }
 
 
-func (x *Integer) MulNat(y *Natural) *Integer {
+func (x *Integer) MulNat(y Natural) *Integer {
 	// x * y == x * y
 	// (-x) * y == -(x * y)
 	return MakeInt(x.sign, x.mant.Mul(y));
@@ -1110,7 +1119,7 @@ export func IntFromString(s string, base uint, slen *int) (*Integer, uint) {
 		s = s[1 : len(s)];
 	}
 
-	var mant *Natural;
+	var mant Natural;
 	mant, base = NatFromString(s, base, slen);
 
 	// correct slen if necessary
@@ -1127,13 +1136,13 @@ export func IntFromString(s string, base uint, slen *int) (*Integer, uint) {
 
 export type Rational struct {
 	a *Integer;  // numerator
-	b *Natural;  // denominator
+	b Natural;  // denominator
 }
 
 
 // Creation
 
-export func MakeRat(a *Integer, b *Natural) *Rational {
+export func MakeRat(a *Integer, b Natural) *Rational {
 	f := a.mant.Gcd(b);  // f > 0
 	if f.Cmp(Nat(1)) != 0 {
 		a = MakeInt(a.sign, a.mant.Div(f));
