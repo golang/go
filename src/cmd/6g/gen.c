@@ -880,7 +880,7 @@ cgen_callret(Node *n, Node *res)
 void
 cgen_aret(Node *n, Node *res)
 {
-	Node nod1;
+	Node nod1, nod2;
 	Type *fp, *t;
 	Iter flist;
 
@@ -900,7 +900,13 @@ cgen_aret(Node *n, Node *res)
 	nod1.xoffset = fp->width;
 	nod1.type = fp->type;
 
-	gins(ALEAQ, &nod1, res);
+	if(res->op != OREGISTER) {
+print("its 1\n");
+		regalloc(&nod2, types[tptr], res);
+		gins(ALEAQ, &nod1, &nod2);
+		gins(AMOVQ, &nod2, res);
+	} else
+		gins(ALEAQ, &nod1, res);
 }
 
 void
