@@ -793,7 +793,10 @@ export func Fact(n uint) Natural {
 
 
 export func Binomial(n, k uint) Natural {
-	return MulRange(n-k+1, n).Div(MulRange(1, k));
+	//BUG return MulRange(n-k+1, n).Div(MulRange(1, k));
+	x := MulRange(n-k+1, n);
+	y := MulRange(1, k);
+	return x.Div(y);
 }
 
 

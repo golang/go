@@ -82,7 +82,7 @@ func NewHilbert(n int) *Matrix {
 }
 
 
-func MakeRat(x *Big.Natural) *Big.Rational {
+func MakeRat(x Big.Natural) *Big.Rational {
 	return Big.MakeRat(Big.MakeInt(false, x), Big.Nat(1));
 }
 
@@ -100,7 +100,12 @@ func NewInverseHilbert(n int) *Matrix {
 			x3 := MakeRat(Big.Binomial(uint(n+j), uint(n-i-1)));
 			x4 := MakeRat(Big.Binomial(uint(i+j), uint(i)));
 			x4 = x4.Mul(x4);
-			a.set(i, j, x0.Mul(x1).Mul(x2).Mul(x3).Mul(x4));
+			// BUG a.set(i, j, x0.Mul(x1).Mul(x2).Mul(x3).Mul(x4));
+			y1 := x0.Mul(x1);
+			y2 := y1.Mul(x2);
+			y3 := y2.Mul(x3);
+			y4 := y3.Mul(x4);
+			a.set(i, j, y4);
 		}
 	}
 	return a;
@@ -114,7 +119,11 @@ func (a *Matrix) Mul(b *Matrix) *Matrix {
 		for j := 0; j < c.m; j++ {
 			x := Zero;
 			for k := 0; k < a.m; k++ {
-				x = x.Add(a.at(i, k).Mul(b.at(k, j)));
+				//BUG x = x.Add(a.at(i, k).Mul(b.at(k, j)));
+				a1 := a.at(i, k);
+				b1 := b.at(k, j);
+				a2 := a1.Mul(b1);
+				x = x.Add(a2);
 			}
 			c.set(i, j, x);
 		}
@@ -129,7 +138,10 @@ func (a *Matrix) Eql(b *Matrix) bool {
 	}
 	for i := 0; i < a.n; i++ {
 		for j := 0; j < a.m; j++ {
-			if a.at(i, j).Cmp(b.at(i,j)) != 0 {
+			// BUG if a.at(i, j).Cmp(b.at(i,j)) != 0 {
+			a1 := a.at(i, j);
+			b1 := b.at(i,j);
+			if a1.Cmp(b1) != 0 {
 				return false;
 			}
 		}
