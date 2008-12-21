@@ -901,10 +901,10 @@ cgen_aret(Node *n, Node *res)
 	nod1.type = fp->type;
 
 	if(res->op != OREGISTER) {
-print("its 1\n");
 		regalloc(&nod2, types[tptr], res);
 		gins(ALEAQ, &nod1, &nod2);
 		gins(AMOVQ, &nod2, res);
+		regfree(&nod2);
 	} else
 		gins(ALEAQ, &nod1, res);
 }
