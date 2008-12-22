@@ -305,6 +305,14 @@ func getArrayPtr(v reflect.Value) (val reflect.ArrayValue, ok bool) {
 	return nil, false;
 }
 
+func getArray(v reflect.Value) (val reflect.ArrayValue, ok bool) {
+	switch v.Kind() {
+	case reflect.ArrayKind:
+		return v.(reflect.ArrayValue), true;
+	}
+	return nil, false;
+}
+
 // Convert ASCII to integer.  n is 0 (and got is false) if no number present.
 
 func parsenum(s string, start, end int) (n int, got bool, newi int) {
@@ -365,7 +373,7 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 		if v, ok := getPtr(field); v == 0 {
 			s = "<nil>"
 		} else {
-			// pointer to array?
+			// pointer to array?  (TODO(r): holdover; delete?)
 			if a, ok := getArrayPtr(field); ok {
 				p.addstr("&[");
 				for i := 0; i < a.Len(); i++ {
@@ -379,6 +387,17 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 				p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
 				s = p.fmt.uX64(uint64(v)).str();
 			}
+		}
+	case reflect.ArrayKind:
+		if a, ok := getArray(field); ok {
+			p.addstr("[");
+			for i := 0; i < a.Len(); i++ {
+				if i > 0 {
+					p.addstr(" ");
+				}
+				p.printField(a.Elem(i));
+			}
+			p.addstr("]");
 		}
 	case reflect.StructKind:
 		p.add('{');

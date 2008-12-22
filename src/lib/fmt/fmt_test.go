@@ -232,3 +232,17 @@ export func TestStructPrinter(t *testing.T) {
 		}
 	}
 }
+
+export func TestArrayPrinter(t *testing.T) {
+	a := []int{1, 2, 3, 4, 5};
+	want := "[1 2 3 4 5]";
+	out := fmt.sprintf("%v", a);
+	if out != want {
+		t.Errorf("sprintf(%%v, array) = %q, want %q", out, want);
+	}
+	want = "&" + want;
+	out = fmt.sprintf("%v", &a);
+	if out != want {
+		t.Errorf("sprintf(%%v, &array) = %q, want %q", out, want);
+	}
+}
