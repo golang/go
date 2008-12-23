@@ -28,6 +28,8 @@ type FmtTest struct {
 
 const B32 uint32 = 1<<32 - 1
 const B64 uint64 = 1<<64 - 1
+var array = []int{1, 2, 3, 4, 5}
+
 
 var fmttests = []FmtTest{
 	// basic string
@@ -76,6 +78,12 @@ var fmttests = []FmtTest{
 	FmtTest{ "%+d",		-12345,	"-12345" },
 	FmtTest{ "% d",		12345,	" 12345" },
 	FmtTest{ "% d",		-12345,	"-12345" },
+
+	// arrays
+	// TODO: when arrays work in interfaces, enable this line
+	// and delete the TestArrayPrinter routine below
+	// FmtTest{ "%v",		array,			"[1 2 3 4 5]" },
+	FmtTest{ "%v",		&array,			"&[1 2 3 4 5]" },
 
 	// old test/fmt_test.go
 	FmtTest{ "%d",		1234,			"1234" },
