@@ -1261,8 +1261,12 @@ export func RatFromString(s string, base uint, slen *int) (*Rational, uint) {
 			alen++;
 			b, base = NatFromString(s[alen : len(s)], abase, &blen);
 			assert(base == abase);
-			f := Nat(base).Pow(uint(blen));
-			a = MakeInt(a.sign, a.mant.Mul(f).Add(b));
+			//BUG f := Nat(base).Pow(uint(blen));
+			na := Nat(base);
+			f := na.Pow(uint(blen));
+			//BUG a = MakeInt(a.sign, a.mant.Mul(f).Add(b));
+			nb := a.mant.Mul(f);
+			a = MakeInt(a.sign, nb.Add(b));
 			b = f;
 		}
 	}

@@ -1575,6 +1575,7 @@ lookdot(Node *n, Type *t)
 
 	if(f2 != T) {
 		if(needaddr(n->left->type)) {
+			walktype(n->left, Elv);
 			n->left = nod(OADDR, n->left, N);
 			n->left->type = ptrto(n->left->left->type);
 		}
@@ -2621,6 +2622,8 @@ arrayop(Node *n, int top)
 		// arrays2d(old *any, nel int) (ary []any)
 		t = fixarray(n->right->type);
 		tl = fixarray(n->left->type);
+		if(t == T || tl == T)
+			break;
 
 		a = nodintconst(t->bound);		// nel
 		a = nod(OCONV, a, N);
@@ -2642,6 +2645,8 @@ arrayop(Node *n, int top)
 	case ONEW:
 		// newarray(nel int, max int, width int) (ary []any)
 		t = fixarray(n->type);
+		if(t == T)
+			break;
 
 		a = nodintconst(t->type->width);	// width
 		a = nod(OCONV, a, N);
@@ -2679,6 +2684,8 @@ arrayop(Node *n, int top)
 		// arraysliced(old []any, lb int, hb int, width int) (ary []any)
 
 		t = fixarray(n->left->type);
+		if(t == T)
+			break;
 
 		a = nodintconst(t->type->width);	// width
 		a = nod(OCONV, a, N);
@@ -2693,7 +2700,6 @@ arrayop(Node *n, int top)
 		a->type = types[TINT];
 		r = list(a, r);
 
-		t = fixarray(n->left->type);
 		if(t->bound >= 0) {
 			// static slice
 			a = nodintconst(t->bound);		// nel
