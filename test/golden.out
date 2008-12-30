@@ -157,6 +157,10 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
 bugs/bug129.go:6: syscall is package, not var
 BUG129
 
+=========== bugs/bug130.go
+bugs/bug130.go:14: fatal error: getoutarg: not a func RANGE
+BUG: should run
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
 
