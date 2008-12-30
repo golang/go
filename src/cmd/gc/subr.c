@@ -301,8 +301,8 @@ algtype(Type *t)
 	if(isptr[t->etype])
 		a = APTR;	// pointer
 	else
-	if(t->etype == TARRAY)
-		a = AARRAY;
+	if(t->etype == TARRAY && t->bound < 0)
+		a = ASLICE;
 	else
 	if(t->etype == TSTRUCT)
 		a = ASTRUCT;
@@ -1576,6 +1576,7 @@ out:
 	case ASIMP:
 	case APTR:
 	case ASTRING:
+	case ASLICE:
 		break;
 	}
 
