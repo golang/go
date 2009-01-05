@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(December 18, 2008)
+(January 5, 2009)
 
 ----
 
@@ -45,6 +45,9 @@ Todo's:
 	doesn't correspond to the implementation. The spec is wrong when it
 	comes to the first index i: it should allow (at least) the range 0 <= i <= len(a).
 	also: document different semantics for strings and arrays (strings cannot be grown).
+[ ] new as it is now is weird - need to go back to previous semantics and introduce
+    literals for slices, maps, channels
+[ ] determine if really necessary to disallow array assignment
 
 
 Open issues:
@@ -167,10 +170,11 @@ Contents
 		Array types
 		Struct types
 		Pointer types
-		Map types
-		Channel types
 		Function types
 		Interface types
+		Slice types
+		Map types
+		Channel types
 		Type equality
 
 	Expressions
@@ -337,11 +341,22 @@ they are no longer accessible.  There is no pointer arithmetic in Go.
 Values and references
 ----
 
-All objects have value semantics, but their contents may be accessed
-through different pointers referring to the same object.
-For example, when calling a function with an array, the array is
-passed by value, possibly by making a copy.   To pass a reference,
-one must explicitly pass a pointer to the array.
+TODO
+- revisit this section
+- if we'd keep the * for maps and chans, all types would have value semantics
+  again
+
+Most data types have value semantics, but their contents may be accessed
+through different pointers referring to the same object. However, some
+data types have reference semantics to facilitate common usage patterns
+and implementation.
+
+For example, when calling a function with a struct, the struct is passed
+by value, possibly by making a copy. To pass a reference, one must explicitly
+pass a pointer to the struct. On the other hand, when calling a function with
+a map, a reference to the map is passed implicitly without the need to pass a
+pointer to the map; thus the map contents are not copied when a map is assigned
+to a variable.
 
 
 Multithreading and channels
@@ -1046,27 +1061,31 @@ Types
 A type specifies the set of values that variables of that type may assume
 and the operators that are applicable.
 
-A type may be specified by a type name (§Type declarations)
-or a type literal.
+A type may be specified by a type name (§Type declarations) or a type literal.
+A type literal is a syntactic construct that explicitly specifies the
+composition of a new type in terms of other (already declared) types.
 
 	Type = TypeName | TypeLit .
 	TypeName = QualifiedIdent.
 	TypeLit =
-		ArrayType | StructType | PointerType | FunctionType |
-		ChannelType | MapType | InterfaceType .
+		ArrayType | StructType | PointerType | FunctionType | InterfaceType |
+		SliceType | MapType | ChannelType .
 
-There are basic types and composite types. Basic types are predeclared and
-denoted by their type names.
-Composite types are arrays, maps, channels, structures, functions, pointers,
-and interfaces. They are constructed from other (basic or composite) types
-and denoted by their type names or by type literals.
+Some types are predeclared and denoted by their type names; these are called
+``basic types''. Generally (except for strings) they are not composed of more
+elementary types; instead they model elementary machine data types.
 
-Types may be ``complete'' or ''incomplete''. Basic, pointer, function and
-interface types are always complete (although their components, such
-as the base type of a pointer type, may be incomplete). All other types are
-complete when they are fully declared. Incomplete types are subject to
-usage restrictions; for instance the type of a variable must be complete
-where the variable is declared.
+All other types are called ``composite types'; they are composed from other
+(basic or composite) types and denoted by their type names or by type literals.
+There are arrays, structs, pointers, functions, interfaces, slices, maps, and
+channels.
+
+At a given point in the source code, a type may be ``complete'' or
+''incomplete''. Array and struct types are complete when they are fully declared.
+All other types are always complete (although their components, such as the base
+type of a pointer type, may be incomplete). Incomplete types are subject to usage
+restrictions; for instance the type of a variable must be complete where the
+variable is declared.
 
 	CompleteType = Type .
 
@@ -1075,11 +1094,6 @@ The ``interface'' of a type is the set of methods bound to it
 of the pointer base type (§Pointer types). All types have an interface;
 if they have no methods associated with them, their interface is
 called the ``empty'' interface.
-
-TODO: Since methods are added one at a time, the interface of a type may
-be different at different points in the source text. Thus, static checking
-may give different results then dynamic checking which is problematic.
-Need to resolve.
 
 The ``static type'' (or simply ``type'') of a variable is the type defined by
 the variable's declaration. The ``dynamic type'' of a variable is the actual
@@ -1144,10 +1158,10 @@ convenience:
 For instance, int might have the same size as int32 on a 32-bit
 architecture, or int64 on a 64-bit architecture.
 
-Except for byte, which is an alias for uint8, all numeric types
+Except for "byte", which is an alias for "uint8", all numeric types
 are different from each other to avoid portability issues. Conversions
 are required when different numeric types are mixed in an expression or assignment.
-For instance, int32 and int are not the same type even though they may have
+For instance, "int32" and "int" are not the same type even though they may have
 the same size on a particular platform.
 
 
@@ -1161,7 +1175,7 @@ available through the two predeclared constants, "true" and "false".
 Strings
 ----
 
-The string type represents the set of string values (strings).
+The "string" type represents the set of string values (strings).
 Strings behave like arrays of bytes, with the following properties:
 
 - They are immutable: after creation, it is not possible to change the
@@ -1188,133 +1202,36 @@ just array of bytes) by a conversion (§Conversions):
 Array types
 ----
 
-An array is a composite type consisting of a number of elements all of the same
-type, called the element type. The number of elements of an array is called its
-length; it is always positive (including zero).  The elements of an array are
-designated by indices which are integers between 0 and the length - 1.
+An array is a composite type consisting of a number of elements all of the
+same type, called the element type. The element type must be a complete type
+(§Types). The number of elements of an array is called its length; it is never
+negative. The elements of an array are designated by indices
+which are integers from 0 through the length - 1.
 
-An array type specifies the array element type and an optional array
-length which must be a compile-time constant expression of a (signed or
-unsigned) int type. If present, the array length and its value is part of
-the array type. The element type must be a complete type (§Types).
-
-If the length is present in the declaration, the array is called
-``fixed array''; if the length is absent, the array is called ``open array''.
-
-	ArrayType = "[" [ ArrayLength ] "]" ElementType .
+	ArrayType = "[" ArrayLength "]" ElementType .
 	ArrayLength = Expression .
 	ElementType = CompleteType .
 
-The length of an array "a" can be discovered using the built-in function
+The array length and its value are part of the array type. The array length
+must be a constant expression (§Constant expressions) that evaluates to an
+integer value >= 0.
 
-	len(a)
-	
-If "a" is a fixed array, the length is known at compile-time and "len(a)" can
-be evaluated to a compile-time constant. If "a" is an open array, then "len(a)"
-will only be known at run-time.
-
-The amount of space actually allocated to hold the array data may be larger
-then the current array length; this maximum array length is called the array
-capacity. The capacity of an array "a" can be discovered using the built-in
+The number of elements of an array "a" can be discovered using the built-in
 function
 
-	cap(a)
-	
-and the following relationship between "len()" and "cap()" holds:
+	len(a)
 
-	0 <= len(a) <= cap(a)
+The length of arrays is known at compile-time, and the result of a call to
+"len(a)" is a compile-time constant.
 
-Allocation: An open array may only be used as a function parameter type, or
-as element type of a pointer type. There are no other variables
-(besides parameters), struct or map fields of open array type; they must be
-pointers to open arrays. For instance, an open array may have a fixed array
-element type, but a fixed array must not have an open array element type
-(though it may have a pointer to an open array). Thus, for now, there are
-only ``one-dimensional'' open arrays.
-
-The following are legal array types:
-
-	[32] byte
+	[32]byte
 	[2*N] struct { x, y int32 }
-	[1000]*[] float64
-	[] int
-	[][1024] byte
-	
-Variables of fixed arrays may be declared statically:
+	[1000]*float64
 
-	var a [32] byte
-	var m [1000]*[] float64
-
-Static and dynamic arrays may be allocated dynamically via the built-in function
-"new()" which takes an array type and zero or one array lengths as parameters,
-depending on the number of open arrays in the type:
-
-	new([32] byte)                // *[32] byte
-	new([]int, 100);              // *[100] int
-	new([][1024] byte, 4);        // *[4][1024] byte
-
-Assignment compatibility: Fixed arrays are assignment compatible to variables
-of the same type, or to open arrays with the same element type. Open arrays
-may only be assigned to other open arrays with the same element type.
-
-For the variables:
-
-	var fa, fb [32] int
-	var fc [64] int
-	var pa, pb *[] int
-	var pc *[][32] int
-
-the following assignments are legal, and cause the respective array elements
-to be copied:
-
-	fa = fb;
-	pa = pb;
-	*pa = *pb;
-	fa = *pc[7];
-	*pa = fa;
-	*pb = fc;
-	*pa = *pc[11];
-
-The following assignments are illegal:
-
-	fa = *pa;      // cannot assign open array to fixed array
-	*pc[7] = *pa;  // cannot assign open array to fixed array
-	fa = fc;       // different fixed array types
-	*pa = *pc;     // different element types of open arrays
-
-
-Array indexing: Given a (pointer to an) array variable "a", an array element
-is specified with an array index operation:
-
-	a[i]
-	
-This selects the array element at index "i". "i" must be within array bounds,
-that is "0 <= i < len(a)".
-
-Array slicing: Given a (pointer to an) array variable "a", a sub-array is
-specified with an array slice operation:
-
-	a[i : j]
-	
-This selects the sub-array consisting of the elements "a[i]" through "a[j - 1]"
-(exclusive "a[j]"). "i" must be within array bounds, and "j" must satisfy
-"i <= j <= cap(a)". The length of the new slice is "j - i". The capacity of
-the slice is "cap(a) - i"; thus if "i" is 0, the array capacity does not change
-as a result of a slice operation. An array slice is always an open array.
-
-Note that a slice operation does not ``crop'' the underlying array, it only
-provides a new ``view'' to an array. If the capacity of an array is larger
-then its length, slicing can be used to ``grow'' an array:
-
-	// allocate an open array of bytes with length i and capacity 100
-	i := 10;
-	a := new([] byte, 100) [0 : i];
-	// grow the array by n bytes, with i + n <= 100
-	a = a[0 : i + n];
-
-
-TODO: Expand on details of slicing and assignment, especially between pointers
-to arrays and arrays.
+Assignment compatibility: Arrays can be assigned to slice variables of
+equal element type; arrays cannot be assigned to other array variables
+or passed to functions (by value).
+TODO rethink this restriction. Causes irregularities.
 
 
 Struct types
@@ -1407,7 +1324,7 @@ type, called the ``base type'' of the pointer, and the value "nil".
 	BaseType = Type .
 
 	*int
-	*map[string] *chan
+	map[string] chan
 
 The pointer base type may be denoted by an identifier referring to an
 incomplete type (§Types), possibly declared via a forward declaration.
@@ -1424,68 +1341,6 @@ Assignment compatibility: A pointer is assignment compatible to a variable
 of pointer type, only if both types are equal.
 
 Pointer arithmetic of any kind is not permitted.
-
-
-Map types
-----
-
-A map is a composite type consisting of a variable number of entries
-called (key, value) pairs. For a given map, the keys and values must
-each be of a specific complete type (§Types) called the key and value type,
-respectively. Upon creation, a map is empty and values may be added and removed
-during execution.  The number of entries in a map is called its length.
-
-	MapType = "map" "[" KeyType "]" ValueType .
-	KeyType = CompleteType .
-	ValueType = CompleteType .
-
-	map [string] int
-	map [struct { pid int; name string }] *chan Buffer
-	map [string] any
-
-The length of a map "m" can be discovered using the built-in function
-
-	len(m)
-
-Allocation: A map may only be used as a base type of a pointer type.
-There are no variables, parameters, array, struct, or map fields of
-map type, only of pointers to maps.
-
-Assignment compatibility: A pointer to a map type is assignment
-compatible to a variable of pointer to map type only if both types
-are equal.
-
-
-Channel types
-----
-
-A channel provides a mechanism for two concurrently executing functions
-to synchronize execution and exchange values of a specified type. This
-type must be a complete type (§Types).
-
-Upon creation, a channel can be used both to send and to receive.
-By conversion or assignment, a channel may be constrained only to send or
-to receive. This constraint is called a channel's ``direction''; either
-bi-directional (unconstrained), send, or receive.
-
-	ChannelType = Channel | SendChannel | RecvChannel .
-	Channel = "chan" ValueType .
-	SendChannel = "chan" "<-" ValueType .
-	RecvChannel = "<-" "chan" ValueType .
-
-	chan T         // can send and receive values of type T
-	chan <- float  // can only be used to send floats
-	<-chan int     // can receive only ints
-
-Channel variables always have type pointer to channel.
-It is an error to attempt to use a channel value and in
-particular to dereference a channel pointer.
-
-	var ch *chan int;
-	ch = new(chan int);  // new returns type *chan int
-
-TODO(gri): Do we need the channel conversion? It's enough to just keep
-the assignment rule.
 
 
 Function types
@@ -1540,7 +1395,7 @@ the set of methods specified by the interface type, and the value "nil".
 	MethodSpecList = MethodSpec { ";" MethodSpec } [ ";" ] .
 	MethodSpec = IdentifierList FunctionType .
 
-	// A basic file interface.
+	// An interface specifying a basic File type.
 	interface {
 		Read, Write	(b Buffer) bool;
 		Close		();
@@ -1593,6 +1448,148 @@ Assignment compatibility: A value can be assigned to an interface variable
 if the static type of the value implements the interface or if the value is "nil".
 
 
+Slice types
+----
+
+An (array) slice type denotes the set of all slices (segments) of arrays
+(§Array types) of a given element type, and the value "nil".
+The number of elements of a slice is called its length; it is never negative.
+The elements of a slice are designated by indices which are
+integers from 0 through the length - 1.
+
+	SliceType = "[" "]" ElementType .
+
+Syntactically and semantically, arrays and slices look and behave very
+similarly, but with one important difference: A slice is a descriptor
+of an array segment; in particular, different variables of a slice type may
+refer to different (and possibly overlapping) segments of the same underlying
+array. Thus, with respect to the underlying array, slices behave like
+references. In contrast, two different variables of array type always
+denote two different arrays.
+
+For slices, the actual array underlying the slice may extend past the current
+slice length; the maximum length a slice may assume is called its capacity.
+The capacity of any slice "a" can be discovered using the built-in function
+
+	cap(a)
+
+and the following relationship between "len()" and "cap()" holds:
+
+	0 <= len(a) <= cap(a)
+
+The value of an uninitialized slice is "nil", and its length and capacity
+are 0. A new, initialized slice value for a given elemen type T is
+created using the built-in function "new", which takes a slice type
+and parameters specifying the length and optionally the capacity:
+
+	new([]T, length)
+	new([]T, length, capacity)
+
+Assignment compatibility: Slices are assignment compatible to variables
+of the same type.
+
+Indexing: Given a (pointer to) a slice variable "a", a slice element is
+specified with an index operation:
+
+	a[i]
+
+This denotes the slice element at index "i". "i" must be within bounds,
+that is "0 <= i < len(a)".
+
+Slicing: Given a a slice variable "a", a sub-slice is created with a slice
+operation:
+
+	a[i : j]
+
+This creates the sub-slice consisting of the elements "a[i]" through "a[j - 1]"
+(that is, excluding "a[j]"). "i" must be within array bounds, and "j" must satisfy
+"i <= j <= cap(a)". The length of the new slice is "j - i". The capacity of
+the slice is "cap(a) - i"; thus if "i" is 0, the slice capacity does not change
+as a result of a slice operation. The type of a sub-slice is the same as the
+type of the slice.
+
+TODO what are the proper restrictions on slices?
+TODO describe equality checking against nil
+
+
+Map types
+----
+
+A map is a composite type consisting of a variable number of entries
+called (key, value) pairs. For a given map, the keys and values must
+each be of a specific complete type (§Types) called the key and value type,
+respectively. The number of entries in a map is called its length; it is never
+negative.
+
+	MapType = "map" "[" KeyType "]" ValueType .
+	KeyType = CompleteType .
+	ValueType = CompleteType .
+
+Upon creation, a map is empty and values may be added and removed
+during execution.
+
+	map [string] int
+	map [struct { pid int; name string }] chan Buffer
+	map [string] interface {}
+
+The length of a map "m" can be discovered using the built-in function
+
+	len(m)
+
+The value of an uninitialized map is "nil". A new, initialized map
+value for given key and value types K and V is created using the built-in
+function "new" which takes the map type and an (optional) capacity as arguments:
+
+	my_map := new(map[K] V, 100);
+
+The map capacity is an allocation hint for more efficient incremental growth
+of the map.
+
+Assignment compatibility: A map type is assignment compatible to a variable of
+map type only if both types are equal.
+
+TODO: Comparison against nil
+
+
+Channel types
+----
+
+A channel provides a mechanism for two concurrently executing functions
+to synchronize execution and exchange values of a specified type. This
+type must be a complete type (§Types). (TODO could it be incomplete?)
+
+	ChannelType = Channel | SendChannel | RecvChannel .
+	Channel = "chan" ValueType .
+	SendChannel = "chan" "<-" ValueType .
+	RecvChannel = "<-" "chan" ValueType .
+
+Upon creation, a channel can be used both to send and to receive.
+By conversion or assignment, a channel may be constrained only to send or
+to receive. This constraint is called a channel's ``direction''; either
+bi-directional (unconstrained), send, or receive.
+
+	chan T         // can send and receive values of type T
+	chan <- float  // can only be used to send floats
+	<-chan int     // can only receive ints
+
+The value of an uninitialized channel is "nil". A new, initialized channel
+value for a given element type T is created using the built-in function "new",
+which takes the channel type and an (optional) capacity as arguments:
+
+	my_chan = new(chan int, 100);
+
+The capacity sets the size of the buffer in the communication channel. If the
+capacity is greater than zero, the channel is asynchronous and, provided the
+buffer is not full, sends can succeed without blocking. If the capacity is zero,
+the communication succeeds only when both a sender and receiver are ready.
+
+Assignment compatibility:
+TODO write this paragraph
+
+TODO(gri): Do we need the channel conversion? It's enough to just keep
+the assignment rule.
+
+
 Type equality
 ----
 
@@ -1612,8 +1609,7 @@ speaking, two types are equal if their values have the same layout in memory.
 More precisely:
 
 	- Two array types are equal if they have equal element types and if they
-	  are either fixed arrays with the same array length, or they are open
-	  arrays.
+	  have the same array length.
 
 	- Two struct types are equal if they have the same number of fields in the
 	  same order, corresponding fields are either both named or both anonymous,
@@ -1626,6 +1622,8 @@ More precisely:
 	  and result values and if corresponding parameter and result types are
 	  equal (a "..." parameter is equal to another "..." parameter).
 	  Note that parameter and result names do not have to match.
+
+	- Two slice types are equal if they have equal element types.
 
 	- Two channel types are equal if they have equal value types and
 	  the same direction.
@@ -1645,8 +1643,7 @@ same literal structure and corresponding components have identical types.
 More precisely:
 
 	- Two array types are identical if they have identical element types and if
-	  they are either fixed arrays with the same array length, or they are open
-	  arrays.
+	  they have the same array length.
 
 	- Two struct types are identical if they have the same number of fields in
 	  the same order, corresponding fields either have both the same name or
@@ -1658,6 +1655,8 @@ More precisely:
 	  parameters and result values both with the same (or absent) names, and
 	  if corresponding parameter and result types are identical (a "..."
 	  parameter is identical to another "..." parameter with the same name).
+
+	- Two slice types are identical if they have identical element types.
 
 	- Two channel types are identical if they have identical value types and
 	  the same direction.
@@ -1725,7 +1724,7 @@ Thus, the values 991, 42.0, and 1e9 are ok, but -1, 3.14, or 1e100 are not.
 <!--
 TODO(gri) This may be overly constraining. What about "len(a) + c" where
 c is an ideal number? Is len(a) of type int, or of an ideal number? Probably
-should be ideal number, because for fixed arrays, it is a constant.
+should be ideal number, because for arrays, it is a constant.
 -->
 
 
@@ -1779,8 +1778,6 @@ Composite literals are values of the type specified by LiteralType; that is
 a new value is created every time the literal is evaluated. To get
 a pointer to the literal, the address operator "&" must be used.
 
-Implementation restriction: Currently, map literals are pointers to maps.
-
 Given
 
 	type Rat struct { num, den int };
@@ -1791,22 +1788,23 @@ one can write
 	pi := Num{Rat{22, 7}, 3.14159, "pi"};
 
 
-Array literals are always fixed arrays: If no array length is specified in
-LiteralType, the array length is the number of elements provided in the composite
-literal. Otherwise the array length is the length specified in LiteralType.
-In the latter case, fewer elements than the array length may be provided in the
-literal, and the missing elements are set to the appropriate zero value for
-the array element type. It is an error to provide more elements then specified
-in LiteralType.
+TODO section below needs to be brought into agreement with 6g.
+
+The length of an array literal is the length specified in the LiteralType.
+If fewer elements than the length are provided in the literal, the missing
+elements are set to the appropriate zero value for the array element type.
+It is an error to provide more elements than specified in LiteralType.
+If no length is specified, the length is the number of elements provided
+in the literal.
 
 	buffer := [10]string{};  // len(buffer) == 10
-	primes := [6]int{2, 3, 5, 7, 9, 11};  // len(primes) == 6
+	primes := &[6]int{2, 3, 5, 7, 9, 11};  // len(primes) == 6
 	weekenddays := &[]string{"sat", "sun"};  // len(weekenddays) == 2
 
 Map literals are similar except the elements of the expression list are
 key-value pairs separated by a colon:
 
-	m := &map[string]int{"good": 0, "bad": 1, "indifferent": 7};
+	m := map[string]int{"good": 0, "bad": 1, "indifferent": 7};
 
 TODO: Consider adding helper syntax for nested composites
 (avoids repeating types but complicates the spec needlessly.)
@@ -1830,7 +1828,7 @@ A function literal can be assigned to a variable of the
 corresponding function pointer type, or invoked directly.
 
 	f := func(x, y int) int { return x + y; }
-	func(ch *chan int) { ch <- ACK; } (reply_chan)
+	func(ch chan int) { ch <- ACK; } (reply_chan)
 
 Implementation restriction: A function literal can reference only
 its parameters, global variables, and variables declared within the
@@ -1860,7 +1858,6 @@ Primary expressions
 	(s + ".txt")
 	f(3.1415, true)
 	Point(1, 2)
-	new([]int, 100)
 	m["foo"]
 	s[i : j + 1]
 	obj.color
@@ -2292,7 +2289,8 @@ Comparison operators
 
 Comparison operators yield a boolean result. All comparison operators apply
 to strings and numeric types. The operators "==" and "!=" also apply to
-boolean values, pointer and interface types (including the value "nil").
+boolean values, pointer, interface types, slice, map, and channel types
+(including the value "nil").
 
 	==    equal
 	!=    not equal
@@ -2311,6 +2309,11 @@ constant "nil" is assigned explicitly to "v" (§Assignments), or "v" has not
 been modified since creation (§Program initialization and execution).
 
 TODO: Should we allow general comparison via interfaces? Problematic.
+
+Slices, maps, and channels are equal if they denote the same slice, map, or
+channel respectively, or are "nil".
+
+TODO: We need to be more precise here.
 
 
 Logical operators
@@ -2403,7 +2406,7 @@ Communication operators
 The syntax presented above covers communication operations.  This
 section describes their form and function.
 
-Here the term "channel" means "variable of type *chan".
+Here the term "channel" means "variable of type chan".
 
 A channel is created by allocating it:
 
@@ -2477,7 +2480,7 @@ A constant expression is an expression whose operands are all constants
 (§Constants). Additionally, the result of the predeclared functions
 below (with appropriate arguments) is also constant:
 
-	len(a)		if a is a fixed array
+	len(a)		if a is an array (as opposed to an array slice)
 
 TODO: Complete this list as needed.
 
@@ -2867,7 +2870,7 @@ scope of such variables begins immediately after the variable identifier
 and ends at the end of the respective "select" case (that is, before the
 next "case", "default", or closing brace).
 
-	var c, c1, c2 *chan int;
+	var c, c1, c2 chan int;
 	var i1, i2 int;
 	select {
 	case i1 = <-c1:
@@ -2885,7 +2888,7 @@ next "case", "default", or closing brace).
 		}
 	}
 
-	var ca *chan interface {};
+	var ca chan interface {};
 	var i int;
 	var f float;
 	select {
@@ -3159,9 +3162,10 @@ Allocation
 ----
 
 The built-in function "new()" takes a type "T", optionally followed by a
-type-specific list of expressions. It allocates memory for a variable
-of type "T" and returns a pointer of type "*T" to that variable. The
-memory is initialized as described in the section on initial values
+type-specific list of expressions. It returns a value of type "T" (possibly
+by allocating memory in the heap).
+TODO describe initialization
+The memory is initialized as described in the section on initial values
 (§Program initialization and execution).
 
 	new(type [, optional list of expressions])
@@ -3169,7 +3173,7 @@ memory is initialized as described in the section on initial values
 For instance
 
 	type S struct { a int; b float }
-	new(S)
+	new(*S)
 
 dynamically allocates memory for a variable of type S, initializes it
 (a=0, b=0.0), and returns a value of type *S pointing to that variable.
@@ -3177,24 +3181,11 @@ dynamically allocates memory for a variable of type S, initializes it
 The only defined parameters affect sizes for allocating arrays,
 buffered channels, and maps.
 
-	ap := new([]int, 10);            # a pointer to an open array of 10 ints
-	c := new(chan int, 10);          # a pointer to a channel with a buffer size of 10
-	m := new(map[string] int, 100);  # a pointer to a map with initial space for 100 elements
+	s := new([]int);				 # slice
+	c := new(chan int, 10);          # channel with a buffer size of 10
+	m := new(map[string] int, 100);  # map with initial space for 100 elements
 
-For arrays, a third argument may be provided to specify the array capacity:
-
-	bp := new([]byte, 0, 1024);      # a pointer to an empty open array with capacity 1024
-
-<!--
-TODO gri thinks that we should not use this notation to specify the capacity
-for the following reasons: a) It precludes the future use of that argument as the length
-for multi-dimensional open arrays (which we may need at some point) and b) the
-effect of "new(T, l, c)" is trivially obtained via "new(T, c)[0 : l]", doesn't
-require extra explanation, and leaves options open.
-Finally, if there is a performance concern (the single new() may be faster
-then the new() with slice, the compiler can trivially rewrite the slice version
-into a faster internal call that doesn't do slicing).
--->
+TODO revisit this section
 
 
 ----
@@ -3264,7 +3255,7 @@ Here is a complete example Go package that implements a concurrent prime sieve:
 	package main
 	
 	// Send the sequence 2, 3, 4, ... to channel 'ch'.
-	func Generate(ch *chan <- int) {
+	func Generate(ch chan <- int) {
 		for i := 2; ; i++ {
 			ch <- i  // Send 'i' to channel 'ch'.
 		}
@@ -3272,7 +3263,7 @@ Here is a complete example Go package that implements a concurrent prime sieve:
 	
 	// Copy the values from channel 'in' to channel 'out',
 	// removing those divisible by 'prime'.
-	func Filter(in *chan <- int, out *<-chan int, prime int) {
+	func Filter(in chan <- int, out *<-chan int, prime int) {
 		for {
 			i := <-in;  // Receive value of new variable 'i' from 'in'.
 			if i % prime != 0 {
