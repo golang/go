@@ -31,7 +31,7 @@ func (s *TStruct) field(i int) *TStruct {
 
 func main() {
 	v := new(*Vector);
-	v.elem = new([10]Element);
+	v.elem = new([]Element, 10);
 	t := new(*TStruct);
 	t.name = "hi";
 	v.elem[0] = t;
