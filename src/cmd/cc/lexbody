@@ -462,10 +462,8 @@ l1:
 		if(c1 == '/') {
 			for(;;) {
 				c = GETC();
-				if(c == '\n') {
-					lineno++;
+				if(c == '\n')
 					goto l1;
-				}
 				if(c == EOF) {
 					yyerror("eof in comment");
 					errorexit();
