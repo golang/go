@@ -17,7 +17,7 @@ type Vector struct {
 func New() *Vector {
 	v := new(*Vector);
 	v.nelem = 0;
-	v.elem = new([10]Element);
+	v.elem = new([]Element, 10);
 	return v;
 }
 
@@ -30,9 +30,8 @@ func (v *Vector) Insert(e Element) {
 	v.nelem++;
 }
 
-type I struct { val int; };  // BUG: can't be local;
-
 func main() {
+	type I struct { val int; };
 	i0 := new(*I); i0.val = 0;
 	i1 := new(*I); i1.val = 11;
 	i2 := new(*I); i2.val = 222;
