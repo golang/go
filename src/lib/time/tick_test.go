@@ -11,7 +11,7 @@ import (
 
 export func TestTick(t *testing.T) {
 	const (
-		Delta uint64 = 10*1e6;
+		Delta uint64 = 100*1e6;
 		Count uint64 = 10;
 	);
 	c := Tick(Delta);
@@ -24,6 +24,6 @@ export func TestTick(t *testing.T) {
 	target := int64(Delta*Count);
 	slop := target*2/10;
 	if ns < target - slop || ns > target + slop {
-		t.Fatalf("%d ticks of %d ns took %d ns, expected %d", Count, Delta, ns, target);
+		t.Fatalf("%d ticks of %g ns took %g ns, expected %g", Count, float64(Delta), float64(ns), float64(target));
 	}
 }
