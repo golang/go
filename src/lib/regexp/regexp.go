@@ -580,9 +580,11 @@ func Compiler(str string, ch chan *RE) {
 	ch <- re;
 }
 
-// Public interface has only execute functionality (not yet implemented)
+// Public interface has only execute functionality
 export type Regexp interface {
-	Execute(s string) []int
+	Execute(s string) []int;
+	Match(s string) bool;
+	MatchStrings(s string) []string;
 }
 
 // Compile in separate goroutine; wait for result
@@ -714,4 +716,32 @@ func (re *RE) DoExecute(str string, pos int) []int {
 
 func (re *RE) Execute(s string) []int {
 	return re.DoExecute(s, 0)
+}
+
+
+func (re *RE) Match(s string) bool {
+	return len(re.DoExecute(s, 0)) > 0
+}
+
+
+func (re *RE) MatchStrings(s string) []string {
+	r := re.DoExecute(s, 0);
+	if r == nil {
+		return nil
+	}
+	a := new([]string, len(r)/2);
+	for i := 0; i < len(r); i += 2 {
+		a[i/2] = s[r[i] : r[i+1]]
+	}
+	return a
+}
+
+// Exported function for simple boolean check.  Anything more fancy
+// needs a call to Compile.
+export func Match(pattern string, s string) (matched bool, error *os.Error) {
+	re, err := Compile(pattern);
+	if err != nil {
+		return false, err
+	}
+	return re.Match(s), nil
 }
