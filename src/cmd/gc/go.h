@@ -292,7 +292,7 @@ enum
 	OLIST, OCMP, OPTR, OARRAY, ORANGE,
 	ORETURN, OFOR, OIF, OSWITCH,
 	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL,
-	OGOTO, OPROC, ONEW, OEMPTY, OSELECT,
+	OGOTO, OPROC, OMAKE, ONEW, OEMPTY, OSELECT,
 	OLEN, OCAP, OPANIC, OPANICN, OPRINT, OPRINTN, OTYPEOF,
 
 	OOROR,
@@ -789,6 +789,7 @@ int	ascompat(Type*, Type*);
 Node*	prcompat(Node*, int);
 Node*	nodpanic(int32);
 Node*	newcompat(Node*);
+Node*	makecompat(Node*);
 Node*	stringop(Node*, int);
 Type*	fixmap(Type*);
 Node*	mapop(Node*, int);

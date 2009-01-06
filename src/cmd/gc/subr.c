@@ -708,6 +708,7 @@ opnames[] =
 	[OVAR]		= "VAR",
 	[OIMPORT]	= "IMPORT",
 	[OXOR]		= "XOR",
+	[OMAKE]		= "MAKE",
 	[ONEW]		= "NEW",
 	[OFALL]		= "FALL",
 	[OXFALL]	= "XFALL",
