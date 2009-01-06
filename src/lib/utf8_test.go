@@ -45,7 +45,7 @@ var utf8map = []Utf8Map {
 }
 
 func Bytes(s string) []byte {
-	b := new([]byte, len(s)+1);
+	b := make([]byte, len(s)+1);
 	if !syscall.StringToBytes(b, s) {
 		panic("StringToBytes failed");
 	}
