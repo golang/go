@@ -18,8 +18,8 @@
 %token	<sym>		LPACKAGE LIMPORT LEXPORT
 %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
 %token	<sym>		LCOLAS LFALL LRETURN LDDD
-%token	<sym>		LNEW LLEN LCAP LTYPEOF LPANIC LPANICN LPRINT LPRINTN
-%token	<sym>		LVAR LTYPE LCONST LCONVERT LSELECT
+%token	<sym>		LLEN LCAP LTYPEOF LPANIC LPANICN LPRINT LPRINTN
+%token	<sym>		LVAR LTYPE LCONST LCONVERT LSELECT LMAKE LNEW
 %token	<sym>		LFOR LIF LELSE LSWITCH LCASE LDEFAULT
 %token	<sym>		LBREAK LCONTINUE LGO LGOTO LRANGE
 %token	<sym>		LNIL LTRUE LFALSE LIOTA
@@ -864,6 +864,16 @@ pexpr:
 		$$ = nod(ONEW, $5, N);
 		$$->type = $3;
 	}
+|	LMAKE '(' type ')'
+	{
+		$$ = nod(OMAKE, N, N);
+		$$->type = $3;
+	}
+|	LMAKE '(' type ',' expr_list ')'
+	{
+		$$ = nod(OMAKE, $5, N);
+		$$->type = $3;
+	}
 |	latype '(' expr ')'
 	{
 		$$ = nod(OCONV, $3, N);
@@ -980,6 +990,7 @@ sym3:
 |	LPRINT
 |	LPRINTN
 |	LNEW
+|	LMAKE
 |	LBASETYPE
 |	LTYPEOF
 

@@ -1064,6 +1064,7 @@ static	struct
 	"import",	LIMPORT,	Txxx,
 	"interface",	LINTERFACE,	Txxx,
 	"iota",		LIOTA,		Txxx,
+	"make",		LMAKE,		Txxx,
 	"map",		LMAP,		Txxx,
 	"new",		LNEW,		Txxx,
 	"len",		LLEN,		Txxx,
