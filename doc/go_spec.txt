@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(January 5, 2009)
+(January 6, 2009)
 
 ----
 
@@ -224,6 +224,7 @@ Contents
 			Length and capacity
 			Conversions
 			Allocation
+			Making slices, maps, and channels
 
 	Packages
 
@@ -749,7 +750,7 @@ The predeclared constants:
 	
 The predeclared functions (note: this list is likely to change):
 
-	cap(), convert(), len(), new(), panic(), panicln(), print(), println(), typeof(), ...
+	cap(), convert(), len(), make(), new(), panic(), panicln(), print(), println(), typeof(), ...
 
 
 Exported declarations
@@ -1451,7 +1452,7 @@ if the static type of the value implements the interface or if the value is "nil
 Slice types
 ----
 
-An (array) slice type denotes the set of all slices (segments) of arrays
+A slice type denotes the set of all slices (segments) of arrays
 (§Array types) of a given element type, and the value "nil".
 The number of elements of a slice is called its length; it is never negative.
 The elements of a slice are designated by indices which are
@@ -1478,12 +1479,21 @@ and the following relationship between "len()" and "cap()" holds:
 	0 <= len(a) <= cap(a)
 
 The value of an uninitialized slice is "nil", and its length and capacity
-are 0. A new, initialized slice value for a given elemen type T is
-created using the built-in function "new", which takes a slice type
+are 0. A new, initialized slice value for a given element type T is
+made using the built-in function "make", which takes a slice type
 and parameters specifying the length and optionally the capacity:
 
-	new([]T, length)
-	new([]T, length, capacity)
+	make([]T, length)
+	make([]T, length, capacity)
+	
+The "make()" call allocates a new underlying array to which the returned
+slice value refers. More precisely, calling "make"
+
+	make([]T, length, capacity)
+
+is effectively the same as allocating an array and slicing it
+
+	new([capacity]T)[0 : length]
 
 Assignment compatibility: Slices are assignment compatible to variables
 of the same type.
@@ -1506,7 +1516,8 @@ This creates the sub-slice consisting of the elements "a[i]" through "a[j - 1]"
 "i <= j <= cap(a)". The length of the new slice is "j - i". The capacity of
 the slice is "cap(a) - i"; thus if "i" is 0, the slice capacity does not change
 as a result of a slice operation. The type of a sub-slice is the same as the
-type of the slice.
+type of the slice. Unlike the capacity, the length of a sub-slice
+may be larger than the length of the original slice.
 
 TODO what are the proper restrictions on slices?
 TODO describe equality checking against nil
@@ -1536,11 +1547,11 @@ The length of a map "m" can be discovered using the built-in function
 
 	len(m)
 
-The value of an uninitialized map is "nil". A new, initialized map
-value for given key and value types K and V is created using the built-in
-function "new" which takes the map type and an (optional) capacity as arguments:
+The value of an uninitialized map is "nil". A new, empty map
+value for given key and value types K and V is made using the built-in
+function "make" which takes the map type and an (optional) capacity as arguments:
 
-	my_map := new(map[K] V, 100);
+	my_map := make(map[K] V, 100);
 
 The map capacity is an allocation hint for more efficient incremental growth
 of the map.
@@ -1573,10 +1584,10 @@ bi-directional (unconstrained), send, or receive.
 	<-chan int     // can only receive ints
 
 The value of an uninitialized channel is "nil". A new, initialized channel
-value for a given element type T is created using the built-in function "new",
-which takes the channel type and an (optional) capacity as arguments:
+value for a given element type T is made using the built-in function "make",
+which takes the channel type and an optional capacity as arguments:
 
-	my_chan = new(chan int, 100);
+	my_chan = make(chan int, 100);
 
 The capacity sets the size of the buffer in the communication channel. If the
 capacity is greater than zero, the channel is asynchronous and, provided the
@@ -1978,29 +1989,25 @@ TODO: Need to expand map rules for assignments of the form v, ok = m[k].
 Slices
 ----
 
-Strings and arrays can be ``sliced'' to construct substrings or subarrays.
-The index expressions in the slice select which elements appear in the
-result.  The result has indexes starting at 0 and length equal to the difference
-in the index values in the slice.  After
+Strings, arrays, and slices can be ``sliced'' to construct substrings or descriptors
+of subarrays. The index expressions in the slice select which elements appear
+in the result.  The result has indexes starting at 0 and length equal to the
+difference in the index values in the slice.  After slicing the array "a"
 
-	a := []int(1,2,3,4)
-	slice := a[1:3]
+	a := [4]int{1, 2, 3, 4};
+	s := a[1:3];
 
-The array ``slice'' has length two and elements
+the slice "s" has type "[]int", length 2, and elements
 
-	slice[0] == 2
-	slice[1] == 3
+	s[0] == 2
+	s[1] == 3
 
 The index values in the slice must be in bounds for the original
 array (or string) and the slice length must be non-negative.
 
-Slices are new arrays (or strings) storing copies of the elements, so
-changes to the elements of the slice do not affect the original.
-In the example, a subsequent assignment to element 0,
-
-	slice[0] = 5
-
-would have no effect on ``a''.
+If the sliced operand is a string, the result of the slice operation is another
+string (§String types). If the sliced operand is an array or slice, the result
+of the slice operation is a slice (§Slice types).
 
 
 Type guards
@@ -2408,15 +2415,15 @@ section describes their form and function.
 
 Here the term "channel" means "variable of type chan".
 
-A channel is created by allocating it:
+The built-in function "make" makes a new channel value:
 
-	ch := new(chan int)
+	ch := make(chan int)
 
-An optional argument to new() specifies a buffer size for an
+An optional argument to "make()" specifies a buffer size for an
 asynchronous channel; if absent or zero, the channel is synchronous:
 
-	sync_chan := new(chan int)
-	buffered_chan := new(chan int, 10)
+	sync_chan := make(chan int)
+	buffered_chan := make(chan int, 10)
 
 The send operation uses the binary operator "<-", which operates on
 a channel and a value (expression):
@@ -3083,9 +3090,12 @@ Predeclared functions
 	cap
 	convert
 	len
+	make
 	new
 	panic
+	panicln
 	print
+	println
 	typeof
 
 
@@ -3097,20 +3107,28 @@ this is a good idea).
 Length and capacity
 ----
 
-The predeclared function "len()" takes a value of type string,
-array or map type, or of pointer to array or map type, and
-returns the length of the string in bytes, or the number of array
-of map elements, respectively.
+	Call      Argument type        Result
 
-The predeclared function "cap()" takes a value of array or pointer
-to array type and returns the number of elements for which there
-is space allocated in the array. For an array "a", at any time the
-following relationship holds:
+	len(s)    string, *string      string length (in bytes)
+	          [n]T, *[n]T          array length (== n)
+	          []T, *[]T            slice length
+	          map[K]T, *map[K]T    map length
+			  chan T               number of elements in channel buffer
 
-	0 <= len(a) <= cap(a)
+	cap(s)    []T, *[]T            capacity of s
+	          map[K]T, *map[K]T    capacity of s
+			  chan T               channel buffer capacity
 
-TODO(gri) Change this and the following sections to use a table indexed
-by functions and parameter types instead of lots of prose.
+TODO: confirm len() and cap() for channels
+
+The type of the result is always "int" and the implementation guarantees that
+the result always fits into an "int".
+
+The capacity of a slice or map is the number of elements for which there is
+space allocated in the underlying array (for a slice) or map. For a slice "s",
+at any time the following relationship holds:
+
+	0 <= len(s) <= cap(s)
 
 
 Conversions
@@ -3161,31 +3179,51 @@ have to be written as type guards? (§Type guards)
 Allocation
 ----
 
-The built-in function "new()" takes a type "T", optionally followed by a
-type-specific list of expressions. It returns a value of type "T" (possibly
-by allocating memory in the heap).
-TODO describe initialization
+The built-in function "new" takes a type "T" and returns a value of type "*T".
 The memory is initialized as described in the section on initial values
 (§Program initialization and execution).
 
-	new(type [, optional list of expressions])
+	new(T)
 
 For instance
 
 	type S struct { a int; b float }
-	new(*S)
+	new(S)
 
 dynamically allocates memory for a variable of type S, initializes it
 (a=0, b=0.0), and returns a value of type *S pointing to that variable.
 
-The only defined parameters affect sizes for allocating arrays,
-buffered channels, and maps.
 
-	s := new([]int);				 # slice
-	c := new(chan int, 10);          # channel with a buffer size of 10
-	m := new(map[string] int, 100);  # map with initial space for 100 elements
+TODO Once this has become clearer, connect new() and make() (new() may be
+explained by make() and vice versa).
 
-TODO revisit this section
+
+Making slices, maps, and channels
+----
+
+The built-in function "make" takes a type "T", optionally followed by a
+type-specific list of expressions. It returns a value of type "T". "T"
+must be a slice, map, or channel type.
+The memory is initialized as described in the section on initial values
+(§Program initialization and execution).
+
+	make(T [, optional list of expressions])
+
+For instance
+
+	make(map[string] int)
+
+creates a new map value and initializes it to an empty map.
+
+The only defined parameters affect sizes for allocating slices, maps, and
+buffered channels:
+
+	s := make([]int, 10, 100);        # slice with len(s) == 10, cap(s) == 100
+	c := make(chan int, 10);          # channel with a buffer size of 10
+	m := make(map[string] int, 100);  # map with initial space for 100 elements
+
+TODO Once this has become clearer, connect new() and make() (new() may be
+explained by make() and vice versa).
 
 
 ----
@@ -3274,12 +3312,12 @@ Here is a complete example Go package that implements a concurrent prime sieve:
 	
 	// The prime sieve: Daisy-chain Filter processes together.
 	func Sieve() {
-		ch := new(chan int);  // Create a new channel.
+		ch := make(chan int);  // Create a new channel.
 		go Generate(ch);  // Start Generate() as a subprocess.
 		for {
 			prime := <-ch;
 			print(prime, "\n");
-			ch1 := new(chan int);
+			ch1 := make(chan int);
 			go Filter(ch, ch1, prime);
 			ch = ch1
 		}
