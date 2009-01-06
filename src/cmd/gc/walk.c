@@ -979,8 +979,8 @@ loop:
 			nvar = nod(0, N, N);
 			tempname(nvar, t);
 
-			nnew = nod(OMAKE, N, N);
-			nnew->type = t;
+			nnew = nod(ONEW, N, N);
+			nnew->type = n->left->type;
 			nnew = newcompat(nnew);
 
 			nas = nod(OAS, nvar, nnew);
