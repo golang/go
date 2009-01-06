@@ -10,5 +10,8 @@ func main()
 {
 	f := new(());	// ERROR "new"
 	g := new((x int, f float) string);	// ERROR "new"
-	h := new(());	// ok
+	h := new(*());	// ok
+	i := new(string);	// ok
+	j := new(map[int]int);	// ok
+	k := new(chan int);	// ok
 }

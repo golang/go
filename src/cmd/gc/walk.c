@@ -2078,13 +2078,14 @@ Node*
 newcompat(Node *n)
 {
 	Node *r, *on;
-	Type *t, *t0;
+	Type *t;
 
 	t = n->type;
 	if(t == T)
 		goto bad;
 
 	switch(t->etype) {
+	case TFUNC:
 	case TSTRING:
 	case TMAP:
 	case TCHAN:
