@@ -136,7 +136,7 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	prog := parser.ParseProgram();
 
 	if err.nerrors == 0 {
-		TypeChecker.CheckProgram(prog);
+		TypeChecker.CheckProgram(&err, prog);
 	}
 
 	return prog, err.nerrors;

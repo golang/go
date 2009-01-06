@@ -846,7 +846,7 @@ func (P *Printer) Program(p *AST.Program) {
 	P.Expr(p.ident);
 	P.newlines = 1;
 	for i := 0; i < p.decls.Len(); i++ {
-		P.Declaration(p.decls.At(i), false);
+		P.Declaration(p.decls.At(i).(*AST.Decl), false);
 	}
 	P.newlines = 1;
 }
