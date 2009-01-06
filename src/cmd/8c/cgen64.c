@@ -54,22 +54,22 @@ vaddr(Node *n, int a)
 	return 0;
 }
 
-long
+int32
 hi64v(Node *n)
 {
 	if(align(0, types[TCHAR], Aarg1))	/* isbigendian */
-		return (long)(n->vconst) & ~0L;
+		return (int32)(n->vconst) & ~0L;
 	else
-		return (long)((uvlong)n->vconst>>32) & ~0L;
+		return (int32)((uvlong)n->vconst>>32) & ~0L;
 }
 
-long
+int32
 lo64v(Node *n)
 {
 	if(align(0, types[TCHAR], Aarg1))	/* isbigendian */
-		return (long)((uvlong)n->vconst>>32) & ~0L;
+		return (int32)((uvlong)n->vconst>>32) & ~0L;
 	else
-		return (long)(n->vconst) & ~0L;
+		return (int32)(n->vconst) & ~0L;
 }
 
 Node *
@@ -218,70 +218,6 @@ storepair(Node *n, Node *nn, int f)
 		freepair(n);
 }
 
-/* generate a cast t from n to tt */
-static void
-cast(Node *n, Type *t, Node *nn)
-{
-	Node *r;
-
-	r = new(OCAST, n, Z);
-	r->type = t;
-	sugen(r, nn, 8);
-}
-
-static void
-swapregs(Node *a, Node *b)
-{
-	int t;
-
-	t = a->reg;
-	a->reg = b->reg;
-	b->reg = t;
-}
-
-static void
-swappairs(Node *a, Node *b)
-{
-	swapregs(a->left, b->left);
-	swapregs(a->right, b->right);
-}
-
-static int
-saveme(Node *n)
-{
-	int r;
-
-	r = n->reg;
-	return r >= D_AX && r <= D_DI;
-}
-
-static void
-saveit(Node *n, Node *t, Node *r)
-{
-	Node nod;
-
-	if(saveme(n)) {
-		t->reg = n->reg;
-		gins(AMOVL, t, r);
-		r->xoffset += SZ_LONG;
-		if(n->reg == D_AX) {
-			regalloc(&nod, n, Z);
-			regfree(n);
-			n->reg = nod.reg;
-		}
-	}
-}
-
-static void
-restoreit(Node *n, Node *t, Node *r)
-{
-	if(saveme(n)) {
-		t->reg = n->reg;
-		gins(AMOVL, r, t);
-		r->xoffset += SZ_LONG;
-	}
-}
-
 enum
 {
 /* 4 only, see WW */
@@ -347,26 +283,6 @@ vfunc(Node *n, Node *nn)
 	regsalloc(t, nn);
 	sugen(n, t, 8);
 	return t;
-}
-
-static int
-forcereg(Node *d, int r, int o, Node *t)
-{
-	int a;
-
-	if(d->reg != D_NONE)
-		diag(Z, "force alloc");
-	d->reg = r;
-	a = 0;
-	if(reg[r]) {
-		reg[o]++;
-		regalloc(t, d, Z);
-		a = 1;
-		gins(AMOVL, d, t);
-		reg[o]--;
-	}
-	reg[r]++;
-	return a;
 }
 
 /* try to steal a reg */

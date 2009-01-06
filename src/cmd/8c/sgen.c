@@ -93,7 +93,7 @@ codgen(Node *n, Node *nn)
 void
 supgen(Node *n)
 {
-	long spc;
+	int32 spc;
 	Prog *sp;
 
 	if(n == Z)
@@ -114,7 +114,7 @@ gen(Node *n)
 	Node *l, nod;
 	Prog *sp, *spc, *spb;
 	Case *cn;
-	long sbc, scc;
+	int32 sbc, scc;
 	int f, o;
 
 loop:

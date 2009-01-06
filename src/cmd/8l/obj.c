@@ -354,7 +354,7 @@ void
 loadlib(void)
 {
 	int i;
-	long h;
+	int32 h;
 	Sym *s;
 
 loop:
@@ -386,7 +386,7 @@ errorexit(void)
 void
 objfile(char *file)
 {
-	long off, esym, cnt, l;
+	int32 off, esym, cnt, l;
 	int f, work;
 	Sym *s;
 	char magbuf[SARMAG];
@@ -494,7 +494,7 @@ int
 zaddr(uchar *p, Adr *a, Sym *h[])
 {
 	int c, t, i;
-	long l;
+	int32 l;
 	Sym *s;
 	Auto *u;
 
@@ -553,12 +553,7 @@ zaddr(uchar *p, Adr *a, Sym *h[])
 		}
 	}
 
-	while(nhunk < sizeof(Auto))
-		gethunk();
-	u = (Auto*)hunk;
-	nhunk -= sizeof(Auto);
-	hunk += sizeof(Auto);
-
+	u = mal(sizeof(Auto));
 	u->link = curauto;
 	curauto = u;
 	u->asym = s;
@@ -636,7 +631,7 @@ addlib(char *obj)
 }
 
 void
-addhist(long line, int type)
+addhist(int32 line, int type)
 {
 	Auto *u;
 	Sym *s;
@@ -737,14 +732,14 @@ readsome(int f, uchar *buf, uchar *good, uchar *stop, int max)
 }
 
 void
-ldobj(int f, long c, char *pn)
+ldobj(int f, int32 c, char *pn)
 {
-	long ipc;
+	int32 ipc;
 	Prog *p, *t;
 	uchar *bloc, *bsize, *stop;
 	int v, o, r, skip;
 	Sym *h[NSYM], *s, *di;
-	ulong sig;
+	uint32 sig;
 	static int files;
 	static char **filen;
 	char **nfilen;
@@ -848,12 +843,7 @@ loop:
 		goto loop;
 	}
 
-	while(nhunk < sizeof(Prog))
-		gethunk();
-	p = (Prog*)hunk;
-	nhunk -= sizeof(Prog);
-	hunk += sizeof(Prog);
-
+	p = mal(sizeof(*p));
 	p->as = o;
 	p->line = bloc[2] | (bloc[3] << 8) | (bloc[4] << 16) | (bloc[5] << 24);
 	p->back = 2;
@@ -1096,7 +1086,7 @@ lookup(char *symb, int v)
 {
 	Sym *s;
 	char *p;
-	long h;
+	int32 h;
 	int l, c;
 
 	h = v;
@@ -1111,12 +1101,7 @@ lookup(char *symb, int v)
 		if(memcmp(s->name, symb, l) == 0)
 			return s;
 
-	while(nhunk < sizeof(Sym))
-		gethunk();
-	s = (Sym*)hunk;
-	nhunk -= sizeof(Sym);
-	hunk += sizeof(Sym);
-
+	s = mal(sizeof(Sym));
 	s->name = malloc(l + 1);
 	memmove(s->name, symb, l);
 
@@ -1135,12 +1120,7 @@ prg(void)
 {
 	Prog *p;
 
-	while(nhunk < sizeof(Prog))
-		gethunk();
-	p = (Prog*)hunk;
-	nhunk -= sizeof(Prog);
-	hunk += sizeof(Prog);
-
+	p = mal(sizeof(Prog));
 	*p = zprg;
 	return p;
 }
@@ -1168,32 +1148,10 @@ appendp(Prog *q)
 }
 
 void
-gethunk(void)
-{
-	char *h;
-	long nh;
-
-	nh = NHUNK;
-	if(thunk >= 5L*NHUNK) {
-		nh = 5L*NHUNK;
-		if(thunk >= 25L*NHUNK)
-			nh = 25L*NHUNK;
-	}
-	h = mysbrk(nh);
-	if(h == (char*)-1) {
-		diag("out of memory");
-		errorexit();
-	}
-	hunk = h;
-	nhunk = nh;
-	thunk += nh;
-}
-
-void
 doprof1(void)
 {
 	Sym *s;
-	long n;
+	int32 n;
 	Prog *p, *q;
 
 	if(debug['v'])
@@ -1377,7 +1335,7 @@ nuxiinit(void)
 }
 
 int
-find1(long l, int c)
+find1(int32 l, int c)
 {
 	char *p;
 	int i;
@@ -1390,7 +1348,7 @@ find1(long l, int c)
 }
 
 int
-find2(long l, int c)
+find2(int32 l, int c)
 {
 	short *p;
 	int i;
@@ -1405,11 +1363,11 @@ find2(long l, int c)
 	return 0;
 }
 
-long
+int32
 ieeedtof(Ieee *e)
 {
 	int exp;
-	long v;
+	int32 v;
 
 	if(e->h == 0)
 		return 0;

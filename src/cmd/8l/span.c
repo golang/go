@@ -34,7 +34,7 @@ void
 span(void)
 {
 	Prog *p, *q;
-	long v, c, idat;
+	int32 v, c, idat;
 	int m, n, again;
 
 	xdefine("etext", STEXT, 0L);
@@ -132,7 +132,7 @@ loop:
 }
 
 void
-xdefine(char *p, int t, long v)
+xdefine(char *p, int t, int32 v)
 {
 	Sym *s;
 
@@ -146,7 +146,7 @@ xdefine(char *p, int t, long v)
 }
 
 void
-putsymb(char *s, int t, long v, int ver)
+putsymb(char *s, int t, int32 v, int ver)
 {
 	int i, f;
 
@@ -256,9 +256,9 @@ asmsym(void)
 void
 asmlc(void)
 {
-	long oldpc, oldlc;
+	int32 oldpc, oldlc;
 	Prog *p;
-	long v, s;
+	int32 v, s;
 
 	oldpc = INITTEXT;
 	oldlc = 0;
@@ -336,7 +336,7 @@ asmlc(void)
 int
 oclass(Adr *a)
 {
-	long v;
+	int32 v;
 
 	if(a->type >= D_INDIR || a->index != D_NONE) {
 		if(a->index != D_NONE && a->scale == 0) {
@@ -530,7 +530,7 @@ bad:
 }
 
 static void
-put4(long v)
+put4(int32 v)
 {
 	if(dlm && curp != P && reloca != nil){
 		dynreloc(reloca->sym, curp->pc + andptr - &and[0], 1);
@@ -543,11 +543,11 @@ put4(long v)
 	andptr += 4;
 }
 
-long
+int32
 vaddr(Adr *a)
 {
 	int t;
-	long v;
+	int32 v;
 	Sym *s;
 
 	t = a->type;
@@ -579,7 +579,7 @@ vaddr(Adr *a)
 void
 asmand(Adr *a, int r)
 {
-	long v;
+	int32 v;
 	int t;
 	Adr aa;
 
@@ -851,7 +851,7 @@ doasm(Prog *p)
 	Prog *q, pp;
 	uchar *t;
 	int z, op, ft, tt;
-	long v;
+	int32 v;
 
 	o = &optab[p->as];
 	ft = oclass(&p->from) * Ymax;
@@ -1279,7 +1279,7 @@ struct Reloc
 	int n;
 	int t;
 	uchar *m;
-	ulong *a;
+	uint32 *a;
 };
 
 Reloc rels;
@@ -1289,26 +1289,26 @@ grow(Reloc *r)
 {
 	int t;
 	uchar *m, *nm;
-	ulong *a, *na;
+	uint32 *a, *na;
 
 	t = r->t;
 	r->t += 64;
 	m = r->m;
 	a = r->a;
 	r->m = nm = malloc(r->t*sizeof(uchar));
-	r->a = na = malloc(r->t*sizeof(ulong));
+	r->a = na = malloc(r->t*sizeof(uint32));
 	memmove(nm, m, t*sizeof(uchar));
-	memmove(na, a, t*sizeof(ulong));
+	memmove(na, a, t*sizeof(uint32));
 	free(m);
 	free(a);
 }
 
 void
-dynreloc(Sym *s, ulong v, int abs)
+dynreloc(Sym *s, uint32 v, int abs)
 {
 	int i, k, n;
 	uchar *m;
-	ulong *a;
+	uint32 *a;
 	Reloc *r;
 
 	if(s->type == SUNDEF)
@@ -1353,7 +1353,7 @@ asmdyn()
 {
 	int i, n, t, c;
 	Sym *s;
-	ulong la, ra, *a;
+	uint32 la, ra, *a;
 	vlong off;
 	uchar *m;
 	Reloc *r;

@@ -28,7 +28,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-ed - ../8c/8.out.h <<'!'
+ed - ../8l/8.out.h <<'!'
 v/^	A/d
 ,s/^	A/	"/
 g/ .*$/s///

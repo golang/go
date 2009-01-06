@@ -47,7 +47,7 @@ doswit(Node *n)
 {
 	Case *c;
 	C1 *q, *iq;
-	long def, nc, i;
+	int32 def, nc, i;
 
 	def = 0;
 	nc = 0;
@@ -83,7 +83,7 @@ doswit(Node *n)
 }
 
 void
-swit1(C1 *q, int nc, long def, Node *n)
+swit1(C1 *q, int nc, int32 def, Node *n)
 {
 	C1 *r;
 	int i;
@@ -132,7 +132,7 @@ void
 bitload(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 {
 	int sh;
-	long v;
+	int32 v;
 	Node *l;
 
 	/*
@@ -170,7 +170,7 @@ bitload(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 void
 bitstore(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 {
-	long v;
+	int32 v;
 	Node nod;
 	int sh;
 
@@ -194,10 +194,10 @@ bitstore(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 	regfree(n3);
 }
 
-long
-outstring(char *s, long n)
+int32
+outstring(char *s, int32 n)
 {
-	long r;
+	int32 r;
 
 	if(suppress)
 		return nstring;
@@ -219,12 +219,12 @@ outstring(char *s, long n)
 	return r;
 }
 
-long
-outlstring(ushort *s, long n)
+int32
+outlstring(ushort *s, int32 n)
 {
 	char buf[2];
 	int c;
-	long r;
+	int32 r;
 
 	if(suppress)
 		return nstring;
@@ -257,9 +257,9 @@ nullwarn(Node *l, Node *r)
 }
 
 void
-sextern(Sym *s, Node *a, long o, long w)
+sextern(Sym *s, Node *a, int32 o, int32 w)
 {
-	long e, lw;
+	int32 e, lw;
 
 	for(e=0; e<w; e+=NSNAME) {
 		lw = NSNAME;
@@ -274,7 +274,7 @@ sextern(Sym *s, Node *a, long o, long w)
 }
 
 void
-gextern(Sym *s, Node *a, long o, long w)
+gextern(Sym *s, Node *a, int32 o, int32 w)
 {
 	if(a->op == OCONST && typev[a->type->etype]) {
 		gpseudo(ADATA, s, lo64(a));
@@ -477,7 +477,7 @@ void
 zname(Biobuf *b, Sym *s, int t)
 {
 	char *n;
-	ulong sig;
+	uint32 sig;
 
 	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
 		sig = sign(s);
@@ -506,7 +506,7 @@ zname(Biobuf *b, Sym *s, int t)
 void
 zaddr(Biobuf *b, Adr *a, int s)
 {
-	long l;
+	int32 l;
 	int i, t;
 	char *n;
 	Ieee e;
@@ -598,13 +598,13 @@ ieeedtod(Ieee *ieee, double native)
 	fr = modf(fr*f, &ho);
 	ieee->l = ho;
 	ieee->l <<= 16;
-	ieee->l |= (long)(fr*f);
+	ieee->l |= (int32)(fr*f);
 }
 
-long
-align(long i, Type *t, int op)
+int32
+align(int32 i, Type *t, int op)
 {
-	long o;
+	int32 o;
 	Type *v;
 	int w;
 
@@ -661,17 +661,17 @@ align(long i, Type *t, int op)
 		o = align(o, t, Ael2);
 		break;
 	}
-	o = round(o, w);
+	o = xround(o, w);
 	if(debug['A'])
 		print("align %s %ld %T = %ld\n", bnames[op], i, t, o);
 	return o;
 }
 
-long
-maxround(long max, long v)
+int32
+maxround(int32 max, int32 v)
 {
 	v += SZ_LONG-1;
 	if(v > max)
-		max = round(v, SZ_LONG);
+		max = xround(v, SZ_LONG);
 	return max;
 }
