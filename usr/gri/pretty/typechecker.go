@@ -6,6 +6,7 @@ package TypeChecker
 
 import (
 	AST "ast";
+	Scanner "scanner";
 	Universe "universe";
 	Globals "globals";
 	Object "object";
@@ -14,16 +15,42 @@ import (
 
 
 type State struct {
+	// setup
+	err Scanner.ErrorHandler;
+
+	// state
 	level int;
 	top_scope *Globals.Scope;
+}
+
+
+func (s *State) Init(err Scanner.ErrorHandler) {
+	s.err = err;
 }
 
 
 // ----------------------------------------------------------------------------
 // Support
 
+func unimplemented() {
+	panic("unimplemented");
+}
+
+
+func unreachable() {
+	panic("unreachable");
+}
+
+
+func assert(pred bool) {
+	if !pred {
+		panic("assertion failed");
+	}
+}
+
+
 func (s *State) Error(pos int, msg string) {
-	panicln("error:" + msg);
+	s.err.Error(pos, msg);
 }
 
 
@@ -72,19 +99,87 @@ func (s *State) Declare(obj *Globals.Object) {
 // ----------------------------------------------------------------------------
 // Common productions
 
-func (s *State) DeclareIdent(kind int) {
-	obj := Globals.NewObject(0, kind, "");
-	s.Declare(obj);
+func (s *State) DeclareIdent(ident *AST.Expr, kind int, typ *AST.Type) {
+	// ident is either a comma-separated list or a single ident
+	switch ident.tok {
+	case Scanner.IDENT:
+		obj := Globals.NewObject(ident.pos, kind, ident.s);
+		s.Declare(obj);
+	case Scanner.COMMA:
+		s.DeclareIdent(ident.x, kind, typ);
+		s.DeclareIdent(ident.y, kind, typ);		
+	default:
+		unreachable();
+	}
 }
 
 
 // ----------------------------------------------------------------------------
 
+func (s *State) CheckType() {
+}
+
+
+func (s *State) CheckDeclaration(d *AST.Decl) {
+	if d.tok != Scanner.FUNC && d.list != nil {
+		// group of parenthesized declarations
+		for i := 0; i < d.list.Len(); i++ {
+			s.CheckDeclaration(d.list.At(i).(*AST.Decl))
+		}
+		
+	} else {
+		// single declaration
+		switch d.tok {
+		case Scanner.IMPORT:
+			assert(d.ident == nil || d.ident.tok == Scanner.IDENT);
+			if d.ident != nil {
+				s.DeclareIdent(d.ident, d.tok, d.typ);
+			} else {
+			}
+
+		case Scanner.EXPORT:
+			// TODO
+
+		case Scanner.CONST:
+			s.DeclareIdent(d.ident, d.tok, d.typ);
+
+		case Scanner.VAR:
+			s.DeclareIdent(d.ident, d.tok, d.typ);
+
+		case Scanner.TYPE:
+			assert(d.ident.tok == Scanner.IDENT);
+			// types may be forward-declared
+			obj := s.Lookup(d.ident.s);
+			if obj != nil {
+				// TODO check if proper forward-declaration
+
+			} else {
+				s.DeclareIdent(d.ident, d.tok, d.typ);
+			}
+
+		case Scanner.FUNC:
+			assert(d.ident.tok == Scanner.IDENT);
+			if d.typ.key != nil {
+				// method
+				// TODO
+			} else {
+				s.DeclareIdent(d.ident, d.tok, d.typ);
+			}
+
+		default:
+			unreachable();
+		}
+	}
+}
+
+
 func (s *State) CheckProgram(p *AST.Program) {
 	s.OpenScope();
 	
 	{	s.OpenScope();
-	
+		for i := 0; i < p.decls.Len(); i++ {
+			s.CheckDeclaration(p.decls.At(i).(*AST.Decl));
+		}
 		s.CloseScope();
 	}
 	
@@ -94,7 +189,10 @@ func (s *State) CheckProgram(p *AST.Program) {
 
 // ----------------------------------------------------------------------------
 
-export func CheckProgram(p *AST.Program) {
+export func CheckProgram(err Scanner.ErrorHandler, p *AST.Program) {
+	return;  // DISABLED FOR NOW
+	
 	var s State;
+	s.Init(err);
 	s.CheckProgram(p);
 }
