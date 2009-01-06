@@ -84,10 +84,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 =========== chan/nonblock.go
 PASS
 
-=========== bugs/bug020.go
-bugs/bug020.go:7: type of a structure field cannot be an open array
-BUG should compile
-
 =========== bugs/bug041.go
 BUG: compilation succeeds incorrectly
 
