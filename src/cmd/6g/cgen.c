@@ -4,6 +4,10 @@
 
 #include "gg.h"
 
+/*
+ * generate:
+ *	res = n;
+ */
 void
 cgen(Node *n, Node *res)
 {
@@ -371,6 +375,10 @@ ret:
 	;
 }
 
+/*
+ * generate:
+ *	res = &n;
+ */
 void
 agen(Node *n, Node *res)
 {
@@ -616,6 +624,14 @@ fieldoffset(Type *t, Node *n)
 	return 0;
 }
 
+/*
+ * generate:
+ *	newreg = &n;
+ *	res = newreg
+ *
+ * on exit, a has been changed to be *newreg.
+ * caller must regfree(a).
+ */
 void
 igen(Node *n, Node *a, Node *res)
 {
@@ -625,6 +641,10 @@ igen(Node *n, Node *a, Node *res)
 	a->type = n->type;
 }
 
+/*
+ * generate:
+ *	if(n == true) goto to;
+ */
 void
 bgen(Node *n, int true, Prog *to)
 {
@@ -819,6 +839,11 @@ ret:
 	;
 }
 
+/*
+ * n is on stack, either local variable
+ * or return value from function call.
+ * return n's offset from SP.
+ */
 int32
 stkof(Node *n)
 {
@@ -847,6 +872,10 @@ stkof(Node *n)
 	return -1000;
 }
 
+/*
+ * block copy:
+ *	memmove(&n, &ns, w);
+ */
 void
 sgen(Node *n, Node *ns, int32 w)
 {

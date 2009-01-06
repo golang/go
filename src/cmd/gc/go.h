@@ -313,6 +313,8 @@ enum
 	OLITERAL, OREGISTER, OINDREG,
 	OCONV, OCOMP, OKEY,
 	OBAD,
+	
+	OEXTEND,	// 6g internal
 
 	OEND,
 };
