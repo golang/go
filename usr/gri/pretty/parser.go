@@ -785,8 +785,8 @@ func (P *Parser) ParseCall(x0 *AST.Expr) *AST.Expr {
 	if P.tok != Scanner.RPAREN {
 		P.expr_lev++;
 		var t *AST.Type;
-		if x0.tok == Scanner.IDENT && x0.s == "new" {
-			// heuristic: assume it's a new(*T, ...) call, try to parse a type
+		if x0.tok == Scanner.IDENT && (x0.s == "new" || x0.s == "make") {
+			// heuristic: assume it's a new(T) or make(T, ...) call, try to parse a type
 			t = P.TryType();
 		}
 		if t != nil {
