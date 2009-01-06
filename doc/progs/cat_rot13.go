@@ -22,7 +22,7 @@ func rot13(b byte) byte {
 }
 
 type Reader interface {
-	Read(b *[]byte) (ret int64, errno int64);
+	Read(b []byte) (ret int64, errno int64);
 	Name() string;
 }
 
@@ -36,7 +36,7 @@ func NewRot13(source Reader) *Rot13 {
 	return r13
 }
 
-func (r13 *Rot13) Read(b *[]byte) (ret int64, errno int64) {
+func (r13 *Rot13) Read(b []byte) (ret int64, errno int64) {	// TODO: use standard Read sig?
 	r, e := r13.source.Read(b);
 	for i := int64(0); i < r; i++ {
 		b[i] = rot13(b[i])
@@ -57,14 +57,14 @@ func cat(r Reader) {
 		r = NewRot13(r)
 	}
 	for {
-		switch nr, er := r.Read(&buf); {
+		switch nr, er := r.Read(buf); {
 		case nr < 0:
 			print("error reading from ", r.Name(), ": ", er, "\n");
 			sys.exit(1);
 		case nr == 0:  // EOF
 			return;
 		case nr > 0:
-			nw, ew := FD.Stdout.Write((&buf)[0:nr]);
+			nw, ew := FD.Stdout.Write(buf[0:nr]);
 			if nw != nr {
 				print("error writing from ", r.Name(), ": ", ew, "\n");
 			}

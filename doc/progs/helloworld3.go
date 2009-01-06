@@ -8,7 +8,7 @@ import FD "fd"
 
 func main() {
 	hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
-	FD.Stdout.Write(&hello);
+	FD.Stdout.Write(hello);
 	fd,  errno := FD.Open("/does/not/exist",  0,  0);
 	if fd == nil {
 		print("can't open file; errno=",  errno,  "\n");

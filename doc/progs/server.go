@@ -6,7 +6,7 @@ package main
 
 type Request struct {
 	a, b	int;
-	replyc	*chan int;
+	replyc	chan int;
 }
 
 type BinOp (a, b int) int;
@@ -16,14 +16,14 @@ func Run(op *BinOp, request *Request) {
 	request.replyc <- result;
 }
 
-func Server(op *BinOp, service *chan *Request) {
+func Server(op *BinOp, service chan *Request) {
 	for {
 		request := <-service;
 		go Run(op, request);  // don't wait for it
 	}
 }
 
-func StartServer(op *BinOp) *chan *Request {
+func StartServer(op *BinOp) chan *Request {
 	req := new(chan *Request);
 	go Server(op, req);
 	return req;
