@@ -119,7 +119,7 @@ export type Elem struct {
 export var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
 
 export func NewObject(pos, kind int, ident string) *Object {
-	obj := new(*Object);
+	obj := new(Object);
 	obj.exported = false;
 	obj.pos = pos;
 	obj.kind = kind;
@@ -131,7 +131,7 @@ export func NewObject(pos, kind int, ident string) *Object {
 
 
 export func NewType(form int) *Type {
-	typ := new(*Type);
+	typ := new(Type);
 	typ.ref = -1;  // not yet exported
 	typ.form = form;
 	return typ;
@@ -139,7 +139,7 @@ export func NewType(form int) *Type {
 
 
 export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
-	pkg := new(*Package);
+	pkg := new(Package);
 	pkg.ref = -1;  // not yet exported
 	pkg.file_name = file_name;
 	pkg.key = "<the package key>";  // empty key means package forward declaration
@@ -150,9 +150,9 @@ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
 
 
 export func NewScope(parent *Scope) *Scope {
-	scope := new(*Scope);
+	scope := new(Scope);
 	scope.parent = parent;
-	scope.entries = new(map[string]*Object, 8);
+	scope.entries = make(map[string]*Object, 8);
 	return scope;
 }
 
@@ -161,7 +161,7 @@ export func NewScope(parent *Scope) *Scope {
 // Object methods
 
 func (obj *Object) Copy() *Object {
-	copy := new(*Object);
+	copy := new(Object);
 	copy.exported = obj.exported;
 	copy.pos = obj.pos;
 	copy.kind = obj.kind;

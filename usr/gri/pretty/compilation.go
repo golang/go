@@ -167,7 +167,7 @@ func AddDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
 		if nimports > 0 {
 			print(src_file, ".6:\t");
 
-			localset := new(map [string] bool);
+			localset := make(map [string] bool);
 			for i := 0; i < nimports; i++ {
 				decl := prog.decls.At(i).(*AST.Decl);
 				assert(decl.tok == Scanner.IMPORT && decl.val.tok == Scanner.STRING);
@@ -198,7 +198,7 @@ func AddDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
 
 
 export func ComputeDeps(src_file string, flags *Flags) {
-	globalset := new(map [string] bool);
+	globalset := make(map [string] bool);
 	wset := array.New(0);
 	wset.Push(src_file);
 	for wset.Len() > 0 {

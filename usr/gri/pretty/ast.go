@@ -56,14 +56,14 @@ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
 	if x != nil && x.tok == Scanner.TYPE || y != nil && y.tok == Scanner.TYPE {
 		panic("no type expression allowed");
 	}
-	e := new(*Expr);
+	e := new(Expr);
 	e.pos, e.tok, e.x, e.y = pos, tok, x, y;
 	return e;
 }
 
 
 export func NewLit(pos, tok int, s string) *Expr {
-	e := new(*Expr);
+	e := new(Expr);
 	e.pos, e.tok, e.s = pos, tok, s;
 	return e;
 }
@@ -112,7 +112,7 @@ func (t *Type) nfields() int {
 
 
 export func NewType(pos, tok int) *Type {
-	t := new(*Type);
+	t := new(Type);
 	t.pos, t.tok = pos, tok;
 	return t;
 }
@@ -120,7 +120,7 @@ export func NewType(pos, tok int) *Type {
 
 // requires complete Type type
 export func NewTypeExpr(t *Type) *Expr {
-	e := new(*Expr);
+	e := new(Expr);
 	e.pos, e.tok, e.t = t.pos, Scanner.TYPE, t;
 	return e;
 }
@@ -142,7 +142,7 @@ export type Stat struct {
 
 
 export func NewStat(pos, tok int) *Stat {
-	s := new(*Stat);
+	s := new(Stat);
 	s.pos, s.tok = pos, tok;
 	return s;
 }
@@ -167,7 +167,7 @@ export type Decl struct {
 
 
 export func NewDecl(pos, tok int, exported bool) *Decl {
-	d := new(*Decl);
+	d := new(Decl);
 	d.pos, d.tok, d.exported = pos, tok, exported;
 	return d;
 }
@@ -186,7 +186,7 @@ export type Comment struct {
 
 
 export func NewComment(pos int, text string) *Comment {
-	c := new(*Comment);
+	c := new(Comment);
 	c.pos, c.text = pos, text;
 	return c;
 }
@@ -201,7 +201,7 @@ export type Program struct {
 
 
 export func NewProgram(pos int) *Program {
-	p := new(*Program);
+	p := new(Program);
 	p.pos = pos;
 	return p;
 }

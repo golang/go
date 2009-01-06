@@ -246,7 +246,7 @@ var Keywords map [string] int;
 
 
 func init() {
-	Keywords = new(map [string] int);
+	Keywords = make(map [string] int);
 	for i := KEYWORDS_BEG + 1; i < KEYWORDS_END; i++ {
 		Keywords[TokenString(i)] = i;
 	}
@@ -759,10 +759,10 @@ export type Token struct {
 
 
 func (S *Scanner) TokenStream() <-chan *Token {
-	ch := new(chan *Token, 100);
+	ch := make(chan *Token, 100);
 	go func(S *Scanner, ch chan <- *Token) {
 		for {
-			t := new(*Token);
+			t := new(Token);
 			t.pos, t.tok, t.val = S.Scan();
 			ch <- t;
 			if t.tok == EOF {
