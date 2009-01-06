@@ -5,9 +5,9 @@
 package main
 
 // Send the sequence 2, 3, 4, ... to returned channel 
-func Generate() *chan int {
-	ch := new(chan int);
-	go func(ch *chan int){
+func Generate() chan int {
+	ch := make(chan int);
+	go func(ch chan int){
 		for i := 2; ; i++ {
 			ch <- i
 		}
@@ -16,9 +16,9 @@ func Generate() *chan int {
 }
 
 // Filter out input values divisible by 'prime', send rest to returned channel
-func Filter(in *chan int, prime int) *chan int {
-	out := new(chan int);
-	go func(in *chan int, out *chan int, prime int) {
+func Filter(in chan int, prime int) chan int {
+	out := make(chan int);
+	go func(in chan int, out chan int, prime int) {
 		for {
 			if i := <-in; i % prime != 0 {
 				out <- i
@@ -28,9 +28,9 @@ func Filter(in *chan int, prime int) *chan int {
 	return out;
 }
 
-func Sieve() *chan int {
-	out := new(chan int);
-	go func(out *chan int) {
+func Sieve() chan int {
+	out := make(chan int);
+	go func(out chan int) {
 		ch := Generate();
 		for {
 			prime := <-ch;

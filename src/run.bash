@@ -58,6 +58,10 @@ make smoketest
 # # make test
 # ) || exit $?
 
+(xcd ../doc/progs
+time run
+) || exit $?
+
 (xcd ../test
 ./run
 ) || exit $?

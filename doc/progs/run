@@ -27,7 +27,7 @@ done
 
 function testit {
 	6l $1.6
-	x=$(echo $(6.out $2 2>&1))  # extra echo canonicalizes
+	x=$(echo $(./6.out $2 2>&1))  # extra echo canonicalizes
 	if [ "$x" != "$3" ]
 	then
 		echo $1 failed: '"'$x'"' is not '"'$3'"'
@@ -36,7 +36,7 @@ function testit {
 
 function testitpipe {
 	6l $1.6
-	x=$(echo $(6.out | $2 2>&1))  # extra echo canonicalizes
+	x=$(echo $(./6.out | $2 2>&1))  # extra echo canonicalizes
 	if [ "$x" != "$3" ]
 	then
 		echo $1 failed: '"'$x'"' is not '"'$3'"'
@@ -63,3 +63,5 @@ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
 
 # server hangs; don't run it
 testit server1 "" ""
+
+rm -f 6.out *.6

@@ -41,7 +41,7 @@ func (fd *FD) Close() int64 {
 	return 0
 }
 
-func (fd *FD) Read(b *[]byte) (ret int64, errno int64) {
+func (fd *FD) Read(b []byte) (ret int64, errno int64) {
 	if fd == nil {
 		return -1, Syscall.EINVAL
 	}
@@ -49,7 +49,7 @@ func (fd *FD) Read(b *[]byte) (ret int64, errno int64) {
 	return r, e
 }
 
-func (fd *FD) Write(b *[]byte) (ret int64, errno int64) {
+func (fd *FD) Write(b []byte) (ret int64, errno int64) {
 	if fd == nil {
 		return -1, Syscall.EINVAL
 	}

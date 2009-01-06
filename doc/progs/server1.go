@@ -6,7 +6,7 @@ package main
 
 type Request struct {
 	a, b	int;
-	replyc	*chan int;
+	replyc	chan int;
 }
 
 type BinOp (a, b int) int;
@@ -16,7 +16,7 @@ func Run(op *BinOp, request *Request) {
 	request.replyc <- result;
 }
 
-func Server(op *BinOp, service *chan *Request, quit *chan bool) {
+func Server(op *BinOp, service chan *Request, quit chan bool) {
 	for {
 		select {
 		case request := <-service:
@@ -27,9 +27,9 @@ func Server(op *BinOp, service *chan *Request, quit *chan bool) {
 	}
 }
 
-func StartServer(op *BinOp) (service *chan *Request, quit *chan bool) {
-	service = new(chan *Request);
-	quit = new(chan bool);
+func StartServer(op *BinOp) (service chan *Request, quit chan bool) {
+	service = make(chan *Request);
+	quit = make(chan bool);
 	go Server(op, service, quit);
 	return service, quit;
 }
@@ -42,7 +42,7 @@ func main() {
 		req := &reqs[i];
 		req.a = i;
 		req.b = i + N;
-		req.replyc = new(chan int);
+		req.replyc = make(chan int);
 		adder <- req;
 	}
 	for i := N-1; i >= 0; i-- {   // doesn't matter what order
