@@ -145,7 +145,7 @@ void	swgen(Node*);
 void	selgen(Node*);
 Node*	lookdot(Node*, Node*, int);
 void	inarggen(void);
-void	cgen_as(Node*, Node*, int);
+void	cgen_as(Node*, Node*);
 void	cgen_asop(Node*);
 void	cgen_ret(Node*);
 void	cgen_call(Node*, int);
@@ -202,7 +202,6 @@ void	ginit(void);
 void	gclean(void);
 void	regalloc(Node*, Type*, Node*);
 void	regfree(Node*);
-void	regsalloc(Node*, Type*);	// replace w tmpvar
 void	regret(Node*, Type*);
 Node*	nodarg(Type*, int);
 void	nodreg(Node*, Type*, int);

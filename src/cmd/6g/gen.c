@@ -8,12 +8,6 @@
 #include "gg.h"
 #include "opt.h"
 
-enum
-{
-	// random unused opcode
-	AJMPX	= AADDPD,
-};
-
 void
 compile(Node *fn)
 {
@@ -334,7 +328,7 @@ loop:
 		break;
 
 	case OAS:
-		cgen_as(n->left, n->right, n->op);
+		cgen_as(n->left, n->right);
 		break;
 
 	case OCALLMETH:
@@ -655,6 +649,9 @@ genpanic(void)
 	p->to.type = D_INDIR+D_AX;
 }
 
+/*
+ * compute total size of f's in/out arguments.
+ */
 int
 argsize(Type *t)
 {
@@ -684,6 +681,16 @@ argsize(Type *t)
 	return w;
 }
 
+/*
+ * generate:
+ *	call f
+ * if proc, generate:
+ *	push f
+ *	push argsize
+ *	call newproc
+ *	pop
+ *	pop
+ */
 void
 ginscall(Node *f, int proc)
 {
@@ -706,6 +713,10 @@ ginscall(Node *f, int proc)
 	gins(ACALL, N, f);
 }
 
+/*
+ * n is call to interface method.
+ * generate res = n.
+ */
 void
 cgen_callinter(Node *n, Node *res, int proc)
 {
@@ -755,6 +766,9 @@ cgen_callinter(Node *n, Node *res, int proc)
 	setmaxarg(n->left->type);
 }
 
+/*
+ * generate call to non-interface method
+ */
 void
 cgen_callmeth(Node *n, int proc)
 {
@@ -776,6 +790,10 @@ cgen_callmeth(Node *n, int proc)
 	cgen_call(n, proc);
 }
 
+/*
+ * generate function call;
+ * if proc, run call in new proc.
+ */
 void
 cgen_call(Node *n, int proc)
 {
@@ -805,7 +823,7 @@ cgen_call(Node *n, int proc)
 	// call tempname pointer
 	if(n->left->ullman >= UINF) {
 		regalloc(&nod, types[tptr], N);
-		cgen_as(&nod, &afun, 0);
+		cgen_as(&nod, &afun);
 		nod.type = t;
 		ginscall(&nod, proc);
 		regfree(&nod);
@@ -815,7 +833,7 @@ cgen_call(Node *n, int proc)
 	// call pointer
 	if(isptr[n->left->type->etype]) {
 		regalloc(&nod, types[tptr], N);
-		cgen_as(&nod, n->left, 0);
+		cgen_as(&nod, n->left);
 		nod.type = t;
 		ginscall(&nod, proc);
 		regfree(&nod);
@@ -830,6 +848,9 @@ ret:
 	;
 }
 
+/*
+ * generate code to start new proc running call n.
+ */
 void
 cgen_proc(Node *n)
 {
@@ -852,6 +873,11 @@ cgen_proc(Node *n)
 
 }
 
+/*
+ * call to n has already been generated.
+ * generate:
+ *	res = return value from call.
+ */
 void
 cgen_callret(Node *n, Node *res)
 {
@@ -874,9 +900,14 @@ cgen_callret(Node *n, Node *res)
 
 	nod.xoffset = fp->width;
 	nod.type = fp->type;
-	cgen_as(res, &nod, 0);
+	cgen_as(res, &nod);
 }
 
+/*
+ * call to n has already been generated.
+ * generate:
+ *	res = &return value from call.
+ */
 void
 cgen_aret(Node *n, Node *res)
 {
@@ -909,6 +940,10 @@ cgen_aret(Node *n, Node *res)
 		gins(ALEAQ, &nod1, res);
 }
 
+/*
+ * generate return.
+ * n->left is assignments to return values.
+ */
 void
 cgen_ret(Node *n)
 {
@@ -916,6 +951,9 @@ cgen_ret(Node *n)
 	gins(ARET, N, N);
 }
 
+/*
+ * generate += *= etc.
+ */
 void
 cgen_asop(Node *n)
 {
@@ -1038,8 +1076,13 @@ ret:
 	;
 }
 
+/*
+ * generate assignment:
+ *	nl = nr
+ * nr == N means zero nl.
+ */
 void
-cgen_as(Node *nl, Node *nr, int op)
+cgen_as(Node *nl, Node *nr)
 {
 	Node nc, n1;
 	Type *tl;
@@ -1052,8 +1095,8 @@ cgen_as(Node *nl, Node *nr, int op)
 	iszer = 0;
 	if(nr == N || isnil(nr)) {
 		if(nl->op == OLIST) {
-			cgen_as(nl->left, nr, op);
-			cgen_as(nl->right, nr, op);
+			cgen_as(nl->left, nr);
+			cgen_as(nl->right, nr);
 			return;
 		}
 		tl = nl->type;
@@ -1170,6 +1213,16 @@ samereg(Node *a, Node *b)
 	return 1;
 }
 
+/*
+ * generate division.
+ * caller must set:
+ *	ax = allocated AX register
+ *	dx = allocated DX register
+ * generates one of:
+ *	res = nl / nr
+ *	res = nl % nr
+ * according to op.
+ */
 void
 dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 {
@@ -1193,7 +1246,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 			nodconst(&n4, t, 0);
 			gmove(&n4, dx);
 		} else
-			gins(optoas(OFOR, t), N, N);
+			gins(optoas(OEXTEND, t), N, N);
 		cgen(nr, &n3);
 	} else {
 		cgen(nr, &n3);
@@ -1202,7 +1255,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 			nodconst(&n4, t, 0);
 			gmove(&n4, dx);
 		} else
-			gins(optoas(OFOR, t), N, N);
+			gins(optoas(OEXTEND, t), N, N);
 	}
 	gins(a, &n3, N);
 	regfree(&n3);
@@ -1213,6 +1266,11 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 		gmove(dx, res);
 }
 
+/*
+ * generate division according to op, one of:
+ *	res = nl / nr
+ *	res = nl % nr
+ */
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
@@ -1233,6 +1291,11 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 	regfree(&dx);
 }
 
+/*
+ * generate shift according to op, one of:
+ *	res = nl << nr
+ *	res = nl >> nr
+ */
 void
 cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
@@ -1293,45 +1356,51 @@ ret:
 	;
 }
 
+/*
+ * generate byte multiply:
+ *	res = nl * nr
+ * no byte multiply instruction so have to do
+ * 16-bit multiply and take bottom half.
+ */
 void
 cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 {
-	Node n1, n2, n3;
+	Node n1b, n2b, n1w, n2w;
 	Type *t;
 	int a;
 
 	if(nl->ullman >= nr->ullman) {
-		regalloc(&n1, nl->type, res);
-		cgen(nl, &n1);
-		regalloc(&n2, nr->type, N);
-		cgen(nr, &n2);
+		regalloc(&n1b, nl->type, res);
+		cgen(nl, &n1b);
+		regalloc(&n2b, nr->type, N);
+		cgen(nr, &n2b);
 	} else {
-		regalloc(&n2, nr->type, N);
-		cgen(nr, &n2);
-		regalloc(&n1, nl->type, res);
-		cgen(nl, &n1);
+		regalloc(&n2b, nr->type, N);
+		cgen(nr, &n2b);
+		regalloc(&n1b, nl->type, res);
+		cgen(nl, &n1b);
 	}
 
-	// copy to short registers
+	// copy from byte to short registers
 	t = types[TUINT16];
 	if(issigned[nl->type->etype])
 		t = types[TINT16];
 
-	regalloc(&n3, t, &n2);
-	cgen(&n2, &n3);
-	regfree(&n3);
+	regalloc(&n2w, t, &n2b);
+	cgen(&n2b, &n2w);
 
-	regalloc(&n3, t, &n1);
-	cgen(&n1, &n3);
+	regalloc(&n1w, t, &n1b);
+	cgen(&n1b, &n1w);
 
 	a = optoas(op, t);
-	gins(a, &n2, &n1);
-	cgen(&n3, &n1);
-	cgen(&n1, res);
+	gins(a, &n2w, &n1w);
+	cgen(&n1w, &n1b);
+	cgen(&n1b, res);
 
-	regfree(&n1);
-	regfree(&n2);
-	regfree(&n3);
+	regfree(&n1w);
+	regfree(&n2w);
+	regfree(&n1b);
+	regfree(&n2b);
 }
 
 void

@@ -42,6 +42,10 @@ clearp(Prog *p)
 	pcloc++;
 }
 
+/*
+ * generate and return proc with p->as = as,
+ * linked into program.  pc is next instruction.
+ */
 Prog*
 prog(int as)
 {
@@ -63,6 +67,10 @@ prog(int as)
 	return p;
 }
 
+/*
+ * generate a branch.
+ * t is ignored.
+ */
 Prog*
 gbranch(int as, Type *t)
 {
@@ -74,6 +82,9 @@ gbranch(int as, Type *t)
 	return p;
 }
 
+/*
+ * patch previous branch to jump to to.
+ */
 void
 patch(Prog *p, Prog *to)
 {
@@ -83,6 +94,9 @@ patch(Prog *p, Prog *to)
 	p->to.offset = to->loc;
 }
 
+/*
+ * start a new Prog list.
+ */
 Plist*
 newplist(void)
 {
@@ -147,6 +161,11 @@ gclean(void)
 			yyerror("reg %R left allocated\n", i);
 }
 
+/*
+ * allocate register of type t, leave in n.
+ * if o != N, o is desired fixed register.
+ * caller must regfree(n).
+ */
 void
 regalloc(Node *n, Type *t, Node *o)
 {
@@ -228,6 +247,9 @@ regret(Node *n, Type *t)
 	fatal("regret");
 }
 
+/*
+ * initialize n to be register r of type t.
+ */
 void
 nodreg(Node *n, Type *t, int r)
 {
@@ -242,6 +264,9 @@ nodreg(Node *n, Type *t, int r)
 	n->type = t;
 }
 
+/*
+ * initialize n to be indirect of register r; n is type t.
+ */
 void
 nodindreg(Node *n, Type *t, int r)
 {
@@ -314,6 +339,10 @@ nodconst(Node *n, Type *t, vlong v)
 	}
 }
 
+/*
+ * generate
+ *	as $c, reg
+ */
 void
 gconreg(int as, vlong c, int reg)
 {
@@ -326,6 +355,10 @@ gconreg(int as, vlong c, int reg)
 
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))
 
+/*
+ * generate move:
+ *	t = f
+ */
 void
 gmove(Node *f, Node *t)
 {
@@ -842,12 +875,6 @@ gmove(Node *f, Node *t)
 	gins(a, f, t);
 }
 
-void
-regsalloc(Node *f, Type *t)
-{
-	fatal("regsalloc");
-}
-
 int
 samaddr(Node *f, Node *t)
 {
@@ -864,6 +891,10 @@ samaddr(Node *f, Node *t)
 	return 0;
 }
 
+/*
+ * generate one instruction:
+ *	as f, t
+ */
 Prog*
 gins(int as, Node *f, Node *t)
 {
@@ -898,6 +929,10 @@ gins(int as, Node *f, Node *t)
 	return p;
 }
 
+/*
+ * generate code to compute n;
+ * make a refer to result.
+ */
 void
 naddr(Node *n, Addr *a)
 {
@@ -1043,6 +1078,9 @@ naddr(Node *n, Addr *a)
 	}
 }
 
+/*
+ * return Axxx for Oxxx on type t.
+ */
 int
 optoas(int op, Type *t)
 {
@@ -1545,15 +1583,15 @@ optoas(int op, Type *t)
 		a = ADIVQ;
 		break;
 
-	case CASE(OFOR, TINT16):
+	case CASE(OEXTEND, TINT16):
 		a = ACWD;
 		break;
 
-	case CASE(OFOR, TINT32):
+	case CASE(OEXTEND, TINT32):
 		a = ACDQ;
 		break;
 
-	case CASE(OFOR, TINT64):
+	case CASE(OEXTEND, TINT64):
 		a = ACQO;
 		break;
 
@@ -1581,22 +1619,6 @@ isfat(Type *t)
 		return 1;
 	}
 	return 0;
-}
-
-/*
- * return unsigned(op)
- * eg GT -> HS
- */
-int
-brunsigned(int a)
-{
-	switch(a) {
-	case AJLT:	return AJGE;
-	case AJGT:	return AJLE;
-	case AJLE:	return AJGT;
-	case AJGE:	return AJLT;
-	}
-	return a;
 }
 
 /*
