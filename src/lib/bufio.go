@@ -50,8 +50,8 @@ export func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
 	}
-	b = new(*BufRead);
-	b.buf = new([]byte, size);
+	b = new(BufRead);
+	b.buf = make([]byte, size);
 	b.rd = rd;
 	return b, nil
 }
@@ -262,7 +262,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 		}
 
 		// Read bytes out of buffer.
-		buf := new([]byte, b.Buffered());
+		buf := make([]byte, b.Buffered());
 		var n int;
 		n, e = b.Read(buf);
 		if e != nil {
@@ -278,9 +278,9 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 
 		// Grow list if needed.
 		if full == nil {
-			full = new([][]byte, 16);
+			full = make([][]byte, 16);
 		} else if nfull >= len(full) {
-			newfull := new([][]byte, len(full)*2);
+			newfull := make([][]byte, len(full)*2);
 			// BUG slice assignment
 			for i := 0; i < len(full); i++ {
 				newfull[i] = full[i];
@@ -301,7 +301,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 	n += len(frag);
 
 	// Copy full pieces and fragment in.
-	buf := new([]byte, n);
+	buf := make([]byte, n);
 	n = 0;
 	for i := 0; i < nfull; i++ {
 		CopySlice(buf[n:n+len(full[i])], full[i]);
@@ -339,8 +339,8 @@ export func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error) 
 	if size <= 0 {
 		return nil, BadBufSize
 	}
-	b = new(*BufWrite);
-	b.buf = new([]byte, size);
+	b = new(BufWrite);
+	b.buf = make([]byte, size);
 	b.wr = wr;
 	return b, nil
 }

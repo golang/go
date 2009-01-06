@@ -34,8 +34,8 @@ func Send(a, b chan uint) int {
 }
 
 func main() {
-  a := new(chan uint, 1);
-  b := new(chan uint, 1);
+  a := make(chan uint, 1);
+  b := make(chan uint, 1);
   if v := Send(a, b); v != 2 {
     panicln("Send returned", v, "!= 2");
   }

@@ -22,8 +22,8 @@ type Request struct {
 }
 
 // TODO: Would like to use chan Request but 6g rejects it.
-var service = new(chan *Request)
-var jobmap = new(map[*()]*Job)
+var service = make(chan *Request)
+var jobmap = make(map[*()]*Job)
 
 // Moderate access to the jobmap.
 // Even if accesses were thread-safe (they should be but are not)
@@ -34,8 +34,8 @@ func Server() {
 		req := <-service;
 		job, present := jobmap[req.f];
 		if !present {
-			job = new(*Job);
-			job.doit = new(chan bool, 1);
+			job = new(Job);
+			job.doit = make(chan bool, 1);
 			job.doit <- true;
 			jobmap[req.f] = job
 		}
@@ -52,7 +52,7 @@ export func Do(f *()) {
 	var present bool;
 	// job, present = jobmap[f]
 	if !present {
-		c := new(chan *Job);
+		c := make(chan *Job);
 		req := Request{f, c};
 		service <- &req;
 		job = <-c

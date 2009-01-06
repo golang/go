@@ -40,7 +40,7 @@ export func TestJson(t *testing.T) {
 }
 
 export func TestJsonMap(t *testing.T) {
-	values := new(map[string]Json);
+	values := make(map[string]Json);
 	mapstr := "{";
 	for i := 0; i < len(jsontests); i++ {
 		val, ok, errtok := StringToJson(jsontests[i]);

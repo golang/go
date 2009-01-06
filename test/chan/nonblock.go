@@ -53,10 +53,10 @@ func main() {
 	var ok bool;
 
 	for buffer := 0; buffer < 2; buffer++ {
-		c32 := new(chan int32, buffer);
-		c64 := new(chan int64, buffer);
-		cb := new(chan bool, buffer);
-		cs := new(chan string, buffer);
+		c32 := make(chan int32, buffer);
+		c64 := make(chan int64, buffer);
+		cb := make(chan bool, buffer);
+		cs := make(chan string, buffer);
 
 		i32, ok = <-c32;
 		if ok { panic("blocked i32sender") }

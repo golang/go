@@ -35,7 +35,7 @@ main()
 
 	if s2 != 35 { panic(s2); }
 
-	b := new(*[100]int);
+	b := new([100]int);
 	for i:=0; i<100; i=i+1 {
 		b[i] = i;
 	}

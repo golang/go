@@ -370,7 +370,7 @@ func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
 }
 
 func NewConnTCP(fd *FD, raddr string) *ConnTCP {
-	c := new(*ConnTCP);
+	c := new(ConnTCP);
 	c.fd = fd;
 	c.raddr = raddr;
 	c.SetNoDelay(true);
@@ -398,7 +398,7 @@ export type ConnUDP struct {
 }
 
 func NewConnUDP(fd *FD, raddr string) *ConnUDP {
-	c := new(*ConnUDP);
+	c := new(ConnUDP);
 	c.fd = fd;
 	c.raddr = raddr;
 	return c
@@ -497,7 +497,7 @@ export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
 		syscall.close(fd.fd);
 		return nil, os.ErrnoToError(e1)
 	}
-	l = new(*ListenerTCP);
+	l = new(ListenerTCP);
 	l.fd = fd;
 	return l, nil
 }

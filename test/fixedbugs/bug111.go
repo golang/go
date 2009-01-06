@@ -22,7 +22,7 @@ func (s *Stucky) Me() Iffy {
 }
 
 func main() {
-	s := new(*Stucky);
+	s := new(Stucky);
 	i := s.Me();
 	j := i.Me();
 	j.Me();

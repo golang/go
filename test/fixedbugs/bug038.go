@@ -9,5 +9,5 @@ package main
 
 func main() {
 	var z [3]byte;
-	z := new(*[3]byte);  // BUG redeclaration
+	z := new([3]byte);  // BUG redeclaration
 }

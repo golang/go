@@ -86,7 +86,7 @@ func main() {
 	r9, s9 = f9(1);
 	assertequal(r9, 9, "r9");
 	assertequal(int(s9), 9, "s9");
-	var t *T = new(*T);
+	var t *T = new(T);
 	t.x = 1;
 	t.y = 2;
 	r10 := t.m10(1, 3.0);

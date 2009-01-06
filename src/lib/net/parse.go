@@ -60,7 +60,7 @@ package func Open(name string) *File {
 	if err != nil {
 		return nil
 	}
-	return &File{fd, new([]byte, 1024)[0:0]};
+	return &File{fd, make([]byte, 1024)[0:0]};
 }
 
 package func ByteIndex(s string, c byte) int {
@@ -85,7 +85,7 @@ package func CountAnyByte(s string, t string) int {
 
 // Split s at any bytes in t.
 package func SplitAtBytes(s string, t string) []string {
-	a := new([]string, 1+CountAnyByte(s, t));
+	a := make([]string, 1+CountAnyByte(s, t));
 	n := 0;
 	last := 0;
 	for i := 0; i < len(s); i++ {

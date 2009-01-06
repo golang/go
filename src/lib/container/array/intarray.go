@@ -19,7 +19,7 @@ func (p *IntArray) Init(len int) *IntArray {
 
 
 export func NewIntArray(len int) *IntArray {
-	return new(*IntArray).Init(len)
+	return new(IntArray).Init(len)
 }
 
 

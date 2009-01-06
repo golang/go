@@ -14,7 +14,7 @@ import (
 )
 
 func StringToBytes(s string) []byte {
-	b := new([]byte, len(s));
+	b := make([]byte, len(s));
 	for i := 0; i < len(s); i++ {
 		b[i] = s[i]
 	}
@@ -34,7 +34,7 @@ type ByteReader struct {
 }
 
 func NewByteReader(p []byte) io.Read {
-	b := new(*ByteReader);
+	b := new(ByteReader);
 	b.p = p;
 	return b
 }
@@ -56,7 +56,7 @@ type HalfByteReader struct {
 }
 
 func NewHalfByteReader(p []byte) io.Read {
-	b := new(*HalfByteReader);
+	b := new(HalfByteReader);
 	b.p = p;
 	return b
 }
@@ -80,7 +80,7 @@ type Rot13Reader struct {
 }
 
 func NewRot13Reader(r io.Read) *Rot13Reader {
-	r13 := new(*Rot13Reader);
+	r13 := new(Rot13Reader);
 	r13.r = r;
 	return r13
 }
@@ -238,14 +238,14 @@ type ByteWriter struct {
 }
 
 func NewByteWriter() WriteBuffer {
-	return new(*ByteWriter)
+	return new(ByteWriter)
 }
 
 func (w *ByteWriter) Write(p []byte) (int, *os.Error) {
 	if w.p == nil {
-		w.p = new([]byte, len(p)+100)
+		w.p = make([]byte, len(p)+100)
 	} else if w.n + len(p) >= len(w.p) {
-		newp := new([]byte, len(w.p)*2 + len(p));
+		newp := make([]byte, len(w.p)*2 + len(p));
 		Copy(newp[0:w.n], w.p[0:w.n]);
 		w.p = newp
 	}
@@ -266,7 +266,7 @@ type HalfByteWriter struct {
 }
 
 func NewHalfByteWriter() WriteBuffer {
-	w := new(*HalfByteWriter);
+	w := new(HalfByteWriter);
 	w.bw = NewByteWriter();
 	return w
 }

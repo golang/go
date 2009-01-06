@@ -52,7 +52,7 @@ func (d *Digest) Sum32() uint32 {
 }
 
 func (d *Digest) Sum() []byte {
-	p := new([]byte, 4);
+	p := make([]byte, 4);
 	s := d.Sum32();
 	p[0] = byte(s>>24);
 	p[1] = byte(s>>16);

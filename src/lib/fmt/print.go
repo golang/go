@@ -46,7 +46,7 @@ type P struct {
 }
 
 func Printer() *P {
-	p := new(*P);
+	p := new(P);
 	p.fmt = fmt.New();
 	return p;
 }
@@ -81,7 +81,7 @@ func (p *P) ensure(n int) {
 		if newn < n {
 			newn = n + AllocSize
 		}
-		b := new([]byte, newn);
+		b := make([]byte, newn);
 		for i := 0; i < p.n; i++ {
 			b[i] = p.buf[i];
 		}

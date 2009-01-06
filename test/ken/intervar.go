@@ -58,9 +58,9 @@ puts(s string)
 func
 main()
 {
-	p := new(*Print);
-	b := new(*Bio);
-	f := new(*File);
+	p := new(Print);
+	b := new(Bio);
+	f := new(File);
 
 	p.whoami = 1;
 	p.put = b;

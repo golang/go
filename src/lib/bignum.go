@@ -166,7 +166,7 @@ func (x Natural) Add(y Natural) Natural {
 	}
 
 	c := Digit(0);
-	z := new(Natural, n + 1);
+	z := make(Natural, n + 1);
 	i := 0;
 	for i < m {
 		t := c + x[i] + y[i];
@@ -195,7 +195,7 @@ func (x Natural) Sub(y Natural) Natural {
 	}
 
 	c := Digit(0);
-	z := new(Natural, n);
+	z := make(Natural, n);
 	i := 0;
 	for i < m {
 		t := c + x[i] - y[i];
@@ -253,7 +253,7 @@ func (x Natural) Mul(y Natural) Natural {
 	n := len(x);
 	m := len(y);
 
-	z := new(Natural, n + m);
+	z := make(Natural, n + m);
 	for j := 0; j < m; j++ {
 		d := y[j];
 		if d != 0 {
@@ -280,7 +280,7 @@ func (x Natural) Mul(y Natural) Natural {
 
 func Unpack(x Natural) []Digit2 {
 	n := len(x);
-	z := new([]Digit2, n*2 + 1);  // add space for extra digit (used by DivMod)
+	z := make([]Digit2, n*2 + 1);  // add space for extra digit (used by DivMod)
 	for i := 0; i < n; i++ {
 		t := x[i];
 		z[i*2] = Digit2(t & M2);
@@ -296,7 +296,7 @@ func Unpack(x Natural) []Digit2 {
 
 func Pack(x []Digit2) Natural {
 	n := (len(x) + 1) / 2;
-	z := new(Natural, n);
+	z := make(Natural, n);
 	if len(x) & 1 == 1 {
 		// handle odd len(x)
 		n--;
@@ -472,7 +472,7 @@ func Shl(z, x []Digit, s uint) Digit {
 func (x Natural) Shl(s uint) Natural {
 	n := uint(len(x));
 	m := n + s/W;
-	z := new(Natural, m+1);
+	z := make(Natural, m+1);
 
 	z[m] = Shl(z[m-n : m], x, s%W);
 
@@ -497,7 +497,7 @@ func (x Natural) Shr(s uint) Natural {
 	if m > n {  // check for underflow
 		m = 0;
 	}
-	z := new(Natural, m);
+	z := make(Natural, m);
 
 	Shr(z, x[n-m : n], s%W);
 
@@ -512,7 +512,7 @@ func (x Natural) And(y Natural) Natural {
 		return y.And(x);
 	}
 
-	z := new(Natural, m);
+	z := make(Natural, m);
 	for i := 0; i < m; i++ {
 		z[i] = x[i] & y[i];
 	}
@@ -536,7 +536,7 @@ func (x Natural) Or(y Natural) Natural {
 		return y.Or(x);
 	}
 
-	z := new(Natural, n);
+	z := make(Natural, n);
 	for i := 0; i < m; i++ {
 		z[i] = x[i] | y[i];
 	}
@@ -553,7 +553,7 @@ func (x Natural) Xor(y Natural) Natural {
 		return y.Xor(x);
 	}
 
-	z := new(Natural, n);
+	z := make(Natural, n);
 	for i := 0; i < m; i++ {
 		z[i] = x[i] ^ y[i];
 	}
@@ -627,10 +627,10 @@ func (x Natural) ToString(base uint) string {
 	// allocate buffer for conversion
 	assert(2 <= base && base <= 16);
 	n := (x.Log2() + 1) / Log2(Digit(base)) + 1;  // +1: round up
-	s := new([]byte, n);
+	s := make([]byte, n);
 
 	// don't destroy x
-	t := new(Natural, len(x));
+	t := make(Natural, len(x));
 	Copy(t, x);
 
 	// convert
@@ -681,7 +681,7 @@ func HexValue(ch byte) uint {
 func MulAdd1(x Natural, d, c Digit) Natural {
 	assert(IsSmall(d-1) && IsSmall(c));
 	n := len(x);
-	z := new(Natural, n + 1);
+	z := make(Natural, n + 1);
 
 	for i := 0; i < n; i++ {
 		t := c + x[i]*d;

@@ -17,7 +17,7 @@ func (s *Service) Serve(a int64) {
 var arith Service
 
 func main() {
-	c := new(chan string);
-	a := new(*Service);
+	c := make(chan string);
+	a := new(Service);
 	go a.Serve(1234);
 }

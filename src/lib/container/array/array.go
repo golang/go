@@ -22,7 +22,7 @@ func (p *Array) Init(initial_len int) *Array {
 		if initial_len > n {
 			n = initial_len
 		}
-		a = new([]Element, n);
+		a = make([]Element, n);
 	} else {
 		// nil out entries
 		for j := len(a) - 1; j >= 0; j-- {
@@ -36,7 +36,7 @@ func (p *Array) Init(initial_len int) *Array {
 
 
 export func New(len int) *Array {
-	return new(*Array).Init(len)
+	return new(Array).Init(len)
 }
 
 
@@ -66,7 +66,7 @@ func (p *Array) Insert(i int, x Element) {
 
 	// grow array by doubling its capacity
 	if n == cap(a) {
-		b := new([]Element, 2*n);
+		b := make([]Element, 2*n);
 		for j := n-1; j >= 0; j-- {
 			b[j] = a[j];
 		}

@@ -166,7 +166,7 @@ frand() float
 export func
 perm(n int) []int
 {
-	m := new([]int, n);
+	m := make([]int, n);
 	for i:=0; i<n; i++ {
 		m[i] = i;
 	}

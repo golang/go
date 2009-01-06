@@ -27,7 +27,7 @@ main()
 	var v int;
 	var c *C;
 
-	c = new(*C);
+	c = new(C);
 	c.a = 6;
 	c.x = &g;
 

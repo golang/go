@@ -35,27 +35,27 @@ func main() {
 		}
 	}
 
-	mib := new(map[int] bool);
-	mii := new(map[int] int);
-	mfi := new(map[float] int);
-	mif := new(map[int] float);
-	msi := new(map[string] int);
-	mis := new(map[int] string);
-	mss := new(map[string] string);
-	mspa := new(map[string] []string);
+	mib := make(map[int] bool);
+	mii := make(map[int] int);
+	mfi := make(map[float] int);
+	mif := make(map[int] float);
+	msi := make(map[string] int);
+	mis := make(map[int] string);
+	mss := make(map[string] string);
+	mspa := make(map[string] []string);
 	// BUG need an interface map both ways too
 
 	type T struct {
 		i int64;	// can't use string here; struct values are only compared at the top level
 		f float;
 	};
-	mipT := new(map[int] *T);
-	mpTi := new(map[*T] int);
-	mit := new(map[int] T);
-	mti := new(map[T] int);
+	mipT := make(map[int] *T);
+	mpTi := make(map[*T] int);
+	mit := make(map[int] T);
+	mti := make(map[T] int);
 
 	type M map[int] int;
-	mipM := new(map[int] M);
+	mipM := make(map[int] M);
 
 	const count = 1000;
 	var apT [2*count]*T;
@@ -65,14 +65,13 @@ func main() {
 		s10 := strconv.itoa(i*10);
 		f := float(i);
 		t := T{int64(i),f};
-		apT[i] = new(*T);
+		apT[i] = new(T);
 		apT[i].i = int64(i);
 		apT[i].f = f;
-		apT[2*i] = new(*T);	// need twice as many entries as we use, for the nonexistence check
+		apT[2*i] = new(T);	// need twice as many entries as we use, for the nonexistence check
 		apT[2*i].i = int64(i);
 		apT[2*i].f = f;
-		// BUG m := M{i, i+1};
-		m := new(M); m[i] = i+1;
+		m := M{i: i+1};
 		mib[i] = (i != 0);
 		mii[i] = 10*i;
 		mfi[float(i)] = 10*i;
@@ -81,7 +80,7 @@ func main() {
 		msi[s] = i;
 		mss[s] = s10;
 		mss[s] = s10;
-		as := new([]string, arraylen);
+		as := make([]string, arraylen);
 			as[0] = s10;
 			as[1] = s10;
 		mspa[s] = as;
@@ -122,6 +121,9 @@ func main() {
 	}
 	if len(mpTi) != count {
 		fmt.printf("len(mpTi) = %d\n", len(mpTi));
+	}
+	if len(mti) != count {
+		fmt.printf("len(mti) = %d\n", len(mti));
 	}
 	if len(mipM) != count {
 		fmt.printf("len(mipM) = %d\n", len(mipM));
@@ -171,6 +173,9 @@ func main() {
 		}
 		if(mpTi[apT[i]] != i) {
 			fmt.printf("mpTi[apT[%d]] = %d\n", i, mpTi[apT[i]]);
+		}
+		if(mti[t] != i) {
+			fmt.printf("mti[%s] = %s\n", s, mti[t]);
 		}
 		if (mipM[i][i] != i + 1) {
 			fmt.printf("mipM[%d][%d] = %d\n", i, i, mipM[i][i]);

@@ -96,7 +96,7 @@ func atoi(s string) int {
 
 func main() {
 	flag.Parse();
-	b = new([]*byte, 10000);
+	b = make([]*byte, 10000);
 	if flag.NArg() > 0 {
 		AllocAndFree(atoi(flag.Arg(0)), atoi(flag.Arg(1)));
 		return;

@@ -29,7 +29,7 @@ func main() {
 	// encoded as bytes:  'a' 'b' 'c' e6 97 a5 e6 9c ac e8 aa 9e
 	const L = 12;
 	if L != l { panic("wrong length constructing array") }
-	a := new(*[L]byte);
+	a := new([L]byte);
 	a[0] = 'a';
 	a[1] = 'b';
 	a[2] = 'c';

@@ -16,7 +16,7 @@ export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
 	if p == nil || port < 0 || port > 0xFFFF {
 		return nil, os.EINVAL
 	}
-	sa := new(*syscall.SockaddrInet4);
+	sa := new(syscall.SockaddrInet4);
 	sa.len = syscall.SizeofSockaddrInet4;
 	sa.family = syscall.AF_INET;
 	sa.port[0] = byte(port>>8);
@@ -32,7 +32,7 @@ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
 	if p == nil || port < 0 || port > 0xFFFF {
 		return nil, os.EINVAL
 	}
-	sa := new(*syscall.SockaddrInet6);
+	sa := new(syscall.SockaddrInet6);
 	sa.len = syscall.SizeofSockaddrInet6;
 	sa.family = syscall.AF_INET6;
 	sa.port[0] = byte(port>>8);

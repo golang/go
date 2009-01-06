@@ -31,9 +31,9 @@ export func DNS_ReadConfig() *DNS_Config {
 	if file == nil {
 		return nil
 	}
-	conf := new(*DNS_Config);
-	conf.servers = new([]string, 3)[0:0];		// small, but the standard limit
-	conf.search = new([]string, 0);
+	conf := new(DNS_Config);
+	conf.servers = make([]string, 3)[0:0];		// small, but the standard limit
+	conf.search = make([]string, 0);
 	conf.ndots = 1;
 	conf.timeout = 1;
 	conf.attempts = 1;
@@ -62,14 +62,14 @@ export func DNS_ReadConfig() *DNS_Config {
 
 		case "domain":	// set search path to just this domain
 			if len(f) > 1 {
-				conf.search = new([]string, 1);
+				conf.search = make([]string, 1);
 				conf.search[0] = f[1];
 			} else {
-				conf.search = new([]string, 0)
+				conf.search = make([]string, 0)
 			}
 
 		case "search":	// set search path to given servers
-			conf.search = new([]string, len(f) - 1);
+			conf.search = make([]string, len(f) - 1);
 			for i := 0; i < len(conf.search); i++ {
 				conf.search[i] = f[i+1];
 			}

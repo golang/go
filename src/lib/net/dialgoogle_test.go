@@ -22,7 +22,7 @@ func FetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
 	req := io.StringBytes("GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
 	n, errno := fd.Write(req);
 
-	buf := new([]byte, 1000);
+	buf := make([]byte, 1000);
 	n, errno = io.Readn(fd, buf);
 
 	if n < 1000 {

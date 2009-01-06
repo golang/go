@@ -15,9 +15,9 @@ type Vector struct {
 }
 
 func New() *Vector {
-	v := new(*Vector);
+	v := new(Vector);
 	v.nelem = 0;
-	v.elem = new([]Element, 10);
+	v.elem = make([]Element, 10);
 	return v;
 }
 
@@ -32,11 +32,11 @@ func (v *Vector) Insert(e Element) {
 
 func main() {
 	type I struct { val int; };
-	i0 := new(*I); i0.val = 0;
-	i1 := new(*I); i1.val = 11;
-	i2 := new(*I); i2.val = 222;
-	i3 := new(*I); i3.val = 3333;
-	i4 := new(*I); i4.val = 44444;
+	i0 := new(I); i0.val = 0;
+	i1 := new(I); i1.val = 11;
+	i2 := new(I); i2.val = 222;
+	i3 := new(I); i3.val = 3333;
+	i4 := new(I); i4.val = 44444;
 	v := New();
 	print("hi\n");
 	v.Insert(i4);

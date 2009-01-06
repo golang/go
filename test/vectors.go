@@ -31,7 +31,7 @@ func test0() {
 func test1() {
 	var a [1000] *S;
 	for i := 0; i < len(a); i++ {
-		a[i] = new(*S).Init(i);
+		a[i] = new(S).Init(i);
 	}
 
 	v := array.New(0);

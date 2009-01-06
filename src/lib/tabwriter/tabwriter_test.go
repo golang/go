@@ -18,7 +18,7 @@ type Buffer struct {
 
 
 func (b *Buffer) Init(n int) {
-	b.a = new([]byte, n)[0 : 0];
+	b.a = make([]byte, n)[0 : 0];
 }
 
 

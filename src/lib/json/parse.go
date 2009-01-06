@@ -48,7 +48,7 @@ export func Unquote(s string) (t string, ok bool) {
 	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
 		return
 	}
-	b := new([]byte, len(s));
+	b := make([]byte, len(s));
 	w := 0;
 	for r := 1; r < len(s)-1; {
 		switch {
@@ -118,9 +118,9 @@ export func Unquote(s string) (t string, ok bool) {
 }
 
 export func Quote(s string) string {
-	chr := new([]byte, utf8.UTFMax);
+	chr := make([]byte, utf8.UTFMax);
 	chr0 := chr[0:1];
-	b := new(*io.ByteBuffer);
+	b := new(io.ByteBuffer);
 	chr[0] = '"';
 	b.Write(chr0);
 	for i := 0; i < len(s); i++ {
@@ -387,7 +387,7 @@ Switch:
 }
 
 export func Parse(s string, build Builder) (ok bool, errindx int, errtok string) {
-	lex := new(*Lexer);
+	lex := new(Lexer);
 	lex.s = s;
 	lex.Next();
 	if ParseValue(lex, build) {

@@ -36,7 +36,7 @@ func Serve(t *testing.T, network, addr string, listening, done chan<- int) {
 		if err != nil {
 			break;
 		}
-		echodone := new(chan int);
+		echodone := make(chan int);
 		go Echo(fd, echodone);
 		<-echodone;	// make sure Echo stops
 		l.Close();
@@ -67,8 +67,8 @@ func Connect(t *testing.T, network, addr string) {
 
 func DoTest(t *testing.T, network, listenaddr, dialaddr string) {
 	t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr);
-	listening := new(chan int);
-	done := new(chan int);
+	listening := make(chan int);
+	done := make(chan int);
 	go Serve(t, network, listenaddr, listening, done);
 	<-listening;	// wait for server to start
 	Connect(t, network, dialaddr);

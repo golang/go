@@ -19,7 +19,7 @@ export type Pollster struct {
 }
 
 export func NewPollster() (p *Pollster, err *os.Error) {
-	p = new(*Pollster);
+	p = new(Pollster);
 	var e int64;
 	if p.kq, e = syscall.kqueue(); e != 0 {
 		return nil, os.ErrnoToError(e)

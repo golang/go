@@ -60,7 +60,7 @@ export func URLUnescape(s string) (string, *os.Error) {
 		return s, nil
 	}
 
-	t := new([]byte, len(s)-2*n);
+	t := make([]byte, len(s)-2*n);
 	j := 0;
 	for i := 0; i < len(s); {
 		if s[i] == '%' {
@@ -131,7 +131,7 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
 	if rawurl == "" {
 		return nil, BadURL
 	}
-	url = new(*URL);
+	url = new(URL);
 	url.raw = rawurl;
 
 	// Split off possible leading "http:", "mailto:", etc.

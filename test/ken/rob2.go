@@ -213,7 +213,7 @@ func ParseList() *Slist
 {
 	var slist, retval *Slist;
 
-	slist = new(*Slist);
+	slist = new(Slist);
 	slist.list.car = nil;
 	slist.list.cdr = nil;
 	slist.isatom = false;
@@ -225,7 +225,7 @@ func ParseList() *Slist
 		if token == ')' || token == EOF {	// empty cdr
 			break;
 		}
-		slist.list.cdr = new(*Slist);
+		slist.list.cdr = new(Slist);
 		slist = slist.list.cdr;
 	}
 	return retval;
@@ -236,7 +236,7 @@ func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
 	var h, length int;
 	var slist, tail *Slist;
 
-	slist = new(*Slist);
+	slist = new(Slist);
 	if token == '0' {
 		slist.atom.integer = i;
 		slist.isstring = false;

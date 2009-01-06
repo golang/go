@@ -112,7 +112,7 @@ func (char *Char) Type() int { return CHAR }
 func (char *Char) Print() { print("char ", string(char.char)) }
 
 func NewChar(char int) *Char {
-	c := new(*Char);
+	c := new(Char);
 	c.char = char;
 	return c;
 }
@@ -163,7 +163,7 @@ func (cclass *CharClass) Matches(c int) bool {
 }
 
 func NewCharClass() *CharClass {
-	c := new(*CharClass);
+	c := new(CharClass);
 	c.ranges = array.NewIntArray(0);
 	return c;
 }
@@ -249,7 +249,7 @@ func (p *Parser) nextc() int {
 }
 
 func NewParser(re *RE) *Parser {
-	parser := new(*Parser);
+	parser := new(Parser);
 	parser.re = re;
 	parser.nextc();	// load p.ch
 	return parser;
@@ -364,15 +364,15 @@ func (p *Parser) Term() (start, end Inst) {
 		p.re.Error(ErrUnmatchedRbkt);
 	case '^':
 		p.nextc();
-		start = p.re.Add(new(*Bot));
+		start = p.re.Add(new(Bot));
 		return start, start;
 	case '$':
 		p.nextc();
-		start = p.re.Add(new(*Eot));
+		start = p.re.Add(new(Eot));
 		return start, start;
 	case '.':
 		p.nextc();
-		start = p.re.Add(new(*Any));
+		start = p.re.Add(new(Any));
 		return start, start;
 	case '[':
 		p.nextc();
@@ -393,9 +393,9 @@ func (p *Parser) Term() (start, end Inst) {
 		}
 		p.nlpar--;
 		p.nextc();
-		bra := new(*Bra);
+		bra := new(Bra);
 		p.re.Add(bra);
-		ebra := new(*Ebra);
+		ebra := new(Ebra);
 		p.re.Add(ebra);
 		bra.n = nbra;
 		ebra.n = nbra;
@@ -437,7 +437,7 @@ func (p *Parser) Closure() (start, end Inst) {
 	switch p.c() {
 	case '*':
 		// (start,end)*:
-		alt := new(*Alt);
+		alt := new(Alt);
 		p.re.Add(alt);
 		end.SetNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
@@ -445,16 +445,16 @@ func (p *Parser) Closure() (start, end Inst) {
 		end = alt;
 	case '+':
 		// (start,end)+:
-		alt := new(*Alt);
+		alt := new(Alt);
 		p.re.Add(alt);
 		end.SetNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
 		end = alt;	// start is unchanged; end is alt
 	case '?':
 		// (start,end)?:
-		alt := new(*Alt);
+		alt := new(Alt);
 		p.re.Add(alt);
-		nop := new(*Nop);
+		nop := new(Nop);
 		p.re.Add(nop);
 		alt.left = start;	// alternate branch is start
 		alt.next = nop;	// follow on to nop
@@ -478,7 +478,7 @@ func (p *Parser) Concatenation() (start, end Inst) {
 		switch {
 		case nstart == NULL:	// end of this concatenation
 			if start == NULL {	// this is the empty string
-				nop := p.re.Add(new(*Nop));
+				nop := p.re.Add(new(Nop));
 				return nop, nop;
 			}
 			return;
@@ -501,11 +501,11 @@ func (p *Parser) Regexp() (start, end Inst) {
 		case '|':
 			p.nextc();
 			nstart, nend := p.Concatenation();
-			alt := new(*Alt);
+			alt := new(Alt);
 			p.re.Add(alt);
 			alt.left = start;
 			alt.next = nstart;
-			nop := new(*Nop);
+			nop := new(Nop);
 			p.re.Add(nop);
 			end.SetNext(nop);
 			nend.SetNext(nop);
@@ -550,12 +550,12 @@ func (re *RE) Dump() {
 
 func (re *RE) DoParse() {
 	parser := NewParser(re);
-	start := new(*Start);
+	start := new(Start);
 	re.Add(start);
 	s, e := parser.Regexp();
 	start.next = s;
 	re.start = start;
-	e.SetNext(re.Add(new(*End)));
+	e.SetNext(re.Add(new(End)));
 
 	if debug {
 		re.Dump();
@@ -572,7 +572,7 @@ func (re *RE) DoParse() {
 
 
 func Compiler(str string, ch chan *RE) {
-	re := new(*RE);
+	re := new(RE);
 	re.expr = str;
 	re.inst = array.New(0);
 	re.ch = ch;
@@ -589,7 +589,7 @@ export type Regexp interface {
 
 // Compile in separate goroutine; wait for result
 export func Compile(str string) (regexp Regexp, error *os.Error) {
-	ch := new(chan *RE);
+	ch := make(chan *RE);
 	go Compiler(str, ch);
 	re := <-ch;
 	return re, re.error
@@ -615,7 +615,7 @@ func AddState(s []State, inst Inst, match []int) []State {
 		 }
 	}
 	if l == cap(s) {
-		s1 := new([]State, 2*l)[0:l];
+		s1 := make([]State, 2*l)[0:l];
 		for i := 0; i < l; i++ {
 			s1[i] = s[i];
 		}
@@ -629,15 +629,15 @@ func AddState(s []State, inst Inst, match []int) []State {
 
 func (re *RE) DoExecute(str string, pos int) []int {
 	var s [2][]State;	// TODO: use a vector when State values (not ptrs) can be vector elements
-	s[0] = new([]State, 10)[0:0];
-	s[1] = new([]State, 10)[0:0];
+	s[0] = make([]State, 10)[0:0];
+	s[1] = make([]State, 10)[0:0];
 	in, out := 0, 1;
 	var final State;
 	found := false;
 	for pos <= len(str) {
 		if !found {
 			// prime the pump if we haven't seen a match yet
-			match := new([]int, 2*(re.nbra+1));
+			match := make([]int, 2*(re.nbra+1));
 			for i := 0; i < len(match); i++ {
 				match[i] = -1;	// no match seen; catches cases like "a(b)?c" on "ac"
 			}
@@ -689,7 +689,7 @@ func (re *RE) DoExecute(str string, pos int) []int {
 			case ALT:
 				s[in] = AddState(s[in], state.inst.(*Alt).left, state.match);
 				// give other branch a copy of this match vector
-				s1 := new([]int, 2*(re.nbra+1));
+				s1 := make([]int, 2*(re.nbra+1));
 				for i := 0; i < len(s1); i++ {
 					s1[i] = state.match[i]
 				}
@@ -729,7 +729,7 @@ func (re *RE) MatchStrings(s string) []string {
 	if r == nil {
 		return nil
 	}
-	a := new([]string, len(r)/2);
+	a := make([]string, len(r)/2);
 	for i := 0; i < len(r); i += 2 {
 		a[i/2] = s[r[i] : r[i+1]]
 	}

@@ -17,7 +17,7 @@ import (
 var services map[string] map[string] int
 
 func ReadServices() {
-	services = new(map[string] map[string] int);
+	services = make(map[string] map[string] int);
 	file := Open("/etc/services");
 	for line, ok := file.ReadLine(); ok; line, ok = file.ReadLine() {
 		// "http 80/tcp www www-http # World Wide Web HTTP"
@@ -36,7 +36,7 @@ func ReadServices() {
 		netw := portnet[j+1:len(portnet)];	// "tcp"
 		m, ok1 := services[netw];
 		if !ok1 {
-			m = new(map[string] int);
+			m = make(map[string] int);
 			services[netw] = m;
 		}
 		for i := 0; i < len(f); i++ {

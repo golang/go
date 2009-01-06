@@ -31,7 +31,7 @@ export type ReadWriteClose interface {
 }
 
 export func WriteString(w Write, s string) (n int, err *os.Error) {
-	b := new([]byte, len(s)+1);
+	b := make([]byte, len(s)+1);
 	if !syscall.StringToBytes(b, s) {
 		return -1, os.EINVAL
 	}
@@ -80,7 +80,7 @@ export func MakeFullReader(fd Read) Read {
 // Copies n bytes (or until EOF is reached) from src to dst.
 // Returns the number of bytes copied and the error, if any.
 export func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
-	buf := new([]byte, 32*1024);
+	buf := make([]byte, 32*1024);
 	for written < n {
 		l := len(buf);
 		if d := n - written; d < int64(l) {
@@ -116,7 +116,7 @@ export func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
 // Copies from src to dst until EOF is reached.
 // Returns the number of bytes copied and the error, if any.
 export func Copy(src Read, dst Write) (written int64, err *os.Error) {
-	buf := new([]byte, 32*1024);
+	buf := make([]byte, 32*1024);
 	for {
 		nr, er := src.Read(buf);
 		if nr > 0 {
@@ -148,7 +148,7 @@ export func Copy(src Read, dst Write) (written int64, err *os.Error) {
 // Could fill with syscall.StringToBytes but it adds an unnecessary \000
 // so the length would be wrong.
 export func StringBytes(s string) []byte {
-	b := new([]byte, len(s));
+	b := make([]byte, len(s));
 	for i := 0; i < len(s); i++ {
 		b[i] = s[i];
 	}

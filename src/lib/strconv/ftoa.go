@@ -236,7 +236,7 @@ func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo) {
 
 // %e: -d.ddddde±dd
 func FmtE(neg bool, d *Decimal, prec int) string {
-	buf := new([]byte, 3+Max(prec, 0)+30);	// "-0." + prec digits + exp
+	buf := make([]byte, 3+Max(prec, 0)+30);	// "-0." + prec digits + exp
 	w := 0;	// write index
 
 	// sign
@@ -306,7 +306,7 @@ func FmtE(neg bool, d *Decimal, prec int) string {
 
 // %f: -ddddddd.ddddd
 func FmtF(neg bool, d *Decimal, prec int) string {
-	buf := new([]byte, 1+Max(d.dp, 1)+1+Max(prec, 0));
+	buf := make([]byte, 1+Max(d.dp, 1)+1+Max(prec, 0));
 	w := 0;
 
 	// sign

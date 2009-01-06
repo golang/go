@@ -71,7 +71,7 @@ func (f *Fmt) init() {
 }
 
 export func New() *Fmt {
-	f := new(*Fmt);
+	f := new(Fmt);
 	f.init();
 	return f;
 }
@@ -135,7 +135,7 @@ func (f *Fmt) pad(s string) {
 			if w > NByte {
 				w = NByte;
 			}
-			buf := new([]byte, w);
+			buf := make([]byte, w);
 			for i := 0; i < w; i++ {
 				buf[i] = padchar;
 			}

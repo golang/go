@@ -11,7 +11,7 @@ type T struct { i int; f float; s string; next *T }
 type R struct { num int }
 
 func itor(a int) *R {
-	r := new(*R);
+	r := new(R);
 	r.num = a;
 	return r;
 }
@@ -48,7 +48,7 @@ func main() {
 	at := []*T{&t, &t, &t};
 	if len(at) != 3 { panic("at") }
 
-	c := new(chan int);
+	c := make(chan int);
 	ac := []chan int{c, c, c};
 	if len(ac) != 3 { panic("ac") }
 

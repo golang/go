@@ -27,7 +27,7 @@ export type Digest struct {
 }
 
 export func NewDigest() *Digest {
-	d := new(*Digest);
+	d := new(Digest);
 	d.s[0] = A;
 	d.s[1] = B;
 	d.s[2] = C;
@@ -88,7 +88,7 @@ func (d *Digest) Sum() []byte {
 		panicln("oops");
 	}
 
-	p := new([]byte, 16);
+	p := make([]byte, 16);
 	j := 0;
 	for i := 0; i < 4; i++ {
 		s := d.s[i];

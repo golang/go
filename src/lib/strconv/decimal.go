@@ -39,7 +39,7 @@ func (a *Decimal) String() string {
 		n += -a.dp;
 	}
 
-	buf := new([]byte, n);
+	buf := make([]byte, n);
 	w := 0;
 	switch {
 	case a.nd == 0:
@@ -120,7 +120,7 @@ func (a *Decimal) Assign(v uint64) {
 }
 
 package func NewDecimal(i uint64) *Decimal {
-	a := new(*Decimal);
+	a := new(Decimal);
 	a.Assign(i);
 	return a;
 }

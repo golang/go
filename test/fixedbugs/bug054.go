@@ -30,12 +30,12 @@ func (s *TStruct) field(i int) *TStruct {
 }
 
 func main() {
-	v := new(*Vector);
-	v.elem = new([]Element, 10);
-	t := new(*TStruct);
+	v := new(Vector);
+	v.elem = make([]Element, 10);
+	t := new(TStruct);
 	t.name = "hi";
 	v.elem[0] = t;
-	s := new(*TStruct);
+	s := new(TStruct);
 	s.name = "foo";
 	s.fields = v;
 	if s.field(0).name != "hi" {

@@ -30,6 +30,6 @@ func main() {
 	c = nil;
 	t = nil;
 	i = nil;
-	ta = new([]IN, 1);
+	ta = make([]IN, 1);
 	ta[0] = nil;
 }
