@@ -1857,8 +1857,19 @@ sudoclean(void)
 	cleani -= 2;
 }
 
+/*
+ * generate code to compute address of n,
+ * a reference to a (perhaps nested) field inside
+ * an array or struct.  
+ * return 0 on failure, 1 on success.
+ * on success, leaves usable address in a.
+ *
+ * caller is responsible for calling sudoclean
+ * after successful sudoaddable,
+ * to release the register used for a.
+ */
 int
-sudoaddable(Node *n, Type *t, Addr *a)
+sudoaddable(Node *n, Addr *a)
 {
 	int o, i, w;
 	int oary[10];
@@ -1866,8 +1877,9 @@ sudoaddable(Node *n, Type *t, Addr *a)
 	Node n1, n2, *nn, *l, *r;
 	Node *reg, *reg1;
 	Prog *p1;
+	Type *t;
 
-	if(n->type == T || t == T)
+	if(n->type == T)
 		return 0;
 
 	switch(n->op) {

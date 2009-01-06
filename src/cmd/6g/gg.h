@@ -215,7 +215,7 @@ Plist*	newplist(void);
 int	isfat(Type*);
 void	setmaxarg(Type*);
 void	sudoclean(void);
-int	sudoaddable(Node*, Type*, Addr*);
+int	sudoaddable(Node*, Addr*);
 
 /*
  * list.c

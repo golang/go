@@ -987,7 +987,7 @@ cgen_asop(Node *n)
 				gins(optoas(OINC, nl->type), N, nl);
 				goto ret;
 			}
-			if(sudoaddable(nl, nr->type, &addr)) {
+			if(sudoaddable(nl, &addr)) {
 				p1 = gins(optoas(OINC, nl->type), N, N);
 				p1->to = addr;
 				sudoclean();
@@ -1003,7 +1003,7 @@ cgen_asop(Node *n)
 				gins(optoas(ODEC, nl->type), N, nl);
 				goto ret;
 			}
-			if(sudoaddable(nl, nr->type, &addr)) {
+			if(sudoaddable(nl, &addr)) {
 				p1 = gins(optoas(ODEC, nl->type), N, N);
 				p1->to = addr;
 				sudoclean();
@@ -1031,7 +1031,7 @@ cgen_asop(Node *n)
 			goto ret;
 		}
 		if(nr->ullman < UINF)
-		if(sudoaddable(nl, nr->type, &addr)) {
+		if(sudoaddable(nl, &addr)) {
 			if(smallintconst(nr)) {
 				p1 = gins(optoas(n->etype, nl->type), nr, N);
 				p1->to = addr;
