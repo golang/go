@@ -30,7 +30,7 @@
 
 #include	<lib9.h>
 #include	<bio.h>
-#include	"../8c/8.out.h"
+#include	"../8l/8.out.h"
 
 #ifndef	EXTERN
 #define	EXTERN	extern
@@ -54,7 +54,7 @@ struct	Adr
 {
 	union
 	{
-		long	u0offset;
+		int32	u0offset;
 		char	u0scon[8];
 		Prog	*u0cond;	/* not used, but should be D_BRANCH */
 		Ieee	u0ieee;
@@ -65,7 +65,7 @@ struct	Adr
 		Sym*	u1sym;
 	} u1;
 	short	type;
-	char	index;
+	uchar	index;
 	char	scale;
 };
 
@@ -84,8 +84,8 @@ struct	Prog
 	Prog	*forwd;
 	Prog*	link;
 	Prog*	pcond;	/* work on this */
-	long	pc;
-	long	line;
+	int32	pc;
+	int32	line;
 	uchar	mark;	/* work on these */
 	uchar	back;
 
@@ -96,7 +96,7 @@ struct	Auto
 {
 	Sym*	asym;
 	Auto*	link;
-	long	aoffset;
+	int32	aoffset;
 	short	type;
 };
 struct	Sym
@@ -108,8 +108,8 @@ struct	Sym
 	short	frame;
 	uchar	subtype;
 	ushort	file;
-	long	value;
-	long	sig;
+	int32	value;
+	int32	sig;
 	Sym*	link;
 };
 struct	Optab
@@ -232,15 +232,15 @@ EXTERN union
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"S"	char*
 
-EXTERN	long	HEADR;
-EXTERN	long	HEADTYPE;
-EXTERN	long	INITDAT;
-EXTERN	long	INITRND;
-EXTERN	long	INITTEXT;
+EXTERN	int32	HEADR;
+EXTERN	int32	HEADTYPE;
+EXTERN	int32	INITDAT;
+EXTERN	int32	INITRND;
+EXTERN	int32	INITTEXT;
 EXTERN	char*	INITENTRY;		/* entry point */
 EXTERN	Biobuf	bso;
-EXTERN	long	bsssize;
-EXTERN	long	casepc;
+EXTERN	int32	bsssize;
+EXTERN	int32	casepc;
 EXTERN	int	cbc;
 EXTERN	char*	cbp;
 EXTERN	char*	pcstr;
@@ -251,13 +251,13 @@ EXTERN	Prog*	curp;
 EXTERN	Prog*	curtext;
 EXTERN	Prog*	datap;
 EXTERN	Prog*	edatap;
-EXTERN	long	datsize;
+EXTERN	int32	datsize;
 EXTERN	char	debug[128];
 EXTERN	char	literal[32];
 EXTERN	Prog*	etextp;
 EXTERN	Prog*	firstp;
-EXTERN	char	fnuxi8[8];
-EXTERN	char	fnuxi4[4];
+EXTERN	uchar	fnuxi8[8];
+EXTERN	uchar	fnuxi4[4];
 EXTERN	Sym*	hash[NHASH];
 EXTERN	Sym*	histfrog[MAXHIST];
 EXTERN	int	histfrogp;
@@ -266,29 +266,27 @@ EXTERN	char*	library[50];
 EXTERN	char*	libraryobj[50];
 EXTERN	int	libraryp;
 EXTERN	int	xrefresolv;
-EXTERN	char*	hunk;
-EXTERN	char	inuxi1[1];
-EXTERN	char	inuxi2[2];
-EXTERN	char	inuxi4[4];
-EXTERN	char	ycover[Ymax*Ymax];
+EXTERN	uchar	inuxi1[1];
+EXTERN	uchar	inuxi2[2];
+EXTERN	uchar	inuxi4[4];
+EXTERN	uchar	ycover[Ymax*Ymax];
 EXTERN	uchar*	andptr;
 EXTERN	uchar	and[30];
 EXTERN	char	reg[D_NONE];
 EXTERN	Prog*	lastp;
-EXTERN	long	lcsize;
+EXTERN	int32	lcsize;
 EXTERN	int	maxop;
 EXTERN	int	nerrors;
-EXTERN	long	nhunk;
-EXTERN	long	nsymbol;
+EXTERN	int32	nsymbol;
 EXTERN	char*	noname;
 EXTERN	char*	outfile;
-EXTERN	long	pc;
-EXTERN	long	spsize;
+EXTERN	int32	pc;
+EXTERN	int32	spsize;
 EXTERN	Sym*	symlist;
-EXTERN	long	symsize;
+EXTERN	int32	symsize;
 EXTERN	Prog*	textp;
-EXTERN	long	textsize;
-EXTERN	long	thunk;
+EXTERN	int32	textsize;
+EXTERN	int32	thunk;
 EXTERN	int	version;
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;
@@ -310,7 +308,7 @@ int	Dconv(Fmt*);
 int	Pconv(Fmt*);
 int	Rconv(Fmt*);
 int	Sconv(Fmt*);
-void	addhist(long, int);
+void	addhist(int32, int);
 Prog*	appendp(Prog*);
 void	asmb(void);
 void	asmdyn(void);
@@ -318,41 +316,41 @@ void	asmins(Prog*);
 void	asmlc(void);
 void	asmsp(void);
 void	asmsym(void);
-long	atolwhex(char*);
+int32	atolwhex(char*);
 Prog*	brchain(Prog*);
 Prog*	brloop(Prog*);
 void	cflush(void);
-void	ckoff(Sym*, long);
+void	ckoff(Sym*, int32);
 Prog*	copyp(Prog*);
 double	cputime(void);
-void	datblk(long, long);
+void	datblk(int32, int32);
 void	diag(char*, ...);
 void	dodata(void);
 void	doinit(void);
 void	doprof1(void);
 void	doprof2(void);
 void	dostkoff(void);
-void	dynreloc(Sym*, ulong, int);
-long	entryvalue(void);
+void	dynreloc(Sym*, uint32, int);
+int32	entryvalue(void);
 void	errorexit(void);
 void	export(void);
-int	find1(long, int);
-int	find2(long, int);
+int	find1(int32, int);
+int	find2(int32, int);
 void	follow(void);
 void	gethunk(void);
 void	histtoauto(void);
 double	ieeedtod(Ieee*);
-long	ieeedtof(Ieee*);
+int32	ieeedtof(Ieee*);
 void	import(void);
-void	ldobj(int, long, char*);
+void	ldobj(int, int32, char*);
 void	loadlib(void);
 void	listinit(void);
 Sym*	lookup(char*, int);
-void	lput(long);
-void	lputl(long);
+void	lput(int32);
+void	lputl(int32);
 void	main(int, char*[]);
 void	mkfwd(void);
-void*	mysbrk(ulong);
+void*	mal(uint32);
 void	nuxiinit(void);
 void	objfile(char*);
 int	opsize(Prog*);
@@ -360,15 +358,15 @@ void	patch(void);
 Prog*	prg(void);
 void	readundefs(char*, int);
 int	relinv(int);
-long	reuse(Prog*, Sym*);
-long	rnd(long, long);
+int32	reuse(Prog*, Sym*);
+int32	rnd(int32, int32);
 void	s8put(char*);
 void	span(void);
 void	undef(void);
 void	undefsym(Sym*);
-long	vaddr(Adr*);
+int32	vaddr(Adr*);
 void	wputb(ushort);
-void	xdefine(char*, int, long);
+void	xdefine(char*, int, int32);
 void	xfol(Prog*);
 int	zaddr(uchar*, Adr*, Sym*[]);
 void	zerosig(char*);

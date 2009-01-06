@@ -32,7 +32,7 @@
 
 #define	Dbufslop	100
 
-long
+int32
 entryvalue(void)
 {
 	char *a;
@@ -74,7 +74,7 @@ void
 asmb(void)
 {
 	Prog *p;
-	long v, magic;
+	int32 v, magic;
 	int a;
 	uchar *op1;
 
@@ -335,7 +335,7 @@ asmb(void)
 }
 
 void
-lput(long l)
+lput(int32 l)
 {
 	cput(l>>24);
 	cput(l>>16);
@@ -344,7 +344,7 @@ lput(long l)
 }
 
 void
-lputl(long l)
+lputl(int32 l)
 {
 	cput(l);
 	cput(l>>8);
@@ -376,11 +376,11 @@ cflush(void)
 }
 
 void
-datblk(long s, long n)
+datblk(int32 s, int32 n)
 {
 	Prog *p;
 	char *cast;
-	long l, fl, j;
+	int32 l, fl, j;
 	int i, c;
 
 	memset(buf.dbuf, 0, n+Dbufslop);
@@ -516,10 +516,10 @@ datblk(long s, long n)
 	write(cout, buf.dbuf, n);
 }
 
-long
-rnd(long v, long r)
+int32
+rnd(int32 v, int32 r)
 {
-	long c;
+	int32 c;
 
 	if(r <= 0)
 		return v;

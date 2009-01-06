@@ -156,7 +156,7 @@ assemble(char *file)
 		}
 	}
 
-	of = mycreat(outfile, 0664);
+	of = mycreate(outfile, 0664);
 	if(of < 0) {
 		yyerror("%ca: cannot create %s", thechar, outfile);
 		errorexit();
