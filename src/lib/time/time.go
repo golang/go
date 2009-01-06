@@ -71,7 +71,7 @@ const (
 )
 
 export func SecondsToUTC(sec int64) *Time {
-	t := new(*Time);
+	t := new(Time);
 
 	// Split into time and day.
 	day := sec/SecondsPerDay;
@@ -281,7 +281,7 @@ func AddString(buf []byte, bp int, s string) int {
 // Just enough of strftime to implement the date formats below.
 // Not exported.
 func Format(t *Time, fmt string) string {
-	buf := new([]byte, 128);
+	buf := make([]byte, 128);
 	bp := 0;
 
 	for i := 0; i < len(fmt); i++ {

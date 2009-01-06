@@ -45,8 +45,8 @@ func SameArray(a, b []int) bool {
 }
 
 var t = T{1.5, 123, "hello", 255}
-var mt = new(map[int]T)
-var ma = new(map[int][]int)
+var mt = make(map[int]T)
+var ma = make(map[int][]int)
 
 func maptest() {
 	mt[0] = t;
@@ -62,8 +62,8 @@ func maptest() {
 	}
 }
 
-var mt1 = new(map[T]int)
-var ma1 = new(map[[]int] int)
+var mt1 = make(map[T]int)
+var ma1 = make(map[[]int] int)
 
 func maptest2() {
 	mt1[t] = 123;
@@ -81,8 +81,8 @@ func maptest2() {
 	}
 }
 
-var ct = new(chan T)
-var ca = new(chan []int)
+var ct = make(chan T)
+var ca = make(chan []int)
 
 func send() {
 	ct <- t;
@@ -114,7 +114,7 @@ func interfacetest() {
 	if !SameArray(a, a1) {
 		println("interface <-> []int", a, a1);
 	}
-	pa := new(*[]int);
+	pa := new([]int);
 	*pa = a;
 	i = pa;
 	a1 = *i.(*[]int);

@@ -40,7 +40,7 @@ main()
 	var i2 I2;
 	var g *S;
 
-	s := new(*S);
+	s := new(S);
 	s.a = 5;
 	s.b = 6;
 

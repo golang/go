@@ -76,7 +76,7 @@ export func TestSortStrings(t *testing.T) {
 }
 
 export func TestSortLargeRandom(t *testing.T) {
-	data := new([]int, 1000000);
+	data := make([]int, 1000000);
 	for i := 0; i < len(data); i++ {
 		data[i] = rand.rand() % 100;
 	}

@@ -64,7 +64,7 @@ func (m *HashMap) Clear() {
 
 func (m *HashMap) Initialize (initial_log2_capacity uint32) {
 	m.log2_capacity_ = initial_log2_capacity;
-	m.map_ = new(*[1024] Entry);
+	m.map_ = new([1024] Entry);
 	m.Clear();
 }
 
@@ -157,7 +157,7 @@ func (n *Number) Match(other *KeyType) bool {
 
 
 func MakeNumber (x uint32) *Number {
-	var n *Number = new(*Number);
+	var n *Number = new(Number);
 	n.x = x;
 	return n;
 }
@@ -168,7 +168,7 @@ func main() {
 
 	//print "HashMap - gri 2/8/2008\n";
 
-	var hmap *HashMap = new(*HashMap);
+	var hmap *HashMap = new(HashMap);
 	hmap.Initialize(0);
 
 	var x1 *Number = MakeNumber(1001);

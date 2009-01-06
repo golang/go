@@ -181,7 +181,7 @@ func ParseHTTPVersion(vers string) (int, int, bool) {
 
 // Read and parse a request from b.
 export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
-	req = new(*Request);
+	req = new(Request);
 
 	// First line: GET /index.html HTTP/1.0
 	var s string;
@@ -205,7 +205,7 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 
 	// Subsequent lines: Key: value.
 	nheader := 0;
-	req.header = new(map[string] string);
+	req.header = make(map[string] string);
 	for {
 		var key, value string;
 		if key, value, err = ReadKeyValue(b); err != nil {

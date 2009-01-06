@@ -9,8 +9,8 @@ package main
 type T chan uint64;
 
 func M(f uint64) (in, out T) {
-	in = new(T, 100);
-	out = new(T, 100);
+	in = make(T, 100);
+	out = make(T, 100);
 	go func(in, out T, f uint64) {
 		for {
 			out <- f * <-in;
@@ -44,9 +44,9 @@ func main() {
 		1250, 1280, 1296, 1350, 1440, 1458, 1500, 1536, 1600 };
 
 	x := uint64(1);
-	ins := new([]T, n);
-	outs := new([]T, n);
-	xs := new([]uint64, n);
+	ins := make([]T, n);
+	outs := make([]T, n);
+	xs := make([]uint64, n);
 	for i := 0; i < n; i++ {
 		ins[i], outs[i] = M(F[i]);
 		xs[i] = x;

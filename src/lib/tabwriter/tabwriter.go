@@ -21,7 +21,7 @@ type ByteArray struct {
 
 
 func (b *ByteArray) Init(initial_size int) {
-	b.a = new([]byte, initial_size)[0 : 0];
+	b.a = make([]byte, initial_size)[0 : 0];
 }
 
 
@@ -50,7 +50,7 @@ func (b *ByteArray) Append(s []byte) {
 		if m > n2 {
 			n2 = m;
 		}
-		b := new([]byte, n2);
+		b := make([]byte, n2);
 		for i := 0; i < n; i++ {
 			b[i] = a[i];
 		}
@@ -446,5 +446,5 @@ func (b *Writer) Append(buf []byte) {
 
 
 export func New(writer io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
-	return new(*Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
+	return new(Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
 }

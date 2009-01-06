@@ -51,15 +51,15 @@ func Init();
 func mkdch() *dch {
 	c := chnameserial % len(chnames);
 	chnameserial++;
-	d := new(*dch);
-	d.req = new(chan int);
-	d.dat = new(chan item);
+	d := new(dch);
+	d.req = make(chan int);
+	d.dat = make(chan item);
 	d.nam = c;
 	return d;
 }
 
 func mkdch2() *dch2 {
-	d2 := new(*dch2);
+	d2 := new(dch2);
 	d2[0] = mkdch();
 	d2[1] = mkdch();
 	return d2;
@@ -98,7 +98,7 @@ func dosplit(in *dch, out *dch2, wait chan int ){
 
 	seqno++;
 	in.req <- seqno;
-	release := new(chan  int);
+	release := make(chan  int);
 	go dosplit(in, out, release);
 	dat := <-in.dat;
 	out[0].dat <- dat;
@@ -111,7 +111,7 @@ func dosplit(in *dch, out *dch2, wait chan int ){
 }
 
 func split(in *dch, out *dch2){
-	release := new(chan int);
+	release := make(chan int);
 	go dosplit(in, out, release);
 	release <- 0;
 }
@@ -132,9 +132,9 @@ func get(in *dch) *rat {
 func getn(in []*dch, n int) []item {
 	// BUG n:=len(in);
 	if n != 2 { panic("bad n in getn") };
-	req := new([] chan int, 2);
-	dat := new([] chan item, 2);
-	out := new([]item, 2);
+	req := make([] chan int, 2);
+	dat := make([] chan item, 2);
+	out := make([]item, 2);
 	var i int;
 	var it item;
 	for i=0; i<n; i++ {
@@ -213,7 +213,7 @@ func gcd (u, v int64) int64{
 
 func i2tor(u, v int64) *rat{
 	g := gcd(u,v);
-	r := new(*rat);
+	r := new(rat);
 	if v > 0 {
 		r.num = u/g;
 		r.den = v/g;
@@ -251,7 +251,7 @@ func add(u, v *rat) *rat {
 func mul(u, v *rat) *rat{
 	g1 := gcd(u.num,v.den);
 	g2 := gcd(u.den,v.num);
-	r := new(*rat);
+	r := new(rat);
 	r.num =(u.num/g1)*(v.num/g2);
 	r.den = (u.den/g2)*(v.den/g1);
 	return r;
@@ -651,7 +651,7 @@ func main() {
 		check(Ones, one, 5, "Ones");
 		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1
 		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos"); // 3 3 3 3 3
-		a := new([]*rat, N);
+		a := make([]*rat, N);
 		d := Diff(Ones);
 		// BUG: want array initializer
 		for i:=0; i < N; i++ {

@@ -16,7 +16,7 @@ func (t *T) m(a int, b float) int {
 }
 
 func main() {
-	var t *T = new(*T);
+	var t *T = new(T);
 	t.x = 1;
 	t.y = 2;
 	r10 := t.m(1, 3.0);

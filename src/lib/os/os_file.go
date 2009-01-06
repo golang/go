@@ -85,7 +85,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
 	if fd == nil {
 		return 0, EINVAL
 	}
-	b := new([]byte, len(s)+1);
+	b := make([]byte, len(s)+1);
 	if !syscall.StringToBytes(b, s) {
 		return 0, EINVAL
 	}

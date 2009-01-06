@@ -92,8 +92,8 @@ export func Main(tests []Test) {
 		if chatty {
 			println("=== RUN ", tests[i].name);
 		}
-		t := new(*T);
-		t.ch = new(chan *T);
+		t := new(T);
+		t.ch = make(chan *T);
 		go TRunner(t, &tests[i]);
 		<-t.ch;
 		if t.failed {

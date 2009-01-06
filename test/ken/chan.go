@@ -38,17 +38,17 @@ var
 func
 init()
 {
-	nc = new(*Chan);
+	nc = new(Chan);
 }
 
 func
 mkchan(c,n int) []*Chan
 {
-	ca := new([]*Chan, n);
+	ca := make([]*Chan, n);
 	for i:=0; i<n; i++ {
 		cval = cval+100;
-		ch := new(*Chan);
-		ch.sc = new(chan int, c);
+		ch := new(Chan);
+		ch.sc = make(chan int, c);
 		ch.rc = ch.sc;
 		ch.sv = cval;
 		ch.rv = cval;

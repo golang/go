@@ -53,7 +53,7 @@ export func Tick(ns int64) chan int64 {
 	if ns <= 0 {
 		return nil
 	}
-	c := new(chan int64);
+	c := make(chan int64);
 	go Ticker(ns, c);
 	return c;
 }

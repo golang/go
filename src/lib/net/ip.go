@@ -23,7 +23,7 @@ export const (
 
 // Make the 4 bytes into an IPv4 address (in IPv6 form)
 func MakeIPv4(a, b, c, d byte) []byte {
-	p := new([]byte, IPv6len);
+	p := make([]byte, IPv6len);
 	for i := 0; i < 10; i++ {
 		p[i] = 0
 	}
@@ -44,11 +44,11 @@ func init() {
 	IPv4allsys = MakeIPv4(0xe0, 0x00, 0x00, 0x01);
 	IPv4allrouter = MakeIPv4(0xe0, 0x00, 0x00, 0x02);
 	IPv4prefix = MakeIPv4(0, 0, 0, 0);
-	IPallbits = new([]byte, IPv6len);
+	IPallbits = make([]byte, IPv6len);
 	for i := 0; i < IPv6len; i++ {
 		IPallbits[i] = 0xff
 	}
-	IPnoaddr = new([]byte, IPv6len);	// zeroed
+	IPnoaddr = make([]byte, IPv6len);	// zeroed
 }
 
 // Is p all zeros?
@@ -115,7 +115,7 @@ export func Mask(ip []byte, mask []byte) []byte {
 	if n != len(mask) {
 		return nil
 	}
-	out := new([]byte, n);
+	out := make([]byte, n);
 	for i := 0; i < n; i++ {
 		out[i] = ip[i] & mask[i];
 	}
@@ -280,7 +280,7 @@ func ParseIPv4(s string) []byte {
 //	* The last 32 bits can be in IPv4 form.
 // Thus, ::ffff:1.2.3.4 is the IPv4 address 1.2.3.4.
 func ParseIPv6(s string) []byte {
-	p := new([]byte, 16);
+	p := make([]byte, 16);
 	ellipsis := -1;	// position of ellipsis in p
 	i := 0;	// index in string s
 

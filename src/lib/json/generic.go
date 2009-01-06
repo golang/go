@@ -269,11 +269,11 @@ func (b *JsonBuilder) Array() {
 }
 
 func (b *JsonBuilder) Map() {
-	b.Put(&Map{new(map[string]Json), Null{}})
+	b.Put(&Map{make(map[string]Json), Null{}})
 }
 
 func (b *JsonBuilder) Elem(i int) Builder {
-	bb := new(*JsonBuilder);
+	bb := new(JsonBuilder);
 	bb.a = b.Get().(*Array).a;
 	bb.i = i;
 	for i >= bb.a.Len() {
@@ -283,7 +283,7 @@ func (b *JsonBuilder) Elem(i int) Builder {
 }
 
 func (b *JsonBuilder) Key(k string) Builder {
-	bb := new(*JsonBuilder);
+	bb := new(JsonBuilder);
 	bb.m = b.Get().(*Map).m;
 	bb.k = k;
 	bb.m[k] = null;
@@ -293,7 +293,7 @@ func (b *JsonBuilder) Key(k string) Builder {
 export func StringToJson(s string) (json Json, ok bool, errtok string) {
 	var errindx int;
 	var j Json;
-	b := new(*JsonBuilder);
+	b := new(JsonBuilder);
 	b.ptr = &j;
 	ok, errindx, errtok = Parse(s, b);
 	if !ok {

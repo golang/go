@@ -7,7 +7,7 @@
 package main
 
 func main() {
-	m := new(map[int]int);
+	m := make(map[int]int);
 	m[0] = 0;
 	m[0]++;
 	if m[0] != 1 {

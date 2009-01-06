@@ -29,19 +29,19 @@ func Filter(in <-chan int, out chan<- int, prime int) {
 
 // The prime sieve: Daisy-chain Filter processes together.
 func Sieve(primes chan<- int) {
-	ch := new(chan int);  // Create a new channel.
+	ch := make(chan int);  // Create a new channel.
 	go Generate(ch);  // Start Generate() as a subprocess.
 	for {
 		prime := <-ch;
 		primes <- prime;
-		ch1 := new(chan int);
+		ch1 := make(chan int);
 		go Filter(ch, ch1, prime);
 		ch = ch1
 	}
 }
 
 func main() {
-	primes := new(chan int);
+	primes := make(chan int);
 	go Sieve(primes);
 	a := []int{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
 	for i := 0; i < len(a); i++ {

@@ -55,7 +55,7 @@ func swap(x, y int) (u, v int) {
 }
 
 func control_structs() {
-  var p *Point = new(*Point).Initialize(2, 3);
+  var p *Point = new(Point).Initialize(2, 3);
   i := p.Distance();
   var f float = 0.3;
   for {}

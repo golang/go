@@ -20,9 +20,9 @@ func HammerSemaphore(s *int32, cdone chan bool) {
 }
 
 export func TestSemaphore(t *testing.T) {
-	s := new(*int32);
+	s := new(int32);
 	*s = 1;
-	c := new(chan bool);
+	c := make(chan bool);
 	for i := 0; i < 10; i++ {
 		go HammerSemaphore(s, c);
 	}
@@ -41,8 +41,8 @@ func HammerMutex(m *Mutex, cdone chan bool) {
 }
 
 export func TestMutex(t *testing.T) {
-	m := new(*Mutex);
-	c := new(chan bool);
+	m := new(Mutex);
+	c := make(chan bool);
 	for i := 0; i < 10; i++ {
 		go HammerMutex(m, c);
 	}

@@ -111,12 +111,6 @@ bugs/bug087.go:8: illegal combination of literals LEN 9
 bugs/bug087.go:8: illegal combination of literals LEN 9
 BUG: fails incorrectly
 
-=========== bugs/bug098.go
-bugs/bug098.go:10: illegal types for operand: AS
-	*M
-	**M
-BUG should compile
-
 =========== bugs/bug105.go
 bugs/bug105.go:8: P: undefined
 bugs/bug105.go:8: illegal types for operand: RETURN

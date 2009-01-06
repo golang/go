@@ -11,7 +11,7 @@ package main
 const N = 10
 
 func AsynchFifo() {
-	ch := new(chan int, N);
+	ch := make(chan int, N);
 	for i := 0; i < N; i++ {
 		ch <- i
 	}
@@ -33,11 +33,11 @@ func Chain(ch <-chan int, val int, in <-chan int, out chan<- int) {
 
 // thread together a daisy chain to read the elements in sequence
 func SynchFifo() {
-	ch := new(chan int);
-	in := new(chan int);
+	ch := make(chan int);
+	in := make(chan int);
 	start := in;
 	for i := 0; i < N; i++ {
-		out := new(chan int);
+		out := make(chan int);
 		go Chain(ch, i, in, out);
 		in = out;
 	}

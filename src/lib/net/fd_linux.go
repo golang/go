@@ -25,7 +25,7 @@ export type Pollster struct {
 }
 
 export func NewPollster() (p *Pollster, err *os.Error) {
-	p = new(*Pollster);
+	p = new(Pollster);
 	var e int64;
 
 	// The arg to epoll_create is a hint to the kernel
@@ -34,7 +34,7 @@ export func NewPollster() (p *Pollster, err *os.Error) {
 	if p.epfd, e = syscall.epoll_create(16); e != 0 {
 		return nil, os.ErrnoToError(e)
 	}
-	p.events = new(map[int64] uint32);
+	p.events = make(map[int64] uint32);
 	return p, nil
 }
 

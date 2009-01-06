@@ -44,7 +44,7 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) 
 	if len(name) >= 256 {
 		return nil, DNS_NameTooLong
 	}
-	out := new(*DNS_Msg);
+	out := new(DNS_Msg);
 	out.id = 0x1234;
 	out.question = []DNS_Question{
 		DNS_Question{ name, DNS_TypeA, DNS_ClassINET }
@@ -64,14 +64,14 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) 
 		// TODO(rsc): set up timeout or call ReadTimeout.
 		// right now net does not support that.
 
-		buf := new([]byte, 2000);	// More than enough.
+		buf := make([]byte, 2000);	// More than enough.
 		n, err = c.Read(buf);
 		if err != nil {
 			// TODO(rsc): only continue if timed out
 			continue
 		}
 		buf = buf[0:n];
-		in := new(*DNS_Msg);
+		in := new(DNS_Msg);
 		if !in.Unpack(buf) || in.id != out.id {
 			continue
 		}
@@ -85,7 +85,7 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) 
 // On return, if err == nil, addrs != nil.
 // TODO(rsc): Maybe return [][]byte (==[]IPAddr) instead?
 func Answer(name string, dns *DNS_Msg) (addrs []string, err *os.Error) {
-	addrs = new([]string, 0, len(dns.answer));
+	addrs = make([]string, 0, len(dns.answer));
 
 	if dns.rcode == DNS_RcodeNameError && dns.authoritative {
 		return nil, DNS_NameNotFound	// authoritative "no such host"

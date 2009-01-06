@@ -28,11 +28,11 @@ func main() {
 			sys.exit(1);
 		}
 	}
-	leftmost := new(chan int);
+	leftmost := make(chan int);
 	right := leftmost;
 	left := leftmost;
 	for i := 0; i < n; i++ {
-		right = new(chan int);
+		right = make(chan int);
 		go f(left, right);
 		left = right;
 	}

@@ -16,7 +16,7 @@ func main() {
 	if string(b1) != "hello" {
 		panic("bad convert 1")
 	}
-	var b2 = new([]byte, 5);
+	var b2 = make([]byte, 5);
 	for i := 0; i < 5; i++ { b2[i] = b1[i] }
 	if string(b2) != "hello" {
 		panic("bad convert 2")

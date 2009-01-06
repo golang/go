@@ -29,7 +29,7 @@ export const (
 export type Table []uint32
 
 export func MakeTable(poly uint32) Table {
-	t := new(Table, 256);
+	t := make(Table, 256);
 	for i := 0; i < 256; i++ {
 		crc := uint32(i);
 		for j := 0; j < 8; j++ {
@@ -74,7 +74,7 @@ func (d *Digest) Sum32() uint32 {
 }
 
 func (d *Digest) Sum() []byte {
-	p := new([]byte, 4);
+	p := make([]byte, 4);
 	s := d.Sum32();
 	p[0] = byte(s>>24);
 	p[1] = byte(s>>16);

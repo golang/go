@@ -66,7 +66,7 @@ res(t int, lb, hb int)
 func
 testpdpd()
 {
-	a := new([]int, 10, 100);
+	a := make([]int, 10, 100);
 	if len(a) != 10 && cap(a) != 100 {
 		panic("len and cap from new: ", len(a), " ", cap(a), "\n");
 	}
@@ -95,7 +95,7 @@ testpfpf()
 func
 testpdpf1()
 {
-	a := new(*[40]int);
+	a := new([40]int);
 	setpd(*a);
 	res(sumpd(*a), 0, 40);
 
@@ -117,7 +117,7 @@ testpdpf2()
 func
 testpdfault()
 {
-	a := new([]int, 100);
+	a := make([]int, 100);
 
 	print("good\n");
 	for i:=0; i<100; i++ {

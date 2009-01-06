@@ -21,8 +21,8 @@ f(k int) byte
 func
 init()
 {
-	p = new([]byte, size);
-	m = new(map[int]byte);
+	p = make([]byte, size);
+	m = make(map[int]byte);
 	for k:=0; k<size; k++ {
 		v := f(k);
 		a[k] = v;

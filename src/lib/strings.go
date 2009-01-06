@@ -8,7 +8,7 @@ import "utf8"
 
 // Split string into array of UTF-8 sequences (still strings)
 export func explode(s string) []string {
-	a := new([]string, utf8.RuneCountInString(s, 0, len(s)));
+	a := make([]string, utf8.RuneCountInString(s, 0, len(s)));
 	j := 0;
 	var size, rune int;
 	for i := 0; i < len(a); i++ {
@@ -57,7 +57,7 @@ export func split(s, sep string) []string {
 	c := sep[0];
 	start := 0;
 	n := count(s, sep)+1;
-	a := new([]string, n);
+	a := make([]string, n);
 	na := 0;
 	for i := 0; i+len(sep) <= len(s); i++ {
 		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
@@ -84,7 +84,7 @@ export func join(a []string, sep string) string {
 		n += len(a[i])
 	}
 
-	b := new([]byte, n);
+	b := make([]byte, n);
 	bp := 0;
 	for i := 0; i < len(a); i++ {
 		s := a[i];

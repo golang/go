@@ -198,18 +198,18 @@ export type DNS_RR_A struct {
 
 // Map of constructors for each RR wire type.
 var rr_mk = map[int]*()DNS_RR {
-	DNS_TypeCNAME: func() DNS_RR { return new(*DNS_RR_CNAME) },
-	DNS_TypeHINFO: func() DNS_RR { return new(*DNS_RR_HINFO) },
-	DNS_TypeMB: func() DNS_RR { return new(*DNS_RR_MB) },
-	DNS_TypeMG: func() DNS_RR { return new(*DNS_RR_MG) },
-	DNS_TypeMINFO: func() DNS_RR { return new(*DNS_RR_MINFO) },
-	DNS_TypeMR: func() DNS_RR { return new(*DNS_RR_MR) },
-	DNS_TypeMX: func() DNS_RR { return new(*DNS_RR_MX) },
-	DNS_TypeNS: func() DNS_RR { return new(*DNS_RR_NS) },
-	DNS_TypePTR: func() DNS_RR { return new(*DNS_RR_PTR) },
-	DNS_TypeSOA: func() DNS_RR { return new(*DNS_RR_SOA) },
-	DNS_TypeTXT: func() DNS_RR { return new(*DNS_RR_TXT) },
-	DNS_TypeA: func() DNS_RR { return new(*DNS_RR_A) },
+	DNS_TypeCNAME: func() DNS_RR { return new(DNS_RR_CNAME) },
+	DNS_TypeHINFO: func() DNS_RR { return new(DNS_RR_HINFO) },
+	DNS_TypeMB: func() DNS_RR { return new(DNS_RR_MB) },
+	DNS_TypeMG: func() DNS_RR { return new(DNS_RR_MG) },
+	DNS_TypeMINFO: func() DNS_RR { return new(DNS_RR_MINFO) },
+	DNS_TypeMR: func() DNS_RR { return new(DNS_RR_MR) },
+	DNS_TypeMX: func() DNS_RR { return new(DNS_RR_MX) },
+	DNS_TypeNS: func() DNS_RR { return new(DNS_RR_NS) },
+	DNS_TypePTR: func() DNS_RR { return new(DNS_RR_PTR) },
+	DNS_TypeSOA: func() DNS_RR { return new(DNS_RR_SOA) },
+	DNS_TypeTXT: func() DNS_RR { return new(DNS_RR_TXT) },
+	DNS_TypeA: func() DNS_RR { return new(DNS_RR_A) },
 }
 
 // Pack a domain name s into msg[off:].
@@ -424,7 +424,7 @@ func UnpackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, 
 				}
 				n := int(msg[off]);
 				off++;
-				b := new([]byte, n);
+				b := make([]byte, n);
 				for i := 0; i < n; i++ {
 					b[i] = msg[off+i];
 				}
@@ -582,7 +582,7 @@ func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
 	// Could work harder to calculate message size,
 	// but this is far more than we need and not
 	// big enough to hurt the allocator.
-	msg = new([]byte, 2000);
+	msg = make([]byte, 2000);
 
 	// Pack it in: header and then the pieces.
 	off := 0;
@@ -623,10 +623,10 @@ func (dns *DNS_Msg) Unpack(msg []byte) bool {
 	dns.rcode = int(dh.bits & 0xF);
 
 	// Arrays.
-	dns.question = new([]DNS_Question, dh.qdcount);
-	dns.answer = new([]DNS_RR, dh.ancount);
-	dns.ns = new([]DNS_RR, dh.nscount);
-	dns.extra = new([]DNS_RR, dh.arcount);
+	dns.question = make([]DNS_Question, dh.qdcount);
+	dns.answer = make([]DNS_RR, dh.ancount);
+	dns.ns = make([]DNS_RR, dh.nscount);
+	dns.extra = make([]DNS_RR, dh.arcount);
 
 	for i := 0; i < len(dns.question); i++ {
 		off, ok = UnpackStruct(&dns.question[i], msg, off);

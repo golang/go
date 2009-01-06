@@ -162,7 +162,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
 	// Now we can build up a useful data structure.
 	// First the zone information.
 	//	utcoff[4] isdst[1] nameindex[1]
-	zone := new([]Zone, n[NZone]);
+	zone := make([]Zone, n[NZone]);
 	for i := 0; i < len(zone); i++ {
 		var ok bool;
 		var n uint32;
@@ -182,7 +182,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
 	}
 
 	// Now the transition time info.
-	zt = new([]Zonetime, n[NTime]);
+	zt = make([]Zonetime, n[NTime]);
 	for i := 0; i < len(zt); i++ {
 		var ok bool;
 		var n uint32;
@@ -209,7 +209,7 @@ func ReadFile(name string, max int) (p []byte, err *os.Error) {
 	if e != nil {
 		return nil, e
 	}
-	p = new([]byte, max+1)[0:0];
+	p = make([]byte, max+1)[0:0];
 	n := 0;
 	for len(p) < max {
 		nn, e := fd.Read(p[n:cap(p)]);

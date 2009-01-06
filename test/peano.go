@@ -25,7 +25,7 @@ func is_zero(x *Number) bool {
 
 
 func add1(x *Number) *Number {
-	e := new(*Number);
+	e := new(Number);
 	e.next = x;
 	return e;
 }

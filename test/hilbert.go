@@ -47,10 +47,10 @@ func (a *Matrix) set(i, j int, x *Big.Rational) {
 
 func NewMatrix(n, m int) *Matrix {
 	assert(0 <= n && 0 <= m);
-	a := new(*Matrix);
+	a := new(Matrix);
 	a.n = n;
 	a.m = m;
-	a.a = new([]*Big.Rational, n*m);
+	a.a = make([]*Big.Rational, n*m);
 	return a;
 }
 

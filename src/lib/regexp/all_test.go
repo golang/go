@@ -197,7 +197,7 @@ func MatchStringsTest(t *testing.T, expr string, str string, match []int) {
 	if re == nil {
 		return
 	}
-	strs := new([]string, len(match)/2);
+	strs := make([]string, len(match)/2);
 	for i := 0; i < len(match); i++ {
 		strs[i/2] = str[match[i] : match[i+1]]
 	}

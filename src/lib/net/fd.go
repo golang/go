@@ -78,9 +78,9 @@ type PollServer struct {
 func (s *PollServer) Run();
 
 func NewPollServer() (s *PollServer, err *os.Error) {
-	s = new(*PollServer);
-	s.cr = new(chan *FD, 1);
-	s.cw = new(chan *FD, 1);
+	s = new(PollServer);
+	s.cr = make(chan *FD, 1);
+	s.cw = make(chan *FD, 1);
 	if s.pr, s.pw, err = os.Pipe(); err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func NewPollServer() (s *PollServer, err *os.Error) {
 		s.poll.Close();
 		goto Error
 	}
-	s.pending = new(map[int64] *FD);
+	s.pending = make(map[int64] *FD);
 	go s.Run();
 	return s, nil
 }
@@ -214,11 +214,11 @@ export func NewFD(fd int64) (f *FD, err *os.Error) {
 	if err = SetNonblock(fd); err != nil {
 		return nil, err
 	}
-	f = new(*FD);
+	f = new(FD);
 	f.fd = fd;
 	f.osfd = os.NewFD(fd);
-	f.cr = new(chan *FD, 1);
-	f.cw = new(chan *FD, 1);
+	f.cr = make(chan *FD, 1);
+	f.cw = make(chan *FD, 1);
 	return f, nil
 }
 

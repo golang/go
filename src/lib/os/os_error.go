@@ -12,7 +12,7 @@ export type Error struct {
 	s string
 }
 
-var ErrorTab = new(map[int64] *Error);
+var ErrorTab = make(map[int64] *Error);
 
 export func NewError(s string) *Error {
 	return &Error{s}

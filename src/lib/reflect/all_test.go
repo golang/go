@@ -176,7 +176,7 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	}
 	{
 		type C chan *T;	// TODO: should not be necessary
-		var tmp = new(*C);
+		var tmp = new(C);
 		value := reflect.NewValue(tmp);
 		assert(reflect.ValueToString(value), "*reflect.C·all_test(@)");
 	}

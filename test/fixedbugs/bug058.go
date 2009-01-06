@@ -10,7 +10,7 @@ type Box struct {};
 var m map[string] *Box;
 
 func main() {
-  m := new(map[string] *Box);
+  m := make(map[string] *Box);
   s := "foo";
   var x *Box = nil;
   m[s] = x;

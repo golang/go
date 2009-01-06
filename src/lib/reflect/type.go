@@ -332,7 +332,7 @@ func (t *InterfaceTypeStruct) Len() int {
 	return len(t.field)
 }
 
-var NilInterface = NewInterfaceTypeStruct("nil", "", new([]Field, 0));
+var NilInterface = NewInterfaceTypeStruct("nil", "", make([]Field, 0));
 
 // -- Func
 
@@ -397,9 +397,9 @@ func init() {
 
 	Lock();	// not necessary because of init ordering but be safe.
 
-	types = new(map[string] Type);
-	typestring = new(map[string] string);
-	basicstub = new(map[string] *StubType);
+	types = make(map[string] Type);
+	typestring = make(map[string] string);
+	basicstub = make(map[string] *StubType);
 
 	// Basics go into types table
 	types[MissingString] = Missing;
@@ -674,11 +674,11 @@ func (p *Parser) Chan(name string, tokstart, dir int) *StubType {
 
 // Parse array of fields for struct, interface, and func arguments
 func (p *Parser) Fields(sep, term string) []Field {
-	a := new([]Field, 10);
+	a := make([]Field, 10);
 	nf := 0;
 	for p.token != "" && p.token != term {
 		if nf == len(a) {
-			a1 := new([]Field, 2*nf);
+			a1 := make([]Field, 2*nf);
 			for i := 0; i < nf; i++ {
 				a1[i] = a[i];
 			}
@@ -706,7 +706,7 @@ func (p *Parser) Fields(sep, term string) []Field {
 
 // A single type packaged as a field for a function return
 func (p *Parser) OneField() []Field {
-	a := new([]Field, 1);
+	a := make([]Field, 1);
 	a[0].name = "";
 	a[0].typ = p.Type("");
 	return a;
@@ -838,7 +838,7 @@ export func ParseTypeString(name, typestring string) Type {
 		// If the typestring is empty, it represents (the type of) a nil interface value
 		return NilInterface
 	}
-	p := new(*Parser);
+	p := new(Parser);
 	p.str = typestring;
 	p.Next();
 	return p.Type(name).Get();
