@@ -10,7 +10,6 @@ LIB=\
 HFILES=\
 	cc.h\
 	y.tab.h\
-	compat.h\
 
 YFILES=\
 	cc.y\
@@ -28,10 +27,8 @@ OFILES=\
 	funct.$O\
 	sub.$O\
 	com64.$O\
-	compat.$O\
 	dpchk.$O\
 	omachcap.$O\
-	compat.$O\
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)
@@ -39,7 +36,7 @@ $(LIB): $(OFILES)
 $(OFILES): $(HFILES)
 
 y.tab.h: $(YFILES)
-	yacc $(YFLAGS) $(YFILES)
+	bison -y $(YFLAGS) $(YFILES)
 
 y.tab.c: y.tab.h
 	test -f y.tab.c && touch y.tab.c
