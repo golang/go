@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(January 6, 2009)
+(January 7, 2009)
 
 ----
 
@@ -45,9 +45,6 @@ Todo's:
 	doesn't correspond to the implementation. The spec is wrong when it
 	comes to the first index i: it should allow (at least) the range 0 <= i <= len(a).
 	also: document different semantics for strings and arrays (strings cannot be grown).
-[ ] new as it is now is weird - need to go back to previous semantics and introduce
-    literals for slices, maps, channels
-[ ] determine if really necessary to disallow array assignment
 
 
 Open issues:
@@ -95,6 +92,9 @@ Decisions in need of integration into the doc:
 
 
 Closed:
+[x] new as it is now is weird - need to go back to previous semantics and introduce
+    literals for slices, maps, channels - done
+[x] determine if really necessary to disallow array assignment - allow array assignment
 [x] semantics of statements - we just need to fill in the language, the semantics is mostly clear
 [x] range statement: to be defined more reasonably
 [x] need to be specific on (unsigned) integer operations: one must be able
@@ -1774,43 +1774,50 @@ Composite Literals
 ----
 
 Literals for composite data structures consist of the type of the value
-followed by a braced expression list for array and structure literals,
+followed by a braced expression list for array, slice, and structure literals,
 or a list of expression pairs for map literals.
 
 	CompositeLit = LiteralType "{" [ ( ExpressionList | ExprPairList ) [ "," ] ] "}" .
-	LiteralType = TypeName | ArrayType | MapType | StructType .
+	LiteralType = Type | "[" "..." "]" ElementType .
 	ExprPairList = ExprPair { "," ExprPair } .
 	ExprPair = Expression ":" Expression .
 
-If LiteralType is a TypeName, the denoted type must be an array, map, or
-structure.  The types of the expressions must match the respective key, element,
-and field types of the literal type; there is no automatic type conversion.
+The LiteralType must be an struct, array, slice, or map type.
+The types of the expressions must match the respective field, element, and
+key types of the LiteralType; there is no automatic type conversion.
 Composite literals are values of the type specified by LiteralType; that is
 a new value is created every time the literal is evaluated. To get
 a pointer to the literal, the address operator "&" must be used.
 
 Given
 
-	type Rat struct { num, den int };
-	type Num struct { r Rat; f float; s string };
+	type Rat struct { num, den int }
+	type Num struct { r Rat; f float; s string }
 
 one can write
 
 	pi := Num{Rat{22, 7}, 3.14159, "pi"};
 
-
-TODO section below needs to be brought into agreement with 6g.
-
 The length of an array literal is the length specified in the LiteralType.
 If fewer elements than the length are provided in the literal, the missing
 elements are set to the appropriate zero value for the array element type.
-It is an error to provide more elements than specified in LiteralType.
-If no length is specified, the length is the number of elements provided
-in the literal.
+It is an error to provide more elements than specified in LiteralType. The
+notation "..." may be used in place of the length expression to denote a
+length equal to the number of elements in the literal.
 
-	buffer := [10]string{};  // len(buffer) == 10
-	primes := &[6]int{2, 3, 5, 7, 9, 11};  // len(primes) == 6
-	weekenddays := &[]string{"sat", "sun"};  // len(weekenddays) == 2
+	buffer := [10]string{};               // len(buffer) == 10
+	primes := [6]int{2, 3, 5, 7, 9, 11};  // len(primes) == 6
+	days := [...]string{"sat", "sun"};    // len(days) == 2
+
+A slice literal is a slice describing the entire underlying array literal.
+Thus, the length and capacity of a slice literal is the number of elements
+provided in the literal. A slice literal of the form
+
+	[]T{x1, x2, ... xn}
+
+is essentially a shortcut for a slice operation applied to an array literal:
+
+	[n]T{x1, x2, ... xn}[0 : n]
 
 Map literals are similar except the elements of the expression list are
 key-value pairs separated by a colon:
