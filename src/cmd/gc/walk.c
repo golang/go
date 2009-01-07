@@ -3556,23 +3556,24 @@ arraylit(Node *n)
 	Iter saver;
 	Type *t;
 	Node *var, *r, *a, *nas, *nnew;
-	int idx;
+	int idx, b;
 
 	t = n->type;
 	if(t->etype != TARRAY)
 		fatal("arraylit: not array");
 
-	if(t->bound >= 0)
-		fatal("arraylit: literal fixed arrays not implemented");
-
 	var = nod(OXXX, N, N);
 	tempname(var, t);
 
-	nnew = nod(OMAKE, N, N);
-	nnew->type = t;
+	b = t->bound;
+	if(b < 0 && b != -100) {
+		// slice
+		nnew = nod(OMAKE, N, N);
+		nnew->type = t;
 
-	nas = nod(OAS, var, nnew);
-	addtop = list(addtop, nas);
+		nas = nod(OAS, var, nnew);
+		addtop = list(addtop, nas);
+	}
 
 	idx = 0;
 	r = listfirst(&saver, &n->left);
@@ -3580,6 +3581,10 @@ arraylit(Node *n)
 		r = N;
 	while(r != N) {
 		// build list of var[c] = expr
+		if(b >= 0 && idx >= b) {
+			yyerror("literal array initializer out of bounds");
+			break;
+		}
 		a = nodintconst(idx);
 		a = nod(OINDEX, var, a);
 		a = nod(OAS, a, r);
@@ -3587,7 +3592,13 @@ arraylit(Node *n)
 		idx++;
 		r = listnext(&saver);
 	}
-	nnew->left = nodintconst(idx);
+	if(b == -100) {
+		// compiler counted closed array
+		b = idx;
+		t->bound = b;
+	}
+	if(b < 0)
+		nnew->left = nodintconst(idx);
 	return var;
 }
 

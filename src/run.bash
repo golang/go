@@ -59,7 +59,7 @@ time make
 ) || exit $?
 
 (xcd ../doc/progs
-time run
+time ./run
 ) || exit $?
 
 (xcd ../test

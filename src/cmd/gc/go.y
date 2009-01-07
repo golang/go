@@ -1021,6 +1021,12 @@ convtype:
 		// array literal
 		$$ = aindex($2, $4);
 	}
+|	'[' LDDD ']' type
+	{
+		// array literal of nelem
+		$$ = aindex(N, $4);
+		$$->bound = -100;
+	}
 |	LMAP '[' type ']' type
 	{
 		// map literal
