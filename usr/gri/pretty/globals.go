@@ -15,7 +15,6 @@ package Globals
 
 type Type struct
 type Scope struct
-type Elem struct
 type OldCompilation struct
 
 // Object represents a language object, such as a constant, variable, type,
@@ -97,19 +96,6 @@ export type Expr interface {
 
 export type Stat interface {
 	// ... more to come here
-}
-
-
-// TODO This is hideous! We need to have a decent way to do lists.
-// Ideally open arrays that allow '+'.
-
-export type Elem struct {
-	next *Elem;
-	val int;
-	str string;
-	obj *Object;
-	typ *Type;
-	expr Expr
 }
 
 

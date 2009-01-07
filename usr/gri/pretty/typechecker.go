@@ -163,7 +163,14 @@ func (s *State) CheckDeclaration(d *AST.Decl) {
 				// method
 				// TODO
 			} else {
-				s.DeclareIdent(d.ident, d.tok, d.typ);
+				// functions may be forward-declared
+				obj := s.Lookup(d.ident.s);
+				if obj != nil {
+				  // TODO check if proper forward-declaration
+				  
+				} else {
+					s.DeclareIdent(d.ident, d.tok, d.typ);
+				}
 			}
 
 		default:
@@ -190,8 +197,6 @@ func (s *State) CheckProgram(p *AST.Program) {
 // ----------------------------------------------------------------------------
 
 export func CheckProgram(err Scanner.ErrorHandler, p *AST.Program) {
-	return;  // DISABLED FOR NOW
-	
 	var s State;
 	s.Init(err);
 	s.CheckProgram(p);
