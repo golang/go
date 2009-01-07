@@ -594,6 +594,14 @@ loop:
 		if(issarray(t) && isdarray(l->type))
 			goto ret;
 
+		// convert static array to dynamic array
+		if(isdarray(t) && issarray(l->type)) {
+			if(eqtype(t->type->type, l->type->type->type, 0)) {
+				indir(n, arrayop(n, Erv));
+				goto ret;
+			}
+		}
+
 		// interface and structure
 		et = isandss(n->type, l);
 		if(et != Inone) {
@@ -2663,6 +2671,28 @@ arrayop(Node *n, int top)
 	default:
 		fatal("darrayop: unknown op %O", n->op);
 
+	case OCONV:
+		// arrays2d(old *any, nel int) (ary []any)
+		t = fixarray(n->left->type);
+		tl = fixarray(n->type);
+		if(t == T || tl == T)
+			break;
+
+		a = nodintconst(t->bound);		// nel
+		a = nod(OCONV, a, N);
+		a->type = types[TINT];
+		r = a;
+
+		a = nod(OADDR, n->left, N);		// old
+		r = list(a, r);
+
+		on = syslook("arrays2d", 1);
+		argtype(on, t);				// any-1
+		argtype(on, tl->type);			// any-2
+		r = nod(OCALL, on, r);
+		walktype(r, top);
+		break;
+
 	case OAS:
 		// arrays2d(old *any, nel int) (ary []any)
 		t = fixarray(n->right->type);
@@ -3498,57 +3528,6 @@ loop:
 	r = listnext(&saver);
 	goto loop;
 }
-
-//Node*
-//oldarraylit(Node *n)
-//{
-//	Iter saver;
-//	Type *t;
-//	Node *var, *r, *a;
-//	int idx;
-//
-//	t = n->type;
-//	if(t->etype != TARRAY)
-//		fatal("arraylit: not array");
-//
-//	if(t->bound < 0) {
-//		// make a shallow copy
-//		t = typ(0);
-//		*t = *n->type;
-//		n->type = t;
-//
-//		// make it a closed array
-//		r = listfirst(&saver, &n->left);
-//		if(r != N && r->op == OEMPTY)
-//			r = N;
-//		for(idx=0; r!=N; idx++)
-//			r = listnext(&saver);
-//		t->bound = idx;
-//	}
-//
-//	var = nod(OXXX, N, N);
-//	tempname(var, t);
-//
-//	idx = 0;
-//	r = listfirst(&saver, &n->left);
-//	if(r != N && r->op == OEMPTY)
-//		r = N;
-//
-//loop:
-//	if(r == N)
-//		return var;
-//
-//	// build list of var[c] = expr
-//
-//	a = nodintconst(idx);
-//	a = nod(OINDEX, var, a);
-//	a = nod(OAS, a, r);
-//	addtop = list(addtop, a);
-//	idx++;
-//
-//	r = listnext(&saver);
-//	goto loop;
-//}
 
 Node*
 arraylit(Node *n)
