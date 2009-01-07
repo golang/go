@@ -268,7 +268,10 @@ func (P *Parser) ParseArrayType() *AST.Type {
 
 	t := AST.NewType(P.pos, Scanner.LBRACK);
 	P.Expect(Scanner.LBRACK);
-	if P.tok != Scanner.RBRACK {
+	if P.tok == Scanner.ELLIPSIS {
+		t.expr = P.NewExpr(P.pos, Scanner.ELLIPSIS, nil, nil);
+		P.Next();
+	} else if P.tok != Scanner.RBRACK {
 		t.expr = P.ParseExpression(1);
 	}
 	P.Expect(Scanner.RBRACK);
