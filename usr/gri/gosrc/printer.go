@@ -40,7 +40,7 @@ func IsAnonymous(name string) bool {
 func (P *Printer) PrintSigRange(typ *Globals.Type, a, b int) {
 	scope := typ.scope;
 	if a + 1 == b && IsAnonymous(scope.entries.ObjAt(a).ident) {
-		P.PrintType(scope.entries.TypAt(a));  // result type only
+		P.PrintType(scope.entries.ObjAt(a).typ);  // result type only
 	} else {
 		print("(");
 		for i := a; i < b; i++ {
@@ -57,16 +57,16 @@ func (P *Printer) PrintSigRange(typ *Globals.Type, a, b int) {
 
 
 func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
-	if typ.form != Type.FUNCTION {
-		panic("typ.form != Type.FUNCTION");
-	}
-	
 	p0 := 0;
-	if typ.flags & Type.RECV != 0 {
+	if typ.form == Type.METHOD {
 		p0 = 1;
+	} else {
+		if typ.form != Type.FUNCTION {
+			panic("not a function or method");
+		}
 	}
-	r0 := p0 + typ.len_;
-	l0 := typ.scope.entries.len_;
+	r0 := p0 + typ.len;
+	l0 := typ.scope.entries.len;
 	
 	if P.level == 0 {
 		print("func ");
@@ -105,7 +105,7 @@ func (P *Printer) PrintScope(scope *Globals.Scope, delta int) {
 	// determine the number of scope entries to print
 	var n int;
 	if P.print_all {
-		n = scope.entries.len_;
+		n = scope.entries.len;
 	} else {
 		n = 0;
 		for p := scope.entries.first; p != nil; p = p.next {
@@ -130,12 +130,12 @@ func (P *Printer) PrintScope(scope *Globals.Scope, delta int) {
 	}
 }
 
-	
+
 func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
 	switch obj.kind {
 	case Object.BAD:
-		print("bad ");
 		P.PrintObject(obj);
+		print(" /* bad */");
 
 	case Object.CONST:
 		print("const ");
@@ -149,10 +149,11 @@ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
 		print(" ");
 		P.PrintTypeStruct(obj.typ);
 
-	case Object.VAR, Object.FIELD:
-		if P.level == 0 {
-			print("var ");
-		}
+	case Object.VAR:
+		print("var ");
+		fallthrough;
+
+	case Object.FIELD:
 		P.PrintObject(obj);
 		print(" ");
 		P.PrintType(obj.typ);
@@ -160,6 +161,10 @@ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
 	case Object.FUNC:
 		P.PrintSignature(obj.typ, obj);
 
+	case Object.BUILTIN:
+		P.PrintObject(obj);
+		print(" /* builtin */");
+		
 	case Object.PACKAGE:
 		print("package ");
 		P.PrintObject(obj);
@@ -197,11 +202,14 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 	case Type.VOID:
 		print("void");
 		
+	case Type.BAD:
+		print("<bad type>");
+
 	case Type.FORWARD:
 		print("<forward type>");
 
-	case Type.BAD:
-		print("<bad type>");
+	case Type.TUPLE:
+		print("<tuple type>");
 
 	case Type.NIL, Type.BOOL, Type.UINT, Type.INT, Type.FLOAT, Type.STRING, Type.ANY:
 		if typ.obj == nil {
@@ -211,9 +219,9 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 
 	case Type.ALIAS:
 		P.PrintType(typ.elt);
-		if typ.aux != typ.elt {
+		if typ.key != typ.elt {
 			print(" /* ");
-			P.PrintType(typ.aux);
+			P.PrintType(typ.key);
 			print(" */");
 		}
 		
@@ -233,12 +241,12 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 
 	case Type.MAP:
 		print("map [");
-		P.PrintType(typ.aux);
+		P.PrintType(typ.key);
 		print("] ");
 		P.PrintType(typ.elt);
 
 	case Type.CHANNEL:
-		switch typ.flags {
+		switch typ.aux {
 		case Type.SEND: print("chan <- ");
 		case Type.RECV: print("<- chan ");
 		case Type.SEND + Type.RECV: print("chan ");
@@ -251,10 +259,6 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 
 	case Type.POINTER:
 		print("*");
-		P.PrintType(typ.elt);
-
-	case Type.REFERENCE:
-		print("&");
 		P.PrintType(typ.elt);
 
 	default:

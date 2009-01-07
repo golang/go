@@ -48,7 +48,9 @@ export var (
 	ptrint_t *Globals.Type;
 	
 	true_,
-	false_ *Globals.Object;
+	false_,
+	iota_,
+	nil_ *Globals.Object;
 )
 
 
@@ -72,17 +74,17 @@ func DeclType(form int, ident string, size int) *Globals.Type {
 
 func DeclAlias(ident string, typ *Globals.Type) *Globals.Type {
 	alias := Globals.NewType(Type.ALIAS);
-	alias.aux = typ;
+	alias.key = typ;
 	alias.elt = typ;
 	return DeclObj(Object.TYPE, ident, alias).typ;
 }
 
 
 func Register(typ *Globals.Type) *Globals.Type {
-	if types.len_ < 0 {
-		panic("types.len_ < 0");
+	if types.len < 0 {
+		panic("types.len < 0");
 	}
-	typ.ref = types.len_;
+	typ.ref = types.len;
 	types.AddTyp(typ);
 	return typ;
 }
@@ -96,7 +98,7 @@ func init() {
 	void_t = Globals.NewType(Type.VOID);
 	Globals.Universe_void_t = void_t;
 	bad_t = Globals.NewType(Type.BAD);
-	nil_t = DeclType(Type.NIL, "nil", 8);
+	nil_t = Globals.NewType(Type.NIL);
 	
 	// Basic types
 	bool_t = Register(DeclType(Type.BOOL, "bool", 1));
@@ -130,9 +132,14 @@ func init() {
 	// Predeclared constants
 	true_ = DeclObj(Object.CONST, "true", bool_t);
 	false_ = DeclObj(Object.CONST, "false", bool_t);
+	iota_ = DeclObj(Object.CONST, "iota", int_t);
+	nil_ = DeclObj(Object.CONST, "nil", nil_t);
 
 	// Builtin functions
-	DeclObj(Object.FUNC, "len", Globals.NewType(Type.FUNCTION));  // incomplete
+	DeclObj(Object.BUILTIN, "len", void_t);
+	DeclObj(Object.BUILTIN, "new", void_t);
+	DeclObj(Object.BUILTIN, "panic", void_t);
+	DeclObj(Object.BUILTIN, "print", void_t);
 	
 	// scope.Print();
 }

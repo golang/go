@@ -12,16 +12,16 @@ import Type "type"
 import Universe "universe"
 import Import "import"
 import AST "ast"
+import Expr "expr"
 
 
 export type Parser struct {
 	comp *Globals.Compilation;
-	semantic_checks bool;
 	verbose bool;
 	indent uint;
-	S *Scanner.Scanner;
-	C chan *Scanner.Token;
-
+	scanner *Scanner.Scanner;
+	tokchan chan *Scanner.Token;
+	
 	// Token
 	tok int;  // one token look-ahead
 	pos int;  // token source position
@@ -50,12 +50,12 @@ func (P *Parser) Trace(msg string) {
 		P.PrintIndent();
 		print(msg, " {\n");
 	}
-	P.indent++;
+	P.indent++;  // always, so proper identation is always checked
 }
 
 
 func (P *Parser) Ecart() {
-	P.indent--;
+	P.indent--;  // always, so proper identation is always checked
 	if P.verbose {
 		P.PrintIndent();
 		print("}\n");
@@ -64,10 +64,10 @@ func (P *Parser) Ecart() {
 
 
 func (P *Parser) Next() {
-	if P.C == nil {
-		P.tok, P.pos, P.val = P.S.Scan();
+	if P.tokchan == nil {
+		P.tok, P.pos, P.val = P.scanner.Scan();
 	} else {
-		t := <- P.C;
+		t := <- P.tokchan;
 		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
 	}
 	if P.verbose {
@@ -77,13 +77,12 @@ func (P *Parser) Next() {
 }
 
 
-func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, C chan *Scanner.Token) {
+func (P *Parser) Open(comp *Globals.Compilation, scanner *Scanner.Scanner, tokchan chan *Scanner.Token) {
 	P.comp = comp;
-	P.semantic_checks = comp.flags.ast;
 	P.verbose = comp.flags.verbosity > 2;
 	P.indent = 0;
-	P.S = S;
-	P.C = C;
+	P.scanner = scanner;
+	P.tokchan = tokchan;
 	P.Next();
 	P.level = 0;
 	P.top_scope = Universe.scope;
@@ -93,7 +92,7 @@ func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, C chan *Sca
 
 
 func (P *Parser) Error(pos int, msg string) {
-	P.S.Error(pos, msg);
+	P.scanner.Error(pos, msg);
 }
 
 
@@ -137,9 +136,6 @@ func (P *Parser) Lookup(ident string) *Globals.Object {
 
 
 func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
-	if !P.semantic_checks {
-		return;
-	}
 	if P.level > 0 {
 		panic("cannot declare objects in other packages");
 	}
@@ -157,27 +153,32 @@ func (P *Parser) Declare(obj *Globals.Object) {
 }
 
 
-func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.Type {
-	// Determine if we have a receiver or not.
-	// TODO do we still need this?
-	if p0 > 0 && check_recv {
-		// method
-		if p0 != 1 {
-			panic("p0 != 1");
+func MakeFunctionType(sig *Globals.Scope, p0, r0 int) *Globals.Type {
+	form := Type.FUNCTION;
+	if p0 == 1 {
+		form = Type.METHOD;
+	} else {
+		if p0 != 0 {
+			panic("incorrect p0");
 		}
 	}
-
-	typ := Globals.NewType(Type.FUNCTION);
-	if p0 == 0 {
-		typ.flags = 0;
-	} else {
-		typ.flags = Type.RECV;
-	}
-	typ.len_ = r0 - p0;
+	typ := Globals.NewType(form);
+	typ.len = r0 - p0;
 	typ.scope = sig;
 
-	// parameters are always exported (they can't be accessed w/o the function
-	// or function type being exported)
+	// set result type
+	if sig.entries.len - r0 == 1 {
+		// exactly one result value
+		typ.elt = sig.entries.last.obj.typ;
+	} else {
+		// 0 or >1 result values - create a tuple referring to this type
+		tup := Globals.NewType(Type.TUPLE);
+		tup.elt = typ;
+		typ.elt = tup;
+	}
+
+	// parameters/results are always exported (they can't be accessed
+	// w/o the function or function type being exported)
 	for p := sig.entries.first; p != nil; p = p.next {
 		p.obj.exported = true;
 	}
@@ -189,9 +190,9 @@ func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.
 func (P *Parser) DeclareFunc(pos int, ident string, typ *Globals.Type) *Globals.Object {
 	// determine scope
 	scope := P.top_scope;
-	if typ.flags & Type.RECV != 0 {
-		// method - declare in corresponding struct
-		if typ.scope.entries.len_ < 1 {
+	if typ.form == Type.METHOD {
+		// declare in corresponding struct
+		if typ.scope.entries.len < 1 {
 			panic("no recv in signature?");
 		}
 		recv_typ := typ.scope.entries.first.obj.typ;
@@ -213,7 +214,7 @@ func (P *Parser) DeclareFunc(pos int, ident string, typ *Globals.Type) *Globals.
 
 	// obj != NULL: possibly a forward declaration
 	if obj.kind != Object.FUNC {
-		P.Error(-1, `"` + ident + `" is declared already`);
+		P.Error(pos, `"` + ident + `" is declared already`);
 		// continue but do not insert this function into the scope
 		obj = Globals.NewObject(-1, Object.FUNC, ident);
 		obj.typ = typ;
@@ -313,43 +314,31 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
 		pos, ident = P.ParseIdent(false);
 	}
 
-	if P.semantic_checks {
-		obj := P.Lookup(ident);
-		if obj == nil {
-			P.Error(pos, `"` + ident + `" is not declared`);
-			obj = Globals.NewObject(pos, Object.BAD, ident);
-		}
-
-		if obj.kind == Object.PACKAGE && P.tok == Scanner.PERIOD {
-			if obj.pnolev < 0 {
-				panic("obj.pnolev < 0");
-			}
-			pkg := P.comp.pkg_list[obj.pnolev];
-			//if pkg.obj.ident != ident {
-			//	panic("pkg.obj.ident != ident");
-			//}
-			P.Next();  // consume "."
-			pos, ident = P.ParseIdent(false);
-			obj = pkg.scope.Lookup(ident);
-			if obj == nil {
-				P.Error(pos, `"` + ident + `" is not declared in package "` + pkg.obj.ident + `"`);
-				obj = Globals.NewObject(pos, Object.BAD, ident);
-			}
-		}
-
-		P.Ecart();
-		return obj;
-
-	} else {
-		if P.tok == Scanner.PERIOD {
-			P.Next();
-			P.ParseIdent(false);
-		}
-		P.Ecart();
-		return nil;
+	obj := P.Lookup(ident);
+	if obj == nil {
+		P.Error(pos, `"` + ident + `" is not declared`);
+		obj = Globals.NewObject(pos, Object.BAD, ident);
 	}
 
-	panic("UNREACHABLE");
+	if obj.kind == Object.PACKAGE && P.tok == Scanner.PERIOD {
+		if obj.pnolev < 0 {
+			panic("obj.pnolev < 0");
+		}
+		pkg := P.comp.pkg_list[obj.pnolev];
+		//if pkg.obj.ident != ident {
+		//	panic("pkg.obj.ident != ident");
+		//}
+		P.Next();  // consume "."
+		pos, ident = P.ParseIdent(false);
+		obj = pkg.scope.Lookup(ident);
+		if obj == nil {
+			P.Error(pos, `"` + ident + `" is not declared in package "` + pkg.obj.ident + `"`);
+			obj = Globals.NewObject(pos, Object.BAD, ident);
+		}
+	}
+
+	P.Ecart();
+	return obj;
 }
 
 
@@ -376,19 +365,17 @@ func (P *Parser) ParseVarType() *Globals.Type {
 	pos := P.pos;
 	typ := P.ParseType();
 
-	if P.semantic_checks {
-		switch typ.form {
-		case Type.ARRAY:
-			if P.comp.flags.sixg || typ.len_ >= 0 {
-				break;
-			}
-			// open arrays must be pointers
-			fallthrough;
-
-		case Type.MAP, Type.CHANNEL, Type.FUNCTION:
-			P.Error(pos, "must be pointer to this type");
-			typ = Universe.bad_t;
+	switch typ.form {
+	case Type.ARRAY:
+		if P.comp.flags.sixg || typ.len >= 0 {
+			break;
 		}
+		// open arrays must be pointers
+		fallthrough;
+		
+	case Type.MAP, Type.CHANNEL, Type.FUNCTION:
+		P.Error(pos, "must be pointer to this type");
+		typ = Universe.bad_t;
 	}
 
 	P.Ecart();
@@ -399,23 +386,16 @@ func (P *Parser) ParseVarType() *Globals.Type {
 func (P *Parser) ParseTypeName() *Globals.Type {
 	P.Trace("TypeName");
 
-	if P.semantic_checks {
-		pos := P.pos;
-		obj := P.ParseQualifiedIdent(-1, "");
-		typ := obj.typ;
-		if obj.kind != Object.TYPE {
-			P.Error(pos, "qualified identifier does not denote a type");
-			typ = Universe.bad_t;
-		}
-		P.Ecart();
-		return typ;
-	} else {
-		P.ParseQualifiedIdent(-1, "");
-		P.Ecart();
-		return Universe.bad_t;
+	pos := P.pos;
+	obj := P.ParseQualifiedIdent(-1, "");
+	typ := obj.typ;
+	if obj.kind != Object.TYPE {
+		P.Error(pos, "qualified identifier does not denote a type");
+		typ = Universe.bad_t;
 	}
 
-	panic("UNREACHABLE");
+	P.Ecart();
+	return typ;
 }
 
 
@@ -425,7 +405,7 @@ func (P *Parser) ParseArrayType() *Globals.Type {
 	P.Expect(Scanner.LBRACK);
 	typ := Globals.NewType(Type.ARRAY);
 	if P.tok != Scanner.RBRACK {
-		// TODO set typ.len_
+		// TODO set typ.len
 		P.ParseExpression();
 	}
 	P.Expect(Scanner.RBRACK);
@@ -443,15 +423,15 @@ func (P *Parser) ParseChannelType() *Globals.Type {
 	if P.tok == Scanner.CHAN {
 		P.Next();
 		if P.tok == Scanner.ARROW {
-			typ.flags = Type.SEND;
+			typ.aux = Type.SEND;
 			P.Next();
 		} else {
-			typ.flags = Type.SEND + Type.RECV;
+			typ.aux = Type.SEND + Type.RECV;
 		}
 	} else {
 		P.Expect(Scanner.ARROW);
 		P.Expect(Scanner.CHAN);
-		typ.flags = Type.RECV;
+		typ.aux = Type.RECV;
 	}
 	typ.elt = P.ParseVarType();
 
@@ -499,61 +479,51 @@ func (P *Parser) ParseParameters() {
 }
 
 
-func (P *Parser) TryResult() bool {
-	P.Trace("Result (try)");
+func (P *Parser) ParseResult() {
+	P.Trace("Result");
 
-	res := false;
 	if P.tok == Scanner.LPAREN {
+		// one or more named results
 		// TODO: here we allow empty returns - should proably fix this
 		P.ParseParameters();
-		res = true;
-	} else {
-		res = P.TryType() != nil;
-	}
-	P.Ecart();
 
-	return res;
+	} else {
+		// anonymous result
+		pos := P.pos;
+		typ := P.TryType();
+		if typ != nil {
+			obj := Globals.NewObject(pos, Object.VAR, ".res");
+			obj.typ = typ;
+			P.Declare(obj);
+		}
+	}
+
+	P.Ecart();
 }
 
 
-// Anonymous signatures
+// Signatures
 //
-//          (params)
-//          (params) type
-//          (params) (results)
-// (recv) . (params)
-// (recv) . (params) type
-// (recv) . (params) (results)
+// (params)
+// (params) type
+// (params) (results)
 
-func (P *Parser) ParseAnonymousSignature() *Globals.Type {
-	P.Trace("AnonymousSignature");
+func (P *Parser) ParseSignature() *Globals.Type {
+	P.Trace("Signature");
 
 	P.OpenScope();
 	P.level--;
 	sig := P.top_scope;
-	p0 := 0;
 
-	recv_pos := P.pos;
 	P.ParseParameters();
+	r0 := sig.entries.len;
+	P.ParseResult();
 
-	if P.tok == Scanner.PERIOD {
-		p0 = sig.entries.len_;
-		if P.semantic_checks && p0 != 1 {
-			P.Error(recv_pos, "must have exactly one receiver");
-			panic("UNIMPLEMENTED (ParseAnonymousSignature)");
-			// TODO do something useful here
-		}
-		P.Next();
-		P.ParseParameters();
-	}
-
-	r0 := sig.entries.len_;
-	P.TryResult();
 	P.level++;
 	P.CloseScope();
 
 	P.Ecart();
-	return MakeFunctionType(sig, p0, r0, true);
+	return MakeFunctionType(sig, 0, r0);
 }
 
 
@@ -577,8 +547,8 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
 	if P.tok == Scanner.LPAREN {
 		recv_pos := P.pos;
 		P.ParseParameters();
-		p0 = sig.entries.len_;
-		if P.semantic_checks && p0 != 1 {
+		p0 = sig.entries.len;
+		if p0 != 1 {
 			print("p0 = ", p0, "\n");
 			P.Error(recv_pos, "must have exactly one receiver");
 			panic("UNIMPLEMENTED (ParseNamedSignature)");
@@ -590,20 +560,20 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
 
 	P.ParseParameters();
 
-	r0 := sig.entries.len_;
-	P.TryResult();
+	r0 := sig.entries.len;
+	P.ParseResult();
 	P.level++;
 	P.CloseScope();
 
 	P.Ecart();
-	return pos, ident, MakeFunctionType(sig, p0, r0, true);
+	return pos, ident, MakeFunctionType(sig, p0, r0);
 }
 
 
 func (P *Parser) ParseFunctionType() *Globals.Type {
 	P.Trace("FunctionType");
 
-	typ := P.ParseAnonymousSignature();
+	typ := P.ParseSignature();
 
 	P.Ecart();
 	return typ;
@@ -625,14 +595,14 @@ func (P *Parser) ParseMethodDecl(recv_typ *Globals.Type) {
 
 	P.ParseParameters();
 
-	r0 := sig.entries.len_;
-	P.TryResult();
+	r0 := sig.entries.len;
+	P.ParseResult();
 	P.level++;
 	P.CloseScope();
 	P.Optional(Scanner.SEMICOLON);
 
 	obj := Globals.NewObject(pos, Object.FUNC, ident);
-	obj.typ = MakeFunctionType(sig, 1, r0, true);
+	obj.typ = MakeFunctionType(sig, 1, r0);
 	P.Declare(obj);
 
 	P.Ecart();
@@ -666,7 +636,7 @@ func (P *Parser) ParseMapType() *Globals.Type {
 	P.Expect(Scanner.MAP);
 	P.Expect(Scanner.LBRACK);
 	typ := Globals.NewType(Type.MAP);
-	typ.aux = P.ParseVarType();
+	typ.key = P.ParseVarType();
 	P.Expect(Scanner.RBRACK);
 	typ.elt = P.ParseVarType();
 	P.Ecart();
@@ -707,81 +677,79 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 	typ := Globals.NewType(Type.POINTER);
 
 	var elt *Globals.Type;
-	if P.semantic_checks {
-		if P.tok == Scanner.STRING && !P.comp.flags.sixg {
-			// implicit package.type forward declaration
-			// TODO eventually the scanner should strip the quotes
-			pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
-			pkg := P.comp.Lookup(pkg_name);
-			if pkg == nil {
-				// package doesn't exist yet - add it to the package list
-				obj := Globals.NewObject(P.pos, Object.PACKAGE, ".pkg");
-				pkg = Globals.NewPackage(pkg_name, obj, Globals.NewScope(nil));
-				pkg.key = "";  // mark as forward-declared package
-				P.comp.Insert(pkg);
-			} else {
-				// package exists already - must be forward declaration
-				if pkg.key != "" {
-					P.Error(P.pos, `cannot use implicit package forward declaration for imported package "` + P.val + `"`);
-					panic("wrong package forward decl");
-					// TODO introduce dummy package so we can continue safely
-				}
+	if P.tok == Scanner.STRING && !P.comp.flags.sixg {
+		// implicit package.type forward declaration
+		// TODO eventually the scanner should strip the quotes
+		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
+		pkg := P.comp.Lookup(pkg_name);
+		if pkg == nil {
+			// package doesn't exist yet - add it to the package list
+			obj := Globals.NewObject(P.pos, Object.PACKAGE, ".pkg");
+			pkg = Globals.NewPackage(pkg_name, obj, Globals.NewScope(nil));
+			pkg.key = "";  // mark as forward-declared package
+			P.comp.Insert(pkg);
+		} else {
+			// package exists already - must be forward declaration
+			if pkg.key != "" {
+				P.Error(P.pos, `cannot use implicit package forward declaration for imported package "` + P.val + `"`);
+				panic("wrong package forward decl");
+				// TODO introduce dummy package so we can continue safely
 			}
-
-			P.Next();  // consume package name
-			P.Expect(Scanner.PERIOD);
+		}
+		
+		P.Next();  // consume package name
+		P.Expect(Scanner.PERIOD);
+		pos, ident := P.ParseIdent(false);
+		obj := pkg.scope.Lookup(ident);
+		if obj == nil {
+			elt = Globals.NewType(Type.FORWARD);
+			elt.scope = P.top_scope;  // not really needed here, but for consistency
+			obj = Globals.NewObject(pos, Object.TYPE, ident);
+			obj.exported = true;  // the type name must be visible
+			obj.typ = elt;
+			elt.obj = obj;  // primary type object;
+			pkg.scope.Insert(obj);
+			obj.pnolev = pkg.obj.pnolev;
+		} else {
+			if obj.kind != Object.TYPE || obj.typ.form != Type.FORWARD {
+				panic("inconsistency in package.type forward declaration");
+			}
+			elt = obj.typ;
+		}
+		
+	} else if P.tok == Scanner.IDENT {
+		if P.Lookup(P.val) == nil {
+			// implicit type forward declaration
+			// create a named forward type 
 			pos, ident := P.ParseIdent(false);
-			obj := pkg.scope.Lookup(ident);
-			if obj == nil {
-				elt = Globals.NewType(Type.FORWARD);
-				elt.scope = P.top_scope;  // not really needed here, but for consistency
-				obj = Globals.NewObject(pos, Object.TYPE, ident);
-				obj.exported = true;  // the type name must be visible
-				obj.typ = elt;
-				elt.obj = obj;  // primary type object;
-				pkg.scope.Insert(obj);
-				obj.pnolev = pkg.obj.pnolev;
-			} else {
-				if obj.kind != Object.TYPE || obj.typ.form != Type.FORWARD {
-					panic("inconsistency in package.type forward declaration");
-				}
-				elt = obj.typ;
-			}
+			obj := Globals.NewObject(pos, Object.TYPE, ident);
+			elt = Globals.NewType(Type.FORWARD);
+			obj.typ = elt;
+			elt.obj = obj;  // primary type object;
+			// remember the current scope - resolving the forward
+			// type must find a matching declaration in this or a less nested scope
+			elt.scope = P.top_scope;
 
-		} else if P.tok == Scanner.IDENT {
-			if P.Lookup(P.val) == nil {
-				// implicit type forward declaration
 				// create a named forward type
-				pos, ident := P.ParseIdent(false);
-				obj := Globals.NewObject(pos, Object.TYPE, ident);
-				elt = Globals.NewType(Type.FORWARD);
-				obj.typ = elt;
-				elt.obj = obj;  // primary type object;
-				// remember the current scope - resolving the forward
-				// type must find a matching declaration in this or a less nested scope
-				elt.scope = P.top_scope;
-
-			} else {
-				// type name
-				// (ParseType() (via TryType()) checks for forward types and complains,
-				// so call ParseTypeName() directly)
-				// we can only have a foward type here if we refer to the name of a
-				// yet incomplete type (i.e. if we are in the middle of a type's declaration)
-				elt = P.ParseTypeName();
-			}
-
-			// collect uses of pointer types referring to forward types
-			if elt.form == Type.FORWARD {
-				P.forward_types.AddTyp(typ);
-			}
 
 		} else {
-			elt = P.ParseType();
+			// type name
+			// (ParseType() (via TryType()) checks for forward types and complains,
+			// so call ParseTypeName() directly)
+			// we can only have a foward type here if we refer to the name of a
+			// yet incomplete type (i.e. if we are in the middle of a type's declaration)
+			elt = P.ParseTypeName();
+		}
+
+		// collect uses of pointer types referring to forward types
+		if elt.form == Type.FORWARD {
+			P.forward_types.AddTyp(typ);
 		}
 
 	} else {
 		elt = P.ParseType();
 	}
+
 
 	typ.elt = elt;
 
@@ -892,24 +860,6 @@ func (P *Parser) ParseNewExpressionList() *Globals.List {
 }
 
 
-func (P *Parser) ParseNew() Globals.Expr {
-	P.Trace("New");
-
-	P.Expect(Scanner.NEW);
-	P.Expect(Scanner.LPAREN);
-	P.ParseType();
-	args := Globals.NewList();
-	if P.tok == Scanner.COMMA {
-		P.Next();
-		P.ParseExpressionList(args)
-	}
-	P.Expect(Scanner.RPAREN);
-
-	P.Ecart();
-	return nil;
-}
-
-
 func (P *Parser) ParseFunctionLit() Globals.Expr {
 	P.Trace("FunctionLit");
 
@@ -989,13 +939,12 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
 	var res Globals.Expr = AST.Bad;
 
 	if pos >= 0 {
+		// we have an identifier
 		obj := P.ParseQualifiedIdent(pos, ident);
-		if P.semantic_checks {
-			if obj.kind == Object.TYPE {
-				res = P.ParseCompositeLit(obj.typ);
-			} else {
-				res = AST.NewObject(pos, obj);
-			}
+		if obj.kind == Object.TYPE && P.tok == Scanner.LBRACE {
+			res = P.ParseCompositeLit(obj.typ);
+		} else {
+			res = AST.NewObject(pos, obj);
 		}
 
 	} else {
@@ -1027,30 +976,8 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
 			res = x;
 			P.Next();
 
-		case Scanner.NIL:
-			P.Next();
-			res = AST.Nil;
-
-		case Scanner.IOTA:
-			x := AST.NewLiteral(P.pos, Universe.int_t);
-			x.i = 42;  // TODO set the right value
-			res = x;
-			P.Next();
-
-		case Scanner.TRUE:
-			P.Next();
-			res = AST.True;
-
-		case Scanner.FALSE:
-			P.Next();
-			res = AST.False;
-
 		case Scanner.FUNC:
 			res = P.ParseFunctionLit();
-
-		case Scanner.NEW:
-			res = P.ParseNew();
-
 		default:
 			typ := P.TryType();
 			if typ != nil {
@@ -1071,40 +998,17 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
 func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
 	P.Trace("SelectorOrTypeAssertion");
 
-	period_pos := P.pos;
 	P.Expect(Scanner.PERIOD);
-
+	pos := P.pos;
+	
 	if P.tok >= Scanner.IDENT {
-		ident_pos, ident := P.ParseIdent(true);
-
-		if P.semantic_checks {
-			switch typ := x.typ(); typ.form {
-			case Type.BAD:
-				// ignore
-				break;
-			case Type.STRUCT, Type.INTERFACE:
-				obj := typ.scope.Lookup(ident);
-				if obj != nil {
-					x = AST.NewSelector(x.pos(), obj.typ);
-
-				} else {
-					P.Error(ident_pos, `no field/method "` + ident + `"`);
-					x = AST.Bad;
-				}
-			default:
-				P.Error(period_pos, `"." not applicable`);
-				x = AST.Bad;
-			}
-		}
-
+		pos, selector := P.ParseIdent(true);
+		x = Expr.Select(P.comp, x, pos, selector);
 	} else {
 		P.Expect(Scanner.LPAREN);
-		P.ParseType();
+		typ := P.ParseType();
 		P.Expect(Scanner.RPAREN);
-
-		if P.semantic_checks {
-			panic("UNIMPLEMENTED");
-		}
+		x = Expr.AssertType(P.comp, x, pos, typ);
 	}
 
 	P.Ecart();
@@ -1115,40 +1019,16 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
 func (P *Parser) ParseIndexOrSlice(x Globals.Expr) Globals.Expr {
 	P.Trace("IndexOrSlice");
 
-	pos := P.pos;
 	P.Expect(Scanner.LBRACK);
-	i1 := P.ParseExpression();
-	var i2 Globals.Expr;
+	i := P.ParseExpression();
 	if P.tok == Scanner.COLON {
 		P.Next();
-		i2 := P.ParseExpression();
+		j := P.ParseExpression();
+		x = Expr.Slice(P.comp, x, i, j);
+	} else {
+		x = Expr.Index(P.comp, x, i);
 	}
 	P.Expect(Scanner.RBRACK);
-
-	if P.semantic_checks {
-		switch typ := x.typ(); typ.form {
-		case Type.BAD:
-			// ignore
-			break;
-		case Type.STRING, Type.ARRAY:
-			panic("UNIMPLEMENTED");
-
-		case Type.MAP:
-			if Type.Equal(typ.aux, i1.typ()) {
-				// x = AST.NewSubscript(x, i1);
-				panic("UNIMPLEMENTED");
-
-			} else {
-				P.Error(x.pos(), "map key type mismatch");
-				x = AST.Bad;
-			}
-
-		default:
-			P.Error(pos, `"[]" not applicable`);
-			x = AST.Bad;
-		}
-
-	}
 
 	P.Ecart();
 	return x;
@@ -1164,10 +1044,7 @@ func (P *Parser) ParseCall(x Globals.Expr) Globals.Expr {
 		P.ParseExpressionList(args);
 	}
 	P.Expect(Scanner.RPAREN);
-
-	if P.semantic_checks {
-		panic("UNIMPLEMENTED");
-	}
+	x = Expr.Call(P.comp, x, args);
 
 	P.Ecart();
 	return x;
@@ -1221,14 +1098,15 @@ func (P *Parser) ParseUnaryExpr() Globals.Expr {
 	case Scanner.ARROW: fallthrough;
 	case Scanner.AND:
 		P.Next();
-		P.ParseUnaryExpr();
+		x := P.ParseUnaryExpr();
 		P.Ecart();
-		return nil;  // TODO fix this
+		return x;  // TODO fix this
 	}
-	P.ParsePrimaryExpr(-1, "");
+	
+	x := P.ParsePrimaryExpr(-1, "");
 
 	P.Ecart();
-	return nil;  // TODO fix this
+	return x;  // TODO fix this
 }
 
 
@@ -1261,15 +1139,12 @@ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) Globals.Expr 
 	} else {
 		x = P.ParseUnaryExpr();
 	}
+
 	for prec := Precedence(P.tok); prec >= prec1; prec-- {
 		for Precedence(P.tok) == prec {
-			e := new(*AST.BinaryExpr);
-			e.typ_ = Universe.bad_t;  // TODO fix this
-			e.op = P.tok;  // TODO should we use tokens or separate operator constants?
-			e.x = x;
 			P.Next();
-			e.y = P.ParseBinaryExpr(-1, "", prec + 1);
-			x = e;
+			y := P.ParseBinaryExpr(-1, "", prec + 1);
+			x = Expr.BinaryExpr(P.comp, x, y);
 		}
 	}
 
@@ -1309,17 +1184,19 @@ func (P *Parser) ParseExpression() Globals.Expr {
 // Statements
 
 func (P *Parser) ConvertToExprList(pos_list, ident_list, expr_list *Globals.List) {
+	if pos_list.len != ident_list.len {
+		panic("inconsistent lists");
+	}
 	for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
 		pos, ident := p.val, q.str;
-		if P.semantic_checks {
-			obj := P.Lookup(ident);
-			if obj == nil {
-				P.Error(pos, `"` + ident + `" is not declared`);
-				obj = Globals.NewObject(pos, Object.BAD, ident);
-			}
+		obj := P.Lookup(ident);
+		if obj == nil {
+			P.Error(pos, `"` + ident + `" is not declared`);
+			obj = Globals.NewObject(pos, Object.BAD, ident);
 		}
-		expr_list.AddInt(0);  // TODO fix this - add correct expression
+		expr_list.AddExpr(AST.NewObject(pos, obj));
 	}
+	pos_list.Clear();
 	ident_list.Clear();
 }
 
@@ -1327,10 +1204,9 @@ func (P *Parser) ConvertToExprList(pos_list, ident_list, expr_list *Globals.List
 func (P *Parser) ParseIdentOrExpr(pos_list, ident_list, expr_list *Globals.List) {
 	P.Trace("IdentOrExpr");
 
-	pos_list.AddInt(P.pos);
 	pos, ident := -1, "";
 	just_ident := false;
-	if expr_list.len_ == 0 /* only idents so far */ && P.tok == Scanner.IDENT {
+	if expr_list.len == 0 /* only idents so far */ && P.tok == Scanner.IDENT {
 		pos, ident = P.pos, P.val;
 		P.Next();
 		switch P.tok {
@@ -1348,17 +1224,17 @@ func (P *Parser) ParseIdentOrExpr(pos_list, ident_list, expr_list *Globals.List)
 			Scanner.XOR_ASSIGN,
 			Scanner.SHL_ASSIGN,
 			Scanner.SHR_ASSIGN:
-			// identifier is not part of a more complicated expression
+			// identifier is *not* part of a more complicated expression
 			just_ident = true;
 		}
 	}
 
 	if just_ident {
+		pos_list.AddInt(pos);
 		ident_list.AddStr(ident);
 	} else {
 		P.ConvertToExprList(pos_list, ident_list, expr_list);
-		P.ParseIdentExpression(pos, ident);
-		expr_list.AddInt(0);  // TODO fix this - add correct expression
+		expr_list.AddExpr(P.ParseIdentExpression(pos, ident));
 	}
 
 	P.Ecart();
@@ -1368,7 +1244,9 @@ func (P *Parser) ParseIdentOrExpr(pos_list, ident_list, expr_list *Globals.List)
 func (P *Parser) ParseIdentOrExprList() (pos_list, ident_list, expr_list *Globals.List) {
 	P.Trace("IdentOrExprList");
 
-	pos_list, ident_list, expr_list = Globals.NewList(), Globals.NewList(), Globals.NewList();
+	pos_list, ident_list = Globals.NewList(), Globals.NewList();  // "pairs" of (pos, ident)
+	expr_list = Globals.NewList();
+	
 	P.ParseIdentOrExpr(pos_list, ident_list, expr_list);
 	for P.tok == Scanner.COMMA {
 		P.Next();
@@ -1377,6 +1255,26 @@ func (P *Parser) ParseIdentOrExprList() (pos_list, ident_list, expr_list *Global
 
 	P.Ecart();
 	return pos_list, ident_list, expr_list;
+}
+
+
+// Compute the number of individual values provided by the expression list.
+func (P *Parser) ListArity(list *Globals.List) int {
+	if list.len == 1 {
+		x := list.ExprAt(0);
+		if x.op() == AST.CALL {
+			panic("UNIMPLEMENTED");
+		}
+		return 1;
+	} else {
+		for p := list.first; p != nil; p = p.next {
+			x := p.expr;
+			if x.op() == AST.CALL {
+				panic("UNIMPLEMENTED");
+			}
+		}
+	}
+	panic("UNREACHABLE");
 }
 
 
@@ -1389,37 +1287,38 @@ func (P *Parser) ParseSimpleStat() {
 	// Strategy: We parse an expression list, but simultaneously, as
 	// long as possible, maintain a list of identifiers which is converted
 	// into an expression list only if neccessary. The result of
-	// ParseIdentOrExprList is a list of ident/expr positions and either
-	// a non-empty list of identifiers or a non-empty list of expressions
+	// ParseIdentOrExprList is a pair of non-empty lists of identfiers and
+	// their respective source positions, or a non-empty list of expressions
 	// (but not both).
 	pos_list, ident_list, expr_list := P.ParseIdentOrExprList();
 
 	switch P.tok {
 	case Scanner.COLON:
 		// label declaration
-		if P.semantic_checks && ident_list.len_ != 1 {
+		if ident_list.len == 1 {
+			obj := Globals.NewObject(pos_list.first.val, Object.LABEL, ident_list.first.str);
+			P.Declare(obj);
+		} else {
 			P.Error(P.pos, "illegal label declaration");
 		}
-		P.Next();
+		P.Next();  // consume ":"
 
 	case Scanner.DEFINE:
 		// variable declaration
-		if P.semantic_checks && ident_list.len_ == 0 {
+		if ident_list.len == 0 {
 			P.Error(P.pos, "illegal left-hand side for declaration");
 		}
-		P.Next();
-		pos := P.pos;
+		P.Next();  // consume ":="
 		val_list := P.ParseNewExpressionList();
-		if P.semantic_checks && val_list.len_ != ident_list.len_ {
-			P.Error(pos, "number of expressions does not match number of variables");
+		if val_list.len != ident_list.len {
+			P.Error(val_list.first.expr.pos(), "number of expressions does not match number of variables");
 		}
 		// declare variables
-		if P.semantic_checks {
-			for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
-				obj := Globals.NewObject(p.val, Object.VAR, q.str);
-				P.Declare(obj);
-				// TODO set correct types
-			}
+		for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
+			obj := Globals.NewObject(p.val, Object.VAR, q.str);
+			P.Declare(obj);
+			// TODO set correct types
+			obj.typ = Universe.bad_t;  // for now
 		}
 
 	case Scanner.ASSIGN: fallthrough;
@@ -1437,13 +1336,23 @@ func (P *Parser) ParseSimpleStat() {
 		P.Next();
 		pos := P.pos;
 		val_list := P.ParseNewExpressionList();
-		if P.semantic_checks && val_list.len_ != expr_list.len_ {
-			P.Error(pos, "number of expressions does not match number of variables");
+		
+		// assign variables
+		if val_list.len == 1 && val_list.first.expr.typ().form == Type.TUPLE {
+			panic("UNIMPLEMENTED");
+		} else {
+			var p, q *Globals.Elem;
+			for p, q = expr_list.first, val_list.first; p != nil && q != nil; p, q = p.next, q.next {
+				
+			}
+			if p != nil || q != nil {
+				P.Error(pos, "number of expressions does not match number of variables");
+			}
 		}
 
 	default:
 		P.ConvertToExprList(pos_list, ident_list, expr_list);
-		if P.semantic_checks && expr_list.len_ != 1 {
+		if expr_list.len != 1 {
 			P.Error(P.pos, "no expression list allowed");
 		}
 		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
@@ -1739,11 +1648,9 @@ func (P *Parser) ParseImportSpec() {
 		obj = P.ParseIdentDecl(Object.PACKAGE);
 	}
 
-	if P.semantic_checks && P.tok == Scanner.STRING {
+	if P.tok == Scanner.STRING {
 		// TODO eventually the scanner should strip the quotes
 		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
-		// TODO switch to indirect import once the compiler problems are fixed
-		//pkg := Import.Import(P.comp, pkg_name);
 		pkg := P.comp.env.Import(P.comp, pkg_name);
 		if pkg != nil {
 			pno := pkg.obj.pnolev;  // preserve pno
@@ -1752,7 +1659,7 @@ func (P *Parser) ParseImportSpec() {
 				obj = pkg.obj;
 				P.Declare(obj);  // this changes (pkg.)obj.pnolev!
 			}
-			obj.pnolev = pno;  // correct pno
+			obj.pnolev = pno;  // reset pno
 		} else {
 			P.Error(P.pos, `import of "` + pkg_name + `" failed`);
 		}
@@ -1831,9 +1738,9 @@ func (P *Parser) ParseTypeSpec(exported bool) {
 		elt := P.ParseType();  // we want a complete type - don't shortcut to ParseTypeName()
 		typ.elt = elt;
 		if elt.form == Type.ALIAS {
-			typ.aux = elt.aux;  // the base type
+			typ.key = elt.key;  // the base type
 		} else {
-			typ.aux = elt;
+			typ.key = elt;
 		}
 	} else {
 		typ = P.ParseType();
@@ -2012,10 +1919,6 @@ func (P *Parser) ParseDeclaration() {
 // Program
 
 func (P *Parser) ResolveForwardTypes() {
-	if !P.semantic_checks {
-		return;
-	}
-
 	for p := P.forward_types.first; p != nil; p = p.next {
 		typ := p.typ;
 		if typ.form != Type.POINTER {
@@ -2060,10 +1963,6 @@ func (P *Parser) ResolveForwardTypes() {
 
 
 func (P *Parser) MarkExports() {
-	if !P.semantic_checks {
-		return;
-	}
-
 	scope := P.top_scope;
 	for p := P.exports.first; p != nil; p = p.next {
 		obj := scope.Lookup(p.str);
@@ -2101,11 +2000,23 @@ func (P *Parser) ParseProgram() {
 			panic("incorrect scope level");
 		}
 
-		P.comp.Insert(Globals.NewPackage(P.S.filename, obj, P.top_scope));
+		P.comp.Insert(Globals.NewPackage(P.scanner.filename, obj, P.top_scope));
 		if P.comp.pkg_ref != 1 {
 			panic("should have exactly one package now");
 		}
 
+		if P.comp.flags.sixg {
+			// automatically import package sys
+			pkg := P.comp.env.Import(P.comp, "sys");
+			if pkg != nil {
+				pno := pkg.obj.pnolev;  // preserve pno
+				P.Declare(pkg.obj);  // this changes pkg.obj.pnolev!
+				pkg.obj.pnolev = pno;  // reset pno
+			} else {
+				P.Error(P.pos, `pre-import of package "sys" failed`);
+			}
+		}
+		
 		for P.tok == Scanner.IMPORT {
 			P.ParseDecl(false, Scanner.IMPORT);
 			P.Optional(Scanner.SEMICOLON);

@@ -86,7 +86,6 @@ export const (
 	ELSE;
 	EXPORT;
 	FALLTHROUGH;
-	FALSE;
 	FOR;
 	FUNC;
 	GO;
@@ -94,17 +93,13 @@ export const (
 	IF;
 	IMPORT;
 	INTERFACE;
-	IOTA;
 	MAP;
-	NEW;
-	NIL;
 	PACKAGE;
 	RANGE;
 	RETURN;
 	SELECT;
 	STRUCT;
 	SWITCH;
-	TRUE;
 	TYPE;
 	VAR;
 	KEYWORDS_END;
@@ -191,7 +186,6 @@ export func TokenName(tok int) string {
 	case ELSE: return "else";
 	case EXPORT: return "export";
 	case FALLTHROUGH: return "fallthrough";
-	case FALSE: return "false";
 	case FOR: return "for";
 	case FUNC: return "func";
 	case GO: return "go";
@@ -199,17 +193,13 @@ export func TokenName(tok int) string {
 	case IF: return "if";
 	case IMPORT: return "import";
 	case INTERFACE: return "interface";
-	case IOTA: return "iota";
 	case MAP: return "map";
-	case NEW: return "new";
-	case NIL: return "nil";
 	case PACKAGE: return "package";
 	case RANGE: return "range";
 	case RETURN: return "return";
 	case SELECT: return "select";
 	case STRUCT: return "struct";
 	case SWITCH: return "switch";
-	case TRUE: return "true";
 	case TYPE: return "type";
 	case VAR: return "var";
 	}
@@ -219,7 +209,7 @@ export func TokenName(tok int) string {
 
 
 func init() {
-	Keywords = new(map [string] int);
+	Keywords = make(map [string] int);
 
 	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
 	  Keywords[TokenName(i)] = i;
@@ -578,14 +568,14 @@ func (S *Scanner) ScanDigits(n int, base int) {
 }
 
 
-func (S *Scanner) ScanEscape() string {
+func (S *Scanner) ScanEscape(quote int) string {
 	// TODO: fix this routine
 
 	ch := S.ch;
 	pos := S.chpos;
 	S.Next();
 	switch (ch) {
-	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"':
+	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\':
 		return string(ch);
 
 	case '0', '1', '2', '3', '4', '5', '6', '7':
@@ -605,9 +595,13 @@ func (S *Scanner) ScanEscape() string {
 		return "";  // TODO fix this
 
 	default:
+		// check for quote outside the switch for better generated code (eventually)
+		if ch == quote {
+			return string(quote);
+		}
 		S.Error(pos, "illegal char escape");
 	}
-
+	
 	return "";  // TODO fix this
 }
 
@@ -619,7 +613,7 @@ func (S *Scanner) ScanChar() string {
 	ch := S.ch;
 	S.Next();
 	if ch == '\\' {
-		S.ScanEscape();
+		S.ScanEscape('\'');
 	}
 
 	S.Expect('\'');
@@ -639,7 +633,7 @@ func (S *Scanner) ScanString() string {
 			break;
 		}
 		if ch == '\\' {
-			S.ScanEscape();
+			S.ScanEscape('"');
 		}
 	}
 
@@ -781,7 +775,7 @@ export type Token struct {
 
 func (S *Scanner) Server(c chan *Token) {
 	for {
-		t := new(*Token);
+		t := new(Token);
 		t.tok, t.pos, t.val = S.Scan();
 		c <- t;
 		if t.tok == EOF {

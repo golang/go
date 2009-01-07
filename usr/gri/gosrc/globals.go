@@ -18,6 +18,11 @@ type Scope struct
 type Elem struct
 type Compilation struct
 
+// Object represents a language object, such as a constant, variable, type,
+// etc. (kind). An objects is (pre-)declared at a particular position in the
+// source code (pos), has a name (ident), a type (typ), and a package number
+// or nesting level (pnolev).
+
 export type Object struct {
 	exported bool;
 	pos int;  // source position (< 0 if unknown position)
@@ -31,12 +36,12 @@ export type Object struct {
 export type Type struct {
 	ref int;  // for exporting only: >= 0 means already exported
 	form int;
-	flags int;  // channels, functions
 	size int;  // in bytes
-	len_ int;  // array length, no. of parameters (w/o recv)
+	len int;  // array length, no. of function/method parameters (w/o recv)
+	aux int;  // channel info
 	obj *Object;  // primary type object or NULL
-	aux *Type;  // alias base type or map key
-	elt *Type;  // aliases, arrays, maps, channels, pointers
+	key *Type;  // alias base type or map key
+	elt *Type;  // aliased type, array, map, channel or pointer element type, function result type, tuple function type
 	scope *Scope;  // forwards, structs, interfaces, functions
 }
 
@@ -51,7 +56,7 @@ export type Package struct {
 
 
 export type List struct {
-	len_ int;
+	len int;
 	first, last *Elem;
 };
 
@@ -70,17 +75,12 @@ export type Flags struct {
 	print_interface bool;
 	verbosity uint;
 	sixg bool;
-
-	scan bool;
-	parse bool;
-	ast bool;
-	deps bool;
 	token_chan bool;
 }
 
 
 export type Environment struct {
-	Error *(comp *Compilation);  // TODO complete this
+	Error *(comp *Compilation, pos int, msg string);
 	Import *(comp *Compilation, pkg_file string) *Package;
 	Export *(comp *Compilation, pkg_file string);
 	Compile *(comp *Compilation, src_file string);
@@ -91,7 +91,15 @@ export type Compilation struct {
 	// environment
 	flags *Flags;
 	env *Environment;
-
+	
+	// TODO rethink the need for this here
+	src_file string;
+	src string;
+	
+	// Error handling
+	nerrors int;  // number of errors reported
+	errpos int;  // last error position
+	
 	// TODO use open arrays eventually
 	pkg_list [256] *Package;  // pkg_list[0] is the current package
 	pkg_ref int;
@@ -99,6 +107,7 @@ export type Compilation struct {
 
 
 export type Expr interface {
+	op() int;  // node operation
 	pos() int;  // source position
 	typ() *Type;
 	// ... more to come here
@@ -113,7 +122,7 @@ export type Stat interface {
 // TODO This is hideous! We need to have a decent way to do lists.
 // Ideally open arrays that allow '+'.
 
-type Elem struct {
+export type Elem struct {
 	next *Elem;
 	val int;
 	str string;
@@ -129,7 +138,7 @@ type Elem struct {
 export var Universe_void_t *Type  // initialized by Universe to Universe.void_t
 
 export func NewObject(pos, kind int, ident string) *Object {
-	obj := new(*Object);
+	obj := new(Object);
 	obj.exported = false;
 	obj.pos = pos;
 	obj.kind = kind;
@@ -141,7 +150,7 @@ export func NewObject(pos, kind int, ident string) *Object {
 
 
 export func NewType(form int) *Type {
-	typ := new(*Type);
+	typ := new(Type);
 	typ.ref = -1;  // not yet exported
 	typ.form = form;
 	return typ;
@@ -149,7 +158,7 @@ export func NewType(form int) *Type {
 
 
 export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
-	pkg := new(*Package);
+	pkg := new(Package);
 	pkg.ref = -1;  // not yet exported
 	pkg.file_name = file_name;
 	pkg.key = "<the package key>";  // empty key means package forward declaration
@@ -160,12 +169,12 @@ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
 
 
 export func NewList() *List {
-	return new(*List);
+	return new(List);
 }
 
 
 export func NewScope(parent *Scope) *Scope {
-	scope := new(*Scope);
+	scope := new(Scope);
 	scope.parent = parent;
 	scope.entries = NewList();
 	return scope;
@@ -176,7 +185,7 @@ export func NewScope(parent *Scope) *Scope {
 // Object methods
 
 func (obj *Object) Copy() *Object {
-	copy := new(*Object);
+	copy := new(Object);
 	copy.exported = obj.exported;
 	copy.pos = obj.pos;
 	copy.kind = obj.kind;
@@ -191,7 +200,7 @@ func (obj *Object) Copy() *Object {
 // List methods
 
 func (L *List) at(i int) *Elem {
-	if i < 0 || L.len_ <= i {
+	if i < 0 || L.len <= i {
 		panic("index out of bounds");
 	}
 
@@ -205,13 +214,13 @@ func (L *List) at(i int) *Elem {
 
 
 func (L *List) Clear() {
-	L.len_, L.first, L.last = 0, nil, nil;
+	L.len, L.first, L.last = 0, nil, nil;
 }
 
 
 func (L *List) Add() *Elem {
-	L.len_++;
-	e := new(*Elem);
+	L.len++;
+	e := new(Elem);
 	if L.first == nil {
 		L.first = e;
 	} else {
@@ -239,6 +248,11 @@ func (L *List) ObjAt(i int) *Object {
 
 func (L *List) TypAt(i int) *Type {
 	return L.at(i).typ;
+}
+
+
+func (L *List) ExprAt(i int) Expr {
+	return L.at(i).expr;
 }
 
 
@@ -280,18 +294,23 @@ func (scope *Scope) Lookup(ident string) *Object {
 }
 
 
+func (scope *Scope) Add(obj* Object) {
+	scope.entries.AddObj(obj);
+}
+
+
 func (scope *Scope) Insert(obj *Object) {
 	if scope.Lookup(obj.ident) != nil {
 		panic("obj already inserted");
 	}
-	scope.entries.AddObj(obj);
+	scope.Add(obj);
 }
 
 
 func (scope *Scope) InsertImport(obj *Object) *Object {
 	 p := scope.Lookup(obj.ident);
 	 if p == nil {
-		scope.Insert(obj);
+		scope.Add(obj);
 		p = obj;
 	 }
 	 return p;

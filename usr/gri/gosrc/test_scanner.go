@@ -8,7 +8,7 @@ import Scanner "scanner"
 
 
 func Scan1(filename, src string) {
-	S := new(*Scanner.Scanner);
+	S := new(Scanner.Scanner);
 	S.Open(filename, src);
 	for {
 		tok, pos, val := S.Scan();
@@ -25,9 +25,9 @@ func Scan1(filename, src string) {
 
 
 func Scan2(filename, src string) {
-	S := new(*Scanner.Scanner);
+	S := new(Scanner.Scanner);
 	S.Open(filename, src);
-	c := new(chan *Scanner.Token, 32);
+	c := make(chan *Scanner.Token, 32);
 	go S.Server(c);
 	for {
 		var t *Scanner.Token;

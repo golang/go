@@ -19,6 +19,54 @@ import Printer "printer"
 import Verifier "verifier"
 
 
+// Compute (line, column) information for a given source position.
+func LineCol(src string, pos int) (line, col int) {
+	line = 1;
+	lpos := 0;
+	
+	if pos > len(src) {
+		pos = len(src);
+	}
+
+	for i := 0; i < pos; i++ {
+		if src[i] == '\n' {
+			line++;
+			lpos = i;
+		}
+	}
+	
+	return line, pos - lpos;
+}
+
+
+export func Error(comp *Globals.Compilation, pos int, msg string) {
+	const errdist = 10;
+	delta := pos - comp.errpos;  // may be negative!
+	if delta < 0 {
+		delta = -delta;
+	}
+	if delta > errdist || comp.nerrors == 0 /* always report first error */ {
+		print(comp.src_file);
+		if pos >= 0 {
+			// print position
+			line, col := LineCol(comp.src, pos);
+			if Platform.USER == "gri" {
+				print(":", line, ":", col);
+			} else {
+				print(":", line);
+			}
+		}
+		print(": ", msg, "\n");
+		comp.nerrors++;
+		comp.errpos = pos;
+	}
+	
+	if comp.nerrors >= 10 {
+		sys.exit(1);
+	}
+}
+
+
 func ReadImport(comp* Globals.Compilation, filename string, update bool) (data string, ok bool) {
 	if filename == "" {
 		panic("illegal package file name");
@@ -83,34 +131,38 @@ export func Export(comp *Globals.Compilation, pkg_file string) {
 
 
 export func Compile(comp *Globals.Compilation, src_file string) {
+	// TODO This is incorrect: When compiling with the -r flag, we are
+	// calling this function recursively w/o setting up a new comp - this
+	// is broken and leads to an assertion error (more then one package
+	// upon parsing of the package header).
+	
 	src, ok := Platform.ReadSourceFile(src_file);
 	if !ok {
 		print("cannot open ", src_file, "\n");
 		return;
 	}
 
+	comp.src_file = src_file;
+	comp.src = src;
+	
 	if comp.flags.verbosity > 0 {
 		print(src_file, "\n");
 	}
 
-	scanner := new(*Scanner.Scanner);
+	scanner := new(Scanner.Scanner);
 	scanner.Open(src_file, src);
 
 	var tstream chan *Scanner.Token;
 	if comp.flags.token_chan {
-		tstream = new(chan *Scanner.Token, 100);
+		tstream = make(chan *Scanner.Token, 100);
 		go scanner.Server(tstream);
 	}
 
-	parser := new(*Parser.Parser);
+	parser := new(Parser.Parser);
 	parser.Open(comp, scanner, tstream);
 
 	parser.ParseProgram();
-	if parser.S.nerrors > 0 {
-		return;
-	}
-
-	if !comp.flags.ast {
+	if parser.scanner.nerrors > 0 {
 		return;
 	}
 
