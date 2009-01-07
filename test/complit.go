@@ -38,8 +38,9 @@ func main() {
 	if len(a1) != 3 { panic("a1") }
 	a2 := [10]int{1,2,3};
 	if len(a2) != 10 || cap(a2) != 10 { panic("a2") }
-	//a3 := [10]int{1,2,3,};  // BUG: trailing commas not allowed
-	//if len(a3) != 10 || a2[3] != 0 { panic("a3") }
+
+	a3 := [10]int{1,2,3,};
+	if len(a3) != 10 || a2[3] != 0 { panic("a3") }
 
 	var oai []int;
 	oai = []int{1,2,3};
