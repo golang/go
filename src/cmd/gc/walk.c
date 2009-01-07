@@ -3499,63 +3499,63 @@ loop:
 	goto loop;
 }
 
-Node*
-oldarraylit(Node *n)
-{
-	Iter saver;
-	Type *t;
-	Node *var, *r, *a;
-	int idx;
-
-	t = n->type;
-	if(t->etype != TARRAY)
-		fatal("arraylit: not array");
-
-	if(t->bound < 0) {
-		// make a shallow copy
-		t = typ(0);
-		*t = *n->type;
-		n->type = t;
-
-		// make it a closed array
-		r = listfirst(&saver, &n->left);
-		if(r != N && r->op == OEMPTY)
-			r = N;
-		for(idx=0; r!=N; idx++)
-			r = listnext(&saver);
-		t->bound = idx;
-	}
-
-	var = nod(OXXX, N, N);
-	tempname(var, t);
-
-	idx = 0;
-	r = listfirst(&saver, &n->left);
-	if(r != N && r->op == OEMPTY)
-		r = N;
-
-loop:
-	if(r == N)
-		return var;
-
-	// build list of var[c] = expr
-
-	a = nodintconst(idx);
-	a = nod(OINDEX, var, a);
-	a = nod(OAS, a, r);
-	addtop = list(addtop, a);
-	idx++;
-
-	r = listnext(&saver);
-	goto loop;
-}
+//Node*
+//oldarraylit(Node *n)
+//{
+//	Iter saver;
+//	Type *t;
+//	Node *var, *r, *a;
+//	int idx;
+//
+//	t = n->type;
+//	if(t->etype != TARRAY)
+//		fatal("arraylit: not array");
+//
+//	if(t->bound < 0) {
+//		// make a shallow copy
+//		t = typ(0);
+//		*t = *n->type;
+//		n->type = t;
+//
+//		// make it a closed array
+//		r = listfirst(&saver, &n->left);
+//		if(r != N && r->op == OEMPTY)
+//			r = N;
+//		for(idx=0; r!=N; idx++)
+//			r = listnext(&saver);
+//		t->bound = idx;
+//	}
+//
+//	var = nod(OXXX, N, N);
+//	tempname(var, t);
+//
+//	idx = 0;
+//	r = listfirst(&saver, &n->left);
+//	if(r != N && r->op == OEMPTY)
+//		r = N;
+//
+//loop:
+//	if(r == N)
+//		return var;
+//
+//	// build list of var[c] = expr
+//
+//	a = nodintconst(idx);
+//	a = nod(OINDEX, var, a);
+//	a = nod(OAS, a, r);
+//	addtop = list(addtop, a);
+//	idx++;
+//
+//	r = listnext(&saver);
+//	goto loop;
+//}
 
 Node*
 arraylit(Node *n)
 {
 	Iter saver;
 	Type *t;
-	Node *var, *r, *a, *nas, *nnew;
+	Node *var, *r, *a, *nnew;
 	int idx, b;
 
 	t = n->type;
@@ -3571,8 +3571,26 @@ arraylit(Node *n)
 		nnew = nod(OMAKE, N, N);
 		nnew->type = t;
 
-		nas = nod(OAS, var, nnew);
-		addtop = list(addtop, nas);
+		a = nod(OAS, var, nnew);
+		addtop = list(addtop, a);
+	}
+
+	if(b >= 0) {
+		idx = 0;
+		r = listfirst(&saver, &n->left);
+		if(r != N && r->op == OEMPTY)
+			r = N;
+		while(r != N) {
+			// count initializers
+			idx++;
+			r = listnext(&saver);
+		}
+		// if entire array isnt initialized,
+		// then clear the array
+		if(idx < b) {
+			a = nod(OAS, var, N);
+			addtop = list(addtop, a);
+		}
 	}
 
 	idx = 0;
@@ -3581,10 +3599,6 @@ arraylit(Node *n)
 		r = N;
 	while(r != N) {
 		// build list of var[c] = expr
-		if(b >= 0 && idx >= b) {
-			yyerror("literal array initializer out of bounds");
-			break;
-		}
 		a = nodintconst(idx);
 		a = nod(OINDEX, var, a);
 		a = nod(OAS, a, r);
