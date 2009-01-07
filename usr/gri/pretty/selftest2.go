@@ -46,6 +46,9 @@ var (
 	A = 5;
 	u, v, w int = 0, 0, 0;
 	foo = "foo";
+	fixed_array0 = [10]int{};
+	fixed_array1 = [10]int{0, 1, 2};
+	fixed_array2 = [...]string{"foo", "bar"};
 )
 
 
