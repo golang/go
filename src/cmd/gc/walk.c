@@ -3556,38 +3556,44 @@ arraylit(Node *n)
 	Iter saver;
 	Type *t;
 	Node *var, *r, *a, *nnew;
-	int idx, b;
+	int idx, ninit, b;
 
 	t = n->type;
 	if(t->etype != TARRAY)
 		fatal("arraylit: not array");
 
+	// count initializers
+	ninit = 0;
+	r = listfirst(&saver, &n->left);
+	if(r != N && r->op == OEMPTY)
+		r = N;
+	while(r != N) {
+		ninit++;
+		r = listnext(&saver);
+	}
+
+	b = t->bound;
+	if(b == -100) {
+		// flag for [...]
+		b = ninit;
+		t = shallow(t);
+		t->bound = b;
+	}
+
 	var = nod(OXXX, N, N);
 	tempname(var, t);
 
-	b = t->bound;
-	if(b < 0 && b != -100) {
+	if(b < 0) {
 		// slice
 		nnew = nod(OMAKE, N, N);
 		nnew->type = t;
 
 		a = nod(OAS, var, nnew);
 		addtop = list(addtop, a);
-	}
-
-	if(b >= 0) {
-		idx = 0;
-		r = listfirst(&saver, &n->left);
-		if(r != N && r->op == OEMPTY)
-			r = N;
-		while(r != N) {
-			// count initializers
-			idx++;
-			r = listnext(&saver);
-		}
+	} else {
 		// if entire array isnt initialized,
 		// then clear the array
-		if(idx < b) {
+		if(ninit < b) {
 			a = nod(OAS, var, N);
 			addtop = list(addtop, a);
 		}
@@ -3605,11 +3611,6 @@ arraylit(Node *n)
 		addtop = list(addtop, a);
 		idx++;
 		r = listnext(&saver);
-	}
-	if(b == -100) {
-		// compiler counted closed array
-		b = idx;
-		t->bound = b;
 	}
 	if(b < 0)
 		nnew->left = nodintconst(idx);
