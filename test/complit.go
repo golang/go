@@ -42,10 +42,10 @@ func main() {
 	//if len(a3) != 10 || a2[3] != 0 { panic("a3") }
 
 	var oai []int;
-	oai = &[]int{1,2,3};
+	oai = []int{1,2,3};
 	if len(oai) != 3 { panic("oai") }
 
-	at := []*T{&t, &t, &t};
+	at := [...]*T{&t, &t, &t};
 	if len(at) != 3 { panic("at") }
 
 	c := make(chan int);
@@ -53,7 +53,7 @@ func main() {
 	if len(ac) != 3 { panic("ac") }
 
 	aat := [][len(at)]*T{at, at};
-	if len(aat) != 2 || len(aat[1]) != 3 { panic("at") }
+	if len(aat) != 2 || len(aat[1]) != 3 { panic("aat") }
 
 	s := string([]byte{'h', 'e', 'l', 'l', 'o'});
 	if s != "hello" { panic("s") }
@@ -61,7 +61,7 @@ func main() {
 	m := map[string]float{"one":1.0, "two":2.0, "pi":22./7.};
 	if len(m) != 3 { panic("m") }
 
-	eq(&[]*R{itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)});
+	eq([]*R{itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)});
 
 	p1 := NewP(1, 2);
 	p2 := NewP(1, 2);
