@@ -2691,7 +2691,8 @@ arrayop(Node *n, int top)
 		argtype(on, tl->type);			// any-2
 		r = nod(OCALL, on, r);
 		walktype(r, top);
-		break;
+		n->left = r;
+		return n;
 
 	case OAS:
 		// arrays2d(old *any, nel int) (ary []any)
