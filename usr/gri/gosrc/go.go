@@ -20,10 +20,6 @@ func PrintHelp() {
 		"  -p             print package interface\n" +
 		"  -v [0 .. 3]    verbosity level\n" +
 		"  -6g            6g compatibility mode\n" +
-		"  -scan          scan only, print tokens\n" +
-		"  -parse         parse only, print productions\n" +
-		"  -ast           analyse only, print ast\n" +
-		"  -deps          print package dependencies\n" +
 		"  -token_chan    use token channel to scan and parse in parallel\n"
 	);
 }
@@ -49,7 +45,7 @@ func main() {
 	}
 
 	// collect flags and files
-	flags := new(*Globals.Flags);
+	flags := new(Globals.Flags);
 	files := Globals.NewList();
 	for arg != "" {
 	    switch arg {
@@ -69,13 +65,6 @@ func main() {
 				continue;
 			}
 		case "-6g": flags.sixg = true;
-		case "-scan": flags.scan = true;
-			print("note: -scan flag ignored at the moment\n");
-		case "-parse": flags.parse = true;
-			print("note: -parse flag ignored at the moment\n");
-		case "-ast": flags.ast = true;
-		case "-deps": flags.deps = true;
-			print("note: -deps flag ignored at the moment\n");
 		case "-token_chan": flags.token_chan = true;
 		default: files.AddStr(arg);
 		}
@@ -83,7 +72,8 @@ func main() {
 	}
 
 	// setup environment
-	env := new(*Globals.Environment);
+	env := new(Globals.Environment);
+	env.Error = &Compilation.Error;
 	env.Import = &Compilation.Import;
 	env.Export = &Compilation.Export;
 	env.Compile = &Compilation.Compile;
@@ -91,7 +81,7 @@ func main() {
 	// compile files
 	for p := files.first; p != nil; p = p.next {
 		// setup compilation
-		comp := new(*Globals.Compilation);
+		comp := new(Globals.Compilation);
 		comp.flags = flags;
 		comp.env = env;
 

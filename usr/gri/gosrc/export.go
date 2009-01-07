@@ -174,6 +174,9 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 	}
 	
 	switch typ.form {
+	case Type.VOID:
+		// for now until we have enough of the front-end working.
+		
 	case Type.FORWARD:
 		// corresponding package must be forward-declared too
 		if typ.obj == nil || E.comp.pkg_list[typ.obj.pnolev].key != "" {
@@ -181,25 +184,29 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 		}
 		
 	case Type.ALIAS, Type.MAP:
-		E.WriteType(typ.aux);
+		E.WriteType(typ.key);
+		E.WriteType(typ.elt);
+
+	case Type.TUPLE:
 		E.WriteType(typ.elt);
 
 	case Type.ARRAY:
-		E.WriteInt(typ.len_);
+		E.WriteInt(typ.len);
 		E.WriteType(typ.elt);
 
 	case Type.CHANNEL:
-		E.WriteInt(typ.flags);
+		E.WriteInt(typ.aux);
 		E.WriteType(typ.elt);
 
-	case Type.FUNCTION:
-		E.WriteInt(typ.flags);
+	case Type.FUNCTION, Type.METHOD:
+		E.WriteInt(typ.len);
+		E.WriteType(typ.elt);
 		E.WriteScope(typ.scope);
 		
 	case Type.STRUCT, Type.INTERFACE:
 		E.WriteScope(typ.scope);
 
-	case Type.POINTER, Type.REFERENCE:
+	case Type.POINTER:
 		E.WriteType(typ.elt);
 
 	default:
@@ -266,7 +273,7 @@ func (E *Exporter) Export(comp* Globals.Compilation) string {
 			i++;
 		}
 	}
-	E.type_ref = Universe.types.len_;
+	E.type_ref = Universe.types.len;
 	
 	// export package 0
 	pkg := comp.pkg_list[0];

@@ -10,8 +10,12 @@ import Object "object"
 
 export const /* form */ (
 	// internal types
-	// VOID types are used when we don't have a type.
-	VOID = iota;
+	// We should never see one of these.
+	UNDEF = iota;
+	
+	// VOID types are used when we don't have a type. Never exported.
+	// (exported type forms must be > 0)
+	VOID;
 	
 	// BAD types are compatible with any type and don't cause further errors.
 	// They are introduced only as a result of an error in the source code. A
@@ -22,6 +26,10 @@ export const /* form */ (
 	// be used as element types of pointer types and must be resolved before
 	// their internals are accessible.
 	FORWARD;
+
+	// TUPLE types represent multi-valued result types of functions and
+	// methods.
+	TUPLE;
 	
 	// The type of nil.
 	NIL;
@@ -33,13 +41,13 @@ export const /* form */ (
 	ANY;
 	
 	// composite types
-	ALIAS; ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; POINTER; REFERENCE;
+	ALIAS; ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; METHOD; POINTER;
 )
 
 
-export const /* flag */ (
-	SEND = 1 << iota;  // chan>
-	RECV;  // chan< or method
+export const /* Type.aux */ (
+	SEND = 1;  // chan>
+	RECV = 2;  // chan<
 )
 
 
@@ -53,6 +61,7 @@ export func FormStr(form int) string {
 	case VOID: return "VOID";
 	case BAD: return "BAD";
 	case FORWARD: return "FORWARD";
+	case TUPLE: return "TUPLE";
 	case NIL: return "NIL";
 	case BOOL: return "BOOL";
 	case UINT: return "UINT";
@@ -67,8 +76,8 @@ export func FormStr(form int) string {
 	case MAP: return "MAP";
 	case CHANNEL: return "CHANNEL";
 	case FUNCTION: return "FUNCTION";
+	case METHOD: return "METHOD";
 	case POINTER: return "POINTER";
-	case REFERENCE: return "REFERENCE";
 	}
 	return "<unknown Type form>";
 }
@@ -102,25 +111,24 @@ func Equal0(x, y *Globals.Type) bool {
 
 	case ARRAY:
 		return
-			x.len_ == y.len_ &&
+			x.len == y.len &&
 			Equal(x.elt, y.elt);
 
 	case MAP:
 		return
-			Equal(x.aux, y.aux) &&
+			Equal(x.key, y.key) &&
 			Equal(x.elt, y.elt);
 
 	case CHANNEL:
 		return
-			x.flags == y.flags &&
+			x.aux == y.aux &&
 			Equal(x.elt, y.elt);
 
-	case FUNCTION:
+	case FUNCTION, METHOD:
 		{	xp := x.scope.entries;
 			yp := x.scope.entries;
-			if	x.flags != y.flags &&  // function or method
-				x.len_ != y.len_ &&  // number of parameters
-				xp.len_ != yp.len_  // recv + parameters + results
+			if	x.len != y.len &&  // number of parameters
+				xp.len != yp.len  // recv + parameters + results
 			{
 				return false;
 			}
@@ -163,8 +171,12 @@ func Equal0(x, y *Globals.Type) bool {
 		panic("UNIMPLEMENTED");
 		return false;
 
-	case POINTER, REFERENCE:
+	case POINTER:
 		return Equal(x.elt, y.elt);
+		
+	case TUPLE:
+		panic("UNIMPLEMENTED");
+		return false;
 	}
 
 	panic("UNREACHABLE");

@@ -200,24 +200,32 @@ func (I *Importer) ReadType() *Globals.Type {
 	I.type_ref++;
 
 	switch (typ.form) {
+	case Type.VOID:
+		// for now until we have enough of the front-end working
+		// change the form to BAD to avoid error messages
+		typ.form = Type.BAD;
+		
 	case Type.FORWARD:
 		typ.scope = Globals.NewScope(nil);
-		break;
+		
+	case Type.TUPLE:
+		typ.elt = I.ReadType();
 		
 	case Type.ALIAS, Type.MAP:
-		typ.aux = I.ReadType();
+		typ.key = I.ReadType();
 		typ.elt = I.ReadType();
 
 	case Type.ARRAY:
-		typ.len_ = I.ReadInt();
+		typ.len = I.ReadInt();
 		typ.elt = I.ReadType();
 
 	case Type.CHANNEL:
-		typ.flags = I.ReadInt();
+		typ.aux = I.ReadInt();
 		typ.elt = I.ReadType();
 
-	case Type.FUNCTION:
-		typ.flags = I.ReadInt();
+	case Type.FUNCTION, Type.METHOD:
+		typ.len = I.ReadInt();
+		typ.elt = I.ReadType();
 		typ.scope = Globals.NewScope(nil);
 		I.ReadScope(typ.scope, false);
 
@@ -225,7 +233,7 @@ func (I *Importer) ReadType() *Globals.Type {
 		typ.scope = Globals.NewScope(nil);
 		I.ReadScope(typ.scope, false);
 
-	case Type.POINTER, Type.REFERENCE:
+	case Type.POINTER:
 		typ.elt = I.ReadType();
 
 	default:

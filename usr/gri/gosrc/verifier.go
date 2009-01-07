@@ -46,11 +46,15 @@ func (V *Verifier) VerifyType(typ *Globals.Type) {
 
 	switch typ.form {
 	case Type.VOID:
+	case Type.BAD:
 		break;  // TODO for now - remove eventually
+		
 	case Type.FORWARD:
 		if typ.scope == nil {
 			Error("forward types must have a scope");
 		}
+
+	case Type.TUPLE:
 		break;
 	case Type.NIL:
 		break;
@@ -81,8 +85,6 @@ func (V *Verifier) VerifyType(typ *Globals.Type) {
 	case Type.FUNCTION:
 		break;
 	case Type.POINTER:
-		break;
-	case Type.REFERENCE:
 		break;
 	default:
 		Error("illegal type form " + Type.FormStr(typ.form));
@@ -139,12 +141,12 @@ func (V *Verifier) VerifyPackage(pkg *Globals.Package, pno int) {
 func (V *Verifier) Verify(comp *Globals.Compilation) {
 	// initialize Verifier
 	V.comp = comp;
-	V.objs = new(map[*Globals.Object] bool);
-	V.typs = new(map[*Globals.Type] bool);
-	V.pkgs = new(map[*Globals.Package] bool);
+	V.objs = make(map[*Globals.Object] bool);
+	V.typs = make(map[*Globals.Type] bool);
+	V.pkgs = make(map[*Globals.Package] bool);
 
 	// verify all packages
-	filenames := new(map[string] bool);
+	filenames := make(map[string] bool);
 	for i := 0; i < comp.pkg_ref; i++ {
 		pkg := comp.pkg_list[i];
 		// each pkg filename must appear only once
@@ -158,6 +160,6 @@ func (V *Verifier) Verify(comp *Globals.Compilation) {
 
 
 export func Verify(comp *Globals.Compilation) {
-	V := new(*Verifier);
+	V := new(Verifier);
 	V.Verify(comp);
 }
