@@ -703,7 +703,7 @@ func (P *Parser) ParseOperand() *AST.Expr {
 		x = P.ParseIdent();
 
 	case Scanner.LPAREN:
-		// TODO we could have a function type here as in: new(**())
+		// TODO we could have a function type here as in: new(())
 		// (currently not working)
 		P.Next();
 		P.expr_lev++;
@@ -722,11 +722,6 @@ func (P *Parser) ParseOperand() *AST.Expr {
 
 	case Scanner.FUNC:
 		x = P.ParseFunctionLit();
-
-	/*
-	case Scanner.NEW:
-		x = P.ParseNewCall();
-	*/
 
 	default:
 		t := P.TryType();

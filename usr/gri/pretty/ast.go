@@ -11,7 +11,7 @@ import (
 
 
 type (
-	Any interface {};
+	Object struct;
 	Type struct;
 	Expr struct;
 	Stat struct;
@@ -23,7 +23,29 @@ type (
 // All nodes have a source position and and token.
 
 export type Node struct {
-	pos, tok int;
+	pos int;  // source position (< 0 => unknown position)
+	tok int;  // identifying token
+}
+
+
+// ----------------------------------------------------------------------------
+// Objects represent declared language objects, such as a const, type, var;
+// but also anonymous objects such as type and other literals.
+
+export type Object struct {
+	Node;
+	lit string;  // identifiers and literals
+	typ *Type;
+	val *Expr;
+}
+
+
+export func NewObject(pos, tok int, lit string) *Object {
+	obj := new(Object);
+	obj.pos, obj.tok = pos, tok;
+	obj.lit = lit;
+	obj.typ = nil;  // Universe::void_typ
+	return obj;
 }
 
 
@@ -33,6 +55,8 @@ export type Node struct {
 export type Expr struct {
 	Node;
 	x, y *Expr;  // binary (x, y) and unary (y) expressions
+	obj *Object;
+	
 	// TODO find a more space efficient way to hold these
 	s string;  // identifiers and literals
 	t *Type;  // type expressions, function literal types
