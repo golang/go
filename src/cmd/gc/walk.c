@@ -1540,7 +1540,7 @@ walkselect(Node *sel)
 }
 
 Type*
-lookdot1(Node *n, Type *f)
+lookdot1(Node *n, Type *t, Type *f)
 {
 	Type *r;
 	Sym *s;
@@ -1554,7 +1554,7 @@ lookdot1(Node *n, Type *f)
 		if(f->sym != s)
 			continue;
 		if(r != T) {
-			yyerror("ambiguous DOT reference %S", s);
+			yyerror("ambiguous DOT reference %T.%S", t, s);
 			break;
 		}
 		r = f;
@@ -1569,11 +1569,11 @@ lookdot(Node *n, Type *t)
 
 	f1 = T;
 	if(t->etype == TSTRUCT || t->etype == TINTER)
-		f1 = lookdot1(n->right, t->type);
+		f1 = lookdot1(n->right, t, t->type);
 
 	f2 = methtype(n->left->type);
 	if(f2 != T)
-		f2 = lookdot1(n->right, f2->method);
+		f2 = lookdot1(n->right, f2, f2->method);
 
 	if(f1 != T) {
 		if(f2 != T)
@@ -1593,7 +1593,8 @@ lookdot(Node *n, Type *t)
 			n->left = nod(OADDR, n->left, N);
 			n->left->type = ptrto(n->left->left->type);
 		}
-		n->right = methodname(n->right, ismethod(n->left->type));
+		ismethod(n->left->type);
+		n->right = methodname(n->right, n->left->type);
 		n->xoffset = f2->width;
 		n->type = f2->type;
 		n->op = ODOTMETH;
@@ -1824,22 +1825,31 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
 	return nn;
 }
 
+/*
+ * check assign expression list to
+ * a type list. called in
+ *	return expr-list
+ *	func(expr-list)
+ */
 Node*
 ascompatte(int op, Type **nl, Node **nr, int fp)
 {
 	Type *l, *ll;
 	Node *r, *rr, *nn, *a;
-	Iter savel, saver;
+	Iter savel, saver, peekl, peekr;
 
-	/*
-	 * check assign expression list to
-	 * a type list. called in
-	 *	return expr-list
-	 *	func(expr-list)
-	 */
 	l = structfirst(&savel, nl);
 	r = listfirst(&saver, nr);
 	nn = N;
+
+	// 1 to many
+	peekl = savel;
+	peekr = saver;
+	if(l != T && r != N
+	&& structnext(&peekl) != T
+	&& listnext(&peekr) == N)
+	&& eqtype(r->type, *nl, 0))
+		return convas(nod(OAS, nodarg(*nl, fp), r));
 
 loop:
 	if(l != T && isddd(l->type)) {
