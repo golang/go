@@ -6,12 +6,13 @@ package AST
 
 import (
 	"array";
+	Globals "globals";
+	Object "object";
 	Scanner "scanner";
 )
 
 
 type (
-	Object struct;
 	Type struct;
 	Expr struct;
 	Stat struct;
@@ -29,38 +30,15 @@ export type Node struct {
 
 
 // ----------------------------------------------------------------------------
-// Objects represent declared language objects, such as a const, type, var;
-// but also anonymous objects such as type and other literals.
-
-export type Object struct {
-	Node;
-	lit string;  // identifiers and literals
-	typ *Type;
-	val *Expr;
-}
-
-
-export func NewObject(pos, tok int, lit string) *Object {
-	obj := new(Object);
-	obj.pos, obj.tok = pos, tok;
-	obj.lit = lit;
-	obj.typ = nil;  // Universe::void_typ
-	return obj;
-}
-
-
-// ----------------------------------------------------------------------------
 // Expressions
 
 export type Expr struct {
 	Node;
 	x, y *Expr;  // binary (x, y) and unary (y) expressions
-	obj *Object;
-	
-	// TODO find a more space efficient way to hold these
-	s string;  // identifiers and literals
+	obj *Globals.Object;
+
+	// TODO this one should go as well
 	t *Type;  // type expressions, function literal types
-	block *array.Array; end int;  // stats for function literals
 }
 
 
@@ -86,9 +64,9 @@ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
 }
 
 
-export func NewLit(pos, tok int, s string) *Expr {
+export func NewLit(pos, tok int, obj *Globals.Object) *Expr {
 	e := new(Expr);
-	e.pos, e.tok, e.s = pos, tok, s;
+	e.pos, e.tok, e.obj = pos, tok, obj;
 	return e;
 }
 
