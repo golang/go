@@ -1847,7 +1847,7 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
 	peekr = saver;
 	if(l != T && r != N
 	&& structnext(&peekl) != T
-	&& listnext(&peekr) == N)
+	&& listnext(&peekr) == N
 	&& eqtype(r->type, *nl, 0))
 		return convas(nod(OAS, nodarg(*nl, fp), r));
 
