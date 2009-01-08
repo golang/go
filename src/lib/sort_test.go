@@ -14,15 +14,15 @@ import (
 func BentleyMcIlroyTests();
 
 
-var ints = []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
-var floats = []float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
-var strings = []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
+var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
+var floats = [...]float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
+var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
 
 export func TestSortIntArray(t *testing.T) {
 	data := ints;
-	a := sort.IntArray{data};
-	sort.Sort(&a);
-	if !sort.IsSorted(&a) {
+	a := IntArray(data);
+	sort.Sort(a);
+	if !sort.IsSorted(a) {
 		t.Errorf("sorted %v", ints);
 		t.Errorf("   got %v", data);
 	}
@@ -30,9 +30,9 @@ export func TestSortIntArray(t *testing.T) {
 
 export func TestSortFloatArray(t *testing.T) {
 	data := floats;
-	a := sort.FloatArray{data};
-	sort.Sort(&a);
-	if !sort.IsSorted(&a) {
+	a := FloatArray(data);
+	sort.Sort(a);
+	if !sort.IsSorted(a) {
 		t.Errorf("sorted %v", floats);
 		t.Errorf("   got %v", data);
 	}
@@ -40,9 +40,9 @@ export func TestSortFloatArray(t *testing.T) {
 
 export func TestSortStringArray(t *testing.T) {
 	data := strings;
-	a := sort.StringArray{data};
-	sort.Sort(&a);
-	if !sort.IsSorted(&a) {
+	a := StringArray(data);
+	sort.Sort(a);
+	if !sort.IsSorted(a) {
 		t.Errorf("sorted %v", strings);
 		t.Errorf("   got %v", data);
 	}
