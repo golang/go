@@ -4,7 +4,7 @@
 
 #include "runtime.h"
 
-static	int32	debug	= 0;
+int32	iface_debug	= 0;
 
 typedef	struct	Sigt	Sigt;
 typedef	struct	Sigi	Sigi;
@@ -187,7 +187,7 @@ throw:
 	}
 	m->link = hash[h];
 	hash[h] = m;
-	// prints("new itype\n");
+	// printf("new itype %p\n", m);
 	return m;
 }
 
@@ -204,7 +204,7 @@ sys·ifaceT2I(Sigi *si, Sigt *st, ...)
 	ret = (Iface*)(elem + rnd(wid, 8));
 	ret->type = itype(si, st, 0);
 
-	if(debug) {
+	if(iface_debug) {
 		prints("T2I sigi=");
 		printsigi(si);
 		prints(" sigt=");
@@ -220,12 +220,12 @@ sys·ifaceT2I(Sigi *si, Sigt *st, ...)
 		algarray[alg].copy(wid, ret->data, elem);
 	else{
 		ret->data[0] = mal(wid);
-		if(debug)
+		if(iface_debug)
 			printf("T2I mal %d %p\n", wid, ret->data[0]);
 		algarray[alg].copy(wid, ret->data[0], elem);
 	}
 
-	if(debug) {
+	if(iface_debug) {
 		prints("T2I ret=");
 		printiface(*ret);
 		prints("\n");
@@ -244,7 +244,7 @@ sys·ifaceI2T(Sigt *st, Iface i, ...)
 
 	ret = (byte*)(&i+1);
 
-	if(debug) {
+	if(iface_debug) {
 		prints("I2T sigt=");
 		printsigt(st);
 		prints(" iface=");
@@ -277,7 +277,7 @@ sys·ifaceI2T(Sigt *st, Iface i, ...)
 	else
 		algarray[alg].copy(wid, ret, i.data[0]);
 
-	if(debug) {
+	if(iface_debug) {
 		prints("I2T ret=");
 		sys·printpointer(*(void**)ret);
 		prints("\n");
@@ -299,7 +299,7 @@ sys·ifaceI2T2(Sigt *st, Iface i, ...)
 	wid = st->offset;
 	ok = (bool*)(ret+rnd(wid, 8));
 
-	if(debug) {
+	if(iface_debug) {
 		prints("I2T2 sigt=");
 		printsigt(st);
 		prints(" iface=");
@@ -318,7 +318,7 @@ sys·ifaceI2T2(Sigt *st, Iface i, ...)
 		else
 			algarray[alg].copy(wid, ret, i.data[0]);
 	}
-	if(debug) {
+	if(iface_debug) {
 		prints("I2T2 ret=");
 		sys·printpointer(*(void**)ret);
 		sys·printbool(*ok);
@@ -333,7 +333,7 @@ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
 	Itype *im;
 	int32 j;
 
-	if(debug) {
+	if(iface_debug) {
 		prints("I2I sigi=");
 		printsigi(si);
 		prints(" iface=");
@@ -354,7 +354,7 @@ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
 			ret.type = itype(si, im->sigt, 0);
 	}
 
-	if(debug) {
+	if(iface_debug) {
 		prints("I2I ret=");
 		printiface(ret);
 		prints("\n");
@@ -370,7 +370,7 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
 	Itype *im;
 	int32 j;
 
-	if(debug) {
+	if(iface_debug) {
 		prints("I2I2 sigi=");
 		printsigi(si);
 		prints(" iface=");
@@ -399,7 +399,7 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
 		}
 	}
 
-	if(debug) {
+	if(iface_debug) {
 		prints("I2I ret=");
 		printiface(ret);
 		prints("\n");
@@ -415,7 +415,7 @@ sys·ifaceeq(Iface i1, Iface i2, bool ret)
 {
 	int32 alg, wid;
 
-	if(debug) {
+	if(iface_debug) {
 		prints("Ieq i1=");
 		printiface(i1);
 		prints(" i2=");
@@ -454,7 +454,7 @@ sys·ifaceeq(Iface i1, Iface i2, bool ret)
 yes:
 	ret = true;
 no:
-	if(debug) {
+	if(iface_debug) {
 		prints("Ieq ret=");
 		sys·printbool(ret);
 		prints("\n");

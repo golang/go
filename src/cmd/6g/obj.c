@@ -524,7 +524,7 @@ gensatad(Sym *s)
 }
 
 void
-gentramp(Type *t, Sig *b)
+genembedtramp(Type *t, Sig *b)
 {
 	Sym *e;
 	int c, d, o;
@@ -533,21 +533,23 @@ gentramp(Type *t, Sig *b)
 
 	e = lookup(b->name);
 	for(d=0; d<nelem(dotlist); d++) {
-		c = adddot1(e, t, d);
+		c = adddot1(e, t, d, nil);
 		if(c == 1)
 			goto out;
 	}
-	fatal("gentramp");
+	fatal("genembedtramp");
 
 out:
 	if(d == 0)
 		return;
 
-//	print("gentramp %d\n", d);
+//	print("genembedtramp %d\n", d);
 //	print("	t    = %lT\n", t);
 //	print("	name = %s\n", b->name);
 //	print("	sym  = %S\n", b->sym);
 //	print("	hash = 0x%ux\n", b->hash);
+
+	newplist()->name = newname(b->sym);
 
 	//TEXT	main·S_test2(SB),7,$0
 	p = pc;
@@ -601,52 +603,105 @@ out:
 //print("5. %P\n", p);
 
 	f = dotlist[0].field;
-	//JMP	main·Sub_test2(SB)
+	//JMP	main·*Sub_test2(SB)
 	if(isptr[f->type->etype])
 		f = f->type;
 	p = pc;
 	gins(AJMP, N, N);
 	p->to.type = D_EXTERN;
-	p->to.sym = methodsym(lookup(b->name), f->type);
+	p->to.sym = methodsym(lookup(b->name), ptrto(f->type));
 //print("6. %P\n", p);
+
+	pc->as = ARET;	// overwrite AEND
 }
 
+/*
+ * Add DATA for signature s.
+ *	progt - type in program
+ *	ifacet - type stored in interface (==progt if small, ==ptrto(progt) if large)
+ *	rcvrt - type used as method interface.  eqtype(ifacet, rcvrt) is always true,
+ *		but ifacet might have a name that rcvrt does not.
+ *	methodt - type with methods hanging off it (progt==*methodt sometimes)
+ */
 void
-dumpsigt(Type *t0, Type *t, Sym *s)
+dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 {
 	Type *f;
-	Sym *s1;
 	int o;
+	int indir;
 	Sig *a, *b;
 	Prog *p;
 	char buf[NSYMB];
+	Type *this;
+	Iter savet;
+	Prog *oldlist;
+	Sym *method;
 
 	at.sym = s;
 
 	a = nil;
 	o = 0;
-	for(f=t->method; f!=T; f=f->down) {
+	oldlist = nil;
+	for(f=methodt->method; f!=T; f=f->down) {
 		if(f->type->etype != TFUNC)
 			continue;
 
 		if(f->etype != TFIELD)
 			fatal("dumpsignatures: not field");
 
-		s1 = f->sym;
-		if(s1 == nil)
+		method = f->sym;
+		if(method == nil)
 			continue;
 
 		b = mal(sizeof(*b));
 		b->link = a;
 		a = b;
 
-		a->name = s1->name;
+		a->name = method->name;
 		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
 		a->perm = o;
-		a->sym = methodsym(f->sym, t);
-		a->offset = f->embedded;	// need trampoline
+		a->sym = methodsym(method, rcvrt);
 
+		if(!a->sym->siggen) {
+			a->sym->siggen = 1;
+			// TODO(rsc): This test is still not quite right.
+
+			this = structfirst(&savet, getthis(f->type))->type;
+			if(isptr[this->etype] != isptr[ifacet->etype]) {
+				if(oldlist == nil)
+					oldlist = pc;
+
+				// indirect vs direct mismatch
+				Sym *oldname, *newname;
+				Type *oldthis, *oldtype, *newthis;
+
+				newthis = ifacet;
+				if(isptr[newthis->etype])
+					oldthis = ifacet->type;
+				else
+					oldthis = ptrto(ifacet);
+				newname = a->sym;
+				oldname = methodsym(method, oldthis);
+				genptrtramp(method, oldname, oldthis, f->type, newname, newthis);
+			}
+			else if(f->embedded) {
+				// TODO(rsc): only works for pointer receivers
+				if(oldlist == nil)
+					oldlist = pc;
+				genembedtramp(ifacet, a);
+			}
+		}
 		o++;
+	}
+
+	// restore data output
+	if(oldlist) {
+		// old list ended with AEND; change to ANOP
+		// so that the trampolines that follow can be found.
+		oldlist->as = ANOP;
+
+		// start new data list
+		newplist();
 	}
 
 	a = lsort(a, sigcmp);
@@ -657,16 +712,16 @@ dumpsigt(Type *t0, Type *t, Sym *s)
 	ginsatoa(widthptr, stringo);
 
 	// save type name for runtime error message.
-	snprint(buf, sizeof buf, "%#T", t0);
+	snprint(buf, sizeof buf, "%#T", progt);
 	datastring(buf, strlen(buf)+1);
 
 	// first field of an type signature contains
 	// the element parameters and is not a real entry
 	// sigi[0].hash = elemalg
-	gensatac(wi, algtype(t0));
+	gensatac(wi, algtype(progt));
 
 	// sigi[0].offset = width
-	gensatac(wi, t0->width);
+	gensatac(wi, progt->width);
 
 	// skip the function
 	gensatac(widthptr, 0);
@@ -680,16 +735,13 @@ dumpsigt(Type *t0, Type *t, Sym *s)
 		// sigx[++].hash = hashcode
 		gensatac(wi, b->hash);
 
-		// sigt[++].offset = of embeded struct
+		// sigt[++].offset = of embedded struct
 		gensatac(wi, 0);
 
 		// sigt[++].fun = &method
 		gensatad(b->sym);
 
 		datastring(b->name, strlen(b->name)+1);
-
-		if(b->offset)
-			gentramp(t0, b);
 	}
 
 	// nil field name at end
@@ -809,8 +861,8 @@ dumpsignatures(void)
 {
 	int et;
 	Dcl *d, *x;
-	Type *t, *t0;
-	Sym *s, *s1;
+	Type *t, *progt, *methodt, *ifacet, *rcvrt;
+	Sym *s;
 	Prog *p;
 
 	memset(&at, 0, sizeof(at));
@@ -884,13 +936,6 @@ dumpsignatures(void)
 			continue;
 		s->siggen = 1;
 
-		// don't emit non-trivial signatures for types defined outside this file.
-		// non-trivial signatures might also drag in generated trampolines,
-		// and ar can't handle duplicates of the trampolines.
-		// only pay attention to types with symbols, because
-		// the ... structs and maybe other internal structs
-		// don't get marked as local.
-
 		// interface is easy
 		if(et == TINTER) {
 			if(t->sym && !t->local)
@@ -899,15 +944,45 @@ dumpsignatures(void)
 			continue;
 		}
 
+		// non-interface is more complex
+		progt = t;
+		methodt = t;
+		ifacet = t;
+		rcvrt = t;
+
 		// if there's a pointer, methods are on base.
-		t0 = t;
-		if(isptr[et] && t->type->sym != S) {
-			t = t->type;
-			expandmeth(t->sym, t);
+		if(isptr[methodt->etype] && methodt->type->sym != S) {
+			methodt = methodt->type;
+			expandmeth(methodt->sym, methodt);
+
+			// if methodt had a name, we don't want to see
+			// it in the method names that go into the sigt.
+			// e.g., if
+			//	type item *rat
+			// then item needs its own sigt distinct from *rat,
+			// but it needs to have all of *rat's methods, using
+			// the *rat (not item) in the method names.
+			if(rcvrt->sym != S)
+				rcvrt = ptrto(methodt);
 		}
-		if(t->method && t->sym && !t->local)
+
+		// and if ifacet is too wide, the methods
+		// will see a pointer anyway.
+		if(ifacet->width > 8) {
+			ifacet = ptrto(progt);
+			rcvrt = ptrto(progt);
+		}
+
+		// don't emit non-trivial signatures for types defined outside this file.
+		// non-trivial signatures might also drag in generated trampolines,
+		// and ar can't handle duplicates of the trampolines.
+		// only pay attention to types with symbols, because
+		// the ... structs and maybe other internal structs
+		// don't get marked as local.
+		if(methodt->method && methodt->sym && !methodt->local)
 			continue;
-		dumpsigt(t0, t, s);
+
+		dumpsigt(progt, ifacet, rcvrt, methodt, s);
 	}
 
 	if(stringo > 0) {

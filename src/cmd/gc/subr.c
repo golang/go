@@ -947,7 +947,7 @@ Sconv(Fmt *fp)
 		nam = s->name;
 
 	if(!(fp->flags & FmtShort))
-	if(strcmp(opk, package) || (fp->flags & FmtLong)) {
+	if(strcmp(opk, package) != 0 || (fp->flags & FmtLong)) {
 		fmtprint(fp, "%s.%s", opk, nam);
 		return 0;
 	}
@@ -1023,6 +1023,8 @@ Tpretty(Fmt *fp, Type *t)
 				return fmtprint(fp, "chan %T", t1->type);
 			}
 		}
+		if(fp->flags&FmtShort)	// pass flag thru for methodsym
+			return fmtprint(fp, "*%hT", t1);
 		return fmtprint(fp, "*%T", t1);
 
 	// Should not see these: should see ptr instead, handled above.
@@ -1156,15 +1158,14 @@ Tconv(Fmt *fp)
 	}
 
 	et = t->etype;
-
-	strcpy(buf, "");
-	if(t->sym != S)
-		snprint(buf, sizeof(buf), "<%S>", t->sym);
+	snprint(buf, sizeof buf, "%E.", et);
+	if(t->sym != S) {
+		snprint(buf1, sizeof(buf1), "<%S>", t->sym);
+		strncat(buf, buf1, sizeof(buf));
+	}
 
 	switch(et) {
 	default:
-		snprint(buf1, sizeof(buf1), "%E", et);
-		strncat(buf, buf1, sizeof(buf));
 		if(t->type != T) {
 			snprint(buf1, sizeof(buf1), " %T", t->type);
 			strncat(buf, buf1, sizeof(buf));
@@ -2142,9 +2143,9 @@ loop:
 
 	yyerror("illegal types for operand: %O", o);
 	if(tl != T)
-		print("	%lT\n", tl);
+		print("	%T\n", tl);
 	if(tr != T)
-		print("	%lT\n", tr);
+		print("	%T\n", tr);
 
 	// common mistake: *struct and *interface.
 	if(tl && tr && isptr[tl->etype] && isptr[tr->etype]) {
@@ -2393,7 +2394,7 @@ getinargx(Type *t)
 // return count of fields+methods
 // found with a given name
 int
-lookdot0(Sym *s, Type *t)
+lookdot0(Sym *s, Type *t, Type **save)
 {
 	Type *f, *u;
 	int c;
@@ -2405,14 +2406,20 @@ lookdot0(Sym *s, Type *t)
 	c = 0;
 	if(u->etype == TSTRUCT || u->etype == TINTER) {
 		for(f=u->type; f!=T; f=f->down)
-			if(f->sym == s)
+			if(f->sym == s) {
+				if(save)
+					*save = f;
 				c++;
+			}
 	}
 	u = methtype(t);
 	if(u != T) {
 		for(f=u->method; f!=T; f=f->down)
-			if(f->sym == s && f->embedded == 0)
+			if(f->sym == s && f->embedded == 0) {
+				if(save)
+					*save = f;
 				c++;
+			}
 	}
 	return c;
 }
@@ -2423,7 +2430,7 @@ lookdot0(Sym *s, Type *t)
 // answer is in dotlist array and
 // count of number of ways is returned.
 int
-adddot1(Sym *s, Type *t, int d)
+adddot1(Sym *s, Type *t, int d, Type **save)
 {
 	Type *f, *u;
 	int c, a;
@@ -2433,7 +2440,7 @@ adddot1(Sym *s, Type *t, int d)
 	t->trecur = 1;
 
 	if(d == 0) {
-		c = lookdot0(s, t);
+		c = lookdot0(s, t, save);
 		goto out;
 	}
 
@@ -2450,7 +2457,7 @@ adddot1(Sym *s, Type *t, int d)
 			continue;
 		if(f->sym == S)
 			continue;
-		a = adddot1(s, f->type, d);
+		a = adddot1(s, f->type, d, save);
 		if(a != 0 && c == 0)
 			dotlist[d].field = f;
 		c += a;
@@ -2484,7 +2491,7 @@ adddot(Node *n)
 		goto ret;
 
 	for(d=0; d<nelem(dotlist); d++) {
-		c = adddot1(s, t, d);
+		c = adddot1(s, t, d, nil);
 		if(c > 0)
 			goto out;
 	}
@@ -2492,7 +2499,7 @@ adddot(Node *n)
 
 out:
 	if(c > 1)
-		yyerror("ambiguous DOT reference %S", s);
+		yyerror("ambiguous DOT reference %T.%S", t, s);
 
 	// rebuild elided dots
 	for(c=d-1; c>=0; c--) {
@@ -2604,10 +2611,10 @@ expandmeth(Sym *s, Type *t)
 	for(sl=slist; sl!=nil; sl=sl->link) {
 		sl->field->sym->uniq = 0;
 		for(d=0; d<nelem(dotlist); d++) {
-			c = adddot1(sl->field->sym, t, d);
+			c = adddot1(sl->field->sym, t, d, &f);
 			if(c == 0)
 				continue;
-			if(c == 1)
+			if(c == 1 && f == sl->field)
 				sl->good = 1;
 			break;
 		}
@@ -2627,3 +2634,104 @@ expandmeth(Sym *s, Type *t)
 		}
 	}
 }
+
+/*
+ * Given funarg struct list, return list of ODCLFIELD Node fn args.
+ */
+Node*
+structargs(Type **tl, int mustname)
+{
+	Iter savet;
+	Node *args, *a;
+	Type *t;
+	char nam[100];
+	int n;
+
+	args = N;
+	n = 0;
+	for(t = structfirst(&savet, tl); t != T; t = structnext(&savet)) {
+		if(t->sym)
+			a = nametodcl(newname(t->sym), t->type);
+		else if(mustname) {
+			// have to give it a name so we can refer to it in trampoline
+			snprint(nam, sizeof nam, ".anon%d", n++);
+			a = nametodcl(newname(lookup(nam)), t->type);
+		} else
+			a = anondcl(t->type);
+		args = list(args, a);
+	}
+	args = rev(args);
+	return args;
+}
+
+/*
+ * Generate a trampoline to convert
+ * from an indirect receiver to a direct receiver
+ * or vice versa.
+ *
+ *	method - short name of method (Len)
+ *	oldname - old mangled method name (x·y·Len)
+ *	oldthis - old this type (y)
+ *	oldtype - type of method being called;
+ *		only in and out params are known okay,
+ *		receiver might be != oldthis.
+ *	newnam [sic] - new mangled method name (x·*y·Len)
+ *	newthis - new this type (*y)
+ */
+void
+genptrtramp(Sym *method, Sym *oldname, Type *oldthis, Type *oldtype, Sym *newnam, Type *newthis)
+{
+	Node *fn, *args, *l, *in, *call, *out, *this, *rcvr, *meth;
+	Iter savel;
+
+	if(debug['r']) {
+		print("\ngenptrtramp method=%S oldname=%S oldthis=%T\n",
+			method, oldname, oldthis);
+		print("\toldtype=%T newnam=%S newthis=%T\n",
+			oldtype, newnam, newthis);
+	}
+
+	dclcontext = PEXTERN;
+	markdcl();
+
+	this = nametodcl(newname(lookup(".this")), newthis);
+	in = structargs(getinarg(oldtype), 1);
+	out = structargs(getoutarg(oldtype), 0);
+
+	// fix up oldtype
+	markdcl();
+	oldtype = functype(nametodcl(newname(lookup(".this")), oldthis), in, out);
+	popdcl();
+
+	fn = nod(ODCLFUNC, N, N);
+	fn->nname = newname(newnam);
+	fn->type = functype(this, in, out);
+	funchdr(fn);
+
+	// arg list
+	args = N;
+	for(l = listfirst(&savel, &in); l; l = listnext(&savel))
+		args = list(args, l->left);
+	args = rev(args);
+
+	// method to call
+	if(isptr[oldthis->etype])
+		rcvr = nod(OADDR, this->left, N);
+	else
+		rcvr = nod(OIND, this->left, N);
+	gettype(rcvr, N);
+	meth = nod(ODOTMETH, rcvr, newname(oldname));
+	meth->xoffset = BADWIDTH;	// TODO(rsc): necessary?
+	meth->type = oldtype;
+
+	call = nod(OCALL, meth, args);
+	fn->nbody = call;
+	if(oldtype->outtuple > 0)
+		fn->nbody = nod(ORETURN, call, N);
+
+	if(debug['r'])
+		dump("genptrtramp body", fn->nbody);
+
+	funcbody(fn);
+}
+

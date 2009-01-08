@@ -110,7 +110,7 @@ struct String
 struct Iface
 {
 	Itype *type;
-	void *data[1];	// could make bigger later
+	void *data[1];	// could make bigger later, but must be in sync with compilers
 };
 
 struct	Array

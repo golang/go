@@ -1260,7 +1260,7 @@ fndcl:
 			t = ismethod($2->type);
 			$$->nname = $4;
 			if(t != T)
-				$$->nname = methodname($4, t);
+				$$->nname = methodname($4, $2->type);
 			$$->type = functype($2, $6, $8);
 			funchdr($$);
 			addmethod($4, $$->type, 1);

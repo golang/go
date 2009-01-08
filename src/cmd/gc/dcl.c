@@ -203,19 +203,33 @@ methcmp(Type *t1, Type *t2)
 }
 
 Sym*
-methodsym(Sym *nsym, Type *t)
+methodsym(Sym *nsym, Type *t0)
 {
 	Sym *s;
 	char buf[NSYMB];
+	Type *t;
 
-	// caller has already called ismethod to obtain t
+	t = t0;
 	if(t == T)
 		goto bad;
 	s = t->sym;
-	if(s == S)
-		goto bad;
+	if(s == S) {
+		if(!isptr[t->etype])
+			goto bad;
+		t = t->type;
+		if(t == T)
+			goto bad;
+		s = t->sym;
+		if(s == S)
+			goto bad;
+	}
 
-	snprint(buf, sizeof(buf), "%#hT·%s", t, nsym->name);
+	// if t0 == *t and t0 has a sym,
+	// we want to see *t, not t0, in the method name.
+	if(t != t0 && t0->sym)
+		t0 = ptrto(t);
+
+	snprint(buf, sizeof(buf), "%#hT·%s", t0, nsym->name);
 //print("methodname %s\n", buf);
 	return pkglookup(buf, s->opackage);
 

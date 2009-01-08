@@ -174,7 +174,7 @@ regalloc(Node *n, Type *t, Node *o)
 	if(t == T)
 		fatal("regalloc: t nil");
 	et = simtype[t->etype];
-	
+
 	switch(et) {
 	case TINT8:
 	case TUINT8:
@@ -278,6 +278,23 @@ Node*
 nodarg(Type *t, int fp)
 {
 	Node *n;
+	Type *first;
+	Iter savet;
+
+	// entire argument struct, not just one arg
+	if(t->etype == TSTRUCT && t->funarg) {
+		n = nod(ONAME, N, N);
+		n->sym = lookup(".args");
+		n->type = t;
+		first = structfirst(&savet, &t);
+		if(first == nil)
+			fatal("nodarg: bad struct");
+		if(first->width == BADWIDTH)
+			fatal("nodarg: offset not computed for %T", t);
+		n->xoffset = first->width;
+		n->addable = 1;
+		goto fp;
+	}
 
 	if(t->etype != TFIELD)
 		fatal("nodarg: not field %T", t);
@@ -290,6 +307,7 @@ nodarg(Type *t, int fp)
 	n->xoffset = t->width;
 	n->addable = 1;
 
+fp:
 	switch(fp) {
 	case 0:		// output arg
 		n->op = OINDREG;
@@ -301,7 +319,7 @@ nodarg(Type *t, int fp)
 		break;
 
 	case 2:		// offset output arg
-fatal("shpuldnt be used");
+fatal("shouldnt be used");
 		n->op = OINDREG;
 		n->val.u.reg = D_SP;
 		n->xoffset += types[tptr]->width;
@@ -1860,7 +1878,7 @@ sudoclean(void)
 /*
  * generate code to compute address of n,
  * a reference to a (perhaps nested) field inside
- * an array or struct.  
+ * an array or struct.
  * return 0 on failure, 1 on success.
  * on success, leaves usable address in a.
  *
@@ -1909,7 +1927,7 @@ odot:
 	o = dotoffset(n, oary, &nn);
 	if(nn == N)
 		goto no;
-	
+
 	regalloc(reg, types[tptr], N);
 	n1 = *reg;
 	n1.op = OINDREG;

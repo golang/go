@@ -313,7 +313,7 @@ enum
 	OLITERAL, OREGISTER, OINDREG,
 	OCONV, OCOMP, OKEY,
 	OBAD,
-	
+
 	OEXTEND,	// 6g internal
 
 	OEND,
@@ -681,12 +681,13 @@ int	Nconv(Fmt*);
 int	Wconv(Fmt*);
 int	Zconv(Fmt*);
 
-int	lookdot0(Sym*, Type*);
-int	adddot1(Sym*, Type*, int);
+int	lookdot0(Sym*, Type*, Type**);
+int	adddot1(Sym*, Type*, int, Type**);
 Node*	adddot(Node*);
 void	expand0(Type*);
 void	expand1(Type*, int);
 void	expandmeth(Sym*, Type*);
+void	genptrtramp(Sym*, Sym*, Type*, Type*, Sym*, Type*);
 
 /*
  *	dcl.c
