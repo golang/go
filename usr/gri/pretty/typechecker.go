@@ -103,7 +103,7 @@ func (s *State) DeclareIdent(ident *AST.Expr, kind int, typ *AST.Type) {
 	// ident is either a comma-separated list or a single ident
 	switch ident.tok {
 	case Scanner.IDENT:
-		obj := Globals.NewObject(ident.pos, kind, ident.s);
+		obj := Globals.NewObject(ident.pos, kind, ident.obj.ident);
 		s.Declare(obj);
 	case Scanner.COMMA:
 		s.DeclareIdent(ident.x, kind, typ);
@@ -149,7 +149,7 @@ func (s *State) CheckDeclaration(d *AST.Decl) {
 		case Scanner.TYPE:
 			assert(d.ident.tok == Scanner.IDENT);
 			// types may be forward-declared
-			obj := s.Lookup(d.ident.s);
+			obj := s.Lookup(d.ident.obj.ident);
 			if obj != nil {
 				// TODO check if proper forward-declaration
 
@@ -164,7 +164,7 @@ func (s *State) CheckDeclaration(d *AST.Decl) {
 				// TODO
 			} else {
 				// functions may be forward-declared
-				obj := s.Lookup(d.ident.s);
+				obj := s.Lookup(d.ident.obj.ident);
 				if obj != nil {
 				  // TODO check if proper forward-declaration
 				  

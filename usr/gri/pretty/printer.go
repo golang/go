@@ -11,6 +11,8 @@ import (
 	"tabwriter";
 	"flag";
 	"fmt";
+	Globals "globals";
+	Object "object";
 	Scanner "scanner";
 	AST "ast";
 )
@@ -363,12 +365,12 @@ func (P *Printer) HtmlEpilogue() {
 }
 
 
-func (P *Printer) HtmlIdentifier(pos int, ident string) {
+func (P *Printer) HtmlIdentifier(pos int, obj *Globals.Object) {
 	if html.BVal() {
 		// no need to HtmlEscape ident
-		P.TaggedString(pos, `<a href="#` + ident + `">`, ident, `</a>`);
+		P.TaggedString(pos, `<a href="#` + obj.ident + `">`, obj.ident, `</a>`);
 	} else {
-		P.String(pos, ident);
+		P.String(pos, obj.ident);
 	}
 }
 
@@ -515,17 +517,17 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		P.Type(x.t);
 
 	case Scanner.IDENT:
-		P.HtmlIdentifier(x.pos, x.s);
+		P.HtmlIdentifier(x.pos, x.obj);
 	
 	case Scanner.INT, Scanner.STRING, Scanner.FLOAT:
 		// literal
-		P.String(x.pos, x.s);
+		P.String(x.pos, x.obj.ident);
 
 	case Scanner.FUNC:
 		// function literal
 		P.String(x.pos, "func");
 		P.Type(x.t);
-		P.Block(0, x.block, x.end, true);
+		P.Block(0, x.obj.block, x.obj.end, true);
 		P.newlines = 0;
 
 	case Scanner.COMMA:

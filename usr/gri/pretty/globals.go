@@ -5,6 +5,8 @@
 package Globals
 
 
+import "array"
+
 // The following types should really be in their respective files
 // (object.go, type.go, scope.go, package.go, compilation.go, etc.) but
 // they refer to each other and we don't know how to handle forward
@@ -29,6 +31,9 @@ export type Object struct {
 	ident string;
 	typ *Type;  // nil for packages
 	pnolev int;  // >= 0: package no., <= 0: function nesting level, 0: global level
+	
+	// attached values
+	block *array.Array; end int;  // stats for function literals; end of block pos
 }
 
 

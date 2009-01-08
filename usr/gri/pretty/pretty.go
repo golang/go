@@ -4,10 +4,12 @@
 
 package main
 
-import Flag "flag"
-import Platform "platform"
-import Printer "printer"
-import Compilation "compilation"
+import (
+	Flag "flag";
+	Platform "platform";
+	Printer "printer";
+	Compilation "compilation";
+)
 
 
 var (
@@ -15,7 +17,8 @@ var (
 	silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
 	verbose = Flag.Bool("v", false, &flags.verbose, "verbose mode: trace parsing");
 	sixg = Flag.Bool("6g", true, &flags.sixg, "6g compatibility mode");
-	deps = Flag.Bool("d", false, &flags.deps, "print dependency information only");
+	//TODO fix this code again
+	//deps = Flag.Bool("d", false, &flags.deps, "print dependency information only");
 	columns = Flag.Bool("columns", Platform.USER == "gri", &flags.columns, "print column info in error messages");
 	testmode = Flag.Bool("t", false, &flags.testmode, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
 	tokenchan = Flag.Bool("token_chan", false, &flags.tokenchan, "use token channel for scanner-parser connection");
@@ -40,7 +43,7 @@ func main() {
 	for i := 0; i < Flag.NArg(); i++ {
 		src_file := Flag.Arg(i);
 
-		if flags.deps {
+		if false /* DISABLED flags.deps */ {
 			Compilation.ComputeDeps(src_file, &flags);
 			
 		} else {

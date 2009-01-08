@@ -5,6 +5,8 @@
 package Parser
 
 import "array"
+import Globals "globals"
+import Object "object"
 import Scanner "scanner"
 import AST "ast"
 
@@ -148,7 +150,8 @@ func ExprType(x *AST.Expr) *AST.Type {
 func (P *Parser) NoType(x *AST.Expr) *AST.Expr {
 	if x != nil && x.tok == Scanner.TYPE {
 		P.Error(x.pos, "expected expression, found type");
-		x = AST.NewLit(x.pos, Scanner.INT, "");
+		val := Globals.NewObject(x.pos, Object.NONE, "0");
+		x = AST.NewLit(x.pos, Scanner.INT, val);
 	}
 	return x;
 }
@@ -173,10 +176,11 @@ func (P *Parser) ParseIdent() *AST.Expr {
 
 	x := AST.BadExpr;
 	if P.tok == Scanner.IDENT {
-		x = AST.NewLit(P.pos, Scanner.IDENT, P.val);
+		obj := Globals.NewObject(P.pos, Object.NONE, P.val);
+		x = AST.NewLit(P.pos, Scanner.IDENT, obj);
 		if P.verbose {
 			P.PrintIndent();
-			print("Ident = \"", x.s, "\"\n");
+			print("Ident = \"", x.obj.ident, "\"\n");
 		}
 		P.Next();
 	} else {
@@ -658,12 +662,13 @@ func (P *Parser) ParseExpressionList() *AST.Expr {
 func (P *Parser) ParseFunctionLit() *AST.Expr {
 	P.Trace("FunctionLit");
 
-	x := AST.NewLit(P.pos, Scanner.FUNC, "");
+	val := Globals.NewObject(P.pos, Object.NONE, "");
+	x := AST.NewLit(P.pos, Scanner.FUNC, val);
 	P.Expect(Scanner.FUNC);
 	x.t = P.ParseFunctionType();
 	P.expr_lev++;
 	P.scope_lev++;
-	x.block, x.end = P.ParseBlock();
+	val.block, val.end = P.ParseBlock();
 	P.scope_lev--;
 	P.expr_lev--;
 
@@ -712,11 +717,14 @@ func (P *Parser) ParseOperand() *AST.Expr {
 		P.Expect(Scanner.RPAREN);
 
 	case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
-		x = AST.NewLit(P.pos, P.tok, P.val);
+		val := Globals.NewObject(P.pos, Object.NONE, P.val);
+		x = AST.NewLit(P.pos, P.tok, val);
 		P.Next();
 		if x.tok == Scanner.STRING {
+			// TODO should remember the list instead of
+			//      concatenate the strings here
 			for ; P.tok == Scanner.STRING; P.Next() {
-				x.s += P.val;
+				x.obj.ident += P.val;
 			}
 		}
 
@@ -783,7 +791,7 @@ func (P *Parser) ParseCall(x0 *AST.Expr) *AST.Expr {
 	if P.tok != Scanner.RPAREN {
 		P.expr_lev++;
 		var t *AST.Type;
-		if x0.tok == Scanner.IDENT && (x0.s == "new" || x0.s == "make") {
+		if x0.tok == Scanner.IDENT && (x0.obj.ident == "new" || x0.obj.ident == "make") {
 			// heuristic: assume it's a new(T) or make(T, ...) call, try to parse a type
 			t = P.TryType();
 		}
@@ -1367,7 +1375,8 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
 
 	if P.tok == Scanner.STRING {
 		// TODO eventually the scanner should strip the quotes
-		d.val = AST.NewLit(P.pos, Scanner.STRING, P.val);
+		val := Globals.NewObject(P.pos, Object.NONE, P.val);
+		d.val = AST.NewLit(P.pos, Scanner.STRING, val);
 		P.Next();
 	} else {
 		P.Expect(Scanner.STRING);  // use Expect() error handling

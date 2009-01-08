@@ -171,7 +171,7 @@ func AddDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
 			for i := 0; i < nimports; i++ {
 				decl := prog.decls.At(i).(*AST.Decl);
 				assert(decl.tok == Scanner.IMPORT && decl.val.tok == Scanner.STRING);
-				src := decl.val.s;
+				src := decl.val.obj.ident;
 				src = src[1 : len(src) - 1];  // strip "'s
 
 				// ignore files when they are seen a 2nd time
