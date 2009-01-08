@@ -73,7 +73,6 @@
 
 typedef struct FixAlloc	FixAlloc;
 typedef struct MCentral	MCentral;
-typedef struct MCache	MCache;
 typedef struct MHeap	MHeap;
 typedef struct MHeapMap	MHeapMap;
 typedef struct MHeapMapCache	MHeapMapCache;
@@ -148,7 +147,6 @@ void	FixAlloc_Free(FixAlloc *f, void *p);
 
 // Statistics.
 // Shared with Go: if you edit this structure, also edit ../lib/malloc.go.
-typedef struct MStats MStats;
 struct MStats
 {
 	uint64	alloc;
@@ -228,7 +226,6 @@ void	MSpanList_Remove(MSpan *span);	// from whatever list it is in
 
 
 // Central list of free objects of a given size.
-typedef struct MCentral MCentral;
 struct MCentral
 {
 	Lock;
@@ -256,7 +253,6 @@ void	MCentral_FreeList(MCentral *c, int32 n, MLink *first);
 // On the other hand, it's just virtual address space: most of
 // the memory is never going to be touched, thus never paged in.
 
-typedef struct MHeapMap MHeapMap;
 typedef struct MHeapMapNode2 MHeapMapNode2;
 typedef struct MHeapMapNode3 MHeapMapNode3;
 
@@ -319,7 +315,6 @@ enum
 	MHeapMapCache_HashBits = 12
 };
 
-typedef struct MHeapMapCache MHeapMapCache;
 struct MHeapMapCache
 {
 	uintptr array[1<<MHeapMapCache_HashBits];
@@ -341,7 +336,6 @@ struct MHeapMapCache
 // Main malloc heap.
 // The heap itself is the "free[]" and "large" arrays,
 // but all the other global data is here too.
-typedef struct MHeap MHeap;
 struct MHeap
 {
 	Lock;
@@ -370,4 +364,3 @@ void	MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
 MSpan*	MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass);
 void	MHeap_Free(MHeap *h, MSpan *s);
 MSpan*	MHeap_Lookup(MHeap *h, PageID p);
-
