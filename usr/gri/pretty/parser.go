@@ -163,12 +163,13 @@ func (P *Parser) CloseScope() {
 }
 
 
-func (P *Parser) Lookup(ident string) *Globals.Object {
-	for scope := P.top_scope; scope != nil; scope = scope.parent {
+func Lookup(scope *Globals.Scope, ident string) *Globals.Object {
+	for scope != nil {
 		obj := scope.Lookup(ident);
 		if obj != nil {
 			return obj;
 		}
+		scope = scope.parent;
 	}
 	return nil;
 }
@@ -244,16 +245,25 @@ func (P *Parser) ParseStatement() *AST.Stat;
 func (P *Parser) ParseDeclaration() *AST.Decl;
 
 
-func (P *Parser) ParseIdent() *AST.Expr {
+// If scope != nil, lookup identifier in scope. Otherwise create one.
+func (P *Parser) ParseIdent(scope *Globals.Scope) *AST.Expr {
 	P.Trace("Ident");
-
+	
 	x := AST.BadExpr;
 	if P.tok == Scanner.IDENT {
-		obj := Globals.NewObject(P.pos, Object.NONE, P.val);
+		var obj *Globals.Object;
+		if scope != nil {
+			obj = Lookup(scope, P.val);
+		}
+		if obj == nil {
+			obj = Globals.NewObject(P.pos, Object.NONE, P.val);
+		} else {
+			assert(obj.kind != Object.NONE);
+		}
 		x = AST.NewLit(P.pos, Scanner.IDENT, obj);
 		if P.verbose {
 			P.PrintIndent();
-			print("Ident = \"", x.obj.ident, "\"\n");
+			print("Ident = \"", P.val, "\"\n");
 		}
 		P.Next();
 	} else {
@@ -269,11 +279,11 @@ func (P *Parser) ParseIdentList() *AST.Expr {
 	P.Trace("IdentList");
 
 	var last *AST.Expr;
-	x := P.ParseIdent();
+	x := P.ParseIdent(nil);
 	for P.tok == Scanner.COMMA {
 		pos := P.pos;
 		P.Next();
-		y := P.ParseIdent();
+		y := P.ParseIdent(nil);
 		if last == nil {
 			x = P.NewExpr(pos, Scanner.COMMA, x, y);
 			last = x;
@@ -318,11 +328,11 @@ func (P *Parser) ParseVarType() *AST.Type {
 func (P *Parser) ParseQualifiedIdent() *AST.Expr {
 	P.Trace("QualifiedIdent");
 
-	x := P.ParseIdent();
+	x := P.ParseIdent(P.top_scope);
 	for P.tok == Scanner.PERIOD {
 		pos := P.pos;
 		P.Next();
-		y := P.ParseIdent();
+		y := P.ParseIdent(nil);
 		x = P.NewExpr(pos, Scanner.PERIOD, x, y);
 	}
 
@@ -390,7 +400,7 @@ func (P *Parser) ParseChannelType() *AST.Type {
 func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
 	t := AST.BadType;
 	if expect_ident {
-		x := P.ParseIdent();
+		x := P.ParseIdent(nil);
 		t = AST.NewType(x.pos, Scanner.IDENT);
 		t.expr = x;
 	} else if P.tok == Scanner.ELLIPSIS {
@@ -802,7 +812,7 @@ func (P *Parser) ParseOperand() *AST.Expr {
 	x := AST.BadExpr;
 	switch P.tok {
 	case Scanner.IDENT:
-		x = P.ParseIdent();
+		x = P.ParseIdent(P.top_scope);
 
 	case Scanner.LPAREN:
 		// TODO we could have a function type here as in: new(())
@@ -850,7 +860,7 @@ func (P *Parser) ParseSelectorOrTypeGuard(x *AST.Expr) *AST.Expr {
 	P.Expect(Scanner.PERIOD);
 
 	if P.tok == Scanner.IDENT {
-		x.y = P.ParseIdent();
+		x.y = P.ParseIdent(nil);
 
 	} else {
 		P.Expect(Scanner.LPAREN);
@@ -991,7 +1001,7 @@ func (P *Parser) ParsePrimaryExpr() *AST.Expr {
 		case Scanner.LPAREN: x = P.ParseCall(x);
 		case Scanner.LBRACE:
 			// assume a composite literal only if x could be a type
-			// and if we are not inside control clause (expr_lev >= 0)
+			// and if we are not inside a control clause (expr_lev >= 0)
 			// (composites inside control clauses must be parenthesized)
 			var t *AST.Type;
 			if P.expr_lev >= 0 {
@@ -1196,7 +1206,7 @@ func (P *Parser) ParseControlFlowStat(tok int) *AST.Stat {
 	s := AST.NewStat(P.pos, tok);
 	P.Expect(tok);
 	if tok != Scanner.FALLTHROUGH && P.tok == Scanner.IDENT {
-		s.expr = P.ParseIdent();
+		s.expr = P.ParseIdent(P.top_scope);
 	}
 
 	P.Ecart();
@@ -1476,7 +1486,7 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
 		P.Error(P.pos, `"import ." not yet handled properly`);
 		P.Next();
 	} else if P.tok == Scanner.IDENT {
-		d.ident = P.ParseIdent();
+		d.ident = P.ParseIdent(nil);
 	}
 
 	if P.tok == Scanner.STRING {
@@ -1519,7 +1529,7 @@ func (P *Parser) ParseTypeSpec(exported bool, pos int) *AST.Decl {
 	P.Trace("TypeSpec");
 
 	d := AST.NewDecl(pos, Scanner.TYPE, exported);
-	d.ident = P.ParseIdent();
+	d.ident = P.ParseIdent(nil);
 	d.typ = P.ParseType();
 	P.opt_semi = true;
 
@@ -1619,7 +1629,7 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
 		}
 	}
 
-	d.ident = P.ParseIdent();
+	d.ident = P.ParseIdent(nil);
 	d.typ = P.ParseFunctionType();
 	d.typ.key = recv;
 
@@ -1698,7 +1708,7 @@ func (P *Parser) ParseProgram() *AST.Program {
 	P.OpenScope();
 	p := AST.NewProgram(P.pos);
 	P.Expect(Scanner.PACKAGE);
-	p.ident = P.ParseIdent();
+	p.ident = P.ParseIdent(nil);
 
 	// package body
 	{	P.OpenScope();

@@ -25,6 +25,8 @@ type OldCompilation struct
 // or nesting level (pnolev).
 
 export type Object struct {
+	id int;  // unique id
+
 	exported bool;
 	pos int;  // source position (< 0 if unknown position)
 	kind int;
@@ -38,6 +40,8 @@ export type Object struct {
 
 
 export type Type struct {
+	id int;  // unique id
+
 	ref int;  // for exporting only: >= 0 means already exported
 	form int;
 	size int;  // in bytes
@@ -108,23 +112,34 @@ export type Stat interface {
 // Creation
 
 export var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
+var ObjectId int;
 
 export func NewObject(pos, kind int, ident string) *Object {
 	obj := new(Object);
+	obj.id = ObjectId;
+	ObjectId++;
+	
 	obj.exported = false;
 	obj.pos = pos;
 	obj.kind = kind;
 	obj.ident = ident;
 	obj.typ = Universe_void_typ;
 	obj.pnolev = 0;
+
 	return obj;
 }
 
 
+var TypeId int;
+
 export func NewType(form int) *Type {
 	typ := new(Type);
+	typ.id = TypeId;
+	TypeId++;
+
 	typ.ref = -1;  // not yet exported
 	typ.form = form;
+
 	return typ;
 }
 

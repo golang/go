@@ -37,7 +37,7 @@ parser.6:	 scanner.6 ast.6 globals.6 object.6 type.6
 
 platform.6:	 utils.6
 
-printer.6:	 scanner.6 ast.6 globals.6 object.6 type.6
+printer.6:	 scanner.6 ast.6 globals.6 object.6 type.6 utils.6
 
 typechecker.6:	ast.6 universe.6 globals.6 type.6
 

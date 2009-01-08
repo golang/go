@@ -11,6 +11,7 @@ import (
 	"tabwriter";
 	"flag";
 	"fmt";
+	Utils "utils";
 	Globals "globals";
 	Object "object";
 	Scanner "scanner";
@@ -115,8 +116,8 @@ func HtmlEscape(s string) string {
 		var esc string;
 		for i := 0; i < len(s); i++ {
 			switch s[i] {
-			case '<': esc = "&lt";
-			case '&': esc = "&amp";
+			case '<': esc = "&lt;";
+			case '&': esc = "&amp;";
 			default: continue;
 			}
 			return s[0 : i] + esc + HtmlEscape(s[i+1 : len(s)]);
@@ -365,12 +366,24 @@ func (P *Printer) HtmlEpilogue() {
 }
 
 
-func (P *Printer) HtmlIdentifier(pos int, obj *Globals.Object) {
-	if html.BVal() {
-		// no need to HtmlEscape ident
-		P.TaggedString(pos, `<a href="#` + obj.ident + `">`, obj.ident, `</a>`);
+func (P *Printer) HtmlIdentifier(x *AST.Expr) {
+	if x.tok != Scanner.IDENT {
+		panic();
+	}
+	obj := x.obj;
+	if html.BVal() && obj.kind != Object.NONE {
+		// depending on whether we have a declaration or use, generate different html
+		// - no need to HtmlEscape ident
+		id := Utils.IntToString(obj.id, 10);
+		if x.pos == obj.pos {
+			// probably the declaration of x
+			P.TaggedString(x.pos, `<a name="id` + id + `">`, obj.ident, `</a>`);
+		} else {
+			// probably not the declaration of x
+			P.TaggedString(x.pos, `<a href="#id` + id + `">`, obj.ident, `</a>`);
+		}
 	} else {
-		P.String(pos, obj.ident);
+		P.String(x.pos, obj.ident);
 	}
 }
 
@@ -517,7 +530,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		P.Type(x.t);
 
 	case Scanner.IDENT:
-		P.HtmlIdentifier(x.pos, x.obj);
+		P.HtmlIdentifier(x);
 	
 	case Scanner.INT, Scanner.STRING, Scanner.FLOAT:
 		// literal
@@ -867,7 +880,8 @@ export func Print(prog *AST.Program) {
 	text := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true, html.BVal());
 	P.Init(text, prog.comments);
 
-	P.HtmlPrologue("<the source>");
+	// TODO would be better to make the name of the src file be the title
+	P.HtmlPrologue("package " + prog.ident.obj.ident);
 	P.Program(prog);
 	P.HtmlEpilogue();
 	
