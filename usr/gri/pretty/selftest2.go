@@ -52,6 +52,17 @@ var (
 )
 
 
+func d0() {
+	var (
+		a string;
+		b, c string;
+		d, e, f string;
+		g, h, i, j string;
+		k, l, m, n, o string;
+	)
+}
+
+
 func f0(a, b int) int {
 	if a < b {
 		a = a + 1;  // estimate
