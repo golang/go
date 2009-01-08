@@ -415,6 +415,12 @@ agen(Node *n, Node *res)
 		fatal("agen: unknown op %N", n);
 		break;
 
+	case OCONV:
+		if(!eqtype(n->type, nl->type, 0))
+			fatal("agen: non-trivial OCONV");
+		agen(nl, res);
+		return;
+
 	case OCALLMETH:
 		cgen_callmeth(n, 0);
 		cgen_aret(n, res);
