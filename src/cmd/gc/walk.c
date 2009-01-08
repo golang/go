@@ -563,8 +563,10 @@ loop:
 
 		// nil conversion
 		if(eqtype(t, l->type, 0)) {
-			if(l->op != ONAME)
+			if(l->op != ONAME) {
 				indir(n, l);
+				n->type = t;
+			}
 			goto ret;
 		}
 
