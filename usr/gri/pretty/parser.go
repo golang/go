@@ -32,11 +32,34 @@ export type Parser struct {
 	// Nesting levels
 	expr_lev int;  // 0 = control clause level, 1 = expr inside ()'s
 	scope_lev int;  // 0 = global scope, 1 = function scope of global functions, etc.
+	
+	// Scopes
+	top_scope *Globals.Scope;
 };
 
 
 // ----------------------------------------------------------------------------
-// Support functions
+// Elementary support
+
+func unimplemented() {
+	panic("unimplemented");
+}
+
+
+func unreachable() {
+	panic("unreachable");
+}
+
+
+func assert(pred bool) {
+	if !pred {
+		panic("assertion failed");
+	}
+}
+
+
+// ----------------------------------------------------------------------------
+// Parsing support
 
 func (P *Parser) PrintIndent() {
 	for i := P.indent; i > 0; i-- {
@@ -128,6 +151,56 @@ func (P *Parser) OptSemicolon() {
 
 
 // ----------------------------------------------------------------------------
+// Scopes
+
+func (P *Parser) OpenScope() {
+	P.top_scope = Globals.NewScope(P.top_scope);
+}
+
+
+func (P *Parser) CloseScope() {
+	P.top_scope = P.top_scope.parent;
+}
+
+
+func (P *Parser) Lookup(ident string) *Globals.Object {
+	for scope := P.top_scope; scope != nil; scope = scope.parent {
+		obj := scope.Lookup(ident);
+		if obj != nil {
+			return obj;
+		}
+	}
+	return nil;
+}
+
+
+func (P *Parser) DeclareInScope(scope *Globals.Scope, x *AST.Expr, kind int) {
+	if P.scope_lev < 0 {
+		panic("cannot declare objects in other packages");
+	}
+	obj := x.obj;
+	assert(x.tok == Scanner.IDENT && obj.kind == Object.NONE);
+	obj.kind = kind;
+	obj.pnolev = P.scope_lev;
+	if scope.Lookup(obj.ident) != nil {
+		P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
+		return;  // don't insert it into the scope
+	}
+	scope.Insert(obj);
+}
+
+
+// Declare a comma-separated list of idents or a single ident.
+func (P *Parser) Declare(p *AST.Expr, kind int) {
+	for p.tok == Scanner.COMMA {
+		P.DeclareInScope(P.top_scope, p.x, kind);
+		p = p.y;
+	}
+	P.DeclareInScope(P.top_scope, p, kind);
+}
+
+
+// ----------------------------------------------------------------------------
 // AST support
 
 func ExprType(x *AST.Expr) *AST.Type {
@@ -195,16 +268,18 @@ func (P *Parser) ParseIdent() *AST.Expr {
 func (P *Parser) ParseIdentList() *AST.Expr {
 	P.Trace("IdentList");
 
+	var last *AST.Expr;
 	x := P.ParseIdent();
-	for first := true; P.tok == Scanner.COMMA; {
+	for P.tok == Scanner.COMMA {
 		pos := P.pos;
 		P.Next();
 		y := P.ParseIdent();
-		if first {
+		if last == nil {
 			x = P.NewExpr(pos, Scanner.COMMA, x, y);
-			first = false;
+			last = x;
 		} else {
-			x.y = P.NewExpr(pos, Scanner.COMMA, x.y, y);
+			last.y = P.NewExpr(pos, Scanner.COMMA, last.y, y);
+			last = last.y;
 		}
 	}
 
@@ -460,10 +535,16 @@ func (P *Parser) ParseResult() *AST.Type {
 func (P *Parser) ParseFunctionType() *AST.Type {
 	P.Trace("FunctionType");
 
+	P.OpenScope();
+	P.scope_lev++;
+
 	t := AST.NewType(P.pos, Scanner.LPAREN);
 	t.list = P.ParseParameters(true).list;  // TODO find better solution
 	t.end = P.pos;
 	t.elt = P.ParseResult();
+
+	P.scope_lev--;
+	P.CloseScope();
 
 	P.Ecart();
 	return t;
@@ -493,6 +574,9 @@ func (P *Parser) ParseInterfaceType() *AST.Type {
 	P.Expect(Scanner.INTERFACE);
 	if P.tok == Scanner.LBRACE {
 		P.Next();
+		P.OpenScope();
+		P.scope_lev++;
+
 		t.list = array.New(0);
 		for P.tok == Scanner.IDENT {
 			P.ParseMethodSpec(t.list);
@@ -501,6 +585,9 @@ func (P *Parser) ParseInterfaceType() *AST.Type {
 			}
 		}
 		t.end = P.pos;
+
+		P.scope_lev--;
+		P.CloseScope();
 		P.Expect(Scanner.RBRACE);
 	}
 
@@ -533,6 +620,9 @@ func (P *Parser) ParseStructType() *AST.Type {
 	P.Expect(Scanner.STRUCT);
 	if P.tok == Scanner.LBRACE {
 		P.Next();
+		P.OpenScope();
+		P.scope_lev++;
+
 		t.list = array.New(0);
 		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 			P.ParseVarDeclList(t.list, false);
@@ -548,6 +638,9 @@ func (P *Parser) ParseStructType() *AST.Type {
 		}
 		P.OptSemicolon();
 		t.end = P.pos;
+
+		P.scope_lev--;
+		P.CloseScope();
 		P.Expect(Scanner.RBRACE);
 	}
 
@@ -625,8 +718,12 @@ func (P *Parser) ParseBlock() (slist *array.Array, end int) {
 	P.Trace("Block");
 
 	P.Expect(Scanner.LBRACE);
+	P.OpenScope();
+
 	slist = P.ParseStatementList();
 	end = P.pos;
+
+	P.CloseScope();
 	P.Expect(Scanner.RBRACE);
 	P.opt_semi = true;
 
@@ -832,7 +929,8 @@ func (P *Parser) ParseCompositeElements() *AST.Expr {
 			singles = false;
 		}
 
-		for first := true; P.tok != Scanner.RBRACE && P.tok != Scanner.EOF; {
+		var last *AST.Expr;
+		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 			y := P.ParseExpression(0);
 
 			if singles {
@@ -845,10 +943,12 @@ func (P *Parser) ParseCompositeElements() *AST.Expr {
 				}
 			}
 
-			if first {
+			if last == nil {
 				x = P.NewExpr(pos, Scanner.COMMA, x, y);
+				last = x;
 			} else {
-				x.y = P.NewExpr(pos, Scanner.COMMA, x.y, y);
+				last.y = P.NewExpr(pos, Scanner.COMMA, last.y, y);
+				last = last.y;
 			}
 
 			if P.tok == Scanner.COMMA {
@@ -1143,6 +1243,7 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
 func (P *Parser) ParseIfStat() *AST.Stat {
 	P.Trace("IfStat");
 
+	P.OpenScope();
 	s := P.ParseControlClause(Scanner.IF);
 	s.block, s.end = P.ParseBlock();
 	if P.tok == Scanner.ELSE {
@@ -1169,6 +1270,7 @@ func (P *Parser) ParseIfStat() *AST.Stat {
 		}
 		s.post = s1;
 	}
+	P.CloseScope();
 
 	P.Ecart();
 	return s;
@@ -1178,8 +1280,10 @@ func (P *Parser) ParseIfStat() *AST.Stat {
 func (P *Parser) ParseForStat() *AST.Stat {
 	P.Trace("ForStat");
 
+	P.OpenScope();
 	s := P.ParseControlClause(Scanner.FOR);
 	s.block, s.end = P.ParseBlock();
+	P.CloseScope();
 
 	P.Ecart();
 	return s;
@@ -1219,6 +1323,7 @@ func (P *Parser) ParseCaseClause() *AST.Stat {
 func (P *Parser) ParseSwitchStat() *AST.Stat {
 	P.Trace("SwitchStat");
 
+	P.OpenScope();
 	s := P.ParseControlClause(Scanner.SWITCH);
 	s.block = array.New(0);
 	P.Expect(Scanner.LBRACE);
@@ -1228,6 +1333,7 @@ func (P *Parser) ParseSwitchStat() *AST.Stat {
 	s.end = P.pos;
 	P.Expect(Scanner.RBRACE);
 	P.opt_semi = true;
+	P.CloseScope();
 
 	P.Ecart();
 	return s;
@@ -1382,6 +1488,10 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
 		P.Expect(Scanner.STRING);  // use Expect() error handling
 	}
 
+	if d.ident != nil {
+		P.Declare(d.ident, Object.PACKAGE);
+	}
+
 	P.Ecart();
 	return d;
 }
@@ -1397,6 +1507,8 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
 		P.Next();
 		d.val = P.ParseExpressionList();
 	}
+	
+	P.Declare(d.ident, Object.CONST);
 
 	P.Ecart();
 	return d;
@@ -1431,6 +1543,8 @@ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
 			d.val = P.ParseExpressionList();
 		}
 	}
+
+	P.Declare(d.ident, Object.VAR);
 
 	P.Ecart();
 	return d;
@@ -1581,24 +1695,29 @@ func (P *Parser) ParseDeclaration() *AST.Decl {
 func (P *Parser) ParseProgram() *AST.Program {
 	P.Trace("Program");
 
+	P.OpenScope();
 	p := AST.NewProgram(P.pos);
 	P.Expect(Scanner.PACKAGE);
 	p.ident = P.ParseIdent();
 
-	p.decls = array.New(0);
-	for P.tok == Scanner.IMPORT {
-		p.decls.Push(P.ParseDecl(false, Scanner.IMPORT));
-		P.OptSemicolon();
-	}
-
-	if !P.deps {
-		for P.tok != Scanner.EOF {
-			p.decls.Push(P.ParseDeclaration());
+	// package body
+	{	P.OpenScope();
+		p.decls = array.New(0);
+		for P.tok == Scanner.IMPORT {
+			p.decls.Push(P.ParseDecl(false, Scanner.IMPORT));
 			P.OptSemicolon();
 		}
+		if !P.deps {
+			for P.tok != Scanner.EOF {
+				p.decls.Push(P.ParseDeclaration());
+				P.OptSemicolon();
+			}
+		}
+		P.CloseScope();
 	}
 
 	p.comments = P.comments;
+	P.CloseScope();
 
 	P.Ecart();
 	return p;
