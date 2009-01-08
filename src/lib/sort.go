@@ -34,7 +34,6 @@ func MedianOfThree(data SortInterface, a, b, c int) {
 	m0 := b;
 	m1 := a;
 	m2 := c;
-
 	// bubble sort on 3 elements
 	if data.Less(m1, m0) { data.Swap(m1, m0); }
 	if data.Less(m2, m1) { data.Swap(m2, m1); }
@@ -135,40 +134,34 @@ export func IsSorted(data SortInterface) bool {
 
 // Convenience types for common cases
 
-export type IntArray struct {
-	data []int;
-}
+export type IntArray []int
 
-func (p *IntArray) Len() int            { return len(p.data); }
-func (p *IntArray) Less(i, j int) bool  { return p.data[i] < p.data[j]; }
-func (p *IntArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+func (p IntArray) Len() int            { return len(p); }
+func (p IntArray) Less(i, j int) bool  { return p[i] < p[j]; }
+func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
-export type FloatArray struct {
-	data []float;
-}
+export type FloatArray  []float
 
-func (p *FloatArray) Len() int            { return len(p.data); }
-func (p *FloatArray) Less(i, j int) bool  { return p.data[i] < p.data[j]; }
-func (p *FloatArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+func (p FloatArray) Len() int            { return len(p); }
+func (p FloatArray) Less(i, j int) bool  { return p[i] < p[j]; }
+func (p FloatArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
-export type StringArray struct {
-	data []string;
-}
+export type StringArray []string
 
-func (p *StringArray) Len() int            { return len(p.data); }
-func (p *StringArray) Less(i, j int) bool  { return p.data[i] < p.data[j]; }
-func (p *StringArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+func (p StringArray) Len() int            { return len(p); }
+func (p StringArray) Less(i, j int) bool  { return p[i] < p[j]; }
+func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
 // Convenience wrappers for common cases
 
-export func SortInts(a []int)        { Sort(&IntArray{a}); }
-export func SortFloats(a []float)    { Sort(&FloatArray{a}); }
-export func SortStrings(a []string)  { Sort(&StringArray{a}); }
+export func SortInts(a []int)        { Sort(IntArray(a)); }
+export func SortFloats(a []float)    { Sort(FloatArray(a)); }
+export func SortStrings(a []string)  { Sort(StringArray(a)); }
 
 
-export func IntsAreSorted(a []int) bool       { return IsSorted(&IntArray{a}); }
-export func FloatsAreSorted(a []float) bool   { return IsSorted(&FloatArray{a}); }
-export func StringsAreSorted(a []string) bool { return IsSorted(&StringArray{a}); }
+export func IntsAreSorted(a []int) bool       { return IsSorted(IntArray(a)); }
+export func FloatsAreSorted(a []float) bool   { return IsSorted(FloatArray(a)); }
+export func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)); }
