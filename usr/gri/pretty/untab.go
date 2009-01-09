@@ -14,8 +14,8 @@ import (
 
 
 var (
-	tabwidth = flag.Int("tabwidth", 4, nil, "tab width");
-	usetabs = flag.Bool("usetabs", false, nil, "align with tabs instead of blanks");
+	tabwidth = flag.Int("tabwidth", 4, "tab width");
+	usetabs = flag.Bool("usetabs", false, "align with tabs instead of blanks");
 )
 
 
@@ -37,10 +37,10 @@ func Untab(name string, src *os.FD, dst *tabwriter.Writer) {
 func main() {
 	flag.Parse();
 	padchar := byte(' ');
-	if usetabs.BVal() {
+	if *usetabs {
 		padchar = '\t';
 	}
-	dst := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true, false);
+	dst := tabwriter.New(os.Stdout, *tabwidth, 1, padchar, true, false);
 	if flag.NArg() > 0 {
 		for i := 0; i < flag.NArg(); i++ {
 			name := flag.Arg(i);

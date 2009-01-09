@@ -15,12 +15,9 @@ import (
 	"strconv"
 )
 
-var chatty bool;
-var chatty_flag = flag.Bool("v", false, &chatty, "chatty");
-var reverse bool;
-var reverse_flag = flag.Bool("r", false, &reverse, "reverse");
-var longtest bool;
-var longtest_flag = flag.Bool("l", false, &longtest, "long test");
+var chatty = flag.Bool("v", false, "chatty");
+var reverse = flag.Bool("r", false, "reverse");
+var longtest = flag.Bool("l", false, "long test");
 
 var b []*byte;
 var stats = malloc.GetStats();
@@ -42,7 +39,7 @@ func OkAmount(size, n uint64) bool {
 }
 
 func AllocAndFree(size, count int) {
-	if chatty {
+	if *chatty {
 		fmt.printf("size=%d count=%d ...\n", size, count);
 	}
 	n1 := stats.alloc;
@@ -57,13 +54,13 @@ func AllocAndFree(size, count int) {
 		}
 	}
 	n2 := stats.alloc;
-	if chatty {
+	if *chatty {
 		fmt.printf("size=%d count=%d stats=%+v\n", size, count, *stats);
 	}
 	n3 := stats.alloc;
 	for j := 0; j < count; j++ {
 		i := j;
-		if reverse {
+		if *reverse {
 			i = count - 1 - j;
 		}
 		alloc := stats.alloc;
@@ -81,7 +78,7 @@ func AllocAndFree(size, count int) {
 	}
 	n4 := stats.alloc;
 
-	if chatty {
+	if *chatty {
 		fmt.printf("size=%d count=%d stats=%+v\n", size, count, *stats);
 	}
 	if n2-n1 != n3-n4 {
@@ -104,7 +101,7 @@ func main() {
 	for j := 1; j <= 1<<22; j<<=1 {
 		n := len(b);
 		max := uint64(1<<28);
-		if !longtest {
+		if !*longtest {
 			max = 1<<22;
 		}
 		if uint64(j)*uint64(n) > max {

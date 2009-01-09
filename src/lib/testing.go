@@ -9,10 +9,7 @@ import (
 	"flag";
 )
 
-var chatty bool;
-func init() {
-	flag.Bool("chatty", false, &chatty, "chatty");
-}
+var chatty = flag.Bool("chatty", false, "chatty")
 
 // Insert tabs after newlines - but not the last one
 func Tabify(s string) string {
@@ -89,7 +86,7 @@ export func Main(tests []Test) {
 		println("testing: warning: no tests to run");
 	}
 	for i := 0; i < len(tests); i++ {
-		if chatty {
+		if *chatty {
 			println("=== RUN ", tests[i].name);
 		}
 		t := new(T);
@@ -100,7 +97,7 @@ export func Main(tests []Test) {
 			println("--- FAIL:", tests[i].name);
 			print(t.errors);
 			ok = false;
-		} else if chatty {
+		} else if *chatty {
 			println("--- PASS:", tests[i].name);
 			print(t.errors);
 		}

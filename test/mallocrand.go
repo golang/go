@@ -15,15 +15,14 @@ import (
 	"unsafe";
 )
 
-var chatty bool;
-var chatty_flag = flag.Bool("v", false, &chatty, "chatty");
+var chatty = flag.Bool("v", false, "chatty");
 
 var footprint uint64;
 var allocated uint64;
 func bigger() {
 	if f := malloc.GetStats().sys; footprint < f {
 		footprint = f;
-		if chatty {
+		if *chatty {
 			println("Footprint", footprint, " for ", allocated);
 		}
 		if footprint > 1e9 {
@@ -58,7 +57,7 @@ func main() {
 //	prime();
 	var blocks [1] struct { base *byte; siz uint64; };
 	for i := 0; i < 1<<12; i++ {
-		if i%(1<<10) == 0 && chatty {
+		if i%(1<<10) == 0 && *chatty {
 			println(i);
 		}
 		b := rand.rand() % len(blocks);

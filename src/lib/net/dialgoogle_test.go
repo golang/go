@@ -13,8 +13,7 @@ import (
 )
 
 // If an IPv6 tunnel is running (see go/stubl), we can try dialing a real IPv6 address.
-var ipv6 = false
-var ipv6_flag = flag.Bool("ipv6", false, &ipv6, "assume ipv6 tunnel is present")
+var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 
 // fd is already connected to www.google.com port 80.
 // Run an HTTP request to fetch the main page.
@@ -67,7 +66,7 @@ var googleaddrs = []string {
 
 export func TestDialGoogle(t *testing.T) {
 	// If no ipv6 tunnel, don't try the last address.
-	if !ipv6 {
+	if !*ipv6 {
 		googleaddrs[len(googleaddrs)-1] = ""
 	}
 

@@ -8,21 +8,22 @@ package flag
  * Flags
  *
  * Usage:
- *	1) Define flags using flag.String(), Bool(), or Int(). Int flag values have type int64. Example:
+ *	1) Define flags using flag.String(), Bool(), Int(), etc. Example:
  *		import flag "flag"
- *		var i int64
- *		var fi *flag.Flag = flag.Int("flagname", 1234, &i, "help message for flagname")
- *	The pointer may be nil; if non-nil, it points to a cell of the appropriate type to store the
- *	flag's value.
- *
+ *		var ip *int = flag.Int("flagname", 1234, "help message for flagname")
+ *	If you like, you can bind the flag to a variable using the Var() functions.
+ *		var flagvar int
+ *		func init() {
+ *              	flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
+ *		}
  *	2) After all flags are defined, call
  *		flag.Parse()
  *	to parse the command line into the defined flags.
  *
- *	3) Flags may then be used directly (getters are SVal, BVal, Ival) or through the associated
- *	cell, if set:
- *		print("fi has value ", fi.IVal(), "\n");
- *		print("i has value ", i, "\n");
+ *	3) Flags may then be used directly. If you're using the flags themselves,
+ *	they are all pointers; if you bind to variables, they're values.
+ *		print("ip has value ", *ip, "\n");
+ *		print("flagvar has value ", flagvar, "\n");
  *
  *	4) After parsing, flag.Arg(i) is the i'th argument after the flags.
  *	Args are indexed from 0 up to flag.NArg().
@@ -40,14 +41,7 @@ package flag
  *	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
  */
 
-import fmt "fmt"
-
-//export Bool, Int, String
-//export Arg, NArg
-//export Parse
-//export Flag.BVal BUG: variable exported but not defined: Flag.BVal
-//export Flag.SVal BUG: variable exported but not defined: Flag.SVal
-//export Flag
+import "fmt"
 
 // BUG: ctoi, atoi, atob belong elsewhere
 func ctoi(c int64) int64 {
@@ -104,180 +98,123 @@ func atob(str string) (value bool, ok bool) {
 type (
 	BoolValue struct;
 	IntValue struct;
+	Int64Value struct;
+	UintValue struct;
+	Uint64Value struct;
 	StringValue struct;
 )
 
 // -- Bool Value
 type BoolValue struct {
-	val bool;
 	p *bool;
 }
 
 func NewBoolValue(val bool, p *bool) *BoolValue {
-	if p != nil {
-		*p = val
-	}
-	return &BoolValue{val, p}
-}
-
-func (b *BoolValue) AsBool() *BoolValue {
-	return b
-}
-
-func (b *BoolValue) AsInt() *IntValue {
-	return nil
-}
-
-func (b *BoolValue) AsString() *StringValue {
-	return nil
-}
-
-func (b *BoolValue) IsBool() bool {
-	return true
-}
-
-func (b *BoolValue) IsInt() bool {
-	return false
-}
-
-func (b *BoolValue) IsString() bool {
-	return false
-}
-
-func (b *BoolValue) ValidValue(str string) bool {
-	i, ok := atob(str);
-	return ok;
+	*p = val;
+	return &BoolValue{p}
 }
 
 func (b *BoolValue) Set(val bool) {
-	if b.p != nil {
-		*b.p = val
-	}
-	b.val = val
+	*b.p = val;
 }
 
 func (b *BoolValue) Str() string {
-	if b.val {
-		return "true"
-	}
-	return "false"
+	return fmt.sprintf("%v", *b.p)
 }
 
 // -- Int Value
 type IntValue struct {
-	val	int64;
-	p	*int64;
+	p	*int;
 }
 
-func NewIntValue(val int64, p *int64) *IntValue {
-	if p != nil {
-		*p = val
-	}
-	return &IntValue{val, p}
+func NewIntValue(val int, p *int) *IntValue {
+	*p = val;
+	return &IntValue{p}
 }
 
-func (i *IntValue) AsBool() *BoolValue {
-	return nil
-}
-
-func (i *IntValue) AsInt() *IntValue {
-	return i
-}
-
-func (i *IntValue) AsString() *StringValue{
-	return nil
-}
-
-func (i *IntValue) IsBool() bool {
-	return false
-}
-
-func (i *IntValue) IsInt() bool {
-	return true
-}
-
-func (i *IntValue) IsString() bool {
-	return false
-}
-
-func (i *IntValue) ValidValue(str string) bool {
-	k, ok := atoi(str);
-	return ok;
-}
-
-func (i *IntValue) Set(val int64) {
-	if i.p != nil {
-		*i.p = val
-	}
-	i.val = val
+func (i *IntValue) Set(val int) {
+	*i.p = val;
 }
 
 func (i *IntValue) Str() string {
-	return fmt.New().d64(i.val).str()
+	return fmt.sprintf("%v", *i.p)
+}
+
+// -- Int64 Value
+type Int64Value struct {
+	p	*int64;
+}
+
+func NewInt64Value(val int64, p *int64) *Int64Value {
+	*p = val;
+	return &Int64Value{p}
+}
+
+func (i *Int64Value) Set(val int64) {
+	*i.p = val;
+}
+
+func (i *Int64Value) Str() string {
+	return fmt.sprintf("%v", *i.p)
+}
+
+// -- Uint Value
+type UintValue struct {
+	p	*uint;
+}
+
+func NewUintValue(val uint, p *uint) *UintValue {
+	*p = val;
+	return &UintValue{p}
+}
+
+func (i *UintValue) Set(val uint) {
+	*i.p = val
+}
+
+func (i *UintValue) Str() string {
+	return fmt.sprintf("%v", *i.p)
+}
+
+// -- Uint64 Value
+type Uint64Value struct {
+	p	*uint64;
+}
+
+func NewUint64Value(val uint64, p *uint64) *Uint64Value {
+	*p = val;
+	return &Uint64Value{p}
+}
+
+func (i *Uint64Value) Set(val uint64) {
+	*i.p = val;
+}
+
+func (i *Uint64Value) Str() string {
+	return fmt.sprintf("%v", *i.p)
 }
 
 // -- String Value
 type StringValue struct {
-	val	string;
 	p	*string;
 }
 
 func NewStringValue(val string, p *string) *StringValue {
-	if p != nil {
-		*p = val
-	}
-	return &StringValue{val, p}
-}
-
-func (e *StringValue) AsBool() *BoolValue {
-	return nil
-}
-
-func (e *StringValue) AsInt() *IntValue {
-	return nil
-}
-
-func (s *StringValue) AsString() *StringValue{
-	return s
-}
-
-func (s *StringValue) IsBool() bool {
-	return false
-}
-
-func (s *StringValue) IsInt() bool {
-	return false
-}
-
-func (s *StringValue) IsString() bool {
-	return true
-}
-
-func (s *StringValue) ValidValue(str string) bool {
-	return true
+	*p = val;
+	return &StringValue{p}
 }
 
 func (s *StringValue) Set(val string) {
-	if s.p != nil {
-		*s.p = val
-	}
-	s.val = val
+	*s.p = val;
 }
 
 func (s *StringValue) Str() string {
-	return `"` + s.val + `"`
+	return fmt.sprintf("%#q", *s.p)
 }
 
 // -- Value interface
 type Value interface {
-	AsBool()	*BoolValue;
-	AsInt()	*IntValue;
-	AsString()	*StringValue;
-	IsBool()	bool;
-	IsInt()	bool;
-	IsString()	bool;
-	Str()		string;
-	ValidValue(str string) bool;
+	Str() string;
 }
 
 // -- Flag structure (internal)
@@ -285,37 +222,14 @@ export type Flag struct {
 	name	string;
 	usage	string;
 	value	Value;
-	next	*Flag;  // BUG: remove when we can iterate over maps
 }
 
 type Flags struct {
 	actual map[string] *Flag;
 	formal map[string] *Flag;
 	first_arg	int;
-	flag_list	*Flag;  // BUG: remove when we can iterate over maps
 }
 
-// --Customer's value getters
-func (f *Flag) BVal() bool {
-	if !f.value.IsBool() {
-		return false;
-	}
-	return f.value.AsBool().val;
-}
-
-func (f *Flag) IVal() int64 {
-	if !f.value.IsInt() {
-		return 0
-	}
-	return f.value.AsInt().val;
-}
-
-func (f *Flag) SVal() string {
-	if !f.value.IsString() {
-		return "???";
-	}
-	return f.value.AsString().val;
-}
 
 func New() *Flags {
 	f := new(Flags);
@@ -328,8 +242,7 @@ func New() *Flags {
 var flags *Flags = New();
 
 export func PrintDefaults() {
-	// BUG: use map iteration when available
-	for f := flags.flag_list; f != nil; f = f.next {
+	for k, f := range flags.formal {
 		print("  -", f.name, "=", f.value.Str(), ": ", f.usage, "\n");
 	}
 }
@@ -360,7 +273,7 @@ export func NArg() int {
 	return sys.argc() - flags.first_arg
 }
 
-func Add(name string, value Value, usage string) *Flag {
+func Add(name string, value Value, usage string) {
 	f := new(Flag);
 	f.name = name;
 	f.usage = usage;
@@ -371,21 +284,66 @@ func Add(name string, value Value, usage string) *Flag {
 		panic("flag redefinition");
 	}
 	flags.formal[name] = f;
-	f.next = flags.flag_list;  // BUG: remove when we can iterate over maps
-	flags.flag_list = f;  // BUG: remove when we can iterate over maps
-	return f;
 }
 
-export func Bool(name string, value bool, p *bool, usage string) *Flag {
-	return Add(name, NewBoolValue(value, p), usage);
+export func Bool(name string, value bool, usage string) *bool {
+	p := new(bool);
+	Add(name, NewBoolValue(value, p), usage);
+	return p;
 }
 
-export func Int(name string, value int64, p *int64, usage string) *Flag {
-	return Add(name, NewIntValue(value, p), usage);
+export func BoolVar(p *bool, name string, value bool, usage string) {
+	Add(name, NewBoolValue(value, p), usage);
 }
 
-export func String(name, value string, p *string, usage string) *Flag {
-	return Add(name, NewStringValue(value, p), usage);
+export func Int(name string, value int, usage string) *int {
+	p := new(int);
+	Add(name, NewIntValue(value, p), usage);
+	return p;
+}
+
+export func IntVar(p *int, name string, value int, usage string) {
+	Add(name, NewIntValue(value, p), usage);
+}
+
+export func Int64(name string, value int64, usage string) *int64 {
+	p := new(int64);
+	Add(name, NewInt64Value(value, p), usage);
+	return p;
+}
+
+export func Int64Var(p *int64, name string, value int64, usage string) {
+	Add(name, NewInt64Value(value, p), usage);
+}
+
+export func Uint(name string, value uint, usage string) *uint {
+	p := new(uint);
+	Add(name, NewUintValue(value, p), usage);
+	return p;
+}
+
+export func UintVar(p *uint, name string, value uint, usage string) {
+	Add(name, NewUintValue(value, p), usage);
+}
+
+export func Uint64(name string, value uint64, usage string) *uint64 {
+	p := new(uint64);
+	Add(name, NewUint64Value(value, p), usage);
+	return p;
+}
+
+export func Uint64Var(p *uint64, name string, value uint64, usage string) {
+	Add(name, NewUint64Value(value, p), usage);
+}
+
+export func String(name, value string, usage string) *string {
+	p := new(string);
+	Add(name, NewStringValue(value, p), usage);
+	return p;
+}
+
+export func StringVar(p *string, name, value string, usage string) {
+	Add(name, NewStringValue(value, p), usage);
 }
 
 func (f *Flags) ParseOne(index int) (ok bool, next int)
@@ -436,48 +394,55 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 		print("flag provided but not defined: -", name, "\n");
 		Usage();
 	}
-	if !has_value && index < sys.argc()-1 && flag.value.ValidValue(sys.argv(index+1)) {
-		// value is the next arg
-		has_value = true;
-		index++;
-		value = sys.argv(index);
-	}
-	switch {
-		case flag.value.IsBool():
-			if has_value {
-				k, ok := atob(value);
-				if !ok {
-					print("invalid boolean value ", value, " for flag: -", name, "\n");
-					Usage();
-				}
-				flag.value.AsBool().Set(k)
-			} else {
-				flag.value.AsBool().Set(true)
-			}
-		case flag.value.IsInt():
-			if !has_value {
-				print("flag needs an argument: -", name, "\n");
+	if f, ok := flag.value.(*BoolValue); ok {
+		if has_value {
+			k, ok := atob(value);
+			if !ok {
+				print("invalid boolean value ", value, " for flag: -", name, "\n");
 				Usage();
 			}
+			f.Set(k)
+		} else {
+			f.Set(true)
+		}
+	} else {
+		// It must have a value, which might be the next argument.
+		if !has_value && index < sys.argc()-1 {
+			// value is the next arg
+			has_value = true;
+			index++;
+			value = sys.argv(index);
+		}
+		if !has_value {
+			print("flag needs an argument: -", name, "\n");
+			Usage();
+		}
+		if f, ok := flag.value.(*StringValue); ok {
+			f.Set(value)
+		} else {
+			// It's an integer flag.  TODO(r): check for overflow?
 			k, ok := atoi(value);
 			if !ok {
 				print("invalid integer value ", value, " for flag: -", name, "\n");
 				Usage();
 			}
-			flag.value.AsInt().Set(k);
-		case flag.value.IsString():
-			if !has_value {
-				print("flag needs an argument: -", name, "\n");
-				Usage();
+			if f, ok := flag.value.(*IntValue); ok {
+				f.Set(int(k));
+			} else if f, ok := flag.value.(*Int64Value); ok {
+				f.Set(k);
+			} else if f, ok := flag.value.(*UintValue); ok {
+				f.Set(uint(k));
+			} else if f, ok := flag.value.(*Uint64Value); ok {
+				f.Set(uint64(k));
 			}
-			flag.value.AsString().Set(value)
+		}
 	}
 	flags.actual[name] = flag;
 	return true, index + 1
 }
 
 export func Parse() {
-	for i := 1; i < sys.argc();  {
+	for i := 1; i < sys.argc(); {
 		ok, next := flags.ParseOne(i);
 		if next > 0 {
 			flags.first_arg = next;

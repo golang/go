@@ -19,18 +19,18 @@ import (
 )
 
 var (
-	debug = flag.Bool("debug", false, nil, "print debugging information");
+	debug = flag.Bool("debug", false, "print debugging information");
 	
 	// layout control
-	tabwidth = flag.Int("tabwidth", 8, nil, "tab width");
-	usetabs = flag.Bool("usetabs", true, nil, "align with tabs instead of blanks");
-	newlines = flag.Bool("newlines", true, nil, "respect newlines in source");
-	maxnewlines = flag.Int("maxnewlines", 3, nil, "max. number of consecutive newlines");
+	tabwidth = flag.Int("tabwidth", 8, "tab width");
+	usetabs = flag.Bool("usetabs", true, "align with tabs instead of blanks");
+	newlines = flag.Bool("newlines", true, "respect newlines in source");
+	maxnewlines = flag.Int("maxnewlines", 3, "max. number of consecutive newlines");
 
 	// formatting control
-	html = flag.Bool("html", false, nil, "generate html");
-	comments = flag.Bool("comments", true, nil, "print comments");
-	optsemicolons = flag.Bool("optsemicolons", false, nil, "print optional semicolons");
+	html = flag.Bool("html", false, "generate html");
+	comments = flag.Bool("comments", true, "print comments");
+	optsemicolons = flag.Bool("optsemicolons", false, "print optional semicolons");
 )
 
 
@@ -81,7 +81,7 @@ type Printer struct {
 
 
 func (P *Printer) HasComment(pos int) bool {
-	return comments.BVal() && P.cpos < pos;
+	return *comments && P.cpos < pos;
 }
 
 
@@ -112,7 +112,7 @@ func (P *Printer) Init(text io.Write, comments *array.Array) {
 // Printing support
 
 func HtmlEscape(s string) string {
-	if html.BVal() {
+	if *html {
 		var esc string;
 		for i := 0; i < len(s); i++ {
 			switch s[i] {
@@ -137,7 +137,7 @@ func (P *Printer) Printf(format string, s ...) {
 
 func (P *Printer) Newline(n int) {
 	if n > 0 {
-		m := int(maxnewlines.IVal());
+		m := int(*maxnewlines);
 		if n > m {
 			n = m;
 		}
@@ -208,7 +208,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 				// only white space before comment on this line
 				// or file starts with comment
 				// - indent
-				if !newlines.BVal() && P.cpos != 0 {
+				if !*newlines && P.cpos != 0 {
 					nlcount = 1;
 				}
 				P.Newline(nlcount);
@@ -243,7 +243,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 			}
 			
 			// print comment
-			if debug.BVal() {
+			if *debug {
 				P.Printf("[%d]", P.cpos);
 			}
 			P.Printf("%s", HtmlEscape(ctext));
@@ -275,7 +275,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 
 	// --------------------------------
 	// print pending newlines
-	if newlines.BVal() && (P.newlines > 0 || P.state == inside_list) && nlcount > P.newlines {
+	if *newlines && (P.newlines > 0 || P.state == inside_list) && nlcount > P.newlines {
 		// Respect additional newlines in the source, but only if we
 		// enabled this feature (newlines.BVal()) and we are expecting
 		// newlines (P.newlines > 0 || P.state == inside_list).
@@ -289,7 +289,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 
 	// --------------------------------
 	// print string
-	if debug.BVal() {
+	if *debug {
 		P.Printf("[%d]", pos);
 	}
 	P.Printf("%s%s%s", tag, HtmlEscape(s), endtag);
@@ -337,7 +337,7 @@ func (P *Printer) Error(pos int, tok int, msg string) {
 // HTML support
 
 func (P *Printer) HtmlPrologue(title string) {
-	if html.BVal() {
+	if *html {
 		P.TaggedString(0,
 			"<html>\n"
 			"<head>\n"
@@ -355,7 +355,7 @@ func (P *Printer) HtmlPrologue(title string) {
 
 
 func (P *Printer) HtmlEpilogue() {
-	if html.BVal() {
+	if *html {
 		P.TaggedString(0, 
 			"</pre>\n"
 			"</body>\n"
@@ -371,7 +371,7 @@ func (P *Printer) HtmlIdentifier(x *AST.Expr) {
 		panic();
 	}
 	obj := x.obj;
-	if html.BVal() && obj.kind != Object.NONE {
+	if *html && obj.kind != Object.NONE {
 		// depending on whether we have a declaration or use, generate different html
 		// - no need to HtmlEscape ident
 		id := Utils.IntToString(obj.id, 10);
@@ -647,7 +647,7 @@ func (P *Printer) Block(pos int, list *array.Array, end int, indent bool) {
 	if !indent {
 		P.indentation++;
 	}
-	if !optsemicolons.BVal() {
+	if !*optsemicolons {
 		P.separator = none;
 	}
 	P.state = closing_scope;
@@ -874,10 +874,10 @@ export func Print(prog *AST.Program) {
 	// setup
 	var P Printer;
 	padchar := byte(' ');
-	if usetabs.BVal() {
+	if *usetabs {
 		padchar = '\t';
 	}
-	text := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true, html.BVal());
+	text := tabwriter.New(os.Stdout, *tabwidth, 1, padchar, true, *html);
 	P.Init(text, prog.comments);
 
 	// TODO would be better to make the name of the src file be the title

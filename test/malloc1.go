@@ -14,12 +14,11 @@ import (
 	"malloc";
 )
 
-var chatty bool;
-var chatty_flag = flag.Bool("v", false, &chatty, "chatty");
+var chatty = flag.Bool("v", false, "chatty");
 
 func main() {
 	malloc.Free(malloc.Alloc(1));
-	if chatty {
+	if *chatty {
 		fmt.printf("%+v %v\n", *malloc.GetStats(), uint64(0));
 	}
 }
