@@ -115,8 +115,6 @@ export func TestNatConv(t *testing.T) {
 		NAT_EQ(base, NatFromString(tmp.ToString(base), base, nil), tmp);
 	}
 
-return;//BUG
-
 	test_msg = "NatConvD";
 	x := bignum.Nat(100);
 	y, b := bignum.NatFromString(fmt.sprintf("%b", &x), 2, nil);
@@ -152,10 +150,10 @@ export func TestRatConv(t *testing.T) {
 	RAT_EQ(3, RatFromString("0x14/10", 0, &slen), rat_two);
 	TEST(4, slen == 7);
 	RAT_EQ(5, RatFromString("0.", 0, nil), rat_zero);
-//BUG	RAT_EQ(6, RatFromString("0.001f", 10, nil), bignum.Rat(1, 1000));
-//BUG	RAT_EQ(7, RatFromString("10101.0101", 2, nil), bignum.Rat(0x155, 1<<4));
-//BUG	RAT_EQ(8, RatFromString("-0003.145926", 10, &slen), bignum.Rat(-3145926, 1000000));
-//	TEST(9, slen == 12);
+	RAT_EQ(6, RatFromString("0.001f", 10, nil), bignum.Rat(1, 1000));
+	RAT_EQ(7, RatFromString("10101.0101", 2, nil), bignum.Rat(0x155, 1<<4));
+	RAT_EQ(8, RatFromString("-0003.145926", 10, &slen), bignum.Rat(-3145926, 1000000));
+	TEST(9, slen == 12);
 }
 
 
@@ -172,10 +170,7 @@ func Add(x, y bignum.Natural) bignum.Natural {
 func Sum(n uint, scale bignum.Natural) bignum.Natural {
 	s := nat_zero;
 	for ; n > 0; n-- {
-		//BUG s = Add(s, bignum.Nat(n).Mul(scale));
-		t1 := bignum.Nat(n);
-		t2 := t1.Mul(scale);
-		s = Add(s, t2);
+		s = Add(s, bignum.Nat(n).Mul(scale));
 	}
 	return s;
 }
@@ -190,12 +185,7 @@ export func TestNatAdd(t *testing.T) {
 	test_msg = "NatAddB";
 	for i := uint(0); i < 100; i++ {
 		t := bignum.Nat(i);
-		//BUG: NAT_EQ(i, Sum(i, c), t.Mul(t).Add(t).Shr(1).Mul(c));
-		t1 := t.Mul(t);
-		t2 := t1.Add(t);
-		t3 := t2.Shr(1);
-		t4 := t3.Mul(c);
-		NAT_EQ(i, Sum(i, c), t4);
+		NAT_EQ(i, Sum(i, c), t.Mul(t).Add(t).Shr(1).Mul(c));
 	}
 }
 
@@ -206,19 +196,11 @@ func Mul(x, y bignum.Natural) bignum.Natural {
 	if z1.Cmp(z2) != 0 {
 		tester.Fatalf("multiplication not symmetric:\n\tx = %v\n\ty = %t", x, y);
 	}
-	// BUG if !x.IsZero() && z1.Div(x).Cmp(y) != 0 {
-	if !x.IsZero()  {
-		na := z1.Div(x);
-		if na.Cmp(y) != 0 {
-			tester.Fatalf("multiplication/division not inverse (A):\n\tx = %v\n\ty = %t", x, y);
-		}
+	if !x.IsZero() && z1.Div(x).Cmp(y) != 0 {
+		tester.Fatalf("multiplication/division not inverse (A):\n\tx = %v\n\ty = %t", x, y);
 	}
-	// BUG if !y.IsZero() && z1.Div(y).Cmp(x) != 0 {
-	if !y.IsZero() {
-		nb := z1.Div(y);
-		if nb.Cmp(x) != 0 {
-			tester.Fatalf("multiplication/division not inverse (B):\n\tx = %v\n\ty = %t", x, y);
-		}
+	if !y.IsZero() && z1.Div(y).Cmp(x) != 0 {
+		tester.Fatalf("multiplication/division not inverse (B):\n\tx = %v\n\ty = %t", x, y);
 	}
 	return z1;
 }
@@ -253,9 +235,7 @@ export func TestNatMul(t *testing.T) {
 
 	test_msg = "NatMulC";
 	const n = 100;
-	// BUG p := b.Mul(c).Shl(n);
-	na := b.Mul(c);
-	p := na.Shl(n);
+	p := b.Mul(c).Shl(n);
 	for i := uint(0); i < n; i++ {
 		NAT_EQ(i, Mul(b.Shl(i), c.Shl(n-i)), p);
 	}
@@ -268,10 +248,7 @@ export func TestNatDiv(t *testing.T) {
 	NAT_EQ(0, c.Div(nat_one), c);
 	NAT_EQ(1, c.Div(bignum.Nat(100)), bignum.Fact(99));
 	NAT_EQ(2, b.Div(c), nat_zero);
-	//BUG NAT_EQ(4, nat_one.Shl(100).Div(nat_one.Shl(90)), nat_one.Shl(10));
-	g1 := nat_one.Shl(100);
-	g2 := nat_one.Shl(90);
-	NAT_EQ(4, g1.Div(g2), nat_one.Shl(10));
+	NAT_EQ(4, nat_one.Shl(100).Div(nat_one.Shl(90)), nat_one.Shl(10));
 	NAT_EQ(5, c.Div(b), bignum.MulRange(21, 100));
 
 	test_msg = "NatDivB";
@@ -343,16 +320,10 @@ export func TestNatMod(t *testing.T) {
 	for i := uint(0); ; i++ {
 		d := nat_one.Shl(i);
 		if d.Cmp(c) < 0 {
-			//BUG NAT_EQ(i, c.Add(d).Mod(c), d);
-			na := c.Add(d);
-			NAT_EQ(i, na.Mod(c), d);
+			NAT_EQ(i, c.Add(d).Mod(c), d);
 		} else {
-			//BUG NAT_EQ(i, c.Add(d).Div(c), nat_two);
-			na := c.Add(d);
-			NAT_EQ(i, na.Div(c), nat_two);
-			//BUG NAT_EQ(i, c.Add(d).Mod(c), d.Sub(c));
-			nb := c.Add(d);
-			NAT_EQ(i, nb.Mod(c), d.Sub(c));
+			NAT_EQ(i, c.Add(d).Div(c), nat_two);
+			NAT_EQ(i, c.Add(d).Mod(c), d.Sub(c));
 			break;
 		}
 	}
@@ -362,27 +333,16 @@ export func TestNatMod(t *testing.T) {
 export func TestNatShift(t *testing.T) {
 	tester = t;
 	test_msg = "NatShift1L";
-	//BUG TEST(0, b.Shl(0).Cmp(b) == 0);
-	g := b.Shl(0);
-	TEST(0, g.Cmp(b) ==0);
-	//BUG TEST(1, c.Shl(1).Cmp(c) > 0);
-	g = c.Shl(1);
-	TEST(1, g.Cmp(c) > 0);
+	TEST(0, b.Shl(0).Cmp(b) == 0);
+	TEST(1, c.Shl(1).Cmp(c) > 0);
 
 	test_msg = "NatShift1R";
-	//BUG TEST(3, b.Shr(0).Cmp(b) == 0);
-	g = b.Shr(0);
-	TEST(3, g.Cmp(b) == 0);
-	//BUG TEST(4, c.Shr(1).Cmp(c) < 0);
-	g = c.Shr(1);
-	TEST(4, g.Cmp(c) < 0);
+	TEST(3, b.Shr(0).Cmp(b) == 0);
+	TEST(4, c.Shr(1).Cmp(c) < 0);
 
 	test_msg = "NatShift2";
 	for i := uint(0); i < 100; i++ {
-		//BUG TEST(i, c.Shl(i).Shr(i).Cmp(c) == 0);
-		g = c.Shl(i);
-		g = g.Shr(i);
-		TEST(i, g.Cmp(c) == 0);
+		TEST(i, c.Shl(i).Shr(i).Cmp(c) == 0);
 	}
 
 	test_msg = "NatShift3L";
@@ -462,18 +422,12 @@ export func TestNatLog2(t *testing.T) {
 	test_msg = "NatLog2A";
 	TEST(0, nat_one.Log2() == 0);
 	TEST(1, nat_two.Log2() == 1);
-	//BUG TEST(2, bignum.Nat(3).Log2() == 1);
-	na := bignum.Nat(3);
-	TEST(2, na.Log2() == 1);
-	//BUG TEST(3, bignum.Nat(4).Log2() == 2);
-	nb := bignum.Nat(4);
-	TEST(3, nb.Log2() == 2);
+	TEST(2, bignum.Nat(3).Log2() == 1);
+	TEST(3, bignum.Nat(4).Log2() == 2);
 	
 	test_msg = "NatLog2B";
 	for i := uint(0); i < 100; i++ {
-		//BUG TEST(i, nat_one.Shl(i).Log2() == i);
-		nc := nat_one.Shl(i);
-		TEST(i, nc.Log2() == i);
+		TEST(i, nat_one.Shl(i).Log2() == i);
 	}
 }
 
@@ -482,12 +436,7 @@ export func TestNatGcd(t *testing.T) {
 	tester = t;
 	test_msg = "NatGcdA";
 	f := bignum.Nat(99991);
-	//BUG NAT_EQ(0, b.Mul(f).Gcd(c.Mul(f)), bignum.MulRange(1, 20).Mul(f));
-	g1 := b.Mul(f);
-	g2 := c.Mul(f);
-	g3 := g1.Gcd(g2);
-	h1 := bignum.MulRange(1, 20);
-	NAT_EQ(0, g3, h1.Mul(f));
+	NAT_EQ(0, b.Mul(f).Gcd(c.Mul(f)), bignum.MulRange(1, 20).Mul(f));
 }
 
 
@@ -508,23 +457,13 @@ export func TestNatPop(t *testing.T) {
 	test_msg = "NatPopA";
 	TEST(0, nat_zero.Pop() == 0);
 	TEST(1, nat_one.Pop() == 1);
-	//BUG TEST(2, bignum.Nat(10).Pop() == 2);
-	na := bignum.Nat(10);
-	TEST(2, na.Pop() == 2);
-	//BUG TEST(3, bignum.Nat(30).Pop() == 4);
-	nb := bignum.Nat(30);
-	TEST(3, nb.Pop() == 4);
-	// BUG TEST(4, bignum.Nat(0x1248f).Shl(33).Pop() == 8);
-	g := bignum.Nat(0x1248f);
-	g = g.Shl(33);
-	TEST(4, g.Pop() == 8);
+	TEST(2, bignum.Nat(10).Pop() == 2);
+	TEST(3, bignum.Nat(30).Pop() == 4);
+	TEST(4, bignum.Nat(0x1248f).Shl(33).Pop() == 8);
 
 	test_msg = "NatPopB";
 	for i := uint(0); i < 100; i++ {
-		//BUG TEST(i, nat_one.Shl(i).Sub(nat_one).Pop() == i);
-		g := nat_one.Shl(i);
-		g = g.Sub(nat_one);
-		TEST(i, g.Pop() == i);
+		TEST(i, nat_one.Shl(i).Sub(nat_one).Pop() == i);
 	}
 }
 
