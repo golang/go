@@ -1556,13 +1556,15 @@ dclmethod(Type *t)
 	t->methptr |= 1<<ptr;
 
 	// check types
-	// TODO(rsc): map, chan etc are not quite right
 	if(!issimple[t->etype])
 	switch(t->etype) {
 	default:
 		return T;
 	case TSTRUCT:
 	case TARRAY:
+	case TMAP:
+	case TCHAN:
+	case TSTRING:
 		break;
 	}
 
