@@ -4,14 +4,14 @@
 
 package main
 
-import FD "fd"
+import fd "fd"
 
 func main() {
 	hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
-	FD.Stdout.Write(hello);
-	fd,  errno := FD.Open("/does/not/exist",  0,  0);
-	if fd == nil {
-		print("can't open file; errno=",  errno,  "\n");
+	fd.Stdout.Write(hello);
+	file, err := fd.Open("/does/not/exist",  0,  0);
+	if file == nil {
+		print("can't open file; err=",  err.String(),  "\n");
 		sys.exit(1);
 	}
 }

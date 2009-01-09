@@ -20,6 +20,11 @@
 #
 # non-blank lines are annotated with line number in file
 
+# line numbers are printed %.2d to make them equal-width for nice formatting.
+# the format gives a leading 0.  the format %2d gives a leading space but
+# that appears to confuse sanjay's makehtml formatter into bungling quotes
+# because it makes some lines look indented.
+
 echo "<pre> <!-- $* -->"
 
 case $# in
@@ -27,27 +32,31 @@ case $# in
 	if test "$3" = "END"  # $2 to end of file
 	then
 		awk '
+			function LINE() { printf("%.2d\t%s\n", NR, $0) }
 			BEGIN { printing = 0 }
-			'$2' { printing = 1; print NR "\t" $0; getline }
-			printing { if($0 ~ /./) { print NR "\t" $0 } else { print "" } }
+			'$2' { printing = 1; LINE(); getline }
+			printing { if($0 ~ /./) { LINE() } else { print "" } }
 		'
 	else	# $2 through $3
 		awk '
+			function LINE() { printf("%.2d\t%s\n", NR, $0) }
 			BEGIN { printing = 0 }
-			'$2' { printing = 1; print NR "\t" $0; getline }
-			'$3' && printing { if(printing) {printing = 0; print NR "\t" $0; exit} }
-			printing { if($0 ~ /./) { print NR "\t" $0 } else { print "" } }
+			'$2' { printing = 1; LINE(); getline }
+			'$3' && printing { if(printing) {printing = 0; LINE(); exit} }
+			printing { if($0 ~ /./) { LINE() } else { print "" } }
 		'
 	fi
 	;;
 2)	# one line
 	awk '
-		'$2' { print NR "\t" $0; getline; exit }
+		function LINE() { printf("%.2d\t%s\n", NR, $0) }
+		'$2' { LINE(); getline; exit }
 	'
 	;;
 1)	# whole file
 	awk '
-		{ if($0 ~ /./) { print NR "\t" $0 } else { print "" } }
+		function LINE() { printf("%.2d\t%s\n", NR, $0) }
+		{ if($0 ~ /./) { LINE() } else { print "" } }
 	'
 	;;
 *)

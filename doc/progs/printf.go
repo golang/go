@@ -4,8 +4,8 @@
 
 package main
 
-import "os"    // this package contains features for basic I/O
+import "fmt"
 
 func main() {
-	os.Stdout.WriteString("Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n");
+	fmt.printf("hello, %s\n", "world");
 }
