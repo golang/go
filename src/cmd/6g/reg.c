@@ -106,6 +106,7 @@ regopt(Prog *firstp)
 		first = 0;
 	}
 
+	r1 = R;
 	firstr = R;
 	lastr = R;
 	nvar = 0;
