@@ -5,8 +5,9 @@
 
 package PACKAGE
 
+// emitted by compiler, not referred to by go programs
+
 export func	mal(int32) *any;
-export func	breakpoint();
 export func	throwindex();
 export func	throwreturn();
 export func	panicl(int32);
@@ -35,25 +36,6 @@ export func	ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
 export func	ifaceI2I(sigi *byte, iface any) (ret any);
 export func	ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
 export func	ifaceeq(i1 any, i2 any) (ret bool);
-export func	reflect(i interface { }) (uint64, string, bool);
-export func	unreflect(uint64, string, bool) (ret interface { });
-
-export func	argc() int;
-export func	envc() int;
-export func	argv(int) string;
-export func	envv(int) string;
-
-export func	frexp(float64) (float64, int);		// break fp into exp,fract
-export func	ldexp(float64, int) float64;		// make fp from exp,fract
-export func	modf(float64) (float64, float64);	// break fp into double.double
-export func	isInf(float64, int) bool;		// test for infinity
-export func	isNaN(float64) bool;			// test for not-a-number
-export func	Inf(int) float64;			// return signed Inf
-export func	NaN() float64;				// return a NaN
-export func	float32bits(float32) uint32;		// raw bits
-export func	float64bits(float64) uint64;		// raw bits
-export func	float32frombits(uint32) float32;	// raw bits
-export func	float64frombits(uint64) float64;	// raw bits
 
 export func	newmap(keysize int, valsize int,
 			keyalg int, valalg int,
@@ -85,6 +67,30 @@ export func	arraysliced(old []any, lb int, hb int, width int) (ary []any);
 export func	arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any);
 export func	arrays2d(old *any, nel int) (ary []any);
 
+// used by go programs
+
+export func	breakpoint();
+
+export func	reflect(i interface { }) (uint64, string, bool);
+export func	unreflect(uint64, string, bool) (ret interface { });
+
+export func	argc() int;
+export func	envc() int;
+export func	argv(int) string;
+export func	envv(int) string;
+
+export func	frexp(float64) (float64, int);		// break fp into exp,fract
+export func	ldexp(float64, int) float64;		// make fp from exp,fract
+export func	modf(float64) (float64, float64);	// break fp into double.double
+export func	isInf(float64, int) bool;		// test for infinity
+export func	isNaN(float64) bool;			// test for not-a-number
+export func	Inf(int) float64;			// return signed Inf
+export func	NaN() float64;				// return a NaN
+export func	float32bits(float32) uint32;		// raw bits
+export func	float64bits(float64) uint64;		// raw bits
+export func	float32frombits(uint32) float32;	// raw bits
+export func	float64frombits(uint64) float64;	// raw bits
+
 export func	gosched();
 export func	goexit();
 
@@ -96,6 +102,7 @@ export func	stringtorune(string, int) (int, int);	// convert bytes to runes
 export func	exit(int);
 
 export func	symdat() (symtab []byte, pclntab []byte);
+export func	caller(n int) (pc uint64, file string, line int, ok bool);
 
 export func	semacquire(sema *int32);
 export func	semrelease(sema *int32);
