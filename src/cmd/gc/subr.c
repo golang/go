@@ -301,7 +301,7 @@ algtype(Type *t)
 	if(isptr[simtype[t->etype]])
 		a = APTR;	// pointer
 	else
-	if(t->etype == TARRAY && t->bound < 0)
+	if(isslice(t))
 		a = ASLICE;
 	else
 	if(t->etype == TSTRUCT)
@@ -667,7 +667,6 @@ opnames[] =
 	[OGT]		= "GT",
 	[OIF]		= "IF",
 	[OINDEX]	= "INDEX",
-	[OINDEXPTR]	= "INDEXPTR",
 	[OIND]		= "IND",
 	[OKEY]		= "KEY",
 	[OLABEL]	= "LABEL",
@@ -831,7 +830,6 @@ etnames[] =
 	[TDDD]		= "DDD",
 	[TFUNC]		= "FUNC",
 	[TARRAY]	= "ARRAY",
-//	[TDARRAY]	= "DARRAY",
 	[TSTRUCT]	= "STRUCT",
 	[TCHAN]		= "CHAN",
 	[TMAP]		= "MAP",
@@ -1436,37 +1434,15 @@ istype(Type *t, int et)
 }
 
 int
-isptrsarray(Type *t)
+isfixedarray(Type *t)
 {
-	if(isptrto(t, TARRAY))
-		if(t->type->bound >= 0)
-			return 1;
-	return 0;
+	return t != T && t->etype == TARRAY && t->bound >= 0;
 }
 
 int
-isptrdarray(Type *t)
+isslice(Type *t)
 {
-	if(isptrto(t, TARRAY))
-		if(t->type->bound < 0)
-			return 1;
-	return 0;
-}
-
-int
-issarray(Type *t)
-{
-	if(t != T && t->etype == TARRAY && t->bound >= 0)
-		return 1;
-	return 0;
-}
-
-int
-isdarray(Type *t)
-{
-	if(t != T && t->etype == TARRAY && t->bound < 0)
-		return 1;
-	return 0;
+	return t != T && t->etype == TARRAY && t->bound < 0;
 }
 
 int
@@ -1681,23 +1657,6 @@ out:
 
 bad:
 	return S;
-}
-
-int
-bytearraysz(Type *t)
-{
-	if(t == T)
-		return -2;
-	if(isptr[t->etype]) {
-		t = t->type;
-		if(t == T)
-			return -2;
-	}
-	if(t->etype != TARRAY)
-		return -2;
-	if(!eqtype(t->type, types[TUINT8], 0))
-		return -2;
-	return t->bound;	// -1 is dyn, >=0 is fixed
 }
 
 int
