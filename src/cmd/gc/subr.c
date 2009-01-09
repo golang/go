@@ -295,10 +295,10 @@ algtype(Type *t)
 	if(issimple[t->etype])
 		a = ASIMP;	// simple mem
 	else
-	if(isptrto(t, TSTRING))
+	if(t->etype == TSTRING)
 		a = ASTRING;	// string
 	else
-	if(isptr[t->etype])
+	if(isptr[simtype[t->etype]])
 		a = APTR;	// pointer
 	else
 	if(t->etype == TARRAY && t->bound < 0)
@@ -608,12 +608,8 @@ whatis(Node *n)
 		return Wtfloat;
 	case TBOOL:
 		return Wtbool;
-
-	case TPTR32:
-	case TPTR64:
-		if(isptrto(t, TSTRING))
-			return Wtstr;
-		break;
+	case TSTRING:
+		return Wtstr;
 	}
 	return Wtunkn;
 }
@@ -976,6 +972,7 @@ basicnames[] =
 	[TBOOL]		= "bool",
 	[TANY]		= "any",
 	[TDDD]		= "...",
+	[TSTRING]		= "string",
 };
 
 int
@@ -988,7 +985,7 @@ Tpretty(Fmt *fp, Type *t)
 	&& t->sym != S
 	&& !(fp->flags&FmtLong)) {
 		s = t->sym;
-		if(t == types[t->etype] || t == types[TSTRING])
+		if(t == types[t->etype])
 			return fmtprint(fp, "%s", s->name);
 		if(exporting) {
 			if(fp->flags & FmtShort)
@@ -1012,28 +1009,21 @@ Tpretty(Fmt *fp, Type *t)
 	switch(t->etype) {
 	case TPTR32:
 	case TPTR64:
-		t1 = t->type;
-		if(t1 != T) {
-			switch(t1->etype) {
-			case TSTRING:
-				return fmtprint(fp, "string");
-			case TMAP:
-				return fmtprint(fp, "map[%T] %T", t1->down, t1->type);
-			case TCHAN:
-				return fmtprint(fp, "chan %T", t1->type);
-			}
-		}
 		if(fp->flags&FmtShort)	// pass flag thru for methodsym
-			return fmtprint(fp, "*%hT", t1);
-		return fmtprint(fp, "*%T", t1);
+			return fmtprint(fp, "*%hT", t->type);
+		return fmtprint(fp, "*%T", t->type);
 
-	// Should not see these: should see ptr instead, handled above.
-	case TSTRING:
-		return fmtprint(fp, "STRING", t->type);
 	case TCHAN:
-		return fmtprint(fp, "CHAN %T", t->type);
+		switch(t->chan) {
+		case Crecv:
+			return fmtprint(fp, "<-chan %T", t->type);
+		case Csend:
+			return fmtprint(fp, "chan<- %T", t->type);
+		}
+		return fmtprint(fp, "chan %T", t->type);
+
 	case TMAP:
-		return fmtprint(fp, "MAP[%T] %T", t->down, t->type);
+		return fmtprint(fp, "map[%T] %T", t->down, t->type);
 
 	case TFUNC:
 		// t->type is method struct
@@ -1124,8 +1114,6 @@ Tpretty(Fmt *fp, Type *t)
 	return -1;
 }
 
-
-
 int
 Tconv(Fmt *fp)
 {
@@ -1158,7 +1146,7 @@ Tconv(Fmt *fp)
 	}
 
 	et = t->etype;
-	snprint(buf, sizeof buf, "%E.", et);
+	snprint(buf, sizeof buf, "%E ", et);
 	if(t->sym != S) {
 		snprint(buf1, sizeof(buf1), "<%S>", t->sym);
 		strncat(buf, buf1, sizeof(buf));
@@ -1190,7 +1178,7 @@ Tconv(Fmt *fp)
 		break;
 
 	case TINTER:
-		strncat(buf, "I{", sizeof(buf));
+		strncat(buf, "{", sizeof(buf));
 		if(fp->flags & FmtLong) {
 			for(t1=t->type; t1!=T; t1=t1->down) {
 				snprint(buf1, sizeof(buf1), "%lT;", t1);
@@ -1212,7 +1200,7 @@ Tconv(Fmt *fp)
 		break;
 
 	case TMAP:
-		snprint(buf, sizeof(buf), "MAP[%T]%T", t->down, t->type);
+		snprint(buf, sizeof(buf), "[%T]%T", t->down, t->type);
 		break;
 
 	case TARRAY:
@@ -1225,7 +1213,7 @@ Tconv(Fmt *fp)
 
 	case TPTR32:
 	case TPTR64:
-		snprint(buf1, sizeof(buf1), "*%T", t->type);
+		snprint(buf1, sizeof(buf1), "%T", t->type);
 		strncat(buf, buf1, sizeof(buf));
 		break;
 	}
@@ -1442,6 +1430,12 @@ isptrto(Type *t, int et)
 }
 
 int
+istype(Type *t, int et)
+{
+	return t != T && t->etype == et;
+}
+
+int
 isptrsarray(Type *t)
 {
 	if(isptrto(t, TARRAY))
@@ -1627,10 +1621,9 @@ iscomposite(Type *t)
 	switch(t->etype) {
 	case TARRAY:
 	case TSTRUCT:
+	case TMAP:
 		return 1;
 	}
-	if(isptr[t->etype] && t->type != T && t->type->etype == TMAP)
-		return 1;
 	return 0;
 }
 

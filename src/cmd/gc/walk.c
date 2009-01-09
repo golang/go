@@ -441,7 +441,7 @@ loop:
 			if(cl == 2 && cr == 1) {
 				// a,b = map[] - mapaccess2
 				walktype(r->left, Erv);
-				if(!isptrto(r->left->type, TMAP))
+				if(!istype(r->left->type, TMAP))
 					break;
 				l = mapop(n, top);
 				if(l == N)
@@ -455,7 +455,7 @@ loop:
 			if(cl == 2 && cr == 1) {
 				// a,b = <chan - chanrecv2
 				walktype(r->left, Erv);
-				if(!isptrto(r->left->type, TCHAN))
+				if(!istype(r->left->type, TCHAN))
 					break;
 				l = chanop(n, top);
 				if(l == N)
@@ -499,7 +499,7 @@ loop:
 		case OINDEXPTR:
 			if(cl == 1 && cr == 2) {
 				// map[] = a,b - mapassign2
-				if(!isptrto(l->left->type, TMAP))
+				if(!istype(l->left->type, TMAP))
 					break;
 				l = mapop(n, top);
 				if(l == N)
@@ -580,7 +580,7 @@ loop:
 
 		// to string
 		if(l->type != T)
-		if(isptrto(t, TSTRING)) {
+		if(istype(t, TSTRING)) {
 			if(isint[l->type->etype]) {
 				indir(n, stringop(n, top));
 				goto ret;
@@ -659,7 +659,7 @@ loop:
 		}
 
 		// map literal
-		if(isptr[t->etype] && t->type != t && t->type->etype == TMAP) {
+		if(t->etype == TMAP) {
 			r = maplit(n);
 			indir(n, r);
 			goto ret;
@@ -700,7 +700,7 @@ loop:
 				goto shft;
 			goto com;
 		}
-		if(!isptrto(l->left->type, TMAP))
+		if(!istype(l->left->type, TMAP))
 			goto com;
 		indir(n, mapop(n, top));
 		goto ret;
@@ -771,7 +771,7 @@ loop:
 		case OGT:
 		case OADD:
 		case OASOP:
-			if(isptrto(n->left->type, TSTRING)) {
+			if(istype(n->left->type, TSTRING)) {
 				indir(n, stringop(n, top));
 				goto ret;
 			}
@@ -854,8 +854,7 @@ loop:
 
 // BOTCH - convert each index opcode
 // to look like this and get rid of OINDEXPTR
-		if(isptr[t->etype])
-		if(isptrto(t, TSTRING) || isptrto(t->type, TSTRING)) {
+		if(istype(t, TSTRING) || isptrto(t, TSTRING)) {
 			// right side must be an int
 			if(top != Erv)
 				goto nottop;
@@ -888,8 +887,6 @@ loop:
 					break;
 			}
 			if(!eqtype(n->right->type, t->down, 0))
-				goto badt;
-			if(n->op != OINDEXPTR)
 				goto badt;
 			n->op = OINDEX;
 			n->type = t->type;
@@ -945,7 +942,7 @@ loop:
 		t = n->left->type;
 		if(t == T)
 			goto ret;
-		if(isptr[t->etype])
+		if(isptr[t->etype])	//XXX?
 			t = t->type;
 		if(t->etype == TSTRING) {
 			indir(n, stringop(n, top));
@@ -1088,9 +1085,8 @@ loop:
 		if(n->left->type == T)
 			goto ret;
 		et = n->left->type->etype;
-		if(!okforadd[et])
-			if(!isptrto(n->left->type, TSTRING))
-				goto badt;
+		if(!okforadd[et] && et != TSTRING)
+			goto badt;
 		t = types[TBOOL];
 		break;
 
@@ -1422,10 +1418,6 @@ selectas(Node *name, Node *expr)
 	if(expr == N || expr->op != ORECV)
 		goto bad;
 	t = expr->left->type;
-	if(t == T)
-		goto bad;
-	if(isptr[t->etype])
-		t = t->type;
 	if(t == T)
 		goto bad;
 	if(t->etype != TCHAN)
@@ -2042,55 +2034,29 @@ nodpanic(int32 lineno)
 Node*
 makecompat(Node *n)
 {
-	Node *r, *on;
-	Type *t, *t0;
+	Type *t;
 
-	t0 = n->type;
-	if(t0 == T)
-		goto bad;
+	t = n->type;
 
-	if(t0->etype == TARRAY)
-		return arrayop(n, Erv);
-
-	if(!isptr[t0->etype])
-		goto bad;
-
-	t = t0->type;
-	if(t == T)
-		goto bad;
-
+	if(t != T)
 	switch(t->etype) {
-	case TSTRING:
-		goto bad;
-
-	// the call looks like new(MAP[int]int)
-	// but internally we see new(*MAP[int]int)
+	case TARRAY:
+		return arrayop(n, Erv);
 	case TMAP:
-		r = mapop(n, Erv);
-		break;
-
-	// the call looks like new(CHAN int)
-	// but internally we see new(*CHAN int)
+		return mapop(n, Erv);
 	case TCHAN:
-		r = chanop(n, Erv);
-		break;
-
-	default:
-		if(n->left != N)
-			yyerror("cannot make(%T, expr)", t0);
-		dowidth(t);
-		on = syslook("mal", 1);
-		argtype(on, t);
-		r = nodintconst(t->width);
-		r = nod(OCALL, on, r);
-		walktype(r, Erv);
-		break;
+		return chanop(n, Erv);
 	}
 
-	return r;
+	/*
+	 * ken had code to malloc here,
+	 * but rsc cut it out so that make(int)
+	 * is diagnosed as an error (probably meant new).
+	 * might come back once we know the
+	 * language semantics for make(int).
+	 */
 
-bad:
-	yyerror("cannot make(%T)", t0);
+	yyerror("cannot make(%T)", t);
 	return n;
 }
 
@@ -2101,17 +2067,7 @@ newcompat(Node *n)
 	Type *t;
 
 	t = n->type;
-	if(t == T)
-		goto bad;
-
-	switch(t->etype) {
-	case TFUNC:
-	case TSTRING:
-	case TMAP:
-	case TCHAN:
-		goto bad;
-
-	default:
+	if(t != T && t->etype != TFUNC) {
 		if(n->left != N)
 			yyerror("cannot new(%T, expr)", t);
 		dowidth(t);
@@ -2120,12 +2076,9 @@ newcompat(Node *n)
 		r = nodintconst(t->width);
 		r = nod(OCALL, on, r);
 		walktype(r, Erv);
-		break;
+		return r;
 	}
 
-	return r;
-
-bad:
 	yyerror("cannot new(%T)", t);
 	return n;
 }
@@ -2195,7 +2148,7 @@ stringop(Node *n, int top)
 	case OINDEX:
 		// sys_indexstring(s, i)
 		c = n->left;
-		if(isptrto(c->type->type, TSTRING)) {
+		if(istype(c->type->type, TSTRING)) {
 			// lhs is string or *string
 			c = nod(OIND, c, N);
 			c->type = c->left->type->type;
@@ -2228,11 +2181,8 @@ stringop(Node *n, int top)
 }
 
 Type*
-fixmap(Type *tm)
+fixmap(Type *t)
 {
-	Type *t;
-
-	t = tm->type;
 	if(t == T)
 		goto bad;
 	if(t->etype != TMAP)
@@ -2246,18 +2196,13 @@ fixmap(Type *tm)
 	return t;
 
 bad:
-	yyerror("not a map: %lT", tm);
+	yyerror("not a map: %lT", t);
 	return T;
 }
 
 Type*
-fixchan(Type *tm)
+fixchan(Type *t)
 {
-	Type *t;
-
-	if(tm == T)
-		goto bad;
-	t = tm->type;
 	if(t == T)
 		goto bad;
 	if(t->etype != TCHAN)
@@ -2270,7 +2215,7 @@ fixchan(Type *tm)
 	return t;
 
 bad:
-	yyerror("not a channel: %lT", tm);
+	yyerror("not a channel: %lT", t);
 	return T;
 }
 
@@ -2281,8 +2226,6 @@ mapop(Node *n, int top)
 	Type *t;
 	Node *on;
 	int cl, cr;
-
-//dump("mapop", n);
 
 	r = n;
 	switch(n->op) {
@@ -2460,7 +2403,7 @@ mapop(Node *n, int top)
 		// rewrite map[index] op= right
 		// into tmpi := index; map[tmpi] = map[tmpi] op right
 
-		t = n->left->left->type->type;
+		t = n->left->left->type;
 		a = nod(OXXX, N, N);
 		tempname(a, t->down);			// tmpi
 		r = nod(OAS, a, n->left->right);	// tmpi := index
@@ -2968,7 +2911,7 @@ convas(Node *n)
 		goto out;
 
 	if(n->left->op == OINDEX)
-	if(isptrto(n->left->left->type, TMAP)) {
+	if(istype(n->left->left->type, TMAP)) {
 		indir(n, mapop(n, Elv));
 		goto out;
 	}
@@ -3134,9 +3077,9 @@ multi:
 			goto badt;
 		walktype(nr->left, Erv);
 		t = nr->left->type;
-		if(!isptrto(t, TCHAN))
+		if(!istype(t, TCHAN))
 			goto badt;
-		a = old2new(nl->left, t->type->type);
+		a = old2new(nl->left, t->type);
 		n = a;
 		a = old2new(nl->right, types[TBOOL]);
 		n = list(n, a);
@@ -3575,6 +3518,7 @@ arraylit(Node *n)
 	var = nod(OXXX, N, N);
 	tempname(var, t);
 
+	nnew = nil;
 	if(b < 0) {
 		// slice
 		nnew = nod(OMAKE, N, N);
@@ -3617,7 +3561,7 @@ maplit(Node *n)
 	Node *var, *r, *a;
 
 	t = n->type;
-	if(!isptr[t->etype] || t->type == T || t->type->etype != TMAP)
+	if(t->etype != TMAP)
 		fatal("maplit: not map");
 
 	var = nod(OXXX, N, N);

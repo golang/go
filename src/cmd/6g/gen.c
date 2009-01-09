@@ -1141,13 +1141,11 @@ cgen_as(Node *nl, Node *nr)
 		iszer = 1;
 		nr = &nc;
 		memset(nr, 0, sizeof(*nr));
-		switch(tl->etype) {
+		switch(simtype[tl->etype]) {
 		default:
 			fatal("cgen_as: tl %T", tl);
 			break;
 
-		case TINT:
-		case TUINT:
 		case TINT8:
 		case TUINT8:
 		case TINT16:
@@ -1156,13 +1154,11 @@ cgen_as(Node *nl, Node *nr)
 		case TUINT32:
 		case TINT64:
 		case TUINT64:
-		case TUINTPTR:
 			nr->val.u.xval = mal(sizeof(*nr->val.u.xval));
 			mpmovecfix(nr->val.u.xval, 0);
 			nr->val.ctype = CTINT;
 			break;
 
-		case TFLOAT:
 		case TFLOAT32:
 		case TFLOAT64:
 		case TFLOAT80:
@@ -1195,7 +1191,7 @@ cgen_as(Node *nl, Node *nr)
 	cgen(nr, nl);
 	if(iszer && nl->addable)
 		gins(ANOP, nl, N);	// used
-		
+
 
 ret:
 	;

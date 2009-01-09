@@ -61,8 +61,6 @@ convlit1(Node *n, Type *t, int conv)
 		goto bad1;
 
 	case Wlitnil:
-		if(isptrto(t, TSTRING))
-			goto bad1;
 		switch(et) {
 		default:
 			goto bad1;
@@ -71,6 +69,8 @@ convlit1(Node *n, Type *t, int conv)
 		case TPTR64:
 		case TINTER:
 		case TARRAY:
+		case TMAP:
+		case TCHAN:
 			break;
 		}
 		break;
@@ -80,7 +80,7 @@ convlit1(Node *n, Type *t, int conv)
 			defaultlit(n);
 			return;
 		}
-		if(isptrto(t, TSTRING))
+		if(et == TSTRING)
 			break;
 		goto bad1;
 
@@ -127,7 +127,7 @@ convlit1(Node *n, Type *t, int conv)
 			goto bad1;
 
 		// only done as string(CONST)
-		if(isptrto(t, TSTRING)) {
+		if(et == TSTRING) {
 			Rune rune;
 			int l;
 			String *s;
@@ -180,7 +180,7 @@ convlit1(Node *n, Type *t, int conv)
 		goto bad1;
 	}
 	n->type = t;
-	
+
 	return;
 
 bad1:

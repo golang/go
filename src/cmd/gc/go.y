@@ -1031,7 +1031,6 @@ convtype:
 		$$ = typ(TMAP);
 		$$->down = $3;
 		$$->type = $5;
-		$$ = ptrto($$);
 	}
 |	structtype
 
@@ -1116,21 +1115,18 @@ Aothertype:
 		$$ = typ(TCHAN);
 		$$->type = $3;
 		$$->chan = Crecv;
-		$$ = ptrto($$);
 	}
 |	LCHAN LCOMM Anon_chan_type
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
 		$$->chan = Csend;
-		$$ = ptrto($$);
 	}
 |	LMAP '[' type ']' Atype
 	{
 		$$ = typ(TMAP);
 		$$->down = $3;
 		$$->type = $5;
-		$$ = ptrto($$);
 	}
 |	'*' Atype
 	{
@@ -1153,21 +1149,18 @@ Bothertype:
 		$$ = typ(TCHAN);
 		$$->type = $3;
 		$$->chan = Crecv;
-		$$ = ptrto($$);
 	}
 |	LCHAN LCOMM Bnon_chan_type
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
 		$$->chan = Csend;
-		$$ = ptrto($$);
 	}
 |	LMAP '[' type ']' Btype
 	{
 		$$ = typ(TMAP);
 		$$->down = $3;
 		$$->type = $5;
-		$$ = ptrto($$);
 	}
 |	'*' Btype
 	{
@@ -1184,7 +1177,6 @@ Achantype:
 		$$ = typ(TCHAN);
 		$$->type = $2;
 		$$->chan = Cboth;
-		$$ = ptrto($$);
 	}
 
 Bchantype:
@@ -1193,7 +1185,6 @@ Bchantype:
 		$$ = typ(TCHAN);
 		$$->type = $2;
 		$$->chan = Cboth;
-		$$ = ptrto($$);
 	}
 
 structtype:
@@ -1865,7 +1856,6 @@ hidden_type1:
 		$$ = typ(TMAP);
 		$$->down = $3;
 		$$->type = $5;
-		$$ = ptrto($$);
 	}
 |	LSTRUCT '{' ohidden_structdcl_list '}'
 	{
@@ -1886,14 +1876,12 @@ hidden_type1:
 		$$ = typ(TCHAN);
 		$$->type = $3;
 		$$->chan = Crecv;
-		$$ = ptrto($$);
 	}
 |	LCHAN LCOMM hidden_type1
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
 		$$->chan = Csend;
-		$$ = ptrto($$);
 	}
 |	LDDD
 	{
@@ -1906,7 +1894,6 @@ hidden_type2:
 		$$ = typ(TCHAN);
 		$$->type = $2;
 		$$->chan = Cboth;
-		$$ = ptrto($$);
 	}
 |	'(' ohidden_funarg_list ')' ohidden_funres
 	{
