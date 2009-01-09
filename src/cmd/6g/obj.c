@@ -628,7 +628,6 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 {
 	Type *f;
 	int o;
-	int indir;
 	Sig *a, *b;
 	Prog *p;
 	char buf[NSYMB];
@@ -673,7 +672,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 
 				// indirect vs direct mismatch
 				Sym *oldname, *newname;
-				Type *oldthis, *oldtype, *newthis;
+				Type *oldthis, *newthis;
 
 				newthis = ifacet;
 				if(isptr[newthis->etype])
