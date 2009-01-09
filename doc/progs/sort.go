@@ -5,26 +5,23 @@
 package sort
 
 export type SortInterface interface {
-	len() int;
-	less(i, j int) bool;
-	swap(i, j int);
+	Len() int;
+	Less(i, j int) bool;
+	Swap(i, j int);
 }
 
 export func Sort(data SortInterface) {
-	// Bubble sort for brevity
-	for i := 0; i < data.len(); i++ {
-		for j := i; j < data.len(); j++ {
-			if data.less(j, i) {
-				data.swap(i, j)
-			}
+	for i := 1; i < data.Len(); i++ {
+		for j := i; j > 0 && data.Less(j, j-1); j-- {
+			data.Swap(j, j-1);
 		}
 	}
 }
 
 export func IsSorted(data SortInterface) bool {
-	n := data.len();
+	n := data.Len();
 	for i := n - 1; i > 0; i-- {
-		if data.less(i, i - 1) {
+		if data.Less(i, i - 1) {
 			return false;
 		}
 	}
@@ -33,40 +30,34 @@ export func IsSorted(data SortInterface) bool {
 
 // Convenience types for common cases
 
-export type IntArray struct {
-	data *[]int;
-}
+export type IntArray []int
 
-func (p *IntArray) len() int            { return len(p.data); }
-func (p *IntArray) less(i, j int) bool  { return p.data[i] < p.data[j]; }
-func (p *IntArray) swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+func (p IntArray) Len() int            { return len(p); }
+func (p IntArray) Less(i, j int) bool  { return p[i] < p[j]; }
+func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
-export type FloatArray struct {
-	data *[]float;
-}
+export type FloatArray []float
 
-func (p *FloatArray) len() int            { return len(p.data); }
-func (p *FloatArray) less(i, j int) bool  { return p.data[i] < p.data[j]; }
-func (p *FloatArray) swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+func (p FloatArray) Len() int            { return len(p); }
+func (p FloatArray) Less(i, j int) bool  { return p[i] < p[j]; }
+func (p FloatArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
-export type StringArray struct {
-	data *[]string;
-}
+export type StringArray []string
 
-func (p *StringArray) len() int            { return len(p.data); }
-func (p *StringArray) less(i, j int) bool  { return p.data[i] < p.data[j]; }
-func (p *StringArray) swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+func (p StringArray) Len() int            { return len(p); }
+func (p StringArray) Less(i, j int) bool  { return p[i] < p[j]; }
+func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
 // Convenience wrappers for common cases
 
-export func SortInts(a *[]int)        { Sort(&IntArray{a}); }
-export func SortFloats(a *[]float)    { Sort(&FloatArray{a}); }
-export func SortStrings(a *[]string)  { Sort(&StringArray{a}); }
+export func SortInts(a []int)        { Sort(IntArray(a)); }
+export func SortFloats(a []float)    { Sort(FloatArray(a)); }
+export func SortStrings(a []string)  { Sort(StringArray(a)); }
 
 
-export func IntsAreSorted(a *[]int) bool       { return IsSorted(&IntArray{a}); }
-export func FloatsAreSorted(a *[]float) bool   { return IsSorted(&FloatArray{a}); }
-export func StringsAreSorted(a *[]string) bool { return IsSorted(&StringArray{a}); }
+export func IntsAreSorted(a []int) bool       { return IsSorted(IntArray(a)); }
+export func FloatsAreSorted(a []float) bool   { return IsSorted(FloatArray(a)); }
+export func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)); }

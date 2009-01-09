@@ -4,7 +4,7 @@ Let's Go
 Rob Pike
 
 ----
-(September 14, 2008)
+(January 9, 2009)
 
 
 This document is a tutorial introduction to the basics of the Go systems programming
@@ -45,21 +45,23 @@ Go is defined to accept UTF-8 input.  Strings are arrays of bytes, usually used
 to store Unicode strings represented in UTF-8.
 
 The built-in function "print()" has been used during the early stages of
-development of the language but is not guaranteed to last.  Here's a better version of the
+development of the language but is not guaranteed to last.  Here's a version of the
 program that doesn't depend on "print()":
 
 --PROG progs/helloworld2.go
 
 This version imports the ''os'' package to acess its "Stdout" variable, of type
-"*OS.FD".  The "import" statement is a declaration: it names the identifier ("OS")
+"*os.FD".  The "import" statement is a declaration: it names the identifier ("os")
 that will be used to access members of the package imported from the file (&quot;os&quot;),
 found in the current directory or in a standard location.
-Given "OS.Stdout" we can use its "WriteString" method to print the string.
+Given "os.Stdout" we can use its "WriteString" method to print the string.
 
 The comment convention is the same as in C++:
 
 	/* ... */
 	// ...
+
+Later we'll have much more to say about printing.
 
 Echo
 ----
@@ -68,7 +70,7 @@ Next up, here's a version of the Unix utility "echo(1)":
 
 --PROG progs/echo.go
 
-It's still fairly small but it's doing a number of new things.  In the last example,
+This program is small but it's doing a number of new things.  In the last example,
 we saw "func" introducing a function.  The keywords "var", "const", and "type"
 (not used yet) also introduce declarations, as does "import".
 Notice that we can group declarations of the same sort into
@@ -82,9 +84,15 @@ Semicolons aren't needed here; in fact, semicolons are unnecessary after any
 top-level declaration, even though they are needed as separators <i>within</i>
 a parenthesized list of declarations.
 
-Having imported the "Flag" package, line 8 creates a global variable to hold
-the value of echo's -n flag.  (The nil hides a nice feature not needed here;
-see the source in "src/lib/flag.go" for details).
+Also notice that we've dropped the explicit name from the imports; by default,
+packages are imported using the name defined by the imported package,
+which by convention is of course the file name itself.  You can specify your
+own import names if you want but it's only necessary if you need to resolve
+a naming conflict.
+
+Having imported the "flag" package, line 8 creates a global variable to hold
+the value of echo's "-n" flag. The variable "n_flag" has type "*bool", pointer
+to "bool".
 
 In "main.main", we parse the arguments (line 16) and then create a local
 string variable we will use to build the output.
@@ -106,23 +114,25 @@ or we could go even shorter and write the idiom
 
 	s := "";
 
-The := operator is used a lot in Go to represent an initializing declaration.
-(For those who know Limbo, its := construct is the same, but notice
-that Go has no colon after the name in a full "var" declaration.)
-And there's one in the "for" clause on the next line:
+The ":=" operator is used a lot in Go to represent an initializing declaration.
+(For those who know Limbo, its ":=" construct is the same, but notice
+that Go has no colon after the name in a full "var" declaration.
+Also, for simplicity of parsing, ":=" only works inside functions, not at
+the top level.)
+There's one in the "for" clause on the next line:
 
 --PROG  progs/echo.go /for/
 
-The "Flag" package has parsed the arguments and left the non-flag arguments
+The "flag" package has parsed the arguments and left the non-flag arguments
 in a list that can be iterated over in the obvious way.
 
 The Go "for" statement differs from that of C in a number of ways.  First,
 it's the only looping construct; there is no "while" or "do".  Second,
 there are no parentheses on the clause, but the braces on the body
-are mandatory.  (The same applies to the "if" statement.) Later examples
-will show some other ways "for" can be written.
+are mandatory.  The same applies to the "if" and "switch" statements.
+Later examples will show some other ways "for" can be written.
 
-The body of the loop builds up the string "s" by appending (using +=)
+The body of the loop builds up the string "s" by appending (using "+=")
 the flags and separating spaces. After the loop, if the "-n" flag is not
 set, it appends a newline, and then writes the result.
 
@@ -134,7 +144,7 @@ It's defined that way.  Falling off the end of "main.main" means
 
 The "sys" package is built in and contains some essentials for getting
 started; for instance, "sys.argc()" and "sys.argv(int)" are used by the
-"Flag" package to access the arguments.
+"flag" package to access the arguments.
 
 An Interlude about Types
 ----
@@ -142,9 +152,10 @@ An Interlude about Types
 Go has some familiar types such as "int" and "float", which represent
 values of the ''appropriate'' size for the machine. It also defines
 specifically-sized types such as "int8", "float64", and so on, plus
-unsigned integer types such as "uint", "uint32", etc.  And then there
-is a "byte" synonym for "uint8", which is the element type for
-strings.
+unsigned integer types such as "uint", "uint32", etc.  These are
+distinct types; even if "int" and "int32" are both 32 bits in size,
+they are not the same type.  There is also a "byte" synonym for
+"uint8", which is the element type for strings.
 
 Speaking of "string", that's a built-in type as well.  Strings are
 <i>immutable values</i> -- they are not just arrays of "byte" values.
@@ -176,10 +187,25 @@ In Go, since arrays are values, it's meaningful (and useful) to talk
 about pointers to arrays.
 
 The size of the array is part of its type; however, one can declare
-an <i>open array</i> variable, to which one can assign any array value
-with the same element type.
-(At the moment, only <i>pointers</i> to open arrays are implemented.)
-Thus one can write this function (from "sum.go"):
+a <i>slice</i> variable, to which one can assign any array value
+with the same element type. Slices look a lot like arrays but have
+no explicit size ("[]" vs. "[10]") and they reference a segment of
+an underlying, often anonymous, regular array.  Multiple slices
+can share data if they represent pieces of the same array;
+multiple arrays can never share data.
+
+Slices are actually much more common in Go programs than
+regular arrays; they're more flexible, have reference semantics,
+and are efficient.  What they lack is the precise control of storage
+layout of a regular array; if you want to have a hundred elements
+of an array stored within your structure, you should use a regular
+array.
+
+When passing an array to a function, you almost always want
+to declare the formal parameter to be a slice.  Go will automatically
+create (efficiently) a slice reference and pass that.
+
+Using slices one can write this function (from "sum.go"):
 
 --PROG progs/sum.go /sum/ /^}/
 
@@ -188,27 +214,64 @@ and invoke it like this:
 --PROG progs/sum.go /1,2,3/
 
 Note how the return type ("int") is defined for "sum()" by stating it
-after the parameter list.  Also observe that although the argument
-is a pointer to an array, we can index it directly ("a[i]" not "(*a)[i]").
-The expression "[]int{1,2,3}" -- a type followed by a brace-bounded expression
--- is a constructor for a value, in this case an array of "int". We pass it
-to "sum()" by taking its address.
+after the parameter list.
+The expression "[3]int{1,2,3}" -- a type followed by a brace-bounded expression
+-- is a constructor for a value, in this case an array of 3 "ints". We pass it
+to "sum()" by (automatically) promoting it to a slice.
 
-The built-in function "len()" appeared there too - it works on strings,
-arrays, and maps, which can be built like this:
+If you are creating a regular array but want the compiler to count the
+elements for you, use "..." as the array size:
+
+	s := sum([...]int{1,2,3});
+
+In practice, though, unless you're meticulous about storage layout within a
+data structure, a slice - using empty brackets - is all you need:
+
+	s := sum([]int{1,2,3});
+
+There are also maps, which you can initialize like this:
 
 	m := map[string] int {"one":1 , "two":2}
 
-At least for now, maps are <i>always</i> pointers, so in this example
-"m" has type "*map[string]int".  This may change.
+The built-in function "len()", which returns number of elements,
+makes its first appearance in "sum".  It works on strings, arrays,
+slices, and maps.
 
-You can also create a map (or anything else) with the built-in "new()"
-function:
 
-	m := new(map[string] int)
+An Interlude about Allocation
+----
 
-The "new()" function always returns a pointer, an address for the object
-it creates.
+Most types in Go are values. If you have an "int" or a "struct"
+or an array, assignment
+copies the contents of the object.  To allocate something on the stack,
+just declare a variable.  To allocate it on the heap, use "new()", which
+returns a pointer to the allocated storage.
+
+	type T struct { a, b int }
+	var t *T = new(T);
+
+or the more idiomatic
+
+	t := new(T);
+
+Some types - maps, slices, and channels (see below) have reference semantics.
+If you're holding a slice or a map and you modify its contents, other variables
+referencing the same underlying data will see the modification.  If you allocate
+a reference object with "new()" you receive a pointer to an uninitialized ("nil")
+reference. Instead, for these three types you want to use "make()":
+
+	m := make(map[string] int);
+
+This statement initializes a new map ready to store entries.  If you just declare
+the map, as in
+
+	var m map[string] int;
+
+it is a "nil" reference that cannot hold anything. To use the map,
+you must first initialize the reference using "make()" or by assignment to an
+existing map.
+
+Note that "new(T)" returns type "*T" while "make(T)" returns type "T".
 
 An Interlude about Constants
 ----
@@ -225,16 +288,16 @@ There are nuances that deserve redirection to the legalese of the
 language specification but here are some illustrative examples:
 
 	var a uint64 = 0  // a has type uint64, value 0
-	a := uint64(0)    // equivalent; uses a "conversion"
+	a := uint64(0)    // equivalent; use a "conversion"
 	i := 0x1234       // i gets default type: int
 	var j int = 1e6   // legal - 1000000 is representable in an int
 	x := 1.5          // a float
-	i3div2 = 3/2      // integer division - result is 1
-	f3div2 = 3./2.    // floating point division - result is 1.5
+	i3div2 := 3/2     // integer division - result is 1
+	f3div2 := 3./2.   // floating point division - result is 1.5
 
-Conversions only work for simple cases such as converting ints of one
-sign or size to another, and between ints and floats, plus a few other
-simple cases.  There are no automatic conversions of any kind in Go,
+Conversions only work for simple cases such as converting "ints" of one
+sign or size to another, and between "ints" and "floats", plus a few other
+simple cases.  There are no automatic numeric conversions of any kind in Go,
 other than that of making constants have concrete size and type when
 assigned to a variable.
 
@@ -247,7 +310,12 @@ sort of open/close/read/write interface.  Here's the start of "fd.go":
 --PROG progs/fd.go /package/ /^}/
 
 The first line declares the name of the package -- "fd" for ''file descriptor'' --
-and then we import the low-level, external "syscall" package, which provides
+and then we import two packages.  The "os" package hides the differences
+between various operating systems to give a consistent view of files and
+so on; here we're only going to use its error handling utilities
+and reproduce the rudiments of its file I/O.
+
+The other item is the low-level, external "syscall" package, which provides
 a primitive interface to the underlying operating system's calls.
 
 Next is a type definition: the "type" keyword introduces a type declaration,
@@ -261,7 +329,18 @@ Now we can write what is often called a factory:
 --PROG progs/fd.go /NewFD/ /^}/
 
 This returns a pointer to a new "FD" structure with the file descriptor and name
-filled in.  We can use it to construct some familiar, exported variables of type "*FD":
+filled in.  This code uses Go's notion of a ''composite literal'', analogous to
+the ones used to build maps and arrays, to construct the object.  We could write
+
+	n := new(FD);
+	n.fildes = fd;
+	n.name = name;
+	return n
+
+but for simple structures like "FD" it's easier to return the address of a nonce
+composite literal, as is done here on line 17.
+
+We can use the factory to construct some familiar, exported variables of type "*FD":
 
 --PROG progs/fd.go /export.var/ /^.$/
 
@@ -271,19 +350,29 @@ to use is "Open":
 --PROG progs/fd.go /func.Open/ /^}/
 
 There are a number of new things in these few lines.  First, "Open" returns
-multiple values, an "FD" and an "errno" (Unix error number).  We declare the
-multi-value return as a parenthesized list of declarations.  "Syscall.open"
+multiple values, an "FD" and an error (more about errors in a moment).
+We declare the
+multi-value return as a parenthesized list of declarations; syntactically
+they look just like a second parameter list.  The function
+"syscall.open"
 also has a multi-value return, which we can grab with the multi-variable
 declaration on line 27; it declares "r" and "e" to hold the two values,
 both of type "int64" (although you'd have to look at the "syscall" package
 to see that).  Finally, line 28 returns two values: a pointer to the new "FD"
-and the return code.  If "Syscall.open" failed, the file descriptor "r" will
+and the error.  If "syscall.open" failed, the file descriptor "r" will
 be negative and "NewFD" will return "nil".
 
-Now that we can build "FDs", we can write methods to use them. To declare
+About those errors:  The "os" library includes a general notion of an error
+string, maintaining a unique set of errors throughout the program. It's a
+good idea to use its facility in your own interfaces, as we do here, for
+consistent error handling throughout Go code.   In "Open" we use the
+routine "os.ErrnoToError" to translate Unix's integer "errno" value into
+an error string, which will be stored in a unique instance of "*os.Error".
+
+Now that we can build "FDs", we can write methods for them. To declare
 a method of a type, we define a function to have an explicit receiver
 of that type, placed
-in parentheses before the function name. Here are some methods for "FD",
+in parentheses before the function name. Here are some methods for "*FD",
 each of which declares a receiver variable "fd".
 
 --PROG progs/fd.go /Close/ END
@@ -291,6 +380,12 @@ each of which declares a receiver variable "fd".
 There is no implicit "this" and the receiver variable must be used to access
 members of the structure.  Methods are not declared within
 the "struct" declaration itself.  The "struct" declaration defines only data members.
+In fact, methods can be created for any type you name, such as an integer or
+array, not just for "structs".   We'll see an an example with arrays later.
+
+These methods use the public variable "os.EINVAL" to return the ("*os.Error"
+version of the) Unix error code EINVAL.  The "os" library defines a standard
+set of such error values.
 
 Finally, we can use our new package:
 
@@ -306,7 +401,8 @@ and run the program:
 Rotting cats
 ----
 
-Building on the FD package, here's a simple version of the Unix utility "cat(1)", "progs/cat.go":
+Building on the "fd" package, here's a simple version of the Unix utility "cat(1)",
+"progs/cat.go":
 
 --PROG progs/cat.go
 
@@ -319,18 +415,20 @@ from  top to bottom looking for the first case that matches the value; the
 case expressions don't need to be constants or even integers, as long as
 they all have the same type.
 
-Since the "switch" value is just "true", we could leave it off -- as is also true
+Since the "switch" value is just "true", we could leave it off -- as is also
+the situation
 in a "for" statement, a missing value means "true".  In fact, such a "switch"
-is a form of "if-else" chain.
+is a form of "if-else" chain. While we're here, it should be mentioned that in
+"switch" statements each "case" has an implicit "break".
 
-Line 19 calls "Write()" by slicing (a pointer to) the array, creating a
-<i>reference slice</i>.
+Line 19 calls "Write()" by slicing the incoming buffer, which is itself a slice.
+Slices provide the standard Go way to handle I/O buffers.
 
 Now let's make a variant of "cat" that optionally does "rot13" on its input.
 It's easy to do by just processing the bytes, but instead we will exploit
 Go's notion of an <i>interface</i>.
 
-The "cat()" subroutine uses only two methods of "fd": "Read()" and "Name()",
+The "cat()" subroutine uses only two methods of "fd": "Read()" and "String()",
 so let's start by defining an interface that has exactly those two methods.
 Here is code from "progs/cat_rot13.go":
 
@@ -338,9 +436,9 @@ Here is code from "progs/cat_rot13.go":
 
 Any type that implements the two methods of "Reader" -- regardless of whatever
 other methods the type may also contain -- is said to <i>implement</i> the
-interface.  Since "FD.FD" implements these methods, it implements the
+interface.  Since "fd.FD" implements these methods, it implements the
 "Reader" interface.  We could tweak the "cat" subroutine to accept a "Reader"
-instead of a "*FD.FD" and it would work just fine, but let's embellish a little
+instead of a "*fd.FD" and it would work just fine, but let's embellish a little
 first by writing a second type that implements "Reader", one that wraps an
 existing "Reader" and does "rot13" on the data. To do this, we just define
 the type and implement the methods and with no other bookkeeping,
@@ -348,7 +446,7 @@ we have a second implementation of the "Reader" interface.
 
 --PROG progs/cat_rot13.go /type.Rot13/ /end.of.Rot13/
 
-(The "rot13" function called on line 38 is trivial and not worth reproducing.)
+(The "rot13" function called on line 37 is trivial and not worth reproducing.)
 
 To use the new feature, we define a flag:
 
@@ -359,8 +457,8 @@ and use it from within a mostly unchanged "cat()" function:
 --PROG progs/cat_rot13.go /func.cat/ /^}/
 
 (We could also do the wrapping in "main" and leave "cat()" mostly alone, except
-for changing the type of the argument.)
-Lines 53 and 54 set it all up: If the "rot13" flag is true, wrap the "Reader"
+for changing the type of the argument; consider that an exercise.)
+Lines 51 through 53 set it all up: If the "rot13" flag is true, wrap the "Reader"
 we received into a "Rot13" and proceed.  Note that the interface variables
 are values, not pointers: the argument is of type "Reader", not "*Reader",
 even though under the covers it holds a pointer to a "struct".
@@ -383,7 +481,7 @@ type if the type implements all the methods declared in the interface.
 This means
 that a type may implement an arbitrary number of different interfaces.
 There is no type hierarchy; things can be much more <i>ad hoc</i>,
-as we saw with "rot13".  "FD.FD" implements "Reader"; it could also
+as we saw with "rot13".  The type "fd.FD" implements "Reader"; it could also
 implement a "Writer", or any other interface built from its methods that
 fits the current situation. Consider the <i>empty interface</i>
 
@@ -406,11 +504,14 @@ The code needs only three methods, which we wrap into "SortInterface":
 
 --PROG progs/sort.go /interface/ /^}/
 
-We can apply "Sort" to any type that implements "len", "less", and "swap".
+We can apply "Sort" to any type that implements "Len", "Less", and "Swap".
 The "sort" package includes the necessary methods to allow sorting of
-arrays of integers, strings, etc.; here's the code for arrays of "int":
+arrays of integers, strings, etc.; here's the code for arrays of "int"
 
 --PROG progs/sort.go /type.*IntArray/ /swap/
+
+Here we see methods defined for non-"struct" types.  You can define methods
+for any type you define and name in your package.
 
 And now a routine to test it out, from "progs/sortmain.go".  This
 uses a function in the "sort" package, omitted here for brevity,
@@ -421,7 +522,124 @@ to test that the result is sorted.
 If we have a new type we want to be able to sort, all we need to do is
 to implement the three methods for that type, like this:
 
---PROG progs/sortmain.go /type.Day/ /swap/
+--PROG progs/sortmain.go /type.Day/ /Swap/
+
+
+Printing
+---
+
+The examples of formatted printing so far have been modest.  In this section
+we'll talk about how formatted I/O can be done well in Go.
+
+There's a package "fmt" that implements a version of "printf" that should
+look familiar:
+
+--PROG progs/printf.go
+
+Within the "fmt" package, "printf" is declared with this signature:
+
+	printf(format string, v ...) (n int, errno *os.Error)
+
+That "..." represents the variadic argument list that in C would
+be handled using the "stdarg.h" macros, but in Go is passed using
+an empty interface variable ("interface {}") that is then unpacked
+using the reflection library.  It's off topic here but the use of
+reflection helps explain some of the nice properties of Go's printf,
+due to the ability of "printf" to discover the type of its arguments
+dynamically.
+
+For example, in C each format must correspond to the type of its
+argument.  It's easier in many cases in Go.  Instead of "%llud" you
+can just say "%d"; "printf" knows the size and signedness of the
+integer and can do the right thing for you.  The snippet
+
+--PROG progs/print.go 'NR==6' 'NR==7'
+
+prints
+
+	18446744073709551615 -1
+
+In fact, if you're lazy the format "%v" will print, in a simple
+appropriate style, any value, even an array or structure.  The output of
+
+--PROG progs/print.go 'NR==10' 'NR==13'
+
+is
+
+	18446744073709551615 {77 Sunset Strip} [1 2 3 4]
+
+You can drop the formatting altogether if you use "print" or "println"
+instead of "printf".  Those routines do fully automatic formatting.
+The "print" function just prints its elements out using the equivalent
+of "%v" while "println" automatically inserts spaces between arguments
+and adds a newline.  The output of each of these two lines is identical
+to that of the "printf" call above.
+
+--PROG progs/print.go 'NR==14' 'NR==15'
+
+If you have your own type you'd like "printf" or "print" to format,
+just give it a "String()" method that returns a string.  The print
+routines will examine the value to inquire whether it implements
+the method and if so, use it rather than some other formatting.
+Here's a simple example.
+
+--PROG progs/print_string.go 'NR==5' END
+
+Since "*T" has a "String()" method, the
+default formatter for that type will use it and produce the output
+
+	77 Sunset Strip
+
+Observe that the "String()" method calls "sprint" (the obvious Go
+variant) to do its formatting; special formatters can use the "fmt"
+library recursively.
+
+Another feature of "printf" is that the format "%T" will print a string
+representation of the type of a value, which can be handy when debugging
+polymorphic code.
+
+It's possible to write full custom print formats with flags and precisions
+and such, but that's getting a little off the main thread so we'll leave it
+as an exploration exercise.
+
+You might ask, though, how "printf" can tell whether a type implements
+the "String()" method.  Actually what it does is ask if the value can
+be converted to an interface variable that implements the method.
+Schematically, given a value "v", it does this:
+
+
+	type String interface {
+		String() string
+	}
+
+	s, ok := v.(String);  // Test whether v satisfies "String"
+	if ok {
+		result = s.String()
+	} else {
+		result = default_output(v)
+	}
+
+The code tests if the value stored in
+"v" satisfies the "String" interface; if it does, "s"
+will become an interface variable implementing the method and "ok" will
+be "true".  We then use the interface variable to call the method.
+(The ''comma, ok'' pattern is a Go idiom used to test the success of
+operations such as type conversion, map update, communications, and so on,
+although this is the only appearance in this tutorial.)
+If the value does not satisfy the interface, "ok" will be false.
+
+One last wrinkle.  To complete the suite, besides "printf" etc. and "sprintf"
+etc., there are also "fprintf" etc.  Unlike in C, "fprintf"'s first argument is
+not a file.  Instead, it is a variable of type "io.Write", which is an
+interface type defined in the "io" library:
+
+	export type Write interface {
+		Write(p []byte) (n int, err *os.Error);
+	}
+
+Thus you can call "fprintf" on any type that implements a standard "Write()"
+method, not just files but also network channels, buffers, rot13ers, whatever
+you want.
 
 Prime numbers
 ----
@@ -430,7 +648,7 @@ Now we come to processes and communication -- concurrent programming.
 It's a big subject so to be brief we assume some familiarity with the topic.
 
 A classic program in the style is the prime sieve of Eratosthenes.
-It works by taking a stream of all the natural numbers, and introducing
+It works by taking a stream of all the natural numbers and introducing
 a sequence of filters, one for each prime, to winnow the multiples of
 that prime.  At each step we have a sequence of filters of the primes
 so far, and the next number to pop out is the next prime, which triggers
@@ -449,9 +667,9 @@ elements before it.
 To create a stream of integers, we use a Go <i>channel</i>, which,
 borrowing from CSP's descendants, represents a communications
 channel that can connect two concurrent computations.
-In Go, channel variables are
-always pointers to channels -- it's the object they point to that
-does the communication.
+In Go, channel variables are references to a run-time object that
+coordinates the communication; as with maps and slices, use
+"make" to create a new channel.
 
 Here is the first function in "progs/sieve.go":
 
@@ -482,7 +700,7 @@ computation but in the same address space:
 If you want to know when the calculation is done, pass a channel
 on which it can report back:
 
-	ch := new(chan int);
+	ch := make(chan int);
 	go sum(huge_array, ch);
 	// ... do something else for a while
 	result := <-ch;  // wait for, and retrieve, result
@@ -538,6 +756,9 @@ code that invokes the operation and responds to the request:
 
 --PROG progs/server.go /type.BinOp/ /^}/
 
+Line 8 defines the name "BinOp" to be a function taking two integers and
+returning a third.
+
 The "Server" routine loops forever, receiving requests and, to avoid blocking due to
 a long-running operation, starting a goroutine to do the actual work.
 
@@ -556,7 +777,7 @@ does it check the results.
 
 One annoyance with this program is that it doesn't exit cleanly; when "main" returns
 there are a number of lingering goroutines blocked on communication.  To solve this,
-we provide a second, "quit" channel to the server:
+we can provide a second, "quit" channel to the server:
 
 --PROG progs/server1.go /func.StartServer/ /^}/
 

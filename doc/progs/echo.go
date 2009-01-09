@@ -5,11 +5,11 @@
 package main
 
 import (
-	OS "os";
-	Flag "flag";
+	"os";
+	"flag";
 )
 
-var n_flag = Flag.Bool("n", false, nil, "don't print final newline")
+var n_flag = flag.Bool("n", false, "don't print final newline")
 
 const (
 	Space = " ";
@@ -17,16 +17,16 @@ const (
 )
 
 func main() {
-	Flag.Parse();   // Scans the arg list and sets up flags
+	flag.Parse();   // Scans the arg list and sets up flags
 	var s string = "";
-	for i := 0; i < Flag.NArg(); i++ {
+	for i := 0; i < flag.NArg(); i++ {
 		if i > 0 {
 			s += Space
 		}
-		s += Flag.Arg(i)
+		s += flag.Arg(i)
 	}
-	if !n_flag.BVal() {
+	if !*n_flag {
 		s += Newline
 	}
-	OS.Stdout.WriteString(s);
+	os.Stdout.WriteString(s);
 }

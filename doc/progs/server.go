@@ -5,8 +5,8 @@
 package main
 
 type Request struct {
-	a, b	int;
-	replyc	chan int;
+	a, b    int;
+	replyc  chan int;
 }
 
 type BinOp (a, b int) int;

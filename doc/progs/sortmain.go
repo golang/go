@@ -4,22 +4,22 @@
 
 package main
 
-import Sort "sort"
+import "sort"
 
 func ints() {
 	data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586};
-	a := Sort.IntArray{&data};
-	Sort.Sort(&a);
-	if !Sort.IsSorted(&a) {
+	a := sort.IntArray(data);
+	sort.Sort(a);
+	if !sort.IsSorted(a) {
 		panic()
 	}
 }
 
 func strings() {
 	data := []string{"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
-	a := Sort.StringArray{&data};
-	Sort.Sort(&a);
-	if !Sort.IsSorted(&a) {
+	a := sort.StringArray(data);
+	sort.Sort(a);
+	if !sort.IsSorted(a) {
 		panic()
 	}
 }
@@ -31,12 +31,12 @@ type Day struct {
 }
 
 type DayArray struct {
-	data *[]*Day;
+	data []*Day;
 }
 
-func (p *DayArray) len() int            { return len(p.data); }
-func (p *DayArray) less(i, j int) bool  { return p.data[i].num < p.data[j].num; }
-func (p *DayArray) swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+func (p *DayArray) Len() int            { return len(p.data); }
+func (p *DayArray) Less(i, j int) bool  { return p.data[i].num < p.data[j].num; }
+func (p *DayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
 
 func days() {
 	Sunday :=    Day{ 0, "SUN", "Sunday" };
@@ -47,13 +47,13 @@ func days() {
 	Friday :=    Day{ 5, "FRI", "Friday" };
 	Saturday :=  Day{ 6, "SAT", "Saturday" };
 	data := []*Day{&Tuesday, &Thursday, &Sunday, &Monday, &Friday};
-	a := DayArray{&data};
-	Sort.Sort(&a);
-	if !Sort.IsSorted(&a) {
+	a := DayArray{data};
+	sort.Sort(&a);
+	if !sort.IsSorted(&a) {
 		panic()
 	}
-	for i := 0; i < len(data); i++ {
-		print(data[i].long_name, " ")
+	for i, d := range data {
+		print(d.long_name, " ")
 	}
 	print("\n")
 }
