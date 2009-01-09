@@ -219,6 +219,10 @@ belexinit(int lextype)
 	Sym *s;
 	Type *t;
 
+	simtype[TMAP] = tptr;
+	simtype[TCHAN] = tptr;
+	simtype[TSTRING] = tptr;
+
 	zprog.link = P;
 	zprog.as = AGOK;
 	zprog.from.type = D_NONE;

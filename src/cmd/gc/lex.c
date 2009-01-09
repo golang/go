@@ -1150,6 +1150,8 @@ lexinit(void)
 		case TPTR32:
 		case TPTR64:
 		case TINTER:
+		case TMAP:
+		case TCHAN:
 			okforeq[i] = 1;
 			break;
 		}
@@ -1196,8 +1198,6 @@ lexinit(void)
 			continue;
 		}
 		t = typ(etype);
-		if(etype == TSTRING)
-			t = ptrto(t);
 		t->sym = s;
 
 		dowidth(t);

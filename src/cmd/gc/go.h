@@ -626,6 +626,7 @@ void	dump(char*, Node*);
 Type*	aindex(Node*, Type*);
 int	isnil(Node*);
 int	isptrto(Type*, int);
+int	istype(Type*, int);
 int	isptrsarray(Type*);
 int	isptrdarray(Type*);
 int	issarray(Type*);

@@ -218,7 +218,7 @@ cgen(Node *n, Node *res)
 		break;
 
 	case OLEN:
-		if(isptrto(nl->type, TSTRING)) {
+		if(istype(nl->type, TSTRING)) {
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
 
@@ -237,7 +237,7 @@ cgen(Node *n, Node *res)
 			regfree(&n1);
 			break;
 		}
-		if(isptrto(nl->type, TMAP)) {
+		if(istype(nl->type, TMAP)) {
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
 			n1.op = OINDREG;
@@ -964,7 +964,7 @@ sgen(Node *n, Node *ns, int32 w)
 			gconreg(AMOVQ, c, D_CX);
 			gins(AREP, N, N);	// repeat
 			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
-		
+
 		} else
 		while(c > 0) {
 			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+

@@ -998,7 +998,7 @@ naddr(Node *n, Addr *a)
 	case ONAME:
 		a->etype = 0;
 		if(n->type != T)
-			a->etype = n->type->etype;
+			a->etype = simtype[n->type->etype];
 		a->offset = n->xoffset;
 		a->sym = n->sym;
 		if(a->sym == S)
@@ -1045,7 +1045,7 @@ naddr(Node *n, Addr *a)
 			a->offset = mpgetfix(n->val.u.xval);
 			break;
 		case CTSTR:
-			a->etype = n->etype;
+			a->etype = simtype[n->etype];
 			a->sym = symstringo;
 			a->type = D_ADDR;
 			a->index = D_STATIC;
