@@ -24,7 +24,7 @@ func Server(op *BinOp, service chan *Request) {
 }
 
 func StartServer(op *BinOp) chan *Request {
-	req := new(chan *Request);
+	req := make(chan *Request);
 	go Server(op, req);
 	return req;
 }
@@ -37,7 +37,7 @@ func main() {
 		req := &reqs[i];
 		req.a = i;
 		req.b = i + N;
-		req.replyc = new(chan int);
+		req.replyc = make(chan int);
 		adder <- req;
 	}
 	for i := N-1; i >= 0; i-- {   // doesn't matter what order
