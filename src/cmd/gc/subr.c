@@ -1525,60 +1525,50 @@ isddd(Type *t)
 	return 0;
 }
 
+/*
+ * given receiver of type t (t == r or t == *r)
+ * return type to hang methods off (r).
+ */
 Type*
-ismethod(Type *t)
+dclmethod(Type *t)
 {
-	int a;
-	Sym *s;
+	int ptr;
 
 	if(t == T)
 		return T;
 
-	// no interfaces
-	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
-		return T;
-
-	a = algtype(t);
-
-	// direct receiver
-	s = t->sym;
-	if(s != S) {
-		if(t->methptr == 2)
-			goto both;
-		t->methptr |= 1;
-		goto out;
+	// strip away pointer if it's there
+	ptr = 0;
+	if(isptr[t->etype]) {
+		if(t->sym != S)
+			return T;
+		ptr = 1;
+		t = t->type;
+		if(t == T)
+			return T;
 	}
 
-	// pointer receiver
-	if(!isptr[t->etype])
+	// need a type name
+	if(t->sym == S)
 		return T;
 
-	t = t->type;
-	if(t == T)
-		return T;
-
-	s = t->sym;
-	if(s != S) {
-		if(t->methptr == 1)
-			goto both;
-		t->methptr |= 2;
-		goto out;
+	// check that all method receivers are consistent
+	if(t->methptr != 0 && t->methptr != (1<<ptr)) {
+		if(t->methptr != 3) {
+			t->methptr = 3;
+			yyerror("methods on both %T and *%T", t, t);
+		}
 	}
+	t->methptr |= 1<<ptr;
 
-	return T;
-
-both:
-	yyerror("type %T used as both direct and indirect method", t);
-	t->methptr = 3;
-
-out:
-	switch(a) {
+	// check types
+	// TODO(rsc): map, chan etc are not quite right
+	if(!issimple[t->etype])
+	switch(t->etype) {
 	default:
-		yyerror("type %T cannot be used as a method", t);
-	case ASIMP:
-	case APTR:
-	case ASTRING:
-	case ASLICE:
+		return T;
+	case TSTRUCT:
+	case TARRAY:
 		break;
 	}
 
@@ -1586,47 +1576,46 @@ out:
 }
 
 /*
- * this is ismethod() without side effects
+ * this is dclmethod() without side effects.
  */
 Type*
 methtype(Type *t)
 {
-	Sym *s;
-
 	if(t == T)
 		return T;
-	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
+	if(isptr[t->etype]) {
+		if(t->sym != S)
+			return T;
+		t = t->type;
+	}
+	if(t == T || t->etype == TINTER || t->sym == S)
 		return T;
-	s = t->sym;
-	if(s != S)
-		return t;
-	if(!isptr[t->etype])
-		return T;
-	t = t->type;
-	if(t == T)
-		return T;
-	s = t->sym;
-	if(s != S)
-		return t;
-	return T;
+	return t;
 }
 
 /*
- * this is another ismethod()
- * returns 1 if t=T and method wants *T
+ * given type t in a method call, returns op
+ * to convert t into appropriate receiver.
+ * returns OADDR if t==x and method takes *x
+ * returns OIND if t==*x and method takes x
  */
 int
-needaddr(Type *t)
+methconv(Type *t)
 {
-	Sym *s;
+	Type *m;
 
-	if(t == T)
+	m = methtype(t);
+	if(m == T)
 		return 0;
-	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
+	if(m->methptr&2) {
+		// want pointer
+		if(t == m)
+			return OADDR;
 		return 0;
-	s = t->sym;
-	if(s != S && t->methptr == 2)
-		return 1;
+	}
+	// want non-pointer
+	if(t != m)
+		return OIND;
 	return 0;
 }
 
@@ -2735,3 +2724,111 @@ genptrtramp(Sym *method, Sym *oldname, Type *oldthis, Type *oldtype, Sym *newnam
 	funcbody(fn);
 }
 
+/*
+ * delayed interface type check.
+ * remember that there is an interface conversion
+ * on the given line.  once the file is completely read
+ * and all methods are known, we can check that
+ * the conversions are valid.
+ */
+
+typedef struct Icheck Icheck;
+struct Icheck
+{
+	Icheck *next;
+	Type *dst;
+	Type *src;
+	int lineno;
+};
+Icheck *icheck;
+Icheck *ichecktail;
+
+void
+ifacecheck(Type *dst, Type *src, int lineno)
+{
+	Icheck *p;
+
+	p = mal(sizeof *p);
+	if(ichecktail)
+		ichecktail->next = p;
+	else
+		icheck = p;
+	p->dst = dst;
+	p->src = src;
+	p->lineno = lineno;
+	ichecktail = p;
+}
+
+Type*
+ifacelookdot(Sym *s, Type *t)
+{
+	int c, d;
+	Type *m;
+
+	for(d=0; d<nelem(dotlist); d++) {
+		c = adddot1(s, t, d, &m);
+		if(c > 1) {
+			yyerror("%T.%S is ambiguous", t, s);
+			return T;
+		}
+		if(c == 1)
+			return m;
+	}
+	return T;
+}
+
+int
+hasiface(Type *t, Type *iface, Type **m)
+{
+	Type *im, *tm;
+	int imhash;
+
+	t = methtype(t);
+	if(t == T)
+		return 0;
+
+	// if this is too slow,
+	// could sort these first
+	// and then do one loop.
+
+	// could also do full type compare
+	// instead of using hash, but have to
+	// avoid checking receivers, and
+	// typehash already does that for us.
+	// also, it's what the runtime will do,
+	// so we can both be wrong together.
+
+	for(im=iface->type; im; im=im->down) {
+		imhash = typehash(im, 0);
+		tm = ifacelookdot(im->sym, t);
+		if(tm == T || typehash(tm, 0) != imhash) {
+			*m = im;
+			return 0;
+		}
+	}
+	return 1;
+}
+
+void
+runifacechecks(void)
+{
+	Icheck *p;
+	int lno;
+	Type *m, *l, *r;
+
+	lno = lineno;
+	for(p=icheck; p; p=p->next) {
+		lineno = p->lineno;
+		if(isinter(p->dst)) {
+			l = p->src;
+			r = p->dst;
+		} else {
+			l = p->dst;
+			r = p->src;
+		}
+		if(!hasiface(l, r, &m))
+			yyerror("%T is not %T - missing %S%hT",
+				l, r, m->sym, m->type);
+	}
+	lineno = lno;
+}
