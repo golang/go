@@ -69,3 +69,58 @@ traceback(byte *pc0, byte *sp, G *g)
 	}
 	prints("...\n");
 }
+
+// func caller(n int) (pc uint64, file string, line int, ok bool)
+void
+sys·caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
+{
+	uint64 pc;
+	byte *sp;
+	Stktop *stk;
+	Func *f;
+
+	// our caller's pc, sp.
+	sp = (byte*)&n;
+	pc = *(uint64*)(sp-8);
+	if((f = findfunc(pc)) == nil) {
+	error:
+		retpc = 0;
+		retline = 0;
+		retfile = nil;
+		retbool = false;
+		FLUSH(&retpc);
+		FLUSH(&retfile);
+		FLUSH(&retline);
+		FLUSH(&retbool);
+		return;
+	}
+
+	// now unwind n levels
+	stk = (Stktop*)g->stackbase;
+	while(n-- > 0) {
+		while(pc == (uint64)retfromnewstack) {
+			sp = stk->oldsp;
+			stk = (Stktop*)stk->oldbase;
+			pc = *(uint64*)(sp+8);
+			sp += 16;
+		}
+
+		if(f->frame < 8)	// assembly functions lie
+			sp += 8;
+		else
+			sp += f->frame;
+
+		pc = *(uint64*)(sp-8);
+		if(pc <= 0x1000 || (f = findfunc(pc)) == nil)
+			goto error;
+	}
+
+	retpc = pc;
+	retfile = f->src;
+	retline = funcline(f, pc-1);
+	retbool = true;
+	FLUSH(&retpc);
+	FLUSH(&retfile);
+	FLUSH(&retline);
+	FLUSH(&retbool);
+}
