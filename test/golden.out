@@ -34,9 +34,6 @@ Faulting address: 0x0
 pc: xxx
 
 
-=========== ./method2.go
-BUG: errchk: command succeeded unexpectedly:  6g ./method2.go
-
 =========== ./peano.go
 0! = 1
 1! = 1
@@ -87,20 +84,11 @@ PASS
 =========== bugs/bug041.go
 BUG: compilation succeeds incorrectly
 
-=========== bugs/bug046.go
-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug046.go
-
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
 	int
 	struct { u int; v int }
 BUG: compilation should succeed
-
-=========== bugs/bug080.go
-bugs/bug080.go:12: illegal types for operand: CALL
-	int
-	struct { x int; y float }
-BUG: fails incorrectly
 
 =========== bugs/bug085.go
 bugs/bug085.go:8: P: undefined
