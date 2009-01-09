@@ -46,10 +46,16 @@ func (c *Common) Addr() Addr {
 }
 
 func (c *Common) Interface() interface {} {
-	if uintptr(c.addr) == 0 {
-		panicln("reflect: address 0 for", c.typ.String());
+	var i interface {};
+	if c.typ.Size() > 8 {	// TODO(rsc): how do we know it is 8?
+		i = sys.unreflect(c.addr.(uintptr).(uint64), c.typ.String(), true);
+	} else {
+		if uintptr(c.addr) == 0 {
+			panicln("reflect: address 0 for", c.typ.String());
+		}
+		i = sys.unreflect(uint64(uintptr(*c.addr.(*Addr))), c.typ.String(), false);
 	}
-	return sys.unreflect(uint64(uintptr(*c.addr.(*Addr))), c.typ.String());
+	return i;
 }
 
 func NewValueAddr(typ Type, addr Addr) Value
@@ -783,7 +789,7 @@ var creator = map[int] Creator {
 	FuncKind : &FuncCreator,
 }
 
-var typecache = make(map[string] *Type);
+var typecache = make(map[string] Type);
 
 func NewValueAddr(typ Type, addr Addr) Value {
 	c, ok := creator[typ.Kind()];
@@ -870,17 +876,21 @@ export func CopyArray(dst ArrayValue, src ArrayValue, n int) {
 
 
 export func NewValue(e interface {}) Value {
-	value, typestring  := sys.reflect(e);
-	p, ok := typecache[typestring];
+	value, typestring, indir := sys.reflect(e);
+	typ, ok := typecache[typestring];
 	if !ok {
-		typ := ParseTypeString("", typestring);
-		p = new(Type);
-		*p = typ;
-		typecache[typestring] = p;
+		typ = ParseTypeString("", typestring);
+		typecache[typestring] = typ;
 	}
-	// Content of interface is a value; need a permanent copy to take its address
-	// so we can modify the contents. Values contain pointers to 'values'.
+
+	if indir {
+		// Content of interface is a pointer.
+		return NewValueAddr(typ, value.(uintptr).(Addr));
+	}
+
+	// Content of interface is a value;
+	// need a permanent copy to take its address.
 	ap := new(uint64);
 	*ap = value;
-	return NewValueAddr(*p, ap.(Addr));
+	return NewValueAddr(typ, ap.(Addr));
 }

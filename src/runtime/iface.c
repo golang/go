@@ -38,6 +38,7 @@ struct	Itype
 	void	(*fun[])(void);
 };
 
+static	Iface	niliface;
 static	Itype*	hash[1009];
 
 Sigi	sigi·empty[2] =	{ (byte*)"interface { }" };
@@ -102,16 +103,10 @@ printsigt(Sigt *st)
 static void
 printiface(Iface i)
 {
-	int32 j;
-
 	prints("(");
 	sys·printpointer(i.type);
 	prints(",");
-	for(j=0; j<nelem(i.data); j++) {
-		if(j > 0)
-			prints(".");
-		sys·printpointer(i.data[0]);
-	}
+	sys·printpointer(i.data);
 	prints(")");
 }
 
@@ -217,12 +212,12 @@ sys·ifaceT2I(Sigi *si, Sigt *st, ...)
 	alg = st->hash;
 	wid = st->offset;
 	if(wid <= sizeof ret->data)
-		algarray[alg].copy(wid, ret->data, elem);
+		algarray[alg].copy(wid, &ret->data, elem);
 	else{
-		ret->data[0] = mal(wid);
+		ret->data = mal(wid);
 		if(iface_debug)
-			printf("T2I mal %d %p\n", wid, ret->data[0]);
-		algarray[alg].copy(wid, ret->data[0], elem);
+			printf("T2I mal %d %p\n", wid, ret->data);
+		algarray[alg].copy(wid, ret->data, elem);
 	}
 
 	if(iface_debug) {
@@ -273,9 +268,9 @@ sys·ifaceI2T(Sigt *st, Iface i, ...)
 	alg = st->hash;
 	wid = st->offset;
 	if(wid <= sizeof i.data)
-		algarray[alg].copy(wid, ret, i.data);
+		algarray[alg].copy(wid, ret, &i.data);
 	else
-		algarray[alg].copy(wid, ret, i.data[0]);
+		algarray[alg].copy(wid, ret, i.data);
 
 	if(iface_debug) {
 		prints("I2T ret=");
@@ -314,9 +309,9 @@ sys·ifaceI2T2(Sigt *st, Iface i, ...)
 	} else {
 		*ok = true;
 		if(wid <= sizeof i.data)
-			algarray[alg].copy(wid, ret, i.data);
+			algarray[alg].copy(wid, ret, &i.data);
 		else
-			algarray[alg].copy(wid, ret, i.data[0]);
+			algarray[alg].copy(wid, ret, i.data);
 	}
 	if(iface_debug) {
 		prints("I2T2 ret=");
@@ -331,7 +326,6 @@ void
 sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
 {
 	Itype *im;
-	int32 j;
 
 	if(iface_debug) {
 		prints("I2I sigi=");
@@ -345,9 +339,7 @@ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
 	if(im == nil) {
 		// If incoming interface is uninitialized (zeroed)
 		// make the outgoing interface zeroed as well.
-		ret.type = nil;
-		for(j=0; j<nelem(ret.data); j++)
-			ret.data[j] = nil;
+		ret = niliface;
 	} else {
 		ret = i;
 		if(im->sigi != si)
@@ -368,7 +360,6 @@ void
 sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
 {
 	Itype *im;
-	int32 j;
 
 	if(iface_debug) {
 		prints("I2I2 sigi=");
@@ -382,9 +373,7 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
 	if(im == nil) {
 		// If incoming interface is uninitialized (zeroed)
 		// make the outgoing interface zeroed as well.
-		ret.type = nil;
-		for(j=0; j<nelem(ret.data); j++)
-			ret.data[j] = nil;
+		ret = niliface;
 		ok = 1;
 	} else {
 		ret = i;
@@ -392,8 +381,7 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
 		if(im->sigi != si) {
 			ret.type = itype(si, im->sigt, 1);
 			if(ret.type == nil) {
-				for(j=0; j<nelem(ret.data); j++)
-					ret.data[j] = nil;
+				ret = niliface;
 				ok = 0;
 			}
 		}
@@ -444,10 +432,10 @@ sys·ifaceeq(Iface i1, Iface i2, bool ret)
 		goto no;
 
 	if(wid <= sizeof i1.data) {
-		if(!algarray[alg].equal(wid, i1.data, i2.data))
+		if(!algarray[alg].equal(wid, &i1.data, &i2.data))
 			goto no;
 	} else {
-		if(!algarray[alg].equal(wid, i1.data[0], i2.data[0]))
+		if(!algarray[alg].equal(wid, i1.data, i2.data))
 			goto no;
 	}
 
@@ -469,24 +457,61 @@ sys·printinter(Iface i)
 }
 
 void
-sys·reflect(Itype *im, void *it, uint64 retit, string rettype)
+sys·reflect(Iface i, uint64 retit, string rettype, bool retindir)
 {
-	if(im == nil) {
+	int32 wid;
+
+	if(i.type == nil) {
 		retit = 0;
 		rettype = nil;
+		retindir = false;
 	} else {
-		retit = (uint64)it;
-		rettype = gostring(im->sigt->name);
+		retit = (uint64)i.data;
+		rettype = gostring(i.type->sigt->name);
+		wid = i.type->sigt->offset;
+		retindir = wid > sizeof i.data;
 	}
 	FLUSH(&retit);
 	FLUSH(&rettype);
+	FLUSH(&retindir);
 }
 
 extern Sigt *gotypesigs[];
 extern int32 ngotypesigs;
 
+
+// The reflection library can ask to unreflect on a type
+// that has never been used, so we don't have a signature for it.
+// For concreteness, suppose a program does
+//
+// 	type T struct{ x []int }
+// 	var t T;
+// 	v := reflect.NewValue(v);
+// 	vv := v.Field(0);
+// 	if s, ok := vv.Interface().(string) {
+// 		print("first field is string");
+// 	}
+//
+// vv.Interface() returns the result of sys.unreflect with
+// a typestring of "[]int".  If []int is not used with interfaces
+// in the rest of the program, there will be no signature in gotypesigs
+// for "[]int", so we have to invent one.  The only requirements
+// on the fake signature are:
+//
+//	(1) any interface conversion using the signature will fail
+//	(2) calling sys.reflect() returns the args to unreflect
+//
+// (1) is ensured by the fact that we allocate a new Sigt,
+// so it will necessarily be != any Sigt in gotypesigs.
+// (2) is ensured by storing the type string in the signature
+// and setting the width to force the correct value of the bool indir.
+//
+// Note that (1) is correct behavior: if the program had tested
+// for .([]int) instead of .(string) above, then there would be a
+// signature with type string "[]int" in gotypesigs, and unreflect
+// wouldn't call fakesigt.
 static Sigt*
-fakesigt(string type)
+fakesigt(string type, bool indir)
 {
 	// TODO(rsc): Cache these by type string.
 	Sigt *sigt;
@@ -495,7 +520,10 @@ fakesigt(string type)
 	sigt[0].name = mal(type->len + 1);
 	mcpy(sigt[0].name, type->str, type->len);
 	sigt[0].hash = ASIMP;	// alg
-	sigt[0].offset = sizeof(void*);	// width
+	if(indir)
+		sigt[0].offset = 2*sizeof(niliface.data);  // big width
+	else
+		sigt[0].offset = 1;  // small width
 	return sigt;
 }
 
@@ -521,27 +549,37 @@ cmpstringchars(string a, uint8 *b)
 }
 
 static Sigt*
-findtype(string type)
+findtype(string type, bool indir)
 {
 	int32 i;
 
 	for(i=0; i<ngotypesigs; i++)
 		if(cmpstringchars(type, gotypesigs[i]->name) == 0)
 			return gotypesigs[i];
-	return fakesigt(type);
+	return fakesigt(type, indir);
 }
 
+
 void
-sys·unreflect(uint64 it, string type, Itype *retim, void *retit)
+sys·unreflect(uint64 it, string type, bool indir, Iface ret)
 {
-	if(cmpstring(type, emptystring) == 0) {
-		retim = 0;
-		retit = 0;
-	} else {
-		retim = itype(sigi·empty, findtype(type), 0);
-		retit = (void*)it;
-	}
-	FLUSH(&retim);
-	FLUSH(&retit);
+	Sigt *sigt;
+
+	ret = niliface;
+
+	if(cmpstring(type, emptystring) == 0)
+		goto out;
+
+	// if we think the type should be indirect
+	// and caller does not, play it safe, return nil.
+	sigt = findtype(type, indir);
+	if(indir != (sigt[0].offset > sizeof ret.data))
+		goto out;
+
+	ret.type = itype(sigi·empty, sigt, 0);
+	ret.data = (void*)it;
+
+out:
+	FLUSH(&ret);
 }
 

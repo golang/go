@@ -332,3 +332,24 @@ export func TestCopyArray(t *testing.T) {
 		}
 	}
 }
+
+export func TestBigUnnamedStruct(t *testing.T) {
+	b := struct{a,b,c,d int64}{1, 2, 3, 4};
+	v := NewValue(b);
+	b1 := v.Interface().(struct{a,b,c,d int64});
+	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d {
+		t.Errorf("NewValue(%v).Interface().(Big) = %v", b, b1);
+	}
+}
+
+type Big struct {
+	a, b, c, d, e int64
+}
+export func TestBigStruct(t *testing.T) {
+	b := Big{1, 2, 3, 4, 5};
+	v := NewValue(b);
+	b1 := v.Interface().(Big);
+	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d || b1.e != b.e {
+		t.Errorf("NewValue(%v).Interface().(Big) = %v", b, b1);
+	}
+}
