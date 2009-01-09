@@ -75,6 +75,12 @@ func (c *Common) Name() string {
 }
 
 func (c *Common) String() string {
+	// If there is a name, show that instead of its expansion.
+	// This is important for reflection: a named type
+	// might have methods that the unnamed type does not.
+	if c.name != "" {
+		return c.name
+	}
 	return c.str
 }
 
