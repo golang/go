@@ -471,7 +471,7 @@ loop:
 				walktype(r->left, Erv);
 				if(r->left == N)
 					break;
-				et = isandss(r->type, r->left);
+				et = ifaceas(r->type, r->left->type);
 				switch(et) {
 				case I2T:
 					et = I2T2;
@@ -604,8 +604,8 @@ loop:
 			}
 		}
 
-		// interface and structure
-		et = isandss(n->type, l);
+		// interface assignment
+		et = ifaceas(n->type, l->type);
 		if(et != Inone) {
 			indir(n, ifaceop(n->type, l, et));
 			goto ret;
@@ -1542,14 +1542,11 @@ walkselect(Node *sel)
 }
 
 Type*
-lookdot1(Node *n, Type *t, Type *f)
+lookdot1(Sym *s, Type *t, Type *f)
 {
 	Type *r;
-	Sym *s;
 
 	r = T;
-	s = n->sym;
-
 	for(; f!=T; f=f->down) {
 		if(f->sym == S)
 			continue;
@@ -1567,15 +1564,19 @@ lookdot1(Node *n, Type *t, Type *f)
 int
 lookdot(Node *n, Type *t)
 {
-	Type *f1, *f2;
+	Type *f1, *f2, *tt;
+	int op;
+	Sym *s;
+
+	s = n->right->sym;
 
 	f1 = T;
 	if(t->etype == TSTRUCT || t->etype == TINTER)
-		f1 = lookdot1(n->right, t, t->type);
+		f1 = lookdot1(s, t, t->type);
 
 	f2 = methtype(n->left->type);
 	if(f2 != T)
-		f2 = lookdot1(n->right, f2, f2->method);
+		f2 = lookdot1(s, f2, f2->method);
 
 	if(f1 != T) {
 		if(f2 != T)
@@ -1590,12 +1591,20 @@ lookdot(Node *n, Type *t)
 	}
 
 	if(f2 != T) {
-		if(needaddr(n->left->type)) {
-			walktype(n->left, Elv);
-			n->left = nod(OADDR, n->left, N);
-			n->left->type = ptrto(n->left->left->type);
+		tt = n->left->type;
+		if((op = methconv(tt)) != 0) {
+			switch(op) {
+			case OADDR:
+				walktype(n->left, Elv);
+				n->left = nod(OADDR, n->left, N);
+				n->left->type = ptrto(tt);
+				break;
+			case OIND:
+				n->left = nod(OIND, n->left, N);
+				n->left->type = tt->type;
+				break;
+			}
 		}
-		ismethod(n->left->type);
 		n->right = methodname(n->right, n->left->type);
 		n->xoffset = f2->width;
 		n->type = f2->type;
@@ -1903,37 +1912,28 @@ loop:
 }
 
 /*
- * can we assign var of type t2 to var of type t1
+ * can we assign var of type src to var of type dst
  */
 int
-ascompat(Type *t1, Type *t2)
+ascompat(Type *dst, Type *src)
 {
-	if(eqtype(t1, t2, 0))
+	if(eqtype(dst, src, 0))
 		return 1;
 
-//	if(eqtype(t1, nilptr, 0))
-//		return 1;
-//	if(eqtype(t2, nilptr, 0))
-//		return 1;
-
-	if(isnilinter(t1))
+	if(isdarray(dst) && issarray(src))
 		return 1;
-	if(isinter(t1)) {
-		if(isinter(t2))
-			return 1;
-		if(ismethod(t2))
-			return 1;
-	}
 
-	if(isnilinter(t2))
+	if(isnilinter(dst) || isnilinter(src))
 		return 1;
-	if(isinter(t2))
-		if(ismethod(t1))
-			return 1;
 
-	if(isdarray(t1))
-		if(issarray(t2))
-			return 1;
+	if(isinter(dst) && isinter(src))
+		return 1;
+
+	if(isinter(dst) && methtype(src))
+		return 1;
+
+	if(isinter(src) && methtype(dst))
+		return 1;
 
 	return 0;
 }
@@ -2817,33 +2817,33 @@ arrayop(Node *n, int top)
 	return r;
 }
 
+/*
+ * assigning src to dst involving interfaces?
+ * return op to use.
+ */
 int
-isandss(Type *lt, Node *r)
+ifaceas(Type *dst, Type *src)
 {
-	Type *rt;
+	if(src == T || dst == T)
+		return Inone;
 
-	rt = r->type;
-	if(isinter(lt)) {
-		if(isinter(rt)) {
-			if(isnilinter(lt) && isnilinter(rt))
+	if(isinter(dst)) {
+		if(isinter(src)) {
+			if(eqtype(dst, src, 0))
 				return Inone;
-			if(!eqtype(rt, lt, 0))
-				return I2I;
-			return Inone;
+			return I2I;
 		}
-		if(isnilinter(lt))
+		if(isnilinter(dst))
 			return T2I;
-		if(ismethod(rt) != T)
-			return T2I;
-		return Inone;
+		ifacecheck(dst, src, lineno);
+		return T2I;
 	}
-
-	if(isinter(rt)) {
-		if(isnilinter(rt) || ismethod(lt) != T)
+	if(isinter(src)) {
+		if(isnilinter(src))
 			return I2T;
-		return Inone;
+		ifacecheck(dst, src, lineno);
+		return I2T;
 	}
-
 	return Inone;
 }
 
@@ -2988,7 +2988,7 @@ convas(Node *n)
 	if(eqtype(lt, rt, 0))
 		goto out;
 
-	et = isandss(lt, r);
+	et = ifaceas(lt, rt);
 	if(et != Inone) {
 		n->right = ifaceop(lt, r, et);
 		goto out;

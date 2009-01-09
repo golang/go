@@ -257,7 +257,7 @@ void
 addmethod(Node *n, Type *t, int local)
 {
 	Type *f, *d, *pa;
-	Sym *st, *sf;
+	Sym *sf;
 
 	pa = nil;
 	sf = nil;
@@ -282,18 +282,16 @@ addmethod(Node *n, Type *t, int local)
 	if(pa == T)
 		goto bad;
 
-	// and finally the receiver sym
-	f = ismethod(pa);
+	f = dclmethod(pa);
 	if(f == T)
 		goto bad;
-	pa = f;
-	st = pa->sym;
-	if(st == S)
-		goto bad;
+
 	if(local && !f->local) {
-		yyerror("method receiver type must be locally defined: %T", f);
+		yyerror("cannot define methods on non-local type %T", t);
 		return;
 	}
+
+	pa = f;
 
 	n = nod(ODCLFIELD, newname(sf), N);
 	n->type = t;
@@ -308,7 +306,7 @@ addmethod(Node *n, Type *t, int local)
 			continue;
 		}
 		if(!eqtype(t, f->type, 0)) {
-			yyerror("method redeclared: %S of type %S", sf, st);
+			yyerror("method redeclared: %T.%S", pa, sf);
 			print("\t%T\n\t%T\n", f->type, t);
 		}
 		return;
@@ -324,7 +322,7 @@ addmethod(Node *n, Type *t, int local)
 	return;
 
 bad:
-	yyerror("unknown method pointer: %T %S", pa, sf);
+	yyerror("invalid receiver type %T", pa);
 }
 
 /*

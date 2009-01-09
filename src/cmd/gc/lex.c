@@ -90,6 +90,7 @@ mainlex(int argc, char *argv[])
 
 	nerrors = 0;
 	yyparse();
+	runifacechecks();
 
 	linehist(nil, 0);
 	if(curio.bin != nil)

@@ -15,7 +15,9 @@ type I interface {
 func main() {
 	var s *S;
 	var i I;
-	i = s;
+	var e interface {};
+	e = s;
+	i = e;
 }
 
 // hide S down here to avoid static warning
