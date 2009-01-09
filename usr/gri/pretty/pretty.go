@@ -14,15 +14,18 @@ import (
 
 var (
 	flags Compilation.Flags;
-	silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
-	verbose = Flag.Bool("v", false, &flags.verbose, "verbose mode: trace parsing");
-	sixg = Flag.Bool("6g", true, &flags.sixg, "6g compatibility mode");
-	//TODO fix this code again
-	//deps = Flag.Bool("d", false, &flags.deps, "print dependency information only");
-	columns = Flag.Bool("columns", Platform.USER == "gri", &flags.columns, "print column info in error messages");
-	testmode = Flag.Bool("t", false, &flags.testmode, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
-	tokenchan = Flag.Bool("token_chan", false, &flags.tokenchan, "use token channel for scanner-parser connection");
+	silent = Flag.Bool("s", false, "silent mode: no pretty print output");
 )
+
+func init() {
+	Flag.BoolVar(&flags.verbose, "v", false, "verbose mode: trace parsing");
+	Flag.BoolVar(&flags.sixg, "6g", true, "6g compatibility mode");
+	//TODO fix this code again
+	//Flag.BoolVar(&flags.deps, "d", false, "print dependency information only");
+	Flag.BoolVar(&flags.columns, "columns", Platform.USER == "gri", "print column info in error messages");
+	Flag.BoolVar(&flags.testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
+	Flag.BoolVar(&flags.tokenchan, "token_chan", false, "use token channel for scanner-parser connection");
+}
 
 
 func Usage() {
@@ -51,7 +54,7 @@ func main() {
 			if nerrors > 0 {
 				return;
 			}
-			if !silent.BVal() && !flags.testmode {
+			if !*silent && !flags.testmode {
 				Printer.Print(prog);
 			}
 		}
