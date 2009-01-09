@@ -1913,7 +1913,6 @@ sudoaddable(Node *n, Addr *a)
 		reg1->op = OEMPTY;
 		goto odot;
 
-	case OINDEXPTR:
 	case OINDEX:
 		cleani += 2;
 		reg = &clean[cleani-1];

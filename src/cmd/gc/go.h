@@ -308,7 +308,7 @@ enum
 	OADDR,
 	OIND,
 	OCALL, OCALLMETH, OCALLINTER,
-	OINDEX, OINDEXPTR, OSLICE,
+	OINDEX, OSLICE,
 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
 	OLITERAL, OREGISTER, OINDREG,
 	OCONV, OCOMP, OKEY,
@@ -627,10 +627,8 @@ Type*	aindex(Node*, Type*);
 int	isnil(Node*);
 int	isptrto(Type*, int);
 int	istype(Type*, int);
-int	isptrsarray(Type*);
-int	isptrdarray(Type*);
-int	issarray(Type*);
-int	isdarray(Type*);
+int	isfixedarray(Type*);
+int	isslice(Type*);
 int	isinter(Type*);
 int	isnilinter(Type*);
 int	isddd(Type*);
@@ -638,7 +636,6 @@ Type*	dclmethod(Type*);
 Type*	methtype(Type*);
 int	methconv(Type*);
 Sym*	signame(Type*);
-int	bytearraysz(Type*);
 int	eqtype(Type*, Type*, int);
 void	argtype(Node*, Type*);
 int	eqargs(Type*, Type*);

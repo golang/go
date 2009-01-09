@@ -189,27 +189,12 @@ cgen(Node *n, Node *res)
 		}
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
-		if(isptrsarray(n->type) && isptrdarray(nl->type)) {
-			// convert dynamic array to static array
-			n2 = n1;
-			n2.op = OINDREG;
-			n2.xoffset = Array_array;
-			n2.type = types[tptr];
-			gins(AMOVQ, &n2, &n1);
-		}
-		if(isptrdarray(n->type) && isptrsarray(nl->type)) {
-			// conver static array to dynamic array
-			// it is assumed that the dope is just before the array
-			nodconst(&n2, types[tptr], sizeof_Array);
-			gins(ASUBQ, &n2, &n1);
-		}
 		gmove(&n1, res);
 		regfree(&n1);
 		break;
 
 	case ODOT:
 	case ODOTPTR:
-	case OINDEXPTR:
 	case OINDEX:
 	case OIND:
 		igen(n, &n1, res);
@@ -218,7 +203,9 @@ cgen(Node *n, Node *res)
 		break;
 
 	case OLEN:
-		if(istype(nl->type, TSTRING)) {
+		if(istype(nl->type, TSTRING) || istype(nl->type, TMAP)) {
+			// both string and map have len in the first 32-bit word.
+			// a zero pointer means zero length
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
 
@@ -237,26 +224,7 @@ cgen(Node *n, Node *res)
 			regfree(&n1);
 			break;
 		}
-		if(istype(nl->type, TMAP)) {
-			regalloc(&n1, types[tptr], res);
-			cgen(nl, &n1);
-			n1.op = OINDREG;
-			n1.type = types[TINT32];
-			gmove(&n1, res);
-			regfree(&n1);
-			break;
-		}
-		if(isptrdarray(nl->type)) {
-			regalloc(&n1, types[tptr], res);
-			cgen(nl, &n1);
-			n1.op = OINDREG;
-			n1.type = types[TUINT32];
-			n1.xoffset = Array_nel;
-			gmove(&n1, res);
-			regfree(&n1);
-			break;
-		}
-		if(isdarray(nl->type)) {
+		if(isslice(nl->type)) {
 			regalloc(&n1, types[tptr], res);
 			agen(nl, &n1);
 			n1.op = OINDREG;
@@ -270,17 +238,7 @@ cgen(Node *n, Node *res)
 		break;
 
 	case OCAP:
-		if(isptrdarray(nl->type)) {
-			regalloc(&n1, types[tptr], res);
-			cgen(nl, &n1);
-			n1.op = OINDREG;
-			n1.type = types[TUINT32];
-			n1.xoffset = Array_cap;
-			gmove(&n1, res);
-			regfree(&n1);
-			break;
-		}
-		if(isdarray(nl->type)) {
+		if(isslice(nl->type)) {
 			regalloc(&n1, types[tptr], res);
 			agen(nl, &n1);
 			n1.op = OINDREG;
@@ -436,32 +394,6 @@ agen(Node *n, Node *res)
 		cgen_aret(n, res);
 		break;
 
-	case OINDEXPTR:
-		w = n->type->width;
-		if(nr->addable)
-			goto iprad;
-		if(nl->addable) {
-			if(whatis(nr) != Wlitint) {
-				regalloc(&n1, nr->type, N);
-				cgen(nr, &n1);
-			}
-			regalloc(&n3, types[tptr], res);
-			cgen(nl, &n3);
-			goto index;
-		}
-		cgen(nr, res);
-		tempname(&tmp, nr->type);
-		gmove(res, &tmp);
-
-	iprad:
-		regalloc(&n3, types[tptr], res);
-		cgen(nl, &n3);
-		if(whatis(nr) != Wlitint) {
-			regalloc(&n1, nr->type, N);
-			cgen(nr, &n1);
-		}
-		goto index;
-
 	case OINDEX:
 		w = n->type->width;
 		if(nr->addable)
@@ -499,7 +431,7 @@ agen(Node *n, Node *res)
 		// constant index
 		if(whatis(nr) == Wlitint) {
 			v = mpgetfix(nr->val.u.xval);
-			if(isdarray(nl->type)) {
+			if(isslice(nl->type)) {
 
 				if(!debug['B']) {
 					n1 = n3;
@@ -523,10 +455,6 @@ agen(Node *n, Node *res)
 				if(v < 0)
 					yyerror("out of bounds on array");
 				else
-				if(isptrsarray(nl->type)) {
-					if(v >= nl->type->type->bound)
-						yyerror("out of bounds on array");
-				} else
 				if(v >= nl->type->bound)
 					yyerror("out of bounds on array");
 			}
@@ -550,23 +478,20 @@ agen(Node *n, Node *res)
 
 		if(!debug['B']) {
 			// check bounds
-			if(isdarray(nl->type)) {
+			if(isslice(nl->type)) {
 				n1 = n3;
 				n1.op = OINDREG;
 				n1.type = types[tptr];
 				n1.xoffset = Array_nel;
-			} else {
+			} else
 				nodconst(&n1, types[TUINT64], nl->type->bound);
-				if(isptrsarray(nl->type))
-					nodconst(&n1, types[TUINT64], nl->type->type->bound);
-			}
 			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
 			gins(ACALL, N, throwindex);
 			patch(p1, pc);
 		}
 
-		if(isdarray(nl->type)) {
+		if(isslice(nl->type)) {
 			n1 = n3;
 			n1.op = OINDREG;
 			n1.type = types[tptr];
@@ -776,7 +701,7 @@ bgen(Node *n, int true, Prog *to)
 			nr = r;
 		}
 
-		if(isdarray(nl->type)) {
+		if(isslice(nl->type)) {
 			// only valid to cmp darray to literal nil
 			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
 				yyerror("illegal array comparison");
