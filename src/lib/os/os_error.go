@@ -24,7 +24,7 @@ var ErrorStringTab = make(map[string] *Error);
 // These functions contain a race if two goroutines add identical
 // errors simultaneously but the consequences are unimportant.
 
-// Allocate an Error objecct, but if it's been seen before, share that one.
+// Allocate an Error object, but if it's been seen before, share that one.
 export func NewError(s string) *Error {
 	if s == "" {
 		return nil
