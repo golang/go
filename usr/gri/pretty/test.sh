@@ -22,11 +22,9 @@ count() {
 apply1() {
 	#echo $1 $2
 	case `basename $F` in
-	# these files don't pass the idempotency test yet
-	log.go | type.go | types_amd64_darwin.go | \
-	\
+	# files with errors (skip them)
 	method1.go | selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
-	bug068.go | bug088.go | bug083.go | bug106.go | bug125.go | bug126.go ) ;;  # skip - files contain errors
+	bug068.go | bug088.go | bug083.go | bug106.go | bug125.go | bug126.go ) ;;
 	* ) $1 $2; count ;;
 	esac
 }
