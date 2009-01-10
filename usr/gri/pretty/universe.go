@@ -6,14 +6,12 @@ package Universe
 
 import (
 	"array";
-	Globals "globals";
-	Object "object";
-	Type "type";
+	AST "ast";
 )
 
 
 export var (
-	scope *Globals.Scope;
+	scope *AST.Scope;
 	types array.Array;
 	
 	// internal types
@@ -42,19 +40,19 @@ export var (
 	uint_typ,
 	int_typ,
 	float_typ,
-	uintptr_typ *Globals.Type;
+	uintptr_typ *AST.Type;
 	
 	true_obj,
 	false_obj,
 	iota_obj,
-	nil_obj *Globals.Object;
+	nil_obj *AST.Object;
 )
 
 
-func DeclObj(kind int, ident string, typ *Globals.Type) *Globals.Object {
-	obj := Globals.NewObject(-1 /* no source pos */, kind, ident);
+func DeclObj(kind int, ident string, typ *AST.Type) *AST.Object {
+	obj := AST.NewObject(-1 /* no source pos */, kind, ident);
 	obj.typ = typ;
-	if kind == Object.TYPE && typ.obj == nil {
+	if kind == AST.TYPE && typ.obj == nil {
 		typ.obj = obj;  // set primary type object
 	}
 	scope.Insert(obj);
@@ -62,14 +60,14 @@ func DeclObj(kind int, ident string, typ *Globals.Type) *Globals.Object {
 }
 
 
-func DeclType(form int, ident string, size int) *Globals.Type {
-  typ := Globals.NewType(form);
+func DeclType(form int, ident string, size int) *AST.Type {
+  typ := AST.NewType(-1 /* no source pos */, form);
   typ.size = size;
-  return DeclObj(Object.TYPE, ident, typ).typ;
+  return DeclObj(AST.TYPE, ident, typ).typ;
 }
 
 
-func Register(typ *Globals.Type) *Globals.Type {
+func Register(typ *AST.Type) *AST.Type {
 	typ.ref = types.Len();
 	types.Push(typ);
 	return typ;
@@ -77,49 +75,49 @@ func Register(typ *Globals.Type) *Globals.Type {
 
 
 func init() {
-	scope = Globals.NewScope(nil);  // universe has no parent
+	scope = AST.NewScope(nil);  // universe has no parent
 	types.Init(32);
 	
 	// Interal types
-	void_typ = Globals.NewType(Type.VOID);
-	Globals.Universe_void_typ = void_typ;
-	bad_typ = Globals.NewType(Type.BAD);
-	nil_typ = Globals.NewType(Type.NIL);
+	void_typ = AST.NewType(-1 /* no source pos */, AST.VOID);
+	AST.Universe_void_typ = void_typ;
+	bad_typ = AST.NewType(-1 /* no source pos */, AST.BADTYPE);
+	nil_typ = AST.NewType(-1 /* no source pos */, AST.NIL);
 	
 	// Basic types
-	bool_typ = Register(DeclType(Type.BOOL, "bool", 1));
-	uint8_typ = Register(DeclType(Type.UINT, "uint8", 1));
-	uint16_typ = Register(DeclType(Type.UINT, "uint16", 2));
-	uint32_typ = Register(DeclType(Type.UINT, "uint32", 4));
-	uint64_typ = Register(DeclType(Type.UINT, "uint64", 8));
-	int8_typ = Register(DeclType(Type.INT, "int8", 1));
-	int16_typ = Register(DeclType(Type.INT, "int16", 2));
-	int32_typ = Register(DeclType(Type.INT, "int32", 4));
-	int64_typ = Register(DeclType(Type.INT, "int64", 8));
-	float32_typ = Register(DeclType(Type.FLOAT, "float32", 4));
-	float64_typ = Register(DeclType(Type.FLOAT, "float64", 8));
-	float80_typ = Register(DeclType(Type.FLOAT, "float80", 10));
-	string_typ = Register(DeclType(Type.STRING, "string", 8));
-	integer_typ = Register(DeclType(Type.INTEGER, "integer", 8));
+	bool_typ = Register(DeclType(AST.BOOL, "bool", 1));
+	uint8_typ = Register(DeclType(AST.UINT, "uint8", 1));
+	uint16_typ = Register(DeclType(AST.UINT, "uint16", 2));
+	uint32_typ = Register(DeclType(AST.UINT, "uint32", 4));
+	uint64_typ = Register(DeclType(AST.UINT, "uint64", 8));
+	int8_typ = Register(DeclType(AST.INT, "int8", 1));
+	int16_typ = Register(DeclType(AST.INT, "int16", 2));
+	int32_typ = Register(DeclType(AST.INT, "int32", 4));
+	int64_typ = Register(DeclType(AST.INT, "int64", 8));
+	float32_typ = Register(DeclType(AST.FLOAT, "float32", 4));
+	float64_typ = Register(DeclType(AST.FLOAT, "float64", 8));
+	float80_typ = Register(DeclType(AST.FLOAT, "float80", 10));
+	string_typ = Register(DeclType(AST.STRING, "string", 8));
+	integer_typ = Register(DeclType(AST.INTEGER, "integer", 8));
 
 	// All but 'byte' should be platform-dependent, eventually.
-	byte_typ = Register(DeclType(Type.UINT, "byte", 1));
-	uint_typ = Register(DeclType(Type.UINT, "uint", 4));
-	int_typ = Register(DeclType(Type.INT, "int", 4));
-	float_typ = Register(DeclType(Type.FLOAT, "float", 4));
-	uintptr_typ = Register(DeclType(Type.UINT, "uintptr", 8));
+	byte_typ = Register(DeclType(AST.UINT, "byte", 1));
+	uint_typ = Register(DeclType(AST.UINT, "uint", 4));
+	int_typ = Register(DeclType(AST.INT, "int", 4));
+	float_typ = Register(DeclType(AST.FLOAT, "float", 4));
+	uintptr_typ = Register(DeclType(AST.UINT, "uintptr", 8));
 
 	// Predeclared constants
-	true_obj = DeclObj(Object.CONST, "true", bool_typ);
-	false_obj = DeclObj(Object.CONST, "false", bool_typ);
-	iota_obj = DeclObj(Object.CONST, "iota", int_typ);
-	nil_obj = DeclObj(Object.CONST, "nil", nil_typ);
+	true_obj = DeclObj(AST.CONST, "true", bool_typ);
+	false_obj = DeclObj(AST.CONST, "false", bool_typ);
+	iota_obj = DeclObj(AST.CONST, "iota", int_typ);
+	nil_obj = DeclObj(AST.CONST, "nil", nil_typ);
 
 	// Builtin functions
-	DeclObj(Object.BUILTIN, "len", void_typ);
-	DeclObj(Object.BUILTIN, "new", void_typ);
-	DeclObj(Object.BUILTIN, "panic", void_typ);
-	DeclObj(Object.BUILTIN, "print", void_typ);
+	DeclObj(AST.BUILTIN, "len", void_typ);
+	DeclObj(AST.BUILTIN, "new", void_typ);
+	DeclObj(AST.BUILTIN, "panic", void_typ);
+	DeclObj(AST.BUILTIN, "print", void_typ);
 	
 	// scope.Print();
 }

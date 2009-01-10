@@ -4,11 +4,11 @@
 
 package Parser
 
-import "array"
-import Globals "globals"
-import Object "object"
-import Scanner "scanner"
-import AST "ast"
+import (
+	"array";
+	Scanner "scanner";
+	AST "ast";
+)
 
 
 export type Parser struct {
@@ -34,7 +34,7 @@ export type Parser struct {
 	scope_lev int;  // 0 = global scope, 1 = function scope of global functions, etc.
 	
 	// Scopes
-	top_scope *Globals.Scope;
+	top_scope *AST.Scope;
 };
 
 
@@ -154,7 +154,7 @@ func (P *Parser) OptSemicolon() {
 // Scopes
 
 func (P *Parser) OpenScope() {
-	P.top_scope = Globals.NewScope(P.top_scope);
+	P.top_scope = AST.NewScope(P.top_scope);
 }
 
 
@@ -163,27 +163,15 @@ func (P *Parser) CloseScope() {
 }
 
 
-func Lookup(scope *Globals.Scope, ident string) *Globals.Object {
-	for scope != nil {
-		obj := scope.Lookup(ident);
-		if obj != nil {
-			return obj;
-		}
-		scope = scope.parent;
-	}
-	return nil;
-}
-
-
-func (P *Parser) DeclareInScope(scope *Globals.Scope, x *AST.Expr, kind int) {
+func (P *Parser) DeclareInScope(scope *AST.Scope, x *AST.Expr, kind int) {
 	if P.scope_lev < 0 {
 		panic("cannot declare objects in other packages");
 	}
 	obj := x.obj;
-	assert(x.tok == Scanner.IDENT && obj.kind == Object.NONE);
+	assert(x.tok == Scanner.IDENT && obj.kind == AST.NONE);
 	obj.kind = kind;
 	obj.pnolev = P.scope_lev;
-	if scope.Lookup(obj.ident) != nil {
+	if scope.LookupLocal(obj.ident) != nil {
 		P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
 		return;  // don't insert it into the scope
 	}
@@ -210,11 +198,11 @@ func ExprType(x *AST.Expr) *AST.Type {
 		t = x.t;
 	} else if x.tok == Scanner.IDENT {
 		// assume a type name
-		t = AST.NewType(x.pos, Scanner.IDENT);
+		t = AST.NewType(x.pos, AST.TYPENAME);
 		t.expr = x;
 	} else if x.tok == Scanner.PERIOD && x.y != nil && ExprType(x.x) != nil {
 		// possibly a qualified (type) identifier
-		t = AST.NewType(x.pos, Scanner.IDENT);
+		t = AST.NewType(x.pos, AST.TYPENAME);
 		t.expr = x;
 	}
 	return t;
@@ -224,7 +212,7 @@ func ExprType(x *AST.Expr) *AST.Type {
 func (P *Parser) NoType(x *AST.Expr) *AST.Expr {
 	if x != nil && x.tok == Scanner.TYPE {
 		P.Error(x.pos, "expected expression, found type");
-		val := Globals.NewObject(x.pos, Object.NONE, "0");
+		val := AST.NewObject(x.pos, AST.NONE, "0");
 		x = AST.NewLit(x.pos, Scanner.INT, val);
 	}
 	return x;
@@ -246,19 +234,19 @@ func (P *Parser) ParseDeclaration() *AST.Decl;
 
 
 // If scope != nil, lookup identifier in scope. Otherwise create one.
-func (P *Parser) ParseIdent(scope *Globals.Scope) *AST.Expr {
+func (P *Parser) ParseIdent(scope *AST.Scope) *AST.Expr {
 	P.Trace("Ident");
 	
 	x := AST.BadExpr;
 	if P.tok == Scanner.IDENT {
-		var obj *Globals.Object;
+		var obj *AST.Object;
 		if scope != nil {
-			obj = Lookup(scope, P.val);
+			obj = scope.Lookup(P.val);
 		}
 		if obj == nil {
-			obj = Globals.NewObject(P.pos, Object.NONE, P.val);
+			obj = AST.NewObject(P.pos, AST.NONE, P.val);
 		} else {
-			assert(obj.kind != Object.NONE);
+			assert(obj.kind != AST.NONE);
 		}
 		x = AST.NewLit(P.pos, Scanner.IDENT, obj);
 		if P.verbose {
@@ -344,7 +332,7 @@ func (P *Parser) ParseQualifiedIdent() *AST.Expr {
 func (P *Parser) ParseTypeName() *AST.Type {
 	P.Trace("TypeName");
 
-	t := AST.NewType(P.pos, P.tok);
+	t := AST.NewType(P.pos, AST.TYPENAME);
 	t.expr = P.ParseQualifiedIdent();
 
 	P.Ecart();
@@ -355,7 +343,7 @@ func (P *Parser) ParseTypeName() *AST.Type {
 func (P *Parser) ParseArrayType() *AST.Type {
 	P.Trace("ArrayType");
 
-	t := AST.NewType(P.pos, Scanner.LBRACK);
+	t := AST.NewType(P.pos, AST.ARRAY);
 	P.Expect(Scanner.LBRACK);
 	if P.tok == Scanner.ELLIPSIS {
 		t.expr = P.NewExpr(P.pos, Scanner.ELLIPSIS, nil, nil);
@@ -374,7 +362,7 @@ func (P *Parser) ParseArrayType() *AST.Type {
 func (P *Parser) ParseChannelType() *AST.Type {
 	P.Trace("ChannelType");
 
-	t := AST.NewType(P.pos, Scanner.CHAN);
+	t := AST.NewType(P.pos, AST.CHANNEL);
 	t.mode = AST.FULL;
 	if P.tok == Scanner.CHAN {
 		P.Next();
@@ -401,10 +389,10 @@ func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
 	t := AST.BadType;
 	if expect_ident {
 		x := P.ParseIdent(nil);
-		t = AST.NewType(x.pos, Scanner.IDENT);
+		t = AST.NewType(x.pos, AST.TYPENAME);
 		t.expr = x;
 	} else if P.tok == Scanner.ELLIPSIS {
-		t = AST.NewType(P.pos, Scanner.ELLIPSIS);
+		t = AST.NewType(P.pos, AST.ELLIPSIS);
 		P.Next();
 	} else {
 		t = P.ParseType();
@@ -429,7 +417,7 @@ func (P *Parser) ParseVarDeclList(list *array.Array, ellipsis_ok bool) {
 
 	typ := P.TryType();
 	if typ == nil && P.tok == Scanner.ELLIPSIS {
-		typ = AST.NewType(P.pos, Scanner.ELLIPSIS);
+		typ = AST.NewType(P.pos, AST.ELLIPSIS);
 		P.Next();
 	}
 
@@ -445,7 +433,7 @@ func (P *Parser) ParseVarDeclList(list *array.Array, ellipsis_ok bool) {
 		// convert the type entries into identifiers
 		for i, n := i0, list.Len(); i < n; i++ {
 			t := list.At(i).(*AST.Type);
-			if t.tok == Scanner.IDENT && t.expr.tok == Scanner.IDENT {
+			if t.form == AST.TYPENAME && t.expr.tok == Scanner.IDENT {
 				list.Set(i, t.expr);
 			} else {
 				list.Set(i, AST.BadExpr);
@@ -486,7 +474,7 @@ func (P *Parser) ParseParameterList(ellipsis_ok bool) *array.Array {
 func (P *Parser) ParseParameters(ellipsis_ok bool) *AST.Type {
 	P.Trace("Parameters");
 
-	t := AST.NewType(P.pos, Scanner.STRUCT);
+	t := AST.NewType(P.pos, AST.STRUCT);
 	P.Expect(Scanner.LPAREN);
 	if P.tok != Scanner.RPAREN {
 		t.list = P.ParseParameterList(ellipsis_ok);
@@ -524,7 +512,7 @@ func (P *Parser) ParseResult() *AST.Type {
 	} else {
 		typ := P.TryType();
 		if typ != nil {
-			t = AST.NewType(P.pos, Scanner.STRUCT);
+			t = AST.NewType(P.pos, AST.STRUCT);
 			t.list = array.New(0);
 			t.list.Push(AST.NewTypeExpr(typ));
 			t.end = P.pos;
@@ -548,7 +536,7 @@ func (P *Parser) ParseFunctionType() *AST.Type {
 	P.OpenScope();
 	P.scope_lev++;
 
-	t := AST.NewType(P.pos, Scanner.LPAREN);
+	t := AST.NewType(P.pos, AST.FUNCTION);
 	t.list = P.ParseParameters(true).list;  // TODO find better solution
 	t.end = P.pos;
 	t.elt = P.ParseResult();
@@ -580,7 +568,7 @@ func (P *Parser) ParseMethodSpec(list *array.Array) {
 func (P *Parser) ParseInterfaceType() *AST.Type {
 	P.Trace("InterfaceType");
 
-	t := AST.NewType(P.pos, Scanner.INTERFACE);
+	t := AST.NewType(P.pos, AST.INTERFACE);
 	P.Expect(Scanner.INTERFACE);
 	if P.tok == Scanner.LBRACE {
 		P.Next();
@@ -609,7 +597,7 @@ func (P *Parser) ParseInterfaceType() *AST.Type {
 func (P *Parser) ParseMapType() *AST.Type {
 	P.Trace("MapType");
 
-	t := AST.NewType(P.pos, Scanner.MAP);
+	t := AST.NewType(P.pos, AST.MAP);
 	P.Expect(Scanner.MAP);
 	P.Expect(Scanner.LBRACK);
 	t.key = P.ParseVarType();
@@ -626,7 +614,7 @@ func (P *Parser) ParseOperand() *AST.Expr
 func (P *Parser) ParseStructType() *AST.Type {
 	P.Trace("StructType");
 
-	t := AST.NewType(P.pos, Scanner.STRUCT);
+	t := AST.NewType(P.pos, AST.STRUCT);
 	P.Expect(Scanner.STRUCT);
 	if P.tok == Scanner.LBRACE {
 		P.Next();
@@ -662,7 +650,7 @@ func (P *Parser) ParseStructType() *AST.Type {
 func (P *Parser) ParsePointerType() *AST.Type {
 	P.Trace("PointerType");
 
-	t := AST.NewType(P.pos, Scanner.MUL);
+	t := AST.NewType(P.pos, AST.POINTER);
 	P.Expect(Scanner.MUL);
 	t.elt = P.ParseType();
 
@@ -769,7 +757,7 @@ func (P *Parser) ParseExpressionList() *AST.Expr {
 func (P *Parser) ParseFunctionLit() *AST.Expr {
 	P.Trace("FunctionLit");
 
-	val := Globals.NewObject(P.pos, Object.NONE, "");
+	val := AST.NewObject(P.pos, AST.NONE, "");
 	x := AST.NewLit(P.pos, Scanner.FUNC, val);
 	P.Expect(Scanner.FUNC);
 	x.t = P.ParseFunctionType();
@@ -824,7 +812,7 @@ func (P *Parser) ParseOperand() *AST.Expr {
 		P.Expect(Scanner.RPAREN);
 
 	case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
-		val := Globals.NewObject(P.pos, Object.NONE, P.val);
+		val := AST.NewObject(P.pos, AST.NONE, P.val);
 		x = AST.NewLit(P.pos, P.tok, val);
 		P.Next();
 		if x.tok == Scanner.STRING {
@@ -1033,7 +1021,7 @@ func (P *Parser) ParseUnaryExpr() *AST.Expr {
 		y := P.ParseUnaryExpr();
 		if tok == Scanner.MUL && y.tok == Scanner.TYPE {
 			// pointer type
-			t := AST.NewType(pos, Scanner.MUL);
+			t := AST.NewType(pos, AST.POINTER);
 			t.elt = y.t;
 			x = AST.NewTypeExpr(t);
 		} else {
@@ -1491,7 +1479,7 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
 
 	if P.tok == Scanner.STRING {
 		// TODO eventually the scanner should strip the quotes
-		val := Globals.NewObject(P.pos, Object.NONE, P.val);
+		val := AST.NewObject(P.pos, AST.NONE, P.val);
 		d.val = AST.NewLit(P.pos, Scanner.STRING, val);
 		P.Next();
 	} else {
@@ -1499,7 +1487,7 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
 	}
 
 	if d.ident != nil {
-		P.Declare(d.ident, Object.PACKAGE);
+		P.Declare(d.ident, AST.PACKAGE);
 	}
 
 	P.Ecart();
@@ -1518,7 +1506,7 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
 		d.val = P.ParseExpressionList();
 	}
 	
-	P.Declare(d.ident, Object.CONST);
+	P.Declare(d.ident, AST.CONST);
 
 	P.Ecart();
 	return d;
@@ -1554,7 +1542,7 @@ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
 		}
 	}
 
-	P.Declare(d.ident, Object.VAR);
+	P.Declare(d.ident, AST.VAR);
 
 	P.Ecart();
 	return d;

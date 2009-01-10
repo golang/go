@@ -679,7 +679,8 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
 
 
 func (S *Scanner) Scan() (pos, tok int, val string) {
-L:	S.SkipWhitespace();
+loop:
+	S.SkipWhitespace();
 
 	pos, tok = S.chpos, ILLEGAL;
 
@@ -722,7 +723,7 @@ L:	S.SkipWhitespace();
 			if S.ch == '/' || S.ch == '*' {
 				tok, val = COMMENT, S.ScanComment();
 				if !S.scan_comments {
-					goto L;
+					goto loop;
 				}
 			} else {
 				tok = S.Select2(QUO, QUO_ASSIGN);

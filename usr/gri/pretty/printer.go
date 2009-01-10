@@ -12,8 +12,6 @@ import (
 	"flag";
 	"fmt";
 	Utils "utils";
-	Globals "globals";
-	Object "object";
 	Scanner "scanner";
 	AST "ast";
 )
@@ -121,6 +119,23 @@ func HtmlEscape(s string) string {
 			default: continue;
 			}
 			return s[0 : i] + esc + HtmlEscape(s[i+1 : len(s)]);
+		}
+	}
+	return s;
+}
+
+
+// Reduce contiguous sequences of '\t' in a string to a single '\t'.
+func Untabify(s string) string {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\t' {
+			j := i;
+			for j < len(s) && s[j] == '\t' {
+				j++;
+			}
+			if j-i > 1 {  // more then one tab
+				return s[0 : i+1] + Untabify(s[j : len(s)]);
+			}
 		}
 	}
 	return s;
@@ -246,7 +261,9 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 			if *debug {
 				P.Printf("[%d]", P.cpos);
 			}
-			P.Printf("%s", HtmlEscape(ctext));
+			// calling Untabify increases the change for idempotent output
+			// since tabs in comments are also interpreted by tabwriter
+			P.Printf("%s", HtmlEscape(Untabify(ctext)));
 
 			if ctext[1] == '/' {
 				//-style comments must end in newline
@@ -371,7 +388,7 @@ func (P *Printer) HtmlIdentifier(x *AST.Expr) {
 		panic();
 	}
 	obj := x.obj;
-	if *html && obj.kind != Object.NONE {
+	if *html && obj.kind != AST.NONE {
 		// depending on whether we have a declaration or use, generate different html
 		// - no need to HtmlEscape ident
 		id := Utils.IntToString(obj.id, 10);
@@ -450,11 +467,11 @@ func (P *Printer) Fields(list *array.Array, end int) {
 func (P *Printer) Type(t *AST.Type) int {
 	separator := semicolon;
 
-	switch t.tok {
-	case Scanner.IDENT:
+	switch t.form {
+	case AST.TYPENAME:
 		P.Expr(t.expr);
 
-	case Scanner.LBRACK:
+	case AST.ARRAY:
 		P.String(t.pos, "[");
 		if t.expr != nil {
 			P.Expr(t.expr);
@@ -462,21 +479,24 @@ func (P *Printer) Type(t *AST.Type) int {
 		P.String(0, "]");
 		separator = P.Type(t.elt);
 
-	case Scanner.STRUCT, Scanner.INTERFACE:
-		P.Token(t.pos, t.tok);
+	case AST.STRUCT, AST.INTERFACE:
+		switch t.form {
+		case AST.STRUCT: P.String(t.pos, "struct");
+		case AST.INTERFACE: P.String(t.pos, "interface");
+		}
 		if t.list != nil {
 			P.separator = blank;
 			P.Fields(t.list, t.end);
 		}
 		separator = none;
 
-	case Scanner.MAP:
+	case AST.MAP:
 		P.String(t.pos, "map [");
 		P.Type(t.key);
 		P.String(0, "]");
 		separator = P.Type(t.elt);
 
-	case Scanner.CHAN:
+	case AST.CHANNEL:
 		var m string;
 		switch t.mode {
 		case AST.FULL: m = "chan ";
@@ -486,11 +506,11 @@ func (P *Printer) Type(t *AST.Type) int {
 		P.String(t.pos, m);
 		separator = P.Type(t.elt);
 
-	case Scanner.MUL:
+	case AST.POINTER:
 		P.String(t.pos, "*");
 		separator = P.Type(t.elt);
 
-	case Scanner.LPAREN:
+	case AST.FUNCTION:
 		P.Parameters(t.pos, t.list);
 		if t.elt != nil {
 			P.separator = blank;
@@ -503,11 +523,11 @@ func (P *Printer) Type(t *AST.Type) int {
 			}
 		}
 
-	case Scanner.ELLIPSIS:
+	case AST.ELLIPSIS:
 		P.String(t.pos, "...");
 
 	default:
-		P.Error(t.pos, t.tok, "type");
+		P.Error(t.pos, t.form, "type");
 	}
 
 	return separator;

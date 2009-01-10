@@ -8,9 +8,6 @@ import (
 	AST "ast";
 	Scanner "scanner";
 	Universe "universe";
-	Globals "globals";
-	Object "object";
-	Type "type";
 )
 
 
