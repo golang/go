@@ -68,6 +68,9 @@ free(void *v)
 	MSpan *s;
 	MCache *c;
 
+	if(v == nil)
+		return;
+
 	// Find size class for v.
 	page = (uintptr)v >> PageShift;
 	sizeclass = MHeapMapCache_GET(&mheap.mapcache, page, tmp);
