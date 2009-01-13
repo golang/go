@@ -57,7 +57,8 @@ SizeToClass(int32 size)
 void
 InitSizes(void)
 {
-	int32 align, sizeclass, size, i, nextsize, n;
+	int32 align, sizeclass, size, nextsize, n;
+	uint32 i;
 	uintptr allocsize, npages;
 
 	// Initialize the class_to_size table (and choose class sizes in the process).
@@ -161,4 +162,3 @@ dump:
 	}
 	throw("InitSizes failed");
 }
-
