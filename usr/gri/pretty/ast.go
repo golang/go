@@ -170,9 +170,6 @@ export type Expr struct {
 	Node;
 	x, y *Expr;  // binary (x, y) and unary (y) expressions
 	obj *Object;
-
-	// TODO this one should go as well
-	t *Type;  // type expressions, function literal types
 }
 
 
@@ -198,9 +195,10 @@ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
 }
 
 
-export func NewLit(pos, tok int, obj *Object) *Expr {
+// TODO probably don't need the tok parameter eventually
+export func NewLit(tok int, obj *Object) *Expr {
 	e := new(Expr);
-	e.pos, e.tok, e.obj = pos, tok, obj;
+	e.pos, e.tok, e.obj = obj.pos, tok, obj;
 	return e;
 }
 
@@ -302,6 +300,7 @@ export type Type struct {
 	key *Type;  // receiver type or map key
 	elt *Type;  // array, map, channel or pointer element type, function result type
 	list *array.Array; end int;  // struct fields, interface methods, function parameters
+	scope *Scope;  // struct fields, methods
 }
 
 
@@ -340,10 +339,10 @@ func (t *Type) nfields() int {
 
 
 // requires complete Type.pos access
-export func NewTypeExpr(t *Type) *Expr {
-	e := new(Expr);
-	e.pos, e.tok, e.t = t.pos, Scanner.TYPE, t;
-	return e;
+export func NewTypeExpr(typ *Type) *Expr {
+	obj := NewObject(typ.pos, TYPE, "");
+	obj.typ = typ;
+	return NewLit(Scanner.TYPE, obj);
 }
 
 

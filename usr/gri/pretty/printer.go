@@ -547,7 +547,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 	switch x.tok {
 	case Scanner.TYPE:
 		// type expr
-		P.Type(x.t);
+		P.Type(x.obj.typ);
 
 	case Scanner.IDENT:
 		P.HtmlIdentifier(x);
@@ -559,7 +559,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 	case Scanner.FUNC:
 		// function literal
 		P.String(x.pos, "func");
-		P.Type(x.t);
+		P.Type(x.obj.typ);
 		P.Block(0, x.obj.block, x.obj.end, true);
 		P.newlines = 0;
 
@@ -576,12 +576,12 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		// selector or type guard
 		P.Expr1(x.x, Scanner.HighestPrec);
 		P.String(x.pos, ".");
-		if x.y != nil {
-			P.Expr1(x.y, Scanner.HighestPrec);
-		} else {
+		if x.y.tok == Scanner.TYPE {
 			P.String(0, "(");
-			P.Type(x.t);
+			P.Expr(x.y);
 			P.String(0, ")");
+		} else {
+			P.Expr1(x.y, Scanner.HighestPrec);
 		}
 		
 	case Scanner.LBRACK:
@@ -599,8 +599,8 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		P.String(0, ")");
 
 	case Scanner.LBRACE:
-		// composite
-		P.Type(x.t);
+		// composite literal
+		P.Type(x.obj.typ);
 		P.String(x.pos, "{");
 		P.Expr(x.y);
 		P.String(0, "}");
