@@ -195,7 +195,7 @@ func (P *Parser) Declare(p *AST.Expr, kind int) {
 func ExprType(x *AST.Expr) *AST.Type {
 	var t *AST.Type;
 	if x.tok == Scanner.TYPE {
-		t = x.t;
+		t = x.obj.typ;
 	} else if x.tok == Scanner.IDENT {
 		// assume a type name
 		t = AST.NewType(x.pos, AST.TYPENAME);
@@ -213,7 +213,7 @@ func (P *Parser) NoType(x *AST.Expr) *AST.Expr {
 	if x != nil && x.tok == Scanner.TYPE {
 		P.Error(x.pos, "expected expression, found type");
 		val := AST.NewObject(x.pos, AST.NONE, "0");
-		x = AST.NewLit(x.pos, Scanner.INT, val);
+		x = AST.NewLit(Scanner.INT, val);
 	}
 	return x;
 }
@@ -248,7 +248,8 @@ func (P *Parser) ParseIdent(scope *AST.Scope) *AST.Expr {
 		} else {
 			assert(obj.kind != AST.NONE);
 		}
-		x = AST.NewLit(P.pos, Scanner.IDENT, obj);
+		x = AST.NewLit(Scanner.IDENT, obj);
+		x.pos = P.pos;  // override obj.pos (incorrect if object was looked up!)
 		if P.verbose {
 			P.PrintIndent();
 			print("Ident = \"", P.val, "\"\n");
@@ -382,10 +383,7 @@ func (P *Parser) ParseChannelType() *AST.Type {
 }
 
 
-// TODO: The code below (ParseVarDecl, ParseVarDeclList) is all too
-// complicated. There must be a better way to do this.
-
-func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
+func (P *Parser) ParseVar(expect_ident bool) *AST.Type {
 	t := AST.BadType;
 	if expect_ident {
 		x := P.ParseIdent(nil);
@@ -401,13 +399,14 @@ func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
 }
 
 
-func (P *Parser) ParseVarDeclList(list *array.Array, ellipsis_ok bool) {
-	P.Trace("VarDeclList");
+func (P *Parser) ParseVarList(list *array.Array, ellipsis_ok bool) {
+	P.Trace("VarList");
 
-	// parse a list of types
+	// assume a list of types
+	// (a list of identifiers looks like a list of type names)
 	i0 := list.Len();
 	for {
-		list.Push(P.ParseVarDecl(ellipsis_ok /* param list */ && i0 > 0));
+		list.Push(P.ParseVar(ellipsis_ok /* param list */ && i0 > 0));
 		if P.tok == Scanner.COMMA {
 			P.Next();
 		} else {
@@ -415,6 +414,7 @@ func (P *Parser) ParseVarDeclList(list *array.Array, ellipsis_ok bool) {
 		}
 	}
 
+	// if we had a list of identifiers, it must be followed by a type
 	typ := P.TryType();
 	if typ == nil && P.tok == Scanner.ELLIPSIS {
 		typ = AST.NewType(P.pos, AST.ELLIPSIS);
@@ -460,10 +460,10 @@ func (P *Parser) ParseParameterList(ellipsis_ok bool) *array.Array {
 	P.Trace("ParameterList");
 
 	list := array.New(0);
-	P.ParseVarDeclList(list, ellipsis_ok);
+	P.ParseVarList(list, ellipsis_ok);
 	for P.tok == Scanner.COMMA {
 		P.Next();
-		P.ParseVarDeclList(list, ellipsis_ok);
+		P.ParseVarList(list, ellipsis_ok);
 	}
 
 	P.Ecart();
@@ -623,7 +623,7 @@ func (P *Parser) ParseStructType() *AST.Type {
 
 		t.list = array.New(0);
 		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
-			P.ParseVarDeclList(t.list, false);
+			P.ParseVarList(t.list, false);
 			if P.tok == Scanner.STRING {
 				// ParseOperand takes care of string concatenation
 				t.list.Push(P.ParseOperand());
@@ -758,9 +758,9 @@ func (P *Parser) ParseFunctionLit() *AST.Expr {
 	P.Trace("FunctionLit");
 
 	val := AST.NewObject(P.pos, AST.NONE, "");
-	x := AST.NewLit(P.pos, Scanner.FUNC, val);
+	x := AST.NewLit(Scanner.FUNC, val);
 	P.Expect(Scanner.FUNC);
-	x.t = P.ParseFunctionType();
+	val.typ = P.ParseFunctionType();
 	P.expr_lev++;
 	P.scope_lev++;
 	val.block, val.end = P.ParseBlock();
@@ -813,7 +813,7 @@ func (P *Parser) ParseOperand() *AST.Expr {
 
 	case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
 		val := AST.NewObject(P.pos, AST.NONE, P.val);
-		x = AST.NewLit(P.pos, P.tok, val);
+		x = AST.NewLit(P.tok, val);
 		P.Next();
 		if x.tok == Scanner.STRING {
 			// TODO should remember the list instead of
@@ -852,7 +852,7 @@ func (P *Parser) ParseSelectorOrTypeGuard(x *AST.Expr) *AST.Expr {
 
 	} else {
 		P.Expect(Scanner.LPAREN);
-		x.t = P.ParseType();
+		x.y = AST.NewTypeExpr(P.ParseType());
 		P.Expect(Scanner.RPAREN);
 	}
 
@@ -966,7 +966,8 @@ func (P *Parser) ParseCompositeLit(t *AST.Type) *AST.Expr {
 	P.Trace("CompositeLit");
 
 	x := P.NewExpr(P.pos, Scanner.LBRACE, nil, nil);
-	x.t = t;
+	x.obj = AST.NewObject(t.pos, AST.TYPE, "");
+	x.obj.typ = t;
 	P.Expect(Scanner.LBRACE);
 	if P.tok != Scanner.RBRACE {
 		x.y = P.ParseCompositeElements();
@@ -1022,7 +1023,7 @@ func (P *Parser) ParseUnaryExpr() *AST.Expr {
 		if tok == Scanner.MUL && y.tok == Scanner.TYPE {
 			// pointer type
 			t := AST.NewType(pos, AST.POINTER);
-			t.elt = y.t;
+			t.elt = y.obj.typ;
 			x = AST.NewTypeExpr(t);
 		} else {
 			x = P.NewExpr(pos, tok, nil, y);
@@ -1480,7 +1481,7 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
 	if P.tok == Scanner.STRING {
 		// TODO eventually the scanner should strip the quotes
 		val := AST.NewObject(P.pos, AST.NONE, P.val);
-		d.val = AST.NewLit(P.pos, Scanner.STRING, val);
+		d.val = AST.NewLit(Scanner.STRING, val);
 		P.Next();
 	} else {
 		P.Expect(Scanner.STRING);  // use Expect() error handling
