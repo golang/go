@@ -170,6 +170,8 @@ SysAlloc(uintptr n)
 void
 SysUnused(void *v, uintptr n)
 {
+	USED(v);
+	USED(n);
 	// TODO(rsc): call madvise MADV_DONTNEED
 }
 
