@@ -7,6 +7,7 @@
 /*
  * generate:
  *	res = n;
+ * simplifies and calls gmove.
  */
 void
 cgen(Node *n, Node *res)
