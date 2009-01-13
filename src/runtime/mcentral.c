@@ -92,7 +92,7 @@ MCentral_Alloc(MCentral *c)
 // The objects are linked together by their first words.
 // On return, *pstart points at the first object and *pend at the last.
 void
-MCentral_FreeList(MCentral *c, int32 n, void *start)
+MCentral_FreeList(MCentral *c, int32 n, MLink *start)
 {
 	MLink *v, *next;
 
@@ -190,4 +190,3 @@ MCentral_Grow(MCentral *c)
 	MSpanList_Insert(&c->nonempty, s);
 	return true;
 }
-

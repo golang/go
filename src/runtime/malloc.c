@@ -83,7 +83,7 @@ free(void *v)
 		if(sizeclass == 0) {
 			// Large object.
 			mstats.alloc -= s->npages<<PageShift;
-			sys·memclr(v, s->npages<<PageShift);
+			sys_memclr(v, s->npages<<PageShift);
 			MHeap_Free(&mheap, s);
 			return;
 		}
@@ -93,7 +93,7 @@ free(void *v)
 	// Small object.
 	c = m->mcache;
 	size = class_to_size[sizeclass];
-	sys·memclr(v, size);
+	sys_memclr(v, size);
 	mstats.alloc -= size;
 	MCache_Free(c, v, sizeclass, size);
 }
@@ -164,7 +164,7 @@ void*
 SysAlloc(uintptr n)
 {
 	mstats.sys += n;
-	return sys·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
+	return sys_mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
 }
 
 void
@@ -195,7 +195,7 @@ mal(uint32 n)
 
 	if(0) {
 		byte *p;
-		int32 i;
+		uint32 i;
 		p = v;
 		for(i=0; i<n; i++) {
 			if(p[i] != 0) {
@@ -258,27 +258,34 @@ stackfree(void *v)
 
 // Go function stubs.
 
+#ifndef __GNUC__
+#define malloc_Alloc malloc·Alloc
+#define malloc_Free malloc·Free
+#define malloc_Lookup malloc·Lookup
+#define malloc_GetStats malloc·GetStats
+#endif
+
 void
-malloc·Alloc(uintptr n, byte *p)
+malloc_Alloc(uintptr n, byte *p)
 {
 	p = malloc(n);
 	FLUSH(&p);
 }
 
 void
-malloc·Free(byte *p)
+malloc_Free(byte *p)
 {
 	free(p);
 }
 
 void
-malloc·Lookup(byte *p, byte *base, uintptr size)
+malloc_Lookup(byte *p, byte *base, uintptr size)
 {
 	mlookup(p, &base, &size);
 }
 
 void
-malloc·GetStats(MStats *s)
+malloc_GetStats(MStats *s)
 {
 	s = &mstats;
 	FLUSH(&s);

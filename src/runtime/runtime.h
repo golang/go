@@ -344,43 +344,79 @@ void	notesleep(Note*);
 void	notewakeup(Note*);
 
 /*
+ * Redefine methods for the benefit of gcc, which does not support
+ * UTF-8 characters in identifiers.
+ */
+#ifndef __GNUC__
+#define sys_exit sys·exit
+#define sys_gosched sys·gosched
+#define sys_memclr sys·memclr
+#define sys_write sys·write
+#define sys_breakpoint sys·breakpoint
+#define sys_bytestorune sys·bytestorune
+#define sys_catstring sys·catstring
+#define sys_cmpstring sys·cmpstring
+#define sys_getcallerpc sys·getcallerpc
+#define sys_goexit sys·goexit
+#define sys_indexstring sys·indexstring
+#define sys_intstring sys·intstring
+#define sys_mal sys·mal
+#define sys_mmap sys·mmap
+#define sys_printarray sys·printarray
+#define sys_printbool sys·printbool
+#define sys_printfloat sys·printfloat
+#define sys_printhex sys·printhex
+#define sys_printint sys·printint
+#define sys_printpc sys·printpc
+#define sys_printpointer sys·printpointer
+#define sys_printstring sys·printstring
+#define sys_printuint sys·printuint
+#define sys_readfile sys·readfile
+#define sys_semacquire sys·semacquire
+#define sys_semrelease sys·semrelease
+#define sys_setcallerpc sys·setcallerpc
+#define sys_slicestring sys·slicestring
+#define sys_stringtorune sys·stringtorune
+#endif
+
+/*
  * low level go -called
  */
-void	sys·goexit(void);
-void	sys·gosched(void);
-void	sys·exit(int32);
-void	sys·write(int32, void*, int32);
-void	sys·breakpoint(void);
-uint8*	sys·mmap(byte*, uint32, int32, int32, int32, uint32);
-void	sys·memclr(byte*, uint32);
-void	sys·setcallerpc(void*, void*);
-void*	sys·getcallerpc(void*);
+void	sys_goexit(void);
+void	sys_gosched(void);
+void	sys_exit(int32);
+void	sys_write(int32, void*, int32);
+void	sys_breakpoint(void);
+uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
+void	sys_memclr(byte*, uint32);
+void	sys_setcallerpc(void*, void*);
+void*	sys_getcallerpc(void*);
 
 /*
  * runtime go-called
  */
-void	sys·printbool(bool);
-void	sys·printfloat(float64);
-void	sys·printint(int64);
-void	sys·printstring(string);
-void	sys·printpc(void*);
-void	sys·printpointer(void*);
-void	sys·printuint(uint64);
-void	sys·printhex(uint64);
-void	sys·printarray(Array);
-void	sys·catstring(string, string, string);
-void	sys·cmpstring(string, string, int32);
-void	sys·slicestring(string, int32, int32, string);
-void	sys·indexstring(string, int32, byte);
-void	sys·intstring(int64, string);
+void	sys_printbool(bool);
+void	sys_printfloat(float64);
+void	sys_printint(int64);
+void	sys_printstring(string);
+void	sys_printpc(void*);
+void	sys_printpointer(void*);
+void	sys_printuint(uint64);
+void	sys_printhex(uint64);
+void	sys_printarray(Array);
+void	sys_catstring(string, string, string);
+void	sys_cmpstring(string, string, int32);
+void	sys_slicestring(string, int32, int32, string);
+void	sys_indexstring(string, int32, byte);
+void	sys_intstring(int64, string);
 bool	isInf(float64, int32);
 bool	isNaN(float64);
 
 /*
  * User go-called
  */
-void	sys·readfile(string, string, bool);
-void	sys·bytestorune(byte*, int32, int32, int32, int32);
-void	sys·stringtorune(string, int32, int32, int32);
-void	sys·semacquire(uint32*);
-void	sys·semrelease(uint32*);
+void	sys_readfile(string, string, bool);
+void	sys_bytestorune(byte*, int32, int32, int32, int32);
+void	sys_stringtorune(string, int32, int32, int32);
+void	sys_semacquire(uint32*);
+void	sys_semrelease(uint32*);

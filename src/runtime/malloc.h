@@ -208,7 +208,7 @@ struct MSpan
 	MSpan	*prev;		// in a span linked list
 	PageID	start;		// starting page number
 	uintptr	npages;		// number of pages in span
-	void	*freelist;	// list of free objects
+	MLink	*freelist;	// list of free objects
 	uint32	ref;		// number of allocated objects in this span
 	uint32	sizeclass;	// size class
 	uint32	state;		// MSpanInUse or MSpanFree
