@@ -511,13 +511,47 @@ gmove(Node *f, Node *t)
 		goto st;
 	case TINT32:
 	case TUINT32:
-	case TPTR32:
 		a = AMOVL;
 		goto st;
 	case TINT64:
 	case TUINT64:
-	case TPTR64:
 		a = AMOVQ;
+		goto st;
+
+	case TPTR32:
+	case TPTR64:
+		/*
+		 * store to pointer.
+		 */
+		if(tt == TPTR32)
+			a = AMOVL;
+		else
+			a = AMOVQ;
+		switch(t->op) {
+		default:
+			dump("gmove to", t);
+			fatal("gmove t %O", t->op);
+
+		case OINDREG:
+			if(t->val.u.reg != D_SP)
+				goto refcount;
+			break;
+
+		case ONAME:
+			switch(t->class) {
+			default:
+				dump("gmove", t);
+				fatal("gmove t %O class %d reg %R", t->op, t->class, t->val.u.reg);
+			case PEXTERN:
+			case PSTATIC:
+				goto refcount;
+				break;
+			case PAUTO:
+			case PPARAM:
+				break;
+			}
+			break;
+		}
 		goto st;
 
 	st:
@@ -526,6 +560,22 @@ gmove(Node *f, Node *t)
 			return;
 		}
 	fst:
+		regalloc(&nod, t->type, f);
+		gmove(f, &nod);
+		gins(a, &nod, t);
+		regfree(&nod);
+		return;
+
+	refcount:
+		if(!debug['r'])
+			goto st;
+		// for now, mark ref count updates with AXCHGQ.
+		// using a temporary on the left, so no semantic
+		// changes.  code is likely slower, but still correct.
+		if(t64)
+			a = AXCHGQ;
+		else
+			a = AXCHGL;
 		regalloc(&nod, t->type, f);
 		gmove(f, &nod);
 		gins(a, &nod, t);

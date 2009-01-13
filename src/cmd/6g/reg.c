@@ -182,6 +182,19 @@ regopt(Prog *firstp)
 			for(z=0; z<BITS; z++)
 				r->use1.b[z] |= bit.b[z];
 			break;
+
+		/*
+		 * left side read+write
+		 */
+		case AXCHGB:
+		case AXCHGW:
+		case AXCHGL:
+		case AXCHGQ:
+			for(z=0; z<BITS; z++) {
+				r->use1.b[z] |= bit.b[z];
+				r->set.b[z] |= bit.b[z];
+			}
+			break;
 		}
 
 		bit = mkvar(r, &p->to);
@@ -312,6 +325,11 @@ regopt(Prog *firstp)
 		case AADCQ:
 		case ASBBL:
 		case ASBBQ:
+
+		case AXCHGB:
+		case AXCHGW:
+		case AXCHGL:
+		case AXCHGQ:
 
 		case AADDSD:
 		case AADDSS:
