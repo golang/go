@@ -257,38 +257,3 @@ stackfree(void *v)
 	}
 	free(v);
 }
-
-// Go function stubs.
-
-#ifndef __GNUC__
-#define malloc_Alloc malloc·Alloc
-#define malloc_Free malloc·Free
-#define malloc_Lookup malloc·Lookup
-#define malloc_GetStats malloc·GetStats
-#endif
-
-void
-malloc_Alloc(uintptr n, byte *p)
-{
-	p = malloc(n);
-	FLUSH(&p);
-}
-
-void
-malloc_Free(byte *p)
-{
-	free(p);
-}
-
-void
-malloc_Lookup(byte *p, byte *base, uintptr size)
-{
-	mlookup(p, &base, &size);
-}
-
-void
-malloc_GetStats(MStats *s)
-{
-	s = &mstats;
-	FLUSH(&s);
-}
