@@ -22,6 +22,7 @@ DIRS=\
 	sync\
 	tabwriter\
 	time\
+	unicode\
 
 FILES=\
 	bufio\
