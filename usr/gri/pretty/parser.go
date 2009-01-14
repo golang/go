@@ -167,15 +167,17 @@ func (P *Parser) DeclareInScope(scope *AST.Scope, x *AST.Expr, kind int) {
 	if P.scope_lev < 0 {
 		panic("cannot declare objects in other packages");
 	}
-	obj := x.obj;
-	assert(x.tok == Scanner.IDENT && obj.kind == AST.NONE);
-	obj.kind = kind;
-	obj.pnolev = P.scope_lev;
-	if scope.LookupLocal(obj.ident) != nil {
-		P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
-		return;  // don't insert it into the scope
+	if x.tok != Scanner.ILLEGAL {  // ignore bad exprs
+		obj := x.obj;
+		assert(x.tok == Scanner.IDENT && obj.kind == AST.NONE);
+		obj.kind = kind;
+		obj.pnolev = P.scope_lev;
+		if scope.LookupLocal(obj.ident) != nil {
+			P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
+			return;  // don't insert it into the scope
+		}
+		scope.Insert(obj);
 	}
-	scope.Insert(obj);
 }
 
 
