@@ -30,7 +30,7 @@ $(OFILES): $(HFILES)
 lex.$O:	../cc/macbody ../cc/lexbody
 
 y.tab.h: $(YFILES)
-	yacc $(YFLAGS) $(YFILES)
+	bison -y $(YFLAGS) $(YFILES)
 
 y.tab.c: y.tab.h
 	test -f y.tab.c && touch y.tab.c
