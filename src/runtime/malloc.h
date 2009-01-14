@@ -364,3 +364,7 @@ void	MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
 MSpan*	MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass);
 void	MHeap_Free(MHeap *h, MSpan *s);
 MSpan*	MHeap_Lookup(MHeap *h, PageID p);
+
+void*	malloc(uintptr size);
+void	free(void *v);
+void	mlookup(void *v, byte **base, uintptr *size);

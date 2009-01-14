@@ -24,6 +24,7 @@ LIBOFILES=\
 	array.$O\
 	mem.$O\
 	malloc.$O\
+	malloc_go.$O\
 	mcache.$O\
 	mcentral.$O\
 	mfixalloc.$O\
@@ -57,13 +58,20 @@ nuke:
 	rm -f *.$(O) *.a $(GOROOT)/lib/$(LIB)
 
 clean:
-	rm -f *.$(O) *.a runtime.acid
+	rm -f *.$(O) *.a runtime.acid cgo2c
 
 %.$O:	%.c
 	$(CC) -wF $<
 
 sys_file.$O:	sys_file.c sys_types.h $(OS_H)
 	$(CC) -wF -D$(GOARCH)_$(GOOS) $<
+
+cgo2c: cgo2c.c
+	quietgcc -o $@ $<
+
+%.c:	%.cgo cgo2c
+	./cgo2c < $< > $@.tmp
+	mv -f $@.tmp $@
 
 %.$O:	%.s
 	$(AS) $<
