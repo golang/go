@@ -4,7 +4,7 @@
 
 package main
 
-import "os"    // this package contains features for basic I/O
+import os "os"    // this package contains features for basic I/O
 
 func main() {
 	os.Stdout.WriteString("Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n");
