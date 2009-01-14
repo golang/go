@@ -5,6 +5,7 @@
 package Scanner
 
 import "utf8"
+import "unicode"
 import Utils "utils"
 
 
@@ -254,7 +255,9 @@ func init() {
 
 
 func is_letter(ch int) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 128 ;
+	return
+		'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' ||  // common case
+		ch == '_' || unicode.IsLetter(ch);
 }
 
 

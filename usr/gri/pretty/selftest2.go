@@ -52,6 +52,12 @@ var (
 )
 
 
+var (
+	// Unicode identifiers
+	ä, ö, ü, Á, Ø, Å, ƒ, ß int;
+)
+
+
 func d0() {
 	var (
 		a string;

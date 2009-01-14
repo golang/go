@@ -4,13 +4,16 @@
 
 package Compilation
 
-import "array"
-import OS "os"
-import Platform "platform"
-import Scanner "scanner"
-import Parser "parser"
-import AST "ast"
-import TypeChecker "typechecker"
+import (
+	"array";
+	"utf8";
+	OS "os";
+	Platform "platform";
+	Scanner "scanner";
+	Parser "parser";
+	AST "ast";
+	TypeChecker "typechecker";
+)
 
 
 func assert(b bool) {
@@ -67,7 +70,7 @@ func (h *ErrorHandler) LineCol(pos int) (line, col int) {
 		}
 	}
 
-	return line, pos - lpos;
+	return line, utf8.RuneCountInString(src, lpos, pos - lpos);
 }
 
 
