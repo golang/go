@@ -16,6 +16,6 @@ func main() {
 	// neither of these can work,
 	// because i has an extra method
 	// that t does not, so i cannot contain a t.
-	i = t;	// ERROR "missing"
-	t = i;	// ERROR "missing"
+	i = t;	// ERROR "missing|incompatible"
+	t = i;	// ERROR "missing|incompatible"
 }
