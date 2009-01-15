@@ -708,6 +708,8 @@ datblk(int32 s, int32 n)
 				if(p->to.sym) {
 					if(p->to.sym->type == SUNDEF)
 						ckoff(p->to.sym, o);
+					if(p->to.sym->type == Sxxx)
+						diag("missing symbol %s", p->to.sym->name);
 					o += p->to.sym->value;
 					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF)
 						o += INITDAT;
