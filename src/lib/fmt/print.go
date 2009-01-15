@@ -28,38 +28,38 @@ export type Formatter interface {
 	Flag(int)	bool;
 }
 
-type Format interface {
+export type Format interface {
 	Format(f Formatter, c int);
 }
 
-type String interface {
+export type String interface {
 	String() string
 }
 
-const Runeself = 0x80
-const AllocSize = 32
+const runeSelf = 0x80
+const allocSize = 32
 
-type P struct {
+type pp struct {
 	n	int;
 	buf	[]byte;
 	fmt	*Fmt;
 }
 
-func Printer() *P {
-	p := new(P);
+func Printer() *pp {
+	p := new(pp);
 	p.fmt = fmt.New();
 	return p;
 }
 
-func (p *P) Width() (wid int, ok bool) {
+func (p *pp) Width() (wid int, ok bool) {
 	return p.fmt.wid, p.fmt.wid_present
 }
 
-func (p *P) Precision() (prec int, ok bool) {
+func (p *pp) Precision() (prec int, ok bool) {
 	return p.fmt.prec, p.fmt.prec_present
 }
 
-func (p *P) Flag(b int) bool {
+func (p *pp) Flag(b int) bool {
 	switch b {
 	case '-':
 		return p.fmt.minus;
@@ -75,11 +75,11 @@ func (p *P) Flag(b int) bool {
 	return false
 }
 
-func (p *P) ensure(n int) {
+func (p *pp) ensure(n int) {
 	if len(p.buf) < n {
-		newn := AllocSize + len(p.buf);
+		newn := allocSize + len(p.buf);
 		if newn < n {
-			newn = n + AllocSize
+			newn = n + allocSize
 		}
 		b := make([]byte, newn);
 		for i := 0; i < p.n; i++ {
@@ -89,7 +89,7 @@ func (p *P) ensure(n int) {
 	}
 }
 
-func (p *P) addstr(s string) {
+func (p *pp) addstr(s string) {
 	n := len(s);
 	p.ensure(p.n + n);
 	for i := 0; i < n; i++ {
@@ -98,7 +98,7 @@ func (p *P) addstr(s string) {
 	}
 }
 
-func (p *P) addbytes(b []byte, start, end int) {
+func (p *pp) addbytes(b []byte, start, end int) {
 	p.ensure(p.n + end-start);
 	for i := start; i < end; i++ {
 		p.buf[p.n] = b[i];
@@ -106,9 +106,9 @@ func (p *P) addbytes(b []byte, start, end int) {
 	}
 }
 
-func (p *P) add(c int) {
+func (p *pp) add(c int) {
 	p.ensure(p.n + 1);
-	if c < Runeself {
+	if c < runeSelf {
 		p.buf[p.n] = byte(c);
 		p.n++;
 	} else {
@@ -118,13 +118,13 @@ func (p *P) add(c int) {
 
 // Implement Write so we can call fprintf on a P, for
 // recursive use in custom verbs.
-func (p *P) Write(b []byte) (ret int, err *os.Error) {
+func (p *pp) Write(b []byte) (ret int, err *os.Error) {
 	p.addbytes(b, 0, len(b));
 	return len(b), nil;
 }
 
-func (p *P) doprintf(format string, v reflect.StructValue);
-func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool);
+func (p *pp) doprintf(format string, v reflect.StructValue);
+func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
 
 // These routines end in 'f' and take a format string.
 
@@ -329,7 +329,7 @@ func parsenum(s string, start, end int) (n int, got bool, newi int) {
 	return num, isnum, start;
 }
 
-func (p *P) printField(field reflect.Value) (was_string bool) {
+func (p *pp) printField(field reflect.Value) (was_string bool) {
 	inter := field.Interface();
 	if inter != nil {
 		if stringer, ok := inter.(String); ok {
@@ -340,34 +340,34 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 	s := "";
 	switch field.Kind() {
 	case reflect.BoolKind:
-		s = p.fmt.boolean(field.(reflect.BoolValue).Get()).str();
+		s = p.fmt.Fmt_boolean(field.(reflect.BoolValue).Get()).Str();
 	case reflect.IntKind, reflect.Int8Kind, reflect.Int16Kind, reflect.Int32Kind, reflect.Int64Kind:
 		v, signed, ok := getInt(field);
-		s = p.fmt.d64(v).str();
+		s = p.fmt.Fmt_d64(v).Str();
 	case reflect.UintKind, reflect.Uint8Kind, reflect.Uint16Kind, reflect.Uint32Kind, reflect.Uint64Kind:
 		v, signed, ok := getInt(field);
-		s = p.fmt.ud64(uint64(v)).str();
+		s = p.fmt.Fmt_ud64(uint64(v)).Str();
 	case reflect.UintptrKind:
 		v, signed, ok := getInt(field);
 		p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
-		s = p.fmt.ux64(uint64(v)).str();
+		s = p.fmt.Fmt_ux64(uint64(v)).Str();
 	case reflect.Float32Kind:
 		v, ok := getFloat32(field);
-		s = p.fmt.g32(v).str();
+		s = p.fmt.Fmt_g32(v).Str();
 	case reflect.Float64Kind, reflect.Float80Kind:
 		v, ok := getFloat64(field);
-		s = p.fmt.g64(v).str();
+		s = p.fmt.Fmt_g64(v).Str();
 	case reflect.FloatKind:
 		if field.Type().Size()*8 == 32 {
 			v, ok := getFloat32(field);
-			s = p.fmt.g32(v).str();
+			s = p.fmt.Fmt_g32(v).Str();
 		} else {
 			v, ok := getFloat64(field);
-			s = p.fmt.g64(v).str();
+			s = p.fmt.Fmt_g64(v).Str();
 		}
 	case reflect.StringKind:
 		v, ok := getString(field);
-		s = p.fmt.s(v).str();
+		s = p.fmt.Fmt_s(v).Str();
 		was_string = true;
 	case reflect.PtrKind:
 		if v, ok := getPtr(field); v == 0 {
@@ -385,7 +385,7 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 				p.addstr("]");
 			} else {
 				p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
-				s = p.fmt.uX64(uint64(v)).str();
+				s = p.fmt.Fmt_uX64(uint64(v)).Str();
 			}
 		}
 	case reflect.ArrayKind:
@@ -433,7 +433,7 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
 	return was_string;
 }
 
-func (p *P) doprintf(format string, v reflect.StructValue) {
+func (p *pp) doprintf(format string, v reflect.StructValue) {
 	p.ensure(len(format));	// a good starting size
 	end := len(format) - 1;
 	fieldnum := 0;	// we process one field per non-trivial format
@@ -508,26 +508,26 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			// int
 			case 'b':
 				if v, signed, ok := getInt(field); ok {
-					s = p.fmt.b64(uint64(v)).str()	// always unsigned
+					s = p.fmt.Fmt_b64(uint64(v)).Str()	// always unsigned
 				} else if v, ok := getFloat32(field); ok {
-					s = p.fmt.fb32(v).str()
+					s = p.fmt.Fmt_fb32(v).Str()
 				} else if v, ok := getFloat64(field); ok {
-					s = p.fmt.fb64(v).str()
+					s = p.fmt.Fmt_fb64(v).Str()
 				} else {
 					goto badtype
 				}
 			case 'c':
 				if v, signed, ok := getInt(field); ok {
-					s = p.fmt.c(int(v)).str()
+					s = p.fmt.Fmt_c(int(v)).Str()
 				} else {
 					goto badtype
 				}
 			case 'd':
 				if v, signed, ok := getInt(field); ok {
 					if signed {
-						s = p.fmt.d64(v).str()
+						s = p.fmt.Fmt_d64(v).Str()
 					} else {
-						s = p.fmt.ud64(uint64(v)).str()
+						s = p.fmt.Fmt_ud64(uint64(v)).Str()
 					}
 				} else {
 					goto badtype
@@ -535,9 +535,9 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			case 'o':
 				if v, signed, ok := getInt(field); ok {
 					if signed {
-						s = p.fmt.o64(v).str()
+						s = p.fmt.Fmt_o64(v).Str()
 					} else {
-						s = p.fmt.uo64(uint64(v)).str()
+						s = p.fmt.Fmt_uo64(uint64(v)).Str()
 					}
 				} else {
 					goto badtype
@@ -545,24 +545,24 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			case 'x':
 				if v, signed, ok := getInt(field); ok {
 					if signed {
-						s = p.fmt.x64(v).str()
+						s = p.fmt.Fmt_x64(v).Str()
 					} else {
-						s = p.fmt.ux64(uint64(v)).str()
+						s = p.fmt.Fmt_ux64(uint64(v)).Str()
 					}
 				} else if v, ok := getString(field); ok {
-					s = p.fmt.sx(v).str();
+					s = p.fmt.Fmt_sx(v).Str();
 				} else {
 					goto badtype
 				}
 			case 'X':
 				if v, signed, ok := getInt(field); ok {
 					if signed {
-						s = p.fmt.X64(v).str()
+						s = p.fmt.Fmt_X64(v).Str()
 					} else {
-						s = p.fmt.uX64(uint64(v)).str()
+						s = p.fmt.Fmt_uX64(uint64(v)).Str()
 					}
 				} else if v, ok := getString(field); ok {
-					s = p.fmt.sX(v).str();
+					s = p.fmt.Fmt_sX(v).Str();
 				} else {
 					goto badtype
 				}
@@ -570,25 +570,25 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			// float
 			case 'e':
 				if v, ok := getFloat32(field); ok {
-					s = p.fmt.e32(v).str()
+					s = p.fmt.Fmt_e32(v).Str()
 				} else if v, ok := getFloat64(field); ok {
-					s = p.fmt.e64(v).str()
+					s = p.fmt.Fmt_e64(v).Str()
 				} else {
 					goto badtype
 				}
 			case 'f':
 				if v, ok := getFloat32(field); ok {
-					s = p.fmt.f32(v).str()
+					s = p.fmt.Fmt_f32(v).Str()
 				} else if v, ok := getFloat64(field); ok {
-					s = p.fmt.f64(v).str()
+					s = p.fmt.Fmt_f64(v).Str()
 				} else {
 					goto badtype
 				}
 			case 'g':
 				if v, ok := getFloat32(field); ok {
-					s = p.fmt.g32(v).str()
+					s = p.fmt.Fmt_g32(v).Str()
 				} else if v, ok := getFloat64(field); ok {
-					s = p.fmt.g64(v).str()
+					s = p.fmt.Fmt_g64(v).Str()
 				} else {
 					goto badtype
 				}
@@ -596,13 +596,13 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 			// string
 			case 's':
 				if v, ok := getString(field); ok {
-					s = p.fmt.s(v).str()
+					s = p.fmt.Fmt_s(v).Str()
 				} else {
 					goto badtype
 				}
 			case 'q':
 				if v, ok := getString(field); ok {
-					s = p.fmt.q(v).str()
+					s = p.fmt.Fmt_q(v).Str()
 				} else {
 					goto badtype
 				}
@@ -613,7 +613,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 					if v == 0 {
 						s = "<nil>"
 					} else {
-						s = "0x" + p.fmt.uX64(uint64(v)).str()
+						s = "0x" + p.fmt.Fmt_uX64(uint64(v)).Str()
 					}
 				} else {
 					goto badtype
@@ -645,7 +645,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
 	}
 }
 
-func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool) {
+func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool) {
 	prev_string := false;
 	for fieldnum := 0; fieldnum < v.Len();  fieldnum++ {
 		// always add spaces if we're doing println
