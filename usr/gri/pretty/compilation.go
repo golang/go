@@ -30,6 +30,7 @@ export type Flags struct {
 	columns bool;
 	testmode bool;
 	tokenchan bool;
+	naming bool;
 }
 
 
@@ -90,7 +91,8 @@ func (h *ErrorHandler) ErrorMsg(pos int, msg string) {
 	h.errpos = pos;
 
 	if h.nerrors >= 10 {
-		sys.exit(1);
+		// TODO enable when done with name convention
+		//sys.exit(1);
 	}
 }
 
@@ -134,7 +136,7 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	}
 
 	var parser Parser.Parser;
-	parser.Open(flags.verbose, flags.sixg, flags.deps, &scanner, tstream);
+	parser.Open(flags.verbose, flags.sixg, flags.deps, flags.naming, &scanner, tstream);
 
 	prog := parser.ParseProgram();
 

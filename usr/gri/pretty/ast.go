@@ -6,11 +6,13 @@ package AST
 
 import (
 	"array";
+	"utf8";
+	"unicode";
 	Scanner "scanner";
 )
 
 
-type (
+export type (
 	Object struct;
 	Type struct;
 
@@ -64,6 +66,15 @@ export type Object struct {
 	block *array.Array; end int;  // stats for function literals; end of block pos
 }
 
+
+func (obj *Object) IsExported() bool {
+	switch obj.kind {
+	case NONE /* FUNC for now */, CONST, TYPE, VAR, FUNC:
+		ch, size := utf8.DecodeRuneInString(obj.ident,  0);
+		return unicode.IsUpper(ch);
+	}
+	return false;
+}
 
 
 export var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ

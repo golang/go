@@ -25,6 +25,7 @@ func init() {
 	Flag.BoolVar(&flags.columns, "columns", Platform.USER == "gri", "print column info in error messages");
 	Flag.BoolVar(&flags.testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
 	Flag.BoolVar(&flags.tokenchan, "token_chan", false, "use token channel for scanner-parser connection");
+	Flag.BoolVar(&flags.naming, "naming", false, "verify export naming scheme");
 }
 
 
@@ -54,7 +55,7 @@ func main() {
 			if nerrors > 0 {
 				return;
 			}
-			if !*silent && !flags.testmode {
+			if !flags.naming && !*silent && !flags.testmode {
 				Printer.Print(prog);
 			}
 		}
