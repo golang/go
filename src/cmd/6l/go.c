@@ -487,6 +487,6 @@ definetypesigs(void)
 	prog->to.offset = n;
 
 	if(debug['v'])
-		Bprint(&bso, "%5.2f typestrings %d\n", cputime(), n);
+		Bprint(&bso, "%5.2f typesigs %d\n", cputime(), n);
 
 }

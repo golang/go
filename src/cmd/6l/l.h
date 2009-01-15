@@ -137,6 +137,7 @@ struct	Movtab
 
 enum
 {
+	Sxxx,
 	STEXT		= 1,
 	SDATA,
 	SBSS,
