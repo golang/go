@@ -9,10 +9,10 @@ import "fmt"
 type T struct { a int; b string }
 
 func (t *T) String() string {
-	return fmt.sprint(t.a) + " " + t.b
+	return fmt.Sprint(t.a) + " " + t.b
 }
 
 func main() {
 	t := &T{77, "Sunset Strip"};
-	fmt.println(t)
+	fmt.Println(t)
 }

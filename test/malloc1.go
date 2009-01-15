@@ -19,7 +19,7 @@ var chatty = flag.Bool("v", false, "chatty");
 func main() {
 	malloc.Free(malloc.Alloc(1));
 	if *chatty {
-		fmt.printf("%+v %v\n", *malloc.GetStats(), uint64(0));
+		fmt.Printf("%+v %v\n", *malloc.GetStats(), uint64(0));
 	}
 }
 

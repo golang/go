@@ -63,9 +63,9 @@ func (j *Number) Kind() int { return NumberKind }
 func (j *Number) Number() float64 { return j.f }
 func (j *Number) String() string {
 	if math.Floor(j.f) == j.f {
-		return fmt.sprintf("%.0f", j.f);
+		return fmt.Sprintf("%.0f", j.f);
 	}
-	return fmt.sprintf("%g", j.f);
+	return fmt.Sprintf("%g", j.f);
 }
 
 type Array struct { a *array.Array; Null }

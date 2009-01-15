@@ -40,7 +40,7 @@ func OkAmount(size, n uint64) bool {
 
 func AllocAndFree(size, count int) {
 	if *chatty {
-		fmt.printf("size=%d count=%d ...\n", size, count);
+		fmt.Printf("size=%d count=%d ...\n", size, count);
 	}
 	n1 := stats.alloc;
 	for i := 0; i < count; i++ {
@@ -55,7 +55,7 @@ func AllocAndFree(size, count int) {
 	}
 	n2 := stats.alloc;
 	if *chatty {
-		fmt.printf("size=%d count=%d stats=%+v\n", size, count, *stats);
+		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats);
 	}
 	n3 := stats.alloc;
 	for j := 0; j < count; j++ {
@@ -79,7 +79,7 @@ func AllocAndFree(size, count int) {
 	n4 := stats.alloc;
 
 	if *chatty {
-		fmt.printf("size=%d count=%d stats=%+v\n", size, count, *stats);
+		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats);
 	}
 	if n2-n1 != n3-n4 {
 		panicln("wrong alloc count: ", n2-n1, n3-n4);

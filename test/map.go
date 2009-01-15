@@ -31,7 +31,7 @@ func main() {
 	for i := 0; i < len(mlit); i++ {
 		s := string([]byte{byte(i)+'0'});
 		if mlit[s] != i {
-			fmt.printf("mlit[%s] = %d\n", s, mlit[s])
+			fmt.Printf("mlit[%s] = %d\n", s, mlit[s])
 		}
 	}
 
@@ -93,46 +93,46 @@ func main() {
 
 	// test len
 	if len(mib) != count {
-		fmt.printf("len(mib) = %d\n", len(mib));
+		fmt.Printf("len(mib) = %d\n", len(mib));
 	}
 	if len(mii) != count {
-		fmt.printf("len(mii) = %d\n", len(mii));
+		fmt.Printf("len(mii) = %d\n", len(mii));
 	}
 	if len(mfi) != count {
-		fmt.printf("len(mfi) = %d\n", len(mfi));
+		fmt.Printf("len(mfi) = %d\n", len(mfi));
 	}
 	if len(mif) != count {
-		fmt.printf("len(mif) = %d\n", len(mif));
+		fmt.Printf("len(mif) = %d\n", len(mif));
 	}
 	if len(msi) != count {
-		fmt.printf("len(msi) = %d\n", len(msi));
+		fmt.Printf("len(msi) = %d\n", len(msi));
 	}
 	if len(mis) != count {
-		fmt.printf("len(mis) = %d\n", len(mis));
+		fmt.Printf("len(mis) = %d\n", len(mis));
 	}
 	if len(mss) != count {
-		fmt.printf("len(mss) = %d\n", len(mss));
+		fmt.Printf("len(mss) = %d\n", len(mss));
 	}
 	if len(mspa) != count {
-		fmt.printf("len(mspa) = %d\n", len(mspa));
+		fmt.Printf("len(mspa) = %d\n", len(mspa));
 	}
 	if len(mipT) != count {
-		fmt.printf("len(mipT) = %d\n", len(mipT));
+		fmt.Printf("len(mipT) = %d\n", len(mipT));
 	}
 	if len(mpTi) != count {
-		fmt.printf("len(mpTi) = %d\n", len(mpTi));
+		fmt.Printf("len(mpTi) = %d\n", len(mpTi));
 	}
 	if len(mti) != count {
-		fmt.printf("len(mti) = %d\n", len(mti));
+		fmt.Printf("len(mti) = %d\n", len(mti));
 	}
 	if len(mipM) != count {
-		fmt.printf("len(mipM) = %d\n", len(mipM));
+		fmt.Printf("len(mipM) = %d\n", len(mipM));
 	}
 	if len(mti) != count {
-		fmt.printf("len(mti) = %d\n", len(mti));
+		fmt.Printf("len(mti) = %d\n", len(mti));
 	}
 	if len(mit) != count {
-		fmt.printf("len(mit) = %d\n", len(mit));
+		fmt.Printf("len(mit) = %d\n", len(mit));
 	}
 
 	// test construction directly
@@ -143,48 +143,48 @@ func main() {
 		t := T{int64(i), f};
 		// BUG m := M(i, i+1);
 		if mib[i] != (i != 0) {
-			fmt.printf("mib[%d] = %t\n", i, mib[i]);
+			fmt.Printf("mib[%d] = %t\n", i, mib[i]);
 		}
 		if(mii[i] != 10*i) {
-			fmt.printf("mii[%d] = %d\n", i, mii[i]);
+			fmt.Printf("mii[%d] = %d\n", i, mii[i]);
 		}
 		if(mfi[f] != 10*i) {
-			fmt.printf("mfi[%d] = %d\n", i, mfi[f]);
+			fmt.Printf("mfi[%d] = %d\n", i, mfi[f]);
 		}
 		if(mif[i] != 10.0*f) {
-			fmt.printf("mif[%d] = %g\n", i, mif[i]);
+			fmt.Printf("mif[%d] = %g\n", i, mif[i]);
 		}
 		if(mis[i] != s) {
-			fmt.printf("mis[%d] = %s\n", i, mis[i]);
+			fmt.Printf("mis[%d] = %s\n", i, mis[i]);
 		}
 		if(msi[s] != i) {
-			fmt.printf("msi[%s] = %d\n", s, msi[s]);
+			fmt.Printf("msi[%s] = %d\n", s, msi[s]);
 		}
 		if mss[s] != s10 {
-			fmt.printf("mss[%s] = %g\n", s, mss[s]);
+			fmt.Printf("mss[%s] = %g\n", s, mss[s]);
 		}
 		for j := 0; j < arraylen; j++ {
 			if mspa[s][j] != s10 {
-				fmt.printf("mspa[%s][%d] = %s\n", s, j, mspa[s][j]);
+				fmt.Printf("mspa[%s][%d] = %s\n", s, j, mspa[s][j]);
 			}
 		}
 		if(mipT[i].i != int64(i) || mipT[i].f != f) {
-			fmt.printf("mipT[%d] = %v\n", i, mipT[i]);
+			fmt.Printf("mipT[%d] = %v\n", i, mipT[i]);
 		}
 		if(mpTi[apT[i]] != i) {
-			fmt.printf("mpTi[apT[%d]] = %d\n", i, mpTi[apT[i]]);
+			fmt.Printf("mpTi[apT[%d]] = %d\n", i, mpTi[apT[i]]);
 		}
 		if(mti[t] != i) {
-			fmt.printf("mti[%s] = %s\n", s, mti[t]);
+			fmt.Printf("mti[%s] = %s\n", s, mti[t]);
 		}
 		if (mipM[i][i] != i + 1) {
-			fmt.printf("mipM[%d][%d] = %d\n", i, i, mipM[i][i]);
+			fmt.Printf("mipM[%d][%d] = %d\n", i, i, mipM[i][i]);
 		}
 		if(mti[t] != i) {
-			fmt.printf("mti[%v] = %d\n", t, mti[t]);
+			fmt.Printf("mti[%v] = %d\n", t, mti[t]);
 		}
 		if(mit[i].i != int64(i) || mit[i].f != f) {
-			fmt.printf("mit[%d] = {%d %g}\n", i, mit[i].i, mit[i].f);
+			fmt.Printf("mit[%d] = {%d %g}\n", i, mit[i].i, mit[i].f);
 		}
 	}
 
@@ -197,131 +197,131 @@ func main() {
 		{
 			a, b := mib[i];
 			if !b {
-				fmt.printf("tuple existence decl: mib[%d]\n", i);
+				fmt.Printf("tuple existence decl: mib[%d]\n", i);
 			}
 			a, b = mib[i];
 			if !b {
-				fmt.printf("tuple existence assign: mib[%d]\n", i);
+				fmt.Printf("tuple existence assign: mib[%d]\n", i);
 			}
 		}
 		{
 			a, b := mii[i];
 			if !b {
-				fmt.printf("tuple existence decl: mii[%d]\n", i);
+				fmt.Printf("tuple existence decl: mii[%d]\n", i);
 			}
 			a, b = mii[i];
 			if !b {
-				fmt.printf("tuple existence assign: mii[%d]\n", i);
+				fmt.Printf("tuple existence assign: mii[%d]\n", i);
 			}
 		}
 		{
 			a, b := mfi[f];
 			if !b {
-				fmt.printf("tuple existence decl: mfi[%d]\n", i);
+				fmt.Printf("tuple existence decl: mfi[%d]\n", i);
 			}
 			a, b = mfi[f];
 			if !b {
-				fmt.printf("tuple existence assign: mfi[%d]\n", i);
+				fmt.Printf("tuple existence assign: mfi[%d]\n", i);
 			}
 		}
 		{
 			a, b := mif[i];
 			if !b {
-				fmt.printf("tuple existence decl: mif[%d]\n", i);
+				fmt.Printf("tuple existence decl: mif[%d]\n", i);
 			}
 			a, b = mif[i];
 			if !b {
-				fmt.printf("tuple existence assign: mif[%d]\n", i);
+				fmt.Printf("tuple existence assign: mif[%d]\n", i);
 			}
 		}
 		{
 			a, b := mis[i];
 			if !b {
-				fmt.printf("tuple existence decl: mis[%d]\n", i);
+				fmt.Printf("tuple existence decl: mis[%d]\n", i);
 			}
 			a, b = mis[i];
 			if !b {
-				fmt.printf("tuple existence assign: mis[%d]\n", i);
+				fmt.Printf("tuple existence assign: mis[%d]\n", i);
 			}
 		}
 		{
 			a, b := msi[s];
 			if !b {
-				fmt.printf("tuple existence decl: msi[%d]\n", i);
+				fmt.Printf("tuple existence decl: msi[%d]\n", i);
 			}
 			a, b = msi[s];
 			if !b {
-				fmt.printf("tuple existence assign: msi[%d]\n", i);
+				fmt.Printf("tuple existence assign: msi[%d]\n", i);
 			}
 		}
 		{
 			a, b := mss[s];
 			if !b {
-				fmt.printf("tuple existence decl: mss[%d]\n", i);
+				fmt.Printf("tuple existence decl: mss[%d]\n", i);
 			}
 			a, b = mss[s];
 			if !b {
-				fmt.printf("tuple existence assign: mss[%d]\n", i);
+				fmt.Printf("tuple existence assign: mss[%d]\n", i);
 			}
 		}
 		{
 			a, b := mspa[s];
 			if !b {
-				fmt.printf("tuple existence decl: mspa[%d]\n", i);
+				fmt.Printf("tuple existence decl: mspa[%d]\n", i);
 			}
 			a, b = mspa[s];
 			if !b {
-				fmt.printf("tuple existence assign: mspa[%d]\n", i);
+				fmt.Printf("tuple existence assign: mspa[%d]\n", i);
 			}
 		}
 		{
 			a, b := mipT[i];
 			if !b {
-				fmt.printf("tuple existence decl: mipT[%d]\n", i);
+				fmt.Printf("tuple existence decl: mipT[%d]\n", i);
 			}
 			a, b = mipT[i];
 			if !b {
-				fmt.printf("tuple existence assign: mipT[%d]\n", i);
+				fmt.Printf("tuple existence assign: mipT[%d]\n", i);
 			}
 		}
 		{
 			a, b := mpTi[apT[i]];
 			if !b {
-				fmt.printf("tuple existence decl: mpTi[apT[%d]]\n", i);
+				fmt.Printf("tuple existence decl: mpTi[apT[%d]]\n", i);
 			}
 			a, b = mpTi[apT[i]];
 			if !b {
-				fmt.printf("tuple existence assign: mpTi[apT[%d]]\n", i);
+				fmt.Printf("tuple existence assign: mpTi[apT[%d]]\n", i);
 			}
 		}
 		{
 			a, b := mipM[i];
 			if !b {
-				fmt.printf("tuple existence decl: mipM[%d]\n", i);
+				fmt.Printf("tuple existence decl: mipM[%d]\n", i);
 			}
 			a, b = mipM[i];
 			if !b {
-				fmt.printf("tuple existence assign: mipM[%d]\n", i);
+				fmt.Printf("tuple existence assign: mipM[%d]\n", i);
 			}
 		}
 		{
 			a, b := mit[i];
 			if !b {
-				fmt.printf("tuple existence decl: mit[%d]\n", i);
+				fmt.Printf("tuple existence decl: mit[%d]\n", i);
 			}
 			a, b = mit[i];
 			if !b {
-				fmt.printf("tuple existence assign: mit[%d]\n", i);
+				fmt.Printf("tuple existence assign: mit[%d]\n", i);
 			}
 		}
 		{
 			a, b := mti[t];
 			if !b {
-				fmt.printf("tuple existence decl: mti[%d]\n", i);
+				fmt.Printf("tuple existence decl: mti[%d]\n", i);
 			}
 			a, b = mti[t];
 			if !b {
-				fmt.printf("tuple existence assign: mti[%d]\n", i);
+				fmt.Printf("tuple existence assign: mti[%d]\n", i);
 			}
 		}
 	}
@@ -335,131 +335,131 @@ func main() {
 		{
 			a, b := mib[i];
 			if b {
-				fmt.printf("tuple nonexistence decl: mib[%d]", i);
+				fmt.Printf("tuple nonexistence decl: mib[%d]", i);
 			}
 			a, b = mib[i];
 			if b {
-				fmt.printf("tuple nonexistence assign: mib[%d]", i);
+				fmt.Printf("tuple nonexistence assign: mib[%d]", i);
 			}
 		}
 		{
 			a, b := mii[i];
 			if b {
-				fmt.printf("tuple nonexistence decl: mii[%d]", i);
+				fmt.Printf("tuple nonexistence decl: mii[%d]", i);
 			}
 			a, b = mii[i];
 			if b {
-				fmt.printf("tuple nonexistence assign: mii[%d]", i);
+				fmt.Printf("tuple nonexistence assign: mii[%d]", i);
 			}
 		}
 		{
 			a, b := mfi[f];
 			if b {
-				fmt.printf("tuple nonexistence decl: mfi[%d]", i);
+				fmt.Printf("tuple nonexistence decl: mfi[%d]", i);
 			}
 			a, b = mfi[f];
 			if b {
-				fmt.printf("tuple nonexistence assign: mfi[%d]", i);
+				fmt.Printf("tuple nonexistence assign: mfi[%d]", i);
 			}
 		}
 		{
 			a, b := mif[i];
 			if b {
-				fmt.printf("tuple nonexistence decl: mif[%d]", i);
+				fmt.Printf("tuple nonexistence decl: mif[%d]", i);
 			}
 			a, b = mif[i];
 			if b {
-				fmt.printf("tuple nonexistence assign: mif[%d]", i);
+				fmt.Printf("tuple nonexistence assign: mif[%d]", i);
 			}
 		}
 		{
 			a, b := mis[i];
 			if b {
-				fmt.printf("tuple nonexistence decl: mis[%d]", i);
+				fmt.Printf("tuple nonexistence decl: mis[%d]", i);
 			}
 			a, b = mis[i];
 			if b {
-				fmt.printf("tuple nonexistence assign: mis[%d]", i);
+				fmt.Printf("tuple nonexistence assign: mis[%d]", i);
 			}
 		}
 		{
 			a, b := msi[s];
 			if b {
-				fmt.printf("tuple nonexistence decl: msi[%d]", i);
+				fmt.Printf("tuple nonexistence decl: msi[%d]", i);
 			}
 			a, b = msi[s];
 			if b {
-				fmt.printf("tuple nonexistence assign: msi[%d]", i);
+				fmt.Printf("tuple nonexistence assign: msi[%d]", i);
 			}
 		}
 		{
 			a, b := mss[s];
 			if b {
-				fmt.printf("tuple nonexistence decl: mss[%d]", i);
+				fmt.Printf("tuple nonexistence decl: mss[%d]", i);
 			}
 			a, b = mss[s];
 			if b {
-				fmt.printf("tuple nonexistence assign: mss[%d]", i);
+				fmt.Printf("tuple nonexistence assign: mss[%d]", i);
 			}
 		}
 		{
 			a, b := mspa[s];
 			if b {
-				fmt.printf("tuple nonexistence decl: mspa[%d]", i);
+				fmt.Printf("tuple nonexistence decl: mspa[%d]", i);
 			}
 			a, b = mspa[s];
 			if b {
-				fmt.printf("tuple nonexistence assign: mspa[%d]", i);
+				fmt.Printf("tuple nonexistence assign: mspa[%d]", i);
 			}
 		}
 		{
 			a, b := mipT[i];
 			if b {
-				fmt.printf("tuple nonexistence decl: mipT[%d]", i);
+				fmt.Printf("tuple nonexistence decl: mipT[%d]", i);
 			}
 			a, b = mipT[i];
 			if b {
-				fmt.printf("tuple nonexistence assign: mipT[%d]", i);
+				fmt.Printf("tuple nonexistence assign: mipT[%d]", i);
 			}
 		}
 		{
 			a, b := mpTi[apT[i]];
 			if b {
-				fmt.printf("tuple nonexistence decl: mpTi[apt[%d]]", i);
+				fmt.Printf("tuple nonexistence decl: mpTi[apt[%d]]", i);
 			}
 			a, b = mpTi[apT[i]];
 			if b {
-				fmt.printf("tuple nonexistence assign: mpTi[apT[%d]]", i);
+				fmt.Printf("tuple nonexistence assign: mpTi[apT[%d]]", i);
 			}
 		}
 		{
 			a, b := mipM[i];
 			if b {
-				fmt.printf("tuple nonexistence decl: mipM[%d]", i);
+				fmt.Printf("tuple nonexistence decl: mipM[%d]", i);
 			}
 			a, b = mipM[i];
 			if b {
-				fmt.printf("tuple nonexistence assign: mipM[%d]", i);
+				fmt.Printf("tuple nonexistence assign: mipM[%d]", i);
 			}
 		}
 		{
 			a, b := mti[t];
 			if b {
-				fmt.printf("tuple nonexistence decl: mti[%d]", i);
+				fmt.Printf("tuple nonexistence decl: mti[%d]", i);
 			}
 			a, b = mti[t];
 			if b {
-				fmt.printf("tuple nonexistence assign: mti[%d]", i);
+				fmt.Printf("tuple nonexistence assign: mti[%d]", i);
 			}
 		}
 		{
 			a, b := mit[i];
 			if b {
-				fmt.printf("tuple nonexistence decl: mit[%d]", i);
+				fmt.Printf("tuple nonexistence decl: mit[%d]", i);
 			}
 			a, b = mit[i];
 			if b {
-				fmt.printf("tuple nonexistence assign: mit[%d]", i);
+				fmt.Printf("tuple nonexistence assign: mit[%d]", i);
 			}
 		}
 	}
@@ -470,21 +470,21 @@ func main() {
 		s := strconv.itoa(i);
 		mspa[s][i % 2] = "deleted";
 		if mspa[s][i % 2] != "deleted" {
-			fmt.printf("update mspa[%s][%d] = %s\n", s, i %2, mspa[s][i % 2]);
+			fmt.Printf("update mspa[%s][%d] = %s\n", s, i %2, mspa[s][i % 2]);
 		}
 
 		mipT[i].i += 1;
 		if mipT[i].i != int64(i)+1 {
-			fmt.printf("update mipT[%d].i = %d\n", i, mipT[i].i);
+			fmt.Printf("update mipT[%d].i = %d\n", i, mipT[i].i);
 		}
 		mipT[i].f = float(i + 1);
 		if (mipT[i].f != float(i + 1)) {
-			fmt.printf("update mipT[%d].f = %g\n", i, mipT[i].f);
+			fmt.Printf("update mipT[%d].f = %g\n", i, mipT[i].f);
 		}
 
 		mipM[i][i]++;
 		if mipM[i][i] != (i + 1) + 1 {
-			fmt.printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i]);
+			fmt.Printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i]);
 		}
 	}
 }

@@ -14,9 +14,9 @@ import (
 export func TestFmtInterface(t *testing.T) {
 	var i1 interface{};
 	i1 = "abc";
-	s := fmt.sprintf("%s", i1);
+	s := fmt.Sprintf("%s", i1);
 	if s != "abc" {
-		t.Errorf(`fmt.sprintf("%%s", empty("abc")) = %q want %q`, s, "abc");
+		t.Errorf(`fmt.Sprintf("%%s", empty("abc")) = %q want %q`, s, "abc");
 	}
 }
 
@@ -153,14 +153,14 @@ var fmttests = []FmtTest{
 export func TestSprintf(t *testing.T) {
 	for i := 0; i < len(fmttests); i++ {
 		tt := fmttests[i];
-		s := fmt.sprintf(tt.fmt, tt.val);
+		s := fmt.Sprintf(tt.fmt, tt.val);
 		if s != tt.out {
 			if ss, ok := tt.val.(string); ok {
 				// Don't requote the already-quoted strings.
 				// It's too confusing to read the errors.
-				t.Errorf("fmt.sprintf(%q, %q) = %s want %s", tt.fmt, tt.val, s, tt.out);
+				t.Errorf("fmt.Sprintf(%q, %q) = %s want %s", tt.fmt, tt.val, s, tt.out);
 			} else {
-				t.Errorf("fmt.sprintf(%q, %v) = %q want %q", tt.fmt, tt.val, s, tt.out);
+				t.Errorf("fmt.Sprintf(%q, %v) = %q want %q", tt.fmt, tt.val, s, tt.out);
 			}
 		}
 	}
@@ -175,10 +175,10 @@ func (*FlagPrinter) Format(f fmt.Formatter, c int) {
 		}
 	}
 	if w, ok := f.Width(); ok {
-		s += fmt.sprintf("%d", w);
+		s += fmt.Sprintf("%d", w);
 	}
 	if p, ok := f.Precision(); ok {
-		s += fmt.sprintf(".%d", p);
+		s += fmt.Sprintf(".%d", p);
 	}
 	s += string(c);
 	io.WriteString(f, "["+s+"]");
@@ -208,9 +208,9 @@ export func TestFlagParser(t *testing.T) {
 	var flagprinter FlagPrinter;
 	for i := 0; i < len(flagtests); i++ {
 		tt := flagtests[i];
-		s := fmt.sprintf(tt.in, &flagprinter);
+		s := fmt.Sprintf(tt.in, &flagprinter);
 		if s != tt.out {
-			t.Errorf("sprintf(%q, &flagprinter) => %q, want %q", tt.in, s, tt.out);
+			t.Errorf("Sprintf(%q, &flagprinter) => %q, want %q", tt.in, s, tt.out);
 		}
 	}
 }
@@ -234,9 +234,9 @@ export func TestStructPrinter(t *testing.T) {
 	};
 	for i := 0; i < len(tests); i++ {
 		tt := tests[i];
-		out := fmt.sprintf(tt.fmt, s);
+		out := fmt.Sprintf(tt.fmt, s);
 		if out != tt.out {
-			t.Errorf("sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out);
+			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out);
 		}
 	}
 }
@@ -244,13 +244,13 @@ export func TestStructPrinter(t *testing.T) {
 export func TestArrayPrinter(t *testing.T) {
 	a := []int{1, 2, 3, 4, 5};
 	want := "[1 2 3 4 5]";
-	out := fmt.sprintf("%v", a);
+	out := fmt.Sprintf("%v", a);
 	if out != want {
-		t.Errorf("sprintf(%%v, array) = %q, want %q", out, want);
+		t.Errorf("Sprintf(%%v, array) = %q, want %q", out, want);
 	}
 	want = "&" + want;
-	out = fmt.sprintf("%v", &a);
+	out = fmt.Sprintf("%v", &a);
 	if out != want {
-		t.Errorf("sprintf(%%v, &array) = %q, want %q", out, want);
+		t.Errorf("Sprintf(%%v, &array) = %q, want %q", out, want);
 	}
 }

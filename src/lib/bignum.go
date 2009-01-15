@@ -662,7 +662,7 @@ func FmtBase(c int) uint {
 
 
 func (x Natural) Format(h Fmt.Formatter, c int) {
-	Fmt.fprintf(h, "%s", x.ToString(FmtBase(c)));
+	Fmt.Fprintf(h, "%s", x.ToString(FmtBase(c)));
 }
 
 
@@ -1096,7 +1096,7 @@ func (x *Integer) String() string {
 
 
 func (x *Integer) Format(h Fmt.Formatter, c int) {
-	Fmt.fprintf(h, "%s", x.ToString(FmtBase(c)));
+	Fmt.Fprintf(h, "%s", x.ToString(FmtBase(c)));
 }
 
 
@@ -1226,7 +1226,7 @@ func (x *Rational) String() string {
 
 
 func (x *Rational) Format(h Fmt.Formatter, c int) {
-	Fmt.fprintf(h, "%s", x.ToString(FmtBase(c)));
+	Fmt.Fprintf(h, "%s", x.ToString(FmtBase(c)));
 }
 
 

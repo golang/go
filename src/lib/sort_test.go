@@ -213,7 +213,7 @@ export func TestBentleyMcIlroy(t *testing.T) {
 						}
 					}
 
-					desc := fmt.sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
+					desc := fmt.Sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
 					d := &TestingData{desc, t, mdata[0:n], n*Lg(n)*12/10, 0};
 					sort.Sort(d);
 

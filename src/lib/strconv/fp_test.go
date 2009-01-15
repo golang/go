@@ -131,14 +131,14 @@ export func TestFp(t *testing.T) {
 				t.Error("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
 				continue;
 			}
-			s = fmt.sprintf(a[1], v);
+			s = fmt.Sprintf(a[1], v);
 		case "float32":
 			v1, ok := myatof32(a[2]);
 			if !ok {
 				t.Error("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
 				continue;
 			}
-			s = fmt.sprintf(a[1], v1);
+			s = fmt.Sprintf(a[1], v1);
 			v = float64(v1);
 		}
 		if s != a[3] {
