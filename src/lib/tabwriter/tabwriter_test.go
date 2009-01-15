@@ -12,22 +12,22 @@ import (
 )
 
 
-type Buffer struct {
+type buffer struct {
 	a []byte;
 }
 
 
-func (b *Buffer) Init(n int) {
+func (b *buffer) init(n int) {
 	b.a = make([]byte, n)[0 : 0];
 }
 
 
-func (b *Buffer) Clear() {
+func (b *buffer) clear() {
 	b.a = b.a[0 : 0];
 }
 
 
-func (b *Buffer) Write(buf []byte) (written int, err *os.Error) {
+func (b *buffer) Write(buf []byte) (written int, err *os.Error) {
 	n := len(b.a);
 	m := len(buf);
 	if n + m <= cap(b.a) {
@@ -42,12 +42,12 @@ func (b *Buffer) Write(buf []byte) (written int, err *os.Error) {
 }
 
 
-func (b *Buffer) String() string {
+func (b *buffer) String() string {
 	return string(b.a);
 }
 
 
-func Write(t *testing.T, w *tabwriter.Writer, src string) {
+func write(t *testing.T, w *tabwriter.Writer, src string) {
 	written, err := io.WriteString(w, src);
 	if err != nil {
 		t.Errorf("--- src:\n%s\n--- write error: %v\n", src, err);
@@ -58,7 +58,7 @@ func Write(t *testing.T, w *tabwriter.Writer, src string) {
 }
 
 
-func Verify(t *testing.T, w *tabwriter.Writer, b *Buffer, src, expected string) {
+func verify(t *testing.T, w *tabwriter.Writer, b *buffer, src, expected string) {
 	err := w.Flush();
 	if err != nil {
 		t.Errorf("--- src:\n%s\n--- flush error: %v\n", src, err);
@@ -71,142 +71,142 @@ func Verify(t *testing.T, w *tabwriter.Writer, b *Buffer, src, expected string) 
 }
 
 
-func Check(t *testing.T, tabwidth, padding int, padchar byte, align_left, filter_html bool, src, expected string) {
-	var b Buffer;
-	b.Init(1000);
+func check(t *testing.T, tabwidth, padding int, padchar byte, align_left, filter_html bool, src, expected string) {
+	var b buffer;
+	b.init(1000);
 
 	var w tabwriter.Writer;
 	w.Init(&b, tabwidth, padding, padchar, align_left, filter_html);
 
 	// write all at once
-	b.Clear();
-	Write(t, &w, src);
-	Verify(t, &w, &b, src, expected);
+	b.clear();
+	write(t, &w, src);
+	verify(t, &w, &b, src, expected);
 
 	// write byte-by-byte
-	b.Clear();
+	b.clear();
 	for i := 0; i < len(src); i++ {
-		Write(t, &w, src[i : i+1]);
+		write(t, &w, src[i : i+1]);
 	}
-	Verify(t, &w, &b, src, expected);
+	verify(t, &w, &b, src, expected);
 
 	// write using Fibonacci slice sizes
-	b.Clear();
+	b.clear();
 	for i, d := 0, 0; i < len(src); {
-		Write(t, &w, src[i : i+d]);
+		write(t, &w, src[i : i+d]);
 		i, d = i+d, d+1;
 		if i+d > len(src) {
 			d = len(src) - i;
 		}
 	}
-	Verify(t, &w, &b, src, expected);
+	verify(t, &w, &b, src, expected);
 }
 
 
 export func Test(t *testing.T) {
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"",
 		""
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"\n\n\n",
 		"\n\n\n"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"a\nb\nc",
 		"a\nb\nc"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"\t",  // '\t' terminates an empty cell on last line - nothing to print
 		""
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', false, false,
 		"\t",  // '\t' terminates an empty cell on last line - nothing to print
 		""
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"*\t*",
 		"**"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"*\t*\n",
 		"*.......*\n"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"*\t*\t",
 		"*.......*"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', false, false,
 		"*\t*\t",
 		".......**"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"\t\n",
 		"........\n"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"a) foo",
 		"a) foo"
 	);
 
-	Check(
+	check(
 		t, 8, 1, ' ', true, false,
 		"b) foo\tbar",  // "bar" is not in any cell - not formatted, just flushed
 		"b) foobar"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"c) foo\tbar\t",
 		"c) foo..bar"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"d) foo\tbar\n",
 		"d) foo..bar\n"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"e) foo\tbar\t\n",
 		"e) foo..bar.....\n"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, true,
 		"e) f&lt;o\t<b>bar</b>\t\n",
 		"e) f&lt;o..<b>bar</b>.....\n"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '*', true, false,
 		"Hello, world!\n",
 		"Hello, world!\n"
 	);
 
-	Check(
+	check(
 		t, 0, 0, '.', true, false,
 		"1\t2\t3\t4\n"
 		"11\t222\t3333\t44444\n",
@@ -215,19 +215,19 @@ export func Test(t *testing.T) {
 		"11222333344444\n"
 	);
 
-	Check(
+	check(
 		t, 5, 0, '.', true, false,
 		"1\t2\t3\t4\n",
 		"1....2....3....4\n"
 	);
 
-	Check(
+	check(
 		t, 5, 0, '.', true, false,
 		"1\t2\t3\t4\t\n",
 		"1....2....3....4....\n"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '.', true, false,
 		"本\tb\tc\n"
 		"aa\t\u672c\u672c\u672c\tcccc\tddddd\n"
@@ -238,7 +238,7 @@ export func Test(t *testing.T) {
 		"aaa.....bbbb\n"
 	);
 
-	Check(
+	check(
 		t, 8, 1, ' ', false, false,
 		"a\tè\tc\t\n"
 		"aa\tèèè\tcccc\tddddd\t\n"
@@ -249,7 +249,7 @@ export func Test(t *testing.T) {
 		"     aaa    èèèè\n"
 	);
 
-	Check(
+	check(
 		t, 2, 0, ' ', true, false,
 		"a\tb\tc\n"
 		"aa\tbbb\tcccc\n"
@@ -260,7 +260,7 @@ export func Test(t *testing.T) {
 		"aaabbbb\n"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '_', true, false,
 		"a\tb\tc\n"
 		"aa\tbbb\tcccc\n"
@@ -271,7 +271,7 @@ export func Test(t *testing.T) {
 		"aaa_____bbbb\n"
 	);
 
-	Check(
+	check(
 		t, 4, 1, '-', true, false,
 		"4444\t日本語\t22\t1\t333\n"
 		"999999999\t22\n"
@@ -290,7 +290,7 @@ export func Test(t *testing.T) {
 		"1------1------999999999-0000000000\n"
 	);
 
-	Check(
+	check(
 		t, 4, 3, '.', true, false,
 		"4444\t333\t22\t1\t333\n"
 		"999999999\t22\n"
@@ -309,7 +309,7 @@ export func Test(t *testing.T) {
 		"1........1........999999999...0000000000\n"
 	);
 
-	Check(
+	check(
 		t, 8, 1, '\t', true, true,
 		"4444\t333\t22\t1\t333\n"
 		"999999999\t22\n"
@@ -328,7 +328,7 @@ export func Test(t *testing.T) {
 		"1\t1\t<font color=red attr=日本語>999999999</font>\t0000000000\n"
 	);
 
-	Check(
+	check(
 		t, 0, 2, ' ', false, false,
 		".0\t.3\t2.4\t-5.1\t\n"
 		"23.0\t12345678.9\t2.4\t-989.4\t\n"
