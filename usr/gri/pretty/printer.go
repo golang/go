@@ -143,7 +143,7 @@ func Untabify(s string) string {
 
 
 func (P *Printer) Printf(format string, s ...) {
-	n, err := fmt.fprintf(P.text, format, s);
+	n, err := fmt.Fprintf(P.text, format, s);
 	if err != nil {
 		panic("print error - exiting");
 	}

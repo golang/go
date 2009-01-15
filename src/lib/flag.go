@@ -119,7 +119,7 @@ func (b *BoolValue) Set(val bool) {
 }
 
 func (b *BoolValue) Str() string {
-	return fmt.sprintf("%v", *b.p)
+	return fmt.Sprintf("%v", *b.p)
 }
 
 // -- Int Value
@@ -137,7 +137,7 @@ func (i *IntValue) Set(val int) {
 }
 
 func (i *IntValue) Str() string {
-	return fmt.sprintf("%v", *i.p)
+	return fmt.Sprintf("%v", *i.p)
 }
 
 // -- Int64 Value
@@ -155,7 +155,7 @@ func (i *Int64Value) Set(val int64) {
 }
 
 func (i *Int64Value) Str() string {
-	return fmt.sprintf("%v", *i.p)
+	return fmt.Sprintf("%v", *i.p)
 }
 
 // -- Uint Value
@@ -173,7 +173,7 @@ func (i *UintValue) Set(val uint) {
 }
 
 func (i *UintValue) Str() string {
-	return fmt.sprintf("%v", *i.p)
+	return fmt.Sprintf("%v", *i.p)
 }
 
 // -- Uint64 Value
@@ -191,7 +191,7 @@ func (i *Uint64Value) Set(val uint64) {
 }
 
 func (i *Uint64Value) Str() string {
-	return fmt.sprintf("%v", *i.p)
+	return fmt.Sprintf("%v", *i.p)
 }
 
 // -- String Value
@@ -209,7 +209,7 @@ func (s *StringValue) Set(val string) {
 }
 
 func (s *StringValue) Str() string {
-	return fmt.sprintf("%#q", *s.p)
+	return fmt.Sprintf("%#q", *s.p)
 }
 
 // -- Value interface

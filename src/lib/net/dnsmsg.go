@@ -323,7 +323,7 @@ func PackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok
 		name, typ, tag, xxx := val.Type().(reflect.StructType).Field(i);
 		switch fld.Kind() {
 		default:
-			fmt.fprintf(os.Stderr, "net: dns: unknown packing type %v", fld.Type());
+			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", fld.Type());
 			return len(msg), false;
 		case reflect.StructKind:
 			off, ok = PackStructValue(fld.(reflect.StructValue), msg, off);
@@ -351,7 +351,7 @@ func PackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok
 			s := fld.(reflect.StringValue).Get();
 			switch tag {
 			default:
-				fmt.fprintf(os.Stderr, "net: dns: unknown string tag %v", tag);
+				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", tag);
 				return len(msg), false;
 			case "domain-name":
 				off, ok = PackDomainName(s, msg, off);
@@ -389,7 +389,7 @@ func UnpackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, 
 		fld := val.Field(i);
 		switch fld.Kind() {
 		default:
-			fmt.fprintf(os.Stderr, "net: dns: unknown packing type %v", fld.Type());
+			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", fld.Type());
 			return len(msg), false;
 		case reflect.StructKind:
 			off, ok = UnpackStructValue(fld.(reflect.StructValue), msg, off);
@@ -411,7 +411,7 @@ func UnpackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, 
 			var s string;
 			switch tag {
 			default:
-				fmt.fprintf(os.Stderr, "net: dns: unknown string tag %v", tag);
+				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", tag);
 				return len(msg), false;
 			case "domain-name":
 				s, off, ok = UnpackDomainName(msg, off);
@@ -464,9 +464,9 @@ func PrintStructValue(val reflect.StructValue) string {
 			s += PrintStructValue(fld.(reflect.StructValue));
 		case kind == reflect.Uint32Kind && tag == "ipv4":
 			i := fld.(reflect.Uint32Value).Get();
-			s += fmt.sprintf("%d.%d.%d.%d", (i>>24)&0xFF, (i>>16)&0xFF, (i>>8)&0xFF, i&0xFF);
+			s += fmt.Sprintf("%d.%d.%d.%d", (i>>24)&0xFF, (i>>16)&0xFF, (i>>8)&0xFF, i&0xFF);
 		default:
-			s += fmt.sprint(fld.Interface())
+			s += fmt.Sprint(fld.Interface())
 		}
 	}
 	s += "}";

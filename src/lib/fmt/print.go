@@ -128,7 +128,7 @@ func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool);
 
 // These routines end in 'f' and take a format string.
 
-export func fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
+export func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
 	p.doprintf(format, v);
@@ -136,12 +136,12 @@ export func fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
 	return n, error;
 }
 
-export func printf(format string, v ...) (n int, errno *os.Error) {
-	n, errno = fprintf(os.Stdout, format, v);
+export func Printf(format string, v ...) (n int, errno *os.Error) {
+	n, errno = Fprintf(os.Stdout, format, v);
 	return n, errno;
 }
 
-export func sprintf(format string, a ...) string {
+export func Sprintf(format string, a ...) string {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
 	p.doprintf(format, v);
@@ -152,7 +152,7 @@ export func sprintf(format string, a ...) string {
 // These routines do not take a format string and add spaces only
 // when the operand on neither side is a string.
 
-export func fprint(w io.Write, a ...) (n int, error *os.Error) {
+export func Fprint(w io.Write, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
 	p.doprint(v, false, false);
@@ -160,12 +160,12 @@ export func fprint(w io.Write, a ...) (n int, error *os.Error) {
 	return n, error;
 }
 
-export func print(v ...) (n int, errno *os.Error) {
-	n, errno = fprint(os.Stdout, v);
+export func Print(v ...) (n int, errno *os.Error) {
+	n, errno = Fprint(os.Stdout, v);
 	return n, errno;
 }
 
-export func sprint(a ...) string {
+export func Sprint(a ...) string {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
 	p.doprint(v, false, false);
@@ -177,7 +177,7 @@ export func sprint(a ...) string {
 // always add spaces between operands, and add a newline
 // after the last operand.
 
-export func fprintln(w io.Write, a ...) (n int, error *os.Error) {
+export func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
 	p.doprint(v, true, true);
@@ -185,12 +185,12 @@ export func fprintln(w io.Write, a ...) (n int, error *os.Error) {
 	return n, error;
 }
 
-export func println(v ...) (n int, errno *os.Error) {
-	n, errno = fprintln(os.Stdout, v);
+export func Println(v ...) (n int, errno *os.Error) {
+	n, errno = Fprintln(os.Stdout, v);
 	return n, errno;
 }
 
-export func sprintln(a ...) string {
+export func Sprintln(a ...) string {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := Printer();
 	p.doprint(v, true, true);

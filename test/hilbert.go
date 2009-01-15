@@ -142,7 +142,7 @@ func (a *Matrix) String() string {
 	s := "";
 	for i := 0; i < a.n; i++ {
 		for j := 0; j < a.m; j++ {
-			s += Fmt.sprintf("\t%s", a.at(i, j));
+			s += Fmt.Sprintf("\t%s", a.at(i, j));
 		}
 		s += "\n";
 	}
@@ -157,10 +157,10 @@ func main() {
 	I := NewUnit(n);
 	ab := a.Mul(b);
 	if !ab.Eql(I) {
-		Fmt.println("a =", a);
-		Fmt.println("b =", b);
-		Fmt.println("a*b =", ab);
-		Fmt.println("I =", I);
+		Fmt.Println("a =", a);
+		Fmt.Println("b =", b);
+		Fmt.Println("a*b =", ab);
+		Fmt.Println("I =", I);
 		panic("FAILED");
 	}
 }

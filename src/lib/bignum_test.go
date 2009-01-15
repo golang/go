@@ -117,7 +117,7 @@ export func TestNatConv(t *testing.T) {
 
 	test_msg = "NatConvD";
 	x := bignum.Nat(100);
-	y, b := bignum.NatFromString(fmt.sprintf("%b", &x), 2, nil);
+	y, b := bignum.NatFromString(fmt.Sprintf("%b", &x), 2, nil);
 	NAT_EQ(100, y, x);
 }
 

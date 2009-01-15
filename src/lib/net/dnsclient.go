@@ -115,7 +115,7 @@ Cname:
 					n := len(addrs);
 					a := rr.(*DNS_RR_A).a;
 					addrs = addrs[0:n+1];
-					addrs[n] = fmt.sprintf("%d.%d.%d.%d", (a>>24), (a>>16)&0xFF, (a>>8)&0xFF, a&0xFF);
+					addrs[n] = fmt.Sprintf("%d.%d.%d.%d", (a>>24), (a>>16)&0xFF, (a>>8)&0xFF, a&0xFF);
 				case DNS_TypeCNAME:
 					// redirect to cname
 					name = rr.(*DNS_RR_CNAME).cname;

@@ -309,7 +309,7 @@ export func TestBufWrite(t *testing.T) {
 
 				write := writers[k].fn();
 				buf, e := NewBufWriteSize(write, bs);
-				context := fmt.sprintf("write=%s nwrite=%d bufsize=%d", writers[k].name, nwrite, bs);
+				context := fmt.Sprintf("write=%s nwrite=%d bufsize=%d", writers[k].name, nwrite, bs);
 				if e != nil {
 					t.Errorf("%s: NewBufWriteSize %d: %v", context, bs, e);
 					continue;

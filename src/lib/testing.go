@@ -38,11 +38,11 @@ func (t *T) FailNow() {
 }
 
 func (t *T) Log(args ...) {
-	t.errors += "\t" + Tabify(fmt.sprintln(args));
+	t.errors += "\t" + Tabify(fmt.Sprintln(args));
 }
 
 func (t *T) Logf(format string, args ...) {
-	t.errors += Tabify(fmt.sprintf("\t" + format, args));
+	t.errors += Tabify(fmt.Sprintf("\t" + format, args));
 	l := len(t.errors);
 	if l > 0 && t.errors[l-1] != '\n' {
 		t.errors += "\n"
