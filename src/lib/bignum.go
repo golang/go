@@ -86,7 +86,7 @@ func assert(p bool) {
 }
 
 
-func IsSmall(x Digit) bool {
+func isSmall(x Digit) bool {
 	return x < 1<<_LogH;
 }
 
@@ -114,10 +114,10 @@ export func Dump(x []Digit) {
 export type Natural []Digit;
 
 var (
-	NatZero Natural = Natural{};
-	NatOne Natural = Natural{1};
-	NatTwo Natural = Natural{2};
-	NatTen Natural = Natural{10};
+	natZero Natural = Natural{};
+	natOne Natural = Natural{1};
+	natTwo Natural = Natural{2};
+	natTen Natural = Natural{10};
 )
 
 
@@ -125,10 +125,10 @@ var (
 
 export func Nat(x uint) Natural {
 	switch x {
-	case 0: return NatZero;
-	case 1: return NatOne;
-	case 2: return NatTwo;
-	case 10: return NatTen;
+	case 0: return natZero;
+	case 1: return natOne;
+	case 2: return natTwo;
+	case 10: return natTen;
 	}
 	assert(Digit(x) < _B);
 	return Natural{Digit(x)};
@@ -608,7 +608,7 @@ func (x Natural) Log2() uint {
 // Computes x = x div d in place (modifies x) for "small" d's.
 // Returns updated x and x mod d.
 func divmod1(x Natural, d Digit) (Natural, Digit) {
-	assert(0 < d && IsSmall(d - 1));
+	assert(0 < d && isSmall(d - 1));
 
 	c := Digit(0);
 	for i := len(x) - 1; i >= 0; i-- {
@@ -679,8 +679,8 @@ func hexvalue(ch byte) uint {
 
 
 // Computes x = x*d + c for "small" d's.
-func MulAdd1(x Natural, d, c Digit) Natural {
-	assert(IsSmall(d-1) && IsSmall(c));
+func muladd1(x Natural, d, c Digit) Natural {
+	assert(isSmall(d-1) && isSmall(c));
 	n := len(x);
 	z := make(Natural, n + 1);
 
@@ -716,7 +716,7 @@ export func NatFromString(s string, base uint, slen *int) (Natural, uint) {
 	for ; i < n; i++ {
 		d := hexvalue(s[i]);
 		if d < base {
-			x = MulAdd1(x, Digit(base), Digit(d));
+			x = muladd1(x, Digit(base), Digit(d));
 		} else {
 			break;
 		}
