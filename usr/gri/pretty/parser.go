@@ -13,7 +13,7 @@ import (
 
 export type Parser struct {
 	// Tracing/debugging
-	verbose, sixg, deps bool;
+	verbose, sixg, deps, naming bool;
 	indent uint;
 
 	// Scanner
@@ -109,10 +109,11 @@ func (P *Parser) Next() {
 }
 
 
-func (P *Parser) Open(verbose, sixg, deps bool, scanner *Scanner.Scanner, tokchan <-chan *Scanner.Token) {
+func (P *Parser) Open(verbose, sixg, deps, naming bool, scanner *Scanner.Scanner, tokchan <-chan *Scanner.Token) {
 	P.verbose = verbose;
 	P.sixg = sixg;
 	P.deps = deps;
+	P.naming = naming;
 	P.indent = 0;
 
 	P.scanner = scanner;
@@ -189,6 +190,33 @@ func (P *Parser) Declare(p *AST.Expr, kind int) {
 	}
 	P.DeclareInScope(P.top_scope, p, kind);
 }
+
+
+func (P *Parser) VerifyExport1(p *AST.Expr, exported bool) {
+	obj := p.obj;
+	if exported {
+		if !obj.IsExported() {
+			P.Error(obj.pos, `"` + obj.ident + `" should be uppercase`);
+		}
+	} else if P.scope_lev == 0 {
+		if obj.IsExported() {
+			P.Error(obj.pos, `"` + obj.ident + `" should be lowercase`);
+		}
+	}
+}
+
+
+func (P *Parser) VerifyExport(p *AST.Expr, exported bool) {
+	if !P.naming {
+		return;
+	}
+	for p.tok == Scanner.COMMA {
+		P.VerifyExport1(p.x, exported);
+		p = p.y;
+	}
+	P.VerifyExport1(p, exported);
+}
+
 
 
 // ----------------------------------------------------------------------------
@@ -1510,6 +1538,7 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
 	}
 	
 	P.Declare(d.ident, AST.CONST);
+	P.VerifyExport(d.ident, exported);
 
 	P.Ecart();
 	return d;
@@ -1523,6 +1552,8 @@ func (P *Parser) ParseTypeSpec(exported bool, pos int) *AST.Decl {
 	d.ident = P.ParseIdent(nil);
 	d.typ = P.ParseType();
 	P.opt_semi = true;
+
+	P.VerifyExport(d.ident, exported);
 
 	P.Ecart();
 	return d;
@@ -1546,6 +1577,7 @@ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
 	}
 
 	P.Declare(d.ident, AST.VAR);
+	P.VerifyExport(d.ident, exported);
 
 	P.Ecart();
 	return d;
@@ -1628,6 +1660,10 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
 		P.scope_lev++;
 		d.list, d.end = P.ParseBlock();
 		P.scope_lev--;
+	}
+
+	if recv == nil || exported {
+		P.VerifyExport(d.ident, exported);
 	}
 
 	P.Ecart();
