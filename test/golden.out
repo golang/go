@@ -143,6 +143,9 @@ BUG129
 bugs/bug130.go:14: fatal error: getoutarg: not a func RANGE
 BUG: should run
 
+=========== bugs/bug131.go
+BUG: should not compile
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
 
