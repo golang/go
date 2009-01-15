@@ -19,16 +19,16 @@ var (
 )
 
 
-func Error(format string, params ...) {
-	fmt.printf(format, params);
+func error(format string, params ...) {
+	fmt.Printf(format, params);
 	sys.exit(1);
 }
 
 
-func Untab(name string, src *os.FD, dst *tabwriter.Writer) {
+func untab(name string, src *os.FD, dst *tabwriter.Writer) {
 	n, err := io.Copy(src, dst);
 	if err != nil {
-		Error("error while processing %s (%v)", name, err);
+		error("error while processing %s (%v)", name, err);
 	}
 	//dst.Flush();
 }
@@ -46,13 +46,13 @@ func main() {
 			name := flag.Arg(i);
 			src, err := os.Open(name, os.O_RDONLY, 0);
 			if err != nil {
-				Error("could not open %s (%v)\n", name, err);
+				error("could not open %s (%v)\n", name, err);
 			}
-			Untab(name, src, dst);
+			untab(name, src, dst);
 			src.Close();  // ignore errors
 		}
 	} else {
 		// no files => use stdin
-		Untab("/dev/stdin", os.Stdin, dst);
+		untab("/dev/stdin", os.Stdin, dst);
 	}
 }
