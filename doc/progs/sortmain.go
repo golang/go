@@ -24,30 +24,30 @@ func strings() {
 	}
 }
 
-type Day struct {
+type day struct {
 	num        int;
 	short_name string;
 	long_name  string;
 }
 
-type DayArray struct {
-	data []*Day;
+type dayArray struct {
+	data []*day;
 }
 
-func (p *DayArray) Len() int            { return len(p.data); }
-func (p *DayArray) Less(i, j int) bool  { return p.data[i].num < p.data[j].num; }
-func (p *DayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+func (p *dayArray) Len() int            { return len(p.data); }
+func (p *dayArray) Less(i, j int) bool  { return p.data[i].num < p.data[j].num; }
+func (p *dayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
 
 func days() {
-	Sunday :=    Day{ 0, "SUN", "Sunday" };
-	Monday :=    Day{ 1, "MON", "Monday" };
-	Tuesday :=   Day{ 2, "TUE", "Tuesday" };
-	Wednesday := Day{ 3, "WED", "Wednesday" };
-	Thursday :=  Day{ 4, "THU", "Thursday" };
-	Friday :=    Day{ 5, "FRI", "Friday" };
-	Saturday :=  Day{ 6, "SAT", "Saturday" };
-	data := []*Day{&Tuesday, &Thursday, &Sunday, &Monday, &Friday};
-	a := DayArray{data};
+	Sunday :=    day{ 0, "SUN", "Sunday" };
+	Monday :=    day{ 1, "MON", "Monday" };
+	Tuesday :=   day{ 2, "TUE", "Tuesday" };
+	Wednesday := day{ 3, "WED", "Wednesday" };
+	Thursday :=  day{ 4, "THU", "Thursday" };
+	Friday :=    day{ 5, "FRI", "Friday" };
+	Saturday :=  day{ 6, "SAT", "Saturday" };
+	data := []*day{&Tuesday, &Thursday, &Sunday, &Monday, &Friday};
+	a := dayArray{data};
 	sort.Sort(&a);
 	if !sort.IsSorted(&a) {
 		panic()

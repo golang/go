@@ -12,8 +12,8 @@ import (
 var n_flag = flag.Bool("n", false, "don't print final newline")
 
 const (
-	Space = " ";
-	Newline = "\n";
+	kSpace = " ";
+	kNewline = "\n";
 )
 
 func main() {
@@ -21,12 +21,12 @@ func main() {
 	var s string = "";
 	for i := 0; i < flag.NArg(); i++ {
 		if i > 0 {
-			s += Space
+			s += kSpace
 		}
 		s += flag.Arg(i)
 	}
 	if !*n_flag {
-		s += Newline
+		s += kNewline
 	}
 	os.Stdout.WriteString(s);
 }

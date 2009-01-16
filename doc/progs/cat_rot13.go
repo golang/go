@@ -22,20 +22,20 @@ func rot13(b byte) byte {
 	return b
 }
 
-type Reader interface {
+type reader interface {
 	Read(b []byte) (ret int, err *os.Error);
 	String() string;
 }
 
-type Rot13 struct {
-	source	Reader;
+type rotate13 struct {
+	source	reader;
 }
 
-func NewRot13(source Reader) *Rot13 {
-	return &Rot13{source}
+func newRotate13(source reader) *rotate13 {
+	return &rotate13{source}
 }
 
-func (r13 *Rot13) Read(b []byte) (ret int, err *os.Error) {
+func (r13 *rotate13) Read(b []byte) (ret int, err *os.Error) {
 	r, e := r13.source.Read(b);
 	for i := 0; i < r; i++ {
 		b[i] = rot13(b[i])
@@ -43,17 +43,17 @@ func (r13 *Rot13) Read(b []byte) (ret int, err *os.Error) {
 	return r, e
 }
 
-func (r13 *Rot13) String() string {
+func (r13 *rotate13) String() string {
 	return r13.source.String()
 }
-// end of Rot13 implementation
+// end of Rotate13 implementation
 
-func cat(r Reader) {
+func cat(r reader) {
 	const NBUF = 512;
 	var buf [NBUF]byte;
 
 	if *rot13_flag {
-		r = NewRot13(r)
+		r = newRotate13(r)
 	}
 	for {
 		switch nr, er := r.Read(buf); {

@@ -5,7 +5,7 @@
 package main
 
 // Send the sequence 2, 3, 4, ... to returned channel 
-func Generate() chan int {
+func generate() chan int {
 	ch := make(chan int);
 	go func(ch chan int){
 		for i := 2; ; i++ {
@@ -16,7 +16,7 @@ func Generate() chan int {
 }
 
 // Filter out input values divisible by 'prime', send rest to returned channel
-func Filter(in chan int, prime int) chan int {
+func filter(in chan int, prime int) chan int {
 	out := make(chan int);
 	go func(in chan int, out chan int, prime int) {
 		for {
@@ -28,21 +28,21 @@ func Filter(in chan int, prime int) chan int {
 	return out;
 }
 
-func Sieve() chan int {
+func sieve() chan int {
 	out := make(chan int);
 	go func(out chan int) {
-		ch := Generate();
+		ch := generate();
 		for {
 			prime := <-ch;
 			out <- prime;
-			ch = Filter(ch, prime);
+			ch = filter(ch, prime);
 		}
 	}(out);
 	return out;
 }
 
 func main() {
-	primes := Sieve();
+	primes := sieve();
 	for {
 		print(<-primes, "\n");
 	}

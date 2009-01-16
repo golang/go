@@ -6,13 +6,13 @@ package main
 
 import "fmt"
 
-type T struct { a int; b string }
+type testType struct { a int; b string }
 
-func (t *T) String() string {
+func (t *testType) String() string {
 	return fmt.Sprint(t.a) + " " + t.b
 }
 
 func main() {
-	t := &T{77, "Sunset Strip"};
+	t := &testType{77, "Sunset Strip"};
 	fmt.Println(t)
 }

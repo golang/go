@@ -5,7 +5,7 @@
 package main
 
 // Send the sequence 2, 3, 4, ... to channel 'ch'.
-func Generate(ch chan int) {
+func generate(ch chan int) {
 	for i := 2; ; i++ {
 		ch <- i  // Send 'i' to channel 'ch'.
 	}
@@ -13,7 +13,7 @@ func Generate(ch chan int) {
 
 // Copy the values from channel 'in' to channel 'out',
 // removing those divisible by 'prime'.
-func Filter(in, out chan int, prime int) {
+func filter(in, out chan int, prime int) {
 	for {
 		i := <-in;  // Receive value of new variable 'i' from 'in'.
 		if i % prime != 0 {
@@ -25,12 +25,12 @@ func Filter(in, out chan int, prime int) {
 // The prime sieve: Daisy-chain Filter processes together.
 func main() {
 	ch := make(chan int);  // Create a new channel.
-	go Generate(ch);  // Start Generate() as a goroutine.
+	go generate(ch);  // Start Generate() as a goroutine.
 	for {
 		prime := <-ch;
 		print(prime, "\n");
 		ch1 := make(chan int);
-		go Filter(ch, ch1, prime);
+		go filter(ch, ch1, prime);
 		ch = ch1
 	}
 }
