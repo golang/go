@@ -18,7 +18,7 @@ import (
 //	- buffered output
 
 const (
-	DefaultBufSize = 4096
+	defaultBufSize = 4096
 )
 
 export var (
@@ -30,7 +30,7 @@ export var (
 	ShortWrite = os.NewError("short write");
 )
 
-func CopySlice(dst []byte, src []byte) {
+func copySlice(dst []byte, src []byte) {
 	for i := 0; i < len(dst); i++ {
 		dst[i] = src[i]
 	}
@@ -57,9 +57,7 @@ export func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
 }
 
 export func NewBufRead(rd io.Read) (b *BufRead, err *os.Error) {
-	// 6g BUG return NewBufReadSize(rd, DefaultBufSize)
-	r, e := NewBufReadSize(rd, DefaultBufSize);
-	return r, e
+	return NewBufReadSize(rd, defaultBufSize);
 }
 
 // Read a new chunk into the buffer.
@@ -70,7 +68,7 @@ func (b *BufRead) Fill() *os.Error {
 
 	// Slide existing data to beginning.
 	if b.w > b.r {
-		CopySlice(b.buf[0:b.w-b.r], b.buf[b.r:b.w]);
+		copySlice(b.buf[0:b.w-b.r], b.buf[b.r:b.w]);
 		b.w -= b.r;
 	} else {
 		b.w = 0
@@ -107,7 +105,7 @@ func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
 		if n > b.w - b.r {
 			n = b.w - b.r
 		}
-		CopySlice(p[0:n], b.buf[b.r:b.r+n]);
+		copySlice(p[0:n], b.buf[b.r:b.r+n]);
 		p = p[n:len(p)];
 		b.r += n;
 		nn += n
@@ -170,7 +168,7 @@ func (b *BufRead) ReadRune() (rune int, size int, err *os.Error) {
 
 // Helper function: look for byte c in array p,
 // returning its index or -1.
-func FindByte(p []byte, c byte) int {
+func findByte(p []byte, c byte) int {
 	for i := 0; i < len(p); i++ {
 		if p[i] == c {
 			return i
@@ -197,7 +195,7 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
 	}
 
 	// Look in buffer.
-	if i := FindByte(b.buf[b.r:b.w], delim); i >= 0 {
+	if i := findByte(b.buf[b.r:b.w], delim); i >= 0 {
 		line1 := b.buf[b.r:b.r+i+1];
 		b.r += i+1;
 		return line1, nil
@@ -217,7 +215,7 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
 		}
 
 		// Search new part of buffer
-		if i := FindByte(b.buf[n:b.w], delim); i >= 0 {
+		if i := findByte(b.buf[n:b.w], delim); i >= 0 {
 			line := b.buf[0:n+i+1];
 			b.r = n+i+1;
 			return line, nil
@@ -304,10 +302,10 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 	buf := make([]byte, n);
 	n = 0;
 	for i := 0; i < nfull; i++ {
-		CopySlice(buf[n:n+len(full[i])], full[i]);
+		copySlice(buf[n:n+len(full[i])], full[i]);
 		n += len(full[i])
 	}
-	CopySlice(buf[n:n+len(frag)], frag);
+	copySlice(buf[n:n+len(frag)], frag);
 	return buf, err
 }
 
@@ -346,9 +344,7 @@ export func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error) 
 }
 
 export func NewBufWrite(wr io.Write) (b *BufWrite, err *os.Error) {
-	// 6g BUG return NewBufWriteSize(wr, DefaultBufSize)
-	r, e := NewBufWriteSize(wr, DefaultBufSize);
-	return r, e
+	return NewBufWriteSize(wr, defaultBufSize);
 }
 
 // Flush the output buffer.
@@ -365,7 +361,7 @@ func (b *BufWrite) Flush() *os.Error {
 		}
 		if e != nil {
 			if n < b.n {
-				CopySlice(b.buf[0:b.n-n], b.buf[n:b.n])
+				copySlice(b.buf[0:b.n-n], b.buf[n:b.n])
 			}
 			b.n -= n;
 			b.err = e;
@@ -400,7 +396,7 @@ func (b *BufWrite) Write(p []byte) (nn int, err *os.Error) {
 		if n > len(p) {
 			n = len(p)
 		}
-		CopySlice(b.buf[b.n:b.n+n], p[0:n]);
+		copySlice(b.buf[b.n:b.n+n], p[0:n]);
 		b.n += n;
 		nn += n;
 		p = p[n:len(p)]
