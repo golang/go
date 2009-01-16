@@ -11,8 +11,8 @@ import (
 
 export func TestTick(t *testing.T) {
 	const (
-		Delta uint64 = 100*1e6;
-		Count uint64 = 10;
+		Delta = 100*1e6;
+		Count = 10;
 	);
 	c := Tick(Delta);
 	t0 := Nanoseconds();
