@@ -18,14 +18,14 @@ var (
 )
 
 func init() {
-	Flag.BoolVar(&flags.verbose, "v", false, "verbose mode: trace parsing");
-	Flag.BoolVar(&flags.sixg, "6g", true, "6g compatibility mode");
+	Flag.BoolVar(&flags.Verbose, "v", false, "verbose mode: trace parsing");
+	Flag.BoolVar(&flags.Sixg, "6g", true, "6g compatibility mode");
 	//TODO fix this code again
-	//Flag.BoolVar(&flags.deps, "d", false, "print dependency information only");
-	Flag.BoolVar(&flags.columns, "columns", Platform.USER == "gri", "print column info in error messages");
-	Flag.BoolVar(&flags.testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
-	Flag.BoolVar(&flags.tokenchan, "token_chan", false, "use token channel for scanner-parser connection");
-	Flag.BoolVar(&flags.naming, "naming", false, "verify export naming scheme");
+	//Flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
+	Flag.BoolVar(&flags.Columns, "columns", Platform.USER == "gri", "print column info in error messages");
+	Flag.BoolVar(&flags.Testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
+	Flag.BoolVar(&flags.Tokenchan, "token_chan", false, "use token channel for scanner-parser connection");
+	Flag.BoolVar(&flags.Naming, "naming", false, "verify export naming scheme");
 }
 
 
@@ -55,7 +55,7 @@ func main() {
 			if nerrors > 0 {
 				return;
 			}
-			if !flags.naming && !*silent && !flags.testmode {
+			if !flags.Naming && !*silent && !flags.Testmode {
 				Printer.Print(prog);
 			}
 		}
