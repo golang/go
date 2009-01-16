@@ -17,7 +17,7 @@ import (
 )
 
 // Serve a new connection.
-func ServeConnection(fd net.Conn, raddr string, f *(*Conn, *Request)) {
+func serveConnection(fd net.Conn, raddr string, f *(*Conn, *Request)) {
 	c, err := NewConn(fd);
 	if err != nil {
 		return
@@ -48,7 +48,7 @@ export func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
 		if e != nil {
 			return e
 		}
-		go ServeConnection(rw, raddr, f)
+		go serveConnection(rw, raddr, f)
 	}
 	panic("not reached")
 }

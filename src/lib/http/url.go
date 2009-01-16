@@ -16,7 +16,7 @@ export var (
 	BadURL = os.NewError("bad url syntax")
 )
 
-func IsHex(c byte) bool {
+func ishex(c byte) bool {
 	switch {
 	case '0' <= c && c <= '9':
 		return true;
@@ -28,7 +28,7 @@ func IsHex(c byte) bool {
 	return false
 }
 
-func UnHex(c byte) byte {
+func unhex(c byte) byte {
 	switch {
 	case '0' <= c && c <= '9':
 		return c - '0';
@@ -47,7 +47,7 @@ export func URLUnescape(s string) (string, *os.Error) {
 	for i := 0; i < len(s); {
 		if s[i] == '%' {
 			n++;
-			if !IsHex(s[i+1]) || !IsHex(s[i+2]) {
+			if !ishex(s[i+1]) || !ishex(s[i+2]) {
 				return "", BadURL;
 			}
 			i += 3
@@ -64,7 +64,7 @@ export func URLUnescape(s string) (string, *os.Error) {
 	j := 0;
 	for i := 0; i < len(s); {
 		if s[i] == '%' {
-			t[j] = UnHex(s[i+1]) << 4 | UnHex(s[i+2]);
+			t[j] = unhex(s[i+1]) << 4 | unhex(s[i+2]);
 			j++;
 			i += 3;
 		} else {
@@ -91,7 +91,7 @@ export type URL struct {
 // Maybe rawurl is of the form scheme:path.
 // (Scheme must be [a-zA-Z][a-zA-Z0-9+-.]*)
 // If so, return scheme, path; else return "", rawurl.
-func GetScheme(rawurl string) (scheme, path string, err *os.Error) {
+func getscheme(rawurl string) (scheme, path string, err *os.Error) {
 	for i := 0; i < len(rawurl); i++ {
 		c := rawurl[i];
 		switch {
@@ -114,7 +114,7 @@ func GetScheme(rawurl string) (scheme, path string, err *os.Error) {
 // Maybe s is of the form t c u.
 // If so, return t, c u (or t, u if cutc == true).
 // If not, return s, "".
-func Split(s string, c byte, cutc bool) (string, string) {
+func split(s string, c byte, cutc bool) (string, string) {
 	for i := 0; i < len(s); i++ {
 		if s[i] == c {
 			if cutc {
@@ -134,9 +134,9 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
 	url = new(URL);
 	url.raw = rawurl;
 
-	// Split off possible leading "http:", "mailto:", etc.
+	// split off possible leading "http:", "mailto:", etc.
 	var path string;
-	if url.scheme, path, err = GetScheme(rawurl); err != nil {
+	if url.scheme, path, err = getscheme(rawurl); err != nil {
 		return nil, err
 	}
 	url.rawpath = path;
@@ -144,7 +144,7 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
 	// RFC 2396: a relative URI (no scheme) has a ?query,
 	// but absolute URIs only have query if path begins with /
 	if url.scheme == "" || len(path) > 0 && path[0] == '/' {
-		path, url.query = Split(path, '?', true);
+		path, url.query = split(path, '?', true);
 		if url.query, err = URLUnescape(url.query); err != nil {
 			return nil, err
 		}
@@ -152,14 +152,14 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
 
 	// Maybe path is //authority/path
 	if len(path) > 2 && path[0:2] == "//" {
-		url.authority, path = Split(path[2:len(path)], '/', false);
+		url.authority, path = split(path[2:len(path)], '/', false);
 	}
 
-	// If there's no @, Split's default is wrong.  Check explicitly.
+	// If there's no @, split's default is wrong.  Check explicitly.
 	if strings.index(url.authority, "@") < 0 {
 		url.host = url.authority;
 	} else {
-		url.userinfo, url.host = Split(url.authority, '@', true);
+		url.userinfo, url.host = split(url.authority, '@', true);
 	}
 
 	// What's left is the path.
@@ -174,7 +174,7 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
 // A URL reference is a URL with #frag potentially added.  Parse it.
 export func ParseURLReference(rawurlref string) (url *URL, err *os.Error) {
 	// Cut off #frag.
-	rawurl, frag := Split(rawurlref, '#', true);
+	rawurl, frag := split(rawurlref, '#', true);
 	if url, err = ParseURL(rawurl); err != nil {
 		return nil, err
 	}
