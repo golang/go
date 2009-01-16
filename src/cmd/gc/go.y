@@ -188,20 +188,15 @@ xdcl:
 	{
 		$$ = N;
 	}
-|	LEXPORT export_list_r
-	{
-		$$ = N;
-	}
 |	LEXPORT { dcladj = exportsym; stksize = initstksize; } common_dcl
 	{
 		$$ = $3;
 		dcladj = 0;
 		initstksize = stksize;
 	}
-|	LPACKAGE { dcladj = packagesym; stksize = initstksize; } common_dcl
+|	LPACKAGE { warn("package is gone"); stksize = initstksize; } common_dcl
 	{
 		$$ = $3;
-		dcladj = 0;
 		initstksize = stksize;
 	}
 |	LEXPORT '(' export_list_r ')'
@@ -214,10 +209,10 @@ xdcl:
 			exportsym($2->nname->sym);
 		$$ = N;
 	}
-|	LPACKAGE xfndcl
+|	LPACKAGE { warn("package is gone"); } xfndcl
 	{
-		if($2 != N && $2->nname != N)
-			packagesym($2->nname->sym);
+		if($3 != N && $3->nname != N)
+			packagesym($3->nname->sym);
 		$$ = N;
 	}
 |	';'
