@@ -119,9 +119,9 @@ dumpexportconst(Sym *s)
 		Bprint(bout, "export ");
 	else if(s->export == 2)
 		Bprint(bout, "package ");
-	Bprint(bout, "const %lS ", s);
+	Bprint(bout, "const %lS", s);
 	if(t != T)
-		Bprint(bout, "%#T ", t);
+		Bprint(bout, " %#T", t);
 	Bprint(bout, " = ");
 
 	switch(n->val.ctype) {
@@ -133,7 +133,10 @@ dumpexportconst(Sym *s)
 		Bprint(bout, "%B\n", n->val.u.xval);
 		break;
 	case CTBOOL:
-		Bprint(bout, "0x%llux\n", n->val.u.bval);
+		if(n->val.u.bval)
+			Bprint(bout, "true\n");
+		else
+			Bprint(bout, "false\n");
 		break;
 	case CTFLT:
 		Bprint(bout, "%F\n", n->val.u.fval);
