@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(January 7, 2009)
+(January 16, 2009)
 
 ----
 
@@ -28,8 +28,6 @@ Timeline (9/5/08):
 
 
 Missing:
-[ ] partial export of structs, methods
-[ ] packages of multiple files
 [ ] Helper syntax for composite types: allow names/indices for maps/arrays,
     remove need for type in elements of composites
 
@@ -92,6 +90,8 @@ Decisions in need of integration into the doc:
 
 
 Closed:
+[x] packages of multiple files - we have a working approach
+[x] partial export of structs, methods
 [x] new as it is now is weird - need to go back to previous semantics and introduce
     literals for slices, maps, channels - done
 [x] determine if really necessary to disallow array assignment - allow array assignment
@@ -155,12 +155,11 @@ Contents
 
 	Declarations and scope rules
 		Predeclared identifiers
-		Exported declarations
+		Exported identifiers
 		Const declarations
 			Iota
 		Type declarations
 		Variable declarations
-		Export declarations
 
 	Types
 		Basic types
@@ -284,17 +283,18 @@ A package is a collection of import, constant, type, variable, and function
 declarations. Each declaration binds an ``identifier'' with a program entity
 (such as a variable).
 
-In particular, all identifiers in a package are either declared explicitly
-within the package, arise from an import statement, or belong to a small set
-of predeclared identifiers (such as "string").
+In particular, all identifiers occurring in a package are either declared
+explicitly within the package, arise from an import declaration, or belong
+to a small set of predeclared identifiers (such as "string").
 
 Scoping follows the usual rules: The scope of an identifier declared within
 a ``block'' generally extends from the declaration of the identifier to the
 end of the block. An identifier shadows identifiers with the same name declared
 in outer scopes. Within a scope, an identifier can be declared at most once.
 
-A package may mark explicitly declared identifiers for ``export'' to make them
-visible to other source files in the same package, or to other packages.
+Identifiers may be ``internal'' or ``exported''. Internal identifiers are only
+accessible to files belonging to the package in which they are declared.
+External identifiers are accessible to other packages.
 
 
 Typing, polymorphism, and object-orientation
@@ -341,11 +341,6 @@ they are no longer accessible.  There is no pointer arithmetic in Go.
 
 Values and references
 ----
-
-TODO
-- revisit this section
-- if we'd keep the * for maps and chans, all types would have value semantics
-  again
 
 Most data types have value semantics, but their contents may be accessed
 through different pointers referring to the same object. However, some
@@ -423,32 +418,30 @@ Comments are // to end of line or /* */ without nesting and are treated as white
 
 Some Unicode characters (e.g., the character U+00E4) may be representable in
 two forms, as a single code point or as two code points.  For simplicity of
-implementation, Go treats these as distinct characters.
+implementation, Go treats these as distinct characters: each Unicode code
+point is a single character in Go.
 
 
 Characters
 ----
 
-In the grammar the term
+The following terms are used to denote specific Unicode character classes:
 
-	utf8_char
+	unicode_char      an arbitrary Unicode code point
+	unicode_letter    a Unicode code point classified as "Letter"
+	capital_letter    a Unicode code point classified as "Letter, uppercase"
 
-denotes an arbitrary Unicode code point encoded in UTF-8. Similarly,
-
-	non_ascii
-
-denotes the subset of "utf8_char" code points with values >= 128.
+(The Unicode Standard, Section 4.5 General Category - Normative.)
 
 
 Letters and digits
 ----
 
-	letter        = "A" ... "Z" | "a" ... "z" | "_" | non_ascii.
+	letter        = unicode_letter | "_" .
 	decimal_digit = "0" ... "9" .
 	octal_digit   = "0" ... "7" .
 	hex_digit     = "0" ... "9" | "A" ... "F" | "a" ... "f" .
 
-All non-ASCII code points are considered letters; digits are always ASCII.
 
 ----
 
@@ -467,12 +460,14 @@ type, a function, etc.
 
 	identifier = letter { letter | decimal_digit } .
 
+Exported identifiers (§Exported identifiers) start with a capital_letter.
+
 	a
-	_x
-	ThisIsVariable9
+	_x9
+	ThisVariableIsExported
 	αβ
 
-Some identifiers are predeclared (§Declarations).
+Some identifiers are predeclared (§Predeclared identifiers).
 
 
 Numeric literals
@@ -541,7 +536,7 @@ following differences:
 The rules are:
 
 	char_lit = "'" ( unicode_value | byte_value ) "'" .
-	unicode_value = utf8_char | little_u_value | big_u_value | escaped_char .
+	unicode_value = unicode_char | little_u_value | big_u_value | escaped_char .
 	byte_value = octal_byte_value | hex_byte_value .
 	octal_byte_value = "\" octal_digit octal_digit octal_digit .
 	hex_byte_value = "\" "x" hex_digit hex_digit .
@@ -598,7 +593,7 @@ Double-quoted strings have the usual properties; back-quoted strings
 do not interpret backslashes at all.
 
 	string_lit = raw_string_lit | interpreted_string_lit .
-	raw_string_lit = "`" { utf8_char } "`" .
+	raw_string_lit = "`" { unicode_char } "`" .
 	interpreted_string_lit = """ { unicode_value | byte_value } """ .
 
 A string literal has type "string" (§Strings).  Its value is constructed
@@ -669,7 +664,7 @@ The following words are reserved and must not be used as identifiers:
 
 	break        default      func         interface    select
 	case         else         go           map          struct
-	chan         export       goto         package      switch
+	chan					  goto         package      switch
 	const        fallthrough  if           range        type
 	continue     for          import       return       var
 
@@ -683,9 +678,7 @@ A declaration ``binds'' an identifier to a language entity (such as
 a package, constant, type, struct field, variable, parameter, result,
 function, method) and specifies properties of that entity such as its type.
 
-	Declaration =
-		[ "export" | "package" ]
-		( ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl ) .
+	Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl .
 		
 Every identifier in a program must be declared; some identifiers, such as "int"
 and "true", are predeclared (§Predeclared identifiers).
@@ -726,9 +719,6 @@ same identifier declared in an outer block.
 	   function and does not intersect with any non-label scope. Thus,
 	   each function has its own private label scope.
 
-An entity is said to be ``local'' to its scope. Declarations in the package
-scope are ``global'' declarations.
-
 
 Predeclared identifiers
 ----
@@ -753,36 +743,19 @@ The predeclared functions (note: this list is likely to change):
 	cap(), convert(), len(), make(), new(), panic(), panicln(), print(), println(), typeof(), ...
 
 
-Exported declarations
+Exported identifiers
 ----
 
-Global declarations optionally may be marked for ``export'', thus making the
-declared identifier accessible outside the current source file. Another source
-file may then import the package (§Packages) and access exported identifiers
-via qualified identifiers (§Qualified identifiers). Local declarations can
-never be marked for export.
+Identifiers that start with a capital_letter (§Identifiers) are ``exported'',
+thus making the identifiers accessible outside the current package. A file
+belonging to another package may then import the package (§Packages) and access
+exported identifiers via qualified identifiers (§Qualified identifiers).
 
-There are two kinds of exports: If a declaration in a package P is marked with
-the keyword "export", the declared identifier is accessible in any file
-importing P; this is called ``unrestricted export''. If a declaration is
-marked with the keyword "package", the declared identifier is only accessible
-in files belonging to the same package P; this is called ``package-restricted''
-export.
+All other identifiers are ``internal''; they are only visible in files
+belonging to the same package which declares them.
 
-If the identifier represents a type, it must be a complete type (§Types) and
-the type structure is exported as well. In particular, if the declaration
-defines a "struct" or "interface" type, all structure fields and all structure
-and interface methods are exported also.
-
-	export const pi float = 3.14159265
-	export func Parse(source string);
-
-	package type Node *struct { val int; next *Node }
-
-TODO: Eventually we need to be able to restrict visibility of fields and methods.
-(gri) The default should be no struct fields and methods are automatically exported.
-Export should be identifier-based: an identifier is either exported or not, and thus
-visible or not in importing package.
+TODO: This should be made clearer. For instance, function-local identifiers
+are never exported, but non-global fields/methods may be exported.
 
 
 Const declarations
@@ -808,8 +781,8 @@ the type of all constants is the type specified, and the types of all
 expressions in ExpressionList must be assignment-compatible with the
 constant type.
 
-	const pi float64 = 3.14159265358979323846
-	const e = 2.718281828
+	const Pi float64 = 3.14159265358979323846
+	const E = 2.718281828
 	const (
 		size int64 = 1024;
 		eof = -1;
@@ -836,6 +809,7 @@ ExpressionLists permit light-weight declaration of enumerated values (§Iota):
 		Thursday;
 		Friday;
 		Partyday;
+		numberOfDays;  // this constant in not exported
 	)
 
 The initializing expression for a numeric constant is evaluated
@@ -985,7 +959,7 @@ of the variable.
 	VarSpec = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
 
 	var i int
-	var u, v, w float
+	var U, V, W float
 	var k = 0
 	var x, y float = -1.0, -2.0
 	var (
@@ -1014,7 +988,7 @@ The syntax
 
 is shorthand for
 
-	"var" ExpressionList = ExpressionList .
+	"var" IdentifierList = ExpressionList .
 
 	i, j := 0, 10;
 	f := func() int { return 7; }
@@ -1023,36 +997,6 @@ is shorthand for
 Also, in some contexts such as "if", "for", or "switch" statements,
 this construct can be used to declare local temporary variables.
 
-
-Export declarations
-----
-
-TODO:
-1) rephrase this section (much of it covered by Exported declarations)
-2) rethink need for this kind of export
-
-Global identifiers may be exported, thus making the
-exported identifier visible outside the package.  Another package may
-then import the identifier to use it.
-
-Export declarations must only appear at the global level of a
-source file and can name only globally-visible identifiers.
-That is, one can export global functions, types, and so on but not
-local variables or structure fields.
-
-Exporting an identifier makes the identifier visible externally to the
-package.  If the identifier represents a type, it must be a complete
-type (§Types) and the type structure is
-exported as well.  The exported identifiers may appear later in the
-source than the export directive itself, but it is an error to specify
-an identifier not declared anywhere in the source file containing the
-export directive.
-
-	ExportDecl = [ "package" ] "export" ExportIdentifier { "," ExportIdentifier } .
-	ExportIdentifier = QualifiedIdent .
-
-	export sin, cos
-	export math.abs
 
 ----
 
@@ -1256,14 +1200,14 @@ types (§Types).
 	struct {
 		x, y int;
 		u float;
-		a *[]int;
-		f *();
+		A *[]int;
+		F *();
 	}
 
 A struct may contain ``anonymous fields'', which are declared with a type
 but no explicit field identifier. An anonymous field type must be specified as
 a type name "T", or as a pointer to a type name ``*T'', and T itself may not be
-a pointer or interface type. The unqualified type acts as the field identifier.
+a pointer or interface type. The unqualified type name acts as the field identifier.
 
 	// A struct with four anonymous fields of type T1, *T2, P.T3 and *P.T4
 	struct {
@@ -1422,13 +1366,13 @@ In general, a type implements an arbitrary number of interfaces.
 For instance, consider the interface
 
 	type Lock interface {
-		lock, unlock	();
+		Lock, Unlock	();
 	}
 
 If S1 and S2 also implement
 
-	func (p T) lock() { ... }
-	func (p T) unlock() { ... }
+	func (p T) Lock() { ... }
+	func (p T) Unlock() { ... }
 
 they implement the Lock interface as well as the File interface.
 
@@ -3254,19 +3198,19 @@ The file must begin with a package clause.
 	package Math
 
 
-A package can gain access to exported items from another package
+A package can gain access to exported identifiers from another package
 through an import declaration:
 
 	ImportDecl = "import" ( ImportSpec | "(" [ ImportSpecList ] ")" ) .
 	ImportSpecList = ImportSpec { ";" ImportSpec } [ ";" ] .
 	ImportSpec = [ "." | PackageName ] PackageFileName .
 
-An import statement makes the exported contents of the named
-package file accessible in this package.
+An import statement makes the exported top-level identifiers of the named
+package file accessible to this package.
 
 In the following discussion, assume we have a package in the
-file "/lib/math", called package Math, which exports functions sin
-and cos.
+file "/lib/math", called package "math", which exports the identifiers
+"Sin" and "Cos" denoting the respective trigonometric functions.
 
 In the general form, with an explicit package name, the import
 statement declares that package name as an identifier whose
@@ -3276,7 +3220,7 @@ For instance, after
 	import M "/lib/math"
 
 the contents of the package /lib/math can be accessed by
-M.cos, M.sin, etc.
+"M.Sin", "M.Cos", etc.
 
 In its simplest form, with no package name, the import statement
 implicitly uses the imported package name itself as the local
@@ -3284,7 +3228,7 @@ package name.  After
 
 	import "/lib/math"
 
-the contents are accessible by Math.sin, Math.cos.
+the contents are accessible by "math.Sin", "math.Cos".
 
 Finally, if instead of a package name the import statement uses
 an explicit period, the contents of the imported package are added
@@ -3292,7 +3236,7 @@ to the current package. After
 
 	import . "/lib/math"
 
-the contents are accessible by sin and cos.  In this instance, it is
+the contents are accessible by "Sin" and "Cos".  In this instance, it is
 an error if the import introduces name conflicts.
 
 Here is a complete example Go package that implements a concurrent prime sieve:
@@ -3300,7 +3244,7 @@ Here is a complete example Go package that implements a concurrent prime sieve:
 	package main
 	
 	// Send the sequence 2, 3, 4, ... to channel 'ch'.
-	func Generate(ch chan <- int) {
+	func generate(ch chan <- int) {
 		for i := 2; ; i++ {
 			ch <- i  // Send 'i' to channel 'ch'.
 		}
@@ -3308,7 +3252,7 @@ Here is a complete example Go package that implements a concurrent prime sieve:
 	
 	// Copy the values from channel 'in' to channel 'out',
 	// removing those divisible by 'prime'.
-	func Filter(in chan <- int, out *<-chan int, prime int) {
+	func filter(in chan <- int, out *<-chan int, prime int) {
 		for {
 			i := <-in;  // Receive value of new variable 'i' from 'in'.
 			if i % prime != 0 {
@@ -3317,21 +3261,21 @@ Here is a complete example Go package that implements a concurrent prime sieve:
 		}
 	}
 	
-	// The prime sieve: Daisy-chain Filter processes together.
-	func Sieve() {
+	// The prime sieve: Daisy-chain filter processes together.
+	func sieve() {
 		ch := make(chan int);  // Create a new channel.
-		go Generate(ch);  // Start Generate() as a subprocess.
+		go generate(ch);  // Start generate() as a subprocess.
 		for {
 			prime := <-ch;
 			print(prime, "\n");
 			ch1 := make(chan int);
-			go Filter(ch, ch1, prime);
+			go filter(ch, ch1, prime);
 			ch = ch1
 		}
 	}
 	
 	func main() {
-		Sieve()
+		sieve()
 	}
 
 
