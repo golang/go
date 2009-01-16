@@ -4,10 +4,11 @@
 
 package Scanner
 
-import "utf8"
-import "unicode"
-import Utils "utils"
-
+import (
+	"utf8";
+	"unicode";
+	"utils";
+)
 
 export const (
 	ILLEGAL = iota;
@@ -75,7 +76,7 @@ export const (
 	PERIOD;
 
 	// keywords
-	KEYWORDS_BEG;
+	Keywords_beg;  // do not export eventually
 	BREAK;
 	CASE;
 	CHAN;
@@ -105,7 +106,7 @@ export const (
 	SWITCH;
 	TYPE;
 	VAR;
-	KEYWORDS_END;
+	Keywords_end;  // do not export eventually
 
 	// AST use only
 	EXPRSTAT;
@@ -243,13 +244,13 @@ export func Precedence(tok int) int {
 }
 
 
-var Keywords map [string] int;
+var keywords map [string] int;
 
 
 func init() {
-	Keywords = make(map [string] int);
-	for i := KEYWORDS_BEG + 1; i < KEYWORDS_END; i++ {
-		Keywords[TokenString(i)] = i;
+	keywords = make(map [string] int);
+	for i := Keywords_beg + 1; i < Keywords_end; i++ {
+		keywords[TokenString(i)] = i;
 	}
 }
 
@@ -301,7 +302,7 @@ export type Scanner struct {
 
 // Read the next Unicode char into S.ch.
 // S.ch < 0 means end-of-file.
-func (S *Scanner) Next() {
+func (S *Scanner) next() {
 	if S.pos < len(S.src) {
 		// assume ascii
 		r, w := int(S.src[S.pos]), 1;
@@ -333,7 +334,7 @@ func (S *Scanner) Error(pos int, msg string) {
 }
 
 
-func (S *Scanner) ExpectNoErrors() {
+func (S *Scanner) expectNoErrors() {
 	// set the next expected error position to one after eof
 	// (the eof position is a legal error position!)
 	S.testpos = len(S.src) + 1;
@@ -349,12 +350,12 @@ func (S *Scanner) Init(err ErrorHandler, src string, scan_comments, testmode boo
 	S.linepos = 0;
 
 	S.testmode = testmode;
-	S.ExpectNoErrors();  // S.src must be set
-	S.Next();  // S.ExpectNoErrrors() must be called before
+	S.expectNoErrors();  // S.src must be set
+	S.next();  // S.expectNoErrrors() must be called before
 }
 
 
-func CharString(ch int) string {
+func charString(ch int) string {
 	s := string(ch);
 	switch ch {
 	case '\a': s = `\a`;
@@ -371,15 +372,15 @@ func CharString(ch int) string {
 }
 
 
-func (S *Scanner) Expect(ch int) {
+func (S *Scanner) expect(ch int) {
 	if S.ch != ch {
-		S.Error(S.chpos, "expected " + CharString(ch) + ", found " + CharString(S.ch));
+		S.Error(S.chpos, "expected " + charString(ch) + ", found " + charString(S.ch));
 	}
-	S.Next();  // make always progress
+	S.next();  // make always progress
 }
 
 
-func (S *Scanner) SkipWhitespace() {
+func (S *Scanner) skipWhitespace() {
 	for {
 		switch S.ch {
 		case '\t', '\r', ' ':
@@ -391,37 +392,37 @@ func (S *Scanner) SkipWhitespace() {
 		default:
 			return;
 		}
-		S.Next();
+		S.next();
 	}
 	panic("UNREACHABLE");
 }
 
 
-func (S *Scanner) ScanComment() string {
+func (S *Scanner) scanComment() string {
 	// first '/' already consumed
 	pos := S.chpos - 1;
 
 	if S.ch == '/' {
 		//-style comment
-		S.Next();
+		S.next();
 		for S.ch >= 0 {
-			S.Next();
+			S.next();
 			if S.ch == '\n' {
 				// '\n' terminates comment but we do not include
 				// it in the comment (otherwise we don't see the
-				// start of a newline in SkipWhitespace()).
+				// start of a newline in skipWhitespace()).
 				goto exit;
 			}
 		}
 
 	} else {
 		/*-style comment */
-		S.Expect('*');
+		S.expect('*');
 		for S.ch >= 0 {
 			ch := S.ch;
-			S.Next();
+			S.next();
 			if ch == '*' && S.ch == '/' {
-				S.Next();
+				S.next();
 				goto exit;
 			}
 		}
@@ -439,12 +440,12 @@ exit:
 		case len(comment) >= 8 && comment[3 : 8] == "ERROR" :
 			// an error is expected at the next token position
 			oldpos = S.testpos;
-			S.SkipWhitespace();
+			S.skipWhitespace();
 			S.testpos = S.chpos;
 		case len(comment) >= 7 && comment[3 : 7] == "SYNC" :
 			// scanning/parsing synchronized again - no (follow-up) errors expected
 			oldpos = S.testpos;
-			S.ExpectNoErrors();
+			S.expectNoErrors();
 		}
 
 		if 0 <= oldpos && oldpos <= len(S.src) {
@@ -457,15 +458,15 @@ exit:
 }
 
 
-func (S *Scanner) ScanIdentifier() (tok int, val string) {
+func (S *Scanner) scanIdentifier() (tok int, val string) {
 	pos := S.chpos;
 	for is_letter(S.ch) || digit_val(S.ch) < 10 {
-		S.Next();
+		S.next();
 	}
 	val = S.src[pos : S.chpos];
 
 	var present bool;
-	tok, present = Keywords[val];
+	tok, present = keywords[val];
 	if !present {
 		tok = IDENT;
 	}
@@ -474,34 +475,34 @@ func (S *Scanner) ScanIdentifier() (tok int, val string) {
 }
 
 
-func (S *Scanner) ScanMantissa(base int) {
+func (S *Scanner) scanMantissa(base int) {
 	for digit_val(S.ch) < base {
-		S.Next();
+		S.next();
 	}
 }
 
 
-func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
+func (S *Scanner) scanNumber(seen_decimal_point bool) (tok int, val string) {
 	pos := S.chpos;
 	tok = INT;
 
 	if seen_decimal_point {
 		tok = FLOAT;
 		pos--;  // '.' is one byte
-		S.ScanMantissa(10);
+		S.scanMantissa(10);
 		goto exponent;
 	}
 
 	if S.ch == '0' {
 		// int or float
-		S.Next();
+		S.next();
 		if S.ch == 'x' || S.ch == 'X' {
 			// hexadecimal int
-			S.Next();
-			S.ScanMantissa(16);
+			S.next();
+			S.scanMantissa(16);
 		} else {
 			// octal int or float
-			S.ScanMantissa(8);
+			S.scanMantissa(8);
 			if digit_val(S.ch) < 10 || S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
 				// float
 				tok = FLOAT;
@@ -514,24 +515,24 @@ func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
 
 mantissa:
 	// decimal int or float
-	S.ScanMantissa(10);
+	S.scanMantissa(10);
 
 	if S.ch == '.' {
 		// float
 		tok = FLOAT;
-		S.Next();
-		S.ScanMantissa(10)
+		S.next();
+		S.scanMantissa(10)
 	}
 
 exponent:
 	if S.ch == 'e' || S.ch == 'E' {
 		// float
 		tok = FLOAT;
-		S.Next();
+		S.next();
 		if S.ch == '-' || S.ch == '+' {
-			S.Next();
+			S.next();
 		}
-		S.ScanMantissa(10);
+		S.scanMantissa(10);
 	}
 
 exit:
@@ -539,9 +540,9 @@ exit:
 }
 
 
-func (S *Scanner) ScanDigits(n int, base int) {
+func (S *Scanner) scanDigits(n int, base int) {
 	for digit_val(S.ch) < base {
-		S.Next();
+		S.next();
 		n--;
 	}
 	if n > 0 {
@@ -550,30 +551,30 @@ func (S *Scanner) ScanDigits(n int, base int) {
 }
 
 
-func (S *Scanner) ScanEscape(quote int) string {
+func (S *Scanner) scanEscape(quote int) string {
 	// TODO: fix this routine
 
 	ch := S.ch;
 	pos := S.chpos;
-	S.Next();
+	S.next();
 	switch ch {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\':
 		return string(ch);
 
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		S.ScanDigits(3 - 1, 8);  // 1 char already read
+		S.scanDigits(3 - 1, 8);  // 1 char already read
 		return "";  // TODO fix this
 
 	case 'x':
-		S.ScanDigits(2, 16);
+		S.scanDigits(2, 16);
 		return "";  // TODO fix this
 
 	case 'u':
-		S.ScanDigits(4, 16);
+		S.scanDigits(4, 16);
 		return "";  // TODO fix this
 
 	case 'U':
-		S.ScanDigits(8, 16);
+		S.scanDigits(8, 16);
 		return "";  // TODO fix this
 
 	default:
@@ -588,91 +589,91 @@ func (S *Scanner) ScanEscape(quote int) string {
 }
 
 
-func (S *Scanner) ScanChar() string {
+func (S *Scanner) scanChar() string {
 	// '\'' already consumed
 
 	pos := S.chpos - 1;
 	ch := S.ch;
-	S.Next();
+	S.next();
 	if ch == '\\' {
-		S.ScanEscape('\'');
+		S.scanEscape('\'');
 	}
 
-	S.Expect('\'');
+	S.expect('\'');
 	return S.src[pos : S.chpos];
 }
 
 
-func (S *Scanner) ScanString() string {
+func (S *Scanner) scanString() string {
 	// '"' already consumed
 
 	pos := S.chpos - 1;
 	for S.ch != '"' {
 		ch := S.ch;
-		S.Next();
+		S.next();
 		if ch == '\n' || ch < 0 {
 			S.Error(pos, "string not terminated");
 			break;
 		}
 		if ch == '\\' {
-			S.ScanEscape('"');
+			S.scanEscape('"');
 		}
 	}
 
-	S.Next();
+	S.next();
 	return S.src[pos : S.chpos];
 }
 
 
-func (S *Scanner) ScanRawString() string {
+func (S *Scanner) scanRawString() string {
 	// '`' already consumed
 
 	pos := S.chpos - 1;
 	for S.ch != '`' {
 		ch := S.ch;
-		S.Next();
+		S.next();
 		if ch == '\n' || ch < 0 {
 			S.Error(pos, "string not terminated");
 			break;
 		}
 	}
 
-	S.Next();
+	S.next();
 	return S.src[pos : S.chpos];
 }
 
 
-func (S *Scanner) Select2(tok0, tok1 int) int {
+func (S *Scanner) select2(tok0, tok1 int) int {
 	if S.ch == '=' {
-		S.Next();
+		S.next();
 		return tok1;
 	}
 	return tok0;
 }
 
 
-func (S *Scanner) Select3(tok0, tok1, ch2, tok2 int) int {
+func (S *Scanner) select3(tok0, tok1, ch2, tok2 int) int {
 	if S.ch == '=' {
-		S.Next();
+		S.next();
 		return tok1;
 	}
 	if S.ch == ch2 {
-		S.Next();
+		S.next();
 		return tok2;
 	}
 	return tok0;
 }
 
 
-func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
+func (S *Scanner) select4(tok0, tok1, ch2, tok2, tok3 int) int {
 	if S.ch == '=' {
-		S.Next();
+		S.next();
 		return tok1;
 	}
 	if S.ch == ch2 {
-		S.Next();
+		S.next();
 		if S.ch == '=' {
-			S.Next();
+			S.next();
 			return tok3;
 		}
 		return tok2;
@@ -683,29 +684,29 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
 
 func (S *Scanner) Scan() (pos, tok int, val string) {
 loop:
-	S.SkipWhitespace();
+	S.skipWhitespace();
 
 	pos, tok = S.chpos, ILLEGAL;
 
 	switch ch := S.ch; {
-	case is_letter(ch): tok, val = S.ScanIdentifier();
-	case digit_val(ch) < 10: tok, val = S.ScanNumber(false);
+	case is_letter(ch): tok, val = S.scanIdentifier();
+	case digit_val(ch) < 10: tok, val = S.scanNumber(false);
 	default:
-		S.Next();  // always make progress
+		S.next();  // always make progress
 		switch ch {
 		case -1: tok = EOF;
 		case '\n': tok, val = COMMENT, "\n";
-		case '"': tok, val = STRING, S.ScanString();
-		case '\'': tok, val = INT, S.ScanChar();
-		case '`': tok, val = STRING, S.ScanRawString();
-		case ':': tok = S.Select2(COLON, DEFINE);
+		case '"': tok, val = STRING, S.scanString();
+		case '\'': tok, val = INT, S.scanChar();
+		case '`': tok, val = STRING, S.scanRawString();
+		case ':': tok = S.select2(COLON, DEFINE);
 		case '.':
 			if digit_val(S.ch) < 10 {
-				tok, val = S.ScanNumber(true);
+				tok, val = S.scanNumber(true);
 			} else if S.ch == '.' {
-				S.Next();
+				S.next();
 				if S.ch == '.' {
-					S.Next();
+					S.next();
 					tok = ELLIPSIS;
 				}
 			} else {
@@ -719,34 +720,34 @@ loop:
 		case ']': tok = RBRACK;
 		case '{': tok = LBRACE;
 		case '}': tok = RBRACE;
-		case '+': tok = S.Select3(ADD, ADD_ASSIGN, '+', INC);
-		case '-': tok = S.Select3(SUB, SUB_ASSIGN, '-', DEC);
-		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
+		case '+': tok = S.select3(ADD, ADD_ASSIGN, '+', INC);
+		case '-': tok = S.select3(SUB, SUB_ASSIGN, '-', DEC);
+		case '*': tok = S.select2(MUL, MUL_ASSIGN);
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
-				tok, val = COMMENT, S.ScanComment();
+				tok, val = COMMENT, S.scanComment();
 				if !S.scan_comments {
 					goto loop;
 				}
 			} else {
-				tok = S.Select2(QUO, QUO_ASSIGN);
+				tok = S.select2(QUO, QUO_ASSIGN);
 			}
-		case '%': tok = S.Select2(REM, REM_ASSIGN);
-		case '^': tok = S.Select2(XOR, XOR_ASSIGN);
+		case '%': tok = S.select2(REM, REM_ASSIGN);
+		case '^': tok = S.select2(XOR, XOR_ASSIGN);
 		case '<':
 			if S.ch == '-' {
-				S.Next();
+				S.next();
 				tok = ARROW;
 			} else {
-				tok = S.Select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
+				tok = S.select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
 			}
-		case '>': tok = S.Select4(GTR, GEQ, '>', SHR, SHR_ASSIGN);
-		case '=': tok = S.Select2(ASSIGN, EQL);
-		case '!': tok = S.Select2(NOT, NEQ);
-		case '&': tok = S.Select3(AND, AND_ASSIGN, '&', LAND);
-		case '|': tok = S.Select3(OR, OR_ASSIGN, '|', LOR);
+		case '>': tok = S.select4(GTR, GEQ, '>', SHR, SHR_ASSIGN);
+		case '=': tok = S.select2(ASSIGN, EQL);
+		case '!': tok = S.select2(NOT, NEQ);
+		case '&': tok = S.select3(AND, AND_ASSIGN, '&', LAND);
+		case '|': tok = S.select3(OR, OR_ASSIGN, '|', LOR);
 		default:
-			S.Error(pos, "illegal character " + CharString(ch));
+			S.Error(pos, "illegal character " + charString(ch));
 			tok = ILLEGAL;
 		}
 	}
@@ -756,9 +757,9 @@ loop:
 
 
 export type Token struct {
-	pos int;
-	tok int;
-	val string;
+	Pos int;
+	Tok int;
+	Val string;
 }
 
 
@@ -767,9 +768,9 @@ func (S *Scanner) TokenStream() <-chan *Token {
 	go func(S *Scanner, ch chan <- *Token) {
 		for {
 			t := new(Token);
-			t.pos, t.tok, t.val = S.Scan();
+			t.Pos, t.Tok, t.Val = S.Scan();
 			ch <- t;
-			if t.tok == EOF {
+			if t.Tok == EOF {
 				break;
 			}
 		}

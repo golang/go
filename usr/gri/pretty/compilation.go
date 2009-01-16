@@ -34,7 +34,7 @@ export type Flags struct {
 }
 
 
-type ErrorHandler struct {
+type errorHandler struct {
 	filename string;
 	src string;
 	nerrors int;
@@ -44,7 +44,7 @@ type ErrorHandler struct {
 }
 
 
-func (h *ErrorHandler) Init(filename, src string, columns bool) {
+func (h *errorHandler) Init(filename, src string, columns bool) {
 	h.filename = filename;
 	h.src = src;
 	h.nerrors = 0;
@@ -55,7 +55,7 @@ func (h *ErrorHandler) Init(filename, src string, columns bool) {
 
 
 // Compute (line, column) information for a given source position.
-func (h *ErrorHandler) LineCol(pos int) (line, col int) {
+func (h *errorHandler) LineCol(pos int) (line, col int) {
 	line = 1;
 	lpos := 0;
 
@@ -75,7 +75,7 @@ func (h *ErrorHandler) LineCol(pos int) (line, col int) {
 }
 
 
-func (h *ErrorHandler) ErrorMsg(pos int, msg string) {
+func (h *errorHandler) ErrorMsg(pos int, msg string) {
 	print(h.filename, ":");
 	if pos >= 0 {
 		// print position
@@ -97,7 +97,7 @@ func (h *ErrorHandler) ErrorMsg(pos int, msg string) {
 }
 
 
-func (h *ErrorHandler) Error(pos int, msg string) {
+func (h *errorHandler) Error(pos int, msg string) {
 	// only report errors that are sufficiently far away from the previous error
 	// in the hope to avoid most follow-up errors
 	const errdist = 20;
@@ -112,7 +112,7 @@ func (h *ErrorHandler) Error(pos int, msg string) {
 }
 
 
-func (h *ErrorHandler) Warning(pos int, msg string) {
+func (h *errorHandler) Warning(pos int, msg string) {
 	panic("UNIMPLEMENTED");
 }
 
@@ -124,7 +124,7 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 		return nil, 1;
 	}
 
-	var err ErrorHandler;
+	var err errorHandler;
 	err.Init(src_file, src, flags.columns);
 
 	var scanner Scanner.Scanner;
@@ -148,7 +148,7 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 }
 
 
-func FileExists(name string) bool {
+func fileExists(name string) bool {
 	fd, err := OS.Open(name, OS.O_RDONLY, 0);
 	if err == nil {
 		fd.Close();
@@ -158,7 +158,7 @@ func FileExists(name string) bool {
 }
 
 
-func AddDeps(globalset map [string] bool, wset *array.Array, src_file string, flags *Flags) {
+func addDeps(globalset map [string] bool, wset *array.Array, src_file string, flags *Flags) {
 	dummy, found := globalset[src_file];
 	if !found {
 		globalset[src_file] = true;
@@ -168,27 +168,27 @@ func AddDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
 			return;
 		}
 
-		nimports := prog.decls.Len();
+		nimports := prog.Decls.Len();
 		if nimports > 0 {
 			print(src_file, ".6:\t");
 
 			localset := make(map [string] bool);
 			for i := 0; i < nimports; i++ {
-				decl := prog.decls.At(i).(*AST.Decl);
-				assert(decl.tok == Scanner.IMPORT && decl.val.tok == Scanner.STRING);
-				src := decl.val.obj.ident;
+				decl := prog.Decls.At(i).(*AST.Decl);
+				assert(decl.Tok == Scanner.IMPORT && decl.Val.Tok == Scanner.STRING);
+				src := decl.Val.Obj.Ident;
 				src = src[1 : len(src) - 1];  // strip "'s
 
 				// ignore files when they are seen a 2nd time
 				dummy, found := localset[src];
 				if !found {
 					localset[src] = true;
-					if FileExists(src + ".go") {
+					if fileExists(src + ".go") {
 						wset.Push(src);
 						print(" ", src, ".6");
 					} else if
-						FileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
-						FileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
+						fileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
+						fileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
 
 					} else {
 						// TODO should collect these and print later
@@ -207,6 +207,6 @@ export func ComputeDeps(src_file string, flags *Flags) {
 	wset := array.New(0);
 	wset.Push(src_file);
 	for wset.Len() > 0 {
-		AddDeps(globalset, wset, wset.Pop().(string), flags);
+		addDeps(globalset, wset, wset.Pop().(string), flags);
 	}
 }

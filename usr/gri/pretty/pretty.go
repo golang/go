@@ -29,7 +29,7 @@ func init() {
 }
 
 
-func Usage() {
+func usage() {
 	print("usage: pretty { flags } { files }\n");
 	Flag.PrintDefaults();
 	sys.exit(0);
@@ -40,7 +40,7 @@ func main() {
 	Flag.Parse();
 	
 	if Flag.NFlag() == 0 && Flag.NArg() == 0 {
-		Usage();
+		usage();
 	}
 
 	// process files

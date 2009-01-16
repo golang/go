@@ -54,23 +54,23 @@ export func KindStr(kind int) string {
 
 
 export type Object struct {
-	id int;  // unique id
+	Id int;  // unique id
 
-	pos int;  // source position (< 0 if unknown position)
-	kind int;  // object kind
-	ident string;
-	typ *Type;  // nil for packages
-	pnolev int;  // >= 0: package no., <= 0: function nesting level, 0: global level
+	Pos int;  // source position (< 0 if unknown position)
+	Kind int;  // object kind
+	Ident string;
+	Typ *Type;  // nil for packages
+	Pnolev int;  // >= 0: package no., <= 0: function nesting level, 0: global level
 	
 	// attached values
-	block *array.Array; end int;  // stats for function literals; end of block pos
+	Block *array.Array; End int;  // stats for function literals; end of block pos
 }
 
 
 func (obj *Object) IsExported() bool {
-	switch obj.kind {
+	switch obj.Kind {
 	case NONE /* FUNC for now */, CONST, TYPE, VAR, FUNC:
-		ch, size := utf8.DecodeRuneInString(obj.ident,  0);
+		ch, size := utf8.DecodeRuneInString(obj.Ident,  0);
 		return unicode.IsUpper(ch);
 	}
 	return false;
@@ -78,18 +78,18 @@ func (obj *Object) IsExported() bool {
 
 
 export var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
-var ObjectId int;
+var objectId int;
 
 export func NewObject(pos, kind int, ident string) *Object {
 	obj := new(Object);
-	obj.id = ObjectId;
-	ObjectId++;
+	obj.Id = objectId;
+	objectId++;
 	
-	obj.pos = pos;
-	obj.kind = kind;
-	obj.ident = ident;
-	obj.typ = Universe_void_typ;
-	obj.pnolev = 0;
+	obj.Pos = pos;
+	obj.Kind = kind;
+	obj.Ident = ident;
+	obj.Typ = Universe_void_typ;
+	obj.Pnolev = 0;
 
 	return obj;
 }
@@ -133,23 +133,23 @@ func (scope *Scope) Lookup(ident string) *Object {
 }
 
 
-func (scope *Scope) Add(obj* Object) {
-	scope.entries[obj.ident] = obj;
+func (scope *Scope) add(obj* Object) {
+	scope.entries[obj.Ident] = obj;
 }
 
 
 func (scope *Scope) Insert(obj *Object) {
-	if scope.LookupLocal(obj.ident) != nil {
+	if scope.LookupLocal(obj.Ident) != nil {
 		panic("obj already inserted");
 	}
-	scope.Add(obj);
+	scope.add(obj);
 }
 
 
 func (scope *Scope) InsertImport(obj *Object) *Object {
-	 p := scope.LookupLocal(obj.ident);
+	 p := scope.LookupLocal(obj.Ident);
 	 if p == nil {
-		scope.Add(obj);
+		scope.add(obj);
 		p = obj;
 	 }
 	 return p;
@@ -169,8 +169,8 @@ func (scope *Scope) Print() {
 // All nodes have a source position and and token.
 
 export type Node struct {
-	pos int;  // source position (< 0 => unknown position)
-	tok int;  // identifying token
+	Pos int;  // source position (< 0 => unknown position)
+	Tok int;  // identifying token
 }
 
 
@@ -179,8 +179,8 @@ export type Node struct {
 
 export type Expr struct {
 	Node;
-	x, y *Expr;  // binary (x, y) and unary (y) expressions
-	obj *Object;
+	X, Y *Expr;  // binary (X, Y) and unary (Y) expressions
+	Obj *Object;
 }
 
 
@@ -189,7 +189,7 @@ func (x *Expr) Len() int {
 		return 0;
 	}
 	n := 1;
-	for ; x.tok == Scanner.COMMA; x = x.y {
+	for ; x.Tok == Scanner.COMMA; x = x.Y {
 		n++;
 	}
 	return n;
@@ -197,11 +197,11 @@ func (x *Expr) Len() int {
 
 
 export func NewExpr(pos, tok int, x, y *Expr) *Expr {
-	if x != nil && x.tok == Scanner.TYPE || y != nil && y.tok == Scanner.TYPE {
+	if x != nil && x.Tok == Scanner.TYPE || y != nil && y.Tok == Scanner.TYPE {
 		panic("no type expression allowed");
 	}
 	e := new(Expr);
-	e.pos, e.tok, e.x, e.y = pos, tok, x, y;
+	e.Pos, e.Tok, e.X, e.Y = pos, tok, x, y;
 	return e;
 }
 
@@ -209,7 +209,7 @@ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
 // TODO probably don't need the tok parameter eventually
 export func NewLit(tok int, obj *Object) *Expr {
 	e := new(Expr);
-	e.pos, e.tok, e.obj = obj.pos, tok, obj;
+	e.Pos, e.Tok, e.Obj = obj.Pos, tok, obj;
 	return e;
 }
 
@@ -296,47 +296,47 @@ export const /* channel mode */ (
 
 
 export type Type struct {
-	id int;  // unique id
+	Id int;  // unique id
 
-	ref int;  // for exporting only: >= 0 means already exported
-	form int;  // type form
-	size int;  // size in bytes
-	obj *Object;  // primary type object or NULL
-	scope *Scope;  // forwards, structs, interfaces, functions
+	Ref int;  // for exporting only: >= 0 means already exported
+	Form int;  // type form
+	Size int;  // size in bytes
+	Obj *Object;  // primary type object or NULL
+	Scope *Scope;  // forwards, structs, interfaces, functions
 
 	// syntactic components
-	pos int;  // source position (< 0 if unknown position)
-	expr *Expr;  // type name, array length
-	mode int;  // channel mode
-	key *Type;  // receiver type or map key
-	elt *Type;  // array, map, channel or pointer element type, function result type
-	list *array.Array; end int;  // struct fields, interface methods, function parameters
-	scope *Scope;  // struct fields, methods
+	Pos int;  // source position (< 0 if unknown position)
+	Expr *Expr;  // type name, array length
+	Mode int;  // channel mode
+	Key *Type;  // receiver type or map key
+	Elt *Type;  // array, map, channel or pointer element type, function result type
+	List *array.Array; End int;  // struct fields, interface methods, function parameters
+	Scope *Scope;  // struct fields, methods
 }
 
 
-var TypeId int;
+var typeId int;
 
 export func NewType(pos, form int) *Type {
 	typ := new(Type);
-	typ.id = TypeId;
-	TypeId++;
+	typ.Id = typeId;
+	typeId++;
 
-	typ.ref = -1;  // not yet exported
-	typ.pos = pos;
-	typ.form = form;
+	typ.Ref = -1;  // not yet exported
+	typ.Pos = pos;
+	typ.Form = form;
 
 	return typ;
 }
 
 
-func (t *Type) nfields() int {
-	if t.list == nil {
+func (t *Type) Nfields() int {
+	if t.List == nil {
 		return 0;
 	}
 	nx, nt := 0, 0;
-	for i, n := 0, t.list.Len(); i < n; i++ {
-		if t.list.At(i).(*Expr).tok == Scanner.TYPE {
+	for i, n := 0, t.List.Len(); i < n; i++ {
+		if t.List.At(i).(*Expr).Tok == Scanner.TYPE {
 			nt++;
 		} else {
 			nx++;
@@ -349,10 +349,10 @@ func (t *Type) nfields() int {
 }
 
 
-// requires complete Type.pos access
+// requires complete Type.Pos access
 export func NewTypeExpr(typ *Type) *Expr {
-	obj := NewObject(typ.pos, TYPE, "");
-	obj.typ = typ;
+	obj := NewObject(typ.Pos, TYPE, "");
+	obj.Typ = typ;
 	return NewLit(Scanner.TYPE, obj);
 }
 
@@ -365,16 +365,16 @@ export var BadType = NewType(0, Scanner.ILLEGAL);
 
 export type Stat struct {
 	Node;
-	init, post *Stat;
-	expr *Expr;
-	block *array.Array; end int;  // block end position
-	decl *Decl;
+	Init, Post *Stat;
+	Expr *Expr;
+	Block *array.Array; End int;  // block end position
+	Decl *Decl;
 }
 
 
 export func NewStat(pos, tok int) *Stat {
 	s := new(Stat);
-	s.pos, s.tok = pos, tok;
+	s.Pos, s.Tok = pos, tok;
 	return s;
 }
 
@@ -387,19 +387,19 @@ export var BadStat = NewStat(0, Scanner.ILLEGAL);
 
 export type Decl struct {
 	Node;
-	exported bool;
-	ident *Expr;  // nil for ()-style declarations
-	typ *Type;
-	val *Expr;
+	Exported bool;
+	Ident *Expr;  // nil for ()-style declarations
+	Typ *Type;
+	Val *Expr;
 	// list of *Decl for ()-style declarations
 	// list of *Stat for func declarations (or nil for forward decl)
-	list *array.Array; end int;
+	List *array.Array; End int;
 }
 
 
 export func NewDecl(pos, tok int, exported bool) *Decl {
 	d := new(Decl);
-	d.pos, d.tok, d.exported = pos, tok, exported;
+	d.Pos, d.Tok, d.Exported = pos, tok, exported;
 	return d;
 }
 
@@ -411,28 +411,28 @@ export var BadDecl = NewDecl(0, Scanner.ILLEGAL, false);
 // Program
 
 export type Comment struct {
-	pos int;
-	text string;
+	Pos int;
+	Text string;
 }
 
 
 export func NewComment(pos int, text string) *Comment {
 	c := new(Comment);
-	c.pos, c.text = pos, text;
+	c.Pos, c.Text = pos, text;
 	return c;
 }
 
 
 export type Program struct {
-	pos int;  // tok is Scanner.PACKAGE
-	ident *Expr;
-	decls *array.Array;
-	comments *array.Array;
+	Pos int;  // tok is Scanner.PACKAGE
+	Ident *Expr;
+	Decls *array.Array;
+	Comments *array.Array;
 }
 
 
 export func NewProgram(pos int) *Program {
 	p := new(Program);
-	p.pos = pos;
+	p.Pos = pos;
 	return p;
 }
