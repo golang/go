@@ -28,7 +28,7 @@ import (
 export var (
 	DNS_InternalError = os.NewError("internal dns error");
 	DNS_MissingConfig = os.NewError("no dns configuration");
-	DNS_NoAnswer = os.NewError("dns got no answer");
+	DNS_No_Answer = os.NewError("dns got no answer");
 	DNS_BadRequest = os.NewError("malformed dns request");
 	DNS_BadReply = os.NewError("malformed dns reply");
 	DNS_ServerFailure = os.NewError("dns server failure");
@@ -40,7 +40,7 @@ export var (
 
 // Send a request on the connection and hope for a reply.
 // Up to cfg.attempts attempts.
-func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) {
+func _Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) {
 	if len(name) >= 256 {
 		return nil, DNS_NameTooLong
 	}
@@ -77,14 +77,14 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) 
 		}
 		return in, nil
 	}
-	return nil, DNS_NoAnswer
+	return nil, DNS_No_Answer
 }
 
 
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
 // TODO(rsc): Maybe return [][]byte (==[]IPAddr) instead?
-func Answer(name string, dns *DNS_Msg) (addrs []string, err *os.Error) {
+func _Answer(name string, dns *DNS_Msg) (addrs []string, err *os.Error) {
 	addrs = make([]string, 0, len(dns.answer));
 
 	if dns.rcode == DNS_RcodeNameError && dns.authoritative {
@@ -134,8 +134,8 @@ Cname:
 }
 
 // Do a lookup for a single name, which must be rooted
-// (otherwise Answer will not find the answers).
-func TryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
+// (otherwise _Answer will not find the answers).
+func _TryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
 	err = DNS_NoServers;
 	for i := 0; i < len(cfg.servers); i++ {
 		// Calling Dial here is scary -- we have to be sure
@@ -149,13 +149,13 @@ func TryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
 			err = cerr;
 			continue;
 		}
-		msg, merr := Exchange(cfg, c, name);
+		msg, merr := _Exchange(cfg, c, name);
 		c.Close();
 		if merr != nil {
 			err = merr;
 			continue;
 		}
-		addrs, aerr := Answer(name, msg);
+		addrs, aerr := _Answer(name, msg);
 		if aerr != nil && aerr != DNS_NameNotFound {
 			err = aerr;
 			continue;
@@ -167,7 +167,7 @@ func TryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
 
 var cfg *DNS_Config
 
-func LoadConfig() {
+func _LoadConfig() {
 	cfg = DNS_ReadConfig();
 }
 
@@ -175,7 +175,7 @@ export func LookupHost(name string) (name1 string, addrs []string, err *os.Error
 	// TODO(rsc): Pick out obvious non-DNS names to avoid
 	// sending stupid requests to the server?
 
-	once.Do(&LoadConfig);
+	once.Do(&_LoadConfig);
 	if cfg == nil {
 		err = DNS_MissingConfig;
 		return;
@@ -190,7 +190,7 @@ export func LookupHost(name string) (name1 string, addrs []string, err *os.Error
 			rname += ".";
 		}
 		// Can try as ordinary name.
-		addrs, aerr := TryOneName(cfg, rname);
+		addrs, aerr := _TryOneName(cfg, rname);
 		if aerr == nil {
 			return rname, addrs, nil;
 		}
@@ -206,7 +206,7 @@ export func LookupHost(name string) (name1 string, addrs []string, err *os.Error
 		if newname[len(newname)-1] != '.' {
 			newname += "."
 		}
-		addrs, aerr := TryOneName(cfg, newname);
+		addrs, aerr := _TryOneName(cfg, newname);
 		if aerr == nil {
 			return newname, addrs, nil;
 		}

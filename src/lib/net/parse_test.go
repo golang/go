@@ -14,7 +14,7 @@ import (
 export func TestReadLine(t *testing.T) {
 	filename := "/etc/services";	// a nice big file
 
-	fd, err := os.Open(filename, os.O_RDONLY, 0);
+	fd, err := os._Open(filename, os.O_RDONLY, 0);
 	if err != nil {
 		t.Fatalf("open %s: %v", filename, err);
 	}
@@ -23,9 +23,9 @@ export func TestReadLine(t *testing.T) {
 		t.Fatalf("bufio.NewBufRead: %v", err1);
 	}
 
-	file := Open(filename);
+	file := _Open(filename);
 	if file == nil {
-		t.Fatalf("net.Open(%s) = nil", filename);
+		t.Fatalf("net._Open(%s) = nil", filename);
 	}
 
 	lineno := 1;

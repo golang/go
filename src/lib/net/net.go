@@ -18,14 +18,14 @@ export var (
 	UnknownHost = os.NewError("unknown host");
 	DNS_Error = os.NewError("dns error looking up host");
 	UnknownPort = os.NewError("unknown port");
-	UnknownSocketFamily = os.NewError("unknown socket family");
+	Unknown_SocketFamily = os.NewError("unknown socket family");
 )
 
 export func LookupHost(name string) (name1 string, addrs []string, err *os.Error)
 
 // Split "host:port" into "host" and "port".
 // Host cannot contain colons unless it is bracketed.
-func SplitHostPort(hostport string) (host, port string, err *os.Error) {
+func _SplitHostPort(hostport string) (host, port string, err *os.Error) {
 	// The port starts after the last colon.
 	var i int;
 	for i = len(hostport)-1; i >= 0; i-- {
@@ -45,7 +45,7 @@ func SplitHostPort(hostport string) (host, port string, err *os.Error) {
 		host = host[1:len(host)-1]
 	} else {
 		// ... but if there are no brackets, no colons.
-		if ByteIndex(host, ':') >= 0 {
+		if _ByteIndex(host, ':') >= 0 {
 			return "", "", BadAddress
 		}
 	}
@@ -54,9 +54,9 @@ func SplitHostPort(hostport string) (host, port string, err *os.Error) {
 
 // Join "host" and "port" into "host:port".
 // If host contains colons, will join into "[host]:port".
-func JoinHostPort(host, port string) string {
+func _JoinHostPort(host, port string) string {
 	// If host has colons, have to bracket it.
-	if ByteIndex(host, ':') >= 0 {
+	if _ByteIndex(host, ':') >= 0 {
 		return "[" + host + "]:" + port
 	}
 	return host + ":" + port
@@ -65,9 +65,9 @@ func JoinHostPort(host, port string) string {
 // Convert "host:port" into IP address and port.
 // For now, host and port must be numeric literals.
 // Eventually, we'll have name resolution.
-func HostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Error) {
+func _HostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Error) {
 	var host, port string;
-	host, port, err = SplitHostPort(hostport);
+	host, port, err = _SplitHostPort(hostport);
 	if err != nil {
 		return nil, 0, err
 	}
@@ -101,7 +101,7 @@ func HostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Err
 		}
 	}
 
-	p, i, ok := Dtoi(port, 0);
+	p, i, ok := _Dtoi(port, 0);
 	if !ok || i != len(port) {
 		p, ok = LookupPort(net, port);
 		if !ok {
@@ -116,7 +116,7 @@ func HostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Err
 }
 
 // Convert socket address into "host:port".
-func SockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
+func _SockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
 	switch sa.family {
 	case syscall.AF_INET, syscall.AF_INET6:
 		addr, port, e := SockaddrToIP(sa);
@@ -124,9 +124,9 @@ func SockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
 			return "", e
 		}
 		host := IPToString(addr);
-		return JoinHostPort(host, strconv.Itoa(port)), nil;
+		return _JoinHostPort(host, strconv.Itoa(port)), nil;
 	default:
-		return "", UnknownSocketFamily
+		return "", Unknown_SocketFamily
 	}
 	return "", nil // not reached
 }
@@ -139,8 +139,8 @@ func boolint(b bool) int {
 	return 0
 }
 
-// Generic Socket creation.
-func Socket(f, p, t int64, la, ra *syscall.Sockaddr) (fd *FD, err *os.Error) {
+// Generic _Socket creation.
+func _Socket(f, p, t int64, la, ra *syscall.Sockaddr) (fd *FD, err *os.Error) {
 	s, e := syscall.socket(f, p, t);
 	if e != 0 {
 		return nil, os.ErrnoToError(e)
@@ -177,29 +177,29 @@ func Socket(f, p, t int64, la, ra *syscall.Sockaddr) (fd *FD, err *os.Error) {
 
 
 // Generic implementation of Conn interface; not exported.
-type ConnBase struct {
+type _ConnBase struct {
 	fd *FD;
 	raddr string;
 }
 
-func (c *ConnBase) FD() int64 {
+func (c *_ConnBase) FD() int64 {
 	if c == nil || c.fd == nil {
 		return -1
 	}
 	return c.fd.fd
 }
 
-func (c *ConnBase) Read(b []byte) (n int, err *os.Error) {
+func (c *_ConnBase) Read(b []byte) (n int, err *os.Error) {
 	n, err = c.fd.Read(b);
 	return n, err
 }
 
-func (c *ConnBase) Write(b []byte) (n int, err *os.Error) {
+func (c *_ConnBase) Write(b []byte) (n int, err *os.Error) {
 	n, err = c.fd.Write(b);
 	return n, err
 }
 
-func (c *ConnBase) ReadFrom(b []byte) (n int, raddr string, err *os.Error) {
+func (c *_ConnBase) ReadFrom(b []byte) (n int, raddr string, err *os.Error) {
 	if c == nil {
 		return -1, "", os.EINVAL
 	}
@@ -207,7 +207,7 @@ func (c *ConnBase) ReadFrom(b []byte) (n int, raddr string, err *os.Error) {
 	return n, c.raddr, err
 }
 
-func (c *ConnBase) WriteTo(raddr string, b []byte) (n int, err *os.Error) {
+func (c *_ConnBase) WriteTo(raddr string, b []byte) (n int, err *os.Error) {
 	if c == nil {
 		return -1, os.EINVAL
 	}
@@ -218,7 +218,7 @@ func (c *ConnBase) WriteTo(raddr string, b []byte) (n int, err *os.Error) {
 	return n, err
 }
 
-func (c *ConnBase) Close() *os.Error {
+func (c *_ConnBase) Close() *os.Error {
 	if c == nil {
 		return os.EINVAL
 	}
@@ -234,47 +234,47 @@ func setsockopt_tv(fd, level, opt int64, nsec int64) *os.Error {
 	return os.ErrnoToError(syscall.setsockopt_tv(fd, level, opt, nsec));
 }
 
-func (c *ConnBase) SetReadBuffer(bytes int) *os.Error {
+func (c *_ConnBase) SetReadBuffer(bytes int) *os.Error {
 	return setsockopt_int(c.FD(), syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes);
 }
 
-func (c *ConnBase) SetWriteBuffer(bytes int) *os.Error {
+func (c *_ConnBase) SetWriteBuffer(bytes int) *os.Error {
 	return setsockopt_int(c.FD(), syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes);
 }
 
-func (c *ConnBase) SetReadTimeout(nsec int64) *os.Error {
+func (c *_ConnBase) SetReadTimeout(nsec int64) *os.Error {
 	return setsockopt_tv(c.FD(), syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, nsec);
 }
 
-func (c *ConnBase) SetWriteTimeout(nsec int64) *os.Error {
+func (c *_ConnBase) SetWriteTimeout(nsec int64) *os.Error {
 	return setsockopt_tv(c.FD(), syscall.SOL_SOCKET, syscall.SO_SNDTIMEO, nsec);
 }
 
-func (c *ConnBase) SetTimeout(nsec int64) *os.Error {
+func (c *_ConnBase) SetTimeout(nsec int64) *os.Error {
 	if e := c.SetReadTimeout(nsec); e != nil {
 		return e
 	}
 	return c.SetWriteTimeout(nsec)
 }
 
-func (c *ConnBase) SetReuseAddr(reuse bool) *os.Error {
+func (c *_ConnBase) SetReuseAddr(reuse bool) *os.Error {
 	return setsockopt_int(c.FD(), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse));
 }
 
-func (c *ConnBase) BindToDevice(dev string) *os.Error {
+func (c *_ConnBase) BindToDevice(dev string) *os.Error {
 	// TODO: call setsockopt with null-terminated string pointer
 	return os.EINVAL
 }
 
-func (c *ConnBase) SetDontRoute(dontroute bool) *os.Error {
+func (c *_ConnBase) SetDontRoute(dontroute bool) *os.Error {
 	return setsockopt_int(c.FD(), syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute));
 }
 
-func (c *ConnBase) SetKeepAlive(keepalive bool) *os.Error {
+func (c *_ConnBase) SetKeepAlive(keepalive bool) *os.Error {
 	return setsockopt_int(c.FD(), syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive));
 }
 
-func (c *ConnBase) SetLinger(sec int) *os.Error {
+func (c *_ConnBase) SetLinger(sec int) *os.Error {
 	e := syscall.setsockopt_linger(c.FD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec);
 	return os.ErrnoToError(e);
 }
@@ -287,23 +287,23 @@ func (c *ConnBase) SetLinger(sec int) *os.Error {
 // understands IPv6, it's okay to pass IPv4 addresses to the IPv6
 // interface.  That simplifies our code and is most general.
 // If we need to build on a system without IPv6 support, setting
-// PreferIPv4 here should fall back to the IPv4 socket interface when possible.
-const PreferIPv4 = false
+// _PreferIPv4 here should fall back to the IPv4 socket interface when possible.
+const _PreferIPv4 = false
 
-func InternetSocket(net, laddr, raddr string, proto int64, mode string) (fd *FD, err *os.Error) {
+func _InternetSocket(net, laddr, raddr string, proto int64, mode string) (fd *FD, err *os.Error) {
 	// Parse addresses (unless they are empty).
 	var lip, rip []byte;
 	var lport, rport int;
 	var lerr, rerr *os.Error;
 
 	if laddr != "" {
-		lip, lport, lerr = HostPortToIP(net, laddr, mode);
+		lip, lport, lerr = _HostPortToIP(net, laddr, mode);
 		if lerr != nil {
 			return nil, lerr
 		}
 	}
 	if raddr != "" {
-		rip, rport, rerr = HostPortToIP(net, raddr, mode);
+		rip, rport, rerr = _HostPortToIP(net, raddr, mode);
 		if rerr != nil {
 			return nil, rerr
 		}
@@ -320,7 +320,7 @@ func InternetSocket(net, laddr, raddr string, proto int64, mode string) (fd *FD,
 	default:
 		// Otherwise, guess.
 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
-		if PreferIPv4 && ToIPv4(lip) != nil && ToIPv4(rip) != nil {
+		if _PreferIPv4 && ToIPv4(lip) != nil && ToIPv4(rip) != nil {
 			vers = 4
 		} else {
 			vers = 6
@@ -351,7 +351,7 @@ func InternetSocket(net, laddr, raddr string, proto int64, mode string) (fd *FD,
 		}
 	}
 
-	fd, err = Socket(family, proto, 0, la, ra);
+	fd, err = _Socket(family, proto, 0, la, ra);
 	return fd, err
 }
 
@@ -359,7 +359,7 @@ func InternetSocket(net, laddr, raddr string, proto int64, mode string) (fd *FD,
 // TCP connections.
 
 export type ConnTCP struct {
-	ConnBase
+	_ConnBase
 }
 
 func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
@@ -369,7 +369,7 @@ func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
 	return setsockopt_int(c.FD(), syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(nodelay))
 }
 
-func NewConnTCP(fd *FD, raddr string) *ConnTCP {
+func _NewConnTCP(fd *FD, raddr string) *ConnTCP {
 	c := new(ConnTCP);
 	c.fd = fd;
 	c.raddr = raddr;
@@ -381,11 +381,11 @@ export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
 	}
-	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_STREAM, "dial");
+	fd, e := _InternetSocket(net, laddr, raddr, syscall.SOCK_STREAM, "dial");
 	if e != nil {
 		return nil, e
 	}
-	return NewConnTCP(fd, raddr), nil
+	return _NewConnTCP(fd, raddr), nil
 }
 
 
@@ -394,10 +394,10 @@ export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
 // TODO(rsc): UDP headers mode
 
 export type ConnUDP struct {
-	ConnBase
+	_ConnBase
 }
 
-func NewConnUDP(fd *FD, raddr string) *ConnUDP {
+func _NewConnUDP(fd *FD, raddr string) *ConnUDP {
 	c := new(ConnUDP);
 	c.fd = fd;
 	c.raddr = raddr;
@@ -408,11 +408,11 @@ export func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
 	}
-	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_DGRAM, "dial");
+	fd, e := _InternetSocket(net, laddr, raddr, syscall.SOCK_DGRAM, "dial");
 	if e != nil {
 		return nil, e
 	}
-	return NewConnUDP(fd, raddr), nil
+	return _NewConnUDP(fd, raddr), nil
 }
 
 
@@ -488,7 +488,7 @@ export type ListenerTCP struct {
 }
 
 export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
-	fd, e := InternetSocket(net, laddr, "", syscall.SOCK_STREAM, "listen");
+	fd, e := _InternetSocket(net, laddr, "", syscall.SOCK_STREAM, "listen");
 	if e != nil {
 		return nil, e
 	}
@@ -511,12 +511,12 @@ func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
 	if e != nil {
 		return nil, "", e
 	}
-	raddr, err = SockaddrToHostPort(&sa);
+	raddr, err = _SockaddrToHostPort(&sa);
 	if err != nil {
 		fd.Close();
 		return nil, "", err
 	}
-	return NewConnTCP(fd, raddr), raddr, nil
+	return _NewConnTCP(fd, raddr), raddr, nil
 }
 
 func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
