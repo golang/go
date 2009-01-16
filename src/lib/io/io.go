@@ -60,21 +60,21 @@ export func Readn(fd Read, buf []byte) (n int, err *os.Error) {
 
 // Convert something that implements Read into something
 // whose Reads are always Readn
-type FullRead struct {
+type _FullRead struct {
 	fd	Read;
 }
 
-func (fd *FullRead) Read(p []byte) (n int, err *os.Error) {
+func (fd *_FullRead) Read(p []byte) (n int, err *os.Error) {
 	n, err = Readn(fd.fd, p);
 	return n, err
 }
 
-export func MakeFullReader(fd Read) Read {
-	if fr, ok := fd.(*FullRead); ok {
-		// already a FullRead
+export func Make_FullReader(fd Read) Read {
+	if fr, ok := fd.(*_FullRead); ok {
+		// already a _FullRead
 		return fd
 	}
-	return &FullRead{fd}
+	return &_FullRead{fd}
 }
 
 // Copies n bytes (or until EOF is reached) from src to dst.

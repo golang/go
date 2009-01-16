@@ -131,7 +131,7 @@ func (j *_Map) String() string {
 export func Walk(j Json, path string) Json {
 	for len(path) > 0 {
 		var elem string;
-		if i := strings.index(path, "/"); i >= 0 {
+		if i := strings.Index(path, "/"); i >= 0 {
 			elem = path[0:i];
 			path = path[i+1:len(path)];
 		} else {

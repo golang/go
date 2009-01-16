@@ -26,7 +26,7 @@ var faces = "☺☻☹";
 var commas = "1,2,3,4";
 var dots = "1....2....3....4";
 
-type ExplodeTest struct {
+export type ExplodeTest struct {
 	s string;
 	a []string;
 }
@@ -37,19 +37,19 @@ var explodetests = []ExplodeTest {
 export func TestExplode(t *testing.T) {
 	for i := 0; i < len(explodetests); i++ {
 		tt := explodetests[i];
-		a := explode(tt.s);
+		a := Explode(tt.s);
 		if !eq(a, tt.a) {
 			t.Errorf("Explode(%q) = %v; want %v", tt.s, a, tt.a);
 			continue;
 		}
-		s := join(a, "");
+		s := Join(a, "");
 		if s != tt.s {
 			t.Errorf(`Join(Explode(%q), "") = %q`, tt.s, s);
 		}
 	}
 }
 
-type SplitTest struct {
+export type SplitTest struct {
 	s string;
 	sep string;
 	a []string;
@@ -67,12 +67,12 @@ var splittests = []SplitTest {
 export func TestSplit(t *testing.T) {
 	for i := 0; i < len(splittests); i++ {
 		tt := splittests[i];
-		a := split(tt.s, tt.sep);
+		a := Split(tt.s, tt.sep);
 		if !eq(a, tt.a) {
 			t.Errorf("Split(%q, %q) = %v; want %v", tt.s, tt.sep, a, tt.a);
 			continue;
 		}
-		s := join(a, tt.sep);
+		s := Join(a, tt.sep);
 		if s != tt.s {
 			t.Errorf("Join(Split(%q, %q), %q) = %q", tt.s, tt.sep, tt.sep, s);
 		}

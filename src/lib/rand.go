@@ -10,60 +10,54 @@
 
 package	rand
 
-// rand, rand31, rand63 - return non-negative random int, int32, int64
+// rand, rand31, Int63 - return non-negative random int, int32, int64
 // urand32 - return random uint32
-// nrand, nrand31, nrand63 - return 0 <= random < n
+// nrand, nrand31, Int63n - return 0 <= random < n
 // frand, frand64, frand32 - return 0 <= random float, float64, float32 < 1
 // perm gives a random permutation []int
 
-const
-(
-	LEN	 = 607;
-	TAP	 = 273;
-	MASK	 = (1<<63)-1;
-	A	 = 48271;
-	M	 = 2147483647;
-	Q	 = 44488;
-	R	 = 3399;
+const (
+	_LEN	 = 607;
+	_TAP	 = 273;
+	_MASK	 = (1<<63)-1;
+	_A	 = 48271;
+	_M	 = 2147483647;
+	_Q	 = 44488;
+	_R	 = 3399;
 )
 
-var
-(
-	rng_cooked	[LEN]int64;	// cooked random numbers
-	rng_vec		[LEN]int64;	// current feedback register
+var (
+	rng_cooked	[_LEN]int64;	// cooked random numbers
+	rng_vec		[_LEN]int64;	// current feedback register
 	rng_tap		int;		// index into vector
 	rng_feed	int;		// index into vector
 )
 
-func
-seedrand(x int32) int32
-{
+func seedrand(x int32) int32 {
 	// seed rng x[n+1] = 48271 * x[n] mod (2**31 - 1)
-	hi := x / Q;
-	lo := x % Q;
-	x = A*lo - R*hi;
+	hi := x / _Q;
+	lo := x % _Q;
+	x = _A*lo - _R*hi;
 	if x < 0 {
-		x += M;
+		x += _M;
 	}
 	return x;
 }
 
-export func
-srand(seed int32)
-{
+export func Seed(seed int32) {
 	rng_tap = 0;
-	rng_feed = LEN-TAP;
+	rng_feed = _LEN-_TAP;
 
-	seed = seed%M;
+	seed = seed%_M;
 	if seed < 0 {
-		seed += M;
+		seed += _M;
 	}
 	if seed == 0 {
 		seed = 89482311;
 	}
 
 	x := seed;
-	for i := -20; i < LEN; i++ {
+	for i := -20; i < _LEN; i++ {
 		x = seedrand(x);
 		if i >= 0 {
 			var u int64;
@@ -73,105 +67,84 @@ srand(seed int32)
 			x = seedrand(x);
 			u ^= int64(x);
 			u ^= rng_cooked[i];
-			rng_vec[i] = u & MASK;
+			rng_vec[i] = u & _MASK;
 		}
 	}
 }
 
-export func
-rand63() int64
-{
+export func Int63() int64 {
 	rng_tap--;
 	if rng_tap < 0 {
-		rng_tap += LEN;
+		rng_tap += _LEN;
 	}
 
 	rng_feed--;
 	if rng_feed < 0 {
-		rng_feed += LEN;
+		rng_feed += _LEN;
 	}
 
-	x := (rng_vec[rng_feed] + rng_vec[rng_tap]) & MASK;
+	x := (rng_vec[rng_feed] + rng_vec[rng_tap]) & _MASK;
 	rng_vec[rng_feed] = x;
 	return x;
 }
 
-export func
-urand32() uint32
-{
-	return uint32(rand63() >> 31);
+export func Uint32() uint32 {
+	return uint32(Int63() >> 31);
 }
 
-export func
-rand31() int32
-{
-	return int32(rand63() >> 32);
+export func Int31() int32 {
+	return int32(Int63() >> 32);
 }
 
-export func
-rand() int
-{
-	u := uint(rand63());
+export func Int() int {
+	u := uint(Int63());
 	return int(u << 1 >> 1);	// clear sign bit if int == int32
 }
 
-export func
-nrand63(n int64) int64
-{
+export func Int63n(n int64) int64 {
 	if n <= 0 {
 		return 0
 	}
 	max := int64((1<<63)-1 - (1<<63) % uint64(n));
-	v := rand63();
+	v := Int63();
 	for v > max {
-		v = rand63()
+		v = Int63()
 	}
 	return v % n
 }
 
-export func
-nrand31(n int32) int32
-{
-	return int32(nrand63(int64(n)))
+export func Int31n(n int32) int32 {
+	return int32(Int63n(int64(n)))
 }
 
-export func
-nrand(n int) int
-{
-	return int(nrand63(int64(n)))
+export func Intn(n int) int {
+	return int(Int63n(int64(n)))
 }
 
-export func
-frand64() float64
-{
-	x := float64(rand63()) / float64(MASK);
+export func Float64() float64 {
+	x := float64(Int63()) / float64(_MASK);
 	for x >= 1 {
-		x = float64(rand63()) / float64(MASK);
+		x = float64(Int63()) / float64(_MASK);
 	}
 	return x;
 }
 
-export func
-frand32() float32
-{
-	return float32(frand64())
+export func Float32() float32 {
+	return float32(Float64())
 }
 
-export func
-frand() float
+export func Float() float
 {
-	return float(frand64())
+	return float(Float64())
 }
 
-export func
-perm(n int) []int
-{
+export func Perm(n int) []int {
 	m := make([]int, n);
 	for i:=0; i<n; i++ {
 		m[i] = i;
 	}
 	for i:=0; i<n; i++ {
-		j := nrand(n);
+		j := Intn(n);
 		t := m[i];
 		m[i] = m[j];
 		m[j] = t;
@@ -179,9 +152,7 @@ perm(n int) []int
 	return m;
 }
 
-func
-init()
-{
+func init() {
 	// the state of the rng
 	// after 780e10 iterations
 
@@ -793,5 +764,5 @@ init()
 	rng_cooked[605] = 9103922860780351547;
 	rng_cooked[606] = 4152330101494654406;
 
-	srand(1);
+	Seed(1);
 }

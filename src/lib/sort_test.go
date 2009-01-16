@@ -76,7 +76,7 @@ export func TestSortStrings(t *testing.T) {
 export func TestSortLarge_Random(t *testing.T) {
 	data := make([]int, 1000000);
 	for i := 0; i < len(data); i++ {
-		data[i] = rand.rand() % 100;
+		data[i] = rand.Intn(100);
 	}
 	if sort.IntsAreSorted(data) {
 		t.Fatalf("terrible rand.rand");
@@ -150,13 +150,13 @@ export func TestBentleyMcIlroy(t *testing.T) {
 					case _Sawtooth:
 						data[i] = i % m;
 					case _Rand:
-						data[i] = rand.rand() % m;
+						data[i] = rand.Intn(m);
 					case _Stagger:
 						data[i] = (i*m + i) % n;
 					case _Plateau:
 						data[i] = min(i, m);
 					case _Shuffle:
-						if rand.rand() % m != 0 {
+						if rand.Intn(m) != 0 {
 							j += 2;
 							data[i] = j;
 						} else {
