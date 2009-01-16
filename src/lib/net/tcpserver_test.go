@@ -11,7 +11,7 @@ import (
 	"testing";
 )
 
-func Echo(fd io.ReadWrite, done chan<- int) {
+func runEcho(fd io.ReadWrite, done chan<- int) {
 	var buf [1024]byte;
 
 	for {
@@ -24,7 +24,7 @@ func Echo(fd io.ReadWrite, done chan<- int) {
 	done <- 1
 }
 
-func Serve(t *testing.T, network, addr string, listening, done chan<- int) {
+func runServe(t *testing.T, network, addr string, listening, done chan<- int) {
 	l, err := net.Listen(network, addr);
 	if err != nil {
 		t.Fatalf("net.Listen(%q, %q) = _, %v", network, addr, err);
@@ -37,14 +37,14 @@ func Serve(t *testing.T, network, addr string, listening, done chan<- int) {
 			break;
 		}
 		echodone := make(chan int);
-		go Echo(fd, echodone);
+		go runEcho(fd, echodone);
 		<-echodone;	// make sure Echo stops
 		l.Close();
 	}
 	done <- 1
 }
 
-func Connect(t *testing.T, network, addr string) {
+func connect(t *testing.T, network, addr string) {
 	fd, err := net.Dial(network, "", addr);
 	if err != nil {
 		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
@@ -65,21 +65,21 @@ func Connect(t *testing.T, network, addr string) {
 	fd.Close();
 }
 
-func DoTest(t *testing.T, network, listenaddr, dialaddr string) {
+func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 	t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr);
 	listening := make(chan int);
 	done := make(chan int);
-	go Serve(t, network, listenaddr, listening, done);
+	go runServe(t, network, listenaddr, listening, done);
 	<-listening;	// wait for server to start
-	Connect(t, network, dialaddr);
+	connect(t, network, dialaddr);
 	<-done;	// make sure server stopped
 }
 
 export func TestTcpServer(t *testing.T) {
-	DoTest(t,  "tcp", "0.0.0.0:9997", "127.0.0.1:9997");
-	DoTest(t, "tcp", "[::]:9997", "[::ffff:127.0.0.1]:9997");
-	DoTest(t, "tcp", "[::]:9997", "127.0.0.1:9997");
-	DoTest(t, "tcp", ":9997", "127.0.0.1:9997");
-	DoTest(t, "tcp", "0.0.0.0:9997", "[::ffff:127.0.0.1]:9997");
+	doTest(t,  "tcp", "0.0.0.0:9997", "127.0.0.1:9997");
+	doTest(t, "tcp", "[::]:9997", "[::ffff:127.0.0.1]:9997");
+	doTest(t, "tcp", "[::]:9997", "127.0.0.1:9997");
+	doTest(t, "tcp", ":9997", "127.0.0.1:9997");
+	doTest(t, "tcp", "0.0.0.0:9997", "[::ffff:127.0.0.1]:9997");
 }
 

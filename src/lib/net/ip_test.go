@@ -9,11 +9,11 @@ import (
 	"testing"
 )
 
-func IPv4(a, b, c, d byte) []byte {
+func _IPv4(a, b, c, d byte) []byte {
 	return []byte{ 0,0,0,0, 0,0,0,0, 0,0,255,255, a,b,c,d }
 }
 
-func Equal(a []byte, b []byte) bool {
+func isEqual(a []byte, b []byte) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -28,25 +28,25 @@ func Equal(a []byte, b []byte) bool {
 	return true
 }
 
-type ParseIPTest struct {
+type parseIPTest struct {
 	in string;
 	out []byte;
 }
-var parseiptests = []ParseIPTest {
-	ParseIPTest{"127.0.1.2", IPv4(127, 0, 1, 2)},
-	ParseIPTest{"127.0.0.1", IPv4(127, 0, 0, 1)},
-	ParseIPTest{"127.0.0.256", nil},
-	ParseIPTest{"abc", nil},
-	ParseIPTest{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
-	ParseIPTest{"2001:4860:0:2001::68",
+var parseiptests = []parseIPTest {
+	parseIPTest{"127.0.1.2", _IPv4(127, 0, 1, 2)},
+	parseIPTest{"127.0.0.1", _IPv4(127, 0, 0, 1)},
+	parseIPTest{"127.0.0.256", nil},
+	parseIPTest{"abc", nil},
+	parseIPTest{"::ffff:127.0.0.1", _IPv4(127, 0, 0, 1)},
+	parseIPTest{"2001:4860:0:2001::68",
 		[]byte{0x20,0x01, 0x48,0x60, 0,0, 0x20,0x01, 0,0, 0,0, 0,0, 0x00,0x68}},
-	ParseIPTest{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
+	parseIPTest{"::ffff:4a7d:1363", _IPv4(74, 125, 19, 99)},
 }
 
 export func TestParseIP(t *testing.T) {
 	for i := 0; i < len(parseiptests); i++ {
 		tt := parseiptests[i];
-		if out := ParseIP(tt.in); !Equal(out, tt.out) {
+		if out := ParseIP(tt.in); !isEqual(out, tt.out) {
 			t.Errorf("ParseIP(%#q) = %v, want %v", tt.in, out, tt.out);
 		}
 	}
