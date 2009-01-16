@@ -741,6 +741,7 @@ void	constiter(Node*, Type*, Node*);
  */
 void	renamepkg(Node*);
 void	autoexport(Sym*);
+int	exportname(char*);
 void	exportsym(Sym*);
 void	packagesym(Sym*);
 void	dumpe(Sym*);

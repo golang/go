@@ -160,6 +160,7 @@ import_there:
 	{
 		checkimports();
 		unimportfile();
+		pkgimportname = S;
 	}
 |	LIMPORT '$' '$' hidden_import_list '$' '$'
 	{
