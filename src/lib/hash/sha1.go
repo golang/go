@@ -8,56 +8,54 @@ package sha1
 
 import "os"
 
-package const (
-	Chunk = 64;
-)
-
 const (
-	H0 = 0x67452301;
-	H1 = 0xEFCDAB89;
-	H2 = 0x98BADCFE;
-	H3 = 0x10325476;
-	H4 = 0xC3D2E1F0;
+	_Chunk = 64;
+
+	_Init0 = 0x67452301;
+	_Init1 = 0xEFCDAB89;
+	_Init2 = 0x98BADCFE;
+	_Init3 = 0x10325476;
+	_Init4 = 0xC3D2E1F0;
 )
 
 export type Digest struct {
 	h [5]uint32;
-	x [Chunk]byte;
+	x [_Chunk]byte;
 	nx int;
 	len uint64;
 }
 
 export func NewDigest() *Digest {
 	d := new(Digest);
-	d.h[0] = H0;
-	d.h[1] = H1;
-	d.h[2] = H2;
-	d.h[3] = H3;
-	d.h[4] = H4;
+	d.h[0] = _Init0;
+	d.h[1] = _Init1;
+	d.h[2] = _Init2;
+	d.h[3] = _Init3;
+	d.h[4] = _Init4;
 	return d;
 }
 
-package func Block(dig *Digest, p []byte) int
+func _Block(dig *Digest, p []byte) int
 
 func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
 	nn = len(p);
 	d.len += uint64(nn);
 	if d.nx > 0 {
 		n := len(p);
-		if n > Chunk-d.nx {
-			n = Chunk-d.nx;
+		if n > _Chunk-d.nx {
+			n = _Chunk-d.nx;
 		}
 		for i := 0; i < n; i++ {
 			d.x[d.nx+i] = p[i];
 		}
 		d.nx += n;
-		if d.nx == Chunk {
-			Block(d, d.x);
+		if d.nx == _Chunk {
+			_Block(d, d.x);
 			d.nx = 0;
 		}
 		p = p[n:len(p)];
 	}
-	n := Block(d, p);
+	n := _Block(d, p);
 	p = p[n:len(p)];
 	if len(p) > 0 {
 		for i := 0; i < len(p); i++ {

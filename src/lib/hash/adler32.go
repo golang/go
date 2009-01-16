@@ -19,8 +19,10 @@ export type Digest struct {
 	n int;
 }
 
-const Mod = 65521;
-const Maxiter = 5552;	// max mod-free iterations before would overflow uint32
+const (
+	_Mod = 65521;
+	_MaxIter = 5552;  // max mod-free iterations before would overflow uint32
+)
 
 export func NewDigest() *Digest {
 	return &Digest{1, 0, 0};
@@ -32,9 +34,9 @@ func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
 		a += uint32(p[i]);
 		b += a;
 		n++;
-		if n == Maxiter {
-			a %= Mod;
-			b %= Mod;
+		if n == _MaxIter {
+			a %= _Mod;
+			b %= _Mod;
 			n = 0;
 		}
 	}
@@ -44,9 +46,9 @@ func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
 
 func (d *Digest) Sum32() uint32 {
 	a, b := d.a, d.b;
-	if a >= Mod || b >= Mod {
-		a %= Mod;
-		b %= Mod;
+	if a >= _Mod || b >= _Mod {
+		a %= _Mod;
+		b %= _Mod;
 	}
 	return b<<16 | a;
 }

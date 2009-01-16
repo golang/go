@@ -44,7 +44,7 @@ export func MakeTable(poly uint32) Table {
 	return t;
 }
 
-export var ieee = MakeTable(IEEE);
+export var IEEETable = MakeTable(IEEE);
 
 export type Digest struct {
 	crc uint32;
@@ -56,7 +56,7 @@ export func NewDigest(tab Table) *Digest {
 }
 
 export func NewIEEEDigest() *Digest {
-	return NewDigest(ieee);
+	return NewDigest(IEEETable);
 }
 
 func (d *Digest) Write(p []byte) (n int, err *os.Error) {

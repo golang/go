@@ -11,18 +11,18 @@ package sha1
 import "sha1"
 
 const (
-	K0 = 0x5A827999;
-	K1 = 0x6ED9EBA1;
-	K2 = 0x8F1BBCDC;
-	K3 = 0xCA62C1D6;
+	_K0 = 0x5A827999;
+	_K1 = 0x6ED9EBA1;
+	_K2 = 0x8F1BBCDC;
+	_K3 = 0xCA62C1D6;
 )
 
-package func Block(dig *Digest, p []byte) int {
+func _Block(dig *Digest, p []byte) int {
 	var w [80]uint32;
 
 	n := 0;
 	h0, h1, h2, h3, h4 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4];
-	for len(p) >= Chunk {
+	for len(p) >= _Chunk {
 		// Can interlace the computation of w with the
 		// rounds below if needed for speed.
 		for i := 0; i < 16; i++ {
@@ -41,33 +41,33 @@ package func Block(dig *Digest, p []byte) int {
 
 		// Each of the four 20-iteration rounds
 		// differs only in the computation of f and
-		// the choice of K (K0, K1, etc).
+		// the choice of K (_K0, _K1, etc).
 		for i := 0; i < 20; i++ {
 			f := b&c | (^b)&d;
 			a5 := a<<5 | a>>(32-5);
 			b30 := b<<30 | b>>(32-30);
-			t := a5 + f + e + w[i] + K0;
+			t := a5 + f + e + w[i] + _K0;
 			a, b, c, d, e = t, a, b30, c, d;
 		}
 		for i := 20; i < 40; i++ {
 			f := b ^ c ^ d;
 			a5 := a<<5 | a>>(32-5);
 			b30 := b<<30 | b>>(32-30);
-			t := a5 + f + e + w[i] + K1;
+			t := a5 + f + e + w[i] + _K1;
 			a, b, c, d, e = t, a, b30, c, d;
 		}
 		for i := 40; i < 60; i++ {
 			f := b&c | b&d | c&d;
 			a5 := a<<5 | a>>(32-5);
 			b30 := b<<30 | b>>(32-30);
-			t := a5 + f + e + w[i] + K2;
+			t := a5 + f + e + w[i] + _K2;
 			a, b, c, d, e = t, a, b30, c, d;
 		}
 		for i := 60; i < 80; i++ {
 			f := b ^ c ^ d;
 			a5 := a<<5 | a>>(32-5);
 			b30 := b<<30 | b>>(32-30);
-			t := a5 + f + e + w[i] + K3;
+			t := a5 + f + e + w[i] + _K3;
 			a, b, c, d, e = t, a, b30, c, d;
 		}
 
@@ -77,8 +77,8 @@ package func Block(dig *Digest, p []byte) int {
 		h3 += d;
 		h4 += e;
 
-		p = p[Chunk:len(p)];
-		n += Chunk;
+		p = p[_Chunk:len(p)];
+		n += _Chunk;
 	}
 
 	dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4] = h0, h1, h2, h3, h4;
