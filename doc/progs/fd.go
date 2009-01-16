@@ -14,7 +14,7 @@ export type FD struct {
 	name    string; // file name at Open time
 }
 
-func NewFD(fd int64, name string) *FD {
+func newFD(fd int64, name string) *FD {
 	if fd < 0 {
 		return nil
 	}
@@ -22,14 +22,14 @@ func NewFD(fd int64, name string) *FD {
 }
 
 export var (
-	Stdin  = NewFD(0, "/dev/stdin");
-	Stdout = NewFD(1, "/dev/stdout");
-	Stderr = NewFD(2, "/dev/stderr");
+	Stdin  = newFD(0, "/dev/stdin");
+	Stdout = newFD(1, "/dev/stdout");
+	Stderr = newFD(2, "/dev/stderr");
 )
 
 export func Open(name string, mode int64, perm int64) (fd *FD, err *os.Error) {
 	r, e := syscall.open(name, mode, perm);
-	return NewFD(r, name), os.ErrnoToError(e)
+	return newFD(r, name), os.ErrnoToError(e)
 }
 
 func (fd *FD) Close() *os.Error {
