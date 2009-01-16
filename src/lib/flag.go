@@ -96,125 +96,125 @@ func atob(str string) (value bool, ok bool) {
 }
 
 type (
-	BoolValue struct;
-	IntValue struct;
-	Int64Value struct;
-	UintValue struct;
-	Uint64Value struct;
-	StringValue struct;
+	boolValue struct;
+	intValue struct;
+	int64Value struct;
+	uintValue struct;
+	uint64Value struct;
+	stringValue struct;
 )
 
 // -- Bool Value
-type BoolValue struct {
+type boolValue struct {
 	p *bool;
 }
 
-func NewBoolValue(val bool, p *bool) *BoolValue {
+func newBoolValue(val bool, p *bool) *boolValue {
 	*p = val;
-	return &BoolValue{p}
+	return &boolValue{p}
 }
 
-func (b *BoolValue) Set(val bool) {
+func (b *boolValue) set(val bool) {
 	*b.p = val;
 }
 
-func (b *BoolValue) Str() string {
+func (b *boolValue) str() string {
 	return fmt.Sprintf("%v", *b.p)
 }
 
 // -- Int Value
-type IntValue struct {
+type intValue struct {
 	p	*int;
 }
 
-func NewIntValue(val int, p *int) *IntValue {
+func newIntValue(val int, p *int) *intValue {
 	*p = val;
-	return &IntValue{p}
+	return &intValue{p}
 }
 
-func (i *IntValue) Set(val int) {
+func (i *intValue) set(val int) {
 	*i.p = val;
 }
 
-func (i *IntValue) Str() string {
+func (i *intValue) str() string {
 	return fmt.Sprintf("%v", *i.p)
 }
 
 // -- Int64 Value
-type Int64Value struct {
+type int64Value struct {
 	p	*int64;
 }
 
-func NewInt64Value(val int64, p *int64) *Int64Value {
+func newInt64Value(val int64, p *int64) *int64Value {
 	*p = val;
-	return &Int64Value{p}
+	return &int64Value{p}
 }
 
-func (i *Int64Value) Set(val int64) {
+func (i *int64Value) set(val int64) {
 	*i.p = val;
 }
 
-func (i *Int64Value) Str() string {
+func (i *int64Value) str() string {
 	return fmt.Sprintf("%v", *i.p)
 }
 
 // -- Uint Value
-type UintValue struct {
+type uintValue struct {
 	p	*uint;
 }
 
-func NewUintValue(val uint, p *uint) *UintValue {
+func newUintValue(val uint, p *uint) *uintValue {
 	*p = val;
-	return &UintValue{p}
+	return &uintValue{p}
 }
 
-func (i *UintValue) Set(val uint) {
+func (i *uintValue) set(val uint) {
 	*i.p = val
 }
 
-func (i *UintValue) Str() string {
+func (i *uintValue) str() string {
 	return fmt.Sprintf("%v", *i.p)
 }
 
-// -- Uint64 Value
-type Uint64Value struct {
+// -- uint64 Value
+type uint64Value struct {
 	p	*uint64;
 }
 
-func NewUint64Value(val uint64, p *uint64) *Uint64Value {
+func newUint64Value(val uint64, p *uint64) *uint64Value {
 	*p = val;
-	return &Uint64Value{p}
+	return &uint64Value{p}
 }
 
-func (i *Uint64Value) Set(val uint64) {
+func (i *uint64Value) set(val uint64) {
 	*i.p = val;
 }
 
-func (i *Uint64Value) Str() string {
+func (i *uint64Value) str() string {
 	return fmt.Sprintf("%v", *i.p)
 }
 
-// -- String Value
-type StringValue struct {
+// -- string Value
+type stringValue struct {
 	p	*string;
 }
 
-func NewStringValue(val string, p *string) *StringValue {
+func newStringValue(val string, p *string) *stringValue {
 	*p = val;
-	return &StringValue{p}
+	return &stringValue{p}
 }
 
-func (s *StringValue) Set(val string) {
+func (s *stringValue) set(val string) {
 	*s.p = val;
 }
 
-func (s *StringValue) Str() string {
+func (s *stringValue) str() string {
 	return fmt.Sprintf("%#q", *s.p)
 }
 
 // -- Value interface
 type Value interface {
-	Str() string;
+	str() string;
 }
 
 // -- Flag structure (internal)
@@ -224,26 +224,26 @@ export type Flag struct {
 	value	Value;
 }
 
-type Flags struct {
+type allFlags struct {
 	actual map[string] *Flag;
 	formal map[string] *Flag;
 	first_arg	int;
 }
 
 
-func New() *Flags {
-	f := new(Flags);
+func New() *allFlags {
+	f := new(allFlags);
 	f.first_arg = 1;	// 0 is the program name, 1 is first arg
 	f.actual = make(map[string] *Flag);
 	f.formal = make(map[string] *Flag);
 	return f;
 }
 
-var flags *Flags = New();
+var flags *allFlags = New();
 
 export func PrintDefaults() {
 	for k, f := range flags.formal {
-		print("  -", f.name, "=", f.value.Str(), ": ", f.usage, "\n");
+		print("  -", f.name, "=", f.value.str(), ": ", f.usage, "\n");
 	}
 }
 
@@ -273,7 +273,7 @@ export func NArg() int {
 	return sys.argc() - flags.first_arg
 }
 
-func Add(name string, value Value, usage string) {
+func add(name string, value Value, usage string) {
 	f := new(Flag);
 	f.name = name;
 	f.usage = usage;
@@ -288,65 +288,65 @@ func Add(name string, value Value, usage string) {
 
 export func Bool(name string, value bool, usage string) *bool {
 	p := new(bool);
-	Add(name, NewBoolValue(value, p), usage);
+	add(name, newBoolValue(value, p), usage);
 	return p;
 }
 
 export func BoolVar(p *bool, name string, value bool, usage string) {
-	Add(name, NewBoolValue(value, p), usage);
+	add(name, newBoolValue(value, p), usage);
 }
 
 export func Int(name string, value int, usage string) *int {
 	p := new(int);
-	Add(name, NewIntValue(value, p), usage);
+	add(name, newIntValue(value, p), usage);
 	return p;
 }
 
 export func IntVar(p *int, name string, value int, usage string) {
-	Add(name, NewIntValue(value, p), usage);
+	add(name, newIntValue(value, p), usage);
 }
 
 export func Int64(name string, value int64, usage string) *int64 {
 	p := new(int64);
-	Add(name, NewInt64Value(value, p), usage);
+	add(name, newInt64Value(value, p), usage);
 	return p;
 }
 
 export func Int64Var(p *int64, name string, value int64, usage string) {
-	Add(name, NewInt64Value(value, p), usage);
+	add(name, newInt64Value(value, p), usage);
 }
 
 export func Uint(name string, value uint, usage string) *uint {
 	p := new(uint);
-	Add(name, NewUintValue(value, p), usage);
+	add(name, newUintValue(value, p), usage);
 	return p;
 }
 
 export func UintVar(p *uint, name string, value uint, usage string) {
-	Add(name, NewUintValue(value, p), usage);
+	add(name, newUintValue(value, p), usage);
 }
 
 export func Uint64(name string, value uint64, usage string) *uint64 {
 	p := new(uint64);
-	Add(name, NewUint64Value(value, p), usage);
+	add(name, newUint64Value(value, p), usage);
 	return p;
 }
 
 export func Uint64Var(p *uint64, name string, value uint64, usage string) {
-	Add(name, NewUint64Value(value, p), usage);
+	add(name, newUint64Value(value, p), usage);
 }
 
 export func String(name, value string, usage string) *string {
 	p := new(string);
-	Add(name, NewStringValue(value, p), usage);
+	add(name, newStringValue(value, p), usage);
 	return p;
 }
 
 export func StringVar(p *string, name, value string, usage string) {
-	Add(name, NewStringValue(value, p), usage);
+	add(name, newStringValue(value, p), usage);
 }
 
-func (f *Flags) ParseOne(index int) (ok bool, next int)
+func (f *allFlags) ParseOne(index int) (ok bool, next int)
 {
 	s := sys.argv(index);
 	f.first_arg = index;  // until proven otherwise
@@ -394,16 +394,16 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 		print("flag provided but not defined: -", name, "\n");
 		Usage();
 	}
-	if f, ok := flag.value.(*BoolValue); ok {
+	if f, ok := flag.value.(*boolValue); ok {
 		if has_value {
 			k, ok := atob(value);
 			if !ok {
 				print("invalid boolean value ", value, " for flag: -", name, "\n");
 				Usage();
 			}
-			f.Set(k)
+			f.set(k)
 		} else {
-			f.Set(true)
+			f.set(true)
 		}
 	} else {
 		// It must have a value, which might be the next argument.
@@ -417,8 +417,8 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 			print("flag needs an argument: -", name, "\n");
 			Usage();
 		}
-		if f, ok := flag.value.(*StringValue); ok {
-			f.Set(value)
+		if f, ok := flag.value.(*stringValue); ok {
+			f.set(value)
 		} else {
 			// It's an integer flag.  TODO(r): check for overflow?
 			k, ok := atoi(value);
@@ -426,14 +426,14 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
 				print("invalid integer value ", value, " for flag: -", name, "\n");
 				Usage();
 			}
-			if f, ok := flag.value.(*IntValue); ok {
-				f.Set(int(k));
-			} else if f, ok := flag.value.(*Int64Value); ok {
-				f.Set(k);
-			} else if f, ok := flag.value.(*UintValue); ok {
-				f.Set(uint(k));
-			} else if f, ok := flag.value.(*Uint64Value); ok {
-				f.Set(uint64(k));
+			if f, ok := flag.value.(*intValue); ok {
+				f.set(int(k));
+			} else if f, ok := flag.value.(*int64Value); ok {
+				f.set(k);
+			} else if f, ok := flag.value.(*uintValue); ok {
+				f.set(uint(k));
+			} else if f, ok := flag.value.(*uint64Value); ok {
+				f.set(uint64(k));
 			}
 		}
 	}
