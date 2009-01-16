@@ -13,11 +13,6 @@ import "math"
  * Arctan is called after appropriate range reduction.
  */
 
-const
-(
-	pio2 = .15707963267948966192313216e1
-)
-
 export func Asin(arg float64) float64 {
 	var temp, x float64;
 	var sign bool;
@@ -34,7 +29,7 @@ export func Asin(arg float64) float64 {
 
 	temp = Sqrt(1 - x*x);
 	if x > 0.7 {
-		temp = pio2 - Atan(temp/x);
+		temp = Pi/2 - Atan(temp/x);
 	} else {
 		temp = Atan(x/temp);
 	}
@@ -49,5 +44,5 @@ export func Acos(arg float64) float64 {
 	if arg > 1 || arg < -1 {
 		return sys.NaN();
 	}
-	return pio2 - Asin(arg);
+	return Pi/2 - Asin(arg);
 }

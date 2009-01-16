@@ -32,40 +32,40 @@ coverage: packages
 	$(AS) $*.s
 
 O1=\
-	atan.$O\
 	exp.$O\
 	fabs.$O\
 	floor.$O\
 	fmod.$O\
 	hypot.$O\
 	pow10.$O\
-	sin.$O\
 	sqrt.$O\
-	tan.$O\
 	const.$O\
 
 O2=\
-	asin.$O\
-	atan2.$O\
+	atan.$O\
 	log.$O\
+	sin.$O\
 	sinh.$O\
+	tan.$O\
 
 O3=\
+	asin.$O\
+	atan2.$O\
 	pow.$O\
 	tanh.$O\
 
 math.a: a1 a2 a3
 
 a1:	$(O1)
-	$(AR) grc math.a atan.$O exp.$O fabs.$O floor.$O fmod.$O hypot.$O pow10.$O sin.$O sqrt.$O tan.$O const.$O
+	$(AR) grc math.a exp.$O fabs.$O floor.$O fmod.$O hypot.$O pow10.$O sqrt.$O const.$O
 	rm -f $(O1)
 
 a2:	$(O2)
-	$(AR) grc math.a asin.$O atan2.$O log.$O sinh.$O
+	$(AR) grc math.a atan.$O log.$O sin.$O sinh.$O tan.$O
 	rm -f $(O2)
 
 a3:	$(O3)
-	$(AR) grc math.a pow.$O tanh.$O
+	$(AR) grc math.a asin.$O atan2.$O pow.$O tanh.$O
 	rm -f $(O3)
 
 newpkg: clean

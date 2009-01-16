@@ -13,25 +13,24 @@ package math
  * than multipication of lower powers of 10.
  */
 
-const	tabsize		= 70;
-var	tab[tabsize]	float64;
+var	pow10tab	[70]float64;
 
 export func Pow10(e int) float64 {
 	if e < 0 {
 		return 1/Pow10(-e);
 	}
-	if e < tabsize {
-		return tab[e];
+	if e < len(pow10tab) {
+		return pow10tab[e];
 	}
 	m := e/2;
 	return Pow10(m) * Pow10(e-m);
 }
 
 func init() {
-	tab[0] = 1.0e0;
-	tab[1] = 1.0e1;
-	for i:=2; i<tabsize; i++ {
+	pow10tab[0] = 1.0e0;
+	pow10tab[1] = 1.0e1;
+	for i:=2; i<len(pow10tab); i++ {
 		m := i/2;
-		tab[i] = tab[m] * tab[i-m];
+		pow10tab[i] = pow10tab[m] * pow10tab[i-m];
 	}
 }
