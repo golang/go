@@ -23,7 +23,7 @@ import (
 //   No literal control characters, supposedly.
 //   Have also seen \' and embedded newlines.
 
-func UnHex(p string, r, l int) (v int, ok bool) {
+func _UnHex(p string, r, l int) (v int, ok bool) {
 	v = 0;
 	for i := r; i < l; i++ {
 		if i >= len(p) {
@@ -86,7 +86,7 @@ export func Unquote(s string) (t string, ok bool) {
 				w++;
 			case 'u':
 				r++;
-				rune, ok := UnHex(s, r, 4);
+				rune, ok := _UnHex(s, r, 4);
 				if !ok {
 					return
 				}
@@ -166,38 +166,38 @@ export func Quote(s string) string {
 }
 
 
-// Lexer
+// _Lexer
 
-type Lexer struct {
+type _Lexer struct {
 	s string;
 	i int;
 	kind int;
 	token string;
 }
 
-func Punct(c byte) bool {
+func punct(c byte) bool {
 	return c=='"' || c=='[' || c==']' || c==':' || c=='{' || c=='}' || c==','
 }
 
-func White(c byte) bool {
+func white(c byte) bool {
 	return c==' ' || c=='\t' || c=='\n' || c=='\v'
 }
 
-func SkipWhite(p string, i int) int {
-	for i < len(p) && White(p[i]) {
+func skipwhite(p string, i int) int {
+	for i < len(p) && white(p[i]) {
 		i++
 	}
 	return i
 }
 
-func SkipToken(p string, i int) int {
-	for i < len(p) && !Punct(p[i]) && !White(p[i]) {
+func skiptoken(p string, i int) int {
+	for i < len(p) && !punct(p[i]) && !white(p[i]) {
 		i++
 	}
 	return i
 }
 
-func SkipString(p string, i int) int {
+func skipstring(p string, i int) int {
 	for i++; i < len(p) && p[i] != '"'; i++ {
 		if p[i] == '\\' {
 			i++
@@ -209,9 +209,9 @@ func SkipString(p string, i int) int {
 	return i+1
 }
 
-func (t *Lexer) Next() {
+func (t *_Lexer) Next() {
 	i, s := t.i, t.s;
-	i = SkipWhite(s, i);
+	i = skipwhite(s, i);
 	if i >= len(s) {
 		t.kind = 0;
 		t.token = "";
@@ -222,19 +222,19 @@ func (t *Lexer) Next() {
 	c := s[i];
 	switch {
 	case c == '-' || '0' <= c && c <= '9':
-		j := SkipToken(s, i);
+		j := skiptoken(s, i);
 		t.kind = '1';
 		t.token = s[i:j];
 		i = j;
 
 	case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
-		j := SkipToken(s, i);
+		j := skiptoken(s, i);
 		t.kind = 'a';
 		t.token = s[i:j];
 		i = j;
 
 	case c == '"':
-		j := SkipString(s, i);
+		j := skipstring(s, i);
 		t.kind = '"';
 		t.token = s[i:j];
 		i = j;
@@ -270,7 +270,7 @@ func (t *Lexer) Next() {
 // nested data structure, using the "map keys"
 // as struct field names.
 
-type Value interface {}
+type _Value interface {}
 
 export type Builder interface {
 	// Set value
@@ -288,7 +288,7 @@ export type Builder interface {
 	Key(s string) Builder;
 }
 
-func ParseValue(lex *Lexer, build Builder) bool {
+func parse(lex *_Lexer, build Builder) bool {
 	ok := false;
 Switch:
 	switch lex.kind {
@@ -341,7 +341,7 @@ Switch:
 				}
 				lex.Next();
 			}
-			if !ParseValue(lex, build.Elem(n)) {
+			if !parse(lex, build.Elem(n)) {
 				break Switch;
 			}
 			n++;
@@ -372,7 +372,7 @@ Switch:
 				break Switch;
 			}
 			lex.Next();
-			if !ParseValue(lex, build.Key(key)) {
+			if !parse(lex, build.Key(key)) {
 				break Switch;
 			}
 			n++;
@@ -387,10 +387,10 @@ Switch:
 }
 
 export func Parse(s string, build Builder) (ok bool, errindx int, errtok string) {
-	lex := new(Lexer);
+	lex := new(_Lexer);
 	lex.s = s;
 	lex.Next();
-	if ParseValue(lex, build) {
+	if parse(lex, build) {
 		if lex.kind == 0 {	// EOF
 			return true, 0, ""
 		}
