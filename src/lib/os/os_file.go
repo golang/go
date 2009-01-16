@@ -40,7 +40,7 @@ export const (
 )
 
 export func Open(name string, mode int, flags int) (fd *FD, err *Error) {
-	r, e := syscall.open(name, int64(mode), int64(flags));
+	r, e := syscall.Open(name, int64(mode), int64(flags));
 	return NewFD(r), ErrnoToError(e)
 }
 
@@ -48,7 +48,7 @@ func (fd *FD) Close() *Error {
 	if fd == nil {
 		return EINVAL
 	}
-	r, e := syscall.close(fd.fd);
+	r, e := syscall.Close(fd.fd);
 	fd.fd = -1;  // so it can't be closed again
 	return ErrnoToError(e)
 }
@@ -59,7 +59,7 @@ func (fd *FD) Read(b []byte) (ret int, err *Error) {
 	}
 	var r, e int64;
 	if len(b) > 0 {  // because we access b[0]
-		r, e = syscall.read(fd.fd, &b[0], int64(len(b)));
+		r, e = syscall.Read(fd.fd, &b[0], int64(len(b)));
 		if r < 0 {
 			r = 0
 		}
@@ -73,7 +73,7 @@ func (fd *FD) Write(b []byte) (ret int, err *Error) {
 	}
 	var r, e int64;
 	if len(b) > 0 {  // because we access b[0]
-		r, e = syscall.write(fd.fd, &b[0], int64(len(b)));
+		r, e = syscall.Write(fd.fd, &b[0], int64(len(b)));
 		if r < 0 {
 			r = 0
 		}
@@ -89,7 +89,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
 	if !syscall.StringToBytes(b, s) {
 		return 0, EINVAL
 	}
-	r, e := syscall.write(fd.fd, &b[0], int64(len(s)));
+	r, e := syscall.Write(fd.fd, &b[0], int64(len(s)));
 	if r < 0 {
 		r = 0
 	}
@@ -98,7 +98,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
 
 export func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
 	var p [2]int64;
-	r, e := syscall.pipe(&p);
+	r, e := syscall.Pipe(&p);
 	if e != 0 {
 		return nil, nil, ErrnoToError(e)
 	}
@@ -106,6 +106,6 @@ export func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
 }
 
 export func Mkdir(name string, perm int) *Error {
-	r, e := syscall.mkdir(name, int64(perm));
+	r, e := syscall.Mkdir(name, int64(perm));
 	return ErrnoToError(e)
 }

@@ -28,11 +28,11 @@ export type FD struct {
 
 // Make reads and writes on fd return EAGAIN instead of blocking.
 func _SetNonblock(fd int64) *os.Error {
-	flags, e := syscall.fcntl(fd, syscall.F_GETFL, 0);
+	flags, e := syscall.Fcntl(fd, syscall.F_GETFL, 0);
 	if e != 0 {
 		return os.ErrnoToError(e)
 	}
-	flags, e = syscall.fcntl(fd, syscall.F_SETFL, flags | syscall.O_NONBLOCK);
+	flags, e = syscall.Fcntl(fd, syscall.F_SETFL, flags | syscall.O_NONBLOCK);
 	if e != 0 {
 		return os.ErrnoToError(e)
 	}
@@ -272,16 +272,16 @@ func (fd *FD) Accept(sa *syscall.Sockaddr) (nfd *FD, err *os.Error) {
 	if fd == nil || fd.osfd == nil {
 		return nil, os.EINVAL
 	}
-	s, e := syscall.accept(fd.fd, sa);
+	s, e := syscall.Accept(fd.fd, sa);
 	for e == syscall.EAGAIN {
 		pollserver.WaitRead(fd);
-		s, e = syscall.accept(fd.fd, sa)
+		s, e = syscall.Accept(fd.fd, sa)
 	}
 	if e != 0 {
 		return nil, os.ErrnoToError(e)
 	}
 	if nfd, err = NewFD(s); err != nil {
-		syscall.close(s);
+		syscall.Close(s);
 		return nil, err
 	}
 	return nfd, nil
