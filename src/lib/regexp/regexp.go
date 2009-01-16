@@ -27,7 +27,7 @@ export var ErrBadBackslash = os.NewError("illegal backslash escape");
 
 // An instruction executed by the NFA
 type instr interface {
-	Type()	int;	// the type of this instruction: cCHAR, cANY, etc.
+	Type()	int;	// the type of this instruction: _CHAR, _ANY, etc.
 	Next()	instr;	// the instruction to execute after this one
 	SetNext(i instr);
 	Index()	int;
@@ -36,19 +36,19 @@ type instr interface {
 }
 
 // Fields and methods common to all instructions
-type iCommon struct {
+type _Common struct {
 	next	instr;
 	index	int;
 }
 
-func (c *iCommon) Next() instr { return c.next }
-func (c *iCommon) SetNext(i instr) { c.next = i }
-func (c *iCommon) Index() int { return c.index }
-func (c *iCommon) SetIndex(i int) { c.index = i }
+func (c *_Common) Next() instr { return c.next }
+func (c *_Common) SetNext(i instr) { c.next = i }
+func (c *_Common) Index() int { return c.index }
+func (c *_Common) SetIndex(i int) { c.index = i }
 
-type regExp struct {
+type _RE struct {
 	expr	string;	// the original expression
-	ch	chan<- *regExp;	// reply channel when we're done
+	ch	chan<- *_RE;	// reply channel when we're done
 	error	*os.Error;	// compile- or run-time error; nil if OK
 	inst	*array.Array;
 	start	instr;
@@ -56,80 +56,80 @@ type regExp struct {
 }
 
 const (
-	cSTART	// beginning of program
+	_START	// beginning of program
 		= iota;
-	cEND;		// end of program: success
-	cBOT;		// '^' beginning of text
-	cEOT;		// '$' end of text
-	cCHAR;	// 'a' regular character
-	cCHARCLASS;	// [a-z] character class
-	cANY;		// '.' any character
-	cBRA;		// '(' parenthesized expression
-	cEBRA;	// ')'; end of '(' parenthesized expression
-	cALT;		// '|' alternation
-	cNOP;		// do nothing; makes it easy to link without patching
+	_END;		// end of program: success
+	_BOT;		// '^' beginning of text
+	_EOT;		// '$' end of text
+	_CHAR;	// 'a' regular character
+	_CHARCLASS;	// [a-z] character class
+	_ANY;		// '.' any character
+	_BRA;		// '(' parenthesized expression
+	_EBRA;	// ')'; end of '(' parenthesized expression
+	_ALT;		// '|' alternation
+	_NOP;		// do nothing; makes it easy to link without patching
 )
 
 // --- START start of program
-type iStart struct {
-	iCommon
+type _Start struct {
+	_Common
 }
 
-func (start *iStart) Type() int { return cSTART }
-func (start *iStart) Print() { print("start") }
+func (start *_Start) Type() int { return _START }
+func (start *_Start) Print() { print("start") }
 
 // --- END end of program
-type iEnd struct {
-	iCommon
+type _End struct {
+	_Common
 }
 
-func (end *iEnd) Type() int { return cEND }
-func (end *iEnd) Print() { print("end") }
+func (end *_End) Type() int { return _END }
+func (end *_End) Print() { print("end") }
 
 // --- BOT beginning of text
-type iBot struct {
-	iCommon
+type _Bot struct {
+	_Common
 }
 
-func (bot *iBot) Type() int { return cBOT }
-func (bot *iBot) Print() { print("bot") }
+func (bot *_Bot) Type() int { return _BOT }
+func (bot *_Bot) Print() { print("bot") }
 
 // --- EOT end of text
-type iEot struct {
-	iCommon
+type _Eot struct {
+	_Common
 }
 
-func (eot *iEot) Type() int { return cEOT }
-func (eot *iEot) Print() { print("eot") }
+func (eot *_Eot) Type() int { return _EOT }
+func (eot *_Eot) Print() { print("eot") }
 
 // --- CHAR a regular character
-type iChar struct {
-	iCommon;
+type _Char struct {
+	_Common;
 	char	int;
 }
 
-func (char *iChar) Type() int { return cCHAR }
-func (char *iChar) Print() { print("char ", string(char.char)) }
+func (char *_Char) Type() int { return _CHAR }
+func (char *_Char) Print() { print("char ", string(char.char)) }
 
-func newChar(char int) *iChar {
-	c := new(iChar);
+func newChar(char int) *_Char {
+	c := new(_Char);
 	c.char = char;
 	return c;
 }
 
 // --- CHARCLASS [a-z]
 
-type iCharClass struct {
-	iCommon;
+type _CharClass struct {
+	_Common;
 	char	int;
 	negate	bool;	// is character class negated? ([^a-z])
 	// array of int, stored pairwise: [a-z] is (a,z); x is (x,x):
 	ranges	*array.IntArray;
 }
 
-func (cclass *iCharClass) Type() int { return cCHARCLASS }
+func (cclass *_CharClass) Type() int { return _CHARCLASS }
 
-func (cclass *iCharClass) Print() {
+func (cclass *_CharClass) Print() {
 	print("charclass");
 	if cclass.negate {
 		print(" (negated)");
@@ -145,13 +145,13 @@ func (cclass *iCharClass) Print() {
 	}
 }
 
-func (cclass *iCharClass) AddRange(a, b int) {
+func (cclass *_CharClass) AddRange(a, b int) {
 	// range is a through b inclusive
 	cclass.ranges.Push(a);
 	cclass.ranges.Push(b);
 }
 
-func (cclass *iCharClass) Matches(c int) bool {
+func (cclass *_CharClass) Matches(c int) bool {
 	for i := 0; i < cclass.ranges.Len(); i = i+2 {
 		min := cclass.ranges.At(i);
 		max := cclass.ranges.At(i+1);
@@ -162,70 +162,70 @@ func (cclass *iCharClass) Matches(c int) bool {
 	return cclass.negate
 }
 
-func newCharClass() *iCharClass {
-	c := new(iCharClass);
+func newCharClass() *_CharClass {
+	c := new(_CharClass);
 	c.ranges = array.NewIntArray(0);
 	return c;
 }
 
 // --- ANY any character
-type iAny struct {
-	iCommon
+type _Any struct {
+	_Common
 }
 
-func (any *iAny) Type() int { return cANY }
-func (any *iAny) Print() { print("any") }
+func (any *_Any) Type() int { return _ANY }
+func (any *_Any) Print() { print("any") }
 
 // --- BRA parenthesized expression
-type iBra struct {
-	iCommon;
+type _Bra struct {
+	_Common;
 	n	int;	// subexpression number
 }
 
-func (bra *iBra) Type() int { return cBRA }
-func (bra *iBra) Print() { print("bra", bra.n); }
+func (bra *_Bra) Type() int { return _BRA }
+func (bra *_Bra) Print() { print("bra", bra.n); }
 
 // --- EBRA end of parenthesized expression
-type iEbra struct {
-	iCommon;
+type _Ebra struct {
+	_Common;
 	n	int;	// subexpression number
 }
 
-func (ebra *iEbra) Type() int { return cEBRA }
-func (ebra *iEbra) Print() { print("ebra ", ebra.n); }
+func (ebra *_Ebra) Type() int { return _EBRA }
+func (ebra *_Ebra) Print() { print("ebra ", ebra.n); }
 
 // --- ALT alternation
-type iAlt struct {
-	iCommon;
+type _Alt struct {
+	_Common;
 	left	instr;	// other branch
 }
 
-func (alt *iAlt) Type() int { return cALT }
-func (alt *iAlt) Print() { print("alt(", alt.left.Index(), ")"); }
+func (alt *_Alt) Type() int { return _ALT }
+func (alt *_Alt) Print() { print("alt(", alt.left.Index(), ")"); }
 
 // --- NOP no operation
-type iNop struct {
-	iCommon
+type _Nop struct {
+	_Common
 }
 
-func (nop *iNop) Type() int { return cNOP }
-func (nop *iNop) Print() { print("nop") }
+func (nop *_Nop) Type() int { return _NOP }
+func (nop *_Nop) Print() { print("nop") }
 
 // report error and exit compiling/executing goroutine
-func (re *regExp) Error(err *os.Error) {
+func (re *_RE) Error(err *os.Error) {
 	re.error = err;
 	re.ch <- re;
 	sys.goexit();
 }
 
-func (re *regExp) Add(i instr) instr {
+func (re *_RE) Add(i instr) instr {
 	i.SetIndex(re.inst.Len());
 	re.inst.Push(i);
 	return i;
 }
 
 type parser struct {
-	re	*regExp;
+	re	*_RE;
 	nlpar	int;	// number of unclosed lpars
 	pos	int;
 	ch	int;
@@ -248,7 +248,7 @@ func (p *parser) nextc() int {
 	return p.ch;
 }
 
-func newParser(re *regExp) *parser {
+func newParser(re *_RE) *parser {
 	p := new(parser);
 	p.re = re;
 	p.nextc();	// load p.ch
@@ -364,15 +364,15 @@ func (p *parser) Term() (start, end instr) {
 		p.re.Error(ErrUnmatchedRbkt);
 	case '^':
 		p.nextc();
-		start = p.re.Add(new(iBot));
+		start = p.re.Add(new(_Bot));
 		return start, start;
 	case '$':
 		p.nextc();
-		start = p.re.Add(new(iEot));
+		start = p.re.Add(new(_Eot));
 		return start, start;
 	case '.':
 		p.nextc();
-		start = p.re.Add(new(iAny));
+		start = p.re.Add(new(_Any));
 		return start, start;
 	case '[':
 		p.nextc();
@@ -393,9 +393,9 @@ func (p *parser) Term() (start, end instr) {
 		}
 		p.nlpar--;
 		p.nextc();
-		bra := new(iBra);
+		bra := new(_Bra);
 		p.re.Add(bra);
-		ebra := new(iEbra);
+		ebra := new(_Ebra);
 		p.re.Add(ebra);
 		bra.n = nbra;
 		ebra.n = nbra;
@@ -437,7 +437,7 @@ func (p *parser) Closure() (start, end instr) {
 	switch p.c() {
 	case '*':
 		// (start,end)*:
-		alt := new(iAlt);
+		alt := new(_Alt);
 		p.re.Add(alt);
 		end.SetNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
@@ -445,16 +445,16 @@ func (p *parser) Closure() (start, end instr) {
 		end = alt;
 	case '+':
 		// (start,end)+:
-		alt := new(iAlt);
+		alt := new(_Alt);
 		p.re.Add(alt);
 		end.SetNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
 		end = alt;	// start is unchanged; end is alt
 	case '?':
 		// (start,end)?:
-		alt := new(iAlt);
+		alt := new(_Alt);
 		p.re.Add(alt);
-		nop := new(iNop);
+		nop := new(_Nop);
 		p.re.Add(nop);
 		alt.left = start;	// alternate branch is start
 		alt.next = nop;	// follow on to nop
@@ -478,7 +478,7 @@ func (p *parser) Concatenation() (start, end instr) {
 		switch {
 		case nstart == iNULL:	// end of this concatenation
 			if start == iNULL {	// this is the empty string
-				nop := p.re.Add(new(iNop));
+				nop := p.re.Add(new(_Nop));
 				return nop, nop;
 			}
 			return;
@@ -501,11 +501,11 @@ func (p *parser) Regexp() (start, end instr) {
 		case '|':
 			p.nextc();
 			nstart, nend := p.Concatenation();
-			alt := new(iAlt);
+			alt := new(_Alt);
 			p.re.Add(alt);
 			alt.left = start;
 			alt.next = nstart;
-			nop := new(iNop);
+			nop := new(_Nop);
 			p.re.Add(nop);
 			end.SetNext(nop);
 			nend.SetNext(nop);
@@ -515,47 +515,47 @@ func (p *parser) Regexp() (start, end instr) {
 	panic("unreachable");
 }
 
-func UnNop(i instr) instr {
-	for i.Type() == cNOP {
+func unNop(i instr) instr {
+	for i.Type() == _NOP {
 		i = i.Next()
 	}
 	return i
 }
 
-func (re *regExp) EliminateNops() {
+func (re *_RE) EliminateNops() {
 	for i := 0; i < re.inst.Len(); i++ {
 		inst := re.inst.At(i).(instr);
-		if inst.Type() == cEND {
+		if inst.Type() == _END {
 			continue
 		}
-		inst.SetNext(UnNop(inst.Next()));
-		if inst.Type() == cALT {
-			alt := inst.(*iAlt);
-			alt.left = UnNop(alt.left);
+		inst.SetNext(unNop(inst.Next()));
+		if inst.Type() == _ALT {
+			alt := inst.(*_Alt);
+			alt.left = unNop(alt.left);
 		}
 	}
 }
 
-func (re *regExp) Dump() {
+func (re *_RE) Dump() {
 	for i := 0; i < re.inst.Len(); i++ {
 		inst := re.inst.At(i).(instr);
 		print(inst.Index(), ": ");
 		inst.Print();
-		if inst.Type() != cEND {
+		if inst.Type() != _END {
 			print(" -> ", inst.Next().Index())
 		}
 		print("\n");
 	}
 }
 
-func (re *regExp) DoParse() {
+func (re *_RE) DoParse() {
 	p := newParser(re);
-	start := new(iStart);
+	start := new(_Start);
 	re.Add(start);
 	s, e := p.Regexp();
 	start.next = s;
 	re.start = start;
-	e.SetNext(re.Add(new(iEnd)));
+	e.SetNext(re.Add(new(_End)));
 
 	if debug {
 		re.Dump();
@@ -571,8 +571,8 @@ func (re *regExp) DoParse() {
 }
 
 
-func Compiler(str string, ch chan *regExp) {
-	re := new(regExp);
+func compiler(str string, ch chan *_RE) {
+	re := new(_RE);
 	re.expr = str;
 	re.inst = array.New(0);
 	re.ch = ch;
@@ -589,8 +589,8 @@ export type Regexp interface {
 
 // Compile in separate goroutine; wait for result
 export func Compile(str string) (regexp Regexp, error *os.Error) {
-	ch := make(chan *regExp);
-	go Compiler(str, ch);
+	ch := make(chan *_RE);
+	go compiler(str, ch);
 	re := <-ch;
 	return re, re.error
 }
@@ -627,7 +627,7 @@ func addState(s []state, inst instr, match []int) []state {
 	return s;
 }
 
-func (re *regExp) DoExecute(str string, pos int) []int {
+func (re *_RE) DoExecute(str string, pos int) []int {
 	var s [2][]state;	// TODO: use a vector when state values (not ptrs) can be vector elements
 	s[0] = make([]state, 10)[0:0];
 	s[1] = make([]state, 10)[0:0];
@@ -658,43 +658,43 @@ func (re *regExp) DoExecute(str string, pos int) []int {
 		for i := 0; i < len(s[in]); i++ {
 			st := s[in][i];
 			switch s[in][i].inst.Type() {
-			case cBOT:
+			case _BOT:
 				if pos == 0 {
 					s[in] = addState(s[in], st.inst.Next(), st.match)
 				}
-			case cEOT:
+			case _EOT:
 				if pos == len(str) {
 					s[in] = addState(s[in], st.inst.Next(), st.match)
 				}
-			case cCHAR:
-				if c == st.inst.(*iChar).char {
+			case _CHAR:
+				if c == st.inst.(*_Char).char {
 					s[out] = addState(s[out], st.inst.Next(), st.match)
 				}
-			case cCHARCLASS:
-				if st.inst.(*iCharClass).Matches(c) {
+			case _CHARCLASS:
+				if st.inst.(*_CharClass).Matches(c) {
 					s[out] = addState(s[out], st.inst.Next(), st.match)
 				}
-			case cANY:
+			case _ANY:
 				if c != endOfFile {
 					s[out] = addState(s[out], st.inst.Next(), st.match)
 				}
-			case cBRA:
-				n := st.inst.(*iBra).n;
+			case _BRA:
+				n := st.inst.(*_Bra).n;
 				st.match[2*n] = pos;
 				s[in] = addState(s[in], st.inst.Next(), st.match);
-			case cEBRA:
-				n := st.inst.(*iEbra).n;
+			case _EBRA:
+				n := st.inst.(*_Ebra).n;
 				st.match[2*n+1] = pos;
 				s[in] = addState(s[in], st.inst.Next(), st.match);
-			case cALT:
-				s[in] = addState(s[in], st.inst.(*iAlt).left, st.match);
+			case _ALT:
+				s[in] = addState(s[in], st.inst.(*_Alt).left, st.match);
 				// give other branch a copy of this match vector
 				s1 := make([]int, 2*(re.nbra+1));
 				for i := 0; i < len(s1); i++ {
 					s1[i] = st.match[i]
 				}
 				s[in] = addState(s[in], st.inst.Next(), s1);
-			case cEND:
+			case _END:
 				// choose leftmost longest
 				if !found ||	// first
 				   st.match[0] < final.match[0] ||	// leftmost
@@ -714,17 +714,17 @@ func (re *regExp) DoExecute(str string, pos int) []int {
 }
 
 
-func (re *regExp) Execute(s string) []int {
+func (re *_RE) Execute(s string) []int {
 	return re.DoExecute(s, 0)
 }
 
 
-func (re *regExp) Match(s string) bool {
+func (re *_RE) Match(s string) bool {
 	return len(re.DoExecute(s, 0)) > 0
 }
 
 
-func (re *regExp) MatchStrings(s string) []string {
+func (re *_RE) MatchStrings(s string) []string {
 	r := re.DoExecute(s, 0);
 	if r == nil {
 		return nil

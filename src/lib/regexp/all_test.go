@@ -85,7 +85,7 @@ var matches = []tester {
 	tester{ `a*(|(b))c*`,	"aacc",	vec{0,4, 2,2, -1,-1} },
 }
 
-func CompileTest(t *testing.T, expr string, error *os.Error) regexp.Regexp {
+func compileTest(t *testing.T, expr string, error *os.Error) regexp.Regexp {
 	re, err := regexp.Compile(expr);
 	if err != error {
 		t.Error("compiling `", expr, "`; unexpected error: ", err.String());
@@ -93,7 +93,7 @@ func CompileTest(t *testing.T, expr string, error *os.Error) regexp.Regexp {
 	return re
 }
 
-func Printvec(t *testing.T, m []int) {
+func printVec(t *testing.T, m []int) {
 	l := len(m);
 	if l == 0 {
 		t.Log("\t<no match>");
@@ -104,7 +104,7 @@ func Printvec(t *testing.T, m []int) {
 	}
 }
 
-func PrintStrings(t *testing.T, m []string) {
+func printStrings(t *testing.T, m []string) {
 	l := len(m);
 	if l == 0 {
 		t.Log("\t<no match>");
@@ -115,7 +115,7 @@ func PrintStrings(t *testing.T, m []string) {
 	}
 }
 
-func Equal(m1, m2 []int) bool {
+func equal(m1, m2 []int) bool {
 	l := len(m1);
 	if l != len(m2) {
 		return false
@@ -128,7 +128,7 @@ func Equal(m1, m2 []int) bool {
 	return true
 }
 
-func EqualStrings(m1, m2 []string) bool {
+func equalStrings(m1, m2 []string) bool {
 	l := len(m1);
 	if l != len(m2) {
 		return false
@@ -141,41 +141,41 @@ func EqualStrings(m1, m2 []string) bool {
 	return true
 }
 
-func ExecuteTest(t *testing.T, expr string, str string, match []int) {
-	re := CompileTest(t, expr, nil);
+func executeTest(t *testing.T, expr string, str string, match []int) {
+	re := compileTest(t, expr, nil);
 	if re == nil {
 		return
 	}
 	m := re.Execute(str);
-	if !Equal(m, match) {
+	if !equal(m, match) {
 		t.Error("Execute failure on `", expr, "` matching `", str, "`:");
-		Printvec(t, m);
+		printVec(t, m);
 		t.Log("should be:");
-		Printvec(t, match);
+		printVec(t, match);
 	}
 }
 
 export func TestGoodCompile(t *testing.T) {
 	for i := 0; i < len(good_re); i++ {
-		CompileTest(t, good_re[i], nil);
+		compileTest(t, good_re[i], nil);
 	}
 }
 
 export func TestBadCompile(t *testing.T) {
 	for i := 0; i < len(bad_re); i++ {
-		CompileTest(t, bad_re[i].re, bad_re[i].err)
+		compileTest(t, bad_re[i].re, bad_re[i].err)
 	}
 }
 
 export func TestExecute(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
-		ExecuteTest(t, test.re, test.text, test.match)
+		executeTest(t, test.re, test.text, test.match)
 	}
 }
 
-func MatchTest(t *testing.T, expr string, str string, match []int) {
-	re := CompileTest(t, expr, nil);
+func matchTest(t *testing.T, expr string, str string, match []int) {
+	re := compileTest(t, expr, nil);
 	if re == nil {
 		return
 	}
@@ -188,12 +188,12 @@ func MatchTest(t *testing.T, expr string, str string, match []int) {
 export func TestMatch(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
-		MatchTest(t, test.re, test.text, test.match)
+		matchTest(t, test.re, test.text, test.match)
 	}
 }
 
-func MatchStringsTest(t *testing.T, expr string, str string, match []int) {
-	re := CompileTest(t, expr, nil);
+func matchStringsTest(t *testing.T, expr string, str string, match []int) {
+	re := compileTest(t, expr, nil);
 	if re == nil {
 		return
 	}
@@ -202,22 +202,22 @@ func MatchStringsTest(t *testing.T, expr string, str string, match []int) {
 		strs[i/2] = str[match[i] : match[i+1]]
 	}
 	m := re.MatchStrings(str);
-	if !EqualStrings(m, strs) {
+	if !equalStrings(m, strs) {
 		t.Error("MatchStrings failure on `", expr, "` matching `", str, "`:");
-		PrintStrings(t, m);
+		printStrings(t, m);
 		t.Log("should be:");
-		PrintStrings(t, strs);
+		printStrings(t, strs);
 	}
 }
 
 export func TestMatchStrings(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
-		MatchTest(t, test.re, test.text, test.match)
+		matchTest(t, test.re, test.text, test.match)
 	}
 }
 
-func MatchFunctionTest(t *testing.T, expr string, str string, match []int) {
+func matchFunctionTest(t *testing.T, expr string, str string, match []int) {
 	m, err := Match(expr, str);
 	if err == nil {
 		return
@@ -230,6 +230,6 @@ func MatchFunctionTest(t *testing.T, expr string, str string, match []int) {
 export func TestMatchFunction(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
-		MatchFunctionTest(t, test.re, test.text, test.match)
+		matchFunctionTest(t, test.re, test.text, test.match)
 	}
 }
