@@ -37,11 +37,11 @@ import "math"
 //	of this polynomial approximation is bounded by 2**-58.45. In
 //	other words,
 //		        2      4      6      8      10      12      14
-//	    R(z) ~ lg1*s +lg2*s +lg3*s +lg4*s +lg5*s  +lg6*s  +lg7*s
-//  	(the values of lg1 to lg7 are listed in the program)
+//	    R(z) ~ L1*s +L2*s +L3*s +L4*s +L5*s  +L6*s  +L7*s
+//  	(the values of L1 to L7 are listed in the program)
 //	and
 //	    |      2          14          |     -58.45
-//	    | lg1*s +...+lg7*s    -  R(z) | <= 2
+//	    | L1*s +...+L7*s    -  R(z) | <= 2
 //	    |                             |
 //	Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
 //	In order to guarantee error in log below 1ulp, we compute log
@@ -49,11 +49,11 @@ import "math"
 //		log(1+f) = f - s*(f - R)	(if f is not too large)
 //		log(1+f) = f - (hfsq - s*(hfsq+R)).	(better accuracy)
 //
-//	3. Finally,  log(x) = k*ln2 + log(1+f).
-//			    = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
-//	   Here ln2 is split into two floating point number:
-//			ln2_hi + ln2_lo,
-//	   where n*ln2_hi is always exact for |n| < 2000.
+//	3. Finally,  log(x) = k*Ln2 + log(1+f).
+//			    = k*Ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*Ln2_lo)))
+//	   Here Ln2 is split into two floating point number:
+//			Ln2_hi + Ln2_lo,
+//	   where n*Ln2_hi is always exact for |n| < 2000.
 //
 // Special cases:
 //	log(x) is NaN with signal if x < 0 (including -INF) ;
@@ -70,19 +70,19 @@ import "math"
 // compiler will convert from decimal to binary accurately enough
 // to produce the hexadecimal values shown.
 
-const (
-	ln2Hi = 6.93147180369123816490e-01;	/* 3fe62e42 fee00000 */
-	ln2Lo = 1.90821492927058770002e-10;	/* 3dea39ef 35793c76 */
-	lg1 = 6.666666666666735130e-01;  /* 3FE55555 55555593 */
-	lg2 = 3.999999999940941908e-01;  /* 3FD99999 9997FA04 */
-	lg3 = 2.857142874366239149e-01;  /* 3FD24924 94229359 */
-	lg4 = 2.222219843214978396e-01;  /* 3FCC71C5 1D8E78AF */
-	lg5 = 1.818357216161805012e-01;  /* 3FC74664 96CB03DE */
-	lg6 = 1.531383769920937332e-01;  /* 3FC39A09 D078C69F */
-	lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
-)
-
 export func Log(x float64) float64 {
+	const (
+		Ln2Hi = 6.93147180369123816490e-01;	/* 3fe62e42 fee00000 */
+		Ln2Lo = 1.90821492927058770002e-10;	/* 3dea39ef 35793c76 */
+		L1 = 6.666666666666735130e-01;  /* 3FE55555 55555593 */
+		L2 = 3.999999999940941908e-01;  /* 3FD99999 9997FA04 */
+		L3 = 2.857142874366239149e-01;  /* 3FD24924 94229359 */
+		L4 = 2.222219843214978396e-01;  /* 3FCC71C5 1D8E78AF */
+		L5 = 1.818357216161805012e-01;  /* 3FC74664 96CB03DE */
+		L6 = 1.531383769920937332e-01;  /* 3FC39A09 D078C69F */
+		L7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
+	)
+
 	// special cases
 	switch {
 	case sys.isNaN(x) || sys.isInf(x, 1):
@@ -106,23 +106,18 @@ export func Log(x float64) float64 {
 	s := f/(2+f);
 	s2 := s*s;
 	s4 := s2*s2;
-	t1 := s2*(lg1 + s4*(lg3 + s4*(lg5 + s4*lg7)));
-	t2 := s4*(lg2 + s4*(lg4 + s4*lg6));
+	t1 := s2*(L1 + s4*(L3 + s4*(L5 + s4*L7)));
+	t2 := s4*(L2 + s4*(L4 + s4*L6));
 	R :=  t1 + t2;
 	hfsq := 0.5*f*f;
-	return k*ln2Hi - ((hfsq-(s*(hfsq+R)+k*ln2Lo)) - f);
+	return k*Ln2Hi - ((hfsq-(s*(hfsq+R)+k*Ln2Lo)) - f);
 }
-
-const
-(
-	ln10u1	= .4342944819032518276511;
-)
 
 export func Log10(arg float64) float64 {
 	if arg <= 0 {
 		return sys.NaN();
 	}
-	return Log(arg) * ln10u1;
+	return Log(arg) * (1/Ln10);
 }
 
 
