@@ -213,7 +213,7 @@ func (s *stringValue) str() string {
 }
 
 // -- Value interface
-type Value interface {
+type _Value interface {
 	str() string;
 }
 
@@ -221,25 +221,16 @@ type Value interface {
 export type Flag struct {
 	name	string;
 	usage	string;
-	value	Value;
+	value	_Value;
 }
 
 type allFlags struct {
 	actual map[string] *Flag;
 	formal map[string] *Flag;
-	first_arg	int;
+	first_arg	int;	// 0 is the program name, 1 is first arg
 }
 
-
-func New() *allFlags {
-	f := new(allFlags);
-	f.first_arg = 1;	// 0 is the program name, 1 is first arg
-	f.actual = make(map[string] *Flag);
-	f.formal = make(map[string] *Flag);
-	return f;
-}
-
-var flags *allFlags = New();
+var flags *allFlags = &allFlags{make(map[string] *Flag), make(map[string] *Flag), 1}
 
 export func PrintDefaults() {
 	for k, f := range flags.formal {
@@ -273,7 +264,7 @@ export func NArg() int {
 	return sys.argc() - flags.first_arg
 }
 
-func add(name string, value Value, usage string) {
+func add(name string, value _Value, usage string) {
 	f := new(Flag);
 	f.name = name;
 	f.usage = usage;
