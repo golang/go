@@ -14,14 +14,14 @@ import (
 
 export type Pollster struct {
 	kq int64;
-	eventbuf [10]syscall.Kevent;
-	events []syscall.Kevent;
+	eventbuf [10]syscall.Kevent_t;
+	events []syscall.Kevent_t;
 }
 
 export func NewPollster() (p *Pollster, err *os.Error) {
 	p = new(Pollster);
 	var e int64;
-	if p.kq, e = syscall.kqueue(); e != 0 {
+	if p.kq, e = syscall.Kqueue(); e != 0 {
 		return nil, os.ErrnoToError(e)
 	}
 	p.events = p.eventbuf[0:0];
@@ -35,36 +35,36 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 	} else {
 		kmode = syscall.EVFILT_WRITE
 	}
-	var events [1]syscall.Kevent;
+	var events [1]syscall.Kevent_t;
 	ev := &events[0];
-	ev.ident = fd;
-	ev.filter = kmode;
+	ev.Ident = fd;
+	ev.Filter = kmode;
 
 	// EV_ADD - add event to kqueue list
 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
 	//	rather than waiting for real event
 	// EV_ONESHOT - delete the event the first time it triggers
-	ev.flags = syscall.EV_ADD | syscall.EV_RECEIPT;
+	ev.Flags = syscall.EV_ADD | syscall.EV_RECEIPT;
 	if !repeat {
-		ev.flags |= syscall.EV_ONESHOT
+		ev.Flags |= syscall.EV_ONESHOT
 	}
 
-	n, e := syscall.kevent(p.kq, events, events, nil);
+	n, e := syscall.Kevent(p.kq, events, events, nil);
 	if e != 0 {
 		return os.ErrnoToError(e)
 	}
-	if n != 1 || (ev.flags & syscall.EV_ERROR) == 0 || ev.ident != fd || ev.filter != kmode {
+	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || ev.Ident != fd || ev.Filter != kmode {
 		return os.NewError("kqueue phase error")
 	}
-	if ev.data != 0 {
-		return os.ErrnoToError(ev.data)
+	if ev.Data != 0 {
+		return os.ErrnoToError(ev.Data)
 	}
 	return nil
 }
 
 func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
 	for len(p.events) == 0 {
-		nn, e := syscall.kevent(p.kq, nil, p.eventbuf, nil);
+		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf, nil);
 		if e != 0 {
 			if e == syscall.EAGAIN || e == syscall.EINTR {
 				continue
@@ -75,8 +75,8 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
 	}
 	ev := &p.events[0];
 	p.events = p.events[1:len(p.events)];
-	fd = ev.ident;
-	if ev.filter == syscall.EVFILT_READ {
+	fd = ev.Ident;
+	if ev.Filter == syscall.EVFILT_READ {
 		mode = 'r'
 	} else {
 		mode = 'w'
@@ -85,6 +85,6 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
 }
 
 func (p *Pollster) Close() *os.Error {
-	r, e := syscall.close(p.kq);
+	r, e := syscall.Close(p.kq);
 	return os.ErrnoToError(e)
 }

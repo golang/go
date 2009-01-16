@@ -17,7 +17,7 @@ var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 
 // fd is already connected to www.google.com port 80.
 // Run an HTTP request to fetch the main page.
-func FetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
+func fetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
 	req := io.StringBytes("GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
 	n, errno := fd.Write(req);
 
@@ -25,27 +25,27 @@ func FetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
 	n, errno = io.Readn(fd, buf);
 
 	if n < 1000 {
-		t.Errorf("FetchGoogle: short HTTP read from %s %s", network, addr);
+		t.Errorf("fetchGoogle: short HTTP read from %s %s", network, addr);
 		return
 	}
 }
 
-func DoDial(t *testing.T, network, addr string) {
+func doDial(t *testing.T, network, addr string) {
 	fd, err := net.Dial(network, "", addr);
 	if err != nil {
 		t.Errorf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
 		return
 	}
-	FetchGoogle(t, fd, network, addr);
+	fetchGoogle(t, fd, network, addr);
 	fd.Close()
 }
 
-func DoDialTCP(t *testing.T, network, addr string) {
+func doDialTCP(t *testing.T, network, addr string) {
 	fd, err := net.DialTCP(network, "", addr);
 	if err != nil {
 		t.Errorf("net.DialTCP(%q, %q, %q) = _, %v", network, "", addr, err);
 	} else {
-		FetchGoogle(t, fd, network, addr);
+		fetchGoogle(t, fd, network, addr);
 	}
 	fd.Close()
 }
@@ -76,13 +76,13 @@ export func TestDialGoogle(t *testing.T) {
 			continue
 		}
 		t.Logf("-- %s --", addr);
-		DoDial(t, "tcp", addr);
-		DoDialTCP(t, "tcp", addr);
+		doDial(t, "tcp", addr);
+		doDialTCP(t, "tcp", addr);
 		if addr[0] != '[' {
-			DoDial(t, "tcp4", addr);
-			DoDialTCP(t, "tcp4", addr)
+			doDial(t, "tcp4", addr);
+			doDialTCP(t, "tcp4", addr)
 		}
-		DoDial(t, "tcp6", addr);
-		DoDialTCP(t, "tcp6", addr)
+		doDial(t, "tcp6", addr);
+		doDialTCP(t, "tcp6", addr)
 	}
 }

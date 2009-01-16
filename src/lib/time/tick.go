@@ -42,7 +42,7 @@ func ticker(ns int64, c chan int64) {
 			when += ns
 		}
 
-		syscall.nstotimeval(when - now, &tv);
+		syscall.Nstotimeval(when - now, &tv);
 		syscall.Syscall6(syscall.SYS_SELECT, 0, 0, 0, 0, int64(uintptr(unsafe.pointer(&tv))), 0);
 		now = time.Nanoseconds();
 		c <- now;

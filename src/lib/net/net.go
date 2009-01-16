@@ -117,7 +117,7 @@ func _HostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Er
 
 // Convert socket address into "host:port".
 func _SockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
-	switch sa.family {
+	switch sa.Family {
 	case syscall.AF_INET, syscall.AF_INET6:
 		addr, port, e := SockaddrToIP(sa);
 		if e != nil {
@@ -141,34 +141,34 @@ func boolint(b bool) int {
 
 // Generic _Socket creation.
 func _Socket(f, p, t int64, la, ra *syscall.Sockaddr) (fd *FD, err *os.Error) {
-	s, e := syscall.socket(f, p, t);
+	s, e := syscall.Socket(f, p, t);
 	if e != 0 {
 		return nil, os.ErrnoToError(e)
 	}
 
 	// Allow reuse of recently-used addresses.
-	syscall.setsockopt_int(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1);
+	syscall.Setsockopt_int(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1);
 
 	var r int64;
 	if la != nil {
-		r, e = syscall.bind(s, la);
+		r, e = syscall.Bind(s, la);
 		if e != 0 {
-			syscall.close(s);
+			syscall.Close(s);
 			return nil, os.ErrnoToError(e)
 		}
 	}
 
 	if ra != nil {
-		r, e = syscall.connect(s, ra);
+		r, e = syscall.Connect(s, ra);
 		if e != 0 {
-			syscall.close(s);
+			syscall.Close(s);
 			return nil, os.ErrnoToError(e)
 		}
 	}
 
 	fd, err = NewFD(s);
 	if err != nil {
-		syscall.close(s);
+		syscall.Close(s);
 		return nil, err
 	}
 
@@ -227,11 +227,11 @@ func (c *_ConnBase) Close() *os.Error {
 
 
 func setsockopt_int(fd, level, opt int64, value int) *os.Error {
-	return os.ErrnoToError(syscall.setsockopt_int(fd, level, opt, value));
+	return os.ErrnoToError(syscall.Setsockopt_int(fd, level, opt, value));
 }
 
 func setsockopt_tv(fd, level, opt int64, nsec int64) *os.Error {
-	return os.ErrnoToError(syscall.setsockopt_tv(fd, level, opt, nsec));
+	return os.ErrnoToError(syscall.Setsockopt_tv(fd, level, opt, nsec));
 }
 
 func (c *_ConnBase) SetReadBuffer(bytes int) *os.Error {
@@ -275,7 +275,7 @@ func (c *_ConnBase) SetKeepAlive(keepalive bool) *os.Error {
 }
 
 func (c *_ConnBase) SetLinger(sec int) *os.Error {
-	e := syscall.setsockopt_linger(c.FD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec);
+	e := syscall.Setsockopt_linger(c.FD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec);
 	return os.ErrnoToError(e);
 }
 
@@ -492,9 +492,9 @@ export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
 	if e != nil {
 		return nil, e
 	}
-	r, e1 := syscall.listen(fd.fd, ListenBacklog());
+	r, e1 := syscall.Listen(fd.fd, ListenBacklog());
 	if e1 != 0 {
-		syscall.close(fd.fd);
+		syscall.Close(fd.fd);
 		return nil, os.ErrnoToError(e1)
 	}
 	l = new(ListenerTCP);

@@ -6,7 +6,7 @@ package syscall
 
 import syscall "syscall"
 
-export func gettimeofday() (sec, nsec, errno int64) {
+export func Gettimeofday() (sec, nsec, errno int64) {
 	// The "1" in the call is the timeval pointer, which must be
 	// non-zero but is otherwise unused.  The results
 	// are returned in r1, r2.
@@ -17,8 +17,8 @@ export func gettimeofday() (sec, nsec, errno int64) {
 	return r1, r2*1000, 0
 }
 
-export func nstotimeval(ns int64, tv *Timeval) {
+export func Nstotimeval(ns int64, tv *Timeval) {
 	ns += 999;	// round up
-	tv.sec = int64(ns/1000000000);
-	tv.usec = uint32(ns%1000000000 / 1000);
+	tv.Sec = int64(ns/1000000000);
+	tv.Usec = uint32(ns%1000000000 / 1000);
 }

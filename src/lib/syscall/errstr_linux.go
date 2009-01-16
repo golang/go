@@ -284,7 +284,7 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
 	return string(buf)[i:len(buf)];
 }
 
-export func errstr(errno int64) string {
+export func Errstr(errno int64) string {
 	if errno < 0 || errno >= len(error) {
 		return "Error " + str(errno)
 	}

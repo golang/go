@@ -11,35 +11,35 @@ package syscall
 // Time
 
 export type Timespec struct {
-	sec	int64;
-	nsec	uint64;
+	Sec	int64;
+	Nsec	uint64;
 }
 
 export type Timeval struct {
-	sec	int64;
-	usec	uint32;
+	Sec	int64;
+	Usec	uint32;
 }
 
 
 // Processes
 
 export type Rusage struct {
-	utime	Timeval;
-	stime	Timeval;
-	maxrss	int64;
-	ixrss	int64;
-	idrss	int64;
-	isrss	int64;
-	minflt	int64;
-	majflt	int64;
-	nswap	int64;
-	inblock	int64;
-	oublock	int64;
-	msgsnd	int64;
-	msgrcv	int64;
-	nsignals	int64;
-	nvcsw	int64;
-	nivcsw	int64;
+	Utime	Timeval;
+	Stime	Timeval;
+	Maxrss	int64;
+	Ixrss	int64;
+	Idrss	int64;
+	Isrss	int64;
+	Minflt	int64;
+	Majflt	int64;
+	Nswap	int64;
+	Inblock	int64;
+	Oublock	int64;
+	Msgsnd	int64;
+	Msgrcv	int64;
+	Nsignals	int64;
+	Nvcsw	int64;
+	Nivcsw	int64;
 }
 
 
@@ -67,26 +67,26 @@ export const (
 	FD_CLOEXEC = 1;
 )
 
-export type Stat struct {
-	dev	uint32;
-	mode	uint16;
-	nlink	uint16;
-	ino	uint64;
-	uid	uint32;
-	gid	uint32;
-	rdev	uint32;
-	pad1	uint32;
-	atime Timespec;
-	mtime Timespec;
-	ctime Timespec;
-	birthtime Timespec;
-	size uint64;
-	blocks uint64;
-	blksize uint32;
-	flags uint32;
-	gen uint32;
-	lspare uint32;
-	qspare [2]uint64;
+export type Stat_t struct {
+	Dev	uint32;
+	Mode	uint16;
+	Nlink	uint16;
+	Ino	uint64;
+	Uid	uint32;
+	Gid	uint32;
+	Rdev	uint32;
+	Pad1	uint32;
+	Atime Timespec;
+	Mtime Timespec;
+	Ctime Timespec;
+	Birthtime Timespec;
+	Size uint64;
+	Blocks uint64;
+	Blksize uint32;
+	Flags uint32;
+	Gen uint32;
+	Lspare uint32;
+	Qspare [2]uint64;
 }
 
 
@@ -128,41 +128,41 @@ export const (
 )
 
 export type SockaddrUnix struct {
-	len	byte;
-	family	byte;
-	path	[104]byte
+	Len	byte;
+	Family	byte;
+	Path	[104]byte
 }
 export const SizeofSockaddrUnix = 106
 
 export type SockaddrInet4 struct {
-	len	byte;
-	family	byte;
-	port	[2]byte;
-	addr	[4]byte;
-	zero	[8]byte
+	Len	byte;
+	Family	byte;
+	Port	[2]byte;
+	Addr	[4]byte;
+	Zero	[8]byte
 }
 export const SizeofSockaddrInet4 = 16
 
 export type SockaddrInet6 struct {
-	len	byte;
-	family	byte;
-	port	[2]byte;
-	flowinfo	[4]byte;
-	addr	[16]byte;
-	scopeid	[4]byte;
+	Len	byte;
+	Family	byte;
+	Port	[2]byte;
+	Flowinfo	[4]byte;
+	Addr	[16]byte;
+	Scopeid	[4]byte;
 }
 export const SizeofSockaddrInet6 = 28
 
 export type Sockaddr struct {
-	len	byte;
-	family	byte;
-	opaque	[126]byte
+	Len	byte;
+	Family	byte;
+	Opaque	[126]byte
 }
 export const SizeofSockaddr = 128
 
 export type Linger struct {
-	yes int32;
-	sec int32;
+	Yes int32;
+	Sec int32;
 }
 
 
@@ -201,12 +201,12 @@ export const (
 	EV_ERROR = 0x4000
 )
 
-export type Kevent struct {
-	ident int64;
-	filter int16;
-	flags uint16;
-	fflags uint32;
-	data int64;
-	udata int64;
+export type Kevent_t struct {
+	Ident int64;
+	Filter int16;
+	Flags uint16;
+	Fflags uint32;
+	Data int64;
+	Udata int64;
 }
 

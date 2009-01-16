@@ -28,7 +28,7 @@ export var (
 )
 
 export func Open(name string, mode int64, perm int64) (fd *FD, err *os.Error) {
-	r, e := syscall.open(name, mode, perm);
+	r, e := syscall.Open(name, mode, perm);
 	return newFD(r, name), os.ErrnoToError(e)
 }
 
@@ -36,7 +36,7 @@ func (fd *FD) Close() *os.Error {
 	if fd == nil {
 		return os.EINVAL
 	}
-	r, e := syscall.close(fd.fildes);
+	r, e := syscall.Close(fd.fildes);
 	fd.fildes = -1;  // so it can't be closed again
 	return nil
 }
@@ -45,7 +45,7 @@ func (fd *FD) Read(b []byte) (ret int, err *os.Error) {
 	if fd == nil {
 		return -1, os.EINVAL
 	}
-	r, e := syscall.read(fd.fildes, &b[0], int64(len(b)));
+	r, e := syscall.Read(fd.fildes, &b[0], int64(len(b)));
 	return int(r), os.ErrnoToError(e)
 }
 
@@ -53,7 +53,7 @@ func (fd *FD) Write(b []byte) (ret int, err *os.Error) {
 	if fd == nil {
 		return -1, os.EINVAL
 	}
-	r, e := syscall.write(fd.fildes, &b[0], int64(len(b)));
+	r, e := syscall.Write(fd.fildes, &b[0], int64(len(b)));
 	return int(r), os.ErrnoToError(e)
 }
 

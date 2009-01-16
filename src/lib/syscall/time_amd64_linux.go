@@ -9,17 +9,17 @@ import (
 	"unsafe";
 )
 
-export func gettimeofday() (sec, nsec, errno int64) {
+export func Gettimeofday() (sec, nsec, errno int64) {
 	var tv Timeval;
 	r1, r2, e := Syscall(SYS_GETTIMEOFDAY, int64(uintptr(unsafe.pointer(&tv))), 0, 0);
 	if e != 0 {
 		return 0, 0, e
 	}
-	return int64(tv.sec), int64(tv.usec*1000), 0
+	return int64(tv.Sec), int64(tv.Usec*1000), 0
 }
 
-export func nstotimeval(ns int64, tv *Timeval) {
+export func Nstotimeval(ns int64, tv *Timeval) {
 	ns += 999;	// round up
-	tv.sec = int64(ns/1000000000);
-	tv.usec = uint64(ns%1000000000 / 1000);
+	tv.Sec = int64(ns/1000000000);
+	tv.Usec = uint64(ns%1000000000 / 1000);
 }

@@ -11,35 +11,35 @@ package syscall
 // Time
 
 export type Timespec struct {
-	sec	int64;
-	nsec	uint64;
+	Sec	int64;
+	Nsec	uint64;
 }
 
 export type Timeval struct {
-	sec	int64;
-	usec	uint64;
+	Sec	int64;
+	Usec	uint64;
 }
 
 
 // Processes
 
 export type Rusage struct {
-	utime	Timeval;
-	stime	Timeval;
-	maxrss	int64;
-	ixrss	int64;
-	idrss	int64;
-	isrss	int64;
-	minflt	int64;
-	majflt	int64;
-	nswap	int64;
-	inblock	int64;
-	oublock	int64;
-	msgsnd	int64;
-	msgrcv	int64;
-	nsignals	int64;
-	nvcsw	int64;
-	nivcsw	int64;
+	Utime	Timeval;
+	Stime	Timeval;
+	Maxrss	int64;
+	Ixrss	int64;
+	Idrss	int64;
+	Isrss	int64;
+	Minflt	int64;
+	Majflt	int64;
+	Nswap	int64;
+	Inblock	int64;
+	Oublock	int64;
+	Msgsnd	int64;
+	Msgrcv	int64;
+	Nsignals	int64;
+	Nvcsw	int64;
+	Nivcsw	int64;
 }
 
 
@@ -67,21 +67,21 @@ export const (
 	FD_CLOEXEC = 1;
 )
 
-export type Stat struct {
-	dev	uint64;
-	ino	uint64;
-	nlink	uint64;
-	mode	uint32;
-	uid	uint32;
-	gid	uint32;
+export type Stat_t struct {
+	Dev	uint64;
+	Ino	uint64;
+	Nlink	uint64;
+	Mode	uint32;
+	Uid	uint32;
+	Gid	uint32;
 	_pad0	uint32;
-	rdev	uint64;
-	size	int64;
-	blksize	int64;
-	blocks	int64;
-	atime	Timespec;
-	mtime	Timespec;
-	ctime	Timespec;
+	Rdev	uint64;
+	Size	int64;
+	Blksize	int64;
+	Blocks	int64;
+	Atime	Timespec;
+	Mtime	Timespec;
+	Ctime	Timespec;
 	_unused	[3]int64
 }
 
@@ -134,37 +134,37 @@ export const (
 )
 
 export type SockaddrUnix struct {
-	family	uint16;
-	path	[108]byte
+	Family	uint16;
+	Path	[108]byte
 }
 export const SizeofSockaddrUnix = 110
 
 export type SockaddrInet4 struct {
-	family	uint16;
-	port	[2]byte;
-	addr	[4]byte;
-	zero	[8]byte
+	Family	uint16;
+	Port	[2]byte;
+	Addr	[4]byte;
+	Zero	[8]byte
 }
 export const SizeofSockaddrInet4 = 16
 
 export type SockaddrInet6 struct {
-	family	uint16;
-	port	[2]byte;
-	flowinfo	[4]byte;
-	addr	[16]byte;
-	scopeid	[4]byte;
+	Family	uint16;
+	Port	[2]byte;
+	Flowinfo	[4]byte;
+	Addr	[16]byte;
+	Scopeid	[4]byte;
 }
 export const SizeofSockaddrInet6 = 28
 
 export type Sockaddr struct {
-	family	uint16;
-	opaque	[126]byte
+	Family	uint16;
+	Opaque	[126]byte
 }
 export const SizeofSockaddr = 128
 
 export type Linger struct {
-	yes int32;
-	sec int32;
+	Yes int32;
+	Sec int32;
 }
 
 
@@ -187,7 +187,7 @@ export const (
 )
 
 export type EpollEvent struct {
-	events uint32;
-	fd int32;
-	pad int32;
+	Events uint32;
+	Fd int32;
+	Pad int32;
 }

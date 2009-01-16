@@ -15,11 +15,11 @@ export type Error struct {
 // Indexed by errno.
 // If we worry about syscall speed (only relevant on failure), we could
 // make it an array, but it's probably not important.
-var ErrorTab = make(map[int64] *Error);
+var errorTab = make(map[int64] *Error);
 
 // Table of all known errors in system.  Use the same error string twice,
 // get the same *os.Error.
-var ErrorStringTab = make(map[string] *Error);
+var errorStringTab = make(map[string] *Error);
 
 // These functions contain a race if two goroutines add identical
 // errors simultaneously but the consequences are unimportant.
@@ -29,12 +29,12 @@ export func NewError(s string) *Error {
 	if s == "" {
 		return nil
 	}
-	err, ok := ErrorStringTab[s];
+	err, ok := errorStringTab[s];
 	if ok {
 		return err
 	}
 	err = &Error{s};
-	ErrorStringTab[s] = err;
+	errorStringTab[s] = err;
 	return err;
 }
 
@@ -44,12 +44,12 @@ export func ErrnoToError(errno int64) *Error {
 		return nil
 	}
 	// Quick lookup by errno.
-	err, ok := ErrorTab[errno];
+	err, ok := errorTab[errno];
 	if ok {
 		return err
 	}
-	err = NewError(syscall.errstr(errno));
-	ErrorTab[errno] = err;
+	err = NewError(syscall.Errstr(errno));
+	errorTab[errno] = err;
 	return err;
 }
 
@@ -91,11 +91,10 @@ export var (
 	ERANGE = ErrnoToError(syscall.ERANGE);
 	EAGAIN = ErrnoToError(syscall.EAGAIN);
 )
-const NoError = "No Error"
 
 func (e *Error) String() string {
 	if e == nil {
-		return NoError
+		return "No Error"
 	}
 	return e.s
 }

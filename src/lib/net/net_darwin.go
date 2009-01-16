@@ -17,12 +17,12 @@ export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
 		return nil, os.EINVAL
 	}
 	sa := new(syscall.SockaddrInet4);
-	sa.len = syscall.SizeofSockaddrInet4;
-	sa.family = syscall.AF_INET;
-	sa.port[0] = byte(port>>8);
-	sa.port[1] = byte(port);
+	sa.Len = syscall.SizeofSockaddrInet4;
+	sa.Family = syscall.AF_INET;
+	sa.Port[0] = byte(port>>8);
+	sa.Port[1] = byte(port);
 	for i := 0; i < IPv4len; i++ {
-		sa.addr[i] = p[i]
+		sa.Addr[i] = p[i]
 	}
 	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
 }
@@ -33,33 +33,33 @@ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
 		return nil, os.EINVAL
 	}
 	sa := new(syscall.SockaddrInet6);
-	sa.len = syscall.SizeofSockaddrInet6;
-	sa.family = syscall.AF_INET6;
-	sa.port[0] = byte(port>>8);
-	sa.port[1] = byte(port);
+	sa.Len = syscall.SizeofSockaddrInet6;
+	sa.Family = syscall.AF_INET6;
+	sa.Port[0] = byte(port>>8);
+	sa.Port[1] = byte(port);
 	for i := 0; i < IPv6len; i++ {
-		sa.addr[i] = p[i]
+		sa.Addr[i] = p[i]
 	}
 	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
 }
 
 
 export func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Error) {
-	switch sa1.family {
+	switch sa1.Family {
 	case syscall.AF_INET:
 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet4);
-		a := ToIPv6(sa.addr);
+		a := ToIPv6(sa.Addr);
 		if a == nil {
 			return nil, 0, os.EINVAL
 		}
-		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
+		return a, int(sa.Port[0])<<8 + int(sa.Port[1]), nil;
 	case syscall.AF_INET6:
 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet6);
-		a := ToIPv6(sa.addr);
+		a := ToIPv6(sa.Addr);
 		if a == nil {
 			return nil, 0, os.EINVAL
 		}
-		return nil, int(sa.port[0])<<8 + int(sa.port[1]), nil;
+		return nil, int(sa.Port[0])<<8 + int(sa.Port[1]), nil;
 	default:
 		return nil, 0, os.EINVAL
 	}
