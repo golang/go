@@ -16,4 +16,4 @@ export type Stats struct {
 export func Alloc(uint64) *byte;
 export func Free(*byte);
 export func GetStats() *Stats;
-export func Lookup(*byte) (*byte, uint64);
+export func Lookup(*byte) (*byte, uintptr);

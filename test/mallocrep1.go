@@ -22,7 +22,7 @@ var longtest = flag.Bool("l", false, "long test");
 var b []*byte;
 var stats = malloc.GetStats();
 
-func OkAmount(size, n uint64) bool {
+func OkAmount(size, n uintptr) bool {
 	if n < size {
 		return false
 	}
@@ -46,7 +46,7 @@ func AllocAndFree(size, count int) {
 	for i := 0; i < count; i++ {
 		b[i] = malloc.Alloc(uint64(size));
 		base, n := malloc.Lookup(b[i]);
-		if base != b[i] || !OkAmount(uint64(size), n) {
+		if base != b[i] || !OkAmount(uintptr(size), n) {
 			panicln("lookup failed: got", base, n, "for", b[i]);
 		}
 		if malloc.GetStats().sys > 1e9 {
@@ -65,12 +65,12 @@ func AllocAndFree(size, count int) {
 		}
 		alloc := stats.alloc;
 		base, n := malloc.Lookup(b[i]);
-		if base != b[i] || !OkAmount(uint64(size), n) {
+		if base != b[i] || !OkAmount(uintptr(size), n) {
 			panicln("lookup failed: got", base, n, "for", b[i]);
 		}
 		malloc.Free(b[i]);
-		if stats.alloc != alloc - n {
-			panicln("free alloc got", stats.alloc, "expected", alloc - n, "after free of", n);
+		if stats.alloc != alloc - uint64(n) {
+			panicln("free alloc got", stats.alloc, "expected", alloc - uint64(n), "after free of", n);
 		}
 		if malloc.GetStats().sys > 1e9 {
 			panicln("too much memory allocated");
