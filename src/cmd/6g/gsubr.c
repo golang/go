@@ -543,7 +543,6 @@ gmove(Node *f, Node *t)
 				dump("gmove", t);
 				fatal("gmove t %O class %d reg %R", t->op, t->class, t->val.u.reg);
 			case PEXTERN:
-			case PSTATIC:
 				goto refcount;
 				break;
 			case PAUTO:
@@ -1071,9 +1070,6 @@ naddr(Node *n, Addr *a)
 			break;
 		case PPARAM:
 			a->type = D_PARAM;
-			break;
-		case PSTATIC:
-			a->type = D_STATIC;
 			break;
 		}
 		break;

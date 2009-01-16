@@ -180,7 +180,7 @@ struct	Node
 	uchar	addable;	// type of addressability - 0 is not addressable
 	uchar	trecur;		// to detect loops
 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
-	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
+	uchar	class;		// PPARAM, PAUTO, PEXTERN
 	uchar	method;		// OCALLMETH name
 	uchar	iota;		// OLITERAL made from iota
 	uchar	embedded;	// ODCLFIELD embedded type
@@ -404,7 +404,6 @@ enum
 	PEXTERN,	// declaration context
 	PAUTO,
 	PPARAM,
-	PSTATIC,
 };
 
 enum
@@ -741,6 +740,7 @@ void	constiter(Node*, Type*, Node*);
  *	export.c
  */
 void	renamepkg(Node*);
+void	autoexport(Sym*);
 void	exportsym(Sym*);
 void	packagesym(Sym*);
 void	dumpe(Sym*);

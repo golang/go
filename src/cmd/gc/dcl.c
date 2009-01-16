@@ -35,8 +35,7 @@ dodclvar(Node *n, Type *t)
 		t = typ(TFORW);
 
 	addvar(n, t, dclcontext);
-	if(dcladj)
-		dcladj(n->sym);
+	autoexport(n->sym);
 }
 
 void
@@ -49,8 +48,7 @@ dodclconst(Node *n, Node *e)
 		dodclconst(n, e);
 
 	addconst(n, e, dclcontext);
-	if(dcladj)
-		dcladj(n->sym);
+	autoexport(n->sym);
 }
 
 /*
@@ -79,8 +77,7 @@ dodcltype(Type *n)
 
 found:
 	n->local = 1;
-	if(dcladj)
-		dcladj(n->sym);
+	autoexport(n->sym);
 	return n;
 }
 

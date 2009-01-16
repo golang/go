@@ -53,6 +53,32 @@ packagesym(Sym *s)
 	addexportsym(s);
 }
 
+int
+exportname(char *s)
+{
+	Rune r;
+
+	if((uchar)s[0] < Runeself)
+		return 'A' <= s[0] && s[0] <= 'Z';
+	chartorune(&r, s);
+	return isupperrune(r);
+}
+
+void
+autoexport(Sym *s)
+{
+	if(s == S)
+		return;
+	if(dclcontext != PEXTERN)
+		return;
+	if(exportname(s->name)) {
+		if(dcladj != exportsym)
+			warn("uppercase missing export");
+		exportsym(s);
+	} else
+		packagesym(s);
+}
+
 void
 dumpprereq(Type *t)
 {
@@ -330,6 +356,7 @@ importconst(int export, Node *ss, Type *t, Val *v)
 	Node *n;
 	Sym *s;
 
+	export = exportname(ss->sym->name);
 	if(export == 2 && !mypackage(ss))
 		return;
 
@@ -337,14 +364,18 @@ importconst(int export, Node *ss, Type *t, Val *v)
 	n->val = *v;
 	n->type = t;
 
-	s = importsym(export, ss, LNAME);
+	s = importsym(export, ss, LACONST);
 	if(s->oconst != N) {
 		// TODO: check if already the same.
 		return;
 	}
 
+// fake out export vs upper checks until transition is over
+if(export == 1) dcladj = exportsym;
+
 	dodclconst(newname(s), n);
 
+dcladj = nil;
 	if(debug['e'])
 		print("import const %S\n", s);
 }
