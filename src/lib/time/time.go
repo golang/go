@@ -46,39 +46,39 @@ export type Time struct {
 	zone string;
 }
 
-var RegularMonths = []int{
+var nonleapyear = []int{
 	31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 }
-var LeapMonths = []int{
+var leapyear = []int{
 	31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 }
 
-func Months(year int64) []int {
+func months(year int64) []int {
 	if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
-		return LeapMonths
+		return leapyear
 	}
-	return RegularMonths
+	return nonleapyear
 }
 
 const (
-	SecondsPerDay = 24*60*60;
+	_SecondsPerDay = 24*60*60;
 
-	DaysPer400Years = 365*400+97;
-	DaysPer100Years = 365*100+24;
-	DaysPer4Years = 365*4+1;
+	_DaysPer400Years = 365*400+97;
+	_DaysPer100Years = 365*100+24;
+	_DaysPer4Years = 365*4+1;
 
-	Days1970To2001 = 31*365+8;
+	_Days1970To2001 = 31*365+8;
 )
 
 export func SecondsToUTC(sec int64) *Time {
 	t := new(Time);
 
 	// Split into time and day.
-	day := sec/SecondsPerDay;
-	sec -= day*SecondsPerDay;
+	day := sec/_SecondsPerDay;
+	sec -= day*_SecondsPerDay;
 	if sec < 0 {
 		day--;
-		sec += SecondsPerDay
+		sec += _SecondsPerDay
 	}
 
 	// Time
@@ -95,30 +95,30 @@ export func SecondsToUTC(sec int64) *Time {
 	// Change day from 0 = 1970 to 0 = 2001,
 	// to make leap year calculations easier
 	// (2001 begins 4-, 100-, and 400-year cycles ending in a leap year.)
-	day -= Days1970To2001;
+	day -= _Days1970To2001;
 
 	year := int64(2001);
 	if day < 0 {
 		// Go back enough 400 year cycles to make day positive.
-		n := -day/DaysPer400Years + 1;
+		n := -day/_DaysPer400Years + 1;
 		year -= 400*n;
-		day += DaysPer400Years*n;
+		day += _DaysPer400Years*n;
 	} else {
 		// Cut off 400 year cycles.
-		n := day/DaysPer400Years;
+		n := day/_DaysPer400Years;
 		year += 400*n;
-		day -= DaysPer400Years*n;
+		day -= _DaysPer400Years*n;
 	}
 
 	// Cut off 100-year cycles
-	n := day/DaysPer100Years;
+	n := day/_DaysPer100Years;
 	year += 100*n;
-	day -= DaysPer100Years*n;
+	day -= _DaysPer100Years*n;
 
 	// Cut off 4-year cycles
-	n = day/DaysPer4Years;
+	n = day/_DaysPer4Years;
 	year += 4*n;
-	day -= DaysPer4Years*n;
+	day -= _DaysPer4Years*n;
 
 	// Cut off non-leap years.
 	n = day/365;
@@ -130,7 +130,7 @@ export func SecondsToUTC(sec int64) *Time {
 	// If someone ever needs yearday,
 	// tyearday = day (+1?)
 
-	months := Months(year);
+	months := months(year);
 	var m int;
 	yday := int(day);
 	for m = 0; m < 12 && yday >= months[m]; m++ {
@@ -176,37 +176,37 @@ func (t *Time) Seconds() int64 {
 	if year < 2001 {
 		n := (2001 - year)/400 + 1;
 		year += 400*n;
-		day -= DaysPer400Years*n;
+		day -= _DaysPer400Years*n;
 	}
 
 	// Add in days from 400-year cycles.
 	n := (year - 2001) / 400;
 	year -= 400*n;
-	day += DaysPer400Years*n;
+	day += _DaysPer400Years*n;
 
 	// Add in 100-year cycles.
 	n = (year - 2001) / 100;
 	year -= 100*n;
-	day += DaysPer100Years*n;
+	day += _DaysPer100Years*n;
 
 	// Add in 4-year cycles.
 	n = (year - 2001) / 4;
 	year -= 4*n;
-	day += DaysPer4Years*n;
+	day += _DaysPer4Years*n;
 
 	// Add in non-leap years.
 	n = year - 2001;
 	day += 365*n;
 
 	// Add in days this year.
-	months := Months(t.year);
+	months := months(t.year);
 	for m := 0; m < t.month-1; m++ {
 		day += int64(months[m])
 	}
 	day += int64(t.day - 1);
 
 	// Convert days to seconds since January 1, 2001.
-	sec := day * SecondsPerDay;
+	sec := day * _SecondsPerDay;
 
 	// Add in time elapsed today.
 	sec += int64(t.hour) * 3600;
@@ -214,14 +214,14 @@ func (t *Time) Seconds() int64 {
 	sec += int64(t.second);
 
 	// Convert from seconds since 2001 to seconds since 1970.
-	sec += Days1970To2001 * SecondsPerDay;
+	sec += _Days1970To2001 * _SecondsPerDay;
 
 	// Account for local time zone.
 	sec -= int64(t.zoneoffset);
 	return sec
 }
 
-var LongDayNames = []string{
+var _LongDayNames = []string{
 	"Sunday",
 	"Monday",
 	"Tuesday",
@@ -231,7 +231,7 @@ var LongDayNames = []string{
 	"Saturday"
 }
 
-var ShortDayNames = []string{
+var _ShortDayNames = []string{
 	"Sun",
 	"Mon",
 	"Tue",
@@ -241,7 +241,7 @@ var ShortDayNames = []string{
 	"Sat"
 }
 
-var ShortMonthNames = []string{
+var _ShortMonthNames = []string{
 	"Jan",
 	"Feb",
 	"Mar",
@@ -256,13 +256,13 @@ var ShortMonthNames = []string{
 	"Dec"
 }
 
-func Copy(dst []byte, s string) {
+func _Copy(dst []byte, s string) {
 	for i := 0; i < len(s); i++ {
 		dst[i] = s[i]
 	}
 }
 
-func Decimal(dst []byte, n int) {
+func _Decimal(dst []byte, n int) {
 	if n < 0 {
 		n = 0
 	}
@@ -272,15 +272,15 @@ func Decimal(dst []byte, n int) {
 	}
 }
 
-func AddString(buf []byte, bp int, s string) int {
+func _AddString(buf []byte, bp int, s string) int {
 	n := len(s);
-	Copy(buf[bp:bp+n], s);
+	_Copy(buf[bp:bp+n], s);
 	return bp+n
 }
 
 // Just enough of strftime to implement the date formats below.
 // Not exported.
-func Format(t *Time, fmt string) string {
+func _Format(t *Time, fmt string) string {
 	buf := make([]byte, 128);
 	bp := 0;
 
@@ -289,39 +289,39 @@ func Format(t *Time, fmt string) string {
 			i++;
 			switch fmt[i] {
 			case 'A':	// %A full weekday name
-				bp = AddString(buf, bp, LongDayNames[t.weekday]);
+				bp = _AddString(buf, bp, _LongDayNames[t.weekday]);
 			case 'a':	// %a abbreviated weekday name
-				bp = AddString(buf, bp, ShortDayNames[t.weekday]);
+				bp = _AddString(buf, bp, _ShortDayNames[t.weekday]);
 			case 'b':	// %b abbreviated month name
-				bp = AddString(buf, bp, ShortMonthNames[t.month-1]);
+				bp = _AddString(buf, bp, _ShortMonthNames[t.month-1]);
 			case 'd':	// %d day of month (01-31)
-				Decimal(buf[bp:bp+2], t.day);
+				_Decimal(buf[bp:bp+2], t.day);
 				bp += 2;
 			case 'e':	// %e day of month ( 1-31)
 				if t.day >= 10 {
-					Decimal(buf[bp:bp+2], t.day)
+					_Decimal(buf[bp:bp+2], t.day)
 				} else {
 					buf[bp] = ' ';
 					buf[bp+1] = byte(t.day + '0')
 				}
 				bp += 2;
 			case 'H':	// %H hour 00-23
-				Decimal(buf[bp:bp+2], t.hour);
+				_Decimal(buf[bp:bp+2], t.hour);
 				bp += 2;
 			case 'M':	// %M minute 00-59
-				Decimal(buf[bp:bp+2], t.minute);
+				_Decimal(buf[bp:bp+2], t.minute);
 				bp += 2;
 			case 'S':	// %S second 00-59
-				Decimal(buf[bp:bp+2], t.second);
+				_Decimal(buf[bp:bp+2], t.second);
 				bp += 2;
 			case 'Y':	// %Y year 2008
-				Decimal(buf[bp:bp+4], int(t.year));
+				_Decimal(buf[bp:bp+4], int(t.year));
 				bp += 4;
 			case 'y':	// %y year 08
-				Decimal(buf[bp:bp+2], int(t.year%100));
+				_Decimal(buf[bp:bp+2], int(t.year%100));
 				bp += 2;
 			case 'Z':
-				bp = AddString(buf, bp, t.zone);
+				bp = _AddString(buf, bp, t.zone);
 			default:
 				buf[bp] = '%';
 				buf[bp+1] = fmt[i];
@@ -337,21 +337,21 @@ func Format(t *Time, fmt string) string {
 
 // ANSI C asctime: Sun Nov  6 08:49:37 1994
 func (t *Time) Asctime() string {
-	return Format(t, "%a %b %e %H:%M:%S %Y")
+	return _Format(t, "%a %b %e %H:%M:%S %Y")
 }
 
 // RFC 850: Sunday, 06-Nov-94 08:49:37 GMT
 func (t *Time) RFC850() string {
-	return Format(t, "%A, %d-%b-%y %H:%M:%S %Z")
+	return _Format(t, "%A, %d-%b-%y %H:%M:%S %Z")
 }
 
 // RFC 1123: Sun, 06 Nov 1994 08:49:37 GMT
 func (t *Time) RFC1123() string {
-	return Format(t, "%a, %d %b %Y %H:%M:%S %Z")
+	return _Format(t, "%a, %d %b %Y %H:%M:%S %Z")
 }
 
 // date(1) - Sun Nov  6 08:49:37 GMT 1994
 func (t *Time) String() string {
-	return Format(t, "%a %b %e %H:%M:%S %Z %Y")
+	return _Format(t, "%a %b %e %H:%M:%S %Z %Y")
 }
 

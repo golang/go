@@ -10,13 +10,14 @@
 package time
 
 import (
+	"io";
 	"once";
 	"os"
 )
 
 const (
-	MaxFileSize = 8192;	// actual files are closer to 1K
-	HeaderSize = 4+16+4*7
+	_MaxFileSize = 8192;	// actual files are closer to 1K
+	_HeaderSize = 4+16+4*7
 )
 
 export var (
@@ -25,13 +26,13 @@ export var (
 )
 
 // Simple I/O interface to binary blob of data.
-type Data struct {
+type _Data struct {
 	p []byte;
 	error bool;
 }
 
 
-func (d *Data) Read(n int) []byte {
+func (d *_Data) Read(n int) []byte {
 	if len(d.p) < n {
 		d.p = nil;
 		d.error = true;
@@ -42,7 +43,7 @@ func (d *Data) Read(n int) []byte {
 	return p
 }
 
-func (d *Data) Big4() (n uint32, ok bool) {
+func (d *_Data) Big4() (n uint32, ok bool) {
 	p := d.Read(4);
 	if len(p) < 4 {
 		d.error = true;
@@ -51,7 +52,7 @@ func (d *Data) Big4() (n uint32, ok bool) {
 	return uint32(p[0]) << 24 | uint32(p[1]) << 16 | uint32(p[2]) << 8 | uint32(p[3]), true
 }
 
-func (d *Data) Byte() (n byte, ok bool) {
+func (d *_Data) Byte() (n byte, ok bool) {
 	p := d.Read(1);
 	if len(p) < 1 {
 		d.error = true;
@@ -62,7 +63,7 @@ func (d *Data) Byte() (n byte, ok bool) {
 
 
 // Make a string by stopping at the first NUL
-func ByteString(p []byte) string {
+func _ByteString(p []byte) string {
 	for i := 0; i < len(p); i++ {
 		if p[i] == 0 {
 			return string(p[0:i])
@@ -72,21 +73,21 @@ func ByteString(p []byte) string {
 }
 
 // Parsed representation
-type Zone struct {
+type _Zone struct {
 	utcoff int;
 	isdst bool;
 	name string;
 }
 
-type Zonetime struct {
+type _Zonetime struct {
 	time int32;		// transition time, in seconds since 1970 GMT
-	zone *Zone;		// the zone that goes into effect at that time
+	zone *_Zone;		// the zone that goes into effect at that time
 	isstd, isutc bool;	// ignored - no idea what these mean
 }
 
-func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+func parseinfo(bytes []byte) (zt []_Zonetime, err *os.Error) {
 
-	data1 := Data{bytes, false};
+	data1 := _Data{bytes, false};
 	data := &data1;
 
 	// 4-byte magic "TZif"
@@ -126,21 +127,21 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
 	}
 
 	// Transition times.
-	txtimes1 := Data{data.Read(n[NTime]*4), false};
+	txtimes1 := _Data{data.Read(n[NTime]*4), false};
 	txtimes := &txtimes1;
 
 	// Time zone indices for transition times.
 	txzones := data.Read(n[NTime]);
 
 	// Zone info structures
-	zonedata1 := Data{data.Read(n[NZone]*6), false};
+	zonedata1 := _Data{data.Read(n[NZone]*6), false};
 	zonedata := &zonedata1;
 
 	// Time zone abbreviations.
 	abbrev := data.Read(n[NChar]);
 
 	// Leap-second time pairs
-	leapdata1 := Data{data.Read(n[NLeap]*8), false};
+	leapdata1 := _Data{data.Read(n[NLeap]*8), false};
 	leapdata := &leapdata1;
 
 	// Whether tx times associated with local time types
@@ -162,7 +163,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
 	// Now we can build up a useful data structure.
 	// First the zone information.
 	//	utcoff[4] isdst[1] nameindex[1]
-	zone := make([]Zone, n[NZone]);
+	zone := make([]_Zone, n[NZone]);
 	for i := 0; i < len(zone); i++ {
 		var ok bool;
 		var n uint32;
@@ -178,11 +179,11 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
 		if b, ok = zonedata.Byte(); !ok || int(b) >= len(abbrev) {
 			return nil, BadZoneinfo
 		}
-		zone[i].name = ByteString(abbrev[b:len(abbrev)])
+		zone[i].name = _ByteString(abbrev[b:len(abbrev)])
 	}
 
 	// Now the transition time info.
-	zt = make([]Zonetime, n[NTime]);
+	zt = make([]_Zonetime, n[NTime]);
 	for i := 0; i < len(zt); i++ {
 		var ok bool;
 		var n uint32;
@@ -204,7 +205,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
 	return zt, nil
 }
 
-func ReadFile(name string, max int) (p []byte, err *os.Error) {
+func readfile(name string, max int) (p []byte, err *os.Error) {
 	fd, e := os.Open(name, os.O_RDONLY, 0);
 	if e != nil {
 		return nil, e
@@ -228,29 +229,29 @@ func ReadFile(name string, max int) (p []byte, err *os.Error) {
 }
 
 
-func ReadZoneinfoFile(name string) (tx []Zonetime, err *os.Error) {
-	data, e := ReadFile(name, MaxFileSize);
+func readinfofile(name string) (tx []_Zonetime, err *os.Error) {
+	data, e := readfile(name, _MaxFileSize);
 	if e != nil {
 		return nil, e
 	}
-	tx, err = ParseZoneinfo(data);
+	tx, err = parseinfo(data);
 	return tx, err
 }
 
-var zones []Zonetime
+var zones []_Zonetime
 var zoneerr *os.Error
 
-func SetupZone() {
+func _SetupZone() {
 	// TODO: /etc/localtime is the default time zone info
 	// for the system, but libc allows setting an environment
 	// variable in order to direct reading a different file
 	// (in /usr/share/zoneinfo).  We should check that
 	// environment variable.
-	zones, zoneerr = ReadZoneinfoFile("/etc/localtime");
+	zones, zoneerr = readinfofile("/etc/localtime");
 }
 
 export func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
-	once.Do(&SetupZone);
+	once.Do(&_SetupZone);
 	if zoneerr != nil || len(zones) == 0 {
 		return "GMT", 0, zoneerr
 	}

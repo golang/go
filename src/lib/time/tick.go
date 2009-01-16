@@ -25,7 +25,7 @@ import (
 //			c <- nsec;
 //		}
 
-func Ticker(ns int64, c chan int64) {
+func ticker(ns int64, c chan int64) {
 	var tv syscall.Timeval;
 	now := time.Nanoseconds();
 	when := now;
@@ -54,7 +54,7 @@ export func Tick(ns int64) chan int64 {
 		return nil
 	}
 	c := make(chan int64);
-	go Ticker(ns, c);
+	go ticker(ns, c);
 	return c;
 }
 
