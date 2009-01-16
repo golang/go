@@ -18,7 +18,7 @@ func min(a, b int) int {
 }
 
 // Insertion sort
-func InsertionSort(data SortInterface, a, b int) {
+func insertionSort(data SortInterface, a, b int) {
 	for i := a+1; i < b; i++ {
 		for j := i; j > a && data.Less(j, j-1); j-- {
 			data.Swap(j, j-1);
@@ -30,7 +30,7 @@ func InsertionSort(data SortInterface, a, b int) {
 // ``Engineering a Sort Function,'' SP&E November 1993.
 
 // Move the median of the three values data[a], data[b], data[c] into data[a].
-func MedianOfThree(data SortInterface, a, b, c int) {
+func medianOfThree(data SortInterface, a, b, c int) {
 	m0 := b;
 	m1 := a;
 	m2 := c;
@@ -41,22 +41,22 @@ func MedianOfThree(data SortInterface, a, b, c int) {
 	// now data[m0] <= data[m1] <= data[m2]
 }
 
-func SwapRange(data SortInterface, a, b, n int) {
+func swapRange(data SortInterface, a, b, n int) {
 	for i := 0; i < n; i++ {
 		data.Swap(a+i, b+i);
 	}
 }
 
-func Pivot(data SortInterface, lo, hi int) (midlo, midhi int) {
+func doPivot(data SortInterface, lo, hi int) (midlo, midhi int) {
 	m := (lo+hi)/2;
 	if hi - lo > 40 {
 		// Tukey's ``Ninther,'' median of three medians of three.
 		s := (hi - lo) / 8;
-		MedianOfThree(data, lo, lo+s, lo+2*s);
-		MedianOfThree(data, m, m-s, m+s);
-		MedianOfThree(data, hi-1, hi-1-s, hi-1-2*s);
+		medianOfThree(data, lo, lo+s, lo+2*s);
+		medianOfThree(data, m, m-s, m+s);
+		medianOfThree(data, hi-1, hi-1-s, hi-1-2*s);
 	}
-	MedianOfThree(data, lo, m, hi-1);
+	medianOfThree(data, lo, m, hi-1);
 
 	// Invariants are:
 	//	data[lo] = pivot (set up by ChoosePivot)
@@ -98,26 +98,26 @@ func Pivot(data SortInterface, lo, hi int) (midlo, midhi int) {
 	}
 
 	n := min(b-a, a-lo);
-	SwapRange(data, lo, b-n, n);
+	swapRange(data, lo, b-n, n);
 
 	n = min(hi-d, d-c);
-	SwapRange(data, c, hi-n, n);
+	swapRange(data, c, hi-n, n);
 
 	return lo+b-a, hi-(d-c);
 }
 
-func Quicksort(data SortInterface, a, b int) {
+func quickSort(data SortInterface, a, b int) {
 	if b - a > 7 {
-		mlo, mhi := Pivot(data, a, b);
-		Quicksort(data, a, mlo);
-		Quicksort(data, mhi, b);
+		mlo, mhi := doPivot(data, a, b);
+		quickSort(data, a, mlo);
+		quickSort(data, mhi, b);
 	} else if b - a > 1 {
-		InsertionSort(data, a, b);
+		insertionSort(data, a, b);
 	}
 }
 
 export func Sort(data SortInterface) {
-	Quicksort(data, 0, data.Len());
+	quickSort(data, 0, data.Len());
 }
 
 

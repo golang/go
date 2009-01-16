@@ -12,10 +12,10 @@ import (
 var chatty = flag.Bool("chatty", false, "chatty")
 
 // Insert tabs after newlines - but not the last one
-func Tabify(s string) string {
+func tabify(s string) string {
 	for i := 0; i < len(s) - 1; i++ {	// -1 because if last char is newline, don't bother
 		if s[i] == '\n' {
-			return s[0:i+1] + "\t" + Tabify(s[i+1:len(s)]);
+			return s[0:i+1] + "\t" + tabify(s[i+1:len(s)]);
 		}
 	}
 	return s
@@ -38,11 +38,11 @@ func (t *T) FailNow() {
 }
 
 func (t *T) Log(args ...) {
-	t.errors += "\t" + Tabify(fmt.Sprintln(args));
+	t.errors += "\t" + tabify(fmt.Sprintln(args));
 }
 
 func (t *T) Logf(format string, args ...) {
-	t.errors += Tabify(fmt.Sprintf("\t" + format, args));
+	t.errors += tabify(fmt.Sprintf("\t" + format, args));
 	l := len(t.errors);
 	if l > 0 && t.errors[l-1] != '\n' {
 		t.errors += "\n"
@@ -74,7 +74,7 @@ export type Test struct {
 	f *(*T);
 }
 
-func TRunner(t *T, test *Test) {
+func tRunner(t *T, test *Test) {
 	test.f(t);
 	t.ch <- t;
 }
@@ -91,7 +91,7 @@ export func Main(tests []Test) {
 		}
 		t := new(T);
 		t.ch = make(chan *T);
-		go TRunner(t, &tests[i]);
+		go tRunner(t, &tests[i]);
 		<-t.ch;
 		if t.failed {
 			println("--- FAIL:", tests[i].name);
