@@ -186,6 +186,8 @@ xdcl:
 	}
 |	xfndcl
 	{
+		if($1 != N && $1->nname != N && $1->type->thistuple == 0)
+			autoexport($1->nname->sym);
 		$$ = N;
 	}
 |	LEXPORT { dcladj = exportsym; stksize = initstksize; } common_dcl
@@ -205,8 +207,11 @@ xdcl:
 	}
 |	LEXPORT xfndcl
 	{
-		if($2 != N && $2->nname != N)
-			exportsym($2->nname->sym);
+		if($2 != N && $2->nname != N) {
+			dcladj = exportsym;
+			autoexport($2->nname->sym);
+			dcladj = nil;
+		}
 		$$ = N;
 	}
 |	LPACKAGE { warn("package is gone"); } xfndcl
