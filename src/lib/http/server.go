@@ -39,7 +39,7 @@ func ServeConnection(fd net.Conn, raddr string, f *(*Conn, *Request)) {
 export func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
 	// TODO: Make this unnecessary
 	s, e := os.Getenv("GOMAXPROCS");
-	if n, ok := strconv.atoi(s); n < 3 {
+	if n, ok := strconv.Atoi(s); n < 3 {
 		print("Warning: $GOMAXPROCS needs to be at least 3.\n");
 	}
 

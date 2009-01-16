@@ -24,16 +24,16 @@ func pow2(i int) float64 {
 	return pow2(i/2) * pow2(i-i/2);
 }
 
-// Wrapper around strconv.atof64.  Handles dddddp+ddd (binary exponent)
-// itself, passes the rest on to strconv.atof64.
+// Wrapper around strconv.Atof64.  Handles dddddp+ddd (binary exponent)
+// itself, passes the rest on to strconv.Atof64.
 func myatof64(s string) (f float64, ok bool) {
 	a := strings.split(s, "p");
 	if len(a) == 2 {
-		n, err := strconv.atoi64(a[0]);
+		n, err := strconv.Atoi64(a[0]);
 		if err != nil {
 			return 0, false;
 		}
-		e, err1 := strconv.atoi(a[1]);
+		e, err1 := strconv.Atoi(a[1]);
 		if err1 != nil {
 			println("bad e", a[1]);
 			return 0, false;
@@ -61,31 +61,31 @@ func myatof64(s string) (f float64, ok bool) {
 		}
 		return v*pow2(e), true;
 	}
-	f1, err := strconv.atof64(s);
+	f1, err := strconv.Atof64(s);
 	if err != nil {
 		return 0, false;
 	}
 	return f1, true;
 }
 
-// Wrapper around strconv.atof32.  Handles dddddp+ddd (binary exponent)
-// itself, passes the rest on to strconv.atof32.
+// Wrapper around strconv.Atof32.  Handles dddddp+ddd (binary exponent)
+// itself, passes the rest on to strconv.Atof32.
 func myatof32(s string) (f float32, ok bool) {
 	a := strings.split(s, "p");
 	if len(a) == 2 {
-		n, err := strconv.atoi(a[0]);
+		n, err := strconv.Atoi(a[0]);
 		if err != nil {
 			println("bad n", a[0]);
 			return 0, false;
 		}
-		e, err1 := strconv.atoi(a[1]);
+		e, err1 := strconv.Atoi(a[1]);
 		if err1 != nil {
 			println("bad p", a[1]);
 			return 0, false;
 		}
 		return float32(float64(n)*pow2(e)), true;
 	}
-	f1, err1 := strconv.atof32(s);
+	f1, err1 := strconv.Atof32(s);
 	if err1 != nil {
 		return 0, false;
 	}

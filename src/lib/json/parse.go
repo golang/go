@@ -296,16 +296,16 @@ Switch:
 		break;
 	case '1':
 		// If the number is exactly an integer, use that.
-		if i, err := strconv.atoi64(lex.token); err == nil {
+		if i, err := strconv.Atoi64(lex.token); err == nil {
 			build.Int64(i);
 			ok = true;
 		}
-		else if i, err := strconv.atoui64(lex.token); err == nil {
+		else if i, err := strconv.Atoui64(lex.token); err == nil {
 			build.Uint64(i);
 			ok = true;
 		}
 		// Fall back to floating point.
-		else if f, err := strconv.atof64(lex.token); err == nil {
+		else if f, err := strconv.Atof64(lex.token); err == nil {
 			build.Float64(f);
 			ok = true;
 		}

@@ -13,20 +13,20 @@ package strconv
 import "strconv"
 
 // TODO: move elsewhere?
-package type FloatInfo struct {
+type floatInfo struct {
 	mantbits uint;
 	expbits uint;
 	bias int;
 }
-package var float32info = FloatInfo{ 23, 8, -127 }
-package var float64info = FloatInfo{ 52, 11, -1023 }
+var float32info = floatInfo{ 23, 8, -127 }
+var float64info = floatInfo{ 52, 11, -1023 }
 
-func FmtB(neg bool, mant uint64, exp int, flt *FloatInfo) string
-func FmtE(neg bool, d *Decimal, prec int) string
-func FmtF(neg bool, d *Decimal, prec int) string
-func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string
-func Max(a, b int) int
-func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo)
+func fmtB(neg bool, mant uint64, exp int, flt *floatInfo) string
+func fmtE(neg bool, d *decimal, prec int) string
+func fmtF(neg bool, d *decimal, prec int) string
+func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string
+func max(a, b int) int
+func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo)
 
 func floatsize() int {
 	// Figure out whether float is float32 or float64.
@@ -40,22 +40,22 @@ func floatsize() int {
 }
 export var FloatSize = floatsize()
 
-export func ftoa32(f float32, fmt byte, prec int) string {
-	return GenericFtoa(uint64(sys.float32bits(f)), fmt, prec, &float32info);
+export func Ftoa32(f float32, fmt byte, prec int) string {
+	return genericFtoa(uint64(sys.float32bits(f)), fmt, prec, &float32info);
 }
 
-export func ftoa64(f float64, fmt byte, prec int) string {
-	return GenericFtoa(sys.float64bits(f), fmt, prec, &float64info);
+export func Ftoa64(f float64, fmt byte, prec int) string {
+	return genericFtoa(sys.float64bits(f), fmt, prec, &float64info);
 }
 
-export func ftoa(f float, fmt byte, prec int) string {
+export func Ftoa(f float, fmt byte, prec int) string {
 	if FloatSize == 32 {
-		return ftoa32(float32(f), fmt, prec);
+		return Ftoa32(float32(f), fmt, prec);
 	}
-	return ftoa64(float64(f), fmt, prec);
+	return Ftoa64(float64(f), fmt, prec);
 }
 
-func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
+func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 	neg := bits>>flt.expbits>>flt.mantbits != 0;
 	exp := int(bits>>flt.mantbits) & (1<<flt.expbits - 1);
 	mant := bits & (uint64(1)<<flt.mantbits - 1);
@@ -83,26 +83,26 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
 
 	// Pick off easy binary format.
 	if fmt == 'b' {
-		return FmtB(neg, mant, exp, flt);
+		return fmtB(neg, mant, exp, flt);
 	}
 
 	// Create exact decimal representation.
 	// The shift is exp - flt.mantbits because mant is a 1-bit integer
 	// followed by a flt.mantbits fraction, and we are treating it as
 	// a 1+flt.mantbits-bit integer.
-	d := NewDecimal(mant).Shift(exp - int(flt.mantbits));
+	d := newDecimal(mant).Shift(exp - int(flt.mantbits));
 
 	// Round appropriately.
 	// Negative precision means "only as much as needed to be exact."
 	shortest := false;
 	if prec < 0 {
 		shortest = true;
-		RoundShortest(d, mant, exp, flt);
+		roundShortest(d, mant, exp, flt);
 		switch fmt {
 		case 'e':
 			prec = d.nd - 1;
 		case 'f':
-			prec = Max(d.nd - d.dp, 0);
+			prec = max(d.nd - d.dp, 0);
 		case 'g':
 			prec = d.nd;
 		}
@@ -122,9 +122,9 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
 
 	switch fmt {
 	case 'e':
-		return FmtE(neg, d, prec);
+		return fmtE(neg, d, prec);
 	case 'f':
-		return FmtF(neg, d, prec);
+		return fmtF(neg, d, prec);
 	case 'g':
 		// trailing zeros are removed.
 		if prec > d.nd {
@@ -139,9 +139,9 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
 		}
 		exp := d.dp - 1;
 		if exp < -4 || exp >= eprec {
-			return FmtE(neg, d, prec - 1);
+			return fmtE(neg, d, prec - 1);
 		}
-		return FmtF(neg, d, Max(prec - d.dp, 0));
+		return fmtF(neg, d, max(prec - d.dp, 0));
 	}
 
 	return "%" + string(fmt);
@@ -150,7 +150,7 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
 // Round d (= mant * 2^exp) to the shortest number of digits
 // that will let the original floating point value be precisely
 // reconstructed.  Size is original floating point size (64 or 32).
-func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo) {
+func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	// If mantissa is zero, the number is zero; stop now.
 	if mant == 0 {
 		d.nd = 0;
@@ -169,7 +169,7 @@ func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo) {
 	// d = mant << (exp - mantbits)
 	// Next highest floating point number is mant+1 << exp-mantbits.
 	// Our upper bound is halfway inbetween, mant*2+1 << exp-mantbits-1.
-	upper := NewDecimal(mant*2+1).Shift(exp-int(flt.mantbits)-1);
+	upper := newDecimal(mant*2+1).Shift(exp-int(flt.mantbits)-1);
 
 	// d = mant << (exp - mantbits)
 	// Next lowest floating point number is mant-1 << exp-mantbits,
@@ -187,7 +187,7 @@ func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo) {
 		mantlo = mant*2-1;
 		explo = exp-1;
 	}
-	lower := NewDecimal(mantlo*2+1).Shift(explo-int(flt.mantbits)-1);
+	lower := newDecimal(mantlo*2+1).Shift(explo-int(flt.mantbits)-1);
 
 	// The upper and lower bounds are possible outputs only if
 	// the original mantissa is even, so that IEEE round-to-even
@@ -235,8 +235,8 @@ func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo) {
 }
 
 // %e: -d.ddddde±dd
-func FmtE(neg bool, d *Decimal, prec int) string {
-	buf := make([]byte, 3+Max(prec, 0)+30);	// "-0." + prec digits + exp
+func fmtE(neg bool, d *decimal, prec int) string {
+	buf := make([]byte, 3+max(prec, 0)+30);	// "-0." + prec digits + exp
 	w := 0;	// write index
 
 	// sign
@@ -305,8 +305,8 @@ func FmtE(neg bool, d *Decimal, prec int) string {
 }
 
 // %f: -ddddddd.ddddd
-func FmtF(neg bool, d *Decimal, prec int) string {
-	buf := make([]byte, 1+Max(d.dp, 1)+1+Max(prec, 0));
+func fmtF(neg bool, d *decimal, prec int) string {
+	buf := make([]byte, 1+max(d.dp, 1)+1+max(prec, 0));
 	w := 0;
 
 	// sign
@@ -349,7 +349,7 @@ func FmtF(neg bool, d *Decimal, prec int) string {
 }
 
 // %b: -ddddddddp+ddd
-func FmtB(neg bool, mant uint64, exp int, flt *FloatInfo) string {
+func fmtB(neg bool, mant uint64, exp int, flt *floatInfo) string {
 	var buf [50]byte;
 	w := len(buf);
 	exp -= int(flt.mantbits);
@@ -383,7 +383,7 @@ func FmtB(neg bool, mant uint64, exp int, flt *FloatInfo) string {
 	return string(buf[w:len(buf)]);
 }
 
-func Max(a, b int) int {
+func max(a, b int) int {
 	if a > b {
 		return a;
 	}

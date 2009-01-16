@@ -40,15 +40,15 @@ func main() {
 	ok := true;
 	for i := 0; i < len(tests); i++ {
 		t := tests[i];
-		v := strconv.ftoa64(t.f, 'g', -1);
+		v := strconv.Ftoa64(t.f, 'g', -1);
 		if v != t.out {
 			println("Bad float64 const:", t.in, "want", t.out, "got", v);
-			x, err := strconv.atof64(t.out);
+			x, err := strconv.Atof64(t.out);
 			if err != nil {
-				panicln("bug120: strconv.atof64", t.out);
+				panicln("bug120: strconv.Atof64", t.out);
 			}
-			println("\twant exact:", strconv.ftoa64(x, 'g', 1000));
-			println("\tgot exact: ", strconv.ftoa64(t.f, 'g', 1000));
+			println("\twant exact:", strconv.Ftoa64(x, 'g', 1000));
+			println("\tgot exact: ", strconv.Ftoa64(t.f, 'g', 1000));
 			ok = false;
 		}
 	}
