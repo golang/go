@@ -75,8 +75,11 @@ autoexport(Sym *s)
 		if(dcladj != exportsym)
 			warn("uppercase missing export");
 		exportsym(s);
-	} else
+	} else {
+		if(dcladj == exportsym)
+			warn("export missing uppercase");
 		packagesym(s);
+	}
 }
 
 void
