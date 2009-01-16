@@ -16,5 +16,5 @@ func main() {
   var i I = &s;
   c := make(chan int);
   go i.send(c);
-  sys.exit(<-c);
+  sys.Exit(<-c);
 }

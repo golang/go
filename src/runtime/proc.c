@@ -97,7 +97,8 @@ schedinit(void)
 	byte *p;
 
 	mallocinit();
-	
+	goargs();
+
 	// Allocate internal symbol table representation now,
 	// so that we don't need to call malloc when we crash.
 	findfunc(0);
@@ -127,7 +128,7 @@ initdone(void)
 }
 
 void
-sys·goexit(void)
+sys·Goexit(void)
 {
 	if(debug > 1){
 		lock(&debuglock);
@@ -135,7 +136,7 @@ sys·goexit(void)
 		unlock(&debuglock);
 	}
 	g->status = Gmoribund;
-	sys·gosched();
+	sys·Gosched();
 }
 
 G*
@@ -186,7 +187,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 	mcpy(sp, (byte*)&arg0, siz);
 
 	sp -= 8;
-	*(byte**)sp = (byte*)sys·goexit;
+	*(byte**)sp = (byte*)sys·Goexit;
 
 	sp -= 8;	// retpc used by gogo
 	newg->sched.SP = sp;
@@ -493,7 +494,7 @@ scheduler(void)
 		case Gmoribund:
 			gp->status = Gdead;
 			if(--sched.gcount == 0)
-				sys·exit(0);
+				sys_Exit(0);
 			break;
 		}
 		if(gp->readyonstop){
@@ -522,7 +523,7 @@ scheduler(void)
 // before running g again.  If g->status is Gmoribund,
 // kills off g.
 void
-sys·gosched(void)
+sys·Gosched(void)
 {
 	if(gosave(&g->sched) == 0){
 		g = m->g0;
@@ -585,7 +586,7 @@ sys·exitsyscall(void)
 	// The scheduler will ready g and put this m to sleep.
 	// When the scheduler takes g awa from m,
 	// it will undo the sched.mcpu++ above.
-	sys·gosched();
+	sys·Gosched();
 }
 
 

@@ -32,13 +32,13 @@ func init() {
 func usage() {
 	print("usage: pretty { flags } { files }\n");
 	Flag.PrintDefaults();
-	sys.exit(0);
+	sys.Exit(0);
 }
 
 
 func main() {
 	Flag.Parse();
-	
+
 	if Flag.NFlag() == 0 && Flag.NArg() == 0 {
 		usage();
 	}
@@ -49,7 +49,7 @@ func main() {
 
 		if false /* DISABLED flags.deps */ {
 			Compilation.ComputeDeps(src_file, &flags);
-			
+
 		} else {
 			prog, nerrors := Compilation.Compile(src_file, &flags);
 			if nerrors > 0 {

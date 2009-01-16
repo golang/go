@@ -129,7 +129,7 @@ void
 sighandler(int32 sig, struct siginfo *info, void *context)
 {
 	if(panicking)	// traceback already printed
-		sys·exit(2);
+		sys_Exit(2);
 
         _STRUCT_MCONTEXT64 *uc_mcontext = get_uc_mcontext(context);
         _STRUCT_X86_THREAD_STATE64 *ss = get___ss(uc_mcontext);
@@ -151,7 +151,7 @@ sighandler(int32 sig, struct siginfo *info, void *context)
 		print_thread_state(ss);
 	}
 
-	sys·exit(2);
+	sys_Exit(2);
 }
 
 void

@@ -145,6 +145,6 @@ func main() {
   f11();
   f12();
   if fail > 0 {
-    sys.exit(1)
+    sys.Exit(1)
   }
 }

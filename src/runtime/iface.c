@@ -457,7 +457,7 @@ sys·printinter(Iface i)
 }
 
 void
-sys·reflect(Iface i, uint64 retit, string rettype, bool retindir)
+sys·Reflect(Iface i, uint64 retit, string rettype, bool retindir)
 {
 	int32 wid;
 
@@ -492,14 +492,14 @@ extern int32 ngotypesigs;
 // 		print("first field is string");
 // 	}
 //
-// vv.Interface() returns the result of sys.unreflect with
+// vv.Interface() returns the result of sys.Unreflect with
 // a typestring of "[]int".  If []int is not used with interfaces
 // in the rest of the program, there will be no signature in gotypesigs
 // for "[]int", so we have to invent one.  The only requirements
 // on the fake signature are:
 //
 //	(1) any interface conversion using the signature will fail
-//	(2) calling sys.reflect() returns the args to unreflect
+//	(2) calling sys.Reflect() returns the args to unreflect
 //
 // (1) is ensured by the fact that we allocate a new Sigt,
 // so it will necessarily be != any Sigt in gotypesigs.
@@ -561,7 +561,7 @@ findtype(string type, bool indir)
 
 
 void
-sys·unreflect(uint64 it, string type, bool indir, Iface ret)
+sys·Unreflect(uint64 it, string type, bool indir, Iface ret)
 {
 	Sigt *sigt;
 

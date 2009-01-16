@@ -7,13 +7,13 @@
 package main
 
 func main() {
-	if sys.argc() != 3 {
+	if len(sys.Args) != 3 {
 		panic("argc")
 	}
-	if sys.argv(1) != "arg1" {
+	if sys.Args[1] != "arg1" {
 		panic("arg1")
 	}
-	if sys.argv(2) != "arg2" {
+	if sys.Args[2] != "arg2" {
 		panic("arg2")
 	}
 }

@@ -635,6 +635,14 @@ catch_exception_raise(mach_port_t eport, mach_port_t thread,
 			goto havet;
 		}
 	}
+	if(nthr > 0)
+		addpid(thr[0].pid, 1);
+	for(i=0; i<nthr; i++){
+		if(thr[i].thread == thread){
+			t = &thr[i];
+			goto havet;
+		}
+	}
 	fprint(2, "did not find thread in catch_exception_raise\n");
 	return KERN_SUCCESS;	// let thread continue
 

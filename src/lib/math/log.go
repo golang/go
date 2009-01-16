@@ -85,7 +85,7 @@ export func Log(x float64) float64 {
 
 	// special cases
 	switch {
-	case sys.isNaN(x) || sys.isInf(x, 1):
+	case sys.IsNaN(x) || sys.IsInf(x, 1):
 		return x;
 	case x < 0:
 		return sys.NaN();
@@ -94,7 +94,7 @@ export func Log(x float64) float64 {
 	}
 
 	// reduce
-	f1, ki := sys.frexp(x);
+	f1, ki := sys.Frexp(x);
 	if f1 < Sqrt2/2 {
 		f1 *= 2;
 		ki--;

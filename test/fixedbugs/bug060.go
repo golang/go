@@ -12,6 +12,6 @@ func main() {
 	m[0]++;
 	if m[0] != 1 {
 		print("map does not increment\n");
-		sys.exit(1)
+		sys.Exit(1)
 	}
 }

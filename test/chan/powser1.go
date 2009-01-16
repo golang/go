@@ -630,7 +630,7 @@ func checka(U PS, a []*rat, str string) {
 
 func main() {
 	Init();
-	if sys.argc() > 1 {  // print
+	if len(sys.Args) > 1 {  // print
 		print("Ones: "); Printn(Ones, 10);
 		print("Twos: "); Printn(Twos, 10);
 		print("Add: "); Printn(Add(Ones, Twos), 10);
@@ -708,5 +708,5 @@ func main() {
 		checka(t, a, "Tan");  // 0 1 0 1/3 0 2/15
 */
 	}
-	sys.exit(0);  // BUG: force waiting goroutines to exit
+	sys.Exit(0);  // BUG: force waiting goroutines to exit
 }

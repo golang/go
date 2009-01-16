@@ -55,12 +55,12 @@ TEXT mainstart(SB),7,$0
 	CALL	initdone(SB)
 	CALL	main·main(SB)
 	PUSHQ	$0
-	CALL	sys·exit(SB)
+	CALL	sys·Exit(SB)
 	POPQ	AX
 	CALL	notok(SB)
 	RET
 
-TEXT	sys·breakpoint(SB),7,$0
+TEXT	sys·Breakpoint(SB),7,$0
 	BYTE	$0xcc
 	RET
 

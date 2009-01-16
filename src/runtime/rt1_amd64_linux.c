@@ -135,7 +135,7 @@ void
 sighandler(int32 sig, struct siginfo* info, void** context)
 {
 	if(panicking)	// traceback already printed
-		sys·exit(2);
+		sys_Exit(2);
 
 	struct sigcontext *sc = &(((struct ucontext *)context)->uc_mcontext);
 
@@ -156,8 +156,8 @@ sighandler(int32 sig, struct siginfo* info, void** context)
 		print_sigcontext(sc);
 	}
 
-	sys·breakpoint();
-	sys·exit(2);
+	sys·Breakpoint();
+	sys_Exit(2);
 }
 
 struct stack_t {

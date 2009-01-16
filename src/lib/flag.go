@@ -239,13 +239,13 @@ export func PrintDefaults() {
 }
 
 export func Usage() {
-	if sys.argc() > 0 {
-		print("Usage of ", sys.argv(0), ": \n");
+	if len(sys.Args) > 0 {
+		print("Usage of ", sys.Args[0], ": \n");
 	} else {
 		print("Usage: \n");
 	}
 	PrintDefaults();
-	sys.exit(1);
+	sys.Exit(1);
 }
 
 export func NFlag() int {
@@ -254,14 +254,14 @@ export func NFlag() int {
 
 export func Arg(i int) string {
 	i += flags.first_arg;
-	if i < 0 || i >= sys.argc() {
+	if i < 0 || i >= len(sys.Args) {
 		return "";
 	}
-	return sys.argv(i)
+	return sys.Args[i]
 }
 
 export func NArg() int {
-	return sys.argc() - flags.first_arg
+	return len(sys.Args) - flags.first_arg
 }
 
 func add(name string, value _Value, usage string) {
@@ -339,7 +339,7 @@ export func StringVar(p *string, name, value string, usage string) {
 
 func (f *allFlags) ParseOne(index int) (ok bool, next int)
 {
-	s := sys.argv(index);
+	s := sys.Args[index];
 	f.first_arg = index;  // until proven otherwise
 	if len(s) == 0 {
 		return false, -1
@@ -398,11 +398,11 @@ func (f *allFlags) ParseOne(index int) (ok bool, next int)
 		}
 	} else {
 		// It must have a value, which might be the next argument.
-		if !has_value && index < sys.argc()-1 {
+		if !has_value && index < len(sys.Args)-1 {
 			// value is the next arg
 			has_value = true;
 			index++;
-			value = sys.argv(index);
+			value = sys.Args[index];
 		}
 		if !has_value {
 			print("flag needs an argument: -", name, "\n");
@@ -433,7 +433,7 @@ func (f *allFlags) ParseOne(index int) (ok bool, next int)
 }
 
 export func Parse() {
-	for i := 1; i < sys.argc(); {
+	for i := 1; i < len(sys.Args); {
 		ok, next := flags.ParseOne(i);
 		if next > 0 {
 			flags.first_arg = next;

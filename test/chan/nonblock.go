@@ -10,7 +10,7 @@
 package main
 
 func pause() {
-	for i:=0; i<100; i++ { sys.gosched() }
+	for i:=0; i<100; i++ { sys.Gosched() }
 }
 
 func i32receiver(c chan int32) {

@@ -252,7 +252,6 @@ int32	strcmp(byte*, byte*);
 int32	findnull(byte*);
 void	dump(byte*, int32);
 int32	runetochar(byte*, int32);
-int32	chartorune(uint32*, byte*);
 
 /*
  * very low level c-called
@@ -261,6 +260,7 @@ int32	gogo(Gobuf*);
 int32	gosave(Gobuf*);
 int32	gogoret(Gobuf*, uint64);
 void	retfromnewstack(void);
+void	goargs(void);
 void	setspgoto(byte*, void(*)(void), void(*)(void));
 void	FLUSH(void*);
 void*	getu(void);
@@ -348,16 +348,15 @@ void	notewakeup(Note*);
  * UTF-8 characters in identifiers.
  */
 #ifndef __GNUC__
-#define sys_exit sys·exit
-#define sys_gosched sys·gosched
+#define sys_Exit sys·Exit
+#define sys_Gosched sys·Gosched
 #define sys_memclr sys·memclr
 #define sys_write sys·write
-#define sys_breakpoint sys·breakpoint
-#define sys_bytestorune sys·bytestorune
+#define sys_Breakpoint sys·Breakpoint
 #define sys_catstring sys·catstring
 #define sys_cmpstring sys·cmpstring
 #define sys_getcallerpc sys·getcallerpc
-#define sys_goexit sys·goexit
+#define sys_Goexit sys·Goexit
 #define sys_indexstring sys·indexstring
 #define sys_intstring sys·intstring
 #define sys_mal sys·mal
@@ -376,17 +375,16 @@ void	notewakeup(Note*);
 #define sys_semrelease sys·semrelease
 #define sys_setcallerpc sys·setcallerpc
 #define sys_slicestring sys·slicestring
-#define sys_stringtorune sys·stringtorune
 #endif
 
 /*
  * low level go -called
  */
-void	sys_goexit(void);
-void	sys_gosched(void);
-void	sys_exit(int32);
+void	sys_Goexit(void);
+void	sys_Gosched(void);
+void	sys_Exit(int32);
 void	sys_write(int32, void*, int32);
-void	sys_breakpoint(void);
+void	sys_Breakpoint(void);
 uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
 void	sys_memclr(byte*, uint32);
 void	sys_setcallerpc(void*, void*);
@@ -416,7 +414,5 @@ bool	isNaN(float64);
  * User go-called
  */
 void	sys_readfile(string, string, bool);
-void	sys_bytestorune(byte*, int32, int32, int32, int32);
-void	sys_stringtorune(string, int32, int32, int32);
 void	sys_semacquire(uint32*);
 void	sys_semrelease(uint32*);

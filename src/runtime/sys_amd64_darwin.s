@@ -9,7 +9,7 @@
 //
 
 // Exit the entire program (like C exit)
-TEXT	sys·exit(SB),7,$-8
+TEXT	sys·Exit(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+1), AX	// syscall entry
 	SYSCALL

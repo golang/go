@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// $G $F.go && $L $F.$A && ./$A.out readfile.go
+// # $G $F.go && $L $F.$A && ./$A.out readfile.go
 // # This is some data we can recognize
 
 package main
@@ -14,7 +14,7 @@ func main() {
 	s, ok = sys.readfile("readfile.go");
 	if !ok {
 		print("couldn't readfile\n");
-		sys.exit(1)
+		sys.Exit(1)
 	}
 	start_of_file :=
 		"// $G $F.go && $L $F.$A && ./$A.out readfile.go\n" +
@@ -23,6 +23,6 @@ func main() {
 		"package main\n";
 	if s[0:102] != start_of_file {
 		print("wrong data\n");
-		sys.exit(1)
+		sys.Exit(1)
 	}
 }

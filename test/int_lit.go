@@ -7,7 +7,7 @@
 package main
 
 func main() {
-  s := 
+  s :=
     0 +
     123 +
     0123 +
@@ -18,6 +18,6 @@ func main() {
     0X123;
   if s != 788 {
     print("s is ", s, "; should be 788\n");
-    sys.exit(1);
+    sys.Exit(1);
   }
 }

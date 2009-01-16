@@ -28,8 +28,8 @@ func PrintHelp() {
 var argno int = 1;
 func Next() string {
 	arg := "";
-	if argno < sys.argc() {
-		arg = sys.argv(argno);
+	if argno < len(sys.Args) {
+		arg = sys.Args[argno];
 		argno++;
 	}
 	return arg;

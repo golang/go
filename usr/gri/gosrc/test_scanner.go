@@ -46,18 +46,18 @@ func Scan2(filename, src string) {
 
 
 func main() {
-	for i := 1; i < sys.argc(); i++ {
+	for i := 1; i < len(sys.Args); i++ {
 		var src string;
 		var ok bool;
-		src, ok = sys.readfile(sys.argv(i));
+		src, ok = sys.readfile(sys.Args[i]);
 		if ok {
-			print("scanning (standard) " + sys.argv(i) + "\n");
-			Scan1(sys.argv(i), src);
+			print("scanning (standard) " + sys.Args[i] + "\n");
+			Scan1(sys.Args[i], src);
 			print("\n");
-			print("scanning (channels) " + sys.argv(i) + "\n");
-			Scan2(sys.argv(i), src);
+			print("scanning (channels) " + sys.Args[i] + "\n");
+			Scan2(sys.Args[i], src);
 		} else {
-			print("error: cannot read " + sys.argv(i) + "\n");
+			print("error: cannot read " + sys.Args[i] + "\n");
 		}
 		print("\n");
 	}

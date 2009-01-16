@@ -36,7 +36,6 @@ LIBOFILES=\
 	sema.$O\
 	string.$O\
 	symtab.$O\
-	sys_file.$O\
 
 OFILES=$(RT0OFILES) $(LIBOFILES)
 OS_H=$(GOARCH)_$(GOOS).h

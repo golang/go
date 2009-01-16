@@ -329,7 +329,7 @@ export func Atof64(s string) (f float64, err *os.Error) {
 		}
 	}
 	b, ovf := decimalToFloatBits(neg, d, trunc, &float64info);
-	f = sys.float64frombits(b);
+	f = sys.Float64frombits(b);
 	if ovf {
 		err = os.ERANGE;
 	}
@@ -347,7 +347,7 @@ export func Atof32(s string) (f float32, err *os.Error) {
 		}
 	}
 	b, ovf := decimalToFloatBits(neg, d, trunc, &float32info);
-	f = sys.float32frombits(uint32(b));
+	f = sys.Float32frombits(uint32(b));
 	if ovf {
 		err = os.ERANGE;
 	}

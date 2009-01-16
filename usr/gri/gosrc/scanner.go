@@ -401,7 +401,7 @@ func (S *Scanner) Error(pos int, msg string) {
 	}
 
 	if S.nerrors >= 10 {
-		sys.exit(1);
+		sys.Exit(1);
 	}
 }
 
@@ -601,7 +601,7 @@ func (S *Scanner) ScanEscape(quote int) string {
 		}
 		S.Error(pos, "illegal char escape");
 	}
-	
+
 	return "";  // TODO fix this
 }
 

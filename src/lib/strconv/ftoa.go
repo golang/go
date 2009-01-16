@@ -41,11 +41,11 @@ func floatsize() int {
 export var FloatSize = floatsize()
 
 export func Ftoa32(f float32, fmt byte, prec int) string {
-	return genericFtoa(uint64(sys.float32bits(f)), fmt, prec, &float32info);
+	return genericFtoa(uint64(sys.Float32bits(f)), fmt, prec, &float32info);
 }
 
 export func Ftoa64(f float64, fmt byte, prec int) string {
-	return genericFtoa(sys.float64bits(f), fmt, prec, &float64info);
+	return genericFtoa(sys.Float64bits(f), fmt, prec, &float64info);
 }
 
 export func Ftoa(f float, fmt byte, prec int) string {

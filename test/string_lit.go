@@ -43,7 +43,7 @@ func main() {
 		"本"
 		"\a\b\f\n\r\t\v\\\""
 		"\000\123\x00\xca\xFE\u0123\ubabe\U0000babe"
-		
+
 		``
 		` `
 		`'"`
@@ -84,5 +84,5 @@ func main() {
 	r = 0x10ffff + 1;
 	s = string(r);
 	assert(s, "\xef\xbf\xbd", "too-large rune");
-	sys.exit(ecode);
+	sys.Exit(ecode);
 }

@@ -33,7 +33,7 @@ export func Tan(arg float64) float64 {
 	}
 	x = x * (4/Pi);   /* overflow? */
 	var e float64;
-	e, x = sys.modf(x);
+	e, x = sys.Modf(x);
 	i := int32(e);
 
 	switch i & 3 {

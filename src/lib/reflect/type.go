@@ -7,13 +7,16 @@
 
 package reflect
 
-import "sync"
+import (
+	"utf8";
+	"sync";
+)
 
 export type Type interface
 
 export func ExpandType(name string) Type
 
-export func typestrings() string	// implemented in C; declared here
+func typestrings() string	// implemented in C; declared here
 
 export const (
 	MissingKind = iota;
@@ -577,7 +580,7 @@ func (p *typeParser) Next() {
 		return;
 	}
 	start := p.index;
-	c, w := sys.stringtorune(p.str, p.index);
+	c, w := utf8.DecodeRuneInString(p.str, p.index);
 	p.index += w;
 	switch {
 	case c == '<':

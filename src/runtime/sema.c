@@ -119,7 +119,7 @@ semsleep2(Sema *s)
 {
 	USED(s);
 	g->status = Gwaiting;
-	sys·gosched();
+	sys·Gosched();
 }
 
 static int32
@@ -133,11 +133,11 @@ cansemacquire(uint32 *addr)
 	return 0;
 }
 
-// func sys.semacquire(addr *uint32)
+// func sync.semacquire(addr *uint32)
 // For now has no return value.
 // Might return an ok (not interrupted) bool in the future?
 void
-sys·semacquire(uint32 *addr)
+sync·semacquire(uint32 *addr)
 {
 	Sema s;
 
@@ -163,9 +163,9 @@ sys·semacquire(uint32 *addr)
 	semwakeup(addr);
 }
 
-// func sys.semrelease(addr *uint32)
+// func sync.semrelease(addr *uint32)
 void
-sys·semrelease(uint32 *addr)
+sync·semrelease(uint32 *addr)
 {
 	uint32 v;
 

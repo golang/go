@@ -12,15 +12,15 @@ func main() {
 	ga, e0 := os.Getenv("GOARCH");
 	if e0 != nil {
 		print("$GOARCH: ", e0.String(), "\n");
-		sys.exit(1);
+		sys.Exit(1);
 	}
 	if ga != "amd64" {
 		print("$GOARCH=", ga, "\n");
-		sys.exit(1);
+		sys.Exit(1);
 	}
 	xxx, e1 := os.Getenv("DOES_NOT_EXIST");
 	if e1 != os.ENOENV {
 		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.String(), "\n");
-		sys.exit(1);
+		sys.Exit(1);
 	}
 }
