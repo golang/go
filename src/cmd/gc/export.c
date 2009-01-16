@@ -73,12 +73,14 @@ autoexport(Sym *s)
 		return;
 	if(exportname(s->name)) {
 		if(dcladj != exportsym)
-			warn("uppercase missing export");
+			warn("uppercase missing export: %S", s);
 		exportsym(s);
 	} else {
-		if(dcladj == exportsym)
-			warn("export missing uppercase");
-		packagesym(s);
+		if(dcladj == exportsym) {
+			warn("export missing uppercase: %S", s);
+			exportsym(s);
+		} else
+			packagesym(s);
 	}
 }
 
