@@ -18,18 +18,21 @@ Any part may change substantially as design progresses.
 ----
 
 <!--
-Timeline (9/5/08):
-- threads: 1 month
-- reflection code: 2 months
-- proto buf support: 3 months
-- GC: 6 months
-- debugger
-- Jan 1, 2009: enough support to write interesting programs
+Decisions in need of integration into the doc:
+[ ] pair assignment is required to get map, and receive ok.
+[ ] len() returns an int, new(array_type, n) n must be an int
 
 
 Missing:
-[ ] Helper syntax for composite types: allow names/indices for maps/arrays,
-    remove need for type in elements of composites
+[ ] onreturn/undo statement
+[ ] Helper syntax for composite types: allow names/keys/indices for
+	structs/maps/arrays, remove need for type in elements of composites
+
+
+Wish list:
+[ ] built-in assert() - alternatively: allow entire expressions as statements
+	so we can write: some_condition || panic(); (along these lines)
+[ ] enum facility (enum symbols are not mixable with ints)
 
 
 Todo's:
@@ -39,34 +42,20 @@ Todo's:
 [ ] need to talk about precise int/floats clearly
 [ ] iant suggests to use abstract/precise int for len(), cap() - good idea
     (issue: what happens in len() + const - what is the type?)
+[ ] cleanup convert() vs T() vs x.(T) - convert() should go away?
 [ ] what are the permissible ranges for the indices in slices? The spec
 	doesn't correspond to the implementation. The spec is wrong when it
 	comes to the first index i: it should allow (at least) the range 0 <= i <= len(a).
 	also: document different semantics for strings and arrays (strings cannot be grown).
+[ ] fix "else" part of if statement
+[ ] cleanup: 6g allows: interface { f F } where F is a function type.
+	fine, but then we should also allow: func f F {}, where F is a function type.
 
 
 Open issues:
-[ ] semantics of type decl and where methods are attached
-	what about: type MyInt int (does it produce a new (incompatible) int)?
-[ ] convert should not be used for composite literals anymore,
-	in fact, convert() should go away
-[ ] if statement: else syntax must be fixed
-[ ] old-style export decls (still needed, but ideally should go away)
-[ ] like to have assert() in the language, w/ option to disable code gen for it
-[ ] composite types should uniformly create an instance instead of a pointer
-[ ] need for type switch? (or use type guard with ok in tuple assignment?)
-[ ] do we need anything on package vs file names?
-[ ] type switch or some form of type test needed
-[ ] what is the meaning of typeof()
+[ ] semantics of type decl: creating a new type or only a new type name?
 [ ] at the moment: type T S; strips any methods of S. It probably shouldn't.
-[ ] 6g allows: interface { f F } where F is a function type. fine, but then we should
-    also allow: func f F {}, where F is a function type.
-[ ] provide composite literal notation to address array indices: []int{ 0: x1, 1: x2, ... }
-    and struct field names (both seem easy to do).
-[ ] reopening & and func issue: Seems inconsistent as both &func(){} and func(){} are
-    permitted. Suggestion: func literals are pointers. We need to use & for all other
-	functions. This would be in consistency with the declaration of function pointer
-	variables and the use of '&' to convert methods into function pointers.
+[ ] need for type switch? (or use type guard with ok in tuple assignment?)
 [ ] Conversions: can we say: "type T int; T(3.0)" ?
 	We could allow converting structurally equivalent types into each other this way.
 	May play together with "type T1 T2" where we give another type name to T2.
@@ -78,18 +67,35 @@ Open issues:
 	what about maps (require ==, copy and hash)
 	maybe: no maps with non-basic type keys, and no interface comparison unless
 	with nil
-[ ] consider syntactic notation for composite literals to make them parseable w/o type information
-	(require ()'s in control clauses)
-
-
-Decisions in need of integration into the doc:
-[ ] pair assignment is required to get map, and receive ok.
-[ ] len() returns an int, new(array_type, n) n must be an int
-[ ] passing a "..." arg to another "..." parameter doesn't wrap the argument again
-	(so "..." args can be passed down easily)
+[ ] Russ: If we use x.(T) for all conversions, we could use T() for "construction"
+    and type literals - would resolve the parsing ambiguity of T{} in if's
+[ ] Russ: consider re-introducing "func" for function type. Make function literals
+	behave like slices, etc. Require no &'s to get a function value (solves issue
+	of func{} vs &func{} vs &func_name).
+	
 
 
 Closed:
+[x] reopening & and func issue: Seems inconsistent as both &func(){} and func(){} are
+    permitted. Suggestion: func literals are pointers. We need to use & for all other
+	functions. This would be in consistency with the declaration of function pointer
+	variables and the use of '&' to convert methods into function pointers.
+	- covered by other entry
+[x] composite types should uniformly create an instance instead of a pointer - fixed
+[x] like to have assert() in the language, w/ option to disable code gen for it
+	- added to wish list
+[x] convert should not be used for composite literals anymore,
+	in fact, convert() should go away - made a todo
+[x] type switch or some form of type test needed - duplicate entry
+[x] provide composite literal notation to address array indices: []int{ 0: x1, 1: x2, ... }
+    and struct field names (both seem easy to do). - under "Missing" list
+[x] passing a "..." arg to another "..." parameter doesn't wrap the argument again
+	(so "..." args can be passed down easily) - this is documented
+[x] consider syntactic notation for composite literals to make them parseable w/o type information
+	(require ()'s in control clauses) - use heuristics for now
+[x] do we need anything on package vs file names? - current package scheme workable for now
+[x] what is the meaning of typeof() - we don't have it
+[x] old-style export decls (still needed, but ideally should go away)
 [x] packages of multiple files - we have a working approach
 [x] partial export of structs, methods
 [x] new as it is now is weird - need to go back to previous semantics and introduce
@@ -125,6 +131,14 @@ Closed:
 [x] should binary <- be at lowest precedence level? when is a send/receive non-blocking? (NO - 9/19/08)
 [x] func literal like a composite type - should probably require the '&' to get address (NO)
 [x] & needed to get a function pointer from a function? (NO - there is the "func" keyword - 9/19/08)
+
+Timeline (9/5/08):
+- threads: 1 month
+- reflection code: 2 months
+- proto buf support: 3 months
+- GC: 6 months
+- debugger
+- Jan 1, 2009: enough support to write interesting programs
 -->
 
 
@@ -1173,10 +1187,10 @@ The length of arrays is known at compile-time, and the result of a call to
 	[2*N] struct { x, y int32 }
 	[1000]*float64
 
-Assignment compatibility: Arrays can be assigned to slice variables of
-equal element type; arrays cannot be assigned to other array variables
-or passed to functions (by value).
-TODO rethink this restriction. Causes irregularities.
+Assignment compatibility: Arrays can be assigned to variables of equal type
+and to slice variables with equal element type. When assigning to a slice
+variable, the array is not copied but a slice comprising the entire array
+is created.
 
 
 Struct types
