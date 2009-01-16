@@ -153,7 +153,7 @@ func ValueToString(val Value) string {
 	case Uint64Kind:
 		return integer(int64(val.(Uint64Value).Get()));
 	case FloatKind:
-		if strconv.floatsize == 32 {
+		if strconv.FloatSize == 32 {
 			return strconv.ftoa32(float32(val.(FloatValue).Get()), 'g', -1);
 		} else {
 			return strconv.ftoa64(float64(val.(FloatValue).Get()), 'g', -1);

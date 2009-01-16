@@ -8,8 +8,7 @@ import (
 	"utf8";
 )
 
-const ldigits = "0123456789abcdef"
-const udigits = "0123456789ABCDEF"
+const lowerhex = "0123456789abcdef"
 
 export func Quote(s string) string {
 	t := `"`;
@@ -37,7 +36,7 @@ export func Quote(s string) string {
 			t += `\v`;
 
 		case s[i] < utf8.RuneSelf:
-			t += `\x` + string(ldigits[s[i]>>4]) + string(ldigits[s[i]&0xF]);
+			t += `\x` + string(lowerhex[s[i]>>4]) + string(lowerhex[s[i]&0xF]);
 
 		case utf8.FullRuneInString(s, i):
 			r, size := utf8.DecodeRuneInString(s, i);
@@ -48,20 +47,20 @@ export func Quote(s string) string {
 			if r < 0x10000 {
 				t += `\u`;
 				for j:=uint(0); j<4; j++ {
-					t += string(ldigits[(r>>(12-4*j))&0xF]);
+					t += string(lowerhex[(r>>(12-4*j))&0xF]);
 				}
 			} else {
 				t += `\U`;
 				for j:=uint(0); j<8; j++ {
-					t += string(ldigits[(r>>(28-4*j))&0xF]);
+					t += string(lowerhex[(r>>(28-4*j))&0xF]);
 				}
 			}
 
 		default:
 		EscX:
 			t += `\x`;
-			t += string(ldigits[s[i]>>4]);
-			t += string(ldigits[s[i]&0xF]);
+			t += string(lowerhex[s[i]>>4]);
+			t += string(lowerhex[s[i]&0xF]);
 		}
 	}
 	t += `"`;

@@ -464,28 +464,28 @@ func (f *Fmt) Fmt_fb32(a float32) *Fmt {
 
 // float
 func (x *Fmt) f(a float) *Fmt {
-	if strconv.floatsize == 32 {
+	if strconv.FloatSize == 32 {
 		return x.Fmt_f32(float32(a))
 	}
 	return x.Fmt_f64(float64(a))
 }
 
 func (x *Fmt) e(a float) *Fmt {
-	if strconv.floatsize == 32 {
+	if strconv.FloatSize == 32 {
 		return x.Fmt_e32(float32(a))
 	}
 	return x.Fmt_e64(float64(a))
 }
 
 func (x *Fmt) g(a float) *Fmt {
-	if strconv.floatsize == 32 {
+	if strconv.FloatSize == 32 {
 		return x.Fmt_g32(float32(a))
 	}
 	return x.Fmt_g64(float64(a))
 }
 
 func (x *Fmt) fb(a float) *Fmt {
-	if strconv.floatsize == 32 {
+	if strconv.FloatSize == 32 {
 		return x.Fmt_fb32(float32(a))
 	}
 	return x.Fmt_fb64(float64(a))

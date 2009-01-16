@@ -11,40 +11,38 @@ import (
 	"testing";
 )
 
-type Int64Test struct {
+type Itoa64Test struct {
 	in int64;
 	out string;
 }
 
-// TODO: should be called int64tests
-
-var xint64tests = []Int64Test {
-	Int64Test{ 0, "0" },
-	Int64Test{ 1, "1" },
-	Int64Test{ -1, "-1" },
-	Int64Test{ 12345678, "12345678" },
-	Int64Test{ -987654321, "-987654321" },
-	Int64Test{ 1<<31-1, "2147483647" },
-	Int64Test{ -1<<31+1, "-2147483647" },
-	Int64Test{ 1<<31, "2147483648" },
-	Int64Test{ -1<<31, "-2147483648" },
-	Int64Test{ 1<<31+1, "2147483649" },
-	Int64Test{ -1<<31-1, "-2147483649" },
-	Int64Test{ 1<<32-1, "4294967295" },
-	Int64Test{ -1<<32+1, "-4294967295" },
-	Int64Test{ 1<<32, "4294967296" },
-	Int64Test{ -1<<32, "-4294967296" },
-	Int64Test{ 1<<32+1, "4294967297" },
-	Int64Test{ -1<<32-1, "-4294967297" },
-	Int64Test{ 1<<50, "1125899906842624" },
-	Int64Test{ 1<<63-1, "9223372036854775807" },
-	Int64Test{ -1<<63+1, "-9223372036854775807" },
-	Int64Test{ -1<<63, "-9223372036854775808" },
+var itoa64tests = []Itoa64Test {
+	Itoa64Test{ 0, "0" },
+	Itoa64Test{ 1, "1" },
+	Itoa64Test{ -1, "-1" },
+	Itoa64Test{ 12345678, "12345678" },
+	Itoa64Test{ -987654321, "-987654321" },
+	Itoa64Test{ 1<<31-1, "2147483647" },
+	Itoa64Test{ -1<<31+1, "-2147483647" },
+	Itoa64Test{ 1<<31, "2147483648" },
+	Itoa64Test{ -1<<31, "-2147483648" },
+	Itoa64Test{ 1<<31+1, "2147483649" },
+	Itoa64Test{ -1<<31-1, "-2147483649" },
+	Itoa64Test{ 1<<32-1, "4294967295" },
+	Itoa64Test{ -1<<32+1, "-4294967295" },
+	Itoa64Test{ 1<<32, "4294967296" },
+	Itoa64Test{ -1<<32, "-4294967296" },
+	Itoa64Test{ 1<<32+1, "4294967297" },
+	Itoa64Test{ -1<<32-1, "-4294967297" },
+	Itoa64Test{ 1<<50, "1125899906842624" },
+	Itoa64Test{ 1<<63-1, "9223372036854775807" },
+	Itoa64Test{ -1<<63+1, "-9223372036854775807" },
+	Itoa64Test{ -1<<63, "-9223372036854775808" },
 }
 
 export func TestItoa(t *testing.T) {
-	for i := 0; i < len(xint64tests); i++ {
-		test := xint64tests[i];
+	for i := 0; i < len(itoa64tests); i++ {
+		test := itoa64tests[i];
 		s := strconv.itoa64(test.in);
 		if s != test.out {
 			t.Error("strconv.itoa64(%v) = %v want %v\n",
@@ -61,17 +59,17 @@ export func TestItoa(t *testing.T) {
 }
 
 // TODO: Use once there is a strconv.uitoa
-type Uint64Test struct {
+type Uitoa64Test struct {
 	in uint64;
 	out string;
 }
 
-// TODO: should be able to call this uint64tests.
-var xuint64tests = []Uint64Test {
-	Uint64Test{ 1<<63-1, "9223372036854775807" },
-	Uint64Test{ 1<<63, "9223372036854775808" },
-	Uint64Test{ 1<<63+1, "9223372036854775809" },
-	Uint64Test{ 1<<64-2, "18446744073709551614" },
-	Uint64Test{ 1<<64-1, "18446744073709551615" },
+// TODO: should be able to call this atoui64tests.
+var uitoa64tests = []Uitoa64Test {
+	Uitoa64Test{ 1<<63-1, "9223372036854775807" },
+	Uitoa64Test{ 1<<63, "9223372036854775808" },
+	Uitoa64Test{ 1<<63+1, "9223372036854775809" },
+	Uitoa64Test{ 1<<64-2, "18446744073709551614" },
+	Uitoa64Test{ 1<<64-1, "18446744073709551615" },
 }
 
