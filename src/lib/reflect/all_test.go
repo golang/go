@@ -87,8 +87,6 @@ func valuedump(s, t string) {
 	assert(reflect.ValueToString(v), t);
 }
 
-export type empty interface {}
-
 export type T struct { a int; b float64; c string; d *int }
 
 export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
@@ -342,14 +340,14 @@ export func TestBigUnnamedStruct(t *testing.T) {
 	}
 }
 
-type Big struct {
+type big struct {
 	a, b, c, d, e int64
 }
 export func TestBigStruct(t *testing.T) {
-	b := Big{1, 2, 3, 4, 5};
+	b := big{1, 2, 3, 4, 5};
 	v := NewValue(b);
-	b1 := v.Interface().(Big);
+	b1 := v.Interface().(big);
 	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d || b1.e != b.e {
-		t.Errorf("NewValue(%v).Interface().(Big) = %v", b, b1);
+		t.Errorf("NewValue(%v).Interface().(big) = %v", b, b1);
 	}
 }
