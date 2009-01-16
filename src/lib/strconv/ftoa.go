@@ -28,7 +28,7 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string
 func Max(a, b int) int
 func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo)
 
-func FloatSize() int {
+func floatsize() int {
 	// Figure out whether float is float32 or float64.
 	// 1e-35 is representable in both, but 1e-70
 	// is too small for a float32.
@@ -38,7 +38,7 @@ func FloatSize() int {
 	}
 	return 64;
 }
-export var floatsize = FloatSize()
+export var FloatSize = floatsize()
 
 export func ftoa32(f float32, fmt byte, prec int) string {
 	return GenericFtoa(uint64(sys.float32bits(f)), fmt, prec, &float32info);
@@ -49,7 +49,7 @@ export func ftoa64(f float64, fmt byte, prec int) string {
 }
 
 export func ftoa(f float, fmt byte, prec int) string {
-	if floatsize == 32 {
+	if FloatSize == 32 {
 		return ftoa32(float32(f), fmt, prec);
 	}
 	return ftoa64(float64(f), fmt, prec);

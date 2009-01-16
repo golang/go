@@ -355,7 +355,7 @@ export func atof32(s string) (f float32, err *os.Error) {
 }
 
 export func atof(s string) (f float, err *os.Error) {
-	if floatsize == 32 {
+	if FloatSize == 32 {
 		f1, err1 := atof32(s);
 		return float(f1), err1;
 	}

@@ -25,27 +25,27 @@ export type Value interface {
 	Interface()	interface {};
 }
 
-// Common fields and functionality for all values
+// commonValue fields and functionality for all values
 
-type Common struct {
+type commonValue struct {
 	kind	int;
 	typ	Type;
 	addr	Addr;
 }
 
-func (c *Common) Kind() int {
+func (c *commonValue) Kind() int {
 	return c.kind
 }
 
-func (c *Common) Type() Type {
+func (c *commonValue) Type() Type {
 	return c.typ
 }
 
-func (c *Common) Addr() Addr {
+func (c *commonValue) Addr() Addr {
 	return c.addr
 }
 
-func (c *Common) Interface() interface {} {
+func (c *commonValue) Interface() interface {} {
 	var i interface {};
 	if c.typ.Size() > 8 {	// TODO(rsc): how do we know it is 8?
 		i = sys.unreflect(c.addr.(uintptr).(uint64), c.typ.String(), true);
@@ -72,11 +72,11 @@ export type MissingValue interface {
 }
 
 type MissingValueStruct struct {
-	Common
+	commonValue
 }
 
 func MissingCreator(typ Type, addr Addr) Value {
-	return &MissingValueStruct{ Common{MissingKind, typ, addr} }
+	return &MissingValueStruct{ commonValue{MissingKind, typ, addr} }
 }
 
 // -- Int
@@ -89,11 +89,11 @@ export type IntValue interface {
 }
 
 type IntValueStruct struct {
-	Common
+	commonValue
 }
 
 func IntCreator(typ Type, addr Addr) Value {
-	return &IntValueStruct{ Common{IntKind, typ, addr} }
+	return &IntValueStruct{ commonValue{IntKind, typ, addr} }
 }
 
 func (v *IntValueStruct) Get() int {
@@ -114,11 +114,11 @@ export type Int8Value interface {
 }
 
 type Int8ValueStruct struct {
-	Common
+	commonValue
 }
 
 func Int8Creator(typ Type, addr Addr) Value {
-	return &Int8ValueStruct{ Common{Int8Kind, typ, addr} }
+	return &Int8ValueStruct{ commonValue{Int8Kind, typ, addr} }
 }
 
 func (v *Int8ValueStruct) Get() int8 {
@@ -139,11 +139,11 @@ export type Int16Value interface {
 }
 
 type Int16ValueStruct struct {
-	Common
+	commonValue
 }
 
 func Int16Creator(typ Type, addr Addr) Value {
-	return &Int16ValueStruct{ Common{Int16Kind, typ, addr} }
+	return &Int16ValueStruct{ commonValue{Int16Kind, typ, addr} }
 }
 
 func (v *Int16ValueStruct) Get() int16 {
@@ -164,11 +164,11 @@ export type Int32Value interface {
 }
 
 type Int32ValueStruct struct {
-	Common
+	commonValue
 }
 
 func Int32Creator(typ Type, addr Addr) Value {
-	return &Int32ValueStruct{ Common{Int32Kind, typ, addr} }
+	return &Int32ValueStruct{ commonValue{Int32Kind, typ, addr} }
 }
 
 func (v *Int32ValueStruct) Get() int32 {
@@ -189,11 +189,11 @@ export type Int64Value interface {
 }
 
 type Int64ValueStruct struct {
-	Common
+	commonValue
 }
 
 func Int64Creator(typ Type, addr Addr) Value {
-	return &Int64ValueStruct{ Common{Int64Kind, typ, addr} }
+	return &Int64ValueStruct{ commonValue{Int64Kind, typ, addr} }
 }
 
 func (v *Int64ValueStruct) Get() int64 {
@@ -214,11 +214,11 @@ export type UintValue interface {
 }
 
 type UintValueStruct struct {
-	Common
+	commonValue
 }
 
 func UintCreator(typ Type, addr Addr) Value {
-	return &UintValueStruct{ Common{UintKind, typ, addr} }
+	return &UintValueStruct{ commonValue{UintKind, typ, addr} }
 }
 
 func (v *UintValueStruct) Get() uint {
@@ -239,11 +239,11 @@ export type Uint8Value interface {
 }
 
 type Uint8ValueStruct struct {
-	Common
+	commonValue
 }
 
 func Uint8Creator(typ Type, addr Addr) Value {
-	return &Uint8ValueStruct{ Common{Uint8Kind, typ, addr} }
+	return &Uint8ValueStruct{ commonValue{Uint8Kind, typ, addr} }
 }
 
 func (v *Uint8ValueStruct) Get() uint8 {
@@ -264,11 +264,11 @@ export type Uint16Value interface {
 }
 
 type Uint16ValueStruct struct {
-	Common
+	commonValue
 }
 
 func Uint16Creator(typ Type, addr Addr) Value {
-	return &Uint16ValueStruct{ Common{Uint16Kind, typ, addr} }
+	return &Uint16ValueStruct{ commonValue{Uint16Kind, typ, addr} }
 }
 
 func (v *Uint16ValueStruct) Get() uint16 {
@@ -289,11 +289,11 @@ export type Uint32Value interface {
 }
 
 type Uint32ValueStruct struct {
-	Common
+	commonValue
 }
 
 func Uint32Creator(typ Type, addr Addr) Value {
-	return &Uint32ValueStruct{ Common{Uint32Kind, typ, addr} }
+	return &Uint32ValueStruct{ commonValue{Uint32Kind, typ, addr} }
 }
 
 func (v *Uint32ValueStruct) Get() uint32 {
@@ -314,11 +314,11 @@ export type Uint64Value interface {
 }
 
 type Uint64ValueStruct struct {
-	Common
+	commonValue
 }
 
 func Uint64Creator(typ Type, addr Addr) Value {
-	return &Uint64ValueStruct{ Common{Uint64Kind, typ, addr} }
+	return &Uint64ValueStruct{ commonValue{Uint64Kind, typ, addr} }
 }
 
 func (v *Uint64ValueStruct) Get() uint64 {
@@ -339,11 +339,11 @@ export type UintptrValue interface {
 }
 
 type UintptrValueStruct struct {
-	Common
+	commonValue
 }
 
 func UintptrCreator(typ Type, addr Addr) Value {
-	return &UintptrValueStruct{ Common{UintptrKind, typ, addr} }
+	return &UintptrValueStruct{ commonValue{UintptrKind, typ, addr} }
 }
 
 func (v *UintptrValueStruct) Get() uintptr {
@@ -364,11 +364,11 @@ export type FloatValue interface {
 }
 
 type FloatValueStruct struct {
-	Common
+	commonValue
 }
 
 func FloatCreator(typ Type, addr Addr) Value {
-	return &FloatValueStruct{ Common{FloatKind, typ, addr} }
+	return &FloatValueStruct{ commonValue{FloatKind, typ, addr} }
 }
 
 func (v *FloatValueStruct) Get() float {
@@ -389,11 +389,11 @@ export type Float32Value interface {
 }
 
 type Float32ValueStruct struct {
-	Common
+	commonValue
 }
 
 func Float32Creator(typ Type, addr Addr) Value {
-	return &Float32ValueStruct{ Common{Float32Kind, typ, addr} }
+	return &Float32ValueStruct{ commonValue{Float32Kind, typ, addr} }
 }
 
 func (v *Float32ValueStruct) Get() float32 {
@@ -414,11 +414,11 @@ export type Float64Value interface {
 }
 
 type Float64ValueStruct struct {
-	Common
+	commonValue
 }
 
 func Float64Creator(typ Type, addr Addr) Value {
-	return &Float64ValueStruct{ Common{Float64Kind, typ, addr} }
+	return &Float64ValueStruct{ commonValue{Float64Kind, typ, addr} }
 }
 
 func (v *Float64ValueStruct) Get() float64 {
@@ -439,11 +439,11 @@ export type Float80Value interface {
 }
 
 type Float80ValueStruct struct {
-	Common
+	commonValue
 }
 
 func Float80Creator(typ Type, addr Addr) Value {
-	return &Float80ValueStruct{ Common{Float80Kind, typ, addr} }
+	return &Float80ValueStruct{ commonValue{Float80Kind, typ, addr} }
 }
 
 /*
@@ -467,11 +467,11 @@ export type StringValue interface {
 }
 
 type StringValueStruct struct {
-	Common
+	commonValue
 }
 
 func StringCreator(typ Type, addr Addr) Value {
-	return &StringValueStruct{ Common{StringKind, typ, addr} }
+	return &StringValueStruct{ commonValue{StringKind, typ, addr} }
 }
 
 func (v *StringValueStruct) Get() string {
@@ -492,11 +492,11 @@ export type BoolValue interface {
 }
 
 type BoolValueStruct struct {
-	Common
+	commonValue
 }
 
 func BoolCreator(typ Type, addr Addr) Value {
-	return &BoolValueStruct{ Common{BoolKind, typ, addr} }
+	return &BoolValueStruct{ commonValue{BoolKind, typ, addr} }
 }
 
 func (v *BoolValueStruct) Get() bool {
@@ -518,7 +518,7 @@ export type PtrValue interface {
 }
 
 type PtrValueStruct struct {
-	Common
+	commonValue
 }
 
 func (v *PtrValueStruct) Get() Addr {
@@ -540,7 +540,7 @@ func (v *PtrValueStruct) SetSub(subv Value) {
 }
 
 func PtrCreator(typ Type, addr Addr) Value {
-	return &PtrValueStruct{ Common{PtrKind, typ, addr} };
+	return &PtrValueStruct{ commonValue{PtrKind, typ, addr} };
 }
 
 // -- Array
@@ -570,7 +570,7 @@ type RuntimeArray struct {
 }
 
 type OpenArrayValueStruct struct {
-	Common;
+	commonValue;
 	elemtype	Type;
 	elemsize	int;
 	array *RuntimeArray;
@@ -601,7 +601,7 @@ func (v *OpenArrayValueStruct) Elem(i int) Value {
 }
 
 type FixedArrayValueStruct struct {
-	Common;
+	commonValue;
 	elemtype	Type;
 	elemsize	int;
 	len	int;
@@ -660,11 +660,11 @@ export type MapValue interface {
 }
 
 type MapValueStruct struct {
-	Common
+	commonValue
 }
 
 func MapCreator(typ Type, addr Addr) Value {
-	return &MapValueStruct{ Common{MapKind, typ, addr} }
+	return &MapValueStruct{ commonValue{MapKind, typ, addr} }
 }
 
 func (v *MapValueStruct) Len() int {
@@ -684,11 +684,11 @@ export type ChanValue interface {
 }
 
 type ChanValueStruct struct {
-	Common
+	commonValue
 }
 
 func ChanCreator(typ Type, addr Addr) Value {
-	return &ChanValueStruct{ Common{ChanKind, typ, addr} }
+	return &ChanValueStruct{ commonValue{ChanKind, typ, addr} }
 }
 
 // -- Struct
@@ -701,7 +701,7 @@ export type StructValue interface {
 }
 
 type StructValueStruct struct {
-	Common;
+	commonValue;
 	field	[]Value;
 }
 
@@ -716,7 +716,7 @@ func (v *StructValueStruct) Field(i int) Value {
 func StructCreator(typ Type, addr Addr) Value {
 	t := typ.(StructType);
 	nfield := t.Len();
-	v := &StructValueStruct{ Common{StructKind, typ, addr}, make([]Value, nfield) };
+	v := &StructValueStruct{ commonValue{StructKind, typ, addr}, make([]Value, nfield) };
 	for i := 0; i < nfield; i++ {
 		name, ftype, str, offset := t.Field(i);
 		addr_uint := uintptr(addr) + uintptr(offset);
@@ -735,7 +735,7 @@ export type InterfaceValue interface {
 }
 
 type InterfaceValueStruct struct {
-	Common
+	commonValue
 }
 
 func (v *InterfaceValueStruct) Get() interface{} {
@@ -743,7 +743,7 @@ func (v *InterfaceValueStruct) Get() interface{} {
 }
 
 func InterfaceCreator(typ Type, addr Addr) Value {
-	return &InterfaceValueStruct{ Common{InterfaceKind, typ, addr} }
+	return &InterfaceValueStruct{ commonValue{InterfaceKind, typ, addr} }
 }
 
 // -- Func
@@ -754,11 +754,11 @@ export type FuncValue interface {
 }
 
 type FuncValueStruct struct {
-	Common
+	commonValue
 }
 
 func FuncCreator(typ Type, addr Addr) Value {
-	return &FuncValueStruct{ Common{FuncKind, typ, addr} }
+	return &FuncValueStruct{ commonValue{FuncKind, typ, addr} }
 }
 
 var creator = map[int] Creator {
