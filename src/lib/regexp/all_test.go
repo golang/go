@@ -30,59 +30,59 @@ var good_re = []string{
 }
 
 // TODO: nice to do this with a map
-type StringError struct {
+type stringError struct {
 	re	string;
 	err	*os.Error;
 }
-var bad_re = []StringError{
-	StringError{ `*`,	 	regexp.ErrBareClosure },
-	StringError{ `(abc`,	regexp.ErrUnmatchedLpar },	
-	StringError{ `abc)`,	regexp.ErrUnmatchedRpar },	
-	StringError{ `x[a-z`,	regexp.ErrUnmatchedLbkt },	
-	StringError{ `abc]`,	regexp.ErrUnmatchedRbkt },	
-	StringError{ `[z-a]`,	regexp.ErrBadRange },	
-	StringError{ `abc\`,	regexp.ErrExtraneousBackslash },	
-	StringError{ `a**`,	regexp.ErrBadClosure },	
-	StringError{ `a*+`,	regexp.ErrBadClosure },	
-	StringError{ `a??`,	regexp.ErrBadClosure },	
-	StringError{ `*`,	 	regexp.ErrBareClosure },	
-	StringError{ `\x`,	regexp.ErrBadBackslash },
+var bad_re = []stringError{
+	stringError{ `*`,	 	regexp.ErrBareClosure },
+	stringError{ `(abc`,	regexp.ErrUnmatchedLpar },	
+	stringError{ `abc)`,	regexp.ErrUnmatchedRpar },	
+	stringError{ `x[a-z`,	regexp.ErrUnmatchedLbkt },	
+	stringError{ `abc]`,	regexp.ErrUnmatchedRbkt },	
+	stringError{ `[z-a]`,	regexp.ErrBadRange },	
+	stringError{ `abc\`,	regexp.ErrExtraneousBackslash },	
+	stringError{ `a**`,	regexp.ErrBadClosure },	
+	stringError{ `a*+`,	regexp.ErrBadClosure },	
+	stringError{ `a??`,	regexp.ErrBadClosure },	
+	stringError{ `*`,	 	regexp.ErrBareClosure },	
+	stringError{ `\x`,	regexp.ErrBadBackslash },
 }
 
-type Vec []int;
+type vec []int;
 
-type Tester struct {
+type tester struct {
 	re	string;
 	text	string;
-	match	Vec;
+	match	vec;
 }
 
-var matches = []Tester {
-	Tester{ ``,	"",	Vec{0,0} },
-	Tester{ `a`,	"a",	Vec{0,1} },
-	Tester{ `x`,	"y",	Vec{} },
-	Tester{ `b`,	"abc",	Vec{1,2} },
-	Tester{ `.`,	"a",	Vec{0,1} },
-	Tester{ `.*`,	"abcdef",	Vec{0,6} },
-	Tester{ `^abcd$`,	"abcd",	Vec{0,4} },
-	Tester{ `^bcd'`,	"abcdef",	Vec{} },
-	Tester{ `^abcd$`,	"abcde",	Vec{} },
-	Tester{ `a+`,	"baaab",	Vec{1,4} },
-	Tester{ `a*`,	"baaab",	Vec{0,0} },
-	Tester{ `[a-z]+`,	"abcd",	Vec{0,4} },
-	Tester{ `[^a-z]+`,	"ab1234cd",	Vec{2,6} },
-	Tester{ `[a\-\]z]+`,	"az]-bcz",	Vec{0,4} },
-	Tester{ `[日本語]+`,	"日本語日本語",	Vec{0,18} },
-	Tester{ `()`,	"",	Vec{0,0, 0,0} },
-	Tester{ `(a)`,	"a",	Vec{0,1, 0,1} },
-	Tester{ `(.)(.)`,	"日a",	Vec{0,4, 0,3, 3,4} },
-	Tester{ `(.*)`,	"",	Vec{0,0, 0,0} },
-	Tester{ `(.*)`,	"abcd",	Vec{0,4, 0,4} },
-	Tester{ `(..)(..)`,	"abcd",	Vec{0,4, 0,2, 2,4} },
-	Tester{ `(([^xyz]*)(d))`,	"abcd",	Vec{0,4, 0,4, 0,3, 3,4} },
-	Tester{ `((a|b|c)*(d))`,	"abcd",	Vec{0,4, 0,4, 2,3, 3,4} },
-	Tester{ `(((a|b|c)*)(d))`,	"abcd",	Vec{0,4, 0,4, 0,3, 2,3, 3,4} },
-	Tester{ `a*(|(b))c*`,	"aacc",	Vec{0,4, 2,2, -1,-1} },
+var matches = []tester {
+	tester{ ``,	"",	vec{0,0} },
+	tester{ `a`,	"a",	vec{0,1} },
+	tester{ `x`,	"y",	vec{} },
+	tester{ `b`,	"abc",	vec{1,2} },
+	tester{ `.`,	"a",	vec{0,1} },
+	tester{ `.*`,	"abcdef",	vec{0,6} },
+	tester{ `^abcd$`,	"abcd",	vec{0,4} },
+	tester{ `^bcd'`,	"abcdef",	vec{} },
+	tester{ `^abcd$`,	"abcde",	vec{} },
+	tester{ `a+`,	"baaab",	vec{1,4} },
+	tester{ `a*`,	"baaab",	vec{0,0} },
+	tester{ `[a-z]+`,	"abcd",	vec{0,4} },
+	tester{ `[^a-z]+`,	"ab1234cd",	vec{2,6} },
+	tester{ `[a\-\]z]+`,	"az]-bcz",	vec{0,4} },
+	tester{ `[日本語]+`,	"日本語日本語",	vec{0,18} },
+	tester{ `()`,	"",	vec{0,0, 0,0} },
+	tester{ `(a)`,	"a",	vec{0,1, 0,1} },
+	tester{ `(.)(.)`,	"日a",	vec{0,4, 0,3, 3,4} },
+	tester{ `(.*)`,	"",	vec{0,0, 0,0} },
+	tester{ `(.*)`,	"abcd",	vec{0,4, 0,4} },
+	tester{ `(..)(..)`,	"abcd",	vec{0,4, 0,2, 2,4} },
+	tester{ `(([^xyz]*)(d))`,	"abcd",	vec{0,4, 0,4, 0,3, 3,4} },
+	tester{ `((a|b|c)*(d))`,	"abcd",	vec{0,4, 0,4, 2,3, 3,4} },
+	tester{ `(((a|b|c)*)(d))`,	"abcd",	vec{0,4, 0,4, 0,3, 2,3, 3,4} },
+	tester{ `a*(|(b))c*`,	"aacc",	vec{0,4, 2,2, -1,-1} },
 }
 
 func CompileTest(t *testing.T, expr string, error *os.Error) regexp.Regexp {
@@ -93,7 +93,7 @@ func CompileTest(t *testing.T, expr string, error *os.Error) regexp.Regexp {
 	return re
 }
 
-func PrintVec(t *testing.T, m []int) {
+func Printvec(t *testing.T, m []int) {
 	l := len(m);
 	if l == 0 {
 		t.Log("\t<no match>");
@@ -149,9 +149,9 @@ func ExecuteTest(t *testing.T, expr string, str string, match []int) {
 	m := re.Execute(str);
 	if !Equal(m, match) {
 		t.Error("Execute failure on `", expr, "` matching `", str, "`:");
-		PrintVec(t, m);
+		Printvec(t, m);
 		t.Log("should be:");
-		PrintVec(t, match);
+		Printvec(t, match);
 	}
 }
 
