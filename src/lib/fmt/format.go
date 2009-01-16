@@ -413,7 +413,7 @@ func (f *Fmt) Fmt_q(s string) *Fmt {
 
 // floating-point
 
-func Prec(f *Fmt, def int) int {
+func doPrec(f *Fmt, def int) int {
 	if f.prec_present {
 		return f.prec;
 	}
@@ -428,15 +428,15 @@ func fmtString(f *Fmt, s string) *Fmt {
 
 // float64
 func (f *Fmt) Fmt_e64(a float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(a, 'e', Prec(f, 6)));
+	return fmtString(f, strconv.Ftoa64(a, 'e', doPrec(f, 6)));
 }
 
 func (f *Fmt) Fmt_f64(a float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(a, 'f', Prec(f, 6)));
+	return fmtString(f, strconv.Ftoa64(a, 'f', doPrec(f, 6)));
 }
 
 func (f *Fmt) Fmt_g64(a float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(a, 'g', Prec(f, -1)));
+	return fmtString(f, strconv.Ftoa64(a, 'g', doPrec(f, -1)));
 }
 
 func (f *Fmt) Fmt_fb64(a float64) *Fmt {
@@ -447,15 +447,15 @@ func (f *Fmt) Fmt_fb64(a float64) *Fmt {
 // cannot defer to float64 versions
 // because it will get rounding wrong in corner cases.
 func (f *Fmt) Fmt_e32(a float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(a, 'e', Prec(f, 6)));
+	return fmtString(f, strconv.Ftoa32(a, 'e', doPrec(f, 6)));
 }
 
 func (f *Fmt) Fmt_f32(a float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(a, 'f', Prec(f, 6)));
+	return fmtString(f, strconv.Ftoa32(a, 'f', doPrec(f, 6)));
 }
 
 func (f *Fmt) Fmt_g32(a float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(a, 'g', Prec(f, -1)));
+	return fmtString(f, strconv.Ftoa32(a, 'g', doPrec(f, -1)));
 }
 
 func (f *Fmt) Fmt_fb32(a float32) *Fmt {
