@@ -36,6 +36,9 @@ Wish list:
 
 
 Todo's:
+[ ] document illegality of package-external tuple assignments to structs
+	w/ private fields: P.T{1, 2} illegal since same as P.T{a: 1, b: 2} for
+	a T struct { a b int }.
 [ ] clarification on interface types, rules
 [ ] clarify slice rules
 [ ] clarify tuples
