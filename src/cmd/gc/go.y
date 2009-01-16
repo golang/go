@@ -1969,6 +1969,14 @@ hidden_constant:
 			yyerror("bad negated constant");
 		}
 	}
+|	LTRUE
+	{
+		$$ = booltrue->val;
+	}
+|	LFALSE
+	{
+		$$ = boolfalse->val;
+	}
 
 hidden_importsym:
 	sym1 '.' sym2
