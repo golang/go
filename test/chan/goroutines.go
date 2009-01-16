@@ -22,7 +22,7 @@ func main() {
 	var n = 10000;
 	if sys.argc() > 1 {
 		var err *os.Error;
-		n, err = strconv.atoi(sys.argv(1));
+		n, err = strconv.Atoi(sys.argv(1));
 		if err != nil {
 			print("bad arg\n");
 			sys.exit(1);

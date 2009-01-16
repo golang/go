@@ -11,26 +11,26 @@
 
 package strconv
 
-package type Decimal struct {
+type decimal struct {
 	// TODO(rsc): Can make d[] a bit smaller and add
 	// truncated bool;
 	d [2000] byte;	// digits
 	nd int;	// number of digits used
 	dp int;	// decimal point
 };
-func (a *Decimal) String() string;
-func (a *Decimal) Assign(v uint64);
-func (a *Decimal) Shift(k int) *Decimal;
-func (a *Decimal) Round(nd int) *Decimal;
-func (a *Decimal) RoundUp(nd int) *Decimal;
-func (a *Decimal) RoundDown(nd int) *Decimal;
-func (a *Decimal) RoundedInteger() uint64;
+func (a *decimal) String() string;
+func (a *decimal) Assign(v uint64);
+func (a *decimal) Shift(k int) *decimal;
+func (a *decimal) Round(nd int) *decimal;
+func (a *decimal) RoundUp(nd int) *decimal;
+func (a *decimal) RoundDown(nd int) *decimal;
+func (a *decimal) RoundedInteger() uint64;
 
 
-func Copy(dst []byte, src []byte) int;
-func DigitZero(dst []byte) int;
+func copy(dst []byte, src []byte) int;
+func digitZero(dst []byte) int;
 
-func (a *Decimal) String() string {
+func (a *decimal) String() string {
 	n := 10 + a.nd;
 	if a.dp > 0 {
 		n += a.dp;
@@ -51,42 +51,42 @@ func (a *Decimal) String() string {
 		w++;
 		buf[w] = '.';
 		w++;
-		w += DigitZero(buf[w:w+-a.dp]);
-		w += Copy(buf[w:w+a.nd], a.d[0:a.nd]);
+		w += digitZero(buf[w:w+-a.dp]);
+		w += copy(buf[w:w+a.nd], a.d[0:a.nd]);
 
 	case a.dp < a.nd:
 		// decimal point in middle of digits
-		w += Copy(buf[w:w+a.dp], a.d[0:a.dp]);
+		w += copy(buf[w:w+a.dp], a.d[0:a.dp]);
 		buf[w] = '.';
 		w++;
-		w += Copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
+		w += copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
 
 	default:
 		// zeros fill space between digits and decimal point
-		w += Copy(buf[w:w+a.nd], a.d[0:a.nd]);
-		w += DigitZero(buf[w:w+a.dp-a.nd]);
+		w += copy(buf[w:w+a.nd], a.d[0:a.nd]);
+		w += digitZero(buf[w:w+a.dp-a.nd]);
 	}
 	return string(buf[0:w]);
 }
 
-func Copy(dst []byte, src []byte) int {
+func copy(dst []byte, src []byte) int {
 	for i := 0; i < len(dst); i++ {
 		dst[i] = src[i];
 	}
 	return len(dst);
 }
 
-func DigitZero(dst []byte) int {
+func digitZero(dst []byte) int {
 	for i := 0; i < len(dst); i++ {
 		dst[i] = '0';
 	}
 	return len(dst);
 }
 
-// Trim trailing zeros from number.
+// trim trailing zeros from number.
 // (They are meaningless; the decimal point is tracked
 // independent of the number of digits.)
-func Trim(a *Decimal) {
+func trim(a *decimal) {
 	for a.nd > 0 && a.d[a.nd-1] == '0' {
 		a.nd--;
 	}
@@ -96,7 +96,7 @@ func Trim(a *Decimal) {
 }
 
 // Assign v to a.
-func (a *Decimal) Assign(v uint64) {
+func (a *decimal) Assign(v uint64) {
 	var buf [50]byte;
 
 	// Write reversed decimal in buf.
@@ -116,21 +116,21 @@ func (a *Decimal) Assign(v uint64) {
 		a.nd++;
 	}
 	a.dp = a.nd;
-	Trim(a);
+	trim(a);
 }
 
-package func NewDecimal(i uint64) *Decimal {
-	a := new(Decimal);
+func newDecimal(i uint64) *decimal {
+	a := new(decimal);
 	a.Assign(i);
 	return a;
 }
 
 // Maximum shift that we can do in one pass without overflow.
 // Signed int has 31 bits, and we have to be able to accomodate 9<<k.
-const MaxShift = 27
+const maxShift = 27
 
-// Binary shift right (* 2) by k bits.  k <= MaxShift to avoid overflow.
-func RightShift(a *Decimal, k uint) {
+// Binary shift right (* 2) by k bits.  k <= maxShift to avoid overflow.
+func rightShift(a *decimal, k uint) {
 	r := 0;	// read pointer
 	w := 0;	// write pointer
 
@@ -174,69 +174,69 @@ func RightShift(a *Decimal, k uint) {
 	}
 
 	a.nd = w;
-	Trim(a);
+	trim(a);
 }
 
 // Cheat sheet for left shift: table indexed by shift count giving
 // number of new digits that will be introduced by that shift.
 //
-// For example, leftcheat[4] = {2, "625"}.  That means that
+// For example, leftcheats[4] = {2, "625"}.  That means that
 // if we are shifting by 4 (multiplying by 16), it will add 2 digits
 // when the string prefix is "625" through "999", and one fewer digit
 // if the string prefix is "000" through "624".
 //
 // Credit for this trick goes to Ken.
 
-type LeftCheat struct {
+type leftCheat struct {
 	delta int;	// number of new digits
 	cutoff string;	//   minus one digit if original < a.
 }
 
-var leftcheat = []LeftCheat {
+var leftcheats = []leftCheat {
 	// Leading digits of 1/2^i = 5^i.
 	// 5^23 is not an exact 64-bit floating point number,
 	// so have to use bc for the math.
 	/*
 	seq 27 | sed 's/^/5^/' | bc |
-	awk 'BEGIN{ print "\tLeftCheat{ 0, \"\" }," }
+	awk 'BEGIN{ print "\tleftCheat{ 0, \"\" }," }
 	{
 		log2 = log(2)/log(10)
-		printf("\tLeftCheat{ %d, \"%s\" },\t// * %d\n",
+		printf("\tleftCheat{ %d, \"%s\" },\t// * %d\n",
 			int(log2*NR+1), $0, 2**NR)
 	}'
 	 */
-	LeftCheat{ 0, "" },
-	LeftCheat{ 1, "5" },	// * 2
-	LeftCheat{ 1, "25" },	// * 4
-	LeftCheat{ 1, "125" },	// * 8
-	LeftCheat{ 2, "625" },	// * 16
-	LeftCheat{ 2, "3125" },	// * 32
-	LeftCheat{ 2, "15625" },	// * 64
-	LeftCheat{ 3, "78125" },	// * 128
-	LeftCheat{ 3, "390625" },	// * 256
-	LeftCheat{ 3, "1953125" },	// * 512
-	LeftCheat{ 4, "9765625" },	// * 1024
-	LeftCheat{ 4, "48828125" },	// * 2048
-	LeftCheat{ 4, "244140625" },	// * 4096
-	LeftCheat{ 4, "1220703125" },	// * 8192
-	LeftCheat{ 5, "6103515625" },	// * 16384
-	LeftCheat{ 5, "30517578125" },	// * 32768
-	LeftCheat{ 5, "152587890625" },	// * 65536
-	LeftCheat{ 6, "762939453125" },	// * 131072
-	LeftCheat{ 6, "3814697265625" },	// * 262144
-	LeftCheat{ 6, "19073486328125" },	// * 524288
-	LeftCheat{ 7, "95367431640625" },	// * 1048576
-	LeftCheat{ 7, "476837158203125" },	// * 2097152
-	LeftCheat{ 7, "2384185791015625" },	// * 4194304
-	LeftCheat{ 7, "11920928955078125" },	// * 8388608
-	LeftCheat{ 8, "59604644775390625" },	// * 16777216
-	LeftCheat{ 8, "298023223876953125" },	// * 33554432
-	LeftCheat{ 8, "1490116119384765625" },	// * 67108864
-	LeftCheat{ 9, "7450580596923828125" },	// * 134217728
+	leftCheat{ 0, "" },
+	leftCheat{ 1, "5" },	// * 2
+	leftCheat{ 1, "25" },	// * 4
+	leftCheat{ 1, "125" },	// * 8
+	leftCheat{ 2, "625" },	// * 16
+	leftCheat{ 2, "3125" },	// * 32
+	leftCheat{ 2, "15625" },	// * 64
+	leftCheat{ 3, "78125" },	// * 128
+	leftCheat{ 3, "390625" },	// * 256
+	leftCheat{ 3, "1953125" },	// * 512
+	leftCheat{ 4, "9765625" },	// * 1024
+	leftCheat{ 4, "48828125" },	// * 2048
+	leftCheat{ 4, "244140625" },	// * 4096
+	leftCheat{ 4, "1220703125" },	// * 8192
+	leftCheat{ 5, "6103515625" },	// * 16384
+	leftCheat{ 5, "30517578125" },	// * 32768
+	leftCheat{ 5, "152587890625" },	// * 65536
+	leftCheat{ 6, "762939453125" },	// * 131072
+	leftCheat{ 6, "3814697265625" },	// * 262144
+	leftCheat{ 6, "19073486328125" },	// * 524288
+	leftCheat{ 7, "95367431640625" },	// * 1048576
+	leftCheat{ 7, "476837158203125" },	// * 2097152
+	leftCheat{ 7, "2384185791015625" },	// * 4194304
+	leftCheat{ 7, "11920928955078125" },	// * 8388608
+	leftCheat{ 8, "59604644775390625" },	// * 16777216
+	leftCheat{ 8, "298023223876953125" },	// * 33554432
+	leftCheat{ 8, "1490116119384765625" },	// * 67108864
+	leftCheat{ 9, "7450580596923828125" },	// * 134217728
 }
 
 // Is the leading prefix of b lexicographically less than s?
-func PrefixIsLessThan(b []byte, s string) bool {
+func prefixIsLessThan(b []byte, s string) bool {
 	for i := 0; i < len(s); i++ {
 		if i >= len(b) {
 			return true;
@@ -248,10 +248,10 @@ func PrefixIsLessThan(b []byte, s string) bool {
 	return false;
 }
 
-// Binary shift left (/ 2) by k bits.  k <= MaxShift to avoid overflow.
-func LeftShift(a *Decimal, k uint) {
-	delta := leftcheat[k].delta;
-	if PrefixIsLessThan(a.d[0:a.nd], leftcheat[k].cutoff) {
+// Binary shift left (/ 2) by k bits.  k <= maxShift to avoid overflow.
+func leftShift(a *decimal, k uint) {
+	delta := leftcheats[k].delta;
+	if prefixIsLessThan(a.d[0:a.nd], leftcheats[k].cutoff) {
 		delta--;
 	}
 
@@ -280,37 +280,37 @@ func LeftShift(a *Decimal, k uint) {
 
 	if w != 0 {
 		// TODO: Remove - has no business panicking.
-		panicln("strconv: bad LeftShift", w);
+		panicln("strconv: bad leftShift", w);
 	}
 	a.nd += delta;
 	a.dp += delta;
-	Trim(a);
+	trim(a);
 }
 
 // Binary shift left (k > 0) or right (k < 0).
 // Returns receiver for convenience.
-func (a *Decimal) Shift(k int) *Decimal {
+func (a *decimal) Shift(k int) *decimal {
 	switch {
 	case a.nd == 0:
 		// nothing to do: a == 0
 	case k > 0:
-		for k > MaxShift {
-			LeftShift(a, MaxShift);
-			k -= MaxShift;
+		for k > maxShift {
+			leftShift(a, maxShift);
+			k -= maxShift;
 		}
-		LeftShift(a, uint(k));
+		leftShift(a, uint(k));
 	case k < 0:
-		for k < -MaxShift {
-			RightShift(a, MaxShift);
-			k += MaxShift;
+		for k < -maxShift {
+			rightShift(a, maxShift);
+			k += maxShift;
 		}
-		RightShift(a, uint(-k));
+		rightShift(a, uint(-k));
 	}
 	return a;
 }
 
 // If we chop a at nd digits, should we round up?
-func ShouldRoundUp(a *Decimal, nd int) bool {
+func shouldRoundUp(a *decimal, nd int) bool {
 	if nd <= 0 || nd >= a.nd {
 		return false;
 	}
@@ -323,11 +323,11 @@ func ShouldRoundUp(a *Decimal, nd int) bool {
 
 // Round a to nd digits (or fewer).
 // Returns receiver for convenience.
-func (a *Decimal) Round(nd int) *Decimal {
+func (a *decimal) Round(nd int) *decimal {
 	if nd <= 0 || nd >= a.nd {
 		return a;
 	}
-	if(ShouldRoundUp(a, nd)) {
+	if(shouldRoundUp(a, nd)) {
 		return a.RoundUp(nd);
 	}
 	return a.RoundDown(nd);
@@ -335,18 +335,18 @@ func (a *Decimal) Round(nd int) *Decimal {
 
 // Round a down to nd digits (or fewer).
 // Returns receiver for convenience.
-func (a *Decimal) RoundDown(nd int) *Decimal {
+func (a *decimal) RoundDown(nd int) *decimal {
 	if nd <= 0 || nd >= a.nd {
 		return a;
 	}
 	a.nd = nd;
-	Trim(a);
+	trim(a);
 	return a;
 }
 
 // Round a up to nd digits (or fewer).
 // Returns receiver for convenience.
-func (a *Decimal) RoundUp(nd int) *Decimal {
+func (a *decimal) RoundUp(nd int) *decimal {
 	if nd <= 0 || nd >= a.nd {
 		return a;
 	}
@@ -371,7 +371,7 @@ func (a *Decimal) RoundUp(nd int) *Decimal {
 
 // Extract integer part, rounded appropriately.
 // No guarantees about overflow.
-func (a *Decimal) RoundedInteger() uint64 {
+func (a *decimal) RoundedInteger() uint64 {
 	if a.dp > 20 {
 		return 0xFFFFFFFFFFFFFFFF;
 	}
@@ -383,7 +383,7 @@ func (a *Decimal) RoundedInteger() uint64 {
 	for ; i < a.dp; i++ {
 		n *= 10;
 	}
-	if ShouldRoundUp(a, a.dp) {
+	if shouldRoundUp(a, a.dp) {
 		n++;
 	}
 	return n;

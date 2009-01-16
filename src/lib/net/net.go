@@ -124,7 +124,7 @@ func SockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
 			return "", e
 		}
 		host := IPToString(addr);
-		return JoinHostPort(host, strconv.itoa(port)), nil;
+		return JoinHostPort(host, strconv.Itoa(port)), nil;
 	default:
 		return "", UnknownSocketFamily
 	}

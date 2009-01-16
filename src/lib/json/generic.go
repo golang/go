@@ -140,7 +140,7 @@ export func Walk(j Json, path string) Json {
 		}
 		switch j.Kind() {
 		case ArrayKind:
-			indx, err := strconv.atoi(elem);
+			indx, err := strconv.Atoi(elem);
 			if err != nil {
 				return null
 			}

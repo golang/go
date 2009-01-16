@@ -9,18 +9,18 @@ import (
 	"testing";
 )
 
-type QuoteTest struct {
+type quoteTest struct {
 	in string;
 	out string;
 }
 
-var quotetests = []QuoteTest {
-	QuoteTest{ "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"` },
-	QuoteTest{ "\\", `"\\"` },
-	QuoteTest{ "abc\xffdef", `"abc\xffdef"` },
-	QuoteTest{ "\u263a", `"\u263a"` },
-	QuoteTest{ "\U0010ffff", `"\U0010ffff"` },
-	QuoteTest{ "\x04", `"\x04"` },
+var quotetests = []quoteTest {
+	quoteTest{ "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"` },
+	quoteTest{ "\\", `"\\"` },
+	quoteTest{ "abc\xffdef", `"abc\xffdef"` },
+	quoteTest{ "\u263a", `"\u263a"` },
+	quoteTest{ "\U0010ffff", `"\U0010ffff"` },
+	quoteTest{ "\x04", `"\x04"` },
 }
 
 export func TestQuote(t *testing.T) {
@@ -32,50 +32,50 @@ export func TestQuote(t *testing.T) {
 	}
 }
 
-type CanBackquoteTest struct {
+type canBackquoteTest struct {
 	in string;
 	out bool;
 }
 
-var canbackquotetests = []CanBackquoteTest {
-	CanBackquoteTest{ "`", false },
-	CanBackquoteTest{ string(0), false },
-	CanBackquoteTest{ string(1), false },
-	CanBackquoteTest{ string(2), false },
-	CanBackquoteTest{ string(3), false },
-	CanBackquoteTest{ string(4), false },
-	CanBackquoteTest{ string(5), false },
-	CanBackquoteTest{ string(6), false },
-	CanBackquoteTest{ string(7), false },
-	CanBackquoteTest{ string(8), false },
-	CanBackquoteTest{ string(9), false },
-	CanBackquoteTest{ string(10), false },
-	CanBackquoteTest{ string(11), false },
-	CanBackquoteTest{ string(12), false },
-	CanBackquoteTest{ string(13), false },
-	CanBackquoteTest{ string(14), false },
-	CanBackquoteTest{ string(15), false },
-	CanBackquoteTest{ string(16), false },
-	CanBackquoteTest{ string(17), false },
-	CanBackquoteTest{ string(18), false },
-	CanBackquoteTest{ string(19), false },
-	CanBackquoteTest{ string(20), false },
-	CanBackquoteTest{ string(21), false },
-	CanBackquoteTest{ string(22), false },
-	CanBackquoteTest{ string(23), false },
-	CanBackquoteTest{ string(24), false },
-	CanBackquoteTest{ string(25), false },
-	CanBackquoteTest{ string(26), false },
-	CanBackquoteTest{ string(27), false },
-	CanBackquoteTest{ string(28), false },
-	CanBackquoteTest{ string(29), false },
-	CanBackquoteTest{ string(30), false },
-	CanBackquoteTest{ string(31), false },
-	CanBackquoteTest{ `' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true },
-	CanBackquoteTest{ `0123456789`, true },
-	CanBackquoteTest{ `ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true },
-	CanBackquoteTest{ `abcdefghijklmnopqrstuvwxyz`, true },
-	CanBackquoteTest{ `☺`, true },
+var canbackquotetests = []canBackquoteTest {
+	canBackquoteTest{ "`", false },
+	canBackquoteTest{ string(0), false },
+	canBackquoteTest{ string(1), false },
+	canBackquoteTest{ string(2), false },
+	canBackquoteTest{ string(3), false },
+	canBackquoteTest{ string(4), false },
+	canBackquoteTest{ string(5), false },
+	canBackquoteTest{ string(6), false },
+	canBackquoteTest{ string(7), false },
+	canBackquoteTest{ string(8), false },
+	canBackquoteTest{ string(9), false },
+	canBackquoteTest{ string(10), false },
+	canBackquoteTest{ string(11), false },
+	canBackquoteTest{ string(12), false },
+	canBackquoteTest{ string(13), false },
+	canBackquoteTest{ string(14), false },
+	canBackquoteTest{ string(15), false },
+	canBackquoteTest{ string(16), false },
+	canBackquoteTest{ string(17), false },
+	canBackquoteTest{ string(18), false },
+	canBackquoteTest{ string(19), false },
+	canBackquoteTest{ string(20), false },
+	canBackquoteTest{ string(21), false },
+	canBackquoteTest{ string(22), false },
+	canBackquoteTest{ string(23), false },
+	canBackquoteTest{ string(24), false },
+	canBackquoteTest{ string(25), false },
+	canBackquoteTest{ string(26), false },
+	canBackquoteTest{ string(27), false },
+	canBackquoteTest{ string(28), false },
+	canBackquoteTest{ string(29), false },
+	canBackquoteTest{ string(30), false },
+	canBackquoteTest{ string(31), false },
+	canBackquoteTest{ `' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true },
+	canBackquoteTest{ `0123456789`, true },
+	canBackquoteTest{ `ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true },
+	canBackquoteTest{ `abcdefghijklmnopqrstuvwxyz`, true },
+	canBackquoteTest{ `☺`, true },
 }
 
 export func TestCanBackquote(t *testing.T) {

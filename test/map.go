@@ -61,8 +61,8 @@ func main() {
 	var apT [2*count]*T;
 
 	for i := 0; i < count; i++ {
-		s := strconv.itoa(i);
-		s10 := strconv.itoa(i*10);
+		s := strconv.Itoa(i);
+		s10 := strconv.Itoa(i*10);
 		f := float(i);
 		t := T{int64(i),f};
 		apT[i] = new(T);
@@ -137,8 +137,8 @@ func main() {
 
 	// test construction directly
 	for i := 0; i < count; i++ {
-		s := strconv.itoa(i);
-		s10 := strconv.itoa(i*10);
+		s := strconv.Itoa(i);
+		s10 := strconv.Itoa(i*10);
 		f := float(i);
 		t := T{int64(i), f};
 		// BUG m := M(i, i+1);
@@ -191,7 +191,7 @@ func main() {
 	// test existence with tuple check
 	// failed lookups yield a false value for the boolean.
 	for i := 0; i < count; i++ {
-		s := strconv.itoa(i);
+		s := strconv.Itoa(i);
 		f := float(i);
 		t := T{int64(i), f};
 		{
@@ -329,7 +329,7 @@ func main() {
 	// test nonexistence with tuple check
 	// failed lookups yield a false value for the boolean.
 	for i := count; i < 2*count; i++ {
-		s := strconv.itoa(i);
+		s := strconv.Itoa(i);
 		f := float(i);
 		t := T{int64(i),f};
 		{
@@ -467,7 +467,7 @@ func main() {
 
 	// tests for structured map element updates
 	for i := 0; i < count; i++ {
-		s := strconv.itoa(i);
+		s := strconv.Itoa(i);
 		mspa[s][i % 2] = "deleted";
 		if mspa[s][i % 2] != "deleted" {
 			fmt.Printf("update mspa[%s][%d] = %s\n", s, i %2, mspa[s][i % 2]);

@@ -5,17 +5,17 @@
 package strconv
 import "os"
 
-func IntSize() uint {
+func computeIntsize() uint {
 	siz := uint(8);
 	for 1<<siz != 0 {
 		siz *= 2
 	}
 	return siz
 }
-var intsize = IntSize();
+var intsize = computeIntsize();
 
 // Convert decimal string to unsigned integer.
-export func atoui64(s string) (i uint64, err *os.Error) {
+export func Atoui64(s string) (i uint64, err *os.Error) {
 	// empty string bad
 	if len(s) == 0 {
 		return 0, os.EINVAL
@@ -52,7 +52,7 @@ export func atoui64(s string) (i uint64, err *os.Error) {
 }
 
 // Convert decimal string to integer.
-export func atoi64(s string) (i int64, err *os.Error) {
+export func Atoi64(s string) (i int64, err *os.Error) {
 	// empty string bad
 	if len(s) == 0 {
 		return 0, os.EINVAL
@@ -68,7 +68,7 @@ export func atoi64(s string) (i int64, err *os.Error) {
 	}
 
 	var un uint64;
-	un, err = atoui64(s);
+	un, err = Atoui64(s);
 	if err != nil && err != os.ERANGE {
 		return 0, err
 	}
@@ -85,8 +85,8 @@ export func atoi64(s string) (i int64, err *os.Error) {
 	return n, nil
 }
 
-export func atoui(s string) (i uint, err *os.Error) {
-	i1, e1 := atoui64(s);
+export func Atoui(s string) (i uint, err *os.Error) {
+	i1, e1 := Atoui64(s);
 	if e1 != nil && e1 != os.ERANGE {
 		return 0, e1
 	}
@@ -99,8 +99,8 @@ export func atoui(s string) (i uint, err *os.Error) {
 	return i, nil
 }
 
-export func atoi(s string) (i int, err *os.Error) {
-	i1, e1 := atoi64(s);
+export func Atoi(s string) (i int, err *os.Error) {
+	i1, e1 := Atoi64(s);
 	if e1 != nil && e1 != os.ERANGE {
 		return 0, e1
 	}

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Decimal to binary floating point conversion.
+// decimal to binary floating point conversion.
 // Algorithm:
 //   1) Store input in multiprecision decimal.
 //   2) Multiply/divide decimal by powers of two until in range [0.5, 1)
@@ -15,10 +15,10 @@ import (
 	"strconv";
 )
 
-package var optimize = true	// can change for testing
+var optimize = true	// can change for testing
 
 // TODO(rsc): Better truncation handling.
-func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
+func stringToDecimal(s string) (neg bool, d *decimal, trunc bool, ok bool) {
 	i := 0;
 
 	// optional sign
@@ -34,7 +34,7 @@ func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
 	}
 
 	// digits
-	b := new(Decimal);
+	b := new(decimal);
 	sawdot := false;
 	sawdigits := false;
 	for ; i < len(s); i++ {
@@ -104,12 +104,12 @@ func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
 	return;
 }
 
-// Decimal power of ten to binary power of two.
+// decimal power of ten to binary power of two.
 var powtab = []int{
 	1, 3, 6, 9, 13, 16, 19, 23, 26
 }
 
-func DecimalToFloatBits(neg bool, d *Decimal, trunc bool, flt *FloatInfo) (b uint64, overflow bool) {
+func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uint64, overflow bool) {
 	var exp int;
 	var mant uint64;
 
@@ -208,7 +208,7 @@ out:
 
 // Compute exact floating-point integer from d's digits.
 // Caller is responsible for avoiding overflow.
-func DecimalToFloat64Int(neg bool, d *Decimal) float64 {
+func decimalAtof64Int(neg bool, d *decimal) float64 {
 	f := float64(0);
 	for i := 0; i < d.nd; i++ {
 		f = f*10 + float64(d.d[i] - '0');
@@ -219,7 +219,7 @@ func DecimalToFloat64Int(neg bool, d *Decimal) float64 {
 	return f;
 }
 
-func DecimalToFloat32Int(neg bool, d *Decimal) float32 {
+func decimalAtof32Int(neg bool, d *decimal) float32 {
 	f := float32(0);
 	for i := 0; i < d.nd; i++ {
 		f = f*10 + float32(d.d[i] - '0');
@@ -241,13 +241,13 @@ var float32pow10 = []float32 {
 }
 
 // If possible to convert decimal d to 64-bit float f exactly,
-// entirely in floating-point math, do so, avoiding the expense of DecimalToFloatBits.
+// entirely in floating-point math, do so, avoiding the expense of decimalToFloatBits.
 // Three common cases:
 //	value is exact integer
 //	value is exact integer * exact power of ten
 //	value is exact integer / exact power of ten
 // These all produce potentially inexact but correctly rounded answers.
-func DecimalToFloat64(neg bool, d *Decimal, trunc bool) (f float64, ok bool) {
+func decimalAtof64(neg bool, d *decimal, trunc bool) (f float64, ok bool) {
 	// Exact integers are <= 10^15.
 	// Exact powers of ten are <= 10^22.
 	if d.nd > 15 {
@@ -255,11 +255,11 @@ func DecimalToFloat64(neg bool, d *Decimal, trunc bool) (f float64, ok bool) {
 	}
 	switch {
 	case d.dp == d.nd:	// int
-		f := DecimalToFloat64Int(neg, d);
+		f := decimalAtof64Int(neg, d);
 		return f, true;
 
 	case d.dp > d.nd && d.dp <= 15+22:	// int * 10^k
-		f := DecimalToFloat64Int(neg, d);
+		f := decimalAtof64Int(neg, d);
 		k := d.dp - d.nd;
 		// If exponent is big but number of digits is not,
 		// can move a few zeros into the integer part.
@@ -270,7 +270,7 @@ func DecimalToFloat64(neg bool, d *Decimal, trunc bool) (f float64, ok bool) {
 		return f*float64pow10[k], true;
 
 	case d.dp < d.nd && d.nd - d.dp <= 22:	// int / 10^k
-		f := DecimalToFloat64Int(neg, d);
+		f := decimalAtof64Int(neg, d);
 		return f/float64pow10[d.nd - d.dp], true;
 	}
 	return;
@@ -278,7 +278,7 @@ func DecimalToFloat64(neg bool, d *Decimal, trunc bool) (f float64, ok bool) {
 
 // If possible to convert decimal d to 32-bit float f exactly,
 // entirely in floating-point math, do so, avoiding the machinery above.
-func DecimalToFloat32(neg bool, d *Decimal, trunc bool) (f float32, ok bool) {
+func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
 	// Exact integers are <= 10^7.
 	// Exact powers of ten are <= 10^10.
 	if d.nd > 7 {
@@ -286,11 +286,11 @@ func DecimalToFloat32(neg bool, d *Decimal, trunc bool) (f float32, ok bool) {
 	}
 	switch {
 	case d.dp == d.nd:	// int
-		f := DecimalToFloat32Int(neg, d);
+		f := decimalAtof32Int(neg, d);
 		return f, true;
 
 	case d.dp > d.nd && d.dp <= 7+10:	// int * 10^k
-		f := DecimalToFloat32Int(neg, d);
+		f := decimalAtof32Int(neg, d);
 		k := d.dp - d.nd;
 		// If exponent is big but number of digits is not,
 		// can move a few zeros into the integer part.
@@ -301,7 +301,7 @@ func DecimalToFloat32(neg bool, d *Decimal, trunc bool) (f float32, ok bool) {
 		return f*float32pow10[k], true;
 
 	case d.dp < d.nd && d.nd - d.dp <= 10:	// int / 10^k
-		f := DecimalToFloat32Int(neg, d);
+		f := decimalAtof32Int(neg, d);
 		return f/float32pow10[d.nd - d.dp], true;
 	}
 	return;
@@ -318,17 +318,17 @@ func DecimalToFloat32(neg bool, d *Decimal, trunc bool) (f float32, ok bool) {
 // If s is syntactically well-formed but is more than 1/2 ULP
 // away from the largest floating point number of the given size,
 // returns f = ±Inf, err = os.ERANGE.
-export func atof64(s string) (f float64, err *os.Error) {
-	neg, d, trunc, ok := StringToDecimal(s);
+export func Atof64(s string) (f float64, err *os.Error) {
+	neg, d, trunc, ok := stringToDecimal(s);
 	if !ok {
 		return 0, os.EINVAL;
 	}
 	if optimize {
-		if f, ok := DecimalToFloat64(neg, d, trunc); ok {
+		if f, ok := decimalAtof64(neg, d, trunc); ok {
 			return f, nil;
 		}
 	}
-	b, ovf := DecimalToFloatBits(neg, d, trunc, &float64info);
+	b, ovf := decimalToFloatBits(neg, d, trunc, &float64info);
 	f = sys.float64frombits(b);
 	if ovf {
 		err = os.ERANGE;
@@ -336,17 +336,17 @@ export func atof64(s string) (f float64, err *os.Error) {
 	return f, err
 }
 
-export func atof32(s string) (f float32, err *os.Error) {
-	neg, d, trunc, ok := StringToDecimal(s);
+export func Atof32(s string) (f float32, err *os.Error) {
+	neg, d, trunc, ok := stringToDecimal(s);
 	if !ok {
 		return 0, os.EINVAL;
 	}
 	if optimize {
-		if f, ok := DecimalToFloat32(neg, d, trunc); ok {
+		if f, ok := decimalAtof32(neg, d, trunc); ok {
 			return f, nil;
 		}
 	}
-	b, ovf := DecimalToFloatBits(neg, d, trunc, &float32info);
+	b, ovf := decimalToFloatBits(neg, d, trunc, &float32info);
 	f = sys.float32frombits(uint32(b));
 	if ovf {
 		err = os.ERANGE;
@@ -354,12 +354,12 @@ export func atof32(s string) (f float32, err *os.Error) {
 	return f, err
 }
 
-export func atof(s string) (f float, err *os.Error) {
+export func Atof(s string) (f float, err *os.Error) {
 	if FloatSize == 32 {
-		f1, err1 := atof32(s);
+		f1, err1 := Atof32(s);
 		return float(f1), err1;
 	}
-	f1, err1 := atof64(s);
+	f1, err1 := Atof64(s);
 	return float(f1), err1;
 }
 
