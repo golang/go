@@ -160,7 +160,7 @@ func (P *Parser) OpenScope() {
 
 
 func (P *Parser) CloseScope() {
-	P.top_scope = P.top_scope.parent;
+	P.top_scope = P.top_scope.Parent;
 }
 
 

@@ -99,14 +99,14 @@ export func NewObject(pos, kind int, ident string) *Object {
 // Scopes
 
 export type Scope struct {
-	parent *Scope;
+	Parent *Scope;
 	entries map[string] *Object;
 }
 
 
 export func NewScope(parent *Scope) *Scope {
 	scope := new(Scope);
-	scope.parent = parent;
+	scope.Parent = parent;
 	scope.entries = make(map[string]*Object, 8);
 	return scope;
 }
@@ -127,7 +127,7 @@ func (scope *Scope) Lookup(ident string) *Object {
 		if obj != nil {
 			return obj;
 		}
-		scope = scope.parent;
+		scope = scope.Parent;
 	}
 	return nil;
 }

@@ -24,13 +24,13 @@ func assert(b bool) {
 
 
 export type Flags struct {
-	verbose bool;
-	sixg bool;
-	deps bool;
-	columns bool;
-	testmode bool;
-	tokenchan bool;
-	naming bool;
+	Verbose bool;
+	Sixg bool;
+	Deps bool;
+	Columns bool;
+	Testmode bool;
+	Tokenchan bool;
+	Naming bool;
 }
 
 
@@ -125,18 +125,18 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	}
 
 	var err errorHandler;
-	err.Init(src_file, src, flags.columns);
+	err.Init(src_file, src, flags.Columns);
 
 	var scanner Scanner.Scanner;
-	scanner.Init(&err, src, true, flags.testmode);
+	scanner.Init(&err, src, true, flags.Testmode);
 
 	var tstream <-chan *Scanner.Token;
-	if flags.tokenchan {
+	if flags.Tokenchan {
 		tstream = scanner.TokenStream();
 	}
 
 	var parser Parser.Parser;
-	parser.Open(flags.verbose, flags.sixg, flags.deps, flags.naming, &scanner, tstream);
+	parser.Open(flags.Verbose, flags.Sixg, flags.Deps, flags.Naming, &scanner, tstream);
 
 	prog := parser.ParseProgram();
 
