@@ -290,6 +290,9 @@ addmethod(Node *n, Type *t, int local)
 
 	pa = f;
 
+	if(pkgimportname != S && !exportname(sf->name))
+		sf = pkglookup(sf->name, pkgimportname->name);
+
 	n = nod(ODCLFIELD, newname(sf), N);
 	n->type = t;
 
