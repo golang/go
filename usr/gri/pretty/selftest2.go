@@ -11,7 +11,7 @@ import (
 )
 
 
-const /* enum1 */ (
+export const /* enum1 */ (
 	EnumTag0 = iota;
 	EnumTag1;
 	EnumTag2;
@@ -32,10 +32,10 @@ const /* enum2 */ (
 )
 
 
-type S struct {}
+export type S struct {}
 
 
-type T struct {
+export type T struct {
 	x, y int;
 	s string;
 	next_t *T
@@ -43,7 +43,7 @@ type T struct {
 
 
 var (
-	A = 5;
+	aa = 5;
 	u, v, w int = 0, 0, 0;
 	foo = "foo";
 	fixed_array0 = [10]int{};
@@ -54,7 +54,7 @@ var (
 
 var (
 	// Unicode identifiers
-	ä, ö, ü, Á, Ø, Å, ƒ, ß int;
+	ä, ö, ü, ƒ, ß int;
 )
 
 
@@ -105,24 +105,24 @@ func f3(a *[]int, m map[string] int) {
 	}
 
 	println("A3");
-	for i : x := range a {
+	for i, x := range a {
 		println(i, x);
 	}
 
 	println("M1");
-	for i range m {
+	for i := range m {
 		println(i);
 	}
 
 	println("M2");
-	for i, x range m {
+	for i, x := range m {
 		println(i, x);
 	}
 
 	println("M3");
 	var i string;
 	var x int;
-	for i : x = range m {
+	for i, x = range m {
 		println(i, x);
 	}
 }

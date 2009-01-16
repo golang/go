@@ -11,13 +11,13 @@ import (
 )
 
 
-type State struct {
+type state struct {
 	// setup
 	err Scanner.ErrorHandler;
 }
 
 
-func (s *State) Init(err Scanner.ErrorHandler) {
+func (s *state) Init(err Scanner.ErrorHandler) {
 	s.err = err;
 }
 
@@ -42,27 +42,27 @@ func assert(pred bool) {
 }
 
 
-func (s *State) Error(pos int, msg string) {
+func (s *state) Error(pos int, msg string) {
 	s.err.Error(pos, msg);
 }
 
 
 // ----------------------------------------------------------------------------
 
-func (s *State) CheckType() {
+func (s *state) CheckType() {
 }
 
 
-func (s *State) CheckDeclaration(d *AST.Decl) {
-	if d.tok != Scanner.FUNC && d.list != nil {
+func (s *state) CheckDeclaration(d *AST.Decl) {
+	if d.Tok != Scanner.FUNC && d.List != nil {
 		// group of parenthesized declarations
-		for i := 0; i < d.list.Len(); i++ {
-			s.CheckDeclaration(d.list.At(i).(*AST.Decl))
+		for i := 0; i < d.List.Len(); i++ {
+			s.CheckDeclaration(d.List.At(i).(*AST.Decl))
 		}
 		
 	} else {
 		// single declaration
-		switch d.tok {
+		switch d.Tok {
 		case Scanner.IMPORT:
 		case Scanner.EXPORT:
 		case Scanner.CONST:
@@ -76,9 +76,9 @@ func (s *State) CheckDeclaration(d *AST.Decl) {
 }
 
 
-func (s *State) CheckProgram(p *AST.Program) {
-	for i := 0; i < p.decls.Len(); i++ {
-		s.CheckDeclaration(p.decls.At(i).(*AST.Decl));
+func (s *state) CheckProgram(p *AST.Program) {
+	for i := 0; i < p.Decls.Len(); i++ {
+		s.CheckDeclaration(p.Decls.At(i).(*AST.Decl));
 	}
 }
 
@@ -86,7 +86,7 @@ func (s *State) CheckProgram(p *AST.Program) {
 // ----------------------------------------------------------------------------
 
 export func CheckProgram(err Scanner.ErrorHandler, p *AST.Program) {
-	var s State;
+	var s state;
 	s.Init(err);
 	s.CheckProgram(p);
 }

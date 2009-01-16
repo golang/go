@@ -10,6 +10,7 @@ TMP3=test_tmp3.go
 COUNT=0
 
 count() {
+	#echo $1
 	let COUNT=$COUNT+1
 	let M=$COUNT%10
 	if [ $M == 0 ]; then
@@ -25,7 +26,7 @@ apply1() {
 	# files with errors (skip them)
 	method1.go | selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
 	bug068.go | bug088.go | bug083.go | bug106.go | bug125.go | bug126.go ) ;;
-	* ) $1 $2; count ;;
+	* ) $1 $2; count $F;;
 	esac
 }
 
@@ -130,7 +131,7 @@ if [ $? != 0 ]; then
 	echo "Error (selftest1): pretty -t selftest1.go"
 	exit 1
 fi
-count
+count selftest1.go
 
 
 # run over all .go files

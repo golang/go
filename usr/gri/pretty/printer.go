@@ -54,7 +54,7 @@ const (
 )
 
 
-type Printer struct {
+export type Printer struct {
 	// output
 	text io.Write;
 	
@@ -86,7 +86,7 @@ func (P *Printer) HasComment(pos int) bool {
 func (P *Printer) NextComment() {
 	P.cindex++;
 	if P.comments != nil && P.cindex < P.comments.Len() {
-		P.cpos = P.comments.At(P.cindex).(*AST.Comment).pos;
+		P.cpos = P.comments.At(P.cindex).(*AST.Comment).Pos;
 	} else {
 		P.cpos = 1<<30;  // infinite
 	}
@@ -109,7 +109,7 @@ func (P *Printer) Init(text io.Write, comments *array.Array) {
 // ----------------------------------------------------------------------------
 // Printing support
 
-func HtmlEscape(s string) string {
+func htmlEscape(s string) string {
 	if *html {
 		var esc string;
 		for i := 0; i < len(s); i++ {
@@ -118,7 +118,7 @@ func HtmlEscape(s string) string {
 			case '&': esc = "&amp;";
 			default: continue;
 			}
-			return s[0 : i] + esc + HtmlEscape(s[i+1 : len(s)]);
+			return s[0 : i] + esc + htmlEscape(s[i+1 : len(s)]);
 		}
 	}
 	return s;
@@ -126,7 +126,7 @@ func HtmlEscape(s string) string {
 
 
 // Reduce contiguous sequences of '\t' in a string to a single '\t'.
-func Untabify(s string) string {
+func untabify(s string) string {
 	for i := 0; i < len(s); i++ {
 		if s[i] == '\t' {
 			j := i;
@@ -134,7 +134,7 @@ func Untabify(s string) string {
 				j++;
 			}
 			if j-i > 1 {  // more then one tab
-				return s[0 : i+1] + Untabify(s[j : len(s)]);
+				return s[0 : i+1] + untabify(s[j : len(s)]);
 			}
 		}
 	}
@@ -210,7 +210,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 	for ; P.HasComment(pos); P.NextComment() {
 		// we have a comment/newline that comes before the string
 		comment := P.comments.At(P.cindex).(*AST.Comment);
-		ctext := comment.text;
+		ctext := comment.Text;
 		
 		if ctext == "\n" {
 			// found a newline in src - count it
@@ -261,9 +261,9 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 			if *debug {
 				P.Printf("[%d]", P.cpos);
 			}
-			// calling Untabify increases the change for idempotent output
+			// calling untabify increases the change for idempotent output
 			// since tabs in comments are also interpreted by tabwriter
-			P.Printf("%s", HtmlEscape(Untabify(ctext)));
+			P.Printf("%s", htmlEscape(untabify(ctext)));
 
 			if ctext[1] == '/' {
 				//-style comments must end in newline
@@ -309,7 +309,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 	if *debug {
 		P.Printf("[%d]", pos);
 	}
-	P.Printf("%s%s%s", tag, HtmlEscape(s), endtag);
+	P.Printf("%s%s%s", tag, htmlEscape(s), endtag);
 
 	// --------------------------------
 	// interpret state
@@ -359,7 +359,7 @@ func (P *Printer) HtmlPrologue(title string) {
 			"<html>\n"
 			"<head>\n"
 			"	<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n"
-			"	<title>" + HtmlEscape(title) + "</title>\n"
+			"	<title>" + htmlEscape(title) + "</title>\n"
 			"	<style type=\"text/css\">\n"
 			"	</style>\n"
 			"</head>\n"
@@ -384,23 +384,23 @@ func (P *Printer) HtmlEpilogue() {
 
 
 func (P *Printer) HtmlIdentifier(x *AST.Expr) {
-	if x.tok != Scanner.IDENT {
+	if x.Tok != Scanner.IDENT {
 		panic();
 	}
-	obj := x.obj;
-	if *html && obj.kind != AST.NONE {
+	obj := x.Obj;
+	if *html && obj.Kind != AST.NONE {
 		// depending on whether we have a declaration or use, generate different html
-		// - no need to HtmlEscape ident
-		id := Utils.IntToString(obj.id, 10);
-		if x.pos == obj.pos {
+		// - no need to htmlEscape ident
+		id := Utils.IntToString(obj.Id, 10);
+		if x.Pos == obj.Pos {
 			// probably the declaration of x
-			P.TaggedString(x.pos, `<a name="id` + id + `">`, obj.ident, `</a>`);
+			P.TaggedString(x.Pos, `<a name="id` + id + `">`, obj.Ident, `</a>`);
 		} else {
 			// probably not the declaration of x
-			P.TaggedString(x.pos, `<a href="#id` + id + `">`, obj.ident, `</a>`);
+			P.TaggedString(x.Pos, `<a href="#id` + id + `">`, obj.Ident, `</a>`);
 		}
 	} else {
-		P.String(x.pos, obj.ident);
+		P.String(x.Pos, obj.Ident);
 	}
 }
 
@@ -418,14 +418,14 @@ func (P *Printer) Parameters(pos int, list *array.Array) {
 		for i, n := 0, list.Len(); i < n; i++ {
 			x := list.At(i).(*AST.Expr);
 			if i > 0 {
-				if prev == x.tok || prev == Scanner.TYPE {
+				if prev == x.Tok || prev == Scanner.TYPE {
 					P.separator = comma;
 				} else {
 					P.separator = blank;
 				}
 			}
 			P.Expr(x);
-			prev = x.tok;
+			prev = x.Tok;
 		}
 	}
 	P.String(0, ")");
@@ -442,17 +442,17 @@ func (P *Printer) Fields(list *array.Array, end int) {
 		for i, n := 0, list.Len(); i < n; i++ {
 			x := list.At(i).(*AST.Expr);
 			if i > 0 {
-				if prev == Scanner.TYPE && x.tok != Scanner.STRING || prev == Scanner.STRING {
+				if prev == Scanner.TYPE && x.Tok != Scanner.STRING || prev == Scanner.STRING {
 					P.separator = semicolon;
 					P.newlines = 1;
-				} else if prev == x.tok {
+				} else if prev == x.Tok {
 					P.separator = comma;
 				} else {
 					P.separator = tab;
 				}
 			}
 			P.Expr(x);
-			prev = x.tok;
+			prev = x.Tok;
 		}
 		P.newlines = 1;
 	}
@@ -467,54 +467,54 @@ func (P *Printer) Fields(list *array.Array, end int) {
 func (P *Printer) Type(t *AST.Type) int {
 	separator := semicolon;
 
-	switch t.form {
+	switch t.Form {
 	case AST.TYPENAME:
-		P.Expr(t.expr);
+		P.Expr(t.Expr);
 
 	case AST.ARRAY:
-		P.String(t.pos, "[");
-		if t.expr != nil {
-			P.Expr(t.expr);
+		P.String(t.Pos, "[");
+		if t.Expr != nil {
+			P.Expr(t.Expr);
 		}
 		P.String(0, "]");
-		separator = P.Type(t.elt);
+		separator = P.Type(t.Elt);
 
 	case AST.STRUCT, AST.INTERFACE:
-		switch t.form {
-		case AST.STRUCT: P.String(t.pos, "struct");
-		case AST.INTERFACE: P.String(t.pos, "interface");
+		switch t.Form {
+		case AST.STRUCT: P.String(t.Pos, "struct");
+		case AST.INTERFACE: P.String(t.Pos, "interface");
 		}
-		if t.list != nil {
+		if t.List != nil {
 			P.separator = blank;
-			P.Fields(t.list, t.end);
+			P.Fields(t.List, t.End);
 		}
 		separator = none;
 
 	case AST.MAP:
-		P.String(t.pos, "map [");
-		P.Type(t.key);
+		P.String(t.Pos, "map [");
+		P.Type(t.Key);
 		P.String(0, "]");
-		separator = P.Type(t.elt);
+		separator = P.Type(t.Elt);
 
 	case AST.CHANNEL:
 		var m string;
-		switch t.mode {
+		switch t.Mode {
 		case AST.FULL: m = "chan ";
 		case AST.RECV: m = "<-chan ";
 		case AST.SEND: m = "chan <- ";
 		}
-		P.String(t.pos, m);
-		separator = P.Type(t.elt);
+		P.String(t.Pos, m);
+		separator = P.Type(t.Elt);
 
 	case AST.POINTER:
-		P.String(t.pos, "*");
-		separator = P.Type(t.elt);
+		P.String(t.Pos, "*");
+		separator = P.Type(t.Elt);
 
 	case AST.FUNCTION:
-		P.Parameters(t.pos, t.list);
-		if t.elt != nil {
+		P.Parameters(t.Pos, t.List);
+		if t.Elt != nil {
 			P.separator = blank;
-			list := t.elt.list;
+			list := t.Elt.List;
 			if list.Len() > 1 {
 				P.Parameters(0, list);
 			} else {
@@ -524,10 +524,10 @@ func (P *Printer) Type(t *AST.Type) int {
 		}
 
 	case AST.ELLIPSIS:
-		P.String(t.pos, "...");
+		P.String(t.Pos, "...");
 
 	default:
-		P.Error(t.pos, t.form, "type");
+		P.Error(t.Pos, t.Form, "type");
 	}
 
 	return separator;
@@ -544,90 +544,90 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		return;  // empty expression list
 	}
 
-	switch x.tok {
+	switch x.Tok {
 	case Scanner.TYPE:
 		// type expr
-		P.Type(x.obj.typ);
+		P.Type(x.Obj.Typ);
 
 	case Scanner.IDENT:
 		P.HtmlIdentifier(x);
 	
 	case Scanner.INT, Scanner.STRING, Scanner.FLOAT:
 		// literal
-		P.String(x.pos, x.obj.ident);
+		P.String(x.Pos, x.Obj.Ident);
 
 	case Scanner.FUNC:
 		// function literal
-		P.String(x.pos, "func");
-		P.Type(x.obj.typ);
-		P.Block(0, x.obj.block, x.obj.end, true);
+		P.String(x.Pos, "func");
+		P.Type(x.Obj.Typ);
+		P.Block(0, x.Obj.Block, x.Obj.End, true);
 		P.newlines = 0;
 
 	case Scanner.COMMA:
 		// list
 		// (don't use binary expression printing because of different spacing)
-		P.Expr(x.x);
-		P.String(x.pos, ",");
+		P.Expr(x.X);
+		P.String(x.Pos, ",");
 		P.separator = blank;
 		P.state = inside_list;
-		P.Expr(x.y);
+		P.Expr(x.Y);
 
 	case Scanner.PERIOD:
 		// selector or type guard
-		P.Expr1(x.x, Scanner.HighestPrec);
-		P.String(x.pos, ".");
-		if x.y.tok == Scanner.TYPE {
+		P.Expr1(x.X, Scanner.HighestPrec);
+		P.String(x.Pos, ".");
+		if x.Y.Tok == Scanner.TYPE {
 			P.String(0, "(");
-			P.Expr(x.y);
+			P.Expr(x.Y);
 			P.String(0, ")");
 		} else {
-			P.Expr1(x.y, Scanner.HighestPrec);
+			P.Expr1(x.Y, Scanner.HighestPrec);
 		}
 		
 	case Scanner.LBRACK:
 		// index
-		P.Expr1(x.x, Scanner.HighestPrec);
-		P.String(x.pos, "[");
-		P.Expr1(x.y, 0);
+		P.Expr1(x.X, Scanner.HighestPrec);
+		P.String(x.Pos, "[");
+		P.Expr1(x.Y, 0);
 		P.String(0, "]");
 
 	case Scanner.LPAREN:
 		// call
-		P.Expr1(x.x, Scanner.HighestPrec);
-		P.String(x.pos, "(");
-		P.Expr(x.y);
+		P.Expr1(x.X, Scanner.HighestPrec);
+		P.String(x.Pos, "(");
+		P.Expr(x.Y);
 		P.String(0, ")");
 
 	case Scanner.LBRACE:
 		// composite literal
-		P.Type(x.obj.typ);
-		P.String(x.pos, "{");
-		P.Expr(x.y);
+		P.Type(x.Obj.Typ);
+		P.String(x.Pos, "{");
+		P.Expr(x.Y);
 		P.String(0, "}");
 		
 	default:
 		// unary and binary expressions including ":" for pairs
 		prec := Scanner.UnaryPrec;
-		if x.x != nil {
-			prec = Scanner.Precedence(x.tok);
+		if x.X != nil {
+			prec = Scanner.Precedence(x.Tok);
 		}
 		if prec < prec1 {
 			P.String(0, "(");
 		}
-		if x.x == nil {
+		if x.X == nil {
 			// unary expression
-			P.Token(x.pos, x.tok);
-			if x.tok == Scanner.RANGE {
+			P.Token(x.Pos, x.Tok);
+			if x.Tok == Scanner.RANGE {
 				P.separator = blank;
 			}
 		} else {
 			// binary expression
-			P.Expr1(x.x, prec);
+			P.Expr1(x.X, prec);
 			P.separator = blank;
-			P.Token(x.pos, x.tok);
+			P.Token(x.Pos, x.Tok);
 			P.separator = blank;
 		}
-		P.Expr1(x.y, prec);
+		P.Expr1(x.Y, prec);
 		if prec < prec1 {
 			P.String(0, ")");
 		}
@@ -676,32 +676,32 @@ func (P *Printer) Block(pos int, list *array.Array, end int, indent bool) {
 
 
 func (P *Printer) ControlClause(s *AST.Stat) {
-	has_post := s.tok == Scanner.FOR && s.post != nil;  // post also used by "if"
+	has_post := s.Tok == Scanner.FOR && s.Post != nil;  // post also used by "if"
 
 	P.separator = blank;
-	if s.init == nil && !has_post {
+	if s.Init == nil && !has_post {
 		// no semicolons required
-		if s.expr != nil {
-			P.Expr(s.expr);
+		if s.Expr != nil {
+			P.Expr(s.Expr);
 		}
 	} else {
 		// all semicolons required
 		// (they are not separators, print them explicitly)
-		if s.init != nil {
-			P.Stat(s.init);
+		if s.Init != nil {
+			P.Stat(s.Init);
 			P.separator = none;
 		}
 		P.String(0, ";");
 		P.separator = blank;
-		if s.expr != nil {
-			P.Expr(s.expr);
+		if s.Expr != nil {
+			P.Expr(s.Expr);
 			P.separator = none;
 		}
-		if s.tok == Scanner.FOR {
+		if s.Tok == Scanner.FOR {
 			P.String(0, ";");
 			P.separator = blank;
 			if has_post {
-				P.Stat(s.post);
+				P.Stat(s.Post);
 			}
 		}
 	}
@@ -712,76 +712,76 @@ func (P *Printer) ControlClause(s *AST.Stat) {
 func (P *Printer) Declaration(d *AST.Decl, parenthesized bool);
 
 func (P *Printer) Stat(s *AST.Stat) {
-	switch s.tok {
+	switch s.Tok {
 	case Scanner.EXPRSTAT:
 		// expression statement
-		P.Expr(s.expr);
+		P.Expr(s.Expr);
 		P.separator = semicolon;
 
 	case Scanner.COLON:
 		// label declaration
 		P.indentation--;
-		P.Expr(s.expr);
-		P.Token(s.pos, s.tok);
+		P.Expr(s.Expr);
+		P.Token(s.Pos, s.Tok);
 		P.indentation++;
 		P.separator = none;
 		
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
 		// declaration
-		P.Declaration(s.decl, false);
+		P.Declaration(s.Decl, false);
 
 	case Scanner.INC, Scanner.DEC:
-		P.Expr(s.expr);
-		P.Token(s.pos, s.tok);
+		P.Expr(s.Expr);
+		P.Token(s.Pos, s.Tok);
 		P.separator = semicolon;
 
 	case Scanner.LBRACE:
 		// block
-		P.Block(s.pos, s.block, s.end, true);
+		P.Block(s.Pos, s.Block, s.End, true);
 
 	case Scanner.IF:
-		P.String(s.pos, "if");
+		P.String(s.Pos, "if");
 		P.ControlClause(s);
-		P.Block(0, s.block, s.end, true);
-		if s.post != nil {
+		P.Block(0, s.Block, s.End, true);
+		if s.Post != nil {
 			P.separator = blank;
 			P.String(0, "else");
 			P.separator = blank;
-			P.Stat(s.post);
+			P.Stat(s.Post);
 		}
 
 	case Scanner.FOR:
-		P.String(s.pos, "for");
+		P.String(s.Pos, "for");
 		P.ControlClause(s);
-		P.Block(0, s.block, s.end, true);
+		P.Block(0, s.Block, s.End, true);
 
 	case Scanner.SWITCH, Scanner.SELECT:
-		P.Token(s.pos, s.tok);
+		P.Token(s.Pos, s.Tok);
 		P.ControlClause(s);
-		P.Block(0, s.block, s.end, false);
+		P.Block(0, s.Block, s.End, false);
 
 	case Scanner.CASE, Scanner.DEFAULT:
-		P.Token(s.pos, s.tok);
-		if s.expr != nil {
+		P.Token(s.Pos, s.Tok);
+		if s.Expr != nil {
 			P.separator = blank;
-			P.Expr(s.expr);
+			P.Expr(s.Expr);
 		}
 		P.String(0, ":");
 		P.indentation++;
-		P.StatementList(s.block);
+		P.StatementList(s.Block);
 		P.indentation--;
 		P.newlines = 1;
 
 	case Scanner.GO, Scanner.RETURN, Scanner.FALLTHROUGH, Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
-		P.Token(s.pos, s.tok);
-		if s.expr != nil {
+		P.Token(s.Pos, s.Tok);
+		if s.Expr != nil {
 			P.separator = blank;
-			P.Expr(s.expr);
+			P.Expr(s.Expr);
 		}
 		P.separator = semicolon;
 
 	default:
-		P.Error(s.pos, s.tok, "stat");
+		P.Error(s.Pos, s.Tok, "stat");
 	}
 }
 
@@ -791,80 +791,80 @@ func (P *Printer) Stat(s *AST.Stat) {
 
 func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 	if !parenthesized {
-		if d.exported {
-			P.String(d.pos, "export");
+		if d.Exported {
+			P.String(d.Pos, "export");
 			P.separator = blank;
 		}
-		P.Token(d.pos, d.tok);
+		P.Token(d.Pos, d.Tok);
 		P.separator = blank;
 	}
 
-	if d.tok != Scanner.FUNC && d.list != nil {
+	if d.Tok != Scanner.FUNC && d.List != nil {
 		// group of parenthesized declarations
 		P.state = opening_scope;
 		P.String(0, "(");
-		if d.list.Len() > 0 {
+		if d.List.Len() > 0 {
 			P.newlines = 1;
-			for i := 0; i < d.list.Len(); i++ {
-				P.Declaration(d.list.At(i).(*AST.Decl), true);
+			for i := 0; i < d.List.Len(); i++ {
+				P.Declaration(d.List.At(i).(*AST.Decl), true);
 				P.separator = semicolon;
 				P.newlines = 1;
 			}
 		}
 		P.state = closing_scope;
-		P.String(d.end, ")");
+		P.String(d.End, ")");
 
 	} else {
 		// single declaration
-		switch d.tok {
+		switch d.Tok {
 		case Scanner.IMPORT:
-			if d.ident != nil {
-				P.Expr(d.ident);
+			if d.Ident != nil {
+				P.Expr(d.Ident);
 			} else {
-				P.String(d.val.pos, "");  // flush pending ';' separator/newlines
+				P.String(d.Val.Pos, "");  // flush pending ';' separator/newlines
 			}
 			P.separator = tab;
-			P.Expr(d.val);
+			P.Expr(d.Val);
 			P.separator = semicolon;
 
 		case Scanner.EXPORT:
-			P.Expr(d.ident);
+			P.Expr(d.Ident);
 			P.separator = semicolon;
 
 		case Scanner.TYPE:
-			P.Expr(d.ident);
+			P.Expr(d.Ident);
 			P.separator = blank;  // TODO switch to tab? (but indentation problem with structs)
-			P.separator = P.Type(d.typ);
+			P.separator = P.Type(d.Typ);
 
 		case Scanner.CONST, Scanner.VAR:
-			P.Expr(d.ident);
-			if d.typ != nil {
+			P.Expr(d.Ident);
+			if d.Typ != nil {
 				P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
-				P.separator = P.Type(d.typ);
+				P.separator = P.Type(d.Typ);
 			}
-			if d.val != nil {
+			if d.Val != nil {
 				P.separator = tab;
 				P.String(0, "=");
 				P.separator = blank;
-				P.Expr(d.val);
+				P.Expr(d.Val);
 			}
 			P.separator = semicolon;
 
 		case Scanner.FUNC:
-			if d.typ.key != nil {
+			if d.Typ.Key != nil {
 				// method: print receiver
-				P.Parameters(0, d.typ.key.list);
+				P.Parameters(0, d.Typ.Key.List);
 				P.separator = blank;
 			}
-			P.Expr(d.ident);
-			P.separator = P.Type(d.typ);
-			if d.list != nil {
+			P.Expr(d.Ident);
+			P.separator = P.Type(d.Typ);
+			if d.List != nil {
 				P.separator = blank;
-				P.Block(0, d.list, d.end, true);
+				P.Block(0, d.List, d.End, true);
 			}
 
 		default:
-			P.Error(d.pos, d.tok, "decl");
+			P.Error(d.Pos, d.Tok, "decl");
 		}
 	}
 	
@@ -876,12 +876,12 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 // Program
 
 func (P *Printer) Program(p *AST.Program) {
-	P.String(p.pos, "package");
+	P.String(p.Pos, "package");
 	P.separator = blank;
-	P.Expr(p.ident);
+	P.Expr(p.Ident);
 	P.newlines = 1;
-	for i := 0; i < p.decls.Len(); i++ {
-		P.Declaration(p.decls.At(i).(*AST.Decl), false);
+	for i := 0; i < p.Decls.Len(); i++ {
+		P.Declaration(p.Decls.At(i).(*AST.Decl), false);
 	}
 	P.newlines = 1;
 }
@@ -898,10 +898,10 @@ export func Print(prog *AST.Program) {
 		padchar = '\t';
 	}
 	text := tabwriter.New(os.Stdout, *tabwidth, 1, padchar, true, *html);
-	P.Init(text, prog.comments);
+	P.Init(text, prog.Comments);
 
 	// TODO would be better to make the name of the src file be the title
-	P.HtmlPrologue("package " + prog.ident.obj.ident);
+	P.HtmlPrologue("package " + prog.Ident.Obj.Ident);
 	P.Program(prog);
 	P.HtmlEpilogue();
 	

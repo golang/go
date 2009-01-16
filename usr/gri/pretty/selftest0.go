@@ -4,7 +4,7 @@
 
 package main
 
-type Proto struct {
+export type Proto struct {
 	a int "a tag";
 	b, c, d *Proto "bcd" "tag";
 	*Proto "proto tag"

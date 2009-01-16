@@ -17,7 +17,7 @@ export var
 	USER string;
 
 
-func GetEnv(key string) string {
+func getEnv(key string) string {
 	n := len(key);
 	for i := 0; i < sys.envc(); i++ {
 		v := sys.envv(i);
@@ -30,10 +30,10 @@ func GetEnv(key string) string {
 
 
 func init() {
-	GOARCH = GetEnv("GOARCH");
-	GOOS = GetEnv("GOOS");
-	GOROOT = GetEnv("GOROOT");
-	USER = GetEnv("USER");
+	GOARCH = getEnv("GOARCH");
+	GOOS = getEnv("GOOS");
+	GOROOT = getEnv("GOROOT");
+	USER = getEnv("USER");
 }
 
 
@@ -42,13 +42,13 @@ func init() {
 
 export const (
 	MAGIC_obj_file = "@gri-go.7@v0";  // make it clear that it cannot be a source file
-	src_file_ext = ".go";
-	obj_file_ext = ".7";
+	Src_file_ext = ".go";
+	Obj_file_ext = ".7";
 )
 
 
 export func ReadObjectFile(filename string) (data string, ok bool) {
-	data, ok = sys.readfile(filename + obj_file_ext);
+	data, ok = sys.readfile(filename + Obj_file_ext);
 	magic := MAGIC_obj_file;  // TODO remove once len(constant) works
 	if ok && len(data) >= len(magic) && data[0 : len(magic)] == magic {
 		return data, ok;
@@ -58,13 +58,13 @@ export func ReadObjectFile(filename string) (data string, ok bool) {
 
 
 export func ReadSourceFile(name string) (data string, ok bool) {
-	name = Utils.TrimExt(name, src_file_ext) + src_file_ext;
+	name = Utils.TrimExt(name, Src_file_ext) + Src_file_ext;
 	data, ok = sys.readfile(name);
 	return data, ok;
 }
 
 
 export func WriteObjectFile(name string, data string) bool {
-	name = Utils.TrimExt(Utils.BaseName(name), src_file_ext) + obj_file_ext;
+	name = Utils.TrimExt(Utils.BaseName(name), Src_file_ext) + Obj_file_ext;
 	return sys.writefile(name, data);
 }
