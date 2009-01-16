@@ -27,7 +27,7 @@ export type FD struct {
 }
 
 // Make reads and writes on fd return EAGAIN instead of blocking.
-func SetNonblock(fd int64) *os.Error {
+func _SetNonblock(fd int64) *os.Error {
 	flags, e := syscall.fcntl(fd, syscall.F_GETFL, 0);
 	if e != 0 {
 		return os.ErrnoToError(e)
@@ -40,11 +40,11 @@ func SetNonblock(fd int64) *os.Error {
 }
 
 
-// A PollServer helps FDs determine when to retry a non-blocking
+// A _PollServer helps FDs determine when to retry a non-blocking
 // read or write after they get EAGAIN.  When an FD needs to wait,
 // send the fd on s.cr (for a read) or s.cw (for a write) to pass the
 // request to the poll server.  Then receive on fd.cr/fd.cw.
-// When the PollServer finds that i/o on FD should be possible
+// When the _PollServer finds that i/o on FD should be possible
 // again, it will send fd on fd.cr/fd.cw to wake any waiting processes.
 // This protocol is implemented as s.WaitRead() and s.WaitWrite().
 //
@@ -54,8 +54,8 @@ func SetNonblock(fd int64) *os.Error {
 // To resolve this, the poll server waits not just on the FDs it has
 // been given but also its own pipe.  After sending on the
 // buffered channel s.cr/s.cw, WaitRead/WaitWrite writes a
-// byte to the pipe, causing the PollServer's poll system call to
-// return.  In response to the pipe being readable, the PollServer
+// byte to the pipe, causing the _PollServer's poll system call to
+// return.  In response to the pipe being readable, the _PollServer
 // re-polls its request channels.
 //
 // Note that the ordering is "send request" and then "wake up server".
@@ -65,32 +65,32 @@ func SetNonblock(fd int64) *os.Error {
 // to send the request.  Because the send must complete before the wakeup,
 // the request channel must be buffered.  A buffer of size 1 is sufficient
 // for any request load.  If many processes are trying to submit requests,
-// one will succeed, the PollServer will read the request, and then the
+// one will succeed, the _PollServer will read the request, and then the
 // channel will be empty for the next process's request.  A larger buffer
 // might help batch requests.
 
-type PollServer struct {
+type _PollServer struct {
 	cr, cw chan *FD;	// buffered >= 1
 	pr, pw *os.FD;
 	pending map[int64] *FD;
 	poll *Pollster;	// low-level OS hooks
 }
-func (s *PollServer) Run();
+func (s *_PollServer) Run();
 
-func NewPollServer() (s *PollServer, err *os.Error) {
-	s = new(PollServer);
+func _NewPollServer() (s *_PollServer, err *os.Error) {
+	s = new(_PollServer);
 	s.cr = make(chan *FD, 1);
 	s.cw = make(chan *FD, 1);
 	if s.pr, s.pw, err = os.Pipe(); err != nil {
 		return nil, err
 	}
-	if err = SetNonblock(s.pr.fd); err != nil {
+	if err = _SetNonblock(s.pr.fd); err != nil {
 	Error:
 		s.pr.Close();
 		s.pw.Close();
 		return nil, err
 	}
-	if err = SetNonblock(s.pw.fd); err != nil {
+	if err = _SetNonblock(s.pw.fd); err != nil {
 		goto Error
 	}
 	if s.poll, err = NewPollster(); err != nil {
@@ -105,9 +105,9 @@ func NewPollServer() (s *PollServer, err *os.Error) {
 	return s, nil
 }
 
-func (s *PollServer) AddFD(fd *FD, mode int) {
+func (s *_PollServer) AddFD(fd *FD, mode int) {
 	if err := s.poll.AddFD(fd.fd, mode, false); err != nil {
-		print("PollServer AddFD: ", err.String(), "\n");
+		print("_PollServer AddFD: ", err.String(), "\n");
 		return
 	}
 
@@ -121,7 +121,7 @@ func (s *PollServer) AddFD(fd *FD, mode int) {
 	s.pending[key] = fd
 }
 
-func (s *PollServer) LookupFD(fd int64, mode int) *FD {
+func (s *_PollServer) LookupFD(fd int64, mode int) *FD {
 	key := fd << 1;
 	if mode == 'w' {
 		key++;
@@ -134,12 +134,12 @@ func (s *PollServer) LookupFD(fd int64, mode int) *FD {
 	return netfd
 }
 
-func (s *PollServer) Run() {
+func (s *_PollServer) Run() {
 	var scratch [100]byte;
 	for {
 		fd, mode, err := s.poll.WaitFD();
 		if err != nil {
-			print("PollServer WaitFD: ", err.String(), "\n");
+			print("_PollServer WaitFD: ", err.String(), "\n");
 			return
 		}
 		if fd == s.pr.fd {
@@ -158,7 +158,7 @@ func (s *PollServer) Run() {
 		} else {
 			netfd := s.LookupFD(fd, mode);
 			if netfd == nil {
-				print("PollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n");
+				print("_PollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n");
 				continue
 			}
 			if mode == 'r' {
@@ -176,18 +176,18 @@ func (s *PollServer) Run() {
 	}
 }
 
-func (s *PollServer) Wakeup() {
+func (s *_PollServer) Wakeup() {
 	var b [1]byte;
 	s.pw.Write(b)
 }
 
-func (s *PollServer) WaitRead(fd *FD) {
+func (s *_PollServer) WaitRead(fd *FD) {
 	s.cr <- fd;
 	s.Wakeup();
 	<-fd.cr
 }
 
-func (s *PollServer) WaitWrite(fd *FD) {
+func (s *_PollServer) WaitWrite(fd *FD) {
 	s.cr <- fd;
 	s.Wakeup();
 	<-fd.cr
@@ -195,23 +195,23 @@ func (s *PollServer) WaitWrite(fd *FD) {
 
 
 // Network FD methods.
-// All the network FDs use a single PollServer.
+// All the network FDs use a single _PollServer.
 
-var pollserver *PollServer
+var pollserver *_PollServer
 
-func StartServer() {
-	p, err := NewPollServer();
+func _StartServer() {
+	p, err := _NewPollServer();
 	if err != nil {
-		print("Start PollServer: ", err.String(), "\n")
+		print("Start _PollServer: ", err.String(), "\n")
 	}
 	pollserver = p
 }
 
 export func NewFD(fd int64) (f *FD, err *os.Error) {
 	if pollserver == nil {
-		once.Do(&StartServer);
+		once.Do(&_StartServer);
 	}
-	if err = SetNonblock(fd); err != nil {
+	if err = _SetNonblock(fd); err != nil {
 		return nil, err
 	}
 	f = new(FD);

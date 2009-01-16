@@ -27,7 +27,7 @@ export type DNS_Config struct {
 // of the host name to get the default search domain.
 // We assume it's in resolv.conf anyway.
 export func DNS_ReadConfig() *DNS_Config {
-	file := Open("/etc/resolv.conf");
+	file := _Open("/etc/resolv.conf");
 	if file == nil {
 		return nil
 	}
@@ -40,7 +40,7 @@ export func DNS_ReadConfig() *DNS_Config {
 	conf.rotate = false;
 	var err *os.Error;
 	for line, ok := file.ReadLine(); ok; line, ok = file.ReadLine() {
-		f := GetFields(line);
+		f := _GetFields(line);
 		if len(f) < 1 {
 			continue;
 		}
@@ -79,19 +79,19 @@ export func DNS_ReadConfig() *DNS_Config {
 				s := f[i];
 				switch {
 				case len(s) >= 6 && s[0:6] == "ndots:":
-					n, i, ok := Dtoi(s, 6);
+					n, i, ok := _Dtoi(s, 6);
 					if n < 1 {
 						n = 1
 					}
 					conf.ndots = n;
 				case len(s) >= 8 && s[0:8] == "timeout:":
-					n, i, ok := Dtoi(s, 8);
+					n, i, ok := _Dtoi(s, 8);
 					if n < 1 {
 						n = 1
 					}
 					conf.timeout = n;
 				case len(s) >= 8 && s[0:9] == "attempts:":
-					n, i, ok := Dtoi(s, 9);
+					n, i, ok := _Dtoi(s, 9);
 					if n < 1 {
 						n = 1
 					}

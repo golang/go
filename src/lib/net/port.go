@@ -16,20 +16,20 @@ import (
 
 var services map[string] map[string] int
 
-func ReadServices() {
+func _ReadServices() {
 	services = make(map[string] map[string] int);
-	file := Open("/etc/services");
+	file := _Open("/etc/services");
 	for line, ok := file.ReadLine(); ok; line, ok = file.ReadLine() {
 		// "http 80/tcp www www-http # World Wide Web HTTP"
-		if i := ByteIndex(line, '#'); i >= 0 {
+		if i := _ByteIndex(line, '#'); i >= 0 {
 			line = line[0:i];
 		}
-		f := GetFields(line);
+		f := _GetFields(line);
 		if len(f) < 2 {
 			continue;
 		}
 		portnet := f[1];	// "tcp/80"
-		port, j, ok := Dtoi(portnet, 0);
+		port, j, ok := _Dtoi(portnet, 0);
 		if !ok || port <= 0 || j >= len(portnet) || portnet[j] != '/' {
 			continue
 		}
@@ -49,7 +49,7 @@ func ReadServices() {
 }
 
 export func LookupPort(netw, name string) (port int, ok bool) {
-	once.Do(&ReadServices);
+	once.Do(&_ReadServices);
 
 	switch netw {
 	case "tcp4", "tcp6":

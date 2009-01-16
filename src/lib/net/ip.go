@@ -22,7 +22,7 @@ export const (
 )
 
 // Make the 4 bytes into an IPv4 address (in IPv6 form)
-func MakeIPv4(a, b, c, d byte) []byte {
+func _MakeIPv4(a, b, c, d byte) []byte {
 	p := make([]byte, IPv6len);
 	for i := 0; i < 10; i++ {
 		p[i] = 0
@@ -40,10 +40,10 @@ func MakeIPv4(a, b, c, d byte) []byte {
 export var IPv4bcast, IPv4allsys, IPv4allrouter, IPv4prefix, IPallbits, IPnoaddr []byte
 
 func init() {
-	IPv4bcast = MakeIPv4(0xff, 0xff, 0xff, 0xff);
-	IPv4allsys = MakeIPv4(0xe0, 0x00, 0x00, 0x01);
-	IPv4allrouter = MakeIPv4(0xe0, 0x00, 0x00, 0x02);
-	IPv4prefix = MakeIPv4(0, 0, 0, 0);
+	IPv4bcast = _MakeIPv4(0xff, 0xff, 0xff, 0xff);
+	IPv4allsys = _MakeIPv4(0xe0, 0x00, 0x00, 0x01);
+	IPv4allrouter = _MakeIPv4(0xe0, 0x00, 0x00, 0x02);
+	IPv4prefix = _MakeIPv4(0, 0, 0, 0);
 	IPallbits = make([]byte, IPv6len);
 	for i := 0; i < IPv6len; i++ {
 		IPallbits[i] = 0xff
@@ -52,7 +52,7 @@ func init() {
 }
 
 // Is p all zeros?
-func IsZeros(p []byte) bool {
+func _IsZeros(p []byte) bool {
 	for i := 0; i < len(p); i++ {
 		if p[i] != 0 {
 			return false
@@ -68,7 +68,7 @@ export func ToIPv4(p []byte) []byte {
 		return p
 	}
 	if len(p) == IPv6len
-	&& IsZeros(p[0:10])
+	&& _IsZeros(p[0:10])
 	&& p[10] == 0xff
 	&& p[11] == 0xff {
 		return p[12:16]
@@ -79,7 +79,7 @@ export func ToIPv4(p []byte) []byte {
 // Convert p to IPv6 form.
 export func ToIPv6(p []byte) []byte {
 	if len(p) == IPv4len {
-		return MakeIPv4(p[0], p[1], p[2], p[3])
+		return _MakeIPv4(p[0], p[1], p[2], p[3])
 	}
 	if len(p) == IPv6len {
 		return p
@@ -89,9 +89,9 @@ export func ToIPv6(p []byte) []byte {
 
 // Default route masks for IPv4.
 export var (
-	ClassAMask = MakeIPv4(0xff, 0, 0, 0);
-	ClassBMask = MakeIPv4(0xff, 0xff, 0, 0);
-	ClassCMask = MakeIPv4(0xff, 0xff, 0xff, 0);
+	ClassAMask = _MakeIPv4(0xff, 0, 0, 0);
+	ClassBMask = _MakeIPv4(0xff, 0xff, 0, 0);
+	ClassCMask = _MakeIPv4(0xff, 0xff, 0xff, 0);
 )
 
 export func DefaultMask(p []byte) []byte {
@@ -204,7 +204,7 @@ export func IPToString(p []byte) string {
 
 // If mask is a sequence of 1 bits followed by 0 bits,
 // return the number of 1 bits.
-func SimpleMaskLength(mask []byte) int {
+func _SimpleMaskLength(mask []byte) int {
 	var i int;
 	for i = 0; i < len(mask); i++ {
 		if mask[i] != 0xFF {
@@ -231,12 +231,12 @@ func SimpleMaskLength(mask []byte) int {
 export func MaskToString(mask []byte) string {
 	switch len(mask) {
 	case 4:
-		n := SimpleMaskLength(mask);
+		n := _SimpleMaskLength(mask);
 		if n >= 0 {
 			return itod(uint(n+(IPv6len-IPv4len)*8))
 		}
 	case 16:
-		n := SimpleMaskLength(mask);
+		n := _SimpleMaskLength(mask);
 		if n >= 0 {
 			return itod(uint(n))
 		}
@@ -245,7 +245,7 @@ export func MaskToString(mask []byte) string {
 }
 
 // Parse IPv4 address (d.d.d.d).
-func ParseIPv4(s string) []byte {
+func _ParseIPv4(s string) []byte {
 	var p [IPv4len]byte;
 	i := 0;
 	for j := 0; j < IPv4len; j++ {
@@ -259,7 +259,7 @@ func ParseIPv4(s string) []byte {
 			n int;
 			ok bool
 		)
-		n, i, ok = Dtoi(s, i);
+		n, i, ok = _Dtoi(s, i);
 		if !ok || n > 0xFF {
 			return nil
 		}
@@ -268,7 +268,7 @@ func ParseIPv4(s string) []byte {
 	if i != len(s) {
 		return nil
 	}
-	return MakeIPv4(p[0], p[1], p[2], p[3])
+	return _MakeIPv4(p[0], p[1], p[2], p[3])
 }
 
 // Parse IPv6 address.  Many forms.
@@ -279,7 +279,7 @@ func ParseIPv4(s string) []byte {
 //	* A run of zeros can be replaced with "::".
 //	* The last 32 bits can be in IPv4 form.
 // Thus, ::ffff:1.2.3.4 is the IPv4 address 1.2.3.4.
-func ParseIPv6(s string) []byte {
+func _ParseIPv6(s string) []byte {
 	p := make([]byte, 16);
 	ellipsis := -1;	// position of ellipsis in p
 	i := 0;	// index in string s
@@ -298,7 +298,7 @@ func ParseIPv6(s string) []byte {
 	j := 0;
 L:	for j < IPv6len {
 		// Hex number.
-		n, i1, ok := Xtoi(s, i);
+		n, i1, ok := _Xtoi(s, i);
 		if !ok || n > 0xFFFF {
 			return nil
 		}
@@ -313,7 +313,7 @@ L:	for j < IPv6len {
 				// Not enough room.
 				return nil
 			}
-			p4 := ParseIPv4(s[i:len(s)]);
+			p4 := _ParseIPv4(s[i:len(s)]);
 			if p4 == nil {
 				return nil
 			}
@@ -378,10 +378,10 @@ L:	for j < IPv6len {
 }
 
 export func ParseIP(s string) []byte {
-	p := ParseIPv4(s);
+	p := _ParseIPv4(s);
 	if p != nil {
 		return p
 	}
-	return ParseIPv6(s)
+	return _ParseIPv6(s)
 }
 
