@@ -63,7 +63,7 @@ dodcltype(Type *n)
 	// if n has been forward declared,
 	// use the Type* created then
 	s = n->sym;
-	if(s->block == block) {
+	if(s->block == block && s->otype != T) {
 		switch(s->otype->etype) {
 		case TFORWSTRUCT:
 		case TFORWINTER:
