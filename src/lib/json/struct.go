@@ -12,13 +12,13 @@ import (
 	"reflect";
 )
 
-type StructBuilder struct {
+type _StructBuilder struct {
 	val reflect.Value
 }
 
-var nobuilder *StructBuilder
+var nobuilder *_StructBuilder
 
-func SetFloat(v reflect.Value, f float64) {
+func setfloat(v reflect.Value, f float64) {
 	switch v.Kind() {
 	case reflect.FloatKind:
 		v.(reflect.FloatValue).Set(float(f));
@@ -29,7 +29,7 @@ func SetFloat(v reflect.Value, f float64) {
 	}
 }
 
-func SetInt(v reflect.Value, i int64) {
+func setint(v reflect.Value, i int64) {
 	switch v.Kind() {
 	case reflect.IntKind:
 		v.(reflect.IntValue).Set(int(i));
@@ -54,49 +54,49 @@ func SetInt(v reflect.Value, i int64) {
 	}
 }
 
-func (b *StructBuilder) Int64(i int64) {
+func (b *_StructBuilder) Int64(i int64) {
 	if b == nil {
 		return
 	}
 	v := b.val;
 	switch v.Kind() {
 	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind:
-		SetFloat(v, float64(i));
+		setfloat(v, float64(i));
 	default:
-		SetInt(v, i);
+		setint(v, i);
 	}
 }
 
-func (b *StructBuilder) Uint64(i uint64) {
+func (b *_StructBuilder) Uint64(i uint64) {
 	if b == nil {
 		return
 	}
 	v := b.val;
 	switch v.Kind() {
 	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind:
-		SetFloat(v, float64(i));
+		setfloat(v, float64(i));
 	default:
-		SetInt(v, int64(i));
+		setint(v, int64(i));
 	}
 }
 
-func (b *StructBuilder) Float64(f float64) {
+func (b *_StructBuilder) Float64(f float64) {
 	if b == nil {
 		return
 	}
 	v := b.val;
 	switch v.Kind() {
 	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind:
-		SetFloat(v, f);
+		setfloat(v, f);
 	default:
-		SetInt(v, int64(f));
+		setint(v, int64(f));
 	}
 }
 
-func (b *StructBuilder) Null() {
+func (b *_StructBuilder) Null() {
 }
 
-func (b *StructBuilder) String(s string) {
+func (b *_StructBuilder) String(s string) {
 	if b == nil {
 		return
 	}
@@ -105,7 +105,7 @@ func (b *StructBuilder) String(s string) {
 	}
 }
 
-func (b *StructBuilder) Bool(tf bool) {
+func (b *_StructBuilder) Bool(tf bool) {
 	if b == nil {
 		return
 	}
@@ -114,7 +114,7 @@ func (b *StructBuilder) Bool(tf bool) {
 	}
 }
 
-func (b *StructBuilder) Array() {
+func (b *_StructBuilder) Array() {
 	if b == nil {
 		return
 	}
@@ -128,7 +128,7 @@ func (b *StructBuilder) Array() {
 	}
 }
 
-func (b *StructBuilder) Elem(i int) Builder {
+func (b *_StructBuilder) Elem(i int) Builder {
 	if b == nil || i < 0 {
 		return nobuilder
 	}
@@ -163,13 +163,13 @@ func (b *StructBuilder) Elem(i int) Builder {
 			av.SetLen(i+1);
 		}
 		if i < av.Len() {
-			return &StructBuilder{ av.Elem(i) }
+			return &_StructBuilder{ av.Elem(i) }
 		}
 	}
 	return nobuilder
 }
 
-func (b *StructBuilder) Map() {
+func (b *_StructBuilder) Map() {
 	if b == nil {
 		return
 	}
@@ -181,7 +181,7 @@ func (b *StructBuilder) Map() {
 	}
 }
 
-func (b *StructBuilder) Key(k string) Builder {
+func (b *_StructBuilder) Key(k string) Builder {
 	if b == nil {
 		return nobuilder
 	}
@@ -195,7 +195,7 @@ func (b *StructBuilder) Key(k string) Builder {
 		for i := 0; i < t.Len(); i++ {
 			name, typ, tag, off := t.Field(i);
 			if k == name {
-				return &StructBuilder{ sv.Field(i) }
+				return &_StructBuilder{ sv.Field(i) }
 			}
 		}
 	}
@@ -205,7 +205,7 @@ func (b *StructBuilder) Key(k string) Builder {
 export func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
 	var errindx int;
 	var val1 interface{};
-	b := &StructBuilder{ reflect.NewValue(val) };
+	b := &_StructBuilder{ reflect.NewValue(val) };
 	ok, errindx, errtok = Parse(s, b);
 	if !ok {
 		return false, errtok
