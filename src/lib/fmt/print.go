@@ -45,7 +45,7 @@ type pp struct {
 	fmt	*Fmt;
 }
 
-func Printer() *pp {
+func newPrinter() *pp {
 	p := new(pp);
 	p.fmt = fmt.New();
 	return p;
@@ -130,7 +130,7 @@ func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
 
 export func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
-	p := Printer();
+	p := newPrinter();
 	p.doprintf(format, v);
 	n, error = w.Write(p.buf[0:p.n]);
 	return n, error;
@@ -143,7 +143,7 @@ export func Printf(format string, v ...) (n int, errno *os.Error) {
 
 export func Sprintf(format string, a ...) string {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
-	p := Printer();
+	p := newPrinter();
 	p.doprintf(format, v);
 	s := string(p.buf)[0 : p.n];
 	return s;
@@ -154,7 +154,7 @@ export func Sprintf(format string, a ...) string {
 
 export func Fprint(w io.Write, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
-	p := Printer();
+	p := newPrinter();
 	p.doprint(v, false, false);
 	n, error = w.Write(p.buf[0:p.n]);
 	return n, error;
@@ -167,7 +167,7 @@ export func Print(v ...) (n int, errno *os.Error) {
 
 export func Sprint(a ...) string {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
-	p := Printer();
+	p := newPrinter();
 	p.doprint(v, false, false);
 	s := string(p.buf)[0 : p.n];
 	return s;
@@ -179,7 +179,7 @@ export func Sprint(a ...) string {
 
 export func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
-	p := Printer();
+	p := newPrinter();
 	p.doprint(v, true, true);
 	n, error = w.Write(p.buf[0:p.n]);
 	return n, error;
@@ -192,7 +192,7 @@ export func Println(v ...) (n int, errno *os.Error) {
 
 export func Sprintln(a ...) string {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
-	p := Printer();
+	p := newPrinter();
 	p.doprint(v, true, true);
 	s := string(p.buf)[0 : p.n];
 	return s;
