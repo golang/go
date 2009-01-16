@@ -15,7 +15,7 @@ import (
 export func TypeToString(typ Type, expand bool) string
 export func ValueToString(val Value) string
 
-func DoubleQuote(s string) string {
+func doubleQuote(s string) string {
 	out := "\"";
 	for i := 0; i < len(s); i++ {
 		c := s[i];
@@ -38,12 +38,12 @@ func DoubleQuote(s string) string {
 	return out;
 }
 
-type HasFields interface {
+type hasFields interface {
 	Field(i int)	(name string, typ Type, tag string, offset int);
 	Len()	int;
 }
 
-func TypeFieldsToString(t HasFields, sep string) string {
+func typeFieldsToString(t hasFields, sep string) string {
 	var str string;
 	for i := 0; i < t.Len(); i++ {
 		str1, typ, tag, offset := t.Field(i);
@@ -52,7 +52,7 @@ func TypeFieldsToString(t HasFields, sep string) string {
 		}
 		str1 += TypeToString(typ, false);
 		if tag != "" {
-			str1 += " " + DoubleQuote(tag);
+			str1 += " " + doubleQuote(tag);
 		}
 		if i < t.Len() - 1 {
 			str1 += sep + " ";
@@ -62,7 +62,7 @@ func TypeFieldsToString(t HasFields, sep string) string {
 	return str;
 }
 
-func TypeToString(typ Type, expand bool) string {
+export func TypeToString(typ Type, expand bool) string {
 	var str string;
 	if name := typ.Name(); !expand && name != "" {
 		return name
@@ -105,14 +105,14 @@ func TypeToString(typ Type, expand bool) string {
 		}
 		return str + TypeToString(c.Elem(), false);
 	case StructKind:
-		return "struct{" + TypeFieldsToString(typ, ";") + "}";
+		return "struct{" + typeFieldsToString(typ, ";") + "}";
 	case InterfaceKind:
-		return "interface{" + TypeFieldsToString(typ, ";") + "}";
+		return "interface{" + typeFieldsToString(typ, ";") + "}";
 	case FuncKind:
 		f := typ.(FuncType);
-		str = "(" + TypeFieldsToString(f.In(), ",") + ")";
+		str = "(" + typeFieldsToString(f.In(), ",") + ")";
 		if f.Out() != nil {
-			str += "(" + TypeFieldsToString(f.Out(), ",") + ")";
+			str += "(" + typeFieldsToString(f.Out(), ",") + ")";
 		}
 		return str;
 	default:
@@ -126,7 +126,7 @@ func integer(v int64) string {
 	return strconv.Itoa64(v);
 }
 
-func ValueToString(val Value) string {
+export func ValueToString(val Value) string {
 	var str string;
 	typ := val.Type();
 	switch(val.Kind()) {
