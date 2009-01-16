@@ -70,12 +70,12 @@ func (t *T) Fatalf(format string, args ...) {
 }
 
 export type Test struct {
-	name string;
-	f *(*T);
+	Name string;
+	F *(*T);
 }
 
 func tRunner(t *T, test *Test) {
-	test.f(t);
+	test.F(t);
 	t.ch <- t;
 }
 
@@ -87,18 +87,18 @@ export func Main(tests []Test) {
 	}
 	for i := 0; i < len(tests); i++ {
 		if *chatty {
-			println("=== RUN ", tests[i].name);
+			println("=== RUN ", tests[i].Name);
 		}
 		t := new(T);
 		t.ch = make(chan *T);
 		go tRunner(t, &tests[i]);
 		<-t.ch;
 		if t.failed {
-			println("--- FAIL:", tests[i].name);
+			println("--- FAIL:", tests[i].Name);
 			print(t.errors);
 			ok = false;
 		} else if *chatty {
-			println("--- PASS:", tests[i].name);
+			println("--- PASS:", tests[i].Name);
 			print(t.errors);
 		}
 	}
