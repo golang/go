@@ -11,8 +11,6 @@ import (
 	"testing";
 )
 
-func BentleyMcIlroyTests();
-
 
 var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
 var floats = [...]float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
@@ -75,7 +73,7 @@ export func TestSortStrings(t *testing.T) {
 	}
 }
 
-export func TestSortLargeRandom(t *testing.T) {
+export func TestSortLarge_Random(t *testing.T) {
 	data := make([]int, 1000000);
 	for i := 0; i < len(data); i++ {
 		data[i] = rand.rand() % 100;
@@ -90,25 +88,25 @@ export func TestSortLargeRandom(t *testing.T) {
 }
 
 const (
-	Sawtooth = iota;
-	Rand;
-	Stagger;
-	Plateau;
-	Shuffle;
-	NDist;
+	_Sawtooth = iota;
+	_Rand;
+	_Stagger;
+	_Plateau;
+	_Shuffle;
+	_NDist;
 )
 
 const (
-	Copy = iota;
-	Reverse;
-	ReverseFirstHalf;
-	ReverseSecondHalf;
-	Sorted;
-	Dither;
-	NMode;
-);
+	_Copy = iota;
+	_Reverse;
+	_ReverseFirstHalf;
+	_ReverseSecondHalf;
+	_Sorted;
+	_Dither;
+	_NMode;
+)
 
-type TestingData struct {
+type testingData struct {
 	desc string;
 	t *testing.T;
 	data []int;
@@ -116,9 +114,9 @@ type TestingData struct {
 	nswap int;
 }
 
-func (d *TestingData) Len() int { return len(d.data); }
-func (d *TestingData) Less(i, j int) bool { return d.data[i] < d.data[j]; }
-func (d *TestingData) Swap(i, j int) {
+func (d *testingData) Len() int { return len(d.data); }
+func (d *testingData) Less(i, j int) bool { return d.data[i] < d.data[j]; }
+func (d *testingData) Swap(i, j int) {
 	if d.nswap >= d.maxswap {
 		d.t.Errorf("%s: used %d swaps sorting array of %d", d.desc, d.nswap, len(d.data));
 		d.t.FailNow();
@@ -127,19 +125,12 @@ func (d *TestingData) Swap(i, j int) {
 	d.data[i], d.data[j] = d.data[j], d.data[i];
 }
 
-func Lg(n int) int {
+func lg(n int) int {
 	i := 0;
 	for 1<<uint(i) < n {
 		i++;
 	}
 	return i;
-}
-
-func Min(a, b int) int {
-	if a < b {
-		return a;
-	}
-	return b;
 }
 
 export func TestBentleyMcIlroy(t *testing.T) {
@@ -150,21 +141,21 @@ export func TestBentleyMcIlroy(t *testing.T) {
 	for ni := 0; ni < len(sizes); ni++ {
 		n := sizes[ni];
 		for m := 1; m < 2*n; m *= 2 {
-			for dist := 0; dist < NDist; dist++ {
+			for dist := 0; dist < _NDist; dist++ {
 				j := 0;
 				k := 1;
 				data := tmp1[0:n];
 				for i := 0; i < n; i++ {
 					switch dist {
-					case Sawtooth:
+					case _Sawtooth:
 						data[i] = i % m;
-					case Rand:
+					case _Rand:
 						data[i] = rand.rand() % m;
-					case Stagger:
+					case _Stagger:
 						data[i] = (i*m + i) % n;
-					case Plateau:
-						data[i] = Min(i, m);
-					case Shuffle:
+					case _Plateau:
+						data[i] = min(i, m);
+					case _Shuffle:
 						if rand.rand() % m != 0 {
 							j += 2;
 							data[i] = j;
@@ -176,45 +167,45 @@ export func TestBentleyMcIlroy(t *testing.T) {
 				}
 
 				mdata := tmp2[0:n];
-				for mode := 0; mode < NMode; mode++ {
+				for mode := 0; mode < _NMode; mode++ {
 					switch mode {
-					case Copy:
+					case _Copy:
 						for i := 0; i < n; i++ {
 							mdata[i] = data[i];
 						}
-					case Reverse:
+					case _Reverse:
 						for i := 0; i < n; i++ {
 							mdata[i] = data[n-i-1];
 						}
-					case ReverseFirstHalf:
+					case _ReverseFirstHalf:
 						for i := 0; i < n/2; i++ {
 							mdata[i] = data[n/2-i-1];
 						}
 						for i := n/2; i < n; i++ {
 							mdata[i] = data[i];
 						}
-					case ReverseSecondHalf:
+					case _ReverseSecondHalf:
 						for i := 0; i < n/2; i++ {
 							mdata[i] = data[i];
 						}
 						for i := n/2; i < n; i++ {
 							mdata[i] = data[n-(i-n/2)-1];
 						}
-					case Sorted:
+					case _Sorted:
 						for i := 0; i < n; i++ {
 							mdata[i] = data[i];
 						}
 						// sort.SortInts is known to be correct
-						// because mode Sort runs after mode Copy.
+						// because mode Sort runs after mode _Copy.
 						sort.SortInts(mdata);
-					case Dither:
+					case _Dither:
 						for i := 0; i < n; i++ {
 							mdata[i] = data[i] + i%5;
 						}
 					}
 
 					desc := fmt.Sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
-					d := &TestingData{desc, t, mdata[0:n], n*Lg(n)*12/10, 0};
+					d := &testingData{desc, t, mdata[0:n], n*lg(n)*12/10, 0};
 					sort.Sort(d);
 
 					// If we were testing C qsort, we'd have to make a copy
