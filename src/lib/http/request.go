@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	MaxLineLength = 1024;	// assumed < bufio.DefaultBufSize
-	MaxValueLength = 1024;
-	MaxHeaderLines = 1024;
+	_MaxLineLength = 1024;	// assumed < bufio.DefaultBufSize
+	_MaxValueLength = 1024;
+	_MaxHeaderLines = 1024;
 )
 
 export var (
@@ -46,14 +46,14 @@ export type Request struct {
 }
 
 // Read a line of bytes (up to \n) from b.
-// Give up if the line exceeds MaxLineLength.
+// Give up if the line exceeds _MaxLineLength.
 // The returned bytes are a pointer into storage in
 // the bufio, so they are only valid until the next bufio read.
-func ReadLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
+func readLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
 	if p, err = b.ReadLineSlice('\n'); err != nil {
 		return nil, err
 	}
-	if len(p) >= MaxLineLength {
+	if len(p) >= _MaxLineLength {
 		return nil, LineTooLong
 	}
 
@@ -67,9 +67,9 @@ func ReadLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
 	return p[0:i], nil
 }
 
-// ReadLineByte, but convert the bytes into a string.
-func ReadLine(b *bufio.BufRead) (s string, err *os.Error) {
-	p, e := ReadLineBytes(b);
+// readLineBytes, but convert the bytes into a string.
+func readLine(b *bufio.BufRead) (s string, err *os.Error) {
+	p, e := readLineBytes(b);
 	if e != nil {
 		return "", e
 	}
@@ -80,8 +80,8 @@ func ReadLine(b *bufio.BufRead) (s string, err *os.Error) {
 // A key/value has the form Key: Value\r\n
 // and the Value can continue on multiple lines if each continuation line
 // starts with a space.
-func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
-	line, e := ReadLineBytes(b);
+func readKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
+	line, e := readLineBytes(b);
 	if e != nil {
 		return "", "", e
 	}
@@ -127,12 +127,12 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
 				b.UnreadByte();
 
 				// Read the rest of the line and add to value.
-				if line, e = ReadLineBytes(b); e != nil {
+				if line, e = readLineBytes(b); e != nil {
 					return "", "", e
 				}
 				value += " " + string(line);
 
-				if len(value) >= MaxValueLength {
+				if len(value) >= _MaxValueLength {
 					return "", "", ValueTooLong
 				}
 			}
@@ -163,7 +163,7 @@ func atoi(s string, i int) (n, i1 int, ok bool) {
 }
 
 // Parse HTTP version: "HTTP/1.2" -> (1, 2, true).
-func ParseHTTPVersion(vers string) (int, int, bool) {
+func parseHTTPVersion(vers string) (int, int, bool) {
 	if vers[0:5] != "HTTP/" {
 		return 0, 0, false
 	}
@@ -185,7 +185,7 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 
 	// First line: GET /index.html HTTP/1.0
 	var s string;
-	if s, err = ReadLine(b); err != nil {
+	if s, err = readLine(b); err != nil {
 		return nil, err
 	}
 
@@ -195,7 +195,7 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 	}
 	req.method, req.rawurl, req.proto = f[0], f[1], f[2];
 	var ok bool;
-	if req.pmajor, req.pminor, ok = ParseHTTPVersion(req.proto); !ok {
+	if req.pmajor, req.pminor, ok = parseHTTPVersion(req.proto); !ok {
 		return nil, BadHTTPVersion
 	}
 
@@ -208,13 +208,13 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 	req.header = make(map[string] string);
 	for {
 		var key, value string;
-		if key, value, err = ReadKeyValue(b); err != nil {
+		if key, value, err = readKeyValue(b); err != nil {
 			return nil, err
 		}
 		if key == "" {
 			break
 		}
-		if nheader++; nheader >= MaxHeaderLines {
+		if nheader++; nheader >= _MaxHeaderLines {
 			return nil, HeaderTooLong
 		}
 
