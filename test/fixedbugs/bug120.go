@@ -53,6 +53,6 @@ func main() {
 		}
 	}
 	if !ok {
-		sys.exit(1);
+		sys.Exit(1);
 	}
 }

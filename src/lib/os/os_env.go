@@ -18,10 +18,9 @@ export func Getenv(s string) (v string, err *Error) {
 	if n == 0 {
 		return "", EINVAL
 	}
-	for i := 0; i < sys.envc(); i++ {
-		e := sys.envv(i);
-		if len(e) > n && e[n] == '=' && e[0 : n] == s {
-			return e[n+1 : len(e)], nil
+	for i, e := range sys.Envs {
+		if len(e) > n && e[n] == '=' && e[0:n] == s {
+			return e[n+1:len(e)], nil
 		}
 	}
 	return "", ENOENV

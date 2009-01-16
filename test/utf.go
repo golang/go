@@ -6,6 +6,8 @@
 
 package main
 
+import "utf8"
+
 func main() {
 	var chars [6] int;
 	chars[0] = 'a';
@@ -21,7 +23,7 @@ func main() {
 	var l = len(s);
 	for w, i, j := 0,0,0; i < l; i += w {
 		var r int;
-		r, w = sys.stringtorune(s, i);
+		r, w = utf8.DecodeRuneInString(s, i);
 		if w == 0 { panic("zero width in string") }
 		if r != chars[j] { panic("wrong value from string") }
 		j++;
@@ -29,7 +31,7 @@ func main() {
 	// encoded as bytes:  'a' 'b' 'c' e6 97 a5 e6 9c ac e8 aa 9e
 	const L = 12;
 	if L != l { panic("wrong length constructing array") }
-	a := new([L]byte);
+	a := make([]byte, L);
 	a[0] = 'a';
 	a[1] = 'b';
 	a[2] = 'c';
@@ -44,7 +46,7 @@ func main() {
 	a[11] = 0x9e;
 	for w, i, j := 0,0,0; i < L; i += w {
 		var r int;
-		r, w = sys.bytestorune(&a[0], i, L);
+		r, w = utf8.DecodeRune(a[i:L]);
 		if w == 0 { panic("zero width in bytes") }
 		if r != chars[j] { panic("wrong value from bytes") }
 		j++;

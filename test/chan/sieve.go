@@ -47,5 +47,5 @@ func main() {
 	for i := 0; i < len(a); i++ {
 		if <-primes != a[i] { panic(a[i])}
 	}
-	sys.exit(0);
+	sys.Exit(0);
 }

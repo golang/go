@@ -16,7 +16,7 @@ export func Fmod(x, y float64) float64 {
 		y = -y;
 	}
 
-	yfr, yexp := sys.frexp(y);
+	yfr, yexp := sys.Frexp(y);
 	sign := false;
 	r := x;
 	if x < 0 {
@@ -25,11 +25,11 @@ export func Fmod(x, y float64) float64 {
 	}
 
 	for r >= y {
-		rfr, rexp := sys.frexp(r);
+		rfr, rexp := sys.Frexp(r);
 		if rfr < yfr {
 			rexp = rexp - 1;
 		}
-		r = r - sys.ldexp(y, rexp-yexp);
+		r = r - sys.Ldexp(y, rexp-yexp);
 	}
 	if sign {
 		r = -r;

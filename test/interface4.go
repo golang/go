@@ -70,6 +70,6 @@ func main() {
 	nonptrs();
 
 	if bad {
-		sys.exit(1)
+		sys.Exit(1)
 	}
 }

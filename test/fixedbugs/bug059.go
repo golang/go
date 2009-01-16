@@ -29,6 +29,6 @@ func main() {
 	a[0] = "x";
 	m["0"][0] = "deleted";
 	if m["0"][0] != "deleted" {
-		sys.exit(1);
+		sys.Exit(1);
 	}
 }

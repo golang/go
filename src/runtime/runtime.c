@@ -32,8 +32,8 @@ sys·panicl(int32 lno)
 		tracebackothers(g);
 	}
 	panicking = 1;
-	sys·breakpoint();  // so we can grab it in a debugger
-	sys·exit(2);
+	sys·Breakpoint();  // so we can grab it in a debugger
+	sys_Exit(2);
 }
 
 void
@@ -55,7 +55,7 @@ throw(int8 *s)
 	prints(s);
 	prints("\n");
 	*(int32*)0 = 0;
-	sys·exit(1);
+	sys_Exit(1);
 }
 
 void
@@ -280,9 +280,9 @@ modf(float64 d, float64 *ip)
 	return d - dd;
 }
 
-// func frexp(float64) (float64, int32); // break fp into exp,frac
+// func Frexp(float64) (float64, int32); // break fp into exp,frac
 void
-sys·frexp(float64 din, float64 dou, int32 iou)
+sys·Frexp(float64 din, float64 dou, int32 iou)
 {
 	dou = frexp(din, &iou);
 	FLUSH(&dou);
@@ -290,7 +290,7 @@ sys·frexp(float64 din, float64 dou, int32 iou)
 
 //func	ldexp(int32, float64) float64;	// make fp from exp,frac
 void
-sys·ldexp(float64 din, int32 ein, float64 dou)
+sys·Ldexp(float64 din, int32 ein, float64 dou)
 {
 	dou = ldexp(din, ein);
 	FLUSH(&dou);
@@ -298,7 +298,7 @@ sys·ldexp(float64 din, int32 ein, float64 dou)
 
 //func	modf(float64) (float64, float64);	// break fp into double+double
 void
-sys·modf(float64 din, float64 integer, float64 fraction)
+sys·Modf(float64 din, float64 integer, float64 fraction)
 {
 	fraction = modf(din, &integer);
 	FLUSH(&fraction);
@@ -306,7 +306,7 @@ sys·modf(float64 din, float64 integer, float64 fraction)
 
 //func	isinf(float64, int32 sign) bool;  // test for infinity
 void
-sys·isInf(float64 din, int32 signin, bool out)
+sys·IsInf(float64 din, int32 signin, bool out)
 {
 	out = isInf(din, signin);
 	FLUSH(&out);
@@ -314,7 +314,7 @@ sys·isInf(float64 din, int32 signin, bool out)
 
 //func	isnan(float64) bool;  // test for NaN
 void
-sys·isNaN(float64 din, bool out)
+sys·IsNaN(float64 din, bool out)
 {
 	out = isNaN(din);
 	FLUSH(&out);
@@ -338,7 +338,7 @@ sys·NaN(float64 out)
 
 // func float32bits(float32) uint32; // raw bits of float32
 void
-sys·float32bits(float32 din, uint32 iou)
+sys·Float32bits(float32 din, uint32 iou)
 {
 	iou = float32tobits(din);
 	FLUSH(&iou);
@@ -346,7 +346,7 @@ sys·float32bits(float32 din, uint32 iou)
 
 // func float64bits(float64) uint64; // raw bits of float64
 void
-sys·float64bits(float64 din, uint64 iou)
+sys·Float64bits(float64 din, uint64 iou)
 {
 	iou = float64tobits(din);
 	FLUSH(&iou);
@@ -354,7 +354,7 @@ sys·float64bits(float64 din, uint64 iou)
 
 // func float32frombits(uint32) float32; // raw bits to float32
 void
-sys·float32frombits(uint32 uin, float32 dou)
+sys·Float32frombits(uint32 uin, float32 dou)
 {
 	dou = float32frombits(uin);
 	FLUSH(&dou);
@@ -362,7 +362,7 @@ sys·float32frombits(uint32 uin, float32 dou)
 
 // func float64frombits(uint64) float64; // raw bits to float64
 void
-sys·float64frombits(uint64 uin, float64 dou)
+sys·Float64frombits(uint64 uin, float64 dou)
 {
 	dou = float64frombits(uin);
 	FLUSH(&dou);
@@ -370,23 +370,37 @@ sys·float64frombits(uint64 uin, float64 dou)
 
 static int32	argc;
 static uint8**	argv;
-static int32	envc;
-static uint8**	envv;
+
+Array sys·Args;
+Array sys·Envs;
 
 void
 args(int32 c, uint8 **v)
 {
 	argc = c;
 	argv = v;
-	envv = v + argc + 1;  // skip 0 at end of argv
-	for (envc = 0; envv[envc] != 0; envc++)
-		;
 }
 
-int32
-getenvc(void)
+void
+goargs(void)
 {
-	return envc;
+	string* goargv;
+	string* envv;
+	int32 i, envc;
+
+	goargv = (string*)argv;
+	for (i=0; i<argc; i++)
+		goargv[i] = gostring(argv[i]);
+	sys·Args.array = (byte*)argv;
+	sys·Args.nel = argc;
+	sys·Args.cap = argc;
+
+	envv = goargv + argc + 1;  // skip 0 at end of argv
+	for (envc = 0; envv[envc] != 0; envc++)
+		envv[envc] = gostring((uint8*)envv[envc]);
+	sys·Envs.array = (byte*)envv;
+	sys·Envs.nel = envc;
+	sys·Envs.cap = envc;
 }
 
 byte*
@@ -394,11 +408,15 @@ getenv(int8 *s)
 {
 	int32 i, j, len;
 	byte *v, *bs;
+	string* envv;
+	int32 envc;
 
 	bs = (byte*)s;
 	len = findnull(bs);
+	envv = (string*)sys·Envs.array;
+	envc = sys·Envs.nel;
 	for(i=0; i<envc; i++){
-		v = envv[i];
+		v = envv[i]->str;
 		for(j=0; j<len; j++)
 			if(bs[j] != v[j])
 				goto nomatch;
@@ -410,6 +428,7 @@ getenv(int8 *s)
 	return nil;
 }
 
+
 int32
 atoi(byte *p)
 {
@@ -419,44 +438,6 @@ atoi(byte *p)
 	while('0' <= *p && *p <= '9')
 		n = n*10 + *p++ - '0';
 	return n;
-}
-
-//func argc() int32;  // return number of arguments
-void
-sys·argc(int32 v)
-{
-	v = argc;
-	FLUSH(&v);
-}
-
-//func envc() int32;  // return number of environment variables
-void
-sys·envc(int32 v)
-{
-	v = envc;
-	FLUSH(&v);
-}
-
-//func argv(i) string;  // return argument i
-void
-sys·argv(int32 i, string s)
-{
-	if(i >= 0 && i < argc)
-		s = gostring(argv[i]);
-	else
-		s = emptystring;
-	FLUSH(&s);
-}
-
-//func envv(i) string;  // return environment variable i
-void
-sys·envv(int32 i, string s)
-{
-	if(i >= 0 && i < envc)
-		s = gostring(envv[i]);
-	else
-		s = emptystring;
-	FLUSH(&s);
 }
 
 void

@@ -18,7 +18,7 @@ func AsynchFifo() {
 	for i := 0; i < N; i++ {
 		if <-ch != i {
 			print("bad receive\n");
-			sys.exit(1);
+			sys.Exit(1);
 		}
 	}
 }

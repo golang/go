@@ -9,10 +9,10 @@ package main
 func main() {
 	count := 7;
 	if one := 1; {
-		count = count + one	
+		count = count + one
 	}
 	if count != 8 {
 		print(count, " should be 8\n");
-		sys.exit(1)
+		sys.Exit(1)
 	}
 }

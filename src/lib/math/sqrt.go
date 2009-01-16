@@ -12,7 +12,7 @@ package math
  */
 
 export func Sqrt(arg float64) float64 {
-	if sys.isInf(arg, 1) {
+	if sys.IsInf(arg, 1) {
 		return arg;
 	}
 
@@ -23,7 +23,7 @@ export func Sqrt(arg float64) float64 {
 		return 0;
 	}
 
-	x,exp := sys.frexp(arg);
+	x,exp := sys.Frexp(arg);
 	for x < 0.5 {
 		x = x*2;
 		exp = exp-1;

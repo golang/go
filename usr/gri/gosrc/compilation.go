@@ -23,7 +23,7 @@ import Verifier "verifier"
 func LineCol(src string, pos int) (line, col int) {
 	line = 1;
 	lpos := 0;
-	
+
 	if pos > len(src) {
 		pos = len(src);
 	}
@@ -34,7 +34,7 @@ func LineCol(src string, pos int) (line, col int) {
 			lpos = i;
 		}
 	}
-	
+
 	return line, pos - lpos;
 }
 
@@ -60,9 +60,9 @@ export func Error(comp *Globals.Compilation, pos int, msg string) {
 		comp.nerrors++;
 		comp.errpos = pos;
 	}
-	
+
 	if comp.nerrors >= 10 {
-		sys.exit(1);
+		sys.Exit(1);
 	}
 }
 
@@ -135,7 +135,7 @@ export func Compile(comp *Globals.Compilation, src_file string) {
 	// calling this function recursively w/o setting up a new comp - this
 	// is broken and leads to an assertion error (more then one package
 	// upon parsing of the package header).
-	
+
 	src, ok := Platform.ReadSourceFile(src_file);
 	if !ok {
 		print("cannot open ", src_file, "\n");
@@ -144,7 +144,7 @@ export func Compile(comp *Globals.Compilation, src_file string) {
 
 	comp.src_file = src_file;
 	comp.src = src;
-	
+
 	if comp.flags.verbosity > 0 {
 		print(src_file, "\n");
 	}

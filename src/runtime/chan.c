@@ -195,7 +195,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 	g->status = Gwaiting;
 	enqueue(&c->sendq, sg);
 	unlock(&chanlock);
-	sys·gosched();
+	sys·Gosched();
 
 	lock(&chanlock);
 	sg = g->param;
@@ -217,7 +217,7 @@ asynch:
 		g->status = Gwaiting;
 		enqueue(&c->sendq, sg);
 		unlock(&chanlock);
-		sys·gosched();
+		sys·Gosched();
 
 		lock(&chanlock);
 	}
@@ -281,7 +281,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 	g->status = Gwaiting;
 	enqueue(&c->recvq, sg);
 	unlock(&chanlock);
-	sys·gosched();
+	sys·Gosched();
 
 	lock(&chanlock);
 	sg = g->param;
@@ -303,7 +303,7 @@ asynch:
 		g->status = Gwaiting;
 		enqueue(&c->recvq, sg);
 		unlock(&chanlock);
-		sys·gosched();
+		sys·Gosched();
 		lock(&chanlock);
 	}
 	c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
@@ -690,7 +690,7 @@ sys·selectgo(Select *sel)
 
 	g->status = Gwaiting;
 	unlock(&chanlock);
-	sys·gosched();
+	sys·Gosched();
 
 	lock(&chanlock);
 	sg = g->param;

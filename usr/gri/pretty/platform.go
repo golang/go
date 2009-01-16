@@ -4,6 +4,8 @@
 
 package Platform
 
+import IO "io"
+import OS "os"
 import Utils "utils"
 
 
@@ -16,24 +18,13 @@ export var
 	GOROOT,
 	USER string;
 
-
-func getEnv(key string) string {
-	n := len(key);
-	for i := 0; i < sys.envc(); i++ {
-		v := sys.envv(i);
-		if n < len(v) && v[0 : n] == key && v[n] == '=' {
-			return v[n + 1 : len(v)];  // +1: trim "="
-		}
-	}
-	return "";
-}
-
-
 func init() {
-	GOARCH = getEnv("GOARCH");
-	GOOS = getEnv("GOOS");
-	GOROOT = getEnv("GOROOT");
-	USER = getEnv("USER");
+	var e *OS.Error;
+
+	GOARCH, e = OS.Getenv("GOARCH");
+	GOOS, e = OS.Getenv("GOOS");
+	GOROOT, e = OS.Getenv("GOROOT");
+	USER, e = OS.Getenv("USER");
 }
 
 
@@ -46,25 +37,48 @@ export const (
 	Obj_file_ext = ".7";
 )
 
+func readfile(filename string) (string, *OS.Error) {
+	fd, err := OS.Open(filename, OS.O_RDONLY, 0);
+	if err != nil {
+		return "", err;
+	}
+	var buf [1<<20]byte;
+	n, err1 := IO.Readn(fd, buf);
+	fd.Close();
+	if err1 == IO.ErrEOF {
+		err1 = nil;
+	}
+	return string(buf[0:n]), err1;
+}
 
-export func ReadObjectFile(filename string) (data string, ok bool) {
-	data, ok = sys.readfile(filename + Obj_file_ext);
+func writefile(name, data string) *OS.Error {
+	fd, err := OS.Open(name, OS.O_WRONLY, 0);
+	if err != nil {
+		return err;
+	}
+	n, err1 := IO.WriteString(fd, data);
+	fd.Close();
+	return err1;
+}
+
+export func ReadObjectFile(filename string) (string, bool) {
+	data, err := readfile(filename + Obj_file_ext);
 	magic := MAGIC_obj_file;  // TODO remove once len(constant) works
-	if ok && len(data) >= len(magic) && data[0 : len(magic)] == magic {
-		return data, ok;
+	if err == nil && len(data) >= len(magic) && data[0 : len(magic)] == magic {
+		return data, true;
 	}
 	return "", false;
 }
 
 
-export func ReadSourceFile(name string) (data string, ok bool) {
+export func ReadSourceFile(name string) (string, bool) {
 	name = Utils.TrimExt(name, Src_file_ext) + Src_file_ext;
-	data, ok = sys.readfile(name);
-	return data, ok;
+	data, err := readfile(name);
+	return data, err == nil;
 }
 
 
 export func WriteObjectFile(name string, data string) bool {
 	name = Utils.TrimExt(Utils.BaseName(name), Src_file_ext) + Obj_file_ext;
-	return sys.writefile(name, data);
+	return writefile(name, data) != nil;
 }

@@ -30,7 +30,7 @@ export func Pow(x, y float64) float64 {
 		absy = -absy;
 		flip = true;
 	}
-	yi, yf := sys.modf(absy);
+	yi, yf := sys.Modf(absy);
 	if yf != 0 && x < 0 {
 		return sys.NaN();
 	}
@@ -55,7 +55,7 @@ export func Pow(x, y float64) float64 {
 	// by multiplying in successive squarings
 	// of x according to bits of yi.
 	// accumulate powers of two into exp.
-	x1, xe := sys.frexp(x);
+	x1, xe := sys.Frexp(x);
 	for i := int64(yi); i != 0; i >>= 1 {
 		if i&1 == 1 {
 			a1 *= x1;
@@ -76,5 +76,5 @@ export func Pow(x, y float64) float64 {
 		a1 = 1 / a1;
 		ae = -ae;
 	}
-	return sys.ldexp(a1, ae);
+	return sys.Ldexp(a1, ae);
 }

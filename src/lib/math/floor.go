@@ -11,13 +11,13 @@ package math
 
 export func Floor(arg float64) float64 {
 	if arg < 0 {
-		d, fract := sys.modf(-arg);
+		d, fract := sys.Modf(-arg);
 		if fract != 0.0 {
 			d = d+1;
 		}
 		return -d;
 	}
-	d, fract := sys.modf(arg);
+	d, fract := sys.Modf(arg);
 	return d;
 }
 

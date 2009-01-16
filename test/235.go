@@ -65,5 +65,5 @@ func main() {
 		x = min(xs);
 		if x != OUT[i] { panic("bad: ", x, " should be ", OUT[i]); }
 	}
-	sys.exit(0);
+	sys.Exit(0);
 }

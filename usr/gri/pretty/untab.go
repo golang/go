@@ -21,7 +21,7 @@ var (
 
 func error(format string, params ...) {
 	fmt.Printf(format, params);
-	sys.exit(1);
+	sys.Exit(1);
 }
 
 

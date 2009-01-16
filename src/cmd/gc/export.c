@@ -355,7 +355,10 @@ pkgtype(char *name, char *pkg)
 static int
 mypackage(Node *ss)
 {
-	return strcmp(ss->psym->name, package) == 0;
+	// we import all definitions for sys.
+	// lowercase ones can only be used by the compiler.
+	return strcmp(ss->psym->name, package) == 0
+		|| strcmp(ss->psym->name, "sys") == 0;
 }
 
 void

@@ -34,7 +34,7 @@ func (t *T) Fail() {
 func (t *T) FailNow() {
 	t.Fail();
 	t.ch <- t;
-	sys.goexit();
+	sys.Goexit();
 }
 
 func (t *T) Log(args ...) {
@@ -104,7 +104,7 @@ export func Main(tests []Test) {
 	}
 	if !ok {
 		println("FAIL");
-		sys.exit(1);
+		sys.Exit(1);
 	}
 	println("PASS");
 }

@@ -12,6 +12,6 @@ func main() {
 	file, err := fd.Open("/does/not/exist",  0,  0);
 	if file == nil {
 		print("can't open file; err=",  err.String(),  "\n");
-		sys.exit(1);
+		sys.Exit(1);
 	}
 }

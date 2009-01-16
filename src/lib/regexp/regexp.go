@@ -7,8 +7,9 @@
 package regexp
 
 import (
-	"os";
 	"array";
+	"os";
+	"utf8";
 )
 
 var debug = false;
@@ -215,7 +216,7 @@ func (nop *_Nop) Print() { print("nop") }
 func (re *_RE) Error(err *os.Error) {
 	re.error = err;
 	re.ch <- re;
-	sys.goexit();
+	sys.Goexit();
 }
 
 func (re *_RE) Add(i instr) instr {
@@ -241,7 +242,7 @@ func (p *parser) nextc() int {
 	if p.pos >= len(p.re.expr) {
 		p.ch = endOfFile
 	} else {
-		c, w := sys.stringtorune(p.re.expr, p.pos);
+		c, w := utf8.DecodeRuneInString(p.re.expr, p.pos);
 		p.ch = c;
 		p.pos += w;
 	}
@@ -653,7 +654,7 @@ func (re *_RE) DoExecute(str string, pos int) []int {
 		charwidth := 1;
 		c := endOfFile;
 		if pos < len(str) {
-			c, charwidth = sys.stringtorune(str, pos);
+			c, charwidth = utf8.DecodeRuneInString(str, pos);
 		}
 		for i := 0; i < len(s[in]); i++ {
 			st := s[in][i];

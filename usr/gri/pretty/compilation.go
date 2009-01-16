@@ -92,7 +92,7 @@ func (h *errorHandler) ErrorMsg(pos int, msg string) {
 
 	if h.nerrors >= 10 {
 		// TODO enable when done with name convention
-		//sys.exit(1);
+		//sys.Exit(1);
 	}
 }
 

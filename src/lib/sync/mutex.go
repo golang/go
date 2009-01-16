@@ -4,7 +4,9 @@
 
 package sync
 
-package func cas(val *int32, old, new int32) bool
+func cas(val *int32, old, new int32) bool
+func semacquire(*int32)
+func semrelease(*int32)
 
 export type Mutex struct {
 	key int32;
@@ -26,7 +28,7 @@ func (m *Mutex) Lock() {
 		// changed from 0 to 1; we hold lock
 		return;
 	}
-	sys.semacquire(&m.sema);
+	semacquire(&m.sema);
 }
 
 func (m *Mutex) Unlock() {
@@ -34,6 +36,6 @@ func (m *Mutex) Unlock() {
 		// changed from 1 to 0; no contention
 		return;
 	}
-	sys.semrelease(&m.sema);
+	semrelease(&m.sema);
 }
 

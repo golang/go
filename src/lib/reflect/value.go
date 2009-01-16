@@ -48,12 +48,12 @@ func (c *commonValue) Addr() Addr {
 func (c *commonValue) Interface() interface {} {
 	var i interface {};
 	if c.typ.Size() > 8 {	// TODO(rsc): how do we know it is 8?
-		i = sys.unreflect(c.addr.(uintptr).(uint64), c.typ.String(), true);
+		i = sys.Unreflect(c.addr.(uintptr).(uint64), c.typ.String(), true);
 	} else {
 		if uintptr(c.addr) == 0 {
 			panicln("reflect: address 0 for", c.typ.String());
 		}
-		i = sys.unreflect(uint64(uintptr(*c.addr.(*Addr))), c.typ.String(), false);
+		i = sys.Unreflect(uint64(uintptr(*c.addr.(*Addr))), c.typ.String(), false);
 	}
 	return i;
 }
@@ -876,7 +876,7 @@ export func CopyArray(dst ArrayValue, src ArrayValue, n int) {
 
 
 export func NewValue(e interface {}) Value {
-	value, typestring, indir := sys.reflect(e);
+	value, typestring, indir := sys.Reflect(e);
 	typ, ok := typecache[typestring];
 	if !ok {
 		typ = ParseTypeString("", typestring);

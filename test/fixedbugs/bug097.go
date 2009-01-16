@@ -30,8 +30,8 @@ Faulting address: 0x4558
 pc: 0x4558
 
 0x4558?zi
-	sys·breakpoint(40960, 0, 45128, ...)
-	sys·breakpoint(0xa000, 0xb048, 0xa000, ...)
+	sys·Breakpoint(40960, 0, 45128, ...)
+	sys·Breakpoint(0xa000, 0xb048, 0xa000, ...)
 0x156a?zi
 	sys·panicl(342, 0, 0, ...)
 	sys·panicl(0x156, 0x300000000, 0xb024, ...)

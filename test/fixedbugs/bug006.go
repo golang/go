@@ -13,5 +13,5 @@ const (
 
 func main() {
 	if g == 0.0 { print("zero\n");}
-	if g != 4.5 { print(" fail\n"); sys.exit(1); }
+	if g != 4.5 { print(" fail\n"); sys.Exit(1); }
 }

@@ -20,12 +20,12 @@ func f(left, right chan int) {
 
 func main() {
 	var n = 10000;
-	if sys.argc() > 1 {
+	if len(sys.Args) > 1 {
 		var err *os.Error;
-		n, err = strconv.Atoi(sys.argv(1));
+		n, err = strconv.Atoi(sys.Args[1]);
 		if err != nil {
 			print("bad arg\n");
-			sys.exit(1);
+			sys.Exit(1);
 		}
 	}
 	leftmost := make(chan int);

@@ -6,7 +6,7 @@
 // System calls and other sys.stuff for AMD64, Linux
 //
 
-TEXT	sys·exit(SB),7,$0-8
+TEXT	sys·Exit(SB),7,$0-8
 	MOVL	8(SP), DI
 	MOVL	$231, AX	// exitgroup - force all os threads to exi
 	SYSCALL
@@ -175,12 +175,12 @@ TEXT clone(SB),7,$0
 	MOVQ	SI, SP
 	MOVQ	R8, R14	// m
 	MOVQ	R9, R15	// g
-	
+
 	// Initialize m->procid to Linux tid
 	MOVL	$186, AX	// gettid
 	SYSCALL
 	MOVQ	AX, 24(R14)
-	
+
 	// Call fn
 	CALL	R12
 

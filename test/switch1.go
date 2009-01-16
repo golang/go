@@ -10,9 +10,9 @@ func main() {
 	i := 0;
 	switch x := 5; {
 		case i < x:
-			sys.exit(0);
+			sys.Exit(0);
 		case i == x:
 		case i > x:
-			sys.exit(1);
+			sys.Exit(1);
 	}
 }
