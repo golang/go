@@ -11,7 +11,7 @@ import (
 	"utf8";
 )
 
-type Utf8Map struct {
+export type Utf8Map struct {
 	rune int;
 	str string;
 }
@@ -44,10 +44,11 @@ var utf8map = []Utf8Map {
 	Utf8Map{ 0x10ffff, "\xf4\x8f\xbf\xbf" },
 }
 
-func Bytes(s string) []byte {
+// like io.StringBytes but leaves one extra byte at end
+func bytes(s string) []byte {
 	b := make([]byte, len(s)+1);
 	if !syscall.StringToBytes(b, s) {
-		panic("StringToBytes failed");
+		panic("StringTobytes failed");
 	}
 	return b[0:len(s)];
 }
@@ -55,7 +56,7 @@ func Bytes(s string) []byte {
 export func TestFullRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
-		b := Bytes(m.str);
+		b := bytes(m.str);
 		if !utf8.FullRune(b) {
 			t.Errorf("FullRune(%q) (rune %04x) = false, want true", b, m.rune);
 		}
@@ -74,7 +75,7 @@ export func TestFullRune(t *testing.T) {
 	}
 }
 
-func EqualBytes(a, b []byte) bool {
+func equalBytes(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false;
 	}
@@ -89,11 +90,11 @@ func EqualBytes(a, b []byte) bool {
 export func TestEncodeRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
-		b := Bytes(m.str);
+		b := bytes(m.str);
 		var buf [10]byte;
 		n := utf8.EncodeRune(m.rune, buf);
 		b1 := buf[0:n];
-		if !EqualBytes(b, b1) {
+		if !equalBytes(b, b1) {
 			t.Errorf("EncodeRune(0x%04x) = %q want %q", m.rune, b1, b);
 		}
 	}
@@ -102,7 +103,7 @@ export func TestEncodeRune(t *testing.T) {
 export func TestDecodeRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
-		b := Bytes(m.str);
+		b := bytes(m.str);
 		rune, size := utf8.DecodeRune(b);
 		if rune != m.rune || size != len(b) {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
@@ -113,7 +114,7 @@ export func TestDecodeRune(t *testing.T) {
 			t.Errorf("DecodeRune(%q, 2) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
 		}
 
-		// there's an extra byte that Bytes left behind - make sure trailing byte works
+		// there's an extra byte that bytes left behind - make sure trailing byte works
 		rune, size = utf8.DecodeRune(b[0:cap(b)]);
 		if rune != m.rune || size != len(b) {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
@@ -157,7 +158,7 @@ export func TestDecodeRune(t *testing.T) {
 	}
 }
 
-type RuneCountTest struct {
+export type RuneCountTest struct {
 	in string;
 	out int;
 }
@@ -173,7 +174,7 @@ export func TestRuneCount(t *testing.T) {
 		if out := utf8.RuneCountInString(tt.in, 0, len(tt.in)); out != tt.out {
 			t.Errorf("RuneCountInString(%q) = %d, want %d", tt.in, out, tt.out);
 		}
-		if out := utf8.RuneCount(Bytes(tt.in)); out != tt.out {
+		if out := utf8.RuneCount(bytes(tt.in)); out != tt.out {
 			t.Errorf("RuneCount(%q) = %d, want %d", tt.in, out, tt.out);
 		}
 	}

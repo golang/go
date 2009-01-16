@@ -190,7 +190,7 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 	}
 
 	var f []string;
-	if f = strings.split(s, " "); len(f) != 3 {
+	if f = strings.Split(s, " "); len(f) != 3 {
 		return nil, BadRequest
 	}
 	req.method, req.rawurl, req.proto = f[0], f[1], f[2];

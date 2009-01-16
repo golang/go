@@ -11,30 +11,29 @@
 
 package once
 
-type Job struct {
+type _Job struct {
 	done bool;
 	doit chan bool;	// buffer of 1
 }
 
-type Request struct {
+type _Request struct {
 	f *();
-	reply chan *Job
+	reply chan *_Job
 }
 
-// TODO: Would like to use chan Request but 6g rejects it.
-var service = make(chan *Request)
-var jobmap = make(map[*()]*Job)
+var service = make(chan _Request)
+var jobmap = make(map[*()]*_Job)
 
 // Moderate access to the jobmap.
 // Even if accesses were thread-safe (they should be but are not)
 // something needs to serialize creation of new jobs.
 // That's what the Server does.
-func Server() {
+func server() {
 	for {
 		req := <-service;
 		job, present := jobmap[req.f];
 		if !present {
-			job = new(Job);
+			job = new(_Job);
 			job.doit = make(chan bool, 1);
 			job.doit <- true;
 			jobmap[req.f] = job
@@ -48,13 +47,12 @@ export func Do(f *()) {
 	// If not there, ask map server to make one.
 	// TODO: Uncomment use of jobmap[f] once
 	// maps are thread-safe.
-	var job *Job;
+	var job *_Job;
 	var present bool;
 	// job, present = jobmap[f]
 	if !present {
-		c := make(chan *Job);
-		req := Request{f, c};
-		service <- &req;
+		c := make(chan *_Job);
+		service <- _Request{f, c};
 		job = <-c
 	}
 
@@ -74,6 +72,6 @@ export func Do(f *()) {
 }
 
 func init() {
-	go Server()
+	go server()
 }
 

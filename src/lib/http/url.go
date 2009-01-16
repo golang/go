@@ -156,7 +156,7 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
 	}
 
 	// If there's no @, split's default is wrong.  Check explicitly.
-	if strings.index(url.authority, "@") < 0 {
+	if strings.Index(url.authority, "@") < 0 {
 		url.host = url.authority;
 	} else {
 		url.userinfo, url.host = split(url.authority, '@', true);

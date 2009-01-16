@@ -10,22 +10,22 @@ import (
 )
 
 var ncall int;
-func Call() {
+func call() {
 	ncall++
 }
 
 export func TestOnce(t *testing.T) {
 	ncall = 0;
-	once.Do(&Call);
+	once.Do(&call);
 	if ncall != 1 {
-		t.Fatalf("once.Do(&Call) didn't Call(): ncall=%d", ncall);
+		t.Fatalf("once.Do(&call) didn't call(): ncall=%d", ncall);
 	}
-	once.Do(&Call);
+	once.Do(&call);
 	if ncall != 1 {
-		t.Fatalf("second once.Do(&Call) did Call(): ncall=%d", ncall);
+		t.Fatalf("second once.Do(&call) did call(): ncall=%d", ncall);
 	}
-	once.Do(&Call);
+	once.Do(&call);
 	if ncall != 1 {
-		t.Fatalf("third once.Do(&Call) did Call(): ncall=%d", ncall);
+		t.Fatalf("third once.Do(&call) did call(): ncall=%d", ncall);
 	}
 }

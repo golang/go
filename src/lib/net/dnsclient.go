@@ -184,7 +184,7 @@ export func LookupHost(name string) (name1 string, addrs []string, err *os.Error
 	// If name is rooted (trailing dot) or has enough dots,
 	// try it by itself first.
 	rooted := len(name) > 0 && name[len(name)-1] == '.';
-	if rooted || strings.count(name, ".") >= cfg.ndots {
+	if rooted || strings.Count(name, ".") >= cfg.ndots {
 		rname := name;
 		if !rooted {
 			rname += ".";

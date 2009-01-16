@@ -8,7 +8,7 @@
 
 package malloc
 
-type Stats struct {
+export type Stats struct {
 	alloc	uint64;
 	sys	uint64;
 };
