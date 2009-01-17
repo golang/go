@@ -6,7 +6,7 @@
 
 package main
 
-type Element interface {
+export type Element interface {
 }
 
 export type Vector struct {

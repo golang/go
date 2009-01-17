@@ -6,10 +6,10 @@
 
 package main
 
-type T struct { a int }
+export type T struct { a int }
 var t *T
 
-type I interface { M() }
+export type I interface { M() }
 var i I
 
 func main() {

@@ -8,10 +8,10 @@
 
 package main
 
-type T [] int
+export type T [] int
 func (t T) Len() int { return len(t) }
 
-type I interface {
+export type I interface {
 	Len() int
 }
 

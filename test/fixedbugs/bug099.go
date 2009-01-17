@@ -7,22 +7,22 @@
 package main
 
 // Interface
-type I interface { F() int }
+export type I interface { F() int }
 
 // Implements interface
-type S struct { }
+export type S struct { }
 func (s *S) F() int { return 1 }
 
 // Allocates S but returns I
 // Arg is unused but important:
 // if you take it out (and the 0s below)
 // then the bug goes away.
-func NewI(i int) I {
+export func NewI(i int) I {
 	return new(S)
 }
 
 // Uses interface method.
-func Use(x I) {
+export func Use(x I) {
 	x.F()
 }
 

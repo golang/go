@@ -21,13 +21,13 @@ const (
 	g float = 4.5 * float(iota);
 )
 
-const (
+export const (
 	X = 0;
 	Y;
 	Z;
 )
 
-const (
+export const (
 	A = 1 << iota;
 	B;
 	C;

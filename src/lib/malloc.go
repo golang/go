@@ -9,8 +9,8 @@
 package malloc
 
 export type Stats struct {
-	alloc	uint64;
-	sys	uint64;
+	Alloc	uint64;
+	Sys	uint64;
 };
 
 export func Alloc(uint64) *byte;

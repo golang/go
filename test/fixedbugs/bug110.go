@@ -6,14 +6,14 @@
 
 package main
 
-const A = 0
+const a = 0
 
 func f() {
-	const A = 5
+	const a = 5
 }
 
 func main() {
-	if A != 0 {
-		panic("A=", A)
+	if a != 0 {
+		panic("a=", a)
 	}
 }

@@ -19,7 +19,7 @@ nrand(n int) int
 	return randx%n;
 }
 
-type	Chan
+export type	Chan
 struct
 {
 	sc,rc	chan int;	// send and recv chan
@@ -30,7 +30,7 @@ var
 (
 	nproc		int;
 	cval		int;
-	End		int	= 10000;
+	end		int	= 10000;
 	totr,tots	int;
 	nc		*Chan;
 )
@@ -62,7 +62,7 @@ expect(v, v0 int) (newv int)
 {
 	if v == v0 {
 		if v%100 == 75 {
-			return End;
+			return end;
 		}
 		return v+1;
 	}
@@ -75,7 +75,7 @@ send() bool
 //	print("send ", c.sv, "\n");
 	tots++;
 	c.sv = expect(c.sv, c.sv);
-	if c.sv == End {
+	if c.sv == end {
 		c.sc = nil;
 		return true;
 	}
@@ -104,7 +104,7 @@ recv(v int) bool
 //	print("recv ", v, "\n");
 	totr++;
 	c.rv = expect(c.rv, v);
-	if c.rv == End {
+	if c.rv == end {
 		c.rc = nil;
 		return true;
 	}

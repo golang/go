@@ -4,8 +4,7 @@
 
 package bug0
 
-type T0 struct {
+export type T0 struct {
 }
 
-export v0
-var v0 T0
+export var V0 T0

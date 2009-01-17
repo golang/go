@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// ! $G $D/$F.go
+// # ! $G $D/$F.go
 
 package main
 
-export Foo
+export foo
 
 func main() {}
 

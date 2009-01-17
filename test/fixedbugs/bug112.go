@@ -6,7 +6,7 @@
 
 package main
 
-type T struct { s string }
+export type T struct { s string }
 var t = T{"hi"}
 
 func main() {}

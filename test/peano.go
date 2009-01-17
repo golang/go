@@ -6,7 +6,7 @@
 
 package main
 
-type Number struct {
+export type Number struct {
 	next *Number
 }
 

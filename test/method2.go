@@ -6,9 +6,9 @@
 
 package main
 
-type T struct {a int}
-type P *T
-type P1 *T
+export type T struct {a int}
+export type P *T
+export type P1 *T
 
 func (p P) val() int { return 1 }  // ERROR "receiver"
 func (p *P1) val() int { return 1 }  // ERROR "receiver"

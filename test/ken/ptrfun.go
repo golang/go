@@ -7,7 +7,7 @@
 
 package main
 
-type C struct
+export type C struct
 {
 	a	int;
 	x	*(p *C)int;

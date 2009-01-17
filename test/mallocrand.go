@@ -20,7 +20,7 @@ var chatty = flag.Bool("v", false, "chatty");
 var footprint uint64;
 var allocated uint64;
 func bigger() {
-	if f := malloc.GetStats().sys; footprint < f {
+	if f := malloc.GetStats().Sys; footprint < f {
 		footprint = f;
 		if *chatty {
 			println("Footprint", footprint, " for ", allocated);
@@ -60,7 +60,7 @@ func main() {
 		if i%(1<<10) == 0 && *chatty {
 			println(i);
 		}
-		b := rand.rand() % len(blocks);
+		b := rand.Int() % len(blocks);
 		if blocks[b].base != nil {
 		//	println("Free", blocks[b].siz, blocks[b].base);
 			malloc.Free(blocks[b].base);
@@ -68,7 +68,7 @@ func main() {
 			allocated -= blocks[b].siz;
 			continue
 		}
-		siz := uint64(rand.rand() >> (11 + rand.urand32() % 20));
+		siz := uint64(rand.Int() >> (11 + rand.Uint32() % 20));
 		base := malloc.Alloc(siz);
 	//	ptr := uint64(syscall.BytePtr(base))+uint64(siz/2);
 	//	obj, size, ref, ok := allocator.find(ptr);

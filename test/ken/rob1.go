@@ -6,18 +6,18 @@
 
 package main
 
-type Item interface
+export type Item interface
 {
 	Print();
 }
 
-type ListItem struct
+export type ListItem struct
 {
 	item    Item;
 	next    *ListItem;
 }
 
-type List struct
+export type List struct
 {
 	head    *ListItem;
 }
@@ -48,7 +48,7 @@ Print()
 }
 
 // Something to put in a list
-type Integer struct
+export type Integer struct
 {
 	val		int;
 }

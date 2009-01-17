@@ -6,26 +6,26 @@
 
 package main
 
-type (
+export type (
 	Type struct;
 	Object struct;
 )
 
-type Scope struct {
+export type Scope struct {
 	entries map[string] *Object;
 }
 
 
-type Type struct {
+export type Type struct {
 	scope *Scope;
 }
 
 
-type Object struct {
+export type Object struct {
 	typ *Type;
 }
 
 
-func Lookup(scope *Scope) *Object {
+export func Lookup(scope *Scope) *Object {
 	return scope.entries["foo"];
 }

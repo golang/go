@@ -6,7 +6,7 @@
 
 package	main
 
-export func
+func
 setpd(a []int)
 {
 //	print("setpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
@@ -15,7 +15,7 @@ setpd(a []int)
 	}
 }
 
-export func
+func
 sumpd(a []int) int
 {
 //	print("sumpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
@@ -27,7 +27,7 @@ sumpd(a []int) int
 	return t;
 }
 
-export func
+func
 setpf(a *[20]int)
 {
 //	print("setpf a=", a, " len=", len(a), " cap=", cap(a), "\n");
@@ -36,7 +36,7 @@ setpf(a *[20]int)
 	}
 }
 
-export func
+func
 sumpf(a *[20]int) int
 {
 //	print("sumpf a=", a, " len=", len(a), " cap=", cap(a), "\n");

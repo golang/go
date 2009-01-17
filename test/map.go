@@ -13,7 +13,7 @@ import (
 
 const arraylen = 2; // BUG: shouldn't need this
 
-func P(a []string) string {
+export func P(a []string) string {
 	s := "{";
 	for i := 0; i < len(a); i++ {
 		if i > 0 {

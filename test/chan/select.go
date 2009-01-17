@@ -9,12 +9,12 @@ package main
 var counter uint
 var shift uint
 
-func GetValue() uint {
+export func GetValue() uint {
   counter++;
   return 1 << shift
 }
 
-func Send(a, b chan uint) int {
+export func Send(a, b chan uint) int {
   var i int;
   LOOP:
     for {

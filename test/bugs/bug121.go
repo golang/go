@@ -6,14 +6,14 @@
 
 package main
 
-type T ()
+export type T ()
 
-type I interface {
+export type I interface {
 	f, g ();
 	h T;  // should only allow FunctionType here
 }
 
-type S struct {
+export type S struct {
 }
 
 func (s *S) f() {}
