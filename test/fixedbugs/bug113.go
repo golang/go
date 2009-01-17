@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 package main
-type I interface { };
+export type I interface { };
 func foo1(i int) int { return i }
 func foo2(i int32) int32 { return i }
 func main() {

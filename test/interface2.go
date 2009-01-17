@@ -6,9 +6,9 @@
 
 package main
 
-type S struct
+export type S struct
 
-type I interface {
+export type I interface {
 	Foo()
 }
 
@@ -21,5 +21,5 @@ func main() {
 }
 
 // hide S down here to avoid static warning
-type S struct {
+export type S struct {
 }

@@ -6,9 +6,9 @@
 
 package main
 
-type I interface { send(chan <- int) }
+export type I interface { send(chan <- int) }
 
-type S struct { v int }
+export type S struct { v int }
 func (p *S) send(c chan <- int) { c <- p.v }
 
 func main() {

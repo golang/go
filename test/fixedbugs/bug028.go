@@ -7,7 +7,7 @@
 package main
 
 
-func Alloc(i int) int {
+export func Alloc(i int) int {
 	switch i {
 	default:
 		return 5;

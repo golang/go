@@ -10,6 +10,8 @@ var a = []int { "a" };	// ERROR "conver|incompatible"
 var b = int { 1 };	// ERROR "compos"
 
 
+func f() int
+
 func main() {
-	if sys.argc < 1 { }	// ERROR "conver|incompatible"
+	if f < 1 { }	// ERROR "conver|incompatible"
 }

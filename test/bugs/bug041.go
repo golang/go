@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// $G $D/$F.go && echo BUG: compilation succeeds incorrectly
+// ! $G $D/$F.go || echo BUG: compilation succeeds incorrectly
 
 package main
 
-type T struct
-type S struct {
-  p *T  // BUG T never declared
+type t struct
+type s struct {
+  p *t  // BUG t never declared
 }
 
 func main() {
-  var s S;
+  var s1 s;
 }

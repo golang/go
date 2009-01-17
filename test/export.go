@@ -12,5 +12,5 @@ export type B interface	// ERROR "incomplete"
 export type C struct
 export type D interface
 
-type C struct { }
-type D interface { }
+export type C struct { }
+export type D interface { }

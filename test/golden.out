@@ -19,7 +19,7 @@ errchk: ./convlit.go: unmatched error messages:
 hello, world
 
 =========== ./interface2.go
-cannot convert type *main.S·interface2 to interface main.I·interface2: missing method Foo
+cannot convert type *main.S to interface main.I: missing method Foo
 throw: interface conversion
 SIGSEGV: segmentation violation
 Faulting address: 0x0
@@ -27,7 +27,7 @@ pc: xxx
 
 
 =========== ./interface3.go
-cannot convert type *main.S·interface3 to interface main.I2·interface3: missing method Name
+cannot convert type *main.S to interface main.I2: missing method Name
 throw: interface conversion
 SIGSEGV: segmentation violation
 Faulting address: 0x0
@@ -86,7 +86,7 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 PASS
 
 =========== bugs/bug041.go
-BUG: compilation succeeds incorrectly
+bugs/bug041.go:5: export of incomplete type t
 
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
@@ -148,9 +148,6 @@ BUG: should not compile
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
-
-=========== fixedbugs/bug025.go
-fixedbugs/bug025.go:7: variable exported but not defined: Foo
 
 =========== fixedbugs/bug027.go
 hi
@@ -232,7 +229,7 @@ fixedbugs/bug074.go:7: x: undefined
 fixedbugs/bug081.go:5: no type x
 
 =========== fixedbugs/bug083.go
-fixedbugs/bug083.dir/bug1.go:5: syntax error near T0
+BUG: succeeds incorrectly
 
 =========== fixedbugs/bug086.go
 fixedbugs/bug086.go:5: function ends without a return statement
@@ -261,7 +258,7 @@ M
 fixedbugs/bug103.go:8: function requires a return type
 
 =========== fixedbugs/bug113.go
-main.I·bug113 is int, not int32
+main.I is int, not int32
 throw: interface conversion
 SIGSEGV: segmentation violation
 Faulting address: 0x0

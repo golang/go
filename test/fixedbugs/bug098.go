@@ -6,8 +6,8 @@
 
 package main
 
-type A []int;
-type M map[int] int;
+export type A []int;
+export type M map[int] int;
 
 func main() {
 	var a *A = &A{0};

@@ -6,11 +6,11 @@
 
 package main
 
-type Type interface {
+export type Type interface {
 	TypeName() string;
 }
 
-type TInt struct {
+export type TInt struct {
 }
 
 // TInt

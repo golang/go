@@ -7,9 +7,9 @@ package main
 import P "bug0"
 
 func main() {
-	a0 := P.v0();  // works
-	a1 := P.v1();  // works
-	a2, b2 := P.v2();  // doesn't work
+	a0 := P.V0();  // works
+	a1 := P.V1();  // works
+	a2, b2 := P.V2();  // doesn't work
 }
 
 /*

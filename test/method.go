@@ -6,12 +6,12 @@
 
 package main
 
-type S string
-type S1 string
-type I int
-type I1 int
-type T struct { x int }
-type T1 T
+export type S string
+export type S1 string
+export type I int
+export type I1 int
+export type T struct { x int }
+export type T1 T
 
 func (s S) val() int { return 1 }
 func (s *S1) val() int { return 2 }
@@ -20,7 +20,7 @@ func (i *I1) val() int { return 4 }
 //func (t T) val() int { return 7 }
 func (t *T1) val() int { return 8 }
 
-type Val interface {
+export type Val interface {
 	val() int
 }
 

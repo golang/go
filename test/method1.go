@@ -6,7 +6,7 @@
 
 package main
 
-type T struct { }
+export type T struct { }
 func (t *T) M(int, string);	// GCCGO_ERROR "previous"
 func (t *T) M(int, float) { }   // ERROR "redeclared|redefinition"
 

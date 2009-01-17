@@ -8,7 +8,7 @@ package main
 
 import "strconv";
 
-type Test struct {
+export type Test struct {
 	f float64;
 	in string;
 	out string;

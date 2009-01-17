@@ -6,14 +6,14 @@
 
 package main
 
-type S struct {
+export type S struct {
 }
 
 func (p *S) M() {
 	print("M\n");
 }
 
-type I interface {
+export type I interface {
 	M();
 }
 

@@ -6,7 +6,7 @@
 
 package main
 
-type Box struct {};
+export type Box struct {};
 var m map[string] *Box;
 
 func main() {

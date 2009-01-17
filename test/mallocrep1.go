@@ -22,7 +22,7 @@ var longtest = flag.Bool("l", false, "long test");
 var b []*byte;
 var stats = malloc.GetStats();
 
-func OkAmount(size, n uintptr) bool {
+export func OkAmount(size, n uintptr) bool {
 	if n < size {
 		return false
 	}
@@ -38,45 +38,45 @@ func OkAmount(size, n uintptr) bool {
 	return true
 }
 
-func AllocAndFree(size, count int) {
+export func AllocAndFree(size, count int) {
 	if *chatty {
 		fmt.Printf("size=%d count=%d ...\n", size, count);
 	}
-	n1 := stats.alloc;
+	n1 := stats.Alloc;
 	for i := 0; i < count; i++ {
 		b[i] = malloc.Alloc(uint64(size));
 		base, n := malloc.Lookup(b[i]);
 		if base != b[i] || !OkAmount(uintptr(size), n) {
 			panicln("lookup failed: got", base, n, "for", b[i]);
 		}
-		if malloc.GetStats().sys > 1e9 {
+		if malloc.GetStats().Sys > 1e9 {
 			panicln("too much memory allocated");
 		}
 	}
-	n2 := stats.alloc;
+	n2 := stats.Alloc;
 	if *chatty {
 		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats);
 	}
-	n3 := stats.alloc;
+	n3 := stats.Alloc;
 	for j := 0; j < count; j++ {
 		i := j;
 		if *reverse {
 			i = count - 1 - j;
 		}
-		alloc := stats.alloc;
+		alloc := stats.Alloc;
 		base, n := malloc.Lookup(b[i]);
 		if base != b[i] || !OkAmount(uintptr(size), n) {
 			panicln("lookup failed: got", base, n, "for", b[i]);
 		}
 		malloc.Free(b[i]);
-		if stats.alloc != alloc - uint64(n) {
-			panicln("free alloc got", stats.alloc, "expected", alloc - uint64(n), "after free of", n);
+		if stats.Alloc != alloc - uint64(n) {
+			panicln("free alloc got", stats.Alloc, "expected", alloc - uint64(n), "after free of", n);
 		}
-		if malloc.GetStats().sys > 1e9 {
+		if malloc.GetStats().Sys > 1e9 {
 			panicln("too much memory allocated");
 		}
 	}
-	n4 := stats.alloc;
+	n4 := stats.Alloc;
 
 	if *chatty {
 		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats);

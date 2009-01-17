@@ -11,7 +11,7 @@ import (
 	"fmt";
 )
 
-type T struct {
+export type T struct {
 	a float64;
 	b int64;
 	c string;
@@ -19,7 +19,7 @@ type T struct {
 }
 
 var a = []int{ 1, 2, 3 }
-var NIL []int;
+export var NIL []int;
 
 func arraycmptest() {
 	a1 := a;
@@ -34,7 +34,7 @@ func arraycmptest() {
 	}
 }
 
-func SameArray(a, b []int) bool {
+export func SameArray(a, b []int) bool {
 	if len(a) != len(b) || cap(a) != cap(b) {
 		return false;
 	}
@@ -103,7 +103,7 @@ func chantest() {
 	}
 }
 
-type E struct { }
+export type E struct { }
 var e E
 
 func interfacetest() {

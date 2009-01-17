@@ -17,12 +17,12 @@ var chatty = flag.Bool("v", false, "chatty");
 
 var oldsys uint64;
 func bigger() {
-	if st := malloc.GetStats(); oldsys < st.sys {
-		oldsys = st.sys;
+	if st := malloc.GetStats(); oldsys < st.Sys {
+		oldsys = st.Sys;
 		if *chatty {
-			println(st.sys, " system bytes for ", st.alloc, " Go bytes");
+			println(st.Sys, " system bytes for ", st.Alloc, " Go bytes");
 		}
-		if st.sys > 1e9 {
+		if st.Sys > 1e9 {
 			panicln("too big");
 		}
 	}
@@ -30,16 +30,16 @@ func bigger() {
 
 func main() {
 	flag.Parse();
-	malloc.GetStats().alloc = 0;	// ignore stacks
+	malloc.GetStats().Alloc = 0;	// ignore stacks
 	for i := 0; i < 1<<8; i++ {
 		for j := 1; j <= 1<<22; j<<=1 {
 			if i == 0 && *chatty {
 				println("First alloc:", j);
 			}
 			b := malloc.Alloc(uint64(j));
-			during := malloc.GetStats().alloc;
+			during := malloc.GetStats().Alloc;
 			malloc.Free(b);
-			if a := malloc.GetStats().alloc; a != 0 {
+			if a := malloc.GetStats().Alloc; a != 0 {
 				panicln("malloc wrong count", a, "after", j, "during", during);
 			}
 			bigger();

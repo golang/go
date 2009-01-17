@@ -8,7 +8,7 @@ package main
 
 type	myint		int;
 type	mystring	string;
-type	I0		interface {};
+export type	I0		interface {};
 
 func
 f()

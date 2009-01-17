@@ -6,15 +6,15 @@
 
 package main
 
-type Element interface {
+export type Element interface {
 }
 
-type Vector struct {
+export type Vector struct {
 	nelem int;
 	elem []Element;
 }
 
-func New() *Vector {
+export func New() *Vector {
 	v := new(Vector);
 	v.nelem = 0;
 	v.elem = make([]Element, 10);
