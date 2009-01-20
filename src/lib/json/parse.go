@@ -44,7 +44,7 @@ func _UnHex(p string, r, l int) (v int, ok bool) {
 	return v, true;
 }
 
-export func Unquote(s string) (t string, ok bool) {
+func Unquote(s string) (t string, ok bool) {
 	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
 		return
 	}
@@ -117,7 +117,7 @@ export func Unquote(s string) (t string, ok bool) {
 	return string(b[0:w]), true
 }
 
-export func Quote(s string) string {
+func Quote(s string) string {
 	chr := make([]byte, utf8.UTFMax);
 	chr0 := chr[0:1];
 	b := new(io.ByteBuffer);
@@ -272,7 +272,7 @@ func (t *_Lexer) Next() {
 
 type _Value interface {}
 
-export type Builder interface {
+type Builder interface {
 	// Set value
 	Int64(i int64);
 	Uint64(i uint64);
@@ -386,7 +386,7 @@ Switch:
 	return ok;
 }
 
-export func Parse(s string, build Builder) (ok bool, errindx int, errtok string) {
+func Parse(s string, build Builder) (ok bool, errindx int, errtok string) {
 	lex := new(_Lexer);
 	lex.s = s;
 	lex.Next();

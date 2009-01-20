@@ -8,9 +8,9 @@
 
 package main
 
-export const N = 10
+const N = 10
 
-export func AsynchFifo() {
+func AsynchFifo() {
 	ch := make(chan int, N);
 	for i := 0; i < N; i++ {
 		ch <- i
@@ -23,7 +23,7 @@ export func AsynchFifo() {
 	}
 }
 
-export func Chain(ch <-chan int, val int, in <-chan int, out chan<- int) {
+func Chain(ch <-chan int, val int, in <-chan int, out chan<- int) {
 	<-in;
 	if <-ch != val {
 		panic(val)
@@ -32,7 +32,7 @@ export func Chain(ch <-chan int, val int, in <-chan int, out chan<- int) {
 }
 
 // thread together a daisy chain to read the elements in sequence
-export func SynchFifo() {
+func SynchFifo() {
 	ch := make(chan int);
 	in := make(chan int);
 	start := in;

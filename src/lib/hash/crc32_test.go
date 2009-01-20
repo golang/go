@@ -49,7 +49,7 @@ var golden = []_Crc32Test {
 	_Crc32Test{ 0x8e0bb443, "How can you write a big system without C++?  -Paul Glick" },
 }
 
-export func TestGolden(t *testing.T) {
+func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i];
 		c := NewIEEEDigest();

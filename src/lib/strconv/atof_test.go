@@ -124,10 +124,10 @@ func testAtof(t *testing.T, opt bool) {
 	strconv.optimize = oldopt;
 }
 
-export func TestAtof(t *testing.T) {
+func TestAtof(t *testing.T) {
 	testAtof(t, true);
 }
 
-export func TestAtofSlow(t *testing.T) {
+func TestAtofSlow(t *testing.T) {
 	testAtof(t, false);
 }

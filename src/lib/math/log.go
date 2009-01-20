@@ -70,7 +70,7 @@ import "math"
 // compiler will convert from decimal to binary accurately enough
 // to produce the hexadecimal values shown.
 
-export func Log(x float64) float64 {
+func Log(x float64) float64 {
 	const (
 		Ln2Hi = 6.93147180369123816490e-01;	/* 3fe62e42 fee00000 */
 		Ln2Lo = 1.90821492927058770002e-10;	/* 3dea39ef 35793c76 */
@@ -113,7 +113,7 @@ export func Log(x float64) float64 {
 	return k*Ln2Hi - ((hfsq-(s*(hfsq+R)+k*Ln2Lo)) - f);
 }
 
-export func Log10(arg float64) float64 {
+func Log10(arg float64) float64 {
 	if arg <= 0 {
 		return sys.NaN();
 	}

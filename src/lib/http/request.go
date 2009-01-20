@@ -19,7 +19,7 @@ const (
 	_MaxHeaderLines = 1024;
 )
 
-export var (
+var (
 	LineTooLong = os.NewError("http header line too long");
 	ValueTooLong = os.NewError("http header value too long");
 	HeaderTooLong = os.NewError("http header too long");
@@ -29,7 +29,7 @@ export var (
 )
 
 // HTTP Request
-export type Request struct {
+type Request struct {
 	method string;		// GET, PUT,etc.
 	rawurl string;
 	url *URL;		// URI after GET, PUT etc.
@@ -180,7 +180,7 @@ func parseHTTPVersion(vers string) (int, int, bool) {
 }
 
 // Read and parse a request from b.
-export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 	req = new(Request);
 
 	// First line: GET /index.html HTTP/1.0

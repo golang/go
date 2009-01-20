@@ -17,14 +17,14 @@ const (
 	_Init3 = 0x10325476;
 )
 
-export type Digest struct {
+type Digest struct {
 	s [4]uint32;
 	x [_Chunk]byte;
 	nx int;
 	len uint64;
 }
 
-export func NewDigest() *Digest {
+func NewDigest() *Digest {
 	d := new(Digest);
 	d.s[0] = _Init0;
 	d.s[1] = _Init1;

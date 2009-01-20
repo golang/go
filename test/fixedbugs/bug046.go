@@ -6,7 +6,7 @@
 
 package main
 
-export type T *struct {}
+type T *struct {}
 
 func (x T) M () {}  // ERROR "pointer|receiver"
 

@@ -42,7 +42,7 @@ func server() {
 	}
 }
 
-export func Do(f *()) {
+func Do(f *()) {
 	// Look for job in map (avoids channel communication).
 	// If not there, ask map server to make one.
 	// TODO: Uncomment use of jobmap[f] once

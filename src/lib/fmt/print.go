@@ -20,7 +20,7 @@ import (
 // Representation of printer state passed to custom formatters.
 // Provides access to the io.Write interface plus information about
 // the active formatting verb.
-export type Formatter interface {
+type Formatter interface {
 	Write(b []byte) (ret int, err *os.Error);
 	Width()	(wid int, ok bool);
 	Precision()	(prec int, ok bool);
@@ -29,11 +29,11 @@ export type Formatter interface {
 	Flag(int)	bool;
 }
 
-export type Format interface {
+type Format interface {
 	Format(f Formatter, c int);
 }
 
-export type String interface {
+type String interface {
 	String() string
 }
 
@@ -129,7 +129,7 @@ func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
 
 // These routines end in 'f' and take a format string.
 
-export func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
+func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
@@ -137,12 +137,12 @@ export func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
 	return n, error;
 }
 
-export func Printf(format string, v ...) (n int, errno *os.Error) {
+func Printf(format string, v ...) (n int, errno *os.Error) {
 	n, errno = Fprintf(os.Stdout, format, v);
 	return n, errno;
 }
 
-export func Sprintf(format string, a ...) string {
+func Sprintf(format string, a ...) string {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
@@ -153,7 +153,7 @@ export func Sprintf(format string, a ...) string {
 // These routines do not take a format string and add spaces only
 // when the operand on neither side is a string.
 
-export func Fprint(w io.Write, a ...) (n int, error *os.Error) {
+func Fprint(w io.Write, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
@@ -161,12 +161,12 @@ export func Fprint(w io.Write, a ...) (n int, error *os.Error) {
 	return n, error;
 }
 
-export func Print(v ...) (n int, errno *os.Error) {
+func Print(v ...) (n int, errno *os.Error) {
 	n, errno = Fprint(os.Stdout, v);
 	return n, errno;
 }
 
-export func Sprint(a ...) string {
+func Sprint(a ...) string {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
@@ -178,7 +178,7 @@ export func Sprint(a ...) string {
 // always add spaces between operands, and add a newline
 // after the last operand.
 
-export func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
+func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);
@@ -186,12 +186,12 @@ export func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
 	return n, error;
 }
 
-export func Println(v ...) (n int, errno *os.Error) {
+func Println(v ...) (n int, errno *os.Error) {
 	n, errno = Fprintln(os.Stdout, v);
 	return n, errno;
 }
 
-export func Sprintln(a ...) string {
+func Sprintln(a ...) string {
 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);

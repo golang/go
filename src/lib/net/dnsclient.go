@@ -25,7 +25,7 @@ import (
 	"strings";
 )
 
-export var (
+var (
 	DNS_InternalError = os.NewError("internal dns error");
 	DNS_MissingConfig = os.NewError("no dns configuration");
 	DNS_No_Answer = os.NewError("dns got no answer");
@@ -171,7 +171,7 @@ func _LoadConfig() {
 	cfg = DNS_ReadConfig();
 }
 
-export func LookupHost(name string) (name1 string, addrs []string, err *os.Error) {
+func LookupHost(name string) (name1 string, addrs []string, err *os.Error) {
 	// TODO(rsc): Pick out obvious non-DNS names to avoid
 	// sending stupid requests to the server?
 

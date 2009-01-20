@@ -6,7 +6,7 @@
 
 package main
 
-export type Service struct {
+type Service struct {
 	rpc [2]int;
 }
 

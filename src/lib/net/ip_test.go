@@ -43,7 +43,7 @@ var parseiptests = []parseIPTest {
 	parseIPTest{"::ffff:4a7d:1363", _IPv4(74, 125, 19, 99)},
 }
 
-export func TestParseIP(t *testing.T) {
+func TestParseIP(t *testing.T) {
 	for i := 0; i < len(parseiptests); i++ {
 		tt := parseiptests[i];
 		if out := ParseIP(tt.in); !isEqual(out, tt.out) {

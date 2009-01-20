@@ -69,35 +69,35 @@ func	arrays2d(old *any, nel int) (ary []any);
 
 // used by go programs
 
-export func	Breakpoint();
+func	Breakpoint();
 
-export func	Reflect(i interface { }) (uint64, string, bool);
-export func	Unreflect(uint64, string, bool) (ret interface { });
+func	Reflect(i interface { }) (uint64, string, bool);
+func	Unreflect(uint64, string, bool) (ret interface { });
 
-export var	Args []string;
-export var	Envs []string;
+var	Args []string;
+var	Envs []string;
 
-export func	Frexp(float64) (float64, int);		// break fp into exp,fract
-export func	Ldexp(float64, int) float64;		// make fp from exp,fract
-export func	Modf(float64) (float64, float64);	// break fp into double.double
-export func	IsInf(float64, int) bool;		// test for infinity
-export func	IsNaN(float64) bool;			// test for not-a-number
-export func	Inf(int) float64;			// return signed Inf
-export func	NaN() float64;				// return a NaN
-export func	Float32bits(float32) uint32;		// raw bits
-export func	Float64bits(float64) uint64;		// raw bits
-export func	Float32frombits(uint32) float32;	// raw bits
-export func	Float64frombits(uint64) float64;	// raw bits
+func	Frexp(float64) (float64, int);		// break fp into exp,fract
+func	Ldexp(float64, int) float64;		// make fp from exp,fract
+func	Modf(float64) (float64, float64);	// break fp into double.double
+func	IsInf(float64, int) bool;		// test for infinity
+func	IsNaN(float64) bool;			// test for not-a-number
+func	Inf(int) float64;			// return signed Inf
+func	NaN() float64;				// return a NaN
+func	Float32bits(float32) uint32;		// raw bits
+func	Float64bits(float64) uint64;		// raw bits
+func	Float32frombits(uint32) float32;	// raw bits
+func	Float64frombits(uint64) float64;	// raw bits
 
-export func	Gosched();
-export func	Goexit();
+func	Gosched();
+func	Goexit();
 
-export func	BytesToRune(*byte, int, int) (int, int);	// convert bytes to runes
-export func	StringToRune(string, int) (int, int);	// convert bytes to runes
+func	BytesToRune(*byte, int, int) (int, int);	// convert bytes to runes
+func	StringToRune(string, int) (int, int);	// convert bytes to runes
 
-export func	Exit(int);
+func	Exit(int);
 
-export func	Caller(n int) (pc uint64, file string, line int, ok bool);
+func	Caller(n int) (pc uint64, file string, line int, ok bool);
 
-export func	SemAcquire(sema *int32);
-export func	SemRelease(sema *int32);
+func	SemAcquire(sema *int32);
+func	SemRelease(sema *int32);

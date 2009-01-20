@@ -8,11 +8,11 @@ package main
 
 var ncall int;
 
-export type Iffy interface {
+type Iffy interface {
 	Me() Iffy
 }
 
-export type Stucky struct {
+type Stucky struct {
 	n int
 }
 

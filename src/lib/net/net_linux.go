@@ -11,7 +11,7 @@ import (
 	"unsafe";
 )
 
-export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	p = ToIPv4(p);
 	if p == nil || port < 0 || port > 0xFFFF {
 		return nil, os.EINVAL
@@ -23,12 +23,12 @@ export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
 	for i := 0; i < IPv4len; i++ {
 		sa.Addr[i] = p[i]
 	}
-	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
+	return unsafe.Pointer(sa).(*syscall.Sockaddr), nil
 }
 
 var _IPv6zero [16]byte;
 
-export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	p = ToIPv6(p);
 	if p == nil || port < 0 || port > 0xFFFF {
 		return nil, os.EINVAL
@@ -48,20 +48,20 @@ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
 	for i := 0; i < IPv6len; i++ {
 		sa.Addr[i] = p[i]
 	}
-	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
+	return unsafe.Pointer(sa).(*syscall.Sockaddr), nil
 }
 
-export func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Error) {
+func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Error) {
 	switch sa1.Family {
 	case syscall.AF_INET:
-		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet4);
+		sa := unsafe.Pointer(sa1).(*syscall.SockaddrInet4);
 		a := ToIPv6(sa.Addr);
 		if a == nil {
 			return nil, 0, os.EINVAL
 		}
 		return a, int(sa.Port[0])<<8 + int(sa.Port[1]), nil;
 	case syscall.AF_INET6:
-		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet6);
+		sa := unsafe.Pointer(sa1).(*syscall.SockaddrInet6);
 		a := ToIPv6(sa.Addr);
 		if a == nil {
 			return nil, 0, os.EINVAL
@@ -73,7 +73,7 @@ export func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Err
 	return nil, 0, nil	// not reached
 }
 
-export func ListenBacklog() int64 {
+func ListenBacklog() int64 {
 	// TODO: Read the limit from /proc/sys/net/core/somaxconn,
 	// to take advantage of kernels that have raised the limit.
 	return syscall.SOMAXCONN

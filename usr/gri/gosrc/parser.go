@@ -15,13 +15,13 @@ import AST "ast"
 import Expr "expr"
 
 
-export type Parser struct {
+type Parser struct {
 	comp *Globals.Compilation;
 	verbose bool;
 	indent uint;
 	scanner *Scanner.Scanner;
 	tokchan chan *Scanner.Token;
-	
+
 	// Token
 	tok int;  // one token look-ahead
 	pos int;  // token source position
@@ -372,7 +372,7 @@ func (P *Parser) ParseVarType() *Globals.Type {
 		}
 		// open arrays must be pointers
 		fallthrough;
-		
+
 	case Type.MAP, Type.CHANNEL, Type.FUNCTION:
 		P.Error(pos, "must be pointer to this type");
 		typ = Universe.bad_t;
@@ -696,7 +696,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 				// TODO introduce dummy package so we can continue safely
 			}
 		}
-		
+
 		P.Next();  // consume package name
 		P.Expect(Scanner.PERIOD);
 		pos, ident := P.ParseIdent(false);
@@ -716,11 +716,11 @@ func (P *Parser) ParsePointerType() *Globals.Type {
 			}
 			elt = obj.typ;
 		}
-		
+
 	} else if P.tok == Scanner.IDENT {
 		if P.Lookup(P.val) == nil {
 			// implicit type forward declaration
-			// create a named forward type 
+			// create a named forward type
 			pos, ident := P.ParseIdent(false);
 			obj := Globals.NewObject(pos, Object.TYPE, ident);
 			elt = Globals.NewType(Type.FORWARD);
@@ -1000,7 +1000,7 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
 
 	P.Expect(Scanner.PERIOD);
 	pos := P.pos;
-	
+
 	if P.tok >= Scanner.IDENT {
 		pos, selector := P.ParseIdent(true);
 		x = Expr.Select(P.comp, x, pos, selector);
@@ -1102,7 +1102,7 @@ func (P *Parser) ParseUnaryExpr() Globals.Expr {
 		P.Ecart();
 		return x;  // TODO fix this
 	}
-	
+
 	x := P.ParsePrimaryExpr(-1, "");
 
 	P.Ecart();
@@ -1246,7 +1246,7 @@ func (P *Parser) ParseIdentOrExprList() (pos_list, ident_list, expr_list *Global
 
 	pos_list, ident_list = Globals.NewList(), Globals.NewList();  // "pairs" of (pos, ident)
 	expr_list = Globals.NewList();
-	
+
 	P.ParseIdentOrExpr(pos_list, ident_list, expr_list);
 	for P.tok == Scanner.COMMA {
 		P.Next();
@@ -1336,14 +1336,14 @@ func (P *Parser) ParseSimpleStat() {
 		P.Next();
 		pos := P.pos;
 		val_list := P.ParseNewExpressionList();
-		
+
 		// assign variables
 		if val_list.len == 1 && val_list.first.expr.typ().form == Type.TUPLE {
 			panic("UNIMPLEMENTED");
 		} else {
 			var p, q *Globals.Elem;
 			for p, q = expr_list.first, val_list.first; p != nil && q != nil; p, q = p.next, q.next {
-				
+
 			}
 			if p != nil || q != nil {
 				P.Error(pos, "number of expressions does not match number of variables");
@@ -2016,7 +2016,7 @@ func (P *Parser) ParseProgram() {
 				P.Error(P.pos, `pre-import of package "sys" failed`);
 			}
 		}
-		
+
 		for P.tok == Scanner.IMPORT {
 			P.ParseDecl(false, Scanner.IMPORT);
 			P.Optional(Scanner.SEMICOLON);

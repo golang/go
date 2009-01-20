@@ -98,7 +98,7 @@ var ftoatests = []ftoaTest {
 	ftoaTest{ -1, 'b', -1, "-4503599627370496p-52" },
 }
 
-export func TestFtoa(t *testing.T) {
+func TestFtoa(t *testing.T) {
 	if strconv.FloatSize != 32 {
 		panic("floatsize: ", strconv.FloatSize);
 	}

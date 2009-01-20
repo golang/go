@@ -8,24 +8,24 @@ import syscall "syscall"
 import os "os"
 
 // FDs are wrappers for file descriptors
-export type FD struct {
+type FD struct {
 	fd int64
 }
 
-export func NewFD(fd int64) *FD {
+func NewFD(fd int64) *FD {
 	if fd < 0 {
 		return nil
 	}
 	return &FD{fd}
 }
 
-export var (
+var (
 	Stdin = NewFD(0);
 	Stdout = NewFD(1);
 	Stderr = NewFD(2);
 )
 
-export const (
+const (
 	O_RDONLY = syscall.O_RDONLY;
 	O_WRONLY = syscall.O_WRONLY;
 	O_RDWR = syscall.O_RDWR;
@@ -39,7 +39,7 @@ export const (
 	O_TRUNC = syscall.O_TRUNC;
 )
 
-export func Open(name string, mode int, flags int) (fd *FD, err *Error) {
+func Open(name string, mode int, flags int) (fd *FD, err *Error) {
 	r, e := syscall.Open(name, int64(mode), int64(flags));
 	return NewFD(r), ErrnoToError(e)
 }
@@ -96,7 +96,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
 	return int(r), ErrnoToError(e)
 }
 
-export func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
+func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
 	var p [2]int64;
 	r, e := syscall.Pipe(&p);
 	if e != 0 {
@@ -105,7 +105,7 @@ export func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
 	return NewFD(p[0]), NewFD(p[1]), nil
 }
 
-export func Mkdir(name string, perm int) *Error {
+func Mkdir(name string, perm int) *Error {
 	r, e := syscall.Mkdir(name, int64(perm));
 	return ErrnoToError(e)
 }

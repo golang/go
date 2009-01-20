@@ -11,7 +11,7 @@ import (
 	"utf8";
 )
 
-export type Utf8Map struct {
+type Utf8Map struct {
 	rune int;
 	str string;
 }
@@ -53,7 +53,7 @@ func bytes(s string) []byte {
 	return b[0:len(s)];
 }
 
-export func TestFullRune(t *testing.T) {
+func TestFullRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
 		b := bytes(m.str);
@@ -87,7 +87,7 @@ func equalBytes(a, b []byte) bool {
 	return true;
 }
 
-export func TestEncodeRune(t *testing.T) {
+func TestEncodeRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
 		b := bytes(m.str);
@@ -100,7 +100,7 @@ export func TestEncodeRune(t *testing.T) {
 	}
 }
 
-export func TestDecodeRune(t *testing.T) {
+func TestDecodeRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
 		b := bytes(m.str);
@@ -158,7 +158,7 @@ export func TestDecodeRune(t *testing.T) {
 	}
 }
 
-export type RuneCountTest struct {
+type RuneCountTest struct {
 	in string;
 	out int;
 }
@@ -168,7 +168,7 @@ var runecounttests = []RuneCountTest {
 	RuneCountTest{ "1,2,3,4", 7 },
 	RuneCountTest{ "\xe2\x00", 2 },
 }
-export func TestRuneCount(t *testing.T) {
+func TestRuneCount(t *testing.T) {
 	for i := 0; i < len(runecounttests); i++ {
 		tt := runecounttests[i];
 		if out := utf8.RuneCountInString(tt.in, 0, len(tt.in)); out != tt.out {

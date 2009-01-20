@@ -10,7 +10,7 @@ import "math"
  *	atan2 discovers what quadrant the angle
  *	is in and calls atan.
  */
-export func Atan2(arg1, arg2 float64) float64 {
+func Atan2(arg1, arg2 float64) float64 {
 	if arg1+arg2 == arg1 {
 		if arg1 >= 0 {
 			return Pi/2;

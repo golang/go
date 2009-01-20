@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-export var (
+var (
 	BadURL = os.NewError("bad url syntax")
 )
 
@@ -41,7 +41,7 @@ func unhex(c byte) byte {
 }
 
 // Unescape %xx into hex.
-export func URLUnescape(s string) (string, *os.Error) {
+func URLUnescape(s string) (string, *os.Error) {
 	// Count %, check that they're well-formed.
 	n := 0;
 	for i := 0; i < len(s); {
@@ -76,7 +76,7 @@ export func URLUnescape(s string) (string, *os.Error) {
 	return string(t), nil;
 }
 
-export type URL struct {
+type URL struct {
 	raw string;
 	scheme string;
 	rawpath string;
@@ -127,7 +127,7 @@ func split(s string, c byte, cutc bool) (string, string) {
 }
 
 // Parse rawurl into a URL structure.
-export func ParseURL(rawurl string) (url *URL, err *os.Error) {
+func ParseURL(rawurl string) (url *URL, err *os.Error) {
 	if rawurl == "" {
 		return nil, BadURL
 	}
@@ -172,7 +172,7 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
 }
 
 // A URL reference is a URL with #frag potentially added.  Parse it.
-export func ParseURLReference(rawurlref string) (url *URL, err *os.Error) {
+func ParseURLReference(rawurlref string) (url *URL, err *os.Error) {
 	// Cut off #frag.
 	rawurl, frag := split(rawurlref, '#', true);
 	if url, err = ParseURL(rawurl); err != nil {

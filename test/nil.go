@@ -6,11 +6,11 @@
 
 package main
 
-export type T struct {
+type T struct {
 	i int
 }
 
-export type IN interface {
+type IN interface {
 }
 
 func main() {

@@ -9,24 +9,24 @@ package main
 
 const nilchar = 0;
 
-export type (
+type (
 	Atom struct;
 	List struct;
 	Slist struct;
 )
 
-export type Atom struct {
+type Atom struct {
 	str		string;
 	integer		int;
 	next		*Slist;	/* in hash bucket */
 }
 
-export type List struct {
+type List struct {
 	car		*Slist;
 	cdr*Slist;
 }
 
-export type Slist struct {
+type Slist struct {
 	isatom		bool;
 	isstring	bool;
 	//union {
@@ -67,8 +67,8 @@ func (slist *Slist) Free() {
 //	free(slist);
 }
 
-export func OpenFile();
-export func Parse() *Slist;
+func OpenFile();
+func Parse() *Slist;
 
 //Slist* atom(byte *s, int i);
 
@@ -81,7 +81,7 @@ var inputindex int = 0;
 var tokenbuf [100]byte;
 var tokenlen int = 0;
 
-export const EOF int = -1;
+const EOF int = -1;
 
 func main()
 {
@@ -131,7 +131,7 @@ func (slist *Slist) Print()
 	print("\n");
 }
 
-export func Get() int
+func Get() int
 {
 	var c int;
 
@@ -152,12 +152,12 @@ export func Get() int
 	return c;
 }
 
-export func WhiteSpace(c int) bool
+func WhiteSpace(c int) bool
 {
 	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
-export func NextToken()
+func NextToken()
 {
 	var i, c int;
 	var backslash bool;
@@ -199,7 +199,7 @@ export func NextToken()
 	}
 }
 
-export func Expect(c int)
+func Expect(c int)
 {
 	if token != c {
 		print("parse error: expected ", c, "\n");
@@ -209,7 +209,7 @@ export func Expect(c int)
 }
 
 // Parse a non-parenthesized list up to a closing paren or EOF
-export func ParseList() *Slist
+func ParseList() *Slist
 {
 	var slist, retval *Slist;
 
@@ -257,7 +257,7 @@ func atoi() int	// BUG: uses tokenbuf; should take argument
 	return v;
 }
 
-export func Parse() *Slist
+func Parse() *Slist
 {
 	var slist *Slist;
 
@@ -288,7 +288,7 @@ export func Parse() *Slist
 	return nil;
 }
 
-export func OpenFile()
+func OpenFile()
 {
 	input = "(defn foo (add 12 34))\n\x00";
 	inputindex = 0;

@@ -48,7 +48,7 @@ func _ReadServices() {
 	file.Close();
 }
 
-export func LookupPort(netw, name string) (port int, ok bool) {
+func LookupPort(netw, name string) (port int, ok bool) {
 	once.Do(&_ReadServices);
 
 	switch netw {

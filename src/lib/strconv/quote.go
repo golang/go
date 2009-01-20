@@ -10,7 +10,7 @@ import (
 
 const lowerhex = "0123456789abcdef"
 
-export func Quote(s string) string {
+func Quote(s string) string {
 	t := `"`;
 	for i := 0; i < len(s); i++ {
 		switch {
@@ -67,7 +67,7 @@ export func Quote(s string) string {
 	return t;
 }
 
-export func CanBackquote(s string) bool {
+func CanBackquote(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] < ' ' || s[i] == '`' {
 			return false;

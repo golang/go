@@ -8,7 +8,7 @@ import syscall "syscall"
 
 // Errors are singleton structures. Use the String() method to get their contents --
 // it handles the nil (no error) case.
-export type Error struct {
+type Error struct {
 	s string
 }
 
@@ -25,7 +25,7 @@ var errorStringTab = make(map[string] *Error);
 // errors simultaneously but the consequences are unimportant.
 
 // Allocate an Error object, but if it's been seen before, share that one.
-export func NewError(s string) *Error {
+func NewError(s string) *Error {
 	if s == "" {
 		return nil
 	}
@@ -39,7 +39,7 @@ export func NewError(s string) *Error {
 }
 
 // Allocate an Error objecct, but if it's been seen before, share that one.
-export func ErrnoToError(errno int64) *Error {
+func ErrnoToError(errno int64) *Error {
 	if errno == 0 {
 		return nil
 	}
@@ -53,7 +53,7 @@ export func ErrnoToError(errno int64) *Error {
 	return err;
 }
 
-export var (
+var (
 	ENONE = ErrnoToError(syscall.ENONE);
 	EPERM = ErrnoToError(syscall.EPERM);
 	ENOENT = ErrnoToError(syscall.ENOENT);

@@ -52,7 +52,7 @@ import "fmt"
 //    results are packed again. For faster unpacking/packing, the base size
 //    in bits must be even.
 
-export type (
+type (
 	Digit  uint64;
 	Digit2 uint32;  // half-digits for division
 )
@@ -91,7 +91,7 @@ func isSmall(x Digit) bool {
 }
 
 
-export func Dump(x []Digit) {
+func Dump(x []Digit) {
 	print("[", len(x), "]");
 	for i := len(x) - 1; i >= 0; i-- {
 		print(" ", x[i]);
@@ -111,7 +111,7 @@ export func Dump(x []Digit) {
 // n, m   len(x), len(y)
 
 
-export type Natural []Digit;
+type Natural []Digit;
 
 var (
 	natZero Natural = Natural{};
@@ -123,7 +123,7 @@ var (
 
 // Creation
 
-export func Nat(x uint) Natural {
+func Nat(x uint) Natural {
 	switch x {
 	case 0: return natZero;
 	case 1: return natOne;
@@ -696,7 +696,7 @@ func muladd1(x Natural, d, c Digit) Natural {
 
 // Determines base (octal, decimal, hexadecimal) if base == 0.
 // Returns the number and base.
-export func NatFromString(s string, base uint, slen *int) (Natural, uint) {
+func NatFromString(s string, base uint, slen *int) (Natural, uint) {
 	// determine base if necessary
 	i, n := 0, len(s);
 	if base == 0 {
@@ -766,7 +766,7 @@ func (xp Natural) Pow(n uint) Natural {
 }
 
 
-export func MulRange(a, b uint) Natural {
+func MulRange(a, b uint) Natural {
 	switch {
 	case a > b: return Nat(1);
 	case a == b: return Nat(a);
@@ -778,14 +778,14 @@ export func MulRange(a, b uint) Natural {
 }
 
 
-export func Fact(n uint) Natural {
+func Fact(n uint) Natural {
 	// Using MulRange() instead of the basic for-loop
 	// lead to faster factorial computation.
 	return MulRange(2, n);
 }
 
 
-export func Binomial(n, k uint) Natural {
+func Binomial(n, k uint) Natural {
 	return MulRange(n-k+1, n).Div(MulRange(1, k));
 }
 
@@ -806,7 +806,7 @@ func (xp Natural) Gcd(y Natural) Natural {
 // Integers are normalized if the mantissa is normalized and the sign is
 // false for mant == 0. Use MakeInt to create normalized Integers.
 
-export type Integer struct {
+type Integer struct {
 	sign bool;
 	mant Natural;
 }
@@ -814,7 +814,7 @@ export type Integer struct {
 
 // Creation
 
-export func MakeInt(sign bool, mant Natural) *Integer {
+func MakeInt(sign bool, mant Natural) *Integer {
 	if mant.IsZero() {
 		sign = false;  // normalize
 	}
@@ -822,7 +822,7 @@ export func MakeInt(sign bool, mant Natural) *Integer {
 }
 
 
-export func Int(x int) *Integer {
+func Int(x int) *Integer {
 	sign := false;
 	var ux uint;
 	if x < 0 {
@@ -1103,7 +1103,7 @@ func (x *Integer) Format(h fmt.Formatter, c int) {
 
 // Determines base (octal, decimal, hexadecimal) if base == 0.
 // Returns the number and base.
-export func IntFromString(s string, base uint, slen *int) (*Integer, uint) {
+func IntFromString(s string, base uint, slen *int) (*Integer, uint) {
 	// get sign, if any
 	sign := false;
 	if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
@@ -1126,7 +1126,7 @@ export func IntFromString(s string, base uint, slen *int) (*Integer, uint) {
 // ----------------------------------------------------------------------------
 // Rational numbers
 
-export type Rational struct {
+type Rational struct {
 	a *Integer;  // numerator
 	b Natural;  // denominator
 }
@@ -1134,7 +1134,7 @@ export type Rational struct {
 
 // Creation
 
-export func MakeRat(a *Integer, b Natural) *Rational {
+func MakeRat(a *Integer, b Natural) *Rational {
 	f := a.mant.Gcd(b);  // f > 0
 	if f.Cmp(Nat(1)) != 0 {
 		a = MakeInt(a.sign, a.mant.Div(f));
@@ -1144,7 +1144,7 @@ export func MakeRat(a *Integer, b Natural) *Rational {
 }
 
 
-export func Rat(a0 int, b0 int) *Rational {
+func Rat(a0 int, b0 int) *Rational {
 	a, b := Int(a0), Int(b0);
 	if b.sign {
 		a = a.Neg();
@@ -1233,7 +1233,7 @@ func (x *Rational) Format(h fmt.Formatter, c int) {
 
 // Determines base (octal, decimal, hexadecimal) if base == 0.
 // Returns the number and base of the nominator.
-export func RatFromString(s string, base uint, slen *int) (*Rational, uint) {
+func RatFromString(s string, base uint, slen *int) (*Rational, uint) {
 	// read nominator
 	var alen, blen int;
 	a, abase := IntFromString(s, base, &alen);

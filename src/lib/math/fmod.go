@@ -8,7 +8,7 @@ package math
  *	floating-point mod func without infinity or NaN checking
  */
 
-export func Fmod(x, y float64) float64 {
+func Fmod(x, y float64) float64 {
 	if y == 0 {
 		return x;
 	}

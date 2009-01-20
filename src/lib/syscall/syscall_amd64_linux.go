@@ -7,7 +7,7 @@
 
 package syscall
 
-export const(
+const(
 	SYS_READ = 0;
 	SYS_WRITE = 1;
 	SYS_OPEN = 2;

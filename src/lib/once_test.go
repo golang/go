@@ -14,7 +14,7 @@ func call() {
 	ncall++
 }
 
-export func TestOnce(t *testing.T) {
+func TestOnce(t *testing.T) {
 	ncall = 0;
 	once.Do(&call);
 	if ncall != 1 {

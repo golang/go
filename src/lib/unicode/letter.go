@@ -12,13 +12,13 @@
 
 package unicode
 
-export type Range struct {
+type Range struct {
 	lo int;
 	hi int;
 	stride int;
 }
 
-export var Upper = []Range{
+var Upper = []Range{
 	Range{0x0041, 0x005a, 1},
 	Range{0x00c0, 0x00d6, 1},
 	Range{0x00d8, 0x00de, 1},
@@ -150,7 +150,7 @@ export var Upper = []Range{
 	Range{0x1d7ca, 0x1d7ca, 1},
 }
 
-export var Letter = []Range {
+var Letter = []Range {
 	Range{0x0041, 0x005a, 1},
 	Range{0x0061, 0x007a, 1},
 	Range{0x00aa, 0x00b5, 11},
@@ -525,7 +525,7 @@ export var Letter = []Range {
 	Range{0x2f800, 0x2fa1d, 1},
 }
 
-export func Is(ranges []Range, rune int) bool {
+func Is(ranges []Range, rune int) bool {
 	// common case: rune is ASCII or Latin-1
 	if rune < 0x100 {
 		for i := 0; i < len(ranges); i++ {
@@ -559,11 +559,11 @@ export func Is(ranges []Range, rune int) bool {
 	return false;
 }
 
-export func IsUpper(rune int) bool {
+func IsUpper(rune int) bool {
 	return Is(Upper, rune);
 }
 
-export func IsLetter(rune int) bool {
+func IsLetter(rune int) bool {
 	return Is(Letter, rune);
 }
 

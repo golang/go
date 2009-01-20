@@ -10,12 +10,12 @@ package syscall
 
 // Time
 
-export type Timespec struct {
+type Timespec struct {
 	Sec	int64;
 	Nsec	uint64;
 }
 
-export type Timeval struct {
+type Timeval struct {
 	Sec	int64;
 	Usec	uint64;
 }
@@ -23,7 +23,7 @@ export type Timeval struct {
 
 // Processes
 
-export type Rusage struct {
+type Rusage struct {
 	Utime	Timeval;
 	Stime	Timeval;
 	Maxrss	int64;
@@ -45,7 +45,7 @@ export type Rusage struct {
 
 // Files
 
-export const (
+const (
 	O_RDONLY = 0x0;
 	O_WRONLY = 0x1;
 	O_RDWR = 0x2;
@@ -67,7 +67,7 @@ export const (
 	FD_CLOEXEC = 1;
 )
 
-export type Stat_t struct {
+type Stat_t struct {
 	Dev	uint64;
 	Ino	uint64;
 	Nlink	uint64;
@@ -88,7 +88,7 @@ export type Stat_t struct {
 
 // Sockets
 
-export const (
+const (
 	AF_UNIX = 1;
 	AF_INET = 2;
 	AF_INET6 = 10;
@@ -133,36 +133,36 @@ export const (
 	SOMAXCONN = 128;
 )
 
-export type SockaddrUnix struct {
+type SockaddrUnix struct {
 	Family	uint16;
 	Path	[108]byte
 }
-export const SizeofSockaddrUnix = 110
+const SizeofSockaddrUnix = 110
 
-export type SockaddrInet4 struct {
+type SockaddrInet4 struct {
 	Family	uint16;
 	Port	[2]byte;
 	Addr	[4]byte;
 	Zero	[8]byte
 }
-export const SizeofSockaddrInet4 = 16
+const SizeofSockaddrInet4 = 16
 
-export type SockaddrInet6 struct {
+type SockaddrInet6 struct {
 	Family	uint16;
 	Port	[2]byte;
 	Flowinfo	[4]byte;
 	Addr	[16]byte;
 	Scopeid	[4]byte;
 }
-export const SizeofSockaddrInet6 = 28
+const SizeofSockaddrInet6 = 28
 
-export type Sockaddr struct {
+type Sockaddr struct {
 	Family	uint16;
 	Opaque	[126]byte
 }
-export const SizeofSockaddr = 128
+const SizeofSockaddr = 128
 
-export type Linger struct {
+type Linger struct {
 	Yes int32;
 	Sec int32;
 }
@@ -170,7 +170,7 @@ export type Linger struct {
 
 // Events (epoll)
 
-export const (
+const (
 	// EpollEvent.events
 	EPOLLIN = 0x1;
 	EPOLLOUT = 0x4;
@@ -186,7 +186,7 @@ export const (
 	EPOLL_CTL_DEL = 0x2;
 )
 
-export type EpollEvent struct {
+type EpollEvent struct {
 	Events uint32;
 	Fd int32;
 	Pad int32;

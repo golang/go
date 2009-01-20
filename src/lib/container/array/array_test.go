@@ -9,7 +9,7 @@ import "testing"
 import "sort"
 
 
-export func TestInit(t *testing.T) {
+func TestInit(t *testing.T) {
 	var a array.Array;
 	if a.Init(0).Len() != 0 { t.Error("A") }
 	if a.Init(1).Len() != 1 { t.Error("B") }
@@ -17,19 +17,19 @@ export func TestInit(t *testing.T) {
 }
 
 
-export func TestNew(t *testing.T) {
+func TestNew(t *testing.T) {
 	if array.New(0).Len() != 0 { t.Error("A") }
 	if array.New(1).Len() != 1 { t.Error("B") }
 	if array.New(10).Len() != 10 { t.Error("C") }
 }
 
 
-export func Val(i int) int {
+func Val(i int) int {
 	return i*991 - 1234
 }
 
 
-export func TestAccess(t *testing.T) {
+func TestAccess(t *testing.T) {
 	const n = 100;
 	var a array.Array;
 	a.Init(n);
@@ -42,7 +42,7 @@ export func TestAccess(t *testing.T) {
 }
 
 
-export func TestInsertRemoveClear(t *testing.T) {
+func TestInsertRemoveClear(t *testing.T) {
 	const n = 100;
 	a := array.New(0);
 
@@ -81,7 +81,7 @@ export func TestInsertRemoveClear(t *testing.T) {
 
 
 /* currently doesn't compile due to linker bug
-export func TestSorting(t *testing.T) {
+func TestSorting(t *testing.T) {
 	const n = 100;
 	a := array.NewIntArray(n);
 	for i := n-1; i >= 0; i-- {

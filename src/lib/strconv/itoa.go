@@ -4,7 +4,7 @@
 
 package strconv
 
-export func Itoa64(i int64) string {
+func Itoa64(i int64) string {
 	if i == 0 {
 		return "0"
 	}
@@ -31,7 +31,7 @@ export func Itoa64(i int64) string {
 	return string(b[bp:len(b)])
 }
 
-export func Itoa(i int) string {
+func Itoa(i int) string {
 	return Itoa64(int64(i));
 }
 

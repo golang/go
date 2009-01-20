@@ -4,7 +4,7 @@
 
 package math
 
-export const (
+const (
 	// Mathematical constants.
 	// Reference: http://www.research.att.com/~njas/sequences/Axxxxxx
 

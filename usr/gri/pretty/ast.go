@@ -12,7 +12,7 @@ import (
 )
 
 
-export type (
+type (
 	Object struct;
 	Type struct;
 
@@ -27,7 +27,7 @@ export type (
 
 // Object represents a language object, such as a constant, variable, type, etc.
 
-export const /* kind */ (
+const /* kind */ (
 	BADOBJ = iota;  // error handling
 	NONE;  // kind unknown
 	CONST; TYPE; VAR; FIELD; FUNC; BUILTIN; PACKAGE; LABEL;
@@ -35,7 +35,7 @@ export const /* kind */ (
 )
 
 
-export func KindStr(kind int) string {
+func KindStr(kind int) string {
 	switch kind {
 	case BADOBJ: return "BADOBJ";
 	case NONE: return "NONE";
@@ -53,7 +53,7 @@ export func KindStr(kind int) string {
 }
 
 
-export type Object struct {
+type Object struct {
 	Id int;  // unique id
 
 	Pos int;  // source position (< 0 if unknown position)
@@ -61,7 +61,7 @@ export type Object struct {
 	Ident string;
 	Typ *Type;  // nil for packages
 	Pnolev int;  // >= 0: package no., <= 0: function nesting level, 0: global level
-	
+
 	// attached values
 	Block *array.Array; End int;  // stats for function literals; end of block pos
 }
@@ -77,14 +77,14 @@ func (obj *Object) IsExported() bool {
 }
 
 
-export var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
+var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
 var objectId int;
 
-export func NewObject(pos, kind int, ident string) *Object {
+func NewObject(pos, kind int, ident string) *Object {
 	obj := new(Object);
 	obj.Id = objectId;
 	objectId++;
-	
+
 	obj.Pos = pos;
 	obj.Kind = kind;
 	obj.Ident = ident;
@@ -98,13 +98,13 @@ export func NewObject(pos, kind int, ident string) *Object {
 // ----------------------------------------------------------------------------
 // Scopes
 
-export type Scope struct {
+type Scope struct {
 	Parent *Scope;
 	entries map[string] *Object;
 }
 
 
-export func NewScope(parent *Scope) *Scope {
+func NewScope(parent *Scope) *Scope {
 	scope := new(Scope);
 	scope.Parent = parent;
 	scope.entries = make(map[string]*Object, 8);
@@ -168,7 +168,7 @@ func (scope *Scope) Print() {
 // ----------------------------------------------------------------------------
 // All nodes have a source position and and token.
 
-export type Node struct {
+type Node struct {
 	Pos int;  // source position (< 0 => unknown position)
 	Tok int;  // identifying token
 }
@@ -177,7 +177,7 @@ export type Node struct {
 // ----------------------------------------------------------------------------
 // Expressions
 
-export type Expr struct {
+type Expr struct {
 	Node;
 	X, Y *Expr;  // binary (X, Y) and unary (Y) expressions
 	Obj *Object;
@@ -196,7 +196,7 @@ func (x *Expr) Len() int {
 }
 
 
-export func NewExpr(pos, tok int, x, y *Expr) *Expr {
+func NewExpr(pos, tok int, x, y *Expr) *Expr {
 	if x != nil && x.Tok == Scanner.TYPE || y != nil && y.Tok == Scanner.TYPE {
 		panic("no type expression allowed");
 	}
@@ -207,33 +207,33 @@ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
 
 
 // TODO probably don't need the tok parameter eventually
-export func NewLit(tok int, obj *Object) *Expr {
+func NewLit(tok int, obj *Object) *Expr {
 	e := new(Expr);
 	e.Pos, e.Tok, e.Obj = obj.Pos, tok, obj;
 	return e;
 }
 
 
-export var BadExpr = NewExpr(0, Scanner.ILLEGAL, nil, nil);
+var BadExpr = NewExpr(0, Scanner.ILLEGAL, nil, nil);
 
 
 // ----------------------------------------------------------------------------
 // Types
 
-export const /* form */ (
+const /* form */ (
 	// internal types
 	// We should never see one of these.
 	UNDEF = iota;
-	
+
 	// VOID types are used when we don't have a type. Never exported.
 	// (exported type forms must be > 0)
 	VOID;
-	
+
 	// BADTYPE types are compatible with any type and don't cause further errors.
 	// They are introduced only as a result of an error in the source code. A
 	// correct program cannot have BAD types.
 	BADTYPE;
-	
+
 	// FORWARD types are forward-declared (incomplete) types. They can only
 	// be used as element types of pointer types and must be resolved before
 	// their internals are accessible.
@@ -242,7 +242,7 @@ export const /* form */ (
 	// TUPLE types represent multi-valued result types of functions and
 	// methods.
 	TUPLE;
-	
+
 	// The type of nil.
 	NIL;
 
@@ -251,16 +251,16 @@ export const /* form */ (
 
 	// basic types
 	BOOL; UINT; INT; FLOAT; STRING; INTEGER;
-	
+
 	// composite types
 	ALIAS; ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; METHOD; POINTER;
-	
+
 	// open-ended parameter type
 	ELLIPSIS
 )
 
 
-export func FormStr(form int) string {
+func FormStr(form int) string {
 	switch form {
 	case VOID: return "VOID";
 	case BADTYPE: return "BADTYPE";
@@ -288,14 +288,14 @@ export func FormStr(form int) string {
 }
 
 
-export const /* channel mode */ (
+const /* channel mode */ (
 	FULL = iota;
 	SEND;
 	RECV;
 )
 
 
-export type Type struct {
+type Type struct {
 	Id int;  // unique id
 
 	Ref int;  // for exporting only: >= 0 means already exported
@@ -317,7 +317,7 @@ export type Type struct {
 
 var typeId int;
 
-export func NewType(pos, form int) *Type {
+func NewType(pos, form int) *Type {
 	typ := new(Type);
 	typ.Id = typeId;
 	typeId++;
@@ -350,20 +350,20 @@ func (t *Type) Nfields() int {
 
 
 // requires complete Type.Pos access
-export func NewTypeExpr(typ *Type) *Expr {
+func NewTypeExpr(typ *Type) *Expr {
 	obj := NewObject(typ.Pos, TYPE, "");
 	obj.Typ = typ;
 	return NewLit(Scanner.TYPE, obj);
 }
 
 
-export var BadType = NewType(0, Scanner.ILLEGAL);
+var BadType = NewType(0, Scanner.ILLEGAL);
 
 
 // ----------------------------------------------------------------------------
 // Statements
 
-export type Stat struct {
+type Stat struct {
 	Node;
 	Init, Post *Stat;
 	Expr *Expr;
@@ -372,20 +372,20 @@ export type Stat struct {
 }
 
 
-export func NewStat(pos, tok int) *Stat {
+func NewStat(pos, tok int) *Stat {
 	s := new(Stat);
 	s.Pos, s.Tok = pos, tok;
 	return s;
 }
 
 
-export var BadStat = NewStat(0, Scanner.ILLEGAL);
+var BadStat = NewStat(0, Scanner.ILLEGAL);
 
 
 // ----------------------------------------------------------------------------
 // Declarations
 
-export type Decl struct {
+type Decl struct {
 	Node;
 	Exported bool;
 	Ident *Expr;  // nil for ()-style declarations
@@ -397,33 +397,33 @@ export type Decl struct {
 }
 
 
-export func NewDecl(pos, tok int, exported bool) *Decl {
+func NewDecl(pos, tok int, exported bool) *Decl {
 	d := new(Decl);
 	d.Pos, d.Tok, d.Exported = pos, tok, exported;
 	return d;
 }
 
 
-export var BadDecl = NewDecl(0, Scanner.ILLEGAL, false);
+var BadDecl = NewDecl(0, Scanner.ILLEGAL, false);
 
 
 // ----------------------------------------------------------------------------
 // Program
 
-export type Comment struct {
+type Comment struct {
 	Pos int;
 	Text string;
 }
 
 
-export func NewComment(pos int, text string) *Comment {
+func NewComment(pos int, text string) *Comment {
 	c := new(Comment);
 	c.Pos, c.Text = pos, text;
 	return c;
 }
 
 
-export type Program struct {
+type Program struct {
 	Pos int;  // tok is Scanner.PACKAGE
 	Ident *Expr;
 	Decls *array.Array;
@@ -431,7 +431,7 @@ export type Program struct {
 }
 
 
-export func NewProgram(pos int) *Program {
+func NewProgram(pos int) *Program {
 	p := new(Program);
 	p.Pos = pos;
 	return p;

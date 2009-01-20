@@ -36,7 +36,7 @@ func serveConnection(fd net.Conn, raddr string, f *(*Conn, *Request)) {
 }
 
 // Web server: already listening on l, call f for each request.
-export func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
+func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
 	// TODO: Make this unnecessary
 	s, e := os.Getenv("GOMAXPROCS");
 	if n, ok := strconv.Atoi(s); n < 3 {
@@ -54,7 +54,7 @@ export func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
 }
 
 // Web server: listen on address, call f for each request.
-export func ListenAndServe(addr string, f *(*Conn, *Request)) *os.Error {
+func ListenAndServe(addr string, f *(*Conn, *Request)) *os.Error {
 	l, e := net.Listen("tcp", addr);
 	if e != nil {
 		return e

@@ -9,7 +9,7 @@ import (
 	"syscall";
 )
 
-export type FD struct {
+type FD struct {
 	fildes  int64;  // file descriptor number
 	name    string; // file name at Open time
 }
@@ -21,13 +21,13 @@ func newFD(fd int64, name string) *FD {
 	return &FD{fd, name}
 }
 
-export var (
+var (
 	Stdin  = newFD(0, "/dev/stdin");
 	Stdout = newFD(1, "/dev/stdout");
 	Stderr = newFD(2, "/dev/stderr");
 )
 
-export func Open(name string, mode int64, perm int64) (fd *FD, err *os.Error) {
+func Open(name string, mode int64, perm int64) (fd *FD, err *os.Error) {
 	r, e := syscall.Open(name, mode, perm);
 	return newFD(r, name), os.ErrnoToError(e)
 }

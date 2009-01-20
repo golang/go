@@ -6,9 +6,9 @@
 
 package main
 
-export const B32 = 1<<32 - 1
-export const C32 = (-1) & ((1<<32) - 1)
-export const D32 = ^0
+const B32 = 1<<32 - 1
+const C32 = (-1) & ((1<<32) - 1)
+const D32 = ^0
 
 func main() {
 	if B32 != 0xFFFFFFFF {

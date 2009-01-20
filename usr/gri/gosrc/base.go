@@ -6,18 +6,18 @@
 
 package base
 
-export type Foo int
+type Foo int
 
-export type Bar *float;
+type Bar *float;
 
-export type Node struct {
+type Node struct {
   left, right *Node;
   val bool;
   f Foo;
 }
 
-export func (p *Node) F(x int) {};
+func (p *Node) F(x int) {};
 
-export type I interface {
+type I interface {
   f();
 }

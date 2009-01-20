@@ -49,7 +49,7 @@ var golden = []_Adler32Test {
 	_Adler32Test{ 0x2e5d1316, "How can you write a big system without C++?  -Paul Glick" },
 }
 
-export func TestGolden(t *testing.T) {
+func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i];
 		c := NewDigest();

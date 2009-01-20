@@ -5,7 +5,7 @@
 package Utils
 
 
-export func BaseName(s string) string {
+func BaseName(s string) string {
 	// TODO this is not correct for non-ASCII strings!
 	i := len(s) - 1;
 	for i >= 0 && s[i] != '/' {
@@ -18,13 +18,13 @@ export func BaseName(s string) string {
 }
 
 
-export func Contains(s, sub string, pos int) bool {
+func Contains(s, sub string, pos int) bool {
 	end := pos + len(sub);
 	return pos >= 0 && end <= len(s) && s[pos : end] == sub;
 }
 
 
-export func TrimExt(s, ext string) string {
+func TrimExt(s, ext string) string {
 	i := len(s) - len(ext);
 	if i >= 0 && s[i : len(s)] == ext {
 		s = s[0 : i];
@@ -33,7 +33,7 @@ export func TrimExt(s, ext string) string {
 }
 
 
-export func IntToString(x, base int) string {
+func IntToString(x, base int) string {
 	x0 := x;
 	if x < 0 {
 		x = -x;
@@ -53,11 +53,11 @@ export func IntToString(x, base int) string {
 		buf[i] = hex[x % base];
 		x /= base;
 	}
-	
+
 	if x0 < 0 {
 		i--;
 		buf[i] = '-';
 	}
-	
+
 	return string(buf)[i : len(buf)];
 }

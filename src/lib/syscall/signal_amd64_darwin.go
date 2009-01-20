@@ -7,7 +7,7 @@
 
 package syscall
 
-export const(
+const(
 	SIGHUP = 1;
 	SIGINT = 2;
 	SIGQUIT = 3;

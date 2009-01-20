@@ -48,7 +48,7 @@ var porttests = []portTest {
 	portTest{ "tcp", "--badport--", 0, false },
 }
 
-export func TestLookupPort(t *testing.T) {
+func TestLookupPort(t *testing.T) {
 	for i := 0; i < len(porttests); i++ {
 		tt := porttests[i];
 		if port, ok := LookupPort(tt.netw, tt.name); port != tt.port || ok != tt.ok {

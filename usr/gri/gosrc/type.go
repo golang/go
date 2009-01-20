@@ -8,20 +8,20 @@ import Globals "globals"
 import Object "object"
 
 
-export const /* form */ (
+const /* form */ (
 	// internal types
 	// We should never see one of these.
 	UNDEF = iota;
-	
+
 	// VOID types are used when we don't have a type. Never exported.
 	// (exported type forms must be > 0)
 	VOID;
-	
+
 	// BAD types are compatible with any type and don't cause further errors.
 	// They are introduced only as a result of an error in the source code. A
 	// correct program cannot have BAD types.
 	BAD;
-	
+
 	// FORWARD types are forward-declared (incomplete) types. They can only
 	// be used as element types of pointer types and must be resolved before
 	// their internals are accessible.
@@ -30,22 +30,22 @@ export const /* form */ (
 	// TUPLE types represent multi-valued result types of functions and
 	// methods.
 	TUPLE;
-	
+
 	// The type of nil.
 	NIL;
 
 	// basic types
 	BOOL; UINT; INT; FLOAT; STRING; INTEGER;
-	
+
 	// 'any' type  // TODO this should go away eventually
 	ANY;
-	
+
 	// composite types
 	ALIAS; ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; METHOD; POINTER;
 )
 
 
-export const /* Type.aux */ (
+const /* Type.aux */ (
 	SEND = 1;  // chan>
 	RECV = 2;  // chan<
 )
@@ -56,7 +56,7 @@ export const /* Type.aux */ (
 // globals.go.
 
 
-export func FormStr(form int) string {
+func FormStr(form int) string {
 	switch form {
 	case VOID: return "VOID";
 	case BAD: return "BAD";
@@ -83,7 +83,7 @@ export func FormStr(form int) string {
 }
 
 
-export func Equal(x, y *Globals.Type) bool;
+func Equal(x, y *Globals.Type) bool;
 
 func Equal0(x, y *Globals.Type) bool {
 	if x == y {
@@ -94,7 +94,7 @@ func Equal0(x, y *Globals.Type) bool {
 		return true;  // bad types are always equal (avoid excess error messages)
 	}
 
-	// TODO where to check for *T == nil ?  
+	// TODO where to check for *T == nil ?
 	if x.form != y.form {
 		return false;  // types of different forms are not equal
 	}
@@ -173,7 +173,7 @@ func Equal0(x, y *Globals.Type) bool {
 
 	case POINTER:
 		return Equal(x.elt, y.elt);
-		
+
 	case TUPLE:
 		panic("UNIMPLEMENTED");
 		return false;
@@ -184,7 +184,7 @@ func Equal0(x, y *Globals.Type) bool {
 }
 
 
-export func Equal(x, y *Globals.Type) bool {
+func Equal(x, y *Globals.Type) bool {
 	res := Equal0(x, y);
 	// TODO should do the check below only in debug mode
 	if Equal0(y, x) != res {
@@ -194,11 +194,11 @@ export func Equal(x, y *Globals.Type) bool {
 }
 
 
-export func Assigneable(from, to *Globals.Type) bool {
+func Assigneable(from, to *Globals.Type) bool {
 	if Equal(from, to) {
 		return true;
 	}
-	
+
 	panic("UNIMPLEMENTED");
 	return false;
 }

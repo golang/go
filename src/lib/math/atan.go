@@ -57,7 +57,7 @@ func satan(arg float64) float64 {
  *	atan makes its argument positive and
  *	calls the inner routine satan.
  */
-export func Atan(arg float64) float64 {
+func Atan(arg float64) float64 {
 	if arg > 0 {
 		return satan(arg);
 	}

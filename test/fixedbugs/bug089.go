@@ -6,8 +6,8 @@
 
 package main
 
-export type	I1	interface {}
-export type	I2	interface { pr() }
+type	I1	interface {}
+type	I2	interface { pr() }
 
 func	e()	I1;
 

@@ -18,7 +18,7 @@ const (
   mask4 = 1 << iota;
 )
 
-export type (
+type (
   Empty interface {};
   Point struct {
     x, y int;

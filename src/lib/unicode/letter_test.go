@@ -92,7 +92,7 @@ var notletter = []int{
 	0x10ffff,
 }
 
-export func TestIsLetter(t *testing.T) {
+func TestIsLetter(t *testing.T) {
 	for i, r := range(upper) {
 		if !IsLetter(r) {
 			t.Errorf("IsLetter(%#x) = false, want true\n", r);
@@ -110,7 +110,7 @@ export func TestIsLetter(t *testing.T) {
 	}
 }
 
-export func TestIsUpper(t *testing.T) {
+func TestIsUpper(t *testing.T) {
 	for i, r := range(upper) {
 		if !IsUpper(r) {
 			t.Errorf("IsUpper(%#x) = false, want true\n", r);

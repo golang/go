@@ -21,7 +21,7 @@ func tabify(s string) string {
 	return s
 }
 
-export type T struct {
+type T struct {
 	errors	string;
 	failed	bool;
 	ch	chan *T;
@@ -69,7 +69,7 @@ func (t *T) Fatalf(format string, args ...) {
 	t.FailNow();
 }
 
-export type Test struct {
+type Test struct {
 	Name string;
 	F *(*T);
 }
@@ -79,7 +79,7 @@ func tRunner(t *T, test *Test) {
 	t.ch <- t;
 }
 
-export func Main(tests []Test) {
+func Main(tests []Test) {
 	flag.Parse();
 	ok := true;
 	if len(tests) == 0 {

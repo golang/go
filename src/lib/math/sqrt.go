@@ -11,7 +11,7 @@ package math
  *	calls frexp
  */
 
-export func Sqrt(arg float64) float64 {
+func Sqrt(arg float64) float64 {
 	if sys.IsInf(arg, 1) {
 		return arg;
 	}

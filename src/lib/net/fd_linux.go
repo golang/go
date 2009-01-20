@@ -17,14 +17,14 @@ const (
 	writeFlags = syscall.EPOLLOUT
 )
 
-export type Pollster struct {
+type Pollster struct {
 	epfd int64;
 
 	// Events we're already waiting for
 	events map[int64] uint32;
 }
 
-export func NewPollster() (p *Pollster, err *os.Error) {
+func NewPollster() (p *Pollster, err *os.Error) {
 	p = new(Pollster);
 	var e int64;
 

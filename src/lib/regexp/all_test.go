@@ -36,16 +36,16 @@ type stringError struct {
 }
 var bad_re = []stringError{
 	stringError{ `*`,	 	regexp.ErrBareClosure },
-	stringError{ `(abc`,	regexp.ErrUnmatchedLpar },	
-	stringError{ `abc)`,	regexp.ErrUnmatchedRpar },	
-	stringError{ `x[a-z`,	regexp.ErrUnmatchedLbkt },	
-	stringError{ `abc]`,	regexp.ErrUnmatchedRbkt },	
-	stringError{ `[z-a]`,	regexp.ErrBadRange },	
-	stringError{ `abc\`,	regexp.ErrExtraneousBackslash },	
-	stringError{ `a**`,	regexp.ErrBadClosure },	
-	stringError{ `a*+`,	regexp.ErrBadClosure },	
-	stringError{ `a??`,	regexp.ErrBadClosure },	
-	stringError{ `*`,	 	regexp.ErrBareClosure },	
+	stringError{ `(abc`,	regexp.ErrUnmatchedLpar },
+	stringError{ `abc)`,	regexp.ErrUnmatchedRpar },
+	stringError{ `x[a-z`,	regexp.ErrUnmatchedLbkt },
+	stringError{ `abc]`,	regexp.ErrUnmatchedRbkt },
+	stringError{ `[z-a]`,	regexp.ErrBadRange },
+	stringError{ `abc\`,	regexp.ErrExtraneousBackslash },
+	stringError{ `a**`,	regexp.ErrBadClosure },
+	stringError{ `a*+`,	regexp.ErrBadClosure },
+	stringError{ `a??`,	regexp.ErrBadClosure },
+	stringError{ `*`,	 	regexp.ErrBareClosure },
 	stringError{ `\x`,	regexp.ErrBadBackslash },
 }
 
@@ -155,19 +155,19 @@ func executeTest(t *testing.T, expr string, str string, match []int) {
 	}
 }
 
-export func TestGoodCompile(t *testing.T) {
+func TestGoodCompile(t *testing.T) {
 	for i := 0; i < len(good_re); i++ {
 		compileTest(t, good_re[i], nil);
 	}
 }
 
-export func TestBadCompile(t *testing.T) {
+func TestBadCompile(t *testing.T) {
 	for i := 0; i < len(bad_re); i++ {
 		compileTest(t, bad_re[i].re, bad_re[i].err)
 	}
 }
 
-export func TestExecute(t *testing.T) {
+func TestExecute(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
 		executeTest(t, test.re, test.text, test.match)
@@ -185,7 +185,7 @@ func matchTest(t *testing.T, expr string, str string, match []int) {
 	}
 }
 
-export func TestMatch(t *testing.T) {
+func TestMatch(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
 		matchTest(t, test.re, test.text, test.match)
@@ -210,7 +210,7 @@ func matchStringsTest(t *testing.T, expr string, str string, match []int) {
 	}
 }
 
-export func TestMatchStrings(t *testing.T) {
+func TestMatchStrings(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
 		matchTest(t, test.re, test.text, test.match)
@@ -227,7 +227,7 @@ func matchFunctionTest(t *testing.T, expr string, str string, match []int) {
 	}
 }
 
-export func TestMatchFunction(t *testing.T) {
+func TestMatchFunction(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
 		matchFunctionTest(t, test.re, test.text, test.match)

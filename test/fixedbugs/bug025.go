@@ -6,7 +6,7 @@
 
 package main
 
-export foo
+foo
 
 func main() {}
 

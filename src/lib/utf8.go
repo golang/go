@@ -6,7 +6,7 @@
 
 package utf8
 
-export const (
+const (
 	RuneError = 0xFFFD;
 	RuneSelf = 0x80;
 	RuneMax = 0x10FFFF;
@@ -181,29 +181,29 @@ func decodeRuneInStringInternal(s string, i int, n int) (rune, size int, short b
 	return RuneError, 1, false
 }
 
-export func FullRune(p []byte) bool {
+func FullRune(p []byte) bool {
 	rune, size, short := decodeRuneInternal(p);
 	return !short
 }
 
-export func FullRuneInString(s string, i int) bool {
+func FullRuneInString(s string, i int) bool {
 	rune, size, short := decodeRuneInStringInternal(s, i, len(s) - i);
 	return !short
 }
 
-export func DecodeRune(p []byte) (rune, size int) {
+func DecodeRune(p []byte) (rune, size int) {
 	var short bool;
 	rune, size, short = decodeRuneInternal(p);
 	return;
 }
 
-export func DecodeRuneInString(s string, i int) (rune, size int) {
+func DecodeRuneInString(s string, i int) (rune, size int) {
 	var short bool;
 	rune, size, short = decodeRuneInStringInternal(s, i, len(s) - i);
 	return;
 }
 
-export func RuneLen(rune int) int {
+func RuneLen(rune int) int {
 	switch {
 	case rune <= _Rune1Max:
 		return 1;
@@ -217,7 +217,7 @@ export func RuneLen(rune int) int {
 	return -1;
 }
 
-export func EncodeRune(rune int, p []byte) int {
+func EncodeRune(rune int, p []byte) int {
 	if rune <= _Rune1Max {
 		p[0] = byte(rune);
 		return 1;
@@ -247,7 +247,7 @@ export func EncodeRune(rune int, p []byte) int {
 	return 4;
 }
 
-export func RuneCount(p []byte) int {
+func RuneCount(p []byte) int {
 	i := 0;
 	var n int;
 	for n = 0; i < len(p); n++ {
@@ -261,7 +261,7 @@ export func RuneCount(p []byte) int {
 	return n;
 }
 
-export func RuneCountInString(s string, i int, l int) int {
+func RuneCountInString(s string, i int, l int) int {
 	ei := i + l;
 	n := 0;
 	for n = 0; i < ei; n++ {

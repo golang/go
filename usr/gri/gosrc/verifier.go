@@ -48,7 +48,7 @@ func (V *Verifier) VerifyType(typ *Globals.Type) {
 	case Type.VOID:
 	case Type.BAD:
 		break;  // TODO for now - remove eventually
-		
+
 	case Type.FORWARD:
 		if typ.scope == nil {
 			Error("forward types must have a scope");
@@ -159,7 +159,7 @@ func (V *Verifier) Verify(comp *Globals.Compilation) {
 }
 
 
-export func Verify(comp *Globals.Compilation) {
+func Verify(comp *Globals.Compilation) {
 	V := new(Verifier);
 	V.Verify(comp);
 }

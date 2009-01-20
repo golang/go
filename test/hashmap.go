@@ -9,7 +9,7 @@ package main
 // ----------------------------------------------------------------------------
 // Helper functions
 
-export func ASSERT(p bool) {
+func ASSERT(p bool) {
 	if !p {
 		// panic 0;
 	}
@@ -19,18 +19,18 @@ export func ASSERT(p bool) {
 // ----------------------------------------------------------------------------
 // Implementation of the HashMap
 
-export type KeyType interface {
+type KeyType interface {
 	Hash() uint32;
 	Match(other *KeyType) bool
 }
 
 
-export type ValueType interface {
+type ValueType interface {
 	// empty interface
 }
 
 
-export type Entry struct {
+type Entry struct {
 	key *KeyType;
 	value *ValueType;
 }
@@ -39,7 +39,7 @@ export type Entry struct {
 // Using the Array type below doesn't seem to work
 //type Array array [1024] Entry;
 
-export type HashMap struct {
+type HashMap struct {
 	map_ *[1024] Entry;
 	log2_capacity_ uint32;
 	occupancy_ uint32;
@@ -139,7 +139,7 @@ func (m *HashMap) Resize() {
 // ----------------------------------------------------------------------------
 // Test code
 
-export type Number struct {
+type Number struct {
 	x uint32;
 }
 
@@ -156,7 +156,7 @@ func (n *Number) Match(other *KeyType) bool {
 }
 
 
-export func MakeNumber (x uint32) *Number {
+func MakeNumber (x uint32) *Number {
 	var n *Number = new(Number);
 	n.x = x;
 	return n;

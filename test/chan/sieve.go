@@ -10,7 +10,7 @@
 package main
 
 // Send the sequence 2, 3, 4, ... to channel 'ch'.
-export func Generate(ch chan<- int) {
+func Generate(ch chan<- int) {
 	for i := 2; ; i++ {
 		ch <- i  // Send 'i' to channel 'ch'.
 	}
@@ -18,7 +18,7 @@ export func Generate(ch chan<- int) {
 
 // Copy the values from channel 'in' to channel 'out',
 // removing those divisible by 'prime'.
-export func Filter(in <-chan int, out chan<- int, prime int) {
+func Filter(in <-chan int, out chan<- int, prime int) {
 	for {
 		i := <-in;  // Receive value of new variable 'i' from 'in'.
 		if i % prime != 0 {
@@ -28,7 +28,7 @@ export func Filter(in <-chan int, out chan<- int, prime int) {
 }
 
 // The prime sieve: Daisy-chain Filter processes together.
-export func Sieve(primes chan<- int) {
+func Sieve(primes chan<- int) {
 	ch := make(chan int);  // Create a new channel.
 	go Generate(ch);  // Start Generate() as a subprocess.
 	for {

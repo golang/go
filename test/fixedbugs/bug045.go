@@ -6,7 +6,7 @@
 
 package main
 
-export type T struct {
+type T struct {
 	i int
 }
 

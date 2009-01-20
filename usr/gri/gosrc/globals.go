@@ -23,7 +23,7 @@ type Compilation struct
 // source code (pos), has a name (ident), a type (typ), and a package number
 // or nesting level (pnolev).
 
-export type Object struct {
+type Object struct {
 	exported bool;
 	pos int;  // source position (< 0 if unknown position)
 	kind int;
@@ -33,7 +33,7 @@ export type Object struct {
 }
 
 
-export type Type struct {
+type Type struct {
 	ref int;  // for exporting only: >= 0 means already exported
 	form int;
 	size int;  // in bytes
@@ -46,7 +46,7 @@ export type Type struct {
 }
 
 
-export type Package struct {
+type Package struct {
 	ref int;  // for exporting only: >= 0 means already exported
 	file_name string;
 	key string;
@@ -55,20 +55,20 @@ export type Package struct {
 }
 
 
-export type List struct {
+type List struct {
 	len int;
 	first, last *Elem;
 };
 
 
-export type Scope struct {
+type Scope struct {
 	parent *Scope;
 	entries *List;
 	// entries map[string] *Object;  // doesn't work properly
 }
 
 
-export type Flags struct {
+type Flags struct {
 	debug bool;
 	object_file string;
 	update_packages bool;
@@ -79,7 +79,7 @@ export type Flags struct {
 }
 
 
-export type Environment struct {
+type Environment struct {
 	Error *(comp *Compilation, pos int, msg string);
 	Import *(comp *Compilation, pkg_file string) *Package;
 	Export *(comp *Compilation, pkg_file string);
@@ -87,26 +87,26 @@ export type Environment struct {
 }
 
 
-export type Compilation struct {
+type Compilation struct {
 	// environment
 	flags *Flags;
 	env *Environment;
-	
+
 	// TODO rethink the need for this here
 	src_file string;
 	src string;
-	
+
 	// Error handling
 	nerrors int;  // number of errors reported
 	errpos int;  // last error position
-	
+
 	// TODO use open arrays eventually
 	pkg_list [256] *Package;  // pkg_list[0] is the current package
 	pkg_ref int;
 }
 
 
-export type Expr interface {
+type Expr interface {
 	op() int;  // node operation
 	pos() int;  // source position
 	typ() *Type;
@@ -114,7 +114,7 @@ export type Expr interface {
 }
 
 
-export type Stat interface {
+type Stat interface {
 	// ... more to come here
 }
 
@@ -122,7 +122,7 @@ export type Stat interface {
 // TODO This is hideous! We need to have a decent way to do lists.
 // Ideally open arrays that allow '+'.
 
-export type Elem struct {
+type Elem struct {
 	next *Elem;
 	val int;
 	str string;
@@ -135,9 +135,9 @@ export type Elem struct {
 // ----------------------------------------------------------------------------
 // Creation
 
-export var Universe_void_t *Type  // initialized by Universe to Universe.void_t
+var Universe_void_t *Type  // initialized by Universe to Universe.void_t
 
-export func NewObject(pos, kind int, ident string) *Object {
+func NewObject(pos, kind int, ident string) *Object {
 	obj := new(Object);
 	obj.exported = false;
 	obj.pos = pos;
@@ -149,7 +149,7 @@ export func NewObject(pos, kind int, ident string) *Object {
 }
 
 
-export func NewType(form int) *Type {
+func NewType(form int) *Type {
 	typ := new(Type);
 	typ.ref = -1;  // not yet exported
 	typ.form = form;
@@ -157,7 +157,7 @@ export func NewType(form int) *Type {
 }
 
 
-export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
 	pkg := new(Package);
 	pkg.ref = -1;  // not yet exported
 	pkg.file_name = file_name;
@@ -168,12 +168,12 @@ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
 }
 
 
-export func NewList() *List {
+func NewList() *List {
 	return new(List);
 }
 
 
-export func NewScope(parent *Scope) *Scope {
+func NewScope(parent *Scope) *Scope {
 	scope := new(Scope);
 	scope.parent = parent;
 	scope.entries = NewList();

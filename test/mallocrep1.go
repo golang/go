@@ -22,7 +22,7 @@ var longtest = flag.Bool("l", false, "long test");
 var b []*byte;
 var stats = malloc.GetStats();
 
-export func OkAmount(size, n uintptr) bool {
+func OkAmount(size, n uintptr) bool {
 	if n < size {
 		return false
 	}
@@ -38,7 +38,7 @@ export func OkAmount(size, n uintptr) bool {
 	return true
 }
 
-export func AllocAndFree(size, count int) {
+func AllocAndFree(size, count int) {
 	if *chatty {
 		fmt.Printf("size=%d count=%d ...\n", size, count);
 	}

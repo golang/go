@@ -9,7 +9,7 @@ package crc32
 
 import "os"
 
-export const (
+const (
 	// Far and away the most common CRC-32 polynomial.
 	// Used by ethernet (IEEE 802.3), v.42, fddi, gzip, zip, png, mpeg-2, ...
 	IEEE = 0xedb88320;
@@ -26,9 +26,9 @@ export const (
 )
 
 // TODO(rsc): Change to [256]uint32 once 6g can handle it.
-export type Table []uint32
+type Table []uint32
 
-export func MakeTable(poly uint32) Table {
+func MakeTable(poly uint32) Table {
 	t := make(Table, 256);
 	for i := 0; i < 256; i++ {
 		crc := uint32(i);
@@ -44,18 +44,18 @@ export func MakeTable(poly uint32) Table {
 	return t;
 }
 
-export var IEEETable = MakeTable(IEEE);
+var IEEETable = MakeTable(IEEE);
 
-export type Digest struct {
+type Digest struct {
 	crc uint32;
 	tab Table;
 }
 
-export func NewDigest(tab Table) *Digest {
+func NewDigest(tab Table) *Digest {
 	return &Digest{0, tab};
 }
 
-export func NewIEEEDigest() *Digest {
+func NewIEEEDigest() *Digest {
 	return NewDigest(IEEETable);
 }
 

@@ -9,7 +9,7 @@ import (
 	"time";
 )
 
-export func TestTick(t *testing.T) {
+func TestTick(t *testing.T) {
 	const (
 		Delta = 100*1e6;
 		Count = 10;

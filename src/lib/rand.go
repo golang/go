@@ -44,7 +44,7 @@ func seedrand(x int32) int32 {
 	return x;
 }
 
-export func Seed(seed int32) {
+func Seed(seed int32) {
 	rng_tap = 0;
 	rng_feed = _LEN-_TAP;
 
@@ -72,7 +72,7 @@ export func Seed(seed int32) {
 	}
 }
 
-export func Int63() int64 {
+func Int63() int64 {
 	rng_tap--;
 	if rng_tap < 0 {
 		rng_tap += _LEN;
@@ -88,20 +88,20 @@ export func Int63() int64 {
 	return x;
 }
 
-export func Uint32() uint32 {
+func Uint32() uint32 {
 	return uint32(Int63() >> 31);
 }
 
-export func Int31() int32 {
+func Int31() int32 {
 	return int32(Int63() >> 32);
 }
 
-export func Int() int {
+func Int() int {
 	u := uint(Int63());
 	return int(u << 1 >> 1);	// clear sign bit if int == int32
 }
 
-export func Int63n(n int64) int64 {
+func Int63n(n int64) int64 {
 	if n <= 0 {
 		return 0
 	}
@@ -113,15 +113,15 @@ export func Int63n(n int64) int64 {
 	return v % n
 }
 
-export func Int31n(n int32) int32 {
+func Int31n(n int32) int32 {
 	return int32(Int63n(int64(n)))
 }
 
-export func Intn(n int) int {
+func Intn(n int) int {
 	return int(Int63n(int64(n)))
 }
 
-export func Float64() float64 {
+func Float64() float64 {
 	x := float64(Int63()) / float64(_MASK);
 	for x >= 1 {
 		x = float64(Int63()) / float64(_MASK);
@@ -129,16 +129,16 @@ export func Float64() float64 {
 	return x;
 }
 
-export func Float32() float32 {
+func Float32() float32 {
 	return float32(Float64())
 }
 
-export func Float() float
+func Float() float
 {
 	return float(Float64())
 }
 
-export func Perm(n int) []int {
+func Perm(n int) []int {
 	m := make([]int, n);
 	for i:=0; i<n; i++ {
 		m[i] = i;

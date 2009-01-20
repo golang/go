@@ -10,7 +10,7 @@ import "math"
  *	floating point tangent
  */
 
-export func Tan(arg float64) float64 {
+func Tan(arg float64) float64 {
 	// Coefficients are #4285 from Hart & Cheney. (19.74D)
 	const
 	(

@@ -9,7 +9,7 @@ package main
 import "array"
 
 
-export type S struct {
+type S struct {
 	val int
 }
 

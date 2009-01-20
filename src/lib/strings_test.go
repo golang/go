@@ -26,7 +26,7 @@ var faces = "☺☻☹";
 var commas = "1,2,3,4";
 var dots = "1....2....3....4";
 
-export type ExplodeTest struct {
+type ExplodeTest struct {
 	s string;
 	a []string;
 }
@@ -34,7 +34,7 @@ var explodetests = []ExplodeTest {
 	ExplodeTest{ abcd,	[]string{"a", "b", "c", "d"} },
 	ExplodeTest{ faces,	[]string{"☺", "☻", "☹" } },
 }
-export func TestExplode(t *testing.T) {
+func TestExplode(t *testing.T) {
 	for i := 0; i < len(explodetests); i++ {
 		tt := explodetests[i];
 		a := Explode(tt.s);
@@ -49,7 +49,7 @@ export func TestExplode(t *testing.T) {
 	}
 }
 
-export type SplitTest struct {
+type SplitTest struct {
 	s string;
 	sep string;
 	a []string;
@@ -64,7 +64,7 @@ var splittests = []SplitTest {
 	SplitTest{ faces,	"~",	[]string{faces} },
 	SplitTest{ faces,	"",	[]string{"☺", "☻", "☹"} },
 }
-export func TestSplit(t *testing.T) {
+func TestSplit(t *testing.T) {
 	for i := 0; i < len(splittests); i++ {
 		tt := splittests[i];
 		a := Split(tt.s, tt.sep);

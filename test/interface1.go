@@ -6,23 +6,23 @@
 
 package main
 
-export type Inst interface {
+type Inst interface {
 	Next()	*Inst;
 }
 
-export type Regexp struct {
+type Regexp struct {
 	code []Inst;
 	start	Inst;
 }
 
-export type Start struct {
+type Start struct {
 	foo	*Inst;
 }
 
 func (start *Start) Next() *Inst { return nil }
 
 
-export func AddInst(Inst) *Inst {
+func AddInst(Inst) *Inst {
 	print("ok in addinst\n");
 	return nil
 }

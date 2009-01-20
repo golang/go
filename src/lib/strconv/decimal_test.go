@@ -29,7 +29,7 @@ var shifttests = []shiftTest {
 	shiftTest{ 1953125, 9, "1000000000" },
 }
 
-export func TestDecimalShift(t *testing.T) {
+func TestDecimalShift(t *testing.T) {
 	ok := true;
 	for i := 0; i < len(shifttests); i++ {
 		test := &shifttests[i];
@@ -66,7 +66,7 @@ var roundtests = []roundTest {
 	roundTest{ 12999999, 4, "12990000", "13000000", "13000000", 13000000 },
 }
 
-export func TestDecimalRound(t *testing.T) {
+func TestDecimalRound(t *testing.T) {
 	for i := 0; i < len(roundtests); i++ {
 		test := &roundtests[i];
 		s := strconv.newDecimal(test.i).RoundDown(test.nd).String();
@@ -106,7 +106,7 @@ var roundinttests = []roundIntTest {
 	roundIntTest{ 1000, 0, 1000 },
 }
 
-export func TestDecimalRoundedInteger(t *testing.T) {
+func TestDecimalRoundedInteger(t *testing.T) {
 	for i := 0; i < len(roundinttests); i++ {
 		test := roundinttests[i];
 		// TODO: should be able to use int := here.

@@ -38,17 +38,17 @@ func floatsize() int {
 	}
 	return 64;
 }
-export var FloatSize = floatsize()
+var FloatSize = floatsize()
 
-export func Ftoa32(f float32, fmt byte, prec int) string {
+func Ftoa32(f float32, fmt byte, prec int) string {
 	return genericFtoa(uint64(sys.Float32bits(f)), fmt, prec, &float32info);
 }
 
-export func Ftoa64(f float64, fmt byte, prec int) string {
+func Ftoa64(f float64, fmt byte, prec int) string {
 	return genericFtoa(sys.Float64bits(f), fmt, prec, &float64info);
 }
 
-export func Ftoa(f float, fmt byte, prec int) string {
+func Ftoa(f float, fmt byte, prec int) string {
 	if FloatSize == 32 {
 		return Ftoa32(float32(f), fmt, prec);
 	}

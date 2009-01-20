@@ -4,11 +4,11 @@
 
 package array
 
-export type Element interface {
+type Element interface {
 }
 
 
-export type Array struct {
+type Array struct {
 	// TODO do not export field
 	a []Element
 }
@@ -35,7 +35,7 @@ func (p *Array) Init(initial_len int) *Array {
 }
 
 
-export func New(len int) *Array {
+func New(len int) *Array {
 	return new(Array).Init(len)
 }
 
@@ -112,7 +112,7 @@ func (p *Array) Pop() Element {
 
 // Partial SortInterface support
 
-export type LessInterface interface {
+type LessInterface interface {
 	Less(y Element) bool
 }
 

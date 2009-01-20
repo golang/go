@@ -7,7 +7,7 @@ package Object
 import Globals "globals"
 
 
-export const /* kind */ (
+const /* kind */ (
 	BAD = iota;  // error handling
 	CONST; TYPE; VAR; FIELD; FUNC; BUILTIN; PACKAGE; LABEL;
 	END;  // end of scope (import/export only)
@@ -19,7 +19,7 @@ export const /* kind */ (
 // globals.go.
 
 
-export func KindStr(kind int) string {
+func KindStr(kind int) string {
 	switch kind {
 	case BAD: return "BAD";
 	case CONST: return "CONST";

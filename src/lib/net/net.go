@@ -11,7 +11,7 @@ import (
 	"syscall";
 )
 
-export var (
+var (
 	BadAddress = os.NewError("malformed address");
 	MissingAddress = os.NewError("missing address");
 	UnknownNetwork = os.NewError("unknown network");
@@ -21,7 +21,7 @@ export var (
 	Unknown_SocketFamily = os.NewError("unknown socket family");
 )
 
-export func LookupHost(name string) (name1 string, addrs []string, err *os.Error)
+func LookupHost(name string) (name1 string, addrs []string, err *os.Error)
 
 // Split "host:port" into "host" and "port".
 // Host cannot contain colons unless it is bracketed.
@@ -358,7 +358,7 @@ func _InternetSocket(net, laddr, raddr string, proto int64, mode string) (fd *FD
 
 // TCP connections.
 
-export type ConnTCP struct {
+type ConnTCP struct {
 	_ConnBase
 }
 
@@ -377,7 +377,7 @@ func _NewConnTCP(fd *FD, raddr string) *ConnTCP {
 	return c
 }
 
-export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
+func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
 	}
@@ -393,7 +393,7 @@ export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
 
 // TODO(rsc): UDP headers mode
 
-export type ConnUDP struct {
+type ConnUDP struct {
 	_ConnBase
 }
 
@@ -404,7 +404,7 @@ func _NewConnUDP(fd *FD, raddr string) *ConnUDP {
 	return c
 }
 
-export func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
+func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
 	}
@@ -422,7 +422,7 @@ export func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
 // TODO: raw ethernet connections
 
 
-export type Conn interface {
+type Conn interface {
 	Read(b []byte) (n int, err *os.Error);
 	Write(b []byte) (n int, err *os.Error);
 	ReadFrom(b []byte) (n int, addr string, err *os.Error);
@@ -450,7 +450,7 @@ export type Conn interface {
 // Eventually, we plan to allow names in addition to IP addresses,
 // but that requires writing a DNS library.
 
-export func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
+func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 		c, err := DialTCP(net, laddr, raddr);
@@ -477,17 +477,17 @@ export func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
 }
 
 
-export type Listener interface {
+type Listener interface {
 	Accept() (c Conn, raddr string, err *os.Error);
 	Close() *os.Error;
 }
 
-export type ListenerTCP struct {
+type ListenerTCP struct {
 	fd *FD;
 	laddr string
 }
 
-export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
+func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
 	fd, e := _InternetSocket(net, laddr, "", syscall.SOCK_STREAM, "listen");
 	if e != nil {
 		return nil, e
@@ -534,7 +534,7 @@ func (l *ListenerTCP) Close() *os.Error {
 	return l.fd.Close()
 }
 
-export func Listen(net, laddr string) (l Listener, err *os.Error) {
+func Listen(net, laddr string) (l Listener, err *os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 		l, err := ListenTCP(net, laddr);

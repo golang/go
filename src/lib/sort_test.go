@@ -16,7 +16,7 @@ var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984,
 var floats = [...]float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
 var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
 
-export func TestSortIntArray(t *testing.T) {
+func TestSortIntArray(t *testing.T) {
 	data := ints;
 	a := IntArray(data);
 	sort.Sort(a);
@@ -26,7 +26,7 @@ export func TestSortIntArray(t *testing.T) {
 	}
 }
 
-export func TestSortFloatArray(t *testing.T) {
+func TestSortFloatArray(t *testing.T) {
 	data := floats;
 	a := FloatArray(data);
 	sort.Sort(a);
@@ -36,7 +36,7 @@ export func TestSortFloatArray(t *testing.T) {
 	}
 }
 
-export func TestSortStringArray(t *testing.T) {
+func TestSortStringArray(t *testing.T) {
 	data := strings;
 	a := StringArray(data);
 	sort.Sort(a);
@@ -46,7 +46,7 @@ export func TestSortStringArray(t *testing.T) {
 	}
 }
 
-export func TestSortInts(t *testing.T) {
+func TestSortInts(t *testing.T) {
 	data := ints;
 	sort.SortInts(data);
 	if !sort.IntsAreSorted(data) {
@@ -55,7 +55,7 @@ export func TestSortInts(t *testing.T) {
 	}
 }
 
-export func TestSortFloats(t *testing.T) {
+func TestSortFloats(t *testing.T) {
 	data := floats;
 	sort.SortFloats(data);
 	if !sort.FloatsAreSorted(data) {
@@ -64,7 +64,7 @@ export func TestSortFloats(t *testing.T) {
 	}
 }
 
-export func TestSortStrings(t *testing.T) {
+func TestSortStrings(t *testing.T) {
 	data := strings;
 	sort.SortStrings(data);
 	if !sort.StringsAreSorted(data) {
@@ -73,7 +73,7 @@ export func TestSortStrings(t *testing.T) {
 	}
 }
 
-export func TestSortLarge_Random(t *testing.T) {
+func TestSortLarge_Random(t *testing.T) {
 	data := make([]int, 1000000);
 	for i := 0; i < len(data); i++ {
 		data[i] = rand.Intn(100);
@@ -133,7 +133,7 @@ func lg(n int) int {
 	return i;
 }
 
-export func TestBentleyMcIlroy(t *testing.T) {
+func TestBentleyMcIlroy(t *testing.T) {
 	sizes := []int{100, 1023, 1024, 1025};
 	dists := []string{"sawtooth", "rand", "stagger", "plateau", "shuffle"};
 	modes := []string{"copy", "reverse", "reverse1", "reverse2", "sort", "dither"};

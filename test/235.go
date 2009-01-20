@@ -6,9 +6,9 @@
 
 package main
 
-export type T chan uint64;
+type T chan uint64;
 
-export func M(f uint64) (in, out T) {
+func M(f uint64) (in, out T) {
 	in = make(T, 100);
 	out = make(T, 100);
 	go func(in, out T, f uint64) {

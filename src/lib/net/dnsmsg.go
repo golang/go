@@ -32,7 +32,7 @@ import (
 // _Packet formats
 
 // Wire constants.
-export const (
+const (
 	// valid DNS_RR_Header.rrtype and DNS_Question.qtype
 	DNS_TypeA = 1;
 	DNS_TypeNS = 2;
@@ -90,7 +90,7 @@ const (
 )
 
 // DNS queries.
-export type DNS_Question struct {
+type DNS_Question struct {
 	name string "domain-name";	// "domain-name" specifies encoding; see packers below
 	qtype uint16;
 	qclass uint16;
@@ -99,7 +99,7 @@ export type DNS_Question struct {
 // DNS responses (resource records).
 // There are many types of messages,
 // but they all share the same header.
-export type DNS_RR_Header struct {
+type DNS_RR_Header struct {
 	name string "domain-name";
 	rrtype uint16;
 	class uint16;
@@ -111,62 +111,62 @@ func (h *DNS_RR_Header) Header() *DNS_RR_Header {
 	return h
 }
 
-export type DNS_RR interface {
+type DNS_RR interface {
 	Header() *DNS_RR_Header
 }
 
 
 // Specific DNS RR formats for each query type.
 
-export type DNS_RR_CNAME struct {
+type DNS_RR_CNAME struct {
 	DNS_RR_Header;
 	cname string "domain-name";
 }
 
-export type DNS_RR_HINFO struct {
+type DNS_RR_HINFO struct {
 	DNS_RR_Header;
 	cpu string;
 	os string;
 }
 
-export type DNS_RR_MB struct {
+type DNS_RR_MB struct {
 	DNS_RR_Header;
 	mb string "domain-name";
 }
 
-export type DNS_RR_MG struct {
+type DNS_RR_MG struct {
 	DNS_RR_Header;
 	mg string "domain-name";
 }
 
-export type DNS_RR_MINFO struct {
+type DNS_RR_MINFO struct {
 	DNS_RR_Header;
 	rmail string "domain-name";
 	email string "domain-name";
 }
 
-export type DNS_RR_MR struct {
+type DNS_RR_MR struct {
 	DNS_RR_Header;
 	mr string "domain-name";
 }
 
-export type DNS_RR_MX struct {
+type DNS_RR_MX struct {
 	DNS_RR_Header;
 	pref uint16;
 	mx string "domain-name";
 }
 
-export type DNS_RR_NS struct {
+type DNS_RR_NS struct {
 	DNS_RR_Header;
 	ns string "domain-name";
 }
 
-export type DNS_RR_PTR struct {
+type DNS_RR_PTR struct {
 	DNS_RR_Header;
 	ptr string "domain-name";
 }
 
-export type DNS_RR_SOA struct {
+type DNS_RR_SOA struct {
 	DNS_RR_Header;
 	ns string "domain-name";
 	mbox string "domain-name";
@@ -177,12 +177,12 @@ export type DNS_RR_SOA struct {
 	minttl uint32;
 }
 
-export type DNS_RR_TXT struct {
+type DNS_RR_TXT struct {
 	DNS_RR_Header;
 	txt string;	// not domain name
 }
 
-export type DNS_RR_A struct {
+type DNS_RR_A struct {
 	DNS_RR_Header;
 	a uint32 "ipv4";
 }
@@ -537,7 +537,7 @@ type _DNS_Msg_Top struct {
 	rcode int;
 }
 
-export type DNS_Msg struct {
+type DNS_Msg struct {
 	_DNS_Msg_Top;
 	question []DNS_Question;
 	answer []DNS_RR;

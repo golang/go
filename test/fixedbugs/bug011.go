@@ -7,7 +7,7 @@
 package main
 
 
-export type T struct {
+type T struct {
 	x, y int;
 }
 

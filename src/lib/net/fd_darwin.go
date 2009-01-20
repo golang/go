@@ -12,13 +12,13 @@ import (
 	"syscall";
 )
 
-export type Pollster struct {
+type Pollster struct {
 	kq int64;
 	eventbuf [10]syscall.Kevent_t;
 	events []syscall.Kevent_t;
 }
 
-export func NewPollster() (p *Pollster, err *os.Error) {
+func NewPollster() (p *Pollster, err *os.Error) {
 	p = new(Pollster);
 	var e int64;
 	if p.kq, e = syscall.Kqueue(); e != 0 {

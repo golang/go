@@ -23,7 +23,7 @@ var quotetests = []quoteTest {
 	quoteTest{ "\x04", `"\x04"` },
 }
 
-export func TestQuote(t *testing.T) {
+func TestQuote(t *testing.T) {
 	for i := 0; i < len(quotetests); i++ {
 		tt := quotetests[i];
 		if out := Quote(tt.in); out != tt.out {
@@ -78,7 +78,7 @@ var canbackquotetests = []canBackquoteTest {
 	canBackquoteTest{ `☺`, true },
 }
 
-export func TestCanBackquote(t *testing.T) {
+func TestCanBackquote(t *testing.T) {
 	for i := 0; i < len(canbackquotetests); i++ {
 		tt := canbackquotetests[i];
 		if out := CanBackquote(tt.in); out != tt.out {

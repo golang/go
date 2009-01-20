@@ -23,7 +23,7 @@ func assert(b bool) {
 }
 
 
-export type Flags struct {
+type Flags struct {
 	Verbose bool;
 	Sixg bool;
 	Deps bool;
@@ -117,7 +117,7 @@ func (h *errorHandler) Warning(pos int, msg string) {
 }
 
 
-export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	src, ok := Platform.ReadSourceFile(src_file);
 	if !ok {
 		print("cannot open ", src_file, "\n");
@@ -202,7 +202,7 @@ func addDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
 }
 
 
-export func ComputeDeps(src_file string, flags *Flags) {
+func ComputeDeps(src_file string, flags *Flags) {
 	globalset := make(map [string] bool);
 	wset := array.New(0);
 	wset.Push(src_file);

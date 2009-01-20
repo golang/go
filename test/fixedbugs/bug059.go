@@ -6,7 +6,7 @@
 
 package main
 
-export func P(a []string) string {
+func P(a []string) string {
 	s := "{";
 	for i := 0; i < 2; i++ {
 		if i > 0 {

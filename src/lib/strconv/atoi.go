@@ -15,7 +15,7 @@ func computeIntsize() uint {
 var intsize = computeIntsize();
 
 // Convert decimal string to unsigned integer.
-export func Atoui64(s string) (i uint64, err *os.Error) {
+func Atoui64(s string) (i uint64, err *os.Error) {
 	// empty string bad
 	if len(s) == 0 {
 		return 0, os.EINVAL
@@ -52,7 +52,7 @@ export func Atoui64(s string) (i uint64, err *os.Error) {
 }
 
 // Convert decimal string to integer.
-export func Atoi64(s string) (i int64, err *os.Error) {
+func Atoi64(s string) (i int64, err *os.Error) {
 	// empty string bad
 	if len(s) == 0 {
 		return 0, os.EINVAL
@@ -85,7 +85,7 @@ export func Atoi64(s string) (i int64, err *os.Error) {
 	return n, nil
 }
 
-export func Atoui(s string) (i uint, err *os.Error) {
+func Atoui(s string) (i uint, err *os.Error) {
 	i1, e1 := Atoui64(s);
 	if e1 != nil && e1 != os.ERANGE {
 		return 0, e1
@@ -99,7 +99,7 @@ export func Atoui(s string) (i uint, err *os.Error) {
 	return i, nil
 }
 
-export func Atoi(s string) (i int, err *os.Error) {
+func Atoi(s string) (i int, err *os.Error) {
 	i1, e1 := Atoi64(s);
 	if e1 != nil && e1 != os.ERANGE {
 		return 0, e1

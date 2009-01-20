@@ -6,7 +6,7 @@
 
 package main
 
-export type S struct {
+type S struct {
 };
 
 func (p *S) M1a() ;

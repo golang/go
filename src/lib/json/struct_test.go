@@ -46,7 +46,7 @@ func _Check(t *testing.T, ok bool, name string, v interface{}) {
 	}
 }
 
-export func TestUnmarshal(t *testing.T) {
+func TestUnmarshal(t *testing.T) {
 	var m _MyStruct;
 	m.f = true;
 	ok, errtok := Unmarshal(_Encoded, &m);

@@ -67,7 +67,7 @@ func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
 	}
 	r0 := p0 + typ.len;
 	l0 := typ.scope.entries.len;
-	
+
 	if P.level == 0 {
 		print("func ");
 
@@ -76,14 +76,14 @@ func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
 			print(" ");
 		}
 	}
-	
+
 	if fun != nil {
 		P.PrintObject(fun);
 		//print(" ");
 	} else if p0 > 0 {
 		print(". ");
 	}
-	
+
 	P.PrintSigRange(typ, p0, r0);
 
 	if r0 < l0 {
@@ -114,7 +114,7 @@ func (P *Printer) PrintScope(scope *Globals.Scope, delta int) {
 			}
 		}
 	}
-	
+
 	// print the scope
 	const scale = 2;
 	if n > 0 {
@@ -164,7 +164,7 @@ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
 	case Object.BUILTIN:
 		P.PrintObject(obj);
 		print(" /* builtin */");
-		
+
 	case Object.PACKAGE:
 		print("package ");
 		P.PrintObject(obj);
@@ -174,7 +174,7 @@ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
 	default:
 		panic("UNREACHABLE");
 	}
-	
+
 	if P.level > 0 {
 		print(";");
 	}
@@ -201,7 +201,7 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 	switch typ.form {
 	case Type.VOID:
 		print("void");
-		
+
 	case Type.BAD:
 		print("<bad type>");
 
@@ -224,7 +224,7 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 			P.PrintType(typ.key);
 			print(" */");
 		}
-		
+
 	case Type.ARRAY:
 		print("[]");
 		P.PrintType(typ.elt);
@@ -263,7 +263,7 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
 
 	default:
 		panic("UNREACHABLE");
-		
+
 	}
 }
 
@@ -277,7 +277,7 @@ func (P *Printer) PrintType(typ *Globals.Type) {
 }
 
 
-export func PrintObject(comp *Globals.Compilation, obj *Globals.Object, print_all bool) {
+func PrintObject(comp *Globals.Compilation, obj *Globals.Object, print_all bool) {
 	var P Printer;
 	(&P).Init(comp, print_all);
 	(&P).PrintObjectStruct(obj);

@@ -11,7 +11,7 @@ import (
 )
 
 
-export type Parser struct {
+type Parser struct {
 	// Tracing/debugging
 	verbose, sixg, deps, naming bool;
 	indent uint;
@@ -32,7 +32,7 @@ export type Parser struct {
 	// Nesting levels
 	expr_lev int;  // 0 = control clause level, 1 = expr inside ()'s
 	scope_lev int;  // 0 = global scope, 1 = function scope of global functions, etc.
-	
+
 	// Scopes
 	top_scope *AST.Scope;
 };
@@ -266,7 +266,7 @@ func (P *Parser) ParseDeclaration() *AST.Decl;
 // If scope != nil, lookup identifier in scope. Otherwise create one.
 func (P *Parser) ParseIdent(scope *AST.Scope) *AST.Expr {
 	P.Trace("Ident");
-	
+
 	x := AST.BadExpr;
 	if P.tok == Scanner.IDENT {
 		var obj *AST.Object;
@@ -1536,7 +1536,7 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
 		P.Next();
 		d.Val = P.ParseExpressionList();
 	}
-	
+
 	P.Declare(d.Ident, AST.CONST);
 	P.VerifyExport(d.Ident, exported);
 

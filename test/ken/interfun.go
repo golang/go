@@ -6,17 +6,17 @@
 
 package main
 
-export type S struct
+type S struct
 {
 	a,b	int;
 }
 
-export type I1 interface
+type I1 interface
 {
 	f	()int;
 }
 
-export type I2 interface
+type I2 interface
 {
 	g,f	()int;
 }

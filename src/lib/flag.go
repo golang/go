@@ -218,7 +218,7 @@ type _Value interface {
 }
 
 // -- Flag structure (internal)
-export type Flag struct {
+type Flag struct {
 	name	string;
 	usage	string;
 	value	_Value;
@@ -232,13 +232,13 @@ type allFlags struct {
 
 var flags *allFlags = &allFlags{make(map[string] *Flag), make(map[string] *Flag), 1}
 
-export func PrintDefaults() {
+func PrintDefaults() {
 	for k, f := range flags.formal {
 		print("  -", f.name, "=", f.value.str(), ": ", f.usage, "\n");
 	}
 }
 
-export func Usage() {
+func Usage() {
 	if len(sys.Args) > 0 {
 		print("Usage of ", sys.Args[0], ": \n");
 	} else {
@@ -248,11 +248,11 @@ export func Usage() {
 	sys.Exit(1);
 }
 
-export func NFlag() int {
+func NFlag() int {
 	return len(flags.actual)
 }
 
-export func Arg(i int) string {
+func Arg(i int) string {
 	i += flags.first_arg;
 	if i < 0 || i >= len(sys.Args) {
 		return "";
@@ -260,7 +260,7 @@ export func Arg(i int) string {
 	return sys.Args[i]
 }
 
-export func NArg() int {
+func NArg() int {
 	return len(sys.Args) - flags.first_arg
 }
 
@@ -277,63 +277,63 @@ func add(name string, value _Value, usage string) {
 	flags.formal[name] = f;
 }
 
-export func Bool(name string, value bool, usage string) *bool {
+func Bool(name string, value bool, usage string) *bool {
 	p := new(bool);
 	add(name, newBoolValue(value, p), usage);
 	return p;
 }
 
-export func BoolVar(p *bool, name string, value bool, usage string) {
+func BoolVar(p *bool, name string, value bool, usage string) {
 	add(name, newBoolValue(value, p), usage);
 }
 
-export func Int(name string, value int, usage string) *int {
+func Int(name string, value int, usage string) *int {
 	p := new(int);
 	add(name, newIntValue(value, p), usage);
 	return p;
 }
 
-export func IntVar(p *int, name string, value int, usage string) {
+func IntVar(p *int, name string, value int, usage string) {
 	add(name, newIntValue(value, p), usage);
 }
 
-export func Int64(name string, value int64, usage string) *int64 {
+func Int64(name string, value int64, usage string) *int64 {
 	p := new(int64);
 	add(name, newInt64Value(value, p), usage);
 	return p;
 }
 
-export func Int64Var(p *int64, name string, value int64, usage string) {
+func Int64Var(p *int64, name string, value int64, usage string) {
 	add(name, newInt64Value(value, p), usage);
 }
 
-export func Uint(name string, value uint, usage string) *uint {
+func Uint(name string, value uint, usage string) *uint {
 	p := new(uint);
 	add(name, newUintValue(value, p), usage);
 	return p;
 }
 
-export func UintVar(p *uint, name string, value uint, usage string) {
+func UintVar(p *uint, name string, value uint, usage string) {
 	add(name, newUintValue(value, p), usage);
 }
 
-export func Uint64(name string, value uint64, usage string) *uint64 {
+func Uint64(name string, value uint64, usage string) *uint64 {
 	p := new(uint64);
 	add(name, newUint64Value(value, p), usage);
 	return p;
 }
 
-export func Uint64Var(p *uint64, name string, value uint64, usage string) {
+func Uint64Var(p *uint64, name string, value uint64, usage string) {
 	add(name, newUint64Value(value, p), usage);
 }
 
-export func String(name, value string, usage string) *string {
+func String(name, value string, usage string) *string {
 	p := new(string);
 	add(name, newStringValue(value, p), usage);
 	return p;
 }
 
-export func StringVar(p *string, name, value string, usage string) {
+func StringVar(p *string, name, value string, usage string) {
 	add(name, newStringValue(value, p), usage);
 }
 
@@ -432,7 +432,7 @@ func (f *allFlags) ParseOne(index int) (ok bool, next int)
 	return true, index + 1
 }
 
-export func Parse() {
+func Parse() {
 	for i := 1; i < len(sys.Args); {
 		ok, next := flags.ParseOne(i);
 		if next > 0 {

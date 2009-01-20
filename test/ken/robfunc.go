@@ -44,7 +44,7 @@ func f8(a int) (x int, y float) {
 	return 8, 8.0;
 }
 
-export type T struct {
+type T struct {
 	x, y int;
 }
 

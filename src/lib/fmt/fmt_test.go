@@ -11,7 +11,7 @@ import (
 	"testing";
 )
 
-export func TestFmtInterface(t *testing.T) {
+func TestFmtInterface(t *testing.T) {
 	var i1 interface{};
 	i1 = "abc";
 	s := fmt.Sprintf("%s", i1);
@@ -150,7 +150,7 @@ var fmttests = []fmtTest{
 	fmtTest{ "%20g",	sys.NaN(),		"                 NaN" },
 }
 
-export func TestSprintf(t *testing.T) {
+func TestSprintf(t *testing.T) {
 	for i := 0; i < len(fmttests); i++ {
 		tt := fmttests[i];
 		s := fmt.Sprintf(tt.fmt, tt.val);
@@ -204,7 +204,7 @@ var flagtests = []flagTest {
 	flagTest{ "%-1.2abc", "[%-1.2a]bc" },
 }
 
-export func TestFlagParser(t *testing.T) {
+func TestFlagParser(t *testing.T) {
 	var flagprinter flagPrinter;
 	for i := 0; i < len(flagtests); i++ {
 		tt := flagtests[i];
@@ -215,7 +215,7 @@ export func TestFlagParser(t *testing.T) {
 	}
 }
 
-export func TestStructPrinter(t *testing.T) {
+func TestStructPrinter(t *testing.T) {
 	var s struct {
 		a string;
 		b string;
@@ -241,7 +241,7 @@ export func TestStructPrinter(t *testing.T) {
 	}
 }
 
-export func TestArrayPrinter(t *testing.T) {
+func TestArrayPrinter(t *testing.T) {
 	a := []int{1, 2, 3, 4, 5};
 	want := "[1 2 3 4 5]";
 	out := fmt.Sprintf("%v", a);
