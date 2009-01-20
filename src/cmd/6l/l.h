@@ -112,12 +112,14 @@ struct	Sym
 	short	version;
 	short	become;
 	short	frame;
+	ushort	file;
 	uchar	subtype;
 	uchar	dupok;
-	ushort	file;
+	uchar	reachable;
 	vlong	value;
 	int32	sig;
 	Sym*	link;
+	Prog*	text;
 };
 struct	Optab
 {
@@ -146,6 +148,7 @@ enum
 	SFILE,
 	SCONST,
 	SUNDEF,
+	SOPT,
 
 	SIMPORT,
 	SEXPORT,
@@ -381,8 +384,10 @@ void	ckoff(Sym*, int32);
 Prog*	copyp(Prog*);
 double	cputime(void);
 void	datblk(int32, int32);
+void	ignoreoptfuncs(void);
 void	definetypestrings(void);
 void definetypesigs(void);
+void	deadcode(void);
 void	diag(char*, ...);
 void	dodata(void);
 void	doinit(void);
@@ -415,6 +420,7 @@ void	main(int, char*[]);
 void	mkfwd(void);
 void*	mysbrk(uint32);
 Prog*	newdata(Sym*, int, int, int);
+Prog*	newtext(Prog*, Sym*);
 void	nuxiinit(void);
 void	objfile(char*);
 int	opsize(Prog*);
@@ -434,6 +440,7 @@ void	xdefine(char*, int, vlong);
 void	xfol(Prog*);
 void	zaddr(Biobuf*, Adr*, Sym*[]);
 void	zerosig(char*);
+int	isinitfunc(Sym*);
 
 void	machseg(char*, vlong, vlong, vlong, vlong, uint32, uint32, uint32, uint32);
 void	machsymseg(uint32, uint32);

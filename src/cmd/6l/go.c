@@ -489,3 +489,35 @@ definetypesigs(void)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f typesigs %d\n", cputime(), n);
 }
+
+int
+isinitfunc(Sym *s)
+{
+	char *p;
+
+	p = utfrune(s->name, 0xb7);	// 0xb7 = '·'
+	if(p == nil)
+		return 0;
+	if(memcmp(p, "·Init·", 8) == 0 || memcmp(p, "·init·", 8) == 0)
+		return 1;
+	return 0;
+}
+
+void
+ignoreoptfuncs(void)
+{
+	Prog *p;
+
+	// nop out calls to optional functions
+	// that were not pulled in from libraries.
+	for(p=firstp; p != P; p=p->link) {
+		if(p->to.sym != S && p->to.sym->type == SOPT) {
+			if(p->as != ACALL)
+				diag("bad use of optional function: %P", p);
+			p->as = ANOP;
+			p->from.type = D_NONE;
+			p->to.type = D_NONE;
+		}
+	}
+}
+
