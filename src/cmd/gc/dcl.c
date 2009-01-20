@@ -329,8 +329,8 @@ bad:
  * a function named init is a special case.
  * it is called by the initialization before
  * main is run. to make it unique within a
- * package, the name, normally "pkg.init", is
- * altered to "pkg.<file>_init".
+ * package and also uncallable, the name,
+ * normally "pkg.init", is altered to "pkg.init·filename".
  */
 Node*
 renameinit(Node *n)
@@ -342,7 +342,8 @@ renameinit(Node *n)
 		return n;
 	if(strcmp(s->name, "init") != 0)
 		return n;
-	snprint(namebuf, sizeof(namebuf), "init_%s", filename);
+
+	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
 	s = lookup(namebuf);
 	return newname(s);
 }
@@ -1022,17 +1023,16 @@ mixed:
 }
 
 // hand-craft the following initialization code
-//	var	init_<file>_done bool;			(1)
-//	func	init_<file>_function()			(2)
-//		if init_<file>_done { return }		(3)
-//		init_<file>_done = true;		(4)
+//	var initdone·<file> bool 			(1)
+//	func	Init·<file>()				(2)
+//		if initdone·<file> { return }		(3)
+//		initdone.<file> = true;			(4)
 //		// over all matching imported symbols
-//			<pkg>.init_<file>_function()	(5)
+//			<pkg>.init·<file>()		(5)
 //		{ <init stmts> }			(6)
-//		init()	// if any			(7)
+//		init·<file>()	// if any		(7)
 //		return					(8)
 //	}
-//	export	init_<file>_function			(9)
 
 void
 fninit(Node *n)
@@ -1045,7 +1045,7 @@ fninit(Node *n)
 	r = N;
 
 	// (1)
-	snprint(namebuf, sizeof(namebuf), "init_%s_done", filename);
+	snprint(namebuf, sizeof(namebuf), "initdone·%s", filename);
 	done = newname(lookup(namebuf));
 	addvar(done, types[TBOOL], PEXTERN);
 
@@ -1054,12 +1054,12 @@ fninit(Node *n)
 	maxarg = 0;
 	stksize = initstksize;
 
-	snprint(namebuf, sizeof(namebuf), "init_%s_function", filename);
+	snprint(namebuf, sizeof(namebuf), "Init·%s", filename);
 
 	// this is a botch since we need a known name to
 	// call the top level init function out of rt0
 	if(strcmp(package, "main") == 0)
-		snprint(namebuf, sizeof(namebuf), "init_function");
+		snprint(namebuf, sizeof(namebuf), "init");
 
 	fn = nod(ODCLFUNC, N, N);
 	fn->nname = newname(lookup(namebuf));
@@ -1079,11 +1079,7 @@ fninit(Node *n)
 	// (5)
 	for(h=0; h<NHASH; h++)
 	for(s = hash[h]; s != S; s = s->link) {
-		if(s->name[0] != 'i')
-			continue;
-		if(strstr(s->name, "init_") == nil)
-			continue;
-		if(strstr(s->name, "_function") == nil)
+		if(s->name[0] != 'I' || strncmp(s->name, "Init·", 6) != 0)
 			continue;
 		if(s->oname == N)
 			continue;
@@ -1098,7 +1094,7 @@ fninit(Node *n)
 
 	// (7)
 	// could check that it is fn of no args/returns
-	snprint(namebuf, sizeof(namebuf), "init_%s", filename);
+	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
 	s = lookup(namebuf);
 	if(s->oname != N) {
 		a = nod(OCALL, s->oname, N);
@@ -1109,7 +1105,6 @@ fninit(Node *n)
 	a = nod(ORETURN, N, N);
 	r = list(r, a);
 
-	// (9)
 	exportsym(fn->nname->sym);
 
 	fn->nbody = rev(r);

@@ -72,15 +72,9 @@ autoexport(Sym *s)
 	if(dclcontext != PEXTERN)
 		return;
 	if(exportname(s->name)) {
-		if(dcladj != exportsym)
-			warn("uppercase missing export: %S", s);
 		exportsym(s);
 	} else {
-		if(dcladj == exportsym) {
-			warn("export missing uppercase: %S", s);
-			exportsym(s);
-		} else
-			packagesym(s);
+		packagesym(s);
 	}
 }
 
@@ -115,10 +109,6 @@ dumpexportconst(Sym *s)
 		dumpprereq(t);
 
 	Bprint(bout, "\t");
-	if(s->export == 1)
-		Bprint(bout, "export ");
-	else if(s->export == 2)
-		Bprint(bout, "package ");
 	Bprint(bout, "const %lS", s);
 	if(t != T)
 		Bprint(bout, " %#T", t);
@@ -163,10 +153,6 @@ dumpexportvar(Sym *s)
 	dumpprereq(t);
 
 	Bprint(bout, "\t");
-	if(s->export == 1)
-		Bprint(bout, "export ");
-	else if(s->export == 2)
-		Bprint(bout, "package ");
 	if(t->etype == TFUNC)
 		Bprint(bout, "func ");
 	else
@@ -179,10 +165,6 @@ dumpexporttype(Sym *s)
 {
 	dumpprereq(s->otype);
 	Bprint(bout, "\t");
-	if(s->export == 1)
-		Bprint(bout, "export ");
-	else if(s->export == 2)
-		Bprint(bout, "package ");
 	switch (s->otype->etype) {
 	case TFORW:
 	case TFORWSTRUCT:
@@ -304,7 +286,7 @@ pkgsym(char *name, char *pkg, int lexical)
  * return the sym for ss, which should match lexical
  */
 Sym*
-importsym(int export, Node *ss, int lexical)
+importsym(Node *ss, int lexical)
 {
 	Sym *s;
 
@@ -316,11 +298,10 @@ importsym(int export, Node *ss, int lexical)
 	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
 	/* TODO botch - need some diagnostic checking for the following assignment */
 	s->opackage = ss->osym->name;
-	if(export) {
-		if(s->export != export && s->export != 0)
-			yyerror("export/package mismatch: %S", s);
-		s->export = export;
-	}
+	if(exportname(ss->sym->name))
+		s->export = 1;
+	else
+		s->export = 2;	// package scope
 	s->imported = 1;
 	return s;
 }
@@ -342,7 +323,7 @@ pkgtype(char *name, char *pkg)
 	n->psym = lookup(pkg);
 	n->osym = n->psym;
 	renamepkg(n);
-	s = importsym(0, n, LATYPE);
+	s = importsym(n, LATYPE);
 
 	if(s->otype == T) {
 		t = typ(TFORW);
@@ -362,44 +343,39 @@ mypackage(Node *ss)
 }
 
 void
-importconst(int export, Node *ss, Type *t, Val *v)
+importconst(Node *ss, Type *t, Val *v)
 {
 	Node *n;
 	Sym *s;
 
-	export = exportname(ss->sym->name);
-	if(export == 2 && !mypackage(ss))
+	if(!exportname(ss->sym->name) && !mypackage(ss))
 		return;
 
 	n = nod(OLITERAL, N, N);
 	n->val = *v;
 	n->type = t;
 
-	s = importsym(export, ss, LACONST);
+	s = importsym(ss, LACONST);
 	if(s->oconst != N) {
 		// TODO: check if already the same.
 		return;
 	}
 
-// fake out export vs upper checks until transition is over
-if(export == 1) dcladj = exportsym;
-
 	dodclconst(newname(s), n);
 
-dcladj = nil;
 	if(debug['e'])
 		print("import const %S\n", s);
 }
 
 void
-importvar(int export, Node *ss, Type *t)
+importvar(Node *ss, Type *t)
 {
 	Sym *s;
 
-	if(export == 2 && !mypackage(ss))
+	if(!exportname(ss->sym->name) && !mypackage(ss))
 		return;
 
-	s = importsym(export, ss, LNAME);
+	s = importsym(ss, LNAME);
 	if(s->oname != N) {
 		if(eqtype(t, s->oname->type, 0))
 			return;
@@ -408,18 +384,17 @@ importvar(int export, Node *ss, Type *t)
 	}
 	checkwidth(t);
 	addvar(newname(s), t, PEXTERN);
-	s->export = export;
 
 	if(debug['e'])
 		print("import var %S %lT\n", s, t);
 }
 
 void
-importtype(int export, Node *ss, Type *t)
+importtype(Node *ss, Type *t)
 {
 	Sym *s;
 
-	s = importsym(export, ss, LATYPE);
+	s = importsym(ss, LATYPE);
 	if(s->otype != T) {
 		if(eqtype(t, s->otype, 0))
 			return;
@@ -440,7 +415,7 @@ importtype(int export, Node *ss, Type *t)
 	// This will make references in the ordinary program
 	// (but not the import sections) look at s->oname,
 	// which is nil, as for an undefined name.
-	if(export == 0 || (export == 2 && !mypackage(ss)))
+	if(s->export == 2 && !mypackage(ss))
 		s->lexical = LNAME;
 
 	if(debug['e'])
