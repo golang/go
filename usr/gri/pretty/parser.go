@@ -13,7 +13,7 @@ import (
 
 type Parser struct {
 	// Tracing/debugging
-	verbose, sixg, deps, naming bool;
+	verbose, sixg, deps bool;
 	indent uint;
 
 	// Scanner
@@ -109,11 +109,10 @@ func (P *Parser) Next() {
 }
 
 
-func (P *Parser) Open(verbose, sixg, deps, naming bool, scanner *Scanner.Scanner, tokchan <-chan *Scanner.Token) {
+func (P *Parser) Open(verbose, sixg, deps bool, scanner *Scanner.Scanner, tokchan <-chan *Scanner.Token) {
 	P.verbose = verbose;
 	P.sixg = sixg;
 	P.deps = deps;
-	P.naming = naming;
 	P.indent = 0;
 
 	P.scanner = scanner;
@@ -190,33 +189,6 @@ func (P *Parser) Declare(p *AST.Expr, kind int) {
 	}
 	P.DeclareInScope(P.top_scope, p, kind);
 }
-
-
-func (P *Parser) VerifyExport1(p *AST.Expr, exported bool) {
-	obj := p.Obj;
-	if exported {
-		if !obj.IsExported() {
-			P.Error(obj.Pos, `"` + obj.Ident + `" should be uppercase`);
-		}
-	} else if P.scope_lev == 0 {
-		if obj.IsExported() {
-			P.Error(obj.Pos, `"` + obj.Ident + `" should be lowercase`);
-		}
-	}
-}
-
-
-func (P *Parser) VerifyExport(p *AST.Expr, exported bool) {
-	if !P.naming {
-		return;
-	}
-	for p.Tok == Scanner.COMMA {
-		P.VerifyExport1(p.X, exported);
-		p = p.Y;
-	}
-	P.VerifyExport1(p, exported);
-}
-
 
 
 // ----------------------------------------------------------------------------
@@ -1500,7 +1472,7 @@ func (P *Parser) ParseStatement() *AST.Stat {
 func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
 	P.Trace("ImportSpec");
 
-	d := AST.NewDecl(pos, Scanner.IMPORT, false);
+	d := AST.NewDecl(pos, Scanner.IMPORT);
 	if P.tok == Scanner.PERIOD {
 		P.Error(P.pos, `"import ." not yet handled properly`);
 		P.Next();
@@ -1526,10 +1498,10 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
 }
 
 
-func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
+func (P *Parser) ParseConstSpec(pos int) *AST.Decl {
 	P.Trace("ConstSpec");
 
-	d := AST.NewDecl(pos, Scanner.CONST, exported);
+	d := AST.NewDecl(pos, Scanner.CONST);
 	d.Ident = P.ParseIdentList();
 	d.Typ = P.TryType();
 	if P.tok == Scanner.ASSIGN {
@@ -1538,32 +1510,29 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
 	}
 
 	P.Declare(d.Ident, AST.CONST);
-	P.VerifyExport(d.Ident, exported);
 
 	P.Ecart();
 	return d;
 }
 
 
-func (P *Parser) ParseTypeSpec(exported bool, pos int) *AST.Decl {
+func (P *Parser) ParseTypeSpec(pos int) *AST.Decl {
 	P.Trace("TypeSpec");
 
-	d := AST.NewDecl(pos, Scanner.TYPE, exported);
+	d := AST.NewDecl(pos, Scanner.TYPE);
 	d.Ident = P.ParseIdent(nil);
 	d.Typ = P.ParseType();
 	P.opt_semi = true;
 
-	P.VerifyExport(d.Ident, exported);
-
 	P.Ecart();
 	return d;
 }
 
 
-func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
+func (P *Parser) ParseVarSpec(pos int) *AST.Decl {
 	P.Trace("VarSpec");
 
-	d := AST.NewDecl(pos, Scanner.VAR, exported);
+	d := AST.NewDecl(pos, Scanner.VAR);
 	d.Ident = P.ParseIdentList();
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
@@ -1577,7 +1546,6 @@ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
 	}
 
 	P.Declare(d.Ident, AST.VAR);
-	P.VerifyExport(d.Ident, exported);
 
 	P.Ecart();
 	return d;
@@ -1585,19 +1553,19 @@ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
 
 
 // TODO replace this by using function pointers derived from methods
-func (P *Parser) ParseSpec(exported bool, pos int, keyword int) *AST.Decl {
+func (P *Parser) ParseSpec(pos int, keyword int) *AST.Decl {
 	switch keyword {
 	case Scanner.IMPORT: return P.ParseImportSpec(pos);
-	case Scanner.CONST: return P.ParseConstSpec(exported, pos);
-	case Scanner.TYPE: return P.ParseTypeSpec(exported, pos);
-	case Scanner.VAR: return P.ParseVarSpec(exported, pos);
+	case Scanner.CONST: return P.ParseConstSpec(pos);
+	case Scanner.TYPE: return P.ParseTypeSpec(pos);
+	case Scanner.VAR: return P.ParseVarSpec(pos);
 	}
 	panic("UNREACHABLE");
 	return nil;
 }
 
 
-func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
+func (P *Parser) ParseDecl(keyword int) *AST.Decl {
 	P.Trace("Decl");
 
 	d := AST.BadDecl;
@@ -1605,10 +1573,10 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
 	P.Expect(keyword);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
-		d = AST.NewDecl(pos, keyword, exported);
+		d = AST.NewDecl(pos, keyword);
 		d.List = array.New(0);
 		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
-			d.List.Push(P.ParseSpec(exported, pos, keyword));
+			d.List.Push(P.ParseSpec(pos, keyword));
 			if P.tok == Scanner.SEMICOLON {
 				P.Next();
 			} else {
@@ -1620,7 +1588,7 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
 		P.opt_semi = true;
 
 	} else {
-		d = P.ParseSpec(exported, pos, keyword);
+		d = P.ParseSpec(pos, keyword);
 	}
 
 	P.Ecart();
@@ -1637,10 +1605,10 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
 // func (recv) ident (params) type
 // func (recv) ident (params) (results)
 
-func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
+func (P *Parser) ParseFunctionDecl() *AST.Decl {
 	P.Trace("FunctionDecl");
 
-	d := AST.NewDecl(P.pos, Scanner.FUNC, exported);
+	d := AST.NewDecl(P.pos, Scanner.FUNC);
 	P.Expect(Scanner.FUNC);
 
 	var recv *AST.Type;
@@ -1662,21 +1630,6 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
 		P.scope_lev--;
 	}
 
-	if recv == nil || exported {
-		P.VerifyExport(d.Ident, exported);
-	}
-
-	P.Ecart();
-	return d;
-}
-
-
-func (P *Parser) ParseExportDecl() *AST.Decl {
-	P.Trace("ExportDecl");
-
-	d := AST.NewDecl(P.pos, Scanner.EXPORT, false);
-	d.Ident = P.ParseIdentList();
-
 	P.Ecart();
 	return d;
 }
@@ -1687,35 +1640,15 @@ func (P *Parser) ParseDeclaration() *AST.Decl {
 	indent := P.indent;
 
 	d := AST.BadDecl;
-	exported := false;
-	// TODO don't use bool flag for export
-	if P.tok == Scanner.EXPORT || P.tok == Scanner.PACKAGE {
-		if P.scope_lev == 0 {
-			exported = true;
-		} else {
-			P.Error(P.pos, "local declarations cannot be exported");
-		}
-		P.Next();
-	}
 
 	switch P.tok {
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
-		d = P.ParseDecl(exported, P.tok);
+		d = P.ParseDecl(P.tok);
 	case Scanner.FUNC:
-		d = P.ParseFunctionDecl(exported);
-	case Scanner.EXPORT:
-		if exported {
-			P.Error(P.pos, "cannot mark export declaration for export");
-		}
-		P.Next();
-		d = P.ParseExportDecl();
+		d = P.ParseFunctionDecl();
 	default:
-		if exported && (P.tok == Scanner.IDENT || P.tok == Scanner.LPAREN) {
-			d = P.ParseExportDecl();
-		} else {
-			P.Error(P.pos, "declaration expected");
-			P.Next();  // make progress
-		}
+		P.Error(P.pos, "declaration expected");
+		P.Next();  // make progress
 	}
 
 	if indent != P.indent {
@@ -1741,7 +1674,7 @@ func (P *Parser) ParseProgram() *AST.Program {
 	{	P.OpenScope();
 		p.Decls = array.New(0);
 		for P.tok == Scanner.IMPORT {
-			p.Decls.Push(P.ParseDecl(false, Scanner.IMPORT));
+			p.Decls.Push(P.ParseDecl(Scanner.IMPORT));
 			P.OptSemicolon();
 		}
 		if !P.deps {
