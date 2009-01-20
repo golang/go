@@ -387,7 +387,6 @@ var BadStat = NewStat(0, Scanner.ILLEGAL);
 
 type Decl struct {
 	Node;
-	Exported bool;
 	Ident *Expr;  // nil for ()-style declarations
 	Typ *Type;
 	Val *Expr;
@@ -397,14 +396,14 @@ type Decl struct {
 }
 
 
-func NewDecl(pos, tok int, exported bool) *Decl {
+func NewDecl(pos, tok int) *Decl {
 	d := new(Decl);
-	d.Pos, d.Tok, d.Exported = pos, tok, exported;
+	d.Pos, d.Tok = pos, tok;
 	return d;
 }
 
 
-var BadDecl = NewDecl(0, Scanner.ILLEGAL, false);
+var BadDecl = NewDecl(0, Scanner.ILLEGAL);
 
 
 // ----------------------------------------------------------------------------

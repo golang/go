@@ -64,7 +64,6 @@ func (s *state) CheckDeclaration(d *AST.Decl) {
 		// single declaration
 		switch d.Tok {
 		case Scanner.IMPORT:
-		case Scanner.EXPORT:
 		case Scanner.CONST:
 		case Scanner.VAR:
 		case Scanner.TYPE:

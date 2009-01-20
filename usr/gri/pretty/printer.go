@@ -791,10 +791,6 @@ func (P *Printer) Stat(s *AST.Stat) {
 
 func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 	if !parenthesized {
-		if d.Exported {
-			P.String(d.Pos, "export");
-			P.separator = blank;
-		}
 		P.Token(d.Pos, d.Tok);
 		P.separator = blank;
 	}
@@ -825,10 +821,6 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 			}
 			P.separator = tab;
 			P.Expr(d.Val);
-			P.separator = semicolon;
-
-		case Scanner.EXPORT:
-			P.Expr(d.Ident);
 			P.separator = semicolon;
 
 		case Scanner.TYPE:

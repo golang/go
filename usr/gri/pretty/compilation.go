@@ -30,7 +30,6 @@ type Flags struct {
 	Columns bool;
 	Testmode bool;
 	Tokenchan bool;
-	Naming bool;
 }
 
 
@@ -136,7 +135,7 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	}
 
 	var parser Parser.Parser;
-	parser.Open(flags.Verbose, flags.Sixg, flags.Deps, flags.Naming, &scanner, tstream);
+	parser.Open(flags.Verbose, flags.Sixg, flags.Deps, &scanner, tstream);
 
 	prog := parser.ParseProgram();
 

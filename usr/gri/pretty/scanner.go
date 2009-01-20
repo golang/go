@@ -76,7 +76,7 @@ const (
 	PERIOD;
 
 	// keywords
-	Keywords_beg;  // do not export eventually
+	keywords_beg;
 	BREAK;
 	CASE;
 	CHAN;
@@ -85,7 +85,6 @@ const (
 
 	DEFAULT;
 	ELSE;
-	EXPORT;
 	FALLTHROUGH;
 	FOR;
 
@@ -106,7 +105,7 @@ const (
 	SWITCH;
 	TYPE;
 	VAR;
-	Keywords_end;  // do not export eventually
+	keywords_end;
 
 	// AST use only
 	EXPRSTAT;
@@ -187,7 +186,6 @@ func TokenString(tok int) string {
 
 	case DEFAULT: return "default";
 	case ELSE: return "else";
-	case EXPORT: return "export";
 	case FALLTHROUGH: return "fallthrough";
 	case FOR: return "for";
 
@@ -249,7 +247,7 @@ var keywords map [string] int;
 
 func init() {
 	keywords = make(map [string] int);
-	for i := Keywords_beg + 1; i < Keywords_end; i++ {
+	for i := keywords_beg + 1; i < keywords_end; i++ {
 		keywords[TokenString(i)] = i;
 	}
 }
