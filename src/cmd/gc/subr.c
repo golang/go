@@ -2489,6 +2489,8 @@ expand0(Type *t)
 	u = methtype(t);
 	if(u != T) {
 		for(f=u->method; f!=T; f=f->down) {
+			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
+				continue;
 			if(f->sym->uniq)
 				continue;
 			f->sym->uniq = 1;
