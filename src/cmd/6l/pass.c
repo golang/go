@@ -398,7 +398,8 @@ patch(void)
 			q = q->link;
 		}
 		if(q == P) {
-			diag("branch out of range in %s\n%P", TNAME, p);
+			diag("branch out of range in %s\n%P [%s]",
+				TNAME, p, p->to.sym ? p->to.sym->name : "<nil>");
 			p->to.type = D_NONE;
 		}
 		p->pcond = q;
@@ -850,6 +851,28 @@ newdata(Sym *s, int o, int w, int t)
 	p->from.sym = s;
 	p->from.offset = o;
 	p->to.type = D_CONST;
+	return p;
+}
+
+Prog*
+newtext(Prog *p, Sym *s)
+{
+	if(p == P) {
+		p = prg();
+		p->as = ATEXT;
+		p->from.sym = s;
+	}
+	s->type = STEXT;
+	s->text = p;
+	s->value = pc;
+	lastp->link = p;
+	lastp = p;
+	p->pc = pc++;
+	if(textp == P)
+		textp = p;
+	else
+		etextp->pcond = p;
+	etextp = p;
 	return p;
 }
 
