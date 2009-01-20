@@ -51,7 +51,7 @@ TEXT	_rt0_amd64(SB),7,$-8
 	RET
 
 TEXT mainstart(SB),7,$0
-	CALL	main·init_function(SB)
+	CALL	main·init(SB)
 	CALL	initdone(SB)
 	CALL	main·main(SB)
 	PUSHQ	$0

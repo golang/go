@@ -81,7 +81,6 @@
 %type	<node>		hidden_interfacedcl
 %type	<node>		hidden_funarg_list ohidden_funarg_list hidden_funarg_list_r
 %type	<node>		hidden_funres ohidden_funres hidden_importsym
-%type	<lint>		oexport
 
 %left			LOROR
 %left			LANDAND
@@ -189,30 +188,6 @@ xdcl:
 	{
 		if($1 != N && $1->nname != N && $1->type->thistuple == 0)
 			autoexport($1->nname->sym);
-		$$ = N;
-	}
-|	LEXPORT { dcladj = exportsym; stksize = initstksize; } common_dcl
-	{
-		$$ = $3;
-		dcladj = 0;
-		initstksize = stksize;
-	}
-|	LPACKAGE { warn("package is gone"); stksize = initstksize; } common_dcl
-	{
-		$$ = $3;
-		initstksize = stksize;
-	}
-|	LEXPORT '(' export_list_r ')'
-	{
-		$$ = N;
-	}
-|	LEXPORT xfndcl
-	{
-		if($2 != N && $2->nname != N) {
-			dcladj = exportsym;
-			autoexport($2->nname->sym);
-			dcladj = nil;
-		}
 		$$ = N;
 	}
 |	LPACKAGE { warn("package is gone"); } xfndcl
@@ -1604,20 +1579,6 @@ exprsym3_list_r:
 		$$ = nod(OLIST, $1, $3);
 	}
 
-export_list_r:
-	export
-|	export_list_r ocomma export
-
-export:
-	sym
-	{
-		exportsym($1);
-	}
-|	sym '.' sym2
-	{
-		exportsym(pkglookup($3->name, $1->name));
-	}
-
 import_stmt_list_r:
 	import_stmt
 |	import_stmt_list_r osemi import_stmt
@@ -1768,19 +1729,6 @@ ohidden_interfacedcl_list:
 	}
 |	hidden_interfacedcl_list
 
-oexport:
-	{
-		$$ = 0;
-	}
-|	LEXPORT
-	{
-		$$ = 1;
-	}
-|	LPACKAGE
-	{
-		$$ = 2;
-	}
-
 oliteral:
 	{
 		$$.ctype = CTxxx;
@@ -1794,37 +1742,33 @@ oliteral:
 hidden_import:
 	LPACKAGE sym1
 	/* variables */
-|	oexport LVAR hidden_importsym hidden_type
+|	LVAR hidden_importsym hidden_type
 	{
-		importvar($1, $3, $4);
+		importvar($2, $3);
 	}
-|	oexport LCONST hidden_importsym '=' hidden_constant
+|	LCONST hidden_importsym '=' hidden_constant
 	{
-		importconst($1, $3, T, &$5);
+		importconst($2, T, &$4);
 	}
-|	oexport LCONST hidden_importsym hidden_type '=' hidden_constant
+|	LCONST hidden_importsym hidden_type '=' hidden_constant
 	{
-		importconst($1, $3, $4, &$6);
+		importconst($2, $3, &$5);
 	}
-|	oexport LTYPE hidden_importsym hidden_type
+|	LTYPE hidden_importsym hidden_type
 	{
-		importtype($1, $3, $4);
+		importtype($2, $3);
 	}
-|	oexport LFUNC hidden_importsym '(' ohidden_funarg_list ')' ohidden_funres
+|	LFUNC hidden_importsym '(' ohidden_funarg_list ')' ohidden_funres
 	{
-		importvar($1, $3, functype(N, $5, $7));
+		importvar($2, functype(N, $4, $6));
 	}
-|	oexport LFUNC '(' hidden_funarg_list ')' sym1 '(' ohidden_funarg_list ')' ohidden_funres
+|	LFUNC '(' hidden_funarg_list ')' sym1 '(' ohidden_funarg_list ')' ohidden_funres
 	{
-		// have to put oexport here to avoid shift/reduce
-		// with non-method func.  but it isn't allowed.
-		if($1)
-			yyerror("cannot export method");
-		if($4->op != ODCLFIELD) {
+		if($3->op != ODCLFIELD) {
 			yyerror("bad receiver in method");
 			YYERROR;
 		}
-		importmethod($6, functype($4, $8, $10));
+		importmethod($5, functype($3, $7, $9));
 	}
 
 hidden_type:
