@@ -537,7 +537,7 @@ genembedtramp(Type *t, Sig *b)
 		if(c == 1)
 			goto out;
 	}
-	fatal("genembedtramp");
+	fatal("genembedtramp %T.%s", t, b->name);
 
 out:
 	if(d == 0)
