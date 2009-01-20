@@ -75,8 +75,16 @@ func (b *ByteBuffer) Len() int {
 	return b.len
 }
 
+func (b *ByteBuffer) Off() int {
+	return b.off
+}
+
 func (b *ByteBuffer) Data() []byte {
 	return b.buf[b.off:b.len]
+}
+
+func (b *ByteBuffer) AllData() []byte {
+	return b.buf[0:b.len]
 }
 
 
