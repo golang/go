@@ -455,13 +455,13 @@ definetypesigs(void)
 	n = 0;
 	for(i=0; i<NHASH; i++)
 		for(x = hash[i]; x; x=x->link)
-			if(memcmp(x->name, "sigt·", 6) == 0)
+			if(memcmp(x->name, "sigt·", 6) == 0 && x->type != Sxxx)
 				n++;
 	all = mal(n*sizeof all[0]);
 	j = 0;
 	for(i=0; i<NHASH; i++)
 		for(x = hash[i]; x; x=x->link)
-			if(memcmp(x->name, "sigt·", 6) == 0)
+			if(memcmp(x->name, "sigt·", 6) == 0 && x->type != Sxxx)
 				all[j++] = x;
 
 	// sort them by name
@@ -488,5 +488,4 @@ definetypesigs(void)
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f typesigs %d\n", cputime(), n);
-
 }

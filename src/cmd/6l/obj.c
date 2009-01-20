@@ -1063,8 +1063,11 @@ loop:
 		// If we've seen an AGLOBL that said this sym was DUPOK,
 		// ignore any more ADATA we see, which must be
 		// redefinitions.
-		if(p->from.sym != S && p->from.sym->dupok)
+		if(p->from.sym != S && p->from.sym->dupok) {
+			if(debug['v'])
+				Bprint(&bso, "skipping %s in %s: dupok", p->from.sym->name, pn);
 			goto loop;
+		}
 		if(edatap == P)
 			datap = p;
 		else
@@ -1083,7 +1086,7 @@ loop:
 		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
 			/* redefinition, so file has probably been seen before */
 			if(debug['v'])
-				diag("skipping: %s: redefinition: %s", pn, s->name);
+				Bprint(&bso, "skipping: %s: redefinition: %s", pn, s->name);
 			return;
 		}
 		if(curtext != P) {
@@ -1260,6 +1263,8 @@ lookup(char *symb, int v)
 			return s;
 
 	s = mal(sizeof(*s));
+	if(debug['v'] > 1)
+		Bprint(&bso, "lookup %s\n", symb);
 
 	s->name = malloc(l + 1);
 	memmove(s->name, symb, l);
