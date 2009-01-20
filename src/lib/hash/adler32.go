@@ -14,7 +14,7 @@ package adler32
 
 import "os"
 
-export type Digest struct {
+type Digest struct {
 	a, b uint32;
 	n int;
 }
@@ -24,7 +24,7 @@ const (
 	_MaxIter = 5552;  // max mod-free iterations before would overflow uint32
 )
 
-export func NewDigest() *Digest {
+func NewDigest() *Digest {
 	return &Digest{1, 0, 0};
 }
 

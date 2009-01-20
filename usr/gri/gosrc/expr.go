@@ -21,24 +21,24 @@ func Error(comp *Globals.Compilation, pos int, msg string) {
 }
 
 
-export func Deref(comp *Globals.Compilation, x Globals.Expr) Globals.Expr {
+func Deref(comp *Globals.Compilation, x Globals.Expr) Globals.Expr {
 	switch typ := x.typ(); typ.form {
 	case Type.BAD:
 		// ignore
-		
+
 	case Type.POINTER:
 		x = AST.NewDeref(x);
-		
+
 	default:
 		Error(comp, x.pos(), `"*" not applicable (typ.form = ` + Type.FormStr(typ.form) + `)`);
 		x = AST.Bad;
 	}
-	
+
 	return x;
 }
 
 
-export func Select(comp *Globals.Compilation, x Globals.Expr, pos int, selector string) Globals.Expr {
+func Select(comp *Globals.Compilation, x Globals.Expr, pos int, selector string) Globals.Expr {
 	if x.typ().form == Type.POINTER {
 		x = Deref(comp, x);
 	}
@@ -51,7 +51,7 @@ export func Select(comp *Globals.Compilation, x Globals.Expr, pos int, selector 
 		obj := typ.scope.Lookup(selector);
 		if obj != nil {
 			x = AST.NewSelector(x.pos(), obj.typ);
-			
+
 		} else {
 			Error(comp, pos, `no field/method "` + selector + `"`);
 			x = AST.Bad;
@@ -61,17 +61,17 @@ export func Select(comp *Globals.Compilation, x Globals.Expr, pos int, selector 
 		Error(comp, pos, `"." not applicable (typ.form = ` + Type.FormStr(typ.form) + `)`);
 		x = AST.Bad;
 	}
-	
+
 	return x;
 }
 
 
-export func AssertType(comp *Globals.Compilation, x Globals.Expr, pos int, typ *Globals.Type) Globals.Expr {
+func AssertType(comp *Globals.Compilation, x Globals.Expr, pos int, typ *Globals.Type) Globals.Expr {
 	return AST.Bad;
 }
 
 
-export func Index(comp *Globals.Compilation, x, i Globals.Expr) Globals.Expr {
+func Index(comp *Globals.Compilation, x, i Globals.Expr) Globals.Expr {
 	if x.typ().form == Type.POINTER {
 		x = Deref(comp, x);
 	}
@@ -79,20 +79,20 @@ export func Index(comp *Globals.Compilation, x, i Globals.Expr) Globals.Expr {
 	switch typ := x.typ(); typ.form {
 	case Type.BAD:
 		// ignore
-		
+
 	case Type.STRING, Type.ARRAY:
 		x = AST.Bad;
-		
+
 	case Type.MAP:
 		if Type.Equal(typ.key, i.typ()) {
 			// x = AST.NewSubscript(x, i1);
 			x = AST.Bad;
-			
+
 		} else {
 			Error(comp, x.pos(), "map key type mismatch");
 			x = AST.Bad;
 		}
-		
+
 	default:
 		Error(comp, x.pos(), `"[]" not applicable (typ.form = ` + Type.FormStr(typ.form) + `)`);
 		x = AST.Bad;
@@ -101,7 +101,7 @@ export func Index(comp *Globals.Compilation, x, i Globals.Expr) Globals.Expr {
 }
 
 
-export func Slice(comp *Globals.Compilation, x, i, j Globals.Expr) Globals.Expr {
+func Slice(comp *Globals.Compilation, x, i, j Globals.Expr) Globals.Expr {
 	if x.typ().form == Type.POINTER {
 		x = Deref(comp, x);
 	}
@@ -112,17 +112,17 @@ export func Slice(comp *Globals.Compilation, x, i, j Globals.Expr) Globals.Expr 
 		break;
 	case Type.STRING, Type.ARRAY:
 		x = AST.Bad;
-		
+
 	case Type.MAP:
 		if Type.Equal(typ.key, i.typ()) {
 			// x = AST.NewSubscript(x, i1);
 			x = AST.Bad;
-			
+
 		} else {
 			Error(comp, x.pos(), "map key type mismatch");
 			x = AST.Bad;
 		}
-		
+
 	default:
 		Error(comp, x.pos(), `"[:]" not applicable (typ.form = ` + Type.FormStr(typ.form) + `)`);
 		x = AST.Bad;
@@ -131,30 +131,30 @@ export func Slice(comp *Globals.Compilation, x, i, j Globals.Expr) Globals.Expr 
 }
 
 
-export func Call(comp *Globals.Compilation, x Globals.Expr, args *Globals.List) Globals.Expr {
+func Call(comp *Globals.Compilation, x Globals.Expr, args *Globals.List) Globals.Expr {
 	if x.typ().form == Type.POINTER {
 		x = Deref(comp, x);
 	}
-	
+
 	if x.op() == AST.OBJECT && x.(*AST.Object).obj.kind == Object.BUILTIN {
 		panic("builtin call - UNIMPLEMENTED");
 	}
-	
+
 	typ := x.typ();
 	if typ.form == Type.FUNCTION || typ.form == Type.METHOD {
 		// TODO check args against parameters
 	}
-	
+
 	return AST.Bad;
 }
 
 
-export func UnaryExpr(comp *Globals.Compilation, x Globals.Expr) Globals.Expr {
+func UnaryExpr(comp *Globals.Compilation, x Globals.Expr) Globals.Expr {
 	return AST.Bad;
 }
 
 
-export func BinaryExpr(comp *Globals.Compilation, x, y Globals.Expr) Globals.Expr {
+func BinaryExpr(comp *Globals.Compilation, x, y Globals.Expr) Globals.Expr {
 	e := new(AST.BinaryExpr);
 	e.typ_ = x.typ();  // TODO fix this
 	//e.op = P.tok;  // TODO should we use tokens or separate operator constants?

@@ -7,7 +7,7 @@
 package main
 
 
-export type
+type
 I	interface
 {
 	test1,
@@ -23,7 +23,7 @@ I	interface
  ******
  ******/
 
-export type
+type
 SubpSubp	struct
 {
 	a7	int;
@@ -45,7 +45,7 @@ testx()
  ******
  ******/
 
-export type
+type
 SubpSub	struct
 {
 	a6	int;
@@ -68,7 +68,7 @@ testx()
  ******
  ******/
 
-export type
+type
 SubSubp	struct
 {
 	a5	int;
@@ -85,7 +85,7 @@ test5() int
  ******
  ******/
 
-export type
+type
 SubSub	struct
 {
 	a4	int;
@@ -102,7 +102,7 @@ test4() int
  ******
  ******/
 
-export type
+type
 Subp	struct
 {
 	a3	int;
@@ -121,7 +121,7 @@ test3() int
  ******
  ******/
 
-export type
+type
 Sub	struct
 {
 	a2	int;
@@ -140,7 +140,7 @@ test2() int
  ******
  ******/
 
-export type
+type
 S	struct
 {
 	a1	int;

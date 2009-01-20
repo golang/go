@@ -9,15 +9,15 @@
 
 package main
 
-export type I interface { M() int64 }
+type I interface { M() int64 }
 
-export type BigPtr struct { a, b, c, d int64 }
+type BigPtr struct { a, b, c, d int64 }
 func (z *BigPtr) M() int64 { return z.a+z.b+z.c+z.d }
 
-export type SmallPtr struct { a int32 }
+type SmallPtr struct { a int32 }
 func (z *SmallPtr) M() int64 { return int64(z.a) }
 
-export type IntPtr int32
+type IntPtr int32
 func (z *IntPtr) M() int64 { return int64(*z) }
 
 var bad bool
@@ -43,13 +43,13 @@ func ptrs() {
 	test("&intptr", &intptr);
 }
 
-export type Big struct { a, b, c, d int64 }
+type Big struct { a, b, c, d int64 }
 func (z Big) M() int64 { return z.a+z.b+z.c+z.d }
 
-export type Small struct { a int32 }
+type Small struct { a int32 }
 func (z Small) M() int64 { return int64(z.a) }
 
-export type Int int32
+type Int int32
 func (z Int) M() int64 { return int64(z) }
 
 func nonptrs() {

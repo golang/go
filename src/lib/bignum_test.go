@@ -90,7 +90,7 @@ func rat_eq(n uint, x, y *bignum.Rational) {
 	}
 }
 
-export func TestNatConv(t *testing.T) {
+func TestNatConv(t *testing.T) {
 	tester = t;
 	test_msg = "NatConvA";
 	nat_eq(0, a, bignum.Nat(991));
@@ -122,7 +122,7 @@ export func TestNatConv(t *testing.T) {
 }
 
 
-export func TestIntConv(t *testing.T) {
+func TestIntConv(t *testing.T) {
 	tester = t;
 	test_msg = "IntConv";
 	var slen int;
@@ -140,7 +140,7 @@ export func TestIntConv(t *testing.T) {
 }
 
 
-export func TestRatConv(t *testing.T) {
+func TestRatConv(t *testing.T) {
 	tester = t;
 	test_msg = "RatConv";
 	var slen int;
@@ -176,7 +176,7 @@ func sum(n uint, scale bignum.Natural) bignum.Natural {
 }
 
 
-export func TestNatAdd(t *testing.T) {
+func TestNatAdd(t *testing.T) {
 	tester = t;
 	test_msg = "NatAddA";
 	nat_eq(0, add(nat_zero, nat_zero), nat_zero);
@@ -206,7 +206,7 @@ func mul(x, y bignum.Natural) bignum.Natural {
 }
 
 
-export func TestNatSub(t *testing.T) {
+func TestNatSub(t *testing.T) {
 	tester = t;
 	test_msg = "NatSubA";
 	nat_eq(0, nat_zero.Sub(nat_zero), nat_zero);
@@ -223,7 +223,7 @@ export func TestNatSub(t *testing.T) {
 }
 
 
-export func TestNatMul(t *testing.T) {
+func TestNatMul(t *testing.T) {
 	tester = t;
 	test_msg = "NatMulA";
 	nat_eq(0, mul(c, nat_zero), nat_zero);
@@ -242,7 +242,7 @@ export func TestNatMul(t *testing.T) {
 }
 
 
-export func TestNatDiv(t *testing.T) {
+func TestNatDiv(t *testing.T) {
 	tester = t;
 	test_msg = "NatDivA";
 	nat_eq(0, c.Div(nat_one), c);
@@ -260,7 +260,7 @@ export func TestNatDiv(t *testing.T) {
 }
 
 
-export func TestIntQuoRem(t *testing.T) {
+func TestIntQuoRem(t *testing.T) {
 	tester = t;
 	test_msg = "IntQuoRem";
 	type T struct { x, y, q, r int };
@@ -287,7 +287,7 @@ export func TestIntQuoRem(t *testing.T) {
 }
 
 
-export func TestIntDivMod(t *testing.T) {
+func TestIntDivMod(t *testing.T) {
 	tester = t;
 	test_msg = "IntDivMod";
 	type T struct { x, y, q, r int };
@@ -314,7 +314,7 @@ export func TestIntDivMod(t *testing.T) {
 }
 
 
-export func TestNatMod(t *testing.T) {
+func TestNatMod(t *testing.T) {
 	tester = t;
 	test_msg = "NatModA";
 	for i := uint(0); ; i++ {
@@ -330,7 +330,7 @@ export func TestNatMod(t *testing.T) {
 }
 
 
-export func TestNatShift(t *testing.T) {
+func TestNatShift(t *testing.T) {
 	tester = t;
 	test_msg = "NatShift1L";
 	test(0, b.Shl(0).Cmp(b) == 0);
@@ -365,7 +365,7 @@ export func TestNatShift(t *testing.T) {
 }
 
 
-export func TestIntShift(t *testing.T) {
+func TestIntShift(t *testing.T) {
 	tester = t;
 	test_msg = "IntShift1L";
 	test(0, ip.Shl(0).Cmp(ip) == 0);
@@ -404,7 +404,7 @@ export func TestIntShift(t *testing.T) {
 }
 
 
-export func TestNatCmp(t *testing.T) {
+func TestNatCmp(t *testing.T) {
 	tester = t;
 	test_msg = "NatCmp";
 	test(0, a.Cmp(a) == 0);
@@ -417,14 +417,14 @@ export func TestNatCmp(t *testing.T) {
 }
 
 
-export func TestNatLog2(t *testing.T) {
+func TestNatLog2(t *testing.T) {
 	tester = t;
 	test_msg = "NatLog2A";
 	test(0, nat_one.Log2() == 0);
 	test(1, nat_two.Log2() == 1);
 	test(2, bignum.Nat(3).Log2() == 1);
 	test(3, bignum.Nat(4).Log2() == 2);
-	
+
 	test_msg = "NatLog2B";
 	for i := uint(0); i < 100; i++ {
 		test(i, nat_one.Shl(i).Log2() == i);
@@ -432,7 +432,7 @@ export func TestNatLog2(t *testing.T) {
 }
 
 
-export func TestNatGcd(t *testing.T) {
+func TestNatGcd(t *testing.T) {
 	tester = t;
 	test_msg = "NatGcdA";
 	f := bignum.Nat(99991);
@@ -440,7 +440,7 @@ export func TestNatGcd(t *testing.T) {
 }
 
 
-export func TestNatPow(t *testing.T) {
+func TestNatPow(t *testing.T) {
 	tester = t;
 	test_msg = "NatPowA";
 	nat_eq(0, nat_two.Pow(0), nat_one);
@@ -452,7 +452,7 @@ export func TestNatPow(t *testing.T) {
 }
 
 
-export func TestNatPop(t *testing.T) {
+func TestNatPop(t *testing.T) {
 	tester = t;
 	test_msg = "NatPopA";
 	test(0, nat_zero.Pop() == 0);

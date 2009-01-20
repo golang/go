@@ -20,7 +20,7 @@ const (
 	_HeaderSize = 4+16+4*7
 )
 
-export var (
+var (
 	BadZoneinfo = os.NewError("time: malformed zoneinfo");
 	NoZoneinfo = os.NewError("time: unknown time zone")
 )
@@ -250,7 +250,7 @@ func _SetupZone() {
 	zones, zoneerr = readinfofile("/etc/localtime");
 }
 
-export func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
+func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
 	once.Do(&_SetupZone);
 	if zoneerr != nil || len(zones) == 0 {
 		return "GMT", 0, zoneerr

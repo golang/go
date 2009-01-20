@@ -6,7 +6,7 @@
 
 package main
 
-export type T struct { m map[int]int }
+type T struct { m map[int]int }
 func main() {
 	t := new(T);
 	t.m = make(map[int]int);

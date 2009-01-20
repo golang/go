@@ -10,15 +10,15 @@ import (
 )
 
 
-export var (
+var (
 	Scope *AST.Scope;
 	Types array.Array;
-	
+
 	// internal types
 	Void_typ,
 	Bad_typ,
 	Nil_typ,
-	
+
 	// basic types
 	Bool_typ,
 	Uint8_typ,
@@ -34,14 +34,14 @@ export var (
 	Float80_typ,
 	String_typ,
 	Integer_typ,
-	
+
 	// convenience types
 	Byte_typ,
 	Uint_typ,
 	Int_typ,
 	Float_typ,
 	Uintptr_typ *AST.Type;
-	
+
 	True_obj,
 	False_obj,
 	Iota_obj,
@@ -77,13 +77,13 @@ func register(typ *AST.Type) *AST.Type {
 func init() {
 	Scope = AST.NewScope(nil);  // universe has no parent
 	Types.Init(32);
-	
+
 	// Interal types
 	Void_typ = AST.NewType(-1 /* no source pos */, AST.VOID);
 	AST.Universe_void_typ = Void_typ;
 	Bad_typ = AST.NewType(-1 /* no source pos */, AST.BADTYPE);
 	Nil_typ = AST.NewType(-1 /* no source pos */, AST.NIL);
-	
+
 	// Basic types
 	Bool_typ = register(declType(AST.BOOL, "bool", 1));
 	Uint8_typ = register(declType(AST.UINT, "uint8", 1));
@@ -118,6 +118,6 @@ func init() {
 	declObj(AST.BUILTIN, "new", Void_typ);
 	declObj(AST.BUILTIN, "panic", Void_typ);
 	declObj(AST.BUILTIN, "print", Void_typ);
-	
+
 	// scope.Print();
 }

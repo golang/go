@@ -13,7 +13,7 @@ import Universe "universe"
 // ----------------------------------------------------------------------------
 // Expressions
 
-export const /* op */ (
+const /* op */ (
 	LITERAL = iota;
 	OBJECT;
 	DEREF;
@@ -26,7 +26,7 @@ export const /* op */ (
 // ----------------------------------------------------------------------------
 // Literals
 
-export type Literal struct {
+type Literal struct {
 	pos_ int;
 	typ_ *Globals.Type;
 	b bool;
@@ -41,7 +41,7 @@ func (x *Literal) pos() int  { return x.pos_; }
 func (x *Literal) typ() *Globals.Type  { return x.typ_; }
 
 
-export func NewLiteral(pos int, typ *Globals.Type) *Literal {
+func NewLiteral(pos int, typ *Globals.Type) *Literal {
 	x := new(Literal);
 	x.pos_ = pos;
 	x.typ_ = typ;
@@ -49,7 +49,7 @@ export func NewLiteral(pos int, typ *Globals.Type) *Literal {
 }
 
 
-export var Bad, True, False, Nil *Literal;
+var Bad, True, False, Nil *Literal;
 
 
 // ----------------------------------------------------------------------------
@@ -58,7 +58,7 @@ export var Bad, True, False, Nil *Literal;
 // NOTE We could use Globals.Object directly if we'd added a typ()
 // method to its interface. However, this would require renaming the
 // typ field everywhere... - Need to think about accessors again.
-export type Object struct {
+type Object struct {
 	pos_ int;
 	obj *Globals.Object;
 }
@@ -69,7 +69,7 @@ func (x *Object) pos() int  { return x.pos_; }
 func (x *Object) typ() *Globals.Type  { return x.obj.typ; }
 
 
-export func NewObject(pos int, obj* Globals.Object) *Object {
+func NewObject(pos int, obj* Globals.Object) *Object {
 	x := new(Object);
 	x.pos_ = pos;
 	x.obj = obj;
@@ -81,7 +81,7 @@ export func NewObject(pos int, obj* Globals.Object) *Object {
 // Derefs
 
 // TODO model Deref as unary operation?
-export type Deref struct {
+type Deref struct {
 	ptr_ Globals.Expr;
 }
 
@@ -91,7 +91,7 @@ func (x *Deref) pos() int { return x.ptr_.pos(); }
 func (x *Deref) typ() *Globals.Type  { return x.ptr_.typ().elt; }
 
 
-export func NewDeref(ptr Globals.Expr) *Deref {
+func NewDeref(ptr Globals.Expr) *Deref {
 	x := new(Deref);
 	x.ptr_ = ptr;
 	return x;
@@ -102,7 +102,7 @@ export func NewDeref(ptr Globals.Expr) *Deref {
 // Selectors
 
 // TODO model Selector as binary operation?
-export type Selector struct {
+type Selector struct {
 	pos_ int;
 	typ_ *Globals.Type;
 }
@@ -113,7 +113,7 @@ func (x *Selector) pos() int  { return x.pos_; }
 func (x *Selector) typ() *Globals.Type  { return x.typ_; }
 
 
-export func NewSelector(pos int, typ *Globals.Type) *Selector {
+func NewSelector(pos int, typ *Globals.Type) *Selector {
 	x := new(Selector);
 	x.pos_ = pos;
 	x.typ_ = typ;
@@ -124,7 +124,7 @@ export func NewSelector(pos int, typ *Globals.Type) *Selector {
 // ----------------------------------------------------------------------------
 // Calls
 
-export type Call struct {
+type Call struct {
 	recv, callee Globals.Expr;
 	args *Globals.List;
 }
@@ -135,7 +135,7 @@ func (x *Call) pos() int  { return 0; }
 func (x *Call) typ() *Globals.Type  { return nil; }
 
 
-export func NewCall(args *Globals.List) *Call {
+func NewCall(args *Globals.List) *Call {
 	x := new(Call);
 	x.args = args;
 	return x;
@@ -145,7 +145,7 @@ export func NewCall(args *Globals.List) *Call {
 // ----------------------------------------------------------------------------
 // Binary expressions
 
-export type BinaryExpr struct {
+type BinaryExpr struct {
 	op_ int;
 	pos_ int;
 	typ_ *Globals.Type;
@@ -161,7 +161,7 @@ func (x *BinaryExpr) typ() *Globals.Type  {	return x.typ_; }
 // ----------------------------------------------------------------------------
 // Tuples
 
-export type Tuple struct {
+type Tuple struct {
 	typ_ *Globals.Type;
 	list *Globals.List;
 }
@@ -172,7 +172,7 @@ func (x *Tuple) pos() int  { return x.list.first.expr.pos(); }
 func (x *Tuple) typ() *Globals.Type  { return x.typ_; }
 
 
-export func NewTuple(list *Globals.List) *Tuple {
+func NewTuple(list *Globals.List) *Tuple {
 	// make corresponding tuple type
 	scope := Globals.NewScope(nil);
 	for p := list.first; p != nil; p = p.next {
@@ -183,7 +183,7 @@ export func NewTuple(list *Globals.List) *Tuple {
 	}
 	typ := Globals.NewType(Type.TUPLE);
 	typ.scope = scope;
-	
+
 	// create the tuple
 	x := new(Tuple);
 	x.typ_ = typ;
@@ -195,12 +195,12 @@ export func NewTuple(list *Globals.List) *Tuple {
 // ----------------------------------------------------------------------------
 // Statements
 
-export type Block struct {
+type Block struct {
 	// TODO fill in
 }
 
 
-export type IfStat struct {
+type IfStat struct {
 	cond Globals.Expr;
 	then_ Globals.Stat;
 	else_ Globals.Stat;

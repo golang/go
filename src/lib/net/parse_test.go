@@ -11,7 +11,7 @@ import (
 	"testing";
 )
 
-export func TestReadLine(t *testing.T) {
+func TestReadLine(t *testing.T) {
 	filename := "/etc/services";	// a nice big file
 
 	fd, err := os.Open(filename, os.O_RDONLY, 0);

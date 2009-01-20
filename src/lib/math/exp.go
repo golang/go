@@ -82,7 +82,7 @@ import "math"
 // compiler will convert from decimal to binary accurately enough
 // to produce the hexadecimal values shown.
 
-export func Exp(x float64) float64 {
+func Exp(x float64) float64 {
 	const (
 		Ln2Hi	= 6.93147180369123816490e-01;
 		Ln2Lo	= 1.90821492927058770002e-10;

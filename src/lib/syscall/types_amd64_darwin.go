@@ -10,12 +10,12 @@ package syscall
 
 // Time
 
-export type Timespec struct {
+type Timespec struct {
 	Sec	int64;
 	Nsec	uint64;
 }
 
-export type Timeval struct {
+type Timeval struct {
 	Sec	int64;
 	Usec	uint32;
 }
@@ -23,7 +23,7 @@ export type Timeval struct {
 
 // Processes
 
-export type Rusage struct {
+type Rusage struct {
 	Utime	Timeval;
 	Stime	Timeval;
 	Maxrss	int64;
@@ -45,7 +45,7 @@ export type Rusage struct {
 
 // Files
 
-export const (
+const (
 	O_RDONLY = 0x0;
 	O_WRONLY = 0x1;
 	O_RDWR = 0x2;
@@ -67,7 +67,7 @@ export const (
 	FD_CLOEXEC = 1;
 )
 
-export type Stat_t struct {
+type Stat_t struct {
 	Dev	uint32;
 	Mode	uint16;
 	Nlink	uint16;
@@ -92,7 +92,7 @@ export type Stat_t struct {
 
 // Sockets
 
-export const (
+const (
 	AF_UNIX = 1;
 	AF_INET = 2;
 	AF_DATAKIT = 9;
@@ -127,23 +127,23 @@ export const (
 	SOMAXCONN = 128;
 )
 
-export type SockaddrUnix struct {
+type SockaddrUnix struct {
 	Len	byte;
 	Family	byte;
 	Path	[104]byte
 }
-export const SizeofSockaddrUnix = 106
+const SizeofSockaddrUnix = 106
 
-export type SockaddrInet4 struct {
+type SockaddrInet4 struct {
 	Len	byte;
 	Family	byte;
 	Port	[2]byte;
 	Addr	[4]byte;
 	Zero	[8]byte
 }
-export const SizeofSockaddrInet4 = 16
+const SizeofSockaddrInet4 = 16
 
-export type SockaddrInet6 struct {
+type SockaddrInet6 struct {
 	Len	byte;
 	Family	byte;
 	Port	[2]byte;
@@ -151,16 +151,16 @@ export type SockaddrInet6 struct {
 	Addr	[16]byte;
 	Scopeid	[4]byte;
 }
-export const SizeofSockaddrInet6 = 28
+const SizeofSockaddrInet6 = 28
 
-export type Sockaddr struct {
+type Sockaddr struct {
 	Len	byte;
 	Family	byte;
 	Opaque	[126]byte
 }
-export const SizeofSockaddr = 128
+const SizeofSockaddr = 128
 
-export type Linger struct {
+type Linger struct {
 	Yes int32;
 	Sec int32;
 }
@@ -168,7 +168,7 @@ export type Linger struct {
 
 // Events (kqueue, kevent)
 
-export const (
+const (
 	// filters
 	EVFILT_READ = -1;
 	EVFILT_WRITE = -2;
@@ -201,7 +201,7 @@ export const (
 	EV_ERROR = 0x4000
 )
 
-export type Kevent_t struct {
+type Kevent_t struct {
 	Ident int64;
 	Filter int16;
 	Flags uint16;

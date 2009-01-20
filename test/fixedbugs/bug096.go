@@ -6,7 +6,7 @@
 
 package main
 
-export type A []int;
+type A []int;
 
 func main() {
 	a := &A{0};
@@ -16,7 +16,7 @@ func main() {
 /*
 uetli:~/Source/go1/test/bugs gri$ 6g bug096.go && 6l bug096.6 && 6.out
 Trace/BPT trap
-uetli:~/Source/go1/test/bugs gri$ 
+uetli:~/Source/go1/test/bugs gri$
 */
 
 /*

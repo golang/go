@@ -43,13 +43,13 @@ func ticker(ns int64, c chan int64) {
 		}
 
 		syscall.Nstotimeval(when - now, &tv);
-		syscall.Syscall6(syscall.SYS_SELECT, 0, 0, 0, 0, int64(uintptr(unsafe.pointer(&tv))), 0);
+		syscall.Syscall6(syscall.SYS_SELECT, 0, 0, 0, 0, int64(uintptr(unsafe.Pointer(&tv))), 0);
 		now = time.Nanoseconds();
 		c <- now;
 	}
 }
 
-export func Tick(ns int64) chan int64 {
+func Tick(ns int64) chan int64 {
 	if ns <= 0 {
 		return nil
 	}

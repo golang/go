@@ -173,7 +173,7 @@ var bufsizes = []int {
 	23, 32, 46, 64, 93, 128, 1024, 4096
 }
 
-export func TestBufReadSimple(t *testing.T) {
+func TestBufReadSimple(t *testing.T) {
 	b, e := NewBufRead(newByteReader(io.StringBytes("hello world")));
 	if s := readBytes(b); s != "hello world" {
 		t.Errorf("simple hello world test failed: got %q", s);
@@ -185,7 +185,7 @@ export func TestBufReadSimple(t *testing.T) {
 	}
 }
 
-export func TestBufRead(t *testing.T) {
+func TestBufRead(t *testing.T) {
 	var texts [31]string;
 	str := "";
 	all := "";
@@ -278,7 +278,7 @@ type writeMaker struct {
 	name string;
 	fn *()writeBuffer;
 }
-export func TestBufWrite(t *testing.T) {
+func TestBufWrite(t *testing.T) {
 	var data [8192]byte;
 
 	var writers = []writeMaker {

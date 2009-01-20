@@ -6,10 +6,10 @@
 
 package main
 
-export type Element interface {
+type Element interface {
 }
 
-export type Vector struct {
+type Vector struct {
 	elem []Element;
 }
 
@@ -17,7 +17,7 @@ func (v *Vector) At(i int) Element {
 	return v.elem[i];
 }
 
-export type TStruct struct {
+type TStruct struct {
 	name string;
 	fields *Vector;
 }

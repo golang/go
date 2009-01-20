@@ -10,7 +10,7 @@ import (
 	"utils";
 )
 
-export const (
+const (
 	ILLEGAL = iota;
 
 	IDENT;
@@ -113,7 +113,7 @@ export const (
 )
 
 
-export func TokenString(tok int) string {
+func TokenString(tok int) string {
 	switch tok {
 	case ILLEGAL: return "ILLEGAL";
 
@@ -216,14 +216,14 @@ export func TokenString(tok int) string {
 }
 
 
-export const (
+const (
 	LowestPrec = -1;
 	UnaryPrec = 7;
 	HighestPrec = 8;
 )
 
 
-export func Precedence(tok int) int {
+func Precedence(tok int) int {
 	switch tok {
 	case COLON:
 		return 0;
@@ -276,13 +276,13 @@ func digit_val(ch int) int {
 }
 
 
-export type ErrorHandler interface {
+type ErrorHandler interface {
 	Error(pos int, msg string);
 	Warning(pos int, msg string);
 }
 
 
-export type Scanner struct {
+type Scanner struct {
 	// setup
 	err ErrorHandler;
 	src string;  // source
@@ -756,7 +756,7 @@ loop:
 }
 
 
-export type Token struct {
+type Token struct {
 	Pos int;
 	Tok int;
 	Val string;

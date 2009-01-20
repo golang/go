@@ -9,8 +9,8 @@ package decls
 import "base"
 import base2 "base"
 
-export const c0 int = 0
-export const c1 float = 1.
+const c0 int = 0
+const c1 float = 1.
 const (
 	c2 byte = 2;
 	c3 int = 3;
@@ -18,18 +18,18 @@ const (
 )
 
 
-export type (
+type (
 	Node0 base.Node
 	Node1 *base2.Node
 )
 
-export type T0 byte
-export type T1 T0
+type T0 byte
+type T1 T0
 type (
 	T2 [10]T0;
 	T3 map [string] int;
 )
-export type T4 struct {
+type T4 struct {
 	f1, f2, f3 int;
 	f4 [] float;
 };
@@ -56,7 +56,7 @@ type T9 struct {
 	f *(x, y *T9) *T9;
 }
 
-export type T11 struct {
+type T11 struct {
 	p *T10;
 }
 
@@ -73,7 +73,7 @@ type I1 interface {
 	Do0(q *I0);
 	Do1(p *I1) bool;
 }
-export type I2 interface {
+type I2 interface {
 	M0();
 	M1(a int);
 	M2(a, b int, c float);
@@ -86,7 +86,7 @@ export type I2 interface {
 var v0 int
 var v1 float = c1
 
-export var (
+var (
 	v2 T2;
 	v3 struct {
 		f1, f2, f3 *M0;
@@ -94,8 +94,8 @@ export var (
 )
 
 
-export func f0() {}
-export func f1(a int) {}
+func f0() {}
+func f1(a int) {}
 func f2(a, b int, c float) {}
 func f3() bool { return false; }
 func f4(a int) (z T5, ok bool) {}

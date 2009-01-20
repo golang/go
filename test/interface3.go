@@ -6,14 +6,14 @@
 
 package main
 
-export type S struct { a int }
-export type T struct { b string }
+type S struct { a int }
+type T struct { b string }
 
 func (s *S) Name() int8 { return 1 }
 func (t *T) Name() int64 { return 64 }
 
-export type I1 interface { Name() int8 }
-export type I2 interface { Name() int64 }
+type I1 interface { Name() int8 }
+type I2 interface { Name() int64 }
 
 func main() {
 	var i1 I1;

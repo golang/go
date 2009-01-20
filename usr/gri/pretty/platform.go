@@ -12,7 +12,7 @@ import Utils "utils"
 // ----------------------------------------------------------------------------
 // Environment
 
-export var
+var
 	GOARCH,
 	GOOS,
 	GOROOT,
@@ -31,7 +31,7 @@ func init() {
 // ----------------------------------------------------------------------------
 // I/O
 
-export const (
+const (
 	MAGIC_obj_file = "@gri-go.7@v0";  // make it clear that it cannot be a source file
 	Src_file_ext = ".go";
 	Obj_file_ext = ".7";
@@ -61,7 +61,7 @@ func writefile(name, data string) *OS.Error {
 	return err1;
 }
 
-export func ReadObjectFile(filename string) (string, bool) {
+func ReadObjectFile(filename string) (string, bool) {
 	data, err := readfile(filename + Obj_file_ext);
 	magic := MAGIC_obj_file;  // TODO remove once len(constant) works
 	if err == nil && len(data) >= len(magic) && data[0 : len(magic)] == magic {
@@ -71,14 +71,14 @@ export func ReadObjectFile(filename string) (string, bool) {
 }
 
 
-export func ReadSourceFile(name string) (string, bool) {
+func ReadSourceFile(name string) (string, bool) {
 	name = Utils.TrimExt(name, Src_file_ext) + Src_file_ext;
 	data, err := readfile(name);
 	return data, err == nil;
 }
 
 
-export func WriteObjectFile(name string, data string) bool {
+func WriteObjectFile(name string, data string) bool {
 	name = Utils.TrimExt(Utils.BaseName(name), Src_file_ext) + Obj_file_ext;
 	return writefile(name, data) != nil;
 }

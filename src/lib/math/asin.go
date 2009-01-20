@@ -13,7 +13,7 @@ import "math"
  * Arctan is called after appropriate range reduction.
  */
 
-export func Asin(arg float64) float64 {
+func Asin(arg float64) float64 {
 	var temp, x float64;
 	var sign bool;
 
@@ -40,7 +40,7 @@ export func Asin(arg float64) float64 {
 	return temp;
 }
 
-export func Acos(arg float64) float64 {
+func Acos(arg float64) float64 {
 	if arg > 1 || arg < -1 {
 		return sys.NaN();
 	}

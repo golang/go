@@ -7,7 +7,7 @@ package strings
 import "utf8"
 
 // Split string into array of UTF-8 sequences (still strings)
-export func Explode(s string) []string {
+func Explode(s string) []string {
 	a := make([]string, utf8.RuneCountInString(s, 0, len(s)));
 	j := 0;
 	var size, rune int;
@@ -20,7 +20,7 @@ export func Explode(s string) []string {
 }
 
 // Count non-overlapping instances of sep in s.
-export func Count(s, sep string) int {
+func Count(s, sep string) int {
 	if sep == "" {
 		return utf8.RuneCountInString(s, 0, len(s))+1
 	}
@@ -36,7 +36,7 @@ export func Count(s, sep string) int {
 }
 
 // Return index of first instance of sep in s.
-export func Index(s, sep string) int {
+func Index(s, sep string) int {
 	if sep == "" {
 		return 0
 	}
@@ -50,7 +50,7 @@ export func Index(s, sep string) int {
 }
 
 // Split string into list of strings at separators
-export func Split(s, sep string) []string {
+func Split(s, sep string) []string {
 	if sep == "" {
 		return Explode(s)
 	}
@@ -72,7 +72,7 @@ export func Split(s, sep string) []string {
 }
 
 // Join list of strings with separators between them.
-export func Join(a []string, sep string) string {
+func Join(a []string, sep string) string {
 	if len(a) == 0 {
 		return ""
 	}

@@ -11,7 +11,7 @@ import (
 )
 
 
-export const /* enum1 */ (
+const /* enum1 */ (
 	EnumTag0 = iota;
 	EnumTag1;
 	EnumTag2;
@@ -32,10 +32,10 @@ const /* enum2 */ (
 )
 
 
-export type S struct {}
+type S struct {}
 
 
-export type T struct {
+type T struct {
 	x, y int;
 	s string;
 	next_t *T

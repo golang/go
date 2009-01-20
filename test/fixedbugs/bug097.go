@@ -6,7 +6,7 @@
 
 package main
 
-export type A []int;
+type A []int;
 
 func main() {
 	var a [3]A;

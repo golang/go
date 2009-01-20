@@ -52,7 +52,7 @@ var golden = []sha1Test {
 	sha1Test{ "6627d6904d71420b0bf3886ab629623538689f45", "How can you write a big system without C++?  -Paul Glick" },
 }
 
-export func TestGolden(t *testing.T) {
+func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i];
 		c := NewDigest();

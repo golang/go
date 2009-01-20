@@ -7,7 +7,7 @@
 
 package syscall
 
-export const (
+const (
 	// SYS_NOSYS = 0;  // { int nosys(void); }   { indirect syscall }
 	SYS_EXIT = 1;  // { void exit(int rval); }
 	SYS_FORK = 2;  // { int fork(void); }

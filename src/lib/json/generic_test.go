@@ -24,7 +24,7 @@ var jsontests = []string {
 	`{"a":1}`,
 }
 
-export func TestJson(t *testing.T) {
+func TestJson(t *testing.T) {
 	for i := 0; i < len(jsontests); i++ {
 		val, ok, errtok := StringToJson(jsontests[i]);
 		if !ok {
@@ -39,7 +39,7 @@ export func TestJson(t *testing.T) {
 	}
 }
 
-export func TestJsonMap(t *testing.T) {
+func TestJsonMap(t *testing.T) {
 	values := make(map[string]Json);
 	mapstr := "{";
 	for i := 0; i < len(jsontests); i++ {

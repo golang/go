@@ -21,7 +21,7 @@ const (
 	defaultBufSize = 4096
 )
 
-export var (
+var (
 	EndOfFile = os.NewError("end of file");
 	PhaseError = os.NewError("phase error");
 	BufferFull = os.NewError("buffer full");
@@ -39,14 +39,14 @@ func copySlice(dst []byte, src []byte) {
 
 // Buffered input.
 
-export type BufRead struct {
+type BufRead struct {
 	buf []byte;
 	rd io.Read;
 	r, w int;
 	err *os.Error;
 }
 
-export func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
+func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
 	}
@@ -56,7 +56,7 @@ export func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
 	return b, nil
 }
 
-export func NewBufRead(rd io.Read) (b *BufRead, err *os.Error) {
+func NewBufRead(rd io.Read) (b *BufRead, err *os.Error) {
 	return NewBufReadSize(rd, defaultBufSize);
 }
 
@@ -326,14 +326,14 @@ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *
 
 // buffered output
 
-export type BufWrite struct {
+type BufWrite struct {
 	err *os.Error;
 	buf []byte;
 	n int;
 	wr io.Write;
 }
 
-export func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error) {
+func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
 	}
@@ -343,7 +343,7 @@ export func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error) 
 	return b, nil
 }
 
-export func NewBufWrite(wr io.Write) (b *BufWrite, err *os.Error) {
+func NewBufWrite(wr io.Write) (b *BufWrite, err *os.Error) {
 	return NewBufWriteSize(wr, defaultBufSize);
 }
 

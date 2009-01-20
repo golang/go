@@ -15,7 +15,7 @@ import (
 
 // Network file descriptor.  Only intended to be used internally,
 // but have to export to make it available in other files implementing package net.
-export type FD struct {
+type FD struct {
 	// immutable until Close
 	fd int64;
 	osfd *os.FD;
@@ -207,7 +207,7 @@ func _StartServer() {
 	pollserver = p
 }
 
-export func NewFD(fd int64) (f *FD, err *os.Error) {
+func NewFD(fd int64) (f *FD, err *os.Error) {
 	if pollserver == nil {
 		once.Do(&_StartServer);
 	}

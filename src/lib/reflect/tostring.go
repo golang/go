@@ -12,8 +12,8 @@ import (
 	"strconv";
 )
 
-export func TypeToString(typ Type, expand bool) string
-export func ValueToString(val Value) string
+func TypeToString(typ Type, expand bool) string
+func ValueToString(val Value) string
 
 func doubleQuote(s string) string {
 	out := "\"";
@@ -62,7 +62,7 @@ func typeFieldsToString(t hasFields, sep string) string {
 	return str;
 }
 
-export func TypeToString(typ Type, expand bool) string {
+func TypeToString(typ Type, expand bool) string {
 	var str string;
 	if name := typ.Name(); !expand && name != "" {
 		return name
@@ -126,7 +126,7 @@ func integer(v int64) string {
 	return strconv.Itoa64(v);
 }
 
-export func ValueToString(val Value) string {
+func ValueToString(val Value) string {
 	var str string;
 	typ := val.Type();
 	switch(val.Kind()) {

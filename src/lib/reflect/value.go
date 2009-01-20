@@ -12,13 +12,13 @@ import (
 	"unsafe";
 )
 
-export type Addr unsafe.pointer
+type Addr unsafe.Pointer
 
 func equalType(a, b Type) bool {
 	return a.String() == b.String()
 }
 
-export type Value interface {
+type Value interface {
 	Kind()	int;
 	Type()	Type;
 	Addr()	Addr;
@@ -65,7 +65,7 @@ type creatorFn *(typ Type, addr Addr) Value
 
 // -- Missing
 
-export type MissingValue interface {
+type MissingValue interface {
 	Kind()	int;
 	Type()	Type;
 	Addr()	Addr;
@@ -81,7 +81,7 @@ func missingCreator(typ Type, addr Addr) Value {
 
 // -- Int
 
-export type IntValue interface {
+type IntValue interface {
 	Kind()	int;
 	Get()	int;
 	Set(int);
@@ -106,7 +106,7 @@ func (v *intValueStruct) Set(i int) {
 
 // -- Int8
 
-export type Int8Value interface {
+type Int8Value interface {
 	Kind()	int;
 	Get()	int8;
 	Set(int8);
@@ -131,7 +131,7 @@ func (v *int8ValueStruct) Set(i int8) {
 
 // -- Int16
 
-export type Int16Value interface {
+type Int16Value interface {
 	Kind()	int;
 	Get()	int16;
 	Set(int16);
@@ -156,7 +156,7 @@ func (v *int16ValueStruct) Set(i int16) {
 
 // -- Int32
 
-export type Int32Value interface {
+type Int32Value interface {
 	Kind()	int;
 	Get()	int32;
 	Set(int32);
@@ -181,7 +181,7 @@ func (v *int32ValueStruct) Set(i int32) {
 
 // -- Int64
 
-export type Int64Value interface {
+type Int64Value interface {
 	Kind()	int;
 	Get()	int64;
 	Set(int64);
@@ -206,7 +206,7 @@ func (v *int64ValueStruct) Set(i int64) {
 
 // -- Uint
 
-export type UintValue interface {
+type UintValue interface {
 	Kind()	int;
 	Get()	uint;
 	Set(uint);
@@ -231,7 +231,7 @@ func (v *uintValueStruct) Set(i uint) {
 
 // -- Uint8
 
-export type Uint8Value interface {
+type Uint8Value interface {
 	Kind()	int;
 	Get()	uint8;
 	Set(uint8);
@@ -256,7 +256,7 @@ func (v *uint8ValueStruct) Set(i uint8) {
 
 // -- Uint16
 
-export type Uint16Value interface {
+type Uint16Value interface {
 	Kind()	int;
 	Get()	uint16;
 	Set(uint16);
@@ -281,7 +281,7 @@ func (v *uint16ValueStruct) Set(i uint16) {
 
 // -- Uint32
 
-export type Uint32Value interface {
+type Uint32Value interface {
 	Kind()	int;
 	Get()	uint32;
 	Set(uint32);
@@ -306,7 +306,7 @@ func (v *uint32ValueStruct) Set(i uint32) {
 
 // -- Uint64
 
-export type Uint64Value interface {
+type Uint64Value interface {
 	Kind()	int;
 	Get()	uint64;
 	Set(uint64);
@@ -331,7 +331,7 @@ func (v *uint64ValueStruct) Set(i uint64) {
 
 // -- Uintptr
 
-export type UintptrValue interface {
+type UintptrValue interface {
 	Kind()	int;
 	Get()	uintptr;
 	Set(uintptr);
@@ -356,7 +356,7 @@ func (v *uintptrValueStruct) Set(i uintptr) {
 
 // -- Float
 
-export type FloatValue interface {
+type FloatValue interface {
 	Kind()	int;
 	Get()	float;
 	Set(float);
@@ -381,7 +381,7 @@ func (v *floatValueStruct) Set(f float) {
 
 // -- Float32
 
-export type Float32Value interface {
+type Float32Value interface {
 	Kind()	int;
 	Get()	float32;
 	Set(float32);
@@ -406,7 +406,7 @@ func (v *float32ValueStruct) Set(f float32) {
 
 // -- Float64
 
-export type Float64Value interface {
+type Float64Value interface {
 	Kind()	int;
 	Get()	float64;
 	Set(float64);
@@ -431,7 +431,7 @@ func (v *float64ValueStruct) Set(f float64) {
 
 // -- Float80
 
-export type Float80Value interface {
+type Float80Value interface {
 	Kind()	int;
 	Get()	float80;
 	Set(float80);
@@ -459,7 +459,7 @@ func (v *Float80ValueStruct) Set(f float80) {
 
 // -- String
 
-export type StringValue interface {
+type StringValue interface {
 	Kind()	int;
 	Get()	string;
 	Set(string);
@@ -484,7 +484,7 @@ func (v *stringValueStruct) Set(s string) {
 
 // -- Bool
 
-export type BoolValue interface {
+type BoolValue interface {
 	Kind()	int;
 	Get()	bool;
 	Set(bool);
@@ -509,7 +509,7 @@ func (v *boolValueStruct) Set(b bool) {
 
 // -- Pointer
 
-export type PtrValue interface {
+type PtrValue interface {
 	Kind()	int;
 	Type()	Type;
 	Sub()	Value;
@@ -545,7 +545,7 @@ func ptrCreator(typ Type, addr Addr) Value {
 
 // -- Array
 
-export type ArrayValue interface {
+type ArrayValue interface {
 	Kind()	int;
 	Type()	Type;
 	Open()	bool;
@@ -652,7 +652,7 @@ func arrayCreator(typ Type, addr Addr) Value {
 
 // -- Map	TODO: finish and test
 
-export type MapValue interface {
+type MapValue interface {
 	Kind()	int;
 	Type()	Type;
 	Len()	int;
@@ -678,7 +678,7 @@ func (v *mapValueStruct) Elem(key Value) Value {
 
 // -- Chan
 
-export type ChanValue interface {
+type ChanValue interface {
 	Kind()	int;
 	Type()	Type;
 }
@@ -693,7 +693,7 @@ func chanCreator(typ Type, addr Addr) Value {
 
 // -- Struct
 
-export type StructValue interface {
+type StructValue interface {
 	Kind()	int;
 	Type()	Type;
 	Len()	int;
@@ -728,7 +728,7 @@ func structCreator(typ Type, addr Addr) Value {
 
 // -- Interface
 
-export type InterfaceValue interface {
+type InterfaceValue interface {
 	Kind()	int;
 	Type()	Type;
 	Get()	interface {};
@@ -748,7 +748,7 @@ func interfaceCreator(typ Type, addr Addr) Value {
 
 // -- Func
 
-export type FuncValue interface {
+type FuncValue interface {
 	Kind()	int;
 	Type()	Type;
 }
@@ -799,7 +799,7 @@ func newValueAddr(typ Type, addr Addr) Value {
 	return c(typ, addr);
 }
 
-export func NewInitValue(typ Type) Value {
+func NewInitValue(typ Type) Value {
 	// Some values cannot be made this way.
 	switch typ.Kind() {
 	case FuncKind:	// must be pointers, at least for now (TODO?)
@@ -825,7 +825,7 @@ export func NewInitValue(typ Type) Value {
 			uint32	cap;		// allocated number of elements
 		};
 */
-export func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
+func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
 	if !typ.Open() {
 		return nil
 	}
@@ -843,7 +843,7 @@ export func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
 	return newValueAddr(typ, Addr(array));
 }
 
-export func CopyArray(dst ArrayValue, src ArrayValue, n int) {
+func CopyArray(dst ArrayValue, src ArrayValue, n int) {
 	if n == 0 {
 		return
 	}
@@ -875,7 +875,7 @@ export func CopyArray(dst ArrayValue, src ArrayValue, n int) {
 }
 
 
-export func NewValue(e interface {}) Value {
+func NewValue(e interface {}) Value {
 	value, typestring, indir := sys.Reflect(e);
 	typ, ok := typecache[typestring];
 	if !ok {

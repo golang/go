@@ -87,9 +87,9 @@ func valuedump(s, t string) {
 	assert(reflect.ValueToString(v), t);
 }
 
-export type T struct { a int; b float64; c string; d *int }
+type T struct { a int; b float64; c string; d *int }
 
-export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	var s string;
 	var t reflect.Type;
 
@@ -285,7 +285,7 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	}
 }
 
-export func TestInterfaceGet(t *testing.T) {
+func TestInterfaceGet(t *testing.T) {
 	var inter struct { e interface{ } };
 	inter.e = 123.456;
 	v1 := reflect.NewValue(&inter);
@@ -296,7 +296,7 @@ export func TestInterfaceGet(t *testing.T) {
 	assert(v3.Type().String(), "float");
 }
 
-export func TestCopyArray(t *testing.T) {
+func TestCopyArray(t *testing.T) {
 	a := []int{ 1, 2, 3, 4, 10, 9, 8, 7 };
 	b := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
 	c := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
@@ -331,7 +331,7 @@ export func TestCopyArray(t *testing.T) {
 	}
 }
 
-export func TestBigUnnamedStruct(t *testing.T) {
+func TestBigUnnamedStruct(t *testing.T) {
 	b := struct{a,b,c,d int64}{1, 2, 3, 4};
 	v := NewValue(b);
 	b1 := v.Interface().(struct{a,b,c,d int64});
@@ -343,7 +343,7 @@ export func TestBigUnnamedStruct(t *testing.T) {
 type big struct {
 	a, b, c, d, e int64
 }
-export func TestBigStruct(t *testing.T) {
+func TestBigStruct(t *testing.T) {
 	b := big{1, 2, 3, 4, 5};
 	v := NewValue(b);
 	b1 := v.Interface().(big);

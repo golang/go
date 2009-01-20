@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 package main
-export const ( F = 1 )
+const ( F = 1 )
 func fn(i int) int {
   if i == F() {		// ERROR "function"
     return 0

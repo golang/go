@@ -59,7 +59,7 @@ func (s *state) CheckDeclaration(d *AST.Decl) {
 		for i := 0; i < d.List.Len(); i++ {
 			s.CheckDeclaration(d.List.At(i).(*AST.Decl))
 		}
-		
+
 	} else {
 		// single declaration
 		switch d.Tok {
@@ -85,7 +85,7 @@ func (s *state) CheckProgram(p *AST.Program) {
 
 // ----------------------------------------------------------------------------
 
-export func CheckProgram(err Scanner.ErrorHandler, p *AST.Program) {
+func CheckProgram(err Scanner.ErrorHandler, p *AST.Program) {
 	var s state;
 	s.Init(err);
 	s.CheckProgram(p);

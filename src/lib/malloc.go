@@ -8,12 +8,12 @@
 
 package malloc
 
-export type Stats struct {
+type Stats struct {
 	Alloc	uint64;
 	Sys	uint64;
 };
 
-export func Alloc(uint64) *byte;
-export func Free(*byte);
-export func GetStats() *Stats;
-export func Lookup(*byte) (*byte, uintptr);
+func Alloc(uint64) *byte;
+func Free(*byte);
+func GetStats() *Stats;
+func Lookup(*byte) (*byte, uintptr);

@@ -103,7 +103,7 @@ func check(t *testing.T, tabwidth, padding int, padchar byte, align_left, filter
 }
 
 
-export func Test(t *testing.T) {
+func Test(t *testing.T) {
 	check(
 		t, 8, 1, '.', true, false,
 		"",

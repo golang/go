@@ -50,7 +50,7 @@ var golden = []md5Test {
 	md5Test{ "132f7619d33b523b1d9e5bd8e0928355", "How can you write a big system without C++?  -Paul Glick" },
 }
 
-export func TestGolden(t *testing.T) {
+func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i];
 		c := NewDigest();

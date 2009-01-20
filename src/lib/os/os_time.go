@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-export func Time() (sec int64, nsec int64, err *Error) {
+func Time() (sec int64, nsec int64, err *Error) {
 	var errno int64;
 	sec, nsec, errno = syscall.Gettimeofday();
 	if errno != 0 {

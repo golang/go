@@ -41,7 +41,7 @@ func _Same(t, u *Time) bool {
 		&& t.zone == u.zone
 }
 
-export func TestSecondsToUTC(t *testing.T) {
+func TestSecondsToUTC(t *testing.T) {
 	for i := 0; i < len(utctests); i++ {
 		sec := utctests[i].seconds;
 		golden := &utctests[i].golden;
@@ -58,7 +58,7 @@ export func TestSecondsToUTC(t *testing.T) {
 	}
 }
 
-export func TestSecondsToLocalTime(t *testing.T) {
+func TestSecondsToLocalTime(t *testing.T) {
 	for i := 0; i < len(localtests); i++ {
 		sec := localtests[i].seconds;
 		golden := &localtests[i].golden;

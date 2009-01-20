@@ -19,7 +19,7 @@ nrand(n int) int
 	return randx%n;
 }
 
-export type	Chan
+type	Chan
 struct
 {
 	sc,rc	chan int;	// send and recv chan

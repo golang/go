@@ -6,7 +6,7 @@
 
 package main
 
-export type (
+type (
 	Point struct { x, y float };
 	Polar Point
 )

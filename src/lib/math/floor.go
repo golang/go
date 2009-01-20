@@ -9,7 +9,7 @@ package math
  * (resp least >=)
  */
 
-export func Floor(arg float64) float64 {
+func Floor(arg float64) float64 {
 	if arg < 0 {
 		d, fract := sys.Modf(-arg);
 		if fract != 0.0 {
@@ -21,6 +21,6 @@ export func Floor(arg float64) float64 {
 	return d;
 }
 
-export func Ceil(arg float64) float64 {
+func Ceil(arg float64) float64 {
 	return -Floor(-arg);
 }

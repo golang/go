@@ -41,7 +41,7 @@ var chnames string
 var chnameserial int
 var seqno int
 
-export func Init();
+func Init();
 
 func mkdch() *dch {
 	c := chnameserial % len(chnames);
@@ -176,11 +176,11 @@ func repeat(dat item, out *dch){
 	}
 }
 
-export type PS *dch;	// power series
-export type PS2 *[2] PS; // pair of power series
+type PS *dch;	// power series
+type PS2 *[2] PS; // pair of power series
 
-export var Ones PS
-export var Twos PS
+var Ones PS
+var Twos PS
 
 func mkPS() *dch {
 	return mkdch()
@@ -266,7 +266,7 @@ func inv(u *rat) *rat{	// invert a rat
 }
 
 // print eval in floating point of PS at x=c to n terms
-export func Evaln(c *rat, U PS, n int)
+func Evaln(c *rat, U PS, n int)
 {
 	xn := float64(1);
 	x := float64(c.num)/float64(c.den);
@@ -283,7 +283,7 @@ export func Evaln(c *rat, U PS, n int)
 }
 
 // Print n terms of a power series
-export func Printn(U PS, n int){
+func Printn(U PS, n int){
 	done := false;
 	for ; !done && n>0; n-- {
 		u := get(U);
@@ -293,7 +293,7 @@ export func Printn(U PS, n int){
 	print(("\n"));
 }
 
-export func Print(U PS){
+func Print(U PS){
 	Printn(U,1000000000);
 }
 
@@ -311,14 +311,14 @@ func eval(c *rat, U PS, n int) *rat{
 
 // Make a pair of power series identical to a given power series
 
-export func Split(U PS) *dch2{
+func Split(U PS) *dch2{
 	UU := mkdch2();
 	go split(U,UU);
 	return UU;
 }
 
 // Add two power series
-export func Add(U, V PS) PS{
+func Add(U, V PS) PS{
 	Z := mkPS();
 	go func(U, V, Z PS){
 		var uv [] *rat;
@@ -343,7 +343,7 @@ export func Add(U, V PS) PS{
 }
 
 // Multiply a power series by a constant
-export func Cmul(c *rat,U PS) PS{
+func Cmul(c *rat,U PS) PS{
 	Z := mkPS();
 	go func(c *rat, U, Z PS){
 		done := false;
@@ -360,13 +360,13 @@ export func Cmul(c *rat,U PS) PS{
 
 // Subtract
 
-export func Sub(U, V PS) PS{
+func Sub(U, V PS) PS{
 	return Add(U, Cmul(neg(one), V));
 }
 
 // Multiply a power series by the monomial x^n
 
-export func Monmul(U PS, n int) PS{
+func Monmul(U PS, n int) PS{
 	Z := mkPS();
 	go func(n int, U PS, Z PS){
 		for ; n>0; n-- { put(zero,Z) }
@@ -377,11 +377,11 @@ export func Monmul(U PS, n int) PS{
 
 // Multiply by x
 
-export func Xmul(U PS) PS{
+func Xmul(U PS) PS{
 	return Monmul(U,1);
 }
 
-export func Rep(c *rat) PS{
+func Rep(c *rat) PS{
 	Z := mkPS();
 	go repeat(c,Z);
 	return Z;
@@ -389,7 +389,7 @@ export func Rep(c *rat) PS{
 
 // Monomial c*x^n
 
-export func Mon(c *rat, n int) PS{
+func Mon(c *rat, n int) PS{
 	Z:=mkPS();
 	go func(c *rat, n int, Z PS){
 		if(c.num!=0) {
@@ -401,7 +401,7 @@ export func Mon(c *rat, n int) PS{
 	return Z;
 }
 
-export func Shift(c *rat, U PS) PS{
+func Shift(c *rat, U PS) PS{
 	Z := mkPS();
 	go func(c *rat, U, Z PS){
 		put(c,Z);
@@ -416,7 +416,7 @@ export func Shift(c *rat, U PS) PS{
 // to a (finite) power series
 
 /* BUG: NEED LEN OF ARRAY
-export func Poly(a [] *rat) PS{
+func Poly(a [] *rat) PS{
 	Z:=mkPS();
 	begin func(a [] *rat, Z PS){
 		j:=0;
@@ -436,7 +436,7 @@ export func Poly(a [] *rat) PS{
 //	let V = v + x*VV
 //	then UV = u*v + x*(u*VV+v*UU) + x*x*UU*VV
 
-export func Mul(U, V PS) PS{
+func Mul(U, V PS) PS{
 	Z:=mkPS();
 	go func(U, V, Z PS){
 		<-Z.req;
@@ -458,7 +458,7 @@ export func Mul(U, V PS) PS{
 
 // Differentiate
 
-export func Diff(U PS) PS{
+func Diff(U PS) PS{
 	Z:=mkPS();
 	go func(U, Z PS){
 		<-Z.req;
@@ -480,7 +480,7 @@ export func Diff(U PS) PS{
 }
 
 // Integrate, with const of integration
-export func Integ(c *rat,U PS) PS{
+func Integ(c *rat,U PS) PS{
 	Z:=mkPS();
 	go func(c *rat, U, Z PS){
 		put(c,Z);
@@ -498,7 +498,7 @@ export func Integ(c *rat,U PS) PS{
 
 // Binomial theorem (1+x)^c
 
-export func Binom(c *rat) PS{
+func Binom(c *rat) PS{
 	Z:=mkPS();
 	go func(c *rat, Z PS){
 		n := 1;
@@ -522,7 +522,7 @@ export func Binom(c *rat) PS{
 //	u*ZZ + z*UU +x*UU*ZZ = 0
 //	ZZ = -UU*(z+x*ZZ)/u;
 
-export func Recip(U PS) PS{
+func Recip(U PS) PS{
 	Z:=mkPS();
 	go func(U, Z PS){
 		ZZ:=mkPS2();
@@ -542,7 +542,7 @@ export func Recip(U PS) PS{
 //	DZ = Z*DU
 //	integrate to get Z
 
-export func Exp(U PS) PS{
+func Exp(U PS) PS{
 	ZZ := mkPS2();
 	split(Integ(one,Mul(ZZ[0],Diff(U))),ZZ);
 	return ZZ[1];
@@ -554,7 +554,7 @@ export func Exp(U PS) PS{
 // 	then S(U,V) = u + VV*S(V,UU)
 // bug: a nonzero constant term is ignored
 
-export func Subst(U, V PS) PS {
+func Subst(U, V PS) PS {
 	Z:= mkPS();
 	go func(U, V, Z PS) {
 		VV := Split(V);
@@ -572,7 +572,7 @@ export func Subst(U, V PS) PS {
 // Monomial Substition: U(c x^n)
 // Each Ui is multiplied by c^i and followed by n-1 zeros
 
-export func MonSubst(U PS, c0 *rat, n int) PS {
+func MonSubst(U PS, c0 *rat, n int) PS {
 	Z:= mkPS();
 	go func(U, Z PS, c0 *rat, n int) {
 		c := one;
@@ -595,7 +595,7 @@ export func MonSubst(U PS, c0 *rat, n int) PS {
 }
 
 
-export func Init() {
+func Init() {
 	chnameserial = -1;
 	seqno = 0;
 	chnames = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -620,7 +620,7 @@ func check(U PS, c *rat, count int, str string) {
 	}
 }
 
-export const N=10
+const N=10
 func checka(U PS, a []*rat, str string) {
 	for i := 0; i < N; i++ {
 		check(U, a[i], 1, str);

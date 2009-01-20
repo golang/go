@@ -14,7 +14,7 @@ import "math"
  *	would cause overflow improperly.
  */
 
-export func Tanh(arg float64) float64 {
+func Tanh(arg float64) float64 {
 	if arg < 0 {
 		arg = -arg;
 		if arg > 21 {

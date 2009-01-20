@@ -40,7 +40,7 @@ var itoa64tests = []itoa64Test {
 	itoa64Test{ -1<<63, "-9223372036854775808" },
 }
 
-export func TestItoa(t *testing.T) {
+func TestItoa(t *testing.T) {
 	for i := 0; i < len(itoa64tests); i++ {
 		test := itoa64tests[i];
 		s := strconv.Itoa64(test.in);

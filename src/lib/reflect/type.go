@@ -12,13 +12,13 @@ import (
 	"sync";
 )
 
-export type Type interface
+type Type interface
 
-export func ExpandType(name string) Type
+func ExpandType(name string) Type
 
 func typestrings() string	// implemented in C; declared here
 
-export const (
+const (
 	MissingKind = iota;
 	ArrayKind;
 	BoolKind;
@@ -54,7 +54,7 @@ var interfacesize int
 var missingString = "$missing$"	// syntactic name for undefined type names
 var dotDotDotString = "..."
 
-export type Type interface {
+type Type interface {
 	Kind()	int;
 	Name()	string;
 	String()	string;
@@ -102,7 +102,7 @@ func newBasicType(name string, kind int, size int) Type {
 }
 
 // Prebuilt basic types
-export var (
+var (
 	Missing = newBasicType(missingString, MissingKind, 1);
 	DotDotDot = newBasicType(dotDotDotString, DotDotDotKind, 16);	// TODO(r): size of interface?
 	Bool = newBasicType("bool", BoolKind, 1); // TODO: need to know how big a bool is
@@ -145,7 +145,7 @@ func (t *stubType) Get() Type {
 
 // -- Pointer
 
-export type PtrType interface {
+type PtrType interface {
 	Sub()	Type
 }
 
@@ -164,7 +164,7 @@ func (t *ptrTypeStruct) Sub() Type {
 
 // -- Array
 
-export type ArrayType interface {
+type ArrayType interface {
 	Open()	bool;
 	Len()	int;
 	Elem()	Type;
@@ -203,7 +203,7 @@ func (t *arrayTypeStruct) Elem() Type {
 
 // -- Map
 
-export type MapType interface {
+type MapType interface {
 	Key()	Type;
 	Elem()	Type;
 }
@@ -228,12 +228,12 @@ func (t *mapTypeStruct) Elem() Type {
 
 // -- Chan
 
-export type ChanType interface {
+type ChanType interface {
 	Dir()	int;
 	Elem()	Type;
 }
 
-export const (	// channel direction
+const (	// channel direction
 	SendDir = 1 << iota;
 	RecvDir;
 	BothDir = SendDir | RecvDir;
@@ -259,7 +259,7 @@ func (t *chanTypeStruct) Elem() Type {
 
 // -- Struct
 
-export type StructType interface {
+type StructType interface {
 	Field(int)	(name string, typ Type, tag string, offset int);
 	Len()	int;
 }
@@ -319,7 +319,7 @@ func (t *structTypeStruct) Len() int {
 
 // -- Interface
 
-export type InterfaceType interface {
+type InterfaceType interface {
 	Field(int)	(name string, typ Type, tag string, offset int);
 	Len()	int;
 }
@@ -345,7 +345,7 @@ var nilInterface = newInterfaceTypeStruct("nil", "", make([]structField, 0));
 
 // -- Func
 
-export type FuncType interface {
+type FuncType interface {
 	In()	StructType;
 	Out()	StructType;
 }
@@ -842,7 +842,7 @@ func (p *typeParser) Type(name string) *stubType {
 	return s;
 }
 
-export func ParseTypeString(name, typestring string) Type {
+func ParseTypeString(name, typestring string) Type {
 	if typestring == "" {
 		// If the typestring is empty, it represents (the type of) a nil interface value
 		return nilInterface
@@ -902,7 +902,7 @@ func typeNameToTypeString(name string) string {
 }
 
 // Type is known by name.  Find (and create if necessary) its real type.
-export func ExpandType(name string) Type {
+func ExpandType(name string) Type {
 	lock();
 	t, ok := types[name];
 	if ok {

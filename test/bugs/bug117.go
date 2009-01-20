@@ -5,8 +5,8 @@
 // license that can be found in the LICENSE file.
 
 package main
-export type S struct { a int }
-export type PS *S
+type S struct { a int }
+type PS *S
 func (p *S) get() int {
   return p.a
 }

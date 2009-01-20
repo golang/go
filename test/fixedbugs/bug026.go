@@ -6,10 +6,10 @@
 
 package main
 
-export type Element interface {
+type Element interface {
 }
 
-export type Vector struct {
+type Vector struct {
 }
 
 func (v *Vector) Insert(i int, e Element) {

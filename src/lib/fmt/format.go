@@ -33,7 +33,7 @@ func init() {
 	}
 }
 
-export type Fmt struct {
+type Fmt struct {
 	buf string;
 	wid int;
 	wid_present bool;
@@ -68,7 +68,7 @@ func (f *Fmt) init() {
 	f.clearflags();
 }
 
-export func New() *Fmt {
+func New() *Fmt {
 	f := new(Fmt);
 	f.init();
 	return f;

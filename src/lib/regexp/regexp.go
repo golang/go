@@ -15,16 +15,16 @@ import (
 var debug = false;
 
 
-export var ErrInternal = os.NewError("internal error");
-export var ErrUnmatchedLpar = os.NewError("unmatched '('");
-export var ErrUnmatchedRpar = os.NewError("unmatched ')'");
-export var ErrUnmatchedLbkt = os.NewError("unmatched '['");
-export var ErrUnmatchedRbkt = os.NewError("unmatched ']'");
-export var ErrBadRange = os.NewError("bad range in character class");
-export var ErrExtraneousBackslash = os.NewError("extraneous backslash");
-export var ErrBadClosure = os.NewError("repeated closure (**, ++, etc.)");
-export var ErrBareClosure = os.NewError("closure applies to nothing");
-export var ErrBadBackslash = os.NewError("illegal backslash escape");
+var ErrInternal = os.NewError("internal error");
+var ErrUnmatchedLpar = os.NewError("unmatched '('");
+var ErrUnmatchedRpar = os.NewError("unmatched ')'");
+var ErrUnmatchedLbkt = os.NewError("unmatched '['");
+var ErrUnmatchedRbkt = os.NewError("unmatched ']'");
+var ErrBadRange = os.NewError("bad range in character class");
+var ErrExtraneousBackslash = os.NewError("extraneous backslash");
+var ErrBadClosure = os.NewError("repeated closure (**, ++, etc.)");
+var ErrBareClosure = os.NewError("closure applies to nothing");
+var ErrBadBackslash = os.NewError("illegal backslash escape");
 
 // An instruction executed by the NFA
 type instr interface {
@@ -582,14 +582,14 @@ func compiler(str string, ch chan *_RE) {
 }
 
 // Public interface has only execute functionality
-export type Regexp interface {
+type Regexp interface {
 	Execute(s string) []int;
 	Match(s string) bool;
 	MatchStrings(s string) []string;
 }
 
 // Compile in separate goroutine; wait for result
-export func Compile(str string) (regexp Regexp, error *os.Error) {
+func Compile(str string) (regexp Regexp, error *os.Error) {
 	ch := make(chan *_RE);
 	go compiler(str, ch);
 	re := <-ch;
@@ -739,7 +739,7 @@ func (re *_RE) MatchStrings(s string) []string {
 
 // Exported function for simple boolean check.  Anything more fancy
 // needs a call to Compile.
-export func Match(pattern string, s string) (matched bool, error *os.Error) {
+func Match(pattern string, s string) (matched bool, error *os.Error) {
 	re, err := Compile(pattern);
 	if err != nil {
 		return false, err

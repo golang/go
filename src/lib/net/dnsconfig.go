@@ -13,7 +13,7 @@ import (
 	"strconv";
 )
 
-export type DNS_Config struct {
+type DNS_Config struct {
 	servers []string;	// servers to use
 	search []string;	// suffixes to append to local name
 	ndots int;		// number of dots in name to trigger absolute lookup
@@ -26,7 +26,7 @@ export type DNS_Config struct {
 // TODO(rsc): Supposed to call uname() and chop the beginning
 // of the host name to get the default search domain.
 // We assume it's in resolv.conf anyway.
-export func DNS_ReadConfig() *DNS_Config {
+func DNS_ReadConfig() *DNS_Config {
 	file := _Open("/etc/resolv.conf");
 	if file == nil {
 		return nil

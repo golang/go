@@ -8,7 +8,7 @@ func cas(val *int32, old, new int32) bool
 func semacquire(*int32)
 func semrelease(*int32)
 
-export type Mutex struct {
+type Mutex struct {
 	key int32;
 	sema int32;
 }

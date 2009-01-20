@@ -4,7 +4,7 @@
 
 package math
 
-export func Fabs(arg float64) float64 {
+func Fabs(arg float64) float64 {
 	if arg < 0 {
 		return -arg;
 	}

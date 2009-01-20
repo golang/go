@@ -93,7 +93,7 @@ func (b *byteArray) append(s []byte) {
 // filter_html  ignores html tags and handles entities (starting with '&'
 //              and ending in ';') as single characters (width = 1)
 
-export type Writer struct {
+type Writer struct {
 	// TODO should not export any of the fields
 	// configuration
 	writer io.Write;
@@ -445,6 +445,6 @@ func (b *Writer) append(buf []byte) {
 }
 
 
-export func New(writer io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
+func New(writer io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
 	return new(Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
 }

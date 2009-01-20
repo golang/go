@@ -19,7 +19,7 @@ import "math"
  *	all arguments.
  */
 
-export func Sinh(arg float64) float64 {
+func Sinh(arg float64) float64 {
 	// The coefficients are #2029 from Hart & Cheney. (20.36D)
 	const
 	(
@@ -58,7 +58,7 @@ export func Sinh(arg float64) float64 {
 	return temp;
 }
 
-export func Cosh(arg float64) float64 {
+func Cosh(arg float64) float64 {
 	if arg < 0 {
 		arg = - arg;
 	}

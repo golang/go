@@ -15,7 +15,7 @@ package math
 
 var	pow10tab	[70]float64;
 
-export func Pow10(e int) float64 {
+func Pow10(e int) float64 {
 	if e < 0 {
 		return 1/Pow10(-e);
 	}

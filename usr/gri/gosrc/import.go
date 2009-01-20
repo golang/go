@@ -120,7 +120,7 @@ func (I *Importer) ReadPackage() *Globals.Package {
 	ident := I.ReadString();
 	file_name := I.ReadString();
 	key := I.ReadString();
-	
+
 	// Canonicalize package - if it was imported before,
 	// use the primary import.
 	pkg := I.comp.Lookup(file_name);
@@ -162,7 +162,7 @@ func (I *Importer) ReadScope(scope *Globals.Scope, allow_multiples bool) {
 		}
 		obj = I.ReadObject();
 	}
-	
+
 	if I.debug {
 		print(" }");
 	}
@@ -182,7 +182,7 @@ func (I *Importer) ReadType() *Globals.Type {
 	if len(ident) > 0 {
 		// named type
 		pkg := I.ReadPackage();
-		
+
 		// create corresponding type object
 		obj := Globals.NewObject(0, Object.TYPE, ident);
 		obj.exported = true;
@@ -204,13 +204,13 @@ func (I *Importer) ReadType() *Globals.Type {
 		// for now until we have enough of the front-end working
 		// change the form to BAD to avoid error messages
 		typ.form = Type.BAD;
-		
+
 	case Type.FORWARD:
 		typ.scope = Globals.NewScope(nil);
-		
+
 	case Type.TUPLE:
 		typ.elt = I.ReadType();
-		
+
 	case Type.ALIAS, Type.MAP:
 		typ.key = I.ReadType();
 		typ.elt = I.ReadType();
@@ -249,7 +249,7 @@ func (I *Importer) ReadObject() *Globals.Object {
 	if tag == Object.END {
 		return nil;
 	}
-	
+
 	if tag == Object.TYPE {
 		// named types are handled entirely by ReadType()
 		typ := I.ReadType();
@@ -258,7 +258,7 @@ func (I *Importer) ReadObject() *Globals.Object {
 		}
 		return typ.obj;
 	}
-	
+
 	ident := I.ReadString();
 	obj := Globals.NewObject(0, tag, ident);
 	obj.exported = true;
@@ -273,7 +273,7 @@ func (I *Importer) ReadObject() *Globals.Object {
 
 	case Object.FUNC:
 		I.ReadInt();  // should set the address/offset field
-		
+
 	default:
 		panic("UNREACHABLE");
 	}
@@ -289,12 +289,12 @@ func (I *Importer) Import(comp* Globals.Compilation, data string) *Globals.Packa
 	I.buf_pos = 0;
 	I.pkg_ref = 0;
 	I.type_ref = 0;
-	
+
 	// check magic bits
 	if !Utils.Contains(data, Platform.MAGIC_obj_file, 0) {
 		return nil;
 	}
-	
+
 	// Predeclared types are "pre-imported".
 	for p := Universe.types.first; p != nil; p = p.next {
 		if p.typ.ref != I.type_ref {
@@ -307,16 +307,16 @@ func (I *Importer) Import(comp* Globals.Compilation, data string) *Globals.Packa
 	// import package
 	pkg := I.ReadPackage();
 	I.ReadScope(pkg.scope, true);
-	
+
 	if I.debug {
 		print("\n(", I.buf_pos, " bytes)\n");
 	}
-	
+
 	return pkg;
 }
 
 
-export func Import(comp *Globals.Compilation, data string) *Globals.Package {
+func Import(comp *Globals.Compilation, data string) *Globals.Package {
 	var I Importer;
 	pkg := (&I).Import(comp, data);
 	return pkg;

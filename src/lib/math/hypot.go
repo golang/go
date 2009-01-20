@@ -12,7 +12,7 @@ package math
  *	Vol. 27, Number 6, pp. 577-581, Nov. 1983
  */
 
-export func Hypot(p, q float64) float64 {
+func Hypot(p, q float64) float64 {
 	if p < 0 {
 		p = -p;
 	}

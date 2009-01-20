@@ -6,14 +6,14 @@
 
 package main
 
-export type	Iputs	interface
+type	Iputs	interface
 {
 	puts	(s string);
 }
 
 // ---------
 
-export type	Print	struct
+type	Print	struct
 {
 	whoami	int;
 	put	Iputs;
@@ -28,7 +28,7 @@ dop()
 
 // ---------
 
-export type	Bio	struct
+type	Bio	struct
 {
 	whoami	int;
 	put	Iputs;
@@ -43,7 +43,7 @@ puts(s string)
 
 // ---------
 
-export type	File	struct
+type	File	struct
 {
 	whoami	int;
 	put	Iputs;

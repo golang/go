@@ -75,7 +75,7 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 	<-done;	// make sure server stopped
 }
 
-export func TestTcpServer(t *testing.T) {
+func TestTcpServer(t *testing.T) {
 	doTest(t,  "tcp", "0.0.0.0:9997", "127.0.0.1:9997");
 	doTest(t, "tcp", "[::]:9997", "[::ffff:127.0.0.1]:9997");
 	doTest(t, "tcp", "[::]:9997", "127.0.0.1:9997");

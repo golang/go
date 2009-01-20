@@ -64,7 +64,7 @@ var googleaddrs = []string {
 	"[2001:4860:0:2001::68]:80"	// ipv6.google.com; removed if ipv6 flag not set
 }
 
-export func TestDialGoogle(t *testing.T) {
+func TestDialGoogle(t *testing.T) {
 	// If no ipv6 tunnel, don't try the last address.
 	if !*ipv6 {
 		googleaddrs[len(googleaddrs)-1] = ""

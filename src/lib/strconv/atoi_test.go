@@ -103,7 +103,7 @@ var atoi32tests = []atoi32Test {
 	atoi32Test{ "-2147483649", -1<<31, os.ERANGE },
 }
 
-export func TestAtoui64(t *testing.T) {
+func TestAtoui64(t *testing.T) {
 	for i := 0; i < len(atoui64tests); i++ {
 		test := &atoui64tests[i];
 		out, err := strconv.Atoui64(test.in);
@@ -114,7 +114,7 @@ export func TestAtoui64(t *testing.T) {
 	}
 }
 
-export func TestAtoi64(t *testing.T) {
+func TestAtoi64(t *testing.T) {
 	for i := 0; i < len(atoi64test); i++ {
 		test := &atoi64test[i];
 		out, err := strconv.Atoi64(test.in);
@@ -125,7 +125,7 @@ export func TestAtoi64(t *testing.T) {
 	}
 }
 
-export func TestAtoui(t *testing.T) {
+func TestAtoui(t *testing.T) {
 	switch intsize {
 	case 32:
 		for i := 0; i < len(atoui32tests); i++ {
@@ -148,7 +148,7 @@ export func TestAtoui(t *testing.T) {
 	}
 }
 
-export func TestAtoi(t *testing.T) {
+func TestAtoi(t *testing.T) {
 	switch intsize {
 	case 32:
 		for i := 0; i < len(atoi32tests); i++ {

@@ -6,7 +6,7 @@
 
 package main
 
-export type T struct {
+type T struct {
   s string;
 }
 
@@ -19,6 +19,6 @@ func main() {
 }
 
 /*
-uetli:/home/gri/go/test/bugs gri$ 6g bug057.go 
+uetli:/home/gri/go/test/bugs gri$ 6g bug057.go
 bug057.go:14: syntax error
 */

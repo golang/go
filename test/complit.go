@@ -6,9 +6,9 @@
 
 package main
 
-export type T struct { i int; f float; s string; next *T }
+type T struct { i int; f float; s string; next *T }
 
-export type R struct { num int }
+type R struct { num int }
 
 func itor(a int) *R {
 	r := new(R);
@@ -22,8 +22,8 @@ func eq(a []*R) {
 	}
 }
 
-export type P struct { a, b int };
-export func NewP(a, b int) *P {
+type P struct { a, b int };
+func NewP(a, b int) *P {
 	return &P{a, b}
 }
 

@@ -18,7 +18,7 @@ import (
 
 var (
 	debug = flag.Bool("debug", false, "print debugging information");
-	
+
 	// layout control
 	tabwidth = flag.Int("tabwidth", 8, "tab width");
 	usetabs = flag.Bool("usetabs", true, "align with tabs instead of blanks");
@@ -54,10 +54,10 @@ const (
 )
 
 
-export type Printer struct {
+type Printer struct {
 	// output
 	text io.Write;
-	
+
 	// comments
 	comments *array.Array;  // the list of all comments
 	cindex int;  // the current comments index
@@ -67,11 +67,11 @@ export type Printer struct {
 	lastpos int;  // pos after last string
 	level int;  // scope level
 	indentation int;  // indentation level (may be different from scope level)
-	
+
 	// formatting parameters
 	separator int;  // pending separator
 	newlines int;  // pending newlines
-	
+
 	// semantic state
 	state int;  // current semantic state
 	laststate int;  // state for last string
@@ -96,12 +96,12 @@ func (P *Printer) NextComment() {
 func (P *Printer) Init(text io.Write, comments *array.Array) {
 	// writers
 	P.text = text;
-	
+
 	// comments
 	P.comments = comments;
 	P.cindex = -1;
 	P.NextComment();
-	
+
 	// formatting parameters & semantic state initialized correctly by default
 }
 
@@ -211,7 +211,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 		// we have a comment/newline that comes before the string
 		comment := P.comments.At(P.cindex).(*AST.Comment);
 		ctext := comment.Text;
-		
+
 		if ctext == "\n" {
 			// found a newline in src - count it
 			nlcount++;
@@ -256,7 +256,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 					ctext += " ";
 				}
 			}
-			
+
 			// print comment
 			if *debug {
 				P.Printf("[%d]", P.cpos);
@@ -276,7 +276,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 	// At this point we may have nlcount > 0: In this case we found newlines
 	// that were not followed by a comment. They are recognized (or not) when
 	// printing newlines below.
-	
+
 	// --------------------------------
 	// interpret state
 	// (any pending separator or comment must be printed in previous state)
@@ -373,7 +373,7 @@ func (P *Printer) HtmlPrologue(title string) {
 
 func (P *Printer) HtmlEpilogue() {
 	if *html {
-		P.TaggedString(0, 
+		P.TaggedString(0,
 			"</pre>\n"
 			"</body>\n"
 			"<html>\n",
@@ -551,7 +551,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 
 	case Scanner.IDENT:
 		P.HtmlIdentifier(x);
-	
+
 	case Scanner.INT, Scanner.STRING, Scanner.FLOAT:
 		// literal
 		P.String(x.Pos, x.Obj.Ident);
@@ -583,7 +583,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		} else {
 			P.Expr1(x.Y, Scanner.HighestPrec);
 		}
-		
+
 	case Scanner.LBRACK:
 		// index
 		P.Expr1(x.X, Scanner.HighestPrec);
@@ -604,7 +604,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		P.String(x.Pos, "{");
 		P.Expr(x.Y);
 		P.String(0, "}");
-		
+
 	default:
 		// unary and binary expressions including ":" for pairs
 		prec := Scanner.UnaryPrec;
@@ -725,7 +725,7 @@ func (P *Printer) Stat(s *AST.Stat) {
 		P.Token(s.Pos, s.Tok);
 		P.indentation++;
 		P.separator = none;
-		
+
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
 		// declaration
 		P.Declaration(s.Decl, false);
@@ -867,7 +867,7 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 			P.Error(d.Pos, d.Tok, "decl");
 		}
 	}
-	
+
 	P.newlines = 2;
 }
 
@@ -890,7 +890,7 @@ func (P *Printer) Program(p *AST.Program) {
 // ----------------------------------------------------------------------------
 // External interface
 
-export func Print(prog *AST.Program) {
+func Print(prog *AST.Program) {
 	// setup
 	var P Printer;
 	padchar := byte(' ');
@@ -904,7 +904,7 @@ export func Print(prog *AST.Program) {
 	P.HtmlPrologue("package " + prog.Ident.Obj.Ident);
 	P.Program(prog);
 	P.HtmlEpilogue();
-	
+
 	P.String(0, "");  // flush pending separator/newlines
 	err := text.Flush();
 	if err != nil {

@@ -6,7 +6,7 @@ package array
 
 import "array"
 
-export type IntArray struct {
+type IntArray struct {
 	// TODO do not export field
 	array.Array;
 }
@@ -18,7 +18,7 @@ func (p *IntArray) Init(len int) *IntArray {
 }
 
 
-export func NewIntArray(len int) *IntArray {
+func NewIntArray(len int) *IntArray {
 	return new(IntArray).Init(len)
 }
 

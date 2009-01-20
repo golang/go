@@ -24,7 +24,7 @@ func bytecopy(dst []byte, doff int, src []byte, soff int, count int) {
 	}
 }
 
-export type ByteBuffer struct {
+type ByteBuffer struct {
 	buf	[]byte;
 	off	int;	// Read from here
 	len	int;	// Write to here
@@ -87,8 +87,7 @@ func (b *ByteBuffer) AllData() []byte {
 	return b.buf[0:b.len]
 }
 
-
-export func NewByteBufferFromArray(buf []byte) *ByteBuffer {
+func NewByteBufferFromArray(buf []byte) *ByteBuffer {
 	b := new(ByteBuffer);
 	b.buf = buf;
 	b.off = 0;

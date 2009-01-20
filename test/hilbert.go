@@ -21,13 +21,13 @@ func assert(p bool) {
 }
 
 
-export var (
+var (
 	Zero = Big.Rat(0, 1);
 	One = Big.Rat(1, 1);
 )
 
 
-export type Matrix struct {
+type Matrix struct {
 	n, m int;
 	a []*Big.Rational;
 }
@@ -45,7 +45,7 @@ func (a *Matrix) set(i, j int, x *Big.Rational) {
 }
 
 
-export func NewMatrix(n, m int) *Matrix {
+func NewMatrix(n, m int) *Matrix {
 	assert(0 <= n && 0 <= m);
 	a := new(Matrix);
 	a.n = n;
@@ -55,7 +55,7 @@ export func NewMatrix(n, m int) *Matrix {
 }
 
 
-export func NewUnit(n int) *Matrix {
+func NewUnit(n int) *Matrix {
 	a := NewMatrix(n, n);
 	for i := 0; i < n; i++ {
 		for j := 0; j < n; j++ {
@@ -70,7 +70,7 @@ export func NewUnit(n int) *Matrix {
 }
 
 
-export func NewHilbert(n int) *Matrix {
+func NewHilbert(n int) *Matrix {
 	a := NewMatrix(n, n);
 	for i := 0; i < n; i++ {
 		for j := 0; j < n; j++ {
@@ -82,12 +82,12 @@ export func NewHilbert(n int) *Matrix {
 }
 
 
-export func MakeRat(x Big.Natural) *Big.Rational {
+func MakeRat(x Big.Natural) *Big.Rational {
 	return Big.MakeRat(Big.MakeInt(false, x), Big.Nat(1));
 }
 
 
-export func NewInverseHilbert(n int) *Matrix {
+func NewInverseHilbert(n int) *Matrix {
 	a := NewMatrix(n, n);
 	for i := 0; i < n; i++ {
 		for j := 0; j < n; j++ {

@@ -7,7 +7,7 @@ package math
 import "math"
 
 // x^y: exponentiation
-export func Pow(x, y float64) float64 {
+func Pow(x, y float64) float64 {
 	// TODO: x or y NaN, ±Inf, maybe ±0.
 	switch {
 	case y == 0:

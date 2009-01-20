@@ -9,11 +9,11 @@ package os
 
 import os "os"
 
-export var (
+var (
 	ENOENV = NewError("no such environment variable");
 )
 
-export func Getenv(s string) (v string, err *Error) {
+func Getenv(s string) (v string, err *Error) {
 	n := len(s);
 	if n == 0 {
 		return "", EINVAL

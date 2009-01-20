@@ -39,7 +39,7 @@ func LineCol(src string, pos int) (line, col int) {
 }
 
 
-export func Error(comp *Globals.Compilation, pos int, msg string) {
+func Error(comp *Globals.Compilation, pos int, msg string) {
 	const errdist = 10;
 	delta := pos - comp.errpos;  // may be negative!
 	if delta < 0 {
@@ -111,7 +111,7 @@ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data s
 }
 
 
-export func Import(comp *Globals.Compilation, pkg_file string) *Globals.Package {
+func Import(comp *Globals.Compilation, pkg_file string) *Globals.Package {
 	data, ok := ReadImport(comp, pkg_file, comp.flags.update_packages);
 	var pkg *Globals.Package;
 	if ok {
@@ -121,7 +121,7 @@ export func Import(comp *Globals.Compilation, pkg_file string) *Globals.Package 
 }
 
 
-export func Export(comp *Globals.Compilation, pkg_file string) {
+func Export(comp *Globals.Compilation, pkg_file string) {
 	data := Exporter.Export(comp);
 	ok := Platform.WriteObjectFile(pkg_file, data);
 	if !ok {
@@ -130,7 +130,7 @@ export func Export(comp *Globals.Compilation, pkg_file string) {
 }
 
 
-export func Compile(comp *Globals.Compilation, src_file string) {
+func Compile(comp *Globals.Compilation, src_file string) {
 	// TODO This is incorrect: When compiling with the -r flag, we are
 	// calling this function recursively w/o setting up a new comp - this
 	// is broken and leads to an assertion error (more then one package

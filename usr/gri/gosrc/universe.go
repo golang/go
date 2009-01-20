@@ -9,15 +9,15 @@ import Object "object"
 import Type "type"
 
 
-export var (
+var (
 	scope *Globals.Scope;
 	types *Globals.List;
-	
+
 	// internal types
 	void_t,
 	bad_t,
 	nil_t,
-	
+
 	// basic types
 	bool_t,
 	uint8_t,
@@ -34,7 +34,7 @@ export var (
 	string_t,
 	integer_t,
 	any_t,
-	
+
 	// alias types
 	byte_t,
 	ushort_t,
@@ -46,7 +46,7 @@ export var (
 	float_t,
 	double_t,
 	ptrint_t *Globals.Type;
-	
+
 	true_,
 	false_,
 	iota_,
@@ -93,13 +93,13 @@ func Register(typ *Globals.Type) *Globals.Type {
 func init() {
 	scope = Globals.NewScope(nil);  // universe has no parent
 	types = Globals.NewList();
-	
+
 	// Interal types
 	void_t = Globals.NewType(Type.VOID);
 	Globals.Universe_void_t = void_t;
 	bad_t = Globals.NewType(Type.BAD);
 	nil_t = Globals.NewType(Type.NIL);
-	
+
 	// Basic types
 	bool_t = Register(DeclType(Type.BOOL, "bool", 1));
 	uint8_t = Register(DeclType(Type.UINT, "uint8", 1));
@@ -140,6 +140,6 @@ func init() {
 	DeclObj(Object.BUILTIN, "new", void_t);
 	DeclObj(Object.BUILTIN, "panic", void_t);
 	DeclObj(Object.BUILTIN, "print", void_t);
-	
+
 	// scope.Print();
 }

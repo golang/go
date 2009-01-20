@@ -130,7 +130,7 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
 		}
 	}
 	E.WriteObject(nil);
-	
+
 	if E.debug {
 		print(" }");
 	}
@@ -166,23 +166,23 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 			ident = "." + ident;
 		}
 	}
-	
+
 	E.WriteString(ident);
 	if len(ident) > 0 {
 		// named type
 		E.WritePackage(E.comp.pkg_list[typ.obj.pnolev]);
 	}
-	
+
 	switch typ.form {
 	case Type.VOID:
 		// for now until we have enough of the front-end working.
-		
+
 	case Type.FORWARD:
 		// corresponding package must be forward-declared too
 		if typ.obj == nil || E.comp.pkg_list[typ.obj.pnolev].key != "" {
 			panic("inconsistency in package.type forward declaration");
 		}
-		
+
 	case Type.ALIAS, Type.MAP:
 		E.WriteType(typ.key);
 		E.WriteType(typ.elt);
@@ -202,7 +202,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
 		E.WriteInt(typ.len);
 		E.WriteType(typ.elt);
 		E.WriteScope(typ.scope);
-		
+
 	case Type.STRUCT, Type.INTERFACE:
 		E.WriteScope(typ.scope);
 
@@ -240,10 +240,10 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
 
 	case Object.VAR, Object.FIELD:
 		E.WriteInt(0);  // should be the correct address/offset
-		
+
 	case Object.FUNC:
 		E.WriteInt(0);  // should be the correct address/offset
-		
+
 	default:
 		panic("UNREACHABLE");
 	}
@@ -256,13 +256,13 @@ func (E *Exporter) Export(comp* Globals.Compilation) string {
 	E.buf_pos = 0;
 	E.pkg_ref = 0;
 	E.type_ref = 0;
-	
+
 	// write magic bits
 	magic := Platform.MAGIC_obj_file;  // TODO remove once len(constant) works
 	for i := 0; i < len(magic); i++ {
 		E.WriteByte(magic[i]);
 	}
-	
+
 	// Predeclared types are "pre-exported".
 	// TODO run the loop below only in debug mode
 	{	i := 0;
@@ -274,21 +274,21 @@ func (E *Exporter) Export(comp* Globals.Compilation) string {
 		}
 	}
 	E.type_ref = Universe.types.len;
-	
+
 	// export package 0
 	pkg := comp.pkg_list[0];
 	E.WritePackage(pkg);
 	E.WriteScope(pkg.scope);
-	
+
 	if E.debug {
 		print("\n(", E.buf_pos, " bytes)\n");
 	}
-	
+
 	return string(E.buf)[0 : E.buf_pos];
 }
 
 
-export func Export(comp* Globals.Compilation) string {
+func Export(comp* Globals.Compilation) string {
 	var E Exporter;
 	return (&E).Export(comp);
 }

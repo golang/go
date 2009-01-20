@@ -15,7 +15,7 @@ import (
 	"strings";
 )
 
-export const (
+const (
 	StringKind = iota;
 	NumberKind;
 	MapKind;		// JSON term is "Object", but in Go, it's a map
@@ -24,7 +24,7 @@ export const (
 	NullKind;
 )
 
-export type Json interface {
+type Json interface {
 	Kind() int;
 	String() string;
 	Number() float64;
@@ -34,7 +34,7 @@ export type Json interface {
 	Len() int;
 }
 
-export func JsonToString(j Json) string {
+func JsonToString(j Json) string {
 	if j == nil {
 		return "null"
 	}
@@ -45,7 +45,7 @@ export func JsonToString(j Json) string {
 }
 
 type _Null struct { }
-export var Null Json = &_Null{}
+var Null Json = &_Null{}
 func (*_Null) Kind() int { return NullKind }
 func (*_Null) String() string { return "null" }
 func (*_Null) Number() float64 { return 0 }
@@ -128,7 +128,7 @@ func (j *_Map) String() string {
 	return s;
 }
 
-export func Walk(j Json, path string) Json {
+func Walk(j Json, path string) Json {
 	for len(path) > 0 {
 		var elem string;
 		if i := strings.Index(path, "/"); i >= 0 {
@@ -154,7 +154,7 @@ export func Walk(j Json, path string) Json {
 	return j
 }
 
-export func Equal(a, b Json) bool {
+func Equal(a, b Json) bool {
 	switch {
 	case a == nil && b == nil:
 		return true;
@@ -290,7 +290,7 @@ func (b *_JsonBuilder) Key(k string) Builder {
 	return bb
 }
 
-export func StringToJson(s string) (json Json, ok bool, errtok string) {
+func StringToJson(s string) (json Json, ok bool, errtok string) {
 	var errindx int;
 	var j Json;
 	b := new(_JsonBuilder);

@@ -10,7 +10,7 @@ import (
 )
 
 // Seconds since January 1, 1970 00:00:00 GMT
-export func Seconds() int64 {
+func Seconds() int64 {
 	sec, nsec, err := os.Time();
 	if err != nil {
 		panic("time: os.Time: ", err.String());
@@ -19,7 +19,7 @@ export func Seconds() int64 {
 }
 
 // Nanoseconds since January 1, 1970 00:00:00 GMT
-export func Nanoseconds() int64 {
+func Nanoseconds() int64 {
 	sec, nsec, err := os.Time();
 	if err != nil {
 		panic("time: os.Time: ", err.String());
@@ -27,7 +27,7 @@ export func Nanoseconds() int64 {
 	return sec*1e9 + nsec
 }
 
-export const (
+const (
 	Sunday = iota;
 	Monday;
 	Tuesday;
@@ -37,7 +37,7 @@ export const (
 	Saturday;
 )
 
-export type Time struct {
+type Time struct {
 	year int64;	// 2008 is 2008
 	month, day int;	// Sep-17 is 9, 17
 	hour, minute, second int;	// 10:43:12 is 10, 43, 12
@@ -70,7 +70,7 @@ const (
 	_Days1970To2001 = 31*365+8;
 )
 
-export func SecondsToUTC(sec int64) *Time {
+func SecondsToUTC(sec int64) *Time {
 	t := new(Time);
 
 	// Split into time and day.
@@ -143,12 +143,12 @@ export func SecondsToUTC(sec int64) *Time {
 	return t;
 }
 
-export func UTC() *Time {
+func UTC() *Time {
 	return SecondsToUTC(Seconds())
 }
 
 // TODO: Should this return an error?
-export func SecondsToLocalTime(sec int64) *Time {
+func SecondsToLocalTime(sec int64) *Time {
 	zone, offset, err := time.LookupTimezone(sec);
 	if err != nil {
 		return SecondsToUTC(sec)
@@ -159,7 +159,7 @@ export func SecondsToLocalTime(sec int64) *Time {
 	return t
 }
 
-export func LocalTime() *Time {
+func LocalTime() *Time {
 	return SecondsToLocalTime(Seconds())
 }
 

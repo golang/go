@@ -52,13 +52,13 @@ func sinus(arg float64, quad int) float64 {
 	return temp1/temp2;
 }
 
-export func Cos(arg float64) float64 {
+func Cos(arg float64) float64 {
 	if arg < 0 {
 		arg = -arg;
 	}
 	return sinus(arg, 1);
 }
 
-export func Sin(arg float64) float64 {
+func Sin(arg float64) float64 {
 	return sinus(arg, 0);
 }

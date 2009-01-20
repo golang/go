@@ -202,7 +202,7 @@ func (b *_StructBuilder) Key(k string) Builder {
 	return nobuilder
 }
 
-export func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
+func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
 	var errindx int;
 	var val1 interface{};
 	b := &_StructBuilder{ reflect.NewValue(val) };

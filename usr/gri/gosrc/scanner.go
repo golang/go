@@ -8,7 +8,7 @@ import Platform "platform"
 import Utils "utils"
 
 
-export const (
+const (
 	ILLEGAL = iota;
 	EOF;
 	INT;
@@ -110,7 +110,7 @@ var Keywords map [string] int;
 var VerboseMsgs bool;  // error message customization
 
 
-export func TokenName(tok int) string {
+func TokenName(tok int) string {
 	switch (tok) {
 	case ILLEGAL: return "illegal";
 	case EOF: return "eof";
@@ -244,7 +244,7 @@ func digit_val(ch int) int {
 }
 
 
-export type Scanner struct {
+type Scanner struct {
 	filename string;  // error reporting only
 	nerrors int;  // number of errors
 	errpos int;  // last error position
@@ -766,7 +766,7 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
 }
 
 
-export type Token struct {
+type Token struct {
 	pos int;
 	tok int;
 	val string;
