@@ -4,7 +4,7 @@ Let's Go
 Rob Pike
 
 ----
-(January 9, 2009)
+(January 20, 2009)
 
 
 This document is a tutorial introduction to the basics of the Go systems programming
@@ -140,11 +140,11 @@ Notice that "main.main" is a niladic function with no return type.
 It's defined that way.  Falling off the end of "main.main" means
 ''success''; if you want to signal erroneous return, use
 
-	sys.exit(1)
+	sys.Exit(1)
 
 The "sys" package is built in and contains some essentials for getting
-started; for instance, "sys.argc()" and "sys.argv(int)" are used by the
-"flag" package to access the arguments.
+started; for instance, "sys.Args" is an array used by the
+"flag" package to access the command-line arguments.
 
 An Interlude about Types
 ----
@@ -321,12 +321,21 @@ a primitive interface to the underlying operating system's calls.
 Next is a type definition: the "type" keyword introduces a type declaration,
 in this case a data structure called "FD".
 To make things a little more interesting, our "FD" includes the name of the file
-that the file descriptor refers to.  The "export" keyword makes the declared
-structure visible to users of the package.
+that the file descriptor refers to.
 
-Now we can write what is often called a factory:
+Because "FD" starts with a capital letter, the type is available outside the package,
+that is, by users of the package.   In Go the rule about visibility of information is
+simple: if a name (of a top-level type, function, method, constant, variable, or of
+a structure field) is capitalized, users of the package may see it. Otherwise, the
+name and hence the thing being named is visible only inside the package in which
+it is declared.  In Go, the term for publicly visible names is ''exported''.
 
---PROG progs/fd.go /NewFD/ /^}/
+In the case of "FD", all its fields are lower case and so invisible to users, but we
+will soon give it some exported, upper-case methods.
+
+First, though, here is a factory to create them:
+
+--PROG progs/fd.go /newFD/ /^}/
 
 This returns a pointer to a new "FD" structure with the file descriptor and name
 filled in.  This code uses Go's notion of a ''composite literal'', analogous to
@@ -342,10 +351,10 @@ composite literal, as is done here on line 17.
 
 We can use the factory to construct some familiar, exported variables of type "*FD":
 
---PROG progs/fd.go /export.var/ /^.$/
+--PROG progs/fd.go /var/ /^.$/
 
-The "NewFD" function was not exported because it's internal. The proper factory
-to use is "Open":
+The "newFD" function was not exported because it's internal. The proper,
+exported factory to use is "Open":
 
 --PROG progs/fd.go /func.Open/ /^}/
 
@@ -354,12 +363,12 @@ multiple values, an "FD" and an error (more about errors in a moment).
 We declare the
 multi-value return as a parenthesized list of declarations; syntactically
 they look just like a second parameter list.  The function
-"syscall.open"
+"syscall.Open"
 also has a multi-value return, which we can grab with the multi-variable
 declaration on line 27; it declares "r" and "e" to hold the two values,
 both of type "int64" (although you'd have to look at the "syscall" package
 to see that).  Finally, line 28 returns two values: a pointer to the new "FD"
-and the error.  If "syscall.open" failed, the file descriptor "r" will
+and the error.  If "syscall.Open" fails, the file descriptor "r" will
 be negative and "NewFD" will return "nil".
 
 About those errors:  The "os" library includes a general notion of an error
@@ -432,19 +441,19 @@ The "cat()" subroutine uses only two methods of "fd": "Read()" and "String()",
 so let's start by defining an interface that has exactly those two methods.
 Here is code from "progs/cat_rot13.go":
 
---PROG progs/cat_rot13.go /type.Reader/ /^}/
+--PROG progs/cat_rot13.go /type.reader/ /^}/
 
-Any type that implements the two methods of "Reader" -- regardless of whatever
+Any type that implements the two methods of "reader" -- regardless of whatever
 other methods the type may also contain -- is said to <i>implement</i> the
 interface.  Since "fd.FD" implements these methods, it implements the
-"Reader" interface.  We could tweak the "cat" subroutine to accept a "Reader"
+"reader" interface.  We could tweak the "cat" subroutine to accept a "reader"
 instead of a "*fd.FD" and it would work just fine, but let's embellish a little
-first by writing a second type that implements "Reader", one that wraps an
-existing "Reader" and does "rot13" on the data. To do this, we just define
+first by writing a second type that implements "reader", one that wraps an
+existing "reader" and does "rot13" on the data. To do this, we just define
 the type and implement the methods and with no other bookkeeping,
-we have a second implementation of the "Reader" interface.
+we have a second implementation of the "reader" interface.
 
---PROG progs/cat_rot13.go /type.Rot13/ /end.of.Rot13/
+--PROG progs/cat_rot13.go /type.rotate13/ /end.of.rotate13/
 
 (The "rot13" function called on line 37 is trivial and not worth reproducing.)
 
@@ -458,9 +467,9 @@ and use it from within a mostly unchanged "cat()" function:
 
 (We could also do the wrapping in "main" and leave "cat()" mostly alone, except
 for changing the type of the argument; consider that an exercise.)
-Lines 51 through 53 set it all up: If the "rot13" flag is true, wrap the "Reader"
-we received into a "Rot13" and proceed.  Note that the interface variables
-are values, not pointers: the argument is of type "Reader", not "*Reader",
+Lines 51 through 53 set it all up: If the "rot13" flag is true, wrap the "reader"
+we received into a "rotate13" and proceed.  Note that the interface variables
+are values, not pointers: the argument is of type "reader", not "*reader",
 even though under the covers it holds a pointer to a "struct".
 
 Here it is in action:
@@ -481,8 +490,8 @@ type if the type implements all the methods declared in the interface.
 This means
 that a type may implement an arbitrary number of different interfaces.
 There is no type hierarchy; things can be much more <i>ad hoc</i>,
-as we saw with "rot13".  The type "fd.FD" implements "Reader"; it could also
-implement a "Writer", or any other interface built from its methods that
+as we saw with "rot13".  The type "fd.FD" implements "reader"; it could also
+implement a "writer", or any other interface built from its methods that
 fits the current situation. Consider the <i>empty interface</i>
 
 <pre>
@@ -522,7 +531,7 @@ to test that the result is sorted.
 If we have a new type we want to be able to sort, all we need to do is
 to implement the three methods for that type, like this:
 
---PROG progs/sortmain.go /type.Day/ /Swap/
+--PROG progs/sortmain.go /type.day/ /Swap/
 
 
 Printing
@@ -531,26 +540,26 @@ Printing
 The examples of formatted printing so far have been modest.  In this section
 we'll talk about how formatted I/O can be done well in Go.
 
-There's a package "fmt" that implements a version of "printf" that should
-look familiar:
+There's a package "fmt" that implements a version of "Printf" (upper case)
+that should look familiar:
 
 --PROG progs/printf.go
 
-Within the "fmt" package, "printf" is declared with this signature:
+Within the "fmt" package, "Printf" is declared with this signature:
 
-	printf(format string, v ...) (n int, errno *os.Error)
+	Printf(format string, v ...) (n int, errno *os.Error)
 
 That "..." represents the variadic argument list that in C would
 be handled using the "stdarg.h" macros, but in Go is passed using
 an empty interface variable ("interface {}") that is then unpacked
 using the reflection library.  It's off topic here but the use of
-reflection helps explain some of the nice properties of Go's printf,
-due to the ability of "printf" to discover the type of its arguments
+reflection helps explain some of the nice properties of Go's Printf,
+due to the ability of "Printf" to discover the type of its arguments
 dynamically.
 
 For example, in C each format must correspond to the type of its
 argument.  It's easier in many cases in Go.  Instead of "%llud" you
-can just say "%d"; "printf" knows the size and signedness of the
+can just say "%d"; "Printf" knows the size and signedness of the
 integer and can do the right thing for you.  The snippet
 
 --PROG progs/print.go 'NR==6' 'NR==7'
@@ -568,16 +577,16 @@ is
 
 	18446744073709551615 {77 Sunset Strip} [1 2 3 4]
 
-You can drop the formatting altogether if you use "print" or "println"
-instead of "printf".  Those routines do fully automatic formatting.
-The "print" function just prints its elements out using the equivalent
-of "%v" while "println" automatically inserts spaces between arguments
+You can drop the formatting altogether if you use "Print" or "Println"
+instead of "Printf".  Those routines do fully automatic formatting.
+The "Print" function just prints its elements out using the equivalent
+of "%v" while "Println" automatically inserts spaces between arguments
 and adds a newline.  The output of each of these two lines is identical
-to that of the "printf" call above.
+to that of the "Printf" call above.
 
 --PROG progs/print.go 'NR==14' 'NR==15'
 
-If you have your own type you'd like "printf" or "print" to format,
+If you have your own type you'd like "Printf" or "Print" to format,
 just give it a "String()" method that returns a string.  The print
 routines will examine the value to inquire whether it implements
 the method and if so, use it rather than some other formatting.
@@ -590,11 +599,11 @@ default formatter for that type will use it and produce the output
 
 	77 Sunset Strip
 
-Observe that the "String()" method calls "sprint" (the obvious Go
-variant) to do its formatting; special formatters can use the "fmt"
-library recursively.
+Observe that the "String()" method calls "Sprint" (the obvious Go
+variant that returns a string) to do its formatting; special formatters
+can use the "fmt" library recursively.
 
-Another feature of "printf" is that the format "%T" will print a string
+Another feature of "Printf" is that the format "%T" will print a string
 representation of the type of a value, which can be handy when debugging
 polymorphic code.
 
@@ -602,7 +611,7 @@ It's possible to write full custom print formats with flags and precisions
 and such, but that's getting a little off the main thread so we'll leave it
 as an exploration exercise.
 
-You might ask, though, how "printf" can tell whether a type implements
+You might ask, though, how "Printf" can tell whether a type implements
 the "String()" method.  Actually what it does is ask if the value can
 be converted to an interface variable that implements the method.
 Schematically, given a value "v", it does this:
@@ -628,8 +637,8 @@ operations such as type conversion, map update, communications, and so on,
 although this is the only appearance in this tutorial.)
 If the value does not satisfy the interface, "ok" will be false.
 
-One last wrinkle.  To complete the suite, besides "printf" etc. and "sprintf"
-etc., there are also "fprintf" etc.  Unlike in C, "fprintf"'s first argument is
+One last wrinkle.  To complete the suite, besides "Printf" etc. and "Sprintf"
+etc., there are also "Fprintf" etc.  Unlike in C, "Fprintf"'s first argument is
 not a file.  Instead, it is a variable of type "io.Write", which is an
 interface type defined in the "io" library:
 
@@ -637,7 +646,7 @@ interface type defined in the "io" library:
 		Write(p []byte) (n int, err *os.Error);
 	}
 
-Thus you can call "fprintf" on any type that implements a standard "Write()"
+Thus you can call "Fprintf" on any type that implements a standard "Write()"
 method, not just files but also network channels, buffers, rot13ers, whatever
 you want.
 
@@ -675,12 +684,12 @@ Here is the first function in "progs/sieve.go":
 
 --PROG progs/sieve.go /Send/ /^}/
 
-The function "Generate" sends the sequence 2, 3, 4, 5, ... to its
+The "generate" function sends the sequence 2, 3, 4, 5, ... to its
 argument channel, "ch", using the binary communications operator "&lt;-".
 Channels block, so if there's no recipient for the the value on "ch",
 the send operation will wait until one becomes available.
 
-The "Filter" function has three arguments: an input channel, an output
+The "filter" function has three arguments: an input channel, an output
 channel, and a prime number.  It copies values from the input to the
 output, discarding anything divisible by the prime.  The unary communications
 operator "&lt;-" (receive) retrieves the next value on the channel.
@@ -710,30 +719,30 @@ together:
 
 --PROG progs/sieve.go /func.main/ /^}/
 
-Line 23 creates the initial channel to pass to "Generate", which it
-then starts up.  As each prime pops out of the channel, a new "Filter"
+Line 23 creates the initial channel to pass to "generate", which it
+then starts up.  As each prime pops out of the channel, a new "filter"
 is added to the pipeline and <i>its</i> output becomes the new value
 of "ch".
 
 The sieve program can be tweaked to use a pattern common
 in this style of programming.  Here is a variant version
-of "Generate", from "progs/sieve1.go":
+of "generate", from "progs/sieve1.go":
 
---PROG progs/sieve1.go /func.Generate/ /^}/
+--PROG progs/sieve1.go /func.generate/ /^}/
 
 This version does all the setup internally. It creates the output
 channel, launches a goroutine internally using a function literal, and
 returns the channel to the caller.  It is a factory for concurrent
 execution, starting the goroutine and returning its connection.
 The same
-change can be made to "Filter":
+change can be made to "filter":
 
---PROG progs/sieve1.go /func.Filter/ /^}/
+--PROG progs/sieve1.go /func.filter/ /^}/
 
-The "Sieve" function's main loop becomes simpler and clearer as a
+The "sieve" function's main loop becomes simpler and clearer as a
 result, and while we're at it let's turn it into a factory too:
 
---PROG progs/sieve1.go /func.Sieve/ /^}/
+--PROG progs/sieve1.go /func.sieve/ /^}/
 
 Now "main"'s interface to the prime sieve is a channel of primes:
 
@@ -749,25 +758,25 @@ A realistic client-server program is a lot of code, so here is a very simple sub
 to illustrate the idea.  It starts by defining a "Request" type, which embeds a channel
 that will be used for the reply.
 
---PROG progs/server.go /type.Request/ /^}/
+--PROG progs/server.go /type.request/ /^}/
 
 The server will be trivial: it will do simple binary operations on integers.  Here's the
 code that invokes the operation and responds to the request:
 
---PROG progs/server.go /type.BinOp/ /^}/
+--PROG progs/server.go /type.binOp/ /^}/
 
-Line 8 defines the name "BinOp" to be a function taking two integers and
+Line 8 defines the name "binOp" to be a function taking two integers and
 returning a third.
 
-The "Server" routine loops forever, receiving requests and, to avoid blocking due to
+The "server" routine loops forever, receiving requests and, to avoid blocking due to
 a long-running operation, starting a goroutine to do the actual work.
 
---PROG progs/server.go /func.Server/ /^}/
+--PROG progs/server.go /func.server/ /^}/
 
 We construct a server in a familiar way, starting it up and returning a channel to
 connect to it:
 
---PROG progs/server.go /func.StartServer/ /^}/
+--PROG progs/server.go /func.startServer/ /^}/
 
 Here's a simple test.  It starts a server with an addition operator, and sends out
 lots of requests but doesn't wait for the reply.  Only after all the requests are sent
@@ -779,13 +788,13 @@ One annoyance with this program is that it doesn't exit cleanly; when "main" ret
 there are a number of lingering goroutines blocked on communication.  To solve this,
 we can provide a second, "quit" channel to the server:
 
---PROG progs/server1.go /func.StartServer/ /^}/
+--PROG progs/server1.go /func.startServer/ /^}/
 
-It passes the quit channel to the "Server" function, which uses it like this:
+It passes the quit channel to the "server" function, which uses it like this:
 
---PROG progs/server1.go /func.Server/ /^}/
+--PROG progs/server1.go /func.server/ /^}/
 
-Inside "Server", a "select" statement chooses which of the multiple communications
+Inside "server", a "select" statement chooses which of the multiple communications
 listed by its cases can proceed.  If all are blocked, it waits until one can proceed; if
 multiple can proceed, it chooses one at random.  In this instance, the "select" allows
 the server to honor requests until it receives a quit message, at which point it

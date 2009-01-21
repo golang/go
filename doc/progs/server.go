@@ -4,35 +4,35 @@
 
 package main
 
-type Request struct {
+type request struct {
 	a, b    int;
 	replyc  chan int;
 }
 
-type BinOp (a, b int) int;
+type binOp (a, b int) int;
 
-func Run(op *BinOp, request *Request) {
+func run(op *BinOp, request *Request) {
 	result := op(request.a, request.b);
 	request.replyc <- result;
 }
 
-func Server(op *BinOp, service chan *Request) {
+func server(op *BinOp, service chan *Request) {
 	for {
 		request := <-service;
-		go Run(op, request);  // don't wait for it
+		go run(op, request);  // don't wait for it
 	}
 }
 
-func StartServer(op *BinOp) chan *Request {
+func startServer(op *BinOp) chan *Request {
 	req := make(chan *Request);
 	go Server(op, req);
 	return req;
 }
 
 func main() {
-	adder := StartServer(func(a, b int) int { return a + b });
+	adder := startServer(func(a, b int) int { return a + b });
 	const N = 100;
-	var reqs [N]Request;
+	var reqs [N]request;
 	for i := 0; i < N; i++ {
 		req := &reqs[i];
 		req.a = i;
