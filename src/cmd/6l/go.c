@@ -514,10 +514,107 @@ ignoreoptfuncs(void)
 		if(p->to.sym != S && p->to.sym->type == SOPT) {
 			if(p->as != ACALL)
 				diag("bad use of optional function: %P", p);
-			p->as = ANOP;
-			p->from.type = D_NONE;
-			p->to.type = D_NONE;
+			nopout(p);
 		}
 	}
+}
+
+static void mark(Sym*);
+static int markdepth;
+
+static void
+markdata(Prog *p, Sym *s)
+{
+	markdepth++;
+	if(p != P && debug['v'] > 1)
+		Bprint(&bso, "%d markdata %s\n", markdepth, s->name);
+	for(; p != P; p=p->dlink)
+		if(p->to.sym)
+			mark(p->to.sym);
+	markdepth--;
+}
+
+static void
+marktext(Prog *p)
+{
+	if(p == P)
+		return;
+	if(p->as != ATEXT) {
+		diag("marktext: %P", p);
+		return;
+	}
+	markdepth++;
+	if(debug['v'] > 1)
+		Bprint(&bso, "%d marktext %s\n", markdepth, p->from.sym->name);
+	for(p=p->link; p != P; p=p->link) {
+		if(p->as == ATEXT || p->as == ADATA || p->as == AGLOBL)
+			break;
+		if(p->from.sym)
+			mark(p->from.sym);
+		if(p->to.sym)
+			mark(p->to.sym);
+	}
+	markdepth--;
+}
+
+static void
+mark(Sym *s)
+{
+	if(s == S || s->reachable)
+		return;
+	s->reachable = 1;
+	if(s->text)
+		marktext(s->text);
+	if(s->data)
+		markdata(s->data, s);
+}
+
+static void
+sweeplist(Prog **first, Prog **last)
+{
+	int reachable;
+	Prog *p, *q;
+
+	reachable = 1;
+	q = P;
+	for(p=*first; p != P; p=p->link) {
+		switch(p->as) {
+		case ATEXT:
+		case ADATA:
+		case AGLOBL:
+			reachable = p->from.sym->reachable;
+			if(!reachable) {
+				if(debug['v'] > 1)
+					Bprint(&bso, "discard %s\n", p->from.sym->name);
+				p->from.sym->type = Sxxx;
+			}
+			break;
+		}
+		if(reachable) {
+			if(q == P)
+				*first = p;
+			else
+				q->link = p;
+			q = p;
+		}
+	}
+	if(q == P)
+		*first = P;
+	else
+		q->link = P;
+	*last = q;
+}
+
+void
+deadcode(void)
+{
+	if(debug['v'])
+		Bprint(&bso, "%5.2f deadcode\n", cputime());
+
+	mark(lookup(INITENTRY, 0));
+	mark(lookup("sys·morestack", 0));
+
+	sweeplist(&firstp, &lastp);
+	sweeplist(&datap, &edatap);
 }
 

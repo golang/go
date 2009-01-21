@@ -88,6 +88,7 @@ struct	Prog
 	Adr	to;
 	Prog	*forwd;
 	Prog*	link;
+	Prog*	dlink;
 	Prog*	pcond;	/* work on this */
 	vlong	pc;
 	int32	line;
@@ -120,6 +121,7 @@ struct	Sym
 	int32	sig;
 	Sym*	link;
 	Prog*	text;
+	Prog*	data;
 };
 struct	Optab
 {
@@ -385,9 +387,9 @@ Prog*	copyp(Prog*);
 double	cputime(void);
 void	datblk(int32, int32);
 void	ignoreoptfuncs(void);
-void	definetypestrings(void);
-void definetypesigs(void);
 void	deadcode(void);
+void	definetypestrings(void);
+void	definetypesigs(void);
 void	diag(char*, ...);
 void	dodata(void);
 void	doinit(void);
@@ -421,6 +423,7 @@ void	mkfwd(void);
 void*	mysbrk(uint32);
 Prog*	newdata(Sym*, int, int, int);
 Prog*	newtext(Prog*, Sym*);
+void	nopout(Prog*);
 void	nuxiinit(void);
 void	objfile(char*);
 int	opsize(Prog*);

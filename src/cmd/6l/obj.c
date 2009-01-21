@@ -369,9 +369,9 @@ main(int argc, char *argv[])
 		objfile(a);
 	}
 	ignoreoptfuncs();
-	// TODO(rsc): remove unused code and data
 	definetypestrings();
 	definetypesigs();
+	deadcode();
 
 	firstp = firstp->link;
 	if(firstp == P)
@@ -1068,10 +1068,15 @@ loop:
 		// If we've seen an AGLOBL that said this sym was DUPOK,
 		// ignore any more ADATA we see, which must be
 		// redefinitions.
-		if(p->from.sym != S && p->from.sym->dupok) {
+		s = p->from.sym;
+		if(s != S && s->dupok) {
 			if(debug['v'])
-				Bprint(&bso, "skipping %s in %s: dupok", p->from.sym->name, pn);
+				Bprint(&bso, "skipping %s in %s: dupok", s->name, pn);
 			goto loop;
+		}
+		if(s != S) {
+			p->dlink = s->data;
+			s->data = p;
 		}
 		if(edatap == P)
 			datap = p;
