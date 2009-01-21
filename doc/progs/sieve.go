@@ -22,10 +22,10 @@ func filter(in, out chan int, prime int) {
 	}
 }
 
-// The prime sieve: Daisy-chain Filter processes together.
+// The prime sieve: Daisy-chain filter processes together.
 func main() {
 	ch := make(chan int);  // Create a new channel.
-	go generate(ch);  // Start Generate() as a goroutine.
+	go generate(ch);  // Start generate() as a goroutine.
 	for {
 		prime := <-ch;
 		print(prime, "\n");
