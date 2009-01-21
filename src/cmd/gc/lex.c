@@ -685,6 +685,8 @@ talph:
 		s = pkglookup(s->name, context);
 		if(s->lexical == LIGNORE)
 			goto l0;
+		if(!exportname(s->name) && strcmp(package, s->opackage) != 0)
+			s = pkglookup(s->name, ".private");
 	}
 
 	DBG("lex: %S %s\n", s, lexname(s->lexical));

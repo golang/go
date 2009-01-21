@@ -57,9 +57,8 @@ if(throwreturn == N) {
 		// add clearing of the output parameters
 		t = structfirst(&save, getoutarg(curfn->type));
 		while(t != T) {
-			if(t->nname != N && t->nname->sym->name[0] != '_') {
+			if(t->nname != N)
 				curfn->nbody = list(nod(OAS, t->nname, N), curfn->nbody);
-			}
 			t = structnext(&save);
 		}
 	}

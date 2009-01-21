@@ -232,7 +232,7 @@ fixedbugs/bug074.go:7: x: undefined
 fixedbugs/bug081.go:5: no type x
 
 =========== fixedbugs/bug083.go
-BUG: succeeds incorrectly
+fixedbugs/bug083.dir/bug1.go:9: syntax error near t0
 
 =========== fixedbugs/bug086.go
 fixedbugs/bug086.go:5: function ends without a return statement

@@ -34,6 +34,7 @@ enum
 	PRIME7		= 10067,
 	PRIME8		= 10079,
 	PRIME9		= 10091,
+	PRIME10		= 10093,
 
 	AUNK		= 100,
 	// these values are known by runtime
