@@ -553,7 +553,10 @@ type ArrayValue interface {
 	Cap() int;
 	Elem(i int)	Value;
 	SetLen(len int);
+	CopyFrom(src ArrayValue, n int)
 }
+
+func copyArray(dst ArrayValue, src ArrayValue, n int);
 
 /*
 	Run-time representation of open arrays looks like this:
@@ -600,6 +603,10 @@ func (v *openArrayValueStruct) Elem(i int) Value {
 	return newValueAddr(v.elemtype, Addr(data_uint));
 }
 
+func (v *openArrayValueStruct) CopyFrom(src ArrayValue, n int) {
+	copyArray(v, src, n);
+}
+
 type fixedArrayValueStruct struct {
 	commonValue;
 	elemtype	Type;
@@ -626,6 +633,10 @@ func (v *fixedArrayValueStruct) Elem(i int) Value {
 	data_uint := uintptr(v.addr) + uintptr(i * v.elemsize);
 	return newValueAddr(v.elemtype, Addr(data_uint));
 	return nil
+}
+
+func (v *fixedArrayValueStruct) CopyFrom(src ArrayValue, n int) {
+	copyArray(v, src, n);
 }
 
 func arrayCreator(typ Type, addr Addr) Value {
@@ -843,7 +854,8 @@ func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
 	return newValueAddr(typ, Addr(array));
 }
 
-func CopyArray(dst ArrayValue, src ArrayValue, n int) {
+// Works on both fixed and open arrays.
+func copyArray(dst ArrayValue, src ArrayValue, n int) {
 	if n == 0 {
 		return
 	}

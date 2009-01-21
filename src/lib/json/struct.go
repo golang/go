@@ -149,7 +149,7 @@ func (b *_StructBuilder) Elem(i int) Builder {
 					n *= 2
 				}
 				av1 := reflect.NewOpenArrayValue(av.Type(), av.Len(), n);
-				reflect.CopyArray(av1, av, av.Len());
+				av1.CopyFrom(av, av.Len());
 				pv.SetSub(av1);
 				av = av1;
 			}
