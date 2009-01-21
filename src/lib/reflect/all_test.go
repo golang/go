@@ -308,7 +308,7 @@ func TestCopyArray(t *testing.T) {
 		}
 	}
 	for tocopy := 1; tocopy <= 7; tocopy++ {
-		CopyArray(vb.(PtrValue).Sub(), va.(PtrValue).Sub(), tocopy);
+		vb.(PtrValue).Sub().(ArrayValue).CopyFrom(va.(PtrValue).Sub(), tocopy);
 		for i := 0; i < tocopy; i++ {
 			if a[i] != b[i] {
 				t.Errorf("1 tocopy=%d a[%d]=%d, b[%d]=%d",
