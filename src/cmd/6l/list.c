@@ -50,6 +50,9 @@ Pconv(Fmt *fp)
 	Prog *p;
 
 	p = va_arg(fp->args, Prog*);
+	if(p == P)
+		return fmtstrcpy(fp, "<P>");
+
 	bigP = p;
 
 	snprint(str1, sizeof(str1), "(%ld)", p->line);
@@ -421,7 +424,7 @@ parsetextconst(vlong arg)
 	textstksiz = arg & 0xffffffffLL;
 	if(textstksiz & 0x80000000LL)
 		textstksiz = -(-textstksiz & 0xffffffffLL);
-		
+
 	textarg = (arg >> 32) & 0xffffffffLL;
 	if(textarg & 0x80000000LL)
 		textarg = 0;

@@ -42,6 +42,7 @@ dodata(void)
 		Bprint(&bso, "%5.2f dodata\n", cputime());
 	Bflush(&bso);
 	for(p = datap; p != P; p = p->link) {
+		curtext = p;	// for diag messages
 		s = p->from.sym;
 		if(p->as == ADYNT || p->as == AINIT)
 			s->value = dtype;
@@ -851,6 +852,8 @@ newdata(Sym *s, int o, int w, int t)
 	p->from.sym = s;
 	p->from.offset = o;
 	p->to.type = D_CONST;
+	p->dlink = s->data;
+	s->data = p;
 	return p;
 }
 
