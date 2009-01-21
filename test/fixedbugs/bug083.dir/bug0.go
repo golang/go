@@ -4,7 +4,7 @@
 
 package bug0
 
-type T0 struct {
+type t0 struct {
 }
 
-var V0 T0
+var V0 t0
