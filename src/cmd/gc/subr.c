@@ -1683,12 +1683,8 @@ eqtype(Type *t1, Type *t2, int d)
 			if(t1->nname != N && t1->nname->sym != S) {
 				if(t2->nname == N || t2->nname->sym == S)
 					return 0;
-				if(strcmp(t1->nname->sym->name, t2->nname->sym->name) != 0) {
-					// assigned names dont count
-					if(t1->nname->sym->name[0] != '_' ||
-				   	   t2->nname->sym->name[0] != '_')
-						return 0;
-				}
+				if(strcmp(t1->nname->sym->name, t2->nname->sym->name) != 0)
+					return 0;
 			}
 			t1 = t1->down;
 			t2 = t2->down;
@@ -2489,7 +2485,7 @@ expand0(Type *t)
 	u = methtype(t);
 	if(u != T) {
 		for(f=u->method; f!=T; f=f->down) {
-			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
+			if(!exportname(f->sym->name) && strcmp(f->sym->opackage, package) != 0)
 				continue;
 			if(f->sym->uniq)
 				continue;

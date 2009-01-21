@@ -433,7 +433,7 @@ funcargs(Type *ft)
 	while(t != T) {
 		if(t->nname != N)
 			t->nname->xoffset = t->width;
-		if(t->nname != N && t->nname->sym->name[0] != '_') {
+		if(t->nname != N) {
 			addvar(t->nname, t->type, PPARAM);
 			all |= 1;
 		} else

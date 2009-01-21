@@ -658,6 +658,8 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 
 		a->name = method->name;
 		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
+		if(!exportname(a->name))
+			a->hash += PRIME10*stringhash(package);
 		a->perm = o;
 		a->sym = methodsym(method, rcvrt);
 
@@ -767,7 +769,6 @@ dumpsigi(Type *t, Sym *s)
 	int o;
 	Sig *a, *b;
 	Prog *p;
-	char *sp;
 	char buf[NSYMB];
 
 	at.sym = s;
@@ -784,19 +785,15 @@ dumpsigi(Type *t, Sym *s)
 		s1 = f->sym;
 		if(s1 == nil)
 			continue;
-		if(s1->name[0] == '_')
-			continue;
 
 		b = mal(sizeof(*b));
 		b->link = a;
 		a = b;
 
 		a->name = s1->name;
-		sp = strchr(s1->name, '_');
-		if(sp != nil)
-			a->name = sp+1;
-
 		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
+		if(!exportname(a->name))
+			a->hash += PRIME10*stringhash(package);
 		a->perm = o;
 		a->sym = methodsym(f->sym, t);
 		a->offset = 0;

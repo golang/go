@@ -168,6 +168,13 @@ throw:
 					prints(": missing method ");
 					prints((int8*)iname);
 					prints("\n");
+					if(iface_debug) {
+						prints("interface");
+						printsigi(si);
+						prints("\ntype");
+						printsigt(st);
+						prints("\n");
+					}
 					throw("interface conversion");
 				}
 				m->bad = 1;
