@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(January 16, 2009)
+(January 22, 2009)
 
 ----
 
@@ -2638,8 +2638,8 @@ Switch statements
 Switches provide multi-way execution.
 
 	SwitchStat = "switch" [ [ Simplestat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
-	CaseClause = Case [ StatementList ] .
-	Case = ( "case" ExpressionList | "default" ) ":" .
+	CaseClause = SwitchCase ":" [ StatementList ] .
+	SwitchCase = "case" ExpressionList | "default" .
 
 There can be at most one default case in a switch statement. In a case clause,
 the last statement only may be a fallthrough statement ($Fallthrough statement).
@@ -2810,8 +2810,8 @@ will proceed.  It looks similar to a switch statement but with the
 cases all referring to communication operations.
 
 	SelectStat = "select" "{" { CommClause } "}" .
-	CommClause = CommCase [ StatementList ] .
-	CommCase = ( "default" | ( "case" ( SendExpr | RecvExpr) ) ) ":" .
+	CommClause = CommCase ":" [ StatementList ] .
+	CommCase = "case" ( SendExpr | RecvExpr) | "default" .
 	SendExpr =  Expression "<-" Expression .
 	RecvExpr =  [ Expression ( "=" | ":=" ) ] "<-" Expression .
 
