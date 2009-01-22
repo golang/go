@@ -33,6 +33,11 @@ esac
 ofiles=$(echo $gofiles | sed 's/\.go/.6/g')
 files=$(echo $gofiles | sed 's/\.go//g')
 
+# Run any commands given in sources, like
+#   // gotest: 6g foo.go
+# to build any test-only dependencies. 
+sed -n 's/^\/\/ gotest: //p' $gofiles | sh
+
 for i in $gofiles
 do
 	6g $i
