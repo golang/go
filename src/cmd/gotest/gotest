@@ -8,6 +8,11 @@
 # tests.
 # If files are named on the command line, use them instead of test*.go.
 
+O=6
+GC=${GC:-${O}g}
+GL=${GL:-${O}l}
+export GC GL
+
 gofiles=""
 loop=true
 while $loop; do
@@ -27,20 +32,27 @@ done
 
 case "x$gofiles" in
 x)
-	gofiles=$(echo *test.go)
+	gofiles=$(ls *_test.go 2>/dev/null)
+esac
+
+case "x$gofiles" in
+x)
+	echo 'no test files found' 1>&2
+	exit 1
 esac
 
 ofiles=$(echo $gofiles | sed 's/\.go/.6/g')
 files=$(echo $gofiles | sed 's/\.go//g')
 
+
 # Run any commands given in sources, like
-#   // gotest: 6g foo.go
+#   // gotest: $GC foo.go
 # to build any test-only dependencies. 
 sed -n 's/^\/\/ gotest: //p' $gofiles | sh
 
 for i in $gofiles
 do
-	6g $i
+	$GC $i
 done
 
 set -e
@@ -84,6 +96,6 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
 	echo '}'
 }>_testmain.go
 
-6g _testmain.go
-6l _testmain.6
-./6.out "$@"
+$GC _testmain.go
+$GL _testmain.$O
+./$O.out "$@"
