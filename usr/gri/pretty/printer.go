@@ -537,7 +537,7 @@ func (P *Printer) Type(t *AST.Type) int {
 // ----------------------------------------------------------------------------
 // Expressions
 
-func (P *Printer) Block(pos int, list *array.Array, end int, indent bool);
+func (P *Printer) Block(b *AST.Block, indent bool);
 
 func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 	if x == nil {
@@ -547,7 +547,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 	switch x.Tok {
 	case Scanner.TYPE:
 		// type expr
-		P.Type(x.Obj.Typ);
+		P.Type(x.Typ);
 
 	case Scanner.IDENT:
 		P.HtmlIdentifier(x);
@@ -560,7 +560,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 		// function literal
 		P.String(x.Pos, "func");
 		P.Type(x.Obj.Typ);
-		P.Block(0, x.Obj.Block, x.Obj.End, true);
+		P.Block(x.Obj.Body, true);
 		P.newlines = 0;
 
 	case Scanner.COMMA:
@@ -646,24 +646,22 @@ func (P *Printer) Expr(x *AST.Expr) {
 func (P *Printer) Stat(s *AST.Stat)
 
 func (P *Printer) StatementList(list *array.Array) {
-	if list != nil {
+	for i, n := 0, list.Len(); i < n; i++ {
+		P.newlines = 1;  // for first entry
+		P.Stat(list.At(i).(*AST.Stat));
 		P.newlines = 1;
-		for i, n := 0, list.Len(); i < n; i++ {
-			P.Stat(list.At(i).(*AST.Stat));
-			P.newlines = 1;
-			P.state = inside_list;
-		}
+		P.state = inside_list;
 	}
 }
 
 
-func (P *Printer) Block(pos int, list *array.Array, end int, indent bool) {
+func (P *Printer) Block(b *AST.Block, indent bool) {
 	P.state = opening_scope;
-	P.String(pos, "{");
+	P.Token(b.Pos, b.Tok);
 	if !indent {
 		P.indentation--;
 	}
-	P.StatementList(list);
+	P.StatementList(b.List);
 	if !indent {
 		P.indentation++;
 	}
@@ -671,7 +669,11 @@ func (P *Printer) Block(pos int, list *array.Array, end int, indent bool) {
 		P.separator = none;
 	}
 	P.state = closing_scope;
-	P.String(end, "}");
+	if b.Tok == Scanner.LBRACE {
+		P.String(b.End, "}");
+	} else {
+		P.String(0, "");  // process closing_scope state transition!
+	}
 }
 
 
@@ -737,12 +739,12 @@ func (P *Printer) Stat(s *AST.Stat) {
 
 	case Scanner.LBRACE:
 		// block
-		P.Block(s.Pos, s.Block, s.End, true);
+		P.Block(s.Body, true);
 
 	case Scanner.IF:
 		P.String(s.Pos, "if");
 		P.ControlClause(s);
-		P.Block(0, s.Block, s.End, true);
+		P.Block(s.Body, true);
 		if s.Post != nil {
 			P.separator = blank;
 			P.String(0, "else");
@@ -753,12 +755,12 @@ func (P *Printer) Stat(s *AST.Stat) {
 	case Scanner.FOR:
 		P.String(s.Pos, "for");
 		P.ControlClause(s);
-		P.Block(0, s.Block, s.End, true);
+		P.Block(s.Body, true);
 
 	case Scanner.SWITCH, Scanner.SELECT:
 		P.Token(s.Pos, s.Tok);
 		P.ControlClause(s);
-		P.Block(0, s.Block, s.End, false);
+		P.Block(s.Body, false);
 
 	case Scanner.CASE, Scanner.DEFAULT:
 		P.Token(s.Pos, s.Tok);
@@ -766,9 +768,11 @@ func (P *Printer) Stat(s *AST.Stat) {
 			P.separator = blank;
 			P.Expr(s.Expr);
 		}
-		P.String(0, ":");
+		// TODO: try to use P.Block instead
+		// P.Block(s.Body, true);
+		P.String(s.Body.Pos, ":");
 		P.indentation++;
-		P.StatementList(s.Block);
+		P.StatementList(s.Body.List);
 		P.indentation--;
 		P.newlines = 1;
 
@@ -850,9 +854,9 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 			}
 			P.Expr(d.Ident);
 			P.separator = P.Type(d.Typ);
-			if d.List != nil {
+			if d.Val != nil {
 				P.separator = blank;
-				P.Block(0, d.List, d.End, true);
+				P.Block(d.Val.Obj.Body, true);
 			}
 
 		default:

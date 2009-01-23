@@ -24,9 +24,10 @@ apply1() {
 	#echo $1 $2
 	case `basename $F` in
 	# files with errors (skip them)
+	# the following have semantic errors: bug039.go | bug040.go
 	method1.go | selftest1.go | func3.go | \
-	bug014.go | bug025.go | bug029.go | bug032.go | bug050.go |  bug068.go | \
-	bug088.go | bug083.go | bug106.go | bug125.go | bug126.go ) ;;
+	bug014.go | bug025.go | bug029.go | bug032.go | bug039.go | bug040.go | bug050.go |  bug068.go | \
+	bug088.go | bug083.go | bug106.go | bug125.go | bug126.go | bug132.go ) ;;
 	* ) $1 $2; count $F;;
 	esac
 }

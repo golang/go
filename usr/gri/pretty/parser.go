@@ -97,7 +97,14 @@ func (P *Parser) Next0() {
 
 	if P.verbose {
 		P.PrintIndent();
-		print("[", P.pos, "] ", Scanner.TokenString(P.tok), "\n");
+		s := Scanner.TokenString(P.tok);
+		// rewrite "{" and "}" so we don't screw up double-click selection
+		// in terminal window (we print scopes using the same characters)
+		switch s {
+		case "{": s = "LBRACE";
+		case "}": s = "RBRACE";
+		}
+		print("[", P.pos, "] ", s, "\n");
 	}
 }
 
@@ -168,15 +175,15 @@ func (P *Parser) DeclareInScope(scope *AST.Scope, x *AST.Expr, kind int) {
 		panic("cannot declare objects in other packages");
 	}
 	if x.Tok != Scanner.ILLEGAL {  // ignore bad exprs
+		assert(x.Tok == Scanner.IDENT);
 		obj := x.Obj;
-		assert(x.Tok == Scanner.IDENT && obj.Kind == AST.NONE);
 		obj.Kind = kind;
 		obj.Pnolev = P.scope_lev;
-		if scope.LookupLocal(obj.Ident) != nil {
+		if scope.LookupLocal(obj.Ident) == nil {
+			scope.Insert(obj);
+		} else {
 			P.Error(obj.Pos, `"` + obj.Ident + `" is declared already`);
-			return;  // don't insert it into the scope
 		}
-		scope.Insert(obj);
 	}
 }
 
@@ -197,7 +204,7 @@ func (P *Parser) Declare(p *AST.Expr, kind int) {
 func exprType(x *AST.Expr) *AST.Type {
 	var t *AST.Type;
 	if x.Tok == Scanner.TYPE {
-		t = x.Obj.Typ;
+		t = x.Typ;
 	} else if x.Tok == Scanner.IDENT {
 		// assume a type name
 		t = AST.NewType(x.Pos, AST.TYPENAME);
@@ -505,7 +512,7 @@ func (P *Parser) ParseResultList() {
 }
 
 
-func (P *Parser) ParseResult() *AST.Type {
+func (P *Parser) ParseResult(ftyp *AST.Type) *AST.Type {
 	P.Trace("Result");
 
 	var t *AST.Type;
@@ -539,9 +546,10 @@ func (P *Parser) ParseFunctionType() *AST.Type {
 	P.scope_lev++;
 
 	t := AST.NewType(P.pos, AST.FUNCTION);
+	t.Scope = P.top_scope;
 	t.List = P.ParseParameters(true).List;  // TODO find better solution
 	t.End = P.pos;
-	t.Elt = P.ParseResult();
+	t.Elt = P.ParseResult(t);
 
 	P.scope_lev--;
 	P.CloseScope();
@@ -620,10 +628,9 @@ func (P *Parser) ParseStructType() *AST.Type {
 	P.Expect(Scanner.STRUCT);
 	if P.tok == Scanner.LBRACE {
 		P.Next();
-		P.OpenScope();
-		P.scope_lev++;
 
 		t.List = array.New(0);
+		t.Scope = AST.NewScope(nil);
 		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 			P.ParseVarList(t.List, false);
 			if P.tok == Scanner.STRING {
@@ -639,9 +646,15 @@ func (P *Parser) ParseStructType() *AST.Type {
 		P.OptSemicolon();
 		t.End = P.pos;
 
-		P.scope_lev--;
-		P.CloseScope();
 		P.Expect(Scanner.RBRACE);
+		
+		// enter fields into struct scope
+		for i, n := 0, t.List.Len(); i < n; i++ {
+			x := t.List.At(i).(*AST.Expr);
+			if x.Tok == Scanner.IDENT {
+				P.DeclareInScope(t.Scope, x, AST.FIELD);
+			}
+		}
 	}
 
 	P.Ecart();
@@ -685,10 +698,9 @@ func (P *Parser) TryType() *AST.Type {
 // ----------------------------------------------------------------------------
 // Blocks
 
-func (P *Parser) ParseStatementList() *array.Array {
+func (P *Parser) ParseStatementList(list *array.Array) {
 	P.Trace("StatementList");
 
-	list := array.New(0);
 	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 		s := P.ParseStatement();
 		if s != nil {
@@ -710,25 +722,42 @@ func (P *Parser) ParseStatementList() *array.Array {
 	}
 
 	P.Ecart();
-	return list;
 }
 
 
-func (P *Parser) ParseBlock() (slist *array.Array, end int) {
+func (P *Parser) ParseBlock(ftyp *AST.Type, tok int) *AST.Block {
 	P.Trace("Block");
 
-	P.Expect(Scanner.LBRACE);
+	b := AST.NewBlock(P.pos, tok);
+	P.Expect(tok);
+
 	P.OpenScope();
+	// enter recv and parameters into function scope
+	if ftyp != nil {
+		assert(ftyp.Form == AST.FUNCTION);
+		if ftyp.Key != nil {
+		}
+		if ftyp.List != nil {
+			for i, n := 0, ftyp.List.Len(); i < n; i++ {
+				x := ftyp.List.At(i).(*AST.Expr);
+				if x.Tok == Scanner.IDENT {
+					P.DeclareInScope(P.top_scope, x, AST.VAR);
+				}
+			}
+		}
+	}
 
-	slist = P.ParseStatementList();
-	end = P.pos;
-
+	P.ParseStatementList(b.List);
 	P.CloseScope();
-	P.Expect(Scanner.RBRACE);
-	P.opt_semi = true;
+
+	if tok == Scanner.LBRACE {
+		b.End = P.pos;
+		P.Expect(Scanner.RBRACE);
+		P.opt_semi = true;
+	}
 
 	P.Ecart();
-	return slist, end;
+	return b;
 }
 
 
@@ -759,41 +788,18 @@ func (P *Parser) ParseExpressionList() *AST.Expr {
 func (P *Parser) ParseFunctionLit() *AST.Expr {
 	P.Trace("FunctionLit");
 
-	val := AST.NewObject(P.pos, AST.NONE, "");
-	x := AST.NewLit(Scanner.FUNC, val);
+	f := AST.NewObject(P.pos, AST.FUNC, "");
 	P.Expect(Scanner.FUNC);
-	val.Typ = P.ParseFunctionType();
+	f.Typ = P.ParseFunctionType();
 	P.expr_lev++;
 	P.scope_lev++;
-	val.Block, val.End = P.ParseBlock();
+	f.Body = P.ParseBlock(f.Typ, Scanner.LBRACE);
 	P.scope_lev--;
 	P.expr_lev--;
 
 	P.Ecart();
-	return x;
+	return AST.NewLit(Scanner.FUNC, f);
 }
-
-
-/*
-func (P *Parser) ParseNewCall() *AST.Expr {
-	P.Trace("NewCall");
-
-	x := AST.NewExpr(P.pos, Scanner.NEW, nil, nil);
-	P.Next();
-	P.Expect(Scanner.LPAREN);
-	P.expr_lev++;
-	x.t = P.ParseType();
-	if P.tok == Scanner.COMMA {
-		P.Next();
-		x.Y = P.ParseExpressionList();
-	}
-	P.expr_lev--;
-	P.Expect(Scanner.RPAREN);
-
-	P.Ecart();
-	return x;
-}
-*/
 
 
 func (P *Parser) ParseOperand() *AST.Expr {
@@ -850,11 +856,18 @@ func (P *Parser) ParseSelectorOrTypeGuard(x *AST.Expr) *AST.Expr {
 	P.Expect(Scanner.PERIOD);
 
 	if P.tok == Scanner.IDENT {
-		x.Y = P.ParseIdent(nil);
+		// TODO should always guarantee x.Typ != nil
+		var scope *AST.Scope;
+		if x.Typ != nil {
+			scope = x.Typ.Scope;
+		}
+		x.Y = P.ParseIdent(scope);
+		x.Typ = x.Y.Obj.Typ;
 
 	} else {
 		P.Expect(Scanner.LPAREN);
 		x.Y = AST.NewTypeExpr(P.ParseType());
+		x.Typ = x.Y.Typ;
 		P.Expect(Scanner.RPAREN);
 	}
 
@@ -1246,28 +1259,25 @@ func (P *Parser) ParseIfStat() *AST.Stat {
 
 	P.OpenScope();
 	s := P.ParseControlClause(Scanner.IF);
-	s.Block, s.End = P.ParseBlock();
+	s.Body = P.ParseBlock(nil, Scanner.LBRACE);
 	if P.tok == Scanner.ELSE {
 		P.Next();
 		s1 := AST.BadStat;
-		if P.tok == Scanner.IF {
-			s1 = P.ParseIfStat();
+		if P.tok == Scanner.IF || P.tok == Scanner.LBRACE {
+			s1 = P.ParseStatement();
 		} else if P.sixg {
 			s1 = P.ParseStatement();
 			if s1 != nil {
 				// not the empty statement
-				if s1.Tok != Scanner.LBRACE {
-					// wrap in a block if we don't have one
-					b := AST.NewStat(P.pos, Scanner.LBRACE);
-					b.Block = array.New(0);
-					b.Block.Push(s1);
-					s1 = b;
-				}
-				s.Post = s1;
+				assert(s1.Tok != Scanner.LBRACE);
+				// wrap in a block since we don't have one
+				b := AST.NewStat(s1.Pos, Scanner.LBRACE);
+				b.Body = AST.NewBlock(s1.Pos, Scanner.LBRACE);
+				b.Body.List.Push(s1);
+				s1 = b;
 			}
 		} else {
-			s1 = AST.NewStat(P.pos, Scanner.LBRACE);
-			s1.Block, s1.End = P.ParseBlock();
+			P.Error(P.pos, "'if' or '{' expected - illegal 'else' branch");
 		}
 		s.Post = s1;
 	}
@@ -1283,7 +1293,7 @@ func (P *Parser) ParseForStat() *AST.Stat {
 
 	P.OpenScope();
 	s := P.ParseControlClause(Scanner.FOR);
-	s.Block, s.End = P.ParseBlock();
+	s.Body = P.ParseBlock(nil, Scanner.LBRACE);
 	P.CloseScope();
 
 	P.Ecart();
@@ -1291,8 +1301,8 @@ func (P *Parser) ParseForStat() *AST.Stat {
 }
 
 
-func (P *Parser) ParseCase() *AST.Stat {
-	P.Trace("Case");
+func (P *Parser) ParseSwitchCase() *AST.Stat {
+	P.Trace("SwitchCase");
 
 	s := AST.NewStat(P.pos, P.tok);
 	if P.tok == Scanner.CASE {
@@ -1301,7 +1311,6 @@ func (P *Parser) ParseCase() *AST.Stat {
 	} else {
 		P.Expect(Scanner.DEFAULT);
 	}
-	P.Expect(Scanner.COLON);
 
 	P.Ecart();
 	return s;
@@ -1311,10 +1320,8 @@ func (P *Parser) ParseCase() *AST.Stat {
 func (P *Parser) ParseCaseClause() *AST.Stat {
 	P.Trace("CaseClause");
 
-	s := P.ParseCase();
-	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE {
-		s.Block = P.ParseStatementList();
-	}
+	s := P.ParseSwitchCase();
+	s.Body = P.ParseBlock(nil, Scanner.COLON);
 
 	P.Ecart();
 	return s;
@@ -1326,15 +1333,16 @@ func (P *Parser) ParseSwitchStat() *AST.Stat {
 
 	P.OpenScope();
 	s := P.ParseControlClause(Scanner.SWITCH);
-	s.Block = array.New(0);
+	b := AST.NewBlock(P.pos, Scanner.LBRACE);
 	P.Expect(Scanner.LBRACE);
 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
-		s.Block.Push(P.ParseCaseClause());
+		b.List.Push(P.ParseCaseClause());
 	}
-	s.End = P.pos;
+	b.End = P.pos;
 	P.Expect(Scanner.RBRACE);
 	P.opt_semi = true;
 	P.CloseScope();
+	s.Body = b;
 
 	P.Ecart();
 	return s;
@@ -1362,7 +1370,6 @@ func (P *Parser) ParseCommCase() *AST.Stat {
 	} else {
 		P.Expect(Scanner.DEFAULT);
 	}
-	P.Expect(Scanner.COLON);
 
 	P.Ecart();
 	return s;
@@ -1373,9 +1380,7 @@ func (P *Parser) ParseCommClause() *AST.Stat {
 	P.Trace("CommClause");
 
 	s := P.ParseCommCase();
-	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE {
-		s.Block = P.ParseStatementList();
-	}
+	s.Body = P.ParseBlock(nil, Scanner.COLON);
 
 	P.Ecart();
 	return s;
@@ -1386,29 +1391,16 @@ func (P *Parser) ParseSelectStat() *AST.Stat {
 	P.Trace("SelectStat");
 
 	s := AST.NewStat(P.pos, Scanner.SELECT);
-	s.Block = array.New(0);
 	P.Expect(Scanner.SELECT);
+	b := AST.NewBlock(P.pos, Scanner.LBRACE);
 	P.Expect(Scanner.LBRACE);
 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
-		s.Block.Push(P.ParseCommClause());
+		b.List.Push(P.ParseCommClause());
 	}
+	b.End = P.pos;
 	P.Expect(Scanner.RBRACE);
 	P.opt_semi = true;
-
-	P.Ecart();
-	return s;
-}
-
-
-func (P *Parser) ParseRangeStat() *AST.Stat {
-	P.Trace("RangeStat");
-
-	s := AST.NewStat(P.pos, Scanner.RANGE);
-	P.Expect(Scanner.RANGE);
-	P.ParseIdentList();
-	P.Expect(Scanner.DEFINE);
-	s.Expr = P.ParseExpression(1);
-	s.Block, s.End = P.ParseBlock();
+	s.Body = b;
 
 	P.Ecart();
 	return s;
@@ -1442,15 +1434,13 @@ func (P *Parser) ParseStatement() *AST.Stat {
 		s = P.ParseControlFlowStat(P.tok);
 	case Scanner.LBRACE:
 		s = AST.NewStat(P.pos, Scanner.LBRACE);
-		s.Block, s.End = P.ParseBlock();
+		s.Body = P.ParseBlock(nil, Scanner.LBRACE);
 	case Scanner.IF:
 		s = P.ParseIfStat();
 	case Scanner.FOR:
 		s = P.ParseForStat();
 	case Scanner.SWITCH:
 		s = P.ParseSwitchStat();
-	case Scanner.RANGE:
-		s = P.ParseRangeStat();
 	case Scanner.SELECT:
 		s = P.ParseSelectStat();
 	default:
@@ -1469,10 +1459,9 @@ func (P *Parser) ParseStatement() *AST.Stat {
 // ----------------------------------------------------------------------------
 // Declarations
 
-func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
+func (P *Parser) ParseImportSpec(d *AST.Decl) {
 	P.Trace("ImportSpec");
 
-	d := AST.NewDecl(pos, Scanner.IMPORT);
 	if P.tok == Scanner.PERIOD {
 		P.Error(P.pos, `"import ." not yet handled properly`);
 		P.Next();
@@ -1494,14 +1483,12 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
 	}
 
 	P.Ecart();
-	return d;
 }
 
 
-func (P *Parser) ParseConstSpec(pos int) *AST.Decl {
+func (P *Parser) ParseConstSpec(d *AST.Decl) {
 	P.Trace("ConstSpec");
 
-	d := AST.NewDecl(pos, Scanner.CONST);
 	d.Ident = P.ParseIdentList();
 	d.Typ = P.TryType();
 	if P.tok == Scanner.ASSIGN {
@@ -1512,27 +1499,23 @@ func (P *Parser) ParseConstSpec(pos int) *AST.Decl {
 	P.Declare(d.Ident, AST.CONST);
 
 	P.Ecart();
-	return d;
 }
 
 
-func (P *Parser) ParseTypeSpec(pos int) *AST.Decl {
+func (P *Parser) ParseTypeSpec(d *AST.Decl) {
 	P.Trace("TypeSpec");
 
-	d := AST.NewDecl(pos, Scanner.TYPE);
 	d.Ident = P.ParseIdent(nil);
 	d.Typ = P.ParseType();
 	P.opt_semi = true;
 
 	P.Ecart();
-	return d;
 }
 
 
-func (P *Parser) ParseVarSpec(pos int) *AST.Decl {
+func (P *Parser) ParseVarSpec(d *AST.Decl) {
 	P.Trace("VarSpec");
 
-	d := AST.NewDecl(pos, Scanner.VAR);
 	d.Ident = P.ParseIdentList();
 	if P.tok == Scanner.ASSIGN {
 		P.Next();
@@ -1548,35 +1531,59 @@ func (P *Parser) ParseVarSpec(pos int) *AST.Decl {
 	P.Declare(d.Ident, AST.VAR);
 
 	P.Ecart();
-	return d;
 }
 
 
-// TODO replace this by using function pointers derived from methods
-func (P *Parser) ParseSpec(pos int, keyword int) *AST.Decl {
-	switch keyword {
-	case Scanner.IMPORT: return P.ParseImportSpec(pos);
-	case Scanner.CONST: return P.ParseConstSpec(pos);
-	case Scanner.TYPE: return P.ParseTypeSpec(pos);
-	case Scanner.VAR: return P.ParseVarSpec(pos);
+func (P *Parser) ParseSpec(d *AST.Decl) {
+	switch d.Tok {
+	case Scanner.IMPORT: P.ParseImportSpec(d);
+	case Scanner.CONST: P.ParseConstSpec(d);
+	case Scanner.TYPE: P.ParseTypeSpec(d);
+	case Scanner.VAR: P.ParseVarSpec(d);
+	default: unreachable();
 	}
-	panic("UNREACHABLE");
-	return nil;
+	
+	// semantic checks
+	if d.Tok == Scanner.IMPORT {
+		// TODO
+	} else {
+		if d.Typ != nil {
+			// apply type to all variables
+		}
+		if d.Val != nil {
+			// initialization/assignment
+			llen := d.Ident.Len();
+			rlen := d.Val.Len();
+			if llen == rlen {
+				// TODO
+			} else if rlen == 1 {
+				// TODO
+			} else {
+				if llen < rlen {
+					P.Error(d.Val.At(llen).Pos, "more expressions than variables");
+				} else {
+					P.Error(d.Ident.At(rlen).Pos, "more variables than expressions");
+				}
+			}
+		} else {
+			// TODO
+		}
+	}
 }
 
 
 func (P *Parser) ParseDecl(keyword int) *AST.Decl {
 	P.Trace("Decl");
 
-	d := AST.BadDecl;
-	pos := P.pos;
+	d := AST.NewDecl(P.pos, keyword);
 	P.Expect(keyword);
 	if P.tok == Scanner.LPAREN {
 		P.Next();
-		d = AST.NewDecl(pos, keyword);
 		d.List = array.New(0);
 		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
-			d.List.Push(P.ParseSpec(pos, keyword));
+			d1 := AST.NewDecl(P.pos, keyword);
+			P.ParseSpec(d1);
+			d.List.Push(d1);
 			if P.tok == Scanner.SEMICOLON {
 				P.Next();
 			} else {
@@ -1588,7 +1595,7 @@ func (P *Parser) ParseDecl(keyword int) *AST.Decl {
 		P.opt_semi = true;
 
 	} else {
-		d = P.ParseSpec(pos, keyword);
+		P.ParseSpec(d);
 	}
 
 	P.Ecart();
@@ -1625,9 +1632,10 @@ func (P *Parser) ParseFunctionDecl() *AST.Decl {
 	d.Typ.Key = recv;
 
 	if P.tok == Scanner.LBRACE {
-		P.scope_lev++;
-		d.List, d.End = P.ParseBlock();
-		P.scope_lev--;
+		f := AST.NewObject(d.Pos, AST.FUNC, d.Ident.Obj.Ident);
+		f.Typ = d.Typ;
+		f.Body = P.ParseBlock(d.Typ, Scanner.LBRACE);
+		d.Val = AST.NewLit(Scanner.FUNC, f);
 	}
 
 	P.Ecart();

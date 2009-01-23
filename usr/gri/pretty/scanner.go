@@ -170,8 +170,8 @@ func TokenString(tok int) string {
 	case RPAREN: return ")";
 	case LBRACK: return "[";
 	case RBRACK: return "]";
-	case LBRACE: return "LBRACE";
-	case RBRACE: return "RBRACE";
+	case LBRACE: return "{";
+	case RBRACE: return "}";
 
 	case COMMA: return ",";
 	case SEMICOLON: return ";";

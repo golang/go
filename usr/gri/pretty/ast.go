@@ -16,10 +16,21 @@ type (
 	Object struct;
 	Type struct;
 
+	Block struct;
 	Expr struct;
 	Stat struct;
 	Decl struct;
 )
+
+
+// ----------------------------------------------------------------------------
+// Support
+
+func assert(pred bool) {
+	if !pred {
+		panic("assertion failed");
+	}
+}
 
 
 // ----------------------------------------------------------------------------
@@ -63,7 +74,7 @@ type Object struct {
 	Pnolev int;  // >= 0: package no., <= 0: function nesting level, 0: global level
 
 	// attached values
-	Block *array.Array; End int;  // stats for function literals; end of block pos
+	Body *Block;  // function body
 }
 
 
@@ -175,15 +186,40 @@ type Node struct {
 
 
 // ----------------------------------------------------------------------------
+// Blocks
+//
+// Syntactic constructs of the form:
+//
+//   "{" StatementList "}"
+//   ":" StatementList
+
+type Block struct {
+	Node;
+	List *array.Array;
+	End int;  // position of closing "}" if present
+}
+
+
+func NewBlock(pos, tok int) *Block {
+	assert(tok == Scanner.LBRACE || tok == Scanner.COLON);
+	b := new(Block);
+	b.Pos, b.Tok, b.List = pos, tok, array.New(0);
+	return b;
+}
+
+
+// ----------------------------------------------------------------------------
 // Expressions
 
 type Expr struct {
 	Node;
 	X, Y *Expr;  // binary (X, Y) and unary (Y) expressions
-	Obj *Object;
+	Obj *Object;  // identifiers, literals
+	Typ *Type;
 }
 
 
+// Length of a comma-separated expression list.
 func (x *Expr) Len() int {
 	if x == nil {
 		return 0;
@@ -193,6 +229,19 @@ func (x *Expr) Len() int {
 		n++;
 	}
 	return n;
+}
+
+
+// The i'th expression in a comma-separated expression list.
+func (x *Expr) At(i int) *Expr {
+	for j := 0; j < i; j++ {
+		assert(x.Tok == Scanner.COMMA);
+		x = x.Y;
+	}
+	if x.Tok == Scanner.COMMA {
+		x = x.X;
+	}
+	return x;
 }
 
 
@@ -302,7 +351,7 @@ type Type struct {
 	Form int;  // type form
 	Size int;  // size in bytes
 	Obj *Object;  // primary type object or NULL
-	Scope *Scope;  // forwards, structs, interfaces, functions
+	Scope *Scope;  // locals, fields & methods
 
 	// syntactic components
 	Pos int;  // source position (< 0 if unknown position)
@@ -311,7 +360,6 @@ type Type struct {
 	Key *Type;  // receiver type or map key
 	Elt *Type;  // array, map, channel or pointer element type, function result type
 	List *array.Array; End int;  // struct fields, interface methods, function parameters
-	Scope *Scope;  // struct fields, methods
 }
 
 
@@ -351,9 +399,9 @@ func (t *Type) Nfields() int {
 
 // requires complete Type.Pos access
 func NewTypeExpr(typ *Type) *Expr {
-	obj := NewObject(typ.Pos, TYPE, "");
-	obj.Typ = typ;
-	return NewLit(Scanner.TYPE, obj);
+	e := new(Expr);
+	e.Pos, e.Tok, e.Typ = typ.Pos, Scanner.TYPE, typ;
+	return e;
 }
 
 
@@ -367,7 +415,7 @@ type Stat struct {
 	Node;
 	Init, Post *Stat;
 	Expr *Expr;
-	Block *array.Array; End int;  // block end position
+	Body *Block;  // composite statement body
 	Decl *Decl;
 }
 
@@ -391,7 +439,6 @@ type Decl struct {
 	Typ *Type;
 	Val *Expr;
 	// list of *Decl for ()-style declarations
-	// list of *Stat for func declarations (or nil for forward decl)
 	List *array.Array; End int;
 }
 
