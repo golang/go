@@ -17,6 +17,7 @@ type (
 	Type struct;
 
 	Block struct;
+	Lit struct;
 	Expr struct;
 	Stat struct;
 	Decl struct;
@@ -88,6 +89,18 @@ func (obj *Object) IsExported() bool {
 }
 
 
+func (obj* Object) String() string {
+	if obj != nil {
+		return
+			"Object(" +
+			KindStr(obj.Kind) + ", " +
+			obj.Ident +
+			")";
+	}
+	return "nil";
+}
+
+
 var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
 var objectId int;
 
@@ -99,10 +112,39 @@ func NewObject(pos, kind int, ident string) *Object {
 	obj.Pos = pos;
 	obj.Kind = kind;
 	obj.Ident = ident;
-	obj.Typ = Universe_void_typ;
+	obj.Typ = Universe_void_typ;  // TODO would it be better to use nil instead?
 	obj.Pnolev = 0;
 
 	return obj;
+}
+
+
+// ----------------------------------------------------------------------------
+// All nodes have a source position and a token.
+
+type Node struct {
+	Pos int;  // source position (< 0 => unknown position)
+	Tok int;  // identifying token
+}
+
+
+// ----------------------------------------------------------------------------
+// Literals
+
+type Lit struct {
+	Node;
+	
+	// Identifiers
+	Obj *Object;
+	
+	// Constant literals
+	
+	// Type literals
+	Len *Expr;  // array length
+	Dir int;  // channel direction
+	Key *Type;  // receiver or map key type
+	Elt *Type;  // array, map, channel, pointer element, or function result type
+	List *array.Array; End int;  // struct fields, interface methods, function parameters
 }
 
 
@@ -173,15 +215,6 @@ func (scope *Scope) Print() {
 		print("\n  ", key);
 	}
 	print("\n}\n");
-}
-
-
-// ----------------------------------------------------------------------------
-// All nodes have a source position and and token.
-
-type Node struct {
-	Pos int;  // source position (< 0 => unknown position)
-	Tok int;  // identifying token
 }
 
 
@@ -258,7 +291,7 @@ func NewExpr(pos, tok int, x, y *Expr) *Expr {
 // TODO probably don't need the tok parameter eventually
 func NewLit(tok int, obj *Object) *Expr {
 	e := new(Expr);
-	e.Pos, e.Tok, e.Obj = obj.Pos, tok, obj;
+	e.Pos, e.Tok, e.Obj, e.Typ = obj.Pos, tok, obj, obj.Typ;
 	return e;
 }
 
@@ -350,7 +383,7 @@ type Type struct {
 	Ref int;  // for exporting only: >= 0 means already exported
 	Form int;  // type form
 	Size int;  // size in bytes
-	Obj *Object;  // primary type object or NULL
+	Obj *Object;  // primary type object or nil
 	Scope *Scope;  // locals, fields & methods
 
 	// syntactic components
@@ -358,7 +391,7 @@ type Type struct {
 	Expr *Expr;  // type name, array length
 	Mode int;  // channel mode
 	Key *Type;  // receiver type or map key
-	Elt *Type;  // array, map, channel or pointer element type, function result type
+	Elt *Type;  // type name type, array, map, channel or pointer element type, function result type
 	List *array.Array; End int;  // struct fields, interface methods, function parameters
 }
 
@@ -397,11 +430,38 @@ func (t *Type) Nfields() int {
 }
 
 
+func (typ* Type) String() string {
+	if typ != nil {
+		return
+			"Type(" +
+			FormStr(typ.Form) +
+			")";
+	}
+	return "nil";
+}
+
+
 // requires complete Type.Pos access
 func NewTypeExpr(typ *Type) *Expr {
 	e := new(Expr);
 	e.Pos, e.Tok, e.Typ = typ.Pos, Scanner.TYPE, typ;
 	return e;
+}
+
+
+// requires complete Type.String access
+func (x *Expr) String() string {
+	if x != nil {
+		return
+			"Expr(" +
+			Scanner.TokenString(x.Tok) + ", " +
+			x.X.String() + ", " +
+			x.Y.String() + ", " +
+			x.Obj.String() + ", " +
+			x.Typ.String() +
+			")";
+	}
+	return "nil";
 }
 
 
@@ -416,7 +476,7 @@ type Stat struct {
 	Init, Post *Stat;
 	Expr *Expr;
 	Body *Block;  // composite statement body
-	Decl *Decl;
+	Decl *Decl;  // declaration statement
 }
 
 

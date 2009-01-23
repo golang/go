@@ -5,6 +5,7 @@
 package Parser
 
 import (
+	"fmt";
 	"array";
 	Scanner "scanner";
 	AST "ast";
@@ -170,7 +171,7 @@ func (P *Parser) CloseScope() {
 }
 
 
-func (P *Parser) DeclareInScope(scope *AST.Scope, x *AST.Expr, kind int) {
+func (P *Parser) DeclareInScope(scope *AST.Scope, x *AST.Expr, kind int, typ *AST.Type) {
 	if P.scope_lev < 0 {
 		panic("cannot declare objects in other packages");
 	}
@@ -178,10 +179,16 @@ func (P *Parser) DeclareInScope(scope *AST.Scope, x *AST.Expr, kind int) {
 		assert(x.Tok == Scanner.IDENT);
 		obj := x.Obj;
 		obj.Kind = kind;
+		obj.Typ = typ;
 		obj.Pnolev = P.scope_lev;
-		if scope.LookupLocal(obj.Ident) == nil {
+		switch {
+		case scope.LookupLocal(obj.Ident) == nil:
 			scope.Insert(obj);
-		} else {
+		case kind == AST.TYPE:
+			// possibly a forward declaration
+		case kind == AST.FUNC:
+			// possibly a forward declaration
+		default:
 			P.Error(obj.Pos, `"` + obj.Ident + `" is declared already`);
 		}
 	}
@@ -189,12 +196,12 @@ func (P *Parser) DeclareInScope(scope *AST.Scope, x *AST.Expr, kind int) {
 
 
 // Declare a comma-separated list of idents or a single ident.
-func (P *Parser) Declare(p *AST.Expr, kind int) {
+func (P *Parser) Declare(p *AST.Expr, kind int, typ *AST.Type) {
 	for p.Tok == Scanner.COMMA {
-		P.DeclareInScope(P.top_scope, p.X, kind);
+		P.DeclareInScope(P.top_scope, p.X, kind, typ);
 		p = p.Y;
 	}
-	P.DeclareInScope(P.top_scope, p, kind);
+	P.DeclareInScope(P.top_scope, p, kind, typ);
 }
 
 
@@ -344,6 +351,7 @@ func (P *Parser) ParseTypeName() *AST.Type {
 
 	t := AST.NewType(P.pos, AST.TYPENAME);
 	t.Expr = P.ParseQualifiedIdent();
+	t.Elt = t.Expr.Typ;
 
 	P.Ecart();
 	return t;
@@ -652,7 +660,7 @@ func (P *Parser) ParseStructType() *AST.Type {
 		for i, n := 0, t.List.Len(); i < n; i++ {
 			x := t.List.At(i).(*AST.Expr);
 			if x.Tok == Scanner.IDENT {
-				P.DeclareInScope(t.Scope, x, AST.FIELD);
+				P.DeclareInScope(t.Scope, x, AST.FIELD, nil);
 			}
 		}
 	}
@@ -741,7 +749,7 @@ func (P *Parser) ParseBlock(ftyp *AST.Type, tok int) *AST.Block {
 			for i, n := 0, ftyp.List.Len(); i < n; i++ {
 				x := ftyp.List.At(i).(*AST.Expr);
 				if x.Tok == Scanner.IDENT {
-					P.DeclareInScope(P.top_scope, x, AST.VAR);
+					P.DeclareInScope(P.top_scope, x, AST.VAR, nil);
 				}
 			}
 		}
@@ -858,8 +866,8 @@ func (P *Parser) ParseSelectorOrTypeGuard(x *AST.Expr) *AST.Expr {
 	if P.tok == Scanner.IDENT {
 		// TODO should always guarantee x.Typ != nil
 		var scope *AST.Scope;
-		if x.Typ != nil {
-			scope = x.Typ.Scope;
+		if x.X.Typ != nil {
+			scope = x.X.Typ.Scope;
 		}
 		x.Y = P.ParseIdent(scope);
 		x.Typ = x.Y.Obj.Typ;
@@ -1478,10 +1486,6 @@ func (P *Parser) ParseImportSpec(d *AST.Decl) {
 		P.Expect(Scanner.STRING);  // use Expect() error handling
 	}
 
-	if d.Ident != nil {
-		P.Declare(d.Ident, AST.PACKAGE);
-	}
-
 	P.Ecart();
 }
 
@@ -1495,8 +1499,6 @@ func (P *Parser) ParseConstSpec(d *AST.Decl) {
 		P.Next();
 		d.Val = P.ParseExpressionList();
 	}
-
-	P.Declare(d.Ident, AST.CONST);
 
 	P.Ecart();
 }
@@ -1528,28 +1530,28 @@ func (P *Parser) ParseVarSpec(d *AST.Decl) {
 		}
 	}
 
-	P.Declare(d.Ident, AST.VAR);
-
 	P.Ecart();
 }
 
 
 func (P *Parser) ParseSpec(d *AST.Decl) {
+	kind := AST.NONE;
+	
 	switch d.Tok {
-	case Scanner.IMPORT: P.ParseImportSpec(d);
-	case Scanner.CONST: P.ParseConstSpec(d);
-	case Scanner.TYPE: P.ParseTypeSpec(d);
-	case Scanner.VAR: P.ParseVarSpec(d);
+	case Scanner.IMPORT: P.ParseImportSpec(d); kind = AST.PACKAGE;
+	case Scanner.CONST: P.ParseConstSpec(d); kind = AST.CONST;
+	case Scanner.TYPE: P.ParseTypeSpec(d); kind = AST.TYPE;
+	case Scanner.VAR: P.ParseVarSpec(d); kind = AST.VAR;
 	default: unreachable();
 	}
-	
+
 	// semantic checks
 	if d.Tok == Scanner.IMPORT {
-		// TODO
-	} else {
-		if d.Typ != nil {
-			// apply type to all variables
+		if d.Ident != nil {
+			P.Declare(d.Ident, kind, nil);
 		}
+	} else {
+		P.Declare(d.Ident, kind, d.Typ);
 		if d.Val != nil {
 			// initialization/assignment
 			llen := d.Ident.Len();
