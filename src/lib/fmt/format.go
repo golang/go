@@ -13,7 +13,7 @@ import (
 
 	f := fmt.New();
 	print f.Fmt_d(1234).Fmt_s("\n").Str();  // create string, print it
-	f.Fmt_d(-1234).Fmt_s("\n").put();  // print string
+	f.Fmt_d(-1234).Fmt_s("\n").Put();  // print string
 	f.Fmt_ud(1<<63).Putnl();  // print string with automatic newline
 */
 
