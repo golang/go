@@ -24,7 +24,7 @@ func Asin(arg float64) float64 {
 		sign = true;
 	}
 	if arg > 1 {
-		return sys.NaN();
+		return NaN();
 	}
 
 	temp = Sqrt(1 - x*x);
@@ -42,7 +42,7 @@ func Asin(arg float64) float64 {
 
 func Acos(arg float64) float64 {
 	if arg > 1 || arg < -1 {
-		return sys.NaN();
+		return NaN();
 	}
 	return Pi/2 - Asin(arg);
 }

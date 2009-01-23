@@ -58,8 +58,8 @@ void bsdthread_register(void);
 typedef int32 kern_return_t;
 typedef uint32 mach_port_t;
 
-mach_port_t semcreate(void);
-void semacquire(mach_port_t);
-void semrelease(mach_port_t);
-void semreset(mach_port_t);
-void semdestroy(mach_port_t);
+mach_port_t mach_semcreate(void);
+void mach_semacquire(mach_port_t);
+void mach_semrelease(mach_port_t);
+void mach_semreset(mach_port_t);
+void mach_semdestroy(mach_port_t);

@@ -5,6 +5,7 @@
 package strconv
 
 import (
+	"math";
 	"strconv";
 	"testing"
 )
@@ -89,11 +90,11 @@ var ftoatests = []ftoaTest {
 
 	ftoaTest{ 100, 'x', -1, "%x" },
 
-	ftoaTest{ sys.NaN(), 'g', -1, "NaN" },
-	ftoaTest{ -sys.NaN(), 'g', -1, "NaN" },
-	ftoaTest{ sys.Inf(0), 'g', -1, "+Inf" },
-	ftoaTest{ sys.Inf(-1), 'g', -1,  "-Inf" },
-	ftoaTest{ -sys.Inf(0), 'g', -1, "-Inf" },
+	ftoaTest{ math.NaN(), 'g', -1, "NaN" },
+	ftoaTest{ -math.NaN(), 'g', -1, "NaN" },
+	ftoaTest{ math.Inf(0), 'g', -1, "+Inf" },
+	ftoaTest{ math.Inf(-1), 'g', -1,  "-Inf" },
+	ftoaTest{ -math.Inf(0), 'g', -1, "-Inf" },
 
 	ftoaTest{ -1, 'b', -1, "-4503599627370496p-52" },
 }

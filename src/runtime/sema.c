@@ -133,11 +133,10 @@ cansemacquire(uint32 *addr)
 	return 0;
 }
 
-// func sync.semacquire(addr *uint32)
 // For now has no return value.
 // Might return an ok (not interrupted) bool in the future?
 void
-sync·semacquire(uint32 *addr)
+semacquire(uint32 *addr)
 {
 	Sema s;
 
@@ -163,9 +162,8 @@ sync·semacquire(uint32 *addr)
 	semwakeup(addr);
 }
 
-// func sync.semrelease(addr *uint32)
 void
-sync·semrelease(uint32 *addr)
+semrelease(uint32 *addr)
 {
 	uint32 v;
 

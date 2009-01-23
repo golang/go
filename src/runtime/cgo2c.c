@@ -21,11 +21,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
-/* The name of the program.  */
-static const char *program_name;
+/* Whether we're emitting for gcc */
+static int gcc;
 
-/* The line number.  */
+/* File and line number */
+static const char *file;
 static unsigned int lineno;
 
 /* List of names and types.  */
@@ -39,8 +41,7 @@ struct params {
 static void
 bad_eof(void)
 {
-	fprintf(stderr, "%s: line %u: unexpected EOF\n",
-		program_name, lineno);
+	fprintf(stderr, "%s:%u: unexpected EOF\n", file, lineno);
 	exit(1);
 }
 
@@ -48,8 +49,7 @@ bad_eof(void)
 static void
 bad_mem(void)
 {
-	fprintf(stderr, "%s: line %u: out of memory\n",
-		program_name, lineno);
+	fprintf(stderr, "%s:%u: out of memory\n", file, lineno);
 	exit(1);
 }
 
@@ -212,8 +212,8 @@ read_package(void)
 	token = read_token_no_eof();
 	if (strcmp(token, "package") != 0) {
 		fprintf(stderr,
-			"%s: line %u: expected \"package\", got \"%s\"\n",
-			program_name, lineno, token);
+			"%s:%u: expected \"package\", got \"%s\"\n",
+			file, lineno, token);
 		exit(1);
 	}
 	return read_token_no_eof();
@@ -298,8 +298,8 @@ read_params(void)
 		}
 	}
 	if (strcmp(token, ")") != 0) {
-		fprintf(stderr, "%s: line %u: expected '('\n",
-			program_name, lineno);
+		fprintf(stderr, "%s:%u: expected '('\n",
+			file, lineno);
 		exit(1);
 	}
 	return ret;
@@ -316,16 +316,16 @@ read_func_header(char **name, struct params **params, struct params **rets)
 	if (token == NULL)
 		return 0;
 	if (strcmp(token, "func") != 0) {
-		fprintf(stderr, "%s: line %u: expected \"func\"\n",
-			program_name, lineno);
+		fprintf(stderr, "%s:%u: expected \"func\"\n",
+			file, lineno);
 		exit(1);
 	}
 	*name = read_token_no_eof();
 
 	token = read_token();
 	if (token == NULL || strcmp(token, "(") != 0) {
-		fprintf(stderr, "%s: line %u: expected \"(\"\n",
-			program_name, lineno);
+		fprintf(stderr, "%s:%u: expected \"(\"\n",
+			file, lineno);
 		exit(1);
 	}
 	*params = read_params();
@@ -338,8 +338,8 @@ read_func_header(char **name, struct params **params, struct params **rets)
 		token = read_token();
 	}
 	if (token == NULL || strcmp(token, "{") != 0) {
-		fprintf(stderr, "%s: line %u: expected \"{\"\n",
-			program_name, lineno);
+		fprintf(stderr, "%s:%u: expected \"{\"\n",
+			file, lineno);
 		exit(1);
 	}
 	return 1;
@@ -455,21 +455,22 @@ write_gcc_func_trailer(char *package, char *name, struct params *rets)
 
 /* Write out a function header.  */
 static void
-write_func_header(int flag_gcc, char *package, char *name,
+write_func_header(char *package, char *name,
 		  struct params *params, struct params *rets)
 {
-	if (flag_gcc)
+	if (gcc)
 		write_gcc_func_header(package, name, params, rets);
 	else
 		write_6g_func_header(package, name, params, rets);
+	printf("#line %d \"%s\"\n", lineno, file);
 }
 
 /* Write out a function trailer.  */
 static void
-write_func_trailer(int flag_gcc, char *package, char *name,
+write_func_trailer(char *package, char *name,
 		   struct params *rets)
 {
-	if (flag_gcc)
+	if (gcc)
 		write_gcc_func_trailer(package, name, rets);
 	else
 		write_6g_func_trailer(rets);
@@ -478,7 +479,7 @@ write_func_trailer(int flag_gcc, char *package, char *name,
 /* Read and write the body of the function, ending in an unnested }
    (which is read but not written).  */
 static void
-copy_body()
+copy_body(void)
 {
 	int nesting = 0;
 	while (1) {
@@ -541,7 +542,7 @@ copy_body()
 
 /* Process the entire file.  */
 static void
-process_file(int flag_gcc)
+process_file(void)
 {
 	char *package, *name;
 	struct params *params, *rets;
@@ -549,9 +550,9 @@ process_file(int flag_gcc)
 	package = read_package();
 	read_preprocessor_lines();
 	while (read_func_header(&name, &params, &rets)) {
-		write_func_header(flag_gcc, package, name, params, rets);
+		write_func_header(package, name, params, rets);
 		copy_body();
-		write_func_trailer(flag_gcc, package, name, rets);
+		write_func_trailer(package, name, rets);
 		free(name);
 		free_params(params);
 		free_params(rets);
@@ -559,25 +560,43 @@ process_file(int flag_gcc)
 	free(package);
 }
 
-/* Main function.  */
+static void
+usage(void)
+{
+	fprintf(stderr, "Usage: cgo2c [--6g | --gc] [file]\n");
+	exit(1);
+}
+
 int
 main(int argc, char **argv)
 {
-	int flag_gcc = 0;
-	int i;
-
-	program_name = argv[0];
-	for (i = 1; i < argc; ++i) {
-		if (strcmp(argv[i], "--6g") == 0)
-			flag_gcc = 0;
-		else if (strcmp(argv[i], "--gcc") == 0)
-			flag_gcc = 1;
-		else {
-			fprintf(stderr, "Usage: %s [--6g][--gcc]\n",
-				program_name);
-			exit(1);
-		}
+	while(argc > 1 && argv[1][0] == '-') {
+		if(strcmp(argv[1], "-") == 0)
+			break;
+		if(strcmp(argv[1], "--6g") == 0)
+			gcc = 0;
+		else if(strcmp(argv[1], "--gcc") == 0)
+			gcc = 1;
+		else
+			usage();
+		argc--;
+		argv++;
 	}
-	process_file(flag_gcc);
+	
+	if(argc <= 1 || strcmp(argv[1], "-") == 0) {
+		file = "<stdin>";
+		process_file();
+		return 0;
+	}
+	
+	if(argc > 2)
+		usage();
+
+	file = argv[1];
+	if(freopen(file, "r", stdin) == 0) {
+		fprintf(stderr, "open %s: %s\n", file, strerror(errno));
+		exit(1);
+	}
+	process_file();
 	return 0;
 }

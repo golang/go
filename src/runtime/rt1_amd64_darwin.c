@@ -232,10 +232,10 @@ initsema(uint32 *psema)
 	if(*psema != 0)	// already have one
 		return;
 
-	sema = semcreate();
+	sema = mach_semcreate();
 	if(!cas(psema, 0, sema)){
 		// Someone else filled it in.  Use theirs.
-		semdestroy(sema);
+		mach_semdestroy(sema);
 		return;
 	}
 }
@@ -281,14 +281,14 @@ lock(Lock *l)
 		initsema(&l->sema);
 
 	if(xadd(&l->key, 1) > 1)	// someone else has it; wait
-		semacquire(l->sema);
+		mach_semacquire(l->sema);
 }
 
 void
 unlock(Lock *l)
 {
 	if(xadd(&l->key, -1) > 0)	// someone else is waiting
-		semrelease(l->sema);
+		mach_semrelease(l->sema);
 }
 
 
@@ -300,14 +300,14 @@ void
 usemacquire(Usema *s)
 {
 	if((int32)xadd(&s->u, -1) < 0)
-		semacquire(s->k);
+		mach_semacquire(s->k);
 }
 
 void
 usemrelease(Usema *s)
 {
 	if((int32)xadd(&s->u, 1) <= 0)
-		semrelease(s->k);
+		mach_semrelease(s->k);
 }
 
 
@@ -622,20 +622,20 @@ machcall(mach_msg_header_t *h, int32 maxsize, int32 rxsize)
 
 enum
 {
-	Tsemcreate = 3418,
-	Rsemcreate = Tsemcreate + Reply,
+	Tmach_semcreate = 3418,
+	Rmach_semcreate = Tmach_semcreate + Reply,
 
-	Tsemdestroy = 3419,
-	Rsemdestroy = Tsemdestroy + Reply,
+	Tmach_semdestroy = 3419,
+	Rmach_semdestroy = Tmach_semdestroy + Reply,
 };
 
-typedef struct TsemcreateMsg TsemcreateMsg;
-typedef struct RsemcreateMsg RsemcreateMsg;
-typedef struct TsemdestroyMsg TsemdestroyMsg;
-// RsemdestroyMsg = CodeMsg
+typedef struct Tmach_semcreateMsg Tmach_semcreateMsg;
+typedef struct Rmach_semcreateMsg Rmach_semcreateMsg;
+typedef struct Tmach_semdestroyMsg Tmach_semdestroyMsg;
+// Rmach_semdestroyMsg = CodeMsg
 
 #pragma pack on
-struct TsemcreateMsg
+struct Tmach_semcreateMsg
 {
 	mach_msg_header_t h;
 	NDR_record_t ndr;
@@ -643,14 +643,14 @@ struct TsemcreateMsg
 	int32 value;
 };
 
-struct RsemcreateMsg
+struct Rmach_semcreateMsg
 {
 	mach_msg_header_t h;
 	mach_msg_body_t body;
 	mach_msg_port_descriptor_t semaphore;
 };
 
-struct TsemdestroyMsg
+struct Tmach_semdestroyMsg
 {
 	mach_msg_header_t h;
 	mach_msg_body_t body;
@@ -659,11 +659,11 @@ struct TsemdestroyMsg
 #pragma pack off
 
 mach_port_t
-semcreate(void)
+mach_semcreate(void)
 {
 	union {
-		TsemcreateMsg tx;
-		RsemcreateMsg rx;
+		Tmach_semcreateMsg tx;
+		Rmach_semcreateMsg rx;
 		uint8 pad[MinMachMsg];
 	} m;
 	kern_return_t r;
@@ -671,7 +671,7 @@ semcreate(void)
 	m.tx.h.bits = 0;
 	m.tx.h.size = sizeof(m.tx);
 	m.tx.h.remote_port = mach_task_self();
-	m.tx.h.id = Tsemcreate;
+	m.tx.h.id = Tmach_semcreate;
 	m.tx.ndr = zerondr;
 
 	m.tx.policy = 0;	// 0 = SYNC_POLICY_FIFO
@@ -680,15 +680,15 @@ semcreate(void)
 	if((r = machcall(&m.tx.h, sizeof m, sizeof(m.rx))) != 0)
 		macherror(r, "semaphore_create");
 	if(m.rx.body.descriptor_count != 1)
-		unimplemented("semcreate desc count");
+		unimplemented("mach_semcreate desc count");
 	return m.rx.semaphore.name;
 }
 
 void
-semdestroy(mach_port_t sem)
+mach_semdestroy(mach_port_t sem)
 {
 	union {
-		TsemdestroyMsg tx;
+		Tmach_semdestroyMsg tx;
 		uint8 pad[MinMachMsg];
 	} m;
 	kern_return_t r;
@@ -696,7 +696,7 @@ semdestroy(mach_port_t sem)
 	m.tx.h.bits = MACH_MSGH_BITS_COMPLEX;
 	m.tx.h.size = sizeof(m.tx);
 	m.tx.h.remote_port = mach_task_self();
-	m.tx.h.id = Tsemdestroy;
+	m.tx.h.id = Tmach_semdestroy;
 	m.tx.body.descriptor_count = 1;
 	m.tx.semaphore.name = sem;
 	m.tx.semaphore.disposition = MACH_MSG_TYPE_MOVE_SEND;
@@ -714,7 +714,7 @@ kern_return_t mach_semaphore_signal(uint32 sema);
 kern_return_t mach_semaphore_signal_all(uint32 sema);
 
 void
-semacquire(mach_port_t sem)
+mach_semacquire(mach_port_t sem)
 {
 	kern_return_t r;
 
@@ -723,7 +723,7 @@ semacquire(mach_port_t sem)
 }
 
 void
-semrelease(mach_port_t sem)
+mach_semrelease(mach_port_t sem)
 {
 	kern_return_t r;
 

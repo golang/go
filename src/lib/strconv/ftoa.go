@@ -10,7 +10,10 @@
 
 package strconv
 
-import "strconv"
+import (
+	"math";
+	"strconv";
+)
 
 // TODO: move elsewhere?
 type floatInfo struct {
@@ -41,11 +44,11 @@ func floatsize() int {
 var FloatSize = floatsize()
 
 func Ftoa32(f float32, fmt byte, prec int) string {
-	return genericFtoa(uint64(sys.Float32bits(f)), fmt, prec, &float32info);
+	return genericFtoa(uint64(math.Float32bits(f)), fmt, prec, &float32info);
 }
 
 func Ftoa64(f float64, fmt byte, prec int) string {
-	return genericFtoa(sys.Float64bits(f), fmt, prec, &float64info);
+	return genericFtoa(math.Float64bits(f), fmt, prec, &float64info);
 }
 
 func Ftoa(f float, fmt byte, prec int) string {

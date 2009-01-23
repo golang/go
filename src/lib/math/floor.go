@@ -4,6 +4,8 @@
 
 package math
 
+import "math"
+
 /*
  * floor and ceil-- greatest integer <= arg
  * (resp least >=)
@@ -11,13 +13,13 @@ package math
 
 func Floor(arg float64) float64 {
 	if arg < 0 {
-		d, fract := sys.Modf(-arg);
+		d, fract := Modf(-arg);
 		if fract != 0.0 {
 			d = d+1;
 		}
 		return -d;
 	}
-	d, fract := sys.Modf(arg);
+	d, fract := Modf(arg);
 	return d;
 }
 

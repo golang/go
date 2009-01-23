@@ -370,15 +370,12 @@ void	notewakeup(Note*);
 #define sys_printpointer sys·printpointer
 #define sys_printstring sys·printstring
 #define sys_printuint sys·printuint
-#define sys_readfile sys·readfile
-#define sys_semacquire sys·semacquire
-#define sys_semrelease sys·semrelease
 #define sys_setcallerpc sys·setcallerpc
 #define sys_slicestring sys·slicestring
 #endif
 
 /*
- * low level go -called
+ * low level go-called
  */
 void	sys_Goexit(void);
 void	sys_Gosched(void);
@@ -407,12 +404,20 @@ void	sys_cmpstring(string, string, int32);
 void	sys_slicestring(string, int32, int32, string);
 void	sys_indexstring(string, int32, byte);
 void	sys_intstring(int64, string);
-bool	isInf(float64, int32);
-bool	isNaN(float64);
 
 /*
- * User go-called
+ * wrapped for go users
  */
-void	sys_readfile(string, string, bool);
-void	sys_semacquire(uint32*);
-void	sys_semrelease(uint32*);
+float64	Inf(int32 sign);
+float64	NaN(void);
+float32	float32frombits(uint32 i);
+uint32	float32tobits(float32 f);
+float64	float64frombits(uint64 i);
+uint64	float64tobits(float64 f);
+float64	frexp(float64 d, int32 *ep);
+bool	isInf(float64 f, int32 sign);
+bool	isNaN(float64 f);
+float64	ldexp(float64 d, int32 e);
+float64	modf(float64 d, float64 *ip);
+void	semacquire(uint32*);
+void	semrelease(uint32*);

@@ -7,6 +7,7 @@ package fmt
 import (
 	"fmt";
 	"io";
+	"math";
 	"syscall";
 	"testing";
 )
@@ -145,9 +146,9 @@ var fmttests = []fmtTest{
 	fmtTest{ "%g",		float64(1.23456789e3),	"1234.56789" },
 	fmtTest{ "%g",		float64(1.23456789e-3),	"0.00123456789" },
 	fmtTest{ "%g",		float64(1.23456789e20),	"1.23456789e+20" },
-	fmtTest{ "%20e",	sys.Inf(1),		"                +Inf" },
-	fmtTest{ "%-20f",	sys.Inf(-1),		"-Inf                " },
-	fmtTest{ "%20g",	sys.NaN(),		"                 NaN" },
+	fmtTest{ "%20e",	math.Inf(1),		"                +Inf" },
+	fmtTest{ "%-20f",	math.Inf(-1),		"-Inf                " },
+	fmtTest{ "%20g",	math.NaN(),		"                 NaN" },
 }
 
 func TestSprintf(t *testing.T) {
