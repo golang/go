@@ -553,6 +553,7 @@ type ArrayValue interface {
 	Cap() int;
 	Elem(i int)	Value;
 	SetLen(len int);
+	Set(src ArrayValue);
 	CopyFrom(src ArrayValue, n int)
 }
 
@@ -598,6 +599,17 @@ func (v *openArrayValueStruct) SetLen(len int) {
 	v.array.len = uint32(len);
 }
 
+func (v *openArrayValueStruct) Set(src ArrayValue) {
+	if !src.Open() {
+		panic("can't set from fixed array");
+	}
+	s := src.(*openArrayValueStruct);
+	if !equalType(v.typ, s.typ) {
+		panicln("incompatible array types in ArrayValue.Set()");
+	}
+	*v.array = *s.array;
+}
+
 func (v *openArrayValueStruct) Elem(i int) Value {
 	data_uint := uintptr(v.array.data) + uintptr(i * v.elemsize);
 	return newValueAddr(v.elemtype, Addr(data_uint));
@@ -627,6 +639,10 @@ func (v *fixedArrayValueStruct) Cap() int {
 }
 
 func (v *fixedArrayValueStruct) SetLen(len int) {
+}
+
+func (v *fixedArrayValueStruct) Set(src ArrayValue) {
+	panicln("can't set fixed array");
 }
 
 func (v *fixedArrayValueStruct) Elem(i int) Value {
