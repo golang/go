@@ -33,7 +33,7 @@ func Tan(arg float64) float64 {
 	}
 	x = x * (4/Pi);   /* overflow? */
 	var e float64;
-	e, x = sys.Modf(x);
+	e, x = Modf(x);
 	i := int32(e);
 
 	switch i & 3 {
@@ -56,7 +56,7 @@ func Tan(arg float64) float64 {
 
 	if flag {
 		if(temp == 0) {
-			panic(sys.NaN());
+			panic(NaN());
 		}
 		temp = 1/temp;
 	}

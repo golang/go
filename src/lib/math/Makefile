@@ -32,41 +32,48 @@ coverage: packages
 	$(AS) $*.s
 
 O1=\
-	exp.$O\
 	fabs.$O\
-	floor.$O\
-	fmod.$O\
 	hypot.$O\
 	pow10.$O\
-	sqrt.$O\
+	runtime.$O\
 	const.$O\
 
 O2=\
 	atan.$O\
+	exp.$O\
+	floor.$O\
+	fmod.$O\
 	log.$O\
 	sin.$O\
-	sinh.$O\
+	sqrt.$O\
 	tan.$O\
 
 O3=\
 	asin.$O\
 	atan2.$O\
 	pow.$O\
+	sinh.$O\
+
+O4=\
 	tanh.$O\
 
-math.a: a1 a2 a3
+math.a: a1 a2 a3 a4
 
 a1:	$(O1)
-	$(AR) grc math.a exp.$O fabs.$O floor.$O fmod.$O hypot.$O pow10.$O sqrt.$O const.$O
+	$(AR) grc math.a fabs.$O hypot.$O pow10.$O runtime.$O const.$O
 	rm -f $(O1)
 
 a2:	$(O2)
-	$(AR) grc math.a atan.$O log.$O sin.$O sinh.$O tan.$O
+	$(AR) grc math.a atan.$O exp.$O floor.$O fmod.$O log.$O sin.$O sqrt.$O tan.$O
 	rm -f $(O2)
 
 a3:	$(O3)
-	$(AR) grc math.a asin.$O atan2.$O pow.$O tanh.$O
+	$(AR) grc math.a asin.$O atan2.$O pow.$O sinh.$O
 	rm -f $(O3)
+
+a4:	$(O4)
+	$(AR) grc math.a tanh.$O
+	rm -f $(O4)
 
 newpkg: clean
 	$(AR) grc math.a
@@ -74,6 +81,7 @@ newpkg: clean
 $(O1): newpkg
 $(O2): a1
 $(O3): a2
+$(O4): a3
 
 nuke: clean
 	rm -f $(GOROOT)/pkg/math.a

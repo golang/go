@@ -17,23 +17,26 @@ LIBOFILES=\
 	rt1_$(GOARCH)_$(GOOS).$O\
 	rt2_$(GOARCH).$O\
 	sys_$(GOARCH)_$(GOOS).$O\
-	runtime.$O\
-	hashmap.$O\
-	chan.$O\
-	iface.$O\
 	array.$O\
-	mem.$O\
+	chan.$O\
+	float.$O\
+	float_go.$O\
+	hashmap.$O\
+	iface.$O\
 	malloc.$O\
 	malloc_go.$O\
 	mcache.$O\
 	mcentral.$O\
+	mem.$O\
 	mfixalloc.$O\
 	mheap.$O\
 	msize.$O\
 	print.$O\
-	rune.$O\
 	proc.$O\
+	rune.$O\
+	runtime.$O\
 	sema.$O\
+	sema_go.$O\
 	string.$O\
 	symtab.$O\
 
@@ -69,7 +72,7 @@ cgo2c: cgo2c.c
 	quietgcc -o $@ $<
 
 %.c:	%.cgo cgo2c
-	./cgo2c < $< > $@.tmp
+	./cgo2c $< > $@.tmp
 	mv -f $@.tmp $@
 
 %.$O:	%.s

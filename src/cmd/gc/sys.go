@@ -77,27 +77,9 @@ func	Unreflect(uint64, string, bool) (ret interface { });
 var	Args []string;
 var	Envs []string;
 
-func	Frexp(float64) (float64, int);		// break fp into exp,fract
-func	Ldexp(float64, int) float64;		// make fp from exp,fract
-func	Modf(float64) (float64, float64);	// break fp into double.double
-func	IsInf(float64, int) bool;		// test for infinity
-func	IsNaN(float64) bool;			// test for not-a-number
-func	Inf(int) float64;			// return signed Inf
-func	NaN() float64;				// return a NaN
-func	Float32bits(float32) uint32;		// raw bits
-func	Float64bits(float64) uint64;		// raw bits
-func	Float32frombits(uint32) float32;	// raw bits
-func	Float64frombits(uint64) float64;	// raw bits
-
 func	Gosched();
 func	Goexit();
-
-func	BytesToRune(*byte, int, int) (int, int);	// convert bytes to runes
-func	StringToRune(string, int) (int, int);	// convert bytes to runes
 
 func	Exit(int);
 
 func	Caller(n int) (pc uint64, file string, line int, ok bool);
-
-func	SemAcquire(sema *int32);
-func	SemRelease(sema *int32);

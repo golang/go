@@ -85,16 +85,16 @@ func Log(x float64) float64 {
 
 	// special cases
 	switch {
-	case sys.IsNaN(x) || sys.IsInf(x, 1):
+	case IsNaN(x) || IsInf(x, 1):
 		return x;
 	case x < 0:
-		return sys.NaN();
+		return NaN();
 	case x == 0:
-		return sys.Inf(-1);
+		return Inf(-1);
 	}
 
 	// reduce
-	f1, ki := sys.Frexp(x);
+	f1, ki := Frexp(x);
 	if f1 < Sqrt2/2 {
 		f1 *= 2;
 		ki--;
@@ -115,7 +115,7 @@ func Log(x float64) float64 {
 
 func Log10(arg float64) float64 {
 	if arg <= 0 {
-		return sys.NaN();
+		return NaN();
 	}
 	return Log(arg) * (1/Ln10);
 }

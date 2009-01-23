@@ -17,7 +17,7 @@ func Pow(x, y float64) float64 {
 	case x == 0 && y > 0:
 		return 0;
 	case x == 0 && y < 0:
-		return sys.Inf(1);
+		return Inf(1);
 	case y == 0.5:
 		return Sqrt(x);
 	case y == -0.5:
@@ -30,9 +30,9 @@ func Pow(x, y float64) float64 {
 		absy = -absy;
 		flip = true;
 	}
-	yi, yf := sys.Modf(absy);
+	yi, yf := Modf(absy);
 	if yf != 0 && x < 0 {
-		return sys.NaN();
+		return NaN();
 	}
 	if yi >= 1<<63 {
 		return Exp(y * Log(x));
@@ -55,7 +55,7 @@ func Pow(x, y float64) float64 {
 	// by multiplying in successive squarings
 	// of x according to bits of yi.
 	// accumulate powers of two into exp.
-	x1, xe := sys.Frexp(x);
+	x1, xe := Frexp(x);
 	for i := int64(yi); i != 0; i >>= 1 {
 		if i&1 == 1 {
 			a1 *= x1;
@@ -76,5 +76,5 @@ func Pow(x, y float64) float64 {
 		a1 = 1 / a1;
 		ae = -ae;
 	}
-	return sys.Ldexp(a1, ae);
+	return Ldexp(a1, ae);
 }

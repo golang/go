@@ -101,12 +101,12 @@ func Exp(x float64) float64 {
 
 	// special cases
 	switch {
-	case sys.IsNaN(x) || sys.IsInf(x, 1):
+	case IsNaN(x) || IsInf(x, 1):
 		return x;
-	case sys.IsInf(x, -1):
+	case IsInf(x, -1):
 		return 0;
 	case x > Overflow:
-		return sys.Inf(1);
+		return Inf(1);
 	case x < Underflow:
 		return 0;
 	case -NearZero < x && x < NearZero:
@@ -129,6 +129,6 @@ func Exp(x float64) float64 {
 	t := r * r;
 	c := r - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))));
 	y := 1 - ((lo - (r*c)/(2-c)) - hi);
-	// TODO(rsc): make sure sys.Ldexp can handle boundary k
-	return sys.Ldexp(y, k);
+	// TODO(rsc): make sure Ldexp can handle boundary k
+	return Ldexp(y, k);
 }

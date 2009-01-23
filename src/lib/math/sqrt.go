@@ -4,6 +4,8 @@
 
 package math
 
+import "math"
+
 /*
  *	sqrt returns the square root of its floating
  *	point argument. Newton's method.
@@ -12,18 +14,18 @@ package math
  */
 
 func Sqrt(arg float64) float64 {
-	if sys.IsInf(arg, 1) {
+	if IsInf(arg, 1) {
 		return arg;
 	}
 
 	if arg <= 0 {
 		if arg < 0 {
-			return sys.NaN();
+			return NaN();
 		}
 		return 0;
 	}
 
-	x,exp := sys.Frexp(arg);
+	x,exp := Frexp(arg);
 	for x < 0.5 {
 		x = x*2;
 		exp = exp-1;
