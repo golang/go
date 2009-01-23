@@ -270,7 +270,7 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	assert(typ.String(), "[]uint32");
 
 	t = reflect.ParseTypeString("", "[]int32");
-	v := reflect.NewOpenArrayValue(t, 5, 10);
+	v := reflect.NewSliceValue(t, 5, 10);
 	t1 := reflect.ParseTypeString("", "*[]int32");
 	v1 := reflect.NewInitValue(t1);
 	if v1 == nil { panic("V1 is nil"); }
