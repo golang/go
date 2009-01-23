@@ -544,11 +544,12 @@ func ptrCreator(typ Type, addr Addr) Value {
 }
 
 // -- Array
+// Slices and arrays are represented by the same interface.
 
 type ArrayValue interface {
 	Kind()	int;
 	Type()	Type;
-	Open()	bool;
+	IsSlice()	bool;
 	Len()	int;
 	Cap() int;
 	Elem(i int)	Value;
@@ -560,114 +561,114 @@ type ArrayValue interface {
 func copyArray(dst ArrayValue, src ArrayValue, n int);
 
 /*
-	Run-time representation of open arrays looks like this:
-		struct	Array {
+	Run-time representation of slices looks like this:
+		struct	Slice {
 			byte*	array;		// actual data
 			uint32	nel;		// number of elements
 			uint32	cap;
 		};
 */
-type runtimeArray struct {
+type runtimeSlice struct {
 	data	Addr;
 	len	uint32;
 	cap	uint32;
 }
 
-type openArrayValueStruct struct {
+type sliceValueStruct struct {
 	commonValue;
 	elemtype	Type;
 	elemsize	int;
-	array *runtimeArray;
+	slice *runtimeSlice;
 }
 
-func (v *openArrayValueStruct) Open() bool {
+func (v *sliceValueStruct) IsSlice() bool {
 	return true
 }
 
-func (v *openArrayValueStruct) Len() int {
-	return int(v.array.len);
+func (v *sliceValueStruct) Len() int {
+	return int(v.slice.len);
 }
 
-func (v *openArrayValueStruct) Cap() int {
-	return int(v.array.cap);
+func (v *sliceValueStruct) Cap() int {
+	return int(v.slice.cap);
 }
 
-func (v *openArrayValueStruct) SetLen(len int) {
+func (v *sliceValueStruct) SetLen(len int) {
 	if len > v.Cap() {
-		panicln("reflect: OpenArrayValueStruct.SetLen", len, v.Cap());
+		panicln("reflect: sliceValueStruct.SetLen", len, v.Cap());
 	}
-	v.array.len = uint32(len);
+	v.slice.len = uint32(len);
 }
 
-func (v *openArrayValueStruct) Set(src ArrayValue) {
-	if !src.Open() {
+func (v *sliceValueStruct) Set(src ArrayValue) {
+	if !src.IsSlice() {
 		panic("can't set from fixed array");
 	}
-	s := src.(*openArrayValueStruct);
+	s := src.(*sliceValueStruct);
 	if !equalType(v.typ, s.typ) {
-		panicln("incompatible array types in ArrayValue.Set()");
+		panicln("incompatible types in ArrayValue.Set()");
 	}
-	*v.array = *s.array;
+	*v.slice = *s.slice;
 }
 
-func (v *openArrayValueStruct) Elem(i int) Value {
-	data_uint := uintptr(v.array.data) + uintptr(i * v.elemsize);
+func (v *sliceValueStruct) Elem(i int) Value {
+	data_uint := uintptr(v.slice.data) + uintptr(i * v.elemsize);
 	return newValueAddr(v.elemtype, Addr(data_uint));
 }
 
-func (v *openArrayValueStruct) CopyFrom(src ArrayValue, n int) {
+func (v *sliceValueStruct) CopyFrom(src ArrayValue, n int) {
 	copyArray(v, src, n);
 }
 
-type fixedArrayValueStruct struct {
+type arrayValueStruct struct {
 	commonValue;
 	elemtype	Type;
 	elemsize	int;
 	len	int;
 }
 
-func (v *fixedArrayValueStruct) Open() bool {
+func (v *arrayValueStruct) IsSlice() bool {
 	return false
 }
 
-func (v *fixedArrayValueStruct) Len() int {
+func (v *arrayValueStruct) Len() int {
 	return v.len
 }
 
-func (v *fixedArrayValueStruct) Cap() int {
+func (v *arrayValueStruct) Cap() int {
 	return v.len
 }
 
-func (v *fixedArrayValueStruct) SetLen(len int) {
+func (v *arrayValueStruct) SetLen(len int) {
 }
 
-func (v *fixedArrayValueStruct) Set(src ArrayValue) {
+func (v *arrayValueStruct) Set(src ArrayValue) {
 	panicln("can't set fixed array");
 }
 
-func (v *fixedArrayValueStruct) Elem(i int) Value {
+func (v *arrayValueStruct) Elem(i int) Value {
 	data_uint := uintptr(v.addr) + uintptr(i * v.elemsize);
 	return newValueAddr(v.elemtype, Addr(data_uint));
 	return nil
 }
 
-func (v *fixedArrayValueStruct) CopyFrom(src ArrayValue, n int) {
+func (v *arrayValueStruct) CopyFrom(src ArrayValue, n int) {
 	copyArray(v, src, n);
 }
 
 func arrayCreator(typ Type, addr Addr) Value {
 	arraytype := typ.(ArrayType);
-	if arraytype.Open() {
-		v := new(openArrayValueStruct);
+	if arraytype.IsSlice() {
+		v := new(sliceValueStruct);
 		v.kind = ArrayKind;
 		v.addr = addr;
 		v.typ = typ;
 		v.elemtype = arraytype.Elem();
 		v.elemsize = v.elemtype.Size();
-		v.array = addr.(*runtimeArray);
+		v.slice = addr.(*runtimeSlice);
 		return v;
 	}
-	v := new(fixedArrayValueStruct);
+	v := new(arrayValueStruct);
 	v.kind = ArrayKind;
 	v.addr = addr;
 	v.typ = typ;
@@ -832,7 +833,7 @@ func NewInitValue(typ Type) Value {
 	case FuncKind:	// must be pointers, at least for now (TODO?)
 		return nil;
 	case ArrayKind:
-		if typ.(ArrayType).Open() {
+		if typ.(ArrayType).IsSlice() {
 			return nil
 		}
 	}
@@ -844,20 +845,12 @@ func NewInitValue(typ Type) Value {
 	return newValueAddr(typ, Addr(&data[0]));
 }
 
-/*
-	Run-time representation of open arrays looks like this:
-		struct	Array {
-			byte*	array;		// actual data
-			uint32	nel;		// number of elements
-			uint32	cap;		// allocated number of elements
-		};
-*/
-func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
-	if !typ.Open() {
+func NewSliceValue(typ ArrayType, len, cap int) ArrayValue {
+	if !typ.IsSlice() {
 		return nil
 	}
 
-	array := new(runtimeArray);
+	array := new(runtimeSlice);
 	size := typ.Elem().Size() * cap;
 	if size == 0 {
 		size = 1;
@@ -870,7 +863,7 @@ func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
 	return newValueAddr(typ, Addr(array));
 }
 
-// Works on both fixed and open arrays.
+// Works on both slices and arrays
 func copyArray(dst ArrayValue, src ArrayValue, n int) {
 	if n == 0 {
 		return

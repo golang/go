@@ -81,7 +81,7 @@ func TypeToString(typ Type, expand bool) string {
 		return "*" + TypeToString(p.Sub(), false);
 	case ArrayKind:
 		a := typ.(ArrayType);
-		if a.Open() {
+		if a.IsSlice() {
 			str = "[]"
 		} else {
 			str = "[" + strconv.Itoa64(int64(a.Len())) +  "]"

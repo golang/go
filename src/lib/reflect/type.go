@@ -165,7 +165,7 @@ func (t *ptrTypeStruct) Sub() Type {
 // -- Array
 
 type ArrayType interface {
-	Open()	bool;
+	IsSlice()	bool;
 	Len()	int;
 	Elem()	Type;
 }
@@ -173,7 +173,7 @@ type ArrayType interface {
 type arrayTypeStruct struct {
 	commonType;
 	elem	*stubType;
-	open	bool;	// otherwise fixed size
+	isslice	bool;	// otherwise fixed array
 	len	int;
 }
 
@@ -182,14 +182,14 @@ func newArrayTypeStruct(name, typestring string, open bool, len int, elem *stubT
 }
 
 func (t *arrayTypeStruct) Size() int {
-	if t.open {
+	if t.isslice {
 		return ptrsize*2	// open arrays are 2-word headers
 	}
 	return t.len * t.elem.Get().Size();
 }
 
-func (t *arrayTypeStruct) Open() bool {
-	return t.open
+func (t *arrayTypeStruct) IsSlice() bool {
+	return t.isslice
 }
 
 func (t *arrayTypeStruct) Len() int {

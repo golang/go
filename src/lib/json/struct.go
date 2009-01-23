@@ -122,7 +122,7 @@ func (b *_StructBuilder) Array() {
 		pv := v.(reflect.PtrValue);
 		psubtype := pv.Type().(reflect.PtrType).Sub();
 		if pv.Get() == nil && psubtype.Kind() == reflect.ArrayKind {
-			av := reflect.NewOpenArrayValue(psubtype, 0, 8);
+			av := reflect.NewSliceValue(psubtype, 0, 8);
 			pv.SetSub(av);
 		}
 	}
@@ -148,7 +148,7 @@ func (b *_StructBuilder) Elem(i int) Builder {
 				for n <= i {
 					n *= 2
 				}
-				av1 := reflect.NewOpenArrayValue(av.Type(), av.Len(), n);
+				av1 := reflect.NewSliceValue(av.Type(), av.Len(), n);
 				av1.CopyFrom(av, av.Len());
 				pv.SetSub(av1);
 				av = av1;
