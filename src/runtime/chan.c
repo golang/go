@@ -5,6 +5,7 @@
 #include "runtime.h"
 
 static	int32	debug	= 0;
+static	int32	xxx	= 0;
 static	Lock		chanlock;
 
 typedef	struct	Hchan	Hchan;
@@ -17,8 +18,9 @@ typedef	struct	Scase	Scase;
 struct	SudoG
 {
 	G*	g;		// g and selgen constitute
-	int16	offset;		// offset of case number
 	int32	selgen;		// a weak pointer to g
+	int16	offset;		// offset of case number
+	int8	isfree;		// offset of case number
 	SudoG*	link;
 	byte	elem[8];	// synch data element (+ more)
 };
@@ -206,7 +208,6 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 	return;
 
 asynch:
-//prints("\nasend\n");
 	while(c->qcount >= c->dataqsiz) {
 		if(pres != nil) {
 			unlock(&chanlock);
@@ -229,10 +230,8 @@ asynch:
 	sg = dequeue(&c->recvq, c);
 	if(sg != nil) {
 		gp = sg->g;
-		gp->param = sg;
 		freesg(c, sg);
 		unlock(&chanlock);
-//prints("wakeup\n");
 		ready(gp);
 	} else
 		unlock(&chanlock);
@@ -312,7 +311,6 @@ asynch:
 	sg = dequeue(&c->sendq, c);
 	if(sg != nil) {
 		gp = sg->g;
-		gp->param = sg;
 		freesg(c, sg);
 		unlock(&chanlock);
 		ready(gp);
@@ -411,7 +409,7 @@ sys·newselect(int32 size, Select *sel)
 	if(debug) {
 		prints("newselect s=");
 		sys·printpointer(sel);
-		prints("newselect size=");
+		prints(" size=");
 		sys·printint(size);
 		prints("\n");
 	}
@@ -451,7 +449,7 @@ sys·selectsend(Select *sel, Hchan *c, ...)
 	c->elemalg->copy(c->elemsize, cas->u.elem, ae);
 
 	if(debug) {
-		prints("newselect s=");
+		prints("selectsend s=");
 		sys·printpointer(sel);
 		prints(" pc=");
 		sys·printpointer(cas->pc);
@@ -495,7 +493,7 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 	cas->u.elemp = *(byte**)((byte*)&sel + eo);
 
 	if(debug) {
-		prints("newselect s=");
+		prints("selectrecv s=");
 		sys·printpointer(sel);
 		prints(" pc=");
 		sys·printpointer(cas->pc);
@@ -510,7 +508,7 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 }
 
 
-// selectrecv(sel *byte) (selected bool);
+// selectdefaul(sel *byte) (selected bool);
 void
 sys·selectdefault(Select *sel, ...)
 {
@@ -534,7 +532,7 @@ sys·selectdefault(Select *sel, ...)
 	cas->u.elemp = nil;
 
 	if(debug) {
-		prints("newselect s=");
+		prints("selectdefault s=");
 		sys·printpointer(sel);
 		prints(" pc=");
 		sys·printpointer(cas->pc);
@@ -546,7 +544,6 @@ sys·selectdefault(Select *sel, ...)
 	}
 }
 
-uint32	xxx	= 0;
 
 // selectgo(sel *byte);
 void
@@ -589,6 +586,7 @@ sys·selectgo(Select *sel)
 
 	lock(&chanlock);
 
+loop:
 	// pass 1 - look for something already waiting
 	dfl = nil;
 	for(i=0; i<sel->ncase; i++) {
@@ -688,15 +686,24 @@ sys·selectgo(Select *sel)
 			o -= sel->ncase;
 	}
 
+	g->param = nil;
 	g->status = Gwaiting;
 	unlock(&chanlock);
 	sys·Gosched();
 
 	lock(&chanlock);
 	sg = g->param;
+	if(sg == nil)
+		goto loop;
+
 	o = sg->offset;
 	cas = sel->scase[o];
 	c = cas->chan;
+
+	if(c->dataqsiz > 0) {
+//		prints("shouldnt happen\n");
+		goto loop;
+	}
 
 	if(xxx) {
 		prints("wait-return: sel=");
@@ -710,12 +717,6 @@ sys·selectgo(Select *sel)
 		prints(" o=");
 		sys·printint(o);
 		prints("\n");
-	}
-
-	if(c->dataqsiz > 0) {
-		if(cas->send)
-			goto asyns;
-		goto asynr;
 	}
 
 	if(!cas->send) {
@@ -734,7 +735,6 @@ asynr:
 	sg = dequeue(&c->sendq, c);
 	if(sg != nil) {
 		gp = sg->g;
-		gp->param = sg;
 		freesg(c, sg);
 		ready(gp);
 	}
@@ -748,7 +748,6 @@ asyns:
 	sg = dequeue(&c->recvq, c);
 	if(sg != nil) {
 		gp = sg->g;
-		gp->param = sg;
 		freesg(c, sg);
 		ready(gp);
 	}
@@ -849,6 +848,7 @@ allocsg(Hchan *c)
 	sg->selgen = g->selgen;
 	sg->g = g;
 	sg->offset = 0;
+	sg->isfree = 0;
 
 	return sg;
 }
@@ -856,6 +856,9 @@ allocsg(Hchan *c)
 static void
 freesg(Hchan *c, SudoG *sg)
 {
+	if(sg->isfree)
+		throw("chan.freesg: already free");
+	sg->isfree = 1;
 	sg->link = c->free;
 	c->free = sg;
 }
