@@ -109,6 +109,6 @@ regexp.dirinstall: os.dirinstall
 reflect.dirinstall: strconv.dirinstall sync.dirinstall
 strconv.dirinstall: math.dirinstall os.dirinstall utf8.install
 tabwriter.dirinstall: os.dirinstall io.dirinstall container/array.dirinstall
-time.dirinstall: once.install os.dirinstall
+time.dirinstall: once.install os.dirinstall io.dirinstall
 sync.dirinstall:
 

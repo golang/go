@@ -30,15 +30,15 @@ var localtests = []_TimeTest {
 }
 
 func _Same(t, u *Time) bool {
-	return t.year == u.year
-		&& t.month == u.month
-		&& t.day == u.day
-		&& t.hour == u.hour
-		&& t.minute == u.minute
-		&& t.second == u.second
-		&& t.weekday == u.weekday
-		&& t.zoneoffset == u.zoneoffset
-		&& t.zone == u.zone
+	return t.Year == u.Year
+		&& t.Month == u.Month
+		&& t.Day == u.Day
+		&& t.Hour == u.Hour
+		&& t.Minute == u.Minute
+		&& t.Second == u.Second
+		&& t.Weekday == u.Weekday
+		&& t.ZoneOffset == u.ZoneOffset
+		&& t.Zone == u.Zone
 }
 
 func TestSecondsToUTC(t *testing.T) {
