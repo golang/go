@@ -23,6 +23,7 @@ struct hash {	   /* a hash table; initialize with hash_init() */
 
 	uint32	keysize;
 	uint32	valsize;
+	uint32	datavo;
 	uint32	ko;
 	uint32	vo;
 	uint32	po;
@@ -674,7 +675,14 @@ sys·newmap(uint32 keysize, uint32 valsize,
 	}
 
 	h = mal(sizeof(*h));
-	hash_init(h, keysize+valsize,
+	
+	// align value inside data so that mark-sweep gc can find it.
+	// might remove in the future and just assume datavo == keysize.
+	h->datavo = keysize;
+	if(valsize >= sizeof(void*))
+		h->datavo = rnd(keysize, sizeof(void*));
+
+	hash_init(h, h->datavo+valsize,
 		algarray[keyalg].hash,
 		algarray[keyalg].equal,
 		donothing,
@@ -684,8 +692,9 @@ sys·newmap(uint32 keysize, uint32 valsize,
 	h->valsize = valsize;
 	h->keyalg = &algarray[keyalg];
 	h->valalg = &algarray[valalg];
-
-	// these calculations are compiler dependent
+	
+	// these calculations are compiler dependent.
+	// figure out offsets of map call arguments.
 	h->ko = rnd(sizeof(h), keysize);
 	h->vo = rnd(h->ko+keysize, valsize);
 	h->po = rnd(h->vo+valsize, 1);
@@ -729,7 +738,7 @@ sys·mapaccess1(Hmap *h, ...)
 	hit = hash_lookup(h, ak, (void**)&res);
 	if(!hit)
 		throw("sys·mapaccess1: key not in map");
-	h->valalg->copy(h->valsize, av, res+h->keysize);
+	h->valalg->copy(h->valsize, av, res+h->datavo);
 
 	if(debug) {
 		prints("sys·mapaccess1: map=");
@@ -765,7 +774,7 @@ sys·mapaccess2(Hmap *h, ...)
 		h->valalg->copy(h->valsize, av, nil);
 	} else {
 		*ap = true;
-		h->valalg->copy(h->valsize, av, res+h->keysize);
+		h->valalg->copy(h->valsize, av, res+h->datavo);
 	}
 
 	if(debug) {
@@ -794,7 +803,7 @@ mapassign(Hmap *h, byte *ak, byte *av)
 	res = nil;
 	hit = hash_insert(h, ak, (void**)&res);
 	h->keyalg->copy(h->keysize, res, ak);
-	h->valalg->copy(h->valsize, res+h->keysize, av);
+	h->valalg->copy(h->valsize, res+h->datavo, av);
 
 	if(debug) {
 		prints("mapassign: map=");
@@ -929,7 +938,7 @@ sys·mapiter2(struct hash_iter *it, ...)
 		throw("sys·mapiter2: key:val nil pointer");
 
 	h->keyalg->copy(h->keysize, ak, res);
-	h->valalg->copy(h->valsize, av, res+h->keysize);
+	h->valalg->copy(h->valsize, av, res+h->datavo);
 
 	if(debug) {
 		prints("mapiter2: iter=");
