@@ -69,6 +69,24 @@ mcpy(byte *t, byte *f, uint32 n)
 	}
 }
 
+int32
+mcmp(byte *s1, byte *s2, uint32 n)
+{
+	uint32 i;
+	byte c1, c2;
+
+	for(i=0; i<n; i++) {
+		c1 = s1[i];
+		c2 = s2[i];
+		if(c1 < c2)
+			return -1;
+		if(c1 > c2)
+			return +1;
+	}
+	return 0;
+}
+
+
 void
 mmov(byte *t, byte *f, uint32 n)
 {
@@ -368,6 +386,23 @@ noequal(uint32 s, void *a, void *b)
 	return 0;
 }
 
+static void
+noprint(uint32 s, void *a)
+{
+	USED(s);
+	USED(a);
+	throw("print of unprintable type");
+}
+
+static void
+nocopy(uint32 s, void *a, void *b)
+{
+	USED(s);
+	USED(a);
+	USED(b);
+	throw("copy of uncopyable type");
+}
+
 Alg
 algarray[] =
 {
@@ -375,5 +410,6 @@ algarray[] =
 [ANOEQ]	{ nohash, noequal, memprint, memcopy },
 [ASTRING]	{ strhash, strequal, strprint, memcopy },
 [AINTER]		{ interhash, interequal, interprint, memcopy },
+[AFAKE]	{ nohash, noequal, noprint, nocopy },
 };
 
