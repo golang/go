@@ -16,7 +16,7 @@ func	printbool(bool);
 func	printfloat(float64);
 func	printint(int64);
 func	printstring(string);
-func	printpointer(*any);
+func	printpointer(any);
 func	printinter(any);
 func	printarray(any);
 func	printnl();
