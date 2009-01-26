@@ -538,21 +538,9 @@ orange_stmt:
 		$$ = nod(ORANGE, $1, $4);
 		$$->etype = 0;	// := flag
 	}
-|	exprsym3 ':' exprsym3 '=' LRANGE expr
-	{
-		$$ = nod(OLIST, $1, $3);
-		$$ = nod(ORANGE, $$, $6);
-		$$->etype = 0;
-	}
 |	exprsym3_list_r LCOLAS LRANGE expr
 	{
 		$$ = nod(ORANGE, $1, $4);
-		$$->etype = 1;
-	}
-|	exprsym3 ':' exprsym3 LCOLAS LRANGE expr
-	{
-		$$ = nod(OLIST, $1, $3);
-		$$ = nod(ORANGE, $$, $6);
 		$$->etype = 1;
 	}
 
