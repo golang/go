@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(January 22, 2009)
+(January 23, 2009)
 
 ----
 
@@ -40,22 +40,19 @@ Todo's:
 	w/ private fields: P.T{1, 2} illegal since same as P.T{a: 1, b: 2} for
 	a T struct { a b int }.
 [ ] clarification on interface types, rules
-[ ] clarify slice rules
 [ ] clarify tuples
 [ ] need to talk about precise int/floats clearly
 [ ] iant suggests to use abstract/precise int for len(), cap() - good idea
     (issue: what happens in len() + const - what is the type?)
 [ ] cleanup convert() vs T() vs x.(T) - convert() should go away?
-[ ] what are the permissible ranges for the indices in slices? The spec
-	doesn't correspond to the implementation. The spec is wrong when it
-	comes to the first index i: it should allow (at least) the range 0 <= i <= len(a).
-	also: document different semantics for strings and arrays (strings cannot be grown).
 [ ] fix "else" part of if statement
 [ ] cleanup: 6g allows: interface { f F } where F is a function type.
 	fine, but then we should also allow: func f F {}, where F is a function type.
 
 
 Open issues:
+[ ] do we need channel conversion (so we can go from uni-directional channel to
+    bi-directional channel)?
 [ ] semantics of type decl: creating a new type or only a new type name?
 [ ] at the moment: type T S; strips any methods of S. It probably shouldn't.
 [ ] need for type switch? (or use type guard with ok in tuple assignment?)
@@ -79,6 +76,11 @@ Open issues:
 
 
 Closed:
+[x] clarify slice rules
+[x] what are the permissible ranges for the indices in slices? The spec
+	doesn't correspond to the implementation. The spec is wrong when it
+	comes to the first index i: it should allow (at least) the range 0 <= i <= len(a).
+	also: document different semantics for strings and arrays (strings cannot be grown).
 [x] reopening & and func issue: Seems inconsistent as both &func(){} and func(){} are
     permitted. Suggestion: func literals are pointers. We need to use & for all other
 	functions. This would be in consistency with the declaration of function pointer
@@ -1409,6 +1411,20 @@ This allows the construction of mutually recursive types such as:
 Assignment compatibility: A value can be assigned to an interface variable
 if the static type of the value implements the interface or if the value is "nil".
 
+Comparisons: A variable of interface type can be compared against "nil" with the
+operators "==" and "!=" (§Comparison operators). The variable is
+"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+if the variable has not been modified since creation (§Program initialization
+and execution).
+
+Two variables of interface type can be tested for equality with the
+operators "==" and "!=" (§Comparison operators) if both variables have the
+same static type. They are equal if both their dynamic types and values are
+equal.
+
+TODO: Document situation where the dynamic types are equal but the values
+don't support comparison.
+
 
 Slice types
 ----
@@ -1473,15 +1489,18 @@ operation:
 	a[i : j]
 
 This creates the sub-slice consisting of the elements "a[i]" through "a[j - 1]"
-(that is, excluding "a[j]"). "i" must be within array bounds, and "j" must satisfy
-"i <= j <= cap(a)". The length of the new slice is "j - i". The capacity of
+(that is, excluding "a[j]"). The values "i" and "j" must satisfy the condition
+"0 <= i <= j <= cap(a)". The length of the new slice is "j - i". The capacity of
 the slice is "cap(a) - i"; thus if "i" is 0, the slice capacity does not change
 as a result of a slice operation. The type of a sub-slice is the same as the
-type of the slice. Unlike the capacity, the length of a sub-slice
-may be larger than the length of the original slice.
+type of the slice. Unlike the capacity, the length of a sub-slice may be larger
+than the length of the original slice.
 
-TODO what are the proper restrictions on slices?
-TODO describe equality checking against nil
+Comparisons: A variable of slice type can be compared against "nil" with the
+operators "==" and "!=" (§Comparison operators). The variable is
+"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+if the variable has not been modified since creation (§Program initialization
+and execution).
 
 
 Map types
@@ -1520,7 +1539,11 @@ of the map.
 Assignment compatibility: A map type is assignment compatible to a variable of
 map type only if both types are equal.
 
-TODO: Comparison against nil
+Comparisons: A variable of map type can be compared against "nil" with the
+operators "==" and "!=" (§Comparison operators). The variable is
+"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+if the variable has not been modified since creation (§Program initialization
+and execution).
 
 
 Channel types
@@ -1555,11 +1578,20 @@ capacity is greater than zero, the channel is asynchronous and, provided the
 buffer is not full, sends can succeed without blocking. If the capacity is zero,
 the communication succeeds only when both a sender and receiver are ready.
 
-Assignment compatibility:
-TODO write this paragraph
+Assignment compatibility: A value of type channel can be assigned to a variable
+of type channel only if a) both types are equal (§Type equality), or b) both
+have equal channel value types and the value is a bidirectional channel.
 
-TODO(gri): Do we need the channel conversion? It's enough to just keep
-the assignment rule.
+Comparisons: A variable of channel type can be compared against "nil" with the
+operators "==" and "!=" (§Comparison operators). The variable is
+"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+if the variable has not been modified since creation (§Program initialization
+and execution).
+
+Two variables of channel type can be tested for equality with the
+operators "==" and "!=" (§Comparison operators) if both variables have
+the same ValueType. They are equal if both values were created by the same
+"make" call (§Making slices, maps, and channels).
 
 
 Type equality
@@ -2141,6 +2173,9 @@ The operand types in binary operations must be equal, with the following excepti
 	  (or an ideal number that can be safely converted into an unsigned int)
 	  (§Arithmetic operators).
 
+	- When comparing two operands of channel type, the channel value types
+	  must be equal but the channel direction is ignored.
+
 Unary operators have the highest precedence. They are evaluated from
 right to left. Note that "++" and "--" are outside the unary operator
 hierachy (they are statements) and they apply to the operand on the left.
@@ -2264,7 +2299,7 @@ Comparison operators
 
 Comparison operators yield a boolean result. All comparison operators apply
 to strings and numeric types. The operators "==" and "!=" also apply to
-boolean values, pointer, interface types, slice, map, and channel types
+boolean values, pointer, interface, slice, map, and channel types
 (including the value "nil").
 
 	==    equal
@@ -2276,19 +2311,13 @@ boolean values, pointer, interface types, slice, map, and channel types
 
 Strings are compared byte-wise (lexically).
 
+Booleans are equal if they are either both "true" or both "false".
+
 Pointers are equal if they point to the same value.
 
-Interfaces are equal if both their dynamic types and values are equal.
-For a value "v" of interface type, "v == nil" is true only if the predeclared
-constant "nil" is assigned explicitly to "v" (§Assignments), or "v" has not
-been modified since creation (§Program initialization and execution).
-
-TODO: Should we allow general comparison via interfaces? Problematic.
-
-Slices, maps, and channels are equal if they denote the same slice, map, or
-channel respectively, or are "nil".
-
-TODO: We need to be more precise here.
+Interface, slice, map, and channel types can be compared for equality according
+to the rules specified in the section on §Interface types, §Slice types, §Map types,
+and §Channel types, respectively.
 
 
 Logical operators
@@ -3360,6 +3389,3 @@ Program execution begins by initializing the main package and then
 invoking main.main().
 
 When main.main() returns, the program exits.
-
-TODO: is there a way to override the default for package main or the
-default for the function name main.main?
