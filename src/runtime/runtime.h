@@ -226,18 +226,17 @@ struct	Func
  */
 enum
 {
-	ASIMP		= 0,
+	AMEM,
+	ANOEQ,
 	ASTRING,
-	APTR,
 	AINTER,
-	AARRAY,
-	ASTRUCT,
+	Amax
 };
 
 /*
  * external data
  */
-extern	Alg	algarray[];
+extern	Alg	algarray[Amax];
 extern	string	emptystring;
 G*	allg;
 int32	goidgen;
@@ -299,6 +298,10 @@ void*	stackalloc(uint32);
 void	stackfree(void*);
 MCache*	allocmcache(void);
 void	mallocinit(void);
+bool	ifaceeq(Iface, Iface);
+uint64	ifacehash(Iface);
+uint64	nohash(uint32, void*);
+uint32	noequal(uint32, void*, void*);
 
 #pragma	varargck	argpos	printf	1
 
@@ -366,6 +369,7 @@ void	notewakeup(Note*);
 #define sys_printfloat sys·printfloat
 #define sys_printhex sys·printhex
 #define sys_printint sys·printint
+#define sys_printinter sys·printinter
 #define sys_printpc sys·printpc
 #define sys_printpointer sys·printpointer
 #define sys_printstring sys·printstring
@@ -393,6 +397,7 @@ void*	sys_getcallerpc(void*);
 void	sys_printbool(bool);
 void	sys_printfloat(float64);
 void	sys_printint(int64);
+void	sys_printinter(Iface);
 void	sys_printstring(string);
 void	sys_printpc(void*);
 void	sys_printpointer(void*);

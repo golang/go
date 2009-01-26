@@ -1,4 +1,36 @@
 
+=========== ./cmp2.go
+comparing uncomparable type []int
+throw: interface compare
+SIGSEGV: segmentation violation
+Faulting address: 0x0
+pc: xxx
+
+
+=========== ./cmp3.go
+comparing uncomparable type map[string] int
+throw: interface compare
+SIGSEGV: segmentation violation
+Faulting address: 0x0
+pc: xxx
+
+
+=========== ./cmp4.go
+hash of unhashable type []int
+throw: interface hash
+SIGSEGV: segmentation violation
+Faulting address: 0x0
+pc: xxx
+
+
+=========== ./cmp5.go
+hash of unhashable type map[string] int
+throw: interface hash
+SIGSEGV: segmentation violation
+Faulting address: 0x0
+pc: xxx
+
+
 =========== ./convlit.go
 BUG: errchk: ./convlit.go: missing expected error message on line 16: 'conver|incompatible'
 errchk: ./convlit.go: missing expected error message on line 22: 'convert'

@@ -1,0 +1,66 @@
+// $G $D/$F.go && $L $F.$A && ./$A.out
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "unsafe"
+
+func use(bool) { }
+
+func stringptr(s string) uintptr {
+	return *(&s).(unsafe.Pointer).(*uintptr);
+}
+
+func isfalse(b bool) {
+	if b { panicln("wanted false, got true") } // stack will explain where
+}
+
+func istrue(b bool) {
+	if !b { panicln("wanted true, got false") } // stack will explain where
+}
+
+func main()
+{
+	var a []int;
+	var b map[string]int;
+
+	var c string = "hello";
+	var d string = "hel";	// try to get different pointer
+	d = d + "lo";
+	if stringptr(c) == stringptr(d) {
+		panic("compiler too smart -- got same string")
+	}
+
+	var e = make(chan int);
+
+	var ia interface{} = a;
+	var ib interface{} = b;
+	var ic interface{} = c;
+	var id interface{} = d;
+	var ie interface{} = e;
+
+	// these comparisons are okay because
+	// string compare is okay and the others
+	// are comparisons where the types differ.
+	isfalse(ia == ib);
+	isfalse(ia == ic);
+	isfalse(ia == id);
+	isfalse(ib == ic);
+	isfalse(ib == id);
+	istrue(ic == id);
+	istrue(ie == ie);
+
+	// map of interface should use == on interface values,
+	// not memory.
+	// TODO: should m[c], m[d] be valid here?
+	var m = make(map[interface{}] int);
+	m[ic] = 1;
+	m[id] = 2;
+	if m[ic] != 2 {
+		panic("m[ic] = ", m[ic]);
+	}
+}
+

@@ -404,11 +404,32 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
 	FLUSH(&ok);
 }
 
-// ifaceeq(i1 any, i2 any) (ret bool);
-void
-sys·ifaceeq(Iface i1, Iface i2, bool ret)
+uint64
+ifacehash(Iface a)
 {
 	int32 alg, wid;
+	
+	if(a.type == nil)
+		return 0;
+	alg = a.type->sigt->hash;
+	wid = a.type->sigt->offset;
+	if(algarray[alg].hash == nohash) {
+		// calling nohash will throw too,
+		// but we can print a better error.
+		printf("hash of unhashable type %s\n", a.type->sigt->name);
+		throw("interface hash");
+	}
+	if(wid <= sizeof a.data)
+		return algarray[alg].hash(wid, &a.data);
+	else
+		return algarray[alg].hash(wid, a.data);
+}
+
+bool
+ifaceeq(Iface i1, Iface i2)
+{
+	int32 alg, wid;
+	bool ret;
 
 	if(iface_debug) {
 		prints("Ieq i1=");
@@ -438,6 +459,13 @@ sys·ifaceeq(Iface i1, Iface i2, bool ret)
 	if(wid != i2.type->sigt->offset)
 		goto no;
 
+	if(algarray[alg].equal == noequal) {
+		// calling noequal will throw too,
+		// but we can print a better error.
+		printf("comparing uncomparable type %s\n", i1.type->sigt->name);
+		throw("interface compare");
+	}
+
 	if(wid <= sizeof i1.data) {
 		if(!algarray[alg].equal(wid, &i1.data, &i2.data))
 			goto no;
@@ -454,6 +482,14 @@ no:
 		sys·printbool(ret);
 		prints("\n");
 	}
+	return ret;
+}
+
+// ifaceeq(i1 any, i2 any) (ret bool);
+void
+sys·ifaceeq(Iface i1, Iface i2, bool ret)
+{
+	ret = ifaceeq(i1, i2);
 	FLUSH(&ret);
 }
 
@@ -526,7 +562,7 @@ fakesigt(string type, bool indir)
 	sigt = mal(2*sizeof sigt[0]);
 	sigt[0].name = mal(type->len + 1);
 	mcpy(sigt[0].name, type->str, type->len);
-	sigt[0].hash = ASIMP;	// alg
+	sigt[0].hash = AMEM;	// alg
 	if(indir)
 		sigt[0].offset = 2*sizeof(niliface.data);  // big width
 	else

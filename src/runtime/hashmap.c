@@ -663,28 +663,12 @@ sys·newmap(uint32 keysize, uint32 valsize,
 {
 	Hmap *h;
 
-	switch(keyalg) {
-	case ASIMP:
-	case ASTRING:
-	case APTR:
-	case AINTER:
-	case AARRAY:
-	case ASTRUCT:
-		break;
-	default:
+	if(keyalg >= nelem(algarray) || algarray[keyalg].hash == nohash) {
 		printf("map(keyalg=%d)\n", keyalg);
 		throw("sys·newmap: unsupported map key type");
 	}
 
-	switch(valalg) {
-	case ASIMP:
-	case ASTRING:
-	case APTR:
-	case AINTER:
-	case AARRAY:
-	case ASTRUCT:
-		break;
-	default:
+	if(valalg >= nelem(algarray)) {
 		printf("map(valalg=%d)\n", valalg);
 		throw("sys·newmap: unsupported map value type");
 	}

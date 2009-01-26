@@ -62,25 +62,6 @@ func maptest() {
 	}
 }
 
-var mt1 = make(map[T]int)
-var ma1 = make(map[[]int] int)
-
-func maptest2() {
-	mt1[t] = 123;
-	t1 := t;
-	val, ok := mt1[t1];
-	if val != 123 || !ok {
-		println("fail: map key struct", val, ok);
-	}
-
-	ma1[a] = 345;
-	a1 := a;
-	val, ok = ma1[a1];
-	if val != 345 || !ok {
-		panic("map key array", val, ok);
-	}
-}
-
 var ct = make(chan T)
 var ca = make(chan []int)
 
@@ -136,7 +117,6 @@ func interfacetest() {
 func main() {
 	arraycmptest();
 	maptest();
-	maptest2();
 	chantest();
 	interfacetest();
 }

@@ -88,17 +88,9 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
 	Hchan *c;
 	int32 i;
 
-	switch(elemalg){
-	case ASIMP:
-	case ASTRING:
-	case APTR:
-	case AINTER:
-	case AARRAY:
-	case ASTRUCT:
-		break;
-	default:
+	if(elemalg >= nelem(algarray)) {
 		printf("chan(alg=%d)\n", elemalg);
-		throw("sys·newchan: unsupported channel element type");
+		throw("sys·newchan: unsupported elem type");
 	}
 
 	c = mal(sizeof(*c));
