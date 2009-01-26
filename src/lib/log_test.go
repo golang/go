@@ -10,61 +10,76 @@ import (
 	"bufio";
 	"log";
 	"os";
+	"regexp";
 	"testing";
 )
 
-func test(t *testing.T, flag int, expect string) {
+const (
+	Rdate = `[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]`;
+	Rtime = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`;
+	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`;
+	Rline = `[0-9]+:`;
+	Rlongfile = `/[A-Za-z0-9_/]+\.go:` + Rline;
+	Rshortfile = `[A-Za-z0-9_]+\.go:` + Rline;
+)
+
+type tester struct {
+	flag	int;
+	prefix	string;
+	pattern	string;	// regexp that log output must match; we add ^ and expected_text$ always
+}
+
+var tests = []tester {
+	// individual pieces:
+	tester{ 0,	"", "" },
+	tester{ 0, "XXX", "XXX" },
+	tester{ Lok|Ldate, "", Rdate+" " },
+	tester{ Lok|Ltime, "", Rtime+" " },
+	tester{ Lok|Ltime|Lmicroseconds, "", Rtime+Rmicroseconds+" " },
+	tester{ Lok|Lmicroseconds, "", Rtime+Rmicroseconds+" " },	// microsec implies time
+	tester{ Lok|Llongfile, "", Rlongfile+" " },
+	tester{ Lok|Lshortfile, "", Rshortfile+" " },
+	tester{ Lok|Llongfile|Lshortfile, "", Rshortfile+" " },	// shortfile overrides longfile
+	// everything at once:
+	tester{ Lok|Ldate|Ltime|Lmicroseconds|Llongfile, "XXX", "XXX"+Rdate+" "+Rtime+Rmicroseconds+" "+Rlongfile+" " },
+	tester{ Lok|Ldate|Ltime|Lmicroseconds|Lshortfile, "XXX", "XXX"+Rdate+" "+Rtime+Rmicroseconds+" "+Rshortfile+" " },
+}
+
+// Test using Log("hello", 23, "world") or using Logf("hello %d world", 23)
+func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool) {
 	fd0, fd1, err1 := os.Pipe();
 	if err1 != nil {
-		t.Error("pipe", err1);
+		t.Fatal("pipe", err1);
 	}
 	buf, err2 := bufio.NewBufRead(fd0);
 	if err2 != nil {
-		t.Error("bufio.NewBufRead", err2);
+		t.Fatal("bufio.NewBufRead", err2);
 	}
-	l := NewLogger(fd1, nil, flag);
-	l.Log("hello", 23, "world");	/// the line number of this line needs to be placed in the expect strings
+	l := NewLogger(fd1, nil, prefix, flag);
+	if useLogf {
+		l.Logf("hello %d world", 23);
+	} else {
+		l.Log("hello", 23, "world");
+	}
 	line, err3 := buf.ReadLineString('\n', false);
-	if line[len(line)-len(expect):len(line)] != expect {
-		t.Error("log output should be ...", expect, "; is " , line);
+	if err3 != nil {
+		t.Fatal("log error", err3);
 	}
-	t.Log(line);
+	pattern = "^"+pattern+"hello 23 world$";
+	matched, err4 := regexp.Match(pattern, line);
+	if err4 != nil{
+		t.Fatal("pattern did not compile:", err4);
+	}
+	if !matched {
+		t.Errorf("log output should match %q is %q", pattern, line);
+	}
 	fd0.Close();
 	fd1.Close();
 }
 
-func TestRegularLog(t *testing.T) {
-	test(t, Lok, "/go/src/lib/log_test.go:25: hello 23 world");
-}
-
-func TestShortNameLog(t *testing.T) {
-	test(t, Lok|Lshortname, " log_test.go:25: hello 23 world")
-}
-
-func testFormatted(t *testing.T, flag int, expect string) {
-	fd0, fd1, err1 := os.Pipe();
-	if err1 != nil {
-		t.Error("pipe", err1);
+func TestAllLog(t *testing.T) {
+	for i, testcase := range(tests) {
+		testLog(t, testcase.flag, testcase.prefix, testcase.pattern, false);
+		testLog(t, testcase.flag, testcase.prefix, testcase.pattern, true);
 	}
-	buf, err2 := bufio.NewBufRead(fd0);
-	if err2 != nil {
-		t.Error("bufio.NewBufRead", err2);
-	}
-	l := NewLogger(fd1, nil, flag);
-	l.Logf("hello %d world", 23);	/// the line number of this line needs to be placed in the expect strings
-	line, err3 := buf.ReadLineString('\n', false);
-	if line[len(line)-len(expect):len(line)] != expect {
-		t.Error("log output should be ...", expect, "; is " , line);
-	}
-	t.Log(line);
-	fd0.Close();
-	fd1.Close();
-}
-
-func TestRegularLogFormatted(t *testing.T) {
-	testFormatted(t, Lok, "/go/src/lib/log_test.go:53: hello 23 world");
-}
-
-func TestShortNameLogFormatted(t *testing.T) {
-	testFormatted(t, Lok|Lshortname, " log_test.go:53: hello 23 world")
 }
