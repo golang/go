@@ -27,6 +27,7 @@ DIRS=\
 FILES=\
 	bufio\
 	flag\
+	log\
 	malloc\
 	once\
 	rand\
@@ -91,6 +92,7 @@ test: test.files
 bignum.6: fmt.dirinstall
 bufio.6: io.dirinstall os.dirinstall
 flag.6: fmt.dirinstall
+log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
 testing.6: flag.install fmt.dirinstall
 strings.6: utf8.install
 
