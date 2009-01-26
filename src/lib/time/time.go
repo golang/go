@@ -38,12 +38,12 @@ const (
 )
 
 type Time struct {
-	year int64;	// 2008 is 2008
-	month, day int;	// Sep-17 is 9, 17
-	hour, minute, second int;	// 10:43:12 is 10, 43, 12
-	weekday int;		// Sunday = 0, Monday = 1, ...
-	zoneoffset int;	// seconds west of UTC
-	zone string;
+	Year int64;	// 2008 is 2008
+	Month, Day int;	// Sep-17 is 9, 17
+	Hour, Minute, Second int;	// 10:43:12 is 10, 43, 12
+	Weekday int;		// Sunday = 0, Monday = 1, ...
+	ZoneOffset int;	// seconds west of UTC
+	Zone string;
 }
 
 var nonleapyear = []int{
@@ -82,14 +82,14 @@ func SecondsToUTC(sec int64) *Time {
 	}
 
 	// Time
-	t.hour = int(sec/3600);
-	t.minute = int((sec/60)%60);
-	t.second = int(sec%60);
+	t.Hour = int(sec/3600);
+	t.Minute = int((sec/60)%60);
+	t.Second = int(sec%60);
 
 	// Day 0 = January 1, 1970 was a Thursday
-	t.weekday = int((day + Thursday) % 7);
-	if t.weekday < 0 {
-		t.weekday += 7
+	t.Weekday = int((day + Thursday) % 7);
+	if t.Weekday < 0 {
+		t.Weekday += 7
 	}
 
 	// Change day from 0 = 1970 to 0 = 2001,
@@ -125,7 +125,7 @@ func SecondsToUTC(sec int64) *Time {
 	year += n;
 	day -= 365*n;
 
-	t.year = year;
+	t.Year = year;
 
 	// If someone ever needs yearday,
 	// tyearday = day (+1?)
@@ -136,9 +136,9 @@ func SecondsToUTC(sec int64) *Time {
 	for m = 0; m < 12 && yday >= months[m]; m++ {
 		yday -= months[m]
 	}
-	t.month = m+1;
-	t.day = yday+1;
-	t.zone = "GMT";
+	t.Month = m+1;
+	t.Day = yday+1;
+	t.Zone = "GMT";
 
 	return t;
 }
@@ -154,8 +154,8 @@ func SecondsToLocalTime(sec int64) *Time {
 		return SecondsToUTC(sec)
 	}
 	t := SecondsToUTC(sec+int64(offset));
-	t.zone = zone;
-	t.zoneoffset = offset;
+	t.Zone = zone;
+	t.ZoneOffset = offset;
 	return t
 }
 
@@ -172,7 +172,7 @@ func (t *Time) Seconds() int64 {
 	day := int64(0);
 
 	// Rewrite year to be >= 2001.
-	year := t.year;
+	year := t.Year;
 	if year < 2001 {
 		n := (2001 - year)/400 + 1;
 		year += 400*n;
@@ -199,25 +199,25 @@ func (t *Time) Seconds() int64 {
 	day += 365*n;
 
 	// Add in days this year.
-	months := months(t.year);
-	for m := 0; m < t.month-1; m++ {
+	months := months(t.Year);
+	for m := 0; m < t.Month-1; m++ {
 		day += int64(months[m])
 	}
-	day += int64(t.day - 1);
+	day += int64(t.Day - 1);
 
 	// Convert days to seconds since January 1, 2001.
 	sec := day * _SecondsPerDay;
 
 	// Add in time elapsed today.
-	sec += int64(t.hour) * 3600;
-	sec += int64(t.minute) * 60;
-	sec += int64(t.second);
+	sec += int64(t.Hour) * 3600;
+	sec += int64(t.Minute) * 60;
+	sec += int64(t.Second);
 
 	// Convert from seconds since 2001 to seconds since 1970.
 	sec += _Days1970To2001 * _SecondsPerDay;
 
 	// Account for local time zone.
-	sec -= int64(t.zoneoffset);
+	sec -= int64(t.ZoneOffset);
 	return sec
 }
 
@@ -289,39 +289,39 @@ func _Format(t *Time, fmt string) string {
 			i++;
 			switch fmt[i] {
 			case 'A':	// %A full weekday name
-				bp = _AddString(buf, bp, _LongDayNames[t.weekday]);
+				bp = _AddString(buf, bp, _LongDayNames[t.Weekday]);
 			case 'a':	// %a abbreviated weekday name
-				bp = _AddString(buf, bp, _ShortDayNames[t.weekday]);
+				bp = _AddString(buf, bp, _ShortDayNames[t.Weekday]);
 			case 'b':	// %b abbreviated month name
-				bp = _AddString(buf, bp, _ShortMonthNames[t.month-1]);
+				bp = _AddString(buf, bp, _ShortMonthNames[t.Month-1]);
 			case 'd':	// %d day of month (01-31)
-				_Decimal(buf[bp:bp+2], t.day);
+				_Decimal(buf[bp:bp+2], t.Day);
 				bp += 2;
 			case 'e':	// %e day of month ( 1-31)
-				if t.day >= 10 {
-					_Decimal(buf[bp:bp+2], t.day)
+				if t.Day >= 10 {
+					_Decimal(buf[bp:bp+2], t.Day)
 				} else {
 					buf[bp] = ' ';
-					buf[bp+1] = byte(t.day + '0')
+					buf[bp+1] = byte(t.Day + '0')
 				}
 				bp += 2;
 			case 'H':	// %H hour 00-23
-				_Decimal(buf[bp:bp+2], t.hour);
+				_Decimal(buf[bp:bp+2], t.Hour);
 				bp += 2;
 			case 'M':	// %M minute 00-59
-				_Decimal(buf[bp:bp+2], t.minute);
+				_Decimal(buf[bp:bp+2], t.Minute);
 				bp += 2;
 			case 'S':	// %S second 00-59
-				_Decimal(buf[bp:bp+2], t.second);
+				_Decimal(buf[bp:bp+2], t.Second);
 				bp += 2;
 			case 'Y':	// %Y year 2008
-				_Decimal(buf[bp:bp+4], int(t.year));
+				_Decimal(buf[bp:bp+4], int(t.Year));
 				bp += 4;
 			case 'y':	// %y year 08
-				_Decimal(buf[bp:bp+2], int(t.year%100));
+				_Decimal(buf[bp:bp+2], int(t.Year%100));
 				bp += 2;
 			case 'Z':
-				bp = _AddString(buf, bp, t.zone);
+				bp = _AddString(buf, bp, t.Zone);
 			default:
 				buf[bp] = '%';
 				buf[bp+1] = fmt[i];
