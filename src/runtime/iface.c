@@ -40,6 +40,7 @@ struct	Itype
 
 static	Iface	niliface;
 static	Itype*	hash[1009];
+static	Lock	ifacelock;
 
 Sigi	sigi·empty[2] =	{ (byte*)"interface { }" };
 
@@ -113,32 +114,48 @@ printiface(Iface i)
 static Itype*
 itype(Sigi *si, Sigt *st, int32 canfail)
 {
+	int32 locked;
 	int32 nt, ni;
 	uint32 ihash, h;
 	byte *sname, *iname;
 	Itype *m;
 
-	h = ((uint32)(uint64)si + (uint32)(uint64)st) % nelem(hash);
-	for(m=hash[h]; m!=nil; m=m->link) {
-		if(m->sigi == si && m->sigt == st) {
-			if(m->bad) {
-				m = nil;
-				if(!canfail) {
-					// this can only happen if the conversion
-					// was already done once using the , ok form
-					// and we have a cached negative result.
-					// the cached result doesn't record which
-					// interface function was missing, so jump
-					// down to the interface check, which will
-					// give a better error.
-					goto throw;
+	// compiler has provided some good hash codes for us.
+	h = 0;
+	if(si)
+		h += si->hash;
+	if(st)
+		h += st->hash >> 8;
+	h %= nelem(hash);
+
+	// look twice - once without lock, once with.
+	// common case will be no lock contention.
+	for(locked=0; locked<2; locked++) {
+		if(locked)
+			lock(&ifacelock);
+		for(m=hash[h]; m!=nil; m=m->link) {
+			if(m->sigi == si && m->sigt == st) {
+				if(m->bad) {
+					m = nil;
+					if(!canfail) {
+						// this can only happen if the conversion
+						// was already done once using the , ok form
+						// and we have a cached negative result.
+						// the cached result doesn't record which
+						// interface function was missing, so jump
+						// down to the interface check, which will
+						// give a better error.
+						goto throw;
+					}
 				}
+				// prints("old itype\n");
+				if(locked)
+					unlock(&ifacelock);
+				return m;
 			}
-			// prints("old itype\n");
-			return m;
 		}
 	}
-
+	
 	ni = si[0].perm;	// first entry has size
 	m = mal(sizeof(*m) + ni*sizeof(m->fun[0]));
 	m->sigi = si;
@@ -180,6 +197,8 @@ throw:
 				m->bad = 1;
 				m->link = hash[h];
 				hash[h] = m;
+				if(locked)
+					unlock(&ifacelock);
 				return nil;
 			}
 			if(ihash == st[nt].hash && strcmp(sname, iname) == 0)
@@ -190,6 +209,8 @@ throw:
 	m->link = hash[h];
 	hash[h] = m;
 	// printf("new itype %p\n", m);
+	if(locked)
+		unlock(&ifacelock);
 	return m;
 }
 
@@ -216,7 +237,7 @@ sys·ifaceT2I(Sigi *si, Sigt *st, ...)
 		prints("\n");
 	}
 
-	alg = st->hash;
+	alg = st->hash & 0xFF;
 	wid = st->offset;
 	if(wid <= sizeof ret->data)
 		algarray[alg].copy(wid, &ret->data, elem);
@@ -272,7 +293,7 @@ sys·ifaceI2T(Sigt *st, Iface i, ...)
 		throw("interface conversion");
 	}
 
-	alg = st->hash;
+	alg = st->hash & 0xFF;
 	wid = st->offset;
 	if(wid <= sizeof i.data)
 		algarray[alg].copy(wid, ret, &i.data);
@@ -297,7 +318,7 @@ sys·ifaceI2T2(Sigt *st, Iface i, ...)
 	int32 alg, wid;
 
 	ret = (byte*)(&i+1);
-	alg = st->hash;
+	alg = st->hash & 0xFF;
 	wid = st->offset;
 	ok = (bool*)(ret+rnd(wid, 8));
 
@@ -411,7 +432,7 @@ ifacehash(Iface a)
 	
 	if(a.type == nil)
 		return 0;
-	alg = a.type->sigt->hash;
+	alg = a.type->sigt->hash & 0xFF;
 	wid = a.type->sigt->offset;
 	if(algarray[alg].hash == nohash) {
 		// calling nohash will throw too,
@@ -450,14 +471,12 @@ ifaceeq(Iface i1, Iface i2)
 	if(i2.type == nil)
 		goto no;
 
-	// value
-	alg = i1.type->sigt->hash;
-	if(alg != i2.type->sigt->hash)
+	// are they the same type?
+	if(i1.type->sigt != i2.type->sigt)
 		goto no;
 
+	alg = i1.type->sigt->hash & 0xFF;
 	wid = i1.type->sigt->offset;
-	if(wid != i2.type->sigt->offset)
-		goto no;
 
 	if(algarray[alg].equal == noequal) {
 		// calling noequal will throw too,
@@ -553,20 +572,53 @@ extern int32 ngotypesigs;
 // for .([]int) instead of .(string) above, then there would be a
 // signature with type string "[]int" in gotypesigs, and unreflect
 // wouldn't call fakesigt.
+
+static	Sigt	*fake[1009];
+static	int32	nfake;
+
 static Sigt*
 fakesigt(string type, bool indir)
 {
-	// TODO(rsc): Cache these by type string.
 	Sigt *sigt;
+	uint32 h;
+	int32 i, locked;
+
+	if(type == nil)
+		type = emptystring;
+
+	h = 0;
+	for(i=0; i<type->len; i++)
+		h = h*37 + type->str[i];
+	h += indir;
+	h %= nelem(fake);
+	
+	for(locked=0; locked<2; locked++) {
+		if(locked)
+			lock(&ifacelock);
+		for(sigt = fake[h]; sigt != nil; sigt = (Sigt*)sigt->fun) {
+			// don't need to compare indir.
+			// same type string but different indir will have
+			// different hashes.
+			if(mcmp(sigt->name, type->str, type->len) == 0)
+			if(sigt->name[type->len] == '\0') {
+				if(locked)
+					unlock(&ifacelock);
+				return sigt;
+			}
+		}
+	}
 
 	sigt = mal(2*sizeof sigt[0]);
 	sigt[0].name = mal(type->len + 1);
 	mcpy(sigt[0].name, type->str, type->len);
-	sigt[0].hash = AMEM;	// alg
+	sigt[0].hash = AFAKE;	// alg
 	if(indir)
 		sigt[0].offset = 2*sizeof(niliface.data);  // big width
 	else
 		sigt[0].offset = 1;  // small width
+	sigt->fun = (void*)fake[h];
+	fake[h] = sigt;
+	unlock(&ifacelock);
 	return sigt;
 }
 
@@ -574,31 +626,40 @@ static int32
 cmpstringchars(string a, uint8 *b)
 {
 	int32 i;
+	byte c1, c2;
 
 	for(i=0;; i++) {
-		if(i == a->len) {
-			if(b[i] == 0)
-				return 0;
+		if(i == a->len)
+			c1 = 0;
+		else
+			c1 = a->str[i];
+		c2 = b[i];
+		if(c1 < c2)
 			return -1;
-		}
-		if(b[i] == 0)
-			return 1;
-		if(a->str[i] != b[i]) {
-			if((uint8)a->str[i] < (uint8)b[i])
-				return -1;
-			return 1;
-		}
+		if(c1 > c2)
+			return +1;
+		if(c1 == 0)
+			return 0;
 	}
 }
 
 static Sigt*
 findtype(string type, bool indir)
 {
-	int32 i;
-
-	for(i=0; i<ngotypesigs; i++)
-		if(cmpstringchars(type, gotypesigs[i]->name) == 0)
-			return gotypesigs[i];
+	int32 i, lo, hi, m;
+	
+	lo = 0;
+	hi = ngotypesigs;
+	while(lo < hi) {
+		m = lo + (hi - lo)/2;
+		i = cmpstringchars(type, gotypesigs[m]->name);
+		if(i == 0)
+			return gotypesigs[m];
+		if(i < 0)
+			hi = m;
+		else
+			lo = m+1;
+	}
 	return fakesigt(type, indir);
 }
 

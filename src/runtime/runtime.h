@@ -230,6 +230,7 @@ enum
 	ANOEQ,
 	ASTRING,
 	AINTER,
+	AFAKE,
 	Amax
 };
 
@@ -269,6 +270,7 @@ void	prints(int8*);
 void	printf(int8*, ...);
 byte*	mchr(byte*, byte, byte*);
 void	mcpy(byte*, byte*, uint32);
+int32	mcmp(byte*, byte*, uint32);
 void	mmov(byte*, byte*, uint32);
 void*	mal(uint32);
 uint32	cmpstring(string, string);

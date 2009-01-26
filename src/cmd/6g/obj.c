@@ -635,12 +635,14 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 	Iter savet;
 	Prog *oldlist;
 	Sym *method;
+	uint32 sighash;
 
 	at.sym = s;
 
 	a = nil;
 	o = 0;
 	oldlist = nil;
+	sighash = 0;
 	for(f=methodt->method; f!=T; f=f->down) {
 		if(f->type->etype != TFUNC)
 			continue;
@@ -662,6 +664,8 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 			a->hash += PRIME10*stringhash(package);
 		a->perm = o;
 		a->sym = methodsym(method, rcvrt);
+		
+		sighash = sighash*100003 + a->hash;
 
 		if(!a->sym->siggen) {
 			a->sym->siggen = 1;
@@ -709,7 +713,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 	ot = 0;
 	ot = rnd(ot, maxround);	// base structure
 
-	// sigi[0].name = ""
+	// sigt[0].name = ""
 	ginsatoa(widthptr, stringo);
 
 	// save type name for runtime error message.
@@ -718,10 +722,10 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 
 	// first field of an type signature contains
 	// the element parameters and is not a real entry
-	// sigi[0].hash = elemalg
-	gensatac(wi, algtype(progt));
+	// sigt[0].hash = elemalg + sighash<<8
+	gensatac(wi, algtype(progt) + (sighash<<8));
 
-	// sigi[0].offset = width
+	// sigt[0].offset = width
 	gensatac(wi, progt->width);
 
 	// skip the function
@@ -730,10 +734,10 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 	for(b=a; b!=nil; b=b->link) {
 		ot = rnd(ot, maxround);	// base structure
 
-		// sigx[++].name = "fieldname"
+		// sigt[++].name = "fieldname"
 		ginsatoa(widthptr, stringo);
 
-		// sigx[++].hash = hashcode
+		// sigt[++].hash = hashcode
 		gensatac(wi, b->hash);
 
 		// sigt[++].offset = of embedded struct
@@ -770,11 +774,13 @@ dumpsigi(Type *t, Sym *s)
 	Sig *a, *b;
 	Prog *p;
 	char buf[NSYMB];
+	uint32 sighash;
 
 	at.sym = s;
 
 	a = nil;
 	o = 0;
+	sighash = 0;
 	for(f=t->type; f!=T; f=f->down) {
 		if(f->type->etype != TFUNC)
 			continue;
@@ -797,6 +803,8 @@ dumpsigi(Type *t, Sym *s)
 		a->perm = o;
 		a->sym = methodsym(f->sym, t);
 		a->offset = 0;
+		
+		sighash = sighash*100003 + a->hash;
 
 		o++;
 	}
@@ -815,8 +823,8 @@ dumpsigi(Type *t, Sym *s)
 	// first field of an interface signature
 	// contains the count and is not a real entry
 
-	// sigi[0].hash = 0
-	gensatac(wi, 0);
+	// sigi[0].hash = sighash
+	gensatac(wi, sighash);
 
 	// sigi[0].offset = count
 	o = 0;

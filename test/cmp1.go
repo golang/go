@@ -41,7 +41,7 @@ func main()
 	var ic interface{} = c;
 	var id interface{} = d;
 	var ie interface{} = e;
-
+	
 	// these comparisons are okay because
 	// string compare is okay and the others
 	// are comparisons where the types differ.
@@ -52,6 +52,13 @@ func main()
 	isfalse(ib == id);
 	istrue(ic == id);
 	istrue(ie == ie);
+
+	// 6g used to let this go through as true.
+	var g uint64 = 123;
+	var h int64 = 123;
+	var ig interface{} = g;
+	var ih interface{} = h;
+	isfalse(ig == ih);
 
 	// map of interface should use == on interface values,
 	// not memory.
