@@ -291,26 +291,16 @@ algtype(Type *t)
 {
 	int a;
 
-	a = AUNK;
-	if(issimple[t->etype])
-		a = ASIMP;	// simple mem
+	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN)
+		a = AMEM;	// just bytes (int, ptr, etc)
 	else
 	if(t->etype == TSTRING)
 		a = ASTRING;	// string
 	else
-	if(isptr[simtype[t->etype]])
-		a = APTR;	// pointer
-	else
-	if(isslice(t))
-		a = ASLICE;
-	else
-	if(t->etype == TSTRUCT)
-		a = ASTRUCT;
-	else
-	if(isinter(t))
+	if(t->etype == TINTER)
 		a = AINTER;	// interface
-//	else
-//		fatal("algtype: cant find type %T", t);
+	else
+		a = ANOEQ;	// just bytes, but no hash/eq
 	return a;
 }
 

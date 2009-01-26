@@ -52,7 +52,7 @@ func main() {
 	mipT := make(map[int] *T);
 	mpTi := make(map[*T] int);
 	mit := make(map[int] T);
-	mti := make(map[T] int);
+//	mti := make(map[T] int);
 
 	type M map[int] int;
 	mipM := make(map[int] M);
@@ -88,7 +88,7 @@ func main() {
 		mpTi[apT[i]] = i;
 		mipM[i] = m;
 		mit[i] = t;
-		mti[t] = i;
+	//	mti[t] = i;
 	}
 
 	// test len
@@ -122,15 +122,15 @@ func main() {
 	if len(mpTi) != count {
 		fmt.Printf("len(mpTi) = %d\n", len(mpTi));
 	}
-	if len(mti) != count {
-		fmt.Printf("len(mti) = %d\n", len(mti));
-	}
+//	if len(mti) != count {
+//		fmt.Printf("len(mti) = %d\n", len(mti));
+//	}
 	if len(mipM) != count {
 		fmt.Printf("len(mipM) = %d\n", len(mipM));
 	}
-	if len(mti) != count {
-		fmt.Printf("len(mti) = %d\n", len(mti));
-	}
+//	if len(mti) != count {
+//		fmt.Printf("len(mti) = %d\n", len(mti));
+//	}
 	if len(mit) != count {
 		fmt.Printf("len(mit) = %d\n", len(mit));
 	}
@@ -174,15 +174,15 @@ func main() {
 		if(mpTi[apT[i]] != i) {
 			fmt.Printf("mpTi[apT[%d]] = %d\n", i, mpTi[apT[i]]);
 		}
-		if(mti[t] != i) {
-			fmt.Printf("mti[%s] = %s\n", s, mti[t]);
-		}
+	//	if(mti[t] != i) {
+	//		fmt.Printf("mti[%s] = %s\n", s, mti[t]);
+	//	}
 		if (mipM[i][i] != i + 1) {
 			fmt.Printf("mipM[%d][%d] = %d\n", i, i, mipM[i][i]);
 		}
-		if(mti[t] != i) {
-			fmt.Printf("mti[%v] = %d\n", t, mti[t]);
-		}
+	//	if(mti[t] != i) {
+	//		fmt.Printf("mti[%v] = %d\n", t, mti[t]);
+	//	}
 		if(mit[i].i != int64(i) || mit[i].f != f) {
 			fmt.Printf("mit[%d] = {%d %g}\n", i, mit[i].i, mit[i].f);
 		}
@@ -314,16 +314,16 @@ func main() {
 				fmt.Printf("tuple existence assign: mit[%d]\n", i);
 			}
 		}
-		{
-			a, b := mti[t];
-			if !b {
-				fmt.Printf("tuple existence decl: mti[%d]\n", i);
-			}
-			a, b = mti[t];
-			if !b {
-				fmt.Printf("tuple existence assign: mti[%d]\n", i);
-			}
-		}
+//		{
+//			a, b := mti[t];
+//			if !b {
+//				fmt.Printf("tuple existence decl: mti[%d]\n", i);
+//			}
+//			a, b = mti[t];
+//			if !b {
+//				fmt.Printf("tuple existence assign: mti[%d]\n", i);
+//			}
+//		}
 	}
 
 	// test nonexistence with tuple check
@@ -442,16 +442,16 @@ func main() {
 				fmt.Printf("tuple nonexistence assign: mipM[%d]", i);
 			}
 		}
-		{
-			a, b := mti[t];
-			if b {
-				fmt.Printf("tuple nonexistence decl: mti[%d]", i);
-			}
-			a, b = mti[t];
-			if b {
-				fmt.Printf("tuple nonexistence assign: mti[%d]", i);
-			}
-		}
+//		{
+//			a, b := mti[t];
+//			if b {
+//				fmt.Printf("tuple nonexistence decl: mti[%d]", i);
+//			}
+//			a, b = mti[t];
+//			if b {
+//				fmt.Printf("tuple nonexistence assign: mti[%d]", i);
+//			}
+//		}
 		{
 			a, b := mit[i];
 			if b {

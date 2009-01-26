@@ -37,13 +37,12 @@ enum
 	PRIME10		= 10093,
 
 	AUNK		= 100,
+
 	// these values are known by runtime
-	ASIMP		= 0,
+	AMEM		= 0,
+	ANOEQ,
 	ASTRING,
-	APTR,
 	AINTER,
-	ASLICE,
-	ASTRUCT,
 
 	BADWIDTH	= -1000000000
 };

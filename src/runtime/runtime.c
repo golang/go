@@ -328,57 +328,52 @@ strprint(uint32 s, string *a)
 	sys·printstring(*a);
 }
 
-static void
-strcopy(uint32 s, string *a, string *b)
+static uint64
+interhash(uint32 s, Iface *a)
 {
 	USED(s);
-	if(b == nil) {
-		*a = nil;
-		return;
-	}
-	*a = *b;
+	return ifacehash(*a);
 }
 
-static uint64
-ptrhash(uint32 s, void **a)
+static void
+interprint(uint32 s, Iface *a)
 {
-	return memhash(s, *a);
+	USED(s);
+	sys·printinter(*a);
 }
 
 static uint32
-ptrequal(uint32 s, void **a, void **b)
+interequal(uint32 s, Iface *a, Iface *b)
 {
-	USED(s, a, b);
-	prints("ptrequal\n");
+	USED(s);
+	return ifaceeq(*a, *b);
+}
+
+uint64
+nohash(uint32 s, void *a)
+{
+	USED(s);
+	USED(a);
+	throw("hash of unhashable type");
 	return 0;
 }
 
-static void
-ptrprint(uint32 s, void **a)
-{
-	USED(s, a);
-	prints("ptrprint\n");
-}
-
-static void
-ptrcopy(uint32 s, void **a, void **b)
+uint32
+noequal(uint32 s, void *a, void *b)
 {
 	USED(s);
-	if(b == nil) {
-		*a = nil;
-		return;
-	}
-	*a = *b;
+	USED(a);
+	USED(b);
+	throw("comparing uncomparable types");
+	return 0;
 }
 
 Alg
 algarray[] =
 {
-[ASIMP]		{ memhash, memequal, memprint, memcopy },
-[ASTRING]	{ strhash, strequal, strprint, strcopy },
-[APTR]		{ memhash, memequal, memprint, memcopy },	// TODO: ptr routines
-[AINTER]	{ memhash, memequal, memprint, memcopy },	// TODO: interface routines
-[ASTRUCT]	{ memhash, memequal, memprint, memcopy },	// TODO: what goes here?
-[AARRAY]	{ memhash, memequal, memprint, memcopy },	// TODO: what goes here?
+[AMEM]	{ memhash, memequal, memprint, memcopy },
+[ANOEQ]	{ nohash, noequal, memprint, memcopy },
+[ASTRING]	{ strhash, strequal, strprint, memcopy },
+[AINTER]		{ interhash, interequal, interprint, memcopy },
 };
 
