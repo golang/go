@@ -1983,9 +1983,9 @@ loop:
 			argtype(on, l->type);		// any-1
 			break;
 		}
-		if(isptr[l->type->etype]) {
+		if(isptr[l->type->etype] || l->type->etype == TCHAN || l->type->etype == TMAP) {
 			on = syslook("printpointer", 1);
-			argtype(on, l->type->type);	// any-1
+			argtype(on, l->type);	// any-1
 			break;
 		}
 		if(isslice(l->type)) {
@@ -1993,7 +1993,7 @@ loop:
 			argtype(on, l->type);	// any-1
 			break;
 		}
-		badtype(n->op, l->type, T);
+		badtype(OPRINT, l->type, T);
 		l = listnext(&save);
 		goto loop;
 
