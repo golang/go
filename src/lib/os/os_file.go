@@ -9,7 +9,7 @@ import os "os"
 
 // FDs are wrappers for file descriptors
 type FD struct {
-	fd int64
+	Fd int64
 }
 
 func NewFD(fd int64) *FD {
@@ -48,8 +48,8 @@ func (fd *FD) Close() *Error {
 	if fd == nil {
 		return EINVAL
 	}
-	r, e := syscall.Close(fd.fd);
-	fd.fd = -1;  // so it can't be closed again
+	r, e := syscall.Close(fd.Fd);
+	fd.Fd = -1;  // so it can't be closed again
 	return ErrnoToError(e)
 }
 
@@ -59,7 +59,7 @@ func (fd *FD) Read(b []byte) (ret int, err *Error) {
 	}
 	var r, e int64;
 	if len(b) > 0 {  // because we access b[0]
-		r, e = syscall.Read(fd.fd, &b[0], int64(len(b)));
+		r, e = syscall.Read(fd.Fd, &b[0], int64(len(b)));
 		if r < 0 {
 			r = 0
 		}
@@ -73,7 +73,7 @@ func (fd *FD) Write(b []byte) (ret int, err *Error) {
 	}
 	var r, e int64;
 	if len(b) > 0 {  // because we access b[0]
-		r, e = syscall.Write(fd.fd, &b[0], int64(len(b)));
+		r, e = syscall.Write(fd.Fd, &b[0], int64(len(b)));
 		if r < 0 {
 			r = 0
 		}
@@ -89,7 +89,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
 	if !syscall.StringToBytes(b, s) {
 		return 0, EINVAL
 	}
-	r, e := syscall.Write(fd.fd, &b[0], int64(len(s)));
+	r, e := syscall.Write(fd.Fd, &b[0], int64(len(s)));
 	if r < 0 {
 		r = 0
 	}
