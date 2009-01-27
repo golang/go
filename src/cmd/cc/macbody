@@ -725,8 +725,8 @@ macprag(void)
 		pragfpround();
 		return;
 	}
-	if(s && strcmp(s->name, "profile") == 0) {
-		pragprofile();
+	if(s && strcmp(s->name, "textflag") == 0) {
+		pragtextflag();
 		return;
 	}
 	if(s && strcmp(s->name, "varargck") == 0) {

@@ -498,7 +498,7 @@ EXTERN	Term	term[NTERM];
 EXTERN	int	nterm;
 EXTERN	int	packflg;
 EXTERN	int	fproundflg;
-EXTERN	int	profileflg;
+EXTERN	int	textflag;
 EXTERN	int	ncontin;
 EXTERN	int	canreach;
 EXTERN	int	warnreach;
@@ -747,7 +747,7 @@ void	arginit(void);
 void	pragvararg(void);
 void	pragpack(void);
 void	pragfpround(void);
-void pragprofile(void);
+void	pragtextflag(void);
 void	pragincomplete(void);
 
 /*

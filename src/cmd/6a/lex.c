@@ -1334,5 +1334,12 @@ praghjdicks(void)
 		;
 }
 
+void
+pragtextflag(void)
+{
+	while(getnsc() != '\n')
+		;
+}
+
 #include "../cc/lexbody"
 #include "../cc/macbody"

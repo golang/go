@@ -450,25 +450,19 @@ pragfpround(void)
 }
 
 void
-pragprofile(void)
+pragtextflag(void)
 {
 	Sym *s;
 
-	profileflg = 0;
+	textflag = 0;
 	s = getsym();
-	if(s) {
-		profileflg = atoi(s->name+1);
-		if(strcmp(s->name, "on") == 0 ||
-		   strcmp(s->name, "yes") == 0)
-			profileflg = 1;
-	}
+	textflag = 7;
+	if(s)
+		textflag = atoi(s->name+1);
 	while(getnsc() != '\n')
 		;
 	if(debug['f'])
-		if(profileflg)
-			print("%4ld: profileflg %d\n", lineno, profileflg);
-		else
-			print("%4ld: profileflg off\n", lineno);
+		print("%4ld: textflag %d\n", lineno, textflag);
 }
 
 void
