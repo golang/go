@@ -306,6 +306,8 @@ lock(Lock *l)
 {
 	uint32 v;
 
+	m->locks++;
+
 again:
 	v = l->key;
 	if((v&1) == 0){
@@ -348,6 +350,8 @@ void
 unlock(Lock *l)
 {
 	uint32 v;
+
+	m->locks--;
 
 	// Atomically get value and clear lock bit.
 again:

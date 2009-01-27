@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
-#include "malloc.h"	/* so that acid generated from proc.c includes malloc data structures */
+#include "malloc.h"
 
 typedef struct Sched Sched;
 
@@ -118,6 +118,7 @@ initdone(void)
 {
 	// Let's go.
 	sched.predawn = 0;
+	mstats.enablegc = 1;
 
 	// If main·init_function started other goroutines,
 	// kick off new ms to handle them, like ready
@@ -146,7 +147,7 @@ malg(int32 stacksize)
 	byte *stk;
 
 	// 160 is the slop amount known to the stack growth code
-	g = mal(sizeof(G));
+	g = malloc(sizeof(G));
 	stk = stackalloc(160 + stacksize);
 	g->stack0 = stk;
 	g->stackguard = stk + 160;
@@ -444,7 +445,7 @@ matchmg(void)
 			m->nextg = g;
 			notewakeup(&m->havenextg);
 		}else{
-			m = mal(sizeof(M));
+			m = malloc(sizeof(M));
 			m->g0 = malg(8192);
 			m->nextg = g;
 			m->id = sched.mcount++;
@@ -525,6 +526,8 @@ scheduler(void)
 void
 sys·Gosched(void)
 {
+	if(g == m->g0)
+		throw("gosched of g0");
 	if(gosave(&g->sched) == 0){
 		g = m->g0;
 		gogo(&m->sched);

@@ -157,9 +157,9 @@ MCentral_Free(MCentral *c, void *v)
 static bool
 MCentral_Grow(MCentral *c)
 {
-	int32 n, npages, size;
+	int32 i, n, npages, size;
 	MLink **tailp, *v;
-	byte *p, *end;
+	byte *p;
 	MSpan *s;
 
 	unlock(c);
@@ -174,14 +174,14 @@ MCentral_Grow(MCentral *c)
 	// Carve span into sequence of blocks.
 	tailp = &s->freelist;
 	p = (byte*)(s->start << PageShift);
-	end = p + (npages << PageShift);
 	size = class_to_size[c->sizeclass];
-	n = 0;
-	for(; p + size <= end; p += size) {
+	n = (npages << PageShift) / (size + RefcountOverhead);
+	s->gcref = (uint32*)(p + size*n);
+	for(i=0; i<n; i++) {
 		v = (MLink*)p;
 		*tailp = v;
 		tailp = &v->next;
-		n++;
+		p += size;
 	}
 	*tailp = nil;
 

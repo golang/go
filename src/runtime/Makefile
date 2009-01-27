@@ -29,6 +29,7 @@ LIBOFILES=\
 	mcentral.$O\
 	mem.$O\
 	mfixalloc.$O\
+	mgc0.$O\
 	mheap.$O\
 	msize.$O\
 	print.$O\

@@ -147,21 +147,25 @@ args(int32 c, uint8 **v)
 void
 goargs(void)
 {
-	string* goargv;
-	string* envv;
+	string *gargv;
+	string *genvv;
 	int32 i, envc;
 
-	goargv = (string*)argv;
-	for (i=0; i<argc; i++)
-		goargv[i] = gostring(argv[i]);
-	sys·Args.array = (byte*)argv;
+	for(envc=0; argv[argc+1+envc] != 0; envc++)
+		;
+
+	gargv = malloc(argc*sizeof gargv[0]);
+	genvv = malloc(envc*sizeof genvv[0]);
+
+	for(i=0; i<argc; i++)
+		gargv[i] = gostring(argv[i]);
+	sys·Args.array = (byte*)gargv;
 	sys·Args.nel = argc;
 	sys·Args.cap = argc;
 
-	envv = goargv + argc + 1;  // skip 0 at end of argv
-	for (envc = 0; envv[envc] != 0; envc++)
-		envv[envc] = gostring((uint8*)envv[envc]);
-	sys·Envs.array = (byte*)envv;
+	for(i=0; i<envc; i++)
+		genvv[i] = gostring(argv[argc+1+i]);
+	sys·Envs.array = (byte*)genvv;
 	sys·Envs.nel = envc;
 	sys·Envs.cap = envc;
 }
