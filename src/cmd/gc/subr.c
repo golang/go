@@ -1609,7 +1609,7 @@ signame(Type *t)
 		goto bad;
 
 	e = "sigt";
-	if(t->etype == TINTER)
+	if(t->etype == TINTER || t->etype == TDDD)
 		e = "sigi";
 
 	// name is exported name, like *[]byte or *Struct or Interface
@@ -1620,6 +1620,10 @@ signame(Type *t)
 	// so that it can be referred to by the runtime.
 	if(strcmp(buf, "interface { }") == 0)
 		strcpy(buf, "empty");
+	
+	// special case: sigi.... is just too hard to read in assembly.
+	if(strcmp(buf, "...") == 0)
+		strcpy(buf, "dotdotdot");
 
 	ss = pkglookup(buf, e);
 	if(ss->oname == N) {
