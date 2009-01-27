@@ -277,19 +277,25 @@ xadd(uint32 volatile *val, int32 delta)
 void
 lock(Lock *l)
 {
+	if(m->locks < 0)
+		throw("lock count");
+	m->locks++;
+
 	// Allocate semaphore if needed.
 	if(l->sema == 0)
 		initsema(&l->sema);
 
 	if(xadd(&l->key, 1) > 1)	// someone else has it; wait
 		mach_semacquire(l->sema);
-	m->locks++;
 }
 
 void
 unlock(Lock *l)
 {
 	m->locks--;
+	if(m->locks < 0)
+		throw("lock count");
+
 	if(xadd(&l->key, -1) > 0)	// someone else is waiting
 		mach_semrelease(l->sema);
 }
