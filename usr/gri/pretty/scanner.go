@@ -84,6 +84,7 @@ const (
 	CONTINUE;
 
 	DEFAULT;
+	DEFER;
 	ELSE;
 	FALLTHROUGH;
 	FOR;
@@ -185,6 +186,7 @@ func TokenString(tok int) string {
 	case CONTINUE: return "continue";
 
 	case DEFAULT: return "default";
+	case DEFER: return "defer";
 	case ELSE: return "else";
 	case FALLTHROUGH: return "fallthrough";
 	case FOR: return "for";

@@ -1186,11 +1186,11 @@ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
 }
 
 
-func (P *Parser) ParseGoStat() *AST.Stat {
-	P.Trace("GoStat");
+func (P *Parser) ParseInvocationStat(keyword int) *AST.Stat {
+	P.Trace("InvocationStat");
 
-	s := AST.NewStat(P.pos, Scanner.GO);
-	P.Expect(Scanner.GO);
+	s := AST.NewStat(P.pos, keyword);
+	P.Expect(keyword);
 	s.Expr = P.ParseExpression(1);
 
 	P.Ecart();
@@ -1434,8 +1434,8 @@ func (P *Parser) ParseStatement() *AST.Stat {
 		Scanner.LBRACK, Scanner.STRUCT,  // composite type
 		Scanner.MUL, Scanner.AND, Scanner.ARROW:  // unary
 		s = P.ParseSimpleStat(false);
-	case Scanner.GO:
-		s = P.ParseGoStat();
+	case Scanner.GO, Scanner.DEFER:
+		s = P.ParseInvocationStat(P.tok);
 	case Scanner.RETURN:
 		s = P.ParseReturnStat();
 	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO, Scanner.FALLTHROUGH:
