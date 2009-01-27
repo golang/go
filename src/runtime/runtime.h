@@ -238,7 +238,7 @@ enum
 };
 
 /*
- * defered subroutine calls
+ * deferred subroutine calls
  */
 struct Defer
 {
