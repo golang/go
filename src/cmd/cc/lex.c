@@ -75,7 +75,6 @@ main(int argc, char *argv[])
 	ginit();
 	arginit();
 
-	profileflg = 1;	/* #pragma can turn it off */
 	tufield = simplet((1L<<tfield->etype) | BUNSIGNED);
 	ndef = 0;
 	outfile = 0;

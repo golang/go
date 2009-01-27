@@ -155,6 +155,7 @@ malg(int32 stacksize)
 	return g;
 }
 
+#pragma textflag 7
 void
 sys·newproc(int32 siz, byte* fn, byte* arg0)
 {
@@ -204,6 +205,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 //printf(" goid=%d\n", newg->goid);
 }
 
+#pragma textflag 7
 void
 sys·deferproc(int32 siz, byte* fn, byte* arg0)
 {
@@ -219,6 +221,7 @@ sys·deferproc(int32 siz, byte* fn, byte* arg0)
 	g->defer = d;
 }
 
+#pragma textflag 7
 void
 sys·deferreturn(int32 arg0)
 {
@@ -760,6 +763,7 @@ newstack(void)
 	*(int32*)345 = 123;	// never return
 }
 
+#pragma textflag 7
 void
 sys·morestack(uint64 u)
 {
