@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(January 23, 2009)
+(January 26, 2009)
 
 ----
 
@@ -235,6 +235,7 @@ Contents
 		Continue statements
 		Label declaration
 		Goto statements
+		Defer statements
 
 	Function declarations
 		Method declarations
@@ -682,8 +683,8 @@ Reserved words
 The following words are reserved and must not be used as identifiers:
 
 	break        default      func         interface    select
-	case         else         go           map          struct
-	chan					  goto         package      switch
+	case         defer        go           map          struct
+	chan         else         goto         package      switch
 	const        fallthrough  if           range        type
 	continue     for          import       return       var
 
@@ -2501,7 +2502,8 @@ Statements control execution.
 	Statement =
 		Declaration | LabelDecl | EmptyStat |
 		SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
-		FallthroughStat | Block | IfStat | SwitchStat | SelectStat | ForStat .
+		FallthroughStat | Block | IfStat | SwitchStat | SelectStat | ForStat |
+		DeferStat .
 
 	SimpleStat =
 		ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
@@ -3013,6 +3015,30 @@ be used in a switch statement, and only as the last statement in a case
 clause of the switch statement.
 
 	FallthroughStat = "fallthrough" .
+
+
+Defer statements
+----
+
+A defer statement invokes a function whose execution is deferred to the moment
+when the surrounding function returns.
+
+	DeferStat = "defer" Expression .
+
+The expression must be a function call. Each time the defer statement executes,
+the parameters to the function call are evaluated and saved anew but the
+function is not invoked. Immediately before the innermost function surrounding
+the defer statement returns, but after its return value (if any) is evaluated,
+each deferred function is executed with its saved parameters. Deferred functions
+are executed in LIFO order.
+
+	lock(l);
+	defer unlock(l);  // unlocking happens before surrounding function returns
+
+	// prints 3 2 1 0 before surrounding function returns
+	for i := 0; i <= 3; i++ {
+		defer print(i);
+	}
 
 
 ----
