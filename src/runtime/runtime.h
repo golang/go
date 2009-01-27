@@ -52,6 +52,7 @@ typedef	struct	SigTab		SigTab;
 typedef	struct	MCache		MCache;
 typedef	struct	Iface		Iface;
 typedef	struct	Itype		Itype;
+typedef	struct	Defer		Defer;
 
 /*
  * per cpu declaration
@@ -128,6 +129,7 @@ struct	G
 {
 	byte*	stackguard;	// must not move
 	byte*	stackbase;	// must not move
+	Defer*	defer;		// must not move
 	byte*	stack0;		// first stack segment
 	Gobuf	sched;
 	G*	alllink;	// on allg
@@ -136,8 +138,8 @@ struct	G
 	int32	goid;
 	int32	selgen;		// valid sudog pointer
 	G*	schedlink;
-	bool		readyonstop;
-	M*	m;	// for debuggers
+	bool	readyonstop;
+	M*	m;		// for debuggers
 };
 struct	Mem
 {
@@ -151,8 +153,8 @@ struct	M
 	G*	g0;		// g0 w interrupt stack - must not move
 	uint64	morearg;	// arg to morestack - must not move
 	uint64	cret;		// return value from C - must not move
-	uint64	procid;	// for debuggers - must not move
-	G*	gsignal;		// signal-handling G - must not move
+	uint64	procid;		// for debuggers - must not move
+	G*	gsignal;	// signal-handling G - must not move
 	G*	curg;		// current running goroutine
 	G*	lastg;		// last running goroutine - to emulate fifo
 	Gobuf	sched;
@@ -236,6 +238,18 @@ enum
 };
 
 /*
+ * defered subroutine calls
+ */
+struct Defer
+{
+	int32	siz;
+	byte*	sp;
+	byte*	fn;
+	Defer*	link;
+	byte	args[8];	// padded to actual size
+};
+
+/*
  * external data
  */
 extern	Alg	algarray[Amax];
@@ -286,6 +300,7 @@ int32	write(int32, void*, int32);
 void	close(int32);
 int32	fstat(int32, void*);
 bool	cas(uint32*, uint32, uint32);
+void	jmpdefer(byte*);
 void	exit1(int32);
 void	ready(G*);
 byte*	getenv(int8*);

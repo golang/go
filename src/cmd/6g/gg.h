@@ -116,6 +116,8 @@ EXTERN	Label*	labellist;
 EXTERN	Label*	findlab(Sym*);
 EXTERN	Node*	curfn;
 EXTERN	Node*	newproc;
+EXTERN	Node*	deferproc;
+EXTERN	Node*	deferreturn;
 EXTERN	Node*	throwindex;
 EXTERN	Node*	throwreturn;
 
@@ -151,7 +153,7 @@ void	cgen_ret(Node*);
 void	cgen_call(Node*, int);
 void	cgen_callmeth(Node*, int);
 void	cgen_callinter(Node*, Node*, int);
-void	cgen_proc(Node*);
+void	cgen_proc(Node*, int);
 void	cgen_callret(Node*, Node*);
 void	cgen_div(int, Node*, Node*, Node*);
 void	cgen_bmul(int, Node*, Node*, Node*);

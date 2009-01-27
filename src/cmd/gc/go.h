@@ -291,7 +291,7 @@ enum
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
 	ODCLFUNC, ODCLFIELD, ODCLARG,
 	OLIST, OCMP, OPTR, OARRAY, ORANGE,
-	ORETURN, OFOR, OIF, OSWITCH,
+	ORETURN, OFOR, OIF, OSWITCH, ODEFER,
 	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL,
 	OGOTO, OPROC, OMAKE, ONEW, OEMPTY, OSELECT,
 	OLEN, OCAP, OPANIC, OPANICN, OPRINT, OPRINTN, OTYPEOF,
@@ -498,6 +498,7 @@ EXTERN	int32	stksize;		// stack size for current frame
 EXTERN	int32	initstksize;		// stack size for init function
 EXTERN	ushort	blockgen;		// max block number
 EXTERN	ushort	block;			// current block number
+EXTERN	int	hasdefer;		// flag that curfn has defer statetment
 
 EXTERN	Node*	retnil;
 EXTERN	Node*	fskel;

@@ -171,7 +171,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 
 	if((newg = gfget()) != nil){
 		newg->status = Gwaiting;
-	}else{
+	} else {
 		newg = malg(4096);
 		newg->status = Gwaiting;
 		newg->alllink = allg;
@@ -202,6 +202,41 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 	unlock(&sched);
 
 //printf(" goid=%d\n", newg->goid);
+}
+
+void
+sys·deferproc(int32 siz, byte* fn, byte* arg0)
+{
+	Defer *d;
+
+	d = mal(sizeof(*d) + siz - sizeof(d->args));
+	d->fn = fn;
+	d->sp = (byte*)&arg0;
+	d->siz = siz;
+	mcpy(d->args, d->sp, d->siz);
+
+	d->link = g->defer;
+	g->defer = d;
+}
+
+void
+sys·deferreturn(int32 arg0)
+{
+	// warning: jmpdefer knows the frame size
+	// of this routine. dont change anything
+	// that might change the frame size
+	Defer *d;
+	byte *sp;
+
+	d = g->defer;
+	if(d == nil)
+		return;
+	sp = (byte*)&arg0;
+	if(d->sp != sp)
+		return;
+	mcpy(d->sp, d->args, d->siz);
+	g->defer = d->link;
+	jmpdefer(d->fn);
 }
 
 void
