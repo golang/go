@@ -5,7 +5,6 @@
 #include "runtime.h"
 
 static	int32	debug	= 0;
-static	int32	xxx	= 0;
 static	Lock		chanlock;
 
 typedef	struct	Hchan	Hchan;
@@ -548,7 +547,7 @@ sys·selectgo(Select *sel)
 	G *gp;
 	byte *as;
 
-	if(xxx) {
+	if(debug) {
 		prints("selectgo: sel=");
 		sys·printpointer(sel);
 		prints("\n");
@@ -697,7 +696,7 @@ loop:
 		goto loop;
 	}
 
-	if(xxx) {
+	if(debug) {
 		prints("wait-return: sel=");
 		sys·printpointer(sel);
 		prints(" c=");
@@ -747,7 +746,7 @@ asyns:
 
 gotr:
 	// recv path to wakeup the sender (sg)
-	if(xxx) {
+	if(debug) {
 		prints("gotr: sel=");
 		sys·printpointer(sel);
 		prints(" c=");
@@ -765,7 +764,7 @@ gotr:
 
 gots:
 	// send path to wakeup the receiver (sg)
-	if(xxx) {
+	if(debug) {
 		prints("gots: sel=");
 		sys·printpointer(sel);
 		prints(" c=");
