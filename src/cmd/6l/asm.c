@@ -361,7 +361,7 @@ asmb(void)
 		if (!debug['s'])
 			nl += 3;
 		if (!debug['d'])	// -d = turn off "dynamic loader"
-			nl += 2;
+			nl += 3;
 		lputl(nl);			/* number of loads */
 		lputl(machheadr()-32);		/* size of loads */
 		lputl(1);			/* flags - no undefines */
@@ -846,15 +846,20 @@ machdylink(void)
 	if(debug['d'])
 		return;
 
+	lputl(2);	/* LC_SYMTAB */
+	lputl(24);	/* byte count - 6 words*/
+	for(i=0; i<4; i++)
+		lputl(0);
+
 	lputl(11);	/* LC_DYSYMTAB */
-	lputl(80);	/* byte count */
+	lputl(80);	/* byte count - 20 words */
 	for(i=0; i<18; i++)
 		lputl(0);
 
 	lputl(14);	/* LC_LOAD_DYLINKER */
-	lputl(28);	/* byte count */
+	lputl(32);	/* byte count */
 	lputl(12);	/* offset to string */
-	strnput("/usr/lib/dyld", 16);
+	strnput("/usr/lib/dyld", 32-12);
 }
 
 void
@@ -889,8 +894,9 @@ machheadr(void)
 	a += 20;	/* bss sect */
 	a += 46;	/* stack sect */
 	if (!debug['d']) {
+		a += 6;	/* symtab */
 		a += 20;	/* dysymtab */
-		a += 7;	/* load dylinker */
+		a += 8;	/* load dylinker */
 	}
 	if (!debug['s']) {
 		a += 18;	/* symdat seg */
