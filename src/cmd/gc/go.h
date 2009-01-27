@@ -504,6 +504,7 @@ EXTERN	Node*	fskel;
 EXTERN	Node*	addtop;
 
 EXTERN	char*	context;
+EXTERN	char*	pkgcontext;
 EXTERN	int	thechar;
 EXTERN	char*	thestring;
 EXTERN	char*	hunk;

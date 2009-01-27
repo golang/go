@@ -80,7 +80,7 @@
 %type	<node>		hidden_interfacedcl_list ohidden_interfacedcl_list hidden_interfacedcl_list_r
 %type	<node>		hidden_interfacedcl
 %type	<node>		hidden_funarg_list ohidden_funarg_list hidden_funarg_list_r
-%type	<node>		hidden_funres ohidden_funres hidden_importsym
+%type	<node>		hidden_funres ohidden_funres hidden_importsym hidden_pkg_importsym
 
 %left			LOROR
 %left			LANDAND
@@ -1730,23 +1730,23 @@ oliteral:
 hidden_import:
 	LPACKAGE sym1
 	/* variables */
-|	LVAR hidden_importsym hidden_type
+|	LVAR hidden_pkg_importsym hidden_type
 	{
 		importvar($2, $3);
 	}
-|	LCONST hidden_importsym '=' hidden_constant
+|	LCONST hidden_pkg_importsym '=' hidden_constant
 	{
 		importconst($2, T, &$4);
 	}
-|	LCONST hidden_importsym hidden_type '=' hidden_constant
+|	LCONST hidden_pkg_importsym hidden_type '=' hidden_constant
 	{
 		importconst($2, $3, &$5);
 	}
-|	LTYPE hidden_importsym hidden_type
+|	LTYPE hidden_pkg_importsym hidden_type
 	{
 		importtype($2, $3);
 	}
-|	LFUNC hidden_importsym '(' ohidden_funarg_list ')' ohidden_funres
+|	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres
 	{
 		importvar($2, functype(N, $4, $6));
 	}
@@ -1919,6 +1919,14 @@ hidden_importsym:
 		$$->psym = $1;
 		$$->sym = $3;
 	}
+
+hidden_pkg_importsym:
+	hidden_importsym
+	{
+		$$ = $1;
+		pkgcontext = $$->psym->name;
+	}
+
 
 /*
  * helpful error messages.
