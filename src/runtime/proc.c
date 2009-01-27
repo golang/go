@@ -397,7 +397,7 @@ nextgandunlock(void)
 		throw("all goroutines are asleep - deadlock!");
 	m->nextg = nil;
 	noteclear(&m->havenextg);
-	if(sched.waitstop) {
+	if(sched.waitstop && sched.mcpu <= sched.mcpumax) {
 		sched.waitstop = 0;
 		notewakeup(&sched.stopped);
 	}
@@ -590,6 +590,10 @@ sys·entersyscall(uint64 callerpc, int64 trap)
 	sched.msyscall++;
 	if(sched.gwait != 0)
 		matchmg();
+	if(sched.waitstop && sched.mcpu <= sched.mcpumax) {
+		sched.waitstop = 0;
+		notewakeup(&sched.stopped);
+	}
 	unlock(&sched);
 	// leave SP around for gc; poison PC to make sure it's not used
 	g->sched.SP = (byte*)&callerpc;

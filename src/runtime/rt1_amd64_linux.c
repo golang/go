@@ -301,12 +301,10 @@ futexwakeup(uint32 *addr)
 // 	else return 0;
 // but atomically.
 
-void
-lock(Lock *l)
+static void
+futexlock(Lock *l)
 {
 	uint32 v;
-
-	m->locks++;
 
 again:
 	v = l->key;
@@ -346,12 +344,10 @@ again:
 	goto again;
 }
 
-void
-unlock(Lock *l)
+static void
+futexunlock(Lock *l)
 {
 	uint32 v;
-
-	m->locks--;
 
 	// Atomically get value and clear lock bit.
 again:
@@ -364,6 +360,24 @@ again:
 	// If there were waiters, wake one.
 	if(v & ~1)
 		futexwakeup(&l->key);
+}
+
+void
+lock(Lock *l)
+{
+	if(m->locks < 0)
+		throw("lock count");
+	m->locks++;
+	futexlock(l);
+}
+
+void
+unlock(Lock *l)
+{
+	m->locks--;
+	if(m->locks < 0)
+		throw("lock count");
+	futexunlock(l);
 }
 
 
@@ -383,20 +397,20 @@ void
 noteclear(Note *n)
 {
 	n->lock.key = 0;	// memset(n, 0, sizeof *n)
-	lock(&n->lock);
+	futexlock(&n->lock);
 }
 
 void
 notewakeup(Note *n)
 {
-	unlock(&n->lock);
+	futexunlock(&n->lock);
 }
 
 void
 notesleep(Note *n)
 {
-	lock(&n->lock);
-	unlock(&n->lock);	// Let other sleepers find out too.
+	futexlock(&n->lock);
+	futexunlock(&n->lock);	// Let other sleepers find out too.
 }
 
 
