@@ -707,7 +707,7 @@ void	funchdr(Node*);
 void	funcargs(Type*);
 void	funcbody(Node*);
 Type*	dostruct(Node*, int);
-Type**	stotype(Node*, Type**);
+Type**	stotype(Node*, int, Type**);
 Type*	sortinter(Type*);
 void	markdcl(void);
 void	popdcl(void);

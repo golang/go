@@ -313,9 +313,9 @@ addmethod(Node *n, Type *t, int local)
 	}
 
 	if(d == T)
-		stotype(n, &pa->method);
+		stotype(n, 0, &pa->method);
 	else
-		stotype(n, &d->down);
+		stotype(n, 0, &d->down);
 
 	if(dflag())
 		print("method         %S of type %T\n", sf, pa);
@@ -472,36 +472,43 @@ funcbody(Node *n)
  * turn a parsed struct into a type
  */
 Type**
-stotype(Node *n, Type **t)
+stotype(Node *n, int et, Type **t)
 {
 	Type *f;
 	Iter save;
 	String *note;
+	int lno;
 
+	lno = lineno;
 	n = listfirst(&save, &n);
 
 loop:
 	note = nil;
 	if(n == N) {
 		*t = T;
+		lineno = lno;
 		return t;
 	}
 
+	lineno = n->lineno;
 	if(n->op == OLIST) {
 		// recursive because it can be lists of lists
-		t = stotype(n, t);
+		t = stotype(n, et, t);
 		goto next;
 	}
 
 	if(n->op != ODCLFIELD || n->type == T)
 		fatal("stotype: oops %N\n", n);
 
+	if(et == TSTRUCT && n->type->etype == TFUNC)
+		yyerror("bad structure field type: %T", n->type);
+
 	switch(n->val.ctype) {
 	case CTSTR:
 		note = n->val.u.sval;
 		break;
 	default:
-		yyerror("structure field annotation must be string");
+		yyerror("field annotation must be string");
 	case CTxxx:
 		note = nil;
 		break;
@@ -546,7 +553,7 @@ dostruct(Node *n, int et)
 	}
 	t = typ(et);
 	t->funarg = funarg;
-	stotype(n, &t->type);
+	stotype(n, et, &t->type);
 	if(!funarg)
 		checkwidth(t);
 	return t;
