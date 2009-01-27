@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(January 26, 2009)
+(January 27, 2009)
 
 ----
 
@@ -18,21 +18,22 @@ Any part may change substantially as design progresses.
 ----
 
 <!--
+Biggest open issues:
+[ ] Conversions:
+	- current situation is messy
+	- 2 (3?) different notations for the same thing
+	- unclear when a type guard is needed
+	- unclear where conversions can be applied
+	- for type T int; can we say T(3.0) ?
+	- do we need channel conversion (channel direction)
+[ ] Semantics of type declaration:
+	- creating a new type (status quo), or only a new type name?
+	- also: declaration type T S; strips methods of S. why/why not?
+
+
 Decisions in need of integration into the doc:
 [ ] pair assignment is required to get map, and receive ok.
 [ ] len() returns an int, new(array_type, n) n must be an int
-
-
-Missing:
-[ ] onreturn/undo statement
-[ ] Helper syntax for composite types: allow names/keys/indices for
-	structs/maps/arrays, remove need for type in elements of composites
-
-
-Wish list:
-[ ] built-in assert() - alternatively: allow entire expressions as statements
-	so we can write: some_condition || panic(); (along these lines)
-[ ] enum facility (enum symbols are not mixable with ints)
 
 
 Todo's:
@@ -50,23 +51,21 @@ Todo's:
 	fine, but then we should also allow: func f F {}, where F is a function type.
 
 
-Open issues:
-[ ] do we need channel conversion (so we can go from uni-directional channel to
-    bi-directional channel)?
-[ ] semantics of type decl: creating a new type or only a new type name?
-[ ] at the moment: type T S; strips any methods of S. It probably shouldn't.
+Wish list:
+[ ] enum facility (enum symbols that are not mixable with ints) or some other
+	mechanism to obtain type-safety which we don't have with int-only tags
+[ ] Gri: built-in assert() - alternatively: allow entire expressions
+	as statements so we can write: some_condition || panic(); (along these lines)
+[ ] Helper syntax for composite types: allow names/keys/indices for
+	structs/maps/arrays, remove need for type in elements of composites
+
+
+Smaller issues:
 [ ] need for type switch? (or use type guard with ok in tuple assignment?)
-[ ] Conversions: can we say: "type T int; T(3.0)" ?
-	We could allow converting structurally equivalent types into each other this way.
-	May play together with "type T1 T2" where we give another type name to T2.
 [ ] Is . import implemented / do we still need it?
 [ ] Do we allow empty statements? If so, do we allow empty statements after a label?
     and if so, does a label followed by an empty statement (a semicolon) still denote
 	a for loop that is following, and can break L be used inside it?
-[ ] comparison of non-basic types: what do we allow? what do we allow in interfaces
-	what about maps (require ==, copy and hash)
-	maybe: no maps with non-basic type keys, and no interface comparison unless
-	with nil
 [ ] Russ: If we use x.(T) for all conversions, we could use T() for "construction"
     and type literals - would resolve the parsing ambiguity of T{} in if's
 [ ] Russ: consider re-introducing "func" for function type. Make function literals
@@ -76,6 +75,11 @@ Open issues:
 
 
 Closed:
+[x] onreturn/undo statement - now: defer statement
+[x] comparison of non-basic types: what do we allow? what do we allow in interfaces
+	what about maps (require ==, copy and hash)
+	maybe: no maps with non-basic type keys, and no interface comparison unless
+	with nil[x]
 [x] clarify slice rules
 [x] what are the permissible ranges for the indices in slices? The spec
 	doesn't correspond to the implementation. The spec is wrong when it
@@ -1305,6 +1309,16 @@ such as:
 Assignment compatibility: A pointer is assignment compatible to a variable
 of pointer type, only if both types are equal.
 
+Comparisons: A variable of pointer type can be compared against "nil" with the
+operators "==" and "!=" (§Comparison operators). The variable is
+"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+if the variable has not been modified since creation (§Program initialization
+and execution).
+
+Two variables of equal pointer type can be tested for equality with the
+operators "==" and "!=" (§Comparison operators). The pointers are equal
+if they point to the same location.
+
 Pointer arithmetic of any kind is not permitted.
 
 
@@ -1421,10 +1435,8 @@ and execution).
 Two variables of interface type can be tested for equality with the
 operators "==" and "!=" (§Comparison operators) if both variables have the
 same static type. They are equal if both their dynamic types and values are
-equal.
-
-TODO: Document situation where the dynamic types are equal but the values
-don't support comparison.
+equal. If the dynamic types are equal but the values do not support comparison,
+a run-time error occurs.
 
 
 Slice types
@@ -1517,22 +1529,29 @@ negative.
 	KeyType = CompleteType .
 	ValueType = CompleteType .
 
+The comparison operators "==" and "!=" (§Comparison operators) must be defined
+for operands of the key type; thus the key type must be a basic, pointer,
+interface, or channel type. If the key type is an interface type,
+the dynamic key types must support these comparison operators. In this case,
+inserting a map value with a key that does not support testing for equality
+is a run-time error.
+
 Upon creation, a map is empty and values may be added and removed
 during execution.
 
 	map [string] int
-	map [struct { pid int; name string }] chan Buffer
+	map [*T] struct { x, y float }
 	map [string] interface {}
 
 The length of a map "m" can be discovered using the built-in function
 
 	len(m)
 
-The value of an uninitialized map is "nil". A new, empty map
-value for given key and value types K and V is made using the built-in
-function "make" which takes the map type and an (optional) capacity as arguments:
+The value of an uninitialized map is "nil". A new, empty map value for given
+map type M is made using the built-in function "make" which takes the map type
+and an optional capacity as arguments:
 
-	my_map := make(map[K] V, 100);
+	my_map := make(M, 100);
 
 The map capacity is an allocation hint for more efficient incremental growth
 of the map.
@@ -2300,8 +2319,9 @@ Comparison operators
 
 Comparison operators yield a boolean result. All comparison operators apply
 to strings and numeric types. The operators "==" and "!=" also apply to
-boolean values, pointer, interface, slice, map, and channel types
-(including the value "nil").
+boolean values, pointer, interface, and channel types. Slice and
+map types only support testing for equality against the predeclared value
+"nil".
 
 	==    equal
 	!=    not equal
@@ -2822,7 +2842,7 @@ Go statements
 
 A go statement starts the execution of a function as an independent
 concurrent thread of control within the same address space. The expression
-must evaluate into a function call.
+must be a function or method call.
 
 	GoStat = "go" Expression .
 
@@ -3025,8 +3045,8 @@ when the surrounding function returns.
 
 	DeferStat = "defer" Expression .
 
-The expression must be a function call. Each time the defer statement executes,
-the parameters to the function call are evaluated and saved anew but the
+The expression must be a function or method call. Each time the defer statement
+executes, the parameters to the function call are evaluated and saved anew but the
 function is not invoked. Immediately before the innermost function surrounding
 the defer statement returns, but after its return value (if any) is evaluated,
 each deferred function is executed with its saved parameters. Deferred functions
@@ -3037,7 +3057,7 @@ are executed in LIFO order.
 
 	// prints 3 2 1 0 before surrounding function returns
 	for i := 0; i <= 3; i++ {
-		defer print(i);
+		defer fmt.Print(i);
 	}
 
 
