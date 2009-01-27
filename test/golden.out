@@ -181,9 +181,6 @@ BUG: should not compile
 =========== bugs/bug132.go
 BUG: compilation succeeds incorrectly
 
-=========== bugs/bug133.go
-BUG: succeeds incorrectly
-
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
 
@@ -302,3 +299,8 @@ SIGSEGV: segmentation violation
 Faulting address: 0x0
 pc: xxx
 
+
+=========== fixedbugs/bug133.go
+fixedbugs/bug133.dir/bug2.go:11: undefined DOT i on bug0.T
+fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
+	int

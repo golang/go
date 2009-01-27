@@ -517,7 +517,7 @@ loop:
 		f->embedded = n->embedded;
 		f->sym = f->nname->sym;
 		if(pkgimportname != S && !exportname(f->sym->name))
-			f->sym = pkglookup(f->sym->name, pkgimportname->name);
+			f->sym = pkglookup(f->sym->name, pkgcontext);
 	}
 
 	*t = f;
