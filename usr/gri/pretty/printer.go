@@ -776,7 +776,9 @@ func (P *Printer) Stat(s *AST.Stat) {
 		P.indentation--;
 		P.newlines = 1;
 
-	case Scanner.GO, Scanner.RETURN, Scanner.FALLTHROUGH, Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
+	case
+		Scanner.GO, Scanner.DEFER, Scanner.RETURN, Scanner.FALLTHROUGH,
+		Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
 		P.Token(s.Pos, s.Tok);
 		if s.Expr != nil {
 			P.separator = blank;

@@ -123,7 +123,7 @@ func f3(a *[]int, m map[string] int) {
 	var i string;
 	var x int;
 	for i, x = range m {
-		println(i, x);
+		defer println(i, x);
 	}
 }
 
