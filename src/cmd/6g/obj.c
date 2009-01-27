@@ -941,7 +941,7 @@ dumpsignatures(void)
 		s->siggen = 1;
 
 		// interface is easy
-		if(et == TINTER) {
+		if(et == TINTER || et == TDDD) {
 			if(t->sym && !t->local)
 				continue;
 			dumpsigi(t, s);

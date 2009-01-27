@@ -348,7 +348,7 @@ loop:
 	case OPROC:
 		if(top != Etop)
 			goto nottop;
-		walkstate(n->left);
+		walktype(n->left, Etop);
 		goto ret;
 
 	case OCALLMETH:
@@ -1820,7 +1820,10 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
 	var = nod(OXXX, N, N);
 	tempname(var, st);
 
-	// assign the fields to the struct
+	// assign the fields to the struct.
+	// use addtop so that reorder1 doesn't reorder
+	// these assignments after the interface conversion
+	// below.
 	n = rev(n);
 	r = listfirst(&saven, &n);
 	t = st->type;
@@ -1829,7 +1832,7 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
 		*r->left = *var;
 		r->left->type = r->right->type;
 		r->left->xoffset += t->width;
-		nn = list(r, nn);
+		addtop = list(addtop, r);
 		r = listnext(&saven);
 		t = t->down;
 	}
@@ -1837,13 +1840,8 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
 	// last thing is to put assignment
 	// of a pointer to the structure to
 	// the DDD parameter
-
-	a = nod(OADDR, var, N);
-	a->type = ptrto(st);
-	a = nod(OAS, nodarg(l, fp), a);
-	a = convas(a);
-
-	nn = list(a, nn);
+	a = nod(OAS, nodarg(l, fp), var);
+	nn = list(convas(a), nn);
 
 	return nn;
 }

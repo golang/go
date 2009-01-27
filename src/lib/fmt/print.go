@@ -130,7 +130,7 @@ func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
 // These routines end in 'f' and take a format string.
 
 func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
 	n, error = w.Write(p.buf[0:p.n]);
@@ -143,7 +143,7 @@ func Printf(format string, v ...) (n int, errno *os.Error) {
 }
 
 func Sprintf(format string, a ...) string {
-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
 	s := string(p.buf)[0 : p.n];
@@ -154,7 +154,7 @@ func Sprintf(format string, a ...) string {
 // when the operand on neither side is a string.
 
 func Fprint(w io.Write, a ...) (n int, error *os.Error) {
-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
 	n, error = w.Write(p.buf[0:p.n]);
@@ -167,7 +167,7 @@ func Print(v ...) (n int, errno *os.Error) {
 }
 
 func Sprint(a ...) string {
-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
 	s := string(p.buf)[0 : p.n];
@@ -179,7 +179,7 @@ func Sprint(a ...) string {
 // after the last operand.
 
 func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);
 	n, error = w.Write(p.buf[0:p.n]);
@@ -192,7 +192,7 @@ func Println(v ...) (n int, errno *os.Error) {
 }
 
 func Sprintln(a ...) string {
-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);
 	s := string(p.buf)[0 : p.n];
