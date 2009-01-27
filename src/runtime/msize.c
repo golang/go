@@ -57,7 +57,7 @@ SizeToClass(int32 size)
 void
 InitSizes(void)
 {
-	int32 align, sizeclass, size, nextsize, n;
+	int32 align, sizeclass, size, osize, nextsize, n;
 	uint32 i;
 	uintptr allocsize, npages;
 
@@ -81,7 +81,8 @@ InitSizes(void)
 		// the leftover is less than 1/8 of the total,
 		// so wasted space is at most 12.5%.
 		allocsize = PageSize;
-		while(allocsize%size > (PageSize/8))
+		osize = size + RefcountOverhead;
+		while(allocsize%osize > (PageSize/8))
 			allocsize += PageSize;
 		npages = allocsize >> PageShift;
 
@@ -92,7 +93,7 @@ InitSizes(void)
 		// different sizes.
 		if(sizeclass > 1
 		&& npages == class_to_allocnpages[sizeclass-1]
-		&& allocsize/size == allocsize/class_to_size[sizeclass-1]) {
+		&& allocsize/osize == allocsize/(class_to_size[sizeclass-1]+RefcountOverhead)) {
 			class_to_size[sizeclass-1] = size;
 			continue;
 		}

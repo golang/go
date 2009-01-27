@@ -47,6 +47,8 @@ MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass)
 
 	lock(h);
 	s = MHeap_AllocLocked(h, npage, sizeclass);
+	if(s != nil)
+		mstats.inuse_pages += npage;
 	unlock(h);
 	return s;
 }
@@ -108,6 +110,11 @@ HaveSpan:
 		for(n=0; n<npage; n++)
 			if(MHeapMapCache_GET(&h->mapcache, s->start+n, tmp) != 0)
 				MHeapMapCache_SET(&h->mapcache, s->start+n, 0);
+
+		// Need a list of large allocated spans.
+		// They have sizeclass == 0, so use heap.central[0].empty,
+		// since central[0] is otherwise unused.
+		MSpanList_Insert(&h->central[0].empty, s);
 	} else {
 		// Save cache entries for this span.
 		// If there's a size class, there aren't that many pages.
@@ -191,10 +198,30 @@ MHeap_Grow(MHeap *h, uintptr npage)
 }
 
 // Look up the span at the given page number.
+// Page number is guaranteed to be in map
+// and is guaranteed to be start or end of span.
 MSpan*
 MHeap_Lookup(MHeap *h, PageID p)
 {
 	return MHeapMap_Get(&h->map, p);
+}
+
+// Look up the span at the given page number.
+// Page number is *not* guaranteed to be in map
+// and may be anywhere in the span.
+// Map entries for the middle of a span are only
+// valid for allocated spans.  Free spans may have
+// other garbage in their middles, so we have to
+// check for that.
+MSpan*
+MHeap_LookupMaybe(MHeap *h, PageID p)
+{
+	MSpan *s;
+
+	s = MHeapMap_GetMaybe(&h->map, p);
+	if(s == nil || p < s->start || p - s->start >= s->npages)
+		return nil;
+	return s;
 }
 
 // Free the span back into the heap.
@@ -202,6 +229,7 @@ void
 MHeap_Free(MHeap *h, MSpan *s)
 {
 	lock(h);
+	mstats.inuse_pages -= s->npages;
 	MHeap_FreeLocked(h, s);
 	unlock(h);
 }
@@ -264,6 +292,31 @@ MHeapMap_Get(MHeapMap *m, PageID k)
 		throw("MHeapMap_Get");
 
 	return m->p[i1]->p[i2]->s[i3];
+}
+
+MSpan*
+MHeapMap_GetMaybe(MHeapMap *m, PageID k)
+{
+	int32 i1, i2, i3;
+	MHeapMapNode2 *p2;
+	MHeapMapNode3 *p3;
+
+	i3 = k & MHeapMap_Level3Mask;
+	k >>= MHeapMap_Level3Bits;
+	i2 = k & MHeapMap_Level2Mask;
+	k >>= MHeapMap_Level2Bits;
+	i1 = k & MHeapMap_Level1Mask;
+	k >>= MHeapMap_Level1Bits;
+	if(k != 0)
+		throw("MHeapMap_Get");
+
+	p2 = m->p[i1];
+	if(p2 == nil)
+		return nil;
+	p3 = p2->p[i2];
+	if(p3 == nil)
+		return nil;
+	return p3->s[i3];
 }
 
 void

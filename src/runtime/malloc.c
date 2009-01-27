@@ -24,6 +24,7 @@ malloc(uintptr size)
 	uintptr npages;
 	MSpan *s;
 	void *v;
+	uint32 *ref;
 
 	if(m->mallocing)
 		throw("malloc - deadlock");
@@ -55,7 +56,22 @@ malloc(uintptr size)
 		v = (void*)(s->start << PageShift);
 	}
 
+	// setup for mark sweep
+	mlookup(v, nil, nil, &ref);
+	*ref = RefNone;
+
 	m->mallocing = 0;
+	return v;
+}
+
+void*
+mallocgc(uintptr size)
+{
+	void *v;
+
+	v = malloc(size);
+	if(mstats.inuse_pages > mstats.next_gc)
+		gc(0);
 	return v;
 }
 
@@ -67,9 +83,13 @@ free(void *v)
 	uintptr page, tmp;
 	MSpan *s;
 	MCache *c;
+	uint32 *ref;
 
 	if(v == nil)
 		return;
+
+	mlookup(v, nil, nil, &ref);
+	*ref = RefFree;
 
 	// Find size class for v.
 	page = (uintptr)v >> PageShift;
@@ -98,32 +118,51 @@ free(void *v)
 	MCache_Free(c, v, sizeclass, size);
 }
 
-void
-mlookup(void *v, byte **base, uintptr *size)
+int32
+mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
 {
-	uintptr n, off;
+	uintptr n, i;
 	byte *p;
 	MSpan *s;
 
-	s = MHeap_Lookup(&mheap, (uintptr)v>>PageShift);
+	s = MHeap_LookupMaybe(&mheap, (uintptr)v>>PageShift);
 	if(s == nil) {
-		*base = nil;
-		*size = 0;
-		return;
+		if(base)
+			*base = nil;
+		if(size)
+			*size = 0;
+		if(ref)
+			*ref = 0;
+		return 0;
 	}
 
 	p = (byte*)((uintptr)s->start<<PageShift);
 	if(s->sizeclass == 0) {
 		// Large object.
-		*base = p;
-		*size = s->npages<<PageShift;
-		return;
+		if(base)
+			*base = p;
+		if(size)
+			*size = s->npages<<PageShift;
+		if(ref)
+			*ref = &s->gcref0;
+		return 1;
 	}
 
 	n = class_to_size[s->sizeclass];
-	off = ((byte*)v - p)/n * n;
-	*base = p+off;
-	*size = n;
+	i = ((byte*)v - p)/n;
+	if(base)
+		*base = p + i*n;
+	if(size)
+		*size = n;
+	if((byte*)s->gcref < p || (byte*)s->gcref >= p+(s->npages<<PageShift)) {
+		printf("s->base sizeclass %d %p gcref %p block %D\n",
+			s->sizeclass, p, s->gcref, s->npages<<PageShift);
+		throw("bad gcref");
+	}
+	if(ref)
+		*ref = &s->gcref[i];
+
+	return 1;
 }
 
 MCache*
@@ -193,7 +232,7 @@ mal(uint32 n)
 //return oldmal(n);
 	void *v;
 
-	v = malloc(n);
+	v = mallocgc(n);
 
 	if(0) {
 		byte *p;
@@ -227,6 +266,7 @@ void*
 stackalloc(uint32 n)
 {
 	void *v;
+	uint32 *ref;
 
 //return oldmal(n);
 	if(m->mallocing) {
@@ -241,7 +281,10 @@ stackalloc(uint32 n)
 		unlock(&stacks);
 		return v;
 	}
-	return malloc(n);
+	v = malloc(n);
+	mlookup(v, nil, nil, &ref);
+	*ref = RefStack;
+	return v;
 }
 
 void

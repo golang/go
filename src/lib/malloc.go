@@ -11,9 +11,14 @@ package malloc
 type Stats struct {
 	Alloc	uint64;
 	Sys	uint64;
-};
+	Stacks	uint64;
+	InusePages	uint64;
+	NextGC	uint64;
+	EnableGC	bool;
+}
 
-func Alloc(uint64) *byte;
-func Free(*byte);
-func GetStats() *Stats;
-func Lookup(*byte) (*byte, uintptr);
+func Alloc(uint64) *byte
+func Free(*byte)
+func GetStats() *Stats
+func Lookup(*byte) (*byte, uintptr)
+func GC()

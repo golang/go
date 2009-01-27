@@ -91,7 +91,7 @@ typedef	uintptr	PageID;		// address >> PageShift
 enum
 {
 	// Tunable constants.
-	NumSizeClasses = 133,		// Number of size classes (must match msize.c)
+	NumSizeClasses = 150,		// Number of size classes (must match msize.c)
 	MaxSmallSize = 32<<10,
 
 	FixAllocChunk = 128<<10,	// Chunk size for FixAlloc
@@ -152,6 +152,9 @@ struct MStats
 	uint64	alloc;
 	uint64	sys;
 	uint64	stacks;
+	uint64	inuse_pages;	// protected by mheap.Lock
+	uint64	next_gc;	// protected by mheap.Lock
+	bool	enablegc;
 };
 extern MStats mstats;
 
@@ -212,6 +215,10 @@ struct MSpan
 	uint32	ref;		// number of allocated objects in this span
 	uint32	sizeclass;	// size class
 	uint32	state;		// MSpanInUse or MSpanFree
+	union {
+		uint32	*gcref;	// sizeclass > 0
+		uint32	gcref0;	// sizeclass == 0
+	};
 };
 
 void	MSpan_Init(MSpan *span, PageID start, uintptr npages);
@@ -292,6 +299,7 @@ struct MHeapMapNode3
 void	MHeapMap_Init(MHeapMap *m, void *(*allocator)(uintptr));
 bool	MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr npages);
 MSpan*	MHeapMap_Get(MHeapMap *m, PageID k);
+MSpan*	MHeapMap_GetMaybe(MHeapMap *m, PageID k);
 void	MHeapMap_Set(MHeapMap *m, PageID k, MSpan *v);
 
 
@@ -364,7 +372,19 @@ void	MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
 MSpan*	MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass);
 void	MHeap_Free(MHeap *h, MSpan *s);
 MSpan*	MHeap_Lookup(MHeap *h, PageID p);
+MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
 
-void*	malloc(uintptr size);
-void	free(void *v);
-void	mlookup(void *v, byte **base, uintptr *size);
+int32	mlookup(void *v, byte **base, uintptr *size, uint32 **ref);
+void	gc(int32 force);
+
+enum
+{
+	RefcountOverhead = 4,	// one uint32 per object
+
+	RefFree = 0,	// must be zero
+	RefManual,	// manual allocation - don't free
+	RefStack,		// stack segment - don't free and don't scan for pointers
+	RefNone,		// no references
+	RefSome,		// some references
+};
+

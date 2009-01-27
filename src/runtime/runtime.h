@@ -162,6 +162,7 @@ struct	M
 	int32	siz2;
 	int32	id;
 	int32	mallocing;
+	int32	locks;
 	Note	havenextg;
 	G*	nextg;
 	M*	schedlink;
@@ -304,6 +305,9 @@ bool	ifaceeq(Iface, Iface);
 uint64	ifacehash(Iface);
 uint64	nohash(uint32, void*);
 uint32	noequal(uint32, void*, void*);
+void*	malloc(uintptr size);
+void*	mallocgc(uintptr size);
+void	free(void *v);
 
 #pragma	varargck	argpos	printf	1
 

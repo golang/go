@@ -15,9 +15,14 @@ func Free(p *byte) {
 }
 
 func Lookup(p *byte) (base *byte, size uintptr) {
-	mlookup(p, &base, &size);
+	mlookup(p, &base, &size, nil);
 }
 
 func GetStats() (s *MStats) {
 	s = &mstats;
 }
+
+func GC() {
+	gc(1);
+}
+

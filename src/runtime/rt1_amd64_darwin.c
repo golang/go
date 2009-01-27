@@ -130,6 +130,7 @@ sighandler(int32 sig, struct siginfo *info, void *context)
 {
 	if(panicking)	// traceback already printed
 		sys_Exit(2);
+	panicking = 1;
 
         _STRUCT_MCONTEXT64 *uc_mcontext = get_uc_mcontext(context);
         _STRUCT_X86_THREAD_STATE64 *ss = get___ss(uc_mcontext);
@@ -282,11 +283,13 @@ lock(Lock *l)
 
 	if(xadd(&l->key, 1) > 1)	// someone else has it; wait
 		mach_semacquire(l->sema);
+	m->locks++;
 }
 
 void
 unlock(Lock *l)
 {
+	m->locks--;
 	if(xadd(&l->key, -1) > 0)	// someone else is waiting
 		mach_semrelease(l->sema);
 }
