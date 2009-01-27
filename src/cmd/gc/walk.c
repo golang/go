@@ -534,8 +534,10 @@ loop:
 			}
 			break;
 		}
-
-		yyerror("bad shape across assignment - cr=%d cl=%d\n", cr, cl);
+		if(l->diag == 0) {
+			l->diag = 1;
+			yyerror("assignment count mismatch: %d = %d", cl, cr);
+		}
 		goto ret;
 
 	case OBREAK:
@@ -3083,7 +3085,10 @@ multi:
 	return n;
 
 badt:
-	yyerror("shape error across :=");
+	if(nl->diag == 0) {
+		nl->diag = 1;
+		yyerror("assignment count mismatch: %d = %d", cl, cr);
+	}
 	return nl;
 }
 
