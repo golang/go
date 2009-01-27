@@ -15,7 +15,7 @@
 %token	<val>		LLITERAL
 %token	<lint>		LASOP
 %token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
-%token	<sym>		LPACKAGE LIMPORT LEXPORT
+%token	<sym>		LPACKAGE LIMPORT LDEFER
 %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
 %token	<sym>		LCOLAS LFALL LRETURN LDDD
 %token	<sym>		LLEN LCAP LTYPEOF LPANIC LPANICN LPRINT LPRINTN
@@ -503,6 +503,11 @@ semi_stmt:
 	{
 		$$ = nod(OCALL, $2, $4);
 		$$ = nod(OPROC, $$, N);
+	}
+|	LDEFER pexpr '(' oexpr_list ')'
+	{
+		$$ = nod(OCALL, $2, $4);
+		$$ = nod(ODEFER, $$, N);
 	}
 |	LGOTO new_name
 	{

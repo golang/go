@@ -120,7 +120,7 @@ TEXT setspgoto(SB), 7, $0
 //	if(*val == old){
 //		*val = new;
 //		return 1;
-//	}else
+//	} else
 //		return 0;
 TEXT cas(SB), 7, $0
 	MOVQ	8(SP), BX
@@ -133,3 +133,13 @@ TEXT cas(SB), 7, $0
 	RET
 	MOVL	$1, AX
 	RET
+
+// void jmpdefer(byte*);
+// 1. pop the caller
+// 2. sub 5 bytes from the callers return
+// 3. jmp to the argument
+TEXT jmpdefer(SB), 7, $0
+	MOVQ	8(SP), AX	// function
+	ADDQ	$(8+56), SP	// pop saved PC and callers frame
+	SUBQ	$5, (SP)	// reposition his return address
+	JMP	AX		// and goto function

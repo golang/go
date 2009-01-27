@@ -26,6 +26,22 @@ if(newproc == N) {
 	newproc->ullman = 1;
 }
 
+if(deferproc == N) {
+	deferproc = nod(ONAME, N, N);
+	deferproc->sym = pkglookup("deferproc", "sys");
+	deferproc->class = PEXTERN;
+	deferproc->addable = 1;
+	deferproc->ullman = 1;
+}
+
+if(deferreturn == N) {
+	deferreturn = nod(ONAME, N, N);
+	deferreturn->sym = pkglookup("deferreturn", "sys");
+	deferreturn->class = PEXTERN;
+	deferreturn->addable = 1;
+	deferreturn->ullman = 1;
+}
+
 if(throwindex == N) {
 	throwindex = nod(ONAME, N, N);
 	throwindex->sym = pkglookup("throwindex", "sys");
@@ -63,6 +79,7 @@ if(throwreturn == N) {
 		}
 	}
 
+	hasdefer = 0;
 	walk(curfn);
 	if(nerrors != 0)
 		goto ret;
@@ -90,6 +107,8 @@ if(throwreturn == N) {
 		gins(ACALL, N, throwreturn);
 	}
 
+	if(hasdefer)
+		gins(ACALL, N, deferreturn);
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
@@ -343,7 +362,11 @@ loop:
 		break;
 
 	case OPROC:
-		cgen_proc(n);
+		cgen_proc(n, 1);
+		break;
+
+	case ODEFER:
+		cgen_proc(n, 2);
 		break;
 
 	case ORETURN:
@@ -683,19 +706,26 @@ argsize(Type *t)
 /*
  * generate:
  *	call f
- * if proc, generate:
- *	push f
- *	push argsize
- *	call newproc
- *	pop
- *	pop
+ *	proc=0	normal call
+ *	proc=1	goroutine run in new proc
+ *	proc=2	defer call save away stack
  */
 void
 ginscall(Node *f, int proc)
 {
 	Node reg, con;
 
-	if(proc) {
+	switch(proc) {
+	default:
+		fatal("ginscall: bad proc %d", proc);
+		break;
+
+	case 0:	// normal call
+		gins(ACALL, N, f);
+		break;
+
+	case 1:	// call in new proc (go)
+	case 2:	// defered call (defer)
 		nodreg(&reg, types[TINT64], D_AX);
 		if(f->op != OREGISTER) {
 			gins(ALEAQ, f, &reg);
@@ -704,12 +734,14 @@ ginscall(Node *f, int proc)
 			gins(APUSHQ, f, N);
 		nodconst(&con, types[TINT32], argsize(f->type));
 		gins(APUSHQ, &con, N);
-		gins(ACALL, N, newproc);
+		if(proc == 1)
+			gins(ACALL, N, newproc);
+		else
+			gins(ACALL, N, deferproc);
 		gins(APOPQ, N, &reg);
 		gins(APOPQ, N, &reg);
-		return;
+		break;
 	}
-	gins(ACALL, N, f);
 }
 
 /*
@@ -767,6 +799,9 @@ cgen_callinter(Node *n, Node *res, int proc)
 
 /*
  * generate call to non-interface method
+ *	proc=0	normal call
+ *	proc=1	goroutine run in new proc
+ *	proc=2	defer call save away stack
  */
 void
 cgen_callmeth(Node *n, int proc)
@@ -791,7 +826,9 @@ cgen_callmeth(Node *n, int proc)
 
 /*
  * generate function call;
- * if proc, run call in new proc.
+ *	proc=0	normal call
+ *	proc=1	goroutine run in new proc
+ *	proc=2	defer call save away stack
  */
 void
 cgen_call(Node *n, int proc)
@@ -851,22 +888,22 @@ ret:
  * generate code to start new proc running call n.
  */
 void
-cgen_proc(Node *n)
+cgen_proc(Node *n, int proc)
 {
 	switch(n->left->op) {
 	default:
 		fatal("cgen_proc: unknown call %O", n->left->op);
 
 	case OCALLMETH:
-		cgen_callmeth(n->left, 1);
+		cgen_callmeth(n->left, proc);
 		break;
 
 	case OCALLINTER:
-		cgen_callinter(n->left, N, 1);
+		cgen_callinter(n->left, N, proc);
 		break;
 
 	case OCALL:
-		cgen_call(n->left, 1);
+		cgen_call(n->left, proc);
 		break;
 	}
 
@@ -947,6 +984,8 @@ void
 cgen_ret(Node *n)
 {
 	gen(n->left, L);	// copy out args
+	if(hasdefer)
+		gins(ACALL, N, deferreturn);
 	gins(ARET, N, N);
 }
 

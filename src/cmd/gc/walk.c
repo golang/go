@@ -145,6 +145,7 @@ loop:
 	case OXFALL:
 	case ORETURN:
 	case OPROC:
+	case ODEFER:
 		walktype(n, Etop);
 		break;
 	}
@@ -342,6 +343,8 @@ loop:
 		walkstate(n->nelse);
 		goto ret;
 
+	case ODEFER:
+		hasdefer = 1;
 	case OPROC:
 		if(top != Etop)
 			goto nottop;

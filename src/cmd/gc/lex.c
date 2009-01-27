@@ -1056,7 +1056,7 @@ static	struct
 	"continue",	LCONTINUE,	Txxx,
 	"default",	LDEFAULT,	Txxx,
 	"else",		LELSE,		Txxx,
-	"export",	LEXPORT,	Txxx,
+	"defer",	LDEFER,		Txxx,
 	"fallthrough",	LFALL,		Txxx,
 	"false",	LFALSE,		Txxx,
 	"for",		LFOR,		Txxx,
@@ -1275,7 +1275,7 @@ struct
 	LPRINT,		"PRINT",
 	LPACKAGE,	"PACKAGE",
 	LIMPORT,	"IMPORT",
-	LEXPORT,	"EXPORT",
+	LDEFER,		"DEFER",
 	LPANIC,		"PANIC",
 };
 
