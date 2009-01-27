@@ -185,6 +185,7 @@ struct	Node
 	uchar	iota;		// OLITERAL made from iota
 	uchar	embedded;	// ODCLFIELD embedded type
 	uchar	colas;		// OAS resulting from :=
+	uchar	diag;		// already printed error about this
 
 	// most nodes
 	Node*	left;
