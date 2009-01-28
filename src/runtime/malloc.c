@@ -272,7 +272,7 @@ stackalloc(uint32 n)
 	if(m->mallocing) {
 		lock(&stacks);
 		if(stacks.size == 0)
-			FixAlloc_Init(&stacks, n, SysAlloc);
+			FixAlloc_Init(&stacks, n, SysAlloc, nil, nil);
 		if(stacks.size != n) {
 			printf("stackalloc: in malloc, size=%D want %d", stacks.size, n);
 			throw("stackalloc");

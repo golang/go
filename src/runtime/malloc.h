@@ -131,16 +131,20 @@ void	SysUnused(void *v, uintptr nbytes);
 //
 // Memory returned by FixAlloc_Alloc is not zeroed.
 // The caller is responsible for locking around FixAlloc calls.
+// Callers can keep state in the object but the first word is
+// smashed by freeing and reallocating.
 struct FixAlloc
 {
 	uintptr size;
 	void *(*alloc)(uintptr);
+	void (*first)(void *arg, byte *p);	// called first time p is returned
+	void *arg;
 	MLink *list;
 	byte *chunk;
 	uint32 nchunk;
 };
 
-void	FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr));
+void	FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr), void (*first)(void*, byte*), void *arg);
 void*	FixAlloc_Alloc(FixAlloc *f);
 void	FixAlloc_Free(FixAlloc *f, void *p);
 
@@ -203,18 +207,21 @@ void	MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
 enum
 {
 	MSpanInUse = 0,
-	MSpanFree
+	MSpanFree,
+	MSpanListHead,
+	MSpanDead,
 };
 struct MSpan
 {
 	MSpan	*next;		// in a span linked list
 	MSpan	*prev;		// in a span linked list
+	MSpan	*allnext;		// in the list of all spans
 	PageID	start;		// starting page number
 	uintptr	npages;		// number of pages in span
 	MLink	*freelist;	// list of free objects
 	uint32	ref;		// number of allocated objects in this span
 	uint32	sizeclass;	// size class
-	uint32	state;		// MSpanInUse or MSpanFree
+	uint32	state;		// MSpanInUse etc
 	union {
 		uint32	*gcref;	// sizeclass > 0
 		uint32	gcref0;	// sizeclass == 0
@@ -349,6 +356,7 @@ struct MHeap
 	Lock;
 	MSpan free[MaxMHeapList];	// free lists of given length
 	MSpan large;			// free lists length >= MaxMHeapList
+	MSpan *allspans;
 
 	// span lookup
 	MHeapMap map;

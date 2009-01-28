@@ -109,7 +109,7 @@ sweepspan(MSpan *s)
 
 	if(s->state != MSpanInUse)
 		return;
-
+	
 	p = (byte*)(s->start << PageShift);
 	if(s->sizeclass == 0) {
 		// Large block.
@@ -158,32 +158,13 @@ sweepspan(MSpan *s)
 }
 
 static void
-sweepspanlist(MSpan *list)
-{
-	MSpan *s, *next;
-
-	for(s=list->next; s != list; s=next) {
-		next = s->next;	// in case s gets moved
-		sweepspan(s);
-	}
-}
-
-static void
 sweep(void)
 {
-	int32 i;
+	MSpan *s;
 
 	// Sweep all the spans.
-
-	for(i=0; i<nelem(mheap.central); i++) {
-		// Sweep nonempty (has some free blocks available)
-		// before sweeping empty (is completely allocated),
-		// because finding something to free in a span from empty
-		// will move it into nonempty, and we must not sweep
-		// the same span twice.
-		sweepspanlist(&mheap.central[i].nonempty);
-		sweepspanlist(&mheap.central[i].empty);
-	}
+	for(s = mheap.allspans; s != nil; s = s->allnext)
+		sweepspan(s);
 }
 
 // Semaphore, not Lock, so that the goroutine

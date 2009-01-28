@@ -43,7 +43,7 @@ LIBOFILES=\
 
 OFILES=$(RT0OFILES) $(LIBOFILES)
 OS_H=$(GOARCH)_$(GOOS).h
-HFILES=runtime.h hashmap.h $(OS_H_)
+HFILES=runtime.h hashmap.h malloc.h $(OS_H_)
 
 install: rt0 $(LIB) runtime.acid
 	cp $(RT0OFILES) $(GOROOT)/lib

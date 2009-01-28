@@ -21,14 +21,26 @@ static void MHeap_FreeLocked(MHeap*, MSpan*);
 static MSpan *MHeap_AllocLarge(MHeap*, uintptr);
 static MSpan *BestFit(MSpan*, uintptr, MSpan*);
 
+static void
+RecordSpan(void *vh, byte *p)
+{
+	MHeap *h;
+	MSpan *s;
+
+	h = vh;
+	s = (MSpan*)p;
+	s->allnext = h->allspans;
+	h->allspans = s;
+}
+
 // Initialize the heap; fetch memory using alloc.
 void
 MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
 {
 	uint32 i;
 
-	FixAlloc_Init(&h->spanalloc, sizeof(MSpan), alloc);
-	FixAlloc_Init(&h->cachealloc, sizeof(MCache), alloc);
+	FixAlloc_Init(&h->spanalloc, sizeof(MSpan), alloc, RecordSpan, h);
+	FixAlloc_Init(&h->cachealloc, sizeof(MCache), alloc, nil, nil);
 	MHeapMap_Init(&h->map, alloc);
 	// h->mapcache needs no init
 	for(i=0; i<nelem(h->free); i++)
@@ -110,11 +122,6 @@ HaveSpan:
 		for(n=0; n<npage; n++)
 			if(MHeapMapCache_GET(&h->mapcache, s->start+n, tmp) != 0)
 				MHeapMapCache_SET(&h->mapcache, s->start+n, 0);
-
-		// Need a list of large allocated spans.
-		// They have sizeclass == 0, so use heap.central[0].empty,
-		// since central[0] is otherwise unused.
-		MSpanList_Insert(&h->central[0].empty, s);
 	} else {
 		// Save cache entries for this span.
 		// If there's a size class, there aren't that many pages.
@@ -252,12 +259,14 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 		s->npages += t->npages;
 		MHeapMap_Set(&h->map, s->start, s);
 		MSpanList_Remove(t);
+		t->state = MSpanDead;
 		FixAlloc_Free(&h->spanalloc, t);
 	}
 	if((t = MHeapMap_Get(&h->map, s->start + s->npages)) != nil && t->state != MSpanInUse) {
 		s->npages += t->npages;
 		MHeapMap_Set(&h->map, s->start + s->npages - 1, s);
 		MSpanList_Remove(t);
+		t->state = MSpanDead;
 		FixAlloc_Free(&h->spanalloc, t);
 	}
 
@@ -395,6 +404,7 @@ MSpan_Init(MSpan *span, PageID start, uintptr npages)
 void
 MSpanList_Init(MSpan *list)
 {
+	list->state = MSpanListHead;
 	list->next = list;
 	list->prev = list;
 }
