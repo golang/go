@@ -801,6 +801,7 @@ Node*	chanop(Node*, int);
 Node*	arrayop(Node*, int);
 Node*	ifaceop(Type*, Node*, int);
 int	ifaceas(Type*, Type*);
+int	ifaceas1(Type*, Type*);
 void	ifacecheck(Type*, Type*, int);
 void	runifacechecks(void);
 Node*	convas(Node*);
