@@ -17,6 +17,7 @@ enum
 	I2I,
 	I2I2,
 	T2I,
+	I2Isame,
 };
 
 // can this code branch reach the end
@@ -500,11 +501,12 @@ loop:
 				walktype(r->left, Erv);
 				if(r->left == N)
 					break;
-				et = ifaceas(r->type, r->left->type);
+				et = ifaceas1(r->type, r->left->type);
 				switch(et) {
 				case I2T:
 					et = I2T2;
 					break;
+				case I2Isame:
 				case I2I:
 					et = I2I2;
 					break;
@@ -2772,7 +2774,7 @@ arrayop(Node *n, int top)
  * return op to use.
  */
 int
-ifaceas(Type *dst, Type *src)
+ifaceas1(Type *dst, Type *src)
 {
 	if(src == T || dst == T)
 		return Inone;
@@ -2780,7 +2782,7 @@ ifaceas(Type *dst, Type *src)
 	if(isinter(dst)) {
 		if(isinter(src)) {
 			if(eqtype(dst, src, 0))
-				return Inone;
+				return I2Isame;
 			return I2I;
 		}
 		if(isnilinter(dst))
@@ -2797,13 +2799,28 @@ ifaceas(Type *dst, Type *src)
 	return Inone;
 }
 
+/*
+ * treat convert T to T as noop
+ */
+int
+ifaceas(Type *dst, Type *src)
+{
+	int et;
+
+	et = ifaceas1(dst, src);
+	if(et == I2Isame)
+		et = Inone;
+	return et;
+}
+
 static	char*
 ifacename[] =
 {
-	[I2T]	= "ifaceI2T",
-	[I2T2]	= "ifaceI2T2",
-	[I2I]	= "ifaceI2I",
-	[I2I2]	= "ifaceI2I2",
+	[I2T]		= "ifaceI2T",
+	[I2T2]		= "ifaceI2T2",
+	[I2I]		= "ifaceI2I",
+	[I2I2]		= "ifaceI2I2",
+	[I2Isame]	= "ifaceI2Isame",
 };
 
 Node*
