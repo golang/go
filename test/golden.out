@@ -181,10 +181,6 @@ BUG: should not compile
 =========== bugs/bug132.go
 BUG: compilation succeeds incorrectly
 
-=========== bugs/bug135.go
-bugs/bug135.go:13: assignment count mismatch: 2 = 1
-BUG: should compile
-
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
 
