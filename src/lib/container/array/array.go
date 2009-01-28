@@ -4,13 +4,47 @@
 
 package array
 
-type Element interface {
+type (
+	Element interface {};
+	Array struct {
+		a []Element
+	}
+)
+
+
+func copy(dst, src []Element) {
+	for i := 0; i < len(src); i++ {
+		dst[i] = src[i]
+	}
 }
 
 
-type Array struct {
-	// TODO do not export field
-	a []Element
+// Insert n elements at position i.
+func expand(a []Element, i, n int) []Element {
+	// make sure we have enough space
+	len0 := len(a);
+	len1 := len0 + n;
+	if len1 < cap(a) {
+		// enough space - just expand
+		a = a[0 : len1]
+	} else {
+		// not enough space - double capacity
+		capb := cap(a)*2;
+		if capb < len1 {
+			// still not enough - use required length
+			capb = len1
+		}
+		// capb >= len1
+		b := make([]Element, len1, capb);
+		copy(b, a);
+		a = b
+	}
+
+	// make a hole
+	for j := len0-1; j >= i ; j-- {
+		a[j+n] = a[j]
+	}
+	return a
 }
 
 
@@ -61,38 +95,17 @@ func (p *Array) Last() Element {
 
 
 func (p *Array) Insert(i int, x Element) {
-	a := p.a;
-	n := len(a);
-
-	// grow array by doubling its capacity
-	if n == cap(a) {
-		b := make([]Element, 2*n);
-		for j := n-1; j >= 0; j-- {
-			b[j] = a[j];
-		}
-		a = b
-	}
-
-	// make a hole
-	a = a[0 : n+1];
-	for j := n; j > i; j-- {
-		a[j] = a[j-1]
-	}
-
-	a[i] = x;
-	p.a = a
+	p.a = expand(p.a, i, 1);
+	p.a[i] = x;
 }
 
 
-func (p *Array) Remove(i int) Element {
+func (p *Array) Delete(i int) Element {
 	a := p.a;
 	n := len(a);
 
 	x := a[i];
-	for j := i+1; j < n; j++ {
-		a[j-1] = a[j]
-	}
-
+	copy(a[i : n-1], a[i+1 : n]);
 	a[n-1] = nil;  // support GC, nil out entry
 	p.a = a[0 : n-1];
 
@@ -100,13 +113,47 @@ func (p *Array) Remove(i int) Element {
 }
 
 
+func (p *Array) InsertArray(i int, x *Array) {
+	p.a = expand(p.a, i, len(x.a));
+	copy(p.a[i : i + len(x.a)], x.a);
+}
+
+
+func (p *Array) Cut(i, j int) {
+	a := p.a;
+	n := len(a);
+	m := n - (j - i);
+
+	copy(a[i : m], a[j : n]);
+	for k := m; k < n; k++ {
+		a[k] = nil  // support GC, nil out entries
+	}
+
+	p.a = a[0 : m];
+}
+
+
+func (p *Array) Slice(i, j int) *Array {
+	s := New(j - i);  // will fail in Init() if j < j
+	copy(s.a, p.a[i : j]);
+	return s;
+}
+
+
+// Convenience wrappers
+
 func (p *Array) Push(x Element) {
 	p.Insert(len(p.a), x)
 }
 
 
 func (p *Array) Pop() Element {
-	return p.Remove(len(p.a) - 1)
+	return p.Delete(len(p.a) - 1)
+}
+
+
+func (p *Array) AppendArray(x *Array) {
+	p.InsertArray(len(p.a), x);
 }
 
 

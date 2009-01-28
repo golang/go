@@ -50,7 +50,7 @@ func test1() {
 	}
 
 	for v.Len() > 10 {
-		v.Remove(10);
+		v.Delete(10);
 	}
 }
 
