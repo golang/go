@@ -52,7 +52,7 @@
 %type	<node>		Astmt Bstmt
 %type	<node>		for_stmt for_body for_header
 %type	<node>		if_stmt if_body if_header select_stmt
-%type	<node>		simple_stmt osimple_stmt orange_stmt semi_stmt
+%type	<node>		simple_stmt osimple_stmt range_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
 %type	<node>		exprsym3_list_r exprsym3
 %type	<node>		name onew_name new_name new_name_list_r new_field
@@ -536,9 +536,8 @@ compound_stmt:
 		popdcl();
 	}
 
-orange_stmt:
-	osimple_stmt
-|	exprsym3_list_r '=' LRANGE expr
+range_stmt:
+	exprsym3_list_r '=' LRANGE expr
 	{
 		$$ = nod(ORANGE, $1, $4);
 		$$->etype = 0;	// := flag
@@ -550,14 +549,8 @@ orange_stmt:
 	}
 
 for_header:
-	osimple_stmt ';' orange_stmt ';' osimple_stmt
+	osimple_stmt ';' osimple_stmt ';' osimple_stmt
 	{
-		if($3 != N && $3->op == ORANGE) {
-			$$ = dorange($3);
-			$$->ninit = list($$->ninit, $1);
-			$$->nincr = list($$->nincr, $5);
-			break;
-		}
 		// init ; test ; incr
 		if($5 != N && $5->colas != 0)
 			yyerror("cannot declare in the for-increment");
@@ -566,18 +559,18 @@ for_header:
 		$$->ntest = $3;
 		$$->nincr = $5;
 	}
-|	orange_stmt
+|	osimple_stmt
 	{
-		// range
-		if($1 != N && $1->op == ORANGE) {
-			$$ = dorange($1);
-			break;
-		}
 		// normal test
 		$$ = nod(OFOR, N, N);
 		$$->ninit = N;
 		$$->ntest = $1;
 		$$->nincr = N;
+	}
+|	range_stmt
+	{
+		$$ = dorange($1);
+		addtotop($$);
 	}
 
 for_body:
