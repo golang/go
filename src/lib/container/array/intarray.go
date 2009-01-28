@@ -43,8 +43,8 @@ func (p *IntArray) Insert(i int, x int) {
 }
 
 
-func (p *IntArray) Remove(i int) int {
-	return p.Array.Remove(i).(int)
+func (p *IntArray) Delete(i int) int {
+	return p.Array.Delete(i).(int)
 }
 
 
