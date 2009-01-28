@@ -548,7 +548,8 @@ scheduler(void)
 	gp->status = Grunning;
 	if(debug > 1) {
 		lock(&debuglock);
-		printf("m%d run g%d\n", m->id, gp->goid);
+		printf("m%d run g%d at %p\n", m->id, gp->goid, gp->sched.PC);
+		traceback(gp->sched.PC, gp->sched.SP+8, gp);
 		unlock(&debuglock);
 	}
 	m->curg = gp;
@@ -598,9 +599,8 @@ sys·entersyscall(uint64 callerpc, int64 trap)
 		notewakeup(&sched.stopped);
 	}
 	unlock(&sched);
-	// leave SP around for gc; poison PC to make sure it's not used
-	g->sched.SP = (byte*)&callerpc;
-	g->sched.PC = (byte*)0xdeadbeef;
+	// leave SP around for gc and traceback
+	gosave(&g->sched);
 }
 
 // The goroutine g exited its system call.
