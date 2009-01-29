@@ -123,7 +123,7 @@ func f3(a *[]int, m map[string] int) {
 	var i string;
 	var x int;
 	for i, x = range m {
-		defer println(i, x);
+		defer Fmt.Println(i, x);
 	}
 }
 
