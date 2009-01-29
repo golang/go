@@ -1620,7 +1620,7 @@ signame(Type *t)
 	// so that it can be referred to by the runtime.
 	if(strcmp(buf, "interface { }") == 0)
 		strcpy(buf, "empty");
-	
+
 	// special case: sigi.... is just too hard to read in assembly.
 	if(strcmp(buf, "...") == 0)
 		strcpy(buf, "dotdotdot");
@@ -1707,7 +1707,7 @@ eqtype(Type *t1, Type *t2, int d)
 					return 0;
 				if(ta->etype != TFIELD || tb->etype != TFIELD)
 					return 0;
-				if(!eqtype(ta->type, tb->type, 0))
+				if(!eqtype(ta->type, tb->type, d+1))
 					return 0;
 				ta = ta->down;
 				tb = tb->down;

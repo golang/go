@@ -554,7 +554,9 @@ gmove(Node *f, Node *t)
 		goto st;
 
 	st:
-		if(f->op == OCONST) {
+		// 64-bit immediates only allowed for move into registers.
+		// this is not a move into a register.
+		if(f->op == OCONST || (f->op == OLITERAL && !t64)) {
 			gins(a, f, t);
 			return;
 		}
