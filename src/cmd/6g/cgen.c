@@ -118,7 +118,7 @@ cgen(Node *n, Node *res)
 			p1 = gins(a, N, res);
 			p1->from = addr;
 		} else {
-			regalloc(&n2, n->type, &n1);
+			regalloc(&n2, n->type, N);
 			p1 = gins(a, N, &n2);
 			p1->from = addr;
 			gins(a, &n2, res);
