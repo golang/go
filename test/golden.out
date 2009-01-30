@@ -155,9 +155,6 @@ bugs/bug117.go:9: illegal types for operand: RETURN
 	int
 BUG: should compile
 
-=========== bugs/bug121.go
-BUG: compilation succeeds incorrectly
-
 =========== bugs/bug122.go
 BUG: compilation succeeds incorrectly
 
@@ -196,11 +193,6 @@ hi
 2 222
 3 11
 4 0
-
-=========== fixedbugs/bug029.go
-fixedbugs/bug029.go:6: f is not a type
-fixedbugs/bug029.go:6: syntax error near func
-fixedbugs/bug029.go:6: syntax error near int
 
 =========== fixedbugs/bug035.go
 fixedbugs/bug035.go:6: variable i redeclared in this block
@@ -299,6 +291,13 @@ SIGSEGV: segmentation violation
 Faulting address: 0x0
 pc: xxx
 
+
+=========== fixedbugs/bug121.go
+fixedbugs/bug121.go:9: syntax error near T
+fixedbugs/bug121.go:20: incomplete type I
+fixedbugs/bug121.go:20: illegal types for operand: AS
+	I
+	*S
 
 =========== fixedbugs/bug133.go
 fixedbugs/bug133.dir/bug2.go:11: undefined DOT i on bug0.T

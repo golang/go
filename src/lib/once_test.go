@@ -16,16 +16,16 @@ func call() {
 
 func TestOnce(t *testing.T) {
 	ncall = 0;
-	once.Do(&call);
+	once.Do(call);
 	if ncall != 1 {
-		t.Fatalf("once.Do(&call) didn't call(): ncall=%d", ncall);
+		t.Fatalf("once.Do(call) didn't call(): ncall=%d", ncall);
 	}
-	once.Do(&call);
+	once.Do(call);
 	if ncall != 1 {
-		t.Fatalf("second once.Do(&call) did call(): ncall=%d", ncall);
+		t.Fatalf("second once.Do(call) did call(): ncall=%d", ncall);
 	}
-	once.Do(&call);
+	once.Do(call);
 	if ncall != 1 {
-		t.Fatalf("third once.Do(&call) did call(): ncall=%d", ncall);
+		t.Fatalf("third once.Do(call) did call(): ncall=%d", ncall);
 	}
 }

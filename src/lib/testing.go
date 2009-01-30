@@ -71,7 +71,7 @@ func (t *T) Fatalf(format string, args ...) {
 
 type Test struct {
 	Name string;
-	F *(*T);
+	F func(*T);
 }
 
 func tRunner(t *T, test *Test) {

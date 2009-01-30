@@ -60,7 +60,7 @@ func (c *commonValue) Interface() interface {} {
 
 func newValueAddr(typ Type, addr Addr) Value
 
-type creatorFn *(typ Type, addr Addr) Value
+type creatorFn func(typ Type, addr Addr) Value
 
 
 // -- Missing
@@ -790,31 +790,31 @@ func funcCreator(typ Type, addr Addr) Value {
 }
 
 var creator = map[int] creatorFn {
-	MissingKind : &missingCreator,
-	IntKind : &intCreator,
-	Int8Kind : &int8Creator,
-	Int16Kind : &int16Creator,
-	Int32Kind : &int32Creator,
-	Int64Kind : &int64Creator,
-	UintKind : &uintCreator,
-	Uint8Kind : &uint8Creator,
-	Uint16Kind : &uint16Creator,
-	Uint32Kind : &uint32Creator,
-	Uint64Kind : &uint64Creator,
-	UintptrKind : &uintptrCreator,
-	FloatKind : &floatCreator,
-	Float32Kind : &float32Creator,
-	Float64Kind : &float64Creator,
-	Float80Kind : &float80Creator,
-	StringKind : &stringCreator,
-	BoolKind : &boolCreator,
-	PtrKind : &ptrCreator,
-	ArrayKind : &arrayCreator,
-	MapKind : &mapCreator,
-	ChanKind : &chanCreator,
-	StructKind : &structCreator,
-	InterfaceKind : &interfaceCreator,
-	FuncKind : &funcCreator,
+	MissingKind : missingCreator,
+	IntKind : intCreator,
+	Int8Kind : int8Creator,
+	Int16Kind : int16Creator,
+	Int32Kind : int32Creator,
+	Int64Kind : int64Creator,
+	UintKind : uintCreator,
+	Uint8Kind : uint8Creator,
+	Uint16Kind : uint16Creator,
+	Uint32Kind : uint32Creator,
+	Uint64Kind : uint64Creator,
+	UintptrKind : uintptrCreator,
+	FloatKind : floatCreator,
+	Float32Kind : float32Creator,
+	Float64Kind : float64Creator,
+	Float80Kind : float80Creator,
+	StringKind : stringCreator,
+	BoolKind : boolCreator,
+	PtrKind : ptrCreator,
+	ArrayKind : arrayCreator,
+	MapKind : mapCreator,
+	ChanKind : chanCreator,
+	StructKind : structCreator,
+	InterfaceKind : interfaceCreator,
+	FuncKind : funcCreator,
 }
 
 var typecache = make(map[string] Type);

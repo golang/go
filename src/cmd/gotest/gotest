@@ -47,7 +47,7 @@ files=$(echo $gofiles | sed 's/\.go//g')
 
 # Run any commands given in sources, like
 #   // gotest: $GC foo.go
-# to build any test-only dependencies. 
+# to build any test-only dependencies.
 sed -n 's/^\/\/ gotest: //p' $gofiles | sh
 
 for i in $gofiles
@@ -71,7 +71,7 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
 	echo 'import "testing"'
 	# test array
 	echo
-	echo 'var tests = []testing.Test {'	# TODO(rsc): *&
+	echo 'var tests = []testing.Test {'
 	for ofile in $ofiles
 	do
 		# test functions are named TestFoo
@@ -84,7 +84,7 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
 		else
 			for i in $tests
 			do
-				echo '	testing.Test{ "'$i'", &'$i' },'
+				echo '	testing.Test{ "'$i'", '$i' },'
 			done
 		fi
 	done

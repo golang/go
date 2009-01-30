@@ -9,21 +9,21 @@ type request struct {
 	replyc  chan int;
 }
 
-type binOp (a, b int) int;
+type binOp func(a, b int) int;
 
-func run(op *binOp, req *request) {
+func run(op binOp, req *request) {
 	reply := op(req.a, req.b);
 	req.replyc <- reply;
 }
 
-func server(op *binOp, service chan *request) {
+func server(op binOp, service chan *request) {
 	for {
 		req := <-service;
 		go run(op, req);  // don't wait for it
 	}
 }
 
-func startServer(op *binOp) chan *request {
+func startServer(op binOp) chan *request {
 	req := make(chan *request);
 	go server(op, req);
 	return req;

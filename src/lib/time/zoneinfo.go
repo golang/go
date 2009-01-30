@@ -251,7 +251,7 @@ func _SetupZone() {
 }
 
 func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
-	once.Do(&_SetupZone);
+	once.Do(_SetupZone);
 	if zoneerr != nil || len(zones) == 0 {
 		return "GMT", 0, zoneerr
 	}
