@@ -1020,6 +1020,12 @@ loop:
 			indir(n, nvar);
 			goto ret;
 		}
+		if(istype(n->left->type, TFUNC) && n->left->class == PFUNC) {
+			if(!n->diag) {
+				n->diag = 1;
+				yyerror("cannot take address of function");
+			}
+		}
 		walktype(n->left, Elv);
 		addrescapes(n->left);
 		if(n->left == N)
@@ -1060,10 +1066,8 @@ loop:
 			goto ret;
 		}
 		t = n->type;
-		if(t == T || t->etype == TFUNC) {
-			yyerror("cannot new(%T)", t);
+		if(t == T)
 			goto ret;
-		}
 		indir(n, callnew(t));
 		goto ret;
 	}
@@ -1721,6 +1725,8 @@ loop:
 		badtype(op, l->type, r->type);
 		return N;
 	}
+	if(l->op == ONAME && l->class == PFUNC)
+		yyerror("cannot assign to function");
 
 	a = nod(OAS, l, r);
 	a = convas(a);

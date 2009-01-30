@@ -1084,6 +1084,10 @@ naddr(Node *n, Addr *a)
 		case PPARAMOUT:
 			a->type = D_PARAM;
 			break;
+		case PFUNC:
+			a->index = D_EXTERN;
+			a->type = D_ADDR;
+			break;
 		}
 		break;
 
@@ -1152,6 +1156,20 @@ naddr(Node *n, Addr *a)
 //		a->offset += v;
 //		break;
 
+	}
+}
+
+/*
+ * naddr of func generates code for address of func.
+ * if using opcode that can take address implicitly,
+ * call afunclit to fix up the argument.
+ */
+void
+afunclit(Addr *a)
+{
+	if(a->type == D_ADDR && a->index == D_EXTERN) {
+		a->type = D_EXTERN;
+		a->index = D_NONE;
 	}
 }
 
@@ -1889,6 +1907,10 @@ dotoffset(Node *n, int *oary, Node **nn)
 
 	switch(n->op) {
 	case ODOT:
+		if(n->xoffset == BADWIDTH) {
+			dump("bad width in dotoffset", n);
+			fatal("bad width in dotoffset");
+		}
 		i = dotoffset(n->left, oary, nn);
 		if(i > 0) {
 			if(oary[i-1] >= 0)
@@ -1902,6 +1924,10 @@ dotoffset(Node *n, int *oary, Node **nn)
 		break;
 
 	case ODOTPTR:
+		if(n->xoffset == BADWIDTH) {
+			dump("bad width in dotoffset", n);
+			fatal("bad width in dotoffset");
+		}
 		i = dotoffset(n->left, oary, nn);
 		if(i < 10)
 			oary[i++] = -(n->xoffset+1);
@@ -2084,7 +2110,7 @@ oindex:
 		}
 		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-		gins(ACALL, N, throwindex);
+		ginscall(throwindex, 0);
 		patch(p1, pc);
 	}
 
@@ -2126,7 +2152,7 @@ oindex_const:
 			nodconst(&n2, types[TUINT64], v);
 			gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
-			gins(ACALL, N, throwindex);
+			ginscall(throwindex, 0);
 			patch(p1, pc);
 		}
 

@@ -164,6 +164,7 @@ int	needconvert(Type*, Type*);
 void	genconv(Type*, Type*);
 void	allocparams(void);
 void	checklabels();
+void	ginscall(Node*, int);
 
 /*
  * cgen
@@ -219,6 +220,7 @@ int	isfat(Type*);
 void	setmaxarg(Type*);
 void	sudoclean(void);
 int	sudoaddable(Node*, Addr*);
+void	afunclit(Addr*);
 
 /*
  * list.c

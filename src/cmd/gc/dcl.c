@@ -384,9 +384,9 @@ funchdr(Node *n)
 		// declare fun name, argument types and argument names
 		n->nname->type = n->type;
 		if(n->type->thistuple == 0)
-			addvar(n->nname, n->type, PEXTERN);
+			addvar(n->nname, n->type, PFUNC);
 		else
-			n->nname->class = PEXTERN;
+			n->nname->class = PFUNC;
 	} else {
 		// identical redeclaration
 		// steal previous names
@@ -500,9 +500,6 @@ loop:
 
 	if(n->op != ODCLFIELD || n->type == T)
 		fatal("stotype: oops %N\n", n);
-
-	if(et == TSTRUCT && n->type->etype == TFUNC)
-		yyerror("bad structure field type: %T", n->type);
 
 	switch(n->val.ctype) {
 	case CTSTR:
@@ -742,7 +739,7 @@ addvar(Node *n, Type *t, int ctxt)
 
 	s = n->sym;
 
-	if(ctxt == PEXTERN) {
+	if(ctxt == PEXTERN || ctxt == PFUNC) {
 		r = externdcl;
 		gen = 0;
 	} else {
@@ -773,6 +770,8 @@ addvar(Node *n, Type *t, int ctxt)
 	if(dflag()) {
 		if(ctxt == PEXTERN)
 			print("extern var-dcl %S G%ld %T\n", s, s->vargen, t);
+		else if(ctxt == PFUNC)
+			print("extern func-dcl %S G%ld %T\n", s, s->vargen, t);
 		else
 			print("auto   var-dcl %S G%ld %T\n", s, s->vargen, t);
 	}
@@ -896,6 +895,7 @@ newname(Sym *s)
 	n->type = T;
 	n->addable = 1;
 	n->ullman = 1;
+	n->xoffset = 0;
 	return n;
 }
 

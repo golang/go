@@ -19,8 +19,8 @@ cgen(Node *n, Node *res)
 	Addr addr;
 
 	if(debug['g']) {
-		dump("\ncgen-res", res);
-		dump("cgen-r", n);
+		dump("\ncgen-n", n);
+		dump("cgen-res", res);
 	}
 	if(n == N || n->type == T)
 		return;
@@ -82,6 +82,8 @@ cgen(Node *n, Node *res)
 			} else
 				p1 = gins(a, n, N);
 			p1->to = addr;
+			if(debug['g'])
+				print("%P [ignore previous line]\n", p1);
 			sudoclean();
 			goto ret;
 		}
@@ -448,7 +450,7 @@ agen(Node *n, Node *res)
 					nodconst(&n2, types[TUINT64], v);
 					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
-					gins(ACALL, N, throwindex);
+					ginscall(throwindex, 0);
 					patch(p1, pc);
 				}
 
@@ -494,7 +496,7 @@ agen(Node *n, Node *res)
 				nodconst(&n1, types[TUINT64], nl->type->bound);
 			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-			gins(ACALL, N, throwindex);
+			ginscall(throwindex, 0);
 			patch(p1, pc);
 		}
 

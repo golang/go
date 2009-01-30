@@ -70,7 +70,7 @@ dumpobj(void)
 		if(n == N || n->type == T)
 			fatal("external %S nil\n", s);
 
-		if(n->type->etype == TFUNC)
+		if(n->class == PFUNC)
 			continue;
 
 		dowidth(n->type);
@@ -664,7 +664,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 			a->hash += PRIME10*stringhash(package);
 		a->perm = o;
 		a->sym = methodsym(method, rcvrt);
-		
+
 		sighash = sighash*100003 + a->hash;
 
 		if(!a->sym->siggen) {
@@ -803,7 +803,7 @@ dumpsigi(Type *t, Sym *s)
 		a->perm = o;
 		a->sym = methodsym(f->sym, t);
 		a->offset = 0;
-		
+
 		sighash = sighash*100003 + a->hash;
 
 		o++;

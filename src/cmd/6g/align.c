@@ -75,6 +75,7 @@ widstruct(Type *t, uint32 o, int flag)
 void
 dowidth(Type *t)
 {
+	int32 et;
 	uint32 w;
 
 	if(t == T)
@@ -88,8 +89,22 @@ dowidth(Type *t)
 
 	t->width = -2;
 
+
+	et = t->etype;
+	switch(et) {
+	case TFUNC:
+	case TCHAN:
+	case TMAP:
+	case TSTRING:
+		break;
+
+	default:
+		et = simtype[t->etype];
+		break;
+	}
+
 	w = 0;
-	switch(simtype[t->etype]) {
+	switch(et) {
 	default:
 		fatal("dowidth: unknown type: %E", t->etype);
 		break;
@@ -162,16 +177,18 @@ dowidth(Type *t)
 		w = widstruct(t, 0, 1);
 		if(w == 0)
 			w = maxround;
-		offmod(t);
 		break;
 
 	case TFUNC:
-		// function is 3 cated structures
+		// function is 3 cated structures;
+		// compute their widths as side-effect.
 		w = widstruct(*getthis(t), 0, 1);
 		w = widstruct(*getinarg(t), w, 0);
 		w = widstruct(*getoutarg(t), w, 1);
 		t->argwid = w;
-		w = 0;
+
+		// but width of func type is pointer
+		w = wptr;
 		break;
 	}
 	t->width = w;
@@ -222,6 +239,7 @@ belexinit(int lextype)
 	simtype[TMAP] = tptr;
 	simtype[TCHAN] = tptr;
 	simtype[TSTRING] = tptr;
+	simtype[TFUNC] = tptr;
 
 	zprog.link = P;
 	zprog.as = AGOK;

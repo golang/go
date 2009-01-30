@@ -283,6 +283,7 @@ nod(int op, Node *nleft, Node *nright)
 		n->lineno = lineno;
 	else
 		n->lineno = prevlineno;
+	n->xoffset = BADWIDTH;
 	return n;
 }
 
@@ -291,7 +292,7 @@ algtype(Type *t)
 {
 	int a;
 
-	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN)
+	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN || t->etype == TFUNC)
 		a = AMEM;	// just bytes (int, ptr, etc)
 	else
 	if(t->etype == TSTRING)
@@ -1040,6 +1041,8 @@ Tpretty(Fmt *fp, Type *t)
 			fmtprint(fp, ")");
 		}
 
+		if(!(fp->flags&FmtByte))
+			fmtprint(fp, "func");
 		fmtprint(fp, "(");
 		for(t1=getinargx(t)->type; t1; t1=t1->down) {
 			fmtprint(fp, "%T", t1);
@@ -1052,7 +1055,7 @@ Tpretty(Fmt *fp, Type *t)
 			break;
 		case 1:
 			t1 = getoutargx(t)->type;
-			if(t1->etype != TFIELD) {
+			if(t1->etype != TFIELD && t1->etype != TFUNC) {
 				fmtprint(fp, " %T", t1);
 				break;
 			}
@@ -1077,7 +1080,7 @@ Tpretty(Fmt *fp, Type *t)
 	case TINTER:
 		fmtprint(fp, "interface {");
 		for(t1=t->type; t1!=T; t1=t1->down) {
-			fmtprint(fp, " %hS %hT", t1->sym, t1->type);
+			fmtprint(fp, " %hS %hhT", t1->sym, t1->type);
 			if(t1->down)
 				fmtprint(fp, ";");
 		}
