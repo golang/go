@@ -755,7 +755,7 @@ With channels, it's possible to serve multiple independent client goroutines wit
 writing an actual multiplexer.  The trick is to send the server a channel in the message,
 which it will then use to reply to the original sender.
 A realistic client-server program is a lot of code, so here is a very simple substitute
-to illustrate the idea.  It starts by defining a "Request" type, which embeds a channel
+to illustrate the idea.  It starts by defining a "request" type, which embeds a channel
 that will be used for the reply.
 
 --PROG progs/server.go /type.request/ /^}/

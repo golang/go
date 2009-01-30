@@ -68,7 +68,8 @@ testit print_string "" "77 Sunset Strip"
 testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
 testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
 
-# server hangs; don't run it
+# server hangs; don't run it, just compile it
+6g server.go
 testit server1 "" ""
 
 rm -f 6.out *.6
