@@ -8,6 +8,17 @@
 #include "gg.h"
 #include "opt.h"
 
+static Node*
+sysfunc(char *name)
+{
+	Node *n;
+
+	n = newname(pkglookup(name, "sys"));
+	n->class = PFUNC;
+	return n;
+}
+
+
 void
 compile(Node *fn)
 {
@@ -18,45 +29,16 @@ compile(Node *fn)
 	Type *t;
 	Iter save;
 
-if(newproc == N) {
-	newproc = nod(ONAME, N, N);
-	newproc->sym = pkglookup("newproc", "sys");
-	newproc->class = PEXTERN;
-	newproc->addable = 1;
-	newproc->ullman = 1;
-}
-
-if(deferproc == N) {
-	deferproc = nod(ONAME, N, N);
-	deferproc->sym = pkglookup("deferproc", "sys");
-	deferproc->class = PEXTERN;
-	deferproc->addable = 1;
-	deferproc->ullman = 1;
-}
-
-if(deferreturn == N) {
-	deferreturn = nod(ONAME, N, N);
-	deferreturn->sym = pkglookup("deferreturn", "sys");
-	deferreturn->class = PEXTERN;
-	deferreturn->addable = 1;
-	deferreturn->ullman = 1;
-}
-
-if(throwindex == N) {
-	throwindex = nod(ONAME, N, N);
-	throwindex->sym = pkglookup("throwindex", "sys");
-	throwindex->class = PEXTERN;
-	throwindex->addable = 1;
-	throwindex->ullman = 1;
-}
-
-if(throwreturn == N) {
-	throwreturn = nod(ONAME, N, N);
-	throwreturn->sym = pkglookup("throwreturn", "sys");
-	throwreturn->class = PEXTERN;
-	throwreturn->addable = 1;
-	throwreturn->ullman = 1;
-}
+	if(newproc == N)
+		newproc = sysfunc("newproc");
+	if(deferproc == N)
+		deferproc = sysfunc("deferproc");
+	if(deferreturn == N)
+		deferreturn = sysfunc("deferreturn");
+	if(throwindex == N)
+		throwindex = sysfunc("throwindex");
+	if(throwreturn == N)
+		throwreturn = sysfunc("throwreturn");
 
 	if(fn->nbody == N)
 		return;
@@ -95,6 +77,7 @@ if(throwreturn == N) {
 
 	nodconst(&nod1, types[TINT32], 0);
 	ptxt = gins(ATEXT, curfn->nname, &nod1);
+	afunclit(&ptxt->from);
 
 //	inarggen();
 
@@ -104,12 +87,11 @@ if(throwreturn == N) {
 	gclean();
 	checklabels();
 
-	if(curfn->type->outtuple != 0) {
-		gins(ACALL, N, throwreturn);
-	}
+	if(curfn->type->outtuple != 0)
+		ginscall(throwreturn, 0);
 
 	if(hasdefer)
-		gins(ACALL, N, deferreturn);
+		ginscall(deferreturn, 0);
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
@@ -720,6 +702,7 @@ argsize(Type *t)
 void
 ginscall(Node *f, int proc)
 {
+	Prog *p;
 	Node reg, con;
 
 	switch(proc) {
@@ -728,23 +711,20 @@ ginscall(Node *f, int proc)
 		break;
 
 	case 0:	// normal call
-		gins(ACALL, N, f);
+		p = gins(ACALL, N, f);
+		afunclit(&p->to);
 		break;
 
 	case 1:	// call in new proc (go)
 	case 2:	// defered call (defer)
 		nodreg(&reg, types[TINT64], D_AX);
-		if(f->op != OREGISTER) {
-			gins(ALEAQ, f, &reg);
-			gins(APUSHQ, &reg, N);
-		} else
-			gins(APUSHQ, f, N);
+		gins(APUSHQ, f, N);
 		nodconst(&con, types[TINT32], argsize(f->type));
 		gins(APUSHQ, &con, N);
 		if(proc == 1)
-			gins(ACALL, N, newproc);
+			ginscall(newproc, 0);
 		else
-			gins(ACALL, N, deferproc);
+			ginscall(deferproc, 0);
 		gins(APOPQ, N, &reg);
 		gins(APOPQ, N, &reg);
 		break;
@@ -827,7 +807,7 @@ cgen_callmeth(Node *n, int proc)
 	n->left->type = l->type;
 
 	if(n->left->op == ONAME)
-		n->left->class = PEXTERN;
+		n->left->class = PFUNC;
 	cgen_call(n, proc);
 }
 
@@ -850,16 +830,11 @@ cgen_call(Node *n, int proc)
 		// if name involves a fn call
 		// precompute the address of the fn
 		tempname(&afun, types[tptr]);
-		if(isptr[n->left->type->etype])
-			cgen(n->left, &afun);
-		else
-			agen(n->left, &afun);
+		cgen(n->left, &afun);
 	}
 
 	gen(n->right, L);	// assign the args
 	t = n->left->type;
-	if(isptr[t->etype])
-		t = t->type;
 
 	setmaxarg(t);
 
@@ -874,7 +849,7 @@ cgen_call(Node *n, int proc)
 	}
 
 	// call pointer
-	if(isptr[n->left->type->etype]) {
+	if(n->left->op != ONAME || n->left->class != PFUNC) {
 		regalloc(&nod, types[tptr], N);
 		cgen_as(&nod, n->left);
 		nod.type = t;
@@ -886,6 +861,7 @@ cgen_call(Node *n, int proc)
 	// call direct
 	n->left->method = 1;
 	ginscall(n->left, proc);
+
 
 ret:
 	;
@@ -992,7 +968,7 @@ cgen_ret(Node *n)
 {
 	gen(n->left, L);	// copy out args
 	if(hasdefer)
-		gins(ACALL, N, deferreturn);
+		ginscall(deferreturn, 0);
 	gins(ARET, N, N);
 }
 

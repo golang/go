@@ -1154,6 +1154,7 @@ lexinit(void)
 		case TINTER:
 		case TMAP:
 		case TCHAN:
+		case TFUNC:
 			okforeq[i] = 1;
 			break;
 		}

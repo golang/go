@@ -414,6 +414,7 @@ enum
 	PAUTO,
 	PPARAM,
 	PPARAMOUT,
+	PFUNC,
 
 	PHEAP = 1<<7,
 };
@@ -778,7 +779,7 @@ void	doimport9(Sym*, Node*);
 void	importconst(Node *ss, Type *t, Val *v);
 void	importmethod(Sym *s, Type *t);
 void	importtype(Node *ss, Type *t);
-void	importvar(Node *ss, Type *t);
+void	importvar(Node *ss, Type *t, int ctxt);
 void	checkimports(void);
 Type*	pkgtype(char*, char*);
 

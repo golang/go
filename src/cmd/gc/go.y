@@ -1231,15 +1231,15 @@ fntype:
 |	Bfntype
 
 Afntype:
-	'(' oarg_type_list ')' Afnres
+	LFUNC '(' oarg_type_list ')' Afnres
 	{
-		$$ = functype(N, $2, $4);
+		$$ = functype(N, $3, $5);
 	}
 
 Bfntype:
-	'(' oarg_type_list ')' Bfnres
+	LFUNC '(' oarg_type_list ')' Bfnres
 	{
-		$$ = functype(N, $2, $4);
+		$$ = functype(N, $3, $5);
 	}
 
 fnlitdcl:
@@ -1251,7 +1251,7 @@ fnlitdcl:
 	}
 
 fnliteral:
-	LFUNC fnlitdcl '{' ostmt_list '}'
+	fnlitdcl '{' ostmt_list '}'
 	{
 		popdcl();
 
@@ -1259,21 +1259,19 @@ fnliteral:
 		snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
 
 		$$ = newname(lookup(namebuf));
-		addvar($$, $2, PEXTERN);
+		addvar($$, $1, PFUNC);
 
 		{
 			Node *n;
 
 			n = nod(ODCLFUNC, N, N);
 			n->nname = $$;
-			n->type = $2;
-			n->nbody = $4;
+			n->type = $1;
+			n->nbody = $3;
 			if(n->nbody == N)
 				n->nbody = nod(ORETURN, N, N);
 			compile(n);
 		}
-
-		$$ = nod(OADDR, $$, N);
 	}
 
 fnbody:
@@ -1416,12 +1414,6 @@ indcl:
 	{
 		// without func keyword
 		$$ = functype(fakethis(), $2, $4);
-	}
-|	latype
-	{
-		$$ = oldtype($1);
-		if($$ == T || $$->etype != TFUNC)
-			yyerror("illegal type for function literal");
 	}
 
 /*
@@ -1733,7 +1725,7 @@ hidden_import:
 	/* variables */
 |	LVAR hidden_pkg_importsym hidden_type
 	{
-		importvar($2, $3);
+		importvar($2, $3, PEXTERN);
 	}
 |	LCONST hidden_pkg_importsym '=' hidden_constant
 	{
@@ -1749,7 +1741,7 @@ hidden_import:
 	}
 |	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres
 	{
-		importvar($2, functype(N, $4, $6));
+		importvar($2, functype(N, $4, $6), PFUNC);
 	}
 |	LFUNC '(' hidden_funarg_list ')' sym1 '(' ohidden_funarg_list ')' ohidden_funres
 	{
@@ -1829,9 +1821,9 @@ hidden_type2:
 		$$->type = $2;
 		$$->chan = Cboth;
 	}
-|	'(' ohidden_funarg_list ')' ohidden_funres
+|	LFUNC '(' ohidden_funarg_list ')' ohidden_funres
 	{
-		$$ = functype(N, $2, $4);
+		$$ = functype(N, $3, $5);
 	}
 
 hidden_dcl:
@@ -1978,11 +1970,6 @@ latype:
 |	LNAME
 	{
 		yyerror("no type %s", $1->name);
-		YYERROR;
-	}
-|	lpack '.' LNAME
-	{
-		yyerror("no type %s.%s", context, $3->name);
 		YYERROR;
 	}
 

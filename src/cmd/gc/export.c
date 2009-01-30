@@ -153,11 +153,11 @@ dumpexportvar(Sym *s)
 	dumpprereq(t);
 
 	Bprint(bout, "\t");
-	if(t->etype == TFUNC)
-		Bprint(bout, "func ");
+	if(t->etype == TFUNC && n->class == PFUNC)
+		Bprint(bout, "func %lS %#hhT", s, t);
 	else
-		Bprint(bout, "var ");
-	Bprint(bout, "%lS %#T\n", s, t);
+		Bprint(bout, "var %lS %#T", s, t);
+	Bprint(bout, "\n");
 }
 
 void
@@ -199,7 +199,7 @@ dumpsym(Sym *s)
 
 		dumpexporttype(s);
 		for(f=s->otype->method; f!=T; f=f->down)
-			Bprint(bout, "\tfunc (%#T) %hS %#hT\n",
+			Bprint(bout, "\tfunc (%#T) %hS %#hhT\n",
 				f->type->type->type, f->sym, f->type);
 		break;
 	case LNAME:
@@ -368,7 +368,7 @@ importconst(Node *ss, Type *t, Val *v)
 }
 
 void
-importvar(Node *ss, Type *t)
+importvar(Node *ss, Type *t, int ctxt)
 {
 	Sym *s;
 
@@ -383,7 +383,7 @@ importvar(Node *ss, Type *t)
 			s, s->oname->type, t);
 	}
 	checkwidth(t);
-	addvar(newname(s), t, PEXTERN);
+	addvar(newname(s), t, ctxt);
 
 	if(debug['e'])
 		print("import var %S %lT\n", s, t);

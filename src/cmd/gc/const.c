@@ -71,6 +71,7 @@ convlit1(Node *n, Type *t, int conv)
 		case TARRAY:
 		case TMAP:
 		case TCHAN:
+		case TFUNC:
 			break;
 		}
 		break;
