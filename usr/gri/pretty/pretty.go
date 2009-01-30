@@ -52,7 +52,10 @@ func main() {
 		} else {
 			prog, nerrors := Compilation.Compile(src_file, &flags);
 			if nerrors > 0 {
-				return;
+				if flags.Testmode {
+					return;  // TODO we shouldn't need this
+				}
+				sys.Exit(1);
 			}
 			if !*silent && !flags.Testmode {
 				Printer.Print(prog);

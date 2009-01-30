@@ -408,8 +408,9 @@ func (P *Printer) HtmlIdentifier(x *AST.Expr) {
 // ----------------------------------------------------------------------------
 // Types
 
-func (P *Printer) Type(t *AST.Type) int
+func (P *Printer) Type(t *AST.Type, full_function_type bool) int
 func (P *Printer) Expr(x *AST.Expr)
+func (P *Printer) Expr1(x *AST.Expr, prec1 int, full_function_type bool)
 
 func (P *Printer) Parameters(pos int, list *array.Array) {
 	P.String(pos, "(");
@@ -432,7 +433,7 @@ func (P *Printer) Parameters(pos int, list *array.Array) {
 }
 
 
-func (P *Printer) Fields(list *array.Array, end int) {
+func (P *Printer) Fields(list *array.Array, end int, full_function_type bool) {
 	P.state = opening_scope;
 	P.String(0, "{");
 
@@ -451,7 +452,7 @@ func (P *Printer) Fields(list *array.Array, end int) {
 					P.separator = tab;
 				}
 			}
-			P.Expr(x);
+			P.Expr1(x, Scanner.LowestPrec, full_function_type);
 			prev = x.Tok;
 		}
 		P.newlines = 1;
@@ -464,7 +465,7 @@ func (P *Printer) Fields(list *array.Array, end int) {
 
 // Returns the separator (semicolon or none) required if
 // the type is terminating a declaration or statement.
-func (P *Printer) Type(t *AST.Type) int {
+func (P *Printer) Type(t *AST.Type, full_function_type bool) int {
 	separator := semicolon;
 
 	switch t.Form {
@@ -477,7 +478,7 @@ func (P *Printer) Type(t *AST.Type) int {
 			P.Expr(t.Expr);
 		}
 		P.String(0, "]");
-		separator = P.Type(t.Elt);
+		separator = P.Type(t.Elt, true);
 
 	case AST.STRUCT, AST.INTERFACE:
 		switch t.Form {
@@ -486,15 +487,15 @@ func (P *Printer) Type(t *AST.Type) int {
 		}
 		if t.List != nil {
 			P.separator = blank;
-			P.Fields(t.List, t.End);
+			P.Fields(t.List, t.End, t.Form == AST.STRUCT);
 		}
 		separator = none;
 
 	case AST.MAP:
 		P.String(t.Pos, "map [");
-		P.Type(t.Key);
+		P.Type(t.Key, true);
 		P.String(0, "]");
-		separator = P.Type(t.Elt);
+		separator = P.Type(t.Elt, true);
 
 	case AST.CHANNEL:
 		var m string;
@@ -504,18 +505,23 @@ func (P *Printer) Type(t *AST.Type) int {
 		case AST.SEND: m = "chan <- ";
 		}
 		P.String(t.Pos, m);
-		separator = P.Type(t.Elt);
+		separator = P.Type(t.Elt, true);
 
 	case AST.POINTER:
 		P.String(t.Pos, "*");
-		separator = P.Type(t.Elt);
+		separator = P.Type(t.Elt, true);
 
 	case AST.FUNCTION:
+		if full_function_type {
+			P.Token(0, Scanner.FUNC);
+		}
 		P.Parameters(t.Pos, t.List);
 		if t.Elt != nil {
 			P.separator = blank;
 			list := t.Elt.List;
-			if list.Len() > 1 {
+			if list.Len() > 1 || list.At(0).(*AST.Expr).Typ.Form == AST.FUNCTION {
+				// single, anonymous result types which are functions must
+				// be parenthesized as well
 				P.Parameters(0, list);
 			} else {
 				// single, anonymous result type
@@ -539,7 +545,7 @@ func (P *Printer) Type(t *AST.Type) int {
 
 func (P *Printer) Block(b *AST.Block, indent bool);
 
-func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
+func (P *Printer) Expr1(x *AST.Expr, prec1 int, full_function_type bool) {
 	if x == nil {
 		return;  // empty expression list
 	}
@@ -547,7 +553,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 	switch x.Tok {
 	case Scanner.TYPE:
 		// type expr
-		P.Type(x.Typ);
+		P.Type(x.Typ, full_function_type);
 
 	case Scanner.IDENT:
 		P.HtmlIdentifier(x);
@@ -559,7 +565,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 	case Scanner.FUNC:
 		// function literal
 		P.String(x.Pos, "func");
-		P.Type(x.Obj.Typ);
+		P.Type(x.Obj.Typ, false);
 		P.Block(x.Obj.Body, true);
 		P.newlines = 0;
 
@@ -574,33 +580,33 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 
 	case Scanner.PERIOD:
 		// selector or type guard
-		P.Expr1(x.X, Scanner.HighestPrec);
+		P.Expr1(x.X, Scanner.HighestPrec, true);
 		P.String(x.Pos, ".");
 		if x.Y.Tok == Scanner.TYPE {
 			P.String(0, "(");
 			P.Expr(x.Y);
 			P.String(0, ")");
 		} else {
-			P.Expr1(x.Y, Scanner.HighestPrec);
+			P.Expr1(x.Y, Scanner.HighestPrec, true);
 		}
 
 	case Scanner.LBRACK:
 		// index
-		P.Expr1(x.X, Scanner.HighestPrec);
+		P.Expr1(x.X, Scanner.HighestPrec, true);
 		P.String(x.Pos, "[");
-		P.Expr1(x.Y, 0);
+		P.Expr1(x.Y, 0, true);
 		P.String(0, "]");
 
 	case Scanner.LPAREN:
 		// call
-		P.Expr1(x.X, Scanner.HighestPrec);
+		P.Expr1(x.X, Scanner.HighestPrec, true);
 		P.String(x.Pos, "(");
 		P.Expr(x.Y);
 		P.String(0, ")");
 
 	case Scanner.LBRACE:
 		// composite literal
-		P.Type(x.Obj.Typ);
+		P.Type(x.Obj.Typ, true);
 		P.String(x.Pos, "{");
 		P.Expr(x.Y);
 		P.String(0, "}");
@@ -622,12 +628,12 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 			}
 		} else {
 			// binary expression
-			P.Expr1(x.X, prec);
+			P.Expr1(x.X, prec, true);
 			P.separator = blank;
 			P.Token(x.Pos, x.Tok);
 			P.separator = blank;
 		}
-		P.Expr1(x.Y, prec);
+		P.Expr1(x.Y, prec, true);
 		if prec < prec1 {
 			P.String(0, ")");
 		}
@@ -636,7 +642,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
 
 
 func (P *Printer) Expr(x *AST.Expr) {
-	P.Expr1(x, Scanner.LowestPrec);
+	P.Expr1(x, Scanner.LowestPrec, true);
 }
 
 
@@ -832,13 +838,13 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 		case Scanner.TYPE:
 			P.Expr(d.Ident);
 			P.separator = blank;  // TODO switch to tab? (but indentation problem with structs)
-			P.separator = P.Type(d.Typ);
+			P.separator = P.Type(d.Typ, true);
 
 		case Scanner.CONST, Scanner.VAR:
 			P.Expr(d.Ident);
 			if d.Typ != nil {
 				P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
-				P.separator = P.Type(d.Typ);
+				P.separator = P.Type(d.Typ, true);
 			}
 			if d.Val != nil {
 				P.separator = tab;
@@ -855,7 +861,7 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 				P.separator = blank;
 			}
 			P.Expr(d.Ident);
-			P.separator = P.Type(d.Typ);
+			P.separator = P.Type(d.Typ, false);
 			if d.Val != nil {
 				P.separator = blank;
 				P.Block(d.Val.Obj.Body, true);

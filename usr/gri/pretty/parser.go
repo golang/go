@@ -526,7 +526,7 @@ func (P *Parser) ParseResult(ftyp *AST.Type) *AST.Type {
 	var t *AST.Type;
 	if P.tok == Scanner.LPAREN {
 		t = P.ParseParameters(false);
-	} else {
+	} else if P.tok != Scanner.FUNC {
 		typ := P.TryType();
 		if typ != nil {
 			t = AST.NewType(P.pos, AST.STRUCT);
@@ -547,8 +547,8 @@ func (P *Parser) ParseResult(ftyp *AST.Type) *AST.Type {
 // (params) type
 // (params) (results)
 
-func (P *Parser) ParseFunctionType() *AST.Type {
-	P.Trace("FunctionType");
+func (P *Parser) ParseSignature() *AST.Type {
+	P.Trace("Signature");
 
 	P.OpenScope();
 	P.scope_lev++;
@@ -567,16 +567,22 @@ func (P *Parser) ParseFunctionType() *AST.Type {
 }
 
 
+func (P *Parser) ParseFunctionType() *AST.Type {
+	P.Trace("FunctionType");
+
+	P.Expect(Scanner.FUNC);
+	t := P.ParseSignature();
+
+	P.Ecart();
+	return t;
+}
+
+
 func (P *Parser) ParseMethodSpec(list *array.Array) {
 	P.Trace("MethodDecl");
 
 	list.Push(P.ParseIdentList());
-	t := AST.BadType;
-	if P.sixg {
-		t = P.ParseType();
-	} else {
-		t = P.ParseFunctionType();
-	}
+	t := P.ParseSignature();
 	list.Push(AST.NewTypeExpr(t));
 
 	P.Ecart();
@@ -691,7 +697,7 @@ func (P *Parser) TryType() *AST.Type {
 	case Scanner.LBRACK: t = P.ParseArrayType();
 	case Scanner.CHAN, Scanner.ARROW: t = P.ParseChannelType();
 	case Scanner.INTERFACE: t = P.ParseInterfaceType();
-	case Scanner.LPAREN: t = P.ParseFunctionType();
+	case Scanner.FUNC: t = P.ParseFunctionType();
 	case Scanner.MAP: t = P.ParseMapType();
 	case Scanner.STRUCT: t = P.ParseStructType();
 	case Scanner.MUL: t = P.ParsePointerType();
@@ -798,7 +804,7 @@ func (P *Parser) ParseFunctionLit() *AST.Expr {
 
 	f := AST.NewObject(P.pos, AST.FUNC, "");
 	P.Expect(Scanner.FUNC);
-	f.Typ = P.ParseFunctionType();
+	f.Typ = P.ParseSignature();
 	P.expr_lev++;
 	P.scope_lev++;
 	f.Body = P.ParseBlock(f.Typ, Scanner.LBRACE);
@@ -1630,7 +1636,7 @@ func (P *Parser) ParseFunctionDecl() *AST.Decl {
 	}
 
 	d.Ident = P.ParseIdent(nil);
-	d.Typ = P.ParseFunctionType();
+	d.Typ = P.ParseSignature();
 	d.Typ.Key = recv;
 
 	if P.tok == Scanner.LBRACE {
