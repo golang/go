@@ -49,7 +49,7 @@ func _ReadServices() {
 }
 
 func LookupPort(netw, name string) (port int, ok bool) {
-	once.Do(&_ReadServices);
+	once.Do(_ReadServices);
 
 	switch netw {
 	case "tcp4", "tcp6":

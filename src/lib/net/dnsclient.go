@@ -175,7 +175,7 @@ func LookupHost(name string) (name1 string, addrs []string, err *os.Error) {
 	// TODO(rsc): Pick out obvious non-DNS names to avoid
 	// sending stupid requests to the server?
 
-	once.Do(&_LoadConfig);
+	once.Do(_LoadConfig);
 	if cfg == nil {
 		err = DNS_MissingConfig;
 		return;

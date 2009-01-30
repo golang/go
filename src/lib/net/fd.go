@@ -209,7 +209,7 @@ func _StartServer() {
 
 func NewFD(fd int64) (f *FD, err *os.Error) {
 	if pollserver == nil {
-		once.Do(&_StartServer);
+		once.Do(_StartServer);
 	}
 	if err = _SetNonblock(fd); err != nil {
 		return nil, err

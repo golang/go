@@ -4,6 +4,6 @@
 
 package bug0
 
-var V0 *() int;
-var V1 *() (a int);
-var V2 *() (a, b int);
+var V0 func() int;
+var V1 func() (a int);
+var V2 func() (a, b int);

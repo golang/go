@@ -17,12 +17,12 @@ type _Job struct {
 }
 
 type _Request struct {
-	f *();
+	f func();
 	reply chan *_Job
 }
 
 var service = make(chan _Request)
-var jobmap = make(map[*()]*_Job)
+var jobmap = make(map[func()]*_Job)
 
 // Moderate access to the jobmap.
 // Even if accesses were thread-safe (they should be but are not)
@@ -42,7 +42,7 @@ func server() {
 	}
 }
 
-func Do(f *()) {
+func Do(f func()) {
 	// Look for job in map (avoids channel communication).
 	// If not there, ask map server to make one.
 	// TODO: Uncomment use of jobmap[f] once

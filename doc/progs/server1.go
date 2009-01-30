@@ -9,14 +9,14 @@ type request struct {
 	replyc	chan int;
 }
 
-type binOp (a, b int) int;
+type binOp func(a, b int) int;
 
-func run(op *binOp, req *request) {
+func run(op binOp, req *request) {
 	reply := op(req.a, req.b);
 	req.replyc <- reply;
 }
 
-func server(op *binOp, service chan *request, quit chan bool) {
+func server(op binOp, service chan *request, quit chan bool) {
 	for {
 		select {
 		case req := <-service:
@@ -27,7 +27,7 @@ func server(op *binOp, service chan *request, quit chan bool) {
 	}
 }
 
-func startServer(op *binOp) (service chan *request, quit chan bool) {
+func startServer(op binOp) (service chan *request, quit chan bool) {
 	service = make(chan *request);
 	quit = make(chan bool);
 	go server(op, service, quit);

@@ -96,7 +96,7 @@ func (r13 *rot13Reader) Read(p []byte) (int, *os.Error) {
 
 type readMaker struct {
 	name string;
-	fn *([]byte) io.Read;
+	fn func([]byte) io.Read;
 }
 var readMakers = []readMaker {
 	readMaker{ "full", func(p []byte) io.Read { return newByteReader(p) } },
@@ -155,7 +155,7 @@ func reads(buf *BufRead, m int) string {
 
 type bufReader struct {
 	name string;
-	fn *(*BufRead) string;
+	fn func(*BufRead) string;
 }
 var bufreaders = []bufReader {
 	bufReader{ "1", func(b *BufRead) string { return reads(b, 1) } },
@@ -164,8 +164,8 @@ var bufreaders = []bufReader {
 	bufReader{ "4", func(b *BufRead) string { return reads(b, 4) } },
 	bufReader{ "5", func(b *BufRead) string { return reads(b, 5) } },
 	bufReader{ "7", func(b *BufRead) string { return reads(b, 7) } },
-	bufReader{ "bytes", &readBytes },
-	bufReader{ "lines", &readLines },
+	bufReader{ "bytes", readBytes },
+	bufReader{ "lines", readLines },
 }
 
 var bufsizes = []int {
@@ -276,14 +276,14 @@ func (w *halfByteWriter) GetBytes() []byte {
 
 type writeMaker struct {
 	name string;
-	fn *()writeBuffer;
+	fn func()writeBuffer;
 }
 func TestBufWrite(t *testing.T) {
 	var data [8192]byte;
 
 	var writers = []writeMaker {
-		writeMaker{ "full", &newByteWriter },
-		writeMaker{ "half", &newHalfByteWriter },
+		writeMaker{ "full", newByteWriter },
+		writeMaker{ "half", newHalfByteWriter },
 	};
 
 	for i := 0; i < len(data); i++ {

@@ -327,13 +327,13 @@ func _InternetSocket(net, laddr, raddr string, proto int64, mode string) (fd *FD
 		}
 	}
 
-	var cvt *(addr []byte, port int) (sa *syscall.Sockaddr, err *os.Error);
+	var cvt func(addr []byte, port int) (sa *syscall.Sockaddr, err *os.Error);
 	var family int64;
 	if vers == 4 {
-		cvt = &IPv4ToSockaddr;
+		cvt = IPv4ToSockaddr;
 		family = syscall.AF_INET
 	} else {
-		cvt = &IPv6ToSockaddr;
+		cvt = IPv6ToSockaddr;
 		family = syscall.AF_INET6
 	}
 

@@ -10,7 +10,7 @@ package main
 type C struct
 {
 	a	int;
-	x	*(p *C)int;
+	x	func(p *C)int;
 }
 
 func	g(p *C)int;
@@ -29,7 +29,7 @@ main()
 
 	c = new(C);
 	c.a = 6;
-	c.x = &g;
+	c.x = g;
 
 	v = g(c);
 	if v != 6 { panic(v); }

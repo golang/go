@@ -6,7 +6,7 @@
 
 package main
 
-type T ()
+type T func()
 
 type I interface {
 	f, g ();
