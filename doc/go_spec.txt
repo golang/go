@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(January 27, 2009)
+(January 30, 2009)
 
 ----
 
@@ -1215,7 +1215,7 @@ types (§Types).
 	StructType = "struct" [ "{" [ FieldDeclList ] "}" ] .
 	FieldDeclList = FieldDecl { ";" FieldDecl } [ ";" ] .
 	FieldDecl = (IdentifierList CompleteType | TypeName) [ Tag ] .
-	Tag = string_lit .
+	Tag = StringLit .
 
 	// An empty struct.
 	struct {}
@@ -1225,7 +1225,7 @@ types (§Types).
 		x, y int;
 		u float;
 		A *[]int;
-		F *();
+		F func();
 	}
 
 A struct may contain ``anonymous fields'', which are declared with a type
@@ -1326,9 +1326,10 @@ Function types
 ----
 
 A function type denotes the set of all functions with the same parameter
-and result types.
+and result types, and the value "nil".
 
-	FunctionType = "(" [ ParameterList ] ")" [ Result ] .
+	FunctionType = "func" Signature .
+	Signature = "(" [ ParameterList ] ")" [ Result ] .
 	ParameterList = ParameterDecl { "," ParameterDecl } .
 	ParameterDecl = [ IdentifierList ] ( Type | "..." ) .
 	Result = Type | "(" ParameterList ")" .
@@ -1345,22 +1346,32 @@ no additional arguments). If the parameters are named, the identifier
 list immediately preceding "..." must contain only one identifier (the
 name of the last parameter).
 
-	()
-	(x int)
-	() int
-	(string, float, ...)
-	(a, b int, z float) bool
-	(a, b int, z float) (bool)
-	(a, b int, z float, opt ...) (success bool)
-	(int, int, float) (float, *[]int)
+	func ()
+	func (x int)
+	func () int
+	func (string, float, ...)
+	func (a, b int, z float) bool
+	func (a, b int, z float) (bool)
+	func (a, b int, z float, opt ...) (success bool)
+	func (int, int, float) (float, *[]int)
 
-A variable can hold only a pointer to a function, not a function value.
-In particular, v := func() {} creates a variable of type *(). To call the
-function referenced by v, one writes v(). It is illegal to dereference a
-function pointer.
+If the result type of a function is itself a function type, the result type
+must be parenthesized to resolve a parsing ambiguity:
 
-Assignment compatibility: A function pointer can be assigned to a function
-(pointer) variable only if both function types are equal.
+	func (n int) (func (p* T))
+
+Assignment compatibility: A function can be assigned to a function
+variable only if both function types are equal.
+
+Comparisons: A variable of function type can be compared against "nil" with the
+operators "==" and "!=" (§Comparison operators). The variable is
+"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+if the variable has not been modified since creation (§Program initialization
+and execution).
+
+Two variables of equal function type can be tested for equality with the
+operators "==" and "!=" (§Comparison operators). The variables are equal
+if they refer to the same function.
 
 
 Interface types
@@ -1372,7 +1383,7 @@ the set of methods specified by the interface type, and the value "nil".
 
 	InterfaceType = "interface" [ "{" [ MethodSpecList ] "}" ] .
 	MethodSpecList = MethodSpec { ";" MethodSpec } [ ";" ] .
-	MethodSpec = IdentifierList FunctionType .
+	MethodSpec = IdentifierList Signature .
 
 	// An interface specifying a basic File type.
 	interface {
@@ -1704,8 +1715,8 @@ For instance, given the declarations
 		T1 []string
 		T2 struct { a, b int };
 		T3 struct { a, c int };
-		T4 *(int, float) *T0
-		T5 *(x int, y float) *[]string
+		T4 func (int, float) *T0
+		T5 func (x int, y float) *[]string
 	)
 
 these are some types that are equal
@@ -1759,7 +1770,8 @@ Operands denote the elementary values in an expression.
 
 	Operand  = Literal | QualifiedIdent | "(" Expression ")" .
 	Literal  = BasicLit | CompositeLit | FunctionLit .
-	BasicLit = int_lit | float_lit | char_lit | string_lit .
+	BasicLit = int_lit | float_lit | char_lit | StringLit .
+	StringLit = string_lit { string_lit } .
 
 
 Constants
@@ -1848,15 +1860,15 @@ A function literal represents an anonymous function. It consists of a
 specification of the function type and the function body. The parameter
 and result types of the function type must all be complete types (§Types).
 
-	FunctionLit = "func" FunctionType Block .
+	FunctionLit = "func" Signature Block .
 	Block = "{" [ StatementList ] "}" .
 
-The type of a function literal is a pointer to the function type.
+The type of a function literal is the function type specified.
 
 	func (a, b int, z float) bool { return a*b < int(z); }
 
 A function literal can be assigned to a variable of the
-corresponding function pointer type, or invoked directly.
+corresponding function type, or invoked directly.
 
 	f := func(x, y int) int { return x + y; }
 	func(ch chan int) { ch <- ACK; } (reply_chan)
@@ -2073,7 +2085,9 @@ TODO add examples
 Calls
 ----
 
-Given a function pointer, one writes
+TODO: This needs to be expanded and cleaned up.
+
+Given a function or a function variable p, one writes
 
 	p()
 
@@ -2083,7 +2097,7 @@ A method is called using the notation
 
 	receiver.method()
 
-where receiver is a value of the receive type of the method.
+where receiver is a value of the receiver type of the method.
 
 For instance, given a *Point variable pt, one may call
 
@@ -2357,26 +2371,11 @@ Address operators
 
 TODO: Need to talk about unary "*", clean up section below.
 
-Given a function f, declared as
+TODO: This text needs to be cleaned up and go elsewhere, there are no address
+operators involved.
 
-	func f(a int) int;
-
-taking the address of f with the expression
-
-	&f
-
-creates a pointer to the function that may be stored in a value of type pointer
-to function:
-
-	var fp *(a int) int = &f;
-
-The function pointer may be invoked with the usual syntax; no explicit
-indirection is required:
-
-	fp(7)
-
-Methods are a form of function, and the address of a method has the type
-pointer to function.  Consider the type T with method M:
+Methods are a form of function, and a method ``value'' has a function type.
+Consider the type T with method M:
 
 	type T struct {
 		a int;
@@ -2384,45 +2383,62 @@ pointer to function.  Consider the type T with method M:
 	func (tp *T) M(a int) int;
 	var t *T;
 
-To construct the address of method M, one writes
+To construct the value of method M, one writes
 
-	&t.M
+	t.M
 
-using the variable t (not the type T).  The expression is a pointer to a
-function, with type
+using the variable t (not the type T).
+TODO: It makes perfect sense to be able to say T.M (in fact, it makes more
+sense then t.M, since only the type T is needed to find the method M, i.e.,
+its address). TBD.
 
-	*(t *T, a int) int
+The expression t.M is a function value with type
 
-and may be invoked only as a function, not a method:
+	func (t *T, a int) int
 
-	var f *(t *T, a int) int;
-	f = &t.M;
+and may be invoked only as a function, not as a method:
+
+	var f func (t *T, a int) int;
+	f = t.M;
 	x := f(t, 7);
 
-Note that one does not write t.f(7); taking the address of a method demotes
+Note that one does not write t.f(7); taking the value of a method demotes
 it to a function.
 
-In general, given type T with method M and variable t of type *T,
+In general, given type T with method M and variable t of type T,
 the method invocation
 
 	t.M(args)
 
 is equivalent to the function call
 
-	(&t.M)(t, args)
+	(t.M)(t, args)
 
-If T is an interface type, the expression &t.M does not determine which
+TODO: should probably describe the effect of (t.m) under §Expressions if t.m
+denotes a method: Effect is as described above, converts into function.
+
+If T is an interface type, the expression t.M does not determine which
 underlying type's M is called until the point of the call itself. Thus given
 T1 and T2, both implementing interface I with interface M, the sequence
 
 	var t1 *T1;
 	var t2 *T2;
 	var i I = t1;
-	m := &i.M;
-	m(t2);
+	m := i.M;
+	m(t2, 7);
 
 will invoke t2.M() even though m was constructed with an expression involving
-t1.
+t1. Effectively, the value of m is a function literal
+
+	func (recv I, a int) {
+		recv.M(a);
+	}
+
+that is automatically created.
+
+TODO: Document implementation restriction: It is illegal to take the address
+of a result parameter (e.g.: func f() (x int, p *int) { return 2, &x }).
+(TBD: is it an implementation restriction or fact?)
 
 
 Communication operators
@@ -2643,7 +2659,7 @@ and the "else" branch. If Expression evaluates to true,
 the "if" branch is executed. Otherwise the "else" branch is executed if present.
 If Condition is omitted, it is equivalent to true.
 
-	IfStat = "if" [ [ Simplestat ] ";" ] [ Expression ] Block [ "else" Statement ] .
+	IfStat = "if" [ [ SimpleStat ] ";" ] [ Expression ] Block [ "else" Statement ] .
 
 	if x > 0 {
 		return true;
@@ -2666,7 +2682,7 @@ the variable is initialized once before the statement is entered.
 TODO: gri thinks that Statement needs to be changed as follows:
 
 	IfStat =
-	       "if" [ [ Simplestat ] ";" ] [ Expression ] Block
+	       "if" [ [ SimpleStat ] ";" ] [ Expression ] Block
 	       [ "else" ( IfStat | Block ) ] .
 
 To facilitate the "if else if" code pattern, if the "else" branch is
@@ -2688,7 +2704,7 @@ Switch statements
 
 Switches provide multi-way execution.
 
-	SwitchStat = "switch" [ [ Simplestat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
+	SwitchStat = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
 	CaseClause = SwitchCase ":" [ StatementList ] .
 	SwitchCase = "case" ExpressionList | "default" .
 
@@ -3069,9 +3085,9 @@ Function declarations
 A function declaration binds an identifier to a function.
 Functions contain declarations and statements.  They may be
 recursive. Except for forward declarations (see below), the parameter
-and result types of the function type must all be complete types (§Type declarations).
+and result types of the signature must all be complete types (§Type declarations).
 
-	FunctionDecl = "func" identifier FunctionType [ Block ] .
+	FunctionDecl = "func" identifier Signature [ Block ] .
 	
 	func min(x int, y int) int {
 		if x < y {
@@ -3102,7 +3118,7 @@ it is declared within the scope of that type (§Type declarations). If the
 receiver value is not needed inside the method, its identifier may be omitted
 in the declaration.
 
-	MethodDecl = "func" Receiver identifier FunctionType [ Block ] .
+	MethodDecl = "func" Receiver identifier Signature [ Block ] .
 	Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
 
 All methods bound to a receiver base type must have the same receiver type:
@@ -3296,6 +3312,7 @@ through an import declaration:
 	ImportDecl = "import" ( ImportSpec | "(" [ ImportSpecList ] ")" ) .
 	ImportSpecList = ImportSpec { ";" ImportSpec } [ ";" ] .
 	ImportSpec = [ "." | PackageName ] PackageFileName .
+	PackageFileName = StringLit .
 
 An import statement makes the exported top-level identifiers of the named
 package file accessible to this package.
