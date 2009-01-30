@@ -11,21 +11,21 @@ type request struct {
 
 type binOp (a, b int) int;
 
-func run(op *BinOp, request *Request) {
-	result := op(request.a, request.b);
-	request.replyc <- result;
+func run(op *binOp, req *request) {
+	result := op(req.a, req.b);
+	req.replyc <- result;
 }
 
-func server(op *BinOp, service chan *Request) {
+func server(op *binOp, service chan *request) {
 	for {
-		request := <-service;
-		go run(op, request);  // don't wait for it
+		req := <-service;
+		go run(op, req);  // don't wait for it
 	}
 }
 
-func startServer(op *BinOp) chan *Request {
-	req := make(chan *Request);
-	go Server(op, req);
+func startServer(op *binOp) chan *request {
+	req := make(chan *request);
+	go server(op, req);
 	return req;
 }
 

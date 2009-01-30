@@ -11,9 +11,9 @@ type request struct {
 
 type binOp (a, b int) int;
 
-func run(op *binOp, request *request) {
-	result := op(request.a, request.b);
-	request.replyc <- result;
+func run(op *binOp, req *request) {
+	result := op(req.a, req.b);
+	req.replyc <- result;
 }
 
 func server(op *binOp, service chan *request, quit chan bool) {
