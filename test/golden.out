@@ -172,7 +172,7 @@ bugs/bug129.go:6: syscall is package, not var
 BUG129
 
 =========== bugs/bug130.go
-bugs/bug130.go:14: fatal error: getoutarg: not a func RANGE
+bugs/bug130.go:14: fatal error: getoutarg: not a func *<T>
 BUG: should run
 
 =========== bugs/bug131.go

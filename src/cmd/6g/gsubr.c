@@ -547,6 +547,7 @@ gmove(Node *f, Node *t)
 				break;
 			case PAUTO:
 			case PPARAM:
+			case PPARAMOUT:
 				break;
 			}
 			break;
@@ -1046,6 +1047,15 @@ naddr(Node *n, Addr *a)
 		a->offset = n->xoffset;
 		break;
 
+	case OPARAM:
+		// n->left is PHEAP ONAME for stack parameter.
+		// compute address of actual parameter on stack.
+		a->etype = n->left->type->etype;
+		a->offset = n->xoffset;
+		a->sym = n->left->sym;
+		a->type = D_PARAM;
+		break;
+
 	case ONAME:
 		a->etype = 0;
 		if(n->type != T)
@@ -1071,6 +1081,7 @@ naddr(Node *n, Addr *a)
 			a->type = D_AUTO;
 			break;
 		case PPARAM:
+		case PPARAMOUT:
 			a->type = D_PARAM;
 			break;
 		}
@@ -1749,6 +1760,7 @@ tempname(Node *n, Type *t)
 	n->class = PAUTO;
 	n->addable = 1;
 	n->ullman = 1;
+	n->noescape = 1;
 
 	dowidth(t);
 	w = t->width;

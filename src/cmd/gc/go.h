@@ -180,12 +180,13 @@ struct	Node
 	uchar	addable;	// type of addressability - 0 is not addressable
 	uchar	trecur;		// to detect loops
 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
-	uchar	class;		// PPARAM, PAUTO, PEXTERN
+	uchar	class;		// PPARAM, PAUTO, PEXTERN, etc
 	uchar	method;		// OCALLMETH name
 	uchar	iota;		// OLITERAL made from iota
 	uchar	embedded;	// ODCLFIELD embedded type
 	uchar	colas;		// OAS resulting from :=
 	uchar	diag;		// already printed error about this
+	uchar	noescape;	// ONAME never move to heap
 
 	// most nodes
 	Node*	left;
@@ -206,9 +207,16 @@ struct	Node
 
 	// func
 	Node*	nname;
+	Node*	enter;
+	Node*	exit;
 
 	// OLITERAL/OREGISTER
 	Val	val;
+
+	// ONAME func param with PHEAP
+	Node*	heapaddr;	// temp holding heap address of param
+	Node*	stackparam;	// OPARAM node referring to stack copy of param
+	Node*	alloc;	// allocation call
 
 	Sym*	osym;		// import
 	Sym*	psym;		// import
@@ -287,7 +295,7 @@ enum
 
 	OTYPE, OCONST, OVAR, OIMPORT,
 
-	ONAME, ONONAME,
+	ONAME, ONONAME, ODCL,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
 	ODCLFUNC, ODCLFIELD, ODCLARG,
 	OLIST, OCMP, OPTR, OARRAY, ORANGE,
@@ -312,7 +320,7 @@ enum
 	OINDEX, OSLICE,
 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
 	OLITERAL, OREGISTER, OINDREG,
-	OCONV, OCOMP, OKEY,
+	OCONV, OCOMP, OKEY, OPARAM,
 	OBAD,
 
 	OEXTEND,	// 6g internal
@@ -405,6 +413,9 @@ enum
 	PEXTERN,	// declaration context
 	PAUTO,
 	PPARAM,
+	PPARAMOUT,
+
+	PHEAP = 1<<7,
 };
 
 enum
@@ -654,6 +665,7 @@ Node*	treecopy(Node*);
 int	isselect(Node*);
 void	tempname(Node*, Type*);
 int	iscomposite(Type*);
+Node*	callnew(Type*);
 
 Type**	getthis(Type*);
 Type**	getoutarg(Type*);
@@ -812,11 +824,13 @@ Node*	reorder1(Node*);
 Node*	reorder2(Node*);
 Node*	reorder3(Node*);
 Node*	reorder4(Node*);
-Node*	structlit(Node*);
+Node*	structlit(Node*, Node*);
 Node*	arraylit(Node*);
 Node*	maplit(Node*);
 Node*	selectas(Node*, Node*);
 Node*	old2new(Node*, Type*);
+void	addrescapes(Node*);
+void	heapmoves(void);
 
 /*
  *	const.c
