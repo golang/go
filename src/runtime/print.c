@@ -237,8 +237,14 @@ sys·printpointer(void *p)
 void
 sys·printstring(string v)
 {
-	if(v != nil)
-		sys·write(1, v->str, v->len);
+	extern int32 maxstring;
+
+	if(v != nil) {
+		if(v->len > maxstring)
+			sys·write(1, "[invalid string]", 16);
+		else
+			sys·write(1, v->str, v->len);
+	}
 }
 
 void

@@ -65,12 +65,19 @@ walk(Node *fn)
 	if(curfn->type->outtuple)
 		if(walkret(curfn->nbody))
 			yyerror("function ends without a return statement");
-	if(addtop != N)
+	if(addtop != N) {
+		dump("addtop", addtop);
 		fatal("addtop in walk");
+	}
 	walkstate(curfn->nbody);
 	if(debug['W']) {
-		snprint(s, sizeof(s), "after %S", curfn->nname->sym);
+		snprint(s, sizeof(s), "after walk %S", curfn->nname->sym);
 		dump(s, curfn->nbody);
+	}
+	heapmoves();
+	if(debug['W'] && curfn->enter != N) {
+		snprint(s, sizeof(s), "enter %S", curfn->nname->sym);
+		dump(s, curfn->enter);
 	}
 }
 
@@ -125,6 +132,7 @@ loop:
 	case OCALLMETH:
 	case OCALLINTER:
 	case OCALL:
+	case ODCL:
 	case OSEND:
 	case ORECV:
 	case OPRINT:
@@ -229,6 +237,9 @@ loop:
 		fatal("walktype: switch 1 unknown op %N", n);
 		goto ret;
 
+	case ODCL:
+		goto ret;
+
 	case OLIST:
 	case OKEY:
 		walktype(n->left, top);
@@ -283,7 +294,8 @@ loop:
 	case ONAME:
 		if(top == Etop)
 			goto nottop;
-		n->addable = 1;
+		if(!(n->class & PHEAP))
+			n->addable = 1;
 		if(n->type == T) {
 			s = n->sym;
 			if(s->undef == 0) {
@@ -681,7 +693,7 @@ loop:
 
 		// structure literal
 		if(t->etype == TSTRUCT) {
-			indir(n, structlit(n));
+			indir(n, structlit(n, nil));
 			goto ret;
 		}
 
@@ -996,32 +1008,20 @@ loop:
 			//	nvar := new(*Point);
 			//	*nvar = Point{1, 2};
 			// and replace expression with nvar
+			Node *nvar, *nas;
 
-			// TODO(rsc): might do a better job (fewer copies) later
-			Node *nnew, *nvar, *nas;
+			nvar = nod(OXXX, N, N);
+			tempname(nvar, ptrto(n->left->type));
 
-			t = ptrto(n->left->type);
-			walktype(n->left, Elv);
-			if(n->left == N)
-				goto ret;
-
-			nvar = nod(0, N, N);
-			tempname(nvar, t);
-
-			nnew = nod(ONEW, N, N);
-			nnew->type = n->left->type;
-			nnew = newcompat(nnew);
-
-			nas = nod(OAS, nvar, nnew);
+			nas = nod(OAS, nvar, callnew(n->left->type));
 			addtop = list(addtop, nas);
 
-			nas = nod(OAS, nod(OIND, nvar, N), n->left);
-			addtop = list(addtop, nas);
-
+			structlit(n->left, nvar);
 			indir(n, nvar);
 			goto ret;
 		}
 		walktype(n->left, Elv);
+		addrescapes(n->left);
 		if(n->left == N)
 			goto ret;
 		t = n->left->type;
@@ -1055,7 +1055,16 @@ loop:
 	case ONEW:
 		if(top != Erv)
 			goto nottop;
-		indir(n, newcompat(n));
+		if(n->left != N) {
+			yyerror("cannot new(%T, expr)", t);
+			goto ret;
+		}
+		t = n->type;
+		if(t == T || t->etype == TFUNC) {
+			yyerror("cannot new(%T)", t);
+			goto ret;
+		}
+		indir(n, callnew(t));
 		goto ret;
 	}
 
@@ -1455,8 +1464,8 @@ void
 walkselect(Node *sel)
 {
 	Iter iter;
-	Node *n, *oc, *on, *r;
-	Node *var, *bod, *res, *def;
+	Node *n, *l, *oc, *on, *r;
+	Node *var, *bod, *nbod, *res, *def;
 	int count, op;
 	int32 lno;
 
@@ -1492,6 +1501,7 @@ walkselect(Node *sel)
 				def = n;
 			} else
 				op = n->left->op;
+			nbod = N;
 			switch(op) {
 			default:
 				yyerror("select cases must be send, recv or default");
@@ -1499,14 +1509,32 @@ walkselect(Node *sel)
 
 			case OAS:
 				// convert new syntax (a=recv(chan)) to (recv(a,chan))
-				if(n->left->right == N || n->left->right->op != ORECV) {
+				l = n->left;
+				if(l->right == N || l->right->op != ORECV) {
 					yyerror("select cases must be send, recv or default");
 					break;
 				}
-				n->left->right->right = n->left->right->left;
-				n->left->right->left = n->left->left;
-				n->left = n->left->right;
+				r = l->right;	// rcv
+				r->right = r->left;
+				r->left = l->left;
+				n->left = r;
 
+				// convert case x := foo: body
+				// to case tmp := foo: x := tmp; body.
+				// if x escapes and must be allocated
+				// on the heap, this delays the allocation
+				// until after the select has chosen this branch.
+				if(n->ninit != N && n->ninit->op == ODCL) {
+					on = nod(OXXX, N, N);
+					tempname(on, l->left->type);
+					on->sym = lookup("!tmpselect!");
+					r->left = on;
+					nbod = nod(OAS, l->left, on);
+					nbod->ninit = n->ninit;
+					n->ninit = N;
+				}
+
+				// fall through
 			case OSEND:
 			case ORECV:
 				if(oc != N) {
@@ -1516,10 +1544,8 @@ walkselect(Node *sel)
 				oc = selcase(n, var);
 				res = list(res, oc);
 				break;
-
-
 			}
-			bod = N;
+			bod = nbod;
 			count++;
 			break;
 		}
@@ -1610,6 +1636,7 @@ lookdot(Node *n, Type *t)
 			switch(op) {
 			case OADDR:
 				walktype(n->left, Elv);
+				addrescapes(n->left);
 				n->left = nod(OADDR, n->left, N);
 				n->left->type = ptrto(tt);
 				break;
@@ -1781,7 +1808,7 @@ sigtype(Type *st)
  * match a ... parameter into an
  * automatic structure.
  * then call the ... arg (interface)
- * with a pointer to the structure
+ * with a pointer to the structure.
  */
 Node*
 mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
@@ -1817,10 +1844,12 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
 
 	// make a named type for the struct
 	st = sigtype(st);
+	dowidth(st);
 
 	// now we have the size, make the struct
 	var = nod(OXXX, N, N);
 	tempname(var, st);
+	var->sym = lookup(".ddd");
 
 	// assign the fields to the struct.
 	// use addtop so that reorder1 doesn't reorder
@@ -1840,8 +1869,7 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
 	}
 
 	// last thing is to put assignment
-	// of a pointer to the structure to
-	// the DDD parameter
+	// of the structure to the DDD parameter
 	a = nod(OAS, nodarg(l, fp), var);
 	nn = list(convas(a), nn);
 
@@ -2081,26 +2109,17 @@ makecompat(Node *n)
 }
 
 Node*
-newcompat(Node *n)
+callnew(Type *t)
 {
 	Node *r, *on;
-	Type *t;
 
-	t = n->type;
-	if(t != T && t->etype != TFUNC) {
-		if(n->left != N)
-			yyerror("cannot new(%T, expr)", t);
-		dowidth(t);
-		on = syslook("mal", 1);
-		argtype(on, t);
-		r = nodintconst(t->width);
-		r = nod(OCALL, on, r);
-		walktype(r, Erv);
-		return r;
-	}
-
-	yyerror("cannot new(%T)", t);
-	return n;
+	dowidth(t);
+	on = syslook("mal", 1);
+	argtype(on, t);
+	r = nodintconst(t->width);
+	r = nod(OCALL, on, r);
+	walktype(r, Erv);
+	return r;
 }
 
 Node*
@@ -2648,6 +2667,7 @@ arrayop(Node *n, int top)
 		r = a;
 
 		a = nod(OADDR, n->left, N);		// old
+		addrescapes(n->left);
 		r = list(a, r);
 
 		on = syslook("arrays2d", 1);
@@ -2671,6 +2691,7 @@ arrayop(Node *n, int top)
 		r = a;
 
 		a = nod(OADDR, n->right, N);		// old
+		addrescapes(n->right);
 		r = list(a, r);
 
 		on = syslook("arrays2d", 1);
@@ -3171,6 +3192,7 @@ ary:
 		n->nbody = list(n->nbody,
 			nod(OAS, v, nod(OINDEX, m, hk)) );
 	}
+	addtotop(n);
 	goto out;
 
 map:
@@ -3457,18 +3479,20 @@ reorder4(Node *n)
 }
 
 Node*
-structlit(Node *n)
+structlit(Node *n, Node *var)
 {
 	Iter savel, saver;
 	Type *l, *t;
-	Node *var, *r, *a;
+	Node *r, *a;
 
 	t = n->type;
 	if(t->etype != TSTRUCT)
 		fatal("structlit: not struct");
 
-	var = nod(OXXX, N, N);
-	tempname(var, t);
+	if(var == N) {
+		var = nod(OXXX, N, N);
+		tempname(var, t);
+	}
 
 	l = structfirst(&savel, &n->type);
 	r = listfirst(&saver, &n->left);
@@ -3488,6 +3512,7 @@ loop:
 
 	a = nod(ODOT, var, newname(l->sym));
 	a = nod(OAS, a, r);
+	walktype(a, Etop);	// add any assignments in r to addtop
 	addtop = list(addtop, a);
 
 	l = structnext(&savel);
@@ -3604,4 +3629,116 @@ loop:
 
 	r = listnext(&saver);
 	goto loop;
+}
+
+/*
+ * the address of n has been taken and might be used after
+ * the current function returns.  mark any local vars
+ * as needing to move to the heap.
+ */
+static char *pnames[] = {
+[PAUTO]	"auto",
+[PPARAM]	"param",
+[PPARAMOUT] "param_out",
+};
+
+void
+addrescapes(Node *n)
+{
+	char buf[100];
+	switch(n->op) {
+	default:
+		dump("addrescapes", n);
+		break;
+
+	case ONAME:
+		if(n->noescape)
+			break;
+		switch(n->class) {
+		case PPARAMOUT:
+			yyerror("cannot take address of out parameter %s", n->sym->name);
+			break;
+		case PAUTO:
+		case PPARAM:
+			if(debug['E'])
+				print("%L %s %S escapes %p\n", n->lineno, pnames[n->class], n->sym, n);
+			n->class |= PHEAP;
+			n->addable = 0;
+			n->ullman = 2;
+			n->alloc = callnew(n->type);
+
+			// if func param, need separate temporary
+			// to hold heap pointer.
+			if(n->class == PPARAM+PHEAP) {
+				// expression to refer to stack copy
+				n->stackparam = nod(OPARAM, n, N);
+				n->stackparam->type = n->type;
+				n->stackparam->addable = 1;
+				n->stackparam->xoffset = n->xoffset;
+				n->xoffset = 0;
+			}
+
+			// create stack variable to hold pointer to heap
+			n->heapaddr = nod(0, N, N);
+			tempname(n->heapaddr, ptrto(n->type));
+			snprint(buf, sizeof buf, "&%S", n->sym);
+			n->heapaddr->sym = lookup(buf);
+			break;
+		}
+		break;
+
+	case OIND:
+	case ODOTPTR:
+		break;
+
+	case ODOT:
+	case OINDEX:
+		// ODOTPTR has already been
+		// introduced, so these are the non-pointer
+		// ODOT and OINDEX.
+		addrescapes(n->left);
+		break;
+	}
+}
+
+/*
+ * walk through argin parameters.
+ * generate and return code to allocate
+ * copies of escaped parameters to the heap.
+ */
+Node*
+paramstoheap(Type **argin)
+{
+	Type *t;
+	Iter savet;
+	Node *v, *nn;
+
+	nn = N;
+	for(t = structfirst(&savet, argin); t != T; t = structnext(&savet)) {
+		if(t->sym == S)
+			continue;
+		v = t->sym->oname;
+		if(v == N || !(v->class & PHEAP))
+			continue;
+
+		// generate allocation & copying code
+		nn = list(nn, nod(OAS, v->heapaddr, v->alloc));
+		nn = list(nn, nod(OAS, v, v->stackparam));
+	}
+	return nn;
+}
+
+/*
+ * take care of migrating any function in/out args
+ * between the stack and the heap.  adds code to
+ * curfn's before and after lists.
+ */
+void
+heapmoves(void)
+{
+	Node *nn;
+
+	nn = paramstoheap(getthis(curfn->type));
+	nn = list(nn, paramstoheap(getinarg(curfn->type)));
+	curfn->enter = list(curfn->enter, nn);
 }

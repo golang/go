@@ -278,6 +278,7 @@ Avardcl:
 		dodclvar($$, $2);
 
 		$$ = nod(OAS, $$, N);
+		addtotop($$);
 	}
 
 Bvardcl:
@@ -287,6 +288,7 @@ Bvardcl:
 		dodclvar($$, $2);
 
 		$$ = nod(OAS, $$, N);
+		addtotop($$);
 	}
 |	new_name_list_r type '=' expr_list
 	{
@@ -478,6 +480,7 @@ complex_stmt:
 		poptodcl();
 		$$ = nod(OAS, selectas($2,$4), $4);
 		$$ = nod(OXCASE, $$, N);
+		addtotop($$);
 	}
 |	LDEFAULT ':'
 	{

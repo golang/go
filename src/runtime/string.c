@@ -17,6 +17,20 @@ findnull(byte *s)
 	return l;
 }
 
+int32 maxstring;
+
+string
+gostringsize(int32 l)
+{
+	string s;
+
+	s = mal(sizeof(s->len)+l+1);
+	s->len = l;
+	if(l > maxstring)
+		maxstring = l;
+	return s;
+}
+
 string
 gostring(byte *str)
 {
@@ -24,8 +38,7 @@ gostring(byte *str)
 	string s;
 
 	l = findnull(str);
-	s = mal(sizeof(s->len)+l+1);
-	s->len = l;
+	s = gostringsize(l);
 	mcpy(s->str, str, l+1);
 	return s;
 }
@@ -46,8 +59,7 @@ sys·catstring(string s1, string s2, string s3)
 
 	l = s1->len + s2->len;
 
-	s3 = mal(sizeof(s3->len)+l);
-	s3->len = l;
+	s3 = gostringsize(l);
 	mcpy(s3->str, s1->str, s1->len);
 	mcpy(s3->str+s1->len, s2->str, s2->len);
 
@@ -139,8 +151,7 @@ sys·slicestring(string si, int32 lindex, int32 hindex, string so)
 	}
 
 	l = hindex-lindex;
-	so = mal(sizeof(so->len)+l);
-	so->len = l;
+	so = gostringsize(l);
 	mcpy(so->str, si->str+lindex, l);
 	FLUSH(&so);
 }
@@ -164,7 +175,7 @@ sys·indexstring(string s, int32 i, byte b)
 void
 sys·intstring(int64 v, string s)
 {
-	s = mal(sizeof(s->len)+8);
+	s = gostringsize(8);
 	s->len = runetochar(s->str, v);
 	FLUSH(&s);
 }
@@ -172,8 +183,7 @@ sys·intstring(int64 v, string s)
 void
 sys·byteastring(byte *a, int32 l, string s)
 {
-	s = mal(sizeof(s->len)+l);
-	s->len = l;
+	s = gostringsize(l);
 	mcpy(s->str, a, l);
 	FLUSH(&s);
 }
@@ -181,8 +191,7 @@ sys·byteastring(byte *a, int32 l, string s)
 void
 sys·arraystring(Array b, string s)
 {
-	s = mal(sizeof(s->len)+b.nel);
-	s->len = b.nel;
+	s = gostringsize(b.nel);
 	mcpy(s->str, b.array, s->len);
 	FLUSH(&s);
 }

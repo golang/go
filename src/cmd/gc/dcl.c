@@ -36,6 +36,7 @@ dodclvar(Node *n, Type *t)
 
 	addvar(n, t, dclcontext);
 	autoexport(n->sym);
+	addtop = list(addtop, nod(ODCL, n, N));
 }
 
 void
@@ -434,7 +435,7 @@ funcargs(Type *ft)
 		if(t->nname != N)
 			t->nname->xoffset = t->width;
 		if(t->nname != N) {
-			addvar(t->nname, t->type, PPARAM);
+			addvar(t->nname, t->type, PPARAMOUT);
 			all |= 1;
 		} else
 			all |= 2;

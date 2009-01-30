@@ -702,6 +702,8 @@ opnames[] =
 	[OPANICN]	= "PANICN",
 	[OPRINT]	= "PRINT",
 	[OPRINTN]	= "PRINTN",
+	[OPARAM]	= "PARAM",
+	[ODCL]	= "DCL",
 	[OXXX]		= "XXX",
 };
 
@@ -874,6 +876,16 @@ Jconv(Fmt *fp)
 
 	if(n->lineno != 0) {
 		snprint(buf1, sizeof(buf1), " l(%ld)", n->lineno);
+		strncat(buf, buf1, sizeof(buf));
+	}
+
+	if(n->class != 0) {
+		snprint(buf1, sizeof(buf1), " class(%d)", n->class);
+		strncat(buf, buf1, sizeof(buf));
+	}
+
+	if(n->colas != 0) {
+		snprint(buf1, sizeof(buf1), " colas(%d)", n->colas);
 		strncat(buf, buf1, sizeof(buf));
 	}
 
@@ -2031,6 +2043,7 @@ ullmancalc(Node *n)
 		return;
 
 	switch(n->op) {
+	case OREGISTER:
 	case OLITERAL:
 	case ONAME:
 		ul = 1;
@@ -2281,7 +2294,7 @@ Type**
 getthis(Type *t)
 {
 	if(t->etype != TFUNC)
-		fatal("getthis: not a func %N", t);
+		fatal("getthis: not a func %T", t);
 	return &t->type;
 }
 
@@ -2289,7 +2302,7 @@ Type**
 getoutarg(Type *t)
 {
 	if(t->etype != TFUNC)
-		fatal("getoutarg: not a func %N", t);
+		fatal("getoutarg: not a func %T", t);
 	return &t->type->down;
 }
 
@@ -2297,7 +2310,7 @@ Type**
 getinarg(Type *t)
 {
 	if(t->etype != TFUNC)
-		fatal("getinarg: not a func %N", t);
+		fatal("getinarg: not a func %T", t);
 	return &t->type->down->down;
 }
 

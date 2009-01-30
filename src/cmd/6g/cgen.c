@@ -48,6 +48,11 @@ cgen(Node *n, Node *res)
 		if(n->ullman > res->ullman) {
 			regalloc(&n1, n->type, res);
 			cgen(n, &n1);
+			if(n1.ullman > res->ullman) {
+				dump("n1", &n1);
+				dump("res", res);
+				fatal("loop in cgen");
+			}
 			cgen(&n1, res);
 			regfree(&n1);
 			goto ret;
@@ -198,6 +203,7 @@ cgen(Node *n, Node *res)
 	case ODOTPTR:
 	case OINDEX:
 	case OIND:
+	case ONAME:	// PHEAP var
 		igen(n, &n1, res);
 		gmove(&n1, res);
 		regfree(&n1);
@@ -515,6 +521,17 @@ agen(Node *n, Node *res)
 		gmove(&n3, res);
 		regfree(&n2);
 		regfree(&n3);
+		break;
+
+	case ONAME:
+		// should only get here for heap vars
+		if(!(n->class & PHEAP))
+			fatal("agen: bad ONAME class %#x", n->class);
+		cgen(n->heapaddr, res);
+		if(n->xoffset != 0) {
+			nodconst(&n1, types[TINT64], n->xoffset);
+			gins(optoas(OADD, types[tptr]), &n1, res);
+		}
 		break;
 
 	case OIND:

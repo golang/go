@@ -99,6 +99,7 @@ if(throwreturn == N) {
 //	inarggen();
 
 	ginit();
+	gen(curfn->enter, L);
 	gen(curfn->nbody, L);
 	gclean();
 	checklabels();
@@ -151,6 +152,8 @@ allocparams(void)
 
 		dowidth(n->type);
 		w = n->type->width;
+		if(n->class & PHEAP)
+			w = widthptr;
 		stksize += w;
 		stksize = rnd(stksize, w);
 
@@ -343,6 +346,10 @@ loop:
 
 	case OASOP:
 		cgen_asop(n);
+		break;
+
+	case ODCL:
+		cgen_dcl(n->left);
 		break;
 
 	case OAS:
@@ -1115,6 +1122,26 @@ ret:
 }
 
 /*
+ * generate declaration.
+ * nothing to do for on-stack automatics,
+ * but might have to allocate heap copy
+ * for escaped variables.
+ */
+void
+cgen_dcl(Node *n)
+{
+	if(debug['g'])
+		dump("\ncgen-dcl", n);
+	if(n->op != ONAME) {
+		dump("cgen_dcl", n);
+		fatal("cgen_dcl");
+	}
+	if(!(n->class & PHEAP))
+		return;
+	cgen_as(n->heapaddr, n->alloc);
+}
+
+/*
  * generate assignment:
  *	nl = nr
  * nr == N means zero nl.
@@ -1129,6 +1156,11 @@ cgen_as(Node *nl, Node *nr)
 
 	if(nl == N)
 		return;
+
+	if(debug['g']) {
+		dump("cgen_as", nl);
+		dump("cgen_as = ", nr);
+	}
 
 	iszer = 0;
 	if(nr == N || isnil(nr)) {
