@@ -1006,7 +1006,8 @@ gins(int as, Node *f, Node *t)
 void
 naddr(Node *n, Addr *a)
 {
-
+	a->scale = 0;
+	a->index = D_NONE;
 	a->type = D_NONE;
 	if(n == N)
 		return;
