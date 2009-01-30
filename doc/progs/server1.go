@@ -9,7 +9,7 @@ type request struct {
 	replyc	chan int;
 }
 
-type binOp func(a, b int) int;
+type binOp func(a, b int) int
 
 func run(op binOp, req *request) {
 	reply := op(req.a, req.b);
