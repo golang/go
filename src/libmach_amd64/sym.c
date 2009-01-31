@@ -1189,8 +1189,6 @@ fileelem(Sym **fp, uchar *cp, char *buf, int n)
 	bp = buf;
 	end = buf+n-1;
 	for(i = 1; j = (cp[i]<<8)|cp[i+1]; i+=2){
-		if(j >= fmaxi)	// TODO(rsc): should not happen, but does!
-			break;
 		c = fp[j]->name;
 		if(bp != buf && bp[-1] != '/' && bp < end)
 			*bp++ = '/';
