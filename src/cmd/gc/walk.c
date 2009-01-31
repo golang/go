@@ -170,7 +170,7 @@ loop:
 void
 indir(Node *nl, Node *nr)
 {
-	if(nr != N)
+	if(nr != N && nl != nr)
 		*nl = *nr;
 }
 
