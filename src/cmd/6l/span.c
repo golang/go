@@ -240,8 +240,6 @@ asmsym(void)
 
 	for(p=textp; p!=P; p=p->pcond) {
 		s = p->from.sym;
-		if(s->type != STEXT)
-			continue;
 
 		/* filenames first */
 		for(a=p->to.autom; a; a=a->link)
@@ -251,6 +249,8 @@ asmsym(void)
 			if(a->type == D_FILE1)
 				putsymb(a->asym->name, 'Z', a->aoffset, 0, nil);
 
+		if(s->type != STEXT)
+			continue;
 		putsymb(s->name, 'T', s->value, s->version, gotypefor(s->name));
 
 		/* frame, auto and param after */

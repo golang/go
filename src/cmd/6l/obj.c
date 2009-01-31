@@ -757,6 +757,7 @@ addhist(int32 line, int type)
 	u->link = curhist;
 	curhist = u;
 
+	s->name[0] = 0;
 	j = 1;
 	for(i=0; i<histfrogp; i++) {
 		k = histfrog[i]->value;
@@ -764,6 +765,8 @@ addhist(int32 line, int type)
 		s->name[j+1] = k;
 		j += 2;
 	}
+	s->name[j] = 0;
+	s->name[j+1] = 0;
 }
 
 void
