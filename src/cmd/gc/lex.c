@@ -305,11 +305,11 @@ isfrog(int c) {
 	if(c < 0)
 		return 1;
 	if(c < ' ') {
-		if(c == ' ' || c == '\n' || c== '\r' || c == '\t')	// good white space
+		if(c == '\n' || c== '\r' || c == '\t')	// good white space
 			return 0;
 		return 1;
 	}
-	if(0x80 <= c && c <=0xa0)	// unicode block including unbreakable space.
+	if(0x80 <= c && c <= 0xa0)	// unicode block including unbreakable space.
 		return 1;
 	return 0;
 }
