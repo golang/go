@@ -299,6 +299,21 @@ cannedimports(char *file, char *cp)
 	inimportsys = 1;
 }
 
+int
+isfrog(int c) {
+	// complain about possibly invisible control characters
+	if(c < 0)
+		return 1;
+	if(c < ' ') {
+		if(c == ' ' || c == '\n' || c== '\r' || c == '\t')	// good white space
+			return 0;
+		return 1;
+	}
+	if(0x80 <= c && c <=0xa0)	// unicode block including unbreakable space.
+		return 1;
+	return 0;
+}
+
 int32
 yylex(void)
 {
@@ -645,6 +660,10 @@ lx:
 		DBG("%L lex: TOKEN %s\n", lineno, lexname(c));
 	else
 		DBG("%L lex: TOKEN '%c'\n", lineno, c);
+	if(isfrog(c)) {
+		yyerror("illegal character 0x%ux", c);
+		goto l0;
+	}
 	return c;
 
 asop:
@@ -661,8 +680,14 @@ talph:
 		if(c >= Runeself) {
 			for(c1=0;;) {
 				cp[c1++] = c;
-				if(fullrune(cp, c1))
+				if(fullrune(cp, c1)) {
+					chartorune(&rune, cp);
+					 if(isfrog(rune)) {
+					 	yyerror("illegal character 0x%ux", rune);
+					 	goto l0;
+					 }
 					break;
+				}
 				c = getc();
 			}
 			cp += c1;
