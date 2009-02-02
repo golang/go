@@ -18,6 +18,7 @@ import (
 
 var (
 	debug = flag.Bool("debug", false, "print debugging information");
+	def = flag.Bool("def", false, "print 'def' instead of 'const', 'type', 'func' - experimental");
 
 	// layout control
 	tabwidth = flag.Int("tabwidth", 8, "tab width");
@@ -803,7 +804,11 @@ func (P *Printer) Stat(s *AST.Stat) {
 
 func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 	if !parenthesized {
-		P.Token(d.Pos, d.Tok);
+		if !*def || d.Tok == Scanner.IMPORT || d.Tok == Scanner.VAR {
+			P.Token(d.Pos, d.Tok);
+		} else {
+			P.String(d.Pos, "def");
+		}
 		P.separator = blank;
 	}
 
