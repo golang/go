@@ -906,11 +906,9 @@ sgen(Node *n, Node *ns, int32 w)
 		}
 
 		if(c >= 4) {
-			gconreg(AMOVQ, c, D_CX);
-			gins(AREP, N, N);	// repeat
-			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
-
-		} else
+			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
+			c -= 4;
+		}
 		while(c > 0) {
 			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
 			c--;
