@@ -28,6 +28,8 @@
 // THE SOFTWARE.
 
 #include <u.h>
+#include <sys/syscall.h>	/* for tkill */
+#include <unistd.h>
 #include <sys/ptrace.h>
 #include <sys/signal.h>
 #include <sys/wait.h>
@@ -53,8 +55,10 @@ struct user_regs_struct {
 	unsigned long ds,es,fs,gs;
 };
 
+// return pid's state letter or -1 on error.
+// set *tpid to tracer pid
 static int
-isstopped(int pid)
+procstate(int pid, int *tpid)
 {
 	char buf[1024];
 	int fd, n;
@@ -62,21 +66,31 @@ isstopped(int pid)
 
 	snprint(buf, sizeof buf, "/proc/%d/stat", pid);
 	if((fd = open(buf, OREAD)) < 0)
-		return 0;
+		return -1;
 	n = read(fd, buf, sizeof buf-1);
 	close(fd);
 	if(n <= 0)
-		return 0;
+		return -1;
 	buf[n] = 0;
 
 	/* command name is in parens, no parens afterward */
 	p = strrchr(buf, ')');
 	if(p == nil || *++p != ' ')
-		return 0;
+		return -1;
 	++p;
 
-	/* next is state - T is stopped for tracing */
-	return *p == 'T';
+	/* p is now state letter.  p+1 is tracer pid */
+	if(tpid)
+		*tpid = atoi(p+1);
+	return *p;
+}
+
+static int
+attached(int pid)
+{
+	int tpid;
+
+	return procstate(pid, &tpid) == 'T' && tpid == pid;
 }
 
 static int
@@ -84,13 +98,17 @@ waitstop(int pid)
 {
 	int p, status;
 
-	if(isstopped(pid))
+	p = procstate(pid, nil);
+	if(p < 0)
+		return -1;
+	if(p == 'T')
 		return 0;
+
 	for(;;){
 		p = waitpid(pid, &status, WUNTRACED|__WALL);
 		if(p <= 0){
 			if(errno == ECHILD){
-				if(isstopped(pid))
+				if(procstate(pid, nil) == 'T')
 					return 0;
 			}
 			return -1;
@@ -116,11 +134,11 @@ ptraceattach(int pid)
 		return -1;
 	}
 
-	if(ptrace(PTRACE_ATTACH, pid, 0, 0) < 0){
+	if(!attached(pid) && ptrace(PTRACE_ATTACH, pid, 0, 0) < 0){
 		werrstr("ptrace attach %d: %r", pid);
 		return -1;
 	}
-	
+
 	if(waitstop(pid) < 0){
 		fprint(2, "waitstop %d: %r", pid);
 		ptrace(PTRACE_DETACH, pid, 0, 0);
@@ -150,7 +168,7 @@ attachproc(int pid, Fhdr *fp)
 	setmap(map, -1, fp->dataddr, mach->utop, fp->dataddr, "*data", ptracesegrw);
 	return map;
 }
-	
+
 void
 detachproc(Map *m)
 {
@@ -296,7 +314,7 @@ ctlproc(int pid, char *msg)
 		return waitstop(pid);
 	}
 	if(strcmp(msg, "stop") == 0){
-		if(kill(pid, SIGSTOP) < 0)
+		if(syscall(__NR_tkill, pid, SIGSTOP) < 0)
 			return -1;
 		return waitstop(pid);
 	}
@@ -332,7 +350,7 @@ procthreadpids(int pid, int **thread)
 	int i, fd, nd, *t, nt;
 	char buf[100];
 	Dir *d;
-	
+
 	snprint(buf, sizeof buf, "/proc/%d/task", pid);
 	if((fd = open(buf, OREAD)) < 0)
 		return -1;
@@ -463,7 +481,7 @@ ptraceregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 {
 	int laddr;
 	uvlong u;
-	
+
 	if((laddr = go2linux(addr)) < 0){
 		if(isr){
 			memset(v, 0, n);
@@ -472,7 +490,7 @@ ptraceregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 		werrstr("register %llud not available", addr);
 		return -1;
 	}
-	
+
 	if(isr){
 		errno = 0;
 		u = ptrace(PTRACE_PEEKUSER, map->pid, laddr, 0);
@@ -520,14 +538,25 @@ ptraceregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 
 ptraceerr:
 	werrstr("ptrace %s register laddr=%d pid=%d: %r", isr ? "read" : "write", laddr, map->pid);
-	return -1;	
+	return -1;
 }
 
 char*
 procstatus(int pid)
 {
-	if(isstopped(pid))
-		return "Stopped";
+	int c;
 
+	c = procstate(pid, nil);
+	if(c < 0)
+		return "Dead";
+	switch(c) {
+	case 'T':
+		return "Stopped";
+	case 'Z':
+		return "Zombie";
+	case 'R':
+		return "Running";
+	// TODO: translate more characters here
+	}
 	return "Running";
 }
