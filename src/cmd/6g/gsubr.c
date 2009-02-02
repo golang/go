@@ -1887,11 +1887,9 @@ lsort(Sig *l, int(*f)(Sig*, Sig*))
 void
 setmaxarg(Type *t)
 {
-	Type *to;
 	int32 w;
 
-	to = *getoutarg(t);
-	w = to->width;
+	w = t->argwid;
 	if(w > maxarg)
 		maxarg = w;
 }

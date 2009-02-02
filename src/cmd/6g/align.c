@@ -68,7 +68,12 @@ widstruct(Type *t, uint32 o, int flag)
 	// final width is rounded
 	if(flag)
 		o = rnd(o, maxround);
-	t->width = o;
+
+	// type width only includes back to first field's offset
+	if(t->type == T)
+		t->width = 0;
+	else
+		t->width = o - t->type->width;
 	return o;
 }
 
