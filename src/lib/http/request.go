@@ -9,14 +9,15 @@ package http
 import (
 	"bufio";
 	"http";
+	"io";
 	"os";
 	"strings"
 )
 
 const (
-	_MaxLineLength = 1024;	// assumed < bufio.DefaultBufSize
-	_MaxValueLength = 1024;
-	_MaxHeaderLines = 1024;
+	maxLineLength = 1024;	// assumed < bufio.DefaultBufSize
+	maxValueLength = 1024;
+	maxHeaderLines = 1024;
 )
 
 var (
@@ -30,30 +31,36 @@ var (
 
 // HTTP Request
 type Request struct {
-	method string;		// GET, PUT,etc.
-	rawurl string;
-	url *URL;		// URI after GET, PUT etc.
-	proto string;	// "HTTP/1.0"
-	pmajor int;	// 1
-	pminor int;	// 0
+	Method string;		// GET, PUT,etc.
+	RawUrl string;
+	Url *URL;		// URI after GET, PUT etc.
+	Proto string;	// "HTTP/1.0"
+	ProtoMajor int;	// 1
+	ProtoMinor int;	// 0
 
-	header map[string] string;
+	Header map[string] string;
 
-	close bool;
-	host string;
-	referer string;
-	useragent string;
+	Close bool;
+	Host string;
+	Referer string;	// referer [sic]
+	UserAgent string;
 }
 
+func (r *Request) ProtoAtLeast(major, minor int) bool {
+	return r.ProtoMajor > major ||
+		r.ProtoMajor == major && r.ProtoMinor >= minor
+}
+
+
 // Read a line of bytes (up to \n) from b.
-// Give up if the line exceeds _MaxLineLength.
+// Give up if the line exceeds maxLineLength.
 // The returned bytes are a pointer into storage in
 // the bufio, so they are only valid until the next bufio read.
 func readLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
 	if p, err = b.ReadLineSlice('\n'); err != nil {
 		return nil, err
 	}
-	if len(p) >= _MaxLineLength {
+	if len(p) >= maxLineLength {
 		return nil, LineTooLong
 	}
 
@@ -132,7 +139,7 @@ func readKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
 				}
 				value += " " + string(line);
 
-				if len(value) >= _MaxValueLength {
+				if len(value) >= maxValueLength {
 					return "", "", ValueTooLong
 				}
 			}
@@ -179,6 +186,37 @@ func parseHTTPVersion(vers string) (int, int, bool) {
 	return major, minor, true
 }
 
+var cmap = make(map[string]string)
+
+func CanonicalHeaderKey(s string) string {
+	if t, ok := cmap[s]; ok {
+		return t;
+	}
+
+	// canonicalize: first letter upper case
+	// and upper case after each dash.
+	// (Host, User-Agent, If-Modified-Since).
+	// HTTP headers are ASCII only, so no Unicode issues.
+	a := io.StringBytes(s);
+	upper := true;
+	for i,v := range a {
+		if upper && 'a' <= v && v <= 'z' {
+			a[i] = v + 'A' - 'a';
+		}
+		if !upper && 'A' <= v && v <= 'Z' {
+			a[i] = v + 'a' - 'A';
+		}
+		upper = false;
+		if v == '-' {
+			upper = true;
+		}
+	}
+	t := string(a);
+	cmap[s] = t;
+	return t;
+}
+
+
 // Read and parse a request from b.
 func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 	req = new(Request);
@@ -193,19 +231,19 @@ func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 	if f = strings.Split(s, " "); len(f) != 3 {
 		return nil, BadRequest
 	}
-	req.method, req.rawurl, req.proto = f[0], f[1], f[2];
+	req.Method, req.RawUrl, req.Proto = f[0], f[1], f[2];
 	var ok bool;
-	if req.pmajor, req.pminor, ok = parseHTTPVersion(req.proto); !ok {
+	if req.ProtoMajor, req.ProtoMinor, ok = parseHTTPVersion(req.Proto); !ok {
 		return nil, BadHTTPVersion
 	}
 
-	if req.url, err = ParseURL(req.rawurl); err != nil {
+	if req.Url, err = ParseURL(req.RawUrl); err != nil {
 		return nil, err
 	}
 
 	// Subsequent lines: Key: value.
 	nheader := 0;
-	req.header = make(map[string] string);
+	req.Header = make(map[string] string);
 	for {
 		var key, value string;
 		if key, value, err = readKeyValue(b); err != nil {
@@ -214,18 +252,20 @@ func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 		if key == "" {
 			break
 		}
-		if nheader++; nheader >= _MaxHeaderLines {
+		if nheader++; nheader >= maxHeaderLines {
 			return nil, HeaderTooLong
 		}
+
+		key = CanonicalHeaderKey(key);
 
 		// RFC 2616 says that if you send the same header key
 		// multiple times, it has to be semantically equivalent
 		// to concatenating the values separated by commas.
-		oldvalue, present := req.header[key];
+		oldvalue, present := req.Header[key];
 		if present {
-			req.header[key] = oldvalue+","+value
+			req.Header[key] = oldvalue+","+value
 		} else {
-			req.header[key] = value
+			req.Header[key] = value
 		}
 	}
 
@@ -236,39 +276,38 @@ func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 	//	GET http://www.google.com/index.html HTTP/1.1
 	//	Host: doesntmatter
 	// the same.  In the second case, any Host line is ignored.
-	if v, have := req.header["Host"]; have && req.url.host == "" {
-		req.host = v
+	if v, present := req.Header["Host"]; present && req.Url.Host == "" {
+		req.Host = v
 	}
 
 	// RFC2616: Should treat
 	//	Pragma: no-cache
 	// like
-	//	Cache-control: no-cache
-	if v, have := req.header["Pragma"]; have && v == "no-cache" {
-		if cc, havecc := req.header["Cache-control"]; !havecc {
-			req.header["Cache-control"] = "no-cache"
+	//	Cache-Control: no-cache
+	if v, present := req.Header["Pragma"]; present && v == "no-cache" {
+		if cc, presentcc := req.Header["Cache-Control"]; !presentcc {
+			req.Header["Cache-Control"] = "no-cache"
 		}
 	}
 
 	// Determine whether to hang up after sending the reply.
-	if req.pmajor < 1 || (req.pmajor == 1 && req.pminor < 1) {
-		req.close = true
-	} else if v, have := req.header["Connection"]; have {
+	if req.ProtoMajor < 1 || (req.ProtoMajor == 1 && req.ProtoMinor < 1) {
+		req.Close = true
+	} else if v, present := req.Header["Connection"]; present {
 		// TODO: Should split on commas, toss surrounding white space,
 		// and check each field.
 		if v == "close" {
-			req.close = true
+			req.Close = true
 		}
 	}
 
 	// Pull out useful fields as a convenience to clients.
-	if v, have := req.header["Referer"]; have {
-		req.referer = v
+	if v, present := req.Header["Referer"]; present {
+		req.Referer = v
 	}
-	if v, have := req.header["User-Agent"]; have {
-		req.useragent = v
+	if v, present := req.Header["User-Agent"]; present {
+		req.UserAgent = v
 	}
-
 
 	// TODO: Parse specific header values:
 	//	Accept

@@ -5,24 +5,52 @@
 package main
 
 import (
-	"io";
 	"bufio";
-	"os";
+	"flag";
+	"fmt";
+	"http";
+	"io";
 	"net";
-	"http"
+	"os";
 )
 
-func Echo(conn *http.Conn, req *http.Request) {
-	fd := conn.bw;
-	conn.close = true;
-	io.WriteString(fd, "HTTP/1.1 200 OK\r\n"
-		"Content-Type: text/plain\r\n"
-		"\r\n");
-	io.WriteString(fd, req.method+" "+req.rawurl+" "+req.proto+"\r\n")
+
+// hello world, the web server
+func HelloServer(c *http.Conn, req *http.Request) {
+	io.WriteString(c, "hello, world!\n");
+}
+
+// simple counter server
+type Counter struct {
+	n int;
+}
+
+func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+	fmt.Fprintf(c, "counter = %d\n", ctr.n);
+	ctr.n++;
+}
+
+// simple file server
+var webroot = flag.String("root", "/home/rsc", "web root directory")
+func FileServer(c *http.Conn, req *http.Request) {
+	c.SetHeader("content-type", "text/plain; charset=utf-8");
+	path := *webroot + req.Url.Path;	// TODO: insecure: use os.CleanName
+	fd, err := os.Open(path, os.O_RDONLY, 0);
+	if err != nil {
+		c.WriteHeader(http.StatusNotFound);
+		fmt.Fprintf(c, "open %s: %v\n", path, err);
+		return;
+	}
+	n, err1 := io.Copy(fd, c);
+	fmt.Fprintf(c, "[%d bytes]\n", n);
 }
 
 func main() {
-	err := http.ListenAndServe("0.0.0.0:12345", &Echo);
+	flag.Parse();
+	http.Handle("/counter", new(Counter));
+	http.Handle("/go/", http.HandlerFunc(FileServer));
+	http.Handle("/go/hello", http.HandlerFunc(HelloServer));
+	err := http.ListenAndServe(":12345", nil);
 	if err != nil {
 		panic("ListenAndServe: ", err.String())
 	}

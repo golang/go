@@ -77,15 +77,15 @@ func URLUnescape(s string) (string, *os.Error) {
 }
 
 type URL struct {
-	raw string;
-	scheme string;
-	rawpath string;
-	authority string;
-	userinfo string;
-	host string;
-	path string;
-	query string;
-	fragment string;
+	Raw string;
+	Scheme string;
+	RawPath string;
+	Authority string;
+	Userinfo string;
+	Host string;
+	Path string;
+	Query string;
+	Fragment string;
 }
 
 // Maybe rawurl is of the form scheme:path.
@@ -132,39 +132,39 @@ func ParseURL(rawurl string) (url *URL, err *os.Error) {
 		return nil, BadURL
 	}
 	url = new(URL);
-	url.raw = rawurl;
+	url.Raw = rawurl;
 
 	// split off possible leading "http:", "mailto:", etc.
 	var path string;
-	if url.scheme, path, err = getscheme(rawurl); err != nil {
+	if url.Scheme, path, err = getscheme(rawurl); err != nil {
 		return nil, err
 	}
-	url.rawpath = path;
+	url.RawPath = path;
 
 	// RFC 2396: a relative URI (no scheme) has a ?query,
 	// but absolute URIs only have query if path begins with /
-	if url.scheme == "" || len(path) > 0 && path[0] == '/' {
-		path, url.query = split(path, '?', true);
-		if url.query, err = URLUnescape(url.query); err != nil {
+	if url.Scheme == "" || len(path) > 0 && path[0] == '/' {
+		path, url.Query = split(path, '?', true);
+		if url.Query, err = URLUnescape(url.Query); err != nil {
 			return nil, err
 		}
 	}
 
 	// Maybe path is //authority/path
 	if len(path) > 2 && path[0:2] == "//" {
-		url.authority, path = split(path[2:len(path)], '/', false);
+		url.Authority, path = split(path[2:len(path)], '/', false);
 	}
 
 	// If there's no @, split's default is wrong.  Check explicitly.
-	if strings.Index(url.authority, "@") < 0 {
-		url.host = url.authority;
+	if strings.Index(url.Authority, "@") < 0 {
+		url.Host = url.Authority;
 	} else {
-		url.userinfo, url.host = split(url.authority, '@', true);
+		url.Userinfo, url.Host = split(url.Authority, '@', true);
 	}
 
 	// What's left is the path.
 	// TODO: Canonicalize (remove . and ..)?
-	if url.path, err = URLUnescape(path); err != nil {
+	if url.Path, err = URLUnescape(path); err != nil {
 		return nil, err
 	}
 
@@ -178,7 +178,7 @@ func ParseURLReference(rawurlref string) (url *URL, err *os.Error) {
 	if url, err = ParseURL(rawurl); err != nil {
 		return nil, err
 	}
-	if url.fragment, err = URLUnescape(frag); err != nil {
+	if url.Fragment, err = URLUnescape(frag); err != nil {
 		return nil, err
 	}
 	return url, nil
