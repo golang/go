@@ -30,6 +30,7 @@
 #include <u.h>
 #include <sys/syscall.h>	/* for tkill */
 #include <unistd.h>
+#include <dirent.h>
 #include <sys/ptrace.h>
 #include <sys/signal.h>
 #include <sys/wait.h>
@@ -55,96 +56,364 @@ struct user_regs_struct {
 	unsigned long ds,es,fs,gs;
 };
 
-// return pid's state letter or -1 on error.
-// set *tpid to tracer pid
-static int
-procstate(int pid, int *tpid)
+// Linux gets very upset if a debugger forgets the reported state
+// of a debugged process, so we keep everything we know about
+// a debugged process in the LinuxThread structure.
+//
+// We can poll for state changes by calling waitpid and interpreting
+// the integer status code that comes back.  Wait1 does this.
+//
+// If the process is already running, it is an error to PTRACE_CONT it.
+//
+// If the process is already stopped, it is an error to stop it again.
+//
+// If the process is stopped because of a signal, the debugger must
+// relay the signal to the PTRACE_CONT call, or else the signal is
+// dropped.
+//
+// If the process exits, the debugger should detach so that the real
+// parent can reap the zombie.
+//
+// On first attach, the debugger should set a handful of flags in order
+// to catch future events like fork, clone, exec, etc.
+
+// One for every attached thread.
+typedef struct LinuxThread LinuxThread;
+struct LinuxThread
 {
-	char buf[1024];
-	int fd, n;
-	char *p;
+	int pid;
+	int tid;
+	int state;
+	int signal;
+	int child;
+	int exitcode;
+};
 
-	snprint(buf, sizeof buf, "/proc/%d/stat", pid);
-	if((fd = open(buf, OREAD)) < 0)
-		return -1;
-	n = read(fd, buf, sizeof buf-1);
-	close(fd);
-	if(n <= 0)
-		return -1;
-	buf[n] = 0;
+static int trace = 0;
 
-	/* command name is in parens, no parens afterward */
-	p = strrchr(buf, ')');
-	if(p == nil || *++p != ' ')
-		return -1;
-	++p;
+static LinuxThread **thr;
+static int nthr;
+static int mthr;
 
-	/* p is now state letter.  p+1 is tracer pid */
-	if(tpid)
-		*tpid = atoi(p+1);
-	return *p;
+static int realpid(int pid);
+
+enum
+{
+	Unknown,
+	Detached,
+	Attached,
+	AttachStop,
+	Stopped,
+	Running,
+	Forking,
+	Vforking,
+	VforkDone,
+	Cloning,
+	Execing,
+	Exiting,
+	Exited,
+	Killed,
+
+	NSTATE,
+};
+
+static char* statestr[NSTATE] = {
+	"Unknown",
+	"Detached",
+	"Attached",
+	"AttachStop",
+	"Stopped",
+	"Running",
+	"Forking",
+	"Vforking",
+	"VforkDone",
+	"Cloning",
+	"Execing",
+	"Exiting",
+	"Exited",
+	"Killed"
+};
+
+static LinuxThread*
+attachthread(int pid, int tid, int *new, int newstate)
+{
+	int i, n, status;
+	LinuxThread **p, *t;
+	uintptr flags;
+
+	if(new)
+		*new = 0;
+
+	for(i=0; i<nthr; i++)
+		if((pid == 0 || thr[i]->pid == pid) && thr[i]->tid == tid) {
+			t = thr[i];
+			goto fixup;
+		}
+
+	if(!new)
+		return nil;
+
+	if(nthr >= mthr) {
+		n = mthr;
+		if(n == 0)
+			n = 64;
+		else
+			n *= 2;
+		p = realloc(thr, n*sizeof thr[0]);
+		if(p == nil)
+			return nil;
+		thr = p;
+		mthr = n;
+	}
+
+	t = malloc(sizeof *t);
+	if(t == nil)
+		return nil;
+
+	thr[nthr++] = t;
+	t->pid = pid;
+	t->tid = tid;
+	t->state = newstate;
+	if(trace)
+		fprint(2, "new thread %d %d\n", t->pid, t->tid);
+	if(new)
+		*new = 1;
+
+fixup:
+	if(t->state == Detached) {
+		if(ptrace(PTRACE_ATTACH, tid, 0, 0) < 0) {
+			fprint(2, "ptrace ATTACH %d: %r\n", tid);
+			return nil;
+		}
+		t->state = Attached;
+	}
+
+	if(t->state == Attached) {
+		// wait for stop, so we can set options
+		if(waitpid(tid, &status, __WALL|WUNTRACED|WSTOPPED) < 0)
+			return nil;
+		if(!WIFSTOPPED(status)) {
+			fprint(2, "waitpid %d: status=%#x not stopped\n", tid);
+			return nil;
+		}
+		t->state = AttachStop;
+	}
+
+	if(t->state == AttachStop) {
+		// set options so we'll find out about new threads
+		flags = PTRACE_O_TRACEFORK |
+			PTRACE_O_TRACEVFORK |
+			PTRACE_O_TRACECLONE |
+			PTRACE_O_TRACEEXEC |
+			PTRACE_O_TRACEVFORKDONE |
+			PTRACE_O_TRACEEXIT;
+		if(ptrace(PTRACE_SETOPTIONS, tid, 0, (void*)flags) < 0)	{
+			fprint(2, "ptrace PTRACE_SETOPTIONS %d: %r\n", tid);
+			return nil;
+		}
+		t->state = Stopped;
+	}
+
+	return t;
 }
 
-static int
-attached(int pid)
+static LinuxThread*
+findthread(int tid)
 {
-	int tpid;
-
-	return procstate(pid, &tpid) == 'T' && tpid == pid;
+	return attachthread(0, tid, nil, 0);
 }
 
-static int
-waitstop(int pid)
+int
+procthreadpids(int pid, int *p, int np)
 {
-	int p, status;
+	int i, n;
+	LinuxThread *t;
 
-	p = procstate(pid, nil);
-	if(p < 0)
+	n = 0;
+	for(i=0; i<nthr; i++) {
+		t = thr[i];
+		if(t->pid == pid) {
+			switch(t->state) {
+			case Exited:
+			case Detached:
+			case Killed:
+				break;
+
+			default:
+				if(n < np)
+					p[n] = t->tid;
+				n++;
+				break;
+			}
+		}
+	}
+	return n;
+}
+
+// Execute a single wait and update the corresponding thread.
+static int
+wait1(int nohang)
+{
+	int tid, new, status, event;
+	ulong data;
+	LinuxThread *t;
+	enum
+	{
+		NormalStop = 0x137f
+	};
+
+	if(nohang != 0)
+		nohang = WNOHANG;
+
+	tid = waitpid(-1, &status, __WALL|WUNTRACED|WSTOPPED|WCONTINUED|nohang);
+	if(tid < 0)
 		return -1;
-	if(p == 'T')
+	if(tid == 0)
 		return 0;
 
-	for(;;){
-		p = waitpid(pid, &status, WUNTRACED|__WALL);
-		if(p <= 0){
-			if(errno == ECHILD){
-				if(procstate(pid, nil) == 'T')
-					return 0;
-			}
-			return -1;
-		}
-		if(WIFEXITED(status) || WIFSTOPPED(status))
-			return 0;
+	if(trace > 0 && status != NormalStop)
+		fprint(2, "TID %d: %#x\n", tid, status);
+
+	// If we've not heard of this tid, something is wrong.
+	t = findthread(tid);
+	if(t == nil) {
+		fprint(2, "ptrace waitpid: unexpected new tid %d status %#x\n", tid, status);
+		return -1;
 	}
+
+	if(WIFSTOPPED(status)) {
+		t->state = Stopped;
+		t->signal = WSTOPSIG(status);
+		if(trace)
+			fprint(2, "tid %d: stopped %#x%s\n", tid, status,
+				status != NormalStop ? " ***" : "");
+		if(t->signal == SIGTRAP && (event = status>>16) != 0) {	// ptrace event
+			switch(event) {
+			case PTRACE_EVENT_FORK:
+				t->state = Forking;
+				goto child;
+
+			case PTRACE_EVENT_VFORK:
+				t->state = Vforking;
+				goto child;
+
+			case PTRACE_EVENT_CLONE:
+				t->state = Cloning;
+				goto child;
+
+			child:
+				if(ptrace(PTRACE_GETEVENTMSG, t->tid, 0, &data) < 0) {
+					fprint(2, "ptrace GETEVENTMSG tid %d: %r\n", tid);
+					break;
+				}
+				t->child = data;
+				attachthread(t->pid, t->child, &new, Running);
+				if(!new)
+					fprint(2, "ptrace child: not new\n");
+				break;
+
+			case PTRACE_EVENT_EXEC:
+				t->state = Execing;
+				break;
+
+			case PTRACE_EVENT_VFORK_DONE:
+				t->state = VforkDone;
+				break;
+
+			case PTRACE_EVENT_EXIT:
+				if(trace)
+					fprint(2, "tid %d: exiting %#x\n", tid, status);
+				t->state = Exiting;
+				if(ptrace(PTRACE_GETEVENTMSG, t->tid, 0, &data) < 0) {
+					fprint(2, "ptrace GETEVENTMSG tid %d: %r\n", tid);
+					break;
+				}
+				t->exitcode = data;
+				break;
+			}
+		}
+	}
+	if(WIFCONTINUED(status)) {
+		if(trace)
+			fprint(2, "tid %d: continued %#x\n", tid, status);
+		t->state = Running;
+	}
+	if(WIFEXITED(status)) {
+		if(trace)
+			fprint(2, "tid %d: exited %#x\n", tid, status);
+		t->state = Exited;
+		t->exitcode = WEXITSTATUS(status);
+		t->signal = -1;
+		ptrace(PTRACE_DETACH, t->tid, 0, 0);
+		if(trace)
+			fprint(2, "tid %d: detach exited\n", tid);
+	}
+	if(WIFSIGNALED(status)) {
+		if(trace)
+			fprint(2, "tid %d: signaled %#x\n", tid, status);
+		t->state = Exited;
+		t->signal = WTERMSIG(status);
+		t->exitcode = -1;
+		ptrace(PTRACE_DETACH, t->tid, 0, 0);
+		if(trace)
+			fprint(2, "tid %d: detach signaled\n", tid);
+	}
+	return 1;
 }
 
-static int attachedpids[1000];
-static int nattached;
-
 static int
-ptraceattach(int pid)
+waitstop(LinuxThread *t)
 {
-	int i;
+	while(t->state == Running)
+		if(wait1(0) < 0)
+			return -1;
+	return 0;
+}
 
-	for(i=0; i<nattached; i++)
-		if(attachedpids[i] == pid)
-			return 0;
-	if(nattached == nelem(attachedpids)){
-		werrstr("attached to too many processes");
+// Attach to and stop all threads in process pid.
+// Must stop everyone in order to make sure we set
+// the "tell me about new threads" option in every
+// task.
+int
+attachallthreads(int pid)
+{
+	int tid, foundnew, new;
+	char buf[100];
+	DIR *d;
+	struct dirent *de;
+	LinuxThread *t;
+
+	if(pid == 0) {
+		fprint(2, "attachallthreads(0)\n");
 		return -1;
 	}
 
-	if(!attached(pid) && ptrace(PTRACE_ATTACH, pid, 0, 0) < 0){
-		werrstr("ptrace attach %d: %r", pid);
+	pid = realpid(pid);
+
+	snprint(buf, sizeof buf, "/proc/%d/task", pid);
+	if((d = opendir(buf)) == nil) {
+		fprint(2, "opendir %s: %r\n", buf);
 		return -1;
 	}
 
-	if(waitstop(pid) < 0){
-		fprint(2, "waitstop %d: %r", pid);
-		ptrace(PTRACE_DETACH, pid, 0, 0);
-		return -1;
-	}
-	attachedpids[nattached++] = pid;
+	// Loop in case new threads are being created right now.
+	// We stop every thread as we find it, so eventually
+	// this has to stop (or the system runs out of procs).
+	do {
+		foundnew = 0;
+		while((de = readdir(d)) != nil) {
+			tid = atoi(de->d_name);
+			if(tid == 0)
+				continue;
+			t = attachthread(pid, tid, &new, Detached);
+			foundnew |= new;
+			if(t)
+				waitstop(t);
+		}
+		rewinddir(d);
+	} while(foundnew);
+	closedir(d);
+
 	return 0;
 }
 
@@ -153,7 +422,12 @@ attachproc(int pid, Fhdr *fp)
 {
 	Map *map;
 
-	if(ptraceattach(pid) < 0)
+	if(pid == 0) {
+		fprint(2, "attachproc(0)\n");
+		return nil;
+	}
+
+	if(findthread(pid) == nil && attachallthreads(pid) < 0)
 		return nil;
 
 	map = newmap(0, 4);
@@ -172,8 +446,16 @@ attachproc(int pid, Fhdr *fp)
 void
 detachproc(Map *m)
 {
-	if(m->pid > 0)
-		ptrace(PTRACE_DETACH, m->pid, 0, 0);
+	LinuxThread *t;
+
+	t = findthread(m->pid);
+	if(t != nil) {
+		ptrace(PTRACE_DETACH, t->tid, 0, 0);
+		t->state = Detached;
+		if(trace)
+			fprint(2, "tid %d: detachproc\n", t->tid);
+		// TODO(rsc): Reclaim thread structs somehow?
+	}
 	free(m);
 }
 
@@ -219,22 +501,18 @@ detachproc(Map *m)
 	36. processor
 */
 
-int
-procnotes(int pid, char ***pnotes)
+static int
+readstat(int pid, char *buf, int nbuf, char **f, int nf)
 {
-	char buf[1024], *f[40];
-	int fd, i, n, nf;
-	char *p, *s, **notes;
-	ulong sigs;
-	extern char *_p9sigstr(int, char*);
+	int fd, n;
+	char *p;
 
-	*pnotes = nil;
-	snprint(buf, sizeof buf, "/proc/%d/stat", pid);
+	snprint(buf, nbuf, "/proc/%d/stat", pid);
 	if((fd = open(buf, OREAD)) < 0){
 		fprint(2, "open %s: %r\n", buf);
 		return -1;
 	}
-	n = read(fd, buf, sizeof buf-1);
+	n = read(fd, buf, nbuf-1);
 	close(fd);
 	if(n <= 0){
 		fprint(2, "read %s: %r\n", buf);
@@ -250,10 +528,49 @@ procnotes(int pid, char ***pnotes)
 	}
 	++p;
 
-	nf = tokenize(p, f, nelem(f));
+	nf = tokenize(p, f, nf);
 	if(0) print("code 0x%lux-0x%lux stack 0x%lux kstk 0x%lux keip 0x%lux pending 0x%lux\n",
 		strtoul(f[23], 0, 0), strtoul(f[24], 0, 0), strtoul(f[25], 0, 0),
 		strtoul(f[26], 0, 0), strtoul(f[27], 0, 0), strtoul(f[28], 0, 0));
+
+	return nf;
+}
+
+static char*
+readstatus(int pid, char *buf, int nbuf, char *key)
+{
+	int fd, n;
+	char *p;
+
+	snprint(buf, nbuf, "/proc/%d/status", pid);
+	if((fd = open(buf, OREAD)) < 0){
+		fprint(2, "open %s: %r\n", buf);
+		return nil;
+	}
+	n = read(fd, buf, nbuf-1);
+	close(fd);
+	if(n <= 0){
+		fprint(2, "read %s: %r\n", buf);
+		return nil;
+	}
+	buf[n] = 0;
+	p = strstr(buf, key);
+	if(p)
+		return p+strlen(key);
+	return nil;
+}
+
+int
+procnotes(int pid, char ***pnotes)
+{
+	char buf[1024], *f[40];
+	int i, n, nf;
+	char *s, **notes;
+	ulong sigs;
+	extern char *_p9sigstr(int, char*);
+
+	*pnotes = nil;
+	nf = readstat(pid, buf, sizeof buf, f, nelem(f));
 	if(nf <= 28)
 		return -1;
 
@@ -278,20 +595,31 @@ procnotes(int pid, char ***pnotes)
 	return n;
 }
 
+static int
+realpid(int pid)
+{
+	char buf[1024], *p;
+
+	p = readstatus(pid, buf, sizeof buf, "\nTgid:");
+	if(p == nil)
+		return pid;
+	return atoi(p);
+}
+
 int
 ctlproc(int pid, char *msg)
 {
-	int i;
+	int new;
+	LinuxThread *t;
+	uintptr data;
+
+	while(wait1(1) > 0)
+		;
 
 	if(strcmp(msg, "attached") == 0){
-		for(i=0; i<nattached; i++)
-			if(attachedpids[i]==pid)
-				return 0;
-		if(nattached == nelem(attachedpids)){
-			werrstr("attached to too many processes");
+		t = attachthread(pid, pid, &new, Attached);
+		if(t == nil)
 			return -1;
-		}
-		attachedpids[nattached++] = pid;
 		return 0;
 	}
 
@@ -301,32 +629,72 @@ ctlproc(int pid, char *msg)
 		werrstr("can only hang self");
 		return -1;
 	}
-	if(strcmp(msg, "kill") == 0)
-		return ptrace(PTRACE_KILL, pid, 0, 0);
-	if(strcmp(msg, "startstop") == 0){
-		if(ptrace(PTRACE_CONT, pid, 0, 0) < 0)
+
+	t = findthread(pid);
+	if(t == nil) {
+		werrstr("not attached to pid %d", pid);
+		return -1;
+	}
+	if(t->state == Exited) {
+		werrstr("pid %d has exited", pid);
+		return -1;
+	}
+	if(t->state == Killed) {
+		werrstr("pid %d has been killed", pid);
+		return -1;
+	}
+
+	if(strcmp(msg, "kill") == 0) {
+		if(ptrace(PTRACE_KILL, pid, 0, 0) < 0)
 			return -1;
-		return waitstop(pid);
+		t->state = Killed;
+		return 0;
+	}
+	if(strcmp(msg, "startstop") == 0){
+		if(ctlproc(pid, "start") < 0)
+			return -1;
+		return waitstop(t);
 	}
 	if(strcmp(msg, "sysstop") == 0){
 		if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0)
 			return -1;
-		return waitstop(pid);
+		t->state = Running;
+		return waitstop(t);
 	}
 	if(strcmp(msg, "stop") == 0){
+		if(trace > 1)
+			fprint(2, "tid %d: tkill stop\n", pid);
+		if(t->state == Stopped)
+			return 0;
 		if(syscall(__NR_tkill, pid, SIGSTOP) < 0)
 			return -1;
-		return waitstop(pid);
+		return waitstop(t);
 	}
 	if(strcmp(msg, "step") == 0){
+		if(t->state == Running) {
+			werrstr("cannot single-step unstopped %d", pid);
+			return -1;
+		}
 		if(ptrace(PTRACE_SINGLESTEP, pid, 0, 0) < 0)
 			return -1;
-		return waitstop(pid);
+		return waitstop(t);
 	}
-	if(strcmp(msg, "waitstop") == 0)
-		return waitstop(pid);
-	if(strcmp(msg, "start") == 0)
-		return ptrace(PTRACE_CONT, pid, 0, 0);
+	if(strcmp(msg, "start") == 0) {
+		if(t->state == Running)
+			return 0;
+		data = 0;
+		if(t->state == Stopped && t->signal != SIGSTOP)
+			data = t->signal;
+		if(trace && data)
+			fprint(2, "tid %d: continue %lud\n", pid, (ulong)data);
+		if(ptrace(PTRACE_CONT, pid, 0, (void*)data) < 0)
+			return -1;
+		t->state = Running;
+		return 0;
+	}
+	if(strcmp(msg, "waitstop") == 0) {
+		return waitstop(t);
+	}
 	werrstr("unknown control message '%s'", msg);
 	return -1;
 }
@@ -344,32 +712,6 @@ proctextfile(int pid)
 	return nil;
 }
 
-int
-procthreadpids(int pid, int **thread)
-{
-	int i, fd, nd, *t, nt;
-	char buf[100];
-	Dir *d;
-
-	snprint(buf, sizeof buf, "/proc/%d/task", pid);
-	if((fd = open(buf, OREAD)) < 0)
-		return -1;
-	nd = dirreadall(fd, &d);
-	close(fd);
-	if(nd < 0)
-		return -1;
-	nt = 0;
-	for(i=0; i<nd; i++)
-		if(d[i].mode&DMDIR)
-			nt++;
-	t = malloc(nt*sizeof t[0]);
-	nt = 0;
-	for(i=0; i<nd; i++)
-		if(d[i].mode&DMDIR)
-			t[nt++] = atoi(d[i].name);
-	*thread = t;
-	return nt;
-}
 
 static int
 ptracerw(int type, int xtype, int isr, int pid, uvlong addr, void *v, uint n)
@@ -544,19 +886,11 @@ ptraceerr:
 char*
 procstatus(int pid)
 {
-	int c;
+	LinuxThread *t;
 
-	c = procstate(pid, nil);
-	if(c < 0)
-		return "Dead";
-	switch(c) {
-	case 'T':
-		return "Stopped";
-	case 'Z':
-		return "Zombie";
-	case 'R':
-		return "Running";
-	// TODO: translate more characters here
-	}
-	return "Running";
+	t = findthread(pid);
+	if(t == nil)
+		return "???";
+
+	return statestr[t->state];
 }

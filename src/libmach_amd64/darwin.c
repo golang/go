@@ -341,11 +341,10 @@ attachproc(int id, Fhdr *fp)
 
 // Return list of ids for threads in id.
 int
-procthreadpids(int id, int **thread)
+procthreadpids(int id, int *out, int nout)
 {
 	Thread *t;
 	int i, n, pid;
-	int *out;
 
 	t = idtotable(id);
 	if(t == nil)
@@ -353,17 +352,13 @@ procthreadpids(int id, int **thread)
 	pid = t->pid;
 	addpid(pid, 1);	// force refresh of thread list
 	n = 0;
-	for(i=0; i<nthr; i++)
-		if(thr[i].pid == pid)
+	for(i=0; i<nthr; i++) {
+		if(thr[i].pid == pid) {
+			if(n < nout)
+				out[n] = -(i+1);
 			n++;
-	out = malloc(n*sizeof out[0]);
-	if(out == nil)
-		return -1;
-	n = 0;
-	for(i=0; i<nthr; i++)
-		if(thr[i].pid == pid)
-			out[n++] = -(i+1);
-	*thread = out;
+		}
+	}
 	return n;
 }
 

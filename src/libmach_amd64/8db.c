@@ -145,7 +145,7 @@ static int
 i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 {
 	int i;
-	uvlong osp;
+	uvlong osp, pc1;
 	Symbol s, f, s1;
 	extern Mach mamd64;
 	int isamd64;
@@ -189,19 +189,30 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 			break;
 		}
 		s1 = s;
-
+		pc1 = 0;
 		if(pc != s.value) {	/* not at first instruction */
 			if(findlocal(&s, FRAMENAME, &f) == 0)
 				break;
+			geta(map, sp, &pc1);
 			sp += f.value-mach->szaddr;
 		}
-		if (geta(map, sp, &pc) < 0)
+		if(geta(map, sp, &pc) < 0)
 			break;
+
+		// If PC is not valid, assume we caught the function
+		// before it moved the stack pointer down or perhaps
+		// after it moved the stack pointer back up.
+		// Try the PC we'd have gotten without the stack
+		// pointer adjustment above (pc != s.value).
+		// This only matters for the first frame, and it is only
+		// a heuristic, but it does help.
+		if(!findsym(pc, CTEXT, &s) || strcmp(s.name, "etext") == 0)
+			pc = pc1;
 
 		if(pc == 0)
 			break;
 
-		if (pc != retfromnewstack)
+		if(pc != retfromnewstack)
 			(*trace)(map, pc, sp, &s1);
 		sp += mach->szaddr;
 
