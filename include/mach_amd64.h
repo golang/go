@@ -415,7 +415,7 @@ int		ctlproc(int pid, char *msg);
 void		detachproc(Map *m);
 int		procnotes(int pid, char ***pnotes);
 char*		proctextfile(int pid);
-int		procthreadpids(int pid, int **thread);
+int		procthreadpids(int pid, int *tid, int ntid);
 char*	procstatus(int);
 
 Maprw	fdrw;

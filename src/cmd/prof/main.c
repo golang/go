@@ -11,17 +11,16 @@
 #include <ureg_amd64.h>
 #include <mach_amd64.h>
 
-int pid;
 char* file = "6.out";
 static Fhdr fhdr;
 int have_syms;
 int fd;
-Map *map;
 Map	*symmap;
 struct Ureg ureg;
 int total_sec = 0;
 int delta_msec = 100;
-int collapse = 1;	// collapse histogram trace points in same function
+int nsample;
+int nsamplethread;
 
 // output formats
 int functions;	// print functions
@@ -29,6 +28,12 @@ int histograms;	// print histograms
 int linenums;	// print file and line numbers rather than function names
 int registers;	// print registers
 int stacks;		// print stack traces
+
+int pid;		// main process pid
+
+int nthread;	// number of threads
+int thread[32];	// thread pids
+Map *map[32];	// thread maps
 
 void
 Usage(void)
@@ -40,12 +45,14 @@ Usage(void)
 	fprint(2, "\t\t-l: dynamic file and line numbers\n");
 	fprint(2, "\t\t-r: dynamic registers\n");
 	fprint(2, "\t\t-s: dynamic function stack traces\n");
+	fprint(2, "\t\t-hs: include stack info in histograms\n");
 	exit(2);
 }
 
 typedef struct PC PC;
 struct PC {
 	uvlong pc;
+	uvlong callerpc;
 	unsigned int count;
 	PC* next;
 };
@@ -88,20 +95,105 @@ regprint(void)
 }
 
 int
-sample(void)
+getthreads(void)
+{
+	int i, j, curn, found;
+	Map *curmap[nelem(map)];
+	int curthread[nelem(map)];
+	static int complained = 0;
+
+	curn = procthreadpids(pid, curthread, nelem(curthread));
+	if(curn <= 0)
+		return curn;
+
+	if(curn > nelem(map)) {
+		if(complained == 0) {
+			fprint(2, "prof: too many threads; limiting to %d\n", nthread, nelem(map));
+			complained = 1;
+		}
+		curn = nelem(map);
+	}
+	if(curn == nthread && memcmp(thread, curthread, curn*sizeof(*thread)) == 0)
+		return curn;	// no changes
+
+	// Number of threads has changed (might be the init case).
+	// A bit expensive but rare enough not to bother being clever.
+	for(i = 0; i < curn; i++) {
+		found = 0;
+		for(j = 0; j < nthread; j++) {
+			if(curthread[i] == thread[j]) {
+				found = 1;
+				curmap[i] = map[j];
+				map[j] = nil;
+				break;
+			}
+		}
+		if(found)
+			continue;
+
+		// map new thread
+		curmap[i] = attachproc(curthread[i], &fhdr);
+		if(curmap[i] == nil) {
+			fprint(2, "prof: can't attach to %d: %r\n", curthread[i]);
+			return -1;
+		}
+	}
+
+	for(j = 0; j < nthread; j++)
+		if(map[j] != nil)
+			detachproc(map[j]);
+
+	nthread = curn;
+	memmove(thread, curthread, nthread*sizeof thread[0]);
+	memmove(map, curmap, sizeof map);
+	return nthread;
+}
+
+int
+sample(Map *map)
 {
 	int i;
 	static int n;
 
 	n++;
-	for(i = 0; i < sizeof ureg; i+=8) {
-		if(get8(map, (uvlong)i, &((uvlong*)&ureg)[i/8]) < 0) {
-			if(n == 1)
-				fprint(2, "prof: can't read registers at %d: %r\n", i);
-			return 0;
+	if(registers) {
+		for(i = 0; i < sizeof ureg; i+=8) {
+			if(get8(map, (uvlong)i, &((uvlong*)&ureg)[i/8]) < 0)
+				goto bad;
 		}
+	} else {
+		// we need only two registers
+		if(get8(map, offsetof(struct Ureg, ip), (uvlong*)&ureg.ip) < 0)
+			goto bad;
+		if(get8(map, offsetof(struct Ureg, sp), (uvlong*)&ureg.sp) < 0)
+			goto bad;
 	}
 	return 1;
+bad:
+	if(n == 1)
+		fprint(2, "prof: can't read registers: %r\n");
+	return 0;
+}
+
+void
+addtohistogram(uvlong pc, uvlong callerpc, uvlong sp)
+{
+	int h;
+	PC *x;
+
+	h = (pc + callerpc*101) % Ncounters;
+	for(x = counters[h]; x != NULL; x = x->next) {
+		if(x->pc == pc && x->callerpc == callerpc) {
+			x->count++;
+			return;
+		}
+	}
+	x = malloc(sizeof(PC));
+	x->pc = pc;
+	x->callerpc = callerpc;
+	x->count = 1;
+	x->next = counters[h];
+	counters[h] = x;
 }
 
 uvlong nextpc;
@@ -114,53 +206,40 @@ xptrace(Map *map, uvlong pc, uvlong sp, Symbol *sym)
 		print("syms\n");
 		return;
 	}
-	if(nextpc == 0)
-		nextpc = sym->value;
-	print("%s(", sym->name);
-	print(")");
-	if(nextpc != sym->value)
-		print("+%#llux ", nextpc - sym->value);
-	if(have_syms && linenums && fileline(buf, sizeof buf, pc)) {
-		print(" %s", buf);
+	if(histograms)
+		addtohistogram(nextpc, pc, sp);
+	if(!histograms || stacks > 1) {
+		if(nextpc == 0)
+			nextpc = sym->value;
+		print("%s(", sym->name);
+		print(")");
+		if(nextpc != sym->value)
+			print("+%#llux ", nextpc - sym->value);
+		if(have_syms && linenums && fileline(buf, sizeof buf, pc)) {
+			print(" %s", buf);
+		}
+		print("\n");
 	}
-	print("\n");
 	nextpc = pc;
 }
 
 void
-stacktracepcsp(uvlong pc, uvlong sp)
+stacktracepcsp(Map *map, uvlong pc, uvlong sp)
 {
-	nextpc = 0;
+	nextpc = pc;
 	if(machdata->ctrace==nil)
 		fprint(2, "no machdata->ctrace\n");
 	else if(machdata->ctrace(map, pc, sp, 0, xptrace) <= 0)
 		fprint(2, "no stack frame: pc=%#p sp=%#p\n", pc, sp);
-	else
-		print("\n");
-}
-
-void
-addtohistogram(uvlong pc, uvlong sp)
-{
-	int h;
-	PC *x;
-
-	h = pc % Ncounters;
-	for(x = counters[h]; x != NULL; x = x->next) {
-		if(x->pc == pc) {
-			x->count++;
-			return;
-		}
+	else {
+		addtohistogram(nextpc, 0, sp);
+		if(!histograms || stacks > 1)
+			print("\n");
 	}
-	x = malloc(sizeof(PC));
-	x->pc = pc;
-	x->count = 1;
-	x->next = counters[h];
-	counters[h] = x;
 }
 
 void
-printpc(uvlong pc, uvlong sp)
+printpc(Map *map, uvlong pc, uvlong sp)
 {
 	char buf[1024];
 	if(registers)
@@ -172,117 +251,136 @@ printpc(uvlong pc, uvlong sp)
 		print("%s\n", buf);
 	}
 	if(stacks){
-		stacktracepcsp(pc, sp);
+		stacktracepcsp(map, pc, sp);
 	}
-	if(histograms){
-		addtohistogram(pc, sp);
+	else if(histograms){
+		addtohistogram(pc, 0, sp);
 	}
 }
 
 void
 samples(void)
 {
-	int msec;
+	int i, pid, msec;
 	struct timespec req;
 
 	req.tv_sec = delta_msec/1000;
 	req.tv_nsec = 1000000*(delta_msec % 1000);
 	for(msec = 0; total_sec <= 0 || msec < 1000*total_sec; msec += delta_msec) {
-		ctlproc(pid, "stop");
-		if(!sample()) {
+		nsample++;
+		nsamplethread += nthread;
+		for(i = 0; i < nthread; i++) {
+			pid = thread[i];
+			if(ctlproc(pid, "stop") < 0)
+				return;
+			if(!sample(map[i])) {
+				ctlproc(pid, "start");
+				return;
+			}
+			printpc(map[i], ureg.ip, ureg.sp);
 			ctlproc(pid, "start");
-			break;
 		}
-		printpc(ureg.ip, ureg.sp);
-		ctlproc(pid, "start");
 		nanosleep(&req, NULL);
+		getthreads();
+		if(nthread == 0)
+			break;
 	}
 }
 
-int
-comparepc(const void *va, const void *vb)
+typedef struct Func Func;
+struct Func
 {
-	const PC *const*a = va;
-	const PC *const*b = vb;
-	return (*a)->pc - (*b)->pc;
+	Func *next;
+	Symbol s;
+	uint onstack;
+	uint leaf;
+};
+
+Func *func[257];
+int nfunc;
+
+Func*
+findfunc(uvlong pc)
+{
+	Func *f;
+	uint h;
+	Symbol s;
+
+	if(pc == 0)
+		return nil;
+
+	if(!findsym(pc, CTEXT, &s))
+		return nil;
+
+	h = s.value % nelem(func);
+	for(f = func[h]; f != NULL; f = f->next)
+		if(f->s.value == s.value)
+			return f;
+
+	f = mallocz(sizeof *f, 1);
+	f->s = s;
+	f->next = func[h];
+	func[h] = f;
+	nfunc++;
+	return f;
 }
 
 int
-comparecount(const void *va, const void *vb)
+compareleaf(const void *va, const void *vb)
 {
-	const PC *const*a = va;
-	const PC *const*b = vb;
-	return (*b)->count - (*a)->count;  // sort downwards
-}
+	Func *a, *b;
 
-void
-func(char *s, int n, uvlong pc)
-{
-	char *p;
-
-	symoff(s, n, pc, CANY);
-	p = strchr(s, '+');
-	if(p != NULL)
-		*p = 0;
+	a = *(Func**)va;
+	b = *(Func**)vb;
+	if(a->leaf != b->leaf)
+		return b->leaf - a->leaf;
+	if(a->onstack != b->onstack)
+		return b->onstack - a->onstack;
+	return strcmp(a->s.name, b->s.name);
 }
 
 void
 dumphistogram()
 {
-	int h;
+	int i, h, n;
 	PC *x;
-	PC **pcs;
-	uint i;
-	uint j;
-	uint npc;
-	uint ncount;
-	char b1[100];
-	char b2[100];
+	Func *f, **ff;
 
 	if(!histograms)
 		return;
 
-	// count samples
-	ncount = 0;
-	npc = 0;
-	for(h = 0; h < Ncounters; h++)
+	// assign counts to functions.
+	for(h = 0; h < Ncounters; h++) {
 		for(x = counters[h]; x != NULL; x = x->next) {
-			ncount += x->count;
-			npc++;
-		}
-	// build array
-	pcs = malloc(npc*sizeof(PC*));
-	i = 0;
-	for(h = 0; h < Ncounters; h++)
-		for(x = counters[h]; x != NULL; x = x->next)
-			pcs[i++] = x;
-	if(collapse) {
-		// combine counts in same function
-		// sort by address
-		qsort(pcs, npc, sizeof(PC*), comparepc);
-		for(i = j = 0; i < npc; i++){
-			x = pcs[i];
-			func(b2, sizeof(b2), x->pc);
-			if(j > 0 && strcmp(b1, b2) == 0) {
-				pcs[j-1]->count += x->count;
-			} else {
-				strcpy(b1, b2);
-				pcs[j++] = x;
+			f = findfunc(x->pc);
+			if(f) {
+				f->onstack += x->count;
+				f->leaf += x->count;
 			}
+			f = findfunc(x->callerpc);
+			if(f)
+				f->leaf -= x->count;
 		}
-		npc = j;
 	}
-	// sort by count
-	qsort(pcs, npc, sizeof(PC*), comparecount);
-	// print array
-	for(i = 0; i < npc; i++){
-		x = pcs[i];
-		print("%5.2f%%\t", 100.0*(double)x->count/(double)ncount);
-		if(collapse)
-			func(b2, sizeof b2, x->pc);
-		else
-			symoff(b2, sizeof(b2), x->pc, CANY);
-		print("%s\n", b2);
+
+	// build array
+	ff = malloc(nfunc*sizeof ff[0]);
+	n = 0;
+	for(h = 0; h < nelem(func); h++)
+		for(f = func[h]; f != NULL; f = f->next)
+			ff[n++] = f;
+
+	// sort by leaf counts
+	qsort(ff, nfunc, sizeof ff[0], compareleaf);
+
+	// print.
+	print("%d samples (avg %.1g threads)\n", nsample, (double)nsamplethread/nsample);
+	for(i = 0; i < nfunc; i++) {
+		f = ff[i];
+		print("%6.2f%%\t", 100.0*(double)f->leaf/nsample);
+		if(stacks)
+			print("%6.2f%%\t", 100.0*(double)f->onstack/nsample);
+		print("%s\n", f->s.name);
 	}
 }
 
@@ -313,13 +411,21 @@ startprocess(char **argv)
 	return pid;
 }
 
+void
+detach(void)
+{
+	int i;
+
+	for(i = 0; i < nthread; i++)
+		detachproc(map[i]);
+}
+
 int
 main(int argc, char *argv[])
 {
+	int i;
+
 	ARGBEGIN{
-	case 'c':
-		collapse = 0;
-		break;
 	case 'd':
 		delta_msec = atoi(EARGF(Usage()));
 		break;
@@ -342,7 +448,7 @@ main(int argc, char *argv[])
 		registers = 1;
 		break;
 	case 's':
-		stacks = 1;
+		stacks++;
 		break;
 	}ARGEND
 	if(pid <= 0 && argc == 0)
@@ -355,16 +461,11 @@ main(int argc, char *argv[])
 	}
 	if(argc > 0)
 		file = argv[0];
+	else if(pid)
+		file = proctextfile(pid);
 	fd = open(file, 0);
 	if(fd < 0) {
 		fprint(2, "prof: can't open %s: %r\n", file);
-		exit(1);
-	}
-	if(pid <= 0)
-		pid = startprocess(argv);
-	map = attachproc(pid, &fhdr);
-	if(map == nil) {
-		fprint(2, "prof: can't attach to %d: %r\n", pid);
 		exit(1);
 	}
 	if(crackhdr(fd, &fhdr)) {
@@ -376,9 +477,18 @@ main(int argc, char *argv[])
 		fprint(2, "prof: crack header for %s: %r\n", file);
 		exit(1);
 	}
-	ctlproc(pid, "start");
+	if(pid <= 0)
+		pid = startprocess(argv);
+	attachproc(pid, &fhdr);	// initializes thread list
+	if(getthreads() <= 0) {
+		detach();
+		fprint(2, "prof: can't find threads for pid %d\n", pid);
+		exit(1);
+	}
+	for(i = 0; i < nthread; i++)
+		ctlproc(thread[i], "start");
 	samples();
-	detachproc(map);
+	detach();
 	dumphistogram();
 	exit(0);
 }
