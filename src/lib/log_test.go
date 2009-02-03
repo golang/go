@@ -51,10 +51,7 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
 	if err1 != nil {
 		t.Fatal("pipe", err1);
 	}
-	buf, err2 := bufio.NewBufRead(fd0);
-	if err2 != nil {
-		t.Fatal("bufio.NewBufRead", err2);
-	}
+	buf := bufio.NewBufRead(fd0);
 	l := NewLogger(fd1, nil, prefix, flag);
 	if useLogf {
 		l.Logf("hello %d world", 23);

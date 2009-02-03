@@ -16,12 +16,14 @@ import (
 	"fmt";
 	"http";
 	"io";
+	"log";
 	"net";
 	"os";
 	"strconv";
 )
 
 var ErrWriteAfterFlush = os.NewError("Conn.Write called after Flush")
+var ErrHijacked = os.NewError("Conn has been hijacked")
 
 type Conn struct
 
@@ -32,132 +34,30 @@ type Handler interface {
 
 // Active HTTP connection (server side).
 type Conn struct {
-	Fd io.ReadWriteClose;
-	RemoteAddr string;
-	Req *Request;
-	Br *bufio.BufRead;
+	RemoteAddr string;	// network address of remote side
+	Req *Request;	// current HTTP request
 
-	br *bufio.BufRead;
-	bw *bufio.BufWrite;
-	close bool;
-	chunking bool;
-	flushed bool;
-	header map[string] string;
-	wroteHeader bool;
-	handler Handler;
-}
+	fd io.ReadWriteClose;	// i/o connection
+	buf *bufio.BufReadWrite;	// buffered fd
+	handler Handler;	// request handler
+	hijacked bool;	// connection has been hijacked by handler
 
-// HTTP response codes.
-// TODO(rsc): Maybe move these to their own file, so that
-// clients can use them too.
-
-const (
-	StatusContinue = 100;
-	StatusSwitchingProtocols = 101;
-
-	StatusOK = 200;
-	StatusCreated = 201;
-	StatusAccepted = 202;
-	StatusNonAuthoritativeInfo = 203;
-	StatusNoContent = 204;
-	StatusResetContent = 205;
-	StatusPartialContent = 206;
-
-	StatusMultipleChoices = 300;
-	StatusMovedPermanently = 301;
-	StatusFound = 302;
-	StatusSeeOther = 303;
-	StatusNotModified = 304;
-	StatusUseProxy = 305;
-	StatusTemporaryRedirect = 307;
-
-	StatusBadRequest = 400;
-	StatusUnauthorized = 401;
-	StatusPaymentRequired = 402;
-	StatusForbidden = 403;
-	StatusNotFound = 404;
-	StatusMethodNotAllowed = 405;
-	StatusNotAcceptable = 406;
-	StatusProxyAuthRequired = 407;
-	StatusRequestTimeout = 408;
-	StatusConflict = 409;
-	StatusGone = 410;
-	StatusLengthRequired = 411;
-	StatusPreconditionFailed = 412;
-	StatusRequestEntityTooLarge = 413;
-	StatusRequestURITooLong = 414;
-	StatusUnsupportedMediaType = 415;
-	StatusRequestedRangeNotSatisfiable = 416;
-	StatusExpectationFailed = 417;
-
-	StatusInternalServerError = 500;
-	StatusNotImplemented = 501;
-	StatusBadGateway = 502;
-	StatusServiceUnavailable = 503;
-	StatusGatewayTimeout = 504;
-	StatusHTTPVersionNotSupported = 505;
-)
-
-var statusText = map[int]string {
-	StatusContinue:			"Continue",
-	StatusSwitchingProtocols:	"Switching Protocols",
-
-	StatusOK:			"OK",
-	StatusCreated:			"Created",
-	StatusAccepted:			"Accepted",
-	StatusNonAuthoritativeInfo:	"Non-Authoritative Information",
-	StatusNoContent:		"No Content",
-	StatusResetContent:		"Reset Content",
-	StatusPartialContent:		"Partial Content",
-
-	StatusMultipleChoices:		"Multiple Choices",
-	StatusMovedPermanently:		"Moved Permanently",
-	StatusFound:			"Found",
-	StatusSeeOther:			"See Other",
-	StatusNotModified:		"Not Modified",
-	StatusUseProxy:			"Use Proxy",
-	StatusTemporaryRedirect:	"Temporary Redirect",
-
-	StatusBadRequest:		"Bad Request",
-	StatusUnauthorized:		"Unauthorized",
-	StatusPaymentRequired:		"Payment Required",
-	StatusForbidden:		"Forbidden",
-	StatusNotFound:			"Not Found",
-	StatusMethodNotAllowed:		"Method Not Allowed",
-	StatusNotAcceptable:		"Not Acceptable",
-	StatusProxyAuthRequired:	"Proxy Authentication Required",
-	StatusRequestTimeout:		"Request Timeout",
-	StatusConflict:			"Conflict",
-	StatusGone:			"Gone",
-	StatusLengthRequired:		"Length Required",
-	StatusPreconditionFailed:	"Precondition Failed",
-	StatusRequestEntityTooLarge:	"Request Entity Too Large",
-	StatusRequestURITooLong:	"Request URI Too Long",
-	StatusUnsupportedMediaType:	"Unsupported Media Type",
-	StatusRequestedRangeNotSatisfiable:	"Requested Range Not Satisfiable",
-	StatusExpectationFailed:	"Expectation Failed",
-
-	StatusInternalServerError:	"Internal Server Error",
-	StatusNotImplemented:		"Not Implemented",
-	StatusBadGateway:		"Bad Gateway",
-	StatusServiceUnavailable:	"Service Unavailable",
-	StatusGatewayTimeout:		"Gateway Timeout",
-	StatusHTTPVersionNotSupported:	"HTTP Version Not Supported",
+	// state for the current reply
+	closeAfterReply bool;	// close connection after this reply
+	chunking bool;	// using chunked transfer encoding for reply body
+	wroteHeader bool;	// reply header has been written
+	header map[string] string;	// reply header parameters
 }
 
 // Create new connection from rwc.
 func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err *os.Error) {
 	c = new(Conn);
-	c.Fd = rwc;
 	c.RemoteAddr = raddr;
 	c.handler = handler;
-	if c.br, err = bufio.NewBufRead(rwc.(io.Read)); err != nil {
-		return nil, err
-	}
-c.Br = c.br;
-	if c.bw, err = bufio.NewBufWrite(rwc); err != nil {
-		return nil, err
-	}
+	c.fd = rwc;
+	br := bufio.NewBufRead(rwc);
+	bw := bufio.NewBufWrite(rwc);
+	c.buf = bufio.NewBufReadWrite(br, bw);
 	return c, nil
 }
 
@@ -165,14 +65,16 @@ func (c *Conn) SetHeader(hdr, val string)
 
 // Read next request from connection.
 func (c *Conn) readRequest() (req *Request, err *os.Error) {
-	if req, err = ReadRequest(c.br); err != nil {
+	if c.hijacked {
+		return nil, ErrHijacked
+	}
+	if req, err = ReadRequest(c.buf.BufRead); err != nil {
 		return nil, err
 	}
 
 	// Reset per-request connection state.
 	c.header = make(map[string] string);
 	c.wroteHeader = false;
-	c.flushed = false;
 	c.Req = req;
 
 	// Default output is HTML encoded in UTF-8.
@@ -190,7 +92,7 @@ func (c *Conn) readRequest() (req *Request, err *os.Error) {
 		// a Content-Length: header in the response,
 		// but everyone who expects persistent connections
 		// does HTTP/1.1 now.
-		c.close = true;
+		c.closeAfterReply = true;
 		c.chunking = false;
 	}
 
@@ -203,8 +105,12 @@ func (c *Conn) SetHeader(hdr, val string) {
 
 // Write header.
 func (c *Conn) WriteHeader(code int) {
+	if c.hijacked {
+		log.Stderr("http: Conn.WriteHeader on hijacked connection");
+		return
+	}
 	if c.wroteHeader {
-		// TODO(rsc): log
+		log.Stderr("http: multiple Conn.WriteHeader calls");
 		return
 	}
 	c.wroteHeader = true;
@@ -220,19 +126,20 @@ func (c *Conn) WriteHeader(code int) {
 	if !ok {
 		text = "status code " + codestring;
 	}
-	io.WriteString(c.bw, proto + " " + codestring + " " + text + "\r\n");
+	io.WriteString(c.buf, proto + " " + codestring + " " + text + "\r\n");
 	for k,v := range c.header {
-		io.WriteString(c.bw, k + ": " + v + "\r\n");
+		io.WriteString(c.buf, k + ": " + v + "\r\n");
 	}
-	io.WriteString(c.bw, "\r\n");
+	io.WriteString(c.buf, "\r\n");
 }
 
 // TODO(rsc): BUG in 6g: must return "nn int" not "n int"
 // so that the implicit struct assignment in
-// return c.bw.Write(data) works.  oops
+// return c.buf.Write(data) works.  oops
 func (c *Conn) Write(data []byte) (nn int, err *os.Error) {
-	if c.flushed {
-		return 0, ErrWriteAfterFlush
+	if c.hijacked {
+		log.Stderr("http: Conn.Write on hijacked connection");
+		return 0, ErrHijacked
 	}
 	if !c.wroteHeader {
 		c.WriteHeader(StatusOK);
@@ -242,38 +149,35 @@ func (c *Conn) Write(data []byte) (nn int, err *os.Error) {
 	}
 
 	// TODO(rsc): if chunking happened after the buffering,
-	// then there would be fewer chunk headers
+	// then there would be fewer chunk headers.
+	// On the other hand, it would make hijacking more difficult.
 	if c.chunking {
-		fmt.Fprintf(c.bw, "%x\r\n", len(data));	// TODO(rsc): use strconv not fmt
+		fmt.Fprintf(c.buf, "%x\r\n", len(data));	// TODO(rsc): use strconv not fmt
 	}
-	return c.bw.Write(data);
+	return c.buf.Write(data);
 }
 
-func (c *Conn) Flush() {
-	if c.flushed {
-		return
-	}
+func (c *Conn) flush() {
 	if !c.wroteHeader {
 		c.WriteHeader(StatusOK);
 	}
 	if c.chunking {
-		io.WriteString(c.bw, "0\r\n");
+		io.WriteString(c.buf, "0\r\n");
 		// trailer key/value pairs, followed by blank line
-		io.WriteString(c.bw, "\r\n");
+		io.WriteString(c.buf, "\r\n");
 	}
-	c.bw.Flush();
-	c.flushed = true;
+	c.buf.Flush();
 }
 
 // Close the connection.
-func (c *Conn) Close() {
-	if c.bw != nil {
-		c.bw.Flush();
-		c.bw = nil;
+func (c *Conn) close() {
+	if c.buf != nil {
+		c.buf.Flush();
+		c.buf = nil;
 	}
-	if c.Fd != nil {
-		c.Fd.Close();
-		c.Fd = nil;
+	if c.fd != nil {
+		c.fd.Close();
+		c.fd = nil;
 	}
 }
 
@@ -288,18 +192,32 @@ func (c *Conn) serve() {
 		// Until the server replies to this request, it can't read another,
 		// so we might as well run the handler in this thread.
 		c.handler.ServeHTTP(c, req);
-		if c.Fd == nil {
-			// Handler took over the connection.
+		if c.hijacked {
 			return;
 		}
-		if !c.flushed {
-			c.Flush();
-		}
-		if c.close {
+		c.flush();
+		if c.closeAfterReply {
 			break;
 		}
 	}
-	c.Close();
+	c.close();
+}
+
+// Allow client to take over the connection.
+// After a handler calls c.Hijack(), the HTTP server library
+// will never touch the connection again.
+// It is the caller's responsibility to manage and close
+// the connection.
+func (c *Conn) Hijack() (fd io.ReadWriteClose, buf *bufio.BufReadWrite, err *os.Error) {
+	if c.hijacked {
+		return nil, nil, ErrHijacked;
+	}
+	c.hijacked = true;
+	fd = c.fd;
+	buf = c.buf;
+	c.fd = nil;
+	c.buf = nil;
+	return;
 }
 
 // Adapter: can use RequestFunction(f) as Handler

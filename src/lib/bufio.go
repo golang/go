@@ -16,6 +16,8 @@ import (
 //	- BufRead: ReadRune, UnreadRune ?
 //		could make ReadRune generic if we dropped UnreadRune
 //	- buffered output
+// 	- would like to rename to Read, Write, but breaks
+//	  embedding of these: would lose the Read, Write methods.
 
 const (
 	defaultBufSize = 4096
@@ -44,6 +46,7 @@ type BufRead struct {
 	rd io.Read;
 	r, w int;
 	err *os.Error;
+	lastbyte int;
 }
 
 func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
@@ -53,11 +56,17 @@ func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
 	b = new(BufRead);
 	b.buf = make([]byte, size);
 	b.rd = rd;
+	b.lastbyte = -1;
 	return b, nil
 }
 
-func NewBufRead(rd io.Read) (b *BufRead, err *os.Error) {
-	return NewBufReadSize(rd, defaultBufSize);
+func NewBufRead(rd io.Read) *BufRead {
+	b, err := NewBufReadSize(rd, defaultBufSize);
+	if err != nil {
+		// cannot happen - defaultBufSize is a valid size
+		panic("bufio: NewBufRead: ", err.String());
+	}
+	return b;
 }
 
 // Read a new chunk into the buffer.
@@ -94,6 +103,23 @@ func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
 	for len(p) > 0 {
 		n := len(p);
 		if b.w == b.r {
+			if len(p) >= len(b.buf) {
+				// Large read, empty buffer.
+				// Read directly into p to avoid copy.
+				n, b.err = b.rd.Read(p);
+				if n > 0 {
+					b.lastbyte = int(p[n-1]);
+				}
+				p = p[n:len(p)];
+				nn += n;
+				if b.err != nil {
+					return nn, b.err
+				}
+				if n == 0 {
+					return nn, EndOfFile
+				}
+				continue;
+			}
 			b.Fill();
 			if b.err != nil {
 				return nn, b.err
@@ -108,6 +134,7 @@ func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
 		copySlice(p[0:n], b.buf[b.r:b.r+n]);
 		p = p[n:len(p)];
 		b.r += n;
+		b.lastbyte = int(b.buf[b.r-1]);
 		nn += n
 	}
 	return nn, nil
@@ -127,6 +154,7 @@ func (b *BufRead) ReadByte() (c byte, err *os.Error) {
 	}
 	c = b.buf[b.r];
 	b.r++;
+	b.lastbyte = int(c);
 	return c, nil
 }
 
@@ -135,10 +163,18 @@ func (b *BufRead) UnreadByte() *os.Error {
 	if b.err != nil {
 		return b.err
 	}
+	if b.r == b.w && b.lastbyte >= 0 {
+		b.w = 1;
+		b.r = 0;
+		b.buf[0] = byte(b.lastbyte);
+		b.lastbyte = -1;
+		return nil;
+	}
 	if b.r <= 0 {
 		return PhaseError
 	}
 	b.r--;
+	b.lastbyte = -1;
 	return nil
 }
 
@@ -163,6 +199,7 @@ func (b *BufRead) ReadRune() (rune int, size int, err *os.Error) {
 		rune, size = utf8.DecodeRune(b.buf[b.r:b.w]);
 	}
 	b.r += size;
+	b.lastbyte = int(b.buf[b.r-1]);
 	return rune, size, nil
 }
 
@@ -343,8 +380,13 @@ func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error) {
 	return b, nil
 }
 
-func NewBufWrite(wr io.Write) (b *BufWrite, err *os.Error) {
-	return NewBufWriteSize(wr, defaultBufSize);
+func NewBufWrite(wr io.Write) *BufWrite {
+	b, err := NewBufWriteSize(wr, defaultBufSize);
+	if err != nil {
+		// cannot happen - defaultBufSize is valid size
+		panic("bufio: NewBufWrite: ", err.String());
+	}
+	return b;
 }
 
 // Flush the output buffer.
@@ -393,6 +435,17 @@ func (b *BufWrite) Write(p []byte) (nn int, err *os.Error) {
 			}
 			n = b.Available()
 		}
+		if b.Available() == 0 && len(p) >= len(b.buf) {
+			// Large write, empty buffer.
+			// Write directly from p to avoid copy.
+			n, b.err = b.wr.Write(p);
+			nn += n;
+			p = p[n:len(p)];
+			if b.err != nil {
+				break;
+			}
+			continue;
+		}
 		if n > len(p) {
 			n = len(p)
 		}
@@ -414,5 +467,16 @@ func (b *BufWrite) WriteByte(c byte) *os.Error {
 	b.buf[b.n] = c;
 	b.n++;
 	return nil
+}
+
+// buffered input and output
+
+type BufReadWrite struct {
+	*BufRead;
+	*BufWrite;
+}
+
+func NewBufReadWrite(r *BufRead, w *BufWrite) *BufReadWrite {
+	return &BufReadWrite{r, w}
 }
 
