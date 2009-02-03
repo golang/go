@@ -98,10 +98,7 @@ func TestFp(t *testing.T) {
 		panicln("testfp: open testfp.txt:", err.String());
 	}
 
-	b, err1 := bufio.NewBufRead(fd);
-	if err1 != nil {
-		panicln("testfp NewBufRead:", err1.String());
-	}
+	b := bufio.NewBufRead(fd);
 
 	lineno := 0;
 	for {

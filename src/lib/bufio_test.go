@@ -174,12 +174,12 @@ var bufsizes = []int {
 }
 
 func TestBufReadSimple(t *testing.T) {
-	b, e := NewBufRead(newByteReader(io.StringBytes("hello world")));
+	b := NewBufRead(newByteReader(io.StringBytes("hello world")));
 	if s := readBytes(b); s != "hello world" {
 		t.Errorf("simple hello world test failed: got %q", s);
 	}
 
-	b, e = NewBufRead(newRot13Reader(newByteReader(io.StringBytes("hello world"))));
+	b = NewBufRead(newRot13Reader(newByteReader(io.StringBytes("hello world"))));
 	if s := readBytes(b); s != "uryyb jbeyq" {
 		t.Error("rot13 hello world test failed: got %q", s);
 	}

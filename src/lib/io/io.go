@@ -30,6 +30,10 @@ type ReadWriteClose interface {
 	Close() *os.Error;
 }
 
+type Close interface {
+	Close() *os.Error;
+}
+
 func WriteString(w Write, s string) (n int, err *os.Error) {
 	b := make([]byte, len(s)+1);
 	if !syscall.StringToBytes(b, s) {
