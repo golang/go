@@ -155,7 +155,7 @@ itype(Sigi *si, Sigt *st, int32 canfail)
 			}
 		}
 	}
-	
+
 	ni = si[0].perm;	// first entry has size
 	m = mal(sizeof(*m) + ni*sizeof(m->fun[0]));
 	m->sigi = si;
@@ -178,13 +178,8 @@ throw:
 			sname = st[nt].name;
 			if(sname == nil) {
 				if(!canfail) {
-					prints("cannot convert type ");
-					prints((int8*)st[0].name);
-					prints(" to interface ");
-					prints((int8*)si[0].name);
-					prints(": missing method ");
-					prints((int8*)iname);
-					prints("\n");
+					printf("cannot convert type %s to interface %s: missing method %s\n",
+						st[0].name, si[0].name, iname);
 					if(iface_debug) {
 						prints("interface");
 						printsigi(si);
@@ -429,7 +424,7 @@ uint64
 ifacehash(Iface a)
 {
 	int32 alg, wid;
-	
+
 	if(a.type == nil)
 		return 0;
 	alg = a.type->sigt->hash & 0xFF;
@@ -591,7 +586,7 @@ fakesigt(string type, bool indir)
 		h = h*37 + type->str[i];
 	h += indir;
 	h %= nelem(fake);
-	
+
 	for(locked=0; locked<2; locked++) {
 		if(locked)
 			lock(&ifacelock);
@@ -647,7 +642,7 @@ static Sigt*
 findtype(string type, bool indir)
 {
 	int32 i, lo, hi, m;
-	
+
 	lo = 0;
 	hi = ngotypesigs;
 	while(lo < hi) {
