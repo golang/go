@@ -2790,7 +2790,7 @@ runifacechecks(void)
 			r = p->src;
 		}
 		if(!hasiface(l, r, &m))
-			yyerror("%T is not %T - missing %S%hT",
+			yyerror("%T is not %T - missing %S%hhT",
 				l, r, m->sym, m->type);
 	}
 	lineno = lno;
