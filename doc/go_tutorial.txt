@@ -4,7 +4,7 @@ Let's Go
 Rob Pike
 
 ----
-(January 20, 2009)
+(February 4, 2009)
 
 
 This document is a tutorial introduction to the basics of the Go systems programming
@@ -34,7 +34,7 @@ Let's start in the usual way:
 
 --PROG progs/helloworld.go
 
-Every Go source file declares which package it's part of using a "package" statement.
+Every Go source file declares, using a "package" statement, which package it's part of.
 The "main" package's "main" function is where the program starts running (after
 any initialization).
 
@@ -256,22 +256,24 @@ or the more idiomatic
 
 Some types - maps, slices, and channels (see below) have reference semantics.
 If you're holding a slice or a map and you modify its contents, other variables
-referencing the same underlying data will see the modification.  If you allocate
-a reference object with "new()" you receive a pointer to an uninitialized ("nil")
-reference. Instead, for these three types you want to use "make()":
+referencing the same underlying data will see the modification.  For these three
+types you want to use the built-in function "make()":
 
 	m := make(map[string] int);
 
-This statement initializes a new map ready to store entries.  If you just declare
-the map, as in
+This statement initializes a new map ready to store entries.
+If you just declare the map, as in
 
 	var m map[string] int;
 
-it is a "nil" reference that cannot hold anything. To use the map,
+it creates a "nil" reference that cannot hold anything. To use the map,
 you must first initialize the reference using "make()" or by assignment to an
 existing map.
 
-Note that "new(T)" returns type "*T" while "make(T)" returns type "T".
+Note that "new(T)" returns type "*T" while "make(T)" returns type
+"T".  If you (mistakenly) allocate a reference object with "new()",
+you receive a pointer to an uninitialized reference, equivalent to
+declaring an uninitialized variable and taking its address.
 
 An Interlude about Constants
 ----
@@ -328,7 +330,8 @@ that is, by users of the package.   In Go the rule about visibility of informati
 simple: if a name (of a top-level type, function, method, constant, variable, or of
 a structure field) is capitalized, users of the package may see it. Otherwise, the
 name and hence the thing being named is visible only inside the package in which
-it is declared.  In Go, the term for publicly visible names is ''exported''.
+it is declared.  This is more than a convention; the rule is enforced by the compiler.
+In Go, the term for publicly visible names is ''exported''.
 
 In the case of "FD", all its fields are lower case and so invisible to users, but we
 will soon give it some exported, upper-case methods.
@@ -339,7 +342,8 @@ First, though, here is a factory to create them:
 
 This returns a pointer to a new "FD" structure with the file descriptor and name
 filled in.  This code uses Go's notion of a ''composite literal'', analogous to
-the ones used to build maps and arrays, to construct the object.  We could write
+the ones used to build maps and arrays, to construct a new heap-allocated
+object.  We could write
 
 	n := new(FD);
 	n.fildes = fd;
@@ -390,9 +394,12 @@ There is no implicit "this" and the receiver variable must be used to access
 members of the structure.  Methods are not declared within
 the "struct" declaration itself.  The "struct" declaration defines only data members.
 In fact, methods can be created for any type you name, such as an integer or
-array, not just for "structs".   We'll see an an example with arrays later.
+array, not just for "structs".   We'll see an example with arrays later.
 
-These methods use the public variable "os.EINVAL" to return the ("*os.Error"
+The "String" method is so called because of printing convention we'll
+describe later.
+
+The methods use the public variable "os.EINVAL" to return the ("*os.Error"
 version of the) Unix error code EINVAL.  The "os" library defines a standard
 set of such error values.
 
@@ -404,7 +411,7 @@ and run the program:
 
 	% helloworld3
 	hello, world
-	can't open file; errno=2
+	can't open file; err=No such file or directory
 	% 
 
 Rotting cats
@@ -504,8 +511,12 @@ useful for things like containers.
 Sorting
 ----
 
-As another example of interfaces, consider this simple sort algorithm,
-taken from "progs/sort.go":
+Interfaces provide a simple form of polymorphism since they completely
+separate the definition of what an object does from how it does it, allowing
+distinct implementations to be represented at different times by the
+same interface variable.
+
+As an example, consider this simple sort algorithm taken from "progs/sort.go":
 
 --PROG progs/sort.go /func.Sort/ /^}/
 
@@ -628,7 +639,7 @@ Schematically, given a value "v", it does this:
 		result = default_output(v)
 	}
 
-The code tests if the value stored in
+The code uses a ``type assertion'' ("v.(String)") to test if the value stored in
 "v" satisfies the "String" interface; if it does, "s"
 will become an interface variable implementing the method and "ok" will
 be "true".  We then use the interface variable to call the method.
@@ -636,6 +647,14 @@ be "true".  We then use the interface variable to call the method.
 operations such as type conversion, map update, communications, and so on,
 although this is the only appearance in this tutorial.)
 If the value does not satisfy the interface, "ok" will be false.
+
+In this snippet "String" is used as both a type name and a method name.  This does
+not create any ambiguity because methods only appear in association
+with a variable ("s.String()"); a method name can never appear in a context
+where a type name is legal and vice versa.  Another way to say this is that the
+method "String" is only available within the scope bound to a variable of type
+"String".  We double-use the name because it makes the interface type
+self-describing ("String" (the interface) implements "String" (the method)).
 
 One last wrinkle.  To complete the suite, besides "Printf" etc. and "Sprintf"
 etc., there are also "Fprintf" etc.  Unlike in C, "Fprintf"'s first argument is
@@ -646,6 +665,8 @@ interface type defined in the "io" library:
 		Write(p []byte) (n int, err *os.Error);
 	}
 
+(This interface is another doubled name, this time for "Write"; there are also
+"io.Read", "io.ReadWrite", and so on.)
 Thus you can call "Fprintf" on any type that implements a standard "Write()"
 method, not just files but also network channels, buffers, rot13ers, whatever
 you want.
@@ -686,7 +707,7 @@ Here is the first function in "progs/sieve.go":
 
 The "generate" function sends the sequence 2, 3, 4, 5, ... to its
 argument channel, "ch", using the binary communications operator "&lt;-".
-Channels block, so if there's no recipient for the the value on "ch",
+Channel operations block, so if there's no recipient for the value on "ch",
 the send operation will wait until one becomes available.
 
 The "filter" function has three arguments: an input channel, an output
@@ -734,8 +755,11 @@ This version does all the setup internally. It creates the output
 channel, launches a goroutine internally using a function literal, and
 returns the channel to the caller.  It is a factory for concurrent
 execution, starting the goroutine and returning its connection.
-The same
-change can be made to "filter":
+
+The function literal notation (lines 6-10) allows us to construct an
+anonymous function and invoke it on the spot.
+
+The same change can be made to "filter":
 
 --PROG progs/sieve1.go /func.filter/ /^}/
 
