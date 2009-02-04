@@ -14,8 +14,9 @@ package flag
  *	If you like, you can bind the flag to a variable using the Var() functions.
  *		var flagvar int
  *		func init() {
- *              	flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
+ *			flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
  *		}
+ *
  *	2) After all flags are defined, call
  *		flag.Parse()
  *	to parse the command line into the defined flags.
@@ -219,9 +220,10 @@ type _Value interface {
 
 // -- Flag structure (internal)
 type Flag struct {
-	name	string;
-	usage	string;
-	value	_Value;
+	name	string;	// name as it appears on command line
+	usage	string;	// help message
+	value	_Value;	// value as set
+	defvalue	string;	// default value (as text); for usage message
 }
 
 type allFlags struct {
@@ -234,7 +236,7 @@ var flags *allFlags = &allFlags{make(map[string] *Flag), make(map[string] *Flag)
 
 func PrintDefaults() {
 	for k, f := range flags.formal {
-		print("  -", f.name, "=", f.value.str(), ": ", f.usage, "\n");
+		print("  -", f.name, "=", f.defvalue, ": ", f.usage, "\n");
 	}
 }
 
@@ -269,27 +271,22 @@ func add(name string, value _Value, usage string) {
 	f.name = name;
 	f.usage = usage;
 	f.value = value;
+	f.defvalue = value.str();	// Remember the default value as a string; it won't change.
 	dummy, alreadythere := flags.formal[name];
 	if alreadythere {
 		print("flag redefined: ", name, "\n");
-		panic("flag redefinition");
+		panic("flag redefinition");	// Happens only if flags are declared with identical names
 	}
 	flags.formal[name] = f;
-}
-
-func Bool(name string, value bool, usage string) *bool {
-	p := new(bool);
-	add(name, newBoolValue(value, p), usage);
-	return p;
 }
 
 func BoolVar(p *bool, name string, value bool, usage string) {
 	add(name, newBoolValue(value, p), usage);
 }
 
-func Int(name string, value int, usage string) *int {
-	p := new(int);
-	add(name, newIntValue(value, p), usage);
+func Bool(name string, value bool, usage string) *bool {
+	p := new(bool);
+	BoolVar(p, name, value, usage);
 	return p;
 }
 
@@ -297,9 +294,9 @@ func IntVar(p *int, name string, value int, usage string) {
 	add(name, newIntValue(value, p), usage);
 }
 
-func Int64(name string, value int64, usage string) *int64 {
-	p := new(int64);
-	add(name, newInt64Value(value, p), usage);
+func Int(name string, value int, usage string) *int {
+	p := new(int);
+	IntVar(p, name, value, usage);
 	return p;
 }
 
@@ -307,9 +304,9 @@ func Int64Var(p *int64, name string, value int64, usage string) {
 	add(name, newInt64Value(value, p), usage);
 }
 
-func Uint(name string, value uint, usage string) *uint {
-	p := new(uint);
-	add(name, newUintValue(value, p), usage);
+func Int64(name string, value int64, usage string) *int64 {
+	p := new(int64);
+	Int64Var(p, name, value, usage);
 	return p;
 }
 
@@ -317,9 +314,9 @@ func UintVar(p *uint, name string, value uint, usage string) {
 	add(name, newUintValue(value, p), usage);
 }
 
-func Uint64(name string, value uint64, usage string) *uint64 {
-	p := new(uint64);
-	add(name, newUint64Value(value, p), usage);
+func Uint(name string, value uint, usage string) *uint {
+	p := new(uint);
+	UintVar(p, name, value, usage);
 	return p;
 }
 
@@ -327,9 +324,9 @@ func Uint64Var(p *uint64, name string, value uint64, usage string) {
 	add(name, newUint64Value(value, p), usage);
 }
 
-func String(name, value string, usage string) *string {
-	p := new(string);
-	add(name, newStringValue(value, p), usage);
+func Uint64(name string, value uint64, usage string) *uint64 {
+	p := new(uint64);
+	Uint64Var(p, name, value, usage);
 	return p;
 }
 
@@ -337,7 +334,13 @@ func StringVar(p *string, name, value string, usage string) {
 	add(name, newStringValue(value, p), usage);
 }
 
-func (f *allFlags) ParseOne(index int) (ok bool, next int)
+func String(name, value string, usage string) *string {
+	p := new(string);
+	StringVar(p, name, value, usage);
+	return p;
+}
+
+func (f *allFlags) parseOne(index int) (ok bool, next int)
 {
 	s := sys.Args[index];
 	f.first_arg = index;  // until proven otherwise
@@ -434,7 +437,7 @@ func (f *allFlags) ParseOne(index int) (ok bool, next int)
 
 func Parse() {
 	for i := 1; i < len(sys.Args); {
-		ok, next := flags.ParseOne(i);
+		ok, next := flags.parseOne(i);
 		if next > 0 {
 			flags.first_arg = next;
 			i = next;
