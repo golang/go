@@ -17,8 +17,7 @@ type (
 	Type struct;
 
 	Block struct;
-	Lit struct;
-	Expr struct;
+	Expr interface;
 	Stat struct;
 	Decl struct;
 )
@@ -129,26 +128,6 @@ type Node struct {
 
 
 // ----------------------------------------------------------------------------
-// Literals
-
-type Lit struct {
-	Node;
-	
-	// Identifiers
-	Obj *Object;
-	
-	// Constant literals
-	
-	// Type literals
-	Len *Expr;  // array length
-	Dir int;  // channel direction
-	Key *Type;  // receiver or map key type
-	Elt *Type;  // array, map, channel, pointer element, or function result type
-	List *array.Array; End int;  // struct fields, interface methods, function parameters
-}
-
-
-// ----------------------------------------------------------------------------
 // Scopes
 
 type Scope struct {
@@ -216,87 +195,6 @@ func (scope *Scope) Print() {
 	}
 	print("\n}\n");
 }
-
-
-// ----------------------------------------------------------------------------
-// Blocks
-//
-// Syntactic constructs of the form:
-//
-//   "{" StatementList "}"
-//   ":" StatementList
-
-type Block struct {
-	Node;
-	List *array.Array;
-	End int;  // position of closing "}" if present
-}
-
-
-func NewBlock(pos, tok int) *Block {
-	assert(tok == Scanner.LBRACE || tok == Scanner.COLON);
-	b := new(Block);
-	b.Pos, b.Tok, b.List = pos, tok, array.New(0);
-	return b;
-}
-
-
-// ----------------------------------------------------------------------------
-// Expressions
-
-type Expr struct {
-	Node;
-	X, Y *Expr;  // binary (X, Y) and unary (Y) expressions
-	Obj *Object;  // identifiers, literals
-	Typ *Type;
-}
-
-
-// Length of a comma-separated expression list.
-func (x *Expr) Len() int {
-	if x == nil {
-		return 0;
-	}
-	n := 1;
-	for ; x.Tok == Scanner.COMMA; x = x.Y {
-		n++;
-	}
-	return n;
-}
-
-
-// The i'th expression in a comma-separated expression list.
-func (x *Expr) At(i int) *Expr {
-	for j := 0; j < i; j++ {
-		assert(x.Tok == Scanner.COMMA);
-		x = x.Y;
-	}
-	if x.Tok == Scanner.COMMA {
-		x = x.X;
-	}
-	return x;
-}
-
-
-func NewExpr(pos, tok int, x, y *Expr) *Expr {
-	if x != nil && x.Tok == Scanner.TYPE || y != nil && y.Tok == Scanner.TYPE {
-		panic("no type expression allowed");
-	}
-	e := new(Expr);
-	e.Pos, e.Tok, e.X, e.Y = pos, tok, x, y;
-	return e;
-}
-
-
-// TODO probably don't need the tok parameter eventually
-func NewLit(tok int, obj *Object) *Expr {
-	e := new(Expr);
-	e.Pos, e.Tok, e.Obj, e.Typ = obj.Pos, tok, obj, obj.Typ;
-	return e;
-}
-
-
-var BadExpr = NewExpr(0, Scanner.ILLEGAL, nil, nil);
 
 
 // ----------------------------------------------------------------------------
@@ -388,7 +286,7 @@ type Type struct {
 
 	// syntactic components
 	Pos int;  // source position (< 0 if unknown position)
-	Expr *Expr;  // type name, array length
+	Expr Expr;  // type name, array length
 	Mode int;  // channel mode
 	Key *Type;  // receiver type or map key
 	Elt *Type;  // type name type, array, map, channel or pointer element type, function result type
@@ -411,13 +309,200 @@ func NewType(pos, form int) *Type {
 }
 
 
+func (typ* Type) String() string {
+	if typ != nil {
+		return
+			"Type(" +
+			FormStr(typ.Form) +
+			")";
+	}
+	return "nil";
+}
+
+
+var BadType = NewType(0, Scanner.ILLEGAL);
+
+
+// ----------------------------------------------------------------------------
+// Blocks
+//
+// Syntactic constructs of the form:
+//
+//   "{" StatementList "}"
+//   ":" StatementList
+
+type Block struct {
+	Node;
+	List *array.Array;
+	End int;  // position of closing "}" if present
+}
+
+
+func NewBlock(pos, tok int) *Block {
+	assert(tok == Scanner.LBRACE || tok == Scanner.COLON);
+	b := new(Block);
+	b.Pos, b.Tok, b.List = pos, tok, array.New(0);
+	return b;
+}
+
+
+// ----------------------------------------------------------------------------
+// Expressions
+
+type (
+	Visitor interface;
+
+	Expr interface {
+		Pos() int;
+		Visit(v Visitor);
+	};
+
+	BadExpr struct {
+		Pos_ int;
+	};
+
+	Ident struct {
+		Pos_ int;
+		Obj *Object;
+	};
+
+	BinaryExpr struct {
+		Pos_, Tok int;
+		X, Y Expr;
+	};
+
+	UnaryExpr struct {
+		Pos_, Tok int;
+		X Expr;
+	};
+
+	BasicLit struct {
+		Pos_, Tok int;
+		Val string
+	};
+
+	FunctionLit struct {
+		Pos_ int;  // position of "func"
+		Typ *Type;
+		Body *Block;
+	};
+	
+	CompositeLit struct {
+		Pos_ int;  // position of "{"
+		Typ *Type;
+		Elts Expr;
+	};
+
+	TypeLit struct {
+		Typ *Type;
+	};
+
+	Selector struct {
+		Pos_ int;  // position of "."
+		X Expr;
+		Sel *Ident;
+	};
+
+	TypeGuard struct {
+		Pos_ int;  // position of "."
+		X Expr;
+		Typ *Type;
+	};
+
+	Index struct {
+		Pos_ int;  // position of "["
+		X, I Expr;
+	};
+	
+	Call struct {
+		Pos_ int;  // position of "("
+		F, Args Expr
+	};
+)
+
+
+type Visitor interface {
+	DoBadExpr(x *BadExpr);
+	DoIdent(x *Ident);
+	DoBinaryExpr(x *BinaryExpr);
+	DoUnaryExpr(x *UnaryExpr);
+	DoBasicLit(x *BasicLit);
+	DoFunctionLit(x *FunctionLit);
+	DoCompositeLit(x *CompositeLit);
+	DoTypeLit(x *TypeLit);
+	DoSelector(x *Selector);
+	DoTypeGuard(x *TypeGuard);
+	DoIndex(x *Index);
+	DoCall(x *Call);
+}
+
+
+func (x *BadExpr) Pos() int { return x.Pos_; }
+func (x *Ident) Pos() int { return x.Pos_; }
+func (x *BinaryExpr) Pos() int { return x.Pos_; }
+func (x *UnaryExpr) Pos() int { return x.Pos_; }
+func (x *BasicLit) Pos() int { return x.Pos_; }
+func (x *FunctionLit) Pos() int { return x.Pos_; }
+func (x *CompositeLit) Pos() int { return x.Pos_; }
+func (x *TypeLit) Pos() int { return x.Typ.Pos; }
+func (x *Selector) Pos() int { return x.Pos_; }
+func (x *TypeGuard) Pos() int { return x.Pos_; }
+func (x *Index) Pos() int { return x.Pos_; }
+func (x *Call) Pos() int { return x.Pos_; }
+
+
+func (x *BadExpr) Visit(v Visitor) { v.DoBadExpr(x); }
+func (x *Ident) Visit(v Visitor) { v.DoIdent(x); }
+func (x *BinaryExpr) Visit(v Visitor) { v.DoBinaryExpr(x); }
+func (x *UnaryExpr) Visit(v Visitor) { v.DoUnaryExpr(x); }
+func (x *BasicLit) Visit(v Visitor) { v.DoBasicLit(x); }
+func (x *FunctionLit) Visit(v Visitor) { v.DoFunctionLit(x); }
+func (x *CompositeLit) Visit(v Visitor) { v.DoCompositeLit(x); }
+func (x *TypeLit) Visit(v Visitor) { v.DoTypeLit(x); }
+func (x *Selector) Visit(v Visitor) { v.DoSelector(x); }
+func (x *TypeGuard) Visit(v Visitor) { v.DoTypeGuard(x); }
+func (x *Index) Visit(v Visitor) { v.DoIndex(x); }
+func (x *Call) Visit(v Visitor) { v.DoCall(x); }
+
+
+
+// Length of a comma-separated expression list.
+func ExprLen(x Expr) int {
+	if x == nil {
+		return 0;
+	}
+	n := 1;
+	for {
+		if p, ok := x.(*BinaryExpr); ok && p.Tok == Scanner.COMMA {
+			n++;
+			x = p.Y;
+		} else {
+			break;
+		}
+	}
+	return n;
+}
+
+
+func ExprAt(x Expr, i int) Expr {
+	for j := 0; j < i; j++ {
+		assert(x.(*BinaryExpr).Tok == Scanner.COMMA);
+		x = x.(*BinaryExpr).Y;
+	}
+	if t, is_binary := x.(*BinaryExpr); is_binary && t.Tok == Scanner.COMMA {
+		x = t.X;
+	}
+	return x;
+}
+
+
 func (t *Type) Nfields() int {
 	if t.List == nil {
 		return 0;
 	}
 	nx, nt := 0, 0;
 	for i, n := 0, t.List.Len(); i < n; i++ {
-		if t.List.At(i).(*Expr).Tok == Scanner.TYPE {
+		if dummy, ok := t.List.At(i).(*TypeLit); ok {
 			nt++;
 		} else {
 			nx++;
@@ -430,51 +515,13 @@ func (t *Type) Nfields() int {
 }
 
 
-func (typ* Type) String() string {
-	if typ != nil {
-		return
-			"Type(" +
-			FormStr(typ.Form) +
-			")";
-	}
-	return "nil";
-}
-
-
-// requires complete Type.Pos access
-func NewTypeExpr(typ *Type) *Expr {
-	e := new(Expr);
-	e.Pos, e.Tok, e.Typ = typ.Pos, Scanner.TYPE, typ;
-	return e;
-}
-
-
-// requires complete Type.String access
-func (x *Expr) String() string {
-	if x != nil {
-		return
-			"Expr(" +
-			Scanner.TokenString(x.Tok) + ", " +
-			x.X.String() + ", " +
-			x.Y.String() + ", " +
-			x.Obj.String() + ", " +
-			x.Typ.String() +
-			")";
-	}
-	return "nil";
-}
-
-
-var BadType = NewType(0, Scanner.ILLEGAL);
-
-
 // ----------------------------------------------------------------------------
 // Statements
 
 type Stat struct {
 	Node;
 	Init, Post *Stat;
-	Expr *Expr;
+	Expr Expr;
 	Body *Block;  // composite statement body
 	Decl *Decl;  // declaration statement
 }
@@ -495,9 +542,10 @@ var BadStat = NewStat(0, Scanner.ILLEGAL);
 
 type Decl struct {
 	Node;
-	Ident *Expr;  // nil for ()-style declarations
+	Ident Expr;  // nil for ()-style declarations
 	Typ *Type;
-	Val *Expr;
+	Val Expr;
+	Body *Block;
 	// list of *Decl for ()-style declarations
 	List *array.Array; End int;
 }
@@ -531,7 +579,7 @@ func NewComment(pos int, text string) *Comment {
 
 type Program struct {
 	Pos int;  // tok is Scanner.PACKAGE
-	Ident *Expr;
+	Ident Expr;
 	Decls *array.Array;
 	Comments *array.Array;
 }
