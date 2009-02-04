@@ -117,9 +117,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 =========== chan/nonblock.go
 PASS
 
-=========== bugs/bug041.go
-bugs/bug041.go:5: export of incomplete type t
-
 =========== bugs/bug064.go
 bugs/bug064.go:15: illegal types for operand: CALL
 	int
@@ -134,12 +131,6 @@ BUG: fails incorrectly
 bugs/bug087.go:8: illegal combination of literals LEN 9
 bugs/bug087.go:8: illegal combination of literals LEN 9
 BUG: fails incorrectly
-
-=========== bugs/bug105.go
-bugs/bug105.go:8: P: undefined
-bugs/bug105.go:8: illegal types for operand: RETURN
-	int
-BUG: should compile
 
 =========== bugs/bug108.go
 bugs/bug108.go:4: stupid shift: 1025
@@ -208,6 +199,9 @@ fixedbugs/bug037.go:6: illegal types for operand: AS
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: variable x redeclared in this block
 	previous declaration at fixedbugs/bug039.go:5
+
+=========== fixedbugs/bug041.go
+fixedbugs/bug041.go:5: export of incomplete type t
 
 =========== fixedbugs/bug049.go
 fixedbugs/bug049.go:6: illegal conversion of nil to string
