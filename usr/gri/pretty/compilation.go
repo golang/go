@@ -158,6 +158,8 @@ func fileExists(name string) bool {
 
 
 func addDeps(globalset map [string] bool, wset *array.Array, src_file string, flags *Flags) {
+	panic();
+	/*
 	dummy, found := globalset[src_file];
 	if !found {
 		globalset[src_file] = true;
@@ -198,6 +200,7 @@ func addDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
 			print("\n\n");
 		}
 	}
+	*/
 }
 
 
