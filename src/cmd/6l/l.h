@@ -150,7 +150,6 @@ enum
 	SFILE,
 	SCONST,
 	SUNDEF,
-	SOPT,
 
 	SIMPORT,
 	SEXPORT,
@@ -386,7 +385,6 @@ void	ckoff(Sym*, int32);
 Prog*	copyp(Prog*);
 double	cputime(void);
 void	datblk(int32, int32);
-void	ignoreoptfuncs(void);
 void	deadcode(void);
 void	definetypestrings(void);
 void	definetypesigs(void);

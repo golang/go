@@ -368,7 +368,6 @@ main(int argc, char *argv[])
 		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
 		objfile(a);
 	}
-	ignoreoptfuncs();
 	definetypestrings();
 	definetypesigs();
 	deadcode();
@@ -950,11 +949,8 @@ loop:
 		if(debug['W'])
 			print("	ANAME	%s\n", s->name);
 		h[o] = s;
-		if((v == D_EXTERN || v == D_STATIC) && s->type == 0) {
+		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
 			s->type = SXREF;
-			if(isinitfunc(s))
-				s->type = SOPT;	// optional function; don't pull in an object file just for s.
-		}
 		if(v == D_FILE) {
 			if(s->type != SFILE) {
 				histgen++;
@@ -1096,7 +1092,7 @@ loop:
 
 	case ATEXT:
 		s = p->from.sym;
-		if(ntext++ == 0 && s->type != 0 && s->type != SXREF && s->type != SOPT) {
+		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
 			/* redefinition, so file has probably been seen before */
 			if(debug['v'])
 				Bprint(&bso, "skipping: %s: redefinition: %s", pn, s->name);
@@ -1113,7 +1109,7 @@ loop:
 			diag("%s: no TEXT symbol: %P", pn, p);
 			errorexit();
 		}
-		if(s->type != 0 && s->type != SXREF && s->type != SOPT) {
+		if(s->type != 0 && s->type != SXREF) {
 			if(p->from.scale & DUPOK) {
 				skip = 1;
 				goto casdef;
