@@ -5,6 +5,7 @@
 package Parser
 
 import (
+	"flag";
 	"fmt";
 	"array";
 	Scanner "scanner";
@@ -80,6 +81,13 @@ func (P *Parser) Ecart() {
 	P.indent--;
 	P.PrintIndent();
 	fmt.Printf("}\n");
+}
+
+
+func (P *Parser) VerifyIndent(indent uint) {
+	if indent != P.indent {
+		panic("imbalanced tracing code");
+	}
 }
 
 
@@ -247,7 +255,8 @@ func (P *Parser) NewBinary(pos, tok int, x, y AST.Expr) *AST.BinaryExpr {
 
 func (P *Parser) TryType() *AST.Type;
 func (P *Parser) ParseExpression(prec int) AST.Expr;
-func (P *Parser) ParseStatement() *AST.Stat;
+func (P *Parser) ParseStatement() AST.Stat;
+func (P *Parser) OldParseStatement() *AST.StatImpl;
 func (P *Parser) ParseDeclaration() *AST.Decl;
 
 
@@ -746,14 +755,24 @@ func (P *Parser) TryType() *AST.Type {
 // ----------------------------------------------------------------------------
 // Blocks
 
+
+var newstat = flag.Bool("newstat", false, "use new statement parsing - work in progress");
+
+
 func (P *Parser) ParseStatementList(list *array.Array) {
 	if P.verbose {
 		P.Trace("StatementList");
 		defer P.Ecart();
+		defer P.VerifyIndent(P.indent);
 	}
 
 	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
-		s := P.ParseStatement();
+		var s interface{};
+		if *newstat {
+			s = P.ParseStatement();
+		} else {
+			s = P.OldParseStatement();
+		}
 		if s != nil {
 			// not the empty statement
 			list.Push(s);
@@ -1133,31 +1152,93 @@ func (P *Parser) ParseExpression(prec int) AST.Expr {
 	if P.verbose {
 		P.Trace("Expression");
 		defer P.Ecart();
+		defer P.VerifyIndent(P.indent);
 	}
 
-	indent := P.indent;
 	if prec < 0 {
 		panic("precedence must be >= 0");
 	}
-	x := P.NoType(P.ParseBinaryExpr(prec));
-	if indent != P.indent {
-		panic("imbalanced tracing code (Expression)");
-	}
 
-	return x;
+	return P.NoType(P.ParseBinaryExpr(prec));
 }
 
 
 // ----------------------------------------------------------------------------
 // Statements
 
-func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
+func (P *Parser) ParseSimpleStat(range_ok bool) AST.Stat {
 	if P.verbose {
 		P.Trace("SimpleStat");
 		defer P.Ecart();
 	}
 
-	s := AST.BadStat;
+	x := P.ParseExpressionList();
+
+	switch P.tok {
+	case Scanner.COLON:
+		// label declaration
+		pos := P.pos;
+		P.Next();  // consume ":"
+		if AST.ExprLen(x) == 1 {
+			if label, is_ident := x.(*AST.Ident); is_ident {
+				return &AST.LabelDecl{pos, label};
+			}
+		}
+		P.Error(x.Pos(), "illegal label declaration");
+		return nil;
+		
+	case
+		Scanner.DEFINE, Scanner.ASSIGN, Scanner.ADD_ASSIGN,
+		Scanner.SUB_ASSIGN, Scanner.MUL_ASSIGN, Scanner.QUO_ASSIGN,
+		Scanner.REM_ASSIGN, Scanner.AND_ASSIGN, Scanner.OR_ASSIGN,
+		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
+		// declaration/assignment
+		pos, tok := P.pos, P.tok;
+		P.Next();
+		var y AST.Expr;
+		if range_ok && P.tok == Scanner.RANGE {
+			range_pos := P.pos;
+			P.Next();
+			y = &AST.UnaryExpr{range_pos, Scanner.RANGE, P.ParseExpression(1)};
+			if tok != Scanner.DEFINE && tok != Scanner.ASSIGN {
+				P.Error(pos, "expected '=' or ':=', found '" + Scanner.TokenString(tok) + "'");
+			}
+		} else {
+			y = P.ParseExpressionList();
+			if xl, yl := AST.ExprLen(x), AST.ExprLen(y); xl > 1 && yl > 1 && xl != yl {
+				P.Error(x.Pos(), "arity of lhs doesn't match rhs");
+			}
+		}
+		// TODO changed ILLEGAL -> NONE
+		return &AST.ExpressionStat{x.Pos(), Scanner.ILLEGAL, P.NewBinary(pos, tok, x, y)};
+		
+	default:
+		if AST.ExprLen(x) != 1 {
+			P.Error(x.Pos(), "only one expression allowed");
+		}
+		
+		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
+			s := &AST.ExpressionStat{P.pos, P.tok, x};
+			P.Next();  // consume "++" or "--"
+			return s;
+		}
+		
+		// TODO changed ILLEGAL -> NONE
+		return &AST.ExpressionStat{x.Pos(), Scanner.ILLEGAL, x};
+	}
+
+	unreachable();
+	return nil;
+}
+
+
+func (P *Parser) OldParseSimpleStat(range_ok bool) *AST.StatImpl {
+	if P.verbose {
+		P.Trace("SimpleStat");
+		defer P.Ecart();
+	}
+
+	s := AST.OldBadStat;
 	x := P.ParseExpressionList();
 
 	switch P.tok {
@@ -1180,7 +1261,7 @@ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
 		pos, tok := P.pos, P.tok;
 		P.Next();
 		var y AST.Expr = &AST.BadExpr{pos};
-		if P.tok == Scanner.RANGE {
+		if range_ok && P.tok == Scanner.RANGE {
 			range_pos := P.pos;
 			P.Next();
 			y = P.ParseExpression(1);
@@ -1197,14 +1278,6 @@ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
 		s = AST.NewStat(x.Pos(), Scanner.EXPRSTAT);
 		s.Expr = P.NewBinary(pos, tok, x, y);
 		
-	case Scanner.RANGE:
-		pos := P.pos;
-		P.Next();
-		y := P.ParseExpression(1);
-		y = &AST.UnaryExpr{pos, Scanner.RANGE, y};
-		s = AST.NewStat(x.Pos(), Scanner.EXPRSTAT);
-		s.Expr = P.NewBinary(pos, Scanner.DEFINE, x, y);
-
 	default:
 		var pos, tok int;
 		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
@@ -1225,7 +1298,19 @@ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
 }
 
 
-func (P *Parser) ParseInvocationStat(keyword int) *AST.Stat {
+func (P *Parser) ParseInvocationStat(keyword int) *AST.ExpressionStat {
+	if P.verbose {
+		P.Trace("InvocationStat");
+		defer P.Ecart();
+	}
+
+	pos := P.pos;
+	P.Expect(keyword);
+	return &AST.ExpressionStat{pos, keyword, P.ParseExpression(1)};
+}
+
+
+func (P *Parser) OldParseInvocationStat(keyword int) *AST.StatImpl {
 	if P.verbose {
 		P.Trace("InvocationStat");
 		defer P.Ecart();
@@ -1239,7 +1324,24 @@ func (P *Parser) ParseInvocationStat(keyword int) *AST.Stat {
 }
 
 
-func (P *Parser) ParseReturnStat() *AST.Stat {
+func (P *Parser) ParseReturnStat() *AST.ExpressionStat {
+	if P.verbose {
+		P.Trace("ReturnStat");
+		defer P.Ecart();
+	}
+
+	pos := P.pos;
+	P.Expect(Scanner.RETURN);
+	var x AST.Expr;
+	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
+		x = P.ParseExpressionList();
+	}
+
+	return &AST.ExpressionStat{pos, Scanner.RETURN, x};
+}
+
+
+func (P *Parser) OldParseReturnStat() *AST.StatImpl {
 	if P.verbose {
 		P.Trace("ReturnStat");
 		defer P.Ecart();
@@ -1255,7 +1357,7 @@ func (P *Parser) ParseReturnStat() *AST.Stat {
 }
 
 
-func (P *Parser) ParseControlFlowStat(tok int) *AST.Stat {
+func (P *Parser) ParseControlFlowStat(tok int) *AST.StatImpl {
 	if P.verbose {
 		P.Trace("ControlFlowStat");
 		defer P.Ecart();
@@ -1271,7 +1373,47 @@ func (P *Parser) ParseControlFlowStat(tok int) *AST.Stat {
 }
 
 
-func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
+func (P *Parser) ParseControlClause(isForStat bool) (init AST.Stat, expr AST.Expr, post AST.Stat) {
+	if P.verbose {
+		P.Trace("ControlClause");
+		defer P.Ecart();
+	}
+
+	if P.tok != Scanner.LBRACE {
+		prev_lev := P.expr_lev;
+		P.expr_lev = -1;
+		if P.tok != Scanner.SEMICOLON {
+			init = P.ParseSimpleStat(isForStat);
+			// TODO check for range clause and exit if found
+		}
+		if P.tok == Scanner.SEMICOLON {
+			P.Next();
+			if P.tok != Scanner.SEMICOLON && P.tok != Scanner.LBRACE {
+				expr = P.ParseExpression(1);
+			}
+			if isForStat {
+				P.Expect(Scanner.SEMICOLON);
+				if P.tok != Scanner.LBRACE {
+					post = P.ParseSimpleStat(false);
+				}
+			}
+		} else {
+			if init != nil {  // guard in case of errors
+				if s, is_expr_stat := init.(*AST.ExpressionStat); is_expr_stat {
+					expr, init = s.Expr, nil;
+				} else {
+					P.Error(0, "illegal control clause");
+				}
+			}
+		}
+		P.expr_lev = prev_lev;
+	}
+
+	return init, expr, post;
+}
+
+
+func (P *Parser) OldParseControlClause(keyword int) *AST.StatImpl {
 	if P.verbose {
 		P.Trace("ControlClause");
 		defer P.Ecart();
@@ -1283,7 +1425,7 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
 		prev_lev := P.expr_lev;
 		P.expr_lev = -1;
 		if P.tok != Scanner.SEMICOLON {
-			s.Init = P.ParseSimpleStat(keyword == Scanner.FOR);
+			s.Init = P.OldParseSimpleStat(keyword == Scanner.FOR);
 			// TODO check for range clause and exit if found
 		}
 		if P.tok == Scanner.SEMICOLON {
@@ -1294,7 +1436,7 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
 			if keyword == Scanner.FOR {
 				P.Expect(Scanner.SEMICOLON);
 				if P.tok != Scanner.LBRACE {
-					s.Post = P.ParseSimpleStat(false);
+					s.Post = P.OldParseSimpleStat(false);
 				}
 			}
 		} else {
@@ -1309,22 +1451,61 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
 }
 
 
-func (P *Parser) ParseIfStat() *AST.Stat {
+func (P *Parser) ParseIfStat() *AST.IfStat {
 	if P.verbose {
 		P.Trace("IfStat");
 		defer P.Ecart();
 	}
 
 	P.OpenScope();
-	s := P.ParseControlClause(Scanner.IF);
+	pos := P.pos;
+	P.Expect(Scanner.IF);
+	init, cond, dummy := P.ParseControlClause(false);
+	body := P.ParseBlock(nil, Scanner.LBRACE);
+	var else_ AST.Stat;
+	if P.tok == Scanner.ELSE {
+		P.Next();
+		if P.tok == Scanner.IF || P.tok == Scanner.LBRACE {
+			else_ = P.ParseStatement();
+		} else if P.sixg {
+			else_ = P.ParseStatement();
+			if else_ != nil {
+				// not the empty statement
+				// wrap in a block since we don't have one
+				panic();
+				/*
+				b := AST.NewStat(s1.Pos, Scanner.LBRACE);
+				b.Body = AST.NewBlock(s1.Pos, Scanner.LBRACE);
+				b.Body.List.Push(s1);
+				s1 = b;
+				*/
+			}
+		} else {
+			P.Error(P.pos, "'if' or '{' expected - illegal 'else' branch");
+		}
+	}
+	P.CloseScope();
+
+	return &AST.IfStat{pos, init, cond, body, else_ };
+}
+
+
+func (P *Parser) OldParseIfStat() *AST.StatImpl {
+	if P.verbose {
+		P.Trace("IfStat");
+		defer P.Ecart();
+	}
+
+	P.OpenScope();
+	s := P.OldParseControlClause(Scanner.IF);
 	s.Body = P.ParseBlock(nil, Scanner.LBRACE);
 	if P.tok == Scanner.ELSE {
 		P.Next();
-		s1 := AST.BadStat;
+		s1 := AST.OldBadStat;
 		if P.tok == Scanner.IF || P.tok == Scanner.LBRACE {
-			s1 = P.ParseStatement();
+			s1 = P.OldParseStatement();
 		} else if P.sixg {
-			s1 = P.ParseStatement();
+			s1 = P.OldParseStatement();
 			if s1 != nil {
 				// not the empty statement
 				assert(s1.Tok != Scanner.LBRACE);
@@ -1345,14 +1526,31 @@ func (P *Parser) ParseIfStat() *AST.Stat {
 }
 
 
-func (P *Parser) ParseForStat() *AST.Stat {
+func (P *Parser) ParseForStat() *AST.ForStat {
 	if P.verbose {
 		P.Trace("ForStat");
 		defer P.Ecart();
 	}
 
 	P.OpenScope();
-	s := P.ParseControlClause(Scanner.FOR);
+	pos := P.pos;
+	P.Expect(Scanner.FOR);
+	init, cond, post := P.ParseControlClause(true);
+	body := P.ParseBlock(nil, Scanner.LBRACE);
+	P.CloseScope();
+
+	return &AST.ForStat{pos, init, cond, post, body};
+}
+
+
+func (P *Parser) OldParseForStat() *AST.StatImpl {
+	if P.verbose {
+		P.Trace("ForStat");
+		defer P.Ecart();
+	}
+
+	P.OpenScope();
+	s := P.OldParseControlClause(Scanner.FOR);
 	s.Body = P.ParseBlock(nil, Scanner.LBRACE);
 	P.CloseScope();
 
@@ -1360,7 +1558,7 @@ func (P *Parser) ParseForStat() *AST.Stat {
 }
 
 
-func (P *Parser) ParseSwitchCase() *AST.Stat {
+func (P *Parser) ParseSwitchCase() *AST.StatImpl {
 	if P.verbose {
 		P.Trace("SwitchCase");
 		defer P.Ecart();
@@ -1378,7 +1576,7 @@ func (P *Parser) ParseSwitchCase() *AST.Stat {
 }
 
 
-func (P *Parser) ParseCaseClause() *AST.Stat {
+func (P *Parser) ParseCaseClause() *AST.StatImpl {
 	if P.verbose {
 		P.Trace("CaseClause");
 		defer P.Ecart();
@@ -1391,14 +1589,38 @@ func (P *Parser) ParseCaseClause() *AST.Stat {
 }
 
 
-func (P *Parser) ParseSwitchStat() *AST.Stat {
+func (P *Parser) ParseSwitchStat() *AST.SwitchStat {
 	if P.verbose {
 		P.Trace("SwitchStat");
 		defer P.Ecart();
 	}
 
 	P.OpenScope();
-	s := P.ParseControlClause(Scanner.SWITCH);
+	pos := P.pos;
+	P.Expect(Scanner.SWITCH);
+	init, tag, post := P.ParseControlClause(false);
+	body := AST.NewBlock(P.pos, Scanner.LBRACE);
+	P.Expect(Scanner.LBRACE);
+	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+		body.List.Push(P.ParseCaseClause());
+	}
+	body.End = P.pos;
+	P.Expect(Scanner.RBRACE);
+	P.opt_semi = true;
+	P.CloseScope();
+
+	return &AST.SwitchStat{pos, init, tag, body};
+}
+
+
+func (P *Parser) OldParseSwitchStat() *AST.StatImpl {
+	if P.verbose {
+		P.Trace("SwitchStat");
+		defer P.Ecart();
+	}
+
+	P.OpenScope();
+	s := P.OldParseControlClause(Scanner.SWITCH);
 	b := AST.NewBlock(P.pos, Scanner.LBRACE);
 	P.Expect(Scanner.LBRACE);
 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
@@ -1414,7 +1636,7 @@ func (P *Parser) ParseSwitchStat() *AST.Stat {
 }
 
 
-func (P *Parser) ParseCommCase() *AST.Stat {
+func (P *Parser) ParseCommCase() *AST.StatImpl {
 	if P.verbose {
 		P.Trace("CommCase");
 		defer P.Ecart();
@@ -1443,7 +1665,7 @@ func (P *Parser) ParseCommCase() *AST.Stat {
 }
 
 
-func (P *Parser) ParseCommClause() *AST.Stat {
+func (P *Parser) ParseCommClause() *AST.StatImpl {
 	if P.verbose {
 		P.Trace("CommClause");
 		defer P.Ecart();
@@ -1456,12 +1678,36 @@ func (P *Parser) ParseCommClause() *AST.Stat {
 }
 
 
-func (P *Parser) ParseSelectStat() *AST.Stat {
+func (P *Parser) ParseSelectStat() *AST.SelectStat {
 	if P.verbose {
 		P.Trace("SelectStat");
 		defer P.Ecart();
 	}
 
+	P.OpenScope();
+	pos := P.pos;
+	P.Expect(Scanner.SELECT);
+	body := AST.NewBlock(P.pos, Scanner.LBRACE);
+	P.Expect(Scanner.LBRACE);
+	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+		body.List.Push(P.ParseCommClause());
+	}
+	body.End = P.pos;
+	P.Expect(Scanner.RBRACE);
+	P.opt_semi = true;
+	P.CloseScope();
+
+	return &AST.SelectStat{pos, body};
+}
+
+
+func (P *Parser) OldParseSelectStat() *AST.StatImpl {
+	if P.verbose {
+		P.Trace("SelectStat");
+		defer P.Ecart();
+	}
+
+	P.OpenScope();
 	s := AST.NewStat(P.pos, Scanner.SELECT);
 	P.Expect(Scanner.SELECT);
 	b := AST.NewBlock(P.pos, Scanner.LBRACE);
@@ -1472,20 +1718,66 @@ func (P *Parser) ParseSelectStat() *AST.Stat {
 	b.End = P.pos;
 	P.Expect(Scanner.RBRACE);
 	P.opt_semi = true;
+	P.CloseScope();
 	s.Body = b;
 
 	return s;
 }
 
 
-func (P *Parser) ParseStatement() *AST.Stat {
+func (P *Parser) ParseStatement() AST.Stat {
 	if P.verbose {
 		P.Trace("Statement");
 		defer P.Ecart();
+		defer P.VerifyIndent(P.indent);
 	}
-	indent := P.indent;
 
-	s := AST.BadStat;
+	s := AST.OldBadStat;
+	switch P.tok {
+	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+		return &AST.DeclarationStat{P.ParseDeclaration()};
+	case Scanner.FUNC:
+		// for now we do not allow local function declarations,
+		// instead we assume this starts a function literal
+		fallthrough;
+	case
+		// only the tokens that are legal top-level expression starts
+		Scanner.IDENT, Scanner.INT, Scanner.FLOAT, Scanner.STRING, Scanner.LPAREN,  // operand
+		Scanner.LBRACK, Scanner.STRUCT,  // composite type
+		Scanner.MUL, Scanner.AND, Scanner.ARROW:  // unary
+		return P.ParseSimpleStat(false);
+	case Scanner.GO, Scanner.DEFER:
+		return P.ParseInvocationStat(P.tok);
+	case Scanner.RETURN:
+		return P.ParseReturnStat();
+	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO, Scanner.FALLTHROUGH:
+		s = P.ParseControlFlowStat(P.tok);
+	case Scanner.LBRACE:
+		s = AST.NewStat(P.pos, Scanner.LBRACE);
+		s.Body = P.ParseBlock(nil, Scanner.LBRACE);
+	case Scanner.IF:
+		return P.ParseIfStat();
+	case Scanner.FOR:
+		return P.ParseForStat();
+	case Scanner.SWITCH:
+		return P.ParseSwitchStat();
+	case Scanner.SELECT:
+		return P.ParseSelectStat();
+	}
+
+	// empty statement
+	return nil;
+}
+
+
+func (P *Parser) OldParseStatement() *AST.StatImpl {
+	if P.verbose {
+		P.Trace("Statement");
+		defer P.Ecart();
+		defer P.VerifyIndent(P.indent);
+	}
+
+	s := AST.OldBadStat;
 	switch P.tok {
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
 		s = AST.NewStat(P.pos, P.tok);
@@ -1499,32 +1791,29 @@ func (P *Parser) ParseStatement() *AST.Stat {
 		Scanner.IDENT, Scanner.INT, Scanner.FLOAT, Scanner.STRING, Scanner.LPAREN,  // operand
 		Scanner.LBRACK, Scanner.STRUCT,  // composite type
 		Scanner.MUL, Scanner.AND, Scanner.ARROW:  // unary
-		s = P.ParseSimpleStat(false);
+		s = P.OldParseSimpleStat(false);
 	case Scanner.GO, Scanner.DEFER:
-		s = P.ParseInvocationStat(P.tok);
+		s = P.OldParseInvocationStat(P.tok);
 	case Scanner.RETURN:
-		s = P.ParseReturnStat();
+		s = P.OldParseReturnStat();
 	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO, Scanner.FALLTHROUGH:
 		s = P.ParseControlFlowStat(P.tok);
 	case Scanner.LBRACE:
 		s = AST.NewStat(P.pos, Scanner.LBRACE);
 		s.Body = P.ParseBlock(nil, Scanner.LBRACE);
 	case Scanner.IF:
-		s = P.ParseIfStat();
+		s = P.OldParseIfStat();
 	case Scanner.FOR:
-		s = P.ParseForStat();
+		s = P.OldParseForStat();
 	case Scanner.SWITCH:
-		s = P.ParseSwitchStat();
+		s = P.OldParseSwitchStat();
 	case Scanner.SELECT:
-		s = P.ParseSelectStat();
+		s = P.OldParseSelectStat();
 	default:
 		// empty statement
 		s = nil;
 	}
 
-	if indent != P.indent {
-		panic("imbalanced tracing code (Statement)");
-	}
 	return s;
 }
 
@@ -1719,6 +2008,7 @@ func (P *Parser) ParseDeclaration() *AST.Decl {
 	if P.verbose {
 		P.Trace("Declaration");
 		defer P.Ecart();
+		defer P.VerifyIndent(P.indent);
 	}
 	indent := P.indent;
 
@@ -1734,9 +2024,6 @@ func (P *Parser) ParseDeclaration() *AST.Decl {
 		P.Next();  // make progress
 	}
 
-	if indent != P.indent {
-		panic("imbalanced tracing code (Declaration)");
-	}
 	return d;
 }
 
