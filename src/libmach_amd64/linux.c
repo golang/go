@@ -41,6 +41,31 @@
 #include <ureg_amd64.h>
 #undef waitpid
 
+// The old glibc used with crosstool compilers on thresher
+// doesn't know these numbers, but the Linux kernel
+// had them as far back as 2.6.0.
+#ifndef WSTOPPED
+#define WSTOPPED 2
+#define WCONTINUED 8
+#define WIFCONTINUED(x) ((x) == 0xffff)
+#endif
+#ifndef PTRACE_SETOPTIONS
+#define PTRACE_SETOPTIONS 0x4200
+#define PTRACE_GETEVENTMSG 0x4201
+#define PTRACE_O_TRACEFORK 0x2
+#define PTRACE_O_TRACEVFORK 0x4
+#define PTRACE_O_TRACECLONE 0x8
+#define PTRACE_O_TRACEEXEC 0x10
+#define PTRACE_O_TRACEVFORKDONE 0x20
+#define PTRACE_O_TRACEEXIT 0x40
+#define PTRACE_EVENT_FORK 0x1
+#define PTRACE_EVENT_VFORK 0x2
+#define PTRACE_EVENT_CLONE 0x3
+#define PTRACE_EVENT_EXEC 0x4
+#define PTRACE_EVENT_VFORK_DONE 0x5
+#define PTRACE_EVENT_EXIT 0x6
+#endif
+
 typedef struct Ureg Ureg;
 
 static Maprw ptracesegrw;
