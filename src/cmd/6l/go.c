@@ -503,22 +503,6 @@ isinitfunc(Sym *s)
 	return 0;
 }
 
-void
-ignoreoptfuncs(void)
-{
-	Prog *p;
-
-	// nop out calls to optional functions
-	// that were not pulled in from libraries.
-	for(p=firstp; p != P; p=p->link) {
-		if(p->to.sym != S && p->to.sym->type == SOPT) {
-			if(p->as != ACALL)
-				diag("bad use of optional function: %P", p);
-			nopout(p);
-		}
-	}
-}
-
 static void mark(Sym*);
 static int markdepth;
 
