@@ -1905,8 +1905,8 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
 	if(l != T && r != N
 	&& structnext(&peekl) != T
 	&& listnext(&peekr) == N
-	&& eqtype(r->type, *nl, 0))
-		return convas(nod(OAS, nodarg(*nl, fp), r));
+	&& eqtypenoname(r->type, *nl))
+		return convas(nod(OAS, nodarg(r->type, fp), r));
 
 loop:
 	if(l != T && isddd(l->type)) {

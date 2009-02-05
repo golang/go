@@ -1742,6 +1742,25 @@ eqtype(Type *t1, Type *t2, int d)
 	return eqtype(t1->type, t2->type, d+1);
 }
 
+int
+eqtypenoname(Type *t1, Type *t2)
+{
+	if(t1 == T || t2 == T || t1->etype != TSTRUCT || t2->etype != TSTRUCT)
+		return eqtype(t1, t2, 0);
+
+
+	t1 = t1->type;
+	t2 = t2->type;
+	for(;;) {
+		if(!eqtype(t1, t2, 1))
+			return 0;
+		if(t1 == T)
+			return 1;
+		t1 = t1->down;
+		t2 = t2->down;
+	}
+}
+
 static int
 subtype(Type **stp, Type *t, int d)
 {

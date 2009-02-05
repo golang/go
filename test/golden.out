@@ -117,12 +117,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 =========== chan/nonblock.go
 PASS
 
-=========== bugs/bug064.go
-bugs/bug064.go:15: illegal types for operand: CALL
-	int
-	struct { u int; v int }
-BUG: compilation should succeed
-
 =========== bugs/bug085.go
 bugs/bug085.go:8: P: undefined
 BUG: fails incorrectly
