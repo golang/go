@@ -7,11 +7,11 @@
 package main
 
 func out_escapes() (x int, p *int) {
-	p = &x;	// ERROR "address.*out parameter"
+	p = &x;	// ERROR "address of out parameter"
 	return;
 }
 
-func out_escapes() (x int, p *int) {
-	return 2, &x;	// ERROR "address.*out parameter"
+func out_escapes_2() (x int, p *int) {
+	return 2, &x;	// ERROR "address of out parameter"
 }
 
