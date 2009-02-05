@@ -220,24 +220,11 @@ func (c *Conn) Hijack() (fd io.ReadWriteClose, buf *bufio.BufReadWrite, err *os.
 	return;
 }
 
-// Adapter: can use RequestFunction(f) as Handler
-type handlerFunc struct {
-	f func(*Conn, *Request)
-}
-func (h handlerFunc) ServeHTTP(c *Conn, req *Request) {
-	h.f(c, req)
-}
-func HandlerFunc(f func(*Conn, *Request)) Handler {
-	return handlerFunc{f}
-}
-
-/* simpler version of above, not accepted by 6g:
-
+// Adapter: can use HandlerFunc(f) as Handler
 type HandlerFunc func(*Conn, *Request)
 func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
 	f(c, req);
 }
-*/
 
 // Helper handlers
 
