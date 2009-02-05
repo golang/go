@@ -1050,6 +1050,11 @@ fninit(Node *n)
 	uint32 h;
 	Sym *s;
 
+	if(strcmp(package, "PACKAGE") == 0) {
+		// sys.go or unsafe.go during compiler build
+		return;
+	}
+
 	r = N;
 
 	// (1)

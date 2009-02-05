@@ -59,12 +59,10 @@ char *sysimport =
 	"func sys.Goexit ()\n"
 	"func sys.Exit (? int)\n"
 	"func sys.Caller (n int) (pc uint64, file string, line int, ok bool)\n"
-	"func sys.Init·sys ()\n"
 	"\n"
 	"$$\n";
 char *unsafeimport =
 	"package unsafe\n"
 	"type unsafe.Pointer *any\n"
-	"func unsafe.Init·unsafe ()\n"
 	"\n"
 	"$$\n";
