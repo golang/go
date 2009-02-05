@@ -727,20 +727,10 @@ func (P *Printer) Stat(s AST.Stat) {
 }
 
 
-func (P *Printer) StatImpl(s *AST.StatImpl)
-
 func (P *Printer) StatementList(list *array.Array) {
 	for i, n := 0, list.Len(); i < n; i++ {
 		P.newlines = 1;  // for first entry
-		
-		if s, is_StatImpl := list.At(i).(*AST.StatImpl); is_StatImpl {
-			P.StatImpl(s);
-		} else if s, is_Stat := list.At(i).(AST.Stat); is_Stat {
-			s.Visit(P);
-		} else {
-			panic();
-		}
-
+		list.At(i).(AST.Stat).Visit(P);
 		P.newlines = 1;
 		P.state = inside_list;
 	}
@@ -769,119 +759,7 @@ func (P *Printer) Block(b *AST.Block, indent bool) {
 }
 
 
-func (P *Printer) OldControlClause(s *AST.StatImpl) {
-	has_post := s.Tok == Scanner.FOR && s.Post != nil;  // post also used by "if"
-
-	P.separator = blank;
-	if s.Init == nil && !has_post {
-		// no semicolons required
-		if s.Expr != nil {
-			P.Expr(s.Expr);
-		}
-	} else {
-		// all semicolons required
-		// (they are not separators, print them explicitly)
-		if s.Init != nil {
-			P.StatImpl(s.Init);
-			P.separator = none;
-		}
-		P.String(0, ";");
-		P.separator = blank;
-		if s.Expr != nil {
-			P.Expr(s.Expr);
-			P.separator = none;
-		}
-		if s.Tok == Scanner.FOR {
-			P.String(0, ";");
-			P.separator = blank;
-			if has_post {
-				P.StatImpl(s.Post);
-			}
-		}
-	}
-	P.separator = blank;
-}
-
-
 func (P *Printer) Declaration(d *AST.Decl, parenthesized bool);
-
-func (P *Printer) StatImpl(s *AST.StatImpl) {
-	switch s.Tok {
-	case Scanner.EXPRSTAT:
-		// expression statement
-		P.Expr(s.Expr);
-		P.separator = semicolon;
-
-	case Scanner.COLON:
-		// label declaration
-		P.indentation--;
-		P.Expr(s.Expr);
-		P.Token(s.Pos, s.Tok);
-		P.indentation++;
-		P.separator = none;
-
-	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
-		// declaration
-		P.Declaration(s.Decl, false);
-
-	case Scanner.INC, Scanner.DEC:
-		P.Expr(s.Expr);
-		P.Token(s.Pos, s.Tok);
-		P.separator = semicolon;
-
-	case Scanner.LBRACE:
-		// block
-		P.Block(s.Body, true);
-
-	case Scanner.IF:
-		P.String(s.Pos, "if");
-		P.OldControlClause(s);
-		P.Block(s.Body, true);
-		if s.Post != nil {
-			P.separator = blank;
-			P.String(0, "else");
-			P.separator = blank;
-			P.StatImpl(s.Post);
-		}
-
-	case Scanner.FOR:
-		P.String(s.Pos, "for");
-		P.OldControlClause(s);
-		P.Block(s.Body, true);
-
-	case Scanner.SWITCH, Scanner.SELECT:
-		P.Token(s.Pos, s.Tok);
-		P.OldControlClause(s);
-		P.Block(s.Body, false);
-
-	case Scanner.CASE, Scanner.DEFAULT:
-		P.Token(s.Pos, s.Tok);
-		if s.Expr != nil {
-			P.separator = blank;
-			P.Expr(s.Expr);
-		}
-		// TODO: try to use P.Block instead
-		// P.Block(s.Body, true);
-		P.String(s.Body.Pos, ":");
-		P.indentation++;
-		P.StatementList(s.Body.List);
-		P.indentation--;
-		P.newlines = 1;
-
-	case
-		Scanner.GO, Scanner.DEFER, Scanner.RETURN, Scanner.FALLTHROUGH,
-		Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
-		P.Token(s.Pos, s.Tok);
-		if s.Expr != nil {
-			P.separator = blank;
-			P.Expr(s.Expr);
-		}
-		P.separator = semicolon;
-
-	default:
-		P.Error(s.Pos, s.Tok, "stat");
-	}
-}
 
 
 func (P *Printer) DoBadStat(s *AST.BadStat) {
@@ -890,7 +768,11 @@ func (P *Printer) DoBadStat(s *AST.BadStat) {
 
 
 func (P *Printer) DoLabelDecl(s *AST.LabelDecl) {
-	panic();
+	P.indentation--;
+	P.Expr(s.Label);
+	P.String(s.Pos, ":");
+	P.indentation++;
+	P.separator = none;
 }
 
 
@@ -917,6 +799,11 @@ func (P *Printer) DoExpressionStat(s *AST.ExpressionStat) {
 		unreachable();
 	}
 	P.separator = semicolon;
+}
+
+
+func (P *Printer) DoCompositeStat(s *AST.CompositeStat) {
+	P.Block(s.Body, true);
 }
 
 
@@ -972,6 +859,24 @@ func (P *Printer) DoForStat(s *AST.ForStat) {
 }
 
 
+func (P *Printer) DoCaseClause(s *AST.CaseClause) {
+	if s.Expr != nil {
+		P.String(s.Pos, "case");
+		P.separator = blank;
+		P.Expr(s.Expr);
+	} else {
+		P.String(s.Pos, "default");
+	}
+	// TODO: try to use P.Block instead
+	// P.Block(s.Body, true);
+	P.String(s.Body.Pos, ":");
+	P.indentation++;
+	P.StatementList(s.Body.List);
+	P.indentation--;
+	P.newlines = 1;
+}
+
+
 func (P *Printer) DoSwitchStat(s *AST.SwitchStat) {
 	P.String(s.Pos, "switch");
 	P.ControlClause(false, s.Init, s.Tag, nil);
@@ -980,7 +885,9 @@ func (P *Printer) DoSwitchStat(s *AST.SwitchStat) {
 
 
 func (P *Printer) DoSelectStat(s *AST.SelectStat) {
-	panic();
+	P.String(s.Pos, "select");
+	P.separator = blank;
+	P.Block(s.Body, false);
 }
 
 
