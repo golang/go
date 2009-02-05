@@ -371,9 +371,8 @@ func (P *Printer) Token(pos int, tok int) {
 
 
 func (P *Printer) Error(pos int, tok int, msg string) {
-	P.String(0, "<");
-	P.Token(pos, tok);
-	P.String(0, " " + msg + ">");
+	fmt.Printf("\ninternal printing error: pos = %d, tok = %s, %s\n", pos, Scanner.TokenString(tok), msg);
+	panic();
 }
 
 
@@ -723,12 +722,25 @@ func (P *Printer) Expr(x AST.Expr) {
 // ----------------------------------------------------------------------------
 // Statements
 
-func (P *Printer) Stat(s *AST.Stat)
+func (P *Printer) Stat(s AST.Stat) {
+	s.Visit(P);
+}
+
+
+func (P *Printer) StatImpl(s *AST.StatImpl)
 
 func (P *Printer) StatementList(list *array.Array) {
 	for i, n := 0, list.Len(); i < n; i++ {
 		P.newlines = 1;  // for first entry
-		P.Stat(list.At(i).(*AST.Stat));
+		
+		if s, is_StatImpl := list.At(i).(*AST.StatImpl); is_StatImpl {
+			P.StatImpl(s);
+		} else if s, is_Stat := list.At(i).(AST.Stat); is_Stat {
+			s.Visit(P);
+		} else {
+			panic();
+		}
+
 		P.newlines = 1;
 		P.state = inside_list;
 	}
@@ -757,7 +769,7 @@ func (P *Printer) Block(b *AST.Block, indent bool) {
 }
 
 
-func (P *Printer) ControlClause(s *AST.Stat) {
+func (P *Printer) OldControlClause(s *AST.StatImpl) {
 	has_post := s.Tok == Scanner.FOR && s.Post != nil;  // post also used by "if"
 
 	P.separator = blank;
@@ -770,7 +782,7 @@ func (P *Printer) ControlClause(s *AST.Stat) {
 		// all semicolons required
 		// (they are not separators, print them explicitly)
 		if s.Init != nil {
-			P.Stat(s.Init);
+			P.StatImpl(s.Init);
 			P.separator = none;
 		}
 		P.String(0, ";");
@@ -783,7 +795,7 @@ func (P *Printer) ControlClause(s *AST.Stat) {
 			P.String(0, ";");
 			P.separator = blank;
 			if has_post {
-				P.Stat(s.Post);
+				P.StatImpl(s.Post);
 			}
 		}
 	}
@@ -793,7 +805,7 @@ func (P *Printer) ControlClause(s *AST.Stat) {
 
 func (P *Printer) Declaration(d *AST.Decl, parenthesized bool);
 
-func (P *Printer) Stat(s *AST.Stat) {
+func (P *Printer) StatImpl(s *AST.StatImpl) {
 	switch s.Tok {
 	case Scanner.EXPRSTAT:
 		// expression statement
@@ -823,23 +835,23 @@ func (P *Printer) Stat(s *AST.Stat) {
 
 	case Scanner.IF:
 		P.String(s.Pos, "if");
-		P.ControlClause(s);
+		P.OldControlClause(s);
 		P.Block(s.Body, true);
 		if s.Post != nil {
 			P.separator = blank;
 			P.String(0, "else");
 			P.separator = blank;
-			P.Stat(s.Post);
+			P.StatImpl(s.Post);
 		}
 
 	case Scanner.FOR:
 		P.String(s.Pos, "for");
-		P.ControlClause(s);
+		P.OldControlClause(s);
 		P.Block(s.Body, true);
 
 	case Scanner.SWITCH, Scanner.SELECT:
 		P.Token(s.Pos, s.Tok);
-		P.ControlClause(s);
+		P.OldControlClause(s);
 		P.Block(s.Body, false);
 
 	case Scanner.CASE, Scanner.DEFAULT:
@@ -869,6 +881,116 @@ func (P *Printer) Stat(s *AST.Stat) {
 	default:
 		P.Error(s.Pos, s.Tok, "stat");
 	}
+}
+
+
+func (P *Printer) DoBadStat(s *AST.BadStat) {
+	panic();
+}
+
+
+func (P *Printer) DoLabelDecl(s *AST.LabelDecl) {
+	panic();
+}
+
+
+func (P *Printer) DoDeclarationStat(s *AST.DeclarationStat) {
+	P.Declaration(s.Decl, false);
+}
+
+
+func (P *Printer) DoExpressionStat(s *AST.ExpressionStat) {
+	switch s.Tok {
+	case Scanner.ILLEGAL:
+		P.Expr(s.Expr);
+	case Scanner.INC, Scanner.DEC:
+		P.Expr(s.Expr);
+		P.Token(s.Pos, s.Tok);
+	case Scanner.RETURN, Scanner.GO, Scanner.DEFER:
+		P.Token(s.Pos, s.Tok);
+		if s.Expr != nil {
+			P.separator = blank;
+			P.Expr(s.Expr);
+		}
+	default:
+		P.Error(s.Pos, s.Tok, "DoExpressionStat");
+		unreachable();
+	}
+	P.separator = semicolon;
+}
+
+
+func (P *Printer) ControlClause(isForStat bool, init AST.Stat, expr AST.Expr, post AST.Stat) {
+	P.separator = blank;
+	if init == nil && post == nil {
+		// no semicolons required
+		if expr != nil {
+			P.Expr(expr);
+		}
+	} else {
+		// all semicolons required
+		// (they are not separators, print them explicitly)
+		if init != nil {
+			P.Stat(init);
+			P.separator = none;
+		}
+		P.String(0, ";");
+		P.separator = blank;
+		if expr != nil {
+			P.Expr(expr);
+			P.separator = none;
+		}
+		if isForStat {
+			P.String(0, ";");
+			P.separator = blank;
+			if post != nil {
+				P.Stat(post);
+			}
+		}
+	}
+	P.separator = blank;
+}
+
+
+func (P *Printer) DoIfStat(s *AST.IfStat) {
+	P.String(s.Pos, "if");
+	P.ControlClause(false, s.Init, s.Cond, nil);
+	P.Block(s.Body, true);
+	if s.Else != nil {
+		P.separator = blank;
+		P.String(0, "else");
+		P.separator = blank;
+		P.Stat(s.Else);
+	}
+}
+
+
+func (P *Printer) DoForStat(s *AST.ForStat) {
+	P.String(s.Pos, "for");
+	P.ControlClause(true, s.Init, s.Cond, s.Post);
+	P.Block(s.Body, true);
+}
+
+
+func (P *Printer) DoSwitchStat(s *AST.SwitchStat) {
+	P.String(s.Pos, "switch");
+	P.ControlClause(false, s.Init, s.Tag, nil);
+	P.Block(s.Body, false);
+}
+
+
+func (P *Printer) DoSelectStat(s *AST.SelectStat) {
+	panic();
+}
+
+
+func (P *Printer) DoControlFlowStat(s *AST.ControlFlowStat) {
+	P.Token(s.Pos, s.Tok);
+	if s.Label != nil {
+		P.separator = blank;
+		P.Expr(s.Label);
+	}
+	P.separator = semicolon;
 }
 
 

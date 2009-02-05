@@ -18,7 +18,7 @@ type (
 
 	Block struct;
 	Expr interface;
-	Stat struct;
+	StatImpl struct;
 	Decl struct;
 )
 
@@ -350,11 +350,11 @@ func NewBlock(pos, tok int) *Block {
 // Expressions
 
 type (
-	Visitor interface;
+	ExprVisitor interface;
 
 	Expr interface {
 		Pos() int;
-		Visit(v Visitor);
+		Visit(v ExprVisitor);
 	};
 
 	BadExpr struct {
@@ -421,7 +421,7 @@ type (
 )
 
 
-type Visitor interface {
+type ExprVisitor interface {
 	DoBadExpr(x *BadExpr);
 	DoIdent(x *Ident);
 	DoBinaryExpr(x *BinaryExpr);
@@ -451,18 +451,18 @@ func (x *Index) Pos() int { return x.Pos_; }
 func (x *Call) Pos() int { return x.Pos_; }
 
 
-func (x *BadExpr) Visit(v Visitor) { v.DoBadExpr(x); }
-func (x *Ident) Visit(v Visitor) { v.DoIdent(x); }
-func (x *BinaryExpr) Visit(v Visitor) { v.DoBinaryExpr(x); }
-func (x *UnaryExpr) Visit(v Visitor) { v.DoUnaryExpr(x); }
-func (x *BasicLit) Visit(v Visitor) { v.DoBasicLit(x); }
-func (x *FunctionLit) Visit(v Visitor) { v.DoFunctionLit(x); }
-func (x *CompositeLit) Visit(v Visitor) { v.DoCompositeLit(x); }
-func (x *TypeLit) Visit(v Visitor) { v.DoTypeLit(x); }
-func (x *Selector) Visit(v Visitor) { v.DoSelector(x); }
-func (x *TypeGuard) Visit(v Visitor) { v.DoTypeGuard(x); }
-func (x *Index) Visit(v Visitor) { v.DoIndex(x); }
-func (x *Call) Visit(v Visitor) { v.DoCall(x); }
+func (x *BadExpr) Visit(v ExprVisitor) { v.DoBadExpr(x); }
+func (x *Ident) Visit(v ExprVisitor) { v.DoIdent(x); }
+func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
+func (x *UnaryExpr) Visit(v ExprVisitor) { v.DoUnaryExpr(x); }
+func (x *BasicLit) Visit(v ExprVisitor) { v.DoBasicLit(x); }
+func (x *FunctionLit) Visit(v ExprVisitor) { v.DoFunctionLit(x); }
+func (x *CompositeLit) Visit(v ExprVisitor) { v.DoCompositeLit(x); }
+func (x *TypeLit) Visit(v ExprVisitor) { v.DoTypeLit(x); }
+func (x *Selector) Visit(v ExprVisitor) { v.DoSelector(x); }
+func (x *TypeGuard) Visit(v ExprVisitor) { v.DoTypeGuard(x); }
+func (x *Index) Visit(v ExprVisitor) { v.DoIndex(x); }
+func (x *Call) Visit(v ExprVisitor) { v.DoCall(x); }
 
 
 
@@ -518,23 +518,112 @@ func (t *Type) Nfields() int {
 // ----------------------------------------------------------------------------
 // Statements
 
-type Stat struct {
+type (
+	StatVisitor interface;
+
+	Stat interface {
+		Visit(v StatVisitor);
+	};
+	
+	BadStat struct {
+		Pos int;
+	};
+
+	LabelDecl struct {
+		Pos int;  // position of ":"
+		Label *Ident;
+	};
+
+	DeclarationStat struct {
+		Decl *Decl;
+	};
+
+	ExpressionStat struct {
+		Pos int;  // position of Tok
+		Tok int;  // INC, DEC, RETURN, GO, DEFER
+		Expr Expr;
+	};
+	
+	IfStat struct {
+		Pos int;  // position of "if"
+		Init Stat;
+		Cond Expr;
+		Body *Block;
+		Else Stat;
+	};
+	
+	ForStat struct {
+		Pos int;  // position of "for"
+		Init Stat;
+		Cond Expr;
+		Post Stat;
+		Body *Block;
+	};
+	
+	SwitchStat struct {
+		Pos int;  // position of "switch"
+		Init Stat;
+		Tag Expr;
+		Body *Block;
+	};
+	
+	SelectStat struct {
+		Pos int;  // position of "select"
+		Body *Block;
+	};
+	
+	ControlFlowStat struct {
+		Pos int;  // position of Tok
+		Tok int;  // BREAK, CONTINUE, GOTO, FALLTHROUGH
+		Label *Ident;  // if any, or nil
+	};
+)
+
+
+type StatVisitor interface {
+	DoBadStat(s *BadStat);
+	DoLabelDecl(s *LabelDecl);
+	DoDeclarationStat(s *DeclarationStat);
+	DoExpressionStat(s *ExpressionStat);
+	DoIfStat(s *IfStat);
+	DoForStat(s *ForStat);
+	DoSwitchStat(s *SwitchStat);
+	DoSelectStat(s *SelectStat);
+	DoControlFlowStat(s *ControlFlowStat);
+}
+
+
+func (s *BadStat) Visit(v StatVisitor) { v.DoBadStat(s); }
+func (s *LabelDecl) Visit(v StatVisitor) { v.DoLabelDecl(s); }
+func (s *DeclarationStat) Visit(v StatVisitor) { v.DoDeclarationStat(s); }
+func (s *ExpressionStat) Visit(v StatVisitor) { v.DoExpressionStat(s); }
+func (s *IfStat) Visit(v StatVisitor) { v.DoIfStat(s); }
+func (s *ForStat) Visit(v StatVisitor) { v.DoForStat(s); }
+func (s *SwitchStat) Visit(v StatVisitor) { v.DoSwitchStat(s); }
+func (s *SelectStat) Visit(v StatVisitor) { v.DoSelectStat(s); }
+func (s *ControlFlowStat) Visit(v StatVisitor) { v.DoControlFlowStat(s); }
+
+
+// ----------------------------------------------------------------------------
+// Old style statements
+
+type StatImpl struct {
 	Node;
-	Init, Post *Stat;
+	Init, Post *StatImpl;
 	Expr Expr;
 	Body *Block;  // composite statement body
 	Decl *Decl;  // declaration statement
 }
 
 
-func NewStat(pos, tok int) *Stat {
-	s := new(Stat);
+func NewStat(pos, tok int) *StatImpl {
+	s := new(StatImpl);
 	s.Pos, s.Tok = pos, tok;
 	return s;
 }
 
 
-var BadStat = NewStat(0, Scanner.ILLEGAL);
+var OldBadStat = NewStat(0, Scanner.ILLEGAL);
 
 
 // ----------------------------------------------------------------------------
