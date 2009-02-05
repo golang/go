@@ -45,11 +45,29 @@ func FileServer(c *http.Conn, req *http.Request) {
 	fmt.Fprintf(c, "[%d bytes]\n", n);
 }
 
+// a channel (just for the fun of it)
+type Chan chan int
+
+func ChanCreate() Chan {
+	c := make(Chan);
+	go func(c Chan) {
+		for x := 0;; x++ {
+			c <- x
+		}
+	}(c);
+	return c;
+}
+
+func (ch Chan) ServeHTTP(c *http.Conn, req *http.Request) {
+	io.WriteString(c, fmt.Sprintf("channel send #%d\n", <-ch));
+}
+
 func main() {
 	flag.Parse();
 	http.Handle("/counter", new(Counter));
 	http.Handle("/go/", http.HandlerFunc(FileServer));
 	http.Handle("/go/hello", http.HandlerFunc(HelloServer));
+	http.Handle("/chan", ChanCreate());
 	err := http.ListenAndServe(":12345", nil);
 	if err != nil {
 		panic("ListenAndServe: ", err.String())
