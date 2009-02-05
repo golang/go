@@ -527,8 +527,6 @@ EXTERN	int32	thunk;
 
 EXTERN	int	exporting;
 
-EXTERN	int	func;
-
 /*
  *	y.tab.c
  */
@@ -650,6 +648,7 @@ Type*	methtype(Type*);
 int	methconv(Type*);
 Sym*	signame(Type*);
 int	eqtype(Type*, Type*, int);
+int	eqtypenoname(Type*, Type*);
 void	argtype(Node*, Type*);
 int	eqargs(Type*, Type*);
 uint32	typehash(Type*, int);
