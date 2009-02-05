@@ -1547,6 +1547,7 @@ dclmethod(Type *t)
 	case TMAP:
 	case TCHAN:
 	case TSTRING:
+	case TFUNC:
 		break;
 	}
 
