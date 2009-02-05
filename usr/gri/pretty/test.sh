@@ -4,6 +4,7 @@
 
 #!/bin/bash
 
+CMD="./pretty"
 TMP1=test_tmp1.go
 TMP2=test_tmp2.go
 TMP3=test_tmp3.go
@@ -66,7 +67,7 @@ cleanup() {
 
 silent() {
 	cleanup
-	./pretty -s $1 > $TMP1
+	$CMD -s $1 > $TMP1
 	if [ $? != 0 ]; then
 		cat $TMP1
 		echo "Error (silent mode test): test.sh $1"
@@ -77,9 +78,9 @@ silent() {
 
 idempotent() {
 	cleanup
-	./pretty $1 > $TMP1
-	./pretty $TMP1 > $TMP2
-	./pretty $TMP2 > $TMP3
+	$CMD $1 > $TMP1
+	$CMD $TMP1 > $TMP2
+	$CMD $TMP2 > $TMP3
 	cmp -s $TMP2 $TMP3
 	if [ $? != 0 ]; then
 		diff $TMP2 $TMP3
@@ -91,7 +92,7 @@ idempotent() {
 
 valid() {
 	cleanup
-	./pretty $1 > $TMP1
+	$CMD $1 > $TMP1
 	6g -o /dev/null $TMP1
 	if [ $? != 0 ]; then
 		echo "Error (validity test): test.sh $1"
@@ -128,10 +129,10 @@ runtests() {
 
 
 # run selftest1 always
-./pretty -t selftest1.go > $TMP1
+$CMD -t selftest1.go > $TMP1
 if [ $? != 0 ]; then
 	cat $TMP1
-	echo "Error (selftest1): pretty -t selftest1.go"
+	echo "Error (selftest1): $CMD -t selftest1.go"
 	exit 1
 fi
 count selftest1.go

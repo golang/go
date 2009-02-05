@@ -18,7 +18,6 @@ type (
 
 	Block struct;
 	Expr interface;
-	StatImpl struct;
 	Decl struct;
 )
 
@@ -324,29 +323,6 @@ var BadType = NewType(0, Scanner.ILLEGAL);
 
 
 // ----------------------------------------------------------------------------
-// Blocks
-//
-// Syntactic constructs of the form:
-//
-//   "{" StatementList "}"
-//   ":" StatementList
-
-type Block struct {
-	Node;
-	List *array.Array;
-	End int;  // position of closing "}" if present
-}
-
-
-func NewBlock(pos, tok int) *Block {
-	assert(tok == Scanner.LBRACE || tok == Scanner.COLON);
-	b := new(Block);
-	b.Pos, b.Tok, b.List = pos, tok, array.New(0);
-	return b;
-}
-
-
-// ----------------------------------------------------------------------------
 // Expressions
 
 type (
@@ -516,6 +492,29 @@ func (t *Type) Nfields() int {
 
 
 // ----------------------------------------------------------------------------
+// Blocks
+//
+// Syntactic constructs of the form:
+//
+//   "{" StatementList "}"
+//   ":" StatementList
+
+type Block struct {
+	Node;
+	List *array.Array;
+	End int;  // position of closing "}" if present
+}
+
+
+func NewBlock(pos, tok int) *Block {
+	assert(tok == Scanner.LBRACE || tok == Scanner.COLON);
+	b := new(Block);
+	b.Pos, b.Tok, b.List = pos, tok, array.New(0);
+	return b;
+}
+
+
+// ----------------------------------------------------------------------------
 // Statements
 
 type (
@@ -543,7 +542,11 @@ type (
 		Tok int;  // INC, DEC, RETURN, GO, DEFER
 		Expr Expr;
 	};
-	
+
+	CompositeStat struct {
+		Body *Block;
+	};
+
 	IfStat struct {
 		Pos int;  // position of "if"
 		Init Stat;
@@ -559,7 +562,13 @@ type (
 		Post Stat;
 		Body *Block;
 	};
-	
+
+	CaseClause struct {
+		Pos int;  // position for "case" or "default"
+		Expr Expr;  // nil means default case
+		Body *Block;
+	};
+
 	SwitchStat struct {
 		Pos int;  // position of "switch"
 		Init Stat;
@@ -585,8 +594,10 @@ type StatVisitor interface {
 	DoLabelDecl(s *LabelDecl);
 	DoDeclarationStat(s *DeclarationStat);
 	DoExpressionStat(s *ExpressionStat);
+	DoCompositeStat(s *CompositeStat);
 	DoIfStat(s *IfStat);
 	DoForStat(s *ForStat);
+	DoCaseClause(s *CaseClause);
 	DoSwitchStat(s *SwitchStat);
 	DoSelectStat(s *SelectStat);
 	DoControlFlowStat(s *ControlFlowStat);
@@ -597,33 +608,13 @@ func (s *BadStat) Visit(v StatVisitor) { v.DoBadStat(s); }
 func (s *LabelDecl) Visit(v StatVisitor) { v.DoLabelDecl(s); }
 func (s *DeclarationStat) Visit(v StatVisitor) { v.DoDeclarationStat(s); }
 func (s *ExpressionStat) Visit(v StatVisitor) { v.DoExpressionStat(s); }
+func (s *CompositeStat) Visit(v StatVisitor) { v.DoCompositeStat(s); }
 func (s *IfStat) Visit(v StatVisitor) { v.DoIfStat(s); }
 func (s *ForStat) Visit(v StatVisitor) { v.DoForStat(s); }
+func (s *CaseClause) Visit(v StatVisitor) { v.DoCaseClause(s); }
 func (s *SwitchStat) Visit(v StatVisitor) { v.DoSwitchStat(s); }
 func (s *SelectStat) Visit(v StatVisitor) { v.DoSelectStat(s); }
 func (s *ControlFlowStat) Visit(v StatVisitor) { v.DoControlFlowStat(s); }
-
-
-// ----------------------------------------------------------------------------
-// Old style statements
-
-type StatImpl struct {
-	Node;
-	Init, Post *StatImpl;
-	Expr Expr;
-	Body *Block;  // composite statement body
-	Decl *Decl;  // declaration statement
-}
-
-
-func NewStat(pos, tok int) *StatImpl {
-	s := new(StatImpl);
-	s.Pos, s.Tok = pos, tok;
-	return s;
-}
-
-
-var OldBadStat = NewStat(0, Scanner.ILLEGAL);
 
 
 // ----------------------------------------------------------------------------
