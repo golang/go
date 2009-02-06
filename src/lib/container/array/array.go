@@ -140,6 +140,13 @@ func (p *Array) Slice(i, j int) *Array {
 }
 
 
+func (p *Array) Do(f func(elem Element)) {
+	for i := 0; i < len(p.a); i++ {
+		f(p.a[i])	// not too safe if f changes the Array
+	}
+}
+
+
 // Convenience wrappers
 
 func (p *Array) Push(x Element) {
