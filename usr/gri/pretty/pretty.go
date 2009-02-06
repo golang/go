@@ -20,11 +20,9 @@ var (
 func init() {
 	Flag.BoolVar(&flags.Verbose, "v", false, "verbose mode: trace parsing");
 	Flag.BoolVar(&flags.Sixg, "6g", true, "6g compatibility mode");
-	//TODO fix this code again
-	//Flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
+	Flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
 	Flag.BoolVar(&flags.Columns, "columns", Platform.USER == "gri", "print column info in error messages");
 	Flag.BoolVar(&flags.Testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
-	Flag.BoolVar(&flags.Tokenchan, "token_chan", false, "use token channel for scanner-parser connection");
 }
 
 
@@ -46,7 +44,7 @@ func main() {
 	for i := 0; i < Flag.NArg(); i++ {
 		src_file := Flag.Arg(i);
 
-		if false /* DISABLED flags.deps */ {
+		if flags.Deps {
 			Compilation.ComputeDeps(src_file, &flags);
 
 		} else {

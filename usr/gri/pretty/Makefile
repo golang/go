@@ -29,19 +29,19 @@ pretty.6:	 platform.6 printer.6 compilation.6
 
 compilation.6:	 platform.6 scanner.6 parser.6 ast.6 typechecker.6
 
-ast.6:	 scanner.6
+typechecker.6:	 ast.6 scanner.6
 
 scanner.6:	 utils.6
 
-parser.6:	 scanner.6 ast.6
+ast.6:	 scanner.6 symboltable.6
+
+symboltable.6:	
+
+parser.6:	 scanner.6 ast.6 symboltable.6
 
 platform.6:	 utils.6
 
-printer.6:	 scanner.6 ast.6 utils.6
-
-typechecker.6:	ast.6 universe.6
-
-universe.6:	ast.6
+printer.6:	 utils.6 scanner.6 ast.6 symboltable.6
 
 %.6:	%.go
 	$(G) $(F) $<

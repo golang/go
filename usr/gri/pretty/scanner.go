@@ -107,9 +107,6 @@ const (
 	TYPE;
 	VAR;
 	keywords_end;
-
-	// AST use only
-	EXPRSTAT;
 )
 
 
@@ -208,8 +205,6 @@ func TokenString(tok int) string {
 	case SWITCH: return "switch";
 	case TYPE: return "type";
 	case VAR: return "var";
-
-	case EXPRSTAT: return "EXPRSTAT";
 	}
 
 	return "token(" + Utils.IntToString(tok, 10) + ")";
@@ -753,27 +748,4 @@ loop:
 	}
 
 	return pos, tok, val;
-}
-
-
-type Token struct {
-	Pos int;
-	Tok int;
-	Val string;
-}
-
-
-func (S *Scanner) TokenStream() <-chan *Token {
-	ch := make(chan *Token, 100);
-	go func(S *Scanner, ch chan <- *Token) {
-		for {
-			t := new(Token);
-			t.Pos, t.Tok, t.Val = S.Scan();
-			ch <- t;
-			if t.Tok == EOF {
-				break;
-			}
-		}
-	}(S, ch);
-	return ch;
 }
