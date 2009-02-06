@@ -121,8 +121,8 @@ free(void *v)
 int32
 mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
 {
-	uintptr n, i;
-	byte *p;
+	uintptr n, nobj, i;
+	byte *p, *ep;
 	MSpan *s;
 
 	s = MHeap_LookupMaybe(&mheap, (uintptr)v>>PageShift);
@@ -148,13 +148,20 @@ mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
 		return 1;
 	}
 
+	if((byte*)v >= (byte*)s->gcref) {
+		// pointers into the gc ref counts
+		// do not count as pointers.
+		return 0;
+	}
+
 	n = class_to_size[s->sizeclass];
 	i = ((byte*)v - p)/n;
 	if(base)
 		*base = p + i*n;
 	if(size)
 		*size = n;
-	if((byte*)s->gcref < p || (byte*)s->gcref >= p+(s->npages<<PageShift)) {
+	nobj = (s->npages << PageShift) / (n + RefcountOverhead);
+	if((byte*)s->gcref < p || (byte*)(s->gcref+nobj) > p+(s->npages<<PageShift)) {
 		printf("s->base sizeclass %d %p gcref %p block %D\n",
 			s->sizeclass, p, s->gcref, s->npages<<PageShift);
 		throw("bad gcref");
