@@ -294,7 +294,7 @@ loop:
 	case ONAME:
 		if(top == Etop)
 			goto nottop;
-		if(!(n->class & PHEAP))
+		if(!(n->class & PHEAP) && n->class != PPARAMREF)
 			n->addable = 1;
 		if(n->type == T) {
 			s = n->sym;
@@ -2022,7 +2022,10 @@ loop:
 			argtype(on, l->type);		// any-1
 			break;
 		}
-		if(isptr[l->type->etype] || l->type->etype == TCHAN || l->type->etype == TMAP) {
+		if(isptr[l->type->etype]
+		|| l->type->etype == TCHAN
+		|| l->type->etype == TMAP
+		|| l->type->etype == TFUNC) {
 			on = syslook("printpointer", 1);
 			argtype(on, l->type);	// any-1
 			break;
@@ -3668,21 +3671,21 @@ addrescapes(Node *n)
 		case PPARAM:
 			if(debug['E'])
 				print("%L %s %S escapes %p\n", n->lineno, pnames[n->class], n->sym, n);
-			n->class |= PHEAP;
-			n->addable = 0;
-			n->ullman = 2;
-			n->alloc = callnew(n->type);
-
 			// if func param, need separate temporary
 			// to hold heap pointer.
-			if(n->class == PPARAM+PHEAP) {
+			if(n->class == PPARAM) {
 				// expression to refer to stack copy
 				n->stackparam = nod(OPARAM, n, N);
 				n->stackparam->type = n->type;
 				n->stackparam->addable = 1;
 				n->stackparam->xoffset = n->xoffset;
-				n->xoffset = 0;
 			}
+
+			n->class |= PHEAP;
+			n->addable = 0;
+			n->ullman = 2;
+			n->alloc = callnew(n->type);
+			n->xoffset = 0;
 
 			// create stack variable to hold pointer to heap
 			n->heapaddr = nod(0, N, N);
@@ -3721,9 +3724,7 @@ paramstoheap(Type **argin)
 
 	nn = N;
 	for(t = structfirst(&savet, argin); t != T; t = structnext(&savet)) {
-		if(t->sym == S)
-			continue;
-		v = t->sym->oname;
+		v = t->nname;
 		if(v == N || !(v->class & PHEAP))
 			continue;
 

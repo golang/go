@@ -880,6 +880,11 @@ Jconv(Fmt *fp)
 		strncat(buf, buf1, sizeof(buf));
 	}
 
+	if(n->xoffset != 0) {
+		snprint(buf1, sizeof(buf1), " x(%lld)", n->xoffset);
+		strncat(buf, buf1, sizeof(buf));
+	}
+
 	if(n->class != 0) {
 		snprint(buf1, sizeof(buf1), " class(%d)", n->class);
 		strncat(buf, buf1, sizeof(buf));
@@ -889,6 +894,12 @@ Jconv(Fmt *fp)
 		snprint(buf1, sizeof(buf1), " colas(%d)", n->colas);
 		strncat(buf, buf1, sizeof(buf));
 	}
+
+	if(n->funcdepth != 0) {
+		snprint(buf1, sizeof(buf1), " f(%d)", n->funcdepth);
+		strncat(buf, buf1, sizeof(buf));
+	}
+
 
 	return fmtstrcpy(fp, buf);
 }
@@ -2070,6 +2081,8 @@ ullmancalc(Node *n)
 	case OLITERAL:
 	case ONAME:
 		ul = 1;
+		if(n->class == PPARAMREF || (n->class & PHEAP))
+			ul++;
 		goto out;
 	case OCALL:
 	case OCALLMETH:

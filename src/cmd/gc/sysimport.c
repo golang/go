@@ -50,6 +50,7 @@ char *sysimport =
 	"func sys.arraysliced (old []any, lb int, hb int, width int) (ary []any)\n"
 	"func sys.arrayslices (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
 	"func sys.arrays2d (old *any, nel int) (ary []any)\n"
+	"func sys.closure ()\n"
 	"func sys.Breakpoint ()\n"
 	"func sys.Reflect (i interface { }) (? uint64, ? string, ? bool)\n"
 	"func sys.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"

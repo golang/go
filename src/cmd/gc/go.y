@@ -1245,33 +1245,15 @@ Bfntype:
 fnlitdcl:
 	fntype
 	{
-		markdclstack();	// save dcl stack and revert to block0
+		markdcl();
 		$$ = $1;
-		funcargs($$);
+		funclit0($$);
 	}
 
 fnliteral:
 	fnlitdcl '{' ostmt_list '}'
 	{
-		popdcl();
-
-		vargen++;
-		snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
-
-		$$ = newname(lookup(namebuf));
-		addvar($$, $1, PFUNC);
-
-		{
-			Node *n;
-
-			n = nod(ODCLFUNC, N, N);
-			n->nname = $$;
-			n->type = $1;
-			n->nbody = $3;
-			if(n->nbody == N)
-				n->nbody = nod(ORETURN, N, N);
-			compile(n);
-		}
+		$$ = funclit1($1, $3);
 	}
 
 fnbody:
