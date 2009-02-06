@@ -187,6 +187,7 @@ struct	Node
 	uchar	colas;		// OAS resulting from :=
 	uchar	diag;		// already printed error about this
 	uchar	noescape;	// ONAME never move to heap
+	uchar	funcdepth;
 
 	// most nodes
 	Node*	left;
@@ -209,6 +210,7 @@ struct	Node
 	Node*	nname;
 	Node*	enter;
 	Node*	exit;
+	Node*	cvars;	// closure params
 
 	// OLITERAL/OREGISTER
 	Val	val;
@@ -217,6 +219,10 @@ struct	Node
 	Node*	heapaddr;	// temp holding heap address of param
 	Node*	stackparam;	// OPARAM node referring to stack copy of param
 	Node*	alloc;	// allocation call
+
+	// ONAME closure param with PPARAMREF
+	Node*	outer;	// outer PPARAMREF in nested closure
+	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
 
 	Sym*	osym;		// import
 	Sym*	psym;		// import
@@ -414,6 +420,7 @@ enum
 	PAUTO,
 	PPARAM,
 	PPARAMOUT,
+	PPARAMREF,	// param passed by reference
 	PFUNC,
 
 	PHEAP = 1<<7,
@@ -526,6 +533,10 @@ EXTERN	int32	nhunk;
 EXTERN	int32	thunk;
 
 EXTERN	int	exporting;
+
+EXTERN	int	funcdepth;
+
+EXTERN	Node*	funclit;
 
 /*
  *	y.tab.c
@@ -749,6 +760,9 @@ void	resumecheckwidth(void);
 Node*	embedded(Sym*);
 Node*	variter(Node*, Type*, Node*);
 void	constiter(Node*, Type*, Node*);
+
+void	funclit0(Type*);
+Node*	funclit1(Type*, Node*);
 
 /*
  *	export.c

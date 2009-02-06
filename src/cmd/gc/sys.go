@@ -67,6 +67,8 @@ func	arraysliced(old []any, lb int, hb int, width int) (ary []any);
 func	arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any);
 func	arrays2d(old *any, nel int) (ary []any);
 
+func	closure();	// has args, but compiler fills in
+
 // used by go programs
 
 func	Breakpoint();

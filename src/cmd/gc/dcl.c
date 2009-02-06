@@ -402,13 +402,12 @@ funchdr(Node *n)
 	autodcl = dcl();
 	autodcl->back = autodcl;
 
-	if(dclcontext != PEXTERN)
+	if(funcdepth == 0 && dclcontext != PEXTERN)
 		fatal("funchdr: dclcontext");
 
 	dclcontext = PAUTO;
 	markdcl();
 	funcargs(n->type);
-
 }
 
 void
@@ -417,6 +416,8 @@ funcargs(Type *ft)
 	Type *t;
 	Iter save;
 	int all;
+
+	funcdepth++;
 
 	// declare the this/in arguments
 	t = funcfirst(&save, ft);
@@ -466,8 +467,175 @@ funcbody(Node *n)
 	if(dclcontext != PAUTO)
 		fatal("funcbody: dclcontext");
 	popdcl();
-	dclcontext = PEXTERN;
+	funcdepth--;
+	if(funcdepth == 0)
+		dclcontext = PEXTERN;
 }
+
+void
+funclit0(Type *t)
+{
+	Node *n;
+
+	n = nod(OXXX, N, N);
+	n->outer = funclit;
+	funclit = n;
+
+	funcargs(t);
+}
+
+Node*
+funclit1(Type *type, Node *body)
+{
+	Node *func;
+	Node *a, *d, *f, *n, *args, *clos, *in, *out;
+	Type *ft, *t;
+	Iter save;
+	int narg, shift;
+
+	popdcl();
+	func = funclit;
+	funclit = func->outer;
+
+	// build up type of func f that we're going to compile.
+	// as we referred to variables from the outer function,
+	// we accumulated a list of PHEAP names in func.
+	//
+	narg = 0;
+	if(func->cvars == N)
+		ft = type;
+	else {
+		// add PHEAP versions as function arguments.
+		in = N;
+		for(a=listfirst(&save, &func->cvars); a; a=listnext(&save)) {
+			d = nod(ODCLFIELD, a, N);
+			d->type = ptrto(a->type);
+			in = list(in, d);
+
+			// while we're here, set up a->heapaddr for back end
+			n = nod(ONAME, N, N);
+			snprint(namebuf, sizeof namebuf, "&%s", a->sym->name);
+			n->sym = lookup(namebuf);
+			n->type = ptrto(a->type);
+			n->class = PPARAM;
+			n->xoffset = narg*types[tptr]->width;
+			n->addable = 1;
+			n->ullman = 1;
+			narg++;
+			a->heapaddr = n;
+
+			a->xoffset = 0;
+
+			// unlink from actual ONAME in symbol table
+			a->closure->closure = a->outer;
+		}
+
+		// add a dummy arg for the closure's caller pc
+		d = nod(ODCLFIELD, a, N);
+		d->type = types[TUINTPTR];
+		in = list(in, d);
+
+		// slide param offset to make room for ptrs above.
+		// narg+1 to skip over caller pc.
+		shift = (narg+1)*types[tptr]->width;
+
+		// now the original arguments.
+		for(t=structfirst(&save, getinarg(type)); t; t=structnext(&save)) {
+			d = nod(ODCLFIELD, t->nname, N);
+			d->type = t->type;
+			in = list(in, d);
+
+			a = t->nname;
+			if(a != N) {
+				if(a->stackparam != N)
+					a = a->stackparam;
+				a->xoffset += shift;
+			}
+		}
+		in = rev(in);
+
+		// out arguments
+		out = N;
+		for(t=structfirst(&save, getoutarg(type)); t; t=structnext(&save)) {
+			d = nod(ODCLFIELD, t->nname, N);
+			d->type = t->type;
+			out = list(out, d);
+
+			a = t->nname;
+			if(a != N) {
+				if(a->stackparam != N)
+					a = a->stackparam;
+				a->xoffset += shift;
+			}
+		}
+		out = rev(out);
+
+		ft = functype(N, in, out);
+	}
+
+	// declare function.
+	vargen++;
+	snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
+	f = newname(lookup(namebuf));
+	addvar(f, ft, PFUNC);
+	f->funcdepth = 0;
+
+	// compile function
+	n = nod(ODCLFUNC, N, N);
+	n->nname = f;
+	n->type = ft;
+	if(body == N)
+		body = nod(ORETURN, N, N);
+	n->nbody = body;
+	compile(n);
+	funcdepth--;
+
+	// if there's no closure, we can use f directly
+	if(func->cvars == N)
+		return f;
+
+	// build up type for this instance of the closure func.
+	in = N;
+	d = nod(ODCLFIELD, N, N);	// siz
+	d->type = types[TINT];
+	in = list(in, d);
+	d = nod(ODCLFIELD, N, N);	// f
+	d->type = ft;
+	in = list(in, d);
+	for(a=listfirst(&save, &func->cvars); a; a=listnext(&save)) {
+		d = nod(ODCLFIELD, N, N);	// arg
+		d->type = ptrto(a->type);
+		in = list(in, d);
+	}
+	in = rev(in);
+
+	d = nod(ODCLFIELD, N, N);
+	d->type = type;
+	out = d;
+
+	clos = syslook("closure", 1);
+	clos->type = functype(N, in, out);
+
+	// literal expression is sys.closure(siz, f, arg0, arg1, ...)
+	// which builds a function that calls f after filling in arg0,
+	// arg1, ... for the PHEAP arguments above.
+	args = N;
+	if(narg*8 > 100)
+		yyerror("closure needs too many variables; runtime will reject it");
+	a = nodintconst(narg*8);
+	args = list(args, a);	// siz
+	args = list(args, f);	// f
+	for(a=listfirst(&save, &func->cvars); a; a=listnext(&save)) {
+		d = oldname(a->sym);
+		addrescapes(d);
+		args = list(args, nod(OADDR, d, N));
+	}
+	args = rev(args);
+
+	return nod(OCALL, clos, args);
+}
+
+
 
 /*
  * turn a parsed struct into a type
@@ -658,28 +826,6 @@ markdcl(void)
 }
 
 void
-markdclstack(void)
-{
-	Sym *d, *s;
-
-	markdcl();
-
-	// copy the entire pop of the stack
-	// all the way back to block0.
-	// after this the symbol table is at
-	// block0 and popdcl will restore it.
-	for(d=dclstack; d!=S; d=d->link) {
-		if(d == b0stack)
-			break;
-		if(d->name != nil) {
-			s = pkglookup(d->name, d->package);
-			pushdcl(s);
-			dcopy(s, d);
-		}
-	}
-}
-
-void
 dumpdcl(char *st)
 {
 	Sym *s, *d;
@@ -755,6 +901,7 @@ addvar(Node *n, Type *t, int ctxt)
 	s->offset = 0;
 	s->lexical = LNAME;
 
+	n->funcdepth = funcdepth;
 	n->type = t;
 	n->vargen = gen;
 	n->class = ctxt;
@@ -909,6 +1056,7 @@ Node*
 oldname(Sym *s)
 {
 	Node *n;
+	Node *c;
 
 	n = s->oname;
 	if(n == N) {
@@ -917,6 +1065,26 @@ oldname(Sym *s)
 		n->type = T;
 		n->addable = 1;
 		n->ullman = 1;
+	}
+	if(n->funcdepth > 0 && n->funcdepth != funcdepth) {
+		// inner func is referring to var
+		// in outer func.
+		if(n->closure == N || n->closure->funcdepth != funcdepth) {
+			// create new closure var.
+			c = nod(ONAME, N, N);
+			c->sym = s;
+			c->class = PPARAMREF;
+			c->type = n->type;
+			c->addable = 0;
+			c->ullman = 2;
+			c->funcdepth = funcdepth;
+			c->outer = n->closure;
+			n->closure = c;
+			c->closure = n;
+			funclit->cvars = list(c, funclit->cvars);
+		}
+		// return ref to closure var, not original
+		return n->closure;
 	}
 	return n;
 }
