@@ -9,6 +9,6 @@ package main
 var notmain func()
 
 func main() {
-	var x = &main;		// ERROR "address of function"
-	main = notmain;	// ERROR "assign to function"
+	var x = &main;		// ERROR "address of function|invalid"
+	main = notmain;	// ERROR "assign to function|invalid"
 }
