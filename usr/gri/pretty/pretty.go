@@ -5,7 +5,8 @@
 package main
 
 import (
-	Flag "flag";
+	"os";
+	"flag";
 	Platform "platform";
 	Printer "printer";
 	Compilation "compilation";
@@ -14,35 +15,36 @@ import (
 
 var (
 	flags Compilation.Flags;
-	silent = Flag.Bool("s", false, "silent mode: no pretty print output");
+	silent = flag.Bool("s", false, "silent mode: no pretty print output");
+	html = flag.Bool("html", false, "generate html");
 )
 
 func init() {
-	Flag.BoolVar(&flags.Verbose, "v", false, "verbose mode: trace parsing");
-	Flag.BoolVar(&flags.Sixg, "6g", true, "6g compatibility mode");
-	Flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
-	Flag.BoolVar(&flags.Columns, "columns", Platform.USER == "gri", "print column info in error messages");
-	Flag.BoolVar(&flags.Testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
+	flag.BoolVar(&flags.Verbose, "v", false, "verbose mode: trace parsing");
+	flag.BoolVar(&flags.Sixg, "6g", true, "6g compatibility mode");
+	flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
+	flag.BoolVar(&flags.Columns, "columns", Platform.USER == "gri", "print column info in error messages");
+	flag.BoolVar(&flags.Testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
 }
 
 
 func usage() {
 	print("usage: pretty { flags } { files }\n");
-	Flag.PrintDefaults();
+	flag.PrintDefaults();
 	sys.Exit(0);
 }
 
 
 func main() {
-	Flag.Parse();
+	flag.Parse();
 
-	if Flag.NFlag() == 0 && Flag.NArg() == 0 {
+	if flag.NFlag() == 0 && flag.NArg() == 0 {
 		usage();
 	}
 
 	// process files
-	for i := 0; i < Flag.NArg(); i++ {
-		src_file := Flag.Arg(i);
+	for i := 0; i < flag.NArg(); i++ {
+		src_file := flag.Arg(i);
 
 		if flags.Deps {
 			Compilation.ComputeDeps(src_file, &flags);
@@ -56,7 +58,7 @@ func main() {
 				sys.Exit(1);
 			}
 			if !*silent && !flags.Testmode {
-				Printer.Print(prog);
+				Printer.Print(os.Stdout, *html, prog);
 			}
 		}
 	}
