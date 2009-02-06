@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Try to tickle stack splitting bugs by doing
-// go and defer at different stack depths.
+// go, defer, and closure calls at different stack depths.
 
 package main
 
@@ -37,6 +37,18 @@ func recur(n int) {
 	s := <-c;
 	if s != len(t) {
 		panicln("bad go", s);
+	}
+	f := func(t T) int {
+		s := 0;
+		for i := 0; i < len(t); i++ {
+			s += t[i];
+		}
+		s += n;
+		return s;
+	};
+	s = f(t);
+	if s != len(t) + n {
+		panicln("bad func", s, "at level", n);
 	}
 	if n > 0 {
 		recur(n-1);

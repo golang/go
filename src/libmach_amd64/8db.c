@@ -167,7 +167,23 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 	USED(link);
 	osp = 0;
 	i = 0;
-	while(findsym(pc, CTEXT, &s)) {
+
+	for(;;) {
+		if(!findsym(pc, CTEXT, &s)) {
+			// check for closure return sequence
+			uchar buf[8];
+			if(get1(map, pc, buf, 8) < 0)
+				break;
+			// ADDQ $xxx, SP; RET
+			if(buf[0] != 0x48 || buf[1] != 0x81 || buf[2] != 0xc4 || buf[7] != 0xc3)
+				break;
+			sp += buf[3] | (buf[4]<<8) | (buf[5]<<16) | (buf[6]<<24);
+			if(geta(map, sp, &pc) < 0)
+				break;
+			sp += mach->szaddr;
+			continue;
+		}
+
 		if (osp == sp)
 			break;
 		osp = sp;
@@ -186,7 +202,6 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 			(*trace)(map, pc, sp +  8, &s1);
 			sp += 16;  // two irrelevant calls on stack - morestack, plus the call morestack made
 			continue;
-			break;
 		}
 		s1 = s;
 		pc1 = 0;

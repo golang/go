@@ -203,7 +203,7 @@ void*
 SysAlloc(uintptr n)
 {
 	mstats.sys += n;
-	return sys_mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
+	return sys_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
 }
 
 void
