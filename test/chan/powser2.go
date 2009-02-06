@@ -11,6 +11,8 @@
 // See Squinting at Power Series by Doug McIlroy,
 //   http://www.cs.bell-labs.com/who/rsc/thread/squint.pdf
 // Like powser1.go but uses channels of interfaces.
+// Has not been cleaned up as much as powser1.go, to keep
+// it distinct and therefore a different test.
 
 package main
 
@@ -129,8 +131,8 @@ func get(in *dch) *rat {
 
 // Get one item from each of n demand channels
 
-func getn(in []*dch, n int) []item {
-	// BUG n:=len(in);
+func getn(in []*dch) []item {
+	n:=len(in);
 	if n != 2 { panic("bad n in getn") };
 	req := make([] chan int, 2);
 	dat := make([] chan item, 2);
@@ -165,7 +167,7 @@ func getn(in []*dch, n int) []item {
 // Get one item from each of 2 demand channels
 
 func get2(in0 *dch, in1 *dch)  []item {
-	return getn([]*dch{in0, in1}, 2);
+	return getn([]*dch{in0, in1});
 }
 
 func copy(in *dch, out *dch){
@@ -420,7 +422,7 @@ func Shift(c *rat, U PS) PS{
 // Convert array of coefficients, constant term first
 // to a (finite) power series
 
-/* BUG: NEED LEN OF ARRAY
+/*
 func Poly(a [] *rat) PS{
 	Z:=mkPS();
 	begin func(a [] *rat, Z PS){
@@ -652,13 +654,11 @@ func main() {
 		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos"); // 3 3 3 3 3
 		a := make([]*rat, N);
 		d := Diff(Ones);
-		// BUG: want array initializer
 		for i:=0; i < N; i++ {
 			a[i] = itor(int64(i+1))
 		}
 		checka(d, a, "Diff");  // 1 2 3 4 5
 		in := Integ(zero, Ones);
-		// BUG: want array initializer
 		a[0] = zero;  // integration constant
 		for i:=1; i < N; i++ {
 			a[i] = i2tor(1, int64(i))
@@ -667,13 +667,11 @@ func main() {
 		check(Cmul(neg(one), Twos), itor(-2), 10, "CMul");  // -1 -1 -1 -1 -1
 		check(Sub(Ones, Twos), itor(-1), 0, "Sub Ones Twos");  // -1 -1 -1 -1 -1
 		m := Mul(Ones, Ones);
-		// BUG: want array initializer
 		for i:=0; i < N; i++ {
 			a[i] = itor(int64(i+1))
 		}
 		checka(m, a, "Mul");  // 1 2 3 4 5
 		e := Exp(Ones);
-		// BUG: want array initializer
 		a[0] = itor(1);
 		a[1] = itor(1);
 		a[2] = i2tor(3,2);
@@ -686,7 +684,6 @@ func main() {
 		a[9] = i2tor(4596553,362880);
 		checka(e, a, "Exp");  // 1 1 3/2 13/6 73/24
 		at := Integ(zero, MonSubst(Ones, neg(one), 2));
-		// BUG: want array initializer
 		for c, i := 1, 0; i < N; i++ {
 			if i%2 == 0 {
 				a[i] = zero
@@ -698,7 +695,6 @@ func main() {
 		checka(at, a, "ATan");  // 0 -1 0 -1/3 0 -1/5
 /*
 		t := Revert(Integ(zero, MonSubst(Ones, neg(one), 2)));
-		// BUG: want array initializer
 		a[0] = zero;
 		a[1] = itor(1);
 		a[2] = zero;
@@ -712,5 +708,4 @@ func main() {
 		checka(t, a, "Tan");  // 0 1 0 1/3 0 2/15
 */
 	}
-	sys.Exit(0);  // BUG: force waiting goroutines to exit
 }
