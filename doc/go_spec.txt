@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(January 30, 2009)
+(February 5, 2009)
 
 ----
 
@@ -1647,9 +1647,8 @@ More precisely:
 	  have the same array length.
 
 	- Two struct types are equal if they have the same number of fields in the
-	  same order, corresponding fields are either both named or both anonymous,
-	  and corresponding field types are equal. Note that field names
-	  do not have to match.
+	  same order, corresponding fields either have both the same name or
+	  are both anonymous, and corresponding field types are identical.
 
 	- Two pointer types are equal if they have equal base types.
 
