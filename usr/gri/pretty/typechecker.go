@@ -7,7 +7,6 @@ package TypeChecker
 import (
 	AST "ast";
 	Scanner "scanner";
-	Universe "universe";
 )
 
 

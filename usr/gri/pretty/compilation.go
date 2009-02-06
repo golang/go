@@ -7,7 +7,8 @@ package Compilation
 import (
 	"array";
 	"utf8";
-	OS "os";
+	"fmt";
+	"os";
 	Platform "platform";
 	Scanner "scanner";
 	Parser "parser";
@@ -29,7 +30,6 @@ type Flags struct {
 	Deps bool;
 	Columns bool;
 	Testmode bool;
-	Tokenchan bool;
 }
 
 
@@ -129,13 +129,8 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	var scanner Scanner.Scanner;
 	scanner.Init(&err, src, true, flags.Testmode);
 
-	var tstream <-chan *Scanner.Token;
-	if flags.Tokenchan {
-		tstream = scanner.TokenStream();
-	}
-
 	var parser Parser.Parser;
-	parser.Open(flags.Verbose, flags.Sixg, flags.Deps, &scanner, tstream);
+	parser.Open(flags.Verbose, flags.Sixg, flags.Deps, &scanner);
 
 	prog := parser.ParseProgram();
 
@@ -148,18 +143,36 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 
 
 func fileExists(name string) bool {
-	fd, err := OS.Open(name, OS.O_RDONLY, 0);
-	if err == nil {
-		fd.Close();
-		return true;
+	fd, err := os.Open(name, os.O_RDONLY, 0);
+	defer fd.Close();
+	return err == nil;
+}
+
+
+func printDep(localset map [string] bool, wset *array.Array, decl *AST.Decl) {
+	src := decl.Val.(*AST.BasicLit).Val;
+	src = src[1 : len(src) - 1];  // strip "'s
+
+	// ignore files when they are seen a 2nd time
+	dummy, found := localset[src];
+	if !found {
+		localset[src] = true;
+		if fileExists(src + ".go") {
+			wset.Push(src);
+			fmt.Printf(" %s.6", src);
+		} else if
+			fileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
+			fileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
+
+		} else {
+			// TODO should collect these and print later
+			//print("missing file: ", src, "\n");
+		}
 	}
-	return false;
 }
 
 
 func addDeps(globalset map [string] bool, wset *array.Array, src_file string, flags *Flags) {
-	panic();
-	/*
 	dummy, found := globalset[src_file];
 	if !found {
 		globalset[src_file] = true;
@@ -171,40 +184,34 @@ func addDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
 
 		nimports := prog.Decls.Len();
 		if nimports > 0 {
-			print(src_file, ".6:\t");
+			fmt.Printf("%s.6:\t", src_file);
 
 			localset := make(map [string] bool);
 			for i := 0; i < nimports; i++ {
 				decl := prog.Decls.At(i).(*AST.Decl);
-				assert(decl.Tok == Scanner.IMPORT && decl.Val.Tok == Scanner.STRING);
-				src := decl.Val.Obj.Ident;
-				src = src[1 : len(src) - 1];  // strip "'s
-
-				// ignore files when they are seen a 2nd time
-				dummy, found := localset[src];
-				if !found {
-					localset[src] = true;
-					if fileExists(src + ".go") {
-						wset.Push(src);
-						print(" ", src, ".6");
-					} else if
-						fileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
-						fileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
-
-					} else {
-						// TODO should collect these and print later
-						//print("missing file: ", src, "\n");
+				assert(decl.Tok == Scanner.IMPORT);
+				if decl.List == nil {
+					printDep(localset, wset, decl);
+				} else {
+					for j := 0; j < decl.List.Len(); j++ {
+						printDep(localset, wset, decl.List.At(j).(*AST.Decl));
 					}
 				}
 			}
 			print("\n\n");
 		}
 	}
-	*/
 }
 
 
 func ComputeDeps(src_file string, flags *Flags) {
+	// string ".go" extension, if any
+	{	n := len(src_file);
+		if src_file[n-3 : n] == ".go" {
+			src_file = src_file[0 : n-3];
+		}
+	}
+	// compute deps
 	globalset := make(map [string] bool);
 	wset := array.New(0);
 	wset.Push(src_file);

@@ -10,6 +10,7 @@ import (
 	"array";
 	Scanner "scanner";
 	AST "ast";
+	SymbolTable "symboltable";
 )
 
 
@@ -20,7 +21,6 @@ type Parser struct {
 
 	// Scanner
 	scanner *Scanner.Scanner;
-	tokchan <-chan *Scanner.Token;
 	comments *array.Array;
 
 	// Scanner.Token
@@ -36,7 +36,7 @@ type Parser struct {
 	scope_lev int;  // 0 = global scope, 1 = function scope of global functions, etc.
 
 	// Scopes
-	top_scope *AST.Scope;
+	top_scope *SymbolTable.Scope;
 };
 
 
@@ -65,7 +65,7 @@ func assert(pred bool) {
 
 func (P *Parser) printIndent() {
 	i := P.indent;
-	// reduce tracing time by a factor of 2
+	// reduce printing time by a factor of 2 or more
 	for ; i > 10; i -= 10 {
 		fmt.Printf(". . . . . . . . . . ");
 	}
@@ -91,12 +91,7 @@ func un/*trace*/(P *Parser) {
 
 
 func (P *Parser) next0() {
-	if P.tokchan == nil {
-		P.pos, P.tok, P.val = P.scanner.Scan();
-	} else {
-		t := <-P.tokchan;
-		P.tok, P.pos, P.val = t.Tok, t.Pos, t.Val;
-	}
+	P.pos, P.tok, P.val = P.scanner.Scan();
 	P.opt_semi = false;
 
 	if P.trace {
@@ -124,14 +119,13 @@ func (P *Parser) next() {
 }
 
 
-func (P *Parser) Open(trace, sixg, deps bool, scanner *Scanner.Scanner, tokchan <-chan *Scanner.Token) {
+func (P *Parser) Open(trace, sixg, deps bool, scanner *Scanner.Scanner) {
 	P.trace = trace;
 	P.sixg = sixg;
 	P.deps = deps;
 	P.indent = 0;
 
 	P.scanner = scanner;
-	P.tokchan = tokchan;
 	P.comments = array.New(0);
 
 	P.next();
@@ -169,7 +163,7 @@ func (P *Parser) OptSemicolon() {
 // Scopes
 
 func (P *Parser) openScope() {
-	P.top_scope = AST.NewScope(P.top_scope);
+	P.top_scope = SymbolTable.NewScope(P.top_scope);
 }
 
 
@@ -178,21 +172,22 @@ func (P *Parser) closeScope() {
 }
 
 
-func (P *Parser) declareInScope(scope *AST.Scope, x AST.Expr, kind int, typ *AST.Type) {
+func (P *Parser) declareInScope(scope *SymbolTable.Scope, x AST.Expr, kind int, typ *AST.Type) {
 	if P.scope_lev < 0 {
 		panic("cannot declare objects in other packages");
 	}
 	if ident, ok := x.(*AST.Ident); ok {  // ignore bad exprs
 		obj := ident.Obj;
 		obj.Kind = kind;
-		obj.Typ = typ;
+		//TODO fix typ setup!
+		//obj.Typ = typ;
 		obj.Pnolev = P.scope_lev;
 		switch {
 		case scope.LookupLocal(obj.Ident) == nil:
 			scope.Insert(obj);
-		case kind == AST.TYPE:
+		case kind == SymbolTable.TYPE:
 			// possibly a forward declaration
-		case kind == AST.FUNC:
+		case kind == SymbolTable.FUNC:
 			// possibly a forward declaration
 		default:
 			P.error(obj.Pos, `"` + obj.Ident + `" is declared already`);
@@ -263,20 +258,20 @@ func (P *Parser) parseDeclaration() *AST.Decl;
 
 
 // If scope != nil, lookup identifier in scope. Otherwise create one.
-func (P *Parser) parseIdent(scope *AST.Scope) *AST.Ident {
+func (P *Parser) parseIdent(scope *SymbolTable.Scope) *AST.Ident {
 	if P.trace {
 		defer un(trace(P, "Ident"));
 	}
 
 	if P.tok == Scanner.IDENT {
-		var obj *AST.Object;
+		var obj *SymbolTable.Object;
 		if scope != nil {
 			obj = scope.Lookup(P.val);
 		}
 		if obj == nil {
-			obj = AST.NewObject(P.pos, AST.NONE, P.val);
+			obj = SymbolTable.NewObject(P.pos, SymbolTable.NONE, P.val);
 		} else {
-			assert(obj.Kind != AST.NONE);
+			assert(obj.Kind != SymbolTable.NONE);
 		}
 		x := &AST.Ident{P.pos, obj};
 		P.next();
@@ -665,7 +660,7 @@ func (P *Parser) parseStructType() *AST.Type {
 		P.next();
 
 		t.List = array.New(0);
-		t.Scope = AST.NewScope(nil);
+		t.Scope = SymbolTable.NewScope(nil);
 		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 			P.parseVarList(t.List, false);
 			if P.tok == Scanner.STRING {
@@ -686,7 +681,7 @@ func (P *Parser) parseStructType() *AST.Type {
 		// enter fields into struct scope
 		for i, n := 0, t.List.Len(); i < n; i++ {
 			if x, ok := t.List.At(i).(*AST.Ident); ok {
-				P.declareInScope(t.Scope, x, AST.FIELD, nil);
+				P.declareInScope(t.Scope, x, SymbolTable.FIELD, nil);
 			}
 		}
 	}
@@ -777,7 +772,7 @@ func (P *Parser) parseBlock(ftyp *AST.Type, tok int) *AST.Block {
 		if ftyp.List != nil {
 			for i, n := 0, ftyp.List.Len(); i < n; i++ {
 				if x, ok := ftyp.List.At(i).(*AST.Ident); ok {
-					P.declareInScope(P.top_scope, x, AST.VAR, nil);
+					P.declareInScope(P.top_scope, x, SymbolTable.VAR, nil);
 				}
 			}
 		}
@@ -1520,13 +1515,13 @@ func (P *Parser) parseVarSpec(d *AST.Decl) {
 
 
 func (P *Parser) parseSpec(d *AST.Decl) {
-	kind := AST.NONE;
+	kind := SymbolTable.NONE;
 	
 	switch d.Tok {
-	case Scanner.IMPORT: P.parseImportSpec(d); kind = AST.PACKAGE;
-	case Scanner.CONST: P.parseConstSpec(d); kind = AST.CONST;
-	case Scanner.TYPE: P.parseTypeSpec(d); kind = AST.TYPE;
-	case Scanner.VAR: P.parseVarSpec(d); kind = AST.VAR;
+	case Scanner.IMPORT: P.parseImportSpec(d); kind = SymbolTable.PACKAGE;
+	case Scanner.CONST: P.parseConstSpec(d); kind = SymbolTable.CONST;
+	case Scanner.TYPE: P.parseTypeSpec(d); kind = SymbolTable.TYPE;
+	case Scanner.VAR: P.parseVarSpec(d); kind = SymbolTable.VAR;
 	default: unreachable();
 	}
 

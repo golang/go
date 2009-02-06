@@ -14,6 +14,7 @@ import (
 	Utils "utils";
 	Scanner "scanner";
 	AST "ast";
+	SymbolTable "symboltable";
 )
 
 var (
@@ -411,7 +412,7 @@ func (P *Printer) HtmlEpilogue() {
 
 func (P *Printer) HtmlIdentifier(x *AST.Ident) {
 	obj := x.Obj;
-	if *html && obj.Kind != AST.NONE {
+	if *html && obj.Kind != SymbolTable.NONE {
 		// depending on whether we have a declaration or use, generate different html
 		// - no need to htmlEscape ident
 		id := Utils.IntToString(obj.Id, 10);
