@@ -28,7 +28,6 @@ var (
 	maxnewlines = flag.Int("maxnewlines", 3, "max. number of consecutive newlines");
 
 	// formatting control
-	html = flag.Bool("html", false, "generate html");
 	comments = flag.Bool("comments", true, "print comments");
 	optsemicolons = flag.Bool("optsemicolons", false, "print optional semicolons");
 )
@@ -79,6 +78,9 @@ const (
 type Printer struct {
 	// output
 	text io.Write;
+	
+	// formatting control
+	html bool;
 
 	// comments
 	comments *array.Array;  // the list of all comments
@@ -118,9 +120,12 @@ func (P *Printer) NextComment() {
 }
 
 
-func (P *Printer) Init(text io.Write, comments *array.Array) {
+func (P *Printer) Init(text io.Write, html bool, comments *array.Array) {
 	// writers
 	P.text = text;
+	
+	// formatting control
+	P.html = html;
 
 	// comments
 	P.comments = comments;
@@ -137,8 +142,8 @@ func (P *Printer) Init(text io.Write, comments *array.Array) {
 // ----------------------------------------------------------------------------
 // Printing support
 
-func htmlEscape(s string) string {
-	if *html {
+func (P *Printer) htmlEscape(s string) string {
+	if P.html {
 		var esc string;
 		for i := 0; i < len(s); i++ {
 			switch s[i] {
@@ -146,7 +151,7 @@ func htmlEscape(s string) string {
 			case '&': esc = "&amp;";
 			default: continue;
 			}
-			return s[0 : i] + esc + htmlEscape(s[i+1 : len(s)]);
+			return s[0 : i] + esc + P.htmlEscape(s[i+1 : len(s)]);
 		}
 	}
 	return s;
@@ -291,7 +296,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 			}
 			// calling untabify increases the change for idempotent output
 			// since tabs in comments are also interpreted by tabwriter
-			P.Printf("%s", htmlEscape(untabify(ctext)));
+			P.Printf("%s", P.htmlEscape(untabify(ctext)));
 
 			if ctext[1] == '/' {
 				//-style comments must end in newline
@@ -337,7 +342,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
 	if *debug {
 		P.Printf("[%d]", pos);
 	}
-	P.Printf("%s%s%s", tag, htmlEscape(s), endtag);
+	P.Printf("%s%s%s", tag, P.htmlEscape(s), endtag);
 
 	// --------------------------------
 	// interpret state
@@ -368,6 +373,7 @@ func (P *Printer) String(pos int, s string) {
 
 func (P *Printer) Token(pos int, tok int) {
 	P.String(pos, Scanner.TokenString(tok));
+	//P.TaggedString(pos, "<b>", Scanner.TokenString(tok), "</b>");
 }
 
 
@@ -381,12 +387,12 @@ func (P *Printer) Error(pos int, tok int, msg string) {
 // HTML support
 
 func (P *Printer) HtmlPrologue(title string) {
-	if *html {
+	if P.html {
 		P.TaggedString(0,
 			"<html>\n"
 			"<head>\n"
 			"	<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n"
-			"	<title>" + htmlEscape(title) + "</title>\n"
+			"	<title>" + P.htmlEscape(title) + "</title>\n"
 			"	<style type=\"text/css\">\n"
 			"	</style>\n"
 			"</head>\n"
@@ -399,7 +405,7 @@ func (P *Printer) HtmlPrologue(title string) {
 
 
 func (P *Printer) HtmlEpilogue() {
-	if *html {
+	if P.html {
 		P.TaggedString(0,
 			"</pre>\n"
 			"</body>\n"
@@ -412,7 +418,7 @@ func (P *Printer) HtmlEpilogue() {
 
 func (P *Printer) HtmlIdentifier(x *AST.Ident) {
 	obj := x.Obj;
-	if *html && obj.Kind != SymbolTable.NONE {
+	if P.html && obj.Kind != SymbolTable.NONE {
 		// depending on whether we have a declaration or use, generate different html
 		// - no need to htmlEscape ident
 		id := Utils.IntToString(obj.Id, 10);
@@ -425,6 +431,17 @@ func (P *Printer) HtmlIdentifier(x *AST.Ident) {
 		}
 	} else {
 		P.String(x.Pos(), obj.Ident);
+	}
+}
+
+
+func (P *Printer) HtmlPackageName(pos int, name string) {
+	if P.html {
+		sname := name[1 : len(name)-1];  // strip quotes  TODO do this elsewhere eventually
+		// TODO CAPITAL HACK BELOW FIX THIS
+		P.TaggedString(pos, `"<a href="http://localhost:6060/gds/src/lib/` + sname + `.go">`, sname, `</a>"`);
+	} else {
+		P.String(pos, name);
 	}
 }
 
@@ -841,12 +858,12 @@ func (P *Printer) ControlClause(isForStat bool, init AST.Stat, expr AST.Expr, po
 
 
 func (P *Printer) DoIfStat(s *AST.IfStat) {
-	P.String(s.Pos, "if");
+	P.Token(s.Pos, Scanner.IF);
 	P.ControlClause(false, s.Init, s.Cond, nil);
 	P.Block(s.Body, true);
 	if s.Else != nil {
 		P.separator = blank;
-		P.String(0, "else");
+		P.Token(0, Scanner.ELSE);
 		P.separator = blank;
 		P.Stat(s.Else);
 	}
@@ -854,7 +871,7 @@ func (P *Printer) DoIfStat(s *AST.IfStat) {
 
 
 func (P *Printer) DoForStat(s *AST.ForStat) {
-	P.String(s.Pos, "for");
+	P.Token(s.Pos, Scanner.FOR);
 	P.ControlClause(true, s.Init, s.Cond, s.Post);
 	P.Block(s.Body, true);
 }
@@ -862,11 +879,11 @@ func (P *Printer) DoForStat(s *AST.ForStat) {
 
 func (P *Printer) DoCaseClause(s *AST.CaseClause) {
 	if s.Expr != nil {
-		P.String(s.Pos, "case");
+		P.Token(s.Pos, Scanner.CASE);
 		P.separator = blank;
 		P.Expr(s.Expr);
 	} else {
-		P.String(s.Pos, "default");
+		P.Token(s.Pos, Scanner.DEFAULT);
 	}
 	// TODO: try to use P.Block instead
 	// P.Block(s.Body, true);
@@ -879,14 +896,14 @@ func (P *Printer) DoCaseClause(s *AST.CaseClause) {
 
 
 func (P *Printer) DoSwitchStat(s *AST.SwitchStat) {
-	P.String(s.Pos, "switch");
+	P.Token(s.Pos, Scanner.SWITCH);
 	P.ControlClause(false, s.Init, s.Tag, nil);
 	P.Block(s.Body, false);
 }
 
 
 func (P *Printer) DoSelectStat(s *AST.SelectStat) {
-	P.String(s.Pos, "select");
+	P.Token(s.Pos, Scanner.SELECT);
 	P.separator = blank;
 	P.Block(s.Body, false);
 }
@@ -940,7 +957,13 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
 				P.String(d.Val.Pos(), "");  // flush pending ';' separator/newlines
 			}
 			P.separator = tab;
-			P.Expr(d.Val);
+			if lit, is_lit := d.Val.(*AST.BasicLit); is_lit && lit.Tok == Scanner.STRING {
+				P.HtmlPackageName(lit.Pos(), lit.Val);
+			} else {
+				// we should only reach here for strange imports
+				// import "foo" "bar"
+				P.Expr(d.Val);
+			}
 			P.separator = semicolon;
 
 		case Scanner.TYPE:
@@ -1002,15 +1025,15 @@ func (P *Printer) Program(p *AST.Program) {
 // ----------------------------------------------------------------------------
 // External interface
 
-func Print(prog *AST.Program) {
+func Print(writer io.Write, html bool, prog *AST.Program) {
 	// setup
 	var P Printer;
 	padchar := byte(' ');
 	if *usetabs {
 		padchar = '\t';
 	}
-	text := tabwriter.New(os.Stdout, *tabwidth, 1, padchar, true, *html);
-	P.Init(text, prog.Comments);
+	text := tabwriter.New(writer, *tabwidth, 1, padchar, true, html);
+	P.Init(text, html, prog.Comments);
 
 	// TODO would be better to make the name of the src file be the title
 	P.HtmlPrologue("package " + prog.Ident.(*AST.Ident).Obj.Ident);

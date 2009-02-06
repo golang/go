@@ -9,6 +9,7 @@ import (
 	"utf8";
 	"fmt";
 	"os";
+	Utils "utils";
 	Platform "platform";
 	Scanner "scanner";
 	Parser "parser";
@@ -205,16 +206,9 @@ func addDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
 
 
 func ComputeDeps(src_file string, flags *Flags) {
-	// string ".go" extension, if any
-	{	n := len(src_file);
-		if src_file[n-3 : n] == ".go" {
-			src_file = src_file[0 : n-3];
-		}
-	}
-	// compute deps
 	globalset := make(map [string] bool);
 	wset := array.New(0);
-	wset.Push(src_file);
+	wset.Push(Utils.TrimExt(src_file, ".go"));
 	for wset.Len() > 0 {
 		addDeps(globalset, wset, wset.Pop().(string), flags);
 	}
