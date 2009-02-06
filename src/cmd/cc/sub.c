@@ -722,7 +722,7 @@ arith(Node *n, int f)
 		if(w < 1 || n->left->type->link == T || n->left->type->link->width < 1)
 			goto bad;
 		n->type = types[ewidth[TIND] <= ewidth[TLONG]? TLONG: TVLONG];
-		if(1 && ewidth[TIND] > ewidth[TLONG]){
+		if(0 && ewidth[TIND] > ewidth[TLONG]){
 			n1 = new1(OXXX, Z, Z);
 			*n1 = *n;
 			n->op = OCAST;
