@@ -139,7 +139,6 @@ func TestInsertArray(t *testing.T) {
 	verify_pattern(t, a, 8, 1000, 2);
 }
 
-
 func TestSorting(t *testing.T) {
 	const n = 100;
 	a := array.NewIntArray(n);
@@ -147,4 +146,27 @@ func TestSorting(t *testing.T) {
 		a.Set(i, n-1-i);
 	}
 	if sort.IsSorted(a) { t.Error("not sorted") }
+}
+
+
+func TestDo(t *testing.T) {
+	const n = 25;
+	const salt = 17;
+	a := array.NewIntArray(n);
+	for i := 0; i < n; i++ {
+		a.Set(i, salt * i);
+	}
+	count := 0;
+	a.Do(
+		func(e array.Element) {
+			i := e.(int);
+			if i != count*salt {
+				t.Error("value at", count, "should be", count*salt, "not", i)
+			}
+			count++;
+		}
+	);
+	if count != n {
+		t.Error("should visit", n, "values; did visit", count)
+	}
 }
