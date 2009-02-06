@@ -17,21 +17,19 @@ type rat struct  {
 	num, den  int64;	// numerator, denominator
 }
 
-type item *rat;
-
-func (u *rat) pr(){
+func (u rat) pr() {
 	if u.den==1 { print(u.num) }
 	else { print(u.num, "/", u.den) }
 	print(" ")
 }
 
-func (u *rat) eq(c item) bool {
+func (u rat) eq(c rat) bool {
 	return u.num == c.num && u.den == c.den
 }
 
 type dch struct {
 	req chan  int;
-	dat chan  item;
+	dat chan  rat;
 	nam int;
 }
 
@@ -48,7 +46,7 @@ func mkdch() *dch {
 	chnameserial++;
 	d := new(dch);
 	d.req = make(chan int);
-	d.dat = make(chan item);
+	d.dat = make(chan rat);
 	d.nam = c;
 	return d;
 }
@@ -62,8 +60,8 @@ func mkdch2() *dch2 {
 
 // split reads a single demand channel and replicates its
 // output onto two, which may be read at different rates.
-// A process is created at first demand for an item and dies
-// after the item has been sent to both outputs.
+// A process is created at first demand for a rat and dies
+// after the rat has been sent to both outputs.
 
 // When multiple generations of split exist, the newest
 // will service requests on one channel, which is
@@ -74,7 +72,7 @@ func mkdch2() *dch2 {
 // a signal on the release-wait channel tells the next newer
 // generation to begin servicing out[1].
 
-func dosplit(in *dch, out *dch2, wait chan int ){
+func dosplit(in *dch, out *dch2, wait chan int ) {
 	var t *dch;
 	both := false;	// do not service both channels
 
@@ -105,33 +103,33 @@ func dosplit(in *dch, out *dch2, wait chan int ){
 	release <- 0;
 }
 
-func split(in *dch, out *dch2){
+func split(in *dch, out *dch2) {
 	release := make(chan int);
 	go dosplit(in, out, release);
 	release <- 0;
 }
 
-func put(dat item, out *dch){
+func put(dat rat, out *dch) {
 	<-out.req;
 	out.dat <- dat;
 }
 
-func get(in *dch) *rat {
+func get(in *dch) rat {
 	seqno++;
 	in.req <- seqno;
 	return <-in.dat;
 }
 
-// Get one item from each of n demand channels
+// Get one rat from each of n demand channels
 
-func getn(in []*dch, n int) []item {
-	// BUG n:=len(in);
+func getn(in []*dch) []rat {
+	n := len(in);
 	if n != 2 { panic("bad n in getn") };
 	req := new([2] chan int);
-	dat := new([2] chan item);
-	out := make([]item, 2);
+	dat := new([2] chan rat);
+	out := make([]rat, 2);
 	var i int;
-	var it item;
+	var it rat;
 	for i=0; i<n; i++ {
 		req[i] = in[i].req;
 		dat[i] = nil;
@@ -139,7 +137,7 @@ func getn(in []*dch, n int) []item {
 	for n=2*n; n>0; n-- {
 		seqno++;
 
-		select{
+		select {
 		case req[0] <- seqno:
 			dat[0] = in[0].dat;
 			req[0] = nil;
@@ -157,20 +155,20 @@ func getn(in []*dch, n int) []item {
 	return out;
 }
 
-// Get one item from each of 2 demand channels
+// Get one rat from each of 2 demand channels
 
-func get2(in0 *dch, in1 *dch) []item {
-	return getn([]*dch{in0, in1}, 2);
+func get2(in0 *dch, in1 *dch) []rat {
+	return getn([]*dch{in0, in1});
 }
 
-func copy(in *dch, out *dch){
+func copy(in *dch, out *dch) {
 	for {
 		<-out.req;
 		out.dat <- get(in);
 	}
 }
 
-func repeat(dat item, out *dch){
+func repeat(dat rat, out *dch) {
 	for {
 		put(dat, out)
 	}
@@ -198,7 +196,7 @@ func mkPS2() *dch2 {
 
 // Integer gcd; needed for rational arithmetic
 
-func gcd (u, v int64) int64{
+func gcd (u, v int64) int64 {
 	if u < 0 { return gcd(-u, v) }
 	if u == 0 { return v }
 	return gcd(v%u, u)
@@ -206,9 +204,9 @@ func gcd (u, v int64) int64{
 
 // Make a rational from two ints and from one int
 
-func i2tor(u, v int64) *rat{
+func i2tor(u, v int64) rat {
 	g := gcd(u,v);
-	r := new(rat);
+	var r rat;
 	if v > 0 {
 		r.num = u/g;
 		r.den = v/g;
@@ -219,54 +217,54 @@ func i2tor(u, v int64) *rat{
 	return r;
 }
 
-func itor(u int64) *rat{
+func itor(u int64) rat {
 	return i2tor(u, 1);
 }
 
-var zero *rat;
-var one *rat;
+var zero rat;
+var one rat;
 
 
 // End mark and end test
 
-var finis *rat;
+var finis rat;
 
-func end(u *rat) int64 {
+func end(u rat) int64 {
 	if u.den==0 { return 1 }
 	return 0
 }
 
 // Operations on rationals
 
-func add(u, v *rat) *rat {
+func add(u, v rat) rat {
 	g := gcd(u.den,v.den);
 	return  i2tor(u.num*(v.den/g)+v.num*(u.den/g),u.den*(v.den/g));
 }
 
-func mul(u, v *rat) *rat{
+func mul(u, v rat) rat {
 	g1 := gcd(u.num,v.den);
 	g2 := gcd(u.den,v.num);
-	r := new(rat);
-	r.num =(u.num/g1)*(v.num/g2);
+	var r rat;
+	r.num = (u.num/g1)*(v.num/g2);
 	r.den = (u.den/g2)*(v.den/g1);
 	return r;
 }
 
-func neg(u *rat) *rat{
+func neg(u rat) rat {
 	return i2tor(-u.num, u.den);
 }
 
-func sub(u, v *rat) *rat{
+func sub(u, v rat) rat {
 	return add(u, neg(v));
 }
 
-func inv(u *rat) *rat{	// invert a rat
+func inv(u rat) rat {	// invert a rat
 	if u.num == 0 { panic("zero divide in inv") }
 	return i2tor(u.den, u.num);
 }
 
 // print eval in floating point of PS at x=c to n terms
-func Evaln(c *rat, U PS, n int)
+func evaln(c rat, U PS, n int)
 {
 	xn := float64(1);
 	x := float64(c.num)/float64(c.den);
@@ -283,7 +281,7 @@ func Evaln(c *rat, U PS, n int)
 }
 
 // Print n terms of a power series
-func Printn(U PS, n int){
+func printn(U PS, n int) {
 	done := false;
 	for ; !done && n>0; n-- {
 		u := get(U);
@@ -293,12 +291,8 @@ func Printn(U PS, n int){
 	print(("\n"));
 }
 
-func Print(U PS){
-	Printn(U,1000000000);
-}
-
 // Evaluate n terms of power series U at x=c
-func eval(c *rat, U PS, n int) *rat{
+func eval(c rat, U PS, n int) rat {
 	if n==0 { return zero }
 	y := get(U);
 	if end(y) != 0 { return zero }
@@ -311,17 +305,17 @@ func eval(c *rat, U PS, n int) *rat{
 
 // Make a pair of power series identical to a given power series
 
-func Split(U PS) *dch2{
+func Split(U PS) *dch2 {
 	UU := mkdch2();
 	go split(U,UU);
 	return UU;
 }
 
 // Add two power series
-func Add(U, V PS) PS{
+func Add(U, V PS) PS {
 	Z := mkPS();
-	go func(U, V, Z PS){
-		var uv [] *rat;
+	go func() {
+		var uv []rat;
 		for {
 			<-Z.req;
 			uv = get2(U,V);
@@ -338,14 +332,14 @@ func Add(U, V PS) PS{
 				Z.dat <- finis;
 			}
 		}
-	}(U, V, Z);
+	}();
 	return Z;
 }
 
 // Multiply a power series by a constant
-func Cmul(c *rat,U PS) PS{
+func Cmul(c rat,U PS) PS {
 	Z := mkPS();
-	go func(c *rat, U, Z PS){
+	go func() {
 		done := false;
 		for !done {
 			<-Z.req;
@@ -354,34 +348,34 @@ func Cmul(c *rat,U PS) PS{
 			else { Z.dat <- mul(c,u) }
 		}
 		Z.dat <- finis;
-	}(c, U, Z);
+	}();
 	return Z;
 }
 
 // Subtract
 
-func Sub(U, V PS) PS{
+func Sub(U, V PS) PS {
 	return Add(U, Cmul(neg(one), V));
 }
 
 // Multiply a power series by the monomial x^n
 
-func Monmul(U PS, n int) PS{
+func Monmul(U PS, n int) PS {
 	Z := mkPS();
-	go func(n int, U PS, Z PS){
+	go func() {
 		for ; n>0; n-- { put(zero,Z) }
 		copy(U,Z);
-	}(n, U, Z);
+	}();
 	return Z;
 }
 
 // Multiply by x
 
-func Xmul(U PS) PS{
+func Xmul(U PS) PS {
 	return Monmul(U,1);
 }
 
-func Rep(c *rat) PS{
+func Rep(c rat) PS {
 	Z := mkPS();
 	go repeat(c,Z);
 	return Z;
@@ -389,24 +383,24 @@ func Rep(c *rat) PS{
 
 // Monomial c*x^n
 
-func Mon(c *rat, n int) PS{
+func Mon(c rat, n int) PS {
 	Z:=mkPS();
-	go func(c *rat, n int, Z PS){
+	go func() {
 		if(c.num!=0) {
 			for ; n>0; n=n-1 { put(zero,Z) }
 			put(c,Z);
 		}
 		put(finis,Z);
-	}(c, n, Z);
+	}();
 	return Z;
 }
 
-func Shift(c *rat, U PS) PS{
+func Shift(c rat, U PS) PS {
 	Z := mkPS();
-	go func(c *rat, U, Z PS){
+	go func() {
 		put(c,Z);
 		copy(U,Z);
-	}(c, U, Z);
+	}();
 	return Z;
 }
 
@@ -415,10 +409,10 @@ func Shift(c *rat, U PS) PS{
 // Convert array of coefficients, constant term first
 // to a (finite) power series
 
-/* BUG: NEED LEN OF ARRAY
-func Poly(a [] *rat) PS{
+/*
+func Poly(a []rat) PS {
 	Z:=mkPS();
-	begin func(a [] *rat, Z PS){
+	begin func(a []rat, Z PS) {
 		j:=0;
 		done:=0;
 		for j=len(a); !done&&j>0; j=j-1)
@@ -436,9 +430,9 @@ func Poly(a [] *rat) PS{
 //	let V = v + x*VV
 //	then UV = u*v + x*(u*VV+v*UU) + x*x*UU*VV
 
-func Mul(U, V PS) PS{
+func Mul(U, V PS) PS {
 	Z:=mkPS();
-	go func(U, V, Z PS){
+	go func() {
 		<-Z.req;
 		uv := get2(U,V);
 		if end(uv[0])!=0 || end(uv[1]) != 0 {
@@ -452,15 +446,15 @@ func Mul(U, V PS) PS{
 			Z.dat <- get(W);
 			copy(Add(W,Mul(UU[1],VV[1])),Z);
 		}
-	}(U, V, Z);
+	}();
 	return Z;
 }
 
 // Differentiate
 
-func Diff(U PS) PS{
+func Diff(U PS) PS {
 	Z:=mkPS();
-	go func(U, Z PS){
+	go func() {
 		<-Z.req;
 		u := get(U);
 		if end(u) == 0 {
@@ -475,14 +469,14 @@ func Diff(U PS) PS{
 			}
 		}
 		Z.dat <- finis;
-	}(U, Z);
+	}();
 	return Z;
 }
 
 // Integrate, with const of integration
-func Integ(c *rat,U PS) PS{
+func Integ(c rat,U PS) PS {
 	Z:=mkPS();
-	go func(c *rat, U, Z PS){
+	go func() {
 		put(c,Z);
 		done:=false;
 		for i:=1; !done; i++ {
@@ -492,15 +486,15 @@ func Integ(c *rat,U PS) PS{
 			Z.dat <- mul(i2tor(1,int64(i)),u);
 		}
 		Z.dat <- finis;
-	}(c, U, Z);
+	}();
 	return Z;
 }
 
 // Binomial theorem (1+x)^c
 
-func Binom(c *rat) PS{
+func Binom(c rat) PS {
 	Z:=mkPS();
-	go func(c *rat, Z PS){
+	go func() {
 		n := 1;
 		t := itor(1);
 		for c.num!=0 {
@@ -510,7 +504,7 @@ func Binom(c *rat) PS{
 			n++;
 		}
 		put(finis,Z);
-	}(c, Z);
+	}();
 	return Z;
 }
 
@@ -522,16 +516,16 @@ func Binom(c *rat) PS{
 //	u*ZZ + z*UU +x*UU*ZZ = 0
 //	ZZ = -UU*(z+x*ZZ)/u;
 
-func Recip(U PS) PS{
+func Recip(U PS) PS {
 	Z:=mkPS();
-	go func(U, Z PS){
+	go func() {
 		ZZ:=mkPS2();
 		<-Z.req;
 		z := inv(get(U));
 		Z.dat <- z;
 		split(Mul(Cmul(neg(z),U),Shift(z,ZZ[0])),ZZ);
 		copy(ZZ[1],Z);
-	}(U, Z);
+	}();
 	return Z;
 }
 
@@ -542,7 +536,7 @@ func Recip(U PS) PS{
 //	DZ = Z*DU
 //	integrate to get Z
 
-func Exp(U PS) PS{
+func Exp(U PS) PS {
 	ZZ := mkPS2();
 	split(Integ(one,Mul(ZZ[0],Diff(U))),ZZ);
 	return ZZ[1];
@@ -556,7 +550,7 @@ func Exp(U PS) PS{
 
 func Subst(U, V PS) PS {
 	Z:= mkPS();
-	go func(U, V, Z PS) {
+	go func() {
 		VV := Split(V);
 		<-Z.req;
 		u := get(U);
@@ -565,16 +559,16 @@ func Subst(U, V PS) PS {
 			if end(get(VV[0])) != 0 { put(finis,Z); }
 			else { copy(Mul(VV[0],Subst(U,VV[1])),Z); }
 		}
-	}(U, V, Z);
+	}();
 	return Z;
 }
 
 // Monomial Substition: U(c x^n)
 // Each Ui is multiplied by c^i and followed by n-1 zeros
 
-func MonSubst(U PS, c0 *rat, n int) PS {
+func MonSubst(U PS, c0 rat, n int) PS {
 	Z:= mkPS();
-	go func(U, Z PS, c0 *rat, n int) {
+	go func() {
 		c := one;
 		for {
 			<-Z.req;
@@ -590,7 +584,7 @@ func MonSubst(U PS, c0 *rat, n int) PS {
 				Z.dat <- zero;
 			}
 		}
-	}(U, Z, c0, n);
+	}();
 	return Z;
 }
 
@@ -606,7 +600,7 @@ func Init() {
 	Twos = Rep(itor(2));
 }
 
-func check(U PS, c *rat, count int, str string) {
+func check(U PS, c rat, count int, str string) {
 	for i := 0; i < count; i++ {
 		r := get(U);
 		if !r.eq(c) {
@@ -621,7 +615,7 @@ func check(U PS, c *rat, count int, str string) {
 }
 
 const N=10
-func checka(U PS, a []*rat, str string) {
+func checka(U PS, a []rat, str string) {
 	for i := 0; i < N; i++ {
 		check(U, a[i], 1, str);
 	}
@@ -630,30 +624,28 @@ func checka(U PS, a []*rat, str string) {
 func main() {
 	Init();
 	if len(sys.Args) > 1 {  // print
-		print("Ones: "); Printn(Ones, 10);
-		print("Twos: "); Printn(Twos, 10);
-		print("Add: "); Printn(Add(Ones, Twos), 10);
-		print("Diff: "); Printn(Diff(Ones), 10);
-		print("Integ: "); Printn(Integ(zero, Ones), 10);
-		print("CMul: "); Printn(Cmul(neg(one), Ones), 10);
-		print("Sub: "); Printn(Sub(Ones, Twos), 10);
-		print("Mul: "); Printn(Mul(Ones, Ones), 10);
-		print("Exp: "); Printn(Exp(Ones), 15);
-		print("MonSubst: "); Printn(MonSubst(Ones, neg(one), 2), 10);
-		print("ATan: "); Printn(Integ(zero, MonSubst(Ones, neg(one), 2)), 10);
+		print("Ones: "); printn(Ones, 10);
+		print("Twos: "); printn(Twos, 10);
+		print("Add: "); printn(Add(Ones, Twos), 10);
+		print("Diff: "); printn(Diff(Ones), 10);
+		print("Integ: "); printn(Integ(zero, Ones), 10);
+		print("CMul: "); printn(Cmul(neg(one), Ones), 10);
+		print("Sub: "); printn(Sub(Ones, Twos), 10);
+		print("Mul: "); printn(Mul(Ones, Ones), 10);
+		print("Exp: "); printn(Exp(Ones), 15);
+		print("MonSubst: "); printn(MonSubst(Ones, neg(one), 2), 10);
+		print("ATan: "); printn(Integ(zero, MonSubst(Ones, neg(one), 2)), 10);
 	} else {  // test
 		check(Ones, one, 5, "Ones");
 		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1
 		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos"); // 3 3 3 3 3
-		a := make([] *rat, N);
+		a := make([]rat, N);
 		d := Diff(Ones);
-		// BUG: want array initializer
 		for i:=0; i < N; i++ {
 			a[i] = itor(int64(i+1))
 		}
 		checka(d, a, "Diff");  // 1 2 3 4 5
 		in := Integ(zero, Ones);
-		// BUG: want array initializer
 		a[0] = zero;  // integration constant
 		for i:=1; i < N; i++ {
 			a[i] = i2tor(1, int64(i))
@@ -662,13 +654,11 @@ func main() {
 		check(Cmul(neg(one), Twos), itor(-2), 10, "CMul");  // -1 -1 -1 -1 -1
 		check(Sub(Ones, Twos), itor(-1), 0, "Sub Ones Twos");  // -1 -1 -1 -1 -1
 		m := Mul(Ones, Ones);
-		// BUG: want array initializer
 		for i:=0; i < N; i++ {
 			a[i] = itor(int64(i+1))
 		}
 		checka(m, a, "Mul");  // 1 2 3 4 5
 		e := Exp(Ones);
-		// BUG: want array initializer
 		a[0] = itor(1);
 		a[1] = itor(1);
 		a[2] = i2tor(3,2);
@@ -681,7 +671,6 @@ func main() {
 		a[9] = i2tor(4596553,362880);
 		checka(e, a, "Exp");  // 1 1 3/2 13/6 73/24
 		at := Integ(zero, MonSubst(Ones, neg(one), 2));
-		// BUG: want array initializer
 		for c, i := 1, 0; i < N; i++ {
 			if i%2 == 0 {
 				a[i] = zero
@@ -693,7 +682,6 @@ func main() {
 		checka(at, a, "ATan");  // 0 -1 0 -1/3 0 -1/5
 /*
 		t := Revert(Integ(zero, MonSubst(Ones, neg(one), 2)));
-		// BUG: want array initializer
 		a[0] = zero;
 		a[1] = itor(1);
 		a[2] = zero;
@@ -707,5 +695,4 @@ func main() {
 		checka(t, a, "Tan");  // 0 1 0 1/3 0 2/15
 */
 	}
-	sys.Exit(0);  // BUG: force waiting goroutines to exit
 }
