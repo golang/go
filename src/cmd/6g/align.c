@@ -51,17 +51,27 @@ offmod(Type *t)
 }
 
 uint32
+arrayelemwidth(Type *t)
+{
+
+	while(t->etype == TARRAY && t->bound >= 0)
+		t = t->type;
+	return t->width;
+}
+
+uint32
 widstruct(Type *t, uint32 o, int flag)
 {
 	Type *f;
-	int32 w;
+	int32 w, m;
 
 	for(f=t->type; f!=T; f=f->down) {
 		if(f->etype != TFIELD)
 			fatal("widstruct: not TFIELD: %lT", f);
 		dowidth(f->type);
 		w = f->type->width;
-		o = rnd(o, w);
+		m = arrayelemwidth(f->type);
+		o = rnd(o, m);
 		f->width = o;	// really offset for TFIELD
 		o += w;
 	}
