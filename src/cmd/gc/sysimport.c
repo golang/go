@@ -65,5 +65,7 @@ char *sysimport =
 char *unsafeimport =
 	"package unsafe\n"
 	"type unsafe.Pointer *any\n"
+	"func unsafe.Offsetof (? any) (? int)\n"
+	"func unsafe.Sizeof (? any) (? int)\n"
 	"\n"
 	"$$\n";
