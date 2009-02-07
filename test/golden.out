@@ -163,6 +163,9 @@ BUG: should not compile
 =========== bugs/bug132.go
 BUG: compilation succeeds incorrectly
 
+=========== bugs/bug136.go
+BUG: should not compile
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: overflow converting constant to uint
 
