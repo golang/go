@@ -65,13 +65,17 @@ func Stat(name string, buf *Stat_t) (ret int64, errno int64) {
 	return r1, err;
 }
 
-func Lstat(name *byte, buf *Stat_t) (ret int64, errno int64) {
-	r1, r2, err := Syscall(SYS_LSTAT, int64(uintptr(unsafe.Pointer(name))), int64(uintptr(unsafe.Pointer(buf))), 0);
+func Lstat(name string, buf *Stat_t) (ret int64, errno int64) {
+	var namebuf [nameBufsize]byte;
+	if !StringToBytes(namebuf, name) {
+		return -1, ENAMETOOLONG
+	}
+	r1, r2, err := Syscall(SYS_LSTAT64, int64(uintptr(unsafe.Pointer(&namebuf[0]))), int64(uintptr(unsafe.Pointer(buf))), 0);
 	return r1, err;
 }
 
 func Fstat(fd int64, buf *Stat_t) (ret int64, errno int64) {
-	r1, r2, err := Syscall(SYS_FSTAT, fd, int64(uintptr(unsafe.Pointer(buf))), 0);
+	r1, r2, err := Syscall(SYS_FSTAT64, fd, int64(uintptr(unsafe.Pointer(buf))), 0);
 	return r1, err;
 }
 
