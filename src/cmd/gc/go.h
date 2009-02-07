@@ -763,6 +763,7 @@ void	constiter(Node*, Type*, Node*);
 
 void	funclit0(Type*);
 Node*	funclit1(Type*, Node*);
+Node*	unsafenmagic(Node*, Node*);
 
 /*
  *	export.c

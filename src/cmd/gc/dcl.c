@@ -1483,3 +1483,54 @@ loop:
 	c = listnext(&citer);
 	goto loop;
 }
+
+/*
+ * look for
+ *	unsafe.Sizeof
+ *	unsafe.Offsetof
+ * rewrite with a constant
+ */
+Node*
+unsafenmagic(Node *l, Node *r)
+{
+	Node *n;
+	Sym *s;
+	long v;
+	Val val;
+
+	if(l == N || r == N)
+		goto no;
+	if(l->op != ONAME)
+		goto no;
+	s = l->sym;
+	if(s == S)
+		goto no;
+	if(strcmp(s->opackage, "unsafe") != 0)
+		goto no;
+
+	if(strcmp(s->name, "Sizeof") == 0) {
+		walktype(r, Erv);
+		if(r->type == T)
+			goto no;
+		v = r->type->width;
+		goto yes;
+	}
+	if(strcmp(s->name, "Offsetof") == 0) {
+		if(r->op != ODOT && r->op != ODOTPTR)
+			goto no;
+		walktype(r, Erv);
+		v = n->xoffset;
+		goto yes;
+	}
+
+no:
+	return N;
+
+yes:
+	val.ctype = CTINT;
+	val.u.xval = mal(sizeof(*n->val.u.xval));
+	mpmovecfix(val.u.xval, v);
+	n = nod(OLITERAL, N, N);
+	n->val = val;
+	return n;
+}
