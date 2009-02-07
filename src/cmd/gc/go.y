@@ -804,7 +804,9 @@ pexpr:
 	}
 |	pexpr '(' oexpr_list ')'
 	{
-		$$ = nod(OCALL, $1, $3);
+		$$ = unsafenmagic($1, $3);
+		if($$ == N)
+			$$ = nod(OCALL, $1, $3);
 	}
 |	LLEN '(' expr ')'
 	{
