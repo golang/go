@@ -14,20 +14,14 @@ import (
 const nameBufsize = 512
 
 func Open(name string, mode int64, perm int64) (ret int64, errno int64) {
-	var namebuf [nameBufsize]byte;
-	if !StringToBytes(namebuf, name) {
-		return -1, ENAMETOOLONG
-	}
-	r1, r2, err := Syscall(SYS_OPEN, int64(uintptr(unsafe.Pointer(&namebuf[0]))), mode, perm);
+	namebuf := StringBytePtr(name);
+	r1, r2, err := Syscall(SYS_OPEN, int64(uintptr(unsafe.Pointer(namebuf))), mode, perm);
 	return r1, err;
 }
 
 func Creat(name string, perm int64) (ret int64, errno int64) {
-	var namebuf [nameBufsize]byte;
-	if !StringToBytes(namebuf, name) {
-		return -1, ENAMETOOLONG
-	}
-	r1, r2, err := Syscall(SYS_OPEN, int64(uintptr(unsafe.Pointer(&namebuf[0]))),  O_CREAT|O_WRONLY|O_TRUNC, perm);
+	namebuf := StringBytePtr(name);
+	r1, r2, err := Syscall(SYS_OPEN, int64(uintptr(unsafe.Pointer(namebuf))),  O_CREAT|O_WRONLY|O_TRUNC, perm);
 	return r1, err;
 }
 
@@ -58,16 +52,14 @@ func Pipe(fds *[2]int64) (ret int64, errno int64) {
 }
 
 func Stat(name string, buf *Stat_t) (ret int64, errno int64) {
-	var namebuf [nameBufsize]byte;
-	if !StringToBytes(namebuf, name) {
-		return -1, ENAMETOOLONG
-	}
-	r1, r2, err := Syscall(SYS_STAT, int64(uintptr(unsafe.Pointer(&namebuf[0]))), int64(uintptr(unsafe.Pointer(buf))), 0);
+	namebuf := StringBytePtr(name);
+	r1, r2, err := Syscall(SYS_STAT, int64(uintptr(unsafe.Pointer(namebuf))), int64(uintptr(unsafe.Pointer(buf))), 0);
 	return r1, err;
 }
 
-func Lstat(name *byte, buf *Stat_t) (ret int64, errno int64) {
-	r1, r2, err := Syscall(SYS_LSTAT, int64(uintptr(unsafe.Pointer(name))), int64(uintptr(unsafe.Pointer(buf))), 0);
+func Lstat(name string, buf *Stat_t) (ret int64, errno int64) {
+	namebuf := StringBytePtr(name);
+	r1, r2, err := Syscall(SYS_LSTAT, int64(uintptr(unsafe.Pointer(namebuf))), int64(uintptr(unsafe.Pointer(buf))), 0);
 	return r1, err;
 }
 
@@ -77,11 +69,8 @@ func Fstat(fd int64, buf *Stat_t) (ret int64, errno int64) {
 }
 
 func Unlink(name string) (ret int64, errno int64) {
-	var namebuf [nameBufsize]byte;
-	if !StringToBytes(namebuf, name) {
-		return -1, ENAMETOOLONG
-	}
-	r1, r2, err := Syscall(SYS_UNLINK, int64(uintptr(unsafe.Pointer(&namebuf[0]))), 0, 0);
+	namebuf := StringBytePtr(name);
+	r1, r2, err := Syscall(SYS_UNLINK, int64(uintptr(unsafe.Pointer(namebuf))), 0, 0);
 	return r1, err;
 }
 
@@ -91,11 +80,8 @@ func Fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
 }
 
 func Mkdir(name string, perm int64) (ret int64, errno int64) {
-	var namebuf [nameBufsize]byte;
-	if !StringToBytes(namebuf, name) {
-		return -1, ENAMETOOLONG
-	}
-	r1, r2, err := Syscall(SYS_MKDIR, int64(uintptr(unsafe.Pointer(&namebuf[0]))), perm, 0);
+	namebuf := StringBytePtr(name);
+	r1, r2, err := Syscall(SYS_MKDIR, int64(uintptr(unsafe.Pointer(namebuf))), perm, 0);
 	return r1, err;
 }
 

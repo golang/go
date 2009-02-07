@@ -6,6 +6,7 @@ package utf8
 
 import (
 	"fmt";
+	"io";
 	"syscall";
 	"testing";
 	"utf8";
@@ -44,13 +45,11 @@ var utf8map = []Utf8Map {
 	Utf8Map{ 0x10ffff, "\xf4\x8f\xbf\xbf" },
 }
 
-// like io.StringBytes but leaves one extra byte at end
+// io.StringBytes with one extra byte at end
 func bytes(s string) []byte {
-	b := make([]byte, len(s)+1);
-	if !syscall.StringToBytes(b, s) {
-		panic("StringTobytes failed");
-	}
-	return b[0:len(s)];
+	s += "\x00";
+	b := io.StringBytes(s);
+	return b[0:len(s)-1];
 }
 
 func TestFullRune(t *testing.T) {

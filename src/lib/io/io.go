@@ -34,14 +34,19 @@ type Close interface {
 	Close() *os.Error;
 }
 
-func WriteString(w Write, s string) (n int, err *os.Error) {
-	b := make([]byte, len(s)+1);
-	if !syscall.StringToBytes(b, s) {
-		return -1, os.EINVAL
+// Convert a string to an array of bytes for easy marshaling.
+// Could fill with syscall.StringToBytes but it adds an unnecessary \000
+// so the length would be wrong.
+func StringBytes(s string) []byte {
+	b := make([]byte, len(s));
+	for i := 0; i < len(s); i++ {
+		b[i] = s[i];
 	}
-	// BUG return w.Write(b[0:len(s)])
-	r, e := w.Write(b[0:len(s)]);
-	return r, e
+	return b;
+}
+
+func WriteString(w Write, s string) (n int, err *os.Error) {
+	return w.Write(StringBytes(s))
 }
 
 // Read until buffer is full, EOF, or error
@@ -146,15 +151,4 @@ func Copy(src Read, dst Write) (written int64, err *os.Error) {
 		}
 	}
 	return written, err
-}
-
-// Convert a string to an array of bytes for easy marshaling.
-// Could fill with syscall.StringToBytes but it adds an unnecessary \000
-// so the length would be wrong.
-func StringBytes(s string) []byte {
-	b := make([]byte, len(s));
-	for i := 0; i < len(s); i++ {
-		b[i] = s[i];
-	}
-	return b;
 }

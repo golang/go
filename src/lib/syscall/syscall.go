@@ -16,13 +16,10 @@ func RawSyscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
  * Used to convert file names to byte arrays for passing to kernel,
  * but useful elsewhere too.
  */
-func StringToBytes(b []byte, s string) bool {
-	if len(s) >= len(b) {
-		return false
-	}
+func StringBytePtr(s string) *byte {
+	a := make([]byte, len(s)+1);
 	for i := 0; i < len(s); i++ {
-		b[i] = s[i]
+		a[i] = s[i];
 	}
-	b[len(s)] = '\000';	// not necessary - memory is zeroed - but be explicit
-	return true
+	return &a[0];
 }
