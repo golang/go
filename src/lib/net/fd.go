@@ -84,19 +84,19 @@ func _NewPollServer() (s *_PollServer, err *os.Error) {
 	if s.pr, s.pw, err = os.Pipe(); err != nil {
 		return nil, err
 	}
-	if err = _SetNonblock(s.pr.Fd); err != nil {
+	if err = _SetNonblock(s.pr.Fd()); err != nil {
 	Error:
 		s.pr.Close();
 		s.pw.Close();
 		return nil, err
 	}
-	if err = _SetNonblock(s.pw.Fd); err != nil {
+	if err = _SetNonblock(s.pw.Fd()); err != nil {
 		goto Error
 	}
 	if s.poll, err = NewPollster(); err != nil {
 		goto Error
 	}
-	if err = s.poll.AddFD(s.pr.Fd, 'r', true); err != nil {
+	if err = s.poll.AddFD(s.pr.Fd(), 'r', true); err != nil {
 		s.poll.Close();
 		goto Error
 	}
@@ -142,7 +142,7 @@ func (s *_PollServer) Run() {
 			print("_PollServer WaitFD: ", err.String(), "\n");
 			return
 		}
-		if fd == s.pr.Fd {
+		if fd == s.pr.Fd() {
 			// Drain our wakeup pipe.
 			for nn, e := s.pr.Read(scratch); nn > 0; {
 				nn, e = s.pr.Read(scratch)
@@ -216,7 +216,7 @@ func NewFD(fd int64) (f *FD, err *os.Error) {
 	}
 	f = new(FD);
 	f.fd = fd;
-	f.osfd = os.NewFD(fd);
+	f.osfd = os.NewFD(fd, "socket");
 	f.cr = make(chan *FD, 1);
 	f.cw = make(chan *FD, 1);
 	return f, nil

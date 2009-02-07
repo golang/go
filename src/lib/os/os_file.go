@@ -9,20 +9,29 @@ import os "os"
 
 // FDs are wrappers for file descriptors
 type FD struct {
-	Fd int64
+	fd int64;
+	name	string;
 }
 
-func NewFD(fd int64) *FD {
+func (fd *FD) Fd() int64 {
+	return fd.fd
+}
+
+func (fd *FD) Name() string {
+	return fd.name
+}
+
+func NewFD(fd int64, name string) *FD {
 	if fd < 0 {
 		return nil
 	}
-	return &FD{fd}
+	return &FD{fd, name}
 }
 
 var (
-	Stdin = NewFD(0);
-	Stdout = NewFD(1);
-	Stderr = NewFD(2);
+	Stdin = NewFD(0, "/dev/stdin");
+	Stdout = NewFD(1, "/dev/stdout");
+	Stderr = NewFD(2, "/dev/stderr");
 )
 
 const (
@@ -41,15 +50,15 @@ const (
 
 func Open(name string, mode int, flags int) (fd *FD, err *Error) {
 	r, e := syscall.Open(name, int64(mode), int64(flags));
-	return NewFD(r), ErrnoToError(e)
+	return NewFD(r, name), ErrnoToError(e)
 }
 
 func (fd *FD) Close() *Error {
 	if fd == nil {
 		return EINVAL
 	}
-	r, e := syscall.Close(fd.Fd);
-	fd.Fd = -1;  // so it can't be closed again
+	r, e := syscall.Close(fd.fd);
+	fd.fd = -1;  // so it can't be closed again
 	return ErrnoToError(e)
 }
 
@@ -59,7 +68,7 @@ func (fd *FD) Read(b []byte) (ret int, err *Error) {
 	}
 	var r, e int64;
 	if len(b) > 0 {  // because we access b[0]
-		r, e = syscall.Read(fd.Fd, &b[0], int64(len(b)));
+		r, e = syscall.Read(fd.fd, &b[0], int64(len(b)));
 		if r < 0 {
 			r = 0
 		}
@@ -73,7 +82,7 @@ func (fd *FD) Write(b []byte) (ret int, err *Error) {
 	}
 	var r, e int64;
 	if len(b) > 0 {  // because we access b[0]
-		r, e = syscall.Write(fd.Fd, &b[0], int64(len(b)));
+		r, e = syscall.Write(fd.fd, &b[0], int64(len(b)));
 		if r < 0 {
 			r = 0
 		}
@@ -85,11 +94,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
 	if fd == nil {
 		return 0, EINVAL
 	}
-	b := make([]byte, len(s)+1);
-	if !syscall.StringToBytes(b, s) {
-		return 0, EINVAL
-	}
-	r, e := syscall.Write(fd.Fd, &b[0], int64(len(s)));
+	r, e := syscall.Write(fd.fd, syscall.StringBytePtr(s), int64(len(s)));
 	if r < 0 {
 		r = 0
 	}
@@ -102,10 +107,37 @@ func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
 	if e != 0 {
 		return nil, nil, ErrnoToError(e)
 	}
-	return NewFD(p[0]), NewFD(p[1]), nil
+	return NewFD(p[0], "|0"), NewFD(p[1], "|1"), nil
 }
 
 func Mkdir(name string, perm int) *Error {
 	r, e := syscall.Mkdir(name, int64(perm));
 	return ErrnoToError(e)
+}
+
+func Stat(name string) (dir *Dir, err *Error) {
+	stat := new(syscall.Stat_t);
+	r, e := syscall.Stat(name, stat);
+	if e != 0 {
+		return nil, ErrnoToError(e)
+	}
+	return dirFromStat(name, new(Dir), stat), nil
+}
+
+func Fstat(fd *FD) (dir *Dir, err *Error) {
+	stat := new(syscall.Stat_t);
+	r, e := syscall.Fstat(fd.fd, stat);
+	if e != 0 {
+		return nil, ErrnoToError(e)
+	}
+	return dirFromStat(fd.name, new(Dir), stat), nil
+}
+
+func Lstat(name string) (dir *Dir, err *Error) {
+	stat := new(syscall.Stat_t);
+	r, e := syscall.Lstat(name, stat);
+	if e != 0 {
+		return nil, ErrnoToError(e)
+	}
+	return dirFromStat(name, new(Dir), stat), nil
 }
