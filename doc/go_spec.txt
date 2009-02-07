@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(February 5, 2009)
+(February 6, 2009)
 
 ----
 
@@ -37,6 +37,7 @@ Decisions in need of integration into the doc:
 
 
 Todo's:
+[ ] there is some funny-ness regarding ';' and empty statements and label decls
 [ ] document illegality of package-external tuple assignments to structs
 	w/ private fields: P.T{1, 2} illegal since same as P.T{a: 1, b: 2} for
 	a T struct { a b int }.
@@ -68,13 +69,13 @@ Smaller issues:
 	a for loop that is following, and can break L be used inside it?
 [ ] Russ: If we use x.(T) for all conversions, we could use T() for "construction"
     and type literals - would resolve the parsing ambiguity of T{} in if's
-[ ] Russ: consider re-introducing "func" for function type. Make function literals
-	behave like slices, etc. Require no &'s to get a function value (solves issue
-	of func{} vs &func{} vs &func_name).
 	
 
 
 Closed:
+[x] Russ: consider re-introducing "func" for function type. Make function literals
+	behave like slices, etc. Require no &'s to get a function value (solves issue
+	of func{} vs &func{} vs &func_name).
 [x] onreturn/undo statement - now: defer statement
 [x] comparison of non-basic types: what do we allow? what do we allow in interfaces
 	what about maps (require ==, copy and hash)
@@ -203,8 +204,8 @@ Contents
 		Operands
 			Constants
 			Qualified identifiers
-			Composite Literals
-			Function Literals
+			Composite literals
+			Function literals
 
 		Primary expressions
 			Selectors
@@ -1794,7 +1795,7 @@ TODO(gri) expand this section.
 	PackageName = identifier .
 
 
-Composite Literals
+Composite literals
 ----
 
 Literals for composite data structures consist of the type of the value
@@ -1852,7 +1853,7 @@ TODO: Consider adding helper syntax for nested composites
 (avoids repeating types but complicates the spec needlessly.)
 
 
-Function Literals
+Function literals
 ----
 
 A function literal represents an anonymous function. It consists of a
@@ -1872,9 +1873,10 @@ corresponding function type, or invoked directly.
 	f := func(x, y int) int { return x + y; }
 	func(ch chan int) { ch <- ACK; } (reply_chan)
 
-Implementation restriction: A function literal can reference only
-its parameters, global variables, and variables declared within the
-function literal.
+Function literals are "closures": they may refer to variables
+defined in a surrounding function. Those variables are then shared between
+the surrounding function and the function literal, and they survive as long
+as they are accessible in any way.
 
 
 Primary expressions
@@ -2418,7 +2420,7 @@ denotes a method: Effect is as described above, converts into function.
 
 If T is an interface type, the expression t.M does not determine which
 underlying type's M is called until the point of the call itself. Thus given
-T1 and T2, both implementing interface I with interface M, the sequence
+T1 and T2, both implementing interface I with method M, the sequence
 
 	var t1 *T1;
 	var t2 *T2;
@@ -3424,9 +3426,9 @@ than one source file, there may be more than one init() function, but
 only one per source file.
 
 Initialization code may contain "go" statements, but the functions
-they invoke do not begin execution until initialization is complete.
-Therefore, all initialization code is run in a single thread of
-execution.
+they invoke do not begin execution until initialization of the entire
+program is complete. Therefore, all initialization code is run in a single
+thread of execution.
 
 Furthermore, an "init()" function cannot be referred to from anywhere
 in a program. In particular, "init()" cannot be called explicitly, nor
