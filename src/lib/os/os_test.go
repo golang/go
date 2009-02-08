@@ -77,3 +77,41 @@ func TestLstat(t *testing.T) {
 		t.Error("size should be ", filesize, "; is", dir.Size);
 	}
 }
+
+func TestReaddirnames(t *testing.T) {
+	fd, err := Open(".", O_RDONLY, 0);
+	defer fd.Close();
+	if err != nil {
+		t.Fatal("open . failed:", err);
+	}
+	s, err2 := Readdirnames(fd, -1);
+	if err2 != nil {
+		t.Fatal("readdirnames . failed:", err);
+	}
+	a := []string{
+		"dir_amd64_darwin.go",
+		"dir_amd64_linux.go",
+		"os_env.go",
+		"os_error.go",
+		"os_file.go",
+		"os_test.go",
+		"os_time.go",
+		"os_types.go",
+		"stat_amd64_darwin.go",
+		"stat_amd64_linux.go"
+	};
+	for i, m := range a {
+		found := false;
+		for j, n := range s {
+			if m == n {
+				if found {
+					t.Error("present twice:", m);
+				}
+				found = true
+			}
+		}
+		if !found {
+			t.Error("could not find", m);
+		}
+	}
+}

@@ -40,6 +40,11 @@ func Write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
 	return r1, err;
 }
 
+func Seek(fd int64, offset int64, whence int64) (ret int64, errno int64) {
+	r1, r2, err := Syscall(SYS_LSEEK, fd, offset, whence);
+	return r1, err;
+}
+
 func Pipe(fds *[2]int64) (ret int64, errno int64) {
 	var t [2] int32;
 	r1, r2, err := Syscall(SYS_PIPE, int64(uintptr(unsafe.Pointer(&t[0]))), 0, 0);
@@ -87,6 +92,11 @@ func Mkdir(name string, perm int64) (ret int64, errno int64) {
 
 func Dup2(fd1, fd2 int64) (ret int64, errno int64) {
 	r1, r2, err := Syscall(SYS_DUP2, fd1, fd2, 0);
+	return r1, err;
+}
+
+func Getdents(fd int64, buf *Dirent, nbytes int64) (ret int64, errno int64) {
+	r1, r2, err := Syscall(SYS_GETDENTS64, fd, int64(uintptr(unsafe.Pointer(buf))), nbytes);
 	return r1, err;
 }
 
