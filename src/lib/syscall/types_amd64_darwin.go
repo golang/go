@@ -65,6 +65,8 @@ const (
 	F_SETFL = 4;
 
 	FD_CLOEXEC = 1;
+
+	NAME_MAX = 255;
 )
 
 type Stat_t struct {
@@ -76,19 +78,27 @@ type Stat_t struct {
 	Gid	uint32;
 	Rdev	uint32;
 	Pad1	uint32;
-	Atime Timespec;
-	Mtime Timespec;
-	Ctime Timespec;
-	Birthtime Timespec;
-	Size uint64;
-	Blocks uint64;
-	Blksize uint32;
-	Flags uint32;
-	Gen uint32;
-	Lspare uint32;
-	Qspare [2]uint64;
+	Atime	Timespec;
+	Mtime	Timespec;
+	Ctime	Timespec;
+	Birthtime	Timespec;
+	Size	uint64;
+	Blocks	uint64;
+	Blksize	uint32;
+	Flags	uint32;
+	Gen	uint32;
+	Lspare	uint32;
+	Qspare	[2]uint64;
 }
 
+type Dirent struct {
+	Ino	uint64;
+	Off	uint64;
+	Reclen	uint16;
+	Namlen	uint16;
+	Type	uint8;
+	Name	[NAME_MAX+1]byte;
+}
 
 // Sockets
 

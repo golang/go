@@ -40,6 +40,11 @@ func Write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
 	return r1, err;
 }
 
+func Seek(fd int64, offset int64, whence int64) (ret int64, errno int64) {
+	r1, r2, err := Syscall(SYS_LSEEK, fd, offset, whence);
+	return r1, err;
+}
+
 func Pipe(fds *[2]int64) (ret int64, errno int64) {
 	r1, r2, err := Syscall(SYS_PIPE, 0, 0, 0);
 	if r1 < 0 {
@@ -89,3 +94,7 @@ func Dup2(fd1, fd2 int64) (ret int64, errno int64) {
 	return r1, err;
 }
 
+func Getdirentries(fd int64, buf *byte, nbytes int64, basep *int64) (ret int64, errno int64) {
+	r1, r2, err := Syscall6(SYS_GETDIRENTRIES64, fd, int64(uintptr(unsafe.Pointer(buf))), nbytes, int64(uintptr(unsafe.Pointer(basep))), 0, 0);
+	return r1, err;
+}
