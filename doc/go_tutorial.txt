@@ -661,7 +661,7 @@ etc., there are also "Fprintf" etc.  Unlike in C, "Fprintf"'s first argument is
 not a file.  Instead, it is a variable of type "io.Write", which is an
 interface type defined in the "io" library:
 
-	export type Write interface {
+	type Write interface {
 		Write(p []byte) (n int, err *os.Error);
 	}
 
