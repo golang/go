@@ -1906,6 +1906,11 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
 	&& structnext(&peekl) != T
 	&& listnext(&peekr) == N
 	&& eqtypenoname(r->type, *nl)) {
+		// clumsy check for differently aligned structs.
+		// need to handle eventually, but this keeps us
+		// from inserting bugs
+		if(r->type->width != (*nl)->width)
+			yyerror("misaligned multiple return (6g's fault)");
 		a = nodarg(*nl, fp);
 		a->type = r->type;
 		return convas(nod(OAS, a, r));
