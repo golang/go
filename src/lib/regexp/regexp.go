@@ -37,15 +37,15 @@ type instr interface {
 }
 
 // Fields and methods common to all instructions
-type _Common struct {
+type common struct {
 	next	instr;
 	index	int;
 }
 
-func (c *_Common) Next() instr { return c.next }
-func (c *_Common) SetNext(i instr) { c.next = i }
-func (c *_Common) Index() int { return c.index }
-func (c *_Common) SetIndex(i int) { c.index = i }
+func (c *common) Next() instr { return c.next }
+func (c *common) SetNext(i instr) { c.next = i }
+func (c *common) Index() int { return c.index }
+func (c *common) SetIndex(i int) { c.index = i }
 
 type _RE struct {
 	expr	string;	// the original expression
@@ -73,7 +73,7 @@ const (
 
 // --- START start of program
 type _Start struct {
-	_Common
+	common
 }
 
 func (start *_Start) Type() int { return _START }
@@ -81,7 +81,7 @@ func (start *_Start) Print() { print("start") }
 
 // --- END end of program
 type _End struct {
-	_Common
+	common
 }
 
 func (end *_End) Type() int { return _END }
@@ -89,7 +89,7 @@ func (end *_End) Print() { print("end") }
 
 // --- BOT beginning of text
 type _Bot struct {
-	_Common
+	common
 }
 
 func (bot *_Bot) Type() int { return _BOT }
@@ -97,7 +97,7 @@ func (bot *_Bot) Print() { print("bot") }
 
 // --- EOT end of text
 type _Eot struct {
-	_Common
+	common
 }
 
 func (eot *_Eot) Type() int { return _EOT }
@@ -105,7 +105,7 @@ func (eot *_Eot) Print() { print("eot") }
 
 // --- CHAR a regular character
 type _Char struct {
-	_Common;
+	common;
 	char	int;
 }
 
@@ -121,7 +121,7 @@ func newChar(char int) *_Char {
 // --- CHARCLASS [a-z]
 
 type _CharClass struct {
-	_Common;
+	common;
 	char	int;
 	negate	bool;	// is character class negated? ([^a-z])
 	// array of int, stored pairwise: [a-z] is (a,z); x is (x,x):
@@ -171,7 +171,7 @@ func newCharClass() *_CharClass {
 
 // --- ANY any character
 type _Any struct {
-	_Common
+	common
 }
 
 func (any *_Any) Type() int { return _ANY }
@@ -179,7 +179,7 @@ func (any *_Any) Print() { print("any") }
 
 // --- BRA parenthesized expression
 type _Bra struct {
-	_Common;
+	common;
 	n	int;	// subexpression number
 }
 
@@ -188,7 +188,7 @@ func (bra *_Bra) Print() { print("bra", bra.n); }
 
 // --- EBRA end of parenthesized expression
 type _Ebra struct {
-	_Common;
+	common;
 	n	int;	// subexpression number
 }
 
@@ -197,7 +197,7 @@ func (ebra *_Ebra) Print() { print("ebra ", ebra.n); }
 
 // --- ALT alternation
 type _Alt struct {
-	_Common;
+	common;
 	left	instr;	// other branch
 }
 
@@ -206,7 +206,7 @@ func (alt *_Alt) Print() { print("alt(", alt.left.Index(), ")"); }
 
 // --- NOP no operation
 type _Nop struct {
-	_Common
+	common
 }
 
 func (nop *_Nop) Type() int { return _NOP }

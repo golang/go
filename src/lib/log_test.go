@@ -51,6 +51,8 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
 	if err1 != nil {
 		t.Fatal("pipe", err1);
 	}
+	defer fd0.Close();
+	defer fd1.Close();
 	buf := bufio.NewBufRead(fd0);
 	l := NewLogger(fd1, nil, prefix, flag);
 	if useLogf {
@@ -70,8 +72,6 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
 	if !matched {
 		t.Errorf("log output should match %q is %q", pattern, line);
 	}
-	fd0.Close();
-	fd1.Close();
 }
 
 func TestAllLog(t *testing.T) {
