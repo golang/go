@@ -10,6 +10,7 @@ package reflect
 import (
 	"utf8";
 	"sync";
+	"unsafe";
 )
 
 type Type interface
@@ -47,9 +48,11 @@ const (
 	UintptrKind;
 )
 
-// Int is guaranteed large enough to store a size.
-var ptrsize int
-var interfacesize int
+var tmp_interface interface{}	// used just to compute sizes of these constants
+const (
+	ptrsize = unsafe.Sizeof(&tmp_interface);
+	interfacesize = unsafe.Sizeof(tmp_interface);
+)
 
 var missingString = "$missing$"	// syntactic name for undefined type names
 var dotDotDotString = "..."
@@ -401,9 +404,6 @@ func unlock() {
 }
 
 func init() {
-	ptrsize = 8;	// TODO: compute this
-	interfacesize = 2*ptrsize;	// TODO: compute this
-
 	lock();	// not necessary because of init ordering but be safe.
 
 	types = make(map[string] Type);
