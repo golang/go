@@ -107,7 +107,7 @@ func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
 			dirs = dirs[0:len(dirs)+1];
 			filename := string(dirent.Name[0:dirent.Namlen]);
 			dirp, err := Stat(dirname + filename);
-			if dir == nil || err != nil {
+			if dirp == nil || err != nil {
 				dirs[len(dirs)-1].Name = filename;	// rest will be zeroed out
 			} else {
 				dirs[len(dirs)-1] = *dirp;
