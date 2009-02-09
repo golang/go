@@ -26,7 +26,7 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
 		if count == 0 {
 			break
 		}
-		ret, err2 := syscall.Getdirentries(fd.fd, &buf[0], len(buf), &base);
+		ret, err2 := syscall.Getdirentries(fd.fd, &buf[0], int64(len(buf)), &base);
 		if ret < 0 || err2 != 0 {
 			return names, os.ErrnoToError(err2)
 		}
