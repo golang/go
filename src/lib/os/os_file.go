@@ -7,10 +7,18 @@ package os
 import syscall "syscall"
 import os "os"
 
+// Auxiliary information if the FD describes a directory
+type DirInfo struct {	// TODO(r): 6g bug means this can't be private
+	buf	[]byte;	// buffer for directory I/O
+	nbuf	int64;	// length of buf; return value from Getdirentries
+	bufp	int64;	// location of next record in buf.
+}
+
 // FDs are wrappers for file descriptors
 type FD struct {
 	fd int64;
 	name	string;
+	dirinfo	*DirInfo;	// nil unless directory being read
 }
 
 func (fd *FD) Fd() int64 {
@@ -25,7 +33,7 @@ func NewFD(fd int64, name string) *FD {
 	if fd < 0 {
 		return nil
 	}
-	return &FD{fd, name}
+	return &FD{fd, name, nil}
 }
 
 var (
@@ -88,6 +96,17 @@ func (fd *FD) Write(b []byte) (ret int, err *Error) {
 		}
 	}
 	return int(r), ErrnoToError(e)
+}
+
+func (fd *FD) Seek(offset int64, whence int) (ret int64, err *Error) {
+	r, e := syscall.Seek(fd.fd, offset, int64(whence));
+	if e != 0 {
+		return -1, ErrnoToError(e)
+	}
+	if fd.dirinfo != nil && r != 0 {
+		return -1, ErrnoToError(syscall.EISDIR)
+	}
+	return r, nil
 }
 
 func (fd *FD) WriteString(s string) (ret int, err *Error) {
