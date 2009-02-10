@@ -67,5 +67,6 @@ char *unsafeimport =
 	"type unsafe.Pointer *any\n"
 	"func unsafe.Offsetof (? any) (? int)\n"
 	"func unsafe.Sizeof (? any) (? int)\n"
+	"func unsafe.Alignof (? any) (? int)\n"
 	"\n"
 	"$$\n";

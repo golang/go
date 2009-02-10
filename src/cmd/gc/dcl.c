@@ -1495,6 +1495,7 @@ unsafenmagic(Node *l, Node *r)
 {
 	Node *n;
 	Sym *s;
+	Type *t;
 	long v;
 	Val val;
 
@@ -1519,7 +1520,23 @@ unsafenmagic(Node *l, Node *r)
 		if(r->op != ODOT && r->op != ODOTPTR)
 			goto no;
 		walktype(r, Erv);
-		v = n->xoffset;
+		v = r->xoffset;
+		goto yes;
+	}
+	if(strcmp(s->name, "Alignof") == 0) {
+		walktype(r, Erv);
+		if (r->type == T)
+			goto no;
+		// make struct { byte; T; }
+		t = typ(TSTRUCT);
+		t->type = typ(TFIELD);
+		t->type->type = types[TUINT8];
+		t->type->down = typ(TFIELD);
+		t->type->down->type = r->type;
+		// compute struct widths
+		dowidth(t);
+		// the offset of T is its required alignment
+		v = t->type->down->width;
 		goto yes;
 	}
 
