@@ -14,6 +14,8 @@ import (
 	"io";
 	"net";
 	"os";
+	"sort";
+	"log";
 
 	Utils "utils";
 	Platform "platform";
@@ -22,41 +24,86 @@ import (
 )
 
 
-var urlPrefix = "/gds"  // 6g BUG should be const
-
-
 var (
 	verbose = flag.Bool("v", false, "verbose mode");
 	port = flag.String("port", "6060", "server port");
-	//root = flag.String("root", Platform.GOROOT, "go root directory");
-	root = &Platform.GOROOT;  // TODO cannot change root w/ passing it to printer
+	root = flag.String("root", Platform.GOROOT, "go root directory");
 )
 
 
-// TODO should factor this out - also used by the parser
-func getFilename(url string) string {
-	// strip URL prefix
-	if url[0 : len(urlPrefix)] != urlPrefix {
-		panic("server error - illegal URL prefix");
-	}
-	url = url[len(urlPrefix) : len(url)];
-	
-	// sanitize source file name
-	return *root + Utils.TrimExt(url, ".go") + ".go";
+// Support for directory sorting.
+type DirArray []os.Dir
+func (p DirArray) Len() int            { return len(p); }
+func (p DirArray) Less(i, j int) bool  { return p[i].Name < p[j].Name; }
+func (p DirArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+
+
+func isGoFile(dir *os.Dir) bool {
+	ext := ".go";  // TODO 6g bug - should be const
+	return dir.IsRegular() && Utils.Contains(dir.Name, ext, len(dir.Name) - len(ext));
 }
 
 
-func docServer(c *http.Conn, req *http.Request) {
-	if *verbose {
-		fmt.Printf("URL path = %s\n", req.Url.Path);
+func printLink(c *http.Conn, path, name string) {
+	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br>\n", path + name, name);
+}
+
+
+func serveDir(c *http.Conn, dirname string) {
+	fd, err1 := os.Open(*root + dirname, os.O_RDONLY, 0);
+	if err1 != nil {
+		c.WriteHeader(http.StatusNotFound);
+		fmt.Fprintf(c, "Error: %v (%s)\n", err1, dirname);
+		return;
 	}
 
-	filename := getFilename(req.Url.Path);
+	list, err2 := os.Readdir(fd, -1);
+	if err2 != nil {
+		c.WriteHeader(http.StatusNotFound);
+		fmt.Fprintf(c, "Error: %v (%s)\n", err2, dirname);
+		return;
+	}
+	
+	sort.Sort(DirArray(list));
+
+	c.SetHeader("content-type", "text/html; charset=utf-8");
+	path := dirname + "/";
+	fmt.Fprintf(c, "<b>%s</b>\n", path);
+
+	// Print contents in 3 sections: directories, go files, everything else
+	
+	// 1) directories
+	fmt.Fprintln(c, "<p>");
+	for i, entry := range list {
+		if entry.IsDirectory() {
+			printLink(c, path, entry.Name);
+		}
+	}
+
+	// 2) .go files
+	fmt.Fprintln(c, "<p>");
+	for i, entry := range list {
+		if isGoFile(&entry) {
+			printLink(c, path, entry.Name);
+		}
+	}
+
+	// 3) everything else
+	fmt.Fprintln(c, "<p>");
+	for i, entry := range list {
+		if !entry.IsDirectory() && !isGoFile(&entry) {
+			fmt.Fprintf(c, "<font color=grey>%s</font><br>\n", entry.Name);
+		}
+	}
+}
+
+
+func serveFile(c *http.Conn, filename string) {
 	var flags Compilation.Flags;
-	prog, nerrors := Compilation.Compile(filename, &flags);
+	prog, nerrors := Compilation.Compile(*root + filename, &flags);
 	if nerrors > 0 {
 		c.WriteHeader(http.StatusNotFound);
-		fmt.Fprintf(c, "compilation errors: %s\n", filename);
+		fmt.Fprintf(c, "Error: File has compilation errors (%s)\n", filename);
 		return;
 	}
 	
@@ -65,19 +112,50 @@ func docServer(c *http.Conn, req *http.Request) {
 }
 
 
+func serve(c *http.Conn, req *http.Request) {
+	if *verbose {
+		log.Stdoutf("URL = %s\n", req.RawUrl);
+	}
+
+	path := Utils.SanitizePath(req.Url.Path);
+	dir, err := os.Stat(*root + path);
+	if err != nil {
+		c.WriteHeader(http.StatusNotFound);
+		fmt.Fprintf(c, "Error: %v (%s)\n", err, path);
+		return;
+	}
+
+	switch {
+	case dir.IsDirectory():
+		serveDir(c, path);
+	case isGoFile(dir):
+		serveFile(c, path);
+	default:
+		c.WriteHeader(http.StatusNotFound);
+		fmt.Fprintf(c, "Error: Not a directory or .go file (%s)\n", path);
+	}
+}
+
+
 func main() {
 	flag.Parse();
 
-	if *verbose {
-		fmt.Printf("Go Documentation Server\n");
-		fmt.Printf("port = %s\n", *port);
-		fmt.Printf("root = %s\n", *root);
+	*root = Utils.SanitizePath(*root);
+	dir, err1 := os.Stat(*root);
+	if err1 != nil || !dir.IsDirectory() {
+		log.Exitf("root not found or not a directory: ", *root);
 	}
 
-	http.Handle(urlPrefix + "/", http.HandlerFunc(docServer));
-	err := http.ListenAndServe(":" + *port, nil);
-	if err != nil {
-		panic("ListenAndServe: ", err.String())
+	if *verbose {
+		log.Stdoutf("Go Documentation Server\n");
+		log.Stdoutf("port = %s\n", *port);
+		log.Stdoutf("root = %s\n", *root);
+	}
+
+	http.Handle("/", http.HandlerFunc(serve));
+	err2 := http.ListenAndServe(":" + *port, nil);
+	if err2 != nil {
+		log.Exitf("ListenAndServe: ", err2.String())
 	}
 }
 
