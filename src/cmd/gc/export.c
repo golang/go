@@ -410,14 +410,6 @@ importtype(Node *ss, Type *t)
 	s->otype->sym = s;
 	checkwidth(s->otype);
 
-	// If type name should not be visible to importers,
-	// hide it by setting the lexical type to name.
-	// This will make references in the ordinary program
-	// (but not the import sections) look at s->oname,
-	// which is nil, as for an undefined name.
-	if(s->export == 2 && !mypackage(ss))
-		s->lexical = LNAME;
-
 	if(debug['e'])
 		print("import type %S %lT\n", s, t);
 }
