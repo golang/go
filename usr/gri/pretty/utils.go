@@ -18,6 +18,34 @@ func BaseName(s string) string {
 }
 
 
+func cleanPath(s string) string {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '/' {
+			i++;
+			j := i;
+			for j < len(s) && s[j] == '/' {
+				j++;
+			}
+			if j > i {  // more then one '/'
+				return s[0 : i] + cleanPath(s[j : len(s)]);
+			}
+		}
+	}
+	return s;
+}
+
+
+// Reduce sequences of multiple '/'s into a single '/' and
+// strip any trailing '/' (may result in the empty string).
+func SanitizePath(s string) string {
+	s = cleanPath(s);
+	if s[len(s)-1] == '/' {  // strip trailing '/'
+		s = s[0 : len(s)-1];
+	}
+	return s;
+}
+
+
 func Contains(s, sub string, pos int) bool {
 	end := pos + len(sub);
 	return pos >= 0 && end <= len(s) && s[pos : end] == sub;
