@@ -160,3 +160,30 @@ func Lstat(name string) (dir *Dir, err *Error) {
 	}
 	return dirFromStat(name, new(Dir), stat), nil
 }
+
+// Non-portable function defined in operating-system-dependent file.
+func Readdirnames(fd *FD, count int) (names []string, err *os.Error)
+
+// Negative count means read until EOF.
+func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
+	dirname := fd.name;
+	if dirname == "" {
+		dirname = ".";
+	}
+	dirname += "/";
+	names, err1 := Readdirnames(fd, count);
+	if err1 != nil {
+		return nil, err1
+	}
+	dirs = make([]Dir, len(names));
+	for i, filename := range names {
+		dirp, err := Stat(dirname + filename);
+		if dirp ==  nil || err != nil {
+			dirs[i].Name = filename	// rest is already zeroed out
+		} else {
+			dirs[i] = *dirp
+		}
+	}
+	return
+}
+
