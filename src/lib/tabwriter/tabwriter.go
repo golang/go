@@ -94,7 +94,6 @@ func (b *byteArray) append(s []byte) {
 //              and ending in ';') as single characters (width = 1)
 
 type Writer struct {
-	// TODO should not export any of the fields
 	// configuration
 	writer io.Write;
 	cellwidth int;
@@ -374,7 +373,7 @@ func (b *Writer) append(buf []byte) {
 }
 
 
-/* export */ func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
+func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
 	i0, n := 0, len(buf);
 
 	// split text into cells
