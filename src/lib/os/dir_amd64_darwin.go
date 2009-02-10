@@ -10,36 +10,44 @@ import (
 	"unsafe";
 )
 
+const (
+	blockSize = 4096	// TODO(r): use statfs
+)
+
 // Negative count means read until EOF.
 func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
-	// Getdirentries needs the file offset - it's too hard for the kernel to remember
-	// a number it already has written down.
-	base, err1 := syscall.Seek(fd.fd, 0, 1);
-	if err1 != 0 {
-		return nil, os.ErrnoToError(err1)
+	// If this fd has no dirinfo, create one.
+	if fd.dirinfo == nil {
+		fd.dirinfo = new(DirInfo);
+		// The buffer must be at least a block long.
+		// TODO(r): use fstatfs to find fs block size.
+		fd.dirinfo.buf = make([]byte, blockSize);
 	}
-	// The buffer must be at least a block long.
-	// TODO(r): use fstatfs to find fs block size.
-	var buf = make([]byte, 8192);
-	names = make([]string, 0, 100);	// TODO: could be smarter about size
-	for {
-		if count == 0 {
-			break
-		}
-		ret, err2 := syscall.Getdirentries(fd.fd, &buf[0], int64(len(buf)), &base);
-		if ret < 0 || err2 != 0 {
-			return names, os.ErrnoToError(err2)
-		}
-		if ret == 0 {
-			break
-		}
-		for w, i := uintptr(0),uintptr(0); i < uintptr(ret); i += w {
-			if count == 0 {
-				break
+	d := fd.dirinfo;
+	size := count;
+	if size < 0 {
+		size = 100
+	}
+	names = make([]string, 0, size);	// Empty with room to grow.
+	for count != 0 {
+		// Refill the buffer if necessary
+		if d.bufp == d.nbuf {
+			var errno int64;
+			// Final argument is (basep *int64) and the syscall doesn't take nil.
+			d.nbuf, errno = syscall.Getdirentries(fd.fd, &d.buf[0], int64(len(d.buf)), new(int64));
+			if d.nbuf < 0 {
+				return names, os.ErrnoToError(errno)
 			}
-			dirent := unsafe.Pointer((uintptr(unsafe.Pointer(&buf[0])) + i)).(*syscall.Dirent);
-			w = uintptr(dirent.Reclen);
-			if dirent.Ino == 0 {
+			if d.nbuf == 0 {
+				break	// EOF
+			}
+			d.bufp = 0;
+		}
+		// Drain the buffer
+		for count != 0 && d.bufp < d.nbuf {
+			dirent := unsafe.Pointer(&d.buf[d.bufp]).(*syscall.Dirent);
+			d.bufp += int64(dirent.Reclen);
+			if dirent.Ino == 0 {	// File absent in directory.
 				continue
 			}
 			count--;
@@ -54,7 +62,7 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
 			names[len(names)-1] = string(dirent.Name[0:dirent.Namlen]);
 		}
 	}
-	return names, nil;
+	return names, nil
 }
 
 // TODO(r): see comment in dir_amd64_linux.go
@@ -74,7 +82,7 @@ func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
 	}
 	// The buffer must be at least a block long.
 	// TODO(r): use fstatfs to find fs block size.
-	var buf = make([]byte, 8192);
+	var buf = make([]byte, blockSize);
 	dirs = make([]Dir, 0, 100);	// TODO: could be smarter about size
 	for {
 		if count == 0 {
@@ -106,7 +114,7 @@ func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
 			}
 			dirs = dirs[0:len(dirs)+1];
 			filename := string(dirent.Name[0:dirent.Namlen]);
-			dirp, err := Stat(dirname + filename);
+			dirp, err := Lstat(dirname + filename);
 			if dirp == nil || err != nil {
 				dirs[len(dirs)-1].Name = filename;	// rest will be zeroed out
 			} else {

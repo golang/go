@@ -101,11 +101,11 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
 	fd, err := Open(dir, O_RDONLY, 0);
 	defer fd.Close();
 	if err != nil {
-		t.Fatalf("open %q failed: %s\n", dir, err.String());
+		t.Fatalf("open %q failed: %v\n", dir, err);
 	}
 	s, err2 := Readdirnames(fd, -1);
 	if err2 != nil {
-		t.Fatal("readdirnames . failed:", err);
+		t.Fatalf("readdirnames %q failed: %v", err2);
 	}
 	for i, m := range contents {
 		found := false;
@@ -127,11 +127,11 @@ func testReaddir(dir string, contents []string, t *testing.T) {
 	fd, err := Open(dir, O_RDONLY, 0);
 	defer fd.Close();
 	if err != nil {
-		t.Fatalf("open %q failed: %s\n", dir, err.String());
+		t.Fatalf("open %q failed: %v", dir, err);
 	}
 	s, err2 := Readdir(fd, -1);
 	if err2 != nil {
-		t.Fatal("readdir . failed:", err);
+		t.Fatalf("readdir %q failed: %v", dir, err2);
 	}
 	for i, m := range contents {
 		found := false;
@@ -157,4 +157,47 @@ func TestReaddirnames(t *testing.T) {
 func TestReaddir(t *testing.T) {
 	testReaddir(".", dot, t);
 	testReaddir("/etc", etc, t);
+}
+
+// Read the directory one entry at a time.
+func smallReaddirnames(fd *FD, length int, t *testing.T) []string {
+	names := make([]string, length);
+	count := 0;
+	for {
+		d, err := Readdirnames(fd, 1);
+		if err != nil {
+			t.Fatalf("readdir %q failed: %v", fd.Name(), err);
+		}
+		if len(d) == 0 {
+			break
+		}
+		names[count] = d[0];
+		count++;
+	}
+	return names[0:count]
+}
+
+// Check that reading a directory one entry at a time gives the same result
+// as reading it all at once.
+func TestReaddirnamesOneAtATime(t *testing.T) {
+	dir := "/usr/bin";	// big directory that doesn't change often.
+	fd, err := Open(dir, O_RDONLY, 0);
+	defer fd.Close();
+	if err != nil {
+		t.Fatalf("open %q failed: %v", dir, err);
+	}
+	all, err1 := Readdirnames(fd, -1);
+	if err1 != nil {
+		t.Fatalf("readdirnames %q failed: %v", dir, err1);
+	}
+	fd1, err2 := Open(dir, O_RDONLY, 0);
+	if err2 != nil {
+		t.Fatalf("open %q failed: %v\n", dir, err2);
+	}
+	small := smallReaddirnames(fd1, len(all)+100, t);	// +100 in case we screw up
+	for i, n := range all {
+		if small[i] != n {
+			t.Errorf("small read %q %q mismatch: %v\n", small[i], n);
+		}
+	}
 }

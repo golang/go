@@ -96,8 +96,5 @@ func Dup2(fd1, fd2 int64) (ret int64, errno int64) {
 
 func Getdirentries(fd int64, buf *byte, nbytes int64, basep *int64) (ret int64, errno int64) {
 	r1, r2, err := Syscall6(SYS_GETDIRENTRIES64, fd, int64(uintptr(unsafe.Pointer(buf))), nbytes, int64(uintptr(unsafe.Pointer(basep))), 0, 0);
-	if r1 != -1 {
-		*basep = r2
-	}
 	return r1, err;
 }
