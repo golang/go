@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
 
 Robert Griesemer, Rob Pike, Ken Thompson
 
-(February 6, 2009)
+(February 11, 2009)
 
 ----
 
@@ -253,6 +253,10 @@ Contents
 	Packages
 
 	Program initialization and execution
+
+	Systems considerations
+		Package unsafe
+		Size and alignment guarantees
 
 
 ----
@@ -753,7 +757,7 @@ The following identifiers are predeclared:
 All basic types:
 
 	bool, byte, uint8, uint16, uint32, uint64, int8, int16, int32, int64,
-	float32, float64, float80, string
+	float32, float64, string
 	
 A set of platform-specific convenience types:
 
@@ -1102,7 +1106,6 @@ The following list enumerates all platform-independent numeric types:
 
 	float32  the set of all valid IEEE-754 32-bit floating point numbers
 	float64  the set of all valid IEEE-754 64-bit floating point numbers
-	float80  the set of all valid IEEE-754 80-bit floating point numbers
 
 Integer types are represented in the usual binary format; the value of
 an n-bit integer is n bits wide. A negative signed integer is represented
@@ -3453,3 +3456,93 @@ Program execution begins by initializing the main package and then
 invoking main.main().
 
 When main.main() returns, the program exits.
+
+
+----
+
+Systems considerations
+----
+
+Package unsafe
+----
+
+The special package "unsafe", known to the compiler, provides facilities
+for low-level programming including operations that violate the Go type
+system. A package using "unsafe" must be vetted manually for type safety.
+
+The package "unsafe" provides (at least) the following package interface:
+
+	package unsafe
+
+	const Maxalign
+
+	type Pointer *any
+
+	func Alignof(variable any) int
+	func Offsetof(selector any) int
+	func Sizeof(variable any) int
+
+The pseudo type "any" stands for any Go type; "any" is not a type generally
+available in Go programs.
+
+Any pointer type as well as values of type "uintptr" can be converted into
+an "unsafe.Pointer" and vice versa.
+
+The function "Sizeof" takes an expression denoting a variable of any type
+and returns the size of the variable in bytes.
+
+The function "Offsetof" takes a selector (§Selectors) denoting a struct
+field of any type and returns the field offset in bytes relative to the
+struct address. Specifically, the following condition is satisfied for
+a struct "s" with field "f":
+
+	uintptr(unsafe.Pointer(&s)) + uintptr(unsafe.Offsetof(s.f)) ==
+	uintptr(unsafe.Pointer(&s.f))
+
+Computer architectures may impose restrictions on the memory addresses accessed
+directly by machine instructions. A common such restriction is the requirement
+for such addresses to be ``aligned''; that is, addresses must be a multiple
+of a factor, the ``alignment''. The alignment depends on the type of datum
+accessed.
+
+The function "Alignof" takes an expression denoting a variable of any type
+and returns the alignment of the variable in bytes. The following alignment
+condition is satisfied for a variable "x":
+
+	uintptr(unsafe.Pointer(&x)) % uintptr(unsafe.Alignof(x)) == 0
+
+The maximum alignment is given by the constant "unsafe.Maxalign".
+It usually corresponds to the value of "unsafe.Sizeof(x)" for
+a variable "x" of the largest arithmetic type (8 for a float64), but may
+be smaller on systems that have less stringent alignment restrictions
+or are space constrained.
+
+
+Size and alignment guarantees
+----
+
+For the arithmetic types (§Arithmetic types), a Go compiler guarantees the
+following sizes:
+
+	type                      size in bytes
+
+	byte, uint8, int8         1
+	uint16, int16             2
+	uint32, int32, float32    4
+	uint64, int64, float64    8
+
+A Go compiler guarantees the following minimal alignment properties:
+
+1) For a variable "x" of any type: "1 <= unsafe.Alignof(x) <= unsafe.Maxalign".
+
+2) For a variable "x" of arithmetic type: "unsafe.Alignof(x)" is the smaller
+   of "unsafe.Sizeof(x)" and "unsafe.Maxalign", but at least 1.
+
+3) For a variable "x" of struct type: "unsafe.Alignof(x)" is the largest of
+   all the values "unsafe.Alignof(x.f)" for each field "f" of x, but at least 1.
+
+4) For a variable "x" of array type: "unsafe.Alignof(x)" is the same as
+   unsafe.Alignof(x[0]), but at least 1.
+
+
+
