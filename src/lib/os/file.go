@@ -8,7 +8,7 @@ import syscall "syscall"
 import os "os"
 
 // Auxiliary information if the FD describes a directory
-type DirInfo struct {	// TODO(r): 6g bug means this can't be private
+type dirInfo struct {	// TODO(r): 6g bug means this can't be private
 	buf	[]byte;	// buffer for directory I/O
 	nbuf	int64;	// length of buf; return value from Getdirentries
 	bufp	int64;	// location of next record in buf.
@@ -18,7 +18,7 @@ type DirInfo struct {	// TODO(r): 6g bug means this can't be private
 type FD struct {
 	fd int64;
 	name	string;
-	dirinfo	*DirInfo;	// nil unless directory being read
+	dirinfo	*dirInfo;	// nil unless directory being read
 }
 
 func (fd *FD) Fd() int64 {

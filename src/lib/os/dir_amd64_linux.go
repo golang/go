@@ -27,7 +27,7 @@ func clen(n []byte) int {
 func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
 	// If this fd has no dirinfo, create one.
 	if fd.dirinfo == nil {
-		fd.dirinfo = new(DirInfo);
+		fd.dirinfo = new(dirInfo);
 		// The buffer must be at least a block long.
 		// TODO(r): use fstatfs to find fs block size.
 		fd.dirinfo.buf = make([]byte, blockSize);
