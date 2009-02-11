@@ -1218,7 +1218,7 @@ types (§Types).
 
 	StructType = "struct" [ "{" [ FieldDeclList ] "}" ] .
 	FieldDeclList = FieldDecl { ";" FieldDecl } [ ";" ] .
-	FieldDecl = (IdentifierList CompleteType | TypeName) [ Tag ] .
+	FieldDecl = (IdentifierList CompleteType | [ "*" ] TypeName) [ Tag ] .
 	Tag = StringLit .
 
 	// An empty struct.
@@ -1387,7 +1387,7 @@ the set of methods specified by the interface type, and the value "nil".
 
 	InterfaceType = "interface" [ "{" [ MethodSpecList ] "}" ] .
 	MethodSpecList = MethodSpec { ";" MethodSpec } [ ";" ] .
-	MethodSpec = IdentifierList Signature .
+	MethodSpec = IdentifierList Signature | TypeName .
 
 	// An interface specifying a basic File type.
 	interface {
@@ -1424,6 +1424,21 @@ If S1 and S2 also implement
 	func (p T) Unlock() { ... }
 
 they implement the Lock interface as well as the File interface.
+
+An interface may contain a type name T in place of a method specification.
+T must denote another, complete (and not forward-declared) interface type.
+Using this notation is equivalent to enumerating the methods of T explicitly
+in the interface containing T.
+
+	type ReadWrite interface {
+		Read, Write	(b Buffer) bool;
+	}
+
+	type File interface {
+		ReadWrite;  // same as enumerating the methods in ReadWrite
+		Lock;       // same as enumerating the methods in Lock
+		Close();
+	}
 
 Forward declaration:
 A interface type consisting of only the reserved word "interface" may be used in
