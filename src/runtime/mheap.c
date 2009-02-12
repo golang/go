@@ -228,6 +228,8 @@ MHeap_LookupMaybe(MHeap *h, PageID p)
 	s = MHeapMap_GetMaybe(&h->map, p);
 	if(s == nil || p < s->start || p - s->start >= s->npages)
 		return nil;
+	if(s->state != MSpanInUse)
+		return nil;
 	return s;
 }
 
