@@ -122,7 +122,7 @@ int32
 mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
 {
 	uintptr n, nobj, i;
-	byte *p, *ep;
+	byte *p;
 	MSpan *s;
 
 	s = MHeap_LookupMaybe(&mheap, (uintptr)v>>PageShift);
@@ -162,8 +162,11 @@ mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
 		*size = n;
 	nobj = (s->npages << PageShift) / (n + RefcountOverhead);
 	if((byte*)s->gcref < p || (byte*)(s->gcref+nobj) > p+(s->npages<<PageShift)) {
-		printf("s->base sizeclass %d %p gcref %p block %D\n",
-			s->sizeclass, p, s->gcref, s->npages<<PageShift);
+		printf("odd span state=%d span=%p base=%p sizeclass=%d n=%d size=%d npages=%d\n",
+			s->state, s, p, s->sizeclass, nobj, n, s->npages);
+		printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%d size=%D end=%p end=%p\n",
+			s->sizeclass, v, p, s->gcref, s->npages<<PageShift,
+			nobj, n, s->gcref + nobj, p+(s->npages<<PageShift));
 		throw("bad gcref");
 	}
 	if(ref)
