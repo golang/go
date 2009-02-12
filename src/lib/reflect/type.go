@@ -149,6 +149,12 @@ func (t *stubType) Get() Type {
 // -- Pointer
 
 type PtrType interface {
+	// TODO: Type;
+	Kind()	int;
+	Name()	string;
+	String()	string;
+	Size()	int;
+
 	Sub()	Type
 }
 
@@ -168,6 +174,12 @@ func (t *ptrTypeStruct) Sub() Type {
 // -- Array
 
 type ArrayType interface {
+	// TODO: Type;
+	Kind()	int;
+	Name()	string;
+	String()	string;
+	Size()	int;
+
 	IsSlice()	bool;
 	Len()	int;
 	Elem()	Type;
@@ -207,6 +219,12 @@ func (t *arrayTypeStruct) Elem() Type {
 // -- Map
 
 type MapType interface {
+	// TODO: Type;
+	Kind()	int;
+	Name()	string;
+	String()	string;
+	Size()	int;
+
 	Key()	Type;
 	Elem()	Type;
 }
@@ -232,6 +250,12 @@ func (t *mapTypeStruct) Elem() Type {
 // -- Chan
 
 type ChanType interface {
+	// TODO: Type;
+	Kind()	int;
+	Name()	string;
+	String()	string;
+	Size()	int;
+
 	Dir()	int;
 	Elem()	Type;
 }
@@ -263,6 +287,12 @@ func (t *chanTypeStruct) Elem() Type {
 // -- Struct
 
 type StructType interface {
+	// TODO: Type;
+	Kind()	int;
+	Name()	string;
+	String()	string;
+	Size()	int;
+
 	Field(int)	(name string, typ Type, tag string, offset int);
 	Len()	int;
 }
@@ -323,6 +353,12 @@ func (t *structTypeStruct) Len() int {
 // -- Interface
 
 type InterfaceType interface {
+	// TODO: Type;
+	Kind()	int;
+	Name()	string;
+	String()	string;
+	Size()	int;
+
 	Field(int)	(name string, typ Type, tag string, offset int);
 	Len()	int;
 }
@@ -349,6 +385,12 @@ var nilInterface = newInterfaceTypeStruct("nil", "", make([]structField, 0));
 // -- Func
 
 type FuncType interface {
+	// TODO: Type;
+	Kind()	int;
+	Name()	string;
+	String()	string;
+	Size()	int;
+
 	In()	StructType;
 	Out()	StructType;
 }

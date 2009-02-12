@@ -75,7 +75,7 @@ func (j *_Array) Elem(i int) Json {
 	if i < 0 || i >= j.a.Len() {
 		return Null
 	}
-	return j.a.At(i)
+	return j.a.At(i).(Json)
 }
 func (j *_Array) String() string {
 	s := "[";
@@ -232,7 +232,7 @@ func (b *_JsonBuilder) Get() Json {
 	case b.ptr != nil:
 		return *b.ptr;
 	case b.a != nil:
-		return b.a.At(b.i);
+		return b.a.At(b.i).(Json);
 	case b.m != nil:
 		return b.m[b.k];
 	}

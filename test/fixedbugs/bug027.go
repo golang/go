@@ -46,7 +46,7 @@ func main() {
 	v.Insert(i0);
 	for i := 0; i < v.nelem; i++ {
 		var x *I;
-		x = v.At(i);
+		x = v.At(i).(*I);
 		print(i, " ", x.val, "\n");  // prints correct list
 	}
 	for i := 0; i < v.nelem; i++ {

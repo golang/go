@@ -299,7 +299,7 @@ func (P *Parser) parseIdentList() AST.Expr {
 			x = last;
 		} else {
 			last.Y = P.newBinaryExpr(pos, Scanner.COMMA, last.Y, y);
-			last = last.Y;
+			last = last.Y.(*AST.BinaryExpr);
 		}
 	}
 
@@ -987,7 +987,7 @@ func (P *Parser) parseCompositeElements() AST.Expr {
 				x = last;
 			} else {
 				last.Y = P.newBinaryExpr(pos, Scanner.COMMA, last.Y, y);
-				last = last.Y;
+				last = last.Y.(*AST.BinaryExpr);
 			}
 
 			if P.tok == Scanner.COMMA {

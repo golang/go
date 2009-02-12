@@ -105,9 +105,9 @@ func TypeToString(typ Type, expand bool) string {
 		}
 		return str + TypeToString(c.Elem(), false);
 	case StructKind:
-		return "struct{" + typeFieldsToString(typ, ";") + "}";
+		return "struct{" + typeFieldsToString(typ.(StructType), ";") + "}";
 	case InterfaceKind:
-		return "interface{" + typeFieldsToString(typ, ";") + "}";
+		return "interface{" + typeFieldsToString(typ.(InterfaceType), ";") + "}";
 	case FuncKind:
 		f := typ.(FuncType);
 		str = "(" + typeFieldsToString(f.In(), ",") + ")";
