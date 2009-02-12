@@ -126,7 +126,7 @@ func put(dat item, out *dch){
 func get(in *dch) *rat {
 	seqno++;
 	in.req <- seqno;
-	return <-in.dat;
+	return (<-in.dat).(*rat);
 }
 
 // Get one item from each of n demand channels
@@ -332,9 +332,9 @@ func Add(U, V PS) PS{
 		for {
 			<-Z.req;
 			uv = get2(U,V);
-			switch end(uv[0])+2*end(uv[1]) {
+			switch end(uv[0].(*rat))+2*end(uv[1].(*rat)) {
 			case 0:
-				Z.dat <- add(uv[0], uv[1]);
+				Z.dat <- add(uv[0].(*rat), uv[1].(*rat));
 			case 1:
 				Z.dat <- uv[1];
 				copy(V,Z);
@@ -448,13 +448,13 @@ func Mul(U, V PS) PS{
 	go func(U, V, Z PS){
 		<-Z.req;
 		uv := get2(U,V);
-		if end(uv[0])!=0 || end(uv[1]) != 0 {
+		if end(uv[0].(*rat))!=0 || end(uv[1].(*rat)) != 0 {
 			Z.dat <- finis;
 		} else {
-			Z.dat <- mul(uv[0],uv[1]);
+			Z.dat <- mul(uv[0].(*rat),uv[1].(*rat));
 			UU := Split(U);
 			VV := Split(V);
-			W := Add(Cmul(uv[0],VV[0]),Cmul(uv[1],UU[0]));
+			W := Add(Cmul(uv[0].(*rat),VV[0]),Cmul(uv[1].(*rat),UU[0]));
 			<-Z.req;
 			Z.dat <- get(W);
 			copy(Add(W,Mul(UU[1],VV[1])),Z);

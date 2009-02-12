@@ -66,9 +66,11 @@ type creatorFn func(typ Type, addr Addr) Value
 // -- Missing
 
 type MissingValue interface {
+	// TODO: Value;
 	Kind()	int;
 	Type()	Type;
 	Addr()	Addr;
+	Interface()	interface {};
 }
 
 type missingValueStruct struct {
@@ -82,10 +84,14 @@ func missingCreator(typ Type, addr Addr) Value {
 // -- Int
 
 type IntValue interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	int;
 	Set(int);
-	Type()	Type;
 }
 
 type intValueStruct struct {
@@ -107,10 +113,14 @@ func (v *intValueStruct) Set(i int) {
 // -- Int8
 
 type Int8Value interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	int8;
 	Set(int8);
-	Type()	Type;
 }
 
 type int8ValueStruct struct {
@@ -132,10 +142,14 @@ func (v *int8ValueStruct) Set(i int8) {
 // -- Int16
 
 type Int16Value interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	int16;
 	Set(int16);
-	Type()	Type;
 }
 
 type int16ValueStruct struct {
@@ -157,10 +171,14 @@ func (v *int16ValueStruct) Set(i int16) {
 // -- Int32
 
 type Int32Value interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	int32;
 	Set(int32);
-	Type()	Type;
 }
 
 type int32ValueStruct struct {
@@ -182,10 +200,14 @@ func (v *int32ValueStruct) Set(i int32) {
 // -- Int64
 
 type Int64Value interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	int64;
 	Set(int64);
-	Type()	Type;
 }
 
 type int64ValueStruct struct {
@@ -207,10 +229,14 @@ func (v *int64ValueStruct) Set(i int64) {
 // -- Uint
 
 type UintValue interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	uint;
 	Set(uint);
-	Type()	Type;
 }
 
 type uintValueStruct struct {
@@ -232,10 +258,14 @@ func (v *uintValueStruct) Set(i uint) {
 // -- Uint8
 
 type Uint8Value interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	uint8;
 	Set(uint8);
-	Type()	Type;
 }
 
 type uint8ValueStruct struct {
@@ -257,10 +287,14 @@ func (v *uint8ValueStruct) Set(i uint8) {
 // -- Uint16
 
 type Uint16Value interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	uint16;
 	Set(uint16);
-	Type()	Type;
 }
 
 type uint16ValueStruct struct {
@@ -282,10 +316,14 @@ func (v *uint16ValueStruct) Set(i uint16) {
 // -- Uint32
 
 type Uint32Value interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	uint32;
 	Set(uint32);
-	Type()	Type;
 }
 
 type uint32ValueStruct struct {
@@ -307,10 +345,14 @@ func (v *uint32ValueStruct) Set(i uint32) {
 // -- Uint64
 
 type Uint64Value interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	uint64;
 	Set(uint64);
-	Type()	Type;
 }
 
 type uint64ValueStruct struct {
@@ -332,10 +374,14 @@ func (v *uint64ValueStruct) Set(i uint64) {
 // -- Uintptr
 
 type UintptrValue interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	uintptr;
 	Set(uintptr);
-	Type()	Type;
 }
 
 type uintptrValueStruct struct {
@@ -357,10 +403,14 @@ func (v *uintptrValueStruct) Set(i uintptr) {
 // -- Float
 
 type FloatValue interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	float;
 	Set(float);
-	Type()	Type;
 }
 
 type floatValueStruct struct {
@@ -382,10 +432,14 @@ func (v *floatValueStruct) Set(f float) {
 // -- Float32
 
 type Float32Value interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	float32;
 	Set(float32);
-	Type()	Type;
 }
 
 type float32ValueStruct struct {
@@ -407,10 +461,14 @@ func (v *float32ValueStruct) Set(f float32) {
 // -- Float64
 
 type Float64Value interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	float64;
 	Set(float64);
-	Type()	Type;
 }
 
 type float64ValueStruct struct {
@@ -432,10 +490,14 @@ func (v *float64ValueStruct) Set(f float64) {
 // -- Float80
 
 type Float80Value interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	float80;
 	Set(float80);
-	Type()	Type;
 }
 
 type float80ValueStruct struct {
@@ -460,10 +522,14 @@ func (v *Float80ValueStruct) Set(f float80) {
 // -- String
 
 type StringValue interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	string;
 	Set(string);
-	Type()	Type;
 }
 
 type stringValueStruct struct {
@@ -485,10 +551,14 @@ func (v *stringValueStruct) Set(s string) {
 // -- Bool
 
 type BoolValue interface {
+	// TODO: Value;
 	Kind()	int;
+	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	bool;
 	Set(bool);
-	Type()	Type;
 }
 
 type boolValueStruct struct {
@@ -510,8 +580,12 @@ func (v *boolValueStruct) Set(b bool) {
 // -- Pointer
 
 type PtrValue interface {
+	// TODO: Value;
 	Kind()	int;
 	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Sub()	Value;
 	Get()	Addr;
 	SetSub(Value);
@@ -547,8 +621,12 @@ func ptrCreator(typ Type, addr Addr) Value {
 // Slices and arrays are represented by the same interface.
 
 type ArrayValue interface {
+	// TODO: Value;
 	Kind()	int;
 	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	IsSlice()	bool;
 	Len()	int;
 	Cap() int;
@@ -681,8 +759,12 @@ func arrayCreator(typ Type, addr Addr) Value {
 // -- Map	TODO: finish and test
 
 type MapValue interface {
+	// TODO: Value;
 	Kind()	int;
 	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Len()	int;
 	Elem(key Value)	Value;
 }
@@ -707,8 +789,11 @@ func (v *mapValueStruct) Elem(key Value) Value {
 // -- Chan
 
 type ChanValue interface {
+	// TODO: Value;
 	Kind()	int;
 	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
 }
 
 type chanValueStruct struct {
@@ -722,8 +807,12 @@ func chanCreator(typ Type, addr Addr) Value {
 // -- Struct
 
 type StructValue interface {
+	// TODO: Value;
 	Kind()	int;
 	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Len()	int;
 	Field(i int)	Value;
 }
@@ -757,8 +846,12 @@ func structCreator(typ Type, addr Addr) Value {
 // -- Interface
 
 type InterfaceValue interface {
+	// TODO: Value;
 	Kind()	int;
 	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
+
 	Get()	interface {};
 }
 
@@ -777,8 +870,11 @@ func interfaceCreator(typ Type, addr Addr) Value {
 // -- Func
 
 type FuncValue interface {
+	// TODO: Value;
 	Kind()	int;
 	Type()	Type;
+	Addr()	Addr;
+	Interface()	interface {};
 }
 
 type funcValueStruct struct {
@@ -860,7 +956,7 @@ func NewSliceValue(typ ArrayType, len, cap int) ArrayValue {
 	array.len = uint32(len);
 	array.cap = uint32(cap);
 
-	return newValueAddr(typ, Addr(array));
+	return newValueAddr(typ, Addr(array)).(ArrayValue);
 }
 
 // Works on both slices and arrays

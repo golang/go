@@ -17,7 +17,7 @@ func main() {
 	var i I;
 	var e interface {};
 	e = s;
-	i = e;
+	i = e.(I);
 }
 
 // hide S down here to avoid static warning

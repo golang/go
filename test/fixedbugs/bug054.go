@@ -23,10 +23,7 @@ type TStruct struct {
 }
 
 func (s *TStruct) field(i int) *TStruct {
-	// works if we say
-	//	t := s.fields.At(i);
-	//	return t;
-	return s.fields.At(i);
+	return s.fields.At(i).(*TStruct);
 }
 
 func main() {

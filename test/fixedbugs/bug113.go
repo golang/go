@@ -11,10 +11,10 @@ func foo2(i int32) int32 { return i }
 func main() {
   var i I;
   i = 1;
-  var v1 int = i;
+  var v1 = i.(int);
   if foo1(v1) != 1 { panicln(1) }
-  var v2 int32 = int32(i.(int));
+  var v2 = int32(i.(int));
   if foo2(v2) != 1 { panicln(2) }
-  var v3 int32 = i; // This implicit type conversion should fail at runtime.
+  var v3 = i.(int32); // This type conversion should fail at runtime.
   if foo2(v3) != 1 { panicln(3) }
 }

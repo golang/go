@@ -85,21 +85,21 @@ main()
 	u32 = 4455;	ia[11] = u32;
 	u64 = 765432;	ia[12] = u64;
 
-	s = ia[0];	if s != "xxx" { panicln(0,s); }
+	s = ia[0].(string);	if s != "xxx" { panicln(0,s); }
 	i32 = int32(ia[1].(int));
 			if i32 != 12345 { panicln(1,i32); }
-	b = ia[2];	if b != true { panicln(2,b); }
+	b = ia[2].(bool);	if b != true { panicln(2,b); }
 
-	s = ia[3];	if s != "now is" { panicln(3,s); }
-	b = ia[4];	if b != false { panicln(4,b); }
+	s = ia[3].(string);	if s != "now is" { panicln(3,s); }
+	b = ia[4].(bool);	if b != false { panicln(4,b); }
 
-	i8 = ia[5];	if i8 != 29 { panicln(5,i8); }
-	i16 = ia[6];	if i16 != 994 { panicln(6,i16); }
-	i32 = ia[7];	if i32 != 3434 { panicln(7,i32); }
-	i64 = ia[8];	if i64 != 1234567 { panicln(8,i64); }
+	i8 = ia[5].(int8);	if i8 != 29 { panicln(5,i8); }
+	i16 = ia[6].(int16);	if i16 != 994 { panicln(6,i16); }
+	i32 = ia[7].(int32);	if i32 != 3434 { panicln(7,i32); }
+	i64 = ia[8].(int64);	if i64 != 1234567 { panicln(8,i64); }
 
-	u8 = ia[9];	if u8 != 12 { panicln(5,u8); }
-	u16 = ia[10];	if u16 != 799 { panicln(6,u16); }
-	u32 = ia[11];	if u32 != 4455 { panicln(7,u32); }
-	u64 = ia[12];	if u64 != 765432 { panicln(8,u64); }
+	u8 = ia[9].(uint8);	if u8 != 12 { panicln(5,u8); }
+	u16 = ia[10].(uint16);	if u16 != 799 { panicln(6,u16); }
+	u32 = ia[11].(uint32);	if u32 != 4455 { panicln(7,u32); }
+	u64 = ia[12].(uint64);	if u64 != 765432 { panicln(8,u64); }
 }

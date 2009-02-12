@@ -214,7 +214,7 @@ main()
 
 	// run it thru an interface
 	i = s;
-	s = i;
+	s = i.(*S);
 
 	// same as t3
 	if s.test1() != s.a1 { panicln("t4", 1) }
