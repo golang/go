@@ -513,7 +513,7 @@ loop:
 				walktype(r->left, Erv);
 				if(r->left == N)
 					break;
-				et = ifaceas1(r->type, r->left->type);
+				et = ifaceas1(r->type, r->left->type, 1);
 				switch(et) {
 				case I2T:
 					et = I2T2;
@@ -651,7 +651,7 @@ loop:
 		}
 
 		// interface assignment
-		et = ifaceas(n->type, l->type);
+		et = ifaceas(n->type, l->type, 1);
 		if(et != Inone) {
 			indir(n, ifaceop(n->type, l, et));
 			goto ret;
@@ -2812,7 +2812,7 @@ arrayop(Node *n, int top)
  * return op to use.
  */
 int
-ifaceas1(Type *dst, Type *src)
+ifaceas1(Type *dst, Type *src, int explicit)
 {
 	if(src == T || dst == T)
 		return Inone;
@@ -2821,17 +2821,17 @@ ifaceas1(Type *dst, Type *src)
 		if(isinter(src)) {
 			if(eqtype(dst, src, 0))
 				return I2Isame;
+			if(!isnilinter(dst))
+				ifacecheck(dst, src, lineno, explicit);
 			return I2I;
 		}
 		if(isnilinter(dst))
 			return T2I;
-		ifacecheck(dst, src, lineno);
+		ifacecheck(dst, src, lineno, explicit);
 		return T2I;
 	}
 	if(isinter(src)) {
-		if(isnilinter(src))
-			return I2T;
-		ifacecheck(dst, src, lineno);
+		ifacecheck(dst, src, lineno, explicit);
 		return I2T;
 	}
 	return Inone;
@@ -2841,11 +2841,11 @@ ifaceas1(Type *dst, Type *src)
  * treat convert T to T as noop
  */
 int
-ifaceas(Type *dst, Type *src)
+ifaceas(Type *dst, Type *src, int explicit)
 {
 	int et;
 
-	et = ifaceas1(dst, src);
+	et = ifaceas1(dst, src, explicit);
 	if(et == I2Isame)
 		et = Inone;
 	return et;
@@ -2987,7 +2987,7 @@ convas(Node *n)
 	if(eqtype(lt, rt, 0))
 		goto out;
 
-	et = ifaceas(lt, rt);
+	et = ifaceas(lt, rt, 0);
 	if(et != Inone) {
 		n->right = ifaceop(lt, r, et);
 		goto out;
