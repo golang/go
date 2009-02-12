@@ -2735,12 +2735,13 @@ struct Icheck
 	Type *dst;
 	Type *src;
 	int lineno;
+	int explicit;
 };
 Icheck *icheck;
 Icheck *ichecktail;
 
 void
-ifacecheck(Type *dst, Type *src, int lineno)
+ifacecheck(Type *dst, Type *src, int lineno, int explicit)
 {
 	Icheck *p;
 
@@ -2752,6 +2753,7 @@ ifacecheck(Type *dst, Type *src, int lineno)
 	p->dst = dst;
 	p->src = src;
 	p->lineno = lineno;
+	p->explicit = explicit;
 	ichecktail = p;
 }
 
@@ -2760,6 +2762,9 @@ ifacelookdot(Sym *s, Type *t)
 {
 	int c, d;
 	Type *m;
+
+	if(t == T)
+		return T;
 
 	for(d=0; d<nelem(dotlist); d++) {
 		c = adddot1(s, t, d, &m);
@@ -2773,15 +2778,15 @@ ifacelookdot(Sym *s, Type *t)
 	return T;
 }
 
+// check whether non-interface type t
+// satisifes inteface type iface.
 int
-hasiface(Type *t, Type *iface, Type **m)
+ifaceokT2I(Type *t, Type *iface, Type **m)
 {
 	Type *im, *tm;
 	int imhash;
 
 	t = methtype(t);
-	if(t == T)
-		return 0;
 
 	// if this is too slow,
 	// could sort these first
@@ -2805,26 +2810,66 @@ hasiface(Type *t, Type *iface, Type **m)
 	return 1;
 }
 
+// check whether interface type i1 satisifes interface type i2.
+int
+ifaceokI2I(Type *i1, Type *i2, Type **m)
+{
+	Type *m1, *m2;
+
+	// if this is too slow,
+	// could sort these first
+	// and then do one loop.
+
+	for(m2=i2->type; m2; m2=m2->down) {
+		for(m1=i1->type; m1; m1=m1->down)
+			if(m1->sym == m2->sym && typehash(m1, 0) == typehash(m2, 0))
+				goto found;
+		*m = m2;
+		return 0;
+	found:;
+	}
+	return 1;
+}
+
 void
 runifacechecks(void)
 {
 	Icheck *p;
-	int lno;
-	Type *m, *l, *r;
+	int lno, wrong, needexplicit;
+	Type *m, *t, *iface;
 
 	lno = lineno;
 	for(p=icheck; p; p=p->next) {
 		lineno = p->lineno;
-		if(isinter(p->dst)) {
-			l = p->src;
-			r = p->dst;
-		} else {
-			l = p->dst;
-			r = p->src;
+		wrong = 0;
+		needexplicit = 0;
+		m = nil;
+		if(isinter(p->dst) && isinter(p->src)) {
+			iface = p->dst;
+			t = p->src;
+			needexplicit = !ifaceokI2I(t, iface, &m);
 		}
-		if(!hasiface(l, r, &m))
-			yyerror("%T is not %T - missing %S%hhT",
-				l, r, m->sym, m->type);
+		else if(isinter(p->dst)) {
+			t = p->src;
+			iface = p->dst;
+			wrong = !ifaceokT2I(t, iface, &m);
+		} else {
+			t = p->dst;
+			iface = p->src;
+			wrong = !ifaceokT2I(t, iface, &m);
+			needexplicit = 1;
+		}
+		if(wrong)
+			yyerror("%T is not %T\n\tmissing %S%hhT",
+				t, iface, m->sym, m->type);
+		else if(!p->explicit && needexplicit) {
+			if(m)
+				yyerror("need explicit conversion to use %T as %T\n\tmissing %S%hhT",
+					p->src, p->dst, m->sym, m->type);
+			else
+				yyerror("need explicit conversion to use %T as %T",
+					p->src, p->dst);
+		}
 	}
 	lineno = lno;
 }
