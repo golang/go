@@ -390,6 +390,10 @@ type (
 		Tok int;  // BREAK, CONTINUE, GOTO, FALLTHROUGH
 		Label *Ident;  // if any, or nil
 	};
+	
+	EmptyStat struct {
+		Pos int;  // position of ";"
+	};
 )
 
 
@@ -405,6 +409,7 @@ type StatVisitor interface {
 	DoSwitchStat(s *SwitchStat);
 	DoSelectStat(s *SelectStat);
 	DoControlFlowStat(s *ControlFlowStat);
+	DoEmptyStat(s *EmptyStat);
 }
 
 
@@ -419,6 +424,7 @@ func (s *CaseClause) Visit(v StatVisitor) { v.DoCaseClause(s); }
 func (s *SwitchStat) Visit(v StatVisitor) { v.DoSwitchStat(s); }
 func (s *SelectStat) Visit(v StatVisitor) { v.DoSelectStat(s); }
 func (s *ControlFlowStat) Visit(v StatVisitor) { v.DoControlFlowStat(s); }
+func (s *EmptyStat) Visit(v StatVisitor) { v.DoEmptyStat(s); }
 
 
 // ----------------------------------------------------------------------------
