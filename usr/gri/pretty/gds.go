@@ -155,7 +155,7 @@ func main() {
 	http.Handle("/", http.HandlerFunc(serve));
 	err2 := http.ListenAndServe(":" + *port, nil);
 	if err2 != nil {
-		log.Exitf("ListenAndServe: ", err2.String())
+		log.Exitf("ListenAndServe: %s", err2.String())
 	}
 }
 

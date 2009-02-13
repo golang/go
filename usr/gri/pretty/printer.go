@@ -919,6 +919,12 @@ func (P *Printer) DoControlFlowStat(s *AST.ControlFlowStat) {
 }
 
 
+func (P *Printer) DoEmptyStat(s *AST.EmptyStat) {
+	P.String(s.Pos, "");
+	P.separator = semicolon;
+}
+
+
 // ----------------------------------------------------------------------------
 // Declarations
 

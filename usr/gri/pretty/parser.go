@@ -733,24 +733,20 @@ func (P *Parser) parseStatementList(list *array.Array) {
 		defer un(trace(P, "StatementList"));
 	}
 
+	expect_semi := false;
 	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
-		s := P.parseStatement();
-		if s != nil {
-			// not the empty statement
-			list.Push(s);
+		if expect_semi {
+			P.expect(Scanner.SEMICOLON);
+			expect_semi = false;
 		}
+		list.Push(P.parseStatement());
 		if P.tok == Scanner.SEMICOLON {
 			P.next();
 		} else if P.opt_semi {
 			P.opt_semi = false;  // "consume" optional semicolon
 		} else {
-			break;
+			expect_semi = true;
 		}
-	}
-
-	// Try to provide a good error message
-	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
-		P.error(P.pos, "expected end of statement list (semicolon missing?)");
 	}
 }
 
@@ -1273,12 +1269,9 @@ func (P *Parser) parseIfStat() *AST.IfStat {
 	var else_ AST.Stat;
 	if P.tok == Scanner.ELSE {
 		P.next();
-		if P.tok == Scanner.IF || P.tok == Scanner.LBRACE {
+		if ok := P.tok == Scanner.IF || P.tok == Scanner.LBRACE; ok || P.sixg {
 			else_ = P.parseStatement();
-		} else if P.sixg {
-			else_ = P.parseStatement();
-			if else_ != nil {
-				// not the empty statement
+			if !ok {
 				// wrap in a block since we don't have one
 				body := AST.NewBlock(0, Scanner.LBRACE);
 				body.List.Push(else_);
@@ -1290,7 +1283,7 @@ func (P *Parser) parseIfStat() *AST.IfStat {
 	}
 	P.closeScope();
 
-	return &AST.IfStat{pos, init, cond, body, else_ };
+	return &AST.IfStat{pos, init, cond, body, else_};
 }
 
 
@@ -1438,10 +1431,14 @@ func (P *Parser) parseStatement() AST.Stat {
 		return P.parseSwitchStat();
 	case Scanner.SELECT:
 		return P.parseSelectStat();
+	case Scanner.SEMICOLON:
+		// don't consume the ";", it is the separator following the empty statement
+		return &AST.EmptyStat{P.pos};
 	}
 
-	// empty statement
-	return nil;
+	// no statement found
+	P.error(P.pos, "statement expected");
+	return &AST.BadStat{P.pos};
 }
 
 
