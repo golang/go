@@ -8,6 +8,7 @@ GC=6g
 
 DIRS=\
 	container/array\
+	container\
 	fmt\
 	hash\
 	http\
