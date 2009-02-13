@@ -791,7 +791,7 @@ pexpr:
 	}
 |	pexpr '.' '(' type ')'
 	{
-		$$ = nod(OCONV, $1, N);
+		$$ = nod(OCONVDOT, $1, N);
 		$$->type = $4;
 	}
 |	pexpr '[' expr ']'
@@ -841,20 +841,24 @@ pexpr:
 		$$ = nod(OMAKE, $5, N);
 		$$->type = $3;
 	}
-|	latype '(' expr ')'
+|	convtype '(' braced_keyexpr_list ')'
 	{
-		$$ = nod(OCONV, $3, N);
-		$$->type = oldtype($1);
+		// typed literal
+		$$ = rev($3);
+		if($$ == N)
+			$$ = nod(OEMPTY, N, N);
+		$$ = nod(OCONVPAREN, $$, N);
+		$$->type = $1;
 	}
 |	convtype '{' braced_keyexpr_list '}'
 	{
+		if(!debug['{'])
+			warn("braces should now be parens");
 		// composite literal
 		$$ = rev($3);
 		if($$ == N)
 			$$ = nod(OEMPTY, N, N);
-		if(!iscomposite($1))
-			yyerror("illegal composite literal type %T", $1);
-		$$ = nod(OCOMP, $$, N);
+		$$ = nod(OCONVPAREN, $$, N);
 		$$->type = $1;
 	}
 |	fnliteral

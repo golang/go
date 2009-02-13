@@ -326,7 +326,10 @@ enum
 	OINDEX, OSLICE,
 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
 	OLITERAL, OREGISTER, OINDREG,
-	OCONV, OCOMP, OKEY, OPARAM,
+	OKEY, OPARAM,
+	OCONV,
+	OCONVDOT,
+	OCONVPAREN,
 	OBAD,
 
 	OEXTEND,	// 6g internal
@@ -805,6 +808,7 @@ void	gettype(Node*, Node*);
 void	walk(Node*);
 void	walkstate(Node*);
 void	walktype(Node*, int);
+void	walkconv(Node*);
 void	walkas(Node*);
 void	walkbool(Node*);
 Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
@@ -840,8 +844,8 @@ Node*	reorder2(Node*);
 Node*	reorder3(Node*);
 Node*	reorder4(Node*);
 Node*	structlit(Node*, Node*);
-Node*	arraylit(Node*);
-Node*	maplit(Node*);
+Node*	arraylit(Node*, Node*);
+Node*	maplit(Node*, Node*);
 Node*	selectas(Node*, Node*);
 Node*	old2new(Node*, Type*);
 void	addrescapes(Node*);
