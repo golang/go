@@ -5,7 +5,7 @@
 package AST
 
 import (
-	"array";
+	"vector";
 	Scanner "scanner";
 	SymbolTable "symboltable";
 )
@@ -90,11 +90,11 @@ type Type struct {
 
 	// syntactic components
 	Pos int;  // source position (< 0 if unknown position)
-	Expr Expr;  // type name, array length
+	Expr Expr;  // type name, vector length
 	Mode int;  // channel mode
 	Key *Type;  // receiver type or map key
-	Elt *Type;  // type name type, array, map, channel or pointer element type, function result type
-	List *array.Array; End int;  // struct fields, interface methods, function parameters
+	Elt *Type;  // type name type, vector, map, channel or pointer element type, function result type
+	List *vector.Vector; End int;  // struct fields, interface methods, function parameters
 }
 
 
@@ -305,7 +305,7 @@ func (t *Type) Nfields() int {
 
 type Block struct {
 	Node;
-	List *array.Array;
+	List *vector.Vector;
 	End int;  // position of closing "}" if present
 }
 
@@ -313,7 +313,7 @@ type Block struct {
 func NewBlock(pos, tok int) *Block {
 	assert(tok == Scanner.LBRACE || tok == Scanner.COLON);
 	b := new(Block);
-	b.Pos, b.Tok, b.List = pos, tok, array.New(0);
+	b.Pos, b.Tok, b.List = pos, tok, vector.New(0);
 	return b;
 }
 
@@ -437,7 +437,7 @@ type Decl struct {
 	Val Expr;
 	Body *Block;
 	// list of *Decl for ()-style declarations
-	List *array.Array; End int;
+	List *vector.Vector; End int;
 }
 
 
@@ -470,8 +470,8 @@ func NewComment(pos int, text string) *Comment {
 type Program struct {
 	Pos int;  // tok is Scanner.PACKAGE
 	Ident Expr;
-	Decls *array.Array;
-	Comments *array.Array;
+	Decls *vector.Vector;
+	Comments *vector.Vector;
 }
 
 

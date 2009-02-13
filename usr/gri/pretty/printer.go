@@ -7,7 +7,7 @@ package Printer
 import (
 	"os";
 	"io";
-	"array";
+	"vector";
 	"tabwriter";
 	"flag";
 	"fmt";
@@ -83,7 +83,7 @@ type Printer struct {
 	html bool;
 
 	// comments
-	comments *array.Array;  // the list of all comments
+	comments *vector.Vector;  // the list of all comments
 	cindex int;  // the current comments index
 	cpos int;  // the position of the next comment
 
@@ -120,7 +120,7 @@ func (P *Printer) NextComment() {
 }
 
 
-func (P *Printer) Init(text io.Write, html bool, comments *array.Array) {
+func (P *Printer) Init(text io.Write, html bool, comments *vector.Vector) {
 	// writers
 	P.text = text;
 	
@@ -452,7 +452,7 @@ func (P *Printer) HtmlPackageName(pos int, name string) {
 func (P *Printer) Type(t *AST.Type) int
 func (P *Printer) Expr(x AST.Expr)
 
-func (P *Printer) Parameters(pos int, list *array.Array) {
+func (P *Printer) Parameters(pos int, list *vector.Vector) {
 	P.String(pos, "(");
 	if list != nil {
 		var prev int;
@@ -500,7 +500,7 @@ func (P *Printer) Signature(t *AST.Type) int {
 }
 
 
-func (P *Printer) Fields(list *array.Array, end int, in_interface bool) {
+func (P *Printer) Fields(list *vector.Vector, end int, in_interface bool) {
 	P.state = opening_scope;
 	P.String(0, "{");
 
@@ -745,7 +745,7 @@ func (P *Printer) Stat(s AST.Stat) {
 }
 
 
-func (P *Printer) StatementList(list *array.Array) {
+func (P *Printer) StatementList(list *vector.Vector) {
 	for i, n := 0, list.Len(); i < n; i++ {
 		P.newlines = 1;  // for first entry
 		list.At(i).(AST.Stat).Visit(P);

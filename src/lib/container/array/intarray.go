@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//
+// *** DEPRECATED PACKAGE - USE package vector INSTEAD ***
+//
+
 package array
 
 import "array"
