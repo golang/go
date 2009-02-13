@@ -7,7 +7,7 @@ package Parser
 import (
 	"flag";
 	"fmt";
-	"array";
+	"vector";
 	Scanner "scanner";
 	AST "ast";
 	SymbolTable "symboltable";
@@ -21,7 +21,7 @@ type Parser struct {
 
 	// Scanner
 	scanner *Scanner.Scanner;
-	comments *array.Array;
+	comments *vector.Vector;
 
 	// Scanner.Token
 	pos int;  // token source position
@@ -126,7 +126,7 @@ func (P *Parser) Open(trace, sixg, deps bool, scanner *Scanner.Scanner) {
 	P.indent = 0;
 
 	P.scanner = scanner;
-	P.comments = array.New(0);
+	P.comments = vector.New(0);
 
 	P.next();
 	P.expr_lev = 0;
@@ -423,7 +423,7 @@ func (P *Parser) parseVar(expect_ident bool) *AST.Type {
 }
 
 
-func (P *Parser) parseVarList(list *array.Array, ellipsis_ok bool) {
+func (P *Parser) parseVarList(list *vector.Vector, ellipsis_ok bool) {
 	if P.trace {
 		defer un(trace(P, "VarList"));
 	}
@@ -482,12 +482,12 @@ func (P *Parser) parseVarList(list *array.Array, ellipsis_ok bool) {
 }
 
 
-func (P *Parser) parseParameterList(ellipsis_ok bool) *array.Array {
+func (P *Parser) parseParameterList(ellipsis_ok bool) *vector.Vector {
 	if P.trace {
 		defer un(trace(P, "ParameterList"));
 	}
 
-	list := array.New(0);
+	list := vector.New(0);
 	P.parseVarList(list, ellipsis_ok);
 	for P.tok == Scanner.COMMA {
 		P.next();
@@ -543,7 +543,7 @@ func (P *Parser) parseResult(ftyp *AST.Type) *AST.Type {
 		typ := P.tryType();
 		if typ != nil {
 			t = AST.NewType(P.pos, AST.STRUCT);
-			t.List = array.New(0);
+			t.List = vector.New(0);
 			t.List.Push(&AST.TypeLit(typ));
 			t.End = P.pos;
 		}
@@ -590,7 +590,7 @@ func (P *Parser) parseFunctionType() *AST.Type {
 }
 
 
-func (P *Parser) parseMethodSpec(list *array.Array) {
+func (P *Parser) parseMethodSpec(list *vector.Vector) {
 	if P.trace {
 		defer un(trace(P, "MethodDecl"));
 	}
@@ -613,7 +613,7 @@ func (P *Parser) parseInterfaceType() *AST.Type {
 		P.openScope();
 		P.scope_lev++;
 
-		t.List = array.New(0);
+		t.List = vector.New(0);
 		for P.tok == Scanner.IDENT {
 			P.parseMethodSpec(t.List);
 			if P.tok != Scanner.RBRACE {
@@ -659,7 +659,7 @@ func (P *Parser) parseStructType() *AST.Type {
 	if P.tok == Scanner.LBRACE {
 		P.next();
 
-		t.List = array.New(0);
+		t.List = vector.New(0);
 		t.Scope = SymbolTable.NewScope(nil);
 		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
 			P.parseVarList(t.List, false);
@@ -728,7 +728,7 @@ func (P *Parser) tryType() *AST.Type {
 // Blocks
 
 
-func (P *Parser) parseStatementList(list *array.Array) {
+func (P *Parser) parseStatementList(list *vector.Vector) {
 	if P.trace {
 		defer un(trace(P, "StatementList"));
 	}
@@ -1560,7 +1560,7 @@ func (P *Parser) parseDecl(keyword int) *AST.Decl {
 	P.expect(keyword);
 	if P.tok == Scanner.LPAREN {
 		P.next();
-		d.List = array.New(0);
+		d.List = vector.New(0);
 		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
 			d1 := AST.NewDecl(P.pos, keyword);
 			P.parseSpec(d1);
@@ -1658,7 +1658,7 @@ func (P *Parser) ParseProgram() *AST.Program {
 
 	// package body
 	{	P.openScope();
-		p.Decls = array.New(0);
+		p.Decls = vector.New(0);
 		for P.tok == Scanner.IMPORT {
 			p.Decls.Push(P.parseDecl(Scanner.IMPORT));
 			P.OptSemicolon();

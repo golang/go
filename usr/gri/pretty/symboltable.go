@@ -7,7 +7,7 @@ package SymbolTable
 import (
 	"utf8";
 	"unicode";
-	"array";
+	"vector";
 )
 
 
@@ -269,7 +269,7 @@ type Type struct {
 	Mode int;  // channel mode
 	Key *Type;  // receiver type or map key
 	Elt *Type;  // type name type, array, map, channel or pointer element type, function result type
-	List *array.Array; End int;  // struct fields, interface methods, function parameters
+	List *vector.Vector; End int;  // struct fields, interface methods, function parameters
 }
 
 
@@ -304,7 +304,7 @@ func (typ* Type) String() string {
 
 var (
 	Universe *Scope;
-	PredeclaredTypes array.Array;
+	PredeclaredTypes vector.Vector;
 
 	// internal types
 	Void_typ,

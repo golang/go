@@ -7,7 +7,7 @@ package tabwriter
 import (
 	"os";
 	"io";
-	"array";
+	"vector";
 	"utf8";
 )
 
@@ -108,9 +108,9 @@ type Writer struct {
 	size int;  // size of incomplete cell in bytes
 	width int;  // width of incomplete cell in runes up to buf[pos] w/o ignored sections
 	pos int;  // buffer position up to which width of incomplete cell has been computed
-	lines_size array.Array;  // list of lines; each line is a list of cell sizes in bytes
-	lines_width array.Array;  // list of lines; each line is a list of cell widths in runes
-	widths array.IntArray;  // list of column widths in runes - re-used during formatting
+	lines_size vector.Vector;  // list of lines; each line is a list of cell sizes in bytes
+	lines_width vector.Vector;  // list of lines; each line is a list of cell widths in runes
+	widths vector.IntVector;  // list of column widths in runes - re-used during formatting
 }
 
 // Internal representation (current state):
@@ -138,8 +138,8 @@ type Writer struct {
 
 
 func (b *Writer) addLine() {
-	b.lines_size.Push(array.NewIntArray(0));
-	b.lines_width.Push(array.NewIntArray(0));
+	b.lines_size.Push(vector.NewIntVector(0));
+	b.lines_width.Push(vector.NewIntVector(0));
 }
 
 
@@ -169,10 +169,10 @@ func (b *Writer) Init(writer io.Write, cellwidth, padding int, padchar byte, ali
 }
 
 
-func (b *Writer) line(i int) (*array.IntArray, *array.IntArray) {
+func (b *Writer) line(i int) (*vector.IntVector, *vector.IntVector) {
 	return
-		b.lines_size.At(i).(*array.IntArray),
-		b.lines_width.At(i).(*array.IntArray);
+		b.lines_size.At(i).(*vector.IntVector),
+		b.lines_width.At(i).(*vector.IntVector);
 }
 
 

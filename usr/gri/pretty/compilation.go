@@ -5,7 +5,7 @@
 package Compilation
 
 import (
-	"array";
+	"vector";
 	"utf8";
 	"fmt";
 	"os";
@@ -150,7 +150,7 @@ func fileExists(name string) bool {
 }
 
 
-func printDep(localset map [string] bool, wset *array.Array, decl *AST.Decl) {
+func printDep(localset map [string] bool, wset *vector.Vector, decl *AST.Decl) {
 	src := decl.Val.(*AST.BasicLit).Val;
 	src = src[1 : len(src) - 1];  // strip "'s
 
@@ -173,7 +173,7 @@ func printDep(localset map [string] bool, wset *array.Array, decl *AST.Decl) {
 }
 
 
-func addDeps(globalset map [string] bool, wset *array.Array, src_file string, flags *Flags) {
+func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string, flags *Flags) {
 	dummy, found := globalset[src_file];
 	if !found {
 		globalset[src_file] = true;
@@ -207,7 +207,7 @@ func addDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
 
 func ComputeDeps(src_file string, flags *Flags) {
 	globalset := make(map [string] bool);
-	wset := array.New(0);
+	wset := vector.New(0);
 	wset.Push(Utils.TrimExt(src_file, ".go"));
 	for wset.Len() > 0 {
 		addDeps(globalset, wset, wset.Pop().(string), flags);

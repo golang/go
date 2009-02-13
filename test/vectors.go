@@ -6,7 +6,7 @@
 
 package main
 
-import "array"
+import "vector"
 
 
 type S struct {
@@ -21,7 +21,7 @@ func (p *S) Init(val int) *S {
 
 
 func test0() {
-	v := array.New(0);
+	v := vector.New(0);
 	if v.Len() != 0 {
 		panic("len = ", v.Len(), "\n");
 	}
@@ -34,7 +34,7 @@ func test1() {
 		a[i] = new(S).Init(i);
 	}
 
-	v := array.New(0);
+	v := vector.New(0);
 	for i := 0; i < len(a); i++ {
 		v.Insert(0, a[i]);
 		if v.Len() != i + 1 {
