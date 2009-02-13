@@ -76,13 +76,13 @@ func h() {
 
 func main() {
 	go f();
-	check([]int{1,4,5,4});
+	check([]int(1,4,5,4));
 
 	a := accum(0);
 	b := accum(1);
 	go g(a, b);
-	check([]int{2,4,6,9});
+	check([]int(2,4,6,9));
 
 	go h();
-	check([]int{100,200,101,201,500,101,201,500});
+	check([]int(100,200,101,201,500,101,201,500));
 }

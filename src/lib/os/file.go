@@ -33,7 +33,7 @@ func NewFD(fd int64, name string) *FD {
 	if fd < 0 {
 		return nil
 	}
-	return &FD{fd, name, nil}
+	return &FD(fd, name, nil)
 }
 
 var (

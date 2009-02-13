@@ -43,7 +43,7 @@ type Logger struct {
 }
 
 func NewLogger(out0, out1 io.Write, prefix string, flag int) *Logger {
-	return &Logger{out0, out1, prefix, flag}
+	return &Logger(out0, out1, prefix, flag)
 }
 
 var (

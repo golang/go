@@ -163,7 +163,7 @@ func (b *_StructBuilder) Elem(i int) Builder {
 			av.SetLen(i+1);
 		}
 		if i < av.Len() {
-			return &_StructBuilder{ av.Elem(i) }
+			return &_StructBuilder( av.Elem(i) )
 		}
 	}
 	return nobuilder
@@ -195,7 +195,7 @@ func (b *_StructBuilder) Key(k string) Builder {
 		for i := 0; i < t.Len(); i++ {
 			name, typ, tag, off := t.Field(i);
 			if k == name {
-				return &_StructBuilder{ sv.Field(i) }
+				return &_StructBuilder( sv.Field(i) )
 			}
 		}
 	}
@@ -205,7 +205,7 @@ func (b *_StructBuilder) Key(k string) Builder {
 func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
 	var errindx int;
 	var val1 interface{};
-	b := &_StructBuilder{ reflect.NewValue(val) };
+	b := &_StructBuilder( reflect.NewValue(val) );
 	ok, errindx, errtok = Parse(s, b);
 	if !ok {
 		return false, errtok

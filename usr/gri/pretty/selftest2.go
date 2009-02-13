@@ -46,9 +46,9 @@ var (
 	aa = 5;
 	u, v, w int = 0, 0, 0;
 	foo = "foo";
-	fixed_array0 = [10]int{};
-	fixed_array1 = [10]int{0, 1, 2};
-	fixed_array2 = [...]string{"foo", "bar"};
+	fixed_array0 = [10]int();
+	fixed_array1 = [10]int(0, 1, 2);
+	fixed_array2 = [...]string("foo", "bar");
 )
 
 
@@ -136,7 +136,7 @@ func main() {
 		println(i + 1000);  // the index + 1000
 		println();
 	}
-	f3(&[]int{2, 3, 5, 7}, map[string]int{"two":2, "three":3, "five":5, "seven":7});
+	f3(&[]int(2, 3, 5, 7), map[string]int("two":2, "three":3, "five":5, "seven":7));
 // the epilogue
 	println("foo");  // foo
 	println("foobar");  // foobar

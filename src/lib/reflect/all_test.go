@@ -168,7 +168,7 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	}
 	{
 		var i int = 7;
-		var tmp = &T{123, 456.75, "hello", &i};
+		var tmp = &T(123, 456.75, "hello", &i);
 		value := reflect.NewValue(tmp);
 		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.T{123, 456.75, hello, *int(@)}");
 	}
@@ -188,7 +188,7 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 //	}
 	{
 		type AA []int;
-		var tmp = AA{1,2,3,4,5,6,7,8,9,10};
+		var tmp = AA(1,2,3,4,5,6,7,8,9,10);
 		value := reflect.NewValue(&tmp);	// TODO: NewValue(tmp) too
 		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
 		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
@@ -297,9 +297,9 @@ func TestInterfaceGet(t *testing.T) {
 }
 
 func TestCopyArray(t *testing.T) {
-	a := []int{ 1, 2, 3, 4, 10, 9, 8, 7 };
-	b := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
-	c := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
+	a := []int( 1, 2, 3, 4, 10, 9, 8, 7 );
+	b := []int( 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 );
+	c := []int( 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 );
 	va := NewValue(&a);
 	vb := NewValue(&b);
 	for i := 0; i < len(b); i++ {
@@ -332,7 +332,7 @@ func TestCopyArray(t *testing.T) {
 }
 
 func TestBigUnnamedStruct(t *testing.T) {
-	b := struct{a,b,c,d int64}{1, 2, 3, 4};
+	b := struct{a,b,c,d int64}(1, 2, 3, 4);
 	v := NewValue(b);
 	b1 := v.Interface().(struct{a,b,c,d int64});
 	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d {
@@ -344,7 +344,7 @@ type big struct {
 	a, b, c, d, e int64
 }
 func TestBigStruct(t *testing.T) {
-	b := big{1, 2, 3, 4, 5};
+	b := big(1, 2, 3, 4, 5);
 	v := NewValue(b);
 	b1 := v.Interface().(big);
 	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d || b1.e != b.e {

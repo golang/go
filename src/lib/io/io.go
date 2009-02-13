@@ -83,7 +83,7 @@ func Make_FullReader(fd Read) Read {
 		// already a _FullRead
 		return fd
 	}
-	return &_FullRead{fd}
+	return &_FullRead(fd)
 }
 
 // Copies n bytes (or until EOF is reached) from src to dst.

@@ -9,7 +9,7 @@ import (
 	"testing";
 )
 
-var jsontests = []string {
+var jsontests = []string (
 	`null`,
 	`true`,
 	`false`,
@@ -22,7 +22,7 @@ var jsontests = []string {
 	`[1,2,"abc",null,true,false]`,
 	`{}`,
 	`{"a":1}`,
-}
+)
 
 func TestJson(t *testing.T) {
 	for i := 0; i < len(jsontests); i++ {

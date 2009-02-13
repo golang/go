@@ -101,7 +101,7 @@ type basicType struct {
 }
 
 func newBasicType(name string, kind int, size int) Type {
-	return &basicType{ commonType{kind, name, name, size} }
+	return &basicType( commonType(kind, name, name, size) )
 }
 
 // Prebuilt basic types
@@ -136,7 +136,7 @@ type stubType struct {
 }
 
 func newStubType(name string, typ Type) *stubType {
-	return &stubType{name, typ}
+	return &stubType(name, typ)
 }
 
 func (t *stubType) Get() Type {
@@ -164,7 +164,7 @@ type ptrTypeStruct struct {
 }
 
 func newPtrTypeStruct(name, typestring string, sub *stubType) *ptrTypeStruct {
-	return &ptrTypeStruct{ commonType{PtrKind, typestring, name, ptrsize}, sub}
+	return &ptrTypeStruct( commonType(PtrKind, typestring, name, ptrsize), sub)
 }
 
 func (t *ptrTypeStruct) Sub() Type {
@@ -193,7 +193,7 @@ type arrayTypeStruct struct {
 }
 
 func newArrayTypeStruct(name, typestring string, open bool, len int, elem *stubType) *arrayTypeStruct {
-	return &arrayTypeStruct{ commonType{ArrayKind, typestring, name, 0}, elem, open, len}
+	return &arrayTypeStruct( commonType(ArrayKind, typestring, name, 0), elem, open, len)
 }
 
 func (t *arrayTypeStruct) Size() int {
@@ -236,7 +236,7 @@ type mapTypeStruct struct {
 }
 
 func newMapTypeStruct(name, typestring string, key, elem *stubType) *mapTypeStruct {
-	return &mapTypeStruct{ commonType{MapKind, typestring, name, ptrsize}, key, elem}
+	return &mapTypeStruct( commonType(MapKind, typestring, name, ptrsize), key, elem)
 }
 
 func (t *mapTypeStruct) Key() Type {
@@ -273,7 +273,7 @@ type chanTypeStruct struct {
 }
 
 func newChanTypeStruct(name, typestring string, dir int, elem *stubType) *chanTypeStruct {
-	return &chanTypeStruct{ commonType{ChanKind, typestring, name, ptrsize}, elem, dir}
+	return &chanTypeStruct( commonType(ChanKind, typestring, name, ptrsize), elem, dir)
 }
 
 func (t *chanTypeStruct) Dir() int {
@@ -311,7 +311,7 @@ type structTypeStruct struct {
 }
 
 func newStructTypeStruct(name, typestring string, field []structField) *structTypeStruct {
-	return &structTypeStruct{ commonType{StructKind, typestring, name, 0}, field}
+	return &structTypeStruct( commonType(StructKind, typestring, name, 0), field)
 }
 
 // TODO: not portable; depends on 6g
@@ -369,7 +369,7 @@ type interfaceTypeStruct struct {
 }
 
 func newInterfaceTypeStruct(name, typestring string, field []structField) *interfaceTypeStruct {
-	return &interfaceTypeStruct{ commonType{InterfaceKind, typestring, name, interfacesize}, field }
+	return &interfaceTypeStruct( commonType(InterfaceKind, typestring, name, interfacesize), field )
 }
 
 func (t *interfaceTypeStruct) Field(i int) (name string, typ Type, tag string, offset int) {
@@ -402,7 +402,7 @@ type funcTypeStruct struct {
 }
 
 func newFuncTypeStruct(name, typestring string, in, out *structTypeStruct) *funcTypeStruct {
-	return &funcTypeStruct{ commonType{FuncKind, typestring, name, 0}, in, out }
+	return &funcTypeStruct( commonType(FuncKind, typestring, name, 0), in, out )
 }
 
 func (t *funcTypeStruct) Size() int {

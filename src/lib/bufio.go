@@ -477,6 +477,6 @@ type BufReadWrite struct {
 }
 
 func NewBufReadWrite(r *BufRead, w *BufWrite) *BufReadWrite {
-	return &BufReadWrite{r, w}
+	return &BufReadWrite(r, w)
 }
 

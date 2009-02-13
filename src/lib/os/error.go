@@ -33,7 +33,7 @@ func NewError(s string) *Error {
 	if ok {
 		return err
 	}
-	err = &Error{s};
+	err = &Error(s);
 	errorStringTab[s] = err;
 	return err;
 }

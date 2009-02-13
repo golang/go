@@ -197,7 +197,7 @@ type DNS_RR_A struct {
 // packing sequence.
 
 // Map of constructors for each RR wire type.
-var rr_mk = map[int] func()DNS_RR {
+var rr_mk = map[int] func()DNS_RR (
 	DNS_TypeCNAME: func() DNS_RR { return new(DNS_RR_CNAME) },
 	DNS_TypeHINFO: func() DNS_RR { return new(DNS_RR_HINFO) },
 	DNS_TypeMB: func() DNS_RR { return new(DNS_RR_MB) },
@@ -210,7 +210,7 @@ var rr_mk = map[int] func()DNS_RR {
 	DNS_TypeSOA: func() DNS_RR { return new(DNS_RR_SOA) },
 	DNS_TypeTXT: func() DNS_RR { return new(DNS_RR_TXT) },
 	DNS_TypeA: func() DNS_RR { return new(DNS_RR_A) },
-}
+)
 
 // _Pack a domain name s into msg[off:].
 // Domain names are a sequence of counted strings

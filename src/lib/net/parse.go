@@ -60,7 +60,7 @@ func _Open(name string) *_File {
 	if err != nil {
 		return nil
 	}
-	return &_File{fd, make([]byte, 1024)[0:0]};
+	return &_File(fd, make([]byte, 1024)[0:0]);
 }
 
 func _ByteIndex(s string, c byte) int {

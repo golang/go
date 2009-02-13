@@ -21,8 +21,8 @@ type floatInfo struct {
 	expbits uint;
 	bias int;
 }
-var float32info = floatInfo{ 23, 8, -127 }
-var float64info = floatInfo{ 52, 11, -1023 }
+var float32info = floatInfo( 23, 8, -127 )
+var float64info = floatInfo( 52, 11, -1023 )
 
 func fmtB(neg bool, mant uint64, exp int, flt *floatInfo) string
 func fmtE(neg bool, d *decimal, prec int) string

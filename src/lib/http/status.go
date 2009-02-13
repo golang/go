@@ -53,7 +53,7 @@ const (
 	StatusHTTPVersionNotSupported = 505;
 )
 
-var statusText = map[int]string {
+var statusText = map[int]string (
 	StatusContinue:			"Continue",
 	StatusSwitchingProtocols:	"Switching Protocols",
 
@@ -98,5 +98,5 @@ var statusText = map[int]string {
 	StatusServiceUnavailable:	"Service Unavailable",
 	StatusGatewayTimeout:		"Gateway Timeout",
 	StatusHTTPVersionNotSupported:	"HTTP Version Not Supported",
-}
+)
 

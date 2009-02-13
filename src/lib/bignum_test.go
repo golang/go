@@ -264,16 +264,16 @@ func TestIntQuoRem(t *testing.T) {
 	tester = t;
 	test_msg = "IntQuoRem";
 	type T struct { x, y, q, r int };
-	a := []T{
-		T{+8, +3, +2, +2},
-		T{+8, -3, -2, +2},
-		T{-8, +3, -2, -2},
-		T{-8, -3, +2, -2},
-		T{+1, +2,  0, +1},
-		T{+1, -2,  0, +1},
-		T{-1, +2,  0, -1},
-		T{-1, -2,  0, -1},
-	};
+	a := []T(
+		T(+8, +3, +2, +2),
+		T(+8, -3, -2, +2),
+		T(-8, +3, -2, -2),
+		T(-8, -3, +2, -2),
+		T(+1, +2,  0, +1),
+		T(+1, -2,  0, +1),
+		T(-1, +2,  0, -1),
+		T(-1, -2,  0, -1),
+	);
 	for i := uint(0); i < uint(len(a)); i++ {
 		e := &a[i];
 		x, y := bignum.Int(e.x).Mul(ip), bignum.Int(e.y).Mul(ip);
@@ -291,16 +291,16 @@ func TestIntDivMod(t *testing.T) {
 	tester = t;
 	test_msg = "IntDivMod";
 	type T struct { x, y, q, r int };
-	a := []T{
-		T{+8, +3, +2, +2},
-		T{+8, -3, -2, +2},
-		T{-8, +3, -3, +1},
-		T{-8, -3, +3, +1},
-		T{+1, +2,  0, +1},
-		T{+1, -2,  0, +1},
-		T{-1, +2, -1, +1},
-		T{-1, -2, +1, +1},
-	};
+	a := []T(
+		T(+8, +3, +2, +2),
+		T(+8, -3, -2, +2),
+		T(-8, +3, -3, +1),
+		T(-8, -3, +3, +1),
+		T(+1, +2,  0, +1),
+		T(+1, -2,  0, +1),
+		T(-1, +2, -1, +1),
+		T(-1, -2, +1, +1),
+	);
 	for i := uint(0); i < uint(len(a)); i++ {
 		e := &a[i];
 		x, y := bignum.Int(e.x).Mul(ip), bignum.Int(e.y).Mul(ip);
