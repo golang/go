@@ -52,7 +52,7 @@ func Do(f func()) {
 	// job, present = jobmap[f]
 	if !present {
 		c := make(chan *_Job);
-		service <- _Request{f, c};
+		service <- _Request(f, c);
 		job = <-c
 	}
 

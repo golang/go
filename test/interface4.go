@@ -31,8 +31,8 @@ func test(name string, i I) {
 }
 
 func ptrs() {
-	var bigptr BigPtr = BigPtr{ 10000, 2000, 300, 45 };
-	var smallptr SmallPtr = SmallPtr{ 12345 };
+	var bigptr BigPtr = BigPtr( 10000, 2000, 300, 45 );
+	var smallptr SmallPtr = SmallPtr( 12345 );
 	var intptr IntPtr = 12345;
 
 	test("bigptr", bigptr);
@@ -53,8 +53,8 @@ type Int int32
 func (z Int) M() int64 { return int64(z) }
 
 func nonptrs() {
-	var big Big = Big{ 10000, 2000, 300, 45 };
-	var small Small = Small{ 12345 };
+	var big Big = Big( 10000, 2000, 300, 45 );
+	var small Small = Small( 12345 );
 	var int Int = 12345;
 
 	test("big", big);

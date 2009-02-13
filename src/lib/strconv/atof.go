@@ -106,9 +106,9 @@ func stringToDecimal(s string) (neg bool, d *decimal, trunc bool, ok bool) {
 }
 
 // decimal power of ten to binary power of two.
-var powtab = []int{
+var powtab = []int(
 	1, 3, 6, 9, 13, 16, 19, 23, 26
-}
+)
 
 func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uint64, overflow bool) {
 	var exp int;
@@ -232,14 +232,14 @@ func decimalAtof32Int(neg bool, d *decimal) float32 {
 }
 
 // Exact powers of 10.
-var float64pow10 = []float64 {
+var float64pow10 = []float64 (
 	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
 	1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
 	1e20, 1e21, 1e22
-}
-var float32pow10 = []float32 {
+)
+var float32pow10 = []float32 (
 	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10
-}
+)
 
 // If possible to convert decimal d to 64-bit float f exactly,
 // entirely in floating-point math, do so, avoiding the expense of decimalToFloatBits.

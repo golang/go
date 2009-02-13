@@ -18,7 +18,7 @@ type T struct {
 	d byte;
 }
 
-var a = []int{ 1, 2, 3 }
+var a = []int( 1, 2, 3 )
 var NIL []int;
 
 func arraycmptest() {
@@ -44,7 +44,7 @@ func SameArray(a, b []int) bool {
 	return true;
 }
 
-var t = T{1.5, 123, "hello", 255}
+var t = T(1.5, 123, "hello", 255)
 var mt = make(map[int]T)
 var ma = make(map[int][]int)
 

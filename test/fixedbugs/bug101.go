@@ -6,7 +6,7 @@
 
 package main
 
-var a = []int { 1, 2, 3 }
+var a = []int ( 1, 2, 3 )
 
 func main() {
 	if len(a) != 3 { panic("array len") }

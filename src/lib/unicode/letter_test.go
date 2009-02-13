@@ -9,7 +9,7 @@ import (
 	"unicode";
 )
 
-var upper = []int{
+var upper = []int(
 	0x41,
 	0xc0,
 	0xd8,
@@ -31,9 +31,9 @@ var upper = []int{
 	0x10400,
 	0x1d400,
 	0x1d7ca,
-}
+)
 
-var notupper = []int{
+var notupper = []int(
 	0x40,
 	0x5b,
 	0x61,
@@ -44,9 +44,9 @@ var notupper = []int{
 	0x2150,
 	0xffff,
 	0x10000,
-}
+)
 
-var letter = []int{
+var letter = []int(
 	0x41,
 	0x61,
 	0xaa,
@@ -79,9 +79,9 @@ var letter = []int{
 	0x20000,
 	0x2f800,
 	0x2fa1d,
-}
+)
 
-var notletter = []int{
+var notletter = []int(
 	0x20,
 	0x35,
 	0x375,
@@ -90,7 +90,7 @@ var notletter = []int{
 	0xfffe,
 	0x1ffff,
 	0x10ffff,
-}
+)
 
 func TestIsLetter(t *testing.T) {
 	for i, r := range(upper) {

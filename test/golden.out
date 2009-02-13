@@ -244,9 +244,8 @@ fixedbugs/bug073.go:9: illegal types for operand: RSH
 	int
 
 =========== fixedbugs/bug074.go
-fixedbugs/bug074.go:6: syntax error near string
-fixedbugs/bug074.go:6: syntax error near string
-fixedbugs/bug074.go:7: x: undefined
+fixedbugs/bug074.go:6: invalid type for composite literal: string
+fixedbugs/bug074.go:6: invalid type for composite literal: string
 
 =========== fixedbugs/bug081.go
 fixedbugs/bug081.go:5: no type x

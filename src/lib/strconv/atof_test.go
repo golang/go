@@ -16,80 +16,80 @@ type atofTest struct {
 	err *os.Error;
 }
 
-var atoftests = []atofTest {
-	atofTest{ "", "0", os.EINVAL },
-	atofTest{ "1", "1", nil },
-	atofTest{ "+1", "1", nil },
-	atofTest{ "1x", "0", os.EINVAL },
-	atofTest{ "1.1.", "0", os.EINVAL },
-	atofTest{ "1e23", "1e+23", nil },
-	atofTest{ "100000000000000000000000", "1e+23", nil },
-	atofTest{ "1e-100", "1e-100", nil },
-	atofTest{ "123456700", "1.234567e+08", nil },
-	atofTest{ "99999999999999974834176", "9.999999999999997e+22", nil },
-	atofTest{ "100000000000000000000001", "1.0000000000000001e+23", nil },
-	atofTest{ "100000000000000008388608", "1.0000000000000001e+23", nil },
-	atofTest{ "100000000000000016777215", "1.0000000000000001e+23", nil },
-	atofTest{ "100000000000000016777216", "1.0000000000000003e+23", nil },
-	atofTest{ "-1", "-1", nil },
-	atofTest{ "-0", "-0", nil },
-	atofTest{ "1e-20", "1e-20", nil },
-	atofTest{ "625e-3", "0.625", nil },
+var atoftests = []atofTest (
+	atofTest( "", "0", os.EINVAL ),
+	atofTest( "1", "1", nil ),
+	atofTest( "+1", "1", nil ),
+	atofTest( "1x", "0", os.EINVAL ),
+	atofTest( "1.1.", "0", os.EINVAL ),
+	atofTest( "1e23", "1e+23", nil ),
+	atofTest( "100000000000000000000000", "1e+23", nil ),
+	atofTest( "1e-100", "1e-100", nil ),
+	atofTest( "123456700", "1.234567e+08", nil ),
+	atofTest( "99999999999999974834176", "9.999999999999997e+22", nil ),
+	atofTest( "100000000000000000000001", "1.0000000000000001e+23", nil ),
+	atofTest( "100000000000000008388608", "1.0000000000000001e+23", nil ),
+	atofTest( "100000000000000016777215", "1.0000000000000001e+23", nil ),
+	atofTest( "100000000000000016777216", "1.0000000000000003e+23", nil ),
+	atofTest( "-1", "-1", nil ),
+	atofTest( "-0", "-0", nil ),
+	atofTest( "1e-20", "1e-20", nil ),
+	atofTest( "625e-3", "0.625", nil ),
 
 	// largest float64
-	atofTest{ "1.7976931348623157e308", "1.7976931348623157e+308", nil },
-	atofTest{ "-1.7976931348623157e308", "-1.7976931348623157e+308", nil },
+	atofTest( "1.7976931348623157e308", "1.7976931348623157e+308", nil ),
+	atofTest( "-1.7976931348623157e308", "-1.7976931348623157e+308", nil ),
 	// next float64 - too large
-	atofTest{ "1.7976931348623159e308", "+Inf", os.ERANGE },
-	atofTest{ "-1.7976931348623159e308", "-Inf", os.ERANGE },
+	atofTest( "1.7976931348623159e308", "+Inf", os.ERANGE ),
+	atofTest( "-1.7976931348623159e308", "-Inf", os.ERANGE ),
 	// the border is ...158079
 	// borderline - okay
-	atofTest{ "1.7976931348623158e308", "1.7976931348623157e+308", nil },
-	atofTest{ "-1.7976931348623158e308", "-1.7976931348623157e+308", nil },
+	atofTest( "1.7976931348623158e308", "1.7976931348623157e+308", nil ),
+	atofTest( "-1.7976931348623158e308", "-1.7976931348623157e+308", nil ),
 	// borderline - too large
-	atofTest{ "1.797693134862315808e308", "+Inf", os.ERANGE },
-	atofTest{ "-1.797693134862315808e308", "-Inf", os.ERANGE },
+	atofTest( "1.797693134862315808e308", "+Inf", os.ERANGE ),
+	atofTest( "-1.797693134862315808e308", "-Inf", os.ERANGE ),
 
 	// a little too large
-	atofTest{ "1e308", "1e+308", nil },
-	atofTest{ "2e308", "+Inf", os.ERANGE },
-	atofTest{ "1e309", "+Inf", os.ERANGE },
+	atofTest( "1e308", "1e+308", nil ),
+	atofTest( "2e308", "+Inf", os.ERANGE ),
+	atofTest( "1e309", "+Inf", os.ERANGE ),
 
 	// way too large
-	atofTest{ "1e310", "+Inf", os.ERANGE },
-	atofTest{ "-1e310", "-Inf", os.ERANGE },
-	atofTest{ "1e400", "+Inf", os.ERANGE },
-	atofTest{ "-1e400", "-Inf", os.ERANGE },
-	atofTest{ "1e400000", "+Inf", os.ERANGE },
-	atofTest{ "-1e400000", "-Inf", os.ERANGE },
+	atofTest( "1e310", "+Inf", os.ERANGE ),
+	atofTest( "-1e310", "-Inf", os.ERANGE ),
+	atofTest( "1e400", "+Inf", os.ERANGE ),
+	atofTest( "-1e400", "-Inf", os.ERANGE ),
+	atofTest( "1e400000", "+Inf", os.ERANGE ),
+	atofTest( "-1e400000", "-Inf", os.ERANGE ),
 
 	// denormalized
-	atofTest{ "1e-305", "1e-305", nil },
-	atofTest{ "1e-306", "1e-306", nil },
-	atofTest{ "1e-307", "1e-307", nil },
-	atofTest{ "1e-308", "1e-308", nil },
-	atofTest{ "1e-309", "1e-309", nil },
-	atofTest{ "1e-310", "1e-310", nil },
-	atofTest{ "1e-322", "1e-322", nil },
+	atofTest( "1e-305", "1e-305", nil ),
+	atofTest( "1e-306", "1e-306", nil ),
+	atofTest( "1e-307", "1e-307", nil ),
+	atofTest( "1e-308", "1e-308", nil ),
+	atofTest( "1e-309", "1e-309", nil ),
+	atofTest( "1e-310", "1e-310", nil ),
+	atofTest( "1e-322", "1e-322", nil ),
 	// smallest denormal
-	atofTest{ "5e-324", "5e-324", nil },
+	atofTest( "5e-324", "5e-324", nil ),
 	// too small
-	atofTest{ "4e-324", "0", nil },
+	atofTest( "4e-324", "0", nil ),
 	// way too small
-	atofTest{ "1e-350", "0", nil },
-	atofTest{ "1e-400000", "0", nil },
+	atofTest( "1e-350", "0", nil ),
+	atofTest( "1e-400000", "0", nil ),
 
 	// try to overflow exponent
-	atofTest{ "1e-4294967296", "0", nil },
-	atofTest{ "1e+4294967296", "+Inf", os.ERANGE },
-	atofTest{ "1e-18446744073709551616", "0", nil },
-	atofTest{ "1e+18446744073709551616", "+Inf", os.ERANGE },
+	atofTest( "1e-4294967296", "0", nil ),
+	atofTest( "1e+4294967296", "+Inf", os.ERANGE ),
+	atofTest( "1e-18446744073709551616", "0", nil ),
+	atofTest( "1e+18446744073709551616", "+Inf", os.ERANGE ),
 
 	// Parse errors
-	atofTest{ "1e", "0", os.EINVAL },
-	atofTest{ "1e-", "0", os.EINVAL },
-	atofTest{ ".e-1", "0", os.EINVAL },
-}
+	atofTest( "1e", "0", os.EINVAL ),
+	atofTest( "1e-", "0", os.EINVAL ),
+	atofTest( ".e-1", "0", os.EINVAL ),
+)
 
 func testAtof(t *testing.T, opt bool) {
 	oldopt := strconv.optimize;

@@ -17,33 +17,33 @@ type Utf8Map struct {
 	str string;
 }
 
-var utf8map = []Utf8Map {
-	Utf8Map{ 0x0000, "\x00" },
-	Utf8Map{ 0x0001, "\x01" },
-	Utf8Map{ 0x007e, "\x7e" },
-	Utf8Map{ 0x007f, "\x7f" },
-	Utf8Map{ 0x0080, "\xc2\x80" },
-	Utf8Map{ 0x0081, "\xc2\x81" },
-	Utf8Map{ 0x00bf, "\xc2\xbf" },
-	Utf8Map{ 0x00c0, "\xc3\x80" },
-	Utf8Map{ 0x00c1, "\xc3\x81" },
-	Utf8Map{ 0x00c8, "\xc3\x88" },
-	Utf8Map{ 0x00d0, "\xc3\x90" },
-	Utf8Map{ 0x00e0, "\xc3\xa0" },
-	Utf8Map{ 0x00f0, "\xc3\xb0" },
-	Utf8Map{ 0x00f8, "\xc3\xb8" },
-	Utf8Map{ 0x00ff, "\xc3\xbf" },
-	Utf8Map{ 0x0100, "\xc4\x80" },
-	Utf8Map{ 0x07ff, "\xdf\xbf" },
-	Utf8Map{ 0x0800, "\xe0\xa0\x80" },
-	Utf8Map{ 0x0801, "\xe0\xa0\x81" },
-	Utf8Map{ 0xfffe, "\xef\xbf\xbe" },
-	Utf8Map{ 0xffff, "\xef\xbf\xbf" },
-	Utf8Map{ 0x10000, "\xf0\x90\x80\x80" },
-	Utf8Map{ 0x10001, "\xf0\x90\x80\x81" },
-	Utf8Map{ 0x10fffe, "\xf4\x8f\xbf\xbe" },
-	Utf8Map{ 0x10ffff, "\xf4\x8f\xbf\xbf" },
-}
+var utf8map = []Utf8Map (
+	Utf8Map( 0x0000, "\x00" ),
+	Utf8Map( 0x0001, "\x01" ),
+	Utf8Map( 0x007e, "\x7e" ),
+	Utf8Map( 0x007f, "\x7f" ),
+	Utf8Map( 0x0080, "\xc2\x80" ),
+	Utf8Map( 0x0081, "\xc2\x81" ),
+	Utf8Map( 0x00bf, "\xc2\xbf" ),
+	Utf8Map( 0x00c0, "\xc3\x80" ),
+	Utf8Map( 0x00c1, "\xc3\x81" ),
+	Utf8Map( 0x00c8, "\xc3\x88" ),
+	Utf8Map( 0x00d0, "\xc3\x90" ),
+	Utf8Map( 0x00e0, "\xc3\xa0" ),
+	Utf8Map( 0x00f0, "\xc3\xb0" ),
+	Utf8Map( 0x00f8, "\xc3\xb8" ),
+	Utf8Map( 0x00ff, "\xc3\xbf" ),
+	Utf8Map( 0x0100, "\xc4\x80" ),
+	Utf8Map( 0x07ff, "\xdf\xbf" ),
+	Utf8Map( 0x0800, "\xe0\xa0\x80" ),
+	Utf8Map( 0x0801, "\xe0\xa0\x81" ),
+	Utf8Map( 0xfffe, "\xef\xbf\xbe" ),
+	Utf8Map( 0xffff, "\xef\xbf\xbf" ),
+	Utf8Map( 0x10000, "\xf0\x90\x80\x80" ),
+	Utf8Map( 0x10001, "\xf0\x90\x80\x81" ),
+	Utf8Map( 0x10fffe, "\xf4\x8f\xbf\xbe" ),
+	Utf8Map( 0x10ffff, "\xf4\x8f\xbf\xbf" ),
+)
 
 // io.StringBytes with one extra byte at end
 func bytes(s string) []byte {
@@ -161,12 +161,12 @@ type RuneCountTest struct {
 	in string;
 	out int;
 }
-var runecounttests = []RuneCountTest {
-	RuneCountTest{ "abcd", 4 },
-	RuneCountTest{ "☺☻☹", 3 },
-	RuneCountTest{ "1,2,3,4", 7 },
-	RuneCountTest{ "\xe2\x00", 2 },
-}
+var runecounttests = []RuneCountTest (
+	RuneCountTest( "abcd", 4 ),
+	RuneCountTest( "☺☻☹", 3 ),
+	RuneCountTest( "1,2,3,4", 7 ),
+	RuneCountTest( "\xe2\x00", 2 ),
+)
 func TestRuneCount(t *testing.T) {
 	for i := 0; i < len(runecounttests); i++ {
 		tt := runecounttests[i];

@@ -12,9 +12,9 @@ import (
 )
 
 
-var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
-var floats = [...]float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
-var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
+var ints = [...]int(74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586)
+var floats = [...]float(74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8)
+var strings = [...]string("", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***")
 
 func TestSortIntArray(t *testing.T) {
 	data := ints;
@@ -134,9 +134,9 @@ func lg(n int) int {
 }
 
 func TestBentleyMcIlroy(t *testing.T) {
-	sizes := []int{100, 1023, 1024, 1025};
-	dists := []string{"sawtooth", "rand", "stagger", "plateau", "shuffle"};
-	modes := []string{"copy", "reverse", "reverse1", "reverse2", "sort", "dither"};
+	sizes := []int(100, 1023, 1024, 1025);
+	dists := []string("sawtooth", "rand", "stagger", "plateau", "shuffle");
+	modes := []string("copy", "reverse", "reverse1", "reverse2", "sort", "dither");
 	var tmp1, tmp2 [1025]int;
 	for ni := 0; ni < len(sizes); ni++ {
 		n := sizes[ni];
@@ -205,7 +205,7 @@ func TestBentleyMcIlroy(t *testing.T) {
 					}
 
 					desc := fmt.Sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
-					d := &testingData{desc, t, mdata[0:n], n*lg(n)*12/10, 0};
+					d := &testingData(desc, t, mdata[0:n], n*lg(n)*12/10, 0);
 					sort.Sort(d);
 
 					// If we were testing C qsort, we'd have to make a copy

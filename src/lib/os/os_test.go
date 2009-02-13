@@ -10,7 +10,7 @@ import (
 	"testing";
 )
 
-var dot = []string{
+var dot = []string(
 	"dir_amd64_darwin.go",
 	"dir_amd64_linux.go",
 	"os_env.go",
@@ -21,13 +21,13 @@ var dot = []string{
 	"os_types.go",
 	"stat_amd64_darwin.go",
 	"stat_amd64_linux.go"
-}
+)
 
-var etc = []string{
+var etc = []string(
 	"group",
 	"hosts",
 	"passwd",
-}
+)
 
 func size(file string, t *testing.T) uint64 {
 	fd, err := Open(file, O_RDONLY, 0);

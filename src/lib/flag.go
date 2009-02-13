@@ -112,7 +112,7 @@ type boolValue struct {
 
 func newBoolValue(val bool, p *bool) *boolValue {
 	*p = val;
-	return &boolValue{p}
+	return &boolValue(p)
 }
 
 func (b *boolValue) set(val bool) {
@@ -130,7 +130,7 @@ type intValue struct {
 
 func newIntValue(val int, p *int) *intValue {
 	*p = val;
-	return &intValue{p}
+	return &intValue(p)
 }
 
 func (i *intValue) set(val int) {
@@ -148,7 +148,7 @@ type int64Value struct {
 
 func newInt64Value(val int64, p *int64) *int64Value {
 	*p = val;
-	return &int64Value{p}
+	return &int64Value(p)
 }
 
 func (i *int64Value) set(val int64) {
@@ -166,7 +166,7 @@ type uintValue struct {
 
 func newUintValue(val uint, p *uint) *uintValue {
 	*p = val;
-	return &uintValue{p}
+	return &uintValue(p)
 }
 
 func (i *uintValue) set(val uint) {
@@ -184,7 +184,7 @@ type uint64Value struct {
 
 func newUint64Value(val uint64, p *uint64) *uint64Value {
 	*p = val;
-	return &uint64Value{p}
+	return &uint64Value(p)
 }
 
 func (i *uint64Value) set(val uint64) {
@@ -202,7 +202,7 @@ type stringValue struct {
 
 func newStringValue(val string, p *string) *stringValue {
 	*p = val;
-	return &stringValue{p}
+	return &stringValue(p)
 }
 
 func (s *stringValue) set(val string) {
@@ -232,7 +232,7 @@ type allFlags struct {
 	first_arg	int;	// 0 is the program name, 1 is first arg
 }
 
-var flags *allFlags = &allFlags{make(map[string] *Flag), make(map[string] *Flag), 1}
+var flags *allFlags = &allFlags(make(map[string] *Flag), make(map[string] *Flag), 1)
 
 func PrintDefaults() {
 	for k, f := range flags.formal {

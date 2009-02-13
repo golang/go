@@ -7,7 +7,7 @@
 package main
 
 type T struct { s string }
-var t = T{"hi"}
+var t = T("hi")
 
 func main() {}
 

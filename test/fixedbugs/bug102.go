@@ -12,7 +12,7 @@ func main() {
 	if s != "" {
 		panic("bad convert")
 	}
-	var b1 = [5]byte{'h', 'e', 'l', 'l', 'o'};
+	var b1 = [5]byte('h', 'e', 'l', 'l', 'o');
 	if string(b1) != "hello" {
 		panic("bad convert 1")
 	}

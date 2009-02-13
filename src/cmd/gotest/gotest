@@ -71,7 +71,7 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
 	echo 'import "testing"'
 	# test array
 	echo
-	echo 'var tests = []testing.Test {'
+	echo 'var tests = []testing.Test('
 	for ofile in $ofiles
 	do
 		# test functions are named TestFoo
@@ -84,11 +84,11 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
 		else
 			for i in $tests
 			do
-				echo '	testing.Test{ "'$i'", '$i' },'
+				echo '	testing.Test( "'$i'", '$i' ),'
 			done
 		fi
 	done
-	echo '}'
+	echo ')'
 	# body
 	echo
 	echo 'func main() {'

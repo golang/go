@@ -6,8 +6,7 @@
 
 package main
 
-var a = []int { "a" };	// ERROR "conver|incompatible"
-var b = int { 1 };	// ERROR "compos"
+var a = []int ( "a" );	// ERROR "conver|incompatible"
 
 
 func f() int

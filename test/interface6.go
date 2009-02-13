@@ -22,7 +22,7 @@ func (p S1) Get() int { return p.i }
 func (p S1) Put(i int) { p.i = i }
 
 func f1() {
-  s := S1{1};
+  s := S1(1);
   var i I1 = s;
   i.Put(2);
   check(i.Get() == 1, "f1 i");
@@ -30,7 +30,7 @@ func f1() {
 }
 
 func f2() {
-  s := S1{1};
+  s := S1(1);
   var i I1 = &s;
   i.Put(2);
   check(i.Get() == 1, "f2 i");
@@ -38,7 +38,7 @@ func f2() {
 }
 
 func f3() {
-  s := &S1{1};
+  s := &S1(1);
   var i I1 = s;
   i.Put(2);
   check(i.Get() == 1, "f3 i");
@@ -50,7 +50,7 @@ func (p *S2) Get() int { return p.i }
 func (p *S2) Put(i int) { p.i = i }
 
 func f4() {
-  s := S2{1};
+  s := S2(1);
   var i I1 = s;
   i.Put(2);
   check(i.Get() == 2, "f4 i");
@@ -58,7 +58,7 @@ func f4() {
 }
 
 func f5() {
-  s := S2{1};
+  s := S2(1);
   var i I1 = &s;
   i.Put(2);
   check(i.Get() == 2, "f5 i");
@@ -66,7 +66,7 @@ func f5() {
 }
 
 func f6() {
-  s := &S2{1};
+  s := &S2(1);
   var i I1 = s;
   i.Put(2);
   check(i.Get() == 2, "f6 i");
@@ -80,7 +80,7 @@ func (p S3) Get() int64 { return p.l }
 func (p S3) Put(i int64) { p.l = i }
 
 func f7() {
-  s := S3{1, 2, 3, 4};
+  s := S3(1, 2, 3, 4);
   var i I2 = s;
   i.Put(5);
   check(i.Get() == 4, "f7 i");
@@ -88,7 +88,7 @@ func f7() {
 }
 
 func f8() {
-  s := S3{1, 2, 3, 4};
+  s := S3(1, 2, 3, 4);
   var i I2 = &s;
   i.Put(5);
   check(i.Get() == 4, "f8 i");
@@ -96,7 +96,7 @@ func f8() {
 }
 
 func f9() {
-  s := &S3{1, 2, 3, 4};
+  s := &S3(1, 2, 3, 4);
   var i I2 = s;
   i.Put(5);
   check(i.Get() == 4, "f9 i");
@@ -108,7 +108,7 @@ func (p *S4) Get() int64 { return p.l }
 func (p *S4) Put(i int64) { p.l = i }
 
 func f10() {
-  s := S4{1, 2, 3, 4};
+  s := S4(1, 2, 3, 4);
   var i I2 = s;
   i.Put(5);
   check(i.Get() == 5, "f10 i");
@@ -116,7 +116,7 @@ func f10() {
 }
 
 func f11() {
-  s := S4{1, 2, 3, 4};
+  s := S4(1, 2, 3, 4);
   var i I2 = &s;
   i.Put(5);
   check(i.Get() == 5, "f11 i");
@@ -124,7 +124,7 @@ func f11() {
 }
 
 func f12() {
-  s := &S4{1, 2, 3, 4};
+  s := &S4(1, 2, 3, 4);
   var i I2 = s;
   i.Put(5);
   check(i.Get() == 5, "f12 i");

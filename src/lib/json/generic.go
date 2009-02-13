@@ -45,7 +45,7 @@ func JsonToString(j Json) string {
 }
 
 type _Null struct { }
-var Null Json = &_Null{}
+var Null Json = &_Null()
 func (*_Null) Kind() int { return NullKind }
 func (*_Null) String() string { return "null" }
 func (*_Null) Number() float64 { return 0 }
@@ -240,7 +240,7 @@ func (b *_JsonBuilder) Get() Json {
 }
 
 func (b *_JsonBuilder) Float64(f float64) {
-	b.Put(&_Number{f, _Null{}})
+	b.Put(&_Number(f, _Null()))
 }
 
 func (b *_JsonBuilder) Int64(i int64) {
@@ -252,7 +252,7 @@ func (b *_JsonBuilder) Uint64(i uint64) {
 }
 
 func (b *_JsonBuilder) Bool(tf bool) {
-	b.Put(&_Bool{tf, _Null{}})
+	b.Put(&_Bool(tf, _Null()))
 }
 
 func (b *_JsonBuilder) Null() {
@@ -260,16 +260,16 @@ func (b *_JsonBuilder) Null() {
 }
 
 func (b *_JsonBuilder) String(s string) {
-	b.Put(&_String{s, _Null{}})
+	b.Put(&_String(s, _Null()))
 }
 
 
 func (b *_JsonBuilder) Array() {
-	b.Put(&_Array{array.New(0), _Null{}})
+	b.Put(&_Array(array.New(0), _Null()))
 }
 
 func (b *_JsonBuilder) Map() {
-	b.Put(&_Map{make(map[string]Json), _Null{}})
+	b.Put(&_Map(make(map[string]Json), _Null()))
 }
 
 func (b *_JsonBuilder) Elem(i int) Builder {
