@@ -167,12 +167,6 @@ type (
 		Body *Block;
 	};
 	
-	CompositeLit struct {
-		Pos_ int;  // position of "{"
-		Typ *Type;
-		Elts Expr;
-	};
-
 	TypeLit struct {
 		Typ *Type;
 	};
@@ -208,7 +202,6 @@ type ExprVisitor interface {
 	DoUnaryExpr(x *UnaryExpr);
 	DoBasicLit(x *BasicLit);
 	DoFunctionLit(x *FunctionLit);
-	DoCompositeLit(x *CompositeLit);
 	DoTypeLit(x *TypeLit);
 	DoSelector(x *Selector);
 	DoTypeGuard(x *TypeGuard);
@@ -223,7 +216,6 @@ func (x *BinaryExpr) Pos() int { return x.Pos_; }
 func (x *UnaryExpr) Pos() int { return x.Pos_; }
 func (x *BasicLit) Pos() int { return x.Pos_; }
 func (x *FunctionLit) Pos() int { return x.Pos_; }
-func (x *CompositeLit) Pos() int { return x.Pos_; }
 func (x *TypeLit) Pos() int { return x.Typ.Pos; }
 func (x *Selector) Pos() int { return x.Pos_; }
 func (x *TypeGuard) Pos() int { return x.Pos_; }
@@ -237,7 +229,6 @@ func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
 func (x *UnaryExpr) Visit(v ExprVisitor) { v.DoUnaryExpr(x); }
 func (x *BasicLit) Visit(v ExprVisitor) { v.DoBasicLit(x); }
 func (x *FunctionLit) Visit(v ExprVisitor) { v.DoFunctionLit(x); }
-func (x *CompositeLit) Visit(v ExprVisitor) { v.DoCompositeLit(x); }
 func (x *TypeLit) Visit(v ExprVisitor) { v.DoTypeLit(x); }
 func (x *Selector) Visit(v ExprVisitor) { v.DoSelector(x); }
 func (x *TypeGuard) Visit(v ExprVisitor) { v.DoTypeGuard(x); }
