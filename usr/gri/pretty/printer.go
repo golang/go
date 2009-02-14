@@ -680,14 +680,6 @@ func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
 }
 
 
-func (P *Printer) DoCompositeLit(x *AST.CompositeLit) {
-	P.Type(x.Typ);
-	P.String(x.Pos(), "{");
-	P.Expr(x.Elts);
-	P.String(0, "}");
-}
-
-
 func (P *Printer) DoSelector(x *AST.Selector) {
 	P.Expr1(x.X, Scanner.HighestPrec);
 	P.String(x.Pos(), ".");

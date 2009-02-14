@@ -32,7 +32,6 @@ type Parser struct {
 	opt_semi bool;  // true if semicolon is optional
 
 	// Nesting levels
-	expr_lev int;  // 0 = control clause level, 1 = expr inside ()'s
 	scope_lev int;  // 0 = global scope, 1 = function scope of global functions, etc.
 
 	// Scopes
@@ -129,7 +128,6 @@ func (P *Parser) Open(trace, sixg, deps bool, scanner *Scanner.Scanner) {
 	P.comments = vector.New(0);
 
 	P.next();
-	P.expr_lev = 0;
 	P.scope_lev = 0;
 }
 
@@ -212,43 +210,6 @@ func (P *Parser) declare(x AST.Expr, kind int, typ *AST.Type) {
 
 
 // ----------------------------------------------------------------------------
-// AST support
-
-func exprType(x AST.Expr) *AST.Type {
-	var typ *AST.Type;
-	if t, is_type := x.(*AST.TypeLit); is_type {
-		typ = t.Typ
-	} else if t, is_ident := x.(*AST.Ident); is_ident {
-		// assume a type name
-		typ = AST.NewType(t.Pos(), AST.TYPENAME);
-		typ.Expr = x;
-	} else if t, is_selector := x.(*AST.Selector); is_selector && exprType(t.Sel) != nil {
-		// possibly a qualified (type) identifier
-		typ = AST.NewType(t.Pos(), AST.TYPENAME);
-		typ.Expr = x;
-	}
-	return typ;
-}
-
-
-func (P *Parser) noType(x AST.Expr) AST.Expr {
-	if x != nil {
-		lit, ok := x.(*AST.TypeLit);
-		if ok {
-			P.error(lit.Typ.Pos, "expected expression, found type");
-			x = &AST.BasicLit(lit.Typ.Pos, Scanner.STRING, "");
-		}
-	}
-	return x;
-}
-
-
-func (P *Parser) newBinaryExpr(pos, tok int, x, y AST.Expr) *AST.BinaryExpr {
-	return &AST.BinaryExpr(pos, tok, P.noType(x), P.noType(y));
-}
-
-
-// ----------------------------------------------------------------------------
 // Common productions
 
 func (P *Parser) tryType() *AST.Type;
@@ -295,10 +256,10 @@ func (P *Parser) parseIdentList() AST.Expr {
 		P.next();
 		y := P.parseIdent(nil);
 		if last == nil {
-			last = P.newBinaryExpr(pos, Scanner.COMMA, x, y);
+			last = &AST.BinaryExpr(pos, Scanner.COMMA, x, y);
 			x = last;
 		} else {
-			last.Y = P.newBinaryExpr(pos, Scanner.COMMA, last.Y, y);
+			last.Y = &AST.BinaryExpr(pos, Scanner.COMMA, last.Y, y);
 			last = last.Y.(*AST.BinaryExpr);
 		}
 	}
@@ -371,7 +332,7 @@ func (P *Parser) parseArrayType() *AST.Type {
 	t := AST.NewType(P.pos, AST.ARRAY);
 	P.expect(Scanner.LBRACK);
 	if P.tok == Scanner.ELLIPSIS {
-		t.Expr = P.newBinaryExpr(P.pos, Scanner.ELLIPSIS, nil, nil);
+		t.Expr = &AST.BinaryExpr(P.pos, Scanner.ELLIPSIS, nil, nil);
 		P.next();
 	} else if P.tok != Scanner.RBRACK {
 		t.Expr = P.parseExpression(1);
@@ -708,19 +669,19 @@ func (P *Parser) tryType() *AST.Type {
 		defer un(trace(P, "Type (try)"));
 	}
 
-	t := AST.BadType;
 	switch P.tok {
-	case Scanner.IDENT: t = P.parseTypeName();
-	case Scanner.LBRACK: t = P.parseArrayType();
-	case Scanner.CHAN, Scanner.ARROW: t = P.parseChannelType();
-	case Scanner.INTERFACE: t = P.parseInterfaceType();
-	case Scanner.FUNC: t = P.parseFunctionType();
-	case Scanner.MAP: t = P.parseMapType();
-	case Scanner.STRUCT: t = P.parseStructType();
-	case Scanner.MUL: t = P.parsePointerType();
-	default: t = nil;  // no type found
+	case Scanner.IDENT: return P.parseTypeName();
+	case Scanner.LBRACK: return P.parseArrayType();
+	case Scanner.CHAN, Scanner.ARROW: return P.parseChannelType();
+	case Scanner.INTERFACE: return P.parseInterfaceType();
+	case Scanner.FUNC: return P.parseFunctionType();
+	case Scanner.MAP: return P.parseMapType();
+	case Scanner.STRUCT: return P.parseStructType();
+	case Scanner.MUL: return P.parsePointerType();
 	}
-	return t;
+	
+	// no type found
+	return nil;
 }
 
 
@@ -801,10 +762,10 @@ func (P *Parser) parseExpressionList() AST.Expr {
 		P.next();
 		y := P.parseExpression(1);
 		if first {
-			x = P.newBinaryExpr(pos, Scanner.COMMA, x, y);
+			x = &AST.BinaryExpr(pos, Scanner.COMMA, x, y);
 			first = false;
 		} else {
-			x.(*AST.BinaryExpr).Y = P.newBinaryExpr(pos, Scanner.COMMA, x.(*AST.BinaryExpr).Y, y);
+			x.(*AST.BinaryExpr).Y = &AST.BinaryExpr(pos, Scanner.COMMA, x.(*AST.BinaryExpr).Y, y);
 		}
 	}
 
@@ -820,11 +781,9 @@ func (P *Parser) parseFunctionLit() AST.Expr {
 	pos := P.pos;
 	P.expect(Scanner.FUNC);
 	typ := P.parseSignature();
-	P.expr_lev++;
 	P.scope_lev++;
 	body := P.parseBlock(typ, Scanner.LBRACE);
 	P.scope_lev--;
-	P.expr_lev--;
 
 	return &AST.FunctionLit(pos, typ, body);
 }
@@ -841,9 +800,7 @@ func (P *Parser) parseOperand() AST.Expr {
 
 	case Scanner.LPAREN:
 		P.next();
-		P.expr_lev++;
 		x := P.parseExpression(1);
-		P.expr_lev--;
 		P.expect(Scanner.RPAREN);
 		return x;
 
@@ -904,9 +861,7 @@ func (P *Parser) parseIndex(x AST.Expr) AST.Expr {
 
 	pos := P.pos;
 	P.expect(Scanner.LBRACK);
-	P.expr_lev++;
 	i := P.parseExpression(0);
-	P.expr_lev--;
 	P.expect(Scanner.RBRACK);
 
 	return &AST.Index(pos, x, i);
@@ -914,43 +869,6 @@ func (P *Parser) parseIndex(x AST.Expr) AST.Expr {
 
 
 func (P *Parser) parseBinaryExpr(prec1 int) AST.Expr
-
-func (P *Parser) parseCall(f AST.Expr) AST.Expr {
-	if P.trace {
-		defer un(trace(P, "Call"));
-	}
-
-	call := &AST.Call(P.pos, f, nil);
-	P.expect(Scanner.LPAREN);
-	if P.tok != Scanner.RPAREN {
-		P.expr_lev++;
-		var t *AST.Type;
-		if x0, ok := f.(*AST.Ident); ok && (x0.Obj.Ident == "new" || x0.Obj.Ident == "make") {
-			// heuristic: assume it's a new(T) or make(T, ...) call, try to parse a type
-			t = P.tryType();
-		}
-		if t != nil {
-			// we found a type
-			args := &AST.TypeLit(t);
-			if P.tok == Scanner.COMMA {
-				pos := P.pos;
-				P.next();
-				y := P.parseExpressionList();
-				// create list manually because NewExpr checks for type expressions
-				args := &AST.BinaryExpr(pos, Scanner.COMMA, args, y);
-			}
-			call.Args = args;
-		} else {
-			// normal argument list
-			call.Args = P.parseExpressionList();
-		}
-		P.expr_lev--;
-	}
-	P.expect(Scanner.RPAREN);
-
-	return call;
-}
-
 
 func (P *Parser) parseCompositeElements() AST.Expr {
 	x := P.parseExpression(0);
@@ -965,7 +883,7 @@ func (P *Parser) parseCompositeElements() AST.Expr {
 		}
 
 		var last *AST.BinaryExpr;
-		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
 			y := P.parseExpression(0);
 
 			if singles {
@@ -979,10 +897,10 @@ func (P *Parser) parseCompositeElements() AST.Expr {
 			}
 
 			if last == nil {
-				last = P.newBinaryExpr(pos, Scanner.COMMA, x, y);
+				last = &AST.BinaryExpr(pos, Scanner.COMMA, x, y);
 				x = last;
 			} else {
-				last.Y = P.newBinaryExpr(pos, Scanner.COMMA, last.Y, y);
+				last.Y = &AST.BinaryExpr(pos, Scanner.COMMA, last.Y, y);
 				last = last.Y.(*AST.BinaryExpr);
 			}
 
@@ -999,20 +917,20 @@ func (P *Parser) parseCompositeElements() AST.Expr {
 }
 
 
-func (P *Parser) parseCompositeLit(t *AST.Type) AST.Expr {
+func (P *Parser) parseCallOrCompositeLit(f AST.Expr) AST.Expr {
 	if P.trace {
-		defer un(trace(P, "CompositeLit"));
+		defer un(trace(P, "CallOrCompositeLit"));
 	}
 
 	pos := P.pos;
-	P.expect(Scanner.LBRACE);
-	var elts AST.Expr;
-	if P.tok != Scanner.RBRACE {
-		elts = P.parseCompositeElements();
+	P.expect(Scanner.LPAREN);
+	var args AST.Expr;
+	if P.tok != Scanner.RPAREN {
+		args = P.parseCompositeElements();
 	}
-	P.expect(Scanner.RBRACE);
+	P.expect(Scanner.RPAREN);
 
-	return &AST.CompositeLit(pos, t, elts);
+	return &AST.Call(pos, f, args);
 }
 
 
@@ -1026,20 +944,7 @@ func (P *Parser) parsePrimaryExpr() AST.Expr {
 		switch P.tok {
 		case Scanner.PERIOD: x = P.parseSelectorOrTypeGuard(x);
 		case Scanner.LBRACK: x = P.parseIndex(x);
-		case Scanner.LPAREN: x = P.parseCall(x);
-		case Scanner.LBRACE:
-			// assume a composite literal only if x could be a type
-			// and if we are not inside a control clause (expr_lev >= 0)
-			// (composites inside control clauses must be parenthesized)
-			var t *AST.Type;
-			if P.expr_lev >= 0 {
-				t = exprType(x);
-			}
-			if t != nil {
-				x = P.parseCompositeLit(t);
-			} else {
-				return x;
-			}
+		case Scanner.LPAREN: x = P.parseCallOrCompositeLit(x);
 		default:
 			return x;
 		}
@@ -1085,7 +990,7 @@ func (P *Parser) parseBinaryExpr(prec1 int) AST.Expr {
 			pos, tok := P.pos, P.tok;
 			P.next();
 			y := P.parseBinaryExpr(prec + 1);
-			x = P.newBinaryExpr(pos, tok, x, y);
+			x = &AST.BinaryExpr(pos, tok, x, y);
 		}
 	}
 
@@ -1102,7 +1007,7 @@ func (P *Parser) parseExpression(prec int) AST.Expr {
 		panic("precedence must be >= 0");
 	}
 
-	return P.noType(P.parseBinaryExpr(prec));
+	return P.parseBinaryExpr(prec);
 }
 
 
@@ -1153,7 +1058,7 @@ func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
 			}
 		}
 		// TODO changed ILLEGAL -> NONE
-		return &AST.ExpressionStat(x.Pos(), Scanner.ILLEGAL, P.newBinaryExpr(pos, tok, x, y));
+		return &AST.ExpressionStat(x.Pos(), Scanner.ILLEGAL, &AST.BinaryExpr(pos, tok, x, y));
 
 	default:
 		if AST.ExprLen(x) != 1 {
@@ -1223,8 +1128,6 @@ func (P *Parser) parseControlClause(isForStat bool) (init AST.Stat, expr AST.Exp
 	}
 
 	if P.tok != Scanner.LBRACE {
-		prev_lev := P.expr_lev;
-		P.expr_lev = -1;
 		if P.tok != Scanner.SEMICOLON {
 			init = P.parseSimpleStat(isForStat);
 			// TODO check for range clause and exit if found
@@ -1249,7 +1152,6 @@ func (P *Parser) parseControlClause(isForStat bool) (init AST.Stat, expr AST.Exp
 				}
 			}
 		}
-		P.expr_lev = prev_lev;
 	}
 
 	return init, expr, post;
@@ -1361,7 +1263,7 @@ func (P *Parser) parseCommClause() *AST.CaseClause {
 			P.next();
 			if P.tok == Scanner.ARROW {
 				y := P.parseExpression(1);
-				x = P.newBinaryExpr(pos, tok, x, y);
+				x = &AST.BinaryExpr(pos, tok, x, y);
 			} else {
 				P.expect(Scanner.ARROW);  // use expect() error handling
 			}
