@@ -84,7 +84,7 @@ func _Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
 // TODO(rsc): Maybe return [][]byte (==[]IPAddr) instead?
-func _Answer(name string, dns *DNS_Msg) (addrs []string, err *os.Error) {
+func answer(name string, dns *DNS_Msg) (addrs []string, err *os.Error) {
 	addrs = make([]string, 0, len(dns.answer));
 
 	if dns.rcode == DNS_RcodeNameError && dns.authoritative {
@@ -134,8 +134,8 @@ Cname:
 }
 
 // Do a lookup for a single name, which must be rooted
-// (otherwise _Answer will not find the answers).
-func _TryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
+// (otherwise answer will not find the answers).
+func tryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
 	err = DNS_NoServers;
 	for i := 0; i < len(cfg.servers); i++ {
 		// Calling Dial here is scary -- we have to be sure
@@ -155,7 +155,7 @@ func _TryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
 			err = merr;
 			continue;
 		}
-		addrs, aerr := _Answer(name, msg);
+		addrs, aerr := answer(name, msg);
 		if aerr != nil && aerr != DNS_NameNotFound {
 			err = aerr;
 			continue;
@@ -167,7 +167,7 @@ func _TryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
 
 var cfg *DNS_Config
 
-func _LoadConfig() {
+func loadConfig() {
 	cfg = DNS_ReadConfig();
 }
 
@@ -175,7 +175,7 @@ func LookupHost(name string) (name1 string, addrs []string, err *os.Error) {
 	// TODO(rsc): Pick out obvious non-DNS names to avoid
 	// sending stupid requests to the server?
 
-	once.Do(_LoadConfig);
+	once.Do(loadConfig);
 	if cfg == nil {
 		err = DNS_MissingConfig;
 		return;
@@ -190,7 +190,7 @@ func LookupHost(name string) (name1 string, addrs []string, err *os.Error) {
 			rname += ".";
 		}
 		// Can try as ordinary name.
-		addrs, aerr := _TryOneName(cfg, rname);
+		addrs, aerr := tryOneName(cfg, rname);
 		if aerr == nil {
 			return rname, addrs, nil;
 		}
@@ -206,7 +206,7 @@ func LookupHost(name string) (name1 string, addrs []string, err *os.Error) {
 		if newname[len(newname)-1] != '.' {
 			newname += "."
 		}
-		addrs, aerr := _TryOneName(cfg, newname);
+		addrs, aerr := tryOneName(cfg, newname);
 		if aerr == nil {
 			return newname, addrs, nil;
 		}

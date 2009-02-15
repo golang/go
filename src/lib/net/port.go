@@ -16,20 +16,21 @@ import (
 
 var services map[string] map[string] int
 
-func _ReadServices() {
+func readServices() {
 	services = make(map[string] map[string] int);
-	file := _Open("/etc/services");
-	for line, ok := file.ReadLine(); ok; line, ok = file.ReadLine() {
+	// TODO(rsc): 6g won't let me do "file := "
+	var file = open("/etc/services");
+	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		// "http 80/tcp www www-http # World Wide Web HTTP"
-		if i := _ByteIndex(line, '#'); i >= 0 {
+		if i := byteIndex(line, '#'); i >= 0 {
 			line = line[0:i];
 		}
-		f := _GetFields(line);
+		f := getFields(line);
 		if len(f) < 2 {
 			continue;
 		}
 		portnet := f[1];	// "tcp/80"
-		port, j, ok := _Dtoi(portnet, 0);
+		port, j, ok := dtoi(portnet, 0);
 		if !ok || port <= 0 || j >= len(portnet) || portnet[j] != '/' {
 			continue
 		}
@@ -45,11 +46,11 @@ func _ReadServices() {
 			}
 		}
 	}
-	file.Close();
+	file.close();
 }
 
 func LookupPort(netw, name string) (port int, ok bool) {
-	once.Do(_ReadServices);
+	once.Do(readServices);
 
 	switch netw {
 	case "tcp4", "tcp6":
