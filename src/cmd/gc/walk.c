@@ -3745,10 +3745,13 @@ addrescapes(Node *n)
 
 	case ODOT:
 	case OINDEX:
-		// ODOTPTR has already been
-		// introduced, so these are the non-pointer
-		// ODOT and OINDEX.
-		addrescapes(n->left);
+		// ODOTPTR has already been introduced,
+		// so these are the non-pointer ODOT and OINDEX.
+		// In &x[0], if x is a slice, then x does not
+		// escape--the pointer inside x does, but that
+		// is always a heap pointer anyway.
+		if(!isslice(n->left->type))
+			addrescapes(n->left);
 		break;
 	}
 }
