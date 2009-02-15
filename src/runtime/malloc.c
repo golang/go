@@ -162,9 +162,9 @@ mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
 		*size = n;
 	nobj = (s->npages << PageShift) / (n + RefcountOverhead);
 	if((byte*)s->gcref < p || (byte*)(s->gcref+nobj) > p+(s->npages<<PageShift)) {
-		printf("odd span state=%d span=%p base=%p sizeclass=%d n=%d size=%d npages=%d\n",
+		printf("odd span state=%d span=%p base=%p sizeclass=%d n=%D size=%D npages=%D\n",
 			s->state, s, p, s->sizeclass, nobj, n, s->npages);
-		printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%d size=%D end=%p end=%p\n",
+		printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%D size=%D end=%p end=%p\n",
 			s->sizeclass, v, p, s->gcref, s->npages<<PageShift,
 			nobj, n, s->gcref + nobj, p+(s->npages<<PageShift));
 		throw("bad gcref");

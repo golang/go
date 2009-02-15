@@ -52,12 +52,6 @@ time make
 make smoketest
 ) || exit $?
 
-# (xcd ../usr/gri/gosrc
-# make clean
-# time make
-# # make test
-# ) || exit $?
-
 (xcd ../doc/progs
 time ./run
 ) || exit $?
