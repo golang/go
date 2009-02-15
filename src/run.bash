@@ -29,6 +29,7 @@ maketest \
 	lib/json\
 	lib/math\
 	lib/net\
+	lib/os\
 	lib/reflect\
 	lib/regexp\
 	lib/strconv\

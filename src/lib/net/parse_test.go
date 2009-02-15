@@ -20,16 +20,17 @@ func TestReadLine(t *testing.T) {
 	}
 	br := bufio.NewBufRead(fd);
 
-	file := _Open(filename);
+	// TODO(rsc): 6g rejects "file :="
+	var file = open(filename);
 	if file == nil {
-		t.Fatalf("net._Open(%s) = nil", filename);
+		t.Fatalf("net.open(%s) = nil", filename);
 	}
 
 	lineno := 1;
 	byteno := 0;
 	for {
 		bline, berr := br.ReadLineString('\n', false);
-		line, ok := file.ReadLine();
+		line, ok := file.readLine();
 		if (berr != nil) != !ok || bline != line {
 			t.Fatalf("%s:%d (#%d)\nbufio => %q, %v\nnet => %q, %v",
 				filename, lineno, byteno, bline, berr, line, ok);

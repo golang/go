@@ -13,12 +13,12 @@ import (
 var dot = []string(
 	"dir_amd64_darwin.go",
 	"dir_amd64_linux.go",
-	"os_env.go",
-	"os_error.go",
-	"os_file.go",
+	"env.go",
+	"error.go",
+	"file.go",
 	"os_test.go",
-	"os_time.go",
-	"os_types.go",
+	"time.go",
+	"types.go",
 	"stat_amd64_darwin.go",
 	"stat_amd64_linux.go"
 )
@@ -101,7 +101,7 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
 	fd, err := Open(dir, O_RDONLY, 0);
 	defer fd.Close();
 	if err != nil {
-		t.Fatalf("open %q failed: %v\n", dir, err);
+		t.Fatalf("open %q failed: %v", dir, err);
 	}
 	s, err2 := Readdirnames(fd, -1);
 	if err2 != nil {
@@ -192,12 +192,13 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 	}
 	fd1, err2 := Open(dir, O_RDONLY, 0);
 	if err2 != nil {
-		t.Fatalf("open %q failed: %v\n", dir, err2);
+		t.Fatalf("open %q failed: %v", dir, err2);
 	}
 	small := smallReaddirnames(fd1, len(all)+100, t);	// +100 in case we screw up
 	for i, n := range all {
 		if small[i] != n {
-			t.Errorf("small read %q %q mismatch: %v\n", small[i], n);
+			t.Errorf("small read %q %q mismatch: %v", small[i], n);
 		}
 	}
 }
+

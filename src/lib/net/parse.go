@@ -12,16 +12,16 @@ import (
 	"os";
 )
 
-type _File struct {
+type file struct {
 	fd *os.FD;
 	data []byte;
 }
 
-func (f *_File) Close() {
+func (f *file) close() {
 	f.fd.Close()
 }
 
-func (f *_File) GetLineFromData() (s string, ok bool) {
+func (f *file) getLineFromData() (s string, ok bool) {
 	data := f.data;
 	for i := 0; i < len(data); i++ {
 		if data[i] == '\n' {
@@ -40,8 +40,8 @@ func (f *_File) GetLineFromData() (s string, ok bool) {
 	return
 }
 
-func (f *_File) ReadLine() (s string, ok bool) {
-	if s, ok = f.GetLineFromData(); ok {
+func (f *file) readLine() (s string, ok bool) {
+	if s, ok = f.getLineFromData(); ok {
 		return
 	}
 	if len(f.data) < cap(f.data) {
@@ -51,19 +51,19 @@ func (f *_File) ReadLine() (s string, ok bool) {
 			f.data = f.data[0:ln+n];
 		}
 	}
-	s, ok = f.GetLineFromData();
+	s, ok = f.getLineFromData();
 	return
 }
 
-func _Open(name string) *_File {
+func open(name string) *file {
 	fd, err := os.Open(name, os.O_RDONLY, 0);
 	if err != nil {
 		return nil
 	}
-	return &_File(fd, make([]byte, 1024)[0:0]);
+	return &file(fd, make([]byte, 1024)[0:0]);
 }
 
-func _ByteIndex(s string, c byte) int {
+func byteIndex(s string, c byte) int {
 	for i := 0; i < len(s); i++ {
 		if s[i] == c {
 			return i
@@ -73,10 +73,10 @@ func _ByteIndex(s string, c byte) int {
 }
 
 // Count occurrences in s of any bytes in t.
-func _CountAnyByte(s string, t string) int {
+func countAnyByte(s string, t string) int {
 	n := 0;
 	for i := 0; i < len(s); i++ {
-		if _ByteIndex(t, s[i]) >= 0 {
+		if byteIndex(t, s[i]) >= 0 {
 			n++;
 		}
 	}
@@ -84,12 +84,12 @@ func _CountAnyByte(s string, t string) int {
 }
 
 // Split s at any bytes in t.
-func _SplitAtBytes(s string, t string) []string {
-	a := make([]string, 1+_CountAnyByte(s, t));
+func splitAtBytes(s string, t string) []string {
+	a := make([]string, 1+countAnyByte(s, t));
 	n := 0;
 	last := 0;
 	for i := 0; i < len(s); i++ {
-		if _ByteIndex(t, s[i]) >= 0 {
+		if byteIndex(t, s[i]) >= 0 {
 			if last < i {
 				a[n] = string(s[last:i]);
 				n++;
@@ -104,20 +104,20 @@ func _SplitAtBytes(s string, t string) []string {
 	return a[0:n];
 }
 
-func _GetFields(s string) []string {
-	return _SplitAtBytes(s, " \r\t\n");
+func getFields(s string) []string {
+	return splitAtBytes(s, " \r\t\n");
 }
 
 // Bigger than we need, not too big to worry about overflow
-const _Big = 0xFFFFFF
+const big = 0xFFFFFF
 
 // Decimal to integer starting at &s[i0].
 // Returns number, new offset, success.
-func _Dtoi(s string, i0 int) (n int, i int, ok bool) {
+func dtoi(s string, i0 int) (n int, i int, ok bool) {
 	n = 0;
 	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
 		n = n*10 + int(s[i] - '0');
-		if n >= _Big {
+		if n >= big {
 			return 0, i, false
 		}
 	}
@@ -129,7 +129,7 @@ func _Dtoi(s string, i0 int) (n int, i int, ok bool) {
 
 // Hexadecimal to integer starting at &s[i0].
 // Returns number, new offset, success.
-func _Xtoi(s string, i0 int) (n int, i int, ok bool) {
+func xtoi(s string, i0 int) (n int, i int, ok bool) {
 	n = 0;
 	for i = i0; i < len(s); i++ {
 		if '0' <= s[i] && s[i] <= '9' {
@@ -144,7 +144,7 @@ func _Xtoi(s string, i0 int) (n int, i int, ok bool) {
 		} else {
 			break
 		}
-		if n >= _Big {
+		if n >= big {
 			return 0, i, false
 		}
 	}

@@ -26,7 +26,7 @@ func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	return unsafe.Pointer(sa).(*syscall.Sockaddr), nil
 }
 
-var _IPv6zero [16]byte;
+var ipv6zero [16]byte;
 
 func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	p = ToIPv6(p);
@@ -38,7 +38,7 @@ func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
 	// which it refuses to do.  Rewrite to the IPv6 all zeros.
 	if p4 := ToIPv4(p); p4 != nil && p4[0] == 0 && p4[1] == 0 && p4[2] == 0 && p4[3] == 0 {
-		p = _IPv6zero;
+		p = ipv6zero;
 	}
 
 	sa := new(syscall.SockaddrInet6);
