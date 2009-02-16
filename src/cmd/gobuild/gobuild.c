@@ -263,12 +263,18 @@ dollarfmt(Fmt *f)
 	for(; *s; s+=n){
 		n = strlen(goarch);
 		if(strncmp(s, goarch, n) == 0){
-			fmtstrcpy(f, "$(GOARCH)");
+			if(f->flags & FmtSharp)
+				fmtstrcpy(f, "${GOARCH}");  // shell
+			else
+				fmtstrcpy(f, "$(GOARCH)");  // make
 			continue;
 		}
 		n = strlen(goos);
 		if(strncmp(s, goos, n) == 0){
-			fmtstrcpy(f, "$(GOOS)");
+			if(f->flags & FmtSharp)
+				fmtstrcpy(f, "${GOOS}");  // shell
+			else
+				fmtstrcpy(f, "$(GOOS)");  // make
 			continue;
 		}
 		n = chartorune(&r, s);
@@ -327,7 +333,7 @@ writemakefile(void)
 			Bprint(&bout, "\\\n#   ");
 			o = Boffset(&bout);
 		}
-		Bprint(&bout, " %s", oargv[i]);
+		Bprint(&bout, " %#$", oargv[i]);
 	}
 	Bprint(&bout, " >Makefile\n");
 	Bprint(&bout, preamble, thechar);
