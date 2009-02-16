@@ -15,10 +15,10 @@ import (
 // If an IPv6 tunnel is running (see go/stubl), we can try dialing a real IPv6 address.
 var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 
-// fd is already connected to www.google.com port 80.
-// Run an HTTP request to fetch the main page.
+// fd is already connected to the destination, port 80.
+// Run an HTTP request to fetch the appropriate page.
 func fetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
-	req := io.StringBytes("GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
+	req := io.StringBytes("GET /intl/en/privacy.html HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
 	n, errno := fd.Write(req);
 
 	buf := make([]byte, 1000);
