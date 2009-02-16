@@ -7,6 +7,9 @@
 
 package syscall
 
+import "syscall"
+
+const OS = "linux"
 
 // Time
 
@@ -57,6 +60,7 @@ const (
 	O_NDELAY = O_NONBLOCK;
 	O_SYNC = 0x1000;
 	O_TRUNC = 0x200;
+	O_CLOEXEC = 0x80000;
 
 	F_GETFD = 1;
 	F_SETFD = 2;
@@ -218,3 +222,98 @@ type EpollEvent struct {
 	Fd int32;
 	Pad int32;
 }
+
+
+// Wait status.
+// See /usr/include/bits/waitstatus.h
+
+const (
+	WNOHANG = 1;
+	WUNTRACED = 2;
+	WSTOPPED = 2;	// same as WUNTRACED
+	WEXITED = 4;
+	WCONTINUED = 8;
+	WNOWAIT = 0x01000000;
+	WNOTHREAD = 0x20000000;
+	WALL = 0x40000000;
+	WCLONE = 0x80000000;
+)
+
+type WaitStatus uint32;
+
+// TODO(rsc): should be method on WaitStatus,
+// not *WaitStatus, but causes problems when
+// embedding in a *Waitmsg in package os.
+// Need to find the 6g bug.
+
+// Wait status is 7 bits at bottom, either 0 (exited),
+// 0x7F (stopped), or a signal number that caused an exit.
+// The 0x80 bit is whether there was a core dump.
+// An extra number (exit code, signal causing a stop)
+// is in the high bits.  At least that's the idea.
+// There are various irregularities.  For example, the
+// "continued" status is 0xFFFF, distinguishing itself
+// from stopped via the core dump bit.
+
+const (
+	mask = 0x7F;
+	core = 0x80;
+	exited = 0x00;
+	stopped = 0x7F;
+	shift = 8;
+
+	// types_amd64_darwin.go refers to SIGSTOP.
+	// do the same here so the dependencies are
+	// the same on Linux as on Darwin.
+	__unused = SIGSTOP;
+)
+
+func (wp *WaitStatus) Exited() bool {
+	w := *wp;  // TODO(rsc): no pointer
+	return w&mask == exited;
+}
+
+func (wp *WaitStatus) Signaled() bool {
+	w := *wp;  // TODO(rsc): no pointer
+	return w&mask != stopped && w&mask != exited;
+}
+
+func (wp *WaitStatus) Stopped() bool {
+	w := *wp;  // TODO(rsc): no pointer
+	return w&0xFF == stopped;
+}
+
+func (wp *WaitStatus) Continued() bool {
+	w := *wp;  // TODO(rsc): no pointer
+	return w == 0xFFFF;
+}
+
+func (wp *WaitStatus) CoreDump() bool {
+	w := *wp;  // TODO(rsc): no pointer
+	return w.Signaled() && w&core != 0;
+}
+
+func (wp *WaitStatus) ExitStatus() int {
+	w := *wp;  // TODO(rsc): no pointer
+	if !w.Exited() {
+		return -1;
+	}
+	return int(w >> shift) & 0xFF;
+}
+
+func (wp *WaitStatus) Signal() int {
+	w := *wp;  // TODO(rsc): no pointer
+	if !w.Signaled() {
+		return -1;
+	}
+	return int(w & mask);
+}
+
+func (wp *WaitStatus) StopSignal() int {
+	w := *wp;  // TODO(rsc): no pointer
+	if !w.Stopped() {
+		return -1;
+	}
+	return int(w >> shift) & 0xFF;
+}
+

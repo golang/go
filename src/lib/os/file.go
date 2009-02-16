@@ -4,8 +4,10 @@
 
 package os
 
-import syscall "syscall"
-import os "os"
+import (
+	"os";
+	"syscall";
+)
 
 // Auxiliary information if the FD describes a directory
 type dirInfo struct {	// TODO(r): 6g bug means this can't be private
@@ -57,7 +59,17 @@ const (
 )
 
 func Open(name string, mode int, flags int) (fd *FD, err *Error) {
-	r, e := syscall.Open(name, int64(mode), int64(flags));
+	r, e := syscall.Open(name, int64(mode), int64(flags | syscall.O_CLOEXEC));
+	if e != 0 {
+		return nil, ErrnoToError(e);
+	}
+
+	// There's a race here with fork/exec, which we are
+	// content to live with.  See ../syscall/exec.go
+	if syscall.O_CLOEXEC == 0 {	// O_CLOEXEC not supported
+		syscall.CloseOnExec(r);
+	}
+
 	return NewFD(r, name), ErrnoToError(e)
 }
 
@@ -122,10 +134,18 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
 
 func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
 	var p [2]int64;
+
+	// See ../syscall/exec.go for description of lock.
+	syscall.ForkLock.RLock();
 	r, e := syscall.Pipe(&p);
 	if e != 0 {
+		syscall.ForkLock.RUnlock();
 		return nil, nil, ErrnoToError(e)
 	}
+	syscall.CloseOnExec(p[0]);
+	syscall.CloseOnExec(p[1]);
+	syscall.ForkLock.RUnlock();
+
 	return NewFD(p[0], "|0"), NewFD(p[1], "|1"), nil
 }
 

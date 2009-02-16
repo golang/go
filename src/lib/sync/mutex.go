@@ -39,3 +39,20 @@ func (m *Mutex) Unlock() {
 	semrelease(&m.sema);
 }
 
+// Stub implementation of r/w locks.
+// This satisfies the semantics but
+// is not terribly efficient.
+// TODO(rsc): Real r/w locks.
+
+type RWMutex struct {
+	Mutex;
+}
+
+func (m *RWMutex) RLock() {
+	m.Lock();
+}
+
+func (m *RWMutex) RUnlock() {
+	m.Unlock();
+}
+

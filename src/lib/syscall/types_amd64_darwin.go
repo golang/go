@@ -7,6 +7,9 @@
 
 package syscall
 
+import "syscall"
+
+const OS = "darwin"
 
 // Time
 
@@ -57,6 +60,7 @@ const (
 	O_NDELAY = O_NONBLOCK;
 	O_SYNC = 0x80;
 	O_TRUNC = 0x400;
+	O_CLOEXEC = 0;  // not supported
 
 	F_GETFD = 1;
 	F_SETFD = 2;
@@ -237,5 +241,90 @@ type Kevent_t struct {
 	Fflags uint32;
 	Data int64;
 	Udata int64;
+}
+
+
+// Wait status.
+// See /usr/include/bits/waitstatus.h
+
+const (
+	WNOHANG = 1;
+	WUNTRACED = 2;
+	WEXITED = 4;
+	WSTOPPED = 8;
+	WCONTINUED = 0x10;
+	WNOWAIT = 0x20;
+)
+
+type WaitStatus uint32;
+
+// TODO(rsc): should be method on WaitStatus,
+// not *WaitStatus, but causes problems when
+// embedding in a *Waitmsg in package os.
+// Need to find the 6g bug.
+
+// Wait status is 7 bits at bottom, either 0 (exited),
+// 0x7F (stopped), or a signal number that caused an exit.
+// The 0x80 bit is whether there was a core dump.
+// An extra number (exit code, signal causing a stop)
+// is in the high bits.
+
+const (
+	mask = 0x7F;
+	core = 0x80;
+	shift = 8;
+
+	exited = 0;
+	stopped = 0x7F;
+)
+
+func (wp *WaitStatus) Exited() bool {
+	w := *wp;  // TODO(rsc): no pointer
+	return w&mask == exited;
+}
+
+func (wp *WaitStatus) ExitStatus() int {
+	w := *wp;  // TODO(rsc): no pointer
+	if w&mask != exited {
+		return -1;
+	}
+	return int(w >> shift);
+}
+
+func (wp *WaitStatus) Signaled() bool {
+	w := *wp;  // TODO(rsc): no pointer
+	return w&mask != stopped && w&mask != 0;
+}
+
+func (wp *WaitStatus) Signal() int {
+	w := *wp;  // TODO(rsc): no pointer
+	sig := int(w & mask);
+	if sig == stopped || sig == 0 {
+		return -1;
+	}
+	return sig;
+}
+
+func (wp *WaitStatus) CoreDump() bool {
+	w := *wp;  // TODO(rsc): no pointer
+	return w.Signaled() && w&core != 0;
+}
+
+func (wp *WaitStatus) Stopped() bool {
+	w := *wp;  // TODO(rsc): no pointer
+	return w&mask == stopped && w>>shift != SIGSTOP;
+}
+
+func (wp *WaitStatus) Continued() bool {
+	w := *wp;  // TODO(rsc): no pointer
+	return w&mask == stopped && w>>shift == SIGSTOP;
+}
+
+func (wp *WaitStatus) StopSignal() int {
+	w := *wp;  // TODO(rsc): no pointer
+	if !w.Stopped() {
+		return -1;
+	}
+	return int(w >> shift) & 0xFF;
 }
 

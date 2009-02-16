@@ -7,8 +7,8 @@ all: install
 GC=6g
 
 DIRS=\
-	container/array\
 	container\
+	container/array\
 	fmt\
 	hash\
 	http\
@@ -26,7 +26,9 @@ DIRS=\
 	unicode\
 
 FILES=\
+	bignum\
 	bufio\
+	exec\
 	flag\
 	log\
 	malloc\
@@ -36,15 +38,15 @@ FILES=\
 	strings\
 	testing\
 	utf8\
-	bignum\
 
 TEST=\
+	bignum\
 	bufio\
+	exec\
 	once\
 	sort\
 	strings\
 	utf8\
-	bignum\
 
 clean.dirs: $(addsuffix .dirclean, $(DIRS))
 install.dirs: $(addsuffix .dirinstall, $(DIRS))
@@ -96,6 +98,7 @@ flag.6: fmt.dirinstall
 log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
 testing.6: flag.install fmt.dirinstall
 strings.6: utf8.install
+exec.6: os.dirinstall
 
 fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
 hash.dirinstall: os.dirinstall
@@ -112,4 +115,5 @@ strconv.dirinstall: math.dirinstall os.dirinstall utf8.install
 tabwriter.dirinstall: os.dirinstall io.dirinstall container/array.dirinstall
 time.dirinstall: once.install os.dirinstall io.dirinstall
 sync.dirinstall:
+syscall.dirinstall: sync.dirinstall
 
