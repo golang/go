@@ -138,7 +138,7 @@ func SecondsToUTC(sec int64) *Time {
 	}
 	t.Month = m+1;
 	t.Day = yday+1;
-	t.Zone = "GMT";
+	t.Zone = "UTC";
 
 	return t;
 }
@@ -149,12 +149,12 @@ func UTC() *Time {
 
 // TODO: Should this return an error?
 func SecondsToLocalTime(sec int64) *Time {
-	zone, offset, err := time.LookupTimezone(sec);
+	z, offset, err := time.LookupTimezone(sec);
 	if err != nil {
 		return SecondsToUTC(sec)
 	}
 	t := SecondsToUTC(sec+int64(offset));
-	t.Zone = zone;
+	t.Zone = z;
 	t.ZoneOffset = offset;
 	return t
 }

@@ -3,25 +3,71 @@
 // license that can be found in the LICENSE file.
 
 // Environment variables.
-// Setenv doesn't exist yet: don't have the run-time hooks yet
 
 package os
 
-import os "os"
+import (
+	"once";
+	"os";
+)
 
 var (
 	ENOENV = NewError("no such environment variable");
+
+	env map[string] string;
 )
 
-func Getenv(s string) (v string, err *Error) {
-	n := len(s);
-	if n == 0 {
-		return "", EINVAL
-	}
-	for i, e := range sys.Envs {
-		if len(e) > n && e[n] == '=' && e[0:n] == s {
-			return e[n+1:len(e)], nil
+func copyenv() {
+	env = make(map[string] string);
+	for i, s := range sys.Envs {
+		for j := 0; j < len(s); j++ {
+			if s[j] == '=' {
+				env[s[0:j]] = s[j+1:len(s)];
+				break;
+			}
 		}
 	}
-	return "", ENOENV
+}
+
+func Getenv(key string) (value string, err *Error) {
+	once.Do(copyenv);
+
+	if len(key) == 0 {
+		return "", EINVAL;
+	}
+	v, ok := env[key];
+	if !ok {
+		return "", ENOENV;
+	}
+	return v, nil;
+}
+
+func Setenv(key, value string) *Error {
+	once.Do(copyenv);
+
+	if len(key) == 0 {
+		return EINVAL;
+	}
+	env[key] = value;
+	return nil;
+}
+
+func Clearenv() {
+	once.Do(copyenv);	// prevent copyenv in Getenv/Setenv
+	env = make(map[string] string);
+}
+
+func Environ() []string {
+	once.Do(copyenv);
+	a := make([]string, len(env));
+	i := 0;
+	for k, v := range(env) {
+		// check i < len(a) for safety,
+		// in case env is changing underfoot.
+		if i < len(a) {
+			a[i] = k + "=" + v;
+			i++;
+		}
+	}
+	return a[0:i];
 }

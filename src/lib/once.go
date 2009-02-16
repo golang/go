@@ -4,74 +4,41 @@
 
 // For one-time initialization that is not done during init.
 // Wrap the initialization in a niladic function f() and call
-//	once.Do(&f)
-// If multiple processes call once.Do(&f) simultaneously
+//	once.Do(f)
+// If multiple processes call once.Do(f) simultaneously
 // with the same f argument, only one will call f, and the
 // others will block until f finishes running.
 
 package once
 
-type _Job struct {
+import "sync"
+
+type job struct {
 	done bool;
-	doit chan bool;	// buffer of 1
+	sync.Mutex;	// should probably be sync.Notification or some such
 }
 
-type _Request struct {
-	f func();
-	reply chan *_Job
-}
-
-var service = make(chan _Request)
-var jobmap = make(map[func()]*_Job)
-
-// Moderate access to the jobmap.
-// Even if accesses were thread-safe (they should be but are not)
-// something needs to serialize creation of new jobs.
-// That's what the Server does.
-func server() {
-	for {
-		req := <-service;
-		job, present := jobmap[req.f];
-		if !present {
-			job = new(_Job);
-			job.doit = make(chan bool, 1);
-			job.doit <- true;
-			jobmap[req.f] = job
-		}
-		req.reply <- job
-	}
-}
+var jobs = make(map[func()]*job)
+var joblock sync.Mutex;
 
 func Do(f func()) {
-	// Look for job in map (avoids channel communication).
-	// If not there, ask map server to make one.
-	// TODO: Uncomment use of jobmap[f] once
-	// maps are thread-safe.
-	var job *_Job;
-	var present bool;
-	// job, present = jobmap[f]
+	joblock.Lock();
+	j, present := jobs[f];
 	if !present {
-		c := make(chan *_Job);
-		service <- _Request(f, c);
-		job = <-c
-	}
-
-	// Optimization
-	if job.done {
-		return
-	}
-
-	// If we're the first one, job.doit has a true waiting.
-	if <-job.doit {
+		// run it
+		j = new(job);
+		j.Lock();
+		jobs[f] = j;
+		joblock.Unlock();
 		f();
-		job.done = true
+		j.done = true;
+		j.Unlock();
+	} else {
+		// wait for it
+		joblock.Unlock();
+		if j.done != true {
+			j.Lock();
+			j.Unlock();
+		}
 	}
-
-	// Leave a false waiting for the next guy.
-	job.doit <- false
 }
-
-func init() {
-	go server()
-}
-

@@ -11,7 +11,7 @@ print <<EOF;
 
 package syscall
 
-export const(
+const(
 EOF
 
 while(<>){
@@ -25,4 +25,7 @@ while(<>){
 
 print <<EOF;
 )
+
+func _darwin_system_call_conflict() {
+}
 EOF
