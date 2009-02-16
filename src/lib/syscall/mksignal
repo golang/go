@@ -10,7 +10,7 @@ print <<EOF;
 
 package syscall
 
-export const(
+const(
 EOF
 
 while(<>){

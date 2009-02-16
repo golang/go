@@ -94,11 +94,12 @@ test: test.files
 
 bignum.6: fmt.dirinstall
 bufio.6: io.dirinstall os.dirinstall
+exec.6: os.dirinstall
 flag.6: fmt.dirinstall
 log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
-testing.6: flag.install fmt.dirinstall
+once.6: sync.dirinstall
 strings.6: utf8.install
-exec.6: os.dirinstall
+testing.6: flag.install fmt.dirinstall
 
 fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
 hash.dirinstall: os.dirinstall
@@ -108,7 +109,7 @@ json.dirinstall: container/array.dirinstall fmt.dirinstall io.dirinstall math.di
 	strconv.dirinstall strings.install utf8.install
 # TODO(rsc): net is not supposed to depend on fmt or strings or strconv
 net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall strings.install
-os.dirinstall: syscall.dirinstall
+os.dirinstall: syscall.dirinstall once.install
 regexp.dirinstall: os.dirinstall
 reflect.dirinstall: strconv.dirinstall sync.dirinstall
 strconv.dirinstall: math.dirinstall os.dirinstall utf8.install

@@ -27,6 +27,9 @@ func ForkExec(argv0 string, argv []string, envv []string, fd []*FD)
 }
 
 func Exec(argv0 string, argv []string, envv []string) *Error {
+	if envv == nil {
+		envv = Environ();
+	}
 	e := syscall.Exec(argv0, argv, envv);
 	return ErrnoToError(e);
 }
