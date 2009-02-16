@@ -280,17 +280,26 @@ func (fd *netFD) Accept(sa *syscall.Sockaddr) (nfd *netFD, err *os.Error) {
 		return nil, os.EINVAL
 	}
 
+	// See ../syscall/exec.go for description of ForkLock.
+	// It is okay to hold the lock across syscall.Accept
+	// because we have put fd.fd into non-blocking mode.
+	syscall.ForkLock.RLock();
 	var s, e int64;
 	for {
 		s, e = syscall.Accept(fd.fd, sa);
 		if e != syscall.EAGAIN {
 			break;
 		}
+		syscall.ForkLock.RUnlock();
 		pollserver.WaitRead(fd);
+		syscall.ForkLock.RLock();
 	}
 	if e != 0 {
+		syscall.ForkLock.RUnlock();
 		return nil, os.ErrnoToError(e)
 	}
+	syscall.CloseOnExec(s);
+	syscall.ForkLock.RUnlock();
 
 	raddr, err1 := sockaddrToHostPort(sa);
 	if err1 != nil {

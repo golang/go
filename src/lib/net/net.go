@@ -143,10 +143,15 @@ func boolint(b bool) int {
 func socket(net, laddr, raddr string, f, p, t int64, la, ra *syscall.Sockaddr)
 	(fd *netFD, err *os.Error)
 {
+	// See ../syscall/exec.go for description of ForkLock.
+	syscall.ForkLock.RLock();
 	s, e := syscall.Socket(f, p, t);
 	if e != 0 {
+		syscall.ForkLock.RUnlock();
 		return nil, os.ErrnoToError(e)
 	}
+	syscall.CloseOnExec(s);
+	syscall.ForkLock.RUnlock();
 
 	// Allow reuse of recently-used addresses.
 	syscall.Setsockopt_int(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1);
