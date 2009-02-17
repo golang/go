@@ -42,50 +42,12 @@ package flag
  *	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
  */
 
-import "fmt"
+import (
+	"fmt";
+	"strconv"
+)
 
-// BUG: ctoi, atoi, atob belong elsewhere
-func ctoi(c int64) int64 {
-	if '0' <= c && c <= '9' {
-		return c - '0'
-	}
-	if 'a' <= c && c <= 'f' {
-		return c - 'a'
-	}
-	if 'A' <= c && c <= 'F' {
-		return c - 'A'
-	}
-	return 1000   // too large for any base
-}
-
-func atoi(s string) (value int64, ok bool) {
-	if len(s) == 0 {
-		return 0, false
-	}
-	if s[0] == '-' {
-		n, t := atoi(s[1:len(s)]);
-		return -n, t
-	}
-	var base int64 = 10;
-	i := 0;
-	if s[0] == '0' {
-		base = 8;
-		if len(s) > 1 && (s[1] == 'x' || s[1] == 'X') {
-			base = 16;
-			i += 2;
-		}
-	}
-	var n int64 = 0;
-	for ; i < len(s); i++ {
-		k := ctoi(int64(s[i]));
-		if k >= base {
-			return 0, false
-		}
-		n = n * base + k
-	}
-	return n, true
-}
-
+// BUG: atob belongs elsewhere
 func atob(str string) (value bool, ok bool) {
 	switch str {
 		case "1", "t", "T", "true", "TRUE", "True":
@@ -136,9 +98,9 @@ func newIntValue(val int, p *int) *intValue {
 }
 
 func (i *intValue) set(s string) bool {
-	v, ok  := atoi(s);
+	v, err  := strconv.Atoi(s);
 	*i.p = int(v);
-	return ok
+	return err == nil
 }
 
 func (i *intValue) String() string {
@@ -156,9 +118,9 @@ func newInt64Value(val int64, p *int64) *int64Value {
 }
 
 func (i *int64Value) set(s string) bool {
-	v, ok := atoi(s);
+	v, err  := strconv.Atoi64(s);
 	*i.p = v;
-	return ok;
+	return err == nil;
 }
 
 func (i *int64Value) String() string {
@@ -176,9 +138,9 @@ func newUintValue(val uint, p *uint) *uintValue {
 }
 
 func (i *uintValue) set(s string) bool {
-	v, ok := atoi(s);	// TODO(r): want unsigned
+	v, err  := strconv.Atoui(s);
 	*i.p = uint(v);
-	return ok;
+	return err == nil;
 }
 
 func (i *uintValue) String() string {
@@ -196,9 +158,9 @@ func newUint64Value(val uint64, p *uint64) *uint64Value {
 }
 
 func (i *uint64Value) set(s string) bool {
-	v, ok := atoi(s);	// TODO(r): want unsigned
+	v, err := strconv.Atoui64(s);
 	*i.p = uint64(v);
-	return ok;
+	return err == nil;
 }
 
 func (i *uint64Value) String() string {
@@ -221,7 +183,7 @@ func (s *stringValue) set(val string) bool {
 }
 
 func (s *stringValue) String() string {
-	return fmt.Sprintf("%#q", *s.p)
+	return fmt.Sprintf("%s", *s.p)
 }
 
 // -- FlagValue interface
@@ -283,7 +245,12 @@ func Set(name, value string) bool {
 
 func PrintDefaults() {
 	VisitAll(func(f *Flag) {
-		print("  -", f.Name, "=", f.DefValue, ": ", f.Usage, "\n");
+		format := "  -%s=%s: %s\n";
+		if s, ok := f.Value.(*stringValue); ok {
+			// put quotes on the value
+			format = "  -%s=%q: %s\n";
+		}
+		fmt.Printf(format, f.Name, f.DefValue, f.Usage);
 	})
 }
 
