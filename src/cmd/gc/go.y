@@ -57,7 +57,7 @@
 %type	<node>		exprsym3_list_r exprsym3
 %type	<node>		name onew_name new_name new_name_list_r new_field
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
-%type	<node>		interfacedcl_list_r interfacedcl
+%type	<node>		interfacedcl_list_r interfacedcl interfacedcl1
 %type	<node>		structdcl_list_r structdcl embed
 %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
 %type	<node>		braced_keyexpr_list keyval_list_r keyval
@@ -1385,8 +1385,8 @@ embed:
 		context = nil;
 	}
 
-interfacedcl:
-	new_name ',' interfacedcl
+interfacedcl1:
+	new_name ',' interfacedcl1
 	{
 		$$ = nod(ODCLFIELD, $1, N);
 		$$ = nod(OLIST, $$, $3);
@@ -1395,6 +1395,14 @@ interfacedcl:
 	{
 		$$ = nod(ODCLFIELD, $1, N);
 		$$->type = $2;
+	}
+
+interfacedcl:
+	interfacedcl1
+|	latype
+	{
+		$$ = nod(ODCLFIELD, N, N);
+		$$->type = oldtype($1);
 	}
 
 indcl:

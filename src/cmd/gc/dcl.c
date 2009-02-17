@@ -643,7 +643,7 @@ funclit1(Type *type, Node *body)
 Type**
 stotype(Node *n, int et, Type **t)
 {
-	Type *f;
+	Type *f, *t1;
 	Iter save;
 	String *note;
 	int lno;
@@ -666,18 +666,48 @@ loop:
 		goto next;
 	}
 
-	if(n->op != ODCLFIELD || n->type == T)
+	if(n->op != ODCLFIELD)
 		fatal("stotype: oops %N\n", n);
+
+	if(n->type == T) {
+		// assume error already printed
+		goto next;
+	}
 
 	switch(n->val.ctype) {
 	case CTSTR:
+		if(et != TSTRUCT)
+			yyerror("interface method cannot have annotation");
 		note = n->val.u.sval;
 		break;
 	default:
-		yyerror("field annotation must be string");
+		if(et != TSTRUCT)
+			yyerror("interface method cannot have annotation");
+		else
+			yyerror("field annotation must be string");
 	case CTxxx:
 		note = nil;
 		break;
+	}
+
+	if(et == TINTER && n->left == N) {
+		// embedded interface - inline the methods
+		if(n->type->etype != TINTER) {
+			yyerror("interface contains embedded non-interface %T", t);
+			goto next;
+		}
+		for(t1=n->type->type; t1!=T; t1=t1->down) {
+			if(strcmp(t1->sym->package, package) != 0)
+				yyerror("embedded interface contains unexported method %S", t1->sym);
+			f = typ(TFIELD);
+			f->type = t1->type;
+			f->width = BADWIDTH;
+			f->nname = newname(t1->sym);
+			f->sym = t1->sym;
+			*t = f;
+			t = &f->down;
+		}
+		goto next;
 	}
 
 	f = typ(TFIELD);
