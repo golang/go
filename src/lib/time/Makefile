@@ -33,6 +33,7 @@ coverage: packages
 
 O1=\
 	zoneinfo.$O\
+	sleep.$O\
 
 O2=\
 	time.$O\
@@ -43,7 +44,7 @@ O3=\
 time.a: a1 a2 a3
 
 a1:	$(O1)
-	$(AR) grc time.a zoneinfo.$O
+	$(AR) grc time.a zoneinfo.$O sleep.$O
 	rm -f $(O1)
 
 a2:	$(O2)

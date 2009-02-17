@@ -32,19 +32,27 @@ coverage: packages
 	$(AS) $*.s
 
 O1=\
-	io.$O\
 	bytebuffer.$O\
+	io.$O\
 
-io.a: a1
+O2=\
+	pipe.$O\
+
+io.a: a1 a2
 
 a1:	$(O1)
-	$(AR) grc io.a io.$O bytebuffer.$O
+	$(AR) grc io.a bytebuffer.$O io.$O
 	rm -f $(O1)
+
+a2:	$(O2)
+	$(AR) grc io.a pipe.$O
+	rm -f $(O2)
 
 newpkg: clean
 	$(AR) grc io.a
 
 $(O1): newpkg
+$(O2): a1
 
 nuke: clean
 	rm -f $(GOROOT)/pkg/io.a
