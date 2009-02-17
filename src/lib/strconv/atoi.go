@@ -14,51 +14,87 @@ func computeIntsize() uint {
 }
 var intsize = computeIntsize();
 
-// Convert decimal string to unsigned integer.
-func Atoui64(s string) (i uint64, err *os.Error) {
-	// empty string bad
-	if len(s) == 0 {
-		return 0, os.EINVAL
+// Return the first number n such that n*base >= 1<<64.
+func cutoff64(base int) uint64 {
+	if base < 2 {
+		return 0;
 	}
-
-	// pick off zero
-	if s == "0" {
-		return 0, nil
-	}
-
-	// otherwise, leading zero bad:
-	// don't want to take something intended as octal.
-	if s[0] == '0' {
-		return 0, os.EINVAL
-	}
-
-	// parse number
-	n := uint64(0);
-	for i := 0; i < len(s); i++ {
-		if s[i] < '0' || s[i] > '9' {
-			return 0, os.EINVAL
-		}
-		if n > (1<<64)/10 {
-			return 1<<64-1, os.ERANGE
-		}
-		n = n*10;
-		d := uint64(s[i] - '0');
-		if n+d < n {
-			return 1<<64-1, os.ERANGE
-		}
-		n += d;
-	}
-	return n, nil
+	return (1<<64 - 1) / uint64(base) + 1;
 }
 
-// Convert decimal string to integer.
-func Atoi64(s string) (i int64, err *os.Error) {
-	// empty string bad
+// Convert arbitrary base string to unsigned integer.
+func Btoui64(base int, s string) (n uint64, err *os.Error) {
+	if base < 2 || base > 36 || len(s) < 1 {
+		return 0, os.EINVAL;
+	}
+
+	n = 0;
+	cutoff := cutoff64(base);
+
+	for i := 0; i < len(s); i++ {
+		var v byte;
+		switch {
+		case '0' <= s[i] && s[i] <= '9':
+			v = s[i] - '0';
+		case 'a' <= s[i] && s[i] <= 'z':
+			v = s[i] - 'a' + 10;
+		case 'A' <= s[i] && s[i] <= 'Z':
+			v = s[i] - 'A' + 10;
+		default:
+			return 0, os.EINVAL;
+		}
+		if int(v) >= base {
+			return 0, os.EINVAL;
+		}
+
+		if n >= cutoff {
+			// n*base overflows
+			return 1<<64-1, os.ERANGE;
+		}
+		n *= uint64(base);
+
+		n1 := n+uint64(v);
+		if n1 < n {
+			// n+v overflows
+			return 1<<64-1, os.ERANGE;
+		}
+		n = n1;
+	}
+
+	return n, nil;
+}
+
+
+// Convert string to uint64.
+// Use standard prefixes to signal octal, hexadecimal.
+func Atoui64(s string) (i uint64, err *os.Error) {
+	// Empty string bad.
 	if len(s) == 0 {
 		return 0, os.EINVAL
 	}
 
-	// pick off leading sign
+	// Look for octal, hex prefix.
+	if s[0] == '0' && len(s) > 1 {
+		if s[1] == 'x' || s[1] == 'X' {
+			// hex
+			return Btoui64(16, s[2:len(s)]);
+		}
+		// octal
+		return Btoui64(8, s[1:len(s)]);
+	}
+	// decimal
+	return Btoui64(10, s);
+}
+
+// Convert string to int64.
+// Use standard prefixes to signal octal, hexadecimal.
+func Atoi64(s string) (i int64, err *os.Error) {
+	// Empty string bad.
+	if len(s) == 0 {
+		return 0, os.EINVAL
+	}
+
+	// Pick off leading sign.
 	neg := false;
 	if s[0] == '+' {
 		s = s[1:len(s)]
@@ -67,6 +103,7 @@ func Atoi64(s string) (i int64, err *os.Error) {
 		s = s[1:len(s)]
 	}
 
+	// Convert unsigned and check range.
 	var un uint64;
 	un, err = Atoui64(s);
 	if err != nil && err != os.ERANGE {
@@ -85,6 +122,8 @@ func Atoi64(s string) (i int64, err *os.Error) {
 	return n, nil
 }
 
+// Convert string to uint.
+// Use standard prefixes to signal octal, hexadecimal.
 func Atoui(s string) (i uint, err *os.Error) {
 	i1, e1 := Atoui64(s);
 	if e1 != nil && e1 != os.ERANGE {
@@ -99,6 +138,8 @@ func Atoui(s string) (i uint, err *os.Error) {
 	return i, nil
 }
 
+// Convert string to int.
+// Use standard prefixes to signal octal, hexadecimal.
 func Atoi(s string) (i int, err *os.Error) {
 	i1, e1 := Atoi64(s);
 	if e1 != nil && e1 != os.ERANGE {

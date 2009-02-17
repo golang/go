@@ -3,9 +3,10 @@
 // license that can be found in the LICENSE file.
 
 package strconv
+
 import (
-	"os";
 	"fmt";
+	"os";
 	"strconv";
 	"testing"
 )
@@ -17,16 +18,24 @@ type atoui64Test struct {
 }
 
 var atoui64tests = []atoui64Test (
-	atoui64Test( "", 0, os.EINVAL ),
-	atoui64Test( "0", 0, nil ),
-	atoui64Test( "1", 1, nil ),
-	atoui64Test( "12345", 12345, nil ),
-	atoui64Test( "012345", 0, os.EINVAL ),
-	atoui64Test( "12345x", 0, os.EINVAL ),
-	atoui64Test( "98765432100", 98765432100, nil ),
-	atoui64Test( "18446744073709551615", 1<<64-1, nil ),
-	atoui64Test( "18446744073709551616", 1<<64-1, os.ERANGE ),
-	atoui64Test( "18446744073709551620", 1<<64-1, os.ERANGE ),
+	atoui64Test("", 0, os.EINVAL),
+	atoui64Test("0", 0, nil),
+	atoui64Test("1", 1, nil),
+	atoui64Test("12345", 12345, nil),
+	atoui64Test("012345", 012345, nil),
+	atoui64Test("0x12345", 0x12345, nil),
+	atoui64Test("0X12345", 0x12345, nil),
+	atoui64Test("12345x", 0, os.EINVAL),
+	atoui64Test("98765432100", 98765432100, nil),
+	atoui64Test("18446744073709551615", 1<<64-1, nil),
+	atoui64Test("18446744073709551616", 1<<64-1, os.ERANGE),
+	atoui64Test("18446744073709551620", 1<<64-1, os.ERANGE),
+	atoui64Test("0xFFFFFFFFFFFFFFFF", 1<<64-1, nil),
+	atoui64Test("0x10000000000000000", 1<<64-1, os.ERANGE),
+	atoui64Test("01777777777777777777777", 1<<64-1, nil),
+	atoui64Test("01777777777777777777778", 0, os.EINVAL),
+	atoui64Test("02000000000000000000000", 1<<64-1, os.ERANGE),
+	atoui64Test("0200000000000000000000", 1<<61, nil),
 )
 
 type atoi64Test struct {
@@ -36,25 +45,27 @@ type atoi64Test struct {
 }
 
 var atoi64test = []atoi64Test (
-	atoi64Test( "", 0, os.EINVAL ),
-	atoi64Test( "0", 0, nil ),
-	atoi64Test( "-0", 0, nil ),
-	atoi64Test( "1", 1, nil ),
-	atoi64Test( "-1", -1, nil ),
-	atoi64Test( "12345", 12345, nil ),
-	atoi64Test( "-12345", -12345, nil ),
-	atoi64Test( "012345", 0, os.EINVAL ),
-	atoi64Test( "-012345", 0, os.EINVAL ),
-	atoi64Test( "12345x", 0, os.EINVAL ),
-	atoi64Test( "-12345x", 0, os.EINVAL ),
-	atoi64Test( "98765432100", 98765432100, nil ),
-	atoi64Test( "-98765432100", -98765432100, nil ),
-	atoi64Test( "9223372036854775807", 1<<63-1, nil ),
-	atoi64Test( "-9223372036854775807", -(1<<63-1), nil ),
-	atoi64Test( "9223372036854775808", 1<<63-1, os.ERANGE ),
-	atoi64Test( "-9223372036854775808", -1<<63, nil ),
-	atoi64Test( "9223372036854775809", 1<<63-1, os.ERANGE ),
-	atoi64Test( "-9223372036854775809", -1<<63, os.ERANGE ),
+	atoi64Test("", 0, os.EINVAL),
+	atoi64Test("0", 0, nil),
+	atoi64Test("-0", 0, nil),
+	atoi64Test("1", 1, nil),
+	atoi64Test("-1", -1, nil),
+	atoi64Test("12345", 12345, nil),
+	atoi64Test("-12345", -12345, nil),
+	atoi64Test("012345", 012345, nil),
+	atoi64Test("-012345", -012345, nil),
+	atoi64Test("0x12345", 0x12345, nil),
+	atoi64Test("-0X12345", -0x12345, nil),
+	atoi64Test("12345x", 0, os.EINVAL),
+	atoi64Test("-12345x", 0, os.EINVAL),
+	atoi64Test("98765432100", 98765432100, nil),
+	atoi64Test("-98765432100", -98765432100, nil),
+	atoi64Test("9223372036854775807", 1<<63-1, nil),
+	atoi64Test("-9223372036854775807", -(1<<63-1), nil),
+	atoi64Test("9223372036854775808", 1<<63-1, os.ERANGE),
+	atoi64Test("-9223372036854775808", -1<<63, nil),
+	atoi64Test("9223372036854775809", 1<<63-1, os.ERANGE),
+	atoi64Test("-9223372036854775809", -1<<63, os.ERANGE),
 )
 
 type atoui32Test struct {
@@ -64,15 +75,17 @@ type atoui32Test struct {
 }
 
 var atoui32tests = []atoui32Test (
-	atoui32Test( "", 0, os.EINVAL ),
-	atoui32Test( "0", 0, nil ),
-	atoui32Test( "1", 1, nil ),
-	atoui32Test( "12345", 12345, nil ),
-	atoui32Test( "012345", 0, os.EINVAL ),
-	atoui32Test( "12345x", 0, os.EINVAL ),
-	atoui32Test( "987654321", 987654321, nil ),
-	atoui32Test( "4294967295", 1<<32-1, nil ),
-	atoui32Test( "4294967296", 1<<32-1, os.ERANGE ),
+	atoui32Test("", 0, os.EINVAL),
+	atoui32Test("0", 0, nil),
+	atoui32Test("1", 1, nil),
+	atoui32Test("12345", 12345, nil),
+	atoui32Test("012345", 012345, nil),
+	atoui32Test("0x12345", 0x12345, nil),
+	atoui32Test("0X12345", 0x12345, nil),
+	atoui32Test("12345x", 0, os.EINVAL),
+	atoui32Test("987654321", 987654321, nil),
+	atoui32Test("4294967295", 1<<32-1, nil),
+	atoui32Test("4294967296", 1<<32-1, os.ERANGE),
 )
 
 type atoi32Test struct {
@@ -82,25 +95,27 @@ type atoi32Test struct {
 }
 
 var atoi32tests = []atoi32Test (
-	atoi32Test( "", 0, os.EINVAL ),
-	atoi32Test( "0", 0, nil ),
-	atoi32Test( "-0", 0, nil ),
-	atoi32Test( "1", 1, nil ),
-	atoi32Test( "-1", -1, nil ),
-	atoi32Test( "12345", 12345, nil ),
-	atoi32Test( "-12345", -12345, nil ),
-	atoi32Test( "012345", 0, os.EINVAL ),
-	atoi32Test( "-012345", 0, os.EINVAL ),
-	atoi32Test( "12345x", 0, os.EINVAL ),
-	atoi32Test( "-12345x", 0, os.EINVAL ),
-	atoi32Test( "987654321", 987654321, nil ),
-	atoi32Test( "-987654321", -987654321, nil ),
-	atoi32Test( "2147483647", 1<<31-1, nil ),
-	atoi32Test( "-2147483647", -(1<<31-1), nil ),
-	atoi32Test( "2147483648", 1<<31-1, os.ERANGE ),
-	atoi32Test( "-2147483648", -1<<31, nil ),
-	atoi32Test( "2147483649", 1<<31-1, os.ERANGE ),
-	atoi32Test( "-2147483649", -1<<31, os.ERANGE ),
+	atoi32Test("", 0, os.EINVAL),
+	atoi32Test("0", 0, nil),
+	atoi32Test("-0", 0, nil),
+	atoi32Test("1", 1, nil),
+	atoi32Test("-1", -1, nil),
+	atoi32Test("12345", 12345, nil),
+	atoi32Test("-12345", -12345, nil),
+	atoi32Test("012345", 012345, nil),
+	atoi32Test("-012345", -012345, nil),
+	atoi32Test("0x12345", 0x12345, nil),
+	atoi32Test("-0X12345", -0x12345, nil),
+	atoi32Test("12345x", 0, os.EINVAL),
+	atoi32Test("-12345x", 0, os.EINVAL),
+	atoi32Test("987654321", 987654321, nil),
+	atoi32Test("-987654321", -987654321, nil),
+	atoi32Test("2147483647", 1<<31-1, nil),
+	atoi32Test("-2147483647", -(1<<31-1), nil),
+	atoi32Test("2147483648", 1<<31-1, os.ERANGE),
+	atoi32Test("-2147483648", -1<<31, nil),
+	atoi32Test("2147483649", 1<<31-1, os.ERANGE),
+	atoi32Test("-2147483649", -1<<31, os.ERANGE),
 )
 
 func TestAtoui64(t *testing.T) {
