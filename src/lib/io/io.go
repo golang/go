@@ -45,8 +45,6 @@ type ReadWriteClose interface {
 }
 
 // Convert a string to an array of bytes for easy marshaling.
-// Could fill with syscall.StringToBytes but it adds an unnecessary \000
-// so the length would be wrong.
 func StringBytes(s string) []byte {
 	b := make([]byte, len(s));
 	for i := 0; i < len(s); i++ {
