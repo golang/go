@@ -108,23 +108,24 @@ func newBasicType(name string, kind int, size int) Type {
 var (
 	Missing = newBasicType(missingString, MissingKind, 1);
 	DotDotDot = newBasicType(dotDotDotString, DotDotDotKind, 16);	// TODO(r): size of interface?
-	Bool = newBasicType("bool", BoolKind, 1); // TODO: need to know how big a bool is
-	Int = newBasicType("int", IntKind, 4);	// TODO: need to know how big an int is
+	Bool = newBasicType("bool", BoolKind, unsafe.Sizeof(true));
+	Int = newBasicType("int", IntKind, unsafe.Sizeof(int(0)));
 	Int8 = newBasicType("int8", Int8Kind, 1);
 	Int16 = newBasicType("int16", Int16Kind, 2);
 	Int32 = newBasicType("int32", Int32Kind, 4);
 	Int64 = newBasicType("int64", Int64Kind, 8);
-	Uint = newBasicType("uint", UintKind, 4);	// TODO: need to know how big a uint is
+	Uint = newBasicType("uint", UintKind, unsafe.Sizeof(uint(0)));
 	Uint8 = newBasicType("uint8", Uint8Kind, 1);
 	Uint16 = newBasicType("uint16", Uint16Kind, 2);
 	Uint32 = newBasicType("uint32", Uint32Kind, 4);
 	Uint64 = newBasicType("uint64", Uint64Kind, 8);
-	Uintptr = newBasicType("uintptr", UintptrKind, 8);	// TODO: need to know how big a uintptr is
-	Float = newBasicType("float", FloatKind, 4);	// TODO: need to know how big a float is
+	Uintptr = newBasicType("uintptr", UintptrKind, unsafe.Sizeof(uintptr(0)));
+	Float = newBasicType("float", FloatKind, unsafe.Sizeof(float(0)));
 	Float32 = newBasicType("float32", Float32Kind, 4);
 	Float64 = newBasicType("float64", Float64Kind, 8);
 	Float80 = newBasicType("float80", Float80Kind, 10);	// TODO: strange size?
-	String = newBasicType("string", StringKind, 8);	// implemented as a pointer
+	// TODO(rsc): Sizeof("") should work, doesn't.
+	String = newBasicType("string", StringKind, unsafe.Sizeof(string(0)));
 )
 
 // Stub types allow us to defer evaluating type names until needed.
@@ -149,12 +150,7 @@ func (t *stubType) Get() Type {
 // -- Pointer
 
 type PtrType interface {
-	// TODO: Type;
-	Kind()	int;
-	Name()	string;
-	String()	string;
-	Size()	int;
-
+	Type;
 	Sub()	Type
 }
 
@@ -174,12 +170,7 @@ func (t *ptrTypeStruct) Sub() Type {
 // -- Array
 
 type ArrayType interface {
-	// TODO: Type;
-	Kind()	int;
-	Name()	string;
-	String()	string;
-	Size()	int;
-
+	Type;
 	IsSlice()	bool;
 	Len()	int;
 	Elem()	Type;
@@ -219,12 +210,7 @@ func (t *arrayTypeStruct) Elem() Type {
 // -- Map
 
 type MapType interface {
-	// TODO: Type;
-	Kind()	int;
-	Name()	string;
-	String()	string;
-	Size()	int;
-
+	Type;
 	Key()	Type;
 	Elem()	Type;
 }
@@ -250,12 +236,7 @@ func (t *mapTypeStruct) Elem() Type {
 // -- Chan
 
 type ChanType interface {
-	// TODO: Type;
-	Kind()	int;
-	Name()	string;
-	String()	string;
-	Size()	int;
-
+	Type;
 	Dir()	int;
 	Elem()	Type;
 }
@@ -287,12 +268,7 @@ func (t *chanTypeStruct) Elem() Type {
 // -- Struct
 
 type StructType interface {
-	// TODO: Type;
-	Kind()	int;
-	Name()	string;
-	String()	string;
-	Size()	int;
-
+	Type;
 	Field(int)	(name string, typ Type, tag string, offset int);
 	Len()	int;
 }
@@ -353,12 +329,7 @@ func (t *structTypeStruct) Len() int {
 // -- Interface
 
 type InterfaceType interface {
-	// TODO: Type;
-	Kind()	int;
-	Name()	string;
-	String()	string;
-	Size()	int;
-
+	Type;
 	Field(int)	(name string, typ Type, tag string, offset int);
 	Len()	int;
 }
@@ -385,12 +356,7 @@ var nilInterface = newInterfaceTypeStruct("nil", "", make([]structField, 0));
 // -- Func
 
 type FuncType interface {
-	// TODO: Type;
-	Kind()	int;
-	Name()	string;
-	String()	string;
-	Size()	int;
-
+	Type;
 	In()	StructType;
 	Out()	StructType;
 }

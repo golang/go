@@ -24,24 +24,24 @@ type Close interface {
 }
 
 type ReadWrite interface {
-	Read(p []byte) (n int, err *os.Error);
-	Write(p []byte) (n int, err *os.Error);
+	Read;
+	Write;
 }
 
 type ReadClose interface {
-	Read(p []byte) (n int, err *os.Error);
-	Close() *os.Error;
+	Read;
+	Close;
 }
 
 type WriteClose interface {
-	Write(p []byte) (n int, err *os.Error);
-	Close() *os.Error;
+	Write;
+	Close;
 }
 
 type ReadWriteClose interface {
-	Read(p []byte) (n int, err *os.Error);
-	Write(p []byte) (n int, err *os.Error);
-	Close() *os.Error;
+	Read;
+	Write;
+	Close;
 }
 
 // Convert a string to an array of bytes for easy marshaling.
