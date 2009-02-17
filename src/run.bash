@@ -26,6 +26,7 @@ maketest() {
 maketest \
 	lib/fmt\
 	lib/hash\
+	lib/io\
 	lib/json\
 	lib/math\
 	lib/net\

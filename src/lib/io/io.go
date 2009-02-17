@@ -19,18 +19,28 @@ type Write interface {
 	Write(p []byte) (n int, err *os.Error);
 }
 
+type Close interface {
+	Close() *os.Error;
+}
+
 type ReadWrite interface {
 	Read(p []byte) (n int, err *os.Error);
 	Write(p []byte) (n int, err *os.Error);
 }
 
-type ReadWriteClose interface {
+type ReadClose interface {
 	Read(p []byte) (n int, err *os.Error);
+	Close() *os.Error;
+}
+
+type WriteClose interface {
 	Write(p []byte) (n int, err *os.Error);
 	Close() *os.Error;
 }
 
-type Close interface {
+type ReadWriteClose interface {
+	Read(p []byte) (n int, err *os.Error);
+	Write(p []byte) (n int, err *os.Error);
 	Close() *os.Error;
 }
 
@@ -69,21 +79,21 @@ func Readn(fd Read, buf []byte) (n int, err *os.Error) {
 
 // Convert something that implements Read into something
 // whose Reads are always Readn
-type _FullRead struct {
+type fullRead struct {
 	fd	Read;
 }
 
-func (fd *_FullRead) Read(p []byte) (n int, err *os.Error) {
+func (fd *fullRead) Read(p []byte) (n int, err *os.Error) {
 	n, err = Readn(fd.fd, p);
 	return n, err
 }
 
-func Make_FullReader(fd Read) Read {
-	if fr, ok := fd.(*_FullRead); ok {
-		// already a _FullRead
+func MakeFullReader(fd Read) Read {
+	if fr, ok := fd.(*fullRead); ok {
+		// already a fullRead
 		return fd
 	}
-	return &_FullRead(fd)
+	return &fullRead(fd)
 }
 
 // Copies n bytes (or until EOF is reached) from src to dst.
