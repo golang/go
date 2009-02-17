@@ -1525,7 +1525,7 @@ unsafenmagic(Node *l, Node *r)
 {
 	Node *n;
 	Sym *s;
-	Type *t;
+	Type *t, *tr;
 	long v;
 	Val val;
 
@@ -1541,9 +1541,12 @@ unsafenmagic(Node *l, Node *r)
 
 	if(strcmp(s->name, "Sizeof") == 0) {
 		walktype(r, Erv);
-		if(r->type == T)
+		tr = r->type;
+		if(r->op == OLITERAL && r->val.ctype == CTSTR)
+			tr = types[TSTRING];
+		if(tr == T)
 			goto no;
-		v = r->type->width;
+		v = tr->width;
 		goto yes;
 	}
 	if(strcmp(s->name, "Offsetof") == 0) {
@@ -1555,16 +1558,21 @@ unsafenmagic(Node *l, Node *r)
 	}
 	if(strcmp(s->name, "Alignof") == 0) {
 		walktype(r, Erv);
-		if (r->type == T)
+		tr = r->type;
+		if(r->op == OLITERAL && r->val.ctype == CTSTR)
+			tr = types[TSTRING];
+		if(tr == T)
 			goto no;
+
 		// make struct { byte; T; }
 		t = typ(TSTRUCT);
 		t->type = typ(TFIELD);
 		t->type->type = types[TUINT8];
 		t->type->down = typ(TFIELD);
-		t->type->down->type = r->type;
+		t->type->down->type = tr;
 		// compute struct widths
 		dowidth(t);
+
 		// the offset of T is its required alignment
 		v = t->type->down->width;
 		goto yes;
