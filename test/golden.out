@@ -143,9 +143,6 @@ BUG: should compile
 =========== bugs/bug122.go
 BUG: compilation succeeds incorrectly
 
-=========== bugs/bug123.go
-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug123.go
-
 =========== bugs/bug125.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
 
