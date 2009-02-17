@@ -107,7 +107,7 @@ func newBasicType(name string, kind int, size int) Type {
 // Prebuilt basic types
 var (
 	Missing = newBasicType(missingString, MissingKind, 1);
-	DotDotDot = newBasicType(dotDotDotString, DotDotDotKind, 16);	// TODO(r): size of interface?
+	DotDotDot = newBasicType(dotDotDotString, DotDotDotKind, unsafe.Sizeof(true.(interface{})));
 	Bool = newBasicType("bool", BoolKind, unsafe.Sizeof(true));
 	Int = newBasicType("int", IntKind, unsafe.Sizeof(int(0)));
 	Int8 = newBasicType("int8", Int8Kind, 1);
@@ -124,8 +124,7 @@ var (
 	Float32 = newBasicType("float32", Float32Kind, 4);
 	Float64 = newBasicType("float64", Float64Kind, 8);
 	Float80 = newBasicType("float80", Float80Kind, 10);	// TODO: strange size?
-	// TODO(rsc): Sizeof("") should work, doesn't.
-	String = newBasicType("string", StringKind, unsafe.Sizeof(string(0)));
+	String = newBasicType("string", StringKind, unsafe.Sizeof(""));
 )
 
 // Stub types allow us to defer evaluating type names until needed.
