@@ -373,9 +373,12 @@ loop:
 		if(n->type != T)
 			goto ret;
 
-		walktype(n->left, Erv);
 		if(n->left == N)
 			goto ret;
+
+		walktype(n->left, Erv);
+		convlit(n->left, types[TFUNC]);
+
 		t = n->left->type;
 		if(t == T)
 			goto ret;
@@ -472,6 +475,7 @@ loop:
 			if(cr == 1) {
 				// a,b,... = fn()
 				walktype(r, Erv);
+				convlit(r, types[TFUNC]);
 				l = ascompatet(n->op, &n->left, &r->type, 0);
 				if(l != N)
 					indir(n, list(r, reorder2(l)));
@@ -3108,6 +3112,7 @@ multi:
 	case OCALLINTER:
 	case OCALL:
 		walktype(nr->left, Erv);
+		convlit(nr->left, types[TFUNC]);
 		t = nr->left->type;
 		if(t != T && t->etype == tptr)
 			t = t->type;

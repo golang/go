@@ -1233,6 +1233,9 @@ lexinit(void)
 		s->otype = t;
 	}
 
+	/* for walk to use in error messages */
+	types[TFUNC] = functype(N, N, N);
+
 	/* pick up the backend typedefs */
 	belexinit(LBASETYPE);
 
