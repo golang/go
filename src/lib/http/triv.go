@@ -45,6 +45,27 @@ func FileServer(c *http.Conn, req *http.Request) {
 	fmt.Fprintf(c, "[%d bytes]\n", n);
 }
 
+// simple flag server
+var booleanflag = flag.Bool("boolean", true, "another flag for testing")
+func FlagServer(c *http.Conn, req *http.Request) {
+	c.SetHeader("content-type", "text/plain; charset=utf-8");
+	fmt.Fprint(c, "Flags:\n");
+	flag.VisitAll(func (f *flag.Flag) {
+		if f.Value.String() != f.DefValue {
+			fmt.Fprintf(c, "%s = %s [default = %s]\n", f.Name, f.Value.String(), f.DefValue);
+		} else {
+			fmt.Fprintf(c, "%s = %s\n", f.Name, f.Value.String());
+		}
+	});
+}
+
+// simple argument server
+func ArgServer(c *http.Conn, req *http.Request) {
+	for i, s := range sys.Args {
+		fmt.Fprint(c, s, " ");
+	}
+}
+
 // a channel (just for the fun of it)
 type Chan chan int
 
@@ -66,6 +87,8 @@ func main() {
 	flag.Parse();
 	http.Handle("/counter", new(Counter));
 	http.Handle("/go/", http.HandlerFunc(FileServer));
+	http.Handle("/flags/", http.HandlerFunc(FlagServer));
+	http.Handle("/args/", http.HandlerFunc(ArgServer));
 	http.Handle("/go/hello", http.HandlerFunc(HelloServer));
 	http.Handle("/chan", ChanCreate());
 	err := http.ListenAndServe(":12345", nil);
