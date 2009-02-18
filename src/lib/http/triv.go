@@ -87,8 +87,8 @@ func main() {
 	flag.Parse();
 	http.Handle("/counter", new(Counter));
 	http.Handle("/go/", http.HandlerFunc(FileServer));
-	http.Handle("/flags/", http.HandlerFunc(FlagServer));
-	http.Handle("/args/", http.HandlerFunc(ArgServer));
+	http.Handle("/flags", http.HandlerFunc(FlagServer));
+	http.Handle("/args", http.HandlerFunc(ArgServer));
 	http.Handle("/go/hello", http.HandlerFunc(HelloServer));
 	http.Handle("/chan", ChanCreate());
 	err := http.ListenAndServe(":12345", nil);
