@@ -1,0 +1,93 @@
+
+<h2>Introduction</h2>
+
+<p>
+This is a reference manual for the Go programming language. For more information and other documents, see <a href="/">the Go home page</a>.
+</p>
+
+<p>
+Go is a general-purpose language designed with systems programming in mind. It is strongly typed and garbage-collected, and has explicit support for concurrent programming.  Programs are constructed from <i>packages</i>, whose properties allow efficient management of dependencies. The existing implementations use a traditional compile/link model to generate executable binaries.
+</p>
+
+<p>
+The grammar is simple and regular, allowing for easy analysis by automatic tools such as integrated development environments.
+</p>
+
+<h2>Lexical properties</h2>
+
+<p>
+A program is constructed from a set of <i>packages</i>.  Each package is defined by one or more source files compiled separately.  In processing the source text in each file, the input is divided into a sequence of <i>tokens</i>.
+</p>
+
+<h3>Unicode text</h3>
+
+<p>
+Go source text is a sequence of Unicode code points encoded in UTF-8.  The language processor does not canonicalize the input, so it will treat a single accented code point as distinct from the same character constructed from combining an accent and a letter; those are treated as two code points.  For simplicity, this document will use the term <i>character</i> to refer to a Unicode code point.
+</p>
+<p>
+Each code point is distinct; for example, upper and lower case letters are different characters.
+</p>
+
+<h3>Tokens</h3>
+
+<p>
+There are four classes of tokens: identifiers, keywords, operators and delimiters, and literals.  <i>White space</i>, formed from blanks, tabs, and newlines, is ignored except as it separates tokens that would otherwise combine into a single token.  Comments, defined below, behave as white space.  While breaking the input into tokens, the next token is the longest sequence of characters that form a valid token.
+</p>
+
+<h3>Comments</h3>
+
+<p>
+There are two forms of comments.  The first starts at a the character sequence <tt>//</tt> and continues through the next newline.  The second starts at the character sequence <tt>/*</tt> and continues through the character sequence <tt>*/</tt>.  Comments do not nest.
+</p>
+
+<h3>Identifiers</h3>
+
+<p>
+An identifier is a sequence of one or more letters and digits. The meaning of <i>letter</i> and <i>digit</i> is defined by the Unicode properties for the corresponding characters, with the addition that the underscore character <tt>_</tt> (U+005F) is considered a letter.  The first character in an identifier must be a letter. <font color=red>(Current implementation accepts only ASCII digits for digits.)</font>
+</p>
+
+<h3>Keywords</h3>
+
+<p>
+The following keywords are reserved and may not be used as identifiers.
+</p>
+<pre>
+break        default      func         interface    select
+case         defer        go           map          struct
+chan         else         goto         package      switch
+const        fallthrough  if           range        type
+continue     for          import       return       var
+</pre>
+
+<h3>Operators and Delimiters</h3>
+
+<p>
+The following character sequences are tokens representing operators, delimiters, and other special lexemes:
+</p>
+<pre>
++    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
+-    |     -=    |=     ||    &lt;     &lt;=    [    ]
+*    ^     *=    ^=     &lt;-    &gt;     &gt;=    {    }
+/    <<    /=    <<=    ++    =     :=    ,    ;
+%    >>    %=    >>=    --    !     ...   .    :
+</pre>
+
+<h3>Literals</h3>
+
+<h4>Integer literals</h4>
+
+<h4>Floating-point literals</h4>
+
+<h4>Character literals</h4>
+
+<h4>String literals</h4>
+
+
+</div>
+
+<br class="clearboth" />
+<div id="pageFooter">
+<p><span class="conf">Google Confidential:</span> For Internal Use Only.<br />&copy;&nbsp;2009 Google, Inc. All Rights Reserved.</p>
+</div>
+</body>
+</html>
