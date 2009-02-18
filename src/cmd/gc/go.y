@@ -1004,6 +1004,10 @@ convtype:
 		$$->type = $5;
 	}
 |	structtype
+|	'(' type ')'
+	{
+		$$ = $2;
+	}
 
 /*
  * to avoid parsing conflicts, type is split into
@@ -1031,6 +1035,10 @@ Btype:
 |	Bchantype
 |	Bfntype
 |	Bothertype
+|	'(' type ')'
+	{
+		$$ = $2;
+	}
 
 non_name_type:
 	chantype
@@ -1052,6 +1060,10 @@ Bnon_chan_type:
 	nametype
 |	Bfntype
 |	Bothertype
+|	'(' Btype ')'
+	{
+		$$ = $2;
+	}
 
 Anon_fn_type:
 	Achantype
@@ -1061,7 +1073,6 @@ Bnon_fn_type:
 	nametype
 |	Bchantype
 |	Bothertype
-
 
 nametype:
 	LATYPE
