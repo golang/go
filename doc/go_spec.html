@@ -156,13 +156,13 @@ compile/link model to generate executable binaries.
 The grammar is compact and regular, allowing for easy analysis by
 automatic tools such as integrated development environments.
 </p>
-<hr>
+<hr/>
 <h2>Notation</h2>
 <p>
 The syntax is specified using Extended Backus-Naur Form (EBNF):
 </p>
 
-<pre>
+<pre class="grammar">
 Production  = production_name "=" Expression .
 Expression  = Alternative { "|" Alternative } .
 Alternative = Term { Term } .
@@ -176,7 +176,7 @@ Repetition  = "{" Expression "}" .
 Productions are expressions constructed from terms and the following
 operators, in increasing precedence:
 </p>
-<pre>
+<pre class="grammar">
 |   alternation
 ()  grouping
 []  option (0 or 1 times)
@@ -199,23 +199,21 @@ The form <tt>"a ... b"</tt> represents the set of characters from
 Where possible, recursive productions are used to express evaluation order
 and operator precedence syntactically.
 </p>
-<hr>
+<hr/>
 
 <h2>Source code representation</h2>
 
-Source code is Unicode text encoded in UTF-8.
 <p>
-Tokenization follows the usual rules.  Source text is case-sensitive.
+Source code is Unicode text encoded in UTF-8. The text is not
+canonicalized, so a single accented code point is distinct from the
+same character constructed from combining an accent and a letter;
+those are treated as two code points.  For simplicity, this document
+will use the term <i>character</i> to refer to a Unicode code point.
+</p>
 <p>
-White space is blanks, newlines, carriage returns, or tabs.
-<p>
-Comments are // to end of line or /* */ without nesting and are treated as white space.
-<p>
-Some Unicode characters (e.g., the character U+00E4) may be representable in
-two forms, as a single code point or as two code points.  For simplicity of
-implementation, Go treats these as distinct characters: each Unicode code
-point is a single character in Go.
-
+Each code point is distinct; for instance, upper and lower case letters
+are different characters.
+</p>
 
 <h3>Characters</h3>
 
@@ -223,37 +221,66 @@ point is a single character in Go.
 The following terms are used to denote specific Unicode character classes:
 </p>
 <ul>
-	<li>unicode_char      an arbitrary Unicode code point
-	<li>unicode_letter    a Unicode code point classified as "Letter"
-	<li>capital_letter    a Unicode code point classified as "Letter, uppercase"
+	<li>unicode_char      an arbitrary Unicode code point</li>
+	<li>unicode_letter    a Unicode code point classified as "Letter"</li>
+	<li>capital_letter    a Unicode code point classified as "Letter, uppercase"</li>
+	<li>unicode_digit     a Unicode code point classified as "Digit"</li>
 </ul>
 
 (The Unicode Standard, Section 4.5 General Category - Normative.)
 
-
 <h3>Letters and digits</h3>
-<pre>
+
+<p>
+The underscore character <tt>_</tt> (U+005F) is considered a letter.
+</>
+<pre class="grammar">
 letter        = unicode_letter | "_" .
 decimal_digit = "0" ... "9" .
 octal_digit   = "0" ... "7" .
 hex_digit     = "0" ... "9" | "A" ... "F" | "a" ... "f" .
 </pre>
-<hr>
+<hr/>
 
-<h2>Vocabulary</h2>
+<h2>Lexical elements</h2>
 
-Tokens make up the vocabulary of the Go language. They consist of
-identifiers, numbers, strings, operators, and delimitors.
+<h3>Comments</h3>
 
+<p>
+There are two forms of comments.  The first starts at the character
+sequence <tt>//</tt> and continues through the next newline.  The
+second starts at the character sequence <tt>/*</tt> and continues
+through the character sequence <tt>*/</tt>.  Comments do not nest.
+</p>
+
+<h3>Tokens</h3>
+
+<p>
+Tokens form the vocabulary of the Go language.
+There are four classes: identifiers, keywords, operators
+and delimiters, and literals.  <i>White space</i>, formed from
+blanks, tabs, and newlines, is ignored except as it separates tokens
+that would otherwise combine into a single token.  Comments
+behave as white space.  While breaking the input into tokens,
+the next token is the longest sequence of characters that form a
+valid token.
+</p>
 
 <h3>Identifiers</h3>
 
-An identifier is a name for a program entity such as a variable, a
-type, a function, etc.
-<pre>
-identifier = letter { letter | decimal_digit } .
+<p>
+Identifiers name program entities such as variables and types.
+An identifier is a sequence of one or more letters and digits.
+The first character in an identifier must be a letter.
+</p>
+<pre class="grammar">
+identifier    = letter { letter | unicode_digit } .
 </pre>
-Exported identifiers (§Exported identifiers) start with a capital_letter.
+<p>
+Exported identifiers (§Exported identifiers) start with a <tt>capital_letter</tt>.
+<br>
+<font color=red>TODO: This sentence feels out of place.</font>
+</p>
 <pre>
 a
 _x9
@@ -262,16 +289,46 @@ ThisVariableIsExported
 </pre>
 Some identifiers are predeclared (§Predeclared identifiers).
 
+<h3>Keywords</h3>
 
-<h3>Numeric literals</h3>
+<p>
+The following keywords are reserved and may not be used as identifiers.
+</p>
+<pre class="grammar">
+break        default      func         interface    select
+case         defer        go           map          struct
+chan         else         goto         package      switch
+const        fallthrough  if           range        type
+continue     for          import       return       var
+</pre>
 
-An integer literal represents a mathematically ideal integer constant
-of arbitrary precision, or 'ideal int'.
-<pre>
-int_lit     = decimal_int | octal_int | hex_int .
-decimal_int = ( "1" ... "9" ) { decimal_digit } .
-octal_int   = "0" { octal_digit } .
-hex_int     = "0" ( "x" | "X" ) hex_digit { hex_digit } .
+<h3>Operators and Delimiters</h3>
+
+<p>
+The following character sequences represent operators, delimiters, and other special tokens:
+</p>
+<pre class="grammar">
++    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
+-    |     -=    |=     ||    &lt;     &lt;=    [    ]
+*    ^     *=    ^=     &lt;-    &gt;     &gt;=    {    }
+/    <<    /=    <<=    ++    =     :=    ,    ;
+%    >>    %=    >>=    --    !     ...   .    :
+</pre>
+
+<h3>Integer literals</h3>
+
+<p>
+An integer literal is a sequence of one or more digits in the
+corresponding base, which may be 8, 10, or 16.  An optional prefix
+sets a non-decimal base: <tt>0</tt> for octal, <tt>0x</tt> or
+<tt>0X</tt> for hexadecimal.  In hexadecimal literals, letters
+<tt>a-f</tt> and <tt>A-F</tt> represent values 10 through 15.
+</p>
+<pre class="grammar">
+int_lit       = decimal_lit | octal_lit | hex_lit .
+decimal_lit   = ( "1" ... "9" ) { decimal_digit } .
+octal_lit     = "0" { octal_digit } .
+hex_lit       = "0" ( "x" | "X" ) hex_digit { hex_digit } .
 </pre>
 
 <pre>
@@ -281,14 +338,20 @@ hex_int     = "0" ( "x" | "X" ) hex_digit { hex_digit } .
 170141183460469231731687303715884105727
 </pre>
 
-A floating point literal represents a mathematically ideal floating point
-constant of arbitrary precision, or 'ideal float'.
-
-<pre>
-float_lit =
-	decimals "." [ decimals ] [ exponent ] |
-	decimals exponent |
-	"." decimals [ exponent ] .
+<h3>Floating-point literals</h3>
+<p>
+A floating-point literal is a decimal representation of a floating-point
+number.  It has an integer part, a decimal point, a fractional part,
+and an exponent part.  The integer and fractional part comprise
+decimal digits; the exponent part is an <tt>e</TT> or <tt>E</tt>
+followed by an optionally signed decimal exponent.  One of the
+integer part or the fractional part may be elided; one of the decimal
+point or the exponent may be elided.
+</p>
+<pre class="grammar">
+float_lit    = decimals "." [ decimals ] [ exponent ] |
+               decimals exponent |
+               "." decimals [ exponent ] .
 decimals = decimal_digit { decimal_digit } .
 exponent = ( "e" | "E" ) [ "+" | "-" ] decimals .
 </pre>
@@ -303,79 +366,90 @@ exponent = ( "e" | "E" ) [ "+" | "-" ] decimals .
 .12345E+5
 </pre>
 
-Numeric literals are unsigned. A negative constant is formed by
-applying the unary prefix operator "-" (§Arithmetic operators).
+<h3>Ideal numbers</h3>
+
 <p>
-An 'ideal number' is either an 'ideal int' or an 'ideal float'.
-<p>
-Only when an ideal number (or an arithmetic expression formed
-solely from ideal numbers) is bound to a variable or used in an expression
-or constant of fixed-size integers or floats it is required to fit
-a particular size.  In other words, ideal numbers and arithmetic
-upon them are not subject to overflow; only use of them in assignments
-or expressions involving fixed-size numbers may cause overflow, and thus
-an error (§Expressions).
+Integer literals represent values of arbitrary precision, or <i>ideal
+integers</i>.  Similarly, floating-point literals represent values
+of arbitrary precision, or <i>ideal floats</i>.  These <i>ideal
+numbers</i> have no size or type and cannot overflow.  However,
+when (used in an expression) assigned to a variable or typed constant,
+the destination must be able to represent the assigned value.
+</p>
 <p>
 Implementation restriction: A compiler may implement ideal numbers
-by choosing a "sufficiently large" internal representation of such
-numbers.
+by choosing a large internal representation of such numbers.
+<br>
+<font color=red>TODO: This is too vague. It used to say "sufficiently"
+but that doesn't help.  Define a minimum?</font>
+</p>
 
-
-<h3>Character and string literals</h3>
+<h3>Character literals</h3>
 
 <p>
-Character and string literals are almost the same as in C, with the
-following differences:
+A character literal represents an integer value, typically a
+Unicode code point, as one or more characters enclosed in single
+quotes.  Within the quotes, any character may appear except single
+quote and newline. A single quoted character represents itself,
+while multi-character sequences beginning with a backslash encode
+values in various formats.
 </p>
-<ul>
-	<li>The encoding is UTF-8
-	<li>`` strings exist; they do not interpret backslashes
-	<li>Octal character escapes are always 3 digits ("\077" not "\77")
-	<li>Hexadecimal character escapes are always 2 digits ("\x07" not "\x7")
-</ul>
-
-The rules are:
-
-<pre>
-escaped_char = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | """ ) .
+<p>
+The simplest form represents the single character within the quotes;
+since Go source text is Unicode characters encoded in UTF-8, multiple
+UTF-8-encoded bytes may represent a single integer value.  For
+instance, the literal <tt>'a'</tt> holds a single byte representing
+a literal <tt>a</tt>, Unicode U+0061, value <tt>0x61</tt>, while
+<tt>'ä'</tt> holds two bytes (<tt>0xc3</tt> <tt>0xa4</tt>) representing
+a literal <tt>a</tt>-dieresis, U+00E4, value <tt>0xe4</tt>.
+</p>
+<p>
+Several backslash escapes allow arbitrary values to be represented
+as ASCII text.  There are four ways to represent the integer value
+as a numeric constant: <tt>\x</tt> followed by exactly two hexadecimal
+digits; <tt>\u</tt> followed by exactly four hexadecimal digits;
+<tt>\U</tt> followed by exactly eight hexadecimal digits, and a
+plain backslash <tt>\</tt> followed by exactly three octal digits.
+In each case the value of the literal is the value represented by
+the digits in the corresponding base.
+</p>
+<p>
+Although these representations all result in an integer, they have
+different valid ranges.  Octal escapes must represent a value between
+0 and 255 inclusive.  (Hexadecimal escapes satisfy this condition
+by construction). The `Unicode' escapes <tt>\u</tt> and <tt>\U</tt>
+represent Unicode code points so within them some values are illegal,
+in particular those above <tt>0x10FFFF</tt> and surrogate halves.
+</p>
+<p>
+After a backslash, certain single-character escapes represent special values:
+</p>
+<pre class="grammar">
+\a   U+0007 alert or bell
+\b   U+0008 backspace
+\f   U+000C form feed
+\n   U+000A line feed or newline
+\r   U+000D carriage return
+\t   U+0009 horizontal tab
+\v   U+000b vertical tab
+\\   U+005c backslash
+\'   U+0027 single quote  (valid escape only within character literals)
+\"   U+0022 double quote  (valid escape only within string literals)
 </pre>
-
 <p>
-A unicode_value takes one of four forms:
+All other sequences are illegal inside character literals.
 </p>
-<ul>
-	<li>The UTF-8 encoding of a Unicode code point.  Since Go source
-text is in UTF-8, this is the obvious translation from input
-text into Unicode characters.
-
-	<li>The usual list of C backslash escapes: "\n", "\t", etc.
-Within a character or string literal, only the corresponding quote character
-is a legal escape (this is not explicitly reflected in the above syntax).
-
-	<li>A `little u' value, such as "\u12AB".  This represents the Unicode
-code point with the corresponding hexadecimal value.  It always
-has exactly 4 hexadecimal digits.
-
-	<li>A `big U' value, such as "\U00101234".  This represents the
-Unicode code point with the corresponding hexadecimal value.
-It always has exactly 8 hexadecimal digits.
-</ul>
-
-Some values that can be represented this way are illegal because they
-are not valid Unicode code points.  These include values above
-0x10FFFF and surrogate halves.
-<p>
-An octal_byte_value contains three octal digits.  A hex_byte_value
-contains two hexadecimal digits.  (Note: This differs from C but is
-simpler.)
-<p>
-It is erroneous for an octal_byte_value to represent a value larger than 255. 
-(By construction, a hex_byte_value cannot.)
-<p>
-A character literal is a form of unsigned integer constant.  Its value
-is that of the Unicode code point represented by the text between the
-quotes.
-
+<pre class="grammar">
+char_lit         = "'" ( unicode_value | byte_value ) "'" .
+unicode_value    = unicode_char | little_u_value | big_u_value | escaped_char .
+byte_value       = octal_byte_value | hex_byte_value .
+octal_byte_value = "\" octal_digit octal_digit octal_digit .
+hex_byte_value   = "\" "x" hex_digit hex_digit .
+little_u_value   = "\" "u" hex_digit hex_digit hex_digit hex_digit .
+big_u_value      = "\" "U" hex_digit hex_digit hex_digit hex_digit
+                           hex_digit hex_digit hex_digit hex_digit .
+escaped_char     = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | """ ) .
+</pre>
 <pre>
 'a'
 'ä'
@@ -390,29 +464,46 @@ quotes.
 '\U00101234'
 </pre>
 
-String literals come in two forms: double-quoted and back-quoted.
-Double-quoted strings have the usual properties; back-quoted strings
-do not interpret backslashes at all.
+<p>
+The value of a character literal is an ideal integer, just as with
+integer literals.
+</p>
 
-<pre>
-string_lit = raw_string_lit | interpreted_string_lit .
-raw_string_lit = "`" { unicode_char } "`" .
+<h3>String literals</h3>
+
+<p>
+String literals represent constant values of type <tt>string</tt>.
+There are two forms: raw string literals and interpreted string
+literals.
+</p>
+<p>
+Raw string literals are character sequences between back quotes
+<tt>``</tt>.  Within the quotes, any character is legal except
+newline and back quote. The value of a raw string literal is the
+string composed of the uninterpreted bytes between the quotes;
+in particular, backslashes have no special meaning.
+</p>
+<p>
+Interpreted string literals are character sequences between double
+quotes <tt>&quot;&quot;</tt>. The text between the quotes forms the
+value of the literal, with backslash escapes interpreted as they
+are in character literals (except that <tt>\'</tt> is illegal and
+<tt>\"</tt> is legal).  The three-digit octal (<tt>\000</tt>)
+and two-digit hexadecimal (<tt>\x00</tt>) escapes represent individual
+<i>bytes</i> of the resulting string; all other escapes represent
+the (possibly multi-byte) UTF-8 encoding of individual <i>characters</i>.
+Thus inside a string literal <tt>\377</tt> and <tt>\xFF</tt> represent
+a single byte of value <tt>0xFF</tt>=255, while <tt>ÿ</tt>,
+<tt>\u00FF</tt>, <tt>\U000000FF</tt> and <tt>\xc3\xbf</tt> represent
+the two bytes <tt>0xc3 0xbf</tt> of the UTF-8 encoding of character
+U+00FF.
+</p>
+
+<pre class="grammar">
+string_lit             = raw_string_lit | interpreted_string_lit .
+raw_string_lit         = "`" { unicode_char } "`" .
 interpreted_string_lit = """ { unicode_value | byte_value } """ .
 </pre>
-
-A string literal has type "string" (§Strings).  Its value is constructed
-by taking the byte values formed by the successive elements of the
-literal.  For byte_values, these are the literal bytes; for
-unicode_values, these are the bytes of the UTF-8 encoding of the
-corresponding Unicode code points.  Note that
-	"\u00FF"
-and
-	"\xFF"
-are
-different strings: the first contains the two-byte UTF-8 expansion of
-the value 255, while the second contains a single byte of value 255.
-The same rules apply to raw string literals, except the contents are
-uninterpreted UTF-8.
 
 <pre>
 `abc`
@@ -426,61 +517,38 @@ uninterpreted UTF-8.
 "\xff\u00FF"
 </pre>
 
+<p>
 These examples all represent the same string:
+</p>
 
 <pre>
-"日本語"  // UTF-8 input text
-`日本語`  // UTF-8 input text as a raw literal
-"\u65e5\u672c\u8a9e"  // The explicit Unicode code points
-"\U000065e5\U0000672c\U00008a9e"  // The explicit Unicode code points
+"日本語"                                 // UTF-8 input text
+`日本語`                                 // UTF-8 input text as a raw literal
+"\u65e5\u672c\u8a9e"                    // The explicit Unicode code points
+"\U000065e5\U0000672c\U00008a9e"        // The explicit Unicode code points
 "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // The explicit UTF-8 bytes
 </pre>
-
-Adjacent strings separated only by whitespace (including comments)
-are concatenated into a single string. The following two lines
-represent the same string:
+<p>
+Adjacent string literals separated only by the empty string, white
+space, or comments are concatenated into a single string literal.
+</p>
+<pre class="grammar">
+StringLit              = string_lit { string_lit } .
+</pre>
 
 <pre>
 "Alea iacta est."
 "Alea " /* The die */ `iacta est` /* is cast */ "."
 </pre>
 
-The language does not canonicalize Unicode text or evaluate combining
-forms.  The text of source code is passed uninterpreted.
 <p>
 If the source code represents a character as two code points, such as
 a combining form involving an accent and a letter, the result will be
 an error if placed in a character literal (it is not a single code
 point), and will appear as two code points if placed in a string
 literal.
-
-
-<h3>Operators and delimitors</h3>
-
-The following special character sequences serve as operators or delimitors:
-
-<pre>
-+    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
--    |     -=    |=     ||    <     <=    [    ]
-*    ^     *=    ^=     <-    >     >=    {    }
-/    <<    /=    <<=    ++    =     :=    ,    ;
-%    >>    %=    >>=    --    !     ...   .    :
-</pre>
-
-
-<h3>Reserved words</h3>
-
-The following words are reserved and must not be used as identifiers:
-
-<pre>
-break        default      func         interface    select
-case         defer        go           map          struct
-chan         else         goto         package      switch
-const        fallthrough  if           range        type
-continue     for          import       return       var
-</pre>
-
-<hr>
+</p>
+<hr/>
 
 <h2>Declarations and scope rules</h2>
 
@@ -488,7 +556,7 @@ A declaration ``binds'' an identifier to a language entity (such as
 a package, constant, type, struct field, variable, parameter, result,
 function, method) and specifies properties of that entity such as its type.
 
-<pre>
+<pre class="grammar">
 Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl .
 </pre>
 		
@@ -535,30 +603,33 @@ same identifier declared in an outer block.
 
 <h3>Predeclared identifiers</h3>
 
+<p>
 The following identifiers are predeclared:
+</p>
 
+<p>
 All basic types:
-
-<pre>
+</p>
+<pre class="grammar">
 bool, byte, uint8, uint16, uint32, uint64, int8, int16, int32, int64,
 float32, float64, string
 </pre>
 	
 A set of platform-specific convenience types:
 
-<pre>
+<pre class="grammar">
 uint, int, float, uintptr
 </pre>
 	
 The predeclared constants:
 
-<pre>
+<pre class="grammar">
 true, false, iota, nil
 </pre>
 	
 The predeclared functions (note: this list is likely to change):
 
-<pre>
+<pre class="grammar">
 cap(), convert(), len(), make(), new(), panic(), panicln(), print(), println(), typeof(), ...
 </pre>
 
@@ -584,7 +655,7 @@ are never exported, but non-global fields/methods may be exported.
 A constant declaration binds an identifier to the value of a constant
 expression (§Constant expressions).
 
-<pre>
+<pre class="grammar">
 ConstDecl = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
 ConstSpecList = ConstSpec { ";" ConstSpec } [ ";" ] .
 ConstSpec = IdentifierList [ CompleteType ] [ "=" ExpressionList ] .
@@ -753,7 +824,7 @@ const (
 A type declaration specifies a new type and binds an identifier to it.
 The identifier is called the ``type name''; it denotes the type.
 
-<pre>
+<pre class="grammar">
 TypeDecl = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
 TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
 TypeSpec = identifier Type .
@@ -791,7 +862,7 @@ The variable type must be a complete type (§Types).
 In some forms of declaration the type of the initial value defines the type
 of the variable.
 
-<pre>
+<pre class="grammar">
 VarDecl = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
 VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
 VarSpec = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
@@ -827,13 +898,13 @@ var f = 3.1415  // f has float type
 
 The syntax
 
-<pre>
+<pre class="grammar">
 SimpleVarDecl = IdentifierList ":=" ExpressionList .
 </pre>
 
 is shorthand for
 
-<pre>
+<pre class="grammar">
 "var" IdentifierList = ExpressionList .
 </pre>
 
@@ -846,7 +917,7 @@ ch := new(chan int);
 Also, in some contexts such as "if", "for", or "switch" statements,
 this construct can be used to declare local temporary variables.
 
-<hr>
+<hr/>
 
 <h2>Types</h2>
 
@@ -857,8 +928,8 @@ A type may be specified by a type name (§Type declarations) or a type literal.
 A type literal is a syntactic construct that explicitly specifies the
 composition of a new type in terms of other (already declared) types.
 
-<pre>
-Type = TypeName | TypeLit .
+<pre class="grammar">
+Type = TypeName | TypeLit | "(" Type ")" .
 TypeName = QualifiedIdent.
 TypeLit =
 	ArrayType | StructType | PointerType | FunctionType | InterfaceType |
@@ -881,7 +952,7 @@ type of a pointer type, may be incomplete). Incomplete types are subject to usag
 restrictions; for instance the type of a variable must be complete where the
 variable is declared.
 
-<pre>
+<pre class="grammar">
 CompleteType = Type .
 </pre>
 
@@ -912,7 +983,7 @@ and strings.
 
 The following list enumerates all platform-independent numeric types:
 
-<pre>
+<pre class="grammar">
 byte     same as uint8 (for convenience)
 
 uint8    the set of all unsigned  8-bit integers (0 to 255)
@@ -944,7 +1015,7 @@ its corresponding unsigned type without loss).
 Additionally, Go declares a set of platform-specific numeric types for
 convenience:
 
-<pre>
+<pre class="grammar">
 uint     at least 32 bits, at most the size of the largest uint type
 int      at least 32 bits, at most the size of the largest int type
 float    at least 32 bits, at most the size of the largest float type
@@ -1006,7 +1077,7 @@ same type, called the element type. The element type must be a complete type
 negative. The elements of an array are designated by indices
 which are integers from 0 through the length - 1.
 
-<pre>
+<pre class="grammar">
 ArrayType = "[" ArrayLength "]" ElementType .
 ArrayLength = Expression .
 ElementType = CompleteType .
@@ -1046,7 +1117,7 @@ an identifier and type for each field. Within a struct type no field
 identifier may be declared twice and all field types must be complete
 types (§Types).
 
-<pre>
+<pre class="grammar">
 StructType = "struct" [ "{" [ FieldDeclList ] "}" ] .
 FieldDeclList = FieldDecl { ";" FieldDecl } [ ";" ] .
 FieldDecl = (IdentifierList CompleteType | [ "*" ] TypeName) [ Tag ] .
@@ -1134,7 +1205,7 @@ equal type only.
 A pointer type denotes the set of all pointers to variables of a given
 type, called the ``base type'' of the pointer, and the value "nil".
 
-<pre>
+<pre class="grammar">
 PointerType = "*" BaseType .
 BaseType = Type .
 </pre>
@@ -1178,7 +1249,7 @@ Pointer arithmetic of any kind is not permitted.
 A function type denotes the set of all functions with the same parameter
 and result types, and the value "nil".
 
-<pre>
+<pre class="grammar">
 FunctionType = "func" Signature .
 Signature = "(" [ ParameterList ] ")" [ Result ] .
 ParameterList = ParameterDecl { "," ParameterDecl } .
@@ -1236,7 +1307,7 @@ Type interfaces may be specified explicitly by interface types.
 An interface type denotes the set of all types that implement at least
 the set of methods specified by the interface type, and the value "nil".
 
-<pre>
+<pre class="grammar">
 InterfaceType = "interface" [ "{" [ MethodSpecList ] "}" ] .
 MethodSpecList = MethodSpec { ";" MethodSpec } [ ";" ] .
 MethodSpec = IdentifierList Signature | TypeName .
@@ -1344,7 +1415,7 @@ The number of elements of a slice is called its length; it is never negative.
 The elements of a slice are designated by indices which are
 integers from 0 through the length - 1.
 
-<pre>
+<pre class="grammar">
 SliceType = "[" "]" ElementType .
 </pre>
 
@@ -1436,7 +1507,7 @@ each be of a specific complete type (§Types) called the key and value type,
 respectively. The number of entries in a map is called its length; it is never
 negative.
 
-<pre>
+<pre class="grammar">
 MapType = "map" "[" KeyType "]" ValueType .
 KeyType = CompleteType .
 ValueType = CompleteType .
@@ -1491,7 +1562,7 @@ A channel provides a mechanism for two concurrently executing functions
 to synchronize execution and exchange values of a specified type. This
 type must be a complete type (§Types). <font color=red>(TODO could it be incomplete?)</font>
 
-<pre>
+<pre class="grammar">
 ChannelType = Channel | SendChannel | RecvChannel .
 Channel = "chan" ValueType .
 SendChannel = "chan" "&lt;-" ValueType .
@@ -1544,7 +1615,7 @@ the same ValueType. They are equal if both values were created by the same
 Types may be ``different'', ``structurally equal'', or ``identical''.
 Go is a type-safe language; generally different types cannot be mixed
 in binary operations, and values cannot be assigned to variables of different
-types. However, values may be assigned to variables of structually
+types. However, values may be assigned to variables of structurally
 equal types. Finally, type guards succeed only if the dynamic type
 is identical to or implements the type tested against (§Type guards).
 <p>
@@ -1659,7 +1730,7 @@ struct { a, b *T5 } and struct { a, b *T5 }
 As an example, "T0" and "T1" are equal but not identical because they have
 different declarations.
 
-<hr>
+<hr/>
 
 <h2>Expressions</h2>
 
@@ -1688,7 +1759,7 @@ should be ideal number, because for arrays, it is a constant.
 
 Operands denote the elementary values in an expression.
 
-<pre>
+<pre class="grammar">
 Operand  = Literal | QualifiedIdent | "(" Expression ")" .
 Literal  = BasicLit | CompositeLit | FunctionLit .
 BasicLit = int_lit | float_lit | char_lit | StringLit .
@@ -1713,7 +1784,7 @@ A qualified identifier is an identifier qualified by a package name.
 TODO(gri) expand this section.
 </font>
 
-<pre>
+<pre class="grammar">
 QualifiedIdent = { PackageName "." } identifier .
 PackageName = identifier .
 </pre>
@@ -1725,7 +1796,7 @@ Literals for composite data structures consist of the type of the value
 followed by a braced expression list for array, slice, and structure literals,
 or a list of expression pairs for map literals.
 
-<pre>
+<pre class="grammar">
 CompositeLit = LiteralType "(" [ ( ExpressionList | ExprPairList ) [ "," ] ] ")" .
 LiteralType = Type | "[" "..." "]" ElementType .
 ExprPairList = ExprPair { "," ExprPair } .
@@ -1798,7 +1869,7 @@ A function literal represents an anonymous function. It consists of a
 specification of the function type and the function body. The parameter
 and result types of the function type must all be complete types (§Types).
 
-<pre>
+<pre class="grammar">
 FunctionLit = "func" Signature Block .
 Block = "{" [ StatementList ] "}" .
 </pre>
@@ -1825,7 +1896,7 @@ as they are accessible in any way.
 
 <h3>Primary expressions</h3>
 	
-<pre>
+<pre class="grammar">
 PrimaryExpr =
 	Operand |
 	PrimaryExpr Selector |
@@ -2175,7 +2246,7 @@ in f_extra.
 
 Operators combine operands into expressions.
 
-<pre>
+<pre class="grammar">
 Expression = UnaryExpr | Expression binaryOp UnaryExpr .
 UnaryExpr = PrimaryExpr | unary_op UnaryExpr .
 
@@ -2210,7 +2281,7 @@ The operand types in binary operations must be equal, with the following excepti
 
 Unary operators have the highest precedence. They are evaluated from
 right to left. Note that "++" and "--" are outside the unary operator
-hierachy (they are statements) and they apply to the operand on the left.
+hierarchy (they are statements) and they apply to the operand on the left.
 Specifically, "*p++" means "(*p)++" in Go (as opposed to "*(p++)" in C).
 <p>
 There are six precedence levels for binary operators:
@@ -2219,7 +2290,7 @@ operators, comparison operators, communication operators,
 "&amp;&amp;" (logical and), and finally "||" (logical or) with the
 lowest precedence:
 
-<pre>
+<pre class="grammar">
 Precedence    Operator
     6             *  /  %  &lt;&lt;  >>  &amp;
     5             +  -  |  ^
@@ -2251,7 +2322,7 @@ type as the first operand. The four standard arithmetic operators ("+", "-",
 "*", "/") apply to both integer and floating point types, while "+" also applies
 to strings and arrays; all other arithmetic operators apply to integer types only.
 
-<pre>
+<pre class="grammar">
 +    sum             integers, floats, strings, arrays
 -    difference      integers, floats
 *    product         integers, floats
@@ -2317,7 +2388,7 @@ Specifically, "x << 1" is the same as "x*2"; and "x >> 1" is the same as
 For integer operands, the unary operators "+", "-", and "^" are defined as
 follows:
 
-<pre>
+<pre class="grammar">
 +x                          is 0 + x
 -x    negation              is 0 - x
 ^x    bitwise complement    is m ^ x  with m = "all bits set to 1"
@@ -2347,7 +2418,7 @@ boolean values, pointer, interface, and channel types. Slice and
 map types only support testing for equality against the predeclared value
 "nil".
 
-<pre>
+<pre class="grammar">
 ==    equal
 !=    not equal
 <     less
@@ -2372,7 +2443,7 @@ and §Channel types, respectively.
 Logical operators apply to boolean operands and yield a boolean result.
 The right operand is evaluated conditionally.
 
-<pre>
+<pre class="grammar">
 &amp;&amp;    conditional and    p &amp;&amp; q  is  "if p then q else false"
 ||    conditional or     p || q  is  "if p then true else q"
 !     not                !p      is  "not p"
@@ -2580,13 +2651,13 @@ TODO: Complete this list as needed.
 <p>
 Constant expressions can be evaluated at compile time.
 
-<hr>
+<hr/>
 
 <h2>Statements</h2>
 
 Statements control execution.
 
-<pre>
+<pre class="grammar">
 Statement =
 	Declaration | LabelDecl | EmptyStat |
 	SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
@@ -2601,7 +2672,7 @@ SimpleStat =
 Statements in a statement list are separated by semicolons, which can be
 omitted in some cases as expressed by the OptSemicolon production.
 
-<pre>
+<pre class="grammar">
 StatementList = Statement { OptSemicolon Statement } .
 </pre>
 
@@ -2623,14 +2694,14 @@ is an empty statement, a statement list can always be ``terminated'' with a semi
 
 The empty statement does nothing.
 
-<pre>
+<pre class="grammar">
 EmptyStat = .
 </pre>
 
 
 <h3>Expression statements</h3>
 
-<pre>
+<pre class="grammar">
 ExpressionStat = Expression .
 </pre>
 
@@ -2648,14 +2719,14 @@ TODO: specify restrictions. 6g only appears to allow calls here.
 The "++" and "--" statements increment or decrement their operands
 by the (ideal) constant value 1.
 
-<pre>
+<pre class="grammar">
 IncDecStat = Expression ( "++" | "--" ) .
 </pre>
 	
 The following assignment statements (§Assignments) are semantically
 equivalent:
 
-<pre>
+<pre class="grammar">
 IncDec statement    Assignment
 x++                 x += 1
 x--                 x -= 1
@@ -2669,11 +2740,9 @@ For instance, "x++" cannot be used as an operand in an expression.
 
 <h3>Assignments</h3>
 
-<pre>
+<pre class="grammar">
 Assignment = ExpressionList assign_op ExpressionList .
-</pre>
-	
-<pre>
+
 assign_op = [ add_op | mul_op ] "=" .
 </pre>
 
@@ -2742,7 +2811,7 @@ and the "else" branch. If Expression evaluates to true,
 the "if" branch is executed. Otherwise the "else" branch is executed if present.
 If Condition is omitted, it is equivalent to true.
 
-<pre>
+<pre class="grammar">
 IfStat = "if" [ [ SimpleStat ] ";" ] [ Expression ] Block [ "else" Statement ] .
 </pre>
 
@@ -2792,7 +2861,7 @@ without the surrounding Block:
 
 Switches provide multi-way execution.
 
-<pre>
+<pre class="grammar">
 SwitchStat = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
 CaseClause = SwitchCase ":" [ StatementList ] .
 SwitchCase = "case" ExpressionList | "default" .
@@ -2858,7 +2927,7 @@ case x == 4: f3();
 A for statement specifies repeated execution of a block. The iteration is
 controlled by a condition, a for clause, or a range clause.
 
-<pre>
+<pre class="grammar">
 ForStat = "for" [ Condition | ForClause | RangeClause ] Block .
 Condition = Expression .
 </pre>
@@ -2879,7 +2948,7 @@ additionally it may specify an init and post statement, such as an assignment,
 an increment or decrement statement. The init statement may also be a (simple)
 variable declaration; no variables can be declared in the post statement.
 
-<pre>
+<pre class="grammar">
 ForClause = [ InitStat ] ";" [ Condition ] ";" [ PostStat ] .
 InitStat = SimpleStat .
 PostStat = SimpleStat .
@@ -2917,7 +2986,7 @@ of iteration variables - and then executes the block. Iteration terminates
 when all entries have been processed, or if the for statement is terminated
 early, for instance by a break or return statement.
 
-<pre>
+<pre class="grammar">
 RangeClause = IdentifierList ( "=" | ":=" ) "range" Expression .
 </pre>
 
@@ -2970,7 +3039,7 @@ A go statement starts the execution of a function as an independent
 concurrent thread of control within the same address space. The expression
 must be a function or method call.
 
-<pre>
+<pre class="grammar">
 GoStat = "go" Expression .
 </pre>
 
@@ -2989,7 +3058,7 @@ A select statement chooses which of a set of possible communications
 will proceed.  It looks similar to a switch statement but with the
 cases all referring to communication operations.
 
-<pre>
+<pre class="grammar">
 SelectStat = "select" "{" { CommClause } "}" .
 CommClause = CommCase ":" [ StatementList ] .
 CommCase = "case" ( SendExpr | RecvExpr) | "default" .
@@ -3067,7 +3136,7 @@ TODO: Make semantics more precise.
 A return statement terminates execution of the containing function
 and optionally provides a result value or values to the caller.
 
-<pre>
+<pre class="grammar">
 ReturnStat = "return" [ ExpressionList ] .
 </pre>
 
@@ -3111,7 +3180,7 @@ func complex_f2() (re float, im float) {
 Within a for, switch, or select statement, a break statement terminates
 execution of the innermost such statement.
 
-<pre>
+<pre class="grammar">
 BreakStat = "break" [ identifier ].
 </pre>
 
@@ -3133,7 +3202,7 @@ L: for i < n {
 Within a for loop a continue statement begins the next iteration of the
 loop at the post statement.
 
-<pre>
+<pre class="grammar">
 ContinueStat = "continue" [ identifier ].
 </pre>
 
@@ -3144,7 +3213,7 @@ The optional identifier is analogous to that of a break statement.
 
 A label declaration serves as the target of a goto, break or continue statement.
 
-<pre>
+<pre class="grammar">
 LabelDecl = identifier ":" .
 </pre>
 
@@ -3159,7 +3228,7 @@ Error:
 
 A goto statement transfers control to the corresponding label statement.
 
-<pre>
+<pre class="grammar">
 GotoStat = "goto" identifier .
 </pre>
 
@@ -3187,7 +3256,7 @@ next case clause in a switch statement (§Switch statements). It may only
 be used in a switch statement, and only as the last statement in a case
 clause of the switch statement.
 
-<pre>
+<pre class="grammar">
 FallthroughStat = "fallthrough" .
 </pre>
 
@@ -3197,7 +3266,7 @@ FallthroughStat = "fallthrough" .
 A defer statement invokes a function whose execution is deferred to the moment
 when the surrounding function returns.
 
-<pre>
+<pre class="grammar">
 DeferStat = "defer" Expression .
 </pre>
 
@@ -3218,7 +3287,7 @@ for i := 0; i &lt;= 3; i++ {
 }
 </pre>
 
-<hr>
+<hr/>
 
 <h2>Function declarations</h2>
 
@@ -3227,7 +3296,7 @@ Functions contain declarations and statements.  They may be
 recursive. Except for forward declarations (see below), the parameter
 and result types of the signature must all be complete types (§Type declarations).
 
-<pre>
+<pre class="grammar">
 FunctionDecl = "func" identifier Signature [ Block ] .
 </pre>
 	
@@ -3263,7 +3332,7 @@ it is declared within the scope of that type (§Type declarations). If the
 receiver value is not needed inside the method, its identifier may be omitted
 in the declaration.
 
-<pre>
+<pre class="grammar">
 MethodDecl = "func" Receiver identifier Signature [ Block ] .
 Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
 </pre>
@@ -3310,7 +3379,7 @@ base type and may be forward-declared.
 
 <h3>Length and capacity</h3>
 
-<pre>
+<pre class="grammar">
 Call      Argument type        Result
 
 len(s)    string, *string      string length (in bytes)
@@ -3345,7 +3414,7 @@ at any time the following relationship holds:
 
 Conversions syntactically look like function calls of the form
 
-<pre>
+<pre class="grammar">
 T(value)
 </pre>
 
@@ -3453,14 +3522,14 @@ TODO Once this has become clearer, connect new() and make() (new() may be
 explained by make() and vice versa).
 </font>
 
-<hr>
+<hr/>
 
 <h2>Packages</h2>
 
 A package is a package clause, optionally followed by import declarations,
 followed by a series of declarations.
 
-<pre>
+<pre class="grammar">
 Package = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
 </pre>
 
@@ -3470,7 +3539,7 @@ purposes ($Declarations and scope rules).
 Every source file identifies the package to which it belongs.
 The file must begin with a package clause.
 
-<pre>
+<pre class="grammar">
 PackageClause = "package" PackageName .
 
 package Math
@@ -3480,7 +3549,7 @@ package Math
 A package can gain access to exported identifiers from another package
 through an import declaration:
 
-<pre>
+<pre class="grammar">
 ImportDecl = "import" ( ImportSpec | "(" [ ImportSpecList ] ")" ) .
 ImportSpecList = ImportSpec { ";" ImportSpec } [ ";" ] .
 ImportSpec = [ "." | PackageName ] PackageFileName .
@@ -3568,7 +3637,7 @@ func main() {
 }
 </pre>
 
-<hr>
+<hr/>
 
 <h2>Program initialization and execution</h2>
 
@@ -3577,7 +3646,7 @@ or "new()", and no explicit initialization is provided, the memory is
 given a default initialization.  Each element of such a value is
 set to the ``zero'' for that type: "false" for booleans, "0" for integers,
 "0.0" for floats, '''' for strings, and "nil" for pointers and interfaces.
-This intialization is done recursively, so for instance each element of an
+This initialization is done recursively, so for instance each element of an
 array of integers will be set to 0 if no other value is specified.
 <p>
 These two simple declarations are equivalent:
@@ -3640,7 +3709,7 @@ invoking main.main().
 <p>
 When main.main() returns, the program exits.
 
-<hr>
+<hr/>
 
 <h2>Systems considerations</h2>
 
@@ -3652,7 +3721,7 @@ system. A package using "unsafe" must be vetted manually for type safety.
 <p>
 The package "unsafe" provides (at least) the following package interface:
 
-<pre>
+<pre class="grammar">
 package unsafe
 
 const Maxalign int
@@ -3712,7 +3781,7 @@ The results of calls to "unsafe.Alignof", "unsafe.Offsetof", and
 For the arithmetic types (§Arithmetic types), a Go compiler guarantees the
 following sizes:
 
-<pre>
+<pre class="grammar">
 type                      size in bytes
 
 byte, uint8, int8         1
@@ -3737,7 +3806,15 @@ A Go compiler guarantees the following minimal alignment properties:
    unsafe.Alignof(x[0]), but at least 1.
 </ol>
 
-<hr>
+<hr/>
+
+<h2><font color=red>Differences between this doc and implementation - TODO</font></h2>
+<p>
+<font color=red>
+Current implementation accepts only ASCII digits for digits; doc says Unicode.
+<br>
+</font>
+</p>
 
 </div>
 </body>
