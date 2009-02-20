@@ -194,7 +194,7 @@ func (P *Parser) declareInScope(scope *SymbolTable.Scope, x AST.Expr, kind int, 
 }
 
 
-// declare a comma-separated list of idents or a single ident.
+// Declare a comma-separated list of idents or a single ident.
 func (P *Parser) declare(x AST.Expr, kind int, typ *AST.Type) {
 	for {
 		p, ok := x.(*AST.BinaryExpr);
@@ -244,13 +244,15 @@ func (P *Parser) parseIdent(scope *SymbolTable.Scope) *AST.Ident {
 }
 
 
-func (P *Parser) parseIdentList() AST.Expr {
+func (P *Parser) parseIdentList(x AST.Expr) AST.Expr {
 	if P.trace {
 		defer un(trace(P, "IdentList"));
 	}
 
 	var last *AST.BinaryExpr;
-	var x AST.Expr = P.parseIdent(nil);
+	if x == nil {
+		x = P.parseIdent(nil);
+	}
 	for P.tok == Scanner.COMMA {
 		pos := P.pos;
 		P.next();
@@ -551,14 +553,20 @@ func (P *Parser) parseFunctionType() *AST.Type {
 }
 
 
-func (P *Parser) parseMethodSpec(list *vector.Vector) {
+func (P *Parser) parseMethodOrInterfaceSpec(list *vector.Vector) {
 	if P.trace {
-		defer un(trace(P, "MethodDecl"));
+		defer un(trace(P, "MethodOrInterfaceSpec"));
 	}
 
-	list.Push(P.parseIdentList());
-	t := P.parseSignature();
-	list.Push(&AST.TypeLit(t));
+	x := P.parseQualifiedIdent();
+	if tmp, is_ident := x.(*AST.Ident); is_ident && (P.tok == Scanner.COMMA || P.tok == Scanner.LPAREN) {
+		// method(s)
+		list.Push(P.parseIdentList(x));
+		list.Push(&AST.TypeLit(P.parseSignature()));
+	} else {
+		// embedded interface
+		list.Push(x);
+	}
 }
 
 
@@ -576,7 +584,7 @@ func (P *Parser) parseInterfaceType() *AST.Type {
 
 		t.List = vector.New(0);
 		for P.tok == Scanner.IDENT {
-			P.parseMethodSpec(t.List);
+			P.parseMethodOrInterfaceSpec(t.List);
 			if P.tok != Scanner.RBRACE {
 				P.expect(Scanner.SEMICOLON);
 			}
@@ -678,6 +686,11 @@ func (P *Parser) tryType() *AST.Type {
 	case Scanner.MAP: return P.parseMapType();
 	case Scanner.STRUCT: return P.parseStructType();
 	case Scanner.MUL: return P.parsePointerType();
+	case Scanner.LPAREN:
+		P.next();
+		t := P.parseType();
+		P.expect(Scanner.RPAREN);
+		return t;
 	}
 	
 	// no type found
@@ -1374,7 +1387,7 @@ func (P *Parser) parseConstSpec(d *AST.Decl) {
 		defer un(trace(P, "ConstSpec"));
 	}
 
-	d.Ident = P.parseIdentList();
+	d.Ident = P.parseIdentList(nil);
 	d.Typ = P.tryType();
 	if P.tok == Scanner.ASSIGN {
 		P.next();
@@ -1399,7 +1412,7 @@ func (P *Parser) parseVarSpec(d *AST.Decl) {
 		defer un(trace(P, "VarSpec"));
 	}
 
-	d.Ident = P.parseIdentList();
+	d.Ident = P.parseIdentList(nil);
 	if P.tok == Scanner.ASSIGN {
 		P.next();
 		d.Val = P.parseExpressionList();
