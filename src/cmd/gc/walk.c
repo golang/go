@@ -343,7 +343,6 @@ loop:
 	case OSELECT:
 		if(top != Etop)
 			goto nottop;
-
 		walkselect(n);
 		goto ret;
 
@@ -1487,6 +1486,7 @@ selectas(Node *name, Node *expr)
 
 	if(expr == N || expr->op != ORECV)
 		goto bad;
+	walktype(expr->left, Erv);
 	t = expr->left->type;
 	if(t == T)
 		goto bad;
