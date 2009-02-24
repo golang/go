@@ -538,473 +538,6 @@ literal.
 </p>
 <hr/>
 
-<h2>Declarations and Scope</h2>
-
-<p>
-A declaration binds an identifier to a language entity such as
-a variable or function and specifies properties such as its type.
-Every identifier in a program must be declared.
-</p>
-
-<pre class="grammar">
-Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl .
-</pre>
-		
-<p>
-The <i>scope</i> of an identifier is the extent of source text within which the
-identifier denotes the bound entity. No identifier may be declared twice in a
-single scope, but inner blocks can declare a new entity with the same
-identifier, in which case the scope created by the outer declaration excludes
-that created by the inner.
-</p>
-<p>
-There are levels of scoping in effect before each source file is compiled.
-In order from outermost to innermost:
-</p>
-<ol>
-	<li>The <i>universe</i> scope contains all predeclared identifiers.</li>
-	<li>An implicit scope contains only the package name.</li>
-	<li>The <i>package-level</i> scope surrounds all declarations at the
-	    top level of the file, that is, outside the body of any
-	    function or method.  That scope is shared across all
-	    source files within the package (§Packages), allowing
-	    package-level identifiers to be shared between source
-	    files.</li>
-</ol>
-
-<p>
-The scope of an identifier depends on the entity declared:
-</p>
-
-<ol>
-	<li> The scope of predeclared identifiers is the universe scope.</li>
-
-	<li> The scope of an (identifier denoting a) type, function or package
-	     extends from the point of the identifier in the declaration
-	     to the end of the innermost surrounding block.</li>
-
-	<li> The scope of a constant or variable extends textually from
-	     the end of the declaration to the end of the innermost
-	     surrounding block. If the variable is declared in the
-	     <i>init</i> statement of an <code>if </code>,  <code>for</code>,
-	     or  <code>switch </code> statement, the
-	     innermost surrounding block is the block associated
-	     with that statement.</li>
-
-	<li> The scope of a parameter or result is the body of the
-	     corresponding function.</li>
-
-	<li> The scope of a field or method is selectors for the
-	     corresponding type containing the field or method (§Selectors).</li>
-
-	<li> The scope of a label is a unique scope emcompassing
-	     the body of the innermost surrounding function, excluding
-	     nested functions.  Labels do not conflict with variables.</li>
-</ol>
-
-<h3>Predeclared identifiers</h3>
-
-<p>
-The following identifiers are implicitly declared in the outermost scope:
-</p>
-<pre class="grammar">
-Basic types:
-	bool byte float32 float64 int8 int16 int32 int64 string uint8 uint16 uint32 uint64
-
-Platform-specific convenience types:
-	float int uint uintptr
-
-Constants:
-	true false iota nil
-
-Functions:
-	cap convert len make new panic panicln print println typeof (TODO: typeof??)
-
-Packages:
-	sys unsafe  (TODO: does sys endure?)
-</pre>
-
-
-<h3>Exported identifiers</h3>
-
-<p>
-By default, identifiers are visible only within the package in which they are declared.
-Some identifiers are <i>exported</i> and can be referenced using
-<i>qualified identifiers</i> in other packages (§Qualified identifiers).
-If an identifier satisfies these two conditions:
-</p>
-<ol>
-<li>the first character of the identifier's name is a Unicode upper case letter;
-<li>the identifier is declared at the package level or is a field or method of a type
-declared at the top level;
-</ol>
-<p>
-it will be exported automatically.
-</p>
-
-<h3>Const declarations</h3>
-
-<p>
-A constant declaration binds a list of identifiers (the names of
-the constants) to the values of a list of constant expressions
-(§Constant expressions).  The number of identifiers must be equal
-to the number of expressions, and the n<sup>th</sup> identifier on
-the left is bound to value of the n<sup>th</sup> expression on the
-right.
-</p>
-
-<pre class="grammar">
-ConstDecl      = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
-ConstSpecList  = ConstSpec { ";" ConstSpec } [ ";" ] .
-ConstSpec      = IdentifierList [ CompleteType ] [ "=" ExpressionList ] .
-
-IdentifierList = identifier { "," identifier } .
-ExpressionList = Expression { "," Expression } .
-
-CompleteType = Type .
-</pre>
-
-<p>
-If the type (CompleteType) is omitted, the constants take the
-individual types of the corresponding expressions, which may be
-``ideal integer'' or ``ideal float'' (§Ideal number).  If the type
-is present, all constants take the type specified, and the types
-of all the expressions must be assignment-compatible
-with that type.
-</p>
-
-<pre>
-const Pi float64 = 3.14159265358979323846
-const E = 2.718281828
-const (
-	size int64 = 1024;
-	eof = -1;
-)
-const a, b, c = 3, 4, "foo"  // a = 3, b = 4, c = "foo"
-const u, v float = 0, 3      // u = 0.0, v = 3.0
-</pre>
-
-<p>
-Within a parenthesized <code>const</code> declaration list the
-expression list may be omitted from any but the first declaration.
-Such an empty list is equivalent to the textual substitution of the
-first preceding non-empty expression list.  Omitting the list of
-expressions is therefore equivalent to repeating the previous list.
-The number of identifiers must be equal to the number of expressions
-in the previous list.  Together with the <code>iota</code> constant generator
-(§Iota) this mechanism permits light-weight declaration of sequential values:
-</p>
-
-<pre>
-const (
-	Sunday = iota;
-	Monday;
-	Tuesday;
-	Wednesday;
-	Thursday;
-	Friday;
-	Partyday;
-	numberOfDays;  // this constant is not exported
-)
-</pre>
-
-
-<h3>Iota</h3>
-
-<p>
-Within a constant declaration, the predeclared pseudo-constant
-<code>iota</code> represents successive integers. It is reset to 0
-whenever the reserved word <code>const</code> appears in the source
-and increments with each semicolon. It can be used to construct a
-set of related constants:
-</p>
-
-<pre>
-const (            // iota is reset to 0
-	c0 = iota;  // c0 == 0
-	c1 = iota;  // c1 == 1
-	c2 = iota   // c2 == 2
-)
-
-const (
-	a = 1 << iota;  // a == 1 (iota has been reset)
-	b = 1 << iota;  // b == 2
-	c = 1 << iota;  // c == 4
-)
-
-const (
-	u       = iota * 42;  // u == 0     (ideal integer)
-	v float = iota * 42;  // v == 42.0  (float)
-	w       = iota * 42;  // w == 84    (ideal integer)
-)
-
-const x = iota;  // x == 0 (iota has been reset)
-const y = iota;  // y == 0 (iota has been reset)
-</pre>
-
-<p>
-Within an ExpressionList, the value of each <code>iota</code> is the same because
-it is only incremented at a semicolon:
-</p>
-
-<pre>
-const (
-	bit0, mask0 = 1 << iota, 1 << iota - 1;  // bit0 == 1, mask0 == 0
-	bit1, mask1;                             // bit1 == 2, mask1 == 1
-	bit2, mask2;                             // bit2 == 4, mask2 == 3
-)
-</pre>
-
-<p>
-This last example exploits the implicit repetition of the
-last non-empty expression list.
-</p>
-
-
-<h3>Type declarations</h3>
-
-<p>
-A type declaration binds an identifier, the <i>type name</i>,
-to a new type.  <font color=red>TODO: what exactly is a "new type"?</font>
-</p>
-
-<pre class="grammar">
-TypeDecl     = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
-TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
-TypeSpec     = identifier Type .
-</pre>
-
-<pre>
-type IntArray [16] int
-
-type (
-	Point struct { x, y float };
-	Polar Point
-)
-
-type TreeNode struct {
-	left, right *TreeNode;
-	value Point;
-}
-
-type Comparable interface {
-	cmp(Comparable) int
-}
-</pre>
-
-<h3>Variable declarations</h3>
-
-<p>
-A variable declaration creates a variable, binds an identifier to it and
-gives it a type and optionally an initial value.
-The variable type must be a complete type (§Types).
-</p>
-<pre class="grammar">
-VarDecl     = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
-VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
-VarSpec     = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
-</pre>
-
-<pre>
-var i int
-var U, V, W float
-var k = 0
-var x, y float = -1.0, -2.0
-var (
-	i int;
-	u, v, s = 2.0, 3.0, "bar"
-)
-</pre>
-
-<p>
-If there are expressions, their number must be equal
-to the number of identifiers, and the n<sup>th</sup> variable
-is initialized to the value of the n<sup>th</sup> expression.
-Otherwise, each variable is initialized to the <i>zero</i>
-of the type (§Program initialization and execution).
-The expressions can be general expressions; they need not be constants.
-</p>
-<p>
-Either the type or the expression list must be present.  If the
-type is present, it sets the type of each variable and the expressions
-(if any) must be assignment-compatible to that type.  If the type
-is absent, the variables take the types of the corresponding
-expressions.
-</p>
-<p>
-If the type is absent and the corresponding expression is a constant
-expression of ideal integer or ideal float type, the type of the
-declared variable is <code>int</code> or <code>float</code>
-respectively:
-</p>
-
-<pre>
-var i = 0       // i has type int
-var f = 3.1415  // f has type float
-</pre>
-
-<h3>Short variable declarations</h3>
-
-A <i>short variable declaration</i> uses the syntax
-
-<pre class="grammar">
-SimpleVarDecl = IdentifierList ":=" ExpressionList .
-</pre>
-
-and is shorthand for the declaration syntax
-
-<pre class="grammar">
-"var" IdentifierList = ExpressionList .
-</pre>
-
-<pre>
-i, j := 0, 10;
-f := func() int { return 7; }
-ch := new(chan int);
-</pre>
-
-<p>
-Unlike regular variable declarations, short variable declarations
-can be used, by analogy with tuple assignment (§Assignments), to
-receive the individual elements of a multi-valued expression such
-as a call to a multi-valued function.  In this form, the ExpressionLIst
-must be a single such multi-valued expression, the number of
-identifiers must equal the number of values, and the declared
-variables will be assigned the corresponding values.
-</p>
-
-<pre>
-count, error := os.Close(fd);  // os.Close()  returns two values
-</pre>
-
-<p>
-Short variable declarations may appear only inside functions.
-In some contexts such as the initializers for <code>if</code>,
-<code>for</code>, or <code>switch</code> statements,
-they can be used to declare local temporary variables (§Statements).
-</p>
-
-<h3>Function declarations</h3>
-
-<p>
-A function declaration binds an identifier to a function (§Function types).
-</p>
-
-<pre class="grammar">
-FunctionDecl = "func" identifier Signature [ Block ] .
-</pre>
-
-<pre>
-func min(x int, y int) int {
-	if x &lt; y {
-		return x;
-	}
-	return y;
-}
-</pre>
-
-<p>
-A function must be declared or forward-declared before it can be invoked (§Forward declarations).
-Implementation restriction: Functions can only be declared at the package level.
-</p>
-
-<h3>Method declarations</h3>
-
-<p>
-A method declaration binds an identifier to a method,
-which is a function with a <i>receiver</i>.
-</p>
-<pre class="grammar">
-MethodDecl = "func" Receiver identifier Signature [ Block ] .
-Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
-</pre>
-
-<p>
-The receiver type must be a type name or a pointer to a type name,
-and that name is called the <i>receiver base type</i> or just <i>base type</i>.
-The base type must not be a pointer type and must be
-declared in the same source file as the method.
-The method is said to be <i>bound</i> to the base type
-and is visible only within selectors for that type
-(§Type declarations, §Selectors).
-</p>
-
-<p>
-All methods bound to a base type must have the same receiver type,
-either all pointers to the base type or all the base type itself.
-Given type <code>Point</code>, the declarations
-</p>
-
-<pre>
-func (p *Point) Length() float {
-	return Math.sqrt(p.x * p.x + p.y * p.y);
-}
-
-func (p *Point) Scale(factor float) {
-	p.x = p.x * factor;
-	p.y = p.y * factor;
-}
-</pre>
-
-<p>
-bind the methods <code>Length</code> and <code>Scale</code>
-to the base type <code>Point</code>.
-</p>
-
-<p>
-If the
-receiver's value is not referenced inside the the body of the method,
-its identifier may be omitted in the declaration. The same applies in
-general to parameters of functions and methods.
-</p>
-
-<p>
-Methods can be declared
-only after their base type is declared or forward-declared, and invoked
-only after their own declaration or forward-declaration (§Forward declarations).
-Implementation restriction: They can only be declared at package level.
-</p>
-
-<h3>Forward declarations</h3>
-
-<p>
-Mutually-recursive types struct or interface types require that one be
-<i>forward declared</i> so that it may be named in the other.
-A forward declaration of a type omits the block containing the fields
-or methods of the type.
-</p>
-
-<pre>
-type List struct  // forward declaration of List
-type Item struct {
-	value int;
-	next *List;
-}
-type List struct {
-	head, tail *Item
-}
-</pre>
-<p>
-A forward-declared type is incomplete (§Types)
-until it is fully declared. The full declaration must follow
-before the end of the block containing the forward declaration.
-</p>
-<p>
-Functions and methods may similarly be forward-declared by omitting their body.
-</p>
-<pre>
-func F(a int) int  // forward declaration of F
-func G(a, b int) int {
-	return F(a) + F(b)
-}
-func F(a int) int {
-	if a <= 0 { return 0 }
-	return G(a-1, b+1)
-}
-</pre>
-
-<hr/>
-
 <h2>Types</h2>
 
 A type specifies the set of values that variables of that type may assume
@@ -1800,6 +1333,474 @@ struct { a, b *T5 } and struct { a, b *T5 }
 
 As an example, "T0" and "T1" are equal but not identical because they have
 different declarations.
+
+<hr/>
+
+
+<h2>Declarations and Scope</h2>
+
+<p>
+A declaration binds an identifier to a language entity such as
+a variable or function and specifies properties such as its type.
+Every identifier in a program must be declared.
+</p>
+
+<pre class="grammar">
+Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl .
+</pre>
+		
+<p>
+The <i>scope</i> of an identifier is the extent of source text within which the
+identifier denotes the bound entity. No identifier may be declared twice in a
+single scope, but inner blocks can declare a new entity with the same
+identifier, in which case the scope created by the outer declaration excludes
+that created by the inner.
+</p>
+<p>
+There are levels of scoping in effect before each source file is compiled.
+In order from outermost to innermost:
+</p>
+<ol>
+	<li>The <i>universe</i> scope contains all predeclared identifiers.</li>
+	<li>An implicit scope contains only the package name.</li>
+	<li>The <i>package-level</i> scope surrounds all declarations at the
+	    top level of the file, that is, outside the body of any
+	    function or method.  That scope is shared across all
+	    source files within the package (§Packages), allowing
+	    package-level identifiers to be shared between source
+	    files.</li>
+</ol>
+
+<p>
+The scope of an identifier depends on the entity declared:
+</p>
+
+<ol>
+	<li> The scope of predeclared identifiers is the universe scope.</li>
+
+	<li> The scope of an (identifier denoting a) type, function or package
+	     extends from the point of the identifier in the declaration
+	     to the end of the innermost surrounding block.</li>
+
+	<li> The scope of a constant or variable extends textually from
+	     the end of the declaration to the end of the innermost
+	     surrounding block. If the variable is declared in the
+	     <i>init</i> statement of an <code>if </code>,  <code>for</code>,
+	     or  <code>switch </code> statement, the
+	     innermost surrounding block is the block associated
+	     with that statement.</li>
+
+	<li> The scope of a parameter or result is the body of the
+	     corresponding function.</li>
+
+	<li> The scope of a field or method is selectors for the
+	     corresponding type containing the field or method (§Selectors).</li>
+
+	<li> The scope of a label is a unique scope emcompassing
+	     the body of the innermost surrounding function, excluding
+	     nested functions.  Labels do not conflict with variables.</li>
+</ol>
+
+<h3>Predeclared identifiers</h3>
+
+<p>
+The following identifiers are implicitly declared in the outermost scope:
+</p>
+<pre class="grammar">
+Basic types:
+	bool byte float32 float64 int8 int16 int32 int64 string uint8 uint16 uint32 uint64
+
+Platform-specific convenience types:
+	float int uint uintptr
+
+Constants:
+	true false iota nil
+
+Functions:
+	cap convert len make new panic panicln print println typeof (TODO: typeof??)
+
+Packages:
+	sys unsafe  (TODO: does sys endure?)
+</pre>
+
+
+<h3>Exported identifiers</h3>
+
+<p>
+By default, identifiers are visible only within the package in which they are declared.
+Some identifiers are <i>exported</i> and can be referenced using
+<i>qualified identifiers</i> in other packages (§Qualified identifiers).
+If an identifier satisfies these two conditions:
+</p>
+<ol>
+<li>the first character of the identifier's name is a Unicode upper case letter;
+<li>the identifier is declared at the package level or is a field or method of a type
+declared at the top level;
+</ol>
+<p>
+it will be exported automatically.
+</p>
+
+<h3>Const declarations</h3>
+
+<p>
+A constant declaration binds a list of identifiers (the names of
+the constants) to the values of a list of constant expressions
+(§Constant expressions).  The number of identifiers must be equal
+to the number of expressions, and the n<sup>th</sup> identifier on
+the left is bound to value of the n<sup>th</sup> expression on the
+right.
+</p>
+
+<pre class="grammar">
+ConstDecl      = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
+ConstSpecList  = ConstSpec { ";" ConstSpec } [ ";" ] .
+ConstSpec      = IdentifierList [ CompleteType ] [ "=" ExpressionList ] .
+
+IdentifierList = identifier { "," identifier } .
+ExpressionList = Expression { "," Expression } .
+
+CompleteType = Type .
+</pre>
+
+<p>
+If the type (CompleteType) is omitted, the constants take the
+individual types of the corresponding expressions, which may be
+``ideal integer'' or ``ideal float'' (§Ideal number).  If the type
+is present, all constants take the type specified, and the types
+of all the expressions must be assignment-compatible
+with that type.
+</p>
+
+<pre>
+const Pi float64 = 3.14159265358979323846
+const E = 2.718281828
+const (
+	size int64 = 1024;
+	eof = -1;
+)
+const a, b, c = 3, 4, "foo"  // a = 3, b = 4, c = "foo"
+const u, v float = 0, 3      // u = 0.0, v = 3.0
+</pre>
+
+<p>
+Within a parenthesized <code>const</code> declaration list the
+expression list may be omitted from any but the first declaration.
+Such an empty list is equivalent to the textual substitution of the
+first preceding non-empty expression list.  Omitting the list of
+expressions is therefore equivalent to repeating the previous list.
+The number of identifiers must be equal to the number of expressions
+in the previous list.  Together with the <code>iota</code> constant generator
+(§Iota) this mechanism permits light-weight declaration of sequential values:
+</p>
+
+<pre>
+const (
+	Sunday = iota;
+	Monday;
+	Tuesday;
+	Wednesday;
+	Thursday;
+	Friday;
+	Partyday;
+	numberOfDays;  // this constant is not exported
+)
+</pre>
+
+
+<h3>Iota</h3>
+
+<p>
+Within a constant declaration, the predeclared pseudo-constant
+<code>iota</code> represents successive integers. It is reset to 0
+whenever the reserved word <code>const</code> appears in the source
+and increments with each semicolon. It can be used to construct a
+set of related constants:
+</p>
+
+<pre>
+const (            // iota is reset to 0
+	c0 = iota;  // c0 == 0
+	c1 = iota;  // c1 == 1
+	c2 = iota   // c2 == 2
+)
+
+const (
+	a = 1 << iota;  // a == 1 (iota has been reset)
+	b = 1 << iota;  // b == 2
+	c = 1 << iota;  // c == 4
+)
+
+const (
+	u       = iota * 42;  // u == 0     (ideal integer)
+	v float = iota * 42;  // v == 42.0  (float)
+	w       = iota * 42;  // w == 84    (ideal integer)
+)
+
+const x = iota;  // x == 0 (iota has been reset)
+const y = iota;  // y == 0 (iota has been reset)
+</pre>
+
+<p>
+Within an ExpressionList, the value of each <code>iota</code> is the same because
+it is only incremented at a semicolon:
+</p>
+
+<pre>
+const (
+	bit0, mask0 = 1 << iota, 1 << iota - 1;  // bit0 == 1, mask0 == 0
+	bit1, mask1;                             // bit1 == 2, mask1 == 1
+	bit2, mask2;                             // bit2 == 4, mask2 == 3
+)
+</pre>
+
+<p>
+This last example exploits the implicit repetition of the
+last non-empty expression list.
+</p>
+
+
+<h3>Type declarations</h3>
+
+<p>
+A type declaration binds an identifier, the <i>type name</i>,
+to a new type.  <font color=red>TODO: what exactly is a "new type"?</font>
+</p>
+
+<pre class="grammar">
+TypeDecl     = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
+TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
+TypeSpec     = identifier Type .
+</pre>
+
+<pre>
+type IntArray [16] int
+
+type (
+	Point struct { x, y float };
+	Polar Point
+)
+
+type TreeNode struct {
+	left, right *TreeNode;
+	value Point;
+}
+
+type Comparable interface {
+	cmp(Comparable) int
+}
+</pre>
+
+<h3>Variable declarations</h3>
+
+<p>
+A variable declaration creates a variable, binds an identifier to it and
+gives it a type and optionally an initial value.
+The variable type must be a complete type (§Types).
+</p>
+<pre class="grammar">
+VarDecl     = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
+VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
+VarSpec     = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
+</pre>
+
+<pre>
+var i int
+var U, V, W float
+var k = 0
+var x, y float = -1.0, -2.0
+var (
+	i int;
+	u, v, s = 2.0, 3.0, "bar"
+)
+</pre>
+
+<p>
+If there are expressions, their number must be equal
+to the number of identifiers, and the n<sup>th</sup> variable
+is initialized to the value of the n<sup>th</sup> expression.
+Otherwise, each variable is initialized to the <i>zero</i>
+of the type (§Program initialization and execution).
+The expressions can be general expressions; they need not be constants.
+</p>
+<p>
+Either the type or the expression list must be present.  If the
+type is present, it sets the type of each variable and the expressions
+(if any) must be assignment-compatible to that type.  If the type
+is absent, the variables take the types of the corresponding
+expressions.
+</p>
+<p>
+If the type is absent and the corresponding expression is a constant
+expression of ideal integer or ideal float type, the type of the
+declared variable is <code>int</code> or <code>float</code>
+respectively:
+</p>
+
+<pre>
+var i = 0       // i has type int
+var f = 3.1415  // f has type float
+</pre>
+
+<h3>Short variable declarations</h3>
+
+A <i>short variable declaration</i> uses the syntax
+
+<pre class="grammar">
+SimpleVarDecl = IdentifierList ":=" ExpressionList .
+</pre>
+
+and is shorthand for the declaration syntax
+
+<pre class="grammar">
+"var" IdentifierList = ExpressionList .
+</pre>
+
+<pre>
+i, j := 0, 10;
+f := func() int { return 7; }
+ch := new(chan int);
+</pre>
+
+<p>
+Unlike regular variable declarations, short variable declarations
+can be used, by analogy with tuple assignment (§Assignments), to
+receive the individual elements of a multi-valued expression such
+as a call to a multi-valued function.  In this form, the ExpressionLIst
+must be a single such multi-valued expression, the number of
+identifiers must equal the number of values, and the declared
+variables will be assigned the corresponding values.
+</p>
+
+<pre>
+count, error := os.Close(fd);  // os.Close()  returns two values
+</pre>
+
+<p>
+Short variable declarations may appear only inside functions.
+In some contexts such as the initializers for <code>if</code>,
+<code>for</code>, or <code>switch</code> statements,
+they can be used to declare local temporary variables (§Statements).
+</p>
+
+<h3>Function declarations</h3>
+
+<p>
+A function declaration binds an identifier to a function (§Function types).
+</p>
+
+<pre class="grammar">
+FunctionDecl = "func" identifier Signature [ Block ] .
+</pre>
+
+<pre>
+func min(x int, y int) int {
+	if x &lt; y {
+		return x;
+	}
+	return y;
+}
+</pre>
+
+<p>
+A function must be declared or forward-declared before it can be invoked (§Forward declarations).
+Implementation restriction: Functions can only be declared at the package level.
+</p>
+
+<h3>Method declarations</h3>
+
+<p>
+A method declaration binds an identifier to a method,
+which is a function with a <i>receiver</i>.
+</p>
+<pre class="grammar">
+MethodDecl = "func" Receiver identifier Signature [ Block ] .
+Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
+</pre>
+
+<p>
+The receiver type must be a type name or a pointer to a type name,
+and that name is called the <i>receiver base type</i> or just <i>base type</i>.
+The base type must not be a pointer type and must be
+declared in the same source file as the method.
+The method is said to be <i>bound</i> to the base type
+and is visible only within selectors for that type
+(§Type declarations, §Selectors).
+</p>
+
+<p>
+All methods bound to a base type must have the same receiver type,
+either all pointers to the base type or all the base type itself.
+Given type <code>Point</code>, the declarations
+</p>
+
+<pre>
+func (p *Point) Length() float {
+	return Math.sqrt(p.x * p.x + p.y * p.y);
+}
+
+func (p *Point) Scale(factor float) {
+	p.x = p.x * factor;
+	p.y = p.y * factor;
+}
+</pre>
+
+<p>
+bind the methods <code>Length</code> and <code>Scale</code>
+to the base type <code>Point</code>.
+</p>
+
+<p>
+If the
+receiver's value is not referenced inside the the body of the method,
+its identifier may be omitted in the declaration. The same applies in
+general to parameters of functions and methods.
+</p>
+
+<p>
+Methods can be declared
+only after their base type is declared or forward-declared, and invoked
+only after their own declaration or forward-declaration (§Forward declarations).
+Implementation restriction: They can only be declared at package level.
+</p>
+
+<h3>Forward declarations</h3>
+
+<p>
+Mutually-recursive types struct or interface types require that one be
+<i>forward declared</i> so that it may be named in the other.
+A forward declaration of a type omits the block containing the fields
+or methods of the type.
+</p>
+
+<pre>
+type List struct  // forward declaration of List
+type Item struct {
+	value int;
+	next *List;
+}
+type List struct {
+	head, tail *Item
+}
+</pre>
+<p>
+A forward-declared type is incomplete (§Types)
+until it is fully declared. The full declaration must follow
+before the end of the block containing the forward declaration.
+</p>
+<p>
+Functions and methods may similarly be forward-declared by omitting their body.
+</p>
+<pre>
+func F(a int) int  // forward declaration of F
+func G(a, b int) int {
+	return F(a) + F(b)
+}
+func F(a int) int {
+	if a <= 0 { return 0 }
+	return G(a-1, b+1)
+}
+</pre>
 
 <hr/>
 
