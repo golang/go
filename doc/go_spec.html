@@ -85,7 +85,7 @@ Closed:
     and struct field names (both seem easy to do). - under "Missing" list
 [x] passing a "..." arg to another "..." parameter doesn't wrap the argument again
 	(so "..." args can be passed down easily) - this is documented
-[x] consider syntactic notation for composite literals to make them parseable w/o type information
+[x] consider syntactic notation for composite literals to make them parsable w/o type information
 	(require ()'s in control clauses) - use heuristics for now
 [x] do we need anything on package vs file names? - current package scheme workable for now
 [x] what is the meaning of typeof() - we don't have it
@@ -516,13 +516,6 @@ These examples all represent the same string:
 "\U000065e5\U0000672c\U00008a9e"        // The explicit Unicode code points
 "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // The explicit UTF-8 bytes
 </pre>
-<p>
-Adjacent string literals separated only by the empty string, white
-space, or comments are concatenated into a single string literal.
-</p>
-<pre class="grammar">
-StringLit              = string_lit { string_lit } .
-</pre>
 
 <pre>
 "Alea iacta est."
@@ -540,12 +533,12 @@ literal.
 
 <h2>Types</h2>
 
-A type specifies the set of values that variables of that type may assume
-and the operators that are applicable.
 <p>
-A type may be specified by a type name (§Type declarations) or a type literal.
-A type literal is a syntactic construct that explicitly specifies the
-composition of a new type in terms of other (already declared) types.
+A type determines a set of values and operations specific to values of that type.
+A type may be specified by a (possibly qualified (§Qualified identifiers))
+type name (§Type declarations) or a <i>type literal</i>,
+which composes a new type in terms of previously declared types.
+</p>
 
 <pre class="grammar">
 Type = TypeName | TypeLit | "(" Type ")" .
@@ -555,52 +548,59 @@ TypeLit =
 	SliceType | MapType | ChannelType .
 </pre>
 
-Some types are predeclared and denoted by their type names; these are called
-``basic types''. Generally (except for strings) they are not composed of more
-elementary types; instead they model elementary machine data types.
 <p>
-All other types are called ``composite types'; they are composed from other
-(basic or composite) types and denoted by their type names or by type literals.
-There are arrays, structs, pointers, functions, interfaces, slices, maps, and
+<i>Basic types</i> such as <code>int</code> are predeclared (§Predeclared identifiers).
+Other types may be constructed from these, recursively,
+including arrays, structs, pointers, functions, interfaces, slices, maps, and
 channels.
-<p>
-At a given point in the source code, a type may be ``complete'' or
-''incomplete''. Array and struct types are complete when they are fully declared.
-All other types are always complete (although their components, such as the base
-type of a pointer type, may be incomplete). Incomplete types are subject to usage
-restrictions; for instance the type of a variable must be complete where the
-variable is declared.
+</p>
 
-The ``interface'' of a type is the set of methods bound to it
-(§Method declarations). The interface of a pointer type is the interface
+<p>
+TODO: not sure the rest of this section this is needed; it's all covered or should be covered in the sections
+that follow.
+</p>
+<p>
+At any point in the source code, a type may be <i>complete</i> or
+<i>incomplete</i>.  Most types are always complete, although their
+components, such as the base type of a pointer type, may be incomplete.
+Struct and interface types are incomplete when forward declared
+(§Forward declarations) and become complete once they are fully
+declared.  (TODO: You had array here - why?)
+The type of a variable must be complete where the variable is declared.
+(TODO: would be better to say what you CAN do with an interface type,
+and then drop all the references to complete types in the sections
+that follow.  What can you do? Use one to declare a pointer variable/field/param.
+Anything else?)
+</p>
+<p>
+The <i>interface</i> of a type is the set of methods bound to it
+(§Method declarations); for pointer types, it is the interface
 of the pointer base type (§Pointer types). All types have an interface;
-if they have no methods associated with them, their interface is
-called the ``empty'' interface.
+if they have no methods, it is the <i>empty'' interface</i>.
+</p>
 <p>
-The ``static type'' (or simply ``type'') of a variable is the type defined by
-the variable's declaration. The ``dynamic type'' of a variable is the actual
-type of the value stored in a variable at run-time. Except for variables of
-interface type, the dynamic type of a variable is always its static type.
-<p>
-Variables of interface type may hold values with different dynamic types
-during execution. However, its dynamic type is always compatible with
-the static type of the interface variable (§Interface types).
-	
+The <i>static type</i> (or just <i>type</i>) of a variable is the
+type defined by its declaration.  Variables of interface type
+(§Interface types) also have a distinct <i>dynamic type</i>, which
+is the actual type of the value stored in the variable at run-time.
+The dynamic type may vary during execution but is always compatible
+with the static type of the interface variable.  For non-interfaces
+types, the dynamic type is always the static type.
+</p>
 
 <h3>Basic types</h3>
 
-Go defines a number of basic types, referred to by their predeclared
-type names.  These include traditional arithmetic types, booleans,
-and strings.
-
+<p>
+Basic types include traditional arithmetic types, booleans, and strings. All are predeclared.
+</p>
 
 <h3>Arithmetic types</h3>
 
-The following list enumerates all platform-independent numeric types:
+<p>
+The architecture-independent numeric types are:
+</p>
 
 <pre class="grammar">
-byte     same as uint8 (for convenience)
-
 uint8    the set of all unsigned  8-bit integers (0 to 255)
 uint16   the set of all unsigned 16-bit integers (0 to 65535)
 uint32   the set of all unsigned 32-bit integers (0 to 4294967295)
@@ -613,22 +613,20 @@ int64    the set of all signed 64-bit integers (-9223372036854775808 to 92233720
 
 float32  the set of all valid IEEE-754 32-bit floating point numbers
 float64  the set of all valid IEEE-754 64-bit floating point numbers
+
+byte     familiar alias for uint8
 </pre>
 
+<p>
 Integer types are represented in the usual binary format; the value of
 an n-bit integer is n bits wide. A negative signed integer is represented
 as the two's complement of its absolute value.
+</p>
 
-<!--
-The representation of signed integers and their exact range is
-implementation-specific, but the set of all positive values (including zero)
-of a signed integer type is always a subset of the corresponding unsigned
-integer type (thus, a positive signed integer can always be converted into
-its corresponding unsigned type without loss).
--->
-
-Additionally, Go declares a set of platform-specific numeric types for
-convenience:
+<p>
+There is also a set of architecture-independent basic numeric types
+whose size depends on the architecture:
+</p>
 
 <pre class="grammar">
 uint     at least 32 bits, at most the size of the largest uint type
@@ -638,59 +636,54 @@ uintptr  smallest uint type large enough to store the uninterpreted
 		 bits of a pointer value
 </pre>
 
-For instance, int might have the same size as int32 on a 32-bit
-architecture, or int64 on a 64-bit architecture.
 <p>
-Except for "byte", which is an alias for "uint8", all numeric types
-are different from each other to avoid portability issues. Conversions
-are required when different numeric types are mixed in an expression or assignment.
-For instance, "int32" and "int" are not the same type even though they may have
-the same size on a particular platform.
+Except for <code>byte</code>, which is an alias for <code>uint8</code>,
+to avoid portability issues all numeric types are distinct. Conversions
+are required when different numeric types are mixed in an expression
+or assignment. For instance, <code>int32</code> and <code>int</code>
+are not the same type even though they may have the same size on a 
+particular architecture.
 
 
 <h3>Booleans</h3>
 
-The type "bool" comprises the truth values true and false, which are
-available through the two predeclared constants, "true" and "false".
+The type <code>bool</code> comprises the Boolean truth values
+represented by the predeclared constants <code>true</code>
+and <code>false</code>.
 
 
 <h3>Strings</h3>
 
 <p>
-The "string" type represents the set of string values (strings).
-Strings behave like arrays of bytes, with the following properties:
+The <code>string</code> type represents the set of textual string values.
+Strings behave like arrays of bytes but are immutable: once created,
+it is impossible to change the contents of a string.
+
+<p>
+The elements of strings have type <code>byte</code> and may be
+accessed using the usual indexing operations (§Indexes).  It is
+illegal to take the address of such an element, that is, even if
+<code>s[i]</code> is the <code>i</code><sup>th</sup> byte of a
+string, <code>&amp;s[i]</code> is invalid.  The length of a string
+can be computed by the function <code>len(s1)</code>.
 </p>
-<ul>
-<li>They are immutable: after creation, it is not possible to change the
-contents of a string.
-<li>No internal pointers: it is illegal to create a pointer to an inner
-element of a string.
-<li>They can be indexed: given string "s1", "s1[i]" is a byte value.
-<li>They can be concatenated: given strings "s1" and "s2", "s1 + s2" is a value
-combining the elements of "s1" and "s2" in sequence.
-<li>Known length: the length of a string "s1" can be obtained by calling
-"len(s1)".  The length of a string is the number
-of bytes within. Unlike in C, there is no terminal NUL byte.
-<li>Creation 1: a string can be created from an integer value by a conversion;
-the result is a string containing the UTF-8 encoding of that code point
-(§Conversions).
-"string('x')" yields "x"; "string(0x1234)" yields the equivalent of "\u1234"
 
-<li>Creation 2: a string can by created from an array of integer values (maybe
-just array of bytes) by a conversion (§Conversions):
-<pre>
-a [3]byte; a[0] = 'a'; a[1] = 'b'; a[2] = 'c';  string(a) == "abc";
+<p>
+String literals separated only by the empty string, white
+space, or comments are concatenated into a single string literal.
+</p>
+<pre class="grammar">
+StringLit              = string_lit { string_lit } .
 </pre>
-</ul>
-
 
 <h3>Array types</h3>
 
-An array is a composite type consisting of a number of elements all of the
-same type, called the element type. The element type must be a complete type
-(§Types). The number of elements of an array is called its length; it is never
-negative. The elements of an array are designated by indices
-which are integers from 0 through the length - 1.
+<p>
+An array is a numbered sequence of elements of a single
+type, called the element type, which must be complete
+(§Types). The number of elements is called the length and is never
+negative.
+</p>
 
 <pre class="grammar">
 ArrayType = "[" ArrayLength "]" ElementType .
@@ -698,19 +691,14 @@ ArrayLength = Expression .
 ElementType = CompleteType .
 </pre>
 
-The array length and its value are part of the array type. The array length
-must be a constant expression (§Constant expressions) that evaluates to an
-integer value >= 0.
 <p>
-The number of elements of an array "a" can be discovered using the built-in
-function
-
-<pre>
-len(a)
-</pre>
-
-The length of arrays is known at compile-time, and the result of a call to
-"len(a)" is a compile-time constant.
+The length is part of the array's type and must must be a constant
+expression (§Constant expressions) that evaluates to a non-negative
+integer value.  The length of array <code>a</code> can be discovered
+using the built-in function <code>len(a)</code>, which is a
+compile-time constant.  The elements can be indexed by integer
+indices 0 through the <code>len(a)-1</code> (§Indexes).
+</p>
 
 <pre>
 [32]byte
@@ -718,19 +706,15 @@ The length of arrays is known at compile-time, and the result of a call to
 [1000]*float64
 </pre>
 
-Assignment compatibility: Arrays can be assigned to variables of equal type
-and to slice variables with equal element type. When assigning to a slice
-variable, the array is not copied but a slice comprising the entire array
-is created.
-
 
 <h3>Struct types</h3>
 
-A struct is a composite type consisting of a fixed number of elements,
-called fields, with possibly different types. A struct type declares
-an identifier and type for each field. Within a struct type no field
-identifier may be declared twice and all field types must be complete
-types (§Types).
+<p>
+A struct is a sequence of named
+elements, called fields, with various types. A struct type declares
+an identifier and type for each field. Within a struct field identifiers
+must be unique and  field types must be complete (§Types).
+</p>
 
 <pre class="grammar">
 StructType = "struct" [ "{" [ FieldDeclList ] "}" ] .
@@ -752,10 +736,13 @@ struct {
 }
 </pre>
 
-A struct may contain ``anonymous fields'', which are declared with a type
-but no explicit field identifier. An anonymous field type must be specified as
-a type name "T", or as a pointer to a type name ``*T'', and T itself may not be
+<p>
+A field declared with a type but no field identifier is an <i>anonymous field</i>.
+Such a field type must be specified as
+a type name <code>T</code> or as a pointer to a type name <code>*T</code>
+and <code>T</code> itself may not be
 a pointer or interface type. The unqualified type name acts as the field identifier.
+</p>
 
 <pre>
 // A struct with four anonymous fields of type T1, *T2, P.T3 and *P.T4
@@ -768,9 +755,11 @@ struct {
 }
 </pre>
 
+<p>
 The unqualified type name of an anonymous field must not conflict with the
 field identifier (or unqualified type name for an anonymous field) of any
 other field within the struct. The following declaration is illegal:
+</p>
 
 <pre>
 struct {
@@ -780,34 +769,35 @@ struct {
 }
 </pre>
 
-Fields and methods (§Method declarations) of an anonymous field become directly
-accessible as fields and methods of the struct without the need to provide the
-type name of the respective anonymous field (§Selectors).
 <p>
-A field declaration may be followed by an optional string literal tag which
-becomes an ``attribute'' for all the identifiers in the corresponding
-field declaration. The tags are available via the reflection library but
-are ignored otherwise. A tag may contain arbitrary application-specific
-information.
+Fields and methods (§Method declarations) of an anonymous field are
+promoted to be ordinary fields and methods of the struct (§Selectors).
+</p>
+<p>
+A field declaration may be followed by an optional string literal <i>tag</i>, which
+becomes an attribute for all the identifiers in the corresponding
+field declaration. The tags are made
+visible through a reflection library (TODO: reference?)
+but are otherwise ignored.
+</p>
 
 <pre>
 // A struct corresponding to the EventIdMessage protocol buffer.
-// The tag strings contain the protocol buffer field tags.
+// The tag strings contain the protocol buffer field numbers.
 struct {
-	time_usec uint64 "1";
-	server_ip uint32 "2";
-	process_id uint32 "3";
+	time_usec uint64 "field 1";
+	server_ip uint32 "field 2";
+	process_id uint32 "field 3";
 }
 </pre>
-
-Assignment compatibility: Structs are assignment compatible to variables of
-equal type only.
 
 
 <h3>Pointer types</h3>
 
+<p>
 A pointer type denotes the set of all pointers to variables of a given
-type, called the ``base type'' of the pointer, and the value "nil".
+type, called the ``base type'' of the pointer, and the value <code>nil</code>.
+</p>
 
 <pre class="grammar">
 PointerType = "*" BaseType .
@@ -819,37 +809,15 @@ BaseType = Type .
 map[string] chan
 </pre>
 
-The pointer base type may be denoted by an identifier referring to an
-incomplete type (§Types), possibly declared via a forward declaration.
-This allows the construction of recursive and mutually recursive types
-such as:
-
-<pre>
-type S struct { s *S }
-
-type S2 struct // forward declaration of S2
-type S1 struct { s2 *S2 }
-type S2 struct { s1 *S1 }
-</pre>
-
-Assignment compatibility: A pointer is assignment compatible to a variable
-of pointer type, only if both types are equal.
 <p>
-Comparisons: A variable of pointer type can be compared against "nil" with the
-operators "==" and "!=" (§Comparison operators). The variable is
-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
-if the variable has not been modified since creation (§Program initialization
-and execution).
-<p>
-Two variables of equal pointer type can be tested for equality with the
-operators "==" and "!=" (§Comparison operators). The pointers are equal
-if they point to the same location.
-
-Pointer arithmetic of any kind is not permitted.
-
+To permit construction of recursive and mutually recursive types,
+the pointer base type may be denoted by the type name of a
+forward-declared, incomplete type (§Forward declarations).
+</p>
 
 <h3>Function types</h3>
 
+<p>TODO: stopped fine-grained editing here </p>
 A function type denotes the set of all functions with the same parameter
 and result types, and the value "nil".
 
@@ -890,19 +858,6 @@ must be parenthesized to resolve a parsing ambiguity:
 <pre>
 func (n int) (func (p* T))
 </pre>
-
-Assignment compatibility: A function can be assigned to a function
-variable only if both function types are equal.
-<p>
-Comparisons: A variable of function type can be compared against "nil" with the
-operators "==" and "!=" (§Comparison operators). The variable is
-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
-if the variable has not been modified since creation (§Program initialization
-and execution).
-<p>
-Two variables of equal function type can be tested for equality with the
-operators "==" and "!=" (§Comparison operators). The variables are equal
-if they refer to the same function.
 
 
 <h3>Interface types</h3>
@@ -995,22 +950,6 @@ type T2 interface {
 }
 </pre>
 
-Assignment compatibility: A value can be assigned to an interface variable
-if the static type of the value implements the interface or if the value is "nil".
-<p>
-Comparisons: A variable of interface type can be compared against "nil" with the
-operators "==" and "!=" (§Comparison operators). The variable is
-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
-if the variable has not been modified since creation (§Program initialization
-and execution).
-<p>
-Two variables of interface type can be tested for equality with the
-operators "==" and "!=" (§Comparison operators) if both variables have the
-same static type. They are equal if both their dynamic types and values are
-equal. If the dynamic types are equal but the values do not support comparison,
-a run-time error occurs.
-
-
 <h3>Slice types</h3>
 
 A slice type denotes the set of all slices (segments) of arrays
@@ -1068,8 +1007,6 @@ is effectively the same as allocating an array and slicing it
 new([capacity]T)[0 : length]
 </pre>
 
-Assignment compatibility: Slices are assignment compatible to variables
-of the same type.
 <p>
 Indexing: Given a (pointer to) a slice variable "a", a slice element is
 specified with an index operation:
@@ -1095,12 +1032,6 @@ the slice is "cap(a) - i"; thus if "i" is 0, the slice capacity does not change
 as a result of a slice operation. The type of a sub-slice is the same as the
 type of the slice. Unlike the capacity, the length of a sub-slice may be larger
 than the length of the original slice.
-<p>
-Comparisons: A variable of slice type can be compared against "nil" with the
-operators "==" and "!=" (§Comparison operators). The variable is
-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
-if the variable has not been modified since creation (§Program initialization
-and execution).
 
 
 <h3>Map types</h3>
@@ -1147,18 +1078,10 @@ and an optional capacity as arguments:
 my_map := make(M, 100);
 </pre>
 
+<p>
 The map capacity is an allocation hint for more efficient incremental growth
 of the map.
-<p>
-Assignment compatibility: A map type is assignment compatible to a variable of
-map type only if both types are equal.
-<p>
-Comparisons: A variable of map type can be compared against "nil" with the
-operators "==" and "!=" (§Comparison operators). The variable is
-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
-if the variable has not been modified since creation (§Program initialization
-and execution).
-
+</p>
 
 <h3>Channel types</h3>
 
@@ -1196,21 +1119,6 @@ The capacity sets the size of the buffer in the communication channel. If the
 capacity is greater than zero, the channel is asynchronous and, provided the
 buffer is not full, sends can succeed without blocking. If the capacity is zero,
 the communication succeeds only when both a sender and receiver are ready.
-<p>
-Assignment compatibility: A value of type channel can be assigned to a variable
-of type channel only if a) both types are equal (§Type equality), or b) both
-have equal channel value types and the value is a bidirectional channel.
-<p>
-Comparisons: A variable of channel type can be compared against "nil" with the
-operators "==" and "!=" (§Comparison operators). The variable is
-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
-if the variable has not been modified since creation (§Program initialization
-and execution).
-<p>
-Two variables of channel type can be tested for equality with the
-operators "==" and "!=" (§Comparison operators) if both variables have
-the same ValueType. They are equal if both values were created by the same
-"make" call (§Making slices, maps, and channels).
 
 
 <h3>Type equality</h3>
@@ -1334,6 +1242,95 @@ struct { a, b *T5 } and struct { a, b *T5 }
 As an example, "T0" and "T1" are equal but not identical because they have
 different declarations.
 
+<h3>Assignment compatibility</h3>
+
+<!--
+TODO in another round of editing:
+It may make sense to have a special section in this doc containing these rule
+sets for:
+
+complete/incomplete types
+equality of types
+identity of types
+comparisons
+assignment compatibility
+-->
+
+<p>
+Values of any type may always be assigned to variables
+of equal static type. Some types and values have conditions under which they may
+be assigned to different types:
+</p>
+<ul>
+<li>
+The predeclared constant <code>nil</code> can be assigned to any
+pointer, function, slice, map, channel, or interface variable.
+<li>
+Arrays can be assigned to slice variables with equal element type.
+When assigning to a slice variable, the array is not copied but a
+slice comprising the entire array is created.
+</li>
+<li>
+A value can be assigned to an interface variable if the dynamic
+type of the value implements the interface.
+</li>
+<li>
+A value of bidirectional channel type can be assigned to any channel
+variable of equal channel value type.
+</li>
+</ul>
+
+<h3>Comparison compatibility</h3>
+
+<p>
+Values of any type may be compared to other values of equal static
+type.  Values of numeric and string type may be compared using the
+full range of comparison operators as described in §Comparison operators;
+booleans may be compared only for equality or inequality.
+</p>
+
+<p>
+Values of composite type may be
+compared for equality or inequality using the <code>==</code> and
+<code>!=</code> operators, with the following provisos:
+</p>
+<ul>
+<li>
+Arrays and structs may not be compared to anything.
+</li>
+<li>
+A slice value may only be compared explicitly against <code>nil</code>
+and is equal to <code>nil</code> if it has been assigned the explicit
+value <code>nil</code> or if it is a variable (or array element,
+field, etc.) that has not been modified since it was created
+uninitialized.
+</li>
+<li>
+Similarly, an interface value is equal to <code>nil</code> if it has
+been assigned the explicit value <code>nil</code> or if it is a
+variable (or array element, field, etc.) that has not been modified
+since it was created uninitialized.
+</li>
+<li>
+For types that can be compared to <code>nil</code>,
+two values of the same type are equal if they both equal <code>nil</code>,
+unequal if one equals <code>nil</code> and one does not.
+</li>
+<li>
+Pointer values are equal if they point to the same location.
+</li>
+<li>
+Function values are equal if they point to the same function.
+</li>
+<li>
+Channel and map values are equal if they were created by the same call of <code>make</code>
+(§Making slices, maps, and channels).
+</li>
+<li>
+Interface values are comparison compatible if they have the same static type and
+equal if they have the same dynamic type.
+</li>
+</ul>
 <hr/>
 
 
@@ -1398,7 +1395,7 @@ The scope of an identifier depends on the entity declared:
 
 	<li> The scope of a label is a unique scope emcompassing
 	     the body of the innermost surrounding function, excluding
-	     nested functions.  Labels do not conflict with variables.</li>
+	     nested functions.  Labels do not conflict with non-label identifiers.</li>
 </ol>
 
 <h3>Predeclared identifiers</h3>
@@ -1410,7 +1407,7 @@ The following identifiers are implicitly declared in the outermost scope:
 Basic types:
 	bool byte float32 float64 int8 int16 int32 int64 string uint8 uint16 uint32 uint64
 
-Platform-specific convenience types:
+Architecture-specific convenience types:
 	float int uint uintptr
 
 Constants:
@@ -1666,7 +1663,7 @@ ch := new(chan int);
 Unlike regular variable declarations, short variable declarations
 can be used, by analogy with tuple assignment (§Assignments), to
 receive the individual elements of a multi-valued expression such
-as a call to a multi-valued function.  In this form, the ExpressionLIst
+as a call to a multi-valued function.  In this form, the ExpressionList
 must be a single such multi-valued expression, the number of
 identifiers must equal the number of values, and the declared
 variables will be assigned the corresponding values.
@@ -1767,7 +1764,7 @@ Implementation restriction: They can only be declared at package level.
 <h3>Forward declarations</h3>
 
 <p>
-Mutually-recursive types struct or interface types require that one be
+Mutually-recursive types require that one be
 <i>forward declared</i> so that it may be named in the other.
 A forward declaration of a type omits the block containing the fields
 or methods of the type.
@@ -2484,11 +2481,12 @@ not occur. For instance, it may not assume that "x &lt; x + 1" is always true.
 
 <h3>Comparison operators</h3>
 
+<p>
 Comparison operators yield a boolean result. All comparison operators apply
-to strings and numeric types. The operators "==" and "!=" also apply to
-boolean values, pointer, interface, and channel types. Slice and
-map types only support testing for equality against the predeclared value
-"nil".
+to basic types except bools.
+The operators <code>==</code> and <code>!=</code> apply, at least in some cases,
+to all types except arrays and structs.
+</p>
 
 <pre class="grammar">
 ==    equal
@@ -2499,15 +2497,19 @@ map types only support testing for equality against the predeclared value
 >=    greater or equal
 </pre>
 
+<p>
+Numeric basic types are compared in the usual way.
+</p>
+<p>
 Strings are compared byte-wise (lexically).
+</p>
 <p>
 Booleans are equal if they are either both "true" or both "false".
+</p>
 <p>
-Pointers are equal if they point to the same value.
-<p>
-Interface, slice, map, and channel types can be compared for equality according
-to the rules specified in the section on §Interface types, §Slice types, §Map types,
-and §Channel types, respectively.
+The rules for comparison of composite types are described in the
+section on §Comparison compatibility.
+</p>
 
 
 <h3>Logical operators</h3>
@@ -3478,8 +3480,9 @@ representation of the integer.
 string(0x65e5)  // "\u65e5"
 </pre>
 
-3b) Converting an array of uint8s yields a string whose successive
-bytes are those of the array.  (Recall byte is a synonym for uint8.)
+3b) Converting an array of <code>uint8s</code> yields a string whose successive
+bytes are those of the array.
+(Recall <code>byte</code> is a synonym for <code>uint8</code>.)
 
 <pre>
 string([]byte('h', 'e', 'l', 'l', 'o')) // "hello"
