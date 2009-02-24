@@ -126,13 +126,6 @@ Closed:
 [x] func literal like a composite type - should probably require the '&' to get address (NO)
 [x] & needed to get a function pointer from a function? (NO - there is the "func" keyword - 9/19/08)
 
-Timeline (9/5/08):
-- threads: 1 month
-- reflection code: 2 months
-- proto buf support: 3 months
-- GC: 6 months
-- debugger
-- Jan 1, 2009: enough support to write interesting programs
 -->
 
 <h2>Introduction</h2>
@@ -186,13 +179,13 @@ operators, in increasing precedence:
 <p>
 Lower-case production names are used to identify lexical tokens.
 Non-terminals are in CamelCase. Lexical symbols are enclosed in
-double quotes <tt>""</tt> (the double quote symbol is written as
-<tt>'"'</tt>).
+double quotes <code>""</code> (the double quote symbol is written as
+<code>'"'</code>).
 </p>
 
 <p>
-The form <tt>"a ... b"</tt> represents the set of characters from
-<tt>a</tt> through <tt>b</tt> as alternatives.
+The form <code>"a ... b"</code> represents the set of characters from
+<code>a</code> through <code>b</code> as alternatives.
 </p>
 
 <p>
@@ -232,7 +225,7 @@ The following terms are used to denote specific Unicode character classes:
 <h3>Letters and digits</h3>
 
 <p>
-The underscore character <tt>_</tt> (U+005F) is considered a letter.
+The underscore character <code>_</code> (U+005F) is considered a letter.
 </>
 <pre class="grammar">
 letter        = unicode_letter | "_" .
@@ -248,9 +241,9 @@ hex_digit     = "0" ... "9" | "A" ... "F" | "a" ... "f" .
 
 <p>
 There are two forms of comments.  The first starts at the character
-sequence <tt>//</tt> and continues through the next newline.  The
-second starts at the character sequence <tt>/*</tt> and continues
-through the character sequence <tt>*/</tt>.  Comments do not nest.
+sequence <code>//</code> and continues through the next newline.  The
+second starts at the character sequence <code>/*</code> and continues
+through the character sequence <code>*/</code>.  Comments do not nest.
 </p>
 
 <h3>Tokens</h3>
@@ -276,11 +269,6 @@ The first character in an identifier must be a letter.
 <pre class="grammar">
 identifier    = letter { letter | unicode_digit } .
 </pre>
-<p>
-Exported identifiers (§Exported identifiers) start with a <tt>capital_letter</tt>.
-<br>
-<font color=red>TODO: This sentence feels out of place.</font>
-</p>
 <pre>
 a
 _x9
@@ -320,9 +308,9 @@ The following character sequences represent operators, delimiters, and other spe
 <p>
 An integer literal is a sequence of one or more digits in the
 corresponding base, which may be 8, 10, or 16.  An optional prefix
-sets a non-decimal base: <tt>0</tt> for octal, <tt>0x</tt> or
-<tt>0X</tt> for hexadecimal.  In hexadecimal literals, letters
-<tt>a-f</tt> and <tt>A-F</tt> represent values 10 through 15.
+sets a non-decimal base: <code>0</code> for octal, <code>0x</code> or
+<code>0X</code> for hexadecimal.  In hexadecimal literals, letters
+<code>a-f</code> and <code>A-F</code> represent values 10 through 15.
 </p>
 <pre class="grammar">
 int_lit       = decimal_lit | octal_lit | hex_lit .
@@ -343,7 +331,7 @@ hex_lit       = "0" ( "x" | "X" ) hex_digit { hex_digit } .
 A floating-point literal is a decimal representation of a floating-point
 number.  It has an integer part, a decimal point, a fractional part,
 and an exponent part.  The integer and fractional part comprise
-decimal digits; the exponent part is an <tt>e</TT> or <tt>E</tt>
+decimal digits; the exponent part is an <code>e</code> or <code>E</code>
 followed by an optionally signed decimal exponent.  One of the
 integer part or the fractional part may be elided; one of the decimal
 point or the exponent may be elided.
@@ -398,18 +386,18 @@ values in various formats.
 The simplest form represents the single character within the quotes;
 since Go source text is Unicode characters encoded in UTF-8, multiple
 UTF-8-encoded bytes may represent a single integer value.  For
-instance, the literal <tt>'a'</tt> holds a single byte representing
-a literal <tt>a</tt>, Unicode U+0061, value <tt>0x61</tt>, while
-<tt>'ä'</tt> holds two bytes (<tt>0xc3</tt> <tt>0xa4</tt>) representing
-a literal <tt>a</tt>-dieresis, U+00E4, value <tt>0xe4</tt>.
+instance, the literal <code>'a'</code> holds a single byte representing
+a literal <code>a</code>, Unicode U+0061, value <code>0x61</code>, while
+<code>'ä'</code> holds two bytes (<code>0xc3</code> <code>0xa4</code>) representing
+a literal <code>a</code>-dieresis, U+00E4, value <code>0xe4</code>.
 </p>
 <p>
 Several backslash escapes allow arbitrary values to be represented
 as ASCII text.  There are four ways to represent the integer value
-as a numeric constant: <tt>\x</tt> followed by exactly two hexadecimal
-digits; <tt>\u</tt> followed by exactly four hexadecimal digits;
-<tt>\U</tt> followed by exactly eight hexadecimal digits, and a
-plain backslash <tt>\</tt> followed by exactly three octal digits.
+as a numeric constant: <code>\x</code> followed by exactly two hexadecimal
+digits; <code>\u</code> followed by exactly four hexadecimal digits;
+<code>\U</code> followed by exactly eight hexadecimal digits, and a
+plain backslash <code>\</code> followed by exactly three octal digits.
 In each case the value of the literal is the value represented by
 the digits in the corresponding base.
 </p>
@@ -417,9 +405,9 @@ the digits in the corresponding base.
 Although these representations all result in an integer, they have
 different valid ranges.  Octal escapes must represent a value between
 0 and 255 inclusive.  (Hexadecimal escapes satisfy this condition
-by construction). The `Unicode' escapes <tt>\u</tt> and <tt>\U</tt>
+by construction). The `Unicode' escapes <code>\u</code> and <code>\U</code>
 represent Unicode code points so within them some values are illegal,
-in particular those above <tt>0x10FFFF</tt> and surrogate halves.
+in particular those above <code>0x10FFFF</code> and surrogate halves.
 </p>
 <p>
 After a backslash, certain single-character escapes represent special values:
@@ -472,30 +460,30 @@ integer literals.
 <h3>String literals</h3>
 
 <p>
-String literals represent constant values of type <tt>string</tt>.
+String literals represent constant values of type <code>string</code>.
 There are two forms: raw string literals and interpreted string
 literals.
 </p>
 <p>
 Raw string literals are character sequences between back quotes
-<tt>``</tt>.  Within the quotes, any character is legal except
+<code>``</code>.  Within the quotes, any character is legal except
 newline and back quote. The value of a raw string literal is the
 string composed of the uninterpreted bytes between the quotes;
 in particular, backslashes have no special meaning.
 </p>
 <p>
 Interpreted string literals are character sequences between double
-quotes <tt>&quot;&quot;</tt>. The text between the quotes forms the
+quotes <code>&quot;&quot;</code>. The text between the quotes forms the
 value of the literal, with backslash escapes interpreted as they
-are in character literals (except that <tt>\'</tt> is illegal and
-<tt>\"</tt> is legal).  The three-digit octal (<tt>\000</tt>)
-and two-digit hexadecimal (<tt>\x00</tt>) escapes represent individual
+are in character literals (except that <code>\'</code> is illegal and
+<code>\"</code> is legal).  The three-digit octal (<code>\000</code>)
+and two-digit hexadecimal (<code>\x00</code>) escapes represent individual
 <i>bytes</i> of the resulting string; all other escapes represent
 the (possibly multi-byte) UTF-8 encoding of individual <i>characters</i>.
-Thus inside a string literal <tt>\377</tt> and <tt>\xFF</tt> represent
-a single byte of value <tt>0xFF</tt>=255, while <tt>ÿ</tt>,
-<tt>\u00FF</tt>, <tt>\U000000FF</tt> and <tt>\xc3\xbf</tt> represent
-the two bytes <tt>0xc3 0xbf</tt> of the UTF-8 encoding of character
+Thus inside a string literal <code>\377</code> and <code>\xFF</code> represent
+a single byte of value <code>0xFF</code>=255, while <code>ÿ</code>,
+<code>\u00FF</code>, <code>\U000000FF</code> and <code>\xc3\xbf</code> represent
+the two bytes <code>0xc3 0xbf</code> of the UTF-8 encoding of character
 U+00FF.
 </p>
 
@@ -550,129 +538,140 @@ literal.
 </p>
 <hr/>
 
-<h2>Declarations and scope rules</h2>
+<h2>Declarations and Scope</h2>
 
-A declaration ``binds'' an identifier to a language entity (such as
-a package, constant, type, struct field, variable, parameter, result,
-function, method) and specifies properties of that entity such as its type.
+<p>
+A declaration binds an identifier to a language entity such as
+a variable or function and specifies properties such as its type.
+Every identifier in a program must be declared.
+</p>
 
 <pre class="grammar">
 Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl .
 </pre>
 		
-Every identifier in a program must be declared; some identifiers, such as "int"
-and "true", are predeclared (§Predeclared identifiers).
 <p>
-The ``scope'' of an identifier is the extent of source text within which the
+The <i>scope</i> of an identifier is the extent of source text within which the
 identifier denotes the bound entity. No identifier may be declared twice in a
-single scope. Go is lexically scoped: An identifier denotes the entity it is
-bound to only within the scope of the identifier.
+single scope, but inner blocks can declare a new entity with the same
+identifier, in which case the scope created by the outer declaration excludes
+that created by the inner.
+</p>
 <p>
-For instance, for a variable named "x", the scope of identifier "x" is the
-extent of source text within which "x" denotes that particular variable.
-It is illegal to declare another identifier "x" within the same scope.
+There are levels of scoping in effect before each source file is compiled.
+In order from outermost to innermost:
+</p>
+<ol>
+	<li>The <i>universe</i> scope contains all predeclared identifiers.</li>
+	<li>An implicit scope contains only the package name.</li>
+	<li>The <i>package-level</i> scope surrounds all declarations at the
+	    top level of the file, that is, outside the body of any
+	    function or method.  That scope is shared across all
+	    source files within the package (§Packages), allowing
+	    package-level identifiers to be shared between source
+	    files.</li>
+</ol>
+
 <p>
-The scope of an identifier depends on the entity declared. The scope for
-an identifier always excludes scopes redeclaring the identifier in nested
-blocks. An identifier declared in a nested block is said to ``shadow'' the
-same identifier declared in an outer block.
+The scope of an identifier depends on the entity declared:
+</p>
 
 <ol>
-	<li> The scope of predeclared identifiers is the entire source file.
+	<li> The scope of predeclared identifiers is the universe scope.</li>
 
-	<li> The scope of an identifier denoting a type, function or package
-	     extends textually from the point of the identifier in the declaration
-	     to the end of the innermost surrounding block.
+	<li> The scope of an (identifier denoting a) type, function or package
+	     extends from the point of the identifier in the declaration
+	     to the end of the innermost surrounding block.</li>
 
 	<li> The scope of a constant or variable extends textually from
-	     after the declaration to the end of the innermost surrounding
-	     block. If the variable is declared in the init statement of an
-	     if, for, or switch statement, the innermost surrounding block
-	     is the block associated with the respective statement.
+	     the end of the declaration to the end of the innermost
+	     surrounding block. If the variable is declared in the
+	     <i>init</i> statement of an <code>if </code>,  <code>for</code>,
+	     or  <code>switch </code> statement, the
+	     innermost surrounding block is the block associated
+	     with that statement.</li>
 
-	<li> The scope of a parameter or result identifier is the body of the
-	     corresponding function.
+	<li> The scope of a parameter or result is the body of the
+	     corresponding function.</li>
 
-	<li> The scope of a field or method identifier is selectors for the
-	     corresponding type containing the field or method (§Selectors).
-	   
-	<li> The scope of a label is the body of the innermost surrounding
-	     function and does not intersect with any non-label scope. Thus,
-	     each function has its own private label scope.
+	<li> The scope of a field or method is selectors for the
+	     corresponding type containing the field or method (§Selectors).</li>
+
+	<li> The scope of a label is a unique scope emcompassing
+	     the body of the innermost surrounding function, excluding
+	     nested functions.  Labels do not conflict with variables.</li>
 </ol>
 
 <h3>Predeclared identifiers</h3>
 
 <p>
-The following identifiers are predeclared:
-</p>
-
-<p>
-All basic types:
+The following identifiers are implicitly declared in the outermost scope:
 </p>
 <pre class="grammar">
-bool, byte, uint8, uint16, uint32, uint64, int8, int16, int32, int64,
-float32, float64, string
-</pre>
-	
-A set of platform-specific convenience types:
+Basic types:
+	bool byte float32 float64 int8 int16 int32 int64 string uint8 uint16 uint32 uint64
 
-<pre class="grammar">
-uint, int, float, uintptr
-</pre>
-	
-The predeclared constants:
+Platform-specific convenience types:
+	float int uint uintptr
 
-<pre class="grammar">
-true, false, iota, nil
-</pre>
-	
-The predeclared functions (note: this list is likely to change):
+Constants:
+	true false iota nil
 
-<pre class="grammar">
-cap(), convert(), len(), make(), new(), panic(), panicln(), print(), println(), typeof(), ...
+Functions:
+	cap convert len make new panic panicln print println typeof (TODO: typeof??)
+
+Packages:
+	sys unsafe  (TODO: does sys endure?)
 </pre>
 
 
 <h3>Exported identifiers</h3>
 
-Identifiers that start with a capital_letter (§Identifiers) are ``exported'',
-thus making the identifiers accessible outside the current package. A file
-belonging to another package may then import the package (§Packages) and access
-exported identifiers via qualified identifiers (§Qualified identifiers).
 <p>
-All other identifiers are ``internal''; they are only visible in files
-belonging to the same package which declares them.
+By default, identifiers are visible only within the package in which they are declared.
+Some identifiers are <i>exported</i> and can be referenced using
+<i>qualified identifiers</i> in other packages (§Qualified identifiers).
+If an identifier satisfies these two conditions:
+</p>
+<ol>
+<li>the first character of the identifier's name is a Unicode upper case letter;
+<li>the identifier is declared at the package level or is a field or method of a type
+declared at the top level;
+</ol>
 <p>
-<font color=red>
-TODO: This should be made clearer. For instance, function-local identifiers
-are never exported, but non-global fields/methods may be exported.
-</font>
-
+it will be exported automatically.
+</p>
 
 <h3>Const declarations</h3>
 
-A constant declaration binds an identifier to the value of a constant
-expression (§Constant expressions).
+<p>
+A constant declaration binds a list of identifiers (the names of
+the constants) to the values of a list of constant expressions
+(§Constant expressions).  The number of identifiers must be equal
+to the number of expressions, and the n<sup>th</sup> identifier on
+the left is bound to value of the n<sup>th</sup> expression on the
+right.
+</p>
 
 <pre class="grammar">
-ConstDecl = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
-ConstSpecList = ConstSpec { ";" ConstSpec } [ ";" ] .
-ConstSpec = IdentifierList [ CompleteType ] [ "=" ExpressionList ] .
+ConstDecl      = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
+ConstSpecList  = ConstSpec { ";" ConstSpec } [ ";" ] .
+ConstSpec      = IdentifierList [ CompleteType ] [ "=" ExpressionList ] .
 
 IdentifierList = identifier { "," identifier } .
 ExpressionList = Expression { "," Expression } .
+
+CompleteType = Type .
 </pre>
 
-A constant declaration binds a list of identifiers (the names of the constants)
-to the values of a list of constant expressions. The number of identifiers must 
-be equal to the number of expressions, with the i'th identifier on the left
-corresponding to the i'th expression on the right. If CompleteType is omitted,
-the types of the constants are the types of the corresponding expressions;
-different expressions may have different types. If CompleteType is present,
-the type of all constants is the type specified, and the types of all
-expressions in ExpressionList must be assignment-compatible with the
-constant type.
+<p>
+If the type (CompleteType) is omitted, the constants take the
+individual types of the corresponding expressions, which may be
+``ideal integer'' or ``ideal float'' (§Ideal number).  If the type
+is present, all constants take the type specified, and the types
+of all the expressions must be assignment-compatible
+with that type.
+</p>
 
 <pre>
 const Pi float64 = 3.14159265358979323846
@@ -685,16 +684,16 @@ const a, b, c = 3, 4, "foo"  // a = 3, b = 4, c = "foo"
 const u, v float = 0, 3      // u = 0.0, v = 3.0
 </pre>
 
-As a special case, within a parenthesized "const" declaration list the
-ExpressionList may be omitted from any but the first declaration. Such an empty
-ExpressionList is equivalent to the textual substitution of the first preceding
-non-empty ExpressionList in the same "const" declaration list.
-That is, omitting the list of expressions is equivalent to repeating the
-previous list. The number of identifiers must be equal to the number of
-expressions in the previous list.
 <p>
-Together with the "iota" constant generator implicit repetition of
-ExpressionLists permit light-weight declaration of enumerated values (§Iota):
+Within a parenthesized <code>const</code> declaration list the
+expression list may be omitted from any but the first declaration.
+Such an empty list is equivalent to the textual substitution of the
+first preceding non-empty expression list.  Omitting the list of
+expressions is therefore equivalent to repeating the previous list.
+The number of identifiers must be equal to the number of expressions
+in the previous list.  Together with the <code>iota</code> constant generator
+(§Iota) this mechanism permits light-weight declaration of sequential values:
+</p>
 
 <pre>
 const (
@@ -705,61 +704,26 @@ const (
 	Thursday;
 	Friday;
 	Partyday;
-	numberOfDays;  // this constant in not exported
+	numberOfDays;  // this constant is not exported
 )
 </pre>
-
-The initializing expression for a numeric constant is evaluated
-using the principles described in the section on numeric literals:
-constants are mathematical values given a size only upon assignment
-to a variable.  Intermediate values, and the constants themselves,
-may require precision significantly larger than any concrete type
-in the language.  Thus the following is legal:
-
-<pre>
-const Huge = 1 << 100;
-const Four int8 = Huge >> 98;
-</pre>
-
-A given numeric constant expression is, however, defined to be
-either an integer or a floating point value, depending on the syntax
-of the literals it comprises (123 vs. 1.0e4).  This is because the
-nature of the arithmetic operations depends on the type of the
-values; for example, 3/2 is an integer division yielding 1, while
-3./2. is a floating point division yielding 1.5.  Thus
-
-<pre>
-const x = 3./2. + 3/2;
-</pre>
-
-yields a floating point constant of value 2.5 (1.5 + 1); its
-constituent expressions are evaluated using different rules for
-division.
-<p>
-If the type is missing from a numeric constant declaration, the constant
-represents a value of abitrary precision, either integer or floating
-point, determined by the type of the initializing expression. Such
-a constant may be assigned to any variable that can represent its
-value accurately, regardless of type.  For instance, 3 can be
-assigned to any integer variable but also to any floating point variable,
-while 1e12 can be assigned to a "float32", "float64", or even "int64".
-It is erroneous to assign a value with a non-zero fractional part
-to an integer, or if the assignment would overflow or underflow.
 
 
 <h3>Iota</h3>
 
-Within a constant declaration, the predeclared operand "iota" represents
-successive elements of an integer sequence. It is reset to 0 whenever the
-reserved word "const" appears in the source and increments with each
-semicolon. For instance, "iota" can be used to construct a set of related
-constants:
+<p>
+Within a constant declaration, the predeclared pseudo-constant
+<code>iota</code> represents successive integers. It is reset to 0
+whenever the reserved word <code>const</code> appears in the source
+and increments with each semicolon. It can be used to construct a
+set of related constants:
+</p>
 
 <pre>
-const (            // iota is set to 0
-	enum0 = iota;  // sets enum0 to 0, etc.
-	enum1 = iota;
-	enum2 = iota
+const (            // iota is reset to 0
+	c0 = iota;  // c0 == 0
+	c1 = iota;  // c1 == 1
+	c2 = iota   // c2 == 2
 )
 
 const (
@@ -778,62 +742,37 @@ const x = iota;  // x == 0 (iota has been reset)
 const y = iota;  // y == 0 (iota has been reset)
 </pre>
 
-Within an ExpressionList, the value of all "iota"'s is the same because "iota"
-is only incremented at each semicolon:
+<p>
+Within an ExpressionList, the value of each <code>iota</code> is the same because
+it is only incremented at a semicolon:
+</p>
 
 <pre>
 const (
-	base0, mask0 int64 = 1 << iota, i << iota - 1;  // base0 == 1, mask0 = 0
-	base1, mask1 int64 = 1 << iota, i << iota - 1;  // base1 == 2, mask1 = 1
-	base2, mask2 int64 = 1 << iota, i << iota - 1;  // base2 == 4, mask2 = 3
+	bit0, mask0 = 1 << iota, 1 << iota - 1;  // bit0 == 1, mask0 == 0
+	bit1, mask1;                             // bit1 == 2, mask1 == 1
+	bit2, mask2;                             // bit2 == 4, mask2 == 3
 )
 </pre>
 
-Since the ExpressionList in constant declarations repeats implicitly
-if omitted, some of the examples above can be abbreviated:
-
-<pre>
-const (
-	enum0 = iota;
-	enum1;
-	enum2
-)
-
-const (
-	a = 1 << iota;
-	b;
-	c;
-)
-
-const (
-	u = iota * 42;
-	v float;
-	w;
-)
-
-const (
-	base0, mask0 int64 = 1 << iota, i << iota - 1;
-	base1, mask1 int64;
-	base2, mask2 int64;
-)
-</pre>
+<p>
+This last example exploits the implicit repetition of the
+last non-empty expression list.
+</p>
 
 
 <h3>Type declarations</h3>
 
-A type declaration specifies a new type and binds an identifier to it.
-The identifier is called the ``type name''; it denotes the type.
+<p>
+A type declaration binds an identifier, the <i>type name</i>,
+to a new type.  <font color=red>TODO: what exactly is a "new type"?</font>
+</p>
 
 <pre class="grammar">
-TypeDecl = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
+TypeDecl     = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
 TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
-TypeSpec = identifier Type .
+TypeSpec     = identifier Type .
 </pre>
-
-A struct or interface type may be forward-declared (§Struct types,
-§Interface types). A forward-declared type is incomplete (§Types)
-until it is fully declared. The full declaration must must follow
-within the same block containing the forward declaration.
 
 <pre>
 type IntArray [16] int
@@ -853,19 +792,17 @@ type Comparable interface {
 }
 </pre>
 
-
 <h3>Variable declarations</h3>
 
+<p>
 A variable declaration creates a variable, binds an identifier to it and
-gives it a type. It may optionally give the variable an initial value.
+gives it a type and optionally an initial value.
 The variable type must be a complete type (§Types).
-In some forms of declaration the type of the initial value defines the type
-of the variable.
-
+</p>
 <pre class="grammar">
-VarDecl = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
+VarDecl     = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
 VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
-VarSpec = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
+VarSpec     = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
 </pre>
 
 <pre>
@@ -879,30 +816,42 @@ var (
 )
 </pre>
 
-If the expression list is present, it must have the same number of elements
-as there are variables in the variable specification.
 <p>
-If the variable type is omitted, an initialization expression (or expression
-list) must be present, and the variable type is the type of the expression
-value (in case of a list of variables, the variables assume the types of the
-corresponding expression values).
+If there are expressions, their number must be equal
+to the number of identifiers, and the n<sup>th</sup> variable
+is initialized to the value of the n<sup>th</sup> expression.
+Otherwise, each variable is initialized to the <i>zero</i>
+of the type (§Program initialization and execution).
+The expressions can be general expressions; they need not be constants.
+</p>
 <p>
-If the variable type is omitted, and the corresponding initialization expression
-is a constant expression of abstract int or floating point type, the type
-of the variable is "int" or "float" respectively:
+Either the type or the expression list must be present.  If the
+type is present, it sets the type of each variable and the expressions
+(if any) must be assignment-compatible to that type.  If the type
+is absent, the variables take the types of the corresponding
+expressions.
+</p>
+<p>
+If the type is absent and the corresponding expression is a constant
+expression of ideal integer or ideal float type, the type of the
+declared variable is <code>int</code> or <code>float</code>
+respectively:
+</p>
 
 <pre>
-var i = 0       // i has int type
-var f = 3.1415  // f has float type
+var i = 0       // i has type int
+var f = 3.1415  // f has type float
 </pre>
 
-The syntax
+<h3>Short variable declarations</h3>
+
+A <i>short variable declaration</i> uses the syntax
 
 <pre class="grammar">
 SimpleVarDecl = IdentifierList ":=" ExpressionList .
 </pre>
 
-is shorthand for
+and is shorthand for the declaration syntax
 
 <pre class="grammar">
 "var" IdentifierList = ExpressionList .
@@ -913,9 +862,146 @@ i, j := 0, 10;
 f := func() int { return 7; }
 ch := new(chan int);
 </pre>
-	
-Also, in some contexts such as "if", "for", or "switch" statements,
-this construct can be used to declare local temporary variables.
+
+<p>
+Unlike regular variable declarations, short variable declarations
+can be used, by analogy with tuple assignment (§Assignments), to
+receive the individual elements of a multi-valued expression such
+as a call to a multi-valued function.  In this form, the ExpressionLIst
+must be a single such multi-valued expression, the number of
+identifiers must equal the number of values, and the declared
+variables will be assigned the corresponding values.
+</p>
+
+<pre>
+count, error := os.Close(fd);  // os.Close()  returns two values
+</pre>
+
+<p>
+Short variable declarations may appear only inside functions.
+In some contexts such as the initializers for <code>if</code>,
+<code>for</code>, or <code>switch</code> statements,
+they can be used to declare local temporary variables (§Statements).
+</p>
+
+<h3>Function declarations</h3>
+
+<p>
+A function declaration binds an identifier to a function (§Function types).
+</p>
+
+<pre class="grammar">
+FunctionDecl = "func" identifier Signature [ Block ] .
+</pre>
+
+<pre>
+func min(x int, y int) int {
+	if x &lt; y {
+		return x;
+	}
+	return y;
+}
+</pre>
+
+<p>
+A function must be declared or forward-declared before it can be invoked (§Forward declarations).
+Implementation restriction: Functions can only be declared at the package level.
+</p>
+
+<h3>Method declarations</h3>
+
+<p>
+A method declaration binds an identifier to a method,
+which is a function with a <i>receiver</i>.
+</p>
+<pre class="grammar">
+MethodDecl = "func" Receiver identifier Signature [ Block ] .
+Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
+</pre>
+
+<p>
+The receiver type must be a type name or a pointer to a type name,
+and that name is called the <i>receiver base type</i> or just <i>base type</i>.
+The base type must not be a pointer type and must be
+declared in the same source file as the method.
+The method is said to be <i>bound</i> to the base type
+and is visible only within selectors for that type
+(§Type declarations, §Selectors).
+</p>
+
+<p>
+All methods bound to a base type must have the same receiver type,
+either all pointers to the base type or all the base type itself.
+Given type <code>Point</code>, the declarations
+</p>
+
+<pre>
+func (p *Point) Length() float {
+	return Math.sqrt(p.x * p.x + p.y * p.y);
+}
+
+func (p *Point) Scale(factor float) {
+	p.x = p.x * factor;
+	p.y = p.y * factor;
+}
+</pre>
+
+<p>
+bind the methods <code>Length</code> and <code>Scale</code>
+to the base type <code>Point</code>.
+</p>
+
+<p>
+If the
+receiver's value is not referenced inside the the body of the method,
+its identifier may be omitted in the declaration. The same applies in
+general to parameters of functions and methods.
+</p>
+
+<p>
+Methods can be declared
+only after their base type is declared or forward-declared, and invoked
+only after their own declaration or forward-declaration (§Forward declarations).
+Implementation restriction: They can only be declared at package level.
+</p>
+
+<h3>Forward declarations</h3>
+
+<p>
+Mutually-recursive types struct or interface types require that one be
+<i>forward declared</i> so that it may be named in the other.
+A forward declaration of a type omits the block containing the fields
+or methods of the type.
+</p>
+
+<pre>
+type List struct  // forward declaration of List
+type Item struct {
+	value int;
+	next *List;
+}
+type List struct {
+	head, tail *Item
+}
+</pre>
+<p>
+A forward-declared type is incomplete (§Types)
+until it is fully declared. The full declaration must follow
+before the end of the block containing the forward declaration.
+</p>
+<p>
+Functions and methods may similarly be forward-declared by omitting their body.
+</p>
+<pre>
+func F(a int) int  // forward declaration of F
+func G(a, b int) int {
+	return F(a) + F(b)
+}
+func F(a int) int {
+	if a <= 0 { return 0 }
+	return G(a-1, b+1)
+}
+</pre>
 
 <hr/>
 
@@ -951,10 +1037,6 @@ All other types are always complete (although their components, such as the base
 type of a pointer type, may be incomplete). Incomplete types are subject to usage
 restrictions; for instance the type of a variable must be complete where the
 variable is declared.
-
-<pre class="grammar">
-CompleteType = Type .
-</pre>
 
 The ``interface'' of a type is the set of methods bound to it
 (§Method declarations). The interface of a pointer type is the interface
@@ -1183,17 +1265,6 @@ struct {
 	server_ip uint32 "2";
 	process_id uint32 "3";
 }
-</pre>
-
-Forward declaration:
-A struct type consisting of only the reserved word "struct" may be used in
-a type declaration; it declares an incomplete struct type (§Type declarations).
-This allows the construction of mutually recursive types such as:
-
-<pre>
-type S2 struct // forward declaration of S2
-type S1 struct { s2 *S2 }
-type S2 struct { s1 *S1 }
 </pre>
 
 Assignment compatibility: Structs are assignment compatible to variables of
@@ -2637,19 +2708,54 @@ to "false" otherwise.
 
 <h3>Constant expressions</h3>
 
-A constant expression is an expression whose operands are all constants
-(§Constants). Additionally, the result of the predeclared functions
-below (with appropriate arguments) is also constant:
+<p>
+Constant expressions may contain only constants, <code>iota</code>,
+numeric literals, string literals, and
+some constant-valued built-in functions such as <code>unsafe.Sizeof</code>
+and <code>len</code> applied to an array.
+In practice, constant expressions are those that can be evaluated at compile time.
+<p>
+The type of a constant expression is determined by the type of its
+elements.  If it contains only numeric literals, its type is ``ideal
+integer'' or ``ideal float'' (§Ideal number).  Whether it is an
+integer or float depends on whether the value can be represented
+precisely as an integer (123 vs. 1.23).  The nature of the arithmetic
+operations within the expression depends, elementwise, on the values;
+for example, 3/2 is an integer division yielding 1, while 3./2. is
+a floating point division yielding 1.5.  Thus
+</p>
 
 <pre>
-len(a)		if a is an array (as opposed to an array slice)
+const x = 3./2. + 3/2;
 </pre>
 
-<font color=red>
-TODO: Complete this list as needed.
-</font>
 <p>
-Constant expressions can be evaluated at compile time.
+yields a floating point constant of ideal float value 2.5 (1.5 +
+1); its constituent expressions are evaluated using distinct rules
+for division.
+</p>
+
+<p>
+Intermediate values and the constants themselves
+may require precision significantly larger than any concrete type
+in the language.  The following are legal declarations:
+</p>
+
+<pre>
+const Huge = 1 << 100;
+const Four int8 = Huge >> 98;
+</pre>
+
+<p>
+A constant expression may appear in any context, such as assignment
+to a variable of any numeric type, as long as the value of the
+expression can be represented accurately in that context.  For
+instance, 3 can be assigned to any integer variable but also to any
+floating point variable, while 1e12 can be assigned to a
+<code>float32</code>, <code>float64</code>, or even <code>int64</code>.
+It is erroneous to assign a value with a non-zero fractional part
+to an integer, or if the assignment would overflow or underflow.
+</p>
 
 <hr/>
 
@@ -2680,7 +2786,7 @@ StatementList = Statement { OptSemicolon Statement } .
 A semicolon may be omitted immediately following:
 </p>
 <ul>
-	<li>a closing parenthesis ")" ending a list of declarations (§Declarations and scope rules)
+	<li>a closing parenthesis ")" ending a list of declarations (§Declarations and Scope)
 	<li>a closing brace "}" ending a type declaration (§Type declarations)
 	<li>a closing brace "}" ending a block (including switch and select statements)
 	<li>a label declaration (§Label declarations)
@@ -3289,81 +3395,7 @@ for i := 0; i &lt;= 3; i++ {
 
 <hr/>
 
-<h2>Function declarations</h2>
-
-A function declaration binds an identifier to a function.
-Functions contain declarations and statements.  They may be
-recursive. Except for forward declarations (see below), the parameter
-and result types of the signature must all be complete types (§Type declarations).
-
-<pre class="grammar">
-FunctionDecl = "func" identifier Signature [ Block ] .
-</pre>
-	
-<pre>
-func min(x int, y int) int {
-	if x &lt; y {
-		return x;
-	}
-	return y;
-}
-</pre>
-
-A function declaration without a block serves as a forward declaration:
-
-<pre>
-func MakeNode(left, right *Node) *Node
-</pre>
-
-
-Implementation restrictions: Functions can only be declared at the global level.
-A function must be declared or forward-declared before it can be invoked.
-
-
-<h3>Method declarations</h3>
-
-A method declaration is a function declaration with a receiver. The receiver
-is the first parameter of the method, and the receiver type must be specified
-as a type name, or as a pointer to a type name. The type specified by the
-type name is called ``receiver base type''. The receiver base type must be a
-type declared in the current file, and it must not be a pointer type.
-The method is said to be ``bound'' to the receiver base type; specifically
-it is declared within the scope of that type (§Type declarations). If the
-receiver value is not needed inside the method, its identifier may be omitted
-in the declaration.
-
-<pre class="grammar">
-MethodDecl = "func" Receiver identifier Signature [ Block ] .
-Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
-</pre>
-
-All methods bound to a receiver base type must have the same receiver type:
-Either all receiver types are pointers to the base type or they are the base
-type. <font color=red>
-(TODO: This restriction can be relaxed at the cost of more complicated
-assignment rules to interface types).
-</font>
-
-For instance, given type Point, the declarations
-
-<pre>
-func (p *Point) Length() float {
-	return Math.sqrt(p.x * p.x + p.y * p.y);
-}
-
-func (p *Point) Scale(factor float) {
-	p.x = p.x * factor;
-	p.y = p.y * factor;
-}
-</pre>
-
-bind the methods "Length" and "Scale" to the receiver base type "Point".
-
-Method declarations may appear anywhere after the declaration of the receiver
-base type and may be forward-declared.
-
-
-<h3>Predeclared functions</h3>
+<h2>Predeclared functions</h2>
 <ul>
 	<li>cap
 	<li>convert
@@ -3556,7 +3588,7 @@ ImportSpec = [ "." | PackageName ] PackageFileName .
 PackageFileName = StringLit .
 </pre>
 
-An import statement makes the exported top-level identifiers of the named
+An import statement makes the exported package-level identifiers of the named
 package file accessible to this package.
 <p>
 In the following discussion, assume we have a package in the
@@ -3711,75 +3743,76 @@ When main.main() returns, the program exits.
 
 <hr/>
 
-<h2>Systems considerations</h2>
+<h2>System considerations</h2>
 
-<h3>Package unsafe</h3>
+<h3>Package <code>unsafe</code></h3>
 
-The built-in package "unsafe", known to the compiler, provides facilities
-for low-level programming including operations that violate the Go type
-system. A package using "unsafe" must be vetted manually for type safety.
 <p>
-The package "unsafe" provides (at least) the following package interface:
+The built-in package <code>unsafe</code>, known to the compiler, provides facilities
+for low-level programming including operations that violate the type
+system. A package using <code>unsafe</code> must be vetted manually for type safety.
+The package provides the following interface:
+</p>
 
 <pre class="grammar">
 package unsafe
 
 const Maxalign int
 
-type Pointer *any
+type Pointer *any  // "any" is shorthand for any Go type; it is not a real type.
 
 func Alignof(variable any) int
 func Offsetof(selector any) int
 func Sizeof(variable any) int
 </pre>
 
-The pseudo type "any" stands for any Go type; "any" is not a type generally
-available in Go programs.
 <p>
-Any pointer type as well as values of type "uintptr" can be converted into
-an "unsafe.Pointer" and vice versa.
+Any pointer or value of type <code>uintptr</code> can be converted into
+a <code>Pointer</code> and vice versa.
+</p>
 <p>
-The function "Sizeof" takes an expression denoting a variable of any type
-and returns the size of the variable in bytes.
+The function <code>Sizeof</code> takes an expression denoting a
+variable of any type and returns the size of the variable in bytes.
+</p>
 <p>
-The function "Offsetof" takes a selector (§Selectors) denoting a struct
+The function <code>Offsetof</code> takes a selector (§Selectors) denoting a struct
 field of any type and returns the field offset in bytes relative to the
-struct address. Specifically, the following condition is satisfied for
-a struct "s" with field "f":
+struct's address. For a struct <code>s</code> with field <code>f</code>:
+</p>
 
 <pre>
-uintptr(unsafe.Pointer(&amp;s)) + uintptr(unsafe.Offsetof(s.f)) ==
-uintptr(unsafe.Pointer(&amp;s.f))
+uintptr(unsafe.Pointer(&amp;s)) + uintptr(unsafe.Offsetof(s.f)) == uintptr(unsafe.Pointer(&amp;s.f))
 </pre>
 
-Computer architectures may impose restrictions on the memory addresses accessed
-directly by machine instructions. A common such restriction is the requirement
-for such addresses to be ``aligned''; that is, addresses must be a multiple
-of a factor, the ``alignment''. The alignment depends on the type of datum
-accessed.
 <p>
-The function "Alignof" takes an expression denoting a variable of any type
-and returns the alignment of the variable in bytes. The following alignment
-condition is satisfied for a variable "x":
+Computer architectures may require memory addresses to be <i>aligned</i>;
+that is, for addresses of a variable to be a multiple of a factor,
+the variable's type's <i>alignment</i>.  The function <code>Alignof</code>
+takes an expression denoting a variable of any type and returns the
+alignment of the (type of the) variable in bytes.  For a variable
+<code>x</code>:
+</p>
 
 <pre>
 uintptr(unsafe.Pointer(&amp;x)) % uintptr(unsafe.Alignof(x)) == 0
 </pre>
 
-The maximum alignment is given by the constant "unsafe.Maxalign".
-It usually corresponds to the value of "unsafe.Sizeof(x)" for
-a variable "x" of the largest arithmetic type (8 for a float64), but may
-be smaller on systems that have less stringent alignment restrictions
-or are space constrained.
 <p>
-The results of calls to "unsafe.Alignof", "unsafe.Offsetof", and
-"unsafe.Sizeof" are compile-time constants.
+The maximum alignment is given by the constant <code>Maxalign</code>.
+It usually corresponds to the value of <code>Sizeof(x)</code> for
+a variable <code>x</code> of the largest arithmetic type (8 for a
+<code>float64</code>), but may
+be smaller on systems with weaker alignment restrictions.
+</p>
+<p>
+Calls to <code>Alignof</code>, <code>Offsetof</code>, and
+<code>Sizeof</code> are constant expressions of type <code>int</code>.
+</p>
 
 
 <h3>Size and alignment guarantees</h3>
 
-For the arithmetic types (§Arithmetic types), a Go compiler guarantees the
-following sizes:
+For the arithmetic types (§Arithmetic types), the following sizes are guaranteed:
 
 <pre class="grammar">
 type                      size in bytes
@@ -3791,19 +3824,19 @@ uint64, int64, float64    8
 </pre>
 
 <p>
-A Go compiler guarantees the following minimal alignment properties:
+The following minimal alignment properties are guaranteed:
 </p>
 <ol>
-<li>For a variable "x" of any type: "1 <= unsafe.Alignof(x) <= unsafe.Maxalign".
+<li>For a variable <code>x</code> of any type: <code>1 <= unsafe.Alignof(x) <= unsafe.Maxalign</code>.
 
-<li>For a variable "x" of arithmetic type: "unsafe.Alignof(x)" is the smaller
-   of "unsafe.Sizeof(x)" and "unsafe.Maxalign", but at least 1.
+<li>For a variable <code>x</code> of arithmetic type: <code>unsafe.Alignof(x)</code> is the smaller
+   of <code>unsafe.Sizeof(x)</code> and <code>unsafe.Maxalign</code>, but at least 1.
 
-<li>For a variable "x" of struct type: "unsafe.Alignof(x)" is the largest of
-   all the values "unsafe.Alignof(x.f)" for each field "f" of x, but at least 1.
+<li>For a variable <code>x</code> of struct type: <code>unsafe.Alignof(x)</code> is the largest of
+   all the values <code>unsafe.Alignof(x.f)</code> for each field <code>f</code> of x, but at least 1.
 
-<li>For a variable "x" of array type: "unsafe.Alignof(x)" is the same as
-   unsafe.Alignof(x[0]), but at least 1.
+<li>For a variable <code>x</code> of array type: <code>unsafe.Alignof(x)</code> is the same as
+   <code>unsafe.Alignof(x[0])</code>, but at least 1.
 </ol>
 
 <hr/>
