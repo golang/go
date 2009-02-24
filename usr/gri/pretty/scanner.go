@@ -399,7 +399,6 @@ func (S *Scanner) scanComment() string {
 
 	if S.ch == '/' {
 		//-style comment
-		S.next();
 		for S.ch >= 0 {
 			S.next();
 			if S.ch == '\n' {
