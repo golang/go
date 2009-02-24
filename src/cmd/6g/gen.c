@@ -776,6 +776,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
 
 	// BOTCH nodr.type = fntype;
+	nodr.type = n->left->type;
 	ginscall(&nodr, proc);
 
 	regfree(&nodr);
