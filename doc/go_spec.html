@@ -366,10 +366,8 @@ the destination must be able to represent the assigned value.
 </p>
 <p>
 Implementation restriction: A compiler may implement ideal numbers
-by choosing a large internal representation of such numbers.
-<br>
-<font color=red>TODO: This is too vague. It used to say "sufficiently"
-but that doesn't help.  Define a minimum?</font>
+by choosing an internal representation with at least twice the precision
+of any machine type.
 </p>
 
 <h3>Character literals</h3>
@@ -517,11 +515,6 @@ These examples all represent the same string:
 "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // The explicit UTF-8 bytes
 </pre>
 
-<pre>
-"Alea iacta est."
-"Alea " /* The die */ `iacta est` /* is cast */ "."
-</pre>
-
 <p>
 If the source code represents a character as two code points, such as
 a combining form involving an accent and a letter, the result will be
@@ -534,18 +527,17 @@ literal.
 <h2>Types</h2>
 
 <p>
-A type determines a set of values and operations specific to values of that type.
+A type determines the set of values and operations specific to values of that type.
 A type may be specified by a (possibly qualified (§Qualified identifiers))
 type name (§Type declarations) or a <i>type literal</i>,
 which composes a new type in terms of previously declared types.
 </p>
 
 <pre class="grammar">
-Type = TypeName | TypeLit | "(" Type ")" .
-TypeName = QualifiedIdent.
-TypeLit =
-	ArrayType | StructType | PointerType | FunctionType | InterfaceType |
-	SliceType | MapType | ChannelType .
+Type      = TypeName | TypeLit | "(" Type ")" .
+TypeName  = QualifiedIdent.
+TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
+	    SliceType | MapType | ChannelType .
 </pre>
 
 <p>
@@ -667,36 +659,10 @@ A sequence of string literals is concatenated into a single string.
 StringLit   = string_lit { string_lit } .
 </pre>
 
-<h3>Array types</h3>
-
-<p>
-An array is a numbered sequence of elements of a single
-type, called the element type, which must be complete
-(§Types). The number of elements is called the length and is never
-negative.
-</p>
-
-<pre class="grammar">
-ArrayType   = "[" ArrayLength "]" ElementType .
-ArrayLength = Expression .
-ElementType = CompleteType .
-</pre>
-
-<p>
-The length is part of the array's type and must must be a constant
-expression (§Constant expressions) that evaluates to a non-negative
-integer value.  The length of array <code>a</code> can be discovered
-using the built-in function <code>len(a)</code>, which is a
-compile-time constant.  The elements can be indexed by integer
-indices 0 through the <code>len(a)-1</code> (§Indexes).
-</p>
-
 <pre>
-[32]byte
-[2*N] struct { x, y int32 }
-[1000]*float64
+"Alea iacta est."
+"Alea " /* The die */ `iacta est` /* is cast */ "."
 </pre>
-
 
 <h3>Struct types</h3>
 
@@ -782,12 +748,42 @@ struct {
 }
 </pre>
 
+<h3>Array types</h3>
+
+<p>
+An array is a numbered sequence of elements of a single
+type, called the element type, which must be complete
+(§Types). The number of elements is called the length and is never
+negative.
+</p>
+
+<pre class="grammar">
+ArrayType   = "[" ArrayLength "]" ElementType .
+ArrayLength = Expression .
+ElementType = CompleteType .
+</pre>
+
+<p>
+The length is part of the array's type and must must be a constant
+expression (§Constant expressions) that evaluates to a non-negative
+integer value.  The length of array <code>a</code> can be discovered
+using the built-in function <code>len(a)</code>, which is a
+compile-time constant.  The elements can be indexed by integer
+indices 0 through the <code>len(a)-1</code> (§Indexes).
+</p>
+
+<pre>
+[32]byte
+[2*N] struct { x, y int32 }
+[1000]*float64
+</pre>
 
 <h3>Pointer types</h3>
 
 <p>
 A pointer type denotes the set of all pointers to variables of a given
-type, called the ``base type'' of the pointer, and the value <code>nil</code>.
+type, called the ``base type'' of the pointer.
+A pointer value may be <code>nil</code>.
 </p>
 
 <pre class="grammar">
@@ -797,38 +793,43 @@ BaseType = Type .
 
 <pre>
 *int
-map[string] chan
+*map[string] *chan int
 </pre>
-
-<p>
-The pointer base type may be an incomplete type (§Types).
-</p>
 
 <h3>Function types</h3>
 
-<p>TODO: stopped fine-grained editing here </p>
+<p>
 A function type denotes the set of all functions with the same parameter
-and result types, and the value "nil".
+and result types.
+A function value may be <code>nil</code>.
+</p>
 
 <pre class="grammar">
-FunctionType = "func" Signature .
-Signature = "(" [ ParameterList ] ")" [ Result ] .
-ParameterList = ParameterDecl { "," ParameterDecl } .
-ParameterDecl = [ IdentifierList ] ( Type | "..." ) .
-Result = Type | "(" ParameterList ")" .
+FunctionType   = "func" Signature .
+Signature      = Parameters [ Result ] .
+Result         = Parameters | CompleteType .
+Parameters     = "(" [ ParameterList ] ")" .
+ParameterList  = ParameterDecl { "," ParameterDecl } .
+ParameterDecl  = [ IdentifierList ] ( CompleteType | "..." ) .
 </pre>
 
-In ParameterList, the parameter names (IdentifierList) either must all be
-present, or all be absent. If the parameters are named, each name stands
-for one parameter of the specified type. If the parameters are unnamed, each
-type stands for one parameter of that type.
 <p>
-For the last incoming parameter only, instead of a parameter type one
-may write "...". The ellipsis indicates that the last parameter stands
-for an arbitrary number of additional arguments of any type (including
-no additional arguments). If the parameters are named, the identifier
-list immediately preceding "..." must contain only one identifier (the
-name of the last parameter).
+Within a list of parameters or results, the names (IdentifierList)
+must either all be present or all be absent. If present, each name
+stands for one item (parameter or result) of the specified type; if absent, each
+type stands for one item of that type.  Parameter and result
+lists are always parenthesized except that if there is exactly
+one unnamed result that is not a function type it may writen as an unparenthesized type.
+The types of parameters and results must be complete.
+(TODO: is completeness necessary?)
+</p>
+<p>
+For the last parameter only, instead of a type one may write
+<code>...</code> to indicate that the function may be invoked with
+an arbitrary number (including zero) of additional arguments of any
+type. If parameters of such a function are named, the final identifier
+list must be a single name, that of the <code>...</code> parameter.
+</p>
 
 <pre>
 func ()
@@ -839,39 +840,41 @@ func (a, b int, z float) bool
 func (a, b int, z float) (bool)
 func (a, b int, z float, opt ...) (success bool)
 func (int, int, float) (float, *[]int)
-</pre>
-
-If the result type of a function is itself a function type, the result type
-must be parenthesized to resolve a parsing ambiguity:
-
-<pre>
 func (n int) (func (p* T))
 </pre>
 
 
 <h3>Interface types</h3>
 
-Type interfaces may be specified explicitly by interface types.
-An interface type denotes the set of all types that implement at least
-the set of methods specified by the interface type, and the value "nil".
+<p>
+An interface type specifies an unordered set of methods. A variable
+of interface type can store, dynamically, any value that implements
+at least that set of methods.
+An interface value may be <code>nil</code>.
+</p>
 
 <pre class="grammar">
-InterfaceType = "interface" [ "{" [ MethodSpecList ] "}" ] .
-MethodSpecList = MethodSpec { ";" MethodSpec } [ ";" ] .
-MethodSpec = IdentifierList Signature | TypeName .
+InterfaceType      = "interface" [ "{" [ MethodSpecList ] "}" ] .
+MethodSpecList     = MethodSpec { ";" MethodSpec } [ ";" ] .
+MethodSpec         = IdentifierList Signature | InterfaceTypeName .
+InterfaceTypeName  = TypeName .
 </pre>
 
 <pre>
-// An interface specifying a basic File type.
+// A simple File interface
 interface {
 	Read, Write	(b Buffer) bool;
 	Close		();
 }
 </pre>
 
-Any type (including interface types) whose interface has, possibly as a
-subset, the complete set of methods of an interface I is said to implement
-interface I. For instance, if two types S1 and S2 have the methods
+<p>
+Any type (including interface types) whose interface includes,
+possibly as a subset, the complete set of methods of an interface <code>I</code>
+is said to implement interface <code>I</code>.
+For instance, if two types <code>S1</code> and <code>S2</code>
+have the methods
+</p>
 
 <pre>
 func (p T) Read(b Buffer) bool { return ... }
@@ -879,18 +882,28 @@ func (p T) Write(b Buffer) bool { return ... }
 func (p T) Close() { ... }
 </pre>
 
-(where T stands for either S1 or S2) then the File interface is
-implemented by both S1 and S2, regardless of what other methods
-S1 and S2 may have or share.
+<p>
+(where <code>T</code> stands for either <code>S1</code> or <code>S2</code>)
+then the <code>File</code> interface is implemented by both <code>S1</code> and
+<code>S2</code>, regardless of what other methods
+<code>S1</code> and <code>S2</code> may have or share.
+</p>
 
-All types implement the empty interface:
+<p>
+A type implements any interface comprising any subset of its methods
+and may therefore implement several distinct interfaces. For
+instance, all types implement the <i>empty interface</i>:
+</p>
 
 <pre>
-interface {}
+interface { }
 </pre>
 
-In general, a type implements an arbitrary number of interfaces.
-For instance, consider the interface
+<p>
+Similarly, consider this interface specification,
+which appears within a type declaration (§Type declarations)
+to define an interface called <code>Lock</code>:
+</p>
 
 <pre>
 type Lock interface {
@@ -898,19 +911,26 @@ type Lock interface {
 }
 </pre>
 
-If S1 and S2 also implement
+<p>
+If <code>S1</code> and <code>S2</code> also implement
+</p>
 
 <pre>
 func (p T) Lock() { ... }
 func (p T) Unlock() { ... }
 </pre>
 
-they implement the Lock interface as well as the File interface.
 <p>
-An interface may contain a type name T in place of a method specification.
-T must denote another, complete interface type.
-Using this notation is equivalent to enumerating the methods of T explicitly
-in the interface containing T.
+they implement the <code>Lock</code> interface as well
+as the <code>File</code> interface.
+</p>
+<p>
+An interface may contain an interface type name <code>T</code>
+in place of a method specification.
+In this notation, <code>T</code> must denote a different, complete interface type
+and the effect is equivalent to enumerating the methods of <code>T</code> explicitly
+in the interface.
+</p>
 
 <pre>
 type ReadWrite interface {
@@ -924,128 +944,113 @@ type File interface {
 }
 </pre>
 
-Forward declaration:
-A interface type consisting of only the reserved word "interface" may be used in
-a type declaration; it declares an incomplete interface type (§Type declarations).
-This allows the construction of mutually recursive types such as:
-
-<pre>
-type T2 interface
-type T1 interface {
-	foo(T2) int;
-}
-type T2 interface {
-	bar(T1) int;
-}
-</pre>
-
 <h3>Slice types</h3>
 
-A slice type denotes the set of all slices (segments) of arrays
-(§Array types) of a given element type, and the value "nil".
-The number of elements of a slice is called its length; it is never negative.
-The elements of a slice are designated by indices which are
-integers from 0 through the length - 1.
+<p>
+A slice is a reference to a contiguous segment of an array and
+contains a numbered sequence of elements from that array.  A slice
+type denotes the set of all slices of arrays of its element type.
+A slice value may be <code>nil</code>.
+</p>
 
 <pre class="grammar">
 SliceType = "[" "]" ElementType .
 </pre>
 
-Syntactically and semantically, arrays and slices look and behave very
-similarly, but with one important difference: A slice is a descriptor
-of an array segment; in particular, different variables of a slice type may
-refer to different (and possibly overlapping) segments of the same underlying
-array. Thus, with respect to the underlying array, slices behave like
-references. In contrast, two different variables of array type always
-denote two different arrays.
 <p>
-For slices, the actual array underlying the slice may extend past the current
-slice length; the maximum length a slice may assume is called its capacity.
-The capacity of any slice "a" can be discovered using the built-in function
+Like arrays, slices are indexable and have a length.  The length of a
+slice <code>s</code> can be discovered by the built-in function
+<code>len(s)</code>; unlike with arrays it may change during
+execution.  The elements can be addressed by integer indices 0
+through <code>len(s)-1</code> (§Indexes).  The slice index of a
+given element may be less than the index of the same element in the
+underlying array.
+</p>
+<p>
+A slice, once initialized, is always associated with an underlying
+array that holds its elements.  A slice therfore shares storage
+with its array and with other slices of the same array; by contrast,
+distinct arrays always represent distinct storage.
+</p>
+<p>
+The array underlying a slice may extend past the end of the slice.
+The <i>capacity</i> is a measure of that extent: it is the sum of 
+the length of the slice and the length of the array beyond the slice;
+a slice of length up to that capacity can be created by `slicing' a new
+one from the original slice (§Slices).
+The capacity of a slice <code>a</code> can be discovered using the
+built-in function
+</p>
 
 <pre>
-cap(a)
+cap(s)
 </pre>
 
-and the following relationship between "len()" and "cap()" holds:
+<p>
+and the relationship between <code>len()</code> and <code>cap()</code> is:
+</p>
 
 <pre>
 0 <= len(a) <= cap(a)
 </pre>
 
-The value of an uninitialized slice is "nil", and its length and capacity
-are 0. A new, initialized slice value for a given element type T is
-made using the built-in function "make", which takes a slice type
+<p>
+The value of an uninitialized slice is <code>nil</code>, and its length and capacity
+are 0. A new, initialized slice value for a given element type <code>T</code> is
+made using the built-in function <code>make</code>, which takes a slice type
 and parameters specifying the length and optionally the capacity:
+</p>
 
 <pre>
 make([]T, length)
 make([]T, length, capacity)
 </pre>
 	
-The "make()" call allocates a new underlying array to which the returned
-slice value refers. More precisely, calling "make"
+<p>
+The <code>make()</code> call allocates a new, hidden array to which the returned
+slice value refers. That is, calling <code>make</code>
+</p>
 
 <pre>
 make([]T, length, capacity)
 </pre>
 
-is effectively the same as allocating an array and slicing it
-
-<pre>
-new([capacity]T)[0 : length]
-</pre>
-
 <p>
-Indexing: Given a (pointer to) a slice variable "a", a slice element is
-specified with an index operation:
+produces the same slice as allocating an array and slicing it:
+</p>
 
 <pre>
-a[i]
+make([capacity]T)[0 : length]
 </pre>
-
-This denotes the slice element at index "i". "i" must be within bounds,
-that is "0 &lt;= i &lt; len(a)".
-<p>
-Slicing: Given a a slice variable "a", a sub-slice is created with a slice
-operation:
-
-<pre>
-a[i : j]
-</pre>
-
-This creates the sub-slice consisting of the elements "a[i]" through "a[j - 1]"
-(that is, excluding "a[j]"). The values "i" and "j" must satisfy the condition
-"0 &lt;= i &lt;= j &lt;= cap(a)". The length of the new slice is "j - i". The capacity of
-the slice is "cap(a) - i"; thus if "i" is 0, the slice capacity does not change
-as a result of a slice operation. The type of a sub-slice is the same as the
-type of the slice. Unlike the capacity, the length of a sub-slice may be larger
-than the length of the original slice.
 
 
 <h3>Map types</h3>
 
-A map is a composite type consisting of a variable number of entries
-called (key, value) pairs. For a given map, the keys and values must
-each be of a specific complete type (§Types) called the key and value type,
-respectively. The number of entries in a map is called its length; it is never
-negative.
+<p>
+A map is an unordered group of elements of one type, called the
+value type, indexed by a set of unique <i>keys</i> of another type,
+called the key type.  Both key and value types must be complete.
+(§Types).
+(TODO: is completeness necessary here?)
+A map value may be <code>nil</code>.
+
+</p>
 
 <pre class="grammar">
-MapType = "map" "[" KeyType "]" ValueType .
-KeyType = CompleteType .
-ValueType = CompleteType .
+MapType     = "map" "[" KeyType "]" ValueType .
+KeyType     = CompleteType .
+ValueType   = CompleteType .
 </pre>
 
-The comparison operators "==" and "!=" (§Comparison operators) must be defined
-for operands of the key type; thus the key type must be a basic, pointer,
-interface, or channel type. If the key type is an interface type,
-the dynamic key types must support these comparison operators. In this case,
-inserting a map value with a key that does not support testing for equality
-is a run-time error.
 <p>
-Upon creation, a map is empty and values may be added and removed
-during execution.
+The comparison operators <code>==</code> and <code>!=</code>
+(§Comparison operators) must be fully defined for operands of the
+key type; thus the key type must be a basic, pointer, interface,
+map, or channel type. If the key type is an interface type, these
+comparison operators must be defined for the dynamic key values;
+failure will cause a run-time error.
+
+</p>
 
 <pre>
 map [string] int
@@ -1053,42 +1058,47 @@ map [*T] struct { x, y float }
 map [string] interface {}
 </pre>
 
-The length of a map "m" can be discovered using the built-in function
-
-<pre>
-len(m)
-</pre>
-
-The value of an uninitialized map is "nil". A new, empty map value for given
-map type M is made using the built-in function "make" which takes the map type
-and an optional capacity as arguments:
-
-<pre>
-my_map := make(M, 100);
-</pre>
-
 <p>
-The map capacity is an allocation hint for more efficient incremental growth
-of the map.
+The number of elements is called the length and is never negative.
+The length of a map <code>m</code> can be discovered using the
+built-in function <code>len(m)</code> and may change during execution.
+The value of an uninitialized map is <code>nil</code>
 </p>
+<p>
+Upon creation, a map is empty.  Values may be added and removed
+during execution using special forms of assignment (§Assignments).
+A new, empty map value is made using the built-in
+function <code>make</code>, which takes the map type and an optional
+capacity, an allocation hint, as arguments:
+</p>
+
+<pre>
+make(map[string] int, 100);
+</pre>
 
 <h3>Channel types</h3>
 
+<p>
 A channel provides a mechanism for two concurrently executing functions
-to synchronize execution and exchange values of a specified type. This
-type must be a complete type (§Types).
+to synchronize execution and communicate by passing a value of a
+specified element type. The element type must be complete (§Types).
+(TODO: is completeness necessary here?)
+A channel value may be <code>nil</code>.
+</p>
 
 <pre class="grammar">
-ChannelType = Channel | SendChannel | RecvChannel .
-Channel = "chan" ValueType .
-SendChannel = "chan" "&lt;-" ValueType .
-RecvChannel = "&lt;-" "chan" ValueType .
+ChannelType   = Channel | SendChannel | RecvChannel .
+Channel       = "chan" ValueType .
+SendChannel   = "chan" "&lt;-" ValueType .
+RecvChannel   = "&lt;-" "chan" ValueType .
 </pre>
 
-Upon creation, a channel can be used both to send and to receive.
+<p>
+Upon creation, a channel can be used both to send and to receive values.
 By conversion or assignment, a channel may be constrained only to send or
-to receive. This constraint is called a channel's ``direction''; either
-bi-directional (unconstrained), send, or receive.
+to receive. This constraint is called a channel's <i>direction</i>; either
+<i>send</i>, <i>receive</i>, or <i>bi-directional</i> (unconstrained).
+</p>
 
 <pre>
 chan T         // can send and receive values of type T
@@ -1096,108 +1106,88 @@ chan &lt;- float  // can only be used to send floats
 &lt;-chan int     // can only receive ints
 </pre>
 
-The value of an uninitialized channel is "nil". A new, initialized channel
-value for a given element type T is made using the built-in function "make",
+<p>
+The value of an uninitialized channel is <code>nil</code>. A new, initialized channel
+value is made using the built-in function <code>make</code>,
 which takes the channel type and an optional capacity as arguments:
+</p>
 
 <pre>
-my_chan = make(chan int, 100);
+make(chan int, 100);
 </pre>
 
-The capacity sets the size of the buffer in the communication channel. If the
+<p>
+The capacity, in number of elements, sets the size of the buffer in the channel. If the
 capacity is greater than zero, the channel is asynchronous and, provided the
-buffer is not full, sends can succeed without blocking. If the capacity is zero,
-the communication succeeds only when both a sender and receiver are ready.
+buffer is not full, sends can succeed without blocking. If the capacity is zero
+or absent, the communication succeeds only when both a sender and receiver are ready.
+</p>
 
-
-<h3>Type equality</h3>
+<h2>General properties of types and values</h2>
 
 <p>
-Types may be ``different'', ``structurally equal'', or ``identical''.
-Go is a type-safe language; generally different types cannot be mixed
-in binary operations, and values cannot be assigned to variables of different
-types. However, values may be assigned to variables of structurally
-equal types. Finally, type guards succeed only if the dynamic type
-is identical to or implements the type tested against (§Type guards).
-<p>
-Structural type equality (equality for short) is defined by these rules:
+Types may be <i>different</i>, <i>structurally equal</i> (or just <i>equal</i>),
+or <i>identical</i>.
+Go is <i>type safe</i>: different types cannot be mixed
+in binary operations and values cannot be assigned to variables of different
+types. They can be assigned to variables of equal type.
+</p>
+
+<h3>Type equality and identity </h3>
+
 <p>
 Two type names denote equal types if the types in the corresponding declarations
-are equal. Two type literals specify equal types if they have the same
-literal structure and corresponding components have equal types. Loosely
-speaking, two types are equal if their values have the same layout in memory.
-More precisely:
+are equal (§Declarations and Scope).
+Two type literals specify equal types if they have the same
+literal structure and corresponding components have equal types.
+In detail:
 </p>
+
 <ul>
-	<li>Two array types are equal if they have equal element types and if they
-	  have the same array length.
+	<li>Two pointer types are equal if they have equal base types.</li>
 
-	<li>Two struct types are equal if they have the same number of fields in the
-	  same order, corresponding fields either have both the same name or
-	  are both anonymous, and corresponding field types are identical.
+	<li>Two array types are equal if they have equal element types and
+	  the same array length.</li>
 
-	<li>Two pointer types are equal if they have equal base types.
+	<li>Two struct types are equal if they have the same sequence of fields,
+	    with the same names and equal types. Two anonymous fields are
+	    considered to have the same name.</li>
 
 	<li>Two function types are equal if they have the same number of parameters
 	  and result values and if corresponding parameter and result types are
-	  equal (a "..." parameter is equal to another "..." parameter).
-	  Note that parameter and result names do not have to match.
+	  the same. All "..." parameters have equal type.
+	  Parameter and result names are not required to match.</li>
 
-	<li>Two slice types are equal if they have equal element types.
+	<li>Two slice types are equal if they have equal element types.</li>
 
 	<li>Two channel types are equal if they have equal value types and
-	  the same direction.
+	  the same direction.</li>
 
-	<li>Two map types are equal if they have equal key and value types.
+	<li>Two map types are equal if they have equal key and value types.</li>
 
 	<li>Two interface types are equal if they have the same set of methods
-	  with the same names and equal function types. Note that the order
-	  of the methods in the respective type declarations is irrelevant.
+	  with the same names and equal function types. The order
+	  of the methods is irrelevant.</li>
 </ul>
 
 <p>
-Type identity is defined by these rules:
+Type identity is more stringent than type equality.
+It requires for type names
+that they originate in the same type declaration, while for equality it requires
+only that they originate in equal type declarations.
+Also, the names of parameters and results must match for function types.
+In all other respects, the definition of type identity is the
+same as for type equality listed above but with ``identical''
+substitued for ``equal''.
 </p>
 <p>
-Two type names denote identical types if they originate in the same
-type declaration. Two type literals specify identical types if they have the
-same literal structure and corresponding components have identical types.
-More precisely:
+By definition, identical types are also equal types.
+Two types are different if they are not equal.
 </p>
-<ul>
-	<li>Two array types are identical if they have identical element types and if
-	  they have the same array length.
 
-	<li>Two struct types are identical if they have the same number of fields in
-	  the same order, corresponding fields either have both the same name or
-	  are both anonymous, and corresponding field types are identical.
-
-	<li>Two pointer types are identical if they have identical base types.
-
-	<li>Two function types are identical if they have the same number of
-	  parameters and result values both with the same (or absent) names, and
-	  if corresponding parameter and result types are identical (a "..."
-	  parameter is identical to another "..." parameter with the same name).
-
-	<li>Two slice types are identical if they have identical element types.
-
-	<li>Two channel types are identical if they have identical value types and
-	  the same direction.
-
-	<li>Two map types are identical if they have identical key and value types.
-
-	<li>Two interface types are identical if they have the same set of methods
-	  with the same names and identical function types. Note that the order
-	  of the methods in the respective type declarations is irrelevant.
-</ul>
-
-Note that the type denoted by a type name is identical only to the type literal
-in the type name's declaration.
 <p>
-Finally, two types are different if they are not structurally equal.
-(By definition, they cannot be identical, either).
-
-For instance, given the declarations
+Given the declarations
+</p>
 
 <pre>
 type (
@@ -1210,17 +1200,22 @@ type (
 )
 </pre>
 
-these are some types that are equal
+<p>
+these types are equal
+</p>
 
 <pre>
 T0 and T0
+T0 and T1
 T0 and []string
 T2 and T3
 T4 and T5
 T3 and struct { a int; int }
 </pre>
 
-and these are some types that are identical
+<p>
+and these types are identical
+</p>
 
 <pre>
 T0 and T0
@@ -1228,21 +1223,12 @@ T0 and T0
 struct { a, b *T5 } and struct { a, b *T5 }
 </pre>
 
-As an example, "T0" and "T1" are equal but not identical because they have
-different declarations.
+<p>
+<code>T0</code> and <code>T1</code> are equal but not
+identical because they have distinct declarations.
+</p>
 
 <h3>Assignment compatibility</h3>
-
-<!--
-TODO in another round of editing:
-It may make sense to have a special section in this doc containing these rule
-sets for:
-
-equality of types
-identity of types
-comparisons
-assignment compatibility
--->
 
 <p>
 Values of any type may always be assigned to variables
@@ -1605,7 +1591,7 @@ If there are expressions, their number must be equal
 to the number of identifiers, and the n<sup>th</sup> variable
 is initialized to the value of the n<sup>th</sup> expression.
 Otherwise, each variable is initialized to the <i>zero</i>
-of the type (§Program initialization and execution).
+of the type (§The zero value).
 The expressions can be general expressions; they need not be constants.
 </p>
 <p>
@@ -1882,7 +1868,7 @@ pi := Num(Rat(22, 7), 3.14159, "pi");
 
 The length of an array literal is the length specified in the LiteralType.
 If fewer elements than the length are provided in the literal, the missing
-elements are set to the appropriate zero value for the array element type.
+elements are set to the zero value for the array element type.
 It is an error to provide more elements than specified in LiteralType. The
 notation "..." may be used in place of the length expression to denote a
 length equal to the number of elements in the literal.
@@ -2112,7 +2098,7 @@ TODO: Need to expand map rules for assignments of the form v, ok = m[k].
 
 <h3>Slices</h3>
 
-Strings, arrays, and slices can be ``sliced'' to construct substrings or descriptors
+Strings, arrays, and slices can be <i>sliced</i> to construct substrings or descriptors
 of subarrays. The index expressions in the slice select which elements appear
 in the result.  The result has indexes starting at 0 and length equal to the
 difference in the index values in the slice.  After slicing the array "a"
@@ -2129,8 +2115,11 @@ s[0] == 2
 s[1] == 3
 </pre>
 
-The index values in the slice must be in bounds for the original
-array (or string) and the slice length must be non-negative.
+The slice length must be non-negative.
+For arrays or strings,
+the index values in the slice must be in bounds for the original
+array or string;
+for slices, the index values must be between 0 and the capacity of the slice.
 <p>
 If the sliced operand is a string, the result of the slice operation is another
 string (§String types). If the sliced operand is an array or slice, the result
@@ -2173,8 +2162,8 @@ v, ok := x.(T)
 the result of the guarded expression is a pair of values with types "(T, bool)".
 If the type guard succeeds, the expression returns the pair "(x.(T), true)";
 that is, the value stored in "x" (of type "T") is assigned to "v", and "ok"
-is set to true. If the type guard fails, the value in "v" is set to the initial
-value for the type of "v" (§Program initialization and execution), and "ok" is
+is set to true. If the type guard fails, the value in "v" is set to the zero
+value for the type of "v" (§The zero value), and "ok" is
 set to false. No run-time exception occurs in this case.
 <p>
 <font color=red>
@@ -3490,7 +3479,7 @@ have to be written as type guards? (§Type guards)
 
 The built-in function "new" takes a type "T" and returns a value of type "*T".
 The memory is initialized as described in the section on initial values
-(§Program initialization and execution).
+(§The zero value).
 
 <pre>
 new(T)
@@ -3518,7 +3507,7 @@ The built-in function "make" takes a type "T", optionally followed by a
 type-specific list of expressions. It returns a value of type "T". "T"
 must be a slice, map, or channel type.
 The memory is initialized as described in the section on initial values
-(§Program initialization and execution).
+(§The zero value).
 
 <pre>
 make(T [, optional list of expressions])
@@ -3665,29 +3654,38 @@ func main() {
 
 <h2>Program initialization and execution</h2>
 
+<h3>The zero value</h3>
+<p>
 When memory is allocated to store a value, either through a declaration
-or "new()", and no explicit initialization is provided, the memory is
+or <code>new()</code>, and no explicit initialization is provided, the memory is
 given a default initialization.  Each element of such a value is
-set to the ``zero'' for that type: "false" for booleans, "0" for integers,
-"0.0" for floats, '''' for strings, and "nil" for pointers and interfaces.
+set to the zero value for its type: <code>false</code> for booleans,
+<code>0</code> for integers, <code>0.0</code> for floats, <code>""</code>
+for strings, and <code>nil</code> for pointers and interfaces.
 This initialization is done recursively, so for instance each element of an
-array of integers will be set to 0 if no other value is specified.
+array of structs will have its fields zeroed if no value is specified.
+</p>
 <p>
 These two simple declarations are equivalent:
+</p>
 
 <pre>
 var i int;
 var i int = 0;
 </pre>
 
+<p>
 After
+</p>
 
 <pre>
 type T struct { i int; f float; next *T };
 t := new(T);
 </pre>
 
+<p>
 the following holds:
+</p>
 
 <pre>
 t.i == 0
@@ -3695,43 +3693,54 @@ t.f == 0.0
 t.next == nil
 </pre>
 
-
+<h3>Program execution</h3>
+<p>
 A package with no imports is initialized by assigning initial values to
 all its global variables in declaration order and then calling any init()
 functions defined in its source. Since a package may contain more
 than one source file, there may be more than one init() function, but
 only one per source file.
+</p>
 <p>
 Initialization code may contain "go" statements, but the functions
 they invoke do not begin execution until initialization of the entire
 program is complete. Therefore, all initialization code is run in a single
 thread of execution.
+</p>
 <p>
 Furthermore, an "init()" function cannot be referred to from anywhere
 in a program. In particular, "init()" cannot be called explicitly, nor
 can a pointer to "init" be assigned to a function variable).
+</p>
 <p>
 If a package has imports, the imported packages are initialized
 before initializing the package itself. If multiple packages import
 a package P, P will be initialized only once.
+</p>
 <p>
 The importing of packages, by construction, guarantees that there can
 be no cyclic dependencies in initialization.
+</p>
 <p>
 A complete program, possibly created by linking multiple packages,
 must have one package called main, with a function
+</p>
 
 <pre>
 func main() { ...  }
 </pre>
 
-defined.  The function main.main() takes no arguments and returns no
+<p>
+defined.  The function <code>main.main()</code> takes no arguments and returns no
 value.
+</p>
 <p>
 Program execution begins by initializing the main package and then
-invoking main.main().
+invoking <code>main.main()</code>.
+</p>
 <p>
 When main.main() returns, the program exits.
+</p>
 
 <hr/>
 
