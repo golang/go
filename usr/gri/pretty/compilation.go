@@ -150,7 +150,8 @@ func fileExists(name string) bool {
 }
 
 
-func printDep(localset map [string] bool, wset *vector.Vector, decl *AST.Decl) {
+/*
+func printDep(localset map [string] bool, wset *vector.Vector, decl AST.Decl2) {
 	src := decl.Val.(*AST.BasicLit).Val;
 	src = src[1 : len(src) - 1];  // strip "'s
 
@@ -171,6 +172,7 @@ func printDep(localset map [string] bool, wset *vector.Vector, decl *AST.Decl) {
 		}
 	}
 }
+*/
 
 
 func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string, flags *Flags) {
@@ -183,13 +185,15 @@ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string, 
 			return;
 		}
 
-		nimports := prog.Decls.Len();
+		nimports := len(prog.Decls);
 		if nimports > 0 {
 			fmt.Printf("%s.6:\t", src_file);
 
 			localset := make(map [string] bool);
 			for i := 0; i < nimports; i++ {
-				decl := prog.Decls.At(i).(*AST.Decl);
+				decl := prog.Decls[i];
+				panic();
+				/*
 				assert(decl.Tok == Scanner.IMPORT);
 				if decl.List == nil {
 					printDep(localset, wset, decl);
@@ -198,6 +202,7 @@ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string, 
 						printDep(localset, wset, decl.List.At(j).(*AST.Decl));
 					}
 				}
+				*/
 			}
 			print("\n\n");
 		}

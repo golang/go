@@ -52,6 +52,7 @@ func (s *state) CheckType() {
 }
 
 
+/*
 func (s *state) CheckDeclaration(d *AST.Decl) {
 	if d.Tok != Scanner.FUNC && d.List != nil {
 		// group of parenthesized declarations
@@ -72,11 +73,12 @@ func (s *state) CheckDeclaration(d *AST.Decl) {
 		}
 	}
 }
+*/
 
 
 func (s *state) CheckProgram(p *AST.Program) {
-	for i := 0; i < p.Decls.Len(); i++ {
-		s.CheckDeclaration(p.Decls.At(i).(*AST.Decl));
+	for i := 0; i < len(p.Decls); i++ {
+		//s.CheckDeclaration(p.Decls[i].(*AST.Decl));
 	}
 }
 

@@ -14,7 +14,7 @@ import (
 type (
 	Block struct;
 	Expr interface;
-	Decl struct;
+	Decl interface;
 )
 
 
@@ -38,41 +38,7 @@ type Node struct {
 
 
 // ----------------------------------------------------------------------------
-// Types
-
-const /* form */ (
-	// BADTYPE types are compatible with any type and don't cause further errors.
-	// They are introduced only as a result of an error in the source code. A
-	// correct program cannot have BAD types.
-	BADTYPE = iota;
-
-	// A type name
-	TYPENAME;
-
-	// composite types
-	ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; POINTER;
-
-	// open-ended parameter type
-	ELLIPSIS
-)
-
-
-func FormStr(form int) string {
-	switch form {
-	case BADTYPE: return "BADTYPE";
-	case TYPENAME: return "TYPENAME";
-	case ARRAY: return "ARRAY";
-	case STRUCT: return "STRUCT";
-	case INTERFACE: return "INTERFACE";
-	case MAP: return "MAP";
-	case CHANNEL: return "CHANNEL";
-	case FUNCTION: return "FUNCTION";
-	case POINTER: return "POINTER";
-	case ELLIPSIS: return "ELLIPSIS";
-	}
-	return "<unknown Type form>";
-}
-
+// Expressions
 
 const /* channel mode */ (
 	FULL = iota;
@@ -81,62 +47,15 @@ const /* channel mode */ (
 )
 
 
-type Type struct {
-	Id int;  // unique id
-
-	Form int;  // type form
-	Size int;  // size in bytes
-	Scope *SymbolTable.Scope;  // locals, fields & methods
-
-	// syntactic components
-	Pos int;  // source position (< 0 if unknown position)
-	Expr Expr;  // type name, vector length
-	Mode int;  // channel mode
-	Key *Type;  // receiver type or map key
-	Elt *Type;  // type name type, vector, map, channel or pointer element type, function result type
-	List *vector.Vector; End int;  // struct fields, interface methods, function parameters
-}
-
-
-var typeId int;
-
-func NewType(pos, form int) *Type {
-	typ := new(Type);
-	typ.Id = typeId;
-	typeId++;
-
-	typ.Pos = pos;
-	typ.Form = form;
-
-	return typ;
-}
-
-
-func (typ* Type) String() string {
-	if typ != nil {
-		return
-			"Type(" +
-			FormStr(typ.Form) +
-			")";
-	}
-	return "nil";
-}
-
-
-var BadType = NewType(0, Scanner.ILLEGAL);
-
-
-// ----------------------------------------------------------------------------
-// Expressions
-
 type (
 	ExprVisitor interface;
+	Signature struct;
 
 	Expr interface {
 		Pos() int;
 		Visit(v ExprVisitor);
 	};
-
+	
 	BadExpr struct {
 		Pos_ int;
 	};
@@ -147,28 +66,32 @@ type (
 	};
 
 	BinaryExpr struct {
-		Pos_, Tok int;
+		Pos_ int;
+		Tok int;
 		X, Y Expr;
 	};
 
 	UnaryExpr struct {
-		Pos_, Tok int;
+		Pos_ int;
+		Tok int;
 		X Expr;
 	};
 
 	BasicLit struct {
-		Pos_, Tok int;
+		Pos_ int;
+		Tok int;
 		Val string
 	};
 
 	FunctionLit struct {
 		Pos_ int;  // position of "func"
-		Typ *Type;
+		Typ *Signature;
 		Body *Block;
 	};
 	
-	TypeLit struct {
-		Typ *Type;
+	Group struct {
+		Pos_ int;  // position of "("
+		X Expr;
 	};
 
 	Selector struct {
@@ -180,7 +103,7 @@ type (
 	TypeGuard struct {
 		Pos_ int;  // position of "."
 		X Expr;
-		Typ *Type;
+		Typ Expr;
 	};
 
 	Index struct {
@@ -192,6 +115,66 @@ type (
 		Pos_ int;  // position of "("
 		F, Args Expr
 	};
+
+	// Type literals are treated like expressions.
+	Ellipsis struct {  // neither a type nor an expression
+		Pos_ int;
+	};
+
+	ArrayType struct {
+		Pos_ int;  // position of "["
+		Len Expr;
+		Elt Expr;
+	};
+	
+	Field struct {
+		Idents []*Ident;
+		Typ Expr;
+		Tag Expr;  // nil = no tag
+	};
+
+	StructType struct {
+		Pos_ int;  // position of "struct"
+		Fields []*Field;
+		End int;  // position of "}", End == 0 if forward declaration
+	};
+	
+	PointerType struct {
+		Pos_ int;  // position of "*"
+		Base Expr;
+	};
+	
+	Signature struct {
+		Params []*Field;
+		Result []*Field;
+	};
+
+	FunctionType struct {
+		Pos_ int;  // position of "func"
+		Sig *Signature;
+	};
+
+	InterfaceType struct {
+		Pos_ int;  // position of "interface"
+		Methods []*Field;
+		End int;  // position of "}", End == 0 if forward declaration
+	};
+
+	SliceType struct {
+		Pos_ int;  // position of "["
+	};
+	
+	MapType struct {
+		Pos_ int;  // position of "map"
+		Key Expr;
+		Val Expr;
+	};
+	
+	ChannelType struct {
+		Pos_ int;  // position of "chan" or "<-"
+		Mode int;
+		Val Expr;
+	};
 )
 
 
@@ -202,25 +185,46 @@ type ExprVisitor interface {
 	DoUnaryExpr(x *UnaryExpr);
 	DoBasicLit(x *BasicLit);
 	DoFunctionLit(x *FunctionLit);
-	DoTypeLit(x *TypeLit);
+	DoGroup(x *Group);
 	DoSelector(x *Selector);
 	DoTypeGuard(x *TypeGuard);
 	DoIndex(x *Index);
 	DoCall(x *Call);
+	
+	DoEllipsis(x *Ellipsis);
+	DoArrayType(x *ArrayType);
+	DoStructType(x *StructType);
+	DoPointerType(x *PointerType);
+	DoFunctionType(x *FunctionType);
+	DoInterfaceType(x *InterfaceType);
+	DoSliceType(x *SliceType);
+	DoMapType(x *MapType);
+	DoChannelType(x *ChannelType);
 }
 
 
+// TODO replace these with an embedded field
 func (x *BadExpr) Pos() int { return x.Pos_; }
 func (x *Ident) Pos() int { return x.Pos_; }
 func (x *BinaryExpr) Pos() int { return x.Pos_; }
 func (x *UnaryExpr) Pos() int { return x.Pos_; }
 func (x *BasicLit) Pos() int { return x.Pos_; }
 func (x *FunctionLit) Pos() int { return x.Pos_; }
-func (x *TypeLit) Pos() int { return x.Typ.Pos; }
+func (x *Group) Pos() int { return x.Pos_; }
 func (x *Selector) Pos() int { return x.Pos_; }
 func (x *TypeGuard) Pos() int { return x.Pos_; }
 func (x *Index) Pos() int { return x.Pos_; }
 func (x *Call) Pos() int { return x.Pos_; }
+
+func (x *Ellipsis) Pos() int { return x.Pos_; }
+func (x *ArrayType) Pos() int { return x.Pos_; }
+func (x *StructType) Pos() int { return x.Pos_; }
+func (x *PointerType) Pos() int { return x.Pos_; }
+func (x *FunctionType) Pos() int { return x.Pos_; }
+func (x *InterfaceType) Pos() int { return x.Pos_; }
+func (x *SliceType) Pos() int { return x.Pos_; }
+func (x *MapType) Pos() int { return x.Pos_; }
+func (x *ChannelType) Pos() int { return x.Pos_; }
 
 
 func (x *BadExpr) Visit(v ExprVisitor) { v.DoBadExpr(x); }
@@ -229,11 +233,21 @@ func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
 func (x *UnaryExpr) Visit(v ExprVisitor) { v.DoUnaryExpr(x); }
 func (x *BasicLit) Visit(v ExprVisitor) { v.DoBasicLit(x); }
 func (x *FunctionLit) Visit(v ExprVisitor) { v.DoFunctionLit(x); }
-func (x *TypeLit) Visit(v ExprVisitor) { v.DoTypeLit(x); }
+func (x *Group) Visit(v ExprVisitor) { v.DoGroup(x); }
 func (x *Selector) Visit(v ExprVisitor) { v.DoSelector(x); }
 func (x *TypeGuard) Visit(v ExprVisitor) { v.DoTypeGuard(x); }
 func (x *Index) Visit(v ExprVisitor) { v.DoIndex(x); }
 func (x *Call) Visit(v ExprVisitor) { v.DoCall(x); }
+
+func (x *Ellipsis) Visit(v ExprVisitor) { v.DoEllipsis(x); }
+func (x *ArrayType) Visit(v ExprVisitor) { v.DoArrayType(x); }
+func (x *StructType) Visit(v ExprVisitor) { v.DoStructType(x); }
+func (x *PointerType) Visit(v ExprVisitor) { v.DoPointerType(x); }
+func (x *FunctionType) Visit(v ExprVisitor) { v.DoFunctionType(x); }
+func (x *InterfaceType) Visit(v ExprVisitor) { v.DoInterfaceType(x); }
+func (x *SliceType) Visit(v ExprVisitor) { v.DoSliceType(x); }
+func (x *MapType) Visit(v ExprVisitor) { v.DoMapType(x); }
+func (x *ChannelType) Visit(v ExprVisitor) { v.DoChannelType(x); }
 
 
 
@@ -264,25 +278,6 @@ func ExprAt(x Expr, i int) Expr {
 		x = t.X;
 	}
 	return x;
-}
-
-
-func (t *Type) Nfields() int {
-	if t.List == nil {
-		return 0;
-	}
-	nx, nt := 0, 0;
-	for i, n := 0, t.List.Len(); i < n; i++ {
-		if dummy, ok := t.List.At(i).(*TypeLit); ok {
-			nt++;
-		} else {
-			nx++;
-		}
-	}
-	if nx == 0 {
-		return nt;
-	}
-	return nx;
 }
 
 
@@ -329,7 +324,7 @@ type (
 	};
 
 	DeclarationStat struct {
-		Decl *Decl;
+		Decl Decl;
 	};
 
 	ExpressionStat struct {
@@ -421,25 +416,79 @@ func (s *EmptyStat) Visit(v StatVisitor) { v.DoEmptyStat(s); }
 // ----------------------------------------------------------------------------
 // Declarations
 
-type Decl struct {
-	Node;
-	Ident Expr;  // nil for ()-style declarations
-	Typ *Type;
-	Val Expr;
-	Body *Block;
-	// list of *Decl for ()-style declarations
-	List *vector.Vector; End int;
+type (
+	DeclVisitor interface;
+
+	Decl interface {
+		Visit(v DeclVisitor);
+	};
+	
+	BadDecl struct {
+		Pos int;
+	};
+
+	ImportDecl struct {
+		Pos int;  // if > 0: position of "import"
+		Ident *Ident;
+		Path Expr;
+	};
+	
+	ConstDecl struct {
+		Pos int;  // if > 0: position of "const"
+		Idents []*Ident;
+		Typ Expr;
+		Vals Expr;
+	};
+	
+	TypeDecl struct {
+		Pos int;  // if > 0: position of "type"
+		Ident *Ident;
+		Typ Expr;
+	};
+	
+	VarDecl struct {
+		Pos int;  // if > 0: position of "var"
+		Idents []*Ident;
+		Typ Expr;
+		Vals Expr;
+	};
+
+	FuncDecl struct {
+		Pos_ int;  // position of "func"
+		Recv *Field;
+		Ident *Ident;
+		Sig *Signature;
+		Body *Block;
+	};
+	
+	DeclList struct {
+		Pos int;  // position of Tok
+		Tok int;
+		List []Decl;
+		End int;
+	};
+)
+
+
+type DeclVisitor interface {
+	DoBadDecl(d *BadDecl);
+	DoImportDecl(d *ImportDecl);
+	DoConstDecl(d *ConstDecl);
+	DoTypeDecl(d *TypeDecl);
+	DoVarDecl(d *VarDecl);
+	DoFuncDecl(d *FuncDecl);
+	DoDeclList(d *DeclList);
 }
 
 
-func NewDecl(pos, tok int) *Decl {
-	d := new(Decl);
-	d.Pos, d.Tok = pos, tok;
-	return d;
-}
-
-
-var BadDecl = NewDecl(0, Scanner.ILLEGAL);
+//func (d *Decl) Visit(v DeclVisitor) { v.DoDecl(d); }
+func (d *BadDecl) Visit(v DeclVisitor) { v.DoBadDecl(d); }
+func (d *ImportDecl) Visit(v DeclVisitor) { v.DoImportDecl(d); }
+func (d *ConstDecl) Visit(v DeclVisitor) { v.DoConstDecl(d); }
+func (d *TypeDecl) Visit(v DeclVisitor) { v.DoTypeDecl(d); }
+func (d *VarDecl) Visit(v DeclVisitor) { v.DoVarDecl(d); }
+func (d *FuncDecl) Visit(v DeclVisitor) { v.DoFuncDecl(d); }
+func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
 
 
 // ----------------------------------------------------------------------------
@@ -461,7 +510,7 @@ func NewComment(pos int, text string) *Comment {
 type Program struct {
 	Pos int;  // tok is Scanner.PACKAGE
 	Ident Expr;
-	Decls *vector.Vector;
+	Decls []Decl;
 	Comments *vector.Vector;
 }
 

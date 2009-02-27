@@ -10,7 +10,7 @@ import P2 /* ERROR expected */ 42 /* SYNC */
 
 
 type S0 struct {
-	f0, f1, f2;
+	f0, f1, f2 int;
 }
 
 
