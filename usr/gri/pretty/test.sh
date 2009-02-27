@@ -26,7 +26,7 @@ apply1() {
 	case `basename $F` in
 	# files with errors (skip them)
 	# the following have semantic errors: bug039.go | bug040.go
-	method1.go | selftest1.go | func3.go | \
+	calc.go | method1.go | selftest1.go | func3.go | \
 	bug014.go | bug025.go | bug029.go | bug032.go | bug039.go | bug040.go | bug050.go |  bug068.go | \
 	bug088.go | bug083.go | bug106.go | bug121.go | bug125.go | bug126.go | bug132.go | bug133.go | bug134.go ) ;;
 	* ) $1 $2; count $F;;
@@ -43,18 +43,9 @@ applydot() {
 }
 
 
-# apply to all files in the list
+# apply to all .go files we can find
 apply() {
-	for F in \
-		$GOROOT/usr/gri/pretty/*.go \
-		$GOROOT/test/*.go \
-		$GOROOT/test/bugs/*.go \
-		$GOROOT/test/fixedbugs/*.go \
-		$GOROOT/doc/progs/*.go \
-		$GOROOT/src/lib/*.go \
-		$GOROOT/src/lib/*/*.go \
-		$GOROOT/usr/r/*/*.go
-	do
+	for F in `find $GOROOT -name "*.go" | grep -v "OLD"`; do
 		apply1 $1 $F
 	done
 }
