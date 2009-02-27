@@ -1735,6 +1735,19 @@ only after their own declaration or forward-declaration (§Forward declarations)
 Implementation restriction: They can only be declared at package level.
 </p>
 
+<p>
+The type of a method is the type of a function with the receiver as first
+argument.  For instance, the method <code>Scale</code> has type
+</p>
+
+<pre>
+(p *Point, factor float)
+</pre>
+
+<p>
+However, a function declared this way is not a method.
+</p>
+
 <h3>Forward declarations</h3>
 
 <p>
@@ -1777,164 +1790,176 @@ func F(a int) int {
 
 <h2>Expressions</h2>
 
-An expression specifies the computation of a value via the application of
-operators and function invocations on operands. An expression has a value and
+<p>
+An expression specifies the computation of a value by applying
+operators and functions to operands. An expression has a value and
 a type.
-<p>
-The type of a constant expression may be an ideal number. The type of such expressions
-is implicitly converted into the 'expected numeric type' required for the expression.
-The conversion is legal if the (ideal) expression value is a member of the
-set represented by the expected numeric type. In all other cases, and specifically
-if the expected type is not a numeric type, the expression is erroneous.
-<p>
-For instance, if the expected numeric type is a uint32, any ideal number
-which fits into a uint32 without loss of precision can be legally converted.
-Thus, the values 991, 42.0, and 1e9 are ok, but -1, 3.14, or 1e100 are not.
-
-<!--
-TODO(gri) This may be overly constraining. What about "len(a) + c" where
-c is an ideal number? Is len(a) of type int, or of an ideal number? Probably
-should be ideal number, because for arrays, it is a constant.
--->
-
+</p>
 
 <h3>Operands</h3>
 
 Operands denote the elementary values in an expression.
 
 <pre class="grammar">
-Operand  = Literal | QualifiedIdent | "(" Expression ")" .
-Literal  = BasicLit | CompositeLit | FunctionLit .
-BasicLit = int_lit | float_lit | char_lit | StringLit .
-StringLit = string_lit { string_lit } .
+Operand    = Literal | QualifiedIdent | "(" Expression ")" .
+Literal    = BasicLit | CompositeLit | FunctionLit .
+BasicLit   = int_lit | float_lit | char_lit | StringLit .
+StringLit  = string_lit { string_lit } .
 </pre>
 
 
 <h3>Constants</h3>
 
-An operand is called ``constant'' if it is a literal of a basic type
-(including the predeclared constants "true" and "false", and the values
-denoted by "iota"), the predeclared constant "nil", or a parenthesized
+<p>
+An operand is called <i>constant</i> if it is a literal of a basic type
+(including the predeclared constants <code>true</code> and <code>false</code>,
+and values denoted by <code>iota</code>),
+the predeclared constant <code>nil</code>, or a parenthesized
 constant expression (§Constant expressions). Constants have values that
-are known at compile-time.
-
+are known at compile time.
+</p>
 
 <h3>Qualified identifiers</h3>
 
-A qualified identifier is an identifier qualified by a package name.
 <p>
-<font color=red>
-TODO(gri) expand this section.
-</font>
+A qualified identifier is an identifier qualified by a package name prefix.
+</p>
 
 <pre class="grammar">
-QualifiedIdent = { PackageName "." } identifier .
+QualifiedIdent = [ LocalPackageName "." ] [ PackageName "." ] identifier .
+LocalPackageName = identifier .
 PackageName = identifier .
 </pre>
 
+<p>
+A qualified identifier accesses an identifier in
+a separate package.  The identifier must be exported by that package, which
+means that it must begin with a Unicode upper case letter (§Exported identifiers).
+</p>
+<p>
+The LocalPackageName is that of the package in which the qualified identifier
+appears and is only necessary to access names hidden by intervening declarations
+of a package-level identifier.
+</p>
+
+<pre>
+Math.Sin
+mypackage.hiddenName
+mypackage.Math.Sin  // if Math is declared in an intervening scope
+</pre>
 
 <h3>Composite literals</h3>
 
-Literals for composite data structures consist of the type of the value
-followed by a braced expression list for array, slice, and structure literals,
+<p>
+Composite literals construct values for structs, arrays, slices, and maps
+and create a new value each time they are evaluated.
+They consist of the type of the value
+followed by a parenthesized list of expressions,
 or a list of expression pairs for map literals.
+</p>
 
 <pre class="grammar">
-CompositeLit = LiteralType "(" [ ( ExpressionList | ExprPairList ) [ "," ] ] ")" .
-LiteralType = Type | "[" "..." "]" ElementType .
-ExprPairList = ExprPair { "," ExprPair } .
-ExprPair = Expression ":" Expression .
+CompositeLit  = LiteralType "(" [ ( ExpressionList | ExprPairList ) [ "," ] ] ")" .
+LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
+                SliceType | MapType | TypeName .
+ExprPairList  = ExprPair { "," ExprPair } .
+ExprPair      = Expression ":" Expression .
 </pre>
 
-The LiteralType must be an struct, array, slice, or map type.
+<p>
+The LiteralType must be a struct, array, slice, or map type.
+<font color=red>TODO: then why doesn't the grammar say that?</font>
 The types of the expressions must match the respective field, element, and
 key types of the LiteralType; there is no automatic type conversion.
-Composite literals are values of the type specified by LiteralType; that is
-a new value is created every time the literal is evaluated. To get
-a pointer to the literal, the address operator "&amp;" must be used.
-<p>
 Given
+</p>
 
 <pre>
 type Rat struct { num, den int }
 type Num struct { r Rat; f float; s string }
 </pre>
 
-one can write
+<p>
+one may write
+</p>
 
 <pre>
 pi := Num(Rat(22, 7), 3.14159, "pi");
 </pre>
 
+<p>
 The length of an array literal is the length specified in the LiteralType.
 If fewer elements than the length are provided in the literal, the missing
 elements are set to the zero value for the array element type.
-It is an error to provide more elements than specified in LiteralType. The
-notation "..." may be used in place of the length expression to denote a
-length equal to the number of elements in the literal.
+It is an error to provide more elements than specified in the type. The
+notation <code>...</code> specifies an array length equal
+to the number of elements in the literal.
+</p>
 
 <pre>
 buffer := [10]string();               // len(buffer) == 10
 primes := [6]int(2, 3, 5, 7, 9, 11);  // len(primes) == 6
-days := [...]string("sat", "sun");    // len(days) == 2
+days := [...]string("Sat", "Sun");    // len(days) == 2
 </pre>
 
-A slice literal is a slice describing the entire underlying array literal.
+<p>
+A slice literal describes the entire underlying array literal.
 Thus, the length and capacity of a slice literal is the number of elements
-provided in the literal. A slice literal of the form
+(of the array) provided in the literal. A slice literal has the form
+</p>
 
 <pre>
 []T(x1, x2, ... xn)
 </pre>
 
-is essentially a shortcut for a slice operation applied to an array literal:
+<p>
+and is a shortcut for a slice operation applied to an array literal:
+</p>
 
 <pre>
 [n]T(x1, x2, ... xn)[0 : n]
 </pre>
 
-Map literals are similar except the elements of the expression list are
+<p>
+In map literals only, the list contains
 key-value pairs separated by a colon:
+</p>
 
 <pre>
 m := map[string]int("good": 0, "bad": 1, "indifferent": 7);
 </pre>
 
-<font color=red>
-TODO: Consider adding helper syntax for nested composites
-(avoids repeating types but complicates the spec needlessly.)
-</font>
-
-
 <h3>Function literals</h3>
 
-A function literal represents an anonymous function. It consists of a
-specification of the function type and the function body. The parameter
-and result types of the function type must all be complete types (§Types).
+<p>
+A function literal represents an anonymous function.
+It consists of a specification of the function type and a function body.
+</p>
 
 <pre class="grammar">
-FunctionLit = "func" Signature Block .
-Block = "{" [ StatementList ] "}" .
+FunctionLit   = "func" Signature Block .
+Block         = "{" [ StatementList ] "}" .
 </pre>
-
-The type of a function literal is the function type specified.
 
 <pre>
-func (a, b int, z float) bool { return a*b &lt; int(z); }
+func (a, b int, z float) bool { return a*b &lt; int(z) }
 </pre>
 
-A function literal can be assigned to a variable of the
-corresponding function type, or invoked directly.
+<p>
+A function literal can be assigned to a variable or invoked directly.
+</p>
 
 <pre>
-f := func(x, y int) int { return x + y; }
-func(ch chan int) { ch &lt;- ACK; } (reply_chan)
+f := func(x, y int) int { return x + y }
+func(ch chan int) { ch &lt;- ACK } (reply_chan)
 </pre>
 
-Function literals are "closures": they may refer to variables
+<p>
+Function literals are <i>closures</i>: they may refer to variables
 defined in a surrounding function. Those variables are then shared between
 the surrounding function and the function literal, and they survive as long
-as they are accessible in any way.
+as they are accessible.
+</p>
 
 
 <h3>Primary expressions</h3>
@@ -1948,11 +1973,11 @@ PrimaryExpr =
 	PrimaryExpr TypeGuard |
 	PrimaryExpr Call .
 
-Selector = "." identifier .
-Index = "[" Expression "]" .
-Slice = "[" Expression ":" Expression "]" .
-TypeGuard = "." "(" Type ")" .
-Call = "(" [ ExpressionList ] ")" .
+Selector   = "." identifier .
+Index      = "[" Expression "]" .
+Slice      = "[" Expression ":" Expression "]" .
+TypeGuard  = "." "(" Type ")" .
+Call       = "(" [ ExpressionList ] ")" .
 </pre>
 
 
@@ -1972,49 +1997,74 @@ f.p[i].x()
 
 <h3>Selectors</h3>
 
+<p>
 A primary expression of the form
+</p>
 
 <pre>
 x.f
 </pre>
 
-denotes the field or method f of the value denoted by x (or of *x if
-x is of pointer type). The identifier f is called the (field or method)
-``selector''.
 <p>
-A selector f may denote a field f declared in a type T, or it may refer
-to a field f declared in a nested anonymous field of T. Analogously,
-f may denote a method f of T, or it may refer to a method f of the type
-of a nested anonymous field of T. The number of anonymous fields traversed
-to get to the field or method is called its ``depth'' in T.
+denotes the field or method <code>f</code> of the value denoted by <code>x</code>
+(or of <code>*x</code> if
+<code>x</code> is of pointer type). The identifier <code>f</code>
+is called the (field or method)
+<i>selector</i>.
+The type of the expression is the type of <code>f</code>.
+</p>
 <p>
-More precisely, the depth of a field or method f declared in T is zero.
-The depth of a field or method f declared anywhere inside
-an anonymous field A declared in T is the depth of f in A plus one.
+A selector <code>f</code> may denote a field or method <code>f</code> of
+a type <code>T</code>, or it may refer
+to a field or method <code>f</code> of a nested anonymous field of
+<code>T</code>.
+The number of anonymous fields traversed
+to reach <code>f</code> is called its <i>depth</i> in <code>T</code>.
+The depth of a field or method <code>f</code>
+declared in <code>T</code> is zero.
+The depth of a field or method <code>f</code> declared in
+an anonymous field <code>A</code> in <code>T</code> is the
+depth of <code>f</code> in <code>A</code> plus one.
+</p>
 <p>
 The following rules apply to selectors:
-<p>
-1) For a value x of type T or *T where T is not an interface type,
-x.f denotes the field or method at the shallowest depth in T where there
-is such an f. The type of x.f is the type of the field or method f.
-If there is not exactly one f with shallowest depth, the selector
+</p>
+<ol>
+<li>
+For a value <code>x</code> of type <code>T</code> or <code>*T</code>
+where <code>T</code> is not an interface type,
+<code>x.f</code> denotes the field or method at the shallowest depth
+in <code>T</code> where there
+is such an <code>f</code>.
+If there is not exactly one <code>f</code> with shallowest depth, the selector
 expression is illegal.
+</li>
+<li>
+For a variable <code>x</code> of type <code>I</code> or <code>*I</code>
+where <code>I</code> is an interface type,
+<code>x.f</code> denotes the actual method with name <code>f</code> of the value assigned
+to <code>x</code> if there is such a method.
+If no value or <code>nil</code> was assigned to <code>x</code>, <code>x.f</code> is illegal.
+</li>
+<li>
+In all other cases, <code>x.f</code> is illegal.
+</ol>
 <p>
-2) For a variable x of type I or *I where I is an interface type,
-x.f denotes the actual method with name f of the value assigned
-to x if there is such a method. The type of x.f is the type
-of the method f. If no value or nil was assigned to x, x.f is illegal.
+Selectors automatically dereference pointers as necessary.
+If <code>x</code> is of pointer type, <code>x.y</code>
+is shorthand for <code>(*x).y</code>; if <code>y</code>
+is also of pointer type, <code>x.y.z</code> is shorthand
+for <code>(*(*x).y).z</code>, and so on.
+If <code>*x</code> is of pointer type, dereferencing
+must be explicit;
+only one level of automatic dereferencing is provided.
+For an <code>x</code> of type <code>T</code> containing an
+anonymous field declared as <code>*A</code>,
+<code>x.f</code> is a shortcut for <code>(*x.A).f</code>.
+</p>
 <p>
-3) In all other cases, x.f is illegal.
-<p>
-Thus, selectors automatically dereference pointers as necessary. For instance,
-for an x of type *T where T declares an f, x.f is a shortcut for (*x).f.
-Furthermore, for an x of type T containing an anonymous field A declared as *A
-inside T, and where A contains a field f, x.f is a shortcut for (*x.A).f
-(assuming that the selector is legal in the first place).
-<p>
-The following examples illustrate selector use in more detail. Given the
-declarations:
+For example, given the declarations:
+</p>
 
 <pre>
 type T0 struct {
@@ -2040,7 +2090,9 @@ func (recv *T2) M2()
 var p *T2;  // with p != nil and p.T1 != nil
 </pre>
 
-one can write:
+<p>
+one may write:
+</p>
 
 <pre>
 p.z         // (*p).z
@@ -2060,250 +2112,275 @@ TODO: Specify what happens to receivers.
 
 <h3>Indexes</h3>
 
+<p>
 A primary expression of the form
+</p>
 
 <pre>
 a[x]
 </pre>
 
 <p>
-denotes the array or map element x. The value x is called the
-``array index'' or ``map key'', respectively. The following
+denotes the array or map element of <code>a</code> indexed by <code>x</code>.
+The value <code>x</code> is called the
+<i>array index</i> or <i>map key</i>, respectively. The following
 rules apply:
 </p>
 <p>
-For a of type A or *A where A is an array type (§Array types):
+For <code>a</code> of type <code>A</code> or <code>*A</code>
+where <code>A</code> is an array type (§Array types):
 </p>
 <ul>
-	<li>x must be an integer value and 0 &lt;= x &lt; len(a)
-	<li>a[x] is the array element at index x and the type of a[x]
-	  is the element type of A
+	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code>
+	<li><code>a[x]</code> is the array element at index <code>x</code> and the type of
+	  <code>a[x]</code> is the element type of <code>A</code>
 </ul>
 <p>
-For a of type *M, where M is a map type (§Map types):
+For <code>a</code> of type <code>M</code> or <code>*M</code>
+where <code>M</code> is a map type (§Map types):
 </p>
 <ul>
-	<li>x must be of the same type as the key type of M
-	  and the map must contain an entry with key x
-	<li>a[x] is the map value with key x and the type of a[x]
-	  is the value type of M
+	<li><code>x</code> must be of the same type as the key type of <code>M</code>
+	  and the map must contain an entry with key <code>x</code> (but see special forms below)
+	<li><code>a[x]</code> is the map value with key <code>x</code>
+	  and the type of <code>a[x]</code> is the value type of <code>M</code>
 </ul>
 
-Otherwise a[x] is illegal.
 <p>
-<font color=red>
-TODO: Need to expand map rules for assignments of the form v, ok = m[k].
-</font>
+Otherwise <code>a[x]</code> is illegal.  If the index or key is out of range evaluating
+an otherwise legal index expression, a run-time exception occurs.
+</p>
 
+<p>
+However, if an index expression on a map <code>a</code> of type <code>map[K] V</code>
+is used in an assignment of one of the special forms
+</p>
+
+<pre>
+r, ok = a[x]
+r, ok := a[x]
+</pre>
+
+<p>
+the result of the index expression is a pair of values with types
+<code>(K, bool)</code>.
+If the key is present in the map,
+the expression returns the pair <code>(a[x], true)</code>;
+otherwise it returns <code>(Z, false)</code> where <code>Z</code> is
+the zero value for <code>V</code> (§The zero value).
+No run-time exception occurs in this case.
+The index expression in this construct thus acts like a function call
+returning a value and a boolean indicating success.  (§Assignments)
+</p>
+
+<p>
+Similarly, if an assignment to a map has the special form
+</p>
+
+<pre>
+a[x] = r, ok
+</pre>
+
+<p>
+and boolean <code>ok</code> has the value <code>false</code>,
+the entry for key <code>x</code> is deleted from the map; if
+<code>ok</code> is <code>true</code>, the construct acts like
+a regular assignment to an element of the map.
+</p>
 
 <h3>Slices</h3>
 
+<p>
 Strings, arrays, and slices can be <i>sliced</i> to construct substrings or descriptors
 of subarrays. The index expressions in the slice select which elements appear
 in the result.  The result has indexes starting at 0 and length equal to the
-difference in the index values in the slice.  After slicing the array "a"
+difference in the index values in the slice.  After slicing the array <code>a</code>
+</p>
 
 <pre>
 a := [4]int(1, 2, 3, 4);
 s := a[1:3];
 </pre>
 
-the slice "s" has type "[]int", length 2, and elements
+<p>
+the slice <code>s</code> has type <code>[]int</code>, length 2, and elements
+</p>
 
 <pre>
 s[0] == 2
 s[1] == 3
 </pre>
 
+<p>
 The slice length must be non-negative.
 For arrays or strings,
 the index values in the slice must be in bounds for the original
 array or string;
 for slices, the index values must be between 0 and the capacity of the slice.
 <p>
-If the sliced operand is a string, the result of the slice operation is another
+If the sliced operand is a string, the result of the slice operation is another, new
 string (§String types). If the sliced operand is an array or slice, the result
 of the slice operation is a slice (§Slice types).
+</p>
 
 
 <h3>Type guards</h3>
 
-For an expression "x" and a type "T", the primary expression
+<p>
+For an expression <code>x</code> and a type <code>T</code>, the primary expression
+</p>
 
 <pre>
 x.(T)
 </pre>
 
-asserts that the value stored in "x" is an element of type "T" (§Types).
-The notation ".(T)" is called a ``type guard'', and "x.(T)" is called
-a ``guarded expression''. The type of "x" must be an interface type.
 <p>
-More precisely, if "T" is not an interface type, the expression asserts
-that the dynamic type of "x" is identical to the type "T" (§Types).
-If "T" is an interface type, the expression asserts that the dynamic type
-of T implements the interface "T" (§Interface types). Because it can be
-verified statically, a type guard in which the static type of "x" implements
-the interface "T" is illegal. The type guard is said to succeed if the
-assertion holds.
+asserts that the value stored in <code>x</code> is of type <code>T</code>.
+The notation <code>.(T)</code> is called a <i>type guard</i>, and <code>x.(T)</code> is called
+a <i>guarded expression</i>. The type of <code>x</code> must be an interface type.
+</p>
+<p>
+More precisely, if <code>T</code> is not an interface type, the type guard asserts
+that the dynamic type of <code>x</code> is identical to the type <code>T</code>
+(§Type equality and identity).
+If <code>T</code> is an interface type, the type guard asserts that the dynamic type
+of <code>T</code> implements the interface <code>T</code> (§Interface types).
+The type guard is said to succeed if the assertion holds.
+<font color=red>TODO: gri wants an error if x is already of type T.</font>
+</p>
 <p>
 If the type guard succeeds, the value of the guarded expression is the value
-stored in "x" and its type is "T". If the type guard fails, a run-time
-exception occurs. In other words, even though the dynamic type of "x"
-is only known at run-time, the type of the guarded expression "x.(T)" is
-known to be "T" in a correct program.
+stored in <code>x</code> and its type is <code>T</code>. If the type guard fails, a run-time
+exception occurs. In other words, even though the dynamic type of <code>x</code>
+is known only at run-time, the type of the guarded expression <code>x.(T)</code> is
+known to be <code>T</code> in a correct program.
+</p>
 <p>
-As a special form, if a guarded expression is used in an assignment
+If a guarded expression is used in an assignment of one of the special forms,
+</p>
 
 <pre>
 v, ok = x.(T)
 v, ok := x.(T)
 </pre>
 
-the result of the guarded expression is a pair of values with types "(T, bool)".
-If the type guard succeeds, the expression returns the pair "(x.(T), true)";
-that is, the value stored in "x" (of type "T") is assigned to "v", and "ok"
-is set to true. If the type guard fails, the value in "v" is set to the zero
-value for the type of "v" (§The zero value), and "ok" is
-set to false. No run-time exception occurs in this case.
 <p>
-<font color=red>
-TODO add examples
-</font>
+the result of the guarded expression is a pair of values with types <code>(T, bool)</code>.
+If the type guard succeeds, the expression returns the pair <code>(x.(T), true)</code>;
+otherwise, the expression returns <code>(Z, false)</code> where <code>Z</code>
+is the zero value for type <code>T</code> (§The zero value).
+No run-time exception occurs in this case.
+The type guard in this construct thus acts like a function call
+returning a value and a boolean indicating success.  (§Assignments)
+</p>
 
 
 <h3>Calls</h3>
 
-<font color=red>
-TODO: This needs to be expanded and cleaned up.
-</font>
-
-Given a function or a function variable p, one writes
-
-<pre>
-p()
-</pre>
-
-to call the function.
 <p>
-A method is called using the notation
+Given a function or a function variable <code>f</code> of function type
+<code>F</code>, the expression
+</p>
 
 <pre>
-receiver.method()
+f(a, b, c)
 </pre>
 
-where receiver is a value of the receiver type of the method.
 <p>
-For instance, given a *Point variable pt, one may call
+calls the function with arguments <code>a, b, c</code>.
+The arguments must be assignment compatible with the parameters of
+<code>F</code> and are evaluated before the function is called.
+The type of the expression is the result type
+of <code>F</code>.
+A method invocation is similar but the method itself
+is specified as a selector upon a value of the receiver type for
+the method.
+</p>
 
 <pre>
-pt.Scale(3.5)
+Atan2(x, y)    // function call
+var pt *Point;
+pt.Scale(3.5)  // method call with receiver pt
 </pre>
 
-The type of a method is the type of a function with the receiver as first
-argument.  For instance, the method "Scale" has type
+<p>
+If the receiver type of the method is declared as a pointer of type <code>*T</code>,
+the actual receiver may be a value of type <code>T</code>;
+in such cases method invocation implicitly takes the
+receiver's address:
+</p>
 
 <pre>
-(p *Point, factor float)
+var p Point;
+p.Scale(3.5)
 </pre>
 
-However, a function declared this way is not a method.
 <p>
 There is no distinct method type and there are no method literals.
+</p>
 
+<h3>Passing arguments to <code>...</code> parameters</h3>
 
-<h3>Parameter passing</h3>
-
-<font color=red>
-TODO expand this section (right now only "..." parameters are covered).
-</font>
-
-Inside a function, the type of the "..." parameter is the empty interface
-"interface {}". The dynamic type of the parameter - that is, the type of
-the value stored in the parameter - is of the form (in pseudo-
-notation)
-
-<pre>
-*struct {
-	arg(0) typeof(arg(0));
-	arg(1) typeof(arg(1));
-	arg(2) typeof(arg(2));
-	...
-	arg(n-1) typeof(arg(n-1));
-}
-</pre>
-
-where the "arg(i)"'s correspond to the actual arguments passed in place
-of the "..." parameter (the parameter and type names are for illustration
-only). Reflection code may be used to access the struct value and its fields.
-Thus, arguments provided in place of a "..." parameter are wrapped into
-a corresponding struct, and a pointer to the struct is passed to the
-function instead of the actual arguments.
-
-For instance, consider the function
-
-<pre>
-func f(x int, s string, f_extra ...)
-</pre>
-
-and the call
-
-<pre>
-f(42, "foo", 3.14, true, []int(1, 2, 3))
-</pre>
-
-Upon invocation, the parameters "3.14", "true", and "[]int(1, 2, 3)"
-are wrapped into a struct and the pointer to the struct is passed to f.
-In f the type of parameter "f_extra" is "interface{}".
-The dynamic type of "f_extra" is the type of the value assigned
-to it upon invocation (the field names "arg0", "arg1", "arg2" are made
-up for illustration only, they are not accessible via reflection):
-
-<pre>
-*struct {
-	arg0 float;
-	arg1 bool;
-	arg2 []int;
-}
-</pre>
-
-The values of the fields "arg0", "arg1", and "arg2" are "3.14", "true",
-and "[]int(1, 2, 3)".
 <p>
-As a special case, if a function passes a "..." parameter as the argument
-for a "..." parameter of a function, the parameter is not wrapped again into
-a struct. Instead it is passed along unchanged. For instance, the function
-f may call a function g with declaration
+When a function <code>f</code> has a <code>...</code> parameter,
+it is always the last formal parameter. Within calls to <code>f</code>,
+the arguments before the <code>...</code> are treated normally.
+After those, an arbitrary number (including zero) of trailing
+arguments may appear in the call and are bound to the <code>...</code>
+parameter.
+</p>
 
+<p>
+Within <code>f</code>, the <code>...</code> parameter has static
+type <code>interface{}</code> (the empty interface). For each call,
+its dynamic type is a structure whose sequential fields are the
+trailing arguments of the call.  That is, the actual arguments
+provided for a <code>...</code> parameter are wrapped into a struct
+that is passed to the function instead of the actual arguments.
+Using the reflection library (TODO: reference), <code>f</code> may
+unpack the elements of the dynamic type to recover the actual
+arguments.
+</p>
+
+<p>
+Given the function and call
+</p>
 <pre>
-func g(x int, g_extra ...)
+func Fprintf(f io.Write, format string, args ...)
+Fprintf(os.Stdout, "%s %d", "hello", 23);
 </pre>
 
-as
+<p>
+Within <code>Fprintf</code>, the dynamic type of <code>args</code> for this
+call will be, schematically,
+<code> struct { string; int }</code>.
+</p>
 
-<pre>
-g(x, f_extra);
-</pre>
 
-Inside g, the value stored in g_extra is the same as the value stored
-in f_extra.
-
+<p>
+As a special case, if a function passes its own <code>...</code> parameter as the argument
+for a <code>...</code> in a call to another function with a <code>...</code> parameter,
+the parameter is not wrapped again but passed directly. In short, a formal <code>...</code>
+parameter is passed unchanged as an actual <code>...</code> parameter.
 
 <h3>Operators</h3>
 
+<p>
 Operators combine operands into expressions.
+</p>
 
 <pre class="grammar">
 Expression = UnaryExpr | Expression binaryOp UnaryExpr .
-UnaryExpr = PrimaryExpr | unary_op UnaryExpr .
+UnaryExpr  = PrimaryExpr | unary_op UnaryExpr .
 
-binary_op = log_op | com_op | rel_op | add_op | mul_op .
-log_op = "||" | "&amp;&amp;" .
-com_op = "&lt;-" .
-rel_op = "==" | "!=" | "&lt;" | "&lt;=" | ">" | ">=" .
-add_op = "+" | "-" | "|" | "^" .
-mul_op = "*" | "/" | "%" | "&lt;&lt;" | ">>" | "&amp;" .
+binary_op  = log_op | com_op | rel_op | add_op | mul_op .
+log_op     = "||" | "&amp;&amp;" .
+com_op     = "&lt;-" .
+rel_op     = "==" | "!=" | "&lt;" | "&lt;=" | ">" | ">=" .
+add_op     = "+" | "-" | "|" | "^" .
+mul_op     = "*" | "/" | "%" | "&lt;&lt;" | ">>" | "&amp;" .
 
-unary_op = "+" | "-" | "!" | "^" | "*" | "&amp;" | "&lt;-" .
+unary_op   = "+" | "-" | "!" | "^" | "*" | "&amp;" | "&lt;-" .
 </pre>
 
 <p>
@@ -2312,29 +2389,36 @@ The operand types in binary operations must be equal, with the following excepti
 <ul>
 	<li>If one operand has numeric type and the other operand is
 	  an ideal number, the ideal number is converted to match the type of
-	  the other operand (§Expression).
+	  the other operand (§Expressions).</li>
 
 	<li>If both operands are ideal numbers, the conversion is to ideal floats
-	  if one of the operands is an ideal float (relevant for "/" and "%").
+	  if one of the operands is an ideal float
+	  (relevant for <code>/</code> and <code>%</code>).</li>
 
-	<li>The right operand in a shift operation must be always be an unsigned int
-	  (or an ideal number that can be safely converted into an unsigned int)
-	  (§Arithmetic operators).
+	<li>The right operand in a shift operation must be always be of unsigned integer type
+	  or an ideal number that can be safely converted into an unsigned integer type
+	  (§Arithmetic operators).</li>
+
+	<li>The operands in channel operations differ in type: one is always a channel and the
+	other is a variable or value of the channel's element type.</li>
 
 	<li>When comparing two operands of channel type, the channel value types
-	  must be equal but the channel direction is ignored.
+	  must be equal but the channel direction is ignored.</li>
 </ul>
 
-Unary operators have the highest precedence. They are evaluated from
-right to left. Note that "++" and "--" are outside the unary operator
-hierarchy (they are statements) and they apply to the operand on the left.
-Specifically, "*p++" means "(*p)++" in Go (as opposed to "*(p++)" in C).
 <p>
-There are six precedence levels for binary operators:
-multiplication operators bind strongest, followed by addition
+Unary operators have the highest precedence. They are evaluated from
+right to left. As the  <code>++</code> and <code>--</code> operators form
+statements, not expressions, they fall
+outside the unary operator hierarchy and apply
+to the operand on the left.
+As a consequence, statement <code>*p++</code> is the same as <code>(*p)++</code>.
+<p>
+There are six precedence levels for binary operators.
+Multiplication operators bind strongest, followed by addition
 operators, comparison operators, communication operators,
-"&amp;&amp;" (logical and), and finally "||" (logical or) with the
-lowest precedence:
+<code>&amp;&amp;</code> (logical and), and finally <code>||</code> (logical or):
+</p>
 
 <pre class="grammar">
 Precedence    Operator
@@ -2346,10 +2430,13 @@ Precedence    Operator
     1             ||
 </pre>
 
-Binary operators of the same precedence associate from left to right.
-For instance, "x / y / z" stands for "(x / y) / z".
 <p>
-Examples
+Binary operators of the same precedence associate from left to right.
+For instance, <code>x / y / z</code> is the same as <code>(x / y) / z</code>.
+</p>
+<p>
+Examples:
+</p>
 
 <pre>
 +x
@@ -2364,12 +2451,14 @@ x == y + 1 &amp;&amp; &lt;-chan_ptr > 0
 <h3>Arithmetic operators</h3>
 <p>
 Arithmetic operators apply to numeric types and yield a result of the same
-type as the first operand. The four standard arithmetic operators ("+", "-",
-"*", "/") apply to both integer and floating point types, while "+" also applies
-to strings and arrays; all other arithmetic operators apply to integer types only.
+type as the first operand. The four standard arithmetic operators (<code>+</code>,
+<code>-</code>,  <code>*</code>, <code>/</code>) apply both to integer and
+floating point types, while <code>+</code> applies also
+to strings; all other arithmetic operators apply to integers only.
+</p>
 
 <pre class="grammar">
-+    sum             integers, floats, strings, arrays
++    sum             integers, floats, strings
 -    difference      integers, floats
 *    product         integers, floats
 /    quotient        integers, floats
@@ -2383,27 +2472,31 @@ to strings and arrays; all other arithmetic operators apply to integer types onl
 >>   right shift     integer >> unsigned integer
 </pre>
 
-Strings can be concatenated using the "+" operator (or the "+=" assignment):
+<p>
+Strings can be concatenated using the <code>+</code> operator
+or the <code>+=</code> assignment operator:
+</p>
 
 <pre>
-s := "hi" + string(c)
+s := "hi" + string(c);
+s += " and good bye";
 </pre>
 
-String addition creates a new string by copying the elements.
 <p>
-For integer values, "/" and "%" satisfy the following relationship:
+String addition creates a new string by concatenating the operands.
+</p>
+<p>
+For integer values, <code>/</code> and <code>%</code> satisfy the following relationship:
+</p>
 
 <pre>
 (a / b) * b + a % b == a
 </pre>
 
-and
-
-<pre>
-(a / b) is "truncated towards zero".
-</pre>
-
+<p>
+with <code>(a / b)</code> truncated towards zero.
 Examples:
+</p>
 
 <pre>
  x     y     x / y     x % y
@@ -2413,9 +2506,11 @@ Examples:
 -5    -3       1        -2
 </pre>
 
-Note that if the dividend is positive and the divisor is a constant power of 2,
+<p>
+If the dividend is positive and the divisor is a constant power of 2,
 the division may be replaced by a left shift, and computing the remainder may
 be replaced by a bitwise "and" operation:
+</p>
 
 <pre>
  x     x / 4     x % 4     x >> 2     x &amp; 3
@@ -2423,16 +2518,23 @@ be replaced by a bitwise "and" operation:
 -11     -2        -3        -3          1
 </pre>
 
+<p>
 The shift operators shift the left operand by the shift count specified by the
 right operand. They implement arithmetic shifts if the left operand is a signed
-integer, and logical shifts if it is an unsigned integer. The shift count must
-be an unsigned integer. There is no upper limit on the shift count. It is
-as if the left operand is shifted "n" times by 1 for a shift count of "n".
-Specifically, "x << 1" is the same as "x*2"; and "x >> 1" is the same as
-"x/2 truncated towards negative infinity".
+integer and logical shifts if it is an unsigned integer. The shift count must
+be an unsigned integer. There is no upper limit on the shift count. Shifts behave
+as if the left operand is shifted <code>n</code> times by 1 for a shift
+count of <code>n</code>.
+As a result, <code>x << 1</code> is the same as <code>x*2</code>
+and <code>x >> 1</code> is the same as
+<code>x/2</code> truncated towards negative infinity.
+</p>
 
-For integer operands, the unary operators "+", "-", and "^" are defined as
+<p>
+For integer operands, the unary operators
+<code>+</code>, <code>-</code>, and <code>^</code> are defined as
 follows:
+</p>
 
 <pre class="grammar">
 +x                          is 0 + x
@@ -2443,17 +2545,23 @@ follows:
 
 <h3>Integer overflow</h3>
 
-For unsigned integer values, the operations "+", "-", "*", and "&lt;&lt;" are
-computed modulo 2^n, where n is the bit width of the unsigned integer type
+<p>
+For unsigned integer values, the operations <code>+</code>,
+<code>-</code>, <code>*</code>, and <code>&lt;&lt;</code> are
+computed modulo 2<sup><i>n</i></sup>, where <i>n</i> is the bit width of
+the unsigned integer's type
 (§Arithmetic types). Loosely speaking, these unsigned integer operations
 discard high bits upon overflow, and programs may rely on ``wrap around''.
+</p>
 <p>
-For signed integers, the operations "+", "-", "*", and "&lt;&lt;" may legally
+For signed integers, the operations <code>+</code>,
+<code>-</code>, <code>*</code>, and <code>&lt;&lt;</code> may legally
 overflow and the resulting value exists and is deterministically defined
 by the signed integer representation, the operation, and its operands.
-No exception is raised as a result of overflow. As a consequence, a
+No exception is raised as a result of overflow. A
 compiler may not optimize code under the assumption that overflow does
-not occur. For instance, it may not assume that "x &lt; x + 1" is always true.
+not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is always true.
+</p>
 
 
 <h3>Comparison operators</h3>
@@ -2491,8 +2599,10 @@ section on §Comparison compatibility.
 
 <h3>Logical operators</h3>
 
+<p>
 Logical operators apply to boolean operands and yield a boolean result.
 The right operand is evaluated conditionally.
+</p>
 
 <pre class="grammar">
 &amp;&amp;    conditional and    p &amp;&amp; q  is  "if p then q else false"
@@ -2503,6 +2613,9 @@ The right operand is evaluated conditionally.
 
 <h3>Address operators</h3>
 
+<!--TODO(r): This section is a mess. Skipping it for now.-->
+
+<p>
 <font color=red>TODO: Need to talk about unary "*", clean up section below.</font>
 <p>
 <font color=red>TODO: This text needs to be cleaned up and go elsewhere, there are no address
@@ -2598,42 +2711,34 @@ of a result parameter (e.g.: func f() (x int, p *int) { return 2, &amp;x }).
 
 <h3>Communication operators</h3>
 
-The syntax presented above covers communication operations.  This
-section describes their form and function.
 <p>
-Here the term "channel" means "variable of type chan".
+The term <i>channel</i> means "variable of channel type" (§Channel types).
+</p>
 <p>
-The built-in function "make" makes a new channel value:
-
-<pre>
-ch := make(chan int)
-</pre>
-
-An optional argument to "make()" specifies a buffer size for an
-asynchronous channel; if absent or zero, the channel is synchronous:
-
-<pre>
-sync_chan := make(chan int)
-buffered_chan := make(chan int, 10)
-</pre>
-
 The send operation uses the binary operator "&lt;-", which operates on
 a channel and a value (expression):
+</p>
 
 <pre>
 ch <- 3
 </pre>
 
-In this form, the send operation is an (expression) statement that
-sends the value on the channel. Both the channel and the expression
-are evaluated before communication begins.  Communication blocks
-until the send can proceed, at which point the value is transmitted
-on the channel.
+<p>
+The send operation sends the value on the channel.  Both the channel
+and the expression are evaluated before communication begins.
+Communication blocks until the send can proceed, at which point the
+value is transmitted on the channel.  A send can proceed if the
+channel is asynchronous and there is room in its buffer or the
+channel is synchronous and a receiver is ready.
+</p>
 <p>
 If the send operation appears in an expression context, the value
 of the expression is a boolean and the operation is non-blocking.
 The value of the boolean reports true if the communication succeeded,
-false if it did not.  These two examples are equivalent:
+false if it did not. (The channel and
+the expression to be sent are evaluated regardless.)
+These two examples are equivalent:
+</p>
 
 <pre>
 ok := ch <- 3;
@@ -2642,49 +2747,58 @@ if ok { print("sent") } else { print("not sent") }
 if ch <- 3 { print("sent") } else { print("not sent") }
 </pre>
 
+<p>
 In other words, if the program tests the value of a send operation,
 the send is non-blocking and the value of the expression is the
 success of the operation.  If the program does not test the value,
 the operation blocks until it succeeds.
-<p>
-<font color=red>
-TODO: Adjust the above depending on how we rule on the ok semantics.
-For instance, does the sent expression get evaluated if ok is false?
-</font>
+</p>
 <p>
 The receive operation uses the prefix unary operator "&lt;-".
-The value of the expression is the value received:
+The value of the expression is the value received, whose type
+is the element type of the channel.
+</p>
 
 <pre>
 <-ch
 </pre>
 
+<p>
 The expression blocks until a value is available, which then can
-be assigned to a variable or used like any other expression:
+be assigned to a variable or used like any other expression.
+If the receive expression does not save the value, the value is
+discarded.
+</p>
 
 <pre>
 v1 := <-ch
 v2 = <-ch
 f(<-ch)
-</pre>
-
-If the receive expression does not save the value, the value is
-discarded:
-
-<pre>
 <-strobe  // wait until clock pulse
 </pre>
 
+<p>
 If a receive expression is used in a tuple assignment of the form
+</p>
 
 <pre>
 x, ok = <-ch;  // or: x, ok := <-ch
 </pre>
 
-the receive operation becomes non-blocking, and the boolean variable
-"ok" will be set to "true" if the receive operation succeeded, and set
-to "false" otherwise.
+<p>
+the receive operation becomes non-blocking.
+If the operation can proceeed, the boolean variable
+<code>ok</code> will be set to <code>true</code>
+and the value stored in <code>x</code>; otherwise
+<code>ok</code> is set
+to <code>false</code> and <code>x</code> is set to the
+zero value for its type (§The zero value).
+</p>
 
+<p>
+<font color=red>TODO: Probably in a separate section, communication semantices
+need to be presented regarding send, receive, select, and goroutines.</font>
+</p>
 
 <h3>Constant expressions</h3>
 
@@ -2696,8 +2810,8 @@ and <code>len</code> applied to an array.
 In practice, constant expressions are those that can be evaluated at compile time.
 <p>
 The type of a constant expression is determined by the type of its
-elements.  If it contains only numeric literals, its type is ``ideal
-integer'' or ``ideal float'' (§Ideal number).  Whether it is an
+elements.  If it contains only numeric literals, its type is <i>ideal
+integer</i> or <i>ideal float</i> (§Ideal number).  Whether it is an
 integer or float depends on whether the value can be represented
 precisely as an integer (123 vs. 1.23).  The nature of the arithmetic
 operations within the expression depends, elementwise, on the values;
@@ -2729,12 +2843,16 @@ const Four int8 = Huge >> 98;
 <p>
 A constant expression may appear in any context, such as assignment
 to a variable of any numeric type, as long as the value of the
-expression can be represented accurately in that context.  For
-instance, 3 can be assigned to any integer variable but also to any
-floating point variable, while 1e12 can be assigned to a
-<code>float32</code>, <code>float64</code>, or even <code>int64</code>.
+expression can be represented accurately in that context.
 It is erroneous to assign a value with a non-zero fractional part
-to an integer, or if the assignment would overflow or underflow.
+to an integer, or if the assignment would overflow or underflow,
+or in general if the value cannot be represented by the type of
+the variable.
+For
+instance, <code>3</code> can be assigned to any integer variable but also to any
+floating point variable, while <code>-1e12</code> can be assigned to a
+<code>float32</code>, <code>float64</code>, or even <code>int64</code>
+but not <code>uint64</code> or <code>string</code>.
 </p>
 
 <hr/>
@@ -3392,30 +3510,27 @@ for i := 0; i &lt;= 3; i++ {
 <h3>Length and capacity</h3>
 
 <pre class="grammar">
-Call      Argument type        Result
+Call       Argument type       Result
 
 len(s)    string, *string      string length (in bytes)
-		  [n]T, *[n]T          array length (== n)
-		  []T, *[]T            slice length
-		  map[K]T, *map[K]T    map length
-		  chan T               number of elements in channel buffer
+          [n]T, *[n]T          array length (== n)
+          []T, *[]T            slice length
+          map[K]T, *map[K]T    map length
+          chan T               number of elements in channel buffer
 
 cap(s)    []T, *[]T            capacity of s
-		  map[K]T, *map[K]T    capacity of s
-		  chan T               channel buffer capacity
+          map[K]T, *map[K]T    capacity of s
+          chan T               channel buffer capacity
 </pre>
 
-<font color=red>
-TODO: confirm len() and cap() for channels
-</font>
-
 <p>
-The type of the result is always "int" and the implementation guarantees that
-the result always fits into an "int".
+The type of the result is always <code>int</code> and the
+implementation guarantees that
+the result always fits into an <code>int</code>.
 <p>
 The capacity of a slice or map is the number of elements for which there is
-space allocated in the underlying array (for a slice) or map. For a slice "s",
-at any time the following relationship holds:
+space allocated in the underlying array (for a slice) or map. For a slice
+<code>s</code>, at any time the following relationship holds:
 
 <pre>
 0 <= len(s) <= cap(s)
@@ -3430,9 +3545,9 @@ Conversions syntactically look like function calls of the form
 T(value)
 </pre>
 
-where "T" is the type name of an arithmetic type or string (§Basic types),
-and "value" is the value of an expression which can be converted to a value
-of result type "T".
+where <code>T</code> is the type name of an arithmetic type or string (§Basic types),
+and <code>value</code> is the value of an expression that can be converted to a value
+of result type <code>T</code>.
 <p>
 The following conversion rules apply:
 <p>
@@ -3452,27 +3567,32 @@ result. <font color=red>TODO: clarify?</font>
 <p>
 3a) Converting an integer value yields a string containing the UTF-8
 representation of the integer.
+(TODO: this one could be done just as well by a library.)
+</p>
 
 <pre>
 string(0x65e5)  // "\u65e5"
 </pre>
 
+<p>
 3b) Converting an array of <code>uint8s</code> yields a string whose successive
 bytes are those of the array.
 (Recall <code>byte</code> is a synonym for <code>uint8</code>.)
+</p>
 
 <pre>
 string([]byte('h', 'e', 'l', 'l', 'o')) // "hello"
 </pre>
 
+<p>
 There is no linguistic mechanism to convert between pointers
 and integers. A library may be provided under restricted circumstances
 to acccess this conversion in low-level code.
-<p>
 <font color=red>
 TODO: Do we allow interface/ptr conversions in this form or do they
 have to be written as type guards? (§Type guards)
 </font>
+</p>
 
 
 <h3>Allocation</h3>
@@ -3845,8 +3965,17 @@ The following minimal alignment properties are guaranteed:
 <h2><font color=red>Differences between this doc and implementation - TODO</font></h2>
 <p>
 <font color=red>
-Current implementation accepts only ASCII digits for digits; doc says Unicode.
-<br>
+Implementation accepts only ASCII digits for digits; doc says Unicode.
+<br/>
+Implementation does not allow p.x where p is the local package name.
+<br/>
+Implementation does not honor the restriction on goto statements and targets (no intervening declarations).
+<br/>
+cap() does not work on maps or chans.
+<br/>
+len() does not work on chans.
+<br/>
+Conversions work for any type; doc says only arithmetic types and strings.
 </font>
 </p>
 
