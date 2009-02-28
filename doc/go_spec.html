@@ -2278,17 +2278,18 @@ returning a value and a boolean indicating success.  (§Assignments)
 <h3>Calls</h3>
 
 <p>
-Given a function or a function variable <code>f</code> of function type
-<code>F</code>, the expression
+Given an expression <code>f</code> of function type
+<code>F</code>,
 </p>
 
 <pre>
-f(a, b, c)
+f(a1, a2, ... an)
 </pre>
 
 <p>
-calls the function with arguments <code>a, b, c</code>.
-The arguments must be assignment compatible with the parameters of
+calls <code>f</code> with arguments <code>a1, a2, ... an</code>.
+The arguments must be single-valued expressions
+assignment compatible with the parameters of
 <code>F</code> and are evaluated before the function is called.
 The type of the expression is the result type
 of <code>F</code>.
@@ -2859,51 +2860,71 @@ but not <code>uint64</code> or <code>string</code>.
 
 <h2>Statements</h2>
 
+<p>
 Statements control execution.
+</p>
 
 <pre class="grammar">
-Statement =
-	Declaration | LabelDecl | EmptyStat |
+Statement = { Label ":" } UnlabeledStatement .
+Label     = identifier .
+UnlabeledStatement =
+	Declaration | EmptyStat |
 	SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
 	FallthroughStat | Block | IfStat | SwitchStat | SelectStat | ForStat |
 	DeferStat .
 
 SimpleStat =
 	ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
-</pre>
 
-
-Statements in a statement list are separated by semicolons, which can be
-omitted in some cases as expressed by the OptSemicolon production.
-
-<pre class="grammar">
-StatementList = Statement { OptSemicolon Statement } .
+StatementList = Statement { Separator Statement } .
+Separator     = [ ";" ]
 </pre>
 
 <p>
-A semicolon may be omitted immediately following:
+Elements of a list of statements are separated by semicolons,
+which may be omitted only if the previous statement:
 </p>
 <ul>
-	<li>a closing parenthesis ")" ending a list of declarations (§Declarations and Scope)
-	<li>a closing brace "}" ending a type declaration (§Type declarations)
-	<li>a closing brace "}" ending a block (including switch and select statements)
-	<li>a label declaration (§Label declarations)
+	<li>ends with the closing parenthesis ")" of a list of declarations
+	    (§Declarations and Scope); or</li>
+	<li>ends with the closing brace "}" of a type declaration
+	    (§Type declarations); or </li>
+	<li>ends with the closing brace "}" of a block
+	    (including "switch" and "select" statements).
 </ul>
 
-In all other cases a semicolon is required to separate two statements. Since there
-is an empty statement, a statement list can always be ``terminated'' with a semicolon.
+<p>
+A labeled statement may be the target of a <code>goto</code>, 
+<code>break</code> or <code>continue</code> statement.
+</p>
 
+<pre>
+Error: log.Fatal("error encountered")
+</pre>
 
 <h3>Empty statements</h3>
 
+<p>
 The empty statement does nothing.
+</p>
 
 <pre class="grammar">
 EmptyStat = .
 </pre>
 
+<p>
+A statement list can always in effect be terminated with a semicolon by
+adding an empty statement.
+</p>
+
 
 <h3>Expression statements</h3>
+
+<p>
+Function calls, method calls, and channel operations
+can appear in statement context.
+</p>
+
 
 <pre class="grammar">
 ExpressionStat = Expression .
@@ -2911,36 +2932,32 @@ ExpressionStat = Expression .
 
 <pre>
 f(x+y)
+<-ch
 </pre>
-
-<font color=red>
-TODO: specify restrictions. 6g only appears to allow calls here.
-</font>
 
 
 <h3>IncDec statements</h3>
 
+<p>
 The "++" and "--" statements increment or decrement their operands
-by the (ideal) constant value 1.
+by the ideal numeric value 1.  As with an assignment, the operand
+must be a variable, pointer indirection, field selector or index expression.
+</p>
 
 <pre class="grammar">
 IncDecStat = Expression ( "++" | "--" ) .
 </pre>
 	
+<p>
 The following assignment statements (§Assignments) are semantically
 equivalent:
+</p>
 
 <pre class="grammar">
 IncDec statement    Assignment
 x++                 x += 1
 x--                 x -= 1
 </pre>
-
-Both operators apply to integer and floating point types only.
-<p>
-Note that increment and decrement are statements, not expressions.
-For instance, "x++" cannot be used as an operand in an expression.
-
 
 <h3>Assignments</h3>
 
@@ -2950,8 +2967,10 @@ Assignment = ExpressionList assign_op ExpressionList .
 assign_op = [ add_op | mul_op ] "=" .
 </pre>
 
-The left-hand side must be an l-value such as a variable, pointer indirection,
-or an array index.
+<p>
+Each left-hand side operand must be a variable, pointer indirection,
+field selector, or index expression.
+</p>
 
 <pre>
 x = 1
@@ -2959,64 +2978,67 @@ x = 1
 a[i] = 23
 k = <-ch
 </pre>
-	
-As in C, arithmetic binary operators can be combined with assignments:
+
+<p>
+An <i>assignment operation</i> <code>x</code> <i>op</i><code>=</code>
+<code>y</code> where <i>op</i> is a binary arithmetic operation is equivalent
+to <code>x</code> <code>=</code> <code>x</code> <i>op</i>
+<code>y</code> but evalutates <code>x</code>
+only once.  The <i>op</i><code>=</code> construct is a single token.
+</p>
 
 <pre>
-j <<= 2
+a[i] <<= 2
 </pre>
 
-A tuple assignment assigns the individual elements of a multi-valued operation,
-such as function evaluation or some channel and map operations, into individual
-variables. For instance, a tuple assignment such as
-
-<pre>
-v1, v2, v3 = e1, e2, e3
-</pre>
-	
-assigns the expressions e1, e2, e3 to temporaries and then assigns the temporaries
-to the variables v1, v2, v3. Thus
-
-<pre>
-a, b = b, a
-</pre>
-
-exchanges the values of a and b. The tuple assignment
+<p>
+A tuple assignment assigns the individual elements of a multi-valued
+operation to a list of variables.  There are two forms.  In the
+first, the right hand operand is a single multi-valued expression
+such as a function evaluation or channel or map operation (§Channel
+operations, §Map operations).  The number of operands on the left
+hand side must match the number of values.  For instance, If
+<code>f</code> is a function returning two values,
+</p>
 
 <pre>
 x, y = f()
 </pre>
 
-calls the function f, which must return two values, and assigns them to x and y.
-As a special case, retrieving a value from a map, when written as a two-element
-tuple assignment, assign a value and a boolean. If the value is present in the map,
-the value is assigned and the second, boolean variable is set to true. Otherwise,
-the variable is unchanged, and the boolean value is set to false.
-	
-<pre>
-value, present = map_var[key]
-</pre>
+<p>
+assigns the first value to <code>x</code> and the second to <code>y</code>.
+</p>
 
-To delete a value from a map, use a tuple assignment with the map on the left
-and a false boolean expression as the second expression on the right, such
-as:
+<p>
+In the second form, the number of operands on the left must equal the number
+of expressions on the right, each of which must be single-valued. The
+expressions are assigned to temporaries and then the temporaries
+are assigned to the variables.
+</p>
 
 <pre>
-map_var[key] = value, false
+a, b = b, a  // exchange a and b
 </pre>
-		
-In assignments, the type of the expression must match the type of the left-hand side.
+
+<p>
+In assignments, the type of each value must be assignment compatible
+(§Assignment compatibility) with the type of the
+operand to which it is assigned.
+</p>
 
 
 <h3>If statements</h3>
 
-If statements specify the conditional execution of two branches; the "if"
-and the "else" branch. If Expression evaluates to true,
-the "if" branch is executed. Otherwise the "else" branch is executed if present.
-If Condition is omitted, it is equivalent to true.
+<p>
+"If" statements specify the conditional execution of two branches
+according to the value of a boolean expression.  If the expression
+evaluates to true, the "if" branch is executed, otherwise, if
+present, the "else" branch is executed.  A missing condition
+is equivalent to <code>true</code>.
+</p>
 
 <pre class="grammar">
-IfStat = "if" [ [ SimpleStat ] ";" ] [ Expression ] Block [ "else" Statement ] .
+IfStat    = "if" [ [ SimpleStat ] ";" ] [ Expression ] Block [ "else" Statement ] .
 </pre>
 
 <pre>
@@ -3025,9 +3047,12 @@ if x > 0 {
 }
 </pre>
 
-An "if" statement may include the declaration of a single temporary variable.
-The scope of the declared variable extends to the end of the if statement, and
-the variable is initialized once before the statement is entered.
+<code>
+An "if" statement may include a short variable declaration before the expression
+(§Short variable declarations).
+The scope of the declared variables extends to the end of the "if" statement
+and the variables are initialized once before the statement is entered.
+</code>
 
 <pre>
 if x := f(); x < y {
@@ -3063,83 +3088,86 @@ without the surrounding Block:
 
 <h3>Switch statements</h3>
 
-Switches provide multi-way execution.
+<p>
+"Switch" statements provide multi-way execution.
+An expression is evaluated and compared to the "case"
+expressions inside the "switch" to determine which branch
+of the "switch" to execute.
+A missing expression is equivalent to <code>true</code>.
+</p>
 
 <pre class="grammar">
-SwitchStat = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
-CaseClause = SwitchCase ":" [ StatementList ] .
-SwitchCase = "case" ExpressionList | "default" .
+SwitchStat   = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
+CaseClause   = SwitchCase ":" [ StatementList ] .
+SwitchCase   = "case" ExpressionList | "default" .
 </pre>
 
-There can be at most one default case in a switch statement. In a case clause,
-the last statement only may be a fallthrough statement ($Fallthrough statement).
-It indicates that the control should flow from the end of this case clause to
+<p>
+The case expressions, which need not be constants,
+are evaluated top-to-bottom; the first one that matches
+triggers execution of the statements of the associated case;
+the other cases are skipped.
+If no case matches and there is a "default" case, its statements are executed.
+There can be at most one default case and it may appear anywhere in the
+"switch" statement.
+</p>
+<p>
+In a case or default clause,
+the last statement only may be a "fallthrough" statement
+($Fallthrough statement) to
+indicate that control should flow from the end of this clause to
 the first statement of the next clause.
+Otherwise control flows to the end of the "switch" statement.
+</p>
 <p>
 Each case clause effectively acts as a block for scoping purposes
 ($Declarations and scope rules).
+</p>
 <p>
-The expressions do not need to be constants. They will
-be evaluated top to bottom until the first successful non-default case is reached.
-If none matches and there is a default case, the statements of the default
-case are executed.
+A "switch" statement may include a short variable declaration before the
+expression.
+The scope of the declared variables extends to the end of the "switch" statement
+and the variables are initialized once before the statement is entered. 
+</p>
 
 <pre>
 switch tag {
-default: s3()
-case 0, 1: s1()
-case 2: s2()
+  default: s3()
+  case 0, 1, 2, 3: s1()
+  case 4, 5, 6, 7: s2()
 }
-</pre>
 
-A switch statement may include the declaration of a single temporary variable.
-The scope of the declared variable extends to the end of the switch statement, and
-the variable is initialized once before the switch is entered. 
-
-<pre>
-switch x := f(); true {
-case x &lt; 0: return -x
-default: return x
+switch x := f(); {
+  case x &lt; 0: return -x
+  default: return x
 }
-</pre>
-	
-Cases do not fall through unless explicitly marked with a "fallthrough" statement.
 
-<pre>
-switch a {
-case 1:
-	b();
-	fallthrough
-case 2:
-	c();
-}
-</pre>
-
-If the expression is omitted, it is equivalent to "true".
-
-<pre>
-switch {
-case x < y: f1();
-case x < z: f2();
-case x == 4: f3();
+switch {          // missing expression means "true"
+  case x < y: f1();
+  case x < z: f2();
+  case x == 4: f3();
 }
 </pre>
 
 
 <h3>For statements</h3>
 
-A for statement specifies repeated execution of a block. The iteration is
-controlled by a condition, a for clause, or a range clause.
+<p>
+A "for" statement specifies repeated execution of a block. The iteration is
+controlled by a condition, a "for" clause, or a "range" clause.
+</p>
 
 <pre class="grammar">
 ForStat = "for" [ Condition | ForClause | RangeClause ] Block .
 Condition = Expression .
 </pre>
 
-In its simplest form, a for statement specifies the repeated execution of
-a block as long as a condition evaluates to true. The condition is evaluated
-before each iteration. The type of the condition expression must be boolean.
-If the condition is absent, it is equivalent to "true".
+<p>
+In its simplest form, a "for" statement specifies the repeated execution of
+a block as long as a boolean condition evaluates to true.
+The condition is evaluated before each iteration.
+If the condition is absent, it is equivalent to <code>true</code>.
+</p>
 
 <pre>
 for a &lt; b {
@@ -3147,10 +3175,15 @@ for a &lt; b {
 }
 </pre>
 
-A for statement with a for clause is also controlled by its condition, but
-additionally it may specify an init and post statement, such as an assignment,
-an increment or decrement statement. The init statement may also be a (simple)
-variable declaration; no variables can be declared in the post statement.
+<p>
+A "for" statement with a "for" clause is also controlled by its condition, but
+additionally it may specify an <i>init</i>
+and a <i>post</i> statement, such as an assignment,
+an increment or decrement statement. The init statement (but not the post
+statement) may also be a short variable declaration; the scope of the variables
+it declares ends at the end of the statement
+($Declarations and scope rules).
+</p>
 
 <pre class="grammar">
 ForClause = [ InitStat ] ";" [ Condition ] ";" [ PostStat ] .
@@ -3158,55 +3191,60 @@ InitStat = SimpleStat .
 PostStat = SimpleStat .
 </pre>
 
-For instance, one may declare an iteration variable in the init statement:
-
 <pre>
 for i := 0; i < 10; i++ {
 	f(i)
 }
 </pre>
 	
-If present, the init statement is executed once before commencing the iteration;
-the post statement is executed after each execution of the statement block (and
-only if the block was executed). The scope of any variable declared in the init
-statement ends with the end of the for statement block ($Declarations and scope
-rules, Rule 3).
 <p>
-The init and post statement as well as the condition may be omitted; however
-if either the init or post statement are present, the separating semicolons
-must be present. If the condition is absent, it is equivalent to "true".
-The following statements are equivalent:
+If non-empty, the init statement is executed once before evaluating the
+condition for the first iteration;
+the post statement is executed after each execution of the block (and
+only if the block was executed).
+Any element of the "for" clause may be empty but the semicolons are
+required unless there is only a condition.
+If the condition is absent, it is equivalent to <code>true</code>.
+</p>
 
 <pre>
 for ; cond ; { S() }    is the same as    for cond { S() }
 for true { S() }        is the same as    for      { S() }
 </pre>
 
-Alternatively, a for statement may be controlled by a range clause. A
-range clause specifies iteration through all entries of an array or map.
+<p>
+A "for" statement with a "range" clause
+iterates through all entries of an array, slice or map.
 For each entry it first assigns the current index or key to an iteration
 variable - or the current (index, element) or (key, value) pair to a pair
-of iteration variables - and then executes the block. Iteration terminates
-when all entries have been processed, or if the for statement is terminated
-early, for instance by a break or return statement.
+of iteration variables - and then executes the block.
+</p>
 
 <pre class="grammar">
 RangeClause = IdentifierList ( "=" | ":=" ) "range" Expression .
 </pre>
 
-The type of the right-hand expression in the range clause must be an array or
-map, or a pointer to an array or map. If it is a pointer, it must not be nil.
-The left-hand identifier list must contain one or two identifiers denoting the
-iteration variables. The first variable is set to the current array index or
-map key, and the second variable, if present, is set to the corresponding
-array element or map value. The types of the array index (int) and element,
-or of the map key and value respectively, must be assignment-compatible to
-the iteration variables.
 <p>
-The iteration variables may be declared by the range clause (":="), in which
-case their scope ends at the end of the for statement block ($Declarations and
-scope rules, Rule 3). In this case their types are the array index and element,
-or the map key and value types, respectively.
+The type of the right-hand expression in the "range" clause must be an array,
+slice or map, or a pointer to an array, slice or map.
+The slice or map must not be <code>nil</code>.
+The identifier list must contain one or two identifiers denoting the
+iteration variables. On each iteration,
+the first variable is set to the array or slice index or
+map key, and the second variable, if present, is set to the corresponding
+array element or map value.
+The types of the array or slice index (always <code>int</code>)
+and element, or of the map key and value respectively,
+must be assignment compatible to the iteration variables.
+</p>
+<p>
+The iteration variables may be declared by the "range" clause (":="), in which
+case their scope ends at the end of the "for" statement ($Declarations and
+scope rules). In this case their types are set to
+the array index and element types, or the map key and value types, respectively.
+If the iteration variables are declared outside the "for" statement,
+after execution their values will be those of the last iteration.
+</p>
 
 <pre>
 var a [10]string;
@@ -3228,27 +3266,31 @@ for key, value = range m {
 // val == map[key]
 </pre>
 
+<p>
 If map entries that have not yet been processed are deleted during iteration,
 they will not be processed. If map entries are inserted during iteration, the
-behavior is implementation-dependent. Likewise, if the range expression is a
-pointer variable, the behavior of assigning to that variable is implementation-
-dependent. Assigning to the iteration variables during iteration simply changes
-the values of those variables for the current iteration; it does not affect any
-subsequent iterations.
-
+behavior is implementation-dependent. Likewise, if the range variable is
+assigned to during execution of the loop, the behavior is implementation-
+dependent.
+</p>
 
 <h3>Go statements</h3>
 
-A go statement starts the execution of a function as an independent
-concurrent thread of control within the same address space. The expression
-must be a function or method call.
+<p>
+A "go" statement starts the execution of a function or method call 
+as an independent concurrent thread of control, or <i>goroutine</i>,
+within the same address space.
+</p>
 
 <pre class="grammar">
 GoStat = "go" Expression .
 </pre>
 
-Unlike with a regular function call, program execution does not wait
+<p>
+The expression must be a call, and
+unlike with a regular call, program execution does not wait
 for the invoked function to complete.
+</p>
 
 <pre>
 go Server()
@@ -3258,9 +3300,11 @@ go func(ch chan <- bool) { for { sleep(10); ch <- true; }} (c)
 
 <h3>Select statements</h3>
 
-A select statement chooses which of a set of possible communications
-will proceed.  It looks similar to a switch statement but with the
+<p>
+A "select" statement chooses which of a set of possible communications
+will proceed.  It looks similar to a "switch" statement but with the
 cases all referring to communication operations.
+</p>
 
 <pre class="grammar">
 SelectStat = "select" "{" { CommClause } "}" .
@@ -3270,35 +3314,43 @@ SendExpr =  Expression "&lt;-" Expression .
 RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
 </pre>
 
+<p>
 Each communication clause acts as a block for the purpose of scoping
 (§Declarations and scope rules).
+</p>
 <p>
-For all the send and receive expressions in the select
-statement, the channel expression is evaluated.  Any values
+For all the send and receive expressions in the "select"
+statement, the channel expression is evaluated.  Any expressions
 that appear on the right hand side of send expressions are also
 evaluated. If any of the resulting channels can proceed, one is
 chosen and the corresponding communication and statements are
 evaluated.  Otherwise, if there is a default case, that executes;
 if not, the statement blocks until one of the communications can
 complete.  The channels and send expressions are not re-evaluated.
-A channel pointer may be nil, which is equivalent to that case not
-being present in the select statement.
+A channel pointer may be <code>nil</code>,
+which is equivalent to that case not
+being present in the select statement
+except, if a send, its expression is still evaluated.
+</p>
 <p>
 Since all the channels and send expressions are evaluated, any side
 effects in that evaluation will occur for all the communications
-in the select.
+in the "select" statement.
+</p>
 <p>
 If the channel sends or receives an interface type, its
 communication can proceed only if the type of the communication
 clause matches that of the dynamic value to be exchanged.
+</p>
 <p>
-If multiple cases can proceed, a uniform fair choice is made regarding
+If multiple cases can proceed, a uniform fair choice is made to decide
 which single communication will execute.
 <p>
-The receive case may declare a new variable (via a ":=" assignment). The
-scope of such variables begins immediately after the variable identifier
-and ends at the end of the respective "select" case (that is, before the
-next "case", "default", or closing brace).
+The receive case may declare a new variable using a short variable declaration
+(§Short variable declarations).
+The scope of such variables continues to the end of the
+respective case's statements.
+</p>
 
 <pre>
 var c, c1, c2 chan int;
@@ -3337,112 +3389,129 @@ TODO: Make semantics more precise.
 
 <h3>Return statements</h3>
 
-A return statement terminates execution of the containing function
+<p>
+A "return" statement terminates execution of the containing function
 and optionally provides a result value or values to the caller.
+</p>
 
 <pre class="grammar">
 ReturnStat = "return" [ ExpressionList ] .
 </pre>
 
+<pre>
+func procedure() {
+	return
+}
+</pre>
 
-There are two ways to return values from a function.  The first is to
-explicitly list the return value or values in the return statement:
+<p>
+There are two ways to return values from a function with a result
+type.  The first is to explicitly list the return value or values
+in the "return" statement.  The expressions
+must be single-valued and assignment-compatible to the elements of
+the result type of the function.
+</p>
 
 <pre>
 func simple_f() int {
-	return 2;
+	return 2
 }
-</pre>
 
-A function may return multiple values.
-The syntax of the return clause in that case is the same as
-that of a parameter list; in particular, names must be provided for
-the elements of the return value.
-
-<pre>
 func complex_f1() (re float, im float) {
-	return -7.0, -4.0;
+	return -7.0, -4.0
 }
 </pre>
 
-A second method to return values
-is to use those names within the function as variables
-to be assigned explicitly; the return statement will then provide no
-values:
+<p>
+However, if the expression list in the "return" statement is a single call
+to a multi-valued function, the values returned from the called function
+will be returned from this one.  The result types of the current function
+and the called function must match.
+</p>
 
 <pre>
 func complex_f2() (re float, im float) {
+	return complex_f1()
+}
+</pre>
+
+<p>
+Another method to return values is to use the elements of the
+result list of the function as variables.  When the function begins
+execution, these variables are initialized to the zero values for
+their type (§The zero value).  The function can assign them as
+necessary; if the "return" provides no values, those of the variables
+will be returned to the caller.
+</p>
+
+<pre>
+func complex_f3() (re float, im float) {
 	re = 7.0;
 	im = 4.0;
 	return;
 }
 </pre>
 
-
 <h3>Break statements</h3>
 
-Within a for, switch, or select statement, a break statement terminates
-execution of the innermost such statement.
+<p>
+A "break" statement terminates execution of the innermost
+"for", "switch" or "select" statement.
+</p>
 
 <pre class="grammar">
-BreakStat = "break" [ identifier ].
+BreakStat = "break" [ Label ].
 </pre>
 
-If there is an identifier, it must be a label marking an enclosing
-for, switch, or select statement, and that is the one whose execution
-terminates.
+<p>
+If there is a label, it must be that of an enclosing
+"for", "switch" or "select" statement, and that is the one whose execution
+terminates
+(§For statements, §Switch statements, §Select statements).
+</p>
 
 <pre>
 L: for i < n {
 	switch i {
-	case 5: break L
+		case 5: break L
 	}
 }
 </pre>
 
-
 <h3>Continue statements</h3>
 
-Within a for loop a continue statement begins the next iteration of the
-loop at the post statement.
+<p>
+A "continue" statement begins the next iteration of the
+innermost "for" loop at the post statement (§For statements).
+</p>
 
 <pre class="grammar">
-ContinueStat = "continue" [ identifier ].
+ContinueStat = "continue" [ Label ].
 </pre>
 
-The optional identifier is analogous to that of a break statement.
-
-
-<h3>Label declarations</h3>
-
-A label declaration serves as the target of a goto, break or continue statement.
-
-<pre class="grammar">
-LabelDecl = identifier ":" .
-</pre>
-
-Example:
-
-<pre>
-Error:
-</pre>
-
+<p>
+The optional label is analogous to that of a "break" statement.
+</p>
 
 <h3>Goto statements</h3>
 
-A goto statement transfers control to the corresponding label statement.
+<p>
+A "goto" statement transfers control to the statement with the corresponding label.
+</p>
 
 <pre class="grammar">
-GotoStat = "goto" identifier .
+GotoStat = "goto" Label .
 </pre>
 
 <pre>
 goto Error
 </pre>
 
-Executing the goto statement must not cause any variables to come into
+<p>
+Executing the "goto" statement must not cause any variables to come into
 scope that were not already in scope at the point of the goto.  For
 instance, this example:
+</p>
 
 <pre>
 goto L;  // BAD
@@ -3450,15 +3519,19 @@ v := 3;
 L:
 </pre>
 
-is erroneous because the jump to label L skips the creation of v.
-
+<p>
+is erroneous because the jump to label <code>L</code> skips
+the creation of <code>v</code>.
+</p>
 
 <h3>Fallthrough statements</h3>
 
-A fallthrough statement transfers control to the first statement of the
-next case clause in a switch statement (§Switch statements). It may only
-be used in a switch statement, and only as the last statement in a case
-clause of the switch statement.
+<p>
+A "fallthrough" statement transfers control to the first statement of the
+next case clause in a "switch" statement (§Switch statements). It may
+be used only as the lexically last statement in a case or default clause in a
+"switch" statement.
+</p>
 
 <pre class="grammar">
 FallthroughStat = "fallthrough" .
@@ -3467,19 +3540,24 @@ FallthroughStat = "fallthrough" .
 
 <h3>Defer statements</h3>
 
-A defer statement invokes a function whose execution is deferred to the moment
-when the surrounding function returns.
+<p>
+A "defer" statement invokes a function whose execution is deferred to the moment
+the surrounding function returns.
+</p>
 
 <pre class="grammar">
 DeferStat = "defer" Expression .
 </pre>
 
-The expression must be a function or method call. Each time the defer statement
+<p>
+The expression must be a function or method call.
+Each time the "defer" statement
 executes, the parameters to the function call are evaluated and saved anew but the
 function is not invoked. Immediately before the innermost function surrounding
-the defer statement returns, but after its return value (if any) is evaluated,
+the "defer" statement returns, but after its return value (if any) is evaluated,
 each deferred function is executed with its saved parameters. Deferred functions
 are executed in LIFO order.
+</p>
 
 <pre>
 lock(l);
@@ -3539,55 +3617,66 @@ space allocated in the underlying array (for a slice) or map. For a slice
 
 <h3>Conversions</h3>
 
-Conversions syntactically look like function calls of the form
+<p>
+<font color=red>TODO: We need to finalize the details of conversions.</font>
+<br/>
+Conversions look like function calls of the form
+</p>
 
 <pre class="grammar">
 T(value)
 </pre>
 
+<p>
 where <code>T</code> is the type name of an arithmetic type or string (§Basic types),
 and <code>value</code> is the value of an expression that can be converted to a value
 of result type <code>T</code>.
 <p>
 The following conversion rules apply:
-<p>
+</p>
+<ul>
+<li>
 1) Between integer types.  If the value is a signed quantity, it is
 sign extended to implicit infinite precision; otherwise it is zero
 extended.  It is then truncated to fit in the result type size.
-For example, uint32(int8(0xFF)) is 0xFFFFFFFF.  The conversion always
-yields a valid value; there is no signal for overflow.
-<p>
+For example, <code>uint32(int8(0xFF))</code> is <code>0xFFFFFFFF</code>.
+The conversion always yields a valid value; there is no signal for overflow.
+</li>
+<li>
 2) Between integer and floating point types, or between floating point
 types.  To avoid overdefining the properties of the conversion, for
 now it is defined as a ``best effort'' conversion.  The conversion
 always succeeds but the value may be a NaN or other problematic
 result. <font color=red>TODO: clarify?</font>
-<p>
+</li>
+<li>
 3) Strings permit two special conversions.
-<p>
+</li>
+<li>
 3a) Converting an integer value yields a string containing the UTF-8
 representation of the integer.
 (TODO: this one could be done just as well by a library.)
-</p>
 
 <pre>
 string(0x65e5)  // "\u65e5"
 </pre>
 
-<p>
-3b) Converting an array of <code>uint8s</code> yields a string whose successive
-bytes are those of the array.
-(Recall <code>byte</code> is a synonym for <code>uint8</code>.)
-</p>
+</li>
+<li>
+3b) Converting an array or slice of bytes yields a string whose successive
+bytes are those of the array/slice.
 
 <pre>
 string([]byte('h', 'e', 'l', 'l', 'o')) // "hello"
 </pre>
+</li>
+</ul>
 
 <p>
-There is no linguistic mechanism to convert between pointers
-and integers. A library may be provided under restricted circumstances
-to acccess this conversion in low-level code.
+There is no linguistic mechanism to convert between pointers and integers.
+The <code>unsafe</code> package
+implements this functionality under
+restricted circumstances (§Package <code>unsafe</code>).
 <font color=red>
 TODO: Do we allow interface/ptr conversions in this form or do they
 have to be written as type guards? (§Type guards)
@@ -3597,63 +3686,72 @@ have to be written as type guards? (§Type guards)
 
 <h3>Allocation</h3>
 
-The built-in function "new" takes a type "T" and returns a value of type "*T".
+<p>
+The built-in function <code>new</code> takes a type <code>T</code> and
+returns a value of type <code>*T</code>.
 The memory is initialized as described in the section on initial values
 (§The zero value).
+</p>
 
 <pre>
 new(T)
 </pre>
 
+<p>
 For instance
+</p>
 
 <pre>
 type S struct { a int; b float }
 new(S)
 </pre>
 
-dynamically allocates memory for a variable of type S, initializes it
-(a=0, b=0.0), and returns a value of type *S pointing to that variable.
+<p>
+dynamically allocates memory for a variable of type <code>S</code>,
+initializes it (<code>a=0</code>, <code>b=0.0</code>),
+and returns a value of type <code>*S</code> containing the address
+of the memory.
+</p>
+
+<h3>Making slices, maps and channels</h3>
 
 <p>
-<font color=red>
-TODO Once this has become clearer, connect new() and make() (new() may be
-explained by make() and vice versa).
-</font>
-
-<h3>Making slices, maps, and channels</h3>
-
-The built-in function "make" takes a type "T", optionally followed by a
-type-specific list of expressions. It returns a value of type "T". "T"
-must be a slice, map, or channel type.
+Slices, maps and channels are reference types that do not require the
+extra indirection of an allocation with <code>new</code>.
+The built-in function <code>make</code> takes a type <code>T</code>,
+which must be a slice, map or channel type,
+optionally followed by a type-specific list of expressions.
+It returns a value of type <code>T</code> (not <code>*T</code>).
 The memory is initialized as described in the section on initial values
 (§The zero value).
+</p>
 
 <pre>
 make(T [, optional list of expressions])
 </pre>
 
+<p>
 For instance
+</p>
 
 <pre>
 make(map[string] int)
 </pre>
 
+<p>
 creates a new map value and initializes it to an empty map.
+</p>
 
-The only defined parameters affect sizes for allocating slices, maps, and
+<p>
+The parameters affect sizes for allocating slices, maps, and
 buffered channels:
+</p>
 
 <pre>
 s := make([]int, 10, 100);        # slice with len(s) == 10, cap(s) == 100
 c := make(chan int, 10);          # channel with a buffer size of 10
 m := make(map[string] int, 100);  # map with initial space for 100 elements
 </pre>
-
-<font color=red>
-TODO Once this has become clearer, connect new() and make() (new() may be
-explained by make() and vice versa).
-</font>
 
 <hr/>
 
@@ -3743,7 +3841,7 @@ func generate(ch chan <- int) {
 
 // Copy the values from channel 'in' to channel 'out',
 // removing those divisible by 'prime'.
-func filter(in chan <- int, out *<-chan int, prime int) {
+func filter(in chan <- int, out <-chan int, prime int) {
 	for {
 		i := <-in;  // Receive value of new variable 'i' from 'in'.
 		if i % prime != 0 {
@@ -3813,29 +3911,44 @@ t.f == 0.0
 t.next == nil
 </pre>
 
+<p>
+The same would also be true after
+</p>
+
+<pre>
+var t T
+</pre>
+
 <h3>Program execution</h3>
 <p>
 A package with no imports is initialized by assigning initial values to
-all its global variables in declaration order and then calling any init()
-functions defined in its source. Since a package may contain more
-than one source file, there may be more than one init() function, but
+all its package-level variables in declaration order and then calling any
+package-level function with the name and signature of
+</p>
+<pre>
+func init()
+</pre>
+<p>
+defined in its source. Since a package may contain more
+than one source file, there may be more than one
+<code>init()</code> function in a package, but
 only one per source file.
 </p>
 <p>
 Initialization code may contain "go" statements, but the functions
 they invoke do not begin execution until initialization of the entire
 program is complete. Therefore, all initialization code is run in a single
-thread of execution.
+goroutine.
 </p>
 <p>
-Furthermore, an "init()" function cannot be referred to from anywhere
-in a program. In particular, "init()" cannot be called explicitly, nor
-can a pointer to "init" be assigned to a function variable).
+An <code>init()</code> function cannot be referred to from anywhere
+in a program. In particular, <code>init()</code> cannot be called explicitly,
+nor can a pointer to <code>init</code> be assigned to a function variable.
 </p>
 <p>
 If a package has imports, the imported packages are initialized
 before initializing the package itself. If multiple packages import
-a package P, P will be initialized only once.
+a package <code>P</code>, <code>P</code> will be initialized only once.
 </p>
 <p>
 The importing of packages, by construction, guarantees that there can
@@ -3843,19 +3956,19 @@ be no cyclic dependencies in initialization.
 </p>
 <p>
 A complete program, possibly created by linking multiple packages,
-must have one package called main, with a function
+must have one package called <code>main</code>, with a function
 </p>
 
 <pre>
-func main() { ...  }
+func main() { ... }
 </pre>
 
 <p>
-defined.  The function <code>main.main()</code> takes no arguments and returns no
-value.
+defined.
+The function <code>main.main()</code> takes no arguments and returns no value.
 </p>
 <p>
-Program execution begins by initializing the main package and then
+Program execution begins by initializing the <code>main</code> package and then
 invoking <code>main.main()</code>.
 </p>
 <p>
@@ -3869,10 +3982,11 @@ When main.main() returns, the program exits.
 <h3>Package <code>unsafe</code></h3>
 
 <p>
-The built-in package <code>unsafe</code>, known to the compiler, provides facilities
-for low-level programming including operations that violate the type
-system. A package using <code>unsafe</code> must be vetted manually for type safety.
-The package provides the following interface:
+The built-in package <code>unsafe</code>, known to the compiler,
+provides facilities for low-level programming including operations
+that violate the type system. A package using <code>unsafe</code>
+must be vetted manually for type safety.  The package provides the
+following interface:
 </p>
 
 <pre class="grammar">
@@ -3974,6 +4088,8 @@ Implementation does not honor the restriction on goto statements and targets (no
 cap() does not work on maps or chans.
 <br/>
 len() does not work on chans.
+<br/>
+select doesn't check dynamic type of interfaces.
 <br/>
 Conversions work for any type; doc says only arithmetic types and strings.
 </font>
