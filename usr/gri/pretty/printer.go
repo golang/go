@@ -760,7 +760,7 @@ func (P *Printer) StatementList(list *vector.Vector) {
 		if i == 0 {
 			P.newlines = 1;
 		} else {  // i > 0
-			if !P.opt_semi {
+			if !P.opt_semi || *optsemicolons {
 				// semicolon is required
 				P.separator = semicolon;
 			}
@@ -806,6 +806,10 @@ func (P *Printer) DoLabelDecl(s *AST.LabelDecl) {
 	P.indentation--;
 	P.Expr(s.Label);
 	P.Token(s.Pos, Scanner.COLON);
+	// TODO not quite correct:
+	// - we must not print this optional semicolon, as it may invalidate code.
+	// - this will change once the AST reflects the LabelStatement change
+	P.opt_semi = true;
 	P.indentation++;
 }
 
