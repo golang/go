@@ -3609,32 +3609,36 @@ T(value)
 </pre>
 
 <p>
-where <code>T</code> is the type name of an arithmetic type or string (§Basic types),
-and <code>value</code> is the value of an expression that can be converted to a value
+where <code>T</code> is a type
+and <code>value</code> is an expression
+that can be converted to a value
 of result type <code>T</code>.
 <p>
 The following conversion rules apply:
 </p>
 <ul>
 <li>
-1) Between integer types.  If the value is a signed quantity, it is
+1) Between equal types.  The conversion always succeeds.
+</li>
+<li>
+2) Between integer types.  If the value is a signed quantity, it is
 sign extended to implicit infinite precision; otherwise it is zero
 extended.  It is then truncated to fit in the result type size.
 For example, <code>uint32(int8(0xFF))</code> is <code>0xFFFFFFFF</code>.
 The conversion always yields a valid value; there is no signal for overflow.
 </li>
 <li>
-2) Between integer and floating point types, or between floating point
+3) Between integer and floating point types, or between floating point
 types.  To avoid overdefining the properties of the conversion, for
 now it is defined as a ``best effort'' conversion.  The conversion
 always succeeds but the value may be a NaN or other problematic
 result. <font color=red>TODO: clarify?</font>
 </li>
 <li>
-3) Strings permit two special conversions.
+4) Strings permit two special conversions.
 </li>
 <li>
-3a) Converting an integer value yields a string containing the UTF-8
+4a) Converting an integer value yields a string containing the UTF-8
 representation of the integer.
 (TODO: this one could be done just as well by a library.)
 
@@ -3644,7 +3648,7 @@ string(0x65e5)  // "\u65e5"
 
 </li>
 <li>
-3b) Converting an array or slice of bytes yields a string whose successive
+4b) Converting an array or slice of bytes yields a string whose successive
 bytes are those of the array/slice.
 
 <pre>
@@ -3658,10 +3662,6 @@ There is no linguistic mechanism to convert between pointers and integers.
 The <code>unsafe</code> package
 implements this functionality under
 restricted circumstances (§Package <code>unsafe</code>).
-<font color=red>
-TODO: Do we allow interface/ptr conversions in this form or do they
-have to be written as type guards? (§Type guards)
-</font>
 </p>
 
 
