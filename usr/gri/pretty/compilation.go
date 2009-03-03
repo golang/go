@@ -30,13 +30,12 @@ type Flags struct {
 	Sixg bool;
 	Deps bool;
 	Columns bool;
-	Testmode bool;
 }
 
 
 type errorHandler struct {
 	filename string;
-	src string;
+	src []byte;
 	nerrors int;
 	nwarnings int;
 	errpos int;
@@ -44,7 +43,7 @@ type errorHandler struct {
 }
 
 
-func (h *errorHandler) Init(filename, src string, columns bool) {
+func (h *errorHandler) Init(filename string, src []byte, columns bool) {
 	h.filename = filename;
 	h.src = src;
 	h.nerrors = 0;
@@ -71,7 +70,7 @@ func (h *errorHandler) LineCol(pos int) (line, col int) {
 		}
 	}
 
-	return line, utf8.RuneCountInString(src, lpos, pos - lpos);
+	return line, utf8.RuneCount(src[lpos : pos]);
 }
 
 
@@ -128,10 +127,10 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	err.Init(src_file, src, flags.Columns);
 
 	var scanner Scanner.Scanner;
-	scanner.Init(&err, src, true, flags.Testmode);
+	scanner.Init(src, &err, true);
 
 	var parser Parser.Parser;
-	parser.Open(flags.Verbose, flags.Sixg, flags.Deps, &scanner);
+	parser.Open(&scanner, err, flags.Verbose, flags.Sixg, flags.Deps);
 
 	prog := parser.ParseProgram();
 

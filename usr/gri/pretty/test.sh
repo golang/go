@@ -119,16 +119,6 @@ runtests() {
 }
 
 
-# run selftest1 always
-$CMD -t selftest1.go > $TMP1
-if [ $? != 0 ]; then
-	cat $TMP1
-	echo "Error (selftest1): $CMD -t selftest1.go"
-	exit 1
-fi
-count selftest1.go
-
-
 # run over all .go files
 runtests $*
 cleanup

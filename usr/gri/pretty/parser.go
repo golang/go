@@ -14,13 +14,20 @@ import (
 )
 
 
+type ErrorHandler interface {
+	Error(pos int, msg string);
+	Warning(pos int, msg string);
+}
+
+
 type Parser struct {
+	scanner *Scanner.Scanner;
+	err ErrorHandler;
+
 	// Tracing/debugging
 	trace, sixg, deps bool;
 	indent uint;
 
-	// Scanner
-	scanner *Scanner.Scanner;
 	comments *vector.Vector;
 
 	// Scanner.Token
@@ -90,7 +97,10 @@ func un/*trace*/(P *Parser) {
 
 
 func (P *Parser) next0() {
-	P.pos, P.tok, P.val = P.scanner.Scan();
+	// TODO make P.val a []byte
+	var val []byte;
+	P.pos, P.tok, val = P.scanner.Scan();
+	P.val = string(val);
 	P.opt_semi = false;
 
 	if P.trace {
@@ -118,13 +128,15 @@ func (P *Parser) next() {
 }
 
 
-func (P *Parser) Open(trace, sixg, deps bool, scanner *Scanner.Scanner) {
+func (P *Parser) Open(scanner *Scanner.Scanner, err ErrorHandler, trace, sixg, deps bool) {
+	P.scanner = scanner;
+	P.err = err;
+
 	P.trace = trace;
 	P.sixg = sixg;
 	P.deps = deps;
 	P.indent = 0;
 
-	P.scanner = scanner;
 	P.comments = vector.New(0);
 
 	P.next();
@@ -133,7 +145,7 @@ func (P *Parser) Open(trace, sixg, deps bool, scanner *Scanner.Scanner) {
 
 
 func (P *Parser) error(pos int, msg string) {
-	P.scanner.Error(pos, msg);
+	P.err.Error(pos, msg);
 }
 
 

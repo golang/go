@@ -2,23 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package Scanner
+package scanner
 
 import (
 	"utf8";
 	"unicode";
-	"utils";
+	"strconv";
 )
 
 const (
 	ILLEGAL = iota;
-
-	IDENT;
+	EOF;
+	
 	INT;
 	FLOAT;
 	STRING;
-	EOF;
-
+	IDENT;
 	COMMENT;
 
 	ADD;
@@ -52,28 +51,28 @@ const (
 	DEC;
 
 	EQL;
-	NEQ;
 	LSS;
-	LEQ;
 	GTR;
-	GEQ;
-
 	ASSIGN;
-	DEFINE;
 	NOT;
+
+	NEQ;
+	LEQ;
+	GEQ;
+	DEFINE;
 	ELLIPSIS;
 
 	LPAREN;
-	RPAREN;
 	LBRACK;
-	RBRACK;
 	LBRACE;
-	RBRACE;
-
 	COMMA;
+	PERIOD;
+
+	RPAREN;
+	RBRACK;
+	RBRACE;
 	SEMICOLON;
 	COLON;
-	PERIOD;
 
 	// keywords
 	keywords_beg;
@@ -113,13 +112,12 @@ const (
 func TokenString(tok int) string {
 	switch tok {
 	case ILLEGAL: return "ILLEGAL";
+	case EOF: return "EOF";
 
-	case IDENT: return "IDENT";
 	case INT: return "INT";
 	case FLOAT: return "FLOAT";
 	case STRING: return "STRING";
-	case EOF: return "EOF";
-
+	case IDENT: return "IDENT";
 	case COMMENT: return "COMMENT";
 
 	case ADD: return "+";
@@ -153,28 +151,28 @@ func TokenString(tok int) string {
 	case DEC: return "--";
 
 	case EQL: return "==";
-	case NEQ: return "!=";
 	case LSS: return "<";
-	case LEQ: return "<=";
 	case GTR: return ">";
-	case GEQ: return ">=";
-
 	case ASSIGN: return "=";
-	case DEFINE: return ":=";
 	case NOT: return "!";
+
+	case NEQ: return "!=";
+	case LEQ: return "<=";
+	case GEQ: return ">=";
+	case DEFINE: return ":=";
 	case ELLIPSIS: return "...";
 
 	case LPAREN: return "(";
-	case RPAREN: return ")";
 	case LBRACK: return "[";
-	case RBRACK: return "]";
 	case LBRACE: return "{";
-	case RBRACE: return "}";
-
 	case COMMA: return ",";
+	case PERIOD: return ".";
+
+	case RPAREN: return ")";
+	case RBRACK: return "]";
+	case RBRACE: return "}";
 	case SEMICOLON: return ";";
 	case COLON: return ":";
-	case PERIOD: return ".";
 
 	case BREAK: return "break";
 	case CASE: return "case";
@@ -207,7 +205,7 @@ func TokenString(tok int) string {
 	case VAR: return "var";
 	}
 
-	return "token(" + Utils.IntToString(tok, 10) + ")";
+	return "token(" + strconv.Itoa(tok) + ")";
 }
 
 
@@ -258,6 +256,7 @@ func is_letter(ch int) bool {
 
 
 func digit_val(ch int) int {
+	// TODO: spec permits other Unicode digits as well
 	if '0' <= ch && ch <= '9' {
 		return ch - '0';
 	}
@@ -273,25 +272,19 @@ func digit_val(ch int) int {
 
 type ErrorHandler interface {
 	Error(pos int, msg string);
-	Warning(pos int, msg string);
 }
 
 
 type Scanner struct {
 	// setup
+	src []byte;  // source
 	err ErrorHandler;
-	src string;  // source
 	scan_comments bool;
 
 	// scanning
 	pos int;  // current reading position
 	ch int;  // one char look-ahead
 	chpos int;  // position of ch
-	linepos int;  // position of beginning of line
-
-	// testmode
-	testmode bool;
-	testpos int;
 }
 
 
@@ -303,7 +296,7 @@ func (S *Scanner) next() {
 		r, w := int(S.src[S.pos]), 1;
 		if r >= 0x80 {
 			// not ascii
-			r, w = utf8.DecodeRuneInString(S.src, S.pos);
+			r, w = utf8.DecodeRune(S.src[S.pos : len(S.src)]);
 		}
 		S.ch = r;
 		S.chpos = S.pos;
@@ -315,38 +308,16 @@ func (S *Scanner) next() {
 }
 
 
-func (S *Scanner) Error(pos int, msg string) {
-	// check for expected errors (test mode)
-	if S.testpos < 0 || pos == S.testpos {
-		// test mode:
-		// S.testpos < 0:  // follow-up errors are expected and ignored
-		// S.testpos == 0:  // an error is expected at S.testpos and ignored
-		S.testpos = -1;
-		return;
-	}
-
+func (S *Scanner) error(pos int, msg string) {
 	S.err.Error(pos, msg);
 }
 
 
-func (S *Scanner) expectNoErrors() {
-	// set the next expected error position to one after eof
-	// (the eof position is a legal error position!)
-	S.testpos = len(S.src) + 1;
-}
-
-
-func (S *Scanner) Init(err ErrorHandler, src string, scan_comments, testmode bool) {
-	S.err = err;
+func (S *Scanner) Init(src []byte, err ErrorHandler, scan_comments bool) {
 	S.src = src;
+	S.err = err;
 	S.scan_comments = scan_comments;
-
-	S.pos = 0;
-	S.linepos = 0;
-
-	S.testmode = testmode;
-	S.expectNoErrors();  // S.src must be set
-	S.next();  // S.expectNoErrrors() must be called before
+	S.next();
 }
 
 
@@ -363,13 +334,13 @@ func charString(ch int) string {
 	case '\\': s = `\\`;
 	case '\'': s = `\'`;
 	}
-	return "'" + s + "' (U+" + Utils.IntToString(ch, 16) + ")";
+	return "'" + s + "' (U+" + strconv.Itob(ch, 16) + ")";
 }
 
 
 func (S *Scanner) expect(ch int) {
 	if S.ch != ch {
-		S.Error(S.chpos, "expected " + charString(ch) + ", found " + charString(S.ch));
+		S.error(S.chpos, "expected " + charString(ch) + ", found " + charString(S.ch));
 	}
 	S.next();  // make always progress
 }
@@ -393,7 +364,7 @@ func (S *Scanner) skipWhitespace() {
 }
 
 
-func (S *Scanner) scanComment() string {
+func (S *Scanner) scanComment() []byte {
 	// first '/' already consumed
 	pos := S.chpos - 1;
 
@@ -422,37 +393,14 @@ func (S *Scanner) scanComment() string {
 		}
 	}
 
-	S.Error(pos, "comment not terminated");
+	S.error(pos, "comment not terminated");
 
 exit:
-	comment := S.src[pos : S.chpos];
-
-	if S.testmode {
-		// interpret ERROR and SYNC comments
-		oldpos := -1;
-		switch {
-		case len(comment) >= 8 && comment[3 : 8] == "ERROR" :
-			// an error is expected at the next token position
-			oldpos = S.testpos;
-			S.skipWhitespace();
-			S.testpos = S.chpos;
-		case len(comment) >= 7 && comment[3 : 7] == "SYNC" :
-			// scanning/parsing synchronized again - no (follow-up) errors expected
-			oldpos = S.testpos;
-			S.expectNoErrors();
-		}
-
-		if 0 <= oldpos && oldpos <= len(S.src) {
-			// the previous error was not found
-			S.Error(oldpos, "ERROR not found");  // TODO this should call ErrorMsg
-		}
-	}
-
-	return comment;
+	return S.src[pos : S.chpos];
 }
 
 
-func (S *Scanner) scanIdentifier() (tok int, val string) {
+func (S *Scanner) scanIdentifier() (tok int, val []byte) {
 	pos := S.chpos;
 	for is_letter(S.ch) || digit_val(S.ch) < 10 {
 		S.next();
@@ -460,7 +408,7 @@ func (S *Scanner) scanIdentifier() (tok int, val string) {
 	val = S.src[pos : S.chpos];
 
 	var present bool;
-	tok, present = keywords[val];
+	tok, present = keywords[string(val)];
 	if !present {
 		tok = IDENT;
 	}
@@ -476,7 +424,7 @@ func (S *Scanner) scanMantissa(base int) {
 }
 
 
-func (S *Scanner) scanNumber(seen_decimal_point bool) (tok int, val string) {
+func (S *Scanner) scanNumber(seen_decimal_point bool) (tok int, val []byte) {
 	pos := S.chpos;
 	tok = INT;
 
@@ -540,50 +488,33 @@ func (S *Scanner) scanDigits(n int, base int) {
 		n--;
 	}
 	if n > 0 {
-		S.Error(S.chpos, "illegal char escape");
+		S.error(S.chpos, "illegal char escape");
 	}
 }
 
 
-func (S *Scanner) scanEscape(quote int) string {
-	// TODO: fix this routine
-
+func (S *Scanner) scanEscape(quote int) {
 	ch := S.ch;
 	pos := S.chpos;
 	S.next();
 	switch ch {
-	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\':
-		return string(ch);
-
+	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
+		// nothing to do
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		S.scanDigits(3 - 1, 8);  // 1 char already read
-		return "";  // TODO fix this
-
+		S.scanDigits(3 - 1, 8);  // 1 char read already
 	case 'x':
 		S.scanDigits(2, 16);
-		return "";  // TODO fix this
-
 	case 'u':
 		S.scanDigits(4, 16);
-		return "";  // TODO fix this
-
 	case 'U':
 		S.scanDigits(8, 16);
-		return "";  // TODO fix this
-
 	default:
-		// check for quote outside the switch for better generated code (eventually)
-		if ch == quote {
-			return string(quote);
-		}
-		S.Error(pos, "illegal char escape");
+		S.error(pos, "illegal char escape");
 	}
-
-	return "";  // TODO fix this
 }
 
 
-func (S *Scanner) scanChar() string {
+func (S *Scanner) scanChar() []byte {
 	// '\'' already consumed
 
 	pos := S.chpos - 1;
@@ -598,7 +529,7 @@ func (S *Scanner) scanChar() string {
 }
 
 
-func (S *Scanner) scanString() string {
+func (S *Scanner) scanString() []byte {
 	// '"' already consumed
 
 	pos := S.chpos - 1;
@@ -606,7 +537,7 @@ func (S *Scanner) scanString() string {
 		ch := S.ch;
 		S.next();
 		if ch == '\n' || ch < 0 {
-			S.Error(pos, "string not terminated");
+			S.error(pos, "string not terminated");
 			break;
 		}
 		if ch == '\\' {
@@ -619,7 +550,7 @@ func (S *Scanner) scanString() string {
 }
 
 
-func (S *Scanner) scanRawString() string {
+func (S *Scanner) scanRawString() []byte {
 	// '`' already consumed
 
 	pos := S.chpos - 1;
@@ -627,7 +558,7 @@ func (S *Scanner) scanRawString() string {
 		ch := S.ch;
 		S.next();
 		if ch == '\n' || ch < 0 {
-			S.Error(pos, "string not terminated");
+			S.error(pos, "string not terminated");
 			break;
 		}
 	}
@@ -676,7 +607,7 @@ func (S *Scanner) select4(tok0, tok1, ch2, tok2, tok3 int) int {
 }
 
 
-func (S *Scanner) Scan() (pos, tok int, val string) {
+func (S *Scanner) Scan() (pos, tok int, val []byte) {
 loop:
 	S.skipWhitespace();
 
@@ -689,7 +620,7 @@ loop:
 		S.next();  // always make progress
 		switch ch {
 		case -1: tok = EOF;
-		case '\n': tok, val = COMMENT, "\n";
+		case '\n': tok, val = COMMENT, []byte('\n');
 		case '"': tok, val = STRING, S.scanString();
 		case '\'': tok, val = INT, S.scanChar();
 		case '`': tok, val = STRING, S.scanRawString();
@@ -741,7 +672,7 @@ loop:
 		case '&': tok = S.select3(AND, AND_ASSIGN, '&', LAND);
 		case '|': tok = S.select3(OR, OR_ASSIGN, '|', LOR);
 		default:
-			S.Error(pos, "illegal character " + charString(ch));
+			S.error(pos, "illegal character " + charString(ch));
 			tok = ILLEGAL;
 		}
 	}

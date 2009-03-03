@@ -24,7 +24,6 @@ func init() {
 	flag.BoolVar(&flags.Sixg, "6g", true, "6g compatibility mode");
 	flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
 	flag.BoolVar(&flags.Columns, "columns", Platform.USER == "gri", "print column info in error messages");
-	flag.BoolVar(&flags.Testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
 }
 
 
@@ -52,12 +51,9 @@ func main() {
 		} else {
 			prog, nerrors := Compilation.Compile(src_file, &flags);
 			if nerrors > 0 {
-				if flags.Testmode {
-					return;  // TODO we shouldn't need this
-				}
 				sys.Exit(1);
 			}
-			if !*silent && !flags.Testmode {
+			if !*silent {
 				Printer.Print(os.Stdout, *html, prog);
 			}
 		}
