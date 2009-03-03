@@ -1854,12 +1854,12 @@ mypackage.Math.Sin  // if Math is declared in an intervening scope
 Composite literals construct values for structs, arrays, slices, and maps
 and create a new value each time they are evaluated.
 They consist of the type of the value
-followed by a parenthesized list of expressions,
+followed by a brace-bound list of expressions,
 or a list of expression pairs for map literals.
 </p>
 
 <pre class="grammar">
-CompositeLit  = LiteralType "(" [ ( ExpressionList | ExprPairList ) [ "," ] ] ")" .
+CompositeLit  = LiteralType "{" [ ( ExpressionList | ExprPairList ) [ "," ] ] "}" .
 LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
                 SliceType | MapType | TypeName .
 ExprPairList  = ExprPair { "," ExprPair } .
@@ -1884,7 +1884,7 @@ one may write
 </p>
 
 <pre>
-pi := Num(Rat(22, 7), 3.14159, "pi");
+pi := Num{Rat{22, 7}, 3.14159, "pi"};
 </pre>
 
 <p>
@@ -1897,9 +1897,9 @@ to the number of elements in the literal.
 </p>
 
 <pre>
-buffer := [10]string();               // len(buffer) == 10
-primes := [6]int(2, 3, 5, 7, 9, 11);  // len(primes) == 6
-days := [...]string("Sat", "Sun");    // len(days) == 2
+buffer := [10]string{};               // len(buffer) == 10
+primes := [6]int{2, 3, 5, 7, 9, 11};  // len(primes) == 6
+days := [...]string{"Sat", "Sun"};    // len(days) == 2
 </pre>
 
 <p>
@@ -1909,7 +1909,7 @@ Thus, the length and capacity of a slice literal is the number of elements
 </p>
 
 <pre>
-[]T(x1, x2, ... xn)
+[]T{x1, x2, ... xn}
 </pre>
 
 <p>
@@ -1917,7 +1917,7 @@ and is a shortcut for a slice operation applied to an array literal:
 </p>
 
 <pre>
-[n]T(x1, x2, ... xn)[0 : n]
+[n]T{x1, x2, ... xn}[0 : n]
 </pre>
 
 <p>
@@ -1926,7 +1926,7 @@ key-value pairs separated by a colon:
 </p>
 
 <pre>
-m := map[string]int("good": 0, "bad": 1, "indifferent": 7);
+m := map[string]int{"good": 0, "bad": 1, "indifferent": 7};
 </pre>
 
 <h3>Function literals</h3>
@@ -1986,7 +1986,7 @@ x
 2
 (s + ".txt")
 f(3.1415, true)
-Point(1, 2)
+Point{1, 2}
 m["foo"]
 s[i : j + 1]
 obj.color
@@ -2198,7 +2198,7 @@ difference in the index values in the slice.  After slicing the array <code>a</c
 </p>
 
 <pre>
-a := [4]int(1, 2, 3, 4);
+a := [4]int{1, 2, 3, 4};
 s := a[1:3];
 </pre>
 
@@ -3227,7 +3227,7 @@ after execution their values will be those of the last iteration.
 
 <pre>
 var a [10]string;
-m := map[string]int("mon":0, "tue":1, "wed":2, "thu":3, "fri":4, "sat":5, "sun":6);
+m := map[string]int{"mon":0, "tue":1, "wed":2, "thu":3, "fri":4, "sat":5, "sun":6};
 
 for i, s := range a {
 	// type of i is int
@@ -3315,11 +3315,6 @@ except, if a send, its expression is still evaluated.
 Since all the channels and send expressions are evaluated, any side
 effects in that evaluation will occur for all the communications
 in the "select" statement.
-</p>
-<p>
-If the channel sends or receives an interface type, its
-communication can proceed only if the type of the communication
-clause matches that of the dynamic value to be exchanged.
 </p>
 <p>
 If multiple cases can proceed, a uniform fair choice is made to decide
@@ -3646,7 +3641,7 @@ string(0x65e5)  // "\u65e5"
 bytes are those of the array/slice.
 
 <pre>
-string([]byte('h', 'e', 'l', 'l', 'o')) // "hello"
+string([]byte{'h', 'e', 'l', 'l', 'o'}) // "hello"
 </pre>
 </li>
 </ul>
@@ -4140,8 +4135,6 @@ Implementation does not honor the restriction on goto statements and targets (no
 cap() does not work on maps or chans.
 <br/>
 len() does not work on chans.
-<br/>
-select doesn't check dynamic type of interfaces.
 <br/>
 Conversions work for any type; doc says only arithmetic types and strings.
 </font>
