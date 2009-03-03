@@ -51,7 +51,7 @@
 %type	<node>		stmt_list_r Astmt_list_r Bstmt_list_r
 %type	<node>		Astmt Bstmt
 %type	<node>		for_stmt for_body for_header
-%type	<node>		if_stmt if_body if_header select_stmt
+%type	<node>		if_stmt if_body if_header select_stmt condition
 %type	<node>		simple_stmt osimple_stmt range_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
 %type	<node>		exprsym3_list_r exprsym3
@@ -88,6 +88,13 @@
 %left			LEQ LNE LLE LGE LLT LGT
 %left			'+' '-' '|' '^'
 %left			'*' '/' '%' '&' LLSH LRSH
+
+/*
+ * resolve { vs condition in favor of condition
+ */
+%left			'{'
+%left			Condition
+
 
 %%
 file:
@@ -562,7 +569,7 @@ for_header:
 		$$->ntest = $3;
 		$$->nincr = $5;
 	}
-|	osimple_stmt
+|	condition
 	{
 		// normal test
 		$$ = nod(OFOR, N, N);
@@ -591,15 +598,30 @@ for_stmt:
 		$$ = $2;
 	}
 
+/*
+ * using cond instead of osimple_stmt creates
+ * a shift/reduce conflict on an input like
+ *
+ *	if x == []int { true } { true }
+ *
+ * at the first {, giving us an opportunity
+ * to resolve it by reduce, which implements
+ * the rule about { } inside if conditions
+ * needing parens.
+ */
+condition:
+	osimple_stmt	%prec Condition
+
+
 if_header:
-	osimple_stmt
+	condition
 	{
 		// test
 		$$ = nod(OIF, N, N);
 		$$->ninit = N;
 		$$->ntest = $1;
 	}
-|	osimple_stmt ';' osimple_stmt
+|	osimple_stmt ';' condition
 	{
 		// init ; test
 		$$ = nod(OIF, N, N);
@@ -791,7 +813,7 @@ pexpr:
 	}
 |	pexpr '.' '(' type ')'
 	{
-		$$ = nod(OCONVDOT, $1, N);
+		$$ = nod(ODOTTYPE, $1, N);
 		$$->type = $4;
 	}
 |	pexpr '[' expr ']'
@@ -841,24 +863,22 @@ pexpr:
 		$$ = nod(OMAKE, $5, N);
 		$$->type = $3;
 	}
-|	convtype '(' braced_keyexpr_list ')'
+|	convtype '(' expr ')'
 	{
-		// typed literal
+		// conversion
 		$$ = rev($3);
 		if($$ == N)
 			$$ = nod(OEMPTY, N, N);
-		$$ = nod(OCONVPAREN, $$, N);
+		$$ = nod(OCONV, $$, N);
 		$$->type = $1;
 	}
 |	convtype '{' braced_keyexpr_list '}'
 	{
-		if(!debug['{'])
-			warn("braces should now be parens");
-		// composite literal
+		// composite expression
 		$$ = rev($3);
 		if($$ == N)
 			$$ = nod(OEMPTY, N, N);
-		$$ = nod(OCONVPAREN, $$, N);
+		$$ = nod(OCOMPOS, $$, N);
 		$$->type = $1;
 	}
 |	fnliteral
