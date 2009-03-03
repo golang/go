@@ -510,7 +510,7 @@ loop:
 			}
 			break;
 
-		case OCONVDOT:
+		case ODOTTYPE:
 			if(cl == 2 && cr == 1) {
 				// a,b = i.(T)
 				walktype(r->left, Erv);
@@ -593,11 +593,39 @@ loop:
 		goto ret;
 
 	case OCONV:
-	case OCONVDOT:
-	case OCONVPAREN:
+	case ODOTTYPE:
 		if(top != Erv)
 			goto nottop;
 		walkconv(n);
+		goto ret;
+
+	case OCOMPOS:
+		t = n->type;
+		if(t == T)
+			goto ret;
+		l = n->left;
+		if(l == N)
+			goto ret;
+		walktype(l, Erv);
+	
+		// structure literal
+		if(t->etype == TSTRUCT) {
+			indir(n, structlit(n, N));
+			goto ret;
+		}
+
+		// array literal
+		if(t->etype == TARRAY) {
+			indir(n, arraylit(n, N));
+			goto ret;
+		}
+
+		// map literal
+		if(t->etype == TMAP) {
+			indir(n, maplit(n, N));
+			goto ret;
+		}
+		yyerror("invalid type for composite literal: %T", t);
 		goto ret;
 
 	case ORETURN:
@@ -887,11 +915,7 @@ loop:
 	case OADDR:
 		if(top != Erv)
 			goto nottop;
-		if(n->left->op == OCONVPAREN && n->left->type != T)
-		switch(n->left->type->etype) {
-		case TSTRUCT:
-		case TARRAY:
-		case TMAP:
+		if(n->left->op == OCOMPOS && n->left->type != T) {
 			// turn &Point(1, 2) or &[]int(1, 2) or &[...]int(1, 2) into allocation.
 			// initialize with
 			//	nvar := new(*Point);
@@ -920,13 +944,14 @@ loop:
 				maplit(n->left, nstar);
 				break;
 			default:
-				fatal("addr lit %T", n->left->type);
+				goto badlit;
 			}
 
 			indir(n, nvar);
 			goto ret;
 		}
 
+	badlit:
 		if(istype(n->left->type, TFUNC) && n->left->class == PFUNC) {
 			if(!n->diag) {
 				n->diag = 1;
@@ -1130,10 +1155,12 @@ walkbool(Node *n)
 			yyerror("IF and FOR require a boolean type");
 }
 
+
+
 void
 walkconv(Node *n)
 {
-	int et, op;
+	int et;
 	Type *t;
 	Node *l;
 
@@ -1145,17 +1172,20 @@ walkconv(Node *n)
 		return;
 	walktype(l, Erv);
 
-	switch(t->etype) {
-	case TSTRUCT:
-	case TMAP:
-	case TARRAY:
-		break;
-	default:
-		convlit1(l, t, 1);
+	convlit1(l, t, 1);
+
+	// if using .(T), interface assertion.
+	if(n->op == ODOTTYPE) {
+		// interface conversion
+		et = ifaceas(n->type, l->type, 1);
+		if(et != Inone) {
+			indir(n, ifaceop(n->type, l, et));
+			return;
+		}
+		goto bad;
 	}
 
-	op = n->op;
-	n->op = OCONV;	// generic conversion
+	// otherwise, conversion.
 
 	// nil conversion
 	if(eqtype(t, l->type, 0)) {
@@ -1218,43 +1248,12 @@ walkconv(Node *n)
 			return;
 	}
 
-	// possible interface conversion if using .(T)
-	if(op == OCONVDOT) {
-		// interface conversion
-		et = ifaceas(n->type, l->type, 1);
-		if(et != Inone) {
-			indir(n, ifaceop(n->type, l, et));
-			return;
-		}
-	}
-
-	// possible composite literal if using T()
-	if(op == OCONVPAREN) {
-		// structure literal
-		if(t->etype == TSTRUCT) {
-			indir(n, structlit(n, N));
-			return;
-		}
-
-		// array literal
-		if(t->etype == TARRAY) {
-			indir(n, arraylit(n, N));
-			return;
-		}
-
-		// map literal
-		if(t->etype == TMAP) {
-			indir(n, maplit(n, N));
-			return;
-		}
-	}
-
+bad:
 	if(l->type != T)
 		yyerror("invalid conversion: %T to %T", l->type, t);
 	else if(n->left->op == OLIST)
 		yyerror("invalid type for composite literal: %T", t);
 }
-
 
 
 /*
@@ -3146,7 +3145,7 @@ multi:
 		n = list(n, a);
 		break;
 
-	case OCONVDOT:
+	case ODOTTYPE:
 		// a,b := i.(T)
 		if(cl != 2)
 			goto badt;
