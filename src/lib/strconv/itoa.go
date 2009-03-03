@@ -4,34 +4,45 @@
 
 package strconv
 
-func Itoa64(i int64) string {
+func Itob64(i int64, base uint) string {
 	if i == 0 {
 		return "0"
 	}
 
-	neg := false;	// negative
 	u := uint64(i);
 	if i < 0 {
-		neg = true;
 		u = -u;
 	}
 
 	// Assemble decimal in reverse order.
-	var b [32]byte;
-	bp := len(b);
-	for ; u > 0; u /= 10 {
-		bp--;
-		b[bp] = byte(u%10) + '0'
-	}
-	if neg {	// add sign
-		bp--;
-		b[bp] = '-'
+	var buf [32]byte;
+	j := len(buf);
+	b := uint64(base);
+	for u > 0 {
+		j--;
+		buf[j] = "0123456789abcdefghijklmnopqrstuvwxyz"[u%b];
+		u /= b;
 	}
 
-	return string(b[bp:len(b)])
+	if i < 0 {	// add sign
+		j--;
+		buf[j] = '-'
+	}
+
+	return string(buf[j:len(buf)])
 }
+
+
+func Itoa64(i int64) string {
+	return Itob64(i, 10);
+}
+
+
+func Itob(i int, base uint) string {
+	return Itob64(int64(i), base);
+}
+
 
 func Itoa(i int) string {
-	return Itoa64(int64(i));
+	return Itob64(int64(i), 10);
 }
-
