@@ -167,7 +167,7 @@ func getn(in []*dch) []item {
 // Get one item from each of 2 demand channels
 
 func get2(in0 *dch, in1 *dch)  []item {
-	return getn([]*dch(in0, in1));
+	return getn([]*dch{in0, in1});
 }
 
 func copy(in *dch, out *dch){

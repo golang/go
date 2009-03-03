@@ -32,7 +32,7 @@ type rotate13 struct {
 }
 
 func newRotate13(source reader) *rotate13 {
-	return &rotate13(source)
+	return &rotate13{source}
 }
 
 func (r13 *rotate13) Read(b []byte) (ret int, err *os.Error) {

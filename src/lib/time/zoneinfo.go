@@ -88,7 +88,7 @@ type zonetime struct {
 }
 
 func parseinfo(bytes []byte) (zt []zonetime, err *os.Error) {
-	d := data(bytes, false);
+	d := data{bytes, false};
 
 	// 4-byte magic "TZif"
 	if magic := d.read(4); string(magic) != "TZif" {
@@ -127,19 +127,19 @@ func parseinfo(bytes []byte) (zt []zonetime, err *os.Error) {
 	}
 
 	// Transition times.
-	txtimes := data(d.read(n[NTime]*4), false);
+	txtimes := data{d.read(n[NTime]*4), false};
 
 	// Time zone indices for transition times.
 	txzones := d.read(n[NTime]);
 
 	// Zone info structures
-	zonedata := data(d.read(n[NZone]*6), false);
+	zonedata := data{d.read(n[NZone]*6), false};
 
 	// Time zone abbreviations.
 	abbrev := d.read(n[NChar]);
 
 	// Leap-second time pairs
-	leapdata := data(d.read(n[NLeap]*8), false);
+	leapdata := data{d.read(n[NLeap]*8), false};
 
 	// Whether tx times associated with local time types
 	// are specified as standard time or wall time.

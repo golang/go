@@ -42,7 +42,7 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
 		// Refill the buffer if necessary
 		if d.bufp == d.nbuf {
 			var errno int64;
-			dbuf := unsafe.Pointer(&d.buf[0]).(*syscall.Dirent);
+			dbuf := (*syscall.Dirent)(unsafe.Pointer(&d.buf[0]));
 			d.nbuf, errno = syscall.Getdents(fd.fd, dbuf, int64(len(d.buf)));
 			if d.nbuf < 0 {
 				return names, os.ErrnoToError(errno)
@@ -54,7 +54,7 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
 		}
 		// Drain the buffer
 		for count != 0 && d.bufp < d.nbuf {
-			dirent := unsafe.Pointer(&d.buf[d.bufp]).(*syscall.Dirent);
+			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
 			d.bufp += int64(dirent.Reclen);
 			if dirent.Ino == 0 {	// File absent in directory.
 				continue

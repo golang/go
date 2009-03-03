@@ -248,13 +248,13 @@ func (P *Parser) parseIdent(scope *SymbolTable.Scope) *AST.Ident {
 		} else {
 			assert(obj.Kind != SymbolTable.NONE);
 		}
-		x := &AST.Ident(P.pos, obj);
+		x := &AST.Ident{P.pos, obj};
 		P.next();
 		return x;
 	}
 
 	P.expect(Scanner.IDENT);  // use expect() error handling
-	return &AST.Ident(P.pos, nil);
+	return &AST.Ident{P.pos, nil};
 }
 
 
@@ -272,10 +272,10 @@ func (P *Parser) parseIdentList(x AST.Expr) AST.Expr {
 		P.next();
 		y := P.parseIdent(nil);
 		if last == nil {
-			last = &AST.BinaryExpr(pos, Scanner.COMMA, x, y);
+			last = &AST.BinaryExpr{pos, Scanner.COMMA, x, y};
 			x = last;
 		} else {
-			last.Y = &AST.BinaryExpr(pos, Scanner.COMMA, last.Y, y);
+			last.Y = &AST.BinaryExpr{pos, Scanner.COMMA, last.Y, y};
 			last = last.Y.(*AST.BinaryExpr);
 		}
 	}
@@ -319,7 +319,7 @@ func (P *Parser) parseType() AST.Expr {
 	t := P.tryType();
 	if t == nil {
 		P.error(P.pos, "type expected");
-		t = &AST.BadExpr(P.pos);
+		t = &AST.BadExpr{P.pos};
 	}
 
 	return t;
@@ -345,7 +345,7 @@ func (P *Parser) parseQualifiedIdent() AST.Expr {
 		pos := P.pos;
 		P.next();
 		y := P.parseIdent(nil);
-		x = &AST.Selector(pos, x, y);
+		x = &AST.Selector{pos, x, y};
 	}
 
 	return x;
@@ -370,7 +370,7 @@ func (P *Parser) parseArrayType() *AST.ArrayType {
 	P.expect(Scanner.LBRACK);
 	var len AST.Expr;
 	if P.tok == Scanner.ELLIPSIS {
-		len = &AST.Ellipsis(P.pos);
+		len = &AST.Ellipsis{P.pos};
 		P.next();
 	} else if P.tok != Scanner.RBRACK {
 		len = P.parseExpression(1);
@@ -378,7 +378,7 @@ func (P *Parser) parseArrayType() *AST.ArrayType {
 	P.expect(Scanner.RBRACK);
 	elt := P.parseType();
 
-	return &AST.ArrayType(pos, len, elt);
+	return &AST.ArrayType{pos, len, elt};
 }
 
 
@@ -402,7 +402,7 @@ func (P *Parser) parseChannelType() *AST.ChannelType {
 	}
 	val := P.parseVarType();
 
-	return &AST.ChannelType(pos, mode, val);
+	return &AST.ChannelType{pos, mode, val};
 }
 
 
@@ -410,7 +410,7 @@ func (P *Parser) tryParameterType() AST.Expr {
 	if P.tok == Scanner.ELLIPSIS {
 		pos := P.tok;
 		P.next();
-		return &AST.Ellipsis(pos);
+		return &AST.Ellipsis{pos};
 	}
 	return P.tryType();
 }
@@ -420,7 +420,7 @@ func (P *Parser) parseParameterType() AST.Expr {
 	typ := P.tryParameterType();
 	if typ == nil {
 		P.error(P.tok, "type expected");
-		typ = &AST.BadExpr(P.pos);
+		typ = &AST.BadExpr{P.pos};
 	}
 	return typ;
 }
@@ -464,20 +464,20 @@ func (P *Parser) parseParameterList(ellipsis_ok bool) []*AST.Field {
 			idents[i] = list.At(i).(*AST.Ident);
 		}
 		list.Init(0);
-		list.Push(&AST.Field(idents, typ, nil));
+		list.Push(&AST.Field{idents, typ, nil});
 		
 		for P.tok == Scanner.COMMA {
 			P.next();
 			idents := P.parseIdentList2(nil);
 			typ := P.parseParameterType();
-			list.Push(&AST.Field(idents, typ, nil));
+			list.Push(&AST.Field{idents, typ, nil});
 		}
 
 	} else {
 		// Type { "," Type }
 		// convert list of types into list of *Param
 		for i := 0; i < list.Len(); i++ {
-			list.Set(i, &AST.Field(nil, list.At(i).(AST.Expr), nil));
+			list.Set(i, &AST.Field{nil, list.At(i).(AST.Expr), nil});
 		}
 	}
 
@@ -520,7 +520,7 @@ func (P *Parser) parseResult() []*AST.Field {
 		typ := P.tryType();
 		if typ != nil {
 			result = make([]*AST.Field, 1);
-			result[0] = &AST.Field(nil, typ, nil);
+			result[0] = &AST.Field{nil, typ, nil};
 		}
 	}
 
@@ -550,7 +550,7 @@ func (P *Parser) parseSignature() *AST.Signature {
 	//P.scope_lev--;
 	//P.closeScope();
 
-	return &AST.Signature(params, result);
+	return &AST.Signature{params, result};
 }
 
 
@@ -563,7 +563,7 @@ func (P *Parser) parseFunctionType() *AST.FunctionType {
 	P.expect(Scanner.FUNC);
 	sig := P.parseSignature();
 	
-	return &AST.FunctionType(pos, sig);
+	return &AST.FunctionType{pos, sig};
 }
 
 
@@ -578,13 +578,13 @@ func (P *Parser) parseMethodSpec() *AST.Field {
 	if tmp, is_ident := x.(*AST.Ident); is_ident && (P.tok == Scanner.COMMA || P.tok == Scanner.LPAREN) {
 		// method(s)
 		idents = P.parseIdentList2(x);
-		typ = &AST.FunctionType(0, P.parseSignature());
+		typ = &AST.FunctionType{0, P.parseSignature()};
 	} else {
 		// embedded interface
 		typ = x;
 	}
 	
-	return &AST.Field(idents, typ, nil);
+	return &AST.Field{idents, typ, nil};
 }
 
 
@@ -625,7 +625,7 @@ func (P *Parser) parseInterfaceType() *AST.InterfaceType {
 		}
 	}
 
-	return &AST.InterfaceType(pos, methods, end);
+	return &AST.InterfaceType{pos, methods, end};
 }
 
 
@@ -641,7 +641,7 @@ func (P *Parser) parseMapType() *AST.MapType {
 	P.expect(Scanner.RBRACK);
 	val := P.parseVarType();
 
-	return &AST.MapType(pos, key, val);
+	return &AST.MapType{pos, key, val};
 }
 
 
@@ -697,7 +697,7 @@ func (P *Parser) parseFieldDecl() *AST.Field {
 		}
 	}
 	
-	return &AST.Field(idents, typ, tag);
+	return &AST.Field{idents, typ, tag};
 }
 
 
@@ -736,7 +736,7 @@ func (P *Parser) parseStructType() AST.Expr {
 		}
 	}
 
-	return AST.StructType(pos, fields, end);
+	return AST.StructType{pos, fields, end};
 }
 
 
@@ -749,7 +749,7 @@ func (P *Parser) parsePointerType() AST.Expr {
 	P.expect(Scanner.MUL);
 	base := P.parseType();
 
-	return &AST.PointerType(pos, base);
+	return &AST.PointerType{pos, base};
 }
 
 
@@ -772,7 +772,7 @@ func (P *Parser) tryType() AST.Expr {
 		P.next();
 		t := P.parseType();
 		P.expect(Scanner.RPAREN);
-		return &AST.Group(pos, t);
+		return &AST.Group{pos, t};
 	}
 	
 	// no type found
@@ -862,10 +862,10 @@ func (P *Parser) parseExpressionList() AST.Expr {
 		P.next();
 		y := P.parseExpression(1);
 		if first {
-			x = &AST.BinaryExpr(pos, Scanner.COMMA, x, y);
+			x = &AST.BinaryExpr{pos, Scanner.COMMA, x, y};
 			first = false;
 		} else {
-			x.(*AST.BinaryExpr).Y = &AST.BinaryExpr(pos, Scanner.COMMA, x.(*AST.BinaryExpr).Y, y);
+			x.(*AST.BinaryExpr).Y = &AST.BinaryExpr{pos, Scanner.COMMA, x.(*AST.BinaryExpr).Y, y};
 		}
 	}
 
@@ -885,7 +885,7 @@ func (P *Parser) parseFunctionLit() AST.Expr {
 	body := P.parseBlock(Scanner.LBRACE);
 	P.scope_lev--;
 
-	return &AST.FunctionLit(pos, typ, body);
+	return &AST.FunctionLit{pos, typ, body};
 }
 
 
@@ -903,10 +903,10 @@ func (P *Parser) parseOperand() AST.Expr {
 		P.next();
 		x := P.parseExpression(1);
 		P.expect(Scanner.RPAREN);
-		return &AST.Group(pos, x);
+		return &AST.Group{pos, x};
 
 	case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
-		x := &AST.BasicLit(P.pos, P.tok, P.val);
+		x := &AST.BasicLit{P.pos, P.tok, P.val};
 		P.next();
 		if x.Tok == Scanner.STRING {
 			// TODO should remember the list instead of
@@ -930,7 +930,7 @@ func (P *Parser) parseOperand() AST.Expr {
 		}
 	}
 
-	return &AST.BadExpr(P.pos);
+	return &AST.BadExpr{P.pos};
 }
 
 
@@ -943,11 +943,11 @@ func (P *Parser) parseSelectorOrTypeGuard(x AST.Expr) AST.Expr {
 	P.expect(Scanner.PERIOD);
 
 	if P.tok == Scanner.IDENT {
-		x = &AST.Selector(pos, x, P.parseIdent(nil));
+		x = &AST.Selector{pos, x, P.parseIdent(nil)};
 
 	} else {
 		P.expect(Scanner.LPAREN);
-		x = &AST.TypeGuard(pos, x, P.parseType());
+		x = &AST.TypeGuard{pos, x, P.parseType()};
 		P.expect(Scanner.RPAREN);
 	}
 
@@ -965,7 +965,7 @@ func (P *Parser) parseIndex(x AST.Expr) AST.Expr {
 	i := P.parseExpression(0);
 	P.expect(Scanner.RBRACK);
 
-	return &AST.Index(pos, x, i);
+	return &AST.Index{pos, x, i};
 }
 
 
@@ -998,10 +998,10 @@ func (P *Parser) parseCompositeElements() AST.Expr {
 			}
 
 			if last == nil {
-				last = &AST.BinaryExpr(pos, Scanner.COMMA, x, y);
+				last = &AST.BinaryExpr{pos, Scanner.COMMA, x, y};
 				x = last;
 			} else {
-				last.Y = &AST.BinaryExpr(pos, Scanner.COMMA, last.Y, y);
+				last.Y = &AST.BinaryExpr{pos, Scanner.COMMA, last.Y, y};
 				last = last.Y.(*AST.BinaryExpr);
 			}
 
@@ -1031,7 +1031,7 @@ func (P *Parser) parseCallOrCompositeLit(f AST.Expr) AST.Expr {
 	}
 	P.expect(Scanner.RPAREN);
 
-	return &AST.Call(pos, f, args);
+	return &AST.Call{pos, f, args};
 }
 
 
@@ -1066,15 +1066,15 @@ func (P *Parser) parseUnaryExpr() AST.Expr {
 		pos, tok := P.pos, P.tok;
 		P.next();
 		y := P.parseUnaryExpr();
-		return &AST.UnaryExpr(pos, tok, y);
+		return &AST.UnaryExpr{pos, tok, y};
 		/*
 		if lit, ok := y.(*AST.TypeLit); ok && tok == Scanner.MUL {
 			// pointer type
 			t := AST.NewType(pos, AST.POINTER);
 			t.Elt = lit.Typ;
-			return &AST.TypeLit(t);
+			return &AST.TypeLit{t};
 		} else {
-			return &AST.UnaryExpr(pos, tok, y);
+			return &AST.UnaryExpr{pos, tok, y};
 		}
 		*/
 	}
@@ -1094,7 +1094,7 @@ func (P *Parser) parseBinaryExpr(prec1 int) AST.Expr {
 			pos, tok := P.pos, P.tok;
 			P.next();
 			y := P.parseBinaryExpr(prec + 1);
-			x = &AST.BinaryExpr(pos, tok, x, y);
+			x = &AST.BinaryExpr{pos, tok, x, y};
 		}
 	}
 
@@ -1133,7 +1133,7 @@ func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
 		P.opt_semi = true;
 		if AST.ExprLen(x) == 1 {
 			if label, is_ident := x.(*AST.Ident); is_ident {
-				return &AST.LabelDecl(pos, label);
+				return &AST.LabelDecl{pos, label};
 			}
 		}
 		P.error(x.Pos(), "illegal label declaration");
@@ -1151,7 +1151,7 @@ func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
 		if range_ok && P.tok == Scanner.RANGE {
 			range_pos := P.pos;
 			P.next();
-			y = &AST.UnaryExpr(range_pos, Scanner.RANGE, P.parseExpression(1));
+			y = &AST.UnaryExpr{range_pos, Scanner.RANGE, P.parseExpression(1)};
 			if tok != Scanner.DEFINE && tok != Scanner.ASSIGN {
 				P.error(pos, "expected '=' or ':=', found '" + Scanner.TokenString(tok) + "'");
 			}
@@ -1162,7 +1162,7 @@ func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
 			}
 		}
 		// TODO changed ILLEGAL -> NONE
-		return &AST.ExpressionStat(x.Pos(), Scanner.ILLEGAL, &AST.BinaryExpr(pos, tok, x, y));
+		return &AST.ExpressionStat{x.Pos(), Scanner.ILLEGAL, &AST.BinaryExpr{pos, tok, x, y}};
 
 	default:
 		if AST.ExprLen(x) != 1 {
@@ -1170,13 +1170,13 @@ func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
 		}
 
 		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
-			s := &AST.ExpressionStat(P.pos, P.tok, x);
+			s := &AST.ExpressionStat{P.pos, P.tok, x};
 			P.next();  // consume "++" or "--"
 			return s;
 		}
 
 		// TODO changed ILLEGAL -> NONE
-		return &AST.ExpressionStat(x.Pos(), Scanner.ILLEGAL, x);
+		return &AST.ExpressionStat{x.Pos(), Scanner.ILLEGAL, x};
 	}
 
 	unreachable();
@@ -1191,7 +1191,7 @@ func (P *Parser) parseInvocationStat(keyword int) *AST.ExpressionStat {
 
 	pos := P.pos;
 	P.expect(keyword);
-	return &AST.ExpressionStat(pos, keyword, P.parseExpression(1));
+	return &AST.ExpressionStat{pos, keyword, P.parseExpression(1)};
 }
 
 
@@ -1207,7 +1207,7 @@ func (P *Parser) parseReturnStat() *AST.ExpressionStat {
 		x = P.parseExpressionList();
 	}
 
-	return &AST.ExpressionStat(pos, Scanner.RETURN, x);
+	return &AST.ExpressionStat{pos, Scanner.RETURN, x};
 }
 
 
@@ -1216,7 +1216,7 @@ func (P *Parser) parseControlFlowStat(tok int) *AST.ControlFlowStat {
 		defer un(trace(P, "ControlFlowStat"));
 	}
 
-	s := &AST.ControlFlowStat(P.pos, tok, nil);
+	s := &AST.ControlFlowStat{P.pos, tok, nil};
 	P.expect(tok);
 	if tok != Scanner.FALLTHROUGH && P.tok == Scanner.IDENT {
 		s.Label = P.parseIdent(P.top_scope);
@@ -1281,7 +1281,7 @@ func (P *Parser) parseIfStat() *AST.IfStat {
 				// wrap in a block since we don't have one
 				body := AST.NewBlock(0, Scanner.LBRACE);
 				body.List.Push(else_);
-				else_ = &AST.CompositeStat(body);
+				else_ = &AST.CompositeStat{body};
 			}
 		} else {
 			P.error(P.pos, "'if' or '{' expected - illegal 'else' branch");
@@ -1289,7 +1289,7 @@ func (P *Parser) parseIfStat() *AST.IfStat {
 	}
 	P.closeScope();
 
-	return &AST.IfStat(pos, init, cond, body, else_);
+	return &AST.IfStat{pos, init, cond, body, else_};
 }
 
 
@@ -1305,7 +1305,7 @@ func (P *Parser) parseForStat() *AST.ForStat {
 	body := P.parseBlock(Scanner.LBRACE);
 	P.closeScope();
 
-	return &AST.ForStat(pos, init, cond, post, body);
+	return &AST.ForStat{pos, init, cond, post, body};
 }
 
 
@@ -1324,7 +1324,7 @@ func (P *Parser) parseCaseClause() *AST.CaseClause {
 		P.expect(Scanner.DEFAULT);
 	}
 
-	return &AST.CaseClause(pos, expr, P.parseBlock(Scanner.COLON));
+	return &AST.CaseClause{pos, expr, P.parseBlock(Scanner.COLON)};
 }
 
 
@@ -1347,7 +1347,7 @@ func (P *Parser) parseSwitchStat() *AST.SwitchStat {
 	P.opt_semi = true;
 	P.closeScope();
 
-	return &AST.SwitchStat(pos, init, tag, body);
+	return &AST.SwitchStat{pos, init, tag, body};
 }
 
 
@@ -1367,7 +1367,7 @@ func (P *Parser) parseCommClause() *AST.CaseClause {
 			P.next();
 			if P.tok == Scanner.ARROW {
 				y := P.parseExpression(1);
-				x = &AST.BinaryExpr(pos, tok, x, y);
+				x = &AST.BinaryExpr{pos, tok, x, y};
 			} else {
 				P.expect(Scanner.ARROW);  // use expect() error handling
 			}
@@ -1377,7 +1377,7 @@ func (P *Parser) parseCommClause() *AST.CaseClause {
 		P.expect(Scanner.DEFAULT);
 	}
 
-	return &AST.CaseClause(pos, expr, P.parseBlock(Scanner.COLON));
+	return &AST.CaseClause{pos, expr, P.parseBlock(Scanner.COLON)};
 }
 
 
@@ -1399,7 +1399,7 @@ func (P *Parser) parseSelectStat() *AST.SelectStat {
 	P.opt_semi = true;
 	P.closeScope();
 
-	return &AST.SelectStat(pos, body);
+	return &AST.SelectStat{pos, body};
 }
 
 
@@ -1410,7 +1410,7 @@ func (P *Parser) parseStatement() AST.Stat {
 
 	switch P.tok {
 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
-		return &AST.DeclarationStat(P.parseDeclaration());
+		return &AST.DeclarationStat{P.parseDeclaration()};
 	case Scanner.FUNC:
 		// for now we do not allow local function declarations,
 		// instead we assume this starts a function literal
@@ -1428,7 +1428,7 @@ func (P *Parser) parseStatement() AST.Stat {
 	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO, Scanner.FALLTHROUGH:
 		return P.parseControlFlowStat(P.tok);
 	case Scanner.LBRACE:
-		return &AST.CompositeStat(P.parseBlock(Scanner.LBRACE));
+		return &AST.CompositeStat{P.parseBlock(Scanner.LBRACE)};
 	case Scanner.IF:
 		return P.parseIfStat();
 	case Scanner.FOR:
@@ -1439,12 +1439,12 @@ func (P *Parser) parseStatement() AST.Stat {
 		return P.parseSelectStat();
 	case Scanner.SEMICOLON:
 		// don't consume the ";", it is the separator following the empty statement
-		return &AST.EmptyStat(P.pos);
+		return &AST.EmptyStat{P.pos};
 	}
 
 	// no statement found
 	P.error(P.pos, "statement expected");
-	return &AST.BadStat(P.pos);
+	return &AST.BadStat{P.pos};
 }
 
 
@@ -1467,13 +1467,13 @@ func (P *Parser) parseImportSpec(pos int) *AST.ImportDecl {
 	var path AST.Expr;
 	if P.tok == Scanner.STRING {
 		// TODO eventually the scanner should strip the quotes
-		path = &AST.BasicLit(P.pos, Scanner.STRING, P.val);
+		path = &AST.BasicLit{P.pos, Scanner.STRING, P.val};
 		P.next();
 	} else {
 		P.expect(Scanner.STRING);  // use expect() error handling
 	}
 	
-	return &AST.ImportDecl(pos, ident, path);
+	return &AST.ImportDecl{pos, ident, path};
 }
 
 
@@ -1490,7 +1490,7 @@ func (P *Parser) parseConstSpec(pos int) *AST.ConstDecl {
 		vals = P.parseExpressionList();
 	}
 	
-	return &AST.ConstDecl(pos, idents, typ, vals);
+	return &AST.ConstDecl{pos, idents, typ, vals};
 }
 
 
@@ -1502,7 +1502,7 @@ func (P *Parser) parseTypeSpec(pos int) *AST.TypeDecl {
 	ident := P.parseIdent(nil);
 	typ := P.parseType();
 	
-	return &AST.TypeDecl(pos, ident, typ);
+	return &AST.TypeDecl{pos, ident, typ};
 }
 
 
@@ -1525,7 +1525,7 @@ func (P *Parser) parseVarSpec(pos int) *AST.VarDecl {
 		}
 	}
 	
-	return &AST.VarDecl(pos, idents, typ, vals);
+	return &AST.VarDecl{pos, idents, typ, vals};
 }
 
 
@@ -1601,7 +1601,7 @@ func (P *Parser) parseDecl(keyword int) AST.Decl {
 			decls[i] = list.At(i).(AST.Decl);
 		}
 		
-		return &AST.DeclList(pos, keyword, decls, end);
+		return &AST.DeclList{pos, keyword, decls, end};
 	}
 
 	return P.parseSpec(pos, keyword);
@@ -1644,7 +1644,7 @@ func (P *Parser) parseFunctionDecl() *AST.FuncDecl {
 		body = P.parseBlock(Scanner.LBRACE);
 	}
 
-	return &AST.FuncDecl(pos, recv, ident, sig, body);
+	return &AST.FuncDecl{pos, recv, ident, sig, body};
 }
 
 
@@ -1663,7 +1663,7 @@ func (P *Parser) parseDeclaration() AST.Decl {
 	pos := P.pos;
 	P.error(pos, "declaration expected");
 	P.next();  // make progress
-	return &AST.BadDecl(pos);
+	return &AST.BadDecl{pos};
 }
 
 

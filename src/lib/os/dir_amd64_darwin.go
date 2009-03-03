@@ -45,7 +45,7 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
 		}
 		// Drain the buffer
 		for count != 0 && d.bufp < d.nbuf {
-			dirent := unsafe.Pointer(&d.buf[d.bufp]).(*syscall.Dirent);
+			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
 			d.bufp += int64(dirent.Reclen);
 			if dirent.Ino == 0 {	// File absent in directory.
 				continue

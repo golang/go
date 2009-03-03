@@ -74,7 +74,7 @@ type boolValue struct {
 
 func newBoolValue(val bool, p *bool) *boolValue {
 	*p = val;
-	return &boolValue(p)
+	return &boolValue{p}
 }
 
 func (b *boolValue) set(s string) bool {
@@ -94,7 +94,7 @@ type intValue struct {
 
 func newIntValue(val int, p *int) *intValue {
 	*p = val;
-	return &intValue(p)
+	return &intValue{p}
 }
 
 func (i *intValue) set(s string) bool {
@@ -114,7 +114,7 @@ type int64Value struct {
 
 func newInt64Value(val int64, p *int64) *int64Value {
 	*p = val;
-	return &int64Value(p)
+	return &int64Value{p}
 }
 
 func (i *int64Value) set(s string) bool {
@@ -134,7 +134,7 @@ type uintValue struct {
 
 func newUintValue(val uint, p *uint) *uintValue {
 	*p = val;
-	return &uintValue(p)
+	return &uintValue{p}
 }
 
 func (i *uintValue) set(s string) bool {
@@ -154,7 +154,7 @@ type uint64Value struct {
 
 func newUint64Value(val uint64, p *uint64) *uint64Value {
 	*p = val;
-	return &uint64Value(p)
+	return &uint64Value{p}
 }
 
 func (i *uint64Value) set(s string) bool {
@@ -174,7 +174,7 @@ type stringValue struct {
 
 func newStringValue(val string, p *string) *stringValue {
 	*p = val;
-	return &stringValue(p)
+	return &stringValue{p}
 }
 
 func (s *stringValue) set(val string) bool {
@@ -206,7 +206,7 @@ type allFlags struct {
 	first_arg	int;	// 0 is the program name, 1 is first arg
 }
 
-var flags *allFlags = &allFlags(make(map[string] *Flag), make(map[string] *Flag), 1)
+var flags *allFlags = &allFlags{make(map[string] *Flag), make(map[string] *Flag), 1}
 
 // Visit all flags, including those defined but not set.
 func VisitAll(fn func(*Flag)) {
@@ -282,7 +282,7 @@ func NArg() int {
 
 func add(name string, value FlagValue, usage string) {
 	// Remember the default value as a string; it won't change.
-	f := &Flag(name, usage, value, value.String());
+	f := &Flag{name, usage, value, value.String()};
 	dummy, alreadythere := flags.formal[name];
 	if alreadythere {
 		print("flag redefined: ", name, "\n");

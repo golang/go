@@ -202,7 +202,7 @@ func (b *Writer) write0(buf []byte) *os.Error {
 }
 
 
-var newline = []byte('\n')
+var newline = []byte{'\n'}
 
 func (b *Writer) writePadding(textw, cellw int) (err *os.Error) {
 	if b.padbytes[0] == '\t' {

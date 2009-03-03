@@ -114,10 +114,10 @@ func Dump(x []Digit) {
 type Natural []Digit;
 
 var (
-	natZero Natural = Natural();
-	natOne Natural = Natural(1);
-	natTwo Natural = Natural(2);
-	natTen Natural = Natural(10);
+	natZero Natural = Natural{};
+	natOne Natural = Natural{1};
+	natTwo Natural = Natural{2};
+	natTen Natural = Natural{10};
 )
 
 
@@ -131,7 +131,7 @@ func Nat(x uint) Natural {
 	case 10: return natTen;
 	}
 	assert(Digit(x) < _B);
-	return Natural(Digit(x));
+	return Natural{Digit(x)};
 }
 
 
@@ -818,7 +818,7 @@ func MakeInt(sign bool, mant Natural) *Integer {
 	if mant.IsZero() {
 		sign = false;  // normalize
 	}
-	return &Integer(sign, mant);
+	return &Integer{sign, mant};
 }
 
 
@@ -1140,7 +1140,7 @@ func MakeRat(a *Integer, b Natural) *Rational {
 		a = MakeInt(a.sign, a.mant.Div(f));
 		b = b.Div(f);
 	}
-	return &Rational(a, b);
+	return &Rational{a, b};
 }
 
 

@@ -46,12 +46,12 @@ type Time struct {
 	Zone string;
 }
 
-var nonleapyear = []int(
+var nonleapyear = []int{
 	31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
-)
-var leapyear = []int(
+}
+var leapyear = []int{
 	31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
-)
+}
 
 func months(year int64) []int {
 	if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
@@ -220,7 +220,7 @@ func (t *Time) Seconds() int64 {
 	return sec
 }
 
-var longDayNames = []string(
+var longDayNames = []string{
 	"Sunday",
 	"Monday",
 	"Tuesday",
@@ -228,9 +228,9 @@ var longDayNames = []string(
 	"Thursday",
 	"Friday",
 	"Saturday"
-)
+}
 
-var shortDayNames = []string(
+var shortDayNames = []string{
 	"Sun",
 	"Mon",
 	"Tue",
@@ -238,9 +238,9 @@ var shortDayNames = []string(
 	"Thu",
 	"Fri",
 	"Sat"
-)
+}
 
-var shortMonthNames = []string(
+var shortMonthNames = []string{
 	"Jan",
 	"Feb",
 	"Mar",
@@ -253,7 +253,7 @@ var shortMonthNames = []string(
 	"Oct",
 	"Nov",
 	"Dec"
-)
+}
 
 func copy(dst []byte, s string) {
 	for i := 0; i < len(s); i++ {

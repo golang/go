@@ -98,10 +98,10 @@ type readMaker struct {
 	name string;
 	fn func([]byte) io.Read;
 }
-var readMakers = []readMaker (
-	readMaker( "full", func(p []byte) io.Read { return newByteReader(p) } ),
-	readMaker( "half", func(p []byte) io.Read { return newHalfByteReader(p) } ),
-)
+var readMakers = []readMaker {
+	readMaker{ "full", func(p []byte) io.Read { return newByteReader(p) } },
+	readMaker{ "half", func(p []byte) io.Read { return newHalfByteReader(p) } },
+}
 
 // Call ReadLineString (which ends up calling everything else)
 // to accumulate the text of a file.
@@ -157,21 +157,21 @@ type bufReader struct {
 	name string;
 	fn func(*BufRead) string;
 }
-var bufreaders = []bufReader (
-	bufReader( "1", func(b *BufRead) string { return reads(b, 1) } ),
-	bufReader( "2", func(b *BufRead) string { return reads(b, 2) } ),
-	bufReader( "3", func(b *BufRead) string { return reads(b, 3) } ),
-	bufReader( "4", func(b *BufRead) string { return reads(b, 4) } ),
-	bufReader( "5", func(b *BufRead) string { return reads(b, 5) } ),
-	bufReader( "7", func(b *BufRead) string { return reads(b, 7) } ),
-	bufReader( "bytes", readBytes ),
-	bufReader( "lines", readLines ),
-)
+var bufreaders = []bufReader {
+	bufReader{ "1", func(b *BufRead) string { return reads(b, 1) } },
+	bufReader{ "2", func(b *BufRead) string { return reads(b, 2) } },
+	bufReader{ "3", func(b *BufRead) string { return reads(b, 3) } },
+	bufReader{ "4", func(b *BufRead) string { return reads(b, 4) } },
+	bufReader{ "5", func(b *BufRead) string { return reads(b, 5) } },
+	bufReader{ "7", func(b *BufRead) string { return reads(b, 7) } },
+	bufReader{ "bytes", readBytes },
+	bufReader{ "lines", readLines },
+}
 
-var bufsizes = []int (
+var bufsizes = []int {
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 	23, 32, 46, 64, 93, 128, 1024, 4096
-)
+}
 
 func TestBufReadSimple(t *testing.T) {
 	b := NewBufRead(newByteReader(io.StringBytes("hello world")));
@@ -281,10 +281,10 @@ type writeMaker struct {
 func TestBufWrite(t *testing.T) {
 	var data [8192]byte;
 
-	var writers = []writeMaker (
-		writeMaker( "full", newByteWriter ),
-		writeMaker( "half", newHalfByteWriter ),
-	);
+	var writers = []writeMaker {
+		writeMaker{ "full", newByteWriter },
+		writeMaker{ "half", newHalfByteWriter },
+	};
 
 	for i := 0; i < len(data); i++ {
 		data[i] = byte(' '+ i%('~'-' '));

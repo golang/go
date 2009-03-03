@@ -85,7 +85,7 @@ func TestPipe2(t *testing.T) {
 func writer(w io.WriteClose, buf []byte, c chan pipeReturn) {
 	n, err := w.Write(buf);
 	w.Close();
-	c <- pipeReturn(n, err);
+	c <- pipeReturn{n, err};
 }
 
 func TestPipe3(t *testing.T) {

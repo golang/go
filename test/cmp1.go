@@ -11,7 +11,7 @@ import "unsafe"
 func use(bool) { }
 
 func stringptr(s string) uintptr {
-	return *(&s).(unsafe.Pointer).(*uintptr);
+	return *(*uintptr)(unsafe.Pointer(&s));
 }
 
 func isfalse(b bool) {

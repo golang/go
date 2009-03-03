@@ -52,7 +52,7 @@ type Digest struct {
 }
 
 func NewDigest(tab Table) *Digest {
-	return &Digest(0, tab);
+	return &Digest{0, tab};
 }
 
 func NewIEEEDigest() *Digest {

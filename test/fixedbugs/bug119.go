@@ -11,7 +11,7 @@ func foo(a []int) int {
 }
 
 func main() {
-	a := &[]int(12);
+	a := &[]int{12};
 	if x := a[0]   ; x != 12 { panicln(1) }
 	if x := (*a)[0]; x != 12 { panicln(2) }
 	if x := foo(*a) ; x != 12 { panicln(3) }  // fails (x is incorrect)
@@ -28,5 +28,5 @@ panic on line 83 PC=0x14d6
 0x52bb?zi
 	mainstart(1, 0, 1606416432, ...)
 	mainstart(0x1, 0x7fff5fbff830, 0x0, ...)
-uetli:~/Source/go1/test/bugs gri$
+uetli:~/Source/go1/test/bugs gri$ 
 */

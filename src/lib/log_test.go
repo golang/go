@@ -29,21 +29,21 @@ type tester struct {
 	pattern	string;	// regexp that log output must match; we add ^ and expected_text$ always
 }
 
-var tests = []tester (
+var tests = []tester {
 	// individual pieces:
-	tester( 0,	"", "" ),
-	tester( 0, "XXX", "XXX" ),
-	tester( Lok|Ldate, "", Rdate+" " ),
-	tester( Lok|Ltime, "", Rtime+" " ),
-	tester( Lok|Ltime|Lmicroseconds, "", Rtime+Rmicroseconds+" " ),
-	tester( Lok|Lmicroseconds, "", Rtime+Rmicroseconds+" " ),	// microsec implies time
-	tester( Lok|Llongfile, "", Rlongfile+" " ),
-	tester( Lok|Lshortfile, "", Rshortfile+" " ),
-	tester( Lok|Llongfile|Lshortfile, "", Rshortfile+" " ),	// shortfile overrides longfile
+	tester{ 0,	"", "" },
+	tester{ 0, "XXX", "XXX" },
+	tester{ Lok|Ldate, "", Rdate+" " },
+	tester{ Lok|Ltime, "", Rtime+" " },
+	tester{ Lok|Ltime|Lmicroseconds, "", Rtime+Rmicroseconds+" " },
+	tester{ Lok|Lmicroseconds, "", Rtime+Rmicroseconds+" " },	// microsec implies time
+	tester{ Lok|Llongfile, "", Rlongfile+" " },
+	tester{ Lok|Lshortfile, "", Rshortfile+" " },
+	tester{ Lok|Llongfile|Lshortfile, "", Rshortfile+" " },	// shortfile overrides longfile
 	// everything at once:
-	tester( Lok|Ldate|Ltime|Lmicroseconds|Llongfile, "XXX", "XXX"+Rdate+" "+Rtime+Rmicroseconds+" "+Rlongfile+" " ),
-	tester( Lok|Ldate|Ltime|Lmicroseconds|Lshortfile, "XXX", "XXX"+Rdate+" "+Rtime+Rmicroseconds+" "+Rshortfile+" " ),
-)
+	tester{ Lok|Ldate|Ltime|Lmicroseconds|Llongfile, "XXX", "XXX"+Rdate+" "+Rtime+Rmicroseconds+" "+Rlongfile+" " },
+	tester{ Lok|Ldate|Ltime|Lmicroseconds|Lshortfile, "XXX", "XXX"+Rdate+" "+Rtime+Rmicroseconds+" "+Rshortfile+" " },
+}
 
 // Test using Log("hello", 23, "world") or using Logf("hello %d world", 23)
 func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool) {

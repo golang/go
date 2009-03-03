@@ -6,10 +6,10 @@
 
 package main
 
-var a = []int ( 1,2, )
-var b = [5]int ( 1,2,3 )
-var c = []int ( 1 )
-var d = [...]int ( 1,2,3 )
+var a = []int { 1,2, }
+var b = [5]int { 1,2,3 }
+var c = []int { 1 }
+var d = [...]int { 1,2,3 }
 
 func main() {
 	if len(a) != 2 { panicln("len a", len(a)) }

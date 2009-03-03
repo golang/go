@@ -13,6 +13,6 @@ func (t *testType) String() string {
 }
 
 func main() {
-	t := &testType(77, "Sunset Strip");
+	t := &testType{77, "Sunset Strip"};
 	fmt.Println(t)
 }

@@ -58,7 +58,7 @@ func (p *pipe) Read(data []byte) (n int, err *os.Error) {
 	// If write block is done, finish the write.
 	if len(p.wpend) == 0 {
 		p.wpend = nil;
-		p.cw <- pipeReturn(p.wtot, nil);
+		p.cw <- pipeReturn{p.wtot, nil};
 		p.wtot = 0;
 	}
 
@@ -91,7 +91,7 @@ func (p *pipe) CloseReader() *os.Error {
 
 	// Stop the current write.
 	if !p.wclosed {
-		p.cw <- pipeReturn(p.wtot, os.EPIPE);
+		p.cw <- pipeReturn{p.wtot, os.EPIPE};
 	}
 
 	return nil;

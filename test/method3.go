@@ -16,7 +16,7 @@ type I interface {
 }
 
 func main() {
-	var t T = T(0,1,2,3,4);
+	var t T = T{0,1,2,3,4};
 	var i I;
 	i = t;
 	if i.Len() != 5 {

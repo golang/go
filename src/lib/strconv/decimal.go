@@ -192,7 +192,7 @@ type leftCheat struct {
 	cutoff string;	//   minus one digit if original < a.
 }
 
-var leftcheats = []leftCheat (
+var leftcheats = []leftCheat {
 	// Leading digits of 1/2^i = 5^i.
 	// 5^23 is not an exact 64-bit floating point number,
 	// so have to use bc for the math.
@@ -205,35 +205,35 @@ var leftcheats = []leftCheat (
 			int(log2*NR+1), $0, 2**NR)
 	}'
 	 */
-	leftCheat( 0, "" ),
-	leftCheat( 1, "5" ),	// * 2
-	leftCheat( 1, "25" ),	// * 4
-	leftCheat( 1, "125" ),	// * 8
-	leftCheat( 2, "625" ),	// * 16
-	leftCheat( 2, "3125" ),	// * 32
-	leftCheat( 2, "15625" ),	// * 64
-	leftCheat( 3, "78125" ),	// * 128
-	leftCheat( 3, "390625" ),	// * 256
-	leftCheat( 3, "1953125" ),	// * 512
-	leftCheat( 4, "9765625" ),	// * 1024
-	leftCheat( 4, "48828125" ),	// * 2048
-	leftCheat( 4, "244140625" ),	// * 4096
-	leftCheat( 4, "1220703125" ),	// * 8192
-	leftCheat( 5, "6103515625" ),	// * 16384
-	leftCheat( 5, "30517578125" ),	// * 32768
-	leftCheat( 5, "152587890625" ),	// * 65536
-	leftCheat( 6, "762939453125" ),	// * 131072
-	leftCheat( 6, "3814697265625" ),	// * 262144
-	leftCheat( 6, "19073486328125" ),	// * 524288
-	leftCheat( 7, "95367431640625" ),	// * 1048576
-	leftCheat( 7, "476837158203125" ),	// * 2097152
-	leftCheat( 7, "2384185791015625" ),	// * 4194304
-	leftCheat( 7, "11920928955078125" ),	// * 8388608
-	leftCheat( 8, "59604644775390625" ),	// * 16777216
-	leftCheat( 8, "298023223876953125" ),	// * 33554432
-	leftCheat( 8, "1490116119384765625" ),	// * 67108864
-	leftCheat( 9, "7450580596923828125" ),	// * 134217728
-)
+	leftCheat{ 0, "" },
+	leftCheat{ 1, "5" },	// * 2
+	leftCheat{ 1, "25" },	// * 4
+	leftCheat{ 1, "125" },	// * 8
+	leftCheat{ 2, "625" },	// * 16
+	leftCheat{ 2, "3125" },	// * 32
+	leftCheat{ 2, "15625" },	// * 64
+	leftCheat{ 3, "78125" },	// * 128
+	leftCheat{ 3, "390625" },	// * 256
+	leftCheat{ 3, "1953125" },	// * 512
+	leftCheat{ 4, "9765625" },	// * 1024
+	leftCheat{ 4, "48828125" },	// * 2048
+	leftCheat{ 4, "244140625" },	// * 4096
+	leftCheat{ 4, "1220703125" },	// * 8192
+	leftCheat{ 5, "6103515625" },	// * 16384
+	leftCheat{ 5, "30517578125" },	// * 32768
+	leftCheat{ 5, "152587890625" },	// * 65536
+	leftCheat{ 6, "762939453125" },	// * 131072
+	leftCheat{ 6, "3814697265625" },	// * 262144
+	leftCheat{ 6, "19073486328125" },	// * 524288
+	leftCheat{ 7, "95367431640625" },	// * 1048576
+	leftCheat{ 7, "476837158203125" },	// * 2097152
+	leftCheat{ 7, "2384185791015625" },	// * 4194304
+	leftCheat{ 7, "11920928955078125" },	// * 8388608
+	leftCheat{ 8, "59604644775390625" },	// * 16777216
+	leftCheat{ 8, "298023223876953125" },	// * 33554432
+	leftCheat{ 8, "1490116119384765625" },	// * 67108864
+	leftCheat{ 9, "7450580596923828125" },	// * 134217728
+}
 
 // Is the leading prefix of b lexicographically less than s?
 func prefixIsLessThan(b []byte, s string) bool {

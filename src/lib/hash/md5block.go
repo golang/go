@@ -11,7 +11,7 @@ package md5
 import "md5"
 
 // table[i] = int((1<<32) * abs(sin(i+1 radians))).
-var table = []uint32 (
+var table = []uint32 {
 	// round 1
 	0xd76aa478,
 	0xe8c7b756,
@@ -83,12 +83,12 @@ var table = []uint32 (
 	0xbd3af235,
 	0x2ad7d2bb,
 	0xeb86d391,
-)
+}
 
-var shift1 = []uint ( 7, 12, 17, 22 );
-var shift2 = []uint ( 5, 9, 14, 20 );
-var shift3 = []uint ( 4, 11, 16, 23 );
-var shift4 = []uint ( 6, 10, 15, 21 );
+var shift1 = []uint { 7, 12, 17, 22 };
+var shift2 = []uint { 5, 9, 14, 20 };
+var shift3 = []uint { 4, 11, 16, 23 };
+var shift4 = []uint { 6, 10, 15, 21 };
 
 func _Block(dig *Digest, p []byte) int {
 	a := dig.s[0];
