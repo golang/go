@@ -1875,10 +1875,11 @@ ExprPair      = Expression ":" Expression .
 
 <p>
 The LiteralType must be a struct, array, slice, or map type.
-<font color=red>TODO: then why doesn't the grammar say that?</font>
-The types of the expressions must match the respective field, element, and
-key types of the LiteralType; there is no automatic type conversion.
-Given
+(The grammar enforces this constraint except when the type is given
+as a TypeName.)
+The types of the expressions must be assignment compatible to
+the respective field, element, and key types of the LiteralType;
+there is no additional conversion.
 </p>
 
 <pre>
@@ -1934,6 +1935,21 @@ key-value pairs separated by a colon:
 
 <pre>
 m := map[string]int{"good": 0, "bad": 1, "indifferent": 7};
+</pre>
+
+<p>
+A parsing ambiguity arises when a composite literal using the
+TypeName form of the LiteralType appears in the condition of an
+"if", "for", or "switch" statement, because the braces surrounding
+the expressions in the literal are confused with those introducing
+a block of statements. To resolve the ambiguity in this rare case,
+the composite literal must appear within
+parentheses.
+</p>
+
+<pre>
+if x == (T{a,b,c}[i]) { ... }
+if (x == T{a,b,c}[i]) { ... }
 </pre>
 
 <h3>Function literals</h3>
