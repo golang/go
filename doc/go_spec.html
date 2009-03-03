@@ -188,10 +188,6 @@ The form <code>"a ... b"</code> represents the set of characters from
 <code>a</code> through <code>b</code> as alternatives.
 </p>
 
-<p>
-Where possible, recursive productions are used to express evaluation order
-and operator precedence syntactically.
-</p>
 <hr/>
 
 <h2>Source code representation</h2>
@@ -621,8 +617,9 @@ uintptr  smallest uint type large enough to store the uninterpreted
 </pre>
 
 <p>
-Except for <code>byte</code>, which is an alias for <code>uint8</code>,
-to avoid portability issues all numeric types are distinct. Conversions
+To avoid portability issues all numeric types are distinct except
+<code>byte</code>, which is an alias for <code>uint8</code>.
+Conversions
 are required when different numeric types are mixed in an expression
 or assignment. For instance, <code>int32</code> and <code>int</code>
 are not the same type even though they may have the same size on a 
@@ -669,7 +666,7 @@ StringLit   = string_lit { string_lit } .
 <p>
 A struct is a sequence of named
 elements, called fields, with various types. A struct type declares
-an identifier and type for each field. Within a struct field identifiers
+an identifier and type for each field. Within a struct, field identifiers
 must be unique and  field types must be complete (§Types).
 </p>
 
@@ -696,8 +693,8 @@ struct {
 <p>
 A field declared with a type but no field identifier is an <i>anonymous field</i>.
 Such a field type must be specified as
-a type name <code>T</code> or as a pointer to a type name <code>*T</code>
-and <code>T</code> itself may not be
+a type name <code>T</code> or as a pointer to a type name <code>*T</code>,
+and <code>T</code> itself, may not be
 a pointer or interface type. The unqualified type name acts as the field identifier.
 </p>
 
@@ -706,8 +703,8 @@ a pointer or interface type. The unqualified type name acts as the field identif
 struct {
 	T1;        // the field name is T1
 	*T2;       // the field name is T2
-	P.T3;      // the field name is the unqualified type name T3
-	*P.T4;     // the field name is the unqualified type name T4
+	P.T3;      // the field name is T3
+	*P.T4;     // the field name is T4
 	x, y int;  
 }
 </pre>
@@ -782,7 +779,7 @@ indices 0 through the <code>len(a)-1</code> (§Indexes).
 
 <p>
 A pointer type denotes the set of all pointers to variables of a given
-type, called the ``base type'' of the pointer.
+type, called the <i>base type</i> of the pointer.
 A pointer value may be <code>nil</code>.
 </p>
 
@@ -826,7 +823,7 @@ The types of parameters and results must be complete.
 <p>
 For the last parameter only, instead of a type one may write
 <code>...</code> to indicate that the function may be invoked with
-an arbitrary number (including zero) of additional arguments of any
+zero or more additional arguments of any
 type. If parameters of such a function are named, the final identifier
 list must be a single name, that of the <code>...</code> parameter.
 </p>
@@ -995,7 +992,8 @@ and the relationship between <code>len()</code> and <code>cap()</code> is:
 </pre>
 
 <p>
-The value of an uninitialized slice is <code>nil</code>, and its length and capacity
+The value of an uninitialized slice is <code>nil</code>.
+The length and capacity of a <code>nil</code> slice
 are 0. A new, initialized slice value for a given element type <code>T</code> is
 made using the built-in function <code>make</code>, which takes a slice type
 and parameters specifying the length and optionally the capacity:
@@ -1020,7 +1018,7 @@ produces the same slice as allocating an array and slicing it:
 </p>
 
 <pre>
-make([capacity]T)[0 : length]
+make([]T, capacity)[0 : length]
 </pre>
 
 
@@ -1062,19 +1060,26 @@ map [string] interface {}
 The number of elements is called the length and is never negative.
 The length of a map <code>m</code> can be discovered using the
 built-in function <code>len(m)</code> and may change during execution.
-The value of an uninitialized map is <code>nil</code>
+The value of an uninitialized map is <code>nil</code>.
 </p>
 <p>
 Upon creation, a map is empty.  Values may be added and removed
 during execution using special forms of assignment (§Assignments).
 A new, empty map value is made using the built-in
 function <code>make</code>, which takes the map type and an optional
-capacity, an allocation hint, as arguments:
+capacity hint as arguments:
 </p>
 
 <pre>
-make(map[string] int, 100);
+make(map[string] int)
+make(map[string] int, 100)
 </pre>
+
+<p>
+The initial capacity does not bound its size:
+maps grow to accommodate the number of items
+stored in them.
+</p>
 
 <h3>Channel types</h3>
 
@@ -1113,7 +1118,7 @@ which takes the channel type and an optional capacity as arguments:
 </p>
 
 <pre>
-make(chan int, 100);
+make(chan int, 100)
 </pre>
 
 <p>
@@ -1130,7 +1135,7 @@ Types may be <i>different</i>, <i>structurally equal</i> (or just <i>equal</i>),
 or <i>identical</i>.
 Go is <i>type safe</i>: different types cannot be mixed
 in binary operations and values cannot be assigned to variables of different
-types. They can be assigned to variables of equal type.
+types. Values can be assigned to variables of equal type.
 </p>
 
 <h3>Type equality and identity </h3>
@@ -1245,7 +1250,7 @@ When assigning to a slice variable, the array is not copied but a
 slice comprising the entire array is created.
 </li>
 <li>
-A value can be assigned to an interface variable if the dynamic
+A value can be assigned to an interface variable if the static
 type of the value implements the interface.
 </li>
 <li>
@@ -1273,8 +1278,8 @@ compared for equality or inequality using the <code>==</code> and
 Arrays and structs may not be compared to anything.
 </li>
 <li>
-A slice value may only be compared explicitly against <code>nil</code>
-and is equal to <code>nil</code> if it has been assigned the explicit
+A slice value may only be compared explicitly against <code>nil</code>.
+A slice value is equal to <code>nil</code> if it has been assigned the explicit
 value <code>nil</code> or if it is a variable (or array element,
 field, etc.) that has not been modified since it was created
 uninitialized.
@@ -1294,15 +1299,15 @@ unequal if one equals <code>nil</code> and one does not.
 Pointer values are equal if they point to the same location.
 </li>
 <li>
-Function values are equal if they point to the same function.
+Function values are equal if they refer to the same function.
 </li>
 <li>
-Channel and map values are equal if they were created by the same call of <code>make</code>
+Channel and map values are equal if they were created by the same call to <code>make</code>
 (§Making slices, maps, and channels).
 </li>
 <li>
-Interface values are comparison compatible if they have the same static type and
-equal if they have the same dynamic type.
+Interface values may be compared if they have the same static type.
+They will be equal only if they have the same dynamic type and the underlying values are equal.
 </li>
 </ul>
 <hr/>
@@ -1437,7 +1442,7 @@ CompleteType = Type .
 <p>
 If the type (CompleteType) is omitted, the constants take the
 individual types of the corresponding expressions, which may be
-``ideal integer'' or ``ideal float'' (§Ideal number).  If the type
+<i>ideal integer</i> or <i>ideal float</i> (§Ideal number).  If the type
 is present, all constants take the type specified, and the types
 of all the expressions must be assignment-compatible
 with that type.
