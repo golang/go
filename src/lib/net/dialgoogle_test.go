@@ -50,7 +50,7 @@ func doDialTCP(t *testing.T, network, addr string) {
 	fd.Close()
 }
 
-var googleaddrs = []string (
+var googleaddrs = []string {
 	"74.125.19.99:80",
 	"www.google.com:80",
 	"74.125.19.99:http",
@@ -62,7 +62,7 @@ var googleaddrs = []string (
 	"[0:0:0:0:000000:ffff:74.125.19.99]:80",
 	"[0:0:0:0:0:ffff::74.125.19.99]:80",
 	"[2001:4860:0:2001::68]:80"	// ipv6.google.com; removed if ipv6 flag not set
-)
+}
 
 func TestDialGoogle(t *testing.T) {
 	// If no ipv6 tunnel, don't try the last address.

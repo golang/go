@@ -10,8 +10,8 @@ type A []int;
 type M map[int] int;
 
 func main() {
-	var a *A = &A(0);
-	var m *M = &M(0 : 0);  // should be legal to use & here for consistency with other composite constructors (prev. line)
+	var a *A = &A{0};
+	var m *M = &M{0 : 0};  // should be legal to use & here for consistency with other composite constructors (prev. line)
 }
 
 /*

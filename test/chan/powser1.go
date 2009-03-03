@@ -158,7 +158,7 @@ func getn(in []*dch) []rat {
 // Get one rat from each of 2 demand channels
 
 func get2(in0 *dch, in1 *dch) []rat {
-	return getn([]*dch(in0, in1));
+	return getn([]*dch{in0, in1});
 }
 
 func copy(in *dch, out *dch) {

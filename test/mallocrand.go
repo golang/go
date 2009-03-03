@@ -48,7 +48,7 @@ func prime() {
 func memset(b *byte, c byte, n uint64) {
 	np := uintptr(n);
 	for i := uintptr(0); i < np; i++ {
-		*(b.(unsafe.Pointer).(uintptr)+i).(unsafe.Pointer).(*byte) = c;
+		*(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(b))+i)) = c;
 	}
 }
 

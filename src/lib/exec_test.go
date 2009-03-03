@@ -11,7 +11,7 @@ import (
 )
 
 func TestOpenCmdCat(t *testing.T) {
-	cmd, err := exec.OpenCmd("/bin/cat", []string("cat"), nil,
+	cmd, err := exec.OpenCmd("/bin/cat", []string{"cat"}, nil,
 		exec.Pipe, exec.Pipe, exec.DevNull);
 	if err != nil {
 		t.Fatalf("opencmd /bin/cat: %v", err);
@@ -32,7 +32,7 @@ func TestOpenCmdCat(t *testing.T) {
 }
 
 func TestOpenCmdEcho(t *testing.T) {
-	cmd, err := OpenCmd("/bin/echo", []string("echo", "hello", "world"), nil,
+	cmd, err := OpenCmd("/bin/echo", []string{"echo", "hello", "world"}, nil,
 		exec.DevNull, exec.Pipe, exec.DevNull);
 	if err != nil {
 		t.Fatalf("opencmd /bin/echo: %v", err);

@@ -14,12 +14,12 @@ type Test struct {
 	out string;
 }
 
-var tests = []Test (
-	Test( 123.5, "123.5", "123.5" ),
-	Test( 456.7, "456.7", "456.7" ),
-	Test( 1e23+8.5e6, "1e23+8.5e6", "1.0000000000000001e+23" ),
-	Test( 100000000000000008388608, "100000000000000008388608", "1.0000000000000001e+23" ),
-	Test( 1e23+8388609, "1e23+8388609", "1.0000000000000001e+23" ),
+var tests = []Test {
+	Test{ 123.5, "123.5", "123.5" },
+	Test{ 456.7, "456.7", "456.7" },
+	Test{ 1e23+8.5e6, "1e23+8.5e6", "1.0000000000000001e+23" },
+	Test{ 100000000000000008388608, "100000000000000008388608", "1.0000000000000001e+23" },
+	Test{ 1e23+8388609, "1e23+8388609", "1.0000000000000001e+23" },
 
 	// "x" = the floating point value from converting the string x.
 	// These are exactly representable in 64-bit floating point:
@@ -32,9 +32,9 @@ var tests = []Test (
 	// The correct answer, of course, would be "1e23+8388608" = 1e23+8388608.
 	// This is not going to be correct until 6g has multiprecision floating point.
 	// A simpler case is "1e23+1", which should also round to 1e23+8388608.
-	Test( 1e23+8.388608e6, "1e23+8.388608e6", "1.0000000000000001e+23" ),
-	Test( 1e23+1, "1e23+1", "1.0000000000000001e+23" ),
-)
+	Test{ 1e23+8.388608e6, "1e23+8.388608e6", "1.0000000000000001e+23" },
+	Test{ 1e23+1, "1e23+1", "1.0000000000000001e+23" },
+}
 
 func main() {
 	ok := true;

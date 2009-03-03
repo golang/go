@@ -14,8 +14,8 @@ func main() {
 	};
 	var s string = "hello";
 	var f float = 0.2;
-	t := T(s, f);
+	t := T{s, f};
 
 	type M map[int] int;
-	m0 := M(7:8);
+	m0 := M{7:8};
 }

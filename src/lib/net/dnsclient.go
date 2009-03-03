@@ -46,9 +46,9 @@ func _Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
 	}
 	out := new(DNS_Msg);
 	out.id = 0x1234;
-	out.question = []DNS_Question(
-		DNS_Question( name, DNS_TypeA, DNS_ClassINET )
-	);
+	out.question = []DNS_Question{
+		DNS_Question{ name, DNS_TypeA, DNS_ClassINET }
+	};
 	out.recursion_desired = true;
 	msg, ok := out.Pack();
 	if !ok {

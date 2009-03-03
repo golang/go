@@ -11,7 +11,7 @@ type A []int;
 func main() {
 	var a [3]A;
 	for i := 0; i < 3; i++ {
-		a[i] = A(i);
+		a[i] = A{i};
 	}
 	if a[0][0] != 0 { panic(); }
 	if a[1][0] != 1 { panic(); }

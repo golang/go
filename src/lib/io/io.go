@@ -91,7 +91,7 @@ func MakeFullReader(r Read) Read {
 		// already a fullRead
 		return r
 	}
-	return &fullRead(r)
+	return &fullRead{r}
 }
 
 // Copies n bytes (or until EOF is reached) from src to dst.

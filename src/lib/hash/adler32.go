@@ -25,7 +25,7 @@ const (
 )
 
 func NewDigest() *Digest {
-	return &Digest(1, 0, 0);
+	return &Digest{1, 0, 0};
 }
 
 func (d *Digest) Write(p []byte) (nn int, err *os.Error) {

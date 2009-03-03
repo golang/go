@@ -7,7 +7,7 @@ package main
 import fd "fd"
 
 func main() {
-	hello := []byte('h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n');
+	hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
 	fd.Stdout.Write(hello);
 	file, err := fd.Open("/does/not/exist",  0,  0);
 	if file == nil {

@@ -14,7 +14,7 @@ func fn(p PS) int {
   return p.get()
 }
 func main() {
-  s := S(1);
+  s := S{1};
   if s.get() != 1 {
     panic()
   }

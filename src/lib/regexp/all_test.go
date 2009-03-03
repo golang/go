@@ -10,7 +10,7 @@ import (
 	"testing";
 )
 
-var good_re = []string(
+var good_re = []string{
 	``,
 	`.`,
 	`^.$`,
@@ -27,27 +27,27 @@ var good_re = []string(
 	`[]`,
 	`[abc]`,
 	`[^1234]`,
-)
+}
 
 // TODO: nice to do this with a map
 type stringError struct {
 	re	string;
 	err	*os.Error;
 }
-var bad_re = []stringError(
-	stringError( `*`,	 	regexp.ErrBareClosure ),
-	stringError( `(abc`,	regexp.ErrUnmatchedLpar ),
-	stringError( `abc)`,	regexp.ErrUnmatchedRpar ),
-	stringError( `x[a-z`,	regexp.ErrUnmatchedLbkt ),
-	stringError( `abc]`,	regexp.ErrUnmatchedRbkt ),
-	stringError( `[z-a]`,	regexp.ErrBadRange ),
-	stringError( `abc\`,	regexp.ErrExtraneousBackslash ),
-	stringError( `a**`,	regexp.ErrBadClosure ),
-	stringError( `a*+`,	regexp.ErrBadClosure ),
-	stringError( `a??`,	regexp.ErrBadClosure ),
-	stringError( `*`,	 	regexp.ErrBareClosure ),
-	stringError( `\x`,	regexp.ErrBadBackslash ),
-)
+var bad_re = []stringError{
+	stringError{ `*`,	 	regexp.ErrBareClosure },
+	stringError{ `(abc`,	regexp.ErrUnmatchedLpar },
+	stringError{ `abc)`,	regexp.ErrUnmatchedRpar },
+	stringError{ `x[a-z`,	regexp.ErrUnmatchedLbkt },
+	stringError{ `abc]`,	regexp.ErrUnmatchedRbkt },
+	stringError{ `[z-a]`,	regexp.ErrBadRange },
+	stringError{ `abc\`,	regexp.ErrExtraneousBackslash },
+	stringError{ `a**`,	regexp.ErrBadClosure },
+	stringError{ `a*+`,	regexp.ErrBadClosure },
+	stringError{ `a??`,	regexp.ErrBadClosure },
+	stringError{ `*`,	 	regexp.ErrBareClosure },
+	stringError{ `\x`,	regexp.ErrBadBackslash },
+}
 
 type vec []int;
 
@@ -57,33 +57,33 @@ type tester struct {
 	match	vec;
 }
 
-var matches = []tester (
-	tester( ``,	"",	vec(0,0) ),
-	tester( `a`,	"a",	vec(0,1) ),
-	tester( `x`,	"y",	vec() ),
-	tester( `b`,	"abc",	vec(1,2) ),
-	tester( `.`,	"a",	vec(0,1) ),
-	tester( `.*`,	"abcdef",	vec(0,6) ),
-	tester( `^abcd$`,	"abcd",	vec(0,4) ),
-	tester( `^bcd'`,	"abcdef",	vec() ),
-	tester( `^abcd$`,	"abcde",	vec() ),
-	tester( `a+`,	"baaab",	vec(1,4) ),
-	tester( `a*`,	"baaab",	vec(0,0) ),
-	tester( `[a-z]+`,	"abcd",	vec(0,4) ),
-	tester( `[^a-z]+`,	"ab1234cd",	vec(2,6) ),
-	tester( `[a\-\]z]+`,	"az]-bcz",	vec(0,4) ),
-	tester( `[日本語]+`,	"日本語日本語",	vec(0,18) ),
-	tester( `()`,	"",	vec(0,0, 0,0) ),
-	tester( `(a)`,	"a",	vec(0,1, 0,1) ),
-	tester( `(.)(.)`,	"日a",	vec(0,4, 0,3, 3,4) ),
-	tester( `(.*)`,	"",	vec(0,0, 0,0) ),
-	tester( `(.*)`,	"abcd",	vec(0,4, 0,4) ),
-	tester( `(..)(..)`,	"abcd",	vec(0,4, 0,2, 2,4) ),
-	tester( `(([^xyz]*)(d))`,	"abcd",	vec(0,4, 0,4, 0,3, 3,4) ),
-	tester( `((a|b|c)*(d))`,	"abcd",	vec(0,4, 0,4, 2,3, 3,4) ),
-	tester( `(((a|b|c)*)(d))`,	"abcd",	vec(0,4, 0,4, 0,3, 2,3, 3,4) ),
-	tester( `a*(|(b))c*`,	"aacc",	vec(0,4, 2,2, -1,-1) ),
-)
+var matches = []tester {
+	tester{ ``,	"",	vec{0,0} },
+	tester{ `a`,	"a",	vec{0,1} },
+	tester{ `x`,	"y",	vec{} },
+	tester{ `b`,	"abc",	vec{1,2} },
+	tester{ `.`,	"a",	vec{0,1} },
+	tester{ `.*`,	"abcdef",	vec{0,6} },
+	tester{ `^abcd$`,	"abcd",	vec{0,4} },
+	tester{ `^bcd'`,	"abcdef",	vec{} },
+	tester{ `^abcd$`,	"abcde",	vec{} },
+	tester{ `a+`,	"baaab",	vec{1,4} },
+	tester{ `a*`,	"baaab",	vec{0,0} },
+	tester{ `[a-z]+`,	"abcd",	vec{0,4} },
+	tester{ `[^a-z]+`,	"ab1234cd",	vec{2,6} },
+	tester{ `[a\-\]z]+`,	"az]-bcz",	vec{0,4} },
+	tester{ `[日本語]+`,	"日本語日本語",	vec{0,18} },
+	tester{ `()`,	"",	vec{0,0, 0,0} },
+	tester{ `(a)`,	"a",	vec{0,1, 0,1} },
+	tester{ `(.)(.)`,	"日a",	vec{0,4, 0,3, 3,4} },
+	tester{ `(.*)`,	"",	vec{0,0, 0,0} },
+	tester{ `(.*)`,	"abcd",	vec{0,4, 0,4} },
+	tester{ `(..)(..)`,	"abcd",	vec{0,4, 0,2, 2,4} },
+	tester{ `(([^xyz]*)(d))`,	"abcd",	vec{0,4, 0,4, 0,3, 3,4} },
+	tester{ `((a|b|c)*(d))`,	"abcd",	vec{0,4, 0,4, 2,3, 3,4} },
+	tester{ `(((a|b|c)*)(d))`,	"abcd",	vec{0,4, 0,4, 0,3, 2,3, 3,4} },
+	tester{ `a*(|(b))c*`,	"aacc",	vec{0,4, 2,2, -1,-1} },
+}
 
 func compileTest(t *testing.T, expr string, error *os.Error) regexp.Regexp {
 	re, err := regexp.Compile(expr);

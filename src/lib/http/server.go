@@ -247,7 +247,7 @@ func (h *redirectHandler) ServeHTTP(c *Conn, req *Request) {
 }
 
 func RedirectHandler(to string) Handler {
-	return &redirectHandler(to);
+	return &redirectHandler{to};
 }
 
 // Path-based HTTP request multiplexer.
@@ -265,7 +265,7 @@ type ServeMux struct {
 }
 
 func NewServeMux() *ServeMux {
-	return &ServeMux(make(map[string] Handler));
+	return &ServeMux{make(map[string] Handler)};
 }
 
 var DefaultServeMux = NewServeMux();

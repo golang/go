@@ -23,7 +23,7 @@ func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	for i := 0; i < IPv4len; i++ {
 		sa.Addr[i] = p[i]
 	}
-	return unsafe.Pointer(sa).(*syscall.Sockaddr), nil
+	return (*syscall.Sockaddr)(unsafe.Pointer(sa)), nil
 }
 
 var ipv6zero [16]byte;
@@ -48,20 +48,20 @@ func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	for i := 0; i < IPv6len; i++ {
 		sa.Addr[i] = p[i]
 	}
-	return unsafe.Pointer(sa).(*syscall.Sockaddr), nil
+	return (*syscall.Sockaddr)(unsafe.Pointer(sa)), nil
 }
 
 func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Error) {
 	switch sa1.Family {
 	case syscall.AF_INET:
-		sa := unsafe.Pointer(sa1).(*syscall.SockaddrInet4);
+		sa := (*syscall.SockaddrInet4)(unsafe.Pointer(sa1));
 		a := ToIPv6(sa.Addr);
 		if a == nil {
 			return nil, 0, os.EINVAL
 		}
 		return a, int(sa.Port[0])<<8 + int(sa.Port[1]), nil;
 	case syscall.AF_INET6:
-		sa := unsafe.Pointer(sa1).(*syscall.SockaddrInet6);
+		sa := (*syscall.SockaddrInet6)(unsafe.Pointer(sa1));
 		a := ToIPv6(sa.Addr);
 		if a == nil {
 			return nil, 0, os.EINVAL

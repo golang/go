@@ -48,12 +48,12 @@ func (c *commonValue) Addr() Addr {
 func (c *commonValue) Interface() interface {} {
 	var i interface {};
 	if c.typ.Size() > 8 {	// TODO(rsc): how do we know it is 8?
-		i = sys.Unreflect(c.addr.(uintptr).(uint64), c.typ.String(), true);
+		i = sys.Unreflect(uint64(uintptr(c.addr)), c.typ.String(), true);
 	} else {
 		if uintptr(c.addr) == 0 {
 			panicln("reflect: address 0 for", c.typ.String());
 		}
-		i = sys.Unreflect(uint64(uintptr(*c.addr.(*Addr))), c.typ.String(), false);
+		i = sys.Unreflect(uint64(uintptr(*(*Addr)(c.addr))), c.typ.String(), false);
 	}
 	return i;
 }
@@ -74,7 +74,7 @@ type missingValueStruct struct {
 }
 
 func missingCreator(typ Type, addr Addr) Value {
-	return &missingValueStruct( commonValue(MissingKind, typ, addr) )
+	return &missingValueStruct{ commonValue{MissingKind, typ, addr} }
 }
 
 // -- Int
@@ -90,15 +90,15 @@ type intValueStruct struct {
 }
 
 func intCreator(typ Type, addr Addr) Value {
-	return &intValueStruct( commonValue(IntKind, typ, addr) )
+	return &intValueStruct{ commonValue{IntKind, typ, addr} }
 }
 
 func (v *intValueStruct) Get() int {
-	return *v.addr.(*int)
+	return *(*int)(v.addr)
 }
 
 func (v *intValueStruct) Set(i int) {
-	*v.addr.(*int) = i
+	*(*int)(v.addr) = i
 }
 
 // -- Int8
@@ -114,15 +114,15 @@ type int8ValueStruct struct {
 }
 
 func int8Creator(typ Type, addr Addr) Value {
-	return &int8ValueStruct( commonValue(Int8Kind, typ, addr) )
+	return &int8ValueStruct{ commonValue{Int8Kind, typ, addr} }
 }
 
 func (v *int8ValueStruct) Get() int8 {
-	return *v.addr.(*int8)
+	return *(*int8)(v.addr)
 }
 
 func (v *int8ValueStruct) Set(i int8) {
-	*v.addr.(*int8) = i
+	*(*int8)(v.addr) = i
 }
 
 // -- Int16
@@ -138,15 +138,15 @@ type int16ValueStruct struct {
 }
 
 func int16Creator(typ Type, addr Addr) Value {
-	return &int16ValueStruct( commonValue(Int16Kind, typ, addr) )
+	return &int16ValueStruct{ commonValue{Int16Kind, typ, addr} }
 }
 
 func (v *int16ValueStruct) Get() int16 {
-	return *v.addr.(*int16)
+	return *(*int16)(v.addr)
 }
 
 func (v *int16ValueStruct) Set(i int16) {
-	*v.addr.(*int16) = i
+	*(*int16)(v.addr) = i
 }
 
 // -- Int32
@@ -162,15 +162,15 @@ type int32ValueStruct struct {
 }
 
 func int32Creator(typ Type, addr Addr) Value {
-	return &int32ValueStruct( commonValue(Int32Kind, typ, addr) )
+	return &int32ValueStruct{ commonValue{Int32Kind, typ, addr} }
 }
 
 func (v *int32ValueStruct) Get() int32 {
-	return *v.addr.(*int32)
+	return *(*int32)(v.addr)
 }
 
 func (v *int32ValueStruct) Set(i int32) {
-	*v.addr.(*int32) = i
+	*(*int32)(v.addr) = i
 }
 
 // -- Int64
@@ -186,15 +186,15 @@ type int64ValueStruct struct {
 }
 
 func int64Creator(typ Type, addr Addr) Value {
-	return &int64ValueStruct( commonValue(Int64Kind, typ, addr) )
+	return &int64ValueStruct{ commonValue{Int64Kind, typ, addr} }
 }
 
 func (v *int64ValueStruct) Get() int64 {
-	return *v.addr.(*int64)
+	return *(*int64)(v.addr)
 }
 
 func (v *int64ValueStruct) Set(i int64) {
-	*v.addr.(*int64) = i
+	*(*int64)(v.addr) = i
 }
 
 // -- Uint
@@ -210,15 +210,15 @@ type uintValueStruct struct {
 }
 
 func uintCreator(typ Type, addr Addr) Value {
-	return &uintValueStruct( commonValue(UintKind, typ, addr) )
+	return &uintValueStruct{ commonValue{UintKind, typ, addr} }
 }
 
 func (v *uintValueStruct) Get() uint {
-	return *v.addr.(*uint)
+	return *(*uint)(v.addr)
 }
 
 func (v *uintValueStruct) Set(i uint) {
-	*v.addr.(*uint) = i
+	*(*uint)(v.addr) = i
 }
 
 // -- Uint8
@@ -234,15 +234,15 @@ type uint8ValueStruct struct {
 }
 
 func uint8Creator(typ Type, addr Addr) Value {
-	return &uint8ValueStruct( commonValue(Uint8Kind, typ, addr) )
+	return &uint8ValueStruct{ commonValue{Uint8Kind, typ, addr} }
 }
 
 func (v *uint8ValueStruct) Get() uint8 {
-	return *v.addr.(*uint8)
+	return *(*uint8)(v.addr)
 }
 
 func (v *uint8ValueStruct) Set(i uint8) {
-	*v.addr.(*uint8) = i
+	*(*uint8)(v.addr) = i
 }
 
 // -- Uint16
@@ -258,15 +258,15 @@ type uint16ValueStruct struct {
 }
 
 func uint16Creator(typ Type, addr Addr) Value {
-	return &uint16ValueStruct( commonValue(Uint16Kind, typ, addr) )
+	return &uint16ValueStruct{ commonValue{Uint16Kind, typ, addr} }
 }
 
 func (v *uint16ValueStruct) Get() uint16 {
-	return *v.addr.(*uint16)
+	return *(*uint16)(v.addr)
 }
 
 func (v *uint16ValueStruct) Set(i uint16) {
-	*v.addr.(*uint16) = i
+	*(*uint16)(v.addr) = i
 }
 
 // -- Uint32
@@ -282,15 +282,15 @@ type uint32ValueStruct struct {
 }
 
 func uint32Creator(typ Type, addr Addr) Value {
-	return &uint32ValueStruct( commonValue(Uint32Kind, typ, addr) )
+	return &uint32ValueStruct{ commonValue{Uint32Kind, typ, addr} }
 }
 
 func (v *uint32ValueStruct) Get() uint32 {
-	return *v.addr.(*uint32)
+	return *(*uint32)(v.addr)
 }
 
 func (v *uint32ValueStruct) Set(i uint32) {
-	*v.addr.(*uint32) = i
+	*(*uint32)(v.addr) = i
 }
 
 // -- Uint64
@@ -306,15 +306,15 @@ type uint64ValueStruct struct {
 }
 
 func uint64Creator(typ Type, addr Addr) Value {
-	return &uint64ValueStruct( commonValue(Uint64Kind, typ, addr) )
+	return &uint64ValueStruct{ commonValue{Uint64Kind, typ, addr} }
 }
 
 func (v *uint64ValueStruct) Get() uint64 {
-	return *v.addr.(*uint64)
+	return *(*uint64)(v.addr)
 }
 
 func (v *uint64ValueStruct) Set(i uint64) {
-	*v.addr.(*uint64) = i
+	*(*uint64)(v.addr) = i
 }
 
 // -- Uintptr
@@ -330,15 +330,15 @@ type uintptrValueStruct struct {
 }
 
 func uintptrCreator(typ Type, addr Addr) Value {
-	return &uintptrValueStruct( commonValue(UintptrKind, typ, addr) )
+	return &uintptrValueStruct{ commonValue{UintptrKind, typ, addr} }
 }
 
 func (v *uintptrValueStruct) Get() uintptr {
-	return *v.addr.(*uintptr)
+	return *(*uintptr)(v.addr)
 }
 
 func (v *uintptrValueStruct) Set(i uintptr) {
-	*v.addr.(*uintptr) = i
+	*(*uintptr)(v.addr) = i
 }
 
 // -- Float
@@ -354,15 +354,15 @@ type floatValueStruct struct {
 }
 
 func floatCreator(typ Type, addr Addr) Value {
-	return &floatValueStruct( commonValue(FloatKind, typ, addr) )
+	return &floatValueStruct{ commonValue{FloatKind, typ, addr} }
 }
 
 func (v *floatValueStruct) Get() float {
-	return *v.addr.(*float)
+	return *(*float)(v.addr)
 }
 
 func (v *floatValueStruct) Set(f float) {
-	*v.addr.(*float) = f
+	*(*float)(v.addr) = f
 }
 
 // -- Float32
@@ -378,15 +378,15 @@ type float32ValueStruct struct {
 }
 
 func float32Creator(typ Type, addr Addr) Value {
-	return &float32ValueStruct( commonValue(Float32Kind, typ, addr) )
+	return &float32ValueStruct{ commonValue{Float32Kind, typ, addr} }
 }
 
 func (v *float32ValueStruct) Get() float32 {
-	return *v.addr.(*float32)
+	return *(*float32)(v.addr)
 }
 
 func (v *float32ValueStruct) Set(f float32) {
-	*v.addr.(*float32) = f
+	*(*float32)(v.addr) = f
 }
 
 // -- Float64
@@ -402,15 +402,15 @@ type float64ValueStruct struct {
 }
 
 func float64Creator(typ Type, addr Addr) Value {
-	return &float64ValueStruct( commonValue(Float64Kind, typ, addr) )
+	return &float64ValueStruct{ commonValue{Float64Kind, typ, addr} }
 }
 
 func (v *float64ValueStruct) Get() float64 {
-	return *v.addr.(*float64)
+	return *(*float64)(v.addr)
 }
 
 func (v *float64ValueStruct) Set(f float64) {
-	*v.addr.(*float64) = f
+	*(*float64)(v.addr) = f
 }
 
 // -- Float80
@@ -426,17 +426,17 @@ type float80ValueStruct struct {
 }
 
 func float80Creator(typ Type, addr Addr) Value {
-	return &float80ValueStruct( commonValue(Float80Kind, typ, addr) )
+	return &float80ValueStruct{ commonValue{Float80Kind, typ, addr} }
 }
 
 /*
 BUG: can't gen code for float80s
 func (v *Float80ValueStruct) Get() float80 {
-	return *v.addr.(*float80)
+	return *(*float80)(v.addr)
 }
 
 func (v *Float80ValueStruct) Set(f float80) {
-	*v.addr.(*float80) = f
+	*(*float80)(v.addr) = f
 }
 */
 
@@ -453,15 +453,15 @@ type stringValueStruct struct {
 }
 
 func stringCreator(typ Type, addr Addr) Value {
-	return &stringValueStruct( commonValue(StringKind, typ, addr) )
+	return &stringValueStruct{ commonValue{StringKind, typ, addr} }
 }
 
 func (v *stringValueStruct) Get() string {
-	return *v.addr.(*string)
+	return *(*string)(v.addr)
 }
 
 func (v *stringValueStruct) Set(s string) {
-	*v.addr.(*string) = s
+	*(*string)(v.addr) = s
 }
 
 // -- Bool
@@ -477,15 +477,15 @@ type boolValueStruct struct {
 }
 
 func boolCreator(typ Type, addr Addr) Value {
-	return &boolValueStruct( commonValue(BoolKind, typ, addr) )
+	return &boolValueStruct{ commonValue{BoolKind, typ, addr} }
 }
 
 func (v *boolValueStruct) Get() bool {
-	return *v.addr.(*bool)
+	return *(*bool)(v.addr)
 }
 
 func (v *boolValueStruct) Set(b bool) {
-	*v.addr.(*bool) = b
+	*(*bool)(v.addr) = b
 }
 
 // -- Pointer
@@ -502,7 +502,7 @@ type ptrValueStruct struct {
 }
 
 func (v *ptrValueStruct) Get() Addr {
-	return *v.addr.(*Addr)
+	return *(*Addr)(v.addr)
 }
 
 func (v *ptrValueStruct) Sub() Value {
@@ -516,11 +516,11 @@ func (v *ptrValueStruct) SetSub(subv Value) {
 		panicln("reflect: incompatible types in PtrValue.SetSub:",
 			a.String(), b.String());
 	}
-	*v.addr.(*Addr) = subv.Addr();
+	*(*Addr)(v.addr) = subv.Addr();
 }
 
 func ptrCreator(typ Type, addr Addr) Value {
-	return &ptrValueStruct( commonValue(PtrKind, typ, addr) );
+	return &ptrValueStruct{ commonValue{PtrKind, typ, addr} };
 }
 
 // -- Array
@@ -644,7 +644,7 @@ func arrayCreator(typ Type, addr Addr) Value {
 		v.typ = typ;
 		v.elemtype = arraytype.Elem();
 		v.elemsize = v.elemtype.Size();
-		v.slice = addr.(*runtimeSlice);
+		v.slice = (*runtimeSlice)(addr);
 		return v;
 	}
 	v := new(arrayValueStruct);
@@ -670,7 +670,7 @@ type mapValueStruct struct {
 }
 
 func mapCreator(typ Type, addr Addr) Value {
-	return &mapValueStruct( commonValue(MapKind, typ, addr) )
+	return &mapValueStruct{ commonValue{MapKind, typ, addr} }
 }
 
 func (v *mapValueStruct) Len() int {
@@ -693,7 +693,7 @@ type chanValueStruct struct {
 }
 
 func chanCreator(typ Type, addr Addr) Value {
-	return &chanValueStruct( commonValue(ChanKind, typ, addr) )
+	return &chanValueStruct{ commonValue{ChanKind, typ, addr} }
 }
 
 // -- Struct
@@ -720,7 +720,7 @@ func (v *structValueStruct) Field(i int) Value {
 func structCreator(typ Type, addr Addr) Value {
 	t := typ.(StructType);
 	nfield := t.Len();
-	v := &structValueStruct( commonValue(StructKind, typ, addr), make([]Value, nfield) );
+	v := &structValueStruct{ commonValue{StructKind, typ, addr}, make([]Value, nfield) };
 	for i := 0; i < nfield; i++ {
 		name, ftype, str, offset := t.Field(i);
 		addr_uint := uintptr(addr) + uintptr(offset);
@@ -742,11 +742,11 @@ type interfaceValueStruct struct {
 }
 
 func (v *interfaceValueStruct) Get() interface{} {
-	return *v.addr.(*interface{})
+	return *(*interface{})(v.addr)
 }
 
 func interfaceCreator(typ Type, addr Addr) Value {
-	return &interfaceValueStruct( commonValue(InterfaceKind, typ, addr) )
+	return &interfaceValueStruct{ commonValue{InterfaceKind, typ, addr} }
 }
 
 // -- Func
@@ -760,10 +760,10 @@ type funcValueStruct struct {
 }
 
 func funcCreator(typ Type, addr Addr) Value {
-	return &funcValueStruct( commonValue(FuncKind, typ, addr) )
+	return &funcValueStruct{ commonValue{FuncKind, typ, addr} }
 }
 
-var creator = map[int] creatorFn (
+var creator = map[int] creatorFn {
 	MissingKind : missingCreator,
 	IntKind : intCreator,
 	Int8Kind : int8Creator,
@@ -789,7 +789,7 @@ var creator = map[int] creatorFn (
 	StructKind : structCreator,
 	InterfaceKind : interfaceCreator,
 	FuncKind : funcCreator,
-)
+}
 
 var typecache = make(map[string] Type);
 
@@ -858,13 +858,13 @@ func copyArray(dst ArrayValue, src ArrayValue, n int) {
 		for i := uintptr(0); i < end; i += 8{
 			di := Addr(dstp + i);
 			si := Addr(srcp + i);
-			*di.(*uint64) = *si.(*uint64);
+			*(*uint64)(di) = *(*uint64)(si);
 		}
 	} else {
 		for i := uintptr(0); i < end; i++ {
 			di := Addr(dstp + i);
 			si := Addr(srcp + i);
-			*di.(*byte) = *si.(*byte);
+			*(*byte)(di) = *(*byte)(si);
 		}
 	}
 }
@@ -880,12 +880,12 @@ func NewValue(e interface {}) Value {
 
 	if indir {
 		// Content of interface is a pointer.
-		return newValueAddr(typ, value.(uintptr).(Addr));
+		return newValueAddr(typ, Addr(uintptr(value)));
 	}
 
 	// Content of interface is a value;
 	// need a permanent copy to take its address.
 	ap := new(uint64);
 	*ap = value;
-	return newValueAddr(typ, ap.(Addr));
+	return newValueAddr(typ, Addr(ap));
 }

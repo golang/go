@@ -27,9 +27,9 @@ func P(a []string) string {
 
 func main() {
 	// Test a map literal.
-	mlit := map[string] int ( "0":0, "1":1, "2":2, "3":3, "4":4 );
+	mlit := map[string] int { "0":0, "1":1, "2":2, "3":3, "4":4 };
 	for i := 0; i < len(mlit); i++ {
-		s := string([]byte(byte(i)+'0'));
+		s := string([]byte{byte(i)+'0'});
 		if mlit[s] != i {
 			fmt.Printf("mlit[%s] = %d\n", s, mlit[s])
 		}
@@ -64,14 +64,14 @@ func main() {
 		s := strconv.Itoa(i);
 		s10 := strconv.Itoa(i*10);
 		f := float(i);
-		t := T(int64(i),f);
+		t := T{int64(i),f};
 		apT[i] = new(T);
 		apT[i].i = int64(i);
 		apT[i].f = f;
 		apT[2*i] = new(T);	// need twice as many entries as we use, for the nonexistence check
 		apT[2*i].i = int64(i);
 		apT[2*i].f = f;
-		m := M(i: i+1);
+		m := M{i: i+1};
 		mib[i] = (i != 0);
 		mii[i] = 10*i;
 		mfi[float(i)] = 10*i;
@@ -140,7 +140,7 @@ func main() {
 		s := strconv.Itoa(i);
 		s10 := strconv.Itoa(i*10);
 		f := float(i);
-		t := T(int64(i), f);
+		t := T{int64(i), f};
 		// BUG m := M(i, i+1);
 		if mib[i] != (i != 0) {
 			fmt.Printf("mib[%d] = %t\n", i, mib[i]);
@@ -193,7 +193,7 @@ func main() {
 	for i := 0; i < count; i++ {
 		s := strconv.Itoa(i);
 		f := float(i);
-		t := T(int64(i), f);
+		t := T{int64(i), f};
 		{
 			a, b := mib[i];
 			if !b {
@@ -331,7 +331,7 @@ func main() {
 	for i := count; i < 2*count; i++ {
 		s := strconv.Itoa(i);
 		f := float(i);
-		t := T(int64(i),f);
+		t := T{int64(i),f};
 		{
 			a, b := mib[i];
 			if b {

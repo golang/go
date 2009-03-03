@@ -9,7 +9,7 @@ package main
 var m0 map[string]int
 var m1 *map[string]int
 var m2 *map[string]int = &m0
-var m3 map[string]int = map[string]int("a": 1)
+var m3 map[string]int = map[string]int{"a": 1}
 var m4 *map[string]int = &m3
 
 var s0 string
@@ -25,7 +25,7 @@ var a2 *[10]int = &a0
 var b0 []int
 var b1 *[]int
 var b2 *[]int = &b0
-var b3 []int = []int(1, 2, 3)
+var b3 []int = []int{1, 2, 3}
 var b4 *[]int = &b3
 
 func crash()
