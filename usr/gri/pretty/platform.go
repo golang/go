@@ -37,10 +37,10 @@ const (
 	Obj_file_ext = ".7";
 )
 
-func readfile(filename string) (string, *OS.Error) {
+func readfile(filename string) ([]byte, *OS.Error) {
 	fd, err := OS.Open(filename, OS.O_RDONLY, 0);
 	if err != nil {
-		return "", err;
+		return []byte(), err;
 	}
 	var buf [1<<20]byte;
 	n, err1 := IO.Readn(fd, buf);
@@ -48,7 +48,7 @@ func readfile(filename string) (string, *OS.Error) {
 	if err1 == IO.ErrEOF {
 		err1 = nil;
 	}
-	return string(buf[0:n]), err1;
+	return buf[0:n], err1;
 }
 
 func writefile(name, data string) *OS.Error {
@@ -61,17 +61,17 @@ func writefile(name, data string) *OS.Error {
 	return err1;
 }
 
-func ReadObjectFile(filename string) (string, bool) {
+func ReadObjectFile(filename string) ([]byte, bool) {
 	data, err := readfile(filename + Obj_file_ext);
 	magic := MAGIC_obj_file;  // TODO remove once len(constant) works
-	if err == nil && len(data) >= len(magic) && data[0 : len(magic)] == magic {
+	if err == nil && len(data) >= len(magic) && string(data[0 : len(magic)]) == magic {
 		return data, true;
 	}
-	return "", false;
+	return []byte(), false;
 }
 
 
-func ReadSourceFile(name string) (string, bool) {
+func ReadSourceFile(name string) ([]byte, bool) {
 	name = Utils.TrimExt(name, Src_file_ext) + Src_file_ext;
 	data, err := readfile(name);
 	return data, err == nil;
