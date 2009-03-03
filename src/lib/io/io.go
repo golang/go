@@ -58,10 +58,10 @@ func WriteString(w Write, s string) (n int, err *os.Error) {
 }
 
 // Read until buffer is full, EOF, or error
-func Readn(fd Read, buf []byte) (n int, err *os.Error) {
+func Readn(r Read, buf []byte) (n int, err *os.Error) {
 	n = 0;
 	for n < len(buf) {
-		nn, e := fd.Read(buf[n:len(buf)]);
+		nn, e := r.Read(buf[n:len(buf)]);
 		if nn > 0 {
 			n += nn
 		}
@@ -78,20 +78,20 @@ func Readn(fd Read, buf []byte) (n int, err *os.Error) {
 // Convert something that implements Read into something
 // whose Reads are always Readn
 type fullRead struct {
-	fd	Read;
+	r	Read;
 }
 
-func (fd *fullRead) Read(p []byte) (n int, err *os.Error) {
-	n, err = Readn(fd.fd, p);
+func (fr *fullRead) Read(p []byte) (n int, err *os.Error) {
+	n, err = Readn(fr.r, p);
 	return n, err
 }
 
-func MakeFullReader(fd Read) Read {
-	if fr, ok := fd.(*fullRead); ok {
+func MakeFullReader(r Read) Read {
+	if fr, ok := r.(*fullRead); ok {
 		// already a fullRead
-		return fd
+		return r
 	}
-	return &fullRead(fd)
+	return &fullRead(r)
 }
 
 // Copies n bytes (or until EOF is reached) from src to dst.
