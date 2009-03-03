@@ -1014,11 +1014,13 @@ make([]T, length, capacity)
 </pre>
 
 <p>
-produces the same slice as allocating an array and slicing it:
+produces the same slice as allocating an array and slicing it, so these two examples
+produce the same slice:
 </p>
 
 <pre>
-make([]T, capacity)[0 : length]
+make([]int, 50, 100)
+new([100]int)[0:50]
 </pre>
 
 
