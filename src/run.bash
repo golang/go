@@ -48,11 +48,11 @@ time make
 GOMAXPROCS=10 make test
 ) || exit $?
 
-# (xcd ../usr/gri/pretty
-# make clean
-# time make
-# make smoketest
-# ) || exit $?
+(xcd ../usr/gri/pretty
+make clean
+time make
+make smoketest
+) || exit $?
 
 (xcd ../doc/progs
 time ./run
