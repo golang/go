@@ -40,7 +40,7 @@ const (
 func readfile(filename string) ([]byte, *OS.Error) {
 	fd, err := OS.Open(filename, OS.O_RDONLY, 0);
 	if err != nil {
-		return []byte(), err;
+		return []byte{}, err;
 	}
 	var buf [1<<20]byte;
 	n, err1 := IO.Readn(fd, buf);
@@ -67,7 +67,7 @@ func ReadObjectFile(filename string) ([]byte, bool) {
 	if err == nil && len(data) >= len(magic) && string(data[0 : len(magic)]) == magic {
 		return data, true;
 	}
-	return []byte(), false;
+	return []byte{}, false;
 }
 
 

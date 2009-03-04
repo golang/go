@@ -649,9 +649,12 @@ func (P *Printer) DoIndex(x *AST.Index) {
 
 func (P *Printer) DoCall(x *AST.Call) {
 	P.Expr1(x.F, Scanner.HighestPrec);
-	P.Token(x.Pos_, Scanner.LPAREN);
+	P.Token(x.Pos_, x.Tok);
 	P.Expr(x.Args);
-	P.Token(0, Scanner.RPAREN);
+	switch x.Tok {
+	case Scanner.LPAREN: P.Token(0, Scanner.RPAREN);
+	case Scanner.LBRACE: P.Token(0, Scanner.RBRACE);
+	}
 }
 
 
@@ -946,7 +949,7 @@ func (P *Printer) DoEmptyStat(s *AST.EmptyStat) {
 // Declarations
 
 func (P *Printer) DoBadDecl(d *AST.BadDecl) {
-	unimplemented();
+	P.String(d.Pos, "<BAD DECL>");
 }
 
 
