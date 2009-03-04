@@ -2851,6 +2851,9 @@ ifaceas1(Type *dst, Type *src, int explicit)
 	if(src == T || dst == T)
 		return Inone;
 
+	if(explicit && !isinter(src))
+		yyerror("cannot use .(T) on non-interface type %T", src);
+
 	if(isinter(dst)) {
 		if(isinter(src)) {
 			if(eqtype(dst, src, 0))

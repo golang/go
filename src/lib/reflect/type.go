@@ -107,7 +107,8 @@ func newBasicType(name string, kind int, size int) Type {
 // Prebuilt basic types
 var (
 	Missing = newBasicType(missingString, MissingKind, 1);
-	DotDotDot = newBasicType(dotDotDotString, DotDotDotKind, unsafe.Sizeof(true.(interface{})));
+	empty interface{};
+	DotDotDot = newBasicType(dotDotDotString, DotDotDotKind, unsafe.Sizeof(empty));
 	Bool = newBasicType("bool", BoolKind, unsafe.Sizeof(true));
 	Int = newBasicType("int", IntKind, unsafe.Sizeof(int(0)));
 	Int8 = newBasicType("int8", Int8Kind, 1);
