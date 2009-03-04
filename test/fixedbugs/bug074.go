@@ -7,6 +7,6 @@
 package main
 
 func main() {
-	x := string('a', 'b', '\n');
+	x := string{'a', 'b', '\n'};
 	print(x);
 }
