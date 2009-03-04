@@ -551,6 +551,8 @@ defined or a forward declared type (§Forward declarations).
 Most types are always complete; for instance, a pointer
 type is always complete even if it points to an incomplete type
 because the size of the pointer itself is always known.
+(TODO: Need to figure out how forward declarations of
+interface fit in here.)
 </p>
 <p>
 The <i>interface</i> of a type is the set of methods bound to it
@@ -661,6 +663,119 @@ StringLit   = string_lit { string_lit } .
 "Alea " /* The die */ `iacta est` /* is cast */ "."
 </pre>
 
+<h3>Array types</h3>
+
+<p>
+An array is a numbered sequence of elements of a single
+type, called the element type, which must be complete
+(§Types). The number of elements is called the length and is never
+negative.
+</p>
+
+<pre class="grammar">
+ArrayType   = "[" ArrayLength "]" ElementType .
+ArrayLength = Expression .
+ElementType = CompleteType .
+</pre>
+
+<p>
+The length is part of the array's type and must must be a constant
+expression (§Constant expressions) that evaluates to a non-negative
+integer value.  The length of array <code>a</code> can be discovered
+using the built-in function <code>len(a)</code>, which is a
+compile-time constant.  The elements can be indexed by integer
+indices 0 through the <code>len(a)-1</code> (§Indexes).
+</p>
+
+<pre>
+[32]byte
+[2*N] struct { x, y int32 }
+[1000]*float64
+</pre>
+
+<h3>Slice types</h3>
+
+<p>
+A slice is a reference to a contiguous segment of an array and
+contains a numbered sequence of elements from that array.  A slice
+type denotes the set of all slices of arrays of its element type.
+A slice value may be <code>nil</code>.
+</p>
+
+<pre class="grammar">
+SliceType = "[" "]" ElementType .
+</pre>
+
+<p>
+Like arrays, slices are indexable and have a length.  The length of a
+slice <code>s</code> can be discovered by the built-in function
+<code>len(s)</code>; unlike with arrays it may change during
+execution.  The elements can be addressed by integer indices 0
+through <code>len(s)-1</code> (§Indexes).  The slice index of a
+given element may be less than the index of the same element in the
+underlying array.
+</p>
+<p>
+A slice, once initialized, is always associated with an underlying
+array that holds its elements.  A slice therfore shares storage
+with its array and with other slices of the same array; by contrast,
+distinct arrays always represent distinct storage.
+</p>
+<p>
+The array underlying a slice may extend past the end of the slice.
+The <i>capacity</i> is a measure of that extent: it is the sum of 
+the length of the slice and the length of the array beyond the slice;
+a slice of length up to that capacity can be created by `slicing' a new
+one from the original slice (§Slices).
+The capacity of a slice <code>a</code> can be discovered using the
+built-in function
+</p>
+
+<pre>
+cap(s)
+</pre>
+
+<p>
+and the relationship between <code>len()</code> and <code>cap()</code> is:
+</p>
+
+<pre>
+0 <= len(a) <= cap(a)
+</pre>
+
+<p>
+The value of an uninitialized slice is <code>nil</code>.
+The length and capacity of a <code>nil</code> slice
+are 0. A new, initialized slice value for a given element type <code>T</code> is
+made using the built-in function <code>make</code>, which takes a slice type
+and parameters specifying the length and optionally the capacity:
+</p>
+
+<pre>
+make([]T, length)
+make([]T, length, capacity)
+</pre>
+	
+<p>
+The <code>make()</code> call allocates a new, hidden array to which the returned
+slice value refers. That is, calling <code>make</code>
+</p>
+
+<pre>
+make([]T, length, capacity)
+</pre>
+
+<p>
+produces the same slice as allocating an array and slicing it, so these two examples
+result in the same slice:
+</p>
+
+<pre>
+make([]int, 50, 100)
+new([100]int)[0:50]
+</pre>
+
+
 <h3>Struct types</h3>
 
 <p>
@@ -671,7 +786,7 @@ must be unique and  field types must be complete (§Types).
 </p>
 
 <pre class="grammar">
-StructType = "struct" [ "{" [ FieldDeclList ] "}" ] .
+StructType = "struct" "{" [ FieldDeclList ] "}" .
 FieldDeclList = FieldDecl { ";" FieldDecl } [ ";" ] .
 FieldDecl = (IdentifierList CompleteType | [ "*" ] TypeName) [ Tag ] .
 Tag = StringLit .
@@ -743,36 +858,6 @@ struct {
 	server_ip uint32 "field 2";
 	process_id uint32 "field 3";
 }
-</pre>
-
-<h3>Array types</h3>
-
-<p>
-An array is a numbered sequence of elements of a single
-type, called the element type, which must be complete
-(§Types). The number of elements is called the length and is never
-negative.
-</p>
-
-<pre class="grammar">
-ArrayType   = "[" ArrayLength "]" ElementType .
-ArrayLength = Expression .
-ElementType = CompleteType .
-</pre>
-
-<p>
-The length is part of the array's type and must must be a constant
-expression (§Constant expressions) that evaluates to a non-negative
-integer value.  The length of array <code>a</code> can be discovered
-using the built-in function <code>len(a)</code>, which is a
-compile-time constant.  The elements can be indexed by integer
-indices 0 through the <code>len(a)-1</code> (§Indexes).
-</p>
-
-<pre>
-[32]byte
-[2*N] struct { x, y int32 }
-[1000]*float64
 </pre>
 
 <h3>Pointer types</h3>
@@ -851,7 +936,7 @@ An interface value may be <code>nil</code>.
 </p>
 
 <pre class="grammar">
-InterfaceType      = "interface" [ "{" [ MethodSpecList ] "}" ] .
+InterfaceType      = "interface" "{" [ MethodSpecList ] "}" .
 MethodSpecList     = MethodSpec { ";" MethodSpec } [ ";" ] .
 MethodSpec         = IdentifierList Signature | InterfaceTypeName .
 InterfaceTypeName  = TypeName .
@@ -940,89 +1025,6 @@ type File interface {
 	Close();
 }
 </pre>
-
-<h3>Slice types</h3>
-
-<p>
-A slice is a reference to a contiguous segment of an array and
-contains a numbered sequence of elements from that array.  A slice
-type denotes the set of all slices of arrays of its element type.
-A slice value may be <code>nil</code>.
-</p>
-
-<pre class="grammar">
-SliceType = "[" "]" ElementType .
-</pre>
-
-<p>
-Like arrays, slices are indexable and have a length.  The length of a
-slice <code>s</code> can be discovered by the built-in function
-<code>len(s)</code>; unlike with arrays it may change during
-execution.  The elements can be addressed by integer indices 0
-through <code>len(s)-1</code> (§Indexes).  The slice index of a
-given element may be less than the index of the same element in the
-underlying array.
-</p>
-<p>
-A slice, once initialized, is always associated with an underlying
-array that holds its elements.  A slice therfore shares storage
-with its array and with other slices of the same array; by contrast,
-distinct arrays always represent distinct storage.
-</p>
-<p>
-The array underlying a slice may extend past the end of the slice.
-The <i>capacity</i> is a measure of that extent: it is the sum of 
-the length of the slice and the length of the array beyond the slice;
-a slice of length up to that capacity can be created by `slicing' a new
-one from the original slice (§Slices).
-The capacity of a slice <code>a</code> can be discovered using the
-built-in function
-</p>
-
-<pre>
-cap(s)
-</pre>
-
-<p>
-and the relationship between <code>len()</code> and <code>cap()</code> is:
-</p>
-
-<pre>
-0 <= len(a) <= cap(a)
-</pre>
-
-<p>
-The value of an uninitialized slice is <code>nil</code>.
-The length and capacity of a <code>nil</code> slice
-are 0. A new, initialized slice value for a given element type <code>T</code> is
-made using the built-in function <code>make</code>, which takes a slice type
-and parameters specifying the length and optionally the capacity:
-</p>
-
-<pre>
-make([]T, length)
-make([]T, length, capacity)
-</pre>
-	
-<p>
-The <code>make()</code> call allocates a new, hidden array to which the returned
-slice value refers. That is, calling <code>make</code>
-</p>
-
-<pre>
-make([]T, length, capacity)
-</pre>
-
-<p>
-produces the same slice as allocating an array and slicing it, so these two examples
-result in the same slice:
-</p>
-
-<pre>
-make([]int, 50, 100)
-new([100]int)[0:50]
-</pre>
-
 
 <h3>Map types</h3>
 
@@ -1208,20 +1210,24 @@ type (
 </pre>
 
 <p>
-these types are equal
+these types are equal:
 </p>
 
 <pre>
 T0 and T0
 T0 and T1
 T0 and []string
-T2 and T3
 T4 and T5
-T3 and struct { a int; int }
+T3 and struct { a int; c int }
 </pre>
 
 <p>
-and these types are identical
+<code>T2</code> and <code>T3</code> are not equal because
+they have different field names.
+</p>
+
+<p>
+These types are identical:
 </p>
 
 <pre>
@@ -1548,7 +1554,7 @@ to a new type.  <font color=red>TODO: what exactly is a "new type"?</font>
 <pre class="grammar">
 TypeDecl     = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
 TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
-TypeSpec     = identifier Type .
+TypeSpec     = identifier ( Type | "struct" | "interface" ) .
 </pre>
 
 <pre>
@@ -1559,9 +1565,11 @@ type (
 	Polar Point
 )
 
+type Comparable interface
+
 type TreeNode struct {
 	left, right *TreeNode;
-	value Point;
+	value *Comparable;
 }
 
 type Comparable interface {
