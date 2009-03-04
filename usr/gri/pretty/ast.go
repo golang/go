@@ -112,7 +112,8 @@ type (
 	};
 	
 	Call struct {
-		Pos_ int;  // position of "("
+		Pos_ int;  // position of "(" or "{"
+		Tok int;
 		F, Args Expr
 	};
 

@@ -16,7 +16,6 @@ import (
 
 type ErrorHandler interface {
 	Error(pos int, msg string);
-	Warning(pos int, msg string);
 }
 
 
@@ -39,7 +38,8 @@ type Parser struct {
 	opt_semi bool;  // true if semicolon separator is optional in statement list
 
 	// Nesting levels
-	scope_lev int;  // 0 = global scope, 1 = function scope of global functions, etc.
+	expr_lev int;  // < 0: in control clause, >= 0: in expression
+	scope_lev int;  // 0: global scope, 1: function scope of global functions, etc.
 
 	// Scopes
 	top_scope *SymbolTable.Scope;
@@ -141,6 +141,7 @@ func (P *Parser) Open(scanner *Scanner.Scanner, err ErrorHandler, trace, sixg, d
 
 	P.next();
 	P.scope_lev = 0;
+	P.expr_lev = 0;
 }
 
 
@@ -774,7 +775,7 @@ func (P *Parser) tryType() AST.Expr {
 		P.expect(Scanner.RPAREN);
 		return &AST.Group{pos, t};
 	}
-	
+
 	// no type found
 	return nil;
 }
@@ -881,9 +882,11 @@ func (P *Parser) parseFunctionLit() AST.Expr {
 	pos := P.pos;
 	P.expect(Scanner.FUNC);
 	typ := P.parseSignature();
+	P.expr_lev++;
 	P.scope_lev++;
 	body := P.parseBlock(Scanner.LBRACE);
 	P.scope_lev--;
+	P.expr_lev--;
 
 	return &AST.FunctionLit{pos, typ, body};
 }
@@ -901,7 +904,9 @@ func (P *Parser) parseOperand() AST.Expr {
 	case Scanner.LPAREN:
 		pos := P.pos;
 		P.next();
+		P.expr_lev++;
 		x := P.parseExpression(1);
+		P.expr_lev--;
 		P.expect(Scanner.RPAREN);
 		return &AST.Group{pos, x};
 
@@ -962,7 +967,9 @@ func (P *Parser) parseIndex(x AST.Expr) AST.Expr {
 
 	pos := P.pos;
 	P.expect(Scanner.LBRACK);
+	P.expr_lev++;
 	i := P.parseExpression(0);
+	P.expr_lev--;
 	P.expect(Scanner.RBRACK);
 
 	return &AST.Index{pos, x, i};
@@ -971,7 +978,7 @@ func (P *Parser) parseIndex(x AST.Expr) AST.Expr {
 
 func (P *Parser) parseBinaryExpr(prec1 int) AST.Expr
 
-func (P *Parser) parseCompositeElements() AST.Expr {
+func (P *Parser) parseCompositeElements(close int) AST.Expr {
 	x := P.parseExpression(0);
 	if P.tok == Scanner.COMMA {
 		pos := P.pos;
@@ -984,7 +991,7 @@ func (P *Parser) parseCompositeElements() AST.Expr {
 		}
 
 		var last *AST.BinaryExpr;
-		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
+		for P.tok != close && P.tok != Scanner.EOF {
 			y := P.parseExpression(0);
 
 			if singles {
@@ -1018,20 +1025,20 @@ func (P *Parser) parseCompositeElements() AST.Expr {
 }
 
 
-func (P *Parser) parseCallOrCompositeLit(f AST.Expr) AST.Expr {
+func (P *Parser) parseCallOrCompositeLit(f AST.Expr, open, close int) AST.Expr {
 	if P.trace {
 		defer un(trace(P, "CallOrCompositeLit"));
 	}
 
 	pos := P.pos;
-	P.expect(Scanner.LPAREN);
+	P.expect(open);
 	var args AST.Expr;
-	if P.tok != Scanner.RPAREN {
-		args = P.parseCompositeElements();
+	if P.tok != close {
+		args = P.parseCompositeElements(close);
 	}
-	P.expect(Scanner.RPAREN);
+	P.expect(close);
 
-	return &AST.Call{pos, f, args};
+	return &AST.Call{pos, open, f, args};
 }
 
 
@@ -1045,7 +1052,14 @@ func (P *Parser) parsePrimaryExpr() AST.Expr {
 		switch P.tok {
 		case Scanner.PERIOD: x = P.parseSelectorOrTypeGuard(x);
 		case Scanner.LBRACK: x = P.parseIndex(x);
-		case Scanner.LPAREN: x = P.parseCallOrCompositeLit(x);
+		// TODO fix once we have decided on literal/conversion syntax
+		case Scanner.LPAREN: x = P.parseCallOrCompositeLit(x, Scanner.LPAREN, Scanner.RPAREN);
+		case Scanner.LBRACE:
+			if P.expr_lev >= 0 {
+				x = P.parseCallOrCompositeLit(x, Scanner.LBRACE, Scanner.RBRACE);
+			} else {
+				return x;
+			}
 		default:
 			return x;
 		}
@@ -1232,6 +1246,8 @@ func (P *Parser) parseControlClause(isForStat bool) (init AST.Stat, expr AST.Exp
 	}
 
 	if P.tok != Scanner.LBRACE {
+		prev_lev := P.expr_lev;
+		P.expr_lev = -1;	
 		if P.tok != Scanner.SEMICOLON {
 			init = P.parseSimpleStat(isForStat);
 			// TODO check for range clause and exit if found
@@ -1256,6 +1272,7 @@ func (P *Parser) parseControlClause(isForStat bool) (init AST.Stat, expr AST.Exp
 				}
 			}
 		}
+		P.expr_lev = prev_lev;
 	}
 
 	return init, expr, post;

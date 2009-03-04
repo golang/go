@@ -620,7 +620,7 @@ loop:
 		S.next();  // always make progress
 		switch ch {
 		case -1: tok = EOF;
-		case '\n': tok, val = COMMENT, []byte('\n');
+		case '\n': tok, val = COMMENT, []byte{'\n'};
 		case '"': tok, val = STRING, S.scanString();
 		case '\'': tok, val = INT, S.scanChar();
 		case '`': tok, val = STRING, S.scanRawString();

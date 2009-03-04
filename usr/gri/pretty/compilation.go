@@ -90,8 +90,7 @@ func (h *errorHandler) ErrorMsg(pos int, msg string) {
 	h.errpos = pos;
 
 	if h.nerrors >= 10 {
-		// TODO enable when done with name convention
-		//sys.Exit(1);
+		sys.Exit(1);
 	}
 }
 
@@ -111,11 +110,6 @@ func (h *errorHandler) Error(pos int, msg string) {
 }
 
 
-func (h *errorHandler) Warning(pos int, msg string) {
-	panic("UNIMPLEMENTED");
-}
-
-
 func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	src, ok := Platform.ReadSourceFile(src_file);
 	if !ok {
@@ -130,7 +124,7 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	scanner.Init(src, &err, true);
 
 	var parser Parser.Parser;
-	parser.Open(&scanner, err, flags.Verbose, flags.Sixg, flags.Deps);
+	parser.Open(&scanner, &err, flags.Verbose, flags.Sixg, flags.Deps);
 
 	prog := parser.ParseProgram();
 
