@@ -5,18 +5,23 @@
 package TypeChecker
 
 import (
+	"token";
 	AST "ast";
-	Scanner "scanner";
 )
+
+
+type ErrorHandler interface {
+	Error(pos int, msg string);
+}
 
 
 type state struct {
 	// setup
-	err Scanner.ErrorHandler;
+	err ErrorHandler;
 }
 
 
-func (s *state) Init(err Scanner.ErrorHandler) {
+func (s *state) Init(err ErrorHandler) {
 	s.err = err;
 }
 
@@ -54,7 +59,7 @@ func (s *state) CheckType() {
 
 /*
 func (s *state) CheckDeclaration(d *AST.Decl) {
-	if d.Tok != Scanner.FUNC && d.List != nil {
+	if d.Tok != token.FUNC && d.List != nil {
 		// group of parenthesized declarations
 		for i := 0; i < d.List.Len(); i++ {
 			s.CheckDeclaration(d.List.At(i).(*AST.Decl))
@@ -63,11 +68,11 @@ func (s *state) CheckDeclaration(d *AST.Decl) {
 	} else {
 		// single declaration
 		switch d.Tok {
-		case Scanner.IMPORT:
-		case Scanner.CONST:
-		case Scanner.VAR:
-		case Scanner.TYPE:
-		case Scanner.FUNC:
+		case token.IMPORT:
+		case token.CONST:
+		case token.VAR:
+		case token.TYPE:
+		case token.FUNC:
 		default:
 			unreachable();
 		}
@@ -85,7 +90,7 @@ func (s *state) CheckProgram(p *AST.Program) {
 
 // ----------------------------------------------------------------------------
 
-func CheckProgram(err Scanner.ErrorHandler, p *AST.Program) {
+func CheckProgram(err ErrorHandler, p *AST.Program) {
 	var s state;
 	s.Init(err);
 	s.CheckProgram(p);

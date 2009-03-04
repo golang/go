@@ -6,7 +6,7 @@ package AST
 
 import (
 	"vector";
-	Scanner "scanner";
+	"token";
 	SymbolTable "symboltable";
 )
 
@@ -259,7 +259,7 @@ func ExprLen(x Expr) int {
 	}
 	n := 1;
 	for {
-		if p, ok := x.(*BinaryExpr); ok && p.Tok == Scanner.COMMA {
+		if p, ok := x.(*BinaryExpr); ok && p.Tok == token.COMMA {
 			n++;
 			x = p.Y;
 		} else {
@@ -272,10 +272,10 @@ func ExprLen(x Expr) int {
 
 func ExprAt(x Expr, i int) Expr {
 	for j := 0; j < i; j++ {
-		assert(x.(*BinaryExpr).Tok == Scanner.COMMA);
+		assert(x.(*BinaryExpr).Tok == token.COMMA);
 		x = x.(*BinaryExpr).Y;
 	}
-	if t, is_binary := x.(*BinaryExpr); is_binary && t.Tok == Scanner.COMMA {
+	if t, is_binary := x.(*BinaryExpr); is_binary && t.Tok == token.COMMA {
 		x = t.X;
 	}
 	return x;
@@ -298,7 +298,7 @@ type Block struct {
 
 
 func NewBlock(pos, tok int) *Block {
-	assert(tok == Scanner.LBRACE || tok == Scanner.COLON);
+	assert(tok == token.LBRACE || tok == token.COLON);
 	b := new(Block);
 	b.Pos, b.Tok, b.List = pos, tok, vector.New(0);
 	return b;
@@ -509,7 +509,7 @@ func NewComment(pos int, text string) *Comment {
 
 
 type Program struct {
-	Pos int;  // tok is Scanner.PACKAGE
+	Pos int;  // tok is token.PACKAGE
 	Ident Expr;
 	Decls []Decl;
 	Comments *vector.Vector;
