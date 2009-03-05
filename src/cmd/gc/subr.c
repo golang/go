@@ -305,6 +305,25 @@ algtype(Type *t)
 	return a;
 }
 
+Type*
+maptype(Type *key, Type *val)
+{
+	Type *t;
+
+	if(key != nil && key->etype != TANY && algtype(key) == ANOEQ)
+		yyerror("invalid map key type %T", key);
+	t = typ(TMAP);
+	t->down = key;
+	t->type = val;
+	return t;
+}
+
+int
+iskeytype(Type *t)
+{
+	return algtype(t) != ANOEQ;
+}
+
 Node*
 list(Node *a, Node *b)
 {

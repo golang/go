@@ -1019,9 +1019,7 @@ convtype:
 |	LMAP '[' type ']' type
 	{
 		// map literal
-		$$ = typ(TMAP);
-		$$->down = $3;
-		$$->type = $5;
+		$$ = maptype($3, $5);
 	}
 |	structtype
 |	'(' type ')'
@@ -1126,9 +1124,7 @@ Aothertype:
 	}
 |	LMAP '[' type ']' Atype
 	{
-		$$ = typ(TMAP);
-		$$->down = $3;
-		$$->type = $5;
+		$$ = maptype($3, $5);
 	}
 |	'*' Atype
 	{
@@ -1160,9 +1156,7 @@ Bothertype:
 	}
 |	LMAP '[' type ']' Btype
 	{
-		$$ = typ(TMAP);
-		$$->down = $3;
-		$$->type = $5;
+		$$ = maptype($3, $5);
 	}
 |	'*' Btype
 	{
@@ -1806,9 +1800,7 @@ hidden_type1:
 	}
 |	LMAP '[' hidden_type ']' hidden_type
 	{
-		$$ = typ(TMAP);
-		$$->down = $3;
-		$$->type = $5;
+		$$ = maptype($3, $5);
 	}
 |	LSTRUCT '{' ohidden_structdcl_list '}'
 	{
