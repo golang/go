@@ -718,7 +718,6 @@ func (re *Regexp) doExecute(str string, pos int) []int {
 //    s[a[2*i]:a[2*i+1]] for i > 0 is the substring matched by the ith parenthesized subexpression.
 // A negative value means the subexpression did not match any element of the string.
 // An empty array means "no match".
-// (Regexp is an internal type that implements the Regexp interface.)
 func (re *Regexp) Execute(s string) (a []int) {
 	return re.doExecute(s, 0)
 }
@@ -726,7 +725,6 @@ func (re *Regexp) Execute(s string) (a []int) {
 
 // Match returns whether the Regexp matches the string s.
 // The return value is a boolean: true for match, false for no match.
-// (Regexp is an internal type that implements the Regexp interface.)
 func (re *Regexp) Match(s string) bool {
 	return len(re.doExecute(s, 0)) > 0
 }
@@ -737,7 +735,6 @@ func (re *Regexp) Match(s string) bool {
 //    a[0] is the substring matched by the entire expression.
 //    a[i] for i > 0 is the substring matched by the ith parenthesized subexpression.
 // An empty array means ``no match''.
-// (Regexp is an internal type that implements the Regexp interface.)
 func (re *Regexp) MatchStrings(s string) (a []string) {
 	r := re.doExecute(s, 0);
 	if r == nil {
