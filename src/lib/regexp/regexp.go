@@ -10,7 +10,6 @@
 //		concatenation { '|' concatenation }
 //	concatenation:
 //		{ closure }
-//
 //	closure:
 //		term [ '*' | '+' | '?' ]
 //	term:
@@ -31,7 +30,7 @@ import (
 
 var debug = false;
 
-// Error codes returned by faliures to parse an expression.
+// Error codes returned by failures to parse an expression.
 var ErrInternal = os.NewError("internal error");
 var ErrUnmatchedLpar = os.NewError("unmatched '('");
 var ErrUnmatchedRpar = os.NewError("unmatched ')'");
@@ -717,7 +716,7 @@ func (re *Regexp) doExecute(str string, pos int) []int {
 // substrings matched by the expression.
 //    s[a[0]:a[1]] is the substring matched by the entire expression.
 //    s[a[2*i]:a[2*i+1]] for i > 0 is the substring matched by the ith parenthesized subexpression.
-// A value of -1 means the subexpression did not match any element of the string.
+// A negative value means the subexpression did not match any element of the string.
 // An empty array means "no match".
 // (Regexp is an internal type that implements the Regexp interface.)
 func (re *Regexp) Execute(s string) (a []int) {
