@@ -7,12 +7,12 @@
 package json
 
 import (
-	"array";
 	"fmt";
 	"math";
 	"json";
 	"strconv";
 	"strings";
+	"vector";
 )
 
 const (
@@ -68,7 +68,7 @@ func (j *_Number) String() string {
 	return fmt.Sprintf("%g", j.f);
 }
 
-type _Array struct { a *array.Array; _Null }
+type _Array struct { a *vector.Vector; _Null }
 func (j *_Array) Kind() int { return ArrayKind }
 func (j *_Array) Len() int { return j.a.Len() }
 func (j *_Array) Elem(i int) Json {
@@ -208,7 +208,7 @@ type _JsonBuilder struct {
 	ptr *Json;
 
 	// or to a[i] (can't set ptr = &a[i])
-	a *array.Array;
+	a *vector.Vector;
 	i int;
 
 	// or to m[k] (can't set ptr = &m[k])
@@ -265,7 +265,7 @@ func (b *_JsonBuilder) String(s string) {
 
 
 func (b *_JsonBuilder) Array() {
-	b.Put(&_Array{array.New(0), _Null{}})
+	b.Put(&_Array{vector.New(0), _Null{}})
 }
 
 func (b *_JsonBuilder) Map() {

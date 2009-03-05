@@ -8,7 +8,6 @@ GC=6g
 
 DIRS=\
 	container\
-	container/array\
 	fmt\
 	hash\
 	http\
@@ -54,9 +53,6 @@ install.dirs: $(addsuffix .dirinstall, $(DIRS))
 install.files: $(addsuffix .install, $(FILES))
 nuke.dirs: $(addsuffix .dirnuke, $(DIRS))
 test.files: $(addsuffix .test, $(TEST))
-
-%.6: container/%.go
-	$(GC) container/$*.go
 
 %.6: %.go
 	$(GC) $*.go
@@ -106,7 +102,7 @@ fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
 hash.dirinstall: os.dirinstall
 http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall strings.install log.install
 io.dirinstall: os.dirinstall syscall.dirinstall sync.dirinstall
-json.dirinstall: container/array.dirinstall fmt.dirinstall io.dirinstall math.dirinstall \
+json.dirinstall: container.dirinstall fmt.dirinstall io.dirinstall math.dirinstall \
 	strconv.dirinstall strings.install utf8.install
 lang.dirinstall: strconv.dirinstall utf8.install unicode.dirinstall
 # TODO(rsc): net is not supposed to depend on fmt or strings or strconv
@@ -115,7 +111,7 @@ os.dirinstall: syscall.dirinstall once.install
 regexp.dirinstall: os.dirinstall
 reflect.dirinstall: strconv.dirinstall sync.dirinstall
 strconv.dirinstall: math.dirinstall os.dirinstall utf8.install
-tabwriter.dirinstall: os.dirinstall io.dirinstall container/array.dirinstall
+tabwriter.dirinstall: os.dirinstall io.dirinstall container.dirinstall
 time.dirinstall: once.install os.dirinstall io.dirinstall
 sync.dirinstall:
 syscall.dirinstall: sync.dirinstall
