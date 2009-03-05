@@ -1845,7 +1845,7 @@ A qualified identifier is an identifier qualified by a package name prefix.
 </p>
 
 <pre class="grammar">
-QualifiedIdent = [ [ LocalPackageName "." ] PackageName "." ] identifier .
+QualifiedIdent = [ ( LocalPackageName | PackageName ) "." ] identifier .
 LocalPackageName = identifier .
 PackageName = identifier .
 </pre>
