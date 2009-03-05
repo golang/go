@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The math package provides basic constants and mathematical functions.
 package math
 
+// Mathematical constants.
+// Reference: http://www.research.att.com/~njas/sequences/Axxxxxx
 const (
-	// Mathematical constants.
-	// Reference: http://www.research.att.com/~njas/sequences/Axxxxxx
-
 	E	= 2.71828182845904523536028747135266249775724709369995957496696763;  // A001113
 	Pi	= 3.14159265358979323846264338327950288419716939937510582097494459;  // A000796
 	Phi	= 1.61803398874989484820458683436563811772030917980576286213544862;  // A001622
@@ -22,3 +22,5 @@ const (
 	Ln10	= 2.30258509299404568401799145468436420760110148862877297603332790;  // A002392
 	Log10E	= 1/Ln10;
 )
+
+// BUG(rsc): The manual should define the special cases for all of these functions.

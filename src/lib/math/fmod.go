@@ -10,6 +10,7 @@ import "math"
  *	floating-point mod func without infinity or NaN checking
  */
 
+// Fmod returns the floating-point remainder of x/y.
 func Fmod(x, y float64) float64 {
 	if y == 0 {
 		return x;

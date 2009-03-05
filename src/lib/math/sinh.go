@@ -7,19 +7,19 @@ package math
 import "math"
 
 /*
- *	sinh(arg) returns the hyperbolic sine of its floating-
- *	point argument.
+ *	Sinh(x) returns the hyperbolic sine of x
  *
  *	The exponential func is called for arguments
  *	greater in magnitude than 0.5.
  *
  *	A series is used for arguments smaller in magnitude than 0.5.
  *
- *	cosh(arg) is computed from the exponential func for
+ *	Cosh(x) is computed from the exponential func for
  *	all arguments.
  */
 
-func Sinh(arg float64) float64 {
+// Sinh returns the hyperbolic sine of x.
+func Sinh(x float64) float64 {
 	// The coefficients are #2029 from Hart & Cheney. (20.36D)
 	const
 	(
@@ -32,23 +32,23 @@ func Sinh(arg float64) float64 {
 		Q2	= -0.173678953558233699533450911e+3;
 	)
 
-		sign := false;
-	if arg < 0 {
-		arg = -arg;
+	sign := false;
+	if x < 0 {
+		x = -x;
 		sign = true;
 	}
 
 	var temp float64;
 	switch true {
-	case arg > 21:
-		temp = Exp(arg)/2;
+	case x > 21:
+		temp = Exp(x)/2;
 
-	case arg > 0.5:
-		temp = (Exp(arg) - Exp(-arg))/2;
+	case x > 0.5:
+		temp = (Exp(x) - Exp(-x))/2;
 
 	default:
-		sq := arg*arg;
-		temp = (((P3*sq+P2)*sq+P1)*sq+P0)*arg;
+		sq := x*x;
+		temp = (((P3*sq+P2)*sq+P1)*sq+P0)*x;
 		temp = temp/(((sq+Q2)*sq+Q1)*sq+Q0);
 	}
 
@@ -58,12 +58,13 @@ func Sinh(arg float64) float64 {
 	return temp;
 }
 
-func Cosh(arg float64) float64 {
-	if arg < 0 {
-		arg = - arg;
+// Cosh returns the hyperbolic cosine of x.
+func Cosh(x float64) float64 {
+	if x < 0 {
+		x = - x;
 	}
-	if arg > 21 {
-		return Exp(arg)/2;
+	if x > 21 {
+		return Exp(x)/2;
 	}
-	return (Exp(arg) + Exp(-arg))/2;
+	return (Exp(x) + Exp(-x))/2;
 }

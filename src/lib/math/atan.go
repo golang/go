@@ -57,9 +57,11 @@ func satan(arg float64) float64 {
  *	atan makes its argument positive and
  *	calls the inner routine satan.
  */
-func Atan(arg float64) float64 {
-	if arg > 0 {
-		return satan(arg);
+
+// Atan returns the arc tangent of x.
+func Atan(x float64) float64 {
+	if x > 0 {
+		return satan(x);
 	}
-	return -satan(-arg);
+	return -satan(-x);
 }

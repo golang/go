@@ -82,6 +82,13 @@ import "math"
 // compiler will convert from decimal to binary accurately enough
 // to produce the hexadecimal values shown.
 
+// Exp returns e^x, the base-e exponential of x.
+//
+// Special cases are:
+//	Exp(+Inf) = +Inf
+//	Exp(NaN) = NaN
+// Very large values overflow to -Inf or +Inf.
+// Very small values underflow to 1.
 func Exp(x float64) float64 {
 	const (
 		Ln2Hi	= 6.93147180369123816490e-01;

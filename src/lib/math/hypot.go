@@ -12,6 +12,8 @@ package math
  *	Vol. 27, Number 6, pp. 577-581, Nov. 1983
  */
 
+// Hypot computes Sqrt(p*p + q*q), taking care to avoid
+// unnecessary overflow and underflow.
 func Hypot(p, q float64) float64 {
 	if p < 0 {
 		p = -p;
