@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package flag
-
 /*
  * Flags
  *
@@ -41,9 +39,11 @@ package flag
  *	Integer flags accept 1234, 0664, 0x1234 and may be negative.
  *	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
  */
+package flag
 
 import (
 	"fmt";
+	"os";
 	"strconv"
 )
 
@@ -186,13 +186,14 @@ func (s *stringValue) String() string {
 	return fmt.Sprintf("%s", *s.p)
 }
 
-// -- FlagValue interface
+// FlagValue is the interface to the dynamic value stored in a flag.
+// (The default value is represented as a string.)
 type FlagValue interface {
 	String() string;
 	set(string) bool;
 }
 
-// -- Flag structure
+// A Flag represents the state of a flag.
 type Flag struct {
 	Name	string;	// name as it appears on command line
 	Usage	string;	// help message
@@ -208,20 +209,21 @@ type allFlags struct {
 
 var flags *allFlags = &allFlags{make(map[string] *Flag), make(map[string] *Flag), 1}
 
-// Visit all flags, including those defined but not set.
+// VisitAll visits the flags, calling fn for each. It visits all flags, even those not set.
 func VisitAll(fn func(*Flag)) {
 	for k, f := range flags.formal {
 		fn(f)
 	}
 }
 
-// Visit only those flags that have been set
+// Visit visits the flags, calling fn for each. It visits only those flags that have been set.
 func Visit(fn func(*Flag)) {
 	for k, f := range flags.actual {
 		fn(f)
 	}
 }
 
+// Lookup returns the Flag structure of the named flag, returning nil if none exists.
 func Lookup(name string) *Flag {
 	f, ok := flags.formal[name];
 	if !ok {
@@ -230,6 +232,8 @@ func Lookup(name string) *Flag {
 	return f
 }
 
+// Set sets the value of tne named flag.  It returns true if the set succeeded; false if
+// there is no such flag defined.
 func Set(name, value string) bool {
 	f, ok := flags.formal[name];
 	if !ok {
@@ -243,6 +247,7 @@ func Set(name, value string) bool {
 	return true;
 }
 
+// PrintDefaults prints to standard error the default values of all defined flags.
 func PrintDefaults() {
 	VisitAll(func(f *Flag) {
 		format := "  -%s=%s: %s\n";
@@ -250,15 +255,17 @@ func PrintDefaults() {
 			// put quotes on the value
 			format = "  -%s=%q: %s\n";
 		}
-		fmt.Printf(format, f.Name, f.DefValue, f.Usage);
+		fmt.Fprintf(os.Stderr, format, f.Name, f.DefValue, f.Usage);
 	})
 }
 
+// Usage prints to standard error a default usage message documenting all defined flags and
+// then calls sys.Exit(1).
 func Usage() {
 	if len(sys.Args) > 0 {
-		print("Usage of ", sys.Args[0], ": \n");
+		fmt.Fprintf(os.Stderr, "Usage of ", sys.Args[0], ": \n");
 	} else {
-		print("Usage: \n");
+		fmt.Fprintf(os.Stderr, "Usage: \n");
 	}
 	PrintDefaults();
 	sys.Exit(1);
@@ -268,6 +275,8 @@ func NFlag() int {
 	return len(flags.actual)
 }
 
+// Arg returns the i'th command-line argument.  Arg(0) is the first remaining argument
+// after flags have been processed.
 func Arg(i int) string {
 	i += flags.first_arg;
 	if i < 0 || i >= len(sys.Args) {
@@ -276,6 +285,7 @@ func Arg(i int) string {
 	return sys.Args[i]
 }
 
+// NArg is the number of arguments remaining after flags have been processed.
 func NArg() int {
 	return len(sys.Args) - flags.first_arg
 }
@@ -291,60 +301,84 @@ func add(name string, value FlagValue, usage string) {
 	flags.formal[name] = f;
 }
 
+// BoolVar defines a bool flag with specified name, default value, and usage string.
+// The argument p points to a bool variable in which to store the value of the flag.
 func BoolVar(p *bool, name string, value bool, usage string) {
 	add(name, newBoolValue(value, p), usage);
 }
 
+// Bool defines a bool flag with specified name, default value, and usage string.
+// The return value is the address of a bool variable that stores the value of the flag.
 func Bool(name string, value bool, usage string) *bool {
 	p := new(bool);
 	BoolVar(p, name, value, usage);
 	return p;
 }
 
+// IntVar defines an int flag with specified name, default value, and usage string.
+// The argument p points to an int variable in which to store the value of the flag.
 func IntVar(p *int, name string, value int, usage string) {
 	add(name, newIntValue(value, p), usage);
 }
 
+// Int defines an int flag with specified name, default value, and usage string.
+// The return value is the address of an int variable that stores the value of the flag.
 func Int(name string, value int, usage string) *int {
 	p := new(int);
 	IntVar(p, name, value, usage);
 	return p;
 }
 
+// Int64Var defines an int64 flag with specified name, default value, and usage string.
+// The argument p points to an int64 variable in which to store the value of the flag.
 func Int64Var(p *int64, name string, value int64, usage string) {
 	add(name, newInt64Value(value, p), usage);
 }
 
+// Int64 defines an int64 flag with specified name, default value, and usage string.
+// The return value is the address of an int64 variable that stores the value of the flag.
 func Int64(name string, value int64, usage string) *int64 {
 	p := new(int64);
 	Int64Var(p, name, value, usage);
 	return p;
 }
 
+// UintVar defines a uint flag with specified name, default value, and usage string.
+// The argument p points to a uint variable in which to store the value of the flag.
 func UintVar(p *uint, name string, value uint, usage string) {
 	add(name, newUintValue(value, p), usage);
 }
 
+// Uint defines a uint flag with specified name, default value, and usage string.
+// The return value is the address of a uint variable that stores the value of the flag.
 func Uint(name string, value uint, usage string) *uint {
 	p := new(uint);
 	UintVar(p, name, value, usage);
 	return p;
 }
 
+// Uint64Var defines a uint64 flag with specified name, default value, and usage string.
+// The argument p points to a uint64 variable in which to store the value of the flag.
 func Uint64Var(p *uint64, name string, value uint64, usage string) {
 	add(name, newUint64Value(value, p), usage);
 }
 
+// Uint64 defines a uint64 flag with specified name, default value, and usage string.
+// The return value is the address of a uint64 variable that stores the value of the flag.
 func Uint64(name string, value uint64, usage string) *uint64 {
 	p := new(uint64);
 	Uint64Var(p, name, value, usage);
 	return p;
 }
 
+// StringVar defines a string flag with specified name, default value, and usage string.
+// The argument p points to a string variable in which to store the value of the flag.
 func StringVar(p *string, name, value string, usage string) {
 	add(name, newStringValue(value, p), usage);
 }
 
+// String defines a string flag with specified name, default value, and usage string.
+// The return value is the address of a string variable that stores the value of the flag.
 func String(name, value string, usage string) *string {
 	p := new(string);
 	StringVar(p, name, value, usage);
@@ -430,6 +464,8 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 	return true, index + 1
 }
 
+// Parse parses the command-line flags.  Must be called after all flags are defined
+// and before any are accessed by the program.
 func Parse() {
 	for i := 1; i < len(sys.Args); {
 		ok, next := flags.parseOne(i);
