@@ -5,10 +5,10 @@
 // Rudimentary logging package. Defines a type, Logger, with simple
 // methods for formatting output to one or two destinations. Also has
 // predefined Loggers accessible through helper functions Stdout[f],
-// Stderr[f], Exit[f], and Crash[f].
+// Stderr[f], Exit[f], and Crash[f], which are easier to use than creating
+// a Logger manually.
 // Exit exits when written to.
 // Crash causes a crash when written to.
-
 package log
 
 import (
@@ -18,6 +18,7 @@ import (
 	"time";
 )
 
+// These flags define the properties of the Logger and the output they produce.
 const (
 	// Flags
 	Lok = iota;
@@ -35,13 +36,18 @@ const (
 	lAllBits = Ldate | Ltime | Lmicroseconds | Llongfile | Lshortfile;
 )
 
+// Logger represents an active logging object.
 type Logger struct {
-	out0	io.Write;
-	out1	io.Write;
-	prefix string;
-	flag int;
+	out0	io.Write;	// first destination for output
+	out1	io.Write;	// second destination for output; may be nil
+	prefix string;	// prefix to write at beginning of each line
+	flag int;	// properties
 }
 
+// NewLogger creates a new Logger.   The out0 and out1 variables set the
+// destinations to which log data will be written; out1 may be nil.
+// The prefix appears at the beginning of each generated log line.
+// The flag argument defines the logging properties.
 func NewLogger(out0, out1 io.Write, prefix string, flag int) *Logger {
 	return &Logger{out0, out1, prefix, flag}
 }
@@ -115,7 +121,9 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
 	return h;
 }
 
-// The calldepth is provided for generality, although at the moment on all paths it will be 2.
+// Output writes the output for a logging event.  The string s contains the text to print after
+// the time stamp;  calldepth is used to recover the PC.  It is provided for generality, although
+// at the moment on all pre-defined paths it will be 2.
 func (l *Logger) Output(calldepth int, s string) {
 	now := time.Nanoseconds();	// get this early.
 	newline := "\n";
@@ -135,44 +143,52 @@ func (l *Logger) Output(calldepth int, s string) {
 	}
 }
 
-// Basic methods on Logger, analogous to Printf and Print
+// Logf is analogous to Printf() for a Logger.
 func (l *Logger) Logf(format string, v ...) {
 	l.Output(2, fmt.Sprintf(format, v))
 }
 
+// Log is analogouts to Print() for a Logger.
 func (l *Logger) Log(v ...) {
 	l.Output(2, fmt.Sprintln(v))
 }
 
-// Helper functions for lightweight simple logging to predefined Loggers.
+// Stdout is a helper function for easy logging to stdout. It is analogous to Print().
 func Stdout(v ...) {
 	stdout.Output(2, fmt.Sprint(v))
 }
 
+// Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
 func Stderr(v ...) {
 	stdout.Output(2, fmt.Sprintln(v))
 }
 
+// Stdoutf is a helper functions for easy formatted logging to stdout. It is analogous to Printf().
 func Stdoutf(format string, v ...) {
 	stdout.Output(2, fmt.Sprintf(format, v))
 }
 
+// Stderrf is a helper function for easy formatted logging to stderr. It is analogous to Fprintf(os.Stderr).
 func Stderrf(format string, v ...) {
 	stderr.Output(2, fmt.Sprintf(format, v))
 }
 
+// Exit is equivalent to Stderr() followed by a call to sys.Exit(1).
 func Exit(v ...) {
 	exit.Output(2, fmt.Sprintln(v))
 }
 
+// Exitf is equivalent to Stderrf() followed by a call to sys.Exit(1).
 func Exitf(format string, v ...) {
 	exit.Output(2, fmt.Sprintf(format, v))
 }
 
+// Crash is equivalent to Stderrf() followed by a call to panic().
 func Crash(v ...) {
 	crash.Output(2, fmt.Sprintln(v))
 }
 
+// Crashf is equivalent to Stderrf() followed by a call to panic().
 func Crashf(format string, v ...) {
 	crash.Output(2, fmt.Sprintf(format, v))
 }
