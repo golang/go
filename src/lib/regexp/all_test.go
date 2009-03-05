@@ -85,7 +85,7 @@ var matches = []tester {
 	tester{ `a*(|(b))c*`,	"aacc",	vec{0,4, 2,2, -1,-1} },
 }
 
-func compileTest(t *testing.T, expr string, error *os.Error) regexp.Regexp {
+func compileTest(t *testing.T, expr string, error *os.Error) *regexp.Regexp {
 	re, err := regexp.Compile(expr);
 	if err != error {
 		t.Error("compiling `", expr, "`; unexpected error: ", err.String());

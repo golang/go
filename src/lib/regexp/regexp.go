@@ -2,8 +2,25 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Regular expression library.
-
+// Package regexp implements a simple regular expression library.
+//
+// The syntax of the regular expressions accepted is:
+//
+//	regexp:
+//		concatenation { '|' concatenation }
+//	concatenation:
+//		{ closure }
+//
+//	closure:
+//		term [ '*' | '+' | '?' ]
+//	term:
+//		'^'
+//		'$'
+//		'.'
+//		character
+//		'[' [ '^' ] character-ranges ']'
+//		'(' regexp ')'
+//
 package regexp
 
 import (
@@ -14,7 +31,7 @@ import (
 
 var debug = false;
 
-
+// Error codes returned by faliures to parse an expression.
 var ErrInternal = os.NewError("internal error");
 var ErrUnmatchedLpar = os.NewError("unmatched '('");
 var ErrUnmatchedRpar = os.NewError("unmatched ')'");
@@ -28,28 +45,30 @@ var ErrBadBackslash = os.NewError("illegal backslash escape");
 
 // An instruction executed by the NFA
 type instr interface {
-	Type()	int;	// the type of this instruction: _CHAR, _ANY, etc.
-	Next()	instr;	// the instruction to execute after this one
-	SetNext(i instr);
-	Index()	int;
-	SetIndex(i int);
-	Print();
+	kind()	int;	// the type of this instruction: _CHAR, _ANY, etc.
+	next()	instr;	// the instruction to execute after this one
+	setNext(i instr);
+	index()	int;
+	setIndex(i int);
+	print();
 }
 
 // Fields and methods common to all instructions
 type common struct {
-	next	instr;
-	index	int;
+	_next	instr;
+	_index	int;
 }
 
-func (c *common) Next() instr { return c.next }
-func (c *common) SetNext(i instr) { c.next = i }
-func (c *common) Index() int { return c.index }
-func (c *common) SetIndex(i int) { c.index = i }
+func (c *common) next() instr { return c._next }
+func (c *common) setNext(i instr) { c._next = i }
+func (c *common) index() int { return c._index }
+func (c *common) setIndex(i int) { c._index = i }
 
-type _RE struct {
+// The representation of a compiled regular expression.
+// The public interface is entirely through methods.
+type Regexp struct {
 	expr	string;	// the original expression
-	ch	chan<- *_RE;	// reply channel when we're done
+	ch	chan<- *Regexp;	// reply channel when we're done
 	error	*os.Error;	// compile- or run-time error; nil if OK
 	inst	*array.Array;
 	start	instr;
@@ -76,32 +95,32 @@ type _Start struct {
 	common
 }
 
-func (start *_Start) Type() int { return _START }
-func (start *_Start) Print() { print("start") }
+func (start *_Start) kind() int { return _START }
+func (start *_Start) print() { print("start") }
 
 // --- END end of program
 type _End struct {
 	common
 }
 
-func (end *_End) Type() int { return _END }
-func (end *_End) Print() { print("end") }
+func (end *_End) kind() int { return _END }
+func (end *_End) print() { print("end") }
 
 // --- BOT beginning of text
 type _Bot struct {
 	common
 }
 
-func (bot *_Bot) Type() int { return _BOT }
-func (bot *_Bot) Print() { print("bot") }
+func (bot *_Bot) kind() int { return _BOT }
+func (bot *_Bot) print() { print("bot") }
 
 // --- EOT end of text
 type _Eot struct {
 	common
 }
 
-func (eot *_Eot) Type() int { return _EOT }
-func (eot *_Eot) Print() { print("eot") }
+func (eot *_Eot) kind() int { return _EOT }
+func (eot *_Eot) print() { print("eot") }
 
 // --- CHAR a regular character
 type _Char struct {
@@ -109,8 +128,8 @@ type _Char struct {
 	char	int;
 }
 
-func (char *_Char) Type() int { return _CHAR }
-func (char *_Char) Print() { print("char ", string(char.char)) }
+func (char *_Char) kind() int { return _CHAR }
+func (char *_Char) print() { print("char ", string(char.char)) }
 
 func newChar(char int) *_Char {
 	c := new(_Char);
@@ -128,9 +147,9 @@ type _CharClass struct {
 	ranges	*array.IntArray;
 }
 
-func (cclass *_CharClass) Type() int { return _CHARCLASS }
+func (cclass *_CharClass) kind() int { return _CHARCLASS }
 
-func (cclass *_CharClass) Print() {
+func (cclass *_CharClass) print() {
 	print("charclass");
 	if cclass.negate {
 		print(" (negated)");
@@ -146,13 +165,13 @@ func (cclass *_CharClass) Print() {
 	}
 }
 
-func (cclass *_CharClass) AddRange(a, b int) {
+func (cclass *_CharClass) addRange(a, b int) {
 	// range is a through b inclusive
 	cclass.ranges.Push(a);
 	cclass.ranges.Push(b);
 }
 
-func (cclass *_CharClass) Matches(c int) bool {
+func (cclass *_CharClass) matches(c int) bool {
 	for i := 0; i < cclass.ranges.Len(); i = i+2 {
 		min := cclass.ranges.At(i);
 		max := cclass.ranges.At(i+1);
@@ -174,8 +193,8 @@ type _Any struct {
 	common
 }
 
-func (any *_Any) Type() int { return _ANY }
-func (any *_Any) Print() { print("any") }
+func (any *_Any) kind() int { return _ANY }
+func (any *_Any) print() { print("any") }
 
 // --- BRA parenthesized expression
 type _Bra struct {
@@ -183,8 +202,8 @@ type _Bra struct {
 	n	int;	// subexpression number
 }
 
-func (bra *_Bra) Type() int { return _BRA }
-func (bra *_Bra) Print() { print("bra", bra.n); }
+func (bra *_Bra) kind() int { return _BRA }
+func (bra *_Bra) print() { print("bra", bra.n); }
 
 // --- EBRA end of parenthesized expression
 type _Ebra struct {
@@ -192,8 +211,8 @@ type _Ebra struct {
 	n	int;	// subexpression number
 }
 
-func (ebra *_Ebra) Type() int { return _EBRA }
-func (ebra *_Ebra) Print() { print("ebra ", ebra.n); }
+func (ebra *_Ebra) kind() int { return _EBRA }
+func (ebra *_Ebra) print() { print("ebra ", ebra.n); }
 
 // --- ALT alternation
 type _Alt struct {
@@ -201,32 +220,32 @@ type _Alt struct {
 	left	instr;	// other branch
 }
 
-func (alt *_Alt) Type() int { return _ALT }
-func (alt *_Alt) Print() { print("alt(", alt.left.Index(), ")"); }
+func (alt *_Alt) kind() int { return _ALT }
+func (alt *_Alt) print() { print("alt(", alt.left.index(), ")"); }
 
 // --- NOP no operation
 type _Nop struct {
 	common
 }
 
-func (nop *_Nop) Type() int { return _NOP }
-func (nop *_Nop) Print() { print("nop") }
+func (nop *_Nop) kind() int { return _NOP }
+func (nop *_Nop) print() { print("nop") }
 
 // report error and exit compiling/executing goroutine
-func (re *_RE) Error(err *os.Error) {
+func (re *Regexp) setError(err *os.Error) {
 	re.error = err;
 	re.ch <- re;
 	sys.Goexit();
 }
 
-func (re *_RE) Add(i instr) instr {
-	i.SetIndex(re.inst.Len());
+func (re *Regexp) add(i instr) instr {
+	i.setIndex(re.inst.Len());
 	re.inst.Push(i);
 	return i;
 }
 
 type parser struct {
-	re	*_RE;
+	re	*Regexp;
 	nlpar	int;	// number of unclosed lpars
 	pos	int;
 	ch	int;
@@ -249,33 +268,14 @@ func (p *parser) nextc() int {
 	return p.ch;
 }
 
-func newParser(re *_RE) *parser {
+func newParser(re *Regexp) *parser {
 	p := new(parser);
 	p.re = re;
 	p.nextc();	// load p.ch
 	return p;
 }
 
-/*
-
-Grammar:
-	regexp:
-		concatenation { '|' concatenation }
-	concatenation:
-		{ closure }
-	closure:
-		term [ '*' | '+' | '?' ]
-	term:
-		'^'
-		'$'
-		'.'
-		character
-		'[' [ '^' ] character-ranges ']'
-		'(' regexp ')'
-
-*/
-
-func (p *parser) Regexp() (start, end instr)
+func (p *parser) regexp() (start, end instr)
 
 var iNULL instr
 
@@ -299,9 +299,9 @@ func specialcclass(c int) bool {
 	return false
 }
 
-func (p *parser) CharClass() instr {
+func (p *parser) charClass() instr {
 	cc := newCharClass();
-	p.re.Add(cc);
+	p.re.add(cc);
 	if p.c() == '^' {
 		cc.negate = true;
 		p.nextc();
@@ -311,22 +311,22 @@ func (p *parser) CharClass() instr {
 		switch c := p.c(); c {
 		case ']', endOfFile:
 			if left >= 0 {
-				p.re.Error(ErrBadRange);
+				p.re.setError(ErrBadRange);
 			}
 			return cc;
 		case '-':	// do this before backslash processing
-			p.re.Error(ErrBadRange);
+			p.re.setError(ErrBadRange);
 		case '\\':
 			c = p.nextc();
 			switch {
 			case c == endOfFile:
-				p.re.Error(ErrExtraneousBackslash);
+				p.re.setError(ErrExtraneousBackslash);
 			case c == 'n':
 				c = '\n';
 			case specialcclass(c):
 				// c is as delivered
 			default:
-				p.re.Error(ErrBadBackslash);
+				p.re.setError(ErrBadBackslash);
 			}
 			fallthrough;
 		default:
@@ -337,49 +337,49 @@ func (p *parser) CharClass() instr {
 					p.nextc();
 					left = c;
 				} else {	// single char
-					cc.AddRange(c, c);
+					cc.addRange(c, c);
 				}
 			case left <= c:	// second of pair
-				cc.AddRange(left, c);
+				cc.addRange(left, c);
 				left = -1;
 			default:
-				p.re.Error(ErrBadRange);
+				p.re.setError(ErrBadRange);
 			}
 		}
 	}
 	return iNULL
 }
 
-func (p *parser) Term() (start, end instr) {
+func (p *parser) term() (start, end instr) {
 	switch c := p.c(); c {
 	case '|', endOfFile:
 		return iNULL, iNULL;
 	case '*', '+':
-		p.re.Error(ErrBareClosure);
+		p.re.setError(ErrBareClosure);
 	case ')':
 		if p.nlpar == 0 {
-			p.re.Error(ErrUnmatchedRpar);
+			p.re.setError(ErrUnmatchedRpar);
 		}
 		return iNULL, iNULL;
 	case ']':
-		p.re.Error(ErrUnmatchedRbkt);
+		p.re.setError(ErrUnmatchedRbkt);
 	case '^':
 		p.nextc();
-		start = p.re.Add(new(_Bot));
+		start = p.re.add(new(_Bot));
 		return start, start;
 	case '$':
 		p.nextc();
-		start = p.re.Add(new(_Eot));
+		start = p.re.add(new(_Eot));
 		return start, start;
 	case '.':
 		p.nextc();
-		start = p.re.Add(new(_Any));
+		start = p.re.add(new(_Any));
 		return start, start;
 	case '[':
 		p.nextc();
-		start = p.CharClass();
+		start = p.charClass();
 		if p.c() != ']' {
-			p.re.Error(ErrUnmatchedLbkt);
+			p.re.setError(ErrUnmatchedLbkt);
 		}
 		p.nextc();
 		return start, start;
@@ -388,50 +388,52 @@ func (p *parser) Term() (start, end instr) {
 		p.nlpar++;
 		p.re.nbra++;	// increment first so first subexpr is \1
 		nbra := p.re.nbra;
-		start, end = p.Regexp();
+		start, end = p.regexp();
 		if p.c() != ')' {
-			p.re.Error(ErrUnmatchedLpar);
+			p.re.setError(ErrUnmatchedLpar);
 		}
 		p.nlpar--;
 		p.nextc();
 		bra := new(_Bra);
-		p.re.Add(bra);
+		p.re.add(bra);
 		ebra := new(_Ebra);
-		p.re.Add(ebra);
+		p.re.add(ebra);
 		bra.n = nbra;
 		ebra.n = nbra;
 		if start == iNULL {
-			if end == iNULL { p.re.Error(ErrInternal) }
+			if end == iNULL {
+				p.re.setError(ErrInternal)
+			}
 			start = ebra
 		} else {
-			end.SetNext(ebra);
+			end.setNext(ebra);
 		}
-		bra.SetNext(start);
+		bra.setNext(start);
 		return bra, ebra;
 	case '\\':
 		c = p.nextc();
 		switch {
 		case c == endOfFile:
-			p.re.Error(ErrExtraneousBackslash);
+			p.re.setError(ErrExtraneousBackslash);
 		case c == 'n':
 			c = '\n';
 		case special(c):
 			// c is as delivered
 		default:
-			p.re.Error(ErrBadBackslash);
+			p.re.setError(ErrBadBackslash);
 		}
 		fallthrough;
 	default:
 		p.nextc();
 		start = newChar(c);
-		p.re.Add(start);
+		p.re.add(start);
 		return start, start
 	}
 	panic("unreachable");
 }
 
-func (p *parser) Closure() (start, end instr) {
-	start, end = p.Term();
+func (p *parser) closure() (start, end instr) {
+	start, end = p.term();
 	if start == iNULL {
 		return
 	}
@@ -439,27 +441,27 @@ func (p *parser) Closure() (start, end instr) {
 	case '*':
 		// (start,end)*:
 		alt := new(_Alt);
-		p.re.Add(alt);
-		end.SetNext(alt);	// after end, do alt
+		p.re.add(alt);
+		end.setNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
 		start = alt;	// alt becomes new (start, end)
 		end = alt;
 	case '+':
 		// (start,end)+:
 		alt := new(_Alt);
-		p.re.Add(alt);
-		end.SetNext(alt);	// after end, do alt
+		p.re.add(alt);
+		end.setNext(alt);	// after end, do alt
 		alt.left = start;	// alternate brach: return to start
 		end = alt;	// start is unchanged; end is alt
 	case '?':
 		// (start,end)?:
 		alt := new(_Alt);
-		p.re.Add(alt);
+		p.re.add(alt);
 		nop := new(_Nop);
-		p.re.Add(nop);
+		p.re.add(nop);
 		alt.left = start;	// alternate branch is start
-		alt.next = nop;	// follow on to nop
-		end.SetNext(nop);	// after end, go to nop
+		alt.setNext(nop);	// follow on to nop
+		end.setNext(nop);	// after end, go to nop
 		start = alt;	// start is now alt
 		end = nop;	// end is nop pointed to by both branches
 	default:
@@ -467,49 +469,49 @@ func (p *parser) Closure() (start, end instr) {
 	}
 	switch p.nextc() {
 	case '*', '+', '?':
-		p.re.Error(ErrBadClosure);
+		p.re.setError(ErrBadClosure);
 	}
 	return
 }
 
-func (p *parser) Concatenation() (start, end instr) {
+func (p *parser) concatenation() (start, end instr) {
 	start, end = iNULL, iNULL;
 	for {
-		nstart, nend := p.Closure();
+		nstart, nend := p.closure();
 		switch {
 		case nstart == iNULL:	// end of this concatenation
 			if start == iNULL {	// this is the empty string
-				nop := p.re.Add(new(_Nop));
+				nop := p.re.add(new(_Nop));
 				return nop, nop;
 			}
 			return;
 		case start == iNULL:	// this is first element of concatenation
 			start, end = nstart, nend;
 		default:
-			end.SetNext(nstart);
+			end.setNext(nstart);
 			end = nend;
 		}
 	}
 	panic("unreachable");
 }
 
-func (p *parser) Regexp() (start, end instr) {
-	start, end = p.Concatenation();
+func (p *parser) regexp() (start, end instr) {
+	start, end = p.concatenation();
 	for {
 		switch p.c() {
 		default:
 			return;
 		case '|':
 			p.nextc();
-			nstart, nend := p.Concatenation();
+			nstart, nend := p.concatenation();
 			alt := new(_Alt);
-			p.re.Add(alt);
+			p.re.add(alt);
 			alt.left = start;
-			alt.next = nstart;
+			alt.setNext(nstart);
 			nop := new(_Nop);
-			p.re.Add(nop);
-			end.SetNext(nop);
-			nend.SetNext(nop);
+			p.re.add(nop);
+			end.setNext(nop);
+			nend.setNext(nop);
 			start, end = alt, nop;
 		}
 	}
@@ -517,80 +519,75 @@ func (p *parser) Regexp() (start, end instr) {
 }
 
 func unNop(i instr) instr {
-	for i.Type() == _NOP {
-		i = i.Next()
+	for i.kind() == _NOP {
+		i = i.next()
 	}
 	return i
 }
 
-func (re *_RE) EliminateNops() {
+func (re *Regexp) eliminateNops() {
 	for i := 0; i < re.inst.Len(); i++ {
 		inst := re.inst.At(i).(instr);
-		if inst.Type() == _END {
+		if inst.kind() == _END {
 			continue
 		}
-		inst.SetNext(unNop(inst.Next()));
-		if inst.Type() == _ALT {
+		inst.setNext(unNop(inst.next()));
+		if inst.kind() == _ALT {
 			alt := inst.(*_Alt);
 			alt.left = unNop(alt.left);
 		}
 	}
 }
 
-func (re *_RE) Dump() {
+func (re *Regexp) dump() {
 	for i := 0; i < re.inst.Len(); i++ {
 		inst := re.inst.At(i).(instr);
-		print(inst.Index(), ": ");
-		inst.Print();
-		if inst.Type() != _END {
-			print(" -> ", inst.Next().Index())
+		print(inst.index(), ": ");
+		inst.print();
+		if inst.kind() != _END {
+			print(" -> ", inst.next().index())
 		}
 		print("\n");
 	}
 }
 
-func (re *_RE) DoParse() {
+func (re *Regexp) doParse() {
 	p := newParser(re);
 	start := new(_Start);
-	re.Add(start);
-	s, e := p.Regexp();
-	start.next = s;
+	re.add(start);
+	s, e := p.regexp();
+	start.setNext(s);
 	re.start = start;
-	e.SetNext(re.Add(new(_End)));
+	e.setNext(re.add(new(_End)));
 
 	if debug {
-		re.Dump();
+		re.dump();
 		println();
 	}
 
-	re.EliminateNops();
+	re.eliminateNops();
 
 	if debug {
-		re.Dump();
+		re.dump();
 		println();
 	}
 }
 
 
-func compiler(str string, ch chan *_RE) {
-	re := new(_RE);
+func compiler(str string, ch chan *Regexp) {
+	re := new(Regexp);
 	re.expr = str;
 	re.inst = array.New(0);
 	re.ch = ch;
-	re.DoParse();
+	re.doParse();
 	ch <- re;
 }
 
-// Public interface has only execute functionality
-type Regexp interface {
-	Execute(s string) []int;
-	Match(s string) bool;
-	MatchStrings(s string) []string;
-}
-
-// Compile in separate goroutine; wait for result
-func Compile(str string) (regexp Regexp, error *os.Error) {
-	ch := make(chan *_RE);
+// Compile parses a regular expression and returns, if successful, a Regexp
+// object that can be used to match against text.
+func Compile(str string) (regexp *Regexp, error *os.Error) {
+	// Compile in a separate goroutine and wait for the result.
+	ch := make(chan *Regexp);
 	go compiler(str, ch);
 	re := <-ch;
 	return re, re.error
@@ -604,13 +601,13 @@ type state struct {
 // Append new state to to-do list.  Leftmost-longest wins so avoid
 // adding a state that's already active.
 func addState(s []state, inst instr, match []int) []state {
-	index := inst.Index();
+	index := inst.index();
 	l := len(s);
 	pos := match[0];
 	// TODO: Once the state is a vector and we can do insert, have inputs always
 	// go in order correctly and this "earlier" test is never necessary,
 	for i := 0; i < l; i++ {
-		if s[i].inst.Index() == index && // same instruction
+		if s[i].inst.index() == index && // same instruction
 		   s[i].match[0] < pos {	// earlier match already going; lefmost wins
 		   	return s
 		 }
@@ -628,7 +625,7 @@ func addState(s []state, inst instr, match []int) []state {
 	return s;
 }
 
-func (re *_RE) DoExecute(str string, pos int) []int {
+func (re *Regexp) doExecute(str string, pos int) []int {
 	var s [2][]state;	// TODO: use a vector when state values (not ptrs) can be vector elements
 	s[0] = make([]state, 10)[0:0];
 	s[1] = make([]state, 10)[0:0];
@@ -643,7 +640,7 @@ func (re *_RE) DoExecute(str string, pos int) []int {
 				match[i] = -1;	// no match seen; catches cases like "a(b)?c" on "ac"
 			}
 			match[0]  = pos;
-			s[out] = addState(s[out], re.start.Next(), match);
+			s[out] = addState(s[out], re.start.next(), match);
 		}
 		in, out = out, in;	// old out state is new in state
 		s[out] = s[out][0:0];	// clear out state
@@ -658,35 +655,35 @@ func (re *_RE) DoExecute(str string, pos int) []int {
 		}
 		for i := 0; i < len(s[in]); i++ {
 			st := s[in][i];
-			switch s[in][i].inst.Type() {
+			switch s[in][i].inst.kind() {
 			case _BOT:
 				if pos == 0 {
-					s[in] = addState(s[in], st.inst.Next(), st.match)
+					s[in] = addState(s[in], st.inst.next(), st.match)
 				}
 			case _EOT:
 				if pos == len(str) {
-					s[in] = addState(s[in], st.inst.Next(), st.match)
+					s[in] = addState(s[in], st.inst.next(), st.match)
 				}
 			case _CHAR:
 				if c == st.inst.(*_Char).char {
-					s[out] = addState(s[out], st.inst.Next(), st.match)
+					s[out] = addState(s[out], st.inst.next(), st.match)
 				}
 			case _CHARCLASS:
-				if st.inst.(*_CharClass).Matches(c) {
-					s[out] = addState(s[out], st.inst.Next(), st.match)
+				if st.inst.(*_CharClass).matches(c) {
+					s[out] = addState(s[out], st.inst.next(), st.match)
 				}
 			case _ANY:
 				if c != endOfFile {
-					s[out] = addState(s[out], st.inst.Next(), st.match)
+					s[out] = addState(s[out], st.inst.next(), st.match)
 				}
 			case _BRA:
 				n := st.inst.(*_Bra).n;
 				st.match[2*n] = pos;
-				s[in] = addState(s[in], st.inst.Next(), st.match);
+				s[in] = addState(s[in], st.inst.next(), st.match);
 			case _EBRA:
 				n := st.inst.(*_Ebra).n;
 				st.match[2*n+1] = pos;
-				s[in] = addState(s[in], st.inst.Next(), st.match);
+				s[in] = addState(s[in], st.inst.next(), st.match);
 			case _ALT:
 				s[in] = addState(s[in], st.inst.(*_Alt).left, st.match);
 				// give other branch a copy of this match vector
@@ -694,7 +691,7 @@ func (re *_RE) DoExecute(str string, pos int) []int {
 				for i := 0; i < len(s1); i++ {
 					s1[i] = st.match[i]
 				}
-				s[in] = addState(s[in], st.inst.Next(), s1);
+				s[in] = addState(s[in], st.inst.next(), s1);
 			case _END:
 				// choose leftmost longest
 				if !found ||	// first
@@ -705,7 +702,7 @@ func (re *_RE) DoExecute(str string, pos int) []int {
 				}
 				found = true;
 			default:
-				st.inst.Print();
+				st.inst.print();
 				panic("unknown instruction in execute");
 			}
 		}
@@ -715,30 +712,50 @@ func (re *_RE) DoExecute(str string, pos int) []int {
 }
 
 
-func (re *_RE) Execute(s string) []int {
-	return re.DoExecute(s, 0)
+// Execute matches the Regexp against the string s.
+// The return value is an array of integers, in pairs, identifying the positions of
+// substrings matched by the expression.
+//    s[a[0]:a[1]] is the substring matched by the entire expression.
+//    s[a[2*i]:a[2*i+1]] for i > 0 is the substring matched by the ith parenthesized subexpression.
+// A value of -1 means the subexpression did not match any element of the string.
+// An empty array means "no match".
+// (Regexp is an internal type that implements the Regexp interface.)
+func (re *Regexp) Execute(s string) (a []int) {
+	return re.doExecute(s, 0)
 }
 
 
-func (re *_RE) Match(s string) bool {
-	return len(re.DoExecute(s, 0)) > 0
+// Match returns whether the Regexp matches the string s.
+// The return value is a boolean: true for match, false for no match.
+// (Regexp is an internal type that implements the Regexp interface.)
+func (re *Regexp) Match(s string) bool {
+	return len(re.doExecute(s, 0)) > 0
 }
 
 
-func (re *_RE) MatchStrings(s string) []string {
-	r := re.DoExecute(s, 0);
+// MatchStrings matches the Regexp against the string s.
+// The return value is an array of strings matched by the expression.
+//    a[0] is the substring matched by the entire expression.
+//    a[i] for i > 0 is the substring matched by the ith parenthesized subexpression.
+// An empty array means ``no match''.
+// (Regexp is an internal type that implements the Regexp interface.)
+func (re *Regexp) MatchStrings(s string) (a []string) {
+	r := re.doExecute(s, 0);
 	if r == nil {
 		return nil
 	}
-	a := make([]string, len(r)/2);
+	a = make([]string, len(r)/2);
 	for i := 0; i < len(r); i += 2 {
-		a[i/2] = s[r[i] : r[i+1]]
+		if r[i] != -1 {	// -1 means no match for this subexpression
+			a[i/2] = s[r[i] : r[i+1]]
+		}
 	}
-	return a
+	return
 }
 
-// Exported function for simple boolean check.  Anything more fancy
-// needs a call to Compile.
+// Match checks whether a textual regular expression
+// matches a substring.  More complicated queries need
+// to use Compile and the full Regexp interface.
 func Match(pattern string, s string) (matched bool, error *os.Error) {
 	re, err := Compile(pattern);
 	if err != nil {
