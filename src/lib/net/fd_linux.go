@@ -17,15 +17,15 @@ const (
 	writeFlags = syscall.EPOLLOUT
 )
 
-type Pollster struct {
+type pollster struct {
 	epfd int64;
 
 	// Events we're already waiting for
 	events map[int64] uint32;
 }
 
-func NewPollster() (p *Pollster, err *os.Error) {
-	p = new(Pollster);
+func newpollster() (p *pollster, err *os.Error) {
+	p = new(pollster);
 	var e int64;
 
 	// The arg to epoll_create is a hint to the kernel
@@ -38,7 +38,7 @@ func NewPollster() (p *Pollster, err *os.Error) {
 	return p, nil
 }
 
-func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+func (p *pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 	var ev syscall.EpollEvent;
 	var already bool;
 	ev.Fd = int32(fd);
@@ -65,7 +65,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 	return nil
 }
 
-func (p *Pollster) StopWaiting(fd int64, bits uint) {
+func (p *pollster) StopWaiting(fd int64, bits uint) {
 	events, already := p.events[fd];
 	if !already {
 		print("Epoll unexpected fd=", fd, "\n");
@@ -98,7 +98,7 @@ func (p *Pollster) StopWaiting(fd int64, bits uint) {
 	}
 }
 
-func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+func (p *pollster) WaitFD() (fd int64, mode int, err *os.Error) {
 	// Get an event.
 	var evarray [1]syscall.EpollEvent;
 	ev := &evarray[0];
@@ -130,7 +130,7 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
 	return fd, 'r', nil
 }
 
-func (p *Pollster) Close() *os.Error {
+func (p *pollster) Close() *os.Error {
 	r, e := syscall.Close(p.epfd);
 	return os.ErrnoToError(e)
 }

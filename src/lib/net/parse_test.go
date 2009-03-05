@@ -21,7 +21,8 @@ func TestReadLine(t *testing.T) {
 	br := bufio.NewBufRead(fd);
 
 	// TODO(rsc): 6g rejects "file :="
-	var file = open(filename);
+	var file *file;
+	file, err = open(filename);
 	if file == nil {
 		t.Fatalf("net.open(%s) = nil", filename);
 	}

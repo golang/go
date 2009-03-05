@@ -13,7 +13,7 @@ import (
 	"strconv";
 )
 
-type DNS_Config struct {
+type _DNS_Config struct {
 	servers []string;	// servers to use
 	search []string;	// suffixes to append to local name
 	ndots int;		// number of dots in name to trigger absolute lookup
@@ -22,24 +22,27 @@ type DNS_Config struct {
 	rotate bool;	// round robin among servers
 }
 
+var _DNS_configError *os.Error;
+
 // See resolv.conf(5) on a Linux machine.
 // TODO(rsc): Supposed to call uname() and chop the beginning
 // of the host name to get the default search domain.
 // We assume it's in resolv.conf anyway.
-func DNS_ReadConfig() *DNS_Config {
+func _DNS_ReadConfig() (*_DNS_Config, *os.Error) {
 	// TODO(rsc): 6g won't let me use "file :="
-	var file = open("/etc/resolv.conf");
-	if file == nil {
-		return nil
+	var file *file;
+	var err *os.Error;
+	file, err = open("/etc/resolv.conf");
+	if err != nil {
+		return nil, err
 	}
-	conf := new(DNS_Config);
+	conf := new(_DNS_Config);
 	conf.servers = make([]string, 3)[0:0];		// small, but the standard limit
 	conf.search = make([]string, 0);
 	conf.ndots = 1;
 	conf.timeout = 1;
 	conf.attempts = 1;
 	conf.rotate = false;
-	var err *os.Error;
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		f := getFields(line);
 		if len(f) < 1 {
@@ -105,6 +108,6 @@ func DNS_ReadConfig() *DNS_Config {
 	}
 	file.close();
 
-	return conf
+	return conf, nil
 }
 

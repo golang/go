@@ -51,9 +51,9 @@ var porttests = []portTest {
 func TestLookupPort(t *testing.T) {
 	for i := 0; i < len(porttests); i++ {
 		tt := porttests[i];
-		if port, ok := LookupPort(tt.netw, tt.name); port != tt.port || ok != tt.ok {
-			t.Errorf("LookupPort(%q, %q) = %v, %v; want %v, %v",
-				tt.netw, tt.name, port, ok, tt.port, tt.ok);
+		if port, err := LookupPort(tt.netw, tt.name); port != tt.port || (err == nil) != tt.ok {
+			t.Errorf("LookupPort(%q, %q) = %v, %s; want %v",
+				tt.netw, tt.name, port, err, tt.port);
 		}
 	}
 }

@@ -55,12 +55,12 @@ func (f *file) readLine() (s string, ok bool) {
 	return
 }
 
-func open(name string) *file {
+func open(name string) (*file, *os.Error) {
 	fd, err := os.Open(name, os.O_RDONLY, 0);
 	if err != nil {
-		return nil
+		return nil, err;
 	}
-	return &file{fd, make([]byte, 1024)[0:0]};
+	return &file{fd, make([]byte, 1024)[0:0]}, nil;
 }
 
 func byteIndex(s string, c byte) int {
