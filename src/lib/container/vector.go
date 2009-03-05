@@ -2,14 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The vector package implements an efficient container for managing
+// linear arrays of elements.  Unlike arrays, vectors can change size dynamically.
 package vector
 
-type (
-	Element interface {};
-	Vector struct {
-		a []Element
-	}
-)
+// Element is an empty-interface object representing the contents of
+// a cell in the vector.
+type Element interface {}
+
+
+// Vector is the container itself.
+type Vector struct {
+	a []Element
+}
 
 
 func copy(dst, src []Element) {
@@ -48,6 +53,9 @@ func expand(a []Element, i, n int) []Element {
 }
 
 
+// Init initializes a new or resized vector.  The initial_len may be <= 0 to
+// request a default length.  If initial_len is shorter than the current
+// length of the Vector, trailing elements of the Vector will be cleared.
 func (p *Vector) Init(initial_len int) *Vector {
 	a := p.a;
 
@@ -69,37 +77,46 @@ func (p *Vector) Init(initial_len int) *Vector {
 }
 
 
+// New returns an initialized new Vector with length at least len.
 func New(len int) *Vector {
 	return new(Vector).Init(len)
 }
 
 
+// Len returns the number of elements in the vector.
 func (p *Vector) Len() int {
 	return len(p.a)
 }
 
 
+// At returns the i'th element of the vector.
 func (p *Vector) At(i int) Element {
 	return p.a[i]
 }
 
 
+// Set sets the i'th element of the vector to value x.
 func (p *Vector) Set(i int, x Element) {
 	p.a[i] = x
 }
 
 
+// Last returns the element in the vector of highest index.
 func (p *Vector) Last() Element {
 	return p.a[len(p.a) - 1]
 }
 
 
+// Insert inserts into the vector an element of value x before
+// the current element at index i.
 func (p *Vector) Insert(i int, x Element) {
 	p.a = expand(p.a, i, 1);
 	p.a[i] = x;
 }
 
 
+// Delete deletes the i'th element of the vector.  The gap is closed so the old
+// element at index i+1 has index i afterwards.
 func (p *Vector) Delete(i int) Element {
 	a := p.a;
 	n := len(a);
@@ -113,12 +130,15 @@ func (p *Vector) Delete(i int) Element {
 }
 
 
+// InsertVector inserts into the vector the contents of the Vector
+// x such that the 0th element of x appears at index i after insertion.
 func (p *Vector) InsertVector(i int, x *Vector) {
 	p.a = expand(p.a, i, len(x.a));
 	copy(p.a[i : i + len(x.a)], x.a);
 }
 
 
+// Cut deletes elements i through j-1, inclusive.
 func (p *Vector) Cut(i, j int) {
 	a := p.a;
 	n := len(a);
@@ -133,6 +153,8 @@ func (p *Vector) Cut(i, j int) {
 }
 
 
+// Slice returns a new Vector by slicing the old one to extract slice [i:j].
+// The elements are copied. The original vector is unchanged.
 func (p *Vector) Slice(i, j int) *Vector {
 	s := New(j - i);  // will fail in Init() if j < j
 	copy(s.a, p.a[i : j]);
@@ -140,6 +162,8 @@ func (p *Vector) Slice(i, j int) *Vector {
 }
 
 
+// Do calls function f for each element of the vector, in order.
+// The function should not change the indexing of the vector underfoot.
 func (p *Vector) Do(f func(elem Element)) {
 	for i := 0; i < len(p.a); i++ {
 		f(p.a[i])	// not too safe if f changes the Vector
@@ -149,16 +173,19 @@ func (p *Vector) Do(f func(elem Element)) {
 
 // Convenience wrappers
 
+// Push appends x to the end of the vector.
 func (p *Vector) Push(x Element) {
 	p.Insert(len(p.a), x)
 }
 
 
+// Push deletes the last element of the vector.
 func (p *Vector) Pop() Element {
 	return p.Delete(len(p.a) - 1)
 }
 
 
+// AppendVector appends the entire Vector x to the end of this vector.
 func (p *Vector) AppendVector(x *Vector) {
 	p.InsertVector(len(p.a), x);
 }
@@ -166,16 +193,19 @@ func (p *Vector) AppendVector(x *Vector) {
 
 // Partial SortInterface support
 
+// LessInterface provides partial support of the SortInterface.
 type LessInterface interface {
 	Less(y Element) bool
 }
 
 
+// Less returns a boolean denoting whether the i'th element is less than the j'th element.
 func (p *Vector) Less(i, j int) bool {
 	return p.a[i].(LessInterface).Less(p.a[j])
 }
 
 
+// Swap exchanges the elements at indexes i and j.
 func (p *Vector) Swap(i, j int) {
 	a := p.a;
 	a[i], a[j] = a[j], a[i]
