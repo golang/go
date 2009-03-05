@@ -31,16 +31,18 @@ import (
 var debug = false;
 
 // Error codes returned by failures to parse an expression.
-var ErrInternal = os.NewError("internal error");
-var ErrUnmatchedLpar = os.NewError("unmatched '('");
-var ErrUnmatchedRpar = os.NewError("unmatched ')'");
-var ErrUnmatchedLbkt = os.NewError("unmatched '['");
-var ErrUnmatchedRbkt = os.NewError("unmatched ']'");
-var ErrBadRange = os.NewError("bad range in character class");
-var ErrExtraneousBackslash = os.NewError("extraneous backslash");
-var ErrBadClosure = os.NewError("repeated closure (**, ++, etc.)");
-var ErrBareClosure = os.NewError("closure applies to nothing");
-var ErrBadBackslash = os.NewError("illegal backslash escape");
+var (
+	ErrInternal = os.NewError("internal error");
+	ErrUnmatchedLpar = os.NewError("unmatched '('");
+	ErrUnmatchedRpar = os.NewError("unmatched ')'");
+	ErrUnmatchedLbkt = os.NewError("unmatched '['");
+	ErrUnmatchedRbkt = os.NewError("unmatched ']'");
+	ErrBadRange = os.NewError("bad range in character class");
+	ErrExtraneousBackslash = os.NewError("extraneous backslash");
+	ErrBadClosure = os.NewError("repeated closure (**, ++, etc.)");
+	ErrBareClosure = os.NewError("closure applies to nothing");
+	ErrBadBackslash = os.NewError("illegal backslash escape");
+)
 
 // An instruction executed by the NFA
 type instr interface {
