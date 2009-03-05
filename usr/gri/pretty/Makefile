@@ -32,7 +32,7 @@ gds.6:	 utils.6 platform.6 compilation.6 printer.6
 
 pretty.6:	 platform.6 printer.6 compilation.6
 
-compilation.6:	 builder.6 platform.6 parser.6 ast.6 typechecker.6
+compilation.6:	 platform.6 parser.6 ast.6 typechecker.6
 
 typechecker.6:	 ast.6
 
@@ -40,7 +40,7 @@ ast.6:	 symboltable.6
 
 symboltable.6:	
 
-parser.6:	ast.6 builder.6 symboltable.6
+parser.6:	ast.6 symboltable.6
 
 platform.6:	 utils.6
 
