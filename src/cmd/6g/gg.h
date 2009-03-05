@@ -64,15 +64,6 @@ struct Sig
 	Sig*	link;
 };
 
-typedef	struct	Case Case;
-struct	Case
-{
-	Prog*	sprog;
-	Node*	scase;
-	Case*	slink;
-};
-#define	C	((Case*)0)
-
 typedef	struct	Pool Pool;
 struct	Pool
 {
@@ -143,8 +134,6 @@ EXTERN	int	sizeof_Array;	// runtime sizeof(Array)
 void	compile(Node*);
 void	proglist(void);
 void	gen(Node*, Label*);
-void	swgen(Node*);
-void	selgen(Node*);
 Node*	lookdot(Node*, Node*, int);
 void	inarggen(void);
 void	cgen_as(Node*, Node*);

@@ -21,6 +21,7 @@ OFILES=\
 	dcl.$O\
 	export.$O\
 	walk.$O\
+	swt.$O\
 	const.$O\
 	mparith1.$O\
 	mparith2.$O\

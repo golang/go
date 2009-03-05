@@ -4,9 +4,6 @@
 
 #include	"go.h"
 
-static	Type*	sw1(Node*, Type*);
-static	Type*	sw2(Node*, Type*);
-static	Type*	sw3(Node*, Type*);
 static	Node*	curfn;
 
 enum
@@ -318,26 +315,7 @@ loop:
 		if(top != Etop)
 			goto nottop;
 
-		casebody(n->nbody);
-		if(n->ntest == N)
-			n->ntest = booltrue;
-		walkstate(n->ninit);
-		walktype(n->ntest, Erv);
-		walkstate(n->nbody);
-
-		// find common type
-		if(n->ntest->type == T)
-			n->ntest->type = walkswitch(n, sw1);
-
-		// if that fails pick a type
-		if(n->ntest->type == T)
-			n->ntest->type = walkswitch(n, sw2);
-
-		// set the type on all literals
-		if(n->ntest->type != T)
-			walkswitch(n, sw3);
-		walktype(n->ntest, Erv);	// BOTCH is this right
-		walktype(n->nincr, Erv);
+		walkswitch(n);
 		goto ret;
 
 	case OSELECT:
@@ -577,7 +555,6 @@ loop:
 	case OCASE:
 		if(top != Etop)
 			goto nottop;
-		walktype(n->left, Erv);
 		walkstate(n->right);
 		goto ret;
 
@@ -1251,122 +1228,9 @@ walkconv(Node *n)
 bad:
 	if(l->type != T)
 		yyerror("invalid conversion: %T to %T", l->type, t);
-	else if(n->left->op == OLIST)
+	else
+	if(n->left->op == OLIST)
 		yyerror("invalid type for composite literal: %T", t);
-}
-
-
-/*
- * return the first type
- */
-Type*
-sw1(Node *c, Type *place)
-{
-	if(place == T)
-		return c->type;
-	return place;
-}
-
-/*
- * return a suitable type
- */
-Type*
-sw2(Node *c, Type *place)
-{
-	return types[TINT];	// botch
-}
-
-/*
- * check that switch type
- * is compat with all the cases
- */
-Type*
-sw3(Node *c, Type *place)
-{
-	if(place == T)
-		return c->type;
-	if(c->type == T)
-		c->type = place;
-	convlit(c, place);
-	if(!ascompat(place, c->type))
-		badtype(OSWITCH, place, c->type);
-	return place;
-}
-
-Type*
-walkswitch(Node *sw, Type*(*call)(Node*, Type*))
-{
-	Node *n, *c;
-	Type *place;
-	place = call(sw->ntest, T);
-
-	setlineno(sw);
-
-	n = sw->nbody;
-	if(n->op == OLIST)
-		n = n->left;
-	if(n->op == OEMPTY)
-		return T;
-
-	for(; n!=N; n=n->right) {
-		if(n->op != OCASE)
-			fatal("walkswitch: not case %O\n", n->op);
-		for(c=n->left; c!=N; c=c->right) {
-			if(c->op != OLIST) {
-				setlineno(c);
-				place = call(c, place);
-				break;
-			}
-			setlineno(c);
-			place = call(c->left, place);
-		}
-	}
-	return place;
-}
-
-int
-casebody(Node *n)
-{
-	Node *oc, *ot, *t;
-	Iter save;
-
-	/*
-	 * look to see if statements at top level have
-	 * case labels attached to them. convert the illegal
-	 * ops XFALL and XCASE into legal ops FALL and CASE.
-	 * all unconverted ops will thus be caught as illegal
-	 */
-
-	oc = N;		// last case statement
-	ot = N;		// last statement (look for XFALL)
-	t = listfirst(&save, &n);
-
-loop:
-	if(t == N) {
-		/* empty switch */
-		if(oc == N)
-			return 0;
-		return 1;
-	}
-	if(t->op == OXCASE) {
-		/* rewrite and link top level cases */
-		t->op = OCASE;
-		if(oc != N)
-			oc->right = t;
-		oc = t;
-
-		/* rewrite top fall that preceed case */
-		if(ot != N && ot->op == OXFALL)
-			ot->op = OFALL;
-	}
-
-	/* if first statement is not case */
-	if(oc == N)
-		return 0;
-
-	ot = t;
-	t = listnext(&save);
-	goto loop;
 }
 
 Node*
@@ -1477,21 +1341,58 @@ out:
 	return r;
 }
 
+/*
+ * enumerate the special cases
+ * of the case statement:
+ *	case v := <-chan		// select and switch
+ *	case v := map[]			// switch
+ *	case v := interface.(TYPE)	// switch
+ */
 Node*
 selectas(Node *name, Node *expr)
 {
 	Node *a;
 	Type *t;
 
-	if(expr == N || expr->op != ORECV)
+	if(expr == N)
 		goto bad;
-	walktype(expr->left, Erv);
-	t = expr->left->type;
-	if(t == T)
+	switch(expr->op) {
+	default:
+//dump("case", expr);
 		goto bad;
-	if(t->etype != TCHAN)
-		goto bad;
-	a = old2new(name, t->type);
+
+	case ORECV:
+		walktype(expr->left, Erv);
+		t = expr->left->type;
+		if(t == T)
+			goto bad;
+		if(t->etype != TCHAN)
+			goto bad;
+		t = t->type;
+		break;
+
+	case OINDEX:
+		walktype(expr->left, Erv);
+		walktype(expr->right, Erv);
+		t = expr->left->type;
+		if(t == T)
+			goto bad;
+		if(t->etype != TMAP)
+			goto bad;
+		t = t->type;
+		break;
+
+	case ODOTTYPE:
+		walktype(expr->left, Erv);
+		t = expr->left->type;
+		if(t == T)
+			goto bad;
+		if(t->etype != TINTER)
+			goto bad;
+		t = expr->type;
+		break;
+	}
+	a = old2new(name, t);
 	return a;
 
 bad:
@@ -1523,7 +1424,7 @@ walkselect(Node *sel)
 	oc = N;		// last case
 	def = N;	// default case
 
-	for(count=0; n!=N; n=listnext(&iter)) {
+	for(; n!=N; n=listnext(&iter)) {
 		setlineno(n);
 
 		switch(n->op) {
