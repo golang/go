@@ -9,12 +9,12 @@ package scanner
 //
 // Sample use:
 //
-//  import "token"
-//  import "scanner"
+//	import "token"
+//	import "scanner"
 //
 //	func tokenize(src []byte) {
 //		var s scanner.Scanner;
-//		s.Init(src, nil, false);
+//		s.Init(src, nil /* no error handler */, false /* ignore comments */);
 //		for {
 //			pos, tok, lit := s.Scan();
 //			if tok == Scanner.EOF {
@@ -31,41 +31,44 @@ import (
 	"token";
 )
 
+
+// An implementation of an ErrorHandler must be provided to the Scanner.
+// If a syntax error is encountered, Error() is called with the exact
+// token position (the byte position of the token in the source) and the
+// error message.
+
 type ErrorHandler interface {
 	Error(pos int, msg string);
 }
 
 
 type Scanner struct {
-	// setup
+	// immutable state
 	src []byte;  // source
-	err ErrorHandler;
-	scan_comments bool;
+	err ErrorHandler;  // error reporting
+	scan_comments bool;  // if set, comments are reported as tokens
 
-	// scanning
+	// scanning state
 	pos int;  // current reading position
 	ch int;  // one char look-ahead
 	chpos int;  // position of ch
 }
 
 
-func is_letter(ch int) bool {
+func isLetter(ch int) bool {
 	return
-		'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' ||  // common case
-		ch == '_' || unicode.IsLetter(ch);
+		'a' <= ch && ch <= 'z' ||
+		'A' <= ch && ch <= 'Z' ||
+		ch == '_' ||
+		ch >= 0x80 && unicode.IsLetter(ch);
 }
 
 
-func digit_val(ch int) int {
-	// TODO spec permits other Unicode digits as well
-	if '0' <= ch && ch <= '9' {
-		return ch - '0';
-	}
-	if 'a' <= ch && ch <= 'f' {
-		return ch - 'a' + 10;
-	}
-	if 'A' <= ch && ch <= 'F' {
-		return ch - 'A' + 10;
+func digitVal(ch int) int {
+	switch {
+	case '0' <= ch && ch <= '9': return ch - '0';
+	case 'a' <= ch && ch <= 'f': return ch - 'a' + 10;
+	case 'A' <= ch && ch <= 'F': return ch - 'A' + 10;
 	}
 	return 16;  // larger than any legal digit val
 }
@@ -75,10 +78,10 @@ func digit_val(ch int) int {
 // S.ch < 0 means end-of-file.
 func (S *Scanner) next() {
 	if S.pos < len(S.src) {
-		// assume ascii
+		// assume ASCII
 		r, w := int(S.src[S.pos]), 1;
 		if r >= 0x80 {
-			// not ascii
+			// not ASCII
 			r, w = utf8.DecodeRune(S.src[S.pos : len(S.src)]);
 		}
 		S.ch = r;
@@ -132,7 +135,7 @@ func (S *Scanner) expect(ch int) {
 	if S.ch != ch {
 		S.error(S.chpos, "expected " + charString(ch) + ", found " + charString(S.ch));
 	}
-	S.next();  // make always progress
+	S.next();  // always make progress
 }
 
 
@@ -166,7 +169,7 @@ func (S *Scanner) scanComment() []byte {
 				// '\n' terminates comment but we do not include
 				// it in the comment (otherwise we don't see the
 				// start of a newline in skipWhitespace()).
-				goto exit;
+				return S.src[pos : S.chpos];
 			}
 		}
 
@@ -178,21 +181,19 @@ func (S *Scanner) scanComment() []byte {
 			S.next();
 			if ch == '*' && S.ch == '/' {
 				S.next();
-				goto exit;
+				return S.src[pos : S.chpos];
 			}
 		}
 	}
 
 	S.error(pos, "comment not terminated");
-
-exit:
 	return S.src[pos : S.chpos];
 }
 
 
 func (S *Scanner) scanIdentifier() (tok int, lit []byte) {
 	pos := S.chpos;
-	for is_letter(S.ch) || digit_val(S.ch) < 10 {
+	for isLetter(S.ch) || digitVal(S.ch) < 10 {
 		S.next();
 	}
 	lit = S.src[pos : S.chpos];
@@ -201,7 +202,7 @@ func (S *Scanner) scanIdentifier() (tok int, lit []byte) {
 
 
 func (S *Scanner) scanMantissa(base int) {
-	for digit_val(S.ch) < base {
+	for digitVal(S.ch) < base {
 		S.next();
 	}
 }
@@ -228,7 +229,7 @@ func (S *Scanner) scanNumber(seen_decimal_point bool) (tok int, lit []byte) {
 		} else {
 			// octal int or float
 			S.scanMantissa(8);
-			if digit_val(S.ch) < 10 || S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
+			if digitVal(S.ch) < 10 || S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
 				// float
 				tok = token.FLOAT;
 				goto mantissa;
@@ -266,7 +267,7 @@ exit:
 
 
 func (S *Scanner) scanDigits(n int, base int) {
-	for digit_val(S.ch) < base {
+	for digitVal(S.ch) < base {
 		S.next();
 		n--;
 	}
@@ -351,7 +352,13 @@ func (S *Scanner) scanRawString() []byte {
 }
 
 
-func (S *Scanner) select2(tok0, tok1 int) int {
+// Helper functions for scanning multi-byte tokens such as >> += >>= .
+// Different routines recognize different length tok_i based on matches
+// of ch_i. If a token ends in '=', the result is tok1 or tok3
+// respectively. Otherwise, the result is tok0 if there was no other
+// matching character, or tok2 if the matching character was ch2.
+
+func (S *Scanner) switch2(tok0, tok1 int) int {
 	if S.ch == '=' {
 		S.next();
 		return tok1;
@@ -360,7 +367,7 @@ func (S *Scanner) select2(tok0, tok1 int) int {
 }
 
 
-func (S *Scanner) select3(tok0, tok1, ch2, tok2 int) int {
+func (S *Scanner) switch3(tok0, tok1, ch2, tok2 int) int {
 	if S.ch == '=' {
 		S.next();
 		return tok1;
@@ -373,7 +380,7 @@ func (S *Scanner) select3(tok0, tok1, ch2, tok2 int) int {
 }
 
 
-func (S *Scanner) select4(tok0, tok1, ch2, tok2, tok3 int) int {
+func (S *Scanner) switch4(tok0, tok1, ch2, tok2, tok3 int) int {
 	if S.ch == '=' {
 		S.next();
 		return tok1;
@@ -392,28 +399,30 @@ func (S *Scanner) select4(tok0, tok1, ch2, tok2, tok3 int) int {
 
 // Scans the next token. Returns the token byte position in the source,
 // its token value, and the corresponding literal text if the token is
-// an identifier or basic type literals (token.IsLiteral(tok) == true).
+// an identifier or basic type literal (token.IsLiteral(tok) == true).
 
 func (S *Scanner) Scan() (pos, tok int, lit []byte) {
-loop:
+scan_again:
 	S.skipWhitespace();
 
 	pos, tok = S.chpos, token.ILLEGAL;
 
 	switch ch := S.ch; {
-	case is_letter(ch): tok, lit = S.scanIdentifier();
-	case digit_val(ch) < 10: tok, lit = S.scanNumber(false);
+	case isLetter(ch):
+		tok, lit = S.scanIdentifier();
+	case digitVal(ch) < 10:
+		tok, lit = S.scanNumber(false);
 	default:
 		S.next();  // always make progress
 		switch ch {
-		case -1: tok = token.EOF;
+		case -1  : tok = token.EOF;
 		case '\n': tok, lit = token.COMMENT, []byte{'\n'};
-		case '"': tok, lit = token.STRING, S.scanString();
+		case '"' : tok, lit = token.STRING, S.scanString();
 		case '\'': tok, lit = token.CHAR, S.scanChar();
-		case '`': tok, lit = token.STRING, S.scanRawString();
-		case ':': tok = S.select2(token.COLON, token.DEFINE);
-		case '.':
-			if digit_val(S.ch) < 10 {
+		case '`' : tok, lit = token.STRING, S.scanRawString();
+		case ':' : tok = S.switch2(token.COLON, token.DEFINE);
+		case '.' :
+			if digitVal(S.ch) < 10 {
 				tok, lit = S.scanNumber(true);
 			} else if S.ch == '.' {
 				S.next();
@@ -432,34 +441,33 @@ loop:
 		case ']': tok = token.RBRACK;
 		case '{': tok = token.LBRACE;
 		case '}': tok = token.RBRACE;
-		case '+': tok = S.select3(token.ADD, token.ADD_ASSIGN, '+', token.INC);
-		case '-': tok = S.select3(token.SUB, token.SUB_ASSIGN, '-', token.DEC);
-		case '*': tok = S.select2(token.MUL, token.MUL_ASSIGN);
+		case '+': tok = S.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC);
+		case '-': tok = S.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC);
+		case '*': tok = S.switch2(token.MUL, token.MUL_ASSIGN);
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
 				tok, lit = token.COMMENT, S.scanComment();
 				if !S.scan_comments {
-					goto loop;
+					goto scan_again;
 				}
 			} else {
-				tok = S.select2(token.QUO, token.QUO_ASSIGN);
+				tok = S.switch2(token.QUO, token.QUO_ASSIGN);
 			}
-		case '%': tok = S.select2(token.REM, token.REM_ASSIGN);
-		case '^': tok = S.select2(token.XOR, token.XOR_ASSIGN);
+		case '%': tok = S.switch2(token.REM, token.REM_ASSIGN);
+		case '^': tok = S.switch2(token.XOR, token.XOR_ASSIGN);
 		case '<':
 			if S.ch == '-' {
 				S.next();
 				tok = token.ARROW;
 			} else {
-				tok = S.select4(token.LSS, token.LEQ, '<', token.SHL, token.SHL_ASSIGN);
+				tok = S.switch4(token.LSS, token.LEQ, '<', token.SHL, token.SHL_ASSIGN);
 			}
-		case '>': tok = S.select4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
-		case '=': tok = S.select2(token.ASSIGN, token.EQL);
-		case '!': tok = S.select2(token.NOT, token.NEQ);
-		case '&': tok = S.select3(token.AND, token.AND_ASSIGN, '&', token.LAND);
-		case '|': tok = S.select3(token.OR, token.OR_ASSIGN, '|', token.LOR);
-		default:
-			S.error(pos, "illegal character " + charString(ch));
+		case '>': tok = S.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
+		case '=': tok = S.switch2(token.ASSIGN, token.EQL);
+		case '!': tok = S.switch2(token.NOT, token.NEQ);
+		case '&': tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
+		case '|': tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
+		default: S.error(pos, "illegal character " + charString(ch));
 		}
 	}
 
