@@ -70,6 +70,13 @@ import "math"
 // compiler will convert from decimal to binary accurately enough
 // to produce the hexadecimal values shown.
 
+// Log returns the natural logarithm of x.
+//
+// Special cases are:
+//	Log(+Inf) = +Inf
+//	Log(0) = -Inf
+//	Log(x < 0) = NaN
+//	Log(NaN) = NaN
 func Log(x float64) float64 {
 	const (
 		Ln2Hi = 6.93147180369123816490e-01;	/* 3fe62e42 fee00000 */
@@ -113,11 +120,12 @@ func Log(x float64) float64 {
 	return k*Ln2Hi - ((hfsq-(s*(hfsq+R)+k*Ln2Lo)) - f);
 }
 
-func Log10(arg float64) float64 {
-	if arg <= 0 {
+// Log10 returns the decimal logarthm of x.
+// The special cases are the same as for Log.
+func Log10(x float64) float64 {
+	if x <= 0 {
 		return NaN();
 	}
-	return Log(arg) * (1/Ln10);
+	return Log(x) * (1/Ln10);
 }
-
 

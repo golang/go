@@ -13,29 +13,35 @@ import "math"
  *	calls frexp
  */
 
-func Sqrt(arg float64) float64 {
-	if IsInf(arg, 1) {
-		return arg;
+// Sqrt returns the square root of x.
+//
+// Special cases are:
+//	Sqrt(+Inf) = +Inf
+//	Sqrt(0) = 0
+//	Sqrt(x < 0) = NaN
+func Sqrt(x float64) float64 {
+	if IsInf(x, 1) {
+		return x;
 	}
 
-	if arg <= 0 {
-		if arg < 0 {
+	if x <= 0 {
+		if x < 0 {
 			return NaN();
 		}
 		return 0;
 	}
 
-	x,exp := Frexp(arg);
-	for x < 0.5 {
-		x = x*2;
+	y, exp := Frexp(x);
+	for y < 0.5 {
+		y = y*2;
 		exp = exp-1;
 	}
 
 	if exp&1 != 0 {
-		x = x*2;
+		y = y*2;
 		exp = exp-1;
 	}
-	temp := 0.5 * (1+x);
+	temp := 0.5 * (1+y);
 
 	for exp > 60 {
 		temp = temp * float64(1<<30);
@@ -54,7 +60,7 @@ func Sqrt(arg float64) float64 {
 	}
 
 	for i:=0; i<=4; i++ {
-		temp = 0.5*(temp + arg/temp);
+		temp = 0.5*(temp + x/temp);
 	}
 	return temp;
 }

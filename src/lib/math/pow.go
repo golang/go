@@ -6,7 +6,7 @@ package math
 
 import "math"
 
-// x^y: exponentiation
+// Pow returns x**y, the base-x exponential of y.
 func Pow(x, y float64) float64 {
 	// TODO: x or y NaN, ±Inf, maybe ±0.
 	switch {

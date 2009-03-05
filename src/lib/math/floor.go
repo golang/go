@@ -6,23 +6,20 @@ package math
 
 import "math"
 
-/*
- * floor and ceil-- greatest integer <= arg
- * (resp least >=)
- */
-
-func Floor(arg float64) float64 {
-	if arg < 0 {
-		d, fract := Modf(-arg);
+// Floor returns the greatest integer value less than or equal to x.
+func Floor(x float64) float64 {
+	if x < 0 {
+		d, fract := Modf(-x);
 		if fract != 0.0 {
 			d = d+1;
 		}
 		return -d;
 	}
-	d, fract := Modf(arg);
+	d, fract := Modf(x);
 	return d;
 }
 
-func Ceil(arg float64) float64 {
-	return -Floor(-arg);
+// Ceil returns the least integer value greater than or equal to x.
+func Ceil(x float64) float64 {
+	return -Floor(-x);
 }

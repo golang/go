@@ -10,7 +10,8 @@ import "math"
  *	floating point tangent
  */
 
-func Tan(arg float64) float64 {
+// Tan returns the tangent of x.
+func Tan(x float64) float64 {
 	// Coefficients are #4285 from Hart & Cheney. (19.74D)
 	const
 	(
@@ -26,7 +27,6 @@ func Tan(arg float64) float64 {
 
 	flag := false;
 	sign := false;
-	x := arg;
 	if(x < 0) {
 		x = -x;
 		sign = true;

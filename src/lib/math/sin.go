@@ -6,7 +6,7 @@ package math
 
 import "math"
 
-func sinus(arg float64, quad int) float64 {
+func sinus(x float64, quad int) float64 {
 	// Coefficients are #3370 from Hart & Cheney (18.80D).
 	const
 	(
@@ -20,7 +20,6 @@ func sinus(arg float64, quad int) float64 {
 		Q2	=  .9463096101538208180571257e4;
 		Q3	=  .1326534908786136358911494e3;
 	)
-	x := arg;
 	if(x < 0) {
 		x = -x;
 		quad = quad+2;
@@ -52,13 +51,15 @@ func sinus(arg float64, quad int) float64 {
 	return temp1/temp2;
 }
 
-func Cos(arg float64) float64 {
-	if arg < 0 {
-		arg = -arg;
+// Cos returns the cosine of x.
+func Cos(x float64) float64 {
+	if x < 0 {
+		x = -x;
 	}
-	return sinus(arg, 1);
+	return sinus(x, 1);
 }
 
-func Sin(arg float64) float64 {
-	return sinus(arg, 0);
+// Sin returns the sine of x.
+func Sin(x float64) float64 {
+	return sinus(x, 0);
 }

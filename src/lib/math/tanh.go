@@ -7,23 +7,24 @@ package math
 import "math"
 
 /*
- *	tanh(arg) computes the hyperbolic tangent of its floating
+ *	tanh(x) computes the hyperbolic tangent of its floating
  *	point argument.
  *
  *	sinh and cosh are called except for large arguments, which
  *	would cause overflow improperly.
  */
 
-func Tanh(arg float64) float64 {
-	if arg < 0 {
-		arg = -arg;
-		if arg > 21 {
+// Tanh computes the hyperbolic tangent of x.
+func Tanh(x float64) float64 {
+	if x < 0 {
+		x = -x;
+		if x > 21 {
 			return -1;
 		}
-		return -Sinh(arg)/Cosh(arg);
+		return -Sinh(x)/Cosh(x);
 	}
-	if arg > 21 {
+	if x > 21 {
 		return 1;
 	}
-	return Sinh(arg)/Cosh(arg);
+	return Sinh(x)/Cosh(x);
 }

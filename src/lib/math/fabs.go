@@ -4,10 +4,11 @@
 
 package math
 
-func Fabs(arg float64) float64 {
-	if arg < 0 {
-		return -arg;
+// Fabs returns the absolute value of x.
+func Fabs(x float64) float64 {
+	if x < 0 {
+		return -x;
 	}
-	return arg;
+	return x;
 }
 
