@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The exec package runs external commands.
 package exec
 
 import (
@@ -9,13 +10,19 @@ import (
 	"syscall";
 )
 
+// Arguments to Run.
 const (
 	DevNull = iota;
-	Passthru;
+	PassThrough;
 	Pipe;
 	MergeWithStdout;
 )
 
+// A Cmd represents a running command.
+// Stdin, Stdout, and Stderr are file descriptors to pipes
+// connected to the running command's standard input, output, and error,
+// or else nil, depending on the arguments to Run.
+// Pid is the running command's operating system process ID.
 type Cmd struct {
 	Stdin *os.FD;
 	Stdout *os.FD;
@@ -34,7 +41,7 @@ func modeToFDs(mode, fd int) (*os.FD, *os.FD, *os.Error) {
 		}
 		f, err := os.Open("/dev/null", rw, 0);
 		return f, nil, err;
-	case Passthru:
+	case PassThrough:
 		switch fd {
 		case 0:
 			return os.Stdin, nil, nil;
@@ -56,12 +63,22 @@ func modeToFDs(mode, fd int) (*os.FD, *os.FD, *os.Error) {
 	return nil, nil, os.EINVAL;
 }
 
-// Start command running with pipes possibly
-// connected to stdin, stdout, stderr.
-// TODO(rsc): Should the stdin,stdout,stderr args
-// be [3]int instead?
-func OpenCmd(argv0 string, argv, envv []string, stdin, stdout, stderr int)
-	(p *Cmd, err *os.Error)
+// Run starts the binary prog running with
+// arguments argv and environment envv.
+// It returns a pointer to a new Cmd representing
+// the command or an error.
+//
+// The parameters stdin, stdout, and stderr
+// specify how to handle standard input, output, and error.
+// The choices are DevNull (connect to /dev/null),
+// PassThrough (connect to the current process's standard stream),
+// Pipe (connect to an operating system pipe), and
+// MergeWithStdout (only for standard error; use the same
+// file descriptor as was used for standard output).
+// If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
+// of the returned Cmd is the other end of the pipe.
+// Otherwise the field in Cmd is nil.
+func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err *os.Error)
 {
 	p = new(Cmd);
 	var fd [3]*os.FD;
@@ -116,6 +133,12 @@ Error:
 	return nil, err;
 }
 
+// Wait waits for the running command p,
+// returning the Waitmsg returned by os.Wait and an error.
+// The options are passed through to os.Wait.
+// Setting options to 0 waits for p to exit;
+// other options cause Wait to return for other
+// process events; see package os for details.
 func (p *Cmd) Wait(options uint64) (*os.Waitmsg, *os.Error) {
 	if p.Pid < 0 {
 		return nil, os.EINVAL;
@@ -127,6 +150,9 @@ func (p *Cmd) Wait(options uint64) (*os.Waitmsg, *os.Error) {
 	return w, err;
 }
 
+// Close waits for the running command p to exit,
+// if it hasn't already, and then closes the non-nil file descriptors
+// p.Stdin, p.Stdout, and p.Stderr.
 func (p *Cmd) Close() *os.Error {
 	if p.Pid >= 0 {
 		// Loop on interrupt, but
