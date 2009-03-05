@@ -23,9 +23,9 @@
 package regexp
 
 import (
-	"array";
 	"os";
 	"utf8";
+	"vector";
 )
 
 var debug = false;
@@ -69,7 +69,7 @@ type Regexp struct {
 	expr	string;	// the original expression
 	ch	chan<- *Regexp;	// reply channel when we're done
 	error	*os.Error;	// compile- or run-time error; nil if OK
-	inst	*array.Array;
+	inst	*vector.Vector;
 	start	instr;
 	nbra	int;	// number of brackets in expression, for subexpressions
 }
@@ -142,8 +142,8 @@ type _CharClass struct {
 	common;
 	char	int;
 	negate	bool;	// is character class negated? ([^a-z])
-	// array of int, stored pairwise: [a-z] is (a,z); x is (x,x):
-	ranges	*array.IntArray;
+	// vector of int, stored pairwise: [a-z] is (a,z); x is (x,x):
+	ranges	*vector.IntVector;
 }
 
 func (cclass *_CharClass) kind() int { return _CHARCLASS }
@@ -183,7 +183,7 @@ func (cclass *_CharClass) matches(c int) bool {
 
 func newCharClass() *_CharClass {
 	c := new(_CharClass);
-	c.ranges = array.NewIntArray(0);
+	c.ranges = vector.NewIntVector(0);
 	return c;
 }
 
@@ -576,7 +576,7 @@ func (re *Regexp) doParse() {
 func compiler(str string, ch chan *Regexp) {
 	re := new(Regexp);
 	re.expr = str;
-	re.inst = array.New(0);
+	re.inst = vector.New(0);
 	re.ch = ch;
 	re.doParse();
 	ch <- re;
