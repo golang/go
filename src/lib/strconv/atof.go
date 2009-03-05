@@ -8,6 +8,8 @@
 //   2) Multiply/divide decimal by powers of two until in range [0.5, 1)
 //   3) Multiply by 2^precision and round to get mantissa.
 
+// The strconv package implements conversions to and from
+// string representations of basic data types.
 package strconv
 
 import (
@@ -308,35 +310,17 @@ func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
 	return;
 }
 
-// Convert string s to floating-point number.
+// Atof32 converts the string s to a 32-bit floating-point number.
 //
 // If s is well-formed and near a valid floating point number,
-// returns f, false, true, where f is the nearest floating point
-// number rounded using IEEE754 unbiased rounding.
+// Atof32 returns the nearest floating point number rounded
+// using IEEE754 unbiased rounding.
 //
-// If s is not syntactically well-formed, returns err = os.EINVAL.
+// If s is not syntactically well-formed, Atof32 returns err = os.EINVAL.
 //
 // If s is syntactically well-formed but is more than 1/2 ULP
 // away from the largest floating point number of the given size,
-// returns f = ±Inf, err = os.ERANGE.
-func Atof64(s string) (f float64, err *os.Error) {
-	neg, d, trunc, ok := stringToDecimal(s);
-	if !ok {
-		return 0, os.EINVAL;
-	}
-	if optimize {
-		if f, ok := decimalAtof64(neg, d, trunc); ok {
-			return f, nil;
-		}
-	}
-	b, ovf := decimalToFloatBits(neg, d, trunc, &float64info);
-	f = math.Float64frombits(b);
-	if ovf {
-		err = os.ERANGE;
-	}
-	return f, err
-}
-
+// Atof32 returns f = ±Inf, err = os.ERANGE.
 func Atof32(s string) (f float32, err *os.Error) {
 	neg, d, trunc, ok := stringToDecimal(s);
 	if !ok {
@@ -355,6 +339,28 @@ func Atof32(s string) (f float32, err *os.Error) {
 	return f, err
 }
 
+// Atof64 converts the string s to a 64-bit floating-point number.
+// Except for the type of its result, its definition is the same as that
+// of Atof32.
+func Atof64(s string) (f float64, err *os.Error) {
+	neg, d, trunc, ok := stringToDecimal(s);
+	if !ok {
+		return 0, os.EINVAL;
+	}
+	if optimize {
+		if f, ok := decimalAtof64(neg, d, trunc); ok {
+			return f, nil;
+		}
+	}
+	b, ovf := decimalToFloatBits(neg, d, trunc, &float64info);
+	f = math.Float64frombits(b);
+	if ovf {
+		err = os.ERANGE;
+	}
+	return f, err
+}
+
+// Atof is like Atof32 or Atof64, depending on the size of float.
 func Atof(s string) (f float, err *os.Error) {
 	if FloatSize == 32 {
 		f1, err1 := Atof32(s);

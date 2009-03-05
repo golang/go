@@ -10,6 +10,10 @@ import (
 
 const lowerhex = "0123456789abcdef"
 
+// Quote returns a double-quoted Go string literal
+// representing s.  The returned string s uses Go escape
+// sequences (\t, \n, \xFF, \u0100) for control characters
+// and non-ASCII characters.
 func Quote(s string) string {
 	t := `"`;
 	for i := 0; i < len(s); i++ {
@@ -67,6 +71,8 @@ func Quote(s string) string {
 	return t;
 }
 
+// CanBackquote returns whether the string s would be
+// a valid Go string literal if enclosed in backquotes.
 func CanBackquote(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] < ' ' || s[i] == '`' {

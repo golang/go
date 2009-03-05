@@ -41,16 +41,39 @@ func floatsize() int {
 	}
 	return 64;
 }
+
+// Floatsize gives the size of the float type, either 32 or 64.
 var FloatSize = floatsize()
 
+// Ftoa32 converts the 32-bit floating-point number f to a string,
+// according to the format fmt and precision prec.
+//
+// The format fmt is one of
+// 'b' (-ddddp±ddd, a binary exponent),
+// 'e' (-d.dddde±dd, a decimal exponent),
+// 'f' (-ddd.dddd, no exponent), or
+// 'g' ('e' for large exponents, 'f' otherwise).
+//
+// The precision prec controls the number of digits
+// (excluding the exponent) printed by the 'e', 'f', and 'g' formats.
+// For 'e' and 'f' it is the number of digits after the decimal point.
+// For 'g' it is the total number of digits.
+// The special precision -1 uses the smallest number of digits
+// necessary such that Atof32 will return f exactly.
+//
+// Ftoa32(f) is not the same as Ftoa64(float32(f)),
+// because correct rounding and the number of digits
+// needed to identify f depend on the precision of the representation.
 func Ftoa32(f float32, fmt byte, prec int) string {
 	return genericFtoa(uint64(math.Float32bits(f)), fmt, prec, &float32info);
 }
 
+// Ftoa64 is like Ftoa32 but converts a 64-bit floating-point number.
 func Ftoa64(f float64, fmt byte, prec int) string {
 	return genericFtoa(math.Float64bits(f), fmt, prec, &float64info);
 }
 
+// Ftoa behaves as Ftoa32 or Ftoa64, depending on the size of the float type.
 func Ftoa(f float, fmt byte, prec int) string {
 	if FloatSize == 32 {
 		return Ftoa32(float32(f), fmt, prec);
