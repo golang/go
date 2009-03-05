@@ -4,6 +4,7 @@
 
 package strconv
 
+// Itob64 returns the string representation of i in the given base.
 func Itob64(i int64, base uint) string {
 	if i == 0 {
 		return "0"
@@ -32,17 +33,17 @@ func Itob64(i int64, base uint) string {
 	return string(buf[j:len(buf)])
 }
 
-
+// Itoa64 returns the decimal string representation of i.
 func Itoa64(i int64) string {
 	return Itob64(i, 10);
 }
 
-
+// Itob returns the string representation of i in the given base.
 func Itob(i int, base uint) string {
 	return Itob64(int64(i), base);
 }
 
-
+// Itoa returns the decimal string representation of i.
 func Itoa(i int) string {
 	return Itob64(int64(i), 10);
 }
