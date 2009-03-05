@@ -2252,8 +2252,8 @@ s[1] == 3
 <p>
 The slice length must be non-negative.
 For arrays or strings, the indexes
-<li>lo</li> and <li>hi</li> must satisfy
-0 &lt;= <li>lo</li> &lt;= <li>hi</li> &lt;= length;
+<code>lo</code> and <code>hi</code> must satisfy
+0 &lt;= <code>lo</code> &lt;= <code>hi</code> &lt;= length;
 for slices, the upper bound is the capacity rather than the length.
 <p>
 If the sliced operand is a string, the result of the slice operation is another, new
@@ -3785,7 +3785,7 @@ m := make(map[string] int, 100);  # map with initial space for 100 elements
 <p>
 Go programs are constructed by linking together <i>packages</i>.
 A package is in turn constructed from one or more source files that
-together provide an interface to a set of types, constants, functions,
+together provide access to a set of types, constants, functions,
 and variables.  Those elements may be <i>imported</i> and used in
 another package.
 </p>
@@ -4071,6 +4071,10 @@ invoking <code>main.main()</code>.
 </p>
 <p>
 When <code>main.main()</code> returns, the program exits.
+</p>
+<p>
+Implementation restriction: The compiler assumes package <code>main</code>
+is created by a single source file and that it is not imported by any other package.
 </p>
 
 <hr/>
