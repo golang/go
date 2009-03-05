@@ -6,7 +6,7 @@ Biggest open issues:
 [ ] Conversions:
 	- current situation is messy
 	- 2 (3?) different notations for the same thing
-	- unclear when a type guard is needed
+	- unclear when a type assertion is needed
 	- unclear where conversions can be applied
 	- for type T int; can we say T(3.0) ?
 	- do we need channel conversion (channel direction)
@@ -46,11 +46,11 @@ Wish list:
 
 
 Smaller issues:
-[ ] need for type switch? (or use type guard with ok in tuple assignment?)
+[ ] need for type switch? (or use type assertion with ok in tuple assignment?)
 [ ] Is . import implemented / do we still need it?
 [ ] Do we allow empty statements? If so, do we allow empty statements after a label?
     and if so, does a label followed by an empty statement (a semicolon) still denote
-	a for loop that is following, and can break L be used inside it?	
+	a for loop that is following, and can break L be used inside it?
 
 
 Closed:
@@ -573,10 +573,10 @@ types, the dynamic type is always the static type.
 <h3>Basic types</h3>
 
 <p>
-Basic types include traditional arithmetic types, booleans, and strings. All are predeclared.
+Basic types include traditional numeric types, booleans, and strings. All are predeclared.
 </p>
 
-<h3>Arithmetic types</h3>
+<h3>Numeric types</h3>
 
 <p>
 The architecture-independent numeric types are:
@@ -624,7 +624,7 @@ To avoid portability issues all numeric types are distinct except
 Conversions
 are required when different numeric types are mixed in an expression
 or assignment. For instance, <code>int32</code> and <code>int</code>
-are not the same type even though they may have the same size on a 
+are not the same type even though they may have the same size on a
 particular architecture.
 
 
@@ -723,7 +723,7 @@ distinct arrays always represent distinct storage.
 </p>
 <p>
 The array underlying a slice may extend past the end of the slice.
-The <i>capacity</i> is a measure of that extent: it is the sum of 
+The <i>capacity</i> is a measure of that extent: it is the sum of
 the length of the slice and the length of the array beyond the slice;
 a slice of length up to that capacity can be created by `slicing' a new
 one from the original slice (§Slices).
@@ -755,7 +755,7 @@ and parameters specifying the length and optionally the capacity:
 make([]T, length)
 make([]T, length, capacity)
 </pre>
-	
+
 <p>
 The <code>make()</code> call allocates a new, hidden array to which the returned
 slice value refers. That is, calling <code>make</code>
@@ -820,7 +820,7 @@ struct {
 	*T2;       // the field name is T2
 	P.T3;      // the field name is T3
 	*P.T4;     // the field name is T4
-	x, y int;  
+	x, y int;
 }
 </pre>
 
@@ -1332,7 +1332,7 @@ Every identifier in a program must be declared.
 <pre class="grammar">
 Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl .
 </pre>
-		
+
 <p>
 The <i>scope</i> of an identifier is the extent of source text within which the
 identifier denotes the bound entity. No identifier may be declared twice in a
@@ -1362,14 +1362,14 @@ The scope of an identifier depends on the entity declared:
 <ol>
 	<li> The scope of predeclared identifiers is the universe scope.</li>
 
-	<li> The scope of an (identifier denoting a) type, function or package
+	<li> The scope of an identifier denoting a type, function or package
 	     extends from the point of the identifier in the declaration
 	     to the end of the innermost surrounding block.</li>
 
 	<li> The scope of a constant or variable extends textually from
-	     the end of the declaration to the end of the innermost
+	     the end of its declaration to the end of the innermost
 	     surrounding block. If the variable is declared in the
-	     <i>init</i> statement of an <code>if </code>,  <code>for</code>,
+	     <i>init</i> statement of an <code>if</code>,  <code>for</code>,
 	     or  <code>switch </code> statement, the
 	     innermost surrounding block is the block associated
 	     with that statement.</li>
@@ -1380,7 +1380,7 @@ The scope of an identifier depends on the entity declared:
 	<li> The scope of a field or method is selectors for the
 	     corresponding type containing the field or method (§Selectors).</li>
 
-	<li> The scope of a label is a unique scope emcompassing
+	<li> The scope of a label is a special scope emcompassing
 	     the body of the innermost surrounding function, excluding
 	     nested functions.  Labels do not conflict with non-label identifiers.</li>
 </ol>
@@ -1392,7 +1392,8 @@ The following identifiers are implicitly declared in the outermost scope:
 </p>
 <pre class="grammar">
 Basic types:
-	bool byte float32 float64 int8 int16 int32 int64 string uint8 uint16 uint32 uint64
+	bool byte float32 float64 int8 int16 int32 int64
+	string uint8 uint16 uint32 uint64
 
 Architecture-specific convenience types:
 	float int uint uintptr
@@ -1401,12 +1402,12 @@ Constants:
 	true false iota nil
 
 Functions:
-	cap convert len make new panic panicln print println typeof (TODO: typeof??)
+	cap len make new panic panicln print println
+	(TODO: typeof??)
 
 Packages:
-	sys unsafe  (TODO: does sys endure?)
+	sys (TODO: does sys endure?)
 </pre>
-
 
 <h3>Exported identifiers</h3>
 
@@ -1471,10 +1472,12 @@ const u, v float = 0, 3      // u = 0.0, v = 3.0
 Within a parenthesized <code>const</code> declaration list the
 expression list may be omitted from any but the first declaration.
 Such an empty list is equivalent to the textual substitution of the
-first preceding non-empty expression list.  Omitting the list of
-expressions is therefore equivalent to repeating the previous list.
-The number of identifiers must be equal to the number of expressions
-in the previous list.  Together with the <code>iota</code> constant generator
+first preceding non-empty expression list.
+(TODO: Substitute type from that declaration too?)
+Omitting the list of expressions is therefore equivalent to
+repeating the previous list.  The number of identifiers must be equal
+to the number of expressions in the previous list.
+Together with the <code>iota</code> constant generator
 (§Iota) this mechanism permits light-weight declaration of sequential values:
 </p>
 
@@ -1659,7 +1662,7 @@ variables will be assigned the corresponding values.
 </p>
 
 <pre>
-count, error := os.Close(fd);  // os.Close()  returns two values
+r, w := os.Pipe(fd);  // os.Pipe() returns two values
 </pre>
 
 <p>
@@ -1785,7 +1788,8 @@ type List struct {
 <p>
 A forward-declared type is incomplete (§Types)
 until it is fully declared. The full declaration must follow
-before the end of the block containing the forward declaration.
+before the end of the block containing the forward declaration;
+it cannot be contained in an inner block.
 </p>
 <p>
 Functions and methods may similarly be forward-declared by omitting their body.
@@ -1826,12 +1830,12 @@ StringLit  = string_lit { string_lit } .
 <h3>Constants</h3>
 
 <p>
-An operand is called <i>constant</i> if it is a literal of a basic type
-(including the predeclared constants <code>true</code> and <code>false</code>,
-and values denoted by <code>iota</code>),
-the predeclared constant <code>nil</code>, or a parenthesized
-constant expression (§Constant expressions). Constants have values that
-are known at compile time.
+A <i>constant</i> is a literal of a basic type
+(including the predeclared constants <code>true</code>, <code>false</code>
+and <code>nil</code>
+and values denoted by <code>iota</code>)
+or a constant expression (§Constant expressions).
+Constants have values that are known at compile time.
 </p>
 
 <h3>Qualified identifiers</h3>
@@ -1841,7 +1845,7 @@ A qualified identifier is an identifier qualified by a package name prefix.
 </p>
 
 <pre class="grammar">
-QualifiedIdent = [ LocalPackageName "." ] [ PackageName "." ] identifier .
+QualifiedIdent = [ [ LocalPackageName "." ] PackageName "." ] identifier .
 LocalPackageName = identifier .
 PackageName = identifier .
 </pre>
@@ -1862,6 +1866,9 @@ Math.Sin
 mypackage.hiddenName
 mypackage.Math.Sin  // if Math is declared in an intervening scope
 </pre>
+
+TODO: 6g does not implement LocalPackageName.  Is this new?
+Is it needed?
 
 <h3>Composite literals</h3>
 
@@ -1969,7 +1976,7 @@ It consists of a specification of the function type and a function body.
 
 <pre class="grammar">
 FunctionLit   = "func" Signature Block .
-Block         = "{" [ StatementList ] "}" .
+Block         = "{" StatementList "}" .
 </pre>
 
 <pre>
@@ -1994,21 +2001,21 @@ as they are accessible.
 
 
 <h3>Primary expressions</h3>
-	
+
 <pre class="grammar">
 PrimaryExpr =
 	Operand |
 	PrimaryExpr Selector |
 	PrimaryExpr Index |
 	PrimaryExpr Slice |
-	PrimaryExpr TypeGuard |
+	PrimaryExpr TypeAssertion |
 	PrimaryExpr Call .
 
-Selector   = "." identifier .
-Index      = "[" Expression "]" .
-Slice      = "[" Expression ":" Expression "]" .
-TypeGuard  = "." "(" Type ")" .
-Call       = "(" [ ExpressionList ] ")" .
+Selector       = "." identifier .
+Index          = "[" Expression "]" .
+Slice          = "[" Expression ":" Expression "]" .
+TypeAssertion  = "." "(" Type ")" .
+Call           = "(" [ ExpressionList ] ")" .
 </pre>
 
 
@@ -2171,7 +2178,7 @@ For <code>a</code> of type <code>M</code> or <code>*M</code>
 where <code>M</code> is a map type (§Map types):
 </p>
 <ul>
-	<li><code>x</code> must be of the same type as the key type of <code>M</code>
+	<li><code>x</code>'s type must be equal to the key type of <code>M</code>
 	  and the map must contain an entry with key <code>x</code> (but see special forms below)
 	<li><code>a[x]</code> is the map value with key <code>x</code>
 	  and the type of <code>a[x]</code> is the value type of <code>M</code>
@@ -2234,7 +2241,7 @@ s := a[1:3];
 </pre>
 
 <p>
-the slice <code>s</code> has type <code>[]int</code>, length 2, and elements
+the slice <code>s</code> has type <code>[]int</code>, length 2, capacity 3, and elements
 </p>
 
 <pre>
@@ -2244,10 +2251,10 @@ s[1] == 3
 
 <p>
 The slice length must be non-negative.
-For arrays or strings,
-the index values in the slice must be in bounds for the original
-array or string;
-for slices, the index values must be between 0 and the capacity of the slice.
+For arrays or strings, the indexes
+<li>lo</li> and <li>hi</li> must satisfy
+0 &lt;= <li>lo</li> &lt;= <li>hi</li> &lt;= length;
+for slices, the upper bound is the capacity rather than the length.
 <p>
 If the sliced operand is a string, the result of the slice operation is another, new
 string (§String types). If the sliced operand is an array or slice, the result
@@ -2255,7 +2262,7 @@ of the slice operation is a slice (§Slice types).
 </p>
 
 
-<h3>Type guards</h3>
+<h3>Type assertions</h3>
 
 <p>
 For an expression <code>x</code> and a type <code>T</code>, the primary expression
@@ -2267,27 +2274,26 @@ x.(T)
 
 <p>
 asserts that the value stored in <code>x</code> is of type <code>T</code>.
-The notation <code>.(T)</code> is called a <i>type guard</i>, and <code>x.(T)</code> is called
-a <i>guarded expression</i>. The type of <code>x</code> must be an interface type.
+The notation <code>x.(T)</code> is called a <i>type assertion</i>.
+The type of <code>x</code> must be an interface type.
 </p>
 <p>
-More precisely, if <code>T</code> is not an interface type, the type guard asserts
+More precisely, if <code>T</code> is not an interface type, <code>x.(T)</code> asserts
 that the dynamic type of <code>x</code> is identical to the type <code>T</code>
 (§Type equality and identity).
-If <code>T</code> is an interface type, the type guard asserts that the dynamic type
+If <code>T</code> is an interface type, <code>x.(T)</code> asserts that the dynamic type
 of <code>T</code> implements the interface <code>T</code> (§Interface types).
-The type guard is said to succeed if the assertion holds.
 <font color=red>TODO: gri wants an error if x is already of type T.</font>
 </p>
 <p>
-If the type guard succeeds, the value of the guarded expression is the value
-stored in <code>x</code> and its type is <code>T</code>. If the type guard fails, a run-time
+If the type assertion holds, the value of the expression is the value
+stored in <code>x</code> and its type is <code>T</code>. If the type assertion is false, a run-time
 exception occurs. In other words, even though the dynamic type of <code>x</code>
-is known only at run-time, the type of the guarded expression <code>x.(T)</code> is
+is known only at run-time, the type of <code>x.(T)</code> is
 known to be <code>T</code> in a correct program.
 </p>
 <p>
-If a guarded expression is used in an assignment of one of the special forms,
+If a type assertion is used in an assignment of one of the special forms,
 </p>
 
 <pre>
@@ -2296,12 +2302,12 @@ v, ok := x.(T)
 </pre>
 
 <p>
-the result of the guarded expression is a pair of values with types <code>(T, bool)</code>.
-If the type guard succeeds, the expression returns the pair <code>(x.(T), true)</code>;
+the result of the assertion is a pair of values with types <code>(T, bool)</code>.
+If the assertion holds, the expression returns the pair <code>(x.(T), true)</code>;
 otherwise, the expression returns <code>(Z, false)</code> where <code>Z</code>
 is the zero value for type <code>T</code> (§The zero value).
 No run-time exception occurs in this case.
-The type guard in this construct thus acts like a function call
+The type assertion in this construct thus acts like a function call
 returning a value and a boolean indicating success.  (§Assignments)
 </p>
 
@@ -2402,7 +2408,7 @@ Operators combine operands into expressions.
 </p>
 
 <pre class="grammar">
-Expression = UnaryExpr | Expression binaryOp UnaryExpr .
+Expression = UnaryExpr | Expression binary_op UnaryExpr .
 UnaryExpr  = PrimaryExpr | unary_op UnaryExpr .
 
 binary_op  = log_op | com_op | rel_op | add_op | mul_op .
@@ -2431,7 +2437,7 @@ The operand types in binary operations must be equal, with the following excepti
 	  or an ideal number that can be safely converted into an unsigned integer type
 	  (§Arithmetic operators).</li>
 
-	<li>The operands in channel operations differ in type: one is always a channel and the
+	<li>The operands in channel sends differ in type: one is always a channel and the
 	other is a variable or value of the channel's element type.</li>
 
 	<li>When comparing two operands of channel type, the channel value types
@@ -2574,6 +2580,11 @@ follows:
 ^x    bitwise complement    is m ^ x  with m = "all bits set to 1"
 </pre>
 
+<p>
+For floating point numbers,
+<code>+x</code> is the same as <code>x</code>,
+while <code>-x</code> is the negation of <code>x</code>.
+</p>
 
 <h3>Integer overflow</h3>
 
@@ -2582,7 +2593,7 @@ For unsigned integer values, the operations <code>+</code>,
 <code>-</code>, <code>*</code>, and <code>&lt;&lt;</code> are
 computed modulo 2<sup><i>n</i></sup>, where <i>n</i> is the bit width of
 the unsigned integer's type
-(§Arithmetic types). Loosely speaking, these unsigned integer operations
+(§Numeric types). Loosely speaking, these unsigned integer operations
 discard high bits upon overflow, and programs may rely on ``wrap around''.
 </p>
 <p>
@@ -2845,7 +2856,9 @@ The type of a constant expression is determined by the type of its
 elements.  If it contains only numeric literals, its type is <i>ideal
 integer</i> or <i>ideal float</i> (§Ideal number).  Whether it is an
 integer or float depends on whether the value can be represented
-precisely as an integer (123 vs. 1.23).  The nature of the arithmetic
+precisely as an integer (123 vs. 1.23).
+(TODO: Not precisely true; 1. is an ideal float.)
+The nature of the arithmetic
 operations within the expression depends, elementwise, on the values;
 for example, 3/2 is an integer division yielding 1, while 3./2. is
 a floating point division yielding 1.5.  Thus
@@ -2925,7 +2938,7 @@ which may be omitted only if the previous statement:
 </ul>
 
 <p>
-A labeled statement may be the target of a <code>goto</code>, 
+A labeled statement may be the target of a <code>goto</code>,
 <code>break</code> or <code>continue</code> statement.
 </p>
 
@@ -2978,7 +2991,7 @@ must be a variable, pointer indirection, field selector or index expression.
 <pre class="grammar">
 IncDecStat = Expression ( "++" | "--" ) .
 </pre>
-	
+
 <p>
 The following assignment statements (§Assignments) are semantically
 equivalent:
@@ -3027,7 +3040,8 @@ A tuple assignment assigns the individual elements of a multi-valued
 operation to a list of variables.  There are two forms.  In the
 first, the right hand operand is a single multi-valued expression
 such as a function evaluation or channel or map operation (§Channel
-operations, §Map operations).  The number of operands on the left
+operations, §Map operations) or a type assertion (§Type assertions).
+The number of operands on the left
 hand side must match the number of values.  For instance, If
 <code>f</code> is a function returning two values,
 </p>
@@ -3042,9 +3056,10 @@ assigns the first value to <code>x</code> and the second to <code>y</code>.
 
 <p>
 In the second form, the number of operands on the left must equal the number
-of expressions on the right, each of which must be single-valued. The
-expressions are assigned to temporaries and then the temporaries
-are assigned to the variables.
+of expressions on the right, each of which must be single-valued.
+The expressions on the right are evaluated before assigning to
+any of the operands on the left, but otherwise the evaluation
+order is unspecified.
 </p>
 
 <pre>
@@ -3078,12 +3093,12 @@ if x > 0 {
 }
 </pre>
 
-<code>
-An "if" statement may include a short variable declaration before the expression
-(§Short variable declarations).
-The scope of the declared variables extends to the end of the "if" statement
+<p>
+An "if" statement may include a simple statement before the expression.
+The scope of any variables declared by that statement
+extends to the end of the "if" statement
 and the variables are initialized once before the statement is entered.
-</code>
+</p>
 
 <pre>
 if x := f(); x < y {
@@ -3108,7 +3123,7 @@ A missing expression is equivalent to <code>true</code>.
 
 <pre class="grammar">
 SwitchStat   = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
-CaseClause   = SwitchCase ":" [ StatementList ] .
+CaseClause   = SwitchCase ":" StatementList .
 SwitchCase   = "case" ExpressionList | "default" .
 </pre>
 
@@ -3124,38 +3139,39 @@ There can be at most one default case and it may appear anywhere in the
 <p>
 In a case or default clause,
 the last statement only may be a "fallthrough" statement
-($Fallthrough statement) to
+(§Fallthrough statement) to
 indicate that control should flow from the end of this clause to
 the first statement of the next clause.
 Otherwise control flows to the end of the "switch" statement.
 </p>
 <p>
 Each case clause effectively acts as a block for scoping purposes
-($Declarations and scope rules).
+(§Declarations and scope rules).
 </p>
 <p>
-A "switch" statement may include a short variable declaration before the
+A "switch" statement may include a simple statement before the
 expression.
-The scope of the declared variables extends to the end of the "switch" statement
-and the variables are initialized once before the statement is entered. 
+The scope of any variables declared by that statement
+extends to the end of the "switch" statement
+and the variables are initialized once before the statement is entered.
 </p>
 
 <pre>
 switch tag {
-  default: s3()
-  case 0, 1, 2, 3: s1()
-  case 4, 5, 6, 7: s2()
+default: s3()
+case 0, 1, 2, 3: s1()
+case 4, 5, 6, 7: s2()
 }
 
 switch x := f(); {
-  case x &lt; 0: return -x
-  default: return x
+case x &lt; 0: return -x
+default: return x
 }
 
 switch {          // missing expression means "true"
-  case x < y: f1();
-  case x < z: f2();
-  case x == 4: f3();
+case x < y: f1();
+case x < z: f2();
+case x == 4: f3();
 }
 </pre>
 
@@ -3192,7 +3208,7 @@ and a <i>post</i> statement, such as an assignment,
 an increment or decrement statement. The init statement (but not the post
 statement) may also be a short variable declaration; the scope of the variables
 it declares ends at the end of the statement
-($Declarations and scope rules).
+(§Declarations and scope rules).
 </p>
 
 <pre class="grammar">
@@ -3206,7 +3222,7 @@ for i := 0; i < 10; i++ {
 	f(i)
 }
 </pre>
-	
+
 <p>
 If non-empty, the init statement is executed once before evaluating the
 condition for the first iteration;
@@ -3237,7 +3253,7 @@ RangeClause = IdentifierList ( "=" | ":=" ) "range" Expression .
 <p>
 The type of the right-hand expression in the "range" clause must be an array,
 slice or map, or a pointer to an array, slice or map.
-The slice or map must not be <code>nil</code>.
+The slice or map must not be <code>nil</code> (TODO: really?).
 The identifier list must contain one or two identifiers denoting the
 iteration variables. On each iteration,
 the first variable is set to the array or slice index or
@@ -3249,9 +3265,9 @@ must be assignment compatible to the iteration variables.
 </p>
 <p>
 The iteration variables may be declared by the "range" clause (":="), in which
-case their scope ends at the end of the "for" statement ($Declarations and
+case their scope ends at the end of the "for" statement (§Declarations and
 scope rules). In this case their types are set to
-the array index and element types, or the map key and value types, respectively.
+<code>int</code> and the array element type, or the map key and value types, respectively.
 If the iteration variables are declared outside the "for" statement,
 after execution their values will be those of the last iteration.
 </p>
@@ -3279,15 +3295,13 @@ for key, value = range m {
 <p>
 If map entries that have not yet been processed are deleted during iteration,
 they will not be processed. If map entries are inserted during iteration, the
-behavior is implementation-dependent. Likewise, if the range variable is
-assigned to during execution of the loop, the behavior is implementation-
-dependent.
+behavior is implementation-dependent, but each entry will be processed at most once.
 </p>
 
 <h3>Go statements</h3>
 
 <p>
-A "go" statement starts the execution of a function or method call 
+A "go" statement starts the execution of a function or method call
 as an independent concurrent thread of control, or <i>goroutine</i>,
 within the same address space.
 </p>
@@ -3318,7 +3332,7 @@ cases all referring to communication operations.
 
 <pre class="grammar">
 SelectStat = "select" "{" { CommClause } "}" .
-CommClause = CommCase ":" [ StatementList ] .
+CommClause = CommCase ":" StatementList .
 CommCase = "case" ( SendExpr | RecvExpr) | "default" .
 SendExpr =  Expression "&lt;-" Expression .
 RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
@@ -3412,7 +3426,8 @@ func procedure() {
 <p>
 There are two ways to return values from a function with a result
 type.  The first is to explicitly list the return value or values
-in the "return" statement.  The expressions
+in the "return" statement.
+Normally, the expressions
 must be single-valued and assignment-compatible to the elements of
 the result type of the function.
 </p>
@@ -3441,7 +3456,7 @@ func complex_f2() (re float, im float) {
 </pre>
 
 <p>
-Another method to return values is to use the elements of the
+The second way to return values is to use the elements of the
 result list of the function as variables.  When the function begins
 execution, these variables are initialized to the zero values for
 their type (§The zero value).  The function can assign them as
@@ -3456,6 +3471,10 @@ func complex_f3() (re float, im float) {
 	return;
 }
 </pre>
+
+<p>
+TODO: Define when return is required.
+</p>
 
 <h3>Break statements</h3>
 
@@ -3527,6 +3546,7 @@ L:
 <p>
 is erroneous because the jump to label <code>L</code> skips
 the creation of <code>v</code>.
+(TODO: Eliminate in favor of used and not set errors?)
 </p>
 
 <h3>Fallthrough statements</h3>
@@ -3534,7 +3554,7 @@ the creation of <code>v</code>.
 <p>
 A "fallthrough" statement transfers control to the first statement of the
 next case clause in a "switch" statement (§Switch statements). It may
-be used only as the lexically last statement in a case or default clause in a
+be used only as the final non-empty statement in a case or default clause in a
 "switch" statement.
 </p>
 
@@ -3778,7 +3798,7 @@ to which it belongs, followed by a possibly empty set of import
 declarations that declare packages whose contents it wishes to use,
 followed by a possibly empty set of declarations of functions,
 types, variables, and constants.  The source text following the
-package clause acts as a block for scoping ($Declarations and scope
+package clause acts as a block for scoping (§Declarations and scope
 rules).
 </p>
 
@@ -4113,7 +4133,7 @@ uintptr(unsafe.Pointer(&amp;x)) % uintptr(unsafe.Alignof(x)) == 0
 <p>
 The maximum alignment is given by the constant <code>Maxalign</code>.
 It usually corresponds to the value of <code>Sizeof(x)</code> for
-a variable <code>x</code> of the largest arithmetic type (8 for a
+a variable <code>x</code> of the largest numeric type (8 for a
 <code>float64</code>), but may
 be smaller on systems with weaker alignment restrictions.
 </p>
@@ -4125,7 +4145,7 @@ Calls to <code>Alignof</code>, <code>Offsetof</code>, and
 
 <h3>Size and alignment guarantees</h3>
 
-For the arithmetic types (§Arithmetic types), the following sizes are guaranteed:
+For the numeric types (§Numeric types), the following sizes are guaranteed:
 
 <pre class="grammar">
 type                      size in bytes
@@ -4142,7 +4162,7 @@ The following minimal alignment properties are guaranteed:
 <ol>
 <li>For a variable <code>x</code> of any type: <code>1 <= unsafe.Alignof(x) <= unsafe.Maxalign</code>.
 
-<li>For a variable <code>x</code> of arithmetic type: <code>unsafe.Alignof(x)</code> is the smaller
+<li>For a variable <code>x</code> of numeric type: <code>unsafe.Alignof(x)</code> is the smaller
    of <code>unsafe.Sizeof(x)</code> and <code>unsafe.Maxalign</code>, but at least 1.
 
 <li>For a variable <code>x</code> of struct type: <code>unsafe.Alignof(x)</code> is the largest of
@@ -4167,7 +4187,7 @@ cap() does not work on maps or chans.
 <br/>
 len() does not work on chans.
 <br/>
-Conversions work for any type; doc says only arithmetic types and strings.
+Conversions work for any type; doc says only numeric types and strings.
 </font>
 </p>
 
