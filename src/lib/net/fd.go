@@ -75,7 +75,7 @@ type pollServer struct {
 	cr, cw chan *netFD;	// buffered >= 1
 	pr, pw *os.FD;
 	pending map[int64] *netFD;
-	poll *Pollster;	// low-level OS hooks
+	poll *pollster;	// low-level OS hooks
 }
 func (s *pollServer) Run();
 
@@ -95,7 +95,7 @@ func newPollServer() (s *pollServer, err *os.Error) {
 	if err = setNonblock(s.pw.Fd()); err != nil {
 		goto Error
 	}
-	if s.poll, err = NewPollster(); err != nil {
+	if s.poll, err = newpollster(); err != nil {
 		goto Error
 	}
 	if err = s.poll.AddFD(s.pr.Fd(), 'r', true); err != nil {

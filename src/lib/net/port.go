@@ -14,12 +14,17 @@ import (
 	"strconv";
 )
 
+// The error returned by LookupPort when a network service
+// is not listed in the database.
+var ErrNoService = os.NewError("unknown network service");
+
 var services map[string] map[string] int
+var servicesError *os.Error
 
 func readServices() {
 	services = make(map[string] map[string] int);
-	// TODO(rsc): 6g won't let me do "file := "
-	var file = open("/etc/services");
+	var file *file;
+	file, servicesError = open("/etc/services");
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		// "http 80/tcp www www-http # World Wide Web HTTP"
 		if i := byteIndex(line, '#'); i >= 0 {
@@ -49,21 +54,24 @@ func readServices() {
 	file.close();
 }
 
-func LookupPort(netw, name string) (port int, ok bool) {
+// LookupPort looks up the port for the given network and service.
+func LookupPort(network, service string) (port int, err *os.Error) {
 	once.Do(readServices);
 
-	switch netw {
+	switch network {
 	case "tcp4", "tcp6":
-		netw = "tcp";
+		network = "tcp";
 	case "udp4", "udp6":
-		netw = "udp";
+		network = "udp";
 	}
 
-	m, mok := services[netw];
-	if !mok {
-		return
+	m, ok := services[network];
+	if !ok {
+		return 0, ErrNoService;
 	}
-	port, ok = m[name];
-	return
+	port, ok = m[service];
+	if !ok {
+		return 0, ErrNoService;
+	}
+	return port, nil;
 }
-

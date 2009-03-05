@@ -19,7 +19,7 @@
 // generic pack/unpack routines.
 //
 // TODO(rsc)  There are enough names defined in this file that they're all
-// prefixed with DNS_.  Perhaps put this in its own package later.
+// prefixed with _DNS_.  Perhaps put this in its own package later.
 
 package net
 
@@ -33,55 +33,55 @@ import (
 
 // Wire constants.
 const (
-	// valid DNS_RR_Header.rrtype and DNS_Question.qtype
-	DNS_TypeA = 1;
-	DNS_TypeNS = 2;
-	DNS_TypeMD = 3;
-	DNS_TypeMF = 4;
-	DNS_TypeCNAME = 5;
-	DNS_TypeSOA = 6;
-	DNS_TypeMB = 7;
-	DNS_TypeMG = 8;
-	DNS_TypeMR = 9;
-	DNS_TypeNULL = 10;
-	DNS_TypeWKS = 11;
-	DNS_TypePTR = 12;
-	DNS_TypeHINFO = 13;
-	DNS_TypeMINFO = 14;
-	DNS_TypeMX = 15;
-	DNS_TypeTXT = 16;
+	// valid _DNS_RR_Header.rrtype and _DNS_Question.qtype
+	_DNS_TypeA = 1;
+	_DNS_TypeNS = 2;
+	_DNS_TypeMD = 3;
+	_DNS_TypeMF = 4;
+	_DNS_TypeCNAME = 5;
+	_DNS_TypeSOA = 6;
+	_DNS_TypeMB = 7;
+	_DNS_TypeMG = 8;
+	_DNS_TypeMR = 9;
+	_DNS_TypeNULL = 10;
+	_DNS_TypeWKS = 11;
+	_DNS_TypePTR = 12;
+	_DNS_TypeHINFO = 13;
+	_DNS_TypeMINFO = 14;
+	_DNS_TypeMX = 15;
+	_DNS_TypeTXT = 16;
 
-	// valid DNS_Question.qtype only
-	DNS_TypeAXFR = 252;
-	DNS_TypeMAILB = 253;
-	DNS_TypeMAILA = 254;
-	DNS_TypeALL = 255;
+	// valid _DNS_Question.qtype only
+	_DNS_TypeAXFR = 252;
+	_DNS_TypeMAILB = 253;
+	_DNS_TypeMAILA = 254;
+	_DNS_TypeALL = 255;
 
-	// valid DNS_Question.qclass
-	DNS_ClassINET = 1;
-	DNS_ClassCSNET = 2;
-	DNS_ClassCHAOS = 3;
-	DNS_ClassHESIOD = 4;
-	DNS_ClassANY = 255;
+	// valid _DNS_Question.qclass
+	_DNS_ClassINET = 1;
+	_DNS_ClassCSNET = 2;
+	_DNS_ClassCHAOS = 3;
+	_DNS_ClassHESIOD = 4;
+	_DNS_ClassANY = 255;
 
-	// DNS_Msg.rcode
-	DNS_RcodeSuccess = 0;
-	DNS_RcodeFormatError = 1;
-	DNS_RcodeServerFailure = 2;
-	DNS_RcodeNameError = 3;
-	DNS_RcodeNotImplemented = 4;
-	DNS_RcodeRefused = 5;
+	// _DNS_Msg.rcode
+	_DNS_RcodeSuccess = 0;
+	_DNS_RcodeFormatError = 1;
+	_DNS_RcodeServerFailure = 2;
+	_DNS_RcodeNameError = 3;
+	_DNS_RcodeNotImplemented = 4;
+	_DNS_RcodeRefused = 5;
 )
 
 // The wire format for the DNS packet header.
-type _DNS_Header struct {
+type __DNS_Header struct {
 	id uint16;
 	bits uint16;
 	qdcount, ancount, nscount, arcount uint16;
 }
 
 const (
-	// _DNS_Header.bits
+	// __DNS_Header.bits
 	_QR = 1<<15;	// query/response (response=1)
 	_AA = 1<<10;	// authoritative
 	_TC = 1<<9;	// truncated
@@ -90,7 +90,7 @@ const (
 )
 
 // DNS queries.
-type DNS_Question struct {
+type _DNS_Question struct {
 	name string "domain-name";	// "domain-name" specifies encoding; see packers below
 	qtype uint16;
 	qclass uint16;
@@ -99,7 +99,7 @@ type DNS_Question struct {
 // DNS responses (resource records).
 // There are many types of messages,
 // but they all share the same header.
-type DNS_RR_Header struct {
+type _DNS_RR_Header struct {
 	name string "domain-name";
 	rrtype uint16;
 	class uint16;
@@ -107,67 +107,67 @@ type DNS_RR_Header struct {
 	rdlength uint16;	// length of data after header
 }
 
-func (h *DNS_RR_Header) Header() *DNS_RR_Header {
+func (h *_DNS_RR_Header) Header() *_DNS_RR_Header {
 	return h
 }
 
-type DNS_RR interface {
-	Header() *DNS_RR_Header
+type _DNS_RR interface {
+	Header() *_DNS_RR_Header
 }
 
 
 // Specific DNS RR formats for each query type.
 
-type DNS_RR_CNAME struct {
-	DNS_RR_Header;
+type _DNS_RR_CNAME struct {
+	_DNS_RR_Header;
 	cname string "domain-name";
 }
 
-type DNS_RR_HINFO struct {
-	DNS_RR_Header;
+type _DNS_RR_HINFO struct {
+	_DNS_RR_Header;
 	cpu string;
 	os string;
 }
 
-type DNS_RR_MB struct {
-	DNS_RR_Header;
+type _DNS_RR_MB struct {
+	_DNS_RR_Header;
 	mb string "domain-name";
 }
 
-type DNS_RR_MG struct {
-	DNS_RR_Header;
+type _DNS_RR_MG struct {
+	_DNS_RR_Header;
 	mg string "domain-name";
 }
 
-type DNS_RR_MINFO struct {
-	DNS_RR_Header;
+type _DNS_RR_MINFO struct {
+	_DNS_RR_Header;
 	rmail string "domain-name";
 	email string "domain-name";
 }
 
-type DNS_RR_MR struct {
-	DNS_RR_Header;
+type _DNS_RR_MR struct {
+	_DNS_RR_Header;
 	mr string "domain-name";
 }
 
-type DNS_RR_MX struct {
-	DNS_RR_Header;
+type _DNS_RR_MX struct {
+	_DNS_RR_Header;
 	pref uint16;
 	mx string "domain-name";
 }
 
-type DNS_RR_NS struct {
-	DNS_RR_Header;
+type _DNS_RR_NS struct {
+	_DNS_RR_Header;
 	ns string "domain-name";
 }
 
-type DNS_RR_PTR struct {
-	DNS_RR_Header;
+type _DNS_RR_PTR struct {
+	_DNS_RR_Header;
 	ptr string "domain-name";
 }
 
-type DNS_RR_SOA struct {
-	DNS_RR_Header;
+type _DNS_RR_SOA struct {
+	_DNS_RR_Header;
 	ns string "domain-name";
 	mbox string "domain-name";
 	serial uint32;
@@ -177,13 +177,13 @@ type DNS_RR_SOA struct {
 	minttl uint32;
 }
 
-type DNS_RR_TXT struct {
-	DNS_RR_Header;
+type _DNS_RR_TXT struct {
+	_DNS_RR_Header;
 	txt string;	// not domain name
 }
 
-type DNS_RR_A struct {
-	DNS_RR_Header;
+type _DNS_RR_A struct {
+	_DNS_RR_Header;
 	a uint32 "ipv4";
 }
 
@@ -197,19 +197,19 @@ type DNS_RR_A struct {
 // packing sequence.
 
 // Map of constructors for each RR wire type.
-var rr_mk = map[int] func()DNS_RR {
-	DNS_TypeCNAME: func() DNS_RR { return new(DNS_RR_CNAME) },
-	DNS_TypeHINFO: func() DNS_RR { return new(DNS_RR_HINFO) },
-	DNS_TypeMB: func() DNS_RR { return new(DNS_RR_MB) },
-	DNS_TypeMG: func() DNS_RR { return new(DNS_RR_MG) },
-	DNS_TypeMINFO: func() DNS_RR { return new(DNS_RR_MINFO) },
-	DNS_TypeMR: func() DNS_RR { return new(DNS_RR_MR) },
-	DNS_TypeMX: func() DNS_RR { return new(DNS_RR_MX) },
-	DNS_TypeNS: func() DNS_RR { return new(DNS_RR_NS) },
-	DNS_TypePTR: func() DNS_RR { return new(DNS_RR_PTR) },
-	DNS_TypeSOA: func() DNS_RR { return new(DNS_RR_SOA) },
-	DNS_TypeTXT: func() DNS_RR { return new(DNS_RR_TXT) },
-	DNS_TypeA: func() DNS_RR { return new(DNS_RR_A) },
+var rr_mk = map[int] func()_DNS_RR {
+	_DNS_TypeCNAME: func() _DNS_RR { return new(_DNS_RR_CNAME) },
+	_DNS_TypeHINFO: func() _DNS_RR { return new(_DNS_RR_HINFO) },
+	_DNS_TypeMB: func() _DNS_RR { return new(_DNS_RR_MB) },
+	_DNS_TypeMG: func() _DNS_RR { return new(_DNS_RR_MG) },
+	_DNS_TypeMINFO: func() _DNS_RR { return new(_DNS_RR_MINFO) },
+	_DNS_TypeMR: func() _DNS_RR { return new(_DNS_RR_MR) },
+	_DNS_TypeMX: func() _DNS_RR { return new(_DNS_RR_MX) },
+	_DNS_TypeNS: func() _DNS_RR { return new(_DNS_RR_NS) },
+	_DNS_TypePTR: func() _DNS_RR { return new(_DNS_RR_PTR) },
+	_DNS_TypeSOA: func() _DNS_RR { return new(_DNS_RR_SOA) },
+	_DNS_TypeTXT: func() _DNS_RR { return new(_DNS_RR_TXT) },
+	_DNS_TypeA: func() _DNS_RR { return new(_DNS_RR_A) },
 }
 
 // Pack a domain name s into msg[off:].
@@ -480,7 +480,7 @@ func printStruct(any interface{}) string {
 }
 
 // Resource record packer.
-func packRR(rr DNS_RR, msg []byte, off int) (off2 int, ok bool) {
+func packRR(rr _DNS_RR, msg []byte, off int) (off2 int, ok bool) {
 	var off1 int;
 	// pack twice, once to find end of header
 	// and again to find end of packet.
@@ -499,9 +499,9 @@ func packRR(rr DNS_RR, msg []byte, off int) (off2 int, ok bool) {
 }
 
 // Resource record unpacker.
-func unpackRR(msg []byte, off int) (rr DNS_RR, off1 int, ok bool) {
+func unpackRR(msg []byte, off int) (rr _DNS_RR, off1 int, ok bool) {
 	// unpack just the header, to find the rr type and length
-	var h DNS_RR_Header;
+	var h _DNS_RR_Header;
 	off0 := off;
 	if off, ok = unpackStruct(&h, msg, off); !ok {
 		return nil, len(msg), false
@@ -526,7 +526,7 @@ func unpackRR(msg []byte, off int) (rr DNS_RR, off1 int, ok bool) {
 
 // A manually-unpacked version of (id, bits).
 // This is in its own struct for easy printing.
-type _DNS_Msg_Top struct {
+type __DNS_Msg_Top struct {
 	id uint16;
 	response bool;
 	opcode int;
@@ -537,19 +537,19 @@ type _DNS_Msg_Top struct {
 	rcode int;
 }
 
-type DNS_Msg struct {
-	_DNS_Msg_Top;
-	question []DNS_Question;
-	answer []DNS_RR;
-	ns []DNS_RR;
-	extra []DNS_RR;
+type _DNS_Msg struct {
+	__DNS_Msg_Top;
+	question []_DNS_Question;
+	answer []_DNS_RR;
+	ns []_DNS_RR;
+	extra []_DNS_RR;
 }
 
 
-func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
-	var dh _DNS_Header;
+func (dns *_DNS_Msg) Pack() (msg []byte, ok bool) {
+	var dh __DNS_Header;
 
-	// Convert convenient DNS_Msg into wire-like _DNS_Header.
+	// Convert convenient _DNS_Msg into wire-like __DNS_Header.
 	dh.id = dns.id;
 	dh.bits = uint16(dns.opcode)<<11 | uint16(dns.rcode);
 	if dns.recursion_available {
@@ -605,9 +605,9 @@ func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
 	return msg[0:off], true
 }
 
-func (dns *DNS_Msg) Unpack(msg []byte) bool {
+func (dns *_DNS_Msg) Unpack(msg []byte) bool {
 	// Header.
-	var dh _DNS_Header;
+	var dh __DNS_Header;
 	off := 0;
 	var ok bool;
 	if off, ok = unpackStruct(&dh, msg, off); !ok {
@@ -623,10 +623,10 @@ func (dns *DNS_Msg) Unpack(msg []byte) bool {
 	dns.rcode = int(dh.bits & 0xF);
 
 	// Arrays.
-	dns.question = make([]DNS_Question, dh.qdcount);
-	dns.answer = make([]DNS_RR, dh.ancount);
-	dns.ns = make([]DNS_RR, dh.nscount);
-	dns.extra = make([]DNS_RR, dh.arcount);
+	dns.question = make([]_DNS_Question, dh.qdcount);
+	dns.answer = make([]_DNS_RR, dh.ancount);
+	dns.ns = make([]_DNS_RR, dh.nscount);
+	dns.extra = make([]_DNS_RR, dh.arcount);
 
 	for i := 0; i < len(dns.question); i++ {
 		off, ok = unpackStruct(&dns.question[i], msg, off);
@@ -649,8 +649,8 @@ func (dns *DNS_Msg) Unpack(msg []byte) bool {
 	return true
 }
 
-func (dns *DNS_Msg) String() string {
-	s := "DNS: "+printStruct(&dns._DNS_Msg_Top)+"\n";
+func (dns *_DNS_Msg) String() string {
+	s := "DNS: "+printStruct(&dns.__DNS_Msg_Top)+"\n";
 	if len(dns.question) > 0 {
 		s += "-- Questions\n";
 		for i := 0; i < len(dns.question); i++ {

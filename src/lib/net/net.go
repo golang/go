@@ -16,12 +16,10 @@ var (
 	MissingAddress = os.NewError("missing address");
 	UnknownNetwork = os.NewError("unknown network");
 	UnknownHost = os.NewError("unknown host");
-	DNS_Error = os.NewError("dns error looking up host");
-	UnknownPort = os.NewError("unknown port");
-	UnknownsocketFamily = os.NewError("unknown socket family");
+	UnknownSocketFamily = os.NewError("unknown socket family");
 )
 
-func LookupHost(name string) (name1 string, addrs []string, err *os.Error)
+func LookupHost(name string) (cname string, addrs []string, err *os.Error)
 
 // Split "host:port" into "host" and "port".
 // Host cannot contain colons unless it is bracketed.
@@ -75,7 +73,7 @@ func hostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Err
 	var addr []byte;
 	if host == "" {
 		if mode == "listen" {
-			addr = IPnoaddr;	// wildcard - listen to all
+			addr = IPzero;	// wildcard - listen to all
 		} else {
 			return nil, 0, MissingAddress;
 		}
@@ -103,9 +101,9 @@ func hostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Err
 
 	p, i, ok := dtoi(port, 0);
 	if !ok || i != len(port) {
-		p, ok = LookupPort(net, port);
-		if !ok {
-			return nil, 0, UnknownPort
+		p, err = LookupPort(net, port);
+		if err != nil {
+			return nil, 0, err
 		}
 	}
 	if p < 0 || p > 0xFFFF {
@@ -119,14 +117,14 @@ func hostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Err
 func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
 	switch sa.Family {
 	case syscall.AF_INET, syscall.AF_INET6:
-		addr, port, e := SockaddrToIP(sa);
+		addr, port, e := sockaddrToIP(sa);
 		if e != nil {
 			return "", e
 		}
-		host := IPToString(addr);
+		host := addr.String();
 		return joinHostPort(host, strconv.Itoa(port)), nil;
 	default:
-		return "", UnknownsocketFamily
+		return "", UnknownSocketFamily
 	}
 	return "", nil // not reached
 }
@@ -308,7 +306,7 @@ func internetSocket(net, laddr, raddr string, proto int64, mode string)
 	(fd *netFD, err *os.Error)
 {
 	// Parse addresses (unless they are empty).
-	var lip, rip []byte;
+	var lip, rip IP;
 	var lport, rport int;
 	var lerr, rerr *os.Error;
 
@@ -336,7 +334,7 @@ func internetSocket(net, laddr, raddr string, proto int64, mode string)
 	default:
 		// Otherwise, guess.
 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
-		if preferIPv4 && ToIPv4(lip) != nil && ToIPv4(rip) != nil {
+		if preferIPv4 && lip.To4() != nil && rip.To4() != nil {
 			vers = 4
 		} else {
 			vers = 6
@@ -346,10 +344,10 @@ func internetSocket(net, laddr, raddr string, proto int64, mode string)
 	var cvt func(addr []byte, port int) (sa *syscall.Sockaddr, err *os.Error);
 	var family int64;
 	if vers == 4 {
-		cvt = IPv4ToSockaddr;
+		cvt = v4ToSockaddr;
 		family = syscall.AF_INET
 	} else {
-		cvt = IPv6ToSockaddr;
+		cvt = v6ToSockaddr;
 		family = syscall.AF_INET6
 	}
 
@@ -437,13 +435,17 @@ func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
 
 // TODO: raw ethernet connections
 
-
+// A Conn is a generic network connection.
 type Conn interface {
 	Read(b []byte) (n int, err *os.Error);
 	Write(b []byte) (n int, err *os.Error);
+	Close() *os.Error;
+
+	// For UDP sockets.
 	ReadFrom(b []byte) (n int, addr string, err *os.Error);
 	WriteTo(addr string, b []byte) (n int, err *os.Error);
-	Close() *os.Error;
+
+	// Methods that have meaning only on some networks.
 	SetReadBuffer(bytes int) *os.Error;
 	SetWriteBuffer(bytes int) *os.Error;
 	SetTimeout(nsec int64) *os.Error;
@@ -456,16 +458,21 @@ type Conn interface {
 	BindToDevice(dev string) *os.Error;
 }
 
-
-// Dial's arguments are the network, local address, and remote address.
+// Dial connects to the remote address raddr on the network net.
+// If the string laddr is not empty, it is used as the local address
+// for the connection.
+//
+// Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
+// "udp", "udp4" (IPv4-only), and "udp6" (IPv6-only).
+//
+// For IP networks, addresses have the form host:port.  If host is
+// a literal IPv6 address, it must be enclosed in square brackets.
+//
 // Examples:
 //	Dial("tcp", "", "12.34.56.78:80")
+//	Dial("tcp", "", "google.com:80")
 //	Dial("tcp", "", "[de:ad:be:ef::ca:fe]:80")
 //	Dial("tcp", "127.0.0.1:123", "127.0.0.1:88")
-//
-// Eventually, we plan to allow names in addition to IP addresses,
-// but that requires writing a DNS library.
-
 func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
@@ -492,23 +499,29 @@ func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
 	return nil, UnknownNetwork
 }
 
-
+// A Listener is a generic network listener.
+// Accept waits for the next connection and Close closes the connection.
 type Listener interface {
 	Accept() (c Conn, raddr string, err *os.Error);
 	Close() *os.Error;
 }
 
+// ListenerTCP is a TCP network listener.
+// Clients should typically use variables of type Listener
+// instead of assuming TCP.
 type ListenerTCP struct {
 	fd *netFD;
 	laddr string
 }
 
+// ListenTCP announces on the TCP address laddr and returns a TCP listener.
+// Net must be "tcp", "tcp4", or "tcp6".
 func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
 	fd, e := internetSocket(net, laddr, "", syscall.SOCK_STREAM, "listen");
 	if e != nil {
 		return nil, e
 	}
-	r, e1 := syscall.Listen(fd.fd, ListenBacklog());
+	r, e1 := syscall.Listen(fd.fd, listenBacklog());
 	if e1 != 0 {
 		syscall.Close(fd.fd);
 		return nil, os.ErrnoToError(e1)
@@ -518,6 +531,8 @@ func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
 	return l, nil
 }
 
+// AcceptTCP accepts the next incoming call and returns the new connection
+// and the remote address.
 func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
 	if l == nil || l.fd == nil || l.fd.fd < 0 {
 		return nil, "", os.EINVAL
@@ -535,6 +550,8 @@ func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
 	return newConnTCP(fd, raddr), raddr, nil
 }
 
+// Accept implements the accept method in the Listener interface;
+// it waits for the next call and returns a generic Conn.
 func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
 	c1, r1, e1 := l.AcceptTCP();
 	if e1 != nil {
@@ -543,6 +560,8 @@ func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
 	return c1, r1, nil
 }
 
+// Close stops listening on the TCP address.
+// Already Accepted connections are not closed.
 func (l *ListenerTCP) Close() *os.Error {
 	if l == nil || l.fd == nil {
 		return os.EINVAL
@@ -550,6 +569,8 @@ func (l *ListenerTCP) Close() *os.Error {
 	return l.fd.Close()
 }
 
+// Listen announces on the local network address laddr.
+// The network string net must be "tcp", "tcp4", or "tcp6".
 func Listen(net, laddr string) (l Listener, err *os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
@@ -561,6 +582,7 @@ func Listen(net, laddr string) (l Listener, err *os.Error) {
 /*
 	more here
 */
+	// BUG(rsc): Listen should support UDP.
 	}
 	return nil, UnknownNetwork
 }

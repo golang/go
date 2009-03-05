@@ -25,6 +25,7 @@ import (
 	"strings";
 )
 
+// DNS errors returned by LookupHost.
 var (
 	DNS_InternalError = os.NewError("internal dns error");
 	DNS_MissingConfig = os.NewError("no dns configuration");
@@ -36,18 +37,18 @@ var (
 	DNS_NameTooLong = os.NewError("dns name too long");
 	DNS_RedirectLoop = os.NewError("dns redirect loop");
 	DNS_NameNotFound = os.NewError("dns name not found");
-);
+)
 
 // Send a request on the connection and hope for a reply.
 // Up to cfg.attempts attempts.
-func _Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error) {
+func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err *os.Error) {
 	if len(name) >= 256 {
 		return nil, DNS_NameTooLong
 	}
-	out := new(DNS_Msg);
+	out := new(_DNS_Msg);
 	out.id = 0x1234;
-	out.question = []DNS_Question{
-		DNS_Question{ name, DNS_TypeA, DNS_ClassINET }
+	out.question = []_DNS_Question{
+		_DNS_Question{ name, _DNS_TypeA, _DNS_ClassINET }
 	};
 	out.recursion_desired = true;
 	msg, ok := out.Pack();
@@ -71,7 +72,7 @@ func _Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
 			continue
 		}
 		buf = buf[0:n];
-		in := new(DNS_Msg);
+		in := new(_DNS_Msg);
 		if !in.Unpack(buf) || in.id != out.id {
 			continue
 		}
@@ -84,13 +85,13 @@ func _Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
 // TODO(rsc): Maybe return [][]byte (==[]IPAddr) instead?
-func answer(name string, dns *DNS_Msg) (addrs []string, err *os.Error) {
+func answer(name string, dns *_DNS_Msg) (addrs []string, err *os.Error) {
 	addrs = make([]string, 0, len(dns.answer));
 
-	if dns.rcode == DNS_RcodeNameError && dns.authoritative {
+	if dns.rcode == _DNS_RcodeNameError && dns.authoritative {
 		return nil, DNS_NameNotFound	// authoritative "no such host"
 	}
-	if dns.rcode != DNS_RcodeSuccess {
+	if dns.rcode != _DNS_RcodeSuccess {
 		// None of the error codes make sense
 		// for the query we sent.  If we didn't get
 		// a name error and we didn't get success,
@@ -109,16 +110,16 @@ Cname:
 		for i := 0; i < len(dns.answer); i++ {
 			rr := dns.answer[i];
 			h := rr.Header();
-			if h.class == DNS_ClassINET && h.name == name {
+			if h.class == _DNS_ClassINET && h.name == name {
 				switch h.rrtype {
-				case DNS_TypeA:
+				case _DNS_TypeA:
 					n := len(addrs);
-					a := rr.(*DNS_RR_A).a;
+					a := rr.(*_DNS_RR_A).a;
 					addrs = addrs[0:n+1];
 					addrs[n] = fmt.Sprintf("%d.%d.%d.%d", (a>>24), (a>>16)&0xFF, (a>>8)&0xFF, a&0xFF);
-				case DNS_TypeCNAME:
+				case _DNS_TypeCNAME:
 					// redirect to cname
-					name = rr.(*DNS_RR_CNAME).cname;
+					name = rr.(*_DNS_RR_CNAME).cname;
 					continue Cname
 				}
 			}
@@ -135,7 +136,7 @@ Cname:
 
 // Do a lookup for a single name, which must be rooted
 // (otherwise answer will not find the answers).
-func tryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
+func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err *os.Error) {
 	err = DNS_NoServers;
 	for i := 0; i < len(cfg.servers); i++ {
 		// Calling Dial here is scary -- we have to be sure
@@ -165,18 +166,24 @@ func tryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
 	return;
 }
 
-var cfg *DNS_Config
+var cfg *_DNS_Config
+var dnserr *os.Error
 
 func loadConfig() {
-	cfg = DNS_ReadConfig();
+	cfg, dnserr = _DNS_ReadConfig();
 }
 
-func LookupHost(name string) (name1 string, addrs []string, err *os.Error) {
+// LookupHost looks up the host name using the local DNS resolver.
+// It returns the canonical name for the host and an array of that
+// host's addresses.
+func LookupHost(name string) (cname string, addrs []string, err *os.Error)
+{
 	// TODO(rsc): Pick out obvious non-DNS names to avoid
 	// sending stupid requests to the server?
 
 	once.Do(loadConfig);
-	if cfg == nil {
+	if dnserr != nil || cfg == nil {
+		// better error than file not found.
 		err = DNS_MissingConfig;
 		return;
 	}

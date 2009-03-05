@@ -7,6 +7,7 @@ package net
 import (
 	"net";
 	"flag";
+	"fmt";
 	"io";
 	"os";
 	"testing";
@@ -19,13 +20,13 @@ var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 // Run an HTTP request to fetch the appropriate page.
 func fetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
 	req := io.StringBytes("GET /intl/en/privacy.html HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
-	n, errno := fd.Write(req);
+	n, err := fd.Write(req);
 
 	buf := make([]byte, 1000);
-	n, errno = io.Readn(fd, buf);
+	n, err = io.Readn(fd, buf);
 
 	if n < 1000 {
-		t.Errorf("fetchGoogle: short HTTP read from %s %s", network, addr);
+		t.Errorf("fetchGoogle: short HTTP read from %s %s - %v", network, addr, err);
 		return
 	}
 }
