@@ -547,8 +547,11 @@ loop:
 		return;
 
 	case OCASE:
-		// the right side points to the next case
-		print("%O%J\n", n->op, n);
+		// the right side points to label of the body
+		if(n->right != N && n->right->op == OGOTO && n->right->left->op == ONAME)
+			print("%O%J GOTO %N\n", n->op, n, n->right->left);
+		else
+			print("%O%J\n", n->op, n);
 		dodump(n->left, dep+1);
 		return;
 	}
@@ -654,8 +657,8 @@ opnames[] =
 	[OCMP]		= "CMP",
 	[OFALL]		= "FALL",
 	[OCOMPOS]	= "COMPOS",
-	[ODOTTYPE]		= "DOTTYPE",
-	[OCONV]	= "CONV",
+	[ODOTTYPE]	= "DOTTYPE",
+	[OCONV]		= "CONV",
 	[OCOM]		= "COM",
 	[OCONST]	= "CONST",
 	[OCONTINUE]	= "CONTINUE",
@@ -724,7 +727,7 @@ opnames[] =
 	[OPRINT]	= "PRINT",
 	[OPRINTN]	= "PRINTN",
 	[OPARAM]	= "PARAM",
-	[ODCL]	= "DCL",
+	[ODCL]		= "DCL",
 	[OXXX]		= "XXX",
 };
 
