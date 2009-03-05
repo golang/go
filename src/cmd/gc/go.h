@@ -657,6 +657,7 @@ int	isslice(Type*);
 int	isinter(Type*);
 int	isnilinter(Type*);
 int	isddd(Type*);
+Type*	maptype(Type*, Type*);
 Type*	dclmethod(Type*);
 Type*	methtype(Type*);
 int	methconv(Type*);
