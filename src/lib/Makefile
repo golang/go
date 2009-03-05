@@ -14,6 +14,7 @@ DIRS=\
 	http\
 	io\
 	json\
+	lang\
 	math\
 	net\
 	os\
@@ -107,6 +108,7 @@ http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall string
 io.dirinstall: os.dirinstall syscall.dirinstall sync.dirinstall
 json.dirinstall: container/array.dirinstall fmt.dirinstall io.dirinstall math.dirinstall \
 	strconv.dirinstall strings.install utf8.install
+lang.dirinstall: strconv.dirinstall utf8.install unicode.dirinstall
 # TODO(rsc): net is not supposed to depend on fmt or strings or strconv
 net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall strings.install
 os.dirinstall: syscall.dirinstall once.install

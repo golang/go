@@ -32,21 +32,19 @@ gds.6:	 utils.6 platform.6 compilation.6 printer.6
 
 pretty.6:	 platform.6 printer.6 compilation.6
 
-compilation.6:	 platform.6 token.6 scanner.6 parser.6 ast.6 typechecker.6
+compilation.6:	 builder.6 platform.6 parser.6 ast.6 typechecker.6
 
-typechecker.6:	 ast.6 token.6
+typechecker.6:	 ast.6
 
-scanner.6:	 token.6 utils.6
-
-ast.6:	 token.6 symboltable.6
+ast.6:	 symboltable.6
 
 symboltable.6:	
 
-parser.6:	 token.6 scanner.6 ast.6 symboltable.6
+parser.6:	ast.6 builder.6 symboltable.6
 
 platform.6:	 utils.6
 
-printer.6:	 utils.6 token.6 ast.6 symboltable.6
+printer.6:	 utils.6 ast.6 symboltable.6
 
 %.6:	%.go
 	$(G) $(F) $<
