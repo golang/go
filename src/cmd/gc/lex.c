@@ -1341,6 +1341,9 @@ mkpackage(char* pkg)
 			s->opackage = package;
 		}
 
+	// declare this name as a package
+	lookup(package)->lexical = LPACK;
+
 	if(outfile == nil) {
 		// BOTCH need to get .6 from backend
 		p = strrchr(infile, '/');
