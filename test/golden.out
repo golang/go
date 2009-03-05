@@ -42,9 +42,7 @@ errchk: ./convlit.go: unmatched error messages:
 ./convlit.go:11: overflow converting constant to int
 ./convlit.go:12: overflow converting constant to float
 ./convlit.go:8: cannot convert non-integer constant to int
-./convlit.go:9: cannot convert non-integer constant to int
-./convlit.go:11: overflow converting constant to int
-./convlit.go:11: fatal error: too many errors
+./convlit.go:8: fatal error: too many errors
 ==================================================
 
 =========== ./helloworld.go
@@ -117,10 +115,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 =========== chan/nonblock.go
 PASS
 
-=========== bugs/bug085.go
-bugs/bug085.go:8: P: undefined
-BUG: fails incorrectly
-
 =========== bugs/bug087.go
 bugs/bug087.go:8: illegal combination of literals LEN 9
 bugs/bug087.go:8: illegal combination of literals LEN 9
@@ -145,10 +139,6 @@ BUG: compilation succeeds incorrectly
 
 =========== bugs/bug125.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
-
-=========== bugs/bug129.go
-bugs/bug129.go:6: syscall is package, not var
-BUG129
 
 =========== bugs/bug131.go
 BUG: should not compile

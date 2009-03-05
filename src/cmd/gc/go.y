@@ -55,7 +55,7 @@
 %type	<node>		simple_stmt osimple_stmt range_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
 %type	<node>		exprsym3_list_r exprsym3
-%type	<node>		name onew_name new_name new_name_list_r new_field
+%type	<node>		name labelname onew_name new_name new_name_list_r new_field
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl interfacedcl1
 %type	<node>		structdcl_list_r structdcl embed
@@ -95,6 +95,23 @@
 %left			'{'
 %left			Condition
 
+/*
+ * resolve LPACKAGE vs not in favor of LPACKAGE
+ */
+%left			NotPackage
+%left			LPACKAGE
+
+/*
+ * resolve '.' vs not in favor of '.'
+ */
+%left			NotDot
+%left			'.'
+
+/*
+ * resolve '(' vs not in favor of '('
+ */
+%left			NotParen
+%left			'('
 
 %%
 file:
@@ -107,6 +124,7 @@ file:
 	}
 
 package:
+	%prec NotPackage
 	{
 		yyerror("package statement must be first");
 		mkpackage("main");
@@ -776,6 +794,8 @@ pexpr:
 	{
 		$$ = nod(OLITERAL, N, N);
 		$$->val = $1;
+		if($1.ctype == CTSTR)
+			$$->type = types[TSTRING];
 	}
 |	laconst
 	{
@@ -996,6 +1016,25 @@ keyword:
 
 name:
 	lname
+	{
+		$$ = oldname($1);
+	}
+	/*
+	 * this rule introduces 1 reduce/reduce conflict
+	 * with the rule lpack: LPACK above.
+	 * the reduce/reduce conflict is only with
+	 * lookahead '.', in which case the correct
+	 * resolution is the lpack rule.  (and it wins
+	 * because it is above.)
+	 */
+|	LPACK	%prec NotDot
+	{
+		$$ = oldname($1);
+	}
+
+labelname:
+	name
+|	keyword
 	{
 		$$ = oldname($1);
 	}
@@ -1311,6 +1350,7 @@ Afnres:
 	}
 
 Bfnres:
+	%prec NotParen
 	{
 		$$ = N;
 	}
@@ -1515,7 +1555,7 @@ Astmt:
 	{
 		$$ = N;
 	}
-|	new_name ':'
+|	labelname ':'
 	{
 		$$ = nod(OLABEL, $1, N);
 	}
@@ -1961,15 +2001,7 @@ lpack:
 	}
 
 laconst:
-	LPACK
-	{
-		// for LALR(1) reasons, using laconst works here
-		// but lname does not.  even so, the messages make
-		// more sense saying "var" instead of "const".
-		yyerror("%s is package, not var", $1->name);
-		YYERROR;
-	}
-|	LATYPE
+	LATYPE
 	{
 		yyerror("%s is type, not var", $1->name);
 		YYERROR;
