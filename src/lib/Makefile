@@ -96,7 +96,7 @@ test: test.files
 bignum.6: fmt.dirinstall
 bufio.6: io.dirinstall os.dirinstall
 exec.6: os.dirinstall
-flag.6: fmt.dirinstall
+flag.6: fmt.dirinstall os.dirinstall strconv.dirinstall
 log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
 once.6: sync.dirinstall
 strings.6: utf8.install
