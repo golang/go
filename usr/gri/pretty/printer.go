@@ -11,6 +11,7 @@ import (
 	"tabwriter";
 	"flag";
 	"fmt";
+	"strings";
 	Utils "utils";
 	"token";
 	"ast";
@@ -388,8 +389,64 @@ func (P *Printer) Error(pos int, tok int, msg string) {
 // ----------------------------------------------------------------------------
 // HTML support
 
+const template_name = "template.html"
+var html_template string  // TODO should probably be []byte
+
+// tags for substitution in html_template
+const body_tag = "<!--BODY-->";
+
+// indexes of various tags in html_template
+var body_index int;
+
+func init() {
+	fd, err0 := os.Open(template_name, os.O_RDONLY, 0);
+	defer fd.Close();
+	if err0 != nil {
+		panic("cannot open html template");
+	}
+
+	// TODO not sure why this didn't work
+	/*
+	var buf io.ByteBuffer;
+	len, err1 := io.Copy(fd, buf);
+	if err1 == io.ErrEOF {
+		err1 = nil;
+	}
+	if err1 != nil {
+		panic("cannot read html template");
+	}
+	if len == 0 {
+		panic("html template empty");
+	}
+	html_template = string(buf.AllData());
+	*/
+
+	var buf [8*1024]byte;
+	len, err1 := io.Readn(fd, buf);
+	if err1 == io.ErrEOF {
+		err1 = nil;
+	}
+	if err1 != nil {
+		panic("cannot read html template");
+	}
+	if len == 0 {
+		panic("html template empty");
+	}
+	html_template = string(buf[0 : len]);
+
+	body_index = strings.Index(html_template, body_tag);
+	if body_index < 0 {
+		panic("html_template has no BODY tag");
+	}
+}
+
+
 func (P *Printer) HtmlPrologue(title string) {
 	if P.html {
+		P.Printf("%s\n", html_template[0 : body_index]);
+		P.Printf("<h1>%s</h1>\n", "package " + title);
+		P.Printf("<pre>\n");
+		/*
 		P.TaggedString(0,
 			"<html>\n"
 			"<head>\n"
@@ -402,18 +459,24 @@ func (P *Printer) HtmlPrologue(title string) {
 			"<pre>\n",
 			"", ""
 		)
+		*/
 	}
 }
 
 
 func (P *Printer) HtmlEpilogue() {
 	if P.html {
+		P.String(0, "");  // flush
+		P.Printf("</pre>\n");
+		P.Printf("%s", html_template[body_index : len(html_template)]);
+		/*
 		P.TaggedString(0,
 			"</pre>\n"
 			"</body>\n"
 			"<html>\n",
 			"", ""
 		)
+		*/
 	}
 }
 
@@ -1130,7 +1193,7 @@ func Print(writer io.Write, html bool, prog *ast.Program) {
 	P.Init(text, html, prog.Comments);
 
 	// TODO would be better to make the name of the src file be the title
-	P.HtmlPrologue("package " + prog.Ident.Str);
+	P.HtmlPrologue(prog.Ident.Str);
 	P.Program(prog);
 	P.HtmlEpilogue();
 

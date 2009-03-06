@@ -130,8 +130,9 @@ func f3(a *[]int, m map[string] int) {
 
 type I interface {}
 
-func f3(x I) int {
-	switch tmp := tmp.(type) {
+/*
+func f4(x I) int {
+	switch tmp := x.(type) {
 	case S: return 1;
 	}
 	switch {
@@ -139,7 +140,7 @@ func f3(x I) int {
 	}
 	return 0;
 }
-
+*/
 
 func main() {
 // the prologue
