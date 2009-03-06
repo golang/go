@@ -2,24 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Uniformly distributed pseudo-random numbers.
+package	rand
 
 /*
  *	algorithm by
  *	DP Mitchell and JA Reeds
  */
 
-package	rand
-
-// rand, rand31, Int63 - return non-negative random int, int32, int64
-// urand32 - return random uint32
-// nrand, nrand31, Int63n - return 0 <= random < n
-// frand, frand64, frand32 - return 0 <= random float, float64, float32 < 1
-// perm gives a random permutation []int
-
 const (
 	_LEN	 = 607;
 	_TAP	 = 273;
-	_MASK	 = (1<<63)-1;
+	_MAX	 = 1<<63;
+	_MASK	 = _MAX-1;
 	_A	 = 48271;
 	_M	 = 2147483647;
 	_Q	 = 44488;
@@ -44,6 +39,7 @@ func seedrand(x int32) int32 {
 	return x;
 }
 
+// Seed uses the provided seed value to initialize the generator to a deterministic state.
 func Seed(seed int32) {
 	rng_tap = 0;
 	rng_feed = _LEN-_TAP;
@@ -72,6 +68,7 @@ func Seed(seed int32) {
 	}
 }
 
+// Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
 func Int63() int64 {
 	rng_tap--;
 	if rng_tap < 0 {
@@ -88,19 +85,23 @@ func Int63() int64 {
 	return x;
 }
 
+// Uint32 returns a pseudo-random 32-bit value as a uint32.
 func Uint32() uint32 {
 	return uint32(Int63() >> 31);
 }
 
+// Int31 returns a non-negative pseudo-random 31-bit integer as an int32.
 func Int31() int32 {
 	return int32(Int63() >> 32);
 }
 
+// Int returns a non-negative pseudo-random int.  All bits but the top bit are random.
 func Int() int {
 	u := uint(Int63());
 	return int(u << 1 >> 1);	// clear sign bit if int == int32
 }
 
+// Int63n returns, as an int64, a non-negative pseudo-random number in [0,n).
 func Int63n(n int64) int64 {
 	if n <= 0 {
 		return 0
@@ -113,31 +114,37 @@ func Int63n(n int64) int64 {
 	return v % n
 }
 
+// Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
 func Int31n(n int32) int32 {
 	return int32(Int63n(int64(n)))
 }
 
+// Intn returns, as an int, a non-negative pseudo-random number in [0,n).
 func Intn(n int) int {
 	return int(Int63n(int64(n)))
 }
 
+// Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
 func Float64() float64 {
-	x := float64(Int63()) / float64(_MASK);
+	x := float64(Int63()) / float64(_MAX);
 	for x >= 1 {
-		x = float64(Int63()) / float64(_MASK);
+		x = float64(Int63()) / float64(_MAX);
 	}
 	return x;
 }
 
+// Float32 returns, as a float32, a pseudo-random number in [0.0,1.0).
 func Float32() float32 {
 	return float32(Float64())
 }
 
+// Float returns, as a float, a pseudo-random number in [0.0,1.0).
 func Float() float
 {
 	return float(Float64())
 }
 
+// Perm returns, as an array of n ints, a pseudo-random permutation of the integers [0,n).
 func Perm(n int) []int {
 	m := make([]int, n);
 	for i:=0; i<n; i++ {
