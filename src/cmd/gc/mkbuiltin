@@ -1,0 +1,31 @@
+#!/bin/sh
+# Copyright 2009 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+set -e
+gcc -o mkbuiltin1 mkbuiltin1.c
+6g sys.go
+6g unsafe.go
+rm -f _builtin.c
+./mkbuiltin1 sys >_builtin.c
+./mkbuiltin1 unsafe >>_builtin.c
+
+# If _builtin.c has changed vs builtin.c.boot,
+# check in the new change if being run by
+# one of the people who tends to work on
+# the compiler.  This makes sure that changes
+# don't get forgotten, without causing problems
+# in end user Go repositories.
+case "$USER" in
+ken | r | rsc)
+	if ! cmp _builtin.c builtin.c.boot
+	then
+		p4 open builtin.c.boot
+		cp _builtin.c builtin.c.boot
+	fi
+esac
+
+cat _builtin.c
+rm -f _builtin.c
+

@@ -1,8 +1,8 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Extract import data from sys.6 and generate C string version.
+// Compile .go file, import data from .6 file, and generate C string version.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,7 +18,7 @@ main(int argc, char **argv)
 	char buf[1024], initfunc[1024], *p, *q;
 
 	if(argc != 2) {
-		fprintf(stderr, "usage: sys sys\n");
+		fprintf(stderr, "usage: mkbuiltin1 sys\n");
 		fprintf(stderr, "in file $1.6 s/PACKAGE/$1/\n");
 		exit(1);
 	}
