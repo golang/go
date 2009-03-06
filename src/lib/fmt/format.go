@@ -8,14 +8,6 @@ import (
 	"strconv";
 )
 
-/*
-	Raw formatter. See print.go for a more palatable interface.
-
-	f := fmt.New();
-	print f.Fmt_d(1234).Fmt_s("\n").Str();  // create string, print it
-	f.Fmt_d(-1234).Fmt_s("\n").Put();  // print string
-	f.Fmt_ud(1<<63).Putnl();  // print string with automatic newline
-*/
 
 const nByte = 64;
 const nPows10 = 160;
@@ -33,6 +25,19 @@ func init() {
 	}
 }
 
+/*
+	Fmt is the raw formatter used by Printf etc.  Not meant for normal use.
+	See print.go for a more palatable interface.
+
+	Model is to accumulate operands into an internal buffer and then
+	retrieve the buffer in one hit using Str(), Putnl(), etc.  The formatting
+	methods return ``self'' so the operations can be chained.
+
+	f := fmt.New();
+	print f.Fmt_d(1234).Fmt_s("\n").Str();  // create string, print it
+	f.Fmt_d(-1234).Fmt_s("\n").Put();  // print string
+	f.Fmt_ud(1<<63).Putnl();  // print string with automatic newline
+*/
 type Fmt struct {
 	buf string;
 	wid int;
@@ -68,12 +73,14 @@ func (f *Fmt) init() {
 	f.clearflags();
 }
 
+// New returns a new initialized Fmt
 func New() *Fmt {
 	f := new(Fmt);
 	f.init();
 	return f;
 }
 
+// Str returns the buffered contents as a string and resets the Fmt.
 func (f *Fmt) Str() string {
 	s := f.buf;
 	f.clearbuf();
@@ -82,18 +89,21 @@ func (f *Fmt) Str() string {
 	return s;
 }
 
+// Put writes the buffered contents to stdout and resets the Fmt.
 func (f *Fmt) Put() {
 	print(f.buf);
 	f.clearbuf();
 	f.clearflags();
 }
 
+// Putnl writes the buffered contents to stdout, followed by a newline, and resets the Fmt.
 func (f *Fmt) Putnl() {
 	print(f.buf, "\n");
 	f.clearbuf();
 	f.clearflags();
 }
 
+// Wp sets the width and precision for formatting the next item.
 func (f *Fmt) Wp(w, p int) *Fmt {
 	f.wid_present = true;
 	f.wid = w;
@@ -102,12 +112,14 @@ func (f *Fmt) Wp(w, p int) *Fmt {
 	return f;
 }
 
+// P sets the precision for formatting the next item.
 func (f *Fmt) P(p int) *Fmt {
 	f.prec_present = true;
 	f.prec = p;
 	return f;
 }
 
+// W sets the width for formatting the next item.
 func (f *Fmt) W(x int) *Fmt {
 	f.wid_present = true;
 	f.wid = x;
@@ -162,9 +174,9 @@ func putint(buf *[nByte]byte, i int, base, val uint64, digits *string) int {
 	return i-1;
 }
 
-// boolean
-func (f *Fmt) Fmt_boolean(a bool) *Fmt {
-	if a {
+// Fmt_boolean formats a boolean.
+func (f *Fmt) Fmt_boolean(v bool) *Fmt {
+	if v {
 		f.pad("true");
 	} else {
 		f.pad("false");
@@ -213,152 +225,167 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
 	return string(buf)[i+1:nByte];
 }
 
-// decimal
-func (f *Fmt) Fmt_d64(a int64) *Fmt {
-	f.pad(f.integer(a, 10, true, &ldigits));
+// Fmt_d64 formats an int64 in decimal.
+func (f *Fmt) Fmt_d64(v int64) *Fmt {
+	f.pad(f.integer(v, 10, true, &ldigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) Fmt_d32(a int32) *Fmt {
-	return f.Fmt_d64(int64(a));
+// Fmt_d32 formats an int32 in decimal.
+func (f *Fmt) Fmt_d32(v int32) *Fmt {
+	return f.Fmt_d64(int64(v));
 }
 
-func (f *Fmt) Fmt_d(a int) *Fmt {
-	return f.Fmt_d64(int64(a));
+// Fmt_d formats an int in decimal.
+func (f *Fmt) Fmt_d(v int) *Fmt {
+	return f.Fmt_d64(int64(v));
 }
 
-// unsigned Fmt_decimal
-func (f *Fmt) Fmt_ud64(a uint64) *Fmt {
-	f.pad(f.integer(int64(a), 10, false, &ldigits));
+// Fmt_ud64 formats a uint64 in decimal.
+func (f *Fmt) Fmt_ud64(v uint64) *Fmt {
+	f.pad(f.integer(int64(v), 10, false, &ldigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) Fmt_ud32(a uint32) *Fmt {
-	return f.Fmt_ud64(uint64(a));
+// Fmt_ud32 formats a uint32 in decimal.
+func (f *Fmt) Fmt_ud32(v uint32) *Fmt {
+	return f.Fmt_ud64(uint64(v));
 }
 
-func (f *Fmt) Fmt_ud(a uint) *Fmt {
-	return f.Fmt_ud64(uint64(a));
+// Fmt_ud formats a uint in decimal.
+func (f *Fmt) Fmt_ud(v uint) *Fmt {
+	return f.Fmt_ud64(uint64(v));
 }
 
-// hexdecimal
-func (f *Fmt) Fmt_x64(a int64) *Fmt {
-	f.pad(f.integer(a, 16, true, &ldigits));
+// Fmt_x64 formats an int64 in hexadecimal.
+func (f *Fmt) Fmt_x64(v int64) *Fmt {
+	f.pad(f.integer(v, 16, true, &ldigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) Fmt_x32(a int32) *Fmt {
-	return f.Fmt_x64(int64(a));
+// Fmt_x32 formats an int32 in hexadecimal.
+func (f *Fmt) Fmt_x32(v int32) *Fmt {
+	return f.Fmt_x64(int64(v));
 }
 
-func (f *Fmt) Fmt_x(a int) *Fmt {
-	return f.Fmt_x64(int64(a));
+// Fmt_x formats an int in hexadecimal.
+func (f *Fmt) Fmt_x(v int) *Fmt {
+	return f.Fmt_x64(int64(v));
 }
 
-// unsigned hexdecimal
-func (f *Fmt) Fmt_ux64(a uint64) *Fmt {
-	f.pad(f.integer(int64(a), 16, false, &ldigits));
+// Fmt_ux64 formats a uint64 in hexadecimal.
+func (f *Fmt) Fmt_ux64(v uint64) *Fmt {
+	f.pad(f.integer(int64(v), 16, false, &ldigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) Fmt_ux32(a uint32) *Fmt {
-	return f.Fmt_ux64(uint64(a));
+// Fmt_ux32 formats a uint32 in hexadecimal.
+func (f *Fmt) Fmt_ux32(v uint32) *Fmt {
+	return f.Fmt_ux64(uint64(v));
 }
 
-func (f *Fmt) Fmt_ux(a uint) *Fmt {
-	return f.Fmt_ux64(uint64(a));
+// Fmt_ux formats a uint in hexadecimal.
+func (f *Fmt) Fmt_ux(v uint) *Fmt {
+	return f.Fmt_ux64(uint64(v));
 }
 
-// HEXADECIMAL
-func (f *Fmt) Fmt_X64(a int64) *Fmt {
-	f.pad(f.integer(a, 16, true, &udigits));
+// Fmt_X64 formats an int64 in upper case hexadecimal.
+func (f *Fmt) Fmt_X64(v int64) *Fmt {
+	f.pad(f.integer(v, 16, true, &udigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) Fmt_X32(a int32) *Fmt {
-	return f.Fmt_X64(int64(a));
+// Fmt_X32 formats an int32 in upper case hexadecimal.
+func (f *Fmt) Fmt_X32(v int32) *Fmt {
+	return f.Fmt_X64(int64(v));
 }
 
-func (f *Fmt) Fmt_X(a int) *Fmt {
-	return f.Fmt_X64(int64(a));
+// Fmt_X formats an int in upper case hexadecimal.
+func (f *Fmt) Fmt_X(v int) *Fmt {
+	return f.Fmt_X64(int64(v));
 }
 
-// unsigned HEXADECIMAL
-func (f *Fmt) Fmt_uX64(a uint64) *Fmt {
-	f.pad(f.integer(int64(a), 16, false, &udigits));
+// Fmt_uX64 formats a uint64 in upper case hexadecimal.
+func (f *Fmt) Fmt_uX64(v uint64) *Fmt {
+	f.pad(f.integer(int64(v), 16, false, &udigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) Fmt_uX32(a uint32) *Fmt {
-	return f.Fmt_uX64(uint64(a));
+// Fmt_uX32 formats a uint32 in upper case hexadecimal.
+func (f *Fmt) Fmt_uX32(v uint32) *Fmt {
+	return f.Fmt_uX64(uint64(v));
 }
 
-func (f *Fmt) Fmt_uX(a uint) *Fmt {
-	return f.Fmt_uX64(uint64(a));
+// Fmt_uX formats a uint in upper case hexadecimal.
+func (f *Fmt) Fmt_uX(v uint) *Fmt {
+	return f.Fmt_uX64(uint64(v));
 }
 
-// octal
-func (f *Fmt) Fmt_o64(a int64) *Fmt {
-	f.pad(f.integer(a, 8, true, &ldigits));
+// Fmt_o64 formats an int64 in octal.
+func (f *Fmt) Fmt_o64(v int64) *Fmt {
+	f.pad(f.integer(v, 8, true, &ldigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) Fmt_o32(a int32) *Fmt {
-	return f.Fmt_o64(int64(a));
+// Fmt_o32 formats an int32 in octal.
+func (f *Fmt) Fmt_o32(v int32) *Fmt {
+	return f.Fmt_o64(int64(v));
 }
 
-func (f *Fmt) Fmt_o(a int) *Fmt {
-	return f.Fmt_o64(int64(a));
+// Fmt_o formats an int in octal.
+func (f *Fmt) Fmt_o(v int) *Fmt {
+	return f.Fmt_o64(int64(v));
 }
 
-
-// unsigned octal
-func (f *Fmt) Fmt_uo64(a uint64) *Fmt {
-	f.pad(f.integer(int64(a), 8, false, &ldigits));
+// Fmt_uo64 formats a uint64 in octal.
+func (f *Fmt) Fmt_uo64(v uint64) *Fmt {
+	f.pad(f.integer(int64(v), 8, false, &ldigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) Fmt_uo32(a uint32) *Fmt {
-	return f.Fmt_uo64(uint64(a));
+// Fmt_uo32 formats a uint32 in octal.
+func (f *Fmt) Fmt_uo32(v uint32) *Fmt {
+	return f.Fmt_uo64(uint64(v));
 }
 
-func (f *Fmt) Fmt_uo(a uint) *Fmt {
-	return f.Fmt_uo64(uint64(a));
+// Fmt_uo formats a uint in octal.
+func (f *Fmt) Fmt_uo(v uint) *Fmt {
+	return f.Fmt_uo64(uint64(v));
 }
 
-
-// unsigned binary
-func (f *Fmt) Fmt_b64(a uint64) *Fmt {
-	f.pad(f.integer(int64(a), 2, false, &ldigits));
+// Fmt_b64 formats a uint64 in binary.
+func (f *Fmt) Fmt_b64(v uint64) *Fmt {
+	f.pad(f.integer(int64(v), 2, false, &ldigits));
 	f.clearflags();
 	return f;
 }
 
-func (f *Fmt) Fmt_b32(a uint32) *Fmt {
-	return f.Fmt_b64(uint64(a));
+// Fmt_b32 formats a uint32 in binary.
+func (f *Fmt) Fmt_b32(v uint32) *Fmt {
+	return f.Fmt_b64(uint64(v));
 }
 
-func (f *Fmt) Fmt_b(a uint) *Fmt {
-	return f.Fmt_b64(uint64(a));
+// Fmt_b formats a uint in binary.
+func (f *Fmt) Fmt_b(v uint) *Fmt {
+	return f.Fmt_b64(uint64(v));
 }
 
-
-// character
-func (f *Fmt) Fmt_c(a int) *Fmt {
-	f.pad(string(a));
+// Fmt_c formats a Unicode character.
+func (f *Fmt) Fmt_c(v int) *Fmt {
+	f.pad(string(v));
 	f.clearflags();
 	return f;
 }
 
-// string
+// Fmt_s formats a string.
 func (f *Fmt) Fmt_s(s string) *Fmt {
 	if f.prec_present {
 		if f.prec < len(s) {
@@ -370,7 +397,7 @@ func (f *Fmt) Fmt_s(s string) *Fmt {
 	return f;
 }
 
-// hexadecimal string
+// Fmt_sx formats a string as a hexadecimal encoding of its bytes.
 func (f *Fmt) Fmt_sx(s string) *Fmt {
 	t := "";
 	for i := 0; i < len(s); i++ {
@@ -386,6 +413,7 @@ func (f *Fmt) Fmt_sx(s string) *Fmt {
 	return f;
 }
 
+// Fmt_sX formats a string as an uppercase hexadecimal encoding of its bytes.
 func (f *Fmt) Fmt_sX(s string) *Fmt {
 	t := "";
 	for i := 0; i < len(s); i++ {
@@ -398,7 +426,7 @@ func (f *Fmt) Fmt_sX(s string) *Fmt {
 	return f;
 }
 
-// quoted string
+// Fmt_q formats a string as a double-quoted, escaped Go string constant.
 func (f *Fmt) Fmt_q(s string) *Fmt {
 	var quoted string;
 	if f.sharp && strconv.CanBackquote(s) {
@@ -426,40 +454,48 @@ func fmtString(f *Fmt, s string) *Fmt {
 	return f;
 }
 
-// float64
-func (f *Fmt) Fmt_e64(a float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(a, 'e', doPrec(f, 6)));
+// Fmt_e64 formats a float64 in the form -1.23e+12.
+func (f *Fmt) Fmt_e64(v float64) *Fmt {
+	return fmtString(f, strconv.Ftoa64(v, 'e', doPrec(f, 6)));
 }
 
-func (f *Fmt) Fmt_f64(a float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(a, 'f', doPrec(f, 6)));
+// Fmt_f64 formats a float64 in the form -1.23.
+func (f *Fmt) Fmt_f64(v float64) *Fmt {
+	return fmtString(f, strconv.Ftoa64(v, 'f', doPrec(f, 6)));
 }
 
-func (f *Fmt) Fmt_g64(a float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(a, 'g', doPrec(f, -1)));
+// Fmt_g64 formats a float64 in the 'f' or 'e' form according to size.
+func (f *Fmt) Fmt_g64(v float64) *Fmt {
+	return fmtString(f, strconv.Ftoa64(v, 'g', doPrec(f, -1)));
 }
 
-func (f *Fmt) Fmt_fb64(a float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(a, 'b', 0));
+// Fmt_fb64 formats a float64 in the form -123p3 (exponent is power of 2).
+func (f *Fmt) Fmt_fb64(v float64) *Fmt {
+	return fmtString(f, strconv.Ftoa64(v, 'b', 0));
 }
 
 // float32
 // cannot defer to float64 versions
 // because it will get rounding wrong in corner cases.
-func (f *Fmt) Fmt_e32(a float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(a, 'e', doPrec(f, 6)));
+
+// Fmt_e32 formats a float32 in the form -1.23e+12.
+func (f *Fmt) Fmt_e32(v float32) *Fmt {
+	return fmtString(f, strconv.Ftoa32(v, 'e', doPrec(f, 6)));
 }
 
-func (f *Fmt) Fmt_f32(a float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(a, 'f', doPrec(f, 6)));
+// Fmt_f32 formats a float32 in the form -1.23.
+func (f *Fmt) Fmt_f32(v float32) *Fmt {
+	return fmtString(f, strconv.Ftoa32(v, 'f', doPrec(f, 6)));
 }
 
-func (f *Fmt) Fmt_g32(a float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(a, 'g', doPrec(f, -1)));
+// Fmt_g32 formats a float32 in the 'f' or 'e' form according to size.
+func (f *Fmt) Fmt_g32(v float32) *Fmt {
+	return fmtString(f, strconv.Ftoa32(v, 'g', doPrec(f, -1)));
 }
 
-func (f *Fmt) Fmt_fb32(a float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(a, 'b', 0));
+// Fmt_fb32 formats a float32 in the form -123p3 (exponent is power of 2).
+func (f *Fmt) Fmt_fb32(v float32) *Fmt {
+	return fmtString(f, strconv.Ftoa32(v, 'b', 0));
 }
 
 // float

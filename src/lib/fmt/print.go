@@ -2,12 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package fmt implements formatted I/O with functions analogous
+// to C's printf.  Because of reflection knowledge it does not need
+// to be told about sizes and signedness (no %llud etc. - just %d).
+// Still to do: document the formats properly.  For now, like C but:
+//	- don't need l or u flags - type of integer tells that.
+//	- %v prints any value using its native format.
+//	- for each Printf-like fn, there is also a Print fn that takes no format
+//		and is equivalent to saying %v for every operand.
+//	- another variant Println inserts blanks and appends a newline.
+//	- if an operand implements method String() that method will
+//		be used for %v, %s, or Print etc.
+//	- if an operand implements interface Formatter, that interface can
+//		be used for fine control of formatting.
 package fmt
 
-/*
-	C-like printf, but because of reflection knowledge does not need
-	to be told about sizes and signedness (no %llud etc. - just %d).
-*/
 
 import (
 	"fmt";
@@ -17,27 +26,37 @@ import (
 	"utf8";
 )
 
-// Representation of printer state passed to custom formatters.
-// Provides access to the io.Write interface plus information about
-// the active formatting verb.
+// Formatter represents the printer state passed to custom formatters.
+// It provides access to the io.Write interface plus information about
+// the flags and options for the operand's format specifier.
 type Formatter interface {
+	// Write is the function to call to emit formatted output to be printed.
 	Write(b []byte) (ret int, err *os.Error);
+	// Width returns the value of the width option and whether it has been set.
 	Width()	(wid int, ok bool);
+	// Precision returns the value of the precision option and whether it has been set.
 	Precision()	(prec int, ok bool);
 
-	// flags
+	// Flag returns whether the flag c, a character, has been set.
 	Flag(int)	bool;
 }
 
+// Format is the interface implemented by objects with a custom formatter.
+// The implementation of Format may call Sprintf or Fprintf(f) etc.
+// to generate its output.
 type Format interface {
 	Format(f Formatter, c int);
 }
 
+// String represents any object being printed that has a String() method that
+// returns a string, which defines the ``native'' format for that object.
+// Any such object will be printed using that method if passed
+// as operand to a %s or %v format or to an unformatted printer such as Print.
 type String interface {
 	String() string
 }
 
-const runeSelf = 0x80
+const runeSelf = utf8.RuneSelf
 const allocSize = 32
 
 type pp struct {
@@ -129,6 +148,7 @@ func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
 
 // These routines end in 'f' and take a format string.
 
+// Fprintf formats according to a format specifier and writes to w.
 func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
@@ -137,11 +157,13 @@ func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
 	return n, error;
 }
 
+// Printf formats according to a format specifier and writes to standard output.
 func Printf(format string, v ...) (n int, errno *os.Error) {
 	n, errno = Fprintf(os.Stdout, format, v);
 	return n, errno;
 }
 
+// Sprintf formats according to a format specifier and returns the resulting string.
 func Sprintf(format string, a ...) string {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
@@ -150,9 +172,10 @@ func Sprintf(format string, a ...) string {
 	return s;
 }
 
-// These routines do not take a format string and add spaces only
-// when the operand on neither side is a string.
+// These routines do not take a format string
 
+// Fprint formats using the default formats for its operands and writes to w.
+// Spaces are added between operands when neither is a string.
 func Fprint(w io.Write, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
@@ -161,11 +184,15 @@ func Fprint(w io.Write, a ...) (n int, error *os.Error) {
 	return n, error;
 }
 
+// Print formats using the default formats for its operands and writes to standard output.
+// Spaces are added between operands when neither is a string.
 func Print(v ...) (n int, errno *os.Error) {
 	n, errno = Fprint(os.Stdout, v);
 	return n, errno;
 }
 
+// Sprint formats using the default formats for its operands and returns the resulting string.
+// Spaces are added between operands when neither is a string.
 func Sprint(a ...) string {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
@@ -178,6 +205,8 @@ func Sprint(a ...) string {
 // always add spaces between operands, and add a newline
 // after the last operand.
 
+// Fprintln formats using the default formats for its operands and writes to w.
+// Spaces are always added between operands and a newline is appended.
 func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
@@ -186,11 +215,15 @@ func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
 	return n, error;
 }
 
+// Println formats using the default formats for its operands and writes to standard output.
+// Spaces are always added between operands and a newline is appended.
 func Println(v ...) (n int, errno *os.Error) {
 	n, errno = Fprintln(os.Stdout, v);
 	return n, errno;
 }
 
+// Sprintln formats using the default formats for its operands and returns the resulting string.
+// Spaces are always added between operands and a newline is appended.
 func Sprintln(a ...) string {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
@@ -596,6 +629,13 @@ func (p *pp) doprintf(format string, v reflect.StructValue) {
 
 			// string
 			case 's':
+				if inter != nil {
+					// if object implements String, use the result.
+					if stringer, ok := inter.(String); ok {
+						s = p.fmt.Fmt_s(stringer.String()).Str();
+						break;
+					}
+				}
 				if v, ok := getString(field); ok {
 					s = p.fmt.Fmt_s(v).Str()
 				} else {
