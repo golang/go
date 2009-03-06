@@ -5,7 +5,7 @@
 package main
 
 import (
-	"array";  // not needed
+	"vector";  // not needed
 	"utf8";  // not needed
 	Fmt "fmt"
 )
@@ -125,6 +125,19 @@ func f3(a *[]int, m map[string] int) {
 	for i, x = range m {
 		defer Fmt.Println(i, x);
 	}
+}
+
+
+type I interface {}
+
+func f3(x I) int {
+	switch tmp := tmp.(type) {
+	case S: return 1;
+	}
+	switch {
+	case t := x.(S): return 2;
+	}
+	return 0;
 }
 
 

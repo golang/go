@@ -21,7 +21,6 @@ var (
 
 func init() {
 	flag.BoolVar(&flags.Verbose, "v", false, "verbose mode: trace parsing");
-	flag.BoolVar(&flags.Sixg, "6g", true, "6g compatibility mode");
 	flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
 	flag.BoolVar(&flags.Columns, "columns", Platform.USER == "gri", "print column info in error messages");
 }

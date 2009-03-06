@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package AST
+package ast
 
 import (
 	"vector";
 	"token";
-	SymbolTable "symboltable";
 )
 
 
@@ -62,7 +61,7 @@ type (
 
 	Ident struct {
 		Pos_ int;
-		Obj *SymbolTable.Object;
+		Str string;
 	};
 
 	BinaryExpr struct {
@@ -77,10 +76,15 @@ type (
 		X Expr;
 	};
 
+	// TODO this should probably just be a list instead
+	ConcatExpr struct {
+		X, Y Expr;
+	};
+
 	BasicLit struct {
 		Pos_ int;
 		Tok int;
-		Val string
+		Val []byte;
 	};
 
 	FunctionLit struct {
@@ -120,6 +124,10 @@ type (
 	// Type literals are treated like expressions.
 	Ellipsis struct {  // neither a type nor an expression
 		Pos_ int;
+	};
+	
+	TypeType struct {  // for type switches
+		Pos_ int;  // position of "type"
 	};
 
 	ArrayType struct {
@@ -184,6 +192,7 @@ type ExprVisitor interface {
 	DoIdent(x *Ident);
 	DoBinaryExpr(x *BinaryExpr);
 	DoUnaryExpr(x *UnaryExpr);
+	DoConcatExpr(x *ConcatExpr);
 	DoBasicLit(x *BasicLit);
 	DoFunctionLit(x *FunctionLit);
 	DoGroup(x *Group);
@@ -193,6 +202,7 @@ type ExprVisitor interface {
 	DoCall(x *Call);
 	
 	DoEllipsis(x *Ellipsis);
+	DoTypeType(x *TypeType);
 	DoArrayType(x *ArrayType);
 	DoStructType(x *StructType);
 	DoPointerType(x *PointerType);
@@ -209,6 +219,7 @@ func (x *BadExpr) Pos() int { return x.Pos_; }
 func (x *Ident) Pos() int { return x.Pos_; }
 func (x *BinaryExpr) Pos() int { return x.Pos_; }
 func (x *UnaryExpr) Pos() int { return x.Pos_; }
+func (x *ConcatExpr) Pos() int { return x.X.Pos(); }
 func (x *BasicLit) Pos() int { return x.Pos_; }
 func (x *FunctionLit) Pos() int { return x.Pos_; }
 func (x *Group) Pos() int { return x.Pos_; }
@@ -218,6 +229,7 @@ func (x *Index) Pos() int { return x.Pos_; }
 func (x *Call) Pos() int { return x.Pos_; }
 
 func (x *Ellipsis) Pos() int { return x.Pos_; }
+func (x *TypeType) Pos() int { return x.Pos_; }
 func (x *ArrayType) Pos() int { return x.Pos_; }
 func (x *StructType) Pos() int { return x.Pos_; }
 func (x *PointerType) Pos() int { return x.Pos_; }
@@ -232,6 +244,7 @@ func (x *BadExpr) Visit(v ExprVisitor) { v.DoBadExpr(x); }
 func (x *Ident) Visit(v ExprVisitor) { v.DoIdent(x); }
 func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
 func (x *UnaryExpr) Visit(v ExprVisitor) { v.DoUnaryExpr(x); }
+func (x *ConcatExpr) Visit(v ExprVisitor) { v.DoConcatExpr(x); }
 func (x *BasicLit) Visit(v ExprVisitor) { v.DoBasicLit(x); }
 func (x *FunctionLit) Visit(v ExprVisitor) { v.DoFunctionLit(x); }
 func (x *Group) Visit(v ExprVisitor) { v.DoGroup(x); }
@@ -241,6 +254,7 @@ func (x *Index) Visit(v ExprVisitor) { v.DoIndex(x); }
 func (x *Call) Visit(v ExprVisitor) { v.DoCall(x); }
 
 func (x *Ellipsis) Visit(v ExprVisitor) { v.DoEllipsis(x); }
+func (x *TypeType) Visit(v ExprVisitor) { v.DoTypeType(x); }
 func (x *ArrayType) Visit(v ExprVisitor) { v.DoArrayType(x); }
 func (x *StructType) Visit(v ExprVisitor) { v.DoStructType(x); }
 func (x *PointerType) Visit(v ExprVisitor) { v.DoPointerType(x); }
@@ -482,7 +496,6 @@ type DeclVisitor interface {
 }
 
 
-//func (d *Decl) Visit(v DeclVisitor) { v.DoDecl(d); }
 func (d *BadDecl) Visit(v DeclVisitor) { v.DoBadDecl(d); }
 func (d *ImportDecl) Visit(v DeclVisitor) { v.DoImportDecl(d); }
 func (d *ConstDecl) Visit(v DeclVisitor) { v.DoConstDecl(d); }
@@ -497,22 +510,15 @@ func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
 
 type Comment struct {
 	Pos int;
-	Text string;
-}
-
-
-func NewComment(pos int, text string) *Comment {
-	c := new(Comment);
-	c.Pos, c.Text = pos, text;
-	return c;
+	Text []byte;
 }
 
 
 type Program struct {
 	Pos int;  // tok is token.PACKAGE
-	Ident Expr;
+	Ident *Ident;
 	Decls []Decl;
-	Comments *vector.Vector;
+	Comments []*Comment;
 }
 
 

@@ -27,7 +27,6 @@ func assert(b bool) {
 
 type Flags struct {
 	Verbose bool;
-	Sixg bool;
 	Deps bool;
 	Columns bool;
 }
@@ -124,7 +123,7 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	scanner.Init(src, &err, true);
 
 	var parser Parser.Parser;
-	parser.Open(&scanner, &err, flags.Verbose, flags.Sixg, flags.Deps);
+	parser.Open(&scanner, &err, flags.Verbose);
 
 	prog := parser.ParseProgram();
 
@@ -204,6 +203,7 @@ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string, 
 
 
 func ComputeDeps(src_file string, flags *Flags) {
+	panic("dependency printing currently disabled");
 	globalset := make(map [string] bool);
 	wset := vector.New(0);
 	wset.Push(Utils.TrimExt(src_file, ".go"));
