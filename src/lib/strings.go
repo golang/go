@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// A package of simple functions to manipulate strings.
 package strings
 
 import "utf8"
 
-// Split string into array of UTF-8 sequences (still strings)
+// Explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings).
+// Invalid UTF-8 sequences become correct encodings of U+FFF8.
 func Explode(s string) []string {
 	a := make([]string, utf8.RuneCountInString(s, 0, len(s)));
 	j := 0;
@@ -19,7 +21,7 @@ func Explode(s string) []string {
 	return a
 }
 
-// Count non-overlapping instances of sep in s.
+// Count counts the number of non-overlapping instances of sep in s.
 func Count(s, sep string) int {
 	if sep == "" {
 		return utf8.RuneCountInString(s, 0, len(s))+1
@@ -35,7 +37,7 @@ func Count(s, sep string) int {
 	return n
 }
 
-// Return index of first instance of sep in s.
+// Index returns the index of the first instance of sep in s.
 func Index(s, sep string) int {
 	if sep == "" {
 		return 0
@@ -49,7 +51,8 @@ func Index(s, sep string) int {
 	return -1
 }
 
-// Split string into list of strings at separators
+// Split returns the array representing the substrings of s separated by string sep. Adjacent
+// occurrences of sep produce empty substrings.  If sep is empty, it is the same as Explode.
 func Split(s, sep string) []string {
 	if sep == "" {
 		return Explode(s)
@@ -71,7 +74,8 @@ func Split(s, sep string) []string {
 	return a
 }
 
-// Join list of strings with separators between them.
+// Join concatenates the elements of a to create a single string.   The separator string
+// sep is placed between elements in the resulting string.
 func Join(a []string, sep string) string {
 	if len(a) == 0 {
 		return ""
