@@ -26,7 +26,7 @@ OFILES=\
 	mparith1.$O\
 	mparith2.$O\
 	mparith3.$O\
-	sysimport.$O\
+	builtin.$O\
 	compat.$O\
 
 $(LIB): $(OFILES)
@@ -40,25 +40,11 @@ y.tab.h: $(YFILES)
 y.tab.c: y.tab.h
 	test -f y.tab.c && touch y.tab.c
 
-# the test here checks whether we have 6g at all.
-# if so, use it.  if not, just use the sysimport.c we have.
-# this happens on fresh perforce checkouts where
-# sysimport.c ends up with an older time stamp
-# than sys.go (or unsafe.go or mksys.c).
-sysimport.c:	sys.go unsafe.go mksys.c
-	if test -x $(BIN)/6g; then \
-		p4 open sysimport.c; \
-		gcc -o mksys mksys.c; \
-		6g sys.go; \
-		6g unsafe.go; \
-		./mksys sys >_sysimport.c && \
-		./mksys unsafe >>_sysimport.c && \
-		mv _sysimport.c sysimport.c; \
-	elif test -f sysimport.c; then \
-		touch sysimport.c; \
-	fi
+builtin.c:	sys.go unsafe.go mkbuiltin1.c mkbuiltin
+	mkbuiltin >builtin.c || \
+	(echo 'mkbuiltin failed; using bootstrap copy of builtin.c'; cp builtin.c.boot builtin.c)
 
 clean:
-	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB) _sysimport.c
+	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB) mkbuiltin1 builtin.c _builtin.c
 
 install: $(LIB)
