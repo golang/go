@@ -10,14 +10,19 @@
 // link in only the tables that are used by the program,
 // etc.
 
+// This package provides data and functions to test some properties of Unicode code points.
+// It is rudimentary but will improve.
 package unicode
 
+// The representation of a range of Unicode code points.  The range runs from Lo to Hi
+// inclusive and has the specified stride.
 type Range struct {
-	lo int;
-	hi int;
-	stride int;
+	Lo int;
+	Hi int;
+	Stride int;
 }
 
+// Upper is the set of Unicode upper case letters.
 var Upper = []Range{
 	Range{0x0041, 0x005a, 1},
 	Range{0x00c0, 0x00d6, 1},
@@ -150,6 +155,7 @@ var Upper = []Range{
 	Range{0x1d7ca, 0x1d7ca, 1},
 }
 
+// Letter is the set of Unicode letters.
 var Letter = []Range {
 	Range{0x0041, 0x005a, 1},
 	Range{0x0061, 0x007a, 1},
@@ -525,18 +531,19 @@ var Letter = []Range {
 	Range{0x2f800, 0x2fa1d, 1},
 }
 
+// Is tests whether rune is in the specified table of ranges.
 func Is(ranges []Range, rune int) bool {
 	// common case: rune is ASCII or Latin-1
 	if rune < 0x100 {
 		for i := 0; i < len(ranges); i++ {
 			r := ranges[i];
-			if rune > r.hi {
+			if rune > r.Hi {
 				continue;
 			}
-			if rune < r.lo {
+			if rune < r.Lo {
 				return false;
 			}
-			return (rune - r.lo) % r.stride == 0;
+			return (rune - r.Lo) % r.Stride == 0;
 		}
 		return false;
 	}
@@ -547,10 +554,10 @@ func Is(ranges []Range, rune int) bool {
 	for lo < hi {
 		m := lo + (hi - lo)/2;
 		r := ranges[m];
-		if r.lo <= rune && rune <= r.hi {
-			return (rune - r.lo) % r.stride == 0;
+		if r.Lo <= rune && rune <= r.Hi {
+			return (rune - r.Lo) % r.Stride == 0;
 		}
-		if rune < r.lo {
+		if rune < r.Lo {
 			hi = m;
 		} else {
 			lo = m+1;
@@ -559,10 +566,12 @@ func Is(ranges []Range, rune int) bool {
 	return false;
 }
 
+// IsLetter reports whether the rune is an upper case letter.
 func IsUpper(rune int) bool {
 	return Is(Upper, rune);
 }
 
+// IsLetter reports whether the rune is a letter.
 func IsLetter(rune int) bool {
 	return Is(Letter, rune);
 }
