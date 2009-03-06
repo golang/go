@@ -4,15 +4,13 @@
 
 package io
 
-// Byte buffer for marshaling nested messages.
+// Simple byte buffer for marshaling data.
 
 import (
 	"io";
 	"os";
 )
 
-// A simple implementation of the io.Read and io.Write interfaces.
-// A newly allocated ByteBuffer is ready to use.
 
 // TODO(r): Do better memory management.
 
@@ -24,6 +22,9 @@ func bytecopy(dst []byte, doff int, src []byte, soff int, count int) {
 	}
 }
 
+// A ByteBuffer is a simple implementation of the io.Read and io.Write interfaces
+// connected to a buffer of bytes.
+// The zero value for ByteBuffer is an empty buffer ready to use.
 type ByteBuffer struct {
 	buf	[]byte;
 	off	int;	// Read from here
@@ -31,11 +32,14 @@ type ByteBuffer struct {
 	cap	int;
 }
 
+// Reset resets the buffer so it has no content.
 func (b *ByteBuffer) Reset() {
 	b.off = 0;
 	b.len = 0;
 }
 
+// Write appends the contents of p to the buffer.  The return
+// value is the length of p; err is always nil.
 func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
 	plen := len(p);
 	if len(b.buf) == 0 {
@@ -54,6 +58,8 @@ func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
 	return plen, nil;
 }
 
+// Read reads the next len(p) bytes from the buffer or until the buffer
+// is drained.  The return value is the number of bytes read; err is always nil.
 func (b *ByteBuffer) Read(p []byte) (n int, err *os.Error) {
 	plen := len(p);
 	if len(b.buf) == 0 {
@@ -71,22 +77,23 @@ func (b *ByteBuffer) Read(p []byte) (n int, err *os.Error) {
 	return plen, nil;
 }
 
+// Len returns the length of the underlying buffer.
 func (b *ByteBuffer) Len() int {
 	return b.len
 }
 
+// Off returns the location within the buffer of the next byte to be read.
 func (b *ByteBuffer) Off() int {
 	return b.off
 }
 
+// Data returns the contents of the unread portion of the buffer.
 func (b *ByteBuffer) Data() []byte {
 	return b.buf[b.off:b.len]
 }
 
-func (b *ByteBuffer) AllData() []byte {
-	return b.buf[0:b.len]
-}
-
+// NewByteBufferFromArray creates and initializes a new ByteBuffer
+// with buf as its initial contents.
 func NewByteBufferFromArray(buf []byte) *ByteBuffer {
 	b := new(ByteBuffer);
 	b.buf = buf;
