@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// UTF-8 support.
-
+// Functions and constants to support text encoded in UTF-8.
+// This package calls a Unicode character a rune for brevity.
 package utf8
 
+// Numbers fundamental to the encoding.
 const (
-	RuneError = 0xFFFD;
-	RuneSelf = 0x80;
-	RuneMax = 0x10FFFF;
-	UTFMax = 4;
+	RuneError = 0xFFFD;	// the "error" Rune or "replacement character".
+	RuneSelf = 0x80;	// characters below Runeself are represented as themselves in a single byte.
+	RuneMax = 0x10FFFF;	// maximum Unicode code point.
+	UTFMax = 4;	// maximum number of bytes of a UTF-8 encoded Unicode character.
 )
 
 const (
@@ -181,28 +182,34 @@ func decodeRuneInStringInternal(s string, i int, n int) (rune, size int, short b
 	return RuneError, 1, false
 }
 
+// FullRune reports whether the bytes in p begin with a full UTF-8 encoding of a rune.
+// An invalid encoding is considered a full Rune since it will convert as a width-1 error rune.
 func FullRune(p []byte) bool {
 	rune, size, short := decodeRuneInternal(p);
 	return !short
 }
 
+// FullRuneInString is like FullRune but its input is a string.
 func FullRuneInString(s string, i int) bool {
 	rune, size, short := decodeRuneInStringInternal(s, i, len(s) - i);
 	return !short
 }
 
+// DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and its width in bytes.
 func DecodeRune(p []byte) (rune, size int) {
 	var short bool;
 	rune, size, short = decodeRuneInternal(p);
 	return;
 }
 
+// DecodeRuneInString is like DecodeRune but its input is a string.
 func DecodeRuneInString(s string, i int) (rune, size int) {
 	var short bool;
 	rune, size, short = decodeRuneInStringInternal(s, i, len(s) - i);
 	return;
 }
 
+// RuneLen returns the number of bytes required to encode the rune.
 func RuneLen(rune int) int {
 	switch {
 	case rune <= _Rune1Max:
@@ -217,6 +224,8 @@ func RuneLen(rune int) int {
 	return -1;
 }
 
+// EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
+// It returns the number of bytes written.
 func EncodeRune(rune int, p []byte) int {
 	if rune <= _Rune1Max {
 		p[0] = byte(rune);
@@ -247,6 +256,8 @@ func EncodeRune(rune int, p []byte) int {
 	return 4;
 }
 
+// RuneCount returns the number of runes in p.  Erroneous and short
+// encodings are treated as single runes of width 1 byte.
 func RuneCount(p []byte) int {
 	i := 0;
 	var n int;
@@ -261,6 +272,7 @@ func RuneCount(p []byte) int {
 	return n;
 }
 
+// RuneCountInString is like RuneCount but its input is a string.
 func RuneCountInString(s string, i int, l int) int {
 	ei := i + l;
 	n := 0;
