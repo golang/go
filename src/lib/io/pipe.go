@@ -169,7 +169,10 @@ func (w *pipeWrite) finish() {
 	w.Close();
 }
 
-// Create a synchronous in-memory pipe.
+// Pipe creates a synchronous in-memory pipe.
+// Used to connect code expecting an io.Read
+// with code expecting an io.Write.
+//
 // Reads on one end are matched by writes on the other.
 // Writes don't complete until all the data has been
 // written or the read end is closed.  Reads return
