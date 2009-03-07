@@ -18,7 +18,7 @@
 %token	<sym>		LPACKAGE LIMPORT LDEFER
 %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
 %token	<sym>		LCOLAS LFALL LRETURN LDDD
-%token	<sym>		LLEN LCAP LTYPEOF LPANIC LPANICN LPRINT LPRINTN
+%token	<sym>		LLEN LCAP LPANIC LPANICN LPRINT LPRINTN
 %token	<sym>		LVAR LTYPE LCONST LCONVERT LSELECT LMAKE LNEW
 %token	<sym>		LFOR LIF LELSE LSWITCH LCASE LDEFAULT
 %token	<sym>		LBREAK LCONTINUE LGO LGOTO LRANGE
@@ -419,6 +419,10 @@ simple_stmt:
 	{
 		if(addtop != N)
 			fatal("exprsym3_list_r LCOLAS expr_list");
+		if($3->op == OTYPESW) {
+			$$ = nod(OTYPESW, $1, $3->left);
+			break;
+		}
 		$$ = rev($1);
 		$$ = colas($$, $3);
 		$$ = nod(OAS, $$, $3);
@@ -504,6 +508,18 @@ complex_stmt:
 		// done in casebody()
 		poptodcl();
 		$$ = nod(OAS, selectas($2,$4), $4);
+		$$ = nod(OXCASE, $$, N);
+		addtotop($$);
+	}
+|	LCASE type ':'
+	{
+		poptodcl();
+		if(typeswvar == N || typeswvar->right == N) {
+			yyerror("type case not in a type switch");
+			$$ = N;
+		} else
+			$$ = old2new(typeswvar->right, $2);
+		$$ = nod(OTYPESW, $$, N);
 		$$ = nod(OXCASE, $$, N);
 		addtotop($$);
 	}
@@ -648,10 +664,20 @@ if_header:
 	}
 
 if_body:
-	if_header compound_stmt
+	if_header
+	{
+		Node *n;
+		n = $1->ntest;
+		if(n != N && n->op == OTYPESW)
+			n = n->left;
+		else
+			n = N;
+		typeswvar = nod(OLIST, typeswvar, n);
+	} compound_stmt
 	{
 		$$ = $1;
-		$$->nbody = $2;
+		$$->nbody = $3;
+		typeswvar = typeswvar->left;
 	}
 
 if_stmt:
@@ -836,6 +862,10 @@ pexpr:
 		$$ = nod(ODOTTYPE, $1, N);
 		$$->type = $4;
 	}
+|	pexpr '.' '(' LTYPE ')'
+	{
+		$$ = nod(OTYPESW, $1, N);
+	}
 |	pexpr '[' expr ']'
 	{
 		$$ = nod(OINDEX, $1, $3);
@@ -857,11 +887,6 @@ pexpr:
 |	LCAP '(' expr ')'
 	{
 		$$ = nod(OCAP, $3, N);
-	}
-|	LTYPEOF '(' type ')'
-	{
-		$$ = nod(OTYPEOF, N, N);
-		$$->type = $3;
 	}
 |	LNEW '(' type ')'
 	{
@@ -1001,7 +1026,6 @@ sym3:
 |	LNEW
 |	LMAKE
 |	LBASETYPE
-|	LTYPEOF
 
 /*
  * keywords that we can

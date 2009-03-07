@@ -715,6 +715,7 @@ opnames[] =
 	[OSELECT]	= "SELECT",
 	[OSWITCH]	= "SWITCH",
 	[OTYPE]		= "TYPE",
+	[OTYPESW]	= "TYPESW",
 	[OVAR]		= "VAR",
 	[OIMPORT]	= "IMPORT",
 	[OXOR]		= "XOR",

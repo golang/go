@@ -4,19 +4,38 @@
 
 #include	"go.h"
 
+enum
+{
+	Snorm		= 0,
+	Strue,
+	Sfalse,
+	Stype,
+};
+
 /*
  * walktype
  */
 Type*
-sw0(Node *c, Type *place)
+sw0(Node *c, Type *place, int arg)
 {
 	Node *r;
 
 	if(c == N)
 		return T;
-	if(c->op != OAS) {
+	switch(c->op) {
+	default:
+		if(arg == Stype) {
+			yyerror("inappropriate case for a type switch");
+			return T;
+		}
 		walktype(c, Erv);
 		return T;
+	case OTYPESW:
+		if(arg != Stype)
+			yyerror("inappropriate type case");
+		return T;
+	case OAS:
+		break;
 	}
 	walktype(c->left, Elv);
 
@@ -47,6 +66,8 @@ sw0(Node *c, Type *place)
 		break;
 	}
 	c->type = types[TBOOL];
+	if(arg != Strue)
+		goto bad;
 	return T;
 
 bad:
@@ -58,7 +79,7 @@ bad:
  * return the first type
  */
 Type*
-sw1(Node *c, Type *place)
+sw1(Node *c, Type *place, int arg)
 {
 	if(place == T)
 		return c->type;
@@ -69,7 +90,7 @@ sw1(Node *c, Type *place)
  * return a suitable type
  */
 Type*
-sw2(Node *c, Type *place)
+sw2(Node *c, Type *place, int arg)
 {
 	return types[TINT];	// botch
 }
@@ -79,7 +100,7 @@ sw2(Node *c, Type *place)
  * is compat with all the cases
  */
 Type*
-sw3(Node *c, Type *place)
+sw3(Node *c, Type *place, int arg)
 {
 	if(place == T)
 		return c->type;
@@ -97,7 +118,7 @@ sw3(Node *c, Type *place)
  * types to cases and switch
  */
 Type*
-walkcases(Node *sw, Type*(*call)(Node*, Type*))
+walkcases(Node *sw, Type*(*call)(Node*, Type*, int arg), int arg)
 {
 	Iter save;
 	Node *n;
@@ -105,10 +126,10 @@ walkcases(Node *sw, Type*(*call)(Node*, Type*))
 	int32 lno;
 
 	lno = setlineno(sw);
-	place = call(sw->ntest, T);
+	place = call(sw->ntest, T, arg);
 
 	n = listfirst(&save, &sw->nbody->left);
-	if(n->op == OEMPTY)
+	if(n == N || n->op == OEMPTY)
 		return T;
 
 loop:
@@ -122,7 +143,7 @@ loop:
 
 	if(n->left != N) {
 		setlineno(n->left);
-		place = call(n->left, place);
+		place = call(n->left, place, arg);
 	}
 	n = listnext(&save);
 	goto loop;
@@ -190,6 +211,7 @@ loop:
 		if(oc == N && os != N)
 			yyerror("first switch statement must be a case");
 
+		// botch - shouldnt fall thru declaration
 		if(os != N && os->op == OXFALL)
 			os->op = OFALL;
 		else
@@ -236,23 +258,17 @@ loop:
  * rebulid case statements into if .. goto
  */
 void
-prepsw(Node *sw)
+prepsw(Node *sw, int arg)
 {
 	Iter save;
-	Node *name, *cas;
+	Node *name, *bool, *cas;
 	Node *t, *a;
-	int bool;
-
-	bool = 0;
-	if(whatis(sw->ntest) == Wlitbool) {
-		bool = 1;		// true
-		if(sw->ntest->val.u.xval == 0)
-			bool = 2;	// false
-	}
 
 	cas = N;
 	name = N;
-	if(bool == 0) {
+	bool = N;
+
+	if(arg != Strue && arg != Sfalse) {
 		name = nod(OXXX, N, N);
 		tempname(name, sw->ntest->type);
 		cas = nod(OAS, name, sw->ntest);
@@ -263,7 +279,6 @@ prepsw(Node *sw)
 loop:
 	if(t == N) {
 		sw->nbody->left = rev(cas);
-		walkstate(sw->nbody->left);
 //dump("case", sw->nbody->left);
 		return;
 	}
@@ -274,22 +289,40 @@ loop:
 		goto loop;
 	}
 
+	if(t->left->op == OAS) {
+		if(bool == N) {
+			bool = nod(OXXX, N, N);
+			tempname(bool, types[TBOOL]);
+		}
+//dump("oas", t);
+		t->left->left = nod(OLIST, t->left->left, bool);
+		cas = list(cas, t->left);		// v,bool = rhs
+
+		a = nod(OIF, N, N);
+		a->nbody = t->right;			// then goto l
+		a->ntest = bool;
+		if(arg != Strue)
+			a->ntest = nod(ONOT, bool, N);
+		cas = list(cas, a);			// if bool goto l
+
+		t = listnext(&save);
+		goto loop;
+	}
+
 	a = nod(OIF, N, N);
 	a->nbody = t->right;				// then goto l
 
-	switch(bool) {
+	switch(arg) {
 	default:
 		// not bool const
 		a->ntest = nod(OEQ, name, t->left);	// if name == val
 		break;
 
-	case 1:
-		// bool true
+	case Strue:
 		a->ntest = t->left;			// if val
 		break;
 
-	case 2:
-		// bool false
+	case Sfalse:
 		a->ntest = nod(ONOT, t->left, N);	// if !val
 		break;
 	}
@@ -299,35 +332,141 @@ loop:
 	goto loop;
 }
 
+/*
+ * convert switch of the form
+ *	switch v := i.(type) { case t1: ..; case t2: ..; }
+ * into if statements
+ */
 void
-walkswitch(Node *n)
+typeswitch(Node *sw)
+{
+	Iter save;
+	Node *face, *bool, *cas;
+	Node *t, *a, *b;
+
+//dump("typeswitch", sw);
+
+	walktype(sw->ntest->right, Erv);
+	if(!istype(sw->ntest->right->type, TINTER)) {
+		yyerror("type switch must be on an interface");
+		return;
+	}
+	walkcases(sw, sw0, Stype);
+
+	/*
+	 * predeclare variables for the interface var
+	 * and the boolean var
+	 */
+	face = nod(OXXX, N, N);
+	tempname(face, sw->ntest->right->type);
+	cas = nod(OAS, face, sw->ntest->right);
+
+	bool = nod(OXXX, N, N);
+	tempname(bool, types[TBOOL]);
+
+	t = listfirst(&save, &sw->nbody->left);
+
+loop:
+	if(t == N) {
+		sw->nbody->left = rev(cas);
+		walkstate(sw->nbody);
+//dump("done", sw->nbody->left);
+		return;
+	}
+
+	if(t->left == N) {
+		cas = list(cas, t->right);		// goto default
+		t = listnext(&save);
+		goto loop;
+	}
+	if(t->left->op != OTYPESW) {
+		t = listnext(&save);
+		goto loop;
+	}
+
+	a = t->left->left;		// var
+	a = nod(OLIST, a, bool);	// var,bool
+
+	b = nod(ODOTTYPE, face, N);
+	b->type = t->left->left->type;	// interface.(type)
+
+	a = nod(OAS, a, b);		// var,bool = interface.(type)
+	cas = list(cas, a);
+
+	a = nod(OIF, N, N);
+	a->ntest = bool;
+	a->nbody = t->right;		// if bool { goto l }
+	cas = list(cas, a);
+
+	t = listnext(&save);
+	goto loop;
+}
+
+void
+walkswitch(Node *sw)
 {
 	Type *t;
+	int arg;
 
-	casebody(n);
-	if(n->ntest == N)
-		n->ntest = booltrue;
+//dump("walkswitch", sw);
 
-	walkstate(n->ninit);
-	walktype(n->ntest, Erv);
-	walkstate(n->nbody);
+	/*
+	 * reorder the body into (OLIST, cases, statements)
+	 * cases have OGOTO into statements.
+	 * both have inserted OBREAK statements
+	 */
+	walkstate(sw->ninit);
+	if(sw->ntest == N)
+		sw->ntest = booltrue;
+	casebody(sw);
 
-	// walktype
-	walkcases(n, sw0);
-
-	// find common type
-	t = n->ntest->type;
-	if(t == T)
-		t = walkcases(n, sw1);
-
-	// if that fails pick a type
-	if(t == T)
-		t = walkcases(n, sw2);
-
-	// set the type on all literals
-	if(t != T) {
-		walkcases(n, sw3);
-		convlit(n->ntest, t);
-		prepsw(n);
+	/*
+	 * classify the switch test
+	 * Strue or Sfalse if the test is a bool constant
+	 *	this allows cases to be map/chan/interface assignments
+	 *	as well as (boolean) expressions
+	 * Stype if the test is v := interface.(type)
+	 *	this forces all cases to be types
+	 * Snorm otherwise
+	 *	all cases are expressions
+	 */
+	if(sw->ntest->op == OTYPESW) {
+		typeswitch(sw);
+		return;
 	}
+	arg = Snorm;
+	if(whatis(sw->ntest) == Wlitbool) {
+		arg = Strue;
+		if(sw->ntest->val.u.xval == 0)
+			arg = Sfalse;
+	}
+
+	/*
+	 * init statement is nothing important
+	 */
+	walktype(sw->ntest, Erv);
+//print("after walkwalks\n");
+
+	/*
+	 * pass 0,1,2,3
+	 * walk the cases as appropriate for switch type
+	 */
+	walkcases(sw, sw0, arg);
+	t = sw->ntest->type;
+	if(t == T)
+		t = walkcases(sw, sw1, arg);
+	if(t == T)
+		t = walkcases(sw, sw2, arg);
+	if(t == T)
+		return;
+	walkcases(sw, sw3, arg);
+	convlit(sw->ntest, t);
+//print("after walkcases\n");
+
+	/*
+	 * convert the switch into OIF statements
+	 */
+	prepsw(sw, arg);
+	walkstate(sw->nbody);
+//print("normal done\n");
 }

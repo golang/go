@@ -1110,7 +1110,6 @@ static	struct
 	"switch",	LSWITCH,	Txxx,
 	"true",		LTRUE,		Txxx,
 	"type",		LTYPE,		Txxx,
-	"typeof",	LTYPEOF,	Txxx,
 	"var",		LVAR,		Txxx,
 
 	"notwithstanding",		LIGNORE,	Txxx,
