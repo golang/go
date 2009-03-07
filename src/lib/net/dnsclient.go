@@ -62,14 +62,15 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err *os.Erro
 			return nil, err
 		}
 
-		// TODO(rsc): set up timeout or call ReadTimeout.
-		// right now net does not support that.
+		c.SetReadTimeout(1e9);	// nanoseconds
 
 		buf := make([]byte, 2000);	// More than enough.
 		n, err = c.Read(buf);
+		if err == os.EAGAIN {
+			continue;
+		}
 		if err != nil {
-			// TODO(rsc): only continue if timed out
-			continue
+			return nil, err;
 		}
 		buf = buf[0:n];
 		in := new(_DNS_Msg);
@@ -84,7 +85,7 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err *os.Erro
 
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
-// TODO(rsc): Maybe return [][]byte (==[]IPAddr) instead?
+// TODO(rsc): Maybe return []IP instead?
 func answer(name string, dns *_DNS_Msg) (addrs []string, err *os.Error) {
 	addrs = make([]string, 0, len(dns.answer));
 

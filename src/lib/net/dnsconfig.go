@@ -29,7 +29,7 @@ var _DNS_configError *os.Error;
 // of the host name to get the default search domain.
 // We assume it's in resolv.conf anyway.
 func _DNS_ReadConfig() (*_DNS_Config, *os.Error) {
-	// TODO(rsc): 6g won't let me use "file :="
+	// TODO(rsc): 6g won't let me say file, err :=
 	var file *file;
 	var err *os.Error;
 	file, err = open("/etc/resolv.conf");
