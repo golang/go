@@ -44,7 +44,7 @@ parser.6:	ast.6 symboltable.6
 
 platform.6:	 utils.6
 
-printer.6:	 utils.6 ast.6 symboltable.6
+printer.6:	 utils.6 ast.6 symboltable.6 template.6
 
 %.6:	%.go
 	$(G) $(F) $<
