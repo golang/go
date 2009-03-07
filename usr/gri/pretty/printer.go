@@ -15,6 +15,7 @@ import (
 	Utils "utils";
 	"token";
 	"ast";
+	"template";
 	SymbolTable "symboltable";
 )
 
@@ -388,98 +389,6 @@ func (P *Printer) Error(pos int, tok int, msg string) {
 
 // ----------------------------------------------------------------------------
 // HTML support
-
-const template_name = "template.html"
-var html_template string  // TODO should probably be []byte
-
-// tags for substitution in html_template
-const body_tag = "<!--BODY-->";
-
-// indexes of various tags in html_template
-var body_index int;
-
-func init() {
-	fd, err0 := os.Open(template_name, os.O_RDONLY, 0);
-	defer fd.Close();
-	if err0 != nil {
-		panic("cannot open html template");
-	}
-
-	// TODO not sure why this didn't work
-	/*
-	var buf io.ByteBuffer;
-	len, err1 := io.Copy(fd, buf);
-	if err1 == io.ErrEOF {
-		err1 = nil;
-	}
-	if err1 != nil {
-		panic("cannot read html template");
-	}
-	if len == 0 {
-		panic("html template empty");
-	}
-	html_template = string(buf.AllData());
-	*/
-
-	var buf [8*1024]byte;
-	len, err1 := io.Readn(fd, buf);
-	if err1 == io.ErrEOF {
-		err1 = nil;
-	}
-	if err1 != nil {
-		panic("cannot read html template");
-	}
-	if len == 0 {
-		panic("html template empty");
-	}
-	html_template = string(buf[0 : len]);
-
-	body_index = strings.Index(html_template, body_tag);
-	if body_index < 0 {
-		panic("html_template has no BODY tag");
-	}
-}
-
-
-func (P *Printer) HtmlPrologue(title string) {
-	if P.html {
-		P.Printf("%s\n", html_template[0 : body_index]);
-		P.Printf("<h1>%s</h1>\n", "package " + title);
-		P.Printf("<pre>\n");
-		/*
-		P.TaggedString(0,
-			"<html>\n"
-			"<head>\n"
-			"	<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n"
-			"	<title>" + P.htmlEscape(title) + "</title>\n"
-			"	<style type=\"text/css\">\n"
-			"	</style>\n"
-			"</head>\n"
-			"<body>\n"
-			"<pre>\n",
-			"", ""
-		)
-		*/
-	}
-}
-
-
-func (P *Printer) HtmlEpilogue() {
-	if P.html {
-		P.String(0, "");  // flush
-		P.Printf("</pre>\n");
-		P.Printf("%s", html_template[body_index : len(html_template)]);
-		/*
-		P.TaggedString(0,
-			"</pre>\n"
-			"</body>\n"
-			"<html>\n",
-			"", ""
-		)
-		*/
-	}
-}
-
 
 func (P *Printer) HtmlIdentifier(x *ast.Ident) {
 	P.String(x.Pos_, x.Str);
@@ -1182,6 +1091,13 @@ func (P *Printer) Program(p *ast.Program) {
 // ----------------------------------------------------------------------------
 // External interface
 
+var templ template.Template;
+
+func init() {
+	templ.Init("template.html");
+}
+
+
 func Print(writer io.Write, html bool, prog *ast.Program) {
 	// setup
 	var P Printer;
@@ -1192,10 +1108,17 @@ func Print(writer io.Write, html bool, prog *ast.Program) {
 	text := tabwriter.New(writer, *tabwidth, 1, padchar, true, html);
 	P.Init(text, html, prog.Comments);
 
-	// TODO would be better to make the name of the src file be the title
-	P.HtmlPrologue(prog.Ident.Str);
-	P.Program(prog);
-	P.HtmlEpilogue();
+	if P.html {
+		err := templ.Apply(text, "<!--", template.Substitution {
+			"PACKAGE-->" : func() { /* P.Expr(prog.Ident); */ },
+			"BODY-->" : func() { P.Program(prog); },
+		});
+		if err != nil {
+			panic("print error - exiting");
+		}
+	} else {
+		P.Program(prog);
+	}
 
 	P.String(0, "");  // flush pending separator/newlines
 	err := text.Flush();
