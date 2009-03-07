@@ -329,7 +329,7 @@ enum
 	OKEY, OPARAM,
 	OCOMPOS,
 	OCONV,
-	ODOTTYPE,
+	ODOTTYPE, OTYPESW,
 	OBAD,
 
 	OEXTEND,	// 6g internal
@@ -526,6 +526,7 @@ EXTERN	Node*	retnil;
 EXTERN	Node*	fskel;
 
 EXTERN	Node*	addtop;
+EXTERN	Node*	typeswvar;
 
 EXTERN	char*	context;
 EXTERN	char*	pkgcontext;

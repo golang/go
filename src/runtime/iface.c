@@ -315,7 +315,7 @@ sys·ifaceI2T2(Sigt *st, Iface i, ...)
 	ret = (byte*)(&i+1);
 	alg = st->hash & 0xFF;
 	wid = st->offset;
-	ok = (bool*)(ret+rnd(wid, 8));
+	ok = (bool*)(ret+rnd(wid, 1));
 
 	if(iface_debug) {
 		prints("I2T2 sigt=");
