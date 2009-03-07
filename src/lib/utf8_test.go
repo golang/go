@@ -7,7 +7,6 @@ package utf8
 import (
 	"fmt";
 	"io";
-	"syscall";
 	"testing";
 	"utf8";
 )

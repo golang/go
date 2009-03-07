@@ -11,7 +11,6 @@ package io
 
 import (
 	"os";
-	"syscall";
 )
 
 // ErrEOF is the error returned by Readn and Copyn when they encounter EOF.

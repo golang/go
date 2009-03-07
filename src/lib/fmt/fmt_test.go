@@ -8,7 +8,6 @@ import (
 	"fmt";
 	"io";
 	"math";
-	"syscall";
 	"testing";
 )
 

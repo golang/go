@@ -101,7 +101,7 @@ testing.6: flag.install fmt.dirinstall
 fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
 hash.dirinstall: os.dirinstall
 http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall strings.install log.install
-io.dirinstall: os.dirinstall syscall.dirinstall sync.dirinstall
+io.dirinstall: os.dirinstall sync.dirinstall
 json.dirinstall: container.dirinstall fmt.dirinstall io.dirinstall math.dirinstall \
 	strconv.dirinstall strings.install utf8.install
 lang.dirinstall: strconv.dirinstall utf8.install unicode.dirinstall

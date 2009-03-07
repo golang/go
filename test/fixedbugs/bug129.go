@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 package foo
-import "syscall"
+import "fmt"
 func f() {
-	syscall := 1
+	fmt := 1
 }
