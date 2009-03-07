@@ -1016,7 +1016,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
 }
 
 
-func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
+func (P *Printer) funcDecl(d *ast.FuncDecl, with_body bool) {
 	P.Token(d.Pos_, token.FUNC);
 	P.separator = blank;
 	if recv := d.Recv; recv != nil {
@@ -1032,11 +1032,16 @@ func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
 	}
 	P.Expr(d.Ident);
 	P.Signature(d.Sig);
-	if d.Body != nil {
+	if with_body && d.Body != nil {
 		P.separator = blank;
 		P.Block(d.Body, true);
 	}
 	P.newlines = 2;
+}
+
+
+func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
+	P.funcDecl(d, true);
 }
 
 
@@ -1070,6 +1075,20 @@ func (P *Printer) DoDeclList(d *ast.DeclList) {
 
 func (P *Printer) Decl(d ast.Decl) {
 	d.Visit(P);
+}
+
+
+// ----------------------------------------------------------------------------
+// Interface
+
+func (P *Printer) Interface(p *ast.Program) {
+	for i := 0; i < len(p.Decls); i++ {
+		decl := p.Decls[i];
+		// TODO use type switch
+		if fun, is_fun := decl.(*ast.FuncDecl); is_fun {
+			P.funcDecl(fun, false);
+		}
+	}
 }
 
 
@@ -1110,7 +1129,8 @@ func Print(writer io.Write, html bool, prog *ast.Program) {
 
 	if P.html {
 		err := templ.Apply(text, "<!--", template.Substitution {
-			"PACKAGE-->" : func() { /* P.Expr(prog.Ident); */ },
+			"PACKAGE-->" : func() { P.Printf("%s", prog.Ident.Str); },
+			"INTERFACE-->" : func() { P.Interface(prog); },
 			"BODY-->" : func() { P.Program(prog); },
 		});
 		if err != nil {
