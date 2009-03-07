@@ -2,11 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The sort package provides primitives for sorting arrays
+// and user-defined collections.
 package sort
 
+// SortInterface is the interface that a type, typically a collection,
+// must implement for its contents to be sorted in increasing order.
+// Its methods require that the elements of the collection be enumerated
+// by an integer index.
 type SortInterface interface {
+	// Len is the number of elements in the collection.
 	Len() int;
+	// Less returns whether the element with index i is should sort
+	// before the element with index j.
+	// TODO(r): should this method be renamed Before?
 	Less(i, j int) bool;
+	// Swap swaps the elements with indexes i and j.
 	Swap(i, j int);
 }
 
@@ -134,6 +145,7 @@ func IsSorted(data SortInterface) bool {
 
 // Convenience types for common cases
 
+// IntArray attaches the methods of SortInterface to []int, sorting in increasing order.
 type IntArray []int
 
 func (p IntArray) Len() int            { return len(p); }
@@ -141,6 +153,7 @@ func (p IntArray) Less(i, j int) bool  { return p[i] < p[j]; }
 func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
+// FloatArray attaches the methods of SortInterface to []float, sorting in increasing order.
 type FloatArray  []float
 
 func (p FloatArray) Len() int            { return len(p); }
@@ -148,6 +161,7 @@ func (p FloatArray) Less(i, j int) bool  { return p[i] < p[j]; }
 func (p FloatArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
+// StringArray attaches the methods of SortInterface to []string, sorting in increasing order.
 type StringArray []string
 
 func (p StringArray) Len() int            { return len(p); }
@@ -157,11 +171,17 @@ func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 // Convenience wrappers for common cases
 
+// SortInts sorts an array of ints in increasing order.
 func SortInts(a []int)        { Sort(IntArray(a)); }
+// SortFloats sorts an array of floats in increasing order.
 func SortFloats(a []float)    { Sort(FloatArray(a)); }
+// SortStrings sorts an array of strings in increasing order.
 func SortStrings(a []string)  { Sort(StringArray(a)); }
 
 
+// IntsAreSorted tests whether an array of ints is sorted in increasing order.
 func IntsAreSorted(a []int) bool       { return IsSorted(IntArray(a)); }
+// FloatsAreSorted tests whether an array of floats is sorted in increasing order.
 func FloatsAreSorted(a []float) bool   { return IsSorted(FloatArray(a)); }
+// StringsAreSorted tests whether an array of strings is sorted in increasing order.
 func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)); }
