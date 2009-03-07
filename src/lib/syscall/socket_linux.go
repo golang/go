@@ -80,7 +80,7 @@ func Setsockopt_tv(fd, level, opt, nsec int64) int64 {
 
 func Setsockopt_linger(fd, level, opt int64, sec int) int64 {
 	var l Linger;
-	if sec != 0 {
+	if sec >= 0 {
 		l.Yes = 1;
 		l.Sec = int32(sec)
 	} else {

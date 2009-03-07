@@ -255,11 +255,13 @@ func (c *connBase) SetWriteBuffer(bytes int) *os.Error {
 }
 
 func (c *connBase) SetReadTimeout(nsec int64) *os.Error {
-	return setsockopt_tv(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, nsec);
+	c.fd.rdeadline_delta = nsec;
+	return nil;
 }
 
 func (c *connBase) SetWriteTimeout(nsec int64) *os.Error {
-	return setsockopt_tv(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_SNDTIMEO, nsec);
+	c.fd.wdeadline_delta = nsec;
+	return nil;
 }
 
 func (c *connBase) SetTimeout(nsec int64) *os.Error {
@@ -432,29 +434,82 @@ func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
 
 // TODO: raw IP connections
 
-
 // TODO: raw ethernet connections
 
 // A Conn is a generic network connection.
 type Conn interface {
+	// Read blocks until data is ready from the connection
+	// and then reads into b.  It returns the number
+	// of bytes read, or 0 if the connection has been closed.
 	Read(b []byte) (n int, err *os.Error);
+
+	// Write writes the data in b to the connection.
 	Write(b []byte) (n int, err *os.Error);
+
+	// Close closes the connection.
 	Close() *os.Error;
 
-	// For UDP sockets.
+	// For packet-based protocols such as UDP,
+	// ReadFrom reads the next packet from the network,
+	// returning the number of bytes read and the remote
+	// address that sent them.
 	ReadFrom(b []byte) (n int, addr string, err *os.Error);
+
+	// For packet-based protocols such as UDP,
+	// WriteTo writes the byte buffer b to the network
+	// as a single payload, sending it to the target address.
 	WriteTo(addr string, b []byte) (n int, err *os.Error);
 
-	// Methods that have meaning only on some networks.
+	// SetReadBuffer sets the size of the operating system's
+	// receive buffer associated with the connection.
 	SetReadBuffer(bytes int) *os.Error;
+
+	// SetReadBuffer sets the size of the operating system's
+	// transmit buffer associated with the connection.
 	SetWriteBuffer(bytes int) *os.Error;
+
+	// SetTimeout sets the read and write deadlines associated
+	// with the connection.
 	SetTimeout(nsec int64) *os.Error;
+
+	// SetReadTimeout sets the time (in nanoseconds) that
+	// Read will wait for data before returning os.EAGAIN.
+	// Setting nsec == 0 (the default) disables the deadline.
 	SetReadTimeout(nsec int64) *os.Error;
+
+	// SetWriteTimeout sets the time (in nanoseconds) that
+	// Write will wait to send its data before returning os.EAGAIN.
+	// Setting nsec == 0 (the default) disables the deadline.
+	// Even if write times out, it may return n > 0, indicating that
+	// some of the data was successfully written.
 	SetWriteTimeout(nsec int64) *os.Error;
+
+	// SetLinger sets the behavior of Close() on a connection
+	// which still has data waiting to be sent or to be acknowledged.
+	//
+	// If sec < 0 (the default), Close returns immediately and
+	// the operating system finishes sending the data in the background.
+	//
+	// If sec == 0, Close returns immediately and the operating system
+	// discards any unsent or unacknowledged data.
+	//
+	// If sec > 0, Close blocks for at most sec seconds waiting for
+	// data to be sent and acknowledged.
 	SetLinger(sec int) *os.Error;
+
+	// SetReuseAddr sets whether it is okay to reuse addresses
+	// from recent connections that were not properly closed.
 	SetReuseAddr(reuseaddr bool) *os.Error;
+
+	// SetDontRoute sets whether outgoing messages should
+	// bypass the system routing tables.
 	SetDontRoute(dontroute bool) *os.Error;
+
+	// SetKeepAlive sets whether the operating system should send
+	// keepalive messages on the connection.
 	SetKeepAlive(keepalive bool) *os.Error;
+
+	// BindToDevice binds a connection to a particular network device.
 	BindToDevice(dev string) *os.Error;
 }
 

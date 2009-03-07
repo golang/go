@@ -62,14 +62,44 @@ func (p *pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 	return nil
 }
 
-func (p *pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+func (p *pollster) DelFD(fd int64, mode int) {
+	var kmode int16;
+	if mode == 'r' {
+		kmode = syscall.EVFILT_READ
+	} else {
+		kmode = syscall.EVFILT_WRITE
+	}
+	var events [1]syscall.Kevent_t;
+	ev := &events[0];
+	ev.Ident = fd;
+	ev.Filter = kmode;
+
+	// EV_DELETE - delete event from kqueue list
+	// EV_RECEIPT - generate fake EV_ERROR as result of add,
+	//	rather than waiting for real event
+	ev.Flags = syscall.EV_DELETE | syscall.EV_RECEIPT;
+	syscall.Kevent(p.kq, events, events, nil);
+}
+
+func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
+	var t *syscall.Timespec;
 	for len(p.events) == 0 {
-		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf, nil);
+		if nsec > 0 {
+			if t == nil {
+				t = new(syscall.Timespec);
+			}
+			t.Sec = nsec / 1e9;
+			t.Nsec = uint64(nsec % 1e9);
+		}
+		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf, t);
 		if e != 0 {
-			if e == syscall.EAGAIN || e == syscall.EINTR {
+			if e == syscall.EINTR {
 				continue
 			}
 			return -1, 0, os.ErrnoToError(e)
+		}
+		if nn == 0 {
+			return -1, 0, nil;
 		}
 		p.events = p.eventbuf[0:nn]
 	}

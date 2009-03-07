@@ -44,19 +44,19 @@ func (p *pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 	ev.Fd = int32(fd);
 	ev.Events, already = p.events[fd];
 	if !repeat {
-		ev.Events |= syscall.EPOLLONESHOT
+		ev.Events |= syscall.EPOLLONESHOT;
 	}
 	if mode == 'r' {
-		ev.Events |= readFlags
+		ev.Events |= readFlags;
 	} else {
-		ev.Events |= writeFlags
+		ev.Events |= writeFlags;
 	}
 
 	var op int64;
 	if already {
-		op = syscall.EPOLL_CTL_MOD
+		op = syscall.EPOLL_CTL_MOD;
 	} else {
-		op = syscall.EPOLL_CTL_ADD
+		op = syscall.EPOLL_CTL_ADD;
 	}
 	if e := syscall.Epoll_ctl(p.epfd, op, fd, &ev); e != 0 {
 		return os.ErrnoToError(e)
@@ -69,13 +69,13 @@ func (p *pollster) StopWaiting(fd int64, bits uint) {
 	events, already := p.events[fd];
 	if !already {
 		print("Epoll unexpected fd=", fd, "\n");
-		return
+		return;
 	}
 
 	// If syscall.EPOLLONESHOT is not set, the wait
 	// is a repeating wait, so don't change it.
 	if events & syscall.EPOLLONESHOT == 0 {
-		return
+		return;
 	}
 
 	// Disable the given bits.
@@ -87,50 +87,65 @@ func (p *pollster) StopWaiting(fd int64, bits uint) {
 		ev.Fd = int32(fd);
 		ev.Events = events;
 		if e := syscall.Epoll_ctl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &ev); e != 0 {
-			print("Epoll modify fd=", fd, ": ", os.ErrnoToError(e).String(), "\n")
+			print("Epoll modify fd=", fd, ": ", os.ErrnoToError(e).String(), "\n");
 		}
-		p.events[fd] = events
+		p.events[fd] = events;
 	} else {
 		if e := syscall.Epoll_ctl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != 0 {
-			print("Epoll delete fd=", fd, ": ", os.ErrnoToError(e).String(), "\n")
+			print("Epoll delete fd=", fd, ": ", os.ErrnoToError(e).String(), "\n");
 		}
-		p.events[fd] = 0, false
+		p.events[fd] = 0, false;
 	}
 }
 
-func (p *pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+func (p *pollster) DelFD(fd int64, mode int) {
+	if mode == 'r' {
+		p.StopWaiting(fd, readFlags);
+	} else {
+		p.StopWaiting(fd, writeFlags);
+	}
+}
+
+func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
 	// Get an event.
 	var evarray [1]syscall.EpollEvent;
 	ev := &evarray[0];
-	n, e := syscall.Epoll_wait(p.epfd, evarray, -1);
+	var msec int64 = -1;
+	if nsec > 0 {
+		msec = (nsec + 1e6 - 1)/1e6;
+	}
+	n, e := syscall.Epoll_wait(p.epfd, evarray, msec);
 	for e == syscall.EAGAIN || e == syscall.EINTR {
-		n, e = syscall.Epoll_wait(p.epfd, evarray, -1)
+		n, e = syscall.Epoll_wait(p.epfd, evarray, msec);
 	}
 	if e != 0 {
-		return -1, 0, os.ErrnoToError(e)
+		return -1, 0, os.ErrnoToError(e);
+	}
+	if n == 0 {
+		return -1, 0, nil;
 	}
 	fd = int64(ev.Fd);
 
 	if ev.Events & writeFlags != 0 {
 		p.StopWaiting(fd, writeFlags);
-		return fd, 'w', nil
+		return fd, 'w', nil;
 	}
 	if ev.Events & readFlags != 0 {
 		p.StopWaiting(fd, readFlags);
-		return fd, 'r', nil
+		return fd, 'r', nil;
 	}
 
 	// Other events are error conditions - wake whoever is waiting.
 	events, already := p.events[fd];
 	if events & writeFlags != 0 {
 		p.StopWaiting(fd, writeFlags);
-		return fd, 'w', nil
+		return fd, 'w', nil;
 	}
 	p.StopWaiting(fd, readFlags);
-	return fd, 'r', nil
+	return fd, 'r', nil;
 }
 
 func (p *pollster) Close() *os.Error {
 	r, e := syscall.Close(p.epfd);
-	return os.ErrnoToError(e)
+	return os.ErrnoToError(e);
 }
