@@ -9,7 +9,6 @@ import (
 	"fmt";
 	"io";
 	"os";
-	"syscall";
 	"testing";
 )
 

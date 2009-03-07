@@ -7,7 +7,6 @@ package exec
 
 import (
 	"os";
-	"syscall";
 )
 
 // Arguments to Run.
