@@ -108,7 +108,7 @@ func readLines(b *BufRead) string {
 	s := "";
 	for {
 		s1, e := b.ReadLineString('\n', true);
-		if e == EndOfFile {
+		if e == io.ErrEOF {
 			break
 		}
 		if e != nil {
@@ -125,7 +125,7 @@ func readBytes(buf *BufRead) string {
 	nb := 0;
 	for {
 		c, e := buf.ReadByte();
-		if e == EndOfFile {
+		if e == io.ErrEOF {
 			break
 		}
 		if e != nil {
@@ -145,7 +145,7 @@ func reads(buf *BufRead, m int) string {
 	for {
 		n, e := buf.Read(b[nb:nb+m]);
 		nb += n;
-		if e == EndOfFile {
+		if e == io.ErrEOF {
 			break
 		}
 	}

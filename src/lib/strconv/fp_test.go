@@ -6,6 +6,7 @@ package strconv
 import (
 	"bufio";
 	"fmt";
+	"io";
 	"os";
 	"strconv";
 	"strings";
@@ -103,7 +104,7 @@ func TestFp(t *testing.T) {
 	lineno := 0;
 	for {
 		line, err2 := b.ReadLineString('\n', false);
-		if err2 == bufio.EndOfFile {
+		if err2 == io.ErrEOF {
 			break;
 		}
 		if err2 != nil {

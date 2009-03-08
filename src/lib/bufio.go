@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This package implements buffered I/O.  It wraps an io.Read or io.Write
+// object, creating another object (BufRead or BufWrite) that also implements
+// the interface but provides buffering and some help for textual I/O.
 package bufio
 
 import (
@@ -23,8 +26,8 @@ const (
 	defaultBufSize = 4096
 )
 
+// Errors introduced by this package.
 var (
-	EndOfFile = os.NewError("end of file");
 	PhaseError = os.NewError("phase error");
 	BufferFull = os.NewError("buffer full");
 	InternalError = os.NewError("bufio internal error");
@@ -41,6 +44,7 @@ func copySlice(dst []byte, src []byte) {
 
 // Buffered input.
 
+// BufRead implements buffering for an io.Read object.
 type BufRead struct {
 	buf []byte;
 	rd io.Read;
@@ -49,6 +53,9 @@ type BufRead struct {
 	lastbyte int;
 }
 
+// NewBufReadSize creates a new BufRead whose buffer has the specified size,
+// which must be greater than zero.
+// It returns the BufRead and any error.
 func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
@@ -60,6 +67,7 @@ func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
 	return b, nil
 }
 
+// NewBufRead returns a new BufRead whose buffer has the default size.
 func NewBufRead(rd io.Read) *BufRead {
 	b, err := NewBufReadSize(rd, defaultBufSize);
 	if err != nil {
@@ -69,8 +77,8 @@ func NewBufRead(rd io.Read) *BufRead {
 	return b;
 }
 
-// Read a new chunk into the buffer.
-func (b *BufRead) Fill() *os.Error {
+//.fill reads a new chunk into the buffer.
+func (b *BufRead) fill() *os.Error {
 	if b.err != nil {
 		return b.err
 	}
@@ -94,10 +102,11 @@ func (b *BufRead) Fill() *os.Error {
 	return nil
 }
 
-// Read into p.
-// Returns the number of bytes read into p.
+// Read reads data into p.
+// It returns the number of bytes read into p.
 // If nn < len(p), also returns an error explaining
-// why the read is short.
+// why the read is short.  At EOF, the count will be
+// zero and err will be io.ErrEOF.
 func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
 	nn = 0;
 	for len(p) > 0 {
@@ -116,16 +125,16 @@ func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
 					return nn, b.err
 				}
 				if n == 0 {
-					return nn, EndOfFile
+					return nn, io.ErrEOF
 				}
 				continue;
 			}
-			b.Fill();
+			b.fill();
 			if b.err != nil {
 				return nn, b.err
 			}
 			if b.w == b.r {
-				return nn, EndOfFile
+				return nn, io.ErrEOF
 			}
 		}
 		if n > b.w - b.r {
@@ -140,16 +149,16 @@ func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
 	return nn, nil
 }
 
-// Read a single byte.
-// If no byte available, returns error.
+// ReadByte reads and returns a single byte.
+// If no byte is available, returns an error.
 func (b *BufRead) ReadByte() (c byte, err *os.Error) {
 	if b.w == b.r {
-		b.Fill();
+		b.fill();
 		if b.err != nil {
 			return 0, b.err
 		}
 		if b.w == b.r {
-			return 0, EndOfFile
+			return 0, io.ErrEOF
 		}
 	}
 	c = b.buf[b.r];
@@ -158,7 +167,7 @@ func (b *BufRead) ReadByte() (c byte, err *os.Error) {
 	return c, nil
 }
 
-// Unread the last byte.  Only guaranteed to be able to unread one byte.
+// UnreadByte unreads the last byte.  Only one byte may be unread at a given time.
 func (b *BufRead) UnreadByte() *os.Error {
 	if b.err != nil {
 		return b.err
@@ -178,18 +187,19 @@ func (b *BufRead) UnreadByte() *os.Error {
 	return nil
 }
 
-// Read a single Unicode character; returns the rune and its size.
+// ReadRune reads a single UTF-8 encoded Unicode character and returns the
+// rune and its size in bytes.
 func (b *BufRead) ReadRune() (rune int, size int, err *os.Error) {
 	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) {
 		n := b.w - b.r;
-		b.Fill();
+		b.fill();
 		if b.err != nil {
 			return 0, 0, b.err
 		}
 		if b.w - b.r == n {
 			// no bytes read
 			if b.r == b.w {
-				return 0, 0, EndOfFile
+				return 0, 0, io.ErrEOF
 			}
 			break;
 		}
@@ -214,18 +224,17 @@ func findByte(p []byte, c byte) int {
 	return -1
 }
 
-// Returns the number of bytes that can be read.
+// Buffered returns the number of bytes that can be read from the current buffer.
 func (b *BufRead) Buffered() int {
 	return b.w - b.r;
 }
 
-// Read until the first occurrence of delim in the input,
+// ReadLineSlice reads until the first occurrence of delim in the input,
 // returning a slice pointing at the bytes in the buffer.
 // The bytes stop being valid at the next read call.
 // Fails if the line doesn't fit in the buffer.
-// For internal (or advanced) use only.
-// Use ReadLineString or ReadLineBytes instead.
-
+// For internal or advanced use only; most uses should
+// call ReadLineString or ReadLineBytes instead.
 func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
 	if b.err != nil {
 		return nil, b.err
@@ -241,14 +250,14 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
 	// Read more into buffer, until buffer fills or we find delim.
 	for {
 		n := b.Buffered();
-		b.Fill();
+		b.fill();
 		if b.err != nil {
 			return nil, b.err
 		}
 		if b.Buffered() == n {	// no data added; end of file
 			line := b.buf[b.r:b.w];
 			b.r = b.w;
-			return line, EndOfFile
+			return line, io.ErrEOF
 		}
 
 		// Search new part of buffer
@@ -268,11 +277,11 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
 	return nil, nil
 }
 
-// Read until the first occurrence of delim in the input,
+// ReadLineBytes reads until the first occurrence of delim in the input,
 // returning a new byte array containing the line.
 // If an error happens, returns the data (without a delimiter)
-// and the error.  (Can't leave the data in the buffer because
-// we might have read more than the buffer size.)
+// and the error.  (It can't leave the data in the buffer because
+// it might have read more than the buffer size.)
 func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 	if b.err != nil {
 		return nil, b.err
@@ -346,9 +355,9 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 	return buf, err
 }
 
-// Read until the first occurrence of delim in the input,
+// ReadLineString reads until the first occurrence of delim in the input,
 // returning a new string containing the line.
-// If savedelim, keep delim in the result; otherwise chop it off.
+// If savedelim, keep delim in the result; otherwise drop it.
 func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *os.Error) {
 	bytes, e := b.ReadLineBytes(delim);
 	if e != nil {
@@ -363,6 +372,7 @@ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *
 
 // buffered output
 
+// BufWrite implements buffering for an io.Write object.
 type BufWrite struct {
 	err *os.Error;
 	buf []byte;
@@ -370,6 +380,9 @@ type BufWrite struct {
 	wr io.Write;
 }
 
+// NewBufWriteSize creates a new BufWrite whose buffer has the specified size,
+// which must be greater than zero.
+// It returns the BufWrite and any error.
 func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
@@ -380,6 +393,7 @@ func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error) {
 	return b, nil
 }
 
+// NewBufWrite returns a new BufWrite whose buffer has the default size.
 func NewBufWrite(wr io.Write) *BufWrite {
 	b, err := NewBufWriteSize(wr, defaultBufSize);
 	if err != nil {
@@ -389,7 +403,7 @@ func NewBufWrite(wr io.Write) *BufWrite {
 	return b;
 }
 
-// Flush the output buffer.
+// Flush writes any buffered data to the underlying io.Write.
 func (b *BufWrite) Flush() *os.Error {
 	if b.err != nil {
 		return b.err
@@ -414,14 +428,20 @@ func (b *BufWrite) Flush() *os.Error {
 	return nil
 }
 
+// Available returns how many bytes are unused in the buffer.
 func (b *BufWrite) Available() int {
 	return len(b.buf) - b.n
 }
 
+// Buffered returns the number of bytes that have been written into the current buffer.
 func (b *BufWrite) Buffered() int {
 	return b.n
 }
 
+// Write writes the contents of p into the buffer.
+// It returns the number of bytes written.
+// If nn < len(p), also returns an error explaining
+// why the write is short.
 func (b *BufWrite) Write(p []byte) (nn int, err *os.Error) {
 	if b.err != nil {
 		return 0, b.err
@@ -457,6 +477,7 @@ func (b *BufWrite) Write(p []byte) (nn int, err *os.Error) {
 	return nn, b.err
 }
 
+// WriteByte writes a single byte.
 func (b *BufWrite) WriteByte(c byte) *os.Error {
 	if b.err != nil {
 		return b.err
@@ -471,11 +492,14 @@ func (b *BufWrite) WriteByte(c byte) *os.Error {
 
 // buffered input and output
 
+// BufReadWrite stores (a pointer to) a BufRead and a BufWrite.
+// It implements io.ReadWrite.
 type BufReadWrite struct {
 	*BufRead;
 	*BufWrite;
 }
 
+// NewBufReadWrite allocates a new BufReadWrite holding r and w.
 func NewBufReadWrite(r *BufRead, w *BufWrite) *BufReadWrite {
 	return &BufReadWrite{r, w}
 }
