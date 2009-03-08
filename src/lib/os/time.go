@@ -9,6 +9,11 @@ import (
 	"syscall"
 )
 
+
+// Time returns the current time, in whole seconds and
+// fractional nanoseconds, plus an Error if any. The current
+// time is thus 1e9*sec+nsec, in nanoseconds.  The zero of
+// time is the Unix epoch.
 func Time() (sec int64, nsec int64, err *Error) {
 	var errno int64;
 	sec, nsec, errno = syscall.Gettimeofday();

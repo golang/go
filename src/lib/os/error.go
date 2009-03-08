@@ -6,8 +6,12 @@ package os
 
 import syscall "syscall"
 
-// Errors are singleton structures. Use the String() method to get their contents --
-// it handles the nil (no error) case.
+// Error is a structure wrapping a string describing an error.
+// Errors are singleton structures, created by NewError, so their addresses can
+// be compared to test for equality. A nil Error pointer means ``no error''.
+// Use the String() method to get the contents; it handles the nil case.
+// The Error type is intended for use by any package that wishes to define
+// error strings.
 type Error struct {
 	s string
 }
@@ -24,7 +28,8 @@ var errorStringTab = make(map[string] *Error);
 // These functions contain a race if two goroutines add identical
 // errors simultaneously but the consequences are unimportant.
 
-// Allocate an Error object, but if it's been seen before, share that one.
+// NewError allocates an Error object, but if s has been seen before,
+// shares the Error associated with that message.
 func NewError(s string) *Error {
 	if s == "" {
 		return nil
@@ -38,7 +43,8 @@ func NewError(s string) *Error {
 	return err;
 }
 
-// Allocate an Error objecct, but if it's been seen before, share that one.
+// ErrnoToError calls NewError to create an Error object for the string
+// associated with Unix error code errno.
 func ErrnoToError(errno int64) *Error {
 	if errno == 0 {
 		return nil
@@ -53,6 +59,7 @@ func ErrnoToError(errno int64) *Error {
 	return err;
 }
 
+// Commonly known Unix errors.
 var (
 	ENONE = ErrnoToError(syscall.ENONE);
 	EPERM = ErrnoToError(syscall.EPERM);
@@ -92,6 +99,7 @@ var (
 	EAGAIN = ErrnoToError(syscall.EAGAIN);
 )
 
+// String returns the string associated with the Error.
 func (e *Error) String() string {
 	if e == nil {
 		return "No Error"
