@@ -11,11 +11,11 @@ import (
 	"os";
 )
 
-var (
-	ENOENV = NewError("no such environment variable");
+// ENOENV is the Error indicating that an environment variable does not exist.
+var ENOENV = NewError("no such environment variable");
 
-	env map[string] string;
-)
+var env map[string] string;
+
 
 func copyenv() {
 	env = make(map[string] string);
@@ -29,6 +29,8 @@ func copyenv() {
 	}
 }
 
+// Getenv retrieves the value of the environment variable named by the key.
+// It returns the value and an error, if any.
 func Getenv(key string) (value string, err *Error) {
 	once.Do(copyenv);
 
@@ -42,6 +44,8 @@ func Getenv(key string) (value string, err *Error) {
 	return v, nil;
 }
 
+// Setenv sets the value of the environment variable named by the key.
+// It returns an Error, if any.
 func Setenv(key, value string) *Error {
 	once.Do(copyenv);
 
@@ -52,11 +56,14 @@ func Setenv(key, value string) *Error {
 	return nil;
 }
 
+// Clearenv deletes all environment variables.
 func Clearenv() {
 	once.Do(copyenv);	// prevent copyenv in Getenv/Setenv
 	env = make(map[string] string);
 }
 
+// Environ returns an array of strings representing the environment,
+// in the form "key=value".
 func Environ() []string {
 	once.Do(copyenv);
 	a := make([]string, len(env));

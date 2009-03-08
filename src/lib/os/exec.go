@@ -9,6 +9,12 @@ import (
 	"syscall";
 )
 
+// ForkExec forks the current process and invokes Exec with the file, arguments,
+// and environment specified by argv0, argv, and envv.  It returns the process
+// id of the forked process and an Error, if any.  The fd array specifies the
+// file descriptors to be set up in the new process: fd[0] will be Unix file
+// descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
+// will cause the child to have no open file descriptor with that index.
 func ForkExec(argv0 string, argv []string, envv []string, fd []*FD)
 	(pid int, err *Error)
 {
@@ -26,6 +32,10 @@ func ForkExec(argv0 string, argv []string, envv []string, fd []*FD)
 	return int(p), ErrnoToError(e);
 }
 
+// Exec replaces the current process with an execution of the program
+// named by argv0, with arguments argv and environment envv.
+// If successful, Exec never returns.  If it fails, it returns an Error.
+// ForkExec is almost always a better way to execute a program.
 func Exec(argv0 string, argv []string, envv []string) *Error {
 	if envv == nil {
 		envv = Environ();
@@ -41,18 +51,24 @@ func Exec(argv0 string, argv []string, envv []string) *Error {
 // since syscall one might have different field types across
 // different OS.
 
+// Waitmsg stores the information about an exited process as reported by Wait.
 type Waitmsg struct {
-	Pid int;
-	syscall.WaitStatus;
-	Rusage *syscall.Rusage;
+	Pid int;	// The process's id.
+	syscall.WaitStatus;	// System-dependent status info.
+	Rusage *syscall.Rusage;	// System-dependent resource usage info.
 }
 
+// Options for Wait.
 const (
-	WNOHANG = syscall.WNOHANG;
-	WSTOPPED = syscall.WSTOPPED;
-	WRUSAGE = 1<<60;
+	WNOHANG = syscall.WNOHANG;	// Don't wait if no process has exited.
+	WSTOPPED = syscall.WSTOPPED;	// If set, status of stopped subprocesses is also reported.
+	WUNTRACED = WSTOPPED;
+	WRUSAGE = 1<<60;	// Record resource usage.
 )
 
+// Wait waits for process pid to exit or stop, and then returns a
+// Waitmsg describing its status and an Error, if any. The options
+// (WNOHANG etc.) affect the behavior of the Wait call.
 func Wait(pid int, options uint64) (w *Waitmsg, err *Error) {
 	var status syscall.WaitStatus;
 	var rusage *syscall.Rusage;
