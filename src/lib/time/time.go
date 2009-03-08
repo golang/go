@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The time package provides functionality for measuring and
+// displaying time.
 package time
 
 import (
@@ -9,7 +11,8 @@ import (
 	"time"
 )
 
-// Seconds since January 1, 1970 00:00:00 UTC
+// Seconds reports the number of seconds since the Unix epoch,
+// January 1, 1970 00:00:00 UTC.
 func Seconds() int64 {
 	sec, nsec, err := os.Time();
 	if err != nil {
@@ -18,7 +21,8 @@ func Seconds() int64 {
 	return sec
 }
 
-// Nanoseconds since January 1, 1970 00:00:00 UTC
+// Nanoseconds reports the number of nanoseconds since the Unix epoch,
+// January 1, 1970 00:00:00 UTC.
 func Nanoseconds() int64 {
 	sec, nsec, err := os.Time();
 	if err != nil {
@@ -27,6 +31,7 @@ func Nanoseconds() int64 {
 	return sec*1e9 + nsec
 }
 
+// Days of the week.
 const (
 	Sunday = iota;
 	Monday;
@@ -37,11 +42,12 @@ const (
 	Saturday;
 )
 
+// Time is the struct representing a parsed time value.
 type Time struct {
 	Year int64;	// 2008 is 2008
 	Month, Day int;	// Sep-17 is 9, 17
 	Hour, Minute, Second int;	// 10:43:12 is 10, 43, 12
-	Weekday int;		// Sunday = 0, Monday = 1, ...
+	Weekday int;		// Sunday, Monday, ...
 	ZoneOffset int;	// seconds west of UTC
 	Zone string;
 }
@@ -70,6 +76,8 @@ const (
 	days1970To2001 = 31*365+8;
 )
 
+// SecondsToUTC converts sec, in number of seconds since the Unix epoch,
+// into a parsed Time value in the UTC time zone.
 func SecondsToUTC(sec int64) *Time {
 	t := new(Time);
 
@@ -143,12 +151,15 @@ func SecondsToUTC(sec int64) *Time {
 	return t;
 }
 
+// UTC returns the current time as a parsed Time value in the UTC time zone.
 func UTC() *Time {
 	return SecondsToUTC(Seconds())
 }
 
+// SecondsToLocalTime converts sec, in number of seconds since the Unix epoch,
+// into a parsed Time value in the local time zone.
 func SecondsToLocalTime(sec int64) *Time {
-	z, offset, err := time.LookupTimezone(sec);
+	z, offset, err := time.lookupTimezone(sec);
 	if err != nil {
 		return SecondsToUTC(sec)
 	}
@@ -158,11 +169,13 @@ func SecondsToLocalTime(sec int64) *Time {
 	return t
 }
 
+// LocalTime returns the current time as a parsed Time value in the local time zone.
 func LocalTime() *Time {
 	return SecondsToLocalTime(Seconds())
 }
 
-// Compute number of seconds since January 1, 1970.
+// Seconds returns the number of seconds since January 1, 1970 represented by the
+// parsed Time value.
 func (t *Time) Seconds() int64 {
 	// First, accumulate days since January 1, 2001.
 	// Using 2001 instead of 1970 makes the leap-year
@@ -334,23 +347,26 @@ func format(t *Time, fmt string) string {
 	return string(buf[0:bp])
 }
 
+// Asctime formats the parsed time value in the style of
 // ANSI C asctime: Sun Nov  6 08:49:37 1994
 func (t *Time) Asctime() string {
 	return format(t, "%a %b %e %H:%M:%S %Y")
 }
 
+// RFC850 formats the parsed time value in the style of
 // RFC 850: Sunday, 06-Nov-94 08:49:37 UTC
 func (t *Time) RFC850() string {
 	return format(t, "%A, %d-%b-%y %H:%M:%S %Z")
 }
 
+// RFC1123 formats the parsed time value in the style of
 // RFC 1123: Sun, 06 Nov 1994 08:49:37 UTC
 func (t *Time) RFC1123() string {
 	return format(t, "%a, %d %b %Y %H:%M:%S %Z")
 }
 
+// String formats the parsed time value in the style of
 // date(1) - Sun Nov  6 08:49:37 UTC 1994
 func (t *Time) String() string {
 	return format(t, "%a %b %e %H:%M:%S %Z %Y")
 }
-
