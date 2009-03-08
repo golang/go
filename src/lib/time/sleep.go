@@ -10,6 +10,8 @@ import (
 	"unsafe";
 )
 
+// Sleep pauses the current goroutine for ns nanoseconds.
+// It returns os.EINTR if interrupted.
 func Sleep(ns int64) *os.Error {
 	var tv syscall.Timeval;
 	syscall.Nstotimeval(ns, &tv);

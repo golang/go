@@ -48,6 +48,9 @@ func ticker(ns int64, c chan int64) {
 	}
 }
 
+// Tick creates a synchronous channel that will send the time, in nanoseconds,
+// every ns nanoseconds.  It adjusts the intervals to make up for pauses in
+// delivery of the ticks.
 func Tick(ns int64) chan int64 {
 	if ns <= 0 {
 		return nil
