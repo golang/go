@@ -25,10 +25,10 @@ maketest() {
 
 maketest \
 	lib/fmt\
+	lib/go\
 	lib/hash\
 	lib/io\
 	lib/json\
-	lib/lang\
 	lib/math\
 	lib/net\
 	lib/os\
