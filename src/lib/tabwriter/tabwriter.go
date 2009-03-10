@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The tabwriter package implements a write filter (tabwriter.Writer)
+// that translates tabbed columns in input into properly aligned text,
+// using the Elastic Tabstops algorithm described at
+// http://nickgravgaard.com/elastictabstops/index.html.
+//
 package tabwriter
 
 import (
@@ -66,36 +71,31 @@ func (b *byteArray) append(s []byte) {
 
 
 // ----------------------------------------------------------------------------
-// Writer is a filter implementing the io.Write interface. It assumes
-// that the incoming bytes represent UTF-8 encoded text consisting of
-// lines of tab-terminated "cells". Cells in adjacent lines constitute
-// a column. Writer rewrites the incoming text such that all cells in
-// a column have the same width; thus it effectively aligns cells. It
-// does this by adding padding where necessary. All characters (ASCII
-// or not) are assumed to be of the same width - this may not be true
-// for arbitrary UTF-8 characters visualized on the screen.
-//
-// Note that any text at the end of a line that is not tab-terminated
-// is not a cell and does not enforce alignment of cells in adjacent
-// rows. To make it a cell it needs to be tab-terminated. (For more
-// information see http://nickgravgaard.com/elastictabstops/index.html)
-//
-// Formatting can be controlled via parameters:
-//
-// cellwidth	minimal cell width
-// padding      additional cell padding
-// padchar      ASCII char used for padding
-//              if padchar == '\t', the Writer will assume that the
-//              width of a '\t' in the formatted output is cellwidth,
-//              and cells are left-aligned independent of align_left
-//              (for correct-looking results, cellwidth must correspond
-//              to the tabwidth in the viewer displaying the result)
-// filter_html  ignores html tags and handles entities (starting with '&'
-//              and ending in ';') as single characters (width = 1)
+// Filter implementation
 
+// A Writer is a filter that inserts padding around
+// tab-delimited columns in its input to align them
+// in the output.
+//
+// The Writer treats incoming bytes as UTF-8 encoded text
+// consisting of tab-terminated cells. Cells in adjacent lines
+// constitute a column. The Writer inserts padding as needed
+// to make all cells in a column have the same width, effectively
+// aligning the columns. Note that cells are tab-terminated,
+// not tab-separated: trailing non-tab text at the end of a line
+// is not part of any cell.
+//
+// The Writer assumes that all characters have the same width;
+// this may not be true in some fonts, especially with certain
+// UTF-8 characters.
+//
+// The Writer must buffer input internally, because proper spacing
+// of one line may depend on the cells in future lines. Clients must
+// call Flush when done calling Write.
+//
 type Writer struct {
 	// configuration
-	writer io.Write;
+	output io.Write;
 	cellwidth int;
 	padding int;
 	padbytes [8]byte;
@@ -112,6 +112,7 @@ type Writer struct {
 	lines_width vector.Vector;  // list of lines; each line is a list of cell widths in runes
 	widths vector.IntVector;  // list of column widths in runes - re-used during formatting
 }
+
 
 // Internal representation (current state):
 //
@@ -143,14 +144,29 @@ func (b *Writer) addLine() {
 }
 
 
-func (b *Writer) Init(writer io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
+// A Writer must be initialized with a call to Init. The first parameter (output)
+// specifies the filter output. The remaining parameters control the formatting:
+//
+//	cellwidth	minimal cell width
+//	padding		additional cell padding
+//	padchar		ASCII char used for padding
+//				if padchar == '\t', the Writer will assume that the
+//				width of a '\t' in the formatted output is cellwidth,
+//				and cells are left-aligned independent of align_left
+//				(for correct-looking results, cellwidth must correspond
+//				to the tab width in the viewer displaying the result)
+//	align_left	alignment of cell content
+//	filter_html	ignores html tags and treats entities (starting with '&'
+//				and ending in ';') as single characters (width = 1)
+//
+func (b *Writer) Init(output io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
 	if cellwidth < 0 {
 		panic("negative cellwidth");
 	}
 	if padding < 0 {
 		panic("negative padding");
 	}
-	b.writer = writer;
+	b.output = output;
 	b.cellwidth = cellwidth;
 	b.padding = padding;
 	for i := len(b.padbytes) - 1; i >= 0; i-- {
@@ -194,7 +210,7 @@ func (b *Writer) dump() {
 
 
 func (b *Writer) write0(buf []byte) *os.Error {
-	n, err := b.writer.Write(buf);
+	n, err := b.output.Write(buf);
 	if n != len(buf) && err == nil {
 		err = os.EIO;
 	}
@@ -339,6 +355,9 @@ exit:
 }
 
 
+// Flush should be called after the last call to Write to ensure
+// that any data buffered in the Writer is written to output.
+//
 func (b *Writer) Flush() *os.Error {
 	dummy, err := b.format(0, 0, b.lines_size.Len());
 	// reset (even in the presence of errors)
@@ -373,6 +392,10 @@ func (b *Writer) append(buf []byte) {
 }
 
 
+// Write writes buf to the writer b.
+// The only errors returned are ones encountered
+// while writing to the underlying output stream.
+//
 func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
 	i0, n := 0, len(buf);
 
@@ -444,6 +467,9 @@ func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
 }
 
 
+// New allocates and initializes a new tabwriter.Writer.
+// The parameters are the same as for the the Init function.
+//
 func New(writer io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
 	return new(Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
 }
