@@ -1124,7 +1124,11 @@ func Print(writer io.Write, html bool, prog *ast.Program) {
 	if *usetabs {
 		padchar = '\t';
 	}
-	text := tabwriter.New(writer, *tabwidth, 1, padchar, true, html);
+	flags := uint(0);
+	if html {
+		flags |= tabwriter.FilterHTML;
+	}
+	text := tabwriter.NewWriter(writer, *tabwidth, 1, padchar, flags);
 	P.Init(text, html, prog.Comments);
 
 	if P.html {
