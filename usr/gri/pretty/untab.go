@@ -40,7 +40,7 @@ func main() {
 	if *usetabs {
 		padchar = '\t';
 	}
-	dst := tabwriter.New(os.Stdout, *tabwidth, 1, padchar, true, false);
+	dst := tabwriter.NewWriter(os.Stdout, *tabwidth, 1, padchar, 0);
 	if flag.NArg() > 0 {
 		for i := 0; i < flag.NArg(); i++ {
 			name := flag.Arg(i);

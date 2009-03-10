@@ -2,6 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// A parser for Go source text. The input is a stream of lexical tokens
+// provided via the Scanner interface. The output is an abstract syntax
+// tree (AST) representing the Go source.
+//
+// A client may parse the entire program (ParseProgram), only the package
+// clause (ParsePackageClause), or the package clause and the import
+// declarations (ParseImportDecls). The resulting AST represents the part
+// of the program that is parsed.
+//
 package Parser
 
 import (
@@ -12,16 +21,29 @@ import (
 )
 
 
+// An implementation of an ErrorHandler must be provided to the Parser.
+// If a syntax error is encountered, Error is called with the exact
+// token position (the byte position of the token in the source) and the
+// error message.
+//
 type ErrorHandler interface {
 	Error(pos int, msg string);
 }
 
 
+// An implementation of a Scanner must be provided to the Parser.
+// The parser calls Scan repeatedly to get a sequential stream of
+// tokens. The source end is indicated by token.EOF.
+//
 type Scanner interface {
 	Scan() (pos, tok int, lit []byte);
 }
 
 
+// A Parser holds the parser's internal state while processing
+// a given text. It can be allocated as part of another data
+// structure but must be initialized via Init before use.
+//
 type Parser struct {
 	scanner Scanner;
 	err ErrorHandler;
@@ -125,7 +147,7 @@ func (P *Parser) next() {
 }
 
 
-func (P *Parser) Open(scanner Scanner, err ErrorHandler, trace bool) {
+func (P *Parser) Init(scanner Scanner, err ErrorHandler, trace bool) {
 	P.scanner = scanner;
 	P.err = err;
 

@@ -123,7 +123,7 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	scanner.Init(src, &err, true);
 
 	var parser Parser.Parser;
-	parser.Open(&scanner, &err, flags.Verbose);
+	parser.Init(&scanner, &err, flags.Verbose);
 
 	prog := parser.ParseProgram();
 
