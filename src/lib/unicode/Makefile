@@ -34,16 +34,24 @@ coverage: packages
 O1=\
 	letter.$O\
 
-unicode.a: a1
+O2=\
+	decimaldigit.$O\
+
+unicode.a: a1 a2
 
 a1:	$(O1)
 	$(AR) grc unicode.a letter.$O
 	rm -f $(O1)
 
+a2:	$(O2)
+	$(AR) grc unicode.a decimaldigit.$O
+	rm -f $(O2)
+
 newpkg: clean
 	$(AR) grc unicode.a
 
 $(O1): newpkg
+$(O2): a1
 
 nuke: clean
 	rm -f $(GOROOT)/pkg/unicode.a
