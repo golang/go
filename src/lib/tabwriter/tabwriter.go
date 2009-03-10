@@ -99,8 +99,7 @@ type Writer struct {
 	cellwidth int;
 	padding int;
 	padbytes [8]byte;
-	align_left bool;
-	filter_html bool;
+	flags uint;
 
 	// current state
 	html_char byte;  // terminating char of html tag/entity, or 0 ('>', ';', or 0)
@@ -144,6 +143,18 @@ func (b *Writer) addLine() {
 }
 
 
+// Formatting can be controlled with these flags.
+const (
+	// Ignore html tags and treat entities (starting with '&'
+	// and ending in ';') as single characters (width = 1).
+	FilterHTML = 1 << iota;
+
+	// Force right-alignment of cell content.
+	// Default is left-alignment.
+	AlignRight;
+)
+
+
 // A Writer must be initialized with a call to Init. The first parameter (output)
 // specifies the filter output. The remaining parameters control the formatting:
 //
@@ -155,11 +166,9 @@ func (b *Writer) addLine() {
 //				and cells are left-aligned independent of align_left
 //				(for correct-looking results, cellwidth must correspond
 //				to the tab width in the viewer displaying the result)
-//	align_left	alignment of cell content
-//	filter_html	ignores html tags and treats entities (starting with '&'
-//				and ending in ';') as single characters (width = 1)
+//	flags		formatting control
 //
-func (b *Writer) Init(output io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
+func (b *Writer) Init(output io.Write, cellwidth, padding int, padchar byte, flags uint) *Writer {
 	if cellwidth < 0 {
 		panic("negative cellwidth");
 	}
@@ -172,8 +181,12 @@ func (b *Writer) Init(output io.Write, cellwidth, padding int, padchar byte, ali
 	for i := len(b.padbytes) - 1; i >= 0; i-- {
 		b.padbytes[i] = padchar;
 	}
-	b.align_left = align_left || padchar == '\t';  // tab enforces left-alignment
-	b.filter_html = filter_html;
+	if padchar == '\t' {
+		// tab enforces left-alignment
+		t := ^AlignRight;  // TODO 6g bug
+		flags &= uint(t);
+	}
+	b.flags = flags;
 
 	b.buf.Init(1024);
 	b.lines_size.Init(0);
@@ -256,7 +269,9 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err *os.Error)
 		for j := 0; j < line_size.Len(); j++ {
 			s, w := line_size.At(j), line_width.At(j);
 
-			if b.align_left {
+			switch {
+			default: // align left
+
 				err = b.write0(b.buf.slice(pos, pos + s));
 				if err != nil {
 					goto exit;
@@ -269,7 +284,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err *os.Error)
 					}
 				}
 
-			} else {  // align right
+			case b.flags & AlignRight != 0:  // align right
 
 				if j < b.widths.Len() {
 					err = b.writePadding(w, b.widths.At(j));
@@ -433,7 +448,7 @@ func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
 				}
 
 			case '<', '&':
-				if b.filter_html {
+				if b.flags & FilterHTML != 0 {
 					b.append(buf[i0 : i]);
 					i0 = i;
 					b.width += unicodeLen(b.buf.slice(b.pos, b.buf.Len()));
@@ -467,9 +482,9 @@ func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
 }
 
 
-// New allocates and initializes a new tabwriter.Writer.
+// NewWriter allocates and initializes a new tabwriter.Writer.
 // The parameters are the same as for the the Init function.
 //
-func New(writer io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
-	return new(Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
+func NewWriter(writer io.Write, cellwidth, padding int, padchar byte, flags uint) *Writer {
+	return new(Writer).Init(writer, cellwidth, padding, padchar, flags)
 }
