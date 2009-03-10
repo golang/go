@@ -78,7 +78,7 @@ func typeToString(typ Type, expand bool) string {
 		return "$missing$";
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
 	     UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
-	     FloatKind, Float32Kind, Float64Kind, Float80Kind,
+	     FloatKind, Float32Kind, Float64Kind,
 	     StringKind,
 	     DotDotDotKind:
 		return typ.Name();
@@ -170,8 +170,6 @@ func valueToString(val Value) string {
 		return strconv.Ftoa32(val.(Float32Value).Get(), 'g', -1);
 	case Float64Kind:
 		return strconv.Ftoa64(val.(Float64Value).Get(), 'g', -1);
-	case Float80Kind:
-		return "float80";
 	case StringKind:
 		return val.(StringValue).Get();
 	case BoolKind:
