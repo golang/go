@@ -11,7 +11,6 @@ package token
 import "strconv"
 
 // The list of tokens.
-//
 const (
 	// Special tokens
 	ILLEGAL = iota;

@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // A scanner for Go source text. Takes a []byte as source which can
-// then be tokenized through repeated calls to the Scan() function.
+// then be tokenized through repeated calls to the Scan function.
 //
 // Sample use:
 //
@@ -33,7 +33,7 @@ import (
 
 
 // An implementation of an ErrorHandler must be provided to the Scanner.
-// If a syntax error is encountered, Error() is called with the exact
+// If a syntax error is encountered, Error is called with the exact
 // token position (the byte position of the token in the source) and the
 // error message.
 //
@@ -44,7 +44,7 @@ type ErrorHandler interface {
 
 // A Scanner holds the scanner's internal state while processing
 // a given text.  It can be allocated as part of another data
-// structure but must be initialized via Init() before use.
+// structure but must be initialized via Init before use.
 // See also the package comment for a sample use.
 //
 type Scanner struct {
@@ -99,7 +99,7 @@ func (S *Scanner) next() {
 }
 
 
-// Init() prepares the scanner S to tokenize the text src. Calls to Scan()
+// Init prepares the scanner S to tokenize the text src. Calls to Scan
 // will use the error handler err if they encounter a syntax error. The boolean
 // scan_comments specifies whether newline characters and comments should be
 // recognized and returned by Scan as token.COMMENT. If scan_comments is false,
@@ -401,7 +401,7 @@ func (S *Scanner) switch4(tok0, tok1, ch2, tok2, tok3 int) int {
 }
 
 
-// Scan() scans the next token and returns the token byte position in the
+// Scan scans the next token and returns the token byte position in the
 // source, its token value, and the corresponding literal text if the token
 // is an identifier, basic type literal (token.IsLiteral(tok) == true), or
 // comment.
