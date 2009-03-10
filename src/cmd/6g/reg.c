@@ -787,7 +787,9 @@ mkvar(Reg *r, Adr *a)
 	s = a->sym;
 	if(s == S)
 		goto none;
-	if(s->name[0] == '!' || s->name[0] == '.')
+//	if(s->name[0] == '!')
+//		goto none;
+	if(s->name[0] == '.')
 		goto none;
 	et = a->etype;
 	o = a->offset;
