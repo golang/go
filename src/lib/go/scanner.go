@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package scanner
-
 // A Go scanner. Takes a []byte as source which can then be
 // tokenized through repeated calls to the Scan() function.
 //
@@ -23,6 +21,8 @@ package scanner
 //			println(pos, token.TokenString(tok), string(lit));
 //		}
 //	}
+//
+package scanner
 
 import (
 	"utf8";
@@ -36,12 +36,17 @@ import (
 // If a syntax error is encountered, Error() is called with the exact
 // token position (the byte position of the token in the source) and the
 // error message.
-
+//
 type ErrorHandler interface {
 	Error(pos int, msg string);
 }
 
 
+// A Scanner holds the scanner's internal state while processing
+// a given text.  It can be allocated as part of another data
+// structure but must be initialized via Init() before use.
+// See also the package comment for a sample use.
+//
 type Scanner struct {
 	// immutable state
 	src []byte;  // source
@@ -94,13 +99,12 @@ func (S *Scanner) next() {
 }
 
 
-// Initialize the scanner.
+// Init() prepares the scanner S to tokenize the text src. Calls to Scan()
+// will use the error handler err if they encounter a syntax error. The boolean
+// scan_comments specifies whether newline characters and comments should be
+// recognized and returned by Scan as token.COMMENT. If scan_comments is false,
+// they are treated as white space and ignored.
 //
-// The error handler (err) is called when an illegal token is encountered.
-// If scan_comments is set to true, newline characters ('\n') and comments
-// are recognized as token.COMMENT, otherwise they are treated as white
-// space and ignored.
-
 func (S *Scanner) Init(src []byte, err ErrorHandler, scan_comments bool) {
 	S.src = src;
 	S.err = err;
@@ -397,10 +401,11 @@ func (S *Scanner) switch4(tok0, tok1, ch2, tok2, tok3 int) int {
 }
 
 
-// Scans the next token. Returns the token byte position in the source,
-// its token value, and the corresponding literal text if the token is
-// an identifier or basic type literal (token.IsLiteral(tok) == true).
-
+// Scan() scans the next token and returns the token byte position in the
+// source, its token value, and the corresponding literal text if the token
+// is an identifier, basic type literal (token.IsLiteral(tok) == true), or
+// comment.
+//
 func (S *Scanner) Scan() (pos, tok int, lit []byte) {
 scan_again:
 	S.skipWhitespace();
