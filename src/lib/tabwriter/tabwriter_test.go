@@ -71,12 +71,12 @@ func verify(t *testing.T, w *tabwriter.Writer, b *buffer, src, expected string) 
 }
 
 
-func check(t *testing.T, tabwidth, padding int, padchar byte, align_left, filter_html bool, src, expected string) {
+func check(t *testing.T, tabwidth, padding int, padchar byte, flags uint, src, expected string) {
 	var b buffer;
 	b.init(1000);
 
 	var w tabwriter.Writer;
-	w.Init(&b, tabwidth, padding, padchar, align_left, filter_html);
+	w.Init(&b, tabwidth, padding, padchar, flags);
 
 	// write all at once
 	b.clear();
@@ -105,109 +105,109 @@ func check(t *testing.T, tabwidth, padding int, padchar byte, align_left, filter
 
 func Test(t *testing.T) {
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"",
 		""
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"\n\n\n",
 		"\n\n\n"
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"a\nb\nc",
 		"a\nb\nc"
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"\t",  // '\t' terminates an empty cell on last line - nothing to print
 		""
 	);
 
 	check(
-		t, 8, 1, '.', false, false,
+		t, 8, 1, '.', tabwriter.AlignRight,
 		"\t",  // '\t' terminates an empty cell on last line - nothing to print
 		""
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"*\t*",
 		"**"
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"*\t*\n",
 		"*.......*\n"
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"*\t*\t",
 		"*.......*"
 	);
 
 	check(
-		t, 8, 1, '.', false, false,
+		t, 8, 1, '.', tabwriter.AlignRight,
 		"*\t*\t",
 		".......**"
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"\t\n",
 		"........\n"
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"a) foo",
 		"a) foo"
 	);
 
 	check(
-		t, 8, 1, ' ', true, false,
+		t, 8, 1, ' ', 0,
 		"b) foo\tbar",  // "bar" is not in any cell - not formatted, just flushed
 		"b) foobar"
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"c) foo\tbar\t",
 		"c) foo..bar"
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"d) foo\tbar\n",
 		"d) foo..bar\n"
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"e) foo\tbar\t\n",
 		"e) foo..bar.....\n"
 	);
 
 	check(
-		t, 8, 1, '.', true, true,
+		t, 8, 1, '.', tabwriter.FilterHTML,
 		"e) f&lt;o\t<b>bar</b>\t\n",
 		"e) f&lt;o..<b>bar</b>.....\n"
 	);
 
 	check(
-		t, 8, 1, '*', true, false,
+		t, 8, 1, '*', 0,
 		"Hello, world!\n",
 		"Hello, world!\n"
 	);
 
 	check(
-		t, 0, 0, '.', true, false,
+		t, 0, 0, '.', 0,
 		"1\t2\t3\t4\n"
 		"11\t222\t3333\t44444\n",
 
@@ -216,19 +216,19 @@ func Test(t *testing.T) {
 	);
 
 	check(
-		t, 5, 0, '.', true, false,
+		t, 5, 0, '.', 0,
 		"1\t2\t3\t4\n",
 		"1....2....3....4\n"
 	);
 
 	check(
-		t, 5, 0, '.', true, false,
+		t, 5, 0, '.', 0,
 		"1\t2\t3\t4\t\n",
 		"1....2....3....4....\n"
 	);
 
 	check(
-		t, 8, 1, '.', true, false,
+		t, 8, 1, '.', 0,
 		"本\tb\tc\n"
 		"aa\t\u672c\u672c\u672c\tcccc\tddddd\n"
 		"aaa\tbbbb\n",
@@ -239,7 +239,7 @@ func Test(t *testing.T) {
 	);
 
 	check(
-		t, 8, 1, ' ', false, false,
+		t, 8, 1, ' ', tabwriter.AlignRight,
 		"a\tè\tc\t\n"
 		"aa\tèèè\tcccc\tddddd\t\n"
 		"aaa\tèèèè\t\n",
@@ -250,7 +250,7 @@ func Test(t *testing.T) {
 	);
 
 	check(
-		t, 2, 0, ' ', true, false,
+		t, 2, 0, ' ', 0,
 		"a\tb\tc\n"
 		"aa\tbbb\tcccc\n"
 		"aaa\tbbbb\n",
@@ -261,7 +261,7 @@ func Test(t *testing.T) {
 	);
 
 	check(
-		t, 8, 1, '_', true, false,
+		t, 8, 1, '_', 0,
 		"a\tb\tc\n"
 		"aa\tbbb\tcccc\n"
 		"aaa\tbbbb\n",
@@ -272,7 +272,7 @@ func Test(t *testing.T) {
 	);
 
 	check(
-		t, 4, 1, '-', true, false,
+		t, 4, 1, '-', 0,
 		"4444\t日本語\t22\t1\t333\n"
 		"999999999\t22\n"
 		"7\t22\n"
@@ -291,7 +291,7 @@ func Test(t *testing.T) {
 	);
 
 	check(
-		t, 4, 3, '.', true, false,
+		t, 4, 3, '.', 0,
 		"4444\t333\t22\t1\t333\n"
 		"999999999\t22\n"
 		"7\t22\n"
@@ -310,7 +310,7 @@ func Test(t *testing.T) {
 	);
 
 	check(
-		t, 8, 1, '\t', true, true,
+		t, 8, 1, '\t', tabwriter.FilterHTML,
 		"4444\t333\t22\t1\t333\n"
 		"999999999\t22\n"
 		"7\t22\n"
@@ -329,7 +329,7 @@ func Test(t *testing.T) {
 	);
 
 	check(
-		t, 0, 2, ' ', false, false,
+		t, 0, 2, ' ', tabwriter.AlignRight,
 		".0\t.3\t2.4\t-5.1\t\n"
 		"23.0\t12345678.9\t2.4\t-989.4\t\n"
 		"5.1\t12.0\t2.4\t-7.0\t\n"
