@@ -5,6 +5,10 @@
 // Reflection library.
 // Types and parsing of type strings.
 
+// This package implements data ``reflection''.  A program can use it to analyze types
+// and values it does not know at compile time, such as the values passed in a call
+// to a function with a ... parameter.  This is achieved by extracting the dynamic
+// contents of an interface value.
 package reflect
 
 import (
@@ -19,6 +23,7 @@ func ExpandType(name string) Type
 
 func typestrings() string	// implemented in C; declared here
 
+// These constants identify what kind of thing a Type represents: an int, struct, etc.
 const (
 	MissingKind = iota;
 	ArrayKind;
@@ -57,10 +62,18 @@ const (
 var missingString = "$missing$"	// syntactic name for undefined type names
 var dotDotDotString = "..."
 
+// Type is the generic interface to reflection types.  Once its Kind is known,
+// such as BoolKind, the Type can be narrowed to the appropriate, more
+// specific interface, such as BoolType.  Such narrowed types still implement
+// the Type interface.
 type Type interface {
+	// The kind of thing described: ArrayKind, BoolKind, etc.
 	Kind()	int;
+	// The name declared for the type ("int", "BoolArray", etc.).
 	Name()	string;
+	// For a named type, same as Name(); otherwise a representation of the type such as "[]int".
 	String()	string;
+	// The number of bytes needed to store a value; analogous to unsafe.Sizeof().
 	Size()	int;
 }
 
@@ -104,7 +117,10 @@ func newBasicType(name string, kind int, size int) Type {
 	return &basicType{ commonType{kind, name, name, size} }
 }
 
-// Prebuilt basic types
+// Prebuilt basic Type objects representing the predeclared basic types.
+// Most are self-evident except:
+//	Missing represents types whose representation cannot be discovered; usually an error.
+//	DotDotDot represents the pseudo-type of a ... parameter.
 var (
 	Missing = newBasicType(missingString, MissingKind, 1);
 	empty interface{};
@@ -149,9 +165,10 @@ func (t *stubType) Get() Type {
 
 // -- Pointer
 
+// PtrType represents a pointer.
 type PtrType interface {
 	Type;
-	Sub()	Type
+	Sub()	Type	// The type of the pointed-to item; for "*int", it will be "int".
 }
 
 type ptrTypeStruct struct {
@@ -169,11 +186,12 @@ func (t *ptrTypeStruct) Sub() Type {
 
 // -- Array
 
+// ArrayType represents an array or slice type.
 type ArrayType interface {
 	Type;
-	IsSlice()	bool;
-	Len()	int;
-	Elem()	Type;
+	IsSlice()	bool;	// True for slices, false for arrays.
+	Len()	int;	// 0 for slices, the length for array types.
+	Elem()	Type;	// The type of the elements.
 }
 
 type arrayTypeStruct struct {
@@ -184,7 +202,7 @@ type arrayTypeStruct struct {
 }
 
 func newArrayTypeStruct(name, typestring string, open bool, len int, elem *stubType) *arrayTypeStruct {
-	return &arrayTypeStruct{ commonType{ArrayKind, typestring, name, 0}, elem, open, len}
+	return &arrayTypeStruct{ commonType{ArrayKind, typestring, name, 0 }, elem, open, len}
 }
 
 func (t *arrayTypeStruct) Size() int {
@@ -199,7 +217,9 @@ func (t *arrayTypeStruct) IsSlice() bool {
 }
 
 func (t *arrayTypeStruct) Len() int {
-	// what about open array?  TODO
+	if t.isslice {
+		return 0
+	}
 	return t.len
 }
 
@@ -209,10 +229,11 @@ func (t *arrayTypeStruct) Elem() Type {
 
 // -- Map
 
+// MapType represents a map type.
 type MapType interface {
 	Type;
-	Key()	Type;
-	Elem()	Type;
+	Key()	Type;	// The type of the keys.
+	Elem()	Type;	// The type of the elements/values.
 }
 
 type mapTypeStruct struct {
@@ -235,13 +256,15 @@ func (t *mapTypeStruct) Elem() Type {
 
 // -- Chan
 
+// ChanType represents a chan type.
 type ChanType interface {
 	Type;
-	Dir()	int;
-	Elem()	Type;
+	Dir()	int;	// The direction of the channel.
+	Elem()	Type;	// The type of the elements.
 }
 
-const (	// channel direction
+// Channel direction.
+const (
 	SendDir = 1 << iota;
 	RecvDir;
 	BothDir = SendDir | RecvDir;
@@ -267,9 +290,13 @@ func (t *chanTypeStruct) Elem() Type {
 
 // -- Struct
 
+// StructType represents a struct type.
 type StructType interface {
 	Type;
-	Field(int)	(name string, typ Type, tag string, offset int);
+	// Field returns, for field i, its name, Type, tag information, and byte offset.
+	// The indices are in declaration order starting at 0.
+	Field(i int)	(name string, typ Type, tag string, offset int);
+	// Len is the number of fields.
 	Len()	int;
 }
 
@@ -328,8 +355,12 @@ func (t *structTypeStruct) Len() int {
 
 // -- Interface
 
+// InterfaceType represents an interface type.
+// It behaves much like a StructType, treating the methods as fields.
 type InterfaceType interface {
 	Type;
+	// Field returns, for method i, its name, Type, the empty string, and 0.
+	// The indices are in declaration order starting at 0.  TODO: is this true?
 	Field(int)	(name string, typ Type, tag string, offset int);
 	Len()	int;
 }
@@ -355,10 +386,11 @@ var nilInterface = newInterfaceTypeStruct("nil", "", make([]structField, 0));
 
 // -- Func
 
+// FuncType represents a function type.
 type FuncType interface {
 	Type;
-	In()	StructType;
-	Out()	StructType;
+	In()	StructType;	// The parameters in the form of a StructType.
+	Out()	StructType;	// The results in the form of a StructType.
 }
 
 type funcTypeStruct struct {
@@ -466,6 +498,9 @@ func init() {
 }
 
 /*
+	Parsing of type strings.  These strings are how the run-time recovers type
+	information dynamically.
+
 	Grammar
 
 	stubtype =	- represent as StubType when possible
@@ -850,6 +885,9 @@ func (p *typeParser) Type(name string) *stubType {
 	return s;
 }
 
+// ParseTypeString takes a type name and type string (such as "[]int") and
+// returns the Type structure representing a type name specifying the corresponding
+// type.  An empty typestring represents (the type of) a nil interface value.
 func ParseTypeString(name, typestring string) Type {
 	if typestring == "" {
 		// If the typestring is empty, it represents (the type of) a nil interface value
@@ -909,7 +947,8 @@ func typeNameToTypeString(name string) string {
 	return s
 }
 
-// Type is known by name.  Find (and create if necessary) its real type.
+// ExpandType takes the name of a type and returns its Type structure,
+// unpacking the associated type string if necessary.
 func ExpandType(name string) Type {
 	lock();
 	t, ok := types[name];
