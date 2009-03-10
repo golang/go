@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A Go scanner. Takes a []byte as source which can then be
-// tokenized through repeated calls to the Scan() function.
+// A scanner for Go source text. Takes a []byte as source which can
+// then be tokenized through repeated calls to the Scan() function.
 //
 // Sample use:
 //
