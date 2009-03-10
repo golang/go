@@ -3,13 +3,6 @@
 <!--
 Biggest open issues:
 [ ] General iterators
-[ ] Conversions:
-	- current situation is messy
-	- 2 (3?) different notations for the same thing
-	- unclear when a type assertion is needed
-	- unclear where conversions can be applied
-	- for type T int; can we say T(3.0) ?
-	- do we need channel conversion (channel direction)
 [ ] Semantics of type declaration:
 	- creating a new type (status quo), or only a new type name?
 	- also: declaration type T S; strips methods of S. why/why not?
@@ -21,7 +14,6 @@ Decisions in need of integration into the doc:
 
 
 Todo's:
-[ ] there is some funny-ness regarding ';' and empty statements and label decls
 [ ] document illegality of package-external tuple assignments to structs
 	w/ private fields: P.T(1, 2) illegal since same as P.T(a: 1, b: 2) for
 	a T struct { a b int }.
@@ -46,11 +38,7 @@ Wish list:
 
 
 Smaller issues:
-[ ] need for type switch? (or use type assertion with ok in tuple assignment?)
-[ ] Is . import implemented / do we still need it?
-[ ] Do we allow empty statements? If so, do we allow empty statements after a label?
-    and if so, does a label followed by an empty statement (a semicolon) still denote
-	a for loop that is following, and can break L be used inside it?
+[ ] do we need channel conversion (channel direction)
 
 
 Closed:
@@ -125,6 +113,18 @@ Closed:
 [x] should binary <- be at lowest precedence level? when is a send/receive non-blocking? (NO - 9/19/08)
 [x] func literal like a composite type - should probably require the '&' to get address (NO)
 [x] & needed to get a function pointer from a function? (NO - there is the "func" keyword - 9/19/08)
+[x] Conversions:
+	- current situation is messy
+	- 2 (3?) different notations for the same thing
+	- unclear when a type assertion is needed
+	- unclear where conversions can be applied
+	- for type T int; can we say T(3.0) ?
+[x] need for type switch? (or use type assertion with ok in tuple assignment?)
+[x] Is . import implemented / do we still need it?
+[x] Do we allow empty statements? If so, do we allow empty statements after a label?
+    and if so, does a label followed by an empty statement (a semicolon) still denote
+	a for loop that is following, and can break L be used inside it?
+[x] there is some funniness regarding ';' and empty statements and label decls
 
 -->
 
@@ -3643,8 +3643,6 @@ space allocated in the underlying array (for a slice) or map. For a slice
 <h3>Conversions</h3>
 
 <p>
-<font color=red>TODO: We need to finalize the details of conversions.</font>
-<br/>
 Conversions look like function calls of the form
 </p>
 
@@ -4183,15 +4181,11 @@ The following minimal alignment properties are guaranteed:
 <font color=red>
 Implementation accepts only ASCII digits for digits; doc says Unicode.
 <br/>
-Implementation does not allow p.x where p is the local package name.
-<br/>
 Implementation does not honor the restriction on goto statements and targets (no intervening declarations).
 <br/>
 cap() does not work on maps or chans.
 <br/>
 len() does not work on chans.
-<br/>
-Conversions work for any type; doc says only numeric types and strings.
 </font>
 </p>
 
