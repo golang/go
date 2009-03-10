@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This package defines constants representing the lexical
+// tokens of the Go programming language and basic operations
+// on tokens (printing, predicates).
+//
 package token
-
-// Defines Go tokens and basic token operations.
 
 import "strconv"
 
+// The list of tokens.
+//
 const (
 	// Special tokens
 	ILLEGAL = iota;
@@ -216,6 +220,13 @@ var tokens = map [int] string {
 	VAR : "var",
 }
 
+
+// TokenString returns the string corresponding to the token tok.
+// For operators, delimiters, and keywords the string is the actual
+// token character sequence (e.g., for the token ADD, the string is
+// "+"). For all other tokens the string corresponds to the token
+// constant name (e.g. for the token IDENT, the string is "IDENT").
+//
 func TokenString(tok int) string {
 	if str, exists := tokens[tok]; exists {
 		return str;
@@ -226,17 +237,20 @@ func TokenString(tok int) string {
 
 // A set of constants for precedence-based expression parsing.
 // Non-operators have lowest precedence, followed by operators
-// starting with precedence 0 up to unary operators and finally
-// the highest precedence used for tokens used in selectors, etc.
-
+// starting with precedence 0 up to unary operators. The highest
+// precedence corresponds serves as "catch-all" precedence for
+// selector, indexing, and other operator and delimiter tokens.
+//
 const (
 	LowestPrec = -1;  // non-operators
 	UnaryPrec = 7;
 	HighestPrec = 8;
 )
 
-// Returns precedence of a token. Returns LowestPrec
-// if the token is not an operator.
+
+// Precedence returns the syntax precedence of the operator
+// token tok or LowestPrecedence if tok is not an operator.
+//
 func Precedence(tok int) int {
 	switch tok {
 	case COLON:
@@ -268,7 +282,8 @@ func init() {
 }
 
 
-// Map an identifier to its keyword token or IDENT (if not a keyword).
+// Lookup maps an identifier to its keyword token or IDENT (if not a keyword).
+//
 func Lookup(ident []byte) int {
 	// TODO Maps with []byte key are illegal because []byte does not
 	//      support == . Should find a more efficient solution eventually.
@@ -281,16 +296,23 @@ func Lookup(ident []byte) int {
 
 // Predicates
 
-// Identifiers and basic type literals
+// IsLiteral returns true for tokens corresponding to identifiers
+// and basic type literals; returns false otherwise.
+//
 func IsLiteral(tok int) bool {
 	return literal_beg < tok && tok < literal_end;
 }
 
-// Operators and delimiters
+// IsOperator returns true for tokens corresponding to operators and
+// delimiters; returns false otherwise.
+//
 func IsOperator(tok int) bool {
 	return operator_beg < tok && tok < operator_end;
 }
 
+// IsKeyword returns true for tokens corresponding to keywords;
+// returns false otherwise.
+//
 func IsKeyword(tok int) bool {
 	return keyword_beg < tok && tok < keyword_end;
 }
