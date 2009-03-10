@@ -43,7 +43,7 @@ func assert(s, t string) {
 
 func typedump(s, t string) {
 	typ := reflect.ParseTypeString("", s);
-	assert(reflect.TypeToString(typ, true), t);
+	assert(reflect.typeToString(typ, true), t);
 }
 
 func valuedump(s, t string) {
@@ -84,7 +84,7 @@ func valuedump(s, t string) {
 	case reflect.BoolKind:
 		v.(reflect.BoolValue).Set(true);
 	}
-	assert(reflect.ValueToString(v), t);
+	assert(reflect.valueToString(v), t);
 }
 
 type T struct { a int; b float64; c string; d *int }
@@ -156,43 +156,43 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 
 	{	var tmp = 123;
 		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value), "123");
+		assert(reflect.valueToString(value), "123");
 	}
 	{	var tmp = 123.4;
 		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value), "123.4");
+		assert(reflect.valueToString(value), "123.4");
 	}
 	{	var tmp = "abc";
 		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value), "abc");
+		assert(reflect.valueToString(value), "abc");
 	}
 	{
 		var i int = 7;
 		var tmp = &T{123, 456.75, "hello", &i};
 		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.T{123, 456.75, hello, *int(@)}");
+		assert(reflect.valueToString(value.(reflect.PtrValue).Sub()), "reflect.T{123, 456.75, hello, *int(@)}");
 	}
 	{
 		type C chan *T;	// TODO: should not be necessary
 		var tmp = new(C);
 		value := reflect.NewValue(tmp);
-		assert(reflect.ValueToString(value), "*reflect.C·all_test(@)");
+		assert(reflect.valueToString(value), "*reflect.C·all_test(@)");
 	}
 //	{
 //		type A [10]int;
 //		var tmp A = A{1,2,3,4,5,6,7,8,9,10};
 //		value := reflect.NewValue(&tmp);
-//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+//		assert(reflect.valueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
 //		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
-//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+//		assert(reflect.valueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
 //	}
 	{
 		type AA []int;
 		var tmp = AA{1,2,3,4,5,6,7,8,9,10};
 		value := reflect.NewValue(&tmp);	// TODO: NewValue(tmp) too
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+		assert(reflect.valueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
 		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+		assert(reflect.valueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
 	}
 
 	{

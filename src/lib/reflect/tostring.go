@@ -3,7 +3,9 @@
 // license that can be found in the LICENSE file.
 
 // Reflection library.
-// Formatting of types and values for debugging.
+// Formatting of reflection types and values for debugging.
+// Not defined as methods so they do not need to be linked into most binaries;
+// the functions are not used by the library itself, only in tests.
 
 package reflect
 
@@ -12,8 +14,8 @@ import (
 	"strconv";
 )
 
-func TypeToString(typ Type, expand bool) string
-func ValueToString(val Value) string
+func typeToString(typ Type, expand bool) string
+func valueToString(val Value) string
 
 func doubleQuote(s string) string {
 	out := "\"";
@@ -50,7 +52,7 @@ func typeFieldsToString(t hasFields, sep string) string {
 		if str1 != "" {
 			str1 += " "
 		}
-		str1 += TypeToString(typ, false);
+		str1 += typeToString(typ, false);
 		if tag != "" {
 			str1 += " " + doubleQuote(tag);
 		}
@@ -62,7 +64,11 @@ func typeFieldsToString(t hasFields, sep string) string {
 	return str;
 }
 
-func TypeToString(typ Type, expand bool) string {
+// typeToString returns a textual representation of typ.  The expand
+// flag specifies whether to expand the contents of type names; if false,
+// the name itself is used as the representation.
+// Meant for debugging only; typ.String() serves for most purposes.
+func typeToString(typ Type, expand bool) string {
 	var str string;
 	if name := typ.Name(); !expand && name != "" {
 		return name
@@ -78,7 +84,7 @@ func TypeToString(typ Type, expand bool) string {
 		return typ.Name();
 	case PtrKind:
 		p := typ.(PtrType);
-		return "*" + TypeToString(p.Sub(), false);
+		return "*" + typeToString(p.Sub(), false);
 	case ArrayKind:
 		a := typ.(ArrayType);
 		if a.IsSlice() {
@@ -86,11 +92,11 @@ func TypeToString(typ Type, expand bool) string {
 		} else {
 			str = "[" + strconv.Itoa64(int64(a.Len())) +  "]"
 		}
-		return str + TypeToString(a.Elem(), false);
+		return str + typeToString(a.Elem(), false);
 	case MapKind:
 		m := typ.(MapType);
-		str = "map[" + TypeToString(m.Key(), false) + "]";
-		return str + TypeToString(m.Elem(), false);
+		str = "map[" + typeToString(m.Key(), false) + "]";
+		return str + typeToString(m.Elem(), false);
 	case ChanKind:
 		c := typ.(ChanType);
 		switch c.Dir() {
@@ -101,9 +107,9 @@ func TypeToString(typ Type, expand bool) string {
 		case BothDir:
 			str = "chan";
 		default:
-			panicln("reflect.TypeToString: unknown chan direction");
+			panicln("reflect.typeToString: unknown chan direction");
 		}
-		return str + TypeToString(c.Elem(), false);
+		return str + typeToString(c.Elem(), false);
 	case StructKind:
 		return "struct{" + typeFieldsToString(typ.(StructType), ";") + "}";
 	case InterfaceKind:
@@ -116,9 +122,9 @@ func TypeToString(typ Type, expand bool) string {
 		}
 		return str;
 	default:
-		panicln("reflect.TypeToString: can't print type ", typ.Kind());
+		panicln("reflect.typeToString: can't print type ", typ.Kind());
 	}
-	return "reflect.TypeToString: can't happen";
+	return "reflect.typeToString: can't happen";
 }
 
 // TODO: want an unsigned one too
@@ -126,7 +132,9 @@ func integer(v int64) string {
 	return strconv.Itoa64(v);
 }
 
-func ValueToString(val Value) string {
+// valueToString returns a textual representation of the reflection value val.
+// For debugging only.
+func valueToString(val Value) string {
 	var str string;
 	typ := val.Type();
 	switch(val.Kind()) {
@@ -174,41 +182,41 @@ func ValueToString(val Value) string {
 		}
 	case PtrKind:
 		v := val.(PtrValue);
-		return TypeToString(typ, false) + "(" + integer(int64(uintptr(v.Get()))) + ")";
+		return typeToString(typ, false) + "(" + integer(int64(uintptr(v.Get()))) + ")";
 	case ArrayKind:
 		t := typ.(ArrayType);
 		v := val.(ArrayValue);
-		str += TypeToString(t, false);
+		str += typeToString(t, false);
 		str += "{";
 		for i := 0; i < v.Len(); i++ {
 			if i > 0 {
 				str += ", "
 			}
-			str += ValueToString(v.Elem(i));
+			str += valueToString(v.Elem(i));
 		}
 		str += "}";
 		return str;
 	case MapKind:
 		t := typ.(MapType);
 		v := val.(MapValue);
-		str = TypeToString(t, false);
+		str = typeToString(t, false);
 		str += "{";
 		str += "<can't iterate on maps>";
 		str += "}";
 		return str;
 	case ChanKind:
-		str = TypeToString(typ, false);
+		str = typeToString(typ, false);
 		return str;
 	case StructKind:
 		t := typ.(StructType);
 		v := val.(StructValue);
-		str += TypeToString(t, false);
+		str += typeToString(t, false);
 		str += "{";
 		for i := 0; i < v.Len(); i++ {
 			if i > 0 {
 				str += ", "
 			}
-			str += ValueToString(v.Field(i));
+			str += valueToString(v.Field(i));
 		}
 		str += "}";
 		return str;
@@ -217,7 +225,7 @@ func ValueToString(val Value) string {
 	case FuncKind:
 		return "can't print funcs yet";
 	default:
-		panicln("reflect.ValueToString: can't print type ", val.Kind());
+		panicln("reflect.valueToString: can't print type ", val.Kind());
 	}
-	return "reflect.ValueToString: can't happen";
+	return "reflect.valueToString: can't happen";
 }

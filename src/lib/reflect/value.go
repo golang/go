@@ -12,16 +12,25 @@ import (
 	"unsafe";
 )
 
+// Addr is shorthand for unsafe.Pointer and is used to represent the address of Values.
 type Addr unsafe.Pointer
 
 func equalType(a, b Type) bool {
 	return a.String() == b.String()
 }
 
+// Value is the generic interface to reflection values.  Once its Kind is known,
+// such as BoolKind, the Value can be narrowed to the appropriate, more
+// specific interface, such as BoolValue.  Such narrowed values still implement
+// the Value interface.
 type Value interface {
+	// The kind of thing described: ArrayKind, BoolKind, etc.
 	Kind()	int;
+	// The reflection Type of the value.
 	Type()	Type;
+	// The address of the value.
 	Addr()	Addr;
+	// The value itself is the dynamic value of an empty interface.
 	Interface()	interface {};
 }
 
@@ -65,6 +74,8 @@ type creatorFn func(typ Type, addr Addr) Value
 
 // -- Missing
 
+// MissingValue represents a value whose type is not known. It usually
+// indicates an error.
 type MissingValue interface {
 	Value;
 }
@@ -79,10 +90,11 @@ func missingCreator(typ Type, addr Addr) Value {
 
 // -- Int
 
+// IntValue represents an int value.
 type IntValue interface {
 	Value;
-	Get()	int;
-	Set(int);
+	Get()	int;	// Get the underlying int.
+	Set(int);	// Set the underlying int.
 }
 
 type intValueStruct struct {
@@ -103,10 +115,11 @@ func (v *intValueStruct) Set(i int) {
 
 // -- Int8
 
+// Int8Value represents an int8 value.
 type Int8Value interface {
 	Value;
-	Get()	int8;
-	Set(int8);
+	Get()	int8;	// Get the underlying int8.
+	Set(int8);	// Set the underlying int8.
 }
 
 type int8ValueStruct struct {
@@ -127,10 +140,11 @@ func (v *int8ValueStruct) Set(i int8) {
 
 // -- Int16
 
+// Int16Value represents an int16 value.
 type Int16Value interface {
 	Value;
-	Get()	int16;
-	Set(int16);
+	Get()	int16;	// Get the underlying int16.
+	Set(int16);	// Set the underlying int16.
 }
 
 type int16ValueStruct struct {
@@ -151,10 +165,11 @@ func (v *int16ValueStruct) Set(i int16) {
 
 // -- Int32
 
+// Int32Value represents an int32 value.
 type Int32Value interface {
 	Value;
-	Get()	int32;
-	Set(int32);
+	Get()	int32;	// Get the underlying int32.
+	Set(int32);	// Set the underlying int32.
 }
 
 type int32ValueStruct struct {
@@ -175,10 +190,11 @@ func (v *int32ValueStruct) Set(i int32) {
 
 // -- Int64
 
+// Int64Value represents an int64 value.
 type Int64Value interface {
 	Value;
-	Get()	int64;
-	Set(int64);
+	Get()	int64;	// Get the underlying int64.
+	Set(int64);	// Set the underlying int64.
 }
 
 type int64ValueStruct struct {
@@ -199,10 +215,11 @@ func (v *int64ValueStruct) Set(i int64) {
 
 // -- Uint
 
+// UintValue represents a uint value.
 type UintValue interface {
 	Value;
-	Get()	uint;
-	Set(uint);
+	Get()	uint;	// Get the underlying uint.
+	Set(uint);	// Set the underlying uint.
 }
 
 type uintValueStruct struct {
@@ -223,10 +240,11 @@ func (v *uintValueStruct) Set(i uint) {
 
 // -- Uint8
 
+// Uint8Value represents a uint8 value.
 type Uint8Value interface {
 	Value;
-	Get()	uint8;
-	Set(uint8);
+	Get()	uint8;	// Get the underlying uint8.
+	Set(uint8);	// Set the underlying uint8.
 }
 
 type uint8ValueStruct struct {
@@ -247,10 +265,11 @@ func (v *uint8ValueStruct) Set(i uint8) {
 
 // -- Uint16
 
+// Uint16Value represents a uint16 value.
 type Uint16Value interface {
 	Value;
-	Get()	uint16;
-	Set(uint16);
+	Get()	uint16;	// Get the underlying uint16.
+	Set(uint16);	// Set the underlying uint16.
 }
 
 type uint16ValueStruct struct {
@@ -271,10 +290,11 @@ func (v *uint16ValueStruct) Set(i uint16) {
 
 // -- Uint32
 
+// Uint32Value represents a uint32 value.
 type Uint32Value interface {
 	Value;
-	Get()	uint32;
-	Set(uint32);
+	Get()	uint32;	// Get the underlying uint32.
+	Set(uint32);	// Set the underlying uint32.
 }
 
 type uint32ValueStruct struct {
@@ -295,10 +315,11 @@ func (v *uint32ValueStruct) Set(i uint32) {
 
 // -- Uint64
 
+// Uint64Value represents a uint64 value.
 type Uint64Value interface {
 	Value;
-	Get()	uint64;
-	Set(uint64);
+	Get()	uint64;	// Get the underlying uint64.
+	Set(uint64);	// Set the underlying uint64.
 }
 
 type uint64ValueStruct struct {
@@ -319,10 +340,11 @@ func (v *uint64ValueStruct) Set(i uint64) {
 
 // -- Uintptr
 
+// UintptrValue represents a uintptr value.
 type UintptrValue interface {
 	Value;
-	Get()	uintptr;
-	Set(uintptr);
+	Get()	uintptr;	// Get the underlying uintptr.
+	Set(uintptr);	// Set the underlying uintptr.
 }
 
 type uintptrValueStruct struct {
@@ -343,10 +365,11 @@ func (v *uintptrValueStruct) Set(i uintptr) {
 
 // -- Float
 
+// FloatValue represents a float value.
 type FloatValue interface {
 	Value;
-	Get()	float;
-	Set(float);
+	Get()	float;	// Get the underlying float.
+	Set(float);	// Get the underlying float.
 }
 
 type floatValueStruct struct {
@@ -367,10 +390,11 @@ func (v *floatValueStruct) Set(f float) {
 
 // -- Float32
 
+// Float32Value represents a float32 value.
 type Float32Value interface {
 	Value;
-	Get()	float32;
-	Set(float32);
+	Get()	float32;	// Get the underlying float32.
+	Set(float32);	// Get the underlying float32.
 }
 
 type float32ValueStruct struct {
@@ -391,10 +415,11 @@ func (v *float32ValueStruct) Set(f float32) {
 
 // -- Float64
 
+// Float64Value represents a float64 value.
 type Float64Value interface {
 	Value;
-	Get()	float64;
-	Set(float64);
+	Get()	float64;	// Get the underlying float64.
+	Set(float64);	// Get the underlying float64.
 }
 
 type float64ValueStruct struct {
@@ -415,10 +440,11 @@ func (v *float64ValueStruct) Set(f float64) {
 
 // -- Float80
 
+// Float80Value represents a float80 value.
 type Float80Value interface {
 	Value;
-	Get()	float80;
-	Set(float80);
+	Get()	float80;	// Get the underlying float80.
+	Set(float80);	// Get the underlying float80.
 }
 
 type float80ValueStruct struct {
@@ -442,10 +468,11 @@ func (v *Float80ValueStruct) Set(f float80) {
 
 // -- String
 
+// StringValue represents a string value.
 type StringValue interface {
 	Value;
-	Get()	string;
-	Set(string);
+	Get()	string;	// Get the underlying string value.
+	Set(string);	// Set the underlying string value.
 }
 
 type stringValueStruct struct {
@@ -466,10 +493,11 @@ func (v *stringValueStruct) Set(s string) {
 
 // -- Bool
 
+// BoolValue represents a bool value.
 type BoolValue interface {
 	Value;
-	Get()	bool;
-	Set(bool);
+	Get()	bool;	// Get the underlying bool value.
+	Set(bool);	// Set the underlying bool value.
 }
 
 type boolValueStruct struct {
@@ -490,11 +518,12 @@ func (v *boolValueStruct) Set(b bool) {
 
 // -- Pointer
 
+// PtrValue represents a pointer value.
 type PtrValue interface {
 	Value;
-	Sub()	Value;
-	Get()	Addr;
-	SetSub(Value);
+	Sub()	Value;	// The Value pointed to.
+	Get()	Addr;	// Get the address stored in the pointer.
+	SetSub(Value);	// Set the the pointed-to Value.
 }
 
 type ptrValueStruct struct {
@@ -526,15 +555,16 @@ func ptrCreator(typ Type, addr Addr) Value {
 // -- Array
 // Slices and arrays are represented by the same interface.
 
+// ArrayValue represents an array or slice value.
 type ArrayValue interface {
 	Value;
-	IsSlice()	bool;
-	Len()	int;
-	Cap() int;
-	Elem(i int)	Value;
-	SetLen(len int);
-	Set(src ArrayValue);
-	CopyFrom(src ArrayValue, n int)
+	IsSlice()	bool;	// Is this a slice (true) or array (false)?
+	Len()	int;	// The length of the array/slice.
+	Cap() int;	// The capacity of the array/slice (==Len() for arrays).
+	Elem(i int)	Value;	// The Value of the i'th element.
+	SetLen(len int);	// Set the length; slice only.
+	Set(src ArrayValue);	// Set the underlying Value; slice only for src and dest both.
+	CopyFrom(src ArrayValue, n int)	// Copy the elements from src; lengths must match.
 }
 
 func copyArray(dst ArrayValue, src ArrayValue, n int);
@@ -581,7 +611,7 @@ func (v *sliceValueStruct) SetLen(len int) {
 
 func (v *sliceValueStruct) Set(src ArrayValue) {
 	if !src.IsSlice() {
-		panic("can't set from fixed array");
+		panic("can't set slice from array");
 	}
 	s := src.(*sliceValueStruct);
 	if !equalType(v.typ, s.typ) {
@@ -619,10 +649,11 @@ func (v *arrayValueStruct) Cap() int {
 }
 
 func (v *arrayValueStruct) SetLen(len int) {
+	panicln("can't set len of array");
 }
 
 func (v *arrayValueStruct) Set(src ArrayValue) {
-	panicln("can't set fixed array");
+	panicln("can't set array");
 }
 
 func (v *arrayValueStruct) Elem(i int) Value {
@@ -659,10 +690,12 @@ func arrayCreator(typ Type, addr Addr) Value {
 
 // -- Map	TODO: finish and test
 
+// MapValue represents a map value.
+// Its implementation is incomplete.
 type MapValue interface {
 	Value;
-	Len()	int;
-	Elem(key Value)	Value;
+	Len()	int;	// The number of elements; currently always returns 0.
+	Elem(key Value)	Value;	// The value indexed by key; unimplemented.
 }
 
 type mapValueStruct struct {
@@ -684,6 +717,8 @@ func (v *mapValueStruct) Elem(key Value) Value {
 
 // -- Chan
 
+// ChanValue represents a chan value.
+// Its implementation is incomplete.
 type ChanValue interface {
 	Value;
 }
@@ -698,10 +733,11 @@ func chanCreator(typ Type, addr Addr) Value {
 
 // -- Struct
 
+// StructValue represents a struct value.
 type StructValue interface {
 	Value;
-	Len()	int;
-	Field(i int)	Value;
+	Len()	int;	// The number of fields.
+	Field(i int)	Value;	// The Value of field i.
 }
 
 type structValueStruct struct {
@@ -732,9 +768,10 @@ func structCreator(typ Type, addr Addr) Value {
 
 // -- Interface
 
+// InterfaceValue represents an interface value.
 type InterfaceValue interface {
 	Value;
-	Get()	interface {};
+	Get()	interface {};	// Get the underlying interface{} value.
 }
 
 type interfaceValueStruct struct {
@@ -751,6 +788,9 @@ func interfaceCreator(typ Type, addr Addr) Value {
 
 // -- Func
 
+
+// FuncValue represents a func value.
+// Its implementation is incomplete.
 type FuncValue interface {
 	Value;
 }
@@ -801,6 +841,7 @@ func newValueAddr(typ Type, addr Addr) Value {
 	return c(typ, addr);
 }
 
+// NewInitValue creates a new, zero-initialized Value for the specified Type.
 func NewInitValue(typ Type) Value {
 	// Some values cannot be made this way.
 	switch typ.Kind() {
@@ -819,6 +860,8 @@ func NewInitValue(typ Type) Value {
 	return newValueAddr(typ, Addr(&data[0]));
 }
 
+// NewSliceValue creates a new, zero-initialized slice value (ArrayValue) for the specified
+// slice type (ArrayType), length, and capacity.
 func NewSliceValue(typ ArrayType, len, cap int) ArrayValue {
 	if !typ.IsSlice() {
 		return nil
@@ -869,7 +912,7 @@ func copyArray(dst ArrayValue, src ArrayValue, n int) {
 	}
 }
 
-
+// NewValue creates a new Value from the interface{} object provided.
 func NewValue(e interface {}) Value {
 	value, typestring, indir := sys.Reflect(e);
 	typ, ok := typecache[typestring];
