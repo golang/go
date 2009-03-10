@@ -315,8 +315,6 @@ func getFloat64(v reflect.Value) (val float64, ok bool) {
 		}
 	case reflect.Float64Kind:
 		return float64(v.(reflect.Float64Value).Get()), true;
-	case reflect.Float80Kind:
-		break;	// TODO: what to do here?
 	}
 	return 0.0, false;
 }
@@ -388,7 +386,7 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
 	case reflect.Float32Kind:
 		v, ok := getFloat32(field);
 		s = p.fmt.Fmt_g32(v).Str();
-	case reflect.Float64Kind, reflect.Float80Kind:
+	case reflect.Float64Kind:
 		v, ok := getFloat64(field);
 		s = p.fmt.Fmt_g64(v).Str();
 	case reflect.FloatKind:

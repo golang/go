@@ -108,7 +108,6 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	typedump("float", "float");
 	typedump("float32", "float32");
 	typedump("float64", "float64");
-	typedump("float80", "float80");
 	typedump("int8", "int8");
 	typedump("whoknows.whatsthis", "$missing$");
 	typedump("**int8", "**int8");

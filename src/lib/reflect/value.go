@@ -438,34 +438,6 @@ func (v *float64ValueStruct) Set(f float64) {
 	*(*float64)(v.addr) = f
 }
 
-// -- Float80
-
-// Float80Value represents a float80 value.
-type Float80Value interface {
-	Value;
-	Get()	float80;	// Get the underlying float80.
-	Set(float80);	// Get the underlying float80.
-}
-
-type float80ValueStruct struct {
-	commonValue
-}
-
-func float80Creator(typ Type, addr Addr) Value {
-	return &float80ValueStruct{ commonValue{Float80Kind, typ, addr} }
-}
-
-/*
-BUG: can't gen code for float80s
-func (v *Float80ValueStruct) Get() float80 {
-	return *(*float80)(v.addr)
-}
-
-func (v *Float80ValueStruct) Set(f float80) {
-	*(*float80)(v.addr) = f
-}
-*/
-
 // -- String
 
 // StringValue represents a string value.
@@ -819,7 +791,6 @@ var creator = map[int] creatorFn {
 	FloatKind : floatCreator,
 	Float32Kind : float32Creator,
 	Float64Kind : float64Creator,
-	Float80Kind : float80Creator,
 	StringKind : stringCreator,
 	BoolKind : boolCreator,
 	PtrKind : ptrCreator,

@@ -33,7 +33,6 @@ const (
 	FloatKind;
 	Float32Kind;
 	Float64Kind;
-	Float80Kind;
 	FuncKind;
 	IntKind;
 	Int16Kind;
@@ -140,7 +139,6 @@ var (
 	Float = newBasicType("float", FloatKind, unsafe.Sizeof(float(0)));
 	Float32 = newBasicType("float32", Float32Kind, 4);
 	Float64 = newBasicType("float64", Float64Kind, 8);
-	Float80 = newBasicType("float80", Float80Kind, 10);	// TODO: strange size?
 	String = newBasicType("string", StringKind, unsafe.Sizeof(""));
 )
 
@@ -467,7 +465,6 @@ func init() {
 	types["float"] = Float;
 	types["float32"] = Float32;
 	types["float64"] = Float64;
-	types["float80"] = Float80;
 	types["string"] = String;
 	types["bool"] = Bool;
 
@@ -490,7 +487,6 @@ func init() {
 	basicstub["float"] = newStubType("float", Float);
 	basicstub["float32"] = newStubType("float32", Float32);
 	basicstub["float64"] = newStubType("float64", Float64);
-	basicstub["float80"] = newStubType("float80", Float80);
 	basicstub["string"] = newStubType("string", String);
 	basicstub["bool"] = newStubType("bool", Bool);
 
