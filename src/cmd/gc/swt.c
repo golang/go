@@ -189,7 +189,6 @@ casebody(Node *sw)
 	br = nod(OBREAK, N, N);
 
 loop:
-
 	if(t == N) {
 		if(oc == N && os != N)
 			yyerror("first switch statement must be a case");
@@ -259,12 +258,12 @@ loop:
  * rebulid case statements into if .. goto
  */
 void
-prepsw(Node *sw, int arg)
+exprswitch(Node *sw, int arg)
 {
 	Iter save;
 	Node *name, *bool, *cas;
 	Node *t, *a;
-//dump("prepsw before", sw->nbody->left);
+//dump("exprswitch before", sw->nbody->left);
 
 	cas = N;
 	name = N;
@@ -281,7 +280,7 @@ prepsw(Node *sw, int arg)
 loop:
 	if(t == N) {
 		sw->nbody->left = rev(cas);
-//dump("prepsw after", sw->nbody->left);
+//dump("exprswitch after", sw->nbody->left);
 		return;
 	}
 
@@ -289,6 +288,16 @@ loop:
 		cas = list(cas, t->right);		// goto default
 		t = listnext(&save);
 		goto loop;
+	}
+
+	// pull out the dcl in case this
+	// variable is allocated on the heap.
+	// this should be done better to prevent
+	// multiple (unused) heap allocations per switch.
+	if(t->ninit != N && t->ninit->op == ODCL) {
+//dump("exprswitch case init", t->ninit);
+		cas = list(cas, t->ninit);
+		t->ninit = N;
 	}
 
 	if(t->left->op == OAS) {
@@ -394,6 +403,18 @@ loop:
 		goto loop;
 	}
 
+	// pull out the dcl in case this
+	// variable is allocated on the heap.
+	// this should be done better to prevent
+	// multiple (unused) heap allocations per switch.
+	// not worth doing now -- make a binary search
+	// on contents of signature instead.
+	if(t->ninit != N && t->ninit->op == ODCL) {
+//dump("typeswitch case init", t->ninit);
+		cas = list(cas, t->ninit);
+		t->ninit = N;
+	}
+
 	a = t->left->left;		// var
 	a = nod(OLIST, a, bool);	// var,bool
 
@@ -476,7 +497,7 @@ walkswitch(Node *sw)
 	/*
 	 * convert the switch into OIF statements
 	 */
-	prepsw(sw, arg);
+	exprswitch(sw, arg);
 	walkstate(sw->nbody);
 //print("normal done\n");
 }
