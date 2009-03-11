@@ -7,6 +7,7 @@ package ast
 import (
 	"vector";
 	"token";
+	"scanner";
 )
 
 
@@ -28,15 +29,6 @@ func assert(pred bool) {
 
 
 // ----------------------------------------------------------------------------
-// All nodes have a source position and a token.
-
-type Node struct {
-	Pos int;  // source position (< 0 => unknown position)
-	Tok int;  // identifying token
-}
-
-
-// ----------------------------------------------------------------------------
 // Expressions
 
 const /* channel mode */ (
@@ -51,27 +43,27 @@ type (
 	Signature struct;
 
 	Expr interface {
-		Pos() int;
+		Loc() scanner.Location;
 		Visit(v ExprVisitor);
 	};
 	
 	BadExpr struct {
-		Pos_ int;
+		Loc_ scanner.Location;
 	};
 
 	Ident struct {
-		Pos_ int;
+		Loc_ scanner.Location;
 		Str string;
 	};
 
 	BinaryExpr struct {
-		Pos_ int;
+		Loc_ scanner.Location;
 		Tok int;
 		X, Y Expr;
 	};
 
 	UnaryExpr struct {
-		Pos_ int;
+		Loc_ scanner.Location;
 		Tok int;
 		X Expr;
 	};
@@ -82,56 +74,56 @@ type (
 	};
 
 	BasicLit struct {
-		Pos_ int;
+		Loc_ scanner.Location;
 		Tok int;
 		Val []byte;
 	};
 
 	FunctionLit struct {
-		Pos_ int;  // position of "func"
+		Loc_ scanner.Location;  // location of "func"
 		Typ *Signature;
 		Body *Block;
 	};
 	
 	Group struct {
-		Pos_ int;  // position of "("
+		Loc_ scanner.Location;  // location of "("
 		X Expr;
 	};
 
 	Selector struct {
-		Pos_ int;  // position of "."
+		Loc_ scanner.Location;  // location of "."
 		X Expr;
 		Sel *Ident;
 	};
 
 	TypeGuard struct {
-		Pos_ int;  // position of "."
+		Loc_ scanner.Location;  // location of "."
 		X Expr;
 		Typ Expr;
 	};
 
 	Index struct {
-		Pos_ int;  // position of "["
+		Loc_ scanner.Location;  // location of "["
 		X, I Expr;
 	};
 	
 	Call struct {
-		Pos_ int;  // position of "(" or "{"
+		Loc_ scanner.Location;  // location of "(" or "{"
 		Tok int;
 		F, Args Expr
 	};
 
 	// Type literals are treated like expressions.
 	Ellipsis struct {  // neither a type nor an expression
-		Pos_ int;
+		Loc_ scanner.Location;
 	};
 	
 	TypeType struct {  // for type switches
-		Pos_ int;  // position of "type"
+		Loc_ scanner.Location;  // location of "type"
 	};
 
 	ArrayType struct {
-		Pos_ int;  // position of "["
+		Loc_ scanner.Location;  // location of "["
 		Len Expr;
 		Elt Expr;
 	};
@@ -143,13 +135,13 @@ type (
 	};
 
 	StructType struct {
-		Pos_ int;  // position of "struct"
+		Loc_ scanner.Location;  // location of "struct"
 		Fields []*Field;
-		End int;  // position of "}", End == 0 if forward declaration
+		End scanner.Location;  // location of "}"
 	};
 	
 	PointerType struct {
-		Pos_ int;  // position of "*"
+		Loc_ scanner.Location;  // location of "*"
 		Base Expr;
 	};
 	
@@ -159,28 +151,28 @@ type (
 	};
 
 	FunctionType struct {
-		Pos_ int;  // position of "func"
+		Loc_ scanner.Location;  // location of "func"
 		Sig *Signature;
 	};
 
 	InterfaceType struct {
-		Pos_ int;  // position of "interface"
+		Loc_ scanner.Location;  // location of "interface"
 		Methods []*Field;
-		End int;  // position of "}", End == 0 if forward declaration
+		End scanner.Location;  // location of "}", End == 0 if forward declaration
 	};
 
 	SliceType struct {
-		Pos_ int;  // position of "["
+		Loc_ scanner.Location;  // location of "["
 	};
 	
 	MapType struct {
-		Pos_ int;  // position of "map"
+		Loc_ scanner.Location;  // location of "map"
 		Key Expr;
 		Val Expr;
 	};
 	
 	ChannelType struct {
-		Pos_ int;  // position of "chan" or "<-"
+		Loc_ scanner.Location;  // location of "chan" or "<-"
 		Mode int;
 		Val Expr;
 	};
@@ -215,29 +207,29 @@ type ExprVisitor interface {
 
 
 // TODO replace these with an embedded field
-func (x *BadExpr) Pos() int { return x.Pos_; }
-func (x *Ident) Pos() int { return x.Pos_; }
-func (x *BinaryExpr) Pos() int { return x.Pos_; }
-func (x *UnaryExpr) Pos() int { return x.Pos_; }
-func (x *ConcatExpr) Pos() int { return x.X.Pos(); }
-func (x *BasicLit) Pos() int { return x.Pos_; }
-func (x *FunctionLit) Pos() int { return x.Pos_; }
-func (x *Group) Pos() int { return x.Pos_; }
-func (x *Selector) Pos() int { return x.Pos_; }
-func (x *TypeGuard) Pos() int { return x.Pos_; }
-func (x *Index) Pos() int { return x.Pos_; }
-func (x *Call) Pos() int { return x.Pos_; }
+func (x *BadExpr) Loc() scanner.Location { return x.Loc_; }
+func (x *Ident) Loc() scanner.Location { return x.Loc_; }
+func (x *BinaryExpr) Loc() scanner.Location { return x.Loc_; }
+func (x *UnaryExpr) Loc() scanner.Location { return x.Loc_; }
+func (x *ConcatExpr) Loc() scanner.Location { return x.X.Loc(); }
+func (x *BasicLit) Loc() scanner.Location { return x.Loc_; }
+func (x *FunctionLit) Loc() scanner.Location { return x.Loc_; }
+func (x *Group) Loc() scanner.Location { return x.Loc_; }
+func (x *Selector) Loc() scanner.Location { return x.Loc_; }
+func (x *TypeGuard) Loc() scanner.Location { return x.Loc_; }
+func (x *Index) Loc() scanner.Location { return x.Loc_; }
+func (x *Call) Loc() scanner.Location { return x.Loc_; }
 
-func (x *Ellipsis) Pos() int { return x.Pos_; }
-func (x *TypeType) Pos() int { return x.Pos_; }
-func (x *ArrayType) Pos() int { return x.Pos_; }
-func (x *StructType) Pos() int { return x.Pos_; }
-func (x *PointerType) Pos() int { return x.Pos_; }
-func (x *FunctionType) Pos() int { return x.Pos_; }
-func (x *InterfaceType) Pos() int { return x.Pos_; }
-func (x *SliceType) Pos() int { return x.Pos_; }
-func (x *MapType) Pos() int { return x.Pos_; }
-func (x *ChannelType) Pos() int { return x.Pos_; }
+func (x *Ellipsis) Loc() scanner.Location { return x.Loc_; }
+func (x *TypeType) Loc() scanner.Location { return x.Loc_; }
+func (x *ArrayType) Loc() scanner.Location { return x.Loc_; }
+func (x *StructType) Loc() scanner.Location { return x.Loc_; }
+func (x *PointerType) Loc() scanner.Location { return x.Loc_; }
+func (x *FunctionType) Loc() scanner.Location { return x.Loc_; }
+func (x *InterfaceType) Loc() scanner.Location { return x.Loc_; }
+func (x *SliceType) Loc() scanner.Location { return x.Loc_; }
+func (x *MapType) Loc() scanner.Location { return x.Loc_; }
+func (x *ChannelType) Loc() scanner.Location { return x.Loc_; }
 
 
 func (x *BadExpr) Visit(v ExprVisitor) { v.DoBadExpr(x); }
@@ -305,17 +297,17 @@ func ExprAt(x Expr, i int) Expr {
 //   ":" StatementList
 
 type Block struct {
-	Node;
+	Loc scanner.Location;
+	Tok int;
 	List *vector.Vector;
-	End int;  // position of closing "}" if present
+	End scanner.Location;  // location of closing "}" if present
 }
 
 
-func NewBlock(pos, tok int) *Block {
+func NewBlock(loc scanner.Location, tok int) *Block {
 	assert(tok == token.LBRACE || tok == token.COLON);
-	b := new(Block);
-	b.Pos, b.Tok, b.List = pos, tok, vector.New(0);
-	return b;
+	var end scanner.Location;
+	return &Block{loc, tok, vector.New(0), end};
 }
 
 
@@ -330,11 +322,11 @@ type (
 	};
 	
 	BadStat struct {
-		Pos int;
+		Loc scanner.Location;
 	};
 
 	LabelDecl struct {
-		Pos int;  // position of ":"
+		Loc scanner.Location;  // location of ":"
 		Label *Ident;
 	};
 
@@ -343,7 +335,7 @@ type (
 	};
 
 	ExpressionStat struct {
-		Pos int;  // position of Tok
+		Loc scanner.Location;  // location of Tok
 		Tok int;  // INC, DEC, RETURN, GO, DEFER
 		Expr Expr;
 	};
@@ -353,7 +345,7 @@ type (
 	};
 
 	IfStat struct {
-		Pos int;  // position of "if"
+		Loc scanner.Location;  // location of "if"
 		Init Stat;
 		Cond Expr;
 		Body *Block;
@@ -361,7 +353,7 @@ type (
 	};
 	
 	ForStat struct {
-		Pos int;  // position of "for"
+		Loc scanner.Location;  // location of "for"
 		Init Stat;
 		Cond Expr;
 		Post Stat;
@@ -369,31 +361,31 @@ type (
 	};
 
 	CaseClause struct {
-		Pos int;  // position for "case" or "default"
+		Loc scanner.Location;  // position for "case" or "default"
 		Expr Expr;  // nil means default case
 		Body *Block;
 	};
 
 	SwitchStat struct {
-		Pos int;  // position of "switch"
+		Loc scanner.Location;  // location of "switch"
 		Init Stat;
 		Tag Expr;
 		Body *Block;
 	};
 	
 	SelectStat struct {
-		Pos int;  // position of "select"
+		Loc scanner.Location;  // location of "select"
 		Body *Block;
 	};
 	
 	ControlFlowStat struct {
-		Pos int;  // position of Tok
+		Loc scanner.Location;  // location of Tok
 		Tok int;  // BREAK, CONTINUE, GOTO, FALLTHROUGH
 		Label *Ident;  // if any, or nil
 	};
 	
 	EmptyStat struct {
-		Pos int;  // position of ";"
+		Loc scanner.Location;  // location of ";"
 	};
 )
 
@@ -439,37 +431,37 @@ type (
 	};
 	
 	BadDecl struct {
-		Pos int;
+		Loc scanner.Location;
 	};
 
 	ImportDecl struct {
-		Pos int;  // if > 0: position of "import"
+		Loc scanner.Location;  // if > 0: position of "import"
 		Ident *Ident;
 		Path Expr;
 	};
 	
 	ConstDecl struct {
-		Pos int;  // if > 0: position of "const"
+		Loc scanner.Location;  // if > 0: position of "const"
 		Idents []*Ident;
 		Typ Expr;
 		Vals Expr;
 	};
 	
 	TypeDecl struct {
-		Pos int;  // if > 0: position of "type"
+		Loc scanner.Location;  // if > 0: position of "type"
 		Ident *Ident;
 		Typ Expr;
 	};
 	
 	VarDecl struct {
-		Pos int;  // if > 0: position of "var"
+		Loc scanner.Location;  // if > 0: position of "var"
 		Idents []*Ident;
 		Typ Expr;
 		Vals Expr;
 	};
 
 	FuncDecl struct {
-		Pos int;  // position of "func"
+		Loc scanner.Location;  // location of "func"
 		Recv *Field;
 		Ident *Ident;
 		Sig *Signature;
@@ -477,10 +469,10 @@ type (
 	};
 	
 	DeclList struct {
-		Pos int;  // position of Tok
+		Loc scanner.Location;  // location of Tok
 		Tok int;
 		List []Decl;
-		End int;
+		End scanner.Location;
 	};
 )
 
@@ -509,21 +501,21 @@ func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
 // Program
 
 type Comment struct {
-	Pos int;
+	Loc scanner.Location;
 	Text []byte;
 }
 
 
 type Program struct {
-	Pos int;  // tok is token.PACKAGE
+	Loc scanner.Location;  // tok is token.PACKAGE
 	Ident *Ident;
 	Decls []Decl;
 	Comments []*Comment;
 }
 
 
-func NewProgram(pos int) *Program {
+func NewProgram(loc scanner.Location) *Program {
 	p := new(Program);
-	p.Pos = pos;
+	p.Loc = loc;
 	return p;
 }

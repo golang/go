@@ -11,7 +11,7 @@ import (
 	"os";
 	Utils "utils";
 	Platform "platform";
-	Scanner "scanner";
+	"scanner";
 	Parser "parser";
 	AST "ast";
 	TypeChecker "typechecker";
@@ -35,23 +35,20 @@ type Flags struct {
 type errorHandler struct {
 	filename string;
 	src []byte;
-	nerrors int;
-	nwarnings int;
-	errpos int;
 	columns bool;
+	errline int;
+	nerrors int;
 }
 
 
 func (h *errorHandler) Init(filename string, src []byte, columns bool) {
 	h.filename = filename;
 	h.src = src;
-	h.nerrors = 0;
-	h.nwarnings = 0;
-	h.errpos = 0;
 	h.columns = columns;
 }
 
 
+/*
 // Compute (line, column) information for a given source position.
 func (h *errorHandler) LineCol(pos int) (line, col int) {
 	line = 1;
@@ -71,40 +68,30 @@ func (h *errorHandler) LineCol(pos int) (line, col int) {
 
 	return line, utf8.RuneCount(src[lpos : pos]);
 }
+*/
 
 
-func (h *errorHandler) ErrorMsg(pos int, msg string) {
-	print(h.filename, ":");
-	if pos >= 0 {
-		// print position
-		line, col := h.LineCol(pos);
-		print(line, ":");
-		if h.columns {
-			print(col, ":");
-		}
+func (h *errorHandler) ErrorMsg(loc scanner.Location, msg string) {
+	fmt.Printf("%s:%d:", h.filename, loc.Line);
+	if h.columns {
+		fmt.Printf("%d:", loc.Col);
 	}
-	print(" ", msg, "\n");
+	fmt.Printf(" %s\n", msg);
+
+	h.errline = loc.Line;
 
 	h.nerrors++;
-	h.errpos = pos;
-
 	if h.nerrors >= 10 {
 		sys.Exit(1);
 	}
 }
 
 
-func (h *errorHandler) Error(pos int, msg string) {
-	// only report errors that are sufficiently far away from the previous error
+func (h *errorHandler) Error(loc scanner.Location, msg string) {
+	// only report errors that are on a new line 
 	// in the hope to avoid most follow-up errors
-	const errdist = 20;
-	delta := pos - h.errpos;  // may be negative!
-	if delta < 0 {
-		delta = -delta;
-	}
-
-	if delta > errdist || h.nerrors == 0 /* always report first error */ {
-		h.ErrorMsg(pos, msg);
+	if loc.Line != h.errline {
+		h.ErrorMsg(loc, msg);
 	}
 }
 
@@ -119,7 +106,7 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	var err errorHandler;
 	err.Init(src_file, src, flags.Columns);
 
-	var scanner Scanner.Scanner;
+	var scanner scanner.Scanner;
 	scanner.Init(src, &err, true);
 
 	var parser Parser.Parser;
@@ -184,7 +171,7 @@ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string, 
 				decl := prog.Decls[i];
 				panic();
 				/*
-				assert(decl.Tok == Scanner.IMPORT);
+				assert(decl.Tok == scanner.IMPORT);
 				if decl.List == nil {
 					printDep(localset, wset, decl);
 				} else {
