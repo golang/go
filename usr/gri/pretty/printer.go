@@ -16,6 +16,8 @@ import (
 	"token";
 	"ast";
 	"template";
+	"utf8";
+	"unicode";
 	SymbolTable "symboltable";
 )
 
@@ -1017,7 +1019,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
 
 
 func (P *Printer) funcDecl(d *ast.FuncDecl, with_body bool) {
-	P.Token(d.Pos_, token.FUNC);
+	P.Token(d.Pos, token.FUNC);
 	P.separator = blank;
 	if recv := d.Recv; recv != nil {
 		// method: print receiver
@@ -1079,14 +1081,28 @@ func (P *Printer) Decl(d ast.Decl) {
 
 
 // ----------------------------------------------------------------------------
-// Interface
+// Package interface
+
+// TODO this should be an AST method
+func isExported(name *ast.Ident) bool {
+	ch, len := utf8.DecodeRuneInString(name.Str, 0);
+	return unicode.IsUpper(ch);
+}
+
 
 func (P *Printer) Interface(p *ast.Program) {
 	for i := 0; i < len(p.Decls); i++ {
-		decl := p.Decls[i];
-		// TODO use type switch
-		if fun, is_fun := decl.(*ast.FuncDecl); is_fun {
-			P.funcDecl(fun, false);
+		switch d := p.Decls[i].(type) {
+		case *ast.FuncDecl:
+			if isExported(d.Ident) {
+				P.Printf("<h2>%s</h2>\n", d.Ident.Str);
+				/*
+				P.Printf("<p><code>");
+				P.funcDecl(d, false);
+				P.String(0, "");
+				P.Printf("</code></p>");
+				*/
+			}
 		}
 	}
 }
