@@ -6,22 +6,18 @@ package TypeChecker
 
 import (
 	"token";
-	AST "ast";
+	"scanner";
+	"ast";
 )
-
-
-type ErrorHandler interface {
-	Error(pos int, msg string);
-}
 
 
 type state struct {
 	// setup
-	err ErrorHandler;
+	err scanner.ErrorHandler;
 }
 
 
-func (s *state) Init(err ErrorHandler) {
+func (s *state) Init(err scanner.ErrorHandler) {
 	s.err = err;
 }
 
@@ -46,8 +42,8 @@ func assert(pred bool) {
 }
 
 
-func (s *state) Error(pos int, msg string) {
-	s.err.Error(pos, msg);
+func (s *state) Error(loc scanner.Location, msg string) {
+	s.err.Error(loc, msg);
 }
 
 
@@ -81,7 +77,7 @@ func (s *state) CheckDeclaration(d *AST.Decl) {
 */
 
 
-func (s *state) CheckProgram(p *AST.Program) {
+func (s *state) CheckProgram(p *ast.Program) {
 	for i := 0; i < len(p.Decls); i++ {
 		//s.CheckDeclaration(p.Decls[i].(*AST.Decl));
 	}
@@ -90,7 +86,7 @@ func (s *state) CheckProgram(p *AST.Program) {
 
 // ----------------------------------------------------------------------------
 
-func CheckProgram(err ErrorHandler, p *AST.Program) {
+func CheckProgram(err scanner.ErrorHandler, p *ast.Program) {
 	var s state;
 	s.Init(err);
 	s.CheckProgram(p);
