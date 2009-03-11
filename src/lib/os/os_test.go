@@ -29,16 +29,16 @@ var etc = []string{
 	"passwd",
 }
 
-func size(file string, t *testing.T) uint64 {
-	fd, err := Open(file, O_RDONLY, 0);
-	defer fd.Close();
+func size(name string, t *testing.T) uint64 {
+	file, err := Open(name, O_RDONLY, 0);
+	defer file.Close();
 	if err != nil {
 		t.Fatal("open failed:", err);
 	}
 	var buf [100]byte;
 	len := 0;
 	for {
-		n, e := fd.Read(buf);
+		n, e := file.Read(buf);
 		if n < 0 || e != nil {
 			t.Fatal("read failed:", err);
 		}
@@ -65,12 +65,12 @@ func TestStat(t *testing.T) {
 }
 
 func TestFstat(t *testing.T) {
-	fd, err1 := Open("/etc/passwd", O_RDONLY, 0);
-	defer fd.Close();
+	file, err1 := Open("/etc/passwd", O_RDONLY, 0);
+	defer file.Close();
 	if err1 != nil {
 		t.Fatal("open failed:", err1);
 	}
-	dir, err2 := Fstat(fd);
+	dir, err2 := file.Stat();
 	if err2 != nil {
 		t.Fatal("fstat failed:", err2);
 	}
@@ -98,12 +98,12 @@ func TestLstat(t *testing.T) {
 }
 
 func testReaddirnames(dir string, contents []string, t *testing.T) {
-	fd, err := Open(dir, O_RDONLY, 0);
-	defer fd.Close();
+	file, err := Open(dir, O_RDONLY, 0);
+	defer file.Close();
 	if err != nil {
 		t.Fatalf("open %q failed: %v", dir, err);
 	}
-	s, err2 := Readdirnames(fd, -1);
+	s, err2 := file.Readdirnames(-1);
 	if err2 != nil {
 		t.Fatalf("readdirnames %q failed: %v", err2);
 	}
@@ -124,12 +124,12 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
 }
 
 func testReaddir(dir string, contents []string, t *testing.T) {
-	fd, err := Open(dir, O_RDONLY, 0);
-	defer fd.Close();
+	file, err := Open(dir, O_RDONLY, 0);
+	defer file.Close();
 	if err != nil {
 		t.Fatalf("open %q failed: %v", dir, err);
 	}
-	s, err2 := Readdir(fd, -1);
+	s, err2 := file.Readdir(-1);
 	if err2 != nil {
 		t.Fatalf("readdir %q failed: %v", dir, err2);
 	}
@@ -160,13 +160,13 @@ func TestReaddir(t *testing.T) {
 }
 
 // Read the directory one entry at a time.
-func smallReaddirnames(fd *FD, length int, t *testing.T) []string {
+func smallReaddirnames(file *File, length int, t *testing.T) []string {
 	names := make([]string, length);
 	count := 0;
 	for {
-		d, err := Readdirnames(fd, 1);
+		d, err := file.Readdirnames(1);
 		if err != nil {
-			t.Fatalf("readdir %q failed: %v", fd.Name(), err);
+			t.Fatalf("readdir %q failed: %v", file.Name(), err);
 		}
 		if len(d) == 0 {
 			break
@@ -181,20 +181,20 @@ func smallReaddirnames(fd *FD, length int, t *testing.T) []string {
 // as reading it all at once.
 func TestReaddirnamesOneAtATime(t *testing.T) {
 	dir := "/usr/bin";	// big directory that doesn't change often.
-	fd, err := Open(dir, O_RDONLY, 0);
-	defer fd.Close();
+	file, err := Open(dir, O_RDONLY, 0);
+	defer file.Close();
 	if err != nil {
 		t.Fatalf("open %q failed: %v", dir, err);
 	}
-	all, err1 := Readdirnames(fd, -1);
+	all, err1 := file.Readdirnames(-1);
 	if err1 != nil {
 		t.Fatalf("readdirnames %q failed: %v", dir, err1);
 	}
-	fd1, err2 := Open(dir, O_RDONLY, 0);
+	file1, err2 := Open(dir, O_RDONLY, 0);
 	if err2 != nil {
 		t.Fatalf("open %q failed: %v", dir, err2);
 	}
-	small := smallReaddirnames(fd1, len(all)+100, t);	// +100 in case we screw up
+	small := smallReaddirnames(file1, len(all)+100, t);	// +100 in case we screw up
 	for i, n := range all {
 		if small[i] != n {
 			t.Errorf("small read %q %q mismatch: %v", small[i], n);

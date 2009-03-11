@@ -15,7 +15,7 @@ import (
 // file descriptors to be set up in the new process: fd[0] will be Unix file
 // descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
 // will cause the child to have no open file descriptor with that index.
-func ForkExec(argv0 string, argv []string, envv []string, fd []*FD)
+func ForkExec(argv0 string, argv []string, envv []string, fd []*File)
 	(pid int, err *Error)
 {
 	// Create array of integer (system) fds.

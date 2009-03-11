@@ -13,12 +13,12 @@ import (
 )
 
 type file struct {
-	fd *os.FD;
+	file *os.File;
 	data []byte;
 }
 
 func (f *file) close() {
-	f.fd.Close()
+	f.file.Close()
 }
 
 func (f *file) getLineFromData() (s string, ok bool) {
@@ -46,7 +46,7 @@ func (f *file) readLine() (s string, ok bool) {
 	}
 	if len(f.data) < cap(f.data) {
 		ln := len(f.data);
-		n, err := io.Readn(f.fd, f.data[ln:cap(f.data)]);
+		n, err := io.Readn(f.file, f.data[ln:cap(f.data)]);
 		if n >= 0 {
 			f.data = f.data[0:ln+n];
 		}

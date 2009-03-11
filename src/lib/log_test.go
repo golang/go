@@ -47,14 +47,14 @@ var tests = []tester {
 
 // Test using Log("hello", 23, "world") or using Logf("hello %d world", 23)
 func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool) {
-	fd0, fd1, err1 := os.Pipe();
+	r, w, err1 := os.Pipe();
 	if err1 != nil {
 		t.Fatal("pipe", err1);
 	}
-	defer fd0.Close();
-	defer fd1.Close();
-	buf := bufio.NewBufRead(fd0);
-	l := NewLogger(fd1, nil, prefix, flag);
+	defer r.Close();
+	defer w.Close();
+	buf := bufio.NewBufRead(r);
+	l := NewLogger(w, nil, prefix, flag);
 	if useLogf {
 		l.Logf("hello %d world", 23);
 	} else {

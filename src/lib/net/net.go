@@ -187,11 +187,11 @@ type connBase struct {
 	raddr string;
 }
 
-func (c *connBase) FD() *os.FD {
+func (c *connBase) File() *os.File {
 	if c == nil {
 		return nil
 	}
-	return c.fd.osfd;
+	return c.fd.file;
 }
 
 func (c *connBase) sysFD() int64 {

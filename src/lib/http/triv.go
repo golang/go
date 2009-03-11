@@ -35,14 +35,15 @@ var webroot = flag.String("root", "/home/rsc", "web root directory")
 func FileServer(c *http.Conn, req *http.Request) {
 	c.SetHeader("content-type", "text/plain; charset=utf-8");
 	path := *webroot + req.Url.Path;	// TODO: insecure: use os.CleanName
-	fd, err := os.Open(path, os.O_RDONLY, 0);
+	f, err := os.Open(path, os.O_RDONLY, 0);
 	if err != nil {
 		c.WriteHeader(http.StatusNotFound);
 		fmt.Fprintf(c, "open %s: %v\n", path, err);
 		return;
 	}
-	n, err1 := io.Copy(fd, c);
+	n, err1 := io.Copy(f, c);
 	fmt.Fprintf(c, "[%d bytes]\n", n);
+	f.Close();
 }
 
 // simple flag server

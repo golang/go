@@ -38,13 +38,13 @@ const (
 )
 
 func readfile(filename string) ([]byte, *OS.Error) {
-	fd, err := OS.Open(filename, OS.O_RDONLY, 0);
+	f, err := OS.Open(filename, OS.O_RDONLY, 0);
 	if err != nil {
 		return []byte{}, err;
 	}
 	var buf [1<<20]byte;
-	n, err1 := IO.Readn(fd, buf);
-	fd.Close();
+	n, err1 := IO.Readn(f, buf);
+	f.Close();
 	if err1 == IO.ErrEOF {
 		err1 = nil;
 	}
