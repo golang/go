@@ -25,12 +25,12 @@ type byteArray struct {
 }
 
 
-func (b *byteArray) Init(initial_size int) {
+func (b *byteArray) init(initial_size int) {
 	b.a = make([]byte, initial_size)[0 : 0];
 }
 
 
-func (b *byteArray) Len() int {
+func (b *byteArray) len() int {
 	return len(b.a);
 }
 
@@ -188,7 +188,7 @@ func (b *Writer) Init(output io.Write, cellwidth, padding int, padchar byte, fla
 	}
 	b.flags = flags;
 
-	b.buf.Init(1024);
+	b.buf.init(1024);
 	b.lines_size.Init(0);
 	b.lines_width.Init(0);
 	b.widths.Init(0);
@@ -424,8 +424,8 @@ func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
 			case '\t', '\n':
 				b.append(buf[i0 : i]);
 				i0 = i + 1;  // exclude ch from (next) cell
-				b.width += unicodeLen(b.buf.slice(b.pos, b.buf.Len()));
-				b.pos = b.buf.Len();
+				b.width += unicodeLen(b.buf.slice(b.pos, b.buf.len()));
+				b.pos = b.buf.len();
 
 				// terminate cell
 				last_size, last_width := b.line(b.lines_size.Len() - 1);
@@ -451,7 +451,7 @@ func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
 				if b.flags & FilterHTML != 0 {
 					b.append(buf[i0 : i]);
 					i0 = i;
-					b.width += unicodeLen(b.buf.slice(b.pos, b.buf.Len()));
+					b.width += unicodeLen(b.buf.slice(b.pos, b.buf.len()));
 					b.pos = -1;  // preventative - should not be used (will cause index out of bounds)
 					if ch == '<' {
 						b.html_char = '>';
@@ -470,7 +470,7 @@ func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
 				if b.html_char == ';' {
 					b.width++;  // count as one char
 				}
-				b.pos = b.buf.Len();
+				b.pos = b.buf.len();
 				b.html_char = 0;
 			}
 		}
