@@ -82,8 +82,8 @@ compile(Node *fn)
 //	inarggen();
 
 	ginit();
-	gen(curfn->enter, L);
-	gen(curfn->nbody, L);
+	gen(curfn->enter);
+	gen(curfn->nbody);
 	gclean();
 	checklabels();
 
@@ -143,16 +143,29 @@ allocparams(void)
 	}
 }
 
+void
+newlab(int op, Sym *s)
+{
+	Label *lab;
+
+	lab = mal(sizeof(*lab));
+	lab->link = labellist;
+	labellist = lab;
+
+	lab->sym = s;
+	lab->op = op;
+	lab->label = pc;
+}
+
 /*
  * compile statements
  */
 void
-gen(Node *n, Label *labloop)
+gen(Node *n)
 {
 	int32 lno;
 	Prog *scontin, *sbreak;
 	Prog *p1, *p2, *p3;
-	Node *l;
 	Label *lab;
 
 	lno = setlineno(n);
@@ -160,8 +173,10 @@ gen(Node *n, Label *labloop)
 loop:
 	if(n == N)
 		goto ret;
+
+	p3 = pc;	// save pc for loop labels
 	if(n->ninit)
-		gen(n->ninit, L);
+		gen(n->ninit);
 
 	setlineno(n);
 
@@ -171,24 +186,8 @@ loop:
 		break;
 
 	case OLIST:
-		l = n->left;
-		gen(l, L);
-		if(l != N && l->op == OLABEL) {
-			// call the next statement with a label
-			l = n->right;
-			if(l != N) {
-				if(l->op != OLIST) {
-					gen(l, labellist);
-					break;
-				}
-				gen(l->left, labellist);
-				n = l->right;
-				labloop = L;
-				goto loop;
-			}
-		}
+		gen(n->left);
 		n = n->right;
-		labloop = L;
 		goto loop;
 
 	case OPANIC:
@@ -203,37 +202,26 @@ loop:
 		break;
 
 	case OLABEL:
-		lab = mal(sizeof(*lab));
-		lab->link = labellist;
-		labellist = lab;
-		lab->sym = n->left->sym;
-
-		lab->op = OLABEL;
-		lab->label = pc;
+		newlab(OLABEL, n->left->sym);
 		break;
 
 	case OGOTO:
-		lab = mal(sizeof(*lab));
-		lab->link = labellist;
-		labellist = lab;
-		lab->sym = n->left->sym;
-
-		lab->op = OGOTO;
-		lab->label = pc;
+		newlab(OGOTO, n->left->sym);
 		gbranch(AJMP, T);
 		break;
 
 	case OBREAK:
 		if(n->left != N) {
-			lab = findlab(n->left->sym);
-			if(lab == L || lab->breakpc == P) {
-				yyerror("break label is not defined: %S", n->left->sym);
-				break;
+			for(lab=labellist; lab!=L; lab=lab->link) {
+				if(lab->breakpc != P) {
+					patch(gbranch(AJMP, T), lab->breakpc);
+					break;
+				}
 			}
-			patch(gbranch(AJMP, T), lab->breakpc);
+			if(lab == L)
+				yyerror("break label not defined: %S", n->left->sym);
 			break;
 		}
-
 		if(breakpc == P) {
 			yyerror("break is not in a loop");
 			break;
@@ -243,12 +231,14 @@ loop:
 
 	case OCONTINUE:
 		if(n->left != N) {
-			lab = findlab(n->left->sym);
-			if(lab == L || lab->continpc == P) {
-				yyerror("continue label is not defined: %S", n->left->sym);
-				break;
+			for(lab=labellist; lab!=L; lab=lab->link) {
+				if(lab->continpc != P) {
+					patch(gbranch(AJMP, T), lab->continpc);
+					break;
+				}
 			}
-			patch(gbranch(AJMP, T), lab->continpc);
+			if(lab == L)
+				yyerror("break label not defined: %S", n->left->sym);
 			break;
 		}
 
@@ -265,18 +255,24 @@ loop:
 		breakpc = gbranch(AJMP, T);		// break:	goto done
 		scontin = continpc;
 		continpc = pc;
-		gen(n->nincr, L);				// contin:	incr
+
+		// define break and cotinue labels
+		for(lab=labellist; lab!=L; lab=lab->link) {
+			if(lab->label != p3)
+				break;
+			if(lab->op == OLABEL) {
+				lab->breakpc = breakpc;
+				lab->continpc = continpc;
+			}
+		}
+
+		gen(n->nincr);				// contin:	incr
 		patch(p1, pc);				// test:
 		if(n->ntest != N)
 			if(n->ntest->ninit != N)
-				gen(n->ntest->ninit, L);
+				gen(n->ntest->ninit);
 		bgen(n->ntest, 0, breakpc);		//		if(!test) goto break
-		if(labloop != L) {
-			labloop->op = OFOR;
-			labloop->continpc = continpc;
-			labloop->breakpc = breakpc;
-		}
-		gen(n->nbody, L);			//		body
+		gen(n->nbody);				//		body
 		patch(gbranch(AJMP, T), continpc);	//		goto contin
 		patch(breakpc, pc);			// done:
 		continpc = scontin;
@@ -289,12 +285,12 @@ loop:
 		patch(p1, pc);				// test:
 		if(n->ntest != N)
 			if(n->ntest->ninit != N)
-				gen(n->ntest->ninit, L);
+				gen(n->ntest->ninit);
 		bgen(n->ntest, 0, p2);			// 		if(!test) goto p2
-		gen(n->nbody, L);			//		then
+		gen(n->nbody);				//		then
 		p3 = gbranch(AJMP, T);			//		goto done
 		patch(p2, pc);				// else:
-		gen(n->nelse, L);			//		else
+		gen(n->nelse);				//		else
 		patch(p3, pc);				// done:
 		break;
 
@@ -302,12 +298,18 @@ loop:
 		sbreak = breakpc;
 		p1 = gbranch(AJMP, T);			// 		goto test
 		breakpc = gbranch(AJMP, T);		// break:	goto done
-		patch(p1, pc);				// test:
-		if(labloop != L) {
-			labloop->op = OFOR;
-			labloop->breakpc = breakpc;
+
+		// define break label
+		for(lab=labellist; lab!=L; lab=lab->link) {
+			if(lab->label != p3)
+				break;
+			if(lab->op == OLABEL) {
+				lab->breakpc = breakpc;
+			}
 		}
-		gen(n->nbody, L);			//		switch(test) body
+
+		patch(p1, pc);				// test:
+		gen(n->nbody);				//		switch(test) body
 		patch(breakpc, pc);			// done:
 		breakpc = sbreak;
 		break;
@@ -316,12 +318,18 @@ loop:
 		sbreak = breakpc;
 		p1 = gbranch(AJMP, T);			// 		goto test
 		breakpc = gbranch(AJMP, T);		// break:	goto done
-		patch(p1, pc);				// test:
-		if(labloop != L) {
-			labloop->op = OFOR;
-			labloop->breakpc = breakpc;
+
+		// define break label
+		for(lab=labellist; lab!=L; lab=lab->link) {
+			if(lab->label != p3)
+				break;
+			if(lab->op == OLABEL) {
+				lab->breakpc = breakpc;
+			}
 		}
-		gen(n->nbody, L);			//		select() body
+
+		patch(p1, pc);				// test:
+		gen(n->nbody);				//		select() body
 		patch(breakpc, pc);			// done:
 		breakpc = sbreak;
 		break;
@@ -484,7 +492,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 		i = &tmpi;
 	}
 
-	gen(n->right, L);		// args
+	gen(n->right);			// args
 
 	regalloc(&nodr, types[tptr], res);
 	regalloc(&nodo, types[tptr], &nodr);
@@ -561,7 +569,7 @@ cgen_call(Node *n, int proc)
 		cgen(n->left, &afun);
 	}
 
-	gen(n->right, L);	// assign the args
+	gen(n->right);		// assign the args
 	t = n->left->type;
 
 	setmaxarg(t);
@@ -694,7 +702,7 @@ cgen_aret(Node *n, Node *res)
 void
 cgen_ret(Node *n)
 {
-	gen(n->left, L);	// copy out args
+	gen(n->left);		// copy out args
 	if(hasdefer)
 		ginscall(deferreturn, 0);
 	gins(ARET, N, N);
