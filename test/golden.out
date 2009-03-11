@@ -115,11 +115,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 =========== chan/nonblock.go
 PASS
 
-=========== bugs/bug087.go
-bugs/bug087.go:8: illegal combination of literals LEN 9
-bugs/bug087.go:8: illegal combination of literals LEN 9
-BUG: fails incorrectly
-
 =========== bugs/bug108.go
 bugs/bug108.go:4: stupid shift: 1025
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug108.go

@@ -733,7 +733,6 @@ loop:
 			goto nottop;
 		walktype(n->left, Erv);
 		implicitstar(&n->left);
-		evconst(n);
 		t = n->left->type;
 		if(t == T)
 			goto ret;
@@ -741,6 +740,9 @@ loop:
 		default:
 			goto badt;
 		case TSTRING:
+			if(whatis(n->left) == Wlitstr)
+				nodconst(n, types[TINT], n->left->val.u.sval->len);
+			break;
 		case TMAP:
 			break;
 		case TARRAY:
