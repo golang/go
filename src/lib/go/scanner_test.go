@@ -45,6 +45,9 @@ var tokens = [...]elt{
 
 	// Identifiers and basic type literals
 	elt{ 0, token.IDENT, "foobar", literal },
+	elt{ 0, token.IDENT, "a۰۱۸", literal },
+	elt{ 0, token.IDENT, "foo६४", literal },
+	elt{ 0, token.IDENT, "bar９８７６", literal },
 	elt{ 0, token.INT, "0", literal },
 	elt{ 0, token.INT, "01234567", literal },
 	elt{ 0, token.INT, "0xcafebabe", literal },
@@ -56,6 +59,10 @@ var tokens = [...]elt{
 	elt{ 0, token.FLOAT, "1e-100", literal },
 	elt{ 0, token.FLOAT, "2.71828e-1000", literal },
 	elt{ 0, token.CHAR, "'a'", literal },
+	elt{ 0, token.CHAR, "'\\000'", literal },
+	elt{ 0, token.CHAR, "'\\xFF'", literal },
+	elt{ 0, token.CHAR, "'\\uff16'", literal },
+	elt{ 0, token.CHAR, "'\\U0000ff16'", literal },
 	elt{ 0, token.STRING, "`foobar`", literal },
 
 	// Operators and delimitors
