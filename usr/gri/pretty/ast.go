@@ -469,7 +469,7 @@ type (
 	};
 
 	FuncDecl struct {
-		Pos_ int;  // position of "func"
+		Pos int;  // position of "func"
 		Recv *Field;
 		Ident *Ident;
 		Sig *Signature;

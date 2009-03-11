@@ -8,8 +8,7 @@
 //
 // A client may parse the entire program (ParseProgram), only the package
 // clause (ParsePackageClause), or the package clause and the import
-// declarations (ParseImportDecls). The resulting AST represents the part
-// of the program that is parsed.
+// declarations (ParseImportDecls).
 //
 package Parser
 
@@ -70,20 +69,8 @@ type Parser struct {
 // ----------------------------------------------------------------------------
 // Helper functions
 
-func unimplemented() {
-	panic("unimplemented");
-}
-
-
 func unreachable() {
 	panic("unreachable");
-}
-
-
-func assert(pred bool) {
-	if !pred {
-		panic("assertion failed");
-	}
 }
 
 
@@ -178,13 +165,6 @@ func (P *Parser) expect(tok int) {
 }
 
 
-func (P *Parser) OptSemicolon() {
-	if P.tok == token.SEMICOLON {
-		P.next();
-	}
-}
-
-
 // ----------------------------------------------------------------------------
 // Common productions
 
@@ -194,7 +174,6 @@ func (P *Parser) parseStatement() ast.Stat;
 func (P *Parser) parseDeclaration() ast.Decl;
 
 
-// If scope != nil, lookup identifier in scope. Otherwise create one.
 func (P *Parser) parseIdent() *ast.Ident {
 	if P.trace {
 		defer un(trace(P, "Ident"));
@@ -662,7 +641,9 @@ func (P *Parser) parseStructType() ast.Expr {
 				break;
 			}
 		}
-		P.OptSemicolon();
+		if P.tok == token.SEMICOLON {
+			P.next();
+		}
 
 		end = P.pos;
 		P.expect(token.RBRACE);
@@ -812,9 +793,8 @@ func (P *Parser) parseStringLit() ast.Expr {
 		defer un(trace(P, "StringLit"));
 	}
 
-	assert(P.tok == token.STRING);
 	var x ast.Expr = &ast.BasicLit{P.pos, P.tok, P.val};
-	P.next();
+	P.expect(token.STRING);  // always satisfied
 	
 	for P.tok == token.STRING {
 		y := &ast.BasicLit{P.pos, P.tok, P.val};
@@ -1605,7 +1585,9 @@ func (P *Parser) parseImportDecls() *vector.Vector {
 	list := vector.New(0);
 	for P.tok == token.IMPORT {
 		list.Push(P.parseDecl(token.IMPORT));
-		P.OptSemicolon();
+		if P.tok == token.SEMICOLON {
+			P.next();
+		}
 	}
 
 	return list;
@@ -1651,7 +1633,9 @@ func (P *Parser) ParseProgram() *ast.Program {
 	list := P.parseImportDecls();
 	for P.tok != token.EOF {
 		list.Push(P.parseDeclaration());
-		P.OptSemicolon();
+		if P.tok == token.SEMICOLON {
+			P.next();
+		}
 	}
 
 	// convert list
