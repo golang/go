@@ -60,25 +60,6 @@ type Scanner struct {
 }
 
 
-func isLetter(ch int) bool {
-	return
-		'a' <= ch && ch <= 'z' ||
-		'A' <= ch && ch <= 'Z' ||
-		ch == '_' ||
-		ch >= 0x80 && unicode.IsLetter(ch);
-}
-
-
-func digitVal(ch int) int {
-	switch {
-	case '0' <= ch && ch <= '9': return ch - '0';
-	case 'a' <= ch && ch <= 'f': return ch - 'a' + 10;
-	case 'A' <= ch && ch <= 'F': return ch - 'A' + 10;
-	}
-	return 16;  // larger than any legal digit val
-}
-
-
 // Read the next Unicode char into S.ch.
 // S.ch < 0 means end-of-file.
 func (S *Scanner) next() {
@@ -195,13 +176,39 @@ func (S *Scanner) scanComment() []byte {
 }
 
 
+func isLetter(ch int) bool {
+	return
+		'a' <= ch && ch <= 'z' ||
+		'A' <= ch && ch <= 'Z' ||
+		ch == '_' ||
+		ch >= 0x80 && unicode.IsLetter(ch);
+}
+
+
+func isDigit(ch int) bool {
+	return
+		'0' <= ch && ch <= '9' ||
+		ch >= 0x80 && unicode.IsDecimalDigit(ch);
+}
+
+
 func (S *Scanner) scanIdentifier() (tok int, lit []byte) {
 	pos := S.chpos;
-	for isLetter(S.ch) || digitVal(S.ch) < 10 {
+	for isLetter(S.ch) || isDigit(S.ch) {
 		S.next();
 	}
 	lit = S.src[pos : S.chpos];
 	return token.Lookup(lit), lit;
+}
+
+
+func digitVal(ch int) int {
+	switch {
+	case '0' <= ch && ch <= '9': return ch - '0';
+	case 'a' <= ch && ch <= 'f': return ch - 'a' + 10;
+	case 'A' <= ch && ch <= 'F': return ch - 'A' + 10;
+	}
+	return 16;  // larger than any legal digit val
 }
 
 
@@ -270,12 +277,12 @@ exit:
 }
 
 
-func (S *Scanner) scanDigits(n int, base int) {
-	for digitVal(S.ch) < base {
+func (S *Scanner) scanDigits(base, length int) {
+	for length > 0 && digitVal(S.ch) < base {
 		S.next();
-		n--;
+		length--;
 	}
-	if n > 0 {
+	if length > 0 {
 		S.error(S.chpos, "illegal char escape");
 	}
 }
@@ -289,13 +296,13 @@ func (S *Scanner) scanEscape(quote int) {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
 		// nothing to do
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		S.scanDigits(3 - 1, 8);  // 1 char read already
+		S.scanDigits(8, 3 - 1);  // 1 char read already
 	case 'x':
-		S.scanDigits(2, 16);
+		S.scanDigits(16, 2);
 	case 'u':
-		S.scanDigits(4, 16);
+		S.scanDigits(16, 4);
 	case 'U':
-		S.scanDigits(8, 16);
+		S.scanDigits(16, 8);
 	default:
 		S.error(pos, "illegal char escape");
 	}
