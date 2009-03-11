@@ -140,11 +140,6 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug136.go
 BUG: should not compile
 
-=========== bugs/bug137.go
-bugs/bug137.go:9: break label is not defined: L2
-bugs/bug137.go:15: break label is not defined: L4
-BUG should compile
-
 =========== bugs/bug138.go
 bugs/bug138.go:8: overflow converting constant to uint
 bugs/bug138.go:8: illegal combination of literals CONV 7

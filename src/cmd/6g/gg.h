@@ -74,7 +74,7 @@ struct	Pool
 typedef	struct	Label Label;
 struct	Label
 {
-	uchar	op;		// OFOR/OGOTO/OLABEL
+	uchar	op;		// OGOTO/OLABEL
 	Sym*	sym;
 	Prog*	label;		// pointer to code
 	Prog*	breakpc;	// pointer to code
@@ -133,7 +133,7 @@ EXTERN	int	sizeof_Array;	// runtime sizeof(Array)
  */
 void	compile(Node*);
 void	proglist(void);
-void	gen(Node*, Label*);
+void	gen(Node*);
 Node*	lookdot(Node*, Node*, int);
 void	inarggen(void);
 void	cgen_as(Node*, Node*);
