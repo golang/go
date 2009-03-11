@@ -35,11 +35,11 @@ func ptrs() {
 	var smallptr SmallPtr = SmallPtr{ 12345 };
 	var intptr IntPtr = 12345;
 
-	test("bigptr", bigptr);
+//	test("bigptr", bigptr);
 	test("&bigptr", &bigptr);
-	test("smallptr", smallptr);
+//	test("smallptr", smallptr);
 	test("&smallptr", &smallptr);
-	test("intptr", intptr);
+//	test("intptr", intptr);
 	test("&intptr", &intptr);
 }
 

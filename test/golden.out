@@ -64,10 +64,6 @@ Faulting address: 0x0
 pc: xxx
 
 
-=========== ./interface6.go
-failure in f4 i
-BUG interface6
-
 =========== ./peano.go
 0! = 1
 1! = 1

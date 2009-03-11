@@ -363,7 +363,7 @@ func (P *Parser) parseParameterDecl(ellipsis_ok bool) (*vector.Vector, ast.Expr)
 
 	// if we had a list of identifiers, it must be followed by a type
 	typ := P.tryParameterType();
-	
+
 	return list, typ;
 }
 
@@ -383,7 +383,7 @@ func (P *Parser) parseParameterList(ellipsis_ok bool) []*ast.Field {
 		}
 		list.Init(0);
 		list.Push(&ast.Field{idents, typ, nil});
-		
+
 		for P.tok == token.COMMA {
 			P.next();
 			idents := P.parseIdentList2(nil);
@@ -473,7 +473,7 @@ func (P *Parser) parseFunctionType() *ast.FunctionType {
 	loc := P.loc;
 	P.expect(token.FUNC);
 	sig := P.parseSignature();
-	
+
 	return &ast.FunctionType{loc, sig};
 }
 
@@ -494,7 +494,7 @@ func (P *Parser) parseMethodSpec() *ast.Field {
 		// embedded interface
 		typ = x;
 	}
-	
+
 	return &ast.Field{idents, typ, nil};
 }
 
@@ -523,7 +523,7 @@ func (P *Parser) parseInterfaceType() *ast.InterfaceType {
 		end = P.loc;
 		P.expect(token.RBRACE);
 		P.opt_semi = true;
-		
+
 		// convert vector
 		methods = make([]*ast.Field, list.Len());
 		for i := list.Len() - 1; i >= 0; i-- {
@@ -600,7 +600,7 @@ func (P *Parser) parseFieldDecl() *ast.Field {
 			P.error(P.loc, "anonymous field expected");
 		}
 	}
-	
+
 	return &ast.Field{idents, typ, tag};
 }
 
@@ -613,7 +613,7 @@ func (P *Parser) parseStructType() ast.Expr {
 	loc := P.loc;
 	var end scanner.Location;
 	var fields []*ast.Field;
-	
+
 	P.expect(token.STRUCT);
 	if P.tok == token.LBRACE {
 		P.next();
@@ -642,7 +642,7 @@ func (P *Parser) parseStructType() ast.Expr {
 		}
 	}
 
-	return ast.StructType{loc, fields, end};
+	return &ast.StructType{loc, fields, end};
 }
 
 
@@ -722,7 +722,7 @@ func (P *Parser) parseBlock(tok int) *ast.Block {
 	P.expect(tok);
 
 	P.parseStatementList(b.List);
-	
+
 	if tok == token.LBRACE {
 		b.End = P.loc;
 		P.expect(token.RBRACE);
@@ -781,7 +781,7 @@ func (P *Parser) parseStringLit() ast.Expr {
 
 	var x ast.Expr = &ast.BasicLit{P.loc, P.tok, P.val};
 	P.expect(token.STRING);  // always satisfied
-	
+
 	for P.tok == token.STRING {
 		y := &ast.BasicLit{P.loc, P.tok, P.val};
 		P.next();
@@ -805,7 +805,7 @@ func (P *Parser) parseOperand() ast.Expr {
 		x := &ast.BasicLit{P.loc, P.tok, P.val};
 		P.next();
 		return x;
-		
+
 	case token.STRING:
 		return P.parseStringLit();
 
@@ -1150,7 +1150,7 @@ func (P *Parser) parseControlClause(isForStat bool) (init ast.Stat, expr ast.Exp
 
 	if P.tok != token.LBRACE {
 		prev_lev := P.expr_lev;
-		P.expr_lev = -1;	
+		P.expr_lev = -1;
 		if P.tok != token.SEMICOLON {
 			init = P.parseSimpleStat(isForStat);
 			// TODO check for range clause and exit if found
@@ -1372,7 +1372,7 @@ func (P *Parser) parseImportSpec(loc scanner.Location) *ast.ImportDecl {
 	} else {
 		P.expect(token.STRING);  // use expect() error handling
 	}
-	
+
 	return &ast.ImportDecl{loc, ident, path};
 }
 
@@ -1389,7 +1389,7 @@ func (P *Parser) parseConstSpec(loc scanner.Location) *ast.ConstDecl {
 		P.next();
 		vals = P.parseExpressionList();
 	}
-	
+
 	return &ast.ConstDecl{loc, idents, typ, vals};
 }
 
@@ -1401,7 +1401,7 @@ func (P *Parser) parseTypeSpec(loc scanner.Location) *ast.TypeDecl {
 
 	ident := P.parseIdent();
 	typ := P.parseType();
-	
+
 	return &ast.TypeDecl{loc, ident, typ};
 }
 
@@ -1424,7 +1424,7 @@ func (P *Parser) parseVarSpec(loc scanner.Location) *ast.VarDecl {
 			vals = P.parseExpressionList();
 		}
 	}
-	
+
 	return &ast.VarDecl{loc, idents, typ, vals};
 }
 
@@ -1436,7 +1436,7 @@ func (P *Parser) parseSpec(loc scanner.Location, keyword int) ast.Decl {
 	case token.TYPE: return P.parseTypeSpec(loc);
 	case token.VAR: return P.parseVarSpec(loc);
 	}
-	
+
 	unreachable();
 	return nil;
 }
@@ -1463,13 +1463,13 @@ func (P *Parser) parseDecl(keyword int) ast.Decl {
 		end := P.loc;
 		P.expect(token.RPAREN);
 		P.opt_semi = true;
-		
+
 		// convert vector
 		decls := make([]ast.Decl, list.Len());
 		for i := 0; i < list.Len(); i++ {
 			decls[i] = list.At(i).(ast.Decl);
 		}
-		
+
 		return &ast.DeclList{loc, keyword, decls, end};
 	}
 
@@ -1528,7 +1528,7 @@ func (P *Parser) parseDeclaration() ast.Decl {
 	case token.FUNC:
 		return P.parseFunctionDecl();
 	}
-	
+
 	loc := P.loc;
 	P.error(loc, "declaration expected");
 	P.next();  // make progress
@@ -1588,7 +1588,7 @@ func (P *Parser) ParseImportDecls() []ast.Decl {
 	for i := 0; i < list.Len(); i++ {
 		imports[i] = list.At(i).(ast.Decl);
 	}
-	
+
 	return imports;
 }
 

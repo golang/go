@@ -2805,12 +2805,23 @@ ifacelookdot(Sym *s, Type *t)
 // check whether non-interface type t
 // satisifes inteface type iface.
 int
-ifaceokT2I(Type *t, Type *iface, Type **m)
+ifaceokT2I(Type *t0, Type *iface, Type **m)
 {
-	Type *im, *tm;
+	Type *t, *im, *tm;
 	int imhash;
 
-	t = methtype(t);
+	t = methtype(t0);
+
+	// stopgap: check for
+	// non-pointer type in T2I, methods want pointers.
+	// supposed to do something better eventually
+	// but this will catch errors while we decide the
+	// details of the "better" solution.
+	if(t == t0 && t->methptr == 2) {
+		yyerror("probably wanted *%T not %T", t, t);
+		*m = iface->type;
+		return 0;
+	}
 
 	// if this is too slow,
 	// could sort these first
