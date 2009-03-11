@@ -153,12 +153,14 @@ var tokens = [...]elt{
 }
 
 
+const whitespace = "  \t  ";  // to separate tokens
+
 func init() {
 	// set pos fields
 	pos := 0;
 	for i := 0; i < len(tokens); i++ {
 		tokens[i].pos = pos;
-		pos += len(tokens[i].lit) + 1;  // + 1 for space in between
+		pos += len(tokens[i].lit) + len(whitespace);
 	}
 }
 
@@ -167,8 +169,8 @@ type TestErrorHandler struct {
 	t *testing.T
 }
 
-func (h *TestErrorHandler) Error(pos int, msg string) {
-	h.t.Errorf("Error() called (pos = %d, msg = %s)", pos, msg);
+func (h *TestErrorHandler) Error(loc scanner.Location, msg string) {
+	h.t.Errorf("Error() called (msg = %s)", msg);
 }
 
 
@@ -176,7 +178,7 @@ func Test(t *testing.T) {
 	// make source
 	var src string;
 	for i, e := range tokens {
-		src += e.lit + " ";
+		src += e.lit + whitespace;
 	}
 
 	// set up scanner
@@ -185,9 +187,9 @@ func Test(t *testing.T) {
 
 	// verify scan
 	for i, e := range tokens {
-		pos, tok, lit := s.Scan();
-		if pos != e.pos {
-			t.Errorf("bad position for %s: got %d, expected %d", e.lit, pos, e.pos);
+		loc, tok, lit := s.Scan();
+		if loc.Pos != e.pos {
+			t.Errorf("bad position for %s: got %d, expected %d", e.lit, loc.Pos, e.pos);
 		}
 		if tok != e.tok {
 			t.Errorf("bad token for %s: got %s, expected %s", e.lit, token.TokenString(tok), token.TokenString(e.tok));
@@ -199,7 +201,7 @@ func Test(t *testing.T) {
 			t.Errorf("bad class for %s: got %d, expected %d", e.lit, tokenclass(tok), e.class);
 		}
 	}
-	pos, tok, lit := s.Scan();
+	loc, tok, lit := s.Scan();
 	if tok != token.EOF {
 		t.Errorf("bad token at eof: got %s, expected EOF", token.TokenString(tok));
 	}
