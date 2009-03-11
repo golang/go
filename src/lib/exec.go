@@ -18,20 +18,20 @@ const (
 )
 
 // A Cmd represents a running command.
-// Stdin, Stdout, and Stderr are file descriptors to pipes
+// Stdin, Stdout, and Stderr are Files representing pipes
 // connected to the running command's standard input, output, and error,
 // or else nil, depending on the arguments to Run.
 // Pid is the running command's operating system process ID.
 type Cmd struct {
-	Stdin *os.FD;
-	Stdout *os.FD;
-	Stderr *os.FD;
+	Stdin *os.File;
+	Stdout *os.File;
+	Stderr *os.File;
 	Pid int;
 }
 
-// Given mode (DevNull, etc), return fd for child
-// and fd to record in Cmd structure.
-func modeToFDs(mode, fd int) (*os.FD, *os.FD, *os.Error) {
+// Given mode (DevNull, etc), return file for child
+// and file to record in Cmd structure.
+func modeToFiles(mode, fd int) (*os.File, *os.File, *os.Error) {
 	switch mode {
 	case DevNull:
 		rw := os.O_WRONLY;
@@ -80,17 +80,17 @@ func modeToFDs(mode, fd int) (*os.FD, *os.FD, *os.Error) {
 func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err *os.Error)
 {
 	p = new(Cmd);
-	var fd [3]*os.FD;
+	var fd [3]*os.File;
 
-	if fd[0], p.Stdin, err = modeToFDs(stdin, 0); err != nil {
+	if fd[0], p.Stdin, err = modeToFiles(stdin, 0); err != nil {
 		goto Error;
 	}
-	if fd[1], p.Stdout, err = modeToFDs(stdout, 1); err != nil {
+	if fd[1], p.Stdout, err = modeToFiles(stdout, 1); err != nil {
 		goto Error;
 	}
 	if stderr == MergeWithStdout {
 		p.Stderr = p.Stdout;
-	} else if fd[2], p.Stderr, err = modeToFDs(stderr, 2); err != nil {
+	} else if fd[2], p.Stderr, err = modeToFiles(stderr, 2); err != nil {
 		goto Error;
 	}
 

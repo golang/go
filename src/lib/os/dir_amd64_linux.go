@@ -24,15 +24,15 @@ func clen(n []byte) int {
 }
 
 // Negative count means read until EOF.
-func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
-	// If this fd has no dirinfo, create one.
-	if fd.dirinfo == nil {
-		fd.dirinfo = new(dirInfo);
+func readdirnames(file *File, count int) (names []string, err *os.Error) {
+	// If this file has no dirinfo, create one.
+	if file.dirinfo == nil {
+		file.dirinfo = new(dirInfo);
 		// The buffer must be at least a block long.
 		// TODO(r): use fstatfs to find fs block size.
-		fd.dirinfo.buf = make([]byte, blockSize);
+		file.dirinfo.buf = make([]byte, blockSize);
 	}
-	d := fd.dirinfo;
+	d := file.dirinfo;
 	size := count;
 	if size < 0 {
 		size = 100
@@ -43,7 +43,7 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
 		if d.bufp == d.nbuf {
 			var errno int64;
 			dbuf := (*syscall.Dirent)(unsafe.Pointer(&d.buf[0]));
-			d.nbuf, errno = syscall.Getdents(fd.fd, dbuf, int64(len(d.buf)));
+			d.nbuf, errno = syscall.Getdents(file.fd, dbuf, int64(len(d.buf)));
 			if d.nbuf < 0 {
 				return names, os.ErrnoToError(errno)
 			}

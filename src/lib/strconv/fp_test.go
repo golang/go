@@ -94,12 +94,13 @@ func myatof32(s string) (f float32, ok bool) {
 }
 
 func TestFp(t *testing.T) {
-	fd, err := os.Open("testfp.txt", os.O_RDONLY, 0);
+	f, err := os.Open("testfp.txt", os.O_RDONLY, 0);
 	if err != nil {
 		panicln("testfp: open testfp.txt:", err.String());
 	}
+	defer f.Close();
 
-	b := bufio.NewBufRead(fd);
+	b := bufio.NewBufRead(f);
 
 	lineno := 0;
 	for {

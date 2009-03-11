@@ -22,23 +22,28 @@ import (
 	"strconv";
 )
 
-var ErrWriteAfterFlush = os.NewError("Conn.Write called after Flush")
-var ErrHijacked = os.NewError("Conn has been hijacked")
+// Errors introduced by the HTTP server.
+var (
+	ErrWriteAfterFlush = os.NewError("Conn.Write called after Flush");
+	ErrHijacked = os.NewError("Conn has been hijacked");
+)
 
 type Conn struct
 
-// Interface implemented by servers using this library.
+// Objects implemeting the Handler interface can be
+// registered to serve a particular path or subtree
+// in the HTTP server.
 type Handler interface {
 	ServeHTTP(*Conn, *Request);
 }
 
-// Active HTTP connection (server side).
+// A Conn represents the server side of a single active HTTP connection.
 type Conn struct {
 	RemoteAddr string;	// network address of remote side
-	Req *Request;	// current HTTP request
+	Req *Request;		// current HTTP request
 
-	fd io.ReadWriteClose;	// i/o connection
-	buf *bufio.BufReadWrite;	// buffered fd
+	rwc io.ReadWriteClose;	// i/o connection
+	buf *bufio.BufReadWrite;	// buffered rwc
 	handler Handler;	// request handler
 	hijacked bool;	// connection has been hijacked by handler
 
@@ -54,7 +59,7 @@ func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err
 	c = new(Conn);
 	c.RemoteAddr = raddr;
 	c.handler = handler;
-	c.fd = rwc;
+	c.rwc = rwc;
 	br := bufio.NewBufRead(rwc);
 	bw := bufio.NewBufWrite(rwc);
 	c.buf = bufio.NewBufReadWrite(br, bw);
@@ -99,11 +104,25 @@ func (c *Conn) readRequest() (req *Request, err *os.Error) {
 	return req, nil
 }
 
+// SetHeader sets a header line in the eventual reply.
+// For example, SetHeader("Content-Type", "text/html; charset=utf-8")
+// will result in the header line
+//
+//	Content-Type: text/html; charset=utf-8
+//
+// being sent.  UTF-8 encoded HTML is the default setting for
+// Content-Type in this library, so users need not make that
+// particular call.  Calls to SetHeader after WriteHeader (or Write)
+// are ignored.
 func (c *Conn) SetHeader(hdr, val string) {
 	c.header[CanonicalHeaderKey(hdr)] = val;
 }
 
-// Write header.
+// WriteHeader sends an HTTP response header with status code.
+// If WriteHeader is not called explicitly, the first call to Write
+// will trigger an implicit WriteHeader(http.StatusOK).
+// Thus explicit calls to WriteHeader are mainly used to
+// send error codes.
 func (c *Conn) WriteHeader(code int) {
 	if c.hijacked {
 		log.Stderr("http: Conn.WriteHeader on hijacked connection");
@@ -133,10 +152,10 @@ func (c *Conn) WriteHeader(code int) {
 	io.WriteString(c.buf, "\r\n");
 }
 
-// TODO(rsc): BUG in 6g: must return "nn int" not "n int"
-// so that the implicit struct assignment in
-// return c.buf.Write(data) works.  oops
-func (c *Conn) Write(data []byte) (nn int, err *os.Error) {
+// Write writes the data to the connection as part of an HTTP reply.
+// If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
+// before writing the data.
+func (c *Conn) Write(data []byte) (n int, err *os.Error) {
 	if c.hijacked {
 		log.Stderr("http: Conn.Write on hijacked connection");
 		return 0, ErrHijacked
@@ -175,9 +194,9 @@ func (c *Conn) close() {
 		c.buf.Flush();
 		c.buf = nil;
 	}
-	if c.fd != nil {
-		c.fd.Close();
-		c.fd = nil;
+	if c.rwc != nil {
+		c.rwc.Close();
+		c.rwc = nil;
 	}
 }
 
@@ -203,25 +222,30 @@ func (c *Conn) serve() {
 	c.close();
 }
 
-// Allow client to take over the connection.
-// After a handler calls c.Hijack(), the HTTP server library
-// will never touch the connection again.
-// It is the caller's responsibility to manage and close
-// the connection.
-func (c *Conn) Hijack() (fd io.ReadWriteClose, buf *bufio.BufReadWrite, err *os.Error) {
+// Hijack lets the caller take over the connection.
+// After a call to c.Hijack(), the HTTP server library
+// will not do anything else with the connection.
+// It becomes the caller's responsibility to manage
+// and close the connection.
+func (c *Conn) Hijack() (rwc io.ReadWriteClose, buf *bufio.BufReadWrite, err *os.Error) {
 	if c.hijacked {
 		return nil, nil, ErrHijacked;
 	}
 	c.hijacked = true;
-	fd = c.fd;
+	rwc = c.rwc;
 	buf = c.buf;
-	c.fd = nil;
+	c.rwc = nil;
 	c.buf = nil;
 	return;
 }
 
-// Adapter: can use HandlerFunc(f) as Handler
+// The HandlerFunc type is an adapter to allow the use of
+// ordinary functions as HTTP handlers.  If f is a function
+// with the appropriate signature, HandlerFunc(f) is a
+// Handler object that calls f.
 type HandlerFunc func(*Conn, *Request)
+
+// ServeHTTP calls f(c, req).
 func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
 	f(c, req);
 }
@@ -235,7 +259,11 @@ func notFound(c *Conn, req *Request) {
 	io.WriteString(c, "404 page not found\n");
 }
 
-var NotFoundHandler = HandlerFunc(notFound)
+// NotFoundHandler returns a simple request handler
+// that replies to each request with a ``404 page not found'' reply.
+func NotFoundHandler() Handler {
+	return HandlerFunc(notFound)
+}
 
 // Redirect to a fixed URL
 type redirectHandler struct {
@@ -246,28 +274,42 @@ func (h *redirectHandler) ServeHTTP(c *Conn, req *Request) {
 	c.WriteHeader(StatusMovedPermanently);
 }
 
-func RedirectHandler(to string) Handler {
-	return &redirectHandler{to};
+// RedirectHandler returns a request handler that redirects
+// each request it receives to the given url.
+func RedirectHandler(url string) Handler {
+	return &redirectHandler{url};
 }
 
-// Path-based HTTP request multiplexer.
-// Patterns name fixed paths, like "/favicon.ico",
-// or subtrees, like "/images/".
-// For now, patterns must begin with /.
-// Eventually, might want to allow host name
-// at beginning of pattern, so that you could register
-//	/codesearch
-//	codesearch.google.com/
-// but not take over /.
-
+// ServeMux is an HTTP request multiplexer.
+// It matches the URL of each incoming request against a list of registered
+// patterns and calls the handler for the pattern that
+// most closely matches the URL.
+//
+// Patterns named fixed paths, like "/favicon.ico",
+// or subtrees, like "/images/" (note the trailing slash).
+// Patterns must begin with /.
+// Longer patterns take precedence over shorter ones, so that
+// if there are handlers registered for both "/images/"
+// and "/images/thumbnails/", the latter handler will be
+// called for paths beginning "/images/thumbnails/" and the
+// former will receiver requests for any other paths in the
+// "/images/" subtree.
+//
+// In the future, the pattern syntax may be relaxed to allow
+// an optional host-name at the beginning of the pattern,
+// so that a handler might register for the two patterns
+// "/codesearch" and "codesearch.google.com/"
+// without taking over requests for http://www.google.com/.
 type ServeMux struct {
 	m map[string] Handler
 }
 
+// NewServeMux allocates and returns a new ServeMux.
 func NewServeMux() *ServeMux {
 	return &ServeMux{make(map[string] Handler)};
 }
 
+// DefaultServeMux is the default ServeMux used by Serve.
 var DefaultServeMux = NewServeMux();
 
 // Does path match pattern?
@@ -283,6 +325,8 @@ func pathMatch(pattern, path string) bool {
 	return len(path) >= n && path[0:n] == pattern;
 }
 
+// ServeHTTP dispatches the request to the handler whose
+// pattern most closely matches the request URL.
 func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
 	// Most-specific (longest) pattern wins.
 	var h Handler;
@@ -297,11 +341,12 @@ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
 		}
 	}
 	if h == nil {
-		h = NotFoundHandler;
+		h = NotFoundHandler();
 	}
 	h.ServeHTTP(c, req);
 }
 
+// Handle registers the handler for the given pattern.
 func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	if pattern == "" || pattern[0] != '/' {
 		panicln("http: invalid pattern", pattern);
@@ -317,12 +362,16 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	}
 }
 
-func Handle(pattern string, h Handler) {
-	DefaultServeMux.Handle(pattern, h);
+// Handle registers the handler for the given pattern
+// in the DefaultServeMux.
+func Handle(pattern string, handler Handler) {
+	DefaultServeMux.Handle(pattern, handler);
 }
 
-
-// Web server: listening on l, call handler.ServeHTTP for each request.
+// Serve accepts incoming HTTP connections on the listener l,
+// creating a new service thread for each.  The service threads
+// read requests and then call handler to reply to them.
+// Handler is typically nil, in which case the DefaultServeMux is used.
 func Serve(l net.Listener, handler Handler) *os.Error {
 	if handler == nil {
 		handler = DefaultServeMux;
@@ -341,7 +390,32 @@ func Serve(l net.Listener, handler Handler) *os.Error {
 	panic("not reached")
 }
 
-// Web server: listen on address, call f for each request.
+// ListenAndServe listens on the TCP network address addr
+// and then calls Serve with handler to handle requests
+// on incoming connections.  Handler is typically nil,
+// in which case the DefaultServeMux is used.
+//
+// A trivial example server is:
+//
+//	package main
+//
+//	import (
+//		"http";
+//		"io";
+//	)
+//
+//	// hello world, the web server
+//	func HelloServer(c *http.Conn, req *http.Request) {
+//		io.WriteString(c, "hello, world!\n");
+//	}
+//
+//	func main() {
+//		http.Handle("/hello", http.HandlerFunc(HelloServer));
+//		err := http.ListenAndServe(":12345", nil);
+//		if err != nil {
+//			panic("ListenAndServe: ", err.String())
+//		}
+//	}
 func ListenAndServe(addr string, handler Handler) *os.Error {
 	l, e := net.Listen("tcp", addr);
 	if e != nil {

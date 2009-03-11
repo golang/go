@@ -57,13 +57,13 @@ func serveDir(c *http.Conn, dirname string) {
 		return;
 	}
 
-	list, err2 := os.Readdir(fd, -1);
+	list, err2 := fd.Readdir(-1);
 	if err2 != nil {
 		c.WriteHeader(http.StatusNotFound);
 		fmt.Fprintf(c, "Error: %v (%s)\n", err2, dirname);
 		return;
 	}
-	
+
 	sort.Sort(DirArray(list));
 
 	c.SetHeader("content-type", "text/html; charset=utf-8");
@@ -71,7 +71,7 @@ func serveDir(c *http.Conn, dirname string) {
 	fmt.Fprintf(c, "<b>%s</b>\n", path);
 
 	// Print contents in 3 sections: directories, go files, everything else
-	
+
 	// 1) directories
 	fmt.Fprintln(c, "<p>");
 	for i, entry := range list {
@@ -106,7 +106,7 @@ func serveFile(c *http.Conn, filename string) {
 		fmt.Fprintf(c, "Error: File has compilation errors (%s)\n", filename);
 		return;
 	}
-	
+
 	c.SetHeader("content-type", "text/html; charset=utf-8");
 	Printer.Print(c, true, prog);
 }

@@ -18,7 +18,7 @@ import (
 type netFD struct {
 	// immutable until Close
 	fd int64;
-	osfd *os.FD;
+	file *os.File;
 	cr chan *netFD;
 	cw chan *netFD;
 	net string;
@@ -90,7 +90,7 @@ func setBlock(fd int64) {
 
 type pollServer struct {
 	cr, cw chan *netFD;	// buffered >= 1
-	pr, pw *os.FD;
+	pr, pw *os.File;
 	pending map[int64] *netFD;
 	poll *pollster;	// low-level OS hooks
 	deadline int64;	// next deadline (nsec since 1970)
@@ -309,14 +309,14 @@ func newFD(fd int64, net, laddr, raddr string) (f *netFD, err *os.Error) {
 	f.net = net;
 	f.laddr = laddr;
 	f.raddr = raddr;
-	f.osfd = os.NewFD(fd, "net: " + net + " " + laddr + " " + raddr);
+	f.file = os.NewFile(fd, "net: " + net + " " + laddr + " " + raddr);
 	f.cr = make(chan *netFD, 1);
 	f.cw = make(chan *netFD, 1);
 	return f, nil
 }
 
 func (fd *netFD) Close() *os.Error {
-	if fd == nil || fd.osfd == nil {
+	if fd == nil || fd.file == nil {
 		return os.EINVAL
 	}
 
@@ -326,16 +326,16 @@ func (fd *netFD) Close() *os.Error {
 	// we can handle the extra OS processes.
 	// Otherwise we'll need to use the pollserver
 	// for Close too.  Sigh.
-	setBlock(fd.osfd.Fd());
+	setBlock(fd.file.Fd());
 
-	e := fd.osfd.Close();
-	fd.osfd = nil;
+	e := fd.file.Close();
+	fd.file = nil;
 	fd.fd = -1;
 	return e
 }
 
 func (fd *netFD) Read(p []byte) (n int, err *os.Error) {
-	if fd == nil || fd.osfd == nil {
+	if fd == nil || fd.file == nil {
 		return -1, os.EINVAL
 	}
 	fd.rio.Lock();
@@ -345,16 +345,16 @@ func (fd *netFD) Read(p []byte) (n int, err *os.Error) {
 	} else {
 		fd.rdeadline = 0;
 	}
-	n, err = fd.osfd.Read(p);
+	n, err = fd.file.Read(p);
 	for err == os.EAGAIN && fd.rdeadline >= 0 {
 		pollserver.WaitRead(fd);
-		n, err = fd.osfd.Read(p)
+		n, err = fd.file.Read(p)
 	}
 	return n, err
 }
 
 func (fd *netFD) Write(p []byte) (n int, err *os.Error) {
-	if fd == nil || fd.osfd == nil {
+	if fd == nil || fd.file == nil {
 		return -1, os.EINVAL
 	}
 	fd.wio.Lock();
@@ -367,7 +367,7 @@ func (fd *netFD) Write(p []byte) (n int, err *os.Error) {
 	err = nil;
 	nn := 0;
 	for nn < len(p) {
-		n, err = fd.osfd.Write(p[nn:len(p)]);
+		n, err = fd.file.Write(p[nn:len(p)]);
 		if n > 0 {
 			nn += n
 		}
@@ -388,7 +388,7 @@ func (fd *netFD) Write(p []byte) (n int, err *os.Error) {
 func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error)
 
 func (fd *netFD) Accept(sa *syscall.Sockaddr) (nfd *netFD, err *os.Error) {
-	if fd == nil || fd.osfd == nil {
+	if fd == nil || fd.file == nil {
 		return nil, os.EINVAL
 	}
 

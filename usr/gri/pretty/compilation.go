@@ -136,11 +136,9 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 
 
 func fileExists(name string) bool {
-	fd, err := os.Open(name, os.O_RDONLY, 0);
-	defer fd.Close();
+	dir, err := os.Stat(name);
 	return err == nil;
 }
-
 
 /*
 func printDep(localset map [string] bool, wset *vector.Vector, decl AST.Decl2) {

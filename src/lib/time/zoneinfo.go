@@ -204,13 +204,13 @@ func parseinfo(bytes []byte) (zt []zonetime, err *os.Error) {
 }
 
 func readfile(name string, max int) (p []byte, err *os.Error) {
-	fd, e := os.Open(name, os.O_RDONLY, 0);
+	f, e := os.Open(name, os.O_RDONLY, 0);
 	if e != nil {
 		return nil, e;
 	}
 	p = make([]byte, max);
-	n, err1 := io.Readn(fd, p);
-	fd.Close();
+	n, err1 := io.Readn(f, p);
+	f.Close();
 	if err1 == nil {	// too long
 		return nil, badZoneinfo;
 	}

@@ -11,45 +11,44 @@ import (
 	"syscall";
 )
 
-// Auxiliary information if the FD describes a directory
+// Auxiliary information if the File describes a directory
 type dirInfo struct {	// TODO(r): 6g bug means this can't be private
 	buf	[]byte;	// buffer for directory I/O
 	nbuf	int64;	// length of buf; return value from Getdirentries
 	bufp	int64;	// location of next record in buf.
 }
 
-// FD represents an open file.
-// TODO(r): is FD the right name? Would File be better?
-type FD struct {
+// File represents an open file descriptor.
+type File struct {
 	fd int64;
 	name	string;
 	dirinfo	*dirInfo;	// nil unless directory being read
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
-func (fd *FD) Fd() int64 {
-	return fd.fd
+func (file *File) Fd() int64 {
+	return file.fd
 }
 
 // Name returns the name of the file as presented to Open.
-func (fd *FD) Name() string {
-	return fd.name
+func (file *File) Name() string {
+	return file.name
 }
 
-// NewFD returns a new FD with the given file descriptor and name.
-func NewFD(fd int64, name string) *FD {
-	if fd < 0 {
+// NewFile returns a new File with the given file descriptor and name.
+func NewFile(file int64, name string) *File {
+	if file < 0 {
 		return nil
 	}
-	return &FD{fd, name, nil}
+	return &File{file, name, nil}
 }
 
-// Stdin, Stdout, and Stderr are open FDs pointing to the standard input,
+// Stdin, Stdout, and Stderr are open Files pointing to the standard input,
 // standard output, and standard error file descriptors.
 var (
-	Stdin = NewFD(0, "/dev/stdin");
-	Stdout = NewFD(1, "/dev/stdout");
-	Stderr = NewFD(2, "/dev/stderr");
+	Stdin  = NewFile(0, "/dev/stdin");
+	Stdout = NewFile(1, "/dev/stdout");
+	Stderr = NewFile(2, "/dev/stderr");
 )
 
 // Flags to Open wrapping those of the underlying system. Not all flags
@@ -69,9 +68,9 @@ const (
 )
 
 // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
-// if applicable.  If successful, methods on the returned FD can be used for I/O.
-// It returns the FD and an Error, if any.
-func Open(name string, flag int, perm int) (fd *FD, err *Error) {
+// if applicable.  If successful, methods on the returned File can be used for I/O.
+// It returns the File and an Error, if any.
+func Open(name string, flag int, perm int) (file *File, err *Error) {
 	r, e := syscall.Open(name, int64(flag | syscall.O_CLOEXEC), int64(perm));
 	if e != 0 {
 		return nil, ErrnoToError(e);
@@ -83,31 +82,31 @@ func Open(name string, flag int, perm int) (fd *FD, err *Error) {
 		syscall.CloseOnExec(r);
 	}
 
-	return NewFD(r, name), ErrnoToError(e)
+	return NewFile(r, name), ErrnoToError(e)
 }
 
-// Close closes the FD, rendering it unusable for I/O.
+// Close closes the File, rendering it unusable for I/O.
 // It returns an Error, if any.
-func (fd *FD) Close() *Error {
-	if fd == nil {
+func (file *File) Close() *Error {
+	if file == nil {
 		return EINVAL
 	}
-	r, e := syscall.Close(fd.fd);
-	fd.fd = -1;  // so it can't be closed again
+	r, e := syscall.Close(file.fd);
+	file.fd = -1;  // so it can't be closed again
 	return ErrnoToError(e)
 }
 
-// Read reads up to len(b) bytes from the FD.
+// Read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an Error, if any.
 // EOF is signaled by a zero count with a nil Error.
 // TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
-func (fd *FD) Read(b []byte) (ret int, err *Error) {
-	if fd == nil {
+func (file *File) Read(b []byte) (ret int, err *Error) {
+	if file == nil {
 		return 0, EINVAL
 	}
 	var r, e int64;
 	if len(b) > 0 {  // because we access b[0]
-		r, e = syscall.Read(fd.fd, &b[0], int64(len(b)));
+		r, e = syscall.Read(file.fd, &b[0], int64(len(b)));
 		if r < 0 {
 			r = 0
 		}
@@ -115,16 +114,16 @@ func (fd *FD) Read(b []byte) (ret int, err *Error) {
 	return int(r), ErrnoToError(e)
 }
 
-// Write writes len(b) bytes to the FD.
+// Write writes len(b) bytes to the File.
 // It returns the number of bytes written and an Error, if any.
 // If the byte count differs from len(b), it usually implies an error occurred.
-func (fd *FD) Write(b []byte) (ret int, err *Error) {
-	if fd == nil {
+func (file *File) Write(b []byte) (ret int, err *Error) {
+	if file == nil {
 		return 0, EINVAL
 	}
 	var r, e int64;
 	if len(b) > 0 {  // because we access b[0]
-		r, e = syscall.Write(fd.fd, &b[0], int64(len(b)));
+		r, e = syscall.Write(file.fd, &b[0], int64(len(b)));
 		if r < 0 {
 			r = 0
 		}
@@ -132,16 +131,16 @@ func (fd *FD) Write(b []byte) (ret int, err *Error) {
 	return int(r), ErrnoToError(e)
 }
 
-// Seek sets the offset for the next Read or Write on FD to offset, interpreted
+// Seek sets the offset for the next Read or Write on file to offset, interpreted
 // according to whence: 0 means relative to the origin of the file, 1 means
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an Error, if any.
-func (fd *FD) Seek(offset int64, whence int) (ret int64, err *Error) {
-	r, e := syscall.Seek(fd.fd, offset, int64(whence));
+func (file *File) Seek(offset int64, whence int) (ret int64, err *Error) {
+	r, e := syscall.Seek(file.fd, offset, int64(whence));
 	if e != 0 {
 		return -1, ErrnoToError(e)
 	}
-	if fd.dirinfo != nil && r != 0 {
+	if file.dirinfo != nil && r != 0 {
 		return -1, ErrnoToError(syscall.EISDIR)
 	}
 	return r, nil
@@ -149,20 +148,20 @@ func (fd *FD) Seek(offset int64, whence int) (ret int64, err *Error) {
 
 // WriteString is like Write, but writes the contents of string s rather than
 // an array of bytes.
-func (fd *FD) WriteString(s string) (ret int, err *Error) {
-	if fd == nil {
+func (file *File) WriteString(s string) (ret int, err *Error) {
+	if file == nil {
 		return 0, EINVAL
 	}
-	r, e := syscall.Write(fd.fd, syscall.StringBytePtr(s), int64(len(s)));
+	r, e := syscall.Write(file.fd, syscall.StringBytePtr(s), int64(len(s)));
 	if r < 0 {
 		r = 0
 	}
 	return int(r), ErrnoToError(e)
 }
 
-// Pipe returns a connected pair of FDs; reads from r return bytes written to w.
-// It returns the FDs and an Error, if any.
-func Pipe() (r *FD, w *FD, err *Error) {
+// Pipe returns a connected pair of Files; reads from r return bytes written to w.
+// It returns the files and an Error, if any.
+func Pipe() (r *File, w *File, err *Error) {
 	var p [2]int64;
 
 	// See ../syscall/exec.go for description of lock.
@@ -176,7 +175,7 @@ func Pipe() (r *FD, w *FD, err *Error) {
 	syscall.CloseOnExec(p[1]);
 	syscall.ForkLock.RUnlock();
 
-	return NewFD(p[0], "|0"), NewFD(p[1], "|1"), nil
+	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
 }
 
 // Mkdir creates a new directory with the specified name and permission bits.
@@ -199,15 +198,15 @@ func Stat(name string) (dir *Dir, err *Error) {
 	return dirFromStat(name, new(Dir), stat), nil
 }
 
-// Fstat returns the Dir structure describing the file associated with the FD.
+// Stat returns the Dir structure describing file.
 // It returns the Dir and an error, if any.
-func Fstat(fd *FD) (dir *Dir, err *Error) {
+func (file *File) Stat() (dir *Dir, err *Error) {
 	stat := new(syscall.Stat_t);
-	r, e := syscall.Fstat(fd.fd, stat);
+	r, e := syscall.Fstat(file.fd, stat);
 	if e != 0 {
 		return nil, ErrnoToError(e)
 	}
-	return dirFromStat(fd.name, new(Dir), stat), nil
+	return dirFromStat(file.name, new(Dir), stat), nil
 }
 
 // Lstat returns the Dir structure describing the named file. If the file
@@ -224,26 +223,29 @@ func Lstat(name string) (dir *Dir, err *Error) {
 
 // Readdirnames has a non-portable implemenation so its code is separated into an
 // operating-system-dependent file.
+func readdirnames(file *File, count int) (names []string, err *os.Error)
 
-// Readdirnames reads the contents of the directory associated with fd and
+// Readdirnames reads the contents of the directory associated with file and
 // returns an array of up to count names, in directory order.  Subsequent
-// calls on the same fd will yield further names.
+// calls on the same file will yield further names.
 // A negative count means to read until EOF.
 // It returns the array and an Error, if any.
-func Readdirnames(fd *FD, count int) (names []string, err *os.Error)
+func (file *File) Readdirnames(count int) (names []string, err *os.Error) {
+	return readdirnames(file, count);
+}
 
-// Readdir reads the contents of the directory associated with fd and
+// Readdir reads the contents of the directory associated with file and
 // returns an array of up to count Dir structures, in directory order.  Subsequent
-// calls on the same fd will yield further Dirs.
+// calls on the same file will yield further Dirs.
 // A negative count means to read until EOF.
 // It returns the array and an Error, if any.
-func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
-	dirname := fd.name;
+func (file *File) Readdir(count int) (dirs []Dir, err *os.Error) {
+	dirname := file.name;
 	if dirname == "" {
 		dirname = ".";
 	}
 	dirname += "/";
-	names, err1 := Readdirnames(fd, count);
+	names, err1 := file.Readdirnames(count);
 	if err1 != nil {
 		return nil, err1
 	}
