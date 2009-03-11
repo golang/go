@@ -49,13 +49,13 @@ type S2 struct { i int }
 func (p *S2) Get() int { return p.i }
 func (p *S2) Put(i int) { p.i = i }
 
-func f4() {
-  s := S2{1};
-  var i I1 = s;
-  i.Put(2);
-  check(i.Get() == 2, "f4 i");
-  check(s.i == 1, "f4 s");
-}
+// func f4() {
+//   s := S2{1};
+//   var i I1 = s;
+//   i.Put(2);
+//   check(i.Get() == 2, "f4 i");
+//   check(s.i == 1, "f4 s");
+// }
 
 func f5() {
   s := S2{1};
@@ -107,13 +107,13 @@ type S4 struct { i, j, k, l int64 }
 func (p *S4) Get() int64 { return p.l }
 func (p *S4) Put(i int64) { p.l = i }
 
-func f10() {
-  s := S4{1, 2, 3, 4};
-  var i I2 = s;
-  i.Put(5);
-  check(i.Get() == 5, "f10 i");
-  check(s.l == 4, "f10 s");
-}
+// func f10() {
+//   s := S4{1, 2, 3, 4};
+//   var i I2 = s;
+//   i.Put(5);
+//   check(i.Get() == 5, "f10 i");
+//   check(s.l == 4, "f10 s");
+// }
 
 func f11() {
   s := S4{1, 2, 3, 4};
@@ -135,13 +135,13 @@ func main() {
   f1();
   f2();
   f3();
-  f4();
+//  f4();
   f5();
   f6();
   f7();
   f8();
   f9();
-  f10();
+//  f10();
   f11();
   f12();
   if fail > 0 {
