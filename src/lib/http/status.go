@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// HTTP status codes.  See RFC 2616.
-
 package http
 
+// HTTP status codes, defined in RFC 2616.
 const (
 	StatusContinue = 100;
 	StatusSwitchingProtocols = 101;

@@ -12,6 +12,7 @@ import (
 	"strings"
 )
 
+// Errors introduced by ParseURL.
 var (
 	BadURL = os.NewError("bad url syntax")
 )
@@ -40,7 +41,10 @@ func unhex(c byte) byte {
 	return 0
 }
 
-// Unescape %xx into hex.
+// URLUnescape unescapes a URL-encoded string,
+// converting %AB into the byte 0xAB.
+// It returns a BadURL error if each % is not followed
+// by two hexadecimal digits.
 func URLUnescape(s string) (string, *os.Error) {
 	// Count %, check that they're well-formed.
 	n := 0;
@@ -76,16 +80,19 @@ func URLUnescape(s string) (string, *os.Error) {
 	return string(t), nil;
 }
 
+// A URL represents a parsed URL (technically, a URI reference).
+// The general form represented is:
+//	scheme://[userinfo@]host/path[?query][#fragment]
 type URL struct {
-	Raw string;
-	Scheme string;
-	RawPath string;
-	Authority string;
-	Userinfo string;
-	Host string;
-	Path string;
-	Query string;
-	Fragment string;
+	Raw string;		// the original string
+	Scheme string;		// scheme
+	RawPath string;		// //[userinfo@]host/path[?query][#fragment]
+	Authority string;	// [userinfo@]host
+	Userinfo string;	// userinfo
+	Host string;		// host
+	Path string;		// /path
+	Query string;		// query
+	Fragment string;	// fragment
 }
 
 // Maybe rawurl is of the form scheme:path.
@@ -126,7 +133,12 @@ func split(s string, c byte, cutc bool) (string, string) {
 	return s, ""
 }
 
-// Parse rawurl into a URL structure.
+// BUG(rsc): ParseURL should canonicalize the path,
+// removing unnecessary . and .. elements.
+
+// ParseURL parses rawurl into a URL structure.
+// The string rawurl is assumed not to have a #fragment suffix.
+// (Web browsers strip #fragment before sending the URL to a web server.)
 func ParseURL(rawurl string) (url *URL, err *os.Error) {
 	if rawurl == "" {
 		return nil, BadURL
@@ -171,7 +183,7 @@ func ParseURL(rawurl string) (url *URL, err *os.Error) {
 	return url, nil
 }
 
-// A URL reference is a URL with #frag potentially added.  Parse it.
+// ParseURLReference is like ParseURL but allows a trailing #fragment.
 func ParseURLReference(rawurlref string) (url *URL, err *os.Error) {
 	// Cut off #frag.
 	rawurl, frag := split(rawurlref, '#', true);

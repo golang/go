@@ -4,6 +4,11 @@
 
 // HTTP Request reading and parsing.
 
+// The http package implements parsing of HTTP requests and URLs
+// and provides an extensible HTTP server.
+//
+// In the future it should also implement parsing of HTTP replies
+// and provide methods to fetch URLs via HTTP.
 package http
 
 import (
@@ -20,6 +25,7 @@ const (
 	maxHeaderLines = 1024;
 )
 
+// HTTP request parsing errors.
 var (
 	LineTooLong = os.NewError("http header line too long");
 	ValueTooLong = os.NewError("http header value too long");
@@ -29,28 +35,66 @@ var (
 	BadHTTPVersion = os.NewError("unsupported http version");
 )
 
-// HTTP Request
+// A Request represents a parsed HTTP request header.
 type Request struct {
 	Method string;		// GET, PUT,etc.
-	RawUrl string;
-	Url *URL;		// URI after GET, PUT etc.
+	RawUrl string;		// The raw URL given in the request.
+	Url *URL;		// URL after GET, PUT etc.
 	Proto string;	// "HTTP/1.0"
 	ProtoMajor int;	// 1
 	ProtoMinor int;	// 0
 
+	// A header mapping request lines to their values.
+	// If the header says
+	//
+	//	Accept-Language: en-us
+	//	accept-encoding: gzip, deflate
+	//	Connection: keep-alive
+	//
+	// then
+	//
+	//	Header = map[string]string{
+	//		"Accept-Encoding": "en-us",
+	//		"Accept-Language": "gzip, deflate",
+	//		"Connection": "keep-alive"
+	//	}
+	//
+	// HTTP defines that header names are case-insensitive.
+	// The request parser implements this by canonicalizing the
+	// name, making the first character and any characters
+	// following a hyphen uppercase and the rest lowercase.
 	Header map[string] string;
 
+	// Whether to close the connection after replying to this request.
 	Close bool;
+
+	// The host on which the URL is sought.
+	// Per RFC 2616, this is either the value of the Host: header
+	// or the host name given in the URL itself.
 	Host string;
-	Referer string;	// referer [sic]
+
+	// The referring URL, if sent in the request.
+	//
+	// Referer is misspelled as in the request itself,
+	// a mistake from the earliest days of HTTP.
+	// This value can also be fetched from the Header map
+	// as Header["Referer"]; the benefit of making it
+	// available as a structure field is that the compiler
+	// can diagnose programs that use the alternate
+	// (correct English) spelling req.Referrer but cannot
+	// diagnose programs that use Header["Referrer"].
+	Referer string;
+
+	// The User-Agent: header string, if sent in the request.
 	UserAgent string;
 }
 
+// ProtoAtLeast returns whether the HTTP protocol used
+// in the request is at least major.minor.
 func (r *Request) ProtoAtLeast(major, minor int) bool {
 	return r.ProtoMajor > major ||
 		r.ProtoMajor == major && r.ProtoMinor >= minor
 }
-
 
 // Read a line of bytes (up to \n) from b.
 // Give up if the line exceeds maxLineLength.
@@ -188,6 +232,11 @@ func parseHTTPVersion(vers string) (int, int, bool) {
 
 var cmap = make(map[string]string)
 
+// CanonicalHeaderKey returns the canonical format of the
+// HTTP header key s.  The canonicalization converts the first
+// letter and any letter following a hyphen to upper case;
+// the rest are converted to lowercase.  For example, the
+// canonical key for "accept-encoding" is "Accept-Encoding".
 func CanonicalHeaderKey(s string) string {
 	if t, ok := cmap[s]; ok {
 		return t;
@@ -216,8 +265,7 @@ func CanonicalHeaderKey(s string) string {
 	return t;
 }
 
-
-// Read and parse a request from b.
+// ReadRequest reads and parses a request from b.
 func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
 	req = new(Request);
 
