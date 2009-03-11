@@ -455,6 +455,13 @@ struct	Dlist
 	Type*	field;
 };
 
+typedef	struct	Idir	Idir;
+struct Idir
+{
+	Idir*	link;
+	char*	dir;
+};
+
 EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds
 
 EXTERN	Io	curio;
@@ -482,6 +489,7 @@ EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	sysimport;
 extern	char*	unsafeimport;
 EXTERN	char*	filename;	// name to uniqify names
+EXTERN	Idir*	idirs;
 
 EXTERN	Type*	types[NTYPE];
 EXTERN	uchar	simtype[NTYPE];
@@ -552,6 +560,7 @@ int	yyparse(void);
  */
 int	mainlex(int, char*[]);
 void	setfilename(char*);
+void	addidir(char*);
 void	importfile(Val*);
 void	cannedimports(char*, char*);
 void	unimportfile();
