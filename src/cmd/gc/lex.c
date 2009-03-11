@@ -35,6 +35,10 @@ mainlex(int argc, char *argv[])
 	case 'k':
 		package = ARGF();
 		break;
+
+	case 'I':
+		addidir(ARGF());
+		break;
 	} ARGEND
 
 	if(argc != 1)
@@ -109,6 +113,7 @@ mainlex(int argc, char *argv[])
 
 usage:
 	print("flags:\n");
+	print("  -I DIR search for packages in DIR\n");
 	print("  -d print declarations\n");
 	print("  -f print stack frame structure\n");
 	print("  -k name specify package name\n");
@@ -175,15 +180,29 @@ skiptopkgdef(Biobuf *b)
 	return 1;
 }
 
+void
+addidir(char* dir)
+{
+	Idir** pp;
+
+	if(dir == nil)
+		return;
+
+	for(pp = &idirs; *pp != nil; pp = &(*pp)->link)
+		;
+	*pp = mal(sizeof(Idir));
+	(*pp)->link = nil;
+	(*pp)->dir = dir;
+}
+
 int
 findpkg(String *name)
 {
 	static char* goroot;
+	Idir* p;
 
 	if(goroot == nil) {
 		goroot = getenv("GOROOT");
-		if(goroot == nil)
-			return 0;
 	}
 
 	// BOTCH need to get .6 from backend
@@ -191,18 +210,29 @@ findpkg(String *name)
 	// try .a before .6.  important for building libraries:
 	// if there is an array.6 in the array.a library,
 	// want to find all of array.a, not just array.6.
+	for(p = idirs; p != nil; p = p->link) {
+		snprint(namebuf, sizeof(namebuf), "%s/%Z.a", p->dir, name);
+		if(access(namebuf, 0) >= 0)
+			return 1;
+		snprint(namebuf, sizeof(namebuf), "%s/%Z.6", p->dir, name);
+		if(access(namebuf, 0) >= 0)
+			return 1;
+	}
+
 	snprint(namebuf, sizeof(namebuf), "%Z.a", name);
 	if(access(namebuf, 0) >= 0)
 		return 1;
 	snprint(namebuf, sizeof(namebuf), "%Z.6", name);
 	if(access(namebuf, 0) >= 0)
 		return 1;
-	snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.a", goroot, name);
-	if(access(namebuf, 0) >= 0)
-		return 1;
-	snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.6", goroot, name);
-	if(access(namebuf, 0) >= 0)
-		return 1;
+	if(goroot != nil) {
+		snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.a", goroot, name);
+		if(access(namebuf, 0) >= 0)
+			return 1;
+		snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.6", goroot, name);
+		if(access(namebuf, 0) >= 0)
+			return 1;
+	}
 	return 0;
 }
 
