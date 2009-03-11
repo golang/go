@@ -202,6 +202,61 @@ func (b *_StructBuilder) Key(k string) Builder {
 	return nobuilder
 }
 
+// Unmarshal parses the JSON syntax string s and fills in
+// an arbitrary struct or array pointed at by val.
+// It uses the reflection library to assign to fields
+// and arrays embedded in val.  Well-formed data that does not fit
+// into the struct is discarded.
+//
+// For example, given the following definitions:
+//
+//	type Email struct {
+//		where string;
+//		addr string;
+//	}
+//
+//	type Result struct {
+//		name string;
+//		phone string;
+//		emails []Email
+//	}
+//
+//	var r = Result{ "name", "phone", nil }
+//
+// unmarshalling the JSON syntax string
+//
+//	{
+//	  "email": [
+//	    {
+//	      "where": "home",
+//	      "addr": "gre@example.com"
+//	    },
+//	    {
+//	      "where": "work",
+//	      "addr": "gre@work.com"
+//	    }
+//	  ],
+//	  "name": "Grace R. Emlin",
+//	  "address": "123 Main Street"
+//	}
+//
+// via Unmarshal(s, &r) is equivalent to assigning
+//
+//	r = Result{
+//		"Grace R. Emlin",	// name
+//		"phone",	// no phone given
+//		[]Email{
+//			Email{ "home", "gre@example.com" },
+//			Email{ "work", "gre@work.com" }
+//		}
+//	}
+//
+// Note that the field r.phone has not been modified and
+// that the JSON field "address" was discarded.
+//
+// On success, Unmarshal returns with ok set to true.
+// On a syntax error, it returns with ok set to false and errtok
+// set to the offending token.
 func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
 	var errindx int;
 	var val1 interface{};

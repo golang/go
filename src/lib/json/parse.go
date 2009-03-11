@@ -5,6 +5,9 @@
 // JSON (JavaScript Object Notation) parser.
 // See http://www.json.org/
 
+// The json package implements a simple parser and
+// representation for JSON (JavaScript Object Notation),
+// as defined at http://www.json.org/.
 package json
 
 import (
@@ -43,6 +46,9 @@ func _UnHex(p string, r, l int) (v int, ok bool) {
 	return v, true;
 }
 
+// Unquote unquotes the JSON-quoted string s,
+// returning a raw string t.  If s is not a valid
+// JSON-quoted string, Unquote returns with ok set to false.
 func Unquote(s string) (t string, ok bool) {
 	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
 		return
@@ -116,6 +122,8 @@ func Unquote(s string) (t string, ok bool) {
 	return string(b[0:w]), true
 }
 
+// Quote quotes the raw string s using JSON syntax,
+// so that Unquote(Quote(s)) = s, true.
 func Quote(s string) string {
 	chr := make([]byte, utf8.UTFMax);
 	chr0 := chr[0:1];
@@ -271,6 +279,12 @@ func (t *_Lexer) Next() {
 
 type _Value interface {}
 
+// BUG(rsc): The json Builder interface needs to be
+// reconciled with the xml Builder interface.
+
+// A Builder is an interface implemented by clients and passed
+// to the JSON parser.  It gives clients full control over the
+// eventual representation returned by the parser.
 type Builder interface {
 	// Set value
 	Int64(i int64);
@@ -385,11 +399,17 @@ Switch:
 	return ok;
 }
 
-func Parse(s string, build Builder) (ok bool, errindx int, errtok string) {
+// Parse parses the JSON syntax string s and makes calls to
+// the builder to construct a parsed representation.
+// On success, it returns with ok set to true.
+// On error, it returns with ok set to false, errindx set
+// to the byte index in s where a syntax error occurred,
+// and errtok set to the offending token.
+func Parse(s string, builder Builder) (ok bool, errindx int, errtok string) {
 	lex := new(_Lexer);
 	lex.s = s;
 	lex.Next();
-	if parse(lex, build) {
+	if parse(lex, builder) {
 		if lex.kind == 0 {	// EOF
 			return true, 0, ""
 		}

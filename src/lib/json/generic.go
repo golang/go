@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Generic JSON representation.
+// Generic representation of JSON objects.
 
 package json
 
@@ -15,6 +15,7 @@ import (
 	"vector";
 )
 
+// Integers identifying the data type in the Json interface.
 const (
 	StringKind = iota;
 	NumberKind;
@@ -24,16 +25,23 @@ const (
 	NullKind;
 )
 
+// The Json interface is implemented by all JSON objects.
 type Json interface {
-	Kind() int;
-	String() string;
-	Number() float64;
-	Bool() bool;
-	Get(s string) Json;
-	Elem(i int) Json;
-	Len() int;
+	Kind() int;		// StringKind, NumberKind, etc.
+	String() string;	// a string form (any kind)
+	Number() float64;	// numeric form (NumberKind)
+	Bool() bool;		// boolean (BoolKind)
+	Get(s string) Json;	// field lookup (MapKind)
+	Elem(i int) Json;	// element lookup (ArrayKind)
+	Len() int;		// length (ArrayKind)
 }
 
+// JsonToString returns the textual JSON syntax representation
+// for the JSON object j.
+//
+// JsonToString differs from j.String() in the handling
+// of string objects.  If j represents the string abc,
+// j.String() == `abc`, but JsonToString(j) == `"abc"`.
 func JsonToString(j Json) string {
 	if j == nil {
 		return "null"
@@ -45,7 +53,10 @@ func JsonToString(j Json) string {
 }
 
 type _Null struct { }
+
+// Null is the JSON object representing the null data object.
 var Null Json = &_Null{}
+
 func (*_Null) Kind() int { return NullKind }
 func (*_Null) String() string { return "null" }
 func (*_Null) Number() float64 { return 0 }
@@ -128,6 +139,14 @@ func (j *_Map) String() string {
 	return s;
 }
 
+// Walk evaluates path relative to the JSON object j.
+// Path is taken as a sequence of slash-separated field names
+// or numbers that can be used to index into JSON map and
+// array objects.
+//
+// For example, if j is the JSON object for
+// {"abc": [true, false]}, then Walk(j, "abc/1") returns the
+// JSON object for true.
 func Walk(j Json, path string) Json {
 	for len(path) > 0 {
 		var elem string;
@@ -154,6 +173,7 @@ func Walk(j Json, path string) Json {
 	return j
 }
 
+// Equal returns whether a and b are indistinguishable JSON objects.
 func Equal(a, b Json) bool {
 	switch {
 	case a == nil && b == nil:
@@ -201,7 +221,7 @@ func Equal(a, b Json) bool {
 }
 
 
-// Parse builder for Json objects.
+// Parse builder for JSON objects.
 
 type _JsonBuilder struct {
 	// either writing to *ptr
@@ -290,6 +310,11 @@ func (b *_JsonBuilder) Key(k string) Builder {
 	return bb
 }
 
+// StringToJson parses the string s as a JSON-syntax string
+// and returns the generic JSON object representation.
+// On success, StringToJson returns with ok set to true and errtok empty.
+// If StringToJson encounters a syntax error, it returns with
+// ok set to false and errtok set to a fragment of the offending syntax.
 func StringToJson(s string) (json Json, ok bool, errtok string) {
 	var errindx int;
 	var j Json;
@@ -301,3 +326,5 @@ func StringToJson(s string) (json Json, ok bool, errtok string) {
 	}
 	return j, true, ""
 }
+
+// BUG(rsc): StringToJson should return an *os.Error instead of a bool.
