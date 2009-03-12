@@ -2220,6 +2220,10 @@ mapop(Node *n, int top)
 		fatal("mapop: unknown op %O", n->op);
 
 	case OMAKE:
+		cl = listcount(n->left);
+		if(cl > 1)
+			yyerror("too many arguments to make map");
+
 		if(top != Erv)
 			goto nottop;
 
@@ -2232,8 +2236,9 @@ mapop(Node *n, int top)
 			break;
 
 		a = n->left;				// hint
-		if(n->left == N)
+		if(cl != 1)
 			a = nodintconst(0);
+
 		r = a;
 		a = nodintconst(algtype(t->type));	// val algorithm
 		r = list(a, r);
@@ -2427,6 +2432,10 @@ chanop(Node *n, int top)
 		fatal("chanop: unknown op %O", n->op);
 
 	case OMAKE:
+		cl = listcount(n->left);
+		if(cl > 1)
+			yyerror("too many arguments to make chan");
+
 		// newchan(elemsize int, elemalg int,
 		//	hint int) (hmap *chan[any-1]);
 
@@ -2434,12 +2443,12 @@ chanop(Node *n, int top)
 		if(t == T)
 			break;
 
-		if(n->left != N) {
+		a = nodintconst(0);
+		if(cl == 1) {
 			// async buf size
 			a = nod(OCONV, n->left, N);
 			a->type = types[TINT];
-		} else
-			a = nodintconst(0);
+		}
 
 		r = a;
 		a = nodintconst(algtype(t->type));	// elem algorithm
@@ -2602,6 +2611,7 @@ arrayop(Node *n, int top)
 	Type *t, *tl;
 	Node *on;
 	Iter save;
+	int cl;
 
 	r = n;
 	switch(n->op) {
@@ -2658,6 +2668,10 @@ arrayop(Node *n, int top)
 		return n;
 
 	case OMAKE:
+		cl = listcount(n->left);
+		if(cl > 2)
+			yyerror("too many arguments to make array");
+
 		// newarray(nel int, max int, width int) (ary []any)
 		t = fixarray(n->type);
 		if(t == T)
