@@ -125,9 +125,6 @@ bugs/bug117.go:9: illegal types for operand: RETURN
 	int
 BUG: should compile
 
-=========== bugs/bug122.go
-BUG: compilation succeeds incorrectly
-
 =========== bugs/bug125.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
 
@@ -267,6 +264,9 @@ fixedbugs/bug121.go:20: incomplete type I
 fixedbugs/bug121.go:20: illegal types for operand: AS
 	I
 	*S
+
+=========== fixedbugs/bug122.go
+fixedbugs/bug122.go:6: too many arguments to make array
 
 =========== fixedbugs/bug133.go
 fixedbugs/bug133.dir/bug2.go:11: undefined DOT i on bug0.T
