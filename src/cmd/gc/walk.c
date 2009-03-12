@@ -667,6 +667,7 @@ loop:
 
 	case OMOD:
 	case OAND:
+	case OANDNOT:
 	case OOR:
 	case OXOR:
 	case OANDAND:
@@ -700,6 +701,20 @@ loop:
 			goto badt;
 
 		switch(n->op) {
+		case OANDNOT:
+			n->op = OAND;
+			n->right = nod(OCOM, n->right, N);
+			n->right->type = n->right->left->type;
+			break;
+
+		case OASOP:
+			if(n->etype == OANDNOT) {
+				n->etype = OAND;
+				n->right = nod(OCOM, n->right, N);
+				n->right->type = n->right->left->type;
+				break;
+			}
+
 		case OEQ:
 		case ONE:
 		case OLT:
@@ -707,11 +722,11 @@ loop:
 		case OGE:
 		case OGT:
 		case OADD:
-		case OASOP:
 			if(istype(n->left->type, TSTRING)) {
 				indir(n, stringop(n, top));
 				goto ret;
 			}
+			break;
 		}
 		break;
 
@@ -1070,6 +1085,7 @@ loop:
 	case OLSH:
 	case ORSH:
 	case OAND:
+	case OANDNOT:
 	case OOR:
 	case OXOR:
 	case OMOD:
