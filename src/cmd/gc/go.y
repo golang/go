@@ -25,7 +25,7 @@
 %token	<sym>		LNIL LTRUE LFALSE LIOTA
 
 %token			LOROR LANDAND LEQ LNE LLE LLT LGE LGT
-%token			LLSH LRSH LINC LDEC LCOMM
+%token			LLSH LRSH LINC LDEC LCOMM LANDNOT
 %token			LIGNORE
 
 /*
@@ -87,7 +87,7 @@
 %left			LCOMM
 %left			LEQ LNE LLE LGE LLT LGT
 %left			'+' '-' '|' '^'
-%left			'*' '/' '%' '&' LLSH LRSH
+%left			'*' '/' '%' '&' LLSH LRSH LANDNOT
 
 /*
  * resolve { vs condition in favor of condition
@@ -765,6 +765,10 @@ expr:
 |	expr '&' expr
 	{
 		$$ = nod(OAND, $1, $3);
+	}
+|	expr LANDNOT expr
+	{
+		$$ = nod(OANDNOT, $1, $3);
 	}
 |	expr LLSH expr
 	{

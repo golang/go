@@ -643,6 +643,7 @@ opnames[] =
 	[OADDR]		= "ADDR",
 	[OADD]		= "ADD",
 	[OANDAND]	= "ANDAND",
+	[OANDNOT]	= "ANDNOT",
 	[OAND]		= "AND",
 	[OARRAY]	= "ARRAY",
 	[OASOP]		= "ASOP",

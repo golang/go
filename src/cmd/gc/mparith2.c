@@ -407,6 +407,40 @@ mpandfixfix(Mpint *a, Mpint *b)
 }
 
 void
+mpandnotfixfix(Mpint *a, Mpint *b)
+{
+	int i;
+	long x, *a1, *b1;
+
+	if(a->ovf || b->ovf) {
+		warn("ovf in mpandnotfixfix");
+		mpmovecfix(a, 0);
+		a->ovf = 1;
+		return;
+	}
+	if(a->neg) {
+		a->neg = 0;
+		mpneg(a);
+	}
+	if(b->neg)
+		mpneg(b);
+
+	a1 = &a->a[0];
+	b1 = &b->a[0];
+	for(i=0; i<Mpprec; i++) {
+		x = *a1 & ~*b1++;
+		*a1++ = x;
+	}
+
+	if(b->neg)
+		mpneg(b);
+	if(x & Mpsign) {
+		a->neg = 1;
+		mpneg(a);
+	}
+}
+
+void
 mpxorfixfix(Mpint *a, Mpint *b)
 {
 	int i;

@@ -314,7 +314,7 @@ enum
 	OANDAND,
 	OEQ, ONE, OLT, OLE, OGE, OGT,
 	OADD, OSUB, OOR, OXOR,
-	OMUL, ODIV, OMOD, OLSH, ORSH, OAND,
+	OMUL, ODIV, OMOD, OLSH, ORSH, OAND, OANDNOT,
 	OINC, ODEC,	// placeholders - not used
 	OFUNC,
 	OLABEL,
@@ -610,6 +610,7 @@ void	mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d);
 void	mpdivfract(Mpint *a, Mpint *b);
 void	mpnegfix(Mpint *a);
 void	mpandfixfix(Mpint *a, Mpint *b);
+void	mpnotandfixfix(Mpint *a, Mpint *b);
 void	mplshfixfix(Mpint *a, Mpint *b);
 void	mporfixfix(Mpint *a, Mpint *b);
 void	mprshfixfix(Mpint *a, Mpint *b);

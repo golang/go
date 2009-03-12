@@ -654,6 +654,15 @@ l0:
 			c = LANDAND;
 			goto lx;
 		}
+		if(c1 == '^') {
+			c = LANDNOT;
+			c1 = getc();
+			if(c1 == '=') {
+				c = OANDNOT;
+				goto asop;
+			}
+			break;
+		}
 		if(c1 == '=') {
 			c = OAND;
 			goto asop;

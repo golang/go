@@ -314,6 +314,9 @@ evconst(Node *n)
 	case TUP(OAND, Wlitint):
 		mpandfixfix(xval, nr->val.u.xval);
 		break;
+	case TUP(OANDNOT, Wlitint):
+		mpandnotfixfix(xval, nr->val.u.xval);
+		break;
 	case TUP(OXOR, Wlitint):
 		mpxorfixfix(xval, nr->val.u.xval);
 		break;
