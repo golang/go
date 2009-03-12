@@ -297,6 +297,7 @@ The following character sequences represent operators, delimiters, and other spe
 *    ^     *=    ^=     &lt;-    &gt;     &gt;=    {    }
 /    <<    /=    <<=    ++    =     :=    ,    ;
 %    >>    %=    >>=    --    !     ...   .    :
+     &amp;^          &amp;^=
 </pre>
 
 <h3>Integer literals</h3>
@@ -2416,7 +2417,7 @@ log_op     = "||" | "&amp;&amp;" .
 com_op     = "&lt;-" .
 rel_op     = "==" | "!=" | "&lt;" | "&lt;=" | ">" | ">=" .
 add_op     = "+" | "-" | "|" | "^" .
-mul_op     = "*" | "/" | "%" | "&lt;&lt;" | ">>" | "&amp;" .
+mul_op     = "*" | "/" | "%" | "&lt;&lt;" | ">>" | "&amp;" | "&amp;^" .
 
 unary_op   = "+" | "-" | "!" | "^" | "*" | "&amp;" | "&lt;-" .
 </pre>
@@ -2460,7 +2461,7 @@ operators, comparison operators, communication operators,
 
 <pre class="grammar">
 Precedence    Operator
-    6             *  /  %  &lt;&lt;  >>  &amp;
+    6             *  /  %  &lt;&lt;  >>  &amp;  &amp;^
     5             +  -  |  ^
     4             ==  !=  &lt;  &lt;=  >  >=
     3             &lt;-
@@ -2505,6 +2506,7 @@ to strings; all other arithmetic operators apply to integers only.
 &amp;    bitwise and     integers
 |    bitwise or      integers
 ^    bitwise xor     integers
+&amp;^   bitwise nand    integers
 
 <<   left shift      integer << unsigned integer
 >>   right shift     integer >> unsigned integer
@@ -3021,6 +3023,7 @@ x = 1
 *p = f()
 a[i] = 23
 k = <-ch
+i &^= (1<<n)
 </pre>
 
 <p>
