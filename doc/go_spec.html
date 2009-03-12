@@ -2497,19 +2497,19 @@ to strings; all other arithmetic operators apply to integers only.
 </p>
 
 <pre class="grammar">
-+    sum             integers, floats, strings
--    difference      integers, floats
-*    product         integers, floats
-/    quotient        integers, floats
-%    remainder       integers
++    sum                    integers, floats, strings
+-    difference             integers, floats
+*    product                integers, floats
+/    quotient               integers, floats
+%    remainder              integers
 
-&amp;    bitwise and     integers
-|    bitwise or      integers
-^    bitwise xor     integers
-&amp;^   bitwise nand    integers
+&amp;    bitwise and            integers
+|    bitwise or             integers
+^    bitwise xor            integers
+&amp;^   bit clear (and not)    integers
 
-<<   left shift      integer << unsigned integer
->>   right shift     integer >> unsigned integer
+<<   left shift             integer << unsigned integer
+>>   right shift            integer >> unsigned integer
 </pre>
 
 <p>
@@ -3023,7 +3023,7 @@ x = 1
 *p = f()
 a[i] = 23
 k = <-ch
-i &^= (1&lt;&lt;n)
+i &amp;^= 1&lt;&lt;n
 </pre>
 
 <p>
