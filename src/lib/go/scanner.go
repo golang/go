@@ -4,23 +4,7 @@
 
 // A scanner for Go source text. Takes a []byte as source which can
 // then be tokenized through repeated calls to the Scan function.
-//
-// Sample use:
-//
-//	import "token"
-//	import "scanner"
-//
-//	func tokenize(src []byte) {
-//		var s scanner.Scanner;
-//		s.Init(src, nil /* no error handler */, false /* ignore comments */);
-//		for {
-//			pos, tok, lit := s.Scan();
-//			if tok == Scanner.EOF {
-//				return;
-//			}
-//			println(pos, token.TokenString(tok), string(lit));
-//		}
-//	}
+// For a sample use of a scanner, see the implementation of Tokenize.
 //
 package scanner
 
@@ -62,7 +46,7 @@ type Scanner struct {
 	scan_comments bool;  // if set, comments are reported as tokens
 
 	// scanning state
-	loc Location;  // location of ch
+	loc Location;  // location before ch (src[loc.Pos] == ch)
 	pos int;  // current reading position (position after ch)
 	ch int;  // one char look-ahead
 }
@@ -78,7 +62,7 @@ func (S *Scanner) next() {
 		switch {
 		case r == '\n':
 			S.loc.Line++;
-			S.loc.Col = 1;
+			S.loc.Col = 0;
 		case r >= 0x80:
 			// not ASCII
 			r, w = utf8.DecodeRune(S.src[S.pos : len(S.src)]);
@@ -94,9 +78,9 @@ func (S *Scanner) next() {
 
 // Init prepares the scanner S to tokenize the text src. Calls to Scan
 // will use the error handler err if they encounter a syntax error. The boolean
-// scan_comments specifies whether newline characters and comments should be
-// recognized and returned by Scan as token.COMMENT. If scan_comments is false,
-// they are treated as white space and ignored.
+// scan_comments specifies whether comments should be recognized and returned
+// by Scan as token.COMMENT. If scan_comments is false, they are treated as
+// white space and ignored.
 //
 func (S *Scanner) Init(src []byte, err ErrorHandler, scan_comments bool) {
 	S.src = src;
@@ -137,24 +121,6 @@ func (S *Scanner) expect(ch int) {
 }
 
 
-func (S *Scanner) skipWhitespace() {
-	for {
-		switch S.ch {
-		case '\t', '\r', ' ':
-			// nothing to do
-		case '\n':
-			if S.scan_comments {
-				return;
-			}
-		default:
-			return;
-		}
-		S.next();
-	}
-	panic("UNREACHABLE");
-}
-
-
 func (S *Scanner) scanComment(loc Location) {
 	// first '/' already consumed
 
@@ -163,9 +129,7 @@ func (S *Scanner) scanComment(loc Location) {
 		for S.ch >= 0 {
 			S.next();
 			if S.ch == '\n' {
-				// '\n' terminates comment but we do not include
-				// it in the comment (otherwise we don't see the
-				// start of a newline in skipWhitespace()).
+				S.next();  // '\n' belongs to the comment
 				return;
 			}
 		}
@@ -412,14 +376,19 @@ func (S *Scanner) switch4(tok0, tok1, ch2, tok2, tok3 int) int {
 
 // Scan scans the next token and returns the token location loc,
 // the token tok, and the literal text lit corresponding to the
-// token.
+// token. The source end is indicated by token.EOF.
 //
 func (S *Scanner) Scan() (loc Location, tok int, lit []byte) {
 scan_again:
-	S.skipWhitespace();
+	// skip white space
+	for S.ch == ' ' || S.ch == '\t' || S.ch == '\n' || S.ch == '\r' {
+		S.next();
+	}
 
+	// current token start
 	loc, tok = S.loc, token.ILLEGAL;
 
+	// determine token value
 	switch ch := S.ch; {
 	case isLetter(ch):
 		tok = S.scanIdentifier();
@@ -429,7 +398,6 @@ scan_again:
 		S.next();  // always make progress
 		switch ch {
 		case -1  : tok = token.EOF;
-		case '\n': tok = token.COMMENT;
 		case '"' : tok = token.STRING; S.scanString(loc);
 		case '\'': tok = token.CHAR; S.scanChar();
 		case '`' : tok = token.STRING; S.scanRawString(loc);
@@ -486,4 +454,18 @@ scan_again:
 	}
 
 	return loc, tok, S.src[loc.Pos : S.loc.Pos];
+}
+
+
+// Tokenize calls a function f with the token location, token value, and token
+// text for each token in the source src. The other parameters have the same
+// meaning as for the Init function. Tokenize keeps scanning until f returns
+// false (usually when the token value is token.EOF).
+//
+func Tokenize(src []byte, err ErrorHandler, scan_comments bool, f func (loc Location, tok int, lit []byte) bool) {
+	var s Scanner;
+	s.Init(src, err, scan_comments);
+	for f(s.Scan()) {
+		// action happens in f
+	}
 }
