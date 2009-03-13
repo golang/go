@@ -215,12 +215,6 @@ xdcl:
 			autoexport($1->nname->sym);
 		$$ = N;
 	}
-|	LPACKAGE { warn("package is gone"); } xfndcl
-	{
-		if($3 != N && $3->nname != N)
-			packagesym($3->nname->sym);
-		$$ = N;
-	}
 |	';'
 	{
 		$$ = N;
@@ -1660,7 +1654,7 @@ exprsym3_list_r:
 
 import_stmt_list_r:
 	import_stmt
-|	import_stmt_list_r osemi import_stmt
+|	import_stmt_list_r ';' import_stmt
 
 hidden_import_list_r:
 |	hidden_import_list_r hidden_import

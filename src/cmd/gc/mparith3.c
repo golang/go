@@ -134,7 +134,7 @@ mpdivfltflt(Mpflt *a, Mpflt *b)
 		a->exp = 0;
 		a->val.neg = 0;
 		a->val.ovf = 1;
-		warn("mpdivfltflt divide by zero");
+		yyerror("mpdivfltflt divide by zero");
 		return;
 	}
 	if(sa == 0) {
@@ -165,14 +165,14 @@ mpgetflt(Mpflt *a)
 	double f;
 
 	if(a->val.ovf)
-		warn("mpgetflt ovf");
+		yyerror("mpgetflt ovf");
 
 	s = sigfig(a);
 	if(s == 0)
 		return 0;
 
 	if(s != Mpnorm) {
-		warn("mpgetflt norm");
+		yyerror("mpgetflt norm");
 		mpnorm(a);
 	}
 
