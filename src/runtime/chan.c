@@ -7,6 +7,14 @@
 static	int32	debug	= 0;
 static	Lock		chanlock;
 
+enum
+{
+	Wclosed		= 0x0001,
+	Rclosed		= 0xfffe,
+	Rincr		= 0x0002,
+	Rmax		= 0x8000,
+};
+
 typedef	struct	Hchan	Hchan;
 typedef	struct	Link	Link;
 typedef	struct	WaitQ	WaitQ;
@@ -32,7 +40,9 @@ struct	WaitQ
 
 struct	Hchan
 {
-	uint32	elemsize;
+	uint16	elemsize;
+	uint16	closed;			// Wclosed closed() hash been called
+					// Rclosed read-count after closed()
 	uint32	dataqsiz;		// size of the circular q
 	uint32	qcount;			// total data in the q
 	Alg*	elemalg;		// interface for element type
@@ -535,7 +545,6 @@ sys·selectdefault(Select *sel, ...)
 	}
 }
 
-
 // selectgo(sel *byte);
 void
 sys·selectgo(Select *sel)
@@ -788,6 +797,42 @@ retc:
 	sys·setcallerpc(&sel, cas->pc);
 	as = (byte*)&sel + cas->so;
 	*as = true;
+}
+
+// closechan(sel *byte);
+void
+sys·closechan(Hchan *c)
+{
+	if(c == nil)
+		throw("closechan: channel not allocated");
+
+	// if wclosed already set
+	// work has been done - just return
+	if(c->closed & Wclosed)
+		return;
+
+	// set wclosed
+	c->closed |= Wclosed;
+}
+
+// closedchan(sel *byte) bool;
+void
+sys·closedchan(Hchan *c, bool closed)
+{
+	if(c == nil)
+		throw("closedchan: channel not allocated");
+
+	closed = 0;
+
+	// test rclosed
+	if(c->closed & Rclosed) {
+		// see if rclosed has been set a lot
+		if(c->closed & Rmax)
+			throw("closedchan: ignored");
+		c->closed += Rincr;
+		closed = 1;
+	}
+	FLUSH(&closed);
 }
 
 static SudoG*

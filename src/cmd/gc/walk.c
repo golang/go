@@ -126,6 +126,8 @@ loop:
 
 	case OASOP:
 	case OAS:
+	case OCLOSE:
+	case OCLOSED:
 	case OCALLMETH:
 	case OCALLINTER:
 	case OCALL:
@@ -850,6 +852,20 @@ loop:
 			n->type = t->type;
 			break;
 		}
+		goto ret;
+
+	case OCLOSE:
+		if(top != Etop)
+			goto nottop;
+		walktype(n->left, Erv);		// chan
+		indir(n, chanop(n, top));
+		goto ret;
+
+	case OCLOSED:
+		if(top == Elv)
+			goto nottop;
+		walktype(n->left, Erv);		// chan
+		indir(n, chanop(n, top));
 		goto ret;
 
 	case OSEND:
@@ -2446,6 +2462,40 @@ chanop(Node *n, int top)
 	switch(n->op) {
 	default:
 		fatal("chanop: unknown op %O", n->op);
+
+	case OCLOSE:
+		// closechan(hchan *chan any);
+		t = fixchan(n->left->type);
+		if(t == T)
+			break;
+
+		a = n->left;			// chan
+		r = a;
+
+		on = syslook("closechan", 1);
+		argtype(on, t->type);	// any-1
+
+		r = nod(OCALL, on, r);
+		walktype(r, top);
+		r->type = n->type;
+		break;
+
+	case OCLOSED:
+		// closedchan(hchan *chan any) bool;
+		t = fixchan(n->left->type);
+		if(t == T)
+			break;
+
+		a = n->left;			// chan
+		r = a;
+
+		on = syslook("closedchan", 1);
+		argtype(on, t->type);	// any-1
+
+		r = nod(OCALL, on, r);
+		walktype(r, top);
+		n->type = r->type;
+		break;
 
 	case OMAKE:
 		cl = listcount(n->left);

@@ -1112,7 +1112,6 @@ static	struct
 	"any",		LBASETYPE,	TANY,
 	"sys",		LPACK,		Txxx,
 
-/* keywords */
 	"break",	LBREAK,		Txxx,
 	"case",		LCASE,		Txxx,
 	"chan",		LCHAN,		Txxx,
@@ -1150,6 +1149,9 @@ static	struct
 	"true",		LTRUE,		Txxx,
 	"type",		LTYPE,		Txxx,
 	"var",		LVAR,		Txxx,
+
+	"close",	LCLOSE,		Txxx,
+	"closed",	LCLOSED,	Txxx,
 
 	"notwithstanding",		LIGNORE,	Txxx,
 	"thetruthofthematter",		LIGNORE,	Txxx,

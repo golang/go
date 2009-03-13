@@ -55,6 +55,8 @@ func	chanrecv2(hchan chan any) (elem any, pres bool);
 func	chanrecv3(hchan chan any, elem *any) (pres bool);
 func	chansend1(hchan chan any, elem any);
 func	chansend2(hchan chan any, elem any) (pres bool);
+func	closechan(hchan chan any);
+func	closedchan(hchan chan any) bool;
 
 func	newselect(size int) (sel *byte);
 func	selectsend(sel *byte, hchan chan any, elem any) (selected bool);
