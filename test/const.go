@@ -14,6 +14,9 @@ const (
 	c1 = chuge >> 100;
 	c3div2 = 3/2;
 	c1e3 = 1e3;
+
+	ctrue = true;
+	cfalse = !ctrue;
 )
 
 const (
@@ -111,4 +114,7 @@ func floats() {
 func main() {
 	ints();
 	floats();
+
+	assert(ctrue == true, "ctrue == true");
+	assert(cfalse == false, "cfalse == false");
 }

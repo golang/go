@@ -33,13 +33,14 @@ func main() {
 	f = f3div2;
 	assert(f == f3div2, "f == f3div2");
 
-	i = f3div2;	// BUG: probably shouldn't compile
+	i = f3div2;	// ERROR "truncate"
 	assert(i == c3div2, "i == c3div2 from f3div2");
-	assert(i != f3div2, "i != f3div2");	// BUG: certainly shouldn't fail
+	assert(i != f3div2, "i != f3div2");	// ERROR "truncate"
 
 	const g float64 = 1.0;
-	i = g;  // BUG: shouldn't compile
+	i = g;  // ERROR "convert"
 
 	const h float64 = 3.14;
-	i = h;  // BUG: certainly shouldn't compile
+	i = h;  // ERROR "convert"
+	i = int(h);	// ERROR "truncate"
 }

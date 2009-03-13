@@ -235,7 +235,7 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
 }
 
 func Errstr(errno int64) string {
-	if errno < 0 || errno >= len(error) {
+	if errno < 0 || errno >= int64(len(error)) {
 		return "Error " + str(errno)
 	}
 	return error[errno]

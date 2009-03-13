@@ -345,15 +345,6 @@ nodconst(Node *n, Type *t, vlong v)
 	case TFLOAT64:
 	case TFLOAT80:
 		fatal("nodconst: bad type %T", t);
-
-	case TPTR32:
-	case TPTR64:
-	case TUINT8:
-	case TUINT16:
-	case TUINT32:
-	case TUINT64:
-		n->val.ctype = CTUINT;
-		break;
 	}
 }
 
@@ -1102,8 +1093,6 @@ naddr(Node *n, Addr *a)
 			a->dval = mpgetflt(n->val.u.fval);
 			break;
 		case CTINT:
-		case CTSINT:
-		case CTUINT:
 			a->sym = S;
 			a->type = D_CONST;
 			a->offset = mpgetfix(n->val.u.xval);
@@ -2057,7 +2046,7 @@ oindex:
 	}
 
 	w = n->type->width;
-	if(whatis(r) == Wlitint)
+	if(isconst(r, CTINT))
 		goto oindex_const;
 
 	switch(w) {

@@ -32,17 +32,12 @@ pc: xxx
 
 
 =========== ./convlit.go
-BUG: errchk: ./convlit.go: missing expected error message on line 16: 'conver|incompatible'
-errchk: ./convlit.go: missing expected error message on line 22: 'convert'
-errchk: ./convlit.go: missing expected error message on line 23: 'overflow'
-errchk: ./convlit.go: missing expected error message on line 24: 'overflow'
-errchk: ./convlit.go: unmatched error messages:
+BUG: errchk: ./convlit.go: unmatched error messages:
 ==================================================
-./convlit.go:8: cannot convert non-integer constant to int
-./convlit.go:11: overflow converting constant to int
-./convlit.go:12: overflow converting constant to float
-./convlit.go:8: cannot convert non-integer constant to int
-./convlit.go:8: fatal error: too many errors
+./convlit.go:8: constant 1.5 truncated to integer
+./convlit.go:11: constant 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows int
+./convlit.go:12: constant 34911850510716223476646871064527264675788468424693128821036252992306087892081078460155404277013793117885253p+2968 overflows float
+./convlit.go:9: constant 1.5 truncated to integer
 ==================================================
 
 =========== ./helloworld.go
@@ -116,7 +111,7 @@ bugs/bug108.go:4: stupid shift: 1025
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug108.go
 
 =========== bugs/bug115.go
-bugs/bug115.go:8: overflow converting constant to uint
+bugs/bug115.go:8: constant -1 overflows uint
 BUG: bug115 should compile
 
 =========== bugs/bug117.go
@@ -129,7 +124,9 @@ BUG: should compile
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
 
 =========== bugs/bug131.go
-BUG: should not compile
+bugs/bug131.go:7: cannot convert uint64 constant to int64
+bugs/bug131.go:7: illegal types for operand: AS
+	int64
 
 =========== bugs/bug132.go
 BUG: compilation succeeds incorrectly
@@ -138,12 +135,11 @@ BUG: compilation succeeds incorrectly
 BUG: should not compile
 
 =========== bugs/bug138.go
-bugs/bug138.go:8: overflow converting constant to uint
-bugs/bug138.go:8: illegal combination of literals CONV 7
+bugs/bug138.go:8: constant -1 overflows uint
 BUG should compile
 
 =========== fixedbugs/bug016.go
-fixedbugs/bug016.go:7: overflow converting constant to uint
+fixedbugs/bug016.go:7: constant -3 overflows uint
 
 =========== fixedbugs/bug027.go
 hi
@@ -177,7 +173,7 @@ fixedbugs/bug039.go:6: variable x redeclared in this block
 fixedbugs/bug041.go:5: export of incomplete type t
 
 =========== fixedbugs/bug049.go
-fixedbugs/bug049.go:6: illegal conversion of nil to string
+fixedbugs/bug049.go:6: cannot convert nil constant to string
 
 =========== fixedbugs/bug050.go
 fixedbugs/bug050.go:3: package statement must be first
@@ -187,7 +183,7 @@ sys.6:1 fixedbugs/bug050.go:3: syntax error near package
 fixedbugs/bug051.go:10: expression must be a constant
 
 =========== fixedbugs/bug062.go
-fixedbugs/bug062.go:6: illegal conversion of nil to string
+fixedbugs/bug062.go:6: cannot convert nil constant to string
 fixedbugs/bug062.go:6: illegal types for operand: AS
 	string
 
@@ -210,8 +206,12 @@ fixedbugs/bug072.go:6: bug: undefined
 fixedbugs/bug073.go:8: illegal types for operand: LSH
 	int
 	int
+fixedbugs/bug073.go:8: illegal types for operand: AS
+	int
 fixedbugs/bug073.go:9: illegal types for operand: RSH
 	int
+	int
+fixedbugs/bug073.go:9: illegal types for operand: AS
 	int
 
 =========== fixedbugs/bug074.go
@@ -226,18 +226,6 @@ fixedbugs/bug083.dir/bug1.go:9: syntax error near t0
 
 =========== fixedbugs/bug086.go
 fixedbugs/bug086.go:5: function ends without a return statement
-
-=========== fixedbugs/bug090.go
-fixedbugs/bug090.go:32: cannot convert non-integer constant to int
-fixedbugs/bug090.go:32: illegal types for operand: AS
-	int
-fixedbugs/bug090.go:34: cannot convert non-integer constant to int
-fixedbugs/bug090.go:34: illegal types for operand: CALL
-	bool
-fixedbugs/bug090.go:40: cannot convert non-integer constant to int
-fixedbugs/bug090.go:40: illegal types for operand: AS
-	int
-	float64
 
 =========== fixedbugs/bug091.go
 fixedbugs/bug091.go:15: c: undefined

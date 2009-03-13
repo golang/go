@@ -58,7 +58,6 @@ mainlex(int argc, char *argv[])
 	fmtinstall('L', Lconv);		// line number
 	fmtinstall('B', Bconv);		// big numbers
 	fmtinstall('F', Fconv);		// big float numbers
-	fmtinstall('W', Wconv);		// whatis numbers (Wlitint)
 
 	lexinit();
 	lineno = 1;
@@ -115,13 +114,14 @@ usage:
 	print("flags:\n");
 	print("  -I DIR search for packages in DIR\n");
 	print("  -d print declarations\n");
+	print("  -e no limit on number of errors printed\n");
 	print("  -f print stack frame structure\n");
+	print("  -h panic on an error\n");
 	print("  -k name specify package name\n");
 	print("  -o file specify output file\n");
 	print("  -p print the assembly language\n");
 	print("  -w print the parse tree after typing\n");
 	print("  -x print lex tokens\n");
-	print("  -h panic on an error\n");
 	myexit(0);
 	return 0;
 }
@@ -1276,20 +1276,12 @@ lexinit(void)
 	/* for walk to use in error messages */
 	types[TFUNC] = functype(N, N, N);
 
+	/* types used in front end */
+	types[TNIL] = typ(TNIL);
+	types[TIDEAL] = typ(TIDEAL);
+
 	/* pick up the backend typedefs */
 	belexinit(LBASETYPE);
-
-	booltrue = nod(OLITERAL, N, N);
-	booltrue->val.u.bval = 1;
-	booltrue->val.ctype = CTBOOL;
-	booltrue->type = types[TBOOL];
-	booltrue->addable = 1;
-
-	boolfalse = nod(OLITERAL, N, N);
-	boolfalse->val.u.bval = 0;
-	boolfalse->val.ctype = CTBOOL;
-	boolfalse->type = types[TBOOL];
-	boolfalse->addable = 1;
 }
 
 struct
