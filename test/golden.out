@@ -131,6 +131,11 @@ BUG: should not compile
 bugs/bug138.go:8: constant -1 overflows uint
 BUG should compile
 
+=========== bugs/bug139.go
+bugs/bug139.go:7: fatal error: naddr: ONAME class x 5
+
+BUG should compile
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
