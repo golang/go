@@ -448,7 +448,7 @@ walkswitch(Node *sw)
 	 */
 	walkstate(sw->ninit);
 	if(sw->ntest == N)
-		sw->ntest = booltrue;
+		sw->ntest = nodbool(1);
 	casebody(sw);
 
 	/*
@@ -466,7 +466,7 @@ walkswitch(Node *sw)
 		return;
 	}
 	arg = Snorm;
-	if(whatis(sw->ntest) == Wlitbool) {
+	if(isconst(sw->ntest, CTBOOL)) {
 		arg = Strue;
 		if(sw->ntest->val.u.xval == 0)
 			arg = Sfalse;
@@ -523,10 +523,10 @@ iscaseconst(Node *t)
 {
 	if(t == N || t->left == N)
 		return 0;
-	switch(whatis(t->left)) {
-	case Wlitfloat:
-	case Wlitint:
-	case Wlitstr:
+	switch(consttype(t->left)) {
+	case CTFLT:
+	case CTINT:
+	case CTSTR:
 		return 1;
 	}
 	return 0;
@@ -616,19 +616,23 @@ csort(Case *l, int(*f)(Case*, Case*))
 int
 casecmp(Case *c1, Case *c2)
 {
-	int w;
+	int ct;
+	Node *n1, *n2;
 
-	w = whatis(c1->node->left);
-	if(w != whatis(c2->node->left))
+	n1 = c1->node->left;
+	n2 = c2->node->left;
+
+	ct = n1->val.ctype;
+	if(ct != n2->val.ctype)
 		fatal("casecmp1");
 
-	switch(w) {
-	case Wlitfloat:
-		return mpcmpfltflt(c1->node->left->val.u.fval, c2->node->left->val.u.fval);
-	case Wlitint:
-		return mpcmpfixfix(c1->node->left->val.u.xval, c2->node->left->val.u.xval);
-	case Wlitstr:
-		return cmpslit(c1->node->left, c2->node->left);
+	switch(ct) {
+	case CTFLT:
+		return mpcmpfltflt(n1->val.u.fval, n2->val.u.fval);
+	case CTINT:
+		return mpcmpfixfix(n1->val.u.xval, n2->val.u.xval);
+	case CTSTR:
+		return cmpslit(n1, n2);
 	}
 
 	fatal("casecmp2");

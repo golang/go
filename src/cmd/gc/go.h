@@ -371,6 +371,10 @@ enum
 	TFORWSTRUCT,
 	TFORWINTER,
 
+	// pseudo-types for literals
+	TIDEAL,
+	TNIL,
+
 	NTYPE,
 };
 enum
@@ -378,33 +382,10 @@ enum
 	CTxxx,
 
 	CTINT,
-	CTSINT,
-	CTUINT,
 	CTFLT,
-
 	CTSTR,
 	CTBOOL,
 	CTNIL,
-};
-
-enum
-{
-	/* indications for whatis() */
-	Wnil	= 0,
-	Wtnil,
-
-	Wtfloat,
-	Wtint,
-	Wtbool,
-	Wtstr,
-
-	Wlitfloat,
-	Wlitint,
-	Wlitbool,
-	Wlitstr,
-	Wlitnil,
-
-	Wtunkn,
 };
 
 enum
@@ -518,10 +499,9 @@ EXTERN	int	dclcontext;	// PEXTERN/PAUTO
 EXTERN	int	importflag;
 EXTERN	int	inimportsys;
 
-EXTERN	Node*	booltrue;
-EXTERN	Node*	boolfalse;
 EXTERN	uint32	iota;
 EXTERN	Node*	lastconst;
+EXTERN	Type*	lasttype;
 EXTERN	int32	vargen;
 EXTERN	int32	exportgen;
 EXTERN	int32	maxarg;
@@ -594,7 +574,7 @@ void	mpdivfixfix(Mpint *a, Mpint *b);
 void	mpmodfixfix(Mpint *a, Mpint *b);
 void	mpatofix(Mpint *a, char *s);
 void	mpatoflt(Mpflt *a, char *s);
-void	mpmovefltfix(Mpint *a, Mpflt *b);
+int	mpmovefltfix(Mpint *a, Mpflt *b);
 void	mpmovefixflt(Mpflt *a, Mpint *b);
 int	Bconv(Fmt*);
 
@@ -611,7 +591,7 @@ void	mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d);
 void	mpdivfract(Mpint *a, Mpint *b);
 void	mpnegfix(Mpint *a);
 void	mpandfixfix(Mpint *a, Mpint *b);
-void	mpnotandfixfix(Mpint *a, Mpint *b);
+void	mpandnotfixfix(Mpint *a, Mpint *b);
 void	mplshfixfix(Mpint *a, Mpint *b);
 void	mporfixfix(Mpint *a, Mpint *b);
 void	mprshfixfix(Mpint *a, Mpint *b);
@@ -651,6 +631,7 @@ void	fatal(char*, ...);
 void	linehist(char*, int32);
 int32	setlineno(Node*);
 Node*	nod(int, Node*, Node*);
+Node*	nodlit(Val);
 Node*	list(Node*, Node*);
 Type*	typ(int);
 Dcl*	dcl(void);
@@ -680,9 +661,10 @@ void	argtype(Node*, Type*);
 int	eqargs(Type*, Type*);
 uint32	typehash(Type*, int);
 void	frame(int);
-Node*	literal(int32);
 Node*	dobad(void);
-Node*	nodintconst(int32);
+Node*	nodintconst(int64);
+Node*	nodnil(void);
+Node*	nodbool(int);
 void	ullmancalc(Node*);
 void	badtype(int, Type*, Type*);
 Type*	ptrto(Type*);
@@ -735,7 +717,8 @@ void	dodclvar(Node*, Type*);
 Type*	dodcltype(Type*);
 void	updatetype(Type*, Type*);
 void	dodclconst(Node*, Node*);
-void	defaultlit(Node*);
+void	defaultlit(Node*, Type*);
+void	defaultlit2(Node*, Node*);
 int	listcount(Node*);
 void	addmethod(Node*, Type*, int);
 Node*	methodname(Node*, Type*);
@@ -806,7 +789,7 @@ void	doimport6(Node*, Node*);
 void	doimport7(Node*, Node*);
 void	doimport8(Node*, Val*, Node*);
 void	doimport9(Sym*, Node*);
-void	importconst(Node *ss, Type *t, Val *v);
+void	importconst(Node *ss, Type *t, Node *v);
 void	importmethod(Sym *s, Type *t);
 void	importtype(Node *ss, Type *t);
 void	importvar(Node *ss, Type *t, int ctxt);
@@ -826,7 +809,6 @@ void	walkas(Node*);
 void	walkbool(Node*);
 void	walkswitch(Node*);
 void	walkselect(Node*);
-int	whatis(Node*);
 void	walkdot(Node*);
 Node*	ascompatee(int, Node**, Node**);
 Node*	ascompatet(int, Node**, Type**, int);
@@ -871,6 +853,8 @@ void	convlit(Node*, Type*);
 void	evconst(Node*);
 int	cmpslit(Node *l, Node *r);
 int	smallintconst(Node*);
+int	consttype(Node*);
+int	isconst(Node*, int);
 
 /*
  *	gen.c/gsubr.c/obj.c

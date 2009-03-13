@@ -5,8 +5,8 @@
 // license that can be found in the LICENSE file.
 
 package main
-func main() {
-        var x int64 = 0;
-        println(x != nil);	// ERROR "illegal|incompatible|nil constant"
-        println(0 != nil);	// ERROR "illegal|incompatible|nil constant"
-}
+
+const (
+	A int = 1;
+	B byte;	// ERROR "type without expr"
+)

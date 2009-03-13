@@ -154,10 +154,22 @@ mpmovefixflt(Mpflt *a, Mpint *b)
 	mpnorm(a);
 }
 
-void
+// convert (truncate) b to a.
+// return -1 (but still convert) if b was non-integer.
+int
 mpmovefltfix(Mpint *a, Mpflt *b)
 {
-	mpmovecfix(a, mpgetflt(b));
+	Mpflt f;
+	*a = b->val;
+	mpshiftfix(a, b->exp);
+	if(b->exp < 0) {
+		f.val = *a;
+		f.exp = 0;
+		mpnorm(&f);
+		if(mpcmpfltflt(b, &f) != 0)
+			return -1;
+	}
+	return 0;
 }
 
 void
@@ -303,7 +315,7 @@ bad:
 //
 // fixed point input
 // required syntax is [+-][0[x]]d*
-// 
+//
 void
 mpatofix(Mpint *a, char *as)
 {
@@ -422,8 +434,20 @@ Fconv(Fmt *fp)
 {
 	char buf[500];
 	Mpflt *fvp, fv;
+	double d;
 
 	fvp = va_arg(fp->args, Mpflt*);
+	if(fp->flags & FmtSharp) {
+		// alternate form - decimal for error messages.
+		// for well in range, convert to double and use print's %g
+		if(-900 < fvp->exp && fvp->exp < 900) {
+			d = mpgetflt(fvp);
+			return fmtprint(fp, "%g", d);
+		}
+		// TODO(rsc): for well out of range, print
+		// an approximation like 1.234e1000
+	}
+
 	if(sigfig(fvp) == 0) {
 		snprint(buf, sizeof(buf), "0p+0");
 		goto out;

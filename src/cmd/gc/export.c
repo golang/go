@@ -110,7 +110,7 @@ dumpexportconst(Sym *s)
 
 	Bprint(bout, "\t");
 	Bprint(bout, "const %lS", s);
-	if(t != T)
+	if(t != T && t->etype != TIDEAL)
 		Bprint(bout, " %#T", t);
 	Bprint(bout, " = ");
 
@@ -118,8 +118,6 @@ dumpexportconst(Sym *s)
 	default:
 		fatal("dumpexportconst: unknown ctype: %S", s);
 	case CTINT:
-	case CTSINT:
-	case CTUINT:
 		Bprint(bout, "%B\n", n->val.u.xval);
 		break;
 	case CTBOOL:
@@ -343,18 +341,14 @@ mypackage(Node *ss)
 }
 
 void
-importconst(Node *ss, Type *t, Val *v)
+importconst(Node *ss, Type *t, Node *n)
 {
-	Node *n;
 	Sym *s;
 
 	if(!exportname(ss->sym->name) && !mypackage(ss))
 		return;
 
-	n = nod(OLITERAL, N, N);
-	n->val = *v;
-	n->type = t;
-
+	convlit(n, t);
 	s = importsym(ss, LACONST);
 	if(s->oconst != N) {
 		// TODO: check if already the same.
@@ -363,7 +357,7 @@ importconst(Node *ss, Type *t, Val *v)
 
 	dodclconst(newname(s), n);
 
-	if(debug['e'])
+	if(debug['E'])
 		print("import const %S\n", s);
 }
 
@@ -385,7 +379,7 @@ importvar(Node *ss, Type *t, int ctxt)
 	checkwidth(t);
 	addvar(newname(s), t, ctxt);
 
-	if(debug['e'])
+	if(debug['E'])
 		print("import var %S %lT\n", s, t);
 }
 
@@ -410,7 +404,7 @@ importtype(Node *ss, Type *t)
 	s->otype->sym = s;
 	checkwidth(s->otype);
 
-	if(debug['e'])
+	if(debug['E'])
 		print("import type %S %lT\n", s, t);
 }
 

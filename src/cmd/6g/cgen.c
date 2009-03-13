@@ -146,11 +146,11 @@ cgen(Node *n, Node *res)
 	case ONOT:
 		p1 = gbranch(AJMP, T);
 		p2 = pc;
-		gmove(booltrue, res);
+		gmove(nodbool(1), res);
 		p3 = gbranch(AJMP, T);
 		patch(p1, pc);
 		bgen(n, 1, p2);
-		gmove(boolfalse, res);
+		gmove(nodbool(0), res);
 		patch(p3, pc);
 		goto ret;
 
@@ -408,7 +408,7 @@ agen(Node *n, Node *res)
 		if(nr->addable)
 			goto irad;
 		if(nl->addable) {
-			if(whatis(nr) != Wlitint) {
+			if(!isconst(nr, CTINT)) {
 				regalloc(&n1, nr->type, N);
 				cgen(nr, &n1);
 			}
@@ -423,7 +423,7 @@ agen(Node *n, Node *res)
 	irad:
 		regalloc(&n3, types[tptr], res);
 		agen(nl, &n3);
-		if(whatis(nr) != Wlitint) {
+		if(!isconst(nr, CTINT)) {
 			regalloc(&n1, nr->type, N);
 			cgen(nr, &n1);
 		}
@@ -438,7 +438,7 @@ agen(Node *n, Node *res)
 			fatal("index is zero width");
 
 		// constant index
-		if(whatis(nr) == Wlitint) {
+		if(isconst(nr, CTINT)) {
 			v = mpgetfix(nr->val.u.xval);
 			if(isslice(nl->type)) {
 
@@ -618,7 +618,7 @@ bgen(Node *n, int true, Prog *to)
 	}
 
 	if(n == N)
-		n = booltrue;
+		n = nodbool(1);
 
 	nl = n->left;
 	nr = n->right;

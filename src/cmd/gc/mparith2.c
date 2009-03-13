@@ -159,6 +159,7 @@ mpneg(Mpint *a)
 	}
 }
 
+// shift left by s (or right by -s)
 void
 mpshiftfix(Mpint *a, int s)
 {

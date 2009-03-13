@@ -5,6 +5,16 @@
 #include	"go.h"
 #define	TUP(x,y)	(((x)<<16)|(y))
 
+static Val toflt(Val);
+static Val toint(Val);
+static Val tostr(Val);
+static void overflow(Val, Type*);
+static Val copyval(Val);
+
+/*
+ * truncate float literal fv to 32-bit or 64-bit precision
+ * according to type.
+ */
 void
 truncfltlit(Mpflt *fv, Type *t)
 {
@@ -33,12 +43,28 @@ truncfltlit(Mpflt *fv, Type *t)
 	}
 }
 
+/*
+ * convert n, if literal, to type t.
+ * implicit conversion.
+ */
 void
-convlit1(Node *n, Type *t, int conv)
+convlit(Node *n, Type *t)
 {
-	int et, wt;
+	convlit1(n, t, 0);
+}
 
-	if(n == N || t == T)
+/*
+ * convert n, if literal, to type t.
+ */
+void
+convlit1(Node *n, Type *t, int explicit)
+{
+	int et, ct;
+
+	if(n == N || t == T || n->type == T)
+		return;
+	et = t->etype;
+	if(et == TIDEAL || et == TNIL)
 		return;
 
 	switch(n->op) {
@@ -53,17 +79,37 @@ convlit1(Node *n, Type *t, int conv)
 		return;
 	}
 
-	et = t->etype;
-	wt = whatis(n);
+	// avoided repeated calculations, errors
+	if(eqtype(n->type, t, 0)) {
+		n->type = t;
+		return;
+	}
 
-	switch(wt) {
+	ct = consttype(n);
+	if(ct < 0)
+		goto bad;
+
+	if(et == TINTER) {
+		if(ct == CTNIL) {
+			n->type = t;
+			return;
+		}
+		defaultlit(n, T);
+		return;
+	}
+
+	// if already has non-ideal type, cannot change implicitly
+	if(n->type->etype != TIDEAL && n->type->etype != TNIL && !explicit)
+		goto bad;
+
+	switch(ct) {
 	default:
-		goto bad1;
+		goto bad;
 
-	case Wlitnil:
+	case CTNIL:
 		switch(et) {
 		default:
-			goto bad1;
+			goto bad;
 
 		case TPTR32:
 		case TPTR64:
@@ -76,450 +122,577 @@ convlit1(Node *n, Type *t, int conv)
 		}
 		break;
 
-	case Wlitstr:
-		if(isnilinter(t)) {
-			defaultlit(n);
-			return;
-		}
-		if(et == TSTRING)
-			break;
-		goto bad1;
+	case CTSTR:
+	case CTBOOL:
+		if(et != n->type->etype)
+			goto bad;
+		break;
 
-	case Wlitbool:
-		if(isnilinter(t)) {
-			defaultlit(n);
-			return;
-		}
-		if(et == TBOOL)
-			break;
-		goto bad1;
-
-	case Wlitint:
-		if(isnilinter(t)) {
-			defaultlit(n);
-			return;
-		}
+	case CTINT:
+	case CTFLT:
+		ct = n->val.ctype;
 		if(isint[et]) {
-			// int to int
-			if(mpcmpfixfix(n->val.u.xval, minintval[et]) < 0)
-				goto bad2;
-			if(mpcmpfixfix(n->val.u.xval, maxintval[et]) > 0)
-				goto bad2;
-			break;
-		}
-		if(isfloat[et]) {
-			// int to float
-			Mpint *xv;
-			Mpflt *fv;
-
-			xv = n->val.u.xval;
-			if(mpcmpfixflt(xv, minfltval[et]) < 0)
-				goto bad2;
-			if(mpcmpfixflt(xv, maxfltval[et]) > 0)
-				goto bad2;
-			fv = mal(sizeof(*n->val.u.fval));
-			n->val.u.fval = fv;
-			mpmovefixflt(fv, xv);
-			n->val.ctype = CTFLT;
-			truncfltlit(fv, t);
-			break;
-		}
-		if(!conv)
-			goto bad1;
-
-		// only done as string(CONST)
-		if(et == TSTRING) {
-			Rune rune;
-			int l;
-			String *s;
-
-			rune = mpgetfix(n->val.u.xval);
-			l = runelen(rune);
-			s = mal(sizeof(*s)+l);
-			s->len = l;
-			runetochar((char*)(s->s), &rune);
-
-			n->val.u.sval = s;
-			n->val.ctype = CTSTR;
-			break;
-		}
-		goto bad1;
-
-	case Wlitfloat:
-		if(isnilinter(t)) {
-			defaultlit(n);
-			return;
-		}
-		if(isint[et]) {
-			// float to int
-			Mpflt *fv;
-
-			fv = n->val.u.fval;
-			if(mpcmpfltfix(fv, minintval[et]) < 0)
-				goto bad2;
-			if(mpcmpfltfix(fv, maxintval[et]) > 0)
-				goto bad2;
-			if(floor(mpgetflt(fv)) != mpgetflt(fv))
-				goto bad3;
-			n->val.u.xval = mal(sizeof(*n->val.u.xval));
-			mpmovefltfix(n->val.u.xval, fv);
-			n->val.ctype = CTINT;
-			break;
-		}
-		if(isfloat[et]) {
-			// float to float
-			Mpflt *fv;
-
-			fv = n->val.u.fval;
-			if(mpcmpfltflt(fv, minfltval[et]) < 0)
-				goto bad2;
-			if(mpcmpfltflt(fv, maxfltval[et]) > 0)
-				goto bad2;
-			truncfltlit(fv, t);
-			break;
-		}
-		goto bad1;
+			if(ct == CTFLT)
+				n->val = toint(n->val);
+			else if(ct != CTINT)
+				goto bad;
+			overflow(n->val, t);
+		} else if(isfloat[et]) {
+			if(ct == CTINT)
+				n->val = toflt(n->val);
+			else if(ct != CTFLT)
+				goto bad;
+			overflow(n->val, t);
+			truncfltlit(n->val.u.fval, t);
+		} else if(et == TSTRING && ct == CTINT && explicit)
+			n->val = tostr(n->val);
+		else
+			goto bad;
 	}
 	n->type = t;
-
 	return;
 
-bad1:
-	yyerror("illegal conversion of %W to %T", wt, t);
-	return;
-
-bad2:
-	yyerror("overflow converting constant to %T", t);
-	return;
-
-bad3:
-	yyerror("cannot convert non-integer constant to %T", t);
+bad:
+	if(n->type->etype == TIDEAL)
+		defaultlit(n, T);
+	yyerror("cannot convert %T constant to %T", n->type, t);
+	n->type = T;
+	n->diag = 1;
 	return;
 }
 
-void
-convlit(Node *n, Type *t)
+static Val
+copyval(Val v)
 {
-	convlit1(n, t, 0);
+	Mpint *i;
+	Mpflt *f;
+
+	switch(v.ctype) {
+	case CTINT:
+		i = mal(sizeof(*i));
+		mpmovefixfix(i, v.u.xval);
+		v.u.xval = i;
+		break;
+	case CTFLT:
+		f = mal(sizeof(*f));
+		mpmovefltflt(f, v.u.fval);
+		v.u.fval = f;
+		break;
+	}
+	return v;
 }
 
+static Val
+toflt(Val v)
+{
+	Mpflt *f;
+
+	if(v.ctype == CTINT) {
+		f = mal(sizeof(*f));
+		mpmovefixflt(f, v.u.xval);
+		v.ctype = CTFLT;
+		v.u.fval = f;
+	}
+	return v;
+}
+
+static Val
+toint(Val v)
+{
+	Mpint *i;
+
+	if(v.ctype == CTFLT) {
+		i = mal(sizeof(*i));
+		if(mpmovefltfix(i, v.u.fval) < 0)
+			yyerror("constant %#F truncated to integer", v.u.fval);
+		v.ctype = CTINT;
+		v.u.xval = i;
+	}
+	return v;
+}
+
+static void
+overflow(Val v, Type *t)
+{
+	// v has already been converted
+	// to appropriate form for t.
+	if(t == T || t->etype == TIDEAL)
+		return;
+	switch(v.ctype) {
+	case CTINT:
+		if(mpcmpfixfix(v.u.xval, minintval[t->etype]) < 0
+		|| mpcmpfixfix(v.u.xval, maxintval[t->etype]) > 0)
+			yyerror("constant %B overflows %T", v.u.xval, t);
+		break;
+	case CTFLT:
+		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) < 0
+		|| mpcmpfltflt(v.u.fval, maxfltval[t->etype]) > 0)
+			yyerror("constant %#F overflows %T", v.u.fval, t);
+		break;
+	}
+}
+
+static Val
+tostr(Val v)
+{
+	Rune rune;
+	int l;
+	String *s;
+
+	switch(v.ctype) {
+	case CTINT:
+		if(mpcmpfixfix(v.u.xval, minintval[TINT]) < 0
+		|| mpcmpfixfix(v.u.xval, maxintval[TINT]) > 0)
+			yyerror("overflow in int -> string");
+		rune = mpgetfix(v.u.xval);
+		l = runelen(rune);
+		s = mal(sizeof(*s)+l);
+		s->len = l;
+		runetochar((char*)s->s, &rune);
+		v.ctype = CTSTR;
+		v.u.sval = s;
+		break;
+
+	case CTFLT:
+		yyerror("no float -> string");
+	}
+	return v;
+}
+
+int
+consttype(Node *n)
+{
+	if(n == N || n->op != OLITERAL)
+		return -1;
+	return n->val.ctype;
+}
+
+int
+isconst(Node *n, int ct)
+{
+	return consttype(n) == ct;
+}
+
+/*
+ * if n is constant, rewrite as OLITERAL node.
+ */
 void
 evconst(Node *n)
 {
 	Node *nl, *nr;
 	int32 len;
 	String *str;
-	int wl, wr;
-	Mpint *xval;
-	Mpflt *fval;
-
-	xval = nil;
-	fval = nil;
+	int wl, wr, lno;
+	Val v;
 
 	nl = n->left;
-	if(nl == N)
+	if(nl == N || nl->type == T)
 		return;
-
-	wl = whatis(nl);
-	switch(wl) {
-	default:
+	if(consttype(nl) < 0)
 		return;
-
-	case Wlitint:
-	case Wlitfloat:
-	case Wlitbool:
-	case Wlitstr:
-	case Wlitnil:
-		break;
-	}
+	wl = nl->type->etype;
+	if(isint[wl] || isfloat[wl])
+		wl = TIDEAL;
 
 	nr = n->right;
 	if(nr == N)
 		goto unary;
-
-	wr = whatis(nr);
-	switch(wr) {
-	default:
+	if(nr->type == T)
 		return;
+	if(consttype(nr) < 0)
+		return;
+	wr = nr->type->etype;
+	if(isint[wr] || isfloat[wr])
+		wr = TIDEAL;
 
-	case Wlitint:
-	case Wlitfloat:
-	case Wlitbool:
-	case Wlitstr:
-	case Wlitnil:
+	// check for compatible general types (numeric, string, etc)
+	if(wl != wr)
+		goto illegal;
+
+	// check for compatible types.
+	switch(n->op) {
+	default:
+		// ideal const mixes with anything but otherwise must match.
+		if(nl->type->etype != TIDEAL)
+			defaultlit(nr, nl->type);
+		if(nr->type->etype != TIDEAL)
+			defaultlit(nl, nr->type);
+		if(nl->type->etype != nr->type->etype)
+			goto illegal;
+		break;
+
+	case OLSH:
+	case ORSH:
+		// right must be unsigned.
+		// left can be ideal.
+		defaultlit(nr, types[TUINT]);
 		break;
 	}
 
-	if(wl != wr) {
-		if(wl == Wlitfloat && wr == Wlitint) {
-			xval = nr->val.u.xval;
-			nr->val.u.fval = mal(sizeof(*nr->val.u.fval));
-			mpmovefixflt(nr->val.u.fval, xval);
-			nr->val.ctype = CTFLT;
-			wr = whatis(nr);
-		} else
-		if(wl == Wlitint && wr == Wlitfloat) {
-			xval = nl->val.u.xval;
-			nl->val.u.fval = mal(sizeof(*nl->val.u.fval));
-			mpmovefixflt(nl->val.u.fval, xval);
-			nl->val.ctype = CTFLT;
-			wl = whatis(nl);
-		} else {
-			yyerror("illegal combination of literals %O %W, %W", n->op, wl, wr);
-			return;
+	// copy numeric value to avoid modifying
+	// n->left, in case someone still refers to it (e.g. iota).
+	v = nl->val;
+	if(wl == TIDEAL)
+		v = copyval(v);
+
+	// since wl == wr,
+	// the only way v.ctype != nr->val.ctype
+	// is when one is CTINT and the other CTFLT.
+	// make both CTFLT.
+	if(v.ctype != nr->val.ctype) {
+		v = toflt(v);
+		nr->val = toflt(nr->val);
+	}
+
+	// run op
+	switch(TUP(n->op, v.ctype)) {
+	default:
+	illegal:
+		yyerror("illegal constant expression %T %O %T",
+			nl->type, n->op, nr->type);
+		n->diag = 1;
+		return;
+
+	case TUP(OADD, CTINT):
+		mpaddfixfix(v.u.xval, nr->val.u.xval);
+		break;
+	case TUP(OSUB, CTINT):
+		mpsubfixfix(v.u.xval, nr->val.u.xval);
+		break;
+	case TUP(OMUL, CTINT):
+		mpmulfixfix(v.u.xval, nr->val.u.xval);
+		break;
+	case TUP(ODIV, CTINT):
+		if(mpcmpfixc(nr->val.u.xval, 0) == 0) {
+			yyerror("division by zero");
+			mpmovecfix(v.u.xval, 1);
+			break;
 		}
-	}
-
-	// dance to not modify left side
-	// this is because iota will reuse it
-	if(wl == Wlitint) {
-		xval = mal(sizeof(*xval));
-		mpmovefixfix(xval, nl->val.u.xval);
-	} else
-	if(wl == Wlitfloat) {
-		fval = mal(sizeof(*fval));
-		mpmovefltflt(fval, nl->val.u.fval);
-	}
-
-	switch(TUP(n->op, wl)) {
-	default:
-		yyerror("illegal literal %O %W", n->op, wl);
-		return;
-
-	case TUP(OADD, Wlitint):
-		mpaddfixfix(xval, nr->val.u.xval);
+		mpdivfixfix(v.u.xval, nr->val.u.xval);
 		break;
-	case TUP(OSUB, Wlitint):
-		mpsubfixfix(xval, nr->val.u.xval);
-		break;
-	case TUP(OMUL, Wlitint):
-		mpmulfixfix(xval, nr->val.u.xval);
-		break;
-	case TUP(ODIV, Wlitint):
-		mpdivfixfix(xval, nr->val.u.xval);
-		break;
-	case TUP(OMOD, Wlitint):
-		mpmodfixfix(xval, nr->val.u.xval);
+	case TUP(OMOD, CTINT):
+		if(mpcmpfixc(nr->val.u.xval, 0) == 0) {
+			yyerror("division by zero");
+			mpmovecfix(v.u.xval, 1);
+			break;
+		}
+		mpmodfixfix(v.u.xval, nr->val.u.xval);
 		break;
 
-	case TUP(OLSH, Wlitint):
-		mplshfixfix(xval, nr->val.u.xval);
+	case TUP(OLSH, CTINT):
+		mplshfixfix(v.u.xval, nr->val.u.xval);
 		break;
-	case TUP(ORSH, Wlitint):
-		mprshfixfix(xval, nr->val.u.xval);
+	case TUP(ORSH, CTINT):
+		mprshfixfix(v.u.xval, nr->val.u.xval);
 		break;
-	case TUP(OOR, Wlitint):
-		mporfixfix(xval, nr->val.u.xval);
+	case TUP(OOR, CTINT):
+		mporfixfix(v.u.xval, nr->val.u.xval);
 		break;
-	case TUP(OAND, Wlitint):
-		mpandfixfix(xval, nr->val.u.xval);
+	case TUP(OAND, CTINT):
+		mpandfixfix(v.u.xval, nr->val.u.xval);
 		break;
-	case TUP(OANDNOT, Wlitint):
-		mpandnotfixfix(xval, nr->val.u.xval);
+	case TUP(OANDNOT, CTINT):
+		mpandnotfixfix(v.u.xval, nr->val.u.xval);
 		break;
-	case TUP(OXOR, Wlitint):
-		mpxorfixfix(xval, nr->val.u.xval);
+	case TUP(OXOR, CTINT):
+		mpxorfixfix(v.u.xval, nr->val.u.xval);
+		break;
+	case TUP(OADD, CTFLT):
+		mpaddfltflt(v.u.fval, nr->val.u.fval);
+		break;
+	case TUP(OSUB, CTFLT):
+		mpsubfltflt(v.u.fval, nr->val.u.fval);
+		break;
+	case TUP(OMUL, CTFLT):
+		mpmulfltflt(v.u.fval, nr->val.u.fval);
+		break;
+	case TUP(ODIV, CTFLT):
+		if(mpcmpfltc(nr->val.u.fval, 0) == 0) {
+			yyerror("division by zero");
+			mpmovecflt(v.u.fval, 1.0);
+			break;
+		}
+		mpdivfltflt(v.u.fval, nr->val.u.fval);
 		break;
 
-	case TUP(OADD, Wlitfloat):
-		mpaddfltflt(fval, nr->val.u.fval);
-		break;
-	case TUP(OSUB, Wlitfloat):
-		mpsubfltflt(fval, nr->val.u.fval);
-		break;
-	case TUP(OMUL, Wlitfloat):
-		mpmulfltflt(fval, nr->val.u.fval);
-		break;
-	case TUP(ODIV, Wlitfloat):
-		mpdivfltflt(fval, nr->val.u.fval);
-		break;
-
-	case TUP(OEQ, Wlitnil):
+	case TUP(OEQ, CTNIL):
 		goto settrue;
-	case TUP(ONE, Wlitnil):
+	case TUP(ONE, CTNIL):
 		goto setfalse;
 
-	case TUP(OEQ, Wlitint):
-		if(mpcmpfixfix(xval, nr->val.u.xval) == 0)
+	case TUP(OEQ, CTINT):
+		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) == 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(ONE, Wlitint):
-		if(mpcmpfixfix(xval, nr->val.u.xval) != 0)
+	case TUP(ONE, CTINT):
+		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) != 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(OLT, Wlitint):
-		if(mpcmpfixfix(xval, nr->val.u.xval) < 0)
+	case TUP(OLT, CTINT):
+		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) < 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(OLE, Wlitint):
-		if(mpcmpfixfix(xval, nr->val.u.xval) <= 0)
+	case TUP(OLE, CTINT):
+		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) <= 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(OGE, Wlitint):
-		if(mpcmpfixfix(xval, nr->val.u.xval) >= 0)
+	case TUP(OGE, CTINT):
+		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) >= 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(OGT, Wlitint):
-		if(mpcmpfixfix(xval, nr->val.u.xval) > 0)
-			goto settrue;
-		goto setfalse;
-
-	case TUP(OEQ, Wlitfloat):
-		if(mpcmpfltflt(fval, nr->val.u.fval) == 0)
-			goto settrue;
-		goto setfalse;
-	case TUP(ONE, Wlitfloat):
-		if(mpcmpfltflt(fval, nr->val.u.fval) != 0)
-			goto settrue;
-		goto setfalse;
-	case TUP(OLT, Wlitfloat):
-		if(mpcmpfltflt(fval, nr->val.u.fval) < 0)
-			goto settrue;
-		goto setfalse;
-	case TUP(OLE, Wlitfloat):
-		if(mpcmpfltflt(fval, nr->val.u.fval) <= 0)
-			goto settrue;
-		goto setfalse;
-	case TUP(OGE, Wlitfloat):
-		if(mpcmpfltflt(fval, nr->val.u.fval) >= 0)
-			goto settrue;
-		goto setfalse;
-	case TUP(OGT, Wlitfloat):
-		if(mpcmpfltflt(fval, nr->val.u.fval) > 0)
+	case TUP(OGT, CTINT):
+		if(mpcmpfixfix(v.u.xval, nr->val.u.xval) > 0)
 			goto settrue;
 		goto setfalse;
 
-	case TUP(OEQ, Wlitstr):
+	case TUP(OEQ, CTFLT):
+		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) == 0)
+			goto settrue;
+		goto setfalse;
+	case TUP(ONE, CTFLT):
+		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) != 0)
+			goto settrue;
+		goto setfalse;
+	case TUP(OLT, CTFLT):
+		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) < 0)
+			goto settrue;
+		goto setfalse;
+	case TUP(OLE, CTFLT):
+		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) <= 0)
+			goto settrue;
+		goto setfalse;
+	case TUP(OGE, CTFLT):
+		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) >= 0)
+			goto settrue;
+		goto setfalse;
+	case TUP(OGT, CTFLT):
+		if(mpcmpfltflt(v.u.fval, nr->val.u.fval) > 0)
+			goto settrue;
+		goto setfalse;
+
+	case TUP(OEQ, CTSTR):
 		if(cmpslit(nl, nr) == 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(ONE, Wlitstr):
+	case TUP(ONE, CTSTR):
 		if(cmpslit(nl, nr) != 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(OLT, Wlitstr):
+	case TUP(OLT, CTSTR):
 		if(cmpslit(nl, nr) < 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(OLE, Wlitstr):
+	case TUP(OLE, CTSTR):
 		if(cmpslit(nl, nr) <= 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(OGE, Wlitstr):
+	case TUP(OGE, CTSTR):
 		if(cmpslit(nl, nr) >= 0l)
 			goto settrue;
 		goto setfalse;
-	case TUP(OGT, Wlitstr):
+	case TUP(OGT, CTSTR):
 		if(cmpslit(nl, nr) > 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(OADD, Wlitstr):
-		len = nl->val.u.sval->len + nr->val.u.sval->len;
+	case TUP(OADD, CTSTR):
+		len = v.u.sval->len + nr->val.u.sval->len;
 		str = mal(sizeof(*str) + len);
 		str->len = len;
-		memcpy(str->s, nl->val.u.sval->s, nl->val.u.sval->len);
-		memcpy(str->s+nl->val.u.sval->len, nr->val.u.sval->s, nr->val.u.sval->len);
+		memcpy(str->s, v.u.sval->s, v.u.sval->len);
+		memcpy(str->s+v.u.sval->len, nr->val.u.sval->s, nr->val.u.sval->len);
 		str->len = len;
-		nl->val.u.sval = str;
+		v.u.sval = str;
 		break;
 
-	case TUP(OOROR, Wlitbool):
-		if(nl->val.u.bval || nr->val.u.bval)
+	case TUP(OOROR, CTBOOL):
+		if(v.u.bval || nr->val.u.bval)
 			goto settrue;
 		goto setfalse;
-	case TUP(OANDAND, Wlitbool):
-		if(nl->val.u.bval && nr->val.u.bval)
+	case TUP(OANDAND, CTBOOL):
+		if(v.u.bval && nr->val.u.bval)
+			goto settrue;
+		goto setfalse;
+	case TUP(OEQ, CTBOOL):
+		if(v.u.bval == nr->val.u.bval)
+			goto settrue;
+		goto setfalse;
+	case TUP(ONE, CTBOOL):
+		if(v.u.bval != nr->val.u.bval)
 			goto settrue;
 		goto setfalse;
 	}
 	goto ret;
 
-settrue:
-	*n = *booltrue;
-	return;
-
-setfalse:
-	*n = *boolfalse;
-	return;
-
 unary:
-	if(wl == Wlitint) {
-		xval = mal(sizeof(*xval));
-		mpmovefixfix(xval, nl->val.u.xval);
-	} else
-	if(wl == Wlitfloat) {
-		fval = mal(sizeof(*fval));
-		mpmovefltflt(fval, nl->val.u.fval);
-	}
+	// copy numeric value to avoid modifying
+	// nl, in case someone still refers to it (e.g. iota).
+	v = nl->val;
+	if(wl == TIDEAL)
+		v = copyval(v);
 
-	switch(TUP(n->op, wl)) {
+	switch(TUP(n->op, v.ctype)) {
 	default:
-		yyerror("illegal combination of literals %O %d", n->op, wl);
+		yyerror("illegal constant expression %O %T %d", n->op, nl->type, v.ctype);
 		return;
 
-	case TUP(OPLUS, Wlitint):
+	case TUP(OPLUS, CTINT):
 		break;
-	case TUP(OMINUS, Wlitint):
-		mpnegfix(xval);
+	case TUP(OMINUS, CTINT):
+		mpnegfix(v.u.xval);
 		break;
-	case TUP(OCOM, Wlitint):
-		mpcomfix(xval);
-		break;
-
-	case TUP(OPLUS, Wlitfloat):
-		break;
-	case TUP(OMINUS, Wlitfloat):
-		mpnegflt(fval);
+	case TUP(OCOM, CTINT):
+		mpcomfix(v.u.xval);
 		break;
 
-	case TUP(ONOT, Wlitbool):
-		if(nl->val.u.bval)
+	case TUP(OPLUS, CTFLT):
+		break;
+	case TUP(OMINUS, CTFLT):
+		mpnegflt(v.u.fval);
+		break;
+
+	case TUP(ONOT, CTBOOL):
+		if(!v.u.bval)
 			goto settrue;
 		goto setfalse;
 	}
 
 ret:
+	// rewrite n in place.
 	*n = *nl;
+	n->val = v;
 
-	// second half of dance
-	if(wl == Wlitint) {
-		n->val.u.xval = xval;
-	} else
-	if(wl == Wlitfloat) {
-		n->val.u.fval = fval;
-		truncfltlit(fval, n->type);
+	// lose type name if any:
+	//	type T int
+	//	const A T = 1;
+	// A+0 has type int, not T.
+	n->type = types[n->type->etype];
+
+	// check range.
+	lno = lineno;
+	lineno = n->lineno;
+	overflow(v, n->type);
+	lineno = lno;
+
+	// truncate precision for non-ideal float.
+	if(v.ctype == CTFLT && n->type->etype != TIDEAL)
+		truncfltlit(v.u.fval, n->type);
+	return;
+
+settrue:
+	*n = *nodbool(1);
+	return;
+
+setfalse:
+	*n = *nodbool(0);
+	return;
+}
+
+Node*
+nodlit(Val v)
+{
+	Node *n;
+
+	n = nod(OLITERAL, N, N);
+	n->val = v;
+	switch(v.ctype) {
+	default:
+		fatal("nodlit ctype %d", v.ctype);
+	case CTSTR:
+		n->type = types[TSTRING];
+		break;
+	case CTBOOL:
+		n->type = types[TBOOL];
+		break;
+	case CTINT:
+	case CTFLT:
+		n->type = types[TIDEAL];
+		break;
+	case CTNIL:
+		n->type = types[TNIL];
+		break;
 	}
+	return n;
 }
 
 void
-defaultlit(Node *n)
+defaultlit(Node *n, Type *t)
 {
+	int lno;
+
 	if(n == N)
 		return;
-	if(n->type != T)
-		return;
-	if(n->op != OLITERAL)
+	if(n->type == T || n->type->etype != TIDEAL)
 		return;
 
+	switch(n->op) {
+	case OLITERAL:
+		break;
+	case OLSH:
+	case ORSH:
+		defaultlit(n->left, t);
+		n->type = n->left->type;
+		return;
+	}
+
+	lno = lineno;
+	lineno = n->lineno;
 	switch(n->val.ctype) {
 	default:
 		yyerror("defaultlit: unknown literal: %N", n);
 		break;
 	case CTINT:
-	case CTSINT:
-	case CTUINT:
 		n->type = types[TINT];
+		if(t != T) {
+			if(isint[t->etype])
+				n->type = t;
+			else if(isfloat[t->etype]) {
+				n->type = t;
+				n->val = toflt(n->val);
+			}
+		}
+		overflow(n->val, n->type);
 		break;
 	case CTFLT:
 		n->type = types[TFLOAT];
-		break;
-	case CTBOOL:
-		n->type = types[TBOOL];
-		break;
-	case CTSTR:
-		n->type = types[TSTRING];
+		if(t != T) {
+			if(isfloat[t->etype])
+				n->type = t;
+			else if(isint[t->etype]) {
+				n->type = t;
+				n->val = toint(n->val);
+			}
+		}
+		overflow(n->val, n->type);
 		break;
 	}
+	lineno = lno;
+}
+
+/*
+ * defaultlit on both nodes simultaneously;
+ * if they're both ideal going in they better
+ * get the same type going out.
+ */
+void
+defaultlit2(Node *l, Node *r)
+{
+	if(l->type == T || r->type == T)
+		return;
+	if(l->type->etype != TIDEAL && l->type->etype != TNIL) {
+		convlit(r, l->type);
+		return;
+	}
+	if(r->type->etype != TIDEAL && r->type->etype != TNIL) {
+		convlit(l, r->type);
+		return;
+	}
+	if(isconst(l, CTFLT) || isconst(r, CTFLT)) {
+		convlit(l, types[TFLOAT]);
+		convlit(r, types[TFLOAT]);
+		return;
+	}
+	convlit(l, types[TINT]);
+	convlit(r, types[TINT]);
 }
 
 int

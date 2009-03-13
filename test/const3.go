@@ -1,0 +1,29 @@
+// $G $D/$F.go && $L $F.$A && ./$A.out
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "fmt"
+
+type T int
+func (t T) String() string {
+	return fmt.Sprintf("T%d", t);
+}
+
+const (
+	A T = 1<<(1<<iota);
+	B;
+	C;
+	D;
+	E;
+)
+
+func main() {
+	s := fmt.Sprintf("%v %v %v %v %v", A, B, C, D, E);
+	if s != "T2 T4 T16 T256 T65536" {
+		panicln("type info didn't propagate in const: got", s);
+	}
+}

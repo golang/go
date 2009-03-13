@@ -73,7 +73,7 @@
 %type	<type>		indcl fnlitdcl dotdotdot
 %type	<val>		oliteral
 
-%type	<val>		hidden_constant
+%type	<node>		hidden_constant
 %type	<node>		hidden_dcl hidden_structdcl
 %type	<type>		hidden_type hidden_type1 hidden_type2
 %type	<node>		hidden_structdcl_list ohidden_structdcl_list hidden_structdcl_list_r
@@ -447,12 +447,12 @@ simple_stmt:
 	}
 |	expr LINC
 	{
-		$$ = nod(OASOP, $1, literal(1));
+		$$ = nod(OASOP, $1, nodintconst(1));
 		$$->etype = OADD;
 	}
 |	expr LDEC
 	{
-		$$ = nod(OASOP, $1, literal(1));
+		$$ = nod(OASOP, $1, nodintconst(1));
 		$$->etype = OSUB;
 	}
 
@@ -822,10 +822,22 @@ uexpr:
 pexpr:
 	LLITERAL
 	{
-		$$ = nod(OLITERAL, N, N);
-		$$->val = $1;
-		if($1.ctype == CTSTR)
-			$$->type = types[TSTRING];
+		$$ = nodlit($1);
+	}
+|	LNIL
+	{
+		Val v;
+
+		v.ctype = CTNIL;
+		$$ = nodlit(v);
+	}
+|	LTRUE
+	{
+		$$ = nodbool(1);
+	}
+|	LFALSE
+	{
+		$$ = nodbool(0);
 	}
 |	laconst
 	{
@@ -833,22 +845,9 @@ pexpr:
 		$$->val = $1->oconst->val;
 		$$->type = $1->oconst->type;
 	}
-|	LNIL
-	{
-		$$ = nod(OLITERAL, N, N);
-		$$->val.ctype = CTNIL;
-	}
-|	LTRUE
-	{
-		$$ = booltrue;
-	}
-|	LFALSE
-	{
-		$$ = boolfalse;
-	}
 |	LIOTA
 	{
-		$$ = literal(iota);
+		$$ = nodintconst(iota);
 		$$->iota = 1;	// flag to reevaluate on copy
 	}
 |	name
@@ -1828,11 +1827,11 @@ hidden_import:
 	}
 |	LCONST hidden_pkg_importsym '=' hidden_constant
 	{
-		importconst($2, T, &$4);
+		importconst($2, types[TIDEAL], $4);
 	}
 |	LCONST hidden_pkg_importsym hidden_type '=' hidden_constant
 	{
-		importconst($2, $3, &$5);
+		importconst($2, $3, $5);
 	}
 |	LTYPE hidden_pkg_importsym hidden_type
 	{
@@ -1870,11 +1869,7 @@ hidden_type1:
 	}
 |	'[' LLITERAL ']' hidden_type
 	{
-		Node *n;
-
-		n = nod(OLITERAL, N, N);
-		n->val = $2;
-		$$ = aindex(n, $4);
+		$$ = aindex(nodlit($2), $4);
 	}
 |	LMAP '[' hidden_type ']' hidden_type
 	{
@@ -1978,15 +1973,18 @@ hidden_funres:
 
 hidden_constant:
 	LLITERAL
+	{
+		$$ = nodlit($1);
+	}
 |	'-' LLITERAL
 	{
-		$$ = $2;
-		switch($$.ctype){
+		$$ = nodlit($2);
+		switch($$->val.ctype){
 		case CTINT:
-			mpnegfix($$.u.xval);
+			mpnegfix($$->val.u.xval);
 			break;
 		case CTFLT:
-			mpnegflt($$.u.fval);
+			mpnegflt($$->val.u.fval);
 			break;
 		default:
 			yyerror("bad negated constant");
@@ -1994,11 +1992,11 @@ hidden_constant:
 	}
 |	LTRUE
 	{
-		$$ = booltrue->val;
+		$$ = nodbool(1);
 	}
 |	LFALSE
 	{
-		$$ = boolfalse->val;
+		$$ = nodbool(0);
 	}
 
 hidden_importsym:

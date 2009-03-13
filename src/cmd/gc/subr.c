@@ -29,7 +29,7 @@ yyerror(char *fmt, ...)
 		*(int*)0 = 0;
 
 	nerrors++;
-	if(nerrors >= 10)
+	if(nerrors >= 10 && !debug['e'])
 		fatal("too many errors");
 }
 
@@ -351,7 +351,7 @@ dobad(void)
 }
 
 Node*
-nodintconst(int32 v)
+nodintconst(int64 v)
 {
 	Node *c;
 
@@ -360,8 +360,31 @@ nodintconst(int32 v)
 	c->val.u.xval = mal(sizeof(*c->val.u.xval));
 	mpmovecfix(c->val.u.xval, v);
 	c->val.ctype = CTINT;
-	c->type = types[TINT];
+	c->type = types[TIDEAL];
 	ullmancalc(c);
+	return c;
+}
+
+Node*
+nodnil(void)
+{
+	Node *c;
+
+	c = nodintconst(0);
+	c->val.ctype = CTNIL;
+	c->type = types[TNIL];
+	return c;
+}
+
+Node*
+nodbool(int b)
+{
+	Node *c;
+
+	c = nodintconst(0);
+	c->val.ctype = CTBOOL;
+	c->val.u.bval = b;
+	c->type = types[TBOOL];
 	return c;
 }
 
@@ -437,19 +460,17 @@ aindex(Node *b, Type *t)
 
 	bound = -1;	// open bound
 	walktype(b, Erv);
-	switch(whatis(b)) {
-	default:	// variable bound
-		yyerror("array bound must be an integer expression");
-		break;
-
-	case Wnil:	// open bound
-		break;
-
-	case Wlitint:	// fixed bound
-		bound = mpgetfix(b->val.u.xval);
-		if(bound < 0)
-			yyerror("array bound must be non negative");
-		break;
+	if(b != nil) {
+		switch(consttype(b)) {
+		default:
+			yyerror("array bound must be an integer expression");
+			break;
+		case CTINT:
+			bound = mpgetfix(b->val.u.xval);
+			if(bound < 0)
+				yyerror("array bound must be non negative");
+			break;
+		}
 	}
 
 	// fixed array
@@ -567,64 +588,6 @@ dump(char *s, Node *n)
 {
 	print("%s\n", s);
 	dodump(n, 1);
-}
-
-int
-whatis(Node *n)
-{
-	Type *t;
-
-	if(n == N)
-		return Wnil;
-
-	if(n->op == OLITERAL) {
-		switch(n->val.ctype) {
-		default:
-			break;
-		case CTINT:
-		case CTSINT:
-		case CTUINT:
-			return Wlitint;
-		case CTFLT:
-			return Wlitfloat;
-		case CTBOOL:
-			return Wlitbool;
-		case CTSTR:
-			return Wlitstr;
-		case CTNIL:
-			return Wlitnil;	// not used
-		}
-		return Wtunkn;
-	}
-
-	t = n->type;
-	if(t == T)
-		return Wtnil;
-
-	switch(t->etype) {
-	case TINT:
-	case TINT8:
-	case TINT16:
-	case TINT32:
-	case TINT64:
-	case TUINT:
-	case TUINT8:
-	case TUINT16:
-	case TUINT32:
-	case TUINT64:
-	case TUINTPTR:
-		return Wtint;
-	case TFLOAT:
-	case TFLOAT32:
-	case TFLOAT64:
-	case TFLOAT80:
-		return Wtfloat;
-	case TBOOL:
-		return Wtbool;
-	case TSTRING:
-		return Wtstr;
-	}
-	return Wtunkn;
 }
 
 /*
@@ -1013,6 +976,8 @@ basicnames[] =
 	[TANY]		= "any",
 	[TDDD]		= "...",
 	[TSTRING]		= "string",
+	[TNIL]		= "nil",
+	[TIDEAL]		= "ideal",
 };
 
 int
@@ -1302,8 +1267,6 @@ Nconv(Fmt *fp)
 			snprint(buf1, sizeof(buf1), "LITERAL-ctype=%d", n->val.ctype);
 			break;
 		case CTINT:
-		case CTSINT:
-		case CTUINT:
 			snprint(buf1, sizeof(buf1), "I%B", n->val.u.xval);
 			break;
 		case CTFLT:
@@ -1363,7 +1326,7 @@ treecopy(Node *n)
 
 	case OLITERAL:
 		if(n->iota) {
-			m = literal(iota);
+			m = nodintconst(iota);
 			break;
 		}
 		m = nod(OXXX, N, N);
@@ -1416,34 +1379,6 @@ Zconv(Fmt *fp)
 	return 0;
 }
 
-static char*
-wnames[] =
-{
-	[Wnil] =	"Wnil",
-	[Wtnil] =	"Wtnil",
-
-	[Wtfloat] =	"Wtfloat",
-	[Wtint] =	"Wtint",
-	[Wtbool] =	"Wtbool",
-	[Wtstr] =	"Wtstr",
-
-	[Wlitfloat] =	"float constant",
-	[Wlitint] =	"int constant",
-	[Wlitbool] =	"bool",
-	[Wlitstr] =	"string",
-	[Wlitnil] =	"nil",
-};
-
-int
-Wconv(Fmt *fp)
-{
-	int w;
-
-	w = va_arg(fp->args, int);
-	if(w < 0 || w >= nelem(wnames) || wnames[w] == nil)
-		return fmtprint(fp, "W-%d", w);
-	return fmtstrcpy(fp, wnames[w]);
-}
 int
 isnil(Node *n)
 {
@@ -2041,18 +1976,6 @@ ptrto(Type *t)
 	t1->type = t;
 	t1->width = types[tptr]->width;
 	return t1;
-}
-
-Node*
-literal(int32 v)
-{
-	Node *n;
-
-	n = nod(OLITERAL, N, N);
-	n->val.u.xval = mal(sizeof(*n->val.u.xval));
-	n->val.ctype = CTINT;
-	mpmovecfix(n->val.u.xval, v);
-	return n;
 }
 
 void

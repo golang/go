@@ -23,6 +23,8 @@ dodclvar(Node *n, Type *t)
 	if(n == N)
 		return;
 
+	if(t != T && (t->etype == TIDEAL || t->etype == TNIL))
+		fatal("dodclvar %T", t);
 	for(; n->op == OLIST; n = n->right)
 		dodclvar(n->left, t);
 
@@ -1284,7 +1286,7 @@ fninit(Node *n)
 	r = list(r, a);
 
 	// (4)
-	a = nod(OAS, done, booltrue);
+	a = nod(OAS, done, nodbool(1));
 	r = list(r, a);
 
 	// (5)
@@ -1460,7 +1462,7 @@ loop:
 	a = nod(OAS, v, N);
 	if(t == T) {
 		gettype(e, a);
-		defaultlit(e);
+		defaultlit(e, T);
 		dodclvar(v, e->type);
 	} else
 		dodclvar(v, t);
@@ -1475,7 +1477,7 @@ loop:
 
 /*
  * declare constants from grammar
- * new_name_list [type] [= expr_list]
+ * new_name_list [[type] = expr_list]
  */
 void
 constiter(Node *vv, Type *t, Node *cc)
@@ -1483,9 +1485,14 @@ constiter(Node *vv, Type *t, Node *cc)
 	Iter viter, citer;
 	Node *v, *c;
 
-	if(cc == N)
+	if(cc == N) {
+		if(t != T)
+			yyerror("constdcl cannot have type without expr");
 		cc = lastconst;
+		t = lasttype;
+	}
 	lastconst = cc;
+	lasttype = t;
 	vv = rev(vv);
 	cc = rev(treecopy(cc));
 
@@ -1499,7 +1506,7 @@ loop:
 	}
 
 	if(v == N || c == N) {
-		yyerror("shape error in var dcl");
+		yyerror("shape error in const dcl");
 		iota += 1;
 		return;
 	}
@@ -1507,6 +1514,8 @@ loop:
 	gettype(c, N);
 	if(t != T)
 		convlit(c, t);
+	if(t == T)
+		lasttype = c->type;
 	dodclconst(v, c);
 
 	v = listnext(&viter);
@@ -1587,5 +1596,6 @@ yes:
 	mpmovecfix(val.u.xval, v);
 	n = nod(OLITERAL, N, N);
 	n->val = val;
+	n->type = types[TINT];
 	return n;
 }

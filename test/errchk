@@ -63,11 +63,11 @@ pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
   mv -f $TMPTMP $TMPALL
   if test -z "$errmsg"; then
     bug
-    echo 1>&2 "errchk: $SOURCEFILE: missing expected error message on line $lineno: '$regexp'"
+    echo 1>&2 "errchk: $SOURCEFILE:$lineno: missing expected error: '$regexp'"
     echo 1 > $TMPSTAT
   elif ! echo "$errmsg" | egrep -q "$regexp"; then
     bug
-    echo 1>&2 "errchk: $SOURCEFILE: error message on line $lineno does not match '$regexp'"
+    echo 1>&2 "errchk: $SOURCEFILE:$lineno: error message does not match '$regexp'"
     echo 1>&2 $errmsg
     echo 1 > $TMPSTAT
   fi
