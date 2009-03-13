@@ -21,7 +21,8 @@ case "$USER" in
 ken | r | rsc)
 	if ! cmp _builtin.c builtin.c.boot
 	then
-		p4 open builtin.c.boot
+		PATH=$PATH:/usr/local/bin
+		p4 open builtin.c.boot >/dev/null
 		cp _builtin.c builtin.c.boot
 	fi
 esac

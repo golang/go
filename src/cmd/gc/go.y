@@ -15,7 +15,7 @@
 %token	<val>		LLITERAL
 %token	<lint>		LASOP
 %token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
-%token	<sym>		LPACKAGE LIMPORT LDEFER
+%token	<sym>		LPACKAGE LIMPORT LDEFER LCLOSE LCLOSED
 %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
 %token	<sym>		LCOLAS LFALL LRETURN LDDD
 %token	<sym>		LLEN LCAP LPANIC LPANICN LPRINT LPRINTN
@@ -888,6 +888,14 @@ pexpr:
 	{
 		$$ = nod(OLEN, $3, N);
 	}
+|	LCLOSE '(' expr ')'
+	{
+		$$ = nod(OCLOSE, $3, N);
+	}
+|	LCLOSED '(' expr ')'
+	{
+		$$ = nod(OCLOSED, $3, N);
+	}
 |	LCAP '(' expr ')'
 	{
 		$$ = nod(OCAP, $3, N);
@@ -1023,6 +1031,8 @@ sym2:
 sym3:
 	LLEN
 |	LCAP
+|	LCLOSE
+|	LCLOSED
 |	LPANIC
 |	LPANICN
 |	LPRINT

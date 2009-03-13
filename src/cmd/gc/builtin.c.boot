@@ -41,6 +41,8 @@ char *sysimport =
 	"func sys.chanrecv3 (hchan chan any, elem *any) (pres bool)\n"
 	"func sys.chansend1 (hchan chan any, elem any)\n"
 	"func sys.chansend2 (hchan chan any, elem any) (pres bool)\n"
+	"func sys.closechan (hchan chan any)\n"
+	"func sys.closedchan (hchan chan any) (? bool)\n"
 	"func sys.newselect (size int) (sel *uint8)\n"
 	"func sys.selectsend (sel *uint8, hchan chan any, elem any) (selected bool)\n"
 	"func sys.selectrecv (sel *uint8, hchan chan any, elem *any) (selected bool)\n"
