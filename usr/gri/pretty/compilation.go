@@ -112,7 +112,7 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 	var parser Parser.Parser;
 	parser.Init(&scanner, &err, flags.Verbose);
 
-	prog := parser.ParseProgram();
+	prog := parser.Parse(Parser.ParseEntirePackage);
 
 	if err.nerrors == 0 {
 		TypeChecker.CheckProgram(&err, prog);

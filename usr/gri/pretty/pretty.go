@@ -53,7 +53,7 @@ func main() {
 				sys.Exit(1);
 			}
 			if !*silent {
-				Printer.Print(os.Stdout, *html, prog);
+				Printer.Print(os.Stdout, prog, *html);
 			}
 		}
 	}
