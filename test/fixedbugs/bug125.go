@@ -5,6 +5,11 @@
 // license that can be found in the LICENSE file.
 
 package main
-func f() {
-	v := 1 << 1025;		// ERROR "overflow"
+
+import (
+	OS "os"  // should require semicolon here; this is no different from other decls
+	IO "io"  // ERROR "missing|syntax"
+)
+
+func main() {
 }

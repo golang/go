@@ -308,7 +308,7 @@ out:
 	return;
 
 bad:
-	warn("set ovf in mpatof");
+	yyerror("set ovf in mpatof");
 	mpmovecflt(a, 0.0);
 }
 
@@ -396,7 +396,7 @@ out:
 	return;
 
 bad:
-	warn("set ovf in mpatov: %s", as);
+	yyerror("set ovf in mpatov: %s", as);
 	mpmovecfix(a, 0);
 }
 

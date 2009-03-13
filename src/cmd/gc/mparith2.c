@@ -119,7 +119,7 @@ mpcmp(Mpint *a, Mpint *b)
 	int i;
 
 	if(a->ovf || b->ovf) {
-		warn("ovf in cmp");
+		yyerror("ovf in cmp");
 		return 0;
 	}
 
@@ -194,7 +194,7 @@ mpaddfixfix(Mpint *a, Mpint *b)
 	long x, *a1, *b1;
 
 	if(a->ovf || b->ovf) {
-		warn("ovf in mpaddxx");
+		yyerror("ovf in mpaddxx");
 		a->ovf = 1;
 		return;
 	}
@@ -217,7 +217,7 @@ mpaddfixfix(Mpint *a, Mpint *b)
 	}
 	a->ovf = c;
 	if(a->ovf)
-		warn("set ovf in mpaddxx");
+		yyerror("set ovf in mpaddxx");
 
 	return;
 
@@ -264,7 +264,7 @@ mpmulfixfix(Mpint *a, Mpint *b)
 	Mpint s, q;
 
 	if(a->ovf || b->ovf) {
-		warn("ovf in mpmulfixfix");
+		yyerror("ovf in mpmulfixfix");
 		a->ovf = 1;
 		return;
 	}
@@ -297,7 +297,7 @@ mpmulfixfix(Mpint *a, Mpint *b)
 	q.neg = a->neg ^ b->neg;
 	mpmovefixfix(a, &q);
 	if(a->ovf)
-		warn("set ovf in mpmulfixfix");
+		yyerror("set ovf in mpmulfixfix");
 }
 
 void
@@ -309,7 +309,7 @@ mpmulfract(Mpint *a, Mpint *b)
 	Mpint s, q;
 
 	if(a->ovf || b->ovf) {
-		warn("ovf in mpmulflt");
+		yyerror("ovf in mpmulflt");
 		a->ovf = 1;
 		return;
 	}
@@ -336,7 +336,7 @@ mpmulfract(Mpint *a, Mpint *b)
 	q.neg = a->neg ^ b->neg;
 	mpmovefixfix(a, &q);
 	if(a->ovf)
-		warn("set ovf in mpmulflt");
+		yyerror("set ovf in mpmulflt");
 }
 
 void
@@ -346,7 +346,7 @@ mporfixfix(Mpint *a, Mpint *b)
 	long x, *a1, *b1;
 
 	if(a->ovf || b->ovf) {
-		warn("ovf in mporfixfix");
+		yyerror("ovf in mporfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
@@ -380,7 +380,7 @@ mpandfixfix(Mpint *a, Mpint *b)
 	long x, *a1, *b1;
 
 	if(a->ovf || b->ovf) {
-		warn("ovf in mpandfixfix");
+		yyerror("ovf in mpandfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
@@ -414,7 +414,7 @@ mpandnotfixfix(Mpint *a, Mpint *b)
 	long x, *a1, *b1;
 
 	if(a->ovf || b->ovf) {
-		warn("ovf in mpandnotfixfix");
+		yyerror("ovf in mpandnotfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
@@ -448,7 +448,7 @@ mpxorfixfix(Mpint *a, Mpint *b)
 	long x, *a1, *b1;
 
 	if(a->ovf || b->ovf) {
-		warn("ovf in mporfixfix");
+		yyerror("ovf in mporfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
@@ -481,14 +481,14 @@ mplshfixfix(Mpint *a, Mpint *b)
 	vlong s;
 
 	if(a->ovf || b->ovf) {
-		warn("ovf in mporfixfix");
+		yyerror("ovf in mporfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
 	}
 	s = mpgetfix(b);
 	if(s < 0 || s >= Mpprec*Mpscale) {
-		warn("stupid shift: %lld", s);
+		yyerror("stupid shift: %lld", s);
 		mpmovecfix(a, 0);
 		return;
 	}
@@ -502,14 +502,14 @@ mprshfixfix(Mpint *a, Mpint *b)
 	vlong s;
 
 	if(a->ovf || b->ovf) {
-		warn("ovf in mprshfixfix");
+		yyerror("ovf in mprshfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
 	}
 	s = mpgetfix(b);
 	if(s < 0 || s >= Mpprec*Mpscale) {
-		warn("stupid shift: %lld", s);
+		yyerror("stupid shift: %lld", s);
 		if(a->neg)
 			mpmovecfix(a, -1);
 		else
@@ -532,7 +532,7 @@ mpgetfix(Mpint *a)
 	vlong v;
 
 	if(a->ovf) {
-		warn("ovf in mpgetfix");
+		yyerror("ovf in mpgetfix");
 		return 0;
 	}
 
@@ -588,7 +588,7 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 	if(i >= Mpprec*Mpscale) {
 		q->ovf = 1;
 		r->ovf = 1;
-		warn("set ovf in mpdivmodfixfix");
+		yyerror("set ovf in mpdivmodfixfix");
 		return;
 	}
 
