@@ -2856,10 +2856,8 @@ In practice, constant expressions are those that can be evaluated at compile tim
 <p>
 The type of a constant expression is determined by the type of its
 elements.  If it contains only numeric literals, its type is <i>ideal
-integer</i> or <i>ideal float</i> (§Ideal number).  Whether it is an
-integer or float depends on whether the value can be represented
-precisely as an integer (123 vs. 1.23).
-(TODO: Not precisely true; 1. is an ideal float.)
+integer</i> or <i>ideal float</i> (§Ideal number).  Whether a literal
+is an integer or float depends on the syntax of the literals (123 vs. 123.0).
 The nature of the arithmetic
 operations within the expression depends, elementwise, on the values;
 for example, 3/2 is an integer division yielding 1, while 3./2. is
