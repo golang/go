@@ -144,7 +144,7 @@ type (
 	};
 	
 	Field struct {
-		Idents []*Ident;
+		Names []*Ident;
 		Typ Expr;
 		Tag Expr;  // nil = no tag
 		Comment CommentGroup;
@@ -341,9 +341,10 @@ type (
 		Loc scanner.Location;
 	};
 
-	LabelDecl struct {
+	LabeledStat struct {
 		Loc scanner.Location;  // location of ":"
 		Label *Ident;
+		Stat Stat;
 	};
 
 	DeclarationStat struct {
@@ -408,7 +409,7 @@ type (
 
 type StatVisitor interface {
 	DoBadStat(s *BadStat);
-	DoLabelDecl(s *LabelDecl);
+	DoLabeledStat(s *LabeledStat);
 	DoDeclarationStat(s *DeclarationStat);
 	DoExpressionStat(s *ExpressionStat);
 	DoCompositeStat(s *CompositeStat);
@@ -423,7 +424,7 @@ type StatVisitor interface {
 
 
 func (s *BadStat) Visit(v StatVisitor) { v.DoBadStat(s); }
-func (s *LabelDecl) Visit(v StatVisitor) { v.DoLabelDecl(s); }
+func (s *LabeledStat) Visit(v StatVisitor) { v.DoLabeledStat(s); }
 func (s *DeclarationStat) Visit(v StatVisitor) { v.DoDeclarationStat(s); }
 func (s *ExpressionStat) Visit(v StatVisitor) { v.DoExpressionStat(s); }
 func (s *CompositeStat) Visit(v StatVisitor) { v.DoCompositeStat(s); }
@@ -452,13 +453,13 @@ type (
 
 	ImportDecl struct {
 		Loc scanner.Location;  // if > 0: position of "import"
-		Ident *Ident;
+		Name *Ident;
 		Path Expr;
 	};
 	
 	ConstDecl struct {
 		Loc scanner.Location;  // if > 0: position of "const"
-		Idents []*Ident;
+		Names []*Ident;
 		Typ Expr;
 		Vals Expr;
 		Comment CommentGroup;
@@ -466,14 +467,14 @@ type (
 	
 	TypeDecl struct {
 		Loc scanner.Location;  // if > 0: position of "type"
-		Ident *Ident;
+		Name *Ident;
 		Typ Expr;
 		Comment CommentGroup;
 	};
 	
 	VarDecl struct {
 		Loc scanner.Location;  // if > 0: position of "var"
-		Idents []*Ident;
+		Names []*Ident;
 		Typ Expr;
 		Vals Expr;
 		Comment CommentGroup;
@@ -482,7 +483,7 @@ type (
 	FuncDecl struct {
 		Loc scanner.Location;  // location of "func"
 		Recv *Field;
-		Ident *Ident;
+		Name *Ident;
 		Sig *Signature;
 		Body *Block;
 		Comment CommentGroup;
@@ -523,7 +524,7 @@ func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
 // TODO rename to Package
 type Program struct {
 	Loc scanner.Location;  // tok is token.PACKAGE
-	Ident *Ident;
+	Name *Ident;
 	Decls []Decl;
 	Comment CommentGroup;
 	Comments []CommentGroup;

@@ -48,8 +48,8 @@ func main() {
 			Compilation.ComputeDeps(src_file, &flags);
 
 		} else {
-			prog, nerrors := Compilation.Compile(src_file, &flags);
-			if nerrors > 0 {
+			prog, errors := Compilation.Compile(src_file, &flags);
+			if errors == nil || len(errors) > 0 {
 				sys.Exit(1);
 			}
 			if !*silent {
