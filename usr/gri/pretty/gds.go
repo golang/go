@@ -108,7 +108,7 @@ func serveFile(c *http.Conn, filename string) {
 	}
 
 	c.SetHeader("content-type", "text/html; charset=utf-8");
-	Printer.Print(c, true, prog);
+	Printer.Print(c, prog, true);
 }
 
 

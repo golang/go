@@ -24,12 +24,11 @@ import (
 
 var (
 	debug = flag.Bool("debug", false, "print debugging information");
-	def = flag.Bool("def", false, "print 'def' instead of 'const', 'type', 'func' - experimental");
 
 	// layout control
 	tabwidth = flag.Int("tabwidth", 8, "tab width");
 	usetabs = flag.Bool("usetabs", true, "align with tabs instead of blanks");
-	newlines = flag.Bool("newlines", true, "respect newlines in source");
+	newlines = flag.Bool("newlines", false, "respect newlines in source");
 	maxnewlines = flag.Int("maxnewlines", 3, "max. number of consecutive newlines");
 
 	// formatting control
@@ -63,6 +62,23 @@ func assert(pred bool) {
 }
 
 
+// TODO this should be an AST method
+func isExported(name *ast.Ident) bool {
+	ch, len := utf8.DecodeRuneInString(name.Str, 0);
+	return unicode.IsUpper(ch);
+}
+
+
+func hasExportedNames(names []*ast.Ident) bool {
+	for i, name := range names {
+		if isExported(name) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
 // ----------------------------------------------------------------------------
 // Printer
 
@@ -91,14 +107,15 @@ type Printer struct {
 	
 	// formatting control
 	html bool;
+	full bool;  // if false, print interface only; print all otherwise
 
 	// comments
-	comments []*ast.Comment;  // the list of all comments
-	cindex int;  // the current comments index
-	cpos int;  // the position of the next comment
+	comments []ast.CommentGroup;  // the list of all comments groups
+	cindex int;  // the current comment group index
+	cloc scanner.Location;  // the position of the next comment group
 
 	// current state
-	lastpos int;  // pos after last string
+	lastloc scanner.Location;  // location after last string
 	level int;  // scope level
 	indentation int;  // indentation level (may be different from scope level)
 
@@ -116,22 +133,22 @@ type Printer struct {
 }
 
 
-func (P *Printer) HasComment(pos int) bool {
-	return *comments && P.cpos < pos;
+func (P *Printer) hasComment(loc scanner.Location) bool {
+	return *comments && P.cloc.Pos < loc.Pos;
 }
 
 
-func (P *Printer) NextComment() {
+func (P *Printer) nextCommentGroup() {
 	P.cindex++;
 	if P.comments != nil && P.cindex < len(P.comments) {
-		P.cpos = P.comments[P.cindex].Loc.Pos;
+		P.cloc = P.comments[P.cindex][0].Loc;
 	} else {
-		P.cpos = 1<<30;  // infinite
+		P.cloc = scanner.Location{1<<30, 1<<30, 1};  // infinite
 	}
 }
 
 
-func (P *Printer) Init(text io.Write, html bool, comments []*ast.Comment) {
+func (P *Printer) Init(text io.Write, comments []ast.CommentGroup, html bool) {
 	// writers
 	P.text = text;
 	
@@ -141,7 +158,7 @@ func (P *Printer) Init(text io.Write, html bool, comments []*ast.Comment) {
 	// comments
 	P.comments = comments;
 	P.cindex = -1;
-	P.NextComment();
+	P.nextCommentGroup();
 
 	// formatting parameters & semantic state initialized correctly by default
 	
@@ -194,14 +211,15 @@ func (P *Printer) Printf(format string, s ...) {
 }
 
 
-func (P *Printer) Newline(n int) {
+func (P *Printer) newline(n int) {
 	if n > 0 {
 		m := int(*maxnewlines);
 		if n > m {
 			n = m;
 		}
-		for ; n > 0; n-- {
+		for n > 0 {
 			P.Printf("\n");
+			n--;
 		}
 		for i := P.indentation; i > 0; i-- {
 			P.Printf("\t");
@@ -214,7 +232,7 @@ func (P *Printer) TaggedString(loc scanner.Location, tag, s, endtag string) {
 	// use estimate for pos if we don't have one
 	pos := loc.Pos;
 	if pos == 0 {
-		pos = P.lastpos;
+		pos = P.lastloc.Pos;
 	}
 
 	// --------------------------------
@@ -252,26 +270,22 @@ func (P *Printer) TaggedString(loc scanner.Location, tag, s, endtag string) {
 	// --------------------------------
 	// interleave comments, if any
 	nlcount := 0;
-	for ; P.HasComment(pos); P.NextComment() {
-		// we have a comment/newline that comes before the string
-		comment := P.comments[P.cindex];
-		ctext := string(comment.Text);  // TODO get rid of string conversion here
+	if P.full {
+		for ; P.hasComment(loc); P.nextCommentGroup() {
+			// we have a comment group that comes before the string
+			comment := P.comments[P.cindex][0];  // TODO broken
+			ctext := string(comment.Text);  // TODO get rid of string conversion here
 
-		if ctext == "\n" {
-			// found a newline in src - count it
-			nlcount++;
-
-		} else {
 			// classify comment (len(ctext) >= 2)
 			//-style comment
-			if nlcount > 0 || P.cpos == 0 {
+			if nlcount > 0 || P.cloc.Pos == 0 {
 				// only white space before comment on this line
 				// or file starts with comment
 				// - indent
-				if !*newlines && P.cpos != 0 {
+				if !*newlines && P.cloc.Pos != 0 {
 					nlcount = 1;
 				}
-				P.Newline(nlcount);
+				P.newline(nlcount);
 				nlcount = 0;
 
 			} else {
@@ -304,23 +318,16 @@ func (P *Printer) TaggedString(loc scanner.Location, tag, s, endtag string) {
 
 			// print comment
 			if *debug {
-				P.Printf("[%d]", P.cpos);
+				P.Printf("[%d]", P.cloc.Pos);
 			}
 			// calling untabify increases the change for idempotent output
 			// since tabs in comments are also interpreted by tabwriter
 			P.Printf("%s", P.htmlEscape(untabify(ctext)));
-
-			if ctext[1] == '/' {
-				//-style comments must end in newline
-				if P.newlines == 0 {  // don't add newlines if not needed
-					P.newlines = 1;
-				}
-			}
 		}
+		// At this point we may have nlcount > 0: In this case we found newlines
+		// that were not followed by a comment. They are recognized (or not) when
+		// printing newlines below.
 	}
-	// At this point we may have nlcount > 0: In this case we found newlines
-	// that were not followed by a comment. They are recognized (or not) when
-	// printing newlines below.
 
 	// --------------------------------
 	// interpret state
@@ -346,7 +353,7 @@ func (P *Printer) TaggedString(loc scanner.Location, tag, s, endtag string) {
 		P.newlines = nlcount;
 	}
 	nlcount = 0;
-	P.Newline(P.newlines);
+	P.newline(P.newlines);
 	P.newlines = 0;
 
 	// --------------------------------
@@ -375,7 +382,9 @@ func (P *Printer) TaggedString(loc scanner.Location, tag, s, endtag string) {
 	// --------------------------------
 	// done
 	P.opt_semi = false;
-	P.lastpos = pos + len(s);  // rough estimate
+	loc.Pos += len(s);  // rough estimate
+	loc.Col += len(s);  // rough estimate
+	P.lastloc = loc;
 }
 
 
@@ -437,15 +446,20 @@ func (P *Printer) HtmlPackageName(loc scanner.Location, name string) {
 
 func (P *Printer) Expr(x ast.Expr)
 
-func (P *Printer) Idents(list []*ast.Ident) {
+func (P *Printer) Idents(list []*ast.Ident, full bool) int {
+	n := 0;
 	for i, x := range list {
-		if i > 0 {
+		if n > 0 {
 			P.Token(noloc, token.COMMA);
 			P.separator = blank;
 			P.state = inside_list;
 		}
-		P.Expr(x);
+		if full || isExported(x) {
+			P.Expr(x);
+			n++;
+		}
 	}
+	return n;
 }
 
 
@@ -456,8 +470,8 @@ func (P *Printer) Parameters(list []*ast.Field) {
 			if i > 0 {
 				P.separator = comma;
 			}
-			if len(par.Idents) > 0 {
-				P.Idents(par.Idents);
+			n := P.Idents(par.Idents, true);
+			if n > 0 {
 				P.separator = blank
 			};
 			P.Expr(par.Typ);
@@ -501,21 +515,25 @@ func (P *Printer) Fields(list []*ast.Field, end scanner.Location, is_interface b
 				P.separator = semicolon;
 				P.newlines = 1;
 			}
-			if len(fld.Idents) > 0 {
-				P.Idents(fld.Idents);
+			n := P.Idents(fld.Idents, P.full);
+			if n > 0 {
+				// at least one identifier
 				P.separator = tab
 			};
-			if is_interface {
-				if ftyp, is_ftyp := fld.Typ.(*ast.FunctionType); is_ftyp {
-					P.Signature(ftyp.Sig);
+			if n > 0 || len(fld.Idents) == 0 {
+				// at least one identifier or anonymous field
+				if is_interface {
+					if ftyp, is_ftyp := fld.Typ.(*ast.FunctionType); is_ftyp {
+						P.Signature(ftyp.Sig);
+					} else {
+						P.Expr(fld.Typ);
+					}
 				} else {
 					P.Expr(fld.Typ);
-				}
-			} else {
-				P.Expr(fld.Typ);
-				if fld.Tag != nil {
-					P.separator = tab;
-					P.Expr(fld.Tag);
+					if fld.Tag != nil {
+						P.separator = tab;
+						P.Expr(fld.Tag);
+					}
 				}
 			}
 		}
@@ -977,7 +995,7 @@ func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
 		P.Token(d.Loc, token.CONST);
 		P.separator = blank;
 	}
-	P.Idents(d.Idents);
+	P.Idents(d.Idents, P.full);
 	if d.Typ != nil {
 		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
 		P.Expr(d.Typ);
@@ -1009,7 +1027,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
 		P.Token(d.Loc, token.VAR);
 		P.separator = blank;
 	}
-	P.Idents(d.Idents);
+	P.Idents(d.Idents, P.full);
 	if d.Typ != nil {
 		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
 		P.Expr(d.Typ);
@@ -1025,7 +1043,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
 }
 
 
-func (P *Printer) funcDecl(d *ast.FuncDecl, with_body bool) {
+func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
 	P.Token(d.Loc, token.FUNC);
 	P.separator = blank;
 	if recv := d.Recv; recv != nil {
@@ -1041,7 +1059,7 @@ func (P *Printer) funcDecl(d *ast.FuncDecl, with_body bool) {
 	}
 	P.Expr(d.Ident);
 	P.Signature(d.Sig);
-	if with_body && d.Body != nil {
+	if P.full && d.Body != nil {
 		P.separator = blank;
 		P.Block(d.Body, true);
 	}
@@ -1049,17 +1067,8 @@ func (P *Printer) funcDecl(d *ast.FuncDecl, with_body bool) {
 }
 
 
-func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
-	P.funcDecl(d, true);
-}
-
-
 func (P *Printer) DoDeclList(d *ast.DeclList) {
-	if !*def || d.Tok == token.IMPORT || d.Tok == token.VAR {
-		P.Token(d.Loc, d.Tok);
-	} else {
-		P.String(d.Loc, "def");
-	}
+	P.Token(d.Loc, d.Tok);
 	P.separator = blank;
 
 	// group of parenthesized declarations
@@ -1090,26 +1099,111 @@ func (P *Printer) Decl(d ast.Decl) {
 // ----------------------------------------------------------------------------
 // Package interface
 
-// TODO this should be an AST method
-func isExported(name *ast.Ident) bool {
-	ch, len := utf8.DecodeRuneInString(name.Str, 0);
-	return unicode.IsUpper(ch);
+func stripWhiteSpace(s []byte) []byte {
+	i, j := 0, len(s);
+	for i < len(s) && s[i] <= ' ' {
+		i++;
+	}
+	for j > i && s[j-1] <= ' ' {
+		j--
+	}
+	return s[i : j];
+}
+
+
+func cleanComment(s []byte) []byte {
+	switch s[1] {
+	case '/': s = s[2 : len(s)-1];
+	case '*': s = s[2 : len(s)-2];
+	default : panic("illegal comment");
+	}
+	return stripWhiteSpace(s);
+}
+
+
+func (P *Printer) printComment(comment ast.CommentGroup) {
+	in_paragraph := false;
+	for i, c := range comment {
+		s := cleanComment(c.Text);
+		if len(s) > 0 {
+			if !in_paragraph {
+				P.Printf("<p>\n");
+				in_paragraph = true;
+			}
+			P.Printf("%s\n", P.htmlEscape(untabify(string(s))));
+		} else {
+			if in_paragraph {
+				P.Printf("</p>\n");
+				in_paragraph = false;
+			}
+		}
+	}
+	if in_paragraph {
+		P.Printf("</p>\n");
+	}
 }
 
 
 func (P *Printer) Interface(p *ast.Program) {
+	P.full = false;
 	for i := 0; i < len(p.Decls); i++ {
 		switch d := p.Decls[i].(type) {
+		case *ast.ConstDecl:
+			if hasExportedNames(d.Idents) {
+				P.Printf("<h2>Constants</h2>\n");
+				P.Printf("<p><pre>");
+				P.DoConstDecl(d);
+				P.String(noloc, "");
+				P.Printf("</pre></p>\n");
+				if d.Comment != nil {
+					P.printComment(d.Comment);
+				}
+			}
+
+		case *ast.TypeDecl:
+			if isExported(d.Ident) {
+				P.Printf("<h2>type %s</h2>\n", d.Ident.Str);
+				P.Printf("<p><pre>");
+				P.DoTypeDecl(d);
+				P.String(noloc, "");
+				P.Printf("</pre></p>\n");
+				if d.Comment != nil {
+					P.printComment(d.Comment);
+				}
+			}
+
+		case *ast.VarDecl:
+			if hasExportedNames(d.Idents) {
+				P.Printf("<h2>Variables</h2>\n");
+				P.Printf("<p><pre>");
+				P.DoVarDecl(d);
+				P.String(noloc, "");
+				P.Printf("</pre></p>\n");
+				if d.Comment != nil {
+					P.printComment(d.Comment);
+				}
+			}
+
 		case *ast.FuncDecl:
 			if isExported(d.Ident) {
-				P.Printf("<h2>%s</h2>\n", d.Ident.Str);
-				/*
+				if d.Recv != nil {
+					P.Printf("<h3>func (");
+					P.Expr(d.Recv.Typ);
+					P.Printf(") %s</h3>\n", d.Ident.Str);
+				} else {
+					P.Printf("<h2>func %s</h2>\n", d.Ident.Str);
+				}
 				P.Printf("<p><code>");
-				P.funcDecl(d, false);
+				P.DoFuncDecl(d);
 				P.String(noloc, "");
-				P.Printf("</code></p>");
-				*/
+				P.Printf("</code></p>\n");
+				if d.Comment != nil {
+					P.printComment(d.Comment);
+				}
 			}
+			
+		case *ast.DeclList:
+			
 		}
 	}
 }
@@ -1119,6 +1213,7 @@ func (P *Printer) Interface(p *ast.Program) {
 // Program
 
 func (P *Printer) Program(p *ast.Program) {
+	P.full = true;
 	P.Token(p.Loc, token.PACKAGE);
 	P.separator = blank;
 	P.Expr(p.Ident);
@@ -1140,7 +1235,7 @@ func init() {
 }
 
 
-func Print(writer io.Write, html bool, prog *ast.Program) {
+func Print(writer io.Write, prog *ast.Program, html bool) {
 	// setup
 	var P Printer;
 	padchar := byte(' ');
@@ -1152,13 +1247,14 @@ func Print(writer io.Write, html bool, prog *ast.Program) {
 		flags |= tabwriter.FilterHTML;
 	}
 	text := tabwriter.NewWriter(writer, *tabwidth, 1, padchar, flags);
-	P.Init(text, html, prog.Comments);
+	P.Init(text, nil /* prog.Comments */, html);
 
 	if P.html {
 		err := templ.Apply(text, "<!--", template.Substitution {
-			"PACKAGE-->" : func() { P.Printf("%s", prog.Ident.Str); },
-			"INTERFACE-->" : func() { P.Interface(prog); },
-			"BODY-->" : func() { P.Program(prog); },
+			"PACKAGE_NAME-->" : func() { P.Printf("%s", prog.Ident.Str); },
+			"PACKAGE_COMMENT-->": func() { P.printComment(prog.Comment); },
+			"PACKAGE_INTERFACE-->" : func() { P.Interface(prog); },
+			"PACKAGE_BODY-->" : func() { P.Program(prog); },
 		});
 		if err != nil {
 			panic("print error - exiting");

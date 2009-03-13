@@ -29,6 +29,21 @@ func assert(pred bool) {
 
 
 // ----------------------------------------------------------------------------
+// Comments
+
+type Comment struct {
+	Loc scanner.Location;
+	EndLine int;  // the line where the comment ends
+	Text []byte;
+}
+
+
+// A CommentGroup is a sequence of consequtive comments
+// with no other tokens and no empty lines inbetween.
+type CommentGroup []*Comment
+
+
+// ----------------------------------------------------------------------------
 // Expressions
 
 const /* channel mode */ (
@@ -132,6 +147,7 @@ type (
 		Idents []*Ident;
 		Typ Expr;
 		Tag Expr;  // nil = no tag
+		Comment CommentGroup;
 	};
 
 	StructType struct {
@@ -445,12 +461,14 @@ type (
 		Idents []*Ident;
 		Typ Expr;
 		Vals Expr;
+		Comment CommentGroup;
 	};
 	
 	TypeDecl struct {
 		Loc scanner.Location;  // if > 0: position of "type"
 		Ident *Ident;
 		Typ Expr;
+		Comment CommentGroup;
 	};
 	
 	VarDecl struct {
@@ -458,6 +476,7 @@ type (
 		Idents []*Ident;
 		Typ Expr;
 		Vals Expr;
+		Comment CommentGroup;
 	};
 
 	FuncDecl struct {
@@ -466,6 +485,7 @@ type (
 		Ident *Ident;
 		Sig *Signature;
 		Body *Block;
+		Comment CommentGroup;
 	};
 	
 	DeclList struct {
@@ -500,17 +520,13 @@ func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
 // ----------------------------------------------------------------------------
 // Program
 
-type Comment struct {
-	Loc scanner.Location;
-	Text []byte;
-}
-
-
+// TODO rename to Package
 type Program struct {
 	Loc scanner.Location;  // tok is token.PACKAGE
 	Ident *Ident;
 	Decls []Decl;
-	Comments []*Comment;
+	Comment CommentGroup;
+	Comments []CommentGroup;
 }
 
 

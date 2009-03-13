@@ -33,7 +33,8 @@ type Parser struct {
 	trace bool;
 	indent uint;
 
-	comments *vector.Vector;
+	comments vector.Vector;
+	last_comment ast.CommentGroup;
 
 	// The next token
 	loc scanner.Location;  // token location
@@ -42,8 +43,6 @@ type Parser struct {
 
 	// Non-syntactic parser control
 	opt_semi bool;  // true if semicolon separator is optional in statement list
-
-	// Nesting levels
 	expr_lev int;  // < 0: in control clause, >= 0: in expression
 };
 
@@ -113,9 +112,63 @@ func (P *Parser) next0() {
 }
 
 
+func (P *Parser) getComment() *ast.Comment {
+	defer P.next0();
+
+	// for /*-style comments, the comment may end on a different line
+	endline := P.loc.Line;
+	if P.val[1] == '*' {
+		for i, b := range P.val {
+			if b == '\n' {
+				endline++;
+			}
+		}
+	}
+	
+	return &ast.Comment{P.loc, endline, P.val};
+}
+
+
+func (P *Parser) getCommentGroup() ast.CommentGroup {
+	list := vector.New(0);
+	
+	// group adjacent comments
+	// (an empty line terminates a group)
+	endline := P.loc.Line;
+	for P.tok == token.COMMENT && endline+1 >= P.loc.Line {
+		c := P.getComment();
+		list.Push(c);
+		endline = c.EndLine;
+	}
+
+	// convert list
+	group := make(ast.CommentGroup, list.Len());
+	for i := 0; i < list.Len(); i++ {
+		group[i] = list.At(i).(*ast.Comment);
+	}
+	
+	return group;
+}
+
+
+func (P *Parser) getLastComment() ast.CommentGroup {
+	c := P.last_comment;
+	if c != nil && c[len(c) - 1].EndLine + 1 < P.loc.Line {
+		// empty line between last comment and current token,
+		// at least one line of space between last comment
+		// and current token; ignore this comment
+		return nil;
+	}
+	return c;
+}
+
+
 func (P *Parser) next() {
-	for P.next0(); P.tok == token.COMMENT; P.next0() {
-		P.comments.Push(&ast.Comment{P.loc, P.val});
+	P.next0();
+	P.last_comment = nil;
+	for P.tok == token.COMMENT {
+		P.last_comment = P.getCommentGroup();
+		P.comments.Push(P.last_comment);
 	}
 }
 
@@ -123,14 +176,9 @@ func (P *Parser) next() {
 func (P *Parser) Init(scanner *scanner.Scanner, err scanner.ErrorHandler, trace bool) {
 	P.scanner = scanner;
 	P.err = err;
-
 	P.trace = trace;
-	P.indent = 0;
-
-	P.comments = vector.New(0);
-
+	P.comments.Init(0);
 	P.next();
-	P.expr_lev = 0;
 }
 
 
@@ -382,20 +430,20 @@ func (P *Parser) parseParameterList(ellipsis_ok bool) []*ast.Field {
 			idents[i] = list.At(i).(*ast.Ident);
 		}
 		list.Init(0);
-		list.Push(&ast.Field{idents, typ, nil});
+		list.Push(&ast.Field{idents, typ, nil, nil});
 
 		for P.tok == token.COMMA {
 			P.next();
 			idents := P.parseIdentList2(nil);
 			typ := P.parseParameterType();
-			list.Push(&ast.Field{idents, typ, nil});
+			list.Push(&ast.Field{idents, typ, nil, nil});
 		}
 
 	} else {
 		// Type { "," Type }
 		// convert list of types into list of *Param
 		for i := 0; i < list.Len(); i++ {
-			list.Set(i, &ast.Field{nil, list.At(i).(ast.Expr), nil});
+			list.Set(i, &ast.Field{nil, list.At(i).(ast.Expr), nil, nil});
 		}
 	}
 
@@ -438,7 +486,7 @@ func (P *Parser) parseResult() []*ast.Field {
 		typ := P.tryType();
 		if typ != nil {
 			result = make([]*ast.Field, 1);
-			result[0] = &ast.Field{nil, typ, nil};
+			result[0] = &ast.Field{nil, typ, nil, nil};
 		}
 	}
 
@@ -495,7 +543,7 @@ func (P *Parser) parseMethodSpec() *ast.Field {
 		typ = x;
 	}
 
-	return &ast.Field{idents, typ, nil};
+	return &ast.Field{idents, typ, nil, nil};
 }
 
 
@@ -558,6 +606,8 @@ func (P *Parser) parseFieldDecl() *ast.Field {
 		defer un(trace(P, "FieldDecl"));
 	}
 
+	comment := P.getLastComment();
+
 	// a list of identifiers looks like a list of type names
 	list := vector.New(0);
 	for {
@@ -601,7 +651,7 @@ func (P *Parser) parseFieldDecl() *ast.Field {
 		}
 	}
 
-	return &ast.Field{idents, typ, tag};
+	return &ast.Field{idents, typ, tag, comment};
 }
 
 
@@ -1377,24 +1427,25 @@ func (P *Parser) parseImportSpec(loc scanner.Location) *ast.ImportDecl {
 }
 
 
-func (P *Parser) parseConstSpec(loc scanner.Location) *ast.ConstDecl {
+func (P *Parser) parseConstSpec(loc scanner.Location, comment ast.CommentGroup) *ast.ConstDecl {
 	if P.trace {
 		defer un(trace(P, "ConstSpec"));
 	}
 
 	idents := P.parseIdentList2(nil);
 	typ := P.tryType();
+
 	var vals ast.Expr;
 	if P.tok == token.ASSIGN {
 		P.next();
 		vals = P.parseExpressionList();
 	}
 
-	return &ast.ConstDecl{loc, idents, typ, vals};
+	return &ast.ConstDecl{loc, idents, typ, vals, comment};
 }
 
 
-func (P *Parser) parseTypeSpec(loc scanner.Location) *ast.TypeDecl {
+func (P *Parser) parseTypeSpec(loc scanner.Location, comment ast.CommentGroup) *ast.TypeDecl {
 	if P.trace {
 		defer un(trace(P, "TypeSpec"));
 	}
@@ -1402,11 +1453,11 @@ func (P *Parser) parseTypeSpec(loc scanner.Location) *ast.TypeDecl {
 	ident := P.parseIdent();
 	typ := P.parseType();
 
-	return &ast.TypeDecl{loc, ident, typ};
+	return &ast.TypeDecl{loc, ident, typ, comment};
 }
 
 
-func (P *Parser) parseVarSpec(loc scanner.Location) *ast.VarDecl {
+func (P *Parser) parseVarSpec(loc scanner.Location, comment ast.CommentGroup) *ast.VarDecl {
 	if P.trace {
 		defer un(trace(P, "VarSpec"));
 	}
@@ -1425,16 +1476,16 @@ func (P *Parser) parseVarSpec(loc scanner.Location) *ast.VarDecl {
 		}
 	}
 
-	return &ast.VarDecl{loc, idents, typ, vals};
+	return &ast.VarDecl{loc, idents, typ, vals, comment};
 }
 
 
-func (P *Parser) parseSpec(loc scanner.Location, keyword int) ast.Decl {
+func (P *Parser) parseSpec(loc scanner.Location, comment ast.CommentGroup, keyword int) ast.Decl {
 	switch keyword {
 	case token.IMPORT: return P.parseImportSpec(loc);
-	case token.CONST: return P.parseConstSpec(loc);
-	case token.TYPE: return P.parseTypeSpec(loc);
-	case token.VAR: return P.parseVarSpec(loc);
+	case token.CONST: return P.parseConstSpec(loc, comment);
+	case token.TYPE: return P.parseTypeSpec(loc, comment);
+	case token.VAR: return P.parseVarSpec(loc, comment);
 	}
 
 	unreachable();
@@ -1447,13 +1498,14 @@ func (P *Parser) parseDecl(keyword int) ast.Decl {
 		defer un(trace(P, "Decl"));
 	}
 
+	comment := P.getLastComment();
 	loc := P.loc;
 	P.expect(keyword);
 	if P.tok == token.LPAREN {
 		P.next();
 		list := vector.New(0);
 		for P.tok != token.RPAREN && P.tok != token.EOF {
-			list.Push(P.parseSpec(noloc, keyword));
+			list.Push(P.parseSpec(noloc, nil, keyword));
 			if P.tok == token.SEMICOLON {
 				P.next();
 			} else {
@@ -1473,7 +1525,7 @@ func (P *Parser) parseDecl(keyword int) ast.Decl {
 		return &ast.DeclList{loc, keyword, decls, end};
 	}
 
-	return P.parseSpec(loc, keyword);
+	return P.parseSpec(loc, comment, keyword);
 }
 
 
@@ -1491,6 +1543,7 @@ func (P *Parser) parseFunctionDecl() *ast.FuncDecl {
 		defer un(trace(P, "FunctionDecl"));
 	}
 
+	comment := P.getLastComment();
 	loc := P.loc;
 	P.expect(token.FUNC);
 
@@ -1513,7 +1566,7 @@ func (P *Parser) parseFunctionDecl() *ast.FuncDecl {
 		body = P.parseBlock(token.LBRACE);
 	}
 
-	return &ast.FuncDecl{loc, recv, ident, sig, body};
+	return &ast.FuncDecl{loc, recv, ident, sig, body, comment};
 }
 
 
@@ -1539,98 +1592,68 @@ func (P *Parser) parseDeclaration() ast.Decl {
 // ----------------------------------------------------------------------------
 // Program
 
-// The top level parsing routines:
-//
-// ParsePackageClause
-// - parses the package clause only and returns the package name
-//
-// ParseImportDecls
-// - parses all import declarations and returns a list of them
-// - the package clause must have been parsed before
-// - useful to determine package dependencies
-//
-// ParseProgram
-// - parses the entire program and returns the complete AST
-
-
-func (P *Parser) ParsePackageClause() *ast.Ident {
-	if P.trace {
-		defer un(trace(P, "PackageClause"));
-	}
-
-	P.expect(token.PACKAGE);
-	return P.parseIdent();
-}
-
-
-func (P *Parser) parseImportDecls() *vector.Vector {
-	if P.trace {
-		defer un(trace(P, "ImportDecls"));
-	}
-
-	list := vector.New(0);
-	for P.tok == token.IMPORT {
-		list.Push(P.parseDecl(token.IMPORT));
-		if P.tok == token.SEMICOLON {
-			P.next();
-		}
-	}
-
-	return list;
-}
-
-
-func (P *Parser) ParseImportDecls() []ast.Decl {
-	list := P.parseImportDecls();
-
-	// convert list
-	imports := make([]ast.Decl, list.Len());
-	for i := 0; i < list.Len(); i++ {
-		imports[i] = list.At(i).(ast.Decl);
-	}
-
-	return imports;
-}
-
-
-// Returns the list of comments accumulated during parsing, if any.
-// (The scanner must return token.COMMENT tokens for comments to be
-// collected in the first place.)
-
-func (P *Parser) Comments() []*ast.Comment {
+func (P *Parser) getComments() []ast.CommentGroup {
 	// convert comments vector
-	list := make([]*ast.Comment, P.comments.Len());
+	list := make([]ast.CommentGroup, P.comments.Len());
 	for i := 0; i < P.comments.Len(); i++ {
-		list[i] = P.comments.At(i).(*ast.Comment);
+		list[i] = P.comments.At(i).(ast.CommentGroup);
 	}
 	return list;
 }
 
 
-func (P *Parser) ParseProgram() *ast.Program {
+// The Parse function is parametrized with one of the following
+// constants. They control how much of the source text is parsed.
+//
+const (
+	ParseEntirePackage = iota;
+	ParseImportDeclsOnly;
+	ParsePackageClauseOnly;
+)
+
+
+// Parse parses the source...
+//      
+// foo bar
+//
+func (P *Parser) Parse(mode int) *ast.Program {
 	if P.trace {
 		defer un(trace(P, "Program"));
 	}
 
-	p := ast.NewProgram(P.loc);
-	p.Ident = P.ParsePackageClause();
+	// package clause
+	comment := P.getLastComment();
+	loc := P.loc;
+	P.expect(token.PACKAGE);
+	name := P.parseIdent();
+	var decls []ast.Decl;
 
-	// package body
-	list := P.parseImportDecls();
-	for P.tok != token.EOF {
-		list.Push(P.parseDeclaration());
-		if P.tok == token.SEMICOLON {
-			P.next();
+	if mode <= ParseImportDeclsOnly {
+		// import decls
+		list := vector.New(0);
+		for P.tok == token.IMPORT {
+			list.Push(P.parseDecl(token.IMPORT));
+			if P.tok == token.SEMICOLON {
+				P.next();
+			}
+		}
+
+		if mode <= ParseEntirePackage {
+			// rest of package body
+			for P.tok != token.EOF {
+				list.Push(P.parseDeclaration());
+				if P.tok == token.SEMICOLON {
+					P.next();
+				}
+			}
+		}
+
+		// convert list
+		decls = make([]ast.Decl, list.Len());
+		for i := 0; i < list.Len(); i++ {
+			decls[i] = list.At(i).(ast.Decl);
 		}
 	}
 
-	// convert list
-	p.Decls = make([]ast.Decl, list.Len());
-	for i := 0; i < list.Len(); i++ {
-		p.Decls[i] = list.At(i).(ast.Decl);
-	}
-
-	p.Comments = P.Comments();
-
-	return p;
+	return &ast.Program{loc, name, decls, comment, P.getComments()};
 }
