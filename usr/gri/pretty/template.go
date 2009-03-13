@@ -38,7 +38,7 @@ func (T *Template) Init(filename string) *os.Error {
 
 
 // Returns true if buf starts with s, returns false otherwise.
-
+//
 func match(buf []byte, s string) bool {
 	if len(buf) < len(s) {
 		return false;
@@ -54,7 +54,7 @@ func match(buf []byte, s string) bool {
 
 // Find the position of string s in buf, starting at i.
 // Returns a value < 0 if not found.
-
+//
 func find(buf []byte, s string, i int) int {
     if s == "" {
         return i;
@@ -102,4 +102,22 @@ func (T *Template) Apply(w io.Write, prefix string, subs Substitution) *os.Error
 	// write the rest of the template
 	len, err := w.Write(T.template[i0 : len(T.template)]);  // TODO handle errors
 	return err;
+}
+
+
+func NewTemplate(filename string) *Template {
+	t := new(Template);
+	if t.Init(filename) != nil {
+		return nil;
+	}
+	return t;
+}
+
+
+func NewTemplateOrDie(filename string) *Template {
+	t := NewTemplate(filename);
+	if t == nil {
+		panic("could not read template");
+	}
+	return t;
 }

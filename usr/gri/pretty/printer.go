@@ -470,7 +470,7 @@ func (P *Printer) Parameters(list []*ast.Field) {
 			if i > 0 {
 				P.separator = comma;
 			}
-			n := P.Idents(par.Idents, true);
+			n := P.Idents(par.Names, true);
 			if n > 0 {
 				P.separator = blank
 			};
@@ -488,7 +488,7 @@ func (P *Printer) Signature(sig *ast.Signature) {
 	if sig.Result != nil {
 		P.separator = blank;
 
-		if len(sig.Result) == 1 && sig.Result[0].Idents == nil {
+		if len(sig.Result) == 1 && sig.Result[0].Names == nil {
 			// single anonymous result
 			// => no parentheses needed unless it's a function type
 			fld := sig.Result[0];
@@ -515,12 +515,12 @@ func (P *Printer) Fields(list []*ast.Field, end scanner.Location, is_interface b
 				P.separator = semicolon;
 				P.newlines = 1;
 			}
-			n := P.Idents(fld.Idents, P.full);
+			n := P.Idents(fld.Names, P.full);
 			if n > 0 {
 				// at least one identifier
 				P.separator = tab
 			};
-			if n > 0 || len(fld.Idents) == 0 {
+			if n > 0 || len(fld.Names) == 0 {
 				// at least one identifier or anonymous field
 				if is_interface {
 					if ftyp, is_ftyp := fld.Typ.(*ast.FunctionType); is_ftyp {
@@ -820,15 +820,14 @@ func (P *Printer) DoBadStat(s *ast.BadStat) {
 }
 
 
-func (P *Printer) DoLabelDecl(s *ast.LabelDecl) {
+func (P *Printer) DoLabeledStat(s *ast.LabeledStat) {
 	P.indentation--;
 	P.Expr(s.Label);
 	P.Token(s.Loc, token.COLON);
-	// TODO not quite correct:
-	// - we must not print this optional semicolon, as it may invalidate code.
-	// - this will change once the AST reflects the LabelStatement change
-	P.opt_semi = true;
 	P.indentation++;
+	// TODO be more clever if s.Stat is a labeled stat as well
+	P.separator = tab;
+	P.Stat(s.Stat);
 }
 
 
@@ -973,8 +972,8 @@ func (P *Printer) DoImportDecl(d *ast.ImportDecl) {
 		P.Token(d.Loc, token.IMPORT);
 		P.separator = blank;
 	}
-	if d.Ident != nil {
-		P.Expr(d.Ident);
+	if d.Name != nil {
+		P.Expr(d.Name);
 	} else {
 		P.String(d.Path.Loc(), "");  // flush pending ';' separator/newlines
 	}
@@ -995,7 +994,7 @@ func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
 		P.Token(d.Loc, token.CONST);
 		P.separator = blank;
 	}
-	P.Idents(d.Idents, P.full);
+	P.Idents(d.Names, P.full);
 	if d.Typ != nil {
 		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
 		P.Expr(d.Typ);
@@ -1015,7 +1014,7 @@ func (P *Printer) DoTypeDecl(d *ast.TypeDecl) {
 		P.Token(d.Loc, token.TYPE);
 		P.separator = blank;
 	}
-	P.Expr(d.Ident);
+	P.Expr(d.Name);
 	P.separator = blank;  // TODO switch to tab? (but indentation problem with structs)
 	P.Expr(d.Typ);
 	P.newlines = 2;
@@ -1027,7 +1026,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
 		P.Token(d.Loc, token.VAR);
 		P.separator = blank;
 	}
-	P.Idents(d.Idents, P.full);
+	P.Idents(d.Names, P.full);
 	if d.Typ != nil {
 		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
 		P.Expr(d.Typ);
@@ -1049,15 +1048,15 @@ func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
 	if recv := d.Recv; recv != nil {
 		// method: print receiver
 		P.Token(noloc, token.LPAREN);
-		if len(recv.Idents) > 0 {
-			P.Expr(recv.Idents[0]);
+		if len(recv.Names) > 0 {
+			P.Expr(recv.Names[0]);
 			P.separator = blank;
 		}
 		P.Expr(recv.Typ);
 		P.Token(noloc, token.RPAREN);
 		P.separator = blank;
 	}
-	P.Expr(d.Ident);
+	P.Expr(d.Name);
 	P.Signature(d.Sig);
 	if P.full && d.Body != nil {
 		P.separator = blank;
@@ -1149,7 +1148,7 @@ func (P *Printer) Interface(p *ast.Program) {
 	for i := 0; i < len(p.Decls); i++ {
 		switch d := p.Decls[i].(type) {
 		case *ast.ConstDecl:
-			if hasExportedNames(d.Idents) {
+			if hasExportedNames(d.Names) {
 				P.Printf("<h2>Constants</h2>\n");
 				P.Printf("<p><pre>");
 				P.DoConstDecl(d);
@@ -1161,8 +1160,8 @@ func (P *Printer) Interface(p *ast.Program) {
 			}
 
 		case *ast.TypeDecl:
-			if isExported(d.Ident) {
-				P.Printf("<h2>type %s</h2>\n", d.Ident.Str);
+			if isExported(d.Name) {
+				P.Printf("<h2>type %s</h2>\n", d.Name.Str);
 				P.Printf("<p><pre>");
 				P.DoTypeDecl(d);
 				P.String(noloc, "");
@@ -1173,7 +1172,7 @@ func (P *Printer) Interface(p *ast.Program) {
 			}
 
 		case *ast.VarDecl:
-			if hasExportedNames(d.Idents) {
+			if hasExportedNames(d.Names) {
 				P.Printf("<h2>Variables</h2>\n");
 				P.Printf("<p><pre>");
 				P.DoVarDecl(d);
@@ -1185,13 +1184,13 @@ func (P *Printer) Interface(p *ast.Program) {
 			}
 
 		case *ast.FuncDecl:
-			if isExported(d.Ident) {
+			if isExported(d.Name) {
 				if d.Recv != nil {
 					P.Printf("<h3>func (");
 					P.Expr(d.Recv.Typ);
-					P.Printf(") %s</h3>\n", d.Ident.Str);
+					P.Printf(") %s</h3>\n", d.Name.Str);
 				} else {
-					P.Printf("<h2>func %s</h2>\n", d.Ident.Str);
+					P.Printf("<h2>func %s</h2>\n", d.Name.Str);
 				}
 				P.Printf("<p><code>");
 				P.DoFuncDecl(d);
@@ -1216,7 +1215,7 @@ func (P *Printer) Program(p *ast.Program) {
 	P.full = true;
 	P.Token(p.Loc, token.PACKAGE);
 	P.separator = blank;
-	P.Expr(p.Ident);
+	P.Expr(p.Name);
 	P.newlines = 1;
 	for i := 0; i < len(p.Decls); i++ {
 		P.Decl(p.Decls[i]);
@@ -1228,11 +1227,7 @@ func (P *Printer) Program(p *ast.Program) {
 // ----------------------------------------------------------------------------
 // External interface
 
-var templ template.Template;
-
-func init() {
-	templ.Init("template.html");
-}
+var templ = template.NewTemplateOrDie("template.html");
 
 
 func Print(writer io.Write, prog *ast.Program, html bool) {
@@ -1251,7 +1246,7 @@ func Print(writer io.Write, prog *ast.Program, html bool) {
 
 	if P.html {
 		err := templ.Apply(text, "<!--", template.Substitution {
-			"PACKAGE_NAME-->" : func() { P.Printf("%s", prog.Ident.Str); },
+			"PACKAGE_NAME-->" : func() { P.Printf("%s", prog.Name.Str); },
 			"PACKAGE_COMMENT-->": func() { P.printComment(prog.Comment); },
 			"PACKAGE_INTERFACE-->" : func() { P.Interface(prog); },
 			"PACKAGE_BODY-->" : func() { P.Program(prog); },

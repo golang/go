@@ -9,12 +9,13 @@ import (
 	"utf8";
 	"fmt";
 	"os";
-	Utils "utils";
-	Platform "platform";
+	"utils";
+	"platform";
 	"scanner";
 	Parser "parser";
-	AST "ast";
-	TypeChecker "typechecker";
+	"ast";
+	"typechecker";
+	"sort";
 )
 
 
@@ -32,12 +33,25 @@ type Flags struct {
 }
 
 
+type Error struct {
+	Loc scanner.Location;
+	Msg string;
+}
+
+
+type ErrorList []Error
+
+func (list ErrorList) Len() int { return len(list); }
+func (list ErrorList) Less(i, j int) bool { return list[i].Loc.Pos < list[j].Loc.Pos; }
+func (list ErrorList) Swap(i, j int) { list[i], list[j] = list[j], list[i]; }
+
+
 type errorHandler struct {
 	filename string;
 	src []byte;
 	columns bool;
 	errline int;
-	nerrors int;
+	errors vector.Vector;
 }
 
 
@@ -45,62 +59,35 @@ func (h *errorHandler) Init(filename string, src []byte, columns bool) {
 	h.filename = filename;
 	h.src = src;
 	h.columns = columns;
-}
-
-
-/*
-// Compute (line, column) information for a given source position.
-func (h *errorHandler) LineCol(pos int) (line, col int) {
-	line = 1;
-	lpos := 0;
-
-	src := h.src;
-	if pos > len(src) {
-		pos = len(src);
-	}
-
-	for i := 0; i < pos; i++ {
-		if src[i] == '\n' {
-			line++;
-			lpos = i;
-		}
-	}
-
-	return line, utf8.RuneCount(src[lpos : pos]);
-}
-*/
-
-
-func (h *errorHandler) ErrorMsg(loc scanner.Location, msg string) {
-	fmt.Printf("%s:%d:", h.filename, loc.Line);
-	if h.columns {
-		fmt.Printf("%d:", loc.Col);
-	}
-	fmt.Printf(" %s\n", msg);
-
-	h.errline = loc.Line;
-
-	h.nerrors++;
-	if h.nerrors >= 10 {
-		sys.Exit(1);
-	}
+	h.errors.Init(0);
 }
 
 
 func (h *errorHandler) Error(loc scanner.Location, msg string) {
 	// only report errors that are on a new line 
 	// in the hope to avoid most follow-up errors
-	if loc.Line != h.errline {
-		h.ErrorMsg(loc, msg);
+	if loc.Line == h.errline {
+		return;
 	}
+
+	// report error
+	fmt.Printf("%s:%d:", h.filename, loc.Line);
+	if h.columns {
+		fmt.Printf("%d:", loc.Col);
+	}
+	fmt.Printf(" %s\n", msg);
+
+	// collect the error
+	h.errors.Push(Error{loc, msg});
+	h.errline = loc.Line;
 }
 
 
-func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+func Compile(src_file string, flags *Flags) (*ast.Program, ErrorList) {
 	src, ok := Platform.ReadSourceFile(src_file);
 	if !ok {
 		print("cannot open ", src_file, "\n");
-		return nil, 1;
+		return nil, nil;
 	}
 
 	var err errorHandler;
@@ -114,11 +101,18 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
 
 	prog := parser.Parse(Parser.ParseEntirePackage);
 
-	if err.nerrors == 0 {
+	if err.errors.Len() == 0 {
 		TypeChecker.CheckProgram(&err, prog);
 	}
+	
+	// convert error list and sort it
+	errors := make(ErrorList, err.errors.Len());
+	for i := 0; i < err.errors.Len(); i++ {
+		errors[i] = err.errors.At(i).(Error);
+	}
+	sort.Sort(errors);
 
-	return prog, err.nerrors;
+	return prog, errors;
 }
 
 
@@ -128,8 +122,8 @@ func fileExists(name string) bool {
 }
 
 /*
-func printDep(localset map [string] bool, wset *vector.Vector, decl AST.Decl2) {
-	src := decl.Val.(*AST.BasicLit).Val;
+func printDep(localset map [string] bool, wset *vector.Vector, decl ast.Decl2) {
+	src := decl.Val.(*ast.BasicLit).Val;
 	src = src[1 : len(src) - 1];  // strip "'s
 
 	// ignore files when they are seen a 2nd time
@@ -157,8 +151,8 @@ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string, 
 	if !found {
 		globalset[src_file] = true;
 
-		prog, nerrors := Compile(src_file, flags);
-		if nerrors > 0 {
+		prog, errors := Compile(src_file, flags);
+		if errors == nil || len(errors) > 0 {
 			return;
 		}
 
@@ -176,7 +170,7 @@ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string, 
 					printDep(localset, wset, decl);
 				} else {
 					for j := 0; j < decl.List.Len(); j++ {
-						printDep(localset, wset, decl.List.At(j).(*AST.Decl));
+						printDep(localset, wset, decl.List.At(j).(*ast.Decl));
 					}
 				}
 				*/

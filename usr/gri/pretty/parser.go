@@ -1085,7 +1085,12 @@ func (P *Parser) parseExpression(prec int) ast.Expr {
 // ----------------------------------------------------------------------------
 // Statements
 
-func (P *Parser) parseSimpleStat(range_ok bool) ast.Stat {
+const /* mode */ (
+	label_ok = 1 << iota;
+	range_ok;
+)
+
+func (P *Parser) parseSimpleStat(mode int) ast.Stat {
 	if P.trace {
 		defer un(trace(P, "SimpleStat"));
 	}
@@ -1094,13 +1099,13 @@ func (P *Parser) parseSimpleStat(range_ok bool) ast.Stat {
 
 	switch P.tok {
 	case token.COLON:
-		// label declaration
+		// labeled statement
 		loc := P.loc;
 		P.next();  // consume ":"
 		P.opt_semi = true;
-		if ast.ExprLen(x) == 1 {
+		if mode & label_ok != 0 && ast.ExprLen(x) == 1 {
 			if label, is_ident := x.(*ast.Ident); is_ident {
-				return &ast.LabelDecl{loc, label};
+				return &ast.LabeledStat{loc, label, P.parseStatement()};
 			}
 		}
 		P.error(x.Loc(), "illegal label declaration");
@@ -1115,7 +1120,7 @@ func (P *Parser) parseSimpleStat(range_ok bool) ast.Stat {
 		loc, tok := P.loc, P.tok;
 		P.next();
 		var y ast.Expr;
-		if range_ok && P.tok == token.RANGE {
+		if mode & range_ok != 0 && P.tok == token.RANGE {
 			range_loc := P.loc;
 			P.next();
 			y = &ast.UnaryExpr{range_loc, token.RANGE, P.parseExpression(1)};
@@ -1202,7 +1207,11 @@ func (P *Parser) parseControlClause(isForStat bool) (init ast.Stat, expr ast.Exp
 		prev_lev := P.expr_lev;
 		P.expr_lev = -1;
 		if P.tok != token.SEMICOLON {
-			init = P.parseSimpleStat(isForStat);
+			mode := 0;
+			if isForStat {
+				mode = range_ok;
+			}
+			init = P.parseSimpleStat(mode);
 			// TODO check for range clause and exit if found
 		}
 		if P.tok == token.SEMICOLON {
@@ -1213,7 +1222,7 @@ func (P *Parser) parseControlClause(isForStat bool) (init ast.Stat, expr ast.Exp
 			if isForStat {
 				P.expect(token.SEMICOLON);
 				if P.tok != token.LBRACE {
-					post = P.parseSimpleStat(false);
+					post = P.parseSimpleStat(0);
 				}
 			}
 		} else {
@@ -1363,16 +1372,12 @@ func (P *Parser) parseStatement() ast.Stat {
 	switch P.tok {
 	case token.CONST, token.TYPE, token.VAR:
 		return &ast.DeclarationStat{P.parseDeclaration()};
-	case token.FUNC:
-		// for now we do not allow local function declarations,
-		// instead we assume this starts a function literal
-		fallthrough;
 	case
-		// only the tokens that are legal top-level expression starts
-		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.LPAREN,  // operand
+		// tokens that may start a top-level expression
+		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,  // operand
 		token.LBRACK, token.STRUCT,  // composite type
-		token.MUL, token.AND, token.ARROW:  // unary
-		return P.parseSimpleStat(false);
+		token.MUL, token.AND, token.ARROW:  // unary operators
+		return P.parseSimpleStat(label_ok);
 	case token.GO, token.DEFER:
 		return P.parseInvocationStat(P.tok);
 	case token.RETURN:
@@ -1389,7 +1394,7 @@ func (P *Parser) parseStatement() ast.Stat {
 		return P.parseSwitchStat();
 	case token.SELECT:
 		return P.parseSelectStat();
-	case token.SEMICOLON:
+	case token.SEMICOLON, token.RBRACE:
 		// don't consume the ";", it is the separator following the empty statement
 		return &ast.EmptyStat{P.loc};
 	}
@@ -1434,10 +1439,9 @@ func (P *Parser) parseConstSpec(loc scanner.Location, comment ast.CommentGroup) 
 
 	idents := P.parseIdentList2(nil);
 	typ := P.tryType();
-
 	var vals ast.Expr;
-	if P.tok == token.ASSIGN {
-		P.next();
+	if typ != nil || P.tok == token.ASSIGN {
+		P.expect(token.ASSIGN);
 		vals = P.parseExpressionList();
 	}
 
@@ -1463,17 +1467,11 @@ func (P *Parser) parseVarSpec(loc scanner.Location, comment ast.CommentGroup) *a
 	}
 
 	idents := P.parseIdentList2(nil);
-	var typ ast.Expr;
+	typ := P.tryType();
 	var vals ast.Expr;
-	if P.tok == token.ASSIGN {
-		P.next();
+	if typ == nil || P.tok == token.ASSIGN {
+		P.expect(token.ASSIGN);
 		vals = P.parseExpressionList();
-	} else {
-		typ = P.parseVarType();
-		if P.tok == token.ASSIGN {
-			P.next();
-			vals = P.parseExpressionList();
-		}
 	}
 
 	return &ast.VarDecl{loc, idents, typ, vals, comment};
@@ -1626,8 +1624,14 @@ func (P *Parser) Parse(mode int) *ast.Program {
 	loc := P.loc;
 	P.expect(token.PACKAGE);
 	name := P.parseIdent();
+	if P.tok == token.SEMICOLON {
+		// common error
+		P.error(P.loc, "extra semicolon");
+		P.next();
+	}
+	
+	
 	var decls []ast.Decl;
-
 	if mode <= ParseImportDeclsOnly {
 		// import decls
 		list := vector.New(0);

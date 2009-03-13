@@ -16,11 +16,12 @@ import (
 	"os";
 	"sort";
 	"log";
+	"template";
 
-	Utils "utils";
-	Platform "platform";
-	Compilation "compilation";
-	Printer "printer";
+	"utils";
+	"platform";
+	"compilation";
+	"printer";
 )
 
 
@@ -39,15 +40,17 @@ func (p DirArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
 func isGoFile(dir *os.Dir) bool {
-	ext := ".go";  // TODO 6g bug - should be const
+	const ext = ".go";
 	return dir.IsRegular() && Utils.Contains(dir.Name, ext, len(dir.Name) - len(ext));
 }
 
 
 func printLink(c *http.Conn, path, name string) {
-	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br>\n", path + name, name);
+	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br />\n", path + name, name);
 }
 
+
+var dir_template = template.NewTemplateOrDie("dir_template.html");
 
 func serveDir(c *http.Conn, dirname string) {
 	fd, err1 := os.Open(*root + dirname, os.O_RDONLY, 0);
@@ -68,42 +71,90 @@ func serveDir(c *http.Conn, dirname string) {
 
 	c.SetHeader("content-type", "text/html; charset=utf-8");
 	path := dirname + "/";
-	fmt.Fprintf(c, "<b>%s</b>\n", path);
 
 	// Print contents in 3 sections: directories, go files, everything else
 
-	// 1) directories
-	fmt.Fprintln(c, "<p>");
-	for i, entry := range list {
-		if entry.IsDirectory() {
-			printLink(c, path, entry.Name);
-		}
-	}
+	// TODO handle Apply errors
+	dir_template.Apply(c, "<!--", template.Substitution {
+		"PATH-->" : func() {
+			fmt.Fprintf(c, "%s", path);
+		},
 
-	// 2) .go files
-	fmt.Fprintln(c, "<p>");
-	for i, entry := range list {
-		if isGoFile(&entry) {
-			printLink(c, path, entry.Name);
-		}
-	}
+		"DIRECTORIES-->" : func() {
+			for i, entry := range list {
+				if entry.IsDirectory() {
+					printLink(c, path, entry.Name);
+				}
+			}
+		},
 
-	// 3) everything else
-	fmt.Fprintln(c, "<p>");
-	for i, entry := range list {
-		if !entry.IsDirectory() && !isGoFile(&entry) {
-			fmt.Fprintf(c, "<font color=grey>%s</font><br>\n", entry.Name);
+		"GO FILES-->" : func() {
+			for i, entry := range list {
+				if isGoFile(&entry) {
+					printLink(c, path, entry.Name);
+				}
+			}
+		},
+
+		"OTHER FILES-->" : func() {
+			for i, entry := range list {
+				if !entry.IsDirectory() && !isGoFile(&entry) {
+					fmt.Fprintf(c, "%s<br />\n", entry.Name);
+				}
+			}
 		}
-	}
+	});
+}
+
+
+var error_template = template.NewTemplateOrDie("error_template.html");
+
+func printErrors(c *http.Conn, filename string, errors Compilation.ErrorList) {
+	// TODO factor code - shouldn't do this here and in Compilation
+	src, ok := Platform.ReadSourceFile(*root + filename);
+
+	// TODO handle Apply errors
+	error_template.Apply(c, "<!--", template.Substitution {
+		"FILE_NAME-->" : func() {
+			fmt.Fprintf(c, "%s", filename);
+		},
+
+		"ERRORS-->" : func () {
+			if ok == false /* 6g bug139 */ {
+				fmt.Fprintf(c, "could not read file %s\n", *root + filename);
+				return;
+			}
+			pos := 0;
+			for i, e := range errors {
+				if 0 <= e.Loc.Pos && e.Loc.Pos <= len(src) {
+					// TODO handle Write errors
+					c.Write(src[pos : e.Loc.Pos]);
+					// TODO this should be done using a .css file
+					fmt.Fprintf(c, "<b><font color=red>%s >>></font></b>", e.Msg);
+					pos = e.Loc.Pos;
+				} else {
+					log.Stdoutf("error position %d out of bounds (len = %d)", e.Loc.Pos, len(src));
+				}
+			}
+			// TODO handle Write errors
+			c.Write(src[pos : len(src)]);
+		}
+	});
 }
 
 
 func serveFile(c *http.Conn, filename string) {
 	var flags Compilation.Flags;
-	prog, nerrors := Compilation.Compile(*root + filename, &flags);
-	if nerrors > 0 {
+	prog, errors := Compilation.Compile(*root + filename, &flags);
+	if errors == nil {
 		c.WriteHeader(http.StatusNotFound);
-		fmt.Fprintf(c, "Error: File has compilation errors (%s)\n", filename);
+		fmt.Fprintf(c, "Error: could not read file (%s)\n", filename);
+		return;
+	}
+
+	if len(errors) > 0 {
+		c.SetHeader("content-type", "text/html; charset=utf-8");
+		printErrors(c, filename, errors);
 		return;
 	}
 
@@ -143,7 +194,7 @@ func main() {
 	*root = Utils.SanitizePath(*root);
 	dir, err1 := os.Stat(*root);
 	if err1 != nil || !dir.IsDirectory() {
-		log.Exitf("root not found or not a directory: ", *root);
+		log.Exitf("root not found or not a directory: %s", *root);
 	}
 
 	if *verbose {
