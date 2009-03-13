@@ -1441,7 +1441,7 @@ right.
 <pre class="grammar">
 ConstDecl      = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
 ConstSpecList  = ConstSpec { ";" ConstSpec } [ ";" ] .
-ConstSpec      = IdentifierList [ CompleteType ] [ "=" ExpressionList ] .
+ConstSpec      = IdentifierList [ [ CompleteType ] "=" ExpressionList ] .
 
 IdentifierList = identifier { "," identifier } .
 ExpressionList = Expression { "," Expression } .
@@ -1473,8 +1473,7 @@ const u, v float = 0, 3      // u = 0.0, v = 3.0
 Within a parenthesized <code>const</code> declaration list the
 expression list may be omitted from any but the first declaration.
 Such an empty list is equivalent to the textual substitution of the
-first preceding non-empty expression list.
-(TODO: Substitute type from that declaration too?)
+first preceding non-empty expression list, and its type if any.
 Omitting the list of expressions is therefore equivalent to
 repeating the previous list.  The number of identifiers must be equal
 to the number of expressions in the previous list.
