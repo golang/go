@@ -76,6 +76,7 @@ var tokens = [...]elt{
 	elt{ token.XOR, "^", operator },
 	elt{ token.SHL, "<<", operator },
 	elt{ token.SHR, ">>", operator },
+	elt{ token.AND_NOT, "&^", operator },
 
 	elt{ token.ADD_ASSIGN, "+=", operator },
 	elt{ token.SUB_ASSIGN, "-=", operator },
@@ -88,6 +89,7 @@ var tokens = [...]elt{
 	elt{ token.XOR_ASSIGN, "^=", operator },
 	elt{ token.SHL_ASSIGN, "<<=", operator },
 	elt{ token.SHR_ASSIGN, ">>=", operator },
+	elt{ token.AND_NOT_ASSIGN, "&^=", operator },
 
 	elt{ token.LAND, "&&", operator },
 	elt{ token.LOR, "||", operator },

@@ -447,7 +447,13 @@ scan_again:
 		case '>': tok = S.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
 		case '=': tok = S.switch2(token.ASSIGN, token.EQL);
 		case '!': tok = S.switch2(token.NOT, token.NEQ);
-		case '&': tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
+		case '&':
+			if S.ch == '^' {
+				S.next();
+				tok = S.switch2(token.AND_NOT, token.AND_NOT_ASSIGN);
+			} else {
+				tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
+			}
 		case '|': tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
 		default: S.error(loc, "illegal character " + charString(ch));
 		}
