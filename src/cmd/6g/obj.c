@@ -470,7 +470,7 @@ sigcmp(Sig *a, Sig *b)
 }
 
 static	Addr	at, ao, ac, ad;
-static	int	wi, ot;
+static	int	wi, ws, ot;
 
 void
 ginsatoa(int fscale, int toffset)
@@ -622,7 +622,26 @@ out:
  *	rcvrt - type used as method interface.  eqtype(ifacet, rcvrt) is always true,
  *		but ifacet might have a name that rcvrt does not.
  *	methodt - type with methods hanging off it (progt==*methodt sometimes)
+ *
+ * memory layout is Sigt struct from iface.c:
+ *	struct	Sigt
+ *	{
+ *		byte*	name;                   // name of basic type
+ *		Sigt*	link;			// for linking into hash tables
+ *		uint32	thash;                  // hash of type
+ *		uint32	mhash;                  // hash of methods
+ *		uint16	width;			// width of base type in bytes
+ *		uint16	alg;			// algorithm
+ *		uint32	pad;
+ *		struct {
+ *			byte*	fname;
+ *			uint32	fhash;		// hash of type
+ *			uint32	offset;		// offset of substruct
+ *			void	(*fun)(void);
+ *		} meth[1];			// one or more - last name is nil
+ *	};
  */
+
 void
 dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 {
@@ -642,7 +661,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 	a = nil;
 	o = 0;
 	oldlist = nil;
-	sighash = 0;
+	sighash = typehash(progt, 0);
 	for(f=methodt->method; f!=T; f=f->down) {
 		if(f->type->etype != TFUNC)
 			continue;
@@ -688,8 +707,8 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 				newname = a->sym;
 				oldname = methodsym(method, oldthis);
 				genptrtramp(method, oldname, oldthis, f->type, newname, newthis);
-			}
-			else if(f->embedded) {
+			} else
+			if(f->embedded) {
 				// TODO(rsc): only works for pointer receivers
 				if(oldlist == nil)
 					oldlist = pc;
@@ -713,38 +732,23 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 	ot = 0;
 	ot = rnd(ot, maxround);	// base structure
 
-	// sigt[0].name = ""
-	ginsatoa(widthptr, stringo);
+	// base of type signature contains parameters
+	ginsatoa(widthptr, stringo);		// name
+	ot = rnd(ot, widthptr)+widthptr;	// skip link
+	gensatac(wi, typehash(progt, 0));	// thash
+	gensatac(wi, sighash);			// mhash
+	gensatac(ws, progt->width);		// width
+	gensatac(ws, algtype(progt));		// algorithm
 
-	// save type name for runtime error message.
 	snprint(buf, sizeof buf, "%#T", progt);
 	datastring(buf, strlen(buf)+1);
 
-	// first field of an type signature contains
-	// the element parameters and is not a real entry
-	// sigt[0].hash = elemalg + sighash<<8
-	gensatac(wi, algtype(progt) + (sighash<<8));
-
-	// sigt[0].offset = width
-	gensatac(wi, progt->width);
-
-	// skip the function
-	gensatac(widthptr, 0);
-
 	for(b=a; b!=nil; b=b->link) {
-		ot = rnd(ot, maxround);	// base structure
-
-		// sigt[++].name = "fieldname"
-		ginsatoa(widthptr, stringo);
-
-		// sigt[++].hash = hashcode
-		gensatac(wi, b->hash);
-
-		// sigt[++].offset = of embedded struct
-		gensatac(wi, 0);
-
-		// sigt[++].fun = &method
-		gensatad(b->sym);
+		ot = rnd(ot, maxround);		// base of substructure
+		ginsatoa(widthptr, stringo);	// field name
+		gensatac(wi, b->hash);		// hash
+		gensatac(wi, 0);		// offset
+		gensatad(b->sym);		// &method
 
 		datastring(b->name, strlen(b->name)+1);
 	}
@@ -765,6 +769,20 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 	p->to.offset = ot;
 }
 
+/*
+ * memory layout is Sigi struct from iface.c:
+ *	struct	Sigi
+ *	{
+ *		byte*	name;
+ *		uint32	hash;
+ *		uint32	size;			// number of methods
+ *		struct {
+ *			byte*	fname;
+ *			uint32	fhash;
+ *			uint32	perm;		// location of fun in Sigt
+ *		} meth[1];			// [size+1] - last name is nil
+ *	};
+ */
 void
 dumpsigi(Type *t, Sym *s)
 {
@@ -875,6 +893,7 @@ dumpsignatures(void)
 	memset(&ad, 0, sizeof(ad));
 
 	wi = types[TINT32]->width;
+	ws = types[TINT16]->width;
 
 	// sig structure
 	at.type = D_EXTERN;
@@ -986,6 +1005,7 @@ dumpsignatures(void)
 		if(methodt->method && methodt->sym && !methodt->local)
 			continue;
 
+//print("s=%S\n", s);
 		dumpsigt(progt, ifacet, rcvrt, methodt, s);
 	}
 

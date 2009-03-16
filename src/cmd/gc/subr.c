@@ -1929,10 +1929,6 @@ typehash(Type *at, int d)
 	if(d >= 5)
 		return PRIME3;
 
-	if(at->recur)
-		return 0;
-	at->recur = 1;
-
 	h = at->etype*PRIME4;
 
 	switch(at->etype) {
@@ -1961,7 +1957,6 @@ typehash(Type *at, int d)
 		break;
 	}
 
-	at->recur = 0;
 	return h;
 }
 

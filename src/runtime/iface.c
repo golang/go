@@ -15,17 +15,31 @@ typedef	struct	Itype	Itype;
  */
 struct	Sigt
 {
-	byte*	name;
-	uint32	hash;		// hash of type		// first is alg
-	uint32	offset;		// offset of substruct	// first is width
-	void	(*fun)(void);
+	byte*	name;                   // name of basic type
+	Sigt*	link;			// for linking into hash tables
+	uint32	thash;                  // hash of type
+	uint32	mhash;                  // hash of methods
+	uint16	width;			// width of base type in bytes
+	uint16	alg;			// algorithm
+	uint32	pad;
+	struct {
+		byte*	fname;
+		uint32	fhash;		// hash of type
+		uint32	offset;		// offset of substruct
+		void	(*fun)(void);
+	} meth[1];			// one or more - last name is nil
 };
 
 struct	Sigi
 {
 	byte*	name;
 	uint32	hash;
-	uint32	perm;		// location of fun in Sigt // first is size
+	uint32	size;			// number of methods
+	struct {
+		byte*	fname;
+		uint32	fhash;
+		uint32	perm;		// location of fun in Sigt
+	} meth[1];			// [size+1] - last name is nil
 };
 
 struct	Itype
@@ -52,10 +66,10 @@ printsigi(Sigi *si)
 
 	sys·printpointer(si);
 	prints("{");
-	prints((int8*)si[0].name);
+	prints((int8*)si->name);
 	prints(":");
-	for(i=1;; i++) {
-		name = si[i].name;
+	for(i=0;; i++) {
+		name = si->meth[i].fname;
 		if(name == nil)
 			break;
 		prints("[");
@@ -63,9 +77,9 @@ printsigi(Sigi *si)
 		prints("]\"");
 		prints((int8*)name);
 		prints("\"");
-		sys·printint(si[i].hash%999);
+		sys·printint(si->meth[i].fhash%999);
 		prints("/");
-		sys·printint(si[i].perm);
+		sys·printint(si->meth[i].perm);
 	}
 	prints("}");
 }
@@ -78,13 +92,17 @@ printsigt(Sigt *st)
 
 	sys·printpointer(st);
 	prints("{");
-	prints((int8*)st[0].name);
+	prints((int8*)st->name);
 	prints(":");
-	sys·printint(st[0].hash);	// first element has alg
+	sys·printint(st->thash%999);	// type hash
 	prints(",");
-	sys·printint(st[0].offset);	// first element has width
-	for(i=1;; i++) {
-		name = st[i].name;
+	sys·printint(st->mhash%999);	// method hash
+	prints(",");
+	sys·printint(st->width);	// width
+	prints(",");
+	sys·printint(st->alg);	// algorithm
+	for(i=0;; i++) {
+		name = st->meth[i].fname;
 		if(name == nil)
 			break;
 		prints("[");
@@ -92,11 +110,11 @@ printsigt(Sigt *st)
 		prints("]\"");
 		prints((int8*)name);
 		prints("\"");
-		sys·printint(st[i].hash%999);
+		sys·printint(st->meth[i].fhash%999);
 		prints("/");
-		sys·printint(st[i].offset);
+		sys·printint(st->meth[i].offset);
 		prints("/");
-		sys·printpointer(st[i].fun);
+		sys·printpointer(st->meth[i].fun);
 	}
 	prints("}");
 }
@@ -124,8 +142,11 @@ itype(Sigi *si, Sigt *st, int32 canfail)
 	h = 0;
 	if(si)
 		h += si->hash;
-	if(st)
-		h += st->hash >> 8;
+	if(st) {
+		h += st->thash;
+		h += st->mhash;
+	}
+
 	h %= nelem(hash);
 
 	// look twice - once without lock, once with.
@@ -156,30 +177,30 @@ itype(Sigi *si, Sigt *st, int32 canfail)
 		}
 	}
 
-	ni = si[0].perm;	// first entry has size
+	ni = si->size;
 	m = mal(sizeof(*m) + ni*sizeof(m->fun[0]));
 	m->sigi = si;
 	m->sigt = st;
 
 throw:
-	nt = 1;
-	for(ni=1;; ni++) {	// ni=1: skip first word
-		iname = si[ni].name;
+	nt = 0;
+	for(ni=0;; ni++) {
+		iname = si->meth[ni].fname;
 		if(iname == nil)
 			break;
 
 		// pick up next name from
 		// interface signature
-		ihash = si[ni].hash;
+		ihash = si->meth[ni].fhash;
 
 		for(;; nt++) {
 			// pick up and compare next name
 			// from structure signature
-			sname = st[nt].name;
+			sname = st->meth[nt].fname;
 			if(sname == nil) {
 				if(!canfail) {
 					printf("cannot convert type %s to interface %s: missing method %s\n",
-						st[0].name, si[0].name, iname);
+						st->name, si->name, iname);
 					if(iface_debug) {
 						prints("interface");
 						printsigi(si);
@@ -196,16 +217,17 @@ throw:
 					unlock(&ifacelock);
 				return nil;
 			}
-			if(ihash == st[nt].hash && strcmp(sname, iname) == 0)
+			if(ihash == st->meth[nt].fhash && strcmp(sname, iname) == 0)
 				break;
 		}
-		m->fun[si[ni].perm] = st[nt].fun;
+		m->fun[si->meth[ni].perm] = st->meth[nt].fun;
 	}
 	m->link = hash[h];
 	hash[h] = m;
-	// printf("new itype %p\n", m);
 	if(locked)
 		unlock(&ifacelock);
+
+	// printf("new itype %p\n", m);
 	return m;
 }
 
@@ -218,9 +240,6 @@ sys·ifaceT2I(Sigi *si, Sigt *st, ...)
 	int32 alg, wid;
 
 	elem = (byte*)(&st+1);
-	wid = st->offset;
-	ret = (Iface*)(elem + rnd(wid, 8));
-	ret->type = itype(si, st, 0);
 
 	if(iface_debug) {
 		prints("T2I sigi=");
@@ -232,11 +251,14 @@ sys·ifaceT2I(Sigi *si, Sigt *st, ...)
 		prints("\n");
 	}
 
-	alg = st->hash & 0xFF;
-	wid = st->offset;
-	if(wid <= sizeof ret->data)
+	wid = st->width;
+	alg = st->alg;
+	ret = (Iface*)(elem + rnd(wid, 8));
+	ret->type = itype(si, st, 0);
+
+	if(wid <= sizeof(ret->data))
 		algarray[alg].copy(wid, &ret->data, elem);
-	else{
+	else {
 		ret->data = mal(wid);
 		if(iface_debug)
 			printf("T2I mal %d %p\n", wid, ret->data);
@@ -273,24 +295,24 @@ sys·ifaceI2T(Sigt *st, Iface i, ...)
 	im = i.type;
 	if(im == nil) {
 		prints("interface is nil, not ");
-		prints((int8*)st[0].name);
+		prints((int8*)st->name);
 		prints("\n");
 		throw("interface conversion");
 	}
 
 	if(im->sigt != st) {
-		prints((int8*)im->sigi[0].name);
+		prints((int8*)im->sigi->name);
 		prints(" is ");
-		prints((int8*)im->sigt[0].name);
+		prints((int8*)im->sigt->name);
 		prints(", not ");
-		prints((int8*)st[0].name);
+		prints((int8*)st->name);
 		prints("\n");
 		throw("interface conversion");
 	}
 
-	alg = st->hash & 0xFF;
-	wid = st->offset;
-	if(wid <= sizeof i.data)
+	alg = st->alg;
+	wid = st->width;
+	if(wid <= sizeof(i.data))
 		algarray[alg].copy(wid, ret, &i.data);
 	else
 		algarray[alg].copy(wid, ret, i.data);
@@ -312,10 +334,6 @@ sys·ifaceI2T2(Sigt *st, Iface i, ...)
 	Itype *im;
 	int32 alg, wid;
 
-	ret = (byte*)(&i+1);
-	alg = st->hash & 0xFF;
-	wid = st->offset;
-	ok = (bool*)(ret+rnd(wid, 1));
 
 	if(iface_debug) {
 		prints("I2T2 sigt=");
@@ -325,13 +343,18 @@ sys·ifaceI2T2(Sigt *st, Iface i, ...)
 		prints("\n");
 	}
 
+	ret = (byte*)(&i+1);
+	alg = st->alg;
+	wid = st->width;
+	ok = (bool*)(ret+rnd(wid, 1));
+
 	im = i.type;
 	if(im == nil || im->sigt != st) {
 		*ok = false;
 		sys·memclr(ret, wid);
 	} else {
 		*ok = true;
-		if(wid <= sizeof i.data)
+		if(wid <= sizeof(i.data))
 			algarray[alg].copy(wid, ret, &i.data);
 		else
 			algarray[alg].copy(wid, ret, i.data);
@@ -424,21 +447,23 @@ uint64
 ifacehash(Iface a)
 {
 	int32 alg, wid;
+	Sigt *sigt;
 
 	if(a.type == nil)
 		return 0;
-	alg = a.type->sigt->hash & 0xFF;
-	wid = a.type->sigt->offset;
+
+	sigt = a.type->sigt;
+	alg = sigt->alg;
+	wid = sigt->width;
 	if(algarray[alg].hash == nohash) {
 		// calling nohash will throw too,
 		// but we can print a better error.
-		printf("hash of unhashable type %s\n", a.type->sigt->name);
+		printf("hash of unhashable type %s\n", sigt->name);
 		throw("interface hash");
 	}
-	if(wid <= sizeof a.data)
+	if(wid <= sizeof(a.data))
 		return algarray[alg].hash(wid, &a.data);
-	else
-		return algarray[alg].hash(wid, a.data);
+	return algarray[alg].hash(wid, a.data);
 }
 
 bool
@@ -470,8 +495,8 @@ ifaceeq(Iface i1, Iface i2)
 	if(i1.type->sigt != i2.type->sigt)
 		goto no;
 
-	alg = i1.type->sigt->hash & 0xFF;
-	wid = i1.type->sigt->offset;
+	alg = i1.type->sigt->alg;
+	wid = i1.type->sigt->width;
 
 	if(algarray[alg].equal == noequal) {
 		// calling noequal will throw too,
@@ -480,7 +505,7 @@ ifaceeq(Iface i1, Iface i2)
 		throw("interface compare");
 	}
 
-	if(wid <= sizeof i1.data) {
+	if(wid <= sizeof(i1.data)) {
 		if(!algarray[alg].equal(wid, &i1.data, &i2.data))
 			goto no;
 	} else {
@@ -525,8 +550,8 @@ sys·Reflect(Iface i, uint64 retit, string rettype, bool retindir)
 	} else {
 		retit = (uint64)i.data;
 		rettype = gostring(i.type->sigt->name);
-		wid = i.type->sigt->offset;
-		retindir = wid > sizeof i.data;
+		wid = i.type->sigt->width;
+		retindir = wid > sizeof(i.data);
 	}
 	FLUSH(&retit);
 	FLUSH(&rettype);
@@ -568,7 +593,7 @@ extern int32 ngotypesigs;
 // signature with type string "[]int" in gotypesigs, and unreflect
 // wouldn't call fakesigt.
 
-static	Sigt	*fake[1009];
+static	Sigt*	fake[1009];
 static	int32	nfake;
 
 static Sigt*
@@ -590,7 +615,7 @@ fakesigt(string type, bool indir)
 	for(locked=0; locked<2; locked++) {
 		if(locked)
 			lock(&ifacelock);
-		for(sigt = fake[h]; sigt != nil; sigt = (Sigt*)sigt->fun) {
+		for(sigt = fake[h]; sigt != nil; sigt = sigt->link) {
 			// don't need to compare indir.
 			// same type string but different indir will have
 			// different hashes.
@@ -603,16 +628,16 @@ fakesigt(string type, bool indir)
 		}
 	}
 
-	sigt = mal(2*sizeof sigt[0]);
-	sigt[0].name = mal(type->len + 1);
-	mcpy(sigt[0].name, type->str, type->len);
-	sigt[0].hash = AFAKE;	// alg
+	sigt = mal(sizeof(*sigt));
+	sigt->name = mal(type->len + 1);
+	mcpy(sigt->name, type->str, type->len);
+	sigt->alg = AFAKE;
+	sigt->width = 1;  // small width
 	if(indir)
-		sigt[0].offset = 2*sizeof(niliface.data);  // big width
-	else
-		sigt[0].offset = 1;  // small width
-	sigt->fun = (void*)fake[h];
+		sigt->width = 2*sizeof(niliface.data);  // big width
+	sigt->link = fake[h];
 	fake[h] = sigt;
+
 	unlock(&ifacelock);
 	return sigt;
 }
@@ -672,7 +697,7 @@ sys·Unreflect(uint64 it, string type, bool indir, Iface ret)
 	// if we think the type should be indirect
 	// and caller does not, play it safe, return nil.
 	sigt = findtype(type, indir);
-	if(indir != (sigt[0].offset > sizeof ret.data))
+	if(indir != (sigt->width > sizeof(ret.data)))
 		goto out;
 
 	ret.type = itype(sigi·empty, sigt, 0);
