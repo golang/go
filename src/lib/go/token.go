@@ -40,6 +40,7 @@ const (
 	XOR;
 	SHL;
 	SHR;
+	AND_NOT;
 
 	ADD_ASSIGN;
 	SUB_ASSIGN;
@@ -52,6 +53,7 @@ const (
 	XOR_ASSIGN;
 	SHL_ASSIGN;
 	SHR_ASSIGN;
+	AND_NOT_ASSIGN;
 
 	LAND;
 	LOR;
@@ -145,6 +147,7 @@ var tokens = map [int] string {
 	XOR : "^",
 	SHL : "<<",
 	SHR : ">>",
+	AND_NOT : "&^",
 
 	ADD_ASSIGN : "+=",
 	SUB_ASSIGN : "-=",
@@ -157,6 +160,7 @@ var tokens = map [int] string {
 	XOR_ASSIGN : "^=",
 	SHL_ASSIGN : "<<=",
 	SHR_ASSIGN : ">>=",
+	AND_NOT_ASSIGN : "&^=",
 
 	LAND : "&&",
 	LOR : "||",
@@ -264,7 +268,7 @@ func Precedence(tok int) int {
 		return 4;
 	case ADD, SUB, OR, XOR:
 		return 5;
-	case MUL, QUO, REM, SHL, SHR, AND:
+	case MUL, QUO, REM, SHL, SHR, AND, AND_NOT:
 		return 6;
 	}
 	return LowestPrec;
