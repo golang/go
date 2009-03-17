@@ -68,7 +68,6 @@ Closed:
 	- added to wish list
 [x] convert should not be used for composite literals anymore,
 	in fact, convert() should go away - made a todo
-[x] type switch or some form of type test needed - duplicate entry
 [x] provide composite literal notation to address array indices: []int{ 0: x1, 1: x2, ... }
     and struct field names (both seem easy to do). - under "Missing" list
 [x] passing a "..." arg to another "..." parameter doesn't wrap the argument again
@@ -3121,24 +3120,42 @@ if x := f(); x < y {
 
 <p>
 "Switch" statements provide multi-way execution.
-An expression is evaluated and compared to the "case"
-expressions inside the "switch" to determine which branch
-of the "switch" to execute.
-A missing expression is equivalent to <code>true</code>.
+An expression or type specifier is compared to the "cases"
+inside the "switch" to determine which branch
+to execute.
+A missing expression or type specifier is equivalent to
+the expression <code>true</code>.
+There are two forms: expression switches and type switches.
+</p>
+
+<p>
+In an expression switch, the cases contain expressions that are compared
+against the value of the switch expression.
+In a type switch, the cases contain types that are compared against the
+type of a specially annotated switch expression.
 </p>
 
 <pre class="grammar">
-SwitchStat   = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
-CaseClause   = SwitchCase ":" StatementList .
-SwitchCase   = "case" ExpressionList | "default" .
+SwitchStat            = ExprSwitchStat | TypeSwitchStat .
+ExprSwitchStat        = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
+TypeSwitchStat        = "switch" [ [ SimpleStat ] ";" ] TypeSwitchExpression "{" { CaseClause } "}" .
+TypeSwitchExpression  = identifier ":=" Expression "." "(" "type" ")" .
+CaseClause            = SwitchCase ":" [ StatementList ] .
+SwitchCase            = "case" ExpressionList | SwitchAssignment | Type | "default" .
+SwitchAssignment      = Expression ( "=" | ":=" ) Expression .
+SwitchExpression      = Expression.
 </pre>
 
 <p>
-The case expressions, which need not be constants,
-are evaluated top-to-bottom; the first one that matches
+In an expression switch,
+the switch expression is evaluated and
+the case expressions, which need not be constants,
+are evaluated top-to-bottom; the first one that equals the
+switch expression
 triggers execution of the statements of the associated case;
 the other cases are skipped.
-If no case matches and there is a "default" case, its statements are executed.
+If no case matches and there is a "default" case,
+its statements are executed.
 There can be at most one default case and it may appear anywhere in the
 "switch" statement.
 </p>
@@ -3181,6 +3198,78 @@ case x == 4: f3();
 }
 </pre>
 
+<p>
+If the expression in an expression switch is a boolean, the cases
+may take a special form that tests a type guard, map index, or
+channel operation and stores the value in a variable, which may
+be declared using a simple variable declaration.  The success
+of the case's operation is compared against the value of the boolean.
+A switch of the form:
+</p>
+
+<pre>
+switch bool_expr {
+case x0:
+	f0();
+case x1 := y1.(T1):
+	f1();
+case x2 := y2[z2]:
+	f2();
+case x3 := <-y3:
+	f3();
+default:
+	f4();
+}
+</pre>
+
+<p>
+is therefore analogous to the "if" statement
+</p>
+
+<pre>
+if x0 == bool_expr {
+	f0();
+} else if x1, ok1 := y1.(T1); ok1 == bool_expr {
+	f1();
+} else if x2, ok2 := y2[z2]; ok2 == bool_expr {
+	f2();
+} else if x3, ok3 := <-y3; ok3 == bool_expr {
+	f3();
+} else {
+	f4();
+}
+</pre>
+
+<p>
+A type switch compares types rather than values. In other respects it has
+the same properties as an expression switch and may in fact be rewritten
+as an expression switch using type guards.  It is introduced by special
+notation in the form of a generic type guard using the reserved word
+<code>type</code> rather than an actual type.
+Given a function <code>f</code>
+that returns a value of interface type,
+the following two "switch" statements are analogous:
+</p>
+
+<pre>
+switch i := f().(type) {
+case int:
+	printInt(i);	// i is an int
+case float:
+	printFloat(i);	// i is a float
+default:
+	printString("don't know the type");
+}
+
+switch val := f(); true {
+case i := val.(int):
+	printInt(i);	// i is an int
+case i := val.(float):
+	printFloat(i);	// i is a float
+default:
+	printString("don't know the type");
+}
+</pre>
 
 <h3>For statements</h3>
 
