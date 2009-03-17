@@ -5,7 +5,7 @@
 package main
 
 import (
-	"fd";
+	"file";
 	"flag";
 	"os";
 )
@@ -63,7 +63,7 @@ func cat(r reader) {
 		case nr == 0:  // EOF
 			return;
 		case nr > 0:
-			nw, ew := fd.Stdout.Write(buf[0:nr]);
+			nw, ew := file.Stdout.Write(buf[0:nr]);
 			if nw != nr {
 				print("error writing from ", r.String(), ": ", ew.String(), "\n");
 			}
@@ -74,15 +74,15 @@ func cat(r reader) {
 func main() {
 	flag.Parse();   // Scans the arg list and sets up flags
 	if flag.NArg() == 0 {
-		cat(fd.Stdin);
+		cat(file.Stdin);
 	}
 	for i := 0; i < flag.NArg(); i++ {
-		file, err := fd.Open(flag.Arg(i), 0, 0);
-		if file == nil {
+		f, err := file.Open(flag.Arg(i), 0, 0);
+		if f == nil {
 			print("can't open ", flag.Arg(i), ": error ", err, "\n");
 			sys.Exit(1);
 		}
-		cat(file);
-		file.Close();
+		cat(f);
+		f.Close();
 	}
 }
