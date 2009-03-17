@@ -7,12 +7,12 @@
 package main
 
 func main() {
-	if {} else L: ;
-	if {} else L: main() ;
+	if {} else L1: ;
+	if {} else L2: main() ;
 }
 
 /*
 These should be legal according to the spec.
-bug140.go:6: syntax error near L
-bug140.go:7: syntax error near L
+bug140.go:6: syntax error near L1
+bug140.go:7: syntax error near L2
 */
