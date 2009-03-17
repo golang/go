@@ -137,8 +137,8 @@ bugs/bug139.go:7: fatal error: naddr: ONAME class x 5
 BUG should compile
 
 =========== bugs/bug140.go
-bugs/bug140.go:6: syntax error near L
-bugs/bug140.go:7: syntax error near L
+bugs/bug140.go:6: syntax error near L1
+bugs/bug140.go:7: syntax error near L2
 BUG should compile
 
 =========== fixedbugs/bug016.go
