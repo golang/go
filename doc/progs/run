@@ -6,7 +6,7 @@
 rm -f *.6
 
 for i in \
-	fd.go \
+	file.go \
 	helloworld.go \
 	helloworld2.go \
 	helloworld3.go \

@@ -4,7 +4,7 @@ Let's Go
 Rob Pike
 
 ----
-(February 4, 2009)
+(March 17, 2009)
 
 
 This document is a tutorial introduction to the basics of the Go systems programming
@@ -51,7 +51,7 @@ program that doesn't depend on "print()":
 --PROG progs/helloworld2.go
 
 This version imports the ''os'' package to acess its "Stdout" variable, of type
-"*os.FD".  The "import" statement is a declaration: it names the identifier ("os")
+"*os.File".  The "import" statement is a declaration: it names the identifier ("os")
 that will be used to access members of the package imported from the file (&quot;os&quot;),
 found in the current directory or in a standard location.
 Given "os.Stdout" we can use its "WriteString" method to print the string.
@@ -307,11 +307,11 @@ An I/O Package
 ----
 
 Next we'll look at a simple package for doing file I/O with the usual
-sort of open/close/read/write interface.  Here's the start of "fd.go":
+sort of open/close/read/write interface.  Here's the start of "file.go":
 
---PROG progs/fd.go /package/ /^}/
+--PROG progs/file.go /package/ /^}/
 
-The first line declares the name of the package -- "fd" for ''file descriptor'' --
+The first line declares the name of the package -- "file" --
 and then we import two packages.  The "os" package hides the differences
 between various operating systems to give a consistent view of files and
 so on; here we're only going to use its error handling utilities
@@ -321,11 +321,11 @@ The other item is the low-level, external "syscall" package, which provides
 a primitive interface to the underlying operating system's calls.
 
 Next is a type definition: the "type" keyword introduces a type declaration,
-in this case a data structure called "FD".
-To make things a little more interesting, our "FD" includes the name of the file
+in this case a data structure called "File".
+To make things a little more interesting, our "File" includes the name of the file
 that the file descriptor refers to.
 
-Because "FD" starts with a capital letter, the type is available outside the package,
+Because "File" starts with a capital letter, the type is available outside the package,
 that is, by users of the package.   In Go the rule about visibility of information is
 simple: if a name (of a top-level type, function, method, constant, variable, or of
 a structure field) is capitalized, users of the package may see it. Otherwise, the
@@ -333,37 +333,37 @@ name and hence the thing being named is visible only inside the package in which
 it is declared.  This is more than a convention; the rule is enforced by the compiler.
 In Go, the term for publicly visible names is ''exported''.
 
-In the case of "FD", all its fields are lower case and so invisible to users, but we
+In the case of "File", all its fields are lower case and so invisible to users, but we
 will soon give it some exported, upper-case methods.
 
 First, though, here is a factory to create them:
 
---PROG progs/fd.go /newFD/ /^}/
+--PROG progs/file.go /newFile/ /^}/
 
-This returns a pointer to a new "FD" structure with the file descriptor and name
+This returns a pointer to a new "File" structure with the file descriptor and name
 filled in.  This code uses Go's notion of a ''composite literal'', analogous to
 the ones used to build maps and arrays, to construct a new heap-allocated
 object.  We could write
 
-	n := new(FD);
-	n.fildes = fd;
+	n := new(File);
+	n.fd = fd;
 	n.name = name;
 	return n
 
-but for simple structures like "FD" it's easier to return the address of a nonce
+but for simple structures like "File" it's easier to return the address of a nonce
 composite literal, as is done here on line 17.
 
-We can use the factory to construct some familiar, exported variables of type "*FD":
+We can use the factory to construct some familiar, exported variables of type "*File":
 
---PROG progs/fd.go /var/ /^.$/
+--PROG progs/file.go /var/ /^.$/
 
-The "newFD" function was not exported because it's internal. The proper,
+The "newFile" function was not exported because it's internal. The proper,
 exported factory to use is "Open":
 
---PROG progs/fd.go /func.Open/ /^}/
+--PROG progs/file.go /func.Open/ /^}/
 
 There are a number of new things in these few lines.  First, "Open" returns
-multiple values, an "FD" and an error (more about errors in a moment).
+multiple values, an "File" and an error (more about errors in a moment).
 We declare the
 multi-value return as a parenthesized list of declarations; syntactically
 they look just like a second parameter list.  The function
@@ -371,9 +371,9 @@ they look just like a second parameter list.  The function
 also has a multi-value return, which we can grab with the multi-variable
 declaration on line 27; it declares "r" and "e" to hold the two values,
 both of type "int64" (although you'd have to look at the "syscall" package
-to see that).  Finally, line 28 returns two values: a pointer to the new "FD"
+to see that).  Finally, line 28 returns two values: a pointer to the new "File"
 and the error.  If "syscall.Open" fails, the file descriptor "r" will
-be negative and "NewFD" will return "nil".
+be negative and "NewFile" will return "nil".
 
 About those errors:  The "os" library includes a general notion of an error
 string, maintaining a unique set of errors throughout the program. It's a
@@ -382,13 +382,13 @@ consistent error handling throughout Go code.   In "Open" we use the
 routine "os.ErrnoToError" to translate Unix's integer "errno" value into
 an error string, which will be stored in a unique instance of "*os.Error".
 
-Now that we can build "FDs", we can write methods for them. To declare
+Now that we can build "Files", we can write methods for them. To declare
 a method of a type, we define a function to have an explicit receiver
 of that type, placed
-in parentheses before the function name. Here are some methods for "*FD",
-each of which declares a receiver variable "fd".
+in parentheses before the function name. Here are some methods for "*File",
+each of which declares a receiver variable "file".
 
---PROG progs/fd.go /Close/ END
+--PROG progs/file.go /Close/ END
 
 There is no implicit "this" and the receiver variable must be used to access
 members of the structure.  Methods are not declared within
@@ -417,7 +417,7 @@ and run the program:
 Rotting cats
 ----
 
-Building on the "fd" package, here's a simple version of the Unix utility "cat(1)",
+Building on the "file" package, here's a simple version of the Unix utility "cat(1)",
 "progs/cat.go":
 
 --PROG progs/cat.go
@@ -425,7 +425,7 @@ Building on the "fd" package, here's a simple version of the Unix utility "cat(1
 By now this should be easy to follow, but the "switch" statement introduces some
 new features.  Like a "for" loop, an "if" or "switch" can include an
 initialization statement.  The "switch" on line 12 uses one to create variables
-"nr" and "er" to hold the return values from "fd.Read()".  (The "if" on line 19
+"nr" and "er" to hold the return values from "f.Read()".  (The "if" on line 19
 has the same idea.)  The "switch" statement is general: it evaluates the cases
 from  top to bottom looking for the first case that matches the value; the
 case expressions don't need to be constants or even integers, as long as
@@ -444,7 +444,7 @@ Now let's make a variant of "cat" that optionally does "rot13" on its input.
 It's easy to do by just processing the bytes, but instead we will exploit
 Go's notion of an <i>interface</i>.
 
-The "cat()" subroutine uses only two methods of "fd": "Read()" and "String()",
+The "cat()" subroutine uses only two methods of "f": "Read()" and "String()",
 so let's start by defining an interface that has exactly those two methods.
 Here is code from "progs/cat_rot13.go":
 
@@ -452,9 +452,9 @@ Here is code from "progs/cat_rot13.go":
 
 Any type that implements the two methods of "reader" -- regardless of whatever
 other methods the type may also contain -- is said to <i>implement</i> the
-interface.  Since "fd.FD" implements these methods, it implements the
+interface.  Since "file.File" implements these methods, it implements the
 "reader" interface.  We could tweak the "cat" subroutine to accept a "reader"
-instead of a "*fd.FD" and it would work just fine, but let's embellish a little
+instead of a "*file.File" and it would work just fine, but let's embellish a little
 first by writing a second type that implements "reader", one that wraps an
 existing "reader" and does "rot13" on the data. To do this, we just define
 the type and implement the methods and with no other bookkeeping,
@@ -497,7 +497,7 @@ type if the type implements all the methods declared in the interface.
 This means
 that a type may implement an arbitrary number of different interfaces.
 There is no type hierarchy; things can be much more <i>ad hoc</i>,
-as we saw with "rot13".  The type "fd.FD" implements "reader"; it could also
+as we saw with "rot13".  The type "file.File" implements "reader"; it could also
 implement a "writer", or any other interface built from its methods that
 fits the current situation. Consider the <i>empty interface</i>
 
