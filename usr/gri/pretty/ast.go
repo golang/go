@@ -273,37 +273,6 @@ func (x *MapType) Visit(v ExprVisitor) { v.DoMapType(x); }
 func (x *ChannelType) Visit(v ExprVisitor) { v.DoChannelType(x); }
 
 
-
-// Length of a comma-separated expression list.
-func ExprLen(x Expr) int {
-	if x == nil {
-		return 0;
-	}
-	n := 1;
-	for {
-		if p, ok := x.(*BinaryExpr); ok && p.Tok == token.COMMA {
-			n++;
-			x = p.Y;
-		} else {
-			break;
-		}
-	}
-	return n;
-}
-
-
-func ExprAt(x Expr, i int) Expr {
-	for j := 0; j < i; j++ {
-		assert(x.(*BinaryExpr).Tok == token.COMMA);
-		x = x.(*BinaryExpr).Y;
-	}
-	if t, is_binary := x.(*BinaryExpr); is_binary && t.Tok == token.COMMA {
-		x = t.X;
-	}
-	return x;
-}
-
-
 // ----------------------------------------------------------------------------
 // Blocks
 //
@@ -357,6 +326,24 @@ type (
 		Expr Expr;
 	};
 
+	AssignmentStat struct {
+		Loc scanner.Location;  // location of Tok
+		Tok int;  // assignment token
+		Lhs, Rhs Expr;
+	};
+
+	TupleAssignStat struct {
+		Loc scanner.Location;  // location of Tok
+		Tok int;  // assignment token
+		Lhs, Rhs []Expr;
+	};
+
+	IncDecStat struct {
+		Loc scanner.Location;  // location of '++' or '--'
+		Tok int;  // token.INC or token.DEC
+		Expr Expr;
+	};
+
 	CompositeStat struct {
 		Body *Block;
 	};
@@ -369,6 +356,13 @@ type (
 		Else Stat;
 	};
 	
+	RangeClause struct {  // appears only as Init stat in a ForStat
+		Loc scanner.Location;  // location of "=" or ":="
+		Tok int;  // token.ASSIGN or token.DEFINE
+		Lhs []Expr;
+		Rhs Expr;
+	};
+
 	ForStat struct {
 		Loc scanner.Location;  // location of "for"
 		Init Stat;
@@ -377,9 +371,15 @@ type (
 		Body *Block;
 	};
 
+	TypeSwitchClause struct {  // appears only as Init stat in a SwitchStat
+		Loc scanner.Location;  // location of ":="
+		Lhs *Ident;
+		Rhs Expr;
+	};
+
 	CaseClause struct {
-		Loc scanner.Location;  // position for "case" or "default"
-		Expr Expr;  // nil means default case
+		Loc scanner.Location;  // location of "case" or "default"
+		Values []Expr;  // nil means default case
 		Body *Block;
 	};
 
@@ -389,7 +389,14 @@ type (
 		Tag Expr;
 		Body *Block;
 	};
-	
+
+	CommClause struct {
+		Loc scanner.Location;  // location of "case" or "default"
+		Tok int;  // token.ASSIGN, token.DEFINE (valid only if Lhs != nil)
+		Lhs, Rhs Expr;  // Rhs == nil means default case
+		Body *Block;
+	};
+
 	SelectStat struct {
 		Loc scanner.Location;  // location of "select"
 		Body *Block;
@@ -399,6 +406,11 @@ type (
 		Loc scanner.Location;  // location of Tok
 		Tok int;  // BREAK, CONTINUE, GOTO, FALLTHROUGH
 		Label *Ident;  // if any, or nil
+	};
+	
+	ReturnStat struct {
+		Loc scanner.Location;  // location of "return"
+		Results []Expr;
 	};
 	
 	EmptyStat struct {
@@ -412,13 +424,20 @@ type StatVisitor interface {
 	DoLabeledStat(s *LabeledStat);
 	DoDeclarationStat(s *DeclarationStat);
 	DoExpressionStat(s *ExpressionStat);
+	DoAssignmentStat(s *AssignmentStat);
+	DoTupleAssignStat(s *TupleAssignStat);
+	DoIncDecStat(s *IncDecStat);
 	DoCompositeStat(s *CompositeStat);
 	DoIfStat(s *IfStat);
+	DoRangeClause(s *RangeClause);
 	DoForStat(s *ForStat);
+	DoTypeSwitchClause(s *TypeSwitchClause);
 	DoCaseClause(s *CaseClause);
 	DoSwitchStat(s *SwitchStat);
+	DoCommClause(s *CommClause);
 	DoSelectStat(s *SelectStat);
 	DoControlFlowStat(s *ControlFlowStat);
+	DoReturnStat(s *ReturnStat);
 	DoEmptyStat(s *EmptyStat);
 }
 
@@ -427,13 +446,20 @@ func (s *BadStat) Visit(v StatVisitor) { v.DoBadStat(s); }
 func (s *LabeledStat) Visit(v StatVisitor) { v.DoLabeledStat(s); }
 func (s *DeclarationStat) Visit(v StatVisitor) { v.DoDeclarationStat(s); }
 func (s *ExpressionStat) Visit(v StatVisitor) { v.DoExpressionStat(s); }
+func (s *AssignmentStat) Visit(v StatVisitor) { v.DoAssignmentStat(s); }
+func (s *TupleAssignStat) Visit(v StatVisitor) { v.DoTupleAssignStat(s); }
+func (s *IncDecStat) Visit(v StatVisitor) { v.DoIncDecStat(s); }
 func (s *CompositeStat) Visit(v StatVisitor) { v.DoCompositeStat(s); }
 func (s *IfStat) Visit(v StatVisitor) { v.DoIfStat(s); }
+func (s *RangeClause) Visit(v StatVisitor) { v.DoRangeClause(s); }
 func (s *ForStat) Visit(v StatVisitor) { v.DoForStat(s); }
+func (s *TypeSwitchClause) Visit(v StatVisitor) { v.DoTypeSwitchClause(s); }
 func (s *CaseClause) Visit(v StatVisitor) { v.DoCaseClause(s); }
 func (s *SwitchStat) Visit(v StatVisitor) { v.DoSwitchStat(s); }
+func (s *CommClause) Visit(v StatVisitor) { v.DoCommClause(s); }
 func (s *SelectStat) Visit(v StatVisitor) { v.DoSelectStat(s); }
 func (s *ControlFlowStat) Visit(v StatVisitor) { v.DoControlFlowStat(s); }
+func (s *ReturnStat) Visit(v StatVisitor) { v.DoReturnStat(s); }
 func (s *EmptyStat) Visit(v StatVisitor) { v.DoEmptyStat(s); }
 
 
@@ -461,7 +487,7 @@ type (
 		Loc scanner.Location;  // if > 0: position of "const"
 		Names []*Ident;
 		Typ Expr;
-		Vals Expr;
+		Values []Expr;
 		Comment CommentGroup;
 	};
 	
@@ -476,7 +502,7 @@ type (
 		Loc scanner.Location;  // if > 0: position of "var"
 		Names []*Ident;
 		Typ Expr;
-		Vals Expr;
+		Values []Expr;
 		Comment CommentGroup;
 	};
 

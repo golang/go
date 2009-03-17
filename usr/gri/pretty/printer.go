@@ -463,6 +463,18 @@ func (P *Printer) Idents(list []*ast.Ident, full bool) int {
 }
 
 
+func (P *Printer) Exprs(list []ast.Expr) {
+	for i, x := range list {
+		if i > 0 {
+			P.Token(noloc, token.COMMA);
+			P.separator = blank;
+			P.state = inside_list;
+		}
+		P.Expr(x);
+	}
+}
+
+
 func (P *Printer) Parameters(list []*ast.Field) {
 	P.Token(noloc, token.LPAREN);
 	if len(list) > 0 {
@@ -856,6 +868,30 @@ func (P *Printer) DoExpressionStat(s *ast.ExpressionStat) {
 }
 
 
+func (P *Printer) DoAssignmentStat(s *ast.AssignmentStat) {
+	P.Expr(s.Lhs);
+	P.separator = blank;
+	P.Token(s.Loc, s.Tok);
+	P.separator = blank;
+	P.Expr(s.Rhs);
+}
+
+
+func (P *Printer) DoTupleAssignStat(s *ast.TupleAssignStat) {
+	P.Exprs(s.Lhs);
+	P.separator = blank;
+	P.Token(s.Loc, s.Tok);
+	P.separator = blank;
+	P.Exprs(s.Rhs);
+}
+
+
+func (P *Printer) DoIncDecStat(s *ast.IncDecStat) {
+	P.Expr(s.Expr);
+	P.Token(s.Loc, s.Tok);
+}
+
+
 func (P *Printer) DoCompositeStat(s *ast.CompositeStat) {
 	P.Block(s.Body, true);
 }
@@ -868,6 +904,12 @@ func (P *Printer) ControlClause(isForStat bool, init ast.Stat, expr ast.Expr, po
 		if expr != nil {
 			P.Expr(expr);
 		}
+	} else if range_clause, ok := init.(*ast.RangeClause); ok {
+		// range clause
+		P.Stat(range_clause);
+	} else if typeswitch_clause, ok := init.(*ast.TypeSwitchClause); ok {
+		// type switch clause
+		P.Stat(typeswitch_clause);
 	} else {
 		// all semicolons required
 		// (they are not separators, print them explicitly)
@@ -906,6 +948,17 @@ func (P *Printer) DoIfStat(s *ast.IfStat) {
 }
 
 
+func (P *Printer) DoRangeClause(s *ast.RangeClause) {
+	P.Exprs(s.Lhs);
+	P.separator = blank;
+	P.Token(s.Loc, s.Tok);
+	P.separator = blank;
+	P.Token(noloc, token.RANGE);
+	P.separator = blank;
+	P.Expr(s.Rhs);
+}
+
+
 func (P *Printer) DoForStat(s *ast.ForStat) {
 	P.Token(s.Loc, token.FOR);
 	P.ControlClause(true, s.Init, s.Cond, s.Post);
@@ -913,11 +966,24 @@ func (P *Printer) DoForStat(s *ast.ForStat) {
 }
 
 
+func (P *Printer) DoTypeSwitchClause(s *ast.TypeSwitchClause) {
+	P.Expr(s.Lhs);
+	P.separator = blank;
+	P.Token(s.Loc, token.DEFINE);
+	P.separator = blank;
+	P.Expr(s.Rhs);
+	P.Token(s.Loc, token.PERIOD);
+	P.Token(s.Loc, token.LPAREN);
+	P.Token(s.Loc, token.TYPE);
+	P.Token(s.Loc, token.RPAREN);
+}
+
+
 func (P *Printer) DoCaseClause(s *ast.CaseClause) {
-	if s.Expr != nil {
+	if s.Values != nil {
 		P.Token(s.Loc, token.CASE);
 		P.separator = blank;
-		P.Expr(s.Expr);
+		P.Exprs(s.Values);
 	} else {
 		P.Token(s.Loc, token.DEFAULT);
 	}
@@ -938,6 +1004,37 @@ func (P *Printer) DoSwitchStat(s *ast.SwitchStat) {
 }
 
 
+func (P *Printer) DoTypeSwitchStat(s *ast.SwitchStat) {
+	P.Token(s.Loc, token.SWITCH);
+	P.ControlClause(false, s.Init, s.Tag, nil);
+	P.Block(s.Body, false);
+}
+
+
+func (P *Printer) DoCommClause(s *ast.CommClause) {
+	if s.Rhs != nil {
+		P.Token(s.Loc, token.CASE);
+		P.separator = blank;
+		if s.Lhs != nil {
+			P.Expr(s.Lhs);
+			P.separator = blank;
+			P.Token(noloc, s.Tok);
+			P.separator = blank;
+		}
+		P.Expr(s.Rhs);
+	} else {
+		P.Token(s.Loc, token.DEFAULT);
+	}
+	// TODO: try to use P.Block instead
+	// P.Block(s.Body, true);
+	P.Token(s.Body.Loc, token.COLON);
+	P.indentation++;
+	P.StatementList(s.Body.List);
+	P.indentation--;
+	P.newlines = 1;
+}
+
+
 func (P *Printer) DoSelectStat(s *ast.SelectStat) {
 	P.Token(s.Loc, token.SELECT);
 	P.separator = blank;
@@ -951,6 +1048,13 @@ func (P *Printer) DoControlFlowStat(s *ast.ControlFlowStat) {
 		P.separator = blank;
 		P.Expr(s.Label);
 	}
+}
+
+
+func (P *Printer) DoReturnStat(s *ast.ReturnStat) {
+	P.Token(s.Loc, token.RETURN);
+	P.separator = blank;
+	P.Exprs(s.Results);
 }
 
 
@@ -999,11 +1103,11 @@ func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
 		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
 		P.Expr(d.Typ);
 	}
-	if d.Vals != nil {
+	if d.Values != nil {
 		P.separator = tab;
 		P.Token(noloc, token.ASSIGN);
 		P.separator = blank;
-		P.Expr(d.Vals);
+		P.Exprs(d.Values);
 	}
 	P.newlines = 2;
 }
@@ -1032,11 +1136,11 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
 		P.Expr(d.Typ);
 		//P.separator = P.Type(d.Typ);
 	}
-	if d.Vals != nil {
+	if d.Values != nil {
 		P.separator = tab;
 		P.Token(noloc, token.ASSIGN);
 		P.separator = blank;
-		P.Expr(d.Vals);
+		P.Exprs(d.Values);
 	}
 	P.newlines = 2;
 }
