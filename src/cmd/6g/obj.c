@@ -661,7 +661,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 	a = nil;
 	o = 0;
 	oldlist = nil;
-	sighash = typehash(progt, 0);
+	sighash = typehash(progt, 1, 0);
 	for(f=methodt->method; f!=T; f=f->down) {
 		if(f->type->etype != TFUNC)
 			continue;
@@ -678,7 +678,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 		a = b;
 
 		a->name = method->name;
-		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
+		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0, 0);
 		if(!exportname(a->name))
 			a->hash += PRIME10*stringhash(package);
 		a->perm = o;
@@ -735,7 +735,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 	// base of type signature contains parameters
 	ginsatoa(widthptr, stringo);		// name
 	ot = rnd(ot, widthptr)+widthptr;	// skip link
-	gensatac(wi, typehash(progt, 0));	// thash
+	gensatac(wi, typehash(progt, 1, 0));	// thash
 	gensatac(wi, sighash);			// mhash
 	gensatac(ws, progt->width);		// width
 	gensatac(ws, algtype(progt));		// algorithm
@@ -815,7 +815,7 @@ dumpsigi(Type *t, Sym *s)
 		a = b;
 
 		a->name = s1->name;
-		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
+		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0, 0);
 		if(!exportname(a->name))
 			a->hash += PRIME10*stringhash(package);
 		a->perm = o;

@@ -484,6 +484,13 @@ complex_stmt:
 		// right will point to next case
 		// done in casebody()
 		poptodcl();
+		if(typeswvar != N && typeswvar->right != N)
+		if($2->op == OLITERAL && $2->val.ctype == CTNIL) {
+			// this version in type switch case nil
+			$$ = nod(OTYPESW, N, N);
+			$$ = nod(OXCASE, $$, N);
+			break;
+		}
 		$$ = nod(OXCASE, $2, N);
 	}
 |	LCASE name '=' expr ':'
@@ -821,7 +828,6 @@ pexpr:
 |	LNIL
 	{
 		Val v;
-
 		v.ctype = CTNIL;
 		$$ = nodlit(v);
 	}

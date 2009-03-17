@@ -659,7 +659,7 @@ int	eqtype(Type*, Type*, int);
 int	eqtypenoname(Type*, Type*);
 void	argtype(Node*, Type*);
 int	eqargs(Type*, Type*);
-uint32	typehash(Type*, int);
+uint32	typehash(Type*, int, int);
 void	frame(int);
 Node*	dobad(void);
 Node*	nodintconst(int64);

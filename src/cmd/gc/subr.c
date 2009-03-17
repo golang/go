@@ -1919,7 +1919,7 @@ eqargs(Type *t1, Type *t2)
 }
 
 uint32
-typehash(Type *at, int d)
+typehash(Type *at, int addsym, int d)
 {
 	uint32 h;
 	Type *t;
@@ -1931,20 +1931,23 @@ typehash(Type *at, int d)
 
 	h = at->etype*PRIME4;
 
+	if(addsym && at->sym != S)
+		h += stringhash(at->sym->name);
+
 	switch(at->etype) {
 	default:
-		h += PRIME5 * typehash(at->type, d+1);
+		h += PRIME5 * typehash(at->type, addsym, d+1);
 		break;
 
 	case TINTER:
 		// botch -- should be sorted?
 		for(t=at->type; t!=T; t=t->down)
-			h += PRIME6 * typehash(t, d+1);
+			h += PRIME6 * typehash(t, addsym, d+1);
 		break;
 
 	case TSTRUCT:
 		for(t=at->type; t!=T; t=t->down)
-			h += PRIME7 * typehash(t, d+1);
+			h += PRIME7 * typehash(t, addsym, d+1);
 		break;
 
 	case TFUNC:
@@ -1953,7 +1956,7 @@ typehash(Type *at, int d)
 		if(t != T)
 			t = t->down;
 		for(; t!=T; t=t->down)
-			h += PRIME7 * typehash(t, d+1);
+			h += PRIME7 * typehash(t, addsym, d+1);
 		break;
 	}
 
@@ -2756,9 +2759,9 @@ ifaceokT2I(Type *t0, Type *iface, Type **m)
 	// so we can both be wrong together.
 
 	for(im=iface->type; im; im=im->down) {
-		imhash = typehash(im, 0);
+		imhash = typehash(im, 0, 0);
 		tm = ifacelookdot(im->sym, t);
-		if(tm == T || typehash(tm, 0) != imhash) {
+		if(tm == T || typehash(tm, 0, 0) != imhash) {
 			*m = im;
 			return 0;
 		}
@@ -2778,7 +2781,7 @@ ifaceokI2I(Type *i1, Type *i2, Type **m)
 
 	for(m2=i2->type; m2; m2=m2->down) {
 		for(m1=i1->type; m1; m1=m1->down)
-			if(m1->sym == m2->sym && typehash(m1, 0) == typehash(m2, 0))
+			if(m1->sym == m2->sym && typehash(m1, 0, 0) == typehash(m2, 0, 0))
 				goto found;
 		*m = m2;
 		return 0;
