@@ -2908,16 +2908,13 @@ Statements control execution.
 </p>
 
 <pre class="grammar">
-Statement = { Label ":" } UnlabeledStatement .
-Label     = identifier .
-UnlabeledStatement =
-	Declaration | EmptyStat |
+Statement =
+	Declaration | EmptyStat | LabeledStat |
 	SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
 	FallthroughStat | Block | IfStat | SwitchStat | SelectStat | ForStat |
 	DeferStat .
 
-SimpleStat =
-	ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
+SimpleStat = ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
 
 StatementList = Statement { Separator Statement } .
 Separator     = [ ";" ]
@@ -2936,14 +2933,6 @@ which may be omitted only if the previous statement:
 	    (including "switch" and "select" statements).
 </ul>
 
-<p>
-A labeled statement may be the target of a <code>goto</code>,
-<code>break</code> or <code>continue</code> statement.
-</p>
-
-<pre>
-Error: log.Fatal("error encountered")
-</pre>
 
 <h3>Empty statements</h3>
 
@@ -2959,6 +2948,23 @@ EmptyStat = .
 A statement list can always in effect be terminated with a semicolon by
 adding an empty statement.
 </p>
+
+
+<h3>Labeled statements</h3>
+
+<p>
+A labeled statement may be the target of a <code>goto</code>,
+<code>break</code> or <code>continue</code> statement.
+</p>
+
+<pre class="grammar">
+LabeledStat = Label ":" Statement .
+Label       = identifier .
+</pre>
+
+<pre>
+Error: log.Fatal("error encountered")
+</pre>
 
 
 <h3>Expression statements</h3>
