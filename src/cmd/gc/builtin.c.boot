@@ -26,6 +26,7 @@ char *sysimport =
 	"func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
 	"func sys.ifaceI2I2 (sigi *uint8, iface any) (ret any, ok bool)\n"
 	"func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
+	"func sys.ifacethash (i1 any) (ret uint32)\n"
 	"func sys.newmap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap map[any] any)\n"
 	"func sys.mapaccess1 (hmap map[any] any, key any) (val any)\n"
 	"func sys.mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"

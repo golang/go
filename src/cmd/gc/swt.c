@@ -10,8 +10,22 @@ enum
 	Strue,
 	Sfalse,
 	Stype,
+
+	Ncase	= 4,	// needed to binary search
 };
-Node*	binarysw(Node *t, Iter *save, Node *name);
+Node*	exprbsw(Node *t, Iter *save, Node *name);
+void	typeswitch(Node *sw);
+
+typedef	struct	Case	Case;
+struct	Case
+{
+	Node*	node;		// points at case statement
+	uint32	hash;		// hash of a type switch
+	uint8	uniq;		// first of multiple identical hashes
+	uint8	diag;		// suppress multiple diagnostics
+	Case*	link;		// linked list to link
+};
+#define	C	((Case*)nil)
 
 /*
  * walktype
@@ -263,7 +277,6 @@ exprswitch(Node *sw, int arg)
 	Iter save;
 	Node *name, *bool, *cas;
 	Node *t, *a;
-//dump("exprswitch before", sw->nbody->left);
 
 	cas = N;
 	name = N;
@@ -280,7 +293,6 @@ exprswitch(Node *sw, int arg)
 loop:
 	if(t == N) {
 		sw->nbody->left = rev(cas);
-//dump("exprswitch after", sw->nbody->left);
 		return;
 	}
 
@@ -295,7 +307,6 @@ loop:
 	// this should be done better to prevent
 	// multiple (unused) heap allocations per switch.
 	if(t->ninit != N && t->ninit->op == ODCL) {
-//dump("exprswitch case init", t->ninit);
 		cas = list(cas, t->ninit);
 		t->ninit = N;
 	}
@@ -305,7 +316,6 @@ loop:
 			bool = nod(OXXX, N, N);
 			tempname(bool, types[TBOOL]);
 		}
-//dump("oas", t);
 		t->left->left = nod(OLIST, t->left->left, bool);
 		cas = list(cas, t->left);		// v,bool = rhs
 
@@ -324,7 +334,7 @@ loop:
 	switch(arg) {
 	default:
 		// not bool const
-		a = binarysw(t, &save, name);
+		a = exprbsw(t, &save, name);
 		if(a != N)
 			break;
 
@@ -351,95 +361,11 @@ loop:
 	goto loop;
 }
 
-/*
- * convert switch of the form
- *	switch v := i.(type) { case t1: ..; case t2: ..; }
- * into if statements
- */
-void
-typeswitch(Node *sw)
-{
-	Iter save;
-	Node *face, *bool, *cas;
-	Node *t, *a, *b;
-
-//dump("typeswitch", sw);
-
-	walktype(sw->ntest->right, Erv);
-	if(!istype(sw->ntest->right->type, TINTER)) {
-		yyerror("type switch must be on an interface");
-		return;
-	}
-	walkcases(sw, sw0, Stype);
-
-	/*
-	 * predeclare variables for the interface var
-	 * and the boolean var
-	 */
-	face = nod(OXXX, N, N);
-	tempname(face, sw->ntest->right->type);
-	cas = nod(OAS, face, sw->ntest->right);
-
-	bool = nod(OXXX, N, N);
-	tempname(bool, types[TBOOL]);
-
-	t = listfirst(&save, &sw->nbody->left);
-
-loop:
-	if(t == N) {
-		sw->nbody->left = rev(cas);
-		walkstate(sw->nbody);
-//dump("done", sw->nbody->left);
-		return;
-	}
-
-	if(t->left == N) {
-		cas = list(cas, t->right);		// goto default
-		t = listnext(&save);
-		goto loop;
-	}
-	if(t->left->op != OTYPESW) {
-		t = listnext(&save);
-		goto loop;
-	}
-
-	// pull out the dcl in case this
-	// variable is allocated on the heap.
-	// this should be done better to prevent
-	// multiple (unused) heap allocations per switch.
-	// not worth doing now -- make a binary search
-	// on contents of signature instead.
-	if(t->ninit != N && t->ninit->op == ODCL) {
-//dump("typeswitch case init", t->ninit);
-		cas = list(cas, t->ninit);
-		t->ninit = N;
-	}
-
-	a = t->left->left;		// var
-	a = nod(OLIST, a, bool);	// var,bool
-
-	b = nod(ODOTTYPE, face, N);
-	b->type = t->left->left->type;	// interface.(type)
-
-	a = nod(OAS, a, b);		// var,bool = interface.(type)
-	cas = list(cas, a);
-
-	a = nod(OIF, N, N);
-	a->ntest = bool;
-	a->nbody = t->right;		// if bool { goto l }
-	cas = list(cas, a);
-
-	t = listnext(&save);
-	goto loop;
-}
-
 void
 walkswitch(Node *sw)
 {
 	Type *t;
 	int arg;
-
-//dump("walkswitch", sw);
 
 	/*
 	 * reorder the body into (OLIST, cases, statements)
@@ -476,7 +402,6 @@ walkswitch(Node *sw)
 	 * init statement is nothing important
 	 */
 	walktype(sw->ntest, Erv);
-//print("after walkwalks\n");
 
 	/*
 	 * pass 0,1,2,3
@@ -492,31 +417,13 @@ walkswitch(Node *sw)
 		return;
 	walkcases(sw, sw3, arg);
 	convlit(sw->ntest, t);
-//print("after walkcases\n");
 
 	/*
 	 * convert the switch into OIF statements
 	 */
 	exprswitch(sw, arg);
 	walkstate(sw->nbody);
-//print("normal done\n");
 }
-
-/*
- * binary search on cases
- */
-enum
-{
-	Ncase	= 4,	// needed to binary search
-};
-
-typedef	struct	Case	Case;
-struct	Case
-{
-	Node*	node;		// points at case statement
-	Case*	link;		// linked list to link
-};
-#define	C	((Case*)nil)
 
 int
 iscaseconst(Node *t)
@@ -662,18 +569,18 @@ constsw(Case *c0, int ncase, Node *name)
 	// find center and recur
 	c = c0;
 	n = ncase>>1;
-	for(i=0; i<n; i++)
+	for(i=1; i<n; i++)
 		c = c->link;
 
 	a = nod(OIF, N, N);
 	a->ntest = nod(OLE, name, c->node->left);
-	a->nbody = constsw(c0, n+1, name);	// include center
-	a->nelse = constsw(c->link, ncase-n-1, name);	// exclude center
+	a->nbody = constsw(c0, n, name);		// include center
+	a->nelse = constsw(c->link, ncase-n, name);	// exclude center
 	return a;
 }
 
 Node*
-binarysw(Node *t, Iter *save, Node *name)
+exprbsw(Node *t, Iter *save, Node *name)
 {
 	Case *c, *c1;
 	int i, ncase;
@@ -701,6 +608,216 @@ binarysw(Node *t, Iter *save, Node *name)
 
 	c = csort(c, casecmp);
 	a = constsw(c, ncase, name);
-//dump("bin", a);
 	return a;
+}
+
+int
+hashcmp(Case *c1, Case *c2)
+{
+
+	if(c1->hash > c2->hash)
+		return +1;
+	if(c1->hash < c2->hash)
+		return -1;
+	return 0;
+}
+
+int
+counthash(Case *c)
+{
+	Case *c1, *c2;
+	Type *t1, *t2;
+	char buf1[NSYMB], buf2[NSYMB];
+	int ncase;
+
+	ncase = 0;
+	while(c != C) {
+		c->uniq = 1;
+		ncase++;
+
+		for(c1=c->link; c1!=C; c1=c1->link) {
+			if(c->hash != c1->hash)
+				break;
+
+			// c1 is a non-unique hash
+			// compare its type to all types c upto c1
+			for(c2=c; c2!=c1; c2=c2->link) {
+				if(c->diag)
+					continue;
+				t1 = c1->node->left->left->type;
+				t2 = c2->node->left->left->type;
+				if(!eqtype(t1, t2, 0))
+					continue;
+				snprint(buf1, sizeof(buf1), "%#T", t1);
+				snprint(buf2, sizeof(buf2), "%#T", t2);
+				if(strcmp(buf1, buf2) != 0)
+					continue;
+				setlineno(c1->node);
+				yyerror("duplicate type case: %T\n", t1);
+				c->diag = 1;
+			}
+		}
+		c = c1;
+	}
+	return ncase;
+}
+
+Case*
+nextuniq(Case *c)
+{
+	for(c=c->link; c!=C; c=c->link)
+		if(c->uniq)
+			return c;
+	return C;
+}
+
+static	Node*	hashname;
+static	Node*	facename;
+static	Node*	boolname;
+static	Node*	gotodefault;
+
+Node*
+typebsw(Case *c0, int ncase)
+{
+	Node *cas, *cmp;
+	Node *a, *b, *t;
+	Case *c, *c1;
+	int i, n;
+
+	cas = N;
+
+	if(ncase < Ncase) {
+		for(i=0; i<ncase; i++) {
+			c1 = nextuniq(c0);
+			cmp = N;
+			for(c=c0; c!=c1; c=c->link) {
+				t = c->node;
+
+				if(t->left->left == N) {
+					// case nil
+					Val v;
+					v.ctype = CTNIL;
+					a = nod(OIF, N, N);
+					a->ntest = nod(OEQ, facename, nodlit(v));
+					a->nbody = t->right;		// if i==nil { goto l }
+					cmp = list(cmp, a);
+					continue;
+				}
+
+				a = t->left->left;		// var
+				a = nod(OLIST, a, boolname);	// var,bool
+
+				b = nod(ODOTTYPE, facename, N);
+				b->type = t->left->left->type;	// interface.(type)
+
+				a = nod(OAS, a, b);		// var,bool = interface.(type)
+				cmp = list(cmp, a);
+
+				a = nod(OIF, N, N);
+				a->ntest = boolname;
+				a->nbody = t->right;		// if bool { goto l }
+				cmp = list(cmp, a);
+			}
+			cmp = list(cmp, gotodefault);
+			a = nod(OIF, N, N);
+			a->ntest = nod(OEQ, hashname, nodintconst(c0->hash));
+			a->nbody = rev(cmp);
+			cas = list(cas, a);
+			c0 = c1;
+		}
+		cas = list(cas, gotodefault);
+		return rev(cas);
+	}
+
+	// find the middle and recur
+	c = c0;
+	n = ncase>>1;
+	for(i=1; i<n; i++)
+		c = nextuniq(c);
+	a = nod(OIF, N, N);
+	a->ntest = nod(OLE, hashname, nodintconst(c->hash));
+	a->nbody = typebsw(c0, n);
+	a->nelse = typebsw(nextuniq(c), ncase-n);
+	return a;
+}
+
+/*
+ * convert switch of the form
+ *	switch v := i.(type) { case t1: ..; case t2: ..; }
+ * into if statements
+ */
+void
+typeswitch(Node *sw)
+{
+	Iter save;
+	Node *cas;
+	Node *t, *a;
+	Case *c, *c1;
+	int ncase;
+
+	walktype(sw->ntest->right, Erv);
+	if(!istype(sw->ntest->right->type, TINTER)) {
+		yyerror("type switch must be on an interface");
+		return;
+	}
+	walkcases(sw, sw0, Stype);
+	cas = N;
+
+	/*
+	 * predeclare temporary variables
+	 * and the boolean var
+	 */
+	facename = nod(OXXX, N, N);
+	tempname(facename, sw->ntest->right->type);
+	a = nod(OAS, facename, sw->ntest->right);
+	cas = list(cas, a);
+
+	boolname = nod(OXXX, N, N);
+	tempname(boolname, types[TBOOL]);
+
+	hashname = nod(OXXX, N, N);
+	tempname(hashname, types[TUINT32]);
+
+	a = syslook("ifacethash", 1);
+	argtype(a, sw->ntest->right->type);
+	a = nod(OCALL, a, sw->ntest->right);
+	a = nod(OAS, hashname, a);
+	cas = list(cas, a);
+
+	gotodefault = N;
+
+	c = C;
+	t = listfirst(&save, &sw->nbody->left);
+
+loop:
+	if(t == N) {
+		if(gotodefault == N)
+			gotodefault = nod(OBREAK, N, N);
+		c = csort(c, hashcmp);
+		ncase = counthash(c);
+		a = typebsw(c, ncase);
+		sw->nbody->left = list(rev(cas), rev(a));
+		walkstate(sw->nbody);
+		return;
+	}
+	if(t->left == N) {
+		gotodefault = t->right;
+		t = listnext(&save);
+		goto loop;
+	}
+	if(t->left->op != OTYPESW) {
+		t = listnext(&save);
+		goto loop;
+	}
+
+	c1 = mal(sizeof(*c));
+	c1->link = c;
+	c1->node = t;
+	c1->hash = 0;
+	if(t->left->left != N)
+		c1->hash = typehash(t->left->left->type, 1, 0);
+	c = c1;
+
+	t = listnext(&save);
+	goto loop;
 }

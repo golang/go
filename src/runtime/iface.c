@@ -532,6 +532,23 @@ sys·ifaceeq(Iface i1, Iface i2, bool ret)
 	FLUSH(&ret);
 }
 
+// ifacethash(i1 any) (ret uint32);
+void
+sys·ifacethash(Iface i1, uint32 ret)
+{
+	Itype *im;
+	Sigt *st;
+
+	ret = 0;
+	im = i1.type;
+	if(im != nil) {
+		st = im->sigt;
+		if(st != nil)
+			ret = st->thash;
+	}
+	FLUSH(&ret);
+}
+
 void
 sys·printinter(Iface i)
 {
