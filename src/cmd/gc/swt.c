@@ -394,7 +394,7 @@ walkswitch(Node *sw)
 	arg = Snorm;
 	if(isconst(sw->ntest, CTBOOL)) {
 		arg = Strue;
-		if(sw->ntest->val.u.xval == 0)
+		if(sw->ntest->val.u.bval == 0)
 			arg = Sfalse;
 	}
 
