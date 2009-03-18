@@ -15,17 +15,13 @@ type (
 	Block struct;
 	Expr interface;
 	Decl interface;
+	ExprVisitor interface;
+	Signature struct;
 )
 
 
-// ----------------------------------------------------------------------------
-// Support
-
-func assert(pred bool) {
-	if !pred {
-		panic("assertion failed");
-	}
-}
+// TODO rename scanner.Location to scanner.Position, possibly factor out
+type Position scanner.Location
 
 
 // ----------------------------------------------------------------------------
@@ -44,9 +40,150 @@ type CommentGroup []*Comment
 
 
 // ----------------------------------------------------------------------------
-// Expressions
+// Expressions and types
 
-const /* channel mode */ (
+
+// All expression nodes implement the Expr interface.
+type Expr interface {
+	// For a (dynamic) node type X, calling Visit with an expression
+	// visitor v invokes the node-specific DoX function of the visitor.
+	//
+	Visit(v ExprVisitor);
+	
+	// Pos returns the (beginning) position of the expression.
+	Pos() Position;
+};
+
+
+// An expression is represented by a tree consisting of one
+// or several of the following concrete expression nodes.
+//
+type (
+	// A BadExpr node is a placeholder node for expressions containing
+	// syntax errors for which not correct expression tree can be created.
+	//
+	BadExpr struct {
+		Pos_ Position;  // bad expression position
+	};
+
+
+	// An Ident node represents an identifier (identifier).
+	Ident struct {
+		Str string;  // identifier string (e.g. foobar)
+		Pos_ Position;  // identifier position
+	};
+
+
+	// An basic literal is represented by a BasicLit node.
+	BasicLit struct {
+		Tok int;  // literal token
+		Lit []byte;  // literal string
+		Pos_ Position;  // literal string position
+	};
+
+
+	// A sequence of string literals (StringLit) is represented
+	// by a StringLit node.
+	//
+	StringLit struct {
+		Strings []*BasicLit;  // sequence of strings
+	};
+
+
+	// A function literal (FunctionLit) is represented by a FunctionLit node.
+	FunctionLit struct {
+		Typ *Signature;  // function signature
+		Body *Block;  // function body
+		Func Position;  // position of "func" keyword
+	};
+
+
+	// A composite literal (CompositeLit) is represented by a CompositeLit node.
+	CompositeLit struct {
+		Typ Expr;  // literal type
+		Elts []Expr;  // list of composite elements
+		Lbrace, Rbrace Position;  // positions of "{" and "}"
+	};
+
+
+	// A parenthesized expression is represented by a Group node.
+	Group struct {
+		X Expr;  // parenthesized expression
+		Lparen, Rparen Position;  // positions of "(" and ")"
+	};
+
+
+	// A primary expression followed by a selector is represented
+	// by a Selector node.
+	//
+	Selector struct {
+		X Expr;  // primary expression
+		Sel *Ident;  // field selector
+		Period Position;  // position of "."
+	};
+
+
+	// A primary expression followed by an index is represented
+	// by an Index node.
+	//
+	Index struct {
+		X Expr;  // primary expression
+		Index Expr;  // index expression
+		Lbrack, Rbrack Position;  // positions of "[" and "]"
+	};
+
+
+	// A primary expression followed by a slice is represented
+	// by a Slice node.
+	//
+	Slice struct {
+		X Expr;  // primary expression
+		Beg, End Expr;  // slice range
+		Lbrack, Colon, Rbrack Position;  // positions of "[", ":", and "]"
+	};
+
+
+	// A primary expression followed by a type assertion is represented
+	// by a TypeAssertion node.
+	//
+	TypeAssertion struct {
+		X Expr;  // primary expression
+		Typ Expr;  // asserted type
+		Period, Lparen, Rparen Position;  // positions of ".", "(", and ")"
+	};
+
+
+	// A primary expression followed by an argument list is represented
+	// by a Call node.
+	//
+	Call struct {
+		Fun Expr;  // function expression
+		Args []Expr;  // function arguments
+		Lparen, Rparen Position;  // positions of "(" and ")"
+	};
+
+
+	// A unary expression (UnaryExpr) is represented by a UnaryExpr node.
+	UnaryExpr struct {
+		Op int;  // operator token
+		X Expr;  // operand
+		Pos_ Position;  // operator position
+	};
+
+
+	// A binary expression (BinaryExpr) is represented by a BinaryExpr node.
+	BinaryExpr struct {
+		Op int;  // operator token
+		X, Y Expr;  // left and right operand
+		Pos_ Position;  // operator position
+	};
+)
+
+
+// The direction of a channel type is indicated by one
+// of the following constants.
+//
+const /* channel direction */ (
 	FULL = iota;
 	SEND;
 	RECV;
@@ -54,80 +191,6 @@ const /* channel mode */ (
 
 
 type (
-	ExprVisitor interface;
-	Signature struct;
-
-	Expr interface {
-		Loc() scanner.Location;
-		Visit(v ExprVisitor);
-	};
-	
-	BadExpr struct {
-		Loc_ scanner.Location;
-	};
-
-	Ident struct {
-		Loc_ scanner.Location;
-		Str string;
-	};
-
-	BinaryExpr struct {
-		Loc_ scanner.Location;
-		Tok int;
-		X, Y Expr;
-	};
-
-	UnaryExpr struct {
-		Loc_ scanner.Location;
-		Tok int;
-		X Expr;
-	};
-
-	// TODO this should probably just be a list instead
-	ConcatExpr struct {
-		X, Y Expr;
-	};
-
-	BasicLit struct {
-		Loc_ scanner.Location;
-		Tok int;
-		Val []byte;
-	};
-
-	FunctionLit struct {
-		Loc_ scanner.Location;  // location of "func"
-		Typ *Signature;
-		Body *Block;
-	};
-	
-	Group struct {
-		Loc_ scanner.Location;  // location of "("
-		X Expr;
-	};
-
-	Selector struct {
-		Loc_ scanner.Location;  // location of "."
-		X Expr;
-		Sel *Ident;
-	};
-
-	TypeGuard struct {
-		Loc_ scanner.Location;  // location of "."
-		X Expr;
-		Typ Expr;
-	};
-
-	Index struct {
-		Loc_ scanner.Location;  // location of "["
-		X, I Expr;
-	};
-	
-	Call struct {
-		Loc_ scanner.Location;  // location of "(" or "{"
-		Tok int;
-		F, Args Expr
-	};
-
 	// Type literals are treated like expressions.
 	Ellipsis struct {  // neither a type nor an expression
 		Loc_ scanner.Location;
@@ -189,26 +252,30 @@ type (
 	
 	ChannelType struct {
 		Loc_ scanner.Location;  // location of "chan" or "<-"
-		Mode int;
+		Dir int;
 		Val Expr;
 	};
 )
 
 
 type ExprVisitor interface {
+	// Expressions
 	DoBadExpr(x *BadExpr);
 	DoIdent(x *Ident);
-	DoBinaryExpr(x *BinaryExpr);
-	DoUnaryExpr(x *UnaryExpr);
-	DoConcatExpr(x *ConcatExpr);
 	DoBasicLit(x *BasicLit);
+	DoStringLit(x *StringLit);
 	DoFunctionLit(x *FunctionLit);
+	DoCompositeLit(x *CompositeLit);
 	DoGroup(x *Group);
 	DoSelector(x *Selector);
-	DoTypeGuard(x *TypeGuard);
 	DoIndex(x *Index);
+	DoSlice(x *Slice);
+	DoTypeAssertion(x *TypeAssertion);
 	DoCall(x *Call);
-	
+	DoUnaryExpr(x *UnaryExpr);
+	DoBinaryExpr(x *BinaryExpr);
+
+	// Types
 	DoEllipsis(x *Ellipsis);
 	DoTypeType(x *TypeType);
 	DoArrayType(x *ArrayType);
@@ -222,44 +289,47 @@ type ExprVisitor interface {
 }
 
 
-// TODO replace these with an embedded field
-func (x *BadExpr) Loc() scanner.Location { return x.Loc_; }
-func (x *Ident) Loc() scanner.Location { return x.Loc_; }
-func (x *BinaryExpr) Loc() scanner.Location { return x.Loc_; }
-func (x *UnaryExpr) Loc() scanner.Location { return x.Loc_; }
-func (x *ConcatExpr) Loc() scanner.Location { return x.X.Loc(); }
-func (x *BasicLit) Loc() scanner.Location { return x.Loc_; }
-func (x *FunctionLit) Loc() scanner.Location { return x.Loc_; }
-func (x *Group) Loc() scanner.Location { return x.Loc_; }
-func (x *Selector) Loc() scanner.Location { return x.Loc_; }
-func (x *TypeGuard) Loc() scanner.Location { return x.Loc_; }
-func (x *Index) Loc() scanner.Location { return x.Loc_; }
-func (x *Call) Loc() scanner.Location { return x.Loc_; }
+func (x *BadExpr) Pos() Position  { return x.Pos_; }
+func (x *Ident) Pos() Position  { return x.Pos_; }
+func (x *BasicLit) Pos() Position  { return x.Pos_; }
+func (x *StringLit) Pos() Position  { return x.Strings[0].Pos(); }
+func (x *FunctionLit) Pos() Position  { return x.Func; }
+func (x *CompositeLit) Pos() Position  { return x.Typ.Pos(); }
+func (x *Group) Pos() Position  { return x.Lparen; }
+func (x *Selector) Pos() Position  { return x.X.Pos(); }
+func (x *Index) Pos() Position  { return x.X.Pos(); }
+func (x *Slice) Pos() Position  { return x.X.Pos(); }
+func (x *TypeAssertion) Pos() Position  { return x.X.Pos(); }
+func (x *Call) Pos() Position  { return x.Fun.Pos(); }
+func (x *UnaryExpr) Pos() Position  { return x.Pos_; }
+func (x *BinaryExpr) Pos() Position  { return x.X.Pos(); }
 
-func (x *Ellipsis) Loc() scanner.Location { return x.Loc_; }
-func (x *TypeType) Loc() scanner.Location { return x.Loc_; }
-func (x *ArrayType) Loc() scanner.Location { return x.Loc_; }
-func (x *StructType) Loc() scanner.Location { return x.Loc_; }
-func (x *PointerType) Loc() scanner.Location { return x.Loc_; }
-func (x *FunctionType) Loc() scanner.Location { return x.Loc_; }
-func (x *InterfaceType) Loc() scanner.Location { return x.Loc_; }
-func (x *SliceType) Loc() scanner.Location { return x.Loc_; }
-func (x *MapType) Loc() scanner.Location { return x.Loc_; }
-func (x *ChannelType) Loc() scanner.Location { return x.Loc_; }
+func (x *Ellipsis) Pos() Position { return x.Loc_; }
+func (x *TypeType) Pos() Position { return x.Loc_; }
+func (x *ArrayType) Pos() Position { return x.Loc_; }
+func (x *StructType) Pos() Position { return x.Loc_; }
+func (x *PointerType) Pos() Position { return x.Loc_; }
+func (x *FunctionType) Pos() Position { return x.Loc_; }
+func (x *InterfaceType) Pos() Position { return x.Loc_; }
+func (x *SliceType) Pos() Position { return x.Loc_; }
+func (x *MapType) Pos() Position { return x.Loc_; }
+func (x *ChannelType) Pos() Position { return x.Loc_; }
 
 
 func (x *BadExpr) Visit(v ExprVisitor) { v.DoBadExpr(x); }
 func (x *Ident) Visit(v ExprVisitor) { v.DoIdent(x); }
-func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
-func (x *UnaryExpr) Visit(v ExprVisitor) { v.DoUnaryExpr(x); }
-func (x *ConcatExpr) Visit(v ExprVisitor) { v.DoConcatExpr(x); }
 func (x *BasicLit) Visit(v ExprVisitor) { v.DoBasicLit(x); }
+func (x *StringLit) Visit(v ExprVisitor) { v.DoStringLit(x); }
 func (x *FunctionLit) Visit(v ExprVisitor) { v.DoFunctionLit(x); }
+func (x *CompositeLit) Visit(v ExprVisitor) { v.DoCompositeLit(x); }
 func (x *Group) Visit(v ExprVisitor) { v.DoGroup(x); }
 func (x *Selector) Visit(v ExprVisitor) { v.DoSelector(x); }
-func (x *TypeGuard) Visit(v ExprVisitor) { v.DoTypeGuard(x); }
 func (x *Index) Visit(v ExprVisitor) { v.DoIndex(x); }
+func (x *Slice) Visit(v ExprVisitor) { v.DoSlice(x); }
+func (x *TypeAssertion) Visit(v ExprVisitor) { v.DoTypeAssertion(x); }
 func (x *Call) Visit(v ExprVisitor) { v.DoCall(x); }
+func (x *UnaryExpr) Visit(v ExprVisitor) { v.DoUnaryExpr(x); }
+func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
 
 func (x *Ellipsis) Visit(v ExprVisitor) { v.DoEllipsis(x); }
 func (x *TypeType) Visit(v ExprVisitor) { v.DoTypeType(x); }
@@ -290,7 +360,9 @@ type Block struct {
 
 
 func NewBlock(loc scanner.Location, tok int) *Block {
-	assert(tok == token.LBRACE || tok == token.COLON);
+	if tok != token.LBRACE && tok != token.COLON {
+		panic();
+	}
 	var end scanner.Location;
 	return &Block{loc, tok, vector.New(0), end};
 }
@@ -322,7 +394,7 @@ type (
 
 	ExpressionStat struct {
 		Loc scanner.Location;  // location of Tok
-		Tok int;  // INC, DEC, RETURN, GO, DEFER
+		Tok int;  // GO, DEFER
 		Expr Expr;
 	};
 

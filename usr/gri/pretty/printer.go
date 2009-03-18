@@ -409,7 +409,7 @@ func (P *Printer) Error(loc scanner.Location, tok int, msg string) {
 // HTML support
 
 func (P *Printer) HtmlIdentifier(x *ast.Ident) {
-	P.String(x.Loc_, x.Str);
+	P.String(x.Pos_, x.Str);
 	/*
 	obj := x.Obj;
 	if P.html && obj.Kind != symbolTable.NONE {
@@ -576,26 +576,17 @@ func (P *Printer) DoIdent(x *ast.Ident) {
 
 
 func (P *Printer) DoBinaryExpr(x *ast.BinaryExpr) {
-	if x.Tok == token.COMMA {
-		// (don't use binary expression printing because of different spacing)
-		P.Expr(x.X);
-		P.Token(x.Loc_, token.COMMA);
-		P.separator = blank;
-		P.state = inside_list;
-		P.Expr(x.Y);
-	} else {
-		prec := token.Precedence(x.Tok);
-		if prec < P.prec {
-			P.Token(noloc, token.LPAREN);
-		}
-		P.Expr1(x.X, prec);
-		P.separator = blank;
-		P.Token(x.Loc_, x.Tok);
-		P.separator = blank;
-		P.Expr1(x.Y, prec);
-		if prec < P.prec {
-			P.Token(noloc, token.RPAREN);
-		}
+	prec := token.Precedence(x.Op);
+	if prec < P.prec {
+		P.Token(noloc, token.LPAREN);
+	}
+	P.Expr1(x.X, prec);
+	P.separator = blank;
+	P.Token(x.Pos_, x.Op);
+	P.separator = blank;
+	P.Expr1(x.Y, prec);
+	if prec < P.prec {
+		P.Token(noloc, token.RPAREN);
 	}
 }
 
@@ -605,10 +596,7 @@ func (P *Printer) DoUnaryExpr(x *ast.UnaryExpr) {
 	if prec < P.prec {
 		P.Token(noloc, token.LPAREN);
 	}
-	P.Token(x.Loc_, x.Tok);
-	if x.Tok == token.RANGE {
-		P.separator = blank;
-	}
+	P.Token(x.Pos_, x.Op);
 	P.Expr1(x.X, prec);
 	if prec < P.prec {
 		P.Token(noloc, token.RPAREN);
@@ -616,21 +604,24 @@ func (P *Printer) DoUnaryExpr(x *ast.UnaryExpr) {
 }
 
 
-func (P *Printer) DoConcatExpr(x *ast.ConcatExpr) {
-	P.Expr1(x.X, token.HighestPrec);
-	P.separator = blank;
-	P.Expr1(x.Y, token.HighestPrec);
+func (P *Printer) DoBasicLit(x *ast.BasicLit) {
+	// TODO get rid of string conversion here
+	P.String(x.Pos_, string(x.Lit));
 }
 
 
-func (P *Printer) DoBasicLit(x *ast.BasicLit) {
-	// TODO get rid of string conversion here
-	P.String(x.Loc_, string(x.Val));
+func (P *Printer) DoStringLit(x *ast.StringLit) {
+	for i, x := range x.Strings {
+		if i > 0 {
+			P.separator = blank;
+		}
+		P.DoBasicLit(x);
+	}
 }
 
 
 func (P *Printer) DoFunctionLit(x *ast.FunctionLit) {
-	P.Token(x.Loc_, token.FUNC);
+	P.Token(x.Func, token.FUNC);
 	P.Signature(x.Typ);
 	P.separator = blank;
 	P.Block(x.Body, true);
@@ -639,44 +630,59 @@ func (P *Printer) DoFunctionLit(x *ast.FunctionLit) {
 
 
 func (P *Printer) DoGroup(x *ast.Group) {
-	P.Token(x.Loc_, token.LPAREN);
+	P.Token(x.Lparen, token.LPAREN);
 	P.Expr(x.X);
-	P.Token(noloc, token.RPAREN);
+	P.Token(x.Rparen, token.RPAREN);
 }
 
 
 func (P *Printer) DoSelector(x *ast.Selector) {
 	P.Expr1(x.X, token.HighestPrec);
-	P.Token(x.Loc_, token.PERIOD);
+	P.Token(x.Period, token.PERIOD);
 	P.Expr1(x.Sel, token.HighestPrec);
 }
 
 
-func (P *Printer) DoTypeGuard(x *ast.TypeGuard) {
+func (P *Printer) DoTypeAssertion(x *ast.TypeAssertion) {
 	P.Expr1(x.X, token.HighestPrec);
-	P.Token(x.Loc_, token.PERIOD);
-	P.Token(noloc, token.LPAREN);
+	P.Token(x.Period, token.PERIOD);
+	P.Token(x.Lparen, token.LPAREN);
 	P.Expr(x.Typ);
-	P.Token(noloc, token.RPAREN);
+	P.Token(x.Rparen, token.RPAREN);
 }
 
 
 func (P *Printer) DoIndex(x *ast.Index) {
 	P.Expr1(x.X, token.HighestPrec);
-	P.Token(x.Loc_, token.LBRACK);
-	P.Expr1(x.I, 0);
-	P.Token(noloc, token.RBRACK);
+	P.Token(x.Lbrack, token.LBRACK);
+	P.Expr(x.Index);
+	P.Token(x.Rbrack, token.RBRACK);
+}
+
+
+func (P *Printer) DoSlice(x *ast.Slice) {
+	P.Expr1(x.X, token.HighestPrec);
+	P.Token(x.Lbrack, token.LBRACK);
+	P.Expr(x.Beg);
+	P.Token(x.Colon, token.COLON);
+	P.Expr(x.End);
+	P.Token(x.Rbrack, token.RBRACK);
 }
 
 
 func (P *Printer) DoCall(x *ast.Call) {
-	P.Expr1(x.F, token.HighestPrec);
-	P.Token(x.Loc_, x.Tok);
-	P.Expr(x.Args);
-	switch x.Tok {
-	case token.LPAREN: P.Token(noloc, token.RPAREN);
-	case token.LBRACE: P.Token(noloc, token.RBRACE);
-	}
+	P.Expr1(x.Fun, token.HighestPrec);
+	P.Token(x.Lparen, token.LPAREN);
+	P.Exprs(x.Args);
+	P.Token(x.Rparen, token.RPAREN);
+}
+
+
+func (P *Printer) DoCompositeLit(x *ast.CompositeLit) {
+	P.Expr1(x.Typ, token.HighestPrec);
+	P.Token(x.Lbrace, token.LBRACE);
+	P.Exprs(x.Elts);
+	P.Token(x.Rbrace, token.RBRACE);
 }
 
 
@@ -744,7 +750,7 @@ func (P *Printer) DoMapType(x *ast.MapType) {
 
 
 func (P *Printer) DoChannelType(x *ast.ChannelType) {
-	switch x.Mode {
+	switch x.Dir {
 	case ast.FULL:
 		P.Token(x.Loc_, token.CHAN);
 	case ast.RECV:
@@ -1079,11 +1085,12 @@ func (P *Printer) DoImportDecl(d *ast.ImportDecl) {
 	if d.Name != nil {
 		P.Expr(d.Name);
 	} else {
-		P.String(d.Path.Loc(), "");  // flush pending ';' separator/newlines
+		P.String(d.Path.Pos(), "");  // flush pending ';' separator/newlines
 	}
 	P.separator = tab;
-	if lit, is_lit := d.Path.(*ast.BasicLit); is_lit && lit.Tok == token.STRING {
-		P.HtmlPackageName(lit.Loc_, string(lit.Val));
+	if lit, is_lit := d.Path.(*ast.StringLit); is_lit {
+		// TODO incorrect (string lit could be a list of strings)
+		P.HtmlPackageName(lit.Pos(), string(lit.Strings[0].Lit));
 	} else {
 		// we should only reach here for strange imports
 		// import "foo" "bar"
