@@ -91,23 +91,23 @@ func main() {
 	for i := Bool; i < Last; i++ {
 		switch x := f(i).(type) {
 		case bool:
-			assert(x == true, "switch 2 bool");
+			assert(x == true && i == Bool, "switch 2 bool");
 		case int:
-			assert(x == 7, "switch 2 int");
+			assert(x == 7 && i == Int, "switch 2 int");
 		case float:
-			assert(x == 7.4, "switch 2 float");
+			assert(x == 7.4 && i == Float, "switch 2 float");
 		case string:
-			assert(x == "hello", "switch 2 string");
+			assert(x == "hello" && i == String, "switch 2 string");
 		case S:
-			assert(x.a == 1234, "switch 2 struct");
+			assert(x.a == 1234 && i == Struct, "switch 2 struct");
 		case chan int:
-			assert(x == c, "switch 2 chan");
+			assert(x == c && i == Chan, "switch 2 chan");
 		case []int:
-			assert(x[3] == 3, "switch 2 array");
+			assert(x[3] == 3 && i == Array, "switch 2 array");
 		case map[string]int:
-			assert(x == m, "switch 2 map");
+			assert(x == m && i == Map, "switch 2 map");
 		case func(i int) interface{}:
-			assert(x == f, "switch 2 fun");
+			assert(x == f && i == Func, "switch 2 fun");
 		default:
 			assert(false, "switch 2 unknown");
 		}
