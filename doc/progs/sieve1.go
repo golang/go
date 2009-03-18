@@ -4,6 +4,8 @@
 
 package main
 
+import "fmt"
+
 // Send the sequence 2, 3, 4, ... to returned channel 
 func generate() chan int {
 	ch := make(chan int);
@@ -44,6 +46,6 @@ func sieve() chan int {
 func main() {
 	primes := sieve();
 	for {
-		print(<-primes, "\n");
+		fmt.Println(<-primes);
 	}
 }

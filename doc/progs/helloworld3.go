@@ -4,14 +4,17 @@
 
 package main
 
-import file "file"
+import (
+	"file";
+	"fmt";
+)
 
 func main() {
 	hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
 	file.Stdout.Write(hello);
 	file, err := file.Open("/does/not/exist",  0,  0);
 	if file == nil {
-		print("can't open file; err=",  err.String(),  "\n");
+		fmt.Printf("can't open file; err=%s\n",  err.String());
 		sys.Exit(1);
 	}
 }
