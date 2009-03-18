@@ -4,6 +4,8 @@
 
 package main
 
+import "fmt"
+
 type request struct {
 	a, b    int;
 	replyc  chan int;
@@ -42,8 +44,8 @@ func main() {
 	}
 	for i := N-1; i >= 0; i-- {   // doesn't matter what order
 		if <-reqs[i].replyc != N + 2*i {
-			print("fail at ", i, "\n");
+			fmt.Println("fail at", i);
 		}
 	}
-	print("done\n");
+	fmt.Println("done");
 }

@@ -4,9 +4,11 @@
 
 package main
 
+import "fmt"
+
 func main() {
 	s := "hello";
-	if s[1] == 'e' { print("success") }
+	if s[1] != 'e' { sys.Exit(1) }
 	s = "good bye";
 	var p *string = &s;
 	*p = "ciao";

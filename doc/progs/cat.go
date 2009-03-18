@@ -7,6 +7,8 @@ package main
 import (
 	"file";
 	"flag";
+	"fmt";
+	"os";
 )
 
 func cat(f *file.File) {
@@ -15,13 +17,13 @@ func cat(f *file.File) {
 	for {
 		switch nr, er := f.Read(buf); true {
 		case nr < 0:
-			print("error reading from ", f.String(), ": ", er.String(), "\n");
+			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", f.String(), er.String());
 			sys.Exit(1);
 		case nr == 0:  // EOF
 			return;
 		case nr > 0:
 			if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
-				print("error writing from ", f.String(), ": ", ew.String(), "\n");
+				fmt.Fprintf(os.Stderr, "error writing from %s: %s\n", f.String(), ew.String());
 			}
 		}
 	}
@@ -35,7 +37,7 @@ func main() {
 	for i := 0; i < flag.NArg(); i++ {
 		f, err := file.Open(flag.Arg(i), 0, 0);
 		if f == nil {
-			print("can't open ", flag.Arg(i), ": error ", err, "\n");
+			fmt.Fprintf(os.Stderr, "can't open %s: error %s\n", flag.Arg(i), err);
 			sys.Exit(1);
 		}
 		cat(f);

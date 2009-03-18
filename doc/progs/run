@@ -8,7 +8,6 @@ rm -f *.6
 for i in \
 	file.go \
 	helloworld.go \
-	helloworld2.go \
 	helloworld3.go \
 	echo.go \
 	cat.go \
@@ -17,7 +16,6 @@ for i in \
 	sort.go \
 	sortmain.go \
 	print.go \
-	printf.go \
 	print_string.go \
 	sieve.go \
 	sieve1.go \
@@ -48,7 +46,6 @@ function testitpipe {
 
 
 testit helloworld "" "Hello, world; or Καλημέρα κόσμε; or こんにちは 世界"
-testit helloworld2 "" "Hello, world; or Καλημέρα κόσμε; or こんにちは 世界"
 testit helloworld3 "" "hello, world can't open file; err=No such file or directory"
 testit echo "hello, world" "hello, world"
 testit sum "" "6"
@@ -62,7 +59,6 @@ echo $rot13 | testit cat_rot13 "--rot13" $alphabet
 testit sortmain "" "Sunday Monday Tuesday Thursday Friday"
 
 testit print "" "18446744073709551615 -1 18446744073709551615 {77 Sunset Strip} [1 2 3 4] 18446744073709551615 {77 Sunset Strip} [1 2 3 4] 18446744073709551615 {77 Sunset Strip} [1 2 3 4]"
-testit printf "" "hello, world"
 testit print_string "" "77 Sunset Strip"
 
 testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"

@@ -4,6 +4,8 @@
 
 package main
 
+import "fmt"
+
 // Send the sequence 2, 3, 4, ... to channel 'ch'.
 func generate(ch chan int) {
 	for i := 2; ; i++ {
@@ -28,7 +30,7 @@ func main() {
 	go generate(ch);  // Start generate() as a goroutine.
 	for {
 		prime := <-ch;
-		print(prime, "\n");
+		fmt.Println(prime);
 		ch1 := make(chan int);
 		go filter(ch, ch1, prime);
 		ch = ch1
