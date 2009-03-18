@@ -47,6 +47,7 @@ var golden = []_Adler32Test {
 	_Adler32Test{ 0x39111dd0, "Even if I could be Shakespeare, I think I should still choose to be Faraday. - A. Huxley" },
 	_Adler32Test{ 0x91dd304f, "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule" },
 	_Adler32Test{ 0x2e5d1316, "How can you write a big system without C++?  -Paul Glick" },
+	_Adler32Test{ 0xd0201df6, "'Invariant assertions' is the most elegant programming technique!  -Tom Szymanski" },
 }
 
 func TestGolden(t *testing.T) {
