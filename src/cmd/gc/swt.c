@@ -44,49 +44,15 @@ sw0(Node *c, Type *place, int arg)
 			return T;
 		}
 		walktype(c, Erv);
-		return T;
+		break;
 	case OTYPESW:
 		if(arg != Stype)
 			yyerror("inappropriate type case");
-		return T;
+		break;
 	case OAS:
+		yyerror("inappropriate assignment in a case statement");
 		break;
 	}
-	walktype(c->left, Elv);
-
-	r = c->right;
-	if(c == N)
-		return T;
-
-	switch(r->op) {
-	default:
-		goto bad;
-	case ORECV:
-		// <-chan
-		walktype(r->left, Erv);
-		if(!istype(r->left->type, TCHAN))
-			goto bad;
-		break;
-	case OINDEX:
-		// map[e]
-		walktype(r->left, Erv);
-		if(!istype(r->left->type, TMAP))
-			goto bad;
-		break;
-	case ODOTTYPE:
-		// interface.(type)
-		walktype(r->left, Erv);
-		if(!istype(r->left->type, TINTER))
-			goto bad;
-		break;
-	}
-	c->type = types[TBOOL];
-	if(arg != Strue)
-		goto bad;
-	return T;
-
-bad:
-	yyerror("inappropriate assignment in a case statement");
 	return T;
 }
 
@@ -310,26 +276,6 @@ loop:
 		cas = list(cas, t->ninit);
 		t->ninit = N;
 	}
-
-	if(t->left->op == OAS) {
-		if(bool == N) {
-			bool = nod(OXXX, N, N);
-			tempname(bool, types[TBOOL]);
-		}
-		t->left->left = nod(OLIST, t->left->left, bool);
-		cas = list(cas, t->left);		// v,bool = rhs
-
-		a = nod(OIF, N, N);
-		a->nbody = t->right;			// then goto l
-		a->ntest = bool;
-		if(arg != Strue)
-			a->ntest = nod(ONOT, bool, N);
-		cas = list(cas, a);			// if bool goto l
-
-		t = listnext(&save);
-		goto loop;
-	}
-
 
 	switch(arg) {
 	default:
