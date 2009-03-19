@@ -3123,28 +3123,14 @@ if x := f(); x < y {
 An expression or type specifier is compared to the "cases"
 inside the "switch" to determine which branch
 to execute.
-A missing expression or type specifier is equivalent to
-the expression <code>true</code>.
 There are two forms: expression switches and type switches.
-</p>
-
-<p>
 In an expression switch, the cases contain expressions that are compared
 against the value of the switch expression.
 In a type switch, the cases contain types that are compared against the
 type of a specially annotated switch expression.
 </p>
 
-<pre class="grammar">
-SwitchStat            = ExprSwitchStat | TypeSwitchStat .
-ExprSwitchStat        = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { CaseClause } "}" .
-TypeSwitchStat        = "switch" [ [ SimpleStat ] ";" ] TypeSwitchExpression "{" { CaseClause } "}" .
-TypeSwitchExpression  = identifier ":=" Expression "." "(" "type" ")" .
-CaseClause            = SwitchCase ":" [ StatementList ] .
-SwitchCase            = "case" ExpressionList | SwitchAssignment | Type | "default" .
-SwitchAssignment      = Expression ( "=" | ":=" ) Expression .
-SwitchExpression      = Expression.
-</pre>
+<h4>Expression switches</h4>
 
 <p>
 In an expression switch,
@@ -3158,7 +3144,17 @@ If no case matches and there is a "default" case,
 its statements are executed.
 There can be at most one default case and it may appear anywhere in the
 "switch" statement.
+A missing expression is equivalent to
+the expression <code>true</code>.
 </p>
+
+<pre class="grammar">
+SwitchStat            = ExprSwitchStat | TypeSwitchStat .
+ExprSwitchStat        = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
+ExprCaseClause        = ExprSwitchCase ":" [ StatementList ] .
+ExprSwitchCase        = "case" ExpressionList | "default" .
+</pre>
+
 <p>
 In a case or default clause,
 the last statement only may be a "fallthrough" statement
@@ -3168,7 +3164,7 @@ the first statement of the next clause.
 Otherwise control flows to the end of the "switch" statement.
 </p>
 <p>
-Each case clause effectively acts as a block for scoping purposes
+Each case clause acts as a block for scoping purposes
 (§Declarations and scope rules).
 </p>
 <p>
@@ -3198,57 +3194,29 @@ case x == 4: f3();
 }
 </pre>
 
+<h4>Type switches</h4>
+
 <p>
-If the expression in an expression switch is a boolean, the cases
-may take a special form that tests a type guard, map index, or
-channel operation and stores the value in a variable, which may
-be declared using a simple variable declaration.  The success
-of the case's operation is compared against the value of the boolean.
-A switch of the form:
+A type switch compares types rather than values. It is otherwise similar
+to an expression switch. It is introduced by special
+notation in the form of a simple declaration whose right hand side
+has the form of a type guard (§Type guards)
+using the reserved word <code>type</code> rather than an actual type.
+Cases then match literal types against the dynamic type of the expression
+in the type guard.
 </p>
 
-<pre>
-switch bool_expr {
-case x0:
-	f0();
-case x1 := y1.(T1):
-	f1();
-case x2 := y2[z2]:
-	f2();
-case x3 := <-y3:
-	f3();
-default:
-	f4();
-}
+<pre class="grammar">
+TypeSwitchStat        = "switch" [ [ SimpleStat ] ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
+TypeSwitchGuard       = identifier ":=" Expression "." "(" "type" ")" .
+TypeCaseClause        = TypeSwitchCase ":" [ StatementList ] .
+TypeSwitchCase        = "case" type | "default" .
 </pre>
 
 <p>
-is therefore analogous to the "if" statement
-</p>
-
-<pre>
-if x0 == bool_expr {
-	f0();
-} else if x1, ok1 := y1.(T1); ok1 == bool_expr {
-	f1();
-} else if x2, ok2 := y2[z2]; ok2 == bool_expr {
-	f2();
-} else if x3, ok3 := <-y3; ok3 == bool_expr {
-	f3();
-} else {
-	f4();
-}
-</pre>
-
-<p>
-A type switch compares types rather than values. In other respects it has
-the same properties as an expression switch and may in fact be rewritten
-as an expression switch using type guards.  It is introduced by special
-notation in the form of a generic type guard using the reserved word
-<code>type</code> rather than an actual type.
 Given a function <code>f</code>
 that returns a value of interface type,
-the following two "switch" statements are analogous:
+the following type switch:
 </p>
 
 <pre>
@@ -3257,19 +3225,35 @@ case int:
 	printInt(i);	// i is an int
 case float:
 	printFloat(i);	// i is a float
-default:
-	printString("don't know the type");
-}
-
-switch val := f(); true {
-case i := val.(int):
-	printInt(i);	// i is an int
-case i := val.(float):
-	printFloat(i);	// i is a float
+case func(int) float:
+	printFunction(i);	// i is a function
 default:
 	printString("don't know the type");
 }
 </pre>
+
+<p>
+could be rewritten:
+</p>
+
+<pre>
+v := f();
+if i, is_int := v.(int); is_int {
+	printInt(i);	// i is an int
+} else if i, is_float := v.(float); is_float {
+	printFloat(i);	// i is a float
+} else if i, is_func := v.(func(int) float); is_func {
+	printFunction(i);	// i is a function
+} else {
+	printString("don't know the type");
+}
+</pre>
+
+<p>
+In a type switch, the guard is mandatory,
+there can be only one type per "case", and
+the "fallthrough" statement is not allowed.
+</p>
 
 <h3>For statements</h3>
 
