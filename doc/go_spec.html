@@ -1906,7 +1906,17 @@ one may write
 </p>
 
 <pre>
-pi := Num{Rat{22, 7}, 3.14159, "pi"};
+pi := Num{Rat{22, 7}, 3.14159, "pi"}
+</pre>
+
+<p>
+Since evaluation of a literal creates a new value, taking the address of a
+composite literal (§Address operators) generates a pointer to a unique
+instance of the literal's value.
+</p>
+
+<pre>
+var pi_ptr *Rat = &amp;Rat{22, 7}
 </pre>
 
 <p>
