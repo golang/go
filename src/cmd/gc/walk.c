@@ -1806,6 +1806,9 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
 	while(r != N) {
 		defaultlit(r, T);
 
+		if(r->type == T)	// type check failed
+			return N;
+
 		// generate the next structure field
 		t = typ(TFIELD);
 		t->type = r->type;
