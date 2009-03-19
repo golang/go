@@ -3133,6 +3133,11 @@ if x := f(); x < y {
 An expression or type specifier is compared to the "cases"
 inside the "switch" to determine which branch
 to execute.
+
+<pre class="grammar">
+SwitchStat = ExprSwitchStat | TypeSwitchStat .
+</pre>
+
 There are two forms: expression switches and type switches.
 In an expression switch, the cases contain expressions that are compared
 against the value of the switch expression.
@@ -3159,10 +3164,9 @@ the expression <code>true</code>.
 </p>
 
 <pre class="grammar">
-SwitchStat            = ExprSwitchStat | TypeSwitchStat .
-ExprSwitchStat        = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
-ExprCaseClause        = ExprSwitchCase ":" [ StatementList ] .
-ExprSwitchCase        = "case" ExpressionList | "default" .
+ExprSwitchStat = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
+ExprCaseClause = ExprSwitchCase ":" [ StatementList ] .
+ExprSwitchCase = "case" ExpressionList | "default" .
 </pre>
 
 <p>
@@ -3217,10 +3221,10 @@ in the type guard.
 </p>
 
 <pre class="grammar">
-TypeSwitchStat        = "switch" [ [ SimpleStat ] ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
-TypeSwitchGuard       = identifier ":=" Expression "." "(" "type" ")" .
-TypeCaseClause        = TypeSwitchCase ":" [ StatementList ] .
-TypeSwitchCase        = "case" type | "default" .
+TypeSwitchStat  = "switch" [ [ SimpleStat ] ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
+TypeSwitchGuard = identifier ":=" Expression "." "(" "type" ")" .
+TypeCaseClause  = TypeSwitchCase ":" [ StatementList ] .
+TypeSwitchCase  = "case" type | "default" .
 </pre>
 
 <p>
@@ -3642,9 +3646,9 @@ the creation of <code>v</code>.
 
 <p>
 A "fallthrough" statement transfers control to the first statement of the
-next case clause in a "switch" statement (§Switch statements). It may
-be used only as the final non-empty statement in a case or default clause in a
-"switch" statement.
+next case clause in a expression "switch" statement (§Expression switches). It may
+be used only as the final non-empty statement in a case or default clause in an
+expression "switch" statement.
 </p>
 
 <pre class="grammar">
