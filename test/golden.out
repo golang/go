@@ -141,6 +141,10 @@ bugs/bug140.go:6: syntax error near L1
 bugs/bug140.go:7: syntax error near L2
 BUG should compile
 
+=========== bugs/bug141.go
+failed to match interface
+BUG: should run
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
