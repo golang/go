@@ -82,7 +82,7 @@ lput(int32 l)
 }
 
 void
-llput(vlong v)
+vput(vlong v)
 {
 	lput(v>>32);
 	lput(v);
@@ -98,7 +98,7 @@ lputl(int32 l)
 }
 
 void
-llputl(vlong v)
+vputl(vlong v)
 {
 	lputl(v);
 	lputl(v>>32);
@@ -287,7 +287,7 @@ asmb(void)
 		lput(PADDR(vl));		/* va of entry */
 		lput(spsize);			/* sp offsets */
 		lput(lcsize);			/* line offsets */
-		llput(vl);			/* va of entry */
+		vput(vl);			/* va of entry */
 		break;
 	case 3:	/* plan9 */
 		magic = 4*26*26+7;
@@ -402,7 +402,7 @@ asmb(void)
 			1);			/* flag - zero fill */
 
 		machdylink();
-		machstack(va+HEADR);
+		machstack(entryvalue());
 
 		if (!debug['s']) {
 			machseg("__SYMDAT",
@@ -427,12 +427,12 @@ asmb(void)
 		wputl(2);			/* type = EXEC */
 		wputl(62);			/* machine = AMD64 */
 		lputl(1L);			/* version = CURRENT */
-		llputl(entryvalue());		/* entry vaddr */
-		llputl(64L);			/* offset to first phdr */
+		vputl(entryvalue());		/* entry vaddr */
+		vputl(64L);			/* offset to first phdr */
 		np = 3;
 		if(!debug['s'])
 			np++;
-		llputl(64L+56*np);		/* offset to first shdr */
+		vputl(64L+56*np);		/* offset to first shdr */
 		lputl(0L);			/* processor specific flags */
 		wputl(64);			/* Ehdr size */
 		wputl(56);			/* Phdr size */
@@ -781,13 +781,6 @@ rnd(vlong v, vlong r)
 }
 
 void
-vputl(vlong v)
-{
-	lputl(v);
-	lputl(v>>32);
-}
-
-void
 machseg(char *name, vlong vaddr, vlong vsize, vlong foff, vlong fsize,
 	uint32 prot1, uint32 prot2, uint32 nsect, uint32 flag)
 {
@@ -941,12 +934,12 @@ linuxphdr(int type, int flags, vlong foff,
 
 	lputl(type);			/* text - type = PT_LOAD */
 	lputl(flags);			/* text - flags = PF_X+PF_R */
-	llputl(foff);			/* file offset */
-	llputl(vaddr);			/* vaddr */
-	llputl(paddr);			/* paddr */
-	llputl(filesize);		/* file size */
-	llputl(memsize);		/* memory size */
-	llputl(align);			/* alignment */
+	vputl(foff);			/* file offset */
+	vputl(vaddr);			/* vaddr */
+	vputl(paddr);			/* paddr */
+	vputl(filesize);		/* file size */
+	vputl(memsize);		/* memory size */
+	vputl(align);			/* alignment */
 }
 
 void
@@ -955,14 +948,14 @@ linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
 {
 	lputl(stroffset);
 	lputl(type);
-	llputl(flags);
-	llputl(addr);
-	llputl(off);
-	llputl(size);
+	vputl(flags);
+	vputl(addr);
+	vputl(off);
+	vputl(size);
 	lputl(link);
 	lputl(info);
-	llputl(align);
-	llputl(entsize);
+	vputl(align);
+	vputl(entsize);
 
 	if(name != nil)
 		stroffset += strlen(name)+1;
