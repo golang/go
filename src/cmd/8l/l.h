@@ -67,6 +67,7 @@ struct	Adr
 	short	type;
 	uchar	index;
 	char	scale;
+	int32	offset2;
 };
 
 #define	offset	u0.u0offset
@@ -342,7 +343,7 @@ void	histtoauto(void);
 double	ieeedtod(Ieee*);
 int32	ieeedtof(Ieee*);
 void	import(void);
-void	ldobj(int, int32, char*);
+void	ldobj(Biobuf*, int32, char*);
 void	loadlib(void);
 void	listinit(void);
 Sym*	lookup(char*, int);
@@ -368,7 +369,7 @@ int32	vaddr(Adr*);
 void	wput(ushort);
 void	xdefine(char*, int, int32);
 void	xfol(Prog*);
-int	zaddr(uchar*, Adr*, Sym*[]);
+void	zaddr(Biobuf*, Adr*, Sym*[]);
 void	zerosig(char*);
 uint32	machheadr(void);
 uint32	elfheadr(void);

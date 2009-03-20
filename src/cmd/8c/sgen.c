@@ -30,6 +30,31 @@
 
 #include "gc.h"
 
+int32
+argsize(void)
+{
+	Type *t;
+	int32 s;
+
+//print("t=%T\n", thisfn);
+	s = 0;
+	for(t=thisfn->down; t!=T; t=t->down) {
+		switch(t->etype) {
+		case TVOID:
+			break;
+		case TDOT:
+			s += 64;
+			break;
+		default:
+			s = align(s, t, Aarg1);
+			s = align(s, t, Aarg2);
+			break;
+		}
+//print("	%d %T\n", s, t);
+	}
+	return (s+7) & ~7;
+}
+
 void
 codgen(Node *n, Node *nn)
 {
@@ -52,7 +77,10 @@ codgen(Node *n, Node *nn)
 			break;
 	}
 	nearln = nn->lineno;
+
 	gpseudo(ATEXT, n1->sym, nodconst(stkoff));
+	p->to.type = D_CONST2;
+	p->to.offset2 = argsize();
 
 	/*
 	 * isolate first argument
@@ -492,6 +520,10 @@ xcom(Node *n)
 		n->addable = 10;
 		if(n->class == CPARAM || n->class == CAUTO)
 			n->addable = 11;
+		break;
+
+	case OEXREG:
+		n->addable = 10;
 		break;
 
 	case OREGISTER:

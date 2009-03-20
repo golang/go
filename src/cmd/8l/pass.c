@@ -165,7 +165,7 @@ loop:
 	if(p->as == ATEXT)
 		curtext = p;
 	if(p->as == AJMP)
-	if((q = p->pcond) != P) {
+	if((q = p->pcond) != P && q->as != ATEXT) {
 		p->mark = 1;
 		p = q;
 		if(p->mark == 0)
@@ -331,14 +331,15 @@ patch(void)
 	for(p = firstp; p != P; p = p->link) {
 		if(p->as == ATEXT)
 			curtext = p;
-		if(p->as == ACALL || p->as == ARET) {
+		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
 			s = p->to.sym;
 			if(s) {
 				if(debug['c'])
 					Bprint(&bso, "%s calls %s\n", TNAME, s->name);
 				switch(s->type) {
 				default:
-					diag("undefined: %s in %s", s->name, TNAME);
+					/* diag prints TNAME first */
+					diag("%s is undefined", s->name);
 					s->type = STEXT;
 					s->value = vexit;
 					break;	/* or fall through to set offset? */
@@ -440,9 +441,27 @@ brloop(Prog *p)
 void
 dostkoff(void)
 {
-	Prog *p, *q;
+	Prog *p, *q, *q1;
 	int32 autoffset, deltasp;
 	int a, f, curframe, curbecome, maxbecome;
+	Prog *pmorestack;
+	Sym *symmorestack;
+
+	pmorestack = P;
+	symmorestack = lookup("sys·morestack", 0);
+
+	if(symmorestack->type == STEXT)
+	for(p = firstp; p != P; p = p->link) {
+		if(p->as == ATEXT) {
+			if(p->from.sym == symmorestack) {
+				pmorestack = p;
+				p->from.scale |= NOSPLIT;
+				break;
+			}
+		}
+	}
+	if(pmorestack == P)
+		diag("sys·morestack not defined");
 
 	curframe = 0;
 	curbecome = 0;
@@ -521,11 +540,122 @@ dostkoff(void)
 			autoffset = p->to.offset;
 			if(autoffset < 0)
 				autoffset = 0;
+
+			q = P;
+			q1 = P;
+			if(pmorestack != P)
+			if(!(p->from.scale & NOSPLIT)) {
+				p = appendp(p);	// load g into CX
+				p->as = AMOVL;
+				p->from.type = D_INDIR+D_FS;
+				p->from.offset = 0;
+				p->to.type = D_CX;
+
+				if(debug['K']) {
+					// 8l -K means check not only for stack
+					// overflow but stack underflow.
+					// On underflow, INT 3 (breakpoint).
+					// Underflow itself is rare but this also
+					// catches out-of-sync stack guard info.
+					p = appendp(p);
+					p->as = ACMPL;
+					p->from.type = D_INDIR+D_CX;
+					p->from.offset = 4;
+					p->to.type = D_SP;
+
+					p = appendp(p);
+					p->as = AJHI;
+					p->to.type = D_BRANCH;
+					p->to.offset = 4;
+					q1 = p;
+
+					p = appendp(p);
+					p->as = AINT;
+					p->from.type = D_CONST;
+					p->from.offset = 3;
+				}
+
+				if(autoffset < 4096) {  // do we need to call morestack
+					if(autoffset <= 75) {
+						// small stack
+						p = appendp(p);
+						p->as = ACMPL;
+						p->from.type = D_SP;
+						p->to.type = D_INDIR+D_CX;
+						if(q1) {
+							q1->pcond = p;
+							q1 = P;
+						}
+					} else {
+						// large stack
+						p = appendp(p);
+						p->as = ALEAL;
+						p->from.type = D_INDIR+D_SP;
+						p->from.offset = -(autoffset-75);
+						p->to.type = D_AX;
+						if(q1) {
+							q1->pcond = p;
+							q1 = P;
+						}
+
+						p = appendp(p);
+						p->as = ACMPL;
+						p->from.type = D_AX;
+						p->to.type = D_INDIR+D_CX;
+					}
+
+					// common
+					p = appendp(p);
+					p->as = AJHI;
+					p->to.type = D_BRANCH;
+					p->to.offset = 4;
+					q = p;
+				}
+
+				p = appendp(p);	// load m into DX
+				p->as = AMOVL;
+				p->from.type = D_INDIR+D_FS;
+				p->from.offset = 4;
+				p->to.type = D_DX;
+				if(q1) {
+					q1->pcond = p;
+					q1 = P;
+				}
+
+				p = appendp(p);	// save autoffset in 4(DX)
+				p->as = AMOVL;
+				p->to.type = D_INDIR+D_DX;
+				p->to.offset = 4;
+				/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
+				p->from.type = D_CONST;
+				if(autoffset+160 > 4096)
+					p->from.offset = (autoffset+160) & ~7LL;
+
+				p = appendp(p);	// save textarg in 8(DX)
+				p->as = AMOVL;
+				p->to.type = D_INDIR+D_DX;
+				p->to.offset = 8;
+				p->from.type = D_CONST;
+				p->from.offset = curtext->to.offset2;
+
+				p = appendp(p);
+				p->as = ACALL;
+				p->to.type = D_BRANCH;
+				p->pcond = pmorestack;
+				p->to.sym = symmorestack;
+
+			}
+
+			if(q != P)
+				q->pcond = p->link;
+
 			if(autoffset) {
 				p = appendp(p);
 				p->as = AADJSP;
 				p->from.type = D_CONST;
 				p->from.offset = autoffset;
+				if(q != P)
+					q->pcond = p;
 			}
 			deltasp = autoffset;
 		}

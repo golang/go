@@ -32,6 +32,7 @@
 #define	NSNAME	8
 #define NOPROF	(1<<0)
 #define DUPOK	(1<<1)
+#define NOSPLIT	(1<<2)
 
 enum	as
 {
@@ -78,6 +79,9 @@ enum	as
 	ACMPSB,
 	ACMPSL,
 	ACMPSW,
+	ACMPXCHGB,
+	ACMPXCHGL,
+	ACMPXCHGW,
 	ADAA,
 	ADAS,
 	ADATA,
@@ -437,6 +441,7 @@ enum
 	D_FCONST	= 66,
 	D_SCONST	= 67,
 	D_ADDR		= 68,
+	D_CONST2	= 69,
 
 	D_FILE,
 	D_FILE1,
@@ -449,6 +454,7 @@ enum
 	T_FCONST	= 1<<3,
 	T_SYM		= 1<<4,
 	T_SCONST	= 1<<5,
+	T_OFFSET2	= 1<<6,
 
 	REGARG		= 0,
 	REGRET		= D_AX,

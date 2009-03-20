@@ -32,7 +32,6 @@
 #include <libc.h>
 #include <bio.h>
 #include "../8l/8.out.h"
-#include "compat.h"
 
 
 #ifndef	EXTERN
@@ -104,6 +103,7 @@ struct	Gen
 	double	dval;
 	char	sval[8];
 	int32	offset;
+	int32	offset2;
 	Sym*	sym;
 	short	type;
 	short	index;
