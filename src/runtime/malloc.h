@@ -91,7 +91,7 @@ typedef	uintptr	PageID;		// address >> PageShift
 enum
 {
 	// Tunable constants.
-	NumSizeClasses = 150,		// Number of size classes (must match msize.c)
+	NumSizeClasses = 67,		// Number of size classes (must match msize.c)
 	MaxSmallSize = 32<<10,
 
 	FixAllocChunk = 128<<10,	// Chunk size for FixAlloc

@@ -82,7 +82,7 @@ InitSizes(void)
 		// so wasted space is at most 12.5%.
 		allocsize = PageSize;
 		osize = size + RefcountOverhead;
-		while(allocsize%osize > (PageSize/8))
+		while(allocsize%osize > (allocsize/8))
 			allocsize += PageSize;
 		npages = allocsize >> PageShift;
 
