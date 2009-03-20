@@ -54,6 +54,13 @@ pragfpround(void)
 }
 
 void
+pragtextflag(void)
+{
+	while(getnsc() != '\n')
+		;
+}
+
+void
 pragprofile(void)
 {
 	while(getnsc() != '\n')
