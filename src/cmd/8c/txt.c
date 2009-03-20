@@ -449,6 +449,10 @@ naddr(Node *n, Adr *a)
 		a->sym = S;
 		break;
 
+	case OEXREG:
+		a->type = D_INDIR + D_FS;
+		a->offset = n->reg - 1;
+		break;
 
 	case OIND:
 		naddr(n->left, a);
@@ -1389,6 +1393,15 @@ sconst(Node *n)
 int32
 exreg(Type *t)
 {
+	int32 o;
+
+	if(typechlp[t->etype]){
+		if(exregoffset >= 32)
+			return 0;
+		o = exregoffset;
+		exregoffset += 4;
+		return o+1;	// +1 to avoid 0 == failure; naddr case OEXREG will -1.
+	}
 
 	USED(t);
 	return 0;

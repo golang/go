@@ -419,14 +419,15 @@ void
 objfile(char *file)
 {
 	int32 off, esym, cnt, l;
-	int f, work;
+	int work;
+	Biobuf *f;
 	Sym *s;
 	char magbuf[SARMAG];
 	char name[100], pname[150];
 	struct ar_hdr arhdr;
 	char *e, *start, *stop;
 
-	if(file[0] == '-' && file[1] == 'l') {
+	if(file[0] == '-' && file[1] == 'l') {	// TODO: fix this
 		if(debug['9'])
 			sprint(name, "/%s/lib/lib", thestring);
 		else
@@ -438,22 +439,22 @@ objfile(char *file)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f ldobj: %s\n", cputime(), file);
 	Bflush(&bso);
-	f = open(file, 0);
-	if(f < 0) {
+	f = Bopen(file, 0);
+	if(f == nil) {
 		diag("cannot open file: %s", file);
 		errorexit();
 	}
-	l = read(f, magbuf, SARMAG);
+	l = Bread(f, magbuf, SARMAG);
 	if(l != SARMAG || strncmp(magbuf, ARMAG, SARMAG)){
 		/* load it as a regular file */
-		l = seek(f, 0L, 2);
-		seek(f, 0L, 0);
+		l = Bseek(f, 0L, 2);
+		Bseek(f, 0L, 0);
 		ldobj(f, l, file);
-		close(f);
+		Bterm(f);
 		return;
 	}
 
-	l = read(f, &arhdr, SAR_HDR);
+	l = Bread(f, &arhdr, SAR_HDR);
 	if(l != SAR_HDR) {
 		diag("%s: short read on archive file symbol header", file);
 		goto out;
@@ -469,12 +470,12 @@ objfile(char *file)
 	/*
 	 * just bang the whole symbol file into memory
 	 */
-	seek(f, off, 0);
+	Bseek(f, off, 0);
 	cnt = esym - off;
 	start = malloc(cnt + 10);
-	cnt = read(f, start, cnt);
+	cnt = Bread(f, start, cnt);
 	if(cnt <= 0){
-		close(f);
+		Bterm(f);
 		return;
 	}
 	stop = &start[cnt];
@@ -498,12 +499,16 @@ objfile(char *file)
 			l |= (e[2] & 0xff) << 8;
 			l |= (e[3] & 0xff) << 16;
 			l |= (e[4] & 0xff) << 24;
-			seek(f, l, 0);
-			l = read(f, &arhdr, SAR_HDR);
+			Bseek(f, l, 0);
+			l = Bread(f, &arhdr, SAR_HDR);
 			if(l != SAR_HDR)
 				goto bad;
 			if(strncmp(arhdr.fmag, ARFMAG, sizeof(arhdr.fmag)))
 				goto bad;
+			l = SARNAME;
+			while(l > 0 && arhdr.name[l-1] == ' ')
+				l--;
+			sprint(pname, "%s(%.*s)", file, l, arhdr.name);
 			l = atolwhex(arhdr.size);
 			ldobj(f, l, pname);
 			if(s->type == SXREF) {
@@ -519,85 +524,87 @@ objfile(char *file)
 bad:
 	diag("%s: bad or out of date archive", file);
 out:
-	close(f);
+	Bterm(f);
 }
 
-int
-zaddr(uchar *p, Adr *a, Sym *h[])
+int32
+Bget4(Biobuf *f)
 {
-	int c, t, i;
+	uchar p[4];
+
+	if(Bread(f, p, 4) != 4)
+		return 0;
+	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+}
+
+void
+zaddr(Biobuf *f, Adr *a, Sym *h[])
+{
+	int t;
 	int32 l;
 	Sym *s;
 	Auto *u;
 
-	t = p[0];
-
-	c = 1;
+	t = Bgetc(f);
 	if(t & T_INDEX) {
-		a->index = p[c];
-		a->scale = p[c+1];
-		c += 2;
+		a->index = Bgetc(f);
+		a->scale = Bgetc(f);
 	} else {
 		a->index = D_NONE;
 		a->scale = 0;
 	}
+	a->type = D_NONE;
 	a->offset = 0;
-	if(t & T_OFFSET) {
-		a->offset = p[c] | (p[c+1]<<8) | (p[c+2]<<16) | (p[c+3]<<24);
-		c += 4;
+	if(t & T_OFFSET)
+		a->offset = Bget4(f);
+	a->offset2 = 0;
+	if(t & T_OFFSET2) {
+		a->offset2 = Bget4(f);
+		a->type = D_CONST2;
 	}
 	a->sym = S;
-	if(t & T_SYM) {
-		a->sym = h[p[c]];
-		c++;
-	}
-	a->type = D_NONE;
+	if(t & T_SYM)
+		a->sym = h[Bgetc(f)];
 	if(t & T_FCONST) {
-		a->ieee.l = p[c] | (p[c+1]<<8) | (p[c+2]<<16) | (p[c+3]<<24);
-		a->ieee.h = p[c+4] | (p[c+5]<<8) | (p[c+6]<<16) | (p[c+7]<<24);
-		c += 8;
+		a->ieee.l = Bget4(f);
+		a->ieee.h = Bget4(f);
 		a->type = D_FCONST;
 	} else
 	if(t & T_SCONST) {
-		for(i=0; i<NSNAME; i++)
-			a->scon[i] = p[c+i];
-		c += NSNAME;
+		Bread(f, a->scon, NSNAME);
 		a->type = D_SCONST;
 	}
-	if(t & T_TYPE) {
-		a->type = p[c];
-		c++;
-	}
+	if(t & T_TYPE)
+		a->type = Bgetc(f);
 	s = a->sym;
 	if(s == S)
-		return c;
+		return;
 
 	t = a->type;
 	if(t != D_AUTO && t != D_PARAM)
-		return c;
+		return;
 	l = a->offset;
 	for(u=curauto; u; u=u->link) {
 		if(u->asym == s)
 		if(u->type == t) {
 			if(u->aoffset > l)
 				u->aoffset = l;
-			return c;
+			return;
 		}
 	}
 
-	u = mal(sizeof(Auto));
+	u = mal(sizeof(*u));
 	u->link = curauto;
 	curauto = u;
 	u->asym = s;
 	u->aoffset = l;
 	u->type = t;
-	return c;
 }
 
 void
-addlib(char *obj)
+addlib(char *src, char *obj)
 {
-	char name[1024], comp[256], *p;
+	char name[1024], comp[256], *p, *q;
 	int i;
 
 	if(histfrogp <= 0)
@@ -645,6 +652,23 @@ addlib(char *obj)
 		strcat(name, "/");
 		strcat(name, comp);
 	}
+	if(debug['v'])
+		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
+
+	p = strrchr(src, '/');
+	q = strrchr(name, '/');
+	if(p != nil && q != nil && p - src == q - name && memcmp(src, name, p - src) == 0) {
+		// leading paths are the same.
+		// if the source file refers to an object in its own directory
+		// and we are inside an archive, ignore the reference, in the hope
+		// that the archive contains that object too.
+		if(strchr(obj, '(')) {
+			if(debug['v'])
+				Bprint(&bso, "%5.2f ignored srcdir object %s\n", cputime(), name);
+			return;
+		}
+	}
+
 	for(i=0; i<libraryp; i++)
 		if(strcmp(name, library[i]) == 0)
 			return;
@@ -660,6 +684,22 @@ addlib(char *obj)
 	strcpy(p, obj);
 	libraryobj[libraryp] = p;
 	libraryp++;
+}
+
+void
+copyhistfrog(char *buf, int nbuf)
+{
+	char *p, *ep;
+	int i;
+
+	p = buf;
+	ep = buf + nbuf;
+	i = 0;
+	for(i=0; i<histfrogp; i++) {
+		p = seprint(p, ep, "%s", histfrog[i]->name+1);
+		if(i+1<histfrogp && (p == buf || p[-1] != '/'))
+			p = seprint(p, ep, "/");
+	}
 }
 
 void
@@ -679,6 +719,7 @@ addhist(int32 line, int type)
 	u->link = curhist;
 	curhist = u;
 
+	s->name[0] = 0;
 	j = 1;
 	for(i=0; i<histfrogp; i++) {
 		k = histfrog[i]->value;
@@ -686,6 +727,8 @@ addhist(int32 line, int type)
 		s->name[j+1] = k;
 		j += 2;
 	}
+	s->name[j] = 0;
+	s->name[j+1] = 0;
 }
 
 void
@@ -746,35 +789,27 @@ nopout(Prog *p)
 	p->to.type = D_NONE;
 }
 
-uchar*
-readsome(int f, uchar *buf, uchar *good, uchar *stop, int max)
-{
-	int n;
-
-	n = stop - good;
-	memmove(buf, good, stop - good);
-	stop = buf + n;
-	n = MAXIO - n;
-	if(n > max)
-		n = max;
-	n = read(f, stop, n);
-	if(n <= 0)
-		return 0;
-	return stop + n;
-}
-
 void
-ldobj(int f, int32 c, char *pn)
+ldobj(Biobuf *f, int32 len, char *pn)
 {
 	int32 ipc;
 	Prog *p, *t;
-	uchar *bloc, *bsize, *stop;
 	int v, o, r, skip;
 	Sym *h[NSYM], *s, *di;
 	uint32 sig;
 	static int files;
 	static char **filen;
 	char **nfilen;
+	int ntext, n, c1, c2, c3;
+	int32 eof;
+	int32 import0, import1;
+	char *line, *name;
+	char src[1024];
+
+	src[0] = '\0';
+	eof = Boffset(f) + len;
+
+	ntext = 0;
 
 	if((files&15) == 0){
 		nfilen = malloc((files+16)*sizeof(char*));
@@ -782,11 +817,47 @@ ldobj(int f, int32 c, char *pn)
 		free(filen);
 		filen = nfilen;
 	}
-	filen[files++] = strdup(pn);
+	pn = strdup(pn);
+	filen[files++] = pn;
 
-	bsize = buf.xbuf;
-	bloc = buf.xbuf;
 	di = S;
+
+	/* check the header */
+	line = Brdline(f, '\n');
+	if(line == nil) {
+		if(Blinelen(f) > 0) {
+			diag("%s: malformed object file", pn);
+			return;
+		}
+		goto eof;
+	}
+	n = Blinelen(f) - 1;
+	if(n != strlen(thestring) || strncmp(line, thestring, n) != 0) {
+		if(line)
+			line[n] = '\0';
+		diag("file not %s [%s]\n", thestring, line);
+		return;
+	}
+
+	/* skip over exports and other info -- ends with \n!\n */
+	import0 = Boffset(f);
+	c1 = '\n';	// the last line ended in \n
+	c2 = Bgetc(f);
+	c3 = Bgetc(f);
+	while(c1 != '\n' || c2 != '!' || c3 != '\n') {
+		c1 = c2;
+		c2 = c3;
+		c3 = Bgetc(f);
+		if(c3 == Beof)
+			goto eof;
+	}
+	import1 = Boffset(f);
+
+	Bseek(f, import0, 0);
+//	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
+	Bseek(f, import1, 0);
+
+print("import %ld-%ld\n", import0, import1);
 
 newloop:
 	memset(h, 0, sizeof(h));
@@ -796,61 +867,46 @@ newloop:
 	skip = 0;
 
 loop:
-	if(c <= 0)
+	if(f->state == Bracteof || Boffset(f) >= eof)
 		goto eof;
-	r = bsize - bloc;
-	if(r < 100 && r < c) {		/* enough for largest prog */
-		bsize = readsome(f, buf.xbuf, bloc, bsize, c);
-		if(bsize == 0)
-			goto eof;
-		bloc = buf.xbuf;
-		goto loop;
-	}
-	o = bloc[0] | (bloc[1] << 8);
+	o = Bgetc(f);
+	if(o == Beof)
+		goto eof;
+	o |= Bgetc(f) << 8;
 	if(o <= AXXX || o >= ALAST) {
 		if(o < 0)
 			goto eof;
-		diag("%s: opcode out of range %d", pn, o);
-		print("	probably not a .8 file\n");
+		diag("%s:#%lld: opcode out of range: %#ux", pn, Boffset(f), o);
+		print("	probably not a .%c file\n", thechar);
 		errorexit();
 	}
 
 	if(o == ANAME || o == ASIGNAME) {
 		sig = 0;
-		if(o == ASIGNAME) {
-			sig = bloc[2] | (bloc[3]<<8) | (bloc[4]<<16) | (bloc[5]<<24);
-			bloc += 4;
-			c -= 4;
-		}
-		stop = memchr(&bloc[4], 0, bsize-&bloc[4]);
-		if(stop == 0){
-			bsize = readsome(f, buf.xbuf, bloc, bsize, c);
-			if(bsize == 0)
-				goto eof;
-			bloc = buf.xbuf;
-			stop = memchr(&bloc[4], 0, bsize-&bloc[4]);
-			if(stop == 0){
-				fprint(2, "%s: name too long\n", pn);
-				errorexit();
-			}
-		}
-		v = bloc[2];	/* type */
-		o = bloc[3];	/* sym */
-		bloc += 4;
-		c -= 4;
-
+		if(o == ASIGNAME)
+			sig = Bget4(f);
+		v = Bgetc(f);	/* type */
+		o = Bgetc(f);	/* sym */
 		r = 0;
 		if(v == D_STATIC)
 			r = version;
-		s = lookup((char*)bloc, r);
-		c -= &stop[1] - bloc;
-		bloc = stop + 1;
+		name = Brdline(f, '\0');
+		if(name == nil) {
+			if(Blinelen(f) > 0) {
+				fprint(2, "%s: name too long\n", pn);
+				errorexit();
+			}
+			goto eof;
+		}
+		s = lookup(name, r);
 
 		if(debug['S'] && r == 0)
 			sig = 1729;
 		if(sig != 0){
 			if(s->sig != 0 && s->sig != sig)
-				diag("incompatible type signatures %lux(%s) and %lux(%s) for %s", s->sig, filen[s->file], sig, pn, s->name);
+				diag("incompatible type signatures"
+					"%lux(%s) and %lux(%s) for %s",
+					s->sig, filen[s->file], sig, pn, s->name);
 			s->sig = sig;
 			s->file = files-1;
 		}
@@ -877,12 +933,10 @@ loop:
 
 	p = mal(sizeof(*p));
 	p->as = o;
-	p->line = bloc[2] | (bloc[3] << 8) | (bloc[4] << 16) | (bloc[5] << 24);
+	p->line = Bget4(f);
 	p->back = 2;
-	r = zaddr(bloc+6, &p->from, h) + 6;
-	r += zaddr(bloc+r, &p->to, h);
-	bloc += r;
-	c -= r;
+	zaddr(f, &p->from, h);
+	zaddr(f, &p->to, h);
 
 	if(debug['W'])
 		print("%P\n", p);
@@ -890,10 +944,12 @@ loop:
 	switch(p->as) {
 	case AHISTORY:
 		if(p->to.offset == -1) {
-			addlib(pn);
+			addlib(src, pn);
 			histfrogp = 0;
 			goto loop;
 		}
+		if(src[0] == '\0')
+			copyhistfrog(src, sizeof src);
 		addhist(p->line, D_FILE);		/* 'z' */
 		if(p->to.offset)
 			addhist(p->to.offset, D_FILE1);	/* 'Z' */
@@ -906,9 +962,9 @@ loop:
 			curtext->to.autom = curauto;
 		curauto = 0;
 		curtext = P;
-		if(c)
-			goto newloop;
-		return;
+		if(Boffset(f) == eof)
+			return;
+		goto newloop;
 
 	case AGLOBL:
 		s = p->from.sym;
@@ -983,6 +1039,17 @@ loop:
 		goto loop;
 
 	case ATEXT:
+		s = p->from.sym;
+		if(s == S) {
+			diag("%s: no TEXT symbol: %P", pn, p);
+			errorexit();
+		}
+		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
+			/* redefinition, so file has probably been seen before */
+			if(debug['v'])
+				diag("skipping: %s: redefinition: %s", pn, s->name);
+			return;
+		}
 		if(curtext != P) {
 			histtoauto();
 			curtext->to.autom = curauto;
@@ -990,11 +1057,6 @@ loop:
 		}
 		skip = 0;
 		curtext = p;
-		s = p->from.sym;
-		if(s == S) {
-			diag("%s: no TEXT symbol: %P", pn, p);
-			errorexit();
-		}
 		if(s->type != 0 && s->type != SXREF) {
 			if(p->from.scale & DUPOK) {
 				skip = 1;

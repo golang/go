@@ -148,7 +148,10 @@ xdefine(char *p, int t, int32 v)
 void
 putsymb(char *s, int t, int32 v, int ver)
 {
-	int i, f;
+	int i, j, f;
+	char *go; 
+	
+	go = nil;	// TODO
 
 	if(t == 'f')
 		s++;
@@ -172,7 +175,14 @@ putsymb(char *s, int t, int32 v, int ver)
 			cput(s[i]);
 		cput(0);
 	}
-	symsize += 4 + 1 + i + 1;
+	j = 0;
+	if(go) {
+		for(j=0; go[j]; j++)
+			cput(go[j]);
+	}
+	cput(0);
+
+	symsize += 4 + 1 + i + 1 + j + 1;
 
 	if(debug['n']) {
 		if(t == 'z' || t == 'Z') {
@@ -334,6 +344,24 @@ asmlc(void)
 }
 
 int
+prefixof(Adr *a)
+{
+	switch(a->type) {
+	case D_INDIR+D_CS:
+		return 0x2e;
+	case D_INDIR+D_DS:
+		return 0x3e;
+	case D_INDIR+D_ES:
+		return 0x26;
+	case D_INDIR+D_FS:
+		return 0x64;
+	case D_INDIR+D_GS:
+		return 0x65;
+	}
+	return 0;
+}
+
+int
 oclass(Adr *a)
 {
 	int32 v;
@@ -447,6 +475,7 @@ oclass(Adr *a)
 		return Ym;
 
 	case D_CONST:
+	case D_CONST2:
 	case D_ADDR:
 		if(a->sym == S) {
 			v = a->offset;
@@ -636,7 +665,7 @@ asmand(Adr *a, int r)
 	}
 	if(t >= D_INDIR) {
 		t -= D_INDIR;
-		if(t == D_NONE) {
+		if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
 			*andptr++ = (0 << 6) | (5 << 0) | (r << 3);
 			put4(v);
 			return;
@@ -851,7 +880,14 @@ doasm(Prog *p)
 	Prog *q, pp;
 	uchar *t;
 	int z, op, ft, tt;
-	int32 v;
+	int32 v, pre;
+
+	pre = prefixof(&p->from);
+	if(pre)
+		*andptr++ = pre;
+	pre = prefixof(&p->to);
+	if(pre)
+		*andptr++ = pre;
 
 	o = &optab[p->as];
 	ft = oclass(&p->from) * Ymax;

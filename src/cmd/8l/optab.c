@@ -173,6 +173,11 @@ uchar	yml_rl[] =
 	Yml,	Yrl,	Zm_r,	1,
 	0
 };
+uchar	yrb_mb[] =
+{
+	Yrb,	Ymb,	Zr_m,	1,
+	0
+};
 uchar	yrl_ml[] =
 {
 	Yrl,	Yml,	Zr_m,	1,
@@ -383,6 +388,9 @@ Optab optab[] =
 	{ ACMPSB,	ynone,	Pb, 0xa6 },
 	{ ACMPSL,	ynone,	Px, 0xa7 },
 	{ ACMPSW,	ynone,	Pe, 0xa7 },
+	{ ACMPXCHGB,	yrb_mb,	Pm, 0xb0 },
+	{ ACMPXCHGL,	yrl_ml,	Pm, 0xb1 },
+	{ ACMPXCHGW,	yrl_ml,	Pm, 0xb1 },
 	{ ADAA,		ynone,	Px, 0x27 },
 	{ ADAS,		ynone,	Px, 0x2f },
 	{ ADATA },

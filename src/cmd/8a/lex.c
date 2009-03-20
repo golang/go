@@ -165,6 +165,9 @@ assemble(char *file)
 
 	pass = 1;
 	pinit(file);
+	
+	Bprint(&obuf, "%s\n", thestring);
+
 	for(i=0; i<nDlist; i++)
 		dodefine(Dlist[i]);
 	yyparse();
@@ -172,6 +175,8 @@ assemble(char *file)
 		cclean();
 		return nerrors;
 	}
+	
+	Bprint(&obuf, "\n!\n");
 
 	pass = 2;
 	outhist();
@@ -304,6 +309,9 @@ struct
 	"CMPSB",	LTYPE0,	ACMPSB,
 	"CMPSL",	LTYPE0,	ACMPSL,
 	"CMPSW",	LTYPE0,	ACMPSW,
+	"CMPXCHGB",	LTYPE3,	ACMPXCHGB,
+	"CMPXCHGL",	LTYPE3,	ACMPXCHGL,
+	"CMPXCHGW",	LTYPE3,	ACMPXCHGW,	
 	"DAA",		LTYPE0,	ADAA,
 	"DAS",		LTYPE0,	ADAS,
 	"DATA",		LTYPED,	ADATA,
@@ -315,7 +323,7 @@ struct
 	"DIVW",		LTYPE2,	ADIVW,
 	"END",		LTYPE0,	AEND,
 	"ENTER",	LTYPE2,	AENTER,
-	"GLOBL",	LTYPET,	AGLOBL,
+	"GLOBL",	LTYPEG,	AGLOBL,
 	"HLT",		LTYPE0,	AHLT,
 	"IDIVB",	LTYPE2,	AIDIVB,
 	"IDIVL",	LTYPE2,	AIDIVL,
@@ -714,7 +722,7 @@ zname(char *n, int t, int s)
 void
 zaddr(Gen *a, int s)
 {
-	long l;
+	int32 l;
 	int i, t;
 	char *n;
 	Ieee e;
@@ -734,6 +742,9 @@ zaddr(Gen *a, int s)
 	case D_FCONST:
 		t |= T_FCONST;
 		break;
+	case D_CONST2:
+		t |= T_OFFSET|T_OFFSET2;
+		break;
 	case D_SCONST:
 		t |= T_SCONST;
 		break;
@@ -748,6 +759,13 @@ zaddr(Gen *a, int s)
 	}
 	if(t & T_OFFSET) {	/* implies offset */
 		l = a->offset;
+		Bputc(&obuf, l);
+		Bputc(&obuf, l>>8);
+		Bputc(&obuf, l>>16);
+		Bputc(&obuf, l>>24);
+	}
+	if(t & T_OFFSET2) {
+		l = a->offset2;
 		Bputc(&obuf, l);
 		Bputc(&obuf, l>>8);
 		Bputc(&obuf, l>>16);

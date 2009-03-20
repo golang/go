@@ -66,6 +66,7 @@ EXTERN	struct
 struct	Adr
 {
 	int32	offset;
+	int32	offset2;
 	double	dval;
 	char	sval[NSNAME];
 

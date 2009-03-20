@@ -1460,6 +1460,7 @@ Init	onamesinit[] =
 	ODWHILE,	0,	"DWHILE",
 	OENUM,		0,	"ENUM",
 	OEQ,		0,	"EQ",
+	OEXREG,	0,	"EXREG",
 	OFOR,		0,	"FOR",
 	OFUNC,		0,	"FUNC",
 	OGE,		0,	"GE",

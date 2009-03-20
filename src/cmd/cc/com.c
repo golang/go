@@ -638,6 +638,11 @@ tcomo(Node *n, int f)
 		n->addable = 1;
 		if(n->class == CEXREG) {
 			n->op = OREGISTER;
+			// on 386, "extern register" generates
+			// memory references relative to the
+			// fs segment.
+			if(thechar == '8')	// [sic]
+				n->op = OEXREG;
 			n->reg = n->sym->offset;
 			n->xoffset = 0;
 			break;

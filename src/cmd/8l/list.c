@@ -82,6 +82,14 @@ Aconv(Fmt *fp)
 	return fmtstrcpy(fp, anames[i]);
 }
 
+char*
+xsymname(Sym *s)
+{
+	if(s == nil)
+		return "!!noname!!";
+	return s->name;
+}
+
 int
 Dconv(Fmt *fp)
 {
@@ -120,16 +128,16 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_EXTERN:
-		sprint(str, "%s+%ld(SB)", a->sym->name, a->offset);
+		sprint(str, "%s+%ld(SB)", xsymname(a->sym), a->offset);
 		break;
 
 	case D_STATIC:
-		sprint(str, "%s<%d>+%ld(SB)", a->sym->name,
+		sprint(str, "%s<%d>+%ld(SB)", xsymname(a->sym),
 			a->sym->version, a->offset);
 		break;
 
 	case D_AUTO:
-		sprint(str, "%s+%ld(SP)", a->sym->name, a->offset);
+		sprint(str, "%s+%ld(SP)", xsymname(a->sym), a->offset);
 		break;
 
 	case D_PARAM:
@@ -141,6 +149,10 @@ Dconv(Fmt *fp)
 
 	case D_CONST:
 		sprint(str, "$%ld", a->offset);
+		break;
+
+	case D_CONST2:
+		sprint(str, "$%ld-%ld", a->offset, a->offset2);
 		break;
 
 	case D_FCONST:

@@ -262,6 +262,7 @@ enum
 	ODWHILE,
 	OENUM,
 	OEQ,
+	OEXREG,
 	OFOR,
 	OFUNC,
 	OGE,

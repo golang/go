@@ -34,6 +34,10 @@
 %union	{
 	Sym	*sym;
 	int32	lval;
+	struct {
+		int32 v1;
+		int32 v2;
+	} con2;
 	double	dval;
 	char	sval[8];
 	Gen	gen;
@@ -46,16 +50,17 @@
 %left	'+' '-'
 %left	'*' '/' '%'
 %token	<lval>	LTYPE0 LTYPE1 LTYPE2 LTYPE3 LTYPE4
-%token	<lval>	LTYPEC LTYPED LTYPEN LTYPER LTYPET LTYPES LTYPEM LTYPEI
+%token	<lval>	LTYPEC LTYPED LTYPEN LTYPER LTYPET LTYPES LTYPEM LTYPEI LTYPEG
 %token	<lval>	LCONST LFP LPC LSB
 %token	<lval>	LBREG LLREG LSREG LFREG
 %token	<dval>	LFCONST
 %token	<sval>	LSCONST LSP
 %token	<sym>	LNAME LLAB LVAR
 %type	<lval>	con expr pointer offset
-%type	<gen>	mem imm reg nam rel rem rim rom omem nmem
+%type	<con2>	con2
+%type	<gen>	mem imm imm2 reg nam rel rem rim rom omem nmem
 %type	<gen2>	nonnon nonrel nonrem rimnon rimrem remrim
-%type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7
+%type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8
 %%
 prog:
 |	prog line
@@ -103,6 +108,7 @@ inst:
 |	LTYPES spec5	{ outcode($1, &$2); }
 |	LTYPEM spec6	{ outcode($1, &$2); }
 |	LTYPEI spec7	{ outcode($1, &$2); }
+|	LTYPEG spec8	{ outcode($1, &$2); }
 
 nonnon:
 	{
@@ -174,12 +180,12 @@ spec1:	/* DATA */
 	}
 
 spec2:	/* TEXT */
-	mem ',' imm
+	mem ',' imm2
 	{
 		$$.from = $1;
 		$$.to = $3;
 	}
-|	mem ',' con ',' imm
+|	mem ',' con ',' imm2
 	{
 		$$.from = $1;
 		$$.from.scale = $3;
@@ -247,6 +253,19 @@ spec7:
 	{
 		$$.from = $1;
 		$$.to = $3;
+	}
+
+spec8:	/* GLOBL */
+	mem ',' imm
+	{
+		$$.from = $1;
+		$$.to = $3;
+	}
+|	mem ',' con ',' imm
+	{
+		$$.from = $1;
+		$$.from.scale = $3;
+		$$.to = $5;
 	}
 
 rem:
@@ -365,6 +384,37 @@ imm:
 		$$.dval = -$3;
 	}
 
+imm2:
+	'$' con2
+	{
+		$$ = nullgen;
+		$$.type = D_CONST2;
+		$$.offset = $2.v1;
+		$$.offset2 = $2.v2;
+	}
+
+con2:
+	LCONST
+	{
+		$$.v1 = $1;
+		$$.v2 = 0;
+	}
+|	'-' LCONST
+	{
+		$$.v1 = -$2;
+		$$.v2 = 0;
+	}
+|	LCONST '-' LCONST
+	{
+		$$.v1 = $1;
+		$$.v2 = $3;
+	}
+|	'-' LCONST '-' LCONST
+	{
+		$$.v1 = -$2;
+		$$.v2 = $4;
+	}
+
 mem:
 	omem
 |	nmem
@@ -415,6 +465,12 @@ omem:
 	{
 		$$ = nullgen;
 		$$.type = D_INDIR+D_SP;
+	}
+|	con '(' LSREG ')'
+	{
+		$$ = nullgen;
+		$$.type = D_INDIR+$3;
+		$$.offset = $1;
 	}
 |	'(' LLREG '*' con ')'
 	{

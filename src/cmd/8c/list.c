@@ -154,6 +154,10 @@ Dconv(Fmt *fp)
 		sprint(str, "$%ld", a->offset);
 		break;
 
+	case D_CONST2:
+		sprint(str, "$%ld-%ld", a->offset, a->offset2);
+		break;
+
 	case D_FCONST:
 		sprint(str, "$(%.17e)", a->dval);
 		break;

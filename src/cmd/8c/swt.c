@@ -328,7 +328,10 @@ outcode(void)
 		return;
 	}
 	Binit(&b, f, OWRITE);
-	Bseek(&b, 0L, 2);
+
+	Bprint(&b, "%s\n", thestring);
+	Bprint(&b, "!\n");
+
 	outhist(&b);
 	for(sym=0; sym<NSYM; sym++) {
 		h[sym].sym = S;
@@ -530,6 +533,9 @@ zaddr(Biobuf *b, Adr *a, int s)
 	case D_SCONST:
 		t |= T_SCONST;
 		break;
+	case D_CONST2:
+		t |= T_OFFSET|T_OFFSET2;
+		break;
 	}
 	Bputc(b, t);
 
@@ -539,6 +545,13 @@ zaddr(Biobuf *b, Adr *a, int s)
 	}
 	if(t & T_OFFSET) {	/* implies offset */
 		l = a->offset;
+		Bputc(b, l);
+		Bputc(b, l>>8);
+		Bputc(b, l>>16);
+		Bputc(b, l>>24);
+	}
+	if(t & T_OFFSET2) {	/* implies offset2 */
+		l = a->offset2;
 		Bputc(b, l);
 		Bputc(b, l>>8);
 		Bputc(b, l>>16);
