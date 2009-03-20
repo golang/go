@@ -365,11 +365,19 @@ void	span(void);
 void	undef(void);
 void	undefsym(Sym*);
 int32	vaddr(Adr*);
-void	wputb(ushort);
+void	wput(ushort);
 void	xdefine(char*, int, int32);
 void	xfol(Prog*);
 int	zaddr(uchar*, Adr*, Sym*[]);
 void	zerosig(char*);
+uint32	machheadr(void);
+uint32	elfheadr(void);
+void	whatsys(void);
+
+/* set by call to whatsys() */
+extern	char*	goroot;
+extern	char*	goarch;
+extern	char*	goos;
 
 #pragma	varargck	type	"D"	Adr*
 #pragma	varargck	type	"P"	Prog*

@@ -139,16 +139,22 @@ main(int argc, char *argv[])
 		diag("usage: 8l [-options] objects");
 		errorexit();
 	}
-	if(!debug['9'] && !debug['U'] && !debug['B'])
-		debug[DEFAULT] = 1;
+
+	whatsys();	// get goroot, goarch, goos
+	if(strcmp(goarch, thestring) != 0)
+		print("goarch is not known: %s\n", goarch);
+
 	if(HEADTYPE == -1) {
-		if(debug['U'])
-			HEADTYPE = 1;
-		if(debug['B'])
-			HEADTYPE = 2;
-		if(debug['9'])
-			HEADTYPE = 2;
+		HEADTYPE = 2;
+		if(strcmp(goos, "linux") == 0)
+			HEADTYPE = 7;
+		else
+		if(strcmp(goos, "darwin") == 0)
+			HEADTYPE = 6;
+		else
+			print("goos is not known: %sn", goos);
 	}
+
 	switch(HEADTYPE) {
 	default:
 		diag("unknown -H option");
@@ -201,6 +207,24 @@ main(int argc, char *argv[])
 		HEADR += (INITTEXT & 0xFFFF);
 		if(debug['v'])
 			Bprint(&bso, "HEADR = 0x%ld\n", HEADR);
+		break;
+	case 6:	/* apple MACH */
+		HEADR = machheadr();
+		if(INITTEXT == -1)
+			INITTEXT = 4096+HEADR;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = 4096;
+		break;
+	case 7:	/* elf32 executable */
+		HEADR = elfheadr();
+		if(INITTEXT == -1)
+			INITTEXT = 0x08048000+HEADR;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = 4096;
 		break;
 	}
 	if(INITDAT != 0 && INITRND != 0)
@@ -294,19 +318,27 @@ main(int argc, char *argv[])
 	firstp = prg();
 	lastp = firstp;
 
-	if(INITENTRY == 0) {
-		INITENTRY = "_main";
-		if(debug['p'])
-			INITENTRY = "_mainp";
-		if(!debug['l'])
-			lookup(INITENTRY, 0)->type = SXREF;
-	} else
-		lookup(INITENTRY, 0)->type = SXREF;
+	if(INITENTRY == nil) {
+		INITENTRY = mal(strlen(goarch)+strlen(goos)+10);
+		sprint(INITENTRY, "_rt0_%s_%s", goarch, goos);
+	}
+	lookup(INITENTRY, 0)->type = SXREF;
+
+	if(!debug['l']) {
+		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
+		sprint(a, "%s/lib/rt0_%s_%s.%c", goroot, goarch, goos, thechar);
+		objfile(a);
+	}
 
 	while(*argv)
 		objfile(*argv++);
-	if(!debug['l'])
+
+	if(!debug['l']) {
 		loadlib();
+		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
+		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
+		objfile(a);
+	}
 	firstp = firstp->link;
 	if(firstp == P)
 		errorexit();

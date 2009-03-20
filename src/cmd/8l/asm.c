@@ -32,6 +32,22 @@
 
 #define	Dbufslop	100
 
+uint32 symdatva = 0x99<<24;
+uint32 stroffset;
+uint32 strtabsize;
+
+uint32 machheadr(void);
+uint32		elfheadr(void);
+void		elfphdr(int type, int flags, uint32 foff, uint32 vaddr, uint32 paddr, uint32 filesize, uint32 memsize, uint32 align);
+void		elfshdr(char *name, uint32 type, uint32 flags, uint32 addr, uint32 off, uint32 size, uint32 link, uint32 info, uint32 align, uint32 entsize);
+int		elfstrtable(void);
+void		machdylink(void);
+uint32		machheadr(void);
+void		machsect(char *name, char *seg, vlong addr, vlong size, uint32 off, uint32 align, uint32 reloc, uint32 nreloc, uint32 flag);
+void		machseg(char *name, uint32 vaddr, uint32 vsize, uint32 foff, uint32 fsize, uint32 prot1, uint32 prot2, uint32 nsect, uint32 flag);
+void		machstack(vlong e);
+void		machsymseg(uint32 foffset, uint32 fsize);
+
 int32
 entryvalue(void)
 {
@@ -57,17 +73,55 @@ entryvalue(void)
 }
 
 void
-wput(ushort w)
+wputl(ushort w)
 {
 	cput(w);
 	cput(w>>8);
 }
 
 void
-wputb(ushort w)
+wput(ushort w)
 {
 	cput(w>>8);
 	cput(w);
+}
+
+void
+lput(int32 l)
+{
+	cput(l>>24);
+	cput(l>>16);
+	cput(l>>8);
+	cput(l);
+}
+
+void
+lputl(int32 l)
+{
+	cput(l);
+	cput(l>>8);
+	cput(l>>16);
+	cput(l>>24);
+}
+
+void
+vputl(uvlong l)
+{
+	lputl(l >> 32);
+	lputl(l);
+}
+
+void
+strnput(char *s, int n)
+{
+	for(; *s && n > 0; s++) {
+		cput(*s);
+		n--;
+	}
+	while(n > 0) {
+		cput(0);
+		n--;
+	}
 }
 
 void
@@ -75,7 +129,8 @@ asmb(void)
 {
 	Prog *p;
 	int32 v, magic;
-	int a;
+	int a, np, nl, ns;
+	uint32 va, fo, w, symo;
 	uchar *op1;
 
 	if(debug['v'])
@@ -134,6 +189,23 @@ asmb(void)
 	case 4:
 		seek(cout, HEADR+rnd(textsize, INITRND), 0);
 		break;
+	case 6:
+		v = HEADR+textsize;
+		seek(cout, v, 0);
+		v = rnd(v, 4096) - v;
+		while(v > 0) {
+			cput(0);
+			v--;
+		}
+		cflush();
+		break;
+	case 7:
+		seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
+		strtabsize = elfstrtable();
+		cflush();
+		v = rnd(HEADR+textsize, INITRND);
+		seek(cout, v, 0);
+		break;
 	}
 
 	if(debug['v'])
@@ -157,6 +229,7 @@ asmb(void)
 	symsize = 0;
 	spsize = 0;
 	lcsize = 0;
+	symo = 0;
 	if(!debug['s']) {
 		if(debug['v'])
 			Bprint(&bso, "%5.2f sym\n", cputime());
@@ -175,8 +248,17 @@ asmb(void)
 		case 3:
 		case 4:
 			debug['s'] = 1;
+			symo = HEADR+textsize+datsize;
+			break;
+		case 6:
+			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND);
+			break;
+		case 7:
+			symo = rnd(HEADR+textsize, INITRND)+datsize+strtabsize;
+			symo = rnd(symo, INITRND);
 			break;
 		}
+		seek(cout, symo+8, 0);
 		if(!debug['s'])
 			asmsym();
 		if(debug['v'])
@@ -189,6 +271,10 @@ asmb(void)
 			asmlc();
 		if(dlm)
 			asmdyn();
+		cflush();
+		seek(cout, symo, 0);
+		lputl(symsize);
+		lputl(lcsize);
 		cflush();
 	}
 	else if(dlm){
@@ -311,45 +397,272 @@ asmb(void)
 	case 4:
 		/* fake MS-DOS .EXE */
 		v = rnd(HEADR+textsize, INITRND)+datsize;
-		wput(0x5A4D);			/* 'MZ' */
-		wput(v % 512);			/* bytes in last page */
-		wput(rnd(v, 512)/512);		/* total number of pages */
-		wput(0x0000);			/* number of reloc items */
+		wputl(0x5A4D);			/* 'MZ' */
+		wputl(v % 512);			/* bytes in last page */
+		wputl(rnd(v, 512)/512);		/* total number of pages */
+		wputl(0x0000);			/* number of reloc items */
 		v = rnd(HEADR-(INITTEXT & 0xFFFF), 16);
-		wput(v/16);			/* size of header */
-		wput(0x0000);			/* minimum allocation */
-		wput(0xFFFF);			/* maximum allocation */
-		wput(0x0000);			/* initial ss value */
-		wput(0x0100);			/* initial sp value */
-		wput(0x0000);			/* complemented checksum */
+		wputl(v/16);			/* size of header */
+		wputl(0x0000);			/* minimum allocation */
+		wputl(0xFFFF);			/* maximum allocation */
+		wputl(0x0000);			/* initial ss value */
+		wputl(0x0100);			/* initial sp value */
+		wputl(0x0000);			/* complemented checksum */
 		v = entryvalue();
-		wput(v);			/* initial ip value (!) */
-		wput(0x0000);			/* initial cs value */
-		wput(0x0000);
-		wput(0x0000);
-		wput(0x003E);			/* reloc table offset */
-		wput(0x0000);			/* overlay number */
+		wputl(v);			/* initial ip value (!) */
+		wputl(0x0000);			/* initial cs value */
+		wputl(0x0000);
+		wputl(0x0000);
+		wputl(0x003E);			/* reloc table offset */
+		wputl(0x0000);			/* overlay number */
+		break;
+	
+	case 6:
+		/* apple MACH */
+		va = 4096;
+
+		lputl(0xfeedface);		/* 32-bit */
+		lputl(7);		/* cputype - x86 */
+		lputl(3);			/* subtype - x86 */
+		lputl(2);			/* file type - mach executable */
+		nl = 4;
+		if (!debug['s'])
+			nl += 3;
+		if (!debug['d'])	// -d = turn off "dynamic loader"
+			nl += 3;
+		lputl(nl);			/* number of loads */
+		lputl(machheadr()-28);		/* size of loads */
+		lputl(1);			/* flags - no undefines */
+
+		machseg("__PAGEZERO",
+			0,va,			/* vaddr vsize */
+			0,0,			/* fileoffset filesize */
+			0,0,			/* protects */
+			0,0);			/* sections flags */
+
+		v = rnd(HEADR+textsize, INITRND);
+		machseg("__TEXT",
+			va,			/* vaddr */
+			v,			/* vsize */
+			0,v,			/* fileoffset filesize */
+			7,5,			/* protects */
+			1,0);			/* sections flags */
+		machsect("__text", "__TEXT",
+			va+HEADR,v-HEADR,	/* addr size */
+			HEADR,0,0,0,		/* offset align reloc nreloc */
+			0|0x400);		/* flag - some instructions */
+
+		w = datsize+bsssize;
+		machseg("__DATA",
+			va+v,			/* vaddr */
+			w,			/* vsize */
+			v,datsize,		/* fileoffset filesize */
+			7,3,			/* protects */
+			2,0);			/* sections flags */
+		machsect("__data", "__DATA",
+			va+v,datsize,		/* addr size */
+			v,0,0,0,		/* offset align reloc nreloc */
+			0);			/* flag */
+		machsect("__bss", "__DATA",
+			va+v+datsize,bsssize,	/* addr size */
+			0,0,0,0,		/* offset align reloc nreloc */
+			1);			/* flag - zero fill */
+
+		machdylink();
+		machstack(entryvalue());
+
+		if (!debug['s']) {
+			machseg("__SYMDAT",
+				symdatva,		/* vaddr */
+				8+symsize+lcsize,		/* vsize */
+				symo, 8+symsize+lcsize,	/* fileoffset filesize */
+				7, 5,			/* protects */
+				0, 0);			/* sections flags */
+
+			machsymseg(symo+8,symsize);	/* fileoffset,filesize */
+			machsymseg(symo+8+symsize,lcsize);	/* fileoffset,filesize */
+		}
+		break;
+
+	case 7:
+		np = 3;
+		ns = 5;
+		if(!debug['s']) {
+			np++;
+			ns += 2;
+		}
+
+		/* ELF header */
+		strnput("\177ELF", 4);		/* e_ident */
+		cput(1);			/* class = 32 bit */
+		cput(1);			/* data = LSB */
+		cput(1);			/* version = CURRENT */
+		strnput("", 9);
+		wputl(2);			/* type = EXEC */
+		wputl(3);			/* machine = AMD64 */
+		lputl(1L);			/* version = CURRENT */
+		lputl(entryvalue());		/* entry vaddr */
+		lputl(52L);			/* offset to first phdr */
+		lputl(52L+32L*np);		/* offset to first shdr */
+		lputl(0L);			/* processor specific flags */
+		wputl(52L);			/* Ehdr size */
+		wputl(32L);			/* Phdr size */
+		wputl(np);			/* # of Phdrs */
+		wputl(40L);			/* Shdr size */
+		wputl(ns);			/* # of Shdrs */
+		wputl(4);			/* Shdr with strings */
+
+		/* prog headers */
+		fo = 0;
+		va = INITTEXT & ~((vlong)INITRND - 1);
+		w = HEADR+textsize;
+
+		elfphdr(1,			/* text - type = PT_LOAD */
+			1L+4L,			/* text - flags = PF_X+PF_R */
+			0,			/* file offset */
+			va,			/* vaddr */
+			va,			/* paddr */
+			w,			/* file size */
+			w,			/* memory size */
+			INITRND);		/* alignment */
+
+		fo = rnd(fo+w, INITRND);
+		va = rnd(va+w, INITRND);
+		w = datsize;
+
+		elfphdr(1,			/* data - type = PT_LOAD */
+			2L+4L,			/* data - flags = PF_W+PF_R */
+			fo,			/* file offset */
+			va,			/* vaddr */
+			va,			/* paddr */
+			w,			/* file size */
+			w+bsssize,		/* memory size */
+			INITRND);		/* alignment */
+
+		if(!debug['s']) {
+			elfphdr(1,			/* data - type = PT_LOAD */
+				2L+4L,			/* data - flags = PF_W+PF_R */
+				symo,		/* file offset */
+				symdatva,			/* vaddr */
+				symdatva,			/* paddr */
+				8+symsize+lcsize,			/* file size */
+				8+symsize+lcsize,		/* memory size */
+				INITRND);		/* alignment */
+		}
+
+		elfphdr(0x6474e551,		/* gok - type = gok */
+			1L+2L+4L,		/* gok - flags = PF_X+PF_W+PF_R */
+			0,			/* file offset */
+			0,			/* vaddr */
+			0,			/* paddr */
+			0,			/* file size */
+			0,			/* memory size */
+			8);			/* alignment */
+
+		/* segment headers */
+		elfshdr(nil,			/* name */
+			0,			/* type */
+			0,			/* flags */
+			0,			/* addr */
+			0,			/* off */
+			0,			/* size */
+			0,			/* link */
+			0,			/* info */
+			0,			/* align */
+			0);			/* entsize */
+
+		stroffset = 1;  /* 0 means no name, so start at 1 */
+		fo = HEADR;
+		va = (INITTEXT & ~((vlong)INITRND - 1)) + HEADR;
+		w = textsize;
+
+		elfshdr(".text",		/* name */
+			1,			/* type */
+			6,			/* flags */
+			va,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			8,			/* align */
+			0);			/* entsize */
+
+		fo = rnd(fo+w, INITRND);
+		va = rnd(va+w, INITRND);
+		w = datsize;
+
+		elfshdr(".data",		/* name */
+			1,			/* type */
+			3,			/* flags */
+			va,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			8,			/* align */
+			0);			/* entsize */
+
+		fo += w;
+		va += w;
+		w = bsssize;
+
+		elfshdr(".bss",		/* name */
+			8,			/* type */
+			3,			/* flags */
+			va,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			8,			/* align */
+			0);			/* entsize */
+
+		w = strtabsize;
+
+		elfshdr(".shstrtab",		/* name */
+			3,			/* type */
+			0,			/* flags */
+			0,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			1,			/* align */
+			0);			/* entsize */
+
+		if (debug['s'])
+			break;
+
+		fo = symo+8;
+		w = symsize;
+
+		elfshdr(".gosymtab",		/* name */
+			1,			/* type 1 = SHT_PROGBITS */
+			0,			/* flags */
+			0,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			1,			/* align */
+			24);			/* entsize */
+
+		fo += w;
+		w = lcsize;
+
+		elfshdr(".gopclntab",		/* name */
+			1,			/* type 1 = SHT_PROGBITS*/
+			0,			/* flags */
+			0,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			1,			/* align */
+			24);			/* entsize */
 		break;
 	}
 	cflush();
-}
-
-void
-lput(int32 l)
-{
-	cput(l>>24);
-	cput(l>>16);
-	cput(l>>8);
-	cput(l);
-}
-
-void
-lputl(int32 l)
-{
-	cput(l);
-	cput(l>>8);
-	cput(l>>16);
-	cput(l>>24);
 }
 
 void
@@ -529,4 +842,219 @@ rnd(int32 v, int32 r)
 		c += r;
 	v -= c;
 	return v;
+}
+
+void
+machseg(char *name, uint32 vaddr, uint32 vsize, uint32 foff, uint32 fsize,
+	uint32 prot1, uint32 prot2, uint32 nsect, uint32 flag)
+{
+	lputl(1);	/* segment 32 */
+	lputl(56 + 68*nsect);
+	strnput(name, 16);
+	lputl(vaddr);
+	lputl(vsize);
+	lputl(foff);
+	lputl(fsize);
+	lputl(prot1);
+	lputl(prot2);
+	lputl(nsect);
+	lputl(flag);
+}
+
+void
+machsymseg(uint32 foffset, uint32 fsize)
+{
+	lputl(3);	/* obsolete gdb debug info */
+	lputl(16);	/* size of symseg command */
+	lputl(foffset);
+	lputl(fsize);
+}
+
+void
+machsect(char *name, char *seg, vlong addr, vlong size, uint32 off,
+	uint32 align, uint32 reloc, uint32 nreloc, uint32 flag)
+{
+	strnput(name, 16);
+	strnput(seg, 16);
+	lputl(addr);
+	lputl(size);
+	lputl(off);
+	lputl(align);
+	lputl(reloc);
+	lputl(nreloc);
+	lputl(flag);
+	lputl(0);	/* reserved */
+	lputl(0);	/* reserved */
+}
+
+// Emit a section requesting the dynamic loader
+// but giving it no work to do (an empty dynamic symbol table).
+// This is enough to make the Apple tracing programs (like dtrace)
+// accept the binary, so that one can run dtruss on an 8.out.
+void
+machdylink(void)
+{
+	int i;
+
+	if(debug['d'])
+		return;
+
+	lputl(2);	/* LC_SYMTAB */
+	lputl(24);	/* byte count - 6 words*/
+	for(i=0; i<4; i++)
+		lputl(0);
+
+	lputl(11);	/* LC_DYSYMTAB */
+	lputl(80);	/* byte count - 20 words */
+	for(i=0; i<18; i++)
+		lputl(0);
+
+	lputl(14);	/* LC_LOAD_DYLINKER */
+	lputl(32);	/* byte count */
+	lputl(12);	/* offset to string */
+	strnput("/usr/lib/dyld", 32-12);
+}
+
+void
+machstack(vlong e)
+{
+	int i;
+
+	lputl(5);			/* unix thread */
+	lputl((16+4)*4);		/* total byte count */
+
+	lputl(1);			/* thread type - x86_THREAD_STATE32 */
+	lputl(16);			/* word count */
+
+	for(i=0; i<16; i++)	/* initial register set */
+		if(i == 10)
+			lputl(e);
+		else
+			lputl(0);
+}
+
+uint32
+machheadr(void)
+{
+	uint32 a;
+	enum {
+		Header = 28,
+		Seg = 56,
+		Sect = 68,
+		Symtab = 24,
+		Dysymtab = 80,
+		LoadDylinker = 32,
+		Stack = 80,
+		Symseg = 16,
+	};
+
+	a = Header;		/* a.out header */
+	a += Seg;	/* page zero seg */
+	a += Seg;	/* text seg */
+	a += Sect;	/* text sect */
+	a += Seg;	/* data seg */
+	a += Sect;	/* data sect */
+	a += Sect;	/* bss sect */
+	if (!debug['d']) {
+		a += Symtab;	/* symtab */
+		a += Dysymtab;	/* dysymtab */
+		a += LoadDylinker;	/* load dylinker */
+	}
+	a += Stack;	/* stack sect */
+	if (!debug['s']) {
+		a += Seg;	/* symdat seg */
+		a += Symseg;	/* symtab seg */
+		a += Symseg;	/* lctab seg */
+	}
+
+	return a;
+}
+
+uint32
+elfheadr(void)
+{
+	uint32 a;
+
+	a = 52;		/* elf header */
+
+	a += 32;	/* page zero seg */
+	a += 32;	/* text seg */
+	a += 32;	/* stack seg */
+
+	a += 40;	/* nil sect */
+	a += 40;	/* .text sect */
+	a += 40;	/* .data seg */
+	a += 40;	/* .bss sect */
+	a += 40;	/* .shstrtab sect - strings for headers */
+	if (!debug['s']) {
+		a += 32;	/* symdat seg */
+		a += 40;	/* .gosymtab sect */
+		a += 40;	/* .gopclntab sect */
+	}
+
+	return a;
+}
+
+
+void
+elfphdr(int type, int flags, uint32 foff,
+	uint32 vaddr, uint32 paddr,
+	uint32 filesize, uint32 memsize, uint32 align)
+{
+
+	lputl(type);			/* text - type = PT_LOAD */
+	lputl(foff);			/* file offset */
+	lputl(vaddr);			/* vaddr */
+	lputl(paddr);			/* paddr */
+	lputl(filesize);		/* file size */
+	lputl(memsize);		/* memory size */
+	lputl(flags);			/* text - flags = PF_X+PF_R */
+	lputl(align);			/* alignment */
+}
+
+void
+elfshdr(char *name, uint32 type, uint32 flags, uint32 addr, uint32 off,
+	uint32 size, uint32 link, uint32 info, uint32 align, uint32 entsize)
+{
+	lputl(stroffset);
+	lputl(type);
+	lputl(flags);
+	lputl(addr);
+	lputl(off);
+	lputl(size);
+	lputl(link);
+	lputl(info);
+	lputl(align);
+	lputl(entsize);
+
+	if(name != nil)
+		stroffset += strlen(name)+1;
+}
+
+int
+putstrtab(char* name)
+{
+	int w;
+
+	w = strlen(name)+1;
+	strnput(name, w);
+	return w;
+}
+
+int
+elfstrtable(void)
+{
+	int size;
+
+	size = 0;
+	size += putstrtab("");
+	size += putstrtab(".text");
+	size += putstrtab(".data");
+	size += putstrtab(".bss");
+	size += putstrtab(".shstrtab");
+	if (!debug['s']) {
+		size += putstrtab(".gosymtab");
+		size += putstrtab(".gopclntab");
+	}
+	return size;
 }
