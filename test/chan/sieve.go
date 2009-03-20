@@ -19,8 +19,7 @@ func Generate(ch chan<- int) {
 // Copy the values from channel 'in' to channel 'out',
 // removing those divisible by 'prime'.
 func Filter(in <-chan int, out chan<- int, prime int) {
-	for {
-		i := <-in;  // Receive value of new variable 'i' from 'in'.
+	for i := range in {  // Loop over values received from 'in'.
 		if i % prime != 0 {
 			out <- i  // Send 'i' to channel 'out'.
 		}
@@ -32,6 +31,7 @@ func Sieve(primes chan<- int) {
 	ch := make(chan int);  // Create a new channel.
 	go Generate(ch);  // Start Generate() as a subprocess.
 	for {
+		// Note that ch is different on each iteration.
 		prime := <-ch;
 		primes <- prime;
 		ch1 := make(chan int);
@@ -45,7 +45,7 @@ func main() {
 	go Sieve(primes);
 	a := []int{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
 	for i := 0; i < len(a); i++ {
-		if <-primes != a[i] { panic(a[i])}
+		if x := <-primes; x != a[i] { panic(x, " != ", a[i]) }
 	}
 	sys.Exit(0);
 }

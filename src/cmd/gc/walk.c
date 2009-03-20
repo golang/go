@@ -3184,7 +3184,7 @@ Node*
 dorange(Node *nn)
 {
 	Node *k, *v, *m;
-	Node *n, *hk, *on, *r, *a;
+	Node *n, *hv, *hc, *ha, *hk, *on, *r, *a;
 	Type *t, *th;
 	int local;
 
@@ -3212,16 +3212,23 @@ dorange(Node *nn)
 		goto ary;
 	if(t->etype == TMAP)
 		goto map;
+	if(t->etype == TCHAN)
+		goto chan;
 
 	yyerror("range must be over map/array");
 	goto out;
 
 ary:
 	hk = nod(OXXX, N, N);		// hidden key
-	tempname(hk, types[TINT]);	// maybe TINT32
+	tempname(hk, types[TINT]);
+	
+	ha = nod(OXXX, N, N);		// hidden array
+	tempname(ha, t);
 
 	n->ninit = nod(OAS, hk, nodintconst(0));
-	n->ntest = nod(OLT, hk, nod(OLEN, m, N));
+	n->ninit = list(nod(OAS, ha, m), n->ninit);
+
+	n->ntest = nod(OLT, hk, nod(OLEN, ha, N));
 	n->nincr = nod(OASOP, hk, nodintconst(1));
 	n->nincr->etype = OADD;
 
@@ -3233,7 +3240,7 @@ ary:
 		if(local)
 			v = old2new(v, t->type);
 		n->nbody = list(n->nbody,
-			nod(OAS, v, nod(OINDEX, m, hk)) );
+			nod(OAS, v, nod(OINDEX, ha, hk)) );
 	}
 	addtotop(n);
 	goto out;
@@ -3288,7 +3295,29 @@ map:
 	r = nod(OADDR, hk, N);
 	r = nod(OCALL, on, r);
 	n->nbody = nod(OAS, nod(OLIST, k, v), r);
+	goto out;
 
+chan:
+	if(v != N)
+		yyerror("chan range can only have one variable");
+
+	hc = nod(OXXX, N, N);	// hidden chan
+	tempname(hc, t);
+	
+	hv = nod(OXXX, N, N);	// hidden value
+	tempname(hv, t->type);
+
+	n->ninit = list(
+		nod(OAS, hc, m),
+		nod(OAS, hv, nod(ORECV, hc, N))
+	);
+	n->ntest = nod(ONOT, nod(OCLOSED, hc, N), N);
+	n->nincr = nod(OAS, hv, nod(ORECV, hc, N));
+
+	if(local)
+		k = old2new(k, hv->type);
+	n->nbody = nod(OAS, k, hv);
+	addtotop(n);
 	goto out;
 
 out:
