@@ -355,7 +355,7 @@ main(int argc, char *argv[])
 
 	if(!debug['l']) {
 		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
-		sprint(a, "%s/lib/rt0_%s_%s.6", goroot, goarch, goos);
+		sprint(a, "%s/lib/rt0_%s_%s.%c", goroot, goarch, goos, thechar);
 		objfile(a);
 	}
 
