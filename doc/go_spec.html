@@ -22,7 +22,6 @@ Todo's:
 [ ] need to talk about precise int/floats clearly
 [ ] iant suggests to use abstract/precise int for len(), cap() - good idea
     (issue: what happens in len() + const - what is the type?)
-[ ] cleanup convert() vs T() vs x.(T) - convert() should go away?
 [ ] fix "else" part of if statement
 [ ] cleanup: 6g allows: interface { f F } where F is a function type.
 	fine, but then we should also allow: func f F {}, where F is a function type.
@@ -124,6 +123,7 @@ Closed:
     and if so, does a label followed by an empty statement (a semicolon) still denote
 	a for loop that is following, and can break L be used inside it?
 [x] there is some funniness regarding ';' and empty statements and label decls
+[x] cleanup convert() vs T() vs x.(T) - convert() should go away?
 
 -->
 
@@ -1403,7 +1403,6 @@ Constants:
 
 Functions:
 	cap len make new panic panicln print println
-	(TODO: typeof??)
 
 Packages:
 	sys (TODO: does sys endure?)
@@ -2664,17 +2663,30 @@ The right operand is evaluated conditionally.
 
 <h3>Address operators</h3>
 
-<!--TODO(r): This section is a mess. Skipping it for now.-->
-
 <p>
-<font color=red>TODO: Need to talk about unary "*", clean up section below.</font>
+The unary prefix address-of operator <code>&amp;</code> generates the address of its operand, which must be a variable,
+pointer indirection, field selector, or array or slice indexing operation. It is illegal to take the address of a function
+result variable.
+Given an operand of pointer type, the unary prefix pointer indirection operator <code>*</code> retrieves the value pointed
+to by the operand.
+</p>
+
+<pre>
+&amp;x
+&amp;a[f(2)]
+*p
+*pf(x)
+</pre>
+
 <p>
 <font color=red>TODO: This text needs to be cleaned up and go elsewhere, there are no address
 operators involved.
 </font>
+</p>
 <p>
-Methods are a form of function, and a method ``value'' has a function type.
+Methods are a form of function and a method ``value'' has a function type.
 Consider the type T with method M:
+</p>
 
 <pre>
 type T struct {
@@ -2684,25 +2696,33 @@ func (tp *T) M(a int) int;
 var t *T;
 </pre>
 
+<p>
 To construct the value of method M, one writes
+</p>
 
 <pre>
 t.M
 </pre>
 
+<p>
 using the variable t (not the type T).
 <font color=red>TODO: It makes perfect sense to be able to say T.M (in fact, it makes more
 sense then t.M, since only the type T is needed to find the method M, i.e.,
 its address). TBD.
 </font>
+</p>
 
+<p>
 The expression t.M is a function value with type
+</p>
 
 <pre>
 func (t *T, a int) int
 </pre>
 
+<p>
 and may be invoked only as a function, not as a method:
+</p>
 
 <pre>
 var f func (t *T, a int) int;
@@ -2710,30 +2730,39 @@ f = t.M;
 x := f(t, 7);
 </pre>
 
+<p>
 Note that one does not write t.f(7); taking the value of a method demotes
 it to a function.
+</p>
 
+<p>
 In general, given type T with method M and variable t of type T,
 the method invocation
+</p>
 
 <pre>
 t.M(args)
 </pre>
 
+<p>
 is equivalent to the function call
+</p>
 
 <pre>
 (t.M)(t, args)
 </pre>
 
+<p>
 <font color=red>
 TODO: should probably describe the effect of (t.m) under §Expressions if t.m
 denotes a method: Effect is as described above, converts into function.
 </font>
+</p>
 <p>
 If T is an interface type, the expression t.M does not determine which
 underlying type's M is called until the point of the call itself. Thus given
 T1 and T2, both implementing interface I with method M, the sequence
+</p>
 
 <pre>
 var t1 *T1;
@@ -2743,8 +2772,10 @@ m := i.M;
 m(t2, 7);
 </pre>
 
+<p>
 will invoke t2.M() even though m was constructed with an expression involving
 t1. Effectively, the value of m is a function literal
+</p>
 
 <pre>
 func (recv I, a int) {
@@ -2752,13 +2783,16 @@ func (recv I, a int) {
 }
 </pre>
 
+<p>
 that is automatically created.
+</p>
 <p>
 <font color=red>
 TODO: Document implementation restriction: It is illegal to take the address
 of a result parameter (e.g.: func f() (x int, p *int) { return 2, &amp;x }).
 (TBD: is it an implementation restriction or fact?)
 </font>
+</p>
 
 <h3>Communication operators</h3>
 
@@ -3131,11 +3165,13 @@ if x := f(); x < y {
 An expression or type specifier is compared to the "cases"
 inside the "switch" to determine which branch
 to execute.
+</p>
 
 <pre class="grammar">
 SwitchStat = ExprSwitchStat | TypeSwitchStat .
 </pre>
 
+<p>
 There are two forms: expression switches and type switches.
 In an expression switch, the cases contain expressions that are compared
 against the value of the switch expression.
@@ -3690,7 +3726,6 @@ for i := 0; i &lt;= 3; i++ {
 <h2>Predeclared functions</h2>
 <ul>
 	<li>cap
-	<li>convert
 	<li>len
 	<li>make
 	<li>new
@@ -3698,7 +3733,6 @@ for i := 0; i &lt;= 3; i++ {
 	<li>panicln
 	<li>print
 	<li>println
-	<li>typeof
 </ul>
 
 <h3>Length and capacity</h3>
