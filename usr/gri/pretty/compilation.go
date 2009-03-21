@@ -83,7 +83,7 @@ func (h *errorHandler) Error(loc scanner.Location, msg string) {
 }
 
 
-func Compile(src_file string, flags *Flags) (*ast.Program, ErrorList) {
+func Compile(src_file string, flags *Flags) (*ast.Package, ErrorList) {
 	src, ok := Platform.ReadSourceFile(src_file);
 	if !ok {
 		print("cannot open ", src_file, "\n");
