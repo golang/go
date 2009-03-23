@@ -11,21 +11,215 @@ enum
 	Sfalse,
 	Stype,
 
-	Ncase	= 4,	// needed to binary search
+	Tdefault,	// default case
+	Texprconst,	// normal constant case
+	Texprvar,	// normal variable case
+	Ttypenil,	// case nil
+	Ttypeconst,	// type hashes
+	Ttypevar,	// interface type
+
+	Ncase	= 4,	// count needed to split
 };
-Node*	exprbsw(Node *t, Iter *save, Node *name);
-void	typeswitch(Node *sw);
 
 typedef	struct	Case	Case;
 struct	Case
 {
 	Node*	node;		// points at case statement
 	uint32	hash;		// hash of a type switch
-	uint8	uniq;		// first of multiple identical hashes
+	uint8	type;		// type of case
 	uint8	diag;		// suppress multiple diagnostics
+	uint16	ordinal;	// position in switch
 	Case*	link;		// linked list to link
 };
 #define	C	((Case*)nil)
+
+void
+dumpcase(Case *c0)
+{
+	Case *c;
+
+	for(c=c0; c!=C; c=c->link) {
+		switch(c->type) {
+		case Tdefault:
+			print("case-default\n");
+			print("	ord=%d\n", c->ordinal);
+			break;
+		case Texprconst:
+			print("case-exprconst\n");
+			print("	ord=%d\n", c->ordinal);
+			break;
+		case Texprvar:
+			print("case-exprvar\n");
+			print("	ord=%d\n", c->ordinal);
+			print("	op=%O\n", c->node->left->op);
+			break;
+		case Ttypenil:
+			print("case-typenil\n");
+			print("	ord=%d\n", c->ordinal);
+			break;
+		case Ttypeconst:
+			print("case-typeconst\n");
+			print("	ord=%d\n", c->ordinal);
+			print("	hash=%ux\n", c->hash);
+			break;
+		case Ttypevar:
+			print("case-typevar\n");
+			print("	ord=%d\n", c->ordinal);
+			break;
+		default:
+			print("case-???\n");
+			print("	ord=%d\n", c->ordinal);
+			print("	op=%O\n", c->node->left->op);
+			print("	hash=%ux\n", c->hash);
+			break;
+		}
+	}
+	print("\n");
+}
+
+static int
+ordlcmp(Case *c1, Case *c2)
+{
+	// sort default first
+	if(c1->type == Tdefault)
+		return -1;
+	if(c2->type == Tdefault)
+		return +1;
+
+	// sort nil second
+	if(c1->type == Ttypenil)
+		return -1;
+	if(c2->type == Ttypenil)
+		return +1;
+
+	// sort by ordinal
+	if(c1->ordinal > c2->ordinal)
+		return +1;
+	if(c1->ordinal < c2->ordinal)
+		return -1;
+	return 0;
+}
+
+static int
+exprcmp(Case *c1, Case *c2)
+{
+	int ct, n;
+	Node *n1, *n2;
+
+	// sort non-constants last
+	if(c1->type != Texprconst)
+		return +1;
+	if(c2->type != Texprconst)
+		return -1;
+
+	n1 = c1->node->left;
+	n2 = c2->node->left;
+
+	ct = n1->val.ctype;
+	if(ct != n2->val.ctype)
+		fatal("exprcmp");
+
+	// sort by constant value
+	n = 0;
+	switch(ct) {
+	case CTFLT:
+		n = mpcmpfltflt(n1->val.u.fval, n2->val.u.fval);
+		break;
+	case CTINT:
+		n = mpcmpfixfix(n1->val.u.xval, n2->val.u.xval);
+		break;
+	case CTSTR:
+		n = cmpslit(n1, n2);
+		break;
+	}
+
+	return n;
+}
+
+static int
+typecmp(Case *c1, Case *c2)
+{
+
+	// sort non-constants last
+	if(c1->type != Ttypeconst)
+		return +1;
+	if(c2->type != Ttypeconst)
+		return -1;
+
+	// sort by hash code
+	if(c1->hash > c2->hash)
+		return +1;
+	if(c1->hash < c2->hash)
+		return -1;
+	return 0;
+}
+
+static Case*
+csort(Case *l, int(*f)(Case*, Case*))
+{
+	Case *l1, *l2, *le;
+
+	if(l == C || l->link == C)
+		return l;
+
+	l1 = l;
+	l2 = l;
+	for(;;) {
+		l2 = l2->link;
+		if(l2 == C)
+			break;
+		l2 = l2->link;
+		if(l2 == C)
+			break;
+		l1 = l1->link;
+	}
+
+	l2 = l1->link;
+	l1->link = C;
+	l1 = csort(l, f);
+	l2 = csort(l2, f);
+
+	/* set up lead element */
+	if((*f)(l1, l2) < 0) {
+		l = l1;
+		l1 = l1->link;
+	} else {
+		l = l2;
+		l2 = l2->link;
+	}
+	le = l;
+
+	for(;;) {
+		if(l1 == C) {
+			while(l2) {
+				le->link = l2;
+				le = l2;
+				l2 = l2->link;
+			}
+			le->link = C;
+			break;
+		}
+		if(l2 == C) {
+			while(l1) {
+				le->link = l1;
+				le = l1;
+				l1 = l1->link;
+			}
+			break;
+		}
+		if((*f)(l1, l2) < 0) {
+			le->link = l1;
+			le = l1;
+			l1 = l1->link;
+		} else {
+			le->link = l2;
+			le = l2;
+			l2 = l2->link;
+		}
+	}
+	le->link = C;
+	return l;
+}
 
 /*
  * walktype
@@ -33,8 +227,6 @@ struct	Case
 Type*
 sw0(Node *c, Type *place, int arg)
 {
-	Node *r;
-
 	if(c == N)
 		return T;
 	switch(c->op) {
@@ -149,14 +341,14 @@ void
 casebody(Node *sw)
 {
 	Iter save;
-	Node *os, *oc, *t, *c;
+	Node *os, *oc, *n, *c;
 	Node *cas, *stat, *def;
 	Node *go, *br;
 	int32 lno;
 
 	lno = setlineno(sw);
-	t = listfirst(&save, &sw->nbody);
-	if(t == N || t->op == OEMPTY) {
+	n = listfirst(&save, &sw->nbody);
+	if(n == N || n->op == OEMPTY) {
 		sw->nbody = nod(OLIST, N, N);
 		return;
 	}
@@ -169,7 +361,7 @@ casebody(Node *sw)
 	br = nod(OBREAK, N, N);
 
 loop:
-	if(t == N) {
+	if(n == N) {
 		if(oc == N && os != N)
 			yyerror("first switch statement must be a case");
 
@@ -183,170 +375,229 @@ loop:
 		return;
 	}
 
-	lno = setlineno(t);
+	lno = setlineno(n);
 
-	switch(t->op) {
-	case OXCASE:
-		t->op = OCASE;
-		if(oc == N && os != N)
-			yyerror("first switch statement must be a case");
-
-		// botch - shouldnt fall thru declaration
-		if(os != N && os->op == OXFALL)
-			os->op = OFALL;
-		else
-			stat = list(stat, br);
-
-		go = nod(OGOTO, newlabel(), N);
-
-		c = t->left;
-		if(c == N) {
-			if(def != N)
-				yyerror("more than one default case");
-
-			// reuse original default case
-			t->right = go;
-			def = t;
-		}
-
-		// expand multi-valued cases
-		for(; c!=N; c=c->right) {
-			if(c->op != OLIST) {
-				// reuse original case
-				t->left = c;
-				t->right = go;
-				cas = list(cas, t);
-				break;
-			}
-			cas = list(cas, nod(OCASE, c->left, go));
-		}
-		stat = list(stat, nod(OLABEL, go->left, N));
-		oc = t;
-		os = N;
-		break;
-
-	default:
-		stat = list(stat, t);
-		os = t;
-		break;
+	if(n->op != OXCASE) {
+		stat = list(stat, n);
+		os = n;
+		goto next;
 	}
-	t = listnext(&save);
+
+	n->op = OCASE;
+	if(oc == N && os != N)
+		yyerror("first switch statement must be a case");
+
+	// botch - shouldnt fall thru declaration
+	if(os != N && os->op == OXFALL)
+		os->op = OFALL;
+	else
+		stat = list(stat, br);
+
+	go = nod(OGOTO, newlabel(), N);
+
+	c = n->left;
+	if(c == N) {
+		if(def != N)
+			yyerror("more than one default case");
+
+		// reuse original default case
+		n->right = go;
+		def = n;
+	}
+
+	// expand multi-valued cases
+	for(; c!=N; c=c->right) {
+		if(c->op != OLIST) {
+			// reuse original case
+			n->left = c;
+			n->right = go;
+			cas = list(cas, n);
+			break;
+		}
+		cas = list(cas, nod(OCASE, c->left, go));
+	}
+	stat = list(stat, nod(OLABEL, go->left, N));
+	oc = n;
+	os = N;
+	goto next;
+
+next:
+	n = listnext(&save);
 	goto loop;
 }
 
-/*
- * rebulid case statements into if .. goto
- */
-void
-exprswitch(Node *sw, int arg)
+Case*
+mkcaselist(Node *sw, int arg)
 {
 	Iter save;
-	Node *name, *bool, *cas;
-	Node *t, *a;
+	Node *n;
+	Case *c, *c1;
+	int ord;
 
-	cas = N;
-	name = N;
-	bool = N;
+	c = C;
+	ord = 0;
 
-	if(arg != Strue && arg != Sfalse) {
-		name = nod(OXXX, N, N);
-		tempname(name, sw->ntest->type);
-		cas = nod(OAS, name, sw->ntest);
-	}
-
-	t = listfirst(&save, &sw->nbody->left);
+	n = listfirst(&save, &sw->nbody->left);
 
 loop:
-	if(t == N) {
-		sw->nbody->left = rev(cas);
-		return;
-	}
+	if(n == N)
+		goto done;
 
-	if(t->left == N) {
-		cas = list(cas, t->right);		// goto default
-		t = listnext(&save);
-		goto loop;
-	}
+	c1 = mal(sizeof(*c1));
+	c1->link = c;
+	c = c1;
 
-	// pull out the dcl in case this
-	// variable is allocated on the heap.
-	// this should be done better to prevent
-	// multiple (unused) heap allocations per switch.
-	if(t->ninit != N && t->ninit->op == ODCL) {
-		cas = list(cas, t->ninit);
-		t->ninit = N;
+	ord++;
+	c->ordinal = ord;
+	c->node = n;
+
+	if(n->left == N) {
+		c->type = Tdefault;
+		goto next;
 	}
 
 	switch(arg) {
-	default:
-		// not bool const
-		a = exprbsw(t, &save, name);
-		if(a != N)
-			break;
+	case Stype:
+		c->hash = 0;
+		if(n->left->left == N) {
+			c->type = Ttypenil;
+			goto next;
+		}
+		if(istype(n->left->left->type, TINTER)) {
+			c->type = Ttypevar;
+			goto next;
+		}
 
-		a = nod(OIF, N, N);
-		a->ntest = nod(OEQ, name, t->left);	// if name == val
-		a->nbody = t->right;			// then goto l
-		break;
+		c->hash = typehash(n->left->left->type, 1, 0);
+		c->type = Ttypeconst;
+		goto next;
 
+	case Snorm:
 	case Strue:
-		a = nod(OIF, N, N);
-		a->ntest = t->left;			// if val
-		a->nbody = t->right;			// then goto l
-		break;
-
 	case Sfalse:
-		a = nod(OIF, N, N);
-		a->ntest = nod(ONOT, t->left, N);	// if !val
-		a->nbody = t->right;			// then goto l
+		c->type = Texprvar;
+		switch(consttype(n->left)) {
+		case CTFLT:
+		case CTINT:
+		case CTSTR:
+			c->type = Texprconst;
+		}
+		goto next;
+	}
+next:
+	n = listnext(&save);
+	goto loop;
+
+done:
+	if(c == C)
+		return C;
+
+	// sort by value and diagnose duplicate cases
+	switch(arg) {
+	case Stype:
+		c = csort(c, typecmp);
+		for(c1=c; c1->link!=C; c1=c1->link) {
+			if(typecmp(c1, c1->link) != 0)
+				continue;
+			setlineno(c1->link->node);
+			yyerror("duplicate case in switch");
+			print("    previous case at %L\n",
+				c1->node->lineno);
+		}
+		break;
+	case Snorm:
+	case Strue:
+	case Sfalse:
+		c = csort(c, exprcmp);
+		for(c1=c; c1->link!=C; c1=c1->link) {
+			if(exprcmp(c1, c1->link) != 0)
+				continue;
+			setlineno(c1->link->node);
+			yyerror("duplicate case in switch");
+			print("    previous case at %L\n",
+				c1->node->lineno);
+		}
 		break;
 	}
-	cas = list(cas, a);
 
-	t = listnext(&save);
-	goto loop;
+	// put list back in processing order
+	c = csort(c, ordlcmp);
+	return c;
 }
 
-void
-walkswitch(Node *sw)
+static	Node*	exprname;
+
+Node*
+exprbsw(Case *c0, int ncase, int arg)
 {
-	Type *t;
-	int arg;
+	Node *cas;
+	Node *a, *n;
+	Case *c;
+	int i, half;
 
-	/*
-	 * reorder the body into (OLIST, cases, statements)
-	 * cases have OGOTO into statements.
-	 * both have inserted OBREAK statements
-	 */
-	walkstate(sw->ninit);
-	if(sw->ntest == N)
-		sw->ntest = nodbool(1);
-	casebody(sw);
+	cas = N;
+	if(ncase < Ncase) {
+		for(i=0; i<ncase; i++) {
+			n = c0->node;
 
-	/*
-	 * classify the switch test
-	 * Strue or Sfalse if the test is a bool constant
-	 *	this allows cases to be map/chan/interface assignments
-	 *	as well as (boolean) expressions
-	 * Stype if the test is v := interface.(type)
-	 *	this forces all cases to be types
-	 * Snorm otherwise
-	 *	all cases are expressions
-	 */
-	if(sw->ntest->op == OTYPESW) {
-		typeswitch(sw);
-		return;
+			switch(arg) {
+			case Strue:
+				a = nod(OIF, N, N);
+				a->ntest = n->left;			// if val
+				a->nbody = n->right;			// then goto l
+				break;
+
+			case Sfalse:
+				a = nod(OIF, N, N);
+				a->ntest = nod(ONOT, n->left, N);	// if !val
+				a->nbody = n->right;			// then goto l
+				break;
+
+			default:
+				a = nod(OIF, N, N);
+				a->ntest = nod(OEQ, exprname, n->left);	// if name == val
+				a->nbody = n->right;			// then goto l
+				break;
+			}
+
+			cas = list(cas, a);
+			c0 = c0->link;
+		}
+		return cas;
 	}
+
+	// find the middle and recur
+	c = c0;
+	half = ncase>>1;
+	for(i=1; i<half; i++)
+		c = c->link;
+	a = nod(OIF, N, N);
+	a->ntest = nod(OLE, exprname, c->node->left);
+	a->nbody = exprbsw(c0, half, arg);
+	a->nelse = exprbsw(c->link, ncase-half, arg);
+	return a;
+}
+
+/*
+ * normal (expression) switch.
+ * rebulid case statements into if .. goto
+ */
+void
+exprswitch(Node *sw)
+{
+	Node *def, *cas;
+	Node *a;
+	Case *c0, *c, *c1;
+	Type *t;
+	int arg, ncase;
+
+
 	arg = Snorm;
 	if(isconst(sw->ntest, CTBOOL)) {
 		arg = Strue;
 		if(sw->ntest->val.u.bval == 0)
 			arg = Sfalse;
 	}
-
-	/*
-	 * init statement is nothing important
-	 */
 	walktype(sw->ntest, Erv);
 
 	/*
@@ -364,326 +615,138 @@ walkswitch(Node *sw)
 	walkcases(sw, sw3, arg);
 	convlit(sw->ntest, t);
 
+
 	/*
 	 * convert the switch into OIF statements
 	 */
-	exprswitch(sw, arg);
-	walkstate(sw->nbody);
-}
-
-int
-iscaseconst(Node *t)
-{
-	if(t == N || t->left == N)
-		return 0;
-	switch(consttype(t->left)) {
-	case CTFLT:
-	case CTINT:
-	case CTSTR:
-		return 1;
-	}
-	return 0;
-}
-
-int
-countcase(Node *t, Iter save)
-{
-	int n;
-
-	// note that the iter is by value,
-	// so cases are not really consumed
-	for(n=0;; n++) {
-		if(!iscaseconst(t))
-			return n;
-		t = listnext(&save);
-	}
-}
-
-Case*
-csort(Case *l, int(*f)(Case*, Case*))
-{
-	Case *l1, *l2, *le;
-
-	if(l == C || l->link == C)
-		return l;
-
-	l1 = l;
-	l2 = l;
-	for(;;) {
-		l2 = l2->link;
-		if(l2 == C)
-			break;
-		l2 = l2->link;
-		if(l2 == C)
-			break;
-		l1 = l1->link;
+	exprname = N;
+	cas = N;
+	if(arg != Strue && arg != Sfalse) {
+		exprname = nod(OXXX, N, N);
+		tempname(exprname, sw->ntest->type);
+		cas = nod(OAS, exprname, sw->ntest);
 	}
 
-	l2 = l1->link;
-	l1->link = C;
-	l1 = csort(l, f);
-	l2 = csort(l2, f);
-
-	/* set up lead element */
-	if((*f)(l1, l2) < 0) {
-		l = l1;
-		l1 = l1->link;
+	c0 = mkcaselist(sw, arg);
+	if(c0 != C && c0->type == Tdefault) {
+		def = c0->node->right;
+		c0 = c0->link;
 	} else {
-		l = l2;
-		l2 = l2->link;
+		def = nod(OBREAK, N, N);
 	}
-	le = l;
 
-	for(;;) {
-		if(l1 == C) {
-			while(l2) {
-				le->link = l2;
-				le = l2;
-				l2 = l2->link;
-			}
-			le->link = C;
+loop:
+	if(c0 == C) {
+		cas = list(cas, def);
+		sw->nbody->left = rev(cas);
+		walkstate(sw->nbody);
+		return;
+	}
+
+	// deal with the variables one-at-a-time
+	if(c0->type != Texprconst) {
+		a = exprbsw(c0, 1, arg);
+		cas = list(cas, a);
+		c0 = c0->link;
+		goto loop;
+	}
+
+	// do binary search on run of constants
+	ncase = 1;
+	for(c=c0; c->link!=C; c=c->link) {
+		if(c->link->type != Texprconst)
 			break;
-		}
-		if(l2 == C) {
-			while(l1) {
-				le->link = l1;
-				le = l1;
-				l1 = l1->link;
-			}
-			break;
-		}
-		if((*f)(l1, l2) < 0) {
-			le->link = l1;
-			le = l1;
-			l1 = l1->link;
-		} else {
-			le->link = l2;
-			le = l2;
-			l2 = l2->link;
-		}
-	}
-	le->link = C;
-	return l;
-}
-
-int
-casecmp(Case *c1, Case *c2)
-{
-	int ct;
-	Node *n1, *n2;
-
-	n1 = c1->node->left;
-	n2 = c2->node->left;
-
-	ct = n1->val.ctype;
-	if(ct != n2->val.ctype)
-		fatal("casecmp1");
-
-	switch(ct) {
-	case CTFLT:
-		return mpcmpfltflt(n1->val.u.fval, n2->val.u.fval);
-	case CTINT:
-		return mpcmpfixfix(n1->val.u.xval, n2->val.u.xval);
-	case CTSTR:
-		return cmpslit(n1, n2);
-	}
-
-	fatal("casecmp2");
-	return 0;
-}
-
-Node*
-constsw(Case *c0, int ncase, Node *name)
-{
-	Node *cas, *a;
-	Case *c;
-	int i, n;
-
-	// small number do sequentially
-	if(ncase < Ncase) {
-		cas = N;
-		for(i=0; i<ncase; i++) {
-			a = nod(OIF, N, N);
-			a->ntest = nod(OEQ, name, c0->node->left);
-			a->nbody = c0->node->right;
-			cas = list(cas, a);
-			c0 = c0->link;
-		}
-		return rev(cas);
-	}
-
-	// find center and recur
-	c = c0;
-	n = ncase>>1;
-	for(i=1; i<n; i++)
-		c = c->link;
-
-	a = nod(OIF, N, N);
-	a->ntest = nod(OLE, name, c->node->left);
-	a->nbody = constsw(c0, n, name);		// include center
-	a->nelse = constsw(c->link, ncase-n, name);	// exclude center
-	return a;
-}
-
-Node*
-exprbsw(Node *t, Iter *save, Node *name)
-{
-	Case *c, *c1;
-	int i, ncase;
-	Node *a;
-
-	ncase = countcase(t, *save);
-	if(ncase < Ncase)
-		return N;
-
-	c = C;
-	for(i=1; i<ncase; i++) {
-		c1 = mal(sizeof(*c1));
-		c1->link = c;
-		c1->node = t;
-		c = c1;
-
-		t = listnext(save);
-	}
-
-	// last one shouldnt consume the iter
-	c1 = mal(sizeof(*c1));
-	c1->link = c;
-	c1->node = t;
-	c = c1;
-
-	c = csort(c, casecmp);
-	a = constsw(c, ncase, name);
-	return a;
-}
-
-int
-hashcmp(Case *c1, Case *c2)
-{
-
-	if(c1->hash > c2->hash)
-		return +1;
-	if(c1->hash < c2->hash)
-		return -1;
-	return 0;
-}
-
-int
-counthash(Case *c)
-{
-	Case *c1, *c2;
-	Type *t1, *t2;
-	char buf1[NSYMB], buf2[NSYMB];
-	int ncase;
-
-	ncase = 0;
-	while(c != C) {
-		c->uniq = 1;
 		ncase++;
-
-		for(c1=c->link; c1!=C; c1=c1->link) {
-			if(c->hash != c1->hash)
-				break;
-
-			// c1 is a non-unique hash
-			// compare its type to all types c upto c1
-			for(c2=c; c2!=c1; c2=c2->link) {
-				if(c->diag)
-					continue;
-				t1 = c1->node->left->left->type;
-				t2 = c2->node->left->left->type;
-				if(!eqtype(t1, t2, 0))
-					continue;
-				snprint(buf1, sizeof(buf1), "%#T", t1);
-				snprint(buf2, sizeof(buf2), "%#T", t2);
-				if(strcmp(buf1, buf2) != 0)
-					continue;
-				setlineno(c1->node);
-				yyerror("duplicate type case: %T\n", t1);
-				c->diag = 1;
-			}
-		}
-		c = c1;
 	}
-	return ncase;
-}
 
-Case*
-nextuniq(Case *c)
-{
-	for(c=c->link; c!=C; c=c->link)
-		if(c->uniq)
-			return c;
-	return C;
+	// break the chain at the count
+	c1 = c->link;
+	c->link = C;
+
+	// sort and compile constants
+	c0 = csort(c0, exprcmp);
+	a = exprbsw(c0, ncase, arg);
+	cas = list(cas, a);
+
+	c0 = c1;
+	goto loop;
+
 }
 
 static	Node*	hashname;
 static	Node*	facename;
 static	Node*	boolname;
-static	Node*	gotodefault;
+
+Node*
+typeone(Node *t)
+{
+	Node *a, *b;
+
+	a = t->left->left;		// var
+	a = nod(OLIST, a, boolname);	// var,bool
+
+	b = nod(ODOTTYPE, facename, N);
+	b->type = t->left->left->type;	// interface.(type)
+
+	a = nod(OAS, a, b);		// var,bool = interface.(type)
+
+	b = nod(OIF, N, N);
+	b->ntest = boolname;
+	b->nbody = t->right;		// if bool { goto l }
+	return list(a, b);
+}
 
 Node*
 typebsw(Case *c0, int ncase)
 {
-	Node *cas, *cmp;
-	Node *a, *b, *t;
-	Case *c, *c1;
-	int i, n;
+	Node *cas;
+	Node *a, *n;
+	Case *c;
+	int i, half;
+	Val v;
 
 	cas = N;
 
 	if(ncase < Ncase) {
 		for(i=0; i<ncase; i++) {
-			c1 = nextuniq(c0);
-			cmp = N;
-			for(c=c0; c!=c1; c=c->link) {
-				t = c->node;
+			n = c0->node;
 
-				if(t->left->left == N) {
-					// case nil
-					Val v;
-					v.ctype = CTNIL;
-					a = nod(OIF, N, N);
-					a->ntest = nod(OEQ, facename, nodlit(v));
-					a->nbody = t->right;		// if i==nil { goto l }
-					cmp = list(cmp, a);
-					continue;
-				}
+			switch(c0->type) {
 
-				a = t->left->left;		// var
-				a = nod(OLIST, a, boolname);	// var,bool
-
-				b = nod(ODOTTYPE, facename, N);
-				b->type = t->left->left->type;	// interface.(type)
-
-				a = nod(OAS, a, b);		// var,bool = interface.(type)
-				cmp = list(cmp, a);
-
+			case Ttypenil:
+				v.ctype = CTNIL;
 				a = nod(OIF, N, N);
-				a->ntest = boolname;
-				a->nbody = t->right;		// if bool { goto l }
-				cmp = list(cmp, a);
+				a->ntest = nod(OEQ, facename, nodlit(v));
+				a->nbody = n->right;		// if i==nil { goto l }
+				cas = list(cas, a);
+				break;
+
+			case Ttypevar:
+				a = typeone(n);
+				cas = list(cas, a);
+				break;
+
+			case Ttypeconst:
+				a = nod(OIF, N, N);
+				a->ntest = nod(OEQ, hashname, nodintconst(c0->hash));
+				a->nbody = rev(typeone(n));
+				cas = list(cas, a);
+				break;
 			}
-			cmp = list(cmp, gotodefault);
-			a = nod(OIF, N, N);
-			a->ntest = nod(OEQ, hashname, nodintconst(c0->hash));
-			a->nbody = rev(cmp);
-			cas = list(cas, a);
-			c0 = c1;
+			c0 = c0->link;
 		}
-		cas = list(cas, gotodefault);
-		return rev(cas);
+		return cas;
 	}
 
 	// find the middle and recur
 	c = c0;
-	n = ncase>>1;
-	for(i=1; i<n; i++)
-		c = nextuniq(c);
+	half = ncase>>1;
+	for(i=1; i<half; i++)
+		c = c->link;
 	a = nod(OIF, N, N);
 	a->ntest = nod(OLE, hashname, nodintconst(c->hash));
-	a->nbody = typebsw(c0, n);
-	a->nelse = typebsw(nextuniq(c), ncase-n);
+	a->nbody = typebsw(c0, half);
+	a->nelse = typebsw(c->link, ncase-half);
 	return a;
 }
 
@@ -695,10 +758,9 @@ typebsw(Case *c0, int ncase)
 void
 typeswitch(Node *sw)
 {
-	Iter save;
-	Node *cas;
-	Node *t, *a;
-	Case *c, *c1;
+	Node *cas, *def;
+	Node *a;
+	Case *c, *c0, *c1;
 	int ncase;
 
 	walktype(sw->ntest->right, Erv);
@@ -730,40 +792,68 @@ typeswitch(Node *sw)
 	a = nod(OAS, hashname, a);
 	cas = list(cas, a);
 
-	gotodefault = N;
-
-	c = C;
-	t = listfirst(&save, &sw->nbody->left);
+	c0 = mkcaselist(sw, Stype);
+	if(c0 != C && c0->type == Tdefault) {
+		def = c0->node->right;
+		c0 = c0->link;
+	} else {
+		def = nod(OBREAK, N, N);
+	}
 
 loop:
-	if(t == N) {
-		if(gotodefault == N)
-			gotodefault = nod(OBREAK, N, N);
-		c = csort(c, hashcmp);
-		ncase = counthash(c);
-		a = typebsw(c, ncase);
-		sw->nbody->left = list(rev(cas), rev(a));
+	if(c0 == C) {
+		cas = list(cas, def);
+		sw->nbody->left = rev(cas);
 		walkstate(sw->nbody);
 		return;
 	}
-	if(t->left == N) {
-		gotodefault = t->right;
-		t = listnext(&save);
-		goto loop;
-	}
-	if(t->left->op != OTYPESW) {
-		t = listnext(&save);
+
+	// deal with the variables one-at-a-time
+	if(c0->type != Ttypeconst) {
+		a = typebsw(c0, 1);
+		cas = list(cas, a);
+		c0 = c0->link;
 		goto loop;
 	}
 
-	c1 = mal(sizeof(*c));
-	c1->link = c;
-	c1->node = t;
-	c1->hash = 0;
-	if(t->left->left != N)
-		c1->hash = typehash(t->left->left->type, 1, 0);
-	c = c1;
+	// do binary search on run of constants
+	ncase = 1;
+	for(c=c0; c->link!=C; c=c->link) {
+		if(c->link->type != Ttypeconst)
+			break;
+		ncase++;
+	}
 
-	t = listnext(&save);
+	// break the chain at the count
+	c1 = c->link;
+	c->link = C;
+
+	// sort and compile constants
+	c0 = csort(c0, typecmp);
+	a = typebsw(c0, ncase);
+	cas = list(cas, a);
+
+	c0 = c1;
 	goto loop;
+}
+
+void
+walkswitch(Node *sw)
+{
+
+	/*
+	 * reorder the body into (OLIST, cases, statements)
+	 * cases have OGOTO into statements.
+	 * both have inserted OBREAK statements
+	 */
+	walkstate(sw->ninit);
+	if(sw->ntest == N)
+		sw->ntest = nodbool(1);
+	casebody(sw);
+
+	if(sw->ntest->op == OTYPESW) {
+		typeswitch(sw);
+		return;
+	}
+	exprswitch(sw);
 }
