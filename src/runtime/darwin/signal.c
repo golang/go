@@ -55,7 +55,7 @@ sighandler(int32 sig, Siginfo *info, void *context)
 	r = &mc->ss;
 
 	printf("Faulting address: %p\n", info->si_addr);
-	printf("PC=%X\n", r->rip);
+	printf("pc: %X\n", r->rip);
 	printf("\n");
 
 	if(gotraceback()){
