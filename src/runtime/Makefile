@@ -7,7 +7,7 @@ O=6
 CC=$(O)c
 AS=$(O)a
 
-LIB=lib_$(GOARCH)_$(GOOS).a
+LIB=lib.a
 
 OFILES=\
 	array.$O\
@@ -41,11 +41,15 @@ OFILES=\
 	thread.$O\
 	traceback.$O\
 
-OS_H=$(GOARCH)_$(GOOS).h
-HFILES=runtime.h hashmap.h malloc.h $(OS_H_)
+HFILES=\
+	runtime.h\
+	hashmap.h\
+	malloc.h\
+	$(GOOS)/os.h\
+	$(GOOS)/$(GOARCH)/defs.h\
 
 install: $(LIB) runtime.acid
-	cp $(LIB) $(GOROOT)/lib
+	cp $(LIB) $(GOROOT)/lib_$(GOARCH)_$(GOOS).a
 	cp runtime.acid $(GOROOT)/acid/runtime.acid
 
 $(LIB): $(OFILES)
