@@ -80,9 +80,9 @@ typedef struct MachPort MachPort;
 struct MachPort {
 	uint32 name;
 	uint32 pad1;
-	uint32 pad2;
-	uint32 disposition;
-	uint32 type;
+	uint16 pad2;
+	uint8 disposition;
+	uint8 type;
 };
 
 typedef struct StackT StackT;

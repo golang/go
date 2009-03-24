@@ -26,6 +26,7 @@ OFILES=\
 	mfixalloc.$O\
 	mgc0.$O\
 	mheap.$O\
+	mheapmap64.$O\
 	msize.$O\
 	print.$O\
 	proc.$O\
@@ -49,7 +50,7 @@ HFILES=\
 	$(GOOS)/$(GOARCH)/defs.h\
 
 install: $(LIB) runtime.acid
-	cp $(LIB) $(GOROOT)/lib_$(GOARCH)_$(GOOS).a
+	cp $(LIB) $(GOROOT)/lib/lib_$(GOARCH)_$(GOOS).a
 	cp runtime.acid $(GOROOT)/acid/runtime.acid
 
 $(LIB): $(OFILES)
