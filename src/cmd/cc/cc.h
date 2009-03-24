@@ -32,7 +32,6 @@
 #include <libc.h>
 #include <bio.h>
 #include <ctype.h>
-#include "compat.h"
 
 #pragma	lib	"../cc/cc.a$O"
 
@@ -542,17 +541,8 @@ extern	uint32	thash[];
 /*
  *	compat.c/unix.c/windows.c
  */
-int	mywait(int*);
-int	mycreat(char*, int);
 int	systemtype(int);
 int	pathchar(void);
-int	myaccess(char*);
-char*	mygetwd(char*, int);
-int	myexec(char*, char*[]);
-int	mydup(int, int);
-int	myfork(void);
-int	mypipe(int*);
-void*	mysbrk(uint32);
 
 /*
  *	parser
@@ -794,3 +784,14 @@ int	machcap(Node*);
 #pragma	varargck	type	"O"	int
 #pragma	varargck	type	"T"	Type*
 #pragma	varargck	type	"|"	int
+
+enum
+{
+	Plan9	= 1<<0,
+	Unix	= 1<<1,
+	Windows	= 1<<2,
+};
+int	pathchar(void);
+int	systemtype(int);
+void*	alloc(int32 n);
+void*	allocn(void*, int32, int32);

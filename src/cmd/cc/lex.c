@@ -35,6 +35,19 @@
 #define	CPP	"/bin/cpp"
 #endif
 
+int
+systemtype(int sys)
+{
+
+	return sys&Plan9;
+}
+
+int
+pathchar(void)
+{
+	return '/';
+}
+
 /*
  * known debug flags
  *	-a		acid declaration output
@@ -67,7 +80,7 @@ void
 main(int argc, char *argv[])
 {
 	char *defs[50], *p;
-	int nproc, nout, status, i, c, ndef;
+	int nproc, nout, i, c, ndef;
 
 	memset(debug, 0, sizeof(debug));
 	tinit();
@@ -132,18 +145,13 @@ main(int argc, char *argv[])
 		c = 0;
 		nout = 0;
 		for(;;) {
+			Waitmsg *w;
+
 			while(nout < nproc && argc > 0) {
-				i = myfork();
+				i = fork();
 				if(i < 0) {
-					i = mywait(&status);
-					if(i < 0) {
-						print("cannot create a process\n");
-						errorexit();
-					}
-					if(status)
-						c++;
-					nout--;
-					continue;
+					print("cannot create a process\n");
+					errorexit();
 				}
 				if(i == 0) {
 					fprint(2, "%s:\n", *argv);
@@ -155,13 +163,13 @@ main(int argc, char *argv[])
 				argc--;
 				argv++;
 			}
-			i = mywait(&status);
-			if(i < 0) {
+			w = wait();
+			if(w == nil) {
 				if(c)
 					errorexit();
 				exits(0);
 			}
-			if(status)
+			if(w->msg[0])
 				c++;
 			nout--;
 		}
@@ -236,7 +244,7 @@ compile(char *file, char **defs, int ndef)
 			dup(2, 1);
 		}
 	} else {
-		c = mycreate(outfile, 0664);
+		c = create(outfile, OWRITE, 0664);
 		if(c < 0) {
 			diag(Z, "cannot open %s - %r", outfile);
 			outfile = 0;
@@ -254,21 +262,21 @@ compile(char *file, char **defs, int ndef)
 			diag(Z, "-p option not supported on windows");
 			errorexit();
 		}
-		if(myaccess(file) < 0) {
+		if(access(file, AREAD) < 0) {
 			diag(Z, "%s does not exist", file);
 			errorexit();
 		}
-		if(mypipe(fd) < 0) {
+		if(pipe(fd) < 0) {
 			diag(Z, "pipe failed");
 			errorexit();
 		}
-		switch(myfork()) {
+		switch(fork()) {
 		case -1:
 			diag(Z, "fork failed");
 			errorexit();
 		case 0:
 			close(fd[0]);
-			mydup(fd[1], 1);
+			dup(fd[1], 1);
 			close(fd[1]);
 			av[0] = CPP;
 			i = 1;
@@ -296,7 +304,7 @@ compile(char *file, char **defs, int ndef)
 					fprint(2, "%s ", av[c]);
 				fprint(2, "\n");
 			}
-			myexec(av[0], av);
+			exec(av[0], av);
 			fprint(2, "can't exec C preprocessor %s: %r\n", CPP);
 			errorexit();
 		default:
@@ -1266,9 +1274,9 @@ cinit(void)
 	dclstack = D;
 
 	pathname = allocn(pathname, 0, 100);
-	if(mygetwd(pathname, 99) == 0) {
+	if(getwd(pathname, 99) == 0) {
 		pathname = allocn(pathname, 100, 900);
-		if(mygetwd(pathname, 999) == 0)
+		if(getwd(pathname, 999) == 0)
 			strcpy(pathname, "/???");
 	}
 
@@ -1539,4 +1547,34 @@ setinclude(char *p)
 			break;
 		p = e+1;
 	}
+}
+
+void*
+alloc(int32 n)
+{
+	void *p;
+
+	p = malloc(n);
+	if(p == nil) {
+		print("alloc out of mem\n");
+		exit(1);
+	}
+	memset(p, 0, n);
+	return p;
+}
+
+void*
+allocn(void *p, int32 n, int32 d)
+{
+
+	if(p == nil)
+		return alloc(d);
+	p = realloc(p, n+d);
+	if(p == nil) {
+		print("allocn out of mem\n");
+		exit(1);
+	}
+	if(d > 0)
+		memset((char*)p+n, 0, d);
+	return p;
 }
