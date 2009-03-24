@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "defs.h"
 #include "signals.h"
+#include "os.h"
 
 // Linux futex.
 //
@@ -24,12 +25,12 @@ enum
 	EAGAIN = 11,
 };
 
-// TODO(rsc) I tried using 1<<40 here but futex woke up (-ETIMEDOUT).
+// TODO(rsc): I tried using 1<<40 here but futex woke up (-ETIMEDOUT).
 // I wonder if the timespec that gets to the kernel
-// actually has two 32-bit numbers in it, so tha
+// actually has two 32-bit numbers in it, so that
 // a 64-bit 1<<40 ends up being 0 seconds,
 // 1<<8 nanoseconds.
-static struct timespec longtime =
+static Timespec longtime =
 {
 	1<<30,	// 34 years
 	0

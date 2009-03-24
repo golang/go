@@ -64,6 +64,7 @@ sighandler(int32 sig, Siginfo *info, void *context)
 		dumpregs(r);
 	}
 
+	sys·Breakpoint();
 	sys_Exit(2);
 }
 
