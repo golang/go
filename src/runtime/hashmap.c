@@ -870,6 +870,10 @@ sys·mapassign2(Hmap *h, ...)
 void
 sys·mapiterinit(Hmap *h, struct hash_iter *it)
 {
+	if(h == nil) {
+		it->data = nil;
+		return;
+	}
 	hash_iter_init(h, it);
 	it->data = hash_next(it);
 	if(debug) {
