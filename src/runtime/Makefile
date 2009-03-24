@@ -13,12 +13,12 @@ RT0OFILES=\
 	rt0_$(GOARCH)_$(GOOS).$O\
 
 LIBOFILES=\
-	rt0_$(GOARCH).$O\
 	rt1_$(GOARCH)_$(GOOS).$O\
-	rt2_$(GOARCH).$O\
 	sys_$(GOARCH)_$(GOOS).$O\
 	array.$O\
+	asm.$O\
 	chan.$O\
+	closure.$O\
 	float.$O\
 	float_go.$O\
 	hashmap.$O\
@@ -40,6 +40,7 @@ LIBOFILES=\
 	sema_go.$O\
 	string.$O\
 	symtab.$O\
+	traceback.$O\
 
 OFILES=$(RT0OFILES) $(LIBOFILES)
 OS_H=$(GOARCH)_$(GOOS).h
@@ -64,10 +65,16 @@ clean:
 	rm -f *.$(O) *.a runtime.acid cgo2c
 
 %.$O:	%.c
-	$(CC) -wF $<
+	$(CC) $(CFLAGS) -wF $<
 
-sys_file.$O:	sys_file.c sys_types.h $(OS_H)
-	$(CC) -wF -D$(GOARCH)_$(GOOS) $<
+%.$O:	$(GOARCH)/%.c
+	$(CC) $(CFLAGS) -wF $<
+
+%.$O:	%.s
+	$(AS) $<
+
+%.$O:	$(GOARCH)/%.s
+	$(AS) $<
 
 cgo2c: cgo2c.c
 	quietgcc -o $@ $<
@@ -75,9 +82,6 @@ cgo2c: cgo2c.c
 %.c:	%.cgo cgo2c
 	./cgo2c $< > $@.tmp
 	mv -f $@.tmp $@
-
-%.$O:	%.s
-	$(AS) $<
 
 runtime.acid: runtime.h proc.c
 	$(CC) -a proc.c >runtime.acid
