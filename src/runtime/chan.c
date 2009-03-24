@@ -176,12 +176,12 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 	}
 
 	lock(&chanlock);
+loop:
+	if(c->closed & Wclosed)
+		goto closed;
 
 	if(c->dataqsiz > 0)
 		goto asynch;
-
-	if(c->closed & Wclosed)
-		goto closed;
 
 	sg = dequeue(&c->recvq, c);
 	if(sg != nil) {
@@ -215,6 +215,8 @@ sendchan(Hchan *c, byte *ep, bool *pres)
 
 	lock(&chanlock);
 	sg = g->param;
+	if(sg == nil)
+		goto loop;
 	freesg(c, sg);
 	unlock(&chanlock);
 	if(pres != nil)
@@ -260,7 +262,7 @@ asynch:
 closed:
 	incerr(c);
 	if(pres != nil)
-		*pres = false;
+		*pres = true;
 	unlock(&chanlock);
 }
 
@@ -277,6 +279,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 	}
 
 	lock(&chanlock);
+loop:
 	if(c->dataqsiz > 0)
 		goto asynch;
 
@@ -312,11 +315,8 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 
 	lock(&chanlock);
 	sg = g->param;
-
-	if(c->closed & Wclosed) {
-		freesg(c, sg);
-		goto closed;
-	}
+	if(sg == nil)
+		goto loop;
 
 	c->elemalg->copy(c->elemsize, ep, sg->elem);
 	freesg(c, sg);
@@ -368,7 +368,7 @@ closed:
 	c->closed |= Rclosed;
 	incerr(c);
 	if(pres != nil)
-		*pres = false;
+		*pres = true;
 	unlock(&chanlock);
 }
 
@@ -651,24 +651,24 @@ loop:
 		c = cas->chan;
 		if(c->dataqsiz > 0) {
 			if(cas->send) {
+				if(c->closed & Wclosed)
+					goto sclose;
 				if(c->qcount < c->dataqsiz)
 					goto asyns;
-				if(c->closed & Wclosed)
-					goto gots;
 				goto next1;
 			}
 			if(c->qcount > 0)
 				goto asynr;
 			if(c->closed & Wclosed)
-				goto gotr;
+				goto rclose;
 			goto next1;
 		}
 
 		if(cas->send) {
+			if(c->closed & Wclosed)
+				goto sclose;
 			sg = dequeue(&c->recvq, c);
 			if(sg != nil)
-				goto gots;
-			if(c->closed & Wclosed)
 				goto gots;
 			goto next1;
 		}
@@ -676,7 +676,7 @@ loop:
 		if(sg != nil)
 			goto gotr;
 		if(c->closed & Wclosed)
-			goto gotr;
+			goto rclose;
 
 	next1:
 		o += p;
@@ -823,18 +823,18 @@ gotr:
 		sys·printint(o);
 		prints("\n");
 	}
-	if(c->closed & Wclosed) {
-		if(cas->u.elemp != nil)
-			c->elemalg->copy(c->elemsize, cas->u.elemp, nil);
-		c->closed |= Rclosed;
-		incerr(c);
-		goto retc;
-	}
 	if(cas->u.elemp != nil)
 		c->elemalg->copy(c->elemsize, cas->u.elemp, sg->elem);
 	gp = sg->g;
 	gp->param = sg;
 	ready(gp);
+	goto retc;
+
+rclose:
+	if(cas->u.elemp != nil)
+		c->elemalg->copy(c->elemsize, cas->u.elemp, nil);
+	c->closed |= Rclosed;
+	incerr(c);
 	goto retc;
 
 gots:
@@ -848,14 +848,17 @@ gots:
 		sys·printint(o);
 		prints("\n");
 	}
-	if(c->closed & Wclosed) {
-		incerr(c);
-		goto retc;
-	}
+	if(c->closed & Wclosed)
+		goto sclose;
 	c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
 	gp = sg->g;
 	gp->param = sg;
 	ready(gp);
+	goto retc;
+
+sclose:
+	incerr(c);
+	goto retc;
 
 retc:
 	if(sel->ncase >= 1 && sel->ncase < nelem(selfree)) {
@@ -909,7 +912,6 @@ sys·closechan(Hchan *c)
 void
 sys·closedchan(Hchan *c, bool closed)
 {
-
 	// test Rclosed
 	closed = 0;
 	if(c->closed & Rclosed)
