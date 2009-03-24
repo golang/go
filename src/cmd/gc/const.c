@@ -282,8 +282,9 @@ evconst(Node *n)
 	Node *nl, *nr;
 	int32 len;
 	String *str;
-	int wl, wr, lno;
+	int wl, wr, lno, et;
 	Val v;
+	Mpint b;
 
 	nl = n->left;
 	if(nl == N || nl->type == T)
@@ -541,7 +542,34 @@ unary:
 		mpnegfix(v.u.xval);
 		break;
 	case TUP(OCOM, CTINT):
-		mpcomfix(v.u.xval);
+		et = Txxx;
+		if(nl->type != T)
+			et = nl->type->etype;
+
+		// calculate the mask in b
+		// result will be (a ^ mask)
+		switch(et) {
+		default:
+			mpmovecfix(&b, -1);
+			break;
+
+		case TINT8:
+		case TINT16:
+		case TINT32:
+		case TINT64:
+		case TINT:
+			et++;		// convert to unsigned
+					// fallthrough
+		case TUINT8:
+		case TUINT16:
+		case TUINT32:
+		case TUINT64:
+		case TUINT:
+		case TUINTPTR:
+			mpmovefixfix(&b, maxintval[et]);
+			break;
+		}
+		mpxorfixfix(v.u.xval, &b);
 		break;
 
 	case TUP(OPLUS, CTFLT):
