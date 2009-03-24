@@ -106,10 +106,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 =========== chan/nonblock.go
 PASS
 
-=========== bugs/bug115.go
-bugs/bug115.go:8: constant -1 overflows uint
-BUG: bug115 should compile
-
 =========== bugs/bug117.go
 bugs/bug117.go:9: undefined DOT get on PS
 bugs/bug117.go:9: illegal types for operand: RETURN
