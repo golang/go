@@ -353,12 +353,6 @@ main(int argc, char *argv[])
 	}
 	lookup(INITENTRY, 0)->type = SXREF;
 
-	if(!debug['l']) {
-		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
-		sprint(a, "%s/lib/rt0_%s_%s.%c", goroot, goarch, goos, thechar);
-		objfile(a);
-	}
-
 	while(*argv)
 		objfile(*argv++);
 

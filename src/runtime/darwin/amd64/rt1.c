@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
-#include "amd64_darwin.h"
-#include "signals_darwin.h"
+#include "defs.h"
+#include "signals.h"
 
 typedef uint64 __uint64_t;
 
