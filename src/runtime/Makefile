@@ -32,12 +32,13 @@ OFILES=\
 	rune.$O\
 	runtime.$O\
 	rt0.$O\
-	rt1.$O\
 	sema.$O\
 	sema_go.$O\
+	signal.$O\
 	string.$O\
 	symtab.$O\
 	sys.$O\
+	thread.$O\
 	traceback.$O\
 
 OS_H=$(GOARCH)_$(GOOS).h
