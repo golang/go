@@ -487,4 +487,10 @@ func main() {
 			fmt.Printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i]);
 		}
 	}
+	
+	// test range on nil map
+	var mnil map[string] int;
+	for x, y := range mnil {
+		panic("range mnil");
+	}
 }
