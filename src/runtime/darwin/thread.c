@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 #include "defs.h"
+#include "os.h"
 
 static void
 unimplemented(int8 *name)
@@ -162,12 +163,11 @@ minit(void)
 	signalstack(m->gsignal->stackguard, 32*1024);
 }
 
-
 // Mach IPC, to get at semaphores
 // Definitions are in /usr/include/mach on a Mac.
 
 static void
-macherror(kern_return_t r, int8 *fn)
+macherror(int32 r, int8 *fn)
 {
 	prints("mach error ");
 	prints(fn);
@@ -182,129 +182,24 @@ enum
 	DebugMach = 0
 };
 
-typedef int32 mach_msg_option_t;
-typedef uint32 mach_msg_bits_t;
-typedef uint32 mach_msg_id_t;
-typedef uint32 mach_msg_size_t;
-typedef uint32 mach_msg_timeout_t;
-typedef uint32 mach_port_name_t;
-typedef uint64 mach_vm_address_t;
-
-typedef struct mach_msg_header_t mach_msg_header_t;
-typedef struct mach_msg_body_t mach_msg_body_t;
-typedef struct mach_msg_port_descriptor_t mach_msg_port_descriptor_t;
-typedef struct NDR_record_t NDR_record_t;
-
-enum
-{
-	MACH_MSG_TYPE_MOVE_RECEIVE = 16,
-	MACH_MSG_TYPE_MOVE_SEND = 17,
-	MACH_MSG_TYPE_MOVE_SEND_ONCE = 18,
-	MACH_MSG_TYPE_COPY_SEND = 19,
-	MACH_MSG_TYPE_MAKE_SEND = 20,
-	MACH_MSG_TYPE_MAKE_SEND_ONCE = 21,
-	MACH_MSG_TYPE_COPY_RECEIVE = 22,
-
-	MACH_MSG_PORT_DESCRIPTOR = 0,
-	MACH_MSG_OOL_DESCRIPTOR = 1,
-	MACH_MSG_OOL_PORTS_DESCRIPTOR = 2,
-	MACH_MSG_OOL_VOLATILE_DESCRIPTOR = 3,
-
-	MACH_MSGH_BITS_COMPLEX = 0x80000000,
-
-	MACH_SEND_MSG = 1,
-	MACH_RCV_MSG = 2,
-	MACH_RCV_LARGE = 4,
-
-	MACH_SEND_TIMEOUT = 0x10,
-	MACH_SEND_INTERRUPT = 0x40,
-	MACH_SEND_CANCEL = 0x80,
-	MACH_SEND_ALWAYS = 0x10000,
-	MACH_SEND_TRAILER = 0x20000,
-	MACH_RCV_TIMEOUT = 0x100,
-	MACH_RCV_NOTIFY = 0x200,
-	MACH_RCV_INTERRUPT = 0x400,
-	MACH_RCV_OVERWRITE = 0x1000,
-};
-
-mach_port_t mach_task_self(void);
-mach_port_t mach_thread_self(void);
-
-#pragma pack on
-struct mach_msg_header_t
-{
-	mach_msg_bits_t bits;
-	mach_msg_size_t size;
-	mach_port_t remote_port;
-	mach_port_t local_port;
-	mach_msg_size_t reserved;
-	mach_msg_id_t id;
-};
-
-struct mach_msg_body_t
-{
-	uint32 descriptor_count;
-};
-
-struct mach_msg_port_descriptor_t
-{
-	mach_port_t name;
-	uint32 pad1;
-	uint16 pad2;
-	uint8 disposition;
-	uint8 type;
-};
-
-enum
-{
-	NDR_PROTOCOL_2_0 = 0,
-	NDR_INT_BIG_ENDIAN = 0,
-	NDR_INT_LITTLE_ENDIAN = 1,
-	NDR_FLOAT_IEEE = 0,
-	NDR_CHAR_ASCII = 0
-};
-
-struct NDR_record_t
-{
-	uint8 mig_vers;
-	uint8 if_vers;
-	uint8 reserved1;
-	uint8 mig_encoding;
-	uint8 int_rep;
-	uint8 char_rep;
-	uint8 float_rep;
-	uint8 reserved2;
-};
-#pragma pack off
-
-static NDR_record_t zerondr;
+static MachNDR zerondr;
 
 #define MACH_MSGH_BITS(a, b) ((a) | ((b)<<8))
 
-// Mach system calls (in sys_amd64_darwin.s)
-kern_return_t mach_msg_trap(mach_msg_header_t*,
-	mach_msg_option_t, mach_msg_size_t, mach_msg_size_t,
-	mach_port_name_t, mach_msg_timeout_t, mach_port_name_t);
-mach_port_t mach_reply_port(void);
-mach_port_t mach_task_self(void);
-mach_port_t mach_thread_self(void);
-
-static kern_return_t
-mach_msg(mach_msg_header_t *h,
-	mach_msg_option_t op,
-	mach_msg_size_t send_size,
-	mach_msg_size_t rcv_size,
-	mach_port_name_t rcv_name,
-	mach_msg_timeout_t timeout,
-	mach_port_name_t notify)
+static int32
+mach_msg(MachHeader *h,
+	int32 op,
+	uint32 send_size,
+	uint32 rcv_size,
+	uint32 rcv_name,
+	uint32 timeout,
+	uint32 notify)
 {
 	// TODO: Loop on interrupt.
 	return mach_msg_trap(h, op, send_size, rcv_size, rcv_name, timeout, notify);
 }
 
-
 // Mach RPC (MIG)
-// I'm not using the Mach names anymore.  They're too long.
 
 enum
 {
@@ -316,18 +211,18 @@ enum
 typedef struct CodeMsg CodeMsg;
 struct CodeMsg
 {
-	mach_msg_header_t h;
-	NDR_record_t NDR;
-	kern_return_t code;
+	MachHeader h;
+	MachNDR NDR;
+	int32 code;
 };
 #pragma pack off
 
-static kern_return_t
-machcall(mach_msg_header_t *h, int32 maxsize, int32 rxsize)
+static int32
+machcall(MachHeader *h, int32 maxsize, int32 rxsize)
 {
 	uint32 *p;
 	int32 i, ret, id;
-	mach_port_t port;
+	uint32 port;
 	CodeMsg *c;
 
 	if((port = m->machport) == 0){
@@ -335,15 +230,15 @@ machcall(mach_msg_header_t *h, int32 maxsize, int32 rxsize)
 		m->machport = port;
 	}
 
-	h->bits |= MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, MACH_MSG_TYPE_MAKE_SEND_ONCE);
-	h->local_port = port;
-	h->reserved = 0;
-	id = h->id;
+	h->msgh_bits |= MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, MACH_MSG_TYPE_MAKE_SEND_ONCE);
+	h->msgh_local_port = port;
+	h->msgh_reserved = 0;
+	id = h->msgh_id;
 
 	if(DebugMach){
 		p = (uint32*)h;
 		prints("send:\t");
-		for(i=0; i<h->size/sizeof(p[0]); i++){
+		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
 			prints(" ");
 			sys·printpointer((void*)p[i]);
 			if(i%8 == 7)
@@ -354,7 +249,7 @@ machcall(mach_msg_header_t *h, int32 maxsize, int32 rxsize)
 	}
 
 	ret = mach_msg(h, MACH_SEND_MSG|MACH_RCV_MSG,
-		h->size, maxsize, port, 0, 0);
+		h->msgh_size, maxsize, port, 0, 0);
 	if(ret != 0){
 		if(DebugMach){
 			prints("mach_msg error ");
@@ -367,7 +262,7 @@ machcall(mach_msg_header_t *h, int32 maxsize, int32 rxsize)
 	if(DebugMach){
 		p = (uint32*)h;
 		prints("recv:\t");
-		for(i=0; i<h->size/sizeof(p[0]); i++){
+		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
 			prints(" ");
 			sys·printpointer((void*)p[i]);
 			if(i%8 == 7)
@@ -377,10 +272,10 @@ machcall(mach_msg_header_t *h, int32 maxsize, int32 rxsize)
 			prints("\n");
 	}
 
-	if(h->id != id+Reply){
+	if(h->msgh_id != id+Reply){
 		if(DebugMach){
 			prints("mach_msg reply id mismatch ");
-			sys·printint(h->id);
+			sys·printint(h->msgh_id);
 			prints(" != ");
 			sys·printint(id+Reply);
 			prints("\n");
@@ -395,8 +290,8 @@ machcall(mach_msg_header_t *h, int32 maxsize, int32 rxsize)
 	// you know it's one of these and not the full response
 	// format, so just look if the message is right.
 	c = (CodeMsg*)h;
-	if(h->size == sizeof(CodeMsg)
-	&& !(h->bits & MACH_MSGH_BITS_COMPLEX)){
+	if(h->msgh_size == sizeof(CodeMsg)
+	&& !(h->msgh_bits & MACH_MSGH_BITS_COMPLEX)){
 		if(DebugMach){
 			prints("mig result ");
 			sys·printint(c->code);
@@ -405,10 +300,10 @@ machcall(mach_msg_header_t *h, int32 maxsize, int32 rxsize)
 		return c->code;
 	}
 
-	if(h->size != rxsize){
+	if(h->msgh_size != rxsize){
 		if(DebugMach){
 			prints("mach_msg reply size mismatch ");
-			sys·printint(h->size);
+			sys·printint(h->msgh_size);
 			prints(" != ");
 			sys·printint(rxsize);
 			prints("\n");
@@ -439,28 +334,28 @@ typedef struct Tmach_semdestroyMsg Tmach_semdestroyMsg;
 #pragma pack on
 struct Tmach_semcreateMsg
 {
-	mach_msg_header_t h;
-	NDR_record_t ndr;
+	MachHeader h;
+	MachNDR ndr;
 	int32 policy;
 	int32 value;
 };
 
 struct Rmach_semcreateMsg
 {
-	mach_msg_header_t h;
-	mach_msg_body_t body;
-	mach_msg_port_descriptor_t semaphore;
+	MachHeader h;
+	MachBody body;
+	MachPort semaphore;
 };
 
 struct Tmach_semdestroyMsg
 {
-	mach_msg_header_t h;
-	mach_msg_body_t body;
-	mach_msg_port_descriptor_t semaphore;
+	MachHeader h;
+	MachBody body;
+	MachPort semaphore;
 };
 #pragma pack off
 
-mach_port_t
+uint32
 mach_semcreate(void)
 {
 	union {
@@ -468,12 +363,12 @@ mach_semcreate(void)
 		Rmach_semcreateMsg rx;
 		uint8 pad[MinMachMsg];
 	} m;
-	kern_return_t r;
+	int32 r;
 
-	m.tx.h.bits = 0;
-	m.tx.h.size = sizeof(m.tx);
-	m.tx.h.remote_port = mach_task_self();
-	m.tx.h.id = Tmach_semcreate;
+	m.tx.h.msgh_bits = 0;
+	m.tx.h.msgh_size = sizeof(m.tx);
+	m.tx.h.msgh_remote_port = mach_task_self();
+	m.tx.h.msgh_id = Tmach_semcreate;
 	m.tx.ndr = zerondr;
 
 	m.tx.policy = 0;	// 0 = SYNC_POLICY_FIFO
@@ -481,25 +376,25 @@ mach_semcreate(void)
 
 	if((r = machcall(&m.tx.h, sizeof m, sizeof(m.rx))) != 0)
 		macherror(r, "semaphore_create");
-	if(m.rx.body.descriptor_count != 1)
+	if(m.rx.body.msgh_descriptor_count != 1)
 		unimplemented("mach_semcreate desc count");
 	return m.rx.semaphore.name;
 }
 
 void
-mach_semdestroy(mach_port_t sem)
+mach_semdestroy(uint32 sem)
 {
 	union {
 		Tmach_semdestroyMsg tx;
 		uint8 pad[MinMachMsg];
 	} m;
-	kern_return_t r;
+	int32 r;
 
-	m.tx.h.bits = MACH_MSGH_BITS_COMPLEX;
-	m.tx.h.size = sizeof(m.tx);
-	m.tx.h.remote_port = mach_task_self();
-	m.tx.h.id = Tmach_semdestroy;
-	m.tx.body.descriptor_count = 1;
+	m.tx.h.msgh_bits = MACH_MSGH_BITS_COMPLEX;
+	m.tx.h.msgh_size = sizeof(m.tx);
+	m.tx.h.msgh_remote_port = mach_task_self();
+	m.tx.h.msgh_id = Tmach_semdestroy;
+	m.tx.body.msgh_descriptor_count = 1;
 	m.tx.semaphore.name = sem;
 	m.tx.semaphore.disposition = MACH_MSG_TYPE_MOVE_SEND;
 	m.tx.semaphore.type = 0;
@@ -508,26 +403,25 @@ mach_semdestroy(mach_port_t sem)
 		macherror(r, "semaphore_destroy");
 }
 
-// The other calls have simple system call traps
-// in sys_amd64_darwin.s
-kern_return_t mach_semaphore_wait(uint32 sema);
-kern_return_t mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
-kern_return_t mach_semaphore_signal(uint32 sema);
-kern_return_t mach_semaphore_signal_all(uint32 sema);
+// The other calls have simple system call traps in sys.s
+int32 mach_semaphore_wait(uint32 sema);
+int32 mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
+int32 mach_semaphore_signal(uint32 sema);
+int32 mach_semaphore_signal_all(uint32 sema);
 
 void
-mach_semacquire(mach_port_t sem)
+mach_semacquire(uint32 sem)
 {
-	kern_return_t r;
+	int32 r;
 
 	if((r = mach_semaphore_wait(sem)) != 0)
 		macherror(r, "semaphore_wait");
 }
 
 void
-mach_semrelease(mach_port_t sem)
+mach_semrelease(uint32 sem)
 {
-	kern_return_t r;
+	int32 r;
 
 	if((r = mach_semaphore_signal(sem)) != 0)
 		macherror(r, "semaphore_signal");
