@@ -579,7 +579,7 @@ macinc(void)
 		if(strcmp(symb, "./") == 0)
 			symb[0] = 0;
 		strcat(symb, str);
-		f = myopen(symb);
+		f = open(symb, OREAD);
 		if(f >= 0)
 			break;
 	}

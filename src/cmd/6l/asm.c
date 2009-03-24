@@ -182,7 +182,7 @@ asmb(void)
 	case 6:
 		debug['8'] = 1;	/* 64-bit addresses */
 		v = HEADR+textsize;
-		myseek(cout, v);
+		seek(cout, v, 0);
 		v = rnd(v, 4096) - v;
 		while(v > 0) {
 			cput(0);
@@ -197,7 +197,7 @@ asmb(void)
 		strtabsize = linuxstrtable();
 		cflush();
 		v = rnd(HEADR+textsize, INITRND);
-		myseek(cout, v);
+		seek(cout, v, 0);
 		break;
 	}
 

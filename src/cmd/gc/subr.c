@@ -10,7 +10,7 @@ errorexit(void)
 {
 	if(outfile)
 		remove(outfile);
-	myexit(1);
+	exit(1);
 }
 
 void
@@ -59,7 +59,7 @@ fatal(char *fmt, ...)
 	print("\n");
 	if(debug['h'])
 		*(int*)0 = 0;
-	myexit(1);
+	exit(1);
 }
 
 void

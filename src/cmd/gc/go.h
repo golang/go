@@ -618,7 +618,6 @@ int	Fconv(Fmt*);
 /*
  *	subr.c
  */
-void	myexit(int);
 void*	mal(int32);
 void*	remal(void*, int32, int32);
 void	errorexit(void);

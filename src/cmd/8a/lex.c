@@ -82,16 +82,13 @@ main(int argc, char *argv[])
 		c = 0;
 		nout = 0;
 		for(;;) {
+			Waitmsg *w;
+
 			while(nout < nproc && argc > 0) {
-				i = myfork();
+				i = fork();
 				if(i < 0) {
-					i = mywait(&status);
-					if(i < 0)
-						errorexit();
-					if(status)
-						c++;
-					nout--;
-					continue;
+					fprint(2, "fork: %r\n");
+					errorexit();
 				}
 				if(i == 0) {
 					print("%s:\n", *argv);
@@ -103,13 +100,13 @@ main(int argc, char *argv[])
 				argc--;
 				argv++;
 			}
-			i = mywait(&status);
-			if(i < 0) {
+			w = wait();
+			if(w == nil) {
 				if(c)
 					errorexit();
 				exits(0);
 			}
-			if(status)
+			if(w->msg[0])
 				c++;
 			nout--;
 		}
@@ -156,7 +153,7 @@ assemble(char *file)
 		}
 	}
 
-	of = mycreate(outfile, 0664);
+	of = create(outfile, OWRITE, 0664);
 	if(of < 0) {
 		yyerror("%ca: cannot create %s", thechar, outfile);
 		errorexit();

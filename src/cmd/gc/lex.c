@@ -45,7 +45,7 @@ mainlex(int argc, char *argv[])
 		goto usage;
 
 	pathname = mal(100);
-	if(mygetwd(pathname, 99) == 0)
+	if(getwd(pathname, 99) == 0)
 		strcpy(pathname, "/???");
 
 	fmtinstall('O', Oconv);		// node opcodes
@@ -107,7 +107,7 @@ mainlex(int argc, char *argv[])
 	if(nerrors)
 		errorexit();
 
-	myexit(0);
+	exit(0);
 	return 0;
 
 usage:
@@ -122,7 +122,7 @@ usage:
 	print("  -p print the assembly language\n");
 	print("  -w print the parse tree after typing\n");
 	print("  -x print lex tokens\n");
-	myexit(0);
+	exit(0);
 	return 0;
 }
 
