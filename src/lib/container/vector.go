@@ -210,3 +210,19 @@ func (p *Vector) Swap(i, j int) {
 	a := p.a;
 	a[i], a[j] = a[j], a[i]
 }
+
+
+// Iterate over all elements; driver for range
+func (p *Vector) iterate(c chan Element) {
+	for i := 0; i < len(p.a); i++ {
+		c <- p.a[i]
+	}
+	close(c);
+}
+
+// Channel iterator for range.
+func (p *Vector) Iter() chan Element {
+	c := make(chan Element);
+	go p.iterate(c);
+	return c;
+}

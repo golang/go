@@ -139,6 +139,7 @@ func TestInsertVector(t *testing.T) {
 	verify_pattern(t, a, 8, 1000, 2);
 }
 
+
 func TestSorting(t *testing.T) {
 	const n = 100;
 	a := vector.NewIntVector(n);
@@ -168,5 +169,23 @@ func TestDo(t *testing.T) {
 	);
 	if count != n {
 		t.Error("should visit", n, "values; did visit", count)
+	}
+}
+
+func TestIter(t *testing.T) {
+	const Len = 100;
+	x := vector.New(Len);
+	for i := 0; i < Len; i++ {
+		x.Set(i, i*i);
+	}
+	i := 0;
+	for v := range x.Iter() {
+		if v.(int) != i*i {
+			t.Error("Iter expected", i*i, "got", v.(int))
+		}
+		i++;
+	}
+	if i != Len {
+		t.Error("Iter stopped at", i, "not", Len)
 	}
 }
