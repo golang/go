@@ -219,7 +219,7 @@ func (P *Parser) getDoc() ast.Comments {
 
 func (P *Parser) tryType() ast.Expr;
 func (P *Parser) parseExpression(prec int) ast.Expr;
-func (P *Parser) parseStatement() ast.Stat;
+func (P *Parser) parseStatement() ast.Stmt;
 func (P *Parser) parseDeclaration() ast.Decl;
 
 
@@ -489,18 +489,18 @@ func (P *Parser) parseResult() []*ast.Field {
 		defer un(trace(P, "Result"));
 	}
 
-	var result []*ast.Field;
+	var results []*ast.Field;
 	if P.tok == token.LPAREN {
-		result = P.parseParameters(false);
+		results = P.parseParameters(false);
 	} else if P.tok != token.FUNC {
 		typ := P.tryType();
 		if typ != nil {
-			result = make([]*ast.Field, 1);
-			result[0] = &ast.Field{nil, nil, typ, nil};
+			results = make([]*ast.Field, 1);
+			results[0] = &ast.Field{nil, nil, typ, nil};
 		}
 	}
 
-	return result;
+	return results;
 }
 
 
@@ -510,16 +510,15 @@ func (P *Parser) parseResult() []*ast.Field {
 // (params) type
 // (params) (results)
 
-func (P *Parser) parseSignature() *ast.Signature {
+func (P *Parser) parseSignature() (params []*ast.Field, results []*ast.Field) {
 	if P.trace {
 		defer un(trace(P, "Signature"));
 	}
 
-	params := P.parseParameters(true);  // TODO find better solution
-	//t.End = P.pos;
-	result := P.parseResult();
+	params = P.parseParameters(true);  // TODO find better solution
+	results = P.parseResult();
 
-	return &ast.Signature{params, result};
+	return params, results;
 }
 
 
@@ -529,9 +528,9 @@ func (P *Parser) parseFunctionType() *ast.FunctionType {
 	}
 
 	pos := P.expect(token.FUNC);
-	sig := P.parseSignature();
+	params, results := P.parseSignature();
 
-	return &ast.FunctionType{pos, sig};
+	return &ast.FunctionType{pos, params, results};
 }
 
 
@@ -547,7 +546,8 @@ func (P *Parser) parseMethodSpec() *ast.Field {
 	if tmp, is_ident := x.(*ast.Ident); is_ident && (P.tok == token.COMMA || P.tok == token.LPAREN) {
 		// method(s)
 		idents = P.parseIdentList(x);
-		typ = &ast.FunctionType{nopos, P.parseSignature()};
+		params, results := P.parseSignature();
+		typ = &ast.FunctionType{nopos, params, results};
 	} else {
 		// embedded interface
 		typ = x;
@@ -606,7 +606,7 @@ func (P *Parser) parseMapType() *ast.MapType {
 }
 
 
-func (P *Parser) parseStringLit(x *ast.BasicLit) *ast.StringLit
+func (P *Parser) parseStringList(x *ast.StringLit) []*ast.StringLit
 
 func (P *Parser) parseFieldDecl() *ast.Field {
 	if P.trace {
@@ -631,9 +631,9 @@ func (P *Parser) parseFieldDecl() *ast.Field {
 	typ := P.tryType();
 
 	// optional tag
-	var tag ast.Expr;
+	var tag []*ast.StringLit;
 	if P.tok == token.STRING {
-		tag = P.parseStringLit(nil);
+		tag = P.parseStringList(nil);
 	}
 
 	// analyze case
@@ -743,16 +743,16 @@ func (P *Parser) tryType() ast.Expr {
 // ----------------------------------------------------------------------------
 // Blocks
 
-func asStatList(list *vector.Vector) []ast.Stat {
-	stats := make([]ast.Stat, list.Len());
+func asStmtList(list *vector.Vector) []ast.Stmt {
+	stats := make([]ast.Stmt, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		stats[i] = list.At(i).(ast.Stat);
+		stats[i] = list.At(i).(ast.Stmt);
 	}
 	return stats;
 }
 
 
-func (P *Parser) parseStatementList() []ast.Stat {
+func (P *Parser) parseStatementList() []ast.Stmt {
 	if P.trace {
 		defer un(trace(P, "StatementList"));
 	}
@@ -774,24 +774,21 @@ func (P *Parser) parseStatementList() []ast.Stat {
 		}
 	}
 	
-	return asStatList(list);
+	return asStmtList(list);
 }
 
 
-func (P *Parser) parseBlock(tok int) *ast.Block {
+func (P *Parser) parseBlockStmt() *ast.BlockStmt {
 	if P.trace {
-		defer un(trace(P, "Block"));
+		defer un(trace(P, "compositeStmt"));
 	}
 
-	pos := P.expect(tok);
+	lbrace := P.expect(token.LBRACE);
 	list := P.parseStatementList();
-	var end scanner.Location;
-	if tok == token.LBRACE {
-		end = P.expect(token.RBRACE);
-		P.opt_semi = true;
-	}
+	rbrace := P.expect(token.RBRACE);
+	P.opt_semi = true;
 
-	return &ast.Block{pos, tok, list, end};
+	return &ast.BlockStmt{lbrace, list, rbrace};
 }
 
 
@@ -803,19 +800,18 @@ func (P *Parser) parseFunctionLit() ast.Expr {
 		defer un(trace(P, "FunctionLit"));
 	}
 
-	pos := P.expect(token.FUNC);
-	typ := P.parseSignature();
+	typ := P.parseFunctionType();
 	P.expr_lev++;
-	body := P.parseBlock(token.LBRACE);
+	body := P.parseBlockStmt();
 	P.expr_lev--;
 
-	return &ast.FunctionLit{pos, typ, body};
+	return &ast.FunctionLit{typ, body};
 }
 
 
-func (P *Parser) parseStringLit(x *ast.BasicLit) *ast.StringLit {
+func (P *Parser) parseStringList(x *ast.StringLit) []*ast.StringLit {
 	if P.trace {
-		defer un(trace(P, "StringLit"));
+		defer un(trace(P, "StringList"));
 	}
 
 	list := vector.New(0);
@@ -824,17 +820,17 @@ func (P *Parser) parseStringLit(x *ast.BasicLit) *ast.StringLit {
 	}
 	
 	for P.tok == token.STRING {
-		list.Push(&ast.BasicLit{P.pos, token.STRING, P.val});
+		list.Push(&ast.StringLit{P.pos, P.val});
 		P.next();
 	}
 
 	// convert list
-	strings := make([]*ast.BasicLit, list.Len());
+	strings := make([]*ast.StringLit, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		strings[i] = list.At(i).(*ast.BasicLit);
+		strings[i] = list.At(i).(*ast.StringLit);
 	}
 	
-	return &ast.StringLit{strings};
+	return strings;
 }
 
 
@@ -847,16 +843,26 @@ func (P *Parser) parseOperand() ast.Expr {
 	case token.IDENT:
 		return P.parseIdent();
 
-	case token.INT, token.FLOAT, token.CHAR:
-		x := &ast.BasicLit{P.pos, P.tok, P.val};
+	case token.INT:
+		x := &ast.IntLit{P.pos, P.val};
+		P.next();
+		return x;
+
+	case token.FLOAT:
+		x := &ast.FloatLit{P.pos, P.val};
+		P.next();
+		return x;
+
+	case token.CHAR:
+		x := &ast.CharLit{P.pos, P.val};
 		P.next();
 		return x;
 
 	case token.STRING:
-		x := &ast.BasicLit{P.pos, token.STRING, P.val};
+		x := &ast.StringLit{P.pos, P.val};
 		P.next();
 		if P.tok == token.STRING {
-			return P.parseStringLit(x);
+			return &ast.StringList{P.parseStringList(x)};
 		}
 		return x;
 
@@ -1106,9 +1112,9 @@ func (P *Parser) parseExpression(prec int) ast.Expr {
 // Statements
 
 
-func (P *Parser) parseSimpleStat() ast.Stat {
+func (P *Parser) parseSimpleStmt() ast.Stmt {
 	if P.trace {
-		defer un(trace(P, "SimpleStat"));
+		defer un(trace(P, "SimpleStmt"));
 	}
 
 	x := P.parseExpressionList();
@@ -1119,86 +1125,85 @@ func (P *Parser) parseSimpleStat() ast.Stat {
 		P.expect(token.COLON);
 		if len(x) == 1 {
 			if label, is_ident := x[0].(*ast.Ident); is_ident {
-				return &ast.LabeledStat{label, P.parseStatement()};
+				return &ast.LabeledStmt{label, P.parseStatement()};
 			}
 		}
 		P.error(x[0].Pos(), "illegal label declaration");
-		return nil;
+		return &ast.BadStmt{x[0].Pos()};
 
 	case
 		token.DEFINE, token.ASSIGN, token.ADD_ASSIGN,
 		token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN,
 		token.REM_ASSIGN, token.AND_ASSIGN, token.OR_ASSIGN,
 		token.XOR_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
-		// assignment statement or range clause
+		// assignment statement
 		pos, tok := P.pos, P.tok;
 		P.next();
-		/*
-		if mode & range_ok != 0 && P.tok == token.RANGE {
-			// range clause
-			P.next();
-			if len(x) != 1 && len(x) != 2 {
-				P.error(x[0].Pos(), "expected 1 or 2 expressions on lhs of range clause");
-			}
-			if tok != token.DEFINE && tok != token.ASSIGN {
-				P.error(pos, "expected '=' or ':=', found '" + token.TokenString(tok) + "'");
-			}
-			y := P.parseExpression(1);
-			return &ast.RangeClause{x, pos, tok, y};
-		} else {
-		*/
-		// assignment statement
 		y := P.parseExpressionList();
-		xl, yl := len(x), len(y);
-		if xl > 1 && yl > 1 && xl != yl {
-			P.error(x[0].Pos(), "arity of lhs doesn't match rhs");  // TODO use better loc for error
+		if len(x) > 1 && len(y) > 1 && len(x) != len(y) {
+			P.error(x[0].Pos(), "arity of lhs doesn't match rhs");
 		}
-		return &ast.AssignmentStat{x, pos, tok, y};
-
-	default:
-		if len(x) > 1 {
-			P.error(x[0].Pos(), "only one expression allowed");
-		}
-
-		if P.tok == token.INC || P.tok == token.DEC {
-			s := &ast.IncDecStat{x[0], P.tok};
-			P.next();  // consume "++" or "--"
-			return s;
-		}
-
-		return &ast.ExprStat{x[0]};
+		return &ast.AssignStmt{x, pos, tok, y};
 	}
 
-	unreachable();
+	if len(x) > 1 {
+		P.error(x[0].Pos(), "only one expression allowed");
+		// continue with first expression
+	}
+
+	if P.tok == token.INC || P.tok == token.DEC {
+		// increment or decrement
+		s := &ast.IncDecStmt{x[0], P.tok};
+		P.next();  // consume "++" or "--"
+		return s;
+	}
+
+	// expression
+	return &ast.ExprStmt{x[0]};
+}
+
+
+func (P *Parser) parseCallExpr() *ast.CallExpr {
+	x := P.parseExpression(1);
+	if call, is_call := x.(*ast.CallExpr); is_call {
+		return call;
+	}
+	P.error(x.Pos(), "expected function/method call");
 	return nil;
 }
 
 
-func (P *Parser) parseGoStat() *ast.GoStat {
+func (P *Parser) parseGoStmt() ast.Stmt {
 	if P.trace {
-		defer un(trace(P, "GoStat"));
+		defer un(trace(P, "GoStmt"));
 	}
 
 	pos := P.expect(token.GO);
-	call := P.parseExpression(1);
-	return &ast.GoStat{pos, call};
+	call := P.parseCallExpr();
+	if call != nil {
+		return &ast.GoStmt{pos, call};
+	}
+	return &ast.BadStmt{pos};
 }
 
 
-func (P *Parser) parseDeferStat() *ast.DeferStat {
+func (P *Parser) parseDeferStmt() ast.Stmt {
 	if P.trace {
-		defer un(trace(P, "DeferStat"));
+		defer un(trace(P, "DeferStmt"));
 	}
 
 	pos := P.expect(token.DEFER);
-	call := P.parseExpression(1);
-	return &ast.DeferStat{pos, call};
+	call := P.parseCallExpr();
+	if call != nil {
+		return &ast.DeferStmt{pos, call};
+	}
+	return &ast.BadStmt{pos};
 }
 
 
-func (P *Parser) parseReturnStat() *ast.ReturnStat {
+func (P *Parser) parseReturnStmt() *ast.ReturnStmt {
 	if P.trace {
-		defer un(trace(P, "ReturnStat"));
+		defer un(trace(P, "ReturnStmt"));
 	}
 
 	loc := P.pos;
@@ -1208,16 +1213,16 @@ func (P *Parser) parseReturnStat() *ast.ReturnStat {
 		x = P.parseExpressionList();
 	}
 
-	return &ast.ReturnStat{loc, x};
+	return &ast.ReturnStmt{loc, x};
 }
 
 
-func (P *Parser) parseControlFlowStat(tok int) *ast.ControlFlowStat {
+func (P *Parser) parseBranchStmt(tok int) *ast.BranchStmt {
 	if P.trace {
-		defer un(trace(P, "ControlFlowStat"));
+		defer un(trace(P, "BranchStmt"));
 	}
 
-	s := &ast.ControlFlowStat{P.pos, tok, nil};
+	s := &ast.BranchStmt{P.pos, tok, nil};
 	P.expect(tok);
 	if tok != token.FALLTHROUGH && P.tok == token.IDENT {
 		s.Label = P.parseIdent();
@@ -1227,33 +1232,28 @@ func (P *Parser) parseControlFlowStat(tok int) *ast.ControlFlowStat {
 }
 
 
-/*
-func (P *Parser) asIdent(x ast.Expr) *ast.Ident {
-	if name, ok := x.(*ast.Ident); ok {
-		return name;
+func (P *Parser) isExpr(s ast.Stmt) bool {
+	if s == nil {
+		return true;
 	}
-	P.error(x.Pos(), "identifier expected");
-	return &ast.Ident{x.Pos(), [...]byte{'B', 'A', 'D'}};
+	dummy, is_expr := s.(*ast.ExprStmt);
+	return is_expr;
 }
 
 
-func (P *Parser) isTypeSwitch(init ast.Stat) (lhs *ast.Ident, rhs ast.Expr) {
-	if assign, ok := init.(*ast.AssignmentStat); ok {
-		if guard, ok := assign.Rhs.(*ast.TypeAssertion); ok {
-			if tmp, ok := guard.Typ.(*ast.TypeType); ok {
-				// we appear to have a type switch
-				// TODO various error checks
-				return P.asIdent(assign.Lhs), guard.X;
-			}
-		}
+func (P *Parser) asExpr(s ast.Stmt) ast.Expr {
+	if s == nil {
+		return nil;
 	}
-	return nil, nil;
+	if es, is_expr := s.(*ast.ExprStmt); is_expr {
+		return es.X;
+	}
+	P.error(s.Pos(), "condition expected; found simple statement");
+	return &ast.BadExpr{s.Pos()};
 }
-*/
 
 
-
-func (P *Parser) parseControlClause(isForStat bool) (s1, s2, s3 ast.Stat) {
+func (P *Parser) parseControlClause(isForStmt bool) (s1, s2, s3 ast.Stmt) {
 	if P.trace {
 		defer un(trace(P, "ControlClause"));
 	}
@@ -1263,18 +1263,18 @@ func (P *Parser) parseControlClause(isForStat bool) (s1, s2, s3 ast.Stat) {
 		P.expr_lev = -1;
 
 		if P.tok != token.SEMICOLON {
-			s1 = P.parseSimpleStat();
+			s1 = P.parseSimpleStmt();
 		}
 		if P.tok == token.SEMICOLON {
 			P.next();
 			if P.tok != token.LBRACE && P.tok != token.SEMICOLON {
-				s2 = P.parseSimpleStat();
+				s2 = P.parseSimpleStmt();
 			}
-			if isForStat {
+			if isForStmt {
 				// for statements have a 3rd section
 				P.expect(token.SEMICOLON);
 				if P.tok != token.LBRACE {
-					s3 = P.parseSimpleStat();
+					s3 = P.parseSimpleStmt();
 				}
 			}
 		} else {
@@ -1288,42 +1288,21 @@ func (P *Parser) parseControlClause(isForStat bool) (s1, s2, s3 ast.Stat) {
 }
 
 
-func (P *Parser) isExpr(s ast.Stat) bool {
-	if s == nil {
-		return true;
-	}
-	dummy, is_expr := s.(*ast.ExprStat);
-	return is_expr;
-}
-
-
-func (P *Parser) asExpr(s ast.Stat) ast.Expr {
-	if s == nil {
-		return nil;
-	}
-	if es, is_expr := s.(*ast.ExprStat); is_expr {
-		return es.X;
-	}
-	P.error(s.Pos(), "condition expected; found simple statement");
-	return &ast.BadExpr{s.Pos()};
-}
-
-
-func (P *Parser) parseIfStat() *ast.IfStat {
+func (P *Parser) parseIfStmt() *ast.IfStmt {
 	if P.trace {
-		defer un(trace(P, "IfStat"));
+		defer un(trace(P, "IfStmt"));
 	}
 
 	pos := P.expect(token.IF);
 	s1, s2, dummy := P.parseControlClause(false);
-	body := P.parseBlock(token.LBRACE);
-	var else_ ast.Stat;
+	body := P.parseBlockStmt();
+	var else_ ast.Stmt;
 	if P.tok == token.ELSE {
 		P.next();
 		else_ = P.parseStatement();
 	}
 
-	return &ast.IfStat{pos, s1, P.asExpr(s2), body, else_};
+	return &ast.IfStmt{pos, s1, P.asExpr(s2), body, else_};
 }
 
 
@@ -1341,8 +1320,11 @@ func (P *Parser) parseCaseClause() *ast.CaseClause {
 	} else {
 		P.expect(token.DEFAULT);
 	}
+	
+	colon := P.expect(token.COLON);
+	body := P.parseStatementList();
 
-	return &ast.CaseClause{loc, x, P.parseBlock(token.COLON)};
+	return &ast.CaseClause{loc, x, colon, body};
 }
 
 
@@ -1361,13 +1343,16 @@ func (P *Parser) parseTypeCaseClause() *ast.TypeCaseClause {
 		P.expect(token.DEFAULT);
 	}
 
-	return &ast.TypeCaseClause{pos, typ, P.parseBlock(token.COLON)};
+	colon := P.expect(token.COLON);
+	body := P.parseStatementList();
+
+	return &ast.TypeCaseClause{pos, typ, colon, body};
 }
 
 
-func (P *Parser) parseSwitchStat() ast.Stat {
+func (P *Parser) parseSwitchStmt() ast.Stmt {
 	if P.trace {
-		defer un(trace(P, "SwitchStat"));
+		defer un(trace(P, "SwitchStmt"));
 	}
 
 	pos := P.expect(token.SWITCH);
@@ -1382,8 +1367,8 @@ func (P *Parser) parseSwitchStat() ast.Stat {
 		}
 		rbrace := P.expect(token.RBRACE);
 		P.opt_semi = true;
-		body := &ast.Block{lbrace, token.LBRACE, asStatList(cases), rbrace};
-		return &ast.SwitchStat{pos, s1, P.asExpr(s2), body};
+		body := &ast.BlockStmt{lbrace, asStmtList(cases), rbrace};
+		return &ast.SwitchStmt{pos, s1, P.asExpr(s2), body};
 
 	} else {
 		// type switch
@@ -1395,8 +1380,8 @@ func (P *Parser) parseSwitchStat() ast.Stat {
 		}
 		rbrace := P.expect(token.RBRACE);
 		P.opt_semi = true;
-		body := &ast.Block{lbrace, token.LBRACE, asStatList(cases), rbrace};
-		return &ast.TypeSwitchStat{pos, s1, s2, body};
+		body := &ast.BlockStmt{lbrace, asStmtList(cases), rbrace};
+		return &ast.TypeSwitchStmt{pos, s1, s2, body};
 	}
 
 	unreachable();
@@ -1438,13 +1423,16 @@ func (P *Parser) parseCommClause() *ast.CommClause {
 		P.expect(token.DEFAULT);
 	}
 
-	return &ast.CommClause{loc, tok, lhs, rhs, P.parseBlock(token.COLON)};
+	colon := P.expect(token.COLON);
+	body := P.parseStatementList();
+
+	return &ast.CommClause{loc, tok, lhs, rhs, colon, body};
 }
 
 
-func (P *Parser) parseSelectStat() *ast.SelectStat {
+func (P *Parser) parseSelectStmt() *ast.SelectStmt {
 	if P.trace {
-		defer un(trace(P, "SelectStat"));
+		defer un(trace(P, "SelectStmt"));
 	}
 
 	pos := P.expect(token.SELECT);
@@ -1455,28 +1443,54 @@ func (P *Parser) parseSelectStat() *ast.SelectStat {
 	}
 	rbrace := P.expect(token.RBRACE);
 	P.opt_semi = true;
-	body := &ast.Block{lbrace, token.LBRACE, asStatList(cases), rbrace};
+	body := &ast.BlockStmt{lbrace, asStmtList(cases), rbrace};
 
-	return &ast.SelectStat{pos, body};
+	return &ast.SelectStmt{pos, body};
 }
 
 
-func (P *Parser) parseForStat() ast.Stat {
+func (P *Parser) parseForStmt() ast.Stmt {
 	if P.trace {
-		defer un(trace(P, "ForStat"));
+		defer un(trace(P, "ForStmt"));
 	}
 
 	pos := P.expect(token.FOR);
 	s1, s2, s3 := P.parseControlClause(true);
-	body := P.parseBlock(token.LBRACE);
+	body := P.parseBlockStmt();
 
-	if as, is_as := s2.(*ast.AssignmentStat); is_as {
-		// probably a for statement with a range clause
-		// TODO do all the checks!
-		return &ast.RangeStat{pos, s2, body};
+	if as, is_as := s2.(*ast.AssignStmt); is_as {
+		// possibly a for statement with a range clause; check assignment operator
+		if as.Tok != token.ASSIGN && as.Tok != token.DEFINE {
+			P.error(as.Pos_, "'=' or ':=' expected");
+			return &ast.BadStmt{pos};
+		}
+		// check lhs
+		var key, value ast.Expr;
+		switch len(as.Lhs) {
+		case 2:
+			value = as.Lhs[1];
+			fallthrough;
+		case 1:
+			key = as.Lhs[0];
+		default:
+			P.error(as.Lhs[0].Pos(), "expected 1 or 2 expressions");
+			return &ast.BadStmt{pos};
+		}
+		// check rhs
+		if len(as.Rhs) != 1 {
+			P.error(as.Rhs[0].Pos(), "expected 1 expressions");
+			return &ast.BadStmt{pos};
+		}
+		if rhs, is_unary := as.Rhs[0].(*ast.UnaryExpr); is_unary && rhs.Tok == token.RANGE {
+			// rhs is range expression; check lhs
+			return &ast.RangeStmt{pos, key, value, as.Pos_, as.Tok, rhs.X, body}
+		} else {
+			P.error(s2.Pos(), "range clause expected");
+			return &ast.BadStmt{pos};
+		}
 	} else {
 		// regular for statement
-		return &ast.ForStat{pos, s1, P.asExpr(s2), s3, body};
+		return &ast.ForStmt{pos, s1, P.asExpr(s2), s3, body};
 	}
 	
 	unreachable();
@@ -1484,46 +1498,46 @@ func (P *Parser) parseForStat() ast.Stat {
 }
 
 
-func (P *Parser) parseStatement() ast.Stat {
+func (P *Parser) parseStatement() ast.Stmt {
 	if P.trace {
 		defer un(trace(P, "Statement"));
 	}
 
 	switch P.tok {
 	case token.CONST, token.TYPE, token.VAR:
-		return &ast.DeclStat{P.parseDeclaration()};
+		return &ast.DeclStmt{P.parseDeclaration()};
 	case
 		// tokens that may start a top-level expression
 		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,  // operand
 		token.LBRACK, token.STRUCT,  // composite type
 		token.MUL, token.AND, token.ARROW:  // unary operators
-		return P.parseSimpleStat();
+		return P.parseSimpleStmt();
 	case token.GO:
-		return P.parseGoStat();
+		return P.parseGoStmt();
 	case token.DEFER:
-		return P.parseDeferStat();
+		return P.parseDeferStmt();
 	case token.RETURN:
-		return P.parseReturnStat();
+		return P.parseReturnStmt();
 	case token.BREAK, token.CONTINUE, token.GOTO, token.FALLTHROUGH:
-		return P.parseControlFlowStat(P.tok);
+		return P.parseBranchStmt(P.tok);
 	case token.LBRACE:
-		return &ast.CompositeStat{P.parseBlock(token.LBRACE)};
+		return P.parseBlockStmt();
 	case token.IF:
-		return P.parseIfStat();
+		return P.parseIfStmt();
 	case token.FOR:
-		return P.parseForStat();
+		return P.parseForStmt();
 	case token.SWITCH:
-		return P.parseSwitchStat();
+		return P.parseSwitchStmt();
 	case token.SELECT:
-		return P.parseSelectStat();
+		return P.parseSelectStmt();
 	case token.SEMICOLON, token.RBRACE:
 		// don't consume the ";", it is the separator following the empty statement
-		return &ast.EmptyStat{P.pos};
+		return &ast.EmptyStmt{P.pos};
 	}
 
 	// no statement found
 	P.error(P.pos, "statement expected");
-	return &ast.BadStat{P.pos};
+	return &ast.BadStmt{P.pos};
 }
 
 
@@ -1543,9 +1557,9 @@ func (P *Parser) parseImportSpec(pos Position, doc ast.Comments) *ast.ImportDecl
 		ident = P.parseIdent();
 	}
 
-	var path *ast.StringLit;
+	var path []*ast.StringLit;
 	if P.tok == token.STRING {
-		path = P.parseStringLit(nil);
+		path = P.parseStringList(nil);
 	} else {
 		P.expect(token.STRING);  // use expect() error handling
 	}
@@ -1677,14 +1691,14 @@ func (P *Parser) parseFunctionDecl() *ast.FuncDecl {
 	}
 
 	ident := P.parseIdent();
-	sig := P.parseSignature();
+	params, results := P.parseSignature();
 
-	var body *ast.Block;
+	var body *ast.BlockStmt;
 	if P.tok == token.LBRACE {
-		body = P.parseBlock(token.LBRACE);
+		body = P.parseBlockStmt();
 	}
 
-	return &ast.FuncDecl{doc, pos, recv, ident, sig, body};
+	return &ast.FuncDecl{doc, recv, ident, &ast.FunctionType{pos, params, results}, body};
 }
 
 
