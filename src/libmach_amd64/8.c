@@ -98,7 +98,7 @@ Mach mi386 =
 	0x1000,		/* page size */
 	0x80100000ULL,	/* kernel base */
 	0xF0000000ULL,	/* kernel text mask */
-	0x7FFFFFFFULL,	/* user stack top */
+	0xFFFFFFFFULL,	/* user stack top */
 	1,		/* quantization of pc */
 	4,		/* szaddr */
 	4,		/* szreg */

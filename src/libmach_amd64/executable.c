@@ -259,13 +259,22 @@ ExecTable exectab[] =
 		sizeof(Ehdr64),
 		nil,
 		elfdotout },
-	{ MACH_MAG,			/* 64-bit MACH (apple mac) */
+	{ MACH64_MAG,			/* 64-bit MACH (apple mac) */
 		"mach executable",
 		nil,
 		FAMD64,
 		0,
+		&mamd64,
+		sizeof(Machhdr),
+		nil,
+		machdotout },
+	{ MACH32_MAG,			/* 64-bit MACH (apple mac) */
+		"mach executable",
+		nil,
+		FI386,
+		0,
 		&mi386,
-		sizeof(Ehdr64),
+		sizeof(Machhdr),
 		nil,
 		machdotout },
 	{ E_MAGIC,			/* Arm 5.out and boot image */
@@ -680,29 +689,9 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
 	fp->magic = ELF_MAG;
 	fp->hdrsz = (ep->ehsize+ep->phnum*ep->phentsize+16)&~15;
 	switch(ep->machine) {
-	case I386:
-		mach = &mi386;
-		fp->type = FI386;
-		break;
-	case MIPS:
-		mach = &mmips;
-		fp->type = FMIPS;
-		break;
-	case SPARC64:
-		mach = &msparc64;
-		fp->type = FSPARC64;
-		break;
-	case POWER:
-		mach = &mpower;
-		fp->type = FPOWER;
-		break;
 	case AMD64:
 		mach = &mamd64;
 		fp->type = FAMD64;
-		break;
-	case ARM:
-		mach = &marm;
-		fp->type = FARM;
 		break;
 	default:
 		return 0;
@@ -731,7 +720,7 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
 			free(sh);
 			sh = 0;
 		} else
-			hswal(ph, phsz/sizeof(uint32), swal);
+			hswal(sh, shsz/sizeof(uint32), swal);
 	}
 
 	/* find text, data and symbols and install them */
@@ -781,7 +770,7 @@ error:
 	setdata(fp, ph[id].vaddr, ph[id].filesz, ph[id].offset, ph[id].memsz - ph[id].filesz);
 	if(is != -1)
 		setsym(fp, ph[is].filesz, 0, ph[is].memsz, ph[is].offset);
-	else if(ep->machine == AMD64 && sh != 0){
+	else if(sh != 0){
 		char *buf;
 		uvlong symsize = 0;
 		uvlong symoff = 0;
@@ -826,7 +815,8 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	ushort (*swab)(ushort);
 	Ehdr32 *ep;
 	Phdr32 *ph;
-	int i, it, id, is, phsz;
+	int i, it, id, is, phsz, shsz;
+	Shdr32 *sh;
 
 	/* bitswap the header according to the DATA format */
 	ep = &hp->e.elfhdr32;
@@ -880,10 +870,6 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
 		mach = &mpower;
 		fp->type = FPOWER;
 		break;
-	case AMD64:
-		mach = &mamd64;
-		fp->type = FAMD64;
-		break;
 	case ARM:
 		mach = &marm;
 		fp->type = FARM;
@@ -906,6 +892,17 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
 		return 0;
 	}
 	hswal(ph, phsz/sizeof(uint32), swal);
+
+	shsz = sizeof(Shdr32)*ep->shnum;
+	sh = malloc(shsz);
+	if(sh) {
+		seek(fd, ep->shoff, 0);
+		if(read(fd, sh, shsz) < 0) {
+			free(sh);
+			sh = 0;
+		} else
+			hswal(sh, shsz/sizeof(uint32), swal);
+	}
 
 	/* find text, data and symbols and install them */
 	it = id = is = -1;
@@ -944,6 +941,8 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
 		}
 
 		werrstr("No TEXT or DATA sections");
+error:
+		free(sh);
 		free(ph);
 		return 0;
 	}
@@ -952,6 +951,39 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	setdata(fp, ph[id].vaddr, ph[id].filesz, ph[id].offset, ph[id].memsz - ph[id].filesz);
 	if(is != -1)
 		setsym(fp, ph[is].filesz, 0, ph[is].memsz, ph[is].offset);
+	else if(sh != 0){
+		char *buf;
+		uvlong symsize = 0;
+		uvlong symoff = 0;
+		uvlong pclnsz = 0;
+
+		/* load shstrtab names */
+		buf = malloc(sh[ep->shstrndx].size);
+		if (buf == 0)
+			goto done;
+		memset(buf, 0, sizeof buf);
+		seek(fd, sh[ep->shstrndx].offset, 0);
+		read(fd, buf, sh[ep->shstrndx].size);
+
+		for(i = 0; i < ep->shnum; i++) {
+			if (strcmp(&buf[sh[i].name], ".gosymtab") == 0) {
+				symsize = sh[i].size;
+				symoff = sh[i].offset;
+			}
+			if (strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
+				if (sh[i].offset != symoff+symsize) {
+					werrstr("pc line table not contiguous with symbol table");
+					free(buf);
+					goto error;
+				}
+				pclnsz = sh[i].size;
+			}
+		}
+		setsym(fp, symsize, 0, pclnsz, symoff);
+		free(buf);
+	}
+done:
+	free(sh);
 	free(ph);
 	return 1;
 }
@@ -964,23 +996,24 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	ushort (*swab)(ushort);
 	Machhdr *mp;
 	MachCmd **cmd;
-	MachSeg64 *text;
-	MachSeg64 *data;
 	MachSymSeg *symtab;
 	MachSymSeg *pclntab;
 	MachSeg64 *seg;
 	MachSect64 *sect;
+	MachSeg32 *seg32;
+	MachSect32 *sect32;
 	uvlong textsize, datasize, bsssize;
 	uchar *cmdbuf;
 	uchar *cmdp;
-	int i;
+	int i, hdrsize;
+	uint32 textva, textoff, datava, dataoff;
 
-	/* bitswap the header according to the DATA format */
 	mp = &hp->e.machhdr;
-	if (mp->cputype != leswal(MACH_CPU_TYPE_X86_64)) {
-		werrstr("bad MACH cpu type - not amd64");
+	if (leswal(mp->filetype) != MACH_EXECUTABLE_TYPE) {
+		werrstr("bad MACH executable type %#ux", leswal(mp->filetype));
 		return 0;
 	}
+
 	swab = leswab;
 	swal = leswal;
 	swav = leswav;
@@ -993,27 +1026,59 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	mp->sizeofcmds = swal(mp->sizeofcmds);
 	mp->flags = swal(mp->flags);
 	mp->reserved = swal(mp->reserved);
-	if (mp->cpusubtype != MACH_CPU_SUBTYPE_X86) {
-		werrstr("bad MACH cpu subtype - not amd64");
+	hdrsize = 0;
+
+	switch(mp->magic) {
+	case 0xFEEDFACE:	// 32-bit mach
+		if (mp->cputype != MACH_CPU_TYPE_X86) {
+			werrstr("bad MACH cpu type - not 386");
+			return 0;
+		}
+		if (mp->cpusubtype != MACH_CPU_SUBTYPE_X86) {
+			werrstr("bad MACH cpu subtype - not 386");
+			return 0;
+		}
+		if (mp->filetype != MACH_EXECUTABLE_TYPE) {
+			werrstr("bad MACH executable type");
+			return 0;
+		}
+		mach = &mi386;
+		fp->type = FI386;
+		hdrsize = 28;
+		break;
+
+	case 0xFEEDFACF:	// 64-bit mach
+		if (mp->cputype != MACH_CPU_TYPE_X86_64) {
+			werrstr("bad MACH cpu type - not amd64");
+			return 0;
+		}
+
+		if (mp->cpusubtype != MACH_CPU_SUBTYPE_X86) {
+			werrstr("bad MACH cpu subtype - not amd64");
+			return 0;
+		}
+		mach = &mamd64;
+		fp->type = FAMD64;
+		hdrsize = 32;
+		break;
+
+	default:
+		werrstr("not mach %#ux", mp->magic);
 		return 0;
 	}
-	if (mp->filetype != MACH_EXECUTABLE_TYPE) {
-		werrstr("bad MACH cpu subtype - not amd64");
-		return 0;
-	}
-	mach = &mamd64;
-	fp->type = FAMD64;
 
 	cmdbuf = malloc(mp->sizeofcmds);
-	seek(fd, sizeof(Machhdr), 0);
+	seek(fd, hdrsize, 0);
 	if(read(fd, cmdbuf, mp->sizeofcmds) != mp->sizeofcmds) {
 		free(cmdbuf);
 		return 0;
 	}
 	cmd = malloc(mp->ncmds * sizeof(MachCmd*));
 	cmdp = cmdbuf;
-	text = 0;
-	data = 0;
+	textva = 0;
+	textoff = 0;
+	dataoff = 0;
+	datava = 0;
 	symtab = 0;
 	pclntab = 0;
 	textsize = datasize = bsssize = 0;
@@ -1025,7 +1090,56 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 		c->type = swal(c->type);
 		c->size = swal(c->size);
 		switch(c->type) {
+		case MACH_SEGMENT_32:
+			if(mp->magic != 0xFEEDFACE) {
+				werrstr("segment 32 in mach 64");
+				goto bad;
+			}
+			seg32 = (MachSeg32*)c;
+			seg32->vmaddr = swav(seg32->vmaddr);
+			seg32->vmsize = swav(seg32->vmsize);
+			seg32->fileoff = swav(seg32->fileoff);
+			seg32->filesize = swav(seg32->filesize);
+			seg32->maxprot = swal(seg32->maxprot);
+			seg32->initprot = swal(seg32->initprot);
+			seg32->nsects = swal(seg32->nsects);
+			seg32->flags = swal(seg32->flags);
+			if (strcmp(seg32->segname, "__TEXT") == 0) {
+				textva = seg32->vmaddr;
+				textoff = seg32->fileoff;
+				sect32 = (MachSect32*)(cmdp + sizeof(MachSeg32));
+				if (strcmp(sect32->sectname, "__text") == 0) {
+					textsize = swal(sect32->size);
+				} else {
+					werrstr("no text section");
+					goto bad;
+				}
+			}
+			if (strcmp(seg32->segname, "__DATA") == 0) {
+				datava = seg32->vmaddr;
+				dataoff = seg32->fileoff;
+				sect32 = (MachSect32*)(cmdp + sizeof(MachSeg32));
+				if (strcmp(sect32->sectname, "__data") == 0) {
+					datasize = swal(sect32->size);
+				} else {
+					werrstr("no data section");
+					goto bad;
+				}
+				sect32++;
+				if (strcmp(sect32->sectname, "__bss") == 0) {
+					bsssize = swal(sect32->size);
+				} else {
+					werrstr("no bss section");
+					goto bad;
+				}
+			}
+			break;
+
 		case MACH_SEGMENT_64:
+			if(mp->magic != 0xFEEDFACF) {
+				werrstr("segment 32 in mach 64");
+				goto bad;
+			}
 			seg = (MachSeg64*)c;
 			seg->vmaddr = swav(seg->vmaddr);
 			seg->vmsize = swav(seg->vmsize);
@@ -1036,7 +1150,8 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 			seg->nsects = swal(seg->nsects);
 			seg->flags = swal(seg->flags);
 			if (strcmp(seg->segname, "__TEXT") == 0) {
-				text = seg;
+				textva = seg->vmaddr;
+				textoff = seg->fileoff;
 				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
 				if (strcmp(sect->sectname, "__text") == 0) {
 					textsize = swav(sect->size);
@@ -1046,7 +1161,8 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 				}
 			}
 			if (strcmp(seg->segname, "__DATA") == 0) {
-				data = seg;
+				datava = seg->vmaddr;
+				dataoff = seg->fileoff;
 				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
 				if (strcmp(sect->sectname, "__data") == 0) {
 					datasize = swav(sect->size);
@@ -1074,14 +1190,14 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 		}
 		cmdp += c->size;
 	}
-	if (text == 0 || data == 0) {
+	if (textva == 0 || datava == 0) {
 		free(cmd);
 		free(cmdbuf);
 		return 0;
 	}
 	/* compute entry by taking address after header - weird - BUG? */
-	settext(fp, text->vmaddr+sizeof(Machhdr) + mp->sizeofcmds, text->vmaddr, textsize, text->fileoff);
-	setdata(fp, data->vmaddr, datasize, data->fileoff, bsssize);
+	settext(fp, textva+sizeof(Machhdr) + mp->sizeofcmds, textva, textsize, textoff);
+	setdata(fp, datava, datasize, dataoff, bsssize);
 	if(symtab != 0)
 		setsym(fp, symtab->filesize, 0, pclntab? pclntab->filesize : 0, symtab->fileoff);
 	free(cmd);

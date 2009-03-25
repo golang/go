@@ -38,7 +38,12 @@
 #include <libc.h>
 #include <bio.h>
 #include <mach_amd64.h>
+#define Ureg Ureg32
+#include <ureg_x86.h>
+#undef Ureg
+#define Ureg Ureg64
 #include <ureg_amd64.h>
+#undef Ureg
 #undef waitpid
 
 // The old glibc used with crosstool compilers on thresher
@@ -66,7 +71,7 @@
 #define PTRACE_EVENT_EXIT 0x6
 #endif
 
-typedef struct Ureg Ureg;
+typedef struct Ureg64 Ureg64;
 
 static Maprw ptracesegrw;
 static Maprw ptraceregrw;
@@ -787,57 +792,100 @@ ptracesegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 		isr, map->pid, addr, v, n);
 }
 
+// If the debugger is compiled as an x86-64 program,
+// then all the ptrace register read/writes are done on
+// a 64-bit register set.  If the target program
+// is a 32-bit program, the debugger is expected to
+// read the bottom half of the relevant registers
+// out of the 64-bit set.
+
+// Linux 32-bit is
+//	BX CX DX SI DI BP AX DS ES FS GS OrigAX IP CS EFLAGS SP SS
+
+// Linux 64-bit is
+//	R15 R14 R13 R12 BP BX R11 R10 R9 R8 AX CX DX SI DI OrigAX IP CS EFLAGS SP SS FSBase GSBase DS ES FS GS
+
+// Go 32-bit is
+//	DI SI BP NSP BX DX CX AX GS FS ES DS TRAP ECODE PC CS EFLAGS SP SS
+
+// uint go32tolinux32tab[] = {
+//	4, 3, 5, 15, 0, 2, 1, 6, 10, 9, 8, 7, -1, -1, 12, 13, 14, 15, 16
+// };
+uint go32tolinux64tab[] = {
+	14, 13, 4, 19, 5, 12, 11, 10, 26, 25, 24, 23, -1, -1, 16, 17, 18, 19, 20
+};
+static int
+go32tolinux64(uvlong addr)
+{
+	int r;
+
+	if(addr%4 || addr/4 >= nelem(go32tolinux64tab))
+		return -1;
+	r = go32tolinux64tab[addr/4];
+	if(r < 0)
+		return -1;
+	return r*8;
+}
+
+extern Mach mi386;
+
 static int
 go2linux(uvlong addr)
 {
+	// TODO(rsc): If this file is being compiled in 32-bit mode,
+	// need to use the go32tolinux32 table instead.
+
+	if(mach == &mi386)
+		return go32tolinux64(addr);
+
 	switch(addr){
-	case offsetof(Ureg, ax):
+	case offsetof(Ureg64, ax):
 		return offsetof(struct user_regs_struct, rax);
-	case offsetof(Ureg, bx):
+	case offsetof(Ureg64, bx):
 		return offsetof(struct user_regs_struct, rbx);
-	case offsetof(Ureg, cx):
+	case offsetof(Ureg64, cx):
 		return offsetof(struct user_regs_struct, rcx);
-	case offsetof(Ureg, dx):
+	case offsetof(Ureg64, dx):
 		return offsetof(struct user_regs_struct, rdx);
-	case offsetof(Ureg, si):
+	case offsetof(Ureg64, si):
 		return offsetof(struct user_regs_struct, rsi);
-	case offsetof(Ureg, di):
+	case offsetof(Ureg64, di):
 		return offsetof(struct user_regs_struct, rdi);
-	case offsetof(Ureg, bp):
+	case offsetof(Ureg64, bp):
 		return offsetof(struct user_regs_struct, rbp);
-	case offsetof(Ureg, r8):
+	case offsetof(Ureg64, r8):
 		return offsetof(struct user_regs_struct, r8);
-	case offsetof(Ureg, r9):
+	case offsetof(Ureg64, r9):
 		return offsetof(struct user_regs_struct, r9);
-	case offsetof(Ureg, r10):
+	case offsetof(Ureg64, r10):
 		return offsetof(struct user_regs_struct, r10);
-	case offsetof(Ureg, r11):
+	case offsetof(Ureg64, r11):
 		return offsetof(struct user_regs_struct, r11);
-	case offsetof(Ureg, r12):
+	case offsetof(Ureg64, r12):
 		return offsetof(struct user_regs_struct, r12);
-	case offsetof(Ureg, r13):
+	case offsetof(Ureg64, r13):
 		return offsetof(struct user_regs_struct, r13);
-	case offsetof(Ureg, r14):
+	case offsetof(Ureg64, r14):
 		return offsetof(struct user_regs_struct, r14);
-	case offsetof(Ureg, r15):
+	case offsetof(Ureg64, r15):
 		return offsetof(struct user_regs_struct, r15);
-	case offsetof(Ureg, ds):
+	case offsetof(Ureg64, ds):
 		return offsetof(struct user_regs_struct, ds);
-	case offsetof(Ureg, es):
+	case offsetof(Ureg64, es):
 		return offsetof(struct user_regs_struct, es);
-	case offsetof(Ureg, fs):
+	case offsetof(Ureg64, fs):
 		return offsetof(struct user_regs_struct, fs);
-	case offsetof(Ureg, gs):
+	case offsetof(Ureg64, gs):
 		return offsetof(struct user_regs_struct, gs);
-	case offsetof(Ureg, ip):
+	case offsetof(Ureg64, ip):
 		return offsetof(struct user_regs_struct, rip);
-	case offsetof(Ureg, cs):
+	case offsetof(Ureg64, cs):
 		return offsetof(struct user_regs_struct, cs);
-	case offsetof(Ureg, flags):
+	case offsetof(Ureg64, flags):
 		return offsetof(struct user_regs_struct, eflags);
-	case offsetof(Ureg, sp):
+	case offsetof(Ureg64, sp):
 		return offsetof(struct user_regs_struct, rsp);
-	case offsetof(Ureg, ss):
+	case offsetof(Ureg64, ss):
 		return offsetof(struct user_regs_struct, ss);
 	}
 	return -1;
@@ -904,7 +952,7 @@ ptraceregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 	return 0;
 
 ptraceerr:
-	werrstr("ptrace %s register laddr=%d pid=%d: %r", isr ? "read" : "write", laddr, map->pid);
+	werrstr("ptrace %s register laddr=%d pid=%d n=%d: %r", isr ? "read" : "write", laddr, map->pid, n);
 	return -1;
 }
 
