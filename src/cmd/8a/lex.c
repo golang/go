@@ -33,11 +33,30 @@
 #include "y.tab.h"
 #include <ctype.h>
 
+enum
+{
+	Plan9	= 1<<0,
+	Unix	= 1<<1,
+	Windows	= 1<<2,
+};
+
+int
+systemtype(int sys)
+{
+	return sys&Plan9;
+}
+
+int
+pathchar(void)
+{
+	return '/';
+}
+
 void
 main(int argc, char *argv[])
 {
 	char *p;
-	int nout, nproc, status, i, c;
+	int nout, nproc, i, c;
 
 	thechar = '8';
 	thestring = "386";
@@ -162,7 +181,7 @@ assemble(char *file)
 
 	pass = 1;
 	pinit(file);
-	
+
 	Bprint(&obuf, "%s\n", thestring);
 
 	for(i=0; i<nDlist; i++)
@@ -172,7 +191,7 @@ assemble(char *file)
 		cclean();
 		return nerrors;
 	}
-	
+
 	Bprint(&obuf, "\n!\n");
 
 	pass = 2;
@@ -308,7 +327,7 @@ struct
 	"CMPSW",	LTYPE0,	ACMPSW,
 	"CMPXCHGB",	LTYPE3,	ACMPXCHGB,
 	"CMPXCHGL",	LTYPE3,	ACMPXCHGL,
-	"CMPXCHGW",	LTYPE3,	ACMPXCHGW,	
+	"CMPXCHGW",	LTYPE3,	ACMPXCHGW,
 	"DAA",		LTYPE0,	ADAA,
 	"DAS",		LTYPE0,	ADAS,
 	"DATA",		LTYPED,	ADATA,
@@ -661,9 +680,9 @@ cinit(void)
 	}
 
 	pathname = allocn(pathname, 0, 100);
-	if(mygetwd(pathname, 99) == 0) {
+	if(getwd(pathname, 99) == 0) {
 		pathname = allocn(pathname, 100, 900);
-		if(mygetwd(pathname, 999) == 0)
+		if(getwd(pathname, 999) == 0)
 			strcpy(pathname, "/???");
 	}
 }
