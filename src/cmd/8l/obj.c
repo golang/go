@@ -324,12 +324,6 @@ main(int argc, char *argv[])
 	}
 	lookup(INITENTRY, 0)->type = SXREF;
 
-	if(!debug['l']) {
-		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
-		sprint(a, "%s/lib/rt0_%s_%s.%c", goroot, goarch, goos, thechar);
-		objfile(a);
-	}
-
 	while(*argv)
 		objfile(*argv++);
 
@@ -856,8 +850,6 @@ ldobj(Biobuf *f, int32 len, char *pn)
 	Bseek(f, import0, 0);
 //	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
 	Bseek(f, import1, 0);
-
-print("import %ld-%ld\n", import0, import1);
 
 newloop:
 	memset(h, 0, sizeof(h));
