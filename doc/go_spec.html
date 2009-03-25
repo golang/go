@@ -2950,6 +2950,37 @@ floating point variable, while <code>-1e12</code> can be assigned to a
 but not <code>uint64</code> or <code>string</code>.
 </p>
 
+<p>
+If a typed constant expression evaluates to a value that is not
+representable by that type, the compiler reports an error.
+</p>
+
+<pre>
+uint8(-1)         // error, out of range
+uint8(100) * 100  // error, out of range
+</pre>
+
+<p>
+The size of the mask used by the unary bitwise complement
+operator in a typed constant expression is equal to the size of the
+expression's type.  In an ideal constant expression, the bitwise
+complement operator inverts all the bits, producing a negative value.
+</p>
+
+<pre>
+^1          // ideal constant, equal to -2
+uint8(^1)   // error, same as uint8(-2), out of range
+^uint8(1)   // typed uint8 constant, same as 0xFF ^ uint8(1) = uint8(0xFE)
+int8(^1)    // same as int8(-2)
+^int8(1)    // error, same as 0xFF ^ int8(1) = int8(0xFE), out of range
+</pre>
+
+<p>
+TODO: perhaps ^ should be disallowed on non-uints instead of assuming twos complement.
+Also it may be possible to make typed constants more like variables, at the cost of fewer
+overflow etc. errors being caught.
+</p>
+
 <hr/>
 
 <h2>Statements</h2>
