@@ -2960,12 +2960,12 @@ Statements control execution.
 
 <pre class="grammar">
 Statement =
-	Declaration | EmptyStat | LabeledStat |
-	SimpleStat | GoStat | ReturnStat | BreakStat | ContinueStat | GotoStat |
-	FallthroughStat | Block | IfStat | SwitchStat | SelectStat | ForStat |
-	DeferStat .
+	Declaration | EmptyStmt | LabeledStmt |
+	SimpleStmt | GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
+	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
+	DeferStmt .
 
-SimpleStat = ExpressionStat | IncDecStat | Assignment | SimpleVarDecl .
+SimpleStmt = ExpressionStmt | IncDecStmt | Assignment | SimpleVarDecl .
 
 StatementList = Statement { Separator Statement } .
 Separator     = [ ";" ]
@@ -2992,7 +2992,7 @@ The empty statement does nothing.
 </p>
 
 <pre class="grammar">
-EmptyStat = .
+EmptyStmt = .
 </pre>
 
 <p>
@@ -3009,7 +3009,7 @@ A labeled statement may be the target of a <code>goto</code>,
 </p>
 
 <pre class="grammar">
-LabeledStat = Label ":" Statement .
+LabeledStmt = Label ":" Statement .
 Label       = identifier .
 </pre>
 
@@ -3027,7 +3027,7 @@ can appear in statement context.
 
 
 <pre class="grammar">
-ExpressionStat = Expression .
+ExpressionStmt = Expression .
 </pre>
 
 <pre>
@@ -3045,7 +3045,7 @@ must be a variable, pointer indirection, field selector or index expression.
 </p>
 
 <pre class="grammar">
-IncDecStat = Expression ( "++" | "--" ) .
+IncDecStmt = Expression ( "++" | "--" ) .
 </pre>
 
 <p>
@@ -3141,7 +3141,7 @@ is equivalent to <code>true</code>.
 </p>
 
 <pre class="grammar">
-IfStat    = "if" [ [ SimpleStat ] ";" ] [ Expression ] Block [ "else" Statement ] .
+IfStmt    = "if" [ [ SimpleStmt ] ";" ] [ Expression ] Block [ "else" Statement ] .
 </pre>
 
 <pre>
@@ -3178,7 +3178,7 @@ to execute.
 </p>
 
 <pre class="grammar">
-SwitchStat = ExprSwitchStat | TypeSwitchStat .
+SwitchStmt = ExprSwitchStmt | TypeSwitchStmt .
 </pre>
 
 <p>
@@ -3208,7 +3208,7 @@ the expression <code>true</code>.
 </p>
 
 <pre class="grammar">
-ExprSwitchStat = "switch" [ [ SimpleStat ] ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
+ExprSwitchStmt = "switch" [ [ SimpleStmt ] ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
 ExprCaseClause = ExprSwitchCase ":" [ StatementList ] .
 ExprSwitchCase = "case" ExpressionList | "default" .
 </pre>
@@ -3265,7 +3265,7 @@ in the type guard.
 </p>
 
 <pre class="grammar">
-TypeSwitchStat  = "switch" [ [ SimpleStat ] ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
+TypeSwitchStmt  = "switch" [ [ SimpleStmt ] ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
 TypeSwitchGuard = identifier ":=" Expression "." "(" "type" ")" .
 TypeCaseClause  = TypeSwitchCase ":" [ StatementList ] .
 TypeSwitchCase  = "case" ( type | "nil" ) | "default" .
@@ -3331,7 +3331,7 @@ controlled by a condition, a "for" clause, or a "range" clause.
 </p>
 
 <pre class="grammar">
-ForStat = "for" [ Condition | ForClause | RangeClause ] Block .
+ForStmt = "for" [ Condition | ForClause | RangeClause ] Block .
 Condition = Expression .
 </pre>
 
@@ -3359,9 +3359,9 @@ it declares ends at the end of the statement
 </p>
 
 <pre class="grammar">
-ForClause = [ InitStat ] ";" [ Condition ] ";" [ PostStat ] .
-InitStat = SimpleStat .
-PostStat = SimpleStat .
+ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ] .
+InitStmt = SimpleStmt .
+PostStmt = SimpleStmt .
 </pre>
 
 <pre>
@@ -3460,7 +3460,7 @@ within the same address space.
 </p>
 
 <pre class="grammar">
-GoStat = "go" Expression .
+GoStmt = "go" Expression .
 </pre>
 
 <p>
@@ -3484,7 +3484,7 @@ cases all referring to communication operations.
 </p>
 
 <pre class="grammar">
-SelectStat = "select" "{" { CommClause } "}" .
+SelectStmt = "select" "{" { CommClause } "}" .
 CommClause = CommCase ":" StatementList .
 CommCase = "case" ( SendExpr | RecvExpr) | "default" .
 SendExpr =  Expression "&lt;-" Expression .
@@ -3557,7 +3557,7 @@ and optionally provides a result value or values to the caller.
 </p>
 
 <pre class="grammar">
-ReturnStat = "return" [ ExpressionList ] .
+ReturnStmt = "return" [ ExpressionList ] .
 </pre>
 
 <pre>
@@ -3627,7 +3627,7 @@ A "break" statement terminates execution of the innermost
 </p>
 
 <pre class="grammar">
-BreakStat = "break" [ Label ].
+BreakStmt = "break" [ Label ].
 </pre>
 
 <p>
@@ -3653,7 +3653,7 @@ innermost "for" loop at the post statement (§For statements).
 </p>
 
 <pre class="grammar">
-ContinueStat = "continue" [ Label ].
+ContinueStmt = "continue" [ Label ].
 </pre>
 
 <p>
@@ -3667,7 +3667,7 @@ A "goto" statement transfers control to the statement with the corresponding lab
 </p>
 
 <pre class="grammar">
-GotoStat = "goto" Label .
+GotoStmt = "goto" Label .
 </pre>
 
 <pre>
@@ -3702,7 +3702,7 @@ expression "switch" statement.
 </p>
 
 <pre class="grammar">
-FallthroughStat = "fallthrough" .
+FallthroughStmt = "fallthrough" .
 </pre>
 
 
@@ -3714,7 +3714,7 @@ the surrounding function returns.
 </p>
 
 <pre class="grammar">
-DeferStat = "defer" Expression .
+DeferStmt = "defer" Expression .
 </pre>
 
 <p>
