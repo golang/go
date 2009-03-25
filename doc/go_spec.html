@@ -1121,6 +1121,7 @@ value is made using the built-in function <code>make</code>,
 which takes the channel type and an optional capacity as arguments:
 </p>
 
+
 <pre>
 make(chan int, 100)
 </pre>
@@ -1130,6 +1131,15 @@ The capacity, in number of elements, sets the size of the buffer in the channel.
 capacity is greater than zero, the channel is asynchronous and, provided the
 buffer is not full, sends can succeed without blocking. If the capacity is zero
 or absent, the communication succeeds only when both a sender and receiver are ready.
+</p>
+
+<p>
+For a channel <code>c</code>, the predefined function <code>close(c)</code>
+marks the channel as unable to accept more
+values through a send operation.  After any previously
+sent values have been received, receives will return
+the zero value for the channel's type.  After at least one such zero value has been
+received, <code>closed(c)</code> returns true.
 </p>
 
 <h2>General properties of types and values</h2>
@@ -3258,8 +3268,14 @@ in the type guard.
 TypeSwitchStat  = "switch" [ [ SimpleStat ] ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
 TypeSwitchGuard = identifier ":=" Expression "." "(" "type" ")" .
 TypeCaseClause  = TypeSwitchCase ":" [ StatementList ] .
-TypeSwitchCase  = "case" type | "default" .
+TypeSwitchCase  = "case" ( type | "nil" ) | "default" .
 </pre>
+
+<p>
+If the interface value equals <code>nil</code>,
+only an explict <code>nil</code> case or "default"
+case will execute.
+</p>
 
 <p>
 Given a function <code>f</code>
@@ -3269,6 +3285,8 @@ the following type switch:
 
 <pre>
 switch i := f().(type) {
+case nil:
+	printString("f() returns nil");
 case int:
 	printInt(i);	// i is an int
 case float:
@@ -3286,7 +3304,9 @@ could be rewritten:
 
 <pre>
 v := f();
-if i, is_int := v.(int); is_int {
+if v == nil {
+	printString("f() returns nil");
+} else if i, is_int := v.(int); is_int {
 	printInt(i);	// i is an int
 } else if i, is_float := v.(float); is_float {
 	printFloat(i);	// i is a float
@@ -3379,9 +3399,10 @@ RangeClause = IdentifierList ( "=" | ":=" ) "range" Expression .
 
 <p>
 The type of the right-hand expression in the "range" clause must be an array,
-slice or map, or a pointer to an array, slice or map.
-The slice or map must not be <code>nil</code> (TODO: really?).
-The identifier list must contain one or two identifiers denoting the
+slice or map, or a pointer to an array, slice or map;
+or it may be a channel.
+If it is an array, slice or map,
+the identifier list must contain one or two identifiers denoting the
 iteration variables. On each iteration,
 the first variable is set to the array or slice index or
 map key, and the second variable, if present, is set to the corresponding
@@ -3389,6 +3410,11 @@ array element or map value.
 The types of the array or slice index (always <code>int</code>)
 and element, or of the map key and value respectively,
 must be assignment compatible to the iteration variables.
+</p>
+<p>
+For channels, the identifier list must contain one identifier.
+The iteration recieves values sent on the channel until the channel is closed;
+it does not process the zero value sent before the channel is closed.
 </p>
 <p>
 The iteration variables may be declared by the "range" clause (":="), in which
@@ -3515,16 +3541,6 @@ for {  // send random sequence of bits to c
 	case c &lt;- 0:  // note: no statement, no fallthrough, no folding of cases
 	case c &lt;- 1:
 	}
-}
-
-var ca chan interface {};
-var i int;
-var f float;
-select {
-case i = &lt;-ca:
-	print("received int ", i, " from ca\n");
-case f = &lt;-ca:
-	print("received float ", f, " from ca\n");
 }
 </pre>
 
@@ -3726,6 +3742,8 @@ for i := 0; i &lt;= 3; i++ {
 <h2>Predeclared functions</h2>
 <ul>
 	<li>cap
+	<li>close
+	<li>closed
 	<li>len
 	<li>make
 	<li>new
@@ -4062,11 +4080,10 @@ func generate(ch chan <- int) {
 
 // Copy the values from channel 'in' to channel 'out',
 // removing those divisible by 'prime'.
-func filter(in chan <- int, out <-chan int, prime int) {
-	for {
-		i := <-in;  // Receive value of new variable 'i' from 'in'.
+func filter(src chan <- int, dst <-chan int, prime int) {
+	for i := range src {  // Loop over values received from 'src'.
 		if i % prime != 0 {
-			out <- i  // Send 'i' to channel 'out'.
+			dst <- i  // Send 'i' to channel 'dst'.
 		}
 	}
 }
