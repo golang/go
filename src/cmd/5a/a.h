@@ -30,7 +30,8 @@
 
 #include <lib9.h>
 #include <bio.h>
-#include "../5c/5.out.h"
+#include "../5l/5.out.h"
+#include "compat.h"
 
 #ifndef	EXTERN
 #define	EXTERN	extern
@@ -59,7 +60,7 @@ struct	Sym
 {
 	Sym*	link;
 	char*	macro;
-	long	value;
+	int32	value;
 	ushort	type;
 	char	*name;
 	char	sym;
@@ -91,7 +92,7 @@ EXTERN	struct
 struct	Gen
 {
 	Sym*	sym;
-	long	offset;
+	int32	offset;
 	short	type;
 	short	reg;
 	short	name;
@@ -103,8 +104,8 @@ struct	Hist
 {
 	Hist*	link;
 	char*	name;
-	long	line;
-	long	offset;
+	int32	line;
+	int32	offset;
 };
 #define	H	((Hist*)0)
 
@@ -130,25 +131,25 @@ EXTERN	char*	include[NINCLUDE];
 EXTERN	Io*	iofree;
 EXTERN	Io*	ionext;
 EXTERN	Io*	iostack;
-EXTERN	long	lineno;
+EXTERN	int32	lineno;
 EXTERN	int	nerrors;
-EXTERN	long	nhunk;
+EXTERN	int32	nhunk;
 EXTERN	int	ninclude;
 EXTERN	Gen	nullgen;
 EXTERN	char*	outfile;
 EXTERN	int	pass;
 EXTERN	char*	pathname;
-EXTERN	long	pc;
+EXTERN	int32	pc;
 EXTERN	int	peekc;
 EXTERN	int	sym;
 EXTERN	char	symb[NSYMB];
 EXTERN	int	thechar;
 EXTERN	char*	thestring;
-EXTERN	long	thunk;
+EXTERN	int32	thunk;
 EXTERN	Biobuf	obuf;
 
-void*	alloc(long);
-void*	allocn(void*, long, long);
+void*	alloc(int32);
+void*	allocn(void*, int32, int32);
 void	errorexit(void);
 void	pushio(void);
 void	newio(void);
@@ -156,7 +157,7 @@ void	newfile(char*, int);
 Sym*	slookup(char*);
 Sym*	lookup(void);
 void	syminit(Sym*);
-long	yylex(void);
+int32	yylex(void);
 int	getc(void);
 int	getnsc(void);
 void	unget(int);
@@ -182,31 +183,10 @@ void	macif(int);
 void	macend(void);
 void	outhist(void);
 void	dodefine(char*);
-void	prfile(long);
+void	prfile(int32);
 void	linehist(char*, int);
 void	gethunk(void);
 void	yyerror(char*, ...);
 int	yyparse(void);
 void	setinclude(char*);
 int	assemble(char*);
-
-/*
- *	system-dependent stuff from ../cc/compat.c
- */
-
-enum				/* keep in synch with ../cc/cc.h */
-{
-	Plan9	= 1<<0,
-	Unix	= 1<<1,
-	Windows	= 1<<2,
-};
-int	mywait(int*);
-int	mycreat(char*, int);
-int	systemtype(int);
-int	pathchar(void);
-char*	mygetwd(char*, int);
-int	myexec(char*, char*[]);
-int	mydup(int, int);
-int	myfork(void);
-int	mypipe(int*);
-void*	mysbrk(ulong);

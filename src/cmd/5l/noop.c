@@ -66,7 +66,7 @@ fnret(Prog *q, int rs, int foreign, Prog *p)
 }
 
 static Prog *
-aword(long w, Prog *p)
+aword(int32 w, Prog *p)
 {
 	Prog *q;
 
@@ -83,7 +83,7 @@ aword(long w, Prog *p)
 }
 
 static Prog *
-adword(long w1, long w2, Prog *p)
+adword(int32 w1, int32 w2, Prog *p)
 {
 	Prog *q;
 

@@ -444,9 +444,9 @@ cinit(void)
 	}
 
 	pathname = allocn(pathname, 0, 100);
-	if(mygetwd(pathname, 99) == 0) {
+	if(getwd(pathname, 99) == 0) {
 		pathname = allocn(pathname, 100, 900);
-		if(mygetwd(pathname, 999) == 0)
+		if(getwd(pathname, 999) == 0)
 			strcpy(pathname, "/???");
 	}
 }
@@ -492,7 +492,7 @@ zname(char *n, int t, int s)
 void
 zaddr(Gen *a, int s)
 {
-	long l;
+	int32 l;
 	int i;
 	char *n;
 	Ieee e;

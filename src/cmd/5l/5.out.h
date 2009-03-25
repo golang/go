@@ -220,8 +220,8 @@ enum	as
 typedef	struct	ieee	Ieee;
 struct	ieee
 {
-	long	l;	/* contains ls-man	0xffffffff */
-	long	h;	/* contains sign	0x80000000
+	int32	l;	/* contains ls-man	0xffffffff */
+	int32	h;	/* contains sign	0x80000000
 				    exp		0x7ff00000
 				    ms-man	0x000fffff */
 };

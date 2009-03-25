@@ -47,7 +47,7 @@ doswit(Node *n)
 {
 	Case *c;
 	C1 *q, *iq;
-	long def, nc, i;
+	int32 def, nc, i;
 	Node tn;
 
 	def = 0;
@@ -86,11 +86,11 @@ doswit(Node *n)
 }
 
 void
-swit1(C1 *q, int nc, long def, Node *n, Node *tn)
+swit1(C1 *q, int nc, int32 def, Node *n, Node *tn)
 {
 	C1 *r;
 	int i;
-	long v;
+	int32 v;
 	Prog *sp;
 
 	if(nc >= 3) {
@@ -166,7 +166,7 @@ void
 bitload(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 {
 	int sh;
-	long v;
+	int32 v;
 	Node *l;
 
 	/*
@@ -204,7 +204,7 @@ bitload(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 void
 bitstore(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 {
-	long v;
+	int32 v;
 	Node nod, *l;
 	int sh;
 
@@ -234,10 +234,10 @@ bitstore(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 	regfree(n3);
 }
 
-long
-outstring(char *s, long n)
+int32
+outstring(char *s, int32 n)
 {
-	long r;
+	int32 r;
 
 	if(suppress)
 		return nstring;
@@ -259,12 +259,12 @@ outstring(char *s, long n)
 	return r;
 }
 
-long
-outlstring(ushort *s, long n)
+int32
+outlstring(ushort *s, int32 n)
 {
 	char buf[2];
 	int c;
-	long r;
+	int32 r;
 
 	if(suppress)
 		return nstring;
@@ -291,7 +291,7 @@ mulcon(Node *n, Node *nn)
 {
 	Node *l, *r, nod1, nod2;
 	Multab *m;
-	long v, vs;
+	int32 v, vs;
 	int o;
 	char code[sizeof(m->code)+2], *p;
 
@@ -391,9 +391,9 @@ nullwarn(Node *l, Node *r)
 }
 
 void
-sextern(Sym *s, Node *a, long o, long w)
+sextern(Sym *s, Node *a, int32 o, int32 w)
 {
-	long e, lw;
+	int32 e, lw;
 
 	for(e=0; e<w; e+=NSNAME) {
 		lw = NSNAME;
@@ -408,7 +408,7 @@ sextern(Sym *s, Node *a, long o, long w)
 }
 
 void
-gextern(Sym *s, Node *a, long o, long w)
+gextern(Sym *s, Node *a, int32 o, int32 w)
 {
 
 	if(a->op == OCONST && typev[a->type->etype]) {
@@ -600,7 +600,7 @@ void
 zname(Biobuf *b, Sym *s, int t)
 {
 	char *n, bf[7];
-	ulong sig;
+	uint32 sig;
 
 	n = s->name;
 	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
@@ -627,7 +627,7 @@ zname(Biobuf *b, Sym *s, int t)
 char*
 zaddr(char *bp, Adr *a, int s)
 {
-	long l;
+	int32 l;
 	Ieee e;
 
 	bp[0] = a->type;
@@ -707,13 +707,13 @@ ieeedtod(Ieee *ieee, double native)
 	fr = modf(fr*f, &ho);
 	ieee->l = ho;
 	ieee->l <<= 16;
-	ieee->l |= (long)(fr*f);
+	ieee->l |= (int32)(fr*f);
 }
 
-long
-align(long i, Type *t, int op)
+int32
+align(int32 i, Type *t, int op)
 {
-	long o;
+	int32 o;
 	Type *v;
 	int w;
 
@@ -771,16 +771,16 @@ align(long i, Type *t, int op)
 		w = SZ_LONG;	/* because of a pun in cc/dcl.c:contig() */
 		break;
 	}
-	o = round(o, w);
+	o = xround(o, w);
 	if(debug['A'])
 		print("align %s %ld %T = %ld\n", bnames[op], i, t, o);
 	return o;
 }
 
-long
-maxround(long max, long v)
+int32
+maxround(int32 max, int32 v)
 {
-	v = round(v, SZ_LONG);
+	v = xround(v, SZ_LONG);
 	if(v > max)
 		return v;
 	return max;

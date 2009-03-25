@@ -165,7 +165,7 @@ nextpc(void)
 void
 gargs(Node *n, Node *tn1, Node *tn2)
 {
-	long regs;
+	int32 regs;
 	Node fnxargs[20], *fnxp;
 
 	regs = cursafe;
@@ -235,7 +235,7 @@ garg1(Node *n, Node *tn1, Node *tn2, int f, Node **fnxp)
 }
 
 Node*
-nodconst(long v)
+nodconst(int32 v)
 {
 	constnode.vconst = v;
 	return &constnode;
@@ -455,7 +455,7 @@ raddr(Node *n, Prog *p)
 void
 naddr(Node *n, Adr *a)
 {
-	long v;
+	int32 v;
 
 	a->type = D_NONE;
 	if(n == Z)
@@ -1148,7 +1148,7 @@ gbranch(int o)
 }
 
 void
-patch(Prog *op, long pc)
+patch(Prog *op, int32 pc)
 {
 
 	op->to.offset = pc;
@@ -1165,7 +1165,7 @@ gpseudo(int a, Sym *s, Node *n)
 	p->from.sym = s;
 	p->from.name = D_EXTERN;
 	if(a == ATEXT)
-		p->reg = (profileflg ? 0 : NOPROF);
+		p->reg = textflag;
 	if(s->class == CSTATIC)
 		p->from.name = D_STATIC;
 	naddr(n, &p->to);
@@ -1195,7 +1195,7 @@ sconst(Node *n)
 }
 
 int
-sval(long v)
+sval(int32 v)
 {
 	int i;
 
@@ -1204,15 +1204,15 @@ sval(long v)
 			return 1;
 		if((~v & ~0xff) == 0)
 			return 1;
-		v = (v<<2) | ((ulong)v>>30);
+		v = (v<<2) | ((uint32)v>>30);
 	}
 	return 0;
 }
 
-long
+int32
 exreg(Type *t)
 {
-	long o;
+	int32 o;
 
 	if(typechlp[t->etype]) {
 		if(exregoffset <= REGEXT-4)
@@ -1255,7 +1255,7 @@ schar	ewidth[NTYPE] =
 	SZ_INT,		/* [TENUM] */
 };
 
-long	ncast[NTYPE] =
+int32	ncast[NTYPE] =
 {
 	0,				/* [TXXX] */
 	BCHAR|BUCHAR,			/* [TCHAR] */
