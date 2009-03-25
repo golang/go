@@ -30,7 +30,7 @@
 
 #include	<lib9.h>
 #include	<bio.h>
-#include	"../5c/5.out.h"
+#include	"../5l/5.out.h"
 
 #ifndef	EXTERN
 #define	EXTERN	extern
@@ -58,7 +58,7 @@ struct	Adr
 {
 	union
 	{
-		long	u0offset;
+		int32	u0offset;
 		char*	u0sval;
 		Ieee*	u0ieee;
 	} u0;
@@ -86,13 +86,13 @@ struct	Prog
 	Adr	to;
 	union
 	{
-		long	u0regused;
+		int32	u0regused;
 		Prog*	u0forwd;
 	} u0;
 	Prog*	cond;
 	Prog*	link;
-	long	pc;
-	long	line;
+	int32	pc;
+	int32	line;
 	uchar	mark;
 	uchar	optab;
 	uchar	as;
@@ -112,8 +112,8 @@ struct	Sym
 	short	frame;
 	uchar	subtype;
 	ushort	file;
-	long	value;
-	long	sig;
+	int32	value;
+	int32	sig;
 	uchar	used;
 	uchar	thumb;	// thumb code
 	uchar	foreign;	// called by arm if thumb, by thumb if arm
@@ -128,7 +128,7 @@ struct	Autom
 {
 	Sym*	asym;
 	Auto*	link;
-	long	aoffset;
+	int32	aoffset;
 	short	type;
 };
 struct	Optab
@@ -149,8 +149,8 @@ struct	Oprang
 };
 struct	Count
 {
-	long	count;
-	long	outof;
+	int32	count;
+	int32	outof;
 };
 struct	Use
 {
@@ -275,15 +275,15 @@ EXTERN union
 
 #ifndef COFFCVT
 
-EXTERN	long	HEADR;			/* length of header */
+EXTERN	int32	HEADR;			/* length of header */
 EXTERN	int	HEADTYPE;		/* type of header */
-EXTERN	long	INITDAT;		/* data location */
-EXTERN	long	INITRND;		/* data round above text location */
-EXTERN	long	INITTEXT;		/* text location */
+EXTERN	int32	INITDAT;		/* data location */
+EXTERN	int32	INITRND;		/* data round above text location */
+EXTERN	int32	INITTEXT;		/* text location */
 EXTERN	char*	INITENTRY;		/* entry point */
-EXTERN	long	autosize;
+EXTERN	int32	autosize;
 EXTERN	Biobuf	bso;
-EXTERN	long	bsssize;
+EXTERN	int32	bsssize;
 EXTERN	int	cbc;
 EXTERN	uchar*	cbp;
 EXTERN	int	cout;
@@ -292,7 +292,7 @@ EXTERN	Auto*	curhist;
 EXTERN	Prog*	curp;
 EXTERN	Prog*	curtext;
 EXTERN	Prog*	datap;
-EXTERN	long	datsize;
+EXTERN	int32	datsize;
 EXTERN	char	debug[128];
 EXTERN	Prog*	etextp;
 EXTERN	Prog*	firstp;
@@ -312,21 +312,21 @@ EXTERN	char	inuxi1[1];
 EXTERN	char	inuxi2[2];
 EXTERN	char	inuxi4[4];
 EXTERN	Prog*	lastp;
-EXTERN	long	lcsize;
+EXTERN	int32	lcsize;
 EXTERN	char	literal[32];
 EXTERN	int	nerrors;
-EXTERN	long	nhunk;
-EXTERN	long	instoffset;
+EXTERN	int32	nhunk;
+EXTERN	int32	instoffset;
 EXTERN	Opcross	opcross[8];
 EXTERN	Oprang	oprange[ALAST];
 EXTERN	Oprang	thumboprange[ALAST];
 EXTERN	char*	outfile;
-EXTERN	long	pc;
+EXTERN	int32	pc;
 EXTERN	uchar	repop[ALAST];
-EXTERN	long	symsize;
+EXTERN	int32	symsize;
 EXTERN	Prog*	textp;
-EXTERN	long	textsize;
-EXTERN	long	thunk;
+EXTERN	int32	textsize;
+EXTERN	int32	thunk;
 EXTERN	int	version;
 EXTERN	char	xcmp[C_GOK+1][C_GOK+1];
 EXTERN	Prog	zprg;
@@ -373,7 +373,7 @@ int	Pconv(Fmt*);
 int	Sconv(Fmt*);
 int	aclass(Adr*);
 int	thumbaclass(Adr*, Prog*);
-void	addhist(long, int);
+void	addhist(int32, int);
 void	append(Prog*, Prog*);
 void	asmb(void);
 void	asmdyn(void);
@@ -382,87 +382,87 @@ void	asmthumbmap(void);
 void	asmout(Prog*, Optab*);
 void	thumbasmout(Prog*, Optab*);
 void	asmsym(void);
-long	atolwhex(char*);
+int32	atolwhex(char*);
 Prog*	brloop(Prog*);
 void	buildop(void);
 void	thumbbuildop(void);
 void	buildrep(int, int);
 void	cflush(void);
-void	ckoff(Sym*, long);
+void	ckoff(Sym*, int32);
 int	chipfloat(Ieee*);
 int	cmp(int, int);
 int	compound(Prog*);
 double	cputime(void);
-void	datblk(long, long, int);
+void	datblk(int32, int32, int);
 void	diag(char*, ...);
 void	divsig(void);
 void	dodata(void);
 void	doprof1(void);
 void	doprof2(void);
-void	dynreloc(Sym*, long, int);
-long	entryvalue(void);
+void	dynreloc(Sym*, int32, int);
+int32	entryvalue(void);
 void	errorexit(void);
 void	exchange(Prog*);
 void	export(void);
-int	find1(long, int);
+int	find1(int32, int);
 void	follow(void);
 void	gethunk(void);
 void	histtoauto(void);
 void	hputl(int);
 double	ieeedtod(Ieee*);
-long	ieeedtof(Ieee*);
+int32	ieeedtof(Ieee*);
 void	import(void);
 int	isnop(Prog*);
-void	ldobj(int, long, char*);
+void	ldobj(int, int32, char*);
 void	loadlib(void);
 void	listinit(void);
 Sym*	lookup(char*, int);
 void	cput(int);
-void	hput(long);
-void	lput(long);
-void	lputl(long);
+void	hput(int32);
+void	lput(int32);
+void	lputl(int32);
 void	mkfwd(void);
-void*	mysbrk(ulong);
+void*	mysbrk(uint32);
 void	names(void);
 void	nocache(Prog*);
 void	nuxiinit(void);
 void	objfile(char*);
 int	ocmp(const void*, const void*);
-long	opirr(int);
+int32	opirr(int);
 Optab*	oplook(Prog*);
-long	oprrr(int, int);
-long	olr(long, int, int, int);
-long	olhr(long, int, int, int);
-long	olrr(int, int, int, int);
-long	olhrr(int, int, int, int);
-long	osr(int, int, long, int, int);
-long	oshr(int, long, int, int);
-long	ofsr(int, int, long, int, int, Prog*);
-long	osrr(int, int, int, int);
-long	oshrr(int, int, int, int);
-long	omvl(Prog*, Adr*, int);
+int32	oprrr(int, int);
+int32	olr(int32, int, int, int);
+int32	olhr(int32, int, int, int);
+int32	olrr(int, int, int, int);
+int32	olhrr(int, int, int, int);
+int32	osr(int, int, int32, int, int);
+int32	oshr(int, int32, int, int);
+int32	ofsr(int, int, int32, int, int, Prog*);
+int32	osrr(int, int, int, int);
+int32	oshrr(int, int, int, int);
+int32	omvl(Prog*, Adr*, int);
 void	patch(void);
 void	prasm(Prog*);
 void	prepend(Prog*, Prog*);
 Prog*	prg(void);
 int	pseudo(Prog*);
-void	putsymb(char*, int, long, int);
+void	putsymb(char*, int, int32, int);
 void	readundefs(char*, int);
-long	regoff(Adr*);
+int32	regoff(Adr*);
 int	relinv(int);
-long	rnd(long, long);
+int32	rnd(int32, int32);
 void	span(void);
 void	strnput(char*, int);
 void	undef(void);
 void	undefsym(Sym*);
-void	wput(long);
-void	xdefine(char*, int, long);
+void	wput(int32);
+void	xdefine(char*, int, int32);
 void	xfol(Prog*);
 void	zerosig(char*);
 void	noops(void);
-long	immrot(ulong);
-long	immaddr(long);
-long	opbra(int, int);
+int32	immrot(uint32);
+int32	immaddr(int32);
+int32	opbra(int, int);
 int	brextra(Prog*);
 int	isbranch(Prog*);
 int	fnpinc(Sym *);

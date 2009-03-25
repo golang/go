@@ -34,7 +34,7 @@
 %union
 {
 	Sym	*sym;
-	long	lval;
+	int32	lval;
 	double	dval;
 	char	sval[8];
 	Gen	gen;
@@ -288,7 +288,7 @@ inst:
 /*
  * MULA hi,lo,r1,r2
  */
-|	LTYPEN cond reg ',' reg ',' reg ',' spreg 
+|	LTYPEN cond reg ',' reg ',' reg ',' spreg
 	{
 		$7.type = D_REGREG;
 		$7.offset = $9;

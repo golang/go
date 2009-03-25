@@ -30,11 +30,11 @@
 
 #include	"l.h"
 
-long	OFFSET;
+int32	OFFSET;
 
 static Prog *PP;
 
-long
+int32
 entryvalue(void)
 {
 	char *a;
@@ -63,7 +63,7 @@ void
 asmb(void)
 {
 	Prog *p;
-	long t, etext;
+	int32 t, etext;
 	Optab *o;
 
 	if(debug['v'])
@@ -286,7 +286,7 @@ cput(int c)
 
 /*
 void
-cput(long c)
+cput(int32 c)
 {
 	*cbp++ = c;
 	if(--cbc <= 0)
@@ -295,7 +295,7 @@ cput(long c)
 */
 
 void
-wput(long l)
+wput(int32 l)
 {
 
 	cbp[0] = l>>8;
@@ -307,7 +307,7 @@ wput(long l)
 }
 
 void
-hput(long l)
+hput(int32 l)
 {
 
 	cbp[0] = l>>8;
@@ -319,7 +319,7 @@ hput(long l)
 }
 
 void
-lput(long l)
+lput(int32 l)
 {
 
 	cbp[0] = l>>24;
@@ -333,7 +333,7 @@ lput(long l)
 }
 
 void
-lputl(long l)
+lputl(int32 l)
 {
 
 	cbp[3] = l>>24;
@@ -437,7 +437,7 @@ asmsym(void)
 }
 
 void
-putsymb(char *s, int t, long v, int ver)
+putsymb(char *s, int t, int32 v, int ver)
 {
 	int i, f;
 
@@ -486,9 +486,9 @@ putsymb(char *s, int t, long v, int ver)
 void
 asmlc(void)
 {
-	long oldpc, oldlc;
+	int32 oldpc, oldlc;
 	Prog *p;
-	long v, s;
+	int32 v, s;
 
 	oldpc = INITTEXT;
 	oldlc = 0;
@@ -565,7 +565,7 @@ asmlc(void)
 }
 
 static void
-outt(long f, long l)
+outt(int32 f, int32 l)
 {
 	if(debug['L'])
 		Bprint(&bso, "tmap: %lux-%lux\n", f, l);
@@ -576,7 +576,7 @@ outt(long f, long l)
 void
 asmthumbmap(void)
 {
-	long pc, lastt;
+	int32 pc, lastt;
 	Prog *p;
 
 	if(!seenthumb)
@@ -616,12 +616,12 @@ asmthumbmap(void)
 }
 
 void
-datblk(long s, long n, int str)
+datblk(int32 s, int32 n, int str)
 {
 	Sym *v;
 	Prog *p;
 	char *cast;
-	long a, l, fl, j, d;
+	int32 a, l, fl, j, d;
 	int i, c;
 
 	memset(buf.dbuf, 0, n+100);
@@ -747,7 +747,7 @@ datblk(long s, long n, int str)
 void
 asmout(Prog *p, Optab *o)
 {
-	long o1, o2, o3, o4, o5, o6, v;
+	int32 o1, o2, o3, o4, o5, o6, v;
 	int r, rf, rt, rt2;
 	Sym *s;
 
@@ -759,7 +759,7 @@ PP = p;
 	o5 = 0;
 	o6 = 0;
 	armsize += o->size;
-if(debug['P']) print("%ulx: %P	type %d\n", (ulong)(p->pc), p, o->type);
+if(debug['P']) print("%ulx: %P	type %d\n", (uint32)(p->pc), p, o->type);
 	switch(o->type) {
 	default:
 		diag("unknown asm %d", o->type);
@@ -767,7 +767,7 @@ if(debug['P']) print("%ulx: %P	type %d\n", (ulong)(p->pc), p, o->type);
 		break;
 
 	case 0:		/* pseudo ops */
-if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (ulong)(p->pc), p->from.sym->name, p->from.sym->thumb, p->from.sym->foreign, p->from.sym->fnptr, p->from.sym->used);
+if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym->name, p->from.sym->thumb, p->from.sym->foreign, p->from.sym->fnptr, p->from.sym->used);
 		break;
 
 	case 1:		/* op R,[R],R */
@@ -832,7 +832,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (ulong)(p->pc), p->from.sym-
 			s = p->to.sym;
 			if(s->type != SUNDEF)
 				diag("bad branch sym type");
-			v = (ulong)s->value >> (Roffset-2);
+			v = (uint32)s->value >> (Roffset-2);
 			dynreloc(s, p->pc, 0);
 		}
 		else if(p->cond != P)
@@ -1209,7 +1209,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (ulong)(p->pc), p->from.sym-
 		o1 = ofsr(p->as, p->to.reg, v, r, p->scond, p) | (1<<20);
 		break;
 
-	case 52:	/* floating point store, long offset UGLY */
+	case 52:	/* floating point store, int32 offset UGLY */
 		o1 = omvl(p, &p->to, REGTMP);
 		if(!o1)
 			break;
@@ -1220,7 +1220,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (ulong)(p->pc), p->from.sym-
 		o3 = ofsr(p->as, p->from.reg, 0, REGTMP, p->scond, p);
 		break;
 
-	case 53:	/* floating point load, long offset UGLY */
+	case 53:	/* floating point load, int32 offset UGLY */
 		o1 = omvl(p, &p->from, REGTMP);
 		if(!o1)
 			break;
@@ -1547,10 +1547,10 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (ulong)(p->pc), p->from.sym-
 	}
 }
 
-long
+int32
 oprrr(int a, int sc)
 {
-	long o;
+	int32 o;
 
 	o = (sc & C_SCOND) << 28;
 	if(sc & C_SBIT)
@@ -1612,7 +1612,7 @@ oprrr(int a, int sc)
 	return 0;
 }
 
-long
+int32
 opbra(int a, int sc)
 {
 
@@ -1647,10 +1647,10 @@ opbra(int a, int sc)
 	return 0;
 }
 
-long
-olr(long v, int b, int r, int sc)
+int32
+olr(int32 v, int b, int r, int sc)
 {
-	long o;
+	int32 o;
 
 	if(sc & C_SBIT)
 		diag(".S on LDR/STR instruction");
@@ -1674,10 +1674,10 @@ olr(long v, int b, int r, int sc)
 	return o;
 }
 
-long
-olhr(long v, int b, int r, int sc)
+int32
+olhr(int32 v, int b, int r, int sc)
 {
-	long o;
+	int32 o;
 
 	if(sc & C_SBIT)
 		diag(".S on LDRH/STRH instruction");
@@ -1699,10 +1699,10 @@ olhr(long v, int b, int r, int sc)
 	return o;
 }
 
-long
-osr(int a, int r, long v, int b, int sc)
+int32
+osr(int a, int r, int32 v, int b, int sc)
 {
-	long o;
+	int32 o;
 
 	o = olr(v, b, r, sc) ^ (1<<20);
 	if(a != AMOVW)
@@ -1710,46 +1710,46 @@ osr(int a, int r, long v, int b, int sc)
 	return o;
 }
 
-long
-oshr(int r, long v, int b, int sc)
+int32
+oshr(int r, int32 v, int b, int sc)
 {
-	long o;
+	int32 o;
 
 	o = olhr(v, b, r, sc) ^ (1<<20);
 	return o;
 }
 	
 
-long
+int32
 osrr(int r, int i, int b, int sc)
 {
 
 	return olr(i, b, r, sc) ^ ((1<<25) | (1<<20));
 }
 
-long
+int32
 oshrr(int r, int i, int b, int sc)
 {
 	return olhr(i, b, r, sc) ^ ((1<<22) | (1<<20));
 }
 
-long
+int32
 olrr(int i, int b, int r, int sc)
 {
 
 	return olr(i, b, r, sc) ^ (1<<25);
 }
 
-long
+int32
 olhrr(int i, int b, int r, int sc)
 {
 	return olhr(i, b, r, sc) ^ (1<<22);
 }
 
-long
-ofsr(int a, int r, long v, int b, int sc, Prog *p)
+int32
+ofsr(int a, int r, int32 v, int b, int sc, Prog *p)
 {
-	long o;
+	int32 o;
 
 	if(sc & C_SBIT)
 		diag(".S on FLDR/FSTR instruction");
@@ -1783,10 +1783,10 @@ ofsr(int a, int r, long v, int b, int sc, Prog *p)
 	return o;
 }
 
-long
+int32
 omvl(Prog *p, Adr *a, int dr)
 {	
-	long v, o1;
+	int32 v, o1;
 	if(!p->cond) {
 		aclass(a);
 		v = immrot(~instoffset);

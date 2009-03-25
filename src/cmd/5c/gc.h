@@ -29,7 +29,7 @@
 // THE SOFTWARE.
 
 #include	"../cc/cc.h"
-#include	"../5c/5.out.h"
+#include	"../5l/5.out.h"
 
 /*
  * 5c/arm
@@ -60,7 +60,7 @@ typedef	struct	Rgn	Rgn;
 
 struct	Adr
 {
-	long	offset;
+	int32	offset;
 	double	dval;
 	char	sval[NSNAME];
 	Ieee	ieee;
@@ -79,7 +79,7 @@ struct	Prog
 	Adr	from;
 	Adr	to;
 	Prog*	link;
-	long	lineno;
+	int32	lineno;
 	char	as;
 	char	reg;
 	uchar	scond;
@@ -89,21 +89,21 @@ struct	Prog
 struct	Case
 {
 	Case*	link;
-	long	val;
-	long	label;
+	int32	val;
+	int32	label;
 	char	def;
 };
 #define	C	((Case*)0)
 
 struct	C1
 {
-	long	val;
-	long	label;
+	int32	val;
+	int32	label;
 };
 
 struct	Multab
 {
-	long	val;
+	int32	val;
 	char	code[20];
 };
 
@@ -115,7 +115,7 @@ struct	Hintab
 
 struct	Var
 {
-	long	offset;
+	int32	offset;
 	Sym*	sym;
 	char	name;
 	char	etype;
@@ -123,8 +123,8 @@ struct	Var
 
 struct	Reg
 {
-	long	pc;
-	long	rpo;		/* reverse post ordering */
+	int32	pc;
+	int32	rpo;		/* reverse post ordering */
 
 	Bits	set;
 	Bits	use1;
@@ -137,12 +137,12 @@ struct	Reg
 	Bits	regdiff;
 	Bits	act;
 
-	long	regu;
-	long	loop;		/* could be shorter */
+	int32	regu;
+	int32	loop;		/* could be shorter */
 
 	
 	Reg*	log5;
-	long	active;
+	int32	active;
 
 	Reg*	p1;
 	Reg*	p2;
@@ -163,16 +163,16 @@ struct	Rgn
 	short	regno;
 };
 
-EXTERN	long	breakpc;
+EXTERN	int32	breakpc;
 EXTERN	Case*	cases;
 EXTERN	Node	constnode;
 EXTERN	Node	fconstnode;
-EXTERN	long	continpc;
-EXTERN	long	curarg;
-EXTERN	long	cursafe;
+EXTERN	int32	continpc;
+EXTERN	int32	curarg;
+EXTERN	int32	cursafe;
 EXTERN	Prog*	firstp;
 EXTERN	Prog*	lastp;
-EXTERN	long	maxargsafe;
+EXTERN	int32	maxargsafe;
 EXTERN	int	mnstring;
 EXTERN	Multab	multab[20];
 EXTERN	int	retok;
@@ -180,18 +180,18 @@ EXTERN	int	hintabsize;
 EXTERN	Node*	nodrat;
 EXTERN	Node*	nodret;
 EXTERN	Node*	nodsafe;
-EXTERN	long	nrathole;
-EXTERN	long	nstring;
+EXTERN	int32	nrathole;
+EXTERN	int32	nstring;
 EXTERN	Prog*	p;
-EXTERN	long	pc;
+EXTERN	int32	pc;
 EXTERN	Node	regnode;
 EXTERN	char	string[NSNAME];
 EXTERN	Sym*	symrathole;
 EXTERN	Node	znode;
 EXTERN	Prog	zprog;
 EXTERN	char	reg[NREG+NFREG];
-EXTERN	long	exregoffset;
-EXTERN	long	exfregoffset;
+EXTERN	int32	exregoffset;
+EXTERN	int32	exfregoffset;
 EXTERN	int	suppress;
 
 #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
@@ -216,8 +216,8 @@ EXTERN	Bits	params;
 EXTERN	Bits	consts;
 EXTERN	Bits	addrs;
 
-EXTERN	long	regbits;
-EXTERN	long	exregbits;
+EXTERN	int32	regbits;
+EXTERN	int32	exregbits;
 
 EXTERN	int	change;
 
@@ -226,9 +226,9 @@ EXTERN	Reg*	lastr;
 EXTERN	Reg	zreg;
 EXTERN	Reg*	freer;
 EXTERN	Var	var[NVAR];
-EXTERN	long*	idom;
+EXTERN	int32*	idom;
 EXTERN	Reg**	rpo2r;
-EXTERN	long	maxnr;
+EXTERN	int32	maxnr;
 
 extern	char*	anames[];
 extern	Hintab	hintab[];
@@ -251,7 +251,7 @@ void	reglcgen(Node*, Node*, Node*);
 void	lcgen(Node*, Node*);
 void	bcgen(Node*, int);
 void	boolgen(Node*, int, Node*);
-void	sugen(Node*, Node*, long);
+void	sugen(Node*, Node*, int32);
 void	layout(Node*, Node*, int, int, Node*);
 
 /*
@@ -262,7 +262,7 @@ void	gclean(void);
 void	nextpc(void);
 void	gargs(Node*, Node*, Node*);
 void	garg1(Node*, Node*, Node*, int, Node**);
-Node*	nodconst(long);
+Node*	nodconst(int32);
 Node*	nod32const(vlong);
 Node*	nodfconst(double);
 void	nodreg(Node*, Node*, int);
@@ -285,9 +285,9 @@ void	gins(int a, Node*, Node*);
 void	gopcode(int, Node*, Node*, Node*);
 int	samaddr(Node*, Node*);
 void	gbranch(int);
-void	patch(Prog*, long);
+void	patch(Prog*, int32);
 int	sconst(Node*);
-int	sval(long);
+int	sval(int32);
 void	gpseudo(int, Sym*, Node*);
 
 /*
@@ -295,16 +295,13 @@ void	gpseudo(int, Sym*, Node*);
  */
 int	swcmp(const void*, const void*);
 void	doswit(Node*);
-void	swit1(C1*, int, long, Node*, Node*);
+void	swit1(C1*, int, int32, Node*, Node*);
 void	cas(void);
 void	bitload(Node*, Node*, Node*, Node*, Node*);
 void	bitstore(Node*, Node*, Node*, Node*, Node*);
-long	outstring(char*, long);
 int	mulcon(Node*, Node*);
-Multab*	mulcon0(long);
+Multab*	mulcon0(int32);
 void	nullwarn(Node*, Node*);
-void	sextern(Sym*, Node*, long, long);
-void	gextern(Sym*, Node*, long, long);
 void	outcode(void);
 void	ieeedtod(Ieee*, double);
 
@@ -329,12 +326,12 @@ void	regopt(Prog*);
 void	addmove(Reg*, int, int, int);
 Bits	mkvar(Adr*, int);
 void	prop(Reg*, Bits, Bits);
-void	loopit(Reg*, long);
+void	loopit(Reg*, int32);
 void	synch(Reg*, Bits);
-ulong	allreg(ulong, Rgn*);
+uint32	allreg(uint32, Rgn*);
 void	paint1(Reg*, int);
-ulong	paint2(Reg*, int);
-void	paint3(Reg*, int, long, int);
+uint32	paint2(Reg*, int);
+void	paint3(Reg*, int, int32, int);
 void	addreg(Adr*, int);
 
 /*
@@ -360,10 +357,10 @@ int	copyau1(Prog*, Adr*);
 int	copysub(Adr*, Adr*, Adr*, int);
 int	copysub1(Prog*, Adr*, Adr*, int);
 
-long	RtoB(int);
-long	FtoB(int);
-int	BtoR(long);
-int	BtoF(long);
+int32	RtoB(int);
+int32	FtoB(int);
+int	BtoR(int32);
+int	BtoF(int32);
 
 void	predicate(void); 
 int	isbranch(Prog *); 

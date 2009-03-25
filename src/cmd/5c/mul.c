@@ -28,6 +28,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+
 #include "gc.h"
 
 /*
@@ -42,15 +43,15 @@
 
 static  int	maxmulops = 3;	/* max # of ops to replace mul with */
 static	int	multabp;
-static	long	mulval;
+static	int32	mulval;
 static	char*	mulcp;
-static	long	valmax;
+static	int32	valmax;
 static	int	shmax;
 
 static int	docode(char *hp, char *cp, int r0, int r1);
 static int	gen1(int len);
-static int	gen2(int len, long r1);
-static int	gen3(int len, long r0, long r1, int flag);
+static int	gen2(int len, int32 r1);
+static int	gen3(int len, int32 r0, int32 r1, int flag);
 enum
 {
 	SR1	= 1<<0,		/* r1 has been shifted */
@@ -60,7 +61,7 @@ enum
 };
 
 Multab*
-mulcon0(long v)
+mulcon0(int32 v)
 {
 	int a1, a2, g;
 	Multab *m, *m1;
@@ -265,7 +266,7 @@ gen1(int len)
 }
 
 static int
-gen2(int len, long r1)
+gen2(int len, int32 r1)
 {
 	int i;
 
@@ -315,10 +316,10 @@ out:
 }
 
 static int
-gen3(int len, long r0, long r1, int flag)
+gen3(int len, int32 r0, int32 r1, int flag)
 {
 	int i, f1, f2;
-	long x;
+	int32 x;
 
 	if(r0 <= 0 ||
 	   r0 >= r1 ||

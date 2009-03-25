@@ -30,13 +30,13 @@
 
 #include "l.h"
 
-static long thumboprr(int);
-static long thumboprrr(int, int);
-static long thumbopirr(int , int);
-static long thumbopri(int);
-static long thumbophh(int);
-static long thumbopbra(int);
-static long thumbopmv(int, int);
+static int32 thumboprr(int);
+static int32 thumboprrr(int, int);
+static int32 thumbopirr(int , int);
+static int32 thumbopri(int);
+static int32 thumbophh(int);
+static int32 thumbopbra(int);
+static int32 thumbopmv(int, int);
 static void lowreg(Prog *, int);
 static void mult(Prog *, int, int);
 static void numr(Prog *, int, int, int);
@@ -327,7 +327,7 @@ thumbaclass(Adr *a, Prog *p)
 				v += e;
 				va += e;
 				instoffset += e;
-			}		
+			}
 #endif
 			if(v >= -4194304 && v <= 4194302)
 				return C_SBRA;
@@ -528,7 +528,7 @@ brextra(Prog *p)
 
 #define high(r)	((r)>=8)
 
-static long
+static int32
 mv(Prog *p, int r, int off)
 {
 	int v, o;
@@ -552,7 +552,7 @@ mv(Prog *p, int r, int off)
 }
 
 static void
-mvcon(Prog *p, int r, int c, long *o1, long *o2)
+mvcon(Prog *p, int r, int c, int32 *o1, int32 *o2)
 {
 	int op = 0, n = 0;
 
@@ -593,7 +593,7 @@ mvcon(Prog *p, int r, int c, long *o1, long *o2)
 	}
 }
 
-static long
+static int32
 mvlh(int rs, int rd)
 {
 	int o = 0x46<<8;
@@ -676,14 +676,14 @@ thumbbuildop()
 void
 thumbasmout(Prog *p, Optab *o)
 {
-	long o1, o2, o3, o4, o5, o6, o7, v;
+	int32 o1, o2, o3, o4, o5, o6, o7, v;
 	int r, rf, rt;
 
 	rf = p->from.reg;
 	rt = p->to.reg;
 	r = p->reg;
 	o1 = o2 = o3 = o4 = o5 = o6 = o7 = 0;
-if(debug['P']) print("%ulx: %P	type %d %d\n", (ulong)(p->pc), p, o->type, p->align);
+if(debug['P']) print("%ulx: %P	type %d %d\n", (uint32)(p->pc), p, o->type, p->align);
 	opcount[o->type] += o->size;
 	switch(o->type) {
 	default:
@@ -691,7 +691,7 @@ if(debug['P']) print("%ulx: %P	type %d %d\n", (ulong)(p->pc), p, o->type, p->ali
 		prasm(p);
 		break;
 	case 0:		/* pseudo ops */
-if(debug['G']) print("%ulx: %s: thumb\n", (ulong)(p->pc), p->from.sym->name);
+if(debug['G']) print("%ulx: %s: thumb\n", (uint32)(p->pc), p->from.sym->name);
 		break;
 	case 1:		/* op R, -, R or op R, R, - */
 		o1 = thumboprr(p->as);
@@ -735,7 +735,7 @@ if(debug['G']) print("%ulx: %s: thumb\n", (ulong)(p->pc), p->from.sym->name);
 		break;
 	case 5:		/* add/sub/mov $I, -, R or cmp $I, R, - */
 		thumbaclass(&p->from, p);
-		o1 = thumbopri(p->as);	
+		o1 = thumbopri(p->as);
 		if(rt == NREG)
 			rt = r;
 		numr(p, instoffset, 0, 255);
@@ -1077,7 +1077,7 @@ if(debug['G']) print("%ulx: %s: thumb\n", (ulong)(p->pc), p->from.sym->name);
 		break;
 	case 42:		/* Bcc GBRA */
 		thumbaclass(&p->to, p);
-		o1 = (0xd<<12) | thumbopbra(relinv(p->as)) | (6>>1);		// bccnot 
+		o1 = (0xd<<12) | thumbopbra(relinv(p->as)) | (6>>1);		// bccnot
 		// ab lbra
 		o2 = (0x9<<11) | (REGTMPT<<8);	// mov 0(pc), r7
 		o3 = mvlh(REGTMPT, REGPC);		// mov r7, pc
@@ -1119,7 +1119,7 @@ if(debug['G']) print("%ulx: %s: thumb\n", (ulong)(p->pc), p->from.sym->name);
 		break;
 	case 46:		/* Bcc LBRA */
 		thumbaclass(&p->to, p);
-		o1 = (0xd<<12) | thumbopbra(relinv(p->as)) | (0>>1);		// bccnot 
+		o1 = (0xd<<12) | thumbopbra(relinv(p->as)) | (0>>1);		// bccnot
 		// ab lbra
 		instoffset -= 2;
 		numr(p, instoffset, -2048, 2046);
@@ -1242,7 +1242,7 @@ if(debug['G']) print("%ulx: %s: thumb\n", (ulong)(p->pc), p->from.sym->name);
 	}
 }
 
-static long
+static int32
 thumboprr(int a)
 {
 	switch(a) {
@@ -1267,7 +1267,7 @@ thumboprr(int a)
 	return 0;
 }
 
-static long
+static int32
 thumbopirr(int a, int ld)
 {
 	if(ld)
@@ -1281,8 +1281,8 @@ thumbopirr(int a, int ld)
 	}
 	return 0;
 }
-	
-static long
+
+static int32
 thumboprrr(int a, int ld)
 {
 	if(ld){
@@ -1308,7 +1308,7 @@ thumboprrr(int a, int ld)
 	return 0;
 }
 
-static long
+static int32
 thumbopri(int a)
 {
 	switch(a) {
@@ -1325,7 +1325,7 @@ thumbopri(int a)
 	return 0;
 }
 
-static long
+static int32
 thumbophh(int a)
 {
 	switch(a) {
@@ -1338,7 +1338,7 @@ thumbophh(int a)
 	return 0;
 }
 
-static long
+static int32
 thumbopbra(int a)
 {
 	switch(a) {
@@ -1364,7 +1364,7 @@ thumbopbra(int a)
 	return 0;
 }
 
-static long
+static int32
 thumbopmv(int a, int ld)
 {
 	switch(a) {
@@ -1379,7 +1379,7 @@ thumbopmv(int a, int ld)
 	return 0;
 }
 
-static void 
+static void
 lowreg(Prog *p, int r)
 {
 	if(high(r))
@@ -1393,14 +1393,14 @@ mult(Prog *p, int n, int m)
 		diag("%d not M(%d) [%P]", n, m, p);
 }
 
-static void 
+static void
 numr(Prog *p, int n, int min, int max)
 {
 	if(n < min || n > max)
 		diag("%d not in %d-%d [%P]", n, min, max, p);
 }
 
-static void 
+static void
 regis(Prog *p, int r, int r1, int r2)
 {
 	if(r != r1 && r != r2)
@@ -1432,7 +1432,7 @@ thumbcount()
 		print("%d:	%d %d %d%%\n", i, opcount[i], c, (opcount[i]*100+t/2)/t);
 	}
 }
-	
+
 char *op1[] = { "lsl", "lsr", "asr" };
 char *op2[] = { "add", "sub" };
 char *op3[] = { "movw", "cmp", "add", "sub" };
@@ -1513,7 +1513,7 @@ lhreg(int r, int lh)
 		sprint(s[i], "r%d", r+8);
 	return s[i];
 }
-	
+
 static void
 illegal(int i, int pc)
 {

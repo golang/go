@@ -31,9 +31,9 @@
 #include	"l.h"
 
 static struct {
-	ulong	start;
-	ulong	size;
-	ulong	extra;
+	uint32	start;
+	uint32	size;
+	uint32	extra;
 } pool;
 
 int	checkpool(Prog*, int);
@@ -140,11 +140,11 @@ scan(Prog *op, Prog *p, int c)
 }
 
 /* size of a case statement including jump table */
-static long
+static int32
 casesz(Prog *p)
 {
 	int jt = 0;
-	long n = 0;
+	int32 n = 0;
 	Optab *o;
 
 	for( ; p != P; p = p->link){
@@ -165,7 +165,7 @@ span(void)
 	Sym *setext, *s;
 	Optab *o;
 	int m, bflag, i;
-	long c, otxt, v;
+	int32 c, otxt, v;
 	int lastthumb = -1;
 
 	if(debug['v'])
@@ -517,7 +517,7 @@ addpool(Prog *p, Adr *a)
 }
 
 void
-xdefine(char *p, int t, long v)
+xdefine(char *p, int t, int32 v)
 {
 	Sym *s;
 
@@ -528,7 +528,7 @@ xdefine(char *p, int t, long v)
 	}
 }
 
-long
+int32
 regoff(Adr *a)
 {
 
@@ -537,8 +537,8 @@ regoff(Adr *a)
 	return instoffset;
 }
 
-long
-immrot(ulong v)
+int32
+immrot(uint32 v)
 {
 	int i;
 
@@ -550,8 +550,8 @@ immrot(ulong v)
 	return 0;
 }
 
-long
-immaddr(long v)
+int32
+immaddr(int32 v)
 {
 	if(v >= 0 && v <= 0xfff)
 		return (v & 0xfff) |
@@ -564,13 +564,13 @@ immaddr(long v)
 }
 
 int
-immfloat(long v)
+immfloat(int32 v)
 {
 	return (v & 0xC03) == 0;	/* offset will fit in floating-point load/store */
 }
 
 int
-immhalf(long v)
+immhalf(int32 v)
 {
 	if(v >= 0 && v <= 0xff)
 		return v|
@@ -1151,7 +1151,7 @@ struct Reloc
 	int n;
 	int t;
 	uchar *m;
-	ulong *a;
+	uint32 *a;
 };
 
 Reloc rels;
@@ -1161,26 +1161,26 @@ grow(Reloc *r)
 {
 	int t;
 	uchar *m, *nm;
-	ulong *a, *na;
+	uint32 *a, *na;
 
 	t = r->t;
 	r->t += 64;
 	m = r->m;
 	a = r->a;
 	r->m = nm = malloc(r->t*sizeof(uchar));
-	r->a = na = malloc(r->t*sizeof(ulong));
+	r->a = na = malloc(r->t*sizeof(uint32));
 	memmove(nm, m, t*sizeof(uchar));
-	memmove(na, a, t*sizeof(ulong));
+	memmove(na, a, t*sizeof(uint32));
 	free(m);
 	free(a);
 }
 
 void
-dynreloc(Sym *s, long v, int abs)
+dynreloc(Sym *s, int32 v, int abs)
 {
 	int i, k, n;
 	uchar *m;
-	ulong *a;
+	uint32 *a;
 	Reloc *r;
 
 	if(v&3)
@@ -1228,7 +1228,7 @@ asmdyn()
 {
 	int i, n, t, c;
 	Sym *s;
-	ulong la, ra, *a;
+	uint32 la, ra, *a;
 	vlong off;
 	uchar *m;
 	Reloc *r;
