@@ -167,7 +167,7 @@ func isDigit(ch int) bool {
 }
 
 
-func (S *Scanner) scanIdentifier() int {
+func (S *Scanner) scanIdentifier() token.Token {
 	pos := S.loc.Pos;
 	for isLetter(S.ch) || isDigit(S.ch) {
 		S.next();
@@ -193,7 +193,7 @@ func (S *Scanner) scanMantissa(base int) {
 }
 
 
-func (S *Scanner) scanNumber(seen_decimal_point bool) int {
+func (S *Scanner) scanNumber(seen_decimal_point bool) token.Token {
 	tok := token.INT;
 
 	if seen_decimal_point {
@@ -335,7 +335,7 @@ func (S *Scanner) scanRawString(loc Location) {
 // respectively. Otherwise, the result is tok0 if there was no other
 // matching character, or tok2 if the matching character was ch2.
 
-func (S *Scanner) switch2(tok0, tok1 int) int {
+func (S *Scanner) switch2(tok0, tok1 token.Token) token.Token {
 	if S.ch == '=' {
 		S.next();
 		return tok1;
@@ -344,7 +344,7 @@ func (S *Scanner) switch2(tok0, tok1 int) int {
 }
 
 
-func (S *Scanner) switch3(tok0, tok1, ch2, tok2 int) int {
+func (S *Scanner) switch3(tok0, tok1 token.Token, ch2 int, tok2 token.Token) token.Token {
 	if S.ch == '=' {
 		S.next();
 		return tok1;
@@ -357,7 +357,7 @@ func (S *Scanner) switch3(tok0, tok1, ch2, tok2 int) int {
 }
 
 
-func (S *Scanner) switch4(tok0, tok1, ch2, tok2, tok3 int) int {
+func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Token) token.Token {
 	if S.ch == '=' {
 		S.next();
 		return tok1;
@@ -378,7 +378,7 @@ func (S *Scanner) switch4(tok0, tok1, ch2, tok2, tok3 int) int {
 // the token tok, and the literal text lit corresponding to the
 // token. The source end is indicated by token.EOF.
 //
-func (S *Scanner) Scan() (loc Location, tok int, lit []byte) {
+func (S *Scanner) Scan() (loc Location, tok token.Token, lit []byte) {
 scan_again:
 	// skip white space
 	for S.ch == ' ' || S.ch == '\t' || S.ch == '\n' || S.ch == '\r' {
@@ -468,7 +468,7 @@ scan_again:
 // meaning as for the Init function. Tokenize keeps scanning until f returns
 // false (usually when the token value is token.EOF).
 //
-func Tokenize(src []byte, err ErrorHandler, scan_comments bool, f func (loc Location, tok int, lit []byte) bool) {
+func Tokenize(src []byte, err ErrorHandler, scan_comments bool, f func (loc Location, tok token.Token, lit []byte) bool) {
 	var s Scanner;
 	s.Init(src, err, scan_comments);
 	for f(s.Scan()) {

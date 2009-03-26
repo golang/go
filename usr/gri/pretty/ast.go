@@ -247,7 +247,7 @@ type (
 	//
 	UnaryExpr struct {
 		Pos_ Position;  // token position
-		Tok int;  // operator
+		Tok token.Token;  // operator
 		X Expr;  // operand
 	};
 
@@ -255,7 +255,7 @@ type (
 	BinaryExpr struct {
 		X Expr;  // left operand
 		Pos_ Position;  // token position
-		Tok int;  // operator
+		Tok token.Token;  // operator
 		Y Expr;  // right operand
 	};
 )
@@ -472,7 +472,7 @@ type (
 	// An IncDecStmt node represents an increment or decrement statement.
 	IncDecStmt struct {
 		X Expr;
-		Tok int;  // INC or DEC
+		Tok token.Token;  // INC or DEC
 	};
 
 	// An AssignStmt node represents an assignment or
@@ -480,7 +480,7 @@ type (
 	AssignStmt struct {
 		Lhs []Expr;
 		Pos_ Position;  // token position
-		Tok int;  // assignment token, DEFINE
+		Tok token.Token;  // assignment token, DEFINE
 		Rhs []Expr;
 	};
 
@@ -507,7 +507,7 @@ type (
 	//
 	BranchStmt struct {
 		Pos_ Position;  // position of keyword
-		Tok int;  // keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
+		Tok token.Token;  // keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
 		Label *Ident;
 	};
 
@@ -562,7 +562,7 @@ type (
 	// A CommClause node represents a case of a select statement.
 	CommClause struct {
 		Case Position;  // position of "case" or "default" keyword
-		Tok int;  // ASSIGN or DEFINE (valid only if Lhs != nil)
+		Tok token.Token;  // ASSIGN or DEFINE (valid only if Lhs != nil)
 		Lhs, Rhs Expr;  // Rhs == nil means default case
 		Colon Position;  // position of ":"
 		Body []Stmt;  // statement list; or nil
@@ -588,7 +588,7 @@ type (
 		For Position;  // position of "for" keyword
 		Key, Value Expr;  // Value may be nil
 		Pos_ Position;  // token position
-		Tok int;  // ASSIGN or DEFINE
+		Tok token.Token;  // ASSIGN or DEFINE
 		X Expr;  // value to range over
 		Body *BlockStmt;
 	};
@@ -730,7 +730,7 @@ type (
 	DeclList struct {
 		Doc Comments;  // associated documentation; or nil
 		Pos_ Position;  // position of token
-		Tok int;  // IMPORT, CONST, VAR, TYPE
+		Tok token.Token;  // IMPORT, CONST, VAR, TYPE
 		Lparen Position;  // position of '('
 		List []Decl;  // the list of parenthesized declarations
 		Rparen Position;  // position of ')'

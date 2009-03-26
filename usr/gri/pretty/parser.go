@@ -47,7 +47,7 @@ type Parser struct {
 
 	// The next token
 	pos Position;  // token location
-	tok int;  // one token look-ahead
+	tok token.Token;  // one token look-ahead
 	val []byte;  // token value
 
 	// Non-syntactic parser control
@@ -107,7 +107,7 @@ func (P *Parser) next0() {
 		P.printIndent();
 		switch P.tok {
 		case token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING:
-			fmt.Printf("%d:%d: %s = %s\n", P.pos.Line, P.pos.Col, token.TokenString(P.tok), P.val);
+			fmt.Printf("%d:%d: %s = %s\n", P.pos.Line, P.pos.Col, P.tok.String(), P.val);
 		case token.LPAREN:
 			// don't print '(' - screws up selection in terminal window
 			fmt.Printf("%d:%d: LPAREN\n", P.pos.Line, P.pos.Col);
@@ -115,7 +115,7 @@ func (P *Parser) next0() {
 			// don't print ')' - screws up selection in terminal window
 			fmt.Printf("%d:%d: RPAREN\n", P.pos.Line, P.pos.Col);
 		default:
-			fmt.Printf("%d:%d: %s\n", P.pos.Line, P.pos.Col, token.TokenString(P.tok));
+			fmt.Printf("%d:%d: %s\n", P.pos.Line, P.pos.Col, P.tok.String());
 		}
 	}
 }
@@ -178,10 +178,10 @@ func (P *Parser) error(pos Position, msg string) {
 }
 
 
-func (P *Parser) expect(tok int) Position {
+func (P *Parser) expect(tok token.Token) Position {
 	if P.tok != tok {
-		msg := "expected '" + token.TokenString(tok) + "', found '" + token.TokenString(P.tok) + "'";
-		if token.IsLiteral(P.tok) {
+		msg := "expected '" + tok.String() + "', found '" + P.tok.String() + "'";
+		if P.tok.IsLiteral() {
 			msg += " " + string(P.val);
 		}
 		P.error(P.pos, msg);
@@ -1082,8 +1082,8 @@ func (P *Parser) parseBinaryExpr(prec1 int) ast.Expr {
 	}
 
 	x := P.parseUnaryExpr();
-	for prec := token.Precedence(P.tok); prec >= prec1; prec-- {
-		for token.Precedence(P.tok) == prec {
+	for prec := P.tok.Precedence(); prec >= prec1; prec-- {
+		for P.tok.Precedence() == prec {
 			pos, tok := P.pos, P.tok;
 			P.next();
 			y := P.parseBinaryExpr(prec + 1);
@@ -1217,7 +1217,7 @@ func (P *Parser) parseReturnStmt() *ast.ReturnStmt {
 }
 
 
-func (P *Parser) parseBranchStmt(tok int) *ast.BranchStmt {
+func (P *Parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
 	if P.trace {
 		defer un(trace(P, "BranchStmt"));
 	}
@@ -1396,7 +1396,7 @@ func (P *Parser) parseCommClause() *ast.CommClause {
 
 	// CommCase
 	loc := P.pos;
-	var tok int;
+	var tok token.Token;
 	var lhs, rhs ast.Expr;
 	if P.tok == token.CASE {
 		P.next();
