@@ -7,14 +7,7 @@
 //
 package ast
 
-import (
-	"token";
-	"scanner";
-)
-
-
-// TODO rename Position to scanner.Position, possibly factor out
-type Position scanner.Location
+import "token"
 
 
 // ----------------------------------------------------------------------------
@@ -26,18 +19,17 @@ type Position scanner.Location
 // correspond. The node fields correspond to the individual parts
 // of the respective productions.
 //
-// Nodes contain selective position information: a position field
-// marking the beginning of the corresponding source text segment
-// if necessary; and specific position information for language
-// constructs where comments may be found between parts of the
-// construct (typically any larger, parenthesized subpart). The
-// position information is needed to properly position comments
+// All nodes contain position information marking the beginning of
+// the corresponding source text segment; it is accessible via the
+// Pos accessor method. Nodes may contain additional position info
+// for language constructs where comments may be found between parts
+// of the construct (typically any larger, parenthesized subpart).
+// That position information is needed to properly position comments
 // when printing the construct.
 
 // TODO: For comment positioning only the byte position and not
-// a complete Position field is needed. May be able to trim node
-// sizes a bit. Then, embed Position field so we can get rid of
-// most of the Pos() methods.
+// a complete token.Position field is needed. May be able to trim
+// node sizes a bit.
 
 
 type (
@@ -55,7 +47,7 @@ type Expr interface {
 	Visit(v ExprVisitor);
 	
 	// Pos returns the (beginning) position of the expression.
-	Pos() Position;
+	Pos() token.Position;
 }
 
 
@@ -67,7 +59,7 @@ type Stmt interface {
 	Visit(v StmtVisitor);
 	
 	// Pos returns the (beginning) position of the statement.
-	Pos() Position;
+	Pos() token.Position;
 }
 
 
@@ -79,7 +71,7 @@ type Decl interface {
 	Visit(v DeclVisitor);
 	
 	// Pos returns the (beginning) position of the declaration.
-	Pos() Position;
+	Pos() token.Position;
 }
 
 
@@ -88,7 +80,7 @@ type Decl interface {
 
 // A Comment node represents a single //-style or /*-style comment.
 type Comment struct {
-	Pos_ Position;  // beginning position of the comment
+	token.Position;  // beginning position of the comment
 	Text []byte;  // the comment text (without '\n' for //-style comments)
 	EndLine int;  // the line where the comment ends
 }
@@ -131,12 +123,12 @@ type (
 	// created.
 	//
 	BadExpr struct {
-		Pos_ Position;  // beginning position of bad expression
+		token.Position;  // beginning position of bad expression
 	};
 
 	// An Ident node represents an identifier.
 	Ident struct {
-		Pos_ Position;  // identifier position
+		token.Position;  // identifier position
 		Lit []byte;  // identifier string (e.g. foobar)
 	};
 
@@ -144,30 +136,30 @@ type (
 	// parameter list or the "..." length in an array type.
 	//
 	Ellipsis struct {
-		Pos_ Position;  // position of "..."
+		token.Position;  // position of "..."
 	};
 
 	// An IntLit node represents an integer literal.
 	IntLit struct {
-		Pos_ Position;  // literal string position
+		token.Position;  // int literal position
 		Lit []byte;  // literal string; e.g. 42 or 0x7f
 	};
 
 	// A FloatLit node represents a floating-point literal.
 	FloatLit struct {
-		Pos_ Position;  // literal string position
+		token.Position;  // float literal position
 		Lit []byte;  // literal string; e.g. 3.14 or 1e-9
 	};
 
 	// A CharLit node represents a character literal.
 	CharLit struct {
-		Pos_ Position;  // literal string position
+		token.Position;  // char literal position
 		Lit []byte;  // literal string, including quotes; e.g. 'a' or '\x7f'
 	};
 
 	// A StringLit node represents a string literal.
 	StringLit struct {
-		Pos_ Position;  // literal string position
+		token.Position;  // string literal position
 		Lit []byte;  // literal string, including quotes; e.g. "foo" or `\m\n\o`
 	};
 
@@ -187,18 +179,22 @@ type (
 	};
 
 	// A CompositeLit node represents a composite literal.
+	// A pair (x : y) in a CompositeLit is represented by
+	// a binary expression with the Colon operator.
+	// TODO decide if better to use a Pair node instead.
+	//
 	CompositeLit struct {
 		Type Expr;  // literal type
-		Lbrace Position;  // position of "{"
+		Lbrace token.Position;  // position of "{"
 		Elts []Expr;  // list of composite elements
-		Rbrace Position;  // position of "}"
+		Rbrace token.Position;  // position of "}"
 	};
 
 	// A ParenExpr node represents a parenthesized expression.
 	ParenExpr struct {
-		Lparen Position;  // position of "("
+		token.Position;  // position of "("
 		X Expr;  // parenthesized expression
-		Rparen Position;  // position of ")"
+		Rparen token.Position;  // position of ")"
 	};
 
 	// A SelectorExpr node represents an expression followed by a selector.
@@ -230,15 +226,15 @@ type (
 	// A CallExpr node represents an expression followed by an argument list.
 	CallExpr struct {
 		Fun Expr;  // function expression
-		Lparen Position;  // position of "("
+		Lparen token.Position;  // position of "("
 		Args []Expr;  // function arguments
-		Rparen Position;  // positions of ")"
+		Rparen token.Position;  // positions of ")"
 	};
 
 	// A StarExpr node represents an expression of the form "*" Expression.
 	// Semantically it could be a unary "*" expression, or a pointer type.
 	StarExpr struct {
-		Star Position;  // position of "*"
+		token.Position;  // position of "*"
 		X Expr;  // operand
 	};
 
@@ -246,16 +242,20 @@ type (
 	// Unary "*" expressions are represented via DerefExpr nodes.
 	//
 	UnaryExpr struct {
-		Pos_ Position;  // token position
-		Tok token.Token;  // operator
+		token.Position;  // position of Op
+		Op token.Token;  // operator
 		X Expr;  // operand
 	};
 
 	// A BinaryExpr node represents a binary expression.
+	// A pair (x : y) in a CompositeLit is represented by
+	// a binary expression with the Colon operator.
+	// TODO decide if better to use a Pair node instead.
+	//
 	BinaryExpr struct {
 		X Expr;  // left operand
-		Pos_ Position;  // token position
-		Tok token.Token;  // operator
+		OpPos token.Position;  // position of Op
+		Op token.Token;  // operator
 		Y Expr;  // right operand
 	};
 )
@@ -278,85 +278,70 @@ const (
 type (
 	// An ArrayType node represents an array type.
 	ArrayType struct {
-		Lbrack Position;  // position of "["
+		token.Position;  // position of "["
 		Len Expr;  // possibly an Ellipsis node for [...]T array types
 		Elt Expr;  // element type
 	};
 
 	// A SliceType node represents a slice type.
 	SliceType struct {
-		Lbrack Position;  // position of "["
+		token.Position;  // position of "["
 		Elt Expr;  // element type
 	};
 
 	// A StructType node represents a struct type.
 	StructType struct {
-		Struct, Lbrace Position;  // positions of "struct" keyword, "{"
+		token.Position;  // position of "struct" keyword
+		Lbrace token.Position;  // position of "{"
 		Fields []*Field;  // list of field declarations; nil if forward declaration
-		Rbrace Position;  // position of "}"
+		Rbrace token.Position;  // position of "}"
 	};
 
 	// Pointer types are represented via StarExpr nodes.
 
 	// A FunctionType node represents a function type.
 	FunctionType struct {
-		Func Position;  // position of "func" keyword
+		token.Position;  // position of "func" keyword
 		Params []*Field;  // (incoming) parameters
 		Results []*Field;  // (outgoing) results
 	};
 
 	// An InterfaceType node represents an interface type.
 	InterfaceType struct {
-		Interface, Lbrace Position;  // positions of "interface" keyword, "{"
+		token.Position;  // position of "interface" keyword
+		Lbrace token.Position;  // position of "{"
 		Methods []*Field; // list of methods; nil if forward declaration
-		Rbrace Position;  // position of "}"
+		Rbrace token.Position;  // position of "}"
 	};
 
 	// A MapType node represents a map type.
 	MapType struct {
-		Map Position;  // position of "map" keyword
+		token.Position;  // position of "map" keyword
 		Key Expr;
 		Value Expr;
 	};
 
 	// A ChannelType node represents a channel type.
 	ChannelType struct {
-		Pos_ Position;  // position of "chan" keyword or "<-" (whichever comes first)
+		token.Position;  // position of "chan" keyword or "<-" (whichever comes first)
 		Dir ChanDir;  // channel direction
 		Value Expr;  // value type
 	};
 )
 
 
-// Pos() implementations for all expression/type nodes.
+// Pos() implementations for expression/type where the position
+// corresponds to the position of a sub-node.
 //
-func (x *BadExpr) Pos() Position  { return x.Pos_; }
-func (x *Ident) Pos() Position  { return x.Pos_; }
-func (x *IntLit) Pos() Position  { return x.Pos_; }
-func (x *FloatLit) Pos() Position  { return x.Pos_; }
-func (x *CharLit) Pos() Position  { return x.Pos_; }
-func (x *StringLit) Pos() Position  { return x.Pos_; }
-func (x *StringList) Pos() Position  { return x.Strings[0].Pos(); }
-func (x *FunctionLit) Pos() Position  { return x.Type.Func; }
-func (x *CompositeLit) Pos() Position  { return x.Type.Pos(); }
-func (x *ParenExpr) Pos() Position  { return x.Lparen; }
-func (x *SelectorExpr) Pos() Position  { return x.X.Pos(); }
-func (x *IndexExpr) Pos() Position  { return x.X.Pos(); }
-func (x *SliceExpr) Pos() Position  { return x.X.Pos(); }
-func (x *TypeAssertExpr) Pos() Position  { return x.X.Pos(); }
-func (x *CallExpr) Pos() Position  { return x.Fun.Pos(); }
-func (x *StarExpr) Pos() Position  { return x.Star; }
-func (x *UnaryExpr) Pos() Position  { return x.Pos_; }
-func (x *BinaryExpr) Pos() Position  { return x.X.Pos(); }
-
-func (x *Ellipsis) Pos() Position { return x.Pos_; }
-func (x *ArrayType) Pos() Position { return x.Lbrack; }
-func (x *SliceType) Pos() Position { return x.Lbrack; }
-func (x *StructType) Pos() Position { return x.Struct; }
-func (x *FunctionType) Pos() Position { return x.Func; }
-func (x *InterfaceType) Pos() Position { return x.Interface; }
-func (x *MapType) Pos() Position { return x.Map; }
-func (x *ChannelType) Pos() Position { return x.Pos_; }
+func (x *StringList) Pos() token.Position  { return x.Strings[0].Pos(); }
+func (x *FunctionLit) Pos() token.Position  { return x.Type.Pos(); }
+func (x *CompositeLit) Pos() token.Position  { return x.Type.Pos(); }
+func (x *SelectorExpr) Pos() token.Position  { return x.X.Pos(); }
+func (x *IndexExpr) Pos() token.Position  { return x.X.Pos(); }
+func (x *SliceExpr) Pos() token.Position  { return x.X.Pos(); }
+func (x *TypeAssertExpr) Pos() token.Position  { return x.X.Pos(); }
+func (x *CallExpr) Pos() token.Position  { return x.Fun.Pos(); }
+func (x *BinaryExpr) Pos() token.Position  { return x.X.Pos(); }
 
 
 // All expression/type nodes implement a Visit method which takes
@@ -440,7 +425,7 @@ type (
 	// created.
 	//
 	BadStmt struct {
-		Pos_ Position;  // beginning position of bad statement
+		token.Position;  // beginning position of bad statement
 	};
 
 	// A DeclStmt node represents a declaration in a statement list.
@@ -453,7 +438,7 @@ type (
 	// of the immediately preceeding semicolon.
 	//
 	EmptyStmt struct {
-		Semicolon Position;  // position of preceeding ";"
+		token.Position;  // position of preceeding ";"
 	};
 
 	// A LabeledStmt node represents a labeled statement.
@@ -479,26 +464,26 @@ type (
 	// a short variable declaration.
 	AssignStmt struct {
 		Lhs []Expr;
-		Pos_ Position;  // token position
+		TokPos token.Position;  // position of Tok
 		Tok token.Token;  // assignment token, DEFINE
 		Rhs []Expr;
 	};
 
 	// A GoStmt node represents a go statement.
 	GoStmt struct {
-		Go Position;  // position of "go" keyword
+		token.Position;  // position of "go" keyword
 		Call *CallExpr;
 	};
 
 	// A DeferStmt node represents a defer statement.
 	DeferStmt struct {
-		Defer Position;  // position of "defer" keyword
+		token.Position;  // position of "defer" keyword
 		Call *CallExpr;
 	};
 
 	// A ReturnStmt node represents a return statement.
 	ReturnStmt struct {
-		Return Position;  // position of "return" keyword
+		token.Position;  // position of "return" keyword
 		Results []Expr;
 	};
 
@@ -506,21 +491,21 @@ type (
 	// or fallthrough statement.
 	//
 	BranchStmt struct {
-		Pos_ Position;  // position of keyword
+		token.Position;  // position of Tok
 		Tok token.Token;  // keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
 		Label *Ident;
 	};
 
 	// A BlockStmt node represents a braced statement list.
 	BlockStmt struct {
-		Lbrace Position;
+		token.Position;  // position of "{"
 		List []Stmt;
-		Rbrace Position;
+		Rbrace token.Position;  // position of "}"
 	};
 
 	// An IfStmt node represents an if statement.
 	IfStmt struct {
-		If Position;  // position of "if" keyword
+		token.Position;  // position of "if" keyword
 		Init Stmt;
 		Cond Expr;
 		Body *BlockStmt;
@@ -529,15 +514,15 @@ type (
 
 	// A CaseClause represents a case of an expression switch statement.
 	CaseClause struct {
-		Case Position;  // position of "case" or "default" keyword
+		token.Position;  // position of "case" or "default" keyword
 		Values []Expr;  // nil means default case
-		Colon Position;  // position of ":"
+		Colon token.Position;  // position of ":"
 		Body []Stmt;  // statement list; or nil
 	};
 
 	// A SwitchStmt node represents an expression switch statement.
 	SwitchStmt struct {
-		Switch Position;  // position of "switch" keyword
+		token.Position;  // position of "switch" keyword
 		Init Stmt;
 		Tag Expr;
 		Body *BlockStmt;  // CaseClauses only
@@ -545,15 +530,15 @@ type (
 
 	// A TypeCaseClause represents a case of a type switch statement.
 	TypeCaseClause struct {
-		Case Position;  // position of "case" or "default" keyword
+		token.Position;  // position of "case" or "default" keyword
 		Type Expr;  // nil means default case
-		Colon Position;  // position of ":"
+		Colon token.Position;  // position of ":"
 		Body []Stmt;  // statement list; or nil
 	};
 
 	// An TypeSwitchStmt node represents a type switch statement.
 	TypeSwitchStmt struct {
-		Switch Position;  // position of "switch" keyword
+		token.Position;  // position of "switch" keyword
 		Init Stmt;
 		Assign Stmt;  // x := y.(type)
 		Body *BlockStmt;  // TypeCaseClauses only
@@ -561,22 +546,22 @@ type (
 
 	// A CommClause node represents a case of a select statement.
 	CommClause struct {
-		Case Position;  // position of "case" or "default" keyword
+		token.Position;  // position of "case" or "default" keyword
 		Tok token.Token;  // ASSIGN or DEFINE (valid only if Lhs != nil)
 		Lhs, Rhs Expr;  // Rhs == nil means default case
-		Colon Position;  // position of ":"
+		Colon token.Position;  // position of ":"
 		Body []Stmt;  // statement list; or nil
 	};
 
 	// An SelectStmt node represents a select statement.
 	SelectStmt struct {
-		Select Position;  // position of "select" keyword
+		token.Position;  // position of "select" keyword
 		Body *BlockStmt;  // CommClauses only
 	};
 
 	// A ForStmt represents a for statement.
 	ForStmt struct {
-		For Position;  // position of "for" keyword
+		token.Position;  // position of "for" keyword
 		Init Stmt;
 		Cond Expr;
 		Post Stmt;
@@ -585,39 +570,24 @@ type (
 
 	// A RangeStmt represents a for statement with a range clause.
 	RangeStmt struct {
-		For Position;  // position of "for" keyword
+		token.Position;  // position of "for" keyword
 		Key, Value Expr;  // Value may be nil
-		Pos_ Position;  // token position
-		Tok token.Token;  // ASSIGN or DEFINE
+		TokPos token.Position;  // position of Tok
+		Tok token.Token;  // ASSIGN, DEFINE
 		X Expr;  // value to range over
 		Body *BlockStmt;
 	};
 )
 
 
-// Pos() implementations for all statement nodes.
+// Pos() implementations for statement nodes where the position
+// corresponds to the position of a sub-node.
 //
-func (s *BadStmt) Pos() Position { return s.Pos_; }
-func (s *DeclStmt) Pos() Position { return s.Decl.Pos(); }
-func (s *EmptyStmt) Pos() Position { return s.Semicolon; }
-func (s *LabeledStmt) Pos() Position { return s.Label.Pos(); }
-func (s *ExprStmt) Pos() Position { return s.X.Pos(); }
-func (s *IncDecStmt) Pos() Position { return s.X.Pos(); }
-func (s *AssignStmt) Pos() Position { return s.Lhs[0].Pos(); }
-func (s *GoStmt) Pos() Position { return s.Go; }
-func (s *DeferStmt) Pos() Position { return s.Defer; }
-func (s *ReturnStmt) Pos() Position { return s.Return; }
-func (s *BranchStmt) Pos() Position { return s.Pos_; }
-func (s *BlockStmt) Pos() Position { return s.Lbrace; }
-func (s *IfStmt) Pos() Position { return s.If; }
-func (s *CaseClause) Pos() Position { return s.Case; }
-func (s *SwitchStmt) Pos() Position { return s.Switch; }
-func (s *TypeCaseClause) Pos() Position { return s.Case; }
-func (s *TypeSwitchStmt) Pos() Position { return s.Switch; }
-func (s *CommClause) Pos() Position { return s.Case; }
-func (s *SelectStmt) Pos() Position { return s.Select; }
-func (s *ForStmt) Pos() Position { return s.For; }
-func (s *RangeStmt) Pos() Position { return s.For; }
+func (s *DeclStmt) Pos() token.Position { return s.Decl.Pos(); }
+func (s *LabeledStmt) Pos() token.Position { return s.Label.Pos(); }
+func (s *ExprStmt) Pos() token.Position { return s.X.Pos(); }
+func (s *IncDecStmt) Pos() token.Position { return s.X.Pos(); }
+func (s *AssignStmt) Pos() token.Position { return s.Lhs[0].Pos(); }
 
 
 // All statement nodes implement a Visit method which takes
@@ -686,19 +656,19 @@ type (
 	// created.
 	//
 	BadDecl struct {
-		Pos_ Position;  // beginning position of bad declaration
+		token.Position;  // beginning position of bad declaration
 	};
 
 	ImportDecl struct {
 		Doc Comments;  // associated documentation; or nil
-		Import Position;  // position of "import" keyword
+		token.Position;  // position of "import" keyword
 		Name *Ident;  // local package name or nil
 		Path []*StringLit;  // package path
 	};
 
 	ConstDecl struct {
 		Doc Comments;  // associated documentation; or nil
-		Const Position;  // position of "const" keyword
+		token.Position;  // position of "const" keyword
 		Names []*Ident;
 		Type Expr;  // constant type or nil
 		Values []Expr;
@@ -706,14 +676,14 @@ type (
 
 	TypeDecl struct {
 		Doc Comments;  // associated documentation; or nil
-		Pos_ Position;  // position of "type" keyword
+		token.Position;  // position of "type" keyword
 		Name *Ident;
 		Type Expr;
 	};
 
 	VarDecl struct {
 		Doc Comments;  // associated documentation; or nil
-		Var Position;  // position of "var" keyword
+		token.Position;  // position of "var" keyword
 		Names []*Ident;
 		Type Expr;  // variable type or nil
 		Values []Expr;
@@ -729,24 +699,17 @@ type (
 
 	DeclList struct {
 		Doc Comments;  // associated documentation; or nil
-		Pos_ Position;  // position of token
+		token.Position;  // position of Tok
 		Tok token.Token;  // IMPORT, CONST, VAR, TYPE
-		Lparen Position;  // position of '('
+		Lparen token.Position;  // position of '('
 		List []Decl;  // the list of parenthesized declarations
-		Rparen Position;  // position of ')'
+		Rparen token.Position;  // position of ')'
 	};
 )
 
 
-// Pos() implementations for all declaration nodes.
-//
-func (d *BadDecl) Pos() Position { return d.Pos_; }
-func (d *ImportDecl) Pos() Position { return d.Import; }
-func (d *ConstDecl) Pos() Position { return d.Const; }
-func (d *TypeDecl) Pos() Position { return d.Pos_; }
-func (d *VarDecl) Pos() Position { return d.Var; }
-func (d *FuncDecl) Pos() Position { return d.Type.Func; }
-func (d *DeclList) Pos() Position { return d.Lparen; }
+// The position of a FuncDecl node is the position of its function type.
+func (d *FuncDecl) Pos() token.Position  { return d.Type.Pos(); }
 
 
 // All declaration nodes implement a Visit method which takes
@@ -782,7 +745,7 @@ func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
 // A Package node represents the root node of an AST.
 type Package struct {
 	Doc Comments;  // associated documentation; or nil
-	Package Position;  // position of "package" keyword
+	token.Position;  // position of "package" keyword
 	Name *Ident;  // package name
 	Decls []Decl;  // top-level declarations
 	Comments []*Comment;  // list of unassociated comments
