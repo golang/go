@@ -16,28 +16,20 @@ import (
 )
 
 
-// Source locations are represented by a Location value.
-type Location struct {
-	Pos int;  // byte position in source
-	Line int;  // line count, starting at 1
-	Col int;  // column, starting at 1 (character count)
-}
-
-
 // An implementation of an ErrorHandler must be provided to the Scanner.
-// If a syntax error is encountered, Error is called with a location and
-// an error message. The location points at the beginning of the offending
+// If a syntax error is encountered, Error is called with a position and
+// an error message. The position points to the beginning of the offending
 // token.
 //
 type ErrorHandler interface {
-	Error(loc Location, msg string);
+	Error(pos token.Position, msg string);
 }
 
 
 // A Scanner holds the scanner's internal state while processing
 // a given text.  It can be allocated as part of another data
-// structure but must be initialized via Init before use.
-// See also the package comment for a sample use.
+// structure but must be initialized via Init before use. For
+// a sample use, see the implementation of Tokenize.
 //
 type Scanner struct {
 	// immutable state
@@ -46,31 +38,32 @@ type Scanner struct {
 	scan_comments bool;  // if set, comments are reported as tokens
 
 	// scanning state
-	loc Location;  // location before ch (src[loc.Pos] == ch)
-	pos int;  // current reading position (position after ch)
+	pos token.Position;  // previous reading position (position before ch)
+	offset int;  // current reading offset (position after ch)
 	ch int;  // one char look-ahead
 }
 
 
 // Read the next Unicode char into S.ch.
 // S.ch < 0 means end-of-file.
+//
 func (S *Scanner) next() {
-	if S.pos < len(S.src) {
-		S.loc.Pos = S.pos;
-		S.loc.Col++;
-		r, w := int(S.src[S.pos]), 1;
+	if S.offset < len(S.src) {
+		S.pos.Offset = S.offset;
+		S.pos.Column++;
+		r, w := int(S.src[S.offset]), 1;
 		switch {
 		case r == '\n':
-			S.loc.Line++;
-			S.loc.Col = 0;
+			S.pos.Line++;
+			S.pos.Column = 0;
 		case r >= 0x80:
 			// not ASCII
-			r, w = utf8.DecodeRune(S.src[S.pos : len(S.src)]);
+			r, w = utf8.DecodeRune(S.src[S.offset : len(S.src)]);
 		}
-		S.pos += w;
+		S.offset += w;
 		S.ch = r;
 	} else {
-		S.loc.Pos = len(S.src);
+		S.pos.Offset = len(S.src);
 		S.ch = -1;  // eof
 	}
 }
@@ -86,13 +79,13 @@ func (S *Scanner) Init(src []byte, err ErrorHandler, scan_comments bool) {
 	S.src = src;
 	S.err = err;
 	S.scan_comments = scan_comments;
-	S.loc.Line = 1;
+	S.pos.Line = 1;
 	S.next();
 }
 
 
 func charString(ch int) string {
-	s := string(ch);
+	var s string;
 	switch ch {
 	case '\a': s = `\a`;
 	case '\b': s = `\b`;
@@ -103,25 +96,26 @@ func charString(ch int) string {
 	case '\v': s = `\v`;
 	case '\\': s = `\\`;
 	case '\'': s = `\'`;
+	default  : s = utf8.EncodeRuneToString(ch);
 	}
 	return "'" + s + "' (U+" + strconv.Itob(ch, 16) + ")";
 }
 
 
-func (S *Scanner) error(loc Location, msg string) {
-	S.err.Error(loc, msg);
+func (S *Scanner) error(pos token.Position, msg string) {
+	S.err.Error(pos, msg);
 }
 
 
 func (S *Scanner) expect(ch int) {
 	if S.ch != ch {
-		S.error(S.loc, "expected " + charString(ch) + ", found " + charString(S.ch));
+		S.error(S.pos, "expected " + charString(ch) + ", found " + charString(S.ch));
 	}
 	S.next();  // always make progress
 }
 
 
-func (S *Scanner) scanComment(loc Location) {
+func (S *Scanner) scanComment(pos token.Position) {
 	// first '/' already consumed
 
 	if S.ch == '/' {
@@ -147,7 +141,7 @@ func (S *Scanner) scanComment(loc Location) {
 		}
 	}
 
-	S.error(loc, "comment not terminated");
+	S.error(pos, "comment not terminated");
 }
 
 
@@ -168,11 +162,11 @@ func isDigit(ch int) bool {
 
 
 func (S *Scanner) scanIdentifier() token.Token {
-	pos := S.loc.Pos;
+	pos := S.pos.Offset;
 	for isLetter(S.ch) || isDigit(S.ch) {
 		S.next();
 	}
-	return token.Lookup(S.src[pos : S.loc.Pos]);
+	return token.Lookup(S.src[pos : S.pos.Offset]);
 }
 
 
@@ -255,13 +249,13 @@ func (S *Scanner) scanDigits(base, length int) {
 		length--;
 	}
 	if length > 0 {
-		S.error(S.loc, "illegal char escape");
+		S.error(S.pos, "illegal char escape");
 	}
 }
 
 
 func (S *Scanner) scanEscape(quote int) {
-	loc := S.loc;
+	pos := S.pos;
 	ch := S.ch;
 	S.next();
 	switch ch {
@@ -276,7 +270,7 @@ func (S *Scanner) scanEscape(quote int) {
 	case 'U':
 		S.scanDigits(16, 8);
 	default:
-		S.error(loc, "illegal char escape");
+		S.error(pos, "illegal char escape");
 	}
 }
 
@@ -294,14 +288,14 @@ func (S *Scanner) scanChar() {
 }
 
 
-func (S *Scanner) scanString(loc Location) {
+func (S *Scanner) scanString(pos token.Position) {
 	// '"' already consumed
 
 	for S.ch != '"' {
 		ch := S.ch;
 		S.next();
 		if ch == '\n' || ch < 0 {
-			S.error(loc, "string not terminated");
+			S.error(pos, "string not terminated");
 			break;
 		}
 		if ch == '\\' {
@@ -313,14 +307,14 @@ func (S *Scanner) scanString(loc Location) {
 }
 
 
-func (S *Scanner) scanRawString(loc Location) {
+func (S *Scanner) scanRawString(pos token.Position) {
 	// '`' already consumed
 
 	for S.ch != '`' {
 		ch := S.ch;
 		S.next();
 		if ch == '\n' || ch < 0 {
-			S.error(loc, "string not terminated");
+			S.error(pos, "string not terminated");
 			break;
 		}
 	}
@@ -374,11 +368,11 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Toke
 }
 
 
-// Scan scans the next token and returns the token location loc,
+// Scan scans the next token and returns the token position pos,
 // the token tok, and the literal text lit corresponding to the
 // token. The source end is indicated by token.EOF.
 //
-func (S *Scanner) Scan() (loc Location, tok token.Token, lit []byte) {
+func (S *Scanner) Scan() (pos token.Position, tok token.Token, lit []byte) {
 scan_again:
 	// skip white space
 	for S.ch == ' ' || S.ch == '\t' || S.ch == '\n' || S.ch == '\r' {
@@ -386,7 +380,7 @@ scan_again:
 	}
 
 	// current token start
-	loc, tok = S.loc, token.ILLEGAL;
+	pos, tok = S.pos, token.ILLEGAL;
 
 	// determine token value
 	switch ch := S.ch; {
@@ -398,9 +392,9 @@ scan_again:
 		S.next();  // always make progress
 		switch ch {
 		case -1  : tok = token.EOF;
-		case '"' : tok = token.STRING; S.scanString(loc);
+		case '"' : tok = token.STRING; S.scanString(pos);
 		case '\'': tok = token.CHAR; S.scanChar();
-		case '`' : tok = token.STRING; S.scanRawString(loc);
+		case '`' : tok = token.STRING; S.scanRawString(pos);
 		case ':' : tok = S.switch2(token.COLON, token.DEFINE);
 		case '.' :
 			if digitVal(S.ch) < 10 {
@@ -427,7 +421,7 @@ scan_again:
 		case '*': tok = S.switch2(token.MUL, token.MUL_ASSIGN);
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
-				S.scanComment(loc);
+				S.scanComment(pos);
 				tok = token.COMMENT;
 				if !S.scan_comments {
 					goto scan_again;
@@ -455,20 +449,20 @@ scan_again:
 				tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
 			}
 		case '|': tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
-		default: S.error(loc, "illegal character " + charString(ch));
+		default: S.error(pos, "illegal character " + charString(ch));
 		}
 	}
 
-	return loc, tok, S.src[loc.Pos : S.loc.Pos];
+	return pos, tok, S.src[pos.Offset : S.pos.Offset];
 }
 
 
-// Tokenize calls a function f with the token location, token value, and token
+// Tokenize calls a function f with the token position, token value, and token
 // text for each token in the source src. The other parameters have the same
 // meaning as for the Init function. Tokenize keeps scanning until f returns
 // false (usually when the token value is token.EOF).
 //
-func Tokenize(src []byte, err ErrorHandler, scan_comments bool, f func (loc Location, tok token.Token, lit []byte) bool) {
+func Tokenize(src []byte, err ErrorHandler, scan_comments bool, f func (pos token.Position, tok token.Token, lit []byte) bool) {
 	var s Scanner;
 	s.Init(src, err, scan_comments);
 	for f(s.Scan()) {

@@ -160,7 +160,7 @@ type TestErrorHandler struct {
 	t *testing.T
 }
 
-func (h *TestErrorHandler) Error(loc scanner.Location, msg string) {
+func (h *TestErrorHandler) Error(pos token.Position, msg string) {
 	h.t.Errorf("Error() called (msg = %s)", msg);
 }
 
@@ -186,9 +186,9 @@ func Test(t *testing.T) {
 
 	// verify scan
 	index := 0;
-	eloc := scanner.Location{0, 1, 1};
+	eloc := token.Position{0, 1, 1};
 	scanner.Tokenize(io.StringBytes(src), &TestErrorHandler{t}, true,
-		func (loc Location, tok token.Token, litb []byte) bool {
+		func (pos token.Position, tok token.Token, litb []byte) bool {
 			e := elt{token.EOF, "", special};
 			if index < len(tokens) {
 				e = tokens[index];
@@ -196,16 +196,16 @@ func Test(t *testing.T) {
 			lit := string(litb);
 			if tok == token.EOF {
 				lit = "<EOF>";
-				eloc.Col = 0;
+				eloc.Column = 0;
 			}
-			if loc.Pos != eloc.Pos {
-				t.Errorf("bad position for %s: got %d, expected %d", lit, loc.Pos, eloc.Pos);
+			if pos.Offset != eloc.Offset {
+				t.Errorf("bad position for %s: got %d, expected %d", lit, pos.Offset, eloc.Offset);
 			}
-			if loc.Line != eloc.Line {
-				t.Errorf("bad line for %s: got %d, expected %d", lit, loc.Line, eloc.Line);
+			if pos.Line != eloc.Line {
+				t.Errorf("bad line for %s: got %d, expected %d", lit, pos.Line, eloc.Line);
 			}
-			if loc.Col != eloc.Col {
-				t.Errorf("bad column for %s: got %d, expected %d", lit, loc.Col, eloc.Col);
+			if pos.Column!= eloc.Column {
+				t.Errorf("bad column for %s: got %d, expected %d", lit, pos.Column, eloc.Column);
 			}
 			if tok != e.tok {
 				t.Errorf("bad token for %s: got %s, expected %s", lit, tok.String(), e.tok.String());
@@ -216,7 +216,7 @@ func Test(t *testing.T) {
 			if tokenclass(tok) != e.class {
 				t.Errorf("bad class for %s: got %d, expected %d", lit, tokenclass(tok), e.class);
 			}
-			eloc.Pos += len(lit) + len(whitespace);
+			eloc.Offset += len(lit) + len(whitespace);
 			eloc.Line += NewlineCount(lit) + whitespace_linecount;
 			index++;
 			return tok != token.EOF;

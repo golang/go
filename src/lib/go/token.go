@@ -255,10 +255,10 @@ const (
 
 
 // Precedence returns the syntax precedence of the operator
-// token tok or LowestPrecedence if tok is not an operator.
+// token op or LowestPrecedence if op is not an operator.
 //
-func (tok Token) Precedence() int {
-	switch tok {
+func (op Token) Precedence() int {
+	switch op {
 	case COLON:
 		return 0;
 	case LOR:
@@ -321,4 +321,20 @@ func (tok Token) IsOperator() bool {
 //
 func (tok Token) IsKeyword() bool {
 	return keyword_beg < tok && tok < keyword_end;
+}
+
+
+// Token source positions are represented by a Position value.
+type Position struct {
+	Offset int;  // byte offset, starting at 0
+	Line int;  // line number, starting at 1
+	Column int;  // column number, starting at 1 (character count)
+}
+
+
+// Pos is an accessor method for anonymous Position fields.
+// It returns its receiver.
+//
+func (pos *Position) Pos() Position {
+	return *pos;
 }
