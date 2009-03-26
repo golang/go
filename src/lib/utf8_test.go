@@ -98,6 +98,17 @@ func TestEncodeRune(t *testing.T) {
 	}
 }
 
+func TestEncodeRuneToString(t *testing.T) {
+	for i := 0; i < len(utf8map); i++ {
+		m := utf8map[i];
+		s := m.str;
+		s1 := utf8.EncodeRuneToString(m.rune);
+		if s != s1 {
+			t.Errorf("EncodeRuneToString(0x%04x) = %s want %s", m.rune, s1, s);
+		}
+	}
+}
+
 func TestDecodeRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
