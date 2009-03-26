@@ -393,14 +393,14 @@ func (P *Printer) String(loc scanner.Location, s string) {
 }
 
 
-func (P *Printer) Token(loc scanner.Location, tok int) {
-	P.String(loc, token.TokenString(tok));
-	//P.TaggedString(pos, "<b>", token.TokenString(tok), "</b>");
+func (P *Printer) Token(loc scanner.Location, tok token.Token) {
+	P.String(loc, tok.String());
+	//P.TaggedString(pos, "<b>", tok.String(), "</b>");
 }
 
 
-func (P *Printer) Error(loc scanner.Location, tok int, msg string) {
-	fmt.Printf("\ninternal printing error: pos = %d, tok = %s, %s\n", loc.Pos, token.TokenString(tok), msg);
+func (P *Printer) Error(loc scanner.Location, tok token.Token, msg string) {
+	fmt.Printf("\ninternal printing error: pos = %d, tok = %s, %s\n", loc.Pos, tok.String(), msg);
 	panic();
 }
 
@@ -576,7 +576,7 @@ func (P *Printer) DoIdent(x *ast.Ident) {
 
 
 func (P *Printer) DoBinaryExpr(x *ast.BinaryExpr) {
-	prec := token.Precedence(x.Tok);
+	prec := x.Tok.Precedence();
 	if prec < P.prec {
 		P.Token(nopos, token.LPAREN);
 	}

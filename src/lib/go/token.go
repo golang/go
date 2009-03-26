@@ -10,10 +10,13 @@ package token
 
 import "strconv"
 
+// Token is the set of lexical tokens of the Go programming language.
+type Token int
+
 // The list of tokens.
 const (
 	// Special tokens
-	ILLEGAL = iota;
+	ILLEGAL Token = iota;
 	EOF;
 	COMMENT;
 	
@@ -124,7 +127,7 @@ const (
 // At the moment we have no array literal syntax that lets us describe
 // the index for each element - use a map for now to make sure they are
 // in sync.
-var tokens = map [int] string {
+var tokens = map [Token] string {
 	ILLEGAL : "ILLEGAL",
 
 	EOF : "EOF",
@@ -224,13 +227,13 @@ var tokens = map [int] string {
 }
 
 
-// TokenString returns the string corresponding to the token tok.
+// String returns the string corresponding to the token tok.
 // For operators, delimiters, and keywords the string is the actual
 // token character sequence (e.g., for the token ADD, the string is
 // "+"). For all other tokens the string corresponds to the token
 // constant name (e.g. for the token IDENT, the string is "IDENT").
 //
-func TokenString(tok int) string {
+func (tok Token) String() string {
 	if str, exists := tokens[tok]; exists {
 		return str;
 	}
@@ -254,7 +257,7 @@ const (
 // Precedence returns the syntax precedence of the operator
 // token tok or LowestPrecedence if tok is not an operator.
 //
-func Precedence(tok int) int {
+func (tok Token) Precedence() int {
 	switch tok {
 	case COLON:
 		return 0;
@@ -275,10 +278,10 @@ func Precedence(tok int) int {
 }
 
 
-var keywords map [string] int;
+var keywords map [string] Token;
 
 func init() {
-	keywords = make(map [string] int);
+	keywords = make(map [string] Token);
 	for i := keyword_beg + 1; i < keyword_end; i++ {
 		keywords[tokens[i]] = i;
 	}
@@ -287,7 +290,7 @@ func init() {
 
 // Lookup maps an identifier to its keyword token or IDENT (if not a keyword).
 //
-func Lookup(ident []byte) int {
+func Lookup(ident []byte) Token {
 	// TODO Maps with []byte key are illegal because []byte does not
 	//      support == . Should find a more efficient solution eventually.
 	if tok, is_keyword := keywords[string(ident)]; is_keyword {
@@ -302,20 +305,20 @@ func Lookup(ident []byte) int {
 // IsLiteral returns true for tokens corresponding to identifiers
 // and basic type literals; returns false otherwise.
 //
-func IsLiteral(tok int) bool {
+func (tok Token) IsLiteral() bool {
 	return literal_beg < tok && tok < literal_end;
 }
 
 // IsOperator returns true for tokens corresponding to operators and
 // delimiters; returns false otherwise.
 //
-func IsOperator(tok int) bool {
+func (tok Token) IsOperator() bool {
 	return operator_beg < tok && tok < operator_end;
 }
 
 // IsKeyword returns true for tokens corresponding to keywords;
 // returns false otherwise.
 //
-func IsKeyword(tok int) bool {
+func (tok Token) IsKeyword() bool {
 	return keyword_beg < tok && tok < keyword_end;
 }

@@ -20,18 +20,18 @@ const /* class */ (
 )
 
 
-func tokenclass(tok int) int {
+func tokenclass(tok token.Token) int {
 	switch {
-	case token.IsLiteral(tok): return literal;
-	case token.IsOperator(tok): return operator;
-	case token.IsKeyword(tok): return keyword;
+	case tok.IsLiteral(): return literal;
+	case tok.IsOperator(): return operator;
+	case tok.IsKeyword(): return keyword;
 	}
 	return special;
 }
 
 
 type elt struct {
-	tok int;
+	tok token.Token;
 	lit string;
 	class int;
 }
@@ -188,7 +188,7 @@ func Test(t *testing.T) {
 	index := 0;
 	eloc := scanner.Location{0, 1, 1};
 	scanner.Tokenize(io.StringBytes(src), &TestErrorHandler{t}, true,
-		func (loc Location, tok int, litb []byte) bool {
+		func (loc Location, tok token.Token, litb []byte) bool {
 			e := elt{token.EOF, "", special};
 			if index < len(tokens) {
 				e = tokens[index];
@@ -208,9 +208,9 @@ func Test(t *testing.T) {
 				t.Errorf("bad column for %s: got %d, expected %d", lit, loc.Col, eloc.Col);
 			}
 			if tok != e.tok {
-				t.Errorf("bad token for %s: got %s, expected %s", lit, token.TokenString(tok), token.TokenString(e.tok));
+				t.Errorf("bad token for %s: got %s, expected %s", lit, tok.String(), e.tok.String());
 			}
-			if token.IsLiteral(e.tok) && lit != e.lit {
+			if e.tok.IsLiteral() && lit != e.lit {
 				t.Errorf("bad literal for %s: got %s, expected %s", lit, lit, e.lit);
 			}
 			if tokenclass(tok) != e.class {
