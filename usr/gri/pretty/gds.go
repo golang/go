@@ -124,20 +124,20 @@ func printErrors(c *http.Conn, filename string, errors Compilation.ErrorList) {
 				fmt.Fprintf(c, "could not read file %s\n", *root + filename);
 				return;
 			}
-			pos := 0;
+			offs := 0;
 			for i, e := range errors {
-				if 0 <= e.Loc.Pos && e.Loc.Pos <= len(src) {
+				if 0 <= e.Pos.Offset && e.Pos.Offset <= len(src) {
 					// TODO handle Write errors
-					c.Write(src[pos : e.Loc.Pos]);
+					c.Write(src[offs : e.Pos.Offset]);
 					// TODO this should be done using a .css file
 					fmt.Fprintf(c, "<b><font color=red>%s >>></font></b>", e.Msg);
-					pos = e.Loc.Pos;
+					offs = e.Pos.Offset;
 				} else {
-					log.Stdoutf("error position %d out of bounds (len = %d)", e.Loc.Pos, len(src));
+					log.Stdoutf("error position %d out of bounds (len = %d)", e.Pos.Offset, len(src));
 				}
 			}
 			// TODO handle Write errors
-			c.Write(src[pos : len(src)]);
+			c.Write(src[offs : len(src)]);
 		}
 	});
 }

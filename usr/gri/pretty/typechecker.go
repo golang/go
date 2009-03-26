@@ -42,8 +42,8 @@ func assert(pred bool) {
 }
 
 
-func (s *state) Error(loc scanner.Location, msg string) {
-	s.err.Error(loc, msg);
+func (s *state) Error(pos token.Position, msg string) {
+	s.err.Error(pos, msg);
 }
 
 
