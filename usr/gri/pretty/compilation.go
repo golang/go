@@ -11,8 +11,9 @@ import (
 	"os";
 	"utils";
 	"platform";
+	"token";
 	"scanner";
-	Parser "parser";
+	"parser";
 	"ast";
 	"typechecker";
 	"sort";
@@ -34,7 +35,7 @@ type Flags struct {
 
 
 type Error struct {
-	Loc scanner.Location;
+	Pos token.Position;
 	Msg string;
 }
 
@@ -42,7 +43,7 @@ type Error struct {
 type ErrorList []Error
 
 func (list ErrorList) Len() int { return len(list); }
-func (list ErrorList) Less(i, j int) bool { return list[i].Loc.Pos < list[j].Loc.Pos; }
+func (list ErrorList) Less(i, j int) bool { return list[i].Pos.Offset < list[j].Pos.Offset; }
 func (list ErrorList) Swap(i, j int) { list[i], list[j] = list[j], list[i]; }
 
 
@@ -63,23 +64,23 @@ func (h *errorHandler) Init(filename string, src []byte, columns bool) {
 }
 
 
-func (h *errorHandler) Error(loc scanner.Location, msg string) {
+func (h *errorHandler) Error(pos token.Position, msg string) {
 	// only report errors that are on a new line 
 	// in the hope to avoid most follow-up errors
-	if loc.Line == h.errline {
+	if pos.Line == h.errline {
 		return;
 	}
 
 	// report error
-	fmt.Printf("%s:%d:", h.filename, loc.Line);
+	fmt.Printf("%s:%d:", h.filename, pos.Line);
 	if h.columns {
-		fmt.Printf("%d:", loc.Col);
+		fmt.Printf("%d:", pos.Column);
 	}
 	fmt.Printf(" %s\n", msg);
 
 	// collect the error
-	h.errors.Push(Error{loc, msg});
-	h.errline = loc.Line;
+	h.errors.Push(Error{pos, msg});
+	h.errline = pos.Line;
 }
 
 
@@ -96,10 +97,11 @@ func Compile(src_file string, flags *Flags) (*ast.Package, ErrorList) {
 	var scanner scanner.Scanner;
 	scanner.Init(src, &err, true);
 
-	var parser Parser.Parser;
-	parser.Init(&scanner, &err, flags.Verbose);
-
-	prog := parser.Parse(Parser.ParseEntirePackage);
+	pflags := uint(0);
+	if flags.Verbose {
+		pflags |= parser.Trace;
+	}
+	prog := parser.Parse(&scanner, &err, parser.ParseEntirePackage, pflags);
 
 	if err.errors.Len() == 0 {
 		TypeChecker.CheckProgram(&err, prog);
