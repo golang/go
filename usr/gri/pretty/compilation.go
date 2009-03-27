@@ -101,7 +101,7 @@ func Compile(src_file string, flags *Flags) (*ast.Package, ErrorList) {
 	if flags.Verbose {
 		pflags |= parser.Trace;
 	}
-	prog := parser.Parse(&scanner, &err, parser.ParseEntirePackage, pflags);
+	prog, nerrs := parser.Parse(&scanner, &err, parser.ParseEntirePackage, pflags);
 
 	if err.errors.Len() == 0 {
 		TypeChecker.CheckProgram(&err, prog);
