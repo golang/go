@@ -25,7 +25,9 @@ Todo's:
 [ ] fix "else" part of if statement
 [ ] cleanup: 6g allows: interface { f F } where F is a function type.
 	fine, but then we should also allow: func f F {}, where F is a function type.
-
+[ ] decide if and what to write about evaluation order of tuple assignments
+[ ] decide if and what to write about evaluation order of composite literal
+    elements (single expressions, (key:value) pairs)
 
 Wish list:
 [ ] enum facility (enum symbols that are not mixable with ints) or some other
@@ -1885,15 +1887,15 @@ Composite literals construct values for structs, arrays, slices, and maps
 and create a new value each time they are evaluated.
 They consist of the type of the value
 followed by a brace-bound list of expressions,
-or a list of expression pairs for map literals.
+or a list of key-value pairs for map literals.
 </p>
 
 <pre class="grammar">
-CompositeLit  = LiteralType "{" [ ( ExpressionList | ExprPairList ) [ "," ] ] "}" .
+CompositeLit  = LiteralType "{" [ ( ExpressionList | KeyValueList ) [ "," ] ] "}" .
 LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
                 SliceType | MapType | TypeName .
-ExprPairList  = ExprPair { "," ExprPair } .
-ExprPair      = Expression ":" Expression .
+KeyValueList  = KeyValueExpr { "," KeyValueExpr } .
+KeyValueExpr  = Expression ":" Expression .
 </pre>
 
 <p>
