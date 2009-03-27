@@ -43,6 +43,8 @@ TEST=\
 	bignum\
 	bufio\
 	exec\
+	flag\
+	log\
 	once\
 	sort\
 	strings\
