@@ -16,10 +16,10 @@ import (
 )
 
 
-// An implementation of an ErrorHandler must be provided to the Scanner.
-// If a syntax error is encountered, Error is called with a position and
-// an error message. The position points to the beginning of the offending
-// token.
+// An implementation of an ErrorHandler may be provided to the Scanner.
+// If a syntax error is encountered and a handler was installed, Error
+// is called with a position and an error message. The position points
+// to the beginning of the offending token.
 //
 type ErrorHandler interface {
 	Error(pos token.Position, msg string);
@@ -34,13 +34,16 @@ type ErrorHandler interface {
 type Scanner struct {
 	// immutable state
 	src []byte;  // source
-	err ErrorHandler;  // error reporting
+	err ErrorHandler;  // error reporting; or nil
 	scan_comments bool;  // if set, comments are reported as tokens
 
 	// scanning state
 	pos token.Position;  // previous reading position (position before ch)
 	offset int;  // current reading offset (position after ch)
 	ch int;  // one char look-ahead
+
+	// public state - ok to modify
+	ErrorCount int;  // number of errors encountered
 }
 
 
@@ -70,10 +73,12 @@ func (S *Scanner) next() {
 
 
 // Init prepares the scanner S to tokenize the text src. Calls to Scan
-// will use the error handler err if they encounter a syntax error. The boolean
-// scan_comments specifies whether comments should be recognized and returned
-// by Scan as token.COMMENT. If scan_comments is false, they are treated as
-// white space and ignored.
+// will use the error handler err if they encounter a syntax error and
+// err is not nil. Also, for each error encountered, the Scanner field
+// ErrorCount is incremented by one. The boolean scan_comments specifies
+// whether comments should be recognized and returned by Scan as COMMENT
+// tokens. If scan_comments is false, they are treated as white space and
+// ignored.
 //
 func (S *Scanner) Init(src []byte, err ErrorHandler, scan_comments bool) {
 	// Explicitly initialize all fields since a scanner may be reused.
@@ -82,6 +87,7 @@ func (S *Scanner) Init(src []byte, err ErrorHandler, scan_comments bool) {
 	S.scan_comments = scan_comments;
 	S.pos = token.Position{0, 1, 0};
 	S.offset = 0;
+	S.ErrorCount = 0;
 	S.next();
 }
 
@@ -105,7 +111,10 @@ func charString(ch int) string {
 
 
 func (S *Scanner) error(pos token.Position, msg string) {
-	S.err.Error(pos, msg);
+	if S.err != nil {
+		S.err.Error(pos, msg);
+	}
+	S.ErrorCount++;
 }
 
 
@@ -374,6 +383,13 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Toke
 // the token tok, and the literal text lit corresponding to the
 // token. The source end is indicated by token.EOF.
 //
+// For more tolerant parsing, Scan will return a valid token if
+// possible even if a syntax error was encountered. Thus, even
+// if the resulting token sequence contains no illegal tokens,
+// a client may not assume that no error occurred. Instead it
+// must check the scanner's ErrorCount or the number of calls
+// of the error handler, if there was one installed.
+//
 func (S *Scanner) Scan() (pos token.Position, tok token.Token, lit []byte) {
 scan_again:
 	// skip white space
@@ -462,12 +478,14 @@ scan_again:
 // Tokenize calls a function f with the token position, token value, and token
 // text for each token in the source src. The other parameters have the same
 // meaning as for the Init function. Tokenize keeps scanning until f returns
-// false (usually when the token value is token.EOF).
+// false (usually when the token value is token.EOF). The result is the number
+// of errors encountered.
 //
-func Tokenize(src []byte, err ErrorHandler, scan_comments bool, f func (pos token.Position, tok token.Token, lit []byte) bool) {
+func Tokenize(src []byte, err ErrorHandler, scan_comments bool, f func (pos token.Position, tok token.Token, lit []byte) bool) int {
 	var s Scanner;
 	s.Init(src, err, scan_comments);
 	for f(s.Scan()) {
 		// action happens in f
 	}
+	return s.ErrorCount;
 }
