@@ -24,6 +24,7 @@ maketest() {
 }
 
 maketest \
+	lib/container\
 	lib/fmt\
 	lib/go\
 	lib/hash\
@@ -37,6 +38,7 @@ maketest \
 	lib/strconv\
 	lib/tabwriter\
 	lib/time\
+	lib/unicode\
 
 # all of these are subtly different
 # from what maketest does.
