@@ -13,7 +13,7 @@ import (
 //	grep '^....;[^;]*;Nd;' UnicodeData.txt
 // To generate this table:
 //  ,s/([^;]+).+/	0x\1,	\/\/ &/g
-var decimal = []int{
+var testDecimal = []int{
 	0x0030,	// 0030;DIGIT ZERO;Nd;0;EN;;0;0;0;N;;;;;
 	0x0031,	// 0031;DIGIT ONE;Nd;0;EN;;1;1;1;N;;;;;
 	0x0032,	// 0032;DIGIT TWO;Nd;0;EN;;2;2;2;N;;;;;
@@ -326,7 +326,7 @@ var decimal = []int{
 	0xFF19,	// FF19;FULLWIDTH DIGIT NINE;Nd;0;EN;<wide> 0039;9;9;9;N;;;;;
 }
 
-var letter = []int{
+var testLetter = []int{
 	0x41,
 	0x61,
 	0xaa,
@@ -362,12 +362,12 @@ var letter = []int{
 }
 
 func TestIsDecimalDigit(t *testing.T) {
-	for i, r := range(decimal) {
+	for i, r := range(testDecimal) {
 		if !IsDecimalDigit(r) {
 			t.Errorf("IsDecimalDigit(%#x) = false, want true\n", r);
 		}
 	}
-	for i, r := range(letter) {
+	for i, r := range(testLetter) {
 		if IsDecimalDigit(r) {
 			t.Errorf("IsDecimalDigit(%#x) = true, want false\n", r);
 		}
