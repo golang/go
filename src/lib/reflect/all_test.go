@@ -161,6 +161,12 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 		value := reflect.NewValue(tmp);
 		assert(reflect.valueToString(value), "123.4");
 	}
+	{
+		var tmp = byte(123);
+		value := reflect.NewValue(tmp);
+		assert(reflect.valueToString(value), "123");
+		assert(reflect.typeToString(value.Type(), false), "uint8");
+	}
 	{	var tmp = "abc";
 		value := reflect.NewValue(tmp);
 		assert(reflect.valueToString(value), "abc");
