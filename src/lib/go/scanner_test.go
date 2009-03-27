@@ -176,7 +176,8 @@ func NewlineCount(s string) int {
 }
 
 
-func Test(t *testing.T) {
+// Verify that calling Scan() provides the correct results.
+func TestScan(t *testing.T) {
 	// make source
 	var src string;
 	for i, e := range tokens {
@@ -222,4 +223,26 @@ func Test(t *testing.T) {
 			return tok != token.EOF;
 		}
 	);
+}
+
+
+// Verify that initializing the same scanner more then once works correctly.
+func TestInit(t *testing.T) {
+	var s scanner.Scanner;
+
+	// 1st init
+	s.Init(io.StringBytes("if true { }"), &TestErrorHandler{t}, false);
+	s.Scan();  // if
+	s.Scan();  // true
+	pos, tok, lit := s.Scan();  // {
+	if tok != token.LBRACE {
+		t.Errorf("bad token: got %s, expected %s", tok.String(), token.LBRACE);
+	}
+
+	// 2nd init
+	s.Init(io.StringBytes("go true { ]"), &TestErrorHandler{t}, false);
+	pos, tok, lit = s.Scan();  // go
+	if tok != token.GO {
+		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO);
+	}
 }
