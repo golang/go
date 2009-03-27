@@ -188,7 +188,7 @@ func TestScan(t *testing.T) {
 	// verify scan
 	index := 0;
 	eloc := token.Position{0, 1, 1};
-	scanner.Tokenize(io.StringBytes(src), &TestErrorHandler{t}, true,
+	nerrors := scanner.Tokenize(io.StringBytes(src), &TestErrorHandler{t}, true,
 		func (pos token.Position, tok token.Token, litb []byte) bool {
 			e := elt{token.EOF, "", special};
 			if index < len(tokens) {
@@ -223,6 +223,9 @@ func TestScan(t *testing.T) {
 			return tok != token.EOF;
 		}
 	);
+	if nerrors != 0 {
+		t.Errorf("found %d errors", nerrors);
+	}
 }
 
 
@@ -231,7 +234,7 @@ func TestInit(t *testing.T) {
 	var s scanner.Scanner;
 
 	// 1st init
-	s.Init(io.StringBytes("if true { }"), &TestErrorHandler{t}, false);
+	s.Init(io.StringBytes("if true { }"), nil, false);
 	s.Scan();  // if
 	s.Scan();  // true
 	pos, tok, lit := s.Scan();  // {
@@ -240,9 +243,13 @@ func TestInit(t *testing.T) {
 	}
 
 	// 2nd init
-	s.Init(io.StringBytes("go true { ]"), &TestErrorHandler{t}, false);
+	s.Init(io.StringBytes("go true { ]"), nil, false);
 	pos, tok, lit = s.Scan();  // go
 	if tok != token.GO {
 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO);
+	}
+
+	if s.ErrorCount != 0 {
+		t.Errorf("found %d errors", s.ErrorCount);
 	}
 }
