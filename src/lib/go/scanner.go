@@ -76,10 +76,12 @@ func (S *Scanner) next() {
 // white space and ignored.
 //
 func (S *Scanner) Init(src []byte, err ErrorHandler, scan_comments bool) {
+	// Explicitly initialize all fields since a scanner may be reused.
 	S.src = src;
 	S.err = err;
 	S.scan_comments = scan_comments;
-	S.pos.Line = 1;
+	S.pos = token.Position{0, 1, 0};
+	S.offset = 0;
 	S.next();
 }
 
