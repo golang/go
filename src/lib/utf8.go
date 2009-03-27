@@ -256,13 +256,13 @@ func EncodeRune(rune int, p []byte) int {
 	return 4;
 }
 
-// EncodeRuneToString returns the string corresponding to the UTF-8 encoding of the rune.
+// EncodeRuneToString returns the UTF-8 encoding of the rune.
 func EncodeRuneToString(rune int) string {
 	if rune < _Rune1Max {
 		return string([1]byte{byte(rune)})
 	}
 
-	var buf[UTFMax] byte;
+	var buf [UTFMax]byte;
 	size := EncodeRune(rune, buf);
 	return string(buf[0:size]);
 }
