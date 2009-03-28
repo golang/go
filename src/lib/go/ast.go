@@ -179,9 +179,6 @@ type (
 	};
 
 	// A CompositeLit node represents a composite literal.
-	// A pair (x : y) in a CompositeLit is represented by
-	// a binary expression with the Colon operator.
-	// TODO decide if better to use a Pair node instead.
 	//
 	CompositeLit struct {
 		Type Expr;  // literal type
@@ -248,15 +245,21 @@ type (
 	};
 
 	// A BinaryExpr node represents a binary expression.
-	// A pair (x : y) in a CompositeLit is represented by
-	// a binary expression with the Colon operator.
-	// TODO decide if better to use a Pair node instead.
 	//
 	BinaryExpr struct {
 		X Expr;  // left operand
 		OpPos token.Position;  // position of Op
 		Op token.Token;  // operator
 		Y Expr;  // right operand
+	};
+
+	// A KeyValueExpr node represents (key : value) pairs
+	// in composite literals.
+	//
+	KeyValueExpr struct {
+		Key Expr;
+		Colon token.Position;  // position of ":"
+		Value Expr;
 	};
 )
 
@@ -342,6 +345,7 @@ func (x *SliceExpr) Pos() token.Position  { return x.X.Pos(); }
 func (x *TypeAssertExpr) Pos() token.Position  { return x.X.Pos(); }
 func (x *CallExpr) Pos() token.Position  { return x.Fun.Pos(); }
 func (x *BinaryExpr) Pos() token.Position  { return x.X.Pos(); }
+func (x *KeyValueExpr) Pos() token.Position  { return x.Key.Pos(); }
 
 
 // All expression/type nodes implement a Visit method which takes
@@ -369,6 +373,7 @@ type ExprVisitor interface {
 	DoStarExpr(x *StarExpr);
 	DoUnaryExpr(x *UnaryExpr);
 	DoBinaryExpr(x *BinaryExpr);
+	DoKeyValueExpr(x *KeyValueExpr);
 
 	// Type expressions
 	DoEllipsis(x *Ellipsis);
@@ -403,6 +408,7 @@ func (x *CallExpr) Visit(v ExprVisitor) { v.DoCallExpr(x); }
 func (x *StarExpr) Visit(v ExprVisitor) { v.DoStarExpr(x); }
 func (x *UnaryExpr) Visit(v ExprVisitor) { v.DoUnaryExpr(x); }
 func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
+func (x *KeyValueExpr) Visit(v ExprVisitor) { v.DoKeyValueExpr(x); }
 
 func (x *ArrayType) Visit(v ExprVisitor) { v.DoArrayType(x); }
 func (x *SliceType) Visit(v ExprVisitor) { v.DoSliceType(x); }
