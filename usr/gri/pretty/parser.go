@@ -1046,7 +1046,8 @@ func (p *parser) parseCompositeLit(typ ast.Expr) ast.Expr {
 
 
 // TODO apply these make functions more thoroughly
-// (all uses of parseExpression)
+// (all uses of parseExpression; also should call
+// them something better - verifyX?)
 
 // makeExpr makes sure x is an expression and not a type.
 func (p *parser) makeExpr(x ast.Expr) ast.Expr {
@@ -1061,7 +1062,7 @@ func (p *parser) makeExpr(x ast.Expr) ast.Expr {
 	case *ast.StringList: return x;
 	case *ast.FunctionLit: return x;
 	case *ast.CompositeLit: return x;
-	case *ast.ParenExpr: return p.makeExpr(t.X);
+	case *ast.ParenExpr: p.makeExpr(t.X); return x;
 	case *ast.SelectorExpr: return x;
 	case *ast.IndexExpr: return x;
 	case *ast.SliceExpr: return x;
@@ -1074,34 +1075,42 @@ func (p *parser) makeExpr(x ast.Expr) ast.Expr {
 	
 	// all other nodes are not proper expressions
 	p.error_expected(x.Pos(), "expression");
-	panic();
 	return &ast.BadExpr{x.Pos()};
 }
 
 
-// makeType makes sure x is a type and not an expression.
-func (p *parser) makeType(x ast.Expr) ast.Expr {
+// makeTypeName makes sure that x is type name.
+func (p *parser) makeTypeName(x ast.Expr) ast.Expr {
 	// TODO should provide predicate in AST nodes
 	switch t := x.(type) {
 	case *ast.BadExpr: return x;
 	case *ast.Ident: return x;
-	case *ast.ParenExpr: return p.makeType(t.X);
-	case *ast.ArrayType:
-		if len, is_ellipsis := t.Len.(*ast.Ellipsis); is_ellipsis {
-			p.error(len.Pos(), "expected array length, found '...'");
-			return &ast.BadExpr{x.Pos()};
-		}
-		return x;
+	case *ast.ParenExpr: p.makeTypeName(t.X); return x;  // TODO should (TypeName) be illegal?
+	case *ast.SelectorExpr: p.makeTypeName(t.X); return x;
+	}
+
+	// all other nodes are not type names
+	p.error_expected(x.Pos(), "type name");
+	return &ast.BadExpr{x.Pos()};
+}
+
+
+// makeCompositeLitType makes sure x is a legal composite literal type.
+func (p *parser) makeCompositeLitType(x ast.Expr) ast.Expr {
+	// TODO should provide predicate in AST nodes
+	switch t := x.(type) {
+	case *ast.BadExpr: return x;
+	case *ast.Ident: return x;
+	case *ast.ParenExpr: p.makeCompositeLitType(t.X); return x;
+	case *ast.SelectorExpr: p.makeTypeName(t.X); return x;
+	case *ast.ArrayType: return x;
 	case *ast.SliceType: return x;
 	case *ast.StructType: return x;
-	case *ast.FunctionType: return x;
-	case *ast.InterfaceType: return x;
 	case *ast.MapType: return x;
-	case *ast.ChannelType: return x;
 	}
 	
-	// all other nodes are not types
-	p.error_expected(x.Pos(), "type");
+	// all other nodes are not legal composite literal types
+	p.error_expected(x.Pos(), "composite literal type");
 	return &ast.BadExpr{x.Pos()};
 }
 
@@ -1136,7 +1145,7 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
 		case token.LPAREN: x = p.parseCallOrConversion(p.makeExprOrType(x));
 		case token.LBRACE:
 			if p.expr_lev >= 0 {
-				x = p.parseCompositeLit(x);
+				x = p.parseCompositeLit(p.makeCompositeLitType(x));
 			} else {
 				return p.makeExprOrType(x);
 			}
@@ -1748,6 +1757,33 @@ func (p *parser) parseDecl(keyword int) ast.Decl {
 }
 
 
+func (p *parser) parseReceiver() *ast.Field {
+	if p.trace {
+		defer un(trace(p, "Receiver"));
+	}
+
+	pos := p.pos;
+	par := p.parseParameters(false);
+
+	// must have exactly one receiver
+	if len(par) != 1 || len(par) == 1 && len(par[0].Names) > 1 {
+		p.error_expected(pos, "exactly one receiver");
+		return &ast.Field{nil, nil, &ast.BadExpr{noPos}, nil};
+	}
+
+	recv := par[0];
+
+	// recv type must be TypeName or *TypeName
+	base := recv.Type;
+	if ptr, is_ptr := base.(*ast.StarExpr); is_ptr {
+		base = ptr.X;
+	}
+	p.makeTypeName(base);
+
+	return recv;
+}
+
+
 func (p *parser) parseFunctionDecl() *ast.FuncDecl {
 	if p.trace {
 		defer un(trace(p, "FunctionDecl"));
@@ -1758,13 +1794,7 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
 
 	var recv *ast.Field;
 	if p.tok == token.LPAREN {
-		pos := p.pos;
-		tmp := p.parseParameters(false);
-		if len(tmp) == 1 {
-			recv = tmp[0];
-		} else {
-			p.error_expected(pos, "exactly one receiver");
-		}
+		recv = p.parseReceiver();
 	}
 
 	ident := p.parseIdent();
