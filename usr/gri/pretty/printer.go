@@ -591,6 +591,15 @@ func (P *Printer) DoBinaryExpr(x *ast.BinaryExpr) {
 }
 
 
+func (P *Printer) DoKeyValueExpr(x *ast.KeyValueExpr) {
+	P.Expr(x.Key);
+	P.separator = blank;
+	P.Token(x.Colon, token.COLON);
+	P.separator = blank;
+	P.Expr(x.Value);
+}
+
+
 func (P *Printer) DoStarExpr(x *ast.StarExpr) {
 	P.Token(x.Pos(), token.MUL);
 	P.Expr(x.X);
@@ -721,9 +730,14 @@ func (P *Printer) DoEllipsis(x *ast.Ellipsis) {
 
 func (P *Printer) DoArrayType(x *ast.ArrayType) {
 	P.Token(x.Pos(), token.LBRACK);
-	if x.Len != nil {
-		P.Expr(x.Len);
-	}
+	P.Expr(x.Len);
+	P.Token(nopos, token.RBRACK);
+	P.Expr(x.Elt);
+}
+
+
+func (P *Printer) DoSliceType(x *ast.SliceType) {
+	P.Token(x.Pos(), token.LBRACK);
 	P.Token(nopos, token.RBRACK);
 	P.Expr(x.Elt);
 }
@@ -748,11 +762,6 @@ func (P *Printer) DoInterfaceType(x *ast.InterfaceType) {
 	if x.Methods != nil {
 		P.Fields(x.Lbrace, x.Methods, x.Rbrace, true);
 	}
-}
-
-
-func (P *Printer) DoSliceType(x *ast.SliceType) {
-	unimplemented();
 }
 
 
