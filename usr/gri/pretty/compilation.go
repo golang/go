@@ -97,11 +97,11 @@ func Compile(src_file string, flags *Flags) (*ast.Package, ErrorList) {
 	var scanner scanner.Scanner;
 	scanner.Init(src, &err, true);
 
-	pflags := uint(0);
+	mode := uint(0);
 	if flags.Verbose {
-		pflags |= parser.Trace;
+		mode |= parser.Trace;
 	}
-	prog, nerrs := parser.Parse(&scanner, &err, parser.ParseEntirePackage, pflags);
+	prog, nerrs := parser.Parse(&scanner, &err, mode);
 
 	if err.errors.Len() == 0 {
 		TypeChecker.CheckProgram(&err, prog);
