@@ -243,24 +243,23 @@ func (tok Token) String() string {
 
 // A set of constants for precedence-based expression parsing.
 // Non-operators have lowest precedence, followed by operators
-// starting with precedence 0 up to unary operators. The highest
+// starting with precedence 1 up to unary operators. The highest
 // precedence corresponds serves as "catch-all" precedence for
 // selector, indexing, and other operator and delimiter tokens.
 //
 const (
-	LowestPrec = -1;  // non-operators
+	LowestPrec = 0;  // non-operators
 	UnaryPrec = 7;
 	HighestPrec = 8;
 )
 
 
-// Precedence returns the syntax precedence of the operator
-// token op or LowestPrecedence if op is not an operator.
+// Precedence returns the operator precedence of the binary
+// operator op. If op is not a binary operator, the result
+// is LowestPrecedence.
 //
 func (op Token) Precedence() int {
 	switch op {
-	case COLON:
-		return 0;
 	case LOR:
 		return 1;
 	case LAND:
