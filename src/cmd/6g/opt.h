@@ -28,12 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-
 #define	Z	N
 #define	Adr	Addr
-
-#define	BITS	5
-#define	NVAR	(BITS*sizeof(uint32)*8)
 
 #define	D_HI	D_NONE
 #define	D_LO	D_NONE
@@ -50,15 +46,8 @@
 #define	CINF	1000
 #define	LOOP	3
 
-typedef	struct	Bits	Bits;
 typedef	struct	Reg	Reg;
-typedef	struct	Var	Var;
 typedef	struct	Rgn	Rgn;
-
-struct	Bits
-{
-	uint32	b[BITS];
-};
 
 struct	Reg
 {
@@ -91,14 +80,6 @@ struct	Reg
 };
 #define	R	((Reg*)0)
 
-struct	Var
-{
-	vlong	offset;
-	Sym*	sym;
-	char	name;
-	char	etype;
-};
-
 #define	NRGN	600
 struct	Rgn
 {
@@ -108,14 +89,12 @@ struct	Rgn
 	short	regno;
 };
 
-
 EXTERN	int32	exregoffset;		// not set
 EXTERN	int32	exfregoffset;		// not set
 EXTERN	Reg*	firstr;
 EXTERN	Reg*	lastr;
 EXTERN	Reg	zreg;
 EXTERN	Reg*	freer;
-EXTERN	Var	var[NVAR];
 EXTERN	Reg**	rpo2r;
 EXTERN	Rgn	region[NRGN];
 EXTERN	Rgn*	rgp;
@@ -129,24 +108,10 @@ EXTERN	Bits	consts;
 EXTERN	Bits	addrs;
 EXTERN	Bits	ovar;
 EXTERN	int	change;
-EXTERN	Bits	zbits;
 EXTERN	int32	maxnr;
 EXTERN	int32*	idom;
 
-/*
- * bits.c
- */
-Bits	bor(Bits, Bits);
-Bits	band(Bits, Bits);
-Bits	bnot(Bits);
-int	bany(Bits*);
-int	bnum(Bits);
-Bits	blsh(uint);
-int	beq(Bits, Bits);
-int	bset(Bits, uint);
-int	Qconv(Fmt *fp);
-int	bitno(int32);
-struct
+EXTERN	struct
 {
 	int32	ncvtreg;
 	int32	nspill;

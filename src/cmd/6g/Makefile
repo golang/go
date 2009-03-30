@@ -22,7 +22,6 @@ OFILES=\
 	obj.$O\
 	peep.$O\
 	reg.$O\
-	bits.$O\
 	../6l/enam.$O\
 
 LIB=\

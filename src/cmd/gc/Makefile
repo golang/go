@@ -28,6 +28,7 @@ OFILES=\
 	mparith3.$O\
 	builtin.$O\
 	compat.$O\
+	bits.$O\
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)
