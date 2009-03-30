@@ -11,7 +11,7 @@
 #include	"compat.h"
 
 #ifndef	EXTERN
-#define EXTERN	extern
+#define	EXTERN	extern
 #endif
 enum
 {
@@ -419,6 +419,29 @@ enum
 	Elv,		// evaluated in lvalue context
 	Erv,		// evaluated in rvalue context
 };
+
+#define	BITS	5
+#define	NVAR	(BITS*sizeof(uint32)*8)
+
+typedef	struct	Bits	Bits;
+struct	Bits
+{
+	uint32	b[BITS];
+};
+
+EXTERN	Bits	zbits;
+
+typedef	struct	Var	Var;
+struct	Var
+{
+	vlong	offset;
+	Sym*	sym;
+	char	name;
+	char	etype;
+};
+
+EXTERN	Var	var[NVAR];
+
 
 typedef	struct	Io	Io;
 struct	Io
@@ -871,3 +894,17 @@ Node*	nodarg(Type*, int);
 void	nodconst(Node*, Type*, vlong);
 Type*	deep(Type*);
 Type*	shallow(Type*);
+
+/*
+ * bits.c
+ */
+Bits	bor(Bits, Bits);
+Bits	band(Bits, Bits);
+Bits	bnot(Bits);
+int	bany(Bits*);
+int	bnum(Bits);
+Bits	blsh(uint);
+int	beq(Bits, Bits);
+int	bset(Bits, uint);
+int	Qconv(Fmt *fp);
+int	bitno(int32);

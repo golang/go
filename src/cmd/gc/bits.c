@@ -28,8 +28,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include "gg.h"
-#include "opt.h"
+#include "go.h"
 
 Bits
 bor(Bits a, Bits b)
