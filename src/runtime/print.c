@@ -34,7 +34,7 @@ void
 printf(int8 *s, ...)
 {
 	int8 *p, *lp;
-	byte *arg;
+	byte *arg, *narg;
 
 	lp = p = s;
 	arg = (byte*)(&s+1);
@@ -44,46 +44,50 @@ printf(int8 *s, ...)
 		if(p > lp)
 			sys·write(1, lp, p-lp);
 		p++;
+		narg = nil;
+		switch(*p) {
+		case 'd':	// 32-bit
+		case 'x':
+			narg = arg + 4;
+			break;
+		case 'D':	// 64-bit
+		case 'X':
+			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
+				arg += 4;
+			narg = arg + 8;
+			break;
+		case 'p':	// pointer-sized
+		case 's':
+		case 'S':
+			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
+				arg += 4;
+			narg = arg + sizeof(uintptr);
+			break;
+		}
 		switch(*p) {
 		case 'd':
 			sys·printint(*(int32*)arg);
-			arg += 4;
 			break;
 		case 'D':
-			if(((uint32)(uint64)arg)&4)
-				arg += 4;
 			sys·printint(*(int64*)arg);
-			arg += 8;
 			break;
 		case 'x':
 			sys·printhex(*(int32*)arg);
-			arg += 4;
 			break;
 		case 'X':
-			if(((uint32)(uint64)arg)&4)
-				arg += 4;
 			sys·printhex(*(int64*)arg);
-			arg += 8;
 			break;
 		case 'p':
-			if(((uint32)(uint64)arg)&4)
-				arg += 4;
 			sys·printpointer(*(void**)arg);
-			arg += 8;
 			break;
 		case 's':
-			if(((uint32)(uint64)arg)&4)
-				arg += 4;
 			prints(*(int8**)arg);
-			arg += 8;
 			break;
 		case 'S':
-			if(((uint32)(uint64)arg)&4)
-				arg += 4;
 			sys·printstring(*(string*)arg);
-			arg += 8;
 			break;
 		}
+		arg = narg;
 		lp = p+1;
 	}
 	if(p > lp)

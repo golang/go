@@ -9,6 +9,7 @@
 
 #include "runtime.h"
 #include "malloc.h"
+#include "defs.h"
 
 MHeap mheap;
 MStats mstats;
@@ -163,10 +164,10 @@ mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
 	nobj = (s->npages << PageShift) / (n + RefcountOverhead);
 	if((byte*)s->gcref < p || (byte*)(s->gcref+nobj) > p+(s->npages<<PageShift)) {
 		printf("odd span state=%d span=%p base=%p sizeclass=%d n=%D size=%D npages=%D\n",
-			s->state, s, p, s->sizeclass, nobj, n, s->npages);
+			s->state, s, p, s->sizeclass, (uint64)nobj, (uint64)n, (uint64)s->npages);
 		printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%D size=%D end=%p end=%p\n",
-			s->sizeclass, v, p, s->gcref, s->npages<<PageShift,
-			nobj, n, s->gcref + nobj, p+(s->npages<<PageShift));
+			s->sizeclass, v, p, s->gcref, (uint64)s->npages<<PageShift,
+			(uint64)nobj, (uint64)n, s->gcref + nobj, p+(s->npages<<PageShift));
 		throw("bad gcref");
 	}
 	if(ref)
@@ -192,28 +193,11 @@ mallocinit(void)
 	free(malloc(1));
 }
 
-// TODO(rsc): Move elsewhere.
-enum
-{
-	NHUNK		= 20<<20,
-
-	PROT_NONE	= 0x00,
-	PROT_READ	= 0x01,
-	PROT_WRITE	= 0x02,
-	PROT_EXEC	= 0x04,
-
-	MAP_FILE	= 0x0000,
-	MAP_SHARED	= 0x0001,
-	MAP_PRIVATE	= 0x0002,
-	MAP_FIXED	= 0x0010,
-	MAP_ANON	= 0x1000,	// not on Linux - TODO(rsc)
-};
-
 void*
 SysAlloc(uintptr n)
 {
 	mstats.sys += n;
-	return sys_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
+	return sys_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
 }
 
 void
@@ -284,7 +268,7 @@ stackalloc(uint32 n)
 		if(stacks.size == 0)
 			FixAlloc_Init(&stacks, n, SysAlloc, nil, nil);
 		if(stacks.size != n) {
-			printf("stackalloc: in malloc, size=%D want %d", stacks.size, n);
+			printf("stackalloc: in malloc, size=%D want %d", (uint64)stacks.size, n);
 			throw("stackalloc");
 		}
 		v = FixAlloc_Alloc(&stacks);

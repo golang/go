@@ -101,6 +101,11 @@ enum
 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
 };
 
+#ifdef _64BIT
+#include "mheapmap64.h"
+#else
+#include "mheapmap32.h"
+#endif
 
 // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
 struct MLink
@@ -252,8 +257,6 @@ struct MCentral
 void	MCentral_Init(MCentral *c, int32 sizeclass);
 int32	MCentral_AllocList(MCentral *c, int32 n, MLink **first);
 void	MCentral_FreeList(MCentral *c, int32 n, MLink *first);
-
-#include "mheapmap64.h"
 
 // Main malloc heap.
 // The heap itself is the "free[]" and "large" arrays,

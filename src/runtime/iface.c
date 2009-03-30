@@ -21,7 +21,7 @@ struct	Sigt
 	uint32	mhash;                  // hash of methods
 	uint16	width;			// width of base type in bytes
 	uint16	alg;			// algorithm
-	uint32	pad;
+	// note: on amd64 there is a 32-bit pad here.
 	struct {
 		byte*	fname;
 		uint32	fhash;		// hash of type
@@ -253,7 +253,7 @@ sys·ifaceT2I(Sigi *si, Sigt *st, ...)
 
 	wid = st->width;
 	alg = st->alg;
-	ret = (Iface*)(elem + rnd(wid, 8));
+	ret = (Iface*)(elem + rnd(wid, sizeof(uintptr)));
 	ret->type = itype(si, st, 0);
 
 	if(wid <= sizeof(ret->data))

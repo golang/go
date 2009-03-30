@@ -2,12 +2,31 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF
-O=6
+# Set SIZE to 32 or 64.
+SIZE_386=32
+SIZE_amd64=64
+SIZE=$(SIZE_$(GOARCH))
+
+# Setup CFLAGS.  Add -D_64BIT on 64-bit platforms (sorry).
+CFLAGS_64=-D_64BIT
+CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE))
+
+# Set O to right letter.
+O_386=8
+O_amd64=6
+O=$(O_$(GOARCH))
+
+# Tools
 CC=$(O)c
 AS=$(O)a
+AR=6ar  # sic
 
 LIB=lib.a
+
+# 386-specific object files
+OFILES_386=\
+	vlop.$O\
+	vlrt.$O\
 
 OFILES=\
 	array.$O\
@@ -26,7 +45,7 @@ OFILES=\
 	mfixalloc.$O\
 	mgc0.$O\
 	mheap.$O\
-	mheapmap64.$O\
+	mheapmap$(SIZE).$O\
 	msize.$O\
 	print.$O\
 	proc.$O\
@@ -41,6 +60,7 @@ OFILES=\
 	sys.$O\
 	thread.$O\
 	traceback.$O\
+	$(OFILES_$(GOARCH))\
 
 HFILES=\
 	runtime.h\
@@ -54,15 +74,15 @@ install: $(LIB) runtime.acid
 	cp runtime.acid $(GOROOT)/acid/runtime.acid
 
 $(LIB): $(OFILES)
-	$(O)ar rc $(LIB) $(OFILES)
+	$(AR) rc $(LIB) $(OFILES)
 
 $(OFILES): $(HFILES)
 
 nuke:
-	rm -f *.$(O) *.a $(GOROOT)/lib/$(LIB)
+	rm -f *.[68] *.a $(GOROOT)/lib/$(LIB)
 
 clean:
-	rm -f *.$(O) *.a runtime.acid cgo2c
+	rm -f *.[68] *.a runtime.acid cgo2c
 
 %.$O:	%.c
 	$(CC) $(CFLAGS) $<

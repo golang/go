@@ -15,7 +15,12 @@ typedef	signed long long int	int64;
 typedef	unsigned long long int	uint64;
 typedef	float			float32;
 typedef	double			float64;
+
+#ifdef _64BIT
 typedef	uint64		uintptr;
+#else
+typedef	uint32		uintptr;
+#endif
 
 /*
  * get rid of C types
@@ -155,7 +160,7 @@ struct	M
 	uint64	cret;		// return value from C - must not move
 	uint64	procid;		// for debuggers - must not move
 	G*	gsignal;	// signal-handling G - must not move
-	G*	curg;		// current running goroutine
+	G*	curg;		// current running goroutine - must not move
 	G*	lastg;		// last running goroutine - to emulate fifo
 	Gobuf	sched;
 	Gobuf	morestack;
@@ -310,7 +315,7 @@ void	sigaltstack(void*, void*);
 void	signalstack(byte*, int32);
 G*	malg(int32);
 void	minit(void);
-Func*	findfunc(uint64);
+Func*	findfunc(uintptr);
 int32	funcline(Func*, uint64);
 void*	stackalloc(uint32);
 void	stackfree(void*);
@@ -335,7 +340,7 @@ void	free(void *v);
 #pragma	varargck	type	"X"	int64
 #pragma	varargck	type	"X"	uint64
 #pragma	varargck	type	"p"	void*
-#pragma	varargck	type	"p"	uint64
+#pragma	varargck	type	"p"	uintptr
 #pragma	varargck	type	"s"	int8*
 #pragma	varargck	type	"s"	uint8*
 #pragma	varargck	type	"S"	string

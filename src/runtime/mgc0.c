@@ -109,7 +109,7 @@ sweepspan(MSpan *s)
 
 	if(s->state != MSpanInUse)
 		return;
-	
+
 	p = (byte*)(s->start << PageShift);
 	if(s->sizeclass == 0) {
 		// Large block.
@@ -122,7 +122,7 @@ sweepspan(MSpan *s)
 			break;
 		case RefNone:
 			if(Debug)
-				printf("free %D at %p\n", s->npages<<PageShift, p);
+				printf("free %D at %p\n", (uint64)s->npages<<PageShift, p);
 			free(p);
 			break;
 		case RefSome:

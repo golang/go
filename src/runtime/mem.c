@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "defs.h"
 
 // Stubs for memory management.
 // In a separate file so they can be overridden during testing of gc.
@@ -10,17 +11,6 @@
 enum
 {
 	NHUNK		= 20<<20,
-
-	PROT_NONE	= 0x00,
-	PROT_READ	= 0x01,
-	PROT_WRITE	= 0x02,
-	PROT_EXEC	= 0x04,
-
-	MAP_FILE	= 0x0000,
-	MAP_SHARED	= 0x0001,
-	MAP_PRIVATE	= 0x0002,
-	MAP_FIXED	= 0x0010,
-	MAP_ANON	= 0x1000,	// not on Linux - TODO(rsc)
 };
 
 // Convenient wrapper around mmap.
