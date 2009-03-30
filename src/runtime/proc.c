@@ -188,10 +188,10 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 	sp -= siz;
 	mcpy(sp, (byte*)&arg0, siz);
 
-	sp -= 8;
+	sp -= sizeof(uintptr);
 	*(byte**)sp = (byte*)sys·Goexit;
 
-	sp -= 8;	// retpc used by gogo
+	sp -= sizeof(uintptr);	// retpc used by gogo
 	newg->sched.SP = sp;
 	newg->sched.PC = fn;
 
@@ -251,7 +251,7 @@ tracebackothers(G *me)
 		if(g == me || g->status == Gdead)
 			continue;
 		printf("\ngoroutine %d:\n", g->goid);
-		traceback(g->sched.PC, g->sched.SP+8, g);  // gogo adjusts SP by 8 (not portable!)
+		traceback(g->sched.PC, g->sched.SP+sizeof(uintptr), g);  // gogo adjusts SP by one word
 	}
 }
 

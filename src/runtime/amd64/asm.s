@@ -64,9 +64,6 @@ TEXT	sys·Breakpoint(SB),7,$0
 	BYTE	$0xcc
 	RET
 
-TEXT	FLUSH(SB),7,$0
-	RET
-
 /*
  *  go-routine
  */

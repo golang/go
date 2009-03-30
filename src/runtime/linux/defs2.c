@@ -4,20 +4,23 @@
 
 /*
  * Input to godefs
-	godefs -f -m64 defs.c >amd64/defs.h
-	godefs -f -m64 defs1.c >>amd64/defs.h
+	godefs -f -m32 -f -I/home/rsc/pub/linux-2.6/arch/x86/include -f -I/home/rsc/pub/linux-2.6/include defs2.c >386/defs.h
+
+ * The asm header tricks we have to use for Linux on amd64
+ * (see defs.c and defs1.c) don't work here, so this is yet another
+ * file.  Sigh.
  */
 
-// Linux glibc and Linux kernel define different and conflicting
-// definitions for struct sigaction, struct timespec, etc.
-// We want the kernel ones, which are in the asm/* headers.
-// But then we'd get conflicts when we include the system
-// headers for things like ucontext_t, so that happens in
-// a separate file, defs1.c.
-
 #include <asm/signal.h>
-#include <asm/siginfo.h>
 #include <asm/mman.h>
+#include <asm/sigframe.h>
+#include <asm/ucontext.h>
+
+/*
+#include <sys/signal.h>
+#include <sys/mman.h>
+#include <ucontext.h>
+*/
 
 enum {
 	$PROT_NONE = PROT_NONE,
@@ -34,7 +37,15 @@ enum {
 	$SA_SIGINFO = SA_SIGINFO,
 };
 
+typedef struct _fpreg $Fpreg;
+typedef struct _fpxreg $Fpxreg;
+typedef struct _xmmreg $Xmmreg;
+typedef struct _fpstate $Fpstate;
 typedef struct timespec $Timespec;
 typedef struct timeval $Timeval;
 typedef struct sigaction $Sigaction;
 typedef siginfo_t $Siginfo;
+typedef struct sigaltstack $Sigaltstack;
+typedef struct sigcontext $Sigcontext;
+typedef struct ucontext $Ucontext;
+

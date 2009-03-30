@@ -14,8 +14,16 @@
 
 #include "runtime.h"
 
+// TODO(rsc): Move this *under* the text segment.
+// Then define names for these addresses instead of hard-coding magic ones.
+#ifdef _64BIT
 #define SYMCOUNTS ((int32*)(0x99LL<<32))	// known to 6l
 #define SYMDATA ((byte*)(0x99LL<<32) + 8)
+#else
+#define SYMCOUNTS ((int32*)(0x99LL<<24))	// known to 8l
+#define SYMDATA ((byte*)(0x99LL<<24) + 8)
+#endif
+
 
 // Return a pointer to a byte array containing the symbol table segment.
 void
@@ -44,7 +52,7 @@ sys·symdat(Array *symtab, Array *pclntab)
 typedef struct Sym Sym;
 struct Sym
 {
-	uint64 value;
+	uintptr value;
 	byte symtype;
 	byte *name;
 	byte *gotype;
@@ -229,7 +237,7 @@ static void
 splitpcln(void)
 {
 	int32 line;
-	uint64 pc;
+	uintptr pc;
 	byte *p, *ep;
 	Func *f, *ef;
 	int32 *v;
@@ -280,7 +288,7 @@ int32
 funcline(Func *f, uint64 targetpc)
 {
 	byte *p, *ep;
-	uint64 pc;
+	uintptr pc;
 	int32 line;
 
 	p = f->pcln.array;
@@ -332,7 +340,7 @@ buildfuncs(void)
 }
 
 Func*
-findfunc(uint64 addr)
+findfunc(uintptr addr)
 {
 	Func *f;
 	int32 nf, n;

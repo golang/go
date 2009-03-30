@@ -5,7 +5,7 @@
 #include "runtime.h"
 
 int32	panicking	= 0;
-int32	maxround	= 8;
+int32	maxround	= sizeof(uintptr);
 
 int32
 gotraceback(void)
@@ -54,6 +54,7 @@ throw(int8 *s)
 	prints("throw: ");
 	prints(s);
 	prints("\n");
+	sys·panicl(-1);
 	*(int32*)0 = 0;
 	sys_Exit(1);
 }
@@ -183,6 +184,8 @@ getenv(int8 *s)
 	envv = (string*)sys·Envs.array;
 	envc = sys·Envs.nel;
 	for(i=0; i<envc; i++){
+		if(envv[i]->len <= len)
+			continue;
 		v = envv[i]->str;
 		for(j=0; j<len; j++)
 			if(bs[j] != v[j])
@@ -233,8 +236,8 @@ check(void)
 	if(sizeof(h) != 8) throw("bad h");
 	if(sizeof(i) != 4) throw("bad i");
 	if(sizeof(j) != 8) throw("bad j");
-	if(sizeof(k) != 8) throw("bad k");
-	if(sizeof(l) != 8) throw("bad l");
+	if(sizeof(k) != sizeof(uintptr)) throw("bad k");
+	if(sizeof(l) != sizeof(uintptr)) throw("bad l");
 //	prints(1"check ok\n");
 
 	uint32 z;
@@ -416,4 +419,11 @@ algarray[] =
 [AINTER]		{ interhash, interequal, interprint, memcopy },
 [AFAKE]	{ nohash, noequal, noprint, nocopy },
 };
+
+#pragma textflag 7
+void
+FLUSH(void *v)
+{
+	USED(v);
+}
 
