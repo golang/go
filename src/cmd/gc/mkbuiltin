@@ -19,10 +19,10 @@ rm -f _builtin.c
 # in end user Go repositories.
 case "$USER" in
 ken | r | rsc)
-	if ! cmp _builtin.c builtin.c.boot
+	if ! cmp _builtin.c builtin.c.boot >/dev/null 2>/dev/null
 	then
-		PATH=$PATH:/usr/local/bin
-		p4 open builtin.c.boot >/dev/null
+		PATH=$PATH:/usr/local/bin	# find p4 on OS X
+		p4 open builtin.c.boot >/dev/null 2>/dev/null || true	# if p4 is missing, so be it
 		cp _builtin.c builtin.c.boot
 	fi
 esac
