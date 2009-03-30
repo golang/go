@@ -2,34 +2,26 @@
 =========== ./cmp2.go
 comparing uncomparable type []int
 throw: interface compare
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
 
+panic PC=xxx
 
 =========== ./cmp3.go
 comparing uncomparable type map[string] int
 throw: interface compare
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
 
+panic PC=xxx
 
 =========== ./cmp4.go
 hash of unhashable type []int
 throw: interface hash
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
 
+panic PC=xxx
 
 =========== ./cmp5.go
 hash of unhashable type map[string] int
 throw: interface hash
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
 
+panic PC=xxx
 
 =========== ./convlit.go
 BUG: errchk: ./convlit.go: unmatched error messages:
@@ -46,18 +38,14 @@ hello, world
 =========== ./interface2.go
 cannot convert type *main.S to interface main.I: missing method Foo
 throw: interface conversion
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
 
+panic PC=xxx
 
 =========== ./interface3.go
 cannot convert type *main.S to interface main.I2: missing method Name
 throw: interface conversion
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
 
+panic PC=xxx
 
 =========== ./peano.go
 0! = 1
@@ -240,10 +228,8 @@ fixedbugs/bug103.go:8: function requires a return type
 =========== fixedbugs/bug113.go
 main.I is int, not int32
 throw: interface conversion
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
 
+panic PC=xxx
 
 =========== fixedbugs/bug121.go
 fixedbugs/bug121.go:9: syntax error near T
