@@ -1658,7 +1658,7 @@ and is shorthand for the declaration syntax
 <pre>
 i, j := 0, 10;
 f := func() int { return 7; }
-ch := new(chan int);
+ch := make(chan int);
 </pre>
 
 <p>
@@ -3291,10 +3291,10 @@ case x == 4: f3();
 A type switch compares types rather than values. It is otherwise similar
 to an expression switch. It is introduced by special
 notation in the form of a simple declaration whose right hand side
-has the form of a type guard (§Type guards)
+has the form of a type assertion (§Type assertions)
 using the reserved word <code>type</code> rather than an actual type.
 Cases then match literal types against the dynamic type of the expression
-in the type guard.
+in the type assertion.
 </p>
 
 <pre class="grammar">
