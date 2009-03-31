@@ -820,9 +820,9 @@ enum
 	D_FILE,
 	D_FILE1,
 
-	D_SBIG,	/* internal use by 6l only */
-
 	D_INDIR,	/* additive */
+
+	D_SBIG = D_INDIR + D_INDIR,
 
 	T_TYPE		= 1<<0,
 	T_INDEX		= 1<<1,

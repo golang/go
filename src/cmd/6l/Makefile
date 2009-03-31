@@ -36,3 +36,5 @@ clean:
 
 install: $(TARG)
 	cp $(TARG) $(BIN)/$(TARG)
+
+go.o: ../ld/go.c

@@ -802,7 +802,7 @@ ckoff(Sym *s, int32 v)
 		diag("relocation offset %ld for %s out of range", v, s->name);
 }
 
-static Prog*
+Prog*
 newdata(Sym *s, int o, int w, int t)
 {
 	Prog *p;
@@ -820,6 +820,30 @@ newdata(Sym *s, int o, int w, int t)
 	p->from.sym = s;
 	p->from.offset = o;
 	p->to.type = D_CONST;
+	p->dlink = s->data;
+	s->data = p;
+	return p;
+}
+
+Prog*
+newtext(Prog *p, Sym *s)
+{
+	if(p == P) {
+		p = prg();
+		p->as = ATEXT;
+		p->from.sym = s;
+	}
+	s->type = STEXT;
+	s->text = p;
+	s->value = pc;
+	lastp->link = p;
+	lastp = p;
+	p->pc = pc++;
+	if(textp == P)
+		textp = p;
+	else
+		etextp->pcond = p;
+	etextp = p;
 	return p;
 }
 
