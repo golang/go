@@ -43,6 +43,7 @@ struct	Vlong
 {
 	union
 	{
+		long long	v;
 		struct
 		{
 			ulong	lo;
@@ -59,8 +60,6 @@ struct	Vlong
 };
 
 void	abort(void);
-
-void _subv(Vlong*, Vlong, Vlong);
 
 void
 _d2v(Vlong *y, double d)
@@ -236,7 +235,7 @@ dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
 			slowdodiv(num, den, &q, &r);
 		else {
 			q.lo = n;
-			_subv(&r, num, x);
+			r.v = num.v - x.v;
 		}
 	} else {
 		if(num.hi >= den.lo){

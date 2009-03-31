@@ -23,15 +23,18 @@ sys·panicl(int32 lno)
 {
 	uint8 *sp;
 
-	prints("\npanic ");
-	sys·printpc(&lno);
-	prints("\n");
+	if(panicking) {
+		printf("double panic\n");
+		sys_Exit(3);
+	}
+	panicking++;
+
+	printf("\npanic PC=%X [%d]\n", (uint64)(uintptr)&lno, panicking);
 	sp = (uint8*)&lno;
 	if(gotraceback()){
 		traceback(sys·getcallerpc(&lno), sp, g);
 		tracebackothers(g);
 	}
-	panicking = 1;
 	sys·Breakpoint();  // so we can grab it in a debugger
 	sys_Exit(2);
 }
