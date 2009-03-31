@@ -239,14 +239,6 @@ regfree(Node *n)
 	reg[i]--;
 }
 
-void
-regret(Node *n, Type *t)
-{
-	if(t == T)
-		fatal("regret: t nil");
-	fatal("regret");
-}
-
 /*
  * initialize n to be register r of type t.
  */
