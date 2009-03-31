@@ -573,6 +573,7 @@ funclit1(Type *type, Node *body)
 		out = rev(out);
 
 		ft = functype(N, in, out);
+		ft->outnamed = type->outnamed;
 	}
 
 	// declare function.
