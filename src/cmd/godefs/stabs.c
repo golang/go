@@ -141,6 +141,7 @@ Intrange intranges[] = {
 
 static int kindsize[] = {
 	0,
+	0,
 	8,
 	8,
 	16,
@@ -366,10 +367,12 @@ parsedef(char **pp, char *name)
 			// into
 			//	uint8 x;
 			// hooray for bitfields.
+			while(f->type->kind == Typedef)
+				f->type = f->type->type;
 			while(Int16 <= f->type->kind && f->type->kind <= Uint64 && kindsize[f->type->kind] > f->size) {
-				t = emalloc(sizeof *t);
-				*t = *f->type;
-				f->type = t;
+				tt = emalloc(sizeof *tt);
+				*tt = *f->type;
+				f->type = tt;
 				f->type->kind -= 2;
 			}
 			p++;
