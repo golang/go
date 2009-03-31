@@ -1927,3 +1927,21 @@ no:
 	sudoclean();
 	return 0;
 }
+
+void
+gused(Node *n)
+{
+	gins(ANOP, n, N);	// used
+}
+
+Prog*
+gjmp(Prog *to)
+{
+	Prog *p;
+	
+	p = gbranch(AJMP, T);
+	if(to != P)
+		patch(p, to);
+	return p;
+}
+

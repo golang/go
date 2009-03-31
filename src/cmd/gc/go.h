@@ -938,25 +938,11 @@ int	consttype(Node*);
 int	isconst(Node*, int);
 
 /*
- *	gen.c/gsubr.c/obj.c
- */
-void	betypeinit(void);
-vlong	convvtox(vlong, int);
-void	compile(Node*);
-void	proglist(void);
-int	optopop(int);
-void	dumpobj(void);
-void	dowidth(Type*);
-void	argspace(int32);
-Node*	nodarg(Type*, int);
-Type*	deep(Type*);
-Type*	shallow(Type*);
-
-/*
  *	align.c
  */
 uint32	rnd(uint32, uint32);
 void	dowidth(Type*);
+int	argsize(Type*);
 
 /*
  *	bits.c
@@ -972,3 +958,66 @@ int	bset(Bits, uint);
 int	Qconv(Fmt *fp);
 int	bitno(int32);
 
+/*
+ *	gen.c
+ */
+typedef	struct	Prog	Prog;
+#define	P	((Prog*)0)
+
+typedef	struct	Label Label;
+struct	Label
+{
+	uchar	op;		// OGOTO/OLABEL
+	Sym*	sym;
+	Prog*	label;		// pointer to code
+	Prog*	breakpc;	// pointer to code
+	Prog*	continpc;	// pointer to code
+	Label*	link;
+};
+#define	L	((Label*)0)
+
+EXTERN	Label*	labellist;
+EXTERN	Label*	findlab(Sym*);
+
+EXTERN	Prog*	continpc;
+EXTERN	Prog*	breakpc;
+EXTERN	Prog*	pc;
+EXTERN	Prog*	firstpc;
+
+void	allocparams(void);
+void	cgen_as(Node *nl, Node *nr);
+void	cgen_callmeth(Node *n, int proc);
+void	cgen_dcl(Node *n);
+void	cgen_proc(Node *n, int proc);
+void	checklabels(void);
+Label*	findlab(Sym *s);
+void	gen(Node *n);
+void	newlab(int op, Sym *s);
+Node*	sysfunc(char *name);
+
+
+/*
+ *	gen.c/gsubr.c/obj.c
+ */
+void	betypeinit(void);
+vlong	convvtox(vlong, int);
+void	compile(Node*);
+void	proglist(void);
+int	optopop(int);
+void	dumpobj(void);
+void	dowidth(Type*);
+void	argspace(int32);
+Node*	nodarg(Type*, int);
+Type*	deep(Type*);
+Type*	shallow(Type*);
+Prog*	gjmp(Prog*);
+void	patch(Prog*, Prog*);
+void	bgen(Node *n, int true, Prog *to);
+void	cgen_asop(Node *n);
+void	cgen_call(Node *n, int proc);
+void	cgen_callinter(Node *n, Node *res, int proc);
+void	cgen_ret(Node *n);
+int	isfat(Type*);
+void	clearfat(Node *n);
+void	cgen(Node*, Node*);
+void	gused(Node*);

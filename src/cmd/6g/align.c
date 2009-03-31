@@ -30,7 +30,5 @@ betypeinit(void)
 	zprog.from.scale = 0;
 	zprog.to = zprog.from;
 
-	symstringo = lookup(".stringo");	// strings
-
 	listinit();
 }
