@@ -365,6 +365,22 @@ nodintconst(int64 v)
 	return c;
 }
 
+void
+nodconst(Node *n, Type *t, int64 v)
+{
+	memset(n, 0, sizeof(*n));
+	n->op = OLITERAL;
+	n->addable = 1;
+	ullmancalc(n);
+	n->val.u.xval = mal(sizeof(*n->val.u.xval));
+	mpmovecfix(n->val.u.xval, v);
+	n->val.ctype = CTINT;
+	n->type = t;
+
+	if(isfloat[t->etype])
+		fatal("nodconst: bad type %T", t);
+}
+
 Node*
 nodnil(void)
 {
@@ -2314,6 +2330,230 @@ Type*
 getinargx(Type *t)
 {
 	return *getinarg(t);
+}
+
+/*
+ * return !(op)
+ * eg == <=> !=
+ */
+int
+brcom(int a)
+{
+	switch(a) {
+	case OEQ:	return ONE;
+	case ONE:	return OEQ;
+	case OLT:	return OGE;
+	case OGT:	return OLE;
+	case OLE:	return OGT;
+	case OGE:	return OLT;
+	}
+	fatal("brcom: no com for %A\n", a);
+	return a;
+}
+
+/*
+ * return reverse(op)
+ * eg a op b <=> b r(op) a
+ */
+int
+brrev(int a)
+{
+	switch(a) {
+	case OEQ:	return OEQ;
+	case ONE:	return ONE;
+	case OLT:	return OGT;
+	case OGT:	return OLT;
+	case OLE:	return OGE;
+	case OGE:	return OLE;
+	}
+	fatal("brcom: no rev for %A\n", a);
+	return a;
+}
+
+/*
+ * make a new off the books
+ */
+void
+tempname(Node *n, Type *t)
+{
+	Sym *s;
+	uint32 w;
+
+	if(t == T) {
+		yyerror("tempname called with nil type");
+		t = types[TINT32];
+	}
+
+	s = lookup("!tmpname!");
+
+	memset(n, 0, sizeof(*n));
+	n->op = ONAME;
+	n->sym = s;
+	n->type = t;
+	n->etype = t->etype;
+	n->class = PAUTO;
+	n->addable = 1;
+	n->ullman = 1;
+	n->noescape = 1;
+
+	dowidth(t);
+	w = t->width;
+	stksize += w;
+	stksize = rnd(stksize, w);
+	n->xoffset = -stksize;
+}
+
+void
+stringpool(Node *n)
+{
+	Pool *p;
+	int w;
+
+	if(n->op != OLITERAL || n->val.ctype != CTSTR) {
+		if(n->val.ctype == CTNIL)
+			return;
+		fatal("stringpool: not string %N", n);
+	}
+
+	p = mal(sizeof(*p));
+
+	p->sval = n->val.u.sval;
+	p->link = nil;
+
+	if(poolist == nil)
+		poolist = p;
+	else
+		poolast->link = p;
+	poolast = p;
+
+	w = types[TINT32]->width;
+	symstringo->offset += w;		// len
+	symstringo->offset += p->sval->len;	// str[len]
+	symstringo->offset = rnd(symstringo->offset, w);
+}
+
+Sig*
+lsort(Sig *l, int(*f)(Sig*, Sig*))
+{
+	Sig *l1, *l2, *le;
+
+	if(l == 0 || l->link == 0)
+		return l;
+
+	l1 = l;
+	l2 = l;
+	for(;;) {
+		l2 = l2->link;
+		if(l2 == 0)
+			break;
+		l2 = l2->link;
+		if(l2 == 0)
+			break;
+		l1 = l1->link;
+	}
+
+	l2 = l1->link;
+	l1->link = 0;
+	l1 = lsort(l, f);
+	l2 = lsort(l2, f);
+
+	/* set up lead element */
+	if((*f)(l1, l2) < 0) {
+		l = l1;
+		l1 = l1->link;
+	} else {
+		l = l2;
+		l2 = l2->link;
+	}
+	le = l;
+
+	for(;;) {
+		if(l1 == 0) {
+			while(l2) {
+				le->link = l2;
+				le = l2;
+				l2 = l2->link;
+			}
+			le->link = 0;
+			break;
+		}
+		if(l2 == 0) {
+			while(l1) {
+				le->link = l1;
+				le = l1;
+				l1 = l1->link;
+			}
+			break;
+		}
+		if((*f)(l1, l2) < 0) {
+			le->link = l1;
+			le = l1;
+			l1 = l1->link;
+		} else {
+			le->link = l2;
+			le = l2;
+			l2 = l2->link;
+		}
+	}
+	le->link = 0;
+	return l;
+}
+
+void
+setmaxarg(Type *t)
+{
+	int32 w;
+
+	w = t->argwid;
+	if(w > maxarg)
+		maxarg = w;
+}
+
+/*
+ * gather series of offsets
+ * >=0 is direct addressed field
+ * <0 is pointer to next field (+1)
+ */
+int
+dotoffset(Node *n, int *oary, Node **nn)
+{
+	int i;
+
+	switch(n->op) {
+	case ODOT:
+		if(n->xoffset == BADWIDTH) {
+			dump("bad width in dotoffset", n);
+			fatal("bad width in dotoffset");
+		}
+		i = dotoffset(n->left, oary, nn);
+		if(i > 0) {
+			if(oary[i-1] >= 0)
+				oary[i-1] += n->xoffset;
+			else
+				oary[i-1] -= n->xoffset;
+			break;
+		}
+		if(i < 10)
+			oary[i++] = n->xoffset;
+		break;
+
+	case ODOTPTR:
+		if(n->xoffset == BADWIDTH) {
+			dump("bad width in dotoffset", n);
+			fatal("bad width in dotoffset");
+		}
+		i = dotoffset(n->left, oary, nn);
+		if(i < 10)
+			oary[i++] = -(n->xoffset+1);
+		break;
+
+	default:
+		*nn = n;
+		return 0;
+	}
+	if(i >= 10)
+		*nn = N;
+	return i;
 }
 
 /*

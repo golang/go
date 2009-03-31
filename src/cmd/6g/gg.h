@@ -53,24 +53,6 @@ struct	Plist
 	Plist*	link;
 };
 
-typedef	struct	Sig	Sig;
-struct Sig
-{
-	char*	name;
-	Sym*	sym;
-	uint32	hash;
-	int32	perm;
-	int32	offset;
-	Sig*	link;
-};
-
-typedef	struct	Pool Pool;
-struct	Pool
-{
-	String*	sval;
-	Pool*	link;
-};
-
 typedef	struct	Label Label;
 struct	Label
 {
@@ -89,15 +71,9 @@ EXTERN	Prog*	pc;
 EXTERN	Prog*	firstpc;
 EXTERN	Plist*	plist;
 EXTERN	Plist*	plast;
-EXTERN	Pool*	poolist;
-EXTERN	Pool*	poolast;
 EXTERN	Biobuf*	bout;
 EXTERN	int32	dynloc;
 EXTERN	uchar	reg[D_NONE];
-EXTERN	int32	maxround;
-EXTERN	int32	widthptr;
-EXTERN	Sym*	symstringo;	// string objects
-EXTERN	int32	stringo;	// size of string objects
 EXTERN	int32	pcloc;		// instruction counter
 EXTERN	String	emptystring;
 extern	char*	anames[];
@@ -164,10 +140,7 @@ void	gaddoffset(Node*);
 void	gconv(int, int);
 int	conv2pt(Type*);
 vlong	convvtox(vlong, int);
-int	brcom(int);
-int	brrev(int);
 void	fnparam(Type*, int, int);
-Sig*	lsort(Sig*, int(*)(Sig*, Sig*));
 Prog*	gop(int, Node*, Node*, Node*);
 void	setconst(Addr*, vlong);
 void	setaddr(Addr*, Node*);
@@ -182,11 +155,8 @@ void	nodindreg(Node*, Type*, int);
 void	nodconst(Node*, Type*, vlong);
 void	gconreg(int, vlong, int);
 void	buildtxt(void);
-void	stringpool(Node*);
-void	tempname(Node*, Type*);
 Plist*	newplist(void);
 int	isfat(Type*);
-void	setmaxarg(Type*);
 void	sudoclean(void);
 int	sudoaddable(Node*, Addr*);
 void	afunclit(Addr*);
