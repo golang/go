@@ -116,6 +116,81 @@ newplist(void)
 	return pl;
 }
 
+void
+gused(Node *n)
+{
+	gins(ANOP, n, N);	// used
+}
+
+Prog*
+gjmp(Prog *to)
+{
+	Prog *p;
+
+	p = gbranch(AJMP, T);
+	if(to != P)
+		patch(p, to);
+	return p;
+}
+
+void
+ggloblnod(Node *nam, int32 width)
+{
+	Prog *p;
+
+	p = gins(AGLOBL, nam, N);
+	p->lineno = nam->lineno;
+	p->to.sym = S;
+	p->to.type = D_CONST;
+	p->to.offset = width;
+}
+
+void
+ggloblsym(Sym *s, int32 width, int dupok)
+{
+	Prog *p;
+
+	p = gins(AGLOBL, N, N);
+	p->from.type = D_EXTERN;
+	if(s == symstringo)
+		p->from.type = D_STATIC;
+	p->from.index = D_NONE;
+	p->from.sym = s;
+	p->to.type = D_CONST;
+	p->to.index = D_NONE;
+	p->to.offset = width;
+	if(dupok)
+		p->from.scale = DUPOK;
+}
+
+int
+isfat(Type *t)
+{
+	if(t != T)
+	switch(t->etype) {
+	case TSTRUCT:
+	case TARRAY:
+	case TINTER:	// maybe remove later
+	case TDDD:	// maybe remove later
+		return 1;
+	}
+	return 0;
+}
+
+/*
+ * naddr of func generates code for address of func.
+ * if using opcode that can take address implicitly,
+ * call afunclit to fix up the argument.
+ */
+void
+afunclit(Addr *a)
+{
+	if(a->type == D_ADDR && a->index == D_EXTERN) {
+		a->type = D_EXTERN;
+		a->index = D_NONE;
+	}
+}
+
 static	int	resvd[] =
 {
 //	D_DI,	// for movstring
@@ -1122,20 +1197,6 @@ naddr(Node *n, Addr *a)
 }
 
 /*
- * naddr of func generates code for address of func.
- * if using opcode that can take address implicitly,
- * call afunclit to fix up the argument.
- */
-void
-afunclit(Addr *a)
-{
-	if(a->type == D_ADDR && a->index == D_EXTERN) {
-		a->type = D_EXTERN;
-		a->index = D_NONE;
-	}
-}
-
-/*
  * return Axxx for Oxxx on type t.
  */
 int
@@ -1664,20 +1725,6 @@ optoas(int op, Type *t)
 	return a;
 }
 
-int
-isfat(Type *t)
-{
-	if(t != T)
-	switch(t->etype) {
-	case TSTRUCT:
-	case TARRAY:
-	case TINTER:	// maybe remove later
-	case TDDD:	// maybe remove later
-		return 1;
-	}
-	return 0;
-}
-
 enum
 {
 	ODynam	= 1<<0,
@@ -1926,51 +1973,4 @@ yes:
 no:
 	sudoclean();
 	return 0;
-}
-
-void
-gused(Node *n)
-{
-	gins(ANOP, n, N);	// used
-}
-
-Prog*
-gjmp(Prog *to)
-{
-	Prog *p;
-
-	p = gbranch(AJMP, T);
-	if(to != P)
-		patch(p, to);
-	return p;
-}
-
-void
-ggloblnod(Node *nam, int32 width)
-{
-	Prog *p;
-
-	p = gins(AGLOBL, nam, N);
-	p->lineno = nam->lineno;
-	p->to.sym = S;
-	p->to.type = D_CONST;
-	p->to.offset = width;
-}
-
-void
-ggloblsym(Sym *s, int32 width, int dupok)
-{
-	Prog *p;
-
-	p = gins(AGLOBL, N, N);
-	p->from.type = D_EXTERN;
-	if(s == symstringo)
-		p->from.type = D_STATIC;
-	p->from.index = D_NONE;
-	p->from.sym = s;
-	p->to.type = D_CONST;
-	p->to.index = D_NONE;
-	p->to.offset = width;
-	if(dupok)
-		p->from.scale = DUPOK;
 }
