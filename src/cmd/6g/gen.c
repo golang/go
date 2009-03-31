@@ -79,8 +79,6 @@ compile(Node *fn)
 	ptxt = gins(ATEXT, curfn->nname, &nod1);
 	afunclit(&ptxt->from);
 
-//	inarggen();
-
 	ginit();
 	gen(curfn->enter);
 	gen(curfn->nbody);
@@ -189,10 +187,6 @@ loop:
 		gen(n->left);
 		n = n->right;
 		goto loop;
-
-	case OPANIC:
-		genpanic();
-		break;
 
 	case OCASE:
 	case OFALL:
@@ -373,26 +367,6 @@ loop:
 
 ret:
 	lineno = lno;
-}
-
-void
-inarggen(void)
-{
-	fatal("inarggen");
-}
-
-void
-genpanic(void)
-{
-	Node n1, n2;
-	Prog *p;
-
-	nodconst(&n1, types[TINT64], 0xf0);
-	nodreg(&n2, types[TINT64], D_AX);
-	gins(AMOVL, &n1, &n2);
-	p = pc;
-	gins(AMOVQ, &n2, N);
-	p->to.type = D_INDIR+D_AX;
 }
 
 /*

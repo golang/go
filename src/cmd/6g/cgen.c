@@ -574,16 +574,6 @@ ret:
 	;
 }
 
-vlong
-fieldoffset(Type *t, Node *n)
-{
-	if(t->etype != TSTRUCT)
-		fatal("fieldoffset: not struct %lT", t);
-	if(n->op != ONAME)
-		fatal("fieldoffset: not field name %N", n);
-	return 0;
-}
-
 /*
  * generate:
  *	newreg = &n;
