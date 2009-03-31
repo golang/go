@@ -5,7 +5,6 @@
 package astPrinter
 
 import (
-	"os";
 	"io";
 	"vector";
 	"tabwriter";
@@ -35,9 +34,8 @@ var (
 )
 
 
-// When we don't have a position use nopos.
-// TODO make sure we always have a position.
-var nopos token.Position;
+// When we don't have a position use noPos.
+var noPos token.Position;
 
 
 // ----------------------------------------------------------------------------
@@ -448,7 +446,7 @@ func (P *Printer) Idents(list []*ast.Ident, full bool) int {
 	n := 0;
 	for i, x := range list {
 		if n > 0 {
-			P.Token(nopos, token.COMMA);
+			P.Token(noPos, token.COMMA);
 			P.separator = blank;
 			P.state = inside_list;
 		}
@@ -464,7 +462,7 @@ func (P *Printer) Idents(list []*ast.Ident, full bool) int {
 func (P *Printer) Exprs(list []ast.Expr) {
 	for i, x := range list {
 		if i > 0 {
-			P.Token(nopos, token.COMMA);
+			P.Token(noPos, token.COMMA);
 			P.separator = blank;
 			P.state = inside_list;
 		}
@@ -474,7 +472,7 @@ func (P *Printer) Exprs(list []ast.Expr) {
 
 
 func (P *Printer) Parameters(list []*ast.Field) {
-	P.Token(nopos, token.LPAREN);
+	P.Token(noPos, token.LPAREN);
 	if len(list) > 0 {
 		for i, par := range list {
 			if i > 0 {
@@ -487,7 +485,7 @@ func (P *Printer) Parameters(list []*ast.Field) {
 			P.Expr(par.Type);
 		}
 	}
-	P.Token(nopos, token.RPAREN);
+	P.Token(noPos, token.RPAREN);
 }
 
 
@@ -502,7 +500,7 @@ func (P *Printer) Signature(params, result []*ast.Field) {
 			// single anonymous result
 			// => no parentheses needed unless it's a function type
 			fld := result[0];
-			if dummy, is_ftyp := fld.Type.(*ast.FunctionType); !is_ftyp {
+			if dummy, is_ftyp := fld.Type.(*ast.FuncType); !is_ftyp {
 				P.Expr(fld.Type);
 				return;
 			}
@@ -533,7 +531,7 @@ func (P *Printer) Fields(lbrace token.Position, list []*ast.Field, rbrace token.
 			if n > 0 || len(fld.Names) == 0 {
 				// at least one identifier or anonymous field
 				if is_interface {
-					if ftyp, is_ftyp := fld.Type.(*ast.FunctionType); is_ftyp {
+					if ftyp, is_ftyp := fld.Type.(*ast.FuncType); is_ftyp {
 						P.Signature(ftyp.Params, ftyp.Results);
 					} else {
 						P.Expr(fld.Type);
@@ -564,7 +562,7 @@ func (P *Printer) Stmt(s ast.Stmt)
 
 
 func (P *Printer) DoBadExpr(x *ast.BadExpr) {
-	P.String(nopos, "BadExpr");
+	P.String(noPos, "BadExpr");
 }
 
 
@@ -576,7 +574,7 @@ func (P *Printer) DoIdent(x *ast.Ident) {
 func (P *Printer) DoBinaryExpr(x *ast.BinaryExpr) {
 	prec := x.Op.Precedence();
 	if prec < P.prec {
-		P.Token(nopos, token.LPAREN);
+		P.Token(noPos, token.LPAREN);
 	}
 	P.Expr1(x.X, prec);
 	P.separator = blank;
@@ -584,7 +582,7 @@ func (P *Printer) DoBinaryExpr(x *ast.BinaryExpr) {
 	P.separator = blank;
 	P.Expr1(x.Y, prec);
 	if prec < P.prec {
-		P.Token(nopos, token.RPAREN);
+		P.Token(noPos, token.RPAREN);
 	}
 }
 
@@ -607,7 +605,7 @@ func (P *Printer) DoStarExpr(x *ast.StarExpr) {
 func (P *Printer) DoUnaryExpr(x *ast.UnaryExpr) {
 	prec := token.UnaryPrec;
 	if prec < P.prec {
-		P.Token(nopos, token.LPAREN);
+		P.Token(noPos, token.LPAREN);
 	}
 	P.Token(x.Pos(), x.Op);
 	if x.Op == token.RANGE {
@@ -615,7 +613,7 @@ func (P *Printer) DoUnaryExpr(x *ast.UnaryExpr) {
 	}
 	P.Expr1(x.X, prec);
 	if prec < P.prec {
-		P.Token(nopos, token.RPAREN);
+		P.Token(noPos, token.RPAREN);
 	}
 }
 
@@ -654,10 +652,10 @@ func (P *Printer) DoStringList(x *ast.StringList) {
 }
 
 
-func (P *Printer) DoFunctionType(x *ast.FunctionType)
+func (P *Printer) DoFuncType(x *ast.FuncType)
 
-func (P *Printer) DoFunctionLit(x *ast.FunctionLit) {
-	P.DoFunctionType(x.Type);
+func (P *Printer) DoFuncLit(x *ast.FuncLit) {
+	P.DoFuncType(x.Type);
 	P.separator = blank;
 	P.Stmt(x.Body);
 	P.newlines = 0;
@@ -673,35 +671,35 @@ func (P *Printer) DoParenExpr(x *ast.ParenExpr) {
 
 func (P *Printer) DoSelectorExpr(x *ast.SelectorExpr) {
 	P.Expr1(x.X, token.HighestPrec);
-	P.Token(nopos, token.PERIOD);
+	P.Token(noPos, token.PERIOD);
 	P.Expr1(x.Sel, token.HighestPrec);
 }
 
 
 func (P *Printer) DoTypeAssertExpr(x *ast.TypeAssertExpr) {
 	P.Expr1(x.X, token.HighestPrec);
-	P.Token(nopos, token.PERIOD);
-	P.Token(nopos, token.LPAREN);
+	P.Token(noPos, token.PERIOD);
+	P.Token(noPos, token.LPAREN);
 	P.Expr(x.Type);
-	P.Token(nopos, token.RPAREN);
+	P.Token(noPos, token.RPAREN);
 }
 
 
 func (P *Printer) DoIndexExpr(x *ast.IndexExpr) {
 	P.Expr1(x.X, token.HighestPrec);
-	P.Token(nopos, token.LBRACK);
+	P.Token(noPos, token.LBRACK);
 	P.Expr(x.Index);
-	P.Token(nopos, token.RBRACK);
+	P.Token(noPos, token.RBRACK);
 }
 
 
 func (P *Printer) DoSliceExpr(x *ast.SliceExpr) {
 	P.Expr1(x.X, token.HighestPrec);
-	P.Token(nopos, token.LBRACK);
+	P.Token(noPos, token.LBRACK);
 	P.Expr(x.Begin);
-	P.Token(nopos, token.COLON);
+	P.Token(noPos, token.COLON);
 	P.Expr(x.End);
-	P.Token(nopos, token.RBRACK);
+	P.Token(noPos, token.RBRACK);
 }
 
 
@@ -729,14 +727,14 @@ func (P *Printer) DoEllipsis(x *ast.Ellipsis) {
 func (P *Printer) DoArrayType(x *ast.ArrayType) {
 	P.Token(x.Pos(), token.LBRACK);
 	P.Expr(x.Len);
-	P.Token(nopos, token.RBRACK);
+	P.Token(noPos, token.RBRACK);
 	P.Expr(x.Elt);
 }
 
 
 func (P *Printer) DoSliceType(x *ast.SliceType) {
 	P.Token(x.Pos(), token.LBRACK);
-	P.Token(nopos, token.RBRACK);
+	P.Token(noPos, token.RBRACK);
 	P.Expr(x.Elt);
 }
 
@@ -749,7 +747,7 @@ func (P *Printer) DoStructType(x *ast.StructType) {
 }
 
 
-func (P *Printer) DoFunctionType(x *ast.FunctionType) {
+func (P *Printer) DoFuncType(x *ast.FuncType) {
 	P.Token(x.Pos(), token.FUNC);
 	P.Signature(x.Params, x.Results);
 }
@@ -766,24 +764,24 @@ func (P *Printer) DoInterfaceType(x *ast.InterfaceType) {
 func (P *Printer) DoMapType(x *ast.MapType) {
 	P.Token(x.Pos(), token.MAP);
 	P.separator = blank;
-	P.Token(nopos, token.LBRACK);
+	P.Token(noPos, token.LBRACK);
 	P.Expr(x.Key);
-	P.Token(nopos, token.RBRACK);
+	P.Token(noPos, token.RBRACK);
 	P.Expr(x.Value);
 }
 
 
-func (P *Printer) DoChannelType(x *ast.ChannelType) {
+func (P *Printer) DoChanType(x *ast.ChanType) {
 	switch x.Dir {
 	case ast.SEND | ast.RECV:
 		P.Token(x.Pos(), token.CHAN);
 	case ast.RECV:
 		P.Token(x.Pos(), token.ARROW);
-		P.Token(nopos, token.CHAN);
+		P.Token(noPos, token.CHAN);
 	case ast.SEND:
 		P.Token(x.Pos(), token.CHAN);
 		P.separator = blank;
-		P.Token(nopos, token.ARROW);
+		P.Token(noPos, token.ARROW);
 	}
 	P.separator = blank;
 	P.Expr(x.Value);
@@ -835,7 +833,7 @@ func (P *Printer) DoEmptyStmt(s *ast.EmptyStmt) {
 func (P *Printer) DoLabeledStmt(s *ast.LabeledStmt) {
 	P.indentation--;
 	P.Expr(s.Label);
-	P.Token(nopos, token.COLON);
+	P.Token(noPos, token.COLON);
 	P.indentation++;
 	// TODO be more clever if s.Stmt is a labeled stat as well
 	P.separator = tab;
@@ -850,7 +848,7 @@ func (P *Printer) DoExprStmt(s *ast.ExprStmt) {
 
 func (P *Printer) DoIncDecStmt(s *ast.IncDecStmt) {
 	P.Expr(s.X);
-	P.Token(nopos, s.Tok);
+	P.Token(noPos, s.Tok);
 }
 
 
@@ -931,7 +929,7 @@ func (P *Printer) Block(list []ast.Stmt, indent bool) {
 		P.Token(b.Rbrace, token.RBRACE);
 		P.opt_semi = true;
 	} else {
-		P.String(nopos, "");  // process closing_scope state transition!
+		P.String(noPos, "");  // process closing_scope state transition!
 	}
 }
 */
@@ -964,14 +962,14 @@ func (P *Printer) ControlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 			P.Stmt(init);
 			P.separator = none;
 		}
-		P.Token(nopos, token.SEMICOLON);
+		P.Token(noPos, token.SEMICOLON);
 		P.separator = blank;
 		if expr != nil {
 			P.Expr(expr);
 			P.separator = none;
 		}
 		if isForStmt {
-			P.Token(nopos, token.SEMICOLON);
+			P.Token(noPos, token.SEMICOLON);
 			P.separator = blank;
 			if post != nil {
 				P.Stmt(post);
@@ -988,7 +986,7 @@ func (P *Printer) DoIfStmt(s *ast.IfStmt) {
 	P.Stmt(s.Body);
 	if s.Else != nil {
 		P.separator = blank;
-		P.Token(nopos, token.ELSE);
+		P.Token(noPos, token.ELSE);
 		P.separator = blank;
 		P.Stmt(s.Else);
 	}
@@ -1040,7 +1038,7 @@ func (P *Printer) DoTypeSwitchStmt(s *ast.TypeSwitchStmt) {
 	if s.Init != nil {
 		P.Stmt(s.Init);
 		P.separator = none;
-		P.Token(nopos, token.SEMICOLON);
+		P.Token(noPos, token.SEMICOLON);
 	}
 	P.separator = blank;
 	P.Stmt(s.Assign);
@@ -1056,7 +1054,7 @@ func (P *Printer) DoCommClause(s *ast.CommClause) {
 		if s.Lhs != nil {
 			P.Expr(s.Lhs);
 			P.separator = blank;
-			P.Token(nopos, s.Tok);
+			P.Token(noPos, s.Tok);
 			P.separator = blank;
 		}
 		P.Expr(s.Rhs);
@@ -1090,7 +1088,7 @@ func (P *Printer) DoRangeStmt(s *ast.RangeStmt) {
 	P.separator = blank;
 	P.Expr(s.Key);
 	if s.Value != nil {
-		P.Token(nopos, token.COMMA);
+		P.Token(noPos, token.COMMA);
 		P.separator = blank;
 		P.state = inside_list;
 		P.Expr(s.Value);
@@ -1098,7 +1096,7 @@ func (P *Printer) DoRangeStmt(s *ast.RangeStmt) {
 	P.separator = blank;
 	P.Token(s.TokPos, s.Tok);
 	P.separator = blank;
-	P.Token(nopos, token.RANGE);
+	P.Token(noPos, token.RANGE);
 	P.separator = blank;
 	P.Expr(s.X);
 	P.separator = blank;
@@ -1146,7 +1144,7 @@ func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
 	}
 	if d.Values != nil {
 		P.separator = tab;
-		P.Token(nopos, token.ASSIGN);
+		P.Token(noPos, token.ASSIGN);
 		P.separator = blank;
 		P.Exprs(d.Values);
 	}
@@ -1179,7 +1177,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
 	}
 	if d.Values != nil {
 		P.separator = tab;
-		P.Token(nopos, token.ASSIGN);
+		P.Token(noPos, token.ASSIGN);
 		P.separator = blank;
 		P.Exprs(d.Values);
 	}
@@ -1192,13 +1190,13 @@ func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
 	P.separator = blank;
 	if recv := d.Recv; recv != nil {
 		// method: print receiver
-		P.Token(nopos, token.LPAREN);
+		P.Token(noPos, token.LPAREN);
 		if len(recv.Names) > 0 {
 			P.Expr(recv.Names[0]);
 			P.separator = blank;
 		}
 		P.Expr(recv.Type);
-		P.Token(nopos, token.RPAREN);
+		P.Token(noPos, token.RPAREN);
 		P.separator = blank;
 	}
 	P.Expr(d.Name);
@@ -1217,7 +1215,7 @@ func (P *Printer) DoDeclList(d *ast.DeclList) {
 
 	// group of parenthesized declarations
 	P.state = opening_scope;
-	P.Token(nopos, token.LPAREN);
+	P.Token(noPos, token.LPAREN);
 	if len(d.List) > 0 {
 		P.newlines = 1;
 		for i := 0; i < len(d.List); i++ {
@@ -1241,122 +1239,9 @@ func (P *Printer) Decl(d ast.Decl) {
 
 
 // ----------------------------------------------------------------------------
-// Package interface
-
-func stripWhiteSpace(s []byte) []byte {
-	i, j := 0, len(s);
-	for i < len(s) && s[i] <= ' ' {
-		i++;
-	}
-	for j > i && s[j-1] <= ' ' {
-		j--
-	}
-	return s[i : j];
-}
-
-
-func cleanComment(s []byte) []byte {
-	switch s[1] {
-	case '/': s = s[2 : len(s)-1];
-	case '*': s = s[2 : len(s)-2];
-	default : panic("illegal comment");
-	}
-	return stripWhiteSpace(s);
-}
-
-
-func (P *Printer) printComment(comment ast.Comments) {
-	in_paragraph := false;
-	for i, c := range comment {
-		s := cleanComment(c.Text);
-		if len(s) > 0 {
-			if !in_paragraph {
-				P.Printf("<p>\n");
-				in_paragraph = true;
-			}
-			P.Printf("%s\n", P.htmlEscape(untabify(string(s))));
-		} else {
-			if in_paragraph {
-				P.Printf("</p>\n");
-				in_paragraph = false;
-			}
-		}
-	}
-	if in_paragraph {
-		P.Printf("</p>\n");
-	}
-}
-
-
-func (P *Printer) Interface(p *ast.Package) {
-	P.full = false;
-	for i := 0; i < len(p.Decls); i++ {
-		switch d := p.Decls[i].(type) {
-		case *ast.ConstDecl:
-			if hasExportedNames(d.Names) {
-				P.Printf("<h2>Constants</h2>\n");
-				P.Printf("<p><pre>");
-				P.DoConstDecl(d);
-				P.String(nopos, "");
-				P.Printf("</pre></p>\n");
-				if d.Doc != nil {
-					P.printComment(d.Doc);
-				}
-			}
-
-		case *ast.TypeDecl:
-			if isExported(d.Name) {
-				P.Printf("<h2>type %s</h2>\n", d.Name.Lit);
-				P.Printf("<p><pre>");
-				P.DoTypeDecl(d);
-				P.String(nopos, "");
-				P.Printf("</pre></p>\n");
-				if d.Doc != nil {
-					P.printComment(d.Doc);
-				}
-			}
-
-		case *ast.VarDecl:
-			if hasExportedNames(d.Names) {
-				P.Printf("<h2>Variables</h2>\n");
-				P.Printf("<p><pre>");
-				P.DoVarDecl(d);
-				P.String(nopos, "");
-				P.Printf("</pre></p>\n");
-				if d.Doc != nil {
-					P.printComment(d.Doc);
-				}
-			}
-
-		case *ast.FuncDecl:
-			if isExported(d.Name) {
-				if d.Recv != nil {
-					P.Printf("<h3>func (");
-					P.Expr(d.Recv.Type);
-					P.Printf(") %s</h3>\n", d.Name.Lit);
-				} else {
-					P.Printf("<h2>func %s</h2>\n", d.Name.Lit);
-				}
-				P.Printf("<p><code>");
-				P.DoFuncDecl(d);
-				P.String(nopos, "");
-				P.Printf("</code></p>\n");
-				if d.Doc != nil {
-					P.printComment(d.Doc);
-				}
-			}
-			
-		case *ast.DeclList:
-			
-		}
-	}
-}
-
-
-// ----------------------------------------------------------------------------
 // Program
 
-func (P *Printer) Program(p *ast.Package) {
+func (P *Printer) DoProgram(p *ast.Program) {
 	P.full = true;
 	P.Token(p.Pos(), token.PACKAGE);
 	P.separator = blank;

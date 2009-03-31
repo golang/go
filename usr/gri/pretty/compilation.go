@@ -82,7 +82,7 @@ func (h *errorHandler) Error(pos token.Position, msg string) {
 }
 
 
-func Compile(filename string, flags *Flags) (*ast.Package, ErrorList) {
+func Compile(filename string, flags *Flags) (*ast.Program, ErrorList) {
 	src, os_err := os.Open(filename, os.O_RDONLY, 0);
 	defer src.Close();
 	if os_err != nil {

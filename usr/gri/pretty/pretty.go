@@ -7,17 +7,24 @@ package main
 import (
 	"os";
 	"flag";
-	Platform "platform";
-	Printer "printer";
-	Compilation "compilation";
+	"platform";
+	"compilation";
+	"tabwriter";
+	"ast";
+	"astprinter";
 )
 
 
 var (
 	flags Compilation.Flags;
 	silent = flag.Bool("s", false, "silent mode: no pretty print output");
+
+	// layout control
 	html = flag.Bool("html", false, "generate html");
+	tabwidth = flag.Int("pretty_tabwidth", 4, "tab width");
+	usetabs = flag.Bool("pretty_usetabs", false, "align with tabs instead of blanks");
 )
+
 
 func init() {
 	flag.BoolVar(&flags.Verbose, "v", false, "verbose mode: trace parsing");
@@ -30,6 +37,25 @@ func usage() {
 	print("usage: pretty { flags } { files }\n");
 	flag.PrintDefaults();
 	sys.Exit(0);
+}
+
+
+func print(prog *ast.Program) {
+	// initialize tabwriter for nicely aligned output
+	padchar := byte(' ');
+	if *usetabs {
+		padchar = '\t';
+	}
+	writer := tabwriter.NewWriter(os.Stdout, *tabwidth, 1, padchar, tabwriter.FilterHTML);
+
+	// initialize printer
+	var printer astPrinter.Printer;
+	printer.Init(writer, prog.Comments, *html);
+
+	printer.DoProgram(prog);
+
+	// flush any pending output
+	writer.Flush();
 }
 
 
@@ -53,7 +79,7 @@ func main() {
 				sys.Exit(1);
 			}
 			if !*silent {
-				Printer.Print(os.Stdout, prog, *html);
+				print(prog);
 			}
 		}
 	}

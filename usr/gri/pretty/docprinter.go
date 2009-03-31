@@ -40,22 +40,22 @@ func hasExportedNames(names []*ast.Ident) bool {
 // ----------------------------------------------------------------------------
 
 type constDoc struct {
-	cast *ast.ConstDecl;
+	decl *ast.ConstDecl;
 }
 
 
 type varDoc struct {
-	vast *ast.VarDecl;
+	decl *ast.VarDecl;
 }
 
 
 type funcDoc struct {
-	fast *ast.FuncDecl;
+	decl *ast.FuncDecl;
 }
 
 
 type typeDoc struct {
-	tast *ast.TypeDecl;
+	decl *ast.TypeDecl;
 	methods map[string] *funcDoc;
 }
 
@@ -74,94 +74,284 @@ type PackageDoc struct {
 // The package name is provided as initial argument. Use AddPackage to
 // add the AST for each source file belonging to the same package.
 //
-func (P *PackageDoc) Init(name string) {
-	P.name = name;
-	P.imports = make(map[string] string);
-	P.consts = make(map[string] *constDoc);
-	P.types = make(map[string] *typeDoc);
-	P.vars = make(map[string] *varDoc);
-	P.funcs = make(map[string] *funcDoc);
+func (doc *PackageDoc) Init(name string) {
+	doc.name = name;
+	doc.imports = make(map[string] string);
+	doc.consts = make(map[string] *constDoc);
+	doc.types = make(map[string] *typeDoc);
+	doc.vars = make(map[string] *varDoc);
+	doc.funcs = make(map[string] *funcDoc);
 }
 
 
-func (P *PackageDoc) addDecl(decl ast.Decl) {
+func (doc *PackageDoc) addDecl(decl ast.Decl) {
 	switch d := decl.(type) {
 	case *ast.ImportDecl:
 	case *ast.ConstDecl:
 		if hasExportedNames(d.Names) {
 		}
+
 	case *ast.TypeDecl:
 		if isExported(d.Name) {
+			// TODO only add if not there already - or ignore?
+			name := string(d.Name.Lit);
+			tdoc := &typeDoc{d, make(map[string] *funcDoc)};
+			doc.types[name] = tdoc;
 		}
+
 	case *ast.VarDecl:
 		if hasExportedNames(d.Names) {
 		}
+
 	case *ast.FuncDecl:
 		if isExported(d.Name) {
 			if d.Recv != nil {
 				// method
+				// determine receiver type name
+				var name string;
+				switch t := d.Recv.Type.(type) {
+				case *ast.Ident:
+					name = string(t.Lit);
+				case *ast.StarExpr:
+					// recv must be of the form *name
+					name = string(t.X.(*ast.Ident).Lit)
+				}
+				typ, found := doc.types[name];
+				if found {
+					fdoc := &funcDoc{d};
+					typ.methods[string(d.Name.Lit)] = fdoc;
+				}
+				// otherwise ignore
 			} else {
 				// ordinary function
+				fdoc := &funcDoc{d};
+				doc.funcs[string(d.Name.Lit)] = fdoc;
 			}
 		}
+
 	case *ast.DeclList:
 		for i, decl := range d.List {
-			P.addDecl(decl);
+			doc.addDecl(decl);
 		}
 	}
 }
 
 
-// AddPackage adds the AST of a source file belonging to the same
+// AddProgram adds the AST of a source file belonging to the same
 // package. The package names must match. If the package was added
 // before, AddPackage is a no-op.
 //
-func (P *PackageDoc) AddPackage(pak *ast.Package) {
-	if P.name != string(pak.Name.Lit) {
+func (doc *PackageDoc) AddProgram(pak *ast.Program) {
+	if doc.name != string(pak.Name.Lit) {
 		panic("package names don't match");
 	}
 	
 	// add all declarations
 	for i, decl := range pak.Decls {
-		P.addDecl(decl);
+		doc.addDecl(decl);
 	}
 }
 
 
-func (P *PackageDoc) printConsts(p *astPrinter.Printer) {
+// ----------------------------------------------------------------------------
+// Printing
+
+func htmlEscape(s string) string {
+	var esc string;
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '<': esc = "&lt;";
+		case '&': esc = "&amp;";
+		default: continue;
+		}
+		return s[0 : i] + esc + htmlEscape(s[i+1 : len(s)]);
+	}
+	return s;
 }
 
 
-func (P *PackageDoc) printTypes(p *astPrinter.Printer) {
+// Reduce contiguous sequences of '\t' in a string to a single '\t'.
+func untabify(s string) string {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\t' {
+			j := i;
+			for j < len(s) && s[j] == '\t' {
+				j++;
+			}
+			if j-i > 1 {  // more then one tab
+				return s[0 : i+1] + untabify(s[j : len(s)]);
+			}
+		}
+	}
+	return s;
 }
 
 
-func (P *PackageDoc) printVars(p *astPrinter.Printer) {
+func stripWhiteSpace(s []byte) []byte {
+	i, j := 0, len(s);
+	for i < len(s) && s[i] <= ' ' {
+		i++;
+	}
+	for j > i && s[j-1] <= ' ' {
+		j--
+	}
+	return s[i : j];
 }
 
 
-func (P *PackageDoc) printFuncs(p *astPrinter.Printer) {
+func cleanComment(s []byte) []byte {
+	switch s[1] {
+	case '/': s = s[2 : len(s)-1];
+	case '*': s = s[2 : len(s)-2];
+	default : panic("illegal comment");
+	}
+	return stripWhiteSpace(s);
 }
 
 
-func (P *PackageDoc) printPackage(p *astPrinter.Printer) {
+func printComment(p *astPrinter.Printer, comment ast.Comments) {
+	in_paragraph := false;
+	for i, c := range comment {
+		s := cleanComment(c.Text);
+		if len(s) > 0 {
+			if !in_paragraph {
+				p.Printf("<p>\n");
+				in_paragraph = true;
+			}
+			p.Printf("%s\n", htmlEscape(untabify(string(s))));
+		} else {
+			if in_paragraph {
+				p.Printf("</p>\n");
+				in_paragraph = false;
+			}
+		}
+	}
+	if in_paragraph {
+		p.Printf("</p>\n");
+	}
 }
+
+
+func (c *constDoc) printConsts(p *astPrinter.Printer) {
+}
+
+
+func (f *funcDoc) print(p *astPrinter.Printer) {
+	d := f.decl;
+	if d.Recv != nil {
+		p.Printf("<h3>func (");
+		p.Expr(d.Recv.Type);
+		p.Printf(") %s</h3>\n", d.Name.Lit);
+	} else {
+		p.Printf("<h2>func %s</h2>\n", d.Name.Lit);
+	}
+	p.Printf("<p><code>");
+	p.DoFuncDecl(d);
+	p.Printf("</code></p>\n");
+	if d.Doc != nil {
+		printComment(p, d.Doc);
+	}
+}
+
+
+func (t *typeDoc) print(p *astPrinter.Printer) {
+	d := t.decl;
+	p.Printf("<h2>type %s</h2>\n", string(d.Name.Lit));
+	p.Printf("<p><pre>");
+	p.DoTypeDecl(d);
+	p.Printf("</pre></p>\n");
+	if d.Doc != nil {
+		printComment(p, d.Doc);
+	}
+	
+	// print associated methods, if any
+	for name, m := range t.methods {
+		m.print(p);
+	}
+}
+
+
+func (v *varDoc) print(p *astPrinter.Printer) {
+}
+
+
+/*
+func (P *Printer) Interface(p *ast.Program) {
+	P.full = false;
+	for i := 0; i < len(p.Decls); i++ {
+		switch d := p.Decls[i].(type) {
+		case *ast.ConstDecl:
+			if hasExportedNames(d.Names) {
+				P.Printf("<h2>Constants</h2>\n");
+				P.Printf("<p><pre>");
+				P.DoConstDecl(d);
+				P.String(nopos, "");
+				P.Printf("</pre></p>\n");
+				if d.Doc != nil {
+					P.printComment(d.Doc);
+				}
+			}
+
+		case *ast.VarDecl:
+			if hasExportedNames(d.Names) {
+				P.Printf("<h2>Variables</h2>\n");
+				P.Printf("<p><pre>");
+				P.DoVarDecl(d);
+				P.String(nopos, "");
+				P.Printf("</pre></p>\n");
+				if d.Doc != nil {
+					P.printComment(d.Doc);
+				}
+			}
+
+		case *ast.DeclList:
+			
+		}
+	}
+}
+*/
 
 
 // TODO make this a parameter for Init or Print?
 var templ = template.NewTemplateOrDie("template.html");
 
-func (P *PackageDoc) Print(writer io.Write) {
-	var astp astPrinter.Printer;
-	astp.Init(writer, nil, true);
+func (doc *PackageDoc) Print(writer io.Write) {
+	var p astPrinter.Printer;
+	p.Init(writer, nil, true);
 	
-	err := templ.Apply(writer, "<!--", template.Substitution {
-		"PACKAGE_NAME-->" : func() { fmt.Fprint(writer, P.name); },
-		"PACKAGE_COMMENT-->": func() { },
-		"PACKAGE_INTERFACE-->" : func() { },
-		"PACKAGE_BODY-->" : func() { },
+	// TODO propagate Apply errors
+	templ.Apply(writer, "<!--", template.Substitution {
+		"PACKAGE_NAME-->" :
+			func() {
+				fmt.Fprint(writer, doc.name);
+			},
+
+		"PROGRAM_HEADER-->":
+			func() {
+			},
+
+		"CONSTANTS-->" :
+			func() {
+			},
+
+		"TYPES-->" :
+			func() {
+				for name, t := range doc.types {
+					p.Printf("<hr />\n");
+					t.print(&p);
+				}
+			},
+
+		"VARIABLES-->" :
+			func() {
+			},
+
+		"FUNCTIONS-->" :
+			func() {
+				for name, f := range doc.funcs {
+					p.Printf("<hr />\n");
+					f.print(&p);
+				}
+			},
 	});
-	if err != nil {
-		panic("print error - exiting");
-	}
 }
