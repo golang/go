@@ -131,6 +131,7 @@ struct	Val
 typedef	struct	Sym	Sym;
 typedef	struct	Node	Node;
 typedef	struct	Type	Type;
+typedef	struct	Dcl	Dcl;
 
 struct	Type
 {
@@ -211,6 +212,7 @@ struct	Node
 	Node*	enter;
 	Node*	exit;
 	Node*	cvars;	// closure params
+	Dcl*	dcl;	// outer autodcl
 
 	// OLITERAL/OREGISTER
 	Val	val;
@@ -259,7 +261,6 @@ struct	Sym
 };
 #define	S	((Sym*)0)
 
-typedef	struct	Dcl	Dcl;
 struct	Dcl
 {
 	uchar	op;
