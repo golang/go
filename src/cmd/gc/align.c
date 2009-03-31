@@ -349,3 +349,35 @@ typeinit(int lex)
 	Array_cap = rnd(Array_nel+types[TUINT32]->width, types[TUINT32]->width);
 	sizeof_Array = rnd(Array_cap+types[TUINT32]->width, maxround);
 }
+
+/*
+ * compute total size of f's in/out arguments.
+ */
+int
+argsize(Type *t)
+{
+	Iter save;
+	Type *fp;
+	int w, x;
+
+	w = 0;
+
+	fp = structfirst(&save, getoutarg(t));
+	while(fp != T) {
+		x = fp->width + fp->type->width;
+		if(x > w)
+			w = x;
+		fp = structnext(&save);
+	}
+
+	fp = funcfirst(&save, t);
+	while(fp != T) {
+		x = fp->width + fp->type->width;
+		if(x > w)
+			w = x;
+		fp = funcnext(&save);
+	}
+
+	w = (w+7) & ~7;
+	return w;
+}

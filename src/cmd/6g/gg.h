@@ -13,7 +13,6 @@
 #define EXTERN	extern
 #endif
 
-typedef	struct	Prog	Prog;
 typedef	struct	Addr	Addr;
 
 struct	Addr
@@ -41,7 +40,6 @@ struct	Prog
 	Prog*	link;		// next instruction in this func
 	void*	reg;		// pointer to containing Reg struct
 };
-#define	P	((Prog*)0)
 
 typedef	struct	Plist	Plist;
 struct	Plist
@@ -53,22 +51,6 @@ struct	Plist
 	Plist*	link;
 };
 
-typedef	struct	Label Label;
-struct	Label
-{
-	uchar	op;		// OGOTO/OLABEL
-	Sym*	sym;
-	Prog*	label;		// pointer to code
-	Prog*	breakpc;	// pointer to code
-	Prog*	continpc;	// pointer to code
-	Label*	link;
-};
-#define	L	((Label*)0)
-
-EXTERN	Prog*	continpc;
-EXTERN	Prog*	breakpc;
-EXTERN	Prog*	pc;
-EXTERN	Prog*	firstpc;
 EXTERN	Plist*	plist;
 EXTERN	Plist*	plast;
 EXTERN	Biobuf*	bout;
@@ -79,8 +61,6 @@ EXTERN	String	emptystring;
 extern	char*	anames[];
 EXTERN	Hist*	hist;
 EXTERN	Prog	zprog;
-EXTERN	Label*	labellist;
-EXTERN	Label*	findlab(Sym*);
 EXTERN	Node*	curfn;
 EXTERN	Node*	newproc;
 EXTERN	Node*	deferproc;
@@ -96,9 +76,6 @@ void	proglist(void);
 void	gen(Node*);
 Node*	lookdot(Node*, Node*, int);
 void	cgen_as(Node*, Node*);
-void	cgen_asop(Node*);
-void	cgen_ret(Node*);
-void	cgen_call(Node*, int);
 void	cgen_callmeth(Node*, int);
 void	cgen_callinter(Node*, Node*, int);
 void	cgen_proc(Node*, int);
@@ -116,7 +93,6 @@ void	ginscall(Node*, int);
 /*
  * cgen
  */
-void	cgen(Node*, Node*);
 void	agen(Node*, Node*);
 void	igen(Node*, Node*, Node*);
 vlong	fieldoffset(Type*, Node*);
@@ -134,7 +110,6 @@ void	cgen_aret(Node*, Node*);
 void	clearp(Prog*);
 void	proglist(void);
 Prog*	gbranch(int, Type*);
-void	patch(Prog*, Prog*);
 Prog*	prog(int);
 void	gaddoffset(Node*);
 void	gconv(int, int);

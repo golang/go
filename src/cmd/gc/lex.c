@@ -66,6 +66,8 @@ main(int argc, char *argv[])
 	lexinit();
 	typeinit(LBASETYPE);
 
+	symstringo = lookup(".stringo");	// strings
+
 	lineno = 1;
 	block = 1;
 	blockgen = 1;
@@ -336,7 +338,8 @@ cannedimports(char *file, char *cp)
 }
 
 int
-isfrog(int c) {
+isfrog(int c)
+{
 	// complain about possibly invisible control characters
 	if(c < 0)
 		return 1;

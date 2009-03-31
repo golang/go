@@ -30,6 +30,7 @@ OFILES=\
 	compat.$O\
 	bits.$O\
 	align.$O\
+	gen.$O\
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)
