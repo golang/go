@@ -481,7 +481,12 @@ funclit0(Type *t)
 
 	n = nod(OXXX, N, N);
 	n->outer = funclit;
+	n->dcl = autodcl;
 	funclit = n;
+
+	// new declaration context
+	autodcl = dcl();
+	autodcl->back = autodcl;
 
 	funcargs(t);
 }
@@ -592,6 +597,7 @@ funclit1(Type *type, Node *body)
 	n->nbody = body;
 	compile(n);
 	funcdepth--;
+	autodcl = func->dcl;
 
 	// if there's no closure, we can use f directly
 	if(func->cvars == N)
