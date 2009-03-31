@@ -16,6 +16,7 @@ OFILES=\
 	optab.$O\
 	pass.$O\
 	span.$O\
+	go.$O\
 
 HFILES=\
 	l.h\
@@ -35,3 +36,6 @@ clean:
 
 install: $(TARG)
 	cp $(TARG) $(BIN)/$(TARG)
+
+go.o: ../ld/go.c
+

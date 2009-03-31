@@ -388,9 +388,6 @@ Optab optab[] =
 	{ ACMPSB,	ynone,	Pb, 0xa6 },
 	{ ACMPSL,	ynone,	Px, 0xa7 },
 	{ ACMPSW,	ynone,	Pe, 0xa7 },
-	{ ACMPXCHGB,	yrb_mb,	Pm, 0xb0 },
-	{ ACMPXCHGL,	yrl_ml,	Pm, 0xb1 },
-	{ ACMPXCHGW,	yrl_ml,	Pm, 0xb1 },
 	{ ADAA,		ynone,	Px, 0x27 },
 	{ ADAS,		ynone,	Px, 0x2f },
 	{ ADATA },
@@ -688,5 +685,11 @@ Optab optab[] =
 	{ AFYL2X,	ynone,	Px, 0xd9, 0xf1 },
 	{ AFYL2XP1,	ynone,	Px, 0xd9, 0xf9 },
 	{ AEND },
+	{ ADYNT },
+	{ AINIT },
+	{ ASIGNAME },
+	{ ACMPXCHGB,	yrb_mb,	Pm, 0xb0 },
+	{ ACMPXCHGL,	yrl_ml,	Pm, 0xb1 },
+	{ ACMPXCHGW,	yrl_ml,	Pm, 0xb1 },
 	0
 };

@@ -146,12 +146,9 @@ xdefine(char *p, int t, int32 v)
 }
 
 void
-putsymb(char *s, int t, int32 v, int ver)
+putsymb(char *s, int t, int32 v, int ver, char *go)
 {
 	int i, j, f;
-	char *go; 
-	
-	go = nil;	// TODO
 
 	if(t == 'f')
 		s++;
@@ -211,25 +208,25 @@ asmsym(void)
 
 	s = lookup("etext", 0);
 	if(s->type == STEXT)
-		putsymb(s->name, 'T', s->value, s->version);
+		putsymb(s->name, 'T', s->value, s->version, nil);
 
 	for(h=0; h<NHASH; h++)
 		for(s=hash[h]; s!=S; s=s->link)
 			switch(s->type) {
 			case SCONST:
-				putsymb(s->name, 'D', s->value, s->version);
+				putsymb(s->name, 'D', s->value, s->version, gotypefor(s->name));
 				continue;
 
 			case SDATA:
-				putsymb(s->name, 'D', s->value+INITDAT, s->version);
+				putsymb(s->name, 'D', s->value+INITDAT, s->version, gotypefor(s->name));
 				continue;
 
 			case SBSS:
-				putsymb(s->name, 'B', s->value+INITDAT, s->version);
+				putsymb(s->name, 'B', s->value+INITDAT, s->version, gotypefor(s->name));
 				continue;
 
 			case SFILE:
-				putsymb(s->name, 'f', s->value, s->version);
+				putsymb(s->name, 'f', s->value, s->version, nil);
 				continue;
 			}
 
@@ -241,22 +238,22 @@ asmsym(void)
 		/* filenames first */
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_FILE)
-				putsymb(a->asym->name, 'z', a->aoffset, 0);
+				putsymb(a->asym->name, 'z', a->aoffset, 0, nil);
 			else
 			if(a->type == D_FILE1)
-				putsymb(a->asym->name, 'Z', a->aoffset, 0);
+				putsymb(a->asym->name, 'Z', a->aoffset, 0, nil);
 
-		putsymb(s->name, 'T', s->value, s->version);
+		putsymb(s->name, 'T', s->value, s->version, gotypefor(s->name));
 
 		/* frame, auto and param after */
-		putsymb(".frame", 'm', p->to.offset+4, 0);
+		putsymb(".frame", 'm', p->to.offset+4, 0, nil);
 
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_AUTO)
-				putsymb(a->asym->name, 'a', -a->aoffset, 0);
+				putsymb(a->asym->name, 'a', -a->aoffset, 0, nil);
 			else
 			if(a->type == D_PARAM)
-				putsymb(a->asym->name, 'p', a->aoffset, 0);
+				putsymb(a->asym->name, 'p', a->aoffset, 0, nil);
 	}
 	if(debug['v'] || debug['n'])
 		Bprint(&bso, "symsize = %lud\n", symsize);
@@ -366,7 +363,7 @@ oclass(Adr *a)
 {
 	int32 v;
 
-	if(a->type >= D_INDIR || a->index != D_NONE) {
+	if((a->type >= D_INDIR && a->type < 2*D_INDIR) || a->index != D_NONE) {
 		if(a->index != D_NONE && a->scale == 0) {
 			if(a->type == D_ADDR) {
 				switch(a->index) {
@@ -615,7 +612,7 @@ asmand(Adr *a, int r)
 	v = a->offset;
 	t = a->type;
 	if(a->index != D_NONE) {
-		if(t >= D_INDIR) {
+		if(t >= D_INDIR && t < 2*D_INDIR) {
 			t -= D_INDIR;
 			if(t == D_NONE) {
 				*andptr++ = (0 << 6) | (4 << 0) | (r << 3);
@@ -663,7 +660,7 @@ asmand(Adr *a, int r)
 		*andptr++ = (3 << 6) | (reg[t] << 0) | (r << 3);
 		return;
 	}
-	if(t >= D_INDIR) {
+	if(t >= D_INDIR && t < 2*D_INDIR) {
 		t -= D_INDIR;
 		if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
 			*andptr++ = (0 << 6) | (5 << 0) | (r << 3);

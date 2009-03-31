@@ -99,7 +99,7 @@ Dconv(Fmt *fp)
 
 	a = va_arg(fp->args, Adr*);
 	i = a->type;
-	if(i >= D_INDIR) {
+	if(i >= D_INDIR && i < 2*D_INDIR) {
 		if(a->offset)
 			sprint(str, "%ld(%R)", a->offset, i-D_INDIR);
 		else

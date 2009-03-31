@@ -58,6 +58,7 @@ struct	Adr
 		char	u0scon[8];
 		Prog	*u0cond;	/* not used, but should be D_BRANCH */
 		Ieee	u0ieee;
+		char	*u0sbig;
 	} u0;
 	union
 	{
@@ -74,6 +75,7 @@ struct	Adr
 #define	scon	u0.u0scon
 #define	cond	u0.u0cond
 #define	ieee	u0.u0ieee
+#define	sbig	u0.u0sbig
 
 #define	autom	u1.u1autom
 #define	sym	u1.u1sym
@@ -84,6 +86,7 @@ struct	Prog
 	Adr	to;
 	Prog	*forwd;
 	Prog*	link;
+	Prog*	dlink;
 	Prog*	pcond;	/* work on this */
 	int32	pc;
 	int32	line;
@@ -108,10 +111,14 @@ struct	Sym
 	short	become;
 	short	frame;
 	uchar	subtype;
+	uchar	dupok;
+	uchar	reachable;
 	ushort	file;
 	int32	value;
 	int32	sig;
 	Sym*	link;
+	Prog*	text;
+	Prog*	data;
 };
 struct	Optab
 {
@@ -123,7 +130,9 @@ struct	Optab
 
 enum
 {
-	STEXT		= 1,
+	Sxxx,
+
+	STEXT,
 	SDATA,
 	SBSS,
 	SDATA1,
@@ -352,6 +361,8 @@ void	lputl(int32);
 void	main(int, char*[]);
 void	mkfwd(void);
 void*	mal(uint32);
+Prog*	newdata(Sym*, int, int, int);
+Prog*	newtext(Prog*, Sym*);
 void	nuxiinit(void);
 void	objfile(char*);
 int	opsize(Prog*);
@@ -374,6 +385,16 @@ void	zerosig(char*);
 uint32	machheadr(void);
 uint32	elfheadr(void);
 void	whatsys(void);
+
+/*
+ *	go.c
+ */
+void	deadcode(void);
+void	definetypestrings(void);
+void	definetypesigs(void);
+char*	gotypefor(char *name);
+void	ldpkg(Biobuf *f, int64 len, char *filename);
+
 
 /* set by call to whatsys() */
 extern	char*	goroot;

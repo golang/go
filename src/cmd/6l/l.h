@@ -441,7 +441,6 @@ void	xdefine(char*, int, vlong);
 void	xfol(Prog*);
 void	zaddr(Biobuf*, Adr*, Sym*[]);
 void	zerosig(char*);
-int	isinitfunc(Sym*);
 
 void	machseg(char*, vlong, vlong, vlong, vlong, uint32, uint32, uint32, uint32);
 void	machsymseg(uint32, uint32);

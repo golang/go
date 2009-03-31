@@ -333,6 +333,10 @@ main(int argc, char *argv[])
 		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
 		objfile(a);
 	}
+	definetypestrings();
+	definetypesigs();
+	deadcode();
+
 	firstp = firstp->link;
 	if(firstp == P)
 		errorexit();
@@ -848,7 +852,7 @@ ldobj(Biobuf *f, int32 len, char *pn)
 	import1 = Boffset(f);
 
 	Bseek(f, import0, 0);
-//	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
+	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
 	Bseek(f, import1, 0);
 
 newloop:
@@ -1017,6 +1021,20 @@ loop:
 
 	case ADATA:
 	data:
+		// Assume that AGLOBL comes after ADATA.
+		// If we've seen an AGLOBL that said this sym was DUPOK,
+		// ignore any more ADATA we see, which must be
+		// redefinitions.
+		s = p->from.sym;
+		if(s != S && s->dupok) {
+			if(debug['v'])
+				Bprint(&bso, "skipping %s in %s: dupok", s->name, pn);
+			goto loop;
+		}
+		if(s != S) {
+			p->dlink = s->data;
+			s->data = p;
+		}
 		if(edatap == P)
 			datap = p;
 		else
@@ -1056,19 +1074,7 @@ loop:
 			}
 			diag("%s: redefinition: %s\n%P", pn, s->name, p);
 		}
-		s->type = STEXT;
-		s->value = pc;
-		lastp->link = p;
-		lastp = p;
-		p->pc = pc;
-		pc++;
-		if(textp == P) {
-			textp = p;
-			etextp = p;
-			goto loop;
-		}
-		etextp->pcond = p;
-		etextp = p;
+		newtext(p, s);
 		goto loop;
 
 	case AFMOVF:

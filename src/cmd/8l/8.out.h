@@ -79,9 +79,6 @@ enum	as
 	ACMPSB,
 	ACMPSL,
 	ACMPSW,
-	ACMPXCHGB,
-	ACMPXCHGL,
-	ACMPXCHGW,
 	ADAA,
 	ADAS,
 	ADATA,
@@ -387,6 +384,10 @@ enum	as
 
 	ASIGNAME,
 
+	ACMPXCHGB,
+	ACMPXCHGL,
+	ACMPXCHGW,
+
 	ALAST
 };
 
@@ -441,12 +442,14 @@ enum
 	D_FCONST	= 66,
 	D_SCONST	= 67,
 	D_ADDR		= 68,
-	D_CONST2	= 69,
 
 	D_FILE,
 	D_FILE1,
 
 	D_INDIR,	/* additive */
+
+	D_SBIG = D_INDIR + D_INDIR,
+	D_CONST2,
 
 	T_TYPE		= 1<<0,
 	T_INDEX		= 1<<1,
