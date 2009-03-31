@@ -38,9 +38,13 @@ O2=\
 	ast.$O\
 	scanner.$O\
 
-ast.a: a1 a2
-scanner.a: a1 a2
-token.a: a1 a2
+O3=\
+	parser.$O\
+
+ast.a: a1 a2 a3
+parser.a: a1 a2 a3
+scanner.a: a1 a2 a3
+token.a: a1 a2 a3
 
 a1:	$(O1)
 	$(AR) grc token.a token.$O
@@ -51,21 +55,28 @@ a2:	$(O2)
 	$(AR) grc scanner.a scanner.$O
 	rm -f $(O2)
 
+a3:	$(O3)
+	$(AR) grc parser.a parser.$O
+	rm -f $(O3)
+
 newpkg: clean
 	$(AR) grc ast.a
+	$(AR) grc parser.a
 	$(AR) grc scanner.a
 	$(AR) grc token.a
 
 $(O1): newpkg
 $(O2): a1
+$(O3): a2
 
 nuke: clean
-	rm -f $(GOROOT)/pkg/ast.a $(GOROOT)/pkg/scanner.a $(GOROOT)/pkg/token.a
+	rm -f $(GOROOT)/pkg/ast.a $(GOROOT)/pkg/parser.a $(GOROOT)/pkg/scanner.a $(GOROOT)/pkg/token.a
 
-packages: ast.a scanner.a token.a
+packages: ast.a parser.a scanner.a token.a
 
 install: packages
 	cp ast.a $(GOROOT)/pkg/ast.a
+	cp parser.a $(GOROOT)/pkg/parser.a
 	cp scanner.a $(GOROOT)/pkg/scanner.a
 	cp token.a $(GOROOT)/pkg/token.a
 
