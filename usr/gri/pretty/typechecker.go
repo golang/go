@@ -77,7 +77,7 @@ func (s *state) CheckDeclaration(d *AST.Decl) {
 */
 
 
-func (s *state) CheckProgram(p *ast.Package) {
+func (s *state) CheckProgram(p *ast.Program) {
 	for i := 0; i < len(p.Decls); i++ {
 		//s.CheckDeclaration(p.Decls[i].(*AST.Decl));
 	}
@@ -86,7 +86,7 @@ func (s *state) CheckProgram(p *ast.Package) {
 
 // ----------------------------------------------------------------------------
 
-func CheckProgram(err scanner.ErrorHandler, p *ast.Package) {
+func CheckProgram(err scanner.ErrorHandler, p *ast.Program) {
 	var s state;
 	s.Init(err);
 	s.CheckProgram(p);
