@@ -592,8 +592,8 @@ EXTERN	Node*	typeswvar;
 
 EXTERN	char*	context;
 EXTERN	char*	pkgcontext;
-EXTERN	int	thechar;
-EXTERN	char*	thestring;
+extern	int	thechar;
+extern	char*	thestring;
 EXTERN	char*	hunk;
 EXTERN	int32	nhunk;
 EXTERN	int32	thunk;
@@ -979,6 +979,19 @@ struct	Label
 EXTERN	Label*	labellist;
 EXTERN	Label*	findlab(Sym*);
 
+typedef	struct	Plist	Plist;
+struct	Plist
+{
+	Node*	name;
+	Dcl*	locals;
+	Prog*	firstpc;
+	int	recur;
+	Plist*	link;
+};
+
+EXTERN	Plist*	plist;
+EXTERN	Plist*	plast;
+
 EXTERN	Prog*	continpc;
 EXTERN	Prog*	breakpc;
 EXTERN	Prog*	pc;
@@ -994,10 +1007,20 @@ Label*	findlab(Sym *s);
 void	gen(Node *n);
 void	newlab(int op, Sym *s);
 Node*	sysfunc(char *name);
-
+Plist*	newplist(void);
 
 /*
- *	gen.c/gsubr.c/obj.c
+ *	obj.c
+ */
+void	Bputdot(Biobuf *b);
+void	dumpfuncs(void);
+void	dumpglobls(void);
+void	dumpobj(void);
+void	ieeedtod(uint64 *ieee, double native);
+void	outhist(Biobuf *b);
+
+/*
+ *	arch-specific gen.c/gsubr.c/obj.c
  */
 void	betypeinit(void);
 vlong	convvtox(vlong, int);
@@ -1021,3 +1044,21 @@ int	isfat(Type*);
 void	clearfat(Node *n);
 void	cgen(Node*, Node*);
 void	gused(Node*);
+void	dumpstrings(void);
+void	dumpsignatures(void);
+void	dumpfuncs(void);
+void	ggloblnod(Node *nam, int32 width);
+void	ggloblsym(Sym *s, int32 width, int dupok);
+void	zfile(Biobuf *b, char *p, int n);
+void	zhist(Biobuf *b, int line, vlong offset);
+void	zname(Biobuf *b, Sym *s, int t);
+void	dumpstrings(void);
+void	nopout(Prog*);
+void	datastring(char *s, int len);
+int	dstringptr(Sym *s, int off, char *str);
+int	dsymptr(Sym *s, int off, Sym *x);
+int	duint16(Sym *s, int off, uint32 v);
+int	duint32(Sym *s, int off, uint32 v);
+int	duintptr(Sym *s, int off, uint32 v);
+int	duintxx(Sym *s, int off, uint64 v, int wid);
+void	genembedtramp(Type*, Sig*);
