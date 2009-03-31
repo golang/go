@@ -22,6 +22,8 @@ import (
 	"platform";
 	"compilation";
 	"printer";
+	"tabwriter";
+	"docprinter";
 )
 
 
@@ -29,6 +31,11 @@ var (
 	verbose = flag.Bool("v", false, "verbose mode");
 	port = flag.String("port", "6060", "server port");
 	root = flag.String("root", Platform.GOROOT, "go root directory");
+
+	// layout control
+	tabwidth = flag.Int("gds_tabwidth", 4, "tab width");
+	usetabs = flag.Bool("gds_usetabs", false, "align with tabs instead of blanks");
+	newdoc = flag.Bool("newdoc", false, "use new document printing");  // TODO remove once this works
 )
 
 
@@ -159,7 +166,31 @@ func serveFile(c *http.Conn, filename string) {
 	}
 
 	c.SetHeader("content-type", "text/html; charset=utf-8");
-	Printer.Print(c, prog, true);
+	
+	if *newdoc {
+		// initialize tabwriter for nicely aligned output
+		padchar := byte(' ');
+		if *usetabs {
+			padchar = '\t';
+		}
+		writer := tabwriter.NewWriter(c, *tabwidth, 1, padchar, tabwriter.FilterHTML);
+
+		// write documentation
+		var doc docPrinter.PackageDoc;
+		doc.Init(string(prog.Name.Lit));
+		doc.AddPackage(prog);
+		doc.Print(writer);
+
+		// flush any pending output
+		err := writer.Flush();
+		if err != nil {
+			panic("print error - exiting");
+		}
+	} else {
+		// TODO remove once the new document stuff works better
+		//      than the old code
+		Printer.Print(c, prog, true);
+	}
 }
 
 
