@@ -15,7 +15,7 @@ enum
 };
 
 int
-mainlex(int argc, char *argv[])
+main(int argc, char *argv[])
 {
 	int c;
 
@@ -59,7 +59,13 @@ mainlex(int argc, char *argv[])
 	fmtinstall('B', Bconv);		// big numbers
 	fmtinstall('F', Fconv);		// big float numbers
 
+	betypeinit();
+	if(maxround == 0 || widthptr == 0)
+		fatal("betypeinit failed");
+
 	lexinit();
+	typeinit(LBASETYPE);
+
 	lineno = 1;
 	block = 1;
 	blockgen = 1;
@@ -1163,86 +1169,10 @@ static	struct
 void
 lexinit(void)
 {
-	int i, etype, lex;
-	Type *t;
+	int i, lex;
 	Sym *s;
-
-	for(i=0; i<NTYPE; i++)
-		simtype[i] = i;
-
-	besetptr();
-
-	for(i=TINT8; i<=TUINT64; i++)
-		isint[i] = 1;
-	isint[TINT] = 1;
-	isint[TUINT] = 1;
-	isint[TUINTPTR] = 1;
-
-	for(i=TFLOAT32; i<=TFLOAT80; i++)
-		isfloat[i] = 1;
-	isfloat[TFLOAT] = 1;
-
-	isptr[TPTR32] = 1;
-	isptr[TPTR64] = 1;
-
-	issigned[TINT] = 1;
-	issigned[TINT8] = 1;
-	issigned[TINT16] = 1;
-	issigned[TINT32] = 1;
-	issigned[TINT64] = 1;
-
-	/*
-	 * initialize okfor
-	 */
-	for(i=0; i<NTYPE; i++) {
-		if(isint[i]) {
-			okforeq[i] = 1;
-			okforadd[i] = 1;
-			okforand[i] = 1;
-			issimple[i] = 1;
-			minintval[i] = mal(sizeof(*minintval[i]));
-			maxintval[i] = mal(sizeof(*maxintval[i]));
-		}
-		if(isfloat[i]) {
-			okforeq[i] = 1;
-			okforadd[i] = 1;
-			issimple[i] = 1;
-			minfltval[i] = mal(sizeof(*minfltval[i]));
-			maxfltval[i] = mal(sizeof(*maxfltval[i]));
-		}
-		switch(i) {
-		case TBOOL:
-			issimple[i] = 1;
-
-		case TPTR32:
-		case TPTR64:
-		case TINTER:
-		case TMAP:
-		case TCHAN:
-		case TFUNC:
-			okforeq[i] = 1;
-			break;
-		}
-	}
-
-	mpatofix(maxintval[TINT8], "0x7f");
-	mpatofix(minintval[TINT8], "-0x80");
-	mpatofix(maxintval[TINT16], "0x7fff");
-	mpatofix(minintval[TINT16], "-0x8000");
-	mpatofix(maxintval[TINT32], "0x7fffffff");
-	mpatofix(minintval[TINT32], "-0x80000000");
-	mpatofix(maxintval[TINT64], "0x7fffffffffffffff");
-	mpatofix(minintval[TINT64], "-0x8000000000000000");
-
-	mpatofix(maxintval[TUINT8], "0xff");
-	mpatofix(maxintval[TUINT16], "0xffff");
-	mpatofix(maxintval[TUINT32], "0xffffffff");
-	mpatofix(maxintval[TUINT64], "0xffffffffffffffff");
-
-	mpatoflt(maxfltval[TFLOAT32], "3.40282347e+38");
-	mpatoflt(minfltval[TFLOAT32], "-3.40282347e+38");
-	mpatoflt(maxfltval[TFLOAT64], "1.7976931348623157e+308");
-	mpatoflt(minfltval[TFLOAT64], "-1.7976931348623157e+308");
+	Type *t;
+	int etype;
 
 	/*
 	 * initialize basic types array
@@ -1272,16 +1202,6 @@ lexinit(void)
 		types[etype] = t;
 		s->otype = t;
 	}
-
-	/* for walk to use in error messages */
-	types[TFUNC] = functype(N, N, N);
-
-	/* types used in front end */
-	types[TNIL] = typ(TNIL);
-	types[TIDEAL] = typ(TIDEAL);
-
-	/* pick up the backend typedefs */
-	belexinit(LBASETYPE);
 }
 
 struct
