@@ -1591,6 +1591,7 @@ no:
 	return N;
 
 yes:
+	addtop = N;	// any side effects disappear
 	val.ctype = CTINT;
 	val.u.xval = mal(sizeof(*n->val.u.xval));
 	mpmovecfix(val.u.xval, v);
