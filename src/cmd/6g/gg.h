@@ -115,7 +115,6 @@ void	regfree(Node*);
 Node*	nodarg(Type*, int);
 void	nodreg(Node*, Type*, int);
 void	nodindreg(Node*, Type*, int);
-void	nodconst(Node*, Type*, vlong);
 void	gconreg(int, vlong, int);
 void	buildtxt(void);
 Plist*	newplist(void);
