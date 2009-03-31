@@ -10,22 +10,13 @@
 package parser
 
 import (
-	"fmt";
-	"vector";
-	"token";
 	"ast";
+	"fmt";
+	"io";
+	"scanner";
+	"token";
+	"vector";
 )
-
-
-// An implementation of a Scanner must be provided to the Parser.
-// The parser calls Scan() repeatedly until token.EOF is returned.
-// Scan must return the current token position pos, the token value
-// tok, and the corresponding token literal string lit; lit can be
-// undefined/nil unless the token is a literal (tok.IsLiteral() == true).
-//
-type Scanner interface {
-	Scan() (pos token.Position, tok token.Token, lit []byte);
-}
 
 
 // An implementation of an ErrorHandler may be provided to the parser.
@@ -45,7 +36,7 @@ type interval struct {
 
 // The parser structure holds the parser's internal state.
 type parser struct {
-	scanner Scanner;
+	scanner scanner.Scanner;
 	err ErrorHandler;  // nil if no handler installed
 	errorCount int;
 
@@ -81,11 +72,10 @@ func (p *parser) printTrace(a ...) {
 		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
 		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ";
 	const n = uint(len(dots));
-
 	fmt.Printf("%5d:%3d: ", p.pos.Line, p.pos.Column);
 	i := 2*p.indent;
 	for ; i > n; i -= n {
-		fmt.Print(dots[0 : i%n]);
+		fmt.Print(dots);
 	}
 	fmt.Print(dots[0 : i]);
 	fmt.Println(a);
@@ -1847,13 +1837,14 @@ func (p *parser) parseDeclaration() ast.Decl {
 // ----------------------------------------------------------------------------
 // Packages
 
-// A set of flags (or 0) must be provided via the mode parameter to
-// the Parse function. They control the amount of source code parsed
-// and other optional parser functionality.
+// The mode parameter to the Parse function is a set of flags (or 0).
+// They control the amount of source code parsed and other optional
+// parser functionality.
 //
 const (
-	PackageClauseOnly = 1 << iota;  // parsing stops after package clause
+	PackageClauseOnly uint = 1 << iota;  // parsing stops after package clause
 	ImportsOnly;  // parsing stops after import declarations
+	ParseComments;  // parse comments and add them to AST
 	Trace;  // print a trace of parsed productions
 )
 
@@ -1914,29 +1905,57 @@ func (p *parser) parsePackage() *ast.Package {
 // ----------------------------------------------------------------------------
 // Parsing of entire programs.
 
-// Parse invokes the Go parser. It calls the scanner's Scan method repeatedly
-// to obtain a token sequence which is parsed according to Go syntax. If an
-// error handler is provided (err != nil), it is invoked for each syntax error
-// encountered.
+func readSource(src interface{}, err ErrorHandler) []byte {
+	errmsg := "could not read input src";
+
+	switch s := src.(type) {
+	case string:
+		return io.StringBytes(s);
+	case []byte:
+		return s;
+	case *io.ByteBuffer:
+		// is io.Read, but src is already available in []byte form
+		if s != nil {
+			return s.Data();
+		}
+	case io.Read:
+		var buf io.ByteBuffer;
+		n, os_err := io.Copy(s, &buf);
+		if os_err == nil {
+			return buf.Data();
+		}
+		errmsg = os_err.String();
+	}
+
+	if err != nil {
+		err.Error(noPos, errmsg);
+	}
+	return nil;
+}
+
+
+// Parse parses a Go program.
 //
-// Parse returns an AST and the number of syntax errors encountered. If the
-// error count is 0, the result is the correct AST for the token sequence
-// returned by the scanner (*). If the error count is > 0, the AST may only
-// be constructed partially, with ast.BadX nodes representing the fragments
-// of source code that contained syntax errors.
+// The program source src may be provided in a variety of formats. At the
+// moment the following types are supported: string, []byte, and io.Read.
 //
-// The mode parameter controls the amount of source text parsed and other
-// optional parser functionality.
+// The ErrorHandler err, if not nil, is invoked if src cannot be read and
+// for each syntax error found. The mode parameter controls the amount of
+// source text parsed and other optional parser functionality.
 //
-// (*) Note that a scanner may find lexical syntax errors but still return
-//     a legal token sequence. To be sure there are no syntax errors in the
-//     source (and not just the token sequence corresponding to the source)
-//     both the parser and scanner error count must be 0.
+// Parse returns an AST and the boolean value true if no errors occured;
+// it returns a partial AST (or nil if the source couldn't be read) and
+// the boolean value false to indicate failure.
+// 
+// If syntax errors were found, the AST may only be constructed partially,
+// with ast.BadX nodes representing the fragments of erroneous source code.
 //
-func Parse(scanner Scanner, err ErrorHandler, mode uint) (*ast.Package, int) {
+func Parse(src interface{}, err ErrorHandler, mode uint) (*ast.Package, bool) {
+	data := readSource(src, err);
+
 	// initialize parser state
 	var p parser;
-	p.scanner = scanner;
+	p.scanner.Init(data, err, mode & ParseComments != 0);
 	p.err = err;
 	p.mode = mode;
 	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
@@ -1944,6 +1963,6 @@ func Parse(scanner Scanner, err ErrorHandler, mode uint) (*ast.Package, int) {
 	p.next();
 
 	// parse program
-	pak := p.parsePackage();
-	return pak, p.errorCount;
+	prog := p.parsePackage();
+	return prog, p.scanner.ErrorCount == 0 && p.errorCount == 0;
 }
