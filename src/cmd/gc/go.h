@@ -452,6 +452,29 @@ struct	Typedef
 
 extern	Typedef	typedefs[];
 
+typedef	struct	Sig	Sig;
+struct Sig
+{
+	char*	name;
+	Sym*	sym;
+	uint32	hash;
+	int32	perm;
+	int32	offset;
+	Sig*	link;
+};
+
+typedef	struct	Pool Pool;
+struct	Pool
+{
+	String*	sval;
+	Pool*	link;
+};
+
+EXTERN	Pool*	poolist;
+EXTERN	Pool*	poolast;
+EXTERN	Sym*	symstringo;	// string objects
+EXTERN	int32	stringo;	// size of string objects
+
 typedef	struct	Io	Io;
 struct	Io
 {
@@ -712,6 +735,7 @@ uint32	typehash(Type*, int, int);
 void	frame(int);
 Node*	dobad(void);
 Node*	nodintconst(int64);
+void	nodconst(Node*, Type*, int64);
 Node*	nodnil(void);
 Node*	nodbool(int);
 void	ullmancalc(Node*);
@@ -739,6 +763,14 @@ Type*	structfirst(Iter*, Type**);
 Type*	structnext(Iter*);
 Type*	funcfirst(Iter*, Type*);
 Type*	funcnext(Iter*);
+
+int	brcom(int);
+int	brrev(int);
+void	setmaxarg(Type*);
+Sig*	lsort(Sig*, int(*)(Sig*, Sig*));
+int	dotoffset(Node*, int*, Node**);
+void	stringpool(Node*);
+void	tempname(Node*, Type*);
 
 int	Econv(Fmt*);
 int	Jconv(Fmt*);
@@ -917,7 +949,6 @@ void	dumpobj(void);
 void	dowidth(Type*);
 void	argspace(int32);
 Node*	nodarg(Type*, int);
-void	nodconst(Node*, Type*, vlong);
 Type*	deep(Type*);
 Type*	shallow(Type*);
 
