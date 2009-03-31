@@ -15,11 +15,11 @@ HFILES=\
 
 OFILES=\
 	list.$O\
+	obj.$O\
 	align.$O\
 	gen.$O\
 	cgen.$O\
 	gsubr.$O\
-	obj.$O\
 	peep.$O\
 	reg.$O\
 	../6l/enam.$O\

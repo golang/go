@@ -41,18 +41,6 @@ struct	Prog
 	void*	reg;		// pointer to containing Reg struct
 };
 
-typedef	struct	Plist	Plist;
-struct	Plist
-{
-	Node*	name;
-	Dcl*	locals;
-	Prog*	firstpc;
-	int	recur;
-	Plist*	link;
-};
-
-EXTERN	Plist*	plist;
-EXTERN	Plist*	plast;
 EXTERN	Biobuf*	bout;
 EXTERN	int32	dynloc;
 EXTERN	uchar	reg[D_NONE];
@@ -146,18 +134,5 @@ int	Rconv(Fmt*);
 int	Yconv(Fmt*);
 void	listinit(void);
 
-/*
- * obj
- */
-void	zname(Biobuf*, Sym*, int);
 void	zaddr(Biobuf*, Addr*, int);
-void	ieeedtod(Ieee*, double);
-void	dumpstrings(void);
-void	dumpsignatures(void);
-void	outhist(Biobuf*);
 
-/*
- * align
- */
-void	dowidth(Type*);
-uint32	rnd(uint32, uint32);

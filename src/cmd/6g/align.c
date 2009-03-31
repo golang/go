@@ -4,6 +4,10 @@
 
 #include "gg.h"
 
+int	thechar	= '6';
+char*	thestring	= "amd64";
+
+
 /*
  * go declares several platform-specific type aliases:
  * int, uint, float, and uintptr

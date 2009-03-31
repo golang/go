@@ -213,8 +213,6 @@ findpkg(String *name)
 		goroot = getenv("GOROOT");
 	}
 
-	// BOTCH need to get .6 from backend
-
 	// try .a before .6.  important for building libraries:
 	// if there is an array.6 in the array.a library,
 	// want to find all of array.a, not just array.6.
@@ -222,7 +220,7 @@ findpkg(String *name)
 		snprint(namebuf, sizeof(namebuf), "%s/%Z.a", p->dir, name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%s/%Z.6", p->dir, name);
+		snprint(namebuf, sizeof(namebuf), "%s/%Z.%c", p->dir, name, thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 	}
@@ -230,14 +228,14 @@ findpkg(String *name)
 	snprint(namebuf, sizeof(namebuf), "%Z.a", name);
 	if(access(namebuf, 0) >= 0)
 		return 1;
-	snprint(namebuf, sizeof(namebuf), "%Z.6", name);
+	snprint(namebuf, sizeof(namebuf), "%Z.%c", name, thechar);
 	if(access(namebuf, 0) >= 0)
 		return 1;
 	if(goroot != nil) {
 		snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.a", goroot, name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.6", goroot, name);
+		snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.%c", goroot, name, thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 	}
@@ -1300,7 +1298,6 @@ mkpackage(char* pkg)
 	lookup(package)->lexical = LPACK;
 
 	if(outfile == nil) {
-		// BOTCH need to get .6 from backend
 		p = strrchr(infile, '/');
 		if(p == nil)
 			p = infile;
@@ -1310,7 +1307,6 @@ mkpackage(char* pkg)
 		p = strrchr(namebuf, '.');
 		if(p != nil)
 			*p = 0;
-		strncat(namebuf, ".6", sizeof(namebuf));
-		outfile = strdup(namebuf);
+		outfile = smprint("%s.%c", namebuf, thechar);
 	}
 }

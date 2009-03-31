@@ -31,6 +31,7 @@ OFILES=\
 	bits.$O\
 	align.$O\
 	gen.$O\
+	obj.$O\
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)

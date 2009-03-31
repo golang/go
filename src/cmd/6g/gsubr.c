@@ -1938,10 +1938,39 @@ Prog*
 gjmp(Prog *to)
 {
 	Prog *p;
-	
+
 	p = gbranch(AJMP, T);
 	if(to != P)
 		patch(p, to);
 	return p;
 }
 
+void
+ggloblnod(Node *nam, int32 width)
+{
+	Prog *p;
+
+	p = gins(AGLOBL, nam, N);
+	p->lineno = nam->lineno;
+	p->to.sym = S;
+	p->to.type = D_CONST;
+	p->to.offset = width;
+}
+
+void
+ggloblsym(Sym *s, int32 width, int dupok)
+{
+	Prog *p;
+
+	p = gins(AGLOBL, N, N);
+	p->from.type = D_EXTERN;
+	if(s == symstringo)
+		p->from.type = D_STATIC;
+	p->from.index = D_NONE;
+	p->from.sym = s;
+	p->to.type = D_CONST;
+	p->to.index = D_NONE;
+	p->to.offset = width;
+	if(dupok)
+		p->from.scale = DUPOK;
+}
