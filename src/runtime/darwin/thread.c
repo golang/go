@@ -169,11 +169,7 @@ minit(void)
 static void
 macherror(int32 r, int8 *fn)
 {
-	prints("mach error ");
-	prints(fn);
-	prints(": ");
-	sys·printint(r);
-	prints("\n");
+	printf("mach error %s: %d\n", fn, r);
 	throw("mach error");
 }
 
