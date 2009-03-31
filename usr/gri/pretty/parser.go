@@ -1045,85 +1045,101 @@ func (p *parser) parseCompositeLit(typ ast.Expr) ast.Expr {
 }
 
 
-// TODO apply these make functions more thoroughly
-// (all uses of parseExpression; also should call
-// them something better - verifyX?)
+// TODO Consider different approach to checking syntax after parsing:
+//      Provide a arguments (set of flags) to parsing functions
+//      restricting what they are syupposed to accept depending
+//      on context.
 
-// makeExpr makes sure x is an expression and not a type.
-func (p *parser) makeExpr(x ast.Expr) ast.Expr {
+// checkExpr checks that x is an expression (and not a type).
+func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	// TODO should provide predicate in AST nodes
 	switch t := x.(type) {
-	case *ast.BadExpr: return x;
-	case *ast.Ident: return x;
-	case *ast.IntLit: return x;
-	case *ast.FloatLit: return x;
-	case *ast.CharLit: return x;
-	case *ast.StringLit: return x;
-	case *ast.StringList: return x;
-	case *ast.FunctionLit: return x;
-	case *ast.CompositeLit: return x;
-	case *ast.ParenExpr: p.makeExpr(t.X); return x;
-	case *ast.SelectorExpr: return x;
-	case *ast.IndexExpr: return x;
-	case *ast.SliceExpr: return x;
-	case *ast.TypeAssertExpr: return x;
-	case *ast.CallExpr: return x;
-	case *ast.StarExpr: return x;
-	case *ast.UnaryExpr: return x;
-	case *ast.BinaryExpr: return x;
+	case *ast.BadExpr:
+	case *ast.Ident:
+	case *ast.IntLit:
+	case *ast.FloatLit:
+	case *ast.CharLit:
+	case *ast.StringLit:
+	case *ast.StringList:
+	case *ast.FunctionLit:
+	case *ast.CompositeLit:
+	case *ast.ParenExpr:
+	case *ast.SelectorExpr:
+	case *ast.IndexExpr:
+	case *ast.SliceExpr:
+	case *ast.TypeAssertExpr:
+	case *ast.CallExpr:
+	case *ast.StarExpr:
+	case *ast.UnaryExpr:
+		if t.Op == token.RANGE {
+			// the range operator is only allowed at the top of a for statement
+			p.error_expected(x.Pos(), "expression");
+			x = &ast.BadExpr{x.Pos()};
+		}
+	case *ast.BinaryExpr:
+	default:
+		// all other nodes are not proper expressions
+		p.error_expected(x.Pos(), "expression");
+		x = &ast.BadExpr{x.Pos()};
 	}
-	
-	// all other nodes are not proper expressions
-	p.error_expected(x.Pos(), "expression");
-	return &ast.BadExpr{x.Pos()};
+	return x;
 }
 
 
-// makeTypeName makes sure that x is type name.
-func (p *parser) makeTypeName(x ast.Expr) ast.Expr {
+// checkTypeName checks that x is type name.
+func (p *parser) checkTypeName(x ast.Expr) ast.Expr {
 	// TODO should provide predicate in AST nodes
 	switch t := x.(type) {
-	case *ast.BadExpr: return x;
-	case *ast.Ident: return x;
-	case *ast.ParenExpr: p.makeTypeName(t.X); return x;  // TODO should (TypeName) be illegal?
-	case *ast.SelectorExpr: p.makeTypeName(t.X); return x;
+	case *ast.BadExpr:
+	case *ast.Ident:
+	case *ast.ParenExpr: p.checkTypeName(t.X);  // TODO should (TypeName) be illegal?
+	case *ast.SelectorExpr: p.checkTypeName(t.X);
+	default:
+		// all other nodes are not type names
+		p.error_expected(x.Pos(), "type name");
+		x = &ast.BadExpr{x.Pos()};
 	}
-
-	// all other nodes are not type names
-	p.error_expected(x.Pos(), "type name");
-	return &ast.BadExpr{x.Pos()};
+	return x;
 }
 
 
-// makeCompositeLitType makes sure x is a legal composite literal type.
-func (p *parser) makeCompositeLitType(x ast.Expr) ast.Expr {
+// checkCompositeLitType checks that x is a legal composite literal type.
+func (p *parser) checkCompositeLitType(x ast.Expr) ast.Expr {
 	// TODO should provide predicate in AST nodes
 	switch t := x.(type) {
 	case *ast.BadExpr: return x;
 	case *ast.Ident: return x;
-	case *ast.ParenExpr: p.makeCompositeLitType(t.X); return x;
-	case *ast.SelectorExpr: p.makeTypeName(t.X); return x;
+	case *ast.ParenExpr: p.checkCompositeLitType(t.X);
+	case *ast.SelectorExpr: p.checkTypeName(t.X);
 	case *ast.ArrayType: return x;
 	case *ast.SliceType: return x;
 	case *ast.StructType: return x;
 	case *ast.MapType: return x;
+	default:
+		// all other nodes are not legal composite literal types
+		p.error_expected(x.Pos(), "composite literal type");
+		x = &ast.BadExpr{x.Pos()};
 	}
-	
-	// all other nodes are not legal composite literal types
-	p.error_expected(x.Pos(), "composite literal type");
-	return &ast.BadExpr{x.Pos()};
+	return x;
 }
 
 
-// makeExprOrType makes sure that x is an expression or a type
+// checkExprOrType checks that x is an expression or a type
 // (and not a raw type such as [...]T).
 //
-func (p *parser) makeExprOrType(x ast.Expr) ast.Expr {
+func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 	// TODO should provide predicate in AST nodes
-	if t, is_array := x.(*ast.ArrayType); is_array {
+	switch t := x.(type) {
+	case *ast.UnaryExpr:
+		if t.Op == token.RANGE {
+			// the range operator is only allowed at the top of a for statement
+			p.error_expected(x.Pos(), "expression");
+			x = &ast.BadExpr{x.Pos()};
+		}
+	case *ast.ArrayType:
 		if len, is_ellipsis := t.Len.(*ast.Ellipsis); is_ellipsis {
 			p.error(len.Pos(), "expected array length, found '...'");
-			return &ast.BadExpr{x.Pos()};
+			x = &ast.BadExpr{x.Pos()};
 		}
 	}
 	
@@ -1140,17 +1156,17 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
 	x := p.parseOperand();
 	for {
 		switch p.tok {
-		case token.PERIOD: x = p.parseSelectorOrTypeAssertion(p.makeExpr(x));
-		case token.LBRACK: x = p.parseIndexOrSlice(p.makeExpr(x));
-		case token.LPAREN: x = p.parseCallOrConversion(p.makeExprOrType(x));
+		case token.PERIOD: x = p.parseSelectorOrTypeAssertion(p.checkExpr(x));
+		case token.LBRACK: x = p.parseIndexOrSlice(p.checkExpr(x));
+		case token.LPAREN: x = p.parseCallOrConversion(p.checkExprOrType(x));
 		case token.LBRACE:
 			if p.expr_lev >= 0 {
-				x = p.parseCompositeLit(p.makeCompositeLitType(x));
+				x = p.parseCompositeLit(p.checkCompositeLitType(x));
 			} else {
-				return p.makeExprOrType(x);
+				return p.checkExprOrType(x);
 			}
 		default:
-			return p.makeExprOrType(x);
+			return p.checkExprOrType(x);
 		}
 	}
 
@@ -1169,14 +1185,14 @@ func (p *parser) parseUnaryExpr() ast.Expr {
 		pos, op := p.pos, p.tok;
 		p.next();
 		x := p.parseUnaryExpr();
-		return &ast.UnaryExpr{pos, op, p.makeExpr(x)};
+		return &ast.UnaryExpr{pos, op, p.checkExpr(x)};
 
 	case token.MUL:
 		// unary "*" expression or pointer type
 		pos := p.pos;
 		p.next();
 		x := p.parseUnaryExpr();
-		return &ast.StarExpr{pos, p.makeExprOrType(x)};
+		return &ast.StarExpr{pos, p.checkExprOrType(x)};
 	}
 
 	return p.parsePrimaryExpr();
@@ -1194,7 +1210,7 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
 			pos, op := p.pos, p.tok;
 			p.next();
 			y := p.parseBinaryExpr(prec + 1);
-			x = &ast.BinaryExpr{p.makeExpr(x), pos, op, p.makeExpr(y)};
+			x = &ast.BinaryExpr{p.checkExpr(x), pos, op, p.checkExpr(y)};
 		}
 	}
 
@@ -1215,7 +1231,7 @@ func (p *parser) parseExpression() ast.Expr {
 // Statements
 
 
-func (p *parser) parseSimpleStmt() ast.Stmt {
+func (p *parser) parseSimpleStmt(label_ok bool) ast.Stmt {
 	if p.trace {
 		defer un(trace(p, "SimpleStmt"));
 	}
@@ -1225,8 +1241,8 @@ func (p *parser) parseSimpleStmt() ast.Stmt {
 	switch p.tok {
 	case token.COLON:
 		// labeled statement
-		p.expect(token.COLON);
-		if len(x) == 1 {
+		p.next();
+		if label_ok && len(x) == 1 {
 			if label, is_ident := x[0].(*ast.Ident); is_ident {
 				return &ast.LabeledStmt{label, p.parseStatement()};
 			}
@@ -1344,12 +1360,12 @@ func (p *parser) isExpr(s ast.Stmt) bool {
 }
 
 
-func (p *parser) asExpr(s ast.Stmt) ast.Expr {
+func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
 	if s == nil {
 		return nil;
 	}
 	if es, is_expr := s.(*ast.ExprStmt); is_expr {
-		return es.X;
+		return p.checkExpr(es.X);
 	}
 	p.error(s.Pos(), "expected condition, found simple statement");
 	return &ast.BadExpr{s.Pos()};
@@ -1362,18 +1378,18 @@ func (p *parser) parseControlClause(isForStmt bool) (s1, s2, s3 ast.Stmt) {
 		p.expr_lev = -1;
 
 		if p.tok != token.SEMICOLON {
-			s1 = p.parseSimpleStmt();
+			s1 = p.parseSimpleStmt(false);
 		}
 		if p.tok == token.SEMICOLON {
 			p.next();
 			if p.tok != token.LBRACE && p.tok != token.SEMICOLON {
-				s2 = p.parseSimpleStmt();
+				s2 = p.parseSimpleStmt(false);
 			}
 			if isForStmt {
 				// for statements have a 3rd section
 				p.expect(token.SEMICOLON);
 				if p.tok != token.LBRACE {
-					s3 = p.parseSimpleStmt();
+					s3 = p.parseSimpleStmt(false);
 				}
 			}
 		} else {
@@ -1401,7 +1417,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 		else_ = p.parseStatement();
 	}
 
-	return &ast.IfStmt{pos, s1, p.asExpr(s2), body, else_};
+	return &ast.IfStmt{pos, s1, p.makeExpr(s2), body, else_};
 }
 
 
@@ -1467,7 +1483,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 		rbrace := p.expect(token.RBRACE);
 		p.opt_semi = true;
 		body := &ast.BlockStmt{lbrace, makeStmtList(cases), rbrace};
-		return &ast.SwitchStmt{pos, s1, p.asExpr(s2), body};
+		return &ast.SwitchStmt{pos, s1, p.makeExpr(s2), body};
 	}
 
 	// type switch
@@ -1585,7 +1601,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 		}
 	} else {
 		// regular for statement
-		return &ast.ForStmt{pos, s1, p.asExpr(s2), s3, body};
+		return &ast.ForStmt{pos, s1, p.makeExpr(s2), s3, body};
 	}
 	
 	panic();  // unreachable
@@ -1606,7 +1622,7 @@ func (p *parser) parseStatement() ast.Stmt {
 		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,  // operand
 		token.LBRACK, token.STRUCT,  // composite type
 		token.MUL, token.AND, token.ARROW:  // unary operators
-		return p.parseSimpleStmt();
+		return p.parseSimpleStmt(true);
 	case token.GO:
 		return p.parseGoStmt();
 	case token.DEFER:
@@ -1778,7 +1794,7 @@ func (p *parser) parseReceiver() *ast.Field {
 	if ptr, is_ptr := base.(*ast.StarExpr); is_ptr {
 		base = ptr.X;
 	}
-	p.makeTypeName(base);
+	p.checkTypeName(base);
 
 	return recv;
 }

@@ -28,7 +28,7 @@ install: pretty
 clean:
 	rm -f pretty *.6 *.a *~
 
-gds.6:	 utils.6 platform.6 compilation.6 printer.6
+gds.6:	 utils.6 platform.6 compilation.6 printer.6 docprinter.6 astprinter.6
 
 pretty.6:	 platform.6 printer.6 compilation.6
 
@@ -45,6 +45,10 @@ parser.6:	ast.6 symboltable.6
 platform.6:	 utils.6
 
 printer.6:	 utils.6 ast.6 symboltable.6 template.6
+
+astprinter.6:	 utils.6 ast.6 symboltable.6 template.6
+
+docprinter.6:	ast.6 astprinter.6 template.6
 
 %.6:	%.go
 	$(G) $(F) $<
