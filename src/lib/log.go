@@ -160,7 +160,7 @@ func Stdout(v ...) {
 
 // Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
 func Stderr(v ...) {
-	stdout.Output(2, fmt.Sprintln(v))
+	stderr.Output(2, fmt.Sprintln(v))
 }
 
 // Stdoutf is a helper functions for easy formatted logging to stdout. It is analogous to Printf().
