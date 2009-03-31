@@ -49,16 +49,14 @@ func (list ErrorList) Swap(i, j int) { list[i], list[j] = list[j], list[i]; }
 
 type errorHandler struct {
 	filename string;
-	src []byte;
 	columns bool;
 	errline int;
 	errors vector.Vector;
 }
 
 
-func (h *errorHandler) Init(filename string, src []byte, columns bool) {
+func (h *errorHandler) Init(filename string, columns bool) {
 	h.filename = filename;
-	h.src = src;
 	h.columns = columns;
 	h.errors.Init(0);
 }
@@ -84,26 +82,24 @@ func (h *errorHandler) Error(pos token.Position, msg string) {
 }
 
 
-func Compile(src_file string, flags *Flags) (*ast.Package, ErrorList) {
-	src, ok := Platform.ReadSourceFile(src_file);
-	if !ok {
-		print("cannot open ", src_file, "\n");
+func Compile(filename string, flags *Flags) (*ast.Package, ErrorList) {
+	src, os_err := os.Open(filename, os.O_RDONLY, 0);
+	defer src.Close();
+	if os_err != nil {
+		fmt.Printf("cannot open %s (%s)\n", filename, os_err.String());
 		return nil, nil;
 	}
 
 	var err errorHandler;
-	err.Init(src_file, src, flags.Columns);
+	err.Init(filename, flags.Columns);
 
-	var scanner scanner.Scanner;
-	scanner.Init(src, &err, true);
-
-	mode := uint(0);
+	mode := parser.ParseComments;
 	if flags.Verbose {
 		mode |= parser.Trace;
 	}
-	prog, nerrs := parser.Parse(&scanner, &err, mode);
+	prog, ok2 := parser.Parse(src, &err, mode);
 
-	if err.errors.Len() == 0 {
+	if ok2 {
 		TypeChecker.CheckProgram(&err, prog);
 	}
 	
