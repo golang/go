@@ -29,6 +29,7 @@ OFILES=\
 	builtin.$O\
 	compat.$O\
 	bits.$O\
+	align.$O\
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)

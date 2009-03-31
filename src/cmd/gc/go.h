@@ -442,6 +442,15 @@ struct	Var
 
 EXTERN	Var	var[NVAR];
 
+typedef	struct	Typedef	Typedef;
+struct	Typedef
+{
+	char*	name;
+	int	etype;
+	int	sameas;
+};
+
+extern	Typedef	typedefs[];
 
 typedef	struct	Io	Io;
 struct	Io
@@ -467,6 +476,22 @@ struct Idir
 	char*	dir;
 };
 
+/*
+ * note this is the runtime representation
+ * of the compilers arrays.
+ *
+ * typedef	struct
+ * {				// must not move anything
+ * 	uchar	array[8];	// pointer to data
+ * 	uchar	nel[4];		// number of elements
+ * 	uchar	cap[4];		// allocated number of elements
+ * } Array;
+ */
+EXTERN	int	Array_array;	// runtime offsetof(Array,array)
+EXTERN	int	Array_nel;	// runtime offsetof(Array,nel)
+EXTERN	int	Array_cap;	// runtime offsetof(Array,cap)
+EXTERN	int	sizeof_Array;	// runtime sizeof(Array)
+
 EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds
 
 EXTERN	Io	curio;
@@ -476,7 +501,6 @@ EXTERN	int32	prevlineno;
 EXTERN	char*	pathname;
 EXTERN	Hist*	hist;
 EXTERN	Hist*	ehist;
-
 
 EXTERN	char*	infile;
 EXTERN	char*	outfile;
@@ -534,6 +558,9 @@ EXTERN	ushort	blockgen;		// max block number
 EXTERN	ushort	block;			// current block number
 EXTERN	int	hasdefer;		// flag that curfn has defer statetment
 
+EXTERN	int	maxround;
+EXTERN	int	widthptr;
+
 EXTERN	Node*	retnil;
 EXTERN	Node*	fskel;
 
@@ -562,13 +589,13 @@ int	yyparse(void);
 /*
  *	lex.c
  */
-int	mainlex(int, char*[]);
 void	setfilename(char*);
 void	addidir(char*);
 void	importfile(Val*);
 void	cannedimports(char*, char*);
 void	unimportfile();
 int32	yylex(void);
+void	typeinit(int lex);
 void	lexinit(void);
 char*	lexname(int);
 int32	getr(void);
@@ -881,8 +908,7 @@ int	isconst(Node*, int);
 /*
  *	gen.c/gsubr.c/obj.c
  */
-void	belexinit(int);
-void	besetptr(void);
+void	betypeinit(void);
 vlong	convvtox(vlong, int);
 void	compile(Node*);
 void	proglist(void);
@@ -896,7 +922,13 @@ Type*	deep(Type*);
 Type*	shallow(Type*);
 
 /*
- * bits.c
+ *	align.c
+ */
+uint32	rnd(uint32, uint32);
+void	dowidth(Type*);
+
+/*
+ *	bits.c
  */
 Bits	bor(Bits, Bits);
 Bits	band(Bits, Bits);
@@ -908,3 +940,4 @@ int	beq(Bits, Bits);
 int	bset(Bits, uint);
 int	Qconv(Fmt *fp);
 int	bitno(int32);
+

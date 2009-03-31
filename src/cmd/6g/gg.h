@@ -113,22 +113,6 @@ EXTERN	Node*	throwindex;
 EXTERN	Node*	throwreturn;
 
 /*
- * note this is the runtime representation
- * of the compilers arrays.
- *
- * typedef	struct
- * {				// must not move anything
- * 	uchar	array[8];	// pointer to data
- * 	uchar	nel[4];		// number of elements
- * 	uchar	cap[4];		// allocated number of elements
- * } Array;
- */
-EXTERN	int	Array_array;	// runtime offsetof(Array,array)
-EXTERN	int	Array_nel;	// runtime offsetof(Array,nel)
-EXTERN	int	Array_cap;	// runtime offsetof(Array,cap)
-EXTERN	int	sizeof_Array;	// runtime sizeof(Array)
-
-/*
  * gen.c
  */
 void	compile(Node*);
@@ -181,7 +165,6 @@ Prog*	prog(int);
 void	gaddoffset(Node*);
 void	gconv(int, int);
 int	conv2pt(Type*);
-void	belexinit(int);
 vlong	convvtox(vlong, int);
 int	brcom(int);
 int	brrev(int);
