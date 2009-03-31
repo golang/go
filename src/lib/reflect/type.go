@@ -52,10 +52,38 @@ const (
 	UintptrKind;
 )
 
-var tmp_interface interface{}	// used just to compute sizes of these constants
+// For sizes and alignments.
+
+type allTypes struct {
+	xarray		[]byte;
+	xbool		bool;
+	xchan		chan byte;
+	xfloat		float;
+	xfloat32	float32;
+	xfloat64	float64;
+	xint		int;
+	xint16		int16;
+	xint32		int32;
+	xint64		int64;
+	xint8		int8;
+	xinterface	interface {};
+	xmap		map[byte]byte;
+	xptr		*byte;
+	xslice		[]byte;
+	xstring		string;
+	xuint		uint;
+	xuint16		uint16;
+	xuint32		uint32;
+	xuint64		uint64;
+	xuint8		uint8;
+	xuintptr	uintptr;
+}
+
+var x allTypes
+
 const (
-	ptrsize = unsafe.Sizeof(&tmp_interface);
-	interfacesize = unsafe.Sizeof(tmp_interface);
+	ptrsize = unsafe.Sizeof(&x);
+	interfacesize = unsafe.Sizeof(x.xinterface);
 )
 
 var missingString = "$missing$"	// syntactic name for undefined type names
@@ -74,6 +102,8 @@ type Type interface {
 	String()	string;
 	// The number of bytes needed to store a value; analogous to unsafe.Sizeof().
 	Size()	int;
+	// The alignment of a value of this type when used as a field in a struct.
+	FieldAlign()	int;
 }
 
 // Fields and methods common to all types
@@ -109,11 +139,16 @@ func (c *commonType) Size() int {
 // -- Basic
 
 type basicType struct {
-	commonType
+	commonType;
+	fieldAlign	int;
 }
 
-func newBasicType(name string, kind int, size int) Type {
-	return &basicType{ commonType{kind, name, name, size} }
+func newBasicType(name string, kind int, size int, fieldAlign int) Type {
+	return &basicType{ commonType{kind, name, name, size}, fieldAlign }
+}
+
+func (t *basicType) FieldAlign() int {
+	return t.fieldAlign
 }
 
 // Prebuilt basic Type objects representing the predeclared basic types.
@@ -121,25 +156,24 @@ func newBasicType(name string, kind int, size int) Type {
 //	Missing represents types whose representation cannot be discovered; usually an error.
 //	DotDotDot represents the pseudo-type of a ... parameter.
 var (
-	Missing = newBasicType(missingString, MissingKind, 1);
-	empty interface{};
-	DotDotDot = newBasicType(dotDotDotString, DotDotDotKind, unsafe.Sizeof(empty));
-	Bool = newBasicType("bool", BoolKind, unsafe.Sizeof(true));
-	Int = newBasicType("int", IntKind, unsafe.Sizeof(int(0)));
-	Int8 = newBasicType("int8", Int8Kind, 1);
-	Int16 = newBasicType("int16", Int16Kind, 2);
-	Int32 = newBasicType("int32", Int32Kind, 4);
-	Int64 = newBasicType("int64", Int64Kind, 8);
-	Uint = newBasicType("uint", UintKind, unsafe.Sizeof(uint(0)));
-	Uint8 = newBasicType("uint8", Uint8Kind, 1);
-	Uint16 = newBasicType("uint16", Uint16Kind, 2);
-	Uint32 = newBasicType("uint32", Uint32Kind, 4);
-	Uint64 = newBasicType("uint64", Uint64Kind, 8);
-	Uintptr = newBasicType("uintptr", UintptrKind, unsafe.Sizeof(uintptr(0)));
-	Float = newBasicType("float", FloatKind, unsafe.Sizeof(float(0)));
-	Float32 = newBasicType("float32", Float32Kind, 4);
-	Float64 = newBasicType("float64", Float64Kind, 8);
-	String = newBasicType("string", StringKind, unsafe.Sizeof(""));
+	Missing = newBasicType(missingString, MissingKind, 1, 1);
+	DotDotDot = newBasicType(dotDotDotString, DotDotDotKind, unsafe.Sizeof(x.xinterface), unsafe.Alignof(x.xinterface));
+	Bool = newBasicType("bool", BoolKind, unsafe.Sizeof(x.xbool), unsafe.Alignof(x.xbool));
+	Int = newBasicType("int", IntKind, unsafe.Sizeof(x.xint), unsafe.Alignof(x.xint));
+	Int8 = newBasicType("int8", Int8Kind, unsafe.Sizeof(x.xint8), unsafe.Alignof(x.xint8));
+	Int16 = newBasicType("int16", Int16Kind, unsafe.Sizeof(x.xint16), unsafe.Alignof(x.xint16));
+	Int32 = newBasicType("int32", Int32Kind, unsafe.Sizeof(x.xint32), unsafe.Alignof(x.xint32));
+	Int64 = newBasicType("int64", Int64Kind, unsafe.Sizeof(x.xint64), unsafe.Alignof(x.xint64));
+	Uint = newBasicType("uint", UintKind, unsafe.Sizeof(x.xuint), unsafe.Alignof(x.xuint));
+	Uint8 = newBasicType("uint8", Uint8Kind, unsafe.Sizeof(x.xuint8), unsafe.Alignof(x.xuint8));
+	Uint16 = newBasicType("uint16", Uint16Kind, unsafe.Sizeof(x.xuint16), unsafe.Alignof(x.xuint16));
+	Uint32 = newBasicType("uint32", Uint32Kind, unsafe.Sizeof(x.xuint32), unsafe.Alignof(x.xuint32));
+	Uint64 = newBasicType("uint64", Uint64Kind, unsafe.Sizeof(x.xuint64), unsafe.Alignof(x.xuint64));
+	Uintptr = newBasicType("uintptr", UintptrKind, unsafe.Sizeof(x.xuintptr), unsafe.Alignof(x.xuintptr));
+	Float = newBasicType("float", FloatKind, unsafe.Sizeof(x.xfloat), unsafe.Alignof(x.xfloat));
+	Float32 = newBasicType("float32", Float32Kind, unsafe.Sizeof(x.xfloat32), unsafe.Alignof(x.xfloat32));
+	Float64 = newBasicType("float64", Float64Kind, unsafe.Sizeof(x.xfloat64), unsafe.Alignof(x.xfloat64));
+	String = newBasicType("string", StringKind, unsafe.Sizeof(x.xstring), unsafe.Alignof(x.xstring));
 )
 
 // Stub types allow us to defer evaluating type names until needed.
@@ -178,6 +212,10 @@ func newPtrTypeStruct(name, typestring string, sub *stubType) *ptrTypeStruct {
 	return &ptrTypeStruct{ commonType{PtrKind, typestring, name, ptrsize}, sub}
 }
 
+func (t *ptrTypeStruct) FieldAlign() int {
+	return unsafe.Alignof(x.xptr);
+}
+
 func (t *ptrTypeStruct) Sub() Type {
 	return t.sub.Get()
 }
@@ -205,9 +243,16 @@ func newArrayTypeStruct(name, typestring string, open bool, len int, elem *stubT
 
 func (t *arrayTypeStruct) Size() int {
 	if t.isslice {
-		return ptrsize*2	// open arrays are 2-word headers
+		return unsafe.Sizeof(x.xslice);
 	}
 	return t.len * t.elem.Get().Size();
+}
+
+func (t *arrayTypeStruct) FieldAlign() int {
+	 if t.isslice {
+		return unsafe.Alignof(x.xslice);
+	}
+	return t.elem.Get().FieldAlign();
 }
 
 func (t *arrayTypeStruct) IsSlice() bool {
@@ -244,6 +289,10 @@ func newMapTypeStruct(name, typestring string, key, elem *stubType) *mapTypeStru
 	return &mapTypeStruct{ commonType{MapKind, typestring, name, ptrsize}, key, elem}
 }
 
+func (t *mapTypeStruct) FieldAlign() int {
+	return unsafe.Alignof(x.xmap);
+}
+
 func (t *mapTypeStruct) Key() Type {
 	return t.key.Get()
 }
@@ -278,6 +327,10 @@ func newChanTypeStruct(name, typestring string, dir int, elem *stubType) *chanTy
 	return &chanTypeStruct{ commonType{ChanKind, typestring, name, ptrsize}, elem, dir}
 }
 
+func (t *chanTypeStruct) FieldAlign() int {
+	return unsafe.Alignof(x.xchan);
+}
+
 func (t *chanTypeStruct) Dir() int {
 	return t.dir
 }
@@ -302,40 +355,51 @@ type structField struct {
 	name	string;
 	typ	*stubType;
 	tag	string;
-	size	int;
 	offset	int;
 }
 
 type structTypeStruct struct {
 	commonType;
 	field	[]structField;
+	fieldAlign	int;
 }
 
 func newStructTypeStruct(name, typestring string, field []structField) *structTypeStruct {
-	return &structTypeStruct{ commonType{StructKind, typestring, name, 0}, field}
+	return &structTypeStruct{ commonType{StructKind, typestring, name, 0}, field, 0}
 }
 
-// TODO: not portable; depends on 6g
+func (t *structTypeStruct) FieldAlign() int {
+	t.Size();	// Compute size and alignment.
+	return t.fieldAlign
+}
+
 func (t *structTypeStruct) Size() int {
 	if t.size > 0 {
 		return t.size
 	}
 	size := 0;
-	structalignmask := 7;	// BUG: we know structs are 8-aligned
+	structalign := 0;
 	for i := 0; i < len(t.field); i++ {
-		elemsize := t.field[i].typ.Get().Size();
-		// pad until at (elemsize mod 8) boundary
-		align := elemsize - 1;
-		if align > structalignmask {
-			align = structalignmask
+		typ := t.field[i].typ.Get();
+		elemsize := typ.Size();
+		align := typ.FieldAlign() - 1;
+		if align > structalign {
+			structalign = align
 		}
 		if align > 0 {
-			size = (size + align) & ^align;
+			size = (size + align) &^ align;
 		}
 		t.field[i].offset = size;
 		size += elemsize;
 	}
-	size = (size + structalignmask) & ^(structalignmask);
+	if (structalign > 0) {
+		// TODO: In the PPC64 ELF ABI, floating point fields
+		// in a struct are aligned to a 4-byte boundary, but
+		// if the first field in the struct is a 64-bit float,
+		// the whole struct is aligned to an 8-byte boundary.
+		size = (size + structalign) &^ structalign;
+		t.fieldAlign = structalign + 1;
+	}
 	t.size = size;
 	return size;
 }
@@ -372,6 +436,10 @@ func newInterfaceTypeStruct(name, typestring string, field []structField) *inter
 	return &interfaceTypeStruct{ commonType{InterfaceKind, typestring, name, interfacesize}, field }
 }
 
+func (t *interfaceTypeStruct) FieldAlign() int {
+	return unsafe.Alignof(x.xinterface);
+}
+
 func (t *interfaceTypeStruct) Field(i int) (name string, typ Type, tag string, offset int) {
 	return t.field[i].name, t.field[i].typ.Get(), "", 0
 }
@@ -399,6 +467,11 @@ type funcTypeStruct struct {
 
 func newFuncTypeStruct(name, typestring string, in, out *structTypeStruct) *funcTypeStruct {
 	return &funcTypeStruct{ commonType{FuncKind, typestring, name, 0}, in, out }
+}
+
+func (t *funcTypeStruct) FieldAlign() int {
+	panic("reflect.type: func.FieldAlign(): cannot happen");
+	return 0
 }
 
 func (t *funcTypeStruct) Size() int {
@@ -861,7 +934,7 @@ func (p *typeParser) Type(name string) *stubType {
 		if name != "" {
 			// Need to make a copy because we are renaming a basic type
 			b := s.Get();
-			s = newStubType(name, newBasicType(name, b.Kind(), b.Size()));
+			s = newStubType(name, newBasicType(name, b.Kind(), b.Size(), b.FieldAlign()));
 		}
 		return s
 	}
