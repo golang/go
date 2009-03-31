@@ -99,7 +99,7 @@ type Comments []*Comment
 type (
 	Ident struct;
 	StringLit struct;
-	FunctionType struct;
+	FuncType struct;
 	BlockStmt struct;
 
 	// A Field represents a Field declaration list in a struct type,
@@ -172,9 +172,9 @@ type (
 		Strings []*StringLit;  // list of strings, len(Strings) > 1
 	};
 
-	// A FunctionLit node represents a function literal.
-	FunctionLit struct {
-		Type *FunctionType;  // function type
+	// A FuncLit node represents a function literal.
+	FuncLit struct {
+		Type *FuncType;  // function type
 		Body *BlockStmt;  // function body
 	};
 
@@ -302,8 +302,8 @@ type (
 
 	// Pointer types are represented via StarExpr nodes.
 
-	// A FunctionType node represents a function type.
-	FunctionType struct {
+	// A FuncType node represents a function type.
+	FuncType struct {
 		token.Position;  // position of "func" keyword
 		Params []*Field;  // (incoming) parameters
 		Results []*Field;  // (outgoing) results
@@ -324,8 +324,8 @@ type (
 		Value Expr;
 	};
 
-	// A ChannelType node represents a channel type.
-	ChannelType struct {
+	// A ChanType node represents a channel type.
+	ChanType struct {
 		token.Position;  // position of "chan" keyword or "<-" (whichever comes first)
 		Dir ChanDir;  // channel direction
 		Value Expr;  // value type
@@ -337,7 +337,7 @@ type (
 // corresponds to the position of a sub-node.
 //
 func (x *StringList) Pos() token.Position  { return x.Strings[0].Pos(); }
-func (x *FunctionLit) Pos() token.Position  { return x.Type.Pos(); }
+func (x *FuncLit) Pos() token.Position  { return x.Type.Pos(); }
 func (x *CompositeLit) Pos() token.Position  { return x.Type.Pos(); }
 func (x *SelectorExpr) Pos() token.Position  { return x.X.Pos(); }
 func (x *IndexExpr) Pos() token.Position  { return x.X.Pos(); }
@@ -362,7 +362,7 @@ type ExprVisitor interface {
 	DoCharLit(x *CharLit);
 	DoStringLit(x *StringLit);
 	DoStringList(x *StringList);
-	DoFunctionLit(x *FunctionLit);
+	DoFuncLit(x *FuncLit);
 	DoCompositeLit(x *CompositeLit);
 	DoParenExpr(x *ParenExpr);
 	DoSelectorExpr(x *SelectorExpr);
@@ -380,10 +380,10 @@ type ExprVisitor interface {
 	DoArrayType(x *ArrayType);
 	DoSliceType(x *SliceType);
 	DoStructType(x *StructType);
-	DoFunctionType(x *FunctionType);
+	DoFuncType(x *FuncType);
 	DoInterfaceType(x *InterfaceType);
 	DoMapType(x *MapType);
-	DoChannelType(x *ChannelType);
+	DoChanType(x *ChanType);
 }
 
 
@@ -397,7 +397,7 @@ func (x *FloatLit) Visit(v ExprVisitor) { v.DoFloatLit(x); }
 func (x *CharLit) Visit(v ExprVisitor) { v.DoCharLit(x); }
 func (x *StringLit) Visit(v ExprVisitor) { v.DoStringLit(x); }
 func (x *StringList) Visit(v ExprVisitor) { v.DoStringList(x); }
-func (x *FunctionLit) Visit(v ExprVisitor) { v.DoFunctionLit(x); }
+func (x *FuncLit) Visit(v ExprVisitor) { v.DoFuncLit(x); }
 func (x *CompositeLit) Visit(v ExprVisitor) { v.DoCompositeLit(x); }
 func (x *ParenExpr) Visit(v ExprVisitor) { v.DoParenExpr(x); }
 func (x *SelectorExpr) Visit(v ExprVisitor) { v.DoSelectorExpr(x); }
@@ -413,10 +413,10 @@ func (x *KeyValueExpr) Visit(v ExprVisitor) { v.DoKeyValueExpr(x); }
 func (x *ArrayType) Visit(v ExprVisitor) { v.DoArrayType(x); }
 func (x *SliceType) Visit(v ExprVisitor) { v.DoSliceType(x); }
 func (x *StructType) Visit(v ExprVisitor) { v.DoStructType(x); }
-func (x *FunctionType) Visit(v ExprVisitor) { v.DoFunctionType(x); }
+func (x *FuncType) Visit(v ExprVisitor) { v.DoFuncType(x); }
 func (x *InterfaceType) Visit(v ExprVisitor) { v.DoInterfaceType(x); }
 func (x *MapType) Visit(v ExprVisitor) { v.DoMapType(x); }
-func (x *ChannelType) Visit(v ExprVisitor) { v.DoChannelType(x); }
+func (x *ChanType) Visit(v ExprVisitor) { v.DoChanType(x); }
 
 
 // ----------------------------------------------------------------------------
@@ -699,7 +699,7 @@ type (
 		Doc Comments;  // associated documentation; or nil
 		Recv *Field;  // receiver (methods) or nil (functions)
 		Name *Ident;  // function/method name
-		Type *FunctionType;  // position of Func keyword, parameters and results
+		Type *FuncType;  // position of Func keyword, parameters and results
 		Body *BlockStmt;  // function body or nil (forward declaration)
 	};
 
@@ -746,10 +746,12 @@ func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
 
 
 // ----------------------------------------------------------------------------
-// Packages
+// Programs
 
-// A Package node represents the root node of an AST.
-type Package struct {
+// A Program node represents the root node of an AST
+// for an entire source file.
+//
+type Program struct {
 	Doc Comments;  // associated documentation; or nil
 	token.Position;  // position of "package" keyword
 	Name *Ident;  // package name
