@@ -12,6 +12,7 @@ import (
 	"fmt";
 
 	"ast";
+	"token";
 	"astprinter";
 	"template";
 )
@@ -37,15 +38,26 @@ func hasExportedNames(names []*ast.Ident) bool {
 }
 
 
+func hasExportedDecls(decl []ast.Decl) bool {
+	for i, d := range decl {
+		switch t := d.(type) {
+		case *ast.ConstDecl:
+			return hasExportedNames(t.Names);
+		}
+	}
+	return false;
+}
+
+
 // ----------------------------------------------------------------------------
 
 type constDoc struct {
-	decl *ast.ConstDecl;
+	decl *ast.DeclList;
 }
 
 
 type varDoc struct {
-	decl *ast.VarDecl;
+	decl *ast.DeclList;
 }
 
 
@@ -63,10 +75,10 @@ type typeDoc struct {
 
 type PackageDoc struct {
 	name string;  // package name
-	imports map[string] string;
-	consts map[string] *constDoc;
+	doc ast.Comments;  // package documentation, if any
+	consts *vector.Vector;  // list of *ast.DeclList with Tok == token.CONST
+	vars *vector.Vector;  // list of *ast.DeclList with Tok == token.CONST
 	types map[string] *typeDoc;
-	vars map[string] *varDoc;
 	funcs map[string] *funcDoc;
 }
 
@@ -77,10 +89,9 @@ type PackageDoc struct {
 //
 func (doc *PackageDoc) Init(name string) {
 	doc.name = name;
-	doc.imports = make(map[string] string);
-	doc.consts = make(map[string] *constDoc);
+	doc.consts = vector.New(0);
 	doc.types = make(map[string] *typeDoc);
-	doc.vars = make(map[string] *varDoc);
+	doc.vars = vector.New(0);
 	doc.funcs = make(map[string] *funcDoc);
 }
 
@@ -102,6 +113,13 @@ func (doc *PackageDoc) lookupTypeDoc(typ ast.Expr) *typeDoc {
 		return tdoc;
 	}
 	return nil;
+}
+
+
+func (doc *PackageDoc) addType(typ *ast.TypeDecl) {
+	name := string(typ.Name.Lit);
+	tdoc := &typeDoc{typ, make(map[string] *funcDoc), make(map[string] *funcDoc)};
+	doc.types[name] = tdoc;
 }
 
 
@@ -142,21 +160,19 @@ func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
 
 func (doc *PackageDoc) addDecl(decl ast.Decl) {
 	switch d := decl.(type) {
-	case *ast.ImportDecl:
 	case *ast.ConstDecl:
 		if hasExportedNames(d.Names) {
+			// TODO
 		}
 
 	case *ast.TypeDecl:
 		if isExported(d.Name) {
-			// TODO only add if not there already - or ignore?
-			name := string(d.Name.Lit);
-			tdoc := &typeDoc{d, make(map[string] *funcDoc), make(map[string] *funcDoc)};
-			doc.types[name] = tdoc;
+			doc.addType(d);
 		}
 
 	case *ast.VarDecl:
 		if hasExportedNames(d.Names) {
+			// TODO
 		}
 
 	case *ast.FuncDecl:
@@ -165,24 +181,41 @@ func (doc *PackageDoc) addDecl(decl ast.Decl) {
 		}
 
 	case *ast.DeclList:
-		for i, decl := range d.List {
-			doc.addDecl(decl);
+		switch d.Tok {
+		case token.IMPORT, token.TYPE:
+			for i, decl := range d.List {
+				doc.addDecl(decl);
+			}
+		case token.CONST:
+			if hasExportedDecls(d.List) {
+				doc.consts.Push(&constDoc{d});
+			}
+		case token.VAR:
+			if hasExportedDecls(d.List) {
+				doc.consts.Push(&varDoc{d});
+			}
 		}
 	}
 }
 
 
 // AddProgram adds the AST of a source file belonging to the same
-// package. The package names must match. If the package was added
-// before, AddPackage is a no-op.
+// package. The package names must match. If the source was added
+// before, AddProgram is a no-op.
 //
-func (doc *PackageDoc) AddProgram(pak *ast.Program) {
-	if doc.name != string(pak.Name.Lit) {
+func (doc *PackageDoc) AddProgram(prog *ast.Program) {
+	if doc.name != string(prog.Name.Lit) {
 		panic("package names don't match");
 	}
-	
+
+	// add package documentation
+	// TODO what to do if there are multiple files?
+	if prog.Doc != nil {
+		doc.doc = prog.Doc
+	}
+
 	// add all declarations
-	for i, decl := range pak.Decls {
+	for i, decl := range prog.Decls {
 		doc.addDecl(decl);
 	}
 }
@@ -191,32 +224,57 @@ func (doc *PackageDoc) AddProgram(pak *ast.Program) {
 // ----------------------------------------------------------------------------
 // Printing
 
-func htmlEscape(s string) string {
-	var esc string;
+func htmlEscape(s []byte) []byte {
+	var buf io.ByteBuffer;
+	
+	i0 := 0;
 	for i := 0; i < len(s); i++ {
+		var esc string;
 		switch s[i] {
 		case '<': esc = "&lt;";
 		case '&': esc = "&amp;";
 		default: continue;
 		}
-		return s[0 : i] + esc + htmlEscape(s[i+1 : len(s)]);
+		fmt.Fprintf(&buf, "%s%s", s[i0 : i], esc);
+		i0 := i+1;  // skip escaped char
+	}
+
+	// write the rest
+	if i0 > 0 {
+		buf.Write(s[i0 : len(s)]);
+		s = buf.Data();
 	}
 	return s;
 }
 
 
 // Reduce contiguous sequences of '\t' in a string to a single '\t'.
-func untabify(s string) string {
+// This will produce better results when the string is printed via
+// a tabwriter.
+// TODO make this functionality optional.
+//
+func untabify(s []byte) []byte {
+	var buf io.ByteBuffer;
+
+	i0 := 0;
 	for i := 0; i < len(s); i++ {
 		if s[i] == '\t' {
-			j := i;
-			for j < len(s) && s[j] == '\t' {
-				j++;
+			i++;  // include '\t'
+			buf.Write(s[i0 : i]);
+			// skip additional tabs
+			for i < len(s) && s[i] == '\t' {
+				i++;
 			}
-			if j-i > 1 {  // more then one tab
-				return s[0 : i+1] + untabify(s[j : len(s)]);
-			}
+			i0 := i;
+		} else {
+			i++;
 		}
+	}
+
+	// write the rest
+	if i0 > 0 {
+		buf.Write(s[i0 : len(s)]);
+		s = buf.Data();
 	}
 	return s;
 }
@@ -234,40 +292,108 @@ func stripWhiteSpace(s []byte) []byte {
 }
 
 
-func cleanComment(s []byte) []byte {
+func stripCommentDelimiters(s []byte) []byte {
 	switch s[1] {
-	case '/': s = s[2 : len(s)-1];
-	case '*': s = s[2 : len(s)-2];
-	default : panic("illegal comment");
+	case '/': return s[2 : len(s)-1];
+	case '*': return s[2 : len(s)-2];
 	}
-	return stripWhiteSpace(s);
+	panic();
+	return nil;
 }
 
 
-func printComment(p *astPrinter.Printer, comment ast.Comments) {
-	in_paragraph := false;
-	for i, c := range comment {
-		s := cleanComment(c.Text);
-		if len(s) > 0 {
-			if !in_paragraph {
-				p.Printf("<p>\n");
-				in_paragraph = true;
-			}
-			p.Printf("%s\n", htmlEscape(untabify(string(s))));
-		} else {
-			if in_paragraph {
+const /* formatting mode */ (
+	in_gap = iota;
+	in_paragraph;
+	in_preformatted;
+)
+
+func printLine(p *astPrinter.Printer, line []byte, mode int) int {
+	indented := len(line) > 0 && line[0] == '\t';
+	line = stripWhiteSpace(line);
+	if len(line) == 0 {
+		// empty line
+		switch mode {
+		case in_paragraph:
+			p.Printf("</p>\n");
+			mode = in_gap;
+		case in_preformatted:
+			p.Printf("\n");
+			// remain in preformatted
+		}
+	} else {
+		// non-empty line
+		if indented {
+			switch mode {
+			case in_gap:
+				p.Printf("<pre>\n");
+			case in_paragraph:
 				p.Printf("</p>\n");
-				in_paragraph = false;
+				p.Printf("<pre>\n");
+			}
+			mode = in_preformatted;
+		} else {
+			switch mode {
+			case in_gap:
+				p.Printf("<p>\n");
+			case in_preformatted:
+				p.Printf("</pre>\n");
+				p.Printf("<p>\n");
+			}
+			mode = in_paragraph;
+		}
+		// print line
+		p.Printf("%s\n", untabify(htmlEscape(line)));
+	}
+	return mode;
+}
+
+
+func closeMode(p *astPrinter.Printer, mode int) {
+	switch mode {
+	case in_paragraph:
+		p.Printf("</p>\n");
+	case in_preformatted:
+		p.Printf("</pre>\n");
+	}
+}
+
+
+func printComments(p *astPrinter.Printer, comment ast.Comments) {
+	mode := in_gap;
+	for i, c := range comment {
+		s := stripCommentDelimiters(c.Text);
+
+		// split comment into lines and print the lines
+ 		i0 := 0;  // beginning of current line
+		for i := 0; i < len(s); i++ {
+			if s[i] == '\n' {
+				// reached line end - print current line
+				mode = printLine(p, s[i0 : i], mode);
+				i0 = i + 1;  // beginning of next line; skip '\n'
 			}
 		}
+
+		// print last line
+		mode = printLine(p, s[i0 : len(s)], mode);
 	}
-	if in_paragraph {
-		p.Printf("</p>\n");
-	}
+	closeMode(p, mode);
 }
 
 
-func (c *constDoc) printConsts(p *astPrinter.Printer) {
+func (c *constDoc) print(p *astPrinter.Printer) {
+	printComments(p, c.decl.Doc);
+	p.Printf("<pre>");
+	p.DoDeclList(c.decl);
+	p.Printf("</pre>\n");
+}
+
+
+func (c *varDoc) print(p *astPrinter.Printer) {
+	printComments(p, c.decl.Doc);
+	p.Printf("<pre>");
+	p.DoDeclList(c.decl);
+	p.Printf("</pre>\n");
 }
 
 
@@ -283,9 +409,7 @@ func (f *funcDoc) print(p *astPrinter.Printer, hsize int) {
 	p.Printf("<p><code>");
 	p.DoFuncDecl(d);
 	p.Printf("</code></p>\n");
-	if d.Doc != nil {
-		printComment(p, d.Doc);
-	}
+	printComments(p, d.Doc);
 }
 
 
@@ -295,9 +419,7 @@ func (t *typeDoc) print(p *astPrinter.Printer) {
 	p.Printf("<p><pre>");
 	p.DoTypeDecl(d);
 	p.Printf("</pre></p>\n");
-	if d.Doc != nil {
-		printComment(p, d.Doc);
-	}
+	printComments(p, d.Doc);
 	
 	// print associated methods, if any
 	for name, m := range t.factories {
@@ -308,47 +430,6 @@ func (t *typeDoc) print(p *astPrinter.Printer) {
 		m.print(p, 3);
 	}
 }
-
-
-func (v *varDoc) print(p *astPrinter.Printer) {
-}
-
-
-/*
-func (P *Printer) Interface(p *ast.Program) {
-	P.full = false;
-	for i := 0; i < len(p.Decls); i++ {
-		switch d := p.Decls[i].(type) {
-		case *ast.ConstDecl:
-			if hasExportedNames(d.Names) {
-				P.Printf("<h2>Constants</h2>\n");
-				P.Printf("<p><pre>");
-				P.DoConstDecl(d);
-				P.String(nopos, "");
-				P.Printf("</pre></p>\n");
-				if d.Doc != nil {
-					P.printComment(d.Doc);
-				}
-			}
-
-		case *ast.VarDecl:
-			if hasExportedNames(d.Names) {
-				P.Printf("<h2>Variables</h2>\n");
-				P.Printf("<p><pre>");
-				P.DoVarDecl(d);
-				P.String(nopos, "");
-				P.Printf("</pre></p>\n");
-				if d.Doc != nil {
-					P.printComment(d.Doc);
-				}
-			}
-
-		case *ast.DeclList:
-			
-		}
-	}
-}
-*/
 
 
 // TODO make this a parameter for Init or Print?
@@ -367,29 +448,47 @@ func (doc *PackageDoc) Print(writer io.Write) {
 
 		"PROGRAM_HEADER-->":
 			func() {
+				fmt.Fprintf(writer, "<p><code>import \"%s\"</code></p>\n", doc.name);
+				printComments(&p, doc.doc);
 			},
 
 		"CONSTANTS-->" :
 			func() {
+				if doc.consts.Len() > 0 {
+					fmt.Fprintln(writer, "<hr />");
+					fmt.Fprintln(writer, "<h2>Constants</h2>");
+					for i := 0; i < doc.consts.Len(); i++ {
+						doc.consts.At(i).(*constDoc).print(&p);
+					}
+				}
 			},
 
 		"TYPES-->" :
 			func() {
 				for name, t := range doc.types {
-					p.Printf("<hr />\n");
+					fmt.Fprintln(writer, "<hr />");
 					t.print(&p);
 				}
 			},
 
 		"VARIABLES-->" :
 			func() {
+				if doc.vars.Len() > 0 {
+					fmt.Fprintln(writer, "<hr />");
+					fmt.Fprintln(writer, "<h2>Variables</h2>");
+					for i := 0; i < doc.vars.Len(); i++ {
+						doc.vars.At(i).(*varDoc).print(&p);
+					}
+				}
 			},
 
 		"FUNCTIONS-->" :
 			func() {
-				p.Printf("<hr />\n");
-				for name, f := range doc.funcs {
-					f.print(&p, 2);
+				if len(doc.funcs) > 0 {
+					fmt.Fprintln(writer, "<hr />");
+					for name, f := range doc.funcs {
+						f.print(&p, 2);
+					}
 				}
 			},
 	});
