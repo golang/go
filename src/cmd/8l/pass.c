@@ -30,6 +30,13 @@
 
 #include	"l.h"
 
+// see ../../runtime/proc.c:/StackGuard
+enum
+{
+	StackSmall = 128,
+	StackBig = 4096,
+};
+
 void
 dodata(void)
 {
@@ -575,8 +582,8 @@ dostkoff(void)
 					p->from.offset = 3;
 				}
 
-				if(autoffset < 4096) {  // do we need to call morestack
-					if(autoffset <= 75) {
+				if(autoffset < StackBig) {  // do we need to call morestack
+					if(autoffset <= StackSmall) {
 						// small stack
 						p = appendp(p);
 						p->as = ACMPL;
@@ -591,7 +598,7 @@ dostkoff(void)
 						p = appendp(p);
 						p->as = ALEAL;
 						p->from.type = D_INDIR+D_SP;
-						p->from.offset = -(autoffset-75);
+						p->from.offset = -(autoffset-StackSmall);
 						p->to.type = D_AX;
 						if(q1) {
 							q1->pcond = p;
