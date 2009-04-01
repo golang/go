@@ -214,8 +214,8 @@ func (p *Vector) Swap(i, j int) {
 
 // Iterate over all elements; driver for range
 func (p *Vector) iterate(c chan Element) {
-	for i := 0; i < len(p.a); i++ {
-		c <- p.a[i]
+	for i, v := range p.a {
+		c <- v
 	}
 	close(c);
 }
