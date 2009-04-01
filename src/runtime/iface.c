@@ -459,6 +459,8 @@ ifacehash(Iface a)
 		// calling nohash will throw too,
 		// but we can print a better error.
 		printf("hash of unhashable type %s\n", sigt->name);
+		if(alg == AFAKE)
+			throw("fake interface hash");
 		throw("interface hash");
 	}
 	if(wid <= sizeof(a.data))
@@ -502,6 +504,8 @@ ifaceeq(Iface i1, Iface i2)
 		// calling noequal will throw too,
 		// but we can print a better error.
 		printf("comparing uncomparable type %s\n", i1.type->sigt->name);
+		if(alg == AFAKE)
+			throw("fake interface compare");
 		throw("interface compare");
 	}
 
@@ -594,16 +598,18 @@ extern int32 ngotypesigs;
 // vv.Interface() returns the result of sys.Unreflect with
 // a typestring of "[]int".  If []int is not used with interfaces
 // in the rest of the program, there will be no signature in gotypesigs
-// for "[]int", so we have to invent one.  The only requirements
+// for "[]int", so we have to invent one.  The requirements
 // on the fake signature are:
 //
 //	(1) any interface conversion using the signature will fail
 //	(2) calling sys.Reflect() returns the args to unreflect
+//	(3) the right algorithm type is used, for == and map insertion
 //
 // (1) is ensured by the fact that we allocate a new Sigt,
 // so it will necessarily be != any Sigt in gotypesigs.
 // (2) is ensured by storing the type string in the signature
 // and setting the width to force the correct value of the bool indir.
+// (3) is ensured by sniffing the type string.
 //
 // Note that (1) is correct behavior: if the program had tested
 // for .([]int) instead of .(string) above, then there would be a
@@ -612,6 +618,47 @@ extern int32 ngotypesigs;
 
 static	Sigt*	fake[1009];
 static	int32	nfake;
+
+enum
+{
+	SizeofInt = 4,
+	SizeofFloat = 4,
+};
+
+// Table of prefixes of names of comparable types.
+static	struct {
+	int8 *s;
+	int8 n;
+	int8 alg;
+	int8 w;
+} cmp[] =
+{
+	// basic types
+	"int", 3+1, AMEM, SizeofInt, // +1 is NUL
+	"uint", 4+1, AMEM, SizeofInt,
+	"int8", 4+1, AMEM, 1,
+	"uint8", 5+1, AMEM, 1,
+	"int16", 5+1, AMEM, 2,
+	"uint16", 6+1, AMEM, 2,
+	"int32", 5+1, AMEM, 4,
+	"uint32", 6+1, AMEM, 4,
+	"int64", 5+1, AMEM, 8,
+	"uint64", 6+1, AMEM, 8,
+	"uintptr", 7+1, AMEM, sizeof(uintptr),
+	"float", 5+1, AMEM, SizeofFloat,
+	"float32", 7+1, AMEM, 4,
+	"float64", 7+1, AMEM, 8,
+	"bool", 4+1, AMEM, sizeof(bool),
+
+	// string compare is special
+	"string", 6+1, ASTRING, sizeof(string),
+
+	// generic types, identified by prefix
+	"*", 1, AMEM, sizeof(uintptr),
+	"chan ", 5, AMEM, sizeof(uintptr),
+	"func(", 5, AMEM, sizeof(uintptr),
+	"map[", 4, AMEM, sizeof(uintptr),
+};
 
 static Sigt*
 fakesigt(string type, bool indir)
@@ -648,10 +695,22 @@ fakesigt(string type, bool indir)
 	sigt = mal(sizeof(*sigt));
 	sigt->name = mal(type->len + 1);
 	mcpy(sigt->name, type->str, type->len);
+
 	sigt->alg = AFAKE;
 	sigt->width = 1;  // small width
 	if(indir)
 		sigt->width = 2*sizeof(niliface.data);  // big width
+
+	// AFAKE is like ANOEQ; check whether the type
+	// should have a more capable algorithm.
+	for(i=0; i<nelem(cmp); i++) {
+		if(mcmp((byte*)sigt->name, (byte*)cmp[i].s, cmp[i].n) == 0) {
+			sigt->alg = cmp[i].alg;
+			sigt->width = cmp[i].w;
+			break;
+		}
+	}
+
 	sigt->link = fake[h];
 	fake[h] = sigt;
 

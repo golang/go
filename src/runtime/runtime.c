@@ -29,7 +29,7 @@ sys·panicl(int32 lno)
 	}
 	panicking++;
 
-	printf("\npanic PC=%X [%d]\n", (uint64)(uintptr)&lno, panicking);
+	printf("\npanic PC=%X\n", (uint64)(uintptr)&lno);
 	sp = (uint8*)&lno;
 	if(gotraceback()){
 		traceback(sys·getcallerpc(&lno), sp, g);
@@ -54,12 +54,10 @@ sys·throwreturn(void)
 void
 throw(int8 *s)
 {
-	prints("throw: ");
-	prints(s);
-	prints("\n");
+	printf("throw: %s\n", s);
 	sys·panicl(-1);
-	*(int32*)0 = 0;
-	sys_Exit(1);
+	*(int32*)0 = 0;	// not reached
+	sys_Exit(1);	// even more not reached
 }
 
 void
