@@ -56,6 +56,7 @@ type funcDoc struct {
 
 type typeDoc struct {
 	decl *ast.TypeDecl;
+	factories map[string] *funcDoc;
 	methods map[string] *funcDoc;
 }
 
@@ -84,6 +85,61 @@ func (doc *PackageDoc) Init(name string) {
 }
 
 
+func baseTypeName(typ ast.Expr) string {
+	switch t := typ.(type) {
+	case *ast.Ident:
+		return string(t.Lit);
+	case *ast.StarExpr:
+		return baseTypeName(t.X);
+	}
+	return "";
+}
+
+
+func (doc *PackageDoc) lookupTypeDoc(typ ast.Expr) *typeDoc {
+	tdoc, found := doc.types[baseTypeName(typ)];
+	if found {
+		return tdoc;
+	}
+	return nil;
+}
+
+
+func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
+	name := string(fun.Name.Lit);
+	fdoc := &funcDoc{fun};
+	
+	// determine if it should be associated with a type
+	var typ *typeDoc;
+	if fun.Recv != nil {
+		// method
+		typ = doc.lookupTypeDoc(fun.Recv.Type);
+		if typ != nil {
+			typ.methods[name] = fdoc;
+			return;
+		}
+	} else {
+		// perhaps a factory function
+		// determine result type, if any
+		if len(fun.Type.Results) >= 1 {
+			res := fun.Type.Results[0];
+			if len(res.Names) <= 1 {
+				// exactly one (named or anonymous) result type
+				typ = doc.lookupTypeDoc(res.Type);
+				if typ != nil {
+					typ.factories[name] = fdoc;
+					return;
+				}
+			}
+		}
+	}
+	// TODO other heuristics (e.g. name is "NewTypename"?)
+	
+	// ordinary function
+	doc.funcs[name] = fdoc;
+}
+
+
 func (doc *PackageDoc) addDecl(decl ast.Decl) {
 	switch d := decl.(type) {
 	case *ast.ImportDecl:
@@ -95,7 +151,7 @@ func (doc *PackageDoc) addDecl(decl ast.Decl) {
 		if isExported(d.Name) {
 			// TODO only add if not there already - or ignore?
 			name := string(d.Name.Lit);
-			tdoc := &typeDoc{d, make(map[string] *funcDoc)};
+			tdoc := &typeDoc{d, make(map[string] *funcDoc), make(map[string] *funcDoc)};
 			doc.types[name] = tdoc;
 		}
 
@@ -105,28 +161,7 @@ func (doc *PackageDoc) addDecl(decl ast.Decl) {
 
 	case *ast.FuncDecl:
 		if isExported(d.Name) {
-			if d.Recv != nil {
-				// method
-				// determine receiver type name
-				var name string;
-				switch t := d.Recv.Type.(type) {
-				case *ast.Ident:
-					name = string(t.Lit);
-				case *ast.StarExpr:
-					// recv must be of the form *name
-					name = string(t.X.(*ast.Ident).Lit)
-				}
-				typ, found := doc.types[name];
-				if found {
-					fdoc := &funcDoc{d};
-					typ.methods[string(d.Name.Lit)] = fdoc;
-				}
-				// otherwise ignore
-			} else {
-				// ordinary function
-				fdoc := &funcDoc{d};
-				doc.funcs[string(d.Name.Lit)] = fdoc;
-			}
+			doc.addFunc(d);
 		}
 
 	case *ast.DeclList:
@@ -236,14 +271,14 @@ func (c *constDoc) printConsts(p *astPrinter.Printer) {
 }
 
 
-func (f *funcDoc) print(p *astPrinter.Printer) {
+func (f *funcDoc) print(p *astPrinter.Printer, hsize int) {
 	d := f.decl;
 	if d.Recv != nil {
-		p.Printf("<h3>func (");
+		p.Printf("<h%d>func (", hsize);
 		p.Expr(d.Recv.Type);
-		p.Printf(") %s</h3>\n", d.Name.Lit);
+		p.Printf(") %s</h%d>\n", d.Name.Lit, hsize);
 	} else {
-		p.Printf("<h2>func %s</h2>\n", d.Name.Lit);
+		p.Printf("<h%d>func %s</h%d>\n", hsize, d.Name.Lit, hsize);
 	}
 	p.Printf("<p><code>");
 	p.DoFuncDecl(d);
@@ -265,8 +300,12 @@ func (t *typeDoc) print(p *astPrinter.Printer) {
 	}
 	
 	// print associated methods, if any
+	for name, m := range t.factories {
+		m.print(p, 3);
+	}
+
 	for name, m := range t.methods {
-		m.print(p);
+		m.print(p, 3);
 	}
 }
 
@@ -348,9 +387,9 @@ func (doc *PackageDoc) Print(writer io.Write) {
 
 		"FUNCTIONS-->" :
 			func() {
+				p.Printf("<hr />\n");
 				for name, f := range doc.funcs {
-					p.Printf("<hr />\n");
-					f.print(&p);
+					f.print(&p, 2);
 				}
 			},
 	});
