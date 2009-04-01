@@ -20,7 +20,7 @@ test: pretty
 	./test.sh
 
 smoketest: pretty
-	./test.sh parser.go
+	./test.sh astprinter.go
 
 install: pretty
 	cp pretty $(HOME)/bin/pretty
