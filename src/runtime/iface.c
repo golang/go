@@ -178,7 +178,7 @@ itype(Sigi *si, Sigt *st, int32 canfail)
 	}
 
 	ni = si->size;
-	m = mal(sizeof(*m) + ni*sizeof(m->fun[0]));
+	m = malloc(sizeof(*m) + ni*sizeof(m->fun[0]));
 	m->sigi = si;
 	m->sigt = st;
 
@@ -692,8 +692,8 @@ fakesigt(string type, bool indir)
 		}
 	}
 
-	sigt = mal(sizeof(*sigt));
-	sigt->name = mal(type->len + 1);
+	sigt = malloc(sizeof(*sigt));
+	sigt->name = malloc(type->len + 1);
 	mcpy(sigt->name, type->str, type->len);
 
 	sigt->alg = AFAKE;

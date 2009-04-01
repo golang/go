@@ -140,108 +140,6 @@ sys·Goexit(void)
 	sys·Gosched();
 }
 
-G*
-malg(int32 stacksize)
-{
-	G *g;
-	byte *stk;
-
-	// 160 is the slop amount known to the stack growth code
-	g = malloc(sizeof(G));
-	stk = stackalloc(160 + stacksize);
-	g->stack0 = stk;
-	g->stackguard = stk + 160;
-	g->stackbase = stk + 160 + stacksize;
-	return g;
-}
-
-#pragma textflag 7
-void
-sys·newproc(int32 siz, byte* fn, byte* arg0)
-{
-	byte *stk, *sp;
-	G *newg;
-
-//printf("newproc siz=%d fn=%p", siz, fn);
-
-	siz = (siz+7) & ~7;
-	if(siz > 1024)
-		throw("sys·newproc: too many args");
-
-	lock(&sched);
-
-	if((newg = gfget()) != nil){
-		newg->status = Gwaiting;
-	} else {
-		newg = malg(4096);
-		newg->status = Gwaiting;
-		newg->alllink = allg;
-		allg = newg;
-	}
-	stk = newg->stack0;
-
-	newg->stackguard = stk+160;
-
-	sp = stk + 4096 - 4*8;
-	newg->stackbase = sp;
-
-	sp -= siz;
-	mcpy(sp, (byte*)&arg0, siz);
-
-	sp -= sizeof(uintptr);
-	*(byte**)sp = (byte*)sys·Goexit;
-
-	sp -= sizeof(uintptr);	// retpc used by gogo
-	newg->sched.SP = sp;
-	newg->sched.PC = fn;
-
-	sched.gcount++;
-	goidgen++;
-	newg->goid = goidgen;
-
-	readylocked(newg);
-	unlock(&sched);
-
-//printf(" goid=%d\n", newg->goid);
-}
-
-#pragma textflag 7
-void
-sys·deferproc(int32 siz, byte* fn, byte* arg0)
-{
-	Defer *d;
-
-	d = mal(sizeof(*d) + siz - sizeof(d->args));
-	d->fn = fn;
-	d->sp = (byte*)&arg0;
-	d->siz = siz;
-	mcpy(d->args, d->sp, d->siz);
-
-	d->link = g->defer;
-	g->defer = d;
-}
-
-#pragma textflag 7
-void
-sys·deferreturn(int32 arg0)
-{
-	// warning: jmpdefer knows the frame size
-	// of this routine. dont change anything
-	// that might change the frame size
-	Defer *d;
-	byte *sp;
-
-	d = g->defer;
-	if(d == nil)
-		return;
-	sp = (byte*)&arg0;
-	if(d->sp != sp)
-		return;
-	mcpy(d->sp, d->args, d->siz);
-	g->defer = d->link;
-	jmpdefer(d->fn);
-}
-
 void
 tracebackothers(G *me)
 {
@@ -634,29 +532,70 @@ sys·exitsyscall(void)
 	sys·Gosched();
 }
 
+/*
+ * stack layout parameters.
+ * known to linkers.
+ *
+ * g->stackguard is set to point StackGuard bytes
+ * above the bottom of the stack.  each function
+ * compares its stack pointer against g->stackguard
+ * to check for overflow.  to cut one instruction from
+ * the check sequence for functions with tiny frames,
+ * the stack is allowed to protrude StackSmall bytes
+ * below the stack guard.  functions with large frames
+ * don't bother with the check and always call morestack.
+ * the sequences are:
+ *
+ *	stack frame size <= StackSmall:
+ *		CMPQ guard, SP
+ *		JHI 3(PC)
+ *		MOVQ m->morearg, $((frame << 32) | argsize)
+ *		CALL sys.morestack(SB)
+ *
+ *	stack frame size > StackSmall but < StackBig
+ *		LEAQ (frame-StackSmall)(SP), R0
+ *		CMPQ guard, R0
+ *		JHI 3(PC)
+ *		MOVQ m->morearg, $((frame << 32) | argsize)
+ *		CALL sys.morestack(SB)
+ *
+ *	stack frame size >= StackBig:
+ *		MOVQ m->morearg, $((frame << 32) | argsize)
+ *		CALL sys.morestack(SB)
+ *
+ * the bottom StackGuard - StackSmall bytes are important:
+ * there has to be enough room to execute functions that
+ * refuse to check for stack overflow, either because they
+ * need to be adjacent to the actual caller's frame (sys.deferproc)
+ * or because they handle the imminent stack overflow (sys.morestack).
+ *
+ * for example, sys.deferproc might call malloc,
+ * which does one of the above checks (without allocating a full frame),
+ * which might trigger a call to sys.morestack.
+ * this sequence needs to fit in the bottom section of the stack.
+ * on amd64, sys.morestack's frame is 40 bytes, and
+ * sys.deferproc's frame is 56 bytes.  that fits well within
+ * the StackGuard - StackSmall = 128 bytes at the bottom.
+ * there may be other sequences lurking or yet to be written
+ * that require more stack.  sys.morestack checks to make sure
+ * the stack has not completely overflowed and should
+ * catch such sequences.
+ */
+enum
+{
+	// byte offset of stack guard (g->stackguard) above bottom of stack.
+	StackGuard = 256,
 
-//
-// the calling sequence for a routine tha
-// needs N bytes stack, A args.
-//
-//	N1 = (N+160 > 4096)? N+160: 0
-//	A1 = A
-//
-// if N <= 75
-//	CMPQ	SP, 0(R15)
-//	JHI	4(PC)
-//	MOVQ	$(N1<<0) | (A1<<32)), AX
-//	MOVQ	AX, 0(R14)
-//	CALL	sys·morestack(SB)
-//
-// if N > 75
-//	LEAQ	(-N-75)(SP), AX
-//	CMPQ	AX, 0(R15)
-//	JHI	4(PC)
-//	MOVQ	$(N1<<0) | (A1<<32)), AX
-//	MOVQ	AX, 0(R14)
-//	CALL	sys·morestack(SB)
-//
+	// checked frames are allowed to protrude below the guard by
+	// this many bytes.  this saves an instruction in the checking
+	// sequence when the stack frame is tiny.
+	StackSmall = 128,
+
+	// extra space in the frame (beyond the function for which
+	// the frame is allocated) is assumed not to be much bigger
+	// than this amount.  it may not be used efficiently if it is.
+	StackBig = 4096,
+};
 
 void
 oldstack(void)
@@ -684,7 +623,7 @@ oldstack(void)
 	oldbase = (uint64)top->oldbase;
 	oldguard = (uint64)top->oldguard;
 
-	stackfree((byte*)m->curg->stackguard - 512 - 160);
+	stackfree((byte*)m->curg->stackguard - StackGuard);
 
 	m->curg->stackbase = (byte*)oldbase;
 	m->curg->stackguard = (byte*)oldguard;
@@ -712,28 +651,22 @@ lessstack(void)
 void
 newstack(void)
 {
-	int32 siz1, siz2;
+	int32 frame, args;
 	Stktop *top;
 	byte *stk, *sp;
 	void (*fn)(void);
 
-	siz1 = m->morearg & 0xffffffffLL;
-	siz2 = (m->morearg>>32) & 0xffffLL;
+	frame = m->morearg & 0xffffffffLL;
+	args = (m->morearg>>32) & 0xffffLL;
 
-// prints("newstack siz1=");
-// sys·printint(siz1);
-// prints(" siz2=");
-// sys·printint(siz2);
-// prints(" moresp=");
-// sys·printpointer(m->moresp);
-// prints("\n");
+// printf("newstack frame=%d args=%d moresp=%p\n", frame, args, m->moresp);
 
-	if(siz1 < 4096)
-		siz1 = 4096;
-	stk = stackalloc(siz1 + 1024);
-	stk += 512;
+	if(frame < StackBig)
+		frame = StackBig;
+	frame += 1024;	// for more functions, Stktop.
+	stk = stackalloc(frame);
 
-	top = (Stktop*)(stk+siz1-sizeof(*top));
+	top = (Stktop*)(stk+frame-sizeof(*top));
 
 	top->oldbase = m->curg->stackbase;
 	top->oldguard = m->curg->stackguard;
@@ -741,22 +674,25 @@ newstack(void)
 	top->magic = m->morearg;
 
 	m->curg->stackbase = (byte*)top;
-	m->curg->stackguard = stk + 160;
+	m->curg->stackguard = stk + StackGuard;
 
 	sp = (byte*)top;
 
-	if(siz2 > 0) {
-		siz2 = (siz2+7) & ~7;
-		sp -= siz2;
-		mcpy(sp, m->moresp+16, siz2);
+	if(args > 0) {
+		// Copy args.  There have been two function calls
+		// since they got pushed, so skip over those return
+		// addresses.
+		args = (args+7) & ~7;
+		sp -= args;
+		mcpy(sp, m->moresp+2*sizeof(uintptr), args);
 	}
 
 	g = m->curg;
-	fn = (void(*)(void))(*(uint64*)m->moresp);
 
-// prints("fn=");
-// sys·printpointer(fn);
-// prints("\n");
+	// sys.morestack's return address
+	fn = (void(*)(void))(*(uintptr*)m->moresp);
+
+// printf("fn=%p\n", fn);
 
 	setspgoto(sp, fn, retfromnewstack);
 
@@ -769,13 +705,133 @@ sys·morestack(uint64 u)
 {
 	while(g == m->g0) {
 		// very bad news
-		*(int32*)123 = 123;
+		*(int32*)0x1001 = 123;
+	}
+
+	// Morestack's frame is about 0x30 bytes on amd64.
+	// If that the frame ends below the stack bottom, we've already
+	// overflowed.  Stop right now.
+	while((byte*)&u - 0x30 < m->curg->stackguard - StackGuard) {
+		// very bad news
+		*(int32*)0x1002 = 123;
 	}
 
 	g = m->g0;
 	m->moresp = (byte*)(&u-1);
 	setspgoto(m->sched.SP, newstack, nil);
 
-	*(int32*)234 = 123;	// never return
+	*(int32*)0x1003 = 123;	// never return
+}
+
+G*
+malg(int32 stacksize)
+{
+	G *g;
+	byte *stk;
+
+	g = malloc(sizeof(G));
+	stk = stackalloc(stacksize + StackGuard);
+	g->stack0 = stk;
+	g->stackguard = stk + StackGuard;
+	g->stackbase = stk + StackGuard + stacksize;
+	return g;
+}
+
+/*
+ * Newproc and deferproc need to be textflag 7
+ * (no possible stack split when nearing overflow)
+ * because they assume that the arguments to fn
+ * are available sequentially beginning at &arg0.
+ * If a stack split happened, only the one word
+ * arg0 would be copied.  It's okay if any functions
+ * they call split the stack below the newproc frame.
+ */
+#pragma textflag 7
+void
+sys·newproc(int32 siz, byte* fn, byte* arg0)
+{
+	byte *stk, *sp;
+	G *newg;
+
+//printf("newproc siz=%d fn=%p", siz, fn);
+
+	siz = (siz+7) & ~7;
+	if(siz > 1024)
+		throw("sys·newproc: too many args");
+
+	lock(&sched);
+
+	if((newg = gfget()) != nil){
+		newg->status = Gwaiting;
+	} else {
+		newg = malg(4096);
+		newg->status = Gwaiting;
+		newg->alllink = allg;
+		allg = newg;
+	}
+	stk = newg->stack0;
+
+	newg->stackguard = stk+StackGuard;
+
+	sp = stk + 4096 - 4*8;
+	newg->stackbase = sp;
+
+	sp -= siz;
+	mcpy(sp, (byte*)&arg0, siz);
+
+	sp -= sizeof(uintptr);
+	*(byte**)sp = (byte*)sys·Goexit;
+
+	sp -= sizeof(uintptr);	// retpc used by gogo
+	newg->sched.SP = sp;
+	newg->sched.PC = fn;
+
+	sched.gcount++;
+	goidgen++;
+	newg->goid = goidgen;
+
+	readylocked(newg);
+	unlock(&sched);
+
+//printf(" goid=%d\n", newg->goid);
+}
+
+#pragma textflag 7
+void
+sys·deferproc(int32 siz, byte* fn, byte* arg0)
+{
+	Defer *d;
+
+	d = malloc(sizeof(*d) + siz - sizeof(d->args));
+	d->fn = fn;
+	d->sp = (byte*)&arg0;
+	d->siz = siz;
+	mcpy(d->args, d->sp, d->siz);
+
+	d->link = g->defer;
+	g->defer = d;
+}
+
+#pragma textflag 7
+void
+sys·deferreturn(int32 arg0)
+{
+	// warning: jmpdefer knows the frame size
+	// of this routine. dont change anything
+	// that might change the frame size
+	Defer *d;
+	byte *sp;
+
+	d = g->defer;
+	if(d == nil)
+		return;
+	sp = (byte*)&arg0;
+	if(d->sp != sp)
+		return;
+	mcpy(d->sp, d->args, d->siz);
+	g->defer = d->link;
+	sp = d->fn;
+	free(d);
+	jmpdefer(sp);
 }
 
