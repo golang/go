@@ -50,12 +50,12 @@ files=$(echo $gofiles | sed 's/\.go//g')
 # to build any test-only dependencies.
 sed -n 's/^\/\/ gotest: //p' $gofiles | sh
 
+set -e
+
 for i in $gofiles
 do
 	$GC $i
 done
-
-set -e
 
 # They all compile; now generate the code to call them.
 trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
