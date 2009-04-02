@@ -229,12 +229,12 @@ func (p *parser) parseDeclaration() ast.Decl;
 
 func (p *parser) parseIdent() *ast.Ident {
 	if p.tok == token.IDENT {
-		x := &ast.Ident{p.pos, p.lit};
+		x := &ast.Ident{p.pos, string(p.lit)};
 		p.next();
 		return x;
 	}
 	p.expect(token.IDENT);  // use expect() error handling
-	return &ast.Ident{p.pos, [0]byte{}};
+	return &ast.Ident{p.pos, ""};
 }
 
 
@@ -360,7 +360,7 @@ func (p *parser) makeIdentList(list *vector.Vector) []*ast.Ident {
 		if !is_ident {
 			pos := list.At(i).(ast.Expr).Pos();
 			p.error_expected(pos, "identifier");
-			idents[i] = &ast.Ident{pos, []byte{}};
+			idents[i] = &ast.Ident{pos, ""};
 		}
 		idents[i] = ident;
 	}
@@ -907,7 +907,7 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
 	var typ ast.Expr;
 	if p.tok == token.TYPE {
 		// special case for type switch
-		typ = &ast.Ident{p.pos, p.lit};
+		typ = &ast.Ident{p.pos, "type"};
 		p.next();
 	} else {
 		typ = p.parseType();
@@ -1654,7 +1654,7 @@ func parseImportSpec(p *parser, doc ast.Comments) ast.Spec {
 
 	var ident *ast.Ident;
 	if p.tok == token.PERIOD {
-		ident = &ast.Ident{p.pos, []byte{'.'}};
+		ident = &ast.Ident{p.pos, "."};
 		p.next();
 	} else if p.tok == token.IDENT {
 		ident = p.parseIdent();
