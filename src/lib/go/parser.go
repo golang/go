@@ -1645,14 +1645,16 @@ func (p *parser) parseStatement() ast.Stmt {
 // ----------------------------------------------------------------------------
 // Declarations
 
-func (p *parser) parseImportSpec(pos token.Position, doc ast.Comments) *ast.ImportDecl {
+type parseSpecFunction func(p *parser, doc ast.Comments) ast.Spec
+
+func parseImportSpec(p *parser, doc ast.Comments) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ImportSpec"));
 	}
 
 	var ident *ast.Ident;
 	if p.tok == token.PERIOD {
-		p.error(p.pos, `"import ." not yet handled properly`);
+		ident = &ast.Ident{p.pos, []byte{'.'}};
 		p.next();
 	} else if p.tok == token.IDENT {
 		ident = p.parseIdent();
@@ -1665,11 +1667,11 @@ func (p *parser) parseImportSpec(pos token.Position, doc ast.Comments) *ast.Impo
 		p.expect(token.STRING);  // use expect() error handling
 	}
 
-	return &ast.ImportDecl{doc, pos, ident, path};
+	return &ast.ImportSpec{doc, ident, path};
 }
 
 
-func (p *parser) parseConstSpec(pos token.Position, doc ast.Comments) *ast.ConstDecl {
+func parseConstSpec(p *parser, doc ast.Comments) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ConstSpec"));
 	}
@@ -1682,11 +1684,11 @@ func (p *parser) parseConstSpec(pos token.Position, doc ast.Comments) *ast.Const
 		values = p.parseExpressionList();
 	}
 
-	return &ast.ConstDecl{doc, pos, idents, typ, values};
+	return &ast.ValueSpec{doc, idents, typ, values};
 }
 
 
-func (p *parser) parseTypeSpec(pos token.Position, doc ast.Comments) *ast.TypeDecl {
+func parseTypeSpec(p *parser, doc ast.Comments) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "TypeSpec"));
 	}
@@ -1694,11 +1696,11 @@ func (p *parser) parseTypeSpec(pos token.Position, doc ast.Comments) *ast.TypeDe
 	ident := p.parseIdent();
 	typ := p.parseType();
 
-	return &ast.TypeDecl{doc, pos, ident, typ};
+	return &ast.TypeSpec{doc, ident, typ};
 }
 
 
-func (p *parser) parseVarSpec(pos token.Position, doc ast.Comments) *ast.VarDecl {
+func parseVarSpec(p *parser, doc ast.Comments) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "VarSpec"));
 	}
@@ -1711,55 +1713,43 @@ func (p *parser) parseVarSpec(pos token.Position, doc ast.Comments) *ast.VarDecl
 		values = p.parseExpressionList();
 	}
 
-	return &ast.VarDecl{doc, pos, idents, typ, values};
+	return &ast.ValueSpec{doc, idents, typ, values};
 }
 
 
-func (p *parser) parseSpec(pos token.Position, doc ast.Comments, keyword int) ast.Decl {
-	switch keyword {
-	case token.IMPORT: return p.parseImportSpec(pos, doc);
-	case token.CONST: return p.parseConstSpec(pos, doc);
-	case token.TYPE: return p.parseTypeSpec(pos, doc);
-	case token.VAR: return p.parseVarSpec(pos, doc);
-	}
-
-	panic();  // unreachable
-	return nil;
-}
-
-
-func (p *parser) parseDecl(keyword int) ast.Decl {
+func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.GenDecl {
 	if p.trace {
-		defer un(trace(p, "Decl"));
+		defer un(trace(p, keyword.String() + "Decl"));
 	}
 
 	doc := p.getDoc();
 	pos := p.expect(keyword);
+	var lparen, rparen token.Position;
+	list := vector.New(0);
 	if p.tok == token.LPAREN {
-		lparen := p.pos;
+		lparen = p.pos;
 		p.next();
-		list := vector.New(0);
 		for p.tok != token.RPAREN && p.tok != token.EOF {
-			list.Push(p.parseSpec(noPos, nil, keyword));
+			doc := p.getDoc();
+			list.Push(f(p, doc));
 			if p.tok == token.SEMICOLON {
 				p.next();
 			} else {
 				break;
 			}
 		}
-		rparen := p.expect(token.RPAREN);
+		rparen = p.expect(token.RPAREN);
 		p.opt_semi = true;
-
-		// convert vector
-		decls := make([]ast.Decl, list.Len());
-		for i := 0; i < list.Len(); i++ {
-			decls[i] = list.At(i).(ast.Decl);
-		}
-
-		return &ast.DeclList{doc, pos, keyword, lparen, decls, rparen};
+	} else {
+		list.Push(f(p, doc));
 	}
 
-	return p.parseSpec(pos, doc, keyword);
+	// convert vector
+	specs := make([]ast.Spec, list.Len());
+	for i := 0; i < list.Len(); i++ {
+		specs[i] = list.At(i);
+	}
+	return &ast.GenDecl{doc, pos, keyword, lparen, specs, rparen};
 }
 
 
@@ -1820,17 +1810,21 @@ func (p *parser) parseDeclaration() ast.Decl {
 		defer un(trace(p, "Declaration"));
 	}
 
+	var f parseSpecFunction;
 	switch p.tok {
-	case token.CONST, token.TYPE, token.VAR:
-		return p.parseDecl(p.tok);
+	case token.CONST: f = parseConstSpec;
+	case token.TYPE: f = parseTypeSpec;
+	case token.VAR: f = parseVarSpec;
 	case token.FUNC:
 		return p.parseFunctionDecl();
+	default:
+		pos := p.pos;
+		p.error_expected(pos, "declaration");
+		p.next();  // make progress
+		return &ast.BadDecl{pos};
 	}
-
-	pos := p.pos;
-	p.error_expected(pos, "declaration");
-	p.next();  // make progress
-	return &ast.BadDecl{pos};
+	
+	return p.parseGenDecl(p.tok, f);
 }
 
 
@@ -1869,7 +1863,7 @@ func (p *parser) parsePackage() *ast.Program {
 		// import decls
 		list := vector.New(0);
 		for p.tok == token.IMPORT {
-			list.Push(p.parseDecl(token.IMPORT));
+			list.Push(p.parseGenDecl(token.IMPORT, parseImportSpec));
 			if p.tok == token.SEMICOLON {
 				p.next();
 			}
