@@ -23,7 +23,7 @@ import (
 
 // TODO this should be an AST method
 func isExported(name *ast.Ident) bool {
-	ch, len := utf8.DecodeRune(name.Lit);
+	ch, len := utf8.DecodeRuneInString(name.Value, 0);
 	return unicode.IsUpper(ch);
 }
 
@@ -92,7 +92,7 @@ func (doc *PackageDoc) Init(name string) {
 func baseTypeName(typ ast.Expr) string {
 	switch t := typ.(type) {
 	case *ast.Ident:
-		return string(t.Lit);
+		return string(t.Value);
 	case *ast.StarExpr:
 		return baseTypeName(t.X);
 	}
@@ -111,14 +111,14 @@ func (doc *PackageDoc) lookupTypeDoc(typ ast.Expr) *typeDoc {
 
 func (doc *PackageDoc) addType(decl *ast.GenDecl) {
 	typ := decl.Specs[0].(*ast.TypeSpec);
-	name := string(typ.Name.Lit);
+	name := typ.Name.Value;
 	tdoc := &typeDoc{decl, make(map[string] *funcDoc), make(map[string] *funcDoc)};
 	doc.types[name] = tdoc;
 }
 
 
 func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
-	name := string(fun.Name.Lit);
+	name := fun.Name.Value;
 	fdoc := &funcDoc{fun};
 	
 	// determine if it should be associated with a type
@@ -197,7 +197,7 @@ func (doc *PackageDoc) addDecl(decl ast.Decl) {
 // before, AddProgram is a no-op.
 //
 func (doc *PackageDoc) AddProgram(prog *ast.Program) {
-	if doc.name != string(prog.Name.Lit) {
+	if doc.name != prog.Name.Value {
 		panic("package names don't match");
 	}
 
@@ -387,9 +387,9 @@ func (f *funcDoc) print(p *astPrinter.Printer, hsize int) {
 	if d.Recv != nil {
 		p.Printf("<h%d>func (", hsize);
 		p.Expr(d.Recv.Type);
-		p.Printf(") %s</h%d>\n", d.Name.Lit, hsize);
+		p.Printf(") %s</h%d>\n", d.Name.Value, hsize);
 	} else {
-		p.Printf("<h%d>func %s</h%d>\n", hsize, d.Name.Lit, hsize);
+		p.Printf("<h%d>func %s</h%d>\n", hsize, d.Name.Value, hsize);
 	}
 	p.Printf("<p><code>");
 	p.DoFuncDecl(d);
@@ -401,7 +401,7 @@ func (f *funcDoc) print(p *astPrinter.Printer, hsize int) {
 func (t *typeDoc) print(p *astPrinter.Printer) {
 	d := t.decl;
 	s := d.Specs[0].(*ast.TypeSpec);
-	p.Printf("<h2>type %s</h2>\n", string(s.Name.Lit));
+	p.Printf("<h2>type %s</h2>\n", s.Name.Value);
 	p.Printf("<p><pre>");
 	p.DoGenDecl(d);
 	p.Printf("</pre></p>\n");

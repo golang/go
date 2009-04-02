@@ -60,7 +60,7 @@ func assert(pred bool) {
 
 // TODO this should be an AST method
 func isExported(name *ast.Ident) bool {
-	ch, len := utf8.DecodeRune(name.Lit);
+	ch, len := utf8.DecodeRuneInString(name.Value, 0);
 	return unicode.IsUpper(ch);
 }
 
@@ -405,7 +405,7 @@ func (P *Printer) Error(pos token.Position, tok token.Token, msg string) {
 // HTML support
 
 func (P *Printer) HtmlIdentifier(x *ast.Ident) {
-	P.String(x.Pos(), string(x.Lit));
+	P.String(x.Pos(), x.Value);
 	/*
 	obj := x.Obj;
 	if P.html && obj.Kind != symbolTable.NONE {
@@ -620,25 +620,25 @@ func (P *Printer) DoUnaryExpr(x *ast.UnaryExpr) {
 
 func (P *Printer) DoIntLit(x *ast.IntLit) {
 	// TODO get rid of string conversion here
-	P.String(x.Pos(), string(x.Lit));
+	P.String(x.Pos(), string(x.Value));
 }
 
 
 func (P *Printer) DoFloatLit(x *ast.FloatLit) {
 	// TODO get rid of string conversion here
-	P.String(x.Pos(), string(x.Lit));
+	P.String(x.Pos(), string(x.Value));
 }
 
 
 func (P *Printer) DoCharLit(x *ast.CharLit) {
 	// TODO get rid of string conversion here
-	P.String(x.Pos(), string(x.Lit));
+	P.String(x.Pos(), string(x.Value));
 }
 
 
 func (P *Printer) DoStringLit(x *ast.StringLit) {
 	// TODO get rid of string conversion here
-	P.String(x.Pos(), string(x.Lit));
+	P.String(x.Pos(), string(x.Value));
 }
 
 
@@ -1120,7 +1120,7 @@ func (P *Printer) importSpec(d *ast.ImportSpec) {
 	}
 	P.separator = tab;
 	// TODO fix for longer package names
-	P.HtmlPackageName(d.Path[0].Pos(), string(d.Path[0].Lit));
+	P.HtmlPackageName(d.Path[0].Pos(), string(d.Path[0].Value));
 	P.newlines = 2;
 }
 

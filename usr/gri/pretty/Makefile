@@ -5,13 +5,13 @@
 G=6g
 L=6l
 
-all: untab gds pretty
+all: untab godoc pretty
 
 untab: untab.6
 	$(L) -o untab untab.6
 
-gds: gds.6
-	$(L) -o gds gds.6
+godoc: godoc.6
+	$(L) -o godoc godoc.6
 
 pretty: pretty.6
 	$(L) -o pretty pretty.6
@@ -28,7 +28,7 @@ install: pretty
 clean:
 	rm -f pretty *.6 *.a *~
 
-gds.6:	 utils.6 platform.6 compilation.6 docprinter.6
+godoc.6:	 utils.6 platform.6 compilation.6 docprinter.6
 
 pretty.6:	 platform.6 ast.6 astprinter.6 compilation.6
 

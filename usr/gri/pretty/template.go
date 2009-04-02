@@ -117,7 +117,7 @@ func NewTemplate(filename string) *Template {
 func NewTemplateOrDie(filename string) *Template {
 	t := NewTemplate(filename);
 	if t == nil {
-		panic("could not read template");
+		panic("could not read template: " + filename);
 	}
 	return t;
 }
