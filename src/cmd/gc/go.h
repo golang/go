@@ -232,6 +232,7 @@ struct	Node
 	int32	vargen;		// unique name for OTYPE/ONAME
 	int32	lineno;
 	vlong	xoffset;
+	int32	ostk;
 };
 #define	N	((Node*)0)
 
