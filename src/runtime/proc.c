@@ -546,6 +546,10 @@ sys·exitsyscall(void)
  * don't bother with the check and always call morestack.
  * the sequences are:
  *
+ *	guard = g->stackguard
+ *	frame = function's stack frame size
+ *	argsize = size of function arguments (call + return)
+ *
  *	stack frame size <= StackSmall:
  *		CMPQ guard, SP
  *		JHI 3(PC)
