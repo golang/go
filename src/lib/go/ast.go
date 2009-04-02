@@ -129,7 +129,7 @@ type (
 	// An Ident node represents an identifier.
 	Ident struct {
 		token.Position;  // identifier position
-		Lit []byte;  // identifier string (e.g. foobar)
+		Value string;  // identifier string (e.g. foobar)
 	};
 
 	// An Ellipsis node stands for the "..." type in a
@@ -142,25 +142,25 @@ type (
 	// An IntLit node represents an integer literal.
 	IntLit struct {
 		token.Position;  // int literal position
-		Lit []byte;  // literal string; e.g. 42 or 0x7f
+		Value []byte;  // literal string; e.g. 42 or 0x7f
 	};
 
 	// A FloatLit node represents a floating-point literal.
 	FloatLit struct {
 		token.Position;  // float literal position
-		Lit []byte;  // literal string; e.g. 3.14 or 1e-9
+		Value []byte;  // literal string; e.g. 3.14 or 1e-9
 	};
 
 	// A CharLit node represents a character literal.
 	CharLit struct {
 		token.Position;  // char literal position
-		Lit []byte;  // literal string, including quotes; e.g. 'a' or '\x7f'
+		Value []byte;  // literal string, including quotes; e.g. 'a' or '\x7f'
 	};
 
 	// A StringLit node represents a string literal.
 	StringLit struct {
 		token.Position;  // string literal position
-		Lit []byte;  // literal string, including quotes; e.g. "foo" or `\m\n\o`
+		Value []byte;  // literal string, including quotes; e.g. "foo" or `\m\n\o`
 	};
 
 	// A StringList node represents a sequence of adjacent string literals.
@@ -236,7 +236,7 @@ type (
 	};
 
 	// A UnaryExpr node represents a unary expression.
-	// Unary "*" expressions are represented via DerefExpr nodes.
+	// Unary "*" expressions are represented via StarExpr nodes.
 	//
 	UnaryExpr struct {
 		token.Position;  // position of Op
