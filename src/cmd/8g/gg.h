@@ -57,6 +57,7 @@ EXTERN	Node*	deferproc;
 EXTERN	Node*	deferreturn;
 EXTERN	Node*	throwindex;
 EXTERN	Node*	throwreturn;
+EXTERN	int	maxstksize;
 
 /*
  * gen.c
@@ -93,6 +94,8 @@ Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);
 void	naddr(Node*, Addr*);
 void	cgen_aret(Node*, Node*);
+int	cgen64(Node*, Node*);
+int	is64(Type*);
 
 /*
  * gsubr.c
@@ -114,6 +117,8 @@ void	ginit(void);
 void	gclean(void);
 void	regalloc(Node*, Type*, Node*);
 void	regfree(Node*);
+void	tempalloc(Node*, Type*);
+void	tempfree(Node*);
 Node*	nodarg(Type*, int);
 void	nodreg(Node*, Type*, int);
 void	nodindreg(Node*, Type*, int);

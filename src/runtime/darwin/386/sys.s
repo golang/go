@@ -95,6 +95,10 @@ TEXT bsdthread_create(SB),7,$0
 	CALL	notok(SB)
 	RET
 
+TEXT bsdthread_start(SB),7,$0
+	CALL	notok(SB)
+	RET
+
 TEXT bsdthread_register(SB),7,$40
 	MOVL	$366, AX
 	MOVL	$bsdthread_start(SB), 0(SP)	// threadstart

@@ -413,6 +413,7 @@ enum
 	D_DI,
 
 	D_F0		= 16,
+	D_F7		= D_F0 + 7,
 
 	D_CS		= 24,
 	D_SS,
