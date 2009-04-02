@@ -788,7 +788,7 @@ typeswitch(Node *sw)
 
 	a = syslook("ifacethash", 1);
 	argtype(a, sw->ntest->right->type);
-	a = nod(OCALL, a, sw->ntest->right);
+	a = nod(OCALL, a, facename);
 	a = nod(OAS, hashname, a);
 	cas = list(cas, a);
 
