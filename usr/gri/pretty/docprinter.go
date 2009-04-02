@@ -38,12 +38,10 @@ func hasExportedNames(names []*ast.Ident) bool {
 }
 
 
-func hasExportedDecls(decl []ast.Decl) bool {
-	for i, d := range decl {
-		switch t := d.(type) {
-		case *ast.ConstDecl:
-			return hasExportedNames(t.Names);
-		}
+func hasExportedSpecs(specs []ast.Spec) bool {
+	for i, s := range specs {
+		// only called for []astSpec lists of *ast.ValueSpec
+		return hasExportedNames(s.(*ast.ValueSpec).Names);
 	}
 	return false;
 }
@@ -51,13 +49,8 @@ func hasExportedDecls(decl []ast.Decl) bool {
 
 // ----------------------------------------------------------------------------
 
-type constDoc struct {
-	decl *ast.DeclList;
-}
-
-
-type varDoc struct {
-	decl *ast.DeclList;
+type valueDoc struct {
+	decl *ast.GenDecl;  // len(decl.Specs) >= 1, and the element type is *ast.ValueSpec
 }
 
 
@@ -67,7 +60,7 @@ type funcDoc struct {
 
 
 type typeDoc struct {
-	decl *ast.TypeDecl;
+	decl *ast.GenDecl;  // len(decl.Specs) == 1, and the element type is *ast.TypeSpec
 	factories map[string] *funcDoc;
 	methods map[string] *funcDoc;
 }
@@ -76,9 +69,9 @@ type typeDoc struct {
 type PackageDoc struct {
 	name string;  // package name
 	doc ast.Comments;  // package documentation, if any
-	consts *vector.Vector;  // list of *ast.DeclList with Tok == token.CONST
-	vars *vector.Vector;  // list of *ast.DeclList with Tok == token.CONST
+	consts *vector.Vector;  // list of *valueDoc
 	types map[string] *typeDoc;
+	vars *vector.Vector;  // list of *valueDoc
 	funcs map[string] *funcDoc;
 }
 
@@ -116,9 +109,10 @@ func (doc *PackageDoc) lookupTypeDoc(typ ast.Expr) *typeDoc {
 }
 
 
-func (doc *PackageDoc) addType(typ *ast.TypeDecl) {
+func (doc *PackageDoc) addType(decl *ast.GenDecl) {
+	typ := decl.Specs[0].(*ast.TypeSpec);
 	name := string(typ.Name.Lit);
-	tdoc := &typeDoc{typ, make(map[string] *funcDoc), make(map[string] *funcDoc)};
+	tdoc := &typeDoc{decl, make(map[string] *funcDoc), make(map[string] *funcDoc)};
 	doc.types[name] = tdoc;
 }
 
@@ -160,40 +154,39 @@ func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
 
 func (doc *PackageDoc) addDecl(decl ast.Decl) {
 	switch d := decl.(type) {
-	case *ast.ConstDecl:
-		if hasExportedNames(d.Names) {
-			// TODO
+	case *ast.GenDecl:
+		if len(d.Specs) > 0 {
+			switch d.Tok {
+			case token.IMPORT:
+				// ignore
+			case token.CONST:
+				// constants are always handled as a group
+				if hasExportedSpecs(d.Specs) {
+					doc.consts.Push(&valueDoc{d});
+				}
+			case token.TYPE:
+				// types are handled individually
+				for i, spec := range d.Specs {
+					s := spec.(*ast.TypeSpec);
+					if isExported(s.Name) {
+						// make a (fake) GenDecl node for this TypeSpec
+						// (we need to do this here - as opposed to just
+						// for printing - so we don't loose the GenDecl
+						// documentation)
+						var noPos token.Position;
+						doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{s}, noPos});
+					}
+				}
+			case token.VAR:
+				// variables are always handled as a group
+				if hasExportedSpecs(d.Specs) {
+					doc.vars.Push(&valueDoc{d});
+				}
+			}
 		}
-
-	case *ast.TypeDecl:
-		if isExported(d.Name) {
-			doc.addType(d);
-		}
-
-	case *ast.VarDecl:
-		if hasExportedNames(d.Names) {
-			// TODO
-		}
-
 	case *ast.FuncDecl:
 		if isExported(d.Name) {
 			doc.addFunc(d);
-		}
-
-	case *ast.DeclList:
-		switch d.Tok {
-		case token.IMPORT, token.TYPE:
-			for i, decl := range d.List {
-				doc.addDecl(decl);
-			}
-		case token.CONST:
-			if hasExportedDecls(d.List) {
-				doc.consts.Push(&constDoc{d});
-			}
-		case token.VAR:
-			if hasExportedDecls(d.List) {
-				doc.consts.Push(&varDoc{d});
-			}
 		}
 	}
 }
@@ -214,7 +207,7 @@ func (doc *PackageDoc) AddProgram(prog *ast.Program) {
 		doc.doc = prog.Doc
 	}
 
-	// add all declarations
+	// add all exported declarations
 	for i, decl := range prog.Decls {
 		doc.addDecl(decl);
 	}
@@ -381,18 +374,10 @@ func printComments(p *astPrinter.Printer, comment ast.Comments) {
 }
 
 
-func (c *constDoc) print(p *astPrinter.Printer) {
+func (c *valueDoc) print(p *astPrinter.Printer) {
 	printComments(p, c.decl.Doc);
 	p.Printf("<pre>");
-	p.DoDeclList(c.decl);
-	p.Printf("</pre>\n");
-}
-
-
-func (c *varDoc) print(p *astPrinter.Printer) {
-	printComments(p, c.decl.Doc);
-	p.Printf("<pre>");
-	p.DoDeclList(c.decl);
+	p.DoGenDecl(c.decl);
 	p.Printf("</pre>\n");
 }
 
@@ -415,11 +400,12 @@ func (f *funcDoc) print(p *astPrinter.Printer, hsize int) {
 
 func (t *typeDoc) print(p *astPrinter.Printer) {
 	d := t.decl;
-	p.Printf("<h2>type %s</h2>\n", string(d.Name.Lit));
+	s := d.Specs[0].(*ast.TypeSpec);
+	p.Printf("<h2>type %s</h2>\n", string(s.Name.Lit));
 	p.Printf("<p><pre>");
-	p.DoTypeDecl(d);
+	p.DoGenDecl(d);
 	p.Printf("</pre></p>\n");
-	printComments(p, d.Doc);
+	printComments(p, s.Doc);
 	
 	// print associated methods, if any
 	for name, m := range t.factories {
@@ -458,7 +444,7 @@ func (doc *PackageDoc) Print(writer io.Write) {
 					fmt.Fprintln(writer, "<hr />");
 					fmt.Fprintln(writer, "<h2>Constants</h2>");
 					for i := 0; i < doc.consts.Len(); i++ {
-						doc.consts.At(i).(*constDoc).print(&p);
+						doc.consts.At(i).(*valueDoc).print(&p);
 					}
 				}
 			},
@@ -477,7 +463,7 @@ func (doc *PackageDoc) Print(writer io.Write) {
 					fmt.Fprintln(writer, "<hr />");
 					fmt.Fprintln(writer, "<h2>Variables</h2>");
 					for i := 0; i < doc.vars.Len(); i++ {
-						doc.vars.At(i).(*varDoc).print(&p);
+						doc.vars.At(i).(*valueDoc).print(&p);
 					}
 				}
 			},

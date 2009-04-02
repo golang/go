@@ -1112,11 +1112,7 @@ func (P *Printer) DoBadDecl(d *ast.BadDecl) {
 }
 
 
-func (P *Printer) DoImportDecl(d *ast.ImportDecl) {
-	if d.Pos().Offset > 0 {
-		P.Token(d.Pos(), token.IMPORT);
-		P.separator = blank;
-	}
+func (P *Printer) importSpec(d *ast.ImportSpec) {
 	if d.Name != nil {
 		P.Expr(d.Name);
 	} else {
@@ -1124,19 +1120,12 @@ func (P *Printer) DoImportDecl(d *ast.ImportDecl) {
 	}
 	P.separator = tab;
 	// TODO fix for longer package names
-	if len(d.Path) > 1 {
-		panic();
-	}
 	P.HtmlPackageName(d.Path[0].Pos(), string(d.Path[0].Lit));
 	P.newlines = 2;
 }
 
 
-func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
-	if d.Pos().Offset > 0 {
-		P.Token(d.Pos(), token.CONST);
-		P.separator = blank;
-	}
+func (P *Printer) valueSpec(d *ast.ValueSpec) {
 	P.Idents(d.Names, P.full);
 	if d.Type != nil {
 		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
@@ -1152,11 +1141,7 @@ func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
 }
 
 
-func (P *Printer) DoTypeDecl(d *ast.TypeDecl) {
-	if d.Pos().Offset > 0 {
-		P.Token(d.Pos(), token.TYPE);
-		P.separator = blank;
-	}
+func (P *Printer) typeSpec(d *ast.TypeSpec) {
 	P.Expr(d.Name);
 	P.separator = blank;  // TODO switch to tab? (but indentation problem with structs)
 	P.Expr(d.Type);
@@ -1164,24 +1149,43 @@ func (P *Printer) DoTypeDecl(d *ast.TypeDecl) {
 }
 
 
-func (P *Printer) DoVarDecl(d *ast.VarDecl) {
-	if d.Pos().Offset > 0 {
-		P.Token(d.Pos(), token.VAR);
-		P.separator = blank;
+func (P *Printer) spec(d ast.Spec) {
+	switch s := d.(type) {
+	case *ast.ImportSpec: P.importSpec(s);
+	case *ast.ValueSpec: P.valueSpec(s);
+	case *ast.TypeSpec: P.typeSpec(s);
+	default: panic("unreachable");
 	}
-	P.Idents(d.Names, P.full);
-	if d.Type != nil {
-		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
-		P.Expr(d.Type);
-		//P.separator = P.Type(d.Type);
+}
+
+
+func (P *Printer) DoGenDecl(d *ast.GenDecl) {
+	P.Token(d.Pos(), d.Tok);
+	P.separator = blank;
+
+	if d.Lparen.Line > 0 {
+		// group of parenthesized declarations
+		P.state = opening_scope;
+		P.Token(d.Lparen, token.LPAREN);
+		if len(d.Specs) > 0 {
+			P.newlines = 1;
+			for i := 0; i < len(d.Specs); i++ {
+				if i > 0 {
+					P.separator = semicolon;
+				}
+				P.spec(d.Specs[i]);
+				P.newlines = 1;
+			}
+		}
+		P.state = closing_scope;
+		P.Token(d.Rparen, token.RPAREN);
+		P.opt_semi = true;
+		P.newlines = 2;
+
+	} else {
+		// single declaration
+		P.spec(d.Specs[0]);
 	}
-	if d.Values != nil {
-		P.separator = tab;
-		P.Token(noPos, token.ASSIGN);
-		P.separator = blank;
-		P.Exprs(d.Values);
-	}
-	P.newlines = 2;
 }
 
 
@@ -1206,30 +1210,6 @@ func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
 		P.Stmt(d.Body);
 	}
 	P.newlines = 3;
-}
-
-
-func (P *Printer) DoDeclList(d *ast.DeclList) {
-	P.Token(d.Pos(), d.Tok);
-	P.separator = blank;
-
-	// group of parenthesized declarations
-	P.state = opening_scope;
-	P.Token(noPos, token.LPAREN);
-	if len(d.List) > 0 {
-		P.newlines = 1;
-		for i := 0; i < len(d.List); i++ {
-			if i > 0 {
-				P.separator = semicolon;
-			}
-			P.Decl(d.List[i]);
-			P.newlines = 1;
-		}
-	}
-	P.state = closing_scope;
-	P.Token(d.Rparen, token.RPAREN);
-	P.opt_semi = true;
-	P.newlines = 2;
 }
 
 
