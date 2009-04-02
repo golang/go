@@ -40,6 +40,7 @@ O2=\
 
 O3=\
 	tostring.$O\
+	deepequal.$O\
 
 reflect.a: a1 a2 a3
 
@@ -52,7 +53,7 @@ a2:	$(O2)
 	rm -f $(O2)
 
 a3:	$(O3)
-	$(AR) grc reflect.a tostring.$O
+	$(AR) grc reflect.a tostring.$O deepequal.$O
 	rm -f $(O3)
 
 newpkg: clean

@@ -356,3 +356,91 @@ func TestBigStruct(t *testing.T) {
 		t.Errorf("NewValue(%v).Interface().(big) = %v", b, b1);
 	}
 }
+
+type Basic struct {
+	x int;
+	y float32
+}
+
+type Recursive struct {
+	x int;
+	r *Recursive
+}
+
+type Complex struct {
+	a int;
+	b [3]*Complex;
+	c *string;
+	d map[float]float
+}
+
+type DeepEqualTest struct {
+	a, b interface{};
+	eq bool;
+}
+
+var deepEqualTests = []DeepEqualTest {
+	// Equalities
+	DeepEqualTest{ 1, 1, true },
+	DeepEqualTest{ int32(1), int32(1), true },
+	DeepEqualTest{ 0.5, 0.5, true },
+	DeepEqualTest{ float32(0.5), float32(0.5), true },
+	DeepEqualTest{ "hello", "hello", true },
+	DeepEqualTest{ make([]int, 10), make([]int, 10), true },
+	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 3 }, true },
+	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.5 }, true },
+	// Inequalities
+	DeepEqualTest{ 1, 2, false },
+	DeepEqualTest{ int32(1), int32(2), false },
+	DeepEqualTest{ 0.5, 0.6, false },
+	DeepEqualTest{ float32(0.5), float32(0.6), false },
+	DeepEqualTest{ "hello", "hey", false },
+	DeepEqualTest{ make([]int, 10), make([]int, 11), false },
+	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 4 }, false },
+	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.6 }, false },
+	// Mismatched types
+	DeepEqualTest{ 1, 1.0, false },
+	DeepEqualTest{ int32(1), int64(1), false },
+	DeepEqualTest{ 0.5, "hello", false },
+	DeepEqualTest{ []int{ 1, 2, 3 }, [3]int{ 1, 2, 3 }, false },
+	DeepEqualTest{ &[3]interface{} { 1, 2, 4 }, &[3]interface{} { 1, 2, "s" }, false },
+}
+
+func TestDeepEqual(t *testing.T) {
+	for i, test := range deepEqualTests {
+		if r := DeepEqual(test.a, test.b); r != test.eq {
+			t.Errorf("DeepEqual(%v, %v) = %v, want %v", test.a, test.b, r, test.eq);
+		}
+	}
+}
+
+func TestDeepEqualRecursiveStruct(t *testing.T) {
+	a, b := new(Recursive), new(Recursive);
+	*a = Recursive{ 12, a };
+	*b = Recursive{ 12, b };
+	if !DeepEqual(a, b) {
+		t.Error("DeepEqual(recursive same) = false, want true");
+	}
+}
+
+func TestDeepEqualComplexStruct(t *testing.T) {
+	m := make(map[float]float);
+	stra, strb := "hello", "hello";
+	a, b := new(Complex), new(Complex);
+	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m};
+	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m};
+	if !DeepEqual(a, b) {
+		t.Error("DeepEqual(complex same) = false, want true");
+	}
+}
+
+func TestDeepEqualComplexStructInequality(t *testing.T) {
+	m := make(map[float]float);
+	stra, strb := "hello", "helloo";  // Difference is here
+	a, b := new(Complex), new(Complex);
+	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m};
+	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m};
+	if DeepEqual(a, b) {
+		t.Error("DeepEqual(complex different) = true, want false");
+	}
+}
