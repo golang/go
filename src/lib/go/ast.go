@@ -654,6 +654,38 @@ func (s *RangeStmt) Visit(v StmtVisitor) { v.DoRangeStmt(s); }
 // ----------------------------------------------------------------------------
 // Declarations
 
+// A Spec node represents a single (non-parenthesized) import,
+// constant, type, or variable declaration.
+//
+type (
+	// The Spec type stands for any of *ImportSpec, *ValueSpec, and *TypeSpec.
+	Spec interface {};
+
+	// An ImportSpec node represents a single package import.
+	ImportSpec struct {
+		Doc Comments;  // associated documentation; or nil
+		Name *Ident;  // local package name (including "."); or nil
+		Path []*StringLit;  // package path
+	};
+
+	// A ValueSpec node represents a constant or variable declaration
+	// (ConstSpec or VarSpec production).
+	ValueSpec struct {
+		Doc Comments;  // associated documentation; or nil
+		Names []*Ident;
+		Type Expr;  // value type; or nil
+		Values []Expr;
+	};
+
+	// A TypeSpec node represents a type declaration (TypeSpec production).
+	TypeSpec struct {
+		Doc Comments;  // associated documentation; or nil
+		Name *Ident;  // type name
+		Type Expr;
+	};
+)
+
+
 // A declaration is represented by one of the following declaration nodes.
 //
 type (	
@@ -665,51 +697,33 @@ type (
 		token.Position;  // beginning position of bad declaration
 	};
 
-	ImportDecl struct {
-		Doc Comments;  // associated documentation; or nil
-		token.Position;  // position of "import" keyword
-		Name *Ident;  // local package name or nil
-		Path []*StringLit;  // package path
-	};
-
-	ConstDecl struct {
-		Doc Comments;  // associated documentation; or nil
-		token.Position;  // position of "const" keyword
-		Names []*Ident;
-		Type Expr;  // constant type or nil
-		Values []Expr;
-	};
-
-	TypeDecl struct {
-		Doc Comments;  // associated documentation; or nil
-		token.Position;  // position of "type" keyword
-		Name *Ident;
-		Type Expr;
-	};
-
-	VarDecl struct {
-		Doc Comments;  // associated documentation; or nil
-		token.Position;  // position of "var" keyword
-		Names []*Ident;
-		Type Expr;  // variable type or nil
-		Values []Expr;
-	};
-
-	FuncDecl struct {
-		Doc Comments;  // associated documentation; or nil
-		Recv *Field;  // receiver (methods) or nil (functions)
-		Name *Ident;  // function/method name
-		Type *FuncType;  // position of Func keyword, parameters and results
-		Body *BlockStmt;  // function body or nil (forward declaration)
-	};
-
-	DeclList struct {
+	// A GenDecl node (generic declaration node) represents an import,
+	// constant, type or variable declaration. A valid Lparen position
+	// (Lparen.Line > 0) indicates a parenthesized declaration.
+	//
+	// Relationship between Tok value and Specs element type:
+	//
+	//	token.IMPORT  *ImportSpec
+	//	token.CONST   *ValueSpec
+	//	token.TYPE    *TypeSpec
+	//	token.VAR     *ValueSpec
+	//
+	GenDecl struct {
 		Doc Comments;  // associated documentation; or nil
 		token.Position;  // position of Tok
-		Tok token.Token;  // IMPORT, CONST, VAR, TYPE
-		Lparen token.Position;  // position of '('
-		List []Decl;  // the list of parenthesized declarations
-		Rparen token.Position;  // position of ')'
+		Tok token.Token;  // IMPORT, CONST, TYPE, VAR
+		Lparen token.Position;  // position of '(', if any
+		Specs []Spec;
+		Rparen token.Position;  // position of ')', if any
+	};
+
+	// A FuncDecl node represents a function declaration.
+	FuncDecl struct {
+		Doc Comments;  // associated documentation; or nil
+		Recv *Field;  // receiver (methods); or nil (functions)
+		Name *Ident;  // function/method name
+		Type *FuncType;  // position of Func keyword, parameters and results
+		Body *BlockStmt;  // function body; or nil (forward declaration)
 	};
 )
 
@@ -725,24 +739,16 @@ func (d *FuncDecl) Pos() token.Position  { return d.Type.Pos(); }
 //
 type DeclVisitor interface {
 	DoBadDecl(d *BadDecl);
-	DoImportDecl(d *ImportDecl);
-	DoConstDecl(d *ConstDecl);
-	DoTypeDecl(d *TypeDecl);
-	DoVarDecl(d *VarDecl);
+	DoGenDecl(d *GenDecl);
 	DoFuncDecl(d *FuncDecl);
-	DoDeclList(d *DeclList);
 }
 
 
 // Visit() implementations for all declaration nodes.
 //
 func (d *BadDecl) Visit(v DeclVisitor) { v.DoBadDecl(d); }
-func (d *ImportDecl) Visit(v DeclVisitor) { v.DoImportDecl(d); }
-func (d *ConstDecl) Visit(v DeclVisitor) { v.DoConstDecl(d); }
-func (d *TypeDecl) Visit(v DeclVisitor) { v.DoTypeDecl(d); }
-func (d *VarDecl) Visit(v DeclVisitor) { v.DoVarDecl(d); }
+func (d *GenDecl) Visit(v DeclVisitor) { v.DoGenDecl(d); }
 func (d *FuncDecl) Visit(v DeclVisitor) { v.DoFuncDecl(d); }
-func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
 
 
 // ----------------------------------------------------------------------------
