@@ -533,6 +533,7 @@ EXTERN	char*	package;
 EXTERN	Biobuf*	bout;
 EXTERN	int	nerrors;
 EXTERN	char	namebuf[NSYMB];
+EXTERN	char	lexbuf[NSYMB];
 EXTERN	char	debug[256];
 EXTERN	Sym*	hash[NHASH];
 EXTERN	Sym*	dclstack;

@@ -23,7 +23,7 @@ yyerror(char *fmt, ...)
 	vfprint(1, fmt, arg);
 	va_end(arg);
 	if(strcmp(fmt, "syntax error") == 0)
-		print(" near %s", namebuf);
+		print(" near %s", lexbuf);
 	print("\n");
 	if(debug['h'])
 		*(int*)0 = 0;

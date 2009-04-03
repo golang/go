@@ -370,12 +370,12 @@ l0:
 
 	if(c >= Runeself) {
 		/* all multibyte runes are alpha */
-		cp = namebuf;
+		cp = lexbuf;
 		goto talph;
 	}
 
 	if(isalpha(c)) {
-		cp = namebuf;
+		cp = lexbuf;
 		goto talph;
 	}
 
@@ -388,13 +388,13 @@ l0:
 		return -1;
 
 	case '_':
-		cp = namebuf;
+		cp = lexbuf;
 		goto talph;
 
 	case '.':
 		c1 = getc();
 		if(isdigit(c1)) {
-			cp = namebuf;
+			cp = lexbuf;
 			*cp++ = c;
 			c = c1;
 			c1 = 0;
@@ -413,7 +413,7 @@ l0:
 
 	case '"':
 		/* "..." */
-		strcpy(namebuf, "\"<string>\"");
+		strcpy(lexbuf, "\"<string>\"");
 		cp = mal(sizeof(int32));
 		clen = sizeof(int32);
 
@@ -437,7 +437,7 @@ l0:
 
 	case '`':
 		/* `...` */
-		strcpy(namebuf, "`<string>`");
+		strcpy(lexbuf, "`<string>`");
 		cp = mal(sizeof(int32));
 		clen = sizeof(int32);
 
@@ -719,7 +719,7 @@ asop:
 
 talph:
 	/*
-	 * cp is set to namebuf and some
+	 * cp is set to lexbuf and some
 	 * prefix has been stored
 	 */
 	for(;;) {
@@ -748,7 +748,7 @@ talph:
 	*cp = 0;
 	ungetc(c);
 
-	s = lookup(namebuf);
+	s = lookup(lexbuf);
 	if(s->lexical == LIGNORE)
 		goto l0;
 
@@ -768,7 +768,7 @@ talph:
 
 tnum:
 	c1 = 0;
-	cp = namebuf;
+	cp = lexbuf;
 	if(c != '0') {
 		for(;;) {
 			*cp++ = c;
@@ -790,7 +790,7 @@ tnum:
 				continue;
 			if(c >= 'A' && c <= 'F')
 				continue;
-			if(cp == namebuf+2)
+			if(cp == lexbuf+2)
 				yyerror("malformed hex constant");
 			goto ncu;
 		}
@@ -826,7 +826,7 @@ ncu:
 	ungetc(c);
 
 	yylval.val.u.xval = mal(sizeof(*yylval.val.u.xval));
-	mpatofix(yylval.val.u.xval, namebuf);
+	mpatofix(yylval.val.u.xval, lexbuf);
 	if(yylval.val.u.xval->ovf) {
 		yyerror("overflow in constant");
 		mpmovecfix(yylval.val.u.xval, 0);
@@ -880,7 +880,7 @@ caseout:
 	ungetc(c);
 
 	yylval.val.u.fval = mal(sizeof(*yylval.val.u.fval));
-	mpatoflt(yylval.val.u.fval, namebuf);
+	mpatoflt(yylval.val.u.fval, lexbuf);
 	if(yylval.val.u.fval->val.ovf) {
 		yyerror("overflow in float constant");
 		mpmovecflt(yylval.val.u.fval, 0.0);
