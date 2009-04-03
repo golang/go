@@ -32,6 +32,13 @@ import (
 
 // TODO
 // - uniform use of path, filename, dirname, pakname, etc.
+// - fix weirdness with double-/'s in paths
+
+
+const (
+	docPrefix = "/doc/";
+	srcPrefix = "/src/";
+)
 
 
 func getenv(varname string) string {
@@ -81,27 +88,31 @@ func cleanPath(s string) string {
 // strip any trailing '/' (may result in the empty string).
 func sanitizePath(s string) string {
 	s = cleanPath(s);
-	if s[len(s)-1] == '/' {  // strip trailing '/'
+	if len(s) > 0 && s[len(s)-1] == '/' {  // strip trailing '/'
 		s = s[0 : len(s)-1];
 	}
 	return s;
 }
 
 
-func contains(s, sub string, pos int) bool {
-	end := pos + len(sub);
-	return pos >= 0 && end <= len(s) && s[pos : end] == sub;
+func hasPrefix(s, prefix string) bool {
+	return len(prefix) <= len(s) && s[0 : len(prefix)] == prefix;
+}
+
+
+func hasPostfix(s, postfix string) bool {
+	pos := len(s) - len(postfix);
+	return pos >= 0 && s[pos : len(s)] == postfix;
 }
 
 
 func isGoFile(dir *os.Dir) bool {
-	const ext = ".go";
-	return dir.IsRegular() && contains(dir.Name, ext, len(dir.Name) - len(ext));
+	return dir.IsRegular() && hasPostfix(dir.Name, ".go");
 }
 
 
 func printLink(c *http.Conn, path, name string) {
-	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br />\n", path + name, name);
+	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br />\n", srcPrefix + path + name, name);
 }
 
 
@@ -360,7 +371,7 @@ func serveGoFile(c *http.Conn, dirname string, filenames []string) {
 }
 
 
-func serveFile(c *http.Conn, path string) {
+func serveSrc(c *http.Conn, path string) {
 	dir, err := os.Stat(*root + path);
 	if err != nil {
 		c.WriteHeader(http.StatusNotFound);
@@ -403,6 +414,10 @@ var (
 
 
 func addFile(dirname string, filename string) {
+	if hasPostfix(filename, "_test.go") {
+		// ignore package tests
+		return;
+	}
 	// determine package name
 	path := *root + "/" + dirname + "/" + filename;
 	prog, errors := compile(path, parser.PackageClauseOnly);
@@ -517,14 +532,14 @@ func servePackageList(c *http.Conn, list *vector.Vector) {
 			for i := 0; i < list.Len(); i++ {
 				p := list.At(i).(*pakDesc);
 				link := p.dirname + "/" + p.pakname;
-				fmt.Fprintf(c, "<a href=\"%s\">%s</a> <font color=grey>(%s)</font><br />\n", link + "?p", p.pakname, link);
+				fmt.Fprintf(c, "<a href=\"%s\">%s</a> <font color=grey>(%s)</font><br />\n", docPrefix + link, p.pakname, link);
 			}
 		}
 	});
 }
 
 
-func servePackage(c *http.Conn, path string) {
+func serveDoc(c *http.Conn, path string) {
 	// make regexp for package matching
 	rex, err := regexp.Compile(path);
 	if err != nil {
@@ -551,18 +566,24 @@ func servePackage(c *http.Conn, path string) {
 // ----------------------------------------------------------------------------
 // Server
 
-func serve(c *http.Conn, req *http.Request) {
-	if *verbose {
-		log.Stdoutf("%s\t%s", req.Host, req.RawUrl);
-	}
+func installHandler(prefix string, handler func(c *http.Conn, path string)) {
+	// customized handler with prefix
+	f := func(c *http.Conn, req *http.Request) {
+		path := req.Url.Path;
+		if *verbose {
+			log.Stdoutf("%s\t%s", req.Host, path);
+		}
+		if hasPrefix(path, prefix) {
+			path = sanitizePath(path[len(prefix) : len(path)]);
+			//log.Stdoutf("sanitized path %s", path);
+			handler(c, path);
+		} else {
+			log.Stdoutf("illegal path %s", path);
+		}
+	};
 
-	path := sanitizePath(req.Url.Path);
-
-	if len(req.Url.Query) > 0 {  // for now any query will do
-		servePackage(c, path);
-	} else {
-		serveFile(c, path);
-	}
+	// install the customized handler
+	http.Handle(prefix, http.HandlerFunc(f));
 }
 
 
@@ -584,7 +605,8 @@ func main() {
 
 	makePackageMap();
 
-	http.Handle("/", http.HandlerFunc(serve));
+	installHandler(docPrefix, serveDoc);
+	installHandler(srcPrefix, serveSrc);
 	{	err := http.ListenAndServe(":" + *port, nil);
 		if err != nil {
 			log.Exitf("ListenAndServe: %v", err)
