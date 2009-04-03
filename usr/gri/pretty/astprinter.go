@@ -658,6 +658,7 @@ func (P *Printer) DoFuncLit(x *ast.FuncLit) {
 	P.DoFuncType(x.Type);
 	P.separator = blank;
 	P.Stmt(x.Body);
+	P.opt_semi = false;  // BUG 6g or spec
 	P.newlines = 0;
 }
 

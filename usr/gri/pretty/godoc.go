@@ -100,14 +100,14 @@ func hasPrefix(s, prefix string) bool {
 }
 
 
-func hasPostfix(s, postfix string) bool {
+func hasSuffix(s, postfix string) bool {
 	pos := len(s) - len(postfix);
 	return pos >= 0 && s[pos : len(s)] == postfix;
 }
 
 
 func isGoFile(dir *os.Dir) bool {
-	return dir.IsRegular() && hasPostfix(dir.Name, ".go");
+	return dir.IsRegular() && hasSuffix(dir.Name, ".go");
 }
 
 
@@ -414,7 +414,7 @@ var (
 
 
 func addFile(dirname string, filename string) {
-	if hasPostfix(filename, "_test.go") {
+	if hasSuffix(filename, "_test.go") {
 		// ignore package tests
 		return;
 	}
