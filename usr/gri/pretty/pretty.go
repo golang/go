@@ -50,7 +50,7 @@ func print(prog *ast.Program) {
 
 	// initialize printer
 	var printer astPrinter.Printer;
-	printer.Init(writer, prog.Comments, *html);
+	printer.Init(writer, nil, prog.Comments, *html);
 
 	printer.DoProgram(prog);
 
