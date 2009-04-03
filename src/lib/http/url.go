@@ -43,7 +43,7 @@ func unhex(c byte) byte {
 
 // URLUnescape unescapes a URL-encoded string,
 // converting %AB into the byte 0xAB.
-// It returns a BadURL error if each % is not followed
+// It returns a BadURL error if any % is not followed
 // by two hexadecimal digits.
 func URLUnescape(s string) (string, *os.Error) {
 	// Count %, check that they're well-formed.
