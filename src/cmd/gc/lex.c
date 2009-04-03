@@ -138,15 +138,23 @@ void
 setfilename(char *file)
 {
 	char *p;
+	int c;
 
 	p = strrchr(file, '/');
 	if(p != nil)
 		file = p+1;
 	strncpy(namebuf, file, sizeof(namebuf));
-	p = strchr(namebuf, '.');
-	if(p != nil)
+	p = strrchr(namebuf, '.');
+	if(p != nil && strcmp(p, ".go") == 0)
 		*p = 0;
 	filename = strdup(namebuf);
+	
+	// turn invalid identifier chars into _
+	for(p=filename; *p; p++) {
+		c = *p & 0xFF;
+		if(c < 0x80 && !isalpha(c) && !isdigit(c) && c != '_')
+			*p = '_';
+	}
 }
 
 int
