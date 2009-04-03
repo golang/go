@@ -91,6 +91,7 @@ void
 updatetype(Type *n, Type *t)
 {
 	Sym *s;
+	int local;
 
 	s = n->sym;
 	if(s == S || s->otype != n)
@@ -118,10 +119,19 @@ updatetype(Type *n, Type *t)
 		fatal("updatetype %T / %T", n, t);
 	}
 
-	if(n->local)
-		t->local = 1;
+	// decl was
+	//	type n t;
+	// copy t, but then zero out state associated with t
+	// that is no longer associated with n.
+	local = n->local;
 	*n = *t;
 	n->sym = s;
+	n->local = local;
+	n->siggen = 0;
+	n->methptr = 0;
+	n->printed = 0;
+	n->method = nil;
+	n->vargen = 0;
 
 	// catch declaration of incomplete type
 	switch(n->etype) {
