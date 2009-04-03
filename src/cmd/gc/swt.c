@@ -763,6 +763,13 @@ typeswitch(Node *sw)
 	Case *c, *c0, *c1;
 	int ncase;
 
+	if(sw->ntest == nil)
+		return;
+	if(sw->ntest->right == nil) {
+		setlineno(sw);
+		yyerror("type switch must have an assignment");
+		return;
+	}
 	walktype(sw->ntest->right, Erv);
 	if(!istype(sw->ntest->right->type, TINTER)) {
 		yyerror("type switch must be on an interface");
