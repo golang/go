@@ -581,7 +581,7 @@ deadcode(void)
 	mark(lookup(INITENTRY, 0));
 	mark(lookup("sys·morestack", 0));
 
-//	sweeplist(&firstp, &lastp);
-//	sweeplist(&datap, &edatap);
+	sweeplist(&firstp, &lastp);
+	sweeplist(&datap, &edatap);
 }
 
