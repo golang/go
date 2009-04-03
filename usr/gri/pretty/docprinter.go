@@ -440,12 +440,6 @@ func (doc *PackageDoc) Print(writer io.Write) {
 		}
 	}
 
-	// types
-	for name, t := range doc.types {
-		fmt.Fprintln(writer, "<hr />");
-		t.print(&p);
-	}
-
 	// variables
 	if doc.vars.Len() > 0 {
 		fmt.Fprintln(writer, "<hr />");
@@ -461,5 +455,11 @@ func (doc *PackageDoc) Print(writer io.Write) {
 		for name, f := range doc.funcs {
 			f.print(&p, 2);
 		}
+	}
+
+	// types
+	for name, t := range doc.types {
+		fmt.Fprintln(writer, "<hr />");
+		t.print(&p);
 	}
 }
