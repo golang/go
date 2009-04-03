@@ -129,11 +129,14 @@ func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
 	var typ *typeDoc;
 	if fun.Recv != nil {
 		// method
+		// (all receiver types must be declared before they are used)
 		typ = doc.lookupTypeDoc(fun.Recv.Type);
 		if typ != nil {
+			// type found (i.e., exported)
 			typ.methods[name] = fdoc;
-			return;
 		}
+		// if the type wasn't found, it wasn't exported
+
 	} else {
 		// perhaps a factory function
 		// determine result type, if any
@@ -148,11 +151,10 @@ func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
 				}
 			}
 		}
+
+		// ordinary function
+		doc.funcs[name] = fdoc;
 	}
-	// TODO other heuristics (e.g. name is "NewTypename"?)
-	
-	// ordinary function
-	doc.funcs[name] = fdoc;
 }
 
 
