@@ -583,7 +583,7 @@ funclit1(Type *type, Node *body)
 
 	// declare function.
 	vargen++;
-	snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
+	snprint(namebuf, sizeof(namebuf), "_f%.3ld·%s", vargen, filename);
 	f = newname(lookup(namebuf));
 	addvar(f, ft, PFUNC);
 	f->funcdepth = 0;
