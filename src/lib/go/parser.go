@@ -824,6 +824,7 @@ func (p *parser) parseFuncLit() ast.Expr {
 	typ := p.parseFuncType();
 	p.expr_lev++;
 	body := p.parseBlockStmt();
+	p.opt_semi = false;  // function body requires separating ";"
 	p.expr_lev--;
 
 	return &ast.FuncLit{typ, body};
