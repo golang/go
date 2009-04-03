@@ -5,16 +5,15 @@
 package docPrinter
 
 import (
-	"vector";
-	"utf8";
-	"unicode";
-	"io";
-	"fmt";
-
 	"ast";
+	"fmt";
+	"io";
 	"token";
+	"unicode";
+	"utf8";
+	"vector";
+
 	"astprinter";
-	"template";
 )
 
 
@@ -73,6 +72,11 @@ type PackageDoc struct {
 	types map[string] *typeDoc;
 	vars *vector.Vector;  // list of *valueDoc
 	funcs map[string] *funcDoc;
+}
+
+
+func (doc *PackageDoc) PackageName() string {
+	return doc.name;
 }
 
 
@@ -418,64 +422,44 @@ func (t *typeDoc) print(p *astPrinter.Printer) {
 }
 
 
-// TODO make this a parameter for Init or Print?
-var templ = template.NewTemplateOrDie("template.html");
-
 func (doc *PackageDoc) Print(writer io.Write) {
 	var p astPrinter.Printer;
 	p.Init(writer, nil, true);
 	
-	// TODO propagate Apply errors
-	templ.Apply(writer, "<!--", template.Substitution {
-		"PACKAGE_NAME-->" :
-			func() {
-				fmt.Fprint(writer, doc.name);
-			},
+	// program header
+	fmt.Fprintf(writer, "<h1>package %s</h1>\n", doc.name);
+	fmt.Fprintf(writer, "<p><code>import \"%s\"</code></p>\n", doc.name);
+	printComments(&p, doc.doc);
 
-		"PROGRAM_HEADER-->":
-			func() {
-				fmt.Fprintf(writer, "<p><code>import \"%s\"</code></p>\n", doc.name);
-				printComments(&p, doc.doc);
-			},
+	// constants
+	if doc.consts.Len() > 0 {
+		fmt.Fprintln(writer, "<hr />");
+		fmt.Fprintln(writer, "<h2>Constants</h2>");
+		for i := 0; i < doc.consts.Len(); i++ {
+			doc.consts.At(i).(*valueDoc).print(&p);
+		}
+	}
 
-		"CONSTANTS-->" :
-			func() {
-				if doc.consts.Len() > 0 {
-					fmt.Fprintln(writer, "<hr />");
-					fmt.Fprintln(writer, "<h2>Constants</h2>");
-					for i := 0; i < doc.consts.Len(); i++ {
-						doc.consts.At(i).(*valueDoc).print(&p);
-					}
-				}
-			},
+	// types
+	for name, t := range doc.types {
+		fmt.Fprintln(writer, "<hr />");
+		t.print(&p);
+	}
 
-		"TYPES-->" :
-			func() {
-				for name, t := range doc.types {
-					fmt.Fprintln(writer, "<hr />");
-					t.print(&p);
-				}
-			},
+	// variables
+	if doc.vars.Len() > 0 {
+		fmt.Fprintln(writer, "<hr />");
+		fmt.Fprintln(writer, "<h2>Variables</h2>");
+		for i := 0; i < doc.vars.Len(); i++ {
+			doc.vars.At(i).(*valueDoc).print(&p);
+		}
+	}
 
-		"VARIABLES-->" :
-			func() {
-				if doc.vars.Len() > 0 {
-					fmt.Fprintln(writer, "<hr />");
-					fmt.Fprintln(writer, "<h2>Variables</h2>");
-					for i := 0; i < doc.vars.Len(); i++ {
-						doc.vars.At(i).(*valueDoc).print(&p);
-					}
-				}
-			},
-
-		"FUNCTIONS-->" :
-			func() {
-				if len(doc.funcs) > 0 {
-					fmt.Fprintln(writer, "<hr />");
-					for name, f := range doc.funcs {
-						f.print(&p, 2);
-					}
-				}
-			},
-	});
+	// functions
+	if len(doc.funcs) > 0 {
+		fmt.Fprintln(writer, "<hr />");
+		for name, f := range doc.funcs {
+			f.print(&p, 2);
+		}
+	}
 }
