@@ -173,6 +173,9 @@ import_package:
 	{
 		pkgimportname = $2;
 
+		if(strcmp($2->name, "main") == 0)
+			yyerror("cannot import package main");
+
 		// if we are not remapping the package name
 		// then the imported package name is LPACK
 		if(pkgmyname == S)
