@@ -425,6 +425,7 @@ dumpsignatures(void)
 		t = d->dtype;
 		et = t->etype;
 		s = signame(t);
+//print("signame %S for %T\n", s, t);
 		if(s == S)
 			continue;
 

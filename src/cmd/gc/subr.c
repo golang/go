@@ -1637,8 +1637,8 @@ signame(Type *t)
 		ss->oname->class = PEXTERN;
 	}
 
+//print("siggen %T %d\n", t, t->siggen);
 	if(!t->siggen) {
-//print("siggen %T\n", t);
 		// special case: don't generate the empty interface
 		if(strcmp(buf, "empty") == 0)
 			goto out;
