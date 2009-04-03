@@ -136,25 +136,27 @@ func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
 			typ.methods[name] = fdoc;
 		}
 		// if the type wasn't found, it wasn't exported
+		// TODO: a non-exported type may still have exported functions
+		//       determine what to do in that case
+		return;
+	}
 
-	} else {
-		// perhaps a factory function
-		// determine result type, if any
-		if len(fun.Type.Results) >= 1 {
-			res := fun.Type.Results[0];
-			if len(res.Names) <= 1 {
-				// exactly one (named or anonymous) result type
-				typ = doc.lookupTypeDoc(res.Type);
-				if typ != nil {
-					typ.factories[name] = fdoc;
-					return;
-				}
+	// perhaps a factory function
+	// determine result type, if any
+	if len(fun.Type.Results) >= 1 {
+		res := fun.Type.Results[0];
+		if len(res.Names) <= 1 {
+			// exactly one (named or anonymous) result type
+			typ = doc.lookupTypeDoc(res.Type);
+			if typ != nil {
+				typ.factories[name] = fdoc;
+				return;
 			}
 		}
-
-		// ordinary function
-		doc.funcs[name] = fdoc;
 	}
+
+	// ordinary function
+	doc.funcs[name] = fdoc;
 }
 
 
@@ -279,18 +281,6 @@ func untabify(s []byte) []byte {
 }
 
 
-func stripWhiteSpace(s []byte) []byte {
-	i, j := 0, len(s);
-	for i < len(s) && s[i] <= ' ' {
-		i++;
-	}
-	for j > i && s[j-1] <= ' ' {
-		j--
-	}
-	return s[i : j];
-}
-
-
 func stripCommentDelimiters(s []byte) []byte {
 	switch s[1] {
 	case '/': return s[2 : len(s)-1];
@@ -308,8 +298,25 @@ const /* formatting mode */ (
 )
 
 func printLine(p *astPrinter.Printer, line []byte, mode int) int {
-	indented := len(line) > 0 && line[0] == '\t';
-	line = stripWhiteSpace(line);
+	// If a line starts with " *" (as a result of a vertical /****/ comment),
+	// strip it away. For an example of such a comment, see src/lib/flag.go.
+	if len(line) >= 2 && line[0] == ' ' && line[1] == '*' {
+		line = line[2 : len(line)];
+	}
+
+	// The line is indented if it starts with a tab.
+	// In either case strip away a leading space or tab.
+	indented := false;
+	if len(line) > 0 {
+		switch line[0] {
+		case '\t':
+			indented = true;
+			fallthrough;
+		case ' ':
+			line = line[1 : len(line)];
+		}
+	}
+
 	if len(line) == 0 {
 		// empty line
 		switch mode {
@@ -426,7 +433,7 @@ func (t *typeDoc) print(p *astPrinter.Printer) {
 
 func (doc *PackageDoc) Print(writer io.Write) {
 	var p astPrinter.Printer;
-	p.Init(writer, nil, true);
+	p.Init(writer, nil, nil, true);
 	
 	// program header
 	fmt.Fprintf(writer, "<h1>package %s</h1>\n", doc.name);

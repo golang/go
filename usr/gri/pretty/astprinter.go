@@ -5,21 +5,19 @@
 package astPrinter
 
 import (
-	"io";
-	"vector";
-	"tabwriter";
+	"ast";
 	"flag";
 	"fmt";
+	"io";
+	"os";
 	"strings";
-	"utf8";
-	"unicode";
-
-	"utils";
+	"tabwriter";
 	"token";
-	"ast";
-	"template";
-	"symboltable";
+	"unicode";
+	"utf8";
+	"vector";
 )
+
 
 var (
 	debug = flag.Bool("ast_debug", false, "print debugging information");
@@ -76,7 +74,46 @@ func hasExportedNames(names []*ast.Ident) bool {
 
 
 // ----------------------------------------------------------------------------
+// TokenPrinter
+
+// TODO This is not yet used - should fix this.
+
+// An implementation of a TokenPrinter may be provided when
+// initializing an AST Printer. It is used to print tokens.
+//
+type TokenPrinter interface {
+	PrintLit(w io.Write, tok token.Token, value []byte);
+	PrintIdent(w io.Write, value string);
+	PrintToken(w io.Write, token token.Token);
+	PrintComment(w io.Write, value []byte);
+}
+
+
+type defaultPrinter struct {}
+
+func (p defaultPrinter) PrintLit(w io.Write, tok token.Token, value []byte) {
+	w.Write(value);
+}
+
+
+func (p defaultPrinter) PrintIdent(w io.Write, value string) {
+	fmt.Fprint(w, value);
+}
+
+
+func (p defaultPrinter) PrintToken(w io.Write, token token.Token) {
+	fmt.Fprint(w, token.String());
+}
+
+
+func (p defaultPrinter) PrintComment(w io.Write, value []byte) {
+	w.Write(value);
+}
+
+
+// ----------------------------------------------------------------------------
 // ASTPrinter
+
 
 // Separators - printed in a delayed fashion, depending on context.
 const (
@@ -101,14 +138,17 @@ type Printer struct {
 	// output
 	text io.Write;
 	
+	// token printing
+	tprinter TokenPrinter;
+
 	// formatting control
 	html bool;
 	full bool;  // if false, print interface only; print all otherwise
 
 	// comments
 	comments []*ast.Comment;  // the list of unassociated comments 
-	cindex int;  // the current comment group index
-	cpos token.Position;  // the position of the next comment group
+	cindex int;  // the current comment index
+	cpos token.Position;  // the position of the next comment
 
 	// current state
 	lastpos token.Position;  // position after last string
@@ -144,10 +184,17 @@ func (P *Printer) nextComments() {
 }
 
 
-func (P *Printer) Init(text io.Write, comments []*ast.Comment, html bool) {
+func (P *Printer) Init(text io.Write, tprinter TokenPrinter, comments []*ast.Comment, html bool) {
 	// writers
 	P.text = text;
-	
+
+	// token printing
+	if tprinter != nil {
+		P.tprinter = tprinter;
+	} else {
+		P.tprinter = defaultPrinter{};
+	}
+
 	// formatting control
 	P.html = html;
 
@@ -227,7 +274,7 @@ func (P *Printer) newline(n int) {
 func (P *Printer) TaggedString(pos token.Position, tag, s, endtag string) {
 	// use estimate for pos if we don't have one
 	offs := pos.Offset;
-	if offs == 0 {
+	if pos.Line == 0 {
 		offs = P.lastpos.Offset;
 	}
 
@@ -398,6 +445,17 @@ func (P *Printer) Token(pos token.Position, tok token.Token) {
 func (P *Printer) Error(pos token.Position, tok token.Token, msg string) {
 	fmt.Printf("\ninternal printing error: pos = %d, tok = %s, %s\n", pos.Offset, tok.String(), msg);
 	panic();
+}
+
+
+// An astPrinter implements io.Write.
+// TODO this is not yet used.
+func (P *Printer) Write(p []byte) (n int, err *os.Error) {
+	// TODO
+	// - no string conversion every time
+	// - return proper results
+	P.String(noPos, string(p));
+	return len(p), nil;
 }
 
 
