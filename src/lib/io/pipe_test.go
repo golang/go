@@ -148,7 +148,7 @@ func testPipeReadClose(t *testing.T, async bool) {
 	} else {
 		delayClose(t, w, c);
 	}
-	var buf [64]int;
+	var buf [64]byte;
 	n, err := r.Read(buf);
 	<-c;
 	if err != nil {

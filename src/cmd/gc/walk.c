@@ -1955,7 +1955,7 @@ ascompat(Type *dst, Type *src)
 	if(eqtype(dst, src, 0))
 		return 1;
 
-	if(isslice(dst) && isfixedarray(src))
+	if(isslice(dst) && isfixedarray(src) && eqtype(dst->type, src->type, 0))
 		return 1;
 
 	if(isnilinter(dst) || isnilinter(src))
@@ -2080,6 +2080,8 @@ makecompat(Node *n)
 	if(t != T)
 	switch(t->etype) {
 	case TARRAY:
+		if(!isslice(t))
+			goto bad;
 		return arrayop(n, Erv);
 	case TMAP:
 		return mapop(n, Erv);
@@ -2087,15 +2089,11 @@ makecompat(Node *n)
 		return chanop(n, Erv);
 	}
 
-	/*
-	 * ken had code to malloc here,
-	 * but rsc cut it out so that make(int)
-	 * is diagnosed as an error (probably meant new).
-	 * might come back once we know the
-	 * language semantics for make(int).
-	 */
-
-	yyerror("cannot make(%T)", t);
+bad:
+	if(!n->diag) {
+		n->diag = 1;
+		yyerror("cannot make(%T)", t);
+	}
 	return n;
 }
 
@@ -3223,7 +3221,7 @@ dorange(Node *nn)
 ary:
 	hk = nod(OXXX, N, N);		// hidden key
 	tempname(hk, types[TINT]);
-	
+
 	ha = nod(OXXX, N, N);		// hidden array
 	tempname(ha, t);
 
@@ -3305,7 +3303,7 @@ chan:
 
 	hc = nod(OXXX, N, N);	// hidden chan
 	tempname(hc, t);
-	
+
 	hv = nod(OXXX, N, N);	// hidden value
 	tempname(hv, t->type);
 
