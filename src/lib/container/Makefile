@@ -36,8 +36,10 @@ O1=\
 
 O2=\
 	intvector.$O\
+	iterable.$O\
 
 vector.a: a1 a2
+iterable.a: a1 a2
 
 a1:	$(O1)
 	$(AR) grc vector.a vector.$O
@@ -45,19 +47,21 @@ a1:	$(O1)
 
 a2:	$(O2)
 	$(AR) grc vector.a intvector.$O
+	$(AR) grc iterable.a iterable.$O
 	rm -f $(O2)
 
 newpkg: clean
 	$(AR) grc vector.a
+	$(AR) grc iterable.a
 
 $(O1): newpkg
 $(O2): a1
 
 nuke: clean
-	rm -f $(GOROOT)/pkg/vector.a
+	rm -f $(GOROOT)/pkg/vector.a $(GOROOT)/pkg/iterable.a
 
-packages: vector.a
+packages: vector.a iterable.a
 
 install: packages
 	cp vector.a $(GOROOT)/pkg/vector.a
-
+	cp iterable.a $(GOROOT)/pkg/iterable.a
