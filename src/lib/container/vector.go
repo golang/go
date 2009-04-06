@@ -107,6 +107,16 @@ func (p *Vector) Last() Element {
 }
 
 
+// Data returns all the elements as a slice.
+func (p *Vector) Data() []Element {
+	arr := make([]Element, p.Len());
+	for i, v := range p.a {
+		arr[i] = v
+	}
+	return arr
+}
+
+
 // Insert inserts into the vector an element of value x before
 // the current element at index i.
 func (p *Vector) Insert(i int, x Element) {
