@@ -231,7 +231,7 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
 		val /= 10;
 	}
 	buf[i] = byte(val + '0');
-	return string(buf)[i:len(buf)];
+	return string(buf[i:len(buf)]);
 }
 
 func Errstr(errno int64) string {

@@ -222,7 +222,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
 		buf[i] = ' ';
 		i--;
 	}
-	return string(buf)[i+1:nByte];
+	return string(buf[i+1:nByte]);
 }
 
 // Fmt_d64 formats an int64 in decimal.
