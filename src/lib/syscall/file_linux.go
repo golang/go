@@ -100,3 +100,8 @@ func Getdents(fd int64, buf *Dirent, nbytes int64) (ret int64, errno int64) {
 	return r1, err;
 }
 
+func Chdir(dir string) (ret int64, errno int64) {
+	namebuf := StringBytePtr(dir);
+	r1, r2, err := Syscall(SYS_CHDIR, int64(uintptr(unsafe.Pointer(namebuf))), 0, 0);
+	return r1, err;
+}
