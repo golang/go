@@ -114,6 +114,7 @@ loop:
 		return;
 
 	more = N;
+	lineno = n->lineno;
 	switch(n->op) {
 
 	case OLIST:
