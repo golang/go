@@ -135,7 +135,7 @@ func readBytes(buf *BufRead) string {
 		nb++;
 	}
 	// BUG return string(b[0:nb]) ?
-	return string(b)[0:nb]
+	return string(b[0:nb])
 }
 
 // Call Read to accumulate the text of a file
