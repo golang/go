@@ -451,12 +451,11 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
 		}
 		p.add('}');
 	case reflect.InterfaceKind:
-		inter := field.(reflect.InterfaceValue).Get();
-		if inter == nil {
+		value := field.(reflect.InterfaceValue).Value();
+		if value == nil {
 			s = "<nil>"
 		} else {
-			// should never happen since a non-nil interface always has a type
-			s = "<non-nil interface>";
+			return p.printField(value);
 		}
 	default:
 		s = "?" + field.Type().String() + "?";

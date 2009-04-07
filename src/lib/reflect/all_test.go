@@ -301,6 +301,16 @@ func TestInterfaceGet(t *testing.T) {
 	assert(v3.Type().String(), "float");
 }
 
+func TestInterfaceValue(t *testing.T) {
+	var inter struct { e interface{ } };
+	inter.e = 123.456;
+	v1 := reflect.NewValue(&inter);
+	v2 := v1.(reflect.PtrValue).Sub().(reflect.StructValue).Field(0);
+	assert(v2.Type().String(), "interface { }");
+	v3 := v2.(reflect.InterfaceValue).Value();
+	assert(v3.Type().String(), "float");
+}
+
 func TestCopyArray(t *testing.T) {
 	a := []int{ 1, 2, 3, 4, 10, 9, 8, 7 };
 	b := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
