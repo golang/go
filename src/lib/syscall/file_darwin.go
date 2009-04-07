@@ -98,3 +98,9 @@ func Getdirentries(fd int64, buf *byte, nbytes int64, basep *int64) (ret int64, 
 	r1, r2, err := Syscall6(SYS_GETDIRENTRIES64, fd, int64(uintptr(unsafe.Pointer(buf))), nbytes, int64(uintptr(unsafe.Pointer(basep))), 0, 0);
 	return r1, err;
 }
+
+func Chdir(dir string) (ret int64, errno int64) {
+	namebuf := StringBytePtr(dir);
+	r1, r2, err := Syscall(SYS_CHDIR, int64(uintptr(unsafe.Pointer(namebuf))), 0, 0);
+	return r1, err;
+}

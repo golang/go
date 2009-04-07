@@ -261,3 +261,9 @@ func (file *File) Readdir(count int) (dirs []Dir, err *os.Error) {
 	return
 }
 
+// Chdir changes the current working directory to the named directory.
+func Chdir(dir string) *os.Error {
+	r, e := syscall.Chdir(dir);
+	return ErrnoToError(e);
+}
+
