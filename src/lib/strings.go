@@ -37,14 +37,15 @@ func Count(s, sep string) int {
 	return n
 }
 
-// Index returns the index of the first instance of sep in s.
+// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
 func Index(s, sep string) int {
-	if sep == "" {
+	n := len(sep);
+	if n == 0 {
 		return 0
 	}
 	c := sep[0];
-	for i := 0; i+len(sep) <= len(s); i++ {
-		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
+	for i := 0; i+n <= len(s); i++ {
+		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
 			return i
 		}
 	}
