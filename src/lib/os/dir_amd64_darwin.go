@@ -50,6 +50,10 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
 			if dirent.Ino == 0 {	// File absent in directory.
 				continue
 			}
+			var name = string(dirent.Name[0:dirent.Namlen]);
+			if name == "." || name == ".." {	// Useless names
+				continue
+			}
 			count--;
 			if len(names) == cap(names) {
 				nnames := make([]string, len(names), 2*len(names));
@@ -59,7 +63,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
 				names = nnames;
 			}
 			names = names[0:len(names)+1];
-			names[len(names)-1] = string(dirent.Name[0:dirent.Namlen]);
+			names[len(names)-1] = name;
 		}
 	}
 	return names, nil
