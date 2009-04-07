@@ -96,6 +96,7 @@ bufio.6: io.dirinstall os.dirinstall
 exec.6: os.dirinstall
 flag.6: fmt.dirinstall os.dirinstall strconv.dirinstall
 log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
+path.6: io.dirinstall
 once.6: sync.dirinstall
 strings.6: utf8.install
 testing.6: flag.install fmt.dirinstall
@@ -103,7 +104,7 @@ testing.6: flag.install fmt.dirinstall
 fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
 go.dirinstall: strconv.dirinstall utf8.install unicode.dirinstall fmt.dirinstall
 hash.dirinstall: os.dirinstall
-http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall strings.install log.install
+http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall path.install strings.install log.install
 io.dirinstall: os.dirinstall sync.dirinstall
 json.dirinstall: container.dirinstall fmt.dirinstall io.dirinstall math.dirinstall \
 	strconv.dirinstall strings.install utf8.install
