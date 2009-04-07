@@ -47,7 +47,7 @@ func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
 		b.buf = make([]byte, b.cap);
 		b.len = 0;
 	}
-	if b.len + len(p) > b.cap {
+	if b.len + plen > b.cap {
 		b.cap = 2*(b.cap + plen);
 		nb := make([]byte, b.cap);
 		bytecopy(nb, 0, b.buf, 0, b.len);
