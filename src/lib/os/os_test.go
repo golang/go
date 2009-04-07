@@ -110,6 +110,9 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
 	for i, m := range contents {
 		found := false;
 		for j, n := range s {
+			if n == "." || n == ".." {
+				t.Errorf("got %s in directory", n);
+			}
 			if m == n {
 				if found {
 					t.Error("present twice:", m);
