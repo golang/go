@@ -34,6 +34,8 @@ type Value interface {
 	Interface()	interface {};
 }
 
+func NewValue(e interface{}) Value;
+
 // commonValue fields and functionality for all values
 
 type commonValue struct {
@@ -744,6 +746,7 @@ func structCreator(typ Type, addr Addr) Value {
 type InterfaceValue interface {
 	Value;
 	Get()	interface {};	// Get the underlying interface{} value.
+	Value() Value;
 }
 
 type interfaceValueStruct struct {
@@ -752,6 +755,14 @@ type interfaceValueStruct struct {
 
 func (v *interfaceValueStruct) Get() interface{} {
 	return *(*interface{})(v.addr)
+}
+
+func (v *interfaceValueStruct) Value() Value {
+	i := v.Get();
+	if i == nil {
+		return nil;
+	}
+	return NewValue(i);
 }
 
 func interfaceCreator(typ Type, addr Addr) Value {

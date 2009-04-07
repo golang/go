@@ -29,7 +29,7 @@ type fmtTest struct {
 const b32 uint32 = 1<<32 - 1
 const b64 uint64 = 1<<64 - 1
 var array = []int{1, 2, 3, 4, 5}
-
+var iarray = []interface{}{1, "hello", 2.5, nil}
 
 var fmttests = []fmtTest{
 	// basic string
@@ -80,10 +80,10 @@ var fmttests = []fmtTest{
 	fmtTest{ "% d",		-12345,	"-12345" },
 
 	// arrays
-	// TODO: when arrays work in interfaces, enable this line
-	// and delete the TestArrayPrinter routine below
-	// fmtTest{ "%v",		array,			"[1 2 3 4 5]" },
+	fmtTest{ "%v",		array,			"[1 2 3 4 5]" },
+	fmtTest{ "%v",		iarray,			"[1 hello 2.5 <nil>]" },
 	fmtTest{ "%v",		&array,			"&[1 2 3 4 5]" },
+	fmtTest{ "%v",		&iarray,			"&[1 hello 2.5 <nil>]" },
 
 	// old test/fmt_test.go
 	fmtTest{ "%d",		1234,			"1234" },
@@ -238,19 +238,5 @@ func TestStructPrinter(t *testing.T) {
 		if out != tt.out {
 			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out);
 		}
-	}
-}
-
-func TestArrayPrinter(t *testing.T) {
-	a := []int{1, 2, 3, 4, 5};
-	want := "[1 2 3 4 5]";
-	out := fmt.Sprintf("%v", a);
-	if out != want {
-		t.Errorf("Sprintf(%%v, array) = %q, want %q", out, want);
-	}
-	want = "&" + want;
-	out = fmt.Sprintf("%v", &a);
-	if out != want {
-		t.Errorf("Sprintf(%%v, &array) = %q, want %q", out, want);
 	}
 }
