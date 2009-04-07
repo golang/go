@@ -54,11 +54,17 @@ type BufRead struct {
 }
 
 // NewBufReadSize creates a new BufRead whose buffer has the specified size,
-// which must be greater than zero.
+// which must be greater than zero.  If the argument io.Read is already a
+// BufRead with large enough size, it returns the underlying BufRead.
 // It returns the BufRead and any error.
-func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
+func NewBufReadSize(rd io.Read, size int) (*BufRead, *os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
+	}
+	// Is it already a BufRead?
+	b, ok := rd.(*BufRead);
+	if ok && len(b.buf) >= size {
+		return b, nil
 	}
 	b = new(BufRead);
 	b.buf = make([]byte, size);
@@ -381,11 +387,17 @@ type BufWrite struct {
 }
 
 // NewBufWriteSize creates a new BufWrite whose buffer has the specified size,
-// which must be greater than zero.
+// which must be greater than zero. If the argument io.Write is already a
+// BufWrite with large enough size, it returns the underlying BufWrite.
 // It returns the BufWrite and any error.
-func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error) {
+func NewBufWriteSize(wr io.Write, size int) (*BufWrite, *os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
+	}
+	// Is it already a BufWrite?
+	b, ok := wr.(*BufWrite);
+	if ok && len(b.buf) >= size {
+		return b, nil
 	}
 	b = new(BufWrite);
 	b.buf = make([]byte, size);

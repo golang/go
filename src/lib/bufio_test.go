@@ -330,3 +330,50 @@ func TestBufWrite(t *testing.T) {
 	}
 }
 
+func TestNewBufReadSizeIdempotent(t *testing.T) {
+	const BufSize = 1000;
+	b, err := NewBufReadSize(newByteReader(io.StringBytes("hello world")), BufSize);
+	if err != nil {
+		t.Error("NewBufReadSize create fail", err);
+	}
+	// Does it recognize itself?
+	b1, err2 := NewBufReadSize(b, BufSize);
+	if err2 != nil {
+		t.Error("NewBufReadSize #2 create fail", err2);
+	}
+	if b1 != b {
+		t.Error("NewBufReadSize did not detect underlying BufRead");
+	}
+	// Does it wrap if existing buffer is too small?
+	b2, err3 := NewBufReadSize(b, 2*BufSize);
+	if err3 != nil {
+		t.Error("NewBufReadSize #3 create fail", err3);
+	}
+	if b2 == b {
+		t.Error("NewBufReadSize did not enlarge buffer");
+	}
+}
+
+func TestNewBufWriteSizeIdempotent(t *testing.T) {
+	const BufSize = 1000;
+	b, err := NewBufWriteSize(newByteWriter(), BufSize);
+	if err != nil {
+		t.Error("NewBufWriteSize create fail", err);
+	}
+	// Does it recognize itself?
+	b1, err2 := NewBufWriteSize(b, BufSize);
+	if err2 != nil {
+		t.Error("NewBufWriteSize #2 create fail", err2);
+	}
+	if b1 != b {
+		t.Error("NewBufWriteSize did not detect underlying BufWrite");
+	}
+	// Does it wrap if existing buffer is too small?
+	b2, err3 := NewBufWriteSize(b, 2*BufSize);
+	if err3 != nil {
+		t.Error("NewBufWriteSize #3 create fail", err3);
+	}
+	if b2 == b {
+		t.Error("NewBufWriteSize did not enlarge buffer");
+	}
+}
