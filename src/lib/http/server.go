@@ -19,6 +19,7 @@ import (
 	"log";
 	"net";
 	"os";
+	"path";
 	"strconv";
 )
 
@@ -209,7 +210,7 @@ func (c *Conn) serve() {
 		}
 		// HTTP cannot have multiple simultaneous active requests.
 		// Until the server replies to this request, it can't read another,
-		// so we might as well run the handler in this thread.
+		// so we might as well run the handler in this goroutine.
 		c.handler.ServeHTTP(c, req);
 		if c.hijacked {
 			return;
@@ -300,6 +301,10 @@ func RedirectHandler(url string) Handler {
 // so that a handler might register for the two patterns
 // "/codesearch" and "codesearch.google.com/"
 // without taking over requests for http://www.google.com/.
+//
+// ServeMux also takes care of sanitizing the URL request path,
+// redirecting any request containing . or .. elements to an
+// equivalent .- and ..-free URL.
 type ServeMux struct {
 	m map[string] Handler
 }
@@ -325,9 +330,33 @@ func pathMatch(pattern, path string) bool {
 	return len(path) >= n && path[0:n] == pattern;
 }
 
+// Return the canonical path for p, eliminating . and .. elements.
+func cleanPath(p string) string {
+	if p == "" {
+		return "/";
+	}
+	if p[0] != '/' {
+		p = "/" + p;
+	}
+	np := path.Clean(p);
+	// path.Clean removes trailing slash except for root;
+	// put the trailing slash back if necessary.
+	if p[len(p)-1] == '/' && np != "/" {
+		np += "/";
+	}
+	return np;
+}
+
 // ServeHTTP dispatches the request to the handler whose
 // pattern most closely matches the request URL.
 func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
+	// Clean path to canonical form and redirect.
+	if p := cleanPath(req.Url.Path); p != req.Url.Path {
+		c.SetHeader("Location", p);
+		c.WriteHeader(StatusMovedPermanently);
+		return;
+	}
+
 	// Most-specific (longest) pattern wins.
 	var h Handler;
 	var n = 0;
