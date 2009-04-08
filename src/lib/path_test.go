@@ -97,12 +97,20 @@ type JoinTest struct {
 
 var jointests = []JoinTest {
 	JoinTest{"a", "b", "a/b"},
-	JoinTest{"a", "", "a/"},
+	JoinTest{"a", "", "a"},
 	JoinTest{"", "b", "b"},
 	JoinTest{"/", "a", "/a"},
 	JoinTest{"/", "", "/"},
 	JoinTest{"a/", "b", "a/b"},
-	JoinTest{"a/", "", "a/"},
+	JoinTest{"a/", "", "a"},
+}
+
+func TestJoin(t *testing.T) {
+	for i, test := range jointests {
+		if p := Join(test.dir, test.file); p != test.path {
+			t.Errorf("Join(%q, %q) = %q, want %q", test.dir, test.file, p, test.path);
+		}
+	}
 }
 
 type ExtTest struct {
@@ -117,3 +125,12 @@ var exttests = []ExtTest {
 	ExtTest{"a.dir/b.go", ".go"},
 	ExtTest{"a.dir/", ""},
 }
+
+func TestExt(t *testing.T) {
+	for i, test := range exttests {
+		if x := Ext(test.path); x != test.ext {
+			t.Errorf("Ext(%q) = %q, want %q", test.path, x, test.ext);
+		}
+	}
+}
+
