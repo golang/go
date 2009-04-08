@@ -121,6 +121,11 @@ bugs/bug140.go:6: syntax error near L1
 bugs/bug140.go:7: syntax error near L2
 BUG should compile
 
+=========== bugs/bug142.go
+second
+panic PC=xxx
+BUG: bug142
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
