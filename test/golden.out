@@ -145,8 +145,6 @@ fixedbugs/bug035.go:7: variable f redeclared in this block
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
-fixedbugs/bug037.go:6: illegal types for operand: AS
-	undefined
 
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: variable x redeclared in this block
@@ -219,7 +217,11 @@ fixedbugs/bug091.go:15: illegal types for operand: AS
 M
 
 =========== fixedbugs/bug103.go
+fixedbugs/bug103.go:8: assignment count mismatch: 1 = 0
+fixedbugs/bug103.go:8: x: undefined
 fixedbugs/bug103.go:8: function requires a return type
+fixedbugs/bug103.go:8: illegal types for operand: AS
+	int
 
 =========== fixedbugs/bug113.go
 main.I is int, not int32

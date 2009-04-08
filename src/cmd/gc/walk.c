@@ -3067,6 +3067,41 @@ colas(Node *nl, Node *nr)
 	n = N;
 	cr = listcount(nr);
 	cl = listcount(nl);
+
+	/* check calls early, to give better message for a := f() */
+	if(cr == 1) {
+		switch(nr->op) {
+		case OCALLMETH:
+		case OCALLINTER:
+		case OCALL:
+			walktype(nr->left, Erv);
+			convlit(nr->left, types[TFUNC]);
+			t = nr->left->type;
+			if(t == T)
+				return;	// error already printed
+			if(t->etype == tptr)
+				t = t->type;
+			if(t == T || t->etype != TFUNC) {
+				yyerror("cannot call %T", t);
+				return;
+			}
+			if(t->outtuple != cl) {
+				cr = t->outtuple;
+				goto badt;
+			}
+			// finish call - first half above
+			l = listfirst(&savel, &nl);
+			t = structfirst(&saver, getoutarg(t));
+			while(l != N) {
+				a = old2new(l, t->type);
+				n = list(n, a);
+				l = listnext(&savel);
+				t = structnext(&saver);
+			}
+			n = rev(n);
+			return n;
+		}
+	}
 	if(cl != cr) {
 		if(cr == 1)
 			goto multi;
@@ -3098,29 +3133,6 @@ multi:
 	switch(nr->op) {
 	default:
 		goto badt;
-
-	case OCALLMETH:
-	case OCALLINTER:
-	case OCALL:
-		walktype(nr->left, Erv);
-		convlit(nr->left, types[TFUNC]);
-		t = nr->left->type;
-		if(t != T && t->etype == tptr)
-			t = t->type;
-		if(t == T || t->etype != TFUNC)
-			goto badt;
-		if(t->outtuple != cl)
-			goto badt;
-
-		l = listfirst(&savel, &nl);
-		t = structfirst(&saver, getoutarg(t));
-		while(l != N) {
-			a = old2new(l, t->type);
-			n = list(n, a);
-			l = listnext(&savel);
-			t = structnext(&saver);
-		}
-		break;
 
 	case OINDEX:
 		// check if rhs is a map index.
