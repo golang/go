@@ -22,6 +22,7 @@ DIRS=\
 	strconv\
 	sync\
 	tabwriter\
+	template\
 	time\
 	unicode\
 
@@ -36,7 +37,6 @@ FILES=\
 	rand\
 	sort\
 	strings\
-	template\
 	testing\
 	utf8\
 
@@ -49,7 +49,6 @@ TEST=\
 	once\
 	sort\
 	strings\
-	template\
 	utf8\
 
 clean.dirs: $(addsuffix .dirclean, $(DIRS))
@@ -103,7 +102,6 @@ log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
 path.6: io.dirinstall
 once.6: sync.dirinstall
 strings.6: utf8.install
-template.6: bufio.install fmt.dirinstall io.dirinstall os.dirinstall reflect.dirinstall strings.install
 testing.6: flag.install fmt.dirinstall
 
 fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
@@ -119,8 +117,9 @@ os.dirinstall: syscall.dirinstall once.install
 regexp.dirinstall: os.dirinstall
 reflect.dirinstall: strconv.dirinstall sync.dirinstall
 strconv.dirinstall: math.dirinstall os.dirinstall utf8.install
-tabwriter.dirinstall: os.dirinstall io.dirinstall container.dirinstall
-time.dirinstall: once.install os.dirinstall io.dirinstall
 sync.dirinstall:
 syscall.dirinstall: sync.dirinstall
+tabwriter.dirinstall: os.dirinstall io.dirinstall container.dirinstall
+template.dirinstall: bufio.install fmt.dirinstall io.dirinstall os.dirinstall reflect.dirinstall strings.install
+time.dirinstall: once.install os.dirinstall io.dirinstall
 

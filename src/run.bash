@@ -37,6 +37,7 @@ maketest \
 	lib/regexp\
 	lib/strconv\
 	lib/tabwriter\
+	lib/template\
 	lib/time\
 	lib/unicode\
 
