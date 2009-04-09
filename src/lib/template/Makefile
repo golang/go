@@ -32,18 +32,26 @@ coverage: packages
 	$(AS) $*.s
 
 O1=\
+	format.$O\
+
+O2=\
 	template.$O\
 
-template.a: a1
+template.a: a1 a2
 
 a1:	$(O1)
-	$(AR) grc template.a template.$O
+	$(AR) grc template.a format.$O
 	rm -f $(O1)
+
+a2:	$(O2)
+	$(AR) grc template.a template.$O
+	rm -f $(O2)
 
 newpkg: clean
 	$(AR) grc template.a
 
 $(O1): newpkg
+$(O2): a1
 
 nuke: clean
 	rm -f $(GOROOT)/pkg/template.a

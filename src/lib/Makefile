@@ -120,6 +120,6 @@ strconv.dirinstall: math.dirinstall os.dirinstall utf8.install
 sync.dirinstall:
 syscall.dirinstall: sync.dirinstall
 tabwriter.dirinstall: os.dirinstall io.dirinstall container.dirinstall
-template.dirinstall: bufio.install fmt.dirinstall io.dirinstall os.dirinstall reflect.dirinstall strings.install
+template.dirinstall: fmt.dirinstall io.dirinstall os.dirinstall reflect.dirinstall strings.install
 time.dirinstall: once.install os.dirinstall io.dirinstall
 
