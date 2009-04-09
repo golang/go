@@ -36,6 +36,7 @@ FILES=\
 	rand\
 	sort\
 	strings\
+	template\
 	testing\
 	utf8\
 
@@ -48,6 +49,7 @@ TEST=\
 	once\
 	sort\
 	strings\
+	template\
 	utf8\
 
 clean.dirs: $(addsuffix .dirclean, $(DIRS))
@@ -99,6 +101,7 @@ log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
 path.6: io.dirinstall
 once.6: sync.dirinstall
 strings.6: utf8.install
+template.6: bufio.install fmt.dirinstall io.dirinstall os.dirinstall reflect.dirinstall strings.install
 testing.6: flag.install fmt.dirinstall
 
 fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
