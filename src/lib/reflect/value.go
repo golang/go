@@ -914,3 +914,17 @@ func NewValue(e interface {}) Value {
 	*ap = value;
 	return newValueAddr(typ, Addr(ap));
 }
+
+// Indirect indirects one level through a value, if it is a pointer.
+// If not a pointer, the value is returned unchanged.
+// Useful when walking arbitrary data structures.
+func Indirect(v Value) Value {
+	if v.Kind() == PtrKind {
+		p := v.(PtrValue);
+		if p.Get() == nil {
+			return nil
+		}
+		v = p.Sub()
+	}
+	return v
+}

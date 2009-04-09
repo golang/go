@@ -8,6 +8,7 @@ import (
 	"fmt";
 	"io";
 	"os";
+	"reflect";
 	"template";
 	"testing";
 )
@@ -32,6 +33,29 @@ type S struct {
 
 var t1 = T{ "ItemNumber1", "ValueNumber1" }
 var t2 = T{ "ItemNumber2", "ValueNumber2" }
+
+func uppercase(v reflect.Value) string {
+	s := reflect.Indirect(v).(reflect.StringValue).Get();
+	t := "";
+	for i := 0; i < len(s); i++ {
+		c := s[i];
+		if 'a' <= c && c <= 'z' {
+			c = c + 'A' - 'a'
+		}
+		t += string(c);
+	}
+	return t;
+}
+
+func plus1(v reflect.Value) string {
+	i := reflect.Indirect(v).(reflect.IntValue).Get();
+	return fmt.Sprint(i + 1);
+}
+
+var formatters = FormatterMap {
+	"uppercase" : uppercase,
+	"+1" : plus1,
+}
 
 var tests = []*Test {
 	// Simple
@@ -114,6 +138,15 @@ var tests = []*Test {
 		"ItemNumber1=ValueNumber1\n"
 		"ItemNumber2=ValueNumber2\n"
 	},
+
+	// Formatters
+	&Test{
+		"{.section pdata }\n"
+		"{header|uppercase}={integer|+1}\n"
+		"{.end}\n",
+
+		"HEADER=78\n"
+	},
 }
 
 func TestAll(t *testing.T) {
@@ -129,7 +162,7 @@ func TestAll(t *testing.T) {
 	var buf io.ByteBuffer;
 	for i, test := range tests {
 		buf.Reset();
-		err := Execute(test.in, s, &buf);
+		err := Execute(test.in, s, formatters, &buf);
 		if err != nil {
 			t.Error("unexpected error:", err)
 		}
@@ -139,36 +172,8 @@ func TestAll(t *testing.T) {
 	}
 }
 
-/*
-func TestParser(t *testing.T) {
-	t1 := &T{ "ItemNumber1", "ValueNumber1" };
-	t2 := &T{ "ItemNumber2", "ValueNumber2" };
-	a := []*T{ t1, t2 };
-	s := &S{ "Header", 77, a };
-	err := Execute(
-		"{#hello world}\n"
-		"some text: {.meta-left}{.space}{.meta-right}\n"
-		"{.meta-left}\n"
-		"{.meta-right}\n"
-		"{.section data }\n"
-		"some text for the section\n"
-		"{header} for iteration number {integer}\n"
-		"	{.repeated section @}\n"
-		"repeated section: {value1}={value2}\n"
-		"	{.end}\n"
-		"{.or}\n"
-		"This appears only if there is no data\n"
-		"{.end }\n"
-		"this is the end\n"
-		, s, os.Stdout);
-	if err != nil {
-		t.Error(err)
-	}
-}
-*/
-
 func TestBadDriverType(t *testing.T) {
-	err := Execute("hi", "hello", os.Stdout);
+	err := Execute("hi", "hello", nil, os.Stdout);
 	if err == nil {
 		t.Error("failed to detect string as driver type")
 	}
