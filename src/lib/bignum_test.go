@@ -6,6 +6,7 @@ package bignum_test
 
 import (
 	bignum "bignum";
+	flag "flag";	// BUG: should not be necessary
 	fmt "fmt";
 	testing "testing";
 )
