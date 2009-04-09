@@ -4,16 +4,15 @@
 
 // Template library.  See http://code.google.com/p/json-template/wiki/Reference
 // TODO: document this here as well.
-
 package template
 
 import (
-	"bufio";
 	"fmt";
 	"io";
 	"os";
 	"reflect";
 	"strings";
+	"template";
 )
 
 var ErrLBrace = os.NewError("unexpected opening brace")
@@ -50,6 +49,13 @@ const (
 // FormatterMap is the type describing the mapping from formatter
 // names to the functions that implement them.
 type FormatterMap map[string] func(reflect.Value) string
+
+// Built-in formatters.
+var builtins = FormatterMap {
+	"html" : HtmlFormatter,
+	"str" : StringFormatter,
+	"" : StringFormatter,
+}
 
 type template struct {
 	errorchan	chan *os.Error;	// for erroring out
@@ -439,11 +445,13 @@ func (t *template) evalVariable(name_formatter string) string {
 		formatter = name_formatter[bar+1:len(name_formatter)];
 	}
 	val := t.varValue(name);
+	// is it in user-supplied map?
 	if fn, ok := t.fmap[formatter]; ok {
 		return fn(val)
 	}
-	if formatter == "" {
-		return fmt.Sprint(val.Interface())
+	// is it in builtin map?
+	if fn, ok := builtins[formatter]; ok {
+		return fn(val)
 	}
 	t.error(ErrNoFormatter, ": ", formatter);
 	panic("notreached");

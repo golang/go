@@ -143,9 +143,11 @@ var tests = []*Test {
 	&Test{
 		"{.section pdata }\n"
 		"{header|uppercase}={integer|+1}\n"
+		"{header|html}={integer|str}\n"
 		"{.end}\n",
 
 		"HEADER=78\n"
+		"Header=77\n"
 	},
 }
 
