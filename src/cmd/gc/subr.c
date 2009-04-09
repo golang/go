@@ -63,7 +63,7 @@ fatal(char *fmt, ...)
 }
 
 void
-linehist(char *file, int32 off)
+linehist(char *file, int32 off, int relative)
 {
 	Hist *h;
 	char *cp;
@@ -78,7 +78,7 @@ linehist(char *file, int32 off)
 			print("end of import at line %L\n", lineno);
 	}
 
-	if(off < 0 && file[0] != '/') {
+	if(off < 0 && file[0] != '/' && !relative) {
 		cp = mal(strlen(file) + strlen(pathname) + 2);
 		sprint(cp, "%s/%s", pathname, file);
 		file = cp;

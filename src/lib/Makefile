@@ -68,7 +68,9 @@ test.files: $(addsuffix .test, $(TEST))
 	rm -f $*.6
 
 %.install: %.6
-	mv $*.6 $(GOROOT)/pkg/$*.6
+	6ar grc $*.a $*.6
+	mv $*.a $(GOROOT)/pkg/$*.a
+	rm -f $*.6
 
 %.dirclean:
 	+cd $* && make clean
@@ -95,7 +97,7 @@ test: test.files
 
 bignum.6: fmt.dirinstall
 bufio.6: io.dirinstall os.dirinstall
-exec.6: os.dirinstall
+exec.6: os.dirinstall strings.install
 flag.6: fmt.dirinstall os.dirinstall strconv.dirinstall
 log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
 path.6: io.dirinstall
