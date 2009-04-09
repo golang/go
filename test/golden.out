@@ -150,6 +150,7 @@ fixedbugs/bug035.go:7: variable f redeclared in this block
 
 =========== fixedbugs/bug037.go
 fixedbugs/bug037.go:6: vlong: undefined
+fixedbugs/bug037.go:6: s: undefined
 
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: variable x redeclared in this block
