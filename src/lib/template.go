@@ -27,6 +27,7 @@ var ErrNoEnd = os.NewError("section does not have .end")
 var ErrNoVar = os.NewError("variable name not in struct");
 var ErrBadType = os.NewError("unsupported type for variable");
 var ErrNotStruct = os.NewError("driver must be a struct")
+var ErrNoFormatter = os.NewError("unknown formatter")
 
 // All the literals are aces.
 var lbrace = []byte{ '{' }
@@ -46,18 +47,23 @@ const (
 	Variable;
 )
 
+// FormatterMap is the type describing the mapping from formatter
+// names to the functions that implement them.
+type FormatterMap map[string] func(reflect.Value) string
+
 type template struct {
 	errorchan	chan *os.Error;	// for erroring out
 	linenum	*int;	// shared by all templates derived from this one
 	parent	*template;
 	data	reflect.Value;	// the driver data for this section etc.
+	fmap	FormatterMap;	// formatters for variables
 	buf	[]byte;	// input text to process
 	p	int;	// position in buf
 	wr	io.Write;	// where to send output
 }
 
 // Create a top-level template
-func newTemplate(ch chan *os.Error, linenum *int, buf []byte, data reflect.Value, wr io.Write) *template {
+func newTemplate(ch chan *os.Error, linenum *int, buf []byte, data reflect.Value, fmap FormatterMap, wr io.Write) *template {
 	t := new(template);
 	t.errorchan = ch;
 	t.linenum = linenum;
@@ -66,13 +72,14 @@ func newTemplate(ch chan *os.Error, linenum *int, buf []byte, data reflect.Value
 	t.data = data;
 	t.buf = buf;
 	t.p = 0;
+	t.fmap = fmap;
 	t.wr = wr;
 	return t;
 }
 
 // Create a template deriving from its parent
 func childTemplate(parent *template, buf []byte, data reflect.Value) *template {
-	t := newTemplate(parent.errorchan, parent.linenum, buf, data, parent.wr);
+	t := newTemplate(parent.errorchan, parent.linenum, buf, data, parent.fmap, parent.wr);
 	t.parent = parent;
 	return t;
 }
@@ -86,18 +93,6 @@ func (t *template) error(err *os.Error, args ...) {
 
 func white(c uint8) bool {
 	return c == ' ' || c == '\t' || c == '\n'
-}
-
-// Data items can be values or pointers to values. This function hides the pointer.
-func indirect(v reflect.Value) reflect.Value {
-	if v.Kind() == reflect.PtrKind {
-		p := v.(reflect.PtrValue);
-		if p.Get() == nil {
-			return nil
-		}
-		v = p.Sub()
-	}
-	return v
 }
 
 func (t *template) execute()
@@ -281,7 +276,7 @@ func (t *template) findVar(s string) (int, int) {
 
 // Is there no data to look at?
 func empty(v reflect.Value, indirect_ok bool) bool {
-	v = indirect(v);
+	v = reflect.Indirect(v);
 	if v == nil {
 		return true
 	}
@@ -309,7 +304,7 @@ func (t *template) executeRepeated(w []string) {
 		if i < 0 {
 			t.error(ErrNoVar, ": ", w[2]);
 		}
-		field = indirect(t.data.(reflect.StructValue).Field(i));
+		field = reflect.Indirect(t.data.(reflect.StructValue).Field(i));
 	}
 	// Must be an array/slice
 	if field != nil && field.Kind() != reflect.ArrayKind {
@@ -346,7 +341,7 @@ Loop:
 	if field != nil {
 		array := field.(reflect.ArrayValue);
 		for i := 0; i < array.Len(); i++ {
-			elem := indirect(array.Elem(i));
+			elem := reflect.Indirect(array.Elem(i));
 			tmp := childTemplate(t, t.buf[start:end], elem);
 			tmp.execute();
 		}
@@ -421,17 +416,37 @@ Loop:
 	tmp.execute();
 }
 
-// Evalute a variable, looking up through the parent if necessary.
-// TODO: add formatting outputters
-func (t *template) evalVariable(s string) string {
-	i, kind := t.findVar(s);
+// Look up a variable, up through the parent if necessary.
+func (t *template) varValue(name string) reflect.Value {
+	i, kind := t.findVar(name);
 	if i < 0 {
 		if t.parent == nil {
-			t.error(ErrNoVar, ": ", s)
+			t.error(ErrNoVar, ": ", name)
 		}
-		return t.parent.evalVariable(s);
+		return t.parent.varValue(name);
 	}
-	return fmt.Sprint(t.data.(reflect.StructValue).Field(i).Interface());
+	return t.data.(reflect.StructValue).Field(i);
+}
+
+// Evalute a variable, looking up through the parent if necessary.
+// If it has a formatter attached ({var|formatter}) run that too.
+func (t *template) evalVariable(name_formatter string) string {
+	name := name_formatter;
+	formatter := "";
+	bar := strings.Index(name_formatter, "|");
+	if bar >= 0 {
+		name = name_formatter[0:bar];
+		formatter = name_formatter[bar+1:len(name_formatter)];
+	}
+	val := t.varValue(name);
+	if fn, ok := t.fmap[formatter]; ok {
+		return fn(val)
+	}
+	if formatter == "" {
+		return fmt.Sprint(val.Interface())
+	}
+	t.error(ErrNoFormatter, ": ", formatter);
+	panic("notreached");
 }
 
 func (t *template) execute() {
@@ -471,16 +486,16 @@ func (t *template) execute() {
 	}
 }
 
-func Execute(s string, data interface{}, wr io.Write) *os.Error {
+func Execute(s string, data interface{}, fmap FormatterMap, wr io.Write) *os.Error {
 	// Extract the driver struct.
-	val := indirect(reflect.NewValue(data));
+	val := reflect.Indirect(reflect.NewValue(data));
 	sval, ok1 := val.(reflect.StructValue);
 	if !ok1 {
 		return ErrNotStruct
 	}
 	ch := make(chan *os.Error);
 	var linenum int;
-	t := newTemplate(ch, &linenum, io.StringBytes(s), val, wr);
+	t := newTemplate(ch, &linenum, io.StringBytes(s), val, fmap, wr);
 	go func() {
 		t.execute();
 		ch <- nil;	// clean return;
