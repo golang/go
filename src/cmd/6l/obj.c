@@ -635,12 +635,13 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 void
 addlib(char *src, char *obj)
 {
-	char name[1024], comp[256], *p, *q;
-	int i;
+	char name[1024], pname[1024], comp[256], *p, *q;
+	int i, search;
 
 	if(histfrogp <= 0)
 		return;
 
+	search = 0;
 	if(histfrog[0]->name[1] == '/') {
 		sprint(name, "");
 		i = 1;
@@ -649,11 +650,9 @@ addlib(char *src, char *obj)
 		sprint(name, ".");
 		i = 0;
 	} else {
-		if(debug['9'])
-			sprint(name, "/%s/lib", thestring);
-		else
-			sprint(name, "/usr/%clib", thechar);
+		sprint(name, "");
 		i = 0;
+		search = 1;
 	}
 
 	for(; i<histfrogp; i++) {
@@ -682,6 +681,15 @@ addlib(char *src, char *obj)
 		}
 		strcat(name, "/");
 		strcat(name, comp);
+	}
+
+	if(search) {
+		// try dot and then try goroot.
+		// going to have to do better (probably a command line flag) later.
+		snprint(pname, sizeof pname, ".%s", name);
+		if(access(pname, AEXIST) < 0)
+			snprint(pname, sizeof pname, "%s/pkg/%s", goroot, name);
+		strcpy(name, pname);
 	}
 	if(debug['v'])
 		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);

@@ -74,7 +74,7 @@ main(int argc, char *argv[])
 
 	setfilename(argv[0]);
 	infile = argv[0];
-	linehist(infile, 0);
+	linehist(infile, 0, 0);
 
 	curio.infile = infile;
 	curio.bin = Bopen(infile, OREAD);
@@ -103,7 +103,7 @@ main(int argc, char *argv[])
 	yyparse();
 	runifacechecks();
 
-	linehist(nil, 0);
+	linehist(nil, 0, 0);
 	if(curio.bin != nil)
 		Bterm(curio.bin);
 
@@ -148,7 +148,7 @@ setfilename(char *file)
 	if(p != nil && strcmp(p, ".go") == 0)
 		*p = 0;
 	filename = strdup(namebuf);
-	
+
 	// turn invalid identifier chars into _
 	for(p=filename; *p; p++) {
 		c = *p & 0xFF;
@@ -254,7 +254,7 @@ void
 importfile(Val *f)
 {
 	Biobuf *imp;
-	char *file;
+	char *file, *p;
 	int32 c;
 	int len;
 
@@ -276,14 +276,21 @@ importfile(Val *f)
 	file = strdup(namebuf);
 
 	len = strlen(namebuf);
-	if(len > 2)
-	if(namebuf[len-2] == '.')
-	if(namebuf[len-1] == 'a')
-	if(!skiptopkgdef(imp))
-		fatal("import not package file: %s", namebuf);
+	if(len > 2 && namebuf[len-2] == '.' && namebuf[len-1] == 'a') {
+		if(!skiptopkgdef(imp))
+			fatal("import not package file: %s", namebuf);
 
-	linehist(file, 0);
-	linehist(file, -1);	// acts as #pragma lib
+		// assume .a files move (get installed)
+		// so don't record the full path.
+		p = file + len - f->u.sval->len - 2;
+		linehist(p, 0, 0);
+		linehist(p, -1, 1);	// acts as #pragma lib
+	} else {
+		// assume .6 files don't move around
+		// so do record the full path
+		linehist(file, 0, 0);
+		linehist(file, -1, 0);
+	}
 
 	/*
 	 * position the input right
@@ -314,7 +321,7 @@ importfile(Val *f)
 void
 unimportfile(void)
 {
-	linehist(nil, 0);
+	linehist(nil, 0, 0);
 
 	if(curio.bin != nil) {
 		Bterm(curio.bin);
@@ -330,7 +337,7 @@ void
 cannedimports(char *file, char *cp)
 {
 	lineno++;		// if sys.6 is included on line 1,
-	linehist(file, 0);	// the debugger gets confused
+	linehist(file, 0, 0);	// the debugger gets confused
 
 	pushedio = curio;
 	curio.bin = nil;

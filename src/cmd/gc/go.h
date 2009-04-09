@@ -703,7 +703,7 @@ Sym*	pkglookup(char*, char*);
 void	yyerror(char*, ...);
 void	warn(char*, ...);
 void	fatal(char*, ...);
-void	linehist(char*, int32);
+void	linehist(char*, int32, int);
 int32	setlineno(Node*);
 Node*	nod(int, Node*, Node*);
 Node*	nodlit(Val);

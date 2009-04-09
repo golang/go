@@ -3078,12 +3078,12 @@ colas(Node *nl, Node *nr)
 			convlit(nr->left, types[TFUNC]);
 			t = nr->left->type;
 			if(t == T)
-				return;	// error already printed
+				return nl;	// error already printed
 			if(t->etype == tptr)
 				t = t->type;
 			if(t == T || t->etype != TFUNC) {
 				yyerror("cannot call %T", t);
-				return;
+				return nl;
 			}
 			if(t->outtuple != cl) {
 				cr = t->outtuple;
