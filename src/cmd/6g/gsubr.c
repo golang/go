@@ -152,7 +152,7 @@ ggloblsym(Sym *s, int32 width, int dupok)
 
 	p = gins(AGLOBL, N, N);
 	p->from.type = D_EXTERN;
-	if(s == symstringo)
+	if(s == symstringl || s == symstringc)
 		p->from.type = D_STATIC;
 	p->from.index = D_NONE;
 	p->from.sym = s;
@@ -170,6 +170,7 @@ isfat(Type *t)
 	switch(t->etype) {
 	case TSTRUCT:
 	case TARRAY:
+	case TSTRING:
 	case TINTER:	// maybe remove later
 	case TDDD:	// maybe remove later
 		return 1;
@@ -1146,10 +1147,9 @@ naddr(Node *n, Addr *a)
 			break;
 		case CTSTR:
 			a->etype = simtype[n->etype];
-			a->sym = symstringo;
-			a->type = D_ADDR;
-			a->index = D_STATIC;
-			a->offset = symstringo->offset;
+			a->sym = symstringl;
+			a->type = D_STATIC;
+			a->offset = symstringl->offset;
 			stringpool(n);
 			break;
 		case CTBOOL:

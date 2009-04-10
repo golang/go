@@ -149,8 +149,8 @@ args(int32 c, uint8 **v)
 void
 goargs(void)
 {
-	string *gargv;
-	string *genvv;
+	String *gargv;
+	String *genvv;
 	int32 i, envc;
 
 	for(envc=0; argv[argc+1+envc] != 0; envc++)
@@ -177,17 +177,17 @@ getenv(int8 *s)
 {
 	int32 i, j, len;
 	byte *v, *bs;
-	string* envv;
+	String* envv;
 	int32 envc;
 
 	bs = (byte*)s;
 	len = findnull(bs);
-	envv = (string*)sys·Envs.array;
+	envv = (String*)sys·Envs.array;
 	envc = sys·Envs.nel;
 	for(i=0; i<envc; i++){
-		if(envv[i]->len <= len)
+		if(envv[i].len <= len)
 			continue;
-		v = envv[i]->str;
+		v = envv[i].str;
 		for(j=0; j<len; j++)
 			if(bs[j] != v[j])
 				goto nomatch;
@@ -332,23 +332,21 @@ memcopy(uint32 s, void *a, void *b)
 }
 
 static uint64
-strhash(uint32 s, string *a)
+strhash(uint32 s, String *a)
 {
 	USED(s);
-	if(*a == nil)
-		return memhash(emptystring->len, emptystring->str);
-	return memhash((*a)->len, (*a)->str);
+	return memhash((*a).len, (*a).str);
 }
 
 static uint32
-strequal(uint32 s, string *a, string *b)
+strequal(uint32 s, String *a, String *b)
 {
 	USED(s);
 	return cmpstring(*a, *b) == 0;
 }
 
 static void
-strprint(uint32 s, string *a)
+strprint(uint32 s, String *a)
 {
 	USED(s);
 	sys·printstring(*a);

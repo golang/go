@@ -560,13 +560,13 @@ sys·printinter(Iface i)
 }
 
 void
-sys·Reflect(Iface i, uint64 retit, string rettype, bool retindir)
+sys·Reflect(Iface i, uint64 retit, String rettype, bool retindir)
 {
 	int32 wid;
 
 	if(i.type == nil) {
 		retit = 0;
-		rettype = nil;
+		rettype = emptystring;
 		retindir = false;
 	} else {
 		retit = (uint64)i.data;
@@ -651,7 +651,7 @@ static	struct {
 	"bool", 4+1, AMEM, sizeof(bool),
 
 	// string compare is special
-	"string", 6+1, ASTRING, sizeof(string),
+	"string", 6+1, ASTRING, sizeof(String),
 
 	// generic types, identified by prefix
 	"*", 1, AMEM, sizeof(uintptr),
@@ -661,18 +661,15 @@ static	struct {
 };
 
 static Sigt*
-fakesigt(string type, bool indir)
+fakesigt(String type, bool indir)
 {
 	Sigt *sigt;
 	uint32 h;
 	int32 i, locked;
 
-	if(type == nil)
-		type = emptystring;
-
 	h = 0;
-	for(i=0; i<type->len; i++)
-		h = h*37 + type->str[i];
+	for(i=0; i<type.len; i++)
+		h = h*37 + type.str[i];
 	h += indir;
 	h %= nelem(fake);
 
@@ -683,8 +680,8 @@ fakesigt(string type, bool indir)
 			// don't need to compare indir.
 			// same type string but different indir will have
 			// different hashes.
-			if(mcmp(sigt->name, type->str, type->len) == 0)
-			if(sigt->name[type->len] == '\0') {
+			if(mcmp(sigt->name, type.str, type.len) == 0)
+			if(sigt->name[type.len] == '\0') {
 				if(locked)
 					unlock(&ifacelock);
 				return sigt;
@@ -693,8 +690,8 @@ fakesigt(string type, bool indir)
 	}
 
 	sigt = malloc(sizeof(*sigt));
-	sigt->name = malloc(type->len + 1);
-	mcpy(sigt->name, type->str, type->len);
+	sigt->name = malloc(type.len + 1);
+	mcpy(sigt->name, type.str, type.len);
 
 	sigt->alg = AFAKE;
 	sigt->width = 1;  // small width
@@ -719,16 +716,15 @@ fakesigt(string type, bool indir)
 }
 
 static int32
-cmpstringchars(string a, uint8 *b)
+cmpstringchars(String a, uint8 *b)
 {
 	int32 i;
 	byte c1, c2;
 
 	for(i=0;; i++) {
-		if(i == a->len)
-			c1 = 0;
-		else
-			c1 = a->str[i];
+		c1 = 0;
+		if(i < a.len)
+			c1 = a.str[i];
 		c2 = b[i];
 		if(c1 < c2)
 			return -1;
@@ -740,7 +736,7 @@ cmpstringchars(string a, uint8 *b)
 }
 
 static Sigt*
-findtype(string type, bool indir)
+findtype(String type, bool indir)
 {
 	int32 i, lo, hi, m;
 
@@ -761,7 +757,7 @@ findtype(string type, bool indir)
 
 
 void
-sys·Unreflect(uint64 it, string type, bool indir, Iface ret)
+sys·Unreflect(uint64 it, String type, bool indir, Iface ret)
 {
 	Sigt *sigt;
 

@@ -66,7 +66,8 @@ main(int argc, char *argv[])
 	lexinit();
 	typeinit(LBASETYPE);
 
-	symstringo = lookup(".stringo");	// strings
+	symstringl = lookup(".stringl");	// string literals (ptr to char and count)
+	symstringc = lookup(".stringc");	// string characters
 
 	lineno = 1;
 	block = 1;
@@ -212,7 +213,7 @@ addidir(char* dir)
 }
 
 int
-findpkg(String *name)
+findpkg(Strlit *name)
 {
 	static char* goroot;
 	Idir* p;
@@ -514,7 +515,7 @@ l0:
 			cp = remal(cp, clen, 1);
 			cp[clen++] = 0;
 		} while(clen & MAXALIGN);
-		yylval.val.u.sval = (String*)cp;
+		yylval.val.u.sval = (Strlit*)cp;
 		yylval.val.ctype = CTSTR;
 		DBG("lex: string literal\n");
 		return LLITERAL;

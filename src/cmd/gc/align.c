@@ -171,8 +171,8 @@ dowidth(Type *t)
 	case TANY:		// implemented as pointer
 		w = widthptr;
 		break;
-	case TSTRING:		// implemented as pointer
-		w = widthptr;
+	case TSTRING:
+		w = sizeof_String;
 		break;
 	case TARRAY:
 		if(t->type == T)
@@ -312,7 +312,6 @@ typeinit(int lex)
 	/* simple aliases */
 	simtype[TMAP] = tptr;
 	simtype[TCHAN] = tptr;
-	simtype[TSTRING] = tptr;
 	simtype[TFUNC] = tptr;
 
 	/* pick up the backend typedefs */
@@ -348,6 +347,9 @@ typeinit(int lex)
 	Array_nel = rnd(Array_array+widthptr, types[TUINT32]->width);
 	Array_cap = rnd(Array_nel+types[TUINT32]->width, types[TUINT32]->width);
 	sizeof_Array = rnd(Array_cap+types[TUINT32]->width, maxround);
+
+	// string is same as slice wo the cap
+	sizeof_String = rnd(Array_nel+types[TUINT32]->width, maxround);
 }
 
 /*

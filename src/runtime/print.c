@@ -84,7 +84,7 @@ printf(int8 *s, ...)
 			prints(*(int8**)arg);
 			break;
 		case 'S':
-			sys·printstring(*(string*)arg);
+			sys·printstring(*(String*)arg);
 			break;
 		}
 		arg = narg;
@@ -239,16 +239,16 @@ sys·printpointer(void *p)
 }
 
 void
-sys·printstring(string v)
+sys·printstring(String v)
 {
 	extern int32 maxstring;
 
-	if(v != nil) {
-		if(v->len > maxstring)
-			sys·write(1, "[invalid string]", 16);
-		else
-			sys·write(1, v->str, v->len);
+	if(v.len > maxstring) {
+		sys·write(1, "[invalid string]", 16);
+		return;
 	}
+	if(v.len > 0)
+		sys·write(1, v.str, v.len);
 }
 
 void

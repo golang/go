@@ -79,7 +79,7 @@ traceback(byte *pc0, byte *sp, G *g)
 
 // func caller(n int) (pc uint64, file string, line int, ok bool)
 void
-sys·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
+sys·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbool)
 {
 	uint64 pc;
 	byte *sp;
@@ -94,7 +94,7 @@ sys·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
 	error:
 		retpc = 0;
 		retline = 0;
-		retfile = nil;
+		retfile = emptystring;
 		retbool = false;
 		FLUSH(&retpc);
 		FLUSH(&retfile);

@@ -237,7 +237,7 @@ tostr(Val v)
 {
 	Rune rune;
 	int l;
-	String *s;
+	Strlit *s;
 
 	switch(v.ctype) {
 	case CTINT:
@@ -281,7 +281,7 @@ evconst(Node *n)
 {
 	Node *nl, *nr;
 	int32 len;
-	String *str;
+	Strlit *str;
 	int wl, wr, lno, et;
 	Val v;
 	Mpint b;

@@ -195,7 +195,7 @@ static void
 dosrcline(Sym *sym)
 {
 	static byte srcbuf[1000];
-	static string srcstring;
+	static String srcstring;
 	static int32 lno, incstart;
 	static int32 nf, nhist;
 	Func *f;

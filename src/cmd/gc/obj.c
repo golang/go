@@ -484,8 +484,16 @@ dumpsignatures(void)
 		dumpsigt(progt, ifacet, rcvrt, methodt, s);
 	}
 
-	if(stringo > 0)
-		ggloblsym(symstringo, stringo, 0);
+	if(stringl > 0) {
+		stringl = rnd(stringl, maxround);
+		ggloblsym(symstringl, stringl, 0);
+		if(stringc == 0)
+			stringc = 1;
+	}
+	if(stringc > 0) {
+		stringc = rnd(stringc, maxround);
+		ggloblsym(symstringc, stringc, 0);
+	}
 }
 
 void
@@ -511,10 +519,7 @@ stringpool(Node *n)
 		poolast->link = p;
 	poolast = p;
 
-	w = types[TINT32]->width;
-	symstringo->offset += w;		// len
-	symstringo->offset += p->sval->len;	// str[len]
-	symstringo->offset = rnd(symstringo->offset, w);
+	symstringl->offset += types[TSTRING]->width;
 }
 
 Sig*

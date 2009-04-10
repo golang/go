@@ -2,11 +2,39 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-extern char gotypestrings[];	// really a go String, but we don't have the definition here
 
-void FLUSH(void*) { }
+extern	char	gotypestrings[];	// 4-byte count followed by byte[count]
 
-void reflect·typestrings(void *s) {
+void
+FLUSH(void*)
+{
+}
+
+typedef	struct	String	String;
+struct	String
+{
+	char*	str;
+	char	len[4];
+	char	cap[4];
+};
+
+void
+reflect·typestrings(String str)
+{
+	char *s;
+	int i;
+
 	s = gotypestrings;
-	FLUSH(&s);
+
+	// repeat the count twice
+	// once for len, once for cap
+	for(i=0; i<4; i++) {
+		str.len[i] = s[i];
+		str.cap[i] = s[i];
+	}
+
+	// and the pointer
+	str.str = s+4;
+
+	FLUSH(&str);
 }
