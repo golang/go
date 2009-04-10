@@ -153,6 +153,7 @@ main(int argc, char *argv[])
 			HEADTYPE = 1;
 		if(debug['9'])
 			HEADTYPE = 2;
+		HEADTYPE = 6;
 	}
 	switch(HEADTYPE) {
 	default:
@@ -211,6 +212,15 @@ main(int argc, char *argv[])
 			INITDAT = 0;
 		if(INITRND == -1)
 			INITRND = 1024;
+		break;
+	case 6:	/* arm elf */
+		HEADR = linuxheadr();
+		if(INITTEXT == -1)
+			INITTEXT = 0x8000+HEADR;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = 4096;
 		break;
 	}
 	if(INITDAT != 0 && INITRND != 0)

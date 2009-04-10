@@ -323,6 +323,7 @@ EXTERN	Oprang	thumboprange[ALAST];
 EXTERN	char*	outfile;
 EXTERN	int32	pc;
 EXTERN	uchar	repop[ALAST];
+EXTERN	uint32	stroffset;
 EXTERN	int32	symsize;
 EXTERN	Prog*	textp;
 EXTERN	int32	textsize;
@@ -456,6 +457,7 @@ void	strnput(char*, int);
 void	undef(void);
 void	undefsym(Sym*);
 void	wput(int32);
+void    wputl(ushort w);
 void	xdefine(char*, int, int32);
 void	xfol(Prog*);
 void	zerosig(char*);
@@ -470,5 +472,13 @@ int	fninc(Sym *);
 void	thumbcount(void);
 void reachable(void);
 void fnptrs(void);
+
+uint32	linuxheadr(void);
+void	linuxphdr(int type, int flags, vlong foff,
+	vlong vaddr, vlong paddr,
+	vlong filesize, vlong memsize, vlong align);
+void	linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
+	vlong size, uint32 link, uint32 info, vlong align, vlong entsize);
+int	linuxstrtable(void);
 
 #endif
