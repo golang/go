@@ -31,8 +31,13 @@ func d(t T) {
 
 var c = make(chan int);
 var t T;
+var b = []byte{1,2,3,4,5,6,7,8,9,10};
 
 func recur(n int) {
+	ss := string(b);
+	if len(ss) != len(b) {
+		panic("bad []byte -> string");
+	}
 	go g(c, t);
 	s := <-c;
 	if s != len(t) {
