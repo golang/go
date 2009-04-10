@@ -104,10 +104,10 @@ cgen(Node *n, Node *res)
 	nr = n->right;
 	if(nl != N && nl->ullman >= UINF)
 	if(nr != N && nr->ullman >= UINF) {
-		tempname(&n1, nr->type);
-		cgen(nr, &n1);
+		tempname(&n1, nl->type);
+		cgen(nl, &n1);
 		n2 = *n;
-		n2.right = &n1;
+		n2.left = &n1;
 		cgen(&n2, res);
 		goto ret;
 	}
