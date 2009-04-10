@@ -50,12 +50,10 @@ enum
 /*
  * note this is the representation
  * of the compilers string literals,
- * it happens to also be the runtime
- * representation, ignoring sizes and
- * alignment, but that may change.
+ * it is not the runtime representation
  */
-typedef	struct	String	String;
-struct	String
+typedef	struct	Strlit	Strlit;
+struct	Strlit
 {
 	int32	len;
 	char	s[3];	// variable
@@ -124,7 +122,7 @@ struct	Val
 		short	bval;		// bool value CTBOOL
 		Mpint*	xval;		// int CTINT
 		Mpflt*	fval;		// float CTFLT
-		String*	sval;		// string CTSTR
+		Strlit*	sval;		// string CTSTR
 	} u;
 };
 
@@ -167,7 +165,7 @@ struct	Type
 
 	// TFIELD
 	Type*	down;		// also used in TMAP
-	String*	note;			// literal string annotation
+	Strlit*	note;		// literal string annotation
 
 	// TARRAY
 	int32	bound;		// negative is dynamic array
@@ -468,14 +466,16 @@ struct Sig
 typedef	struct	Pool Pool;
 struct	Pool
 {
-	String*	sval;
+	Strlit*	sval;
 	Pool*	link;
 };
 
 EXTERN	Pool*	poolist;
 EXTERN	Pool*	poolast;
-EXTERN	Sym*	symstringo;	// string objects
-EXTERN	int32	stringo;	// size of string objects
+EXTERN	Sym*	symstringl;	// string literals
+EXTERN	Sym*	symstringc;	// string characters
+EXTERN	int32	stringl;	// size of string literals
+EXTERN	int32	stringc;	// size of string characters
 
 typedef	struct	Io	Io;
 struct	Io
@@ -512,10 +512,23 @@ struct Idir
  * 	uchar	cap[4];		// allocated number of elements
  * } Array;
  */
-EXTERN	int	Array_array;	// runtime offsetof(Array,array)
-EXTERN	int	Array_nel;	// runtime offsetof(Array,nel)
+EXTERN	int	Array_array;	// runtime offsetof(Array,array) - same for String
+EXTERN	int	Array_nel;	// runtime offsetof(Array,nel) - same for String
 EXTERN	int	Array_cap;	// runtime offsetof(Array,cap)
 EXTERN	int	sizeof_Array;	// runtime sizeof(Array)
+
+
+/*
+ * note this is the runtime representation
+ * of the compilers strings.
+ *
+ * typedef	struct
+ * {				// must not move anything
+ * 	uchar	array[8];	// pointer to data
+ * 	uchar	nel[4];		// number of elements
+ * } String;
+ */
+EXTERN	int	sizeof_String;	// runtime sizeof(String)
 
 EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds
 

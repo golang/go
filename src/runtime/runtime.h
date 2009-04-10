@@ -51,7 +51,7 @@ typedef	struct	M		M;
 typedef	struct	Mem		Mem;
 typedef	union	Note		Note;
 typedef	struct	Stktop		Stktop;
-typedef	struct	String		*string;
+typedef	struct	String		String;
 typedef	struct	Usema		Usema;
 typedef	struct	SigTab		SigTab;
 typedef	struct	MCache		MCache;
@@ -110,13 +110,13 @@ union	Note
 };
 struct String
 {
+	byte*	str;
 	int32	len;
-	byte	str[1];
 };
 struct Iface
 {
-	Itype *type;
-	void *data;
+	Itype*	type;
+	void*	data;
 };
 
 struct	Array
@@ -209,9 +209,9 @@ enum
 // be closer to this form.
 struct	Func
 {
-	string	name;
-	string	type;	// go type string
-	string	src;	// src file name
+	String	name;
+	String	type;	// go type string
+	String	src;	// src file name
 	uint64	entry;	// entry pc
 	int64	frame;	// stack frame size
 	Array	pcln;	// pc/ln tab for this func
@@ -258,7 +258,7 @@ struct Defer
  * external data
  */
 extern	Alg	algarray[Amax];
-extern	string	emptystring;
+extern	String	emptystring;
 G*	allg;
 int32	goidgen;
 extern	int32	gomaxprocs;
@@ -293,8 +293,8 @@ void	mcpy(byte*, byte*, uint32);
 int32	mcmp(byte*, byte*, uint32);
 void	mmov(byte*, byte*, uint32);
 void*	mal(uint32);
-uint32	cmpstring(string, string);
-string	gostring(byte*);
+uint32	cmpstring(String, String);
+String	gostring(byte*);
 void	initsig(void);
 int32	gotraceback(void);
 void	traceback(uint8 *pc, uint8 *sp, G* gp);
@@ -343,7 +343,7 @@ void	free(void *v);
 #pragma	varargck	type	"p"	uintptr
 #pragma	varargck	type	"s"	int8*
 #pragma	varargck	type	"s"	uint8*
-#pragma	varargck	type	"S"	string
+#pragma	varargck	type	"S"	String
 
 // TODO(rsc): Remove. These are only temporary,
 // for the mark and sweep collector.
@@ -424,17 +424,17 @@ void	sys_printbool(bool);
 void	sys_printfloat(float64);
 void	sys_printint(int64);
 void	sys_printinter(Iface);
-void	sys_printstring(string);
+void	sys_printstring(String);
 void	sys_printpc(void*);
 void	sys_printpointer(void*);
 void	sys_printuint(uint64);
 void	sys_printhex(uint64);
 void	sys_printarray(Array);
-void	sys_catstring(string, string, string);
-void	sys_cmpstring(string, string, int32);
-void	sys_slicestring(string, int32, int32, string);
-void	sys_indexstring(string, int32, byte);
-void	sys_intstring(int64, string);
+void	sys_catstring(String, String, String);
+void	sys_cmpstring(String, String, int32);
+void	sys_slicestring(String, int32, int32, String);
+void	sys_indexstring(String, int32, byte);
+void	sys_intstring(int64, String);
 
 /*
  * wrapped for go users

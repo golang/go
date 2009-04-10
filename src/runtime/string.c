@@ -4,8 +4,7 @@
 
 #include "runtime.h"
 
-static	int32	empty		= 0;
-string	emptystring	= (string)&empty;
+String	emptystring;
 
 int32
 findnull(byte *s)
@@ -21,49 +20,47 @@ findnull(byte *s)
 
 int32 maxstring;
 
-string
+String
 gostringsize(int32 l)
 {
-	string s;
+	String s;
 
-	s = mal(sizeof(s->len)+l+1);
-	s->len = l;
+	if(l == 0)
+		return emptystring;
+	s.str = mal(l);
+	s.len = l;
 	if(l > maxstring)
 		maxstring = l;
 	return s;
 }
 
-string
+String
 gostring(byte *str)
 {
 	int32 l;
-	string s;
+	String s;
 
 	l = findnull(str);
 	s = gostringsize(l);
-	mcpy(s->str, str, l+1);
+	mcpy(s.str, str, l);
 	return s;
 }
 
 void
-sys·catstring(string s1, string s2, string s3)
+sys·catstring(String s1, String s2, String s3)
 {
-	uint32 l;
-
-	if(s1 == nil || s1->len == 0) {
+	if(s1.len == 0) {
 		s3 = s2;
 		goto out;
 	}
-	if(s2 == nil || s2->len == 0) {
+	if(s2.len == 0) {
 		s3 = s1;
 		goto out;
 	}
 
-	l = s1->len + s2->len;
-
-	s3 = gostringsize(l);
-	mcpy(s3->str, s1->str, s1->len);
-	mcpy(s3->str+s1->len, s2->str, s2->len);
+	s3 = gostringsize(s1.len + s2.len);
+	mcpy(s3.str, s1.str, s1.len);
+	mcpy(s3.str+s1.len, s2.str, s2.len);
 
 out:
 	FLUSH(&s3);
@@ -84,36 +81,31 @@ prbounds(int8* s, int32 a, int32 b, int32 c)
 }
 
 uint32
-cmpstring(string s1, string s2)
+cmpstring(String s1, String s2)
 {
 	uint32 i, l;
 	byte c1, c2;
 
-	if(s1 == nil)
-		s1 = emptystring;
-	if(s2 == nil)
-		s2 = emptystring;
-
-	l = s1->len;
-	if(s2->len < l)
-		l = s2->len;
+	l = s1.len;
+	if(s2.len < l)
+		l = s2.len;
 	for(i=0; i<l; i++) {
-		c1 = s1->str[i];
-		c2 = s2->str[i];
+		c1 = s1.str[i];
+		c2 = s2.str[i];
 		if(c1 < c2)
 			return -1;
 		if(c1 > c2)
 			return +1;
 	}
-	if(s1->len < s2->len)
+	if(s1.len < s2.len)
 		return -1;
-	if(s1->len > s2->len)
+	if(s1.len > s2.len)
 		return +1;
 	return 0;
 }
 
 void
-sys·cmpstring(string s1, string s2, int32 v)
+sys·cmpstring(String s1, String s2, int32 v)
 {
 	v = cmpstring(s1, s2);
 	FLUSH(&v);
@@ -138,62 +130,61 @@ strcmp(byte *s1, byte *s2)
 }
 
 void
-sys·slicestring(string si, int32 lindex, int32 hindex, string so)
+sys·slicestring(String si, int32 lindex, int32 hindex, String so)
 {
 	int32 l;
 
-	if(si == nil)
-		si = emptystring;
-
-	if(lindex < 0 || lindex > si->len ||
-	   hindex < lindex || hindex > si->len) {
+	if(lindex < 0 || lindex > si.len ||
+	   hindex < lindex || hindex > si.len) {
 		sys·printpc(&si);
 		prints(" ");
-		prbounds("slice", lindex, si->len, hindex);
+		prbounds("slice", lindex, si.len, hindex);
 	}
 
 	l = hindex-lindex;
-	so = gostringsize(l);
-	mcpy(so->str, si->str+lindex, l);
+	so.str = si.str + lindex;
+	so.len = l;
+
+//	alternate to create a new string
+//	so = gostringsize(l);
+//	mcpy(so.str, si.str+lindex, l);
+
 	FLUSH(&so);
 }
 
 void
-sys·indexstring(string s, int32 i, byte b)
+sys·indexstring(String s, int32 i, byte b)
 {
-	if(s == nil)
-		s = emptystring;
-
-	if(i < 0 || i >= s->len) {
+	if(i < 0 || i >= s.len) {
 		sys·printpc(&s);
 		prints(" ");
-		prbounds("index", 0, i, s->len);
+		prbounds("index", 0, i, s.len);
 	}
 
-	b = s->str[i];
+	b = s.str[i];
 	FLUSH(&b);
 }
 
 void
-sys·intstring(int64 v, string s)
+sys·intstring(int64 v, String s)
 {
 	s = gostringsize(8);
-	s->len = runetochar(s->str, v);
+	s.len = runetochar(s.str, v);
 	FLUSH(&s);
 }
 
 void
-sys·byteastring(byte *a, int32 l, string s)
+sys·byteastring(byte *a, int32 l, String s)
 {
 	s = gostringsize(l);
-	mcpy(s->str, a, l);
+	mcpy(s.str, a, l);
 	FLUSH(&s);
 }
 
 void
-sys·arraystring(Array b, string s)
+sys·arraystring(Array b, String s)
 {
 	s = gostringsize(b.nel);
-	mcpy(s->str, b.array, s->len);
+	mcpy(s.str, b.array, s.len);
 	FLUSH(&s);
 }

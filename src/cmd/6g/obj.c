@@ -261,6 +261,10 @@ dumpfuncs(void)
 	}
 }
 
+/*
+ * dump the characters of the string
+ * pool into the array symstringc
+ */
 void
 datastring(char *s, int len)
 {
@@ -273,7 +277,7 @@ datastring(char *s, int len)
 	ao.type = D_STATIC;
 	ao.index = D_NONE;
 	ao.etype = TINT32;
-	ao.sym = symstringo;
+	ao.sym = symstringc;
 	ao.offset = 0;		// fill in
 
 	// constant
@@ -288,7 +292,7 @@ datastring(char *s, int len)
 
 		// .stringo<>+oo, [NSNAME], $"xxx"
 		p->from = ao;
-		p->from.offset = stringo;
+		p->from.offset = stringc;
 
 		p->from.scale = NSNAME;
 		if(w+8 > len)
@@ -298,23 +302,29 @@ datastring(char *s, int len)
 		p->to.type = D_SCONST;
 		p->to.offset = len;
 		memmove(p->to.sval, s+w, p->from.scale);
-		stringo += p->from.scale;
+		stringc += p->from.scale;
 	}
 }
 
+/*
+ * dump the strings into thye pool
+ * symstingl that consists of a pointer
+ * to the characters and a count
+ */
 void
 dumpstrings(void)
 {
 	Pool *l;
 	Prog *p;
-	Addr ac, ao;
-	int32 wi;
+	Addr ac, ao, ap;
+	int32 wi, wp, ws;
 
 	if(poolist == nil)
 		return;
 
 	memset(&ac, 0, sizeof(ac));
 	memset(&ao, 0, sizeof(ao));
+	memset(&ap, 0, sizeof(ap));
 
 	// constant
 	ac.type = D_CONST;
@@ -325,26 +335,44 @@ dumpstrings(void)
 	ao.type = D_STATIC;
 	ao.index = D_NONE;
 	ao.etype = TINT32;
-	ao.sym = symstringo;
+	ao.sym = symstringl;
 	ao.offset = 0;			// fill in
 
-	wi = types[TINT32]->width;
+	// $string len+ptr
+	ap.type = D_ADDR;
+	ap.index = D_STATIC;
+	ap.etype = TINT32;
+	ap.sym = symstringc;
+	ap.offset = 0;			// fill in
+
+	wi = types[TUINT32]->width;
+	wp = types[tptr]->width;
+	ws = types[TSTRING]->width;
 
 	// lay out (count+string)
 	for(l=poolist; l!=nil; l=l->link) {
 
+		// .stringl<>+ol, wp, $.stringc<>+oc
 		p = pc;
 		gins(ADATA, N, N);
-
-		// .stringo<>+xx, wi, $len
-		stringo = rnd(stringo, wi);
 		p->from = ao;
-		p->from.offset = stringo;
+		p->from.offset = stringl;
+		p->from.scale = wp;
+		p->to = ap;
+		p->to.offset = stringc;
+		stringl += wp;
+
+		// .stringl<>+ol, wi, $len
+		p = pc;
+		gins(ADATA, N, N);
+		p->from = ao;
+		p->from.offset = stringl;
 		p->from.scale = wi;
 		p->to = ac;
 		p->to.offset = l->sval->len;
-		stringo += wi;
+		stringl += wi;
 
+		stringl = rnd(stringl, ws);
 		datastring(l->sval->s, l->sval->len);
 	}
 }
@@ -361,11 +389,12 @@ dstringptr(Sym *s, int off, char *str)
 	p->from.sym = s;
 	p->from.offset = off;
 	p->from.scale = widthptr;
+
 	p->to.type = D_ADDR;
 	p->to.index = D_STATIC;
 	p->to.etype = TINT32;
-	p->to.sym = symstringo;
-	p->to.offset = stringo;
+	p->to.sym = symstringc;
+	p->to.offset = stringc;
 	off += widthptr;
 
 	datastring(str, strlen(str)+1);

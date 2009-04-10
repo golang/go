@@ -212,8 +212,8 @@ cgen(Node *n, Node *res)
 		break;
 
 	case OLEN:
-		if(istype(nl->type, TSTRING) || istype(nl->type, TMAP)) {
-			// both string and map have len in the first 32-bit word.
+		if(istype(nl->type, TMAP)) {
+			// map hsd len in the first 32-bit word.
 			// a zero pointer means zero length
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
@@ -233,7 +233,9 @@ cgen(Node *n, Node *res)
 			regfree(&n1);
 			break;
 		}
-		if(isslice(nl->type)) {
+		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
+			// both slice and string have len in the first 32-bit word.
+			// a zero pointer means zero length
 			regalloc(&n1, types[tptr], res);
 			agen(nl, &n1);
 			n1.op = OINDREG;

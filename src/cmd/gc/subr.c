@@ -1361,10 +1361,10 @@ int
 Zconv(Fmt *fp)
 {
 	Rune r;
-	String *sp;
+	Strlit *sp;
 	char *s, *se;
 
-	sp = va_arg(fp->args, String*);
+	sp = va_arg(fp->args, Strlit*);
 	if(sp == nil)
 		return fmtstrcpy(fp, "<nil>");
 

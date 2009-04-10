@@ -664,7 +664,7 @@ stotype(Node *n, int et, Type **t)
 {
 	Type *f, *t1;
 	Iter save;
-	String *note;
+	Strlit *note;
 	int lno;
 
 	lno = lineno;
