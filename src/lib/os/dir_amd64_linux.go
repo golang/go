@@ -59,7 +59,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
 			if dirent.Ino == 0 {	// File absent in directory.
 				continue
 			}
-			var name = string(dirent.Name[0:clen(dirent.Namlen)]);
+			var name = string(dirent.Name[0:clen(dirent.Name)]);
 			if name == "." || name == ".." {	// Useless names
 				continue
 			}
