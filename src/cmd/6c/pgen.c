@@ -37,7 +37,7 @@ argsize(void)
 	int32 s;
 
 //print("t=%T\n", thisfn);
-	s = 0;
+	s = align(0, thisfn->link, Aarg0);
 	for(t=thisfn->down; t!=T; t=t->down) {
 		switch(t->etype) {
 		case TVOID:
