@@ -32,6 +32,8 @@
 
 Optab	optab[] =
 {
+	/* Data layout:
+	  OPCODE,	ARG0, ARG1, ARG2,		 magic numbers? */
 	{ ATEXT,	C_LEXT,	C_NONE,	C_LCON, 	 0, 0, 0 },
 	{ ATEXT,	C_LEXT,	C_REG,	C_LCON, 	 0, 0, 0 },
 	{ ATEXT,	C_ADDR,	C_NONE,	C_LCON, 	 0, 0, 0 },
@@ -75,6 +77,7 @@ Optab	optab[] =
 
 	{ ASWI,		C_NONE,	C_NONE,	C_NONE,		10, 4, 0 },
 	{ ASWI,		C_NONE,	C_NONE,	C_LOREG,	10, 4, 0 },
+	{ ASWI,		C_NONE,	C_NONE,	C_LCON,		10, 4, 0 },
 
 	{ AWORD,	C_NONE,	C_NONE,	C_LCON,		11, 4, 0 },
 	{ AWORD,	C_NONE,	C_NONE,	C_GCON,		11, 4, 0 },
