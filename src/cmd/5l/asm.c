@@ -64,7 +64,14 @@ asmb(void)
 {
 	Prog *p;
 	int32 t, etext;
+	int np;
+	vlong va, fo, w, symo;
+	int strtabsize;
+	vlong symdatva = 0x99LL<<24;
 	Optab *o;
+
+	strtabsize = 0;
+	symo = 0;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asm\n", cputime());
@@ -112,6 +119,7 @@ asmb(void)
 			datblk(t, etext-t, 1);
 	}
 
+	/* output section header strings */
 	curtext = P;
 	switch(HEADTYPE) {
 	case 0:
@@ -124,6 +132,13 @@ asmb(void)
 	case 3:
 		OFFSET = rnd(HEADR+textsize, 4096);
 		seek(cout, OFFSET, 0);
+		break;
+	case 6:
+		seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
+		strtabsize = linuxstrtable();
+		cflush();
+		t = rnd(HEADR+textsize, INITRND);
+		seek(cout, t, 0);
 		break;
 	}
 	if(dlm){
@@ -140,6 +155,7 @@ asmb(void)
 	}
 	cflush();
 
+	/* output symbol table */
 	symsize = 0;
 	lcsize = 0;
 	if(!debug['s']) {
@@ -160,6 +176,11 @@ asmb(void)
 		case 3:
 			OFFSET += rnd(datsize, 4096);
 			seek(cout, OFFSET, 0);
+			break;
+		case 6:
+			symo = rnd(HEADR+textsize, INITRND)+datsize+strtabsize;
+			symo = rnd(symo, INITRND);
+			seek(cout, symo + 8, 0);
 			break;
 		}
 		if(!debug['s'])
@@ -251,6 +272,181 @@ asmb(void)
 		lputl(0xe3300000);		/* nop */
 		lputl(0xe3300000);		/* nop */
 		break;
+	case 6:
+		/* elf arm */
+		strnput("\177ELF", 4);		/* e_ident */
+		cput(1);			/* class = 32 bit */
+		cput(1);			/* data = LSB */
+		cput(1);			/* version = CURRENT */
+		strnput("", 9);
+
+		wputl(2);			/* type = EXEC */
+		wputl(40);			/* machine = ARM */
+		lputl(1L);			/* version = CURRENT */
+		lputl(entryvalue());		/* entry vaddr */
+		lputl(52L);			/* offset to first phdr */
+		np = 3;
+		if(!debug['s'])
+			np++;
+		lputl(52L+32*np);		/* offset to first shdr */
+		lputl(0L);			/* processor specific flags */
+		wputl(52);			/* Ehdr size */
+		wputl(32);			/* Phdr size */
+		wputl(np);			/* # of Phdrs */
+		wputl(40);			/* Shdr size */
+		if (!debug['s'])
+			wputl(7);			/* # of Shdrs */
+		else
+			wputl(5);			/* # of Shdrs */
+		wputl(4);			/* Shdr with strings */
+
+		fo = 0;
+		va = INITTEXT & ~((vlong)INITRND - 1);
+		w = HEADR+textsize;
+
+		linuxphdr(1,			/* text - type = PT_LOAD */
+			1L+4L,			/* text - flags = PF_X+PF_R */
+			0,			/* file offset */
+			va,			/* vaddr */
+			va,			/* paddr */
+			w,			/* file size */
+			w,			/* memory size */
+			INITRND);		/* alignment */
+
+		fo = rnd(fo+w, INITRND);
+		va = rnd(va+w, INITRND);
+		w = datsize;
+
+		linuxphdr(1,			/* data - type = PT_LOAD */
+			2L+4L,			/* data - flags = PF_W+PF_R */
+			fo,			/* file offset */
+			va,			/* vaddr */
+			va,			/* paddr */
+			w,			/* file size */
+			w+bsssize,		/* memory size */
+			INITRND);		/* alignment */
+
+		if(!debug['s']) {
+			linuxphdr(1,			/* data - type = PT_LOAD */
+				2L+4L,			/* data - flags = PF_W+PF_R */
+				symo,		/* file offset */
+				symdatva,			/* vaddr */
+				symdatva,			/* paddr */
+				8+symsize+lcsize,			/* file size */
+				8+symsize+lcsize,		/* memory size */
+				INITRND);		/* alignment */
+		}
+
+		linuxphdr(0x6474e551,		/* gok - type = gok */
+			1L+2L+4L,		/* gok - flags = PF_X+PF_W+PF_R */
+			0,			/* file offset */
+			0,			/* vaddr */
+			0,			/* paddr */
+			0,			/* file size */
+			0,			/* memory size */
+			8);			/* alignment */
+
+		linuxshdr(nil,			/* name */
+			0,			/* type */
+			0,			/* flags */
+			0,			/* addr */
+			0,			/* off */
+			0,			/* size */
+			0,			/* link */
+			0,			/* info */
+			0,			/* align */
+			0);			/* entsize */
+
+		stroffset = 1;  /* 0 means no name, so start at 1 */
+		fo = HEADR;
+		va = (INITTEXT & ~((vlong)INITRND - 1)) + HEADR;
+		w = textsize;
+
+		linuxshdr(".text",		/* name */
+			1,			/* type */
+			6,			/* flags */
+			va,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			8,			/* align */
+			0);			/* entsize */
+
+		fo = rnd(fo+w, INITRND);
+		va = rnd(va+w, INITRND);
+		w = datsize;
+
+		linuxshdr(".data",		/* name */
+			1,			/* type */
+			3,			/* flags */
+			va,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			8,			/* align */
+			0);			/* entsize */
+
+		fo += w;
+		va += w;
+		w = bsssize;
+
+		linuxshdr(".bss",		/* name */
+			8,			/* type */
+			3,			/* flags */
+			va,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			8,			/* align */
+			0);			/* entsize */
+
+		w = strtabsize;
+
+		linuxshdr(".shstrtab",		/* name */
+			3,			/* type */
+			0,			/* flags */
+			0,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			1,			/* align */
+			0);			/* entsize */
+
+		if (debug['s'])
+			break;
+
+		fo = symo+8;
+		w = symsize;
+
+		linuxshdr(".gosymtab",		/* name */
+			1,			/* type 1 = SHT_PROGBITS */
+			0,			/* flags */
+			0,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			1,			/* align */
+			24);			/* entsize */
+
+		fo += w;
+		w = lcsize;
+
+		linuxshdr(".gopclntab",		/* name */
+			1,			/* type 1 = SHT_PROGBITS*/
+			0,			/* flags */
+			0,			/* addr */
+			fo,			/* off */
+			w,			/* size */
+			0,			/* link */
+			0,			/* info */
+			1,			/* align */
+			24);			/* entsize */
+		break;
 	}
 	cflush();
 	if(debug['c']){
@@ -305,6 +501,14 @@ wput(int32 l)
 	if(cbc <= 0)
 		cflush();
 }
+
+void
+wputl(ushort w)
+{
+	cput(w);
+	cput(w>>8);
+}
+
 
 void
 hput(int32 l)
@@ -1828,4 +2032,92 @@ chipfloat(Ieee *e)
 			return n;
 	}
 	return -1;
+}
+
+uint32
+linuxheadr(void)
+{
+	uint32 a;
+
+	a = 64;		/* a.out header */
+
+	a += 56;	/* page zero seg */
+	a += 56;	/* text seg */
+	a += 56;	/* stack seg */
+
+	a += 64;	/* nil sect */
+	a += 64;	/* .text sect */
+	a += 64;	/* .data seg */
+	a += 64;	/* .bss sect */
+	a += 64;	/* .shstrtab sect - strings for headers */
+	if (!debug['s']) {
+		a += 56;	/* symdat seg */
+		a += 64;	/* .gosymtab sect */
+		a += 64;	/* .gopclntab sect */
+	}
+
+	return a;
+}
+
+void
+linuxphdr(int type, int flags, vlong foff,
+	vlong vaddr, vlong paddr,
+	vlong filesize, vlong memsize, vlong align)
+{
+
+	lputl(type);			/* text - type = PT_LOAD */
+	lputl(foff);			/* file offset */
+	lputl(vaddr);			/* vaddr */
+	lputl(paddr);			/* paddr */
+	lputl(filesize);		/* file size */
+	lputl(memsize);		/* memory size */
+	lputl(flags);			/* text - flags = PF_X+PF_R */
+	lputl(align);			/* alignment */
+}
+
+void
+linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
+	vlong size, uint32 link, uint32 info, vlong align, vlong entsize)
+{
+	lputl(stroffset);
+	lputl(type);
+	lputl(flags);
+	lputl(addr);
+	lputl(off);
+	lputl(size);
+	lputl(link);
+	lputl(info);
+	lputl(align);
+	lputl(entsize);
+
+	if(name != nil)
+		stroffset += strlen(name)+1;
+}
+
+int
+putstrtab(char* name)
+{
+	int w;
+
+	w = strlen(name)+1;
+	strnput(name, w);
+	return w;
+}
+
+int
+linuxstrtable(void)
+{
+	int size;
+
+	size = 0;
+	size += putstrtab("");
+	size += putstrtab(".text");
+	size += putstrtab(".data");
+	size += putstrtab(".bss");
+	size += putstrtab(".shstrtab");
+	if (!debug['s']) {
+		size += putstrtab(".gosymtab");
+		size += putstrtab(".gopclntab");
+	}
+	return size;
 }
