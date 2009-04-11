@@ -188,3 +188,159 @@ sys·arraystring(Array b, String s)
 	mcpy(s.str, b.array, s.len);
 	FLUSH(&s);
 }
+
+static	int32	chartorune(int32 *rune, byte *str);
+enum
+{
+	Runeself	= 0x80,
+	Runeerror	= 0xfff8,	// fffd in plan9
+};
+
+// func	stringiter(string, int) (retk int);
+void
+sys·stringiter(String s, int32 k, int32 retk)
+{
+	int32 l, n;
+
+	if(k >= s.len) {
+		// retk=0 is end of iteration
+		retk = 0;
+		goto out;
+	}
+
+	l = s.str[k];
+	n = 1;
+
+	if(l >= Runeself) {
+		// multi-char rune
+		n = chartorune(&l, s.str+k);
+		if(k+n > s.len) {
+			// special case of multi-char rune
+			// that ran off end of string
+			l = Runeerror;
+			n = 1;
+		}
+	}
+
+	retk = k+n;
+
+out:
+	FLUSH(&retk);
+}
+
+// func	stringiter2(string, int) (retk int, retv any);
+void
+sys·stringiter2(String s, int32 k, int32 retk, int32 retv)
+{
+	int32 l, n;
+
+	if(k >= s.len) {
+		// retk=0 is end of iteration
+		retk = 0;
+		retv = 0;
+		goto out;
+	}
+
+	l = s.str[k];
+	n = 1;
+
+	if(l >= Runeself) {
+		// multi-char rune
+		n = chartorune(&l, s.str+k);
+		if(k+n > s.len) {
+			// special case of multi-char rune
+			// that ran off end of string
+			l = Runeerror;
+			n = 1;
+		}
+	}
+
+	retk = k+n;
+	retv = l;
+
+out:
+	FLUSH(&retk);
+	FLUSH(&retv);
+}
+
+//
+// copied from plan9 library
+//
+
+enum
+{
+	Bit1	= 7,
+	Bitx	= 6,
+	Bit2	= 5,
+	Bit3	= 4,
+	Bit4	= 3,
+
+	T1	= ((1<<(Bit1+1))-1) ^ 0xFF,	/* 0000 0000 */
+	Tx	= ((1<<(Bitx+1))-1) ^ 0xFF,	/* 1000 0000 */
+	T2	= ((1<<(Bit2+1))-1) ^ 0xFF,	/* 1100 0000 */
+	T3	= ((1<<(Bit3+1))-1) ^ 0xFF,	/* 1110 0000 */
+	T4	= ((1<<(Bit4+1))-1) ^ 0xFF,	/* 1111 0000 */
+
+	Rune1	= (1<<(Bit1+0*Bitx))-1,		/* 0000 0000 0111 1111 */
+	Rune2	= (1<<(Bit2+1*Bitx))-1,		/* 0000 0111 1111 1111 */
+	Rune3	= (1<<(Bit3+2*Bitx))-1,		/* 1111 1111 1111 1111 */
+
+	Maskx	= (1<<Bitx)-1,			/* 0011 1111 */
+	Testx	= Maskx ^ 0xFF,			/* 1100 0000 */
+};
+
+static int32
+chartorune(int32 *rune, byte *str)
+{
+	int32 c, c1, c2;
+	int32 l;
+
+	/*
+	 * one character sequence
+	 *	00000-0007F => T1
+	 */
+	c = str[0];
+	if(c < Tx) {
+		*rune = c;
+		return 1;
+	}
+
+	/*
+	 * two character sequence
+	 *	0080-07FF => T2 Tx
+	 */
+	c1 = str[1] ^ Tx;
+	if(c1 & Testx)
+		goto bad;
+	if(c < T3) {
+		if(c < T2)
+			goto bad;
+		l = ((c << Bitx) | c1) & Rune2;
+		if(l <= Rune1)
+			goto bad;
+		*rune = l;
+		return 2;
+	}
+
+	/*
+	 * three character sequence
+	 *	0800-FFFF => T3 Tx Tx
+	 */
+	c2 = str[2] ^ Tx;
+	if(c2 & Testx)
+		goto bad;
+	if(c < T4) {
+		l = ((((c << Bitx) | c1) << Bitx) | c2) & Rune3;
+		if(l <= Rune2)
+			goto bad;
+		*rune = l;
+		return 3;
+	}
+
+	/*
+	 * bad decoding
+	 */
+bad:
+	*rune = Runeerror;
+	return 1;
+}
