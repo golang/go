@@ -3191,7 +3191,7 @@ badt:
  * rewrite a range statement
  * k and v are names/new_names
  * m is an array or map
- * local is =/0 or :=/1
+ * local is 0 (meaning =) or 1 (meaning :=)
  */
 Node*
 dorange(Node *nn)
@@ -3227,8 +3227,10 @@ dorange(Node *nn)
 		goto map;
 	if(t->etype == TCHAN)
 		goto chan;
+	if(t->etype == TSTRING)
+		goto strng;
 
-	yyerror("range must be over map/array");
+	yyerror("range must be over map/array/chan/string");
 	goto out;
 
 ary:
@@ -3330,6 +3332,77 @@ chan:
 	if(local)
 		k = old2new(k, hv->type);
 	n->nbody = nod(OAS, k, hv);
+	addtotop(n);
+	goto out;
+
+strng:
+	hk = nod(OXXX, N, N);		// hidden key
+	tempname(hk, types[TINT]);
+
+	ha = nod(OXXX, N, N);		// hidden string
+	tempname(ha, t);
+
+
+	if(local) {
+		k = old2new(k, types[TINT]);
+		if(v != N)
+			v = old2new(v, types[TINT]);
+	}
+
+	// ha = s
+	a = nod(OAS, ha, m);
+	n->ninit = a;
+
+	// kh = 0
+	a = nod(OAS, hk, nodintconst(0));
+	n->ninit = list(n->ninit, a);
+
+	// k = hk
+	a = nod(OAS, k, hk);
+	n->ninit = list(n->ninit, a);
+
+
+	// hk[,v] = stringiter(ha,hk)
+	if(v != N) {
+		// hk,v = stringiter2(ha, hk)
+		on = syslook("stringiter2", 0);
+//		argtype(on, v->type);
+		a = list(ha, hk);
+		a = nod(OCALL, on, a);
+		a = nod(OAS, list(hk, v), a);
+	} else {
+		// hk = stringiter(ha, hk)
+		on = syslook("stringiter", 0);
+		a = list(ha, hk);
+		a = nod(OCALL, on, a);
+		a = nod(OAS, hk, a);
+	}
+	n->ninit = list(n->ninit, a);
+
+	// while(hk != 0)
+	n->ntest = nod(ONE, hk, nodintconst(0));
+
+	// k = hk
+	a = nod(OAS, k, hk);
+	n->nincr = a;
+
+	// hk[,v] = stringiter(ha,hk)
+	if(v != N) {
+		// hk,v = stringiter2(ha, hk)
+		on = syslook("stringiter2", 0);
+//		argtype(on, v->type);
+		a = list(ha, hk);
+		a = nod(OCALL, on, a);
+		a = nod(OAS, list(hk, v), a);
+	} else {
+		// hk = stringiter(ha, hk)
+		on = syslook("stringiter", 0);
+		a = list(ha, hk);
+		a = nod(OCALL, on, a);
+		a = nod(OAS, hk, a);
+	}
+	n->nincr = list(n->nincr, a);
+
 	addtotop(n);
 	goto out;
 

@@ -29,6 +29,8 @@ func	indexstring(string, int) byte;
 func	intstring(int64) string;
 func	byteastring(*byte, int) string;
 func	arraystring([]byte) string;
+func	stringiter(string, int) int;
+func	stringiter2(string, int) (retk int, retv int);
 
 func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
 func	ifaceI2T(sigt *byte, iface any) (ret any);

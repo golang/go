@@ -20,6 +20,8 @@ char *sysimport =
 	"func sys.intstring (? int64) (? string)\n"
 	"func sys.byteastring (? *uint8, ? int) (? string)\n"
 	"func sys.arraystring (? []uint8) (? string)\n"
+	"func sys.stringiter (? string, ? int) (? int)\n"
+	"func sys.stringiter2 (? string, ? int) (retk int, retv int)\n"
 	"func sys.ifaceT2I (sigi *uint8, sigt *uint8, elem any) (ret any)\n"
 	"func sys.ifaceI2T (sigt *uint8, iface any) (ret any)\n"
 	"func sys.ifaceI2T2 (sigt *uint8, iface any) (ret any, ok bool)\n"
