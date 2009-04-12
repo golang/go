@@ -193,7 +193,7 @@ static	int32	chartorune(int32 *rune, byte *str);
 enum
 {
 	Runeself	= 0x80,
-	Runeerror	= 0xfff8,	// fffd in plan9
+	Runeerror	= 0xfffd,
 };
 
 // func	stringiter(string, int) (retk int);
