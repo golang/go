@@ -198,7 +198,7 @@ enum
 void
 sys·stringiter(String s, int32 k, int32 retk)
 {
-	int32 l, n;
+	int32 l;
 
 	if(k >= s.len) {
 		// retk=0 is end of iteration
@@ -207,14 +207,13 @@ sys·stringiter(String s, int32 k, int32 retk)
 	}
 
 	l = s.str[k];
-	n = 1;
-
-	if(l >= Runeself) {
-		// multi-char rune
-		n = charntorune(&l, s.str+k, s.len-k);
+	if(l < Runeself) {
+		retk = k+1;
+		goto out;
 	}
 
-	retk = k+n;
+	// multi-char rune
+	retk = k + charntorune(&l, s.str+k, s.len-k);
 
 out:
 	FLUSH(&retk);
@@ -224,7 +223,7 @@ out:
 void
 sys·stringiter2(String s, int32 k, int32 retk, int32 retv)
 {
-	int32 l, n;
+	int32 l;
 
 	if(k >= s.len) {
 		// retk=0 is end of iteration
@@ -233,16 +232,14 @@ sys·stringiter2(String s, int32 k, int32 retk, int32 retv)
 		goto out;
 	}
 
-	l = s.str[k];
-	n = 1;
-
-	if(l >= Runeself) {
-		// multi-char rune
-		n = charntorune(&l, s.str+k, s.len-k);
+	retv = s.str[k];
+	if(retv < Runeself) {
+		retk = k+1;
+		goto out;
 	}
 
-	retk = k+n;
-	retv = l;
+	// multi-char rune
+	retk = k + charntorune(&retv, s.str+k, s.len-k);
 
 out:
 	FLUSH(&retk);
