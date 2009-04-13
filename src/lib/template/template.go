@@ -48,6 +48,7 @@ const (
 
 // FormatterMap is the type describing the mapping from formatter
 // names to the functions that implement them.
+// TODO(rsc): Maybe func should take interface{} instead?
 type FormatterMap map[string] func(reflect.Value) string
 
 // Built-in formatters.
@@ -446,8 +447,10 @@ func (t *template) evalVariable(name_formatter string) string {
 	}
 	val := t.varValue(name);
 	// is it in user-supplied map?
-	if fn, ok := t.fmap[formatter]; ok {
-		return fn(val)
+	if t.fmap != nil {
+		if fn, ok := t.fmap[formatter]; ok {
+			return fn(val)
+		}
 	}
 	// is it in builtin map?
 	if fn, ok := builtins[formatter]; ok {
