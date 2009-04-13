@@ -35,10 +35,12 @@ import (
 	"io";
 	"log";
 	"net";
+	"once";
 	"os";
 	"parser";
 	pathutil "path";
 	"sort";
+	"strings";
 	"tabwriter";
 	"template";
 	"time";
@@ -94,24 +96,13 @@ func init() {
 // ----------------------------------------------------------------------------
 // Support
 
-func hasPrefix(s, prefix string) bool {
-	return len(prefix) <= len(s) && s[0 : len(prefix)] == prefix;
-}
-
-
-func hasSuffix(s, suffix string) bool {
-	pos := len(s) - len(suffix);
-	return pos >= 0 && s[pos : len(s)] == suffix;
-}
-
-
 func isGoFile(dir *os.Dir) bool {
-	return dir.IsRegular() && hasSuffix(dir.Name, ".go");
+	return dir.IsRegular() && strings.HasSuffix(dir.Name, ".go");
 }
 
 
 func isHTMLFile(dir *os.Dir) bool {
-	return dir.IsRegular() && hasSuffix(dir.Name, ".html");
+	return dir.IsRegular() && strings.HasSuffix(dir.Name, ".html");
 }
 
 
@@ -127,7 +118,7 @@ func isFile(name string) bool {
 }
 
 
-func printLink(c *http.Conn, dir, name string) {
+func printLink(c io.Write, dir, name string) {
 	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br />\n", pathutil.Clean(filePrefix + dir + "/" + name), name);
 }
 
@@ -208,26 +199,55 @@ func parse(path string, mode uint) (*ast.Program, errorList) {
 // Templates
 
 // html template
-// TODO initialize only if needed (i.e. if run as a server)
-var godoc_html = template.NewTemplateOrDie("godoc.html");
+var godoc_html string
 
-func servePage(c *http.Conn, title string, contents func()) {
+func readTemplate() {
+	name := "usr/gri/pretty/godoc.html";
+	f, err := os.Open(name, os.O_RDONLY, 0);
+	if err != nil {
+		log.Exitf("open %s: %v", name, err);
+	}
+	var b io.ByteBuffer;
+	if n, err := io.Copy(f, &b); err != nil {
+		log.Exitf("copy %s: %v", name, err);
+	}
+	f.Close();
+	godoc_html = string(b.Data());
+}
+
+
+func servePage(c *http.Conn, title, content interface{}) {
+	once.Do(readTemplate);
+
 	c.SetHeader("content-type", "text/html; charset=utf-8");
 
-	// TODO handle Apply errors
-	godoc_html.Apply(c, "<!--", template.Substitution {
-		"TITLE-->" : func() { fmt.Fprint(c, title); },
-		"HEADER-->" : func() { fmt.Fprint(c, title); },
-		"TIMESTAMP-->" : func() { fmt.Fprint(c, time.UTC().String()); },
-		"CONTENTS-->" : contents
-	});
+	type Data struct {
+		title string;
+		header string;
+		timestamp string;
+		content string;
+	}
+	
+	// TODO(rsc): Once template system can handle []byte,
+	// remove this conversion.
+	if x, ok := title.([]byte); ok {
+		title = string(x);
+	}
+	if x, ok := content.([]byte); ok {
+		content = string(x);
+	}
+
+	var d Data;
+	d.title = title.(string);
+	d.header = title.(string);
+	d.timestamp = time.UTC().String();
+	d.content = content.(string);
+	template.Execute(godoc_html, &d, nil, c);
 }
 
 
 func serveError(c *http.Conn, err, arg string) {
-	servePage(c, "Error", func () {
-		fmt.Fprintf(c, "%v (%s)\n", err, arg);
-	});
+	servePage(c, "Error", fmt.Sprintf("%v (%s)\n", err, arg));
 }
 
 
@@ -260,28 +280,29 @@ func serveDir(c *http.Conn, dirname string) {
 	path := dirname + "/";
 
 	// Print contents in 3 sections: directories, go files, everything else
-	servePage(c, dirname + " - Contents", func () {
-		fmt.Fprintln(c, "<h2>Directories</h2>");
-		for i, entry := range list {
-			if entry.IsDirectory() {
-				printLink(c, path, entry.Name);
-			}
+	var b io.ByteBuffer;
+	fmt.Fprintln(&b, "<h2>Directories</h2>");
+	for i, entry := range list {
+		if entry.IsDirectory() {
+			printLink(&b, path, entry.Name);
 		}
+	}
 
-		fmt.Fprintln(c, "<h2>Go files</h2>");
-		for i, entry := range list {
-			if isGoFile(&entry) {
-				printLink(c, path, entry.Name);
-			}
+	fmt.Fprintln(&b, "<h2>Go files</h2>");
+	for i, entry := range list {
+		if isGoFile(&entry) {
+			printLink(&b, path, entry.Name);
 		}
+	}
 
-		fmt.Fprintln(c, "<h2>Other files</h2>");
-		for i, entry := range list {
-			if !entry.IsDirectory() && !isGoFile(&entry) {
-				fmt.Fprintf(c, "%s<br />\n", entry.Name);
-			}
+	fmt.Fprintln(&b, "<h2>Other files</h2>");
+	for i, entry := range list {
+		if !entry.IsDirectory() && !isGoFile(&entry) {
+			fmt.Fprintf(&b, "%s<br />\n", entry.Name);
 		}
-	});
+	}
+
+	servePage(c, dirname + " - Contents", b.Data());
 }
 
 
@@ -307,35 +328,36 @@ func serveParseErrors(c *http.Conn, filename string, errors errorList) {
 	}
 	src := buf.Data();
 
-	// TODO handle Apply errors
-	servePage(c, filename, func () {
-		// section title
-		fmt.Fprintf(c, "<h1>Parse errors in %s</h1>\n", filename);
+	// generate body
+	var b io.ByteBuffer;
+	// section title
+	fmt.Fprintf(&b, "<h1>Parse errors in %s</h1>\n", filename);
 
-		// handle read errors
-		if err1 != nil || err2 != nil {
-			fmt.Fprintf(c, "could not read file %s\n", filename);
-			return;
-		}
+	// handle read errors
+	if err1 != nil || err2 != nil {
+		fmt.Fprintf(&b, "could not read file %s\n", filename);
+		return;
+	}
 
-		// write source with error messages interspersed
-		fmt.Fprintln(c, "<pre>");
-		offs := 0;
-		for i, e := range errors {
-			if 0 <= e.pos.Offset && e.pos.Offset <= len(src) {
-				// TODO handle Write errors
-				c.Write(src[offs : e.pos.Offset]);
-				// TODO this should be done using a .css file
-				fmt.Fprintf(c, "<b><font color=red>%s >>></font></b>", e.msg);
-				offs = e.pos.Offset;
-			} else {
-				log.Stdoutf("error position %d out of bounds (len = %d)", e.pos.Offset, len(src));
-			}
+	// write source with error messages interspersed
+	fmt.Fprintln(&b, "<pre>");
+	offs := 0;
+	for i, e := range errors {
+		if 0 <= e.pos.Offset && e.pos.Offset <= len(src) {
+			// TODO handle Write errors
+			b.Write(src[offs : e.pos.Offset]);
+			// TODO this should be done using a .css file
+			fmt.Fprintf(&b, "<b><font color=red>%s >>></font></b>", e.msg);
+			offs = e.pos.Offset;
+		} else {
+			log.Stdoutf("error position %d out of bounds (len = %d)", e.pos.Offset, len(src));
 		}
-		// TODO handle Write errors
-		c.Write(src[offs : len(src)]);
-		fmt.Fprintln(c, "</pre>");
-	});
+	}
+	// TODO handle Write errors
+	b.Write(src[offs : len(src)]);
+	fmt.Fprintln(&b, "</pre>");
+
+	servePage(c, filename, b.Data());
 }
 
 
@@ -347,15 +369,16 @@ func serveGoSource(c *http.Conn, dirname string, filename string) {
 		return;
 	}
 
-	servePage(c, path + " - Go source", func () {
-		fmt.Fprintln(c, "<pre>");
-		var p astPrinter.Printer;
-		writer := makeTabwriter(c);  // for nicely formatted output
-		p.Init(writer, nil, nil, true);
-		p.DoProgram(prog);
-		writer.Flush();  // ignore errors
-		fmt.Fprintln(c, "</pre>");
-	});
+	var b io.ByteBuffer;
+	fmt.Fprintln(&b, "<pre>");
+	var p astPrinter.Printer;
+	writer := makeTabwriter(&b);  // for nicely formatted output
+	p.Init(writer, nil, nil, true);
+	p.DoProgram(prog);
+	writer.Flush();  // ignore errors
+	fmt.Fprintln(&b, "</pre>");
+
+	servePage(c, path + " - Go source", b.Data());
 }
 
 
@@ -410,7 +433,7 @@ func (p pakArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
 func addFile(pmap map[string]*pakDesc, dirname string, filename string) {
-	if hasSuffix(filename, "_test.go") {
+	if strings.HasSuffix(filename, "_test.go") {
 		// ignore package tests
 		return;
 	}
@@ -507,23 +530,25 @@ func servePackage(c *http.Conn, p *pakDesc) {
 		doc.AddProgram(prog);
 	}
 
-	servePage(c, doc.PackageName() + " - Go package documentation", func () {
-		writer := makeTabwriter(c);  // for nicely formatted output
-		doc.Print(writer);
-		writer.Flush();  // ignore errors
-	});
+	var b io.ByteBuffer;
+	writer := makeTabwriter(&b);  // for nicely formatted output
+	doc.Print(writer);
+	writer.Flush();	// ignore errors
+
+	servePage(c, doc.PackageName() + " - Go package documentation", b.Data());
 }
 
 
 func servePackageList(c *http.Conn, list pakArray) {
-	servePage(c, "Packages", func () {
-		for i := 0; i < len(list); i++ {
-			p := list[i];
-			link := pathutil.Clean(p.dirname + "/" + p.pakname);
-			fmt.Fprintf(c, "<a href=\"%s\">%s</a> <font color=grey>(%s)</font><br />\n",
-				p.pakname, p.pakname, link);
-		}
-	});
+	var b io.ByteBuffer;
+	for i := 0; i < len(list); i++ {
+		p := list[i];
+		link := pathutil.Clean(p.dirname + "/" + p.pakname);
+		fmt.Fprintf(&b, "<a href=\"%s\">%s</a> <font color=grey>(%s)</font><br />\n",
+			p.pakname, p.pakname, link);
+	}
+
+	servePage(c, "Packages", b.Data());
 
 	// TODO: show subdirectories
 }
