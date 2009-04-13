@@ -290,6 +290,11 @@ func NArg() int {
 	return len(sys.Args) - flags.first_arg
 }
 
+// Args returns the non-flag command-line arguments.
+func Args() []string {
+	return sys.Args[flags.first_arg:len(sys.Args)];
+}
+
 func add(name string, value FlagValue, usage string) {
 	// Remember the default value as a string; it won't change.
 	f := &Flag{name, usage, value, value.String()};

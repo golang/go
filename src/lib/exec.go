@@ -7,6 +7,7 @@ package exec
 
 import (
 	"os";
+	"strings";
 )
 
 // Arguments to Run.
@@ -181,5 +182,47 @@ func (p *Cmd) Close() *os.Error {
 		}
 	}
 	return err;
+}
+
+func canexec(file string) bool{
+	d, err := os.Stat(file);
+	if err != nil {
+		return false;
+	}
+	return d.IsRegular() && d.Permission() & 0111 != 0;
+}
+
+// LookPath searches for an executable binary named file
+// in the directories named by the PATH environment variable.
+// If file contains a slash, it is tried directly and the PATH is not consulted.
+//
+// TODO(rsc): Does LookPath belong in os instead?
+func LookPath(file string) (string, *os.Error) {
+	// NOTE(rsc): I wish we could use the Plan 9 behavior here
+	// (only bypass the path if file begins with / or ./ or ../)
+	// but that would not match all the Unix shells.
+
+	if strings.Index(file, "/") >= 0 {
+		if canexec(file) {
+			return file, nil;
+		}
+		return "", os.ENOENT;
+	}
+	pathenv, err := os.Getenv("PATH");
+	if err != nil {
+		// Unix shell semantics: no $PATH means assume PATH=""
+		// (equivalent to PATH=".").
+		pathenv = "";
+	}
+	for i, dir := range strings.Split(pathenv, ":") {
+		if dir == "" {
+			// Unix shell semantics: path element "" means "."
+			dir = ".";
+		}
+		if canexec(dir+"/"+file) {
+			return dir+"/"+file, nil;
+		}
+	}
+	return "", os.ENOENT;
 }
 
