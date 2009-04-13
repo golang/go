@@ -267,3 +267,33 @@ func Chdir(dir string) *os.Error {
 	return ErrnoToError(e);
 }
 
+// Remove removes the named file or directory.
+func Remove(name string) *os.Error {
+	// System call interface forces us to know
+	// whether name is a file or directory.
+	// Try both: it is cheaper on average than
+	// doing a Stat plus the right one.
+	r, e := syscall.Unlink(name);
+	if e == 0 {
+		return nil;
+	}
+	r1, e1 := syscall.Rmdir(name);
+	if e1 == 0 {
+		return nil;
+	}
+
+	// Both failed: figure out which error to return.
+	// OS X and Linux differ on whether unlink(dir)
+	// returns EISDIR, so can't use that.  However,
+	// both agree that rmdir(file) returns ENOTDIR,
+	// so we can use that to decide which error is real.
+	// Rmdir might return ENOTDIR if given a bad
+	// file path, like /etc/passwd/foo, but in that case,
+	// both errors will be ENOTDIR, so it's okay to
+	// use the error from unlink.
+	if e1 != syscall.ENOTDIR {
+		e = e1;
+	}
+	return ErrnoToError(e1);
+}
+
