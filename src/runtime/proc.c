@@ -553,18 +553,18 @@ sys·exitsyscall(void)
  *	stack frame size <= StackSmall:
  *		CMPQ guard, SP
  *		JHI 3(PC)
- *		MOVQ m->morearg, $((frame << 32) | argsize)
+ *		MOVQ m->morearg, $(argsize << 32)
  *		CALL sys.morestack(SB)
  *
  *	stack frame size > StackSmall but < StackBig
  *		LEAQ (frame-StackSmall)(SP), R0
  *		CMPQ guard, R0
  *		JHI 3(PC)
- *		MOVQ m->morearg, $((frame << 32) | argsize)
+ *		MOVQ m->morearg, $(argsize << 32)
  *		CALL sys.morestack(SB)
  *
  *	stack frame size >= StackBig:
- *		MOVQ m->morearg, $((frame << 32) | argsize)
+ *		MOVQ m->morearg, $((argsize << 32) | frame)
  *		CALL sys.morestack(SB)
  *
  * the bottom StackGuard - StackSmall bytes are important:
@@ -605,7 +605,7 @@ void
 oldstack(void)
 {
 	Stktop *top;
-	uint32 siz2;
+	uint32 args;
 	byte *sp;
 	uint64 oldsp, oldpc, oldbase, oldguard;
 
@@ -613,13 +613,13 @@ oldstack(void)
 
 	top = (Stktop*)m->curg->stackbase;
 
-	siz2 = (top->magic>>32) & 0xffffLL;
+	args = (top->magic>>32) & 0xffffLL;
 
 	sp = (byte*)top;
-	if(siz2 > 0) {
-		siz2 = (siz2+7) & ~7;
-		sp -= siz2;
-		mcpy(top->oldsp+16, sp, siz2);
+	if(args > 0) {
+		args = (args+7) & ~7;
+		sp -= args;
+		mcpy(top->oldsp+2*sizeof(uintptr), sp, args);
 	}
 
 	oldsp = (uint64)top->oldsp + 8;
@@ -663,7 +663,7 @@ newstack(void)
 	frame = m->morearg & 0xffffffffLL;
 	args = (m->morearg>>32) & 0xffffLL;
 
-// printf("newstack frame=%d args=%d moresp=%p\n", frame, args, m->moresp);
+// printf("newstack frame=%d args=%d moresp=%p morepc=%p\n", frame, args, m->moresp, *(uintptr*)m->moresp);
 
 	if(frame < StackBig)
 		frame = StackBig;
