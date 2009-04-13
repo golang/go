@@ -4,6 +4,26 @@
 
 // godoc: Go Documentation Server
 
+// Web server tree:
+//
+//	http://godoc/	main landing page (TODO)
+//	http://godoc/doc/	serve from $GOROOT/doc - spec, mem, tutorial, etc. (TODO)
+//	http://godoc/src/	serve files from $GOROOT/src; .go gets pretty-printed
+//	http://godoc/cmd/	serve documentation about commands (TODO)
+//	http://godoc/pkg/	serve documentation about packages
+//		(idea is if you say import "compress/zlib", you go to
+//		http://godoc/pkg/compress/zlib)
+//
+// Command-line interface:
+//
+//	godoc packagepath [name ...]
+//
+//	godoc compress/zlib
+//		- prints doc for package proto
+//	godoc compress/zlib Cipher NewCMAC
+//		- prints doc for Cipher and NewCMAC in package crypto/block
+
+
 package main
 
 import (
@@ -17,16 +37,15 @@ import (
 	"net";
 	"os";
 	"parser";
+	pathutil "path";
 	"sort";
 	"tabwriter";
 	"template";
 	"time";
 	"token";
-	"regexp";
 	"vector";
 
 	"astprinter";
-	"compilation";  // TODO removing this causes link errors - why?
 	"docprinter";
 )
 
@@ -34,7 +53,12 @@ import (
 // TODO
 // - uniform use of path, filename, dirname, pakname, etc.
 // - fix weirdness with double-/'s in paths
-// - cleanup uses of *root, GOROOT, etc. (quite a mess at the moment)
+// - split http service into its own source file
+
+
+const usageString =
+	"usage: godoc package [name ...]\n"
+	"	godoc -http=:6060\n"
 
 
 const (
@@ -43,65 +67,41 @@ const (
 )
 
 
-func getenv(varname string) string {
-	value, err := os.Getenv(varname);
-	return value;
-}
-
-
 var (
-	GOROOT = getenv("GOROOT");
+	goroot string;
+
+	verbose = flag.Bool("v", false, "verbose mode");
 
 	// server control
-	verbose = flag.Bool("v", false, "verbose mode");
-	port = flag.String("port", "6060", "server port");
-	root = flag.String("root", GOROOT, "root directory");
+	httpaddr = flag.String("http", "", "HTTP service address (e.g., ':6060')");
 
 	// layout control
 	tabwidth = flag.Int("tabwidth", 4, "tab width");
-	usetabs = flag.Bool("usetabs", false, "align with tabs instead of blanks");
+	usetabs = flag.Bool("tabs", false, "align with tabs instead of spaces");
 )
+
+
+func init() {
+	var err *os.Error;
+	goroot, err = os.Getenv("GOROOT");
+	if err != nil {
+		goroot = "/home/r/go-build/go";
+	}
+	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");
+}
 
 
 // ----------------------------------------------------------------------------
 // Support
-
-func cleanPath(s string) string {
-	for i := 0; i < len(s); i++ {
-		if s[i] == '/' {
-			i++;
-			j := i;
-			for j < len(s) && s[j] == '/' {
-				j++;
-			}
-			if j > i {  // more then one '/'
-				return s[0 : i] + cleanPath(s[j : len(s)]);
-			}
-		}
-	}
-	return s;
-}
-
-
-// Reduce sequences of multiple '/'s into a single '/' and
-// strip any trailing '/' (may result in the empty string).
-func sanitizePath(s string) string {
-	s = cleanPath(s);
-	if len(s) > 0 && s[len(s)-1] == '/' {  // strip trailing '/'
-		s = s[0 : len(s)-1];
-	}
-	return s;
-}
-
 
 func hasPrefix(s, prefix string) bool {
 	return len(prefix) <= len(s) && s[0 : len(prefix)] == prefix;
 }
 
 
-func hasSuffix(s, postfix string) bool {
-	pos := len(s) - len(postfix);
-	return pos >= 0 && s[pos : len(s)] == postfix;
+func hasSuffix(s, suffix string) bool {
+	pos := len(s) - len(suffix);
+	return pos >= 0 && s[pos : len(s)] == suffix;
 }
 
 
@@ -115,8 +115,20 @@ func isHTMLFile(dir *os.Dir) bool {
 }
 
 
-func printLink(c *http.Conn, path, name string) {
-	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br />\n", filePrefix + path + name, name);
+func isDir(name string) bool {
+	d, err := os.Stat(name);
+	return err == nil && d.IsDirectory();
+}
+
+
+func isFile(name string) bool {
+	d, err := os.Stat(name);
+	return err == nil && d.IsRegular();
+}
+
+
+func printLink(c *http.Conn, dir, name string) {
+	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br />\n", pathutil.Clean(filePrefix + dir + "/" + name), name);
 }
 
 
@@ -130,7 +142,7 @@ func makeTabwriter(writer io.Write) *tabwriter.Writer {
 
 
 // ----------------------------------------------------------------------------
-// Compilation
+// Parsing
 
 type parseError struct {
 	pos token.Position;
@@ -151,7 +163,7 @@ type errorHandler struct {
 
 
 func (h *errorHandler) Error(pos token.Position, msg string) {
-	// only collect errors that are on a new line 
+	// only collect errors that are on a new line
 	// in the hope to avoid most follow-up errors
 	if pos.Line != h.lastLine {
 		h.lastLine = pos.Line;
@@ -164,14 +176,14 @@ func (h *errorHandler) Error(pos token.Position, msg string) {
 }
 
 
-// Compiles a file (path) and returns the corresponding AST and
+// Parses a file (path) and returns the corresponding AST and
 // a sorted list (by file position) of errors, if any.
 //
-func compile(path string, mode uint) (*ast.Program, errorList) {
+func parse(path string, mode uint) (*ast.Program, errorList) {
 	src, err := os.Open(path, os.O_RDONLY, 0);
 	defer src.Close();
 	if err != nil {
-		log.Stdoutf("%s: %v", path, err);
+		log.Stdoutf("open %s: %v", path, err);
 		var noPos token.Position;
 		return nil, errorList{parseError{noPos, err.String()}};
 	}
@@ -201,7 +213,7 @@ var godoc_html = template.NewTemplateOrDie("godoc.html");
 
 func servePage(c *http.Conn, title string, contents func()) {
 	c.SetHeader("content-type", "text/html; charset=utf-8");
-	
+
 	// TODO handle Apply errors
 	godoc_html.Apply(c, "<!--", template.Substitution {
 		"TITLE-->" : func() { fmt.Fprint(c, title); },
@@ -229,7 +241,7 @@ func (p dirArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
 func serveDir(c *http.Conn, dirname string) {
-	fd, err1 := os.Open(*root + dirname, os.O_RDONLY, 0);
+	fd, err1 := os.Open(dirname, os.O_RDONLY, 0);
 	if err1 != nil {
 		c.WriteHeader(http.StatusNotFound);
 		fmt.Fprintf(c, "Error: %v (%s)\n", err1, dirname);
@@ -276,9 +288,9 @@ func serveDir(c *http.Conn, dirname string) {
 // ----------------------------------------------------------------------------
 // Files
 
-func serveCompilationErrors(c *http.Conn, filename string, errors errorList) {
+func serveParseErrors(c *http.Conn, filename string, errors errorList) {
 	// open file
-	path := *root + filename;
+	path := filename;
 	fd, err1 := os.Open(path, os.O_RDONLY, 0);
 	defer fd.Close();
 	if err1 != nil {
@@ -298,14 +310,14 @@ func serveCompilationErrors(c *http.Conn, filename string, errors errorList) {
 	// TODO handle Apply errors
 	servePage(c, filename, func () {
 		// section title
-		fmt.Fprintf(c, "<h1>Compilation errors in %s</h1>\n", filename);
-		
+		fmt.Fprintf(c, "<h1>Parse errors in %s</h1>\n", filename);
+
 		// handle read errors
-		if err1 != nil || err2 != nil /* 6g bug139 */ {
+		if err1 != nil || err2 != nil {
 			fmt.Fprintf(c, "could not read file %s\n", filename);
 			return;
 		}
-		
+
 		// write source with error messages interspersed
 		fmt.Fprintln(c, "<pre>");
 		offs := 0;
@@ -329,9 +341,9 @@ func serveCompilationErrors(c *http.Conn, filename string, errors errorList) {
 
 func serveGoSource(c *http.Conn, dirname string, filename string) {
 	path := dirname + "/" + filename;
-	prog, errors := compile(*root + "/" + path, parser.ParseComments);
+	prog, errors := parse(path, parser.ParseComments);
 	if len(errors) > 0 {
-		serveCompilationErrors(c, filename, errors);
+		serveParseErrors(c, filename, errors);
 		return;
 	}
 
@@ -354,8 +366,7 @@ func serveHTMLFile(c *http.Conn, filename string) {
 		serveError(c, err1.String(), filename);
 		return
 	}
-	written, err2 := io.Copy(src, c);
-	if err2 != nil {
+	if written, err2 := io.Copy(src, c); err2 != nil {
 		serveError(c, err2.String(), filename);
 		return
 	}
@@ -363,7 +374,7 @@ func serveHTMLFile(c *http.Conn, filename string) {
 
 
 func serveFile(c *http.Conn, path string) {
-	dir, err := os.Stat(*root + path);
+	dir, err := os.Stat(path);
 	if err != nil {
 		serveError(c, err.String(), path);
 		return;
@@ -373,9 +384,9 @@ func serveFile(c *http.Conn, path string) {
 	case dir.IsDirectory():
 		serveDir(c, path);
 	case isGoFile(dir):
-		serveGoSource(c, "", path);
+		serveGoSource(c, ".", path);
 	case isHTMLFile(dir):
-		serveHTMLFile(c, *root + path);
+		serveHTMLFile(c, path);
 	default:
 		serveError(c, "Not a directory or .go file", path);
 	}
@@ -386,8 +397,8 @@ func serveFile(c *http.Conn, path string) {
 // Packages
 
 type pakDesc struct {
-	dirname string;  // local to *root
-	pakname string;  // local to directory
+	dirname string;  // relative to goroot
+	pakname string;  // relative to directory
 	filenames map[string] bool;  // set of file (names) belonging to this package
 }
 
@@ -398,19 +409,14 @@ func (p pakArray) Less(i, j int) bool  { return p[i].pakname < p[j].pakname; }
 func (p pakArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 
-// The global list of packages (sorted)
-// TODO should be accessed under a lock
-var pakList pakArray;
-
-
 func addFile(pmap map[string]*pakDesc, dirname string, filename string) {
 	if hasSuffix(filename, "_test.go") {
 		// ignore package tests
 		return;
 	}
 	// determine package name
-	path := *root + "/" + dirname + "/" + filename;
-	prog, errors := compile(path, parser.PackageClauseOnly);
+	path := dirname + "/" + filename;
+	prog, errors := parse(path, parser.PackageClauseOnly);
 	if prog == nil {
 		return;
 	}
@@ -418,7 +424,7 @@ func addFile(pmap map[string]*pakDesc, dirname string, filename string) {
 		// ignore main packages for now
 		return;
 	}
-	pakname := dirname + "/" + prog.Name.Value;
+	pakname := pathutil.Clean(dirname + "/" + prog.Name.Value);
 
 	// find package descriptor
 	pakdesc, found := pmap[pakname];
@@ -427,7 +433,7 @@ func addFile(pmap map[string]*pakDesc, dirname string, filename string) {
 		pakdesc = &pakDesc{dirname, prog.Name.Value, make(map[string]bool)};
 		pmap[pakname] = pakdesc;
 	}
-	
+
 	//fmt.Printf("pak = %s, file = %s\n", pakname, filename);
 
 	// add file to package desc
@@ -439,27 +445,22 @@ func addFile(pmap map[string]*pakDesc, dirname string, filename string) {
 
 
 func addDirectory(pmap map[string]*pakDesc, dirname string) {
-	// TODO should properly check device and inode to see if we have
-	//      traversed this directory already
-	fd, err1 := os.Open(*root + dirname, os.O_RDONLY, 0);
+	path := dirname;
+	fd, err1 := os.Open(path, os.O_RDONLY, 0);
 	if err1 != nil {
-		log.Stdoutf("%s: %v", *root + dirname, err1);
+		log.Stdoutf("open %s: %v", path, err1);
 		return;
 	}
 
 	list, err2 := fd.Readdir(-1);
 	if err2 != nil {
-		log.Stdoutf("%s: %v", *root + dirname, err2);
+		log.Stdoutf("readdir %s: %v", path, err2);
 		return;
 	}
 
 	for i, entry := range list {
 		switch {
-		case entry.IsDirectory():
-			if entry.Name != "." && entry.Name != ".." {
-				addDirectory(pmap, dirname + "/" + entry.Name);
-			}
-		case isGoFile(&entry):	
+		case isGoFile(&entry):
 			//fmt.Printf("found %s/%s\n", dirname, entry.Name);
 			addFile(pmap, dirname, entry.Name);
 		}
@@ -467,12 +468,7 @@ func addDirectory(pmap map[string]*pakDesc, dirname string) {
 }
 
 
-func makePackageMap() {
-	// TODO shold do this under a lock
-	// populate package map
-	pmap := make(map[string]*pakDesc);
-	addDirectory(pmap, "");
-	
+func mapValues(pmap map[string]*pakDesc) pakArray {
 	// build sorted package list
 	plist := make(pakArray, len(pmap));
 	i := 0;
@@ -481,13 +477,7 @@ func makePackageMap() {
 		i++;
 	}
 	sort.Sort(plist);
-
-	// install package list (TODO should do this under a lock)
-	pakList = plist;
-
-	if *verbose {
-		log.Stdoutf("%d packages found under %s", i, *root);
-	}
+	return plist;
 }
 
 
@@ -499,14 +489,14 @@ func servePackage(c *http.Conn, p *pakDesc) {
 		filenames[i] = filename;
 		i++;
 	}
-	
+
 	// compute documentation
 	var doc docPrinter.PackageDoc;
 	for i, filename := range filenames {
-		path := *root + "/" + p.dirname + "/" + filename;
-		prog, errors := compile(path, parser.ParseComments);
+		path := p.dirname + "/" + filename;
+		prog, errors := parse(path, parser.ParseComments);
 		if len(errors) > 0 {
-			serveCompilationErrors(c, filename, errors);
+			serveParseErrors(c, filename, errors);
 			return;
 		}
 
@@ -525,40 +515,73 @@ func servePackage(c *http.Conn, p *pakDesc) {
 }
 
 
-func servePackageList(c *http.Conn, list *vector.Vector) {
+func servePackageList(c *http.Conn, list pakArray) {
 	servePage(c, "Packages", func () {
-		for i := 0; i < list.Len(); i++ {
-			p := list.At(i).(*pakDesc);
-			link := p.dirname + "/" + p.pakname;
-			fmt.Fprintf(c, "<a href=\"%s\">%s</a> <font color=grey>(%s)</font><br />\n", docPrefix + link, p.pakname, link);
+		for i := 0; i < len(list); i++ {
+			p := list[i];
+			link := pathutil.Clean(p.dirname + "/" + p.pakname);
+			fmt.Fprintf(c, "<a href=\"%s\">%s</a> <font color=grey>(%s)</font><br />\n",
+				p.pakname, p.pakname, link);
 		}
 	});
+
+	// TODO: show subdirectories
 }
 
 
-func serveDoc(c *http.Conn, path string) {
-	// make regexp for package matching
-	rex, err := regexp.Compile(path);
-	if err != nil {
-		serveError(c, err.String(), path);
-		return;
-	}
-
-	// build list of matching packages
-	list := vector.New(0);
-	for i, p := range pakList {
-		if rex.Match(p.dirname + "/" + p.pakname) {
-			list.Push(p);
+// Return package or packages named by name.
+// Name is either an import string or a directory,
+// like you'd see in $GOROOT/pkg/ once the 6g
+// tools can handle a hierarchy there.
+//
+// Examples:
+//	"math"	- single package made up of directory
+//	"container"	- directory listing
+//	"container/vector"	- single package in container directory
+func findPackages(name string) (*pakDesc, pakArray) {
+	// Build list of packages.
+	// If the path names a directory, scan that directory
+	// for a package with the name matching the directory name.
+	// Otherwise assume it is a package name inside
+	// a directory, so scan the parent.
+	pmap := make(map[string]*pakDesc);
+	dir := pathutil.Clean("src/lib/" + name);
+	if isDir(dir) {
+		parent, pak := pathutil.Split(dir);
+		addDirectory(pmap, dir);
+		paks := mapValues(pmap);
+		if len(paks) == 1 {
+			p := paks[0];
+			if p.dirname == dir && p.pakname == pak {
+				return p, nil;
+			}
 		}
+		return nil, paks;
 	}
 
-	switch list.Len() {
-	case 0:
-		serveError(c, "No packages found", path);
-	case 1:
-		servePackage(c, list.At(0).(*pakDesc));
+	// Otherwise, have parentdir/pak.  Look for package pak in dir.
+	parentdir, pak := pathutil.Split(dir);
+	addDirectory(pmap, parentdir);
+	if p, ok := pmap[dir]; ok {
+		return p, nil;
+	}
+
+	return nil, nil;
+}
+
+
+func servePkg(c *http.Conn, path string) {
+	pak, paks := findPackages(path);
+
+	// TODO: canonicalize path and redirect if needed.
+
+	switch {
+	case pak != nil:
+		servePackage(c, pak);
+	case len(paks) > 0:
+		servePackageList(c, paks);
 	default:
-		servePackageList(c, list);
+		serveError(c, "No packages found", path);
 	}
 }
 
@@ -568,9 +591,7 @@ func serveDoc(c *http.Conn, path string) {
 
 func makeFixedFileServer(filename string) (func(c *http.Conn, path string)) {
 	return func(c *http.Conn, path string) {
-		// ignore path and always serve the same file
-		// TODO this should be serveFile but there are some issues with *root
-		serveHTMLFile(c, filename);
+		serveFile(c, filename);
 	};
 }
 
@@ -582,13 +603,7 @@ func installHandler(prefix string, handler func(c *http.Conn, path string)) {
 		if *verbose {
 			log.Stdoutf("%s\t%s", req.Host, path);
 		}
-		if hasPrefix(path, prefix) {
-			path = sanitizePath(path[len(prefix) : len(path)]);
-			//log.Stdoutf("sanitized path %s", path);
-			handler(c, path);
-		} else {
-			log.Stdoutf("illegal path %s", path);
-		}
+		handler(c, path[len(prefix) : len(path)]);
 	};
 
 	// install the customized handler
@@ -596,32 +611,48 @@ func installHandler(prefix string, handler func(c *http.Conn, path string)) {
 }
 
 
+func usage() {
+	fmt.Fprintf(os.Stderr, usageString);
+	sys.Exit(1);
+}
+
+
 func main() {
 	flag.Parse();
 
-	*root = sanitizePath(*root);
-	{	dir, err := os.Stat(*root);
-		if err != nil || !dir.IsDirectory() {
-			log.Exitf("root not found or not a directory: %s", *root);
+	// Check usage first; get usage message out early.
+	switch {
+	case *httpaddr != "":
+		if flag.NArg() != 0 {
+			usage();
+		}
+	default:
+		if flag.NArg() == 0 {
+			usage();
 		}
 	}
 
-	if *verbose {
-		log.Stdoutf("Go Documentation Server\n");
-		log.Stdoutf("port = %s\n", *port);
-		log.Stdoutf("root = %s\n", *root);
+	if err := os.Chdir(goroot); err != nil {
+		log.Exitf("chdir %s: %v", goroot, err);
 	}
 
-	makePackageMap();
-	
-	installHandler("/mem", makeFixedFileServer(GOROOT + "/doc/go_mem.html"));
-	installHandler("/spec", makeFixedFileServer(GOROOT + "/doc/go_spec.html"));
-	installHandler(docPrefix, serveDoc);
-	installHandler(filePrefix, serveFile);
-
-	{	err := http.ListenAndServe(":" + *port, nil);
-		if err != nil {
-			log.Exitf("ListenAndServe: %v", err)
+	if *httpaddr != "" {
+		if *verbose {
+			log.Stdoutf("Go Documentation Server\n");
+			log.Stdoutf("address = %s\n", *httpaddr);
+			log.Stdoutf("goroot = %s\n", goroot);
 		}
+
+		installHandler("/mem", makeFixedFileServer("doc/go_mem.html"));
+		installHandler("/spec", makeFixedFileServer("doc/go_spec.html"));
+		installHandler("/pkg/", servePkg);
+		installHandler(filePrefix, serveFile);
+
+		if err := http.ListenAndServe(*httpaddr, nil); err != nil {
+			log.Exitf("ListenAndServe %s: %v", *httpaddr, err)
+		}
+		return;
 	}
+
+	log.Exitf("godoc command-line not implemented");
 }
