@@ -272,6 +272,7 @@ int32	strcmp(byte*, byte*);
 int32	findnull(byte*);
 void	dump(byte*, int32);
 int32	runetochar(byte*, int32);
+int32	charntorune(int32*, uint8*, int32);
 
 /*
  * very low level c-called
