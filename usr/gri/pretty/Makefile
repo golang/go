@@ -36,11 +36,11 @@ pretty.6:	 platform.6 astprinter.6 compilation.6
 
 compilation.6:	 platform.6 typechecker.6
 
-symboltable.6:	
+symboltable.6:
 
 platform.6:	 utils.6
 
-astprinter.6:	 utils.6 symboltable.6 template.6
+astprinter.6:	 utils.6 symboltable.6
 
 docprinter.6:	astprinter.6
 
