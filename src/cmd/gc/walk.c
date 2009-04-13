@@ -3197,7 +3197,7 @@ Node*
 dorange(Node *nn)
 {
 	Node *k, *v, *m;
-	Node *n, *hv, *hc, *ha, *hk, *on, *r, *a;
+	Node *n, *hv, *hc, *ha, *hk, *ohk, *on, *r, *a;
 	Type *t, *th;
 	int local;
 
@@ -3339,9 +3339,17 @@ strng:
 	hk = nod(OXXX, N, N);		// hidden key
 	tempname(hk, types[TINT]);
 
+	ohk = nod(OXXX, N, N);		// old hidden key
+	tempname(ohk, types[TINT]);
+
 	ha = nod(OXXX, N, N);		// hidden string
 	tempname(ha, t);
 
+	hv = N;
+	if(v != N) {
+		hv = nod(OXXX, N, N);		// hidden value
+		tempname(hv, types[TINT]);
+	}
 
 	if(local) {
 		k = old2new(k, types[TINT]);
@@ -3353,27 +3361,22 @@ strng:
 	a = nod(OAS, ha, m);
 	n->ninit = a;
 
-	// kh = 0
-	a = nod(OAS, hk, nodintconst(0));
+	// ohk = 0
+	a = nod(OAS, ohk, nodintconst(0));
 	n->ninit = list(n->ninit, a);
 
-	// k = hk
-	a = nod(OAS, k, hk);
-	n->ninit = list(n->ninit, a);
-
-
-	// hk[,v] = stringiter(ha,hk)
+	// hk[,hv] = stringiter(ha,hk)
 	if(v != N) {
 		// hk,v = stringiter2(ha, hk)
 		on = syslook("stringiter2", 0);
 //		argtype(on, v->type);
-		a = list(ha, hk);
+		a = list(ha, nodintconst(0));
 		a = nod(OCALL, on, a);
-		a = nod(OAS, list(hk, v), a);
+		a = nod(OAS, list(hk, hv), a);
 	} else {
 		// hk = stringiter(ha, hk)
 		on = syslook("stringiter", 0);
-		a = list(ha, hk);
+		a = list(ha, nodintconst(0));
 		a = nod(OCALL, on, a);
 		a = nod(OAS, hk, a);
 	}
@@ -3382,18 +3385,13 @@ strng:
 	// while(hk != 0)
 	n->ntest = nod(ONE, hk, nodintconst(0));
 
-	// k = hk
-	a = nod(OAS, k, hk);
-	n->nincr = a;
-
-	// hk[,v] = stringiter(ha,hk)
+	// hk[,hv] = stringiter(ha,hk)
 	if(v != N) {
-		// hk,v = stringiter2(ha, hk)
+		// hk,hv = stringiter2(ha, hk)
 		on = syslook("stringiter2", 0);
-//		argtype(on, v->type);
 		a = list(ha, hk);
 		a = nod(OCALL, on, a);
-		a = nod(OAS, list(hk, v), a);
+		a = nod(OAS, list(hk, hv), a);
 	} else {
 		// hk = stringiter(ha, hk)
 		on = syslook("stringiter", 0);
@@ -3402,6 +3400,16 @@ strng:
 		a = nod(OAS, hk, a);
 	}
 	n->nincr = list(n->nincr, a);
+
+	// k,ohk[,v] = ohk,hk,[,hv]
+	a = nod(OAS, k, ohk);
+	n->nbody = a;
+	a = nod(OAS, ohk, hk);
+	n->nbody = list(n->nbody, a);
+	if(v != N) {
+		a = nod(OAS, v, hv);
+		n->nbody = list(n->nbody, a);
+	}
 
 	addtotop(n);
 	goto out;

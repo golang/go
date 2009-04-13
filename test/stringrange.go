@@ -40,8 +40,22 @@ func main() {
 		fmt.Println("after loop i is", i, "not", len(s)-1);
 		ok = false;
 	}
+
+	i = 12345;
+	c = 23456;
+	for i, c = range "" {
+	}
+	if i != 12345 {
+		fmt.Println("range empty string assigned to index:", i);
+		ok = false;
+	}
+	if c != 23456 {
+		fmt.Println("range empty string assigned to value:", c);
+		ok = false;
+	}
+
 	if !ok {
-		fmt.Println("FAIL");
+		fmt.Println("BUG: stringrange");
 		sys.Exit(1)
 	}
 }
