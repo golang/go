@@ -5,6 +5,7 @@
 package strconv
 
 import (
+	"os";
 	"strconv";
 	"testing";
 )
@@ -48,7 +49,7 @@ var canbackquotetests = []canBackquoteTest {
 	canBackquoteTest{ string(6), false },
 	canBackquoteTest{ string(7), false },
 	canBackquoteTest{ string(8), false },
-	canBackquoteTest{ string(9), false },
+	canBackquoteTest{ string(9), true },	// \t
 	canBackquoteTest{ string(10), false },
 	canBackquoteTest{ string(11), false },
 	canBackquoteTest{ string(12), false },
@@ -83,6 +84,87 @@ func TestCanBackquote(t *testing.T) {
 		tt := canbackquotetests[i];
 		if out := CanBackquote(tt.in); out != tt.out {
 			t.Errorf("CanBackquote(%q) = %v, want %v", tt.in, out, tt.out);
+		}
+	}
+}
+
+var unquotetests = []quoteTest {
+	quoteTest{ `""`, "" },
+	quoteTest{ `"a"`, "a" },
+	quoteTest{ `"abc"`, "abc" },
+	quoteTest{ `"☺"`, "☺" },
+	quoteTest{ `"hello world"`, "hello world" },
+	quoteTest{ `"\xFF"`, "\xFF" },
+	quoteTest{ `"\377"`, "\377" },
+	quoteTest{ `"\u1234"`, "\u1234" },
+	quoteTest{ `"\U00010111"`, "\U00010111" },
+	quoteTest{ `"\U0001011111"`, "\U0001011111" },
+	quoteTest{ `"\a\b\f\n\r\t\v\\\""`, "\a\b\f\n\r\t\v\\\"" },
+	quoteTest{ `"'"`, "'" },
+
+	quoteTest{ `'a'`, "a" },
+	quoteTest{ `'☹'`, "☹" },
+	quoteTest{ `'\a'`, "\a" },
+	quoteTest{ `'\x10'`, "\x10" },
+	quoteTest{ `'\377'`, "\377" },
+	quoteTest{ `'\u1234'`, "\u1234" },
+	quoteTest{ `'\U00010111'`, "\U00010111" },
+	quoteTest{ `'\t'`, "\t" },
+	quoteTest{ `' '`, " " },
+	quoteTest{ `'\''`, "'" },
+	quoteTest{ `'"'`, "\"" },
+
+	quoteTest{ "``", `` },
+	quoteTest{ "`a`", `a` },
+	quoteTest{ "`abc`", `abc` },
+	quoteTest{ "`☺`", `☺` },
+	quoteTest{ "`hello world`", `hello world` },
+	quoteTest{ "`\\xFF`", `\xFF` },
+	quoteTest{ "`\\377`", `\377` },
+	quoteTest{ "`\\`", `\` },
+	quoteTest{ "`	`", `	` },
+	quoteTest{ "` `", ` ` },
+}
+
+var misquoted = []string {
+	``,
+	`"`,
+	`"a`,
+	`"'`,
+	`b"`,
+	`"\"`,
+	`'\'`,
+	`'ab'`,
+	`"\x1!"`,
+	`"\U12345678"`,
+	`"\z"`,
+	"`",
+	"`xxx",
+	"`\"",
+	`"\'"`,
+	`'\"'`,
+}
+
+func TestUnquote(t *testing.T) {
+	for i := 0; i < len(unquotetests); i++ {
+		tt := unquotetests[i];
+		if out, err := Unquote(tt.in); err != nil && out != tt.out {
+			t.Errorf("Unquote(%s) = %q, %s want %q, nil", tt.in, out, err, tt.out);
+		}
+	}
+
+	// run the quote tests too, backward
+	for i := 0; i < len(quotetests); i++ {
+		tt := quotetests[i];
+		if in, err := Unquote(tt.out); in != tt.in {
+			t.Errorf("Unquote(%s) = %q, %s, want %q, nil", tt.out, in, err, tt.in);
+		}
+	}
+
+	for i := 0; i < len(misquoted); i++ {
+		s := misquoted[i];
+		if out, err := Unquote(s); out != "" || err != os.EINVAL {
+			t.Errorf("Unquote(%q) = %q, %s want %q, %s", s, out, err, "", os.EINVAL);
 		}
 	}
 }
