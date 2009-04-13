@@ -500,7 +500,6 @@ void
 stringpool(Node *n)
 {
 	Pool *p;
-	int w;
 
 	if(n->op != OLITERAL || n->val.ctype != CTSTR) {
 		if(n->val.ctype == CTNIL)

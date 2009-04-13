@@ -67,10 +67,6 @@ panic PC=xxx
 =========== ./sigchld.go
 survived SIGCHLD
 
-=========== ./stringrange.go
-after loop i is 18 not 17
-FAIL
-
 =========== ./turing.go
 Hello World!
 
