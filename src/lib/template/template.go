@@ -48,8 +48,7 @@ const (
 
 // FormatterMap is the type describing the mapping from formatter
 // names to the functions that implement them.
-// TODO(rsc): Maybe func should take interface{} instead?
-type FormatterMap map[string] func(reflect.Value) string
+type FormatterMap map[string] func(io.Write, interface{}, string)
 
 // Built-in formatters.
 var builtins = FormatterMap {
@@ -437,7 +436,7 @@ func (t *template) varValue(name string) reflect.Value {
 
 // Evalute a variable, looking up through the parent if necessary.
 // If it has a formatter attached ({var|formatter}) run that too.
-func (t *template) evalVariable(name_formatter string) string {
+func (t *template) writeVariable(w io.Write, name_formatter string) {
 	name := name_formatter;
 	formatter := "";
 	bar := strings.Index(name_formatter, "|");
@@ -445,16 +444,18 @@ func (t *template) evalVariable(name_formatter string) string {
 		name = name_formatter[0:bar];
 		formatter = name_formatter[bar+1:len(name_formatter)];
 	}
-	val := t.varValue(name);
+	val := t.varValue(name).Interface();
 	// is it in user-supplied map?
 	if t.fmap != nil {
 		if fn, ok := t.fmap[formatter]; ok {
-			return fn(val)
+			fn(w, val, formatter);
+			return;
 		}
 	}
 	// is it in builtin map?
 	if fn, ok := builtins[formatter]; ok {
-		return fn(val)
+		fn(w, val, formatter);
+		return;
 	}
 	t.error(ErrNoFormatter, ": ", formatter);
 	panic("notreached");
@@ -484,7 +485,7 @@ func (t *template) execute() {
 				panic("unknown literal: ", w[0]);
 			}
 		case Variable:
-			t.wr.Write(io.StringBytes(t.evalVariable(w[0])));
+			t.writeVariable(t.wr, w[0]);
 		case Or, End, Alternates:
 			t.error(ErrSyntax, ": ", string(item));
 		case Section:

@@ -8,21 +8,20 @@ package template
 
 import (
 	"fmt";
+	"io";
 	"reflect";
 )
 
 // HtmlFormatter formats arbitrary values for HTML
 // TODO: do something for real.
-func HtmlFormatter(v reflect.Value) string {
-	s := fmt.Sprint(reflect.Indirect(v).Interface());
-	return s;
+func HtmlFormatter(w io.Write, value interface{}, format string) {
+	fmt.Fprint(w, value);
 }
 
 // StringFormatter formats returns the default string representation.
 // It is stored under the name "str" and is the default formatter.
 // You can override the default formatter by storing your default
 // under the name "" in your custom formatter map.
-func StringFormatter(v reflect.Value) string {
-	s := fmt.Sprint(reflect.Indirect(v).Interface());
-	return s;
+func StringFormatter(w io.Write, value interface{}, format string) {
+	fmt.Fprint(w, value);
 }
