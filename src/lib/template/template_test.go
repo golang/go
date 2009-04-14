@@ -161,7 +161,7 @@ var tests = []*Test {
 		"HEADER=78\n"
 		"Header=77\n"
 	},
-	
+
 }
 
 func TestAll(t *testing.T) {
@@ -192,13 +192,15 @@ func TestAll(t *testing.T) {
 	}
 }
 
-func TestBadDriverType(t *testing.T) {
-	tmpl, err, line := Parse("hi", nil);
+func TestStringDriverType(t *testing.T) {
+	tmpl, err, line := Parse("template: {@}", nil);
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
-	err = tmpl.Execute("hi", nil);
-	if err == nil {
-		t.Error("failed to detect string as driver type")
+	var b io.ByteBuffer;
+	err = tmpl.Execute("hello", &b);
+	s := string(b.Data());
+	if s != "template: hello" {
+		t.Errorf("failed passing string as data: expected %q got %q", "template: hello", s)
 	}
 }

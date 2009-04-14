@@ -268,17 +268,22 @@ func (t *Template) analyze(item []byte, st *state) (tok int, w []string) {
 }
 
 // If the data for this template is a struct, find the named variable.
-func (st *state) findVar(s string) (int, int) {
-	typ, ok := st.data.Type().(reflect.StructType);
+// The special name "@" denotes the current data.
+func (st *state) findVar(s string) reflect.Value {
+	if s == "@" {
+		return st.data
+	}
+	data := reflect.Indirect(st.data);
+	typ, ok := data.Type().(reflect.StructType);
 	if ok {
 		for i := 0; i < typ.Len(); i++ {
 			name, ftyp, tag, offset := typ.Field(i);
 			if name == s {
-				return i, ftyp.Kind()
+				return data.(reflect.StructValue).Field(i)
 			}
 		}
 	}
-	return -1, -1
+	return nil
 }
 
 // Is there no data to look at?
@@ -301,18 +306,13 @@ func (t *Template) executeRepeated(w []string, st *state) {
 	if w[1] != "section" {
 		st.error(ErrSyntax, `: .repeated must have "section"`)
 	}
+
 	// Find driver array/struct for this section.  It must be in the current struct.
-	// The special name "@" leaves us at this level.
-	var field reflect.Value;
-	if w[2] == "@" {
-		field = st.data
-	} else {
-		i, kind := st.findVar(w[1]);
-		if i < 0 {
-			st.error(ErrNoVar, ": ", w[2]);
-		}
-		field = reflect.Indirect(st.data.(reflect.StructValue).Field(i));
+	field := st.findVar(w[2]);
+	if field == nil {
+		st.error(ErrNoVar, ": .repeated ", w[2], " in ", reflect.Indirect(st.data).Type());
 	}
+
 	// Must be an array/slice
 	if field != nil && field.Kind() != reflect.ArrayKind {
 		st.error(ErrBadType, " in .repeated: ", w[2], " ", field.Type().String());
@@ -349,24 +349,17 @@ Loop:
 		array := field.(reflect.ArrayValue);
 		for i := 0; i < array.Len(); i++ {
 			tmp := childTemplate(t, t.buf[start:end]);
-			tmp.execute(&state{st, st.errorchan, reflect.Indirect(array.Elem(i)), st.wr});
+			tmp.execute(&state{st, st.errorchan, array.Elem(i), st.wr});
 		}
 	}
 }
 
 // Execute a ".section"
 func (t *Template) executeSection(w []string, st *state) {
-	// Find driver array/struct for this section.  It must be in the current struct.
-	// The special name "@" leaves us at this level.
-	var field reflect.Value;
-	if w[1] == "@" {
-		field = st.data
-	} else {
-		i, kind := st.findVar(w[1]);
-		if i < 0 {
-			st.error(ErrNoVar, ": ", w[1]);
-		}
-		field = st.data.(reflect.StructValue).Field(i);
+	// Find driver data for this section.  It must be in the current struct.
+	field := st.findVar(w[1]);
+	if field == nil {
+		st.error(ErrNoVar, ": .section ", w[1], " in ", reflect.Indirect(st.data).Type());
 	}
 	// Scan section, remembering slice of text we must execute.
 	orFound := false;
@@ -424,14 +417,14 @@ Loop:
 
 // Look up a variable, up through the parent if necessary.
 func (t *Template) varValue(name string, st *state) reflect.Value {
-	i, kind := st.findVar(name);
-	if i < 0 {
+	field := st.findVar(name);
+	if field == nil {
 		if st.parent == nil {
 			st.error(ErrNoVar, ": ", name)
 		}
 		return t.varValue(name, st.parent);
 	}
-	return st.data.(reflect.StructValue).Field(i);
+	return field;
 }
 
 // Evaluate a variable, looking up through the parent if necessary.
@@ -517,12 +510,8 @@ func Parse(s string, fmap FormatterMap) (*Template, *os.Error, int) {
 }
 
 func (t *Template) Execute(data interface{}, wr io.Write) *os.Error {
-	// Extract the driver struct.
-	val := reflect.Indirect(reflect.NewValue(data));
-	sval, ok1 := val.(reflect.StructValue);
-	if !ok1 {
-		return ErrNotStruct
-	}
+	// Extract the driver data.
+	val := reflect.NewValue(data);
 	ch := make(chan *os.Error);
 	go func() {
 		t.execute(&state{nil, ch, val, wr});
