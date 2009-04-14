@@ -141,7 +141,7 @@ Loop:
 				if trim_white && only_white {
 					start = i;
 				}
-			} else if i > t.p+1 {  // have some text accumulated so stop before '{'
+			} else if i > t.p {  // have some text accumulated so stop before '{'
 				break Loop;
 			}
 			brace = true;
