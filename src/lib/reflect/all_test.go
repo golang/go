@@ -117,8 +117,8 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	typedump("map[string]int32", "map[string]int32");
 	typedump("chan<-string", "chan<-string");
 	typedump("struct {c chan *int32; d float32}", "struct{c chan*int32; d float32}");
-	typedump("*(a int8, b int32)", "*(a int8, b int32)");
-	typedump("struct {c *(? chan *P.integer, ? *int8)}", "struct{c *(chan*P.integer, *int8)}");
+	typedump("func(a int8, b int32)", "func(a int8, b int32)");
+	typedump("struct {c func(? chan *P.integer, ? *int8)}", "struct{c func(chan*P.integer, *int8)}");
 	typedump("struct {a int8; b int32}", "struct{a int8; b int32}");
 	typedump("struct {a int8; b int8; b int32}", "struct{a int8; b int8; b int32}");
 	typedump("struct {a int8; b int8; c int8; b int32}", "struct{a int8; b int8; c int8; b int32}");
@@ -126,7 +126,8 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	typedump("struct {a int8; b int8; c int8; d int8; e int8; b int32}", "struct{a int8; b int8; c int8; d int8; e int8; b int32}");
 	typedump("struct {a int8 \"hi there\"; }", "struct{a int8 \"hi there\"}");
 	typedump("struct {a int8 \"hi \\x00there\\t\\n\\\"\\\\\"; }", "struct{a int8 \"hi \\x00there\\t\\n\\\"\\\\\"}");
-	typedump("struct {f *(args ...)}", "struct{f *(args ...)}");
+	typedump("struct {f func(args ...)}", "struct{f func(args ...)}");
+	typedump("interface { a(? func(? func(? int) int) func(? func(? int)) int); b() }", "interface{a (func(func(int)(int))(func(func(int))(int))); b ()}");
 
 	// Values
 	valuedump("int8", "8");
@@ -148,8 +149,8 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	valuedump("map[string]int32", "map[string]int32{<can't iterate on maps>}");
 	valuedump("chan<-string", "chan<-string");
 	valuedump("struct {c chan *int32; d float32}", "struct{c chan*int32; d float32}{chan*int32, 0}");
-	valuedump("*(a int8, b int32)", "*(a int8, b int32)(0)");
-	valuedump("struct {c *(? chan *P.integer, ? *int8)}", "struct{c *(chan*P.integer, *int8)}{*(chan*P.integer, *int8)(0)}");
+	valuedump("func(a int8, b int32)", "func(a int8, b int32)(0)");
+	valuedump("struct {c func(? chan *P.integer, ? *int8)}", "struct{c func(chan*P.integer, *int8)}{func(chan*P.integer, *int8)(0)}");
 	valuedump("struct {a int8; b int32}", "struct{a int8; b int32}{0, 0}");
 	valuedump("struct {a int8; b int8; b int32}", "struct{a int8; b int8; b int32}{0, 0, 0}");
 
@@ -243,14 +244,14 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	t = reflect.ParseTypeString("", "interface {a() *int}");
 	assert(t.String(), "interface {a() *int}");
 
-	t = reflect.ParseTypeString("", "*(a int8, b int32)");
-	assert(t.String(), "*(a int8, b int32)");
+	t = reflect.ParseTypeString("", "func(a int8, b int32)");
+	assert(t.String(), "func(a int8, b int32)");
 
-	t = reflect.ParseTypeString("", "*(a int8, b int32) float");
-	assert(t.String(), "*(a int8, b int32) float");
+	t = reflect.ParseTypeString("", "func(a int8, b int32) float");
+	assert(t.String(), "func(a int8, b int32) float");
 
-	t = reflect.ParseTypeString("", "*(a int8, b int32) (a float, b float)");
-	assert(t.String(), "*(a int8, b int32) (a float, b float)");
+	t = reflect.ParseTypeString("", "func(a int8, b int32) (a float, b float)");
+	assert(t.String(), "func(a int8, b int32) (a float, b float)");
 
 	t = reflect.ParseTypeString("", "[32]int32");
 	assert(t.String(), "[32]int32");
@@ -309,6 +310,14 @@ func TestInterfaceValue(t *testing.T) {
 	assert(v2.Type().String(), "interface { }");
 	v3 := v2.(reflect.InterfaceValue).Value();
 	assert(v3.Type().String(), "float");
+}
+
+func TestFunctionValue(t *testing.T) {
+	v := reflect.NewValue(func() {});
+	if v.Interface() != v.Interface() {
+		t.Fatalf("TestFunction != itself");
+	}
+	assert(v.Type().String(), "func()");
 }
 
 func TestCopyArray(t *testing.T) {

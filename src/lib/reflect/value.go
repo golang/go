@@ -776,10 +776,15 @@ func interfaceCreator(typ Type, addr Addr) Value {
 // Its implementation is incomplete.
 type FuncValue interface {
 	Value;
+	Get()	Addr;	// The address of the function.
 }
 
 type funcValueStruct struct {
 	commonValue
+}
+
+func (v *funcValueStruct) Get() Addr {
+	return *(*Addr)(v.addr)
 }
 
 func funcCreator(typ Type, addr Addr) Value {
@@ -827,8 +832,6 @@ func newValueAddr(typ Type, addr Addr) Value {
 func NewInitValue(typ Type) Value {
 	// Some values cannot be made this way.
 	switch typ.Kind() {
-	case FuncKind:	// must be pointers, at least for now (TODO?)
-		return nil;
 	case ArrayKind:
 		if typ.(ArrayType).IsSlice() {
 			return nil

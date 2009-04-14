@@ -45,14 +45,18 @@ type hasFields interface {
 	Len()	int;
 }
 
-func typeFieldsToString(t hasFields, sep string) string {
+func typeFieldsToString(t hasFields, sep string, iface bool) string {
 	var str string;
 	for i := 0; i < t.Len(); i++ {
 		str1, typ, tag, offset := t.Field(i);
 		if str1 != "" {
 			str1 += " "
 		}
-		str1 += typeToString(typ, false);
+		str2 := typeToString(typ, false);
+		if iface && str2[0:4] == "func" {
+			str2 = str2[4:len(str2)]
+		}
+		str1 += str2;
 		if tag != "" {
 			str1 += " " + doubleQuote(tag);
 		}
@@ -111,14 +115,14 @@ func typeToString(typ Type, expand bool) string {
 		}
 		return str + typeToString(c.Elem(), false);
 	case StructKind:
-		return "struct{" + typeFieldsToString(typ.(StructType), ";") + "}";
+		return "struct{" + typeFieldsToString(typ.(StructType), ";", false) + "}";
 	case InterfaceKind:
-		return "interface{" + typeFieldsToString(typ.(InterfaceType), ";") + "}";
+		return "interface{" + typeFieldsToString(typ.(InterfaceType), ";", true) + "}";
 	case FuncKind:
 		f := typ.(FuncType);
-		str = "(" + typeFieldsToString(f.In(), ",") + ")";
+		str = "func(" + typeFieldsToString(f.In(), ",", false) + ")";
 		if f.Out() != nil {
-			str += "(" + typeFieldsToString(f.Out(), ",") + ")";
+			str += "(" + typeFieldsToString(f.Out(), ",", false) + ")";
 		}
 		return str;
 	default:
@@ -221,7 +225,8 @@ func valueToString(val Value) string {
 	case InterfaceKind:
 		return "can't print interfaces yet";
 	case FuncKind:
-		return "can't print funcs yet";
+		v := val.(FuncValue);
+		return typeToString(typ, false) + "(" + integer(int64(uintptr(v.Get()))) + ")";
 	default:
 		panicln("reflect.valueToString: can't print type ", val.Kind());
 	}
