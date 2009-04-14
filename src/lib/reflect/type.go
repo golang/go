@@ -61,6 +61,7 @@ type allTypes struct {
 	xfloat		float;
 	xfloat32	float32;
 	xfloat64	float64;
+	xfunc		func();
 	xint		int;
 	xint16		int16;
 	xint32		int32;
@@ -466,17 +467,11 @@ type funcTypeStruct struct {
 }
 
 func newFuncTypeStruct(name, typestring string, in, out *structTypeStruct) *funcTypeStruct {
-	return &funcTypeStruct{ commonType{FuncKind, typestring, name, 0}, in, out }
+	return &funcTypeStruct{ commonType{FuncKind, typestring, name, ptrsize}, in, out }
 }
 
 func (t *funcTypeStruct) FieldAlign() int {
-	panic("reflect.type: func.FieldAlign(): cannot happen");
-	return 0
-}
-
-func (t *funcTypeStruct) Size() int {
-	panic("reflect.type: func.Size(): cannot happen");
-	return 0
+	return unsafe.Alignof(x.xfunc);
 }
 
 func (t *funcTypeStruct) In() StructType {
@@ -602,15 +597,18 @@ func init() {
 	interfacetype =
 		'interface' '{' fieldlist '}'
 	chantype =
-		'<-' chan stubtype
-		chan '<-' stubtype
-		chan stubtype
+		'<-' 'chan' stubtype
+		'chan' '<-' stubtype
+		'chan' stubtype
 	maptype =
 		'map' '[' stubtype ']' stubtype
 	pointertype =
 		'*' stubtype
 	functiontype =
-		'(' fieldlist ')'
+		[ 'func' ] '(' fieldlist ')' [ '(' fieldlist ')' | stubtype ]
+
+	In functiontype 'func' is optional because it is omitted in
+	the reflection string for interface types.
 
 */
 
@@ -860,7 +858,8 @@ func (p *typeParser) Func(name string, tokstart int) *stubType {
 	p.Next();
 	if p.token != "(" {
 		// 1 list: the in parameters are a list.  Is there a single out parameter?
-		if p.token == "" || p.token == "}" || p.token == "," || p.token == ";" {
+		switch p.token {
+		case "", "}", ")", ",", ";":
 			return newStubType(name, newFuncTypeStruct(name, p.TypeString(tokstart), f1, nil));
 		}
 		// A single out parameter.
@@ -918,6 +917,13 @@ func (p *typeParser) Type(name string) *stubType {
 		}
 		p.Next();
 		return p.Interface(name, tokstart);
+	case p.token == "func":
+		p.Next();
+		if p.token != "(" {
+			return missingStub
+		}
+		p.Next();
+		return p.Func(name, tokstart);
 	case p.token == "(":
 		p.Next();
 		return p.Func(name, tokstart);
