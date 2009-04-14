@@ -184,7 +184,7 @@ func (p *Cmd) Close() *os.Error {
 	return err;
 }
 
-func canexec(file string) bool{
+func canExec(file string) bool{
 	d, err := os.Stat(file);
 	if err != nil {
 		return false;
@@ -203,7 +203,7 @@ func LookPath(file string) (string, *os.Error) {
 	// but that would not match all the Unix shells.
 
 	if strings.Index(file, "/") >= 0 {
-		if canexec(file) {
+		if canExec(file) {
 			return file, nil;
 		}
 		return "", os.ENOENT;
@@ -219,7 +219,7 @@ func LookPath(file string) (string, *os.Error) {
 			// Unix shell semantics: path element "" means "."
 			dir = ".";
 		}
-		if canexec(dir+"/"+file) {
+		if canExec(dir+"/"+file) {
 			return dir+"/"+file, nil;
 		}
 	}

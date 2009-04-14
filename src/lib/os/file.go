@@ -287,13 +287,13 @@ func Remove(name string) *os.Error {
 	// returns EISDIR, so can't use that.  However,
 	// both agree that rmdir(file) returns ENOTDIR,
 	// so we can use that to decide which error is real.
-	// Rmdir might return ENOTDIR if given a bad
+	// Rmdir might also return ENOTDIR if given a bad
 	// file path, like /etc/passwd/foo, but in that case,
 	// both errors will be ENOTDIR, so it's okay to
 	// use the error from unlink.
 	if e1 != syscall.ENOTDIR {
 		e = e1;
 	}
-	return ErrnoToError(e1);
+	return ErrnoToError(e);
 }
 
