@@ -18,7 +18,7 @@ func HtmlFormatter(w io.Write, value interface{}, format string) {
 	fmt.Fprint(w, value);
 }
 
-// StringFormatter formats returns the default string representation.
+// StringFormatter formats into the default string representation.
 // It is stored under the name "str" and is the default formatter.
 // You can override the default formatter by storing your default
 // under the name "" in your custom formatter map.

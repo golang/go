@@ -174,7 +174,7 @@ func parse(path string, mode uint) (*ast.Program, errorList) {
 	src, err := os.Open(path, os.O_RDONLY, 0);
 	defer src.Close();
 	if err != nil {
-		log.Stdoutf("open %s: %v", path, err);
+		log.Stderrf("open %s: %v", path, err);
 		var noPos token.Position;
 		return nil, errorList{parseError{noPos, err.String()}};
 	}
@@ -242,7 +242,12 @@ func servePage(c *http.Conn, title, content interface{}) {
 	d.header = title.(string);
 	d.timestamp = time.UTC().String();
 	d.content = content.(string);
-	template.Execute(godoc_html, &d, nil, c);
+	templ, err, line := template.Parse(godoc_html, nil);
+	if err != nil {
+		log.Stderrf("template error %s:%d: %s\n", title, line, err);
+	} else {
+		templ.Execute(&d, c);
+	}
 }
 
 
@@ -350,7 +355,7 @@ func serveParseErrors(c *http.Conn, filename string, errors errorList) {
 			fmt.Fprintf(&b, "<b><font color=red>%s >>></font></b>", e.msg);
 			offs = e.pos.Offset;
 		} else {
-			log.Stdoutf("error position %d out of bounds (len = %d)", e.pos.Offset, len(src));
+			log.Stderrf("error position %d out of bounds (len = %d)", e.pos.Offset, len(src));
 		}
 	}
 	// TODO handle Write errors
@@ -471,13 +476,13 @@ func addDirectory(pmap map[string]*pakDesc, dirname string) {
 	path := dirname;
 	fd, err1 := os.Open(path, os.O_RDONLY, 0);
 	if err1 != nil {
-		log.Stdoutf("open %s: %v", path, err1);
+		log.Stderrf("open %s: %v", path, err1);
 		return;
 	}
 
 	list, err2 := fd.Readdir(-1);
 	if err2 != nil {
-		log.Stdoutf("readdir %s: %v", path, err2);
+		log.Stderrf("readdir %s: %v", path, err2);
 		return;
 	}
 
@@ -626,7 +631,7 @@ func installHandler(prefix string, handler func(c *http.Conn, path string)) {
 	f := func(c *http.Conn, req *http.Request) {
 		path := req.Url.Path;
 		if *verbose {
-			log.Stdoutf("%s\t%s", req.Host, path);
+			log.Stderrf("%s\t%s", req.Host, path);
 		}
 		handler(c, path[len(prefix) : len(path)]);
 	};
@@ -663,9 +668,9 @@ func main() {
 
 	if *httpaddr != "" {
 		if *verbose {
-			log.Stdoutf("Go Documentation Server\n");
-			log.Stdoutf("address = %s\n", *httpaddr);
-			log.Stdoutf("goroot = %s\n", goroot);
+			log.Stderrf("Go Documentation Server\n");
+			log.Stderrf("address = %s\n", *httpaddr);
+			log.Stderrf("goroot = %s\n", goroot);
 		}
 
 		installHandler("/mem", makeFixedFileServer("doc/go_mem.html"));
