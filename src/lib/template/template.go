@@ -99,7 +99,7 @@ func (t *template) error(err *os.Error, args ...) {
 }
 
 func white(c uint8) bool {
-	return c == ' ' || c == '\t' || c == '\n'
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
 }
 
 func (t *template) execute()
@@ -126,7 +126,7 @@ Loop:
 			*t.linenum++;
 			i++;
 			break Loop;
-		case ' ', '\t':
+		case ' ', '\t', '\r':
 			// white space, do nothing
 		case '{':
 			if brace {
