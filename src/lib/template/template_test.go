@@ -158,11 +158,11 @@ var tests = []*Test {
 	},
 	
 	// Bugs
-//	&Test{
-//		"{.section data}{.end} {header}\n",
-//		
-//		" 77\n"
-//	},
+	&Test{
+		"{.section data}{.end} {integer}\n",
+
+		" 77\n"
+	},
 }
 
 func TestAll(t *testing.T) {
