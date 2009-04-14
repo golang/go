@@ -57,52 +57,53 @@ var builtins = FormatterMap {
 	"" : StringFormatter,
 }
 
-type template struct {
+// State for executing a Template
+type state struct {
+	parent	*state;	// parent in hierarchy
 	errorchan	chan *os.Error;	// for erroring out
-	linenum	*int;	// shared by all templates derived from this one
-	parent	*template;
 	data	reflect.Value;	// the driver data for this section etc.
-	fmap	FormatterMap;	// formatters for variables
-	buf	[]byte;	// input text to process
-	p	int;	// position in buf
 	wr	io.Write;	// where to send output
 }
 
+// Report error and stop generation.
+func (st *state) error(err *os.Error, args ...) {
+	st.errorchan <- err;
+	sys.Goexit();
+}
+
+type Template struct {
+	fmap	FormatterMap;	// formatters for variables
+	buf	[]byte;	// input text to process
+	p	int;	// position in buf
+	linenum	*int;	// position in input
+}
+
 // Create a top-level template
-func newTemplate(ch chan *os.Error, linenum *int, buf []byte, data reflect.Value, fmap FormatterMap, wr io.Write) *template {
-	t := new(template);
-	t.errorchan = ch;
-	t.linenum = linenum;
-	*linenum = 1;
-	t.parent = nil;
-	t.data = data;
+func newTemplate(buf []byte, fmap FormatterMap) *Template {
+	t := new(Template);
 	t.buf = buf;
 	t.p = 0;
 	t.fmap = fmap;
-	t.wr = wr;
+	t.linenum = new(int);
 	return t;
 }
 
 // Create a template deriving from its parent
-func childTemplate(parent *template, buf []byte, data reflect.Value) *template {
-	t := newTemplate(parent.errorchan, parent.linenum, buf, data, parent.fmap, parent.wr);
-	t.parent = parent;
+func childTemplate(parent *Template, buf []byte) *Template {
+	t := new(Template);
+	t.buf = buf;
+	t.p = 0;
+	t.fmap = parent.fmap;
+	t.linenum = parent.linenum;
 	return t;
-}
-
-// Report error and stop generation.
-func (t *template) error(err *os.Error, args ...) {
-	fmt.Fprintf(os.Stderr, "template error: line %d: %s%s\n", *t.linenum, err, fmt.Sprint(args));  // TODO: drop this? (only way to get line number)
-	t.errorchan <- err;
-	sys.Goexit();
 }
 
 func white(c uint8) bool {
 	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
 }
 
-func (t *template) execute()
-func (t *template) executeSection(w []string)
+func (t *Template) execute(st *state)
+func (t *Template) executeSection(w []string, st *state)
 
 // nextItem returns the next item from the input buffer.  If the returned
 // item is empty, we are at EOF.  The item will be either a brace-
@@ -110,7 +111,7 @@ func (t *template) executeSection(w []string)
 // strings.  Most tokens stop at (but include, if plain text) a newline.
 // Action tokens on a line by themselves drop the white space on
 // either side, up to and including the newline.
-func (t *template) nextItem() []byte {
+func (t *Template) nextItem(st *state) []byte {
 	brace := false;	// are we waiting for an opening brace?
 	special := false;	// is this a {.foo} directive, which means trim white space?
 	// Delete surrounding white space if this {.foo} is the only thing on the line.
@@ -129,7 +130,7 @@ Loop:
 			// white space, do nothing
 		case '{':
 			if brace {
-				t.error(ErrLBrace)
+				st.error(ErrLBrace)
 			}
 			// anything interesting already on the line?
 			if !only_white {
@@ -147,7 +148,7 @@ Loop:
 			brace = true;
 		case '}':
 			if !brace {
-				t.error(ErrUnmatchedRBrace)
+				st.error(ErrUnmatchedRBrace)
 			}
 			brace = false;
 			i++;
@@ -157,7 +158,7 @@ Loop:
 		}
 	}
 	if brace {
-		t.error(ErrUnmatchedLBrace)
+		st.error(ErrUnmatchedLBrace)
 	}
 	item := t.buf[start:i];
 	if special && trim_white {
@@ -204,17 +205,17 @@ func words(buf []byte) []string {
 
 // Analyze an item and return its type and, if it's an action item, an array of
 // its constituent words.
-func (t *template) analyze(item []byte) (tok int, w []string) {
+func (t *Template) analyze(item []byte, st *state) (tok int, w []string) {
 	// item is known to be non-empty
 	if item[0] != '{' {
 		tok = Text;
 		return
 	}
 	if item[len(item)-1] != '}' {
-		t.error(ErrUnmatchedLBrace)  // should not happen anyway
+		st.error(ErrUnmatchedLBrace)  // should not happen anyway
 	}
 	if len(item) <= 2 {
-		t.error(ErrEmptyDirective)
+		st.error(ErrEmptyDirective)
 	}
 	// Comment
 	if item[1] == '#' {
@@ -224,10 +225,10 @@ func (t *template) analyze(item []byte) (tok int, w []string) {
 	// Split into words
 	w = words(item[1: len(item)-1]);  // drop final brace
 	if len(w) == 0 {
-		t.error(ErrBadDirective)
+		st.error(ErrBadDirective)
 	}
 	if len(w[0]) == 0 {
-		t.error(ErrEmptyDirective)
+		st.error(ErrEmptyDirective)
 	}
 	if len(w) == 1 && w[0][0] != '.' {
 		tok = Variable;
@@ -245,30 +246,30 @@ func (t *template) analyze(item []byte) (tok int, w []string) {
 		return;
 	case ".section":
 		if len(w) != 2 {
-			t.error(ErrFields, ": ", string(item))
+			st.error(ErrFields, ": ", string(item))
 		}
 		tok = Section;
 		return;
 	case ".repeated":
 		if len(w) != 3 || w[1] != "section" {
-			t.error(ErrFields, ": ", string(item))
+			st.error(ErrFields, ": ", string(item))
 		}
 		tok = Repeated;
 		return;
 	case ".alternates":
 		if len(w) != 2 || w[1] != "with" {
-			t.error(ErrFields, ": ", string(item))
+			st.error(ErrFields, ": ", string(item))
 		}
 		tok = Alternates;
 		return;
 	}
-	t.error(ErrBadDirective, ": ", string(item));
+	st.error(ErrBadDirective, ": ", string(item));
 	return
 }
 
 // If the data for this template is a struct, find the named variable.
-func (t *template) findVar(s string) (int, int) {
-	typ, ok := t.data.Type().(reflect.StructType);
+func (st *state) findVar(s string) (int, int) {
+	typ, ok := st.data.Type().(reflect.StructType);
 	if ok {
 		for i := 0; i < typ.Len(); i++ {
 			name, ftyp, tag, offset := typ.Field(i);
@@ -296,25 +297,25 @@ func empty(v reflect.Value, indirect_ok bool) bool {
 }
 
 // Execute a ".repeated" section
-func (t *template) executeRepeated(w []string) {
+func (t *Template) executeRepeated(w []string, st *state) {
 	if w[1] != "section" {
-		t.error(ErrSyntax, `: .repeated must have "section"`)
+		st.error(ErrSyntax, `: .repeated must have "section"`)
 	}
 	// Find driver array/struct for this section.  It must be in the current struct.
 	// The special name "@" leaves us at this level.
 	var field reflect.Value;
 	if w[2] == "@" {
-		field = t.data
+		field = st.data
 	} else {
-		i, kind := t.findVar(w[1]);
+		i, kind := st.findVar(w[1]);
 		if i < 0 {
-			t.error(ErrNoVar, ": ", w[2]);
+			st.error(ErrNoVar, ": ", w[2]);
 		}
-		field = reflect.Indirect(t.data.(reflect.StructValue).Field(i));
+		field = reflect.Indirect(st.data.(reflect.StructValue).Field(i));
 	}
 	// Must be an array/slice
 	if field != nil && field.Kind() != reflect.ArrayKind {
-		t.error(ErrBadType, " in .repeated: ", w[2], " ", field.Type().String());
+		st.error(ErrBadType, " in .repeated: ", w[2], " ", field.Type().String());
 	}
 	// Scan repeated section, remembering slice of text we must execute.
 	nesting := 0;
@@ -322,11 +323,11 @@ func (t *template) executeRepeated(w []string) {
 	end := t.p;
 Loop:
 	for {
-		item := t.nextItem();
+		item := t.nextItem(st);
 		if len(item) ==  0 {
-			t.error(ErrNoEnd)
+			st.error(ErrNoEnd)
 		}
-		tok, s := t.analyze(item);
+		tok, s := t.analyze(item, st);
 		switch tok {
 		case Comment:
 			continue;	// just ignore it
@@ -347,26 +348,25 @@ Loop:
 	if field != nil {
 		array := field.(reflect.ArrayValue);
 		for i := 0; i < array.Len(); i++ {
-			elem := reflect.Indirect(array.Elem(i));
-			tmp := childTemplate(t, t.buf[start:end], elem);
-			tmp.execute();
+			tmp := childTemplate(t, t.buf[start:end]);
+			tmp.execute(&state{st, st.errorchan, reflect.Indirect(array.Elem(i)), st.wr});
 		}
 	}
 }
 
 // Execute a ".section"
-func (t *template) executeSection(w []string) {
+func (t *Template) executeSection(w []string, st *state) {
 	// Find driver array/struct for this section.  It must be in the current struct.
 	// The special name "@" leaves us at this level.
 	var field reflect.Value;
 	if w[1] == "@" {
-		field = t.data
+		field = st.data
 	} else {
-		i, kind := t.findVar(w[1]);
+		i, kind := st.findVar(w[1]);
 		if i < 0 {
-			t.error(ErrNoVar, ": ", w[1]);
+			st.error(ErrNoVar, ": ", w[1]);
 		}
-		field = t.data.(reflect.StructValue).Field(i);
+		field = st.data.(reflect.StructValue).Field(i);
 	}
 	// Scan section, remembering slice of text we must execute.
 	orFound := false;
@@ -376,11 +376,11 @@ func (t *template) executeSection(w []string) {
 	accumulate := !empty(field, true);	// Keep this section if there's data
 Loop:
 	for {
-		item := t.nextItem();
+		item := t.nextItem(st);
 		if len(item) ==  0 {
-			t.error(ErrNoEnd)
+			st.error(ErrNoEnd)
 		}
-		tok, s := t.analyze(item);
+		tok, s := t.analyze(item, st);
 		switch tok {
 		case Comment:
 			continue;	// just ignore it
@@ -394,7 +394,7 @@ Loop:
 				break
 			}
 			if orFound {
-				t.error(ErrSyntax, ": .or");
+				st.error(ErrSyntax, ": .or");
 			}
 			orFound = true;
 			if !accumulate {
@@ -418,25 +418,25 @@ Loop:
 			end = t.p
 		}
 	}
-	tmp := childTemplate(t, t.buf[start:end], field);
-	tmp.execute();
+	tmp := childTemplate(t, t.buf[start:end]);
+	tmp.execute(&state{st, st.errorchan, field, st.wr});
 }
 
 // Look up a variable, up through the parent if necessary.
-func (t *template) varValue(name string) reflect.Value {
-	i, kind := t.findVar(name);
+func (t *Template) varValue(name string, st *state) reflect.Value {
+	i, kind := st.findVar(name);
 	if i < 0 {
-		if t.parent == nil {
-			t.error(ErrNoVar, ": ", name)
+		if st.parent == nil {
+			st.error(ErrNoVar, ": ", name)
 		}
-		return t.parent.varValue(name);
+		return t.varValue(name, st.parent);
 	}
-	return t.data.(reflect.StructValue).Field(i);
+	return st.data.(reflect.StructValue).Field(i);
 }
 
-// Evalute a variable, looking up through the parent if necessary.
+// Evaluate a variable, looking up through the parent if necessary.
 // If it has a formatter attached ({var|formatter}) run that too.
-func (t *template) writeVariable(w io.Write, name_formatter string) {
+func (t *Template) writeVariable(st *state, name_formatter string) {
 	name := name_formatter;
 	formatter := "";
 	bar := strings.Index(name_formatter, "|");
@@ -444,61 +444,79 @@ func (t *template) writeVariable(w io.Write, name_formatter string) {
 		name = name_formatter[0:bar];
 		formatter = name_formatter[bar+1:len(name_formatter)];
 	}
-	val := t.varValue(name).Interface();
+	val := t.varValue(name, st).Interface();
 	// is it in user-supplied map?
 	if t.fmap != nil {
 		if fn, ok := t.fmap[formatter]; ok {
-			fn(w, val, formatter);
+			fn(st.wr, val, formatter);
 			return;
 		}
 	}
 	// is it in builtin map?
 	if fn, ok := builtins[formatter]; ok {
-		fn(w, val, formatter);
+		fn(st.wr, val, formatter);
 		return;
 	}
-	t.error(ErrNoFormatter, ": ", formatter);
+	st.error(ErrNoFormatter, ": ", formatter);
 	panic("notreached");
 }
 
-func (t *template) execute() {
+func (t *Template) execute(st *state) {
 	for {
-		item := t.nextItem();
+		item := t.nextItem(st);
 		if len(item) == 0 {
 			return
 		}
-		tok, w := t.analyze(item);
+		tok, w := t.analyze(item, st);
 		switch tok {
 		case Comment:
 			break;
 		case Text:
-			t.wr.Write(item);
+			st.wr.Write(item);
 		case Literal:
 			switch w[0] {
 			case ".meta-left":
-				t.wr.Write(lbrace);
+				st.wr.Write(lbrace);
 			case ".meta-right":
-				t.wr.Write(rbrace);
+				st.wr.Write(rbrace);
 			case ".space":
-				t.wr.Write(space);
+				st.wr.Write(space);
 			default:
 				panic("unknown literal: ", w[0]);
 			}
 		case Variable:
-			t.writeVariable(t.wr, w[0]);
+			t.writeVariable(st, w[0]);
 		case Or, End, Alternates:
-			t.error(ErrSyntax, ": ", string(item));
+			st.error(ErrSyntax, ": ", string(item));
 		case Section:
-			t.executeSection(w);
+			t.executeSection(w, st);
 		case Repeated:
-			t.executeRepeated(w);
+			t.executeRepeated(w, st);
 		default:
 			panic("bad directive in execute:", string(item));
 		}
 	}
 }
 
-func Execute(s string, data interface{}, fmap FormatterMap, wr io.Write) *os.Error {
+func (t *Template) parse() {
+	// stub for now
+}
+
+func Parse(s string, fmap FormatterMap) (*Template, *os.Error, int) {
+	ch := make(chan *os.Error);
+	t := newTemplate(io.StringBytes(s), fmap);
+	go func() {
+		t.parse();
+		ch <- nil;	// clean return;
+	}();
+	err := <-ch;
+	if err != nil {
+		return nil, err, *t.linenum
+	}
+	return t, nil, 0
+}
+
+func (t *Template) Execute(data interface{}, wr io.Write) *os.Error {
 	// Extract the driver struct.
 	val := reflect.Indirect(reflect.NewValue(data));
 	sval, ok1 := val.(reflect.StructValue);
@@ -506,10 +524,8 @@ func Execute(s string, data interface{}, fmap FormatterMap, wr io.Write) *os.Err
 		return ErrNotStruct
 	}
 	ch := make(chan *os.Error);
-	var linenum int;
-	t := newTemplate(ch, &linenum, io.StringBytes(s), val, fmap, wr);
 	go func() {
-		t.execute();
+		t.execute(&state{nil, ch, val, wr});
 		ch <- nil;	// clean return;
 	}();
 	return <-ch;

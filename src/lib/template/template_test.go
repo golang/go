@@ -133,6 +133,11 @@ var tests = []*Test {
 		"Header=77\n"
 		"Header=77\n"
 	},
+	&Test{
+		"{.section data}{.end} {header}\n",
+
+		" Header\n"
+	},
 
 	// Repeated
 	&Test{
@@ -157,12 +162,6 @@ var tests = []*Test {
 		"Header=77\n"
 	},
 	
-	// Bugs
-	&Test{
-		"{.section data}{.end} {integer}\n",
-
-		" 77\n"
-	},
 }
 
 func TestAll(t *testing.T) {
@@ -178,9 +177,14 @@ func TestAll(t *testing.T) {
 	var buf io.ByteBuffer;
 	for i, test := range tests {
 		buf.Reset();
-		err := Execute(test.in, s, formatters, &buf);
+		tmpl, err, line := Parse(test.in, formatters);
 		if err != nil {
-			t.Error("unexpected error:", err)
+			t.Error("unexpected parse error:", err, "line", line);
+			continue;
+		}
+		err = tmpl.Execute(s, &buf);
+		if err != nil {
+			t.Error("unexpected execute error:", err)
 		}
 		if string(buf.Data()) != test.out {
 			t.Errorf("for %q: expected %q got %q", test.in, test.out, string(buf.Data()));
@@ -189,9 +193,12 @@ func TestAll(t *testing.T) {
 }
 
 func TestBadDriverType(t *testing.T) {
-	err := Execute("hi", "hello", nil, os.Stdout);
+	tmpl, err, line := Parse("hi", nil);
+	if err != nil {
+		t.Error("unexpected parse error:", err)
+	}
+	err = tmpl.Execute("hi", nil);
 	if err == nil {
 		t.Error("failed to detect string as driver type")
 	}
-	var s S;
 }
