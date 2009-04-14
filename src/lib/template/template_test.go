@@ -34,8 +34,8 @@ type S struct {
 var t1 = T{ "ItemNumber1", "ValueNumber1" }
 var t2 = T{ "ItemNumber2", "ValueNumber2" }
 
-func uppercase(v reflect.Value) string {
-	s := reflect.Indirect(v).(reflect.StringValue).Get();
+func uppercase(v interface{}) string {
+	s := v.(string);
 	t := "";
 	for i := 0; i < len(s); i++ {
 		c := s[i];
@@ -47,14 +47,21 @@ func uppercase(v reflect.Value) string {
 	return t;
 }
 
-func plus1(v reflect.Value) string {
-	i := reflect.Indirect(v).(reflect.IntValue).Get();
+func plus1(v interface{}) string {
+	i := v.(int);
 	return fmt.Sprint(i + 1);
 }
 
+func writer(f func(interface{}) string) (func(io.Write, interface{}, string)) {
+	return func(w io.Write, v interface{}, format string) {
+		io.WriteString(w, f(v));
+	}
+}
+
+
 var formatters = FormatterMap {
-	"uppercase" : uppercase,
-	"+1" : plus1,
+	"uppercase" : writer(uppercase),
+	"+1" : writer(plus1),
 }
 
 var tests = []*Test {
@@ -149,6 +156,13 @@ var tests = []*Test {
 		"HEADER=78\n"
 		"Header=77\n"
 	},
+	
+	// Bugs
+//	&Test{
+//		"{.section data}{.end} {header}\n",
+//		
+//		" 77\n"
+//	},
 }
 
 func TestAll(t *testing.T) {
