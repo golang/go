@@ -310,7 +310,7 @@ func TestInterfaceValue(t *testing.T) {
 	assert(v2.Type().String(), "interface { }");
 	v3 := v2.(reflect.InterfaceValue).Value();
 	assert(v3.Type().String(), "float");
-	
+
 	i3 := v2.Interface();
 	if f, ok := i3.(float); !ok {
 		a, typ, c := sys.Reflect(i3);
@@ -387,6 +387,8 @@ type Basic struct {
 	y float32
 }
 
+type NotBasic Basic
+
 type Recursive struct {
 	x int;
 	r *Recursive
@@ -429,6 +431,7 @@ var deepEqualTests = []DeepEqualTest {
 	DeepEqualTest{ 0.5, "hello", false },
 	DeepEqualTest{ []int{ 1, 2, 3 }, [3]int{ 1, 2, 3 }, false },
 	DeepEqualTest{ &[3]interface{} { 1, 2, 4 }, &[3]interface{} { 1, 2, "s" }, false },
+	DeepEqualTest{ Basic{ 1, 0.5 }, NotBasic{ 1, 0.5 }, false },
 }
 
 func TestDeepEqual(t *testing.T) {

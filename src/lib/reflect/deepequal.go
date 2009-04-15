@@ -74,5 +74,10 @@ func deepValueEqual(v1, v2 Value, visited map[Addr]Addr) bool {
 // handles recursive types. Until reflection supports maps, maps are equal iff
 // they are identical.
 func DeepEqual(a1, a2 interface{}) bool {
-	return deepValueEqual(NewValue(a1), NewValue(a2), make(map[Addr]Addr));
+	v1 := NewValue(a1);
+	v2 := NewValue(a2);
+	if !equalType(v1.Type(), v2.Type()) {
+		return false;
+	}
+	return deepValueEqual(v1, v2, make(map[Addr]Addr));
 }
