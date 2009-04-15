@@ -58,9 +58,12 @@ func (c *commonValue) Addr() Addr {
 
 func (c *commonValue) Interface() interface {} {
 	var i interface {};
-	if c.typ.Size() > 8 {	// TODO(rsc): how do we know it is 8?
+	switch {
+	case c.typ.Kind() == InterfaceKind:
+		i = *(*interface{})(c.addr);
+	case c.typ.Size() > 8:	// TODO(rsc): how do we know it is 8?
 		i = sys.Unreflect(uint64(uintptr(c.addr)), c.typ.String(), true);
-	} else {
+	default:
 		if uintptr(c.addr) == 0 {
 			panicln("reflect: address 0 for", c.typ.String());
 		}

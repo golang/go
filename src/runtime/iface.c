@@ -766,6 +766,11 @@ sys·Unreflect(uint64 it, String type, bool indir, Iface ret)
 	if(cmpstring(type, emptystring) == 0)
 		goto out;
 
+	if(type.len > 10 && mcmp(type.str, (byte*)"interface ", 10) == 0) {
+		printf("sys.Unreflect: cannot put %S in interface\n", type);
+		throw("sys.Unreflect");
+	}
+
 	// if we think the type should be indirect
 	// and caller does not, play it safe, return nil.
 	sigt = findtype(type, indir);
