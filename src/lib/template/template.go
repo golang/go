@@ -67,6 +67,7 @@ type state struct {
 
 // Report error and stop generation.
 func (st *state) error(err *os.Error, args ...) {
+	fmt.Fprintf(os.Stderr, "template: %v%s\n", err, fmt.Sprint(args));
 	st.errorchan <- err;
 	sys.Goexit();
 }
