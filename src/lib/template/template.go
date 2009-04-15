@@ -308,6 +308,8 @@ func empty(v reflect.Value, indirect_ok bool) bool {
 		return true
 	}
 	switch v.Type().Kind() {
+	case reflect.StringKind:
+		return v.(reflect.StringValue).Get() == "";
 	case reflect.StructKind:
 		return false;
 	case reflect.ArrayKind:

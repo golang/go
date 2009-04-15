@@ -29,6 +29,7 @@ type S struct {
 	data []T;
 	pdata []*T;
 	empty []*T;
+	emptystring string;
 	null []*T;
 }
 
@@ -162,13 +163,20 @@ var tests = []*Test {
 		"HEADER=78\n"
 		"Header=77\n"
 	},
-	
+
 	&Test{
 		"{raw}\n"
 		"{raw|html}\n",
-		
+
 		"&<>!@ #$%^\n"
 		"&amp;&lt;&gt;!@ #$%^\n"
+	},
+
+	&Test{
+		"{.section emptystring}emptystring{.end}\n"
+		"{.section header}header{.end}\n",
+
+		"\nheader\n"
 	},
 }
 
