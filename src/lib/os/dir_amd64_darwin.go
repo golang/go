@@ -31,7 +31,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
 	names = make([]string, 0, size);	// Empty with room to grow.
 	for count != 0 {
 		// Refill the buffer if necessary
-		if d.bufp == d.nbuf {
+		if d.bufp >= d.nbuf {
 			var errno int64;
 			// Final argument is (basep *int64) and the syscall doesn't take nil.
 			d.nbuf, errno = syscall.Getdirentries(file.fd, &d.buf[0], int64(len(d.buf)), new(int64));

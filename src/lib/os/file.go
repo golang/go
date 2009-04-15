@@ -12,7 +12,7 @@ import (
 )
 
 // Auxiliary information if the File describes a directory
-type dirInfo struct {	// TODO(r): 6g bug means this can't be private
+type dirInfo struct {
 	buf	[]byte;	// buffer for directory I/O
 	nbuf	int64;	// length of buf; return value from Getdirentries
 	bufp	int64;	// location of next record in buf.
