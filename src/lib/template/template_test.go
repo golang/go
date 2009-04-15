@@ -199,8 +199,37 @@ func TestStringDriverType(t *testing.T) {
 	}
 	var b io.ByteBuffer;
 	err = tmpl.Execute("hello", &b);
+	if err != nil {
+		t.Error("unexpected parse error:", err)
+	}
 	s := string(b.Data());
 	if s != "template: hello" {
 		t.Errorf("failed passing string as data: expected %q got %q", "template: hello", s)
+	}
+}
+
+func TestTwice(t *testing.T) {
+	tmpl, err, line := Parse("template: {@}", nil);
+	if err != nil {
+		t.Error("unexpected parse error:", err)
+	}
+	var b io.ByteBuffer;
+	err = tmpl.Execute("hello", &b);
+	if err != nil {
+		t.Error("unexpected parse error:", err)
+	}
+	s := string(b.Data());
+	text := "template: hello";
+	if s != text {
+		t.Errorf("failed passing string as data: expected %q got %q", text, s);
+	}
+	err = tmpl.Execute("hello", &b);
+	if err != nil {
+		t.Error("unexpected parse error:", err)
+	}
+	s = string(b.Data());
+	text += text;
+	if s != text {
+		t.Errorf("failed passing string as data: expected %q got %q", text, s);
 	}
 }
