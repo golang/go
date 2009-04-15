@@ -253,8 +253,8 @@ func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
 
 // Helper handlers
 
-// 404 not found
-func notFound(c *Conn, req *Request) {
+// NotFound replies to the request with an HTTP 404 not found error.
+func NotFound(c *Conn, req *Request) {
 	c.SetHeader("Content-Type", "text/plain; charset=utf-8");
 	c.WriteHeader(StatusNotFound);
 	io.WriteString(c, "404 page not found\n");
@@ -263,22 +263,26 @@ func notFound(c *Conn, req *Request) {
 // NotFoundHandler returns a simple request handler
 // that replies to each request with a ``404 page not found'' reply.
 func NotFoundHandler() Handler {
-	return HandlerFunc(notFound)
+	return HandlerFunc(NotFound)
+}
+
+// Redirect replies to the request with a redirect to url,
+// which may be a path relative to the request path.
+func Redirect(c *Conn, url string) {
+	c.SetHeader("Location", url);
+	c.WriteHeader(StatusMovedPermanently);
 }
 
 // Redirect to a fixed URL
-type redirectHandler struct {
-	to string;
-}
-func (h *redirectHandler) ServeHTTP(c *Conn, req *Request) {
-	c.SetHeader("Location", h.to);
-	c.WriteHeader(StatusMovedPermanently);
+type redirectHandler string
+func (url redirectHandler) ServeHTTP(c *Conn, req *Request) {
+	Redirect(c, url);
 }
 
 // RedirectHandler returns a request handler that redirects
 // each request it receives to the given url.
 func RedirectHandler(url string) Handler {
-	return &redirectHandler{url};
+	return redirectHandler(url);
 }
 
 // ServeMux is an HTTP request multiplexer.

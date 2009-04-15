@@ -32,8 +32,8 @@ coverage: packages
 	$(AS) $*.s
 
 O1=\
-	url.$O\
 	status.$O\
+	url.$O\
 
 O2=\
 	request.$O\
@@ -41,10 +41,13 @@ O2=\
 O3=\
 	server.$O\
 
-http.a: a1 a2 a3
+O4=\
+	fs.$O\
+
+http.a: a1 a2 a3 a4
 
 a1:	$(O1)
-	$(AR) grc http.a url.$O status.$O
+	$(AR) grc http.a status.$O url.$O
 	rm -f $(O1)
 
 a2:	$(O2)
@@ -55,12 +58,17 @@ a3:	$(O3)
 	$(AR) grc http.a server.$O
 	rm -f $(O3)
 
+a4:	$(O4)
+	$(AR) grc http.a fs.$O
+	rm -f $(O4)
+
 newpkg: clean
 	$(AR) grc http.a
 
 $(O1): newpkg
 $(O2): a1
 $(O3): a2
+$(O4): a3
 
 nuke: clean
 	rm -f $(GOROOT)/pkg/http.a
