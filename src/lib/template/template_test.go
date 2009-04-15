@@ -25,6 +25,7 @@ type T struct {
 type S struct {
 	header string;
 	integer int;
+	raw string;
 	data []T;
 	pdata []*T;
 	empty []*T;
@@ -161,7 +162,14 @@ var tests = []*Test {
 		"HEADER=78\n"
 		"Header=77\n"
 	},
-
+	
+	&Test{
+		"{raw}\n"
+		"{raw|html}\n",
+		
+		"&<>!@ #$%^\n"
+		"&amp;&lt;&gt;!@ #$%^\n"
+	},
 }
 
 func TestAll(t *testing.T) {
@@ -169,6 +177,7 @@ func TestAll(t *testing.T) {
 	// initialized by hand for clarity.
 	s.header = "Header";
 	s.integer = 77;
+	s.raw = "&<>!@ #$%^";
 	s.data = []T{ t1, t2 };
 	s.pdata = []*T{ &t1, &t2 };
 	s.empty = []*T{ };
