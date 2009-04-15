@@ -40,7 +40,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
 	names = make([]string, 0, size);	// Empty with room to grow.
 	for count != 0 {
 		// Refill the buffer if necessary
-		if d.bufp == d.nbuf {
+		if d.bufp >= d.nbuf {
 			var errno int64;
 			dbuf := (*syscall.Dirent)(unsafe.Pointer(&d.buf[0]));
 			d.nbuf, errno = syscall.Getdents(file.fd, dbuf, int64(len(d.buf)));
