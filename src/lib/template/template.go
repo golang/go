@@ -514,6 +514,7 @@ func (t *Template) Execute(data interface{}, wr io.Write) *os.Error {
 	val := reflect.NewValue(data);
 	ch := make(chan *os.Error);
 	go func() {
+		t.p = 0;
 		t.execute(&state{nil, ch, val, wr});
 		ch <- nil;	// clean return;
 	}();
