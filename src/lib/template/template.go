@@ -15,9 +15,8 @@ import (
 	"template";
 )
 
-var ErrLBrace = os.NewError("unexpected opening brace")
-var ErrUnmatchedRBrace = os.NewError("unmatched closing brace")
-var ErrUnmatchedLBrace = os.NewError("unmatched opening brace")
+var ErrUnmatchedRDelim = os.NewError("unmatched closing delimiter")
+var ErrUnmatchedLDelim = os.NewError("unmatched opening delimiter")
 var ErrBadDirective = os.NewError("unrecognized directive name")
 var ErrEmptyDirective = os.NewError("empty directive")
 var ErrFields = os.NewError("incorrect fields for directive")
@@ -27,13 +26,14 @@ var ErrNoVar = os.NewError("variable name not in struct");
 var ErrBadType = os.NewError("unsupported type for variable");
 var ErrNotStruct = os.NewError("driver must be a struct")
 var ErrNoFormatter = os.NewError("unknown formatter")
+var ErrEmptyDelims = os.NewError("empty delimiter strings")
 
 // All the literals are aces.
 var lbrace = []byte{ '{' }
 var rbrace = []byte{ '}' }
 var space = []byte{ ' ' }
 
-// The various types of "tokens", which are plain text or brace-delimited descriptors
+// The various types of "tokens", which are plain text or (usually) brace-delimited descriptors
 const (
 	Alternates = iota;
 	Comment;
@@ -73,24 +73,25 @@ func (st *state) error(err *os.Error, args ...) {
 
 type Template struct {
 	fmap	FormatterMap;	// formatters for variables
+	ldelim, rdelim	[]byte;	// delimiters; default {}
 	buf	[]byte;	// input text to process
 	p	int;	// position in buf
 	linenum	*int;	// position in input
 }
 
-// Create a top-level template
-func newTemplate(buf []byte, fmap FormatterMap) *Template {
-	t := new(Template);
+// Initialize a top-level template in prepratation for parsing.
+// The formatter map and delimiters are already set.
+func (t *Template) init(buf []byte) *Template {
 	t.buf = buf;
 	t.p = 0;
-	t.fmap = fmap;
 	t.linenum = new(int);
 	return t;
 }
-
 // Create a template deriving from its parent
 func childTemplate(parent *Template, buf []byte) *Template {
 	t := new(Template);
+	t.ldelim = parent.ldelim;
+	t.rdelim = parent.rdelim;
 	t.buf = buf;
 	t.p = 0;
 	t.fmap = parent.fmap;
@@ -102,17 +103,31 @@ func white(c uint8) bool {
 	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
 }
 
+// safely, does s[n:n+len(t)] == t?
+func equal(s []byte, n int, t []byte) bool {
+	b := s[n:len(s)];
+	if len(t) > len(b) {	// not enough space left for a match.
+		return false
+	}
+	for i , c := range t {
+		if c != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (t *Template) execute(st *state)
 func (t *Template) executeSection(w []string, st *state)
 
 // nextItem returns the next item from the input buffer.  If the returned
-// item is empty, we are at EOF.  The item will be either a brace-
-// delimited string or a non-empty string between brace-delimited
+// item is empty, we are at EOF.  The item will be either a
+// delimited string or a non-empty string between delimited
 // strings.  Most tokens stop at (but include, if plain text) a newline.
 // Action tokens on a line by themselves drop the white space on
 // either side, up to and including the newline.
 func (t *Template) nextItem(st *state) []byte {
-	brace := false;	// are we waiting for an opening brace?
+	sawLeft := false;	// are we waiting for an opening delimiter?
 	special := false;	// is this a {.foo} directive, which means trim white space?
 	// Delete surrounding white space if this {.foo} is the only thing on the line.
 	trim_white := t.p == 0 || t.buf[t.p-1] == '\n';
@@ -121,44 +136,43 @@ func (t *Template) nextItem(st *state) []byte {
 	start := t.p;
 Loop:
 	for i = t.p; i < len(t.buf); i++ {
-		switch t.buf[i] {
-		case '\n':
+		switch {
+		case t.buf[i] == '\n':
 			*t.linenum++;
 			i++;
 			break Loop;
-		case ' ', '\t', '\r':
+		case white(t.buf[i]):
 			// white space, do nothing
-		case '{':
-			if brace {
-				st.error(ErrLBrace)
-			}
+		case !sawLeft && equal(t.buf, i, t.ldelim):  // sawLeft checked because delims may be equal
 			// anything interesting already on the line?
 			if !only_white {
 				break Loop;
 			}
 			// is it a directive or comment?
-			if i+2 < len(t.buf) && (t.buf[i+1] == '.' || t.buf[i+1] == '#') {
+			j := i + len(t.ldelim);  // position after delimiter
+			if j+1 < len(t.buf) && (t.buf[j] == '.' || t.buf[j] == '#') {
 				special = true;
 				if trim_white && only_white {
 					start = i;
 				}
-			} else if i > t.p {  // have some text accumulated so stop before '{'
+			} else if i > t.p {  // have some text accumulated so stop before delimiter
 				break Loop;
 			}
-			brace = true;
-		case '}':
-			if !brace {
-				st.error(ErrUnmatchedRBrace)
+			sawLeft = true;
+			i = j - 1;
+		case equal(t.buf, i, t.rdelim):
+			if !sawLeft {
+				st.error(ErrUnmatchedRDelim)
 			}
-			brace = false;
-			i++;
+			sawLeft = false;
+			i += len(t.rdelim);
 			break Loop;
 		default:
 			only_white = false;
 		}
 	}
-	if brace {
-		st.error(ErrUnmatchedLBrace)
+	if sawLeft {
+		st.error(ErrUnmatchedLDelim)
 	}
 	item := t.buf[start:i];
 	if special && trim_white {
@@ -207,23 +221,23 @@ func words(buf []byte) []string {
 // its constituent words.
 func (t *Template) analyze(item []byte, st *state) (tok int, w []string) {
 	// item is known to be non-empty
-	if item[0] != '{' {
+	if !equal(item, 0, t.ldelim) {	// doesn't start with left delimiter
 		tok = Text;
 		return
 	}
-	if item[len(item)-1] != '}' {
-		st.error(ErrUnmatchedLBrace)  // should not happen anyway
+	if !equal(item, len(item)-len(t.rdelim), t.rdelim) {	// doesn't end with right delimiter
+		st.error(ErrUnmatchedLDelim)  // should not happen anyway
 	}
-	if len(item) <= 2 {
+	if len(item) <= len(t.ldelim)+len(t.rdelim) {	// no contents
 		st.error(ErrEmptyDirective)
 	}
 	// Comment
-	if item[1] == '#' {
+	if item[len(t.ldelim)] == '#' {
 		tok = Comment;
 		return
 	}
 	// Split into words
-	w = words(item[1: len(item)-1]);  // drop final brace
+	w = words(item[len(t.ldelim): len(item)-len(t.rdelim)]);  // drop final delimiter
 	if len(w) == 0 {
 		st.error(ErrBadDirective)
 	}
@@ -469,9 +483,9 @@ func (t *Template) execute(st *state) {
 		case Literal:
 			switch w[0] {
 			case ".meta-left":
-				st.wr.Write(lbrace);
+				st.wr.Write(t.ldelim);
 			case ".meta-right":
-				st.wr.Write(rbrace);
+				st.wr.Write(t.rdelim);
 			case ".space":
 				st.wr.Write(space);
 			default:
@@ -491,24 +505,32 @@ func (t *Template) execute(st *state) {
 	}
 }
 
-func (t *Template) parse() {
+func (t *Template) doParse() {
 	// stub for now
 }
 
-func Parse(s string, fmap FormatterMap) (*Template, *os.Error, int) {
+// Parse initializes a Template by parsing its definition.  The string s contains
+// the template text.  If any errors occur, it returns the error and line number
+// in the text of the erroneous construct.
+func (t *Template) Parse(s string) (*os.Error, int) {
+	if len(t.ldelim) == 0 || len(t.rdelim) == 0 {
+		return ErrEmptyDelims, 0
+	}
+	t.init(io.StringBytes(s));
 	ch := make(chan *os.Error);
-	t := newTemplate(io.StringBytes(s), fmap);
 	go func() {
-		t.parse();
+		t.doParse();
 		ch <- nil;	// clean return;
 	}();
 	err := <-ch;
 	if err != nil {
-		return nil, err, *t.linenum
+		return err, *t.linenum
 	}
-	return t, nil, 0
+	return nil, 0
 }
 
+// Execute executes a parsed template on the specified data object,
+// generating output to wr.
 func (t *Template) Execute(data interface{}, wr io.Write) *os.Error {
 	// Extract the driver data.
 	val := reflect.NewValue(data);
@@ -519,4 +541,31 @@ func (t *Template) Execute(data interface{}, wr io.Write) *os.Error {
 		ch <- nil;	// clean return;
 	}();
 	return <-ch;
+}
+
+// New creates a new template with the specified formatter map (which
+// may be nil) defining auxiliary functions for formatting variables.
+func New(fmap FormatterMap) *Template {
+	t := new(Template);
+	t.fmap = fmap;
+	t.ldelim = lbrace;
+	t.rdelim = rbrace;
+	return t;
+}
+
+// SetDelims sets the left and right delimiters for operations in the template.
+func (t *Template) SetDelims(left, right string) {
+	t.ldelim = io.StringBytes(left);
+	t.rdelim = io.StringBytes(right);
+}
+
+// Parse creates a Template with default parameters (such as {} for
+// metacharacters).  The string s contains the template text and the
+// formatter map fmap (which may be nil) defines auxiliary functions
+// for formatting variables.  It returns the template, an error report
+// (or nil), and the line number in the text of the erroneous construct.
+func Parse(s string, fmap FormatterMap) (*Template, *os.Error, int) {
+	t := New(fmap);
+	err, line := t.Parse(s);
+	return t, err, line
 }

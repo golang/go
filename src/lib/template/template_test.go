@@ -200,7 +200,7 @@ func TestStringDriverType(t *testing.T) {
 	var b io.ByteBuffer;
 	err = tmpl.Execute("hello", &b);
 	if err != nil {
-		t.Error("unexpected parse error:", err)
+		t.Error("unexpected execute error:", err)
 	}
 	s := string(b.Data());
 	if s != "template: hello" {
@@ -231,5 +231,39 @@ func TestTwice(t *testing.T) {
 	text += text;
 	if s != text {
 		t.Errorf("failed passing string as data: expected %q got %q", text, s);
+	}
+}
+
+func TestCustomDelims(t *testing.T) {
+	// try various lengths.  zero should catch error.
+	for i := 0; i < 7; i++ {
+		for j := 0; j < 7; j++ {
+			tmpl := New(nil);
+			// first two chars deliberately the same to test equal left and right delims
+			ldelim := "$!#$%^&"[0:i];
+			rdelim := "$*&^%$!"[0:j];
+			tmpl.SetDelims(ldelim, rdelim);
+			// if braces, this would be template: {@}{.meta-left}{.meta-right}
+			text := "template: " +
+				ldelim + "@" + rdelim +
+				ldelim + ".meta-left" + rdelim +
+				ldelim + ".meta-right" + rdelim;
+			err, line := tmpl.Parse(text);
+			if err != nil {
+				if i == 0 || j == 0 {	// expected
+					continue
+				}
+				t.Error("unexpected parse error:", err)
+			} else if i == 0 || j == 0 {
+				t.Errorf("expected parse error for empty delimiter: %d %d %q %q", i, j, ldelim, rdelim);
+				continue;
+			}
+			var b io.ByteBuffer;
+			err = tmpl.Execute("hello", &b);
+			s := string(b.Data());
+			if s != "template: hello" + ldelim + rdelim {
+				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
+			}
+		}
 	}
 }
