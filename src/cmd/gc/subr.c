@@ -2885,7 +2885,8 @@ ifaceokT2I(Type *t0, Type *iface, Type **m)
 	// supposed to do something better eventually
 	// but this will catch errors while we decide the
 	// details of the "better" solution.
-	if(t == t0 && t->methptr == 2) {
+	// only warn if iface is not interface{}.
+	if(t == t0 && t->methptr == 2 && iface->type != T) {
 		yyerror("probably wanted *%T not %T", t, t);
 		*m = iface->type;
 		return 0;
