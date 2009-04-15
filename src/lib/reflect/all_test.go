@@ -310,6 +310,12 @@ func TestInterfaceValue(t *testing.T) {
 	assert(v2.Type().String(), "interface { }");
 	v3 := v2.(reflect.InterfaceValue).Value();
 	assert(v3.Type().String(), "float");
+	
+	i3 := v2.Interface();
+	if f, ok := i3.(float); !ok {
+		a, typ, c := sys.Reflect(i3);
+		t.Error("v2.Interface() did not return float, got ", typ);
+	}
 }
 
 func TestFunctionValue(t *testing.T) {
