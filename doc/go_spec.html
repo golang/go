@@ -26,8 +26,6 @@ Todo's:
 [ ] cleanup: 6g allows: interface { f F } where F is a function type.
 	fine, but then we should also allow: func f F {}, where F is a function type.
 [ ] decide if and what to write about evaluation order of tuple assignments
-[ ] decide if and what to write about evaluation order of composite literal
-    elements (single expressions, (key:value) pairs)
 
 Wish list:
 [ ] enum facility (enum symbols that are not mixable with ints) or some other
@@ -126,6 +124,8 @@ Closed:
 	a for loop that is following, and can break L be used inside it?
 [x] there is some funniness regarding ';' and empty statements and label decls
 [x] cleanup convert() vs T() vs x.(T) - convert() should go away?
+[x] decide if and what to write about evaluation order of composite literal
+    elements (single expressions, (key:value) pairs)
 
 -->
 
@@ -162,7 +162,7 @@ Expression  = Alternative { "|" Alternative } .
 Alternative = Term { Term } .
 Term        = production_name | token [ "..." token ] | Group | Option | Repetition .
 Group       = "(" Expression ")" .
-Option      = "[" Expression ")" .
+Option      = "[" Expression "]" .
 Repetition  = "{" Expression "}" .
 </pre>
 
@@ -2981,6 +2981,33 @@ int8(^1)    // same as int8(-2)
 TODO: perhaps ^ should be disallowed on non-uints instead of assuming twos complement.
 Also it may be possible to make typed constants more like variables, at the cost of fewer
 overflow etc. errors being caught.
+</p>
+
+<h3>Order of evaluation</h3>
+
+<p>
+When evaluating the elements of an assignment or expression,
+all function calls, method calls and
+communication operations are evaluated in lexical left-to-right
+order.  Otherwise, the order of evaluation is unspecified.
+</p>
+
+<p>
+For example, while evaluating the arguments for this call
+to function <code>f</code>,
+</p>
+<pre>
+f(g(), h() + x[i()], <-c)
+</pre>
+<p>
+the call to <code>g()</code> happens before the call to <code>h()</code>,
+which happens before the call to <code>i()</code>, all of
+of which happen before receiving the value from the channel
+<code>c</code>.
+However, the order of those events compared to the evaluation of
+<code>f</code>, the evaluation of <code>x</code>, and the indexing
+of <code>x</code> by the return value of 
+<code>i()</code> is not specified.
 </p>
 
 <hr/>
