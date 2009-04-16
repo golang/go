@@ -48,8 +48,8 @@ func TestSortStringArray(t *testing.T) {
 
 func TestSortInts(t *testing.T) {
 	data := ints;
-	sort.SortInts(data);
-	if !sort.IntsAreSorted(data) {
+	sort.SortInts(&data);
+	if !sort.IntsAreSorted(&data) {
 		t.Errorf("sorted %v", ints);
 		t.Errorf("   got %v", data);
 	}
@@ -57,8 +57,8 @@ func TestSortInts(t *testing.T) {
 
 func TestSortFloats(t *testing.T) {
 	data := floats;
-	sort.SortFloats(data);
-	if !sort.FloatsAreSorted(data) {
+	sort.SortFloats(&data);
+	if !sort.FloatsAreSorted(&data) {
 		t.Errorf("sorted %v", floats);
 		t.Errorf("   got %v", data);
 	}
@@ -66,8 +66,8 @@ func TestSortFloats(t *testing.T) {
 
 func TestSortStrings(t *testing.T) {
 	data := strings;
-	sort.SortStrings(data);
-	if !sort.StringsAreSorted(data) {
+	sort.SortStrings(&data);
+	if !sort.StringsAreSorted(&data) {
 		t.Errorf("sorted %v", strings);
 		t.Errorf("   got %v", data);
 	}

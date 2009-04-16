@@ -49,7 +49,7 @@ func (p *pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
 		ev.Flags |= syscall.EV_ONESHOT
 	}
 
-	n, e := syscall.Kevent(p.kq, events, events, nil);
+	n, e := syscall.Kevent(p.kq, &events, &events, nil);
 	if e != 0 {
 		return os.ErrnoToError(e)
 	}
@@ -78,7 +78,7 @@ func (p *pollster) DelFD(fd int64, mode int) {
 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
 	//	rather than waiting for real event
 	ev.Flags = syscall.EV_DELETE | syscall.EV_RECEIPT;
-	syscall.Kevent(p.kq, events, events, nil);
+	syscall.Kevent(p.kq, &events, &events, nil);
 }
 
 func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
@@ -91,7 +91,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
 			t.Sec = nsec / 1e9;
 			t.Nsec = uint64(nsec % 1e9);
 		}
-		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf, t);
+		nn, e := syscall.Kevent(p.kq, nil, &p.eventbuf, t);
 		if e != 0 {
 			if e == syscall.EINTR {
 				continue

@@ -16,6 +16,6 @@ func sum(a []int) int {   // returns an int
 
 
 func main() {
-	s := sum([3]int{1,2,3});  // a slice of the array is passed to sum
+	s := sum(&[3]int{1,2,3});  // a slice of the array is passed to sum
 	fmt.Print(s, "\n");
 }

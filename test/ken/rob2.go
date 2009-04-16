@@ -241,7 +241,7 @@ func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
 		slist.atom.integer = i;
 		slist.isstring = false;
 	} else {
-		slist.atom.str = string(tokenbuf)[0:tokenlen];
+		slist.atom.str = string(tokenbuf[0:tokenlen]);
 		slist.isstring = true;
 	}
 	slist.isatom = true;

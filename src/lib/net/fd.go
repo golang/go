@@ -265,8 +265,8 @@ func (s *pollServer) Run() {
 		}
 		if fd == s.pr.Fd() {
 			// Drain our wakeup pipe.
-			for nn, e := s.pr.Read(scratch); nn > 0; {
-				nn, e = s.pr.Read(scratch)
+			for nn, e := s.pr.Read(&scratch); nn > 0; {
+				nn, e = s.pr.Read(&scratch)
 			}
 
 			// Read from channels
@@ -287,9 +287,9 @@ func (s *pollServer) Run() {
 	}
 }
 
+var wakeupbuf [1]byte;
 func (s *pollServer) Wakeup() {
-	var b [1]byte;
-	s.pw.Write(b)
+	s.pw.Write(&wakeupbuf)
 }
 
 func (s *pollServer) WaitRead(fd *netFD) {
