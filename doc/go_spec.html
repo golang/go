@@ -3452,7 +3452,7 @@ of iteration variables - and then executes the block.
 </p>
 
 <pre class="grammar">
-RangeClause = IdentifierList ( "=" | ":=" ) "range" Expression .
+RangeClause = ExpressionList ( "=" | ":=" ) "range" Expression .
 </pre>
 
 <p>
@@ -3460,7 +3460,10 @@ The type of the right-hand expression in the "range" clause must be an
 array, slice, string or map, or a pointer to an array, slice, string or map;
 or it may be a channel.
 Except for channels,
-the identifier list must contain one or two identifiers denoting the
+the identifier list must contain one or two expressions
+(as in assignments, these must be a
+variable, pointer indirection, field selector, or index expression)
+denoting the
 iteration variables. On each iteration,
 the first variable is set to the string, array or slice index or
 map key, and the second variable, if present, is set to the corresponding
