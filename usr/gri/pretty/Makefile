@@ -30,7 +30,7 @@ install: pretty godoc untab
 clean:
 	rm -f pretty untab godoc *.6 *.a 6.out *~
 
-godoc.6:	docprinter.6 compilation.6
+godoc.6:	docprinter.6 compilation.6 comment.6
 
 pretty.6:	 platform.6 astprinter.6 compilation.6
 
@@ -43,6 +43,8 @@ platform.6:	 utils.6
 astprinter.6:	 utils.6 symboltable.6
 
 docprinter.6:	astprinter.6
+
+comment.6:
 
 %.6:	%.go
 	$(G) $(F) $<
