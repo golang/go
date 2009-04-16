@@ -126,13 +126,34 @@ func newPollServer() (s *pollServer, err *os.Error) {
 }
 
 func (s *pollServer) AddFD(fd *netFD, mode int) {
-	if err := s.poll.AddFD(fd.fd, mode, false); err != nil {
-		panicln("pollServer AddFD ", fd.fd, ": ", err.String(), "\n");
+	// TODO(rsc): This check handles a race between
+	// one goroutine reading and another one closing,
+	// but it doesn't solve the race completely:
+	// it still could happen that one goroutine closes
+	// but we read fd.fd before it does, and then
+	// another goroutine creates a new open file with
+	// that fd, which we'd now be referring to.
+	// The fix is probably to send the Close call
+	// through the poll server too, except that
+	// not all Reads and Writes go through the poll
+	// server even now.
+	intfd := fd.fd;
+	if intfd < 0 {
+		// fd closed underfoot
+		if mode == 'r' {
+			fd.cr <- fd
+		} else {
+			fd.cw <- fd
+		}
+		return
+	}
+	if err := s.poll.AddFD(intfd, mode, false); err != nil {
+		panicln("pollServer AddFD ", intfd, ": ", err.String(), "\n");
 		return
 	}
 
 	var t int64;
-	key := fd.fd << 1;
+	key := intfd << 1;
 	if mode == 'r' {
 		fd.ncr++;
 		t = fd.rdeadline;
