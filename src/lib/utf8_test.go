@@ -90,21 +90,10 @@ func TestEncodeRune(t *testing.T) {
 		m := utf8map[i];
 		b := bytes(m.str);
 		var buf [10]byte;
-		n := utf8.EncodeRune(m.rune, buf);
+		n := utf8.EncodeRune(m.rune, &buf);
 		b1 := buf[0:n];
 		if !equalBytes(b, b1) {
 			t.Errorf("EncodeRune(0x%04x) = %q want %q", m.rune, b1, b);
-		}
-	}
-}
-
-func TestEncodeRuneToString(t *testing.T) {
-	for i := 0; i < len(utf8map); i++ {
-		m := utf8map[i];
-		s := m.str;
-		s1 := utf8.EncodeRuneToString(m.rune);
-		if s != s1 {
-			t.Errorf("EncodeRuneToString(0x%04x) = %s want %s", m.rune, s1, s);
 		}
 	}
 }

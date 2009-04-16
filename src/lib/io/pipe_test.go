@@ -26,7 +26,7 @@ func checkWrite(t *testing.T, w io.Write, data []byte, c chan int) {
 func TestPipe1(t *testing.T) {
 	c := make(chan int);
 	r, w := io.Pipe();
-	var buf [64]byte;
+	var buf = make([]byte, 64);
 	go checkWrite(t, w, io.StringBytes("hello, world"), c);
 	n, err := r.Read(buf);
 	if err != nil {
@@ -41,7 +41,7 @@ func TestPipe1(t *testing.T) {
 }
 
 func reader(t *testing.T, r io.Read, c chan int) {
-	var buf [64]byte;
+	var buf = make([]byte, 64);
 	for {
 		n, err := r.Read(buf);
 		if err != nil {
@@ -59,7 +59,7 @@ func TestPipe2(t *testing.T) {
 	c := make(chan int);
 	r, w := io.Pipe();
 	go reader(t, r, c);
-	var buf [64]byte;
+	var buf = make([]byte, 64);
 	for i := 0; i < 5; i++ {
 		p := buf[0:5+i*10];
 		n, err := w.Write(p);
@@ -91,12 +91,12 @@ func writer(w io.WriteClose, buf []byte, c chan pipeReturn) {
 func TestPipe3(t *testing.T) {
 	c := make(chan pipeReturn);
 	r, w := io.Pipe();
-	var wdat [128]byte;
+	var wdat = make([]byte, 128);
 	for i := 0; i < len(wdat); i++ {
 		wdat[i] = byte(i);
 	}
 	go writer(w, wdat, c);
-	var rdat [1024]byte;
+	var rdat = make([]byte, 1024);
 	tot := 0;
 	for n := 1; n <= 256; n *= 2 {
 		nn, err := r.Read(rdat[tot:tot+n]);
@@ -148,7 +148,7 @@ func testPipeReadClose(t *testing.T, async bool) {
 	} else {
 		delayClose(t, w, c);
 	}
-	var buf [64]byte;
+	var buf = make([]byte, 64);
 	n, err := r.Read(buf);
 	<-c;
 	if err != nil {

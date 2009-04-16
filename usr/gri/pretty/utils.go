@@ -87,5 +87,5 @@ func IntToString(x, base int) string {
 		buf[i] = '-';
 	}
 
-	return string(buf)[i : len(buf)];
+	return string(buf[i : len(buf)]);
 }

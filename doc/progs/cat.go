@@ -15,7 +15,7 @@ func cat(f *file.File) {
 	const NBUF = 512;
 	var buf [NBUF]byte;
 	for {
-		switch nr, er := f.Read(buf); true {
+		switch nr, er := f.Read(&buf); true {
 		case nr < 0:
 			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", f.String(), er.String());
 			sys.Exit(1);

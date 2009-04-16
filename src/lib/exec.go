@@ -96,7 +96,7 @@ func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, 
 	}
 
 	// Run command.
-	p.Pid, err = os.ForkExec(argv0, argv, envv, fd);
+	p.Pid, err = os.ForkExec(argv0, argv, envv, &fd);
 	if err != nil {
 		goto Error;
 	}

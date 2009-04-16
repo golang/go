@@ -104,7 +104,7 @@ func charString(ch int) string {
 	case '\v': s = `\v`;
 	case '\\': s = `\\`;
 	case '\'': s = `\'`;
-	default  : s = utf8.EncodeRuneToString(ch);
+	default  : s = string(ch);
 	}
 	return "'" + s + "' (U+" + strconv.Itob(ch, 16) + ")";
 }

@@ -249,7 +249,7 @@ func (b *Writer) writePadding(textw, cellw int) (err *os.Error) {
 	}
 
 	for n > len(b.padbytes) {
-		err = b.write0(b.padbytes);
+		err = b.write0(&b.padbytes);
 		if err != nil {
 			goto exit;
 		}

@@ -51,7 +51,7 @@ func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
 		}
 		d.nx += n;
 		if d.nx == _Chunk {
-			_Block(d, d.x);
+			_Block(d, &d.x);
 			d.nx = 0;
 		}
 		p = p[n:len(p)];

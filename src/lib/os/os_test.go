@@ -38,7 +38,7 @@ func size(name string, t *testing.T) uint64 {
 	var buf [100]byte;
 	len := 0;
 	for {
-		n, e := file.Read(buf);
+		n, e := file.Read(&buf);
 		if n < 0 || e != nil {
 			t.Fatal("read failed:", err);
 		}

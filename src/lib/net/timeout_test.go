@@ -20,7 +20,7 @@ func testTimeout(t *testing.T, network, addr string) {
 	t0 := time.Nanoseconds();
 	fd.SetReadTimeout(1e8);	// 100ms
 	var b [100]byte;
-	n, err1 := fd.Read(b);
+	n, err1 := fd.Read(&b);
 	t1 := time.Nanoseconds();
 	if n != 0 || err1 != os.EAGAIN {
 		t.Errorf("fd.Read on %s %s did not return 0, EAGAIN: %v, %v", network, addr, n, err1);

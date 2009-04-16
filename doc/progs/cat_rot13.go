@@ -57,7 +57,7 @@ func cat(r reader) {
 		r = newRotate13(r)
 	}
 	for {
-		switch nr, er := r.Read(buf); {
+		switch nr, er := r.Read(&buf); {
 		case nr < 0:
 			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", r.String(), er.String());
 			sys.Exit(1);
