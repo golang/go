@@ -271,7 +271,7 @@ loop:
 		if(top != Etop)
 			goto nottop;
 		walktype(n->left, Erv);
-		indir(n, list(prcompat(n->left, 1), nodpanic(n->lineno)));
+		indir(n, list(prcompat(n->left, 2), nodpanic(n->lineno)));
 		goto ret;
 
 	case OLITERAL:
@@ -1980,6 +1980,10 @@ ascompat(Type *dst, Type *src)
 	return 0;
 }
 
+// generate code for print
+//	fmt = 0: print
+//	fmt = 1: println
+//	fmt = 2: panicln (like println but no trailing newline)
 Node*
 prcompat(Node *n, int fmt)
 {
@@ -1995,7 +1999,7 @@ prcompat(Node *n, int fmt)
 
 loop:
 	if(l == N) {
-		if(fmt) {
+		if(fmt == 1) {
 			on = syslook("printnl", 0);
 			r = list(r, nod(OCALL, on, N));
 		}
