@@ -108,6 +108,8 @@ static	void	objreset(void);
 static	void	objlookup(int, char *, int, uint);
 static	void 	objupdate(int, int);
 
+static	int	sequence;
+
 int
 objtype(Biobuf *bp, char **name)
 {
@@ -295,6 +297,7 @@ objlookup(int id, char *name, int type, uint sig)
 	sp->s.type = type;
 	sp->s.sig = sig;
 	sp->s.value = islocal(type) ? MAXOFF : 0;
+	sp->s.sequence = sequence++;
 	names[id] = &sp->s;
 	sp->next = hash[h];
 	hash[h] = sp;
