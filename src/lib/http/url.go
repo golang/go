@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Parse URLs (actually URIs, but that seems overly pedantic).
-// TODO(rsc): Add tests.
+// RFC 2396
 
 package http
 
@@ -196,3 +196,29 @@ func ParseURLReference(rawurlref string) (url *URL, err *os.Error) {
 	return url, nil
 }
 
+// String reassembles url into a valid URL string.
+//
+// There are redundant fields stored in the URL structure:
+// the String method consults Scheme, Path, Host, Userinfo,
+// Query, and Fragment, but not RawPath or Authority.
+func (url *URL) String() string {
+	result := "";
+	if url.Scheme != "" {
+		result += url.Scheme + ":";
+	}
+	if url.Host != "" || url.Userinfo != "" {
+		result += "//";
+		if url.Userinfo != "" {
+			result += url.Userinfo + "@";
+		}
+		result += url.Host;
+	}
+	result += url.Path;
+	if url.Query != "" {
+		result += "?" + url.Query;
+	}
+	if url.Fragment != "" {
+		result += "#" + url.Fragment;
+	}
+	return result;
+}
