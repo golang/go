@@ -269,6 +269,49 @@ func NotFoundHandler() Handler {
 // Redirect replies to the request with a redirect to url,
 // which may be a path relative to the request path.
 func Redirect(c *Conn, url string) {
+	u, err := ParseURL(url);
+	if err != nil {
+		// TODO report internal error instead?
+		c.SetHeader("Location", url);
+		c.WriteHeader(StatusMovedPermanently);
+	}
+
+	// If url was relative, make absolute by
+	// combining with request path.
+	// The browser would probably do this for us,
+	// but doing it ourselves is more reliable.
+
+	// NOTE(rsc): RFC 2616 says that the Location
+	// line must be an absolute URI, like
+	// "http://www.google.com/redirect/",
+	// not a path like "/redirect/".
+	// Unfortunately, we don't know what to
+	// put in the host name section to get the
+	// client to connect to us again, so we can't
+	// know the right absolute URI to send back.
+	// Because of this problem, no one pays attention
+	// to the RFC; they all send back just a new path.
+	// So do we.
+	oldpath := c.Req.Url.Path;
+	if oldpath == "" {	// should not happen, but avoid a crash if it does
+		oldpath = "/"
+	}
+	if u.Scheme == "" {
+		// no leading http://server
+		if url == "" || url[0] != '/' {
+			// make relative path absolute
+			olddir, oldfile := path.Split(oldpath);
+			url = olddir + url;
+		}
+
+		// clean up but preserve trailing slash
+		trailing := url[len(url) - 1] == '/';
+		url = path.Clean(url);
+		if trailing && url[len(url) - 1] != '/' {
+			url += "/";
+		}
+	}
+
 	c.SetHeader("Location", url);
 	c.WriteHeader(StatusMovedPermanently);
 }
