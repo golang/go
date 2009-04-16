@@ -188,8 +188,12 @@ In Go, since arrays are values, it's meaningful (and useful) to talk
 about pointers to arrays.
 
 The size of the array is part of its type; however, one can declare
-a <i>slice</i> variable, to which one can assign any array value
-with the same element type. Slices look a lot like arrays but have
+a <i>slice</i> variable, to which one can assign a pointer to
+any array
+with the same element type or - much more commonly - a <i>slice
+expression</i> of the form "a[low : high]", representing
+the subarray indexed by "low" through "high-1".
+Slices look a lot like arrays but have
 no explicit size ("[]" vs. "[10]") and they reference a segment of
 an underlying, often anonymous, regular array.  Multiple slices
 can share data if they represent pieces of the same array;
@@ -203,7 +207,8 @@ of an array stored within your structure, you should use a regular
 array.
 
 When passing an array to a function, you almost always want
-to declare the formal parameter to be a slice.  Go will automatically
+to declare the formal parameter to be a slice.  When you call
+the function, take the address of the array and  Go will automatically
 create (efficiently) a slice reference and pass that.
 
 Using slices one can write this function (from "sum.go"):
@@ -217,16 +222,17 @@ and invoke it like this:
 Note how the return type ("int") is defined for "sum()" by stating it
 after the parameter list.
 The expression "[3]int{1,2,3}" -- a type followed by a brace-bounded expression
--- is a constructor for a value, in this case an array of 3 "ints". We pass it
-to "sum()" by (automatically) promoting it to a slice.
+-- is a constructor for a value, in this case an array of 3 "ints".  Putting an "&"
+in front gives us the address of a unique instance of the value.  We pass the
+pointer to "sum()" by (automatically) promoting it to a slice.
 
 If you are creating a regular array but want the compiler to count the
 elements for you, use "..." as the array size:
 
-	s := sum([...]int{1,2,3});
+	s := sum(&[...]int{1,2,3});
 
 In practice, though, unless you're meticulous about storage layout within a
-data structure, a slice - using empty brackets - is all you need:
+data structure, a slice itself - using empty brackets and no "&" - is all you need:
 
 	s := sum([]int{1,2,3});
 
