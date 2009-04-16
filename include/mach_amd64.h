@@ -85,6 +85,7 @@ struct	Sym
 	char	type;
 	char	*name;
 	char *gotype;
+	int	sequence;	// order in file
 };
 /*
  * End of Plan 9 a.out.h

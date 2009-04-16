@@ -185,11 +185,13 @@ cmp(void *vs, void *vt)
 
 	s = vs;
 	t = vt;
-	if(nflag)
+	if(nflag)	// sort on address (numeric) order
 		if((*s)->value < (*t)->value)
 			return -1;
 		else
 			return (*s)->value > (*t)->value;
+	if(sflag)	// sort on file order (sequence)
+		return (*s)->sequence - (*t)->sequence;
 	return strcmp((*s)->name, (*t)->name);
 }
 /*
@@ -298,8 +300,7 @@ printsyms(Sym **symptr, long nsym)
 	char *cp;
 	char path[512];
 
-	if(!sflag)
-		qsort(symptr, nsym, sizeof(*symptr), (void*)cmp);
+	qsort(symptr, nsym, sizeof(*symptr), (void*)cmp);
 
 	wid = 0;
 	for (i=0; i<nsym; i++) {
