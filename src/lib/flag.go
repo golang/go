@@ -3,41 +3,42 @@
 // license that can be found in the LICENSE file.
 
 /*
- * Flags
- *
- * Usage:
- *	1) Define flags using flag.String(), Bool(), Int(), etc. Example:
- *		import flag "flag"
- *		var ip *int = flag.Int("flagname", 1234, "help message for flagname")
- *	If you like, you can bind the flag to a variable using the Var() functions.
- *		var flagvar int
- *		func init() {
- *			flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
- *		}
- *
- *	2) After all flags are defined, call
- *		flag.Parse()
- *	to parse the command line into the defined flags.
- *
- *	3) Flags may then be used directly. If you're using the flags themselves,
- *	they are all pointers; if you bind to variables, they're values.
- *		print("ip has value ", *ip, "\n");
- *		print("flagvar has value ", flagvar, "\n");
- *
- *	4) After parsing, flag.Arg(i) is the i'th argument after the flags.
- *	Args are indexed from 0 up to flag.NArg().
- *
- *	Command line flag syntax:
- *		-flag
- *		-flag=x
- *		-flag x
- *	One or two minus signs may be used; they are equivalent.
- *
- *	Flag parsing stops just before the first non-flag argument
- *	("-" is a non-flag argument) or after the terminator "--".
- *
- *	Integer flags accept 1234, 0664, 0x1234 and may be negative.
- *	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
+	The flag package implements command-line flag parsing.
+
+	Usage:
+
+	1) Define flags using flag.String(), Bool(), Int(), etc. Example:
+		import flag "flag"
+		var ip *int = flag.Int("flagname", 1234, "help message for flagname")
+	If you like, you can bind the flag to a variable using the Var() functions.
+		var flagvar int
+		func init() {
+			flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
+		}
+
+	2) After all flags are defined, call
+		flag.Parse()
+	to parse the command line into the defined flags.
+
+	3) Flags may then be used directly. If you're using the flags themselves,
+	they are all pointers; if you bind to variables, they're values.
+		print("ip has value ", *ip, "\n");
+		print("flagvar has value ", flagvar, "\n");
+
+	4) After parsing, flag.Arg(i) is the i'th argument after the flags.
+	Args are indexed from 0 up to flag.NArg().
+
+	Command line flag syntax:
+		-flag
+		-flag=x
+		-flag x
+	One or two minus signs may be used; they are equivalent.
+
+	Flag parsing stops just before the first non-flag argument
+	("-" is a non-flag argument) or after the terminator "--".
+
+	Integer flags accept 1234, 0664, 0x1234 and may be negative.
+	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
  */
 package flag
 
