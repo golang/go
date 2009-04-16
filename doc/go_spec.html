@@ -3444,7 +3444,8 @@ for true { S() }        is the same as    for      { S() }
 
 <p>
 A "for" statement with a "range" clause
-iterates through all entries of an array, slice or map.
+iterates through all entries of an array, slice, string or map,
+or values received on a channel.
 For each entry it first assigns the current index or key to an iteration
 variable - or the current (index, element) or (key, value) pair to a pair
 of iteration variables - and then executes the block.
@@ -3455,18 +3456,28 @@ RangeClause = IdentifierList ( "=" | ":=" ) "range" Expression .
 </pre>
 
 <p>
-The type of the right-hand expression in the "range" clause must be an array,
-slice or map, or a pointer to an array, slice or map;
+The type of the right-hand expression in the "range" clause must be an
+array, slice, string or map, or a pointer to an array, slice, string or map;
 or it may be a channel.
-If it is an array, slice or map,
+Except for channels,
 the identifier list must contain one or two identifiers denoting the
 iteration variables. On each iteration,
-the first variable is set to the array or slice index or
+the first variable is set to the string, array or slice index or
 map key, and the second variable, if present, is set to the corresponding
-array element or map value.
+string or array element or map value.
 The types of the array or slice index (always <code>int</code>)
 and element, or of the map key and value respectively,
 must be assignment compatible to the iteration variables.
+</p>
+<p>
+For strings, the "range" clause iterates over the Unicode code points
+in the string.  On successive iterations, the index variable will be the
+position of successive UTF-8-encoded code points in the string, and
+the second variable, of type <code>int</code>, will be the value of
+the corresponding code point.  If the iteration encounters an invalid
+UTF-8 sequence, the second variable will be <code>0xFFFD</code>,
+the Unicode replacement character, and the next iteration will advance
+a single byte in the string.
 </p>
 <p>
 For channels, the identifier list must contain one identifier.
