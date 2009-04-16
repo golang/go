@@ -1956,7 +1956,13 @@ ascompat(Type *dst, Type *src)
 	if(eqtype(dst, src, 0))
 		return 1;
 
-	if(isslice(dst) && isfixedarray(src) && eqtype(dst->type, src->type, 0))
+	if(dst == T || src == T)
+		return 0;
+
+	if(isslice(dst)
+	&& isptr[src->etype]
+	&& isfixedarray(src->type)
+	&& eqtype(dst->type, src->type->type, 0))
 		return 1;
 
 	if(isnilinter(dst) || isnilinter(src))
@@ -2194,6 +2200,8 @@ stringop(Node *n, int top)
 	case OARRAY:
 		// arraystring([]byte) string;
 		r = n->left;
+		if(isfixedarray(r->type))
+			r = nod(OADDR, r, N);
 		on = syslook("arraystring", 0);
 		r = nod(OCALL, on, r);
 		break;
@@ -2716,7 +2724,7 @@ arrayop(Node *n, int top)
 
 	case OAS:
 		// arrays2d(old *any, nel int) (ary []any)
-		t = fixarray(n->right->type);
+		t = fixarray(n->right->type->type);
 		tl = fixarray(n->left->type);
 		if(t == T || tl == T)
 			break;
@@ -2726,9 +2734,7 @@ arrayop(Node *n, int top)
 		a->type = types[TINT];
 		r = a;
 
-		a = nod(OADDR, n->right, N);		// old
-		addrescapes(n->right);
-		r = list(a, r);
+		r = list(n->right, r);			// old
 
 		on = syslook("arrays2d", 1);
 		argtype(on, t);				// any-1
@@ -3019,8 +3025,8 @@ convas(Node *n)
 		goto out;
 	}
 
-	if(isslice(lt) && isfixedarray(rt)) {
-		if(!eqtype(lt->type->type, rt->type->type, 0))
+	if(isslice(lt) && isptr[rt->etype] && isfixedarray(rt->type)) {
+		if(!eqtype(lt->type->type, rt->type->type->type, 0))
 			goto bad;
 		indir(n, arrayop(n, Etop));
 		goto out;
