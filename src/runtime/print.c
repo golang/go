@@ -58,10 +58,14 @@ printf(int8 *s, ...)
 			break;
 		case 'p':	// pointer-sized
 		case 's':
-		case 'S':
 			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
 				arg += 4;
 			narg = arg + sizeof(uintptr);
+			break;
+		case 'S':	// pointer-aligned but bigger
+			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
+				arg += 4;
+			narg = arg + sizeof(String);
 			break;
 		}
 		switch(*p) {
