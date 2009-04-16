@@ -1,0 +1,45 @@
+<h1>package {PackageName|html}</h1>
+<p><code>import "{ImportPath|html}"</code></p>
+
+{Doc|html-comment}
+{.section Consts}
+	<h2>Constants</h2>
+	{.repeated section @}
+		{Doc|html-comment}
+		<pre>{Decl|html}</pre>
+	{.end}
+{.end}
+{.section Vars}
+	<hr />
+	<h2>Variables</h2>
+	{.repeated section @}
+		{Doc|html-comment}
+		<pre>{Decl|html}</pre>
+	{.end}
+{.end}
+{.section Funcs}
+	<hr />
+	{.repeated section @}
+		<h2>func {Name|html}</h2>
+		<p><code>{Decl|html}</code></p>
+		{Doc|html-comment}
+	{.end}
+{.end}
+{.section Types}
+	<hr />
+	{.repeated section @}
+		<h2>type {.section Type}{Name|html}{.end}</h2>
+		{Doc}
+		<p><code>{Decl|html}</code></p>
+		{.repeated section Factories}
+			<h3>func {Name|html}</h3>
+			<p><code>{Decl|html}</code></p>
+			{Doc|html-comment}
+		{.end}
+		{.repeated section Methods}
+			<h3>func ({Recv|html}) {Name|html}</h3>
+			<p><code>{Decl|html}</code></p>
+			{Doc|html-comment}
+		{.end}
+	{.end}
+{.end}
