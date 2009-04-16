@@ -7,7 +7,11 @@
 //
 package ast
 
-import "token"
+import (
+	"token";
+	"unicode";
+	"utf8";
+)
 
 
 // ----------------------------------------------------------------------------
@@ -45,7 +49,7 @@ type Expr interface {
 	// visitor v invokes the node-specific DoX function of the visitor.
 	//
 	Visit(v ExprVisitor);
-	
+
 	// Pos returns the (beginning) position of the expression.
 	Pos() token.Position;
 }
@@ -57,7 +61,7 @@ type Stmt interface {
 	// visitor v invokes the node-specific DoX function of the visitor.
 	//
 	Visit(v StmtVisitor);
-	
+
 	// Pos returns the (beginning) position of the statement.
 	Pos() token.Position;
 }
@@ -69,7 +73,7 @@ type Decl interface {
 	// visitor v invokes the node-specific DoX function of the visitor.
 	//
 	Visit(v DeclVisitor);
-	
+
 	// Pos returns the (beginning) position of the declaration.
 	Pos() token.Position;
 }
@@ -419,6 +423,24 @@ func (x *MapType) Visit(v ExprVisitor) { v.DoMapType(x); }
 func (x *ChanType) Visit(v ExprVisitor) { v.DoChanType(x); }
 
 
+// IsExported returns whether name is an exported Go symbol
+// (i.e., whether it begins with an uppercase letter).
+func IsExported(name string) bool {
+	ch, len := utf8.DecodeRuneInString(name, 0);
+	return unicode.IsUpper(ch);
+}
+
+// IsExported returns whether name is an exported Go symbol
+// (i.e., whether it begins with an uppercase letter).
+func (name *ast.Ident) IsExported() bool {
+	return IsExported(name.Value);
+}
+
+func (name *ast.Ident) String() string {
+	return name.Value;
+}
+
+
 // ----------------------------------------------------------------------------
 // Statements
 
@@ -688,7 +710,7 @@ type (
 
 // A declaration is represented by one of the following declaration nodes.
 //
-type (	
+type (
 	// A BadDecl node is a placeholder for declarations containing
 	// syntax errors for which no correct declaration nodes can be
 	// created.

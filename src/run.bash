@@ -56,6 +56,8 @@ GOMAXPROCS=10 make test
 make clean
 time make
 make smoketest
+# TODO: this belongs elsewhere
+cp godoc $HOME/bin
 ) || exit $?
 
 (xcd ../doc/progs
