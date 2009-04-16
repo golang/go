@@ -1,0 +1,15 @@
+{.section Packages}
+<b>Packages</b><br />
+{.repeated section @}
+<a href="{pakname|html}">{importpath|html}</a><br />
+{.end}
+{.or}
+No such package {Path|html}<br />
+{.end}
+{.section Subdirs}
+<br />
+<b>Directories</b><br />
+{.repeated section @}
+<a href="{Name|html}/">{Path|html}{Name|html}/</a><br />
+{.end}
+{.end}
