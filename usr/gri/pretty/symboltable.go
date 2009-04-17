@@ -5,9 +5,9 @@
 package SymbolTable
 
 import (
-	"utf8";
+	"container/vector";
 	"unicode";
-	"vector";
+	"utf8";
 )
 
 

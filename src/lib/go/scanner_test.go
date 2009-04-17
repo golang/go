@@ -5,9 +5,9 @@
 package scanner
 
 import (
+	"go/scanner";
+	"go/token";
 	"io";
-	"token";
-	"scanner";
 	"testing";
 )
 

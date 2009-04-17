@@ -6,9 +6,9 @@ package net
 
 import (
 	"net";
+	"os";
 	"testing";
 	"time";
-	"os";
 )
 
 func testTimeout(t *testing.T, network, addr string) {

@@ -5,18 +5,18 @@
 package Compilation
 
 import (
-	"vector";
-	"utf8";
+	"container/vector";
 	"fmt";
+	"go/ast";
+	"go/parser";
+	"go/scanner";
+	"go/token";
 	"os";
-	"utils";
 	"platform";
-	"token";
-	"scanner";
-	"parser";
-	"ast";
-	"typechecker";
 	"sort";
+	"typechecker";
+	"utf8";
+	"utils";
 )
 
 
@@ -63,7 +63,7 @@ func (h *errorHandler) Init(filename string, columns bool) {
 
 
 func (h *errorHandler) Error(pos token.Position, msg string) {
-	// only report errors that are on a new line 
+	// only report errors that are on a new line
 	// in the hope to avoid most follow-up errors
 	if pos.Line == h.errline {
 		return;
@@ -102,7 +102,7 @@ func Compile(filename string, flags *Flags) (*ast.Program, ErrorList) {
 	if ok2 {
 		TypeChecker.CheckProgram(&err, prog);
 	}
-	
+
 	// convert error list and sort it
 	errors := make(ErrorList, err.errors.Len());
 	for i := 0; i < err.errors.Len(); i++ {

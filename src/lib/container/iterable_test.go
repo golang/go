@@ -5,7 +5,7 @@
 package iterable
 
 import (
-	"iterable";
+	"container/iterable";
 	"testing";
 )
 

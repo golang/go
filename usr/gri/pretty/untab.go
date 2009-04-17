@@ -5,10 +5,10 @@
 package main
 
 import (
-	"os";
-	"io";
 	"flag";
 	"fmt";
+	"io";
+	"os";
 	"tabwriter";
 )
 

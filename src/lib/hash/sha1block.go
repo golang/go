@@ -8,7 +8,7 @@
 
 package sha1
 
-import "sha1"
+import "hash/sha1"
 
 const (
 	_K0 = 0x5A827999;

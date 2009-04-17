@@ -23,9 +23,9 @@
 package regexp
 
 import (
+	"container/vector";
 	"os";
 	"utf8";
-	"vector";
 )
 
 var debug = false;

@@ -4,7 +4,7 @@
 
 package vector
 
-import "vector"
+import "container/vector"
 import "testing"
 import "sort"
 

@@ -5,8 +5,8 @@
 package os
 
 import (
-	"syscall";
 	"os";
+	"syscall";
 	"unsafe";
 )
 

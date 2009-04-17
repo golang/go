@@ -5,10 +5,10 @@
 package net
 
 import (
-	"net";
 	"flag";
 	"fmt";
 	"io";
+	"net";
 	"os";
 	"testing";
 )

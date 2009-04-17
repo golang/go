@@ -10,9 +10,9 @@
 package tabwriter
 
 import (
-	"os";
+	"container/vector";
 	"io";
-	"vector";
+	"os";
 	"utf8";
 )
 

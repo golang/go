@@ -5,8 +5,8 @@
 package net
 
 import (
-	"os";
 	"net";
+	"os";
 	"strconv";
 	"syscall";
 )

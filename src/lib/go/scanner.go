@@ -9,10 +9,10 @@
 package scanner
 
 import (
-	"utf8";
-	"unicode";
+	"go/token";
 	"strconv";
-	"token";
+	"unicode";
+	"utf8";
 )
 
 

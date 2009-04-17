@@ -10,12 +10,12 @@
 package parser
 
 import (
-	"ast";
+	"container/vector";
 	"fmt";
+	"go/ast";
+	"go/scanner";
+	"go/token";
 	"io";
-	"scanner";
-	"token";
-	"vector";
 )
 
 
@@ -135,7 +135,7 @@ func (p *parser) collectComment() int {
 	}
 	p.comments.Push(&ast.Comment{p.pos, p.lit, endline});
 	p.next0();
-	
+
 	return endline;
 }
 
@@ -155,7 +155,7 @@ func (p *parser) getComments() interval {
 func (p *parser) getDoc() ast.Comments {
 	doc := p.last_doc;
 	n := doc.end - doc.beg;
-	
+
 	if n <= 0 || p.comments.At(doc.end - 1).(*ast.Comment).EndLine + 1 < p.pos.Line {
 		// no comments or empty line between last comment and current token;
 		// do not use as documentation
@@ -348,7 +348,7 @@ func (p *parser) parseArrayOrSliceType(ellipsis_ok bool) ast.Expr {
 	if len != nil {
 		return &ast.ArrayType{lbrack, len, elt};
 	}
-	
+
 	return &ast.SliceType{lbrack, elt};
 }
 
@@ -769,7 +769,7 @@ func (p *parser) parseStatementList() []ast.Stmt {
 			expect_semi = true;
 		}
 	}
-	
+
 	return makeStmtList(list);
 }
 
@@ -800,7 +800,7 @@ func (p *parser) parseStringList(x *ast.StringLit) []*ast.StringLit {
 	if x != nil {
 		list.Push(x);
 	}
-	
+
 	for p.tok == token.STRING {
 		list.Push(&ast.StringLit{p.pos, p.lit});
 		p.next();
@@ -811,7 +811,7 @@ func (p *parser) parseStringList(x *ast.StringLit) []*ast.StringLit {
 	for i := 0; i < list.Len(); i++ {
 		strings[i] = list.At(i).(*ast.StringLit);
 	}
-	
+
 	return strings;
 }
 
@@ -972,7 +972,7 @@ func (p *parser) parseKeyValueExpr() ast.Expr {
 		value := p.parseExpression();
 		return &ast.KeyValueExpr{key, colon, value};
 	}
-	
+
 	return key;
 }
 
@@ -1010,13 +1010,13 @@ func (p *parser) parseExpressionOrKeyValueList() []ast.Expr {
 			break;
 		}
 	}
-	
+
 	// convert list
 	elts := make([]ast.Expr, list.Len());
 	for i := 0; i < list.Len(); i++ {
 		elts[i] = list.At(i).(ast.Expr);
 	}
-	
+
 	return elts;
 }
 
@@ -1133,7 +1133,7 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 			x = &ast.BadExpr{x.Pos()};
 		}
 	}
-	
+
 	// all other nodes are expressions or types
 	return x;
 }
@@ -1386,7 +1386,7 @@ func (p *parser) parseControlClause(isForStmt bool) (s1, s2, s3 ast.Stmt) {
 		} else {
 			s1, s2 = nil, s1;
 		}
-		
+
 		p.expr_lev = prev_lev;
 	}
 
@@ -1426,7 +1426,7 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 	} else {
 		p.expect(token.DEFAULT);
 	}
-	
+
 	colon := p.expect(token.COLON);
 	body := p.parseStatementList();
 
@@ -1594,7 +1594,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 		// regular for statement
 		return &ast.ForStmt{pos, s1, p.makeExpr(s2), s3, body};
 	}
-	
+
 	panic();  // unreachable
 	return nil;
 }
@@ -1824,7 +1824,7 @@ func (p *parser) parseDeclaration() ast.Decl {
 		p.next();  // make progress
 		return &ast.BadDecl{pos};
 	}
-	
+
 	return p.parseGenDecl(p.tok, f);
 }
 
@@ -1941,7 +1941,7 @@ func readSource(src interface{}, err ErrorHandler) []byte {
 // Parse returns an AST and the boolean value true if no errors occured;
 // it returns a partial AST (or nil if the source couldn't be read) and
 // the boolean value false to indicate failure.
-// 
+//
 // If syntax errors were found, the AST may only be constructed partially,
 // with ast.BadX nodes representing the fragments of erroneous source code.
 //

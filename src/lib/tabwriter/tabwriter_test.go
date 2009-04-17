@@ -5,8 +5,8 @@
 package tabwriter
 
 import (
-	"os";
 	"io";
+	"os";
 	"tabwriter";
 	"testing";
 )

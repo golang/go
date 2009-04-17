@@ -8,8 +8,8 @@ package sha1
 
 import (
 	"fmt";
+	"hash/sha1";
 	"io";
-	"sha1";
 	"testing";
 )
 
