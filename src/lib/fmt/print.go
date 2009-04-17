@@ -21,8 +21,8 @@ package fmt
 import (
 	"fmt";
 	"io";
-	"reflect";
 	"os";
+	"reflect";
 	"utf8";
 )
 

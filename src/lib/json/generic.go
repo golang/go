@@ -7,12 +7,12 @@
 package json
 
 import (
+	"container/vector";
 	"fmt";
-	"math";
 	"json";
+	"math";
 	"strconv";
 	"strings";
-	"vector";
 )
 
 // Integers identifying the data type in the Json interface.

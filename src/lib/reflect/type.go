@@ -12,9 +12,9 @@
 package reflect
 
 import (
-	"utf8";
 	"sync";
 	"unsafe";
+	"utf8";
 )
 
 type Type interface

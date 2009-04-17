@@ -6,7 +6,7 @@
 
 package main
 
-import "vector"
+import "container/vector"
 
 
 type S struct {

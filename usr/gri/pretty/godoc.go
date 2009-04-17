@@ -27,25 +27,25 @@
 package main
 
 import (
-	"ast";
 	"bufio";
+	"container/vector";
 	"flag";
 	"fmt";
+	"go/ast";
+	"go/parser";
+	"go/token";
 	"http";
 	"io";
 	"log";
 	"net";
 	"once";
 	"os";
-	"parser";
 	pathutil "path";
 	"sort";
 	"strings";
 	"tabwriter";
 	"template";
 	"time";
-	"token";
-	"vector";
 
 	"astprinter";
 	"comment";

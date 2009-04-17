@@ -7,8 +7,8 @@
 package main
 
 import (
-	"os";
 	"fmt";
+	"os";
 )
 
 type T struct {

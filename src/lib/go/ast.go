@@ -8,7 +8,7 @@
 package ast
 
 import (
-	"token";
+	"go/token";
 	"unicode";
 	"utf8";
 )

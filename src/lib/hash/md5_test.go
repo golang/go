@@ -6,8 +6,8 @@ package md5
 
 import (
 	"fmt";
+	"hash/md5";
 	"io";
-	"md5";
 	"testing";
 )
 

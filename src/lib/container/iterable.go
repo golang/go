@@ -8,7 +8,7 @@
 // something that would produce an infinite amount of data.
 package iterable
 
-import "vector"
+import "container/vector"
 
 type Iterable interface {
 	// Iter should return a fresh channel each time it is called.

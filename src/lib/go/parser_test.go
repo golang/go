@@ -5,9 +5,9 @@
 package parser
 
 import (
-	"ast";
+	"go/ast";
+	"go/parser";
 	"os";
-	"parser";
 	"testing";
 )
 

@@ -5,9 +5,9 @@
 package TypeChecker
 
 import (
-	"token";
-	"scanner";
-	"ast";
+	"go/ast";
+	"go/scanner";
+	"go/token";
 )
 
 

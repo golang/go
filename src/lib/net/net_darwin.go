@@ -5,9 +5,9 @@
 package net
 
 import (
+	"net";
 	"os";
 	"syscall";
-	"net";
 	"unsafe";
 )
 

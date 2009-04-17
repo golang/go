@@ -5,13 +5,13 @@
 package main
 
 import (
-	"os";
-	"flag";
-	"platform";
-	"compilation";
-	"tabwriter";
-	"ast";
 	"astprinter";
+	"compilation";
+	"flag";
+	"go/ast";
+	"os";
+	"platform";
+	"tabwriter";
 )
 
 

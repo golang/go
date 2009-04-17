@@ -7,17 +7,17 @@
 package doc
 
 import (
-	"ast";
+	"container/vector";
 	"fmt";
+	"go/ast";
+	"go/token";
 	"io";
 	"once";
 	"regexp";
 	"sort";
 	"strings";
-	"token";
 	"unicode";
 	"utf8";
-	"vector";
 
 	"astprinter";
 )

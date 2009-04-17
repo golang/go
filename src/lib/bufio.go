@@ -8,8 +8,8 @@
 package bufio
 
 import (
-	"os";
 	"io";
+	"os";
 	"utf8";
 )
 

@@ -5,9 +5,9 @@
 package net
 
 import (
-	"os";
 	"io";
 	"net";
+	"os";
 	"testing";
 )
 

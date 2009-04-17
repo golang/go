@@ -5,17 +5,17 @@
 package astPrinter
 
 import (
-	"ast";
+	"container/vector";
 	"flag";
 	"fmt";
+	"go/ast";
+	"go/token";
 	"io";
 	"os";
 	"strings";
 	"tabwriter";
-	"token";
 	"unicode";
 	"utf8";
-	"vector";
 )
 
 
@@ -137,7 +137,7 @@ const (
 type Printer struct {
 	// output
 	text io.Write;
-	
+
 	// token printing
 	tprinter TokenPrinter;
 
@@ -146,7 +146,7 @@ type Printer struct {
 	full bool;  // if false, print interface only; print all otherwise
 
 	// comments
-	comments []*ast.Comment;  // the list of unassociated comments 
+	comments []*ast.Comment;  // the list of unassociated comments
 	cindex int;  // the current comment index
 	cpos token.Position;  // the position of the next comment
 
@@ -163,7 +163,7 @@ type Printer struct {
 	// semantic state
 	state int;  // current semantic state
 	laststate int;  // state for last string
-	
+
 	// expression precedence
 	prec int;
 }
@@ -204,7 +204,7 @@ func (P *Printer) Init(text io.Write, tprinter TokenPrinter, comments []*ast.Com
 	P.nextComments();
 
 	// formatting parameters & semantic state initialized correctly by default
-	
+
 	// expression precedence
 	P.prec = token.LowestPrec;
 }
@@ -563,7 +563,7 @@ func (P *Printer) Signature(params, result []*ast.Field) {
 				return;
 			}
 		}
-		
+
 		P.Parameters(result);
 	}
 }

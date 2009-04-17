@@ -12,8 +12,8 @@
 package testing
 
 import (
-	"fmt";
 	"flag";
+	"fmt";
 )
 
 // Report as tests are run; default is silent for success.
