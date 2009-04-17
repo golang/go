@@ -45,6 +45,8 @@ type Phase struct {
 type Info struct {
 	Args []string;
 	Char string;
+	Dir string;
+	ObjDir string;
 	Pkgmap map[string] *Pkg;
 	Packages []*Pkg;
 	Files map[string] *File;
@@ -99,6 +101,30 @@ func (a FileArray) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+// If current directory is under $GOROOT/src/lib, return the
+// path relative to there.  Otherwise return "".
+func PkgDir() string {
+	goroot, err := os.Getenv("GOROOT");
+	if err != nil || goroot == "" {
+		return ""
+	}
+	srcroot := path.Clean(goroot + "/src/lib/");
+	pwd, err1 := os.Getenv("PWD");	// TODO(rsc): real pwd
+	if err1 != nil || pwd == "" {
+		return ""
+	}
+	if pwd == srcroot {
+		return ""
+	}
+	n := len(srcroot);
+	if len(pwd) < n || pwd[n] != '/' || pwd[0:n] != srcroot {
+		return ""
+	}
+
+	dir := pwd[n+1:len(pwd)];
+	return dir;
+}
+
 func ScanFiles(filenames []string) *Info {
 	// Build list of imports, local packages, and files.
 	// Exclude *_test.go and anything in package main.
@@ -106,7 +132,9 @@ func ScanFiles(filenames []string) *Info {
 
 	z := new(Info);
 	z.Args = sys.Args;
-	z.Char = theChar;
+	z.Dir = PkgDir();
+	z.Char = theChar;	// for template
+	z.ObjDir = ObjDir;	// for template
 	z.Pkgmap = make(map[string] *Pkg);
 	z.Files = make(map[string] *File);
 	z.Imports = make(map[string] bool);
@@ -114,7 +142,7 @@ func ScanFiles(filenames []string) *Info {
 	// Read Go files to find out packages and imports.
 	var pkg *Pkg;
 	for _, filename := range filenames {
-		if strings.HasSuffix(filename, "_test.go") {
+		if strings.Index(filename, "_test.") >= 0 {
 			continue;
 		}
 		f := new(File);
@@ -168,6 +196,14 @@ func ScanFiles(filenames []string) *Info {
 		}
 	}
 
+	// Update destination directory.
+	// If destination directory has same
+	// name as package name, cut it off.
+	dir, name := path.Split(z.Dir);
+	if len(z.Packages) == 1 && z.Packages[0].Name == name {
+		z.Dir = dir;
+	}
+
 	return z;
 }
 
@@ -176,9 +212,14 @@ func PackageObj(pkg string) string {
 }
 
 func (z *Info) Build() {
+	// Create empty object directory tree.
+	RemoveAll(ObjDir);
+	obj := path.Join(ObjDir, z.Dir) + "/";
+	MkdirAll(obj);
+
 	// Create empty archives.
 	for pkgname := range z.Pkgmap {
-		ar := PackageObj(pkgname);
+		ar := obj + PackageObj(pkgname);
 		os.Remove(ar);
 		Archive(ar, nil);
 	}
@@ -239,7 +280,7 @@ func (z *Info) Build() {
 				f.Phase = phase;
 			}
 			if len(arfiles) > 0 {
-				Archive(pkg.Name + ".a", arfiles);
+				Archive(obj + pkg.Name + ".a", arfiles);
 
 				n := len(p.ArCmds);
 				p.ArCmds = p.ArCmds[0:n+1];
@@ -255,6 +296,7 @@ func (z *Info) Build() {
 }
 
 func (z *Info) Clean() {
+	RemoveAll(ObjDir);
 	for pkgname := range z.Pkgmap {
 		os.Remove(PackageObj(pkgname));
 	}

@@ -6,11 +6,11 @@
 package gobuild
 
 import (
-	"ast";
 	"exec";
 	"fmt";
+	"go/ast";
+	"go/parser";
 	"os";
-	"parser";
 	"path";
 	"sort";
 	"strconv";
@@ -29,6 +29,8 @@ var theChars = map[string] string {
 	"386": "8",
 	"arm": "5"
 }
+
+const ObjDir = "_obj"
 
 func fatal(args ...) {
 	fmt.Fprintf(os.Stderr, "gobuild: %s\n", fmt.Sprint(args));
@@ -124,7 +126,7 @@ func Archive(pkg string, files []string) {
 func Compiler(file string) []string {
 	switch {
 	case strings.HasSuffix(file, ".go"):
-		return []string{ theChar + "g" };
+		return []string{ theChar + "g", "-I", ObjDir };
 	case strings.HasSuffix(file, ".c"):
 		return []string{ theChar + "c", "-FVw" };
 	case strings.HasSuffix(file, ".s"):
@@ -242,3 +244,37 @@ func SourceFiles(dir string) ([]string, *os.Error) {
 	sort.SortStrings(out);
 	return out, nil;
 }
+
+// TODO(rsc): Implement these for real as
+// os.MkdirAll and os.RemoveAll and then
+// make these wrappers that call fatal on error.
+
+func MkdirAll(name string) {
+	p, err := exec.Run("/bin/mkdir", []string{"mkdir", "-p", name}, os.Environ(), exec.DevNull, exec.PassThrough, exec.PassThrough);
+	if err != nil {
+		fatal("run /bin/mkdir: %v", err);
+	}
+	w, err1 := p.Wait(0);
+	if err1 != nil {
+		fatal("wait /bin/mkdir: %v", err);
+	}
+	if !w.Exited() || w.ExitStatus() != 0 {
+		fatal("/bin/mkdir: %v", w);
+	}
+}
+
+func RemoveAll(name string) {
+	p, err := exec.Run("/bin/rm", []string{"rm", "-rf", name}, os.Environ(), exec.DevNull, exec.PassThrough, exec.PassThrough);
+	if err != nil {
+		fatal("run /bin/rm: %v", err);
+	}
+	w, err1 := p.Wait(0);
+	if err1 != nil {
+		fatal("wait /bin/rm: %v", err);
+	}
+	if !w.Exited() || w.ExitStatus() != 0 {
+		fatal("/bin/rm: %v", w);
+	}
+
+}
+
