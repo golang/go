@@ -2,8 +2,59 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Template library.  See http://code.google.com/p/json-template/wiki/Reference
-// TODO: document this here as well.
+/*
+	Data-driven templates for generating textual output such as
+	HTML. See
+		http://code.google.com/p/json-template/wiki/Reference
+	for full documentation of the template language. A summary:
+
+	Templates are executed by applying them to a data structure.
+	Annotations in the template refer to elements of the data
+	structure (typically a field of a struct) to control execution
+	and derive values to be displayed.  The template walks the
+	structure as it executes and the "cursor" @ represents the
+	value at the current location in the structure.
+
+	Data items may be values or pointers; the interface hides the
+	indirection.
+
+	Major constructs ({} are metacharacters; [] marks optional elements):
+
+		{# comment }
+
+	A one-line comment.
+
+		{.section field} XXX [ {.or} YYY ] {.end}
+
+	Set @ to the value of the field.  It may be an explicit @
+	to stay at the same point in the data. If the field is nil
+	or empty, execute YYY; otherwise execute XXX.
+
+		{.repeated section field} XXX [ {.alternates with} ZZZ ] [ {.or} YYY ] {.end}
+
+	Like .section, but field must be an array or slice.  XXX
+	is executed for each element.  If the array is nil or empty,
+	YYY is executed instead.  If the {.alternates with} marker
+	is present, ZZZ is executed between iterations of XXX.
+	(TODO(r): .alternates is not yet implemented)
+
+		{field}
+		{field|formatter}
+
+	Insert the value of the field into the output. Field is
+	first looked for in the cursor, as in .section and .repeated.
+	If it is not found, the search continues in outer sections
+	until the top level is reached.
+	
+	If a formatter is specified, it must be named in the formatter
+	map passed to the template set up routines or in the default
+	set ("html","str","") and is used to process the data for
+	output.  The formatter function has signature
+		func(wr io.Write, data interface{}, formatter string)
+	where wr is the destination for output, data is the field
+	value, and formatter is its name at the invocation site.
+*/
+
 package template
 
 import (
@@ -15,6 +66,7 @@ import (
 	"template";
 )
 
+// Errors returned during parsing and execution.
 var ErrUnmatchedRDelim = os.NewError("unmatched closing delimiter")
 var ErrUnmatchedLDelim = os.NewError("unmatched opening delimiter")
 var ErrBadDirective = os.NewError("unrecognized directive name")
@@ -26,7 +78,7 @@ var ErrNoVar = os.NewError("variable name not in struct");
 var ErrBadType = os.NewError("unsupported type for variable");
 var ErrNotStruct = os.NewError("driver must be a struct")
 var ErrNoFormatter = os.NewError("unknown formatter")
-var ErrEmptyDelims = os.NewError("empty delimiter strings")
+var ErrBadDelims = os.NewError("invalid delimiter strings")
 
 // All the literals are aces.
 var lbrace = []byte{ '{' }
@@ -72,6 +124,7 @@ func (st *state) error(err *os.Error, args ...) {
 	sys.Goexit();
 }
 
+// Template is the type that represents a template definition.
 type Template struct {
 	fmap	FormatterMap;	// formatters for variables
 	ldelim, rdelim	[]byte;	// delimiters; default {}
@@ -100,11 +153,12 @@ func childTemplate(parent *Template, buf []byte) *Template {
 	return t;
 }
 
+// Is c a white space character?
 func white(c uint8) bool {
 	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
 }
 
-// safely, does s[n:n+len(t)] == t?
+// Safely, does s[n:n+len(t)] == t?
 func equal(s []byte, n int, t []byte) bool {
 	b := s[n:len(s)];
 	if len(t) > len(b) {	// not enough space left for a match.
@@ -124,7 +178,7 @@ func (t *Template) executeSection(w []string, st *state)
 // nextItem returns the next item from the input buffer.  If the returned
 // item is empty, we are at EOF.  The item will be either a
 // delimited string or a non-empty string between delimited
-// strings.  Most tokens stop at (but include, if plain text) a newline.
+// strings. Tokens stop at (but include, if plain text) a newline.
 // Action tokens on a line by themselves drop the white space on
 // either side, up to and including the newline.
 func (t *Template) nextItem(st *state) []byte {
@@ -471,6 +525,8 @@ func (t *Template) writeVariable(st *state, name_formatter string) {
 	panic("notreached");
 }
 
+// Execute the template.  execute, executeSection and executeRepeated
+// are mutually recursive.
 func (t *Template) execute(st *state) {
 	for {
 		item := t.nextItem(st);
@@ -512,12 +568,25 @@ func (t *Template) doParse() {
 	// stub for now
 }
 
+// A valid delimeter must contain no white space and be non-empty.
+func validDelim(d []byte) bool {
+	if len(d) == 0 {
+		return false
+	}
+	for i, c := range d {
+		if white(c) {
+			return false
+		}
+	}
+	return true;
+}
+
 // Parse initializes a Template by parsing its definition.  The string s contains
 // the template text.  If any errors occur, it returns the error and line number
 // in the text of the erroneous construct.
-func (t *Template) Parse(s string) (*os.Error, int) {
-	if len(t.ldelim) == 0 || len(t.rdelim) == 0 {
-		return ErrEmptyDelims, 0
+func (t *Template) Parse(s string) (err *os.Error, eline int) {
+	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
+		return ErrBadDelims, 0
 	}
 	t.init(io.StringBytes(s));
 	ch := make(chan *os.Error);
@@ -525,11 +594,11 @@ func (t *Template) Parse(s string) (*os.Error, int) {
 		t.doParse();
 		ch <- nil;	// clean return;
 	}();
-	err := <-ch;
+	err = <-ch;
 	if err != nil {
 		return err, *t.linenum
 	}
-	return nil, 0
+	return
 }
 
 // Execute executes a parsed template on the specified data object,
@@ -557,18 +626,22 @@ func New(fmap FormatterMap) *Template {
 }
 
 // SetDelims sets the left and right delimiters for operations in the template.
+// They are validated during parsing.  They could be validated here but it's
+// better to keep the routine simple.  The delimiters are very rarely invalid
+// and Parse has the necessary error-handling interface already.
 func (t *Template) SetDelims(left, right string) {
 	t.ldelim = io.StringBytes(left);
 	t.rdelim = io.StringBytes(right);
 }
 
 // Parse creates a Template with default parameters (such as {} for
-// metacharacters).  The string s contains the template text and the
-// formatter map fmap (which may be nil) defines auxiliary functions
-// for formatting variables.  It returns the template, an error report
-// (or nil), and the line number in the text of the erroneous construct.
-func Parse(s string, fmap FormatterMap) (*Template, *os.Error, int) {
-	t := New(fmap);
-	err, line := t.Parse(s);
-	return t, err, line
+// metacharacters).  The string s contains the template text while the
+// formatter map fmap, which may be nil, defines auxiliary functions
+// for formatting variables.  The template is returned. If any errors
+// occur, err will be non-nil and eline will be  the line number in the
+// text of the erroneous construct.
+func Parse(s string, fmap FormatterMap) (t *Template, err *os.Error, eline int) {
+	t = New(fmap);
+	err, eline = t.Parse(s);
+	return
 }
