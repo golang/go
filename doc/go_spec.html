@@ -1265,9 +1265,8 @@ be assigned to different types:
 The predeclared constant <code>nil</code> can be assigned to any
 pointer, function, slice, map, channel, or interface variable.
 <li>
-Arrays can be assigned to slice variables with equal element type.
-When assigning to a slice variable, the array is not copied but a
-slice comprising the entire array is created.
+A pointer to an array can be assigned to a slice variable with equal element type.
+The slice variable then refers to the original array; the data is not copied.
 </li>
 <li>
 A value can be assigned to an interface variable if the static
@@ -3006,7 +3005,7 @@ of which happen before receiving the value from the channel
 <code>c</code>.
 However, the order of those events compared to the evaluation of
 <code>f</code>, the evaluation of <code>x</code>, and the indexing
-of <code>x</code> by the return value of 
+of <code>x</code> by the return value of
 <code>i()</code> is not specified.
 </p>
 
@@ -3896,7 +3895,6 @@ result. <font color=red>TODO: clarify?</font>
 <li>
 4a) Converting an integer value yields a string containing the UTF-8
 representation of the integer.
-(TODO: this one could be done just as well by a library.)
 
 <pre>
 string(0x65e5)  // "\u65e5"
@@ -3904,8 +3902,8 @@ string(0x65e5)  // "\u65e5"
 
 </li>
 <li>
-4b) Converting an array or slice of bytes yields a string whose successive
-bytes are those of the array/slice.
+4b) Converting a slice of bytes yields a string whose successive
+bytes are those of the slice.
 
 <pre>
 string([]byte{'h', 'e', 'l', 'l', 'o'}) // "hello"
