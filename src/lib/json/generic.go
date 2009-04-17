@@ -327,4 +327,4 @@ func StringToJson(s string) (json Json, ok bool, errtok string) {
 	return j, true, ""
 }
 
-// BUG(rsc): StringToJson should return an *os.Error instead of a bool.
+// BUG(rsc): StringToJson should return an os.Error instead of a bool.

@@ -70,7 +70,7 @@ func (c *common) setIndex(i int) { c._index = i }
 type Regexp struct {
 	expr	string;	// the original expression
 	ch	chan<- *Regexp;	// reply channel when we're done
-	error	*os.Error;	// compile- or run-time error; nil if OK
+	error	os.Error;	// compile- or run-time error; nil if OK
 	inst	*vector.Vector;
 	start	instr;
 	nbra	int;	// number of brackets in expression, for subexpressions
@@ -233,7 +233,7 @@ func (nop *_Nop) kind() int { return _NOP }
 func (nop *_Nop) print() { print("nop") }
 
 // report error and exit compiling/executing goroutine
-func (re *Regexp) setError(err *os.Error) {
+func (re *Regexp) setError(err os.Error) {
 	re.error = err;
 	re.ch <- re;
 	sys.Goexit();
@@ -586,7 +586,7 @@ func compiler(str string, ch chan *Regexp) {
 
 // Compile parses a regular expression and returns, if successful, a Regexp
 // object that can be used to match against text.
-func Compile(str string) (regexp *Regexp, error *os.Error) {
+func Compile(str string) (regexp *Regexp, error os.Error) {
 	// Compile in a separate goroutine and wait for the result.
 	ch := make(chan *Regexp);
 	go compiler(str, ch);
@@ -754,7 +754,7 @@ func (re *Regexp) MatchStrings(s string) (a []string) {
 // Match checks whether a textual regular expression
 // matches a substring.  More complicated queries need
 // to use Compile and the full Regexp interface.
-func Match(pattern string, s string) (matched bool, error *os.Error) {
+func Match(pattern string, s string) (matched bool, error os.Error) {
 	re, err := Compile(pattern);
 	if err != nil {
 		return false, err

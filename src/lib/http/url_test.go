@@ -126,7 +126,7 @@ func ufmt(u *URL) string {
 		u.Host, u.Path, u.Query, u.Fragment);
 }
 
-func DoTest(t *testing.T, parse func(string) (*URL, *os.Error), name string, tests []URLTest) {
+func DoTest(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
 	for i, tt := range tests {
 		u, err := parse(tt.in);
 		if err != nil {
@@ -150,7 +150,7 @@ func TestParseURLReference(t *testing.T) {
 	DoTest(t, ParseURLReference, "ParseURLReference", urlfragtests);
 }
 
-func DoTestString(t *testing.T, parse func(string) (*URL, *os.Error), name string, tests []URLTest) {
+func DoTestString(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
 	for i, tt := range tests {
 		u, err := parse(tt.in);
 		if err != nil {

@@ -88,7 +88,7 @@ type zonetime struct {
 	isstd, isutc bool;	// ignored - no idea what these mean
 }
 
-func parseinfo(bytes []byte) (zt []zonetime, err *os.Error) {
+func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 	d := data{bytes, false};
 
 	// 4-byte magic "TZif"
@@ -203,7 +203,7 @@ func parseinfo(bytes []byte) (zt []zonetime, err *os.Error) {
 	return zt, nil
 }
 
-func readfile(name string, max int) (p []byte, err *os.Error) {
+func readfile(name string, max int) (p []byte, err os.Error) {
 	f, e := os.Open(name, os.O_RDONLY, 0);
 	if e != nil {
 		return nil, e;
@@ -220,7 +220,7 @@ func readfile(name string, max int) (p []byte, err *os.Error) {
 	return p[0:n], nil;
 }
 
-func readinfofile(name string) (tx []zonetime, err *os.Error) {
+func readinfofile(name string) (tx []zonetime, err os.Error) {
 	buf, e := readfile(name, maxFileSize);
 	if e != nil {
 		return nil, e
@@ -230,7 +230,7 @@ func readinfofile(name string) (tx []zonetime, err *os.Error) {
 }
 
 var zones []zonetime
-var zoneerr *os.Error
+var zoneerr os.Error
 
 func setupZone() {
 	// consult $TZ to find the time zone to use.
@@ -252,7 +252,7 @@ func setupZone() {
 	}
 }
 
-func lookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
+func lookupTimezone(sec int64) (zone string, offset int, err os.Error) {
 	once.Do(setupZone);
 	if zoneerr != nil || len(zones) == 0 {
 		return "UTC", 0, zoneerr

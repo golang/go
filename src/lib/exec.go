@@ -32,7 +32,7 @@ type Cmd struct {
 
 // Given mode (DevNull, etc), return file for child
 // and file to record in Cmd structure.
-func modeToFiles(mode, fd int) (*os.File, *os.File, *os.Error) {
+func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
 	switch mode {
 	case DevNull:
 		rw := os.O_WRONLY;
@@ -78,7 +78,7 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, *os.Error) {
 // If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
 // of the returned Cmd is the other end of the pipe.
 // Otherwise the field in Cmd is nil.
-func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err *os.Error)
+func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error)
 {
 	p = new(Cmd);
 	var fd [3]*os.File;
@@ -139,7 +139,7 @@ Error:
 // Setting options to 0 waits for p to exit;
 // other options cause Wait to return for other
 // process events; see package os for details.
-func (p *Cmd) Wait(options uint64) (*os.Waitmsg, *os.Error) {
+func (p *Cmd) Wait(options uint64) (*os.Waitmsg, os.Error) {
 	if p.Pid < 0 {
 		return nil, os.EINVAL;
 	}
@@ -153,7 +153,7 @@ func (p *Cmd) Wait(options uint64) (*os.Waitmsg, *os.Error) {
 // Close waits for the running command p to exit,
 // if it hasn't already, and then closes the non-nil file descriptors
 // p.Stdin, p.Stdout, and p.Stderr.
-func (p *Cmd) Close() *os.Error {
+func (p *Cmd) Close() os.Error {
 	if p.Pid >= 0 {
 		// Loop on interrupt, but
 		// ignore other errors -- maybe
@@ -165,7 +165,7 @@ func (p *Cmd) Close() *os.Error {
 	}
 
 	// Close the FDs that are still open.
-	var err *os.Error;
+	var err os.Error;
 	if p.Stdin != nil && p.Stdin.Fd() >= 0 {
 		if err1 := p.Stdin.Close(); err1 != nil {
 			err = err1;
@@ -197,7 +197,7 @@ func canExec(file string) bool{
 // If file contains a slash, it is tried directly and the PATH is not consulted.
 //
 // TODO(rsc): Does LookPath belong in os instead?
-func LookPath(file string) (string, *os.Error) {
+func LookPath(file string) (string, os.Error) {
 	// NOTE(rsc): I wish we could use the Plan 9 behavior here
 	// (only bypass the path if file begins with / or ./ or ../)
 	// but that would not match all the Unix shells.

@@ -30,7 +30,7 @@ func newByteReader(p []byte) io.Read {
 	return b
 }
 
-func (b *byteReader) Read(p []byte) (int, *os.Error) {
+func (b *byteReader) Read(p []byte) (int, os.Error) {
 	n := len(p);
 	if n > len(b.p) {
 		n = len(b.p)
@@ -52,7 +52,7 @@ func newHalfByteReader(p []byte) io.Read {
 	return b
 }
 
-func (b *halfByteReader) Read(p []byte) (int, *os.Error) {
+func (b *halfByteReader) Read(p []byte) (int, os.Error) {
 	n := len(p)/2;
 	if n == 0 && len(p) > 0 {
 		n = 1
@@ -76,7 +76,7 @@ func newRot13Reader(r io.Read) *rot13Reader {
 	return r13
 }
 
-func (r13 *rot13Reader) Read(p []byte) (int, *os.Error) {
+func (r13 *rot13Reader) Read(p []byte) (int, os.Error) {
 	n, e := r13.r.Read(p);
 	if e != nil {
 		return n, e
@@ -218,7 +218,7 @@ func TestBufRead(t *testing.T) {
 }
 
 type writeBuffer interface {
-	Write(p []byte) (int, *os.Error);
+	Write(p []byte) (int, os.Error);
 	GetBytes() []byte
 }
 
@@ -232,7 +232,7 @@ func newByteWriter() writeBuffer {
 	return new(byteWriter)
 }
 
-func (w *byteWriter) Write(p []byte) (int, *os.Error) {
+func (w *byteWriter) Write(p []byte) (int, os.Error) {
 	if w.p == nil {
 		w.p = make([]byte, len(p)+100)
 	} else if w.n + len(p) >= len(w.p) {
@@ -262,7 +262,7 @@ func newHalfByteWriter() writeBuffer {
 	return w
 }
 
-func (w *halfByteWriter) Write(p []byte) (int, *os.Error) {
+func (w *halfByteWriter) Write(p []byte) (int, os.Error) {
 	n := (len(p)+1) / 2;
 	// BUG return w.bw.Write(p[0:n])
 	r, e := w.bw.Write(p[0:n]);

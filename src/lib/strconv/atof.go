@@ -321,7 +321,7 @@ func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
 // If s is syntactically well-formed but is more than 1/2 ULP
 // away from the largest floating point number of the given size,
 // Atof32 returns f = ±Inf, err = os.ERANGE.
-func Atof32(s string) (f float32, err *os.Error) {
+func Atof32(s string) (f float32, err os.Error) {
 	neg, d, trunc, ok := stringToDecimal(s);
 	if !ok {
 		return 0, os.EINVAL;
@@ -342,7 +342,7 @@ func Atof32(s string) (f float32, err *os.Error) {
 // Atof64 converts the string s to a 64-bit floating-point number.
 // Except for the type of its result, its definition is the same as that
 // of Atof32.
-func Atof64(s string) (f float64, err *os.Error) {
+func Atof64(s string) (f float64, err os.Error) {
 	neg, d, trunc, ok := stringToDecimal(s);
 	if !ok {
 		return 0, os.EINVAL;
@@ -361,7 +361,7 @@ func Atof64(s string) (f float64, err *os.Error) {
 }
 
 // Atof is like Atof32 or Atof64, depending on the size of float.
-func Atof(s string) (f float, err *os.Error) {
+func Atof(s string) (f float, err os.Error) {
 	if FloatSize == 32 {
 		f1, err1 := Atof32(s);
 		return float(f1), err1;

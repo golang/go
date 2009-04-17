@@ -27,7 +27,7 @@ func (b *buffer) clear() {
 }
 
 
-func (b *buffer) Write(buf []byte) (written int, err *os.Error) {
+func (b *buffer) Write(buf []byte) (written int, err os.Error) {
 	n := len(b.a);
 	m := len(buf);
 	if n + m <= cap(b.a) {

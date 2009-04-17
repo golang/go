@@ -27,12 +27,12 @@ var (
 	Stderr = newFile(2, "/dev/stderr");
 )
 
-func Open(name string, mode int64, perm int64) (file *File, err *os.Error) {
+func Open(name string, mode int64, perm int64) (file *File, err os.Error) {
 	r, e := syscall.Open(name, mode, perm);
 	return newFile(r, name), os.ErrnoToError(e)
 }
 
-func (file *File) Close() *os.Error {
+func (file *File) Close() os.Error {
 	if file == nil {
 		return os.EINVAL
 	}
@@ -41,7 +41,7 @@ func (file *File) Close() *os.Error {
 	return nil
 }
 
-func (file *File) Read(b []byte) (ret int, err *os.Error) {
+func (file *File) Read(b []byte) (ret int, err os.Error) {
 	if file == nil {
 		return -1, os.EINVAL
 	}
@@ -49,7 +49,7 @@ func (file *File) Read(b []byte) (ret int, err *os.Error) {
 	return int(r), os.ErrnoToError(e)
 }
 
-func (file *File) Write(b []byte) (ret int, err *os.Error) {
+func (file *File) Write(b []byte) (ret int, err os.Error) {
 	if file == nil {
 		return -1, os.EINVAL
 	}

@@ -19,7 +19,7 @@ import (
 var ErrNoService = os.NewError("unknown network service");
 
 var services map[string] map[string] int
-var servicesError *os.Error
+var servicesError os.Error
 
 func readServices() {
 	services = make(map[string] map[string] int);
@@ -55,7 +55,7 @@ func readServices() {
 }
 
 // LookupPort looks up the port for the given network and service.
-func LookupPort(network, service string) (port int, err *os.Error) {
+func LookupPort(network, service string) (port int, err os.Error) {
 	once.Do(readServices);
 
 	switch network {

@@ -19,11 +19,11 @@ var (
 	UnknownSocketFamily = os.NewError("unknown socket family");
 )
 
-func LookupHost(name string) (cname string, addrs []string, err *os.Error)
+func LookupHost(name string) (cname string, addrs []string, err os.Error)
 
 // Split "host:port" into "host" and "port".
 // Host cannot contain colons unless it is bracketed.
-func splitHostPort(hostport string) (host, port string, err *os.Error) {
+func splitHostPort(hostport string) (host, port string, err os.Error) {
 	// The port starts after the last colon.
 	var i int;
 	for i = len(hostport)-1; i >= 0; i-- {
@@ -63,7 +63,7 @@ func joinHostPort(host, port string) string {
 // Convert "host:port" into IP address and port.
 // For now, host and port must be numeric literals.
 // Eventually, we'll have name resolution.
-func hostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Error) {
+func hostPortToIP(net, hostport, mode string) (ip []byte, iport int, err os.Error) {
 	var host, port string;
 	host, port, err = splitHostPort(hostport);
 	if err != nil {
@@ -114,7 +114,7 @@ func hostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Err
 }
 
 // Convert socket address into "host:port".
-func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
+func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err os.Error) {
 	switch sa.Family {
 	case syscall.AF_INET, syscall.AF_INET6:
 		addr, port, e := sockaddrToIP(sa);
@@ -139,7 +139,7 @@ func boolint(b bool) int {
 
 // Generic socket creation.
 func socket(net, laddr, raddr string, f, p, t int64, la, ra *syscall.Sockaddr)
-	(fd *netFD, err *os.Error)
+	(fd *netFD, err os.Error)
 {
 	// See ../syscall/exec.go for description of ForkLock.
 	syscall.ForkLock.RLock();
@@ -201,17 +201,17 @@ func (c *connBase) sysFD() int64 {
 	return c.fd.fd;
 }
 
-func (c *connBase) Read(b []byte) (n int, err *os.Error) {
+func (c *connBase) Read(b []byte) (n int, err os.Error) {
 	n, err = c.fd.Read(b);
 	return n, err
 }
 
-func (c *connBase) Write(b []byte) (n int, err *os.Error) {
+func (c *connBase) Write(b []byte) (n int, err os.Error) {
 	n, err = c.fd.Write(b);
 	return n, err
 }
 
-func (c *connBase) ReadFrom(b []byte) (n int, raddr string, err *os.Error) {
+func (c *connBase) ReadFrom(b []byte) (n int, raddr string, err os.Error) {
 	if c == nil {
 		return -1, "", os.EINVAL
 	}
@@ -219,7 +219,7 @@ func (c *connBase) ReadFrom(b []byte) (n int, raddr string, err *os.Error) {
 	return n, c.raddr, err
 }
 
-func (c *connBase) WriteTo(raddr string, b []byte) (n int, err *os.Error) {
+func (c *connBase) WriteTo(raddr string, b []byte) (n int, err os.Error) {
 	if c == nil {
 		return -1, os.EINVAL
 	}
@@ -230,7 +230,7 @@ func (c *connBase) WriteTo(raddr string, b []byte) (n int, err *os.Error) {
 	return n, err
 }
 
-func (c *connBase) Close() *os.Error {
+func (c *connBase) Close() os.Error {
 	if c == nil {
 		return os.EINVAL
 	}
@@ -238,57 +238,57 @@ func (c *connBase) Close() *os.Error {
 }
 
 
-func setsockopt_int(fd, level, opt int64, value int) *os.Error {
+func setsockopt_int(fd, level, opt int64, value int) os.Error {
 	return os.ErrnoToError(syscall.Setsockopt_int(fd, level, opt, value));
 }
 
-func setsockopt_tv(fd, level, opt int64, nsec int64) *os.Error {
+func setsockopt_tv(fd, level, opt int64, nsec int64) os.Error {
 	return os.ErrnoToError(syscall.Setsockopt_tv(fd, level, opt, nsec));
 }
 
-func (c *connBase) SetReadBuffer(bytes int) *os.Error {
+func (c *connBase) SetReadBuffer(bytes int) os.Error {
 	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes);
 }
 
-func (c *connBase) SetWriteBuffer(bytes int) *os.Error {
+func (c *connBase) SetWriteBuffer(bytes int) os.Error {
 	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes);
 }
 
-func (c *connBase) SetReadTimeout(nsec int64) *os.Error {
+func (c *connBase) SetReadTimeout(nsec int64) os.Error {
 	c.fd.rdeadline_delta = nsec;
 	return nil;
 }
 
-func (c *connBase) SetWriteTimeout(nsec int64) *os.Error {
+func (c *connBase) SetWriteTimeout(nsec int64) os.Error {
 	c.fd.wdeadline_delta = nsec;
 	return nil;
 }
 
-func (c *connBase) SetTimeout(nsec int64) *os.Error {
+func (c *connBase) SetTimeout(nsec int64) os.Error {
 	if e := c.SetReadTimeout(nsec); e != nil {
 		return e
 	}
 	return c.SetWriteTimeout(nsec)
 }
 
-func (c *connBase) SetReuseAddr(reuse bool) *os.Error {
+func (c *connBase) SetReuseAddr(reuse bool) os.Error {
 	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse));
 }
 
-func (c *connBase) BindToDevice(dev string) *os.Error {
+func (c *connBase) BindToDevice(dev string) os.Error {
 	// TODO(rsc): call setsockopt with null-terminated string pointer
 	return os.EINVAL
 }
 
-func (c *connBase) SetDontRoute(dontroute bool) *os.Error {
+func (c *connBase) SetDontRoute(dontroute bool) os.Error {
 	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute));
 }
 
-func (c *connBase) SetKeepAlive(keepalive bool) *os.Error {
+func (c *connBase) SetKeepAlive(keepalive bool) os.Error {
 	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive));
 }
 
-func (c *connBase) SetLinger(sec int) *os.Error {
+func (c *connBase) SetLinger(sec int) os.Error {
 	e := syscall.Setsockopt_linger(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec);
 	return os.ErrnoToError(e);
 }
@@ -305,12 +305,12 @@ func (c *connBase) SetLinger(sec int) *os.Error {
 const preferIPv4 = false
 
 func internetSocket(net, laddr, raddr string, proto int64, mode string)
-	(fd *netFD, err *os.Error)
+	(fd *netFD, err os.Error)
 {
 	// Parse addresses (unless they are empty).
 	var lip, rip IP;
 	var lport, rport int;
-	var lerr, rerr *os.Error;
+	var lerr, rerr os.Error;
 
 	if laddr != "" {
 		lip, lport, lerr = hostPortToIP(net, laddr, mode);
@@ -343,7 +343,7 @@ func internetSocket(net, laddr, raddr string, proto int64, mode string)
 		}
 	}
 
-	var cvt func(addr []byte, port int) (sa *syscall.Sockaddr, err *os.Error);
+	var cvt func(addr []byte, port int) (sa *syscall.Sockaddr, err os.Error);
 	var family int64;
 	if vers == 4 {
 		cvt = v4ToSockaddr;
@@ -378,7 +378,7 @@ type ConnTCP struct {
 	connBase
 }
 
-func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
+func (c *ConnTCP) SetNoDelay(nodelay bool) os.Error {
 	if c == nil {
 		return os.EINVAL
 	}
@@ -393,7 +393,7 @@ func newConnTCP(fd *netFD, raddr string) *ConnTCP {
 	return c
 }
 
-func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
+func DialTCP(net, laddr, raddr string) (c *ConnTCP, err os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
 	}
@@ -420,7 +420,7 @@ func newConnUDP(fd *netFD, raddr string) *ConnUDP {
 	return c
 }
 
-func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
+func DialUDP(net, laddr, raddr string) (c *ConnUDP, err os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
 	}
@@ -441,48 +441,48 @@ type Conn interface {
 	// Read blocks until data is ready from the connection
 	// and then reads into b.  It returns the number
 	// of bytes read, or 0 if the connection has been closed.
-	Read(b []byte) (n int, err *os.Error);
+	Read(b []byte) (n int, err os.Error);
 
 	// Write writes the data in b to the connection.
-	Write(b []byte) (n int, err *os.Error);
+	Write(b []byte) (n int, err os.Error);
 
 	// Close closes the connection.
-	Close() *os.Error;
+	Close() os.Error;
 
 	// For packet-based protocols such as UDP,
 	// ReadFrom reads the next packet from the network,
 	// returning the number of bytes read and the remote
 	// address that sent them.
-	ReadFrom(b []byte) (n int, addr string, err *os.Error);
+	ReadFrom(b []byte) (n int, addr string, err os.Error);
 
 	// For packet-based protocols such as UDP,
 	// WriteTo writes the byte buffer b to the network
 	// as a single payload, sending it to the target address.
-	WriteTo(addr string, b []byte) (n int, err *os.Error);
+	WriteTo(addr string, b []byte) (n int, err os.Error);
 
 	// SetReadBuffer sets the size of the operating system's
 	// receive buffer associated with the connection.
-	SetReadBuffer(bytes int) *os.Error;
+	SetReadBuffer(bytes int) os.Error;
 
 	// SetReadBuffer sets the size of the operating system's
 	// transmit buffer associated with the connection.
-	SetWriteBuffer(bytes int) *os.Error;
+	SetWriteBuffer(bytes int) os.Error;
 
 	// SetTimeout sets the read and write deadlines associated
 	// with the connection.
-	SetTimeout(nsec int64) *os.Error;
+	SetTimeout(nsec int64) os.Error;
 
 	// SetReadTimeout sets the time (in nanoseconds) that
 	// Read will wait for data before returning os.EAGAIN.
 	// Setting nsec == 0 (the default) disables the deadline.
-	SetReadTimeout(nsec int64) *os.Error;
+	SetReadTimeout(nsec int64) os.Error;
 
 	// SetWriteTimeout sets the time (in nanoseconds) that
 	// Write will wait to send its data before returning os.EAGAIN.
 	// Setting nsec == 0 (the default) disables the deadline.
 	// Even if write times out, it may return n > 0, indicating that
 	// some of the data was successfully written.
-	SetWriteTimeout(nsec int64) *os.Error;
+	SetWriteTimeout(nsec int64) os.Error;
 
 	// SetLinger sets the behavior of Close() on a connection
 	// which still has data waiting to be sent or to be acknowledged.
@@ -495,22 +495,22 @@ type Conn interface {
 	//
 	// If sec > 0, Close blocks for at most sec seconds waiting for
 	// data to be sent and acknowledged.
-	SetLinger(sec int) *os.Error;
+	SetLinger(sec int) os.Error;
 
 	// SetReuseAddr sets whether it is okay to reuse addresses
 	// from recent connections that were not properly closed.
-	SetReuseAddr(reuseaddr bool) *os.Error;
+	SetReuseAddr(reuseaddr bool) os.Error;
 
 	// SetDontRoute sets whether outgoing messages should
 	// bypass the system routing tables.
-	SetDontRoute(dontroute bool) *os.Error;
+	SetDontRoute(dontroute bool) os.Error;
 
 	// SetKeepAlive sets whether the operating system should send
 	// keepalive messages on the connection.
-	SetKeepAlive(keepalive bool) *os.Error;
+	SetKeepAlive(keepalive bool) os.Error;
 
 	// BindToDevice binds a connection to a particular network device.
-	BindToDevice(dev string) *os.Error;
+	BindToDevice(dev string) os.Error;
 }
 
 // Dial connects to the remote address raddr on the network net.
@@ -528,7 +528,7 @@ type Conn interface {
 //	Dial("tcp", "", "google.com:80")
 //	Dial("tcp", "", "[de:ad:be:ef::ca:fe]:80")
 //	Dial("tcp", "127.0.0.1:123", "127.0.0.1:88")
-func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
+func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 		c, err := DialTCP(net, laddr, raddr);
@@ -557,8 +557,8 @@ func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
 // A Listener is a generic network listener.
 // Accept waits for the next connection and Close closes the connection.
 type Listener interface {
-	Accept() (c Conn, raddr string, err *os.Error);
-	Close() *os.Error;
+	Accept() (c Conn, raddr string, err os.Error);
+	Close() os.Error;
 }
 
 // ListenerTCP is a TCP network listener.
@@ -571,7 +571,7 @@ type ListenerTCP struct {
 
 // ListenTCP announces on the TCP address laddr and returns a TCP listener.
 // Net must be "tcp", "tcp4", or "tcp6".
-func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
+func ListenTCP(net, laddr string) (l *ListenerTCP, err os.Error) {
 	fd, e := internetSocket(net, laddr, "", syscall.SOCK_STREAM, "listen");
 	if e != nil {
 		return nil, e
@@ -588,7 +588,7 @@ func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
 
 // AcceptTCP accepts the next incoming call and returns the new connection
 // and the remote address.
-func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
+func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err os.Error) {
 	if l == nil || l.fd == nil || l.fd.fd < 0 {
 		return nil, "", os.EINVAL
 	}
@@ -607,7 +607,7 @@ func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
 
 // Accept implements the accept method in the Listener interface;
 // it waits for the next call and returns a generic Conn.
-func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
+func (l *ListenerTCP) Accept() (c Conn, raddr string, err os.Error) {
 	c1, r1, e1 := l.AcceptTCP();
 	if e1 != nil {
 		return nil, "", e1
@@ -617,7 +617,7 @@ func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
 
 // Close stops listening on the TCP address.
 // Already Accepted connections are not closed.
-func (l *ListenerTCP) Close() *os.Error {
+func (l *ListenerTCP) Close() os.Error {
 	if l == nil || l.fd == nil {
 		return os.EINVAL
 	}
@@ -626,7 +626,7 @@ func (l *ListenerTCP) Close() *os.Error {
 
 // Listen announces on the local network address laddr.
 // The network string net must be "tcp", "tcp4", or "tcp6".
-func Listen(net, laddr string) (l Listener, err *os.Error) {
+func Listen(net, laddr string) (l Listener, err os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 		l, err := ListenTCP(net, laddr);

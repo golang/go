@@ -45,7 +45,7 @@ func unhex(c byte) byte {
 // converting %AB into the byte 0xAB.
 // It returns a BadURL error if any % is not followed
 // by two hexadecimal digits.
-func URLUnescape(s string) (string, *os.Error) {
+func URLUnescape(s string) (string, os.Error) {
 	// Count %, check that they're well-formed.
 	n := 0;
 	for i := 0; i < len(s); {
@@ -98,7 +98,7 @@ type URL struct {
 // Maybe rawurl is of the form scheme:path.
 // (Scheme must be [a-zA-Z][a-zA-Z0-9+-.]*)
 // If so, return scheme, path; else return "", rawurl.
-func getscheme(rawurl string) (scheme, path string, err *os.Error) {
+func getscheme(rawurl string) (scheme, path string, err os.Error) {
 	for i := 0; i < len(rawurl); i++ {
 		c := rawurl[i];
 		switch {
@@ -139,7 +139,7 @@ func split(s string, c byte, cutc bool) (string, string) {
 // ParseURL parses rawurl into a URL structure.
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
-func ParseURL(rawurl string) (url *URL, err *os.Error) {
+func ParseURL(rawurl string) (url *URL, err os.Error) {
 	if rawurl == "" {
 		return nil, BadURL
 	}
@@ -184,7 +184,7 @@ func ParseURL(rawurl string) (url *URL, err *os.Error) {
 }
 
 // ParseURLReference is like ParseURL but allows a trailing #fragment.
-func ParseURLReference(rawurlref string) (url *URL, err *os.Error) {
+func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
 	// Cut off #frag.
 	rawurl, frag := split(rawurlref, '#', true);
 	if url, err = ParseURL(rawurl); err != nil {

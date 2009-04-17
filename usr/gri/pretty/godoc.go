@@ -85,7 +85,7 @@ const (
 )
 
 func init() {
-	var err *os.Error;
+	var err os.Error;
 	goroot, err = os.Getenv("GOROOT");
 	if err != nil {
 		goroot = "/home/r/go-build/go";
@@ -118,7 +118,7 @@ func makeTabwriter(writer io.Write) *tabwriter.Writer {
 
 
 // TODO(rsc): this belongs in a library somewhere, maybe os
-func ReadFile(name string) ([]byte, *os.Error) {
+func ReadFile(name string) ([]byte, os.Error) {
 	f, err := os.Open(name, os.O_RDONLY, 0);
 	if err != nil {
 		return nil, err;
@@ -321,9 +321,9 @@ func ReadTemplate(name string) *template.Template {
 	if err != nil {
 		log.Exitf("ReadFile %s: %v", name, err);
 	}
-	t, err1, line := template.Parse(string(data), fmap);
+	t, err1 := template.Parse(string(data), fmap);
 	if err1 != nil {
-		log.Exitf("%s:%d: %v", name, line, err);
+		log.Exitf("%s: %v", name, err);
 	}
 	return t;
 }

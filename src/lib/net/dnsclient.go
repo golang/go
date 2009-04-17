@@ -41,7 +41,7 @@ var (
 
 // Send a request on the connection and hope for a reply.
 // Up to cfg.attempts attempts.
-func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err *os.Error) {
+func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error) {
 	if len(name) >= 256 {
 		return nil, DNS_NameTooLong
 	}
@@ -86,7 +86,7 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err *os.Erro
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
 // TODO(rsc): Maybe return []IP instead?
-func answer(name string, dns *_DNS_Msg) (addrs []string, err *os.Error) {
+func answer(name string, dns *_DNS_Msg) (addrs []string, err os.Error) {
 	addrs = make([]string, 0, len(dns.answer));
 
 	if dns.rcode == _DNS_RcodeNameError && dns.authoritative {
@@ -137,7 +137,7 @@ Cname:
 
 // Do a lookup for a single name, which must be rooted
 // (otherwise answer will not find the answers).
-func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err *os.Error) {
+func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
 	err = DNS_NoServers;
 	for i := 0; i < len(cfg.servers); i++ {
 		// Calling Dial here is scary -- we have to be sure
@@ -168,7 +168,7 @@ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err *os.Error) {
 }
 
 var cfg *_DNS_Config
-var dnserr *os.Error
+var dnserr os.Error
 
 func loadConfig() {
 	cfg, dnserr = _DNS_ReadConfig();
@@ -177,7 +177,7 @@ func loadConfig() {
 // LookupHost looks up the host name using the local DNS resolver.
 // It returns the canonical name for the host and an array of that
 // host's addresses.
-func LookupHost(name string) (cname string, addrs []string, err *os.Error)
+func LookupHost(name string) (cname string, addrs []string, err os.Error)
 {
 	// TODO(rsc): Pick out obvious non-DNS names to avoid
 	// sending stupid requests to the server?

@@ -31,7 +31,7 @@ import (
 // the flags and options for the operand's format specifier.
 type Formatter interface {
 	// Write is the function to call to emit formatted output to be printed.
-	Write(b []byte) (ret int, err *os.Error);
+	Write(b []byte) (ret int, err os.Error);
 	// Width returns the value of the width option and whether it has been set.
 	Width()	(wid int, ok bool);
 	// Precision returns the value of the precision option and whether it has been set.
@@ -138,7 +138,7 @@ func (p *pp) add(c int) {
 
 // Implement Write so we can call fprintf on a P, for
 // recursive use in custom verbs.
-func (p *pp) Write(b []byte) (ret int, err *os.Error) {
+func (p *pp) Write(b []byte) (ret int, err os.Error) {
 	p.addbytes(b, 0, len(b));
 	return len(b), nil;
 }
@@ -149,7 +149,7 @@ func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
 // These routines end in 'f' and take a format string.
 
 // Fprintf formats according to a format specifier and writes to w.
-func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
+func Fprintf(w io.Write, format string, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
@@ -158,7 +158,7 @@ func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
 }
 
 // Printf formats according to a format specifier and writes to standard output.
-func Printf(format string, v ...) (n int, errno *os.Error) {
+func Printf(format string, v ...) (n int, errno os.Error) {
 	n, errno = Fprintf(os.Stdout, format, v);
 	return n, errno;
 }
@@ -176,7 +176,7 @@ func Sprintf(format string, a ...) string {
 
 // Fprint formats using the default formats for its operands and writes to w.
 // Spaces are added between operands when neither is a string.
-func Fprint(w io.Write, a ...) (n int, error *os.Error) {
+func Fprint(w io.Write, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
@@ -186,7 +186,7 @@ func Fprint(w io.Write, a ...) (n int, error *os.Error) {
 
 // Print formats using the default formats for its operands and writes to standard output.
 // Spaces are added between operands when neither is a string.
-func Print(v ...) (n int, errno *os.Error) {
+func Print(v ...) (n int, errno os.Error) {
 	n, errno = Fprint(os.Stdout, v);
 	return n, errno;
 }
@@ -207,7 +207,7 @@ func Sprint(a ...) string {
 
 // Fprintln formats using the default formats for its operands and writes to w.
 // Spaces are always added between operands and a newline is appended.
-func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
+func Fprintln(w io.Write, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);
@@ -217,7 +217,7 @@ func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
 
 // Println formats using the default formats for its operands and writes to standard output.
 // Spaces are always added between operands and a newline is appended.
-func Println(v ...) (n int, errno *os.Error) {
+func Println(v ...) (n int, errno os.Error) {
 	n, errno = Fprintln(os.Stdout, v);
 	return n, errno;
 }

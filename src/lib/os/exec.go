@@ -16,7 +16,7 @@ import (
 // descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
 // will cause the child to have no open file descriptor with that index.
 func ForkExec(argv0 string, argv []string, envv []string, fd []*File)
-	(pid int, err *Error)
+	(pid int, err Error)
 {
 	// Create array of integer (system) fds.
 	intfd := make([]int64, len(fd));
@@ -36,7 +36,7 @@ func ForkExec(argv0 string, argv []string, envv []string, fd []*File)
 // named by argv0, with arguments argv and environment envv.
 // If successful, Exec never returns.  If it fails, it returns an Error.
 // ForkExec is almost always a better way to execute a program.
-func Exec(argv0 string, argv []string, envv []string) *Error {
+func Exec(argv0 string, argv []string, envv []string) Error {
 	if envv == nil {
 		envv = Environ();
 	}
@@ -69,7 +69,7 @@ const (
 // Wait waits for process pid to exit or stop, and then returns a
 // Waitmsg describing its status and an Error, if any. The options
 // (WNOHANG etc.) affect the behavior of the Wait call.
-func Wait(pid int, options uint64) (w *Waitmsg, err *Error) {
+func Wait(pid int, options uint64) (w *Waitmsg, err Error) {
 	var status syscall.WaitStatus;
 	var rusage *syscall.Rusage;
 	if options & WRUSAGE != 0 {

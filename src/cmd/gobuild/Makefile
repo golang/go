@@ -5,7 +5,7 @@
 # sadly, not auto-generated
 
 O=6
-OS=568vq
+OS=568vqo
 GC=$(O)g
 CC=$(O)c -FVw
 AS=$(O)a

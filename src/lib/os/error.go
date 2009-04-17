@@ -6,31 +6,43 @@ package os
 
 import syscall "syscall"
 
-// Error is a structure wrapping a string describing an error.
+// An Error can represent any printable error condition.
+type Error interface {
+	String() string
+}
+
+// A helper type that can be embedded or wrapped to simplify satisfying
+// Error.
+type ErrorString string
+func (e *ErrorString) String() string {
+	return *e
+}
+
+// _Error is a structure wrapping a string describing an error.
 // Errors are singleton structures, created by NewError, so their addresses can
 // be compared to test for equality. A nil Error pointer means ``no error''.
 // Use the String() method to get the contents; it handles the nil case.
 // The Error type is intended for use by any package that wishes to define
 // error strings.
-type Error struct {
+type _Error struct {
 	s string
 }
 
 // Indexed by errno.
 // If we worry about syscall speed (only relevant on failure), we could
 // make it an array, but it's probably not important.
-var errorTab = make(map[int64] *Error);
+var errorTab = make(map[int64] Error);
 
 // Table of all known errors in system.  Use the same error string twice,
-// get the same *os.Error.
-var errorStringTab = make(map[string] *Error);
+// get the same *os._Error.
+var errorStringTab = make(map[string] Error);
 
 // These functions contain a race if two goroutines add identical
 // errors simultaneously but the consequences are unimportant.
 
 // NewError allocates an Error object, but if s has been seen before,
-// shares the Error associated with that message.
-func NewError(s string) *Error {
+// shares the _Error associated with that message.
+func NewError(s string) Error {
 	if s == "" {
 		return nil
 	}
@@ -38,14 +50,14 @@ func NewError(s string) *Error {
 	if ok {
 		return err
 	}
-	err = &Error{s};
+	err = &_Error{s};
 	errorStringTab[s] = err;
 	return err;
 }
 
-// ErrnoToError calls NewError to create an Error object for the string
+// ErrnoToError calls NewError to create an _Error object for the string
 // associated with Unix error code errno.
-func ErrnoToError(errno int64) *Error {
+func ErrnoToError(errno int64) Error {
 	if errno == 0 {
 		return nil
 	}
@@ -61,6 +73,11 @@ func ErrnoToError(errno int64) *Error {
 
 // Commonly known Unix errors.
 var (
+	// TODO(r):
+	// 1. these become type ENONE struct { ErrorString }
+	// 2. create private instances of each type: var eNONE ENONE(ErrnoToString(syscall.ENONE));
+	// 3. put them in a table
+	// 4. ErrnoToError uses the table. its error case ECATCHALL("%d")
 	ENONE = ErrnoToError(syscall.ENONE);
 	EPERM = ErrnoToError(syscall.EPERM);
 	ENOENT = ErrnoToError(syscall.ENOENT);
@@ -99,10 +116,10 @@ var (
 	EAGAIN = ErrnoToError(syscall.EAGAIN);
 )
 
-// String returns the string associated with the Error.
-func (e *Error) String() string {
+// String returns the string associated with the _Error.
+func (e *_Error) String() string {
 	if e == nil {
-		return "No Error"
+		return "No _Error"
 	}
 	return e.s
 }

@@ -70,7 +70,7 @@ const (
 // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
 // if applicable.  If successful, methods on the returned File can be used for I/O.
 // It returns the File and an Error, if any.
-func Open(name string, flag int, perm int) (file *File, err *Error) {
+func Open(name string, flag int, perm int) (file *File, err Error) {
 	r, e := syscall.Open(name, int64(flag | syscall.O_CLOEXEC), int64(perm));
 	if e != 0 {
 		return nil, ErrnoToError(e);
@@ -87,7 +87,7 @@ func Open(name string, flag int, perm int) (file *File, err *Error) {
 
 // Close closes the File, rendering it unusable for I/O.
 // It returns an Error, if any.
-func (file *File) Close() *Error {
+func (file *File) Close() Error {
 	if file == nil {
 		return EINVAL
 	}
@@ -100,7 +100,7 @@ func (file *File) Close() *Error {
 // It returns the number of bytes read and an Error, if any.
 // EOF is signaled by a zero count with a nil Error.
 // TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
-func (file *File) Read(b []byte) (ret int, err *Error) {
+func (file *File) Read(b []byte) (ret int, err Error) {
 	if file == nil {
 		return 0, EINVAL
 	}
@@ -117,7 +117,7 @@ func (file *File) Read(b []byte) (ret int, err *Error) {
 // Write writes len(b) bytes to the File.
 // It returns the number of bytes written and an Error, if any.
 // If the byte count differs from len(b), it usually implies an error occurred.
-func (file *File) Write(b []byte) (ret int, err *Error) {
+func (file *File) Write(b []byte) (ret int, err Error) {
 	if file == nil {
 		return 0, EINVAL
 	}
@@ -135,7 +135,7 @@ func (file *File) Write(b []byte) (ret int, err *Error) {
 // according to whence: 0 means relative to the origin of the file, 1 means
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an Error, if any.
-func (file *File) Seek(offset int64, whence int) (ret int64, err *Error) {
+func (file *File) Seek(offset int64, whence int) (ret int64, err Error) {
 	r, e := syscall.Seek(file.fd, offset, int64(whence));
 	if e != 0 {
 		return -1, ErrnoToError(e)
@@ -148,7 +148,7 @@ func (file *File) Seek(offset int64, whence int) (ret int64, err *Error) {
 
 // WriteString is like Write, but writes the contents of string s rather than
 // an array of bytes.
-func (file *File) WriteString(s string) (ret int, err *Error) {
+func (file *File) WriteString(s string) (ret int, err Error) {
 	if file == nil {
 		return 0, EINVAL
 	}
@@ -161,7 +161,7 @@ func (file *File) WriteString(s string) (ret int, err *Error) {
 
 // Pipe returns a connected pair of Files; reads from r return bytes written to w.
 // It returns the files and an Error, if any.
-func Pipe() (r *File, w *File, err *Error) {
+func Pipe() (r *File, w *File, err Error) {
 	var p [2]int64;
 
 	// See ../syscall/exec.go for description of lock.
@@ -180,7 +180,7 @@ func Pipe() (r *File, w *File, err *Error) {
 
 // Mkdir creates a new directory with the specified name and permission bits.
 // It returns an error, if any.
-func Mkdir(name string, perm int) *Error {
+func Mkdir(name string, perm int) Error {
 	r, e := syscall.Mkdir(name, int64(perm));
 	return ErrnoToError(e)
 }
@@ -189,7 +189,7 @@ func Mkdir(name string, perm int) *Error {
 // is a symbolic link, it returns information about the file the link
 // references.
 // It returns the Dir and an error, if any.
-func Stat(name string) (dir *Dir, err *Error) {
+func Stat(name string) (dir *Dir, err Error) {
 	stat := new(syscall.Stat_t);
 	r, e := syscall.Stat(name, stat);
 	if e != 0 {
@@ -200,7 +200,7 @@ func Stat(name string) (dir *Dir, err *Error) {
 
 // Stat returns the Dir structure describing file.
 // It returns the Dir and an error, if any.
-func (file *File) Stat() (dir *Dir, err *Error) {
+func (file *File) Stat() (dir *Dir, err Error) {
 	stat := new(syscall.Stat_t);
 	r, e := syscall.Fstat(file.fd, stat);
 	if e != 0 {
@@ -212,7 +212,7 @@ func (file *File) Stat() (dir *Dir, err *Error) {
 // Lstat returns the Dir structure describing the named file. If the file
 // is a symbolic link, it returns information about the link itself.
 // It returns the Dir and an error, if any.
-func Lstat(name string) (dir *Dir, err *Error) {
+func Lstat(name string) (dir *Dir, err Error) {
 	stat := new(syscall.Stat_t);
 	r, e := syscall.Lstat(name, stat);
 	if e != 0 {
@@ -223,14 +223,14 @@ func Lstat(name string) (dir *Dir, err *Error) {
 
 // Readdirnames has a non-portable implemenation so its code is separated into an
 // operating-system-dependent file.
-func readdirnames(file *File, count int) (names []string, err *os.Error)
+func readdirnames(file *File, count int) (names []string, err Error)
 
 // Readdirnames reads the contents of the directory associated with file and
 // returns an array of up to count names, in directory order.  Subsequent
 // calls on the same file will yield further names.
 // A negative count means to read until EOF.
 // It returns the array and an Error, if any.
-func (file *File) Readdirnames(count int) (names []string, err *os.Error) {
+func (file *File) Readdirnames(count int) (names []string, err Error) {
 	return readdirnames(file, count);
 }
 
@@ -239,7 +239,7 @@ func (file *File) Readdirnames(count int) (names []string, err *os.Error) {
 // calls on the same file will yield further Dirs.
 // A negative count means to read until EOF.
 // It returns the array and an Error, if any.
-func (file *File) Readdir(count int) (dirs []Dir, err *os.Error) {
+func (file *File) Readdir(count int) (dirs []Dir, err Error) {
 	dirname := file.name;
 	if dirname == "" {
 		dirname = ".";
@@ -262,13 +262,13 @@ func (file *File) Readdir(count int) (dirs []Dir, err *os.Error) {
 }
 
 // Chdir changes the current working directory to the named directory.
-func Chdir(dir string) *os.Error {
+func Chdir(dir string) Error {
 	r, e := syscall.Chdir(dir);
 	return ErrnoToError(e);
 }
 
 // Remove removes the named file or directory.
-func Remove(name string) *os.Error {
+func Remove(name string) Error {
 	// System call interface forces us to know
 	// whether name is a file or directory.
 	// Try both: it is cheaper on average than

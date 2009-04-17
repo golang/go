@@ -19,7 +19,7 @@ var
 	USER string;
 
 func init() {
-	var e *OS.Error;
+	var e OS.Error;
 
 	GOARCH, e = OS.Getenv("GOARCH");
 	GOOS, e = OS.Getenv("GOOS");
@@ -37,7 +37,7 @@ const (
 	Obj_file_ext = ".7";
 )
 
-func readfile(filename string) ([]byte, *OS.Error) {
+func readfile(filename string) ([]byte, OS.Error) {
 	f, err := OS.Open(filename, OS.O_RDONLY, 0);
 	if err != nil {
 		return []byte{}, err;
@@ -51,7 +51,7 @@ func readfile(filename string) ([]byte, *OS.Error) {
 	return buf[0:n], err1;
 }
 
-func writefile(name, data string) *OS.Error {
+func writefile(name, data string) OS.Error {
 	fd, err := OS.Open(name, OS.O_WRONLY, 0);
 	if err != nil {
 		return err;

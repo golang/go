@@ -97,7 +97,7 @@ func unhex(b byte) (v int, ok bool) {
 	return;
 }
 
-func unquoteChar(s string, i int, q byte) (t string, ii int, err *os.Error) {
+func unquoteChar(s string, i int, q byte) (t string, ii int, err os.Error) {
 	err = os.EINVAL;  // assume error for easy return
 
 	// easy cases
@@ -190,7 +190,7 @@ func unquoteChar(s string, i int, q byte) (t string, ii int, err *os.Error) {
 // that s quotes.  (If s is single-quoted, it would be a Go
 // character literal; Unquote returns the corresponding
 // one-character string.)
-func Unquote(s string) (t string, err *os.Error) {
+func Unquote(s string) (t string, err os.Error) {
 	err = os.EINVAL;  // assume error for easy return
 	n := len(s);
 	if n < 2 || s[0] != s[n-1] {
@@ -207,7 +207,7 @@ func Unquote(s string) (t string, err *os.Error) {
 		t := "";
 		q := s[0];
 		var c string;
-		var err *os.Error;
+		var err os.Error;
 		for i := 1; i < n-1; {
 			c, i, err = unquoteChar(s, i, q);
 			if err != nil {
