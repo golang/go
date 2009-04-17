@@ -8,12 +8,12 @@ package main
 
 func main() {
 	var b [0]byte;
-	s := string(b);	// out of bounds trap
+	s := string(&b);	// out of bounds trap
 	if s != "" {
 		panic("bad convert")
 	}
 	var b1 = [5]byte{'h', 'e', 'l', 'l', 'o'};
-	if string(b1) != "hello" {
+	if string(&b1) != "hello" {
 		panic("bad convert 1")
 	}
 	var b2 = make([]byte, 5);
