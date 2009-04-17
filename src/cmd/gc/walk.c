@@ -1230,8 +1230,9 @@ walkconv(Node *n)
 			indir(n, stringop(n, Erv));
 			return;
 		}
-		if(et == TARRAY)
-		if(istype(l->type->type, TUINT8)) {
+		// can convert []byte and *[10]byte
+		if((isptr[et] && isfixedarray(l->type->type) && istype(l->type->type->type, TUINT8))
+		|| (isslice(l->type) && istype(l->type->type, TUINT8))) {
 			n->op = OARRAY;
 			indir(n, stringop(n, Erv));
 			return;
@@ -1267,6 +1268,9 @@ walkconv(Node *n)
 	}
 
 bad:
+	if(n->diag)
+		return;
+	n->diag = 1;
 	if(l->type != T)
 		yyerror("invalid conversion: %T to %T", l->type, t);
 	else
@@ -2204,8 +2208,6 @@ stringop(Node *n, int top)
 	case OARRAY:
 		// arraystring([]byte) string;
 		r = n->left;
-		if(isfixedarray(r->type))
-			r = nod(OADDR, r, N);
 		on = syslook("arraystring", 0);
 		r = nod(OCALL, on, r);
 		break;
