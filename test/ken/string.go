@@ -86,7 +86,7 @@ main()
 	z1[0] = 'a';
 	z1[1] = 'b';
 	z1[2] = 'c';
-	c = string(z1);
+	c = string(&z1);
 	if c != "abc" {
 		panic("create array ", c);
 	}
@@ -96,7 +96,7 @@ main()
 	z2[0] = 'a';
 	z2[1] = 'b';
 	z2[2] = 'c';
-	c = string(*z2);
+	c = string(z2);
 	if c != "abc" {
 		panic("create array pointer ", c);
 	}
