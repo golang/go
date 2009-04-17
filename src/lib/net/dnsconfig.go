@@ -22,16 +22,16 @@ type _DNS_Config struct {
 	rotate bool;	// round robin among servers
 }
 
-var _DNS_configError *os.Error;
+var _DNS_configError os.Error;
 
 // See resolv.conf(5) on a Linux machine.
 // TODO(rsc): Supposed to call uname() and chop the beginning
 // of the host name to get the default search domain.
 // We assume it's in resolv.conf anyway.
-func _DNS_ReadConfig() (*_DNS_Config, *os.Error) {
+func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
 	// TODO(rsc): 6g won't let me say file, err :=
 	var file *file;
-	var err *os.Error;
+	var err os.Error;
 	file, err = open("/etc/resolv.conf");
 	if err != nil {
 		return nil, err

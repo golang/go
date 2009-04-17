@@ -31,7 +31,7 @@ func copyenv() {
 
 // Getenv retrieves the value of the environment variable named by the key.
 // It returns the value and an error, if any.
-func Getenv(key string) (value string, err *Error) {
+func Getenv(key string) (value string, err Error) {
 	once.Do(copyenv);
 
 	if len(key) == 0 {
@@ -46,7 +46,7 @@ func Getenv(key string) (value string, err *Error) {
 
 // Setenv sets the value of the environment variable named by the key.
 // It returns an Error, if any.
-func Setenv(key, value string) *Error {
+func Setenv(key, value string) Error {
 	once.Do(copyenv);
 
 	if len(key) == 0 {

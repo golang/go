@@ -66,19 +66,9 @@ import (
 	"template";
 )
 
-// Errors returned during parsing and execution.
-var ErrUnmatchedRDelim = os.NewError("unmatched closing delimiter")
-var ErrUnmatchedLDelim = os.NewError("unmatched opening delimiter")
-var ErrBadDirective = os.NewError("unrecognized directive name")
-var ErrEmptyDirective = os.NewError("empty directive")
-var ErrFields = os.NewError("incorrect fields for directive")
-var ErrSyntax = os.NewError("directive out of place")
-var ErrNoEnd = os.NewError("section does not have .end")
-var ErrNoVar = os.NewError("variable name not in struct");
-var ErrBadType = os.NewError("unsupported type for variable");
-var ErrNotStruct = os.NewError("driver must be a struct")
-var ErrNoFormatter = os.NewError("unknown formatter")
-var ErrBadDelims = os.NewError("invalid delimiter strings")
+// Errors returned during parsing. TODO: different error model for execution?
+
+type ParseError struct { os.ErrorString }
 
 // All the literals are aces.
 var lbrace = []byte{ '{' }
@@ -112,15 +102,14 @@ var builtins = FormatterMap {
 // State for executing a Template
 type state struct {
 	parent	*state;	// parent in hierarchy
-	errorchan	chan *os.Error;	// for erroring out
+	errorchan	chan os.Error;	// for erroring out
 	data	reflect.Value;	// the driver data for this section etc.
 	wr	io.Write;	// where to send output
 }
 
 // Report error and stop generation.
-func (st *state) error(err *os.Error, args ...) {
-	fmt.Fprintf(os.Stderr, "template: %v%s\n", err, fmt.Sprint(args));
-	st.errorchan <- err;
+func (st *state) parseError(line int, err string, args ...) {
+	st.errorchan <- ParseError{fmt.Sprintf("line %d: %s", line, fmt.Sprintf(err, args))};
 	sys.Goexit();
 }
 
@@ -217,7 +206,7 @@ Loop:
 			i = j - 1;
 		case equal(t.buf, i, t.rdelim):
 			if !sawLeft {
-				st.error(ErrUnmatchedRDelim)
+				st.parseError(*t.linenum, "unmatched closing delimiter")
 			}
 			sawLeft = false;
 			i += len(t.rdelim);
@@ -227,7 +216,7 @@ Loop:
 		}
 	}
 	if sawLeft {
-		st.error(ErrUnmatchedLDelim)
+		st.parseError(*t.linenum, "unmatched opening delimiter")
 	}
 	item := t.buf[start:i];
 	if special && trim_white {
@@ -281,10 +270,10 @@ func (t *Template) analyze(item []byte, st *state) (tok int, w []string) {
 		return
 	}
 	if !equal(item, len(item)-len(t.rdelim), t.rdelim) {	// doesn't end with right delimiter
-		st.error(ErrUnmatchedLDelim)  // should not happen anyway
+		st.parseError(*t.linenum, "unmatched opening delimiter")  // should not happen anyway
 	}
 	if len(item) <= len(t.ldelim)+len(t.rdelim) {	// no contents
-		st.error(ErrEmptyDirective)
+		st.parseError(*t.linenum, "empty directive")
 	}
 	// Comment
 	if item[len(t.ldelim)] == '#' {
@@ -294,10 +283,7 @@ func (t *Template) analyze(item []byte, st *state) (tok int, w []string) {
 	// Split into words
 	w = words(item[len(t.ldelim): len(item)-len(t.rdelim)]);  // drop final delimiter
 	if len(w) == 0 {
-		st.error(ErrBadDirective)
-	}
-	if len(w[0]) == 0 {
-		st.error(ErrEmptyDirective)
+		st.parseError(*t.linenum, "empty directive")
 	}
 	if len(w) == 1 && w[0][0] != '.' {
 		tok = Variable;
@@ -315,24 +301,24 @@ func (t *Template) analyze(item []byte, st *state) (tok int, w []string) {
 		return;
 	case ".section":
 		if len(w) != 2 {
-			st.error(ErrFields, ": ", string(item))
+			st.parseError(*t.linenum, "incorrect fields for .section: %s", item)
 		}
 		tok = Section;
 		return;
 	case ".repeated":
 		if len(w) != 3 || w[1] != "section" {
-			st.error(ErrFields, ": ", string(item))
+			st.parseError(*t.linenum, "incorrect fields for .repeated: %s", item)
 		}
 		tok = Repeated;
 		return;
 	case ".alternates":
 		if len(w) != 2 || w[1] != "with" {
-			st.error(ErrFields, ": ", string(item))
+			st.parseError(*t.linenum, "incorrect fields for .alternates: %s", item)
 		}
 		tok = Alternates;
 		return;
 	}
-	st.error(ErrBadDirective, ": ", string(item));
+	st.parseError(*t.linenum, "bad directive: %s", item);
 	return
 }
 
@@ -375,18 +361,19 @@ func empty(v reflect.Value, indirect_ok bool) bool {
 // Execute a ".repeated" section
 func (t *Template) executeRepeated(w []string, st *state) {
 	if w[1] != "section" {
-		st.error(ErrSyntax, `: .repeated must have "section"`)
+		st.parseError(*t.linenum, `.repeated must have "section"`)
 	}
 
 	// Find driver array/struct for this section.  It must be in the current struct.
 	field := st.findVar(w[2]);
 	if field == nil {
-		st.error(ErrNoVar, ": .repeated ", w[2], " in ", reflect.Indirect(st.data).Type());
+		st.parseError(*t.linenum, ".repeated: cannot find %s in %s", w[2], reflect.Indirect(st.data).Type());
 	}
+	field = reflect.Indirect(field);
 
 	// Must be an array/slice
 	if field != nil && field.Kind() != reflect.ArrayKind {
-		st.error(ErrBadType, " in .repeated: ", w[2], " ", field.Type().String());
+		st.parseError(*t.linenum, ".repeated: %s has bad type %s", w[2], field.Type());
 	}
 	// Scan repeated section, remembering slice of text we must execute.
 	nesting := 0;
@@ -396,7 +383,7 @@ Loop:
 	for {
 		item := t.nextItem(st);
 		if len(item) ==  0 {
-			st.error(ErrNoEnd)
+			st.parseError(*t.linenum, "missing .end")
 		}
 		tok, s := t.analyze(item, st);
 		switch tok {
@@ -430,7 +417,7 @@ func (t *Template) executeSection(w []string, st *state) {
 	// Find driver data for this section.  It must be in the current struct.
 	field := st.findVar(w[1]);
 	if field == nil {
-		st.error(ErrNoVar, ": .section ", w[1], " in ", reflect.Indirect(st.data).Type());
+		st.parseError(*t.linenum, ".section: cannot find %s in %s", w[1], reflect.Indirect(st.data).Type());
 	}
 	// Scan section, remembering slice of text we must execute.
 	orFound := false;
@@ -442,7 +429,7 @@ Loop:
 	for {
 		item := t.nextItem(st);
 		if len(item) ==  0 {
-			st.error(ErrNoEnd)
+			st.parseError(*t.linenum, "missing .end")
 		}
 		tok, s := t.analyze(item, st);
 		switch tok {
@@ -458,7 +445,7 @@ Loop:
 				break
 			}
 			if orFound {
-				st.error(ErrSyntax, ": .or");
+				st.parseError(*t.linenum, "unexpected .or");
 			}
 			orFound = true;
 			if !accumulate {
@@ -491,7 +478,7 @@ func (t *Template) varValue(name string, st *state) reflect.Value {
 	field := st.findVar(name);
 	if field == nil {
 		if st.parent == nil {
-			st.error(ErrNoVar, ": ", name)
+			st.parseError(*t.linenum, "name not found: %s", name)
 		}
 		return t.varValue(name, st.parent);
 	}
@@ -521,7 +508,7 @@ func (t *Template) writeVariable(st *state, name_formatter string) {
 		fn(st.wr, val, formatter);
 		return;
 	}
-	st.error(ErrNoFormatter, ": ", formatter);
+	st.parseError(*t.linenum, "unknown formatter: %s", formatter);
 	panic("notreached");
 }
 
@@ -553,7 +540,7 @@ func (t *Template) execute(st *state) {
 		case Variable:
 			t.writeVariable(st, w[0]);
 		case Or, End, Alternates:
-			st.error(ErrSyntax, ": ", string(item));
+			st.parseError(*t.linenum, "unexpected %s", w[0]);
 		case Section:
 			t.executeSection(w, st);
 		case Repeated:
@@ -568,7 +555,7 @@ func (t *Template) doParse() {
 	// stub for now
 }
 
-// A valid delimeter must contain no white space and be non-empty.
+// A valid delimiter must contain no white space and be non-empty.
 func validDelim(d []byte) bool {
 	if len(d) == 0 {
 		return false
@@ -581,32 +568,29 @@ func validDelim(d []byte) bool {
 	return true;
 }
 
-// Parse initializes a Template by parsing its definition.  The string s contains
-// the template text.  If any errors occur, it returns the error and line number
-// in the text of the erroneous construct.
-func (t *Template) Parse(s string) (err *os.Error, eline int) {
+// Parse initializes a Template by parsing its definition.  The string
+// s contains the template text.  If any errors occur, Parse returns
+// the error.
+func (t *Template) Parse(s string) (err os.Error) {
 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
-		return ErrBadDelims, 0
+		return ParseError{fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
 	}
 	t.init(io.StringBytes(s));
-	ch := make(chan *os.Error);
+	ch := make(chan os.Error);
 	go func() {
 		t.doParse();
 		ch <- nil;	// clean return;
 	}();
 	err = <-ch;
-	if err != nil {
-		return err, *t.linenum
-	}
 	return
 }
 
 // Execute executes a parsed template on the specified data object,
 // generating output to wr.
-func (t *Template) Execute(data interface{}, wr io.Write) *os.Error {
+func (t *Template) Execute(data interface{}, wr io.Write) os.Error {
 	// Extract the driver data.
 	val := reflect.NewValue(data);
-	ch := make(chan *os.Error);
+	ch := make(chan os.Error);
 	go func() {
 		t.p = 0;
 		t.execute(&state{nil, ch, val, wr});
@@ -625,23 +609,23 @@ func New(fmap FormatterMap) *Template {
 	return t;
 }
 
-// SetDelims sets the left and right delimiters for operations in the template.
-// They are validated during parsing.  They could be validated here but it's
-// better to keep the routine simple.  The delimiters are very rarely invalid
-// and Parse has the necessary error-handling interface already.
+// SetDelims sets the left and right delimiters for operations in the
+// template.  They are validated during parsing.  They could be
+// validated here but it's better to keep the routine simple.  The
+// delimiters are very rarely invalid and Parse has the necessary
+// error-handling interface already.
 func (t *Template) SetDelims(left, right string) {
 	t.ldelim = io.StringBytes(left);
 	t.rdelim = io.StringBytes(right);
 }
 
 // Parse creates a Template with default parameters (such as {} for
-// metacharacters).  The string s contains the template text while the
-// formatter map fmap, which may be nil, defines auxiliary functions
+// metacharacters).  The string s contains the template text while
+// the formatter map fmap, which may be nil, defines auxiliary functions
 // for formatting variables.  The template is returned. If any errors
-// occur, err will be non-nil and eline will be  the line number in the
-// text of the erroneous construct.
-func Parse(s string, fmap FormatterMap) (t *Template, err *os.Error, eline int) {
+// occur, err will be non-nil.
+func Parse(s string, fmap FormatterMap) (t *Template, err os.Error) {
 	t = New(fmap);
-	err, eline = t.Parse(s);
+	err = t.Parse(s);
 	return
 }

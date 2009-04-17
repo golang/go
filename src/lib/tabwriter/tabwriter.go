@@ -222,7 +222,7 @@ func (b *Writer) dump() {
 }
 
 
-func (b *Writer) write0(buf []byte) *os.Error {
+func (b *Writer) write0(buf []byte) os.Error {
 	n, err := b.output.Write(buf);
 	if n != len(buf) && err == nil {
 		err = os.EIO;
@@ -233,7 +233,7 @@ func (b *Writer) write0(buf []byte) *os.Error {
 
 var newline = []byte{'\n'}
 
-func (b *Writer) writePadding(textw, cellw int) (err *os.Error) {
+func (b *Writer) writePadding(textw, cellw int) (err os.Error) {
 	if b.padbytes[0] == '\t' {
 		// make cell width a multiple of cellwidth
 		cellw = ((cellw + b.cellwidth - 1) / b.cellwidth) * b.cellwidth;
@@ -262,7 +262,7 @@ exit:
 }
 
 
-func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err *os.Error) {
+func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) {
 	pos = pos0;
 	for i := line0; i < line1; i++ {
 		line_size, line_width := b.line(i);
@@ -319,7 +319,7 @@ exit:
 }
 
 
-func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err *os.Error) {
+func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 	pos = pos0;
 	column := b.widths.Len();
 	last := line0;
@@ -373,7 +373,7 @@ exit:
 // Flush should be called after the last call to Write to ensure
 // that any data buffered in the Writer is written to output.
 //
-func (b *Writer) Flush() *os.Error {
+func (b *Writer) Flush() os.Error {
 	dummy, err := b.format(0, 0, b.lines_size.Len());
 	// reset (even in the presence of errors)
 	b.buf.clear();
@@ -411,7 +411,7 @@ func (b *Writer) append(buf []byte) {
 // The only errors returned are ones encountered
 // while writing to the underlying output stream.
 //
-func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
+func (b *Writer) Write(buf []byte) (written int, err os.Error) {
 	i0, n := 0, len(buf);
 
 	// split text into cells

@@ -24,7 +24,7 @@ func clen(n []byte) int {
 }
 
 // Negative count means read until EOF.
-func readdirnames(file *File, count int) (names []string, err *os.Error) {
+func readdirnames(file *File, count int) (names []string, err Error) {
 	// If this file has no dirinfo, create one.
 	if file.dirinfo == nil {
 		file.dirinfo = new(dirInfo);
@@ -45,7 +45,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
 			dbuf := (*syscall.Dirent)(unsafe.Pointer(&d.buf[0]));
 			d.nbuf, errno = syscall.Getdents(file.fd, dbuf, int64(len(d.buf)));
 			if d.nbuf < 0 {
-				return names, os.ErrnoToError(errno)
+				return names, ErrnoToError(errno)
 			}
 			if d.nbuf == 0 {
 				break	// EOF

@@ -14,7 +14,7 @@ import (
 type atoui64Test struct {
 	in string;
 	out uint64;
-	err *os.Error;
+	err os.Error;
 }
 
 var atoui64tests = []atoui64Test {
@@ -41,7 +41,7 @@ var atoui64tests = []atoui64Test {
 type atoi64Test struct {
 	in string;
 	out int64;
-	err *os.Error;
+	err os.Error;
 }
 
 var atoi64test = []atoi64Test {
@@ -71,7 +71,7 @@ var atoi64test = []atoi64Test {
 type atoui32Test struct {
 	in string;
 	out uint32;
-	err *os.Error;
+	err os.Error;
 }
 
 var atoui32tests = []atoui32Test {
@@ -91,7 +91,7 @@ var atoui32tests = []atoui32Test {
 type atoi32Test struct {
 	in string;
 	out int32;
-	err *os.Error;
+	err os.Error;
 }
 
 var atoi32tests = []atoi32Test {

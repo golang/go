@@ -18,7 +18,7 @@ type pollster struct {
 	events []syscall.Kevent_t;
 }
 
-func newpollster() (p *pollster, err *os.Error) {
+func newpollster() (p *pollster, err os.Error) {
 	p = new(pollster);
 	var e int64;
 	if p.kq, e = syscall.Kqueue(); e != 0 {
@@ -28,7 +28,7 @@ func newpollster() (p *pollster, err *os.Error) {
 	return p, nil
 }
 
-func (p *pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+func (p *pollster) AddFD(fd int64, mode int, repeat bool) os.Error {
 	var kmode int16;
 	if mode == 'r' {
 		kmode = syscall.EVFILT_READ
@@ -81,7 +81,7 @@ func (p *pollster) DelFD(fd int64, mode int) {
 	syscall.Kevent(p.kq, &events, &events, nil);
 }
 
-func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
+func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err os.Error) {
 	var t *syscall.Timespec;
 	for len(p.events) == 0 {
 		if nsec > 0 {
@@ -114,7 +114,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
 	return fd, mode, nil
 }
 
-func (p *pollster) Close() *os.Error {
+func (p *pollster) Close() os.Error {
 	r, e := syscall.Close(p.kq);
 	return os.ErrnoToError(e)
 }

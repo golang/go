@@ -56,7 +56,7 @@ type Conn struct {
 }
 
 // Create new connection from rwc.
-func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err *os.Error) {
+func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err os.Error) {
 	c = new(Conn);
 	c.RemoteAddr = raddr;
 	c.handler = handler;
@@ -70,7 +70,7 @@ func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err
 func (c *Conn) SetHeader(hdr, val string)
 
 // Read next request from connection.
-func (c *Conn) readRequest() (req *Request, err *os.Error) {
+func (c *Conn) readRequest() (req *Request, err os.Error) {
 	if c.hijacked {
 		return nil, ErrHijacked
 	}
@@ -156,7 +156,7 @@ func (c *Conn) WriteHeader(code int) {
 // Write writes the data to the connection as part of an HTTP reply.
 // If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
 // before writing the data.
-func (c *Conn) Write(data []byte) (n int, err *os.Error) {
+func (c *Conn) Write(data []byte) (n int, err os.Error) {
 	if c.hijacked {
 		log.Stderr("http: Conn.Write on hijacked connection");
 		return 0, ErrHijacked
@@ -228,7 +228,7 @@ func (c *Conn) serve() {
 // will not do anything else with the connection.
 // It becomes the caller's responsibility to manage
 // and close the connection.
-func (c *Conn) Hijack() (rwc io.ReadWriteClose, buf *bufio.BufReadWrite, err *os.Error) {
+func (c *Conn) Hijack() (rwc io.ReadWriteClose, buf *bufio.BufReadWrite, err os.Error) {
 	if c.hijacked {
 		return nil, nil, ErrHijacked;
 	}
@@ -448,7 +448,7 @@ func Handle(pattern string, handler Handler) {
 // creating a new service thread for each.  The service threads
 // read requests and then call handler to reply to them.
 // Handler is typically nil, in which case the DefaultServeMux is used.
-func Serve(l net.Listener, handler Handler) *os.Error {
+func Serve(l net.Listener, handler Handler) os.Error {
 	if handler == nil {
 		handler = DefaultServeMux;
 	}
@@ -492,7 +492,7 @@ func Serve(l net.Listener, handler Handler) *os.Error {
 //			panic("ListenAndServe: ", err.String())
 //		}
 //	}
-func ListenAndServe(addr string, handler Handler) *os.Error {
+func ListenAndServe(addr string, handler Handler) os.Error {
 	l, e := net.Listen("tcp", addr);
 	if e != nil {
 		return e

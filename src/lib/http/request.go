@@ -100,7 +100,7 @@ func (r *Request) ProtoAtLeast(major, minor int) bool {
 // Give up if the line exceeds maxLineLength.
 // The returned bytes are a pointer into storage in
 // the bufio, so they are only valid until the next bufio read.
-func readLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
+func readLineBytes(b *bufio.BufRead) (p []byte, err os.Error) {
 	if p, err = b.ReadLineSlice('\n'); err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func readLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
 }
 
 // readLineBytes, but convert the bytes into a string.
-func readLine(b *bufio.BufRead) (s string, err *os.Error) {
+func readLine(b *bufio.BufRead) (s string, err os.Error) {
 	p, e := readLineBytes(b);
 	if e != nil {
 		return "", e
@@ -131,7 +131,7 @@ func readLine(b *bufio.BufRead) (s string, err *os.Error) {
 // A key/value has the form Key: Value\r\n
 // and the Value can continue on multiple lines if each continuation line
 // starts with a space.
-func readKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
+func readKeyValue(b *bufio.BufRead) (key, value string, err os.Error) {
 	line, e := readLineBytes(b);
 	if e != nil {
 		return "", "", e
@@ -266,7 +266,7 @@ func CanonicalHeaderKey(s string) string {
 }
 
 // ReadRequest reads and parses a request from b.
-func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+func ReadRequest(b *bufio.BufRead) (req *Request, err os.Error) {
 	req = new(Request);
 
 	// First line: GET /index.html HTTP/1.0

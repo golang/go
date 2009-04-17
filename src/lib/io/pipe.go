@@ -15,7 +15,7 @@ import (
 
 type pipeReturn struct {
 	n int;
-	err *os.Error;
+	err os.Error;
 }
 
 // Shared pipe structure.
@@ -28,7 +28,7 @@ type pipe struct {
 	cw chan pipeReturn;	// ... and reads the n, err back from here.
 }
 
-func (p *pipe) Read(data []byte) (n int, err *os.Error) {
+func (p *pipe) Read(data []byte) (n int, err os.Error) {
 	if p == nil || p.rclosed {
 		return 0, os.EINVAL;
 	}
@@ -65,7 +65,7 @@ func (p *pipe) Read(data []byte) (n int, err *os.Error) {
 	return n, nil;
 }
 
-func (p *pipe) Write(data []byte) (n int, err *os.Error) {
+func (p *pipe) Write(data []byte) (n int, err os.Error) {
 	if p == nil || p.wclosed {
 		return 0, os.EINVAL;
 	}
@@ -81,7 +81,7 @@ func (p *pipe) Write(data []byte) (n int, err *os.Error) {
 	return res.n, res.err;
 }
 
-func (p *pipe) CloseReader() *os.Error {
+func (p *pipe) CloseReader() os.Error {
 	if p == nil || p.rclosed {
 		return os.EINVAL;
 	}
@@ -97,7 +97,7 @@ func (p *pipe) CloseReader() *os.Error {
 	return nil;
 }
 
-func (p *pipe) CloseWriter() *os.Error {
+func (p *pipe) CloseWriter() os.Error {
 	if p == nil || p.wclosed {
 		return os.EINVAL;
 	}
@@ -127,14 +127,14 @@ type pipeRead struct {
 	p *pipe;
 }
 
-func (r *pipeRead) Read(data []byte) (n int, err *os.Error) {
+func (r *pipeRead) Read(data []byte) (n int, err os.Error) {
 	r.lock.Lock();
 	defer r.lock.Unlock();
 
 	return r.p.Read(data);
 }
 
-func (r *pipeRead) Close() *os.Error {
+func (r *pipeRead) Close() os.Error {
 	r.lock.Lock();
 	defer r.lock.Unlock();
 
@@ -151,14 +151,14 @@ type pipeWrite struct {
 	p *pipe;
 }
 
-func (w *pipeWrite) Write(data []byte) (n int, err *os.Error) {
+func (w *pipeWrite) Write(data []byte) (n int, err os.Error) {
 	w.lock.Lock();
 	defer w.lock.Unlock();
 
 	return w.p.Write(data);
 }
 
-func (w *pipeWrite) Close() *os.Error {
+func (w *pipeWrite) Close() os.Error {
 	w.lock.Lock();
 	defer w.lock.Unlock();
 

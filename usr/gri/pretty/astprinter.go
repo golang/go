@@ -450,7 +450,7 @@ func (P *Printer) Error(pos token.Position, tok token.Token, msg string) {
 
 // An astPrinter implements io.Write.
 // TODO this is not yet used.
-func (P *Printer) Write(p []byte) (n int, err *os.Error) {
+func (P *Printer) Write(p []byte) (n int, err os.Error) {
 	// TODO
 	// - no string conversion every time
 	// - return proper results

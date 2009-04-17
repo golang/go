@@ -40,7 +40,7 @@ func (b *ByteBuffer) Reset() {
 
 // Write appends the contents of p to the buffer.  The return
 // value is the length of p; err is always nil.
-func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
+func (b *ByteBuffer) Write(p []byte) (n int, err os.Error) {
 	plen := len(p);
 	if len(b.buf) == 0 {
 		b.cap = plen + 1024;
@@ -60,7 +60,7 @@ func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
 
 // Read reads the next len(p) bytes from the buffer or until the buffer
 // is drained.  The return value is the number of bytes read; err is always nil.
-func (b *ByteBuffer) Read(p []byte) (n int, err *os.Error) {
+func (b *ByteBuffer) Read(p []byte) (n int, err os.Error) {
 	plen := len(p);
 	if len(b.buf) == 0 {
 		return 0, nil

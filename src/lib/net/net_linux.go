@@ -11,7 +11,7 @@ import (
 	"unsafe";
 )
 
-func v4ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+func v4ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err os.Error) {
 	p = p.To4();
 	if p == nil || port < 0 || port > 0xFFFF {
 		return nil, os.EINVAL
@@ -26,7 +26,7 @@ func v4ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	return (*syscall.Sockaddr)(unsafe.Pointer(sa)), nil
 }
 
-func v6ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+func v6ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err os.Error) {
 	p = p.To16();
 	if p == nil || port < 0 || port > 0xFFFF {
 		return nil, os.EINVAL
@@ -49,7 +49,7 @@ func v6ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
 	return (*syscall.Sockaddr)(unsafe.Pointer(sa)), nil
 }
 
-func sockaddrToIP(sa1 *syscall.Sockaddr) (p IP, port int, err *os.Error) {
+func sockaddrToIP(sa1 *syscall.Sockaddr) (p IP, port int, err os.Error) {
 	switch sa1.Family {
 	case syscall.AF_INET:
 		sa := (*syscall.SockaddrInet4)(unsafe.Pointer(sa1));

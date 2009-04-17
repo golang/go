@@ -307,7 +307,7 @@ func Main() {
 
 	filenames := flag.Args();
 	if len(filenames) == 0 {
-		var err *os.Error;
+		var err os.Error;
 		filenames, err= SourceFiles(".");
 		if err != nil {
 			fatal("reading .: ", err.String());
@@ -317,7 +317,7 @@ func Main() {
 	state := ScanFiles(filenames);
 	state.Build();
 	if *writeMakefile {
-		t, err, line := template.Parse(makefileTemplate, makefileMap);
+		t, err := template.Parse(makefileTemplate, makefileMap);
 		if err != nil {
 			fatal("template.Parse: ", err.String());
 		}

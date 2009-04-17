@@ -24,7 +24,7 @@ type pollster struct {
 	events map[int64] uint32;
 }
 
-func newpollster() (p *pollster, err *os.Error) {
+func newpollster() (p *pollster, err os.Error) {
 	p = new(pollster);
 	var e int64;
 
@@ -38,7 +38,7 @@ func newpollster() (p *pollster, err *os.Error) {
 	return p, nil
 }
 
-func (p *pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+func (p *pollster) AddFD(fd int64, mode int, repeat bool) os.Error {
 	var ev syscall.EpollEvent;
 	var already bool;
 	ev.Fd = int32(fd);
@@ -106,7 +106,7 @@ func (p *pollster) DelFD(fd int64, mode int) {
 	}
 }
 
-func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
+func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err os.Error) {
 	// Get an event.
 	var evarray [1]syscall.EpollEvent;
 	ev := &evarray[0];
@@ -145,7 +145,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
 	return fd, 'r', nil;
 }
 
-func (p *pollster) Close() *os.Error {
+func (p *pollster) Close() os.Error {
 	r, e := syscall.Close(p.epfd);
 	return os.ErrnoToError(e);
 }

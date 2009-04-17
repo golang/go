@@ -175,26 +175,26 @@ type Builder interface {
 	//	<name attr.name=attr.value attr1.name=attr1.value ... />
 	// xmlns and xmlns:foo attributes are handled internally
 	// and not passed through to StartElement.
-	StartElement(name Name, attr []Attr) *os.Error;
+	StartElement(name Name, attr []Attr) os.Error;
 
 	// Called when an element ends.
 	//	</name>
 	//	<name ... />
-	EndElement(name Name) *os.Error;
+	EndElement(name Name) os.Error;
 
 	// Called for non-empty character data string inside element.
 	// Can be called multiple times between elements.
 	//	text
 	//	<![CDATA[text]]>
-	Text(text []byte) *os.Error;
+	Text(text []byte) os.Error;
 
 	// Called when a comment is found in the XML.
 	//	<!-- text -->
-	Comment(text []byte) *os.Error;
+	Comment(text []byte) os.Error;
 
 	// Called for a processing instruction
 	// <?target text?>
-	ProcInst(target string, text []byte) *os.Error;
+	ProcInst(target string, text []byte) os.Error;
 }
 
 // Default builder.  Implements no-op Builder methods.
@@ -203,28 +203,28 @@ type Builder interface {
 type BaseBuilder struct {
 }
 
-func (b *BaseBuilder) StartElement(name Name, attr []Attr) *os.Error {
+func (b *BaseBuilder) StartElement(name Name, attr []Attr) os.Error {
 	return nil;
 }
 
-func (b *BaseBuilder) EndElement(name Name) *os.Error {
+func (b *BaseBuilder) EndElement(name Name) os.Error {
 	return nil;
 }
 
-func (b *BaseBuilder) Text(text []byte) *os.Error {
+func (b *BaseBuilder) Text(text []byte) os.Error {
 	return nil;
 }
 
-func (b *BaseBuilder) Comment(text []byte) *os.Error {
+func (b *BaseBuilder) Comment(text []byte) os.Error {
 	return nil;
 }
 
-func (b *BaseBuilder) ProcInst(target string, text []byte) *os.Error {
+func (b *BaseBuilder) ProcInst(target string, text []byte) os.Error {
 	return nil;
 }
 
 // XML Parser.  Calls Builder methods as it parses.
-func Parse(r io.Read, b Builder) *os.Error {
+func Parse(r io.Read, b Builder) os.Error {
 	return os.NewError("unimplemented");
 }
 
@@ -252,12 +252,12 @@ type Token struct {
 	Attr []Attr;		// attributes (TokenStartElement)
 	Target string;		// target (TokenProcessingInstruction)
 	Text []byte;		// text (TokenCharData, TokenComment, etc.)
-	Err *os.Error;		// error (TokenEnd)
+	Err os.Error;		// error (TokenEnd)
 }
 
 type ChanBuilder chan Token;
 
-func (c ChanBuilder) StartElement(name Name, attr []Attr) *os.Error {
+func (c ChanBuilder) StartElement(name Name, attr []Attr) os.Error {
 	var t Token;
 	t.Kind = TokenStartElement;
 	t.Name = name;
@@ -266,7 +266,7 @@ func (c ChanBuilder) StartElement(name Name, attr []Attr) *os.Error {
 	return nil;
 }
 
-func (c ChanBuilder) EndElement(name Name) *os.Error {
+func (c ChanBuilder) EndElement(name Name) os.Error {
 	var t Token;
 	t.Kind = TokenEndElement;
 	t.Name = name;
@@ -274,7 +274,7 @@ func (c ChanBuilder) EndElement(name Name) *os.Error {
 	return nil;
 }
 
-func (c ChanBuilder) Text(text []byte) *os.Error {
+func (c ChanBuilder) Text(text []byte) os.Error {
 	var t Token;
 	t.Kind = TokenText;
 	t.Text = text;
@@ -282,7 +282,7 @@ func (c ChanBuilder) Text(text []byte) *os.Error {
 	return nil;
 }
 
-func (c ChanBuilder) Comment(text []byte) *os.Error {
+func (c ChanBuilder) Comment(text []byte) os.Error {
 	var t Token;
 	t.Kind = TokenComment;
 	t.Text = text;
@@ -290,7 +290,7 @@ func (c ChanBuilder) Comment(text []byte) *os.Error {
 	return nil;
 }
 
-func (c ChanBuilder) ProcInst(target string, text []byte) *os.Error {
+func (c ChanBuilder) ProcInst(target string, text []byte) os.Error {
 	var t Token;
 	t.Kind = TokenProcInst;
 	t.Target = target;

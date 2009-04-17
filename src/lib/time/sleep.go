@@ -12,7 +12,7 @@ import (
 
 // Sleep pauses the current goroutine for ns nanoseconds.
 // It returns os.EINTR if interrupted.
-func Sleep(ns int64) *os.Error {
+func Sleep(ns int64) os.Error {
 	var tv syscall.Timeval;
 	syscall.Nstotimeval(ns, &tv);
 	r1, r2, err := syscall.Syscall6(syscall.SYS_SELECT, 0, 0, 0, 0,

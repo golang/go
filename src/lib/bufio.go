@@ -49,7 +49,7 @@ type BufRead struct {
 	buf []byte;
 	rd io.Read;
 	r, w int;
-	err *os.Error;
+	err os.Error;
 	lastbyte int;
 }
 
@@ -57,7 +57,7 @@ type BufRead struct {
 // which must be greater than zero.  If the argument io.Read is already a
 // BufRead with large enough size, it returns the underlying BufRead.
 // It returns the BufRead and any error.
-func NewBufReadSize(rd io.Read, size int) (*BufRead, *os.Error) {
+func NewBufReadSize(rd io.Read, size int) (*BufRead, os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
 	}
@@ -84,7 +84,7 @@ func NewBufRead(rd io.Read) *BufRead {
 }
 
 //.fill reads a new chunk into the buffer.
-func (b *BufRead) fill() *os.Error {
+func (b *BufRead) fill() os.Error {
 	if b.err != nil {
 		return b.err
 	}
@@ -113,7 +113,7 @@ func (b *BufRead) fill() *os.Error {
 // If nn < len(p), also returns an error explaining
 // why the read is short.  At EOF, the count will be
 // zero and err will be io.ErrEOF.
-func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
+func (b *BufRead) Read(p []byte) (nn int, err os.Error) {
 	nn = 0;
 	for len(p) > 0 {
 		n := len(p);
@@ -157,7 +157,7 @@ func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
 
 // ReadByte reads and returns a single byte.
 // If no byte is available, returns an error.
-func (b *BufRead) ReadByte() (c byte, err *os.Error) {
+func (b *BufRead) ReadByte() (c byte, err os.Error) {
 	if b.w == b.r {
 		b.fill();
 		if b.err != nil {
@@ -174,7 +174,7 @@ func (b *BufRead) ReadByte() (c byte, err *os.Error) {
 }
 
 // UnreadByte unreads the last byte.  Only one byte may be unread at a given time.
-func (b *BufRead) UnreadByte() *os.Error {
+func (b *BufRead) UnreadByte() os.Error {
 	if b.err != nil {
 		return b.err
 	}
@@ -195,7 +195,7 @@ func (b *BufRead) UnreadByte() *os.Error {
 
 // ReadRune reads a single UTF-8 encoded Unicode character and returns the
 // rune and its size in bytes.
-func (b *BufRead) ReadRune() (rune int, size int, err *os.Error) {
+func (b *BufRead) ReadRune() (rune int, size int, err os.Error) {
 	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) {
 		n := b.w - b.r;
 		b.fill();
@@ -241,7 +241,7 @@ func (b *BufRead) Buffered() int {
 // Fails if the line doesn't fit in the buffer.
 // For internal or advanced use only; most uses should
 // call ReadLineString or ReadLineBytes instead.
-func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
+func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err os.Error) {
 	if b.err != nil {
 		return nil, b.err
 	}
@@ -288,7 +288,7 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
 // If an error happens, returns the data (without a delimiter)
 // and the error.  (It can't leave the data in the buffer because
 // it might have read more than the buffer size.)
-func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
+func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err os.Error) {
 	if b.err != nil {
 		return nil, b.err
 	}
@@ -301,7 +301,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 	err = nil;
 
 	for {
-		var e *os.Error;
+		var e os.Error;
 		frag, e = b.ReadLineSlice(delim);
 		if e == nil {	// got final fragment
 			break
@@ -364,7 +364,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
 // ReadLineString reads until the first occurrence of delim in the input,
 // returning a new string containing the line.
 // If savedelim, keep delim in the result; otherwise drop it.
-func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *os.Error) {
+func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err os.Error) {
 	bytes, e := b.ReadLineBytes(delim);
 	if e != nil {
 		return string(bytes), e
@@ -380,7 +380,7 @@ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *
 
 // BufWrite implements buffering for an io.Write object.
 type BufWrite struct {
-	err *os.Error;
+	err os.Error;
 	buf []byte;
 	n int;
 	wr io.Write;
@@ -390,7 +390,7 @@ type BufWrite struct {
 // which must be greater than zero. If the argument io.Write is already a
 // BufWrite with large enough size, it returns the underlying BufWrite.
 // It returns the BufWrite and any error.
-func NewBufWriteSize(wr io.Write, size int) (*BufWrite, *os.Error) {
+func NewBufWriteSize(wr io.Write, size int) (*BufWrite, os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
 	}
@@ -416,7 +416,7 @@ func NewBufWrite(wr io.Write) *BufWrite {
 }
 
 // Flush writes any buffered data to the underlying io.Write.
-func (b *BufWrite) Flush() *os.Error {
+func (b *BufWrite) Flush() os.Error {
 	if b.err != nil {
 		return b.err
 	}
@@ -454,7 +454,7 @@ func (b *BufWrite) Buffered() int {
 // It returns the number of bytes written.
 // If nn < len(p), also returns an error explaining
 // why the write is short.
-func (b *BufWrite) Write(p []byte) (nn int, err *os.Error) {
+func (b *BufWrite) Write(p []byte) (nn int, err os.Error) {
 	if b.err != nil {
 		return 0, b.err
 	}
@@ -490,7 +490,7 @@ func (b *BufWrite) Write(p []byte) (nn int, err *os.Error) {
 }
 
 // WriteByte writes a single byte.
-func (b *BufWrite) WriteByte(c byte) *os.Error {
+func (b *BufWrite) WriteByte(c byte) os.Error {
 	if b.err != nil {
 		return b.err
 	}

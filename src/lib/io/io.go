@@ -18,17 +18,17 @@ var ErrEOF = os.NewError("EOF")
 
 // Read is the interface that wraps the basic Read method.
 type Read interface {
-	Read(p []byte) (n int, err *os.Error);
+	Read(p []byte) (n int, err os.Error);
 }
 
 // Write is the interface that wraps the basic Write method.
 type Write interface {
-	Write(p []byte) (n int, err *os.Error);
+	Write(p []byte) (n int, err os.Error);
 }
 
 // Close is the interface that wraps the basic Close method.
 type Close interface {
-	Close() *os.Error;
+	Close() os.Error;
 }
 
 // ReadWrite is the interface that groups the basic Read and Write methods.
@@ -66,12 +66,12 @@ func StringBytes(s string) []byte {
 }
 
 // WriteString writes the contents of the string s to w, which accepts an array of bytes.
-func WriteString(w Write, s string) (n int, err *os.Error) {
+func WriteString(w Write, s string) (n int, err os.Error) {
 	return w.Write(StringBytes(s))
 }
 
 // Readn reads r until the buffer buf is full, or until EOF or error.
-func Readn(r Read, buf []byte) (n int, err *os.Error) {
+func Readn(r Read, buf []byte) (n int, err os.Error) {
 	n = 0;
 	for n < len(buf) {
 		nn, e := r.Read(buf[n:len(buf)]);
@@ -94,7 +94,7 @@ type fullRead struct {
 	r	Read;
 }
 
-func (fr *fullRead) Read(p []byte) (n int, err *os.Error) {
+func (fr *fullRead) Read(p []byte) (n int, err os.Error) {
 	n, err = Readn(fr.r, p);
 	return n, err
 }
@@ -111,7 +111,7 @@ func MakeFullReader(r Read) Read {
 
 // Copy n copies n bytes (or until EOF is reached) from src to dst.
 // It returns the number of bytes copied and the error, if any.
-func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
+func Copyn(src Read, dst Write, n int64) (written int64, err os.Error) {
 	buf := make([]byte, 32*1024);
 	for written < n {
 		l := len(buf);
@@ -147,7 +147,7 @@ func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
 
 // Copy copies from src to dst until EOF is reached.
 // It returns the number of bytes copied and the error, if any.
-func Copy(src Read, dst Write) (written int64, err *os.Error) {
+func Copy(src Read, dst Write) (written int64, err os.Error) {
 	buf := make([]byte, 32*1024);
 	for {
 		nr, er := src.Read(buf);

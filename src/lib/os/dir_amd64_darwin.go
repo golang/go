@@ -15,7 +15,7 @@ const (
 )
 
 // Negative count means read until EOF.
-func readdirnames(file *File, count int) (names []string, err *os.Error) {
+func readdirnames(file *File, count int) (names []string, err Error) {
 	// If this file has no dirinfo, create one.
 	if file.dirinfo == nil {
 		file.dirinfo = new(dirInfo);
@@ -36,7 +36,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
 			// Final argument is (basep *int64) and the syscall doesn't take nil.
 			d.nbuf, errno = syscall.Getdirentries(file.fd, &d.buf[0], int64(len(d.buf)), new(int64));
 			if d.nbuf < 0 {
-				return names, os.ErrnoToError(errno)
+				return names, ErrnoToError(errno)
 			}
 			if d.nbuf == 0 {
 				break	// EOF

@@ -29,7 +29,7 @@ func cutoff64(base int) uint64 {
 // range or s is empty or contains invalid digits.
 // It returns err == os.ERANGE if the value corresponding
 // to s cannot be represented by a uint64.
-func Btoui64(s string, b int) (n uint64, err *os.Error) {
+func Btoui64(s string, b int) (n uint64, err os.Error) {
 	if b < 2 || b > 36 || len(s) < 1 {
 		return 0, os.EINVAL;
 	}
@@ -77,7 +77,7 @@ func Btoui64(s string, b int) (n uint64, err *os.Error) {
 //
 // Atoui64 returns err == os.EINVAL if s is empty or contains invalid digits.
 // It returns err == os.ERANGE if s cannot be represented by a uint64.
-func Atoui64(s string) (n uint64, err *os.Error) {
+func Atoui64(s string) (n uint64, err os.Error) {
 	// Empty string bad.
 	if len(s) == 0 {
 		return 0, os.EINVAL
@@ -99,7 +99,7 @@ func Atoui64(s string) (n uint64, err *os.Error) {
 
 // Atoi64 is like Atoui64 but allows signed numbers and
 // returns its result in an int64.
-func Atoi64(s string) (i int64, err *os.Error) {
+func Atoi64(s string) (i int64, err os.Error) {
 	// Empty string bad.
 	if len(s) == 0 {
 		return 0, os.EINVAL
@@ -134,7 +134,7 @@ func Atoi64(s string) (i int64, err *os.Error) {
 }
 
 // Atoui is like Atoui64 but returns its result as a uint.
-func Atoui(s string) (i uint, err *os.Error) {
+func Atoui(s string) (i uint, err os.Error) {
 	i1, e1 := Atoui64(s);
 	if e1 != nil && e1 != os.ERANGE {
 		return 0, e1
@@ -149,7 +149,7 @@ func Atoui(s string) (i uint, err *os.Error) {
 }
 
 // Atoi is like Atoi64 but returns its result as an int.
-func Atoi(s string) (i int, err *os.Error) {
+func Atoi(s string) (i int, err os.Error) {
 	i1, e1 := Atoi64(s);
 	if e1 != nil && e1 != os.ERANGE {
 		return 0, e1

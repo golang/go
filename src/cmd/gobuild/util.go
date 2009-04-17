@@ -38,7 +38,7 @@ func fatal(args ...) {
 }
 
 func init() {
-	var err *os.Error;
+	var err os.Error;
 	goarch, err = os.Getenv("GOARCH");
 	goos, err = os.Getenv("GOOS");
 
@@ -183,7 +183,7 @@ func (s MakeString) String() string {
 var ParseError = os.NewError("parse errors");
 
 // TODO(rsc): Should this be in the AST library?
-func LitString(p []*ast.StringLit) (string, *os.Error) {
+func LitString(p []*ast.StringLit) (string, os.Error) {
 	s := "";
 	for i, lit := range p {
 		t, err := strconv.Unquote(string(lit.Value));
@@ -195,7 +195,7 @@ func LitString(p []*ast.StringLit) (string, *os.Error) {
 	return s, nil;
 }
 
-func PackageImports(file string) (pkg string, imports []string, err1 *os.Error) {
+func PackageImports(file string) (pkg string, imports []string, err1 os.Error) {
 	f, err := os.Open(file, os.O_RDONLY, 0);
 	if err != nil {
 		return "", nil, err
@@ -224,7 +224,7 @@ func PackageImports(file string) (pkg string, imports []string, err1 *os.Error) 
 	return prog.Name.Value, imp, nil;
 }
 
-func SourceFiles(dir string) ([]string, *os.Error) {
+func SourceFiles(dir string) ([]string, os.Error) {
 	f, err := os.Open(dir, os.O_RDONLY, 0);
 	if err != nil {
 		return nil, err;

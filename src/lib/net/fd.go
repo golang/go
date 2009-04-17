@@ -38,7 +38,7 @@ type netFD struct {
 }
 
 // Make reads and writes on fd return EAGAIN instead of blocking.
-func setNonblock(fd int64) *os.Error {
+func setNonblock(fd int64) os.Error {
 	flags, e := syscall.Fcntl(fd, syscall.F_GETFL, 0);
 	if e != 0 {
 		return os.ErrnoToError(e)
@@ -97,7 +97,7 @@ type pollServer struct {
 }
 func (s *pollServer) Run();
 
-func newPollServer() (s *pollServer, err *os.Error) {
+func newPollServer() (s *pollServer, err os.Error) {
 	s = new(pollServer);
 	s.cr = make(chan *netFD, 1);
 	s.cw = make(chan *netFD, 1);
@@ -318,7 +318,7 @@ func _StartServer() {
 	pollserver = p
 }
 
-func newFD(fd int64, net, laddr, raddr string) (f *netFD, err *os.Error) {
+func newFD(fd int64, net, laddr, raddr string) (f *netFD, err os.Error) {
 	if pollserver == nil {
 		once.Do(_StartServer);
 	}
@@ -336,7 +336,7 @@ func newFD(fd int64, net, laddr, raddr string) (f *netFD, err *os.Error) {
 	return f, nil
 }
 
-func (fd *netFD) Close() *os.Error {
+func (fd *netFD) Close() os.Error {
 	if fd == nil || fd.file == nil {
 		return os.EINVAL
 	}
@@ -355,7 +355,7 @@ func (fd *netFD) Close() *os.Error {
 	return e
 }
 
-func (fd *netFD) Read(p []byte) (n int, err *os.Error) {
+func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 	if fd == nil || fd.file == nil {
 		return -1, os.EINVAL
 	}
@@ -374,7 +374,7 @@ func (fd *netFD) Read(p []byte) (n int, err *os.Error) {
 	return n, err
 }
 
-func (fd *netFD) Write(p []byte) (n int, err *os.Error) {
+func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 	if fd == nil || fd.file == nil {
 		return -1, os.EINVAL
 	}
@@ -406,9 +406,9 @@ func (fd *netFD) Write(p []byte) (n int, err *os.Error) {
 	return nn, err
 }
 
-func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error)
+func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err os.Error)
 
-func (fd *netFD) Accept(sa *syscall.Sockaddr) (nfd *netFD, err *os.Error) {
+func (fd *netFD) Accept(sa *syscall.Sockaddr) (nfd *netFD, err os.Error) {
 	if fd == nil || fd.file == nil {
 		return nil, os.EINVAL
 	}

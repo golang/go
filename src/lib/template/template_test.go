@@ -194,9 +194,9 @@ func TestAll(t *testing.T) {
 	var buf io.ByteBuffer;
 	for i, test := range tests {
 		buf.Reset();
-		tmpl, err, line := Parse(test.in, formatters);
+		tmpl, err := Parse(test.in, formatters);
 		if err != nil {
-			t.Error("unexpected parse error:", err, "line", line);
+			t.Error("unexpected parse error:", err);
 			continue;
 		}
 		err = tmpl.Execute(s, &buf);
@@ -210,7 +210,7 @@ func TestAll(t *testing.T) {
 }
 
 func TestStringDriverType(t *testing.T) {
-	tmpl, err, line := Parse("template: {@}", nil);
+	tmpl, err := Parse("template: {@}", nil);
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
@@ -226,7 +226,7 @@ func TestStringDriverType(t *testing.T) {
 }
 
 func TestTwice(t *testing.T) {
-	tmpl, err, line := Parse("template: {@}", nil);
+	tmpl, err := Parse("template: {@}", nil);
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
@@ -265,7 +265,7 @@ func TestCustomDelims(t *testing.T) {
 				ldelim + "@" + rdelim +
 				ldelim + ".meta-left" + rdelim +
 				ldelim + ".meta-right" + rdelim;
-			err, line := tmpl.Parse(text);
+			err := tmpl.Parse(text);
 			if err != nil {
 				if i == 0 || j == 0 {	// expected
 					continue

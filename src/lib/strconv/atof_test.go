@@ -13,7 +13,7 @@ import (
 type atofTest struct {
 	in string;
 	out string;
-	err *os.Error;
+	err os.Error;
 }
 
 var atoftests = []atofTest {

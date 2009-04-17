@@ -12,6 +12,7 @@ O=6
 GC=${GC:-${O}g}
 GL=${GL:-${O}l}
 export GC GL
+GC="$GC -I _obj"
 
 gofiles=""
 loop=true
