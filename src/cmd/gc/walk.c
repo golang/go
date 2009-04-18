@@ -3063,6 +3063,82 @@ old2new(Node *n, Type *t)
 	return l;
 }
 
+static Node*
+mixedoldnew(Node *n, Type *t)
+{
+	n = nod(OXXX, n, N);
+	n->type = t;
+	return n;
+}
+
+static Node*
+checkmixed(Node *nl)
+{
+	Iter save;
+	Node *l, *n, *a;
+	Type *t;
+	int ntot, nred;
+
+	nl = rev(nl);
+
+	// first pass, check if it is a special
+	// case of new and old declarations
+
+	ntot = 0;	// number assignments
+	nred = 0;	// number redeclarations
+	l = listfirst(&save, &nl);
+	while(l != N) {
+		t = l->type;
+		l = l->left;
+
+		if(l->op != ONAME && l->op != ONONAME)
+			goto allnew;
+		if(l->sym->block == block) {
+			if(!eqtype(l->type, t, 0))
+				goto allnew;
+			nred++;
+		}
+		ntot++;
+		l = listnext(&save);
+	}
+
+	// test for special case
+	// a) multi-assignment (ntot>1)
+	// b) at least one redeclaration (red>0)
+	// c) not all redeclarations (nred!=ntot)
+	if(nred == 0 || ntot <= 1 || nred == ntot)
+		goto allnew;
+
+	n = N;
+	l = listfirst(&save, &nl);
+	while(l != N) {
+		t = l->type;
+		l = l->left;
+
+		a = l;
+		if(l->sym->block != block)
+			a = old2new(l, t);
+
+		n = list(n, a);
+		l = listnext(&save);
+	}
+	return rev(n);
+
+allnew:
+	// same as original
+	n = N;
+	l = listfirst(&save, &nl);
+	while(l != N) {
+		t = l->type;
+		l = l->left;
+
+		a = old2new(l, t);
+		n = list(n, a);
+		l = listnext(&save);
+	}
+	return rev(n);
+}
+
 Node*
 colas(Node *nl, Node *nr)
 {
@@ -3105,12 +3181,12 @@ colas(Node *nl, Node *nr)
 			l = listfirst(&savel, &nl);
 			t = structfirst(&saver, getoutarg(t));
 			while(l != N) {
-				a = old2new(l, t->type);
+				a = mixedoldnew(l, t->type);
 				n = list(n, a);
 				l = listnext(&savel);
 				t = structnext(&saver);
 			}
-			n = rev(n);
+			n = checkmixed(n);
 			return n;
 		}
 	}
@@ -3126,13 +3202,13 @@ colas(Node *nl, Node *nr)
 	while(l != N) {
 		walktype(r, Erv);
 		defaultlit(r, T);
-		a = old2new(l, r->type);
+		a = mixedoldnew(l, r->type);
 		n = list(n, a);
 
 		l = listnext(&savel);
 		r = listnext(&saver);
 	}
-	n = rev(n);
+	n = checkmixed(n);
 	return n;
 
 multi:
@@ -3155,10 +3231,11 @@ multi:
 		t = nr->left->type;
 		if(!istype(t, TMAP))
 			goto badt;
-		a = old2new(nl->left, t->type);
+		a = mixedoldnew(nl->left, t->type);
 		n = a;
-		a = old2new(nl->right, types[TBOOL]);
+		a = mixedoldnew(nl->right, types[TBOOL]);
 		n = list(n, a);
+		n = checkmixed(n);
 		break;
 
 	case ODOTTYPE:
@@ -3169,10 +3246,11 @@ multi:
 		if(!isinter(nr->left->type))
 			goto badt;
 		// a,b = iface
-		a = old2new(nl->left, nr->type);
+		a = mixedoldnew(nl->left, nr->type);
 		n = a;
-		a = old2new(nl->right, types[TBOOL]);
+		a = mixedoldnew(nl->right, types[TBOOL]);
 		n = list(n, a);
+		n = checkmixed(n);
 		break;
 
 	case ORECV:
@@ -3182,10 +3260,11 @@ multi:
 		t = nr->left->type;
 		if(!istype(t, TCHAN))
 			goto badt;
-		a = old2new(nl->left, t->type);
+		a = mixedoldnew(nl->left, t->type);
 		n = a;
-		a = old2new(nl->right, types[TBOOL]);
+		a = mixedoldnew(nl->right, types[TBOOL]);
 		n = list(n, a);
+		n = checkmixed(n);
 		break;
 	}
 	n = rev(n);
