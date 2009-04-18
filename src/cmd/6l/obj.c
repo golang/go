@@ -87,6 +87,7 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
+	PKGDIR = nil;
 
 	ARGBEGIN {
 	default:
@@ -121,6 +122,11 @@ main(int argc, char *argv[])
 		a = ARGF();
 		if(a)
 			INITRND = atolwhex(a);
+		break;
+	case 'P':
+		a = ARGF();
+		if(a)
+			PKGDIR = a;
 		break;
 	case 'x':	/* produce export table */
 		doexp = 1;
@@ -684,9 +690,10 @@ addlib(char *src, char *obj)
 	}
 
 	if(search) {
-		// try dot and then try goroot.
-		// going to have to do better (probably a command line flag) later.
+		// try dot, -P "pkgdir", and then goroot.
 		snprint(pname, sizeof pname, ".%s", name);
+		if(access(pname, AEXIST) < 0 && PKGDIR != nil)
+			snprint(pname, sizeof pname, "%s/%s", PKGDIR, name);
 		if(access(pname, AEXIST) < 0)
 			snprint(pname, sizeof pname, "%s/pkg/%s", goroot, name);
 		strcpy(name, pname);
