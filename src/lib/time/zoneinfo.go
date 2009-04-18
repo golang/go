@@ -23,10 +23,13 @@ const (
 )
 
 // Errors that can be generated recovering time zone information.
-var (
-	badZoneinfo = os.NewError("time: malformed zoneinfo");
-	noZoneinfo = os.NewError("time: unknown time zone")
-)
+type TimeZoneError struct {
+	os.ErrorString
+}
+
+func error(bytes []byte) os.Error {
+	return TimeZoneError{ `time: malformed zoneinfo: "` + string(bytes) + `"` };
+}
 
 // Simple I/O interface to binary blob of data.
 type data struct {
@@ -93,13 +96,13 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 
 	// 4-byte magic "TZif"
 	if magic := d.read(4); string(magic) != "TZif" {
-		return nil, badZoneinfo
+		return nil, error(bytes)
 	}
 
 	// 1-byte version, then 15 bytes of padding
 	var p []byte;
 	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
-		return nil, badZoneinfo
+		return nil, error(bytes)
 	}
 	vers := p[0];
 
@@ -122,7 +125,7 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 	for i := 0; i < 6; i++ {
 		nn, ok := d.big4();
 		if !ok {
-			return nil, badZoneinfo
+			return nil, error(bytes)
 		}
 		n[i] = int(nn);
 	}
@@ -151,7 +154,7 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 	isutc := d.read(n[NUTCLocal]);
 
 	if d.error {	// ran out of data
-		return nil, badZoneinfo
+		return nil, error(bytes)
 	}
 
 	// If version == 2, the entire file repeats, this time using
@@ -166,16 +169,16 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 		var ok bool;
 		var n uint32;
 		if n, ok = zonedata.big4(); !ok {
-			return nil, badZoneinfo
+			return nil, error(bytes)
 		}
 		z[i].utcoff = int(n);
 		var b byte;
 		if b, ok = zonedata.byte(); !ok {
-			return nil, badZoneinfo
+			return nil, error(bytes)
 		}
 		z[i].isdst = b != 0;
 		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
-			return nil, badZoneinfo
+			return nil, error(bytes)
 		}
 		z[i].name = byteString(abbrev[b:len(abbrev)])
 	}
@@ -186,11 +189,11 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 		var ok bool;
 		var n uint32;
 		if n, ok = txtimes.big4(); !ok {
-			return nil, badZoneinfo
+			return nil, error(bytes)
 		}
 		zt[i].time = int32(n);
 		if int(txzones[i]) >= len(z) {
-			return nil, badZoneinfo
+			return nil, error(bytes)
 		}
 		zt[i].zone = &z[txzones[i]];
 		if i < len(isstd) {
@@ -212,7 +215,7 @@ func readfile(name string, max int) (p []byte, err os.Error) {
 	n, err1 := io.Readn(f, p);
 	f.Close();
 	if err1 == nil {	// too long
-		return nil, badZoneinfo;
+		return nil, TimeZoneError{ "time: zone file too long: " + name };
 	}
 	if err1 != io.ErrEOF {
 		return nil, err1;

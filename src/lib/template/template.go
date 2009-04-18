@@ -68,7 +68,9 @@ import (
 
 // Errors returned during parsing. TODO: different error model for execution?
 
-type ParseError struct { os.ErrorString }
+type ParseError struct {
+	os.ErrorString
+}
 
 // All the literals are aces.
 var lbrace = []byte{ '{' }
