@@ -25,8 +25,8 @@ func (e Errno) String() string {
 	return syscall.Errstr(e)
 }
 
-// ErrnoToError calls NewError to create an _Error object for the string
-// associated with Unix error code errno.
+// ErrnoToError converts errno to an Error (underneath, an Errno).
+// It returns nil for the "no error" errno.
 func ErrnoToError(errno int64) Error {
 	if errno == 0 {
 		return nil
