@@ -19,7 +19,7 @@ func TestRunCat(t *testing.T) {
 	io.WriteString(cmd.Stdin, "hello, world\n");
 	cmd.Stdin.Close();
 	var buf [64]byte;
-	n, err1 := io.Readn(cmd.Stdout, &buf);
+	n, err1 := io.FullRead(cmd.Stdout, &buf);
 	if err1 != nil && err1 != io.ErrEOF {
 		t.Fatalf("reading from /bin/cat: %v", err1);
 	}
@@ -38,7 +38,7 @@ func TestRunEcho(t *testing.T) {
 		t.Fatalf("opencmd /bin/echo: %v", err);
 	}
 	var buf [64]byte;
-	n, err1 := io.Readn(cmd.Stdout, &buf);
+	n, err1 := io.FullRead(cmd.Stdout, &buf);
 	if err1 != nil && err1 != io.ErrEOF {
 		t.Fatalf("reading from /bin/echo: %v", err1);
 	}
