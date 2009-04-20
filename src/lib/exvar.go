@@ -36,6 +36,9 @@ func Increment(name string, inc int) {
 
 // Set sets the var called name to value.
 func Set(name string, value int) {
+	mutex.Lock();
+	defer mutex.Unlock();
+
 	intVars[name] = value
 }
 
