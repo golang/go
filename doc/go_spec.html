@@ -1675,6 +1675,20 @@ r, w := os.Pipe(fd);  // os.Pipe() returns two values
 </pre>
 
 <p>
+A short variable declaration may redeclare variables provided they
+were originally declared in the same block with the same type, and at
+least one of the variables is new.  As a consequence, redeclaration
+can only appear in a multi-variable short declaration.
+Redeclaration does not introduce a new
+variable; it just assigns a new value to the original.
+</p>
+
+<pre>
+field1, offset := nextField(str, 0);
+field2, offset := nextField(str, offset);  // redeclares offset
+</pre>
+
+<p>
 Short variable declarations may appear only inside functions.
 In some contexts such as the initializers for <code>if</code>,
 <code>for</code>, or <code>switch</code> statements,
