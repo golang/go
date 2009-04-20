@@ -79,8 +79,9 @@ func Find(iter Iterable, f func(interface {}) bool) interface {} {
 	return nil
 }
 
-// An injector function takes two arguments, an accumulated value and an
-// element, and returns the next accumulated value. See the Inject function.
+// Injector is a type representing a function that takes two arguments,
+// an accumulated value and an element, and returns the next accumulated value.
+// See the Inject function.
 type Injector func(interface {}, interface {}) interface{};
 
 // Inject combines the elements of iter by repeatedly calling f with an
