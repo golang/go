@@ -6,6 +6,7 @@ package main
 
 import (
 	"bufio";
+	"exvar";
 	"flag";
 	"fmt";
 	"http";
@@ -17,7 +18,14 @@ import (
 
 // hello world, the web server
 func HelloServer(c *http.Conn, req *http.Request) {
+	exvar.Increment("hello-requests", 1);
 	io.WriteString(c, "hello, world!\n");
+}
+
+// Handler for /exvar requests.
+func ExvarServer(c *http.Conn, req *http.Request) {
+	c.SetHeader("content-type", "text/plain; charset=utf-8");
+	io.WriteString(c, exvar.String());
 }
 
 // simple counter server
@@ -26,6 +34,7 @@ type Counter struct {
 }
 
 func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+	exvar.Increment("counter-requests", 1);
 	fmt.Fprintf(c, "counter = %d\n", ctr.n);
 	ctr.n++;
 }
@@ -92,6 +101,7 @@ func main() {
 	http.Handle("/args", http.HandlerFunc(ArgServer));
 	http.Handle("/go/hello", http.HandlerFunc(HelloServer));
 	http.Handle("/chan", ChanCreate());
+	http.Handle("/exvar", http.HandlerFunc(ExvarServer));
 	err := http.ListenAndServe(":12345", nil);
 	if err != nil {
 		panic("ListenAndServe: ", err.String())
