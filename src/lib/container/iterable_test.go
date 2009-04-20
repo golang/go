@@ -42,6 +42,9 @@ func doubler(n interface {}) interface {} {
 func addOne(n interface {}) interface {} {
 	return n.(int) + 1
 }
+func adder(acc interface {}, n interface {}) interface {} {
+	return acc.(int) + n.(int)
+}
 
 // A stream of the natural numbers: 0, 1, 2, 3, ...
 type integerStream struct {}
@@ -104,6 +107,13 @@ func TestFind(t *testing.T) {
 	first := Find(ints, isAbove3);
 	if first.(int) != 4 {
 		t.Errorf("Find(ints, isAbove3) = %v, want 4", first)
+	}
+}
+
+func TestInject(t *testing.T) {
+	res := Inject(oneToFive, 0, adder);
+	if res.(int) != 15 {
+		t.Errorf("Inject(oneToFive, 0, adder) = %v, want 15", res)
 	}
 }
 
