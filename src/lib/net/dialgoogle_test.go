@@ -23,7 +23,7 @@ func fetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
 	n, err := fd.Write(req);
 
 	buf := make([]byte, 1000);
-	n, err = io.Readn(fd, buf);
+	n, err = io.FullRead(fd, buf);
 
 	if n < 1000 {
 		t.Errorf("fetchGoogle: short HTTP read from %s %s - %v", network, addr, err);

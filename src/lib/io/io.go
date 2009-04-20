@@ -13,7 +13,7 @@ import (
 	"os";
 )
 
-// ErrEOF is the error returned by Readn and Copyn when they encounter EOF.
+// ErrEOF is the error returned by FullRead and Copyn when they encounter EOF.
 var ErrEOF = os.NewError("EOF")
 
 // Read is the interface that wraps the basic Read method.
@@ -70,8 +70,8 @@ func WriteString(w Write, s string) (n int, err os.Error) {
 	return w.Write(StringBytes(s))
 }
 
-// Readn reads r until the buffer buf is full, or until EOF or error.
-func Readn(r Read, buf []byte) (n int, err os.Error) {
+// FullRead reads r until the buffer buf is full, or until EOF or error.
+func FullRead(r Read, buf []byte) (n int, err os.Error) {
 	n = 0;
 	for n < len(buf) {
 		nn, e := r.Read(buf[n:len(buf)]);
@@ -89,18 +89,18 @@ func Readn(r Read, buf []byte) (n int, err os.Error) {
 }
 
 // Convert something that implements Read into something
-// whose Reads are always Readn
+// whose Reads are always FullReads
 type fullRead struct {
 	r	Read;
 }
 
 func (fr *fullRead) Read(p []byte) (n int, err os.Error) {
-	n, err = Readn(fr.r, p);
+	n, err = FullRead(fr.r, p);
 	return n, err
 }
 
 // MakeFullReader takes r, an implementation of Read, and returns an object
-// that still implements Read but always calls Readn underneath.
+// that still implements Read but always calls FullRead underneath.
 func MakeFullReader(r Read) Read {
 	if fr, ok := r.(*fullRead); ok {
 		// already a fullRead

@@ -43,7 +43,7 @@ func readfile(filename string) ([]byte, OS.Error) {
 		return []byte{}, err;
 	}
 	var buf [1<<20]byte;
-	n, err1 := IO.Readn(f, &buf);
+	n, err1 := IO.FullRead(f, &buf);
 	f.Close();
 	if err1 == IO.ErrEOF {
 		err1 = nil;

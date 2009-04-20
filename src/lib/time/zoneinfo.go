@@ -212,7 +212,7 @@ func readfile(name string, max int) (p []byte, err os.Error) {
 		return nil, e;
 	}
 	p = make([]byte, max);
-	n, err1 := io.Readn(f, p);
+	n, err1 := io.FullRead(f, p);
 	f.Close();
 	if err1 == nil {	// too long
 		return nil, TimeZoneError{ "time: zone file too long: " + name };
