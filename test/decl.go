@@ -32,6 +32,6 @@ func main() {
 		m, h, s := f3();
 	}
 	if x() != "3" {
-		println("g() failed");
+		println("x() failed");
 	}
 }
