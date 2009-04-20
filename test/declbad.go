@@ -17,6 +17,7 @@ func main() {
 		// simple redeclaration
 		i := f1();
 		i := f1();	// ERROR "redeclared"
+	}
 	{
 		// change of type for f
 		i, f, s := f3();
