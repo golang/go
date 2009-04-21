@@ -121,6 +121,12 @@ bugs/bug140.go:6: syntax error near L1
 bugs/bug140.go:7: syntax error near L2
 BUG should compile
 
+=========== bugs/bug143.go
+bugs/bug143.go:19: assignment count mismatch: 2 = 1
+bugs/bug143.go:18: x: undefined
+bugs/bug143.go:18: ok: undefined
+BUG should compile
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
