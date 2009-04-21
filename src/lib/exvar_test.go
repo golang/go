@@ -34,33 +34,33 @@ func TestSimpleCounter(t *testing.T) {
 func TestMismatchedCounters(t *testing.T) {
 	// Make sure some vars exist.
 	GetInt("requests");
-	GetMap("colours", "red");
+	GetMapInt("colours", "red");
 
 	IncrementInt("colours", 1);
 	if x := GetInt("x-mismatched-int"); x != 1 {
 		t.Errorf("GetInt('x-mismatched-int') = %v, want 1", x)
 	}
 
-	IncrementMap("requests", "orange", 1);
-	if x := GetMap("x-mismatched-map", "orange"); x != 1 {
-		t.Errorf("GetMap('x-mismatched-int', 'orange') = %v, want 1", x)
+	IncrementMapInt("requests", "orange", 1);
+	if x := GetMapInt("x-mismatched-map", "orange"); x != 1 {
+		t.Errorf("GetMapInt('x-mismatched-int', 'orange') = %v, want 1", x)
 	}
 }
 
 func TestMapCounter(t *testing.T) {
 	// Unknown exvar should be zero.
-	if x := GetMap("colours", "red"); x != 0 {
-		t.Errorf("GetMap(non, existent) = %v, want 0", x)
+	if x := GetMapInt("colours", "red"); x != 0 {
+		t.Errorf("GetMapInt(non, existent) = %v, want 0", x)
 	}
 
-	IncrementMap("colours", "red", 1);
-	IncrementMap("colours", "red", 2);
-	IncrementMap("colours", "blue", 4);
-	if x := GetMap("colours", "red"); x != 3 {
-		t.Errorf("GetMap('colours', 'red') = %v, want 3", x)
+	IncrementMapInt("colours", "red", 1);
+	IncrementMapInt("colours", "red", 2);
+	IncrementMapInt("colours", "blue", 4);
+	if x := GetMapInt("colours", "red"); x != 3 {
+		t.Errorf("GetMapInt('colours', 'red') = %v, want 3", x)
 	}
-	if x := GetMap("colours", "blue"); x != 4 {
-		t.Errorf("GetMap('colours', 'blue') = %v, want 4", x)
+	if x := GetMapInt("colours", "blue"); x != 4 {
+		t.Errorf("GetMapInt('colours', 'blue') = %v, want 4", x)
 	}
 
 	// TODO(dsymonds): Test String()
