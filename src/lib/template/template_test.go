@@ -75,6 +75,13 @@ var tests = []*Test {
 	&Test{ " {.space}   \n", " " },
 	&Test{ "     {#comment}   \n", "" },
 
+	// Variables at top level
+	&Test{
+		"{header}={integer}\n",
+
+		"Header=77\n"
+	},
+
 	// Section
 	&Test{
 		"{.section data }\n"
@@ -151,6 +158,29 @@ var tests = []*Test {
 
 		"ItemNumber1=ValueNumber1\n"
 		"ItemNumber2=ValueNumber2\n"
+	},
+	&Test{
+		"{.section pdata }\n"
+		"{.repeated section @ }\n"
+		"{item}={value}\n"
+		"{.or}\n"
+		"this should not appear\n"
+		"{.end}\n"
+		"{.end}\n",
+
+		"ItemNumber1=ValueNumber1\n"
+		"ItemNumber2=ValueNumber2\n"
+	},
+	&Test{
+		"{.section @ }\n"
+		"{.repeated section empty }\n"
+		"{item}={value}\n"
+		"{.or}\n"
+		"this should appear: empty field\n"
+		"{.end}\n"
+		"{.end}\n",
+
+		"this should appear: empty field\n"
 	},
 
 	// Formatters
