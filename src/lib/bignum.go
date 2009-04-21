@@ -702,7 +702,7 @@ func (x Natural) ToString(base uint) string {
 
 
 // String converts x to its decimal string representation.
-// (x.String is the same as x.ToString(10)).
+// x.String() is the same as x.ToString(10).
 //
 func (x Natural) String() string {
 	return x.ToString(10);
@@ -1099,9 +1099,9 @@ func (x *Integer) QuoRem(y *Integer) (*Integer, *Integer) {
 //   r = x.Mod(y) with: 0 <= r < |q| and: y = x*q + r
 //
 // (Raymond T. Boute, The Euclidian definition of the functions
-//  div and mod. "ACM Transactions on Programming Languages and
-//  Systems (TOPLAS)", 14(2):127-144, New York, NY, USA, 4/1992.
-//  ACM press.)
+// div and mod. "ACM Transactions on Programming Languages and
+// Systems (TOPLAS)", 14(2):127-144, New York, NY, USA, 4/1992.
+// ACM press.)
 //
 func (x *Integer) Div(y *Integer) *Integer {
 	q, r := x.QuoRem(y);
@@ -1251,7 +1251,7 @@ func (x *Integer) ToString(base uint) string {
 
 
 // String converts x to its decimal string representation.
-// (x.String is the same as x.ToString(10)).
+// x.String() is the same as x.ToString(10).
 //
 func (x *Integer) String() string {
 	return x.ToString(10);
@@ -1431,7 +1431,7 @@ func (x *Rational) ToString(base uint) string {
 
 
 // String converts x to its decimal string representation.
-// (x.String is the same as x.ToString(10)).
+// x.String() is the same as x.ToString(10).
 //
 func (x *Rational) String() string {
 	return x.ToString(10);
