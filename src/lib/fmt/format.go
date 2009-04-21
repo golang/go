@@ -29,14 +29,14 @@ func init() {
 	Fmt is the raw formatter used by Printf etc.  Not meant for normal use.
 	See print.go for a more palatable interface.
 
-	Model is to accumulate operands into an internal buffer and then
+	The model is to accumulate operands into an internal buffer and then
 	retrieve the buffer in one hit using Str(), Putnl(), etc.  The formatting
 	methods return ``self'' so the operations can be chained.
 
-	f := fmt.New();
-	print(f.Fmt_d(1234).Fmt_s("\n").Str());  // create string, print it
-	f.Fmt_d(-1234).Fmt_s("\n").Put();  // print string
-	f.Fmt_ud(1<<63).Putnl();  // print string with automatic newline
+		f := fmt.New();
+		print(f.Fmt_d(1234).Fmt_s("\n").Str());  // create string, print it
+		f.Fmt_d(-1234).Fmt_s("\n").Put();  // print string
+		f.Fmt_ud(1<<63).Putnl();  // print string with automatic newline
 */
 type Fmt struct {
 	buf string;
