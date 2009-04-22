@@ -8,18 +8,31 @@ package main
 
 type myMap map[string] int;
 
+func f() *myMap {
+	m := make(map[string] int);
+	return &m
+}
+
 func main() {
 	m := make(myMap);
 	mp := &m;
 
 	{
-		x, ok := m["key"];
+		x, ok := m["key"]
 	}
 	{
 		x, ok := (*mp)["key"]
 	}
 	{
 		x, ok := mp["key"]
+	}
+	{
+		x, ok := f()["key"]
+	}
+	{
+		var x int;
+		var ok bool;
+		x, ok = f()["key"]
 	}
 }
 
