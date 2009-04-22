@@ -1,11 +1,10 @@
-{.section Packages}
-{# TODO .or doesn't work on .repeated - template bug}
-{.repeated section @}
+{.repeated section Packages}
 godoc {pakname}
-{.end}
 {.or}
-package not found: {Path}
+godoc: package not found: {Path}
 {.end}
+{.section Packages}
 {.repeated section Subdirs}
 godoc {Path}/{Name}/
+{.end}
 {.end}
