@@ -166,12 +166,7 @@ func GetMapInt(name string, key string) int {
 	var i int;
 	var ok bool;
 	workSync(func(state *exVars) {
-		// This doesn't work:
-		//   i, ok = state.getOrInitMapVar(name)[key];
-		// exvar.go:169: assignment count mismatch: 2 = 1
-		// Should it? Wrapping the method call in () doesn't help.
-		mv := state.getOrInitMapVar(name);
-		i, ok = mv[key];
+		i, ok = state.getOrInitMapVar(name)[key]
 	});
 	return i
 }
