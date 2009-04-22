@@ -549,7 +549,7 @@ void
 cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
 	Node n1, n2, n3;
-	int a, rcl;
+	int a;
 	Prog *p1;
 
 	a = optoas(op, nl->type);
@@ -569,23 +569,26 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		goto ret;
 	}
 
-	rcl = reg[D_CX];
-
-	nodreg(&n1, types[TINT64], D_CX);
-	regalloc(&n1, nr->type, &n1);
+	nodreg(&n1, types[TUINT32], D_CX);
+	regalloc(&n1, nr->type, &n1);		// to hold the shift type in CX
+	regalloc(&n3, types[TUINT64], &n1);	// to clear high bits of CX
 
 	regalloc(&n2, nl->type, res);
 	if(nl->ullman >= nr->ullman) {
 		cgen(nl, &n2);
 		cgen(nr, &n1);
+		gmove(&n1, &n3);
 	} else {
 		cgen(nr, &n1);
+		gmove(&n1, &n3);
 		cgen(nl, &n2);
 	}
+	regfree(&n3);
+
 	// test and fix up large shifts
-	nodconst(&n3, types[TUINT32], nl->type->width*8);
-	gins(optoas(OCMP, types[TUINT32]), &n1, &n3);
-	p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+	nodconst(&n3, types[TUINT64], nl->type->width*8);
+	gins(optoas(OCMP, types[TUINT64]), &n1, &n3);
+	p1 = gbranch(optoas(OLT, types[TUINT64]), T);
 	if(op == ORSH && issigned[nl->type->etype]) {
 		nodconst(&n3, types[TUINT32], nl->type->width*8-1);
 		gins(a, &n3, &n2);
