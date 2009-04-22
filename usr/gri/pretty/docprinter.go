@@ -453,8 +453,26 @@ func (doc *DocReader) Doc() *PackageDoc {
 // ----------------------------------------------------------------------------
 // Filtering by name
 
+// Does s look like a regular expression?
+func isRegexp(s string) bool {
+	metachars := ".(|)*+?^$[]";
+	for i, c := range s {
+		for j, m := range metachars {
+			if c == m {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func match(s string, a []string) bool {
 	for i, t := range a {
+		if isRegexp(t) {
+			if matched, err := regexp.Match(t, s); matched {
+				return true;
+			}
+		}
 		if s == t {
 			return true;
 		}
@@ -516,6 +534,7 @@ func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
 // Filter eliminates information from d that is not
 // about one of the given names.
 // TODO: Recognize "Type.Method" as a name.
+// TODO(r): maybe precompile the regexps.
 func (p *PackageDoc) Filter(names []string) {
 	p.Consts = filterValueDocs(p.Consts, names);
 	p.Vars = filterValueDocs(p.Vars, names);
