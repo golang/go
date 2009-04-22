@@ -465,6 +465,7 @@ loop:
 		case OINDEX:
 			if(cl == 2 && cr == 1) {
 				// a,b = map[] - mapaccess2
+				implicitstar(&r->left);
 				walktype(r->left, Erv);
 				if(!istype(r->left->type, TMAP))
 					break;
@@ -3227,6 +3228,7 @@ multi:
 		// if so, types are valuetype,bool
 		if(cl != 2)
 			goto badt;
+		implicitstar(&nr->left);
 		walktype(nr->left, Elv);
 		t = nr->left->type;
 		if(!istype(t, TMAP))
