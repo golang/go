@@ -130,8 +130,7 @@ func IncrementInt(name string, inc int) {
 func IncrementMapInt(name string, key string, inc int) {
 	workSync(func(state *exVars) {
 		mv := state.getOrInitMapVar(name);
-		// TODO(dsymonds): Change this to just mv[key] when bug143 is fixed.
-		if v, ok := (*mv)[key]; ok {
+		if v, ok := mv[key]; ok {
 			mv[key] += inc
 		} else {
 			mv[key] = inc
@@ -167,9 +166,12 @@ func GetMapInt(name string, key string) int {
 	var i int;
 	var ok bool;
 	workSync(func(state *exVars) {
-		// TODO(dsymonds): Change this to just getOrInitMapVar(name)[key] when
-		// bug143 is fixed.
-		i, ok = (*state.getOrInitMapVar(name))[key];
+		// This doesn't work:
+		//   i, ok = state.getOrInitMapVar(name)[key];
+		// exvar.go:169: assignment count mismatch: 2 = 1
+		// Should it? Wrapping the method call in () doesn't help.
+		mv := state.getOrInitMapVar(name);
+		i, ok = mv[key];
 	});
 	return i
 }
