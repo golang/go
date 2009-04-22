@@ -16,10 +16,6 @@ import (
 	"regexp";
 	"sort";
 	"strings";
-	"unicode";
-	"utf8";
-
-	"astprinter";
 )
 
 
