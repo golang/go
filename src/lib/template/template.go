@@ -73,10 +73,11 @@ type ParseError struct {
 	os.ErrorString
 }
 
-// All the literals are aces.
+// Most of the literals are aces.
 var lbrace = []byte{ '{' }
 var rbrace = []byte{ '}' }
 var space = []byte{ ' ' }
+var tab = []byte{ '\t' }
 
 // The various types of "tokens", which are plain text or (usually) brace-delimited descriptors
 const (
@@ -330,7 +331,7 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
 		return;
 	}
 	switch w[0] {
-	case ".meta-left", ".meta-right", ".space":
+	case ".meta-left", ".meta-right", ".space", ".tab":
 		tok = tokLiteral;
 		return;
 	case ".or":
@@ -413,6 +414,8 @@ func (t *Template) parseSimple(item []byte) (done bool, tok int, w []string) {
 			t.elems.Push(&literalElement{t.rdelim});
 		case ".space":
 			t.elems.Push(&literalElement{space});
+		case ".tab":
+			t.elems.Push(&literalElement{tab});
 		default:
 			t.parseError("internal error: unknown literal: %s", w[0]);
 		}
@@ -714,7 +717,7 @@ func validDelim(d []byte) bool {
 	return true;
 }
 
-// Public interface
+// -- Public interface
 
 // Parse initializes a Template by parsing its definition.  The string
 // s contains the template text.  If any errors occur, Parse returns
@@ -730,11 +733,10 @@ func (t *Template) Parse(s string) (err os.Error) {
 		t.parse();
 		t.errorchan <- nil;	// clean return;
 	}();
-	err = <-t.errorchan;
-	return
+	return <-t.errorchan;
 }
 
-// Execute executes a parsed template on the specified data object,
+// Execute applies a parsed template to the specified data object,
 // generating output to wr.
 func (t *Template) Execute(data interface{}, wr io.Write) os.Error {
 	// Extract the driver data.
