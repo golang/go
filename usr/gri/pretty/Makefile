@@ -23,28 +23,16 @@ smoketest: pretty
 	./test.sh astprinter.go
 
 install: pretty godoc untab
-	cp pretty $(HOME)/bin/pretty
 	cp godoc $(HOME)/bin/godoc
+	cp pretty $(HOME)/bin/pretty
 	cp untab $(HOME)/bin/untab
 
 clean:
 	rm -f pretty untab godoc *.6 *.a 6.out *~
 
-godoc.6:	docprinter.6 compilation.6 comment.6
+godoc.6:	astprinter.6 comment.6 docprinter.6
 
-pretty.6:	 platform.6 astprinter.6 compilation.6
-
-compilation.6:	 platform.6 typechecker.6
-
-symboltable.6:
-
-platform.6:	 utils.6
-
-astprinter.6:	 utils.6 symboltable.6
-
-docprinter.6:	astprinter.6
-
-comment.6:
+pretty.6:	 astprinter.6
 
 %.6:	%.go
 	$(G) $(F) $<

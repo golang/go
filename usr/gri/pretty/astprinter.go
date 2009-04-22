@@ -5,17 +5,12 @@
 package astPrinter
 
 import (
-	"container/vector";
 	"flag";
 	"fmt";
 	"go/ast";
 	"go/token";
 	"io";
 	"os";
-	"strings";
-	"tabwriter";
-	"unicode";
-	"utf8";
 )
 
 
@@ -56,16 +51,9 @@ func assert(pred bool) {
 }
 
 
-// TODO this should be an AST method
-func isExported(name *ast.Ident) bool {
-	ch, len := utf8.DecodeRuneInString(name.Value, 0);
-	return unicode.IsUpper(ch);
-}
-
-
 func hasExportedNames(names []*ast.Ident) bool {
 	for i, name := range names {
-		if isExported(name) {
+		if name.IsExported() {
 			return true;
 		}
 	}
@@ -315,7 +303,7 @@ func (P *Printer) TaggedString(pos token.Position, tag, s, endtag string) {
 	nlcount := 0;
 	if P.full {
 		for ; P.hasComment(pos); P.nextComments() {
-			// we have a comment group that comes before the string
+			// we have a comment that comes before the string
 			comment := P.comments[P.cindex];
 			ctext := string(comment.Text);  // TODO get rid of string conversion here
 
@@ -508,7 +496,7 @@ func (P *Printer) Idents(list []*ast.Ident, full bool) int {
 			P.separator = blank;
 			P.state = inside_list;
 		}
-		if full || isExported(x) {
+		if full || x.IsExported() {
 			P.Expr(x);
 			n++;
 		}

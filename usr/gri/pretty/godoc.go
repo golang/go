@@ -53,36 +53,30 @@ import (
 )
 
 
-// TODO
-// - uniform use of path, filename, dirname, pakname, etc.
-// - fix weirdness with double-/'s in paths
-// - split http service into its own source file
-
 // TODO: tell flag package about usage string
 const usageString =
 	"usage: godoc package [name ...]\n"
 	"	godoc -http=:6060\n"
 
-var (
-	goroot string;
+const Pkg = "/pkg/"	// name for auto-generated package documentation tree
 
+
+var (
 	verbose = flag.Bool("v", false, "verbose mode");
 
-	// server control
-	httpaddr = flag.String("http", "", "HTTP service address (e.g., ':6060')");
+	// file system roots
+	goroot string;
+	pkgroot = flag.String("pkgroot", "src/lib", "root package source directory (if unrooted, relative to goroot)");
 
 	// layout control
 	tabwidth = flag.Int("tabwidth", 4, "tab width");
 	usetabs = flag.Bool("tabs", false, "align with tabs instead of spaces");
-
 	html = flag.Bool("html", false, "print HTML in command-line mode");
 
-	pkgroot = flag.String("pkgroot", "src/lib", "root package source directory (if unrooted, relative to goroot)");
+	// server control
+	httpaddr = flag.String("http", "", "HTTP service address (e.g., ':6060')");
 )
 
-const (
-	Pkg = "/pkg/"	// name for auto-generated package documentation tree
-)
 
 func init() {
 	var err os.Error;
@@ -140,12 +134,15 @@ type rawError struct {
 	msg string;
 }
 
+
 type rawErrorVector struct {
 	vector.Vector;
 }
 
+
 func (v *rawErrorVector) At(i int) rawError { return v.Vector.At(i).(rawError) }
 func (v *rawErrorVector) Less(i, j int) bool { return v.At(i).pos.Offset < v.At(j).pos.Offset; }
+
 
 func (v *rawErrorVector) Error(pos token.Position, msg string) {
 	// only collect errors that are on a new line
@@ -167,16 +164,19 @@ type parseError struct {
 	msg string;	// error message
 }
 
+
 // All the errors in the parsed file, plus surrounding source code.
 // Each error has a slice giving the source text preceding it
 // (starting where the last error occurred).  The final element in list[]
 // has msg = "", to give the remainder of the source code.
 // This data structure is handed to the templates parseerror.txt and parseerror.html.
+//
 type parseErrors struct {
 	filename string;	// path to file
 	list []parseError;	// the errors
 	src []byte;	// the file's entire source code
 }
+
 
 // Parses a file (path) and returns the corresponding AST and
 // a sorted list (by file position) of errors, if any.
@@ -425,12 +425,15 @@ func serveFile(c *http.Conn, req *http.Request) {
 
 	case req.Url.Path == "/doc/root.html":
 		// hide landing page from its real name
+		// TODO why - there is no reason for this (remove eventually)
 		http.NotFound(c, req);
 
 	case pathutil.Ext(req.Url.Path) == ".go":
-		serveGoSource(c, req.Url.Path[1:len(req.Url.Path)]);
+		serveGoSource(c, req.Url.Path[1 : len(req.Url.Path)]);  // strip leading '/' from name
 
 	default:
+		// TODO not good enough - don't want to download files
+		// want to see them
 		fileServer.ServeHTTP(c, req);
 	}
 }
@@ -611,13 +614,13 @@ func servePackageList(c *http.Conn, info *pakInfo) {
 
 // Return package or packages named by name.
 // Name is either an import string or a directory,
-// like you'd see in $GOROOT/pkg/ once the 6g
-// tools can handle a hierarchy there.
+// like you'd see in $GOROOT/pkg/.
 //
 // Examples:
 //	"math"	- single package made up of directory
 //	"container"	- directory listing
 //	"container/vector"	- single package in container directory
+//
 func findPackages(name string) *pakInfo {
 	info := new(pakInfo);
 
@@ -733,6 +736,7 @@ func main() {
 			log.Stderrf("Go Documentation Server\n");
 			log.Stderrf("address = %s\n", *httpaddr);
 			log.Stderrf("goroot = %s\n", goroot);
+			log.Stderrf("pkgroot = %s\n", *pkgroot);
 			handler = LoggingHandler(handler);
 		}
 

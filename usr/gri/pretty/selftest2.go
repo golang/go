@@ -5,7 +5,7 @@
 package main
 
 import (
-	"vector";  // not needed
+	"container/vector";  // not needed
 	"utf8";  // not needed
 	Fmt "fmt"
 )

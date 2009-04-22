@@ -26,11 +26,11 @@
 	{.end}
 {.end}
 {.section Types}
-	<hr />
 	{.repeated section @}
+		<hr />
 		<h2>type {.section Type}{Name|html}{.end}</h2>
-		{Doc}
-		<p><code>{Decl|html}</code></p>
+		{Doc|html-comment}
+		<p><pre>{Decl|html}</pre></p>
 		{.repeated section Factories}
 			<h3>func {Name|html}</h3>
 			<p><code>{Decl|html}</code></p>
