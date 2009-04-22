@@ -73,6 +73,7 @@ var tests = []*Test {
 	&Test{ " {.meta-left}   \n", "{" },
 	&Test{ " {.meta-right}   \n", "}" },
 	&Test{ " {.space}   \n", " " },
+	&Test{ " {.tab}   \n", "\t" },
 	&Test{ "     {#comment}   \n", "" },
 
 	// Variables at top level
