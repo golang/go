@@ -56,7 +56,7 @@ The syntax is specified using Extended Backus-Naur Form (EBNF):
 </p>
 
 <pre class="grammar">
-Production  = production_name "=" Expression .
+Production  = production_name "=" Expression "." .
 Expression  = Alternative { "|" Alternative } .
 Alternative = Term { Term } .
 Term        = production_name | token [ "..." token ] | Group | Option | Repetition .
