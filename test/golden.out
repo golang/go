@@ -121,6 +121,14 @@ bugs/bug140.go:6: syntax error near L1
 bugs/bug140.go:7: syntax error near L2
 BUG should compile
 
+=========== bugs/bug144.go
+bugs/bug144.go:8: left side of := must be a name
+bugs/bug144.go:8: operation LITERAL not allowed in assignment context
+bugs/bug144.go:8: illegal types for operand: AS
+	ideal
+	int
+BUG should compile
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
