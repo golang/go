@@ -1761,7 +1761,7 @@ sudoaddable(Node *n, Addr *a)
 	int o, i, w;
 	int oary[10];
 	vlong v;
-	Node n1, n2, *nn, *l, *r;
+	Node n1, n2, n3, *nn, *l, *r;
 	Node *reg, *reg1;
 	Prog *p1;
 	Type *t;
@@ -1868,7 +1868,10 @@ oindex:
 	if(issigned[r->type->etype])
 		t = types[TINT64];
 	regalloc(reg1, t, N);
-	cgen(r, reg1);
+	regalloc(&n3, r->type, reg1);
+	cgen(r, &n3);
+	gmove(&n3, reg1);
+	regfree(&n3);
 
 	// load the array (reg)
 	if(l->ullman <= r->ullman) {
