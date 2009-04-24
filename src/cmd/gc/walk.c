@@ -3050,12 +3050,29 @@ out:
 	return n;
 }
 
+int
+colasname(Node *n)
+{
+	switch(n->op) {
+	case ONAME:
+	case ONONAME:
+		break;
+	case OLITERAL:
+		if(n->sym != S)
+			break;
+		// fallthrough
+	default:
+		return 0;
+	}
+	return 1;
+}
+
 Node*
 old2new(Node *n, Type *t)
 {
 	Node *l;
 
-	if(n->op != ONAME && n->op != ONONAME) {
+	if(!colasname(n)) {
 		yyerror("left side of := must be a name");
 		return n;
 	}
@@ -3092,7 +3109,7 @@ checkmixed(Node *nl)
 		t = l->type;
 		l = l->left;
 
-		if(l->op != ONAME && l->op != ONONAME)
+		if(!colasname(l))
 			goto allnew;
 		if(l->sym->block == block) {
 			if(!eqtype(l->type, t, 0))

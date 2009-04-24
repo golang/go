@@ -845,6 +845,7 @@ pexpr:
 |	laconst
 	{
 		$$ = nod(OLITERAL, N, N);
+		$$->sym = $1;
 		$$->val = $1->oconst->val;
 		$$->type = $1->oconst->type;
 	}
