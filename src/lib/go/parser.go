@@ -38,7 +38,7 @@ type interval struct {
 type parser struct {
 	scanner scanner.Scanner;
 	err ErrorHandler;  // nil if no handler installed
-	errorCount int;
+	hasErrors bool;
 
 	// Tracing/debugging
 	mode uint;  // parsing mode
@@ -189,7 +189,7 @@ func (p *parser) error(pos token.Position, msg string) {
 	if p.err != nil {
 		p.err.Error(pos, msg);
 	}
-	p.errorCount++;
+	p.hasErrors = true;
 }
 
 
@@ -297,6 +297,7 @@ func (p *parser) parseType() ast.Expr {
 
 	if typ == nil {
 		p.error_expected(p.pos, "type");
+		p.next();  // make progress
 		return &ast.BadExpr{p.pos};
 	}
 
@@ -485,6 +486,7 @@ func (p *parser) parseParameterType(ellipsis_ok bool) ast.Expr {
 	typ := p.tryParameterType(ellipsis_ok);
 	if typ == nil {
 		p.error_expected(p.pos, "type");
+		p.next();  // make progress
 		typ = &ast.BadExpr{p.pos};
 	}
 	return typ;
@@ -1639,6 +1641,7 @@ func (p *parser) parseStatement() ast.Stmt {
 
 	// no statement found
 	p.error_expected(p.pos, "statement");
+	p.next();  // make progress
 	return &ast.BadStmt{p.pos};
 }
 
@@ -1853,14 +1856,12 @@ func (p *parser) parsePackage() *ast.Program {
 	comment := p.getDoc();
 	pos := p.expect(token.PACKAGE);
 	ident := p.parseIdent();
-	if p.tok == token.SEMICOLON {
-		// common error
-		p.error(p.pos, "extra semicolon");
-		p.next();
-	}
-
 	var decls []ast.Decl;
-	if p.mode & PackageClauseOnly == 0 {
+
+	// Don't bother parsing the rest if we had errors already.
+	// Likely not a Go source file at all.
+
+	if !p.hasErrors && p.mode & PackageClauseOnly == 0 {
 		// import decls
 		list := vector.New(0);
 		for p.tok == token.IMPORT {
@@ -1960,5 +1961,5 @@ func Parse(src interface{}, err ErrorHandler, mode uint) (*ast.Program, bool) {
 	// parse program
 	prog := p.parsePackage();
 
-	return prog, p.scanner.ErrorCount == 0 && p.errorCount == 0;
+	return prog, p.scanner.ErrorCount == 0 && !p.hasErrors;
 }
