@@ -1,0 +1,14 @@
+// TODO prefix decl doesn't work
+//ast .
+
+ast.Ident =
+	Value .
+
+ast.Program =
+	"package " Name "\n" { Decls "\n\n" } .
+
+ast.GenDecl =
+	"def " .
+
+ast.FuncDecl =
+	"func " .

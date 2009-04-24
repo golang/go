@@ -22,7 +22,6 @@ var (
 	maxnewlines = flag.Int("ast_maxnewlines", 3, "max. number of consecutive newlines");
 
 	// formatting control
-	comments = flag.Bool("ast_comments", true, "print comments");
 	optsemicolons = flag.Bool("ast_optsemicolons", false, "print optional semicolons");
 )
 
@@ -158,7 +157,7 @@ type Printer struct {
 
 
 func (P *Printer) hasComment(pos token.Position) bool {
-	return *comments && P.cpos.Offset < pos.Offset;
+	return P.cpos.Offset < pos.Offset;
 }
 
 

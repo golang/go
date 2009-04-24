@@ -38,7 +38,6 @@ import (
 	"io";
 	"log";
 	"net";
-	"once";
 	"os";
 	pathutil "path";
 	"sort";
@@ -316,7 +315,7 @@ var fmap = template.FormatterMap{
 // TODO: const templateDir = "lib/godoc"
 const templateDir = "usr/gri/pretty"
 
-func ReadTemplate(name string) *template.Template {
+func readTemplate(name string) *template.Template {
 	data, err := ReadFile(templateDir + "/" + name);
 	if err != nil {
 		log.Exitf("ReadFile %s: %v", name, err);
@@ -337,16 +336,16 @@ var packagelistText *template.Template;
 var parseerrorHtml *template.Template;
 var parseerrorText *template.Template;
 
-func ReadTemplates() {
+func readTemplates() {
 	// have to delay until after flags processing,
 	// so that main has chdir'ed to goroot.
-	godocHtml = ReadTemplate("godoc.html");
-	packageHtml = ReadTemplate("package.html");
-	packageText = ReadTemplate("package.txt");
-	packagelistHtml = ReadTemplate("packagelist.html");
-	packagelistText = ReadTemplate("packagelist.txt");
-	parseerrorHtml = ReadTemplate("parseerror.html");
-	parseerrorText = ReadTemplate("parseerror.txt");
+	godocHtml = readTemplate("godoc.html");
+	packageHtml = readTemplate("package.html");
+	packageText = readTemplate("package.txt");
+	packagelistHtml = readTemplate("packagelist.html");
+	packagelistText = readTemplate("packagelist.txt");
+	parseerrorHtml = readTemplate("parseerror.html");
+	parseerrorText = readTemplate("parseerror.txt");
 }
 
 
@@ -728,7 +727,7 @@ func main() {
 		log.Exitf("chdir %s: %v", goroot, err);
 	}
 
-	ReadTemplates();
+	readTemplates();
 
 	if *httpaddr != "" {
 		var handler http.Handler = http.DefaultServeMux;

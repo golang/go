@@ -11,31 +11,30 @@ import (
 	"go/parser";
 	"go/token";
 	"io";
-	"log";
 	"os";
 	"tabwriter";
 
 	"astprinter";
+	"format";
 )
 
 
 var (
-	columnsDefault bool;
-
 	// operation modes
-	columns = flag.Bool("columns", columnsDefault, "report column no. in error messages");
+	columns bool;
 	silent = flag.Bool("s", false, "silent mode: no pretty print output");
 	verbose = flag.Bool("v", false, "verbose mode: trace parsing");
 
 	// layout control
 	tabwidth = flag.Int("tabwidth", 4, "tab width");
-	usetabs = flag.Bool("usetabs", false, "align with tabs instead of blanks");
+	usetabs = flag.Bool("tabs", false, "align with tabs instead of blanks");
+	formatter = flag.Bool("formatter", false, "use formatter");  // TODO remove eventually
 )
 
 
 func init() {
 	user, err := os.Getenv("USER");
-	columnsDefault = user == "gri";
+	flag.BoolVar(&columns, "columns", user == "gri", "print column no. in error messages");
 }
 
 
@@ -75,7 +74,6 @@ func makeTabwriter(writer io.Write) *tabwriter.Writer {
 type ErrorHandler struct {
 	filename string;
 	lastline int;
-	columns bool;
 }
 
 
@@ -85,13 +83,14 @@ func (h *ErrorHandler) Error(pos token.Position, msg string) {
 	if pos.Line == h.lastline {
 		return;
 	}
+	h.lastline = pos.Line;
 
 	// report error
-	fmt.Printf("%s:%d:", h.filename, pos.Line);
-	if h.columns {
-		fmt.Printf("%d:", pos.Column);
+	fmt.Fprintf(os.Stderr, "%s:%d:", h.filename, pos.Line);
+	if columns {
+		fmt.Fprintf(os.Stderr, "%d:", pos.Column);
 	}
-	fmt.Printf(" %s\n", msg);
+	fmt.Fprintf(os.Stderr, " %s\n", msg);
 }
 
 
@@ -108,28 +107,41 @@ func main() {
 		mode |= parser.Trace;
 	}
 
+	// get ast format
+	const ast_txt = "ast.txt";
+	src, err := readFile(ast_txt);
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
+		sys.Exit(1);
+	}
+	ast_format := format.Parse(src);
+	if ast_format == nil {
+		fmt.Fprintf(os.Stderr, "%s: format errors\n", ast_txt);
+		sys.Exit(1);
+	}
+
 	// process files
 	for i := 0; i < flag.NArg(); i++ {
 		filename := flag.Arg(i);
 
 		src, err := readFile(filename);
 		if err != nil {
-			log.Stderrf("ReadFile %s: %v", filename, err);
+			fmt.Fprintf(os.Stderr, "%s: %v\n", filename, err);
 			continue;
 		}
 
-		prog, ok := parser.Parse(src, &ErrorHandler{filename, 0, false}, mode);
-		if !ok {
-			log.Stderr("Parse %s: syntax errors", filename);
-			continue;
-		}
+		prog, ok := parser.Parse(src, &ErrorHandler{filename, 0}, mode);
 
-		if !*silent {
-			var printer astPrinter.Printer;
-			writer := makeTabwriter(os.Stdout);
-			printer.Init(writer, nil, nil /*prog.Comments*/, false);
-			printer.DoProgram(prog);
-			writer.Flush();
+		if ok && !*silent {
+			tw := makeTabwriter(os.Stdout);
+			if *formatter {
+				ast_format.Apply(tw, prog);
+			} else {
+				var p astPrinter.Printer;
+				p.Init(tw, nil, nil /*prog.Comments*/, false);
+				p.DoProgram(prog);
+			}
+			tw.Flush();
 		}
 	}
 }
