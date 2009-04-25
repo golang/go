@@ -121,6 +121,10 @@ bugs/bug140.go:6: syntax error near L1
 bugs/bug140.go:7: syntax error near L2
 BUG should compile
 
+=========== bugs/bug145.go
+bugs/bug145.go:8: t is type, not var
+BUG should compile
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
