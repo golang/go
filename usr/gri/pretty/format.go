@@ -2,6 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+/*	The format package implements syntax-directed formatting of arbitrary
+	data structures.
+
+	A format specification consists of a set of named productions in EBNF.
+	The production names correspond to the type names of the data structure
+	to be printed. The production expressions consist of literal values
+	(strings), references to fields, and alternative, grouped, optional,
+	and repetitive sub-expressions.
+
+	When printing a value, its type name is used to lookup the production
+	to be printed. Literal values are printed as is, field references are
+	resolved and the respective field value is printed instead (using its
+	type-specific production), and alternative, grouped, optional, and
+	repetitive sub-expressions are printed depending on whether they contain
+	"empty" fields or not. A field is empty if its value is nil.
+*/
 package format
 
 import (
@@ -9,22 +25,20 @@ import (
 	"go/scanner";
 	"go/token";
 	"io";
-	"reflect";
 	"os";
+	"reflect";
+	"strconv";
 )
 
 
-// -----------------------------------------------------------------------------
-// Format
+// ----------------------------------------------------------------------------
+// Format representation
 
 // A production expression is built from the following nodes.
 //
 type (
 	expr interface {
-		implements_expr();
-	};
-
-	empty struct {
+		String() string;
 	};
 
 	alternative struct {
@@ -37,7 +51,7 @@ type (
 
 	field struct {
 		name string;  // including "^", "*"
-		format expr;  // nil if no format specified
+		fexpr expr;  // nil if no fexpr specified
 	};
 	
 	literal struct {
@@ -61,49 +75,117 @@ type (
 )
 
 
-// These methods are used to enforce the "implements" relationship for
-// better compile-time type checking.
-//
 // TODO If we had a basic accessor mechanism in the language (a field
 // "f T" automatically implements a corresponding accessor "f() T", this
 // could be expressed more easily by simply providing the field.
 //
-func (x *empty) implements_expr()  {}
-func (x *alternative) implements_expr()  {}
-func (x *sequence) implements_expr()  {}
-func (x *field) implements_expr()  {}
-func (x *literal) implements_expr()  {}
-func (x *option) implements_expr()  {}
-func (x *repetition) implements_expr()  {}
-func (x *custom) implements_expr()  {}
+
+func (x *alternative) String() string {
+	return fmt.Sprintf("(%v | %v)", x.x, x.y);
+}
 
 
-// A Format is a set of production expressions.
+func (x *sequence) String() string {
+	return fmt.Sprintf("%v %v", x.x, x.y);
+}
+
+
+func (x *field) String() string {
+	if x.fexpr == nil {
+		return x.name;
+	}
+	return fmt.Sprintf("%s: (%v)", x.name, x.fexpr);
+}
+
+
+func (x *literal) String() string {
+	return strconv.Quote(string(x.value));
+}
+
+
+func (x *option) String() string {
+	return fmt.Sprintf("[%v]", x.x);
+}
+
+
+func (x *repetition) String() string {
+	return fmt.Sprintf("{%v}", x.x);
+}
+
+
+func (x *custom) String() string {
+	return fmt.Sprintf("<custom %s>", x.name);
+}
+
+
+/*	A Format is a set of production expressions. A new format is
+	created explicitly by calling Parse, or implicitly by one of
+	the Xprintf functions.
+
+	Formatting rules are specified in the following syntax:
+
+		Format      = { Production } .
+		Production  = Name [ "=" [ Expression ] ] ";" .
+		Name        = identifier { "." identifier } .
+		Expression  = Term { "|" Term } .
+		Term        = Factor { Factor } .
+		Factor      = string_literal | Field | Group | Option | Repetition .
+		Field		= ( "^" | "*" | Name ) [ ":" Expression ] .
+		Group       = "(" Expression ")" .
+		Option      = "[" Expression "]" .
+		Repetition  = "{" Expression "}" .
+
+	The syntax of white space, comments, identifiers, and string literals is
+	the same as in Go.
+	
+	A production name corresponds to a Go type name of the form
+
+		PackageName.TypeName
+
+	(for instance format.Format). A production of the form
+	
+		Name;
+
+	specifies a package name which is prepended to all subsequent production
+	names:
+
+		format;
+		Format = ...	// this production matches the type format.Format
+
+	The basic operands of productions are string literals, field names, and
+	designators. String literals are printed as is, unless they contain a
+	single %-style format specifier (such as "%d"). In that case, they are
+	used as the format for fmt.Printf, with the current value as argument.
+
+	The designator "^" stands for the current value; a "*" denotes indirection
+	(pointers, arrays, maps, and interfaces).
+
+	A field may contain a format specifier of the form
+
+		: Expression
+
+	which specifies the field format irrespective of the field type.
+
+	Default formats are used for types without specific formating rules:
+	The "%v" format is used for values of all types expect pointer, array,
+	map, and interface types. They are using the "^" designator.
+
+	TODO complete this description
+*/
 type Format map [string] expr;
 
 
-// -----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // Parsing
 
 /*	TODO
-	- EBNF vs Kleene notation
-	- default formatters for basic types (may imply scopes so we can override)
 	- installable custom formatters (like for template.go)
-	- format strings
+	- have a format to select type name, field tag, field offset?
+	- use field tag as default format for that field
+	- field format override (":") is not working as it should
+	  (cannot refer to another production - syntactially not possible
+	  at the moment)
 */
-
-/*	Format      = { Production } .
-	Production  = Name [ "=" [ Expression ] ] ";" .
-	Name        = identifier { "." identifier } .
-	Expression  = Term { "|" Term } .
-	Term        = Factor { Factor } .
-	Factor      = string_literal | Field | Group | Option | Repetition .
-	Field		= ( "^" | "*" | Name ) [ ":" Expression ] .
-	Group       = "(" Expression ")" .
-	Option      = "[" Expression "]" .
-	Repetition  = "{" Expression "}" .
-*/
-
 
 type parser struct {
 	scanner scanner.Scanner;
@@ -181,52 +263,21 @@ func writeByte(buf *io.ByteBuffer, b byte) {
 }
 
 
-// TODO make this complete
-func escapeString(s []byte) []byte {
-	// the string syntax is correct since it comes from the scannner
-	var buf io.ByteBuffer;
-	i0 := 0;
-	for i := 0; i < len(s); {
-		if s[i] == '\\' {
-			buf.Write(s[i0 : i]);
-			i++;
-			var esc byte;
-			switch s[i] {
-			case 'n': esc = '\n';
-			case 't': esc = '\t';
-			default: panic("unhandled escape:", string(s[i]));
-			}
-			writeByte(&buf, esc);
-			i++;
-			i0 = i;
-		} else {
-			i++;
-		}
-	}
-	
-	if i0 == 0 {
-		// no escape sequences
-		return s;
-	}
-
-	buf.Write(s[i0 : len(s)]);
-	return buf.Data();
-}
-
-
 func (p *parser) parseValue() []byte {
 	if p.tok != token.STRING {
 		p.expect(token.STRING);
-		return nil;
+		return nil;  // TODO should return something else?
 	}
 
-	s := p.lit[1 : len(p.lit)-1];  // strip quotes
-	if p.lit[0] == '"' {
-		s = escapeString(s);
+	// TODO get rid of back-and-forth conversions
+	//      (change value to string?)
+	s, err := strconv.Unquote(string(p.lit));
+	if err != nil {
+		panic("scanner error?");
 	}
-
+	
 	p.next();
-	return s;
+	return io.StringBytes(s);
 }
 
 
@@ -244,24 +295,21 @@ func (p *parser) parseField() expr {
 	case token.IDENT:
 		name = p.parseName();
 	default:
-		panic("unreachable");
+		return nil;
 	}
 
-	var format expr;
+	var fexpr expr;
 	if p.tok == token.COLON {
 		p.next();
-		format = p.parseExpr();
+		fexpr = p.parseExpr();
 	}
 	
-	return &field{name, format};
+	return &field{name, fexpr};
 }
 
 
 func (p *parser) parseFactor() (x expr) {
 	switch p.tok {
-	case token.XOR, token.MUL, token.IDENT:
-		x = p.parseField();
-
 	case token.STRING:
 		x = &literal{p.parseValue()};
 
@@ -281,8 +329,7 @@ func (p *parser) parseFactor() (x expr) {
 		p.expect(token.RBRACE);
 
 	default:
-		p.error_expected(p.pos, "factor");
-		p.next();  // make progress
+		x = p.parseField();
 	}
 
 	return x;
@@ -291,16 +338,17 @@ func (p *parser) parseFactor() (x expr) {
 
 func (p *parser) parseTerm() expr {
 	x := p.parseFactor();
+	if x == nil {
+		p.error_expected(p.pos, "factor");
+		p.next();  // make progress
+		return nil;
+	}
 
-	for	p.tok == token.XOR ||
-		p.tok == token.MUL ||
-		p.tok == token.IDENT ||
-		p.tok == token.STRING ||
-		p.tok == token.LPAREN ||
-		p.tok == token.LBRACK ||
-		p.tok == token.LBRACE
-	{
+	for {
 		y := p.parseFactor();
+		if y == nil {
+			break;
+		}
 		x = &sequence{x, y};
 	}
 
@@ -321,51 +369,37 @@ func (p *parser) parseExpr() expr {
 }
 
 
-func (p *parser) parseProduction() (string, expr) {
-	name := p.parseName();
-	
-	var x expr;
-	if p.tok == token.ASSIGN {
-		p.next();
-		if p.tok == token.SEMICOLON {
-			x = &empty{};
-		} else {
-			x = p.parseExpr();
-		}
-	}
-
-	p.expect(token.SEMICOLON);
-
-	return name, x;
-}
-
-
 func (p *parser) parseFormat() Format {
 	format := make(Format);
-
+	
 	prefix := "";
 	for p.tok != token.EOF {
 		pos := p.pos;
-		name, x := p.parseProduction();
-		if x == nil {
-			// prefix declaration
-			prefix = name + ".";
-		} else {
-			// production declaration
-			// add package prefix, if any
-			if prefix != "" {
-				name = prefix + name;
+		name := p.parseName();
+		
+		if p.tok == token.ASSIGN {
+			// production
+			p.next();
+			var x expr;
+			if p.tok != token.SEMICOLON {
+				x = p.parseExpr();
 			}
 			// add production to format
+			name = prefix + name;
 			if t, found := format[name]; !found {
 				format[name] = x;
 			} else {
 				p.Error(pos, "production already declared: " + name);
 			}
+			
+		} else {
+			// prefix only
+			prefix = name + ".";
 		}
+		
+		p.expect(token.SEMICOLON);
 	}
-	p.expect(token.EOF);
-
+	
 	return format;
 }
 
@@ -401,6 +435,12 @@ func readSource(src interface{}, err scanner.ErrorHandler) []byte {
 }
 
 
+// TODO do better error handling
+
+// Parse parses a set of format productions. The format src may be
+// a string, a []byte, or implement io.Read. The result is a Format
+// if no errors occured; otherwise Parse returns nil.
+//
 func Parse(src interface{}) Format {
 	// initialize parser
 	var p parser;
@@ -416,8 +456,8 @@ func Parse(src interface{}) Format {
 }
 
 
-// -----------------------------------------------------------------------------
-// Application
+// ----------------------------------------------------------------------------
+// Formatting
 
 func fieldIndex(v reflect.StructValue, fieldname string) int {
 	t := v.Type().(reflect.StructType);
@@ -479,14 +519,25 @@ func typename(value reflect.Value) string {
 }
 
 
-var defaultFormat = &literal{io.StringBytes("%v")};
+var defaults = map [int] expr {
+	reflect.ArrayKind: &field{"*", nil},
+	reflect.MapKind: &field{"*", nil},
+	reflect.PtrKind: &field{"*", nil},
+}
+
+var catchAll = &literal{io.StringBytes("%v")};
 
 func (f Format) getFormat(value reflect.Value) expr {
-	if format, found := f[typename(value)]; found {
-		return format;
+	if fexpr, found := f[typename(value)]; found {
+		return fexpr;
 	}
-	// no format found
-	return defaultFormat;
+
+	// no fexpr found - return kind-specific default value, if any
+	if fexpr, found := defaults[value.Kind()]; found {
+		return fexpr;
+	}
+
+	return catchAll;
 }
 
 
@@ -518,78 +569,121 @@ func printf(w io.Write, format []byte, value reflect.Value) {
 
 
 // Returns true if a non-empty field value was found.
-func (f Format) print(w io.Write, format expr, value reflect.Value, index int) bool {
-	switch t := format.(type) {
-	case *empty:
-		return true;
+func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bool {
+	debug := false;  // enable for debugging
+	if debug {
+		fmt.Printf("print(%v, = %v, %v, %d)\n", w, fexpr, value.Interface(), index);
+	}
 
+	if fexpr == nil {
+		return true;
+	}
+
+	switch t := fexpr.(type) {
 	case *alternative:
-		// print the contents of the first alternative with a non-empty field
+		// - print the contents of the first alternative with a non-empty field
+		// - result is true if there is at least one non-empty field
+		b := false;
 		var buf io.ByteBuffer;
-		b := f.print(&buf, t.x, value, index);
-		if !b {
-			b = f.print(&buf, t.y, value, index);
-		}
-		if b {
+		if f.print(&buf, t.x, value, index) {
 			w.Write(buf.Data());
+			b = true;
+		} else {
+			buf.Reset();
+			if f.print(&buf, t.y, value, 0) {
+				w.Write(buf.Data());
+				b = true;
+			}
 		}
-		return index < 0 || b;
+		return b;
 
 	case *sequence:
+		// - print the contents of the sequence
+		// - result is true if there is no empty field
+		// TODO do we need to buffer here? why not?
 		b1 := f.print(w, t.x, value, index);
 		b2 := f.print(w, t.y, value, index);
-		return index < 0 || b1 && b2;
+		return b1 && b2;
 
 	case *field:
-		var x reflect.Value;
+		// - print the contents of the field
+		// - format is either the field format or the type-specific format
+		// - TODO look at field tag for default format
+		// - result is true if the field is not empty
 		switch t.name {
 		case "^":
-			if v, is_ptr := value.(reflect.PtrValue); is_ptr {
+			// identity - value doesn't change
+
+		case "*":
+			// indirect
+			switch v := value.(type) {
+			case reflect.PtrValue:
 				if v.Get() == nil {
 					return false;
 				}
-				x = v.Sub();
-			} else if v, is_array := value.(reflect.ArrayValue); is_array {
+				value = v.Sub();
+
+			case reflect.ArrayValue:
 				if index < 0 || v.Len() <= index {
 					return false;
 				}
-				x = v.Elem(index);
-			} else if v, is_interface := value.(reflect.InterfaceValue); is_interface {
+				value = v.Elem(index);
+
+			case reflect.MapValue:
+				panic("reflection support for maps incomplete");
+
+			case reflect.InterfaceValue:
 				if v.Get() == nil {
 					return false;
 				}
-				x = v.Value();
-			} else {
-				panic("not a ptr, array, or interface");  // TODO fix this
+				value = v.Value();
+
+			default:
+				panic("not a ptr, array, map, or interface");  // TODO fix this
 			}
-		case "*":
-			x = value;
+
 		default:
-			if v, is_struct := value.(reflect.StructValue); is_struct {
-				x = getField(v, t.name);
+			// field
+			if s, is_struct := value.(reflect.StructValue); is_struct {
+				value = getField(s, t.name);
 			} else {
 				panic ("not a struct");  // TODO fix this
 			}
 		}
-		format = t.format;
-		if format == nil {
-			format = f.getFormat(x);
+
+		// determine format
+		fexpr = t.fexpr;
+		if fexpr == nil {
+			// no field format - use type-specific format
+			fexpr = f.getFormat(value);
 		}
-		b := f.print(w, format, x, index);
-		return index < 0 || b;
+
+		return f.print(w, fexpr, value, index);
+		// BUG (6g?) crash with code below
+		/*
+		var buf io.ByteBuffer;
+		if f.print(&buf, fexpr, value, index) {
+			w.Write(buf.Data());
+			return true;
+		}
+		return false;
+		*/
 
 	case *literal:
+		// - print the literal
+		// - result is always true (literal is never empty)
 		printf(w, t.value, value);
 		return true;
 
 	case *option:
-		// print the contents of the option if there is a non-empty field
+		// print the contents of the option if it contains a non-empty field
+		//var foobar bool;  // BUG w/o this declaration the code works!!!
 		var buf io.ByteBuffer;
-		b := f.print(&buf, t.x, value, -1);
-		if b {
+		if f.print(&buf, t.x, value, 0) {
 			w.Write(buf.Data());
+			return true;
 		}
-		return index < 0 || b;
+		return false;
 
 	case *repetition:
 		// print the contents of the repetition while there is a non-empty field
@@ -603,19 +697,44 @@ func (f Format) print(w io.Write, format expr, value reflect.Value, index int) b
 				break;
 			}
 		}
-		return index < 0 || b;
+		return b;
 		
 	case *custom:
-		b := t.f(w, value.Interface(), t.name);
-		return index < 0 || b;
+		return t.f(w, value.Interface(), t.name);
 	}
-	
+
 	panic("unreachable");
 	return false;
 }
 
 
-func (f Format) Apply(w io.Write, data interface{}) {
-	value := reflect.NewValue(data);
-	f.print(w, f.getFormat(value), value, -1);
+// TODO proper error reporting
+
+// Fprint formats each argument according to the format f
+// and writes to w.
+//
+func (f Format) Fprint(w io.Write, args ...) {
+	value := reflect.NewValue(args).(reflect.StructValue);
+	for i := 0; i < value.Len(); i++ {
+		fld := value.Field(i);
+		f.print(w, f.getFormat(fld), fld, -1);
+	}
+}
+
+
+// Fprint formats each argument according to the format f
+// and writes to standard output.
+//
+func (f Format) Print(args ...) {
+	f.Print(os.Stdout, args);
+}
+
+
+// Fprint formats each argument according to the format f
+// and returns the resulting string.
+//
+func (f Format) Sprint(args ...) string {
+	var buf io.ByteBuffer;
+	f.Fprint(&buf, args);
+	return string(buf.Data());
 }
