@@ -135,7 +135,7 @@ func main() {
 		if ok && !*silent {
 			tw := makeTabwriter(os.Stdout);
 			if *formatter {
-				ast_format.Apply(tw, prog);
+				ast_format.Fprint(tw, prog);
 			} else {
 				var p astPrinter.Printer;
 				p.Init(tw, nil, nil /*prog.Comments*/, false);

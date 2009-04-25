@@ -1,26 +1,26 @@
 //string =
-//	"%s" ;
+//	"%s";
 
 pointer =
-	^ ;
+	*;
 
 array =
-	^ ;
+	*;
 
 //token.Token =
-//	"token<%d>" ;  // this should be a Go-installed formatter
+//	"token<%d>";  // this could be a Go-installed formatter
 
 ast
 	;
 
 Comments =
-	"comments\n" ;
+	"comments\n";
 
 Ident =
-	Value ;
+	Value;
 
 Program =
-	"package " Name "\n\n" { Decls "\n\n" } ;
+	"package " Name "\n\n" {Decls "\n\n"};
 
 GenDecl =
 	Doc
@@ -28,13 +28,13 @@ GenDecl =
 	")\n";
 
 FuncType =
-	"(" { Params } ")" ;
+	"(" ")";
 
 BlockStmt =
-	"{\n" "}\n" ;
+	"{\n" "}\n";
 
 FuncDecl =
-	"func " Name Type [ " " Body ] ;
+	"func " Name Type [" " Body];
 	
 Decl =
-	^ ;
+	^;
