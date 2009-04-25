@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO: printing is gone; install as "go/doc"
-
 package doc
 
 import (
@@ -51,6 +49,7 @@ type typeDoc struct {
 
 
 // DocReader accumulates documentation for a single package.
+//
 type DocReader struct {
 	name string;  // package name
 	path string;  // import path
@@ -64,6 +63,7 @@ type DocReader struct {
 
 // Init initializes a DocReader to collect package documentation
 // for the package with the given package name and import path.
+//
 func (doc *DocReader) Init(pkg, imp string) {
 	doc.name = pkg;
 	doc.path = imp;
@@ -116,8 +116,8 @@ func (doc *DocReader) addFunc(fun *ast.FuncDecl) {
 			typ.methods[name] = fun;
 		}
 		// if the type wasn't found, it wasn't exported
-		// TODO: a non-exported type may still have exported functions
-		//       determine what to do in that case
+		// TODO(gri): a non-exported type may still have exported functions
+		//            determine what to do in that case
 		return;
 	}
 
@@ -189,7 +189,7 @@ func (doc *DocReader) AddProgram(prog *ast.Program) {
 	}
 
 	// add package documentation
-	// TODO what to do if there are multiple files?
+	// TODO(gri) what to do if there are multiple files?
 	if prog.Doc != nil {
 		doc.doc = prog.Doc
 	}
@@ -203,7 +203,7 @@ func (doc *DocReader) AddProgram(prog *ast.Program) {
 // ----------------------------------------------------------------------------
 // Conversion to external representation
 
-func Regexp(s string) *regexp.Regexp {
+func makeRex(s string) *regexp.Regexp {
 	re, err := regexp.Compile(s);
 	if err != nil {
 		panic("MakeRegexp ", s, " ", err.String());
@@ -220,16 +220,16 @@ var (
 
 // TODO(rsc): Cannot use var initialization for regexps,
 // because Regexp constructor needs threads.
-func SetupRegexps() {
-	comment_markers = Regexp("^[ \t]*(// ?| ?\\* ?)");
-	trailing_whitespace = Regexp("[ \t\r]+$");
-	comment_junk = Regexp("^[ \t]*(/\\*|\\*/)[ \t]*$");
+func setupRegexps() {
+	comment_markers = makeRex("^[ \t]*(// ?| ?\\* ?)");
+	trailing_whitespace = makeRex("[ \t\r]+$");
+	comment_junk = makeRex("^[ \t]*(/\\*|\\*/)[ \t]*$");
 }
 
 
 // Aggregate comment text, without comment markers.
 func comment(comments ast.Comments) string {
-	once.Do(SetupRegexps);
+	once.Do(setupRegexps);
 	lines := make([]string, 0, 20);
 	for i, c := range comments {
 		// split on newlines
@@ -295,8 +295,10 @@ func comment(comments ast.Comments) string {
 	return strings.Join(lines, "\n");
 }
 
+
 // ValueDoc is the documentation for a group of declared
 // values, either vars or consts.
+//
 type ValueDoc struct {
 	Doc string;
 	Decl *ast.GenDecl;
@@ -306,6 +308,7 @@ type ValueDoc struct {
 type sortValueDoc []*ValueDoc
 func (p sortValueDoc) Len() int            { return len(p); }
 func (p sortValueDoc) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+
 
 func declName(d *ast.GenDecl) string {
 	if len(d.Specs) != 1 {
@@ -322,6 +325,7 @@ func declName(d *ast.GenDecl) string {
 	return "";
 }
 
+
 func (p sortValueDoc) Less(i, j int) bool {
 	// sort by name
 	// pull blocks (name = "") up to top
@@ -331,6 +335,7 @@ func (p sortValueDoc) Less(i, j int) bool {
 	}
 	return p[i].order < p[j].order;
 }
+
 
 func makeValueDocs(v *vector.Vector) []*ValueDoc {
 	d := make([]*ValueDoc, v.Len());
@@ -345,6 +350,7 @@ func makeValueDocs(v *vector.Vector) []*ValueDoc {
 
 // FuncDoc is the documentation for a func declaration,
 // either a top-level function or a method function.
+//
 type FuncDoc struct {
 	Doc string;
 	Recv ast.Expr;	// TODO(rsc): Would like string here
@@ -356,6 +362,7 @@ type sortFuncDoc []*FuncDoc
 func (p sortFuncDoc) Len() int            { return len(p); }
 func (p sortFuncDoc) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 func (p sortFuncDoc) Less(i, j int) bool  { return p[i].Name < p[j].Name; }
+
 
 func makeFuncDocs(m map[string] *ast.FuncDecl) []*FuncDoc {
 	d := make([]*FuncDoc, len(m));
@@ -401,6 +408,7 @@ func (p sortTypeDoc) Less(i, j int) bool {
 	return p[i].order < p[j].order;
 }
 
+
 // NOTE(rsc): This would appear not to be correct for type ( )
 // blocks, but the doc extractor above has split them into
 // individual statements.
@@ -425,6 +433,7 @@ func makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 
 
 // PackageDoc is the documentation for an entire package.
+//
 type PackageDoc struct {
 	PackageName string;
 	ImportPath string;
@@ -437,6 +446,7 @@ type PackageDoc struct {
 
 
 // Doc returns the accumulated documentation for the package.
+//
 func (doc *DocReader) Doc() *PackageDoc {
 	p := new(PackageDoc);
 	p.PackageName = doc.name;
@@ -466,6 +476,7 @@ func isRegexp(s string) bool {
 	return false
 }
 
+
 func match(s string, a []string) bool {
 	for i, t := range a {
 		if isRegexp(t) {
@@ -479,6 +490,7 @@ func match(s string, a []string) bool {
 	}
 	return false;
 }
+
 
 func matchDecl(d *ast.GenDecl, names []string) bool {
 	for i, d := range d.Specs {
@@ -498,6 +510,7 @@ func matchDecl(d *ast.GenDecl, names []string) bool {
 	return false;
 }
 
+
 func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
 	w := 0;
 	for i, vd := range a {
@@ -508,6 +521,7 @@ func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
 	}
 	return a[0 : w];
 }
+
 
 func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
 	w := 0;
@@ -520,6 +534,7 @@ func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
 	return a[0 : w];
 }
 
+
 func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
 	w := 0;
 	for i, fd := range a {
@@ -531,10 +546,12 @@ func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
 	return a[0 : w];
 }
 
+
 // Filter eliminates information from d that is not
 // about one of the given names.
 // TODO: Recognize "Type.Method" as a name.
 // TODO(r): maybe precompile the regexps.
+//
 func (p *PackageDoc) Filter(names []string) {
 	p.Consts = filterValueDocs(p.Consts, names);
 	p.Vars = filterValueDocs(p.Vars, names);
