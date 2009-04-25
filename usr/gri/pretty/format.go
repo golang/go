@@ -17,39 +17,88 @@ import (
 // -----------------------------------------------------------------------------
 // Format
 
-// node kind
-const (
-	self = iota;
-	alternative;
-	sequence;
-	field;
-	literal;
-	option;
-	repetition;
+// A production expression is built from the following nodes.
+//
+type (
+	expr interface {
+		implements_expr();
+	};
+
+	empty struct {
+	};
+
+	alternative struct {
+		x, y expr;
+	};
+
+	sequence struct {
+		x, y expr;
+	};
+
+	field struct {
+		name string;  // including "^", "*"
+		format expr;  // nil if no format specified
+	};
+	
+	literal struct {
+		// TODO should there be other types or should it all be string literals?
+		value []byte;
+	};
+
+	option struct {
+		x expr
+	};
+
+	repetition struct {
+		x expr
+	};
+
+	// TODO custom formats are not yet used
+	custom struct {
+		name string;
+		f func(w io.Write, value interface{}, name string) bool
+	};
 )
 
 
-type node struct {
-	kind int;
-	name string;  // field name
-	value []byte;  // literal value
-	x, y *node;
-}
+// These methods are used to enforce the "implements" relationship for
+// better compile-time type checking.
+//
+// TODO If we had a basic accessor mechanism in the language (a field
+// "f T" automatically implements a corresponding accessor "f() T", this
+// could be expressed more easily by simply providing the field.
+//
+func (x *empty) implements_expr()  {}
+func (x *alternative) implements_expr()  {}
+func (x *sequence) implements_expr()  {}
+func (x *field) implements_expr()  {}
+func (x *literal) implements_expr()  {}
+func (x *option) implements_expr()  {}
+func (x *repetition) implements_expr()  {}
+func (x *custom) implements_expr()  {}
 
 
-// A Format is a set of production nodes.
-type Format map [string] *node;
+// A Format is a set of production expressions.
+type Format map [string] expr;
 
 
 // -----------------------------------------------------------------------------
 // Parsing
 
+/*	TODO
+	- EBNF vs Kleene notation
+	- default formatters for basic types (may imply scopes so we can override)
+	- installable custom formatters (like for template.go)
+	- format strings
+*/
+
 /*	Format      = { Production } .
-	Production  = DottedName [ "=" Expression ] "." .
-	DottedName  = name { "." name } .
+	Production  = Name [ "=" [ Expression ] ] ";" .
+	Name        = identifier { "." identifier } .
 	Expression  = Term { "|" Term } .
 	Term        = Factor { Factor } .
-	Factor      = "*" | name | string_literal | Group | Option | Repetition .
+	Factor      = string_literal | Field | Group | Option | Repetition .
+	Field		= ( "^" | "*" | Name ) [ ":" Expression ] .
 	Group       = "(" Expression ")" .
 	Option      = "[" Expression "]" .
 	Repetition  = "{" Expression "}" .
@@ -109,30 +158,30 @@ func (p *parser) expect(tok token.Token) token.Position {
 }
 
 
-func (p *parser) parseName() string {
+func (p *parser) parseIdentifier() string {
 	name := string(p.lit);
 	p.expect(token.IDENT);
 	return name;
 }
 
 
-func (p *parser) parseDottedName() string {
-	name := p.parseName();
+func (p *parser) parseName() string {
+	name := p.parseIdentifier();
 	for p.tok == token.PERIOD {
 		p.next();
-		name = name + "." + p.parseName();
+		name = name + "." + p.parseIdentifier();
 	}
 	return name;
 }
 
 
-// TODO should have WriteByte in ByteBuffer instead!
-var (
-	newlineByte = []byte{'\n'};
-	tabByte = []byte{'\t'};
-)
+// TODO WriteByte should be a ByteBuffer method
+func writeByte(buf *io.ByteBuffer, b byte) {
+	buf.Write([]byte{b});
+}
 
 
+// TODO make this complete
 func escapeString(s []byte) []byte {
 	// the string syntax is correct since it comes from the scannner
 	var buf io.ByteBuffer;
@@ -141,14 +190,13 @@ func escapeString(s []byte) []byte {
 		if s[i] == '\\' {
 			buf.Write(s[i0 : i]);
 			i++;
+			var esc byte;
 			switch s[i] {
-			case 'n':
-				buf.Write(newlineByte);
-			case 't':
-				buf.Write(tabByte);
-			default:
-				panic("unhandled escape:", string(s[i]));
+			case 'n': esc = '\n';
+			case 't': esc = '\t';
+			default: panic("unhandled escape:", string(s[i]));
 			}
+			writeByte(&buf, esc);
 			i++;
 			i0 = i;
 		} else {
@@ -182,32 +230,54 @@ func (p *parser) parseValue() []byte {
 }
 
 
-func (p *parser) parseExpression() *node
+func (p *parser) parseExpr() expr
 
-func (p *parser) parseFactor() (x *node) {
+func (p *parser) parseField() expr {
+	var name string;
 	switch p.tok {
+	case token.XOR:
+		name = "^";
+		p.next();
 	case token.MUL:
-		x = &node{self, "", nil, nil, nil};
-
+		name = "*";
+		p.next();
 	case token.IDENT:
-		x = &node{field, p.parseName(), nil, nil, nil};
+		name = p.parseName();
+	default:
+		panic("unreachable");
+	}
+
+	var format expr;
+	if p.tok == token.COLON {
+		p.next();
+		format = p.parseExpr();
+	}
+	
+	return &field{name, format};
+}
+
+
+func (p *parser) parseFactor() (x expr) {
+	switch p.tok {
+	case token.XOR, token.MUL, token.IDENT:
+		x = p.parseField();
 
 	case token.STRING:
-		x = &node{literal, "", p.parseValue(), nil, nil};
+		x = &literal{p.parseValue()};
 
 	case token.LPAREN:
 		p.next();
-		x = p.parseExpression();
+		x = p.parseExpr();
 		p.expect(token.RPAREN);
 
 	case token.LBRACK:
 		p.next();
-		x = &node{option, "", nil, p.parseExpression(), nil};
+		x = &option{p.parseExpr()};
 		p.expect(token.RBRACK);
 
 	case token.LBRACE:
 		p.next();
-		x = &node{repetition, "", nil, p.parseExpression(), nil};
+		x = &repetition{p.parseExpr()};
 		p.expect(token.RBRACE);
 
 	default:
@@ -219,46 +289,52 @@ func (p *parser) parseFactor() (x *node) {
 }
 
 
-func (p *parser) parseTerm() *node {
+func (p *parser) parseTerm() expr {
 	x := p.parseFactor();
 
-	for	p.tok == token.IDENT ||
+	for	p.tok == token.XOR ||
+		p.tok == token.MUL ||
+		p.tok == token.IDENT ||
 		p.tok == token.STRING ||
 		p.tok == token.LPAREN ||
 		p.tok == token.LBRACK ||
 		p.tok == token.LBRACE
 	{
 		y := p.parseFactor();
-		x = &node{sequence, "", nil, x, y};
+		x = &sequence{x, y};
 	}
 
 	return x;
 }
 
 
-func (p *parser) parseExpression() *node {
+func (p *parser) parseExpr() expr {
 	x := p.parseTerm();
 
 	for p.tok == token.OR {
 		p.next();
 		y := p.parseTerm();
-		x = &node{alternative, "", nil, x, y};
+		x = &alternative{x, y};
 	}
 
 	return x;
 }
 
 
-func (p *parser) parseProduction() (string, *node) {
-	name := p.parseDottedName();
+func (p *parser) parseProduction() (string, expr) {
+	name := p.parseName();
 	
-	var x *node;
+	var x expr;
 	if p.tok == token.ASSIGN {
 		p.next();
-		x = p.parseExpression();
+		if p.tok == token.SEMICOLON {
+			x = &empty{};
+		} else {
+			x = p.parseExpr();
+		}
 	}
 
-	p.expect(token.PERIOD);
+	p.expect(token.SEMICOLON);
 
 	return name, x;
 }
@@ -365,118 +441,181 @@ func getField(v reflect.StructValue, fieldname string) reflect.Value {
 }
 
 
-func (f Format) apply(w io.Write, v reflect.Value) bool
+func typename(value reflect.Value) string {
+	name := value.Type().Name();
+
+	if name != "" {
+		return name;
+	}
+
+	switch value.Kind() {
+	case reflect.ArrayKind: name = "array";
+	case reflect.BoolKind: name = "bool";
+	case reflect.ChanKind: name = "chan";
+	case reflect.DotDotDotKind: name = "...";
+	case reflect.FloatKind: name = "float";
+	case reflect.Float32Kind: name = "float32";
+	case reflect.Float64Kind: name = "float64";
+	case reflect.FuncKind: name = "func";
+	case reflect.IntKind: name = "int";
+	case reflect.Int16Kind: name = "int16";
+	case reflect.Int32Kind: name = "int32";
+	case reflect.Int64Kind: name = "int64";
+	case reflect.Int8Kind: name = "int8";
+	case reflect.InterfaceKind: name = "interface";
+	case reflect.MapKind: name = "map";
+	case reflect.PtrKind: name = "pointer";
+	case reflect.StringKind: name = "string";
+	case reflect.StructKind: name = "struct";
+	case reflect.UintKind: name = "uint";
+	case reflect.Uint16Kind: name = "uint16";
+	case reflect.Uint32Kind: name = "uint32";
+	case reflect.Uint64Kind: name = "uint64";
+	case reflect.Uint8Kind: name = "uint8";
+	case reflect.UintptrKind: name = "uintptr";
+	}
+	
+	return name;
+}
+
+
+var defaultFormat = &literal{io.StringBytes("%v")};
+
+func (f Format) getFormat(value reflect.Value) expr {
+	if format, found := f[typename(value)]; found {
+		return format;
+	}
+	// no format found
+	return defaultFormat;
+}
+
+
+// Count the number of printf-style '%' formatters in s.
+// The result is 0, 1, or 2 (where 2 stands for 2 or more).
+//
+func percentCount(s []byte) int {
+	n := 0;
+	for i := 0; n < 2 && i < len(s); i++ {
+		// TODO should not count "%%"'s
+		if s[i] == '%' {
+			n++;
+		}
+	}
+	return n;
+}
+
+
+func printf(w io.Write, format []byte, value reflect.Value) {
+	// TODO this seems a bit of a hack
+	if percentCount(format) == 1 {
+		// exactly one '%' format specifier - try to use it
+		fmt.Fprintf(w, string(format), value.Interface());
+	} else {
+		// 0 or more then 1 '%' format specifier - ignore them
+		w.Write(format);
+	}
+}
+
 
 // Returns true if a non-empty field value was found.
-func (f Format) print(w io.Write, x *node, v reflect.Value, index int) bool {
-	switch x.kind {
-	case self:
-		panic("self");
+func (f Format) print(w io.Write, format expr, value reflect.Value, index int) bool {
+	switch t := format.(type) {
+	case *empty:
+		return true;
 
-	case alternative:
+	case *alternative:
 		// print the contents of the first alternative with a non-empty field
 		var buf io.ByteBuffer;
-		if !f.print(&buf, x.x, v, -1) {
-			f.print(&buf, x.y, v, -1);
+		b := f.print(&buf, t.x, value, index);
+		if !b {
+			b = f.print(&buf, t.y, value, index);
 		}
-		w.Write(buf.Data());
-
-	case sequence:
-		f.print(w, x.x, v, -1);
-		f.print(w, x.y, v, -1);
-
-	case field:
-		if sv, is_struct := v.(reflect.StructValue); is_struct {
-			return f.apply(w, getField(sv, x.name));
-		} else {
-			panicln("not in a struct - field:", x.name);
-		}
-
-	case literal:
-		w.Write(x.value);
-
-	case option:
-		// print the contents of the option if there is a non-empty field
-		var buf io.ByteBuffer;
-		if f.print(&buf, x.x, v, -1) {
+		if b {
 			w.Write(buf.Data());
 		}
+		return index < 0 || b;
 
-	case repetition:
+	case *sequence:
+		b1 := f.print(w, t.x, value, index);
+		b2 := f.print(w, t.y, value, index);
+		return index < 0 || b1 && b2;
+
+	case *field:
+		var x reflect.Value;
+		switch t.name {
+		case "^":
+			if v, is_ptr := value.(reflect.PtrValue); is_ptr {
+				if v.Get() == nil {
+					return false;
+				}
+				x = v.Sub();
+			} else if v, is_array := value.(reflect.ArrayValue); is_array {
+				if index < 0 || v.Len() <= index {
+					return false;
+				}
+				x = v.Elem(index);
+			} else if v, is_interface := value.(reflect.InterfaceValue); is_interface {
+				if v.Get() == nil {
+					return false;
+				}
+				x = v.Value();
+			} else {
+				panic("not a ptr, array, or interface");  // TODO fix this
+			}
+		case "*":
+			x = value;
+		default:
+			if v, is_struct := value.(reflect.StructValue); is_struct {
+				x = getField(v, t.name);
+			} else {
+				panic ("not a struct");  // TODO fix this
+			}
+		}
+		format = t.format;
+		if format == nil {
+			format = f.getFormat(x);
+		}
+		b := f.print(w, format, x, index);
+		return index < 0 || b;
+
+	case *literal:
+		printf(w, t.value, value);
+		return true;
+
+	case *option:
+		// print the contents of the option if there is a non-empty field
+		var buf io.ByteBuffer;
+		b := f.print(&buf, t.x, value, -1);
+		if b {
+			w.Write(buf.Data());
+		}
+		return index < 0 || b;
+
+	case *repetition:
 		// print the contents of the repetition while there is a non-empty field
+		b := false;
 		for i := 0; ; i++ {
 			var buf io.ByteBuffer;
-			if f.print(&buf, x.x, v, i) {
+			if f.print(&buf, t.x, value, i) {
 				w.Write(buf.Data());
+				b = true;
 			} else {
 				break;
 			}
 		}
-
-	default:
-		panic("unreachable");
+		return index < 0 || b;
+		
+	case *custom:
+		b := t.f(w, value.Interface(), t.name);
+		return index < 0 || b;
 	}
-
+	
+	panic("unreachable");
 	return false;
 }
 
 
-func (f Format) Dump() {
-	for name, x := range f {
-		println(name, x);
-	}
-}
-
-
-func (f Format) apply(w io.Write, v reflect.Value) bool {
-	println("apply typename:", v.Type().Name());
-
-	if x, found := f[v.Type().Name()]; found {
-		// format using corresponding production
-		f.print(w, x, v, -1);
-		
-	} else {
-		// format using default formats
-		switch x := v.(type) {
-		case reflect.ArrayValue:
-			if x.Len() == 0 {
-				return false;
-			}
-			for i := 0; i < x.Len(); i++ {
-				f.apply(w, x.Elem(i));
-			}
-
-		case reflect.StringValue:
-			w.Write(io.StringBytes(x.Get()));
-
-		case reflect.IntValue:
-			// TODO is this the correct way to check the right type?
-			// or should it be t, ok := x.Interface().(token.Token) instead?
-			if x.Type().Name() == "token.Token" {
-				fmt.Fprintf(w, "%s", token.Token(x.Get()).String());
-			} else {
-				fmt.Fprintf(w, "%d", x.Get());
-			}
-
-		case reflect.InterfaceValue:
-			f.apply(w, x.Value());
-
-		case reflect.PtrValue:
-			// TODO is this the correct way to check nil ptr?
-			if x.Get() == nil {
-				return false;
-			}
-			return f.apply(w, x.Sub());
-
-		default:
-			panicln("unsupported kind:", v.Kind());
-		}
-	}
-
-	return true;
-}
-
-
 func (f Format) Apply(w io.Write, data interface{}) {
-	f.apply(w, reflect.NewValue(data));
+	value := reflect.NewValue(data);
+	f.print(w, f.getFormat(value), value, -1);
 }
