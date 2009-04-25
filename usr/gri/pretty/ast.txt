@@ -1,14 +1,40 @@
-// TODO prefix decl doesn't work
-//ast .
+//string =
+//	"%s" ;
 
-ast.Ident =
-	Value .
+pointer =
+	^ ;
 
-ast.Program =
-	"package " Name "\n" { Decls "\n\n" } .
+array =
+	^ ;
 
-ast.GenDecl =
-	"def " .
+//token.Token =
+//	"token<%d>" ;  // this should be a Go-installed formatter
 
-ast.FuncDecl =
-	"func " .
+ast
+	;
+
+Comments =
+	"comments\n" ;
+
+Ident =
+	Value ;
+
+Program =
+	"package " Name "\n\n" { Decls "\n\n" } ;
+
+GenDecl =
+	Doc
+	Tok " (\n"
+	")\n";
+
+FuncType =
+	"(" { Params } ")" ;
+
+BlockStmt =
+	"{\n" "}\n" ;
+
+FuncDecl =
+	"func " Name Type [ " " Body ] ;
+	
+Decl =
+	^ ;
