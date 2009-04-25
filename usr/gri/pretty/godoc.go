@@ -48,7 +48,7 @@ import (
 
 	"astprinter";
 	"comment";
-	"docprinter";	// TODO: "doc"
+	"doc";
 )
 
 
