@@ -47,11 +47,13 @@ O2=\
 	ast.$O\
 
 O3=\
+	doc.$O\
 	parser.$O\
 
 
 phases: a1 a2 a3
 _obj$D/ast.a: phases
+_obj$D/doc.a: phases
 _obj$D/parser.a: phases
 _obj$D/scanner.a: phases
 _obj$D/token.a: phases
@@ -66,6 +68,7 @@ a2: $(O2)
 	rm -f $(O2)
 
 a3: $(O3)
+	$(AR) grc _obj$D/doc.a doc.$O
 	$(AR) grc _obj$D/parser.a parser.$O
 	rm -f $(O3)
 
@@ -73,6 +76,7 @@ a3: $(O3)
 newpkg: clean
 	mkdir -p _obj$D
 	$(AR) grc _obj$D/ast.a
+	$(AR) grc _obj$D/doc.a
 	$(AR) grc _obj$D/parser.a
 	$(AR) grc _obj$D/scanner.a
 	$(AR) grc _obj$D/token.a
@@ -83,13 +87,14 @@ $(O3): a2
 $(O4): a3
 
 nuke: clean
-	rm -f $(GOROOT)/pkg$D/ast.a $(GOROOT)/pkg$D/parser.a $(GOROOT)/pkg$D/scanner.a $(GOROOT)/pkg$D/token.a
+	rm -f $(GOROOT)/pkg$D/ast.a $(GOROOT)/pkg$D/doc.a $(GOROOT)/pkg$D/parser.a $(GOROOT)/pkg$D/scanner.a $(GOROOT)/pkg$D/token.a
 
-packages: _obj$D/ast.a _obj$D/parser.a _obj$D/scanner.a _obj$D/token.a
+packages: _obj$D/ast.a _obj$D/doc.a _obj$D/parser.a _obj$D/scanner.a _obj$D/token.a
 
 install: packages
 	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
 	cp _obj$D/ast.a $(GOROOT)/pkg$D/ast.a
+	cp _obj$D/doc.a $(GOROOT)/pkg$D/doc.a
 	cp _obj$D/parser.a $(GOROOT)/pkg$D/parser.a
 	cp _obj$D/scanner.a $(GOROOT)/pkg$D/scanner.a
 	cp _obj$D/token.a $(GOROOT)/pkg$D/token.a
