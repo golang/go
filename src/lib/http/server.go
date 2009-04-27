@@ -174,7 +174,17 @@ func (c *Conn) Write(data []byte) (n int, err os.Error) {
 	if c.chunking {
 		fmt.Fprintf(c.buf, "%x\r\n", len(data));	// TODO(rsc): use strconv not fmt
 	}
-	return c.buf.Write(data);
+	n, err = c.buf.Write(data);
+	if err == nil && c.chunking {
+		if n != len(data) {
+			err = bufio.ShortWrite;
+		}
+		if err == nil {
+			io.WriteString(c.buf, "\r\n");
+		}
+	}
+
+	return n, err;
 }
 
 func (c *Conn) flush() {
