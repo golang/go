@@ -264,9 +264,9 @@ func PrintDefaults() {
 // then calls sys.Exit(1).
 func Usage() {
 	if len(sys.Args) > 0 {
-		fmt.Fprintf(os.Stderr, "Usage of ", sys.Args[0], ": \n");
+		fmt.Fprintln(os.Stderr, "Usage of", sys.Args[0] + ":");
 	} else {
-		fmt.Fprintf(os.Stderr, "Usage: \n");
+		fmt.Fprintln(os.Stderr, "Usage:");
 	}
 	PrintDefaults();
 	sys.Exit(1);
