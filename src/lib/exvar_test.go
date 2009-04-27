@@ -14,14 +14,14 @@ func TestSimpleCounter(t *testing.T) {
 	// Unknown exvar should be zero.
 	x := GetInt("requests");
 	if x != 0 {
-		t.Errorf("Get(nonexistent) = %v, want 0", x)
+		t.Errorf("GetInt(nonexistent) = %v, want 0", x)
 	}
 
 	IncrementInt("requests", 1);
 	IncrementInt("requests", 3);
 	x = GetInt("requests");
 	if x != 4 {
-		t.Errorf("Get('requests') = %v, want 4", x)
+		t.Errorf("GetInt('requests') = %v, want 4", x)
 	}
 
 	out := String();
@@ -31,10 +31,23 @@ func TestSimpleCounter(t *testing.T) {
 	}
 }
 
+func TestStringVar(t *testing.T) {
+	// Unknown exvar should be empty string.
+	if s := GetStr("name"); s != "" {
+		t.Errorf("GetStr(nonexistent) = %q, want ''", s)
+	}
+
+	SetStr("name", "Mike");
+	if s := GetStr("name"); s != "Mike" {
+		t.Errorf("GetStr('name') = %q, want 'Mike'", s)
+	}
+}
+
 func TestMismatchedCounters(t *testing.T) {
 	// Make sure some vars exist.
 	GetInt("requests");
 	GetMapInt("colours", "red");
+	GetStr("name");
 
 	IncrementInt("colours", 1);
 	if x := GetInt("x-mismatched-int"); x != 1 {
@@ -43,7 +56,12 @@ func TestMismatchedCounters(t *testing.T) {
 
 	IncrementMapInt("requests", "orange", 1);
 	if x := GetMapInt("x-mismatched-map", "orange"); x != 1 {
-		t.Errorf("GetMapInt('x-mismatched-int', 'orange') = %v, want 1", x)
+		t.Errorf("GetMapInt('x-mismatched-map', 'orange') = %v, want 1", x)
+	}
+
+	SetStr("requests", "apple");
+	if s := GetStr("x-mismatched-str"); s != "apple" {
+		t.Errorf("GetStr('x-mismatched-str') = %q, want 'apple'", s)
 	}
 }
 
