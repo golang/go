@@ -19,6 +19,7 @@ const (
 	reservedPrefix = "x-";
 	mismatchedInt = reservedPrefix + "mismatched-int";
 	mismatchedMap = reservedPrefix + "mismatched-map";
+	mismatchedStr = reservedPrefix + "mismatched-str";
 )
 
 // exVar is an abstract type for all exported variables.
@@ -44,8 +45,14 @@ func (m mapVar) String() string {
 	return s
 }
 
+// strVar is a string variable, and satisfies the exVar interface.
+type strVar string;
+
+func (s strVar) String() string {
+	return fmt.Sprintf("%q", s)
+}
+
 // TODO(dsymonds):
-// - string-valued vars
 // - dynamic lookup vars (via chan?)
 
 type exVars struct {
@@ -119,6 +126,22 @@ func (state *exVars) getOrInitMapVar(name string) *mapVar {
 	return &m
 }
 
+// getOrInitStrVar either gets or initializes a strVar called name.
+func (state *exVars) getOrInitStrVar(name string) *strVar {
+	if v, ok := state.vars[name]; ok {
+		// Existing var
+		if mv, ok := v.(*strVar); ok {
+			return mv
+		}
+		// Type mismatch.
+		return state.getOrInitStrVar(mismatchedStr)
+	}
+	// New var
+	sv := new(strVar);
+	state.vars[name] = sv;
+	return sv
+}
+
 // IncrementInt adds inc to the integer-valued var called name.
 func IncrementInt(name string, inc int) {
 	workSync(func(state *exVars) {
@@ -152,6 +175,13 @@ func SetMapInt(name string, key string, value int) {
 	})
 }
 
+// SetStr sets the string-valued var called name to value.
+func SetStr(name string, value string) {
+	workSync(func(state *exVars) {
+		*state.getOrInitStrVar(name) = value
+	})
+}
+
 // GetInt retrieves an integer-valued var called name.
 func GetInt(name string) int {
 	var i int;
@@ -169,6 +199,15 @@ func GetMapInt(name string, key string) int {
 		i, ok = state.getOrInitMapVar(name)[key]
 	});
 	return i
+}
+
+// GetStr retrieves a string-valued var called name.
+func GetStr(name string) string {
+	var s string;
+	workSync(func(state *exVars) {
+		s = *state.getOrInitStrVar(name)
+	});
+	return s
 }
 
 // String produces a string of all the vars in textual format.
