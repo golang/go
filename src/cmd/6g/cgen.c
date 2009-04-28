@@ -632,6 +632,7 @@ bgen(Node *n, int true, Prog *to)
 
 	switch(n->op) {
 	default:
+	def:
 		regalloc(&n1, n->type, N);
 		cgen(n, &n1);
 		nodconst(&n2, n->type, 0);
@@ -644,12 +645,14 @@ bgen(Node *n, int true, Prog *to)
 		goto ret;
 
 	case OLITERAL:
-// need to ask if it is bool?
+		// need to ask if it is bool?
 		if(!true == !n->val.u.bval)
 			patch(gbranch(AJMP, T), to);
 		goto ret;
 
 	case ONAME:
+		if(n->addable == 0)
+			goto def;
 		nodconst(&n1, n->type, 0);
 		gins(optoas(OCMP, n->type), n, &n1);
 		a = AJNE;
