@@ -1654,6 +1654,10 @@ exprsym3:
 	{
 		$$ = newname($1);
 	}
+|	LATYPE
+	{
+		$$ = newname($1);
+	}
 
 exprsym3_list_r:
 	exprsym3
