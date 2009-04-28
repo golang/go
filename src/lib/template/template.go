@@ -36,7 +36,6 @@
 	is executed for each element.  If the array is nil or empty,
 	YYY is executed instead.  If the {.alternates with} marker
 	is present, ZZZ is executed between iterations of XXX.
-	(TODO(r): .alternates is not yet implemented)
 
 		{field}
 		{field|formatter}
@@ -132,9 +131,11 @@ type sectionElement struct {
 	end	int;	// one beyond last element
 }
 
-// A .repeated block, possibly with a .or.  TODO(r): .alternates
+// A .repeated block, possibly with a .or and a .alternates
 type repeatedElement struct {
-	sectionElement;	// It has the same structure!
+	sectionElement;	// It has the same structure...
+	altstart	int;	// ... except for alternates
+	altend	int;
 }
 
 // Template is the type that represents a template definition.
@@ -438,6 +439,8 @@ func (t *Template) parseRepeated(words []string) *repeatedElement {
 	// Scan section, collecting true and false (.or) blocks.
 	r.start = t.elems.Len();
 	r.or = -1;
+	r.altstart = -1;
+	r.altend = -1;
 Loop:
 	for {
 		item := t.nextItem();
@@ -455,16 +458,26 @@ Loop:
 			if r.or >= 0 {
 				t.parseError("extra .or in .repeated section");
 			}
+			r.altend = t.elems.Len();
 			r.or = t.elems.Len();
 		case tokSection:
 			t.parseSection(w);
 		case tokRepeated:
 			t.parseRepeated(w);
 		case tokAlternates:
-			t.parseError("internal error: .alternates not implemented");
+			if r.altstart >= 0 {
+				t.parseError("extra .alternates in .repeated section");
+			}
+			if r.or >= 0 {
+				t.parseError(".alternates inside .or block in .repeated section");
+			}
+			r.altstart = t.elems.Len();
 		default:
 			t.parseError("internal error: unknown repeated section item: %s", item);
 		}
+	}
+	if r.altend < 0 {
+		r.altend = t.elems.Len()
 	}
 	r.end = t.elems.Len();
 	return r;
@@ -693,12 +706,21 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 	if end < 0 {
 		end = r.end
 	}
+	if r.altstart >= 0 {
+		end = r.altstart
+	}
 	if field != nil {
 		array := field.(reflect.ArrayValue);
 		for j := 0; j < array.Len(); j++ {
 			newst := &state{st, array.Elem(j), st.wr};
 			for i := start; i < end; {
 				i = t.executeElement(i, newst)
+			}
+			// If appropriate, do .alternates between elements
+			if j < array.Len() - 1 && r.altstart >= 0 {
+				for i := r.altstart; i < r.altend; i++ {
+					i = t.executeElement(i, newst)
+				}
 			}
 		}
 	}
