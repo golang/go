@@ -183,6 +183,20 @@ var tests = []*Test {
 
 		"this should appear: empty field\n"
 	},
+	&Test{
+		"{.section pdata }\n"
+		"{.repeated section @ }\n"
+		"{item}={value}\n"
+		"{.alternates with}DIVIDER\n"
+		"{.or}\n"
+		"this should not appear\n"
+		"{.end}\n"
+		"{.end}\n",
+
+		"ItemNumber1=ValueNumber1\n"
+		"DIVIDER\n"
+		"ItemNumber2=ValueNumber2\n"
+	},
 
 	// Formatters
 	&Test{
