@@ -108,7 +108,8 @@ strings.6: utf8.install
 testing.6: flag.install fmt.dirinstall
 
 fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
-go.dirinstall: strconv.dirinstall utf8.install unicode.dirinstall fmt.dirinstall
+go.dirinstall: regexp.dirinstall sort.install strconv.dirinstall strings.install \
+	utf8.install unicode.dirinstall fmt.dirinstall
 hash.dirinstall: os.dirinstall
 http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall path.install strings.install log.install
 io.dirinstall: os.dirinstall sync.dirinstall
