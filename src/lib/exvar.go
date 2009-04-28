@@ -8,6 +8,8 @@ package exvar
 
 import (
 	"fmt";
+	"http";
+	"io";
 )
 
 // If mismatched names are used (e.g. calling IncrementInt on a mapVar), the
@@ -219,4 +221,13 @@ func String() string {
 		}
 	});
 	return s
+}
+
+// ExvarHandler is a HTTP handler that displays exported variables.
+// Use it like this:
+//   http.Handle("/exvar", http.HandlerFunc(exvar.ExvarHandler));
+func ExvarHandler(c *http.Conn, req *http.Request) {
+	// TODO(dsymonds): Support different output= args.
+	c.SetHeader("content-type", "text/plain; charset=utf-8");
+	io.WriteString(c, String());
 }
