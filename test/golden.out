@@ -106,11 +106,6 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug136.go
 BUG: should not compile
 
-=========== bugs/bug139.go
-bugs/bug139.go:7: fatal error: naddr: ONAME class x 5
-
-BUG should compile
-
 =========== bugs/bug140.go
 bugs/bug140.go:6: syntax error near L1
 bugs/bug140.go:7: syntax error near L2
