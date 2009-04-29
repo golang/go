@@ -11,16 +11,17 @@
 	(strings), references to fields, and alternative, grouped, optional,
 	and repetitive sub-expressions.
 
-	When printing a value, its type name is used to lookup the production
+	When printing a value, its type name is used to look up the production
 	to be printed. Literal values are printed as is, field references are
-	resolved and the respective field value is printed instead (using its
-	type-specific production), and alternative, grouped, optional, and
+	resolved and the respective field values are printed instead (using their
+	type-specific productions), and alternative, grouped, optional, and
 	repetitive sub-expressions are printed depending on whether they contain
 	"empty" fields or not. A field is empty if its value is nil.
 */
 package format
 
 import (
+	"flag";
 	"fmt";
 	"go/scanner";
 	"go/token";
@@ -29,6 +30,10 @@ import (
 	"reflect";
 	"strconv";
 )
+
+
+// TODO remove once the code works
+var debug = flag.Bool("d", false, "debug mode");
 
 
 // ----------------------------------------------------------------------------
@@ -74,11 +79,6 @@ type (
 	};
 )
 
-
-// TODO If we had a basic accessor mechanism in the language (a field
-// "f T" automatically implements a corresponding accessor "f() T", this
-// could be expressed more easily by simply providing the field.
-//
 
 func (x *alternative) String() string {
 	return fmt.Sprintf("(%v | %v)", x.x, x.y);
@@ -130,20 +130,20 @@ func (x *custom) String() string {
 		Expression  = Term { "|" Term } .
 		Term        = Factor { Factor } .
 		Factor      = string_literal | Field | Group | Option | Repetition .
-		Field		= ( "^" | "*" | Name ) [ ":" Expression ] .
+		Field       = ( "^" | "*" | Name ) [ ":" Expression ] .
 		Group       = "(" Expression ")" .
 		Option      = "[" Expression "]" .
 		Repetition  = "{" Expression "}" .
 
 	The syntax of white space, comments, identifiers, and string literals is
 	the same as in Go.
-	
+
 	A production name corresponds to a Go type name of the form
 
 		PackageName.TypeName
 
 	(for instance format.Format). A production of the form
-	
+
 		Name;
 
 	specifies a package name which is prepended to all subsequent production
@@ -471,13 +471,23 @@ func fieldIndex(v reflect.StructValue, fieldname string) int {
 }
 
 
-func getField(v reflect.StructValue, fieldname string) reflect.Value {
+func getField(v reflect.StructValue, i int) reflect.Value {
+	fld := v.Field(i);
+	if tmp, is_interface := fld.(reflect.InterfaceValue); is_interface {
+		// TODO do I have to check something for nil here?
+		fld = reflect.NewValue(tmp.Get());
+	}
+	return fld;
+}
+
+
+func getFieldByName(v reflect.StructValue, fieldname string) reflect.Value {
 	i := fieldIndex(v, fieldname);
 	if i < 0 {
 		panicln("field not found:", fieldname);
 	}
 
-	return v.Field(i);
+	return getField(v, i);
 }
 
 
@@ -521,6 +531,8 @@ func typename(value reflect.Value) string {
 
 var defaults = map [int] expr {
 	reflect.ArrayKind: &field{"*", nil},
+	reflect.DotDotDotKind: &field{"*", nil},
+	reflect.InterfaceKind: &field{"*", nil},
 	reflect.MapKind: &field{"*", nil},
 	reflect.PtrKind: &field{"*", nil},
 }
@@ -568,41 +580,53 @@ func printf(w io.Write, format []byte, value reflect.Value) {
 }
 
 
-// Returns true if a non-empty field value was found.
-func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bool {
-	debug := false;  // enable for debugging
-	if debug {
-		fmt.Printf("print(%v, = %v, %v, %d)\n", w, fexpr, value.Interface(), index);
+// TODO once 6g bug found
+func print(s string, a ...) {
+	/*
+	f0 := reflect.NewValue(a).(reflect.StructValue).Field(0);
+	if t, is_iface := f0.(reflect.InterfaceValue); is_iface {
+		f0 = reflect.NewValue(t.Get());
 	}
+	*/
+	fmt.Printf(s, a)
+}
 
+
+func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool
+
+// Returns true if a non-empty field value was found.
+func (f Format) print0(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
 	if fexpr == nil {
 		return true;
+	}
+
+	if value == nil {
+		panic("should not be possible");
 	}
 
 	switch t := fexpr.(type) {
 	case *alternative:
 		// - print the contents of the first alternative with a non-empty field
 		// - result is true if there is at least one non-empty field
-		b := false;
 		var buf io.ByteBuffer;
-		if f.print(&buf, t.x, value, index) {
+		if f.print(&buf, t.x, value, index, level) {
 			w.Write(buf.Data());
-			b = true;
+			return true;
 		} else {
 			buf.Reset();
-			if f.print(&buf, t.y, value, 0) {
+			if f.print(&buf, t.y, value, 0, level) {
 				w.Write(buf.Data());
-				b = true;
+				return true;
 			}
 		}
-		return b;
+		return false;
 
 	case *sequence:
 		// - print the contents of the sequence
 		// - result is true if there is no empty field
 		// TODO do we need to buffer here? why not?
-		b1 := f.print(w, t.x, value, index);
-		b2 := f.print(w, t.y, value, index);
+		b1 := f.print(w, t.x, value, index, level);
+		b2 := f.print(w, t.y, value, index, level);
 		return b1 && b2;
 
 	case *field:
@@ -616,13 +640,10 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
 
 		case "*":
 			// indirect
+			if value.Addr() == nil {  // TODO is this right?
+				return false;
+			}
 			switch v := value.(type) {
-			case reflect.PtrValue:
-				if v.Get() == nil {
-					return false;
-				}
-				value = v.Sub();
-
 			case reflect.ArrayValue:
 				if index < 0 || v.Len() <= index {
 					return false;
@@ -632,8 +653,14 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
 			case reflect.MapValue:
 				panic("reflection support for maps incomplete");
 
+			case reflect.PtrValue:
+				if v.Get() == nil {  // TODO is this right?
+					return false;
+				}
+				value = v.Sub();
+
 			case reflect.InterfaceValue:
-				if v.Get() == nil {
+				if v.Get() == nil {  // TODO is this right?
 					return false;
 				}
 				value = v.Value();
@@ -642,10 +669,15 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
 				panic("not a ptr, array, map, or interface");  // TODO fix this
 			}
 
+			if value == nil {
+				fmt.Fprint(w, "NIL");  // TODO debugging
+				return false;
+			}
+
 		default:
 			// field
 			if s, is_struct := value.(reflect.StructValue); is_struct {
-				value = getField(s, t.name);
+				value = getFieldByName(s, t.name);
 			} else {
 				panic ("not a struct");  // TODO fix this
 			}
@@ -658,16 +690,7 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
 			fexpr = f.getFormat(value);
 		}
 
-		return f.print(w, fexpr, value, index);
-		// BUG (6g?) crash with code below
-		/*
-		var buf io.ByteBuffer;
-		if f.print(&buf, fexpr, value, index) {
-			w.Write(buf.Data());
-			return true;
-		}
-		return false;
-		*/
+		return f.print(w, fexpr, value, index, level);
 
 	case *literal:
 		// - print the literal
@@ -677,27 +700,20 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
 
 	case *option:
 		// print the contents of the option if it contains a non-empty field
-		//var foobar bool;  // BUG w/o this declaration the code works!!!
 		var buf io.ByteBuffer;
-		if f.print(&buf, t.x, value, 0) {
+		if f.print(&buf, t.x, value, 0, level) {
 			w.Write(buf.Data());
-			return true;
 		}
-		return false;
+		return true;
 
 	case *repetition:
 		// print the contents of the repetition while there is a non-empty field
-		b := false;
-		for i := 0; ; i++ {
-			var buf io.ByteBuffer;
-			if f.print(&buf, t.x, value, i) {
-				w.Write(buf.Data());
-				b = true;
-			} else {
-				break;
-			}
+		var buf io.ByteBuffer;
+		for i := 0; f.print(&buf, t.x, value, i, level); i++ {
+			w.Write(buf.Data());
+			buf.Reset();
 		}
-		return b;
+		return true;
 		
 	case *custom:
 		return t.f(w, value.Interface(), t.name);
@@ -705,6 +721,34 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
 
 	panic("unreachable");
 	return false;
+}
+
+
+func printTrace(indent int, format string, a ...) {
+	const dots =
+		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
+		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ";
+	const n = len(dots);
+	i := 2*indent;
+	for ; i > n; i -= n {
+		fmt.Print(dots);
+	}
+	fmt.Print(dots[0 : i]);
+	fmt.Printf(format, a);
+}
+
+
+func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
+	if *debug {
+		printTrace(level, "%v, %d {\n", fexpr, /*value.Interface(), */index);
+	}
+
+	result := f.print0(w, fexpr, value, index, level+1);
+
+	if *debug {
+		printTrace(level, "} %v\n", result);
+	}
+	return result;
 }
 
 
@@ -716,13 +760,13 @@ func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index int) bo
 func (f Format) Fprint(w io.Write, args ...) {
 	value := reflect.NewValue(args).(reflect.StructValue);
 	for i := 0; i < value.Len(); i++ {
-		fld := value.Field(i);
-		f.print(w, f.getFormat(fld), fld, -1);
+		fld := getField(value, i);
+		f.print(w, f.getFormat(fld), fld, -1, 0);
 	}
 }
 
 
-// Fprint formats each argument according to the format f
+// Print formats each argument according to the format f
 // and writes to standard output.
 //
 func (f Format) Print(args ...) {
@@ -730,7 +774,7 @@ func (f Format) Print(args ...) {
 }
 
 
-// Fprint formats each argument according to the format f
+// Sprint formats each argument according to the format f
 // and returns the resulting string.
 //
 func (f Format) Sprint(args ...) string {
