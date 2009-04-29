@@ -39,7 +39,7 @@ func init() {
 
 
 func usage() {
-	print("usage: pretty { flags } { files }\n");
+	fmt.Fprintf(os.Stderr, "usage: pretty { flags } { files }\n");
 	flag.PrintDefaults();
 	sys.Exit(0);
 }

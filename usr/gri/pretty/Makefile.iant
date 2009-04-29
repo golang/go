@@ -6,22 +6,12 @@
 
 GO = /home/iant/go/bin/gccgo
 
-LDFLAGS = -Wl,-R,/home/iant/go/lib
+LDFLAGS = -Wl,-R,/home/iant/go/lib,-static-libgo
 
 PRETTY_OBJS = \
-	ast.o \
-	compilation.o \
-	globals.o \
-	object.o \
-	parser.o \
-	platform.o \
+	astprinter.o \
+	format.o \
 	pretty.o \
-	printer.o \
-	scanner.o \
-	type.o \
-	typechecker.o \
-	universe.o \
-	utils.o
 
 pretty: $(PRETTY_OBJS)
 	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
@@ -36,27 +26,7 @@ clean:
 	rm -f pretty *.o  *~
 
 
-pretty.o:	 platform.o printer.o compilation.o
-
-compilation.o:	 platform.o scanner.o parser.o ast.o typechecker.o
-
-ast.o:	 scanner.o
-
-scanner.o:	 utils.o
-
-parser.o:	 scanner.o ast.o
-
-platform.o:	 utils.o
-
-printer.o:	 scanner.o ast.o
-
-typechecker.o:   ast.o universe.o globals.o type.o
-
-universe.o:      globals.o object.o type.o
-
-object.o:        globals.o
-
-type.o:          globals.o object.o
+pretty.o:	 astprinter.o format.o
 
 .SUFFIXES:
 .SUFFIXES: .go .o

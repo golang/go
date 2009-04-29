@@ -1,40 +1,217 @@
-//string =
-//	"%s";
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
-pointer =
+// ----------------------------------------------------------------------------
+// Debugging
+
+token.Token =
+	^ : "%s";
+
+
+// Format file for printing AST nodes (package "ast").
+ast;
+
+// ----------------------------------------------------------------------------
+// TODO should these be automatic?
+
+Expr =
+	"expr ";
+	//*;
+
+Stmt =
 	*;
 
-array =
+Decl =
 	*;
 
-//token.Token =
-//	"token<%d>";  // this could be a Go-installed formatter
+// ----------------------------------------------------------------------------
+// Comments
 
-ast
-	;
+Comment =
+	Text : "%s\n";
 
 Comments =
-	"comments\n";
+	{*};
+
+
+// ----------------------------------------------------------------------------
+// Expressions & Types
+
+Field =
+	{Names ", "} Type;
+
+BadExpr =
+	"BAD EXPR";
 
 Ident =
 	Value;
 
-Program =
-	"package " Name "\n\n" {Decls "\n\n"};
+Elipsis =
+	"...";
+
+IntLit =
+	Value : "%s";
+
+FloatLit =
+	Value : "%s";
+
+CharLit =
+	Value : "%s";
+
+StringLit =
+	Value : "%s";
+
+StringList =
+	{ Strings };
+
+FuncLit =
+	"func ";
+
+CompositeLit =
+	Type "{}";
+
+ParenExpr =
+	"(" X ")";
+
+SelectorExpr =
+	X "." Sel;
+
+IndexExpr =
+	X "[" Index "]";
+
+SliceExpr =
+	X "[" Begin " : " End "]";
+
+TypeAssertExpr =
+	X ".(" Type ")";
+
+CallExpr =
+	Fun "(" {Args} ")";
+
+StarExpr =
+	"*" X;
+
+UnaryExpr =
+	Op X;
+
+BinaryExpr =
+	X Op Y;
+
+KeyValueExpr =
+	Key ": " Value;
+
+ArrayType =
+	"[" Len "]" Elt;
+
+SliceType =
+	"[]" Elt;
+
+StructType =
+	"struct {\n"
+	"}";
+
+FuncType =
+	"(" {Params " "} ")";
+
+// BUG take this one away and the code crashes
+InterfaceType =
+	"interface {}";
+
+MapType =
+	"map[" Key "]" Value;
+
+ChanType =
+	"chan";
+
+
+// ----------------------------------------------------------------------------
+// Statements
+
+BadStmt =
+	"BAD STMT";
+
+DeclStmt =
+	Decl;
+
+EmptyStmt =
+	;
+
+LabeledStmt =
+	Label ":\t" Stmt;
+
+ExprStmt =
+	X;
+
+IncDecStmt =
+	X Tok;
+
+AssignStmt =
+	"assignment " {Lhs ", "};
+	//{Lhs ", "} Tok {Rhs ", "};
+
+GoStmt =
+	"go " Call;
+
+ReturnStmt =
+	"return" {" " Results};
+
+BranchStmt =
+	Tok [" " Label];
+
+BlockStmt =
+	"{\n" {List ";\n"} "}\n";
+
+IfStmt =
+	"if " "{" [Body] "}" [Else];
+
+SwitchStmt =
+	"switch {}";
+
+TypeSwitchStmt =
+	"switch {}";
+
+SelectStmt =
+	"select {}";
+
+ForStmt =
+	"for {}";
+
+RangeStmt =
+	"range";
+
+
+// ----------------------------------------------------------------------------
+// Declarations
+
+Spec =
+	*;
+
+ImportSpec =
+	"import";
+
+ValueSpec =
+	"value";
+
+TypeSpec =
+	"type";
+
+BadDecl =
+	"BAD DECL";
 
 GenDecl =
 	Doc
 	Tok " (\n"
 	")\n";
-
-FuncType =
-	"(" ")";
-
-BlockStmt =
-	"{\n" "}\n";
-
-FuncDecl =
-	"func " Name Type [" " Body];
 	
-Decl =
-	^;
+FuncDecl =
+	"func " ["(" Recv ") "] Name Type [" " Body];
+	
+
+// ----------------------------------------------------------------------------
+// Program
+
+Program =
+	Doc
+	"package " Name "\n\n"
+	{Decls "\n\n"};

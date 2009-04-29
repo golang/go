@@ -52,11 +52,6 @@ import (
 )
 
 
-// TODO: tell flag package about usage string
-const usageString =
-	"usage: godoc package [name ...]\n"
-	"	godoc -http=:6060\n"
-
 const Pkg = "/pkg/"	// name for auto-generated package documentation tree
 
 
@@ -66,6 +61,7 @@ var (
 	// file system roots
 	goroot string;
 	pkgroot = flag.String("pkgroot", "src/lib", "root package source directory (if unrooted, relative to goroot)");
+	tmplroot = flag.String("tmplroot", "usr/gri/pretty", "root template directory (if unrooted, relative to goroot)");
 
 	// layout control
 	tabwidth = flag.Int("tabwidth", 4, "tab width");
@@ -81,7 +77,7 @@ func init() {
 	var err os.Error;
 	goroot, err = os.Getenv("GOROOT");
 	if err != nil {
-		goroot = "/home/r/go-build/go";
+		goroot = "/home/r/go-release/go";
 	}
 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");
 }
@@ -312,13 +308,11 @@ var fmap = template.FormatterMap{
 }
 
 
-// TODO: const templateDir = "lib/godoc"
-const templateDir = "usr/gri/pretty"
-
 func readTemplate(name string) *template.Template {
-	data, err := ReadFile(templateDir + "/" + name);
+	path := pathutil.Join(*tmplroot, name);
+	data, err := ReadFile(path);
 	if err != nil {
-		log.Exitf("ReadFile %s: %v", name, err);
+		log.Exitf("ReadFile %s: %v", path, err);
 	}
 	t, err1 := template.Parse(string(data), fmap);
 	if err1 != nil {
@@ -461,7 +455,7 @@ func addFile(pmap map[string]*pakDesc, dirname, filename, importprefix string) {
 		return;
 	}
 	// determine package name
-	path := dirname + "/" + filename;
+	path := pathutil.Join(dirname, filename);
 	prog, errors := parse(path, parser.PackageClauseOnly);
 	if prog == nil {
 		return;
@@ -560,7 +554,17 @@ func (p *pakDesc) Doc() (*doc.PackageDoc, *parseErrors) {
 
 		if i == 0 {
 			// first file - initialize doc
-			r.Init(prog.Name.Value, p.importpath);
+			// canonicalize importpath
+			// (e.g. such that "template/template" becomes just "template")
+			// TODO This should not be needed here as similar functionality
+			//      is elsewhere, but w/o this fix the output is incorrect
+			//      for, say: "godoc template/template". Temporary work-around.
+			path := p.importpath;
+			dir, name := pathutil.Split(pathutil.Clean(path));
+			if name == prog.Name.Value {
+				path = pathutil.Clean(dir);
+			}
+			r.Init(prog.Name.Value, path);
 		}
 		i++;
 		r.AddProgram(prog);
@@ -624,29 +628,31 @@ func findPackages(name string) *pakInfo {
 	info := new(pakInfo);
 
 	// Build list of packages.
+	pmap := make(map[string]*pakDesc);
+
 	// If the path names a directory, scan that directory
 	// for a package with the name matching the directory name.
 	// Otherwise assume it is a package name inside
 	// a directory, so scan the parent.
-	pmap := make(map[string]*pakDesc);
 	cname := pathutil.Clean(name);
 	if cname == "" {
 		cname = "."
 	}
 	dir := pathutil.Join(*pkgroot, cname);
-	url := pathutil.Join(Pkg, cname);
+
 	if isDir(dir) {
-		parent, pak := pathutil.Split(dir);
 		addDirectory(pmap, dir, cname, &info.Subdirs);
 		paks := mapValues(pmap);
 		if len(paks) == 1 {
 			p := paks[0];
+			_, pak := pathutil.Split(dir);
 			if p.dirname == dir && p.pakname == pak {
 				info.Package = p;
 				info.Path = cname;
 				return info;
 			}
 		}
+		
 		info.Packages = paks;
 		if cname == "." {
 			info.Path = "";
@@ -656,12 +662,13 @@ func findPackages(name string) *pakInfo {
 		return info;
 	}
 
-	// Otherwise, have parentdir/pak.  Look for package pak in dir.
-	parentdir, pak := pathutil.Split(dir);
-	parentname, nam := pathutil.Split(cname);
+	// Otherwise, have parentdir/pak.  Look for package pak in parentdir.
+	parentdir, _ := pathutil.Split(dir);
+	parentname, _ := pathutil.Split(cname);
 	if parentname == "" {
 		parentname = "."
 	}
+
 	addDirectory(pmap, parentdir, parentname, nil);
 	if p, ok := pmap[cname]; ok {
 		info.Package = p;
@@ -703,7 +710,11 @@ func LoggingHandler(h http.Handler) http.Handler {
 
 
 func usage() {
-	fmt.Fprintf(os.Stderr, usageString);
+	fmt.Fprintf(os.Stderr,
+		"usage: godoc package [name ...]\n"
+		"	godoc -http=:6060\n"
+	);
+	flag.PrintDefaults();
 	sys.Exit(1);
 }
 
@@ -736,6 +747,7 @@ func main() {
 			log.Stderrf("address = %s\n", *httpaddr);
 			log.Stderrf("goroot = %s\n", goroot);
 			log.Stderrf("pkgroot = %s\n", *pkgroot);
+			log.Stderrf("tmplroot = %s\n", *tmplroot);
 			handler = LoggingHandler(handler);
 		}
 
@@ -774,7 +786,7 @@ func main() {
 
 	if flag.NArg() > 1 {
 		args := flag.Args();
-		doc.Filter(args[1:len(args)]);
+		doc.Filter(args[1 : len(args)]);
 	}
 
 	packageText.Execute(doc, os.Stdout);
