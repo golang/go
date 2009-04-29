@@ -54,7 +54,7 @@
 %type	<node>		if_stmt if_body if_header select_stmt condition
 %type	<node>		simple_stmt osimple_stmt range_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
-%type	<node>		exprsym3_list_r exprsym3
+%type	<node>		exprsym3_list_r exprsym3 pseudocall
 %type	<node>		name labelname onew_name new_name new_name_list_r new_field
 %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
 %type	<node>		interfacedcl_list_r interfacedcl interfacedcl1
@@ -547,15 +547,13 @@ semi_stmt:
 	{
 		$$ = nod(OCONTINUE, $2, N);
 	}
-|	LGO pexpr '(' oexpr_list ')'
+|	LGO pseudocall
 	{
-		$$ = nod(OCALL, $2, $4);
-		$$ = nod(OPROC, $$, N);
+		$$ = nod(OPROC, $2, N);
 	}
-|	LDEFER pexpr '(' oexpr_list ')'
+|	LDEFER pseudocall
 	{
-		$$ = nod(OCALL, $2, $4);
-		$$ = nod(ODEFER, $$, N);
+		$$ = nod(ODEFER, $2, N);
 	}
 |	LGOTO new_name
 	{
@@ -823,6 +821,22 @@ uexpr:
 		$$ = nod(ORECV, $2, N);
 	}
 
+/*
+ * call-like statements that
+ * can be preceeded by 'defer' and 'go'
+ */
+pseudocall:
+	pexpr '(' oexpr_list ')'
+	{
+		$$ = unsafenmagic($1, $3);
+		if($$ == N)
+			$$ = nod(OCALL, $1, $3);
+	}
+|	LCLOSE '(' expr ')'
+	{
+		$$ = nod(OCLOSE, $3, N);
+	}
+
 pexpr:
 	LLITERAL
 	{
@@ -881,19 +895,10 @@ pexpr:
 	{
 		$$ = nod(OSLICE, $1, $3);
 	}
-|	pexpr '(' oexpr_list ')'
-	{
-		$$ = unsafenmagic($1, $3);
-		if($$ == N)
-			$$ = nod(OCALL, $1, $3);
-	}
+|	pseudocall
 |	LLEN '(' expr ')'
 	{
 		$$ = nod(OLEN, $3, N);
-	}
-|	LCLOSE '(' expr ')'
-	{
-		$$ = nod(OCLOSE, $3, N);
 	}
 |	LCLOSED '(' expr ')'
 	{
