@@ -21,7 +21,7 @@ static SigTab sigtab[] = {
 	/* 10 */	C, "SIGBUS: bus error",
 	/* 11 */	C, "SIGSEGV: segmentation violation",
 	/* 12 */	C, "SIGSYS: bad system call",
-	/* 13 */	0, "SIGPIPE: write to broken pipe",
+	/* 13 */	I, "SIGPIPE: write to broken pipe",
 	/* 14 */	0, "SIGALRM: alarm clock",
 	/* 15 */	0, "SIGTERM: termination",
 	/* 16 */	0, "SIGURG: urgent condition on socket",
