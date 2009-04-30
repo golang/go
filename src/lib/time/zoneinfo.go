@@ -28,7 +28,8 @@ type TimeZoneError struct {
 }
 
 func error(bytes []byte) os.Error {
-	return TimeZoneError{ `time: malformed zoneinfo: "` + string(bytes) + `"` };
+	// TODO(rsc): provide better diagnostics
+	return TimeZoneError{ "time: malformed zoneinfo"};
 }
 
 // Simple I/O interface to binary blob of data.
