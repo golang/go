@@ -80,9 +80,13 @@ type allTypes struct {
 	xuintptr	uintptr;
 }
 
-var x allTypes
+var (
+	x allTypes;
+	minStruct struct { uint8 };
+)
 
 const (
+	minStructAlign = unsafe.Sizeof(minStruct) - 1;
 	ptrsize = unsafe.Sizeof(&x);
 	interfacesize = unsafe.Sizeof(x.xinterface);
 )
@@ -394,6 +398,10 @@ func (t *structTypeStruct) Size() int {
 		size += elemsize;
 	}
 	if (structalign > 0) {
+		// 6g etc. always aligns structs to a minimum size, typically int64
+		if structalign < minStructAlign {
+			structalign = minStructAlign
+		}
 		// TODO: In the PPC64 ELF ABI, floating point fields
 		// in a struct are aligned to a 4-byte boundary, but
 		// if the first field in the struct is a 64-bit float,
