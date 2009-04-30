@@ -610,9 +610,10 @@ procnotes(int pid, char ***pnotes)
 		return 0;
 	}
 
-	notes = mallocz(32*sizeof(char*), 0);
+	notes = malloc(32*sizeof(char*));
 	if(notes == nil)
 		return -1;
+	memset(notes, 0, 32*sizeof(char*));
 	n = 0;
 	for(i=0; i<32; i++){
 		if((sigs&(1<<i)) == 0)
@@ -713,7 +714,7 @@ ctlproc(int pid, char *msg)
 		if(t->state == Running)
 			return 0;
 		data = 0;
-		if(t->state == Stopped && t->signal != SIGSTOP)
+		if(t->state == Stopped && t->signal != SIGSTOP && t->signal != SIGTRAP)
 			data = t->signal;
 		if(trace && data)
 			fprint(2, "tid %d: continue %lud\n", pid, (ulong)data);
