@@ -13,7 +13,7 @@ GC=${GC:-${O}g}
 GL=${GL:-${O}l}
 export GC GL
 GC="$GC -I _obj"
-GL="$GL -P _obj"
+GL="$GL -L _obj"
 
 gofiles=""
 loop=true

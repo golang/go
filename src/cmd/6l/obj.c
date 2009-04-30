@@ -71,6 +71,13 @@ isobjfile(char *f)
 }
 
 void
+usage(void)
+{
+	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] files...\n");
+	exits("usage");
+}
+
+void
 main(int argc, char *argv[])
 {
 	int i, c;
@@ -87,7 +94,7 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
-	PKGDIR = nil;
+	LIBDIR = nil;
 
 	ARGBEGIN {
 	default:
@@ -96,37 +103,26 @@ main(int argc, char *argv[])
 			debug[c]++;
 		break;
 	case 'o': /* output to (next arg) */
-		outfile = ARGF();
+		outfile = EARGF(usage());
 		break;
 	case 'E':
-		a = ARGF();
-		if(a)
-			INITENTRY = a;
+		INITENTRY = EARGF(usage());
 		break;
 	case 'H':
-		a = ARGF();
-		if(a)
-			HEADTYPE = atolwhex(a);
+		HEADTYPE = atolwhex(EARGF(usage()));
+		break;
+	case 'L':
+		LIBDIR = EARGF(usage());
 		break;
 	case 'T':
-		a = ARGF();
-		if(a)
-			INITTEXT = atolwhex(a);
+		INITTEXT = atolwhex(EARGF(usage()));
 		break;
 	case 'D':
-		a = ARGF();
-		if(a)
-			INITDAT = atolwhex(a);
+		INITDAT = atolwhex(EARGF(usage()));
 		break;
 	case 'R':
-		a = ARGF();
-		if(a)
-			INITRND = atolwhex(a);
+		INITRND = atolwhex(EARGF(usage()));
 		break;
-	case 'P':
-		a = ARGF();
-		if(a)
-			PKGDIR = a;
 		break;
 	case 'x':	/* produce export table */
 		doexp = 1;
@@ -690,10 +686,10 @@ addlib(char *src, char *obj)
 	}
 
 	if(search) {
-		// try dot, -P "pkgdir", and then goroot.
-		snprint(pname, sizeof pname, ".%s", name);
-		if(access(pname, AEXIST) < 0 && PKGDIR != nil)
-			snprint(pname, sizeof pname, "%s/%s", PKGDIR, name);
+		// try dot, -L "libdir", and then goroot.
+		snprint(pname, sizeof pname, "./%s", name);
+		if(access(pname, AEXIST) < 0 && LIBDIR != nil)
+			snprint(pname, sizeof pname, "%s/%s", LIBDIR, name);
 		if(access(pname, AEXIST) < 0)
 			snprint(pname, sizeof pname, "%s/pkg/%s", goroot, name);
 		strcpy(name, pname);
