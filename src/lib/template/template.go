@@ -744,7 +744,7 @@ func validDelim(d []byte) bool {
 // Parse initializes a Template by parsing its definition.  The string
 // s contains the template text.  If any errors occur, Parse returns
 // the error.
-func (t *Template) Parse(s string) (err os.Error) {
+func (t *Template) Parse(s string) os.Error {
 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
 		return ParseError{fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
 	}
