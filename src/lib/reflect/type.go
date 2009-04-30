@@ -86,7 +86,7 @@ var (
 )
 
 const (
-	minStructAlign = unsafe.Sizeof(minStruct) - 1;
+	minStructAlignMask = unsafe.Sizeof(minStruct) - 1;
 	ptrsize = unsafe.Sizeof(&x);
 	interfacesize = unsafe.Sizeof(x.xinterface);
 )
@@ -383,31 +383,31 @@ func (t *structTypeStruct) Size() int {
 		return t.size
 	}
 	size := 0;
-	structalign := 0;
+	structAlignMask := 0;
 	for i := 0; i < len(t.field); i++ {
 		typ := t.field[i].typ.Get();
 		elemsize := typ.Size();
-		align := typ.FieldAlign() - 1;
-		if align > structalign {
-			structalign = align
+		alignMask := typ.FieldAlign() - 1;
+		if alignMask > structAlignMask {
+			structAlignMask = alignMask
 		}
-		if align > 0 {
-			size = (size + align) &^ align;
+		if alignMask > 0 {
+			size = (size + alignMask) &^ alignMask;
 		}
 		t.field[i].offset = size;
 		size += elemsize;
 	}
-	if (structalign > 0) {
+	if (structAlignMask > 0) {
 		// 6g etc. always aligns structs to a minimum size, typically int64
-		if structalign < minStructAlign {
-			structalign = minStructAlign
+		if structAlignMask < minStructAlignMask {
+			structAlignMask = minStructAlignMask
 		}
 		// TODO: In the PPC64 ELF ABI, floating point fields
 		// in a struct are aligned to a 4-byte boundary, but
 		// if the first field in the struct is a 64-bit float,
 		// the whole struct is aligned to an 8-byte boundary.
-		size = (size + structalign) &^ structalign;
-		t.fieldAlign = structalign + 1;
+		size = (size + structAlignMask) &^ structAlignMask;
+		t.fieldAlign = structAlignMask + 1;
 	}
 	t.size = size;
 	return size;

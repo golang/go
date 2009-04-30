@@ -6,7 +6,8 @@ package reflect
 
 import (
 	"reflect";
-	"testing"
+	"testing";
+	"unsafe";
 )
 
 var doprint bool = false
@@ -471,4 +472,38 @@ func TestDeepEqualComplexStructInequality(t *testing.T) {
 	if DeepEqual(a, b) {
 		t.Error("DeepEqual(complex different) = true, want false");
 	}
+}
+
+
+func check2ndField(x interface{}, offs uintptr, t *testing.T) {
+	s := reflect.NewValue(x).(reflect.StructValue);
+	name, ftype, tag, reflect_offset := s.Type().(reflect.StructType).Field(1);
+	if uintptr(reflect_offset) != offs {
+		t.Error("mismatched offsets in structure alignment:", reflect_offset, offs);
+	}
+}
+
+// Check that structure alignment & offsets viewed through reflect agree with those
+// from the compiler itself.
+func TestAlignment(t *testing.T) {
+	type T1inner struct {
+		a int
+	}
+	type T1 struct {
+		T1inner;
+		f int;
+	}
+	type T2inner struct {
+		a, b int
+	}
+	type T2 struct {
+		T2inner;
+		f int;
+	}
+
+	x := T1{T1inner{2}, 17};
+	check2ndField(x, uintptr(unsafe.Pointer(&x.f)) - uintptr(unsafe.Pointer(&x)), t);
+
+	x1 := T2{T2inner{2, 3}, 17};
+	check2ndField(x1, uintptr(unsafe.Pointer(&x1.f)) - uintptr(unsafe.Pointer(&x1)), t);
 }
