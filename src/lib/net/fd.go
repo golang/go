@@ -299,9 +299,9 @@ func (s *pollServer) WaitRead(fd *netFD) {
 }
 
 func (s *pollServer) WaitWrite(fd *netFD) {
-	s.cr <- fd;
+	s.cw <- fd;
 	s.Wakeup();
-	<-fd.cr
+	<-fd.cw
 }
 
 
