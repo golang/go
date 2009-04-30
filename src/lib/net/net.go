@@ -300,9 +300,18 @@ func (c *connBase) SetLinger(sec int) os.Error {
 // only dealing with IPv4 sockets?  As long as the host system
 // understands IPv6, it's okay to pass IPv4 addresses to the IPv6
 // interface.  That simplifies our code and is most general.
-// If we need to build on a system without IPv6 support, setting
-// preferIPv4 here should fall back to the IPv4 socket interface when possible.
-const preferIPv4 = false
+// Unfortunately, we need to run on kernels built without IPv6 support too.
+// So probe the kernel to figure it out.
+func kernelSupportsIPv6() bool {
+	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP);
+	if fd >= 0 {
+		syscall.Close(fd)
+	}
+	return e == 0
+}
+
+var preferIPv4 = !kernelSupportsIPv6()
+
 
 func internetSocket(net, laddr, raddr string, proto int64, mode string)
 	(fd *netFD, err os.Error)
