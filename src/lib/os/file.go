@@ -23,6 +23,7 @@ type File struct {
 	fd int64;
 	name	string;
 	dirinfo	*dirInfo;	// nil unless directory being read
+	nepipe	int;	// number of consecutive EPIPE in Write
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
@@ -40,7 +41,7 @@ func NewFile(file int64, name string) *File {
 	if file < 0 {
 		return nil
 	}
-	return &File{file, name, nil}
+	return &File{file, name, nil, 0}
 }
 
 // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
@@ -127,6 +128,14 @@ func (file *File) Write(b []byte) (ret int, err Error) {
 		if r < 0 {
 			r = 0
 		}
+	}
+	if e == syscall.EPIPE {
+		file.nepipe++;
+		if file.nepipe >= 10 {
+			sys.Exit(syscall.EPIPE);
+		}
+	} else {
+		file.nepipe = 0;
 	}
 	return int(r), ErrnoToError(e)
 }
