@@ -20,19 +20,28 @@ const (
 )
 
 func natFromString(s string, base uint, slen *int) bignum.Natural {
-	x, dummy := bignum.NatFromString(s, base, slen);
+	x, _, len := bignum.NatFromString(s, base);
+	if slen != nil {
+		*slen = len;
+	}
 	return x;
 }
 
 
 func intFromString(s string, base uint, slen *int) *bignum.Integer {
-	x, dummy := bignum.IntFromString(s, base, slen);
+	x, _, len := bignum.IntFromString(s, base);
+	if slen != nil {
+		*slen = len;
+	}
 	return x;
 }
 
 
 func ratFromString(s string, base uint, slen *int) *bignum.Rational {
-	x, dummy := bignum.RatFromString(s, base, slen);
+	x, _, len := bignum.RatFromString(s, base);
+	if slen != nil {
+		*slen = len;
+	}
 	return x;
 }
 
@@ -79,14 +88,14 @@ func nat_eq(n uint, x, y bignum.Natural) {
 
 func int_eq(n uint, x, y *bignum.Integer) {
 	if x.Cmp(y) != 0 {
-		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, &x, &y);
+		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, x, y);
 	}
 }
 
 
 func rat_eq(n uint, x, y *bignum.Rational) {
 	if x.Cmp(y) != 0 {
-		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, &x, &y);
+		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, x, y);
 	}
 }
 
@@ -117,7 +126,7 @@ func TestNatConv(t *testing.T) {
 
 	test_msg = "NatConvD";
 	x := bignum.Nat(100);
-	y, b := bignum.NatFromString(fmt.Sprintf("%b", &x), 2, nil);
+	y, b, _ := bignum.NatFromString(fmt.Sprintf("%b", &x), 2);
 	nat_eq(100, y, x);
 }
 
@@ -133,9 +142,13 @@ func TestIntConv(t *testing.T) {
 	int_eq(4, intFromString("077", 0, nil), bignum.Int(7*8 + 7));
 	int_eq(5, intFromString("-077", 0, nil), bignum.Int(-(7*8 + 7)));
 	int_eq(6, intFromString("0x1f", 0, nil), bignum.Int(1*16 + 15));
-	int_eq(7, intFromString("-0x1f", 0, nil), bignum.Int(-(1*16 + 15)));
-	int_eq(8, intFromString("0x1fg", 0, &slen), bignum.Int(1*16 + 15));
-	int_eq(9, intFromString("-0x1fg", 0, &slen), bignum.Int(-(1*16 + 15)));
+	int_eq(7, intFromString("-0x1f", 0, &slen), bignum.Int(-(1*16 + 15)));
+	test(7, slen == 5);
+	int_eq(8, intFromString("+0x1f", 0, &slen), bignum.Int(+(1*16 + 15)));
+	test(8, slen == 5);
+	int_eq(9, intFromString("0x1fg", 0, &slen), bignum.Int(1*16 + 15));
+	test(9, slen == 4);
+	int_eq(10, intFromString("-0x1fg", 0, &slen), bignum.Int(-(1*16 + 15)));
 	test(10, slen == 5);
 }
 
