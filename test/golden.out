@@ -111,13 +111,6 @@ bugs/bug140.go:6: syntax error near L1
 bugs/bug140.go:7: syntax error near L2
 BUG should compile
 
-=========== bugs/bug146.go
-BUG: errchk: bugs/bug146.go:9: missing expected error: 'invalid'
-errchk: bugs/bug146.go: unmatched error messages:
-==================================================
-bugs/bug146.go:8: invalid conversion: *[1]uint8 to Slice
-==================================================
-
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 

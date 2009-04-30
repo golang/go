@@ -1245,8 +1245,8 @@ walkconv(Node *n)
 		return;
 
 	// convert static array to dynamic array
-	if(isslice(t) && isfixedarray(l->type)) {
-		if(eqtype(t->type->type, l->type->type->type, 0)) {
+	if(isslice(t) && isptr[l->type->etype] && isfixedarray(l->type->type)) {
+		if(eqtype(t->type->type, l->type->type->type->type, 0)) {
 			indir(n, arrayop(n, Erv));
 			return;
 		}
@@ -2707,7 +2707,9 @@ arrayop(Node *n, int top)
 
 	case OCONV:
 		// arrays2d(old *any, nel int) (ary []any)
-		t = fixarray(n->left->type);
+		if(n->left->type == T || !isptr[n->left->type->etype])
+			break;
+		t = fixarray(n->left->type->type);
 		tl = fixarray(n->type);
 		if(t == T || tl == T)
 			break;
@@ -2717,39 +2719,20 @@ arrayop(Node *n, int top)
 		a->type = types[TINT];
 		r = a;
 
-		a = nod(OADDR, n->left, N);		// old
-		addrescapes(n->left);
-		r = list(a, r);
+		r = list(n->left, r);				// old
 
 		on = syslook("arrays2d", 1);
 		argtype(on, t);				// any-1
 		argtype(on, tl->type);			// any-2
 		r = nod(OCALL, on, r);
-		walktype(r, top);
 		n->left = r;
+		walktype(n, top);
 		return n;
 
 	case OAS:
-		// arrays2d(old *any, nel int) (ary []any)
-		t = fixarray(n->right->type->type);
-		tl = fixarray(n->left->type);
-		if(t == T || tl == T)
-			break;
-
-		a = nodintconst(t->bound);		// nel
-		a = nod(OCONV, a, N);
-		a->type = types[TINT];
-		r = a;
-
-		r = list(n->right, r);			// old
-
-		on = syslook("arrays2d", 1);
-		argtype(on, t);				// any-1
-		argtype(on, tl->type);			// any-2
-		r = nod(OCALL, on, r);
-
-		walktype(r, top);
-		n->right = r;
+		r = nod(OCONV, n->right, N);
+		r->type = n->left->type;
+		n->right = arrayop(r, Erv);
 		return n;
 
 	case OMAKE:

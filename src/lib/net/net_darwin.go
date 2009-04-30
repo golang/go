@@ -48,14 +48,14 @@ func sockaddrToIP(sa1 *syscall.Sockaddr) (p IP, port int, err os.Error) {
 	switch sa1.Family {
 	case syscall.AF_INET:
 		sa := (*syscall.SockaddrInet4)(unsafe.Pointer(sa1));
-		a := IP(sa.Addr).To16();
+		a := IP(&sa.Addr).To16();
 		if a == nil {
 			return nil, 0, os.EINVAL
 		}
 		return a, int(sa.Port[0])<<8 + int(sa.Port[1]), nil;
 	case syscall.AF_INET6:
 		sa := (*syscall.SockaddrInet6)(unsafe.Pointer(sa1));
-		a := IP(sa.Addr).To16();
+		a := IP(&sa.Addr).To16();
 		if a == nil {
 			return nil, 0, os.EINVAL
 		}
