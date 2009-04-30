@@ -237,12 +237,14 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	int64 ret;
 	int32 flags;
 
+	/*
+	 * note: strace gets confused if we use CLONE_PTRACE here.
+	 */
 	flags = CLONE_PARENT	/* getppid doesn't change in child */
 		| CLONE_VM	/* share memory */
 		| CLONE_FS	/* share cwd, etc */
 		| CLONE_FILES	/* share fd table */
 		| CLONE_SIGHAND	/* share sig handler table */
-		| CLONE_PTRACE	/* revisit - okay for now */
 		| CLONE_THREAD	/* revisit - okay for now */
 		;
 
