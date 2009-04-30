@@ -40,7 +40,7 @@ import "fmt"
 //    is chosen such that division and multiplication by 10 (for decimal
 //    string representation) can be done without using extended-precision
 //    arithmetic. This makes addition, subtraction, and conversion routines
-//    twice as fast. It requires a "buffer" of 4 bits per operand digit.
+//    twice as fast. It requires a ``buffer'' of 4 bits per operand digit.
 //    That is, the size of B must be 4 bits smaller then the size of the
 //    type (digit) in which these operations are performed. Having this
 //    buffer also allows for trivial (single-bit) carry computation in
@@ -48,7 +48,7 @@ import "fmt"
 //
 // 2) Long division requires extended-precision (2-digit) division per digit.
 //    Instead of sacrificing the largest base type for all other operations,
-//    for division the operands are unpacked into "half-digits", and the
+//    for division the operands are unpacked into ``half-digits'', and the
 //    results are packed again. For faster unpacking/packing, the base size
 //    in bits must be even.
 
@@ -60,7 +60,7 @@ type (
 
 const (
 	_LogW = 64;
-	_LogH = 4;  // bits for a hex digit (= "small" number)
+	_LogH = 4;  // bits for a hex digit (= small number)
 	_LogB = _LogW - _LogH;  // largest bit-width available
 
 	// half-digits
@@ -115,7 +115,7 @@ var (
 )
 
 
-// Nat creates a "small" natural number with value x.
+// Nat creates a small natural number with value x.
 // Implementation restriction: At the moment, only values
 // x < (1<<60) are supported.
 //
@@ -363,15 +363,15 @@ func div1(z, x []digit2, y digit2) digit2 {
 // it relies on tripple-precision arithmetic which is why Knuth's method is
 // used here.
 //
-// 1) D. Knuth, "The Art of Computer Programming. Volume 2. Seminumerical
+// 1) D. Knuth, The Art of Computer Programming. Volume 2. Seminumerical
 //    Algorithms." Addison-Wesley, Reading, 1969.
 //    (Algorithm D, Sec. 4.3.1)
 //
-// 2) Henry S. Warren, Jr., "A Hacker's Delight". Addison-Wesley, 2003.
+// 2) Henry S. Warren, Jr., Hacker's Delight. Addison-Wesley, 2003.
 //    (9-2 Multiword Division, p.140ff)
 //
-// 3) P. Brinch Hansen, Multiple-length division revisited: A tour of the
-//    minefield. "Software - Practice and Experience 24", (June 1994),
+// 3) P. Brinch Hansen, ``Multiple-length division revisited: A tour of the
+//    minefield''. Software - Practice and Experience 24, (June 1994),
 //    579-601. John Wiley & Sons, Ltd.
 
 func divmod(x, y []digit2) ([]digit2, []digit2) {
@@ -401,7 +401,7 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 		// normalize x and y
 		// TODO Instead of multiplying, it would be sufficient to
 		//      shift y such that the normalization condition is
-		//      satisfied (as done in "Hacker's Delight").
+		//      satisfied (as done in Hacker's Delight).
 		f := _B2 / (digit(y[m-1]) + 1);
 		if f != 1 {
 			mul1(x, x, digit2(f));
@@ -501,7 +501,7 @@ func shl(z, x []digit, s uint) digit {
 }
 
 
-// Shl implements "shift left" x << s. It returns x * 2^s.
+// Shl implements ``shift left'' x << s. It returns x * 2^s.
 //
 func (x Natural) Shl(s uint) Natural {
 	n := uint(len(x));
@@ -525,7 +525,7 @@ func shr(z, x []digit, s uint) digit {
 }
 
 
-// Shr implements "shift right" x >> s. It returns x / 2^s.
+// Shr implements ``shift right'' x >> s. It returns x / 2^s.
 //
 func (x Natural) Shr(s uint) Natural {
 	n := uint(len(x));
@@ -541,7 +541,7 @@ func (x Natural) Shr(s uint) Natural {
 }
 
 
-// And returns the "bitwise and" x & y for the binary representation of x and y.
+// And returns the ``bitwise and'' x & y for the binary representation of x and y.
 //
 func (x Natural) And(y Natural) Natural {
 	n := len(x);
@@ -567,7 +567,7 @@ func copy(z, x []digit) {
 }
 
 
-// Or returns the "bitwise or" x | y for the binary representation of x and y.
+// Or returns the ``bitwise or'' x | y for the binary representation of x and y.
 //
 func (x Natural) Or(y Natural) Natural {
 	n := len(x);
@@ -586,7 +586,7 @@ func (x Natural) Or(y Natural) Natural {
 }
 
 
-// Xor returns the "bitwise exclusive or" x ^ y for the binary representation of x and y.
+// Xor returns the ``bitwise exclusive or'' x ^ y for the binary representation of x and y.
 //
 func (x Natural) Xor(y Natural) Natural {
 	n := len(x);
@@ -656,7 +656,7 @@ func (x Natural) Log2() uint {
 }
 
 
-// Computes x = x div d in place (modifies x) for "small" d's.
+// Computes x = x div d in place (modifies x) for small d's.
 // Returns updated x and x mod d.
 //
 func divmod1(x Natural, d digit) (Natural, digit) {
@@ -738,7 +738,7 @@ func hexvalue(ch byte) uint {
 }
 
 
-// Computes x = x*d + c for "small" d's.
+// Computes x = x*d + c for small d's.
 //
 func muladd1(x Natural, d, c digit) Natural {
 	assert(isSmall(d-1) && isSmall(c));
@@ -757,16 +757,14 @@ func muladd1(x Natural, d, c digit) Natural {
 
 // NatFromString returns the natural number corresponding to the
 // longest possible prefix of s representing a natural number in a
-// given conversion base.
+// given conversion base, the actual conversion base used, and the
+// prefix length.
 //
 // If the base argument is 0, the string prefix determines the actual
-// conversion base. A prefix of "0x" or "0X" selects base 16; the "0"
-// prefix selects base 8. Otherwise the selected base is 10.
+// conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
+// ``0'' prefix selects base 8. Otherwise the selected base is 10.
 //
-// If a non-nil slen argument is provided, *slen is set to the length
-// of the string prefix converted.
-//
-func NatFromString(s string, base uint, slen *int) (Natural, uint) {
+func NatFromString(s string, base uint) (Natural, uint, int) {
 	// determine base if necessary
 	i, n := 0, len(s);
 	if base == 0 {
@@ -792,12 +790,7 @@ func NatFromString(s string, base uint, slen *int) (Natural, uint) {
 		}
 	}
 
-	// provide number of string bytes consumed if necessary
-	if slen != nil {
-		*slen = i;
-	}
-
-	return x, base;
+	return x, base, i;
 }
 
 
@@ -813,9 +806,7 @@ func pop1(x digit) uint {
 }
 
 
-// Pop computes the "population count" of x.
-// The result is the number of set bits (i.e., "1" digits)
-// in the binary representation of x.
+// Pop computes the ``population count'' of (the number of 1 bits in) x.
 //
 func (x Natural) Pop() uint {
 	n := uint(0);
@@ -911,7 +902,7 @@ func MakeInt(sign bool, mant Natural) *Integer {
 }
 
 
-// Int creates a "small" integer with value x.
+// Int creates a small integer with value x.
 // Implementation restriction: At the moment, only values
 // with an absolute value |x| < (1<<60) are supported.
 //
@@ -1056,7 +1047,7 @@ func (x *Integer) MulNat(y Natural) *Integer {
 //   q = x.Quo(y) = trunc(x/y)  (truncation towards zero)
 //   r = x.Rem(y) = x - y*q
 //
-// (Daan Leijen, "Division and Modulus for Computer Scientists".)
+// (Daan Leijen, ``Division and Modulus for Computer Scientists''.)
 //
 func (x *Integer) Quo(y *Integer) *Integer {
 	// x / y == x / y
@@ -1098,9 +1089,9 @@ func (x *Integer) QuoRem(y *Integer) (*Integer, *Integer) {
 //   q = x.Div(y)
 //   r = x.Mod(y) with: 0 <= r < |q| and: y = x*q + r
 //
-// (Raymond T. Boute, The Euclidian definition of the functions
-// div and mod. "ACM Transactions on Programming Languages and
-// Systems (TOPLAS)", 14(2):127-144, New York, NY, USA, 4/1992.
+// (Raymond T. Boute, ``The Euclidian definition of the functions
+// div and mod''. ACM Transactions on Programming Languages and
+// Systems (TOPLAS), 14(2):127-144, New York, NY, USA, 4/1992.
 // ACM press.)
 //
 func (x *Integer) Div(y *Integer) *Integer {
@@ -1150,14 +1141,14 @@ func (x *Integer) DivMod(y *Integer) (*Integer, *Integer) {
 }
 
 
-// Shl implements "shift left" x << s. It returns x * 2^s.
+// Shl implements ``shift left'' x << s. It returns x * 2^s.
 //
 func (x *Integer) Shl(s uint) *Integer {
 	return MakeInt(x.sign, x.mant.Shl(s));
 }
 
 
-// Shr implements "shift right" x >> s. It returns x / 2^s.
+// Shr implements ``shift right'' x >> s. It returns x / 2^s.
 // Implementation restriction: Shl is not yet implemented for negative x.
 //
 func (x *Integer) Shr(s uint) *Integer {
@@ -1169,7 +1160,7 @@ func (x *Integer) Shr(s uint) *Integer {
 }
 
 
-// And returns the "bitwise and" x & y for the binary representation of x and y.
+// And returns the ``bitwise and'' x & y for the binary representation of x and y.
 // Implementation restriction: And is not implemented for negative x.
 //
 func (x *Integer) And(y *Integer) *Integer {
@@ -1183,7 +1174,7 @@ func (x *Integer) And(y *Integer) *Integer {
 }
 
 
-// Or returns the "bitwise or" x | y for the binary representation of x and y.
+// Or returns the ``bitwise or'' x | y for the binary representation of x and y.
 // Implementation restriction: Or is not implemented for negative x.
 //
 func (x *Integer) Or(y *Integer) *Integer {
@@ -1197,7 +1188,7 @@ func (x *Integer) Or(y *Integer) *Integer {
 }
 
 
-// Xor returns the "bitwise xor" x | y for the binary representation of x and y.
+// Xor returns the ``bitwise xor'' x | y for the binary representation of x and y.
 // Implementation restriction: Xor is not implemented for negative integers.
 //
 func (x *Integer) Xor(y *Integer) *Integer {
@@ -1268,32 +1259,23 @@ func (x *Integer) Format(h fmt.Formatter, c int) {
 
 // IntFromString returns the integer corresponding to the
 // longest possible prefix of s representing an integer in a
-// given conversion base.
+// given conversion base, the actual conversion base used, and
+// the prefix length.
 //
 // If the base argument is 0, the string prefix determines the actual
-// conversion base. A prefix of "0x" or "0X" selects base 16; the "0"
-// prefix selects base 8. Otherwise the selected base is 10.
+// conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
+// ``0'' prefix selects base 8. Otherwise the selected base is 10.
 //
-// If a non-nil slen argument is provided, *slen is set to the length
-// of the string prefix converted.
-//
-func IntFromString(s string, base uint, slen *int) (*Integer, uint) {
-	// get sign, if any
-	sign := false;
+func IntFromString(s string, base uint) (*Integer, uint, int) {
+	// skip sign, if any
+	i0 := 0;
 	if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
-		sign = s[0] == '-';
-		s = s[1 : len(s)];
+		i0 = 1;
 	}
 
-	var mant Natural;
-	mant, base = NatFromString(s, base, slen);
+	mant, base, slen := NatFromString(s[i0 : len(s)], base);
 
-	// correct slen if necessary
-	if slen != nil && sign {
-		*slen++;
-	}
-
-	return MakeInt(sign, mant), base;
+	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0 + slen;
 }
 
 
@@ -1320,7 +1302,7 @@ func MakeRat(a *Integer, b Natural) *Rational {
 }
 
 
-// Rat creates a "small" rational number with value a0/b0.
+// Rat creates a small rational number with value a0/b0.
 // Implementation restriction: At the moment, only values a0, b0
 // with an absolute value |a0|, |b0| < (1<<60) are supported.
 //
@@ -1419,7 +1401,8 @@ func (x *Rational) Cmp(y *Rational) int {
 
 
 // ToString converts x to a string for a given base, with 2 <= base <= 16.
-// The string representation is of the form "numerator/denominator".
+// The string representation is of the form "n" if x is an integer; otherwise
+// it is of form "n/d".
 //
 func (x *Rational) ToString(base uint) string {
 	s := x.a.ToString(base);
@@ -1448,30 +1431,28 @@ func (x *Rational) Format(h fmt.Formatter, c int) {
 
 // RatFromString returns the rational number corresponding to the
 // longest possible prefix of s representing a rational number in a
-// given conversion base.
+// given conversion base, the actual conversion base used, and the
+// prefix length.
 //
 // If the base argument is 0, the string prefix determines the actual
-// conversion base. A prefix of "0x" or "0X" selects base 16; the "0"
-// prefix selects base 8. Otherwise the selected base is 10.
+// conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
+// ``0'' prefix selects base 8. Otherwise the selected base is 10.
 //
-// If a non-nil slen argument is provided, *slen is set to the length
-// of the string prefix converted.
-//
-func RatFromString(s string, base uint, slen *int) (*Rational, uint) {
+func RatFromString(s string, base uint) (*Rational, uint, int) {
 	// read nominator
-	var alen, blen int;
-	a, abase := IntFromString(s, base, &alen);
+	a, abase, alen := IntFromString(s, base);
 	b := Nat(1);
 
 	// read denominator or fraction, if any
+	var blen int;
 	if alen < len(s) {
 		ch := s[alen];
 		if ch == '/' {
 			alen++;
-			b, base = NatFromString(s[alen : len(s)], base, &blen);
+			b, base, blen = NatFromString(s[alen : len(s)], base);
 		} else if ch == '.' {
 			alen++;
-			b, base = NatFromString(s[alen : len(s)], abase, &blen);
+			b, base, blen = NatFromString(s[alen : len(s)], abase);
 			assert(base == abase);
 			f := Nat(base).Pow(uint(blen));
 			a = MakeInt(a.sign, a.mant.Mul(f).Add(b));
@@ -1479,10 +1460,5 @@ func RatFromString(s string, base uint, slen *int) (*Rational, uint) {
 		}
 	}
 
-	// provide number of string bytes consumed if necessary
-	if slen != nil {
-		*slen = alen + blen;
-	}
-
-	return MakeRat(a, b), abase;
+	return MakeRat(a, b), base, alen + blen;
 }
