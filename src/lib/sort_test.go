@@ -18,7 +18,7 @@ var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "
 
 func TestSortIntArray(t *testing.T) {
 	data := ints;
-	a := IntArray(data);
+	a := IntArray(&data);
 	sort.Sort(a);
 	if !sort.IsSorted(a) {
 		t.Errorf("sorted %v", ints);
@@ -28,7 +28,7 @@ func TestSortIntArray(t *testing.T) {
 
 func TestSortFloatArray(t *testing.T) {
 	data := floats;
-	a := FloatArray(data);
+	a := FloatArray(&data);
 	sort.Sort(a);
 	if !sort.IsSorted(a) {
 		t.Errorf("sorted %v", floats);
@@ -38,7 +38,7 @@ func TestSortFloatArray(t *testing.T) {
 
 func TestSortStringArray(t *testing.T) {
 	data := strings;
-	a := StringArray(data);
+	a := StringArray(&data);
 	sort.Sort(a);
 	if !sort.IsSorted(a) {
 		t.Errorf("sorted %v", strings);
