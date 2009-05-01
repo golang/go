@@ -201,7 +201,8 @@ enum	as
 
 #define	D_SHIFT		(D_NONE+19)
 #define	D_FPCR		(D_NONE+20)
-#define 	D_REGREG	(D_NONE+21)
+#define D_REGREG	(D_NONE+21)
+#define D_ADDR		(D_NONE+22)
 
 /* name */
 #define	D_EXTERN	(D_NONE+3)
