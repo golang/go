@@ -1259,6 +1259,40 @@ mixed:
 //		return					(8)
 //	}
 
+int
+anyinit(Node *n)
+{
+	uint32 h;
+	Sym *s;
+
+	// are there any init statements
+	if(n != N)
+		return 1;
+
+	// is this main
+	if(strcmp(package, "main") == 0)
+		return 1;
+
+	// is there an explicit init function
+	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
+	s = lookup(namebuf);
+	if(s->oname != N)
+		return 1;
+
+	// are there any imported init functions
+	for(h=0; h<NHASH; h++)
+	for(s = hash[h]; s != S; s = s->link) {
+		if(s->name[0] != 'I' || strncmp(s->name, "Init·", 6) != 0)
+			continue;
+		if(s->oname == N)
+			continue;
+		return 1;
+	}
+
+	// then none
+	return 0;
+}
+
 void
 fninit(Node *n)
 {
@@ -1271,6 +1305,9 @@ fninit(Node *n)
 		// sys.go or unsafe.go during compiler build
 		return;
 	}
+
+	if(!anyinit(n))
+		return;
 
 	r = N;
 
