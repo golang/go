@@ -32,12 +32,21 @@ import (
 )
 
 
-// TODO remove once the code works
-var debug = flag.Bool("d", false, "debug mode");
+// TODO should probably do this in a different way
+var (
+	debug = flag.Bool("d", false, "debug mode");
+	trace = flag.Bool("t", false, "trace mode");
+)
 
 
 // ----------------------------------------------------------------------------
 // Format representation
+
+type (
+	Formatter func(w io.Write, value interface{}, name string) bool;
+	FormatterMap map[string]Formatter;
+)
+
 
 // A production expression is built from the following nodes.
 //
@@ -54,28 +63,36 @@ type (
 		x, y expr;
 	};
 
-	field struct {
-		name string;  // including "^", "*"
-		fexpr expr;  // nil if no fexpr specified
-	};
-	
 	literal struct {
 		// TODO should there be other types or should it all be string literals?
 		value []byte;
 	};
 
+	indentation struct {
+		iexpr expr;  // outdent if nil
+	};
+
+	field struct {
+		fname string;  // including "^", "*"
+		tname string;  // "" if no tname specified
+	};
+
+	negation struct {
+		neg expr;
+	};
+
 	option struct {
-		x expr
+		opt expr;
 	};
 
 	repetition struct {
-		x expr
+		rep expr;
+		div expr;
 	};
 
-	// TODO custom formats are not yet used
 	custom struct {
 		name string;
-		f func(w io.Write, value interface{}, name string) bool
+		form Formatter
 	};
 )
 
@@ -90,31 +107,47 @@ func (x *sequence) String() string {
 }
 
 
-func (x *field) String() string {
-	if x.fexpr == nil {
-		return x.name;
-	}
-	return fmt.Sprintf("%s: (%v)", x.name, x.fexpr);
-}
-
-
 func (x *literal) String() string {
 	return strconv.Quote(string(x.value));
 }
 
 
+func (x *indentation) String() string {
+	if x.iexpr != nil {
+		fmt.Sprintf(">> %s", x.iexpr);
+	}
+	return "<<";
+}
+
+
+func (x *field) String() string {
+	if x.tname == "" {
+		return x.fname;
+	}
+	return x.fname + " : " + x.tname;
+}
+
+
+func (x *negation) String() string {
+	return fmt.Sprintf("!%v", x.neg);
+}
+
+
 func (x *option) String() string {
-	return fmt.Sprintf("[%v]", x.x);
+	return fmt.Sprintf("[%v]", x.opt);
 }
 
 
 func (x *repetition) String() string {
-	return fmt.Sprintf("{%v}", x.x);
+	if x.div == nil {
+		return fmt.Sprintf("{%v}", x.rep);
+	}
+	return fmt.Sprintf("{%v / %v}", x.rep, x.div);
 }
 
 
 func (x *custom) String() string {
-	return fmt.Sprintf("<custom %s>", x.name);
+	return "<" + x.name + ">";
 }
 
 
@@ -124,13 +157,15 @@ func (x *custom) String() string {
 
 	Formatting rules are specified in the following syntax:
 
-		Format      = { Production } .
-		Production  = Name [ "=" [ Expression ] ] ";" .
+		Format      = Production { ";" Production } [ ";" ] .
+		Production  = Name "=" Expression .
 		Name        = identifier { "." identifier } .
-		Expression  = Term { "|" Term } .
+		Expression  = [ Term ] { "|" [ Term ] } .
 		Term        = Factor { Factor } .
-		Factor      = string_literal | Field | Group | Option | Repetition .
-		Field       = ( "^" | "*" | Name ) [ ":" Expression ] .
+		Factor      = string_literal | Indent | Field | Negation | Group | Option | Repetition .
+		Indent      = ">>" Factor | "<<" .
+		Field       = ( "^" | "*" | Name ) [ ":" Name ] .
+		Negation    = "!" Factor .
 		Group       = "(" Expression ")" .
 		Option      = "[" Expression "]" .
 		Repetition  = "{" Expression "}" .
@@ -182,9 +217,6 @@ type Format map [string] expr;
 	- installable custom formatters (like for template.go)
 	- have a format to select type name, field tag, field offset?
 	- use field tag as default format for that field
-	- field format override (":") is not working as it should
-	  (cannot refer to another production - syntactially not possible
-	  at the moment)
 */
 
 type parser struct {
@@ -257,12 +289,6 @@ func (p *parser) parseName() string {
 }
 
 
-// TODO WriteByte should be a ByteBuffer method
-func writeByte(buf *io.ByteBuffer, b byte) {
-	buf.Write([]byte{b});
-}
-
-
 func (p *parser) parseValue() []byte {
 	if p.tok != token.STRING {
 		p.expect(token.STRING);
@@ -281,30 +307,33 @@ func (p *parser) parseValue() []byte {
 }
 
 
+func (p *parser) parseFactor() (x expr)
 func (p *parser) parseExpr() expr
 
 func (p *parser) parseField() expr {
-	var name string;
+	var fname string;
 	switch p.tok {
 	case token.XOR:
-		name = "^";
+		fname = "^";
 		p.next();
 	case token.MUL:
-		name = "*";
+		fname = "*";
 		p.next();
 	case token.IDENT:
-		name = p.parseName();
+		// TODO use reflect.ExpandType() to lookup a field
+		// during parse-time if posssible
+		fname = p.parseName();
 	default:
 		return nil;
 	}
 
-	var fexpr expr;
+	var tname string;
 	if p.tok == token.COLON {
 		p.next();
-		fexpr = p.parseExpr();
+		tname = p.parseName();
 	}
 	
-	return &field{name, fexpr};
+	return &field{fname, tname};
 }
 
 
@@ -312,6 +341,18 @@ func (p *parser) parseFactor() (x expr) {
 	switch p.tok {
 	case token.STRING:
 		x = &literal{p.parseValue()};
+
+	case token.SHR:
+		p.next();
+		x = &indentation{p.parseFactor()};
+
+	case token.SHL:
+		p.next();
+		x = &indentation{nil};
+
+	case token.NOT:
+		p.next();
+		x = &negation{p.parseFactor()};
 
 	case token.LPAREN:
 		p.next();
@@ -325,7 +366,13 @@ func (p *parser) parseFactor() (x expr) {
 
 	case token.LBRACE:
 		p.next();
-		x = &repetition{p.parseExpr()};
+		x = p.parseExpr();
+		var div expr;
+		if p.tok == token.QUO {
+			p.next();
+			div = p.parseExpr();
+		}
+		x = &repetition{x, div};
 		p.expect(token.RBRACE);
 
 	default:
@@ -338,18 +385,15 @@ func (p *parser) parseFactor() (x expr) {
 
 func (p *parser) parseTerm() expr {
 	x := p.parseFactor();
-	if x == nil {
-		p.error_expected(p.pos, "factor");
-		p.next();  // make progress
-		return nil;
-	}
 
-	for {
-		y := p.parseFactor();
-		if y == nil {
-			break;
+	if x != nil {
+		for {
+			y := p.parseFactor();
+			if y == nil {
+				break;
+			}
+			x = &sequence{x, y};
 		}
-		x = &sequence{x, y};
 	}
 
 	return x;
@@ -369,36 +413,35 @@ func (p *parser) parseExpr() expr {
 }
 
 
+func (p *parser) parseProd() (string, expr) {
+	name := p.parseName();
+	p.expect(token.ASSIGN);
+	x := p.parseExpr();
+	return name, x; 
+}
+
+
 func (p *parser) parseFormat() Format {
 	format := make(Format);
 	
-	prefix := "";
 	for p.tok != token.EOF {
 		pos := p.pos;
-		name := p.parseName();
-		
-		if p.tok == token.ASSIGN {
-			// production
-			p.next();
-			var x expr;
-			if p.tok != token.SEMICOLON {
-				x = p.parseExpr();
-			}
-			// add production to format
-			name = prefix + name;
-			if t, found := format[name]; !found {
-				format[name] = x;
-			} else {
-				p.Error(pos, "production already declared: " + name);
-			}
-			
+		name, x := p.parseProd();
+
+		// add production to format
+		if t, found := format[name]; !found {
+			format[name] = x;
 		} else {
-			// prefix only
-			prefix = name + ".";
+			p.Error(pos, "production already declared: " + name);
 		}
-		
-		p.expect(token.SEMICOLON);
+
+		if p.tok == token.SEMICOLON {
+			p.next();
+		} else {
+			break;
+		}
 	}
+	p.expect(token.EOF);
 	
 	return format;
 }
@@ -441,18 +484,36 @@ func readSource(src interface{}, err scanner.ErrorHandler) []byte {
 // a string, a []byte, or implement io.Read. The result is a Format
 // if no errors occured; otherwise Parse returns nil.
 //
-func Parse(src interface{}) Format {
+func Parse(src interface{}, fmap FormatterMap) Format {
 	// initialize parser
 	var p parser;
 	p.scanner.Init(readSource(src, &p), &p, false);
 	p.next();
 
-	f := p.parseFormat();
-
+	format := p.parseFormat();
 	if p.lastline > 0 {	
 		return nil;  // src contains errors
 	}
-	return f;
+	
+	// add custom formatters if any
+	if fmap != nil {
+		for name, form := range fmap {
+			if t, found := format[name]; !found {
+				format[name] = &custom{name, form};
+			} else {
+				p.Error(token.Position{0, 0, 0}, "formatter already declared: " + name);
+			}
+		}
+	}
+
+	return format;
+}
+
+
+func (f Format) Dump() {
+	for name, form := range f {
+		fmt.Printf("%s = %v;\n", name, form);
+	}
 }
 
 
@@ -473,10 +534,12 @@ func fieldIndex(v reflect.StructValue, fieldname string) int {
 
 func getField(v reflect.StructValue, i int) reflect.Value {
 	fld := v.Field(i);
+	/*
 	if tmp, is_interface := fld.(reflect.InterfaceValue); is_interface {
 		// TODO do I have to check something for nil here?
 		fld = reflect.NewValue(tmp.Get());
 	}
+	*/
 	return fld;
 }
 
@@ -484,7 +547,7 @@ func getField(v reflect.StructValue, i int) reflect.Value {
 func getFieldByName(v reflect.StructValue, fieldname string) reflect.Value {
 	i := fieldIndex(v, fieldname);
 	if i < 0 {
-		panicln("field not found:", fieldname);
+		panicln(fmt.Sprintf("no field %s int %s", fieldname, v.Type().Name()));
 	}
 
 	return getField(v, i);
@@ -502,7 +565,7 @@ func typename(value reflect.Value) string {
 	case reflect.ArrayKind: name = "array";
 	case reflect.BoolKind: name = "bool";
 	case reflect.ChanKind: name = "chan";
-	case reflect.DotDotDotKind: name = "...";
+	case reflect.DotDotDotKind: name = "ellipsis";
 	case reflect.FloatKind: name = "float";
 	case reflect.Float32Kind: name = "float32";
 	case reflect.Float64Kind: name = "float64";
@@ -530,18 +593,30 @@ func typename(value reflect.Value) string {
 
 
 var defaults = map [int] expr {
-	reflect.ArrayKind: &field{"*", nil},
-	reflect.DotDotDotKind: &field{"*", nil},
-	reflect.InterfaceKind: &field{"*", nil},
-	reflect.MapKind: &field{"*", nil},
-	reflect.PtrKind: &field{"*", nil},
+	reflect.ArrayKind: &field{"*", ""},
+	reflect.DotDotDotKind: &field{"*", ""},
+	reflect.InterfaceKind: &field{"*", ""},
+	reflect.MapKind: &field{"*", ""},
+	reflect.PtrKind: &field{"*", ""},
+	reflect.StringKind: &literal{io.StringBytes("%s")},
 }
 
 var catchAll = &literal{io.StringBytes("%v")};
 
-func (f Format) getFormat(value reflect.Value) expr {
-	if fexpr, found := f[typename(value)]; found {
+func (f Format) getFormat(name string, value reflect.Value) expr {
+	/*
+	if name == "nil" {
+		fmt.Printf("value = %T %v, kind = %d\n", value, value, value.Kind());
+		panic();
+	}
+	*/
+	
+	if fexpr, found := f[name]; found {
 		return fexpr;
+	}
+	
+	if *debug {
+		fmt.Printf("no production for type: %s\n", name);
 	}
 
 	// no fexpr found - return kind-specific default value, if any
@@ -549,59 +624,133 @@ func (f Format) getFormat(value reflect.Value) expr {
 		return fexpr;
 	}
 
+	if *debug {
+		fmt.Printf("no default for type: %s\n", name);
+	}
+
 	return catchAll;
 }
 
 
 // Count the number of printf-style '%' formatters in s.
-// The result is 0, 1, or 2 (where 2 stands for 2 or more).
 //
 func percentCount(s []byte) int {
 	n := 0;
-	for i := 0; n < 2 && i < len(s); i++ {
-		// TODO should not count "%%"'s
+	for i := 0; i < len(s); i++ {
 		if s[i] == '%' {
-			n++;
+			i++;
+			if i >= len(s) || s[i] != '%' {  // don't count "%%"
+				n++;
+			}
 		}
 	}
 	return n;
 }
 
 
-func printf(w io.Write, format []byte, value reflect.Value) {
-	// TODO this seems a bit of a hack
-	if percentCount(format) == 1 {
-		// exactly one '%' format specifier - try to use it
-		fmt.Fprintf(w, string(format), value.Interface());
+func rawPrintf(w io.Write, format []byte, value reflect.Value) {
+	// TODO find a better way to do this
+	x := value.Interface();
+	switch percentCount(format) {
+	case  0: w.Write(format);
+	case  1: fmt.Fprintf(w, string(format), x);
+	case  2: fmt.Fprintf(w, string(format), x, x);
+	case  3: fmt.Fprintf(w, string(format), x, x, x);
+	case  4: fmt.Fprintf(w, string(format), x, x, x, x);
+	default: panic("no support for more than 4 '%'-format chars yet");
+	}
+}
+
+
+// TODO this should become a Go built-in
+func push(dst []int, x int) []int {
+	n := len(dst);
+	if n > cap(dst) {
+		panic("dst too small");
+	}
+	dst = dst[0 : n+1];
+	dst[n] = x;
+	return dst;
+}
+
+
+func append(dst, src []byte) []byte {
+	n, m := len(dst), len(src);
+	if n+m > cap(dst) {
+		panic("dst too small");
+	}
+	dst = dst[0 : n+m];
+	for i := 0; i < m; i++ {
+		dst[n+i] = src[i];
+	}
+	return dst;
+}
+
+
+type state struct {
+	f Format;
+	
+	// indentation
+	indent_text []byte;
+	indent_widths []int;
+}
+
+
+func (ps *state) init(f Format) {
+	ps.f = f;
+	ps.indent_text = make([]byte, 0, 1000);  // TODO don't use fixed cap
+	ps.indent_widths = make([]int, 0, 100);  // TODO don't use fixed cap
+}
+
+
+func (ps *state) indent(text []byte) {
+	ps.indent_widths = push(ps.indent_widths, len(ps.indent_text));
+	ps.indent_text = append(ps.indent_text, text);
+}
+
+
+func (ps *state) outdent() {
+	i := len(ps.indent_widths);
+	if i > 0 {
+		ps.indent_text = ps.indent_text[0 : ps.indent_widths[i-1]];
+		ps.indent_widths = ps.indent_widths[0 : i-1];
+	}
+}
+
+
+func (ps *state) printIndented(w io.Write, s []byte) {
+	// replace each '\n' with the indent + '\n'
+	i0 := 0;
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			w.Write(s[i0 : i+1]);
+			w.Write(ps.indent_text);
+			i0 = i+1;
+		}
+	}
+	w.Write(s[i0 : len(s)]);
+}
+
+
+func (ps *state) printf(w io.Write, format []byte, value reflect.Value) {
+	if len(ps.indent_widths) == 0 {
+		// no indentation
+		rawPrintf(w, format, value);
 	} else {
-		// 0 or more then 1 '%' format specifier - ignore them
-		w.Write(format);
+		// print into temporary buffer
+		var buf io.ByteBuffer;
+		rawPrintf(&buf, format, value);
+		ps.printIndented(w, buf.Data());
 	}
 }
 
 
-// TODO once 6g bug found
-func print(s string, a ...) {
-	/*
-	f0 := reflect.NewValue(a).(reflect.StructValue).Field(0);
-	if t, is_iface := f0.(reflect.InterfaceValue); is_iface {
-		f0 = reflect.NewValue(t.Get());
-	}
-	*/
-	fmt.Printf(s, a)
-}
-
-
-func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool
+func (ps *state) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool
 
 // Returns true if a non-empty field value was found.
-func (f Format) print0(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
+func (ps *state) print0(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
 	if fexpr == nil {
 		return true;
-	}
-
-	if value == nil {
-		panic("should not be possible");
 	}
 
 	switch t := fexpr.(type) {
@@ -609,12 +758,12 @@ func (f Format) print0(w io.Write, fexpr expr, value reflect.Value, index, level
 		// - print the contents of the first alternative with a non-empty field
 		// - result is true if there is at least one non-empty field
 		var buf io.ByteBuffer;
-		if f.print(&buf, t.x, value, index, level) {
+		if ps.print(&buf, t.x, value, 0, level) {
 			w.Write(buf.Data());
 			return true;
 		} else {
-			buf.Reset();
-			if f.print(&buf, t.y, value, 0, level) {
+			var buf io.ByteBuffer;
+			if ps.print(&buf, t.y, value, 0, level) {
 				w.Write(buf.Data());
 				return true;
 			}
@@ -625,27 +774,43 @@ func (f Format) print0(w io.Write, fexpr expr, value reflect.Value, index, level
 		// - print the contents of the sequence
 		// - result is true if there is no empty field
 		// TODO do we need to buffer here? why not?
-		b1 := f.print(w, t.x, value, index, level);
-		b2 := f.print(w, t.y, value, index, level);
+		b1 := ps.print(w, t.x, value, index, level);
+		b2 := ps.print(w, t.y, value, index, level);
 		return b1 && b2;
+
+	case *literal:
+		// - print the literal
+		// - result is always true (literal is never empty)
+		ps.printf(w, t.value, value);
+		return true;
+
+	case *indentation:
+		if t.iexpr != nil {
+			// indent
+			var buf io.ByteBuffer;
+			ps.print(&buf, t.iexpr, value, index, level);
+			ps.indent(buf.Data());
+
+		} else {
+			// outdent
+			ps.outdent();
+		}
+		return true;
 
 	case *field:
 		// - print the contents of the field
 		// - format is either the field format or the type-specific format
 		// - TODO look at field tag for default format
 		// - result is true if the field is not empty
-		switch t.name {
+		switch t.fname {
 		case "^":
 			// identity - value doesn't change
 
 		case "*":
 			// indirect
-			if value.Addr() == nil {  // TODO is this right?
-				return false;
-			}
 			switch v := value.(type) {
 			case reflect.ArrayValue:
-				if index < 0 || v.Len() <= index {
+				if v.Len() <= index {
 					return false;
 				}
 				value = v.Elem(index);
@@ -654,54 +819,54 @@ func (f Format) print0(w io.Write, fexpr expr, value reflect.Value, index, level
 				panic("reflection support for maps incomplete");
 
 			case reflect.PtrValue:
-				if v.Get() == nil {  // TODO is this right?
+				if v.Get() == nil {
 					return false;
 				}
 				value = v.Sub();
 
 			case reflect.InterfaceValue:
-				if v.Get() == nil {  // TODO is this right?
+				if v.Get() == nil {
 					return false;
 				}
 				value = v.Value();
 
 			default:
-				panic("not a ptr, array, map, or interface");  // TODO fix this
-			}
-
-			if value == nil {
-				fmt.Fprint(w, "NIL");  // TODO debugging
-				return false;
+				// TODO fix this
+				panic(fmt.Sprintf("error: * does not apply to `%s`\n", value.Type().Name()));
 			}
 
 		default:
 			// field
 			if s, is_struct := value.(reflect.StructValue); is_struct {
-				value = getFieldByName(s, t.name);
+				value = getFieldByName(s, t.fname);
 			} else {
-				panic ("not a struct");  // TODO fix this
+				// TODO fix this
+				panic(fmt.Sprintf("error: %s has no field `%s`\n", value.Type().Name(), t.fname));
 			}
 		}
 
 		// determine format
-		fexpr = t.fexpr;
-		if fexpr == nil {
-			// no field format - use type-specific format
-			fexpr = f.getFormat(value);
+		tname := t.tname;
+		if tname == "" {
+			tname = typename(value)
 		}
+		fexpr = ps.f.getFormat(tname, value);
 
-		return f.print(w, fexpr, value, index, level);
+		return ps.print(w, fexpr, value, index, level);
 
-	case *literal:
-		// - print the literal
-		// - result is always true (literal is never empty)
-		printf(w, t.value, value);
+	case *negation:
+		// TODO is this operation useful at all?
+		// print the contents of the option if is contains an empty field
+		var buf io.ByteBuffer;
+		if !ps.print(&buf, t.neg, value, 0, level) {
+			w.Write(buf.Data());
+		}
 		return true;
-
+		
 	case *option:
 		// print the contents of the option if it contains a non-empty field
 		var buf io.ByteBuffer;
-		if f.print(&buf, t.x, value, 0, level) {
+		if ps.print(&buf, t.opt, value, 0, level) {
 			w.Write(buf.Data());
 		}
 		return true;
@@ -709,14 +874,22 @@ func (f Format) print0(w io.Write, fexpr expr, value reflect.Value, index, level
 	case *repetition:
 		// print the contents of the repetition while there is a non-empty field
 		var buf io.ByteBuffer;
-		for i := 0; f.print(&buf, t.x, value, i, level); i++ {
+		for i := 0; ps.print(&buf, t.rep, value, i, level); i++ {
+			if i > 0 {
+				ps.print(w, t.div, value, i, level);
+			}
 			w.Write(buf.Data());
 			buf.Reset();
 		}
 		return true;
 		
 	case *custom:
-		return t.f(w, value.Interface(), t.name);
+		var buf io.ByteBuffer;
+		if t.form(&buf, value.Interface(), t.name) {
+			ps.printIndented(w, buf.Data());
+			return true;
+		}
+		return false;
 	}
 
 	panic("unreachable");
@@ -738,14 +911,14 @@ func printTrace(indent int, format string, a ...) {
 }
 
 
-func (f Format) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
-	if *debug {
+func (ps *state) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
+	if *trace {
 		printTrace(level, "%v, %d {\n", fexpr, /*value.Interface(), */index);
 	}
 
-	result := f.print0(w, fexpr, value, index, level+1);
+	result := ps.print0(w, fexpr, value, index, level+1);
 
-	if *debug {
+	if *trace {
 		printTrace(level, "} %v\n", result);
 	}
 	return result;
@@ -761,7 +934,9 @@ func (f Format) Fprint(w io.Write, args ...) {
 	value := reflect.NewValue(args).(reflect.StructValue);
 	for i := 0; i < value.Len(); i++ {
 		fld := getField(value, i);
-		f.print(w, f.getFormat(fld), fld, -1, 0);
+		var ps state;
+		ps.init(f);
+		ps.print(w, f.getFormat(typename(fld), fld), fld, 0, 0);
 	}
 }
 
@@ -770,7 +945,7 @@ func (f Format) Fprint(w io.Write, args ...) {
 // and writes to standard output.
 //
 func (f Format) Print(args ...) {
-	f.Print(os.Stdout, args);
+	f.Fprint(os.Stdout, args);
 }
 
 
