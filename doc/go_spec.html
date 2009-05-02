@@ -2905,21 +2905,18 @@ order.  Otherwise, the order of evaluation is unspecified.
 </p>
 
 <p>
-For example, while evaluating the arguments for this call
-to function <code>f</code>,
+For example, in the assignment
 </p>
 <pre>
-f(g(), h() + x[i()], <-c)
+y[f()], ok = g(h(), i() + x[j()], <-c), k()
 </pre>
 <p>
-the call to <code>g()</code> happens before the call to <code>h()</code>,
-which happens before the call to <code>i()</code>, all of
-of which happen before receiving the value from the channel
-<code>c</code>.
-However, the order of those events compared to the evaluation of
-<code>f</code>, the evaluation of <code>x</code>, and the indexing
-of <code>x</code> by the return value of
-<code>i()</code> is not specified.
+the function calls and communication happen in the order
+<code>f()</code>, <code>h()</code>, <code>i()</code>, <code>j()</code>,
+<code><-c</code>, <code>g()</code>, and <code>k()</code>.
+However, the order of those events compared to the evaluation
+and indexing of <code>x</code> and the evaluation
+of <code>y</code> is not specified.
 </p>
 
 <hr/>
@@ -3164,7 +3161,7 @@ type of a specially annotated switch expression.
 In an expression switch,
 the switch expression is evaluated and
 the case expressions, which need not be constants,
-are evaluated top-to-bottom; the first one that equals the
+are evaluated left-to-right and top-to-bottom; the first one that equals the
 switch expression
 triggers execution of the statements of the associated case;
 the other cases are skipped.
