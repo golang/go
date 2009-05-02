@@ -87,6 +87,30 @@ TEXT gosave(SB), 7, $0
  * support for morestack
  */
 
+// morestack trampolines
+TEXT	sys·morestack00+0(SB),7,$0
+	MOVQ	$0, AX
+	MOVQ	AX, 8(R14)
+	MOVQ	$sys·morestack+0(SB), AX
+	JMP	AX
+
+TEXT	sys·morestack01+0(SB),7,$0
+	SHLQ	$32, AX
+	MOVQ	AX, 8(R14)
+	MOVQ	$sys·morestack+0(SB), AX
+	JMP	AX
+
+TEXT	sys·morestack10+0(SB),7,$0
+	MOVLQZX	AX, AX
+	MOVQ	AX, 8(R14)
+	MOVQ	$sys·morestack+0(SB), AX
+	JMP	AX
+
+TEXT	sys·morestack11+0(SB),7,$0
+	MOVQ	AX, 8(R14)
+	MOVQ	$sys·morestack+0(SB), AX
+	JMP	AX
+
 // return point when leaving new stack.  save AX, jmp to lessstack to switch back
 TEXT retfromnewstack(SB), 7, $0
 	MOVQ	AX, 16(R14)	// save AX in m->cret

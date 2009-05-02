@@ -483,24 +483,34 @@ dostkoff(void)
 	Prog *p, *q, *q1;
 	int32 autoffset, deltasp;
 	int a, f, curframe, curbecome, maxbecome, pcsize;
-	Prog *pmorestack;
-	Sym *symmorestack;
+	Prog *pmorestack00, *pmorestack01, *pmorestack10, *pmorestack11;
+	Sym *symmorestack00, *symmorestack01, *symmorestack10, *symmorestack11;
+	uint32 moreconst1, moreconst2;
 
-	pmorestack = P;
-	symmorestack = lookup("sys·morestack", 0);
+	pmorestack00 = P;
+	pmorestack01 = P;
+	pmorestack10 = P;
+	pmorestack11 = P;
 
-	if(symmorestack->type == STEXT)
+	symmorestack00 = lookup("sys·morestack00", 0);
+	symmorestack01 = lookup("sys·morestack01", 0);
+	symmorestack10 = lookup("sys·morestack10", 0);
+	symmorestack11 = lookup("sys·morestack11", 0);
+
 	for(p = firstp; p != P; p = p->link) {
 		if(p->as == ATEXT) {
-			if(p->from.sym == symmorestack) {
-				pmorestack = p;
-				p->from.scale |= NOSPLIT;
-				break;
-			}
+			if(p->from.sym == symmorestack00)
+				pmorestack00 = p;
+			if(p->from.sym == symmorestack01)
+				pmorestack01 = p;
+			if(p->from.sym == symmorestack10)
+				pmorestack10 = p;
+			if(p->from.sym == symmorestack11)
+				pmorestack11 = p;
 		}
 	}
-	if(pmorestack == P)
-		diag("sys·morestack not defined");
+	if(pmorestack00 == P || pmorestack01 == P || pmorestack10 == P || pmorestack11 == P)
+		diag("sys·morestack[01][01] not defined");
 
 	curframe = 0;
 	curbecome = 0;
@@ -583,14 +593,14 @@ dostkoff(void)
 
 			q = P;
 			q1 = P;
-			if(pmorestack != P)
 			if(!(p->from.scale & NOSPLIT)) {
 				if(debug['K']) {
 					// 6l -K means check not only for stack
 					// overflow but stack underflow.
 					// On underflow, INT 3 (breakpoint).
 					// Underflow itself is rare but this also
-					// catches out-of-sync stack guard info.
+					// catches out-of-sync stack guard info
+
 					p = appendp(p);
 					p->as = ACMPQ;
 					p->from.type = D_INDIR+D_R15;
@@ -646,33 +656,73 @@ dostkoff(void)
 					q = p;
 				}
 
-				p = appendp(p);
-				p->as = AMOVQ;
-				p->from.type = D_CONST;
-				p->from.offset = 0;
-				p->to.type = D_AX;
-				if(q1) {
-					q1->pcond = p;
-					q1 = P;
-				}
-
 				/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
+				moreconst1 = 0;
 				if(autoffset+160 > 4096)
-					p->from.offset = (autoffset+160) & ~7LL;
-				p->from.offset |= textarg<<32;
+					moreconst1 = (autoffset+160) & ~7LL;
+				moreconst2 = textarg;
 
+				// four varieties (const1==0 cross const2==0)
 				p = appendp(p);
-				p->as = AMOVQ;
-				p->from.type = D_AX;
-				p->to.type = D_INDIR+D_R14;
-				p->to.offset = 8;
+				if(moreconst1 == 0 && moreconst2 == 0) {
+					p->as = ACALL;
+					p->to.type = D_BRANCH;
+					p->pcond = pmorestack00;
+					p->to.sym = symmorestack00;
+					if(q1) {
+						q1->pcond = p;
+						q1 = P;
+					}
+				} else
+				if(moreconst1 != 0 && moreconst2 == 0) {
+					p->as = AMOVL;
+					p->from.type = D_CONST;
+					p->from.offset = moreconst1;
+					p->to.type = D_AX;
+					if(q1) {
+						q1->pcond = p;
+						q1 = P;
+					}
 
-				p = appendp(p);
-				p->as = ACALL;
-				p->to.type = D_BRANCH;
-				p->pcond = pmorestack;
-				p->to.sym = symmorestack;
+					p = appendp(p);
+					p->as = ACALL;
+					p->to.type = D_BRANCH;
+					p->pcond = pmorestack10;
+					p->to.sym = symmorestack10;
+				} else
+				if(moreconst1 == 0 && moreconst2 != 0) {
+					p->as = AMOVL;
+					p->from.type = D_CONST;
+					p->from.offset = moreconst2;
+					p->to.type = D_AX;
+					if(q1) {
+						q1->pcond = p;
+						q1 = P;
+					}
 
+					p = appendp(p);
+					p->as = ACALL;
+					p->to.type = D_BRANCH;
+					p->pcond = pmorestack01;
+					p->to.sym = symmorestack01;
+				} else {
+
+					p->as = AMOVQ;
+					p->from.type = D_CONST;
+					p->from.offset = (uint64)moreconst2 << 32;
+					p->from.offset |= moreconst1;
+					p->to.type = D_AX;
+					if(q1) {
+						q1->pcond = p;
+						q1 = P;
+					}
+
+					p = appendp(p);
+					p->as = ACALL;
+					p->to.type = D_BRANCH;
+					p->pcond = pmorestack11;
+					p->to.sym = symmorestack11;
+				}
 			}
 
 			if(q != P)
