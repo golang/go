@@ -66,7 +66,7 @@ func makeTabwriter(writer io.Write) *tabwriter.Writer {
 	if *usetabs {
 		padchar = '\t';
 	}
-	return tabwriter.NewWriter(writer, *tabwidth, 1, padchar, tabwriter.FilterHTML);
+	return tabwriter.NewWriter(writer, *tabwidth, 1, padchar, 0);
 }
 
 
@@ -114,7 +114,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
 		sys.Exit(1);
 	}
-	ast_format := format.Parse(src);
+	ast_format := format.Parse(src, nil);
 	if ast_format == nil {
 		fmt.Fprintf(os.Stderr, "%s: format errors\n", ast_txt);
 		sys.Exit(1);

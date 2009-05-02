@@ -2,216 +2,314 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Format file for printing AST nodes (package "ast").
+
 // ----------------------------------------------------------------------------
 // Debugging
 
 token.Token =
-	^ : "%s";
+	^:string;
 
+array =
+	*;
 
-// Format file for printing AST nodes (package "ast").
-ast;
+pointer =
+	*;
+
+string =
+	"%s";
+
+char =
+	"%c";
+
+bytes =
+	{*};
+
+nil =
+	;  // TODO we see a lot of nil's - why?
+
+not_empty =
+	*:nil;
+
 
 // ----------------------------------------------------------------------------
-// TODO should these be automatic?
+// TODO these are implicit - only here for debugging
 
-Expr =
-	"expr ";
-	//*;
-
-Stmt =
+ast.Expr =
 	*;
 
-Decl =
+ast.Stmt =
 	*;
+
+ast.Decl =
+	*;
+
 
 // ----------------------------------------------------------------------------
 // Comments
 
-Comment =
-	Text : "%s\n";
+ast.Comment =
+	Text:string "\n";
 
-Comments =
+ast.Comments =
 	{*};
 
 
 // ----------------------------------------------------------------------------
 // Expressions & Types
 
-Field =
-	{Names ", "} Type;
+ast.Field =
+	[Names:not_empty {Names / ", "} " "] Type;
 
-BadExpr =
+ast.BadExpr =
 	"BAD EXPR";
 
-Ident =
+ast.Ident =
 	Value;
 
-Elipsis =
+ast.Ellipsis =
 	"...";
 
-IntLit =
-	Value : "%s";
+ast.IntLit =
+	Value:string;
 
-FloatLit =
-	Value : "%s";
+ast.FloatLit =
+	Value:string;
 
-CharLit =
-	Value : "%s";
+ast.CharLit =
+	Value:string;
 
-StringLit =
-	Value : "%s";
+ast.StringLit =
+	Value:string;
 
-StringList =
-	{ Strings };
+ast.StringList =
+	{Strings / "\n"};
 
-FuncLit =
+ast.FuncLit =
 	"func ";
 
-CompositeLit =
-	Type "{}";
+ast.CompositeLit =
+	Type "{" {Elts / ", "} "}";
 
-ParenExpr =
+ast.ParenExpr =
 	"(" X ")";
 
-SelectorExpr =
+ast.SelectorExpr =
 	X "." Sel;
 
-IndexExpr =
+ast.IndexExpr =
 	X "[" Index "]";
 
-SliceExpr =
-	X "[" Begin " : " End "]";
+ast.SliceExpr =
+	X "[" Begin ":" End "]";
 
-TypeAssertExpr =
+ast.TypeAssertExpr =
 	X ".(" Type ")";
 
-CallExpr =
-	Fun "(" {Args} ")";
+ast.CallExpr =
+	Fun "(" {Args / ", "} ")";
 
-StarExpr =
+ast.StarExpr =
 	"*" X;
 
-UnaryExpr =
+ast.UnaryExpr =
 	Op X;
 
-BinaryExpr =
-	X Op Y;
+ast.BinaryExpr =
+	X " " Op " " Y;
 
-KeyValueExpr =
+ast.KeyValueExpr =
 	Key ": " Value;
 
-ArrayType =
+ast.ArrayType =
 	"[" Len "]" Elt;
 
-SliceType =
+ast.SliceType =
 	"[]" Elt;
 
-StructType =
-	"struct {\n"
+ast.StructType =
+	"struct {"
+	[Fields:not_empty
+	>> "\t" "\n"
+		{Fields / ";\n"}
+	<< "\n"
+	]
 	"}";
 
-FuncType =
-	"(" {Params " "} ")";
+signature =
+	"(" {Params / ", "} ")" [Results:not_empty " (" {Results / ", "} ")"];
 
-// BUG take this one away and the code crashes
-InterfaceType =
-	"interface {}";
+funcSignature =
+	*:signature;
 
-MapType =
+ast.FuncType =
+	"func" ^:signature;
+
+ast.InterfaceType =
+	"interface {"
+	[Methods:not_empty
+	>> "\t" "\n"
+		{Methods / ";\n"}  // TODO should not start with "func"
+	<< "\n"
+	]
+	"}";
+
+ast.MapType =
 	"map[" Key "]" Value;
 
-ChanType =
+ast.ChanType =
 	"chan";
 
 
 // ----------------------------------------------------------------------------
 // Statements
 
-BadStmt =
+ast.BadStmt =
 	"BAD STMT";
 
-DeclStmt =
+ast.DeclStmt =
 	Decl;
 
-EmptyStmt =
+ast.EmptyStmt =
 	;
 
-LabeledStmt =
+ast.LabeledStmt =
 	Label ":\t" Stmt;
 
-ExprStmt =
+ast.ExprStmt =
 	X;
 
-IncDecStmt =
+ast.IncDecStmt =
 	X Tok;
 
-AssignStmt =
-	"assignment " {Lhs ", "};
-	//{Lhs ", "} Tok {Rhs ", "};
+ast.AssignStmt =
+	{Lhs / ", "} " " Tok " " {Rhs / ", "};
 
-GoStmt =
+ast.GoStmt =
 	"go " Call;
 
-ReturnStmt =
-	"return" {" " Results};
+ast.ReturnStmt =
+	"return" {" " Results / ","};
 
-BranchStmt =
+ast.BranchStmt =
 	Tok [" " Label];
 
-BlockStmt =
-	"{\n" {List ";\n"} "}\n";
+blockStmt =  // like ast.BlockStmt but w/o indentation
+	"{"
+	[List:not_empty
+	"\n"
+		{List / ";\n"}
+	"\n"
+	]
+	"}";
 
-IfStmt =
-	"if " "{" [Body] "}" [Else];
+blockStmtPtr =
+	*:blockStmt;
 
-SwitchStmt =
-	"switch {}";
+ast.BlockStmt =
+	"{"
+	[List:not_empty
+	>> "\t" "\n"
+		{List / ";\n"}
+	<< "\n"
+	]
+	"}";
 
-TypeSwitchStmt =
-	"switch {}";
+ast.IfStmt =
+	"if " [Init "; "] [Cond " "] Body [" else " Else];
 
-SelectStmt =
-	"select {}";
+ast.CaseClause =
+	( Values:not_empty "case " {Values / ", "}
+	| "default"
+	)
+	":"
+	[Body:not_empty
+	>> "\t" "\n"
+		{Body / ";\n"}
+	<<
+	];
 
-ForStmt =
-	"for {}";
+ast.SwitchStmt =
+	"switch " [Init "; "] [Tag " "]
+	Body:blockStmtPtr;
 
-RangeStmt =
-	"range";
+ast.TypeCaseClause =
+	(	Type:not_empty "case " Type
+	|	"default"
+	)
+	":"
+	[Body:not_empty
+	>> "\t" "\n"
+		{Body / ";\n"}
+	<<
+	];
+
+ast.TypeSwitchStmt =
+	"switch " Assign " "
+	Body:blockStmtPtr;
+
+ast.CommClause =
+	"CommClause";
+
+ast.SelectStmt =
+	"select "
+	Body:blockStmtPtr;
+
+ast.ForStmt =
+	"for "
+	[	Init:not_empty
+		[Init] "; " [Cond] "; " [Post " "]
+	|	Post:not_empty
+		[Init] "; " [Cond] "; " [Post " "]
+	|	Cond " "
+	]
+	Body;
+
+ast.RangeStmt =
+	"for " Key [", " Value] " " Tok " range " X
+	" "
+	Body;
 
 
 // ----------------------------------------------------------------------------
 // Declarations
 
-Spec =
+ast.Spec =
 	*;
 
-ImportSpec =
-	"import";
+ast.ImportSpec =
+	Doc
+	[Name] "\t" {Path};
 
-ValueSpec =
-	"value";
+ast.ValueSpec =
+	{Names / ", "} [" " Type] [Values:not_empty " = " {Values / ", "}];
 
-TypeSpec =
-	"type";
+ast.TypeSpec =
+	Name " "  // TODO using "\t" instead of " " screws up struct field alignment
+	Type;
 
-BadDecl =
+ast.BadDecl =
 	"BAD DECL";
 
-GenDecl =
+ast.GenDecl =
 	Doc
-	Tok " (\n"
-	")\n";
-	
-FuncDecl =
-	"func " ["(" Recv ") "] Name Type [" " Body];
-	
+	Tok " ("
+	>> "\t" "\n"
+		{Specs / ";\n"}
+	<<
+	"\n"
+	")";
+
+ast.FuncDecl =
+	"func " ["(" Recv ") "] Name Type:funcSignature
+	[" " Body]
+	"\n";
+
 
 // ----------------------------------------------------------------------------
 // Program
 
-Program =
+ast.Program =
 	Doc
 	"package " Name "\n\n"
-	{Decls "\n\n"};
+	{Decls / "\n\n"};

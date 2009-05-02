@@ -11,10 +11,10 @@ import (
 
 
 func check(t *testing.T, form, expected string, args ...) {
-	result := format.Parse(form).Sprint(args);
+	result := format.Parse(form, nil).Sprint(args);
 	if result != expected {
 		t.Errorf(
-			"format  : %s\nresult  : %s\nexpected: %s\n\n",
+			"format  : %s\nresult  : `%s`\nexpected: `%s`\n\n",
 			form, result, expected
 		)
 	}
@@ -22,13 +22,19 @@ func check(t *testing.T, form, expected string, args ...) {
 
 
 // ----------------------------------------------------------------------------
-// - formatting of basic type int
+// Syntax
 
-const F0 =
-	`int = "0x%x";`
+func TestA(t *testing.T) {
+	// TODO fill this in
+}
+
+
+// ----------------------------------------------------------------------------
+// - formatting of basic types
 
 func Test0(t *testing.T) {
-	check(t, F0, "0x2a", 42);
+	check(t, `bool = "%v"`, "false", false);
+	check(t, `int = "%b %d %o 0x%x"`, "101010 42 52 0x2a", 42);
 }
 
 
@@ -60,7 +66,7 @@ type T2 struct {
 const F2a =
 	F1 +
 	`pointer = *;`
-	`format.T2 = s ["-" p "-"];`;
+	`format.T2 = s ["-" p "-"];`
 	
 const F2b =
 	F1 +
@@ -82,14 +88,43 @@ type T3 struct {
 }
 
 const F3a =
-	`format.T3 = s  { " " a a "," };`;
+	`format.T3 = s  {" " a a / ","};`
 
 const F3b =
-	`format.T3 = [a:""] s | "nothing";`;  // use 'a' to select alternative w/o printing a
+	`nil = ;`
+	`empty = *:nil;`
+	`format.T3 = s [a:empty ": " {a / "-"}]`
 
 func Test3(t *testing.T) {
 	check(t, F3a, "foo", T3{"foo", nil});
-	check(t, F3a, "foo 00, 11, 22,", T3{"foo", []int{0, 1, 2}});
-	//check(t, F3b, "nothing", T3{"bar", nil});  // TODO fix this
-	check(t, F3b, "bar", T3{"bar", []int{0}});
+	check(t, F3a, "foo 00, 11, 22", T3{"foo", []int{0, 1, 2}});
+	check(t, F3b, "bar", T3{"bar", nil});
+	check(t, F3b, "bal: 2-3-5", T3{"bal", []int{2, 3, 5}});
+}
+
+
+// ----------------------------------------------------------------------------
+// - formatting of a struct with alternative field
+
+type T4 struct {
+	x *int;
+	a []int;
+}
+
+const F4a =
+	`nil = ;`
+	`empty = *:nil;`
+	`format.T4 = "<" (x:empty x | "-") ">" `
+
+const F4b =
+	`nil = ;`
+	`empty = *:nil;`
+	`format.T4 = "<" (a:empty {a / ", "} | "-") ">" `
+
+func Test4(t *testing.T) {
+	x := 7;
+	check(t, F4a, "<->", T4{nil, nil});
+	check(t, F4a, "<7>", T4{&x, nil});
+	check(t, F4b, "<->", T4{nil, nil});
+	check(t, F4b, "<2, 3, 7>", T4{nil, []int{2, 3, 7}});
 }
