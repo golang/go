@@ -1756,11 +1756,11 @@ sudoclean(void)
  * to release the register used for a.
  */
 int
-sudoaddable(Node *n, Addr *a)
+sudoaddable(int as, Node *n, Addr *a)
 {
 	int o, i, w;
 	int oary[10];
-	vlong v;
+	int64 v;
 	Node n1, n2, n3, *nn, *l, *r;
 	Node *reg, *reg1;
 	Prog *p1;
@@ -1770,8 +1770,13 @@ sudoaddable(Node *n, Addr *a)
 		return 0;
 
 	switch(n->op) {
-	default:
-		return 0;
+	case OLITERAL:
+		if(n->val.ctype != CTINT)
+			break;
+		v = mpgetfix(n->val.u.xval);
+		if(v >= 32000 || v <= -32000)
+			break;
+		goto lit;
 
 	case ODOT:
 	case ODOTPTR:
@@ -1790,6 +1795,30 @@ sudoaddable(Node *n, Addr *a)
 		reg1->op = OEMPTY;
 		goto oindex;
 	}
+	return 0;
+
+lit:
+	switch(as) {
+	default:
+		return 0;
+	case AADDB: case AADDW: case AADDL: case AADDQ:
+	case ASUBB: case ASUBW: case ASUBL: case ASUBQ:
+	case AANDB: case AANDW: case AANDL: case AANDQ:
+	case AORB:  case AORW:  case AORL:  case AORQ:
+	case AXORB: case AXORW: case AXORL: case AXORQ:
+	case AINCB: case AINCW: case AINCL: case AINCQ:
+	case ADECB: case ADECW: case ADECL: case ADECQ:
+	case AMOVB: case AMOVW: case AMOVL: case AMOVQ:
+		break;
+	}
+
+	cleani += 2;
+	reg = &clean[cleani-1];
+	reg1 = &clean[cleani-2];
+	reg->op = OEMPTY;
+	reg1->op = OEMPTY;
+	naddr(n, a);
+	goto yes;
 
 odot:
 	o = dotoffset(n, oary, &nn);

@@ -72,8 +72,8 @@ cgen(Node *n, Node *res)
 			break;
 		}
 
-		if(sudoaddable(res, &addr)) {
-			a = optoas(OAS, res->type);
+		a = optoas(OAS, res->type);
+		if(sudoaddable(a, res, &addr)) {
 			if(f) {
 				regalloc(&n2, res->type, N);
 				cgen(n, &n2);
@@ -112,8 +112,8 @@ cgen(Node *n, Node *res)
 		goto ret;
 	}
 
-	if(sudoaddable(n, &addr)) {
-		a = optoas(OAS, n->type);
+	a = optoas(OAS, n->type);
+	if(sudoaddable(a, n, &addr)) {
 		if(res->op == OREGISTER) {
 			p1 = gins(a, N, res);
 			p1->from = addr;
@@ -309,7 +309,7 @@ abop:	// asymmetric binary
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
 
-		if(sudoaddable(nr, &addr)) {
+		if(sudoaddable(a, nr, &addr)) {
 			p1 = gins(a, N, &n1);
 			p1->from = addr;
 			gmove(&n1, res);
@@ -317,7 +317,6 @@ abop:	// asymmetric binary
 			regfree(&n1);
 			goto ret;
 		}
-
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
 	} else {

@@ -120,7 +120,7 @@ void	buildtxt(void);
 Plist*	newplist(void);
 int	isfat(Type*);
 void	sudoclean(void);
-int	sudoaddable(Node*, Addr*);
+int	sudoaddable(int, Node*, Addr*);
 void	afunclit(Addr*);
 
 /*
