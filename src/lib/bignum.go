@@ -364,7 +364,7 @@ func div1(z, x []digit2, y digit2) digit2 {
 // used here.
 //
 // 1) D. Knuth, The Art of Computer Programming. Volume 2. Seminumerical
-//    Algorithms." Addison-Wesley, Reading, 1969.
+//    Algorithms. Addison-Wesley, Reading, 1969.
 //    (Algorithm D, Sec. 4.3.1)
 //
 // 2) Henry S. Warren, Jr., Hacker's Delight. Addison-Wesley, 2003.
