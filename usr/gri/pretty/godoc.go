@@ -554,17 +554,7 @@ func (p *pakDesc) Doc() (*doc.PackageDoc, *parseErrors) {
 
 		if i == 0 {
 			// first file - initialize doc
-			// canonicalize importpath
-			// (e.g. such that "template/template" becomes just "template")
-			// TODO This should not be needed here as similar functionality
-			//      is elsewhere, but w/o this fix the output is incorrect
-			//      for, say: "godoc template/template". Temporary work-around.
-			path := p.importpath;
-			dir, name := pathutil.Split(pathutil.Clean(path));
-			if name == prog.Name.Value {
-				path = pathutil.Clean(dir);
-			}
-			r.Init(prog.Name.Value, path);
+			r.Init(prog.Name.Value, p.importpath);
 		}
 		i++;
 		r.AddProgram(prog);
