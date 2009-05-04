@@ -477,40 +477,52 @@ brloop(Prog *p)
 	return q;
 }
 
+static char*
+morename[] =
+{
+	"sys·morestack00",
+	"sys·morestack10",
+	"sys·morestack01",
+	"sys·morestack11",
+
+	"sys·morestack8",
+	"sys·morestack16",
+	"sys·morestack24",
+	"sys·morestack32",
+	"sys·morestack40",
+	"sys·morestack48",
+};
+Prog*	pmorestack[nelem(morename)];
+Sym*	symmorestack[nelem(morename)];
+
 void
 dostkoff(void)
 {
 	Prog *p, *q, *q1;
 	int32 autoffset, deltasp;
 	int a, f, curframe, curbecome, maxbecome, pcsize;
-	Prog *pmorestack00, *pmorestack01, *pmorestack10, *pmorestack11;
-	Sym *symmorestack00, *symmorestack01, *symmorestack10, *symmorestack11;
-	uint32 moreconst1, moreconst2;
+	uint32 moreconst1, moreconst2, i;
 
-	pmorestack00 = P;
-	pmorestack01 = P;
-	pmorestack10 = P;
-	pmorestack11 = P;
-
-	symmorestack00 = lookup("sys·morestack00", 0);
-	symmorestack01 = lookup("sys·morestack01", 0);
-	symmorestack10 = lookup("sys·morestack10", 0);
-	symmorestack11 = lookup("sys·morestack11", 0);
+	for(i=0; i<nelem(morename); i++) {
+		symmorestack[i] = lookup(morename[i], 0);
+		pmorestack[i] = P;
+	}
 
 	for(p = firstp; p != P; p = p->link) {
 		if(p->as == ATEXT) {
-			if(p->from.sym == symmorestack00)
-				pmorestack00 = p;
-			if(p->from.sym == symmorestack01)
-				pmorestack01 = p;
-			if(p->from.sym == symmorestack10)
-				pmorestack10 = p;
-			if(p->from.sym == symmorestack11)
-				pmorestack11 = p;
+			for(i=0; i<nelem(morename); i++) {
+				if(p->from.sym == symmorestack[i]) {
+					pmorestack[i] = p;
+					break;
+				}
+			}
 		}
 	}
-	if(pmorestack00 == P || pmorestack01 == P || pmorestack10 == P || pmorestack11 == P)
-		diag("sys·morestack[01][01] not defined");
+
+	for(i=0; i<nelem(morename); i++) {
+		if(pmorestack[i] == P)
+			diag("morestack trampoline not defined");
+	}
 
 	curframe = 0;
 	curbecome = 0;
@@ -662,13 +674,14 @@ dostkoff(void)
 					moreconst1 = (autoffset+160) & ~7LL;
 				moreconst2 = textarg;
 
-				// four varieties (const1==0 cross const2==0)
+				// 4 varieties varieties (const1==0 cross const2==0)
+				// and 6 subvarieties of (const1==0 and const2!=0)
 				p = appendp(p);
 				if(moreconst1 == 0 && moreconst2 == 0) {
 					p->as = ACALL;
 					p->to.type = D_BRANCH;
-					p->pcond = pmorestack00;
-					p->to.sym = symmorestack00;
+					p->pcond = pmorestack[0];
+					p->to.sym = symmorestack[0];
 					if(q1) {
 						q1->pcond = p;
 						q1 = P;
@@ -687,8 +700,19 @@ dostkoff(void)
 					p = appendp(p);
 					p->as = ACALL;
 					p->to.type = D_BRANCH;
-					p->pcond = pmorestack10;
-					p->to.sym = symmorestack10;
+					p->pcond = pmorestack[1];
+					p->to.sym = symmorestack[1];
+				} else
+				if(moreconst1 == 0 && moreconst2 <= 48 && moreconst2%8 == 0) {
+					i = moreconst2/8 + 3;
+					p->as = ACALL;
+					p->to.type = D_BRANCH;
+					p->pcond = pmorestack[i];
+					p->to.sym = symmorestack[i];
+					if(q1) {
+						q1->pcond = p;
+						q1 = P;
+					}
 				} else
 				if(moreconst1 == 0 && moreconst2 != 0) {
 					p->as = AMOVL;
@@ -703,10 +727,9 @@ dostkoff(void)
 					p = appendp(p);
 					p->as = ACALL;
 					p->to.type = D_BRANCH;
-					p->pcond = pmorestack01;
-					p->to.sym = symmorestack01;
+					p->pcond = pmorestack[2];
+					p->to.sym = symmorestack[2];
 				} else {
-
 					p->as = AMOVQ;
 					p->from.type = D_CONST;
 					p->from.offset = (uint64)moreconst2 << 32;
@@ -720,8 +743,8 @@ dostkoff(void)
 					p = appendp(p);
 					p->as = ACALL;
 					p->to.type = D_BRANCH;
-					p->pcond = pmorestack11;
-					p->to.sym = symmorestack11;
+					p->pcond = pmorestack[3];
+					p->to.sym = symmorestack[3];
 				}
 			}
 
@@ -947,14 +970,18 @@ export(void)
 	n = 0;
 	for(i = 0; i < NHASH; i++)
 		for(s = hash[i]; s != S; s = s->link)
-			if(s->sig != 0 && s->type != SXREF && s->type != SUNDEF && (nexports == 0 || s->subtype == SEXPORT))
+			if(s->sig != 0 && s->type != SXREF &&
+			   s->type != SUNDEF &&
+			   (nexports == 0 || s->subtype == SEXPORT))
 				n++;
 	esyms = malloc(n*sizeof(Sym*));
 	ne = n;
 	n = 0;
 	for(i = 0; i < NHASH; i++)
 		for(s = hash[i]; s != S; s = s->link)
-			if(s->sig != 0 && s->type != SXREF && s->type != SUNDEF && (nexports == 0 || s->subtype == SEXPORT))
+			if(s->sig != 0 && s->type != SXREF &&
+			   s->type != SUNDEF &&
+			   (nexports == 0 || s->subtype == SEXPORT))
 				esyms[n++] = s;
 	for(i = 0; i < ne-1; i++)
 		for(j = i+1; j < ne; j++)
