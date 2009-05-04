@@ -111,6 +111,45 @@ TEXT	sys·morestack11+0(SB),7,$0
 	MOVQ	$sys·morestack+0(SB), AX
 	JMP	AX
 
+TEXT	sys·morestackx(SB),7,$0
+	POPQ	AX
+	SHLQ	$35, AX
+	MOVQ	AX, 8(R14)
+	MOVQ	$sys·morestack(SB), AX
+	JMP	AX
+
+// subcases of morestack01
+// with const of 8,16,...48
+TEXT	sys·morestack8(SB),7,$0
+	PUSHQ	$1
+	MOVQ	$sys·morestackx(SB), AX
+	JMP	AX
+
+TEXT	sys·morestack16(SB),7,$0
+	PUSHQ	$2
+	MOVQ	$sys·morestackx(SB), AX
+	JMP	AX
+
+TEXT	sys·morestack24(SB),7,$0
+	PUSHQ	$3
+	MOVQ	$sys·morestackx(SB), AX
+	JMP	AX
+
+TEXT	sys·morestack32(SB),7,$0
+	PUSHQ	$4
+	MOVQ	$sys·morestackx(SB), AX
+	JMP	AX
+
+TEXT	sys·morestack40(SB),7,$0
+	PUSHQ	$5
+	MOVQ	$sys·morestackx(SB), AX
+	JMP	AX
+
+TEXT	sys·morestack48(SB),7,$0
+	PUSHQ	$6
+	MOVQ	$sys·morestackx(SB), AX
+	JMP	AX
+
 // return point when leaving new stack.  save AX, jmp to lessstack to switch back
 TEXT retfromnewstack(SB), 7, $0
 	MOVQ	AX, 16(R14)	// save AX in m->cret

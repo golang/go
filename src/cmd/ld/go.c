@@ -572,16 +572,37 @@ sweeplist(Prog **first, Prog **last)
 	*last = q;
 }
 
+static char*
+morename[] =
+{
+	"sys·morestack",
+	"sys·morestackx",
+
+	"sys·morestack00",
+	"sys·morestack10",
+	"sys·morestack01",
+	"sys·morestack11",
+
+	"sys·morestack8",
+	"sys·morestack16",
+	"sys·morestack24",
+	"sys·morestack32",
+	"sys·morestack40",
+	"sys·morestack48",
+};
+
 void
 deadcode(void)
 {
+	int i;
+
 	if(debug['v'])
 		Bprint(&bso, "%5.2f deadcode\n", cputime());
 
 	mark(lookup(INITENTRY, 0));
-	mark(lookup("sys·morestack", 0));
+	for(i=0; i<nelem(morename); i++)
+		mark(lookup(morename[i], 0));
 
 	sweeplist(&firstp, &lastp);
 	sweeplist(&datap, &edatap);
 }
-
