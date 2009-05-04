@@ -3,231 +3,200 @@
 // license that can be found in the LICENSE file.
 
 // The exvar package provides a standardized interface to public variables,
-// such as operation counters in servers.
+// such as operation counters in servers. It exposes these variables via
+// HTTP at /debug/vars in JSON format.
 package exvar
 
 import (
 	"fmt";
 	"http";
 	"io";
+	"log";
+	"strconv";
+	"sync";
 )
 
-// If mismatched names are used (e.g. calling IncrementInt on a mapVar), the
-// var name is silently mapped to these. We will consider variables starting
-// with reservedPrefix to be reserved by this package, and so we avoid the
-// possibility of a user doing IncrementInt("x-mismatched-map", 1).
-// TODO(dsymonds): Enforce this.
-const (
-	reservedPrefix = "x-";
-	mismatchedInt = reservedPrefix + "mismatched-int";
-	mismatchedMap = reservedPrefix + "mismatched-map";
-	mismatchedStr = reservedPrefix + "mismatched-str";
-)
-
-// exVar is an abstract type for all exported variables.
-type exVar interface {
+// Var is an abstract type for all exported variables.
+type Var interface {
 	String() string;
 }
 
-// intVar is an integer variable, and satisfies the exVar interface.
-type intVar int;
-
-func (i intVar) String() string {
-	return fmt.Sprint(int(i))
+// Int is a 64-bit integer variable, and satisfies the Var interface.
+type Int struct {
+	i int64;
+	mu sync.Mutex;
 }
 
-// mapVar is a map variable, and satisfies the exVar interface.
-type mapVar map[string] int;
+func (v *Int) String() string {
+	return strconv.Itoa64(v.i)
+}
 
-func (m mapVar) String() string {
-	s := "map:x";  // TODO(dsymonds): the 'x' should be user-specified!
-	for k, v := range m {
-		s += fmt.Sprintf(" %s:%v", k, v)
+func (v *Int) Add(delta int64) {
+	v.mu.Lock();
+	defer v.mu.Unlock();
+	v.i += delta;
+}
+
+// Map is a string-to-Var map variable, and satisfies the Var interface.
+type Map struct {
+	m map[string] Var;
+	mu sync.Mutex;
+}
+
+// KeyValue represents a single entry in a Map.
+type KeyValue struct {
+	Key string;
+	Value Var;
+}
+
+func (v *Map) String() string {
+	v.mu.Lock();
+	defer v.mu.Unlock();
+	b := new(io.ByteBuffer);
+	fmt.Fprintf(b, "{");
+	first := true;
+	for key, val := range v.m {
+		if !first {
+			fmt.Fprintf(b, ", ");
+		}
+		fmt.Fprintf(b, "\"%s\": %v", key, val.String());
+		first = false;
 	}
-	return s
+	fmt.Fprintf(b, "}");
+	return string(b.Data())
 }
 
-// strVar is a string variable, and satisfies the exVar interface.
-type strVar string;
-
-func (s strVar) String() string {
-	return fmt.Sprintf("%q", s)
-}
-
-// TODO(dsymonds):
-// - dynamic lookup vars (via chan?)
-
-type exVars struct {
-	vars map[string] exVar;
-	// TODO(dsymonds): docstrings
-}
-
-// Singleton worker goroutine.
-// Functions needing access to the global state have to pass a closure to the
-// worker channel, which is read by a single workerFunc running in a goroutine.
-// Nil values are silently ignored, so you can send nil to the worker channel
-// after the closure if you want to block until your work is done. This risks
-// blocking you, though. The workSync function wraps this as a convenience.
-
-type workFunction func(*exVars);
-
-// The main worker function that runs in a goroutine.
-// It never ends in normal operation.
-func startWorkerFunc() <-chan workFunction {
-	ch := make(chan workFunction);
-
-	state := &exVars{ make(map[string] exVar) };
-
-	go func() {
-		for f := range ch {
-			if f != nil {
-				f(state)
-			}
-		}
-	}();
-	return ch
-}
-
-var worker = startWorkerFunc();
-
-// workSync will enqueue the given workFunction and wait for it to finish.
-func workSync(f workFunction) {
-	worker <- f;
-	worker <- nil  // will only be sent after f() completes.
-}
-
-// getOrInitIntVar either gets or initializes an intVar called name.
-func (state *exVars) getOrInitIntVar(name string) *intVar {
-	if v, ok := state.vars[name]; ok {
-		// Existing var
-		if iv, ok := v.(*intVar); ok {
-			return iv
-		}
-		// Type mismatch.
-		return state.getOrInitIntVar(mismatchedInt)
+func (v *Map) Get(key string) Var {
+	v.mu.Lock();
+	defer v.mu.Unlock();
+	if av, ok := v.m[key]; ok {
+		return av
 	}
-	// New var
-	iv := new(intVar);
-	state.vars[name] = iv;
-	return iv
+	return nil
 }
 
-// getOrInitMapVar either gets or initializes a mapVar called name.
-func (state *exVars) getOrInitMapVar(name string) *mapVar {
-	if v, ok := state.vars[name]; ok {
-		// Existing var
-		if mv, ok := v.(*mapVar); ok {
-			return mv
-		}
-		// Type mismatch.
-		return state.getOrInitMapVar(mismatchedMap)
+func (v *Map) Set(key string, av Var) {
+	v.mu.Lock();
+	defer v.mu.Unlock();
+	v.m[key] = av;
+}
+
+func (v *Map) Add(key string, delta int64) {
+	v.mu.Lock();
+	defer v.mu.Unlock();
+	av, ok := v.m[key];
+	if !ok {
+		av = new(Int);
+		v.m[key] = av;
 	}
-	// New var
-	var m mapVar = make(map[string] int);
-	state.vars[name] = &m;
-	return &m
-}
 
-// getOrInitStrVar either gets or initializes a strVar called name.
-func (state *exVars) getOrInitStrVar(name string) *strVar {
-	if v, ok := state.vars[name]; ok {
-		// Existing var
-		if mv, ok := v.(*strVar); ok {
-			return mv
-		}
-		// Type mismatch.
-		return state.getOrInitStrVar(mismatchedStr)
+	// Add to Int; ignore otherwise.
+	if iv, ok := av.(*Int); ok {
+		iv.Add(delta);
 	}
-	// New var
-	sv := new(strVar);
-	state.vars[name] = sv;
-	return sv
 }
 
-// IncrementInt adds inc to the integer-valued var called name.
-func IncrementInt(name string, inc int) {
-	workSync(func(state *exVars) {
-		*state.getOrInitIntVar(name) += inc
-	})
+// TODO(rsc): Make sure map access in separate thread is safe.
+func (v *Map) iterate(c <-chan KeyValue) {
+	for k, v := range v.m {
+		c <- KeyValue{ k, v };
+	}
+	close(c);
 }
 
-// IncrementMapInt adds inc to the keyed value in the map-valued var called name.
-func IncrementMapInt(name string, key string, inc int) {
-	workSync(func(state *exVars) {
-		mv := state.getOrInitMapVar(name);
-		if v, ok := mv[key]; ok {
-			mv[key] += inc
-		} else {
-			mv[key] = inc
+func (v *Map) Iter() <-chan KeyValue {
+	c := make(chan KeyValue);
+	go v.iterate(c);
+	return c
+}
+
+// String is a string variable, and satisfies the Var interface.
+type String struct {
+	s string;
+}
+
+func (v *String) String() string {
+	return strconv.Quote(v.s)
+}
+
+func (v *String) Set(value string) {
+	v.s = value;
+}
+
+
+// All published variables.
+var vars map[string] Var = make(map[string] Var);
+var mutex sync.Mutex;
+
+// Publish declares an named exported variable. This should be called from a
+// package's init function when it creates its Vars. If the name is already
+// registered then this will log.Crash.
+func Publish(name string, v Var) {
+	mutex.Lock();
+	defer mutex.Unlock();
+	if _, existing := vars[name]; existing {
+		log.Crash("Reuse of exported var name:", name);
+	}
+	vars[name] = v;
+}
+
+// Get retrieves a named exported variable.
+func Get(name string) Var {
+	if v, ok := vars[name]; ok {
+		return v
+	}
+	return nil
+}
+
+// Convenience functions for creating new exported variables.
+
+func NewInt(name string) *Int {
+	v := new(Int);
+	Publish(name, v);
+	return v
+}
+
+func NewMap(name string) *Map {
+	v := new(Map);
+	v.m = make(map[string] Var);
+	Publish(name, v);
+	return v
+}
+
+func NewString(name string) *String {
+	v := new(String);
+	Publish(name, v);
+	return v
+}
+
+// TODO(rsc): Make sure map access in separate thread is safe.
+func iterate(c <-chan KeyValue) {
+	for k, v := range vars {
+		c <- KeyValue{ k, v };
+	}
+	close(c);
+}
+
+func Iter() <-chan KeyValue {
+	c := make(chan KeyValue);
+	go iterate(c);
+	return c
+}
+
+func exvarHandler(c *http.Conn, req *http.Request) {
+	c.SetHeader("content-type", "application/json; charset=utf-8");
+	fmt.Fprintf(c, "{\n");
+	first := true;
+	for name, value := range vars {
+		if !first {
+			fmt.Fprintf(c, ",\n");
 		}
-	})
+		first = false;
+		fmt.Fprintf(c, "  %q: %s", name, value);
+	}
+	fmt.Fprintf(c, "\n}\n");
 }
 
-// SetInt sets the integer-valued var called name to value.
-func SetInt(name string, value int) {
-	workSync(func(state *exVars) {
-		*state.getOrInitIntVar(name) = value
-	})
-}
-
-// SetMapInt sets the keyed value in the map-valued var called name.
-func SetMapInt(name string, key string, value int) {
-	workSync(func(state *exVars) {
-		state.getOrInitMapVar(name)[key] = value
-	})
-}
-
-// SetStr sets the string-valued var called name to value.
-func SetStr(name string, value string) {
-	workSync(func(state *exVars) {
-		*state.getOrInitStrVar(name) = value
-	})
-}
-
-// GetInt retrieves an integer-valued var called name.
-func GetInt(name string) int {
-	var i int;
-	workSync(func(state *exVars) {
-		i = *state.getOrInitIntVar(name)
-	});
-	return i
-}
-
-// GetMapInt retrieves the keyed value for a map-valued var called name.
-func GetMapInt(name string, key string) int {
-	var i int;
-	var ok bool;
-	workSync(func(state *exVars) {
-		i, ok = state.getOrInitMapVar(name)[key]
-	});
-	return i
-}
-
-// GetStr retrieves a string-valued var called name.
-func GetStr(name string) string {
-	var s string;
-	workSync(func(state *exVars) {
-		s = *state.getOrInitStrVar(name)
-	});
-	return s
-}
-
-// String produces a string of all the vars in textual format.
-func String() string {
-	s := "";
-	workSync(func(state *exVars) {
-		for name, value := range state.vars {
-			s += fmt.Sprintln(name, value)
-		}
-	});
-	return s
-}
-
-// ExvarHandler is a HTTP handler that displays exported variables.
-// Use it like this:
-//   http.Handle("/exvar", http.HandlerFunc(exvar.ExvarHandler));
-func ExvarHandler(c *http.Conn, req *http.Request) {
-	// TODO(dsymonds): Support different output= args.
-	c.SetHeader("content-type", "text/plain; charset=utf-8");
-	io.WriteString(c, String());
+func init() {
+	http.Handle("/debug/vars", http.HandlerFunc(exvarHandler));
 }
