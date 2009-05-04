@@ -7,99 +7,74 @@ package exvar
 import (
 	"exvar";
 	"fmt";
+	"json";
 	"testing";
 )
 
-func TestSimpleCounter(t *testing.T) {
-	// Unknown exvar should be zero.
-	x := GetInt("requests");
-	if x != 0 {
-		t.Errorf("GetInt(nonexistent) = %v, want 0", x)
+func TestInt(t *testing.T) {
+	reqs := NewInt("requests");
+	if reqs.i != 0 {
+		t.Errorf("reqs.i = %v, want 4", reqs.i)
+	}
+	if reqs != Get("requests").(*Int) {
+		t.Errorf("Get() failed.")
 	}
 
-	IncrementInt("requests", 1);
-	IncrementInt("requests", 3);
-	x = GetInt("requests");
-	if x != 4 {
-		t.Errorf("GetInt('requests') = %v, want 4", x)
+	reqs.Add(1);
+	reqs.Add(3);
+	if reqs.i != 4 {
+		t.Errorf("reqs.i = %v, want 4", reqs.i)
 	}
 
-	out := String();
-	if out != "requests 4\n" {
-		t.Errorf("String() = \"%v\", want \"requests 4\n\"",
-		         out);
-	}
-}
-
-func TestStringVar(t *testing.T) {
-	// Unknown exvar should be empty string.
-	if s := GetStr("name"); s != "" {
-		t.Errorf("GetStr(nonexistent) = %q, want ''", s)
-	}
-
-	SetStr("name", "Mike");
-	if s := GetStr("name"); s != "Mike" {
-		t.Errorf("GetStr('name') = %q, want 'Mike'", s)
+	if s := reqs.String(); s != "4" {
+		t.Errorf("reqs.String() = %q, want \"4\"", s);
 	}
 }
 
-func TestMismatchedCounters(t *testing.T) {
-	// Make sure some vars exist.
-	GetInt("requests");
-	GetMapInt("colours", "red");
-	GetStr("name");
-
-	IncrementInt("colours", 1);
-	if x := GetInt("x-mismatched-int"); x != 1 {
-		t.Errorf("GetInt('x-mismatched-int') = %v, want 1", x)
+func TestString(t *testing.T) {
+	name := NewString("my-name");
+	if name.s != "" {
+		t.Errorf("name.s = %q, want \"\"", name.s)
 	}
 
-	IncrementMapInt("requests", "orange", 1);
-	if x := GetMapInt("x-mismatched-map", "orange"); x != 1 {
-		t.Errorf("GetMapInt('x-mismatched-map', 'orange') = %v, want 1", x)
+	name.Set("Mike");
+	if name.s != "Mike" {
+		t.Errorf("name.s = %q, want \"Mike\"", name.s)
 	}
 
-	SetStr("requests", "apple");
-	if s := GetStr("x-mismatched-str"); s != "apple" {
-		t.Errorf("GetStr('x-mismatched-str') = %q, want 'apple'", s)
+	if s := name.String(); s != "\"Mike\"" {
+		t.Errorf("reqs.String() = %q, want \"\"Mike\"\"", s);
 	}
 }
 
 func TestMapCounter(t *testing.T) {
-	// Unknown exvar should be zero.
-	if x := GetMapInt("colours", "red"); x != 0 {
-		t.Errorf("GetMapInt(non, existent) = %v, want 0", x)
+	colours := NewMap("bike-shed-colours");
+
+	colours.Add("red", 1);
+	colours.Add("red", 2);
+	colours.Add("blue", 4);
+	if x := colours.m["red"].(*Int).i; x != 3 {
+		t.Errorf("colours.m[\"red\"] = %v, want 3", x)
+	}
+	if x := colours.m["blue"].(*Int).i; x != 4 {
+		t.Errorf("colours.m[\"blue\"] = %v, want 4", x)
 	}
 
-	IncrementMapInt("colours", "red", 1);
-	IncrementMapInt("colours", "red", 2);
-	IncrementMapInt("colours", "blue", 4);
-	if x := GetMapInt("colours", "red"); x != 3 {
-		t.Errorf("GetMapInt('colours', 'red') = %v, want 3", x)
+	// colours.String() should be '{"red":3, "blue":4}',
+	// though the order of red and blue could vary.
+	s := colours.String();
+	j, ok, errtok := json.StringToJson(s);
+	if !ok {
+		t.Errorf("colours.String() isn't valid JSON: %v", errtok)
 	}
-	if x := GetMapInt("colours", "blue"); x != 4 {
-		t.Errorf("GetMapInt('colours', 'blue') = %v, want 4", x)
+	if j.Kind() != json.MapKind {
+		t.Error("colours.String() didn't produce a map.")
 	}
-
-	// TODO(dsymonds): Test String()
-}
-
-func hammer(name string, total int, done chan <- int) {
-	for i := 0; i < total; i++ {
-		IncrementInt(name, 1)
+	red := j.Get("red");
+	if red.Kind() != json.NumberKind {
+		t.Error("red.Kind() is not a NumberKind.")
 	}
-	done <- 1
-}
-
-func TestHammer(t *testing.T) {
-	SetInt("hammer-times", 0);
-	sync := make(chan int);
-	hammer_times := int(1e5);
-	go hammer("hammer-times", hammer_times, sync);
-	go hammer("hammer-times", hammer_times, sync);
-	<-sync;
-	<-sync;
-	if final := GetInt("hammer-times"); final != 2 * hammer_times {
-		t.Errorf("hammer-times = %v, want %v", final, 2 * hammer_times)
+	if x := red.Number(); x != 3 {
+		t.Error("red = %v, want 3", x)
 	}
 }

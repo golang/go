@@ -17,8 +17,9 @@ import (
 
 
 // hello world, the web server
+var helloRequests = exvar.NewInt("hello-requests");
 func HelloServer(c *http.Conn, req *http.Request) {
-	exvar.IncrementInt("hello-requests", 1);
+	helloRequests.Add(1);
 	io.WriteString(c, "hello, world!\n");
 }
 
@@ -27,16 +28,23 @@ type Counter struct {
 	n int;
 }
 
+// This makes Counter satisfy the exvar.Var interface, so we can export
+// it directly.
+func (ctr *Counter) String() string {
+	return fmt.Sprintf("%d", ctr.n)
+}
+
 func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
-	exvar.IncrementInt("counter-requests", 1);
 	fmt.Fprintf(c, "counter = %d\n", ctr.n);
 	ctr.n++;
 }
 
 // simple file server
 var webroot = flag.String("root", "/home/rsc", "web root directory")
+var pathVar = exvar.NewMap("file-requests");
 func FileServer(c *http.Conn, req *http.Request) {
 	c.SetHeader("content-type", "text/plain; charset=utf-8");
+	pathVar.Add(req.Url.Path, 1);
 	path := *webroot + req.Url.Path;	// TODO: insecure: use os.CleanName
 	f, err := os.Open(path, os.O_RDONLY, 0);
 	if err != nil {
@@ -89,13 +97,17 @@ func (ch Chan) ServeHTTP(c *http.Conn, req *http.Request) {
 
 func main() {
 	flag.Parse();
-	http.Handle("/counter", new(Counter));
+
+	// The counter is published as a variable directly.
+	ctr := new(Counter);
+	http.Handle("/counter", ctr);
+	exvar.Publish("counter", ctr);
+
 	http.Handle("/go/", http.HandlerFunc(FileServer));
 	http.Handle("/flags", http.HandlerFunc(FlagServer));
 	http.Handle("/args", http.HandlerFunc(ArgServer));
 	http.Handle("/go/hello", http.HandlerFunc(HelloServer));
 	http.Handle("/chan", ChanCreate());
-	http.Handle("/exvar", http.HandlerFunc(exvar.ExvarHandler));
 	err := http.ListenAndServe(":12345", nil);
 	if err != nil {
 		panic("ListenAndServe: ", err.String())

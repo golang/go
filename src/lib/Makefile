@@ -99,7 +99,7 @@ test: test.files
 bignum.6: fmt.dirinstall
 bufio.6: io.dirinstall os.dirinstall
 exec.6: os.dirinstall strings.install
-exvar.6: fmt.dirinstall http.dirinstall
+exvar.6: fmt.dirinstall http.dirinstall log.install strconv.dirinstall sync.dirinstall
 flag.6: fmt.dirinstall os.dirinstall strconv.dirinstall
 log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
 path.6: io.dirinstall
