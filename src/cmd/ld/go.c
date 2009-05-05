@@ -103,11 +103,12 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 		fprint(2, "6l: too much pkg data in %s\n", filename);
 		return;
 	}
-	data = mal(len);
+	data = mal(len+1);
 	if(Bread(f, data, len) != len) {
 		fprint(2, "6l: short pkg read %s\n", filename);
 		return;
 	}
+	data[len] = '\0';
 
 	// first \n$$ marks beginning of exports - skip rest of line
 	p0 = strstr(data, "\n$$");
@@ -554,6 +555,16 @@ sweeplist(Prog **first, Prog **last)
 				if(debug['v'] > 1)
 					Bprint(&bso, "discard %s\n", p->from.sym->name);
 				p->from.sym->type = Sxxx;
+				break;
+			}
+			if(p->as == ATEXT) {
+				// keeping this function; link into textp list
+				if(etextp == P)
+					textp = p;
+				else
+					etextp->pcond = p;
+				etextp = p;
+				etextp->pcond = P;
 			}
 			break;
 		}
@@ -603,6 +614,15 @@ deadcode(void)
 	for(i=0; i<nelem(morename); i++)
 		mark(lookup(morename[i], 0));
 
+	// remove dead code.
+	// sweeplist will rebuild the list of functions at textp
+	textp = P;
+	etextp = P;
+
+	// follow is going to redo the firstp, lastp list
+	// but update it anyway just to keep things consistent.
 	sweeplist(&firstp, &lastp);
+
+	// remove dead data
 	sweeplist(&datap, &edatap);
 }
