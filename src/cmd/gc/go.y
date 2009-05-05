@@ -299,8 +299,12 @@ Avardcl:
 		$$ = rev($1);
 		dodclvar($$, $2);
 
-		$$ = nod(OAS, $$, N);
-		addtotop($$);
+		if(funcdepth == 0) {
+			$$ = N;
+		} else {
+			$$ = nod(OAS, $$, N);
+			addtotop($$);
+		}
 	}
 
 Bvardcl:
@@ -309,8 +313,12 @@ Bvardcl:
 		$$ = rev($1);
 		dodclvar($$, $2);
 
-		$$ = nod(OAS, $$, N);
-		addtotop($$);
+		if(funcdepth == 0) {
+			$$ = N;
+		} else {
+			$$ = nod(OAS, $$, N);
+			addtotop($$);
+		}
 	}
 |	new_name_list_r type '=' expr_list
 	{

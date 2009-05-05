@@ -174,14 +174,6 @@ sys·intstring(int64 v, String s)
 }
 
 void
-sys·byteastring(byte *a, int32 l, String s)
-{
-	s = gostringsize(l);
-	mcpy(s.str, a, l);
-	FLUSH(&s);
-}
-
-void
 sys·arraystring(Array b, String s)
 {
 	s = gostringsize(b.nel);

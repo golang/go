@@ -27,7 +27,6 @@ func	cmpstring(string, string) int;
 func	slicestring(string, int, int) string;
 func	indexstring(string, int) byte;
 func	intstring(int64) string;
-func	byteastring(*byte, int) string;
 func	arraystring([]byte) string;
 func	stringiter(string, int) int;
 func	stringiter2(string, int) (retk int, retv int);
