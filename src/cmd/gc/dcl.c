@@ -38,7 +38,8 @@ dodclvar(Node *n, Type *t)
 
 	addvar(n, t, dclcontext);
 	autoexport(n->sym);
-	addtop = list(addtop, nod(ODCL, n, N));
+	if(funcdepth > 0)
+		addtop = list(addtop, nod(ODCL, n, N));
 }
 
 void
@@ -1299,7 +1300,7 @@ fninit(Node *n)
 	Node *done;
 	Node *a, *fn, *r;
 	uint32 h;
-	Sym *s;
+	Sym *s, *initsym;
 
 	if(strcmp(package, "PACKAGE") == 0) {
 		// sys.go or unsafe.go during compiler build
@@ -1329,7 +1330,8 @@ fninit(Node *n)
 		snprint(namebuf, sizeof(namebuf), "init");
 
 	fn = nod(ODCLFUNC, N, N);
-	fn->nname = newname(lookup(namebuf));
+	initsym = lookup(namebuf);
+	fn->nname = newname(initsym);
 	fn->type = functype(N, N, N);
 	funchdr(fn);
 
@@ -1349,6 +1351,8 @@ fninit(Node *n)
 		if(s->name[0] != 'I' || strncmp(s->name, "Init·", 6) != 0)
 			continue;
 		if(s->oname == N)
+			continue;
+		if(s == initsym)
 			continue;
 
 		// could check that it is fn of no args/returns

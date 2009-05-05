@@ -18,7 +18,6 @@ char *sysimport =
 	"func sys.slicestring (? string, ? int, ? int) (? string)\n"
 	"func sys.indexstring (? string, ? int) (? uint8)\n"
 	"func sys.intstring (? int64) (? string)\n"
-	"func sys.byteastring (? *uint8, ? int) (? string)\n"
 	"func sys.arraystring (? []uint8) (? string)\n"
 	"func sys.stringiter (? string, ? int) (? int)\n"
 	"func sys.stringiter2 (? string, ? int) (retk int, retv int)\n"
