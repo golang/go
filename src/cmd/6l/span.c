@@ -238,7 +238,7 @@ asmsym(void)
 				continue;
 			}
 
-	for(p=textp; p!=P; p=p->pcond) {
+	for(p = textp; p != P; p = p->pcond) {
 		s = p->from.sym;
 
 		/* filenames first */
