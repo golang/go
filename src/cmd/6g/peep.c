@@ -31,7 +31,9 @@
 #include "gg.h"
 #include "opt.h"
 
+static void	conprop(Reg *r);
 
+// do we need the carry bit
 static int
 needc(Prog *p)
 {
@@ -122,8 +124,34 @@ peep(void)
 		}
 	}
 
-loop1:
+	// constant propagation
+	// find MOV $con,R followed by
+	// another MOV $con,R without
+	// setting R in the interim
+	for(r=firstr; r!=R; r=r->link) {
+		p = r->prog;
+		switch(p->as) {
+		case ALEAL:
+		case ALEAQ:
+			if(regtyp(&p->to))
+			if(p->from.sym != S)
+				conprop(r);
+			break;
 
+		case AMOVB:
+		case AMOVW:
+		case AMOVL:
+		case AMOVQ:
+		case AMOVSS:
+		case AMOVSD:
+			if(regtyp(&p->to))
+			if(p->from.type == D_CONST)
+				conprop(r);
+			break;
+		}
+	}
+
+loop1:
 	if(debug['P'] && debug['v'])
 		dumpit("loop1", firstr);
 
@@ -196,8 +224,8 @@ loop1:
 				else
 					p->as = ADECW;
 				p->from = zprog.from;
+				break;
 			}
-			else
 			if(p->from.offset == 1){
 				if(p->as == AADDQ)
 					p->as = AINCQ;
@@ -206,6 +234,7 @@ loop1:
 				else
 					p->as = AINCW;
 				p->from = zprog.from;
+				break;
 			}
 			break;
 
@@ -223,8 +252,8 @@ loop1:
 				else
 					p->as = AINCW;
 				p->from = zprog.from;
+				break;
 			}
-			else
 			if(p->from.offset == 1){
 				if(p->as == ASUBQ)
 					p->as = ADECQ;
@@ -234,6 +263,7 @@ loop1:
 				else
 					p->as = ADECW;
 				p->from = zprog.from;
+				break;
 			}
 			break;
 		}
@@ -904,4 +934,50 @@ copysub(Adr *a, Adr *v, Adr *s, int f)
 		return 0;
 	}
 	return 0;
+}
+
+static void
+conprop(Reg *r0)
+{
+	Reg *r;
+	Prog *p, *p0;
+	int t;
+	Adr *v0;
+
+	p0 = r0->prog;
+	v0 = &p0->to;
+	r = r0;
+
+loop:
+	r = uniqs(r);
+	if(r == R || r == r0)
+		return;
+	if(uniqp(r) == R)
+		return;
+
+	p = r->prog;
+	t = copyu(p, v0, A);
+	switch(t) {
+	case 0:	// miss
+	case 1:	// use
+		goto loop;
+
+	case 2:	// rar
+	case 4:	// use and set
+		break;
+
+	case 3:	// set
+		if(p->as == p0->as)
+		if(p->from.type == p0->from.type)
+		if(p->from.sym == p0->from.sym)
+		if(p->from.offset == p0->from.offset)
+		if(p->from.scale == p0->from.scale)
+		if(p->from.dval == p0->from.dval)
+		if(p->from.index == p0->from.index) {
+			excise(r);
+			t++;
+			goto loop;
+		}
+		break;
+	}
 }
