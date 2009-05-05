@@ -10,8 +10,12 @@ type PS *S
 func (p *S) get() int {
   return p.a
 }
+
 func fn(p PS) int {
-  return p.get()
+  // p has type PS, and PS has no methods.
+  // (a compiler might see that p is a pointer
+  // and go looking in S without noticing PS.)
+  return p.get()	// ERROR "undefined DOT"
 }
 func main() {
   s := S{1};

@@ -85,12 +85,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 =========== chan/nonblock.go
 PASS
 
-=========== bugs/bug117.go
-bugs/bug117.go:9: undefined DOT get on PS
-bugs/bug117.go:9: illegal types for operand: RETURN
-	int
-BUG: should compile
-
 =========== bugs/bug132.go
 BUG: compilation succeeds incorrectly
 
