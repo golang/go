@@ -10,7 +10,7 @@ import "utf8"
 // Explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings).
 // Invalid UTF-8 sequences become correct encodings of U+FFF8.
 func Explode(s string) []string {
-	a := make([]string, utf8.RuneCountInString(s, 0, len(s)));
+	a := make([]string, utf8.RuneCountInString(s));
 	j := 0;
 	var size, rune int;
 	for i := 0; i < len(a); i++ {
@@ -24,7 +24,7 @@ func Explode(s string) []string {
 // Count counts the number of non-overlapping instances of sep in s.
 func Count(s, sep string) int {
 	if sep == "" {
-		return utf8.RuneCountInString(s, 0, len(s))+1
+		return utf8.RuneCountInString(s)+1
 	}
 	c := sep[0];
 	n := 0;
