@@ -4,18 +4,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// ! errchk $G -e $D/$F.go
-
 package main
 
-// explicit conversions are okay, even if they overflow
+// explicit conversion of constants is work in progress.
+// the ERRORs in this block are debatable, but they're what
+// the language spec says for now.
 var x1 = string(1);
 var x2 string = string(1);
-var x3 = int(1.5);
-var x4 int = int(1.5);
+var x3 = int(1.5);	// ERROR "convert|truncate"
+var x4 int = int(1.5);	// ERROR "convert|truncate"
 var x5 = "a" + string(1);
-var x6 = int(1e100);
-var x7 = float(1e1000);
+var x6 = int(1e100);	// ERROR "overflow"
+var x7 = float(1e1000);	// ERROR "overflow"
 
 // implicit conversions merit scrutiny
 var s string;
