@@ -23,15 +23,6 @@ throw: interface hash
 
 panic PC=xxx
 
-=========== ./convlit.go
-BUG: errchk: ./convlit.go: unmatched error messages:
-==================================================
-./convlit.go:8: constant 1.5 truncated to integer
-./convlit.go:11: constant 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows int
-./convlit.go:12: constant 34911850510716223476646871064527264675788468424693128821036252992306087892081078460155404277013793117885253p+2968 overflows float
-./convlit.go:9: constant 1.5 truncated to integer
-==================================================
-
 =========== ./helloworld.go
 hello, world
 
