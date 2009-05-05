@@ -273,8 +273,9 @@ func RuneCount(p []byte) int {
 }
 
 // RuneCountInString is like RuneCount but its input is a string.
-func RuneCountInString(s string, i int, l int) int {
-	ei := i + l;
+func RuneCountInString(s string) int {
+	ei := len(s);
+	i := 0;
 	n := 0;
 	for n = 0; i < ei; n++ {
 		if s[i] < RuneSelf {

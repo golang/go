@@ -169,7 +169,7 @@ var runecounttests = []RuneCountTest {
 func TestRuneCount(t *testing.T) {
 	for i := 0; i < len(runecounttests); i++ {
 		tt := runecounttests[i];
-		if out := utf8.RuneCountInString(tt.in, 0, len(tt.in)); out != tt.out {
+		if out := utf8.RuneCountInString(tt.in); out != tt.out {
 			t.Errorf("RuneCountInString(%q) = %d, want %d", tt.in, out, tt.out);
 		}
 		if out := utf8.RuneCount(bytes(tt.in)); out != tt.out {
