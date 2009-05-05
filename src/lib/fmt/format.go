@@ -14,16 +14,6 @@ const nPows10 = 160;
 
 var ldigits string = "0123456789abcdef"  // var not const because we take its address
 var udigits string = "0123456789ABCDEF"
-var pows10 [nPows10] float64;
-
-func init() {
-	pows10[0] = 1.0e0;
-	pows10[1] = 1.0e1;
-	for i:=2; i<nPows10; i++ {
-		m := i/2;
-		pows10[i] = pows10[m] * pows10[i-m];
-	}
-}
 
 /*
 	Fmt is the raw formatter used by Printf etc.  Not meant for normal use.
