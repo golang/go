@@ -28,8 +28,8 @@ dumpobj(void)
 	newplist();
 
 	dumpglobls();
-	dumpstrings();
 	dumpsignatures();
+	dumpdata();
 	dumpfuncs();
 
 	Bterm(bout);
@@ -483,42 +483,6 @@ dumpsignatures(void)
 //print("s=%S\n", s);
 		dumpsigt(progt, ifacet, rcvrt, methodt, s);
 	}
-
-	if(stringl > 0) {
-		stringl = rnd(stringl, maxround);
-		ggloblsym(symstringl, stringl, 0);
-		if(stringc == 0)
-			stringc = 1;
-	}
-	if(stringc > 0) {
-		stringc = rnd(stringc, maxround);
-		ggloblsym(symstringc, stringc, 0);
-	}
-}
-
-void
-stringpool(Node *n)
-{
-	Pool *p;
-
-	if(n->op != OLITERAL || n->val.ctype != CTSTR) {
-		if(n->val.ctype == CTNIL)
-			return;
-		fatal("stringpool: not string %N", n);
-	}
-
-	p = mal(sizeof(*p));
-
-	p->sval = n->val.u.sval;
-	p->link = nil;
-
-	if(poolist == nil)
-		poolist = p;
-	else
-		poolast->link = p;
-	poolast = p;
-
-	symstringl->offset += types[TSTRING]->width;
 }
 
 Sig*

@@ -463,20 +463,6 @@ struct Sig
 	Sig*	link;
 };
 
-typedef	struct	Pool Pool;
-struct	Pool
-{
-	Strlit*	sval;
-	Pool*	link;
-};
-
-EXTERN	Pool*	poolist;
-EXTERN	Pool*	poolast;
-EXTERN	Sym*	symstringl;	// string literals
-EXTERN	Sym*	symstringc;	// string characters
-EXTERN	int32	stringl;	// size of string literals
-EXTERN	int32	stringc;	// size of string characters
-
 typedef	struct	Io	Io;
 struct	Io
 {
@@ -785,7 +771,6 @@ int	brrev(int);
 void	setmaxarg(Type*);
 Sig*	lsort(Sig*, int(*)(Sig*, Sig*));
 int	dotoffset(Node*, int*, Node**);
-void	stringpool(Node*);
 void	tempname(Node*, Type*);
 
 int	Econv(Fmt*);
@@ -1029,7 +1014,6 @@ Plist*	newplist(void);
  *	obj.c
  */
 void	Bputdot(Biobuf *b);
-void	dumpfuncs(void);
 void	dumpglobls(void);
 void	dumpobj(void);
 void	ieeedtod(uint64 *ieee, double native);
@@ -1060,17 +1044,15 @@ int	isfat(Type*);
 void	clearfat(Node *n);
 void	cgen(Node*, Node*);
 void	gused(Node*);
-void	dumpstrings(void);
 void	dumpsignatures(void);
 void	dumpfuncs(void);
+void	dumpdata(void);
 void	ggloblnod(Node *nam, int32 width);
 void	ggloblsym(Sym *s, int32 width, int dupok);
 void	zfile(Biobuf *b, char *p, int n);
 void	zhist(Biobuf *b, int line, vlong offset);
 void	zname(Biobuf *b, Sym *s, int t);
-void	dumpstrings(void);
 void	nopout(Prog*);
-void	datastring(char *s, int len);
 int	dstringptr(Sym *s, int off, char *str);
 int	dsymptr(Sym *s, int off, Sym *x);
 int	duint16(Sym *s, int off, uint32 v);
