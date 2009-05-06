@@ -24,27 +24,11 @@ maketest() {
 }
 
 maketest \
-	lib/container\
-	lib/fmt\
-	lib/go\
-	lib/hash\
-	lib/io\
-	lib/json\
-	lib/math\
-	lib/net\
-	lib/os\
-	lib/reflect\
-	lib/regexp\
-	lib/strconv\
-	lib/tabwriter\
-	lib/template\
-	lib/time\
-	lib/unicode\
+	lib \
 
 # all of these are subtly different
 # from what maketest does.
 
-(xcd lib; make test) || exit $?
 
 (xcd lib/sync;
 make clean;
