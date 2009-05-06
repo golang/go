@@ -152,8 +152,6 @@ ggloblsym(Sym *s, int32 width, int dupok)
 
 	p = gins(AGLOBL, N, N);
 	p->from.type = D_EXTERN;
-	if(s == symstringl || s == symstringc)
-		p->from.type = D_STATIC;
 	p->from.index = D_NONE;
 	p->from.sym = s;
 	p->to.type = D_CONST;
@@ -1146,11 +1144,7 @@ naddr(Node *n, Addr *a)
 			a->offset = mpgetfix(n->val.u.xval);
 			break;
 		case CTSTR:
-			a->etype = simtype[n->etype];
-			a->sym = symstringl;
-			a->type = D_STATIC;
-			a->offset = symstringl->offset;
-			stringpool(n);
+			datagostring(n->val.u.sval, a);
 			break;
 		case CTBOOL:
 			a->sym = S;

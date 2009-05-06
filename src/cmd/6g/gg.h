@@ -122,6 +122,7 @@ int	isfat(Type*);
 void	sudoclean(void);
 int	sudoaddable(int, Node*, Addr*);
 void	afunclit(Addr*);
+void	datagostring(Strlit*, Addr*);
 
 /*
  * list.c

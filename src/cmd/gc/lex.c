@@ -66,9 +66,6 @@ main(int argc, char *argv[])
 	lexinit();
 	typeinit(LBASETYPE);
 
-	symstringl = lookup(".stringl");	// string literals (ptr to char and count)
-	symstringc = lookup(".stringc");	// string characters
-
 	lineno = 1;
 	block = 1;
 	blockgen = 1;
