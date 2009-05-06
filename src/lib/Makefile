@@ -111,8 +111,8 @@ strings.install: utf8.install
 testing.install: flag.install fmt.install
 
 fmt.install: io.install reflect.install strconv.install
-go.install: regexp.install sort.install strconv.install strings.install \
-	utf8.install unicode.install fmt.install
+go.install: fmt.install io.install once.install regexp.install sort.install \
+	strconv.install strings.install unicode.install utf8.install container/vector.install
 hash.install: os.install
 http.install: bufio.install io.install net.install os.install path.install strings.install log.install
 io.install: os.install sync.install
