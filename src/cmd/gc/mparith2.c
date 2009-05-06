@@ -570,7 +570,12 @@ mpmovecfix(Mpint *a, vlong c)
 void
 mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 {
-	int i;
+	int i, ns, ds;
+
+	ns = n->neg;
+	ds = d->neg;
+	n->neg = 0;
+	d->neg = 0;
 
 	mpmovefixfix(r, n);
 	mpmovecfix(q, 0);
@@ -588,6 +593,8 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 	if(i >= Mpprec*Mpscale) {
 		q->ovf = 1;
 		r->ovf = 1;
+		n->neg = ns;
+		d->neg = ds;
 		yyerror("set ovf in mpdivmodfixfix");
 		return;
 	}
@@ -604,6 +611,11 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 			mpsubfixfix(r, d);
 		}
 	}
+
+	n->neg = ns;
+	d->neg = ds;
+	r->neg = ns;
+	q->neg = ns^ds;
 }
 
 void
