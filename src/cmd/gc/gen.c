@@ -439,10 +439,13 @@ cgen_as(Node *nl, Node *nr)
 		}
 
 		// externals and heaps should already be clear
-		if(nl->class == PEXTERN)
-			return;
-		if(nl->class & PHEAP)
-			return;
+		if(nr == N) {
+			if(nl->class == PEXTERN)
+				return;
+			if(nl->class & PHEAP)
+				return;
+		}
+
 		tl = nl->type;
 		if(tl == T)
 			return;
