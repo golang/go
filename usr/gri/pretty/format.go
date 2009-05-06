@@ -29,6 +29,7 @@ import (
 	"os";
 	"reflect";
 	"strconv";
+	"strings";
 )
 
 
@@ -214,21 +215,20 @@ type Format map [string] expr;
 // Parsing
 
 /*	TODO
-	- installable custom formatters (like for template.go)
 	- have a format to select type name, field tag, field offset?
 	- use field tag as default format for that field
 */
 
 type parser struct {
+	// scanning
 	scanner scanner.Scanner;
-	
-	// error handling
-	lastline int;  // > 0 if there was any error
-
-	// next token
 	pos token.Position;  // token position
 	tok token.Token;  // one token look-ahead
 	lit []byte;  // token literal
+
+	// error handling
+	errors io.ByteBuffer;  // errors.Len() > 0 if there were errors
+	lastline int;
 }
 
 
@@ -237,7 +237,7 @@ func (p *parser) Error(pos token.Position, msg string) {
 	if pos.Line != p.lastline {
 		// only report error if not on the same line as previous error
 		// in the hope to reduce number of follow-up errors reported
-		fmt.Fprintf(os.Stderr, "%d:%d: %s\n", pos.Line, pos.Column, msg);
+		fmt.Fprintf(&p.errors, "%d:%d: %s\n", pos.Line, pos.Column, msg);
 	}
 	p.lastline = pos.Line;
 }
@@ -447,66 +447,87 @@ func (p *parser) parseFormat() Format {
 }
 
 
-func readSource(src interface{}, err scanner.ErrorHandler) []byte {
-	errmsg := "invalid input type (or nil)";
+type formatError string
 
-	switch s := src.(type) {
-	case string:
-		return io.StringBytes(s);
-	case []byte:
-		return s;
-	case *io.ByteBuffer:
-		// is io.Read, but src is already available in []byte form
-		if s != nil {
-			return s.Data();
-		}
-	case io.Read:
-		var buf io.ByteBuffer;
-		n, os_err := io.Copy(s, &buf);
-		if os_err == nil {
-			return buf.Data();
-		}
-		errmsg = os_err.String();
-	}
-
-	if err != nil {
-		// TODO fix this
-		panic();
-		//err.Error(noPos, errmsg);
-	}
-	return nil;
+func (p formatError) String() string {
+	return p;
 }
 
 
-// TODO do better error handling
+func readSource(src interface{}) ([]byte, os.Error) {
+	if src == nil {
+		return nil, formatError("src is nil");
+	}
+
+	switch s := src.(type) {
+	case string:
+		return io.StringBytes(s), nil;
+
+	case []byte:
+		if s == nil {
+			return nil, formatError("src is nil");
+		}
+		return s, nil;
+
+	case *io.ByteBuffer:
+		// is io.Read, but src is already available in []byte form
+		if s == nil {
+			return nil, formatError("src is nil");
+		}
+		return s.Data(), nil;
+
+	case io.Read:
+		var buf io.ByteBuffer;
+		n, err := io.Copy(s, &buf);
+		if err != nil {
+			return nil, err;
+		}
+		return buf.Data(), nil
+	}
+
+	return nil, formatError("src type not supported");
+}
+
 
 // Parse parses a set of format productions. The format src may be
 // a string, a []byte, or implement io.Read. The result is a Format
 // if no errors occured; otherwise Parse returns nil.
 //
-func Parse(src interface{}, fmap FormatterMap) Format {
-	// initialize parser
-	var p parser;
-	p.scanner.Init(readSource(src, &p), &p, false);
-	p.next();
-
-	format := p.parseFormat();
-	if p.lastline > 0 {	
-		return nil;  // src contains errors
+func Parse(src interface{}, fmap FormatterMap) (f Format, err os.Error) {
+	s, err := readSource(src);
+	if err != nil {
+		return nil, err;
 	}
-	
-	// add custom formatters if any
-	if fmap != nil {
-		for name, form := range fmap {
-			if t, found := format[name]; !found {
-				format[name] = &custom{name, form};
-			} else {
-				p.Error(token.Position{0, 0, 0}, "formatter already declared: " + name);
-			}
+
+	// parse format description
+	var p parser;
+	p.scanner.Init(s, &p, false);
+	p.next();
+	f = p.parseFormat();
+
+	// add custom formatters, if any
+	for name, form := range fmap {
+		if t, found := f[name]; !found {
+			f[name] = &custom{name, form};
+		} else {
+			fmt.Fprintf(&p.errors, "formatter already declared: %s", name);
 		}
 	}
 
-	return format;
+	if p.errors.Len() > 0 {
+		return nil, formatError(string(p.errors.Data()));
+	}
+	
+	return f, nil;
+}
+
+
+func ParseOrDie(src interface{}, fmap FormatterMap) Format {
+	f, err := Parse(src, fmap);
+	if err != nil {
+		panic(err.String());
+	}
+	return f;
 }
 
 
@@ -520,37 +541,22 @@ func (f Format) Dump() {
 // ----------------------------------------------------------------------------
 // Formatting
 
-func fieldIndex(v reflect.StructValue, fieldname string) int {
+func getField(v reflect.StructValue, fieldname string) reflect.Value {
 	t := v.Type().(reflect.StructType);
-	for i := 0; i < v.Len(); i++ {
+	for i := 0; i < t.Len(); i++ {
 		name, typ, tag, offset := t.Field(i);
 		if name == fieldname {
-			return i;
+			return v.Field(i);
+		} else if name == "" {
+			// anonymous field - check type name
+			// TODO this is only going down one level - fix
+			if strings.HasSuffix(typ.Name(), "." + fieldname) {
+				return v.Field(i);
+			}
 		}
 	}
-	return -1;
-}
-
-
-func getField(v reflect.StructValue, i int) reflect.Value {
-	fld := v.Field(i);
-	/*
-	if tmp, is_interface := fld.(reflect.InterfaceValue); is_interface {
-		// TODO do I have to check something for nil here?
-		fld = reflect.NewValue(tmp.Get());
-	}
-	*/
-	return fld;
-}
-
-
-func getFieldByName(v reflect.StructValue, fieldname string) reflect.Value {
-	i := fieldIndex(v, fieldname);
-	if i < 0 {
-		panicln(fmt.Sprintf("no field %s int %s", fieldname, v.Type().Name()));
-	}
-
-	return getField(v, i);
+	panicln(fmt.Sprintf("no field %s int %s", fieldname, t.Name()));
+	return nil;
 }
 
 
@@ -838,7 +844,7 @@ func (ps *state) print0(w io.Write, fexpr expr, value reflect.Value, index, leve
 		default:
 			// field
 			if s, is_struct := value.(reflect.StructValue); is_struct {
-				value = getFieldByName(s, t.fname);
+				value = getField(s, t.fname);
 			} else {
 				// TODO fix this
 				panic(fmt.Sprintf("error: %s has no field `%s`\n", value.Type().Name(), t.fname));
@@ -933,7 +939,7 @@ func (ps *state) print(w io.Write, fexpr expr, value reflect.Value, index, level
 func (f Format) Fprint(w io.Write, args ...) {
 	value := reflect.NewValue(args).(reflect.StructValue);
 	for i := 0; i < value.Len(); i++ {
-		fld := getField(value, i);
+		fld := value.Field(i);
 		var ps state;
 		ps.init(f);
 		ps.print(w, f.getFormat(typename(fld), fld), fld, 0, 0);

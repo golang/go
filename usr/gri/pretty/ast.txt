@@ -28,7 +28,7 @@ bytes =
 nil =
 	;  // TODO we see a lot of nil's - why?
 
-not_empty =
+exists =
 	*:nil;
 
 
@@ -59,7 +59,7 @@ ast.Comments =
 // Expressions & Types
 
 ast.Field =
-	[Names:not_empty {Names / ", "} " "] Type;
+	[Names:exists {Names / ", "} " "] Type;
 
 ast.BadExpr =
 	"BAD EXPR";
@@ -86,7 +86,7 @@ ast.StringList =
 	{Strings / "\n"};
 
 ast.FuncLit =
-	"func ";
+	Type " " Body;
 
 ast.CompositeLit =
 	Type "{" {Elts / ", "} "}";
@@ -128,37 +128,45 @@ ast.SliceType =
 	"[]" Elt;
 
 ast.StructType =
-	"struct {"
-	[Fields:not_empty
-	>> "\t" "\n"
-		{Fields / ";\n"}
-	<< "\n"
+	"struct"
+	[Lbrace:isValidPos " {"]
+	[	Fields:exists
+		>> "\t" "\n"
+			{Fields / ";\n"}
+		<< "\n"
 	]
-	"}";
+	[Rbrace:isValidPos "}"];
 
 signature =
-	"(" {Params / ", "} ")" [Results:not_empty " (" {Results / ", "} ")"];
+	"(" {Params / ", "} ")" [Results:exists " (" {Results / ", "} ")"];
 
 funcSignature =
 	*:signature;
 
 ast.FuncType =
-	"func" ^:signature;
+	[Position:isValidPos "func"] ^:signature;
 
 ast.InterfaceType =
-	"interface {"
-	[Methods:not_empty
-	>> "\t" "\n"
-		{Methods / ";\n"}  // TODO should not start with "func"
-	<< "\n"
+	"interface"
+	[Lbrace:isValidPos " {"]
+	[	Methods:exists
+		>> "\t" "\n"
+			{Methods / ";\n"}
+		<< "\n"
 	]
-	"}";
+	[Rbrace:isValidPos "}"];
 
 ast.MapType =
 	"map[" Key "]" Value;
 
 ast.ChanType =
-	"chan";
+	(	Dir:isSend Dir:isRecv
+		"chan "
+	|	Dir:isSend
+		"chan <- "
+	|	"<-chan "
+	)
+	Value;
 
 
 // ----------------------------------------------------------------------------
@@ -188,6 +196,9 @@ ast.AssignStmt =
 ast.GoStmt =
 	"go " Call;
 
+ast.DeferStmt =
+	"defer " Call;
+
 ast.ReturnStmt =
 	"return" {" " Results / ","};
 
@@ -196,7 +207,7 @@ ast.BranchStmt =
 
 blockStmt =  // like ast.BlockStmt but w/o indentation
 	"{"
-	[List:not_empty
+	[List:exists
 	"\n"
 		{List / ";\n"}
 	"\n"
@@ -208,7 +219,7 @@ blockStmtPtr =
 
 ast.BlockStmt =
 	"{"
-	[List:not_empty
+	[List:exists
 	>> "\t" "\n"
 		{List / ";\n"}
 	<< "\n"
@@ -219,11 +230,11 @@ ast.IfStmt =
 	"if " [Init "; "] [Cond " "] Body [" else " Else];
 
 ast.CaseClause =
-	( Values:not_empty "case " {Values / ", "}
-	| "default"
+	(	Values:exists "case " {Values / ", "}
+	|	"default"
 	)
 	":"
-	[Body:not_empty
+	[Body:exists
 	>> "\t" "\n"
 		{Body / ";\n"}
 	<<
@@ -234,11 +245,11 @@ ast.SwitchStmt =
 	Body:blockStmtPtr;
 
 ast.TypeCaseClause =
-	(	Type:not_empty "case " Type
+	(	Type:exists "case " Type
 	|	"default"
 	)
 	":"
-	[Body:not_empty
+	[Body:exists
 	>> "\t" "\n"
 		{Body / ";\n"}
 	<<
@@ -249,7 +260,15 @@ ast.TypeSwitchStmt =
 	Body:blockStmtPtr;
 
 ast.CommClause =
-	"CommClause";
+	(	"case " [Lhs " " Tok " "] Rhs
+	|	"default"
+	)
+	":"
+	[Body:exists
+	>> "\t" "\n"
+		{Body / ";\n"}
+	<<
+	];
 
 ast.SelectStmt =
 	"select "
@@ -257,9 +276,7 @@ ast.SelectStmt =
 
 ast.ForStmt =
 	"for "
-	[	Init:not_empty
-		[Init] "; " [Cond] "; " [Post " "]
-	|	Post:not_empty
+	[	(Init:exists | Post:exists)
 		[Init] "; " [Cond] "; " [Post " "]
 	|	Cond " "
 	]
@@ -282,7 +299,7 @@ ast.ImportSpec =
 	[Name] "\t" {Path};
 
 ast.ValueSpec =
-	{Names / ", "} [" " Type] [Values:not_empty " = " {Values / ", "}];
+	{Names / ", "} [" " Type] [Values:exists " = " {Values / ", "}];
 
 ast.TypeSpec =
 	Name " "  // TODO using "\t" instead of " " screws up struct field alignment
@@ -293,12 +310,10 @@ ast.BadDecl =
 
 ast.GenDecl =
 	Doc
-	Tok " ("
-	>> "\t" "\n"
-		{Specs / ";\n"}
-	<<
-	"\n"
-	")";
+	Tok " "
+	[Lparen:isValidPos "(" >> "\t" "\n"]
+	{Specs / ";\n"}
+	[Rparen:isValidPos << "\n" ")"];
 
 ast.FuncDecl =
 	"func " ["(" Recv ") "] Name Type:funcSignature

@@ -41,7 +41,7 @@ func init() {
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: pretty { flags } { files }\n");
 	flag.PrintDefaults();
-	sys.Exit(0);
+	sys.Exit(1);
 }
 
 
@@ -94,6 +94,21 @@ func (h *ErrorHandler) Error(pos token.Position, msg string) {
 }
 
 
+func isValidPos(w io.Write, value interface{}, name string) bool {
+	return value.(token.Position).Line > 0;
+}
+
+
+func isSend(w io.Write, value interface{}, name string) bool {
+	return value.(ast.ChanDir) & ast.SEND != 0;
+}
+
+
+func isRecv(w io.Write, value interface{}, name string) bool {
+	return value.(ast.ChanDir) & ast.RECV != 0;
+}
+
+
 func main() {
 	// handle flags
 	flag.Parse();
@@ -114,25 +129,31 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
 		sys.Exit(1);
 	}
-	ast_format := format.Parse(src, nil);
-	if ast_format == nil {
-		fmt.Fprintf(os.Stderr, "%s: format errors\n", ast_txt);
+	ast_format, err := format.Parse(src, format.FormatterMap{"isValidPos": isValidPos, "isSend": isSend, "isRecv": isRecv});
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: format errors:\n%s", ast_txt, err);
 		sys.Exit(1);
 	}
 
 	// process files
+	exitcode := 0;
 	for i := 0; i < flag.NArg(); i++ {
 		filename := flag.Arg(i);
 
 		src, err := readFile(filename);
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", filename, err);
-			continue;
+			exitcode = 1;
+			continue;  // proceed with next file
 		}
 
 		prog, ok := parser.Parse(src, &ErrorHandler{filename, 0}, mode);
+		if !ok {
+			exitcode = 1;
+			continue;  // proceed with next file			
+		}
 
-		if ok && !*silent {
+		if !*silent {
 			tw := makeTabwriter(os.Stdout);
 			if *formatter {
 				ast_format.Fprint(tw, prog);
@@ -144,4 +165,6 @@ func main() {
 			tw.Flush();
 		}
 	}
+	
+	sys.Exit(exitcode);
 }

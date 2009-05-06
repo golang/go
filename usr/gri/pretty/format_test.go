@@ -11,7 +11,7 @@ import (
 
 
 func check(t *testing.T, form, expected string, args ...) {
-	result := format.Parse(form, nil).Sprint(args);
+	result := format.ParseOrDie(form, nil).Sprint(args);
 	if result != expected {
 		t.Errorf(
 			"format  : %s\nresult  : `%s`\nexpected: `%s`\n\n",
