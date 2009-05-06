@@ -7,123 +7,126 @@ all: install
 GC=6g
 
 DIRS=\
+	bignum\
+	bufio\
 	container\
+	exec\
+	exvar\
+	flag\
 	fmt\
 	go\
 	hash\
 	http\
 	io\
 	json\
+	log\
+	malloc\
 	math\
 	net\
+	once\
 	os\
+	path\
+	rand\
 	reflect\
 	regexp\
+	sort\
 	strconv\
+	strings\
 	sync\
 	tabwriter\
 	template\
+	testing\
 	time\
 	unicode\
-
-FILES=\
-	bignum\
-	bufio\
-	exec\
-	exvar\
-	flag\
-	log\
-	malloc\
-	once\
-	rand\
-	sort\
-	strings\
-	testing\
 	utf8\
 
 TEST=\
-	bignum\
-	bufio\
-	exec\
-	exvar\
-	flag\
-	log\
-	once\
-	sort\
-	strings\
-	utf8\
+	bignum \
+	bufio \
+	container \
+	exec \
+	exvar \
+	flag \
+	fmt \
+	go \
+	hash \
+	http \
+	io \
+	json \
+	log \
+	math \
+	net \
+	once \
+	os \
+	path \
+	reflect \
+	regexp \
+	sort \
+	strconv \
+	strings \
+	sync \
+	tabwriter \
+	template \
+	time \
+	unicode \
+	utf8 \
 
-clean.dirs: $(addsuffix .dirclean, $(DIRS))
-install.dirs: $(addsuffix .dirinstall, $(DIRS))
-install.files: $(addsuffix .install, $(FILES))
-nuke.dirs: $(addsuffix .dirnuke, $(DIRS))
-test.files: $(addsuffix .test, $(TEST))
-
-%.6: %.go
-	$(GC) $*.go
-
-%.test: %.6
-	gotest $*_test.go
+clean.dirs: $(addsuffix .clean, $(DIRS))
+install.dirs: $(addsuffix .install, $(DIRS))
+nuke.dirs: $(addsuffix .nuke, $(DIRS))
+test.dirs: $(addsuffix .test, $(TEST))
 
 %.clean:
-	rm -f $*.6
-
-%.install: %.6
-	6ar grc $*.a $*.6
-	mv $*.a $(GOROOT)/pkg/$*.a
-	rm -f $*.6
-
-%.dirclean:
 	+cd $* && make clean
 
-%.dirinstall:
+%.install:
 	+cd $* && make install
 
-%.dirnuke:
+%.nuke:
 	+cd $* && make nuke
 
-clean.files:
-	rm -f 6.out *.6
+%.test:
+	+cd $* && make test
 
-clean: clean.dirs clean.files
+clean: clean.dirs
 
-install: install.dirs install.files
+install: install.dirs
 
-nuke: nuke.dirs clean.files
-	rm -f $(GOROOT)/pkg/*
+test:	test.dirs
 
-test: test.files
+nuke: nuke.dirs
+	rm -rf $(GOROOT)/pkg/*
 
 # TODO: dependencies - should auto-generate
 
-bignum.6: fmt.dirinstall
-bufio.6: io.dirinstall os.dirinstall
-exec.6: os.dirinstall strings.install
-exvar.6: fmt.dirinstall http.dirinstall log.install strconv.dirinstall sync.dirinstall
-flag.6: fmt.dirinstall os.dirinstall strconv.dirinstall
-log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
-path.6: io.dirinstall
-once.6: sync.dirinstall
-strings.6: utf8.install
-testing.6: flag.install fmt.dirinstall
+bignum.install: fmt.install
+bufio.install: io.install os.install
+exec.install: os.install strings.install
+exvar.install: fmt.install http.install log.install strconv.install sync.install
+flag.install: fmt.install os.install strconv.install
+log.install: fmt.install io.install os.install time.install
+path.install: io.install
+once.install: sync.install
+strings.install: utf8.install
+testing.install: flag.install fmt.install
 
-fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
-go.dirinstall: regexp.dirinstall sort.install strconv.dirinstall strings.install \
-	utf8.install unicode.dirinstall fmt.dirinstall
-hash.dirinstall: os.dirinstall
-http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall path.install strings.install log.install
-io.dirinstall: os.dirinstall sync.dirinstall
-json.dirinstall: container.dirinstall fmt.dirinstall io.dirinstall math.dirinstall \
-	strconv.dirinstall strings.install utf8.install
+fmt.install: io.install reflect.install strconv.install
+go.install: regexp.install sort.install strconv.install strings.install \
+	utf8.install unicode.install fmt.install
+hash.install: os.install
+http.install: bufio.install io.install net.install os.install path.install strings.install log.install
+io.install: os.install sync.install
+json.install: container.install fmt.install io.install math.install \
+	strconv.install strings.install utf8.install
 # TODO(rsc): net is not supposed to depend on fmt or strings or strconv
-net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall strings.install
-os.dirinstall: syscall.dirinstall once.install
-regexp.dirinstall: os.dirinstall
-reflect.dirinstall: strconv.dirinstall sync.dirinstall
-strconv.dirinstall: math.dirinstall os.dirinstall utf8.install
-sync.dirinstall:
-syscall.dirinstall: sync.dirinstall
-tabwriter.dirinstall: os.dirinstall io.dirinstall container.dirinstall
-template.dirinstall: fmt.dirinstall io.dirinstall os.dirinstall reflect.dirinstall strings.install
-time.dirinstall: once.install os.dirinstall io.dirinstall
+net.install: fmt.install once.install os.install strconv.install strings.install
+os.install: syscall.install once.install
+regexp.install: os.install
+reflect.install: strconv.install sync.install
+strconv.install: math.install os.install utf8.install
+sync.install:
+syscall.install: sync.install
+tabwriter.install: os.install io.install container.install
+template.install: fmt.install io.install os.install reflect.install strings.install
+time.install: once.install os.install io.install
 
