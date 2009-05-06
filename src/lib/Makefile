@@ -14,7 +14,11 @@ DIRS=\
 	exvar\
 	flag\
 	fmt\
-	go\
+	go/ast \
+	go/doc \
+	go/parser \
+	go/scanner \
+	go/token \
 	hash\
 	http\
 	io\
@@ -41,35 +45,36 @@ DIRS=\
 	utf8\
 
 TEST=\
-	bignum \
-	bufio \
-	container/vector \
-	exec \
-	exvar \
-	flag \
-	fmt \
-	go \
-	hash \
-	http \
-	io \
-	json \
-	log \
-	math \
-	net \
-	once \
-	os \
-	path \
-	reflect \
-	regexp \
-	sort \
-	strconv \
-	strings \
-	sync \
-	tabwriter \
-	template \
-	time \
-	unicode \
-	utf8 \
+	bignum\
+	bufio\
+	container/vector\
+	exec\
+	exvar\
+	flag\
+	fmt\
+	go/parser\
+	go/scanner\
+	hash\
+	http\
+	io\
+	json\
+	log\
+	math\
+	net\
+	once\
+	os\
+	path\
+	reflect\
+	regexp\
+	sort\
+	strconv\
+	strings\
+	sync\
+	tabwriter\
+	template\
+	time\
+	unicode\
+	utf8\
 
 clean.dirs: $(addsuffix .clean, $(DIRS))
 install.dirs: $(addsuffix .install, $(DIRS))
@@ -111,8 +116,13 @@ strings.install: utf8.install
 testing.install: flag.install fmt.install
 
 fmt.install: io.install reflect.install strconv.install
-go.install: fmt.install io.install once.install regexp.install sort.install \
+GODEPS=fmt.install io.install once.install regexp.install sort.install \
 	strconv.install strings.install unicode.install utf8.install container/vector.install
+go/scanner.install: go/token.install $(GODEPS)
+go/parser.install: go/ast.install go/scanner.install go/token.install $(GODEPS)
+go/doc.install: go/ast.install go/token.install $(GODEPS)
+go/ast.install: go/token.install $(GODEPS)
+go/token.install: $(GODEPS)
 hash.install: os.install
 http.install: bufio.install io.install net.install os.install path.install strings.install log.install
 io.install: os.install sync.install
