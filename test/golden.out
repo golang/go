@@ -96,6 +96,11 @@ bugs/bug140.go:6: syntax error near L1
 bugs/bug140.go:7: syntax error near L2
 BUG should compile
 
+=========== bugs/bug148.go
+2 3
+5 7
+BUG: should crash
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
