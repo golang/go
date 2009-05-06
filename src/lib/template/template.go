@@ -142,13 +142,13 @@ type repeatedElement struct {
 // It is unchanged after parsing.
 type Template struct {
 	fmap	FormatterMap;	// formatters for variables
-	errorchan	chan os.Error;	// for reporting errors during parse and execute
 	// Used during parsing:
 	ldelim, rdelim	[]byte;	// delimiters; default {}
 	buf	[]byte;	// input text to process
 	p	int;	// position in buf
 	linenum	int;	// position in input
-	// Parsed state:
+	errors	chan os.Error;	// for error reporting during parsing (only)
+	// Parsed results:
 	elems	*vector.Vector;
 }
 
@@ -159,6 +159,11 @@ type state struct {
 	parent	*state;	// parent in hierarchy
 	data	reflect.Value;	// the driver data for this section etc.
 	wr	io.Write;	// where to send output
+	errors	chan os.Error;	// for reporting errors during execute
+}
+
+func (parent *state) clone(data reflect.Value) *state {
+	return &state{parent, data, parent.wr, parent.errors}
 }
 
 // New creates a new template with the specified formatter map (which
@@ -168,21 +173,25 @@ func New(fmap FormatterMap) *Template {
 	t.fmap = fmap;
 	t.ldelim = lbrace;
 	t.rdelim = rbrace;
-	t.errorchan = make(chan os.Error);
+	t.errors = make(chan os.Error);
 	t.elems = vector.New(0);
 	return t;
 }
 
-// Report error and stop parsing.  The line number comes from the template state.
-func (t *Template) parseError(err string, args ...) {
-	t.errorchan <- ParseError{fmt.Sprintf("line %d: %s", t.linenum, fmt.Sprintf(err, args))};
+// Generic error handler, called only from execError or parseError.
+func error(errors chan os.Error, line int, err string, args ...) {
+	errors <- ParseError{fmt.Sprintf("line %d: %s", line, fmt.Sprintf(err, args))};
 	sys.Goexit();
 }
 
 // Report error and stop executing.  The line number must  be provided explicitly.
-func (t *Template) execError(line int, err string, args ...) {
-	t.errorchan <- ParseError{fmt.Sprintf("line %d: %s", line, fmt.Sprintf(err, args))};
-	sys.Goexit();
+func (t *Template) execError(st *state, line int, err string, args ...) {
+	error(st.errors, line, err, args);
+}
+
+// Report error and stop parsing.  The line number comes from the template state.
+func (t *Template) parseError(err string, args ...) {
+	error(t.errors, t.linenum, err, args)
 }
 
 // -- Lexical analysis
@@ -589,7 +598,7 @@ func (t *Template) varValue(v *variableElement, st *state) reflect.Value {
 	field := st.findVar(v.name);
 	if field == nil {
 		if st.parent == nil {
-			t.execError(t.linenum, "name not found: %s", v.name)
+			t.execError(st, t.linenum, "name not found: %s", v.name)
 		}
 		return t.varValue(v, st.parent);
 	}
@@ -613,7 +622,7 @@ func (t *Template) writeVariable(v *variableElement, st *state) {
 		fn(st.wr, val, v.formatter);
 		return;
 	}
-	t.execError(v.linenum, "missing formatter %s for variable %s", v.formatter, v.name)
+	t.execError(st, v.linenum, "missing formatter %s for variable %s", v.formatter, v.name)
 }
 
 // execute{|Element|Section|Repeated} are mutually recursive
@@ -640,7 +649,7 @@ func (t *Template) executeElement(i int, st *state) int {
 		return elem.end;
 	}
 	e := t.elems.At(i);
-	t.execError(0, "internal error: bad directive in execute: %v %T\n", reflect.NewValue(e).Interface(), e);
+	t.execError(st, 0, "internal error: bad directive in execute: %v %T\n", reflect.NewValue(e).Interface(), e);
 	return 0
 }
 
@@ -656,9 +665,9 @@ func (t *Template) executeSection(s *sectionElement, st *state) {
 	// Find driver data for this section.  It must be in the current struct.
 	field := st.findVar(s.field);
 	if field == nil {
-		t.execError(s.linenum, ".section: cannot find field %s in %s", s.field, reflect.Indirect(st.data).Type());
+		t.execError(st, s.linenum, ".section: cannot find field %s in %s", s.field, reflect.Indirect(st.data).Type());
 	}
-	st = &state{st, field, st.wr};
+	st = st.clone(field);
 	start, end := s.start, s.or;
 	if !empty(field, true) {
 		// Execute the normal block.
@@ -682,19 +691,19 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 	// Find driver data for this section.  It must be in the current struct.
 	field := st.findVar(r.field);
 	if field == nil {
-		t.execError(r.linenum, ".repeated: cannot find field %s in %s", r.field, reflect.Indirect(st.data).Type());
+		t.execError(st, r.linenum, ".repeated: cannot find field %s in %s", r.field, reflect.Indirect(st.data).Type());
 	}
 	field = reflect.Indirect(field);
 
 	// Must be an array/slice
 	if field != nil && field.Kind() != reflect.ArrayKind {
-		t.execError(r.linenum, ".repeated: %s has bad type %s", r.field, field.Type());
+		t.execError(st, r.linenum, ".repeated: %s has bad type %s", r.field, field.Type());
 	}
 	if empty(field, true) {
 		// Execute the .or block, once.  If it's missing, do nothing.
 		start, end := r.or, r.end;
 		if start >= 0 {
-			newst := &state{st, field, st.wr};
+			newst := st.clone(field);
 			for i := start; i < end; {
 				i = t.executeElement(i, newst)
 			}
@@ -712,7 +721,7 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 	if field != nil {
 		array := field.(reflect.ArrayValue);
 		for j := 0; j < array.Len(); j++ {
-			newst := &state{st, array.Elem(j), st.wr};
+			newst := st.clone(array.Elem(j));
 			for i := start; i < end; {
 				i = t.executeElement(i, newst)
 			}
@@ -753,9 +762,9 @@ func (t *Template) Parse(s string) os.Error {
 	t.linenum = 0;
 	go func() {
 		t.parse();
-		t.errorchan <- nil;	// clean return;
+		t.errors <- nil;	// clean return;
 	}();
-	return <-t.errorchan;
+	return <-t.errors;
 }
 
 // Execute applies a parsed template to the specified data object,
@@ -763,12 +772,13 @@ func (t *Template) Parse(s string) os.Error {
 func (t *Template) Execute(data interface{}, wr io.Write) os.Error {
 	// Extract the driver data.
 	val := reflect.NewValue(data);
+	errors := make(chan os.Error);
 	go func() {
 		t.p = 0;
-		t.execute(0, t.elems.Len(), &state{nil, val, wr});
-		t.errorchan <- nil;	// clean return;
+		t.execute(0, t.elems.Len(), &state{nil, val, wr, errors});
+		errors <- nil;	// clean return;
 	}();
-	return <-t.errorchan;
+	return <-errors;
 }
 
 // SetDelims sets the left and right delimiters for operations in the
