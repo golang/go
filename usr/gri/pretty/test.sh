@@ -4,7 +4,7 @@
 
 #!/bin/bash
 
-CMD="./pretty"
+CMD="./pretty -formatter"
 TMP1=test_tmp1.go
 TMP2=test_tmp2.go
 TMP3=test_tmp3.go
@@ -70,12 +70,27 @@ silent() {
 idempotent() {
 	cleanup
 	$CMD $1 > $TMP1
+	if [ $? != 0 ]; then
+		echo "Error (step 1 of idempotency test): test.sh $1"
+		exit 1
+	fi
+	
 	$CMD $TMP1 > $TMP2
+	if [ $? != 0 ]; then
+		echo "Error (step 2 of idempotency test): test.sh $1"
+		exit 1
+	fi
+
 	$CMD $TMP2 > $TMP3
+	if [ $? != 0 ]; then
+		echo "Error (step 3 of idempotency test): test.sh $1"
+		exit 1
+	fi
+
 	cmp -s $TMP2 $TMP3
 	if [ $? != 0 ]; then
 		diff $TMP2 $TMP3
-		echo "Error (idempotency test): test.sh $1"
+		echo "Error (step 4 of idempotency test): test.sh $1"
 		exit 1
 	fi
 }
@@ -84,9 +99,14 @@ idempotent() {
 valid() {
 	cleanup
 	$CMD $1 > $TMP1
+	if [ $? != 0 ]; then
+		echo "Error (step 1 of validity test): test.sh $1"
+		exit 1
+	fi
+
 	6g -o /dev/null $TMP1
 	if [ $? != 0 ]; then
-		echo "Error (validity test): test.sh $1"
+		echo "Error (step 2 of validity test): test.sh $1"
 		exit 1
 	fi
 }
