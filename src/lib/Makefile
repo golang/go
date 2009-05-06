@@ -9,7 +9,7 @@ GC=6g
 DIRS=\
 	bignum\
 	bufio\
-	container\
+	container/vector\
 	exec\
 	exvar\
 	flag\
@@ -43,7 +43,7 @@ DIRS=\
 TEST=\
 	bignum \
 	bufio \
-	container \
+	container/vector \
 	exec \
 	exvar \
 	flag \
@@ -116,7 +116,7 @@ go.install: regexp.install sort.install strconv.install strings.install \
 hash.install: os.install
 http.install: bufio.install io.install net.install os.install path.install strings.install log.install
 io.install: os.install sync.install
-json.install: container.install fmt.install io.install math.install \
+json.install: container/vector.install fmt.install io.install math.install \
 	strconv.install strings.install utf8.install
 # TODO(rsc): net is not supposed to depend on fmt or strings or strconv
 net.install: fmt.install once.install os.install strconv.install strings.install
@@ -126,7 +126,7 @@ reflect.install: strconv.install sync.install
 strconv.install: math.install os.install utf8.install
 sync.install:
 syscall.install: sync.install
-tabwriter.install: os.install io.install container.install
+tabwriter.install: os.install io.install container/vector.install
 template.install: fmt.install io.install os.install reflect.install strings.install
 time.install: once.install os.install io.install
 
