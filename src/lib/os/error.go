@@ -14,8 +14,8 @@ type Error interface {
 // A helper type that can be embedded or wrapped to simplify satisfying
 // Error.
 type ErrorString string
-func (e *ErrorString) String() string {
-	return *e
+func (e ErrorString) String() string {
+	return e
 }
 
 // Errno is the Unix error number.  Names such as EINVAL are simple
