@@ -345,7 +345,7 @@ func internetSocket(net, laddr, raddr string, proto int64, mode string)
 	default:
 		// Otherwise, guess.
 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
-		if preferIPv4 && lip.To4() != nil && rip.To4() != nil {
+		if preferIPv4 && (lip == nil || lip.To4() != nil) && (rip == nil || rip.To4() != nil) {
 			vers = 4
 		} else {
 			vers = 6
