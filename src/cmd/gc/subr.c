@@ -2568,6 +2568,22 @@ expand0(Type *t, int followptr)
 		u = u->type;
 	}
 
+	if(u->etype == TINTER) {
+		for(f=u->type; f!=T; f=f->down) {
+			if(!exportname(f->sym->name) && strcmp(f->sym->opackage, package) != 0)
+				continue;
+			if(f->sym->uniq)
+				continue;
+			f->sym->uniq = 1;
+			sl = mal(sizeof(*sl));
+			sl->field = f;
+			sl->link = slist;
+			sl->followptr = followptr;
+			slist = sl;
+		}
+		return;
+	}
+
 	u = methtype(t);
 	if(u != T) {
 		for(f=u->method; f!=T; f=f->down) {
@@ -2858,7 +2874,7 @@ ifaceokT2I(Type *t0, Type *iface, Type **m)
 		// if pointer receiver in method,
 		// the method does not exist for value types.
 		rcvr = getthisx(tm->type)->type->type;
-		if(isptr[rcvr->etype] && !isptr[t0->etype] && !followptr) {
+		if(isptr[rcvr->etype] && !isptr[t0->etype] && !followptr && !isifacemethod(tm)) {
 			if(debug['r'])
 				yyerror("interface pointer mismatch");
 			*m = im;

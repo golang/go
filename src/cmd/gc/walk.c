@@ -192,6 +192,7 @@ implicitstar(Node **nn)
 	case TMAP:
 	case TSTRING:
 	case TARRAY:
+	case TINTER:
 		break;
 	default:
 		return;
@@ -1611,8 +1612,10 @@ lookdot(Node *n, Type *t)
 		n->right = f1->nname;		// substitute real name
 		n->xoffset = f1->width;
 		n->type = f1->type;
-		if(t->etype == TINTER)
+		if(t->etype == TINTER) {
+			implicitstar(&n->left);
 			n->op = ODOTINTER;
+		}
 		return 1;
 	}
 
@@ -1742,7 +1745,7 @@ loop:
 		if(l != N || r != T)
 			yyerror("assignment count mismatch: %d = %d",
 				listcount(*nl), structcount(*nr));
-			
+
 		return rev(nn);
 	}
 

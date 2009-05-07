@@ -822,6 +822,7 @@ void	addvar(Node*, Type*, int);
 void	addtyp(Type*, int);
 void	addconst(Node*, Node*, int);
 Node*	fakethis(void);
+int	isifacemethod(Type*);
 Node*	newname(Sym*);
 Node*	oldname(Sym*);
 Type*	newtype(Sym*);
