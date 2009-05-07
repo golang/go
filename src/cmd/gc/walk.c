@@ -1590,8 +1590,7 @@ lookdot1(Sym *s, Type *t, Type *f)
 int
 lookdot(Node *n, Type *t)
 {
-	Type *f1, *f2, *tt;
-	int op;
+	Type *f1, *f2, *tt, *rcvr;
 	Sym *s;
 
 	s = n->right->sym;
@@ -1618,18 +1617,19 @@ lookdot(Node *n, Type *t)
 
 	if(f2 != T) {
 		tt = n->left->type;
-		if((op = methconv(tt)) != 0) {
-			switch(op) {
-			case OADDR:
+		rcvr = getthisx(f2->type)->type->type;
+		if(!eqtype(rcvr, tt, 0)) {
+			if(rcvr->etype == tptr && eqtype(rcvr->type, tt, 0)) {
 				walktype(n->left, Elv);
 				addrescapes(n->left);
 				n->left = nod(OADDR, n->left, N);
 				n->left->type = ptrto(tt);
-				break;
-			case OIND:
+			} else if(tt->etype == tptr && eqtype(tt->type, rcvr, 0)) {
 				n->left = nod(OIND, n->left, N);
 				n->left->type = tt->type;
-				break;
+			} else {
+				// method is attached to wrong type?
+				fatal("method mismatch: %T for %T", rcvr, tt);
 			}
 		}
 		n->right = methodname(n->right, n->left->type);

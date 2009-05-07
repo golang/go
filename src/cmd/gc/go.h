@@ -137,7 +137,6 @@ struct	Type
 	uchar	chan;
 	uchar	recur;		// to detect loops
 	uchar	trecur;		// to detect loops
-	uchar	methptr;	// 1=direct 2=pointer
 	uchar	printed;
 	uchar	embedded;	// TFIELD embedded type
 	uchar	siggen;
@@ -725,9 +724,7 @@ int	isinter(Type*);
 int	isnilinter(Type*);
 int	isddd(Type*);
 Type*	maptype(Type*, Type*);
-Type*	dclmethod(Type*);
 Type*	methtype(Type*);
-int	methconv(Type*);
 Sym*	signame(Type*);
 int	eqtype(Type*, Type*, int);
 int	eqtypenoname(Type*, Type*);
@@ -787,10 +784,8 @@ int	lookdot0(Sym*, Type*, Type**);
 Type*	lookdot1(Sym*, Type*, Type*);
 int	adddot1(Sym*, Type*, int, Type**);
 Node*	adddot(Node*);
-void	expand0(Type*);
-void	expand1(Type*, int);
 void	expandmeth(Sym*, Type*);
-void	genptrtramp(Sym*, Sym*, Type*, Type*, Sym*, Type*);
+void	genwrapper(Type*, Type*, Sym*);
 
 /*
  *	dcl.c

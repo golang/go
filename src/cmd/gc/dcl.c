@@ -129,7 +129,6 @@ updatetype(Type *n, Type *t)
 	n->sym = s;
 	n->local = local;
 	n->siggen = 0;
-	n->methptr = 0;
 	n->printed = 0;
 	n->method = nil;
 	n->vargen = 0;
@@ -293,7 +292,7 @@ addmethod(Node *n, Type *t, int local)
 	if(pa == T)
 		goto bad;
 
-	f = dclmethod(pa);
+	f = methtype(pa);
 	if(f == T)
 		goto bad;
 

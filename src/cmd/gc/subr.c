@@ -1495,7 +1495,7 @@ isddd(Type *t)
  * return type to hang methods off (r).
  */
 Type*
-dclmethod(Type *t)
+methtype(Type *t)
 {
 	int ptr;
 
@@ -1517,15 +1517,6 @@ dclmethod(Type *t)
 	if(t->sym == S)
 		return T;
 
-	// check that all method receivers are consistent
-	if(t->methptr != 0 && t->methptr != (1<<ptr)) {
-		if(t->methptr != 3) {
-			t->methptr = 3;
-			yyerror("methods on both %T and *%T", t, t);
-		}
-	}
-	t->methptr |= 1<<ptr;
-
 	// check types
 	if(!issimple[t->etype])
 	switch(t->etype) {
@@ -1541,50 +1532,6 @@ dclmethod(Type *t)
 	}
 
 	return t;
-}
-
-/*
- * this is dclmethod() without side effects.
- */
-Type*
-methtype(Type *t)
-{
-	if(t == T)
-		return T;
-	if(isptr[t->etype]) {
-		if(t->sym != S)
-			return T;
-		t = t->type;
-	}
-	if(t == T || t->etype == TINTER || t->sym == S)
-		return T;
-	return t;
-}
-
-/*
- * given type t in a method call, returns op
- * to convert t into appropriate receiver.
- * returns OADDR if t==x and method takes *x
- * returns OIND if t==*x and method takes x
- */
-int
-methconv(Type *t)
-{
-	Type *m;
-
-	m = methtype(t);
-	if(m == T)
-		return 0;
-	if(m->methptr&2) {
-		// want pointer
-		if(t == m)
-			return OADDR;
-		return 0;
-	}
-	// want non-pointer
-	if(t != m)
-		return OIND;
-	return 0;
 }
 
 int
@@ -2604,19 +2551,22 @@ struct	Symlink
 {
 	Type*		field;
 	uchar		good;
+	uchar		followptr;
 	Symlink*	link;
 };
 static	Symlink*	slist;
 
-void
-expand0(Type *t)
+static void
+expand0(Type *t, int followptr)
 {
 	Type *f, *u;
 	Symlink *sl;
 
 	u = t;
-	if(isptr[u->etype])
+	if(isptr[u->etype]) {
+		followptr = 1;
 		u = u->type;
+	}
 
 	u = methtype(t);
 	if(u != T) {
@@ -2629,13 +2579,14 @@ expand0(Type *t)
 			sl = mal(sizeof(*sl));
 			sl->field = f;
 			sl->link = slist;
+			sl->followptr = followptr;
 			slist = sl;
 		}
 	}
 }
 
-void
-expand1(Type *t, int d)
+static void
+expand1(Type *t, int d, int followptr)
 {
 	Type *f, *u;
 
@@ -2646,11 +2597,13 @@ expand1(Type *t, int d)
 	t->trecur = 1;
 
 	if(d != nelem(dotlist)-1)
-		expand0(t);
+		expand0(t, followptr);
 
 	u = t;
-	if(isptr[u->etype])
+	if(isptr[u->etype]) {
+		followptr = 1;
 		u = u->type;
+	}
 	if(u->etype != TSTRUCT && u->etype != TINTER)
 		goto out;
 
@@ -2659,7 +2612,7 @@ expand1(Type *t, int d)
 			continue;
 		if(f->sym == S)
 			continue;
-		expand1(f->type, d-1);
+		expand1(f->type, d-1, followptr);
 	}
 
 out:
@@ -2682,7 +2635,7 @@ expandmeth(Sym *s, Type *t)
 
 	// generate all reachable methods
 	slist = nil;
-	expand1(t, nelem(dotlist)-1);
+	expand1(t, nelem(dotlist)-1, 0);
 
 	// check each method to be uniquely reachable
 	for(sl=slist; sl!=nil; sl=sl->link) {
@@ -2704,7 +2657,8 @@ expandmeth(Sym *s, Type *t)
 			f = typ(TFIELD);
 			*f = *sl->field;
 			f->embedded = 1;	// needs a trampoline
-
+			if(sl->followptr)
+				f->embedded = 2;
 			f->down = t->method;
 			t->method = f;
 
@@ -2742,43 +2696,46 @@ structargs(Type **tl, int mustname)
 }
 
 /*
- * Generate a trampoline to convert
- * from an indirect receiver to a direct receiver
- * or vice versa.
+ * Generate a wrapper function to convert from
+ * a receiver of type T to a receiver of type U.
+ * That is,
  *
- *	method - short name of method (Len)
- *	oldname - old mangled method name (x·y·Len)
- *	oldthis - old this type (y)
- *	oldtype - type of method being called;
- *		only in and out params are known okay,
- *		receiver might be != oldthis.
- *	newnam [sic] - new mangled method name (x·*y·Len)
- *	newthis - new this type (*y)
+ *	func (t T) M() {
+ *		...
+ *	}
+ *
+ * already exists; this function generates
+ *
+ *	func (u U) M() {
+ *		u.M()
+ *	}
+ *
+ * where the types T and U are such that u.M() is valid
+ * and calls the T.M method.
+ * The resulting function is for use in method tables.
+ *
+ *	rcvrtype - U
+ *	method - M func (t T)(), a TFIELD type struct
+ *	newnam - the eventual mangled name of this function
  */
 void
-genptrtramp(Sym *method, Sym *oldname, Type *oldthis, Type *oldtype, Sym *newnam, Type *newthis)
+genwrapper(Type *rcvrtype, Type *method, Sym *newnam)
 {
-	Node *fn, *args, *l, *in, *call, *out, *this, *rcvr, *meth;
+	Node *this, *in, *out, *fn, *args, *call;
+	Node *l;
 	Iter savel;
 
 	if(debug['r']) {
-		print("\ngenptrtramp method=%S oldname=%S oldthis=%T\n",
-			method, oldname, oldthis);
-		print("\toldtype=%T newnam=%S newthis=%T\n",
-			oldtype, newnam, newthis);
+		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
+			rcvrtype, method, newnam);
 	}
 
 	dclcontext = PEXTERN;
 	markdcl();
 
-	this = nametodcl(newname(lookup(".this")), newthis);
-	in = structargs(getinarg(oldtype), 1);
-	out = structargs(getoutarg(oldtype), 0);
-
-	// fix up oldtype
-	markdcl();
-	oldtype = functype(nametodcl(newname(lookup(".this")), oldthis), in, out);
-	popdcl();
+	this = nametodcl(newname(lookup(".this")), rcvrtype);
+	in = structargs(getinarg(method->type), 1);
+	out = structargs(getoutarg(method->type), 0);
 
 	fn = nod(ODCLFUNC, N, N);
 	fn->nname = newname(newnam);
@@ -2791,19 +2748,10 @@ genptrtramp(Sym *method, Sym *oldname, Type *oldthis, Type *oldtype, Sym *newnam
 		args = list(args, l->left);
 	args = rev(args);
 
-	// method to call
-	if(isptr[oldthis->etype])
-		rcvr = nod(OADDR, this->left, N);
-	else
-		rcvr = nod(OIND, this->left, N);
-	gettype(rcvr, N);
-	meth = nod(ODOTMETH, rcvr, newname(oldname));
-	meth->xoffset = BADWIDTH;	// TODO(rsc): necessary?
-	meth->type = oldtype;
-
-	call = nod(OCALL, meth, args);
+	// generate call
+	call = nod(OCALL, adddot(nod(ODOT, this->left, newname(method->sym))), args);
 	fn->nbody = call;
-	if(oldtype->outtuple > 0)
+	if(method->type->outtuple > 0)
 		fn->nbody = nod(ORETURN, call, N);
 
 	if(debug['r'])
@@ -2850,10 +2798,12 @@ ifacecheck(Type *dst, Type *src, int lineno, int explicit)
 }
 
 Type*
-ifacelookdot(Sym *s, Type *t)
+ifacelookdot(Sym *s, Type *t, int *followptr)
 {
-	int c, d;
+	int i, c, d;
 	Type *m;
+
+	*followptr = 0;
 
 	if(t == T)
 		return T;
@@ -2864,8 +2814,15 @@ ifacelookdot(Sym *s, Type *t)
 			yyerror("%T.%S is ambiguous", t, s);
 			return T;
 		}
-		if(c == 1)
+		if(c == 1) {
+			for(i=0; i<d; i++) {
+				if(isptr[dotlist[i].field->type->etype]) {
+					*followptr = 1;
+					break;
+				}
+			}
 			return m;
+		}
 	}
 	return T;
 }
@@ -2875,22 +2832,10 @@ ifacelookdot(Sym *s, Type *t)
 int
 ifaceokT2I(Type *t0, Type *iface, Type **m)
 {
-	Type *t, *im, *tm;
-	int imhash;
+	Type *t, *im, *tm, *rcvr;
+	int imhash, followptr;
 
 	t = methtype(t0);
-
-	// stopgap: check for
-	// non-pointer type in T2I, methods want pointers.
-	// supposed to do something better eventually
-	// but this will catch errors while we decide the
-	// details of the "better" solution.
-	// only warn if iface is not interface{}.
-	if(t == t0 && t->methptr == 2 && iface->type != T) {
-		yyerror("probably wanted *%T not %T", t, t);
-		*m = iface->type;
-		return 0;
-	}
 
 	// if this is too slow,
 	// could sort these first
@@ -2905,8 +2850,17 @@ ifaceokT2I(Type *t0, Type *iface, Type **m)
 
 	for(im=iface->type; im; im=im->down) {
 		imhash = typehash(im, 0, 0);
-		tm = ifacelookdot(im->sym, t);
+		tm = ifacelookdot(im->sym, t, &followptr);
 		if(tm == T || typehash(tm, 0, 0) != imhash) {
+			*m = im;
+			return 0;
+		}
+		// if pointer receiver in method,
+		// the method does not exist for value types.
+		rcvr = getthisx(tm->type)->type->type;
+		if(isptr[rcvr->etype] && !isptr[t0->etype] && !followptr) {
+			if(debug['r'])
+				yyerror("interface pointer mismatch");
 			*m = im;
 			return 0;
 		}

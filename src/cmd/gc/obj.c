@@ -140,6 +140,12 @@ ieeedtod(uint64 *ieee, double native)
 	*ieee = ((uint64)h << 32) | l;
 }
 
+static int
+sigcmp(Sig *a, Sig *b)
+{
+	return strcmp(a->name, b->name);
+}
+
 /*
  * Add DATA for signature s.
  *	progt - type in program
@@ -165,13 +171,6 @@ ieeedtod(uint64 *ieee, double native)
  *		} meth[1];			// one or more - last name is nil
  *	};
  */
-
-static int
-sigcmp(Sig *a, Sig *b)
-{
-	return strcmp(a->name, b->name);
-}
-
 void
 dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 {
@@ -180,11 +179,15 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 	Sig *a, *b;
 	char buf[NSYMB];
 	Type *this;
-	Iter savet;
 	Prog *oldlist;
 	Sym *method;
 	uint32 sighash;
 	int ot;
+
+	if(debug['r']) {
+		print("dumpsigt progt=%T ifacet=%T rcvrt=%T methodt=%T s=%S\n",
+			progt, ifacet, rcvrt, methodt, s);
+	}
 
 	a = nil;
 	o = 0;
@@ -201,6 +204,16 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 		if(method == nil)
 			continue;
 
+		// get receiver type for this particular method.
+		this = getthisx(f->type)->type->type;
+		if(f->embedded != 2 && isptr[this->etype] && !isptr[progt->etype]) {
+			// pointer receiver method but value method set.
+			// ignore.
+			if(debug['r'])
+				print("ignore %T for %T\n", f, progt);
+			continue;
+		}
+
 		b = mal(sizeof(*b));
 		b->link = a;
 		a = b;
@@ -216,31 +229,19 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 
 		if(!a->sym->siggen) {
 			a->sym->siggen = 1;
-			// TODO(rsc): This test is still not quite right.
 
-			this = structfirst(&savet, getthis(f->type))->type;
-			if(isptr[this->etype] != isptr[ifacet->etype]) {
+			if(!eqtype(this, ifacet, 0)) {
 				if(oldlist == nil)
 					oldlist = pc;
 
-				// indirect vs direct mismatch
-				Sym *oldname, *newname;
-				Type *oldthis, *newthis;
-
-				newthis = ifacet;
-				if(isptr[newthis->etype])
-					oldthis = ifacet->type;
+				// It would be okay to call genwrapper here always,
+				// but we can generate more efficient code
+				// using genembedtramp if all that is necessary
+				// is a pointer adjustment and a JMP.
+				if(f->embedded && isptr[ifacet->etype])
+					genembedtramp(ifacet, a);
 				else
-					oldthis = ptrto(ifacet);
-				newname = a->sym;
-				oldname = methodsym(method, oldthis);
-				genptrtramp(method, oldname, oldthis, f->type, newname, newthis);
-			} else
-			if(f->embedded) {
-				// TODO(rsc): only works for pointer receivers
-				if(oldlist == nil)
-					oldlist = pc;
-				genembedtramp(ifacet, a);
+					genwrapper(ifacet, f, a->sym);
 			}
 		}
 		o++;
@@ -449,23 +450,17 @@ dumpsignatures(void)
 		rcvrt = t;
 
 		// if there's a pointer, methods are on base.
-		if(isptr[methodt->etype] && methodt->type->sym != S) {
-			methodt = methodt->type;
+		methodt = methtype(progt);
+		if(methodt == T) {
+			// if that failed, go back to progt,
+			// assuming we're writing out a signature
+			// for a type with no methods
+			methodt = progt;
+		} else {
 			expandmeth(methodt->sym, methodt);
-
-			// if methodt had a name, we don't want to see
-			// it in the method names that go into the sigt.
-			// e.g., if
-			//	type item *rat
-			// then item needs its own sigt distinct from *rat,
-			// but it needs to have all of *rat's methods, using
-			// the *rat (not item) in the method names.
-			if(rcvrt->sym != S)
-				rcvrt = ptrto(methodt);
 		}
 
-		// and if ifacet is too wide, the methods
-		// will see a pointer anyway.
+		// if ifacet is too wide, the methods will see a pointer.
 		if(ifacet->width > 8) {
 			ifacet = ptrto(progt);
 			rcvrt = ptrto(progt);
@@ -473,7 +468,7 @@ dumpsignatures(void)
 
 		// don't emit non-trivial signatures for types defined outside this file.
 		// non-trivial signatures might also drag in generated trampolines,
-		// and ar can't handle duplicates of the trampolines.
+		// and ar can't handle duplicate functions.
 		// only pay attention to types with symbols, because
 		// the ... structs and maybe other internal structs
 		// don't get marked as local.
