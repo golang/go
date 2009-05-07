@@ -272,7 +272,7 @@ data(void)
 {
 	gflag = debug['g'];
 	debug['g'] = 0;
-	
+
 	if(estrdat == nil) {
 		strdat = mal(sizeof(*pc));
 		clearp(strdat);
@@ -324,7 +324,7 @@ datastring(char *s, int len, Addr *a)
 		Strlit lit;
 		char buf[100];
 	} tmp;
-	
+
 	// string
 	memset(&ao, 0, sizeof(ao));
 	ao.type = D_STATIC;
@@ -421,7 +421,7 @@ datagostring(Strlit *sval, Addr *a)
 
 	wi = types[TUINT32]->width;
 	wp = types[tptr]->width;
-	
+
 	if(ap.index == D_STATIC) {
 		// huge strings are made static to avoid long names
 		snprint(namebuf, sizeof(namebuf), ".gostring.%d", ++gen);
@@ -457,7 +457,7 @@ datagostring(Strlit *sval, Addr *a)
 	p->from.scale = wi;
 	p->to = ac;
 	p->to.offset = sval->len;
-	
+
 	p = pc;
 	ggloblsym(ao.sym, types[TSTRING]->width, ao.type == D_EXTERN);
 	if(ao.type == D_STATIC)
@@ -553,7 +553,7 @@ void
 genembedtramp(Type *t, Sig *b)
 {
 	Sym *e;
-	int c, d, o;
+	int c, d, o, loaded;
 	Prog *p;
 	Type *f;
 
@@ -566,9 +566,6 @@ genembedtramp(Type *t, Sig *b)
 	fatal("genembedtramp %T.%s", t, b->name);
 
 out:
-	if(d == 0)
-		return;
-
 //	print("genembedtramp %d\n", d);
 //	print("	t    = %lT\n", t);
 //	print("	name = %s\n", b->name);
@@ -587,20 +584,24 @@ out:
 	p->from.scale = 7;
 //print("1. %P\n", p);
 
-	//MOVQ	8(SP), AX
-	p = pc;
-	gins(AMOVQ, N, N);
-	p->from.type = D_INDIR+D_SP;
-	p->from.offset = 8;
-	p->to.type = D_AX;
-//print("2. %P\n", p);
-
+	loaded = 0;
 	o = 0;
 	for(c=d-1; c>=0; c--) {
 		f = dotlist[c].field;
 		o += f->width;
 		if(!isptr[f->type->etype])
 			continue;
+		if(!loaded) {
+			loaded = 1;
+			//MOVQ	8(SP), AX
+			p = pc;
+			gins(AMOVQ, N, N);
+			p->from.type = D_INDIR+D_SP;
+			p->from.offset = 8;
+			p->to.type = D_AX;
+//print("2. %P\n", p);
+		}
+
 		//MOVQ	o(AX), AX
 		p = pc;
 		gins(AMOVQ, N, N);
@@ -616,17 +617,31 @@ out:
 		gins(AADDQ, N, N);
 		p->from.type = D_CONST;
 		p->from.offset = o;
-		p->to.type = D_AX;
+		if(loaded)
+			p->to.type = D_AX;
+		else {
+			p->to.type = D_INDIR+D_SP;
+			p->to.offset = 8;
+		}
 //print("4. %P\n", p);
 	}
 
 	//MOVQ	AX, 8(SP)
-	p = pc;
-	gins(AMOVQ, N, N);
-	p->from.type = D_AX;
-	p->to.type = D_INDIR+D_SP;
-	p->to.offset = 8;
+	if(loaded) {
+		p = pc;
+		gins(AMOVQ, N, N);
+		p->from.type = D_AX;
+		p->to.type = D_INDIR+D_SP;
+		p->to.offset = 8;
 //print("5. %P\n", p);
+	} else {
+		// TODO(rsc): obviously this is unnecessary,
+		// but 6l has a bug, and it can't handle
+		// JMP instructions too close to the top of
+		// a new function.
+		p = pc;
+		gins(ANOP, N, N);
+	}
 
 	f = dotlist[0].field;
 	//JMP	main·*Sub_test2(SB)
