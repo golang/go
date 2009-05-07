@@ -1075,13 +1075,34 @@ Node*
 fakethis(void)
 {
 	Node *n;
-	Type *t;
 
 	n = nod(ODCLFIELD, N, N);
-	t = dostruct(N, TSTRUCT);
-	t = ptrto(t);
-	n->type = t;
+	n->type = ptrto(typ(TSTRUCT));
 	return n;
+}
+
+/*
+ * Is this field a method on an interface?
+ * Those methods have an anonymous
+ * *struct{} as the receiver.
+ * (See fakethis above.)
+ */
+int
+isifacemethod(Type *f)
+{
+	Type *rcvr;
+	Type *t;
+
+	rcvr = getthisx(f->type)->type;
+	if(rcvr->sym != S)
+		return 0;
+	t = rcvr->type;
+	if(!isptr[t->etype])
+		return 0;
+	t = t->type;
+	if(t->sym != S || t->etype != TSTRUCT || t->type != T)
+		return 0;
+	return 1;
 }
 
 /*

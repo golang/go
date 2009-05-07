@@ -206,7 +206,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 
 		// get receiver type for this particular method.
 		this = getthisx(f->type)->type->type;
-		if(f->embedded != 2 && isptr[this->etype] && !isptr[progt->etype]) {
+		if(f->embedded != 2 && isptr[this->etype] && !isptr[progt->etype] && !isifacemethod(f)) {
 			// pointer receiver method but value method set.
 			// ignore.
 			if(debug['r'])
@@ -238,7 +238,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 				// but we can generate more efficient code
 				// using genembedtramp if all that is necessary
 				// is a pointer adjustment and a JMP.
-				if(f->embedded && isptr[ifacet->etype])
+				if(f->embedded && isptr[ifacet->etype] && !isifacemethod(f))
 					genembedtramp(ifacet, a);
 				else
 					genwrapper(ifacet, f, a->sym);
