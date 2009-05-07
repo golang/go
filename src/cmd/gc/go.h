@@ -797,6 +797,7 @@ void	dodclconst(Node*, Node*);
 void	defaultlit(Node*, Type*);
 void	defaultlit2(Node*, Node*);
 int	listcount(Node*);
+int	structcount(Type*);
 void	addmethod(Node*, Type*, int);
 Node*	methodname(Node*, Type*);
 Sym*	methodsym(Sym*, Type*);
