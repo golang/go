@@ -10,6 +10,7 @@ import (
 	"io";
 	"net";
 	"os";
+	"syscall";
 	"testing";
 )
 
@@ -81,7 +82,17 @@ func TestDialGoogle(t *testing.T) {
 		doDialTCP(t, "tcp", addr);
 		if addr[0] != '[' {
 			doDial(t, "tcp4", addr);
-			doDialTCP(t, "tcp4", addr)
+			doDialTCP(t, "tcp4", addr);
+
+			if !preferIPv4 {
+				// make sure preferIPv4 flag works.
+				preferIPv4 = true;
+				syscall.SocketDisableIPv6 = true;
+				doDial(t, "tcp4", addr);
+				doDialTCP(t, "tcp4", addr);
+				syscall.SocketDisableIPv6 = false;
+				preferIPv4 = false;
+			}
 		}
 		doDial(t, "tcp6", addr);
 		doDialTCP(t, "tcp6", addr)

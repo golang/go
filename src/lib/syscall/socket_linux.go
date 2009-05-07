@@ -12,6 +12,10 @@ import (
 	"unsafe";
 )
 
+// For testing: clients can set this flag to force
+// creation of IPv6 sockets to return EAFNOSUPPORT.
+var SocketDisableIPv6 bool
+
 func SockaddrToSockaddrInet4(s *Sockaddr) *SockaddrInet4;
 func SockaddrToSockaddrInet6(s *Sockaddr) *SockaddrInet6;
 func SockaddrInet4ToSockaddr(s *SockaddrInet4) *Sockaddr;
@@ -30,6 +34,9 @@ func saLen(s *Sockaddr) int64 {
 }
 
 func Socket(domain, proto, typ int64) (ret int64, err int64) {
+	if domain == AF_INET6 && SocketDisableIPv6 {
+		return -1, EAFNOSUPPORT
+	}
 	r1, r2, e := Syscall(SYS_SOCKET, domain, proto, typ);
 	return r1, e
 }
