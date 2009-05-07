@@ -33,7 +33,7 @@ type Json interface {
 	Bool() bool;		// boolean (BoolKind)
 	Get(s string) Json;	// field lookup (MapKind)
 	Elem(i int) Json;	// element lookup (ArrayKind)
-	Len() int;		// length (ArrayKind)
+	Len() int;		// length (ArrayKind, MapKind)
 }
 
 // JsonToString returns the textual JSON syntax representation
@@ -112,6 +112,7 @@ func (j *_Bool) String() string {
 
 type _Map struct { m map[string]Json; _Null }
 func (j *_Map) Kind() int { return MapKind }
+func (j *_Map) Len() int { return len(j.m) }
 func (j *_Map) Get(s string) Json {
 	if j.m == nil {
 		return Null
