@@ -151,14 +151,23 @@ int
 listcount(Node *n)
 {
 	int v;
+	Iter s;
 
 	v = 0;
-	while(n != N) {
+	for(n = listfirst(&s, &n); n != N; n = listnext(&s))
 		v++;
-		if(n->op != OLIST)
-			break;
-		n = n->right;
-	}
+	return v;
+}
+
+int
+structcount(Type *t)
+{
+	int v;
+	Iter s;
+
+	v = 0;
+	for(t = structfirst(&s, &t); t != T; t = structnext(&s))
+		v++;
 	return v;
 }
 
