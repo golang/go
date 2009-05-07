@@ -454,7 +454,8 @@ loop:
 			if(cr == 1) {
 				// a,b,... = fn()
 				walktype(r, Erv);
-				convlit(r, types[TFUNC]);
+				if(r->type == T || r->type->etype != TSTRUCT)
+					break;
 				l = ascompatet(n->op, &n->left, &r->type, 0);
 				if(l != N)
 					indir(n, list(r, reorder2(l)));
@@ -1697,6 +1698,7 @@ ascompatee(int op, Node **nl, Node **nr)
 
 loop:
 	if(l == N || r == N) {
+		// cannot happen: caller checked that lists had same length
 		if(l != r)
 			yyerror("error in shape across %O", op);
 		return rev(nn);
@@ -1738,7 +1740,9 @@ ascompatet(int op, Node **nl, Type **nr, int fp)
 loop:
 	if(l == N || r == T) {
 		if(l != N || r != T)
-			yyerror("error in shape across %O", op);
+			yyerror("assignment count mismatch: %d = %d",
+				listcount(*nl), structcount(*nr));
+			
 		return rev(nn);
 	}
 
@@ -1868,6 +1872,52 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
 }
 
 /*
+ * helpers for shape errors
+ */
+static void
+dumptypes(Type **nl, char *what)
+{
+	int first;
+	Type *l;
+	Iter savel;
+
+	l = structfirst(&savel, nl);
+	print("\t");
+	first = 1;
+	for(l = structfirst(&savel, nl); l != T; l = structnext(&savel)) {
+		if(first)
+			first = 0;
+		else
+			print(", ");
+		print("%T", l);
+	}
+	if(first)
+		print("[no arguments %s]", what);
+	print("\n");
+}
+
+static void
+dumpnodetypes(Node **nr, char *what)
+{
+	int first;
+	Node *r;
+	Iter saver;
+
+	print("\t");
+	first = 1;
+	for(r = listfirst(&saver, nr); r != N; r = listnext(&saver)) {
+		if(first)
+			first = 0;
+		else
+			print(", ");
+		print("%T", r->type);
+	}
+	if(first)
+		print("[no arguments %s]", what);
+	print("\n");
+}
+
+/*
  * check assign expression list to
  * a type list. called in
  *	return expr-list
@@ -1891,7 +1941,7 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
 	&& structnext(&peekl) != T
 	&& listnext(&peekr) == N
 	&& eqtypenoname(r->type, *nl)) {
-		// clumsy check for differently aligned structs.
+		// TODO(rsc): clumsy check for differently aligned structs.
 		// need to handle eventually, but this keeps us
 		// from inserting bugs
 		if(r->type->width != (*nl)->width) {
@@ -1931,8 +1981,14 @@ loop:
 	}
 
 	if(l == T || r == N) {
-		if(l != T || r != N)
-			yyerror("error in shape across %O", op);
+		if(l != T || r != N) {
+			if(l != T)
+				yyerror("not enough arguments to %O", op);
+			else
+				yyerror("too many arguments to %O", op);
+			dumptypes(nl, "expected");
+			dumpnodetypes(nr, "given");
+		}
 		return rev(nn);
 	}
 	convlit(r, l->type);

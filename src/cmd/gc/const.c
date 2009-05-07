@@ -156,7 +156,6 @@ bad:
 	if(n->type->etype == TIDEAL)
 		defaultlit(n, T);
 	yyerror("cannot convert %T constant to %T", n->type, t);
-	n->type = T;
 	n->diag = 1;
 	return;
 }

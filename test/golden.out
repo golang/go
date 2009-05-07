@@ -136,6 +136,9 @@ fixedbugs/bug041.go:5: export of incomplete type t
 
 =========== fixedbugs/bug049.go
 fixedbugs/bug049.go:6: cannot convert nil constant to string
+fixedbugs/bug049.go:6: illegal types for operand: EQ
+	string
+	nil
 
 =========== fixedbugs/bug050.go
 fixedbugs/bug050.go:3: package statement must be first
@@ -148,6 +151,7 @@ fixedbugs/bug051.go:10: expression must be a constant
 fixedbugs/bug062.go:6: cannot convert nil constant to string
 fixedbugs/bug062.go:6: illegal types for operand: AS
 	string
+	nil
 
 =========== fixedbugs/bug067.go
 ok
@@ -224,6 +228,7 @@ fixedbugs/bug122.go:6: too many arguments to make array
 fixedbugs/bug131.go:7: cannot convert uint64 constant to int64
 fixedbugs/bug131.go:7: illegal types for operand: AS
 	int64
+	uint64
 
 =========== fixedbugs/bug133.go
 fixedbugs/bug133.dir/bug2.go:11: undefined DOT i on bug0.T
