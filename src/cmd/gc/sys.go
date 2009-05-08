@@ -72,17 +72,3 @@ func	arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any);
 func	arrays2d(old *any, nel int) (ary []any);
 
 func	closure();	// has args, but compiler fills in
-
-// used by go programs
-
-func	Breakpoint();
-
-var	Args []string;
-var	Envs []string;
-
-func	Gosched();
-func	Goexit();
-
-func	Exit(int);
-
-func	Caller(n int) (pc uint64, file string, line int, ok bool);

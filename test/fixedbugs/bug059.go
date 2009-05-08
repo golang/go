@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+
 func P(a []string) string {
 	s := "{";
 	for i := 0; i < 2; i++ {
@@ -29,6 +31,6 @@ func main() {
 	a[0] = "x";
 	m["0"][0] = "deleted";
 	if m["0"][0] != "deleted" {
-		sys.Exit(1);
+		os.Exit(1);
 	}
 }

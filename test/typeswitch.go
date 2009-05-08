@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+
 const (
 	Bool = iota;
 	Int;
@@ -31,7 +33,7 @@ var m = make(map[string]int)
 func assert(b bool, s string) {
 	if !b {
 		println(s);
-		sys.Exit(1);
+		os.Exit(1);
 	}
 }
 

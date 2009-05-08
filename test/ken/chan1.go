@@ -6,6 +6,8 @@
 
 package main
 
+import "runtime"
+
 const	N	= 1000;		// sent messages
 const	M	= 10;		// receiving goroutines
 const	W	= 2;		// channel buffering
@@ -48,9 +50,9 @@ main()
 	c := make(chan int, W);
 	for m:=0; m<M; m++ {
 		go r(c, m);
-		sys.Gosched();
+		runtime.Gosched();
 	}
-	sys.Gosched();
-	sys.Gosched();
+	runtime.Gosched();
+	runtime.Gosched();
 	s(c);
 }

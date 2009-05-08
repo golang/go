@@ -41,7 +41,7 @@ sighandler(int32 sig, Siginfo *info, void *context)
 	Regs *r;
 
 	if(panicking)	// traceback already printed
-		sys_Exit(2);
+		exit(2);
 	panicking = 1;
 
 	if(sig < 0 || sig >= NSIG){
@@ -64,8 +64,8 @@ sighandler(int32 sig, Siginfo *info, void *context)
 		dumpregs(r);
 	}
 
-	sys·Breakpoint();
-	sys_Exit(2);
+	breakpoint();
+	exit(2);
 }
 
 void

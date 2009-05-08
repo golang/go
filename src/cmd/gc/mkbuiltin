@@ -5,11 +5,12 @@
 
 set -e
 gcc -o mkbuiltin1 mkbuiltin1.c
-6g sys.go
-6g unsafe.go
 rm -f _builtin.c
-./mkbuiltin1 sys >_builtin.c
-./mkbuiltin1 unsafe >>_builtin.c
+for i in sys unsafe runtime
+do
+	6g $i.go
+	./mkbuiltin1 $i >>_builtin.c
+done
 
 # If _builtin.c has changed vs builtin.c.boot,
 # check in the new change if being run by

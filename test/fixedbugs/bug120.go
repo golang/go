@@ -6,6 +6,7 @@
 
 package main
 
+import "os"
 import "strconv";
 
 type Test struct {
@@ -53,6 +54,6 @@ func main() {
 		}
 	}
 	if !ok {
-		sys.Exit(1);
+		os.Exit(1);
 	}
 }

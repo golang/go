@@ -215,8 +215,6 @@ out:
 void
 sys·stringiter2(String s, int32 k, int32 retk, int32 retv)
 {
-	int32 l;
-
 	if(k >= s.len) {
 		// retk=0 is end of iteration
 		retk = 0;

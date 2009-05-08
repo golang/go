@@ -8,6 +8,7 @@ package main
 
 import(
         "fmt";
+        "os";
         "utf8";
 )
 
@@ -56,6 +57,6 @@ func main() {
 
 	if !ok {
 		fmt.Println("BUG: stringrange");
-		sys.Exit(1)
+		os.Exit(1)
 	}
 }

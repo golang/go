@@ -119,7 +119,7 @@ semsleep2(Sema *s)
 {
 	USED(s);
 	g->status = Gwaiting;
-	sys·Gosched();
+	gosched();
 }
 
 static int32

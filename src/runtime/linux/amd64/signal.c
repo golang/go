@@ -49,7 +49,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
 	Sigcontext *sc;
 
 	if(panicking)	// traceback already printed
-		sys_Exit(2);
+		exit(2);
 	panicking = 1;
 
 	uc = context;
@@ -71,8 +71,8 @@ sighandler(int32 sig, Siginfo* info, void* context)
 		dumpregs(sc);
 	}
 
-	sys·Breakpoint();
-	sys_Exit(2);
+	breakpoint();
+	exit(2);
 }
 
 void

@@ -7,6 +7,7 @@ package main
 import (
 	"file";
 	"fmt";
+	"os";
 )
 
 func main() {
@@ -15,6 +16,6 @@ func main() {
 	file, err := file.Open("/does/not/exist",  0,  0);
 	if file == nil {
 		fmt.Printf("can't open file; err=%s\n",  err.String());
-		sys.Exit(1);
+		os.Exit(1);
 	}
 }

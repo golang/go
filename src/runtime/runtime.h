@@ -329,6 +329,10 @@ uint32	noequal(uint32, void*, void*);
 void*	malloc(uintptr size);
 void*	mallocgc(uintptr size);
 void	free(void *v);
+void	exit(int32);
+void	breakpoint(void);
+void	gosched(void);
+void	goexit(void);
 
 #pragma	varargck	argpos	printf	1
 
@@ -378,15 +382,11 @@ void	notewakeup(Note*);
  * UTF-8 characters in identifiers.
  */
 #ifndef __GNUC__
-#define sys_Exit sys·Exit
-#define sys_Gosched sys·Gosched
 #define sys_memclr sys·memclr
 #define sys_write sys·write
-#define sys_Breakpoint sys·Breakpoint
 #define sys_catstring sys·catstring
 #define sys_cmpstring sys·cmpstring
 #define sys_getcallerpc sys·getcallerpc
-#define sys_Goexit sys·Goexit
 #define sys_indexstring sys·indexstring
 #define sys_intstring sys·intstring
 #define sys_mal sys·mal
@@ -408,11 +408,7 @@ void	notewakeup(Note*);
 /*
  * low level go-called
  */
-void	sys_Goexit(void);
-void	sys_Gosched(void);
-void	sys_Exit(int32);
 void	sys_write(int32, void*, int32);
-void	sys_Breakpoint(void);
 uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
 void	sys_memclr(byte*, uint32);
 void	sys_setcallerpc(void*, void*);

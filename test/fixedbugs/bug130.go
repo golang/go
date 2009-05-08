@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+
 type I interface { send(chan <- int) }
 
 type S struct { v int }
@@ -16,5 +18,5 @@ func main() {
   var i I = &s;
   c := make(chan int);
   go i.send(c);
-  sys.Exit(<-c);
+  os.Exit(<-c);
 }

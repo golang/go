@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+
 var ecode int;
 
 func assert(a, b, c string) {
@@ -84,5 +86,5 @@ func main() {
 	r = 0x10ffff + 1;
 	s = string(r);
 	assert(s, "\xef\xbf\xbd", "too-large rune");
-	sys.Exit(ecode);
+	os.Exit(ecode);
 }

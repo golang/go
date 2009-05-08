@@ -9,6 +9,7 @@
 
 package main
 
+import "runtime"
 import "time"
 
 func i32receiver(c chan int32, strobe chan bool) {
@@ -55,9 +56,9 @@ var ticker = time.Tick(10*1000);	// 10 us
 func sleep() {
 	<-ticker;
 	<-ticker;
-	sys.Gosched();
-	sys.Gosched();
-	sys.Gosched();
+	runtime.Gosched();
+	runtime.Gosched();
+	runtime.Gosched();
 }
 
 func main() {

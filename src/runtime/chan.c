@@ -211,7 +211,7 @@ loop:
 	g->status = Gwaiting;
 	enqueue(&c->sendq, sg);
 	unlock(&chanlock);
-	sys·Gosched();
+	gosched();
 
 	lock(&chanlock);
 	sg = g->param;
@@ -237,7 +237,7 @@ asynch:
 		g->status = Gwaiting;
 		enqueue(&c->sendq, sg);
 		unlock(&chanlock);
-		sys·Gosched();
+		gosched();
 
 		lock(&chanlock);
 		goto asynch;
@@ -311,7 +311,7 @@ loop:
 	g->status = Gwaiting;
 	enqueue(&c->recvq, sg);
 	unlock(&chanlock);
-	sys·Gosched();
+	gosched();
 
 	lock(&chanlock);
 	sg = g->param;
@@ -339,7 +339,7 @@ asynch:
 		g->status = Gwaiting;
 		enqueue(&c->recvq, sg);
 		unlock(&chanlock);
-		sys·Gosched();
+		gosched();
 
 		lock(&chanlock);
 		goto asynch;
@@ -748,7 +748,7 @@ loop:
 	g->param = nil;
 	g->status = Gwaiting;
 	unlock(&chanlock);
-	sys·Gosched();
+	gosched();
 
 	lock(&chanlock);
 	sg = g->param;

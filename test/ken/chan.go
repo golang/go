@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+import "runtime"
 
 var	randx	int;
 
@@ -88,7 +90,7 @@ send(c *Chan)
 	nproc++;	// total goroutines running
 	for {
 		for r:=nrand(10); r>=0; r-- {
-			sys.Gosched();
+			runtime.Gosched();
 		}
 		c.sc <- c.sv;
 		if c.send() {
@@ -119,7 +121,7 @@ recv(c *Chan)
 	nproc++;	// total goroutines running
 	for {
 		for r:=nrand(10); r>=0; r-- {
-			sys.Gosched();
+			runtime.Gosched();
 		}
 		v = <-c.rc;
 		if c.recv(v) {
@@ -148,7 +150,7 @@ sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan)
 
 	for {
 		for r:=nrand(5); r>=0; r-- {
-			sys.Gosched();
+			runtime.Gosched();
 		}
 
 		select {
@@ -270,9 +272,9 @@ test6(c int)
 func
 wait()
 {
-	sys.Gosched();
+	runtime.Gosched();
 	for nproc != 0 {
-		sys.Gosched();
+		runtime.Gosched();
 	}
 }
 
@@ -321,7 +323,7 @@ main()
 
 	if tots != t || totr != t {
 		print("tots=", tots, " totr=", totr, " sb=", t, "\n");
-		sys.Exit(1);
+		os.Exit(1);
 	}
-	sys.Exit(0);
+	os.Exit(0);
 }

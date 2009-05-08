@@ -131,7 +131,7 @@ func ScanFiles(filenames []string) *Info {
 	// TODO(rsc): Build a binary from package main?
 
 	z := new(Info);
-	z.Args = sys.Args;
+	z.Args = os.Args;
 	z.Dir = PkgDir();
 	z.Char = theChar;	// for template
 	z.ObjDir = ObjDir;	// for template

@@ -20,7 +20,7 @@ TEXT syscall(SB),7,$0
 	INT $3	// not reached
 	RET
 
-TEXT sys·Exit(SB),7,$0
+TEXT exit(SB),7,$0
 	MOVL	$252, AX	// syscall number
 	MOVL	4(SP), BX
 	INT	$0x80

@@ -16,6 +16,8 @@
 
 package main
 
+import "os"
+
 type rat struct  {
 	num, den  int64;	// numerator, denominator
 }
@@ -636,7 +638,7 @@ func checka(U PS, a []*rat, str string) {
 
 func main() {
 	Init();
-	if len(sys.Args) > 1 {  // print
+	if len(os.Args) > 1 {  // print
 		print("Ones: "); Printn(Ones, 10);
 		print("Twos: "); Printn(Twos, 10);
 		print("Add: "); Printn(Add(Ones, Twos), 10);

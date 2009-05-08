@@ -41,7 +41,7 @@ func init() {
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: pretty { flags } { files }\n");
 	flag.PrintDefaults();
-	sys.Exit(1);
+	os.Exit(1);
 }
 
 
@@ -127,12 +127,12 @@ func main() {
 	src, err := readFile(ast_txt);
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
-		sys.Exit(1);
+		os.Exit(1);
 	}
 	ast_format, err := format.Parse(src, format.FormatterMap{"isValidPos": isValidPos, "isSend": isSend, "isRecv": isRecv});
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: format errors:\n%s", ast_txt, err);
-		sys.Exit(1);
+		os.Exit(1);
 	}
 
 	// process files
@@ -150,7 +150,7 @@ func main() {
 		prog, ok := parser.Parse(src, &ErrorHandler{filename, 0}, mode);
 		if !ok {
 			exitcode = 1;
-			continue;  // proceed with next file			
+			continue;  // proceed with next file
 		}
 
 		if !*silent {
@@ -165,6 +165,6 @@ func main() {
 			tw.Flush();
 		}
 	}
-	
-	sys.Exit(exitcode);
+
+	os.Exit(exitcode);
 }

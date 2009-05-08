@@ -82,7 +82,7 @@ traceback(byte *pc0, byte *sp, G *g)
 
 // func caller(n int) (pc uint64, file string, line int, ok bool)
 void
-sys·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
+runtime·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
 {
 	uint64 pc;
 	byte *sp;

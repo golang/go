@@ -14,6 +14,8 @@ package testing
 import (
 	"flag";
 	"fmt";
+	"os";
+	"runtime";
 )
 
 // Report as tests are run; default is silent for success.
@@ -47,7 +49,7 @@ func (t *T) Fail() {
 func (t *T) FailNow() {
 	t.Fail();
 	t.ch <- t;
-	sys.Goexit();
+	runtime.Goexit();
 }
 
 // Log formats its arguments using default formatting, analogous to Print(),
@@ -129,7 +131,7 @@ func Main(tests []Test) {
 	}
 	if !ok {
 		println("FAIL");
-		sys.Exit(1);
+		os.Exit(1);
 	}
 	println("PASS");
 }

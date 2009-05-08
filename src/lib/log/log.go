@@ -14,6 +14,7 @@ package log
 import (
 	"fmt";
 	"io";
+	"runtime";
 	"os";
 	"time";
 )
@@ -96,7 +97,7 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
 		}
 	}
 	if l.flag & (Lshortfile | Llongfile) != 0 {
-		pc, file, line, ok := sys.Caller(calldepth);
+		pc, file, line, ok := runtime.Caller(calldepth);
 		if ok {
 			if l.flag & Lshortfile != 0 {
 				short, ok := shortnames[file];
@@ -139,7 +140,7 @@ func (l *Logger) Output(calldepth int, s string) {
 	case Lcrash:
 		panic("log: fatal error");
 	case Lexit:
-		sys.Exit(1);
+		os.Exit(1);
 	}
 }
 
@@ -173,12 +174,12 @@ func Stderrf(format string, v ...) {
 	stderr.Output(2, fmt.Sprintf(format, v))
 }
 
-// Exit is equivalent to Stderr() followed by a call to sys.Exit(1).
+// Exit is equivalent to Stderr() followed by a call to os.Exit(1).
 func Exit(v ...) {
 	exit.Output(2, fmt.Sprintln(v))
 }
 
-// Exitf is equivalent to Stderrf() followed by a call to sys.Exit(1).
+// Exitf is equivalent to Stderrf() followed by a call to os.Exit(1).
 func Exitf(format string, v ...) {
 	exit.Output(2, fmt.Sprintf(format, v))
 }

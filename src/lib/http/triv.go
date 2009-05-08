@@ -74,7 +74,7 @@ func FlagServer(c *http.Conn, req *http.Request) {
 
 // simple argument server
 func ArgServer(c *http.Conn, req *http.Request) {
-	for i, s := range sys.Args {
+	for i, s := range os.Args {
 		fmt.Fprint(c, s, " ");
 	}
 }
