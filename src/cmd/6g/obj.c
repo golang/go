@@ -40,7 +40,7 @@ zname(Biobuf *b, Sym *s, int t)
 	Bputc(b, t);		/* type */
 	Bputc(b, s->sym);	/* sym */
 
-	for(n=s->opackage; *n; n++)
+	for(n=s->package; *n; n++)
 		Bputc(b, *n);
 	Bputdot(b);
 	for(n=s->name; *n; n++)

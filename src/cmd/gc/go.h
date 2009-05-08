@@ -223,7 +223,6 @@ struct	Node
 	Node*	outer;	// outer PPARAMREF in nested closure
 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
 
-	Sym*	osym;		// import
 	Sym*	psym;		// import
 	Sym*	sym;		// various
 	int32	vargen;		// unique name for OTYPE/ONAME
@@ -245,12 +244,12 @@ struct	Sym
 	uchar	uniq;		// imbedded field name first found
 	uchar	siggen;		// signature generated
 
-	char*	opackage;	// original package name
 	char*	package;	// package name
 	char*	name;		// variable name
 	Node*	oname;		// ONAME node if a var
 	Type*	otype;		// TYPE node if a type
 	Node*	oconst;		// OLITERAL node if a const
+	char*	opack;		// package reference if lexical == LPACK
 	vlong	offset;		// stack location if automatic
 	int32	lexical;
 	int32	vargen;		// unique variable number
@@ -555,6 +554,7 @@ EXTERN	uchar	issimple[NTYPE];
 EXTERN	uchar	okforeq[NTYPE];
 EXTERN	uchar	okforadd[NTYPE];
 EXTERN	uchar	okforand[NTYPE];
+EXTERN	Type*	idealstring;
 
 EXTERN	Mpint*	minintval[NTYPE];
 EXTERN	Mpint*	maxintval[NTYPE];
@@ -699,6 +699,8 @@ void	errorexit(void);
 uint32	stringhash(char*);
 Sym*	lookup(char*);
 Sym*	pkglookup(char*, char*);
+Sym*	opkglookup(char*, char*);
+void	importdot(Sym*);
 void	yyerror(char*, ...);
 void	warn(char*, ...);
 void	fatal(char*, ...);
@@ -728,6 +730,7 @@ Type*	maptype(Type*, Type*);
 Type*	methtype(Type*);
 Sym*	signame(Type*);
 int	eqtype(Type*, Type*);
+int	cvttype(Type*, Type*);
 int	eqtypenoname(Type*, Type*);
 void	argtype(Node*, Type*);
 int	eqargs(Type*, Type*);
@@ -847,7 +850,7 @@ Node*	unsafenmagic(Node*, Node*);
 /*
  *	export.c
  */
-void	renamepkg(Node*);
+void	renameimports(void);
 void	autoexport(Sym*);
 int	exportname(char*);
 void	exportsym(Sym*);

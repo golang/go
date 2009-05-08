@@ -773,7 +773,7 @@ talph:
 		s = pkglookup(s->name, context);
 		if(s->lexical == LIGNORE)
 			goto l0;
-		if(!exportname(s->name) && strcmp(package, s->opackage) != 0)
+		if(!exportname(s->name) && strcmp(package, s->package) != 0)
 			s = pkglookup(s->name, ".private");
 	}
 
@@ -1134,7 +1134,6 @@ static	struct
 	"string",	LBASETYPE,	TSTRING,
 
 	"any",		LBASETYPE,	TANY,
-	"sys",		LPACK,		Txxx,
 
 	"break",	LBREAK,		Txxx,
 	"case",		LCASE,		Txxx,
@@ -1200,6 +1199,7 @@ lexinit(void)
 		lex = syms[i].lexical;
 		s = lookup(syms[i].name);
 		s->lexical = lex;
+		s->package = package;
 
 		if(lex != LBASETYPE)
 			continue;
@@ -1220,6 +1220,14 @@ lexinit(void)
 		types[etype] = t;
 		s->otype = t;
 	}
+
+	// logically, the type of a string literal.
+	// types[TSTRING] is the named type string
+	// (the type of x in var x string or var x = "hello").
+	// this is the ideal form
+	// (the type of x in const x = "hello").
+	// TODO(rsc): this may need some more thought.
+	idealstring = typ(TSTRING);
 }
 
 struct
@@ -1304,15 +1312,16 @@ mkpackage(char* pkg)
 	}
 
 	// redefine all names to be this package
-	package = pkg;
 	for(h=0; h<NHASH; h++)
-		for(s = hash[h]; s != S; s = s->link) {
-			s->package = package;
-			s->opackage = package;
-		}
+		for(s = hash[h]; s != S; s = s->link)
+			if(s->package == package)
+				s->package = pkg;
+	package = pkg;
 
 	// declare this name as a package
-	lookup(package)->lexical = LPACK;
+	s = lookup(package);
+	s->lexical = LPACK;
+	s->opack = s->name;
 
 	if(outfile == nil) {
 		p = strrchr(infile, '/');

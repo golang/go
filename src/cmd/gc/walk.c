@@ -1107,15 +1107,8 @@ loop:
 		break;
 	}
 
-	if(t == T) {
+	if(t == T)
 		t = n->left->type;
-		// throw away name:
-		//	type MyInt int
-		//	var x MyInt = 0;
-		// -x has type int, not MyInt.
-		if(t != T)
-			t = types[t->etype];
-	}
 	n->type = t;
 	goto ret;
 
@@ -1210,7 +1203,7 @@ walkconv(Node *n)
 		return;
 
 	// nil conversion
-	if(eqtype(t, l->type)) {
+	if(cvttype(t, l->type)) {
 		if(l->op != ONAME) {
 			indir(n, l);
 			n->type = t;

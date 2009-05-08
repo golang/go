@@ -288,14 +288,11 @@ importsym(Node *ss, int lexical)
 {
 	Sym *s;
 
-	renamepkg(ss);
-
 	if(ss->op != OIMPORT)
 		fatal("importsym: oops1 %N", ss);
 
 	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
 	/* TODO botch - need some diagnostic checking for the following assignment */
-	s->opackage = ss->osym->name;
 	if(exportname(ss->sym->name))
 		s->export = 1;
 	else
@@ -319,8 +316,6 @@ pkgtype(char *name, char *pkg)
 	n = nod(OIMPORT, N, N);
 	n->sym = lookup(name);
 	n->psym = lookup(pkg);
-	n->osym = n->psym;
-	renamepkg(n);
 	s = importsym(n, LATYPE);
 
 	if(s->otype == T) {
@@ -371,7 +366,7 @@ importvar(Node *ss, Type *t, int ctxt)
 
 	s = importsym(ss, LNAME);
 	if(s->oname != N) {
-		if(eqtype(t, s->oname->type))
+		if(cvttype(t, s->oname->type))
 			return;
 		warn("redeclare import var %S from %T to %T",
 			s, s->oname->type, t);
@@ -390,10 +385,10 @@ importtype(Node *ss, Type *t)
 
 	s = importsym(ss, LATYPE);
 	if(s->otype != T) {
-		if(eqtype(t, s->otype))
+		if(cvttype(t, s->otype))
 			return;
 		if(s->otype->etype != TFORW) {
-			warn("redeclare import type %S from %T to %T",
+			warn("redeclare import type %S from %lT to %lT",
 				s, s->otype, t);
 			s->otype = typ(0);
 		}
@@ -464,12 +459,3 @@ return;
 	}
 }
 
-
-
-void
-renamepkg(Node *n)
-{
-	if(n->psym == pkgimportname)
-		if(pkgmyname != S)
-			n->psym = pkgmyname;
-}
