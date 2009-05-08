@@ -44,7 +44,7 @@ type Conn struct {
 	Req *Request;		// current HTTP request
 
 	rwc io.ReadWriteCloser;	// i/o connection
-	buf *bufio.BufReadWrite;	// buffered rwc
+	buf *bufio.ReadWriter;	// buffered rwc
 	handler Handler;	// request handler
 	hijacked bool;	// connection has been hijacked by handler
 
@@ -61,9 +61,9 @@ func newConn(rwc io.ReadWriteCloser, raddr string, handler Handler) (c *Conn, er
 	c.RemoteAddr = raddr;
 	c.handler = handler;
 	c.rwc = rwc;
-	br := bufio.NewBufRead(rwc);
-	bw := bufio.NewBufWrite(rwc);
-	c.buf = bufio.NewBufReadWrite(br, bw);
+	br := bufio.NewReader(rwc);
+	bw := bufio.NewWriter(rwc);
+	c.buf = bufio.NewReadWriter(br, bw);
 	return c, nil
 }
 
@@ -74,7 +74,7 @@ func (c *Conn) readRequest() (req *Request, err os.Error) {
 	if c.hijacked {
 		return nil, ErrHijacked
 	}
-	if req, err = ReadRequest(c.buf.BufRead); err != nil {
+	if req, err = ReadRequest(c.buf.Reader); err != nil {
 		return nil, err
 	}
 
@@ -238,7 +238,7 @@ func (c *Conn) serve() {
 // will not do anything else with the connection.
 // It becomes the caller's responsibility to manage
 // and close the connection.
-func (c *Conn) Hijack() (rwc io.ReadWriteCloser, buf *bufio.BufReadWrite, err os.Error) {
+func (c *Conn) Hijack() (rwc io.ReadWriteCloser, buf *bufio.ReadWriter, err os.Error) {
 	if c.hijacked {
 		return nil, nil, ErrHijacked;
 	}

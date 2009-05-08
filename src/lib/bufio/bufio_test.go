@@ -104,7 +104,7 @@ var readMakers = []readMaker {
 
 // Call ReadLineString (which ends up calling everything else)
 // to accumulate the text of a file.
-func readLines(b *BufRead) string {
+func readLines(b *Reader) string {
 	s := "";
 	for {
 		s1, e := b.ReadLineString('\n', true);
@@ -120,7 +120,7 @@ func readLines(b *BufRead) string {
 }
 
 // Call ReadByte to accumulate the text of a file
-func readBytes(buf *BufRead) string {
+func readBytes(buf *Reader) string {
 	var b [1000]byte;
 	nb := 0;
 	for {
@@ -139,7 +139,7 @@ func readBytes(buf *BufRead) string {
 }
 
 // Call Read to accumulate the text of a file
-func reads(buf *BufRead, m int) string {
+func reads(buf *Reader, m int) string {
 	var b [1000]byte;
 	nb := 0;
 	for {
@@ -154,15 +154,15 @@ func reads(buf *BufRead, m int) string {
 
 type bufReader struct {
 	name string;
-	fn func(*BufRead) string;
+	fn func(*Reader) string;
 }
 var bufreaders = []bufReader {
-	bufReader{ "1", func(b *BufRead) string { return reads(b, 1) } },
-	bufReader{ "2", func(b *BufRead) string { return reads(b, 2) } },
-	bufReader{ "3", func(b *BufRead) string { return reads(b, 3) } },
-	bufReader{ "4", func(b *BufRead) string { return reads(b, 4) } },
-	bufReader{ "5", func(b *BufRead) string { return reads(b, 5) } },
-	bufReader{ "7", func(b *BufRead) string { return reads(b, 7) } },
+	bufReader{ "1", func(b *Reader) string { return reads(b, 1) } },
+	bufReader{ "2", func(b *Reader) string { return reads(b, 2) } },
+	bufReader{ "3", func(b *Reader) string { return reads(b, 3) } },
+	bufReader{ "4", func(b *Reader) string { return reads(b, 4) } },
+	bufReader{ "5", func(b *Reader) string { return reads(b, 5) } },
+	bufReader{ "7", func(b *Reader) string { return reads(b, 7) } },
 	bufReader{ "bytes", readBytes },
 	bufReader{ "lines", readLines },
 }
@@ -172,19 +172,19 @@ var bufsizes = []int {
 	23, 32, 46, 64, 93, 128, 1024, 4096
 }
 
-func TestBufReadSimple(t *testing.T) {
-	b := NewBufRead(newByteReader(io.StringBytes("hello world")));
+func TestReaderSimple(t *testing.T) {
+	b := NewReader(newByteReader(io.StringBytes("hello world")));
 	if s := readBytes(b); s != "hello world" {
 		t.Errorf("simple hello world test failed: got %q", s);
 	}
 
-	b = NewBufRead(newRot13Reader(newByteReader(io.StringBytes("hello world"))));
+	b = NewReader(newRot13Reader(newByteReader(io.StringBytes("hello world"))));
 	if s := readBytes(b); s != "uryyb jbeyq" {
 		t.Error("rot13 hello world test failed: got %q", s);
 	}
 }
 
-func TestBufRead(t *testing.T) {
+func TestReader(t *testing.T) {
 	var texts [31]string;
 	str := "";
 	all := "";
@@ -205,7 +205,7 @@ func TestBufRead(t *testing.T) {
 					bufreader := bufreaders[j];
 					bufsize := bufsizes[k];
 					read := readmaker.fn(textbytes);
-					buf, e := NewBufReadSize(read, bufsize);
+					buf, e := NewReaderSize(read, bufsize);
 					s := bufreader.fn(buf);
 					if s != text {
 						t.Errorf("reader=%s fn=%s bufsize=%d want=%q got=%q",
@@ -277,7 +277,7 @@ type writeMaker struct {
 	name string;
 	fn func()writeBuffer;
 }
-func TestBufWrite(t *testing.T) {
+func TestWriter(t *testing.T) {
 	var data [8192]byte;
 
 	var writers = []writeMaker {
@@ -299,10 +299,10 @@ func TestBufWrite(t *testing.T) {
 				// and that the data is correct.
 
 				write := writers[k].fn();
-				buf, e := NewBufWriteSize(write, bs);
+				buf, e := NewWriterSize(write, bs);
 				context := fmt.Sprintf("write=%s nwrite=%d bufsize=%d", writers[k].name, nwrite, bs);
 				if e != nil {
-					t.Errorf("%s: NewBufWriteSize %d: %v", context, bs, e);
+					t.Errorf("%s: NewWriterSize %d: %v", context, bs, e);
 					continue;
 				}
 				n, e1 := buf.Write(data[0:nwrite]);
@@ -330,50 +330,50 @@ func TestBufWrite(t *testing.T) {
 	}
 }
 
-func TestNewBufReadSizeIdempotent(t *testing.T) {
+func TestNewReaderSizeIdempotent(t *testing.T) {
 	const BufSize = 1000;
-	b, err := NewBufReadSize(newByteReader(io.StringBytes("hello world")), BufSize);
+	b, err := NewReaderSize(newByteReader(io.StringBytes("hello world")), BufSize);
 	if err != nil {
-		t.Error("NewBufReadSize create fail", err);
+		t.Error("NewReaderSize create fail", err);
 	}
 	// Does it recognize itself?
-	b1, err2 := NewBufReadSize(b, BufSize);
+	b1, err2 := NewReaderSize(b, BufSize);
 	if err2 != nil {
-		t.Error("NewBufReadSize #2 create fail", err2);
+		t.Error("NewReaderSize #2 create fail", err2);
 	}
 	if b1 != b {
-		t.Error("NewBufReadSize did not detect underlying BufRead");
+		t.Error("NewReaderSize did not detect underlying Reader");
 	}
 	// Does it wrap if existing buffer is too small?
-	b2, err3 := NewBufReadSize(b, 2*BufSize);
+	b2, err3 := NewReaderSize(b, 2*BufSize);
 	if err3 != nil {
-		t.Error("NewBufReadSize #3 create fail", err3);
+		t.Error("NewReaderSize #3 create fail", err3);
 	}
 	if b2 == b {
-		t.Error("NewBufReadSize did not enlarge buffer");
+		t.Error("NewReaderSize did not enlarge buffer");
 	}
 }
 
-func TestNewBufWriteSizeIdempotent(t *testing.T) {
+func TestNewWriterSizeIdempotent(t *testing.T) {
 	const BufSize = 1000;
-	b, err := NewBufWriteSize(newByteWriter(), BufSize);
+	b, err := NewWriterSize(newByteWriter(), BufSize);
 	if err != nil {
-		t.Error("NewBufWriteSize create fail", err);
+		t.Error("NewWriterSize create fail", err);
 	}
 	// Does it recognize itself?
-	b1, err2 := NewBufWriteSize(b, BufSize);
+	b1, err2 := NewWriterSize(b, BufSize);
 	if err2 != nil {
-		t.Error("NewBufWriteSize #2 create fail", err2);
+		t.Error("NewWriterSize #2 create fail", err2);
 	}
 	if b1 != b {
-		t.Error("NewBufWriteSize did not detect underlying BufWrite");
+		t.Error("NewWriterSize did not detect underlying Writer");
 	}
 	// Does it wrap if existing buffer is too small?
-	b2, err3 := NewBufWriteSize(b, 2*BufSize);
+	b2, err3 := NewWriterSize(b, 2*BufSize);
 	if err3 != nil {
-		t.Error("NewBufWriteSize #3 create fail", err3);
+		t.Error("NewWriterSize #3 create fail", err3);
 	}
 	if b2 == b {
-		t.Error("NewBufWriteSize did not enlarge buffer");
+		t.Error("NewWriterSize did not enlarge buffer");
 	}
 }

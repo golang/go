@@ -27,7 +27,6 @@
 package main
 
 import (
-	"bufio";
 	"container/vector";
 	"flag";
 	"fmt";
