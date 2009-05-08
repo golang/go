@@ -14,7 +14,10 @@ import (
 )
 
 // ErrEOF is the error returned by FullRead and Copyn when they encounter EOF.
-var ErrEOF = os.NewError("EOF")
+type Error struct {
+	os.ErrorString
+}
+var ErrEOF os.Error = &Error{"EOF"}
 
 // Reader is the interface that wraps the basic Read method.
 type Reader interface {

@@ -26,13 +26,16 @@ const (
 )
 
 // HTTP request parsing errors.
+type ProtocolError struct {
+	os.ErrorString
+}
 var (
-	LineTooLong = os.NewError("http header line too long");
-	ValueTooLong = os.NewError("http header value too long");
-	HeaderTooLong = os.NewError("http header too long");
-	BadHeader = os.NewError("malformed http header");
-	BadRequest = os.NewError("invalid http request");
-	BadHTTPVersion = os.NewError("unsupported http version");
+	LineTooLong = &ProtocolError{"http header line too long"};
+	ValueTooLong = &ProtocolError{"http header value too long"};
+	HeaderTooLong = &ProtocolError{"http header too long"};
+	BadHeader = &ProtocolError{"malformed http header"};
+	BadRequest = &ProtocolError{"invalid http request"};
+	BadHTTPVersion = &ProtocolError{"unsupported http version"};
 )
 
 // A Request represents a parsed HTTP request header.

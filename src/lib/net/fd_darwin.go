@@ -12,6 +12,8 @@ import (
 	"syscall";
 )
 
+var kqueuePhaseError = &Error{"kqueue phase error"}
+
 type pollster struct {
 	kq int64;
 	eventbuf [10]syscall.Kevent_t;
@@ -54,7 +56,7 @@ func (p *pollster) AddFD(fd int64, mode int, repeat bool) os.Error {
 		return os.ErrnoToError(e)
 	}
 	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || ev.Ident != fd || ev.Filter != kmode {
-		return os.NewError("kqueue phase error")
+		return kqueuePhaseError
 	}
 	if ev.Data != 0 {
 		return os.ErrnoToError(ev.Data)

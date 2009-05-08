@@ -41,16 +41,16 @@ coverage: packages
 
 O1=\
 	dnsmsg.$O\
-	fd_$(GOOS).$O\
 	parse.$O\
 
 O2=\
-	fd.$O\
+	fd_$(GOOS).$O\
 	ip.$O\
 	port.$O\
 
 O3=\
 	dnsconfig.$O\
+	fd.$O\
 	net_$(GOOS).$O\
 
 O4=\
@@ -64,15 +64,15 @@ phases: a1 a2 a3 a4 a5
 _obj$D/net.a: phases
 
 a1: $(O1)
-	$(AR) grc _obj$D/net.a dnsmsg.$O fd_$(GOOS).$O parse.$O
+	$(AR) grc _obj$D/net.a dnsmsg.$O parse.$O
 	rm -f $(O1)
 
 a2: $(O2)
-	$(AR) grc _obj$D/net.a fd.$O ip.$O port.$O
+	$(AR) grc _obj$D/net.a fd_$(GOOS).$O ip.$O port.$O
 	rm -f $(O2)
 
 a3: $(O3)
-	$(AR) grc _obj$D/net.a dnsconfig.$O net_$(GOOS).$O
+	$(AR) grc _obj$D/net.a dnsconfig.$O fd.$O net_$(GOOS).$O
 	rm -f $(O3)
 
 a4: $(O4)

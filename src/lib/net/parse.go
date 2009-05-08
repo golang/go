@@ -12,6 +12,10 @@ import (
 	"os";
 )
 
+type Error struct {
+	os.ErrorString
+}
+
 type file struct {
 	file *os.File;
 	data []byte;
