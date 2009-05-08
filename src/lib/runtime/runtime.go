@@ -1,0 +1,26 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+/*
+	The runtime package contains operations that interact with Go's runtime system,
+	such as functions to control goroutines.
+ */
+package runtime
+
+// Gosched yields the processor, allowing other goroutines to run.  It does not
+// suspend the current goroutine, so execution resumes automatically.
+func	Gosched()
+
+// Goexit terminates the goroutine that calls it.  No other goroutine is affected.
+func	Goexit()
+
+// Breakpoint() executes a breakpoint trap.
+func	Breakpoint()
+
+// Caller reports file and line number information about function invocations on
+// the calling goroutine's stack.  The argument is the number of stack frames to
+// ascend, with 1 identifying the the caller of Caller.  The return values report the
+// program counter, file name, and line number within the file of the corresponding
+// call.  The boolean ok is false if it was not possible to recover the information.
+func	Caller(n int) (pc uint64, file string, line int, ok bool)
