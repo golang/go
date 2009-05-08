@@ -181,7 +181,7 @@ func New(fmap FormatterMap) *Template {
 
 // Generic error handler, called only from execError or parseError.
 func error(errors chan os.Error, line int, err string, args ...) {
-	errors <- ParseError{fmt.Sprintf("line %d: %s", line, fmt.Sprintf(err, args))};
+	errors <- ParseError{os.ErrorString(fmt.Sprintf("line %d: %s", line, fmt.Sprintf(err, args)))};
 	runtime.Goexit();
 }
 
@@ -756,7 +756,7 @@ func validDelim(d []byte) bool {
 // the error.
 func (t *Template) Parse(s string) os.Error {
 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
-		return ParseError{fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
+		return ParseError{os.ErrorString(fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim))}
 	}
 	t.buf = io.StringBytes(s);
 	t.p = 0;

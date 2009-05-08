@@ -301,7 +301,7 @@ func (p *parser) parseValue() []byte {
 	if err != nil {
 		panic("scanner error?");
 	}
-	
+
 	p.next();
 	return io.StringBytes(s);
 }
@@ -332,7 +332,7 @@ func (p *parser) parseField() expr {
 		p.next();
 		tname = p.parseName();
 	}
-	
+
 	return &field{fname, tname};
 }
 
@@ -417,13 +417,13 @@ func (p *parser) parseProd() (string, expr) {
 	name := p.parseName();
 	p.expect(token.ASSIGN);
 	x := p.parseExpr();
-	return name, x; 
+	return name, x;
 }
 
 
 func (p *parser) parseFormat() Format {
 	format := make(Format);
-	
+
 	for p.tok != token.EOF {
 		pos := p.pos;
 		name, x := p.parseProd();
@@ -442,7 +442,7 @@ func (p *parser) parseFormat() Format {
 		}
 	}
 	p.expect(token.EOF);
-	
+
 	return format;
 }
 
@@ -450,7 +450,7 @@ func (p *parser) parseFormat() Format {
 type formatError string
 
 func (p formatError) String() string {
-	return p;
+	return string(p);
 }
 
 
@@ -517,7 +517,7 @@ func Parse(src interface{}, fmap FormatterMap) (f Format, err os.Error) {
 	if p.errors.Len() > 0 {
 		return nil, formatError(string(p.errors.Data()));
 	}
-	
+
 	return f, nil;
 }
 
@@ -593,7 +593,7 @@ func typename(value reflect.Value) string {
 	case reflect.Uint8Kind: name = "uint8";
 	case reflect.UintptrKind: name = "uintptr";
 	}
-	
+
 	return name;
 }
 
@@ -616,11 +616,11 @@ func (f Format) getFormat(name string, value reflect.Value) expr {
 		panic();
 	}
 	*/
-	
+
 	if fexpr, found := f[name]; found {
 		return fexpr;
 	}
-	
+
 	if *debug {
 		fmt.Printf("no production for type: %s\n", name);
 	}
@@ -695,7 +695,7 @@ func append(dst, src []byte) []byte {
 
 type state struct {
 	f Format;
-	
+
 	// indentation
 	indent_text []byte;
 	indent_widths []int;
@@ -868,7 +868,7 @@ func (ps *state) print0(w io.Writer, fexpr expr, value reflect.Value, index, lev
 			w.Write(buf.Data());
 		}
 		return true;
-		
+
 	case *option:
 		// print the contents of the option if it contains a non-empty field
 		var buf io.ByteBuffer;
@@ -888,7 +888,7 @@ func (ps *state) print0(w io.Writer, fexpr expr, value reflect.Value, index, lev
 			buf.Reset();
 		}
 		return true;
-		
+
 	case *custom:
 		var buf io.ByteBuffer;
 		if t.form(&buf, value.Interface(), t.name) {

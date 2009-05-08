@@ -329,7 +329,7 @@ func Redirect(c *Conn, url string) {
 // Redirect to a fixed URL
 type redirectHandler string
 func (url redirectHandler) ServeHTTP(c *Conn, req *Request) {
-	Redirect(c, url);
+	Redirect(c, string(url));
 }
 
 // RedirectHandler returns a request handler that redirects
