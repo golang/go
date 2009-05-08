@@ -9,7 +9,7 @@ package main
 import "unsafe"
 
 func typeof(x interface{}) string {
-	val, typ, indir := sys.Reflect(x);
+	val, typ, indir := unsafe.Reflect(x);
 	return typ;
 }
 

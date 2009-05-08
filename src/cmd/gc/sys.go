@@ -77,9 +77,6 @@ func	closure();	// has args, but compiler fills in
 
 func	Breakpoint();
 
-func	Reflect(i interface { }) (uint64, string, bool);
-func	Unreflect(uint64, string, bool) (ret interface { });
-
 var	Args []string;
 var	Envs []string;
 

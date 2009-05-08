@@ -56,8 +56,6 @@ char *sysimport =
 	"func sys.arrays2d (old *any, nel int) (ary []any)\n"
 	"func sys.closure ()\n"
 	"func sys.Breakpoint ()\n"
-	"func sys.Reflect (i interface { }) (? uint64, ? string, ? bool)\n"
-	"func sys.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
 	"var sys.Args []string\n"
 	"var sys.Envs []string\n"
 	"func sys.Gosched ()\n"
@@ -72,5 +70,7 @@ char *unsafeimport =
 	"func unsafe.Offsetof (? any) (? int)\n"
 	"func unsafe.Sizeof (? any) (? int)\n"
 	"func unsafe.Alignof (? any) (? int)\n"
+	"func unsafe.Reflect (i interface { }) (? uint64, ? string, ? bool)\n"
+	"func unsafe.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
 	"\n"
 	"$$\n";
