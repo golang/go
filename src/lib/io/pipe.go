@@ -170,15 +170,15 @@ func (w *pipeWrite) finish() {
 }
 
 // Pipe creates a synchronous in-memory pipe.
-// Used to connect code expecting an io.Read
-// with code expecting an io.Write.
+// Used to connect code expecting an io.Reader
+// with code expecting an io.Writer.
 //
 // Reads on one end are matched by writes on the other.
 // Writes don't complete until all the data has been
 // written or the read end is closed.  Reads return
 // any available data or block until the next write
 // or the write end is closed.
-func Pipe() (io.ReadClose, io.WriteClose) {
+func Pipe() (io.ReadCloser, io.WriteCloser) {
 	p := new(pipe);
 	p.cr = make(chan []byte, 1);
 	p.cw = make(chan pipeReturn, 1);

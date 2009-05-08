@@ -38,8 +38,8 @@ const (
 
 // Logger represents an active logging object.
 type Logger struct {
-	out0	io.Write;	// first destination for output
-	out1	io.Write;	// second destination for output; may be nil
+	out0	io.Writer;	// first destination for output
+	out1	io.Writer;	// second destination for output; may be nil
 	prefix string;	// prefix to write at beginning of each line
 	flag int;	// properties
 }
@@ -48,7 +48,7 @@ type Logger struct {
 // destinations to which log data will be written; out1 may be nil.
 // The prefix appears at the beginning of each generated log line.
 // The flag argument defines the logging properties.
-func NewLogger(out0, out1 io.Write, prefix string, flag int) *Logger {
+func NewLogger(out0, out1 io.Writer, prefix string, flag int) *Logger {
 	return &Logger{out0, out1, prefix, flag}
 }
 

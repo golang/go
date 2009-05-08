@@ -95,7 +95,7 @@ func (b *byteArray) append(s []byte) {
 //
 type Writer struct {
 	// configuration
-	output io.Write;
+	output io.Writer;
 	cellwidth int;
 	padding int;
 	padbytes [8]byte;
@@ -168,7 +168,7 @@ const (
 //				to the tab width in the viewer displaying the result)
 //	flags		formatting control
 //
-func (b *Writer) Init(output io.Write, cellwidth, padding int, padchar byte, flags uint) *Writer {
+func (b *Writer) Init(output io.Writer, cellwidth, padding int, padchar byte, flags uint) *Writer {
 	if cellwidth < 0 {
 		panic("negative cellwidth");
 	}
@@ -485,6 +485,6 @@ func (b *Writer) Write(buf []byte) (written int, err os.Error) {
 // NewWriter allocates and initializes a new tabwriter.Writer.
 // The parameters are the same as for the the Init function.
 //
-func NewWriter(output io.Write, cellwidth, padding int, padchar byte, flags uint) *Writer {
+func NewWriter(output io.Writer, cellwidth, padding int, padchar byte, flags uint) *Writer {
 	return new(Writer).Init(output, cellwidth, padding, padchar, flags)
 }

@@ -97,7 +97,7 @@ func isDir(name string) bool {
 }
 
 
-func makeTabwriter(writer io.Write) *tabwriter.Writer {
+func makeTabwriter(writer io.Writer) *tabwriter.Writer {
 	padchar := byte(' ');
 	if *usetabs {
 		padchar = '\t';
@@ -255,7 +255,7 @@ func toText(x interface{}) []byte {
 
 
 // Template formatter for "html" format.
-func htmlFmt(w io.Write, x interface{}, format string) {
+func htmlFmt(w io.Writer, x interface{}, format string) {
 	// Can do better than text in some cases.
 	switch v := x.(type) {
 	case ast.Decl:
@@ -277,13 +277,13 @@ func htmlFmt(w io.Write, x interface{}, format string) {
 
 
 // Template formatter for "html-comment" format.
-func htmlCommentFmt(w io.Write, x interface{}, format string) {
+func htmlCommentFmt(w io.Writer, x interface{}, format string) {
 	comment.ToHtml(w, toText(x));
 }
 
 
 // Template formatter for "" (default) format.
-func textFmt(w io.Write, x interface{}, format string) {
+func textFmt(w io.Writer, x interface{}, format string) {
 	w.Write(toText(x));
 }
 
@@ -292,7 +292,7 @@ func textFmt(w io.Write, x interface{}, format string) {
 // Writes out "/" if the os.Dir argument is a directory.
 var slash = io.StringBytes("/");
 
-func dirSlashFmt(w io.Write, x interface{}, format string) {
+func dirSlashFmt(w io.Writer, x interface{}, format string) {
 	d := x.(os.Dir);	// TODO(rsc): want *os.Dir
 	if d.IsDirectory() {
 		w.Write(slash);

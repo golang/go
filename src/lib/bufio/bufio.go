@@ -47,17 +47,17 @@ func copySlice(dst []byte, src []byte) {
 // BufRead implements buffering for an io.Read object.
 type BufRead struct {
 	buf []byte;
-	rd io.Read;
+	rd io.Reader;
 	r, w int;
 	err os.Error;
 	lastbyte int;
 }
 
 // NewBufReadSize creates a new BufRead whose buffer has the specified size,
-// which must be greater than zero.  If the argument io.Read is already a
+// which must be greater than zero.  If the argument io.Reader is already a
 // BufRead with large enough size, it returns the underlying BufRead.
 // It returns the BufRead and any error.
-func NewBufReadSize(rd io.Read, size int) (*BufRead, os.Error) {
+func NewBufReadSize(rd io.Reader, size int) (*BufRead, os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
 	}
@@ -74,7 +74,7 @@ func NewBufReadSize(rd io.Read, size int) (*BufRead, os.Error) {
 }
 
 // NewBufRead returns a new BufRead whose buffer has the default size.
-func NewBufRead(rd io.Read) *BufRead {
+func NewBufRead(rd io.Reader) *BufRead {
 	b, err := NewBufReadSize(rd, defaultBufSize);
 	if err != nil {
 		// cannot happen - defaultBufSize is a valid size
@@ -378,19 +378,19 @@ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err o
 
 // buffered output
 
-// BufWrite implements buffering for an io.Write object.
+// BufWrite implements buffering for an io.Writer object.
 type BufWrite struct {
 	err os.Error;
 	buf []byte;
 	n int;
-	wr io.Write;
+	wr io.Writer;
 }
 
 // NewBufWriteSize creates a new BufWrite whose buffer has the specified size,
-// which must be greater than zero. If the argument io.Write is already a
+// which must be greater than zero. If the argument io.Writer is already a
 // BufWrite with large enough size, it returns the underlying BufWrite.
 // It returns the BufWrite and any error.
-func NewBufWriteSize(wr io.Write, size int) (*BufWrite, os.Error) {
+func NewBufWriteSize(wr io.Writer, size int) (*BufWrite, os.Error) {
 	if size <= 0 {
 		return nil, BadBufSize
 	}
@@ -406,7 +406,7 @@ func NewBufWriteSize(wr io.Write, size int) (*BufWrite, os.Error) {
 }
 
 // NewBufWrite returns a new BufWrite whose buffer has the default size.
-func NewBufWrite(wr io.Write) *BufWrite {
+func NewBufWrite(wr io.Writer) *BufWrite {
 	b, err := NewBufWriteSize(wr, defaultBufSize);
 	if err != nil {
 		// cannot happen - defaultBufSize is valid size
@@ -415,7 +415,7 @@ func NewBufWrite(wr io.Write) *BufWrite {
 	return b;
 }
 
-// Flush writes any buffered data to the underlying io.Write.
+// Flush writes any buffered data to the underlying io.Writer.
 func (b *BufWrite) Flush() os.Error {
 	if b.err != nil {
 		return b.err
@@ -505,7 +505,7 @@ func (b *BufWrite) WriteByte(c byte) os.Error {
 // buffered input and output
 
 // BufReadWrite stores (a pointer to) a BufRead and a BufWrite.
-// It implements io.ReadWrite.
+// It implements io.ReadWriter.
 type BufReadWrite struct {
 	*BufRead;
 	*BufWrite;

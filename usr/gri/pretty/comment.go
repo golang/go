@@ -53,7 +53,7 @@ var (
 
 // Escape comment text for HTML.
 // Also, turn `` into &ldquo; and '' into &rdquo;.
-func commentEscape(w io.Write, s []byte) {
+func commentEscape(w io.Writer, s []byte) {
 	last := 0;
 	for i := 0; i < len(s)-1; i++ {
 		if s[i] == s[i+1] && (s[i] == '`' || s[i] == '\'') {
@@ -137,7 +137,7 @@ func unindent(block [][]byte) {
 //
 // TODO(rsc): I'd like to pass in an array of variable names []string
 // and then italicize those strings when they appear as words.
-func ToHtml(w io.Write, s []byte) {
+func ToHtml(w io.Writer, s []byte) {
 	inpara := false;
 
 	/* TODO(rsc): 6g cant generate code for these

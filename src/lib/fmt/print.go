@@ -27,7 +27,7 @@ import (
 )
 
 // Formatter represents the printer state passed to custom formatters.
-// It provides access to the io.Write interface plus information about
+// It provides access to the io.Writer interface plus information about
 // the flags and options for the operand's format specifier.
 type Formatter interface {
 	// Write is the function to call to emit formatted output to be printed.
@@ -52,7 +52,7 @@ type Format interface {
 // returns a string, which defines the ``native'' format for that object.
 // Any such object will be printed using that method if passed
 // as operand to a %s or %v format or to an unformatted printer such as Print.
-type String interface {
+type Stringer interface {
 	String() string
 }
 
@@ -149,7 +149,7 @@ func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
 // These routines end in 'f' and take a format string.
 
 // Fprintf formats according to a format specifier and writes to w.
-func Fprintf(w io.Write, format string, a ...) (n int, error os.Error) {
+func Fprintf(w io.Writer, format string, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
@@ -176,7 +176,7 @@ func Sprintf(format string, a ...) string {
 
 // Fprint formats using the default formats for its operands and writes to w.
 // Spaces are added between operands when neither is a string.
-func Fprint(w io.Write, a ...) (n int, error os.Error) {
+func Fprint(w io.Writer, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
@@ -207,7 +207,7 @@ func Sprint(a ...) string {
 
 // Fprintln formats using the default formats for its operands and writes to w.
 // Spaces are always added between operands and a newline is appended.
-func Fprintln(w io.Write, a ...) (n int, error os.Error) {
+func Fprintln(w io.Writer, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);
@@ -364,7 +364,7 @@ func parsenum(s string, start, end int) (n int, got bool, newi int) {
 func (p *pp) printField(field reflect.Value) (was_string bool) {
 	inter := field.Interface();
 	if inter != nil {
-		if stringer, ok := inter.(String); ok {
+		if stringer, ok := inter.(Stringer); ok {
 			p.addstr(stringer.String());
 			return false;	// this value is not a string
 		}
@@ -628,7 +628,7 @@ func (p *pp) doprintf(format string, v reflect.StructValue) {
 			case 's':
 				if inter != nil {
 					// if object implements String, use the result.
-					if stringer, ok := inter.(String); ok {
+					if stringer, ok := inter.(Stringer); ok {
 						s = p.fmt.Fmt_s(stringer.String()).Str();
 						break;
 					}

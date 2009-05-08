@@ -24,7 +24,7 @@ type byteReader struct {
 	p []byte
 }
 
-func newByteReader(p []byte) io.Read {
+func newByteReader(p []byte) io.Reader {
 	b := new(byteReader);
 	b.p = p;
 	return b
@@ -46,7 +46,7 @@ type halfByteReader struct {
 	p []byte
 }
 
-func newHalfByteReader(p []byte) io.Read {
+func newHalfByteReader(p []byte) io.Reader {
 	b := new(halfByteReader);
 	b.p = p;
 	return b
@@ -67,10 +67,10 @@ func (b *halfByteReader) Read(p []byte) (int, os.Error) {
 
 // Reads from a reader and rot13s the result.
 type rot13Reader struct {
-	r io.Read
+	r io.Reader
 }
 
-func newRot13Reader(r io.Read) *rot13Reader {
+func newRot13Reader(r io.Reader) *rot13Reader {
 	r13 := new(rot13Reader);
 	r13.r = r;
 	return r13
@@ -95,11 +95,11 @@ func (r13 *rot13Reader) Read(p []byte) (int, os.Error) {
 
 type readMaker struct {
 	name string;
-	fn func([]byte) io.Read;
+	fn func([]byte) io.Reader;
 }
 var readMakers = []readMaker {
-	readMaker{ "full", func(p []byte) io.Read { return newByteReader(p) } },
-	readMaker{ "half", func(p []byte) io.Read { return newHalfByteReader(p) } },
+	readMaker{ "full", func(p []byte) io.Reader { return newByteReader(p) } },
+	readMaker{ "half", func(p []byte) io.Reader { return newHalfByteReader(p) } },
 }
 
 // Call ReadLineString (which ends up calling everything else)

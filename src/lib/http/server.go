@@ -43,7 +43,7 @@ type Conn struct {
 	RemoteAddr string;	// network address of remote side
 	Req *Request;		// current HTTP request
 
-	rwc io.ReadWriteClose;	// i/o connection
+	rwc io.ReadWriteCloser;	// i/o connection
 	buf *bufio.BufReadWrite;	// buffered rwc
 	handler Handler;	// request handler
 	hijacked bool;	// connection has been hijacked by handler
@@ -56,7 +56,7 @@ type Conn struct {
 }
 
 // Create new connection from rwc.
-func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err os.Error) {
+func newConn(rwc io.ReadWriteCloser, raddr string, handler Handler) (c *Conn, err os.Error) {
 	c = new(Conn);
 	c.RemoteAddr = raddr;
 	c.handler = handler;
@@ -238,7 +238,7 @@ func (c *Conn) serve() {
 // will not do anything else with the connection.
 // It becomes the caller's responsibility to manage
 // and close the connection.
-func (c *Conn) Hijack() (rwc io.ReadWriteClose, buf *bufio.BufReadWrite, err os.Error) {
+func (c *Conn) Hijack() (rwc io.ReadWriteCloser, buf *bufio.BufReadWrite, err os.Error) {
 	if c.hijacked {
 		return nil, nil, ErrHijacked;
 	}

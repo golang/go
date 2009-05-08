@@ -11,7 +11,7 @@ import (
 	"time";
 )
 
-func checkWrite(t *testing.T, w io.Write, data []byte, c chan int) {
+func checkWrite(t *testing.T, w Writer, data []byte, c chan int) {
 	n, err := w.Write(data);
 	if err != nil {
 		t.Errorf("write: %v", err);
@@ -25,9 +25,9 @@ func checkWrite(t *testing.T, w io.Write, data []byte, c chan int) {
 // Test a single read/write pair.
 func TestPipe1(t *testing.T) {
 	c := make(chan int);
-	r, w := io.Pipe();
+	r, w := Pipe();
 	var buf = make([]byte, 64);
-	go checkWrite(t, w, io.StringBytes("hello, world"), c);
+	go checkWrite(t, w, StringBytes("hello, world"), c);
 	n, err := r.Read(buf);
 	if err != nil {
 		t.Errorf("read: %v", err);
@@ -40,7 +40,7 @@ func TestPipe1(t *testing.T) {
 	w.Close();
 }
 
-func reader(t *testing.T, r io.Read, c chan int) {
+func reader(t *testing.T, r Reader, c chan int) {
 	var buf = make([]byte, 64);
 	for {
 		n, err := r.Read(buf);
@@ -57,7 +57,7 @@ func reader(t *testing.T, r io.Read, c chan int) {
 // Test a sequence of read/write pairs.
 func TestPipe2(t *testing.T) {
 	c := make(chan int);
-	r, w := io.Pipe();
+	r, w := Pipe();
 	go reader(t, r, c);
 	var buf = make([]byte, 64);
 	for i := 0; i < 5; i++ {
@@ -82,7 +82,7 @@ func TestPipe2(t *testing.T) {
 }
 
 // Test a large write that requires multiple reads to satisfy.
-func writer(w io.WriteClose, buf []byte, c chan pipeReturn) {
+func writer(w WriteCloser, buf []byte, c chan pipeReturn) {
 	n, err := w.Write(buf);
 	w.Close();
 	c <- pipeReturn{n, err};
@@ -90,7 +90,7 @@ func writer(w io.WriteClose, buf []byte, c chan pipeReturn) {
 
 func TestPipe3(t *testing.T) {
 	c := make(chan pipeReturn);
-	r, w := io.Pipe();
+	r, w := Pipe();
 	var wdat = make([]byte, 128);
 	for i := 0; i < len(wdat); i++ {
 		wdat[i] = byte(i);
@@ -132,7 +132,7 @@ func TestPipe3(t *testing.T) {
 
 // Test read after/before writer close.
 
-func delayClose(t *testing.T, cl io.Close, ch chan int) {
+func delayClose(t *testing.T, cl Closer, ch chan int) {
 	time.Sleep(1000*1000);	// 1 ms
 	if err := cl.Close(); err != nil {
 		t.Errorf("delayClose: %v", err);
@@ -142,7 +142,7 @@ func delayClose(t *testing.T, cl io.Close, ch chan int) {
 
 func testPipeReadClose(t *testing.T, async bool) {
 	c := make(chan int, 1);
-	r, w := io.Pipe();
+	r, w := Pipe();
 	if async {
 		go delayClose(t, w, c);
 	} else {
@@ -166,13 +166,13 @@ func testPipeReadClose(t *testing.T, async bool) {
 
 func testPipeWriteClose(t *testing.T, async bool) {
 	c := make(chan int, 1);
-	r, w := io.Pipe();
+	r, w := Pipe();
 	if async {
 		go delayClose(t, r, c);
 	} else {
 		delayClose(t, r, c);
 	}
-	n, err := io.WriteString(w, "hello, world");
+	n, err := WriteString(w, "hello, world");
 	<-c;
 	if err != os.EPIPE {
 		t.Errorf("write on closed pipe: %v", err);

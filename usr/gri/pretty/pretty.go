@@ -61,7 +61,7 @@ func readFile(filename string) ([]byte, os.Error) {
 
 
 // TODO(gri) move this function into tabwriter.go? (also used in godoc)
-func makeTabwriter(writer io.Write) *tabwriter.Writer {
+func makeTabwriter(writer io.Writer) *tabwriter.Writer {
 	padchar := byte(' ');
 	if *usetabs {
 		padchar = '\t';
@@ -94,17 +94,17 @@ func (h *ErrorHandler) Error(pos token.Position, msg string) {
 }
 
 
-func isValidPos(w io.Write, value interface{}, name string) bool {
+func isValidPos(w io.Writer, value interface{}, name string) bool {
 	return value.(token.Position).Line > 0;
 }
 
 
-func isSend(w io.Write, value interface{}, name string) bool {
+func isSend(w io.Writer, value interface{}, name string) bool {
 	return value.(ast.ChanDir) & ast.SEND != 0;
 }
 
 
-func isRecv(w io.Write, value interface{}, name string) bool {
+func isRecv(w io.Writer, value interface{}, name string) bool {
 	return value.(ast.ChanDir) & ast.RECV != 0;
 }
 

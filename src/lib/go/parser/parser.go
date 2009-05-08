@@ -1914,7 +1914,7 @@ func readSource(src interface{}, err ErrorHandler) []byte {
 		if s != nil {
 			return s.Data();
 		}
-	case io.Read:
+	case io.Reader:
 		var buf io.ByteBuffer;
 		n, os_err := io.Copy(s, &buf);
 		if os_err == nil {

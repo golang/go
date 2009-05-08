@@ -96,7 +96,7 @@ var makefileTemplate =
 	"	cp {ObjDir}$D/{Name}.a $(GOROOT)/pkg$D/{Name}.a\n"
 	"{.end}\n"
 
-func argsFmt(w io.Write, x interface{}, format string) {
+func argsFmt(w io.Writer, x interface{}, format string) {
 	args := x.([]string);
 	fmt.Fprint(w, "#");
 	for i, a := range args {
@@ -104,17 +104,17 @@ func argsFmt(w io.Write, x interface{}, format string) {
 	}
 }
 
-func basenameFmt(w io.Write, x interface{}, format string) {
+func basenameFmt(w io.Writer, x interface{}, format string) {
 	t := fmt.Sprint(x);
 	t = t[0:len(t)-len(path.Ext(t))];
 	fmt.Fprint(w, MakeString(t));
 }
 
-func plus1Fmt(w io.Write, x interface{}, format string) {
+func plus1Fmt(w io.Writer, x interface{}, format string) {
 	fmt.Fprint(w, x.(int) + 1);
 }
 
-func makeFmt(w io.Write, x interface{}, format string) {
+func makeFmt(w io.Writer, x interface{}, format string) {
 	fmt.Fprint(w, MakeString(fmt.Sprint(x)));
 }
 
