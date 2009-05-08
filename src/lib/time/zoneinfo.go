@@ -236,7 +236,7 @@ func readinfofile(name string) ([]zonetime, os.Error) {
 
 Error:
 	if tzerr, ok := err.(TimeZoneError); ok {
-		tzerr.ErrorString += ": " + name
+		tzerr.ErrorString = os.ErrorString(tzerr.String() + ": " + name)
 	}
 	return nil, err
 }

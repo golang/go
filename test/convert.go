@@ -40,14 +40,11 @@ func main() {
 		panicln("type of f is", t, "want", want);
 	}
 
-	want = typeof(x);
+	want = typeof(a);
 	if t := typeof(+a); t != want {
 		panicln("type of +a is", t, "want", want);
 	}
 	if t := typeof(a+0); t != want {
 		panicln("type of a+0 is", t, "want", want);
-	}
-	if t := typeof(a+b); t != want {
-		panicln("type of a+b is", t, "want", want);
 	}
 }

@@ -15,7 +15,7 @@ type Error interface {
 // Error.
 type ErrorString string
 func (e ErrorString) String() string {
-	return e
+	return string(e)
 }
 
 // NewError converts s to an ErrorString, which satisfies the Error interface.
@@ -27,7 +27,7 @@ func NewError(s string) Error {
 // wrappers to convert the error number into an Error.
 type Errno int64
 func (e Errno) String() string {
-	return syscall.Errstr(e)
+	return syscall.Errstr(int64(e))
 }
 
 // ErrnoToError converts errno to an Error (underneath, an Errno).

@@ -19,7 +19,7 @@ const (
 	ILLEGAL Token = iota;
 	EOF;
 	COMMENT;
-	
+
 	// Identifiers and basic type literals
 	// (these tokens stand for classes of literals)
 	literal_beg;
@@ -237,7 +237,7 @@ func (tok Token) String() string {
 	if str, exists := tokens[tok]; exists {
 		return str;
 	}
-	return "token(" + strconv.Itoa(tok) + ")";
+	return "token(" + strconv.Itoa(int(tok)) + ")";
 }
 
 

@@ -146,7 +146,6 @@ fixedbugs/bug049.go:6: illegal types for operand: EQ
 
 =========== fixedbugs/bug050.go
 fixedbugs/bug050.go:3: package statement must be first
-sys.6:1 fixedbugs/bug050.go:3: syntax error near package
 
 =========== fixedbugs/bug051.go
 fixedbugs/bug051.go:10: expression must be a constant

@@ -171,12 +171,12 @@ func dollarString(s, l, r string) string {
 // the context in which the result will be interpreted.
 type ShellString string;
 func (s ShellString) String() string {
-	return dollarString(s, "{", "}");
+	return dollarString(string(s), "{", "}");
 }
 
 type MakeString string;
 func (s MakeString) String() string {
-	return dollarString(s, "(", ")");
+	return dollarString(string(s), "(", ")");
 }
 
 // TODO(rsc): parse.Parse should return an os.Error.
