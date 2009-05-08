@@ -7,24 +7,15 @@ Open issues:
 	- declaration "type T S" strips methods of S. why/why not?
 	- no mechanism to declare a local type name: type T P.T
 
-
 Todo's:
 [ ] document illegality of package-external tuple assignments to structs
 	w/ private fields: P.T(1, 2) illegal since same as P.T(a: 1, b: 2) for
 	a T struct { a b int }.
 [ ] should probably write something about evaluation order of statements even
 	though obvious
-[ ] string conversion: string([]int{}) vs string(int) conversion. Former is
-	"inverse" of string range iteration.
-[ ] do we need explicit channel conversion (to change channel direction)?
-
-
-Wish list:
-[ ] enum symbols that are not mixable with ints or some other mechanism
-	(requirement that basic type aliases need conversion for compatibility)
-[ ] Helper syntax for composite types: allow names/keys/indices for
-	structs/maps/arrays
-[ ] built-in assert() ("conditional panic") (gri)
+[ ] document new assignment rules (for named types on either side of an
+	assignment, the types must be identical)
+[ ] document T.m mechanism to obtain a function from a method
 -->
 
 
@@ -3783,7 +3774,8 @@ The following conversion rules apply:
 </p>
 <ul>
 <li>
-1) Between equal types.  The conversion always succeeds.
+1) Between equal types (§Type equality and identity).
+The conversion always succeeds.
 </li>
 <li>
 2) Between integer types.  If the value is a signed quantity, it is
@@ -3800,7 +3792,7 @@ always succeeds but the value may be a NaN or other problematic
 result. <font color=red>TODO: clarify?</font>
 </li>
 <li>
-4) Strings permit two special conversions.
+4) Strings permit three special conversions:
 </li>
 <li>
 4a) Converting an integer value yields a string containing the UTF-8
@@ -3812,11 +3804,20 @@ string(0x65e5)  // "\u65e5"
 
 </li>
 <li>
-4b) Converting a slice of bytes yields a string whose successive
-bytes are those of the slice.
+4b) Converting a slice of integers yields a string that is the
+concatenation of the individual integers converted to strings.
+If the slice value is <code>nil</code>, the result is the empty string.
+<pre>
+string([]int{0x65e5, 0x672c, 0x8a9e})  // "\u65e5\u672c\u8a9e"
+</pre>
+</li>
+<li>
+4c) Converting a slice of bytes yields a string whose successive
+bytes are those of the slice. If the slice value is <code>nil</code>,
+the result is the empty string.
 
 <pre>
-string([]byte{'h', 'e', 'l', 'l', 'o'}) // "hello"
+string([]byte{'h', 'e', 'l', 'l', 'o'})  // "hello"
 </pre>
 </li>
 </ul>
@@ -4307,6 +4308,8 @@ Implementation does not honor the restriction on goto statements and targets (no
 cap() does not work on maps or chans.
 <br/>
 len() does not work on chans.
+<br>
+string([]int{...}) conversion is not yet implemented.
 </font>
 </p>
 
