@@ -14,12 +14,16 @@ DIRS=\
 	exvar\
 	flag\
 	fmt\
-	go/ast \
-	go/doc \
-	go/parser \
-	go/scanner \
-	go/token \
-	hash\
+	go/ast\
+	go/doc\
+	go/parser\
+	go/scanner\
+	go/token\
+	hash/adler32\
+	hash/crc32\
+	hash/md5\
+	hash/sha1\
+	hash/sum\
 	http\
 	io\
 	json\
@@ -54,7 +58,10 @@ TEST=\
 	fmt\
 	go/parser\
 	go/scanner\
-	hash\
+	hash/adler32\
+	hash/crc32\
+	hash/md5\
+	hash/sha1\
 	http\
 	io\
 	json\
@@ -123,7 +130,11 @@ go/parser.install: go/ast.install go/scanner.install go/token.install $(GODEPS)
 go/doc.install: go/ast.install go/token.install $(GODEPS)
 go/ast.install: go/token.install $(GODEPS)
 go/token.install: $(GODEPS)
-hash.install: os.install
+hash/adler32.install: os.install
+hash/crc32.install: os.install
+hash/md5.install: os.install
+hash/sha1.install: os.install
+hash/sum.install: io.install os.install
 http.install: bufio.install io.install net.install os.install path.install strings.install log.install
 io.install: os.install sync.install
 json.install: container/vector.install fmt.install io.install math.install \
