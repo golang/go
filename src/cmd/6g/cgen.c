@@ -384,7 +384,7 @@ agen(Node *n, Node *res)
 		break;
 
 	case OCONV:
-		if(!eqtype(n->type, nl->type))
+		if(!cvttype(n->type, nl->type))
 			fatal("agen: non-trivial OCONV");
 		agen(nl, res);
 		return;

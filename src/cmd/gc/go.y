@@ -115,7 +115,10 @@
 
 %%
 file:
-	package import_there imports oxdcl_list
+	loadsys
+	package
+	imports
+	oxdcl_list
 	{
 		if(debug['f'])
 			frame(1);
@@ -128,12 +131,25 @@ package:
 	{
 		yyerror("package statement must be first");
 		mkpackage("main");
-		cannedimports("sys.6", sysimport);
 	}
 |	LPACKAGE sym
 	{
 		mkpackage($2->name);
+	}
+
+/*
+ * this loads the definitions for the sys functions,
+ * so that the compiler can generate calls to them,
+ * but does not make the name "sys" visible as a package.
+ */
+loadsys:
+	{
 		cannedimports("sys.6", sysimport);
+	}
+	import_package
+	import_there
+	{
+		pkgimportname = S;
 	}
 
 imports:
@@ -145,26 +161,27 @@ import:
 |	LIMPORT '(' ')'
 
 import_stmt:
-	import_here import_package import_there
+	import_here import_package import_there import_done
 
 import_here:
 	LLITERAL
 	{
 		// import with original name
+		pkgimportname = S;
 		pkgmyname = S;
 		importfile(&$1);
 	}
 |	sym LLITERAL
 	{
 		// import with given name
+		pkgimportname = S;
 		pkgmyname = $1;
-		pkgmyname->lexical = LPACK;
 		importfile(&$2);
 	}
 |	'.' LLITERAL
 	{
-		// import with my name
-		pkgmyname = lookup(package);
+		// import into my name space
+		pkgmyname = lookup(".");
 		importfile(&$2);
 	}
 
@@ -172,14 +189,8 @@ import_package:
 	LPACKAGE sym
 	{
 		pkgimportname = $2;
-
 		if(strcmp($2->name, "main") == 0)
 			yyerror("cannot import package main");
-
-		// if we are not remapping the package name
-		// then the imported package name is LPACK
-		if(pkgmyname == S)
-			pkgimportname->lexical = LPACK;
 	}
 
 import_there:
@@ -187,11 +198,49 @@ import_there:
 	{
 		checkimports();
 		unimportfile();
-		pkgimportname = S;
 	}
 |	LIMPORT '$' '$' hidden_import_list '$' '$'
 	{
 		checkimports();
+	}
+
+import_done:
+	{
+		Sym *import, *my;
+
+		import = pkgimportname;
+		my = pkgmyname;
+		pkgmyname = S;
+		pkgimportname = S;
+
+		if(import == S)
+			break;
+		if(my == S)
+			my = import;
+		if(my->name[0] == '.') {
+			importdot(import);
+			break;
+		}
+
+		// In order to allow multifile packages to use type names
+		// that are the same as the package name (i.e. go/parser
+		// is package parser and has a type called parser), we have
+		// to not bother trying to declare the package if it is our package.
+		// TODO(rsc): Is there a better way to tell if the package is ours?
+		if(my == import && strcmp(import->name, package) == 0)
+			break;
+
+		if(my->lexical != LNAME || my->oname != N || my->otype != T) {
+			// TODO(rsc): this line is only needed because of the
+			//	package net
+			//	import "net"
+			// convention; if we get rid of it, the check can go away
+			// and we can just always print the error
+			if(my->lexical != LPACK || strcmp(my->opack, import->name) != 0)
+				yyerror("redeclaration of %S by import", my);
+		}
+		my->lexical = LPACK;
+		my->opack = import->name;
 	}
 
 hidden_import_list:
@@ -963,8 +1012,16 @@ pexpr:
 lpack:
 	LPACK
 	{
-		context = $1->name;
+		context = $1->opack;
 	}
+/*
+ * adding this would enable gri's nested package idea
+ *
+|	lpack '.' LPACK
+	{
+		context = $3->opack;
+	}
+ */
 
 laconst:
 	LACONST
@@ -2028,7 +2085,6 @@ hidden_importsym:
 	sym1 '.' sym2
 	{
 		$$ = nod(OIMPORT, N, N);
-		$$->osym = $1;
 		$$->psym = $1;
 		$$->sym = $3;
 	}

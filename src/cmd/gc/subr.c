@@ -151,14 +151,13 @@ lookup(char *p)
 		if(s->name[0] != c)
 			continue;
 		if(strcmp(s->name, p) == 0)
-			if(strcmp(s->package, package) == 0)
+			if(s->package && strcmp(s->package, package) == 0)
 				return s;
 	}
 
 	s = mal(sizeof(*s));
 	s->lexical = LNAME;
 	s->name = mal(strlen(p)+1);
-	s->opackage = package;
 	s->package = package;
 
 	strcpy(s->name, p);
@@ -182,7 +181,7 @@ pkglookup(char *p, char *k)
 		if(s->name[0] != c)
 			continue;
 		if(strcmp(s->name, p) == 0)
-			if(strcmp(s->package, k) == 0)
+			if(s->package && strcmp(s->package, k) == 0)
 				return s;
 	}
 
@@ -193,13 +192,43 @@ pkglookup(char *p, char *k)
 
 	// botch - should probably try to reuse the pkg string
 	s->package = mal(strlen(k)+1);
-	s->opackage = s->package;
 	strcpy(s->package, k);
 
 	s->link = hash[h];
 	hash[h] = s;
 
 	return s;
+}
+
+// find all the symbols in package opkg
+// and make them available in the current package
+void
+importdot(Sym *opkg)
+{
+	Sym *s, *s1;
+	uint32 h;
+	int c;
+
+	if(strcmp(opkg->name, package) == 0)
+		return;
+
+	c = opkg->name[0];
+	for(h=0; h<NHASH; h++) {
+		for(s = hash[h]; s != S; s = s->link) {
+			if(s->package[0] != c)
+				continue;
+			if(strcmp(s->package, opkg->name) != 0)
+				continue;
+			s1 = lookup(s->name);
+			if(s1->oname != N || s1->otype != T) {
+				yyerror("redeclaration of %S during import", s1);
+				continue;
+			}
+			s1->lexical = s->lexical;
+			s1->oname = s->oname;
+			s1->otype = s->otype;
+		}
+	}
 }
 
 void
@@ -942,7 +971,7 @@ int
 Sconv(Fmt *fp)
 {
 	Sym *s;
-	char *opk, *pkg, *nam;
+	char *pkg, *nam;
 
 	s = va_arg(fp->args, Sym*);
 	if(s == S) {
@@ -952,18 +981,15 @@ Sconv(Fmt *fp)
 
 	pkg = "<nil>";
 	nam = pkg;
-	opk = pkg;
 
-	if(s->opackage != nil)
-		opk = s->opackage;
 	if(s->package != nil)
 		pkg = s->package;
 	if(s->name != nil)
 		nam = s->name;
 
 	if(!(fp->flags & FmtShort))
-	if(strcmp(opk, package) != 0 || (fp->flags & FmtLong)) {
-		fmtprint(fp, "%s.%s", opk, nam);
+	if(strcmp(pkg, package) != 0 || (fp->flags & FmtLong)) {
+		fmtprint(fp, "%s.%s", pkg, nam);
 		return 0;
 	}
 	fmtstrcpy(fp, nam);
@@ -1013,7 +1039,7 @@ Tpretty(Fmt *fp, Type *t)
 				fmtprint(fp, "%hS", s);
 			else
 				fmtprint(fp, "%lS", s);
-			if(strcmp(s->opackage, package) == 0)
+			if(strcmp(s->package, package) == 0)
 			if(s->otype != t || (!s->export && !s->imported)) {
 				fmtprint(fp, "·%s", filename);
 				if(t->vargen)
@@ -1607,7 +1633,7 @@ bad:
 }
 
 int
-eqtype1(Type *t1, Type *t2, int d)
+eqtype1(Type *t1, Type *t2, int d, int names)
 {
 	if(d >= 10)
 		return 1;
@@ -1617,13 +1643,15 @@ eqtype1(Type *t1, Type *t2, int d)
 		return 0;
 	if(t1->etype != t2->etype)
 		return 0;
+	if(names && t1->etype != TFIELD && t1->sym && t2->sym && t1 != t2)
+		return 0;
 	switch(t1->etype) {
 	case TINTER:
 	case TSTRUCT:
 		t1 = t1->type;
 		t2 = t2->type;
 		for(;;) {
-			if(!eqtype1(t1, t2, d+1))
+			if(!eqtype1(t1, t2, d+1, names))
 				return 0;
 			if(t1 == T)
 				return 1;
@@ -1659,7 +1687,7 @@ eqtype1(Type *t1, Type *t2, int d)
 					return 0;
 				if(ta->etype != TFIELD || tb->etype != TFIELD)
 					return 0;
-				if(!eqtype1(ta->type, tb->type, d+1))
+				if(!eqtype1(ta->type, tb->type, d+1, names))
 					return 0;
 				ta = ta->down;
 				tb = tb->down;
@@ -1675,13 +1703,19 @@ eqtype1(Type *t1, Type *t2, int d)
 			break;
 		return 0;
 	}
-	return eqtype1(t1->type, t2->type, d+1);
+	return eqtype1(t1->type, t2->type, d+1, names);
 }
 
 int
 eqtype(Type *t1, Type *t2)
 {
-	return eqtype1(t1, t2, 0);
+	return eqtype1(t1, t2, 0, 1);
+}
+
+int
+cvttype(Type *t1, Type *t2)
+{
+	return eqtype1(t1, t2, 0, 0);
 }
 
 int
@@ -1689,7 +1723,6 @@ eqtypenoname(Type *t1, Type *t2)
 {
 	if(t1 == T || t2 == T || t1->etype != TSTRUCT || t2->etype != TSTRUCT)
 		return eqtype(t1, t2);
-
 
 	t1 = t1->type;
 	t2 = t2->type;
@@ -2576,7 +2609,7 @@ expand0(Type *t, int followptr)
 
 	if(u->etype == TINTER) {
 		for(f=u->type; f!=T; f=f->down) {
-			if(!exportname(f->sym->name) && strcmp(f->sym->opackage, package) != 0)
+			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
 				continue;
 			if(f->sym->uniq)
 				continue;
@@ -2593,7 +2626,7 @@ expand0(Type *t, int followptr)
 	u = methtype(t);
 	if(u != T) {
 		for(f=u->method; f!=T; f=f->down) {
-			if(!exportname(f->sym->name) && strcmp(f->sym->opackage, package) != 0)
+			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
 				continue;
 			if(f->sym->uniq)
 				continue;

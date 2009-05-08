@@ -250,7 +250,7 @@ methodsym(Sym *nsym, Type *t0)
 
 	snprint(buf, sizeof(buf), "%#hT·%s", t0, nsym->name);
 //print("methodname %s\n", buf);
-	return pkglookup(buf, s->opackage);
+	return pkglookup(buf, s->package);
 
 bad:
 	yyerror("illegal <this> type: %T", t);
@@ -797,7 +797,6 @@ dcopy(Sym *a, Sym *b)
 	a->otype = b->otype;
 	a->oconst = b->oconst;
 	a->package = b->package;
-	a->opackage = b->opackage;
 	a->lexical = b->lexical;
 	a->undef = b->undef;
 	a->vargen = b->vargen;
@@ -1632,7 +1631,7 @@ unsafenmagic(Node *l, Node *r)
 	s = l->sym;
 	if(s == S)
 		goto no;
-	if(strcmp(s->opackage, "unsafe") != 0)
+	if(strcmp(s->package, "unsafe") != 0)
 		goto no;
 
 	if(strcmp(s->name, "Sizeof") == 0) {

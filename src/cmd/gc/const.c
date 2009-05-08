@@ -80,7 +80,7 @@ convlit1(Node *n, Type *t, int explicit)
 	}
 
 	// avoided repeated calculations, errors
-	if(eqtype(n->type, t)) {
+	if(cvttype(n->type, t)) {
 		n->type = t;
 		return;
 	}
@@ -99,8 +99,19 @@ convlit1(Node *n, Type *t, int explicit)
 	}
 
 	// if already has non-ideal type, cannot change implicitly
-	if(n->type->etype != TIDEAL && n->type->etype != TNIL && !explicit)
-		goto bad;
+	if(!explicit) {
+		switch(n->type->etype) {
+		case TIDEAL:
+		case TNIL:
+			break;
+		case TSTRING:
+			if(n->type == idealstring)
+				break;
+			// fall through
+		default:
+			goto bad;
+		}
+	}
 
 	switch(ct) {
 	default:
@@ -532,7 +543,7 @@ unary:
 
 	switch(TUP(n->op, v.ctype)) {
 	default:
-		yyerror("illegal constant expression %O %T %d", n->op, nl->type, v.ctype);
+		yyerror("illegal constant expression %O %T", n->op, nl->type);
 		return;
 
 	case TUP(OPLUS, CTINT):
@@ -587,12 +598,6 @@ ret:
 	// rewrite n in place.
 	*n = *nl;
 	n->val = v;
-
-	// lose type name if any:
-	//	type T int
-	//	const A T = 1;
-	// A+0 has type int, not T.
-	n->type = types[n->type->etype];
 
 	// check range.
 	lno = lineno;
