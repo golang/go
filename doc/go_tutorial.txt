@@ -632,19 +632,19 @@ be converted to an interface variable that implements the method.
 Schematically, given a value "v", it does this:
 
 
-	type String interface {
+	type Stringer interface {
 		String() string
 	}
 
-	s, ok := v.(String);  // Test whether v satisfies "String"
+	s, ok := v.(Stringer);  // Test whether v implements "String()"
 	if ok {
 		result = s.String()
 	} else {
 		result = default_output(v)
 	}
 
-The code uses a ``type assertion'' ("v.(String)") to test if the value stored in
-"v" satisfies the "String" interface; if it does, "s"
+The code uses a ``type assertion'' ("v.(Stringer)") to test if the value stored in
+"v" satisfies the "Stringer" interface; if it does, "s"
 will become an interface variable implementing the method and "ok" will
 be "true".  We then use the interface variable to call the method.
 (The ''comma, ok'' pattern is a Go idiom used to test the success of
@@ -652,25 +652,20 @@ operations such as type conversion, map update, communications, and so on,
 although this is the only appearance in this tutorial.)
 If the value does not satisfy the interface, "ok" will be false.
 
-In this snippet "String" is used as both a type name and a method name.  This does
-not create any ambiguity because methods only appear in association
-with a variable ("s.String()"); a method name can never appear in a context
-where a type name is legal and vice versa.  Another way to say this is that the
-method "String" is only available within the scope bound to a variable of type
-"String".  We double-use the name because it makes the interface type
-self-describing ("String" (the interface) implements "String" (the method)).
+In this snippet the name "Stringer" follows the convention that we add "[e]r"
+to interfaces describing simple method sets like this.
 
 One last wrinkle.  To complete the suite, besides "Printf" etc. and "Sprintf"
 etc., there are also "Fprintf" etc.  Unlike in C, "Fprintf"'s first argument is
-not a file.  Instead, it is a variable of type "io.Write", which is an
+not a file.  Instead, it is a variable of type "io.Writer", which is an
 interface type defined in the "io" library:
 
-	type Write interface {
+	type Writer interface {
 		Write(p []byte) (n int, err *os.Error);
 	}
 
-(This interface is another doubled name, this time for "Write"; there are also
-"io.Read", "io.ReadWrite", and so on.)
+(This interface is another conventional name, this time for "Write"; there are also
+"io.Reader", "io.ReadWriter", and so on.)
 Thus you can call "Fprintf" on any type that implements a standard "Write()"
 method, not just files but also network channels, buffers, rot13ers, whatever
 you want.
