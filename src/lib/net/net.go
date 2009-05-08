@@ -12,11 +12,11 @@ import (
 )
 
 var (
-	BadAddress = os.NewError("malformed address");
-	MissingAddress = os.NewError("missing address");
-	UnknownNetwork = os.NewError("unknown network");
-	UnknownHost = os.NewError("unknown host");
-	UnknownSocketFamily = os.NewError("unknown socket family");
+	BadAddress os.Error = &Error{"malformed address"};
+	MissingAddress os.Error = &Error{"missing address"};
+	UnknownNetwork os.Error = &Error{"unknown network"};
+	UnknownHost os.Error = &Error{"unknown host"};
+	UnknownSocketFamily os.Error = &Error{"unknown socket family"};
 )
 
 

@@ -25,12 +25,16 @@ const (
 )
 
 // Errors introduced by this package.
+type Error struct {
+	os.ErrorString;
+}
+
 var (
-	PhaseError = os.NewError("phase error");
-	BufferFull = os.NewError("buffer full");
-	InternalError = os.NewError("bufio internal error");
-	BadBufSize = os.NewError("bad bufio size");
-	ShortWrite = os.NewError("short write");
+	PhaseError os.Error = &Error{"phase error"};
+	BufferFull os.Error = &Error{"buffer full"};
+	InternalError os.Error = &Error{"bufio internal error"};
+	BadBufSize os.Error = &Error{"bad bufio size"};
+	ShortWrite os.Error = &Error{"short write"};
 )
 
 func copySlice(dst []byte, src []byte) {

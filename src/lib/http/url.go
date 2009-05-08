@@ -13,9 +13,9 @@ import (
 )
 
 // Errors introduced by ParseURL.
-var (
-	BadURL = os.NewError("bad url syntax")
-)
+type BadURL struct {
+	os.ErrorString
+}
 
 func ishex(c byte) bool {
 	switch {
@@ -52,7 +52,7 @@ func URLUnescape(s string) (string, os.Error) {
 		if s[i] == '%' {
 			n++;
 			if !ishex(s[i+1]) || !ishex(s[i+2]) {
-				return "", BadURL;
+				return "", BadURL{"invalid hexadecimal escape"}
 			}
 			i += 3
 		} else {
@@ -110,7 +110,7 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
 			}
 		case c == ':':
 			if i == 0 {
-				return "", "", BadURL
+				return "", "", BadURL{"missing protocol scheme"}
 			}
 			return rawurl[0:i], rawurl[i+1:len(rawurl)], nil
 		}
@@ -141,7 +141,7 @@ func split(s string, c byte, cutc bool) (string, string) {
 // (Web browsers strip #fragment before sending the URL to a web server.)
 func ParseURL(rawurl string) (url *URL, err os.Error) {
 	if rawurl == "" {
-		return nil, BadURL
+		return nil, BadURL{"empty url"}
 	}
 	url = new(URL);
 	url.Raw = rawurl;

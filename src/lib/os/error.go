@@ -18,6 +18,11 @@ func (e ErrorString) String() string {
 	return e
 }
 
+// NewError converts s to an ErrorString, which satisfies the Error interface.
+func NewError(s string) Error {
+	return ErrorString(s)
+}
+
 // Errno is the Unix error number.  Names such as EINVAL are simple
 // wrappers to convert the error number into an Error.
 type Errno int64
@@ -74,48 +79,3 @@ var (
 	ERANGE Error = Errno(syscall.ERANGE);
 )
 
-// -----------------------
-// Everything below here is deprecated.
-// Delete when all callers of NewError are gone and their uses converted
-// to the new error scheme (for an example, see template).
-
-// _Error is a structure wrapping a string describing an error.
-// Errors are singleton structures, created by NewError, so their addresses can
-// be compared to test for equality. A nil Error pointer means ``no error''.
-// Use the String() method to get the contents; it handles the nil case.
-// The Error type is intended for use by any package that wishes to define
-// error strings.
-type _Error struct {
-	s string
-}
-
-// Table of all known errors in system.  Use the same error string twice,
-// get the same *os._Error.
-var errorStringTab = make(map[string] Error);
-
-// These functions contain a race if two goroutines add identical
-// errors simultaneously but the consequences are unimportant.
-
-// NewError allocates an Error object, but if s has been seen before,
-// shares the _Error associated with that message.
-func NewError(s string) Error {
-	if s == "" {
-		return nil
-	}
-	err, ok := errorStringTab[s];
-	if ok {
-		return err
-	}
-	err = &_Error{s};
-	errorStringTab[s] = err;
-	return err;
-}
-
-
-// String returns the string associated with the _Error.
-func (e *_Error) String() string {
-	if e == nil {
-		return "No _Error"
-	}
-	return e.s
-}

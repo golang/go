@@ -16,7 +16,7 @@ import (
 
 // The error returned by LookupPort when a network service
 // is not listed in the database.
-var ErrNoService = os.NewError("unknown network service");
+var ErrNoService = &Error{"unknown network service"};
 
 var services map[string] map[string] int
 var servicesError os.Error

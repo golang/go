@@ -26,17 +26,20 @@ import (
 )
 
 // DNS errors returned by LookupHost.
+type DNSError struct {
+	os.ErrorString
+}
 var (
-	DNS_InternalError = os.NewError("internal dns error");
-	DNS_MissingConfig = os.NewError("no dns configuration");
-	DNS_No_Answer = os.NewError("dns got no answer");
-	DNS_BadRequest = os.NewError("malformed dns request");
-	DNS_BadReply = os.NewError("malformed dns reply");
-	DNS_ServerFailure = os.NewError("dns server failure");
-	DNS_NoServers = os.NewError("no dns servers");
-	DNS_NameTooLong = os.NewError("dns name too long");
-	DNS_RedirectLoop = os.NewError("dns redirect loop");
-	DNS_NameNotFound = os.NewError("dns name not found");
+	DNS_InternalError os.Error = &DNSError{"internal dns error"};
+	DNS_MissingConfig os.Error = &DNSError{"no dns configuration"};
+	DNS_No_Answer os.Error = &DNSError{"dns got no answer"};
+	DNS_BadRequest os.Error = &DNSError{"malformed dns request"};
+	DNS_BadReply os.Error = &DNSError{"malformed dns reply"};
+	DNS_ServerFailure os.Error = &DNSError{"dns server failure"};
+	DNS_NoServers os.Error = &DNSError{"no dns servers"};
+	DNS_NameTooLong os.Error = &DNSError{"dns name too long"};
+	DNS_RedirectLoop os.Error = &DNSError{"dns redirect loop"};
+	DNS_NameNotFound os.Error = &DNSError{"dns name not found"};
 )
 
 // Send a request on the connection and hope for a reply.
