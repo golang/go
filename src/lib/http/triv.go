@@ -11,6 +11,7 @@ import (
 	"fmt";
 	"http";
 	"io";
+	"log";
 	"net";
 	"os";
 )
@@ -110,7 +111,7 @@ func main() {
 	http.Handle("/chan", ChanCreate());
 	err := http.ListenAndServe(":12345", nil);
 	if err != nil {
-		panic("ListenAndServe: ", err.String())
+		log.Crash("ListenAndServe: ", err)
 	}
 }
 

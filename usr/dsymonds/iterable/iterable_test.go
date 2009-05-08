@@ -22,7 +22,7 @@ func (arr IntArray) Iter() <-chan interface {} {
 	return ch
 }
 
-var oneToFive IntArray = []int{ 1, 2, 3, 4, 5 };
+var oneToFive = IntArray{ 1, 2, 3, 4, 5 };
 
 func isNegative(n interface {}) bool {
 	return n.(int) < 0
