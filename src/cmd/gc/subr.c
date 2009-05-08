@@ -1607,7 +1607,7 @@ bad:
 }
 
 int
-eqtype(Type *t1, Type *t2, int d)
+eqtype1(Type *t1, Type *t2, int d)
 {
 	if(d >= 10)
 		return 1;
@@ -1623,7 +1623,7 @@ eqtype(Type *t1, Type *t2, int d)
 		t1 = t1->type;
 		t2 = t2->type;
 		for(;;) {
-			if(!eqtype(t1, t2, d+1))
+			if(!eqtype1(t1, t2, d+1))
 				return 0;
 			if(t1 == T)
 				return 1;
@@ -1659,7 +1659,7 @@ eqtype(Type *t1, Type *t2, int d)
 					return 0;
 				if(ta->etype != TFIELD || tb->etype != TFIELD)
 					return 0;
-				if(!eqtype(ta->type, tb->type, d+1))
+				if(!eqtype1(ta->type, tb->type, d+1))
 					return 0;
 				ta = ta->down;
 				tb = tb->down;
@@ -1675,20 +1675,26 @@ eqtype(Type *t1, Type *t2, int d)
 			break;
 		return 0;
 	}
-	return eqtype(t1->type, t2->type, d+1);
+	return eqtype1(t1->type, t2->type, d+1);
+}
+
+int
+eqtype(Type *t1, Type *t2)
+{
+	return eqtype1(t1, t2, 0);
 }
 
 int
 eqtypenoname(Type *t1, Type *t2)
 {
 	if(t1 == T || t2 == T || t1->etype != TSTRUCT || t2->etype != TSTRUCT)
-		return eqtype(t1, t2, 0);
+		return eqtype(t1, t2);
 
 
 	t1 = t1->type;
 	t2 = t2->type;
 	for(;;) {
-		if(!eqtype(t1, t2, 1))
+		if(!eqtype(t1, t2))
 			return 0;
 		if(t1 == T)
 			return 1;
@@ -1873,7 +1879,7 @@ eqargs(Type *t1, Type *t2)
 	for(;;) {
 		if(t1 == t2)
 			break;
-		if(!eqtype(t1, t2, 0))
+		if(!eqtype(t1, t2))
 			return 0;
 		t1 = t1->down;
 		t2 = t2->down;
@@ -2032,7 +2038,7 @@ loop:
 		}
 		if(tl->etype != TFUNC || tr->etype != TFUNC)
 			break;
-//		if(eqtype(t1, t2, 0))
+//		if(eqtype(t1, t2))
 	}
 
 	yyerror("illegal types for operand: %O", o);

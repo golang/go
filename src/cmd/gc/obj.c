@@ -230,7 +230,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 		if(!a->sym->siggen) {
 			a->sym->siggen = 1;
 
-			if(!eqtype(this, ifacet, 0)) {
+			if(!eqtype(this, ifacet)) {
 				if(oldlist == nil)
 					oldlist = pc;
 

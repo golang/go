@@ -371,7 +371,7 @@ importvar(Node *ss, Type *t, int ctxt)
 
 	s = importsym(ss, LNAME);
 	if(s->oname != N) {
-		if(eqtype(t, s->oname->type, 0))
+		if(eqtype(t, s->oname->type))
 			return;
 		warn("redeclare import var %S from %T to %T",
 			s, s->oname->type, t);
@@ -390,7 +390,7 @@ importtype(Node *ss, Type *t)
 
 	s = importsym(ss, LATYPE);
 	if(s->otype != T) {
-		if(eqtype(t, s->otype, 0))
+		if(eqtype(t, s->otype))
 			return;
 		if(s->otype->etype != TFORW) {
 			warn("redeclare import type %S from %T to %T",
