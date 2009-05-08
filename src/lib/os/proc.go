@@ -14,7 +14,6 @@ var Envs []string;	// provided by runtime
 
 // Exit causes the current program to exit with the given status code.
 // Conventionally, code zero indicates success, non-zero an error.
-// returning exit status n.
 func Exit(code int) {
 	syscall.Syscall(syscall.SYS_EXIT, int64(code), 0, 0)
 }
