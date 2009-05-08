@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+
 func main() {
   var i uint64 =
     ' ' +
@@ -33,10 +35,10 @@ func main() {
   ;
   if '\Ucafebabe' != 0xcafebabe {
   	print("cafebabe wrong\n");
-  	sys.Exit(1)
+  	os.Exit(1)
   }
   if i != 0xcc238de1 {
   	print("number is ", i, " should be ", 0xcc238de1, "\n");
-  	sys.Exit(1)
+  	os.Exit(1)
   }
 }

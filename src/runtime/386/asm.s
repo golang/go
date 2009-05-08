@@ -84,12 +84,12 @@ TEXT mainstart(SB),7,$0
 	CALL	initdone(SB)
 	CALL	main·main(SB)
 	PUSHL	$0
-	CALL	sys·Exit(SB)
+	CALL	exit(SB)
 	POPL	AX
 	INT $3
 	RET
 
-TEXT	sys·Breakpoint(SB),7,$0
+TEXT	breakpoint(SB),7,$0
 	BYTE $0xcc
 	RET
 

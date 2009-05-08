@@ -641,7 +641,7 @@ func findPackages(name string) *pakInfo {
 				return info;
 			}
 		}
-		
+
 		info.Packages = paks;
 		if cname == "." {
 			info.Path = "";
@@ -704,7 +704,7 @@ func usage() {
 		"	godoc -http=:6060\n"
 	);
 	flag.PrintDefaults();
-	sys.Exit(1);
+	os.Exit(1);
 }
 
 
@@ -761,7 +761,7 @@ func main() {
 		if err != nil {
 			log.Stderrf("packagelistText.Execute: %s", err);
 		}
-		sys.Exit(1);
+		os.Exit(1);
 	}
 
 	doc, errors := info.Package.Doc();
@@ -770,7 +770,7 @@ func main() {
 		if err != nil {
 			log.Stderrf("parseerrorText.Execute: %s", err);
 		}
-		sys.Exit(1);
+		os.Exit(1);
 	}
 
 	if flag.NArg() > 1 {

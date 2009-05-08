@@ -55,13 +55,6 @@ char *sysimport =
 	"func sys.arrayslices (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
 	"func sys.arrays2d (old *any, nel int) (ary []any)\n"
 	"func sys.closure ()\n"
-	"func sys.Breakpoint ()\n"
-	"var sys.Args []string\n"
-	"var sys.Envs []string\n"
-	"func sys.Gosched ()\n"
-	"func sys.Goexit ()\n"
-	"func sys.Exit (? int)\n"
-	"func sys.Caller (n int) (pc uint64, file string, line int, ok bool)\n"
 	"\n"
 	"$$\n";
 char *unsafeimport =
@@ -72,5 +65,13 @@ char *unsafeimport =
 	"func unsafe.Alignof (? any) (? int)\n"
 	"func unsafe.Reflect (i interface { }) (? uint64, ? string, ? bool)\n"
 	"func unsafe.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
+	"\n"
+	"$$\n";
+char *runtimeimport =
+	"package runtime\n"
+	"func runtime.Breakpoint ()\n"
+	"func runtime.Gosched ()\n"
+	"func runtime.Goexit ()\n"
+	"func runtime.Caller (n int) (pc uint64, file string, line int, ok bool)\n"
 	"\n"
 	"$$\n";

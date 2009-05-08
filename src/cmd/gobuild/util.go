@@ -34,7 +34,7 @@ const ObjDir = "_obj"
 
 func fatal(args ...) {
 	fmt.Fprintf(os.Stderr, "gobuild: %s\n", fmt.Sprint(args));
-	sys.Exit(1);
+	os.Exit(1);
 }
 
 func init() {

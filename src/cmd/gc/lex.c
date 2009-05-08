@@ -265,6 +265,10 @@ importfile(Val *f)
 		cannedimports("unsafe.6", unsafeimport);
 		return;
 	}
+	if(strcmp(f->u.sval->s, "runtime") == 0) {
+		cannedimports("runtime.6", runtimeimport);
+		return;
+	}
 
 	if(!findpkg(f->u.sval))
 		fatal("can't find import: %Z", f->u.sval);

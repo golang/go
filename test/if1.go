@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+
 func main() {
 	count := 7;
 	if one := 1; {
@@ -13,6 +15,6 @@ func main() {
 	}
 	if count != 8 {
 		print(count, " should be 8\n");
-		sys.Exit(1)
+		os.Exit(1)
 	}
 }

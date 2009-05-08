@@ -25,7 +25,7 @@ sys·panicl(int32 lno)
 
 	if(panicking) {
 		printf("double panic\n");
-		sys_Exit(3);
+		exit(3);
 	}
 	panicking++;
 
@@ -35,8 +35,8 @@ sys·panicl(int32 lno)
 		traceback(sys·getcallerpc(&lno), sp, g);
 		tracebackothers(g);
 	}
-	sys·Breakpoint();  // so we can grab it in a debugger
-	sys_Exit(2);
+	breakpoint();  // so we can grab it in a debugger
+	exit(2);
 }
 
 void
@@ -57,7 +57,7 @@ throw(int8 *s)
 	printf("throw: %s\n", s);
 	sys·panicl(-1);
 	*(int32*)0 = 0;	// not reached
-	sys_Exit(1);	// even more not reached
+	exit(1);	// even more not reached
 }
 
 void
@@ -136,8 +136,8 @@ rnd(uint32 n, uint32 m)
 static int32	argc;
 static uint8**	argv;
 
-Array sys·Args;
-Array sys·Envs;
+Array os·Args;
+Array os·Envs;
 
 void
 args(int32 c, uint8 **v)
@@ -161,15 +161,15 @@ goargs(void)
 
 	for(i=0; i<argc; i++)
 		gargv[i] = gostring(argv[i]);
-	sys·Args.array = (byte*)gargv;
-	sys·Args.nel = argc;
-	sys·Args.cap = argc;
+	os·Args.array = (byte*)gargv;
+	os·Args.nel = argc;
+	os·Args.cap = argc;
 
 	for(i=0; i<envc; i++)
 		genvv[i] = gostring(argv[argc+1+i]);
-	sys·Envs.array = (byte*)genvv;
-	sys·Envs.nel = envc;
-	sys·Envs.cap = envc;
+	os·Envs.array = (byte*)genvv;
+	os·Envs.nel = envc;
+	os·Envs.cap = envc;
 }
 
 byte*
@@ -182,8 +182,8 @@ getenv(int8 *s)
 
 	bs = (byte*)s;
 	len = findnull(bs);
-	envv = (String*)sys·Envs.array;
-	envc = sys·Envs.nel;
+	envv = (String*)os·Envs.array;
+	envc = os·Envs.nel;
 	for(i=0; i<envc; i++){
 		if(envv[i].len <= len)
 			continue;

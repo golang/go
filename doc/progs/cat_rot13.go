@@ -60,7 +60,7 @@ func cat(r reader) {
 		switch nr, er := r.Read(&buf); {
 		case nr < 0:
 			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", r.String(), er.String());
-			sys.Exit(1);
+			os.Exit(1);
 		case nr == 0:  // EOF
 			return;
 		case nr > 0:
@@ -81,7 +81,7 @@ func main() {
 		f, err := file.Open(flag.Arg(i), 0, 0);
 		if f == nil {
 			fmt.Fprintf(os.Stderr, "can't open %s: error %s\n", flag.Arg(i), err);
-			sys.Exit(1);
+			os.Exit(1);
 		}
 		cat(f);
 		f.Close();

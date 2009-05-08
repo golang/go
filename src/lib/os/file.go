@@ -132,7 +132,7 @@ func (file *File) Write(b []byte) (ret int, err Error) {
 	if e == syscall.EPIPE {
 		file.nepipe++;
 		if file.nepipe >= 10 {
-			sys.Exit(syscall.EPIPE);
+			os.Exit(syscall.EPIPE);
 		}
 	} else {
 		file.nepipe = 0;

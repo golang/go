@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+
 var fail int
 
 func check(b bool, msg string) {
@@ -145,6 +147,6 @@ func main() {
   f11();
   f12();
   if fail > 0 {
-    sys.Exit(1)
+    os.Exit(1)
   }
 }

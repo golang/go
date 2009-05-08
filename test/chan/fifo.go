@@ -8,6 +8,8 @@
 
 package main
 
+import "os"
+
 const N = 10
 
 func AsynchFifo() {
@@ -18,7 +20,7 @@ func AsynchFifo() {
 	for i := 0; i < N; i++ {
 		if <-ch != i {
 			print("bad receive\n");
-			sys.Exit(1);
+			os.Exit(1);
 		}
 	}
 }

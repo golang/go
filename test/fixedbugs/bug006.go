@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+
 const (
 	x float = iota;
 	g float = 4.5 * iota;
@@ -13,5 +15,5 @@ const (
 
 func main() {
 	if g == 0.0 { print("zero\n");}
-	if g != 4.5 { print(" fail\n"); sys.Exit(1); }
+	if g != 4.5 { print(" fail\n"); os.Exit(1); }
 }

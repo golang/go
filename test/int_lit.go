@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+
 func main() {
   s :=
     0 +
@@ -18,6 +20,6 @@ func main() {
     0X123;
   if s != 788 {
     print("s is ", s, "; should be 788\n");
-    sys.Exit(1);
+    os.Exit(1);
   }
 }

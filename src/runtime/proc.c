@@ -129,7 +129,7 @@ initdone(void)
 }
 
 void
-sys·Goexit(void)
+goexit(void)
 {
 	if(debug > 1){
 		lock(&debuglock);
@@ -137,7 +137,7 @@ sys·Goexit(void)
 		unlock(&debuglock);
 	}
 	g->status = Gmoribund;
-	sys·Gosched();
+	gosched();
 }
 
 void
@@ -431,7 +431,7 @@ scheduler(void)
 		case Gmoribund:
 			gp->status = Gdead;
 			if(--sched.gcount == 0)
-				sys_Exit(0);
+				exit(0);
 			break;
 		}
 		if(gp->readyonstop){
@@ -461,7 +461,7 @@ scheduler(void)
 // before running g again.  If g->status is Gmoribund,
 // kills off g.
 void
-sys·Gosched(void)
+gosched(void)
 {
 	if(g == m->g0)
 		throw("gosched of g0");
@@ -529,7 +529,7 @@ sys·exitsyscall(void)
 	// The scheduler will ready g and put this m to sleep.
 	// When the scheduler takes g awa from m,
 	// it will undo the sched.mcpu++ above.
-	sys·Gosched();
+	gosched();
 }
 
 /*
@@ -784,7 +784,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 	mcpy(sp, (byte*)&arg0, siz);
 
 	sp -= sizeof(uintptr);
-	*(byte**)sp = (byte*)sys·Goexit;
+	*(byte**)sp = (byte*)goexit;
 
 	sp -= sizeof(uintptr);	// retpc used by gogo
 	newg->sched.SP = sp;
@@ -837,5 +837,23 @@ sys·deferreturn(int32 arg0)
 	sp = d->fn;
 	free(d);
 	jmpdefer(sp);
+}
+
+void
+runtime·Breakpoint(void)
+{
+	breakpoint();
+}
+
+void
+runtime·Goexit(void)
+{
+	goexit();
+}
+
+void
+runtime·Gosched(void)
+{
+	gosched();
 }
 

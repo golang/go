@@ -25,6 +25,7 @@ package regexp
 import (
 	"container/vector";
 	"os";
+	"runtime";
 	"utf8";
 )
 
@@ -236,7 +237,7 @@ func (nop *_Nop) print() { print("nop") }
 func (re *Regexp) setError(err os.Error) {
 	re.error = err;
 	re.ch <- re;
-	sys.Goexit();
+	runtime.Goexit();
 }
 
 func (re *Regexp) add(i instr) instr {

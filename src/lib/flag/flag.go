@@ -261,15 +261,15 @@ func PrintDefaults() {
 }
 
 // Usage prints to standard error a default usage message documenting all defined flags and
-// then calls sys.Exit(1).
+// then calls os.Exit(1).
 func Usage() {
-	if len(sys.Args) > 0 {
-		fmt.Fprintln(os.Stderr, "Usage of", sys.Args[0] + ":");
+	if len(os.Args) > 0 {
+		fmt.Fprintln(os.Stderr, "Usage of", os.Args[0] + ":");
 	} else {
 		fmt.Fprintln(os.Stderr, "Usage:");
 	}
 	PrintDefaults();
-	sys.Exit(1);
+	os.Exit(1);
 }
 
 func NFlag() int {
@@ -280,20 +280,20 @@ func NFlag() int {
 // after flags have been processed.
 func Arg(i int) string {
 	i += flags.first_arg;
-	if i < 0 || i >= len(sys.Args) {
+	if i < 0 || i >= len(os.Args) {
 		return "";
 	}
-	return sys.Args[i]
+	return os.Args[i]
 }
 
 // NArg is the number of arguments remaining after flags have been processed.
 func NArg() int {
-	return len(sys.Args) - flags.first_arg
+	return len(os.Args) - flags.first_arg
 }
 
 // Args returns the non-flag command-line arguments.
 func Args() []string {
-	return sys.Args[flags.first_arg:len(sys.Args)];
+	return os.Args[flags.first_arg:len(os.Args)];
 }
 
 func add(name string, value FlagValue, usage string) {
@@ -393,7 +393,7 @@ func String(name, value string, usage string) *string {
 
 func (f *allFlags) parseOne(index int) (ok bool, next int)
 {
-	s := sys.Args[index];
+	s := os.Args[index];
 	f.first_arg = index;  // until proven otherwise
 	if len(s) == 0 {
 		return false, -1
@@ -450,11 +450,11 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 		}
 	} else {
 		// It must have a value, which might be the next argument.
-		if !has_value && index < len(sys.Args)-1 {
+		if !has_value && index < len(os.Args)-1 {
 			// value is the next arg
 			has_value = true;
 			index++;
-			value = sys.Args[index];
+			value = os.Args[index];
 		}
 		if !has_value {
 			print("flag needs an argument: -", name, "\n");
@@ -473,7 +473,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 // Parse parses the command-line flags.  Must be called after all flags are defined
 // and before any are accessed by the program.
 func Parse() {
-	for i := 1; i < len(sys.Args); {
+	for i := 1; i < len(os.Args); {
 		ok, next := flags.parseOne(i);
 		if next > 0 {
 			flags.first_arg = next;

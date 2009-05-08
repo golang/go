@@ -44,7 +44,7 @@
 	first looked for in the cursor, as in .section and .repeated.
 	If it is not found, the search continues in outer sections
 	until the top level is reached.
-	
+
 	If a formatter is specified, it must be named in the formatter
 	map passed to the template set up routines or in the default
 	set ("html","str","") and is used to process the data for
@@ -61,6 +61,7 @@ import (
 	"io";
 	"os";
 	"reflect";
+	"runtime";
 	"strings";
 	"template";
 	"container/vector";
@@ -181,7 +182,7 @@ func New(fmap FormatterMap) *Template {
 // Generic error handler, called only from execError or parseError.
 func error(errors chan os.Error, line int, err string, args ...) {
 	errors <- ParseError{fmt.Sprintf("line %d: %s", line, fmt.Sprintf(err, args))};
-	sys.Goexit();
+	runtime.Goexit();
 }
 
 // Report error and stop executing.  The line number must  be provided explicitly.

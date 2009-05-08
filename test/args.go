@@ -6,14 +6,16 @@
 
 package main
 
+import "os"
+
 func main() {
-	if len(sys.Args) != 3 {
+	if len(os.Args) != 3 {
 		panic("argc")
 	}
-	if sys.Args[1] != "arg1" {
+	if os.Args[1] != "arg1" {
 		panic("arg1")
 	}
-	if sys.Args[2] != "arg2" {
+	if os.Args[2] != "arg2" {
 		panic("arg2")
 	}
 }

@@ -11,7 +11,7 @@ TEXT notok(SB),7,$0
 	RET
 
 // Exit the entire program (like C exit)
-TEXT sys·Exit(SB),7,$0
+TEXT exit(SB),7,$0
 	MOVL	$1, AX
 	INT	$0x80
 	CALL	notok(SB)

@@ -6,6 +6,8 @@
 
 package main
 
+import "os"
+
 const Value = 1e12
 
 type Inter interface { M() int64 }
@@ -73,6 +75,6 @@ func main() {
 
 	if !ok {
 		println("BUG: interface10");
-		sys.Exit(1)
+		os.Exit(1)
 	}
 }
