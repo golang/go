@@ -100,7 +100,7 @@ func Build(cmd []string, file string, display bool) (ok bool) {
 	if display {
 		fmt.Fprint(os.Stderr, "$ ");
 		for i, s := range cmd {
-			fmt.Fprint(os.Stderr, s[i], " ");
+			fmt.Fprint(os.Stderr, s, " ");
 		}
 		fmt.Fprint(os.Stderr, file, "\n");
 	}
