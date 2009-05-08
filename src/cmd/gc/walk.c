@@ -700,7 +700,7 @@ loop:
 		defaultlit2(n->left, n->right);
 		if(n->left->type == T || n->right->type == T)
 			goto ret;
-		if(!eqtype(n->left->type, n->right->type, 0))
+		if(!eqtype(n->left->type, n->right->type))
 			goto badt;
 
 		switch(n->op) {
@@ -831,7 +831,7 @@ loop:
 			defaultlit(n->right, t->down);
 			if(n->right->type == T)
 				break;
-			if(!eqtype(n->right->type, t->down, 0))
+			if(!eqtype(n->right->type, t->down))
 				goto badt;
 			n->type = t->type;
 			if(top == Erv)
@@ -1169,7 +1169,7 @@ walkbool(Node *n)
 	defaultlit(n, T);
 	addtotop(n);
 	if(n != N && n->type != T)
-		if(!eqtype(n->type, types[TBOOL], 0))
+		if(!eqtype(n->type, types[TBOOL]))
 			yyerror("IF and FOR require a boolean type");
 }
 
@@ -1210,7 +1210,7 @@ walkconv(Node *n)
 		return;
 
 	// nil conversion
-	if(eqtype(t, l->type, 0)) {
+	if(eqtype(t, l->type)) {
 		if(l->op != ONAME) {
 			indir(n, l);
 			n->type = t;
@@ -1248,7 +1248,7 @@ walkconv(Node *n)
 
 	// convert static array to dynamic array
 	if(isslice(t) && isptr[l->type->etype] && isfixedarray(l->type->type)) {
-		if(eqtype(t->type->type, l->type->type->type->type, 0)) {
+		if(eqtype(t->type->type, l->type->type->type->type)) {
 			indir(n, arrayop(n, Erv));
 			return;
 		}
@@ -1622,13 +1622,13 @@ lookdot(Node *n, Type *t)
 	if(f2 != T) {
 		tt = n->left->type;
 		rcvr = getthisx(f2->type)->type->type;
-		if(!eqtype(rcvr, tt, 0)) {
-			if(rcvr->etype == tptr && eqtype(rcvr->type, tt, 0)) {
+		if(!eqtype(rcvr, tt)) {
+			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
 				walktype(n->left, Elv);
 				addrescapes(n->left);
 				n->left = nod(OADDR, n->left, N);
 				n->left->type = ptrto(tt);
-			} else if(tt->etype == tptr && eqtype(tt->type, rcvr, 0)) {
+			} else if(tt->etype == tptr && eqtype(tt->type, rcvr)) {
 				n->left = nod(OIND, n->left, N);
 				n->left->type = tt->type;
 			} else {
@@ -2017,7 +2017,7 @@ loop:
 int
 ascompat(Type *dst, Type *src)
 {
-	if(eqtype(dst, src, 0))
+	if(eqtype(dst, src))
 		return 1;
 
 	if(dst == T || src == T)
@@ -2026,7 +2026,7 @@ ascompat(Type *dst, Type *src)
 	if(isslice(dst)
 	&& isptr[src->etype]
 	&& isfixedarray(src->type)
-	&& eqtype(dst->type, src->type->type, 0))
+	&& eqtype(dst->type, src->type->type))
 		return 1;
 
 	if(isnilinter(dst) || isnilinter(src))
@@ -2120,7 +2120,7 @@ loop:
 	if(t != nil)
 		t = t->type;
 
-	if(!eqtype(t, l->type, 0)) {
+	if(!eqtype(t, l->type)) {
 		l = nod(OCONV, l, N);
 		l->type = t;
 	}
@@ -2380,7 +2380,7 @@ mapop(Node *n, int top)
 
 		convlit(n->right, t->down);
 
-		if(!eqtype(n->right->type, t->down, 0)) {
+		if(!eqtype(n->right->type, t->down)) {
 			badtype(n->op, n->right->type, t->down);
 			break;
 		}
@@ -2900,7 +2900,7 @@ ifaceas1(Type *dst, Type *src, int explicit)
 
 	if(isinter(dst)) {
 		if(isinter(src)) {
-			if(eqtype(dst, src, 0))
+			if(eqtype(dst, src))
 				return I2Isame;
 			if(!isnilinter(dst))
 				ifacecheck(dst, src, lineno, explicit);
@@ -3065,7 +3065,7 @@ convas(Node *n)
 		goto out;
 	}
 
-	if(eqtype(lt, rt, 0))
+	if(eqtype(lt, rt))
 		goto out;
 
 	et = ifaceas(lt, rt, 0);
@@ -3075,7 +3075,7 @@ convas(Node *n)
 	}
 
 	if(isslice(lt) && isptr[rt->etype] && isfixedarray(rt->type)) {
-		if(!eqtype(lt->type->type, rt->type->type->type, 0))
+		if(!eqtype(lt->type->type, rt->type->type->type))
 			goto bad;
 		indir(n, arrayop(n, Etop));
 		goto out;
@@ -3154,7 +3154,7 @@ checkmixed(Node *nl)
 		if(!colasname(l))
 			goto allnew;
 		if(l->sym->block == block) {
-			if(!eqtype(l->type, t, 0))
+			if(!eqtype(l->type, t))
 				goto allnew;
 			nred++;
 		}

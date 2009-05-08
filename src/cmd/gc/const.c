@@ -80,7 +80,7 @@ convlit1(Node *n, Type *t, int explicit)
 	}
 
 	// avoided repeated calculations, errors
-	if(eqtype(n->type, t, 0)) {
+	if(eqtype(n->type, t)) {
 		n->type = t;
 		return;
 	}

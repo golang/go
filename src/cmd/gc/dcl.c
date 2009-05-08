@@ -212,7 +212,7 @@ methcmp(Type *t1, Type *t2)
 		if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
 			return 0;
 
-		if(!eqtype(t1->type, t2->type, 0))
+		if(!eqtype(t1->type, t2->type))
 			return 0;
 
 		t1 = t1->down;
@@ -327,7 +327,7 @@ addmethod(Node *n, Type *t, int local)
 			d = f;
 			continue;
 		}
-		if(!eqtype(t, f->type, 0)) {
+		if(!eqtype(t, f->type)) {
 			yyerror("method redeclared: %T.%S", pa, sf);
 			print("\t%T\n\t%T\n", f->type, t);
 		}
@@ -387,7 +387,7 @@ funchdr(Node *n)
 
 	// check for same types
 	if(on != N) {
-		if(eqtype(n->type, on->type, 0)) {
+		if(eqtype(n->type, on->type)) {
 			if(!eqargs(n->type, on->type)) {
 				yyerror("function arg names changed: %S", s);
 				print("\t%T\n\t%T\n", on->type, n->type);

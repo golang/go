@@ -191,7 +191,7 @@ cgen(Node *n, Node *res)
 		goto abop;
 
 	case OCONV:
-		if(eqtype(n->type, nl->type, 0)) {
+		if(eqtype(n->type, nl->type)) {
 			cgen(nl, res);
 			break;
 		}
@@ -384,7 +384,7 @@ agen(Node *n, Node *res)
 		break;
 
 	case OCONV:
-		if(!eqtype(n->type, nl->type, 0))
+		if(!eqtype(n->type, nl->type))
 			fatal("agen: non-trivial OCONV");
 		agen(nl, res);
 		return;

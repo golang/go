@@ -726,7 +726,7 @@ int	isddd(Type*);
 Type*	maptype(Type*, Type*);
 Type*	methtype(Type*);
 Sym*	signame(Type*);
-int	eqtype(Type*, Type*, int);
+int	eqtype(Type*, Type*);
 int	eqtypenoname(Type*, Type*);
 void	argtype(Node*, Type*);
 int	eqargs(Type*, Type*);

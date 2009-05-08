@@ -1088,6 +1088,10 @@ name:
 
 labelname:
 	name
+|	LATYPE
+	{
+		$$ = oldname($1);
+	}
 |	keyword
 	{
 		$$ = oldname($1);
@@ -2049,6 +2053,9 @@ hidden_pkg_importsym:
  * to check whether the rest of the grammar is free of
  * reduce/reduce conflicts, comment this section out by
  * removing the slash on the next line.
+ *
+ * there should be exactly 1 reduce/reduce conflict
+ * when this block is commented out.
  */
 lpack:
 	LATYPE
