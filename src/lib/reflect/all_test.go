@@ -314,7 +314,7 @@ func TestInterfaceValue(t *testing.T) {
 
 	i3 := v2.Interface();
 	if f, ok := i3.(float); !ok {
-		a, typ, c := sys.Reflect(i3);
+		a, typ, c := unsafe.Reflect(i3);
 		t.Error("v2.Interface() did not return float, got ", typ);
 	}
 }

@@ -9,3 +9,5 @@ type	Pointer	*any;
 func	Offsetof(any) int;
 func	Sizeof(any) int;
 func	Alignof(any) int;
+func	Reflect(i interface { }) (uint64, string, bool);
+func	Unreflect(uint64, string, bool) (ret interface { });

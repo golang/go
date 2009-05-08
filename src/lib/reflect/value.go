@@ -62,12 +62,12 @@ func (c *commonValue) Interface() interface {} {
 	case c.typ.Kind() == InterfaceKind:
 		i = *(*interface{})(c.addr);
 	case c.typ.Size() > 8:	// TODO(rsc): how do we know it is 8?
-		i = sys.Unreflect(uint64(uintptr(c.addr)), c.typ.String(), true);
+		i = unsafe.Unreflect(uint64(uintptr(c.addr)), c.typ.String(), true);
 	default:
 		if uintptr(c.addr) == 0 {
 			panicln("reflect: address 0 for", c.typ.String());
 		}
-		i = sys.Unreflect(uint64(uintptr(*(*Addr)(c.addr))), c.typ.String(), false);
+		i = unsafe.Unreflect(uint64(uintptr(*(*Addr)(c.addr))), c.typ.String(), false);
 	}
 	return i;
 }
@@ -902,7 +902,7 @@ func copyArray(dst ArrayValue, src ArrayValue, n int) {
 
 // NewValue creates a new Value from the interface{} object provided.
 func NewValue(e interface {}) Value {
-	value, typestring, indir := sys.Reflect(e);
+	value, typestring, indir := unsafe.Reflect(e);
 	typ, ok := typecache[typestring];
 	if !ok {
 		typ = ParseTypeString("", typestring);

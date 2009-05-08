@@ -560,7 +560,7 @@ sys·printinter(Iface i)
 }
 
 void
-sys·Reflect(Iface i, uint64 retit, String rettype, bool retindir)
+unsafe·Reflect(Iface i, uint64 retit, String rettype, bool retindir)
 {
 	int32 wid;
 
@@ -602,7 +602,7 @@ extern int32 ngotypesigs;
 // on the fake signature are:
 //
 //	(1) any interface conversion using the signature will fail
-//	(2) calling sys.Reflect() returns the args to unreflect
+//	(2) calling unsafe.Reflect() returns the args to unreflect
 //	(3) the right algorithm type is used, for == and map insertion
 //
 // (1) is ensured by the fact that we allocate a new Sigt,
@@ -757,7 +757,7 @@ findtype(String type, bool indir)
 
 
 void
-sys·Unreflect(uint64 it, String type, bool indir, Iface ret)
+unsafe·Unreflect(uint64 it, String type, bool indir, Iface ret)
 {
 	Sigt *sigt;
 
@@ -767,8 +767,8 @@ sys·Unreflect(uint64 it, String type, bool indir, Iface ret)
 		goto out;
 
 	if(type.len > 10 && mcmp(type.str, (byte*)"interface ", 10) == 0) {
-		printf("sys.Unreflect: cannot put %S in interface\n", type);
-		throw("sys.Unreflect");
+		printf("unsafe.Unreflect: cannot put %S in interface\n", type);
+		throw("unsafe.Unreflect");
 	}
 
 	// if we think the type should be indirect
