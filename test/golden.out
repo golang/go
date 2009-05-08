@@ -101,6 +101,10 @@ BUG should compile
 5 7
 BUG: should crash
 
+=========== bugs/bug149.go
+bugs/bug149.go:14: cannot convert []uint8 constant to string
+BUG: should compile
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
