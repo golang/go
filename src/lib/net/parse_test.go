@@ -18,7 +18,7 @@ func TestReadLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open %s: %v", filename, err);
 	}
-	br := bufio.NewBufRead(fd);
+	br := bufio.NewReader(fd);
 
 	var file *file;
 	file, err = open(filename);

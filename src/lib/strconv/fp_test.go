@@ -100,7 +100,7 @@ func TestFp(t *testing.T) {
 	}
 	defer f.Close();
 
-	b := bufio.NewBufRead(f);
+	b := bufio.NewReader(f);
 
 	lineno := 0;
 	for {
