@@ -16,44 +16,44 @@ import (
 // ErrEOF is the error returned by FullRead and Copyn when they encounter EOF.
 var ErrEOF = os.NewError("EOF")
 
-// Read is the interface that wraps the basic Read method.
-type Read interface {
+// Reader is the interface that wraps the basic Read method.
+type Reader interface {
 	Read(p []byte) (n int, err os.Error);
 }
 
-// Write is the interface that wraps the basic Write method.
-type Write interface {
+// Writer is the interface that wraps the basic Write method.
+type Writer interface {
 	Write(p []byte) (n int, err os.Error);
 }
 
-// Close is the interface that wraps the basic Close method.
-type Close interface {
+// Closer is the interface that wraps the basic Close method.
+type Closer interface {
 	Close() os.Error;
 }
 
 // ReadWrite is the interface that groups the basic Read and Write methods.
-type ReadWrite interface {
-	Read;
-	Write;
+type ReadWriter interface {
+	Reader;
+	Writer;
 }
 
-// ReadClose is the interface that groups the basic Read and Close methods.
-type ReadClose interface {
-	Read;
-	Close;
+// ReadCloser is the interface that groups the basic Read and Close methods.
+type ReadCloser interface {
+	Reader;
+	Closer;
 }
 
-// WriteClose is the interface that groups the basic Write and Close methods.
-type WriteClose interface {
-	Write;
-	Close;
+// WriteCloser is the interface that groups the basic Write and Close methods.
+type WriteCloser interface {
+	Writer;
+	Closer;
 }
 
-// ReadWriteClose is the interface that groups the basic Read, Write and Close methods.
-type ReadWriteClose interface {
-	Read;
-	Write;
-	Close;
+// ReadWriteCloser is the interface that groups the basic Read, Write and Close methods.
+type ReadWriteCloser interface {
+	Reader;
+	Writer;
+	Closer;
 }
 
 // Convert a string to an array of bytes for easy marshaling.
@@ -66,12 +66,12 @@ func StringBytes(s string) []byte {
 }
 
 // WriteString writes the contents of the string s to w, which accepts an array of bytes.
-func WriteString(w Write, s string) (n int, err os.Error) {
+func WriteString(w Writer, s string) (n int, err os.Error) {
 	return w.Write(StringBytes(s))
 }
 
 // FullRead reads r until the buffer buf is full, or until EOF or error.
-func FullRead(r Read, buf []byte) (n int, err os.Error) {
+func FullRead(r Reader, buf []byte) (n int, err os.Error) {
 	n = 0;
 	for n < len(buf) {
 		nn, e := r.Read(buf[n:len(buf)]);
@@ -91,7 +91,7 @@ func FullRead(r Read, buf []byte) (n int, err os.Error) {
 // Convert something that implements Read into something
 // whose Reads are always FullReads
 type fullRead struct {
-	r	Read;
+	r	Reader;
 }
 
 func (fr *fullRead) Read(p []byte) (n int, err os.Error) {
@@ -101,7 +101,7 @@ func (fr *fullRead) Read(p []byte) (n int, err os.Error) {
 
 // MakeFullReader takes r, an implementation of Read, and returns an object
 // that still implements Read but always calls FullRead underneath.
-func MakeFullReader(r Read) Read {
+func MakeFullReader(r Reader) Reader {
 	if fr, ok := r.(*fullRead); ok {
 		// already a fullRead
 		return r
@@ -111,7 +111,7 @@ func MakeFullReader(r Read) Read {
 
 // Copy n copies n bytes (or until EOF is reached) from src to dst.
 // It returns the number of bytes copied and the error, if any.
-func Copyn(src Read, dst Write, n int64) (written int64, err os.Error) {
+func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
 	buf := make([]byte, 32*1024);
 	for written < n {
 		l := len(buf);
@@ -147,7 +147,7 @@ func Copyn(src Read, dst Write, n int64) (written int64, err os.Error) {
 
 // Copy copies from src to dst until EOF is reached.
 // It returns the number of bytes copied and the error, if any.
-func Copy(src Read, dst Write) (written int64, err os.Error) {
+func Copy(src Reader, dst Writer) (written int64, err os.Error) {
 	buf := make([]byte, 32*1024);
 	for {
 		nr, er := src.Read(buf);

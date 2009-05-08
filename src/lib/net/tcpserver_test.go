@@ -11,7 +11,7 @@ import (
 	"testing";
 )
 
-func runEcho(fd io.ReadWrite, done chan<- int) {
+func runEcho(fd io.ReadWriter, done chan<- int) {
 	var buf [1024]byte;
 
 	for {

@@ -16,7 +16,7 @@ import (
 // It is stored under the name "str" and is the default formatter.
 // You can override the default formatter by storing your default
 // under the name "" in your custom formatter map.
-func StringFormatter(w io.Write, value interface{}, format string) {
+func StringFormatter(w io.Writer, value interface{}, format string) {
 	fmt.Fprint(w, value);
 }
 
@@ -27,7 +27,7 @@ var esc_gt = io.StringBytes("&gt;")
 
 // HtmlEscape writes to w the properly escaped HTML equivalent
 // of the plain text data s.
-func HtmlEscape(w io.Write, s []byte) {
+func HtmlEscape(w io.Writer, s []byte) {
 	last := 0;
 	for i, c := range s {
 		if c == '&' || c == '<' || c == '>' {
@@ -47,7 +47,7 @@ func HtmlEscape(w io.Write, s []byte) {
 }
 
 // HtmlFormatter formats arbitrary values for HTML
-func HtmlFormatter(w io.Write, value interface{}, format string) {
+func HtmlFormatter(w io.Writer, value interface{}, format string) {
 	var b io.ByteBuffer;
 	fmt.Fprint(&b, value);
 	HtmlEscape(w, b.Data());

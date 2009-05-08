@@ -69,31 +69,31 @@ func hasExportedNames(names []*ast.Ident) bool {
 // initializing an AST Printer. It is used to print tokens.
 //
 type TokenPrinter interface {
-	PrintLit(w io.Write, tok token.Token, value []byte);
-	PrintIdent(w io.Write, value string);
-	PrintToken(w io.Write, token token.Token);
-	PrintComment(w io.Write, value []byte);
+	PrintLit(w io.Writer, tok token.Token, value []byte);
+	PrintIdent(w io.Writer, value string);
+	PrintToken(w io.Writer, token token.Token);
+	PrintComment(w io.Writer, value []byte);
 }
 
 
 type defaultPrinter struct {}
 
-func (p defaultPrinter) PrintLit(w io.Write, tok token.Token, value []byte) {
+func (p defaultPrinter) PrintLit(w io.Writer, tok token.Token, value []byte) {
 	w.Write(value);
 }
 
 
-func (p defaultPrinter) PrintIdent(w io.Write, value string) {
+func (p defaultPrinter) PrintIdent(w io.Writer, value string) {
 	fmt.Fprint(w, value);
 }
 
 
-func (p defaultPrinter) PrintToken(w io.Write, token token.Token) {
+func (p defaultPrinter) PrintToken(w io.Writer, token token.Token) {
 	fmt.Fprint(w, token.String());
 }
 
 
-func (p defaultPrinter) PrintComment(w io.Write, value []byte) {
+func (p defaultPrinter) PrintComment(w io.Writer, value []byte) {
 	w.Write(value);
 }
 
@@ -123,7 +123,7 @@ const (
 
 type Printer struct {
 	// output
-	text io.Write;
+	text io.Writer;
 
 	// token printing
 	tprinter TokenPrinter;
@@ -171,7 +171,7 @@ func (P *Printer) nextComments() {
 }
 
 
-func (P *Printer) Init(text io.Write, tprinter TokenPrinter, comments []*ast.Comment, html bool) {
+func (P *Printer) Init(text io.Writer, tprinter TokenPrinter, comments []*ast.Comment, html bool) {
 	// writers
 	P.text = text;
 
@@ -435,7 +435,7 @@ func (P *Printer) Error(pos token.Position, tok token.Token, msg string) {
 }
 
 
-// An astPrinter implements io.Write.
+// An astPrinter implements io.Writer.
 // TODO this is not yet used.
 func (P *Printer) Write(p []byte) (n int, err os.Error) {
 	// TODO

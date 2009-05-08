@@ -93,7 +93,7 @@ const (
 
 // FormatterMap is the type describing the mapping from formatter
 // names to the functions that implement them.
-type FormatterMap map[string] func(io.Write, interface{}, string)
+type FormatterMap map[string] func(io.Writer, interface{}, string)
 
 // Built-in formatters.
 var builtins = FormatterMap {
@@ -158,7 +158,7 @@ type Template struct {
 type state struct {
 	parent	*state;	// parent in hierarchy
 	data	reflect.Value;	// the driver data for this section etc.
-	wr	io.Write;	// where to send output
+	wr	io.Writer;	// where to send output
 	errors	chan os.Error;	// for reporting errors during execute
 }
 
@@ -769,7 +769,7 @@ func (t *Template) Parse(s string) os.Error {
 
 // Execute applies a parsed template to the specified data object,
 // generating output to wr.
-func (t *Template) Execute(data interface{}, wr io.Write) os.Error {
+func (t *Template) Execute(data interface{}, wr io.Writer) os.Error {
 	// Extract the driver data.
 	val := reflect.NewValue(data);
 	errors := make(chan os.Error);

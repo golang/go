@@ -44,7 +44,7 @@ var (
 // Format representation
 
 type (
-	Formatter func(w io.Write, value interface{}, name string) bool;
+	Formatter func(w io.Writer, value interface{}, name string) bool;
 	FormatterMap map[string]Formatter;
 )
 
@@ -476,7 +476,7 @@ func readSource(src interface{}) ([]byte, os.Error) {
 		}
 		return s.Data(), nil;
 
-	case io.Read:
+	case io.Reader:
 		var buf io.ByteBuffer;
 		n, err := io.Copy(s, &buf);
 		if err != nil {
@@ -654,7 +654,7 @@ func percentCount(s []byte) int {
 }
 
 
-func rawPrintf(w io.Write, format []byte, value reflect.Value) {
+func rawPrintf(w io.Writer, format []byte, value reflect.Value) {
 	// TODO find a better way to do this
 	x := value.Interface();
 	switch percentCount(format) {
@@ -724,7 +724,7 @@ func (ps *state) outdent() {
 }
 
 
-func (ps *state) printIndented(w io.Write, s []byte) {
+func (ps *state) printIndented(w io.Writer, s []byte) {
 	// replace each '\n' with the indent + '\n'
 	i0 := 0;
 	for i := 0; i < len(s); i++ {
@@ -738,7 +738,7 @@ func (ps *state) printIndented(w io.Write, s []byte) {
 }
 
 
-func (ps *state) printf(w io.Write, format []byte, value reflect.Value) {
+func (ps *state) printf(w io.Writer, format []byte, value reflect.Value) {
 	if len(ps.indent_widths) == 0 {
 		// no indentation
 		rawPrintf(w, format, value);
@@ -751,10 +751,10 @@ func (ps *state) printf(w io.Write, format []byte, value reflect.Value) {
 }
 
 
-func (ps *state) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool
+func (ps *state) print(w io.Writer, fexpr expr, value reflect.Value, index, level int) bool
 
 // Returns true if a non-empty field value was found.
-func (ps *state) print0(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
+func (ps *state) print0(w io.Writer, fexpr expr, value reflect.Value, index, level int) bool {
 	if fexpr == nil {
 		return true;
 	}
@@ -917,7 +917,7 @@ func printTrace(indent int, format string, a ...) {
 }
 
 
-func (ps *state) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
+func (ps *state) print(w io.Writer, fexpr expr, value reflect.Value, index, level int) bool {
 	if *trace {
 		printTrace(level, "%v, %d {\n", fexpr, /*value.Interface(), */index);
 	}
@@ -936,7 +936,7 @@ func (ps *state) print(w io.Write, fexpr expr, value reflect.Value, index, level
 // Fprint formats each argument according to the format f
 // and writes to w.
 //
-func (f Format) Fprint(w io.Write, args ...) {
+func (f Format) Fprint(w io.Writer, args ...) {
 	value := reflect.NewValue(args).(reflect.StructValue);
 	for i := 0; i < value.Len(); i++ {
 		fld := value.Field(i);
