@@ -42,7 +42,7 @@ type IPMask []byte;
 // IPv4 returns the IP address (in 16-byte form) of the
 // IPv4 address a.b.c.d.
 func IPv4(a, b, c, d byte) IP {
-	p := make([]byte, IPv6len);
+	p := make(IP, IPv6len);
 	for i := 0; i < 10; i++ {
 		p[i] = 0
 	}
@@ -60,6 +60,7 @@ var (
 	IPv4bcast = IPv4(255, 255, 255, 255);	// broadcast
 	IPv4allsys = IPv4(224, 0, 0, 1);	// all systems
 	IPv4allrouter = IPv4(224, 0, 0, 2);	// all routers
+	IPv4zero = IPv4(0, 0, 0, 0);	// all zeros
 )
 
 // Well-known IPv6 addresses
@@ -68,7 +69,7 @@ var (
 )
 
 // Is p all zeros?
-func isZeros(p []byte) bool {
+func isZeros(p IP) bool {
 	for i := 0; i < len(p); i++ {
 		if p[i] != 0 {
 			return false
@@ -106,9 +107,9 @@ func (ip IP) To16() IP {
 
 // Default route masks for IPv4.
 var (
-	classAMask IPMask = IPv4(0xff, 0, 0, 0);
-	classBMask IPMask = IPv4(0xff, 0xff, 0, 0);
-	classCMask IPMask = IPv4(0xff, 0xff, 0xff, 0);
+	classAMask = IPMask(IPv4(0xff, 0, 0, 0));
+	classBMask = IPMask(IPv4(0xff, 0xff, 0, 0));
+	classCMask = IPMask(IPv4(0xff, 0xff, 0xff, 0));
 )
 
 // DefaultMask returns the default IP mask for the IP address ip.
@@ -227,7 +228,7 @@ func (ip IP) String() string {
 
 // If mask is a sequence of 1 bits followed by 0 bits,
 // return the number of 1 bits.
-func simpleMaskLength(mask IP) int {
+func simpleMaskLength(mask IPMask) int {
 	var i int;
 	for i = 0; i < len(mask); i++ {
 		if mask[i] != 0xFF {

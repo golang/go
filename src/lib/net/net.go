@@ -19,6 +19,24 @@ var (
 	UnknownSocketFamily = os.NewError("unknown socket family");
 )
 
+
+// Should we try to use the IPv4 socket interface if we're
+// only dealing with IPv4 sockets?  As long as the host system
+// understands IPv6, it's okay to pass IPv4 addresses to the IPv6
+// interface.  That simplifies our code and is most general.
+// Unfortunately, we need to run on kernels built without IPv6 support too.
+// So probe the kernel to figure it out.
+func kernelSupportsIPv6() bool {
+	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP);
+	if fd >= 0 {
+		syscall.Close(fd)
+	}
+	return e == 0
+}
+
+var preferIPv4 = !kernelSupportsIPv6()
+
+
 func LookupHost(name string) (cname string, addrs []string, err os.Error)
 
 // Split "host:port" into "host" and "port".
@@ -63,17 +81,21 @@ func joinHostPort(host, port string) string {
 // Convert "host:port" into IP address and port.
 // For now, host and port must be numeric literals.
 // Eventually, we'll have name resolution.
-func hostPortToIP(net, hostport, mode string) (ip []byte, iport int, err os.Error) {
+func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
 	var host, port string;
 	host, port, err = splitHostPort(hostport);
 	if err != nil {
 		return nil, 0, err
 	}
 
-	var addr []byte;
+	var addr IP;
 	if host == "" {
 		if mode == "listen" {
-			addr = IPzero;	// wildcard - listen to all
+			if preferIPv4 {
+				addr = IPv4zero;
+			} else {
+				addr = IPzero;	// wildcard - listen to all
+			}
 		} else {
 			return nil, 0, MissingAddress;
 		}
@@ -296,23 +318,6 @@ func (c *connBase) SetLinger(sec int) os.Error {
 
 // Internet sockets (TCP, UDP)
 
-// Should we try to use the IPv4 socket interface if we're
-// only dealing with IPv4 sockets?  As long as the host system
-// understands IPv6, it's okay to pass IPv4 addresses to the IPv6
-// interface.  That simplifies our code and is most general.
-// Unfortunately, we need to run on kernels built without IPv6 support too.
-// So probe the kernel to figure it out.
-func kernelSupportsIPv6() bool {
-	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP);
-	if fd >= 0 {
-		syscall.Close(fd)
-	}
-	return e == 0
-}
-
-var preferIPv4 = !kernelSupportsIPv6()
-
-
 func internetSocket(net, laddr, raddr string, proto int64, mode string)
 	(fd *netFD, err os.Error)
 {
@@ -352,7 +357,7 @@ func internetSocket(net, laddr, raddr string, proto int64, mode string)
 		}
 	}
 
-	var cvt func(addr []byte, port int) (sa *syscall.Sockaddr, err os.Error);
+	var cvt func(addr IP, port int) (sa *syscall.Sockaddr, err os.Error);
 	var family int64;
 	if vers == 4 {
 		cvt = v4ToSockaddr;
