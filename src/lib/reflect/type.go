@@ -698,7 +698,7 @@ func (p *typeParser) Next() {
 		return;
 	}
 	start := p.index;
-	c, w := utf8.DecodeRuneInString(p.str, p.index);
+	c, w := utf8.DecodeRuneInString(p.str[p.index:len(p.str)]);
 	p.index += w;
 	switch {
 	case c == '<':

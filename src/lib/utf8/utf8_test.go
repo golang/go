@@ -58,17 +58,17 @@ func TestFullRune(t *testing.T) {
 		if !utf8.FullRune(b) {
 			t.Errorf("FullRune(%q) (rune %04x) = false, want true", b, m.rune);
 		}
-		s := "xx"+m.str;
-		if !utf8.FullRuneInString(s, 2) {
-			t.Errorf("FullRuneInString(%q, 2) (rune %04x) = false, want true", s, m.rune);
+		s := m.str;
+		if !utf8.FullRuneInString(s) {
+			t.Errorf("FullRuneInString(%q) (rune %04x) = false, want true", s, m.rune);
 		}
 		b1 := b[0:len(b)-1];
 		if utf8.FullRune(b1) {
 			t.Errorf("FullRune(%q) = true, want false", b1);
 		}
-		s1 := "xxx"+string(b1);
-		if utf8.FullRuneInString(s1, 3) {
-			t.Errorf("FullRune(%q, 3) = true, want false", s1);
+		s1 := string(b1);
+		if utf8.FullRuneInString(s1) {
+			t.Errorf("FullRune(%q) = true, want false", s1);
 		}
 	}
 }
@@ -106,10 +106,10 @@ func TestDecodeRune(t *testing.T) {
 		if rune != m.rune || size != len(b) {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
 		}
-		s := "xx"+m.str;
-		rune, size = utf8.DecodeRuneInString(s, 2);
+		s := m.str;
+		rune, size = utf8.DecodeRuneInString(s);
 		if rune != m.rune || size != len(b) {
-			t.Errorf("DecodeRune(%q, 2) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
+			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
 		}
 
 		// there's an extra byte that bytes left behind - make sure trailing byte works
@@ -117,10 +117,10 @@ func TestDecodeRune(t *testing.T) {
 		if rune != m.rune || size != len(b) {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
 		}
-		s = "x"+m.str+"\x00";
-		rune, size = utf8.DecodeRuneInString(s, 1);
+		s = m.str+"\x00";
+		rune, size = utf8.DecodeRuneInString(s);
 		if rune != m.rune || size != len(b) {
-			t.Errorf("DecodeRuneInString(%q, 1) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
+			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
 		}
 
 		// make sure missing bytes fail
@@ -132,10 +132,10 @@ func TestDecodeRune(t *testing.T) {
 		if rune != RuneError || size != wantsize {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b[0:len(b)-1], rune, size, RuneError, wantsize);
 		}
-		s = "xxx"+m.str[0:len(m.str)-1];
-		rune, size = utf8.DecodeRuneInString(s, 3);
+		s = m.str[0:len(m.str)-1];
+		rune, size = utf8.DecodeRuneInString(s);
 		if rune != RuneError || size != wantsize {
-			t.Errorf("DecodeRuneInString(%q, 3) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, wantsize);
+			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, wantsize);
 		}
 
 		// make sure bad sequences fail
@@ -148,10 +148,10 @@ func TestDecodeRune(t *testing.T) {
 		if rune != RuneError || size != 1 {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, RuneError, 1);
 		}
-		s = "xxxx"+string(b);
+		s = string(b);
 		rune, size = utf8.DecodeRune(b);
 		if rune != RuneError || size != 1 {
-			t.Errorf("DecodeRuneInString(%q, 4) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, 1);
+			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, 1);
 		}
 	}
 }

@@ -21,7 +21,7 @@ func main() {
 	ok := true;
 	cnum := 0;
 	for i, c = range s {
-		rune, size := utf8.DecodeRuneInString(s, i);  // check it another way
+		rune, size := utf8.DecodeRuneInString(s[i:len(s)]);  // check it another way
 		if i != offset {
 			fmt.Printf("unexpected offset %d not %d\n", i, offset);
 			ok = false;

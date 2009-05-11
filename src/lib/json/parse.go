@@ -114,7 +114,7 @@ func Unquote(s string) (t string, ok bool) {
 			w++;
 		// Coerce to well-formed UTF-8.
 		default:
-			rune, size := utf8.DecodeRuneInString(s, r);
+			rune, size := utf8.DecodeRuneInString(s[r:len(s)]);
 			r += size;
 			w += utf8.EncodeRune(rune, b[w:len(b)]);
 		}

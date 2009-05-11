@@ -108,11 +108,12 @@ func decodeRuneInternal(p []byte) (rune, size int, short bool) {
 	return RuneError, 1, false
 }
 
-func decodeRuneInStringInternal(s string, i int, n int) (rune, size int, short bool) {
+func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
+	n := len(s);
 	if n < 1 {
 		return RuneError, 0, true;
 	}
-	c0 := s[i];
+	c0 := s[0];
 
 	// 1-byte, 7-bit sequence?
 	if c0 < _Tx {
@@ -128,7 +129,7 @@ func decodeRuneInStringInternal(s string, i int, n int) (rune, size int, short b
 	if n < 2 {
 		return RuneError, 1, true
 	}
-	c1 := s[i+1];
+	c1 := s[1];
 	if c1 < _Tx || _T2 <= c1 {
 		return RuneError, 1, false
 	}
@@ -146,7 +147,7 @@ func decodeRuneInStringInternal(s string, i int, n int) (rune, size int, short b
 	if n < 3 {
 		return RuneError, 1, true
 	}
-	c2 := s[i+2];
+	c2 := s[2];
 	if c2 < _Tx || _T2 <= c2 {
 		return RuneError, 1, false
 	}
@@ -164,7 +165,7 @@ func decodeRuneInStringInternal(s string, i int, n int) (rune, size int, short b
 	if n < 4 {
 		return RuneError, 1, true
 	}
-	c3 := s[i+3];
+	c3 := s[3];
 	if c3 < _Tx || _T2 <= c3 {
 		return RuneError, 1, false
 	}
@@ -190,8 +191,8 @@ func FullRune(p []byte) bool {
 }
 
 // FullRuneInString is like FullRune but its input is a string.
-func FullRuneInString(s string, i int) bool {
-	rune, size, short := decodeRuneInStringInternal(s, i, len(s) - i);
+func FullRuneInString(s string) bool {
+	rune, size, short := decodeRuneInStringInternal(s);
 	return !short
 }
 
@@ -203,9 +204,9 @@ func DecodeRune(p []byte) (rune, size int) {
 }
 
 // DecodeRuneInString is like DecodeRune but its input is a string.
-func DecodeRuneInString(s string, i int) (rune, size int) {
+func DecodeRuneInString(s string) (rune, size int) {
 	var short bool;
-	rune, size, short = decodeRuneInStringInternal(s, i, len(s) - i);
+	rune, size, short = decodeRuneInStringInternal(s);
 	return;
 }
 
@@ -281,7 +282,7 @@ func RuneCountInString(s string) int {
 		if s[i] < RuneSelf {
 			i++;
 		} else {
-			rune, size, short := decodeRuneInStringInternal(s, i, ei - i);
+			rune, size, short := decodeRuneInStringInternal(s[i:ei]);
 			i += size;
 		}
 	}

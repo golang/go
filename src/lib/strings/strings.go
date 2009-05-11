@@ -11,12 +11,13 @@ import "utf8"
 // Invalid UTF-8 sequences become correct encodings of U+FFF8.
 func Explode(s string) []string {
 	a := make([]string, utf8.RuneCountInString(s));
-	j := 0;
 	var size, rune int;
-	for i := 0; i < len(a); i++ {
-		rune, size = utf8.DecodeRuneInString(s, j);
+	i := 0;
+	for len(s) > 0 {
+		rune, size = utf8.DecodeRuneInString(s);
+		s = s[size:len(s)];
 		a[i] = string(rune);
-		j += size;
+		i++;
 	}
 	return a
 }

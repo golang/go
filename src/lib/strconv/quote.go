@@ -18,38 +18,38 @@ const lowerhex = "0123456789abcdef"
 func Quote(s string) string {
 	// TODO(rsc): String accumulation could be more efficient.
 	t := `"`;
-	for i := 0; i < len(s); i++ {
-		switch {
-		case s[i] == '"':
+	for ; len(s) > 0; s = s[1:len(s)] {
+		switch c := s[0]; {
+		case c == '"':
 			t += `\"`;
-		case s[i] == '\\':
+		case c == '\\':
 			t += `\\`;
-		case ' ' <= s[i] && s[i] <= '~':
-			t += string(s[i]);
-		case s[i] == '\a':
+		case ' ' <= c && c <= '~':
+			t += string(c);
+		case c == '\a':
 			t += `\a`;
-		case s[i] == '\b':
+		case c == '\b':
 			t += `\b`;
-		case s[i] == '\f':
+		case c == '\f':
 			t += `\f`;
-		case s[i] == '\n':
+		case c == '\n':
 			t += `\n`;
-		case s[i] == '\r':
+		case c == '\r':
 			t += `\r`;
-		case s[i] == '\t':
+		case c == '\t':
 			t += `\t`;
-		case s[i] == '\v':
+		case c == '\v':
 			t += `\v`;
 
-		case s[i] < utf8.RuneSelf:
-			t += `\x` + string(lowerhex[s[i]>>4]) + string(lowerhex[s[i]&0xF]);
+		case c < utf8.RuneSelf:
+			t += `\x` + string(lowerhex[c>>4]) + string(lowerhex[c&0xF]);
 
-		case utf8.FullRuneInString(s, i):
-			r, size := utf8.DecodeRuneInString(s, i);
+		case utf8.FullRuneInString(s):
+			r, size := utf8.DecodeRuneInString(s);
 			if r == utf8.RuneError && size == 1 {
 				goto EscX;
 			}
-			i += size-1;  // i++ on next iteration
+			s = s[size-1:len(s)];	// next iteration will slice off 1 more
 			if r < 0x10000 {
 				t += `\u`;
 				for j:=uint(0); j<4; j++ {
@@ -65,8 +65,8 @@ func Quote(s string) string {
 		default:
 		EscX:
 			t += `\x`;
-			t += string(lowerhex[s[i]>>4]);
-			t += string(lowerhex[s[i]&0xF]);
+			t += string(lowerhex[c>>4]);
+			t += string(lowerhex[c&0xF]);
 		}
 	}
 	t += `"`;
@@ -97,42 +97,42 @@ func unhex(b byte) (v int, ok bool) {
 	return;
 }
 
-func unquoteChar(s string, i int, q byte) (t string, ii int, err os.Error) {
+func unquoteChar(s string, q byte) (t, ns string, err os.Error) {
 	err = os.EINVAL;  // assume error for easy return
 
 	// easy cases
-	switch c := s[i]; {
+	switch c := s[0]; {
 	case c >= utf8.RuneSelf:
-		r, size := utf8.DecodeRuneInString(s, i);
-		return s[i:i+size], i+size, nil;
+		r, size := utf8.DecodeRuneInString(s);
+		return s[0:size], s[size:len(s)], nil;
 	case c == q:
 		return;
 	case c != '\\':
-		return s[i:i+1], i+1, nil;
+		return s[0:1], s[1:len(s)], nil;
 	}
 
 	// hard case: c is backslash
-	if i+1 >= len(s) {
+	if len(s) <= 1 {
 		return;
 	}
-	c := s[i+1];
-	i += 2;
+	c := s[1];
+	s = s[2:len(s)];
 
 	switch c {
 	case 'a':
-		return "\a", i, nil;
+		return "\a", s, nil;
 	case 'b':
-		return "\b", i, nil;
+		return "\b", s, nil;
 	case 'f':
-		return "\f", i, nil;
+		return "\f", s, nil;
 	case 'n':
-		return "\n", i, nil;
+		return "\n", s, nil;
 	case 'r':
-		return "\r", i, nil;
+		return "\r", s, nil;
 	case 't':
-		return "\t", i, nil;
+		return "\t", s, nil;
 	case 'v':
-		return "\v", i, nil;
+		return "\v", s, nil;
 	case 'x', 'u', 'U':
 		n := 0;
 		switch c {
@@ -144,43 +144,45 @@ func unquoteChar(s string, i int, q byte) (t string, ii int, err os.Error) {
 			n = 8;
 		}
 		v := 0;
+		if len(s) < n {
+			return;
+		}
 		for j := 0; j < n; j++ {
-			if i+j >= len(s) {
-				return;
-			}
-			x, ok := unhex(s[i+j]);
+			x, ok := unhex(s[j]);
 			if !ok {
 				return;
 			}
 			v = v<<4 | x;
 		}
+		s = s[n:len(s)];
 		if c == 'x' {
-			return string([]byte{byte(v)}), i+n, nil;
+			// single-byte string, possibly not UTF-8
+			return string([]byte{byte(v)}), s, nil;
 		}
 		if v > utf8.RuneMax {
 			return;
 		}
-		return string(v), i+n, nil;
+		return string(v), s, nil;
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		v := 0;
-		i--;
-		for j := 0; j < 3; j++ {
-			if i+j >= len(s) {
-				return;
-			}
-			x := int(s[i+j]) - '0';
+		v := int(c) - '0';
+		if len(s) < 2 {
+			return;
+		}
+		for j := 0; j < 2; j++ {	// one digit already; two more
+			x := int(s[j]) - '0';
 			if x < 0 || x > 7 {
 				return;
 			}
 			v = (v<<3) | x;
 		}
+		s = s[2:len(s)];
 		if v > 255 {
 			return;
 		}
-		return string(v), i+3, nil;
-			
+		return string(v), s, nil;
+
 	case '\\', q:
-		return string(c), i, nil;
+		return string(c), s, nil;
 	}
 	return;
 }
@@ -193,37 +195,35 @@ func unquoteChar(s string, i int, q byte) (t string, ii int, err os.Error) {
 func Unquote(s string) (t string, err os.Error) {
 	err = os.EINVAL;  // assume error for easy return
 	n := len(s);
-	if n < 2 || s[0] != s[n-1] {
+	if n < 2 {
+		return;
+	}
+	quote := s[0];
+	if quote != s[n-1] {
+		return;
+	}
+	s = s[1:n-1];
+
+	if quote == '`' {
+		return s, nil;
+	}
+	if quote != '"' && quote != '\'' {
 		return;
 	}
 
-	switch s[0] {
-	case '`':
-		t := s[1:n-1];
-		return t, nil;
-
-	case '"', '\'':
-		// TODO(rsc): String accumulation could be more efficient.
-		t := "";
-		q := s[0];
-		var c string;
-		var err os.Error;
-		for i := 1; i < n-1; {
-			c, i, err = unquoteChar(s, i, q);
-			if err != nil {
-				return "", err;
-			}
-			t += c;
-			if q == '\'' && i != n-1 {
-				// single-quoted must be single character
-				return;
-			}
-			if i > n-1 {
-				// read too far
-				return;
-			}
+	// TODO(rsc): String accumulation could be more efficient.
+	var c, tt string;
+	var err1 os.Error;
+	for len(s) > 0 {
+		if c, s, err1 = unquoteChar(s, quote); err1 != nil {
+			err = err1;
+			return;
 		}
-		return t, nil
+		tt += c;
+		if quote == '\'' && len(s) != 0 {
+			// single-quoted must be single character
+			return;
+		}
 	}
-	return;
+	return tt, nil
 }
