@@ -86,7 +86,7 @@ func init() {
 // Support
 
 func isGoFile(dir *os.Dir) bool {
-	return dir.IsRegular() && strings.HasSuffix(dir.Name, ".go");
+	return dir.IsRegular() && pathutil.Ext(dir.Name) == ".go";
 }
 
 
@@ -112,11 +112,11 @@ func ReadFile(name string) ([]byte, os.Error) {
 		return nil, err;
 	}
 	defer f.Close();
-	var b io.ByteBuffer;
-	if n, err := io.Copy(f, &b); err != nil {
+	var buf io.ByteBuffer;
+	if n, err := io.Copy(f, &buf); err != nil {
 		return nil, err;
 	}
-	return b.Data(), nil;
+	return buf.Data(), nil;
 }
 
 
@@ -175,12 +175,12 @@ type parseErrors struct {
 // Parses a file (path) and returns the corresponding AST and
 // a sorted list (by file position) of errors, if any.
 //
-func parse(filename string, mode uint) (*ast.Program, *parseErrors) {
-	src, err := ReadFile(filename);
+func parse(path string, mode uint) (*ast.Program, *parseErrors) {
+	src, err := ReadFile(path);
 	if err != nil {
-		log.Stderrf("ReadFile %s: %v", filename, err);
+		log.Stderrf("ReadFile %s: %v", path, err);
 		errs := []parseError{parseError{nil, 0, err.String()}};
-		return nil, &parseErrors{filename, errs, nil};
+		return nil, &parseErrors{path, errs, nil};
 	}
 
 	var raw rawErrorVector;
@@ -201,7 +201,7 @@ func parse(filename string, mode uint) (*ast.Program, *parseErrors) {
 			errs[i].msg = r.msg;
 		}
 		errs[raw.Len()].src = src[offs : len(src)];
-		return nil, &parseErrors{filename, errs, src};
+		return nil, &parseErrors{path, errs, src};
 	}
 
 	return prog, nil;
@@ -213,21 +213,21 @@ func parse(filename string, mode uint) (*ast.Program, *parseErrors) {
 
 // Return text for decl.
 func DeclText(d ast.Decl) []byte {
-	var b io.ByteBuffer;
+	var buf io.ByteBuffer;
 	var p astPrinter.Printer;
-	p.Init(&b, nil, nil, false);
+	p.Init(&buf, nil, nil, false);
 	d.Visit(&p);
-	return b.Data();
+	return buf.Data();
 }
 
 
 // Return text for expr.
 func ExprText(d ast.Expr) []byte {
-	var b io.ByteBuffer;
+	var buf io.ByteBuffer;
 	var p astPrinter.Printer;
-	p.Init(&b, nil, nil, false);
+	p.Init(&buf, nil, nil, false);
 	d.Visit(&p);
-	return b.Data();
+	return buf.Data();
 }
 
 
@@ -247,9 +247,9 @@ func toText(x interface{}) []byte {
 	case ast.Expr:
 		return ExprText(v);
 	}
-	var b io.ByteBuffer;
-	fmt.Fprint(&b, x);
-	return b.Data();
+	var buf io.ByteBuffer;
+	fmt.Fprint(&buf, x);
+	return buf.Data();
 }
 
 
@@ -287,23 +287,10 @@ func textFmt(w io.Writer, x interface{}, format string) {
 }
 
 
-// Template formatter for "dir/" format.
-// Writes out "/" if the os.Dir argument is a directory.
-var slash = io.StringBytes("/");
-
-func dirSlashFmt(w io.Writer, x interface{}, format string) {
-	d := x.(os.Dir);	// TODO(rsc): want *os.Dir
-	if d.IsDirectory() {
-		w.Write(slash);
-	}
-}
-
-
 var fmap = template.FormatterMap{
 	"": textFmt,
 	"html": htmlFmt,
 	"html-comment": htmlCommentFmt,
-	"dir/": dirSlashFmt,
 }
 
 
@@ -324,8 +311,8 @@ func readTemplate(name string) *template.Template {
 var godocHtml *template.Template
 var packageHtml *template.Template
 var packageText *template.Template
-var packagelistHtml *template.Template;
-var packagelistText *template.Template;
+var dirlistHtml *template.Template;
+var dirlistText *template.Template;
 var parseerrorHtml *template.Template;
 var parseerrorText *template.Template;
 
@@ -335,8 +322,8 @@ func readTemplates() {
 	godocHtml = readTemplate("godoc.html");
 	packageHtml = readTemplate("package.html");
 	packageText = readTemplate("package.txt");
-	packagelistHtml = readTemplate("packagelist.html");
-	packagelistText = readTemplate("packagelist.txt");
+	dirlistHtml = readTemplate("dirlist.html");
+	dirlistText = readTemplate("dirlist.txt");
 	parseerrorHtml = readTemplate("parseerror.html");
 	parseerrorText = readTemplate("parseerror.txt");
 }
@@ -368,19 +355,14 @@ func serveText(c *http.Conn, text []byte) {
 }
 
 
-func serveError(c *http.Conn, err, arg string) {
-	servePage(c, "Error", fmt.Sprintf("%v (%s)\n", err, arg));
-}
-
-
 // ----------------------------------------------------------------------------
 // Files
 
 func serveParseErrors(c *http.Conn, errors *parseErrors) {
 	// format errors
-	var b io.ByteBuffer;
-	parseerrorHtml.Execute(errors, &b);
-	servePage(c, errors.filename + " - Parse Errors", b.Data());
+	var buf io.ByteBuffer;
+	parseerrorHtml.Execute(errors, &buf);
+	servePage(c, errors.filename + " - Parse Errors", buf.Data());
 }
 
 
@@ -391,16 +373,16 @@ func serveGoSource(c *http.Conn, name string) {
 		return;
 	}
 
-	var b io.ByteBuffer;
-	fmt.Fprintln(&b, "<pre>");
+	var buf io.ByteBuffer;
+	fmt.Fprintln(&buf, "<pre>");
 	var p astPrinter.Printer;
-	writer := makeTabwriter(&b);  // for nicely formatted output
+	writer := makeTabwriter(&buf);  // for nicely formatted output
 	p.Init(writer, nil, nil, true);
 	p.DoProgram(prog);
 	writer.Flush();  // ignore errors
-	fmt.Fprintln(&b, "</pre>");
+	fmt.Fprintln(&buf, "</pre>");
 
-	servePage(c, name + " - Go source", b.Data());
+	servePage(c, name + " - Go source", buf.Data());
 }
 
 
@@ -436,86 +418,75 @@ func serveFile(c *http.Conn, req *http.Request) {
 
 type pakDesc struct {
 	dirname string;  // relative to goroot
-	pakname string;  // relative to directory
+	pakname string;  // same as last component of importpath
 	importpath string;	// import "___"
 	filenames map[string] bool;  // set of file (names) belonging to this package
 }
 
 
-type pakArray []*pakDesc
-func (p pakArray) Len() int            { return len(p); }
-func (p pakArray) Less(i, j int) bool  { return p[i].pakname < p[j].pakname; }
-func (p pakArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
-
-
-func addFile(pmap map[string]*pakDesc, dirname, filename, importprefix string) {
+func isPackageFile(dirname, filename, pakname string) bool {
+	// ignore test files
 	if strings.HasSuffix(filename, "_test.go") {
-		// ignore package tests
-		return;
+		return false;
 	}
+
 	// determine package name
-	path := pathutil.Join(dirname, filename);
-	prog, errors := parse(path, parser.PackageClauseOnly);
+	prog, errors := parse(dirname + "/" + filename, parser.PackageClauseOnly);
 	if prog == nil {
-		return;
-	}
-	if prog.Name.Value == "main" {
-		// ignore main packages for now
-		return;
+		return false;
 	}
 
-	var importpath string;
-	dir, name := pathutil.Split(importprefix);
-	if name == prog.Name.Value {	// package math in directory "math"
-		importpath = importprefix;
-	} else {
-		importpath = pathutil.Clean(importprefix + "/" + prog.Name.Value);
-	}
-
-	// find package descriptor
-	pakdesc, found := pmap[importpath];
-	if !found {
-		// add a new descriptor
-		pakdesc = &pakDesc{dirname, prog.Name.Value, importpath, make(map[string]bool)};
-		pmap[importpath] = pakdesc;
-	}
-
-	//fmt.Printf("pak = %s, file = %s\n", pakname, filename);
-
-	// add file to package desc
-	if tmp, found := pakdesc.filenames[filename]; found {
-		panic("internal error: same file added more then once: " + filename);
-	}
-	pakdesc.filenames[filename] = true;
+	return prog != nil && prog.Name.Value == pakname;
 }
 
 
-func addDirectory(pmap map[string]*pakDesc, dirname, importprefix string, subdirs *[]os.Dir) {
-	path := dirname;
-	fd, err1 := os.Open(path, os.O_RDONLY, 0);
+// Returns the package denoted by importpath and the list of
+// sub-directories in the corresponding package directory.
+// If there is no such package, the first result is nil. If
+// there are no sub-directories, that list is nil.
+func findPackage(importpath string) (*pakDesc, []os.Dir) {
+	// get directory contents, if possible
+	dirname := pathutil.Join(*pkgroot, importpath);
+	if !isDir(dirname) {
+		return nil, nil;
+	}
+
+	fd, err1 := os.Open(dirname, os.O_RDONLY, 0);
 	if err1 != nil {
-		log.Stderrf("open %s: %v", path, err1);
-		return;
+		log.Stderrf("open %s: %v", dirname, err1);
+		return nil, nil;
 	}
 
 	list, err2 := fd.Readdir(-1);
 	if err2 != nil {
-		log.Stderrf("readdir %s: %v", path, err2);
-		return;
+		log.Stderrf("readdir %s: %v", dirname, err2);
+		return nil, nil;
 	}
 
+	// the package name is is the directory name within its parent
+	_, pakname := pathutil.Split(importpath);
+
+	// collect all files belonging to the package and count the
+	// number of sub-directories
+	filenames := make(map[string]bool);
 	nsub := 0;
 	for i, entry := range list {
 		switch {
-		case isGoFile(&entry):
-			addFile(pmap, dirname, entry.Name, importprefix);
+		case isGoFile(&entry) && isPackageFile(dirname, entry.Name, pakname):
+			// add file to package desc
+			if tmp, found := filenames[entry.Name]; found {
+				panic("internal error: same file added more then once: " + entry.Name);
+			}
+			filenames[entry.Name] = true;
 		case entry.IsDirectory():
 			nsub++;
 		}
 	}
 
-	if subdirs != nil && nsub > 0 {
-		*subdirs = make([]os.Dir, nsub);
+	// make the list of sub-directories, if any
+	var subdirs []os.Dir;
+	if nsub > 0 {
+		subdirs = make([]os.Dir, nsub);
 		nsub = 0;
 		for i, entry := range list {
 			if entry.IsDirectory() {
@@ -524,19 +495,13 @@ func addDirectory(pmap map[string]*pakDesc, dirname, importprefix string, subdir
 			}
 		}
 	}
-}
 
-
-func mapValues(pmap map[string]*pakDesc) pakArray {
-	// build sorted package list
-	plist := make(pakArray, len(pmap));
-	i := 0;
-	for tmp, pakdesc := range pmap {
-		plist[i] = pakdesc;
-		i++;
+	// if there are no package files, then there is no package
+	if len(filenames) == 0 {
+		return nil, subdirs;
 	}
-	sort.Sort(plist);
-	return plist;
+
+	return &pakDesc{dirname, pakname, importpath, filenames}, subdirs;
 }
 
 
@@ -545,12 +510,10 @@ func (p *pakDesc) Doc() (*doc.PackageDoc, *parseErrors) {
 	var r doc.DocReader;
 	i := 0;
 	for filename := range p.filenames {
-		path := p.dirname + "/" + filename;
-		prog, err := parse(path, parser.ParseComments);
+		prog, err := parse(p.dirname + "/" + filename, parser.ParseComments);
 		if err != nil {
 			return nil, err;
 		}
-
 		if i == 0 {
 			// first file - initialize doc
 			r.Init(prog.Name.Value, p.importpath);
@@ -562,127 +525,70 @@ func (p *pakDesc) Doc() (*doc.PackageDoc, *parseErrors) {
 }
 
 
-func servePackage(c *http.Conn, p *pakDesc) {
-	doc, errors := p.Doc();
+func servePackage(c *http.Conn, desc *pakDesc) {
+	doc, errors := desc.Doc();
 	if errors != nil {
 		serveParseErrors(c, errors);
 		return;
 	}
 
-	var b io.ByteBuffer;
+	var buf io.ByteBuffer;
 	if false {	// TODO req.Params["format"] == "text"
-		err := packageText.Execute(doc, &b);
+		err := packageText.Execute(doc, &buf);
 		if err != nil {
 			log.Stderrf("packageText.Execute: %s", err);
 		}
-		serveText(c, b.Data());
+		serveText(c, buf.Data());
 		return;
 	}
-	err := packageHtml.Execute(doc, &b);
+	err := packageHtml.Execute(doc, &buf);
 	if err != nil {
 		log.Stderrf("packageHtml.Execute: %s", err);
 	}
-	servePage(c, doc.ImportPath + " - Go package documentation", b.Data());
+	servePage(c, doc.ImportPath + " - Go package documentation", buf.Data());
 }
 
 
-type pakInfo struct {
+// TODO like to use []*os.Dir instead of []os.Dir - template.go doesn't
+//      automatically indirect pointers it seems, so this would require
+//      custom formatters at the moment
+type Dirs struct {
 	Path string;
-	Package *pakDesc;
-	Packages pakArray;
-	Subdirs []os.Dir;	// TODO(rsc): []*os.Dir
+	Dirs []os.Dir;
 }
 
 
-func servePackageList(c *http.Conn, info *pakInfo) {
-	var b io.ByteBuffer;
-	err := packagelistHtml.Execute(info, &b);
+func serveDirList(c *http.Conn, path string, dirs []os.Dir) {
+	var buf io.ByteBuffer;
+	err := dirlistHtml.Execute(Dirs{path, dirs}, &buf);
 	if err != nil {
-		log.Stderrf("packagelistHtml.Execute: %s", err);
+		log.Stderrf("dirlist.Execute: %s", err);
 	}
-	servePage(c, info.Path + " - Go packages", b.Data());
-}
-
-
-// Return package or packages named by name.
-// Name is either an import string or a directory,
-// like you'd see in $GOROOT/pkg/.
-//
-// Examples:
-//	"math"	- single package made up of directory
-//	"container"	- directory listing
-//	"container/vector"	- single package in container directory
-//
-func findPackages(name string) *pakInfo {
-	info := new(pakInfo);
-
-	// Build list of packages.
-	pmap := make(map[string]*pakDesc);
-
-	// If the path names a directory, scan that directory
-	// for a package with the name matching the directory name.
-	// Otherwise assume it is a package name inside
-	// a directory, so scan the parent.
-	cname := pathutil.Clean(name);
-	if cname == "" {
-		cname = "."
-	}
-	dir := pathutil.Join(*pkgroot, cname);
-
-	if isDir(dir) {
-		addDirectory(pmap, dir, cname, &info.Subdirs);
-		paks := mapValues(pmap);
-		if len(paks) == 1 {
-			p := paks[0];
-			_, pak := pathutil.Split(dir);
-			if p.dirname == dir && p.pakname == pak {
-				info.Package = p;
-				info.Path = cname;
-				return info;
-			}
-		}
-
-		info.Packages = paks;
-		if cname == "." {
-			info.Path = "";
-		} else {
-			info.Path = cname + "/";
-		}
-		return info;
-	}
-
-	// Otherwise, have parentdir/pak.  Look for package pak in parentdir.
-	parentdir, _ := pathutil.Split(dir);
-	parentname, _ := pathutil.Split(cname);
-	if parentname == "" {
-		parentname = "."
-	}
-
-	addDirectory(pmap, parentdir, parentname, nil);
-	if p, ok := pmap[cname]; ok {
-		info.Package = p;
-		info.Path = cname;
-		return info;
-	}
-
-	info.Path = name;	// original, uncleaned name
-	return info;
+	servePage(c, path + " - Directories", buf.Data());
 }
 
 
 func servePkg(c *http.Conn, r *http.Request) {
 	path := r.Url.Path;
 	path = path[len(Pkg) : len(path)];
-	info := findPackages(path);
+	desc, dirs := findPackage(path);
+	/*
+	// TODO do we still need this?
 	if r.Url.Path != Pkg + info.Path {
 		http.Redirect(c, info.Path);
 		return;
 	}
-
-	if info.Package != nil {
-		servePackage(c, info.Package);
+	*/
+	if desc != nil {
+		servePackage(c, desc);
+		// TODO should also serve sub-directories if there are any
 	} else {
-		servePackageList(c, info);
+		// make sure path is not empty otherwise html links become rooted
+		// and won't work correctly
+		if path == "" {
+			path = ".";
+		}
+		serveDirList(c, path, dirs);
 	}
 }
 
@@ -751,20 +657,20 @@ func main() {
 
 	if *html {
 		packageText = packageHtml;
-		packagelistText = packagelistHtml;
+		dirlistText = dirlistHtml;
 		parseerrorText = parseerrorHtml;
 	}
 
-	info := findPackages(flag.Arg(0));
-	if info.Package == nil {
-		err := packagelistText.Execute(info, os.Stderr);
+	desc, dirs := findPackage(flag.Arg(0));
+	if desc == nil {
+		err := dirlistText.Execute(dirs, os.Stdout);
 		if err != nil {
-			log.Stderrf("packagelistText.Execute: %s", err);
+			log.Stderrf("dirlistText.Execute: %s", err);
 		}
-		os.Exit(1);
+		os.Exit(0);
 	}
 
-	doc, errors := info.Package.Doc();
+	doc, errors := desc.Doc();
 	if errors != nil {
 		err := parseerrorText.Execute(errors, os.Stderr);
 		if err != nil {
