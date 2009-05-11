@@ -23,7 +23,7 @@ func main() {
 	var l = len(s);
 	for w, i, j := 0,0,0; i < l; i += w {
 		var r int;
-		r, w = utf8.DecodeRuneInString(s, i);
+		r, w = utf8.DecodeRuneInString(s[i:len(s)]);
 		if w == 0 { panic("zero width in string") }
 		if r != chars[j] { panic("wrong value from string") }
 		j++;

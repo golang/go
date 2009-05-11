@@ -263,7 +263,7 @@ func (p *parser) nextc() int {
 	if p.pos >= len(p.re.expr) {
 		p.ch = endOfFile
 	} else {
-		c, w := utf8.DecodeRuneInString(p.re.expr, p.pos);
+		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos:len(p.re.expr)]);
 		p.ch = c;
 		p.pos += w;
 	}
@@ -653,7 +653,7 @@ func (re *Regexp) doExecute(str string, pos int) []int {
 		charwidth := 1;
 		c := endOfFile;
 		if pos < len(str) {
-			c, charwidth = utf8.DecodeRuneInString(str, pos);
+			c, charwidth = utf8.DecodeRuneInString(str[pos:len(str)]);
 		}
 		for i := 0; i < len(s[in]); i++ {
 			st := s[in][i];

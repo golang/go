@@ -426,7 +426,7 @@ func (x *ChanType) Visit(v ExprVisitor) { v.DoChanType(x); }
 // IsExported returns whether name is an exported Go symbol
 // (i.e., whether it begins with an uppercase letter).
 func IsExported(name string) bool {
-	ch, len := utf8.DecodeRuneInString(name, 0);
+	ch, len := utf8.DecodeRuneInString(name);
 	return unicode.IsUpper(ch);
 }
 
