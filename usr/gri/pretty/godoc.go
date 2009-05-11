@@ -424,6 +424,14 @@ type pakDesc struct {
 }
 
 
+// TODO if we don't plan to use the directory information, simplify to []string
+type dirList []*os.Dir
+
+func (d dirList) Len() int  { return len(d) }
+func (d dirList) Less(i, j int) bool  { return d[i].Name < d[j].Name }
+func (d dirList) Swap(i, j int)  { d[i], d[j] = d[j], d[i] }
+
+
 func isPackageFile(dirname, filename, pakname string) bool {
 	// ignore test files
 	if strings.HasSuffix(filename, "_test.go") {
@@ -444,7 +452,7 @@ func isPackageFile(dirname, filename, pakname string) bool {
 // sub-directories in the corresponding package directory.
 // If there is no such package, the first result is nil. If
 // there are no sub-directories, that list is nil.
-func findPackage(importpath string) (*pakDesc, []os.Dir) {
+func findPackage(importpath string) (*pakDesc, dirList) {
 	// get directory contents, if possible
 	dirname := pathutil.Join(*pkgroot, importpath);
 	if !isDir(dirname) {
@@ -475,7 +483,7 @@ func findPackage(importpath string) (*pakDesc, []os.Dir) {
 		case isGoFile(&entry) && isPackageFile(dirname, entry.Name, pakname):
 			// add file to package desc
 			if tmp, found := filenames[entry.Name]; found {
-				panic("internal error: same file added more then once: " + entry.Name);
+				panic("internal error: same file added more than once: " + entry.Name);
 			}
 			filenames[entry.Name] = true;
 		case entry.IsDirectory():
@@ -484,16 +492,21 @@ func findPackage(importpath string) (*pakDesc, []os.Dir) {
 	}
 
 	// make the list of sub-directories, if any
-	var subdirs []os.Dir;
+	var subdirs dirList;
 	if nsub > 0 {
-		subdirs = make([]os.Dir, nsub);
+		subdirs = make(dirList, nsub);
 		nsub = 0;
 		for i, entry := range list {
 			if entry.IsDirectory() {
-				subdirs[nsub] = entry;
+				// make a copy here so sorting (and other code) doesn't
+				// have to make one every time an entry is moved
+				copy := new(os.Dir);
+				*copy = entry;
+				subdirs[nsub] = copy;
 				nsub++;
 			}
 		}
+		sort.Sort(subdirs);
 	}
 
 	// if there are no package files, then there is no package
@@ -549,16 +562,13 @@ func servePackage(c *http.Conn, desc *pakDesc) {
 }
 
 
-// TODO like to use []*os.Dir instead of []os.Dir - template.go doesn't
-//      automatically indirect pointers it seems, so this would require
-//      custom formatters at the moment
 type Dirs struct {
 	Path string;
-	Dirs []os.Dir;
+	Dirs dirList;
 }
 
 
-func serveDirList(c *http.Conn, path string, dirs []os.Dir) {
+func serveDirList(c *http.Conn, path string, dirs dirList) {
 	var buf io.ByteBuffer;
 	err := dirlistHtml.Execute(Dirs{path, dirs}, &buf);
 	if err != nil {

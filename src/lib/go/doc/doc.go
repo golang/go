@@ -523,11 +523,11 @@ func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
 }
 
 
-func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
+func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
 	w := 0;
-	for i, td := range a {
-		if matchDecl(td.Decl, names) {
-			a[w] = td;
+	for i, fd := range a {
+		if match(fd.Name, names) {
+			a[w] = fd;
 			w++;
 		}
 	}
@@ -535,11 +535,20 @@ func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
 }
 
 
-func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
+func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
 	w := 0;
-	for i, fd := range a {
-		if match(fd.Name, names) {
-			a[w] = fd;
+	for i, td := range a {
+		match := false;
+		if matchDecl(td.Decl, names) {
+			match = true;
+		} else {
+			// type name doesn't match, but we may have matching factories or methods
+			td.Factories = filterFuncDocs(td.Factories, names);
+			td.Methods = filterFuncDocs(td.Methods, names);
+			match = len(td.Factories) > 0 || len(td.Methods) > 0;
+		}
+		if match {
+			a[w] = td;
 			w++;
 		}
 	}
