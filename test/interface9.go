@@ -4,6 +4,8 @@
 
 // errchk $G $F.go
 
+// Error messages about missing implicit methods.
+
 package main
 
 type T int
