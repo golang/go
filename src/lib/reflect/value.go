@@ -782,7 +782,16 @@ type interfaceValueStruct struct {
 }
 
 func (v *interfaceValueStruct) Get() interface{} {
-	return *(*interface{})(v.addr)
+	// There are two different representations of interface values,
+	// one if the interface type has methods and one if it doesn't.
+	// These two representations require different expressions
+	// to extract correctly.
+	if v.Type().(InterfaceType).Len() == 0 {
+		// Extract as interface value without methods.
+		return *(*interface{})(v.addr)
+	}
+	// Extract from v.addr as interface value with methods.
+	return *(*interface{ m() })(v.addr)
 }
 
 func (v *interfaceValueStruct) Value() Value {

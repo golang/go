@@ -9,8 +9,6 @@
 
 package main
 
-import "os"
-
 type I interface { M() int64 }
 
 type BigPtr struct { a, b, c, d int64 }
@@ -72,6 +70,6 @@ func main() {
 	nonptrs();
 
 	if bad {
-		os.Exit(1)
+		println("BUG: interface4");
 	}
 }
