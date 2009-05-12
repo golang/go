@@ -501,6 +501,7 @@ type PtrValue interface {
 	Sub()	Value;	// The Value pointed to.
 	Get()	Addr;	// Get the address stored in the pointer.
 	SetSub(Value);	// Set the the pointed-to Value.
+	IsNil() bool;
 }
 
 type ptrValueStruct struct {
@@ -525,6 +526,10 @@ func (v *ptrValueStruct) SetSub(subv Value) {
 	*(*Addr)(v.addr) = subv.Addr();
 }
 
+func (v *ptrValueStruct) IsNil() bool {
+	return uintptr(*(*Addr)(v.addr)) == 0
+}
+
 func ptrCreator(typ Type, addr Addr) Value {
 	return &ptrValueStruct{ commonValue{PtrKind, typ, addr} };
 }
@@ -541,7 +546,8 @@ type ArrayValue interface {
 	Elem(i int)	Value;	// The Value of the i'th element.
 	SetLen(len int);	// Set the length; slice only.
 	Set(src ArrayValue);	// Set the underlying Value; slice only for src and dest both.
-	CopyFrom(src ArrayValue, n int)	// Copy the elements from src; lengths must match.
+	CopyFrom(src ArrayValue, n int);	// Copy the elements from src; lengths must match.
+	IsNil() bool;
 }
 
 func copyArray(dst ArrayValue, src ArrayValue, n int);
@@ -606,6 +612,10 @@ func (v *sliceValueStruct) CopyFrom(src ArrayValue, n int) {
 	copyArray(v, src, n);
 }
 
+func (v *sliceValueStruct) IsNil() bool {
+	return uintptr(v.slice.data) == 0
+}
+
 type arrayValueStruct struct {
 	commonValue;
 	elemtype	Type;
@@ -643,6 +653,10 @@ func (v *arrayValueStruct) CopyFrom(src ArrayValue, n int) {
 	copyArray(v, src, n);
 }
 
+func (v *arrayValueStruct) IsNil() bool {
+	return false
+}
+
 func arrayCreator(typ Type, addr Addr) Value {
 	arraytype := typ.(ArrayType);
 	if arraytype.IsSlice() {
@@ -673,6 +687,7 @@ type MapValue interface {
 	Value;
 	Len()	int;	// The number of elements; currently always returns 0.
 	Elem(key Value)	Value;	// The value indexed by key; unimplemented.
+	IsNil() bool;
 }
 
 type mapValueStruct struct {
@@ -687,6 +702,10 @@ func (v *mapValueStruct) Len() int {
 	return 0	// TODO: probably want this to be dynamic
 }
 
+func (v *mapValueStruct) IsNil() bool {
+	return false	// TODO: implement this properly
+}
+
 func (v *mapValueStruct) Elem(key Value) Value {
 	panic("map value element");
 	return nil
@@ -698,10 +717,15 @@ func (v *mapValueStruct) Elem(key Value) Value {
 // Its implementation is incomplete.
 type ChanValue interface {
 	Value;
+	IsNil() bool;
 }
 
 type chanValueStruct struct {
 	commonValue
+}
+
+func (v *chanValueStruct) IsNil() bool {
+	return false	// TODO: implement this properly
 }
 
 func chanCreator(typ Type, addr Addr) Value {
@@ -750,6 +774,7 @@ type InterfaceValue interface {
 	Value;
 	Get()	interface {};	// Get the underlying interface{} value.
 	Value() Value;
+	IsNil() bool;
 }
 
 type interfaceValueStruct struct {
@@ -768,6 +793,10 @@ func (v *interfaceValueStruct) Value() Value {
 	return NewValue(i);
 }
 
+func (v *interfaceValueStruct) IsNil() bool {
+	return *(*interface{})(v.addr) == nil
+}
+
 func interfaceCreator(typ Type, addr Addr) Value {
 	return &interfaceValueStruct{ commonValue{InterfaceKind, typ, addr} }
 }
@@ -780,6 +809,7 @@ func interfaceCreator(typ Type, addr Addr) Value {
 type FuncValue interface {
 	Value;
 	Get()	Addr;	// The address of the function.
+	IsNil() bool;
 }
 
 type funcValueStruct struct {
@@ -788,6 +818,10 @@ type funcValueStruct struct {
 
 func (v *funcValueStruct) Get() Addr {
 	return *(*Addr)(v.addr)
+}
+
+func (v *funcValueStruct) IsNil() bool {
+	return *(*Addr)(v.addr) == nil
 }
 
 func funcCreator(typ Type, addr Addr) Value {

@@ -507,3 +507,65 @@ func TestAlignment(t *testing.T) {
 	x1 := T2{T2inner{2, 3}, 17};
 	check2ndField(x1, uintptr(unsafe.Pointer(&x1.f)) - uintptr(unsafe.Pointer(&x1)), t);
 }
+
+type Nillable interface {
+	IsNil() bool
+}
+
+func Nil(a interface{}, t *testing.T) {
+	n := NewValue(a).(Nillable);
+	if !n.IsNil() {
+		t.Errorf("%v should be nil", a)
+	}
+}
+
+func NotNil(a interface{}, t *testing.T) {
+	n := NewValue(a).(Nillable);
+	if n.IsNil() {
+		t.Errorf("value of type %v should not be nil", NewValue(a).Type().String())
+	}
+}
+
+func TestIsNil(t *testing.T) {
+	// These do not implement IsNil
+	doNotNil := []string{"int", "float32", "struct { a int }"};
+	// These do implement IsNil
+	doNil := []string{"*int", "interface{}", "map[string]int", "func() bool", "chan int", "[]string"};
+	for i, ts := range doNotNil {
+		ty := reflect.ParseTypeString("", ts);
+		v := reflect.NewInitValue(ty);
+		if nilable, ok := v.(Nillable); ok {
+			t.Errorf("%s is nilable; should not be", ts)
+		}
+	}
+
+	for i, ts := range doNil {
+		ty := reflect.ParseTypeString("", ts);
+		v := reflect.NewInitValue(ty);
+		if nilable, ok := v.(Nillable); !ok {
+			t.Errorf("%s is not nilable; should be", ts)
+		}
+	}
+	// Check the implementations
+	var pi *int;
+	Nil(pi, t);
+	pi = new(int);
+	NotNil(pi, t);
+
+	var si []int;
+	Nil(si, t);
+	si = make([]int, 10);
+	NotNil(si, t);
+
+	// TODO: map and chan don't work yet
+
+	var ii interface {};
+	Nil(ii, t);
+	ii = pi;
+	NotNil(ii, t);
+
+	var fi func(t *testing.T);
+	Nil(fi, t);
+	fi = TestIsNil;
+	NotNil(fi, t);
+}
