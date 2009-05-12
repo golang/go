@@ -148,6 +148,7 @@ strconv.install: math.install os.install utf8.install
 sync.install:
 syscall.install: sync.install
 tabwriter.install: os.install io.install container/vector.install
-template.install: fmt.install io.install os.install reflect.install strings.install
+template.install: container/vector.install fmt.install io.install os.install reflect.install strings.install
 time.install: once.install os.install io.install
 
+	once.install os.install sort.install strings.install sync.install template.install time.install \
