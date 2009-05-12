@@ -49,7 +49,7 @@ func typedump(s, t string) {
 
 func valuedump(s, t string) {
 	typ := reflect.ParseTypeString("", s);
-	v := reflect.NewInitValue(typ);
+	v := reflect.NewZeroValue(typ);
 	if v == nil {
 		panicln("valuedump", s);
 	}
@@ -279,7 +279,7 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	t = reflect.ParseTypeString("", "[]int32");
 	v := reflect.NewSliceValue(t.(ArrayType), 5, 10);
 	t1 := reflect.ParseTypeString("", "*[]int32");
-	v1 := reflect.NewInitValue(t1);
+	v1 := reflect.NewZeroValue(t1);
 	if v1 == nil { panic("V1 is nil"); }
 	v1.(reflect.PtrValue).SetSub(v);
 	a := v1.Interface().(*[]int32);
@@ -533,7 +533,7 @@ func TestIsNil(t *testing.T) {
 	doNil := []string{"*int", "interface{}", "map[string]int", "func() bool", "chan int", "[]string"};
 	for i, ts := range doNotNil {
 		ty := reflect.ParseTypeString("", ts);
-		v := reflect.NewInitValue(ty);
+		v := reflect.NewZeroValue(ty);
 		if nilable, ok := v.(Nillable); ok {
 			t.Errorf("%s is nilable; should not be", ts)
 		}
@@ -541,7 +541,7 @@ func TestIsNil(t *testing.T) {
 
 	for i, ts := range doNil {
 		ty := reflect.ParseTypeString("", ts);
-		v := reflect.NewInitValue(ty);
+		v := reflect.NewZeroValue(ty);
 		if nilable, ok := v.(Nillable); !ok {
 			t.Errorf("%s is not nilable; should be", ts)
 		}
