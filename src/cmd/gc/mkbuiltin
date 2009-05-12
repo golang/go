@@ -6,7 +6,7 @@
 set -e
 gcc -o mkbuiltin1 mkbuiltin1.c
 rm -f _builtin.c
-for i in sys unsafe runtime
+for i in sys unsafe
 do
 	6g $i.go
 	./mkbuiltin1 $i >>_builtin.c

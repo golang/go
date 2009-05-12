@@ -116,11 +116,11 @@ bufio.install: io.install os.install
 exec.install: os.install strings.install
 exvar.install: fmt.install http.install log.install strconv.install sync.install
 flag.install: fmt.install os.install strconv.install
-log.install: fmt.install io.install os.install time.install
+log.install: fmt.install io.install os.install runtime.install time.install
 path.install: io.install
 once.install: sync.install
 strings.install: utf8.install
-testing.install: flag.install fmt.install
+testing.install: flag.install fmt.install runtime.install
 
 fmt.install: io.install reflect.install strconv.install
 GODEPS=fmt.install io.install once.install regexp.install sort.install \
@@ -142,13 +142,13 @@ json.install: container/vector.install fmt.install io.install math.install \
 # TODO(rsc): net is not supposed to depend on fmt or strings or strconv
 net.install: fmt.install once.install os.install strconv.install strings.install
 os.install: syscall.install once.install
-regexp.install: os.install
+regexp.install: os.install runtime.install
 reflect.install: strconv.install sync.install
 strconv.install: math.install os.install utf8.install
 sync.install:
 syscall.install: sync.install
 tabwriter.install: os.install io.install container/vector.install
-template.install: container/vector.install fmt.install io.install os.install reflect.install strings.install
+template.install: container/vector.install fmt.install io.install os.install reflect.install runtime.install strings.install
 time.install: once.install os.install io.install
 
 	once.install os.install sort.install strings.install sync.install template.install time.install \

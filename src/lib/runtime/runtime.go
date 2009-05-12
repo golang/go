@@ -8,6 +8,8 @@
  */
 package runtime
 
+// These functions are implemented in the base runtime library, ../../runtime/.
+
 // Gosched yields the processor, allowing other goroutines to run.  It does not
 // suspend the current goroutine, so execution resumes automatically.
 func	Gosched()

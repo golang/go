@@ -67,11 +67,3 @@ char *unsafeimport =
 	"func unsafe.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
 	"\n"
 	"$$\n";
-char *runtimeimport =
-	"package runtime\n"
-	"func runtime.Breakpoint ()\n"
-	"func runtime.Gosched ()\n"
-	"func runtime.Goexit ()\n"
-	"func runtime.Caller (n int) (pc uint64, file string, line int, ok bool)\n"
-	"\n"
-	"$$\n";
