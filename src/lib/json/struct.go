@@ -176,7 +176,7 @@ func (b *_StructBuilder) Map() {
 	if v := b.val; v.Kind() == reflect.PtrKind {
 		pv := v.(reflect.PtrValue);
 		if pv.Get() == nil {
-			pv.SetSub(reflect.NewInitValue(pv.Type().(reflect.PtrType).Sub()))
+			pv.SetSub(reflect.NewZeroValue(pv.Type().(reflect.PtrType).Sub()))
 		}
 	}
 }

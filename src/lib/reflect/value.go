@@ -874,8 +874,8 @@ func newValueAddr(typ Type, addr Addr) Value {
 	return c(typ, addr);
 }
 
-// NewInitValue creates a new, zero-initialized Value for the specified Type.
-func NewInitValue(typ Type) Value {
+// NewZeroValue creates a new, zero-initialized Value for the specified Type.
+func NewZeroValue(typ Type) Value {
 	// Some values cannot be made this way.
 	switch typ.Kind() {
 	case ArrayKind:
