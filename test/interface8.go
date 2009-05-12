@@ -4,6 +4,9 @@
 
 // $G $F.go && $L $F.$A && ./$A.out
 
+// Implicit methods for embedded types.
+// Mixed pointer and non-pointer receivers.
+
 package main
 
 type T int

@@ -4,6 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Check methods derived from embedded interface and *interface values.
+
 package main
 
 import "os"
