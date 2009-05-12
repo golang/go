@@ -585,7 +585,7 @@ func servePkg(c *http.Conn, r *http.Request) {
 	/*
 	// TODO do we still need this?
 	if r.Url.Path != Pkg + info.Path {
-		http.Redirect(c, info.Path);
+		http.Redirect(c, info.Path, http.StatusMovedPermanently);
 		return;
 	}
 	*/

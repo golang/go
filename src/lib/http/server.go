@@ -278,12 +278,17 @@ func NotFoundHandler() Handler {
 
 // Redirect replies to the request with a redirect to url,
 // which may be a path relative to the request path.
-func Redirect(c *Conn, url string) {
+func Redirect(c *Conn, url string, code int) {
+	// RFC2616 recommends that a short note "SHOULD" be included in the
+	// response because older user agents may not understand 301/307.
+	note := "<a href=\"%v\">" + statusText[code] + "</a>.\n";
+	if c.Req.Method == "POST" {
+		note = "";
+	}
+
 	u, err := ParseURL(url);
 	if err != nil {
-		// TODO report internal error instead?
-		c.SetHeader("Location", url);
-		c.WriteHeader(StatusMovedPermanently);
+		goto finish
 	}
 
 	// If url was relative, make absolute by
@@ -322,20 +327,26 @@ func Redirect(c *Conn, url string) {
 		}
 	}
 
+finish:
 	c.SetHeader("Location", url);
-	c.WriteHeader(StatusMovedPermanently);
+	c.WriteHeader(code);
+	fmt.Fprintf(c, note, url);
 }
 
 // Redirect to a fixed URL
-type redirectHandler string
-func (url redirectHandler) ServeHTTP(c *Conn, req *Request) {
-	Redirect(c, string(url));
+type redirectHandler struct {
+	url string;
+	code int;
+}
+func (rh *redirectHandler) ServeHTTP(c *Conn, req *Request) {
+	Redirect(c, rh.url, rh.code);
 }
 
 // RedirectHandler returns a request handler that redirects
-// each request it receives to the given url.
-func RedirectHandler(url string) Handler {
-	return redirectHandler(url);
+// each request it receives to the given url using the given
+// status code.
+func RedirectHandler(url string, code int) Handler {
+	return &redirectHandler{ url, code }
 }
 
 // ServeMux is an HTTP request multiplexer.
@@ -441,10 +452,10 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	mux.m[pattern] = handler;
 
 	// Helpful behavior:
-	// If pattern is /tree/, insert redirect for /tree.
+	// If pattern is /tree/, insert permanent redirect for /tree.
 	n := len(pattern);
 	if n > 0 && pattern[n-1] == '/' {
-		mux.m[pattern[0:n-1]] = RedirectHandler(pattern);
+		mux.m[pattern[0:n-1]] = RedirectHandler(pattern, StatusMovedPermanently);
 	}
 }
 
