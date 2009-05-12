@@ -540,7 +540,6 @@ EXTERN	Sym*	pkgimportname;	// package name from imported package
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	sysimport;
 extern	char*	unsafeimport;
-extern	char*	runtimeimport;
 EXTERN	char*	filename;	// name to uniqify names
 EXTERN	Idir*	idirs;
 
