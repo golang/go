@@ -1306,7 +1306,7 @@ Functions:
 	cap len make new panic panicln print println
 
 Packages:
-	sys (TODO: does sys endure?)
+	unsafe
 </pre>
 
 <h3>Exported identifiers</h3>
@@ -4214,13 +4214,14 @@ following interface:
 <pre class="grammar">
 package unsafe
 
-const Maxalign int
+type ArbitraryType int  // shorthand for an arbitrary Go type; it is not a real type
+type Pointer *ArbitraryType
 
-type Pointer *any  // "any" is shorthand for any Go type; it is not a real type.
-
-func Alignof(variable any) int
-func Offsetof(selector any) int
-func Sizeof(variable any) int
+func Alignof(variable ArbitraryType) int
+func Offsetof(selector ArbitraryType) int
+func Reflect(i interface {}) (value uint64, typestring string, indir bool)
+func Sizeof(variable ArbitraryType) int
+func Unreflect(value uint64, typestring string, indir bool) interface {}
 </pre>
 
 <p>
@@ -4253,17 +4254,13 @@ alignment of the (type of the) variable in bytes.  For a variable
 <pre>
 uintptr(unsafe.Pointer(&amp;x)) % uintptr(unsafe.Alignof(x)) == 0
 </pre>
-
-<p>
-The maximum alignment is given by the constant <code>Maxalign</code>.
-It usually corresponds to the value of <code>Sizeof(x)</code> for
-a variable <code>x</code> of the largest numeric type (8 for a
-<code>float64</code>), but may
-be smaller on systems with weaker alignment restrictions.
 </p>
 <p>
 Calls to <code>Alignof</code>, <code>Offsetof</code>, and
 <code>Sizeof</code> are constant expressions of type <code>int</code>.
+</p>
+<p>
+<font color=red>TODO describe Reflect, Unreflect</font>
 </p>
 
 
