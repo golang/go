@@ -110,3 +110,23 @@ func Chdir(dir string) (ret int64, errno int64) {
 	r1, r2, err := Syscall(SYS_CHDIR, int64(uintptr(unsafe.Pointer(namebuf))), 0, 0);
 	return r1, err;
 }
+
+func Link(oldpath, newpath string) (ret int64, errno int64) {
+	oldbuf := StringBytePtr(oldpath);
+	newbuf := StringBytePtr(newpath);
+	r1, r2, err := Syscall(SYS_LINK, int64(uintptr(unsafe.Pointer(oldbuf))), int64(uintptr(unsafe.Pointer(newbuf))), 0);
+	return r1, err;
+}
+
+func Symlink(oldpath, newpath string) (ret int64, errno int64) {
+	oldbuf := StringBytePtr(oldpath);
+	newbuf := StringBytePtr(newpath);
+	r1, r2, err := Syscall(SYS_SYMLINK, int64(uintptr(unsafe.Pointer(oldbuf))), int64(uintptr(unsafe.Pointer(newbuf))), 0);
+	return r1, err;
+}
+
+func Readlink(path string, buf *byte, nbytes int64) (ret int64, errno int64) {
+	pathbuf := StringBytePtr(path);
+	r1, r2, err := Syscall(SYS_READLINK, int64(uintptr(unsafe.Pointer(pathbuf))), int64(uintptr(unsafe.Pointer(buf))), nbytes);
+	return r1, err;
+}

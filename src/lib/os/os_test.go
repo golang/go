@@ -205,3 +205,97 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 	}
 }
 
+func TestHardLink(t *testing.T) {
+	from, to := "hardlinktestfrom", "hardlinktestto";
+	Remove(from); // Just in case.
+	file, err := Open(to, O_CREAT | O_WRONLY, 0666);
+	if err != nil {
+		t.Fatalf("open %q failed: %v", to, err);
+	}
+	defer Remove(to);
+	if err = file.Close(); err != nil {
+		t.Errorf("close %q failed: %v", to, err);
+	}
+	err = Link(to, from);
+	if err != nil {
+		t.Fatalf("link %q, %q failed: %v", to, from, err);
+	}
+	defer Remove(from);
+	tostat, err := Stat(to);
+	if err != nil {
+		t.Fatalf("stat %q failed: %v", to, err);
+	}
+	fromstat, err := Stat(from);
+	if err != nil {
+		t.Fatalf("stat %q failed: %v", from, err);
+	}
+	if tostat.Dev != fromstat.Dev || tostat.Ino != fromstat.Ino {
+		t.Errorf("link %q, %q did not create hard link", to, from);
+	}
+}
+
+func TestSymLink(t *testing.T) {
+	from, to := "symlinktestfrom", "symlinktestto";
+	Remove(from); // Just in case.
+	file, err := Open(to, O_CREAT | O_WRONLY, 0666);
+	if err != nil {
+		t.Fatalf("open %q failed: %v", to, err);
+	}
+	defer Remove(to);
+	if err = file.Close(); err != nil {
+		t.Errorf("close %q failed: %v", to, err);
+	}
+	err = Symlink(to, from);
+	if err != nil {
+		t.Fatalf("symlink %q, %q failed: %v", to, from, err);
+	}
+	defer Remove(from);
+	tostat, err := Stat(to);
+	if err != nil {
+		t.Fatalf("stat %q failed: %v", to, err);
+	}
+	fromstat, err := Stat(from);
+	if err != nil {
+		t.Fatalf("stat %q failed: %v", from, err);
+	}
+	if tostat.Dev != fromstat.Dev || tostat.Ino != fromstat.Ino {
+		t.Errorf("symlink %q, %q did not create symlink", to, from);
+	}
+	fromstat, err = Lstat(from);
+	if err != nil {
+		t.Fatalf("lstat %q failed: %v", from, err);
+	}
+	if !fromstat.IsSymlink() {
+		t.Fatalf("symlink %q, %q did not create symlink", to, from);
+	}
+	s, err := Readlink(from);
+	if err != nil {
+		t.Fatalf("readlink %q failed: %v", from, err);
+	}
+	if s != to {
+		t.Fatalf("after symlink %q != %q", s, to);
+	}
+	file, err = Open(from, O_RDONLY, 0);
+	if err != nil {
+		t.Fatalf("open %q failed: %v", from, err);
+	}
+	file.Close();
+}
+
+func TestLongSymlink(t *testing.T) {
+	s := "0123456789abcdef";
+	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s;
+	from := "longsymlinktestfrom";
+	err := Symlink(s, from);
+	if err != nil {
+		t.Fatalf("symlink %q, %q failed: %v", s, from, err);
+	}
+	defer Remove(from);
+	r, err := Readlink(from);
+	if err != nil {
+		t.Fatalf("readlink %q failed: %v", from, err);
+	}
+	if r != s {
+		t.Fatalf("after symlink %q != %q", r, s);
+	}
+}
