@@ -8,6 +8,7 @@ Open issues:
 	- no mechanism to declare a local type name: type T P.T
 
 Todo's:
+[ ] new interface rules per rsc (use "method set" terminology)
 [ ] document illegality of package-external tuple assignments to structs
 	w/ private fields: P.T(1, 2) illegal since same as P.T(a: 1, b: 2) for
 	a T struct { a b int }.
@@ -248,7 +249,7 @@ exponent = ( "e" | "E" ) [ "+" | "-" ] decimals .
 Integer literals represent values of arbitrary precision, or <i>ideal
 integers</i>.  Similarly, floating-point literals represent values
 of arbitrary precision, or <i>ideal floats</i>.  These <i>ideal
-numbers</i> have no size or type and cannot overflow.  However,
+numbers</i> have no size or named type and cannot overflow.  However,
 when (used in an expression) assigned to a variable or typed constant,
 the destination must be able to represent the assigned value.
 </p>
@@ -346,7 +347,9 @@ integer literals.
 <h3>String literals</h3>
 
 <p>
-String literals represent constant values of type <code>string</code>.
+String literals represent <i>ideal string</i> values. Ideal strings don't
+have a named type but they are compatible with type <code>string</code>
+(§Type identity and compatibility).
 There are two forms: raw string literals and interpreted string
 literals.
 </p>
@@ -514,7 +517,7 @@ uintptr  smallest uint type large enough to store the uninterpreted
 To avoid portability issues all numeric types are distinct except
 <code>byte</code>, which is an alias for <code>uint8</code>.
 Conversions
-are required when different numeric types are mixed in an expression
+are required when incompatible numeric types are mixed in an expression
 or assignment. For instance, <code>int32</code> and <code>int</code>
 are not the same type even though they may have the same size on a
 particular architecture.
@@ -530,7 +533,7 @@ and <code>false</code>.
 <h3>Strings</h3>
 
 <p>
-The <code>string</code> type represents the set of textual string values.
+The <code>string</code> type represents the set of string values.
 Strings behave like arrays of bytes but are immutable: once created,
 it is impossible to change the contents of a string.
 
@@ -1037,63 +1040,59 @@ received, <code>closed(c)</code> returns true.
 <h2>General properties of types and values</h2>
 
 <p>
-Types may be <i>different</i>, <i>structurally equal</i> (or just <i>equal</i>),
-or <i>identical</i>.
-Go is <i>type safe</i>: different types cannot be mixed
-in binary operations and values cannot be assigned to variables of different
-types. Values can be assigned to variables of equal type.
-</p>
+Two types may be <i>identical</i>, <i>compatible</i>, or <i>incompatible</i>.
+Two identical types are always compatible, but two compatible types may not be identical.
+Go is <i>type safe</i>: a value of one type cannot be assigned to a variable of an
+incompatible type, and two values of incompatible types cannot be mixed in
+binary operations.</p>
 
-<h3>Type equality and identity </h3>
+<h3>Type identity and compatibility</h3>
+
+<h4>Type identity</h4>
 
 <p>
-Two type names denote equal types if the types in the corresponding declarations
-are equal (§Declarations and Scope).
-Two type literals specify equal types if they have the same
-literal structure and corresponding components have equal types.
-In detail:
+Two named types are identical if their type names originate in the same
+type declaration (§Declarations and Scope). A named and an unnamed type
+are never identical. Two unnamed types are identical if the corresponding
+type literals have the same literal structure and corresponding components have
+identical types. In detail:
 </p>
 
 <ul>
-	<li>Two pointer types are equal if they have equal base types.</li>
+	<li>Two array types are identical if they have identical element types and
+	    the same array length.</li>
 
-	<li>Two array types are equal if they have equal element types and
-	  the same array length.</li>
+	<li>Two slice types are identical if they have identical element types.</li>
 
-	<li>Two struct types are equal if they have the same sequence of fields,
-	    with the same names and equal types. Two anonymous fields are
-	    considered to have the same name.</li>
+	<li>Two struct types are identical if they have the same sequence of fields,
+	    and if corresponding fields have the same names and identical types.
+		Two anonymous fields are considered to have the same name.</li>
 
-	<li>Two function types are equal if they have the same number of parameters
-	  and result values and if corresponding parameter and result types are
-	  the same. All "..." parameters have equal type.
-	  Parameter and result names are not required to match.</li>
+	<li>Two pointer types are identical if they have identical base types.</li>
 
-	<li>Two slice types are equal if they have equal element types.</li>
+	<li>Two function types are identical if they have the same number of parameters
+	    and result values and if corresponding parameter and result types are
+	    identical. All "..." parameters have identical type.
+	    Parameter and result names are not required to match.</li>
 
-	<li>Two channel types are equal if they have equal value types and
-	  the same direction.</li>
+	<li>Two interface types are identical if they have the same set of methods
+	    with the same names and identical function types. The order
+	    of the methods is irrelevant.</li>
 
-	<li>Two map types are equal if they have equal key and value types.</li>
+	<li>Two map types are identical if they have identical key and value types.</li>
 
-	<li>Two interface types are equal if they have the same set of methods
-	  with the same names and equal function types. The order
-	  of the methods is irrelevant.</li>
+	<li>Two channel types are identical if they have identical value types and
+	    the same direction.</li>
 </ul>
 
+<h4>Type compatibility</h4>
+
 <p>
-Type identity is more stringent than type equality.
-It requires for type names
-that they originate in the same type declaration, while for equality it requires
-only that they originate in equal type declarations.
-Also, the names of parameters and results must match for function types.
-In all other respects, the definition of type identity is the
-same as for type equality listed above but with ``identical''
-substitued for ``equal''.
-</p>
-<p>
-By definition, identical types are also equal types.
-Two types are different if they are not equal.
+Type compatibility is less stringent than type identity: a named and an unnamed
+type are compatible if the respective type literals are compatible.
+In all other respects, the definition of type compatibility is the
+same as for type identity listed above but with ``compatible''
+substituted for ``identical''.
 </p>
 
 <p>
@@ -1112,50 +1111,50 @@ type (
 </pre>
 
 <p>
-these types are equal:
-</p>
-
-<pre>
-T0 and T0
-T0 and T1
-T0 and []string
-T4 and T5
-T3 and struct { a int; c int }
-</pre>
-
-<p>
-<code>T2</code> and <code>T3</code> are not equal because
-they have different field names.
-</p>
-
-<p>
-These types are identical:
+these types are identical:
 </p>
 
 <pre>
 T0 and T0
 []int and []int
 struct { a, b *T5 } and struct { a, b *T5 }
+func (x int, y float) *[]string and func (int, float) (result *[]string)
 </pre>
 
 <p>
-<code>T0</code> and <code>T1</code> are equal but not
-identical because they have distinct declarations.
+<code>T0</code> and <code>T1</code> are neither identical nor compatible
+because they are named types with distinct declarations.
+</p>
+
+<p>
+These types are compatible:
+</p>
+
+<pre>
+T0 and T0
+T0 and []string
+T3 and struct { a int; c int }
+T4 and func (x int, y float) *[]string
+</pre>
+
+<p>
+<code>T2</code> and <code>struct { a, c int }</code> are incompatible because
+they have different field names.
 </p>
 
 <h3>Assignment compatibility</h3>
 
 <p>
 Values of any type may always be assigned to variables
-of equal static type. Some types and values have conditions under which they may
-be assigned to different types:
+of compatible static type. Some types and values have conditions under which they may
+be assigned to otherwise incompatible types:
 </p>
 <ul>
 <li>
 The predeclared constant <code>nil</code> can be assigned to any
 pointer, function, slice, map, channel, or interface variable.
 <li>
-A pointer to an array can be assigned to a slice variable with equal element type.
+A pointer to an array can be assigned to a slice variable with compatible element type.
 The slice variable then refers to the original array; the data is not copied.
 </li>
 <li>
@@ -1164,14 +1163,14 @@ type of the value implements the interface.
 </li>
 <li>
 A value of bidirectional channel type can be assigned to any channel
-variable of equal channel value type.
+variable of compatible channel value type.
 </li>
 </ul>
 
 <h3>Comparison compatibility</h3>
 
 <p>
-Values of any type may be compared to other values of equal static
+Values of any type may be compared to other values of compatible static
 type.  Values of numeric and string type may be compared using the
 full range of comparison operators as described in §Comparison operators;
 booleans may be compared only for equality or inequality.
@@ -1215,7 +1214,7 @@ Channel and map values are equal if they were created by the same call to <code>
 (§Making slices, maps, and channels).
 </li>
 <li>
-Interface values may be compared if they have the same static type.
+Interface values may be compared if they have compatible static types.
 They will be equal only if they have the same dynamic type and the underlying values are equal.
 </li>
 </ul>
@@ -2099,7 +2098,7 @@ For <code>a</code> of type <code>M</code> or <code>*M</code>
 where <code>M</code> is a map type (§Map types):
 </p>
 <ul>
-	<li><code>x</code>'s type must be equal to the key type of <code>M</code>
+	<li><code>x</code>'s type must be compatible with the key type of <code>M</code>
 	  and the map must contain an entry with key <code>x</code> (but see special forms below)
 	<li><code>a[x]</code> is the map value with key <code>x</code>
 	  and the type of <code>a[x]</code> is the value type of <code>M</code>
@@ -2201,7 +2200,7 @@ The type of <code>x</code> must be an interface type.
 <p>
 More precisely, if <code>T</code> is not an interface type, <code>x.(T)</code> asserts
 that the dynamic type of <code>x</code> is identical to the type <code>T</code>
-(§Type equality and identity).
+(§Type identity and compatibility).
 If <code>T</code> is an interface type, <code>x.(T)</code> asserts that the dynamic type
 of <code>T</code> implements the interface <code>T</code> (§Interface types).
 <font color=red>TODO: gri wants an error if x is already of type T.</font>
@@ -2343,7 +2342,7 @@ unary_op   = "+" | "-" | "!" | "^" | "*" | "&amp;" | "&lt;-" .
 </pre>
 
 <p>
-The operand types in binary operations must be equal, with the following exceptions:
+The operand types in binary operations must be compatible, with the following exceptions:
 </p>
 <ul>
 	<li>Except in shift expressions, if one operand has numeric type and the other operand is
@@ -2362,7 +2361,7 @@ The operand types in binary operations must be equal, with the following excepti
 	other is a variable or value of the channel's element type.</li>
 
 	<li>When comparing two operands of channel type, the channel value types
-	  must be equal but the channel direction is ignored.</li>
+	  must be compatible but the channel direction is ignored.</li>
 </ul>
 
 <p>
@@ -3774,28 +3773,33 @@ The following conversion rules apply:
 </p>
 <ul>
 <li>
-1) Between equal types (§Type equality and identity).
+1) Between two compatible types (§Type identity and compatibility).
 The conversion always succeeds.
 </li>
 <li>
-2) Between integer types.  If the value is a signed quantity, it is
+2) Between two types that would be compatible if they
+or any of their component types were unnamed (§Type identity and compatibility).
+The conversion always succeeds.
+</li>
+<li>
+3) Between integer types.  If the value is a signed quantity, it is
 sign extended to implicit infinite precision; otherwise it is zero
 extended.  It is then truncated to fit in the result type size.
 For example, <code>uint32(int8(0xFF))</code> is <code>0xFFFFFFFF</code>.
 The conversion always yields a valid value; there is no signal for overflow.
 </li>
 <li>
-3) Between integer and floating point types, or between floating point
+4) Between integer and floating point types, or between floating point
 types.  To avoid overdefining the properties of the conversion, for
 now it is defined as a ``best effort'' conversion.  The conversion
 always succeeds but the value may be a NaN or other problematic
 result. <font color=red>TODO: clarify?</font>
 </li>
 <li>
-4) Strings permit three special conversions:
+5) Strings permit three special conversions:
 </li>
 <li>
-4a) Converting an integer value yields a string containing the UTF-8
+5a) Converting an integer value yields a string containing the UTF-8
 representation of the integer.
 
 <pre>
@@ -3804,7 +3808,7 @@ string(0x65e5)  // "\u65e5"
 
 </li>
 <li>
-4b) Converting a slice of integers yields a string that is the
+5b) Converting a slice of integers yields a string that is the
 concatenation of the individual integers converted to strings.
 If the slice value is <code>nil</code>, the result is the empty string.
 <pre>
@@ -3812,7 +3816,7 @@ string([]int{0x65e5, 0x672c, 0x8a9e})  // "\u65e5\u672c\u8a9e"
 </pre>
 </li>
 <li>
-4c) Converting a slice of bytes yields a string whose successive
+5c) Converting a slice of bytes yields a string whose successive
 bytes are those of the slice. If the slice value is <code>nil</code>,
 the result is the empty string.
 
@@ -4254,7 +4258,7 @@ alignment of the (type of the) variable in bytes.  For a variable
 <pre>
 uintptr(unsafe.Pointer(&amp;x)) % uintptr(unsafe.Alignof(x)) == 0
 </pre>
-</p>
+
 <p>
 Calls to <code>Alignof</code>, <code>Offsetof</code>, and
 <code>Sizeof</code> are constant expressions of type <code>int</code>.
