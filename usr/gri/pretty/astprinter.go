@@ -735,16 +735,10 @@ func (P *Printer) DoIndexExpr(x *ast.IndexExpr) {
 	P.Expr1(x.X, token.HighestPrec);
 	P.Token(noPos, token.LBRACK);
 	P.Expr(x.Index);
-	P.Token(noPos, token.RBRACK);
-}
-
-
-func (P *Printer) DoSliceExpr(x *ast.SliceExpr) {
-	P.Expr1(x.X, token.HighestPrec);
-	P.Token(noPos, token.LBRACK);
-	P.Expr(x.Begin);
-	P.Token(noPos, token.COLON);
-	P.Expr(x.End);
+	if x.End != nil {
+		P.Token(noPos, token.COLON);
+		P.Expr(x.End);
+	}
 	P.Token(noPos, token.RBRACK);
 }
 
@@ -772,14 +766,9 @@ func (P *Printer) DoEllipsis(x *ast.Ellipsis) {
 
 func (P *Printer) DoArrayType(x *ast.ArrayType) {
 	P.Token(x.Pos(), token.LBRACK);
-	P.Expr(x.Len);
-	P.Token(noPos, token.RBRACK);
-	P.Expr(x.Elt);
-}
-
-
-func (P *Printer) DoSliceType(x *ast.SliceType) {
-	P.Token(x.Pos(), token.LBRACK);
+	if x.Len != nil {
+		P.Expr(x.Len);
+	}
 	P.Token(noPos, token.RBRACK);
 	P.Expr(x.Elt);
 }

@@ -330,9 +330,9 @@ func (p *parser) parseTypeName() ast.Expr {
 }
 
 
-func (p *parser) parseArrayOrSliceType(ellipsis_ok bool) ast.Expr {
+func (p *parser) parseArrayType(ellipsis_ok bool) ast.Expr {
 	if p.trace {
-		defer un(trace(p, "ArrayOrSliceType"));
+		defer un(trace(p, "ArrayType"));
 	}
 
 	lbrack := p.expect(token.LBRACK);
@@ -346,11 +346,7 @@ func (p *parser) parseArrayOrSliceType(ellipsis_ok bool) ast.Expr {
 	p.expect(token.RBRACK);
 	elt := p.parseType();
 
-	if len != nil {
-		return &ast.ArrayType{lbrack, len, elt};
-	}
-
-	return &ast.SliceType{lbrack, elt};
+	return &ast.ArrayType{lbrack, len, elt};
 }
 
 
@@ -713,7 +709,7 @@ func (p *parser) parseChanType() *ast.ChanType {
 func (p *parser) tryRawType(ellipsis_ok bool) ast.Expr {
 	switch p.tok {
 	case token.IDENT: return p.parseTypeName();
-	case token.LBRACK: return p.parseArrayOrSliceType(ellipsis_ok);
+	case token.LBRACK: return p.parseArrayType(ellipsis_ok);
 	case token.STRUCT: return p.parseStructType();
 	case token.MUL: return p.parsePointerType();
 	case token.FUNC: return p.parseFuncType();
@@ -921,9 +917,9 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
 }
 
 
-func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
+func (p *parser) parseIndex(x ast.Expr) ast.Expr {
 	if p.trace {
-		defer un(trace(p, "IndexOrSlice"));
+		defer un(trace(p, "Index"));
 	}
 
 	p.expect(token.LBRACK);
@@ -937,11 +933,7 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 	p.expr_lev--;
 	p.expect(token.RBRACK);
 
-	if end != nil {
-		return &ast.SliceExpr{x, begin, end};
-	}
-
-	return &ast.IndexExpr{x, begin};
+	return &ast.IndexExpr{x, begin, end};
 }
 
 
@@ -1059,7 +1051,6 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	case *ast.ParenExpr:
 	case *ast.SelectorExpr:
 	case *ast.IndexExpr:
-	case *ast.SliceExpr:
 	case *ast.TypeAssertExpr:
 	case *ast.CallExpr:
 	case *ast.StarExpr:
@@ -1105,7 +1096,6 @@ func (p *parser) checkCompositeLitType(x ast.Expr) ast.Expr {
 	case *ast.ParenExpr: p.checkCompositeLitType(t.X);
 	case *ast.SelectorExpr: p.checkTypeName(t.X);
 	case *ast.ArrayType: return x;
-	case *ast.SliceType: return x;
 	case *ast.StructType: return x;
 	case *ast.MapType: return x;
 	default:
@@ -1150,7 +1140,7 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
 	for {
 		switch p.tok {
 		case token.PERIOD: x = p.parseSelectorOrTypeAssertion(p.checkExpr(x));
-		case token.LBRACK: x = p.parseIndexOrSlice(p.checkExpr(x));
+		case token.LBRACK: x = p.parseIndex(p.checkExpr(x));
 		case token.LPAREN: x = p.parseCallOrConversion(p.checkExprOrType(x));
 		case token.LBRACE:
 			if p.expr_lev >= 0 {
