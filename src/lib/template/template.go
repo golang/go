@@ -70,12 +70,12 @@ import (
 // Errors returned during parsing and execution.  Users may extract the information and reformat
 // if they desire.
 type Error struct {
-   Line int;
-   Msg string;
+	Line int;
+	Msg string;
 }
 
 func (e *Error) String() string {
-   return fmt.Sprintf("line %d: %s", e.Line, e.Msg)
+	return fmt.Sprintf("line %d: %s", e.Line, e.Msg)
 }
 
 // Most of the literals are aces.
