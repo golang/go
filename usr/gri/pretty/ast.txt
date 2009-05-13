@@ -5,7 +5,7 @@
 // Format file for printing AST nodes (package "ast").
 
 // ----------------------------------------------------------------------------
-// Debugging
+// Elementary types
 
 token.Token =
 	^:string;
@@ -25,11 +25,11 @@ char =
 bytes =
 	{*};
 
-nil =
-	;  // TODO we see a lot of nil's - why?
+empty =
+	;
 
 exists =
-	*:nil;
+	*:empty;
 
 
 // ----------------------------------------------------------------------------
@@ -98,10 +98,7 @@ ast.SelectorExpr =
 	X "." Sel;
 
 ast.IndexExpr =
-	X "[" Index "]";
-
-ast.SliceExpr =
-	X "[" Begin ":" End "]";
+	X "[" Index [":" End] "]";
 
 ast.TypeAssertExpr =
 	X ".(" Type ")";
@@ -122,10 +119,7 @@ ast.KeyValueExpr =
 	Key ": " Value;
 
 ast.ArrayType =
-	"[" Len "]" Elt;
-
-ast.SliceType =
-	"[]" Elt;
+	"[" [Len] "]" Elt;
 
 ast.StructType =
 	"struct"

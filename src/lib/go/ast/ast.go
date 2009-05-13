@@ -204,16 +204,11 @@ type (
 		Sel *Ident;  // field selector
 	};
 
-	// An IndexExpr node represents an expression followed by an index.
+	// An IndexExpr node represents an expression followed by an index or slice.
 	IndexExpr struct {
 		X Expr;  // expression
-		Index Expr;  // index expression
-	};
-
-	// A SliceExpr node represents an expression followed by a slice.
-	SliceExpr struct {
-		X Expr;  // expression
-		Begin, End Expr;  // slice range
+		Index Expr;  // index expression or beginning of slice range
+		End Expr;  // end of slice range; or nil
 	};
 
 	// A TypeAssertExpr node represents an expression followed by a
@@ -283,16 +278,10 @@ const (
 // nodes.
 //
 type (
-	// An ArrayType node represents an array type.
+	// An ArrayType node represents an array or slice type.
 	ArrayType struct {
 		token.Position;  // position of "["
-		Len Expr;  // possibly an Ellipsis node for [...]T array types
-		Elt Expr;  // element type
-	};
-
-	// A SliceType node represents a slice type.
-	SliceType struct {
-		token.Position;  // position of "["
+		Len Expr;  // Ellipsis node for [...]T array types, nil for slice types
 		Elt Expr;  // element type
 	};
 
@@ -345,7 +334,6 @@ func (x *FuncLit) Pos() token.Position  { return x.Type.Pos(); }
 func (x *CompositeLit) Pos() token.Position  { return x.Type.Pos(); }
 func (x *SelectorExpr) Pos() token.Position  { return x.X.Pos(); }
 func (x *IndexExpr) Pos() token.Position  { return x.X.Pos(); }
-func (x *SliceExpr) Pos() token.Position  { return x.X.Pos(); }
 func (x *TypeAssertExpr) Pos() token.Position  { return x.X.Pos(); }
 func (x *CallExpr) Pos() token.Position  { return x.Fun.Pos(); }
 func (x *BinaryExpr) Pos() token.Position  { return x.X.Pos(); }
@@ -371,7 +359,6 @@ type ExprVisitor interface {
 	DoParenExpr(x *ParenExpr);
 	DoSelectorExpr(x *SelectorExpr);
 	DoIndexExpr(x *IndexExpr);
-	DoSliceExpr(x *SliceExpr);
 	DoTypeAssertExpr(x *TypeAssertExpr);
 	DoCallExpr(x *CallExpr);
 	DoStarExpr(x *StarExpr);
@@ -382,7 +369,6 @@ type ExprVisitor interface {
 	// Type expressions
 	DoEllipsis(x *Ellipsis);
 	DoArrayType(x *ArrayType);
-	DoSliceType(x *SliceType);
 	DoStructType(x *StructType);
 	DoFuncType(x *FuncType);
 	DoInterfaceType(x *InterfaceType);
@@ -406,7 +392,6 @@ func (x *CompositeLit) Visit(v ExprVisitor) { v.DoCompositeLit(x); }
 func (x *ParenExpr) Visit(v ExprVisitor) { v.DoParenExpr(x); }
 func (x *SelectorExpr) Visit(v ExprVisitor) { v.DoSelectorExpr(x); }
 func (x *IndexExpr) Visit(v ExprVisitor) { v.DoIndexExpr(x); }
-func (x *SliceExpr) Visit(v ExprVisitor) { v.DoSliceExpr(x); }
 func (x *TypeAssertExpr) Visit(v ExprVisitor) { v.DoTypeAssertExpr(x); }
 func (x *CallExpr) Visit(v ExprVisitor) { v.DoCallExpr(x); }
 func (x *StarExpr) Visit(v ExprVisitor) { v.DoStarExpr(x); }
@@ -415,7 +400,6 @@ func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
 func (x *KeyValueExpr) Visit(v ExprVisitor) { v.DoKeyValueExpr(x); }
 
 func (x *ArrayType) Visit(v ExprVisitor) { v.DoArrayType(x); }
-func (x *SliceType) Visit(v ExprVisitor) { v.DoSliceType(x); }
 func (x *StructType) Visit(v ExprVisitor) { v.DoStructType(x); }
 func (x *FuncType) Visit(v ExprVisitor) { v.DoFuncType(x); }
 func (x *InterfaceType) Visit(v ExprVisitor) { v.DoInterfaceType(x); }
