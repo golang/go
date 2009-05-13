@@ -57,6 +57,7 @@
 package template
 
 import (
+	"container/vector";
 	"fmt";
 	"io";
 	"os";
@@ -64,13 +65,17 @@ import (
 	"runtime";
 	"strings";
 	"template";
-	"container/vector";
 )
 
-// Errors returned during parsing. TODO: different error model for execution?
+// Errors returned during parsing and execution.  Users may extract the information and reformat
+// if they desire.
+type Error struct {
+   Line int;
+   Msg string;
+}
 
-type ParseError struct {
-	os.ErrorString
+func (e *Error) String() string {
+   return fmt.Sprintf("line %d: %s", e.Line, e.Msg)
 }
 
 // Most of the literals are aces.
@@ -181,7 +186,7 @@ func New(fmap FormatterMap) *Template {
 
 // Generic error handler, called only from execError or parseError.
 func error(errors chan os.Error, line int, err string, args ...) {
-	errors <- ParseError{os.ErrorString(fmt.Sprintf("line %d: %s", line, fmt.Sprintf(err, args)))};
+	errors <- &Error{line, fmt.Sprintf(err, args)};
 	runtime.Goexit();
 }
 
@@ -756,7 +761,7 @@ func validDelim(d []byte) bool {
 // the error.
 func (t *Template) Parse(s string) os.Error {
 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
-		return ParseError{os.ErrorString(fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim))}
+		return &Error{1, fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
 	}
 	t.buf = io.StringBytes(s);
 	t.p = 0;
