@@ -306,3 +306,30 @@ func Remove(name string) Error {
 	return ErrnoToError(e);
 }
 
+// Link creates a hard link.
+func Link(oldpath, newpath string) Error {
+	r, e := syscall.Link(oldpath, newpath);
+	return ErrnoToError(e);
+}
+
+// Symlink creates a symbolic link.
+func Symlink(oldpath, newpath string) Error {
+	r, e := syscall.Symlink(oldpath, newpath);
+	return ErrnoToError(e);
+}
+
+// Readlink reads the contents of a symbolic link: the destination of
+// the link.  It returns the contents and an Error, if any.
+func Readlink(path string) (string, Error) {
+	for len := int64(128); ; len *= 2 {
+		b := make([]byte, len);
+		r, e := syscall.Readlink(path, &b[0], len);
+		if r == -1 {
+			return "", ErrnoToError(e);
+		} else if r < len {
+			return string(b[0:r]), nil;
+		}
+	}
+	// Silence 6g.
+	return "", nil;
+}
