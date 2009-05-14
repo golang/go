@@ -19,7 +19,8 @@ var SocketDisableIPv6 bool
 func saLen(s *Sockaddr) int64 {
 	switch s.Family {
 	case AF_UNIX:
-		return SizeofSockaddrUnix;
+		sa := (*SockaddrUnix)(unsafe.Pointer(s));
+		return sa.Length;
 	case AF_INET:
 		return SizeofSockaddrInet4;
 	case AF_INET6:

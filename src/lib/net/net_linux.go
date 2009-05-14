@@ -95,6 +95,7 @@ func unixToSockaddr(name string) (sa1 *syscall.Sockaddr, err os.Error) {
 	if sa.Path[0] == '@' {
 		sa.Path[0] = 0;
 	}
+	sa.Length = 1 + int64(n) + 1;	// family, name, \0
 
 	return (*syscall.Sockaddr)(unsafe.Pointer(sa)), nil;
 }
