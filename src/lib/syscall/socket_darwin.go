@@ -16,11 +16,6 @@ import (
 // creation of IPv6 sockets to return EAFNOSUPPORT.
 var SocketDisableIPv6 bool
 
-func SockaddrToSockaddrInet4(s *Sockaddr) *SockaddrInet4;
-func SockaddrToSockaddrInet6(s *Sockaddr) *SockaddrInet6;
-func SockaddrInet4ToSockaddr(s *SockaddrInet4) *Sockaddr;
-func SockaddrInet6ToSockaddr(s *SockaddrInet6) *Sockaddr;
-
 func Socket(domain, proto, typ int64) (ret int64, err int64) {
 	if domain == AF_INET6 && SocketDisableIPv6 {
 		return -1, EAFNOSUPPORT

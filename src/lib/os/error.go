@@ -77,5 +77,7 @@ var (
 	EAGAIN Error = Errno(syscall.EAGAIN);
 	EDOM Error = Errno(syscall.EDOM);
 	ERANGE Error = Errno(syscall.ERANGE);
+	EADDRINUSE Error = Errno(syscall.EADDRINUSE);
+	ECONNREFUSED Error = Errno(syscall.ECONNREFUSED);
 )
 

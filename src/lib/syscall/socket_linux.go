@@ -16,11 +16,6 @@ import (
 // creation of IPv6 sockets to return EAFNOSUPPORT.
 var SocketDisableIPv6 bool
 
-func SockaddrToSockaddrInet4(s *Sockaddr) *SockaddrInet4;
-func SockaddrToSockaddrInet6(s *Sockaddr) *SockaddrInet6;
-func SockaddrInet4ToSockaddr(s *SockaddrInet4) *Sockaddr;
-func SockaddrInet6ToSockaddr(s *SockaddrInet6) *Sockaddr;
-
 func saLen(s *Sockaddr) int64 {
 	switch s.Family {
 	case AF_UNIX:

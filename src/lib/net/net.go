@@ -20,6 +20,83 @@ var (
 )
 
 
+// Conn is a generic network connection.
+type Conn interface {
+	// Read blocks until data is ready from the connection
+	// and then reads into b.  It returns the number
+	// of bytes read, or 0 if the connection has been closed.
+	Read(b []byte) (n int, err os.Error);
+
+	// Write writes the data in b to the connection.
+	Write(b []byte) (n int, err os.Error);
+
+	// Close closes the connection.
+	Close() os.Error;
+
+	// For packet-based protocols such as UDP,
+	// ReadFrom reads the next packet from the network,
+	// returning the number of bytes read and the remote
+	// address that sent them.
+	ReadFrom(b []byte) (n int, addr string, err os.Error);
+
+	// For packet-based protocols such as UDP,
+	// WriteTo writes the byte buffer b to the network
+	// as a single payload, sending it to the target address.
+	WriteTo(addr string, b []byte) (n int, err os.Error);
+
+	// SetReadBuffer sets the size of the operating system's
+	// receive buffer associated with the connection.
+	SetReadBuffer(bytes int) os.Error;
+
+	// SetReadBuffer sets the size of the operating system's
+	// transmit buffer associated with the connection.
+	SetWriteBuffer(bytes int) os.Error;
+
+	// SetTimeout sets the read and write deadlines associated
+	// with the connection.
+	SetTimeout(nsec int64) os.Error;
+
+	// SetReadTimeout sets the time (in nanoseconds) that
+	// Read will wait for data before returning os.EAGAIN.
+	// Setting nsec == 0 (the default) disables the deadline.
+	SetReadTimeout(nsec int64) os.Error;
+
+	// SetWriteTimeout sets the time (in nanoseconds) that
+	// Write will wait to send its data before returning os.EAGAIN.
+	// Setting nsec == 0 (the default) disables the deadline.
+	// Even if write times out, it may return n > 0, indicating that
+	// some of the data was successfully written.
+	SetWriteTimeout(nsec int64) os.Error;
+
+	// SetLinger sets the behavior of Close() on a connection
+	// which still has data waiting to be sent or to be acknowledged.
+	//
+	// If sec < 0 (the default), Close returns immediately and
+	// the operating system finishes sending the data in the background.
+	//
+	// If sec == 0, Close returns immediately and the operating system
+	// discards any unsent or unacknowledged data.
+	//
+	// If sec > 0, Close blocks for at most sec seconds waiting for
+	// data to be sent and acknowledged.
+	SetLinger(sec int) os.Error;
+
+	// SetReuseAddr sets whether it is okay to reuse addresses
+	// from recent connections that were not properly closed.
+	SetReuseAddr(reuseaddr bool) os.Error;
+
+	// SetDontRoute sets whether outgoing messages should
+	// bypass the system routing tables.
+	SetDontRoute(dontroute bool) os.Error;
+
+	// SetKeepAlive sets whether the operating system should send
+	// keepalive messages on the connection.
+	SetKeepAlive(keepalive bool) os.Error;
+
+	// BindToDevice binds a connection to a particular network device.
+	BindToDevice(dev string) os.Error;
+}
+
 // Should we try to use the IPv4 socket interface if we're
 // only dealing with IPv4 sockets?  As long as the host system
 // understands IPv6, it's okay to pass IPv4 addresses to the IPv6
@@ -160,9 +237,7 @@ func boolint(b bool) int {
 }
 
 // Generic socket creation.
-func socket(net, laddr, raddr string, f, p, t int64, la, ra *syscall.Sockaddr)
-	(fd *netFD, err os.Error)
-{
+func socket(net, laddr, raddr string, f, p, t int64, la, ra *syscall.Sockaddr) (fd *netFD, err os.Error) {
 	// See ../syscall/exec.go for description of ForkLock.
 	syscall.ForkLock.RLock();
 	s, e := syscall.Socket(f, p, t);
@@ -318,9 +393,7 @@ func (c *connBase) SetLinger(sec int) os.Error {
 
 // Internet sockets (TCP, UDP)
 
-func internetSocket(net, laddr, raddr string, proto int64, mode string)
-	(fd *netFD, err os.Error)
-{
+func internetSocket(net, laddr, raddr string, proto int64, mode string) (fd *netFD, err os.Error) {
 	// Parse addresses (unless they are empty).
 	var lip, rip IP;
 	var lport, rport int;
@@ -388,6 +461,8 @@ func internetSocket(net, laddr, raddr string, proto int64, mode string)
 
 // TCP connections.
 
+// ConnTCP is an implementation of the Conn interface
+// for TCP network connections.
 type ConnTCP struct {
 	connBase
 }
@@ -407,6 +482,8 @@ func newConnTCP(fd *netFD, raddr string) *ConnTCP {
 	return c
 }
 
+// DialTCP is like Dial but can only connect to TCP networks
+// and returns a ConnTCP structure.
 func DialTCP(net, laddr, raddr string) (c *ConnTCP, err os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
@@ -423,6 +500,8 @@ func DialTCP(net, laddr, raddr string) (c *ConnTCP, err os.Error) {
 
 // TODO(rsc): UDP headers mode
 
+// ConnUDP is an implementation of the Conn interface
+// for UDP network connections.
 type ConnUDP struct {
 	connBase
 }
@@ -434,6 +513,8 @@ func newConnUDP(fd *netFD, raddr string) *ConnUDP {
 	return c
 }
 
+// DialUDP is like Dial but can only connect to UDP networks
+// and returns a ConnUDP structure.
 func DialUDP(net, laddr, raddr string) (c *ConnUDP, err os.Error) {
 	if raddr == "" {
 		return nil, MissingAddress
@@ -450,81 +531,172 @@ func DialUDP(net, laddr, raddr string) (c *ConnUDP, err os.Error) {
 
 // TODO: raw ethernet connections
 
-// A Conn is a generic network connection.
-type Conn interface {
-	// Read blocks until data is ready from the connection
-	// and then reads into b.  It returns the number
-	// of bytes read, or 0 if the connection has been closed.
-	Read(b []byte) (n int, err os.Error);
 
-	// Write writes the data in b to the connection.
-	Write(b []byte) (n int, err os.Error);
+// Unix domain sockets
 
-	// Close closes the connection.
-	Close() os.Error;
+func unixSocket(net, laddr, raddr string, mode string) (fd *netFD, err os.Error) {
+	var proto int64;
+	switch net {
+	default:
+		return nil, UnknownNetwork;
+	case "unix":
+		proto = syscall.SOCK_STREAM;
+	case "unix-dgram":
+		proto = syscall.SOCK_DGRAM;
+	}
 
-	// For packet-based protocols such as UDP,
-	// ReadFrom reads the next packet from the network,
-	// returning the number of bytes read and the remote
-	// address that sent them.
-	ReadFrom(b []byte) (n int, addr string, err os.Error);
+	var la, ra *syscall.Sockaddr;
+	switch mode {
+	case "dial":
+		if laddr != "" {
+			return nil, BadAddress;
+		}
+		if raddr == "" {
+			return nil, MissingAddress;
+		}
+		ra, err = unixToSockaddr(raddr);
+		if err != nil {
+			return nil, err;
+		}
 
-	// For packet-based protocols such as UDP,
-	// WriteTo writes the byte buffer b to the network
-	// as a single payload, sending it to the target address.
-	WriteTo(addr string, b []byte) (n int, err os.Error);
+	case "listen":
+		if laddr == "" {
+			return nil, MissingAddress;
+		}
+		la, err = unixToSockaddr(laddr);
+		if err != nil {
+			return nil, err;
+		}
+		if raddr != "" {
+			return nil, BadAddress;
+		}
+	}
 
-	// SetReadBuffer sets the size of the operating system's
-	// receive buffer associated with the connection.
-	SetReadBuffer(bytes int) os.Error;
+	fd, err = socket(net, laddr, raddr, syscall.AF_UNIX, proto, 0, la, ra);
+	return fd, err
+}
 
-	// SetReadBuffer sets the size of the operating system's
-	// transmit buffer associated with the connection.
-	SetWriteBuffer(bytes int) os.Error;
+// ConnUnix is an implementation of the Conn interface
+// for connections to Unix domain sockets.
+type ConnUnix struct {
+	connBase
+}
 
-	// SetTimeout sets the read and write deadlines associated
-	// with the connection.
-	SetTimeout(nsec int64) os.Error;
+func newConnUnix(fd *netFD, raddr string) *ConnUnix {
+	c := new(ConnUnix);
+	c.fd = fd;
+	c.raddr = raddr;
+	return c;
+}
 
-	// SetReadTimeout sets the time (in nanoseconds) that
-	// Read will wait for data before returning os.EAGAIN.
-	// Setting nsec == 0 (the default) disables the deadline.
-	SetReadTimeout(nsec int64) os.Error;
+// DialUnix is like Dial but can only connect to Unix domain sockets
+// and returns a ConnUnix structure.  The laddr argument must be
+// the empty string; it is included only to match the signature of
+// the other dial routines.
+func DialUnix(net, laddr, raddr string) (c *ConnUnix, err os.Error) {
+	fd, e := unixSocket(net, laddr, raddr, "dial");
+	if e != nil {
+		return nil, e
+	}
+	return newConnUnix(fd, raddr), nil;
+}
 
-	// SetWriteTimeout sets the time (in nanoseconds) that
-	// Write will wait to send its data before returning os.EAGAIN.
-	// Setting nsec == 0 (the default) disables the deadline.
-	// Even if write times out, it may return n > 0, indicating that
-	// some of the data was successfully written.
-	SetWriteTimeout(nsec int64) os.Error;
+// ListenerUnix is a Unix domain socket listener.
+// Clients should typically use variables of type Listener
+// instead of assuming Unix domain sockets.
+type ListenerUnix struct {
+	fd *netFD;
+	laddr string
+}
 
-	// SetLinger sets the behavior of Close() on a connection
-	// which still has data waiting to be sent or to be acknowledged.
-	//
-	// If sec < 0 (the default), Close returns immediately and
-	// the operating system finishes sending the data in the background.
-	//
-	// If sec == 0, Close returns immediately and the operating system
-	// discards any unsent or unacknowledged data.
-	//
-	// If sec > 0, Close blocks for at most sec seconds waiting for
-	// data to be sent and acknowledged.
-	SetLinger(sec int) os.Error;
+// ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
+// Net can be either "unix" (stream sockets) or "unix-dgram" (datagram sockets).
+func ListenUnix(net, laddr string) (l *ListenerUnix, err os.Error) {
+	fd, e := unixSocket(net, laddr, "", "listen");
+	if e != nil {
+		// Check for socket ``in use'' but ``refusing connections,''
+		// which means some program created it and exited
+		// without unlinking it from the file system.
+		// Clean up on that program's behalf and try again.
+		// Don't do this for Linux's ``abstract'' sockets, which begin with @.
+		if e != os.EADDRINUSE || laddr[0] == '@' {
+			return nil, e;
+		}
+		fd1, e1 := unixSocket(net, "", laddr, "dial");
+		if e1 == nil {
+			fd1.Close();
+		}
+		if e1 != os.ECONNREFUSED {
+			return nil, e;
+		}
+		syscall.Unlink(laddr);
+		fd1, e1 = unixSocket(net, laddr, "", "listen");
+		if e1 != nil {
+			return nil, e;
+		}
+		fd = fd1;
+	}
+	r, e1 := syscall.Listen(fd.fd, 8); // listenBacklog());
+	if e1 != 0 {
+		syscall.Close(fd.fd);
+		return nil, os.ErrnoToError(e1);
+	}
+	return &ListenerUnix{fd, laddr}, nil;
+}
 
-	// SetReuseAddr sets whether it is okay to reuse addresses
-	// from recent connections that were not properly closed.
-	SetReuseAddr(reuseaddr bool) os.Error;
+// AcceptUnix accepts the next incoming call and returns the new connection
+// and the remote address.
+func (l *ListenerUnix) AcceptUnix() (c *ConnUnix, raddr string, err os.Error) {
+	if l == nil || l.fd == nil || l.fd.fd < 0 {
+		return nil, "", os.EINVAL
+	}
+	var sa syscall.Sockaddr;
+	fd, e := l.fd.Accept(&sa);
+	if e != nil {
+		return nil, "", e
+	}
+	raddr, err = sockaddrToUnix(&sa);
+	if err != nil {
+		fd.Close();
+		return nil, "", err
+	}
+	return newConnUnix(fd, raddr), raddr, nil
+}
 
-	// SetDontRoute sets whether outgoing messages should
-	// bypass the system routing tables.
-	SetDontRoute(dontroute bool) os.Error;
+// Accept implements the Accept method in the Listener interface;
+// it waits for the next call and returns a generic Conn.
+func (l *ListenerUnix) Accept() (c Conn, raddr string, err os.Error) {
+	// TODO(rsc): 6g bug prevents saying
+	//	c, raddr, err = l.AcceptUnix();
+	//	return;
+	c1, r1, e1 := l.AcceptUnix();
+	return c1, r1, e1;
+}
 
-	// SetKeepAlive sets whether the operating system should send
-	// keepalive messages on the connection.
-	SetKeepAlive(keepalive bool) os.Error;
 
-	// BindToDevice binds a connection to a particular network device.
-	BindToDevice(dev string) os.Error;
+// Close stops listening on the Unix address.
+// Already accepted connections are not closed.
+func (l *ListenerUnix) Close() os.Error {
+	if l == nil || l.fd == nil {
+		return os.EINVAL
+	}
+
+	// The operating system doesn't clean up
+	// the file that announcing created, so
+	// we have to clean it up ourselves.
+	// There's a race here--we can't know for
+	// sure whether someone else has come along
+	// and replaced our socket name already--
+	// but this sequence (remove then close)
+	// is at least compatible with the auto-remove
+	// sequence in ListenUnix.  It's only non-Go
+	// programs that can mess us up.
+	if l.laddr[0] != '@' {
+		syscall.Unlink(l.laddr);
+	}
+	err := l.fd.Close();
+	l.fd = nil;
+	return err;
 }
 
 // Dial connects to the remote address raddr on the network net.
@@ -552,6 +724,9 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 		return c, nil;
 	case "udp", "udp4", "upd6":
 		c, err := DialUDP(net, laddr, raddr);
+		return c, err;
+	case "unix", "unix-dgram":
+		c, err := DialUnix(net, laddr, raddr);
 		return c, err;
 /*
 	case "ether":
@@ -619,7 +794,7 @@ func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err os.Error) {
 	return newConnTCP(fd, raddr), raddr, nil
 }
 
-// Accept implements the accept method in the Listener interface;
+// Accept implements the Accept method in the Listener interface;
 // it waits for the next call and returns a generic Conn.
 func (l *ListenerTCP) Accept() (c Conn, raddr string, err os.Error) {
 	c1, r1, e1 := l.AcceptTCP();
@@ -639,15 +814,22 @@ func (l *ListenerTCP) Close() os.Error {
 }
 
 // Listen announces on the local network address laddr.
-// The network string net must be "tcp", "tcp4", or "tcp6".
+// The network string net must be "tcp", "tcp4", "tcp6",
+// "unix", or "unix-dgram".
 func Listen(net, laddr string) (l Listener, err os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 		l, err := ListenTCP(net, laddr);
 		if err != nil {
-			return nil, err
+			return nil, err;
 		}
-		return l, nil
+		return l, nil;
+	case "unix", "unix-dgram":
+		l, err := ListenUnix(net, laddr);
+		if err != nil {
+			return nil, err;
+		}
+		return l, nil;
 /*
 	more here
 */
