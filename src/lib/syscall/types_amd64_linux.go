@@ -166,7 +166,8 @@ const (
 
 type SockaddrUnix struct {
 	Family	uint16;
-	Path	[108]byte
+	Path	[108]byte;
+	Length	int64;	// Not part of the kernel structure; used internally
 }
 const SizeofSockaddrUnix = 110
 
