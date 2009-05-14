@@ -109,6 +109,12 @@ BUG: should compile
 bugs/bug150.go:13: reorder2: too many funcation calls evaluating parameters
 BUG: bug150
 
+=========== bugs/bug151.go
+bugs/bug151.go:10: illegal types for operand: CALL
+	string
+	S
+BUG: bug151
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
