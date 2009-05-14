@@ -89,6 +89,9 @@ func TestBasicOperations(t *testing.T) {
 		buf.Reset();
 		check(t, "TestBasicOperations (2)", &buf, "");
 
+		buf.Truncate(0);
+		check(t, "TestBasicOperations (3)", &buf, "");
+
 		n, err := buf.Write(data[0 : 1]);
 		if n != 1 {
 			t.Errorf("wrote 1 byte, but n == %d\n", n);
@@ -96,16 +99,22 @@ func TestBasicOperations(t *testing.T) {
 		if err != nil {
 			t.Errorf("err should always be nil, but err == %s\n", err);
 		}
-		check(t, "TestBasicOperations (3)", &buf, "a");
+		check(t, "TestBasicOperations (4)", &buf, "a");
 
 		n, err = buf.Write(data[1 : 26]);
 		if n != 25 {
 			t.Errorf("wrote 25 bytes, but n == %d\n", n);
 		}
-		check(t, "TestBasicOperations (4)", &buf, string(data[0 : 26]));
+		check(t, "TestBasicOperations (5)", &buf, string(data[0 : 26]));
 
-		empty(t, "TestBasicOperations (5)", &buf, string(data[0 : 26]), make([]byte, 5));
-		empty(t, "TestBasicOperations (6)", &buf, "", make([]byte, 100));
+		buf.Truncate(26);
+		check(t, "TestBasicOperations (6)", &buf, string(data[0 : 26]));
+
+		buf.Truncate(20);
+		check(t, "TestBasicOperations (7)", &buf, string(data[0 : 20]));
+
+		empty(t, "TestBasicOperations (8)", &buf, string(data[0 : 20]), make([]byte, 5));
+		empty(t, "TestBasicOperations (9)", &buf, "", make([]byte, 100));
 	}
 }
 
