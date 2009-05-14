@@ -77,3 +77,47 @@ func listenBacklog() int64 {
 	return syscall.SOMAXCONN
 }
 
+func unixToSockaddr(name string) (sa1 *syscall.Sockaddr, err os.Error) {
+	sa := new(syscall.SockaddrUnix);
+	n := len(name);
+	if n >= len(sa.Path) || n == 0 {
+		return nil, os.EINVAL;
+	}
+	sa.Family = syscall.AF_UNIX;
+	for i := 0; i < len(name); i++ {
+		sa.Path[i] = name[i];
+	}
+
+	// Special case: @ in first position indicates
+	// an abstract socket, which has no file system
+	// representation and starts with a NUL byte
+	// when talking to the kernel about it.
+	if sa.Path[0] == '@' {
+		sa.Path[0] = 0;
+	}
+
+	return (*syscall.Sockaddr)(unsafe.Pointer(sa)), nil;
+}
+
+func sockaddrToUnix(sa1 *syscall.Sockaddr) (string, os.Error) {
+	if sa1.Family != syscall.AF_UNIX {
+		return "", os.EINVAL;
+	}
+
+	sa := (*syscall.SockaddrUnix)(unsafe.Pointer(sa1));
+
+	// @ special case (see comment in unixToSockaddr).
+	if sa.Path[0] == 0 {
+		// Not friendly to overwrite in place but
+		// okay in an internal function.
+		// The caller doesn't care if we do.
+		sa.Path[0] = '@';
+	}
+
+	// count length of path
+	n := 0;
+	for n < len(sa.Path) && sa.Path[n] != 0 {
+		n++;
+	}
+	return string(sa.Path[0:n]), nil;
+}

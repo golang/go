@@ -43,7 +43,6 @@ func v6ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err os.Error) {
 	return (*syscall.Sockaddr)(unsafe.Pointer(sa)), nil
 }
 
-
 func sockaddrToIP(sa1 *syscall.Sockaddr) (p IP, port int, err os.Error) {
 	switch sa1.Family {
 	case syscall.AF_INET:
@@ -70,3 +69,32 @@ func listenBacklog() int64 {
 	return syscall.SOMAXCONN
 }
 
+func unixToSockaddr(name string) (sa1 *syscall.Sockaddr, err os.Error) {
+	sa := new(syscall.SockaddrUnix);
+	n := len(name);
+	if n >= len(sa.Path) || n == 0 {
+		return nil, os.EINVAL;
+	}
+	sa.Len = byte(3 + n);	// 2 for Family, Len; 1 for NUL
+	sa.Family = syscall.AF_UNIX;
+	for i := 0; i < len(name); i++ {
+		sa.Path[i] = name[i];
+	}
+	return (*syscall.Sockaddr)(unsafe.Pointer(sa)), nil;
+}
+
+func sockaddrToUnix(sa1 *syscall.Sockaddr) (string, os.Error) {
+	if sa1.Family != syscall.AF_UNIX || sa1.Len < 3 || sa1.Len > syscall.SizeofSockaddrUnix {
+		return "", os.EINVAL;
+	}
+	sa := (*syscall.SockaddrUnix)(unsafe.Pointer(sa1));
+	n := int(sa.Len) - 3;	// subtract leading Family, Len, terminating NUL
+	for i := 0; i < n; i++ {
+		if sa.Path[i] == 0 {
+			// found early NUL; assume Len is overestimating
+			n = i;
+			break;
+		}
+	}
+	return string(sa.Path[0:n]), nil;
+}

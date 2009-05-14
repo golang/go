@@ -8,6 +8,7 @@ import (
 	"io";
 	"net";
 	"os";
+	"syscall";
 	"testing";
 )
 
@@ -83,3 +84,10 @@ func TestTcpServer(t *testing.T) {
 	doTest(t, "tcp", "0.0.0.0:9997", "[::ffff:127.0.0.1]:9997");
 }
 
+func TestUnixServer(t *testing.T) {
+	doTest(t, "unix", "/tmp/gotest.net", "/tmp/gotest.net");
+	if syscall.OS == "linux" {
+		// Test abstract unix domain socket, a Linux-ism
+		doTest(t, "unix", "@gotest/net", "@gotest/net");
+	}
+}
