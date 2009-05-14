@@ -3658,7 +3658,7 @@ reorder2(Node *n)
 loop1:
 	if(l == N) {
 		if(c > 0)
-			yyerror("reorder2: too many funcation calls evaluating parameters");
+			yyerror("reorder2: too many function calls evaluating parameters");
 		return n;
 	}
 	if(l->op == OLIST)
