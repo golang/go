@@ -95,8 +95,8 @@ var missingString = "$missing$"	// syntactic name for undefined type names
 var dotDotDotString = "..."
 
 // Type is the generic interface to reflection types.  Once its Kind is known,
-// such as BoolKind, the Type can be narrowed to the appropriate, more
-// specific interface, such as BoolType.  Such narrowed types still implement
+// such as ArrayKind, the Type can be narrowed to the appropriate, more
+// specific interface, such as ArrayType.  Such narrowed types still implement
 // the Type interface.
 type Type interface {
 	// The kind of thing described: ArrayKind, BoolKind, etc.
