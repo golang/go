@@ -39,9 +39,17 @@ func (b *ByteBuffer) Len() int {
 	return len(b.buf) - b.off
 }
 
+// Truncates the buffer so it contains n bytes.
+// It preserves the data in the buffer at positions [0 : n].
+// It is an error to call b.Truncate(n) with n > b.Len().
+func (b *ByteBuffer) Truncate(n int) {
+	b.buf = b.buf[0 : b.off + n];
+}
+
 // Reset resets the buffer so it has no content.
+// b.Reset() is the same as b.Truncate(0).
 func (b *ByteBuffer) Reset() {
-	b.off = len(b.buf)
+	b.buf = b.buf[0 : b.off];
 }
 
 // Write appends the contents of p to the buffer.  The return
