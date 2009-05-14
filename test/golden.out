@@ -105,6 +105,10 @@ BUG: should crash
 bugs/bug149.go:14: cannot convert []uint8 constant to string
 BUG: should compile
 
+=========== bugs/bug150.go
+bugs/bug150.go:13: reorder2: too many funcation calls evaluating parameters
+BUG: bug150
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
