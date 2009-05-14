@@ -19,8 +19,8 @@ const (
 	Rtime = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`;
 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`;
 	Rline = `[0-9]+:`;
-	Rlongfile = `/[A-Za-z0-9_/]+\.go:` + Rline;
-	Rshortfile = `[A-Za-z0-9_]+\.go:` + Rline;
+	Rlongfile = `/[A-Za-z0-9_/\-]+\.go:` + Rline;
+	Rshortfile = `[A-Za-z0-9_\-]+\.go:` + Rline;
 )
 
 type tester struct {
