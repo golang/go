@@ -448,12 +448,13 @@ func isPackageFile(dirname, filename, pakname string) bool {
 }
 
 
-// Returns the package denoted by importpath and the list of
+// Returns the package denoted by path and the list of
 // sub-directories in the corresponding package directory.
 // If there is no such package, the first result is nil. If
 // there are no sub-directories, that list is nil.
-func findPackage(importpath string) (*pakDesc, dirList) {
+func findPackage(path string) (*pakDesc, dirList) {
 	// get directory contents, if possible
+	importpath := pathutil.Clean(path);  // no trailing '/'
 	dirname := pathutil.Join(*pkgroot, importpath);
 	if !isDir(dirname) {
 		return nil, nil;
@@ -472,7 +473,7 @@ func findPackage(importpath string) (*pakDesc, dirList) {
 	}
 
 	// the package name is is the directory name within its parent
-	_, pakname := pathutil.Split(importpath);
+	_, pakname := pathutil.Split(dirname);
 
 	// collect all files belonging to the package and count the
 	// number of sub-directories
@@ -562,15 +563,9 @@ func servePackage(c *http.Conn, desc *pakDesc) {
 }
 
 
-type Dirs struct {
-	Path string;
-	Dirs dirList;
-}
-
-
 func serveDirList(c *http.Conn, path string, dirs dirList) {
 	var buf io.ByteBuffer;
-	err := dirlistHtml.Execute(Dirs{path, dirs}, &buf);
+	err := dirlistHtml.Execute(dirs, &buf);
 	if err != nil {
 		log.Stderrf("dirlist.Execute: %s", err);
 	}
