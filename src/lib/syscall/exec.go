@@ -99,7 +99,7 @@ func Wait4(pid int64, wstatus *WaitStatus, options int64, rusage *Rusage)
 // no rescheduling, no malloc calls, and no new stack segments.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
-func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, fd []int64, pipe int64)
+func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, dir *byte, fd []int64, pipe int64)
 	(pid int64, err int64)
 {
 	// Declare all variables at top in case any
@@ -131,6 +131,14 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, fd []int64, pip
 	}
 
 	// Fork succeeded, now in child.
+
+	// Chdir
+	if dir != nil {
+		r1, r2, err = RawSyscall(SYS_CHDIR, int64(uintptr(unsafe.Pointer(dir))), 0, 0);
+		if err != 0 {
+			goto childerror;
+		}
+	}
 
 	// Pass 1: look for fd[i] < i and move those up above len(fd)
 	// so that pass 2 won't stomp on an fd it needs later.
@@ -210,7 +218,7 @@ childerror:
 }
 
 // Combination of fork and exec, careful to be thread safe.
-func ForkExec(argv0 string, argv []string, envv []string, fd []int64)
+func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int64)
 	(pid int64, err int64)
 {
 	var p [2]int64;
@@ -225,6 +233,10 @@ func ForkExec(argv0 string, argv []string, envv []string, fd []int64)
 	argv0p := StringBytePtr(argv0);
 	argvp := StringArrayPtr(argv);
 	envvp := StringArrayPtr(envv);
+	var dirp *byte;
+	if len(dir) > 0 {
+		dirp = StringBytePtr(dir);
+	}
 
 	// Acquire the fork lock so that no other threads
 	// create new fds that are not yet close-on-exec
@@ -243,7 +255,7 @@ func ForkExec(argv0 string, argv []string, envv []string, fd []int64)
 	}
 
 	// Kick off child.
-	pid, err = forkAndExecInChild(argv0p, argvp, envvp, fd, p[1]);
+	pid, err = forkAndExecInChild(argv0p, argvp, envvp, dirp, fd, p[1]);
 	if err != 0 {
 	error:
 		if p[0] >= 0 {

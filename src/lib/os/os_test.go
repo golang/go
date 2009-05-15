@@ -6,6 +6,7 @@ package os
 
 import (
 	"fmt";
+	"io";
 	"os";
 	"testing";
 )
@@ -298,4 +299,25 @@ func TestLongSymlink(t *testing.T) {
 	if r != s {
 		t.Fatalf("after symlink %q != %q", r, s);
 	}
+}
+
+func TestForkExec(t *testing.T) {
+	r, w, err := Pipe();
+	if err != nil {
+		t.Fatalf("Pipe: %v", err);
+	}
+	pid, err := ForkExec("/bin/pwd", []string{"pwd"}, nil, "/", []*File{nil, w, os.Stderr});
+	if err != nil {
+		t.Fatalf("ForkExec: %v", err);
+	}
+	w.Close();
+
+	var b io.ByteBuffer;
+	io.Copy(r, &b);
+	output := string(b.Data());
+	expect := "/\n";
+	if output != expect {
+		t.Errorf("exec /bin/pwd returned %q wanted %q", output, expect);
+	}
+	Wait(pid, 0);
 }
