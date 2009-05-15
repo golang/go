@@ -202,6 +202,21 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
 		i--;
 	}
 
+	if f.sharp {
+		switch base {
+		case 8:
+			if buf[i+1] != '0' {
+				buf[i] = '0';
+				i--;
+			}
+		case 16:
+			buf[i] = 'x' + digits[10]-'a';
+			i--;
+			buf[i] = '0';
+			i--;
+		}
+	}
+
 	if negative {
 		buf[i] = '-';
 		i--;
