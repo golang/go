@@ -25,6 +25,7 @@ type Dir struct {
 	Mtime_ns	uint64;	// modified time; nanoseconds since epoch.
 	Ctime_ns	uint64;	// status change time; nanoseconds since epoch.
 	Name	string;	// name of file as presented to Open.
+	FollowedSymlink	bool;		// followed a symlink to get this information
 }
 
 // IsFifo reports whether the Dir describes a FIFO file.
@@ -66,3 +67,4 @@ func (dir *Dir) IsSocket() bool {
 func (dir *Dir) Permission() int {
 	return int(dir.Mode & 0777)
 }
+
