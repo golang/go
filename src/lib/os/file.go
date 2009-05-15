@@ -315,23 +315,23 @@ func Remove(name string) Error {
 }
 
 // Link creates a hard link.
-func Link(oldpath, newpath string) Error {
-	r, e := syscall.Link(oldpath, newpath);
+func Link(oldname, newname string) Error {
+	r, e := syscall.Link(oldname, newname);
 	return ErrnoToError(e);
 }
 
 // Symlink creates a symbolic link.
-func Symlink(oldpath, newpath string) Error {
-	r, e := syscall.Symlink(oldpath, newpath);
+func Symlink(oldname, newname string) Error {
+	r, e := syscall.Symlink(oldname, newname);
 	return ErrnoToError(e);
 }
 
 // Readlink reads the contents of a symbolic link: the destination of
 // the link.  It returns the contents and an Error, if any.
-func Readlink(path string) (string, Error) {
+func Readlink(name string) (string, Error) {
 	for len := int64(128); ; len *= 2 {
 		b := make([]byte, len);
-		r, e := syscall.Readlink(path, &b[0], len);
+		r, e := syscall.Readlink(name, &b[0], len);
 		if r == -1 {
 			return "", ErrnoToError(e);
 		} else if r < len {
@@ -341,3 +341,51 @@ func Readlink(path string) (string, Error) {
 	// Silence 6g.
 	return "", nil;
 }
+
+// Chmod changes the mode of the named file to mode.
+// If the file is a symbolic link, it changes the uid and gid of the link's target.
+func Chmod(name string, mode int) Error {
+	r, e := syscall.Chmod(name, int64(mode));
+	return ErrnoToError(e);
+}
+
+// Chmod changes the mode of the file to mode.
+func (f *File) Chmod(mode int) Error {
+	r, e := syscall.Fchmod(f.fd, int64(mode));
+	return ErrnoToError(e);
+}
+
+// Chown changes the numeric uid and gid of the named file.
+// If the file is a symbolic link, it changes the uid and gid of the link's target.
+func Chown(name string, uid, gid int) Error {
+	r, e := syscall.Chown(name, int64(uid), int64(gid));
+	return ErrnoToError(e);
+}
+
+// Lchown changes the numeric uid and gid of the named file.
+// If the file is a symbolic link, it changes the uid and gid of the link itself.
+func Lchown(name string, uid, gid int) Error {
+	r, e := syscall.Lchown(name, int64(uid), int64(gid));
+	return ErrnoToError(e);
+}
+
+// Chown changes the numeric uid and gid of the named file.
+func (f *File) Chown(uid, gid int) Error {
+	r, e := syscall.Fchown(f.fd, int64(uid), int64(gid));
+	return ErrnoToError(e);
+}
+
+// Truncate changes the size of the named file.
+// If the file is a symbolic link, it changes the size of the link's target.
+func Truncate(name string, size int64) Error {
+	r, e := syscall.Truncate(name, size);
+	return ErrnoToError(e);
+}
+
+// Truncate changes the size of the file.
+// It does not change the I/O offset.
+func (f *File) Truncate(size int64) Error {
+	r, e := syscall.Ftruncate(f.fd, size);
+	return ErrnoToError(e);
+}
+

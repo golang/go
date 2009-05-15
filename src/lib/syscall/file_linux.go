@@ -131,3 +131,43 @@ func Readlink(path string, buf *byte, nbytes int64) (ret int64, errno int64) {
 	r1, r2, err := Syscall(SYS_READLINK, int64(uintptr(unsafe.Pointer(pathbuf))), int64(uintptr(unsafe.Pointer(buf))), nbytes);
 	return r1, err;
 }
+
+func Chmod(name string, mode int64) (ret, errno int64) {
+	namebuf := StringBytePtr(name);
+	r1, r2, err := Syscall(SYS_CHMOD, int64(uintptr(unsafe.Pointer(namebuf))), mode, 0);
+	return r1, err;
+}
+
+func Fchmod(fd, mode int64) (ret, errno int64) {
+	r1, r2, err := Syscall(SYS_FCHMOD, fd, mode, 0);
+	return r1, err;
+}
+
+func Chown(name string, uid, gid int64) (ret, errno int64) {
+	namebuf := StringBytePtr(name);
+	r1, r2, err := Syscall(SYS_CHOWN, int64(uintptr(unsafe.Pointer(namebuf))), uid, gid);
+	return r1, err;
+}
+
+func Lchown(name string, uid, gid int64) (ret, errno int64) {
+	namebuf := StringBytePtr(name);
+	r1, r2, err := Syscall(SYS_LCHOWN, int64(uintptr(unsafe.Pointer(namebuf))), uid, gid);
+	return r1, err;
+}
+
+func Fchown(fd, uid, gid int64) (ret, errno int64) {
+	r1, r2, err := Syscall(SYS_FCHOWN, fd, uid, gid);
+	return r1, err;
+}
+
+func Truncate(name string, length int64) (ret, errno int64) {
+	namebuf := StringBytePtr(name);
+	r1, r2, err := Syscall(SYS_TRUNCATE, int64(uintptr(unsafe.Pointer(namebuf))), length, 0);
+	return r1, err;
+}
+
+func Ftruncate(fd, length int64) (ret, errno int64) {
+	r1, r2, err := Syscall(SYS_FTRUNCATE, fd, length, 0);
+	return r1, err;
+}
+

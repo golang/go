@@ -331,3 +331,126 @@ func TestForkExec(t *testing.T) {
 	}
 	Wait(pid, 0);
 }
+
+func checkMode(t *testing.T, path string, mode uint32) {
+	dir, err := Stat(path);
+	if err != nil {
+		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err);
+	}
+	if dir.Mode & 0777 != mode {
+		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode, 0777);
+	}
+}
+
+func TestChmod(t *testing.T) {
+	MkdirAll("_obj", 0777);
+	const Path = "_obj/_TestChmod_";
+	fd, err := os.Open(Path, os.O_WRONLY | os.O_CREAT, 0666);
+	if err != nil {
+		t.Fatalf("create %s: %s", Path, err);
+	}
+
+	if err = os.Chmod(Path, 0456); err != nil {
+		t.Fatalf("chmod %s 0456: %s", Path, err);
+	}
+	checkMode(t, Path, 0456);
+
+	if err = fd.Chmod(0123); err != nil {
+		t.Fatalf("fchmod %s 0123: %s", Path, err);
+	}
+	checkMode(t, Path, 0123);
+
+	fd.Close();
+	Remove(Path);
+}
+
+func checkUidGid(t *testing.T, path string, uid, gid int) {
+	dir, err := Stat(path);
+	if err != nil {
+		t.Fatalf("Stat %q (looking for uid/gid %#o/%#o): %s", path, uid, gid, err);
+	}
+	if dir.Uid != uint32(uid) {
+		t.Errorf("Stat %q: uid %#o want %#o", path, dir.Uid, uid);
+	}
+	if dir.Gid != uint32(gid) {
+		t.Errorf("Stat %q: gid %#o want %#o", path, dir.Gid, uid);
+	}
+}
+
+func TestChown(t *testing.T) {
+	// Use /tmp, not _obj, to make sure we're on a local file system,
+	// so that the group ids returned by Getgroups will be allowed
+	// on the file.  If _obj is on NFS, the Getgroups groups are
+	// basically useless.
+
+	const Path = "/tmp/_TestChown_";
+	fd, err := os.Open(Path, os.O_WRONLY | os.O_CREAT, 0666);
+	if err != nil {
+		t.Fatalf("create %s: %s", Path, err);
+	}
+	dir, err := fd.Stat();
+	if err != nil {
+		t.Fatalf("fstat %s: %s", Path, err);
+	}
+	defer fd.Close();
+	defer Remove(Path);
+
+	// Can't change uid unless root, but can try
+	// changing the group id.  First try our current group.
+	gid := Getgid();
+	if err = os.Chown(Path, -1, gid); err != nil {
+		t.Fatalf("chown %s -1 %d: %s", Path, gid, err);
+	}
+	checkUidGid(t, Path, int(dir.Uid), gid);
+
+	// Then try all the auxiliary groups.
+	groups, err := Getgroups();
+	if err != nil {
+		t.Fatalf("getgroups: %s", err);
+	}
+	for i, g := range groups {
+		if err = os.Chown(Path, -1, g); err != nil {
+			t.Fatalf("chown %s -1 %d: %s", Path, g, err);
+		}
+		checkUidGid(t, Path, int(dir.Uid), g);
+
+		// change back to gid to test fd.Chown
+		if err = fd.Chown(-1, gid); err != nil {
+			t.Fatalf("fchown %s -1 %d: %s", Path, gid, err);
+		}
+		checkUidGid(t, Path, int(dir.Uid), gid);
+	}
+}
+
+func checkSize(t *testing.T, path string, size uint64) {
+	dir, err := Stat(path);
+	if err != nil {
+		t.Fatalf("Stat %q (looking for size %d): %s", path, size, err);
+	}
+	if dir.Size != size {
+		t.Errorf("Stat %q: size %d want %d", path, dir.Size, size);
+	}
+}
+
+func TestTruncate(t *testing.T) {
+	MkdirAll("_obj", 0777);
+	const Path = "_obj/_TestTruncate_";
+	fd, err := os.Open(Path, os.O_WRONLY | os.O_CREAT, 0666);
+	if err != nil {
+		t.Fatalf("create %s: %s", Path, err);
+	}
+
+	checkSize(t, Path, 0);
+	fd.Write(io.StringBytes("hello, world\n"));
+	checkSize(t, Path, 13);
+	fd.Truncate(10);
+	checkSize(t, Path, 10);
+	fd.Truncate(1024);
+	checkSize(t, Path, 1024);
+	fd.Truncate(0);
+	checkSize(t, Path, 0);
+	fd.Write(io.StringBytes("surprise!"));
+	checkSize(t, Path, 13 + 9);	// wrote at offset past where hello, world was.
+	fd.Close();
+	Remove(Path);
+}
