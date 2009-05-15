@@ -255,6 +255,9 @@ func TestSymLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", to, err);
 	}
+	if tostat.FollowedSymlink {
+		t.Fatalf("stat %q claims to have followed a symlink", to);
+	}
 	fromstat, err := Stat(from);
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", from, err);
@@ -268,6 +271,13 @@ func TestSymLink(t *testing.T) {
 	}
 	if !fromstat.IsSymlink() {
 		t.Fatalf("symlink %q, %q did not create symlink", to, from);
+	}
+	fromstat, err = Stat(from);
+	if err != nil {
+		t.Fatalf("stat %q failed: %v", from, err);
+	}
+	if !fromstat.FollowedSymlink {
+		t.Fatalf("stat %q did not follow symlink");
 	}
 	s, err := Readlink(from);
 	if err != nil {

@@ -9,7 +9,11 @@ package os
 import syscall "syscall"
 import os "os"
 
-func dirFromStat(name string, dir *Dir, stat *syscall.Stat_t) *Dir {
+func isSymlink(stat *syscall.Stat_t) bool {
+	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
+}
+
+func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
 	dir.Dev = stat.Dev;
 	dir.Ino = stat.Ino;
 	dir.Nlink = stat.Nlink;
@@ -30,5 +34,8 @@ func dirFromStat(name string, dir *Dir, stat *syscall.Stat_t) *Dir {
 		}
 	}
 	dir.Name = name;
+	if isSymlink(lstat) && !isSymlink(stat) {
+		dir.FollowedSymlink = true;
+	}
 	return dir;
 }

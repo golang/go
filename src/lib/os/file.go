@@ -194,40 +194,48 @@ func Mkdir(name string, perm int) Error {
 	return ErrnoToError(e)
 }
 
-// Stat returns the Dir structure describing the named file. If the file
-// is a symbolic link, it returns information about the file the link
-// references.
-// It returns the Dir and an error, if any.
+// Stat returns a Dir structure describing the named file and an error, if any.
+// If name names a valid symbolic link, the returned Dir describes
+// the file pointed at by the link and has dir.FollowedSymlink set to true.
+// If name names an invalid symbolic link, the returned Dir describes
+// the link itself and has dir.FollowedSymlink set to false.
 func Stat(name string) (dir *Dir, err Error) {
-	stat := new(syscall.Stat_t);
-	r, e := syscall.Stat(name, stat);
+	var lstat, stat syscall.Stat_t;
+	r, e := syscall.Lstat(name, &lstat);
 	if e != 0 {
-		return nil, ErrnoToError(e)
+		return nil, ErrnoToError(e);
 	}
-	return dirFromStat(name, new(Dir), stat), nil
+	statp := &lstat;
+	if lstat.Mode & syscall.S_IFMT == syscall.S_IFLNK {
+		r, e := syscall.Stat(name, &stat);
+		if e == 0 {
+			statp = &stat;
+		}
+	}
+	return dirFromStat(name, new(Dir), &lstat, statp), nil
 }
 
 // Stat returns the Dir structure describing file.
 // It returns the Dir and an error, if any.
 func (file *File) Stat() (dir *Dir, err Error) {
-	stat := new(syscall.Stat_t);
-	r, e := syscall.Fstat(file.fd, stat);
+	var stat syscall.Stat_t;
+	r, e := syscall.Fstat(file.fd, &stat);
 	if e != 0 {
 		return nil, ErrnoToError(e)
 	}
-	return dirFromStat(file.name, new(Dir), stat), nil
+	return dirFromStat(file.name, new(Dir), &stat, &stat), nil
 }
 
-// Lstat returns the Dir structure describing the named file. If the file
-// is a symbolic link, it returns information about the link itself.
-// It returns the Dir and an error, if any.
+// Lstat returns the Dir structure describing the named file and an error, if any.
+// If the file is a symbolic link, the returned Dir describes the
+// symbolic link.  Lstat makes no attempt to follow the link.
 func Lstat(name string) (dir *Dir, err Error) {
-	stat := new(syscall.Stat_t);
-	r, e := syscall.Lstat(name, stat);
+	var stat syscall.Stat_t;
+	r, e := syscall.Lstat(name, &stat);
 	if e != 0 {
 		return nil, ErrnoToError(e)
 	}
-	return dirFromStat(name, new(Dir), stat), nil
+	return dirFromStat(name, new(Dir), &stat, &stat), nil
 }
 
 // Readdirnames has a non-portable implemenation so its code is separated into an
@@ -238,16 +246,16 @@ func readdirnames(file *File, count int) (names []string, err Error)
 // returns an array of up to count names, in directory order.  Subsequent
 // calls on the same file will yield further names.
 // A negative count means to read until EOF.
-// It returns the array and an Error, if any.
+// Readdirnames returns the array and an Error, if any.
 func (file *File) Readdirnames(count int) (names []string, err Error) {
 	return readdirnames(file, count);
 }
 
 // Readdir reads the contents of the directory associated with file and
-// returns an array of up to count Dir structures, in directory order.  Subsequent
-// calls on the same file will yield further Dirs.
+// returns an array of up to count Dir structures, as would be returned
+// by Stat, in directory order.  Subsequent calls on the same file will yield further Dirs.
 // A negative count means to read until EOF.
-// It returns the array and an Error, if any.
+// Readdir returns the array and an Error, if any.
 func (file *File) Readdir(count int) (dirs []Dir, err Error) {
 	dirname := file.name;
 	if dirname == "" {
