@@ -601,11 +601,23 @@ func servePkg(c *http.Conn, r *http.Request) {
 // ----------------------------------------------------------------------------
 // Server
 
-func LoggingHandler(h http.Handler) http.Handler {
+func loggingHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(c *http.Conn, req *http.Request) {
 		log.Stderrf("%s\t%s", req.Host, req.Url.Path);
 		h.ServeHTTP(c, req);
 	})
+}
+
+
+func restartGodoc(c *http.Conn, r *http.Request) {
+	binary := os.Args[0];  // TODO currently requires absolute paths because of chdir in the beginning
+	pid, err := os.ForkExec(binary, os.Args, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr});
+	if err != nil {
+		log.Stderrf("os.ForkExec(%s): %v", binary, err);
+		return;  // do not terminate
+	}
+	log.Stderrf("restarted %s, pid = %d\n", binary, pid);
+	os.Exit(0);
 }
 
 
@@ -648,11 +660,18 @@ func main() {
 			log.Stderrf("goroot = %s\n", goroot);
 			log.Stderrf("pkgroot = %s\n", *pkgroot);
 			log.Stderrf("tmplroot = %s\n", *tmplroot);
-			handler = LoggingHandler(handler);
+			handler = loggingHandler(handler);
 		}
 
 		http.Handle(Pkg, http.HandlerFunc(servePkg));
+		http.Handle("/debug/restart", http.HandlerFunc(restartGodoc));
 		http.Handle("/", http.HandlerFunc(serveFile));
+
+		// The server may have been restarted; always wait 1sec to
+		// give the forking server a chance to shut down and release
+		// the http port. (This is necessary because under OS X Exec
+		// won't work if there are more than one thread running.)
+		time.Sleep(1e9);
 
 		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
 			log.Exitf("ListenAndServe %s: %v", *httpaddr, err)
