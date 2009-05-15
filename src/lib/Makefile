@@ -10,6 +10,7 @@ DIRS=\
 	bignum\
 	bufio\
 	container/vector\
+	crypto/aes\
 	exec\
 	exvar\
 	flag\
@@ -52,6 +53,7 @@ TEST=\
 	bignum\
 	bufio\
 	container/vector\
+	crypto/aes\
 	exec\
 	exvar\
 	flag\
