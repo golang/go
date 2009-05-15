@@ -106,7 +106,7 @@ bugs/bug149.go:14: cannot convert []uint8 constant to string
 BUG: should compile
 
 =========== bugs/bug150.go
-bugs/bug150.go:13: reorder2: too many funcation calls evaluating parameters
+bugs/bug150.go:13: reorder2: too many function calls evaluating parameters
 BUG: bug150
 
 =========== bugs/bug151.go
@@ -114,6 +114,9 @@ bugs/bug151.go:10: illegal types for operand: CALL
 	string
 	S
 BUG: bug151
+
+=========== bugs/bug152.go
+BUG: s = 0
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
