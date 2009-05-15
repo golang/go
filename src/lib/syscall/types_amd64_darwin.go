@@ -258,11 +258,6 @@ const (
 
 type WaitStatus uint32;
 
-// TODO(rsc): should be method on WaitStatus,
-// not *WaitStatus, but causes problems when
-// embedding in a *Waitmsg in package os.
-// Need to find the 6g bug.
-
 // Wait status is 7 bits at bottom, either 0 (exited),
 // 0x7F (stopped), or a signal number that caused an exit.
 // The 0x80 bit is whether there was a core dump.
@@ -278,26 +273,22 @@ const (
 	stopped = 0x7F;
 )
 
-func (wp *WaitStatus) Exited() bool {
-	w := *wp;  // TODO(rsc): no pointer
+func (w WaitStatus) Exited() bool {
 	return w&mask == exited;
 }
 
-func (wp *WaitStatus) ExitStatus() int {
-	w := *wp;  // TODO(rsc): no pointer
+func (w WaitStatus) ExitStatus() int {
 	if w&mask != exited {
 		return -1;
 	}
 	return int(w >> shift);
 }
 
-func (wp *WaitStatus) Signaled() bool {
-	w := *wp;  // TODO(rsc): no pointer
+func (w WaitStatus) Signaled() bool {
 	return w&mask != stopped && w&mask != 0;
 }
 
-func (wp *WaitStatus) Signal() int {
-	w := *wp;  // TODO(rsc): no pointer
+func (w WaitStatus) Signal() int {
 	sig := int(w & mask);
 	if sig == stopped || sig == 0 {
 		return -1;
@@ -305,23 +296,19 @@ func (wp *WaitStatus) Signal() int {
 	return sig;
 }
 
-func (wp *WaitStatus) CoreDump() bool {
-	w := *wp;  // TODO(rsc): no pointer
+func (w WaitStatus) CoreDump() bool {
 	return w.Signaled() && w&core != 0;
 }
 
-func (wp *WaitStatus) Stopped() bool {
-	w := *wp;  // TODO(rsc): no pointer
+func (w WaitStatus) Stopped() bool {
 	return w&mask == stopped && w>>shift != SIGSTOP;
 }
 
-func (wp *WaitStatus) Continued() bool {
-	w := *wp;  // TODO(rsc): no pointer
+func (w WaitStatus) Continued() bool {
 	return w&mask == stopped && w>>shift == SIGSTOP;
 }
 
-func (wp *WaitStatus) StopSignal() int {
-	w := *wp;  // TODO(rsc): no pointer
+func (w WaitStatus) StopSignal() int {
 	if !w.Stopped() {
 		return -1;
 	}
