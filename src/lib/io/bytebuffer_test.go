@@ -101,20 +101,23 @@ func TestBasicOperations(t *testing.T) {
 		}
 		check(t, "TestBasicOperations (4)", &buf, "a");
 
-		n, err = buf.Write(data[1 : 26]);
-		if n != 25 {
+		buf.WriteByte(data[1]);
+		check(t, "TestBasicOperations (5)", &buf, "ab");
+
+		n, err = buf.Write(data[2 : 26]);
+		if n != 24 {
 			t.Errorf("wrote 25 bytes, but n == %d\n", n);
 		}
-		check(t, "TestBasicOperations (5)", &buf, string(data[0 : 26]));
-
-		buf.Truncate(26);
 		check(t, "TestBasicOperations (6)", &buf, string(data[0 : 26]));
 
-		buf.Truncate(20);
-		check(t, "TestBasicOperations (7)", &buf, string(data[0 : 20]));
+		buf.Truncate(26);
+		check(t, "TestBasicOperations (7)", &buf, string(data[0 : 26]));
 
-		empty(t, "TestBasicOperations (8)", &buf, string(data[0 : 20]), make([]byte, 5));
-		empty(t, "TestBasicOperations (9)", &buf, "", make([]byte, 100));
+		buf.Truncate(20);
+		check(t, "TestBasicOperations (8)", &buf, string(data[0 : 20]));
+
+		empty(t, "TestBasicOperations (9)", &buf, string(data[0 : 20]), make([]byte, 5));
+		empty(t, "TestBasicOperations (10)", &buf, "", make([]byte, 100));
 	}
 }
 

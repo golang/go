@@ -74,6 +74,13 @@ func (b *ByteBuffer) Write(p []byte) (n int, err os.Error) {
 	return n, nil
 }
 
+// WriteByte appends the byte c to the buffer.
+// Because Write never fails and WriteByte is not part of the
+// io.Writer interface, it does not need to return a value.
+func (b *ByteBuffer) WriteByte(c byte) {
+	b.Write([]byte{c});
+}
+
 // Read reads the next len(p) bytes from the buffer or until the buffer
 // is drained.  The return value n is the number of bytes read; err is always nil.
 func (b *ByteBuffer) Read(p []byte) (n int, err os.Error) {
