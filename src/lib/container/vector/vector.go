@@ -127,16 +127,13 @@ func (p *Vector) Insert(i int, x Element) {
 
 // Delete deletes the i'th element of the vector.  The gap is closed so the old
 // element at index i+1 has index i afterwards.
-func (p *Vector) Delete(i int) Element {
+func (p *Vector) Delete(i int) {
 	a := p.a;
 	n := len(a);
 
-	x := a[i];
 	copy(a[i : n-1], a[i+1 : n]);
 	a[n-1] = nil;  // support GC, nil out entry
 	p.a = a[0 : n-1];
-
-	return x
 }
 
 
@@ -189,9 +186,13 @@ func (p *Vector) Push(x Element) {
 }
 
 
-// Push deletes the last element of the vector.
+// Pop deletes the last element of the vector.
 func (p *Vector) Pop() Element {
-	return p.Delete(len(p.a) - 1)
+	i := len(p.a) - 1;
+	x := p.a[i];
+	p.a[i] = nil;  // support GC, nil out entry
+	p.a = p.a[0 : i];
+	return x;
 }
 
 
@@ -229,6 +230,7 @@ func (p *Vector) iterate(c chan Element) {
 	}
 	close(c);
 }
+
 
 // Channel iterator for range.
 func (p *Vector) Iter() chan Element {

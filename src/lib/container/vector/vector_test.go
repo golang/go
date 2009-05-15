@@ -53,7 +53,8 @@ func TestInsertDeleteClear(t *testing.T) {
 	}
 	for i := n-1; i >= 0; i-- {
 		if a.Last().(int) != val(0) { t.Error("C") }
-		if a.Delete(0).(int) != val(i) { t.Error("D") }
+		if a.At(0).(int) != val(i) { t.Error("D") }
+		a.Delete(0);
 		if a.Len() != i { t.Errorf("E) wrong len %d (expected %d)", a.Len(), i) }
 	}
 
