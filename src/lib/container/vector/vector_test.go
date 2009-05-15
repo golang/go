@@ -7,6 +7,7 @@ package vector
 import "container/vector"
 import "testing"
 import "sort"
+import "fmt"
 
 
 func TestInit(t *testing.T) {
@@ -141,13 +142,21 @@ func TestInsertVector(t *testing.T) {
 }
 
 
+// This also tests IntVector and StringVector
 func TestSorting(t *testing.T) {
 	const n = 100;
+
 	a := vector.NewIntVector(n);
 	for i := n-1; i >= 0; i-- {
 		a.Set(i, n-1-i);
 	}
-	if sort.IsSorted(a) { t.Error("not sorted") }
+	if sort.IsSorted(a) { t.Error("int vector not sorted") }
+
+	b := vector.NewStringVector(n);
+	for i := n-1; i >= 0; i-- {
+		b.Set(i, fmt.Sprint(n-1-i));
+	}
+	if sort.IsSorted(b) { t.Error("string vector not sorted") }
 }
 
 
