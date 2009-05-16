@@ -23,10 +23,14 @@ cgen(Node *n, Node *res)
 		dump("cgen-res", res);
 	}
 	if(n == N || n->type == T)
-		return;
+		goto ret;
 
 	if(res == N || res->type == T)
 		fatal("cgen: res nil");
+
+	// static initializations
+	if(gen_as_init(n, res))
+		goto ret;
 
 	if(n->ullman >= UINF) {
 		if(n->op == OINDREG)

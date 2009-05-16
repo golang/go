@@ -228,7 +228,6 @@ struct	Node
 	int32	vargen;		// unique name for OTYPE/ONAME
 	int32	lineno;
 	vlong	xoffset;
-	int32	ostk;
 };
 #define	N	((Node*)0)
 
@@ -569,6 +568,7 @@ EXTERN	Dcl*	typelist;
 EXTERN	int	dclcontext;	// PEXTERN/PAUTO
 EXTERN	int	importflag;
 EXTERN	int	inimportsys;
+EXTERN	int	initflag;		// compiling the init fn
 
 EXTERN	uint32	iota;
 EXTERN	Node*	lastconst;

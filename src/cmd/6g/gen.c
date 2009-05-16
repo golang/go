@@ -697,3 +697,9 @@ clearfat(Node *nl)
 		c--;
 	}
 }
+
+int
+gen_as_init(Node *nr, Node *nl)
+{
+	return 0;
+}

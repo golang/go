@@ -185,7 +185,8 @@ dumpfuncs(void)
 	for(pl=plist; pl!=nil; pl=pl->link) {
 		for(p=pl->firstpc; p!=P; p=p->link) {
 			p->loc = pcloc;
-			pcloc++;
+			if(p->as != ADATA && p->as != AGLOBL)
+				pcloc++;
 		}
 	}
 
