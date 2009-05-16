@@ -69,7 +69,7 @@ type Object struct {
 func (obj *Object) IsExported() bool {
 	switch obj.Kind {
 	case NONE /* FUNC for now */, CONST, TYPE, VAR, FUNC:
-		ch, size := utf8.DecodeRuneInString(obj.Ident,  0);
+		ch, size := utf8.DecodeRuneInString(obj.Ident);
 		return unicode.IsUpper(ch);
 	}
 	return false;

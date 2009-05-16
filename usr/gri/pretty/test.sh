@@ -36,8 +36,7 @@ apply1() {
 
 # apply to local files
 applydot() {
-	for F in *.go
-	do
+	for F in `find . -name "*.go" | grep -v "OLD" | grep -v "._"`; do
 		apply1 $1 $F
 	done
 }
@@ -45,7 +44,7 @@ applydot() {
 
 # apply to all .go files we can find
 apply() {
-	for F in `find $GOROOT -name "*.go" | grep -v "OLD"`; do
+	for F in `find $GOROOT -name "*.go" | grep -v "OLD" | grep -v "._"`; do
 		apply1 $1 $F
 	done
 }
