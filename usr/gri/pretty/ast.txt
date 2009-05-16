@@ -49,7 +49,7 @@ ast.Decl =
 // Comments
 
 ast.Comment =
-	Text:string "\n";
+	Text:string [Text:isMultiLineComment "\n"];
 
 ast.Comments =
 	{*};
@@ -305,9 +305,13 @@ ast.BadDecl =
 ast.GenDecl =
 	Doc
 	Tok " "
-	[Lparen:isValidPos "(" >> "\t" "\n"]
-	{Specs / ";\n"}
-	[Rparen:isValidPos << "\n" ")"];
+	(	Lparen:isValidPos
+		>> "\t" "(\n"
+		{Specs / ";\n"}
+		<<
+		"\n)"
+	|	{Specs / ";\n"}
+	);
 
 ast.FuncDecl =
 	"func " ["(" Recv ") "] Name Type:funcSignature

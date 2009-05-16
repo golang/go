@@ -6,12 +6,17 @@ package format
 
 import (
 	"format";
+	"io";
 	"testing";
 )
 
 
 func check(t *testing.T, form, expected string, args ...) {
-	result := format.ParseOrDie(form, nil).Sprint(args);
+	f, err := format.Parse(io.StringBytes(form), nil);
+	if err != nil {
+		panic(err.String());
+	}
+	result := f.Sprint(args);
 	if result != expected {
 		t.Errorf(
 			"format  : %s\nresult  : `%s`\nexpected: `%s`\n\n",
@@ -39,7 +44,6 @@ func Test0(t *testing.T) {
 
 
 // ----------------------------------------------------------------------------
-// - default formatting of basic type int
 // - formatting of a struct
 
 type T1 struct {
@@ -47,6 +51,7 @@ type T1 struct {
 }
 
 const F1 =
+	`int = "%d";`
 	`format.T1 = "<" a ">";`
 
 func Test1(t *testing.T) {
@@ -56,7 +61,6 @@ func Test1(t *testing.T) {
 
 // ----------------------------------------------------------------------------
 // - formatting of a struct with an optional field (pointer)
-// - default formatting for pointers
 
 type T2 struct {
 	s string;
@@ -65,11 +69,14 @@ type T2 struct {
 
 const F2a =
 	F1 +
+	`string = "%s";`
 	`pointer = *;`
 	`format.T2 = s ["-" p "-"];`
 	
 const F2b =
 	F1 +
+	`string = "%s";`
+	`pointer = *;`
 	`format.T2 = s ("-" p "-" | "empty");`;
 	
 func Test2(t *testing.T) {
@@ -88,9 +95,14 @@ type T3 struct {
 }
 
 const F3a =
+	`default = "%v";`
+	`array = *;`
 	`format.T3 = s  {" " a a / ","};`
 
 const F3b =
+	`int = "%d";`
+	`string = "%s";`
+	`array = *;`
 	`nil = ;`
 	`empty = *:nil;`
 	`format.T3 = s [a:empty ": " {a / "-"}]`
@@ -112,11 +124,17 @@ type T4 struct {
 }
 
 const F4a =
+	`int = "%d";`
+	`pointer = *;`
+	`array = *;`
 	`nil = ;`
 	`empty = *:nil;`
 	`format.T4 = "<" (x:empty x | "-") ">" `
 
 const F4b =
+	`int = "%d";`
+	`pointer = *;`
+	`array = *;`
 	`nil = ;`
 	`empty = *:nil;`
 	`format.T4 = "<" (a:empty {a / ", "} | "-") ">" `

@@ -94,18 +94,30 @@ func (h *ErrorHandler) Error(pos token.Position, msg string) {
 }
 
 
-func isValidPos(w io.Writer, value interface{}, name string) bool {
+func isValidPos(w io.Writer, env, value interface{}, name string) bool {
 	return value.(token.Position).Line > 0;
 }
 
 
-func isSend(w io.Writer, value interface{}, name string) bool {
+func isSend(w io.Writer, env, value interface{}, name string) bool {
 	return value.(ast.ChanDir) & ast.SEND != 0;
 }
 
 
-func isRecv(w io.Writer, value interface{}, name string) bool {
+func isRecv(w io.Writer, env, value interface{}, name string) bool {
 	return value.(ast.ChanDir) & ast.RECV != 0;
+}
+
+func isMultiLineComment(w io.Writer, env, value interface{}, name string) bool {
+	return value.([]byte)[1] == '*'
+}
+
+
+var fmap = format.FormatterMap{
+	"isValidPos": isValidPos,
+	"isSend": isSend,
+	"isRecv": isRecv,
+	"isMultiLineComment": isMultiLineComment,
 }
 
 
@@ -129,7 +141,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
 		os.Exit(1);
 	}
-	ast_format, err := format.Parse(src, format.FormatterMap{"isValidPos": isValidPos, "isSend": isSend, "isRecv": isRecv});
+	ast_format, err := format.Parse(src, fmap);
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: format errors:\n%s", ast_txt, err);
 		os.Exit(1);
@@ -156,7 +168,13 @@ func main() {
 		if !*silent {
 			tw := makeTabwriter(os.Stdout);
 			if *formatter {
-				ast_format.Fprint(tw, prog);
+				var optSemi bool;  // formatting environment
+				_, err := ast_format.Fprint(tw, &optSemi, prog);
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "format error$$: %s", err);
+					exitcode = 1;
+					continue;  // proceed with next file
+				}
 			} else {
 				var p astPrinter.Printer;
 				p.Init(tw, nil, nil /*prog.Comments*/, false);
