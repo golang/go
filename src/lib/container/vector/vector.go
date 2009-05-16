@@ -84,7 +84,11 @@ func New(len int) *Vector {
 
 
 // Len returns the number of elements in the vector.
+// Len is 0 if p == nil.
 func (p *Vector) Len() int {
+	if p == nil {
+		return 0;
+	}
 	return len(p.a)
 }
 

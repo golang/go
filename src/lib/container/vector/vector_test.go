@@ -10,6 +10,14 @@ import "sort"
 import "fmt"
 
 
+func TestZeroLen(t *testing.T) {
+	var a *vector.Vector;
+	if a.Len() != 0 { t.Errorf("A) expected 0, got %d", a.Len()); }
+	a = vector.New(0);
+	if a.Len() != 0 { t.Errorf("B) expected 0, got %d", a.Len()); }
+}
+
+
 func TestInit(t *testing.T) {
 	var a vector.Vector;
 	if a.Init(0).Len() != 0 { t.Error("A") }
