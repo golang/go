@@ -1411,7 +1411,9 @@ fninit(Node *n)
 //dump("r", fn->nbody);
 
 	popdcl();
+	initflag = 1;	// flag for loader static initialization
 	compile(fn);
+	initflag = 0;
 }
 
 
