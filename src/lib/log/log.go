@@ -45,19 +45,19 @@ type Logger struct {
 	flag int;	// properties
 }
 
-// NewLogger creates a new Logger.   The out0 and out1 variables set the
+// New creates a new Logger.   The out0 and out1 variables set the
 // destinations to which log data will be written; out1 may be nil.
 // The prefix appears at the beginning of each generated log line.
 // The flag argument defines the logging properties.
-func NewLogger(out0, out1 io.Writer, prefix string, flag int) *Logger {
+func New(out0, out1 io.Writer, prefix string, flag int) *Logger {
 	return &Logger{out0, out1, prefix, flag}
 }
 
 var (
-	stdout = NewLogger(os.Stdout, nil, "", Lok|Ldate|Ltime);
-	stderr = NewLogger(os.Stderr, nil, "", Lok|Ldate|Ltime);
-	exit = NewLogger(os.Stderr, nil, "", Lexit|Ldate|Ltime);
-	crash = NewLogger(os.Stderr, nil, "", Lcrash|Ldate|Ltime);
+	stdout = New(os.Stdout, nil, "", Lok|Ldate|Ltime);
+	stderr = New(os.Stderr, nil, "", Lok|Ldate|Ltime);
+	exit = New(os.Stderr, nil, "", Lexit|Ldate|Ltime);
+	crash = New(os.Stderr, nil, "", Lcrash|Ldate|Ltime);
 )
 
 var shortnames = make(map[string] string)	// cache of short names to avoid allocation.

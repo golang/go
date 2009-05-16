@@ -54,7 +54,7 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
 	defer r.Close();
 	defer w.Close();
 	buf := bufio.NewReader(r);
-	l := NewLogger(w, nil, prefix, flag);
+	l := New(w, nil, prefix, flag);
 	if useLogf {
 		l.Logf("hello %d world", 23);
 	} else {
