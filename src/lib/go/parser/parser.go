@@ -1070,40 +1070,34 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 }
 
 
-// checkTypeName checks that x is type name.
-func (p *parser) checkTypeName(x ast.Expr) ast.Expr {
+// isTypeName returns true iff x is type name.
+func isTypeName(x ast.Expr) bool {
 	// TODO should provide predicate in AST nodes
 	switch t := x.(type) {
 	case *ast.BadExpr:
 	case *ast.Ident:
-	case *ast.ParenExpr: p.checkTypeName(t.X);  // TODO should (TypeName) be illegal?
-	case *ast.SelectorExpr: p.checkTypeName(t.X);
-	default:
-		// all other nodes are not type names
-		p.error_expected(x.Pos(), "type name");
-		x = &ast.BadExpr{x.Pos()};
+	case *ast.ParenExpr: return isTypeName(t.X);  // TODO should (TypeName) be illegal?
+	case *ast.SelectorExpr: return isTypeName(t.X);
+	default: return false;  // all other nodes are not type names
 	}
-	return x;
+	return true;
 }
 
 
-// checkCompositeLitType checks that x is a legal composite literal type.
-func (p *parser) checkCompositeLitType(x ast.Expr) ast.Expr {
+// isCompositeLitType returns true iff x is a legal composite literal type.
+func isCompositeLitType(x ast.Expr) bool {
 	// TODO should provide predicate in AST nodes
 	switch t := x.(type) {
-	case *ast.BadExpr: return x;
-	case *ast.Ident: return x;
-	case *ast.ParenExpr: p.checkCompositeLitType(t.X);
-	case *ast.SelectorExpr: p.checkTypeName(t.X);
-	case *ast.ArrayType: return x;
-	case *ast.StructType: return x;
-	case *ast.MapType: return x;
-	default:
-		// all other nodes are not legal composite literal types
-		p.error_expected(x.Pos(), "composite literal type");
-		x = &ast.BadExpr{x.Pos()};
+	case *ast.BadExpr:
+	case *ast.Ident:
+	case *ast.ParenExpr: return isCompositeLitType(t.X);
+	case *ast.SelectorExpr: return isTypeName(t.X);
+	case *ast.ArrayType:
+	case *ast.StructType:
+	case *ast.MapType:
+	default: return false;  // all other nodes are not legal composite literal types
 	}
-	return x;
+	return true;
 }
 
 
@@ -1137,24 +1131,23 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
 	}
 
 	x := p.parseOperand();
-	for {
+L:	for {
 		switch p.tok {
 		case token.PERIOD: x = p.parseSelectorOrTypeAssertion(p.checkExpr(x));
 		case token.LBRACK: x = p.parseIndex(p.checkExpr(x));
 		case token.LPAREN: x = p.parseCallOrConversion(p.checkExprOrType(x));
 		case token.LBRACE:
-			if p.expr_lev >= 0 {
-				x = p.parseCompositeLit(p.checkCompositeLitType(x));
+			if isCompositeLitType(x) && (p.expr_lev >= 0 || !isTypeName(x)) {
+				x = p.parseCompositeLit(x);
 			} else {
-				return p.checkExprOrType(x);
+				break L;
 			}
 		default:
-			return p.checkExprOrType(x);
+			break L;
 		}
 	}
 
-	panic();  // unreachable
-	return nil;
+	return p.checkExprOrType(x);
 }
 
 
@@ -1768,7 +1761,9 @@ func (p *parser) parseReceiver() *ast.Field {
 	if ptr, is_ptr := base.(*ast.StarExpr); is_ptr {
 		base = ptr.X;
 	}
-	p.checkTypeName(base);
+	if !isTypeName(base) {
+		p.error_expected(base.Pos(), "type name");
+	}
 
 	return recv;
 }
