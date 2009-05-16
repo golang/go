@@ -250,8 +250,9 @@ splitpcln(void)
 
 	f = func;
 	ef = func + nfunc;
-	f->pcln.array = p;
 	pc = func[0].entry;	// text base
+	f->pcln.array = p;
+	f->pc0 = pc - PcQuant;
 	line = 0;
 	for(; p < ep; p++) {
 		if(f < ef && pc >= (f+1)->entry) {
