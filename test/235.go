@@ -6,8 +6,6 @@
 
 package main
 
-import "os"
-
 type T chan uint64;
 
 func M(f uint64) (in, out T) {
@@ -67,5 +65,4 @@ func main() {
 		x = min(xs);
 		if x != OUT[i] { panic("bad: ", x, " should be ", OUT[i]); }
 	}
-	os.Exit(0);
 }
