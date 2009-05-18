@@ -1322,6 +1322,194 @@ anyinit(Node *n)
 	return 0;
 }
 
+/*
+ * the init code (thru initfix) reformats the
+ *	var = ...
+ * statements, rewriting the automatic
+ * variables with the static variables.
+ * this allows the code generator to
+ * generate DATA statements instead
+ * of assignment statements.
+ * it is quadradic, may need to change.
+ * it is extremely fragile knowing exactly
+ * how the code from (struct|array|map)lit
+ * will look. ideally the lit routines could
+ * write the code in this form, but ...
+ */
+
+static	Node*	xxx;
+
+void
+initlin(Node* n)
+{
+	if(n == N)
+		return;
+	initlin(n->ninit);
+	switch(n->op) {
+	default:
+		print("o = %O\n", n->op);
+		n->ninit = N;
+		xxx = list(xxx, n);
+		break;
+
+	case OCALL:
+		// call to mapassign1
+		if(n->left->op != ONAME ||
+		   n->right->op != OLIST ||
+		   n->right->left->op != OAS ||
+		   n->right->right->op != OLIST ||
+		   n->right->right->left->op != OAS ||
+		   n->right->right->right->op != OAS ||
+		   memcmp(n->left->sym->name, "mapassign1", 10) != 0)
+			dump("o=call", n);
+		n->ninit = N;
+		xxx = list(xxx, n);
+		break;
+
+	case OAS:
+		n->ninit = N;
+		xxx = list(xxx, n);
+		break;
+
+	case OLIST:
+		initlin(n->left);
+		initlin(n->right);
+		break;
+	}
+}
+
+int
+inittmp(Node *n)
+{
+	if(n != N)
+	if(n->op == ONAME)
+	if(n->sym != S)
+	if(n->class == PAUTO)
+	if(memcmp(n->sym->name, "!tmpname", 8) == 0)
+		return 1;
+	return 0;
+}
+
+int
+sametmp(Node *n1, Node *n2)
+{
+	if(inittmp(n1))
+	if(n1->xoffset == n2->xoffset)
+		return 1;
+	return 0;
+}
+
+int
+indsametmp(Node *n1, Node *n2)
+{
+	if(n1->op == OIND)
+	if(inittmp(n1->left))
+	if(n1->left->xoffset == n2->xoffset)
+		return 1;
+	return 0;
+}
+
+int
+initsub(Node *n, Node *nam)
+{
+	Iter iter;
+	Node *r;
+	int any, i;
+
+	any = 0;
+	r = listfirst(&iter, &xxx);
+	while(r != N) {
+		switch(r->op) {
+		case OAS:
+		case OEMPTY:
+			if(r->left != N)
+			switch(r->left->op) {
+			case ONAME:
+				if(sametmp(r->left, nam)) {
+					any = 1;
+					r->left = n;
+				}
+				break;
+			case ODOT:
+				if(sametmp(r->left->left, nam)) {
+					any = 1;
+					r->left->left = n;
+				}
+				if(indsametmp(r->left->left, nam)) {
+					any = 1;
+					r->left->left->left = n;
+				}
+				break;
+			case OINDEX:
+				if(sametmp(r->left->left, nam)) {
+					any = 1;
+					r->left->left = n;
+				}
+				if(indsametmp(r->left->left, nam)) {
+					any = 1;
+					r->left->left->left = n;
+				}
+				break;
+			}
+			break;
+		case OCALL:
+			// call to mapassign1
+			// look through all three parameters
+			for(i=0; i<2; i++) {
+				r = r->right;
+				if(r == N || r->op != OLIST)
+					break;
+				if(sametmp(r->left->right, nam)) {
+					any = 1;
+					r->left->right = n;
+				}
+				if(indsametmp(r->left->right, nam)) {
+					any = 1;
+					r->left->left->right = n;
+				}
+				if(sametmp(r->right->right, nam)) {
+					any = 1;
+					r->right->right = n;
+				}
+				if(indsametmp(r->right->right, nam)) {
+					any = 1;
+					r->right->left->right = n;
+				}
+			}
+			break;
+		}
+		r = listnext(&iter);
+	}
+	return any;
+}
+
+Node*
+initfix(Node* n)
+{
+	Iter iter;
+	Node *r;
+
+//dump("prelin", n);
+
+	xxx = N;
+	initlin(n);
+	xxx = rev(xxx);
+
+//dump("preinitfix", xxx);
+	// look for the copy-out reference
+	r = listfirst(&iter, &xxx);
+	while(r != N) {
+		if(r->op == OAS)
+		if(inittmp(r->right)) {
+			if(initsub(r->left, r->right))
+				r->op = OEMPTY;
+		}
+		r = listnext(&iter);
+	}
+//dump("postinitfix", xxx);
+	return xxx;
+}
+
 void
 fninit(Node *n)
 {
@@ -1389,7 +1577,7 @@ fninit(Node *n)
 	}
 
 	// (6)
-	r = list(r, n);
+	r = list(r, initfix(n));
 
 	// (7)
 	// could check that it is fn of no args/returns

@@ -699,7 +699,118 @@ clearfat(Node *nl)
 }
 
 int
+getlit(Node *lit)
+{
+	int l;
+
+	if(smallintconst(lit))
+		return mpgetfix(lit->val.u.xval);
+	return -1;
+}
+
+int
+stataddr(Node *nam, Node *n)
+{
+	int l;
+
+	if(n == N)
+		goto no;
+
+	switch(n->op) {
+	case ONAME:
+		*nam = *n;
+		return 1;
+
+	case ODOT:
+		if(!stataddr(nam, n->left))
+			break;
+		nam->xoffset += n->xoffset;
+		nam->type = n->type;
+		return 1;
+
+	case OINDEX:
+		if(n->left->type->bound < 0)
+			break;
+		if(!stataddr(nam, n->left))
+			break;
+		l = getlit(n->right);
+		if(l < 0)
+			break;
+		nam->xoffset += l*n->type->width;
+		nam->type = n->type;
+		return 1;
+	}
+
+no:
+	return 0;
+}
+
+int
 gen_as_init(Node *nr, Node *nl)
 {
+	Node nam;
+	Prog *p;
+
+	if(!initflag)
+		goto no;
+
+	if(nr == N) {
+		if(!stataddr(&nam, nl))
+			goto no;
+		if(nam.class != PEXTERN)
+			goto no;
+		return 1;
+	}
+
+	if(nr->type == T ||
+	   !eqtype(nl->type, nr->type))
+		goto no;
+
+	if(!stataddr(&nam, nl))
+		goto no;
+	if(nam.class != PEXTERN)
+		goto no;
+
+	switch(nr->op) {
+	default:
+		goto no;
+
+	case OLITERAL:
+		goto lit;
+	}
+
+no:
 	return 0;
+
+lit:
+	switch(nr->type->etype) {
+	default:
+		goto no;
+
+	case TBOOL:
+		if(memcmp(nam.sym->name, "initdone·", 9) == 0)
+			goto no;
+	case TINT8:
+	case TUINT8:
+	case TINT16:
+	case TUINT16:
+	case TINT32:
+	case TUINT32:
+	case TINT64:
+	case TUINT64:
+	case TINT:
+	case TUINT:
+	case TFLOAT32:
+	case TFLOAT64:
+	case TFLOAT:
+		p = gins(ADATA, &nam, nr);
+		p->from.scale = nr->type->width;
+		break;
+	}
+
+yes:
+//dump("\ngen_as_init", nl);
+//dump("", nr);
+//print("%P\n", p);
+	return 1;
 }

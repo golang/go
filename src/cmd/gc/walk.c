@@ -588,26 +588,26 @@ loop:
 		l = n->left;
 		if(l == N)
 			goto ret;
+
+		switch(t->etype) {
+		default:
+			yyerror("invalid type for composite literal: %T", t);
+			goto ret;
+
+		case TSTRUCT:
+			r = structlit(n, N);
+			break;
+
+		case TARRAY:
+			r = arraylit(n, N);
+			break;
+
+		case TMAP:
+			r = maplit(n, N);
+			break;
+		}
+		indir(n, r);
 		walktype(l, Erv);
-
-		// structure literal
-		if(t->etype == TSTRUCT) {
-			indir(n, structlit(n, N));
-			goto ret;
-		}
-
-		// array literal
-		if(t->etype == TARRAY) {
-			indir(n, arraylit(n, N));
-			goto ret;
-		}
-
-		// map literal
-		if(t->etype == TMAP) {
-			indir(n, maplit(n, N));
-			goto ret;
-		}
-		yyerror("invalid type for composite literal: %T", t);
 		goto ret;
 
 	case ORETURN:
@@ -926,18 +926,19 @@ loop:
 			goto nottop;
 		defaultlit(n->left, T);
 		if(n->left->op == OCOMPOS && n->left->type != T) {
+			Node *nvar, *nas, *nstar;
+
 			// turn &Point(1, 2) or &[]int(1, 2) or &[...]int(1, 2) into allocation.
 			// initialize with
 			//	nvar := new(*Point);
 			//	*nvar = Point(1, 2);
 			// and replace expression with nvar
-			; // stupid c syntax - case label must be on stmt, not decl
-			Node *nvar, *nas, *nstar;
 
 			nvar = nod(OXXX, N, N);
 			tempname(nvar, ptrto(n->left->type));
 
 			nas = nod(OAS, nvar, callnew(n->left->type));
+			walktype(nas, Etop);
 			addtop = list(addtop, nas);
 
 			nstar = nod(OIND, nvar, N);
@@ -957,6 +958,7 @@ loop:
 				goto badlit;
 			}
 
+			walktype(n->left->left, Erv);
 			indir(n, nvar);
 			goto ret;
 		}
@@ -3837,8 +3839,8 @@ arraylit(Node *n, Node *var)
 {
 	Iter saver;
 	Type *t;
-	Node *r, *a, *nnew;
-	int idx, ninit, b;
+	Node *r, *a;
+	int ninit, b;
 
 	t = n->type;
 	if(t->etype != TARRAY)
@@ -3867,13 +3869,12 @@ arraylit(Node *n, Node *var)
 		tempname(var, t);
 	}
 
-	nnew = nil;
 	if(b < 0) {
 		// slice
-		nnew = nod(OMAKE, N, N);
-		nnew->type = t;
-
-		a = nod(OAS, var, nnew);
+		a = nod(OMAKE, N, N);
+		a->type = t;
+		a->left = nodintconst(ninit);
+		a = nod(OAS, var, a);
 		addtop = list(addtop, a);
 	} else {
 		// if entire array isnt initialized,
@@ -3884,21 +3885,20 @@ arraylit(Node *n, Node *var)
 		}
 	}
 
-	idx = 0;
+	ninit = 0;
 	r = listfirst(&saver, &n->left);
 	if(r != N && r->op == OEMPTY)
 		r = N;
 	while(r != N) {
 		// build list of var[c] = expr
-		a = nodintconst(idx);
+		a = nodintconst(ninit);
 		a = nod(OINDEX, var, a);
 		a = nod(OAS, a, r);
+		walktype(a, Etop);	// add any assignments in r to addtop
 		addtop = list(addtop, a);
-		idx++;
+		ninit++;
 		r = listnext(&saver);
 	}
-	if(b < 0)
-		nnew->left = nodintconst(idx);
 	return var;
 }
 
@@ -3941,6 +3941,7 @@ loop:
 
 	a = nod(OINDEX, var, r->left);
 	a = nod(OAS, a, r->right);
+	walktype(a, Etop);	// add any assignments in r to addtop
 	addtop = list(addtop, a);
 
 	r = listnext(&saver);
