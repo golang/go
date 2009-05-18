@@ -284,6 +284,13 @@ func Chdir(dir string) Error {
 	return ErrnoToError(e);
 }
 
+// Chdir changes the current working directory to the file,
+// which must be a directory.
+func (f *File) Chdir() Error {
+	r, e := syscall.Fchdir(f.fd);
+	return ErrnoToError(e);
+}
+
 // Remove removes the named file or directory.
 func Remove(name string) Error {
 	// System call interface forces us to know

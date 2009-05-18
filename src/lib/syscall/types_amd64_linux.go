@@ -11,6 +11,8 @@ import "syscall"
 
 const OS = "linux"
 
+const PathMax = 4096
+
 // Time
 
 type Timespec struct {
