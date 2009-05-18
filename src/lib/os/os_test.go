@@ -316,7 +316,7 @@ func TestForkExec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Pipe: %v", err);
 	}
-	pid, err := ForkExec("/bin/pwd", []string{"pwd"}, nil, "/", []*File{nil, w, os.Stderr});
+	pid, err := ForkExec("/bin/pwd", []string{"pwd"}, nil, "/", []*File{nil, w, Stderr});
 	if err != nil {
 		t.Fatalf("ForkExec: %v", err);
 	}
@@ -345,12 +345,12 @@ func checkMode(t *testing.T, path string, mode uint32) {
 func TestChmod(t *testing.T) {
 	MkdirAll("_obj", 0777);
 	const Path = "_obj/_TestChmod_";
-	fd, err := os.Open(Path, os.O_WRONLY | os.O_CREAT, 0666);
+	fd, err := Open(Path, O_WRONLY | O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %s: %s", Path, err);
 	}
 
-	if err = os.Chmod(Path, 0456); err != nil {
+	if err = Chmod(Path, 0456); err != nil {
 		t.Fatalf("chmod %s 0456: %s", Path, err);
 	}
 	checkMode(t, Path, 0456);
@@ -384,7 +384,7 @@ func TestChown(t *testing.T) {
 	// basically useless.
 
 	const Path = "/tmp/_TestChown_";
-	fd, err := os.Open(Path, os.O_WRONLY | os.O_CREAT, 0666);
+	fd, err := Open(Path, O_WRONLY | O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %s: %s", Path, err);
 	}
@@ -398,7 +398,7 @@ func TestChown(t *testing.T) {
 	// Can't change uid unless root, but can try
 	// changing the group id.  First try our current group.
 	gid := Getgid();
-	if err = os.Chown(Path, -1, gid); err != nil {
+	if err = Chown(Path, -1, gid); err != nil {
 		t.Fatalf("chown %s -1 %d: %s", Path, gid, err);
 	}
 	checkUidGid(t, Path, int(dir.Uid), gid);
@@ -409,7 +409,7 @@ func TestChown(t *testing.T) {
 		t.Fatalf("getgroups: %s", err);
 	}
 	for i, g := range groups {
-		if err = os.Chown(Path, -1, g); err != nil {
+		if err = Chown(Path, -1, g); err != nil {
 			t.Fatalf("chown %s -1 %d: %s", Path, g, err);
 		}
 		checkUidGid(t, Path, int(dir.Uid), g);
@@ -435,7 +435,7 @@ func checkSize(t *testing.T, path string, size uint64) {
 func TestTruncate(t *testing.T) {
 	MkdirAll("_obj", 0777);
 	const Path = "_obj/_TestTruncate_";
-	fd, err := os.Open(Path, os.O_WRONLY | os.O_CREAT, 0666);
+	fd, err := Open(Path, O_WRONLY | O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %s: %s", Path, err);
 	}
@@ -453,4 +453,51 @@ func TestTruncate(t *testing.T) {
 	checkSize(t, Path, 13 + 9);	// wrote at offset past where hello, world was.
 	fd.Close();
 	Remove(Path);
+}
+
+func TestChdirAndGetwd(t *testing.T) {
+	fd, err := Open(".", O_RDONLY, 0);
+	if err != nil {
+		t.Fatalf("Open .: %s", err);
+	}
+	// These are chosen carefully not to be symlinks on a Mac
+	// (unlike, say, /var, /etc, and /tmp).
+	dirs := []string{ "/bin", "/", "/usr/local/bin" };
+	for mode := 0; mode < 2; mode++ {
+		for i, d := range dirs {
+			if mode == 0 {
+				err = Chdir(d);
+			} else {
+				fd1, err := os.Open(d, os.O_RDONLY, 0);
+				if err != nil {
+					t.Errorf("Open %s: %s", d, err);
+					continue;
+				}
+				err = fd1.Chdir();
+				fd1.Close();
+			}
+			pwd, err1 := Getwd();
+			err2 := fd.Chdir();
+			if err2 != nil {
+				// We changed the current directory and cannot go back.
+				// Don't let the tests continue; they'll scribble
+				// all over some other directory.
+				fmt.Fprintf(Stderr, "fchdir back to dot failed: %s\n", err2);
+				Exit(1);
+			}
+			if err != nil {
+				fd.Close();
+				t.Fatalf("Chdir %s: %s", d, err);
+			}
+			if err1 != nil {
+				fd.Close();
+				t.Fatalf("Getwd in %s: %s", d, err1);
+			}
+			if pwd != d {
+				fd.Close();
+				t.Fatalf("Getwd returned %q want %q", pwd, d);
+			}
+		}
+	}
+	fd.Close();
 }

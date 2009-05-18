@@ -111,6 +111,11 @@ func Chdir(dir string) (ret, errno int64) {
 	return r1, err;
 }
 
+func Fchdir(fd int64) (ret, errno int64) {
+	r1, r2, err := Syscall(SYS_FCHDIR, fd, 0, 0);
+	return r1, err;
+}
+
 func Link(oldname, newname string) (ret, errno int64) {
 	oldbuf := StringBytePtr(oldname);
 	newbuf := StringBytePtr(newname);
@@ -169,3 +174,13 @@ func Ftruncate(fd, length int64) (ret, errno int64) {
 	r1, r2, err := Syscall(SYS_FTRUNCATE, fd, length, 0);
 	return r1, err;
 }
+
+// The const provides a compile-time constant so clients
+// can adjust to whether there is a working Getwd and avoid
+// even linking this function into the binary.  See ../os/getwd.go.
+const ImplementsGetwd = false
+
+func Getwd() (string, int64) {
+	return "", ENOTSUP;
+}
+

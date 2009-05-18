@@ -79,5 +79,6 @@ var (
 	ERANGE Error = Errno(syscall.ERANGE);
 	EADDRINUSE Error = Errno(syscall.EADDRINUSE);
 	ECONNREFUSED Error = Errno(syscall.ECONNREFUSED);
+	ENAMETOOLONG Error = Errno(syscall.ENAMETOOLONG);
 )
 
