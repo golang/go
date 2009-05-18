@@ -324,6 +324,8 @@ func (tok Token) IsKeyword() bool {
 
 
 // Token source positions are represented by a Position value.
+// A Position is valid if the line number is > 0.
+//
 type Position struct {
 	Offset int;  // byte offset, starting at 0
 	Line int;  // line number, starting at 1
@@ -336,4 +338,10 @@ type Position struct {
 //
 func (pos *Position) Pos() Position {
 	return *pos;
+}
+
+
+// IsValid returns true if the position is valid.
+func (pos *Position) IsValid() bool {
+	return pos.Line > 0
 }
