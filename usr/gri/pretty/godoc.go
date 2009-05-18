@@ -58,6 +58,7 @@ var (
 	verbose = flag.Bool("v", false, "verbose mode");
 
 	// file system roots
+	launchdir string;	// directory from which godoc was launched
 	goroot string;
 	pkgroot = flag.String("pkgroot", "src/lib", "root package source directory (if unrooted, relative to goroot)");
 	tmplroot = flag.String("tmplroot", "usr/gri/pretty", "root template directory (if unrooted, relative to goroot)");
@@ -585,7 +586,10 @@ func loggingHandler(h http.Handler) http.Handler {
 
 
 func restartGodoc(c *http.Conn, r *http.Request) {
-	binary := os.Args[0];  // TODO currently requires absolute paths because of chdir in the beginning
+	binary := os.Args[0];
+	if len(binary) > 0 || binary[0] != '/' {
+		binary = pathutil.Join(launchdir, binary);
+	}
 	pid, err := os.ForkExec(binary, os.Args, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr});
 	if err != nil {
 		log.Stderrf("os.ForkExec(%s): %v", binary, err);
@@ -619,6 +623,12 @@ func main() {
 		if flag.NArg() == 0 {
 			usage();
 		}
+	}
+
+	var err os.Error;
+	if launchdir, err = os.Getwd(); err != nil {
+		log.Stderrf("unable to determine current working directory - restart may fail");
+		launchdir = "";
 	}
 
 	if err := os.Chdir(goroot); err != nil {
