@@ -30,11 +30,10 @@ type Error struct {
 }
 
 var (
-	PhaseError os.Error = &Error{"phase error"};
-	BufferFull os.Error = &Error{"buffer full"};
-	InternalError os.Error = &Error{"bufio internal error"};
-	BadBufSize os.Error = &Error{"bad bufio size"};
-	ShortWrite os.Error = &Error{"short write"};
+	PhaseError os.Error = &Error{"bufio: phase error"};
+	BufferFull os.Error = &Error{"bufio: buffer full"};
+	InternalError os.Error = &Error{"bufio: internal error"};
+	BadBufSize os.Error = &Error{"bufio: bad buffer size"};
 )
 
 func copySlice(dst []byte, src []byte) {
@@ -427,7 +426,7 @@ func (b *Writer) Flush() os.Error {
 		m, e := b.wr.Write(b.buf[n:b.n]);
 		n += m;
 		if m == 0 && e == nil {
-			e = ShortWrite
+			e = io.ErrShortWrite
 		}
 		if e != nil {
 			if n < b.n {

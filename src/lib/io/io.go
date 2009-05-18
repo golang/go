@@ -13,11 +13,18 @@ import (
 	"os";
 )
 
-// ErrEOF is the error returned by FullRead and Copyn when they encounter EOF.
+// Error represents an unexpected I/O behavior.
 type Error struct {
 	os.ErrorString
 }
+
+// ErrEOF means that data was expected, but a read got EOF instead.
 var ErrEOF os.Error = &Error{"EOF"}
+
+// ErrShortWrite means that a write accepted fewer bytes than requested
+// but failed to return an explicit error.
+var ErrShortWrite os.Error = &Error{"short write"}
+
 
 // Reader is the interface that wraps the basic Read method.
 type Reader interface {
