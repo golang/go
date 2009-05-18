@@ -66,6 +66,11 @@ func (v *Map) String() string {
 	return string(b.Data())
 }
 
+func (v *Map) Init() *Map {
+	v.m = make(map[string] Var);
+	return v
+}
+
 func (v *Map) Get(key string) Var {
 	v.mu.Lock();
 	defer v.mu.Unlock();
@@ -157,8 +162,7 @@ func NewInt(name string) *Int {
 }
 
 func NewMap(name string) *Map {
-	v := new(Map);
-	v.m = make(map[string] Var);
+	v := new(Map).Init();
 	Publish(name, v);
 	return v
 }
