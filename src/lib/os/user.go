@@ -44,7 +44,9 @@ func Getgroups() ([]int, os.Error) {
 		return nil, ErrnoToError(err);
 	}
 
-	if r1 < 0 || r1 > 1024 {	// the current max is 16; 1024 is a future-proof sanity check
+	// Sanity check group count.
+	// On Linux, max is 1<<16; on BSD, OS X, max is 16.
+	if r1 < 0 || r1 > 1<<20 {
 		return nil, EINVAL;
 	}
 	a := make([]int, r1);
