@@ -123,34 +123,6 @@ func ReadFile(name string) ([]byte, os.Error) {
 // ----------------------------------------------------------------------------
 // Parsing
 
-type rawError struct {
-	pos token.Position;
-	msg string;
-}
-
-
-type rawErrorVector struct {
-	vector.Vector;
-}
-
-
-func (v *rawErrorVector) At(i int) rawError { return v.Vector.At(i).(rawError) }
-func (v *rawErrorVector) Less(i, j int) bool { return v.At(i).pos.Offset < v.At(j).pos.Offset; }
-
-
-func (v *rawErrorVector) Error(pos token.Position, msg string) {
-	// only collect errors that are on a new line
-	// in the hope to avoid most follow-up errors
-	lastLine := 0;
-	if n := v.Len(); n > 0 {
-		lastLine = v.At(n - 1).pos.Line;
-	}
-	if lastLine != pos.Line {
-		v.Push(rawError{pos, msg});
-	}
-}
-
-
 // A single error in the parsed file.
 type parseError struct {
 	src []byte;	// source before error
@@ -183,25 +155,28 @@ func parse(path string, mode uint) (*ast.Program, *parseErrors) {
 		return nil, &parseErrors{path, errs, nil};
 	}
 
-	var raw rawErrorVector;
-	prog, ok := parser.Parse(src, &raw, mode);
-	if !ok {
+	prog, err := parser.Parse(src, mode);
+	if err != nil {
 		// sort and convert error list
-		sort.Sort(&raw);
-		errs := make([]parseError, raw.Len() + 1);	// +1 for final fragment of source
-		offs := 0;
-		for i := 0; i < raw.Len(); i++ {
-			r := raw.At(i);
-			// Should always be true, but check for robustness.
-			if 0 <= r.pos.Offset && r.pos.Offset <= len(src) {
-				errs[i].src = src[offs : r.pos.Offset];
-				offs = r.pos.Offset;
+		if errors, ok := err.(parser.ErrorList); ok {
+			sort.Sort(errors);
+			errs := make([]parseError, len(errors) + 1);	// +1 for final fragment of source
+			offs := 0;
+			for i, r := range errors {
+				// Should always be true, but check for robustness.
+				if 0 <= r.Pos.Offset && r.Pos.Offset <= len(src) {
+					errs[i].src = src[offs : r.Pos.Offset];
+					offs = r.Pos.Offset;
+				}
+				errs[i].line = r.Pos.Line;
+				errs[i].msg = r.Msg;
 			}
-			errs[i].line = r.pos.Line;
-			errs[i].msg = r.msg;
+			errs[len(errors)].src = src[offs : len(src)];
+			return nil, &parseErrors{path, errs, src};
+		} else {
+			// TODO should have some default handling here to be more robust
+			panic("unreachable");
 		}
-		errs[raw.Len()].src = src[offs : len(src)];
-		return nil, &parseErrors{path, errs, src};
 	}
 
 	return prog, nil;

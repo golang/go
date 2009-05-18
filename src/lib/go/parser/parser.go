@@ -16,16 +16,41 @@ import (
 	"go/scanner";
 	"go/token";
 	"io";
+	"os";
 )
 
 
-// An implementation of an ErrorHandler may be provided to the parser.
-// If a syntax error is encountered and a handler was installed, Error
-// is called with a position and an error message. The position points
-// to the beginning of the offending token.
+// A parser error is represented by an Error node. The position Pos, if
+// valid, points to the beginning of the offending token, and the error
+// condition is described by Msg.
 //
-type ErrorHandler interface {
-	Error(pos token.Position, msg string);
+type Error struct {
+	Pos token.Position;
+	Msg string;
+}
+
+
+func (e *Error) String() string {
+	pos := "";
+	if e.Pos.IsValid() {
+		pos = fmt.Sprintf("%d:%d: ", e.Pos.Line, e.Pos.Column);
+	}
+	return pos + e.Msg;
+}
+
+
+// Parser errors are returned as an ErrorList.
+type ErrorList []*Error
+
+
+// ErrorList implements the SortInterface.
+func (p ErrorList) Len() int  { return len(p); }
+func (p ErrorList) Swap(i, j int)  { p[i], p[j] = p[j], p[i]; }
+func (p ErrorList) Less(i, j int) bool  { return p[i].Pos.Offset < p[j].Pos.Offset; }
+
+
+func (p ErrorList) String() string {
+	return fmt.Sprintf("%d syntax errors", len(p));
 }
 
 
@@ -36,9 +61,8 @@ type interval struct {
 
 // The parser structure holds the parser's internal state.
 type parser struct {
+	errors vector.Vector;
 	scanner scanner.Scanner;
-	err ErrorHandler;  // nil if no handler installed
-	hasErrors bool;
 
 	// Tracing/debugging
 	mode uint;  // parsing mode
@@ -185,11 +209,14 @@ func (p *parser) next() {
 }
 
 
-func (p *parser) error(pos token.Position, msg string) {
-	if p.err != nil {
-		p.err.Error(pos, msg);
+// The parser implements scanner.Error.
+func (p *parser) Error(pos token.Position, msg string) {
+	// Don't collect errors that are on the same line as the previous error
+	// in the hope to reduce the number of spurious errors due to incorrect
+	// parser synchronization.
+	if p.errors.Len() == 0 || p.errors.Last().(*Error).Pos.Line != pos.Line {
+		p.errors.Push(&Error{pos, msg});
 	}
-	p.hasErrors = true;
 }
 
 
@@ -203,7 +230,7 @@ func (p *parser) error_expected(pos token.Position, msg string) {
 			msg += " " + string(p.lit);
 		}
 	}
-	p.error(pos, msg);
+	p.Error(pos, msg);
 }
 
 
@@ -470,7 +497,7 @@ func (p *parser) tryParameterType(ellipsis_ok bool) ast.Expr {
 		p.next();
 		if p.tok != token.RPAREN {
 			// "..." always must be at the very end of a parameter list
-			p.error(pos, "expected type, found '...'");
+			p.Error(pos, "expected type, found '...'");
 		}
 		return &ast.Ellipsis{pos};
 	}
@@ -1115,7 +1142,7 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 		}
 	case *ast.ArrayType:
 		if len, is_ellipsis := t.Len.(*ast.Ellipsis); is_ellipsis {
-			p.error(len.Pos(), "expected array length, found '...'");
+			p.Error(len.Pos(), "expected array length, found '...'");
 			x = &ast.BadExpr{x.Pos()};
 		}
 	}
@@ -1223,7 +1250,7 @@ func (p *parser) parseSimpleStmt(label_ok bool) ast.Stmt {
 				return &ast.LabeledStmt{label, p.parseStatement()};
 			}
 		}
-		p.error(x[0].Pos(), "illegal label declaration");
+		p.Error(x[0].Pos(), "illegal label declaration");
 		return &ast.BadStmt{x[0].Pos()};
 
 	case
@@ -1236,13 +1263,13 @@ func (p *parser) parseSimpleStmt(label_ok bool) ast.Stmt {
 		p.next();
 		y := p.parseExpressionList();
 		if len(x) > 1 && len(y) > 1 && len(x) != len(y) {
-			p.error(x[0].Pos(), "arity of lhs doesn't match rhs");
+			p.Error(x[0].Pos(), "arity of lhs doesn't match rhs");
 		}
 		return &ast.AssignStmt{x, pos, tok, y};
 	}
 
 	if len(x) > 1 {
-		p.error(x[0].Pos(), "only one expression allowed");
+		p.Error(x[0].Pos(), "only one expression allowed");
 		// continue with first expression
 	}
 
@@ -1343,7 +1370,7 @@ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
 	if es, is_expr := s.(*ast.ExprStmt); is_expr {
 		return p.checkExpr(es.X);
 	}
-	p.error(s.Pos(), "expected condition, found simple statement");
+	p.Error(s.Pos(), "expected condition, found simple statement");
 	return &ast.BadExpr{s.Pos()};
 }
 
@@ -1846,7 +1873,7 @@ func (p *parser) parsePackage() *ast.Program {
 	// Don't bother parsing the rest if we had errors already.
 	// Likely not a Go source file at all.
 
-	if !p.hasErrors && p.mode & PackageClauseOnly == 0 {
+	if p.errors.Len() == 0 && p.mode & PackageClauseOnly == 0 {
 		// import decls
 		list := vector.New(0);
 		for p.tok == token.IMPORT {
@@ -1886,32 +1913,28 @@ func (p *parser) parsePackage() *ast.Program {
 // ----------------------------------------------------------------------------
 // Parsing of entire programs.
 
-func readSource(src interface{}, err ErrorHandler) []byte {
-	errmsg := "invalid input type (or nil)";
-
-	switch s := src.(type) {
-	case string:
-		return io.StringBytes(s);
-	case []byte:
-		return s;
-	case *io.ByteBuffer:
-		// is io.Read, but src is already available in []byte form
-		if s != nil {
-			return s.Data();
+func readSource(src interface{}) ([]byte, os.Error) {
+	if src != nil {
+		switch s := src.(type) {
+		case string:
+			return io.StringBytes(s), nil;
+		case []byte:
+			return s, nil;
+		case *io.ByteBuffer:
+			// is io.Read, but src is already available in []byte form
+			if s != nil {
+				return s.Data(), nil;
+			}
+		case io.Reader:
+			var buf io.ByteBuffer;
+			n, err := io.Copy(s, &buf);
+			if err != nil {
+				return nil, err;
+			}
+			return buf.Data(), nil;
 		}
-	case io.Reader:
-		var buf io.ByteBuffer;
-		n, os_err := io.Copy(s, &buf);
-		if os_err == nil {
-			return buf.Data();
-		}
-		errmsg = os_err.String();
 	}
-
-	if err != nil {
-		err.Error(noPos, errmsg);
-	}
-	return nil;
+	return nil, os.ErrorString("invalid source");
 }
 
 
@@ -1919,25 +1942,26 @@ func readSource(src interface{}, err ErrorHandler) []byte {
 //
 // The program source src may be provided in a variety of formats. At the
 // moment the following types are supported: string, []byte, and io.Read.
+// The mode parameter controls the amount of source text parsed and other
+// optional parser functionality.
 //
-// The ErrorHandler err, if not nil, is invoked if src cannot be read and
-// for each syntax error found. The mode parameter controls the amount of
-// source text parsed and other optional parser functionality.
+// Parse returns a complete AST if no error occured. Otherwise, if the
+// source couldn't be read, the returned program is nil and the error
+// indicates the specific failure. If the source was read but syntax
+// errors were found, the result is a partial AST (with ast.BadX nodes
+// representing the fragments of erroneous source code) and an ErrorList
+// describing the syntax errors.
 //
-// Parse returns an AST and the boolean value true if no errors occured;
-// it returns a partial AST (or nil if the source couldn't be read) and
-// the boolean value false to indicate failure.
-//
-// If syntax errors were found, the AST may only be constructed partially,
-// with ast.BadX nodes representing the fragments of erroneous source code.
-//
-func Parse(src interface{}, err ErrorHandler, mode uint) (*ast.Program, bool) {
-	data := readSource(src, err);
+func Parse(src interface{}, mode uint) (*ast.Program, os.Error) {
+	data, err := readSource(src);
+	if err != nil {
+		return nil, err;
+	}
 
 	// initialize parser state
 	var p parser;
-	p.scanner.Init(data, err, mode & ParseComments != 0);
-	p.err = err;
+	p.errors.Init(0);
+	p.scanner.Init(data, &p, mode & ParseComments != 0);
 	p.mode = mode;
 	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
 	p.comments.Init(0);
@@ -1946,5 +1970,14 @@ func Parse(src interface{}, err ErrorHandler, mode uint) (*ast.Program, bool) {
 	// parse program
 	prog := p.parsePackage();
 
-	return prog, p.scanner.ErrorCount == 0 && !p.hasErrors;
+	// convert errors list, if any
+	if p.errors.Len() > 0 {
+		errors := make(ErrorList, p.errors.Len());
+		for i := 0; i < p.errors.Len(); i++ {
+			errors[i] = p.errors.At(i).(*Error);
+		}
+		return prog, errors;
+	}
+
+	return prog, nil;
 }

@@ -5,17 +5,17 @@
 package main
 
 import (
+	"astprinter";
 	"flag";
 	"fmt";
+	"format";
 	"go/ast";
 	"go/parser";
 	"go/token";
 	"io";
 	"os";
+	"sort";
 	"tabwriter";
-
-	"astprinter";
-	"format";
 )
 
 
@@ -70,32 +70,9 @@ func makeTabwriter(writer io.Writer) *tabwriter.Writer {
 }
 
 
-// TODO(gri) move this into parser as default handler
-type ErrorHandler struct {
-	filename string;
-	lastline int;
-}
-
-
-func (h *ErrorHandler) Error(pos token.Position, msg string) {
-	// only report errors that are on a new line
-	// in the hope to avoid most follow-up errors
-	if pos.Line == h.lastline {
-		return;
-	}
-	h.lastline = pos.Line;
-
-	// report error
-	fmt.Fprintf(os.Stderr, "%s:%d:", h.filename, pos.Line);
-	if columns {
-		fmt.Fprintf(os.Stderr, "%d:", pos.Column);
-	}
-	fmt.Fprintf(os.Stderr, " %s\n", msg);
-}
-
-
 func isValidPos(w io.Writer, env, value interface{}, name string) bool {
-	return value.(token.Position).Line > 0;
+	pos := value.(token.Position);
+	return pos.IsValid();
 }
 
 
@@ -159,8 +136,16 @@ func main() {
 			continue;  // proceed with next file
 		}
 
-		prog, ok := parser.Parse(src, &ErrorHandler{filename, 0}, mode);
-		if !ok {
+		prog, err := parser.Parse(src, mode);
+		if err != nil {
+			if errors, ok := err.(parser.ErrorList); ok {
+				sort.Sort(errors);
+				for _, e := range errors {
+					fmt.Fprintf(os.Stderr, "%s:%v\n", filename, e);
+				}
+			} else {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", filename, err);
+			}
 			exitcode = 1;
 			continue;  // proceed with next file
 		}

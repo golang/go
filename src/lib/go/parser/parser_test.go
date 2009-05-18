@@ -12,36 +12,57 @@ import (
 )
 
 
-func TestParse0(t *testing.T) {
-	// test nil []bytes source
-	var src []byte;
-	prog, ok := Parse(src, nil, 0);
-	if ok {
-		t.Errorf("parse should have failed");
+var illegalInputs = []interface{} {
+	nil,
+	3.14,
+	[]byte(nil),
+	"foo!",
+}
+
+
+func TestParseIllegalInputs(t *testing.T) {
+	for _, src := range illegalInputs {
+		prog, err := Parse(src, 0);
+		if err == nil {
+			t.Errorf("Parse(%v) should have failed", src);
+		}
 	}
 }
 
 
-func TestParse1(t *testing.T) {
-	// test string source
-	src := `package main import "fmt" func main() { fmt.Println("Hello, World!") }`;
-	prog, ok := Parse(src, nil, 0);
-	if !ok {
-		t.Errorf("parse failed");
+var validPrograms = []interface{} {
+	`package main`,
+	`package main import "fmt" func main() { fmt.Println("Hello, World!") }`,
+}
+
+
+func TestParseValidPrograms(t *testing.T) {
+	for _, src := range validPrograms {
+		prog, err := Parse(src, 0);
+		if err != nil {
+			t.Errorf("Parse(%q) failed: %v", src, err);
+		}
 	}
 }
 
-func TestParse2(t *testing.T) {
-	// test io.Read source
-	filename := "parser_test.go";
-	src, err := os.Open(filename, os.O_RDONLY, 0);
-	defer src.Close();
-	if err != nil {
-		t.Errorf("cannot open %s (%s)\n", filename, err.String());
-	}
 
-	prog, ok := Parse(src, nil, 0);
-	if !ok {
-		t.Errorf("parse failed");
+var validFiles = []string {
+	"parser.go",
+	"parser_test.go",
+}
+
+
+func TestParse3(t *testing.T) {
+	for _, filename := range validFiles {
+		src, err := os.Open(filename, os.O_RDONLY, 0);
+		defer src.Close();
+		if err != nil {
+			t.Fatalf("os.Open(%s): %v\n", filename, err);
+		}
+
+		prog, err := Parse(src, 0);
+		if err != nil {
+			t.Errorf("Parse(%q): %v", src, err);
+		}
 	}
 }

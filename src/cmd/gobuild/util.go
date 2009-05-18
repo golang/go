@@ -179,9 +179,6 @@ func (s MakeString) String() string {
 	return dollarString(string(s), "(", ")");
 }
 
-// TODO(rsc): parse.Parse should return an os.Error.
-var ParseError = os.NewError("parse errors");
-
 // TODO(rsc): Should this be in the AST library?
 func LitString(p []*ast.StringLit) (string, os.Error) {
 	s := "";
@@ -201,9 +198,9 @@ func PackageImports(file string) (pkg string, imports []string, err1 os.Error) {
 		return "", nil, err
 	}
 
-	prog, ok := parser.Parse(f, nil, parser.ImportsOnly);
-	if !ok {
-		return "", nil, ParseError;
+	prog, err := parser.Parse(f, parser.ImportsOnly);
+	if err != nil {
+		return "", nil, err;
 	}
 
 	// Normally one must consult the types of decl and spec,
@@ -214,7 +211,7 @@ func PackageImports(file string) (pkg string, imports []string, err1 os.Error) {
 		for _, spec := range decl.(*ast.GenDecl).Specs {
 			str, err := LitString(spec.(*ast.ImportSpec).Path);
 			if err != nil {
-				return "", nil, ParseError;	// ParseError is better than os.EINVAL
+				return "", nil, os.NewError("invalid import specifier");	// better than os.EINVAL
 			}
 			PushString(&imp, str);
 		}
