@@ -39,14 +39,19 @@ package aes
 import "crypto/aes"
 
 // Encrypt one block from src into dst, using the expanded key xk.
-func encryptBlock(xk, src, dst []uint32) {
+func encryptBlock(xk []uint32, src, dst []byte) {
 	var s0, s1, s2, s3, t0, t1, t2, t3 uint32;
 
+	s0 = uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3]);
+	s1 = uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7]);
+	s2 = uint32(src[8])<<24 | uint32(src[9])<<16 | uint32(src[10])<<8 | uint32(src[11]);
+	s3 = uint32(src[12])<<24 | uint32(src[13])<<16 | uint32(src[14])<<8 | uint32(src[15]);
+
 	// First round just XORs input with key.
-	s0 = src[0] ^ xk[0];
-	s1 = src[1] ^ xk[1];
-	s2 = src[2] ^ xk[2];
-	s3 = src[3] ^ xk[3];
+	s0 ^= xk[0];
+	s1 ^= xk[1];
+	s2 ^= xk[2];
+	s3 ^= xk[3];
 
 	// Middle rounds shuffle using tables.
 	// Number of rounds is set by length of expanded key.
@@ -67,21 +72,31 @@ func encryptBlock(xk, src, dst []uint32) {
 	s2 = uint32(sbox0[t2>>24])<<24 | uint32(sbox0[t3>>16 & 0xff])<<16 | uint32(sbox0[t0>>8 & 0xff])<<8 | uint32(sbox0[t1 & 0xff]);
 	s3 = uint32(sbox0[t3>>24])<<24 | uint32(sbox0[t0>>16 & 0xff])<<16 | uint32(sbox0[t1>>8 & 0xff])<<8 | uint32(sbox0[t2 & 0xff]);
 
-	dst[0] = s0 ^ xk[k+0];
-	dst[1] = s1 ^ xk[k+1];
-	dst[2] = s2 ^ xk[k+2];
-	dst[3] = s3 ^ xk[k+3];
+	s0 ^= xk[k+0];
+	s1 ^= xk[k+1];
+	s2 ^= xk[k+2];
+	s3 ^= xk[k+3];
+
+	dst[0], dst[1], dst[2], dst[3] = byte(s0>>24), byte(s0>>16), byte(s0>>8), byte(s0);
+	dst[4], dst[5], dst[6], dst[7] = byte(s1>>24), byte(s1>>16), byte(s1>>8), byte(s1);
+	dst[8], dst[9], dst[10], dst[11] = byte(s2>>24), byte(s2>>16), byte(s2>>8), byte(s2);
+	dst[12], dst[13], dst[14], dst[15] = byte(s3>>24), byte(s3>>16), byte(s3>>8), byte(s3);
 }
 
 // Decrypt one block from src into dst, using the expanded key xk.
-func decryptBlock(xk, src, dst []uint32) {
+func decryptBlock(xk []uint32, src, dst []byte) {
 	var s0, s1, s2, s3, t0, t1, t2, t3 uint32;
 
+	s0 = uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3]);
+	s1 = uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7]);
+	s2 = uint32(src[8])<<24 | uint32(src[9])<<16 | uint32(src[10])<<8 | uint32(src[11]);
+	s3 = uint32(src[12])<<24 | uint32(src[13])<<16 | uint32(src[14])<<8 | uint32(src[15]);
+
 	// First round just XORs input with key.
-	s0 = src[0] ^ xk[0];
-	s1 = src[1] ^ xk[1];
-	s2 = src[2] ^ xk[2];
-	s3 = src[3] ^ xk[3];
+	s0 ^= xk[0];
+	s1 ^= xk[1];
+	s2 ^= xk[2];
+	s3 ^= xk[3];
 
 	// Middle rounds shuffle using tables.
 	// Number of rounds is set by length of expanded key.
@@ -102,10 +117,15 @@ func decryptBlock(xk, src, dst []uint32) {
 	s2 = uint32(sbox1[t2>>24])<<24 | uint32(sbox1[t1>>16 & 0xff])<<16 | uint32(sbox1[t0>>8 & 0xff])<<8 | uint32(sbox1[t3 & 0xff]);
 	s3 = uint32(sbox1[t3>>24])<<24 | uint32(sbox1[t2>>16 & 0xff])<<16 | uint32(sbox1[t1>>8 & 0xff])<<8 | uint32(sbox1[t0 & 0xff]);
 
-	dst[0] = s0 ^ xk[k+0];
-	dst[1] = s1 ^ xk[k+1];
-	dst[2] = s2 ^ xk[k+2];
-	dst[3] = s3 ^ xk[k+3];
+	s0 ^= xk[k+0];
+	s1 ^= xk[k+1];
+	s2 ^= xk[k+2];
+	s3 ^= xk[k+3];
+
+	dst[0], dst[1], dst[2], dst[3] = byte(s0>>24), byte(s0>>16), byte(s0>>8), byte(s0);
+	dst[4], dst[5], dst[6], dst[7] = byte(s1>>24), byte(s1>>16), byte(s1>>8), byte(s1);
+	dst[8], dst[9], dst[10], dst[11] = byte(s2>>24), byte(s2>>16), byte(s2>>8), byte(s2);
+	dst[12], dst[13], dst[14], dst[15] = byte(s3>>24), byte(s3>>16), byte(s3>>8), byte(s3);
 }
 
 // Apply sbox0 to each byte in w.
@@ -124,12 +144,12 @@ func rotw(w uint32) uint32 {
 
 // Key expansion algorithm.  See FIPS-197, Figure 11.
 // Their rcon[i] is our powx[i-1] << 24.
-func expandKey(key, enc, dec []uint32) {
+func expandKey(key []byte, enc, dec []uint32) {
 	// Encryption key setup.
 	var i int;
-	nk := len(key);
+	nk := len(key) / 4;
 	for i = 0; i < nk; i++ {
-		enc[i] = key[i];
+		enc[i] = uint32(key[4*i])<<24 | uint32(key[4*i+1])<<16 | uint32(key[4*i+2])<<8 | uint32(key[4*i+3]);
 	}
 	for ; i < len(enc); i++ {
 		t := enc[i-1];
