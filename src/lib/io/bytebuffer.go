@@ -42,13 +42,17 @@ func (b *ByteBuffer) Len() int {
 // Truncate discards all but the first n unread bytes from the buffer.
 // It is an error to call b.Truncate(n) with n > b.Len().
 func (b *ByteBuffer) Truncate(n int) {
+	if n == 0 {
+		// Reuse buffer space.
+		b.off = 0;
+	}
 	b.buf = b.buf[0 : b.off + n];
 }
 
 // Reset resets the buffer so it has no content.
 // b.Reset() is the same as b.Truncate(0).
 func (b *ByteBuffer) Reset() {
-	b.buf = b.buf[0 : b.off];
+	b.Truncate(0);
 }
 
 // Write appends the contents of p to the buffer.  The return

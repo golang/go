@@ -185,3 +185,29 @@ func Copy(src Reader, dst Writer) (written int64, err os.Error) {
 	}
 	return written, err
 }
+
+// A ByteReader satisfies Reads by consuming data from a slice of bytes.
+// Clients can call NewByteReader to create one or wrap pointers
+// to their own slices: r := ByteReader{&data}.
+type ByteReader struct {
+	Data *[]byte
+}
+
+func (r ByteReader) Read(p []byte) (int, os.Error) {
+	n := len(p);
+	b := r.Data;
+	if n > len(b) {
+		n = len(b);
+	}
+	for i := 0; i < n; i++ {
+		p[i] = b[i];
+	}
+	*b = b[n:len(b)];
+	return n, nil;
+}
+
+// NewByteReader returns a new ByteReader reading from data.
+func NewByteReader(data []byte) ByteReader {
+	return ByteReader{ &data };
+}
+
