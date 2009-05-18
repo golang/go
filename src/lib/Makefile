@@ -45,6 +45,7 @@ DIRS=\
 	tabwriter\
 	template\
 	testing\
+	testing/iotest\
 	time\
 	unicode\
 	utf8\
@@ -115,6 +116,7 @@ nuke: nuke.dirs
 
 bignum.install: fmt.install
 bufio.install: io.install os.install
+crypto/aes.install: os.install
 exec.install: os.install strings.install
 exvar.install: fmt.install http.install log.install strconv.install sync.install
 flag.install: fmt.install os.install strconv.install
@@ -123,7 +125,7 @@ path.install: io.install
 once.install: sync.install
 strings.install: utf8.install
 testing.install: flag.install fmt.install runtime.install
-
+testing/iotest.install: io.install os.install
 fmt.install: io.install reflect.install strconv.install
 GODEPS=fmt.install io.install once.install regexp.install sort.install \
 	strconv.install strings.install unicode.install utf8.install container/vector.install

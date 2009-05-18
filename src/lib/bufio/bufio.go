@@ -421,21 +421,17 @@ func (b *Writer) Flush() os.Error {
 	if b.err != nil {
 		return b.err
 	}
-	n := 0;
-	for n < b.n {
-		m, e := b.wr.Write(b.buf[n:b.n]);
-		n += m;
-		if m == 0 && e == nil {
-			e = io.ErrShortWrite
+	n, e := b.wr.Write(b.buf[0:b.n]);
+	if n < b.n && e == nil {
+		e = io.ErrShortWrite;
+	}
+	if e != nil {
+		if n > 0 && n < b.n {
+			copySlice(b.buf[0:b.n-n], b.buf[n:b.n])
 		}
-		if e != nil {
-			if n < b.n {
-				copySlice(b.buf[0:b.n-n], b.buf[n:b.n])
-			}
-			b.n -= n;
-			b.err = e;
-			return e
-		}
+		b.n -= n;
+		b.err = e;
+		return e
 	}
 	b.n = 0;
 	return nil
@@ -505,14 +501,14 @@ func (b *Writer) WriteByte(c byte) os.Error {
 
 // buffered input and output
 
-// ReadWriter stores (a pointer to) a Reader and a Writer.
+// ReadWriter stores pointers to a Reader and a Writer.
 // It implements io.ReadWriter.
 type ReadWriter struct {
 	*Reader;
 	*Writer;
 }
 
-// NewReadWriter allocates a new ReadWriter holding r and w.
+// NewReadWriter allocates a new ReadWriter that dispatches to r and w.
 func NewReadWriter(r *Reader, w *Writer) *ReadWriter {
 	return &ReadWriter{r, w}
 }
