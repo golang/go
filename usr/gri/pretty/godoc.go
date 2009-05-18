@@ -587,7 +587,7 @@ func loggingHandler(h http.Handler) http.Handler {
 
 func restartGodoc(c *http.Conn, r *http.Request) {
 	binary := os.Args[0];
-	if len(binary) > 0 || binary[0] != '/' {
+	if len(binary) > 0 && binary[0] != '/' {
 		binary = pathutil.Join(launchdir, binary);
 	}
 	pid, err := os.ForkExec(binary, os.Args, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr});
