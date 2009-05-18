@@ -29,7 +29,7 @@ cgen(Node *n, Node *res)
 		fatal("cgen: res nil");
 
 	// static initializations
-	if(gen_as_init(n, res))
+	if(initflag && gen_as_init(n, res))
 		goto ret;
 
 	if(n->ullman >= UINF) {

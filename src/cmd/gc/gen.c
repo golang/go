@@ -444,6 +444,8 @@ cgen_as(Node *nl, Node *nr)
 				return;
 			if(nl->class & PHEAP)
 				return;
+			if(gen_as_init(nr, nl))
+				return;
 		}
 
 		tl = nl->type;
