@@ -41,22 +41,28 @@ coverage: packages
 
 O1=\
 	const.$O\
-	modes.$O\
 
 O2=\
 	block.$O\
 
+O3=\
+	cipher.$O\
 
-phases: a1 a2
+
+phases: a1 a2 a3
 _obj$D/aes.a: phases
 
 a1: $(O1)
-	$(AR) grc _obj$D/aes.a const.$O modes.$O
+	$(AR) grc _obj$D/aes.a const.$O
 	rm -f $(O1)
 
 a2: $(O2)
 	$(AR) grc _obj$D/aes.a block.$O
 	rm -f $(O2)
+
+a3: $(O3)
+	$(AR) grc _obj$D/aes.a cipher.$O
+	rm -f $(O3)
 
 
 newpkg: clean
@@ -66,6 +72,7 @@ newpkg: clean
 $(O1): newpkg
 $(O2): a1
 $(O3): a2
+$(O4): a3
 
 nuke: clean
 	rm -f $(GOROOT)/pkg$D/aes.a
