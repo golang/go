@@ -13,7 +13,7 @@ dirpat=$(echo $dirs | sed 's/ /|/g; s/.*/^(&)$/')
 for dir in $dirs; do (
 	cd $dir || exit 1
 
-	sources=$(sed -n 's/\.\$O\\/.go/p' Makefile | sort | uniq)
+	sources=$(sed -n 's/\.\$O\\/.go/p' Makefile)
 	sources=$(ls $sources 2> /dev/null)  # remove .s, .c, etc.
 
 	deps=$(
