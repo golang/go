@@ -27,7 +27,7 @@ type cfbCipher struct {
 
 func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
 	if s == 0 || s % 8 != 0 {
-		panicln("invalid CFB mode", s);
+		panicln("crypto/block: invalid CFB mode", s);
 	}
 	b := c.BlockSize();
 	x := new(cfbCipher);

@@ -12,17 +12,21 @@ import (
 	"os";
 )
 
-type DataStream interface {
+// A dataStream is an interface to an unending stream of data,
+// used by XorReader and XorWriter to model a pseudo-random generator.
+// Calls to Next() return sequential blocks of data from the stream.
+// Each call must return at least one byte: there is no EOF.
+type dataStream interface {
 	Next() []byte
 }
 
 type xorReader struct {
 	r io.Reader;
-	rand DataStream;	// pseudo-random
+	rand dataStream;	// pseudo-random
 	buf []byte;		// data available from last call to rand
 }
 
-func NewXorReader(rand DataStream, r io.Reader) io.Reader {
+func newXorReader(rand dataStream, r io.Reader) io.Reader {
 	x := new(xorReader);
 	x.r = r;
 	x.rand = rand;
@@ -49,13 +53,13 @@ func (x *xorReader) Read(p []byte) (n int, err os.Error) {
 
 type xorWriter struct {
 	w io.Writer;
-	rand DataStream;	// pseudo-random
+	rand dataStream;	// pseudo-random
 	buf []byte;	// last buffer returned by rand
 	extra []byte;	// extra random data (use before buf)
 	work []byte;	// work space
 }
 
-func NewXorWriter(rand DataStream, w io.Writer) io.Writer {
+func newXorWriter(rand dataStream, w io.Writer) io.Writer {
 	x := new(xorWriter);
 	x.w = w;
 	x.rand = rand;
