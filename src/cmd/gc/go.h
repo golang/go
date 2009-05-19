@@ -325,7 +325,7 @@ enum
 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
 	OLITERAL, OREGISTER, OINDREG,
 	OKEY, OPARAM,
-	OCOMPOS,
+	OCOMPOS, OCOMPSLICE, OCOMPMAP,
 	OCONV,
 	ODOTTYPE, OTYPESW,
 	OBAD,
@@ -565,10 +565,11 @@ EXTERN	Dcl*	externdcl;
 EXTERN	Dcl*	exportlist;
 EXTERN	Dcl*	signatlist;
 EXTERN	Dcl*	typelist;
-EXTERN	int	dclcontext;	// PEXTERN/PAUTO
+EXTERN	int	dclcontext;		// PEXTERN/PAUTO
 EXTERN	int	importflag;
 EXTERN	int	inimportsys;
 EXTERN	int	initflag;		// compiling the init fn
+EXTERN	int	statuniqgen;		// name generator for static temps
 
 EXTERN	uint32	iota;
 EXTERN	Node*	lastconst;
@@ -748,6 +749,7 @@ Node*	syslook(char*, int);
 Node*	treecopy(Node*);
 int	isselect(Node*);
 void	tempname(Node*, Type*);
+Node*	staticname(Type*);
 int	iscomposite(Type*);
 Node*	callnew(Type*);
 

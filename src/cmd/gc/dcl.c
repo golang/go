@@ -1360,7 +1360,7 @@ initlin(Node* n)
 		   n->right->right->op != OLIST ||
 		   n->right->right->left->op != OAS ||
 		   n->right->right->right->op != OAS ||
-		   memcmp(n->left->sym->name, "mapassign1", 10) != 0)
+		   strcmp(n->left->sym->name, "mapassign1") != 0)
 			dump("o=call", n);
 		n->ninit = N;
 		xxx = list(xxx, n);
@@ -1385,7 +1385,7 @@ inittmp(Node *n)
 	if(n->op == ONAME)
 	if(n->sym != S)
 	if(n->class == PAUTO)
-	if(memcmp(n->sym->name, "!tmpname", 8) == 0)
+	if(strcmp(n->sym->name, "!tmpname!") == 0)
 		return 1;
 	return 0;
 }
@@ -1409,12 +1409,59 @@ indsametmp(Node *n1, Node *n2)
 	return 0;
 }
 
+Node*
+slicerewrite(Node *n)
+{
+	Iter param;
+	Node *a, *wid, *nel;
+	Type *t;
+	int b;
+
+	if(n == N || n->op != OCALL || !isslice(n->type) ||
+	   n->left == N || n->left->sym == S ||
+	   strcmp(n->left->sym->name, "newarray") != 0)
+		goto no;
+
+	// call to newarray - find width and nel
+	wid = N;
+	nel = N;
+	a = listfirst(&param, &n->right);
+	while(a != N) {
+		if(a->op == OAS &&
+		   a->left != N && a->right != N &&
+		   a->left->op == OINDREG && a->right->op == OLITERAL &&
+		   a->left->sym != S) {
+			if(strcmp(a->left->sym->name, "nel") == 0)
+				nel = a->right;
+			if(strcmp(a->left->sym->name, "width") == 0)
+				wid = a->right;
+		}
+		a = listnext(&param);
+	}
+	if(wid == N || nel == N)
+		goto no;
+
+	b = mpgetfix(nel->val.u.xval);
+	if(b == 0)
+		goto no;
+
+	t = shallow(n->type);
+	t->bound = b;
+	a = staticname(t);
+	a = nod(OCOMPSLICE, a, N);
+	a->type = n->type;
+	return a;
+
+no:
+	return N;
+}
+
 int
 initsub(Node *n, Node *nam)
 {
-	Iter iter;
-	Node *r;
-	int any, i;
+	Iter iter, param;
+	Node *r, *w;
+	int any;
 
 	any = 0;
 	r = listfirst(&iter, &xxx);
@@ -1427,7 +1474,13 @@ initsub(Node *n, Node *nam)
 			case ONAME:
 				if(sametmp(r->left, nam)) {
 					any = 1;
+					w = slicerewrite(r->right);
 					r->left = n;
+					if(w != N) {
+						n = w->left;	// from now on use fixed array
+						r->right = w;
+						break;
+					}
 				}
 				break;
 			case ODOT:
@@ -1454,27 +1507,18 @@ initsub(Node *n, Node *nam)
 			break;
 		case OCALL:
 			// call to mapassign1
-			// look through all three parameters
-			for(i=0; i<2; i++) {
-				r = r->right;
-				if(r == N || r->op != OLIST)
-					break;
-				if(sametmp(r->left->right, nam)) {
+			// look through the parameters
+			w = listfirst(&param, &r->right);
+			while(w != N) {
+				if(sametmp(w->right, nam)) {
 					any = 1;
-					r->left->right = n;
+					w->right = n;
 				}
-				if(indsametmp(r->left->right, nam)) {
+				if(indsametmp(w->right, nam)) {
 					any = 1;
-					r->left->left->right = n;
+					w->right->left = n;
 				}
-				if(sametmp(r->right->right, nam)) {
-					any = 1;
-					r->right->right = n;
-				}
-				if(indsametmp(r->right->right, nam)) {
-					any = 1;
-					r->right->left->right = n;
-				}
+				w = listnext(&param);
 			}
 			break;
 		}
