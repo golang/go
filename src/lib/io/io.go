@@ -27,6 +27,9 @@ var ErrShortWrite os.Error = &Error{"short write"}
 
 
 // Reader is the interface that wraps the basic Read method.
+// An implementation of Read is allowed to use all of p for
+// scratch space during the call, even if it eventually returns
+// n < len(p).
 type Reader interface {
 	Read(p []byte) (n int, err os.Error);
 }
@@ -80,10 +83,11 @@ func WriteString(w Writer, s string) (n int, err os.Error) {
 	return w.Write(StringBytes(s))
 }
 
-// FullRead reads r until the buffer buf is full, or until EOF or error.
-func FullRead(r Reader, buf []byte) (n int, err os.Error) {
+// ReadAtLeast reads r into buf until at least min bytes have been read,
+// or until EOF or error.
+func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
 	n = 0;
-	for n < len(buf) {
+	for n < min {
 		nn, e := r.Read(buf[n:len(buf)]);
 		if nn > 0 {
 			n += nn
@@ -96,6 +100,13 @@ func FullRead(r Reader, buf []byte) (n int, err os.Error) {
 		}
 	}
 	return n, nil
+}
+
+// FullRead reads r until the buffer buf is full, or until EOF or error.
+func FullRead(r Reader, buf []byte) (n int, err os.Error) {
+	// TODO(rsc): 6g bug prevents obvious return
+	n, err = ReadAtLeast(r, buf, len(buf));
+	return;
 }
 
 // Convert something that implements Read into something
