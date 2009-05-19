@@ -701,8 +701,6 @@ clearfat(Node *nl)
 int
 getlit(Node *lit)
 {
-	int l;
-
 	if(smallintconst(lit))
 		return mpgetfix(lit->val.u.xval);
 	return -1;
@@ -748,7 +746,7 @@ no:
 int
 gen_as_init(Node *nr, Node *nl)
 {
-	Node nam;
+	Node nam, nod1;
 	Prog *p;
 
 	if(!initflag)
@@ -760,6 +758,32 @@ gen_as_init(Node *nr, Node *nl)
 		if(nam.class != PEXTERN)
 			goto no;
 		return 1;
+	}
+
+	if(nr->op == OCOMPSLICE) {
+		// create a slice pointing to an array
+		if(!stataddr(&nam, nl)) {
+			dump("stataddr", nl);
+			goto no;
+		}
+
+		p = gins(ADATA, &nam, nr->left);
+		p->from.scale = types[tptr]->width;
+		p->to.index = p->to.type;
+		p->to.type = D_ADDR;
+//print("%P\n", p);
+
+		nodconst(&nod1, types[TINT32], nr->left->type->bound);
+		p = gins(ADATA, &nam, &nod1);
+		p->from.scale = types[TINT32]->width;
+		p->from.offset += types[tptr]->width;
+//print("%P\n", p);
+
+		p = gins(ADATA, &nam, &nod1);
+		p->from.scale = types[TINT32]->width;
+		p->from.offset += types[tptr]->width+types[TINT32]->width;
+
+		goto yes;
 	}
 
 	if(nr->type == T ||

@@ -666,6 +666,8 @@ opnames[] =
 	[OCMP]		= "CMP",
 	[OFALL]		= "FALL",
 	[OCOMPOS]	= "COMPOS",
+	[OCOMPSLICE]	= "COMPSLICE",
+	[OCOMPMAP]	= "COMPMAP",
 	[ODOTTYPE]	= "DOTTYPE",
 	[OCONV]		= "CONV",
 	[OCOM]		= "COM",
@@ -2387,6 +2389,18 @@ tempname(Node *n, Type *t)
 	stksize += w;
 	stksize = rnd(stksize, w);
 	n->xoffset = -stksize;
+}
+
+Node*
+staticname(Type *t)
+{
+	Node *n;
+
+	snprint(namebuf, sizeof(namebuf), "statictmp_%.4d·%s", statuniqgen, filename);
+	statuniqgen++;
+	n = newname(lookup(namebuf));
+	addvar(n, t, PEXTERN);
+	return n;
 }
 
 void

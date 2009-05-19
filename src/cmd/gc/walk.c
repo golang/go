@@ -581,6 +581,10 @@ loop:
 		walkconv(n);
 		goto ret;
 
+	case OCOMPMAP:
+	case OCOMPSLICE:
+		goto ret;
+
 	case OCOMPOS:
 		t = n->type;
 		if(t == T)
