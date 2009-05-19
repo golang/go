@@ -9,6 +9,6 @@
 package main
 
 import (
-	"bufio";
-	bufio "os";	// ERROR "redeclaration"
+	"bufio";	// GCCGO_ERROR "previous"
+	bufio "os";	// ERROR "redeclaration|redefinition|incompatible"
 )
