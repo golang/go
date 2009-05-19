@@ -830,6 +830,25 @@ lit:
 		p = gins(ADATA, &nam, nr);
 		p->from.scale = nr->type->width;
 		break;
+
+	case TSTRING:
+		p = gins(ADATA, &nam, N);
+		datastring(nr->val.u.sval->s, nr->val.u.sval->len, &p->to);
+		p->from.scale = types[tptr]->width;
+		p->to.index = p->to.type;
+		p->to.type = D_ADDR;
+//print("%P\n", p);
+
+		nodconst(&nod1, types[TINT32], nr->val.u.sval->len);
+		p = gins(ADATA, &nam, &nod1);
+		p->from.scale = types[TINT32]->width;
+		p->from.offset += types[tptr]->width;
+//print("%P\n", p);
+
+		p = gins(ADATA, &nam, &nod1);
+		p->from.scale = types[TINT32]->width;
+		p->from.offset += types[tptr]->width+types[TINT32]->width;
+		break;
 	}
 
 yes:
