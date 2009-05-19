@@ -26,12 +26,12 @@ func main() {
 	var sp SP;
 
 	v = t;
-	p = t;	// ERROR "is not"
+	p = t;	// ERROR "is not|requires a pointer"
 	v = &t;
 	p = &t;
 
 	v = s;
-	p = s;	// ERROR "is not"
+	p = s;	// ERROR "is not|requires a pointer"
 	v = &s;
 	p = &s;
 

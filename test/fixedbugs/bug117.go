@@ -15,7 +15,7 @@ func fn(p PS) int {
   // p has type PS, and PS has no methods.
   // (a compiler might see that p is a pointer
   // and go looking in S without noticing PS.)
-  return p.get()	// ERROR "undefined DOT"
+  return p.get()	// ERROR "undefined"
 }
 func main() {
   s := S{1};
