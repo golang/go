@@ -2,6 +2,13 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+# After editing the DIRS= list or adding imports to any Go files
+# in any of those directories, run:
+#
+#	p4 edit Make.deps; ./deps.bash
+#
+# to rebuild the dependency information in Make.deps.
+
 all: install
 
 GC=6g
@@ -11,6 +18,7 @@ DIRS=\
 	bufio\
 	container/vector\
 	crypto/aes\
+	crypto/block\
 	exec\
 	exvar\
 	flag\
