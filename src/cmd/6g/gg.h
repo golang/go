@@ -126,6 +126,11 @@ void	afunclit(Addr*);
 void	datagostring(Strlit*, Addr*);
 
 /*
+ * obj.c
+ */
+void	datastring(char*, int, Addr*);
+
+/*
  * list.c
  */
 int	Aconv(Fmt*);
