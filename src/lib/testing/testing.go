@@ -21,11 +21,16 @@ import (
 // Report as tests are run; default is silent for success.
 var chatty = flag.Bool("chatty", false, "chatty")
 
-// Insert tabs after newlines - but not the last one
+// Insert final newline if needed and tabs after internal newlines.
 func tabify(s string) string {
-	for i := 0; i < len(s) - 1; i++ {	// -1 because if last char is newline, don't bother
+	n := len(s);
+	if n > 0 && s[n-1] != '\n' {
+		s += "\n";
+		n++;
+	}
+	for i := 0; i < n - 1; i++ {	// -1 to avoid final newline
 		if s[i] == '\n' {
-			return s[0:i+1] + "\t" + tabify(s[i+1:len(s)]);
+			return s[0:i+1] + "\t" + tabify(s[i+1:n]);
 		}
 	}
 	return s
@@ -42,6 +47,11 @@ type T struct {
 // Fail marks the Test function as having failed but continues execution.
 func (t *T) Fail() {
 	t.failed = true
+}
+
+// Failed returns whether the Test function has failed.
+func (t *T) Failed() bool {
+	return t.failed
 }
 
 // FailNow marks the Test function as having failed and stops its execution.
@@ -61,11 +71,7 @@ func (t *T) Log(args ...) {
 // Log formats its arguments according to the format, analogous to Printf(),
 // and records the text in the error log.
 func (t *T) Logf(format string, args ...) {
-	t.errors += tabify(fmt.Sprintf("\t" + format, args));
-	l := len(t.errors);
-	if l > 0 && t.errors[l-1] != '\n' {
-		t.errors += "\n"
-	}
+	t.errors += "\t" + tabify(fmt.Sprintf(format, args));
 }
 
 // Error is equivalent to Log() followed by Fail().
