@@ -15,6 +15,14 @@ enum
 	I2I2,
 	T2I,
 	I2Isame,
+	E2T,
+	E2T2,
+	E2I,
+	E2I2,
+	I2E,
+	I2E2,
+	T2E,
+	E2Esame,
 };
 
 // can this code branch reach the end
@@ -444,6 +452,7 @@ loop:
 		cr = listcount(r);
 
 		if(cl == cr) {
+		simpleas:
 			walktype(r, Erv);
 			l = ascompatee(n->op, &n->left, &n->right);
 			if(l != N)
@@ -505,12 +514,24 @@ loop:
 					break;
 				et = ifaceas1(r->type, r->left->type, 1);
 				switch(et) {
+				case I2Isame:
+				case E2Esame:
+					n->right = nod(OLIST, r->left, nodbool(1));
+					goto simpleas;
+				case I2E:
+					n->right = nod(OLIST, n->right, nodbool(1));
+					goto simpleas;
 				case I2T:
 					et = I2T2;
 					break;
-				case I2Isame:
 				case I2I:
 					et = I2I2;
+					break;
+				case E2I:
+					et = E2I2;
+					break;
+				case E2T:
+					et = E2T2;
 					break;
 				default:
 					et = Inone;
@@ -1180,6 +1201,7 @@ void
 walkconv(Node *n)
 {
 	int et;
+	char *what;
 	Type *t;
 	Node *l;
 
@@ -1199,9 +1221,13 @@ walkconv(Node *n)
 		defaultlit(l, T);
 		if(!isinter(l->type))
 			yyerror("type assertion requires interface on left, have %T", l->type);
-		et = ifaceas(n->type, l->type, 1);
+		et = ifaceas1(t, l->type, 1);
+		if(et == I2Isame || et == E2Esame) {
+			n->op = OCONV;
+			goto nop;
+		}
 		if(et != Inone) {
-			indir(n, ifaceop(n->type, l, et));
+			indir(n, ifaceop(t, l, et));
 			return;
 		}
 		goto bad;
@@ -1212,8 +1238,9 @@ walkconv(Node *n)
 	if(l->type == T)
 		return;
 
-	// nil conversion
+	// no-op conversion
 	if(cvttype(t, l->type)) {
+	nop:
 		if(l->op != ONAME) {
 			indir(n, l);
 			n->type = t;
@@ -1267,9 +1294,9 @@ walkconv(Node *n)
 
 	// convert from unsafe.pointer
 	if(isptrto(l->type, TANY)) {
-		if(isptr[n->type->etype])
+		if(isptr[t->etype])
 			return;
-		if(n->type->etype == TUINTPTR)
+		if(t->etype == TUINTPTR)
 			return;
 	}
 
@@ -1277,8 +1304,12 @@ bad:
 	if(n->diag)
 		return;
 	n->diag = 1;
+	if(n->op == ODOTTYPE)
+		what = "type assertion";
+	else
+		what = "conversion";
 	if(l->type != T)
-		yyerror("invalid conversion: %T to %T", l->type, t);
+		yyerror("invalid %s: %T to %T", what, l->type, t);
 	else
 	if(n->left->op == OLIST)
 		yyerror("invalid type for composite literal: %T", t);
@@ -2095,7 +2126,10 @@ loop:
 
 	et = l->type->etype;
 	if(isinter(l->type)) {
-		on = syslook("printinter", 1);
+		if(isnilinter(l->type))
+			on = syslook("printeface", 1);
+		else
+			on = syslook("printiface", 1);
 		argtype(on, l->type);		// any-1
 	} else if(isptr[et] || et == TCHAN || et == TMAP || et == TFUNC) {
 		on = syslook("printpointer", 1);
@@ -2903,19 +2937,27 @@ ifaceas1(Type *dst, Type *src, int explicit)
 
 	if(isinter(dst)) {
 		if(isinter(src)) {
+			if(isnilinter(dst)) {
+				if(isnilinter(src))
+					return E2Esame;
+				return I2E;
+			}
 			if(eqtype(dst, src))
 				return I2Isame;
-			if(!isnilinter(dst))
-				ifacecheck(dst, src, lineno, explicit);
+			ifacecheck(dst, src, lineno, explicit);
+			if(isnilinter(src))
+				return E2I;
 			return I2I;
 		}
 		if(isnilinter(dst))
-			return T2I;
+			return T2E;
 		ifacecheck(dst, src, lineno, explicit);
 		return T2I;
 	}
 	if(isinter(src)) {
 		ifacecheck(dst, src, lineno, explicit);
+		if(isnilinter(src))
+			return E2T;
 		return I2T;
 	}
 	return Inone;
@@ -2930,7 +2972,7 @@ ifaceas(Type *dst, Type *src, int explicit)
 	int et;
 
 	et = ifaceas1(dst, src, explicit);
-	if(et == I2Isame)
+	if(et == I2Isame || et == E2Esame)
 		et = Inone;
 	return et;
 }
@@ -2943,6 +2985,15 @@ ifacename[] =
 	[I2I]		= "ifaceI2I",
 	[I2I2]		= "ifaceI2I2",
 	[I2Isame]	= "ifaceI2Isame",
+	[E2T]		= "ifaceE2T",
+	[E2T2]		= "ifaceE2T2",
+	[E2I]		= "ifaceE2I",
+	[E2I2]		= "ifaceE2I2",
+	[I2E]		= "ifaceI2E",
+	[I2E2]		= "ifaceI2E2",
+	[T2I]		= "ifaceT2I",
+	[T2E]		= "ifaceT2E",
+	[E2Esame]	= "ifaceE2Esame",
 };
 
 Node*
@@ -2982,19 +3033,21 @@ ifaceop(Type *tl, Node *n, int op)
 		on = syslook("ifaceT2I", 1);
 		argtype(on, tr);
 		argtype(on, tl);
-
 		break;
 
 	case I2T:
 	case I2T2:
 	case I2I:
 	case I2I2:
+	case E2T:
+	case E2T2:
+	case E2I:
+	case E2I2:
 		// iface[IT]2[IT][2](sigt *byte, iface any) (ret any[, ok bool]);
-
 		a = n;				// interface
 		r = a;
 
-		s = signame(tl);		// sigi
+		s = signame(tl);		// sigi or sigt
 		if(s == S)
 			fatal("ifaceop: signame %d", op);
 		a = s->oname;
@@ -3004,7 +3057,34 @@ ifaceop(Type *tl, Node *n, int op)
 		on = syslook(ifacename[op], 1);
 		argtype(on, tr);
 		argtype(on, tl);
+		break;
 
+	case I2E:
+		// TODO(rsc): Should do this in back end, without a call.
+		// ifaceI2E(elem any) (ret any);
+		a = n;				// interface
+		r = a;
+		on = syslook("ifaceI2E", 1);
+		argtype(on, tr);
+		argtype(on, tl);
+		break;
+
+	case T2E:
+		// TODO(rsc): Should do this in back end for pointer case, without a call.
+		// ifaceT2E(sigt *byte, elem any) (ret any);
+		a = n;				// elem
+		r = a;
+
+		s = signame(tr);		// sigt
+		if(s == S)
+			fatal("ifaceop: signame-1 T2E: %lT", tr);
+		a = s->oname;
+		a = nod(OADDR, a, N);
+		r = list(a, r);
+
+		on = syslook("ifaceT2E", 1);
+		argtype(on, tr);
+		argtype(on, tl);
 		break;
 
 	case OEQ:
@@ -3016,7 +3096,12 @@ ifaceop(Type *tl, Node *n, int op)
 		a = n->left;				// i1
 		r = list(a, r);
 
-		on = syslook("ifaceeq", 1);
+		if(!eqtype(n->left->type, n->right->type))
+			fatal("ifaceop %O %T %T", op, n->left->type, n->right->type);
+		if(isnilinter(n->left->type))
+			on = syslook("efaceeq", 1);
+		else
+			on = syslook("ifaceeq", 1);
 		argtype(on, n->right->type);
 		argtype(on, n->left->type);
 

@@ -363,7 +363,7 @@ static void
 interprint(uint32 s, Iface *a)
 {
 	USED(s);
-	sys·printinter(*a);
+	sys·printiface(*a);
 }
 
 static uint32
@@ -371,6 +371,27 @@ interequal(uint32 s, Iface *a, Iface *b)
 {
 	USED(s);
 	return ifaceeq(*a, *b);
+}
+
+static uint64
+nilinterhash(uint32 s, Eface *a)
+{
+	USED(s);
+	return efacehash(*a);
+}
+
+static void
+nilinterprint(uint32 s, Eface *a)
+{
+	USED(s);
+	sys·printeface(*a);
+}
+
+static uint32
+nilinterequal(uint32 s, Eface *a, Eface *b)
+{
+	USED(s);
+	return efaceeq(*a, *b);
 }
 
 uint64
@@ -416,6 +437,7 @@ algarray[] =
 [ANOEQ]	{ nohash, noequal, memprint, memcopy },
 [ASTRING]	{ strhash, strequal, strprint, memcopy },
 [AINTER]		{ interhash, interequal, interprint, memcopy },
+[ANILINTER]	{ nilinterhash, nilinterequal, nilinterprint, memcopy },
 [AFAKE]	{ nohash, noequal, noprint, nocopy },
 };
 

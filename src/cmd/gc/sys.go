@@ -17,7 +17,8 @@ func	printfloat(float64);
 func	printint(int64);
 func	printstring(string);
 func	printpointer(any);
-func	printinter(any);
+func	printiface(any);
+func	printeface(any);
 func	printarray(any);
 func	printnl();
 func	printsp();
@@ -31,13 +32,21 @@ func	arraystring([]byte) string;
 func	stringiter(string, int) int;
 func	stringiter2(string, int) (retk int, retv int);
 
+func	ifaceI2E(iface any) (ret any);
+func	ifaceE2I(sigi *byte, iface any) (ret any);
+func	ifaceT2E(sigt *byte, elem any) (ret any);
+func	ifaceE2T(sigt *byte, elem any) (ret any);
+func	ifaceE2I2(sigi *byte, iface any) (ret any, ok bool);
+func	ifaceE2T2(sigt *byte, elem any) (ret any, ok bool);
 func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
 func	ifaceI2T(sigt *byte, iface any) (ret any);
 func	ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
 func	ifaceI2I(sigi *byte, iface any) (ret any);
 func	ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
 func	ifaceeq(i1 any, i2 any) (ret bool);
+func	efaceeq(i1 any, i2 any) (ret bool);
 func	ifacethash(i1 any) (ret uint32);
+func	efacethash(i1 any) (ret uint32);
 
 func	newmap(keysize int, valsize int,
 			keyalg int, valalg int,
