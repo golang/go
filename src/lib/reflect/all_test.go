@@ -543,7 +543,7 @@ func TestIsNil(t *testing.T) {
 		ty := reflect.ParseTypeString("", ts);
 		v := reflect.NewZeroValue(ty);
 		if nilable, ok := v.(Nillable); !ok {
-			t.Errorf("%s is not nilable; should be", ts)
+			t.Errorf("%s %T is not nilable; should be", ts, v)
 		}
 	}
 	// Check the implementations

@@ -876,13 +876,6 @@ func newValueAddr(typ Type, addr Addr) Value {
 
 // NewZeroValue creates a new, zero-initialized Value for the specified Type.
 func NewZeroValue(typ Type) Value {
-	// Some values cannot be made this way.
-	switch typ.Kind() {
-	case ArrayKind:
-		if typ.(ArrayType).IsSlice() {
-			return nil
-		}
-	}
 	size := typ.Size();
 	if size == 0 {
 		size = 1;
