@@ -8,7 +8,6 @@ Open issues:
 	- no mechanism to declare a local type name: type T P.T
 
 Todo's:
-[ ] new interface rules per rsc (use "method set" terminology)
 [ ] document illegality of package-external tuple assignments to structs
 	w/ private fields: P.T(1, 2) illegal since same as P.T(a: 1, b: 2) for
 	a T struct { a b int }.
@@ -418,10 +417,10 @@ literal.
 <h2>Types</h2>
 
 <p>
-A type determines the set of values and operations specific to values of that type.
-A type may be specified by a (possibly qualified (§Qualified identifiers))
-type name (§Type declarations) or a <i>type literal</i>,
-which composes a new type in terms of previously declared types.
+A type determines the set of values and operations specific to values of that
+type.  A type may be specified by a (possibly qualified) <i>type name</i>
+(§Qualified identifier, §Type declarations) or a <i>type literal</i>,
+which composes a new type from previously declared types.
 </p>
 
 <pre class="grammar">
@@ -450,10 +449,16 @@ because the size of the pointer itself is always known.
 interface fit in here.)
 </p>
 <p>
-The <i>interface</i> of a type is the set of methods bound to it
-(§Method declarations); for pointer types, it is the interface
-of the pointer base type (§Pointer types). All types have an interface;
-if they have no methods, it is the <i>empty interface</i>.
+A type may have a method set associated with it
+(§Interface types, §Method declarations).
+The method set of an interface type (§Interface types) is its interface.
+The method set of any other named type <code>T</code>
+consists of all methods with receiver
+type <code>T</code>.
+The method set of the corresponding pointer type <code>*T</code>
+is the set of all methods with receiver <code>*T</code> or <code>T</code>
+(that is, it also contains the method set of <code>T</code>).
+Any other type has an empty method set.
 </p>
 <p>
 The <i>static type</i> (or just <i>type</i>) of a variable is the
@@ -461,7 +466,7 @@ type defined by its declaration.  Variables of interface type
 (§Interface types) also have a distinct <i>dynamic type</i>, which
 is the actual type of the value stored in the variable at run-time.
 The dynamic type may vary during execution but is always compatible
-with the static type of the interface variable.  For non-interfaces
+with the static type of the interface variable.  For non-interface
 types, the dynamic type is always the static type.
 </p>
 
@@ -736,10 +741,28 @@ struct {
 <p>
 Fields and methods (§Method declarations) of an anonymous field are
 promoted to be ordinary fields and methods of the struct (§Selectors).
+The following rules apply for a struct type named <code>S</code> and
+a type named <code>T</code>:
 </p>
+<ul>
+	<li>If <code>S</code> contains an anonymous field <code>T</code>, the
+	    method set of <code>S</code> includes the method set of <code>T</code>.
+	</li>
+
+	<li>If <code>S</code> contains an anonymous field <code>*T</code>, the
+	    method set of <code>S</code> includes the method set of <code>*T</code>
+	    (which itself includes the method set of <code>T</code>).
+	</li>
+
+	<li>If <code>S</code> contains an anonymous field <code>T</code> or
+	    <code>*T</code>, the method set of <code>*S</code> includes the
+	    method set of <code>*T</code> (which itself includes the method
+	    set of <code>T</code>).
+	</li>
+</ul>
 <p>
-A field declaration may be followed by an optional string literal <i>tag</i>, which
-becomes an attribute for all the identifiers in the corresponding
+A field declaration may be followed by an optional string literal <i>tag</i>,
+which becomes an attribute for all the identifiers in the corresponding
 field declaration. The tags are made
 visible through a reflection library (TODO: reference?)
 but are otherwise ignored.
@@ -824,10 +847,10 @@ func (n int) (func (p* T))
 <h3>Interface types</h3>
 
 <p>
-An interface type specifies an unordered set of methods. A variable
-of interface type can store, dynamically, any value that implements
-at least that set of methods.
-An interface value may be <code>nil</code>.
+An interface type specifies a method set called its <i>interface</i>.
+A variable of interface type can store a value of any type with a method set
+that is any superset of the interface. Such a type is said to
+<i>implement the interface</i>. An interface value may be <code>nil</code>.
 </p>
 
 <pre class="grammar">
@@ -846,11 +869,9 @@ interface {
 </pre>
 
 <p>
-Any type (including interface types) whose interface includes,
-possibly as a subset, the complete set of methods of an interface <code>I</code>
-is said to implement interface <code>I</code>.
+More than one type may implement an interface.
 For instance, if two types <code>S1</code> and <code>S2</code>
-have the methods
+have the method set
 </p>
 
 <pre>
@@ -1066,7 +1087,7 @@ identical types. In detail:
 
 	<li>Two struct types are identical if they have the same sequence of fields,
 	    and if corresponding fields have the same names and identical types.
-		Two anonymous fields are considered to have the same name.</li>
+	    Two anonymous fields are considered to have the same name.</li>
 
 	<li>Two pointer types are identical if they have identical base types.</li>
 
@@ -1620,9 +1641,10 @@ Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
 </pre>
 
 <p>
-The receiver type must be a type name or a pointer to a type name,
-and that name is called the <i>receiver base type</i> or just <i>base type</i>.
-The base type must not be a pointer type and must be
+The receiver type must be of the form <code>T</code> or <code>*T</code> where
+<code>T</code> is a type name. <code>T</code> is called the
+<i>receiver base type</i> or just <i>base type</i>.
+The base type must not be a pointer or interface type and must be
 declared in the same source file as the method.
 The method is said to be <i>bound</i> to the base type
 and is visible only within selectors for that type
@@ -1630,8 +1652,6 @@ and is visible only within selectors for that type
 </p>
 
 <p>
-All methods bound to a base type must have the same receiver type,
-either all pointers to the base type or all the base type itself.
 Given type <code>Point</code>, the declarations
 </p>
 
@@ -1652,8 +1672,7 @@ to the base type <code>Point</code>.
 </p>
 
 <p>
-If the
-receiver's value is not referenced inside the the body of the method,
+If the receiver's value is not referenced inside the the body of the method,
 its identifier may be omitted in the declaration. The same applies in
 general to parameters of functions and methods.
 </p>
@@ -1723,8 +1742,8 @@ func F(a int) int {
 
 <p>
 An expression specifies the computation of a value by applying
-operators and functions to operands. An expression has a value and
-a type.
+operators and functions to operands. An expression has a value
+and a type.
 </p>
 
 <h3>Operands</h3>
@@ -2262,10 +2281,12 @@ pt.Scale(3.5)  // method call with receiver pt
 </pre>
 
 <p>
-If the receiver type of the method is declared as a pointer of type <code>*T</code>,
-the actual receiver may be a value of type <code>T</code>;
-in such cases method invocation implicitly takes the
-receiver's address:
+A method call <code>x.m()</code> is valid if the method set of
+(the type of) <code>x</code> contains <code>m</code> (and the
+argument list is compatible with the parameter list of <code>m</code>).
+If <code>x</code> is addressable and <code>&amp;x</code>'s method
+set contains <code>m</code>, <code>x.m()</code> is shorthand
+for <code>(&amp;x).m()</code>:
 </p>
 
 <pre>
