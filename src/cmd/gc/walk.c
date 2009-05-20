@@ -114,7 +114,8 @@ loop:
 		return;
 
 	more = N;
-	lineno = n->lineno;
+	if(n->op != ONAME)
+		lineno = n->lineno;
 	switch(n->op) {
 
 	case OLIST:
@@ -123,7 +124,10 @@ loop:
 		break;
 
 	default:
-		yyerror("walkstate: %O not a top level statement", n->op);
+		if(n->op == ONAME)
+			yyerror("walkstate: %S not a top level statement", n->sym);
+		else
+			yyerror("walkstate: %O not a top level statement", n->op);
 
 	case OASOP:
 	case OAS:
@@ -3355,11 +3359,7 @@ dorange(Node *nn)
 	if(nn->op != ORANGE)
 		fatal("dorange not ORANGE");
 
-	implicitstar(&nn->right);
 	k = nn->left;
-	m = nn->right;
-	local = nn->etype;
-
 	v = N;
 	if(k->op == OLIST) {
 		v = k->right;
@@ -3368,7 +3368,11 @@ dorange(Node *nn)
 
 	n = nod(OFOR, N, N);
 
-	walktype(m, Erv);
+	walktype(nn->right, Erv);
+	implicitstar(&nn->right);
+	m = nn->right;
+	local = nn->etype;
+
 	t = m->type;
 	if(t == T)
 		goto out;
