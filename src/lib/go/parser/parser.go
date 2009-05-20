@@ -50,7 +50,11 @@ func (p ErrorList) Less(i, j int) bool  { return p[i].Pos.Offset < p[j].Pos.Offs
 
 
 func (p ErrorList) String() string {
-	return fmt.Sprintf("%d syntax errors", len(p));
+	switch len(p) {
+	case 0: return "unspecified error";
+	case 1: return p[0].String();
+	}
+	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p) - 1);
 }
 
 
