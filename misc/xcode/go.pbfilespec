@@ -1,0 +1,31 @@
+/*
+	Copyright 2009 The Go Authors. All rights reserved.
+	Use of this source code is governed by a BSD-style
+	license that can be found in the LICENSE file.
+
+	go.pbfilespec
+	Go source file spec for Xcode 3
+
+	There is not much documentation available regarding the format
+	of .pbfilespec files. As a starting point, see for instance the
+	outdated documentation at:
+	http://maxao.free.fr/xcode-plugin-interface/specifications.html
+	and the files in:
+	/Developer/Library/PrivateFrameworks/XcodeEdit.framework/Versions/A/Resources/
+
+	Place this file in directory:
+	~/Library/Application Support/Developer/Shared/Xcode/Specifications/
+*/
+
+(
+	{
+		Identifier = sourcecode.go;
+		BasedOn = sourcecode;
+		Name = "Go Files";
+		Extensions = ("go");
+		MIMETypes = ("text/go");
+		Language = "xcode.lang.go";
+		IsTextFile = YES;
+		IsSourceFile = YES;
+	}
+)
