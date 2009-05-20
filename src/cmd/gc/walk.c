@@ -539,7 +539,7 @@ loop:
 				}
 				if(et == Inone)
 					break;
-				r = ifaceop(r->type, r->left, et);
+				r = ifacecvt(r->type, r->left, et);
 				l = ascompatet(n->op, &n->left, &r->type, 0);
 				if(l != N)
 					indir(n, list(r, reorder2(l)));
@@ -1077,7 +1077,7 @@ loop:
 		if(!okforeq[et] && !isslice(n->left->type))
 			goto badt;
 		if(isinter(n->left->type)) {
-			indir(n, ifaceop(T, n, n->op));
+			indir(n, ifaceop(n));
 			goto ret;
 		}
 		t = types[TBOOL];
@@ -1227,7 +1227,7 @@ walkconv(Node *n)
 			goto nop;
 		}
 		if(et != Inone) {
-			indir(n, ifaceop(t, l, et));
+			indir(n, ifacecvt(t, l, et));
 			return;
 		}
 		goto bad;
@@ -2997,7 +2997,7 @@ ifacename[] =
 };
 
 Node*
-ifaceop(Type *tl, Node *n, int op)
+ifacecvt(Type *tl, Node *n, int et)
 {
 	Type *tr;
 	Node *r, *a, *on;
@@ -3005,9 +3005,9 @@ ifaceop(Type *tl, Node *n, int op)
 
 	tr = n->type;
 
-	switch(op) {
+	switch(et) {
 	default:
-		fatal("ifaceop: unknown op %O\n", op);
+		fatal("ifacecvt: unknown op %d\n", et);
 
 	case T2I:
 		// ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
@@ -3017,14 +3017,14 @@ ifaceop(Type *tl, Node *n, int op)
 
 		s = signame(tr);		// sigt
 		if(s == S)
-			fatal("ifaceop: signame-1 T2I: %lT", tr);
+			fatal("ifacecvt: signame-1 T2I: %lT", tr);
 		a = s->oname;
 		a = nod(OADDR, a, N);
 		r = list(a, r);
 
 		s = signame(tl);		// sigi
 		if(s == S) {
-			fatal("ifaceop: signame-2 T2I: %lT", tl);
+			fatal("ifacecvt: signame-2 T2I: %lT", tl);
 		}
 		a = s->oname;
 		a = nod(OADDR, a, N);
@@ -3049,12 +3049,12 @@ ifaceop(Type *tl, Node *n, int op)
 
 		s = signame(tl);		// sigi or sigt
 		if(s == S)
-			fatal("ifaceop: signame %d", op);
+			fatal("ifacecvt: signame %d", et);
 		a = s->oname;
 		a = nod(OADDR, a, N);
 		r = list(a, r);
 
-		on = syslook(ifacename[op], 1);
+		on = syslook(ifacename[et], 1);
 		argtype(on, tr);
 		argtype(on, tl);
 		break;
@@ -3077,7 +3077,7 @@ ifaceop(Type *tl, Node *n, int op)
 
 		s = signame(tr);		// sigt
 		if(s == S)
-			fatal("ifaceop: signame-1 T2E: %lT", tr);
+			fatal("ifacecvt: signame-1 T2E: %lT", tr);
 		a = s->oname;
 		a = nod(OADDR, a, N);
 		r = list(a, r);
@@ -3086,6 +3086,21 @@ ifaceop(Type *tl, Node *n, int op)
 		argtype(on, tr);
 		argtype(on, tl);
 		break;
+	}
+
+	r = nod(OCALL, on, r);
+	walktype(r, Erv);
+	return r;
+}
+
+Node*
+ifaceop(Node *n)
+{
+	Node *r, *a, *on;
+
+	switch(n->op) {
+	default:
+		fatal("ifaceop %O", n->op);
 
 	case OEQ:
 	case ONE:
@@ -3097,7 +3112,7 @@ ifaceop(Type *tl, Node *n, int op)
 		r = list(a, r);
 
 		if(!eqtype(n->left->type, n->right->type))
-			fatal("ifaceop %O %T %T", op, n->left->type, n->right->type);
+			fatal("ifaceop %O %T %T", n->op, n->left->type, n->right->type);
 		if(isnilinter(n->left->type))
 			on = syslook("efaceeq", 1);
 		else
@@ -3106,7 +3121,7 @@ ifaceop(Type *tl, Node *n, int op)
 		argtype(on, n->left->type);
 
 		r = nod(OCALL, on, r);
-		if(op == ONE)
+		if(n->op == ONE)
 			r = nod(ONOT, r, N);
 
 		walktype(r, Erv);
@@ -3158,7 +3173,7 @@ convas(Node *n)
 
 	et = ifaceas(lt, rt, 0);
 	if(et != Inone) {
-		n->right = ifaceop(lt, r, et);
+		n->right = ifacecvt(lt, r, et);
 		goto out;
 	}
 

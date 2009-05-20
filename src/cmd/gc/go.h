@@ -909,7 +909,8 @@ Node*	mapop(Node*, int);
 Type*	fixchan(Type*);
 Node*	chanop(Node*, int);
 Node*	arrayop(Node*, int);
-Node*	ifaceop(Type*, Node*, int);
+Node*	ifacecvt(Type*, Node*, int);
+Node*	ifaceop(Node*);
 int	ifaceas(Type*, Type*, int);
 int	ifaceas1(Type*, Type*, int);
 void	ifacecheck(Type*, Type*, int, int);
@@ -1063,3 +1064,5 @@ int	duint32(Sym *s, int off, uint32 v);
 int	duintptr(Sym *s, int off, uint32 v);
 int	duintxx(Sym *s, int off, uint64 v, int wid);
 void	genembedtramp(Type*, Sig*);
+int	gen_as_init(Node*, Node*);
+
