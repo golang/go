@@ -53,6 +53,8 @@ struct	Itype
 };
 
 static	Iface	niliface;
+static	Eface	nileface;
+
 static	Itype*	hash[1009];
 static	Lock	ifacelock;
 
@@ -129,6 +131,16 @@ printiface(Iface i)
 	prints(")");
 }
 
+static void
+printeface(Eface e)
+{
+	prints("(");
+	sys·printpointer(e.type);
+	prints(",");
+	sys·printpointer(e.data);
+	prints(")");
+}
+
 static Itype*
 itype(Sigi *si, Sigt *st, int32 canfail)
 {
@@ -137,6 +149,17 @@ itype(Sigi *si, Sigt *st, int32 canfail)
 	uint32 ihash, h;
 	byte *sname, *iname;
 	Itype *m;
+
+	if(si->size == 0)
+		throw("internal error - misuse of itype");
+
+	// easy case
+	if(st->meth[0].fname == nil) {
+		if(canfail)
+			return nil;
+		iname = si->meth[0].fname;
+		goto throw1;
+	}
 
 	// compiler has provided some good hash codes for us.
 	h = 0;
@@ -169,7 +192,6 @@ itype(Sigi *si, Sigt *st, int32 canfail)
 						goto throw;
 					}
 				}
-				// prints("old itype\n");
 				if(locked)
 					unlock(&ifacelock);
 				return m;
@@ -199,6 +221,7 @@ throw:
 			sname = st->meth[nt].fname;
 			if(sname == nil) {
 				if(!canfail) {
+				throw1:
 					printf("cannot convert type %s to interface %s: missing method %s\n",
 						st->name, si->name, iname);
 					if(iface_debug) {
@@ -209,6 +232,7 @@ throw:
 						prints("\n");
 					}
 					throw("interface conversion");
+					return nil;	// not reached
 				}
 				m->bad = 1;
 				m->link = hash[h];
@@ -227,124 +251,108 @@ throw:
 	if(locked)
 		unlock(&ifacelock);
 
-	// printf("new itype %p\n", m);
 	return m;
 }
 
+static void
+copyin(Sigt *st, void *src, void **dst)
+{
+	int32 wid, alg;
+	void *p;
+
+	wid = st->width;
+	alg = st->alg;
+
+	if(wid <= sizeof(*dst))
+		algarray[alg].copy(wid, dst, src);
+	else {
+		p = mal(wid);
+		algarray[alg].copy(wid, p, src);
+		*dst = p;
+	}
+}
+
+static void
+copyout(Sigt *st, void **src, void *dst)
+{
+	int32 wid, alg;
+
+	wid = st->width;
+	alg = st->alg;
+
+	if(wid <= sizeof(*src))
+		algarray[alg].copy(wid, dst, src);
+	else
+		algarray[alg].copy(wid, dst, *src);
+}
+
 // ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
+#pragma textflag 7
 void
 sys·ifaceT2I(Sigi *si, Sigt *st, ...)
 {
 	byte *elem;
 	Iface *ret;
-	int32 alg, wid;
+	int32 wid;
 
 	elem = (byte*)(&st+1);
-
-	if(iface_debug) {
-		prints("T2I sigi=");
-		printsigi(si);
-		prints(" sigt=");
-		printsigt(st);
-		prints(" elem=");
-		sys·printpointer(*(void**)elem);
-		prints("\n");
-	}
-
 	wid = st->width;
-	alg = st->alg;
 	ret = (Iface*)(elem + rnd(wid, sizeof(uintptr)));
+
 	ret->type = itype(si, st, 0);
+	copyin(st, elem, &ret->data);
+}
 
-	if(wid <= sizeof(ret->data))
-		algarray[alg].copy(wid, &ret->data, elem);
-	else {
-		ret->data = mal(wid);
-		if(iface_debug)
-			printf("T2I mal %d %p\n", wid, ret->data);
-		algarray[alg].copy(wid, ret->data, elem);
-	}
+// ifaceT2E(sigt *byte, elem any) (ret any);
+#pragma textflag 7
+void
+sys·ifaceT2E(Sigt *st, ...)
+{
+	byte *elem;
+	Eface *ret;
+	int32 wid;
 
-	if(iface_debug) {
-		prints("T2I ret=");
-		printiface(*ret);
-		prints("\n");
-	}
+	elem = (byte*)(&st+1);
+	wid = st->width;
+	ret = (Eface*)(elem + rnd(wid, sizeof(uintptr)));
 
-	FLUSH(&ret);
+	ret->type = st;
+	copyin(st, elem, &ret->data);
 }
 
 // ifaceI2T(sigt *byte, iface any) (ret any);
+#pragma textflag 7
 void
 sys·ifaceI2T(Sigt *st, Iface i, ...)
 {
 	Itype *im;
 	byte *ret;
-	int32 wid, alg;
 
 	ret = (byte*)(&i+1);
 
-	if(iface_debug) {
-		prints("I2T sigt=");
-		printsigt(st);
-		prints(" iface=");
-		printiface(i);
-		prints("\n");
-	}
-
 	im = i.type;
 	if(im == nil) {
-		prints("interface is nil, not ");
-		prints((int8*)st->name);
-		prints("\n");
+		printf("interface is nil, not %s\n", st->name);
 		throw("interface conversion");
 	}
-
 	if(im->sigt != st) {
-		prints((int8*)im->sigi->name);
-		prints(" is ");
-		prints((int8*)im->sigt->name);
-		prints(", not ");
-		prints((int8*)st->name);
-		prints("\n");
+		printf("%s is %s, not %s\n", im->sigi->name, im->sigt->name, st->name);
 		throw("interface conversion");
 	}
-
-	alg = st->alg;
-	wid = st->width;
-	if(wid <= sizeof(i.data))
-		algarray[alg].copy(wid, ret, &i.data);
-	else
-		algarray[alg].copy(wid, ret, i.data);
-
-	if(iface_debug) {
-		prints("I2T ret=");
-		sys·printpointer(*(void**)ret);
-		prints("\n");
-	}
-	FLUSH(&ret);
+	copyout(st, &i.data, ret);
 }
 
 // ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
+#pragma textflag 7
 void
 sys·ifaceI2T2(Sigt *st, Iface i, ...)
 {
 	byte *ret;
 	bool *ok;
 	Itype *im;
-	int32 alg, wid;
-
-
-	if(iface_debug) {
-		prints("I2T2 sigt=");
-		printsigt(st);
-		prints(" iface=");
-		printiface(i);
-		prints("\n");
-	}
+	int32 wid;
 
 	ret = (byte*)(&i+1);
-	alg = st->alg;
 	wid = st->width;
 	ok = (bool*)(ret+rnd(wid, 1));
 
@@ -352,19 +360,74 @@ sys·ifaceI2T2(Sigt *st, Iface i, ...)
 	if(im == nil || im->sigt != st) {
 		*ok = false;
 		sys·memclr(ret, wid);
-	} else {
-		*ok = true;
-		if(wid <= sizeof(i.data))
-			algarray[alg].copy(wid, ret, &i.data);
-		else
-			algarray[alg].copy(wid, ret, i.data);
+		return;
 	}
-	if(iface_debug) {
-		prints("I2T2 ret=");
-		sys·printpointer(*(void**)ret);
-		sys·printbool(*ok);
-		prints("\n");
+
+	*ok = true;
+	copyout(st, &i.data, ret);
+}
+
+// ifaceE2T(sigt *byte, iface any) (ret any);
+#pragma textflag 7
+void
+sys·ifaceE2T(Sigt *st, Eface e, ...)
+{
+	Sigt *t;
+	byte *ret;
+
+	ret = (byte*)(&e+1);
+
+	t = e.type;
+	if(t == nil) {
+		printf("interface is nil, not %s\n", st->name);
+		throw("interface conversion");
 	}
+	if(t != st) {
+		printf("interface is %s, not %s\n", t->name, st->name);
+		throw("interface conversion");
+	}
+	copyout(st, &e.data, ret);
+}
+
+// ifaceE2T2(sigt *byte, iface any) (ret any, ok bool);
+#pragma textflag 7
+void
+sys·ifaceE2T2(Sigt *st, Eface e, ...)
+{
+	byte *ret;
+	bool *ok;
+	Sigt *t;
+	int32 wid;
+
+	ret = (byte*)(&e+1);
+	wid = st->width;
+	ok = (bool*)(ret+rnd(wid, 1));
+
+	t = e.type;
+	if(t != st) {
+		*ok = false;
+		sys·memclr(ret, wid);
+		return;
+	}
+
+	*ok = true;
+	copyout(st, &e.data, ret);
+}
+
+// ifaceI2E(sigi *byte, iface any) (ret any);
+// TODO(rsc): Move to back end, throw away function.
+void
+sys·ifaceI2E(Iface i, Eface ret)
+{
+	Itype *im;
+
+	ret.data = i.data;
+	im = i.type;
+	if(im == nil)
+		ret.type = nil;
+	else
+		ret.type = im->sigt;
+	FLUSH(&ret);
 }
 
 // ifaceI2I(sigi *byte, iface any) (ret any);
@@ -373,16 +436,9 @@ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
 {
 	Itype *im;
 
-	if(iface_debug) {
-		prints("I2I sigi=");
-		printsigi(si);
-		prints(" iface=");
-		printiface(i);
-		prints("\n");
-	}
-
 	im = i.type;
 	if(im == nil) {
+//TODO(rsc): fixme
 		// If incoming interface is uninitialized (zeroed)
 		// make the outgoing interface zeroed as well.
 		ret = niliface;
@@ -390,12 +446,6 @@ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
 		ret = i;
 		if(im->sigi != si)
 			ret.type = itype(si, im->sigt, 0);
-	}
-
-	if(iface_debug) {
-		prints("I2I ret=");
-		printiface(ret);
-		prints("\n");
 	}
 
 	FLUSH(&ret);
@@ -407,52 +457,76 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
 {
 	Itype *im;
 
-	if(iface_debug) {
-		prints("I2I2 sigi=");
-		printsigi(si);
-		prints(" iface=");
-		printiface(i);
-		prints("\n");
-	}
-
 	im = i.type;
+	ok = true;
 	if(im == nil) {
+//TODO: fixme
 		// If incoming interface is uninitialized (zeroed)
 		// make the outgoing interface zeroed as well.
 		ret = niliface;
-		ok = 1;
 	} else {
 		ret = i;
-		ok = 1;
 		if(im->sigi != si) {
 			ret.type = itype(si, im->sigt, 1);
 			if(ret.type == nil) {
 				ret = niliface;
-				ok = 0;
+				ok = false;
 			}
 		}
-	}
-
-	if(iface_debug) {
-		prints("I2I ret=");
-		printiface(ret);
-		prints("\n");
 	}
 
 	FLUSH(&ret);
 	FLUSH(&ok);
 }
 
-uint64
-ifacehash(Iface a)
+// ifaceE2I(sigi *byte, iface any) (ret any);
+void
+sys·ifaceE2I(Sigi *si, Eface e, Iface ret)
+{
+	Sigt *t;
+
+	t = e.type;
+	if(t == nil) {
+//TODO(rsc): fixme
+		ret = niliface;
+	} else {
+		ret.data = e.data;
+		ret.type = itype(si, t, 0);
+	}
+	FLUSH(&ret);
+}
+
+// ifaceE2I2(sigi *byte, iface any) (ret any, ok bool);
+void
+sys·ifaceE2I2(Sigi *si, Eface e, Iface ret, bool ok)
+{
+	Sigt *t;
+
+	t = e.type;
+	ok = true;
+	if(t == nil) {
+//TODO(rsc): fixme
+		ret = niliface;
+	} else {
+		ret.data = e.data;
+		ret.type = itype(si, t, 1);
+		if(ret.type == nil) {
+			ret = niliface;
+			ok = false;
+		}
+	}
+	FLUSH(&ret);
+	FLUSH(&ok);
+}
+
+static uint64
+ifacehash1(void *data, Sigt *sigt)
 {
 	int32 alg, wid;
-	Sigt *sigt;
 
-	if(a.type == nil)
+	if(sigt == nil)
 		return 0;
 
-	sigt = a.type->sigt;
 	alg = sigt->alg;
 	wid = sigt->width;
 	if(algarray[alg].hash == nohash) {
@@ -463,69 +537,65 @@ ifacehash(Iface a)
 			throw("fake interface hash");
 		throw("interface hash");
 	}
-	if(wid <= sizeof(a.data))
-		return algarray[alg].hash(wid, &a.data);
-	return algarray[alg].hash(wid, a.data);
+	if(wid <= sizeof(data))
+		return algarray[alg].hash(wid, &data);
+	return algarray[alg].hash(wid, data);
 }
 
-bool
-ifaceeq(Iface i1, Iface i2)
+uint64
+ifacehash(Iface a)
+{
+	if(a.type == nil)
+		return 0;
+	return ifacehash1(a.data, a.type->sigt);
+}
+
+uint64
+efacehash(Eface a)
+{
+	return ifacehash1(a.data, a.type);
+}
+
+static bool
+ifaceeq1(void *data1, void *data2, Sigt *sigt)
 {
 	int32 alg, wid;
-	bool ret;
 
-	if(iface_debug) {
-		prints("Ieq i1=");
-		printiface(i1);
-		prints(" i2=");
-		printiface(i2);
-		prints("\n");
-	}
-
-	ret = false;
-
-	// are they both nil
-	if(i1.type == nil) {
-		if(i2.type == nil)
-			goto yes;
-		goto no;
-	}
-	if(i2.type == nil)
-		goto no;
-
-	// are they the same type?
-	if(i1.type->sigt != i2.type->sigt)
-		goto no;
-
-	alg = i1.type->sigt->alg;
-	wid = i1.type->sigt->width;
+	alg = sigt->alg;
+	wid = sigt->width;
 
 	if(algarray[alg].equal == noequal) {
 		// calling noequal will throw too,
 		// but we can print a better error.
-		printf("comparing uncomparable type %s\n", i1.type->sigt->name);
+		printf("comparing uncomparable type %s\n", sigt->name);
 		if(alg == AFAKE)
 			throw("fake interface compare");
 		throw("interface compare");
 	}
 
-	if(wid <= sizeof(i1.data)) {
-		if(!algarray[alg].equal(wid, &i1.data, &i2.data))
-			goto no;
-	} else {
-		if(!algarray[alg].equal(wid, i1.data, i2.data))
-			goto no;
-	}
+	if(wid <= sizeof(data1))
+		return algarray[alg].equal(wid, &data1, &data2);
+	return algarray[alg].equal(wid, data1, data2);
+}
 
-yes:
-	ret = true;
-no:
-	if(iface_debug) {
-		prints("Ieq ret=");
-		sys·printbool(ret);
-		prints("\n");
-	}
-	return ret;
+bool
+ifaceeq(Iface i1, Iface i2)
+{
+	if(i1.type != i2.type)
+		return false;
+	if(i1.type == nil)
+		return true;
+	return ifaceeq1(i1.data, i2.data, i1.type->sigt);
+}
+
+bool
+efaceeq(Eface e1, Eface e2)
+{
+	if(e1.type != e2.type)
+		return false;
+	if(e1.type == nil)
+		return true;
+	return ifaceeq1(e1.data, e2.data, e1.type);
 }
 
 // ifaceeq(i1 any, i2 any) (ret bool);
@@ -533,6 +603,14 @@ void
 sys·ifaceeq(Iface i1, Iface i2, bool ret)
 {
 	ret = ifaceeq(i1, i2);
+	FLUSH(&ret);
+}
+
+// efaceeq(i1 any, i2 any) (ret bool)
+void
+sys·efaceeq(Eface e1, Eface e2, bool ret)
+{
+	ret = efaceeq(e1, e2);
 	FLUSH(&ret);
 }
 
@@ -553,14 +631,33 @@ sys·ifacethash(Iface i1, uint32 ret)
 	FLUSH(&ret);
 }
 
+// efacethash(e1 any) (ret uint32)
 void
-sys·printinter(Iface i)
+sys·efacethash(Eface e1, uint32 ret)
+{
+	Sigt *st;
+
+	ret = 0;
+	st = e1.type;
+	if(st != nil)
+		ret = st->thash;
+	FLUSH(&ret);
+}
+
+void
+sys·printiface(Iface i)
 {
 	printiface(i);
 }
 
 void
-unsafe·Reflect(Iface i, uint64 retit, String rettype, bool retindir)
+sys·printeface(Eface e)
+{
+	printeface(e);
+}
+
+void
+unsafe·Reflect(Eface i, uint64 retit, String rettype, bool retindir)
 {
 	int32 wid;
 
@@ -570,8 +667,8 @@ unsafe·Reflect(Iface i, uint64 retit, String rettype, bool retindir)
 		retindir = false;
 	} else {
 		retit = (uint64)i.data;
-		rettype = gostring(i.type->sigt->name);
-		wid = i.type->sigt->width;
+		rettype = gostring(i.type->name);
+		wid = i.type->width;
 		retindir = wid > sizeof(i.data);
 	}
 	FLUSH(&retit);
@@ -757,11 +854,11 @@ findtype(String type, bool indir)
 
 
 void
-unsafe·Unreflect(uint64 it, String type, bool indir, Iface ret)
+unsafe·Unreflect(uint64 it, String type, bool indir, Eface ret)
 {
 	Sigt *sigt;
 
-	ret = niliface;
+	ret = nileface;
 
 	if(cmpstring(type, emptystring) == 0)
 		goto out;
@@ -777,7 +874,7 @@ unsafe·Unreflect(uint64 it, String type, bool indir, Iface ret)
 	if(indir != (sigt->width > sizeof(ret.data)))
 		goto out;
 
-	ret.type = itype(sigi·empty, sigt, 0);
+	ret.type = sigt;
 	ret.data = (void*)it;
 
 out:

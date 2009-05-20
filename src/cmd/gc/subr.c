@@ -323,11 +323,11 @@ algtype(Type *t)
 
 	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN || t->etype == TFUNC)
 		a = AMEM;	// just bytes (int, ptr, etc)
-	else
-	if(t->etype == TSTRING)
+	else if(t->etype == TSTRING)
 		a = ASTRING;	// string
-	else
-	if(t->etype == TINTER)
+	else if(isnilinter(t))
+		a = ANILINTER;	// nil interface
+	else if(t->etype == TINTER)
 		a = AINTER;	// interface
 	else
 		a = ANOEQ;	// just bytes, but no hash/eq

@@ -57,6 +57,8 @@ typedef	struct	SigTab		SigTab;
 typedef	struct	MCache		MCache;
 typedef	struct	Iface		Iface;
 typedef	struct	Itype		Itype;
+typedef	struct	Eface	Eface;
+typedef	struct	Sigt		Sigt;
 typedef	struct	Defer		Defer;
 
 /*
@@ -116,6 +118,11 @@ struct String
 struct Iface
 {
 	Itype*	type;
+	void*	data;
+};
+struct Eface
+{
+	Sigt*		type;
 	void*	data;
 };
 
@@ -238,6 +245,7 @@ enum
 	ANOEQ,
 	ASTRING,
 	AINTER,
+	ANILINTER,
 	AFAKE,
 	Amax
 };
@@ -323,7 +331,9 @@ void	stackfree(void*);
 MCache*	allocmcache(void);
 void	mallocinit(void);
 bool	ifaceeq(Iface, Iface);
+bool	efaceeq(Eface, Eface);
 uint64	ifacehash(Iface);
+uint64	efacehash(Eface);
 uint64	nohash(uint32, void*);
 uint32	noequal(uint32, void*, void*);
 void*	malloc(uintptr size);
@@ -396,7 +406,8 @@ void	notewakeup(Note*);
 #define sys_printfloat sys·printfloat
 #define sys_printhex sys·printhex
 #define sys_printint sys·printint
-#define sys_printinter sys·printinter
+#define sys_printiface sys·printiface
+#define sys_printeface sys·printeface
 #define sys_printpc sys·printpc
 #define sys_printpointer sys·printpointer
 #define sys_printstring sys·printstring
@@ -420,7 +431,8 @@ void*	sys_getcallerpc(void*);
 void	sys_printbool(bool);
 void	sys_printfloat(float64);
 void	sys_printint(int64);
-void	sys_printinter(Iface);
+void	sys_printiface(Iface);
+void	sys_printeface(Eface);
 void	sys_printstring(String);
 void	sys_printpc(void*);
 void	sys_printpointer(void*);

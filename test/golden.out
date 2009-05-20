@@ -225,7 +225,7 @@ fixedbugs/bug103.go:8: illegal types for operand: AS
 	int
 
 =========== fixedbugs/bug113.go
-main.I is int, not int32
+interface is int, not int32
 throw: interface conversion
 
 panic PC=xxx

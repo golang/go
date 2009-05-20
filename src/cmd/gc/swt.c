@@ -762,6 +762,7 @@ typeswitch(Node *sw)
 	Node *a;
 	Case *c, *c0, *c1;
 	int ncase;
+	Type *t;
 
 	if(sw->ntest == nil)
 		return;
@@ -793,8 +794,12 @@ typeswitch(Node *sw)
 	hashname = nod(OXXX, N, N);
 	tempname(hashname, types[TUINT32]);
 
-	a = syslook("ifacethash", 1);
-	argtype(a, sw->ntest->right->type);
+	t = sw->ntest->right->type;
+	if(isnilinter(t))
+		a = syslook("efacethash", 1);
+	else
+		a = syslook("ifacethash", 1);
+	argtype(a, t);
 	a = nod(OCALL, a, facename);
 	a = nod(OAS, hashname, a);
 	cas = list(cas, a);
