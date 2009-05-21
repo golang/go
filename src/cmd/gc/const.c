@@ -773,3 +773,26 @@ smallintconst(Node *n)
 	}
 	return 0;
 }
+
+long
+nonnegconst(Node *n)
+{
+	if(n->op == OLITERAL)
+	switch(simtype[n->type->etype]) {
+	case TINT8:
+	case TUINT8:
+	case TINT16:
+	case TUINT16:
+	case TINT32:
+	case TUINT32:
+	case TINT64:
+	case TUINT64:
+	case TIDEAL:
+		// check negative and 2^31
+		if(mpcmpfixfix(n->val.u.xval, minintval[TUINT32]) < 0
+		|| mpcmpfixfix(n->val.u.xval, maxintval[TINT32]) > 0)
+			break;
+		return mpgetfix(n->val.u.xval);
+	}
+	return -1;
+}

@@ -786,6 +786,10 @@ gen_as_init(Node *nr, Node *nl)
 		goto yes;
 	}
 
+	if(nr->op == OCOMPMAP) {
+		goto yes;
+	}
+
 	if(nr->type == T ||
 	   !eqtype(nl->type, nr->type))
 		goto no;

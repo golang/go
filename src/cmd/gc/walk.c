@@ -637,7 +637,7 @@ loop:
 			break;
 		}
 		indir(n, r);
-		walktype(l, Erv);
+//		walktype(l, Erv);
 		goto ret;
 
 	case ORETURN:
@@ -988,7 +988,7 @@ loop:
 				goto badlit;
 			}
 
-			walktype(n->left->left, Erv);
+//			walktype(n->left->left, Erv);
 			indir(n, nvar);
 			goto ret;
 		}
@@ -3911,6 +3911,7 @@ structlit(Node *n, Node *var)
 	Iter savel, saver;
 	Type *l, *t;
 	Node *r, *a;
+	int mixflag;
 
 	t = n->type;
 	if(t->etype != TSTRUCT)
@@ -3921,30 +3922,66 @@ structlit(Node *n, Node *var)
 		tempname(var, t);
 	}
 
-	l = structfirst(&savel, &n->type);
 	r = listfirst(&saver, &n->left);
 	if(r != N && r->op == OEMPTY)
 		r = N;
 
-loop:
+	mixflag = 0;
+	if(r != N && r->op == OKEY) {
+		a = nod(OAS, var, N);
+		addtop = list(addtop, a);
+		goto loop2;
+	}
+	l = structfirst(&savel, &n->type);
+
+loop1:
+	// assignment to every field
 	if(l == T || r == N) {
 		if(l != T)
 			yyerror("struct literal expect expr of type %T", l);
 		if(r != N)
 			yyerror("struct literal too many expressions");
+		if(mixflag)
+			yyerror("mixture of field:value initializers");
 		return var;
+	}
+	if(r->op == OKEY) {
+		mixflag = 1;
+		goto incr1;
 	}
 
 	// build list of var.field = expr
-
 	a = nod(ODOT, var, newname(l->sym));
 	a = nod(OAS, a, r);
-	walktype(a, Etop);	// add any assignments in r to addtop
+	walktype(a, Etop);
 	addtop = list(addtop, a);
 
+incr1:
 	l = structnext(&savel);
 	r = listnext(&saver);
-	goto loop;
+	goto loop1;
+
+loop2:
+	// assignment to field:value elements
+	if(r == N) {
+		if(mixflag)
+			yyerror("mixture of field:value initializers");
+		return var;
+	}
+	if(r->op != OKEY) {
+		mixflag = 1;
+		goto incr2;
+	}
+
+	// build list of var.field = expr
+	a = nod(ODOT, var, newname(r->left->sym));
+	a = nod(OAS, a, r->right);
+	walktype(a, Etop);
+	addtop = list(addtop, a);
+
+incr2:
+	r = listnext(&saver);
+	goto loop2;
 }
 
 Node*
@@ -3953,19 +3990,28 @@ arraylit(Node *n, Node *var)
 	Iter saver;
 	Type *t;
 	Node *r, *a;
-	int ninit, b;
+	long ninit, b;
 
 	t = n->type;
 	if(t->etype != TARRAY)
 		fatal("arraylit: not array");
 
-	// count initializers
+	// find max index
 	ninit = 0;
+	b = 0;
+
 	r = listfirst(&saver, &n->left);
 	if(r != N && r->op == OEMPTY)
 		r = N;
+
 	while(r != N) {
-		ninit++;
+		b++;
+		if(r->op == OKEY) {
+			evconst(r->left);
+			b = nonnegconst(r->left);
+		}
+		if(b > ninit)
+			ninit = b;
 		r = listnext(&saver);
 	}
 
@@ -3998,18 +4044,28 @@ arraylit(Node *n, Node *var)
 		}
 	}
 
-	ninit = 0;
+	b = 0;
 	r = listfirst(&saver, &n->left);
 	if(r != N && r->op == OEMPTY)
 		r = N;
 	while(r != N) {
 		// build list of var[c] = expr
-		a = nodintconst(ninit);
+		if(r->op == OKEY) {
+			b = nonnegconst(r->left);
+			if(b < 0) {
+				yyerror("array index must be non-negative integer");
+				break;
+			}
+			r = r->right;
+		}
+		a = nodintconst(b);
 		a = nod(OINDEX, var, a);
 		a = nod(OAS, a, r);
+
 		walktype(a, Etop);	// add any assignments in r to addtop
 		addtop = list(addtop, a);
-		ninit++;
+		b++;
+
 		r = listnext(&saver);
 	}
 	return var;
@@ -4041,24 +4097,24 @@ maplit(Node *n, Node *var)
 		r = N;
 
 loop:
-	if(r == N) {
-		return var;
+	while(r != N) {
+		if(r == N)
+			break;
+
+		if(r->op != OKEY) {
+			yyerror("map literal must have key:value pairs");
+			break;
+		}
+
+		// build list of var[c] = expr
+		a = nod(OINDEX, var, r->left);
+		a = nod(OAS, a, r->right);
+		walktype(a, Etop);	// add any assignments in r to addtop
+		addtop = list(addtop, a);
+
+		r = listnext(&saver);
 	}
-
-	if(r->op != OKEY) {
-		yyerror("map literal must have key:value pairs");
-		return var;
-	}
-
-	// build list of var[c] = expr
-
-	a = nod(OINDEX, var, r->left);
-	a = nod(OAS, a, r->right);
-	walktype(a, Etop);	// add any assignments in r to addtop
-	addtop = list(addtop, a);
-
-	r = listnext(&saver);
-	goto loop;
+	return var;
 }
 
 /*
