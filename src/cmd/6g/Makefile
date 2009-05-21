@@ -15,9 +15,9 @@ HFILES=\
 
 OFILES=\
 	list.$O\
-	obj.$O\
-	align.$O\
-	gen.$O\
+	gobj.$O\
+	galign.$O\
+	ggen.$O\
 	cgen.$O\
 	gsubr.$O\
 	peep.$O\

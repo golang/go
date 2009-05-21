@@ -3970,9 +3970,11 @@ structlit(Node *n, Node *var)
 	r = listfirst(&saver, &n->left);
 	if(r != N && r->op == OEMPTY)
 		r = N;
+	if(r == N)
+		return var;
 
 	mixflag = 0;
-	if(r != N && r->op == OKEY) {
+	if(r->op == OKEY) {
 		a = nod(OAS, var, N);
 		addtop = list(addtop, a);
 		goto loop2;
@@ -4050,11 +4052,11 @@ arraylit(Node *n, Node *var)
 		r = N;
 
 	while(r != N) {
-		b++;
 		if(r->op == OKEY) {
 			evconst(r->left);
 			b = nonnegconst(r->left);
 		}
+		b++;
 		if(b > ninit)
 			ninit = b;
 		r = listnext(&saver);
@@ -4064,7 +4066,8 @@ arraylit(Node *n, Node *var)
 	if(b == -100) {
 		// flag for [...]
 		b = ninit;
-		t = shallow(t);
+		if(var == N)
+			t = shallow(t);
 		t->bound = b;
 	}
 
