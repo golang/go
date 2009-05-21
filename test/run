@@ -30,7 +30,7 @@ TMP2FILE=/tmp/gotest2-$USER
 # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
 ulimit -v 4000000
 
-for dir in . ken chan bugs fixedbugs
+for dir in . ken chan interface bugs fixedbugs
 do
 	for i in $dir/*.go
 	do
