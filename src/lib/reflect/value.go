@@ -646,7 +646,6 @@ func (v *arrayValueStruct) Set(src ArrayValue) {
 func (v *arrayValueStruct) Elem(i int) Value {
 	data_uint := uintptr(v.addr) + uintptr(i * v.elemsize);
 	return newValueAddr(v.elemtype, Addr(data_uint));
-	return nil
 }
 
 func (v *arrayValueStruct) CopyFrom(src ArrayValue, n int) {
@@ -949,16 +948,30 @@ func NewValue(e interface {}) Value {
 		typecache[typestring] = typ;
 	}
 
+	var ap Addr;
 	if indir {
-		// Content of interface is a pointer.
-		return newValueAddr(typ, Addr(uintptr(value)));
+		// Content of interface is large and didn't
+		// fit, so it's a pointer to the actual content.
+		// We have an address, but we need to
+		// make a copy to avoid letting the caller
+		// edit the content inside the interface.
+		n := uintptr(typ.Size());
+		data := make([]byte, n);
+		p1 := uintptr(Addr(&data[0]));
+		p2 := uintptr(value);
+		for i := uintptr(0); i < n; i++ {
+			*(*byte)(Addr(p1+i)) = *(*byte)(Addr(p2+i));
+		}
+		ap = Addr(&data[0]);
+	} else {
+		// Content of interface is small and stored
+		// inside the interface.  Make a copy so we
+		// can take its address.
+		x := new(uint64);
+		*x = value;
+		ap = Addr(x);
 	}
-
-	// Content of interface is a value;
-	// need a permanent copy to take its address.
-	ap := new(uint64);
-	*ap = value;
-	return newValueAddr(typ, Addr(ap));
+	return newValueAddr(typ, ap);
 }
 
 // Indirect indirects one level through a value, if it is a pointer.

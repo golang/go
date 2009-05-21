@@ -583,3 +583,31 @@ func TestInterfaceExtraction(t *testing.T) {
 		t.Errorf("Interface() on interface: ", v, s.w);
 	}
 }
+
+func TestInterfaceEditing(t *testing.T) {
+	// strings are bigger than one word,
+	// so the interface conversion allocates
+	// memory to hold a string and puts that
+	// pointer in the interface.
+	var i interface{} = "hello";
+
+	// if i pass the interface value by value
+	// to NewValue, i should get a fresh copy
+	// of the value.
+	v := NewValue(i);
+
+	// and setting that copy to "bye" should
+	// not change the value stored in i.
+	v.(StringValue).Set("bye");
+	if i.(string) != "hello" {
+		t.Errorf(`Set("bye") changed i to %s`, i.(string));
+	}
+
+	// the same should be true of smaller items.
+	i = 123;
+	v = NewValue(i);
+	v.(IntValue).Set(234);
+	if i.(int) != 123 {
+		t.Errorf("Set(234) changed i to %d", i.(int));
+	}
+}
