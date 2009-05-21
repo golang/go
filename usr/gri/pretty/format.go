@@ -2,25 +2,29 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/*	The format package implements syntax-directed formatting of arbitrary
-	data structures.
+/*	The format package implements syntax-directed, type-driven formatting
+	of arbitrary data structures. Formatting a data structure consists of
+	two phases: first, a format specification is parsed (once per format)
+	which results in a "compiled" format. The format can then be used
+	repeatedly to print arbitrary values to a io.Writer.
 
-	A format specification consists of a set of named productions in EBNF.
-	The production names correspond to the type names of the data structure
-	to be printed. The production expressions consist of literal values
-	(strings), references to fields, and alternative, grouped, optional,
-	and repetitive sub-expressions.
+	A format specification consists of a set of named format rules in EBNF.
+	The rule names correspond to the type names of the data structure to be
+	formatted. Each format rule consists of literal values and struct field
+	names which are combined into sequences, alternatives, grouped, optional,
+	repeated, or indented sub-expressions. Additionally, format rules may be
+	specified via Go formatter functions.
 
-	When printing a value, its type name is used to look up the production
-	to be printed. Literal values are printed as is, field references are
-	resolved and the respective field values are printed instead (using their
-	type-specific productions), and alternative, grouped, optional, and
-	repetitive sub-expressions are printed depending on whether they contain
-	"empty" fields or not. A field is empty if its value is nil.
+	When formatting a value, its type name determines the format rule. The
+	syntax of the rule or the corresponding formatter function determines
+	if and how the value is formatted. A format rule may refer to a struct
+	field of the current value. In this case the same mechanism is applied
+	recursively to that field.
 */
 package format
 
 import (
+	"container/vector";
 	"flag";
 	"fmt";
 	"go/scanner";
@@ -37,10 +41,20 @@ import (
 // ----------------------------------------------------------------------------
 // Format representation
 
-type (
-	Formatter func(w io.Writer, env, value interface{}, name string) bool;
-	FormatterMap map[string]Formatter;
-)
+// Custom formatters implement the Formatter function type.
+// A formatter is invoked with a writer w, an environment env
+// (provided to format.Fprint and simply passed through), the
+// value to format, and the rule name under which the formatter
+// was installed (the same formatter function may be installed
+// under different names).
+//
+type Formatter func(w io.Writer, env, value interface{}, rule_name string) bool
+
+
+// A FormatterMap is a set of custom formatters.
+// It maps a rule name to a formatter.
+//
+type FormatterMap map [string] Formatter;
 
 
 // A production expression is built from the following nodes.
@@ -48,21 +62,15 @@ type (
 type (
 	expr interface {};
 
-	alternative struct {
-		x, y expr;  // x | y
-	};
+	alternatives []expr;  // x | y | z
 
-	sequence struct {
-		x, y expr;  // x y
-	};
+	sequence []expr;  // x y z
 
-	literal struct {
-		value []byte;
-	};
+	// a literal is represented as string or []byte
 
 	field struct {
-		fname string;  // including "^", "*"
-		tname string;  // "" if no tname specified
+		field_name string;  // including "^", "*"
+		rule_name string;  // "" if no rule name specified
 	};
 
 	indentation struct {
@@ -78,131 +86,131 @@ type (
 	};
 
 	custom struct {
-		name string;
+		rule_name string;
 		form Formatter
 	};
 )
 
 
-/*	A Format is a set of production expressions. A new format is
-	created explicitly by calling Parse, or implicitly by one of
-	the Xprintf functions.
+/*	The syntax of a format specification is presented in the same EBNF
+	notation as used in the Go language spec. The syntax of white space,
+	comments, identifiers, and string literals is the same as in Go.
 
-	Formatting rules are specified in the following syntax:
+	A format specification consists of a possibly empty set of package
+	declarations and format rules:
 
-		Format      = Production { ";" Production } [ ";" ] .
-		Production  = ( Name | "default" | "/" ) "=" Expression .
-		Name        = identifier { "." identifier } .
-		Expression  = [ Term ] { "|" [ Term ] } .
-		Term        = Factor { Factor } .
-		Factor      = string_literal | Indent | Field | Group | Option | Repetition .
-		Field       = ( "^" | "*" | Name ) [ ":" Name ] .
-		Indent      = ">>" Factor Expression "<<" .
+		Format      = [ Entry { ";" Entry } ] [ ";" ] .
+		Entry       = PackageDecl | FormatRule . 
+
+	A package declaration binds a package name (such as 'ast') to a
+	package import path (such as '"go/ast"'). A package name must be
+	declared at most once.
+
+		PackageDecl = PackageName ImportPath .
+		PackageName = identifier .
+		ImportPath  = string .
+
+	A format rule binds a rule name to a format expression. A rule name
+	may be a type name or one of the special names 'default' (denoting
+	the default rule) or '/' (denoting the global "divider" rule - see
+	below). A type name may be the name of a predeclared type ('int',
+	'float32', etc.), the name of an anonymous composite type ('array',
+	'pointer', etc.), or the name of a user-defined type qualified by
+	the corresponding package name (for instance 'ast.MapType'). The
+	package name must have been declared already. A rule name must be
+	declared at most once.
+
+		FormatRule  = RuleName "=" Expression .
+		RuleName    = TypeName | "default" | "/" .
+		TypeName    = [ PackageName "." ] identifier .
+
+	A format expression specifies how a value is to be formatted. In its
+	most general form, a format expression is a set of alternatives separated
+	by "|". Each alternative and the entire expression may be empty.
+
+		Expression  = [ Sequence ] { "|" [ Sequence ] } .
+		Sequence    = Operand { Operand } .
+		Operand     = Literal | Field | Indentation | Group | Option | Repetition .
+
+		Literal     = string .
+		Field       = FieldName [ ":" RuleName ] .
+		FieldName   = identifier | "^" | "*" .
+
+		Indent      = ">>" Operand Expression "<<" .
 		Group       = "(" Expression ")" .
 		Option      = "[" Expression "]" .
 		Repetition  = "{" Expression [ "/" Expression ] "}" .
 
-	The syntax of white space, comments, identifiers, and string literals is
-	the same as in Go.
-
-	A production name corresponds to a Go type name of the form
-
-		PackageName.TypeName
-
-	(for instance format.Format). A production of the form
-
-		Name;
-
-	specifies a package name which is prepended to all subsequent production
-	names:
-
-		format;
-		Format = ...	// this production matches the type format.Format
-
-	The basic operands of productions are string literals, field names, and
-	designators. String literals are printed as is, unless they contain a
-	single %-style format specifier (such as "%d"). In that case, they are
-	used as the format for fmt.Printf, with the current value as argument.
-
-	The designator "^" stands for the current value; a "*" denotes indirection
-	(pointers, arrays, maps, and interfaces).
-
-	A field may contain a format specifier of the form
-
-		: Name
-
-	which specifies the field format rule irrespective of the field type.
-
-	TODO complete this description
+	TODO complete this comment
 */
-type Format struct {
-	// TODO(gri) Eventually have import path info here
-	//           once reflect provides import paths.
-	rules map [string] expr;
-}
-
+type Format map [string] expr;
 
 
 // ----------------------------------------------------------------------------
 // Error handling
 
-// Error implements an os.Error that may be returned as a
-// result of calling Parse or any of the print functions.
-//
+// Error describes an individual error. The position Pos, if valid,
+// indicates the format source position the error relates to. The
+// error is specified with the Msg string.
+// 
 type Error struct {
-	Pos token.Position;  // source position, if any (otherwise Pos.Line == 0)
-	Msg string;  // error message
-	Next *Error;  // next error, if any (or nil)
+	Pos token.Position;
+	Msg string;
 }
 
 
-// String converts a list of Error messages into a string,
-// with one error per line.
-//
+// Error implements the os.Error interface.
 func (e *Error) String() string {
-	var buf io.ByteBuffer;
-	for ; e != nil; e = e.Next {
-		if e.Pos.Line > 0 {
-			fmt.Fprintf(&buf, "%d:%d: ", e.Pos.Line, e.Pos.Column);
-		}
-		fmt.Fprintf(&buf, "%s\n", e.Msg);
+	pos := "";
+	if e.Pos.IsValid() {
+		pos = fmt.Sprintf("%d:%d: ", e.Pos.Line, e.Pos.Column);
 	}
-	return string(buf.Data());
+	return pos + e.Msg;
+}
+
+
+// Multiple parser errors are returned as an ErrorList.
+type ErrorList []*Error
+
+
+// ErrorList implements the SortInterface.
+func (p ErrorList) Len() int  { return len(p); }
+func (p ErrorList) Swap(i, j int)  { p[i], p[j] = p[j], p[i]; }
+func (p ErrorList) Less(i, j int) bool  { return p[i].Pos.Offset < p[j].Pos.Offset; }
+
+
+// ErrorList implements the os.Error interface.
+func (p ErrorList) String() string {
+	switch len(p) {
+	case 0: return "unspecified error";
+	case 1: return p[0].String();
+	}
+	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p) - 1);
 }
 
 
 // ----------------------------------------------------------------------------
 // Parsing
 
-/*	TODO
-	- have a format to select type name, field tag, field offset?
-	- use field tag as default format for that field
-*/
-
 type parser struct {
-	// scanning
+	errors vector.Vector;
 	scanner scanner.Scanner;
 	pos token.Position;  // token position
 	tok token.Token;  // one token look-ahead
 	lit []byte;  // token literal
 
-	// errors
-	first, last *Error;
+	packs map [string] string;  // PackageName -> ImportPath
+	rules Format;  // RuleName -> Expression
 }
 
 
-// The parser implements the scanner.ErrorHandler interface.
+// The parser implements scanner.Error.
 func (p *parser) Error(pos token.Position, msg string) {
-	if p.last == nil || p.last.Pos.Line != pos.Line {
-		// only report error if not on the same line as previous error
-		// in the hope to reduce number of follow-up errors reported
-		err := &Error{pos, msg, nil};
-		if p.last == nil {
-			p.first = err;
-		} else {
-			p.last.Next = err;
-		}
-		p.last = err;
+	// Don't collect errors that are on the same line as the previous error
+	// in the hope to reduce the number of spurious errors due to incorrect
+	// parser synchronization.
+	if p.errors.Len() == 0 || p.errors.Last().(*Error).Pos.Line != pos.Line {
+		p.errors.Push(&Error{pos, msg});
 	}
 }
 
@@ -243,36 +251,118 @@ func (p *parser) parseIdentifier() string {
 }
 
 
-func (p *parser) parseName() string {
-	name := p.parseIdentifier();
-	for p.tok == token.PERIOD {
+func (p *parser) parseTypeName() (string, bool) {
+	pos := p.pos;
+	name, is_ident := p.parseIdentifier(), true;
+	if p.tok == token.PERIOD {
+		// got a package name, lookup package
+		if import_path, found := p.packs[name]; found {
+			name = import_path;
+		} else {
+			p.Error(pos, "package not declared: " + name);
+		}
 		p.next();
-		name = name + "." + p.parseIdentifier();
+		name, is_ident = name + "." + p.parseIdentifier(), false;
 	}
-	return name;
+	return name, is_ident;
 }
 
 
-func (p *parser) parseValue() []byte {
-	if p.tok != token.STRING {
-		p.expect(token.STRING);
-		return nil;  // TODO should return something else?
+// Parses a rule name and returns it. If the rule name is
+// a package-qualified type name, the package name is resolved.
+// The 2nd result value is true iff the rule name consists of a
+// single identifier only (and thus could be a package name).
+//
+func (p *parser) parseRuleName() (string, bool) {
+	name, is_ident := "", false;
+	switch p.tok {
+	case token.IDENT:
+		name, is_ident = p.parseTypeName();
+	case token.DEFAULT:
+		name = "default";
+		p.next();
+	case token.QUO:
+		name = "/";
+		p.next();
+	default:
+		p.error_expected(p.pos, "rule name");
+		p.next();  // make progress in any case
 	}
+	return name, is_ident;
+}
 
-	// TODO get rid of back-and-forth conversions
-	//      (change value to string?)
-	s, err := strconv.Unquote(string(p.lit));
-	if err != nil {
-		panic("scanner error");
+
+func asLiteral(x interface{}) expr {
+	s := x.(string);
+	if len(s) > 0 && s[0] == '%' {
+		// literals containing format characters are represented as strings
+		return s;
 	}
-
-	p.next();
+	// all other literals are represented as []byte for faster writing
 	return io.StringBytes(s);
 }
 
 
-func (p *parser) parseFactor() (x expr)
-func (p *parser) parseExpression() expr
+func (p *parser) parseLiteral() expr {
+	if p.tok != token.STRING {
+		p.expect(token.STRING);
+		return "";
+	}
+
+	s, err := strconv.Unquote(string(p.lit));
+	if err != nil {
+		panic("scanner error");
+	}
+	p.next();
+
+	// A string literal may contain newline characters and %-format specifiers.
+	// To simplify and speed up printing of the literal, split it into segments
+	// that start with "\n" or "%" (but noy "%%"), possibly followed by a last
+	// segment that starts with some other character. If there is more than one
+	// such segment, return a sequence of "simple" literals, otherwise just
+	// return the string.
+
+	// split string
+	var list vector.Vector;
+	list.Init(0);
+	i0 := 0;
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\n':
+			// next segment starts with '\n'
+		case '%':
+			if i+1 >= len(s) || s[i+1] == '%' {
+				i++;
+				continue;  //  "%%" is not a format-%
+			}
+			// next segment starts with '%'
+		default:
+			// all other cases do not split the string
+			continue;
+		}
+		// split off the current segment
+		if i0 < i {
+			list.Push(s[i0 : i]);
+			i0 = i;
+		}
+	}
+	// the final segment may start with any character
+	// (it is empty iff the string is empty)
+	list.Push(s[i0 : len(s)]);
+
+	// no need for a sequence there is only one segment
+	if list.Len() == 1 {
+		return asLiteral(list.At(0));
+	}
+
+	// convert list into a sequence
+	seq := make(sequence, list.Len());
+	for i := 0; i < list.Len(); i++ {
+		seq[i] = asLiteral(list.At(i));
+	}
+	return seq;
+}
+
 
 func (p *parser) parseField() expr {
 	var fname string;
@@ -284,34 +374,36 @@ func (p *parser) parseField() expr {
 		fname = "*";
 		p.next();
 	case token.IDENT:
-		// TODO use reflect.ExpandType() to lookup a field
-		// during parse-time if posssible
-		fname = p.parseName();
+		// TODO(gri) could use reflect.ExpandType() to lookup a field
+		// at parse-time - would provide "compile-time" errors and
+		// faster printing.
+		fname = p.parseIdentifier();
 	default:
 		return nil;
 	}
 
-	var tname string;
+	var rule_name string;
 	if p.tok == token.COLON {
 		p.next();
-		tname = p.parseName();
+		var _ bool;
+		rule_name, _ = p.parseRuleName();
 	}
 
-	return &field{fname, tname};
+	return &field{fname, rule_name};
 }
 
 
-func (p *parser) parseFactor() (x expr) {
+func (p *parser) parseExpression() expr
+
+func (p *parser) parseOperand() (x expr) {
 	switch p.tok {
 	case token.STRING:
-		x = &literal{p.parseValue()};
+		x = p.parseLiteral();
 
 	case token.SHR:
 		p.next();
-		iexpr := p.parseFactor();
-		body := p.parseExpression();
+		x = &indentation{p.parseOperand(), p.parseExpression()};
 		p.expect(token.SHL);
-		return &indentation{iexpr, body};
 
 	case token.LPAREN:
 		p.next();
@@ -335,73 +427,104 @@ func (p *parser) parseFactor() (x expr) {
 		p.expect(token.RBRACE);
 
 	default:
-		x = p.parseField();
+		x = p.parseField();  // may be nil
 	}
 
 	return x;
 }
 
 
-func (p *parser) parseTerm() expr {
-	x := p.parseFactor();
+func (p *parser) parseSequence() expr {
+	var list vector.Vector;
+	list.Init(0);
 
-	if x != nil {
-		for {
-			y := p.parseFactor();
-			if y == nil {
-				break;
-			}
-			x = &sequence{x, y};
-		}
+	for x := p.parseOperand(); x != nil; x = p.parseOperand() {
+		list.Push(x);
 	}
 
-	return x;
+	// no need for a sequence if list.Len() < 2
+	switch list.Len() {
+	case 0: return nil;
+	case 1: return list.At(0).(expr);
+	}
+
+	// convert list into a sequence
+	seq := make(sequence, list.Len());
+	for i := 0; i < list.Len(); i++ {
+		seq[i] = list.At(i).(expr);
+	}
+	return seq;
 }
 
 
 func (p *parser) parseExpression() expr {
-	x := p.parseTerm();
+	var list vector.Vector;
+	list.Init(0);
 
-	for p.tok == token.OR {
+	for {
+		x := p.parseSequence();
+		if x != nil {
+			list.Push(x);
+		}
+		if p.tok != token.OR {
+			break;
+		}
 		p.next();
-		y := p.parseTerm();
-		x = &alternative{x, y};
 	}
 
-	return x;
+	// no need for an alternatives if list.Len() < 2
+	switch list.Len() {
+	case 0: return nil;
+	case 1: return list.At(0).(expr);
+	}
+
+	// convert list into a alternatives
+	alt := make(alternatives, list.Len());
+	for i := 0; i < list.Len(); i++ {
+		alt[i] = list.At(i).(expr);
+	}
+	return alt;
 }
 
 
-func (p *parser) parseProduction() (string, expr) {
-	var name string;
-	switch p.tok {
-	case token.DEFAULT:
-		p.next();
-		name = "default";
-	case token.QUO:
-		p.next();
-		name = "/";
-	default:
-		name = p.parseName();
-	}
-	p.expect(token.ASSIGN);
-	x := p.parseExpression();
-	return name, x;
-}
-
-
-func (p *parser) parseFormat() *Format {
-	rules := make(map [string] expr);
-
+func (p *parser) parseFormat() {
 	for p.tok != token.EOF {
 		pos := p.pos;
-		name, x := p.parseProduction();
 
-		// add production to rules
-		if t, found := rules[name]; !found {
-			rules[name] = x;
-		} else {
-			p.Error(pos, "production already declared: " + name);
+		name, is_ident := p.parseRuleName();
+		switch p.tok {
+		case token.STRING:
+			// package declaration
+			import_path, err := strconv.Unquote(string(p.lit));
+			if err != nil {
+				panic("scanner error");
+			}
+			p.next();
+
+			// add package declaration
+			if !is_ident {
+				p.Error(pos, "illegal package name: " + name);
+			} else if _, found := p.packs[name]; !found {
+				p.packs[name] = import_path;
+			} else {
+				p.Error(pos, "package already declared: " + name);
+			}
+
+		case token.ASSIGN:
+			// format rule
+			p.next();
+			x := p.parseExpression();
+
+			// add rule
+			if _, found := p.rules[name]; !found {
+				p.rules[name] = x;
+			} else {
+				p.Error(pos, "format rule already declared: " + name);
+			}
+
+		default:
+			p.error_expected(p.pos, "package declaration or format rule");
+			p.next();  // make progress in any case
 		}
 
 		if p.tok == token.SEMICOLON {
@@ -411,69 +534,104 @@ func (p *parser) parseFormat() *Format {
 		}
 	}
 	p.expect(token.EOF);
+}
 
-	return &Format{rules};
+
+func (p *parser) remap(pos token.Position, name string) string {
+	i := strings.Index(name, ".");
+	if i >= 0 {
+		package_name := name[0 : i];
+		type_name := name[i : len(name)];
+		// lookup package
+		if import_path, found := p.packs[package_name]; found {
+			name = import_path + "." + type_name;
+		} else {
+			p.Error(pos, "package not declared: " + package_name);
+		}
+	}
+	return name;
 }
 
 
 // Parse parses a set of format productions from source src. If there are no
 // errors, the result is a Format and the error is nil. Otherwise the format
-// is nil and the os.Error string contains a line for each error encountered.
+// is nil and a non-empty ErrorList is returned.
 //
-func Parse(src []byte, fmap FormatterMap) (*Format, os.Error) {
+func Parse(src []byte, fmap FormatterMap) (Format, os.Error) {
 	// parse source
 	var p parser;
+	p.errors.Init(0);
 	p.scanner.Init(src, &p, false);
 	p.next();
-	f := p.parseFormat();
+	p.packs = make(map [string] string);
+	p.rules = make(Format);
+	p.parseFormat();
 
 	// add custom formatters, if any
-	// TODO should we test that name is a legal name?
+	var invalidPos token.Position;
 	for name, form := range fmap {
-		if t, found := f.rules[name]; !found {
-			f.rules[name] = &custom{name, form};
+		name = p.remap(invalidPos, name);
+		if t, found := p.rules[name]; !found {
+			p.rules[name] = &custom{name, form};
 		} else {
-			p.Error(token.Position{0, 0, 0}, "formatter already declared: " + name);
+			var invalidPos token.Position;
+			p.Error(invalidPos, "formatter already declared: " + name);
 		}
 	}
 
-	if p.first != nil {
-		return nil, p.first;
+	// convert errors list, if any
+	if p.errors.Len() > 0 {
+		errors := make(ErrorList, p.errors.Len());
+		for i := 0; i < p.errors.Len(); i++ {
+			errors[i] = p.errors.At(i).(*Error);
+		}
+		return nil, errors;
 	}
 
-	return f, nil;
+	return p.rules, nil;
 }
 
 
 // ----------------------------------------------------------------------------
 // Formatting
 
+// The current formatting state.
 type state struct {
-	f *Format;
-	env interface{};
-	sep expr;
+	f Format;  // the format used
+	env interface{};  // the user-supplied environment, simply passed through
+	def expr;  // the default rule, if any
+	div expr;  // the global divider rule, if any
+	writediv bool;  // true if the divider needs to be written
 	errors chan os.Error;  // not chan *Error: errors <- nil would be wrong!
-	indent io.ByteBuffer;
+	indent io.ByteBuffer;  // the current indentation
 }
 
 
-func (ps *state) init(f *Format, env interface{}) {
+func (ps *state) init(f Format, env interface{}, errors chan os.Error) {
 	ps.f = f;
 	ps.env = env;
-	// if we have a separator ("/") production, cache it for easy access
-	if sep, has_sep := f.rules["/"]; has_sep {
-		ps.sep = sep;
+	// if we have a default ("default") rule, cache it for fast access
+	if def, has_def := f["default"]; has_def {
+		ps.def = def;
 	}
-	ps.errors = make(chan os.Error);
+	// if we have a divider ("/") rule, cache it for fast access
+	if div, has_div := f["/"]; has_div {
+		ps.div = div;
+	}
+	ps.errors = errors;
 }
 
 
 func (ps *state) error(msg string) {
-	ps.errors <- &Error{token.Position{0, 0, 0}, msg, nil};
+	ps.errors <- os.NewError(msg);
 	runtime.Goexit();
 }
 
 
+// Get a field value given a field name. Returns the field value and
+// the "embedding level" at which it was found. The embedding level
+// is 0 for top-level fields in a struct.
+//
 func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
 	// do we have a struct in the first place?
 	if val.Kind() != reflect.StructKind {
@@ -492,7 +650,7 @@ func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
 
 	// look for field in anonymous fields
 	var field reflect.Value;
-	level := 1000;  // infinity
+	level := 1000;  // infinity (no struct has that many levels)
 	for i := 0; i < styp.Len(); i++ {
 		name, typ, tag, offset := styp.Field(i);
 		if name == "" {
@@ -548,52 +706,35 @@ func typename(value reflect.Value) string {
 
 
 func (ps *state) getFormat(name string) expr {
-	if fexpr, found := ps.f.rules[name]; found {
+	if fexpr, found := ps.f[name]; found {
 		return fexpr;
 	}
 
-	if fexpr, found := ps.f.rules["default"]; found {
-		return fexpr;
+	if ps.def != nil {
+		return ps.def;
 	}
 
 	ps.error(fmt.Sprintf("no production for type: '%s'\n", name));
-	panic("unreachable");
 	return nil;
 }
 
 
-// Count the number of printf-style '%' formatters in s.
-//
-func percentCount(s []byte) int {
-	n := 0;
-	for i := 0; i < len(s); i++ {
-		if s[i] == '%' {
-			i++;
-			if i >= len(s) || s[i] != '%' {  // don't count "%%"
-				n++;
-			}
-		}
+func (ps *state) printf(w io.Writer, fexpr expr, value reflect.Value, index int) bool
+
+
+func (ps *state) printDiv(w io.Writer, value reflect.Value) {
+	if ps.div != nil && ps.writediv {
+		div := ps.div;
+		ps.div = nil;
+		ps.printf(w, div, value, 0);
+		ps.div = div;
 	}
-	return n;
+	ps.writediv = true;
 }
 
 
-func (ps *state) rawPrintf(w io.Writer, format []byte, value reflect.Value) {
-	// TODO find a better way to do this
-	x := value.Interface();
-	switch percentCount(format) {
-	case  0: w.Write(format);
-	case  1: fmt.Fprintf(w, string(format), x);
-	case  2: fmt.Fprintf(w, string(format), x, x);
-	case  3: fmt.Fprintf(w, string(format), x, x, x);
-	case  4: fmt.Fprintf(w, string(format), x, x, x, x);
-	default: panic("no support for more than 4 '%'-format chars yet");
-	}
-}
-
-
-func (ps *state) printIndented(w io.Writer, s []byte) {
-	// replace each '\n' with the indent + '\n'
+func (ps *state) writeIndented(w io.Writer, s []byte) {
+	// write indent after each '\n'
 	i0 := 0;
 	for i := 0; i < len(s); i++ {
 		if s[i] == '\n' {
@@ -606,65 +747,58 @@ func (ps *state) printIndented(w io.Writer, s []byte) {
 }
 
 
-func (ps *state) printf(w io.Writer, format []byte, value reflect.Value) {
-	if ps.indent.Len()== 0 {
-		// no indentation
-		ps.rawPrintf(w, format, value);
-	} else {
-		// print into temporary buffer
-		var buf io.ByteBuffer;
-		ps.rawPrintf(&buf, format, value);
-		ps.printIndented(w, buf.Data());
-	}
-}
-
-
+// TODO complete this comment
 // Returns true if a non-empty field value was found.
-func (ps *state) print(w io.Writer, fexpr expr, value reflect.Value, index int) bool {
+func (ps *state) printf(w io.Writer, fexpr expr, value reflect.Value, index int) bool {
 	if fexpr == nil {
 		return true;
 	}
 
 	switch t := fexpr.(type) {
-	case *alternative:
-		// - print the contents of the first alternative with a non-empty field
-		// - result is true if there is at least one non-empty field
-		var buf io.ByteBuffer;
-		if ps.print(&buf, t.x, value, 0) {
-			w.Write(buf.Data());
-			return true;
-		} else {
+	case alternatives:
+		// - write first non-empty alternative
+		// - result is not empty iff there is an non-empty alternative
+		for _, x := range t {
 			var buf io.ByteBuffer;
-			if ps.print(&buf, t.y, value, 0) {
+			if ps.printf(&buf, x, value, 0) {
 				w.Write(buf.Data());
 				return true;
 			}
 		}
 		return false;
 
-	case *sequence:
-		// - print the contents of the sequence
-		// - result is true if there is no empty field
-		// TODO do we need to buffer here? why not?
-		b := ps.print(w, t.x, value, index);
-		// TODO should invoke separator only inbetween terminal symbols?
-		if ps.sep != nil {
-			b = ps.print(w, ps.sep, value, index) && b;
+	case sequence:
+		// - write every element of the sequence
+		// - result is not empty iff no element was empty
+		b := true;
+		for _, x := range t {
+			b = ps.printf(w, x, value, index) && b;
 		}
-		return ps.print(w, t.y, value, index) && b;
+		return b;
 
-	case *literal:
-		// - print the literal
-		// - result is always true (literal is never empty)
-		ps.printf(w, t.value, value);
+	case []byte:
+		// write literal, may start with "\n"
+		ps.printDiv(w, value);
+		if len(t) > 0 && t[0] == '\n' && ps.indent.Len() > 0 {
+			// newline must be followed by indentation
+			w.Write([]byte{'\n'});
+			w.Write(ps.indent.Data());
+			t = t[1 : len(t)];
+		}
+		w.Write(t);
+		return true;
+		
+	case string:
+		// write format literal with value, starts with "%" (but not "%%")
+		ps.printDiv(w, value);
+		fmt.Fprintf(w, t, value.Interface());
 		return true;
 
 	case *field:
-		// - print the contents of the field
+		// - write the contents of the field
 		// - format is either the field format or the type-specific format
-		// - TODO look at field tag for default format
-		// - result is true if the field is not empty
-		switch t.fname {
+		// - result is not empty iff the field is not empty
+		switch t.field_name {
 		case "^":
 			// identity - value doesn't change
 
@@ -693,49 +827,52 @@ func (ps *state) print(w io.Writer, fexpr expr, value reflect.Value, index int) 
 				value = v.Value();
 
 			default:
-				// TODO fix this
 				ps.error(fmt.Sprintf("error: * does not apply to `%s`\n", value.Type().Name()));
 			}
 
 		default:
 			// field
-			field, _ := getField(value, t.fname);
+			field, _ := getField(value, t.field_name);
 			if field == nil {
-				ps.error(fmt.Sprintf("error: no field `%s` in `%s`\n", t.fname, value.Type().Name()));
+				ps.error(fmt.Sprintf("error: no field `%s` in `%s`\n", t.field_name, value.Type().Name()));
 			}
 			value = field;
 		}
 
-		// determine format
-		tname := t.tname;
-		if tname == "" {
-			tname = typename(value)
+		// field-specific rule name
+		rule_name := t.rule_name;
+		if rule_name == "" {
+			rule_name = typename(value)
 		}
-		fexpr = ps.getFormat(tname);
+		fexpr = ps.getFormat(rule_name);
 
-		return ps.print(w, fexpr, value, index);
+		return ps.printf(w, fexpr, value, index);
 
 	case *indentation:
+		// - write the body within the given indentation
+		// - the result is not empty iff the body is not empty
 		saved_len := ps.indent.Len();
-		ps.print(&ps.indent, t.indent, value, index);  // add additional indentation
-		b := ps.print(w, t.body, value, index);
+		ps.printf(&ps.indent, t.indent, value, index);  // add additional indentation
+		b := ps.printf(w, t.body, value, index);
 		ps.indent.Truncate(saved_len);  // reset indentation
 		return b;
 
 	case *option:
-		// print the contents of the option if it contains a non-empty field
+		// - write body if it is not empty
+		// - the result is always not empty
 		var buf io.ByteBuffer;
-		if ps.print(&buf, t.body, value, 0) {
+		if ps.printf(&buf, t.body, value, 0) {
 			w.Write(buf.Data());
 		}
 		return true;
 
 	case *repetition:
-		// print the contents of the repetition while there is a non-empty field
+		// - write body until as long as it is not empty
+		// - the result is always not empty
 		var buf io.ByteBuffer;
-		for i := 0; ps.print(&buf, t.body, value, i); i++ {
+		for i := 0; ps.printf(&buf, t.body, value, i); i++ {
 			if i > 0 {
-				ps.print(w, t.div, value, i);
+				ps.printf(w, t.div, value, i);
 			}
 			w.Write(buf.Data());
 			buf.Reset();
@@ -743,9 +880,10 @@ func (ps *state) print(w io.Writer, fexpr expr, value reflect.Value, index int) 
 		return true;
 
 	case *custom:
+		// - invoke custom formatter
 		var buf io.ByteBuffer;
-		if t.form(&buf, ps.env, value.Interface(), t.name) {
-			ps.printIndented(w, buf.Data());
+		if t.form(&buf, ps.env, value.Interface(), t.rule_name) {
+			ps.writeIndented(w, buf.Data());
 			return true;
 		}
 		return false;
@@ -756,41 +894,74 @@ func (ps *state) print(w io.Writer, fexpr expr, value reflect.Value, index int) 
 }
 
 
-// Fprint formats each argument according to the format f
-// and writes to w.
+// Sandbox to wrap a writer.
+// Counts total number of bytes written and handles write errors.
 //
-func (f *Format) Fprint(w io.Writer, env interface{}, args ...) (int, os.Error) {
+type sandbox struct {
+	writer io.Writer;
+	written int;
+	errors chan os.Error;
+}
+
+
+// Write data to the sandboxed writer. If an error occurs, Write
+// doesn't return. Instead it reports the error to the errors
+// channel and exits the current goroutine.
+//
+func (s *sandbox) Write(data []byte) (int, os.Error) {
+	n, err := s.writer.Write(data);
+	s.written += n;
+	if err != nil {
+		s.errors <- err;
+		runtime.Goexit();
+	}
+	return n, nil;
+}
+
+
+// Fprint formats each argument according to the format f
+// and writes to w. The result is the total number of bytes
+// written and an os.Error, if any.
+//
+func (f Format) Fprint(w io.Writer, env interface{}, args ...) (int, os.Error) {
+	errors := make(chan os.Error);
+	sw := sandbox{w, 0, errors};
+
 	var ps state;
-	ps.init(f, env);
+	ps.init(f, env, errors);
 
 	go func() {
 		value := reflect.NewValue(args).(reflect.StructValue);
 		for i := 0; i < value.Len(); i++ {
 			fld := value.Field(i);
-			ps.print(w, ps.getFormat(typename(fld)), fld, 0);
+			ps.printf(&sw, ps.getFormat(typename(fld)), fld, 0);
 		}
-		ps.errors <- nil;  // no errors
+		errors <- nil;  // no errors
 	}();
 
-	// TODO return correct value for count instead of 0
-	return 0, <-ps.errors;
+	return sw.written, <-errors;
 }
 
 
 // Print formats each argument according to the format f
-// and writes to standard output.
+// and writes to standard output. The result is the total
+// number of bytes written and an os.Error, if any.
 //
-func (f *Format) Print(args ...) (int, os.Error) {
+func (f Format) Print(args ...) (int, os.Error) {
 	return f.Fprint(os.Stdout, nil, args);
 }
 
 
 // Sprint formats each argument according to the format f
-// and returns the resulting string.
+// and returns the resulting string. If an error occurs
+// during formatting, the result contains the respective
+// error message at the end.
 //
-func (f *Format) Sprint(args ...) string {
+func (f Format) Sprint(args ...) string {
 	var buf io.ByteBuffer;
-	// TODO what to do in case of errors?
-	f.Fprint(&buf, nil, args);
+	n, err := f.Fprint(&buf, nil, args);
+	if err != nil {
+		fmt.Fprintf(&buf, "--- Sprint(%v) failed: %v", args, err);
+	}
 	return string(buf.Data());
 }

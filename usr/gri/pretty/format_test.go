@@ -14,7 +14,7 @@ import (
 func check(t *testing.T, form, expected string, args ...) {
 	f, err := format.Parse(io.StringBytes(form), nil);
 	if err != nil {
-		panic(err.String());
+		panic(form + ": " + err.String());
 	}
 	result := f.Sprint(args);
 	if result != expected {
@@ -51,6 +51,7 @@ type T1 struct {
 }
 
 const F1 =
+	`format "format";`
 	`int = "%d";`
 	`format.T1 = "<" a ">";`
 
@@ -95,11 +96,13 @@ type T3 struct {
 }
 
 const F3a =
+	`format "format";`
 	`default = "%v";`
 	`array = *;`
 	`format.T3 = s  {" " a a / ","};`
 
 const F3b =
+	`format "format";`
 	`int = "%d";`
 	`string = "%s";`
 	`array = *;`
@@ -124,6 +127,7 @@ type T4 struct {
 }
 
 const F4a =
+	`format "format";`
 	`int = "%d";`
 	`pointer = *;`
 	`array = *;`
@@ -132,6 +136,7 @@ const F4a =
 	`format.T4 = "<" (x:empty x | "-") ">" `
 
 const F4b =
+	`format "format";`
 	`int = "%d";`
 	`pointer = *;`
 	`array = *;`

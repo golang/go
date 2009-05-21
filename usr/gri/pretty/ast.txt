@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Format file for printing AST nodes (package "ast").
+// Format file for printing AST nodes.
+
+ast "ast";
+token "token";
 
 // ----------------------------------------------------------------------------
-// Elementary types
-
-token.Token =
-	^:string;
+// Basic types, support rules
 
 array =
 	*;
@@ -31,10 +31,6 @@ empty =
 exists =
 	*:empty;
 
-
-// ----------------------------------------------------------------------------
-// TODO these are implicit - only here for debugging
-
 ast.Expr =
 	*;
 
@@ -44,9 +40,11 @@ ast.Stmt =
 ast.Decl =
 	*;
 
-
 // ----------------------------------------------------------------------------
-// Comments
+// Tokens and comments
+
+token.Token =
+	^:string;
 
 ast.Comment =
 	Text:string [Text:isMultiLineComment "\n"];
