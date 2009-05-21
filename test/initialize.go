@@ -21,10 +21,10 @@ var a1 = S { 0, 0, 0, 1, 2, 3 }
 var b1 = S { X: 1, Z: 3, Y: 2 }
 
 var a2 = S { 0, 0, 0, 0, 0, 0, }
-var b2 S  // = S { }  TODO(rsc): should work
+var b2 = S { }
 
 var a3 = T { S { 1, 2, 3, 0, 0, 0, } }
-var b3 = T { S { A: 1, B: 2, C: 3 } }	// TODO(rsc): s/S/S:S/
+var b3 = T { S: S{ A: 1, B: 2, C: 3 } }
 
 var a4 = &[16]byte { 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, }
 var b4 = &[16]byte { 4: 1, 1, 1, 1, 12: 1, 1, }
@@ -33,7 +33,7 @@ var a5 = &[16]byte { 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, }
 var b5 = &[16]byte { 1, 4: 1, 1, 1, 1, 12: 1, 1, }
 
 var a6 = &[16]byte { 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, }
-var b6 = &[...]byte { 1, 4: 1, 1, 1, 1, 12: 1, 1, 0, 0,}	// throws index out of range
+var b6 = &[...]byte { 1, 4: 1, 1, 1, 1, 12: 1, 1, 0, 0,}
 
 type Same struct {
 	a, b interface{}

@@ -22,4 +22,4 @@ var a4 = [5]byte{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }	// ERROR "index"
 var a5 = []byte { x: 2 }	// ERROR "index"
 
 var ok1 = S { }	// should be ok
-var ok2 = T { S: a4 }	// should be ok
+var ok2 = T { S: ok1 }	// should be ok
