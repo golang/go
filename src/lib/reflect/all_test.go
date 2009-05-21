@@ -5,6 +5,8 @@
 package reflect
 
 import (
+	"io";
+	"os";
 	"reflect";
 	"testing";
 	"unsafe";
@@ -43,56 +45,56 @@ func assert(s, t string) {
 }
 
 func typedump(s, t string) {
-	typ := reflect.ParseTypeString("", s);
-	assert(reflect.typeToString(typ, true), t);
+	typ := ParseTypeString("", s);
+	assert(typeToString(typ, true), t);
 }
 
 func valuedump(s, t string) {
-	typ := reflect.ParseTypeString("", s);
-	v := reflect.NewZeroValue(typ);
+	typ := ParseTypeString("", s);
+	v := NewZeroValue(typ);
 	if v == nil {
 		panicln("valuedump", s);
 	}
 	switch v.Kind() {
-	case reflect.IntKind:
-		v.(reflect.IntValue).Set(132);
-	case reflect.Int8Kind:
-		v.(reflect.Int8Value).Set(8);
-	case reflect.Int16Kind:
-		v.(reflect.Int16Value).Set(16);
-	case reflect.Int32Kind:
-		v.(reflect.Int32Value).Set(32);
-	case reflect.Int64Kind:
-		v.(reflect.Int64Value).Set(64);
-	case reflect.UintKind:
-		v.(reflect.UintValue).Set(132);
-	case reflect.Uint8Kind:
-		v.(reflect.Uint8Value).Set(8);
-	case reflect.Uint16Kind:
-		v.(reflect.Uint16Value).Set(16);
-	case reflect.Uint32Kind:
-		v.(reflect.Uint32Value).Set(32);
-	case reflect.Uint64Kind:
-		v.(reflect.Uint64Value).Set(64);
-	case reflect.FloatKind:
-		v.(reflect.FloatValue).Set(3200.0);
-	case reflect.Float32Kind:
-		v.(reflect.Float32Value).Set(32.1);
-	case reflect.Float64Kind:
-		v.(reflect.Float64Value).Set(64.2);
-	case reflect.StringKind:
-		v.(reflect.StringValue).Set("stringy cheese");
-	case reflect.BoolKind:
-		v.(reflect.BoolValue).Set(true);
+	case IntKind:
+		v.(IntValue).Set(132);
+	case Int8Kind:
+		v.(Int8Value).Set(8);
+	case Int16Kind:
+		v.(Int16Value).Set(16);
+	case Int32Kind:
+		v.(Int32Value).Set(32);
+	case Int64Kind:
+		v.(Int64Value).Set(64);
+	case UintKind:
+		v.(UintValue).Set(132);
+	case Uint8Kind:
+		v.(Uint8Value).Set(8);
+	case Uint16Kind:
+		v.(Uint16Value).Set(16);
+	case Uint32Kind:
+		v.(Uint32Value).Set(32);
+	case Uint64Kind:
+		v.(Uint64Value).Set(64);
+	case FloatKind:
+		v.(FloatValue).Set(3200.0);
+	case Float32Kind:
+		v.(Float32Value).Set(32.1);
+	case Float64Kind:
+		v.(Float64Value).Set(64.2);
+	case StringKind:
+		v.(StringValue).Set("stringy cheese");
+	case BoolKind:
+		v.(BoolValue).Set(true);
 	}
-	assert(reflect.valueToString(v), t);
+	assert(valueToString(v), t);
 }
 
 type T struct { a int; b float64; c string; d *int }
 
 func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	var s string;
-	var t reflect.Type;
+	var t Type;
 
 	// Types
 	typedump("missing", "$missing$");
@@ -156,136 +158,136 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	valuedump("struct {a int8; b int8; b int32}", "struct{a int8; b int8; b int32}{0, 0, 0}");
 
 	{	var tmp = 123;
-		value := reflect.NewValue(tmp);
-		assert(reflect.valueToString(value), "123");
+		value := NewValue(tmp);
+		assert(valueToString(value), "123");
 	}
 	{	var tmp = 123.4;
-		value := reflect.NewValue(tmp);
-		assert(reflect.valueToString(value), "123.4");
+		value := NewValue(tmp);
+		assert(valueToString(value), "123.4");
 	}
 	{
 		var tmp = byte(123);
-		value := reflect.NewValue(tmp);
-		assert(reflect.valueToString(value), "123");
-		assert(reflect.typeToString(value.Type(), false), "uint8");
+		value := NewValue(tmp);
+		assert(valueToString(value), "123");
+		assert(typeToString(value.Type(), false), "uint8");
 	}
 	{	var tmp = "abc";
-		value := reflect.NewValue(tmp);
-		assert(reflect.valueToString(value), "abc");
+		value := NewValue(tmp);
+		assert(valueToString(value), "abc");
 	}
 	{
 		var i int = 7;
 		var tmp = &T{123, 456.75, "hello", &i};
-		value := reflect.NewValue(tmp);
-		assert(reflect.valueToString(value.(reflect.PtrValue).Sub()), "reflect.T{123, 456.75, hello, *int(@)}");
+		value := NewValue(tmp);
+		assert(valueToString(value.(PtrValue).Sub()), "reflect.T{123, 456.75, hello, *int(@)}");
 	}
 	{
 		type C chan *T;	// TODO: should not be necessary
 		var tmp = new(C);
-		value := reflect.NewValue(tmp);
-		assert(reflect.valueToString(value), "*reflect.C·all_test(@)");
+		value := NewValue(tmp);
+		assert(valueToString(value), "*reflect.C·all_test(@)");
 	}
 //	{
 //		type A [10]int;
 //		var tmp A = A{1,2,3,4,5,6,7,8,9,10};
-//		value := reflect.NewValue(&tmp);
-//		assert(reflect.valueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
-//		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
-//		assert(reflect.valueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+//		value := NewValue(&tmp);
+//		assert(valueToString(value.(PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+//		value.(PtrValue).Sub().(ArrayValue).Elem(4).(IntValue).Set(123);
+//		assert(valueToString(value.(PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
 //	}
 	{
 		type AA []int;
 		var tmp = AA{1,2,3,4,5,6,7,8,9,10};
-		value := reflect.NewValue(&tmp);	// TODO: NewValue(tmp) too
-		assert(reflect.valueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
-		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
-		assert(reflect.valueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+		value := NewValue(&tmp);	// TODO: NewValue(tmp) too
+		assert(valueToString(value.(PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+		value.(PtrValue).Sub().(ArrayValue).Elem(4).(IntValue).Set(123);
+		assert(valueToString(value.(PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
 	}
 
 	{
 		var ip *int32;
 		var i int32 = 1234;
-		vip := reflect.NewValue(&ip);
-		vi := reflect.NewValue(i);
-		vip.(reflect.PtrValue).Sub().(reflect.PtrValue).SetSub(vi);
+		vip := NewValue(&ip);
+		vi := NewValue(i);
+		vip.(PtrValue).Sub().(PtrValue).SetSub(vi);
 		if *ip != 1234 {
 			panicln("SetSub failure", *ip);
 		}
 	}
 
-	var pt reflect.PtrType;
-	var st reflect.StructType;
-	var mt reflect.MapType;
-	var at reflect.ArrayType;
-	var ct reflect.ChanType;
+	var pt PtrType;
+	var st StructType;
+	var mt MapType;
+	var at ArrayType;
+	var ct ChanType;
 	var name string;
-	var typ reflect.Type;
+	var typ Type;
 	var tag string;
 	var offset int;
 
 	// Type strings
-	t = reflect.ParseTypeString("", "int8");
+	t = ParseTypeString("", "int8");
 	assert(t.String(), "int8");
 
-	t = reflect.ParseTypeString("", "*int8");
+	t = ParseTypeString("", "*int8");
 	assert(t.String(), "*int8");
-	pt = t.(reflect.PtrType);
+	pt = t.(PtrType);
 	assert(pt.Sub().String(), "int8");
 
-	t = reflect.ParseTypeString("", "*struct {c chan *int32; d float32}");
+	t = ParseTypeString("", "*struct {c chan *int32; d float32}");
 	assert(t.String(), "*struct {c chan *int32; d float32}");
-	pt = t.(reflect.PtrType);
+	pt = t.(PtrType);
 	assert(pt.Sub().String(), "struct {c chan *int32; d float32}");
-	st = pt.Sub().(reflect.StructType);
+	st = pt.Sub().(StructType);
 	name, typ, tag, offset = st.Field(0);
 	assert(typ.String(), "chan *int32");
 	name, typ, tag, offset = st.Field(1);
 	assert(typ.String(), "float32");
 
-	t = reflect.ParseTypeString("", "interface {a() *int}");
+	t = ParseTypeString("", "interface {a() *int}");
 	assert(t.String(), "interface {a() *int}");
 
-	t = reflect.ParseTypeString("", "func(a int8, b int32)");
+	t = ParseTypeString("", "func(a int8, b int32)");
 	assert(t.String(), "func(a int8, b int32)");
 
-	t = reflect.ParseTypeString("", "func(a int8, b int32) float");
+	t = ParseTypeString("", "func(a int8, b int32) float");
 	assert(t.String(), "func(a int8, b int32) float");
 
-	t = reflect.ParseTypeString("", "func(a int8, b int32) (a float, b float)");
+	t = ParseTypeString("", "func(a int8, b int32) (a float, b float)");
 	assert(t.String(), "func(a int8, b int32) (a float, b float)");
 
-	t = reflect.ParseTypeString("", "[32]int32");
+	t = ParseTypeString("", "[32]int32");
 	assert(t.String(), "[32]int32");
-	at = t.(reflect.ArrayType);
+	at = t.(ArrayType);
 	assert(at.Elem().String(), "int32");
 
-	t = reflect.ParseTypeString("", "map[string]*int32");
+	t = ParseTypeString("", "map[string]*int32");
 	assert(t.String(), "map[string]*int32");
-	mt = t.(reflect.MapType);
+	mt = t.(MapType);
 	assert(mt.Key().String(), "string");
 	assert(mt.Elem().String(), "*int32");
 
-	t = reflect.ParseTypeString("", "chan<-string");
+	t = ParseTypeString("", "chan<-string");
 	assert(t.String(), "chan<-string");
-	ct = t.(reflect.ChanType);
+	ct = t.(ChanType);
 	assert(ct.Elem().String(), "string");
 
 	// make sure tag strings are not part of element type
-	t = reflect.ParseTypeString("", "struct{d []uint32 \"TAG\"}");
-	st = t.(reflect.StructType);
+	t = ParseTypeString("", "struct{d []uint32 \"TAG\"}");
+	st = t.(StructType);
 	name, typ, tag, offset = st.Field(0);
 	assert(typ.String(), "[]uint32");
 
-	t = reflect.ParseTypeString("", "[]int32");
-	v := reflect.NewSliceValue(t.(ArrayType), 5, 10);
-	t1 := reflect.ParseTypeString("", "*[]int32");
-	v1 := reflect.NewZeroValue(t1);
+	t = ParseTypeString("", "[]int32");
+	v := NewSliceValue(t.(ArrayType), 5, 10);
+	t1 := ParseTypeString("", "*[]int32");
+	v1 := NewZeroValue(t1);
 	if v1 == nil { panic("V1 is nil"); }
-	v1.(reflect.PtrValue).SetSub(v);
+	v1.(PtrValue).SetSub(v);
 	a := v1.Interface().(*[]int32);
 	println(&a, len(a), cap(a));
 	for i := 0; i < len(a); i++ {
-		v.Elem(i).(reflect.Int32Value).Set(int32(i));
+		v.Elem(i).(Int32Value).Set(int32(i));
 	}
 	for i := 0; i < len(a); i++ {
 		println(a[i]);
@@ -295,21 +297,21 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 func TestInterfaceGet(t *testing.T) {
 	var inter struct { e interface{ } };
 	inter.e = 123.456;
-	v1 := reflect.NewValue(&inter);
-	v2 := v1.(reflect.PtrValue).Sub().(reflect.StructValue).Field(0);
+	v1 := NewValue(&inter);
+	v2 := v1.(PtrValue).Sub().(StructValue).Field(0);
 	assert(v2.Type().String(), "interface { }");
-	i2 := v2.(reflect.InterfaceValue).Get();
-	v3 := reflect.NewValue(i2);
+	i2 := v2.(InterfaceValue).Get();
+	v3 := NewValue(i2);
 	assert(v3.Type().String(), "float");
 }
 
 func TestInterfaceValue(t *testing.T) {
 	var inter struct { e interface{ } };
 	inter.e = 123.456;
-	v1 := reflect.NewValue(&inter);
-	v2 := v1.(reflect.PtrValue).Sub().(reflect.StructValue).Field(0);
+	v1 := NewValue(&inter);
+	v2 := v1.(PtrValue).Sub().(StructValue).Field(0);
 	assert(v2.Type().String(), "interface { }");
-	v3 := v2.(reflect.InterfaceValue).Value();
+	v3 := v2.(InterfaceValue).Value();
 	assert(v3.Type().String(), "float");
 
 	i3 := v2.Interface();
@@ -320,7 +322,7 @@ func TestInterfaceValue(t *testing.T) {
 }
 
 func TestFunctionValue(t *testing.T) {
-	v := reflect.NewValue(func() {});
+	v := NewValue(func() {});
 	if v.Interface() != v.Interface() {
 		t.Fatalf("TestFunction != itself");
 	}
@@ -476,8 +478,8 @@ func TestDeepEqualComplexStructInequality(t *testing.T) {
 
 
 func check2ndField(x interface{}, offs uintptr, t *testing.T) {
-	s := reflect.NewValue(x).(reflect.StructValue);
-	name, ftype, tag, reflect_offset := s.Type().(reflect.StructType).Field(1);
+	s := NewValue(x).(StructValue);
+	name, ftype, tag, reflect_offset := s.Type().(StructType).Field(1);
 	if uintptr(reflect_offset) != offs {
 		t.Error("mismatched offsets in structure alignment:", reflect_offset, offs);
 	}
@@ -532,16 +534,16 @@ func TestIsNil(t *testing.T) {
 	// These do implement IsNil
 	doNil := []string{"*int", "interface{}", "map[string]int", "func() bool", "chan int", "[]string"};
 	for i, ts := range doNotNil {
-		ty := reflect.ParseTypeString("", ts);
-		v := reflect.NewZeroValue(ty);
+		ty := ParseTypeString("", ts);
+		v := NewZeroValue(ty);
 		if nilable, ok := v.(Nillable); ok {
 			t.Errorf("%s is nilable; should not be", ts)
 		}
 	}
 
 	for i, ts := range doNil {
-		ty := reflect.ParseTypeString("", ts);
-		v := reflect.NewZeroValue(ty);
+		ty := ParseTypeString("", ts);
+		v := NewZeroValue(ty);
 		if nilable, ok := v.(Nillable); !ok {
 			t.Errorf("%s %T is not nilable; should be", ts, v)
 		}
@@ -568,4 +570,16 @@ func TestIsNil(t *testing.T) {
 	Nil(fi, t);
 	fi = TestIsNil;
 	NotNil(fi, t);
+}
+
+func TestInterfaceExtraction(t *testing.T) {
+	var s struct {
+		w io.Writer;
+	}
+
+	s.w = os.Stdout;
+	v := Indirect(NewValue(&s)).(StructValue).Field(0).Interface();
+	if v != s.w.(interface{}) {
+		t.Errorf("Interface() on interface: ", v, s.w);
+	}
 }

@@ -60,7 +60,7 @@ func (c *commonValue) Interface() interface {} {
 	var i interface {};
 	switch {
 	case c.typ.Kind() == InterfaceKind:
-		i = *(*interface{})(c.addr);
+		panic("not reached");	// InterfaceValue overrides this method
 	case c.typ.Size() > 8:	// TODO(rsc): how do we know it is 8?
 		i = unsafe.Unreflect(uint64(uintptr(c.addr)), c.typ.String(), true);
 	default:
@@ -792,6 +792,10 @@ func (v *interfaceValueStruct) Get() interface{} {
 	}
 	// Extract from v.addr as interface value with methods.
 	return *(*interface{ m() })(v.addr)
+}
+
+func (v *interfaceValueStruct) Interface() interface{} {
+	return v.Get();
 }
 
 func (v *interfaceValueStruct) Value() Value {
