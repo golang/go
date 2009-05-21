@@ -2047,13 +2047,58 @@ loop:
 }
 
 /*
+ * do the export rules allow writing to this type?
+ * cannot be implicitly assigning to any type with
+ * an unavailable field.
+ */
+int
+exportasok(Type *t)
+{
+	Type *f;
+	Sym *s;
+
+	if(t == T)
+		return 1;
+	switch(t->etype) {
+	default:
+		// most types can't contain others; they're all fine.
+		break;
+	case TSTRUCT:
+		for(f=t->type; f; f=f->down) {
+			if(f->etype != TFIELD)
+				fatal("structas: not field");
+			s = f->sym;
+			// s == nil doesn't happen for embedded fields (they get the type symbol).
+			// it only happens for fields in a ... struct.
+			if(s != nil && !exportname(s->name) && strcmp(package, s->package) != 0) {
+				yyerror("implicit assignment of %T field '%s'", t, s->name);
+				return 0;
+			}
+			if(!exportasok(f->type))
+				return 0;
+		}
+		break;
+
+	case TARRAY:
+		if(t->bound < 0)	// slices are pointers; that's fine
+			break;
+		if(!exportasok(t->type))
+			return 0;
+		break;
+	}
+	return 1;
+}
+
+/*
  * can we assign var of type src to var of type dst
  */
 int
 ascompat(Type *dst, Type *src)
 {
-	if(eqtype(dst, src))
+	if(eqtype(dst, src)) {
+		exportasok(src);
 		return 1;
+	}
 
 	if(dst == T || src == T)
 		return 0;
