@@ -3,6 +3,8 @@ bufio.install: io.install os.install utf8.install
 container/vector.install:
 crypto/aes.install: os.install
 crypto/block.install: fmt.install io.install os.install
+crypto/md5.install: hash.install os.install
+crypto/sha1.install: hash.install os.install
 exec.install: os.install strings.install
 exvar.install: fmt.install http.install io.install log.install strconv.install sync.install
 flag.install: fmt.install os.install strconv.install
@@ -12,11 +14,9 @@ go/doc.install: container/vector.install fmt.install go/ast.install go/token.ins
 go/parser.install: container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install
 go/scanner.install: go/token.install strconv.install unicode.install utf8.install
 go/token.install: strconv.install
-hash/adler32.install: os.install
-hash/crc32.install: os.install
-hash/md5.install: os.install
-hash/sha1.install: os.install
-hash/sum.install: flag.install fmt.install hash/adler32.install hash/crc32.install hash/md5.install hash/sha1.install io.install os.install
+hash.install: io.install
+hash/adler32.install: hash.install os.install
+hash/crc32.install: hash.install os.install
 http.install: bufio.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
 io.install: os.install sync.install
 json.install: container/vector.install fmt.install io.install math.install reflect.install strconv.install strings.install utf8.install

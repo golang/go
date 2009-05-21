@@ -53,7 +53,7 @@ var golden = []_Adler32Test {
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i];
-		c := NewDigest();
+		c := New();
 		io.WriteString(c, g.in);
 		s := c.Sum32();
 		if s != g.out {
