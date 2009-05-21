@@ -120,7 +120,7 @@ func main() {
 	}
 	ast_format, err := format.Parse(src, fmap);
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: format errors:\n%s", ast_txt, err);
+		fmt.Fprintf(os.Stderr, "%s:%v\n", ast_txt, err);
 		os.Exit(1);
 	}
 
