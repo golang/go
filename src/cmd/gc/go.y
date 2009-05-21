@@ -1786,9 +1786,17 @@ hidden_interfacedcl_list:
 		$$ = rev($1);
 	}
 
+/*
+ * list of combo of keyval and val
+ */
 keyval_list_r:
 	keyval
+|	expr
 |	keyval_list_r ',' keyval
+	{
+		$$ = nod(OLIST, $1, $3);
+	}
+|	keyval_list_r ',' expr
 	{
 		$$ = nod(OLIST, $1, $3);
 	}
@@ -1801,10 +1809,6 @@ braced_keyexpr_list:
 		$$ = N;
 	}
 |	keyval_list_r ocomma
-	{
-		$$ = rev($1);
-	}
-|	expr_list_r ocomma
 	{
 		$$ = rev($1);
 	}

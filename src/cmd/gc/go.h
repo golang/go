@@ -850,6 +850,12 @@ Node*	funclit1(Type*, Node*);
 Node*	unsafenmagic(Node*, Node*);
 
 /*
+ * sinit.c
+ */
+
+Node*	initfix(Node*);
+
+/*
  *	export.c
  */
 void	renameimports(void);
@@ -939,6 +945,7 @@ void	convlit(Node*, Type*);
 void	evconst(Node*);
 int	cmpslit(Node *l, Node *r);
 int	smallintconst(Node*);
+long	nonnegconst(Node*);
 int	consttype(Node*);
 int	isconst(Node*, int);
 

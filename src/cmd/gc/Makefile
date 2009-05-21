@@ -19,6 +19,7 @@ OFILES=\
 	lex.$O\
 	subr.$O\
 	dcl.$O\
+	sinit.$O\
 	export.$O\
 	walk.$O\
 	swt.$O\
