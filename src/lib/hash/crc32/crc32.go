@@ -81,12 +81,11 @@ func (d *digest) Reset() {
 }
 
 func update(crc uint32, tab *Table, p []byte) uint32 {
-	crc ^= 0xFFFFFFFF;
+	crc = ^crc;
 	for i := 0; i < len(p); i++ {
 		crc = tab[byte(crc) ^ p[i]] ^ (crc >> 8);
 	}
-	crc ^= 0xFFFFFFFF;
-	return crc;
+	return ^crc;
 }
 
 func (d *digest) Write(p []byte) (n int, err os.Error) {
