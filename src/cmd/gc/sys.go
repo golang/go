@@ -42,6 +42,7 @@ func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
 func	ifaceI2T(sigt *byte, iface any) (ret any);
 func	ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
 func	ifaceI2I(sigi *byte, iface any) (ret any);
+func	ifaceI2Ix(sigi *byte, iface any) (ret any);
 func	ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
 func	ifaceeq(i1 any, i2 any) (ret bool);
 func	efaceeq(i1 any, i2 any) (ret bool);

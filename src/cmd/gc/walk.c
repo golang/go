@@ -12,6 +12,7 @@ enum
 	I2T,
 	I2T2,
 	I2I,
+	I2Ix,
 	I2I2,
 	T2I,
 	I2Isame,
@@ -524,7 +525,7 @@ loop:
 				case I2T:
 					et = I2T2;
 					break;
-				case I2I:
+				case I2Ix:
 					et = I2I2;
 					break;
 				case E2I:
@@ -2947,6 +2948,8 @@ ifaceas1(Type *dst, Type *src, int explicit)
 			ifacecheck(dst, src, lineno, explicit);
 			if(isnilinter(src))
 				return E2I;
+			if(explicit)
+				return I2Ix;
 			return I2I;
 		}
 		if(isnilinter(dst))
@@ -2983,6 +2986,7 @@ ifacename[] =
 	[I2T]		= "ifaceI2T",
 	[I2T2]		= "ifaceI2T2",
 	[I2I]		= "ifaceI2I",
+	[I2Ix]		= "ifaceI2Ix",
 	[I2I2]		= "ifaceI2I2",
 	[I2Isame]	= "ifaceI2Isame",
 	[E2T]		= "ifaceE2T",
@@ -3038,6 +3042,7 @@ ifacecvt(Type *tl, Node *n, int et)
 	case I2T:
 	case I2T2:
 	case I2I:
+	case I2Ix:
 	case I2I2:
 	case E2T:
 	case E2T2:

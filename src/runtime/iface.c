@@ -431,6 +431,7 @@ sys·ifaceI2E(Iface i, Eface ret)
 }
 
 // ifaceI2I(sigi *byte, iface any) (ret any);
+// called only for implicit (no type assertion) conversions
 void
 sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
 {
@@ -438,10 +439,30 @@ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
 
 	im = i.type;
 	if(im == nil) {
-//TODO(rsc): fixme
 		// If incoming interface is uninitialized (zeroed)
 		// make the outgoing interface zeroed as well.
 		ret = niliface;
+	} else {
+		ret = i;
+		if(im->sigi != si)
+			ret.type = itype(si, im->sigt, 0);
+	}
+
+	FLUSH(&ret);
+}
+
+// ifaceI2Ix(sigi *byte, iface any) (ret any);
+// called only for explicit conversions (with type assertion).
+void
+sys·ifaceI2Ix(Sigi *si, Iface i, Iface ret)
+{
+	Itype *im;
+
+	im = i.type;
+	if(im == nil) {
+		// explicit conversions require non-nil interface value.
+		printf("interface is nil, not %s\n", si->name);
+		throw("interface conversion");
 	} else {
 		ret = i;
 		if(im->sigi != si)
@@ -458,14 +479,13 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
 	Itype *im;
 
 	im = i.type;
-	ok = true;
 	if(im == nil) {
-//TODO: fixme
-		// If incoming interface is uninitialized (zeroed)
-		// make the outgoing interface zeroed as well.
+		// If incoming interface is nil, the conversion fails.
 		ret = niliface;
+		ok = false;
 	} else {
 		ret = i;
+		ok = true;
 		if(im->sigi != si) {
 			ret.type = itype(si, im->sigt, 1);
 			if(ret.type == nil) {
@@ -480,6 +500,7 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
 }
 
 // ifaceE2I(sigi *byte, iface any) (ret any);
+// Called only for explicit conversions (with type assertion).
 void
 sys·ifaceE2I(Sigi *si, Eface e, Iface ret)
 {
@@ -487,8 +508,9 @@ sys·ifaceE2I(Sigi *si, Eface e, Iface ret)
 
 	t = e.type;
 	if(t == nil) {
-//TODO(rsc): fixme
-		ret = niliface;
+		// explicit conversions require non-nil interface value.
+		printf("interface is nil, not %s\n", si->name);
+		throw("interface conversion");
 	} else {
 		ret.data = e.data;
 		ret.type = itype(si, t, 0);
@@ -505,8 +527,9 @@ sys·ifaceE2I2(Sigi *si, Eface e, Iface ret, bool ok)
 	t = e.type;
 	ok = true;
 	if(t == nil) {
-//TODO(rsc): fixme
+		// If incoming interface is nil, the conversion fails.
 		ret = niliface;
+		ok = false;
 	} else {
 		ret.data = e.data;
 		ret.type = itype(si, t, 1);

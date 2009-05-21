@@ -32,6 +32,7 @@ char *sysimport =
 	"func sys.ifaceI2T (sigt *uint8, iface any) (ret any)\n"
 	"func sys.ifaceI2T2 (sigt *uint8, iface any) (ret any, ok bool)\n"
 	"func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
+	"func sys.ifaceI2Ix (sigi *uint8, iface any) (ret any)\n"
 	"func sys.ifaceI2I2 (sigi *uint8, iface any) (ret any, ok bool)\n"
 	"func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
 	"func sys.efaceeq (i1 any, i2 any) (ret bool)\n"
