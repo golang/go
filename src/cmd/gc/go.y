@@ -1363,6 +1363,11 @@ keyval:
 	{
 		$$ = nod(OKEY, $1, $3);
 	}
+|	LATYPE ':' expr
+	{
+		$$ = nod(OKEY, newname($1), $3);
+	}
+
 
 /*
  * function stuff
