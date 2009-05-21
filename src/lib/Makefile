@@ -19,6 +19,8 @@ DIRS=\
 	container/vector\
 	crypto/aes\
 	crypto/block\
+	crypto/md5\
+	crypto/sha1\
 	exec\
 	exvar\
 	flag\
@@ -28,11 +30,9 @@ DIRS=\
 	go/parser\
 	go/scanner\
 	go/token\
+	hash\
 	hash/adler32\
 	hash/crc32\
-	hash/md5\
-	hash/sha1\
-	hash/sum\
 	http\
 	io\
 	json\
@@ -65,6 +65,9 @@ TEST=\
 	bufio\
 	container/vector\
 	crypto/aes\
+	crypto/block\
+	crypto/md5\
+	crypto/sha1\
 	exec\
 	exvar\
 	flag\
@@ -73,8 +76,6 @@ TEST=\
 	go/scanner\
 	hash/adler32\
 	hash/crc32\
-	hash/md5\
-	hash/sha1\
 	http\
 	io\
 	json\

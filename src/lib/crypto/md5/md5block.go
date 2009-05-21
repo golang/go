@@ -8,7 +8,7 @@
 
 package md5
 
-import "hash/md5"
+import "crypto/md5"
 
 // table[i] = int((1<<32) * abs(sin(i+1 radians))).
 var table = []uint32 {
@@ -90,7 +90,7 @@ var shift2 = []uint { 5, 9, 14, 20 };
 var shift3 = []uint { 4, 11, 16, 23 };
 var shift4 = []uint { 6, 10, 15, 21 };
 
-func _Block(dig *Digest, p []byte) int {
+func _Block(dig *digest, p []byte) int {
 	a := dig.s[0];
 	b := dig.s[1];
 	c := dig.s[2];

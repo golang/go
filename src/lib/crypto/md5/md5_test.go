@@ -6,7 +6,7 @@ package md5
 
 import (
 	"fmt";
-	"hash/md5";
+	"crypto/md5";
 	"io";
 	"testing";
 )
@@ -53,7 +53,7 @@ var golden = []md5Test {
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i];
-		c := NewDigest();
+		c := New();
 		io.WriteString(c, g.in);
 		s := fmt.Sprintf("%x", c.Sum());
 		if s != g.out {

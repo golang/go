@@ -52,7 +52,7 @@ var golden = []_Crc32Test {
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i];
-		c := NewIEEEDigest();
+		c := NewIEEE();
 		io.WriteString(c, g.in);
 		s := c.Sum32();
 		if s != g.out {

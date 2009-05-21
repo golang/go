@@ -8,7 +8,7 @@
 
 package sha1
 
-import "hash/sha1"
+import "crypto/sha1"
 
 const (
 	_K0 = 0x5A827999;
@@ -17,7 +17,7 @@ const (
 	_K3 = 0xCA62C1D6;
 )
 
-func _Block(dig *Digest, p []byte) int {
+func _Block(dig *digest, p []byte) int {
 	var w [80]uint32;
 
 	n := 0;

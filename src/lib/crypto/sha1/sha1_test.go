@@ -8,7 +8,7 @@ package sha1
 
 import (
 	"fmt";
-	"hash/sha1";
+	"crypto/sha1";
 	"io";
 	"testing";
 )
@@ -55,7 +55,7 @@ var golden = []sha1Test {
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i];
-		c := NewDigest();
+		c := New();
 		io.WriteString(c, g.in);
 		s := fmt.Sprintf("%x", c.Sum());
 		if s != g.out {
