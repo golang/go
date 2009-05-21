@@ -26,18 +26,6 @@ panic PC=xxx
 =========== ./helloworld.go
 hello, world
 
-=========== ./interface2.go
-cannot convert type *main.S to interface main.I: missing method Foo
-throw: interface conversion
-
-panic PC=xxx
-
-=========== ./interface3.go
-cannot convert type *main.S to interface main.I2: missing method Name
-throw: interface conversion
-
-panic PC=xxx
-
 =========== ./peano.go
 0! = 1
 1! = 1
@@ -84,6 +72,18 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 
 =========== chan/nonblock.go
 PASS
+
+=========== interface/fail.go
+cannot convert type *main.S to interface main.I: missing method Foo
+throw: interface conversion
+
+panic PC=xxx
+
+=========== interface/returntype.go
+cannot convert type *main.S to interface main.I2: missing method Name
+throw: interface conversion
+
+panic PC=xxx
 
 =========== bugs/bug132.go
 BUG: compilation succeeds incorrectly
