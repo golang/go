@@ -221,7 +221,7 @@ var (
 // TODO(rsc): Cannot use var initialization for regexps,
 // because Regexp constructor needs threads.
 func setupRegexps() {
-	comment_markers = makeRex("^[ \t]*(// ?| ?\\* ?)");
+	comment_markers = makeRex("^[ \t]*(// ?| ?/\\* ?)");
 	trailing_whitespace = makeRex("[ \t\r]+$");
 	comment_junk = makeRex("^[ \t]*(/\\*|\\*/)[ \t]*$");
 }
