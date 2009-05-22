@@ -62,17 +62,17 @@ func	mapiter1(hiter *any) (key any);
 func	mapiter2(hiter *any) (key any, val any);
 
 func	newchan(elemsize int, elemalg int, hint int) (hchan chan any);
-func	chanrecv1(hchan chan any) (elem any);
-func	chanrecv2(hchan chan any) (elem any, pres bool);
-func	chanrecv3(hchan chan any, elem *any) (pres bool);
-func	chansend1(hchan chan any, elem any);
-func	chansend2(hchan chan any, elem any) (pres bool);
-func	closechan(hchan chan any);
-func	closedchan(hchan chan any) bool;
+func	chanrecv1(hchan <-chan any) (elem any);
+func	chanrecv2(hchan <-chan any) (elem any, pres bool);
+func	chanrecv3(hchan <-chan any, elem *any) (pres bool);
+func	chansend1(hchan chan<- any, elem any);
+func	chansend2(hchan chan<- any, elem any) (pres bool);
+func	closechan(hchan any);
+func	closedchan(hchan any) bool;
 
 func	newselect(size int) (sel *byte);
-func	selectsend(sel *byte, hchan chan any, elem any) (selected bool);
-func	selectrecv(sel *byte, hchan chan any, elem *any) (selected bool);
+func	selectsend(sel *byte, hchan chan<- any, elem any) (selected bool);
+func	selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool);
 func	selectdefault(sel *byte) (selected bool);
 func	selectgo(sel *byte);
 

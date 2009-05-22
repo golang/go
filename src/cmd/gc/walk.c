@@ -1335,6 +1335,11 @@ selcase(Node *n, Node *var)
 	if(t == T)
 		return N;
 
+	if(!(t->chan & Csend)) {
+		yyerror("cannot send on %T", t);
+		return N;
+	}
+
 	convlit(c->right, t->type);
 	if(!ascompat(t->type, c->right->type)) {
 		badtype(c->op, t->type, c->right->type);
@@ -1365,6 +1370,11 @@ recv:
 	if(t == T)
 		return N;
 
+	if(!(t->chan & Crecv)) {
+		yyerror("cannot receive from %T", t);
+		return N;
+	}
+
 	// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
 	on = syslook("selectrecv", 1);
 	argtype(on, t->type);
@@ -1388,6 +1398,11 @@ recv2:
 	t = fixchan(c->right->type);
 	if(t == T)
 		return N;
+
+	if(!(t->chan & Crecv)) {
+		yyerror("cannot receive from %T", t);
+		return N;
+	}
 
 	walktype(c->left, Elv);	// elem
 	convlit(c->left, t->type);
@@ -2103,6 +2118,14 @@ ascompat(Type *dst, Type *src)
 	if(dst == T || src == T)
 		return 0;
 
+	if(dst->etype == TCHAN && src->etype == TCHAN) {
+		if(!eqtype(dst->type, src->type))
+			return 0;
+		if(dst->chan & ~src->chan)
+			return 0;
+		return 1;
+	}
+
 	if(isslice(dst)
 	&& isptr[src->etype]
 	&& isfixedarray(src->type)
@@ -2634,7 +2657,7 @@ chanop(Node *n, int top)
 		r = a;
 
 		on = syslook("closechan", 1);
-		argtype(on, t->type);	// any-1
+		argtype(on, t);	// any-1
 
 		r = nod(OCALL, on, r);
 		walktype(r, top);
@@ -2651,7 +2674,7 @@ chanop(Node *n, int top)
 		r = a;
 
 		on = syslook("closedchan", 1);
-		argtype(on, t->type);	// any-1
+		argtype(on, t);	// any-1
 
 		r = nod(OCALL, on, r);
 		walktype(r, top);
@@ -2704,6 +2727,11 @@ chanop(Node *n, int top)
 		if(t == T)
 			break;
 
+		if(!(t->chan & Crecv)) {
+			yyerror("cannot receive from %T", t);
+			break;
+		}
+
 		a = n->right->left;			// chan
 		r = a;
 
@@ -2726,6 +2754,11 @@ chanop(Node *n, int top)
 		t = fixchan(n->left->type);
 		if(t == T)
 			break;
+
+		if(!(t->chan & Crecv)) {
+			yyerror("cannot receive from %T", t);
+			break;
+		}
 
 		a = n->left;			// chan
 		r = a;
@@ -2769,14 +2802,15 @@ chanop(Node *n, int top)
 		t = fixchan(n->left->type);
 		if(t == T)
 			break;
+		if(!(t->chan & Csend)) {
+			yyerror("cannot send to %T", t);
+			break;
+		}
+
 		if(top != Etop)
 			goto send2;
 
 		// chansend1(hchan *chan any, elem any);
-		t = fixchan(n->left->type);
-		if(t == T)
-			break;
-
 		a = n->right;			// e
 		r = a;
 		a = n->left;			// chan
@@ -2791,10 +2825,6 @@ chanop(Node *n, int top)
 
 	send2:
 		// chansend2(hchan *chan any, val any) (pres bool);
-		t = fixchan(n->left->type);
-		if(t == T)
-			break;
-
 		a = n->right;			// e
 		r = a;
 		a = n->left;			// chan
@@ -4144,7 +4174,6 @@ maplit(Node *n, Node *var)
 	if(r != N && r->op == OEMPTY)
 		r = N;
 
-loop:
 	while(r != N) {
 		if(r == N)
 			break;
