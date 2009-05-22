@@ -151,6 +151,7 @@ main(int argc, char **argv)
 
 	n = 0;
 	av[n++] = "gcc";
+	av[n++] = "-fdollars-in-identifiers";
 	av[n++] = "-S";	// write assembly
 	av[n++] = "-gstabs";	// include stabs info
 	av[n++] = "-o-";	// to stdout
