@@ -42,6 +42,7 @@ OFILES=\
 	6.$O\
 	8.$O\
 	8db.$O\
+	5obj.$O\
 	6obj.$O\
 	8obj.$O\
 	$(GOOS).$O\
@@ -65,7 +66,6 @@ OFILES=\
 #	kobj.$O\
 #	uobj.$O\
 #	2obj.$O\
-#	5obj.$O\
 #	7obj.$O\
 #	9obj.$O\
 #	qobj.$O\
