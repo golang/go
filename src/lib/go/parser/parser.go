@@ -984,51 +984,30 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 }
 
 
-func (p *parser) parseKeyValueExpr() ast.Expr {
+func (p *parser) parseElement() ast.Expr {
 	if p.trace {
-		defer un(trace(p, "KeyValueExpr"));
+		defer un(trace(p, "Element"));
 	}
 
-	key := p.parseExpression();
-
+	x := p.parseExpression();
 	if p.tok == token.COLON {
 		colon := p.pos;
 		p.next();
-		value := p.parseExpression();
-		return &ast.KeyValueExpr{key, colon, value};
+		x = &ast.KeyValueExpr{x, colon, p.parseExpression()};
 	}
 
-	return key;
+	return x;
 }
 
 
-func isPair(x ast.Expr) bool {
-	tmp, is_pair := x.(*ast.KeyValueExpr);
-	return is_pair;
-}
-
-
-func (p *parser) parseExpressionOrKeyValueList() []ast.Expr {
+func (p *parser) parseElementList() []ast.Expr {
 	if p.trace {
-		defer un(trace(p, "ExpressionOrKeyValueList"));
+		defer un(trace(p, "ElementList"));
 	}
 
-	var pairs bool;
 	list := vector.New(0);
 	for p.tok != token.RBRACE && p.tok != token.EOF {
-		x := p.parseKeyValueExpr();
-
-		if list.Len() == 0 {
-			pairs = isPair(x);
-		} else {
-			// not the first element - check syntax
-			if pairs != isPair(x) {
-				p.error_expected(x.Pos(), "all single expressions or all key-value pairs");
-			}
-		}
-
-		list.Push(x);
-
+		list.Push(p.parseElement());
 		if p.tok == token.COMMA {
 			p.next();
 		} else {
@@ -1054,7 +1033,7 @@ func (p *parser) parseCompositeLit(typ ast.Expr) ast.Expr {
 	lbrace := p.expect(token.LBRACE);
 	var elts []ast.Expr;
 	if p.tok != token.RBRACE {
-		elts = p.parseExpressionOrKeyValueList();
+		elts = p.parseElementList();
 	}
 	rbrace := p.expect(token.RBRACE);
 	return &ast.CompositeLit{typ, lbrace, elts, rbrace};
