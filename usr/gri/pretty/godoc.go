@@ -86,14 +86,19 @@ func init() {
 // ----------------------------------------------------------------------------
 // Support
 
+func isDir(name string) bool {
+	d, err := os.Stat(name);
+	return err == nil && d.IsDirectory();
+}
+
+
 func isGoFile(dir *os.Dir) bool {
 	return dir.IsRegular() && pathutil.Ext(dir.Name) == ".go";
 }
 
 
-func isDir(name string) bool {
-	d, err := os.Stat(name);
-	return err == nil && d.IsDirectory();
+func isPkgDir(dir *os.Dir) bool {
+	return dir.IsDirectory() && dir.Name != "_obj";
 }
 
 
@@ -287,8 +292,6 @@ func readTemplate(name string) *template.Template {
 var godocHtml *template.Template
 var packageHtml *template.Template
 var packageText *template.Template
-var dirlistHtml *template.Template;
-var dirlistText *template.Template;
 var parseerrorHtml *template.Template;
 var parseerrorText *template.Template;
 
@@ -298,8 +301,6 @@ func readTemplates() {
 	godocHtml = readTemplate("godoc.html");
 	packageHtml = readTemplate("package.html");
 	packageText = readTemplate("package.txt");
-	dirlistHtml = readTemplate("dirlist.html");
-	dirlistText = readTemplate("dirlist.txt");
 	parseerrorHtml = readTemplate("parseerror.html");
 	parseerrorText = readTemplate("parseerror.txt");
 }
@@ -463,7 +464,7 @@ func findPackage(path string) (*pakDesc, dirList) {
 				panic("internal error: same file added more than once: " + entry.Name);
 			}
 			filenames[entry.Name] = true;
-		case entry.IsDirectory():
+		case isPkgDir(&entry):
 			nsub++;
 		}
 	}
@@ -474,7 +475,7 @@ func findPackage(path string) (*pakDesc, dirList) {
 		subdirs = make(dirList, nsub);
 		nsub = 0;
 		for i, entry := range list {
-			if entry.IsDirectory() {
+			if isPkgDir(&entry) {
 				// make a copy here so sorting (and other code) doesn't
 				// have to make one every time an entry is moved
 				copy := new(os.Dir);
@@ -496,6 +497,10 @@ func findPackage(path string) (*pakDesc, dirList) {
 
 
 func (p *pakDesc) Doc() (*doc.PackageDoc, *parseErrors) {
+	if p == nil {
+		return nil, nil;
+	}
+
 	// compute documentation
 	var r doc.DocReader;
 	i := 0;
@@ -511,12 +516,35 @@ func (p *pakDesc) Doc() (*doc.PackageDoc, *parseErrors) {
 		i++;
 		r.AddProgram(prog);
 	}
+
 	return r.Doc(), nil;
 }
 
 
-func servePackage(c *http.Conn, desc *pakDesc) {
-	doc, errors := desc.Doc();
+type PageInfo struct {
+	PDoc *doc.PackageDoc;
+	Dirs dirList;
+}
+
+func servePkg(c *http.Conn, r *http.Request) {
+	path := r.Url.Path;
+	path = path[len(Pkg) : len(path)];
+	desc, dirs := findPackage(path);
+
+	if path == "" {
+		path = ".";  // don't display an empty path
+	}
+
+	// TODO Decide what canonical URL is (w/ or w/o trailing slash)
+	// and make sure it's the one used to get to the page.
+	/*
+	if r.Url.Path != Pkg + info.Path {
+		http.Redirect(c, info.Path, http.StatusMovedPermanently);
+		return;
+	}
+	*/
+
+	pdoc, errors := desc.Doc();
 	if errors != nil {
 		serveParseErrors(c, errors);
 		return;
@@ -524,53 +552,19 @@ func servePackage(c *http.Conn, desc *pakDesc) {
 
 	var buf io.ByteBuffer;
 	if false {	// TODO req.Params["format"] == "text"
-		err := packageText.Execute(doc, &buf);
+		err := packageText.Execute(PageInfo{pdoc, dirs}, &buf);
 		if err != nil {
 			log.Stderrf("packageText.Execute: %s", err);
 		}
 		serveText(c, buf.Data());
 		return;
 	}
-	err := packageHtml.Execute(doc, &buf);
+
+	err := packageHtml.Execute(PageInfo{pdoc, dirs}, &buf);
 	if err != nil {
 		log.Stderrf("packageHtml.Execute: %s", err);
 	}
-	servePage(c, doc.ImportPath + " - Go package documentation", buf.Data());
-}
-
-
-func serveDirList(c *http.Conn, path string, dirs dirList) {
-	var buf io.ByteBuffer;
-	err := dirlistHtml.Execute(dirs, &buf);
-	if err != nil {
-		log.Stderrf("dirlist.Execute: %s", err);
-	}
-	servePage(c, path + " - Directories", buf.Data());
-}
-
-
-func servePkg(c *http.Conn, r *http.Request) {
-	path := r.Url.Path;
-	path = path[len(Pkg) : len(path)];
-	desc, dirs := findPackage(path);
-	/*
-	// TODO do we still need this?
-	if r.Url.Path != Pkg + info.Path {
-		http.Redirect(c, info.Path, http.StatusMovedPermanently);
-		return;
-	}
-	*/
-	if desc != nil {
-		servePackage(c, desc);
-		// TODO should also serve sub-directories if there are any
-	} else {
-		// make sure path is not empty otherwise html links become rooted
-		// and won't work correctly
-		if path == "" {
-			path = ".";
-		}
-		serveDirList(c, path, dirs);
-	}
+	servePage(c, path + " - Go package documentation", buf.Data());
 }
 
 
@@ -666,20 +660,11 @@ func main() {
 
 	if *html {
 		packageText = packageHtml;
-		dirlistText = dirlistHtml;
 		parseerrorText = parseerrorHtml;
 	}
 
 	desc, dirs := findPackage(flag.Arg(0));
-	if desc == nil {
-		err := dirlistText.Execute(dirs, os.Stdout);
-		if err != nil {
-			log.Stderrf("dirlistText.Execute: %s", err);
-		}
-		os.Exit(0);
-	}
-
-	doc, errors := desc.Doc();
+	pdoc, errors := desc.Doc();
 	if errors != nil {
 		err := parseerrorText.Execute(errors, os.Stderr);
 		if err != nil {
@@ -688,10 +673,10 @@ func main() {
 		os.Exit(1);
 	}
 
-	if flag.NArg() > 1 {
+	if pdoc != nil && flag.NArg() > 1 {
 		args := flag.Args();
-		doc.Filter(args[1 : len(args)]);
+		pdoc.Filter(args[1 : len(args)]);
 	}
 
-	packageText.Execute(doc, os.Stdout);
+	packageText.Execute(PageInfo{pdoc, dirs}, os.Stdout);
 }

@@ -1,3 +1,11 @@
+{.section Dirs}
+SUBDIRECTORIES
+{.repeated section @}
+	{Name}
+{.end}
+
+{.end}
+{.section PDoc}
 PACKAGE
 
 package {PackageName}
@@ -56,6 +64,7 @@ TYPES
 {Decl}
 
 {Doc}
+{.end}
 {.end}
 {.end}
 {.end}
