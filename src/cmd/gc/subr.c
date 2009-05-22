@@ -1067,6 +1067,8 @@ Tpretty(Fmt *fp, Type *t)
 		case Crecv:
 			return fmtprint(fp, "<-chan %T", t->type);
 		case Csend:
+			if(t->type != T && t->type->etype == TCHAN)
+				return fmtprint(fp, "chan<- (%T)", t->type);
 			return fmtprint(fp, "chan<- %T", t->type);
 		}
 		return fmtprint(fp, "chan %T", t->type);
@@ -1702,6 +1704,11 @@ eqtype1(Type *t1, Type *t2, int d, int names)
 
 	case TARRAY:
 		if(t1->bound == t2->bound)
+			break;
+		return 0;
+
+	case TCHAN:
+		if(t1->chan == t2->chan)
 			break;
 		return 0;
 	}

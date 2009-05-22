@@ -390,9 +390,9 @@ enum
 {
 	/* types of channel */
 	Cxxx,
-	Cboth,
-	Crecv,
-	Csend,
+	Crecv = 1<<0,
+	Csend = 1<<1,
+	Cboth = Crecv | Csend,
 };
 
 enum
