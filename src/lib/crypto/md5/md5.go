@@ -35,6 +35,8 @@ func (d *digest) Reset() {
 	d.s[1] = _Init1;
 	d.s[2] = _Init2;
 	d.s[3] = _Init3;
+	d.nx = 0;
+	d.len = 0;
 }
 
 // New returns a Hash computing the SHA1 checksum.
