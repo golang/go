@@ -102,7 +102,7 @@ func (v *Map) Add(key string, delta int64) {
 }
 
 // TODO(rsc): Make sure map access in separate thread is safe.
-func (v *Map) iterate(c <-chan KeyValue) {
+func (v *Map) iterate(c chan<- KeyValue) {
 	for k, v := range v.m {
 		c <- KeyValue{ k, v };
 	}
@@ -174,7 +174,7 @@ func NewString(name string) *String {
 }
 
 // TODO(rsc): Make sure map access in separate thread is safe.
-func iterate(c <-chan KeyValue) {
+func iterate(c chan<- KeyValue) {
 	for k, v := range vars {
 		c <- KeyValue{ k, v };
 	}
