@@ -1805,30 +1805,62 @@ Is it needed?
 Composite literals construct values for structs, arrays, slices, and maps
 and create a new value each time they are evaluated.
 They consist of the type of the value
-followed by a brace-bound list of expressions,
-or a list of key-value pairs for map literals.
+followed by a brace-bound list of composite elements. An element may be
+a single expression or a key-value pair.
 </p>
 
 <pre class="grammar">
-CompositeLit  = LiteralType "{" [ ( ExpressionList | KeyValueList ) [ "," ] ] "}" .
+CompositeLit  = LiteralType "{" [ ElementList ] "}" .
 LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
                 SliceType | MapType | TypeName .
-KeyValueList  = KeyValueExpr { "," KeyValueExpr } .
-KeyValueExpr  = Expression ":" Expression .
+ElementList   = Element { "," Element } [ "," ] .
+Element       = [ Key ":" ] Value .
+Key           = Expression .
+Value         = Expression .
 </pre>
 
 <p>
-The LiteralType must be a struct, array, slice, or map type.
-(The grammar enforces this constraint except when the type is given
-as a TypeName.)
+The LiteralType must be a struct, array, slice, or map type
+(the grammar enforces this constraint except when the type is given
+as a TypeName).
 The types of the expressions must be assignment compatible to
 the respective field, element, and key types of the LiteralType;
 there is no additional conversion.
+The key is interpreted as a field name for struct literals,
+an index for array and slice literals, and a key for map literals.
+For map literals, all elements must have a key. It is an error
+to specify multiple elements with the same field name or
+constant key value.
 </p>
 
+<p>
+For struct literals the following rules apply:
+<ul>
+	<li>A literal which does not contain any keys must
+	    list an element for each struct field in the
+	    order in which the fields are declared.
+	</li>
+	<li>If any element has a key, every element must have a key.
+	</li>
+	<li>A literal which contains keys does not need to
+	    have an element for each struct field. Omitted fields
+	    get the zero value for that field.
+	</li>
+	<li>A literal may omit the element list; such a literal evaluates
+		to the zero value for its type.
+	</li>
+	<li>It is an error to specify an element for a non-exported
+	    field of a struct belonging to a different package.
+	</li>
+</ul>
+</p>
+
+<p>
+Given the declarations
+</p>
 <pre>
-type Rat struct { num, den int }
-type Num struct { r Rat; f float; s string }
+type Point struct { x, y, z float }
+type Line struct { p, q Point }
 </pre>
 
 <p>
@@ -1836,36 +1868,51 @@ one may write
 </p>
 
 <pre>
-pi := Num{Rat{22, 7}, 3.14159, "pi"}
+origin := Point{};                            // zero value for Point
+line := Line{origin, Point{y: -4, z: 12.3}};  // zero value for line.q.x
 </pre>
+
+<p>For array and slice literals the following rules apply:
+<ul>
+	<li>Each element has an associated integer index marking
+	    its position in the array.
+	</li>
+	<li>An element with a key uses the key as its index; the
+	    key must be a constant integer expression.
+	</li>
+	<li>An element without a key uses the previous element's index plus one.
+	    If the first element has no key, its index is zero.
+	</li>
+</ul>
+</p>
 
 <p>
 Taking the address of a composite literal (§Address operators)
 generates a unique pointer to an instance of the literal's value.
 </p>
 <pre>
-var pi_ptr *Rat = &amp;Rat{22, 7}
+var pointer *Point = &amp;Point{y: 1000};
 </pre>
 
 <p>
 The length of an array literal is the length specified in the LiteralType.
 If fewer elements than the length are provided in the literal, the missing
 elements are set to the zero value for the array element type.
-It is an error to provide more elements than specified in the type. The
-notation <code>...</code> specifies an array length equal
-to the number of elements in the literal.
+It is an error to provide elements with index values outside the index range
+of the array. The notation <code>...</code> specifies an array length equal
+to the maximum element index plus one.
 </p>
 
 <pre>
 buffer := [10]string{};               // len(buffer) == 10
-primes := [6]int{2, 3, 5, 7, 9, 11};  // len(primes) == 6
+intSet := [6]int{1, 2, 3, 5};         // len(intSet) == 6
 days := [...]string{"Sat", "Sun"};    // len(days) == 2
 </pre>
 
 <p>
 A slice literal describes the entire underlying array literal.
-Thus, the length and capacity of a slice literal is the number of elements
-(of the array) provided in the literal. A slice literal has the form
+Thus, the length and capacity of a slice literal is the maximum
+element index plus one. A slice literal has the form
 </p>
 
 <pre>
@@ -1878,15 +1925,6 @@ and is a shortcut for a slice operation applied to an array literal:
 
 <pre>
 [n]T{x1, x2, ... xn}[0 : n]
-</pre>
-
-<p>
-In map literals only, the list contains
-key-value pairs separated by a colon:
-</p>
-
-<pre>
-m := map[string]int{"good": 0, "bad": 1, "indifferent": 7};
 </pre>
 
 <p>
@@ -1903,6 +1941,28 @@ parentheses.
 if x == (T{a,b,c}[i]) { ... }
 if (x == T{a,b,c}[i]) { ... }
 </pre>
+
+<p>
+Examples of valid array, slice, and map literals:
+</p>
+
+<pre>
+// list of prime numbers
+primes := []int{2, 3, 5, 7, 9, 11, 13, 17, 19, 991};
+
+// vowels[ch] is true if ch is a vowel
+vowels := [128]bool{'a': true, 'e': true, 'i': true, 'o': true, 'u': true, 'y': true};
+
+// the array [10]float{-1, 0, 0, 0, -0.1, -0.1, 0, 0, 0, -1};
+filter := [10]float{-1, 4: -0.1, -0.1, 9: -1};
+
+// frequencies in Hz for equal-tempered scale (A4 = 440Hz)
+noteFrequency := map[string]float{
+	"C0": 16.35, "D0": 18.35, "E0": 20.60, "F0": 21.83,
+	"G0": 24.50, "A0": 27.50, "B0": 30.87,
+}
+</pre>
+
 
 <h3>Function literals</h3>
 
