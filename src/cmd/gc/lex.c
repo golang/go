@@ -64,7 +64,7 @@ main(int argc, char *argv[])
 		fatal("betypeinit failed");
 
 	lexinit();
-	typeinit(LBASETYPE);
+	typeinit(LATYPE);
 
 	lineno = 1;
 	block = 1;
@@ -775,8 +775,6 @@ talph:
 
 	DBG("lex: %S %s\n", s, lexname(s->lexical));
 	yylval.sym = s;
-	if(s->lexical == LBASETYPE)
-		return LATYPE;
 	return s->lexical;
 
 tnum:
@@ -1111,25 +1109,25 @@ static	struct
 /*	name		lexical		etype
  */
 /* basic types */
-	"int8",		LBASETYPE,	TINT8,
-	"int16",	LBASETYPE,	TINT16,
-	"int32",	LBASETYPE,	TINT32,
-	"int64",	LBASETYPE,	TINT64,
+	"int8",		LATYPE,	TINT8,
+	"int16",	LATYPE,	TINT16,
+	"int32",	LATYPE,	TINT32,
+	"int64",	LATYPE,	TINT64,
 
-	"uint8",	LBASETYPE,	TUINT8,
-	"uint16",	LBASETYPE,	TUINT16,
-	"uint32",	LBASETYPE,	TUINT32,
-	"uint64",	LBASETYPE,	TUINT64,
+	"uint8",	LATYPE,	TUINT8,
+	"uint16",	LATYPE,	TUINT16,
+	"uint32",	LATYPE,	TUINT32,
+	"uint64",	LATYPE,	TUINT64,
 
-	"float32",	LBASETYPE,	TFLOAT32,
-	"float64",	LBASETYPE,	TFLOAT64,
-	"float80",	LBASETYPE,	TFLOAT80,
+	"float32",	LATYPE,	TFLOAT32,
+	"float64",	LATYPE,	TFLOAT64,
+	"float80",	LATYPE,	TFLOAT80,
 
-	"bool",		LBASETYPE,	TBOOL,
-	"byte",		LBASETYPE,	TUINT8,
-	"string",	LBASETYPE,	TSTRING,
+	"bool",		LATYPE,	TBOOL,
+	"byte",		LATYPE,	TUINT8,
+	"string",	LATYPE,	TSTRING,
 
-	"any",		LBASETYPE,	TANY,
+	"any",		LATYPE,	TANY,
 
 	"break",	LBREAK,		Txxx,
 	"case",		LCASE,		Txxx,
@@ -1197,10 +1195,10 @@ lexinit(void)
 		s->lexical = lex;
 		s->package = package;
 
-		if(lex != LBASETYPE)
+		etype = syms[i].etype;
+		if(etype == Txxx)
 			continue;
 
-		etype = syms[i].etype;
 		if(etype < 0 || etype >= nelem(types))
 			fatal("lexinit: %s bad etype", s->name);
 
@@ -1234,9 +1232,6 @@ struct
 {
 	LANDAND,	"ANDAND",
 	LASOP,		"ASOP",
-	LACONST,	"ACONST",
-	LATYPE,		"ATYPE",
-	LBASETYPE,	"BASETYPE",
 	LBREAK,		"BREAK",
 	LCASE,		"CASE",
 	LCHAN,		"CHAN",
