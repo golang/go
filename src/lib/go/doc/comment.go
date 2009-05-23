@@ -2,15 +2,110 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Godoc comment -> HTML formatting
+// Godoc comment extraction and comment -> HTML formatting.
 
-package comment
+package doc
 
 import (
 	"fmt";
 	"io";
-	"template";
+	"once";
+	"regexp";
+	"strings";
+	"template";	// for htmlEscape
 )
+
+// Comment extraction
+
+var (
+	comment_markers *regexp.Regexp;
+	trailing_whitespace *regexp.Regexp;
+	comment_junk *regexp.Regexp;
+)
+
+func makeRex(s string) *regexp.Regexp {
+	re, err := regexp.Compile(s);
+	if err != nil {
+		panic("MakeRegexp ", s, " ", err.String());
+	}
+	return re;
+}
+
+// TODO(rsc): Cannot use var initialization for regexps,
+// because Regexp constructor needs threads.
+func setupRegexps() {
+	comment_markers = makeRex("^/(/|\\*) ?");
+	trailing_whitespace = makeRex("[ \t\r]+$");
+	comment_junk = makeRex("^[ \t]*(/\\*|\\*/)[ \t]*$");
+}
+
+// Aggregate comment text, without comment markers.
+func commentText(comments []string) string {
+	once.Do(setupRegexps);
+	lines := make([]string, 0, 20);
+	for i, c := range comments {
+		// split on newlines
+		cl := strings.Split(c, "\n");
+
+		// walk lines, stripping comment markers
+		w := 0;
+		for j, l := range cl {
+			// remove /* and */ lines
+			if comment_junk.Match(l) {
+				continue;
+			}
+
+			// strip trailing white space
+			m := trailing_whitespace.Execute(l);
+			if len(m) > 0 {
+				l = l[0 : m[1]];
+			}
+
+			// strip leading comment markers
+			m = comment_markers.Execute(l);
+			if len(m) > 0 {
+				l = l[m[1] : len(l)];
+			}
+
+			// throw away leading blank lines
+			if w == 0 && l == "" {
+				continue;
+			}
+
+			cl[w] = l;
+			w++;
+		}
+
+		// throw away trailing blank lines
+		for w > 0 && cl[w-1] == "" {
+			w--;
+		}
+		cl = cl[0 : w];
+
+		// add this comment to total list
+		// TODO: maybe separate with a single blank line
+		// if there is already a comment and len(cl) > 0?
+		for j, l := range cl {
+			n := len(lines);
+			if n+1 >= cap(lines) {
+				newlines := make([]string, n, 2*cap(lines));
+				for k := range newlines {
+					newlines[k] = lines[k];
+				}
+				lines = newlines;
+			}
+			lines = lines[0 : n+1];
+			lines[n] = l;
+		}
+	}
+
+	// add final "" entry to get trailing newline.
+	// loop always leaves room for one more.
+	n := len(lines);
+	lines = lines[0 : n+1];
+
+	return strings.Join(lines, "\n");
+}
 
 // Split bytes into lines.
 func split(text []byte) [][]byte {

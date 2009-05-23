@@ -8,9 +8,9 @@ import (
 	"container/vector";
 	"fmt";
 	"go/ast";
+	"go/doc";
 	"go/token";
 	"io";
-	"once";
 	"regexp";
 	"sort";
 	"strings";
@@ -203,98 +203,13 @@ func (doc *DocReader) AddProgram(prog *ast.Program) {
 // ----------------------------------------------------------------------------
 // Conversion to external representation
 
-func makeRex(s string) *regexp.Regexp {
-	re, err := regexp.Compile(s);
-	if err != nil {
-		panic("MakeRegexp ", s, " ", err.String());
-	}
-	return re;
-}
-
-
-var (
-	comment_markers *regexp.Regexp;
-	trailing_whitespace *regexp.Regexp;
-	comment_junk *regexp.Regexp;
-)
-
-// TODO(rsc): Cannot use var initialization for regexps,
-// because Regexp constructor needs threads.
-func setupRegexps() {
-	comment_markers = makeRex("^/(/|\\*) ?");
-	trailing_whitespace = makeRex("[ \t\r]+$");
-	comment_junk = makeRex("^[ \t]*(/\\*|\\*/)[ \t]*$");
-}
-
-
-// Aggregate comment text, without comment markers.
-func comment(comments ast.Comments) string {
-	once.Do(setupRegexps);
-	lines := make([]string, 0, 20);
+func astComment(comments ast.Comments) string {
+	text := make([]string, len(comments));
 	for i, c := range comments {
-		// split on newlines
-		cl := strings.Split(string(c.Text), "\n");
-
-		// walk lines, stripping comment markers
-		w := 0;
-		for j, l := range cl {
-			// remove /* and */ lines
-			if comment_junk.Match(l) {
-				continue;
-			}
-
-			// strip trailing white space
-			m := trailing_whitespace.Execute(l);
-			if len(m) > 0 {
-				l = l[0 : m[1]];
-			}
-
-			// strip leading comment markers
-			m = comment_markers.Execute(l);
-			if len(m) > 0 {
-				l = l[m[1] : len(l)];
-			}
-
-			// throw away leading blank lines
-			if w == 0 && l == "" {
-				continue;
-			}
-
-			cl[w] = l;
-			w++;
-		}
-
-		// throw away trailing blank lines
-		for w > 0 && cl[w-1] == "" {
-			w--;
-		}
-		cl = cl[0 : w];
-
-		// add this comment to total list
-		// TODO: maybe separate with a single blank line
-		// if there is already a comment and len(cl) > 0?
-		for j, l := range cl {
-			n := len(lines);
-			if n+1 >= cap(lines) {
-				newlines := make([]string, n, 2*cap(lines));
-				for k := range newlines {
-					newlines[k] = lines[k];
-				}
-				lines = newlines;
-			}
-			lines = lines[0 : n+1];
-			lines[n] = l;
-		}
+		text[i] = string(c.Text);
 	}
-
-	// add final "" entry to get trailing newline.
-	// loop always leaves room for one more.
-	n := len(lines);
-	lines = lines[0 : n+1];
-
-	return strings.Join(lines, "\n");
+	return commentText(text);
 }
-
 
 // ValueDoc is the documentation for a group of declared
 // values, either vars or consts.
@@ -341,7 +256,7 @@ func makeValueDocs(v *vector.Vector) []*ValueDoc {
 	d := make([]*ValueDoc, v.Len());
 	for i := range d {
 		decl := v.At(i).(*ast.GenDecl);
-		d[i] = &ValueDoc{comment(decl.Doc), decl, i};
+		d[i] = &ValueDoc{astComment(decl.Doc), decl, i};
 	}
 	sort.Sort(sortValueDoc(d));
 	return d;
@@ -369,7 +284,7 @@ func makeFuncDocs(m map[string] *ast.FuncDecl) []*FuncDoc {
 	i := 0;
 	for name, f := range m {
 		doc := new(FuncDoc);
-		doc.Doc = comment(f.Doc);
+		doc.Doc = astComment(f.Doc);
 		if f.Recv != nil {
 			doc.Recv = f.Recv.Type;
 		}
@@ -418,7 +333,7 @@ func makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 	for name, old := range m {
 		typespec := old.decl.Specs[0].(*ast.TypeSpec);
 		t := new(TypeDoc);
-		t.Doc = comment(typespec.Doc);
+		t.Doc = astComment(typespec.Doc);
 		t.Type = typespec;
 		t.Factories = makeFuncDocs(old.factories);
 		t.Methods = makeFuncDocs(old.methods);
@@ -451,7 +366,7 @@ func (doc *DocReader) Doc() *PackageDoc {
 	p := new(PackageDoc);
 	p.PackageName = doc.name;
 	p.ImportPath = doc.path;
-	p.Doc = comment(doc.doc);
+	p.Doc = astComment(doc.doc);
 	p.Consts = makeValueDocs(doc.consts);
 	p.Vars = makeValueDocs(doc.vars);
 	p.Types = makeTypeDocs(doc.types);
