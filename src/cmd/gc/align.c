@@ -213,7 +213,7 @@ typeinit(int lex)
 	int i, etype, sameas;
 	Type *t;
 	Sym *s;
-	
+
 	if(widthptr == 0)
 		fatal("typeinit before betypeinit");
 
