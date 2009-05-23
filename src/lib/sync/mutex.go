@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/*
-	The sync /* package * / provides basic sync primitives.
-	// Such as mutual exclusion locks.
-*/
+// The sync package provides basic synchronization primitives
+// such as mutual exclusion locks.  These are intended for use
+// by low-level library routines.  Higher-level synchronization
+// is better done via channels and communication.
 package sync
 
 func cas(val *int32, old, new int32) bool
 func semacquire(*int32)
 func semrelease(*int32)
 
-	// A Mutex is a mutual exclusion lock.
-	// Mutexes can be created as part of other structures;
-	// the zero value for a Mutex is an unlocked mutex.
+// A Mutex is a mutual exclusion lock.
+// Mutexes can be created as part of other structures;
+// the zero value for a Mutex is an unlocked mutex.
 type Mutex struct {
 	key int32;
 	sema int32;
@@ -30,11 +30,9 @@ func xadd(val *int32, delta int32) (new int32) {
 	panic("unreached")
 }
 
-/*
- * Lock locks m.
- * If the lock is already in use, the calling goroutine
- * blocks until the mutex is available.
- */
+// Lock locks m.
+// If the lock is already in use, the calling goroutine
+// blocks until the mutex is available.
 func (m *Mutex) Lock() {
 	if xadd(&m.key, 1) == 1 {
 		// changed from 0 to 1; we hold lock

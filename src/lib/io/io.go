@@ -69,19 +69,7 @@ type ReadWriteCloser interface {
 	Closer;
 }
 
-// ReadByter is the interface that wraps the basic ReadByte method.
-// Implementations of ReadByte typically use buffered I/O.
-type ReadByter interface {
-	ReadByte() (byte, os.Error);
-}
-
-// WriteByter is the interface that wraps the basic WriteByte method.
-// Implementations of WriteByte typically use buffered I/O.
-type WriteByter interface {
-	WriteByte(byte) os.Error;
-}
-
-// StringBytes converts a string to an array of bytes for easy marshaling.
+// Convert a string to an array of bytes for easy marshaling.
 func StringBytes(s string) []byte {
 	b := make([]byte, len(s));
 	for i := 0; i < len(s); i++ {
