@@ -28,4 +28,5 @@ for dir in $dirs; do (
 	echo $dir.install: $deps
 ) done > $TMP
 
+p4 open $OUT
 mv $TMP $OUT
