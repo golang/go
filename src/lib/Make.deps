@@ -3,6 +3,7 @@ bufio.install: io.install os.install utf8.install
 container/vector.install:
 crypto/aes.install: os.install
 crypto/block.install: fmt.install io.install os.install
+crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.install
 crypto/md5.install: hash.install os.install
 crypto/sha1.install: hash.install os.install
 exec.install: os.install strings.install

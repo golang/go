@@ -19,6 +19,7 @@ DIRS=\
 	container/vector\
 	crypto/aes\
 	crypto/block\
+	crypto/hmac\
 	crypto/md5\
 	crypto/sha1\
 	exec\
