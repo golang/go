@@ -40,6 +40,7 @@ coverage: packages
 	$(AS) $*.s
 
 O1=\
+	logger.$O\
 	reader.$O\
 
 
@@ -47,7 +48,7 @@ phases: a1
 _obj$D/iotest.a: phases
 
 a1: $(O1)
-	$(AR) grc _obj$D/iotest.a reader.$O
+	$(AR) grc _obj$D/iotest.a logger.$O reader.$O
 	rm -f $(O1)
 
 
