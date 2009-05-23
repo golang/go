@@ -1056,7 +1056,7 @@ addconst(Node *n, Node *e, int ctxt)
 
 	redeclare("constant", s);
 	s->oconst = e;
-	s->lexical = LNAME;
+	s->lexical = LACONST;
 
 	d = dcl();
 	d->dsym = s;
@@ -1136,14 +1136,6 @@ oldname(Sym *s)
 	Node *n;
 	Node *c;
 
-	if(s->oconst) {
-		n = nod(OLITERAL, N, N);
-		n->sym = s;
-		n->val = s->oconst->val;
-		n->type = s->oconst->type;
-		return n;
-	}
-
 	n = s->oname;
 	if(n == N) {
 		n = nod(ONONAME, N, N);
@@ -1213,11 +1205,11 @@ nametoanondcl(Node *na)
 	for(l=&na; (n=*l)->op == OLIST; l=&n->left)
 		n->right = nametoanondcl(n->right);
 
-	t = n->sym->otype;
-	if(t == T) {
+	if(n->sym->lexical != LATYPE && n->sym->lexical != LBASETYPE) {
 		yyerror("%s is not a type", n->sym->name);
 		t = typ(TINT32);
-	}
+	} else
+		t = oldtype(n->sym);
 	n = nod(ODCLFIELD, N, N);
 	n->type = t;
 	*l = n;

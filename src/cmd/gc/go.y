@@ -14,7 +14,7 @@
 }
 %token	<val>		LLITERAL
 %token	<lint>		LASOP
-%token	<sym>		LNAME LATYPE LPACK
+%token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
 %token	<sym>		LPACKAGE LIMPORT LDEFER LCLOSE LCLOSED
 %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
 %token	<sym>		LCOLAS LFALL LRETURN LDDD
@@ -42,7 +42,7 @@
  * names like Bstmt, Bvardcl, etc. can't.
  */
 
-%type	<sym>		sym sym1 sym2 sym3 keyword lname latype lpackatype
+%type	<sym>		sym sym1 sym2 sym3 keyword laconst lname latype lpackatype
 %type	<node>		xdcl xdcl_list_r oxdcl_list
 %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
 %type	<node>		oarg_type_list arg_type_list_r arg_chunk arg_chunk_list_r arg_type_list
@@ -913,6 +913,13 @@ pexpr:
 	{
 		$$ = nodbool(0);
 	}
+|	laconst
+	{
+		$$ = nod(OLITERAL, N, N);
+		$$->sym = $1;
+		$$->val = $1->oconst->val;
+		$$->type = $1->oconst->type;
+	}
 |	LIOTA
 	{
 		$$ = nodintconst(iota);
@@ -1016,6 +1023,14 @@ lpack:
 	}
  */
 
+laconst:
+	LACONST
+|	lpack '.' LACONST
+	{
+		$$ = $3;
+		context = nil;
+	}
+
 lname:
 	LNAME
 |	lpack '.' LNAME
@@ -1067,6 +1082,7 @@ onew_name:
 sym:
 	LATYPE
 |	LNAME
+|	LACONST
 |	LPACK
 
 sym1:
@@ -1096,6 +1112,7 @@ sym3:
 |	LPRINTN
 |	LNEW
 |	LMAKE
+|	LBASETYPE
 
 /*
  * keywords that we can
@@ -2112,8 +2129,20 @@ lpack:
 		YYERROR;
 	}
 
+laconst:
+	LATYPE
+	{
+		yyerror("%s is type, not var", $1->name);
+		YYERROR;
+	}
+
 latype:
-	LPACK
+	LACONST
+	{
+		yyerror("%s is const, not type", $1->name);
+		YYERROR;
+	}
+|	LPACK
 	{
 		yyerror("%s is package, not type", $1->name);
 		YYERROR;
