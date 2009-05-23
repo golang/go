@@ -47,7 +47,6 @@ import (
 	"time";
 
 	"astprinter";
-	"comment";
 )
 
 
@@ -258,7 +257,7 @@ func htmlFmt(w io.Writer, x interface{}, format string) {
 
 // Template formatter for "html-comment" format.
 func htmlCommentFmt(w io.Writer, x interface{}, format string) {
-	comment.ToHtml(w, toText(x));
+	doc.ToHtml(w, toText(x));
 }
 
 

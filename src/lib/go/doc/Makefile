@@ -40,15 +40,22 @@ coverage: packages
 	$(AS) $*.s
 
 O1=\
+	comment.$O\
+
+O2=\
 	doc.$O\
 
 
-phases: a1
+phases: a1 a2
 _obj$D/doc.a: phases
 
 a1: $(O1)
-	$(AR) grc _obj$D/doc.a doc.$O
+	$(AR) grc _obj$D/doc.a comment.$O
 	rm -f $(O1)
+
+a2: $(O2)
+	$(AR) grc _obj$D/doc.a doc.$O
+	rm -f $(O2)
 
 
 newpkg: clean
@@ -57,6 +64,7 @@ newpkg: clean
 
 $(O1): newpkg
 $(O2): a1
+$(O3): a2
 
 nuke: clean
 	rm -f $(GOROOT)/pkg$D/doc.a
