@@ -748,11 +748,40 @@ doregbits(int r)
 	return b;
 }
 
+static int
+overlap(Var *v, int o2, int w2)
+{
+	int o1, w1, t1, t2, z;
+	Bits bit;
+
+	o1 = v->offset;
+	w1 = v->width;
+	t1 = o1+w1;
+	t2 = o2+w2;
+	if(!(t1 > o2 && t2 > o1))
+		return 0;
+
+	// set to max extent
+	if(o2 < o1)
+		v->offset = o2;
+	if(t1 > t2)
+		v->width = t1-v->offset;
+	else
+		v->width = t2-v->offset;
+
+	// and dont registerize
+	bit = blsh(v-var);
+	for(z=0; z<BITS; z++)
+		addrs.b[z] |= bit.b[z];
+
+	return 1;
+}
+
 Bits
 mkvar(Reg *r, Adr *a)
 {
 	Var *v;
-	int i, t, n, et, z, w;
+	int i, t, n, et, z, w, flag;
 	int32 o;
 	Bits bit;
 	Sym *s;
@@ -793,12 +822,26 @@ mkvar(Reg *r, Adr *a)
 	o = a->offset;
 	w = a->width;
 	v = var;
+
+	flag = 0;
 	for(i=0; i<nvar; i++) {
 		if(s == v->sym)
-		if(n == v->name)
-			goto out;
+		if(n == v->name) {
+			// if it is the same, use it
+			if(v->etype == et)
+			if(v->width == w)
+			if(v->offset == o)
+				goto out;
+
+			// if it overlaps, set max
+			// width and dont registerize
+			if(overlap(v, o, w))
+				flag = 1;
+		}
 		v++;
 	}
+	if(flag)
+		goto none;
 
 	switch(et) {
 	case 0:
@@ -826,18 +869,9 @@ mkvar(Reg *r, Adr *a)
 
 out:
 	bit = blsh(i);
-	if(n == D_EXTERN || n == D_STATIC)
-		for(z=0; z<BITS; z++)
-			externs.b[z] |= bit.b[z];
-	if(n == D_PARAM)
-		for(z=0; z<BITS; z++)
-			params.b[z] |= bit.b[z];
 
-	// this has horrible consequences -
-	// no structure elements are registerized,
-	// but i dont know how to be more specific
-	if(v->etype != et || v->width != w || v->offset != o) {
-		/* funny punning */
+	// funny punning
+	if(v->etype != et) {
 		if(debug['R'])
 			print("pun et=%d/%d w=%d/%d o=%d/%d %D\n",
 				v->etype, et,
@@ -845,7 +879,15 @@ out:
 				v->offset, o, a);
 		for(z=0; z<BITS; z++)
 			addrs.b[z] |= bit.b[z];
+		goto none;
 	}
+
+	if(n == D_EXTERN || n == D_STATIC)
+		for(z=0; z<BITS; z++)
+			externs.b[z] |= bit.b[z];
+	if(n == D_PARAM)
+		for(z=0; z<BITS; z++)
+			params.b[z] |= bit.b[z];
 
 	return bit;
 
