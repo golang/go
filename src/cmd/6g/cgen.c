@@ -106,6 +106,7 @@ cgen(Node *n, Node *res)
 
 	nl = n->left;
 	nr = n->right;
+
 	if(nl != N && nl->ullman >= UINF)
 	if(nr != N && nr->ullman >= UINF) {
 		tempname(&n1, nl->type);
@@ -555,7 +556,6 @@ agen(Node *n, Node *res)
 		break;
 
 	case ODOT:
-		t = nl->type;
 		agen(nl, res);
 		if(n->xoffset != 0) {
 			nodconst(&n1, types[TINT64], n->xoffset);
@@ -564,9 +564,6 @@ agen(Node *n, Node *res)
 		break;
 
 	case ODOTPTR:
-		t = nl->type;
-		if(!isptr[t->etype])
-			fatal("agen: not ptr %N", n);
 		cgen(nl, res);
 		if(n->xoffset != 0) {
 			nodconst(&n1, types[TINT64], n->xoffset);

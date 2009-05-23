@@ -1088,7 +1088,8 @@ naddr(Node *n, Addr *a)
 	case OPARAM:
 		// n->left is PHEAP ONAME for stack parameter.
 		// compute address of actual parameter on stack.
-		a->etype = n->left->type->etype;
+		a->etype = simtype[n->left->type->etype];
+		a->width = n->left->type->width;
 		a->offset = n->xoffset;
 		a->sym = n->left->sym;
 		a->type = D_PARAM;
@@ -1096,8 +1097,11 @@ naddr(Node *n, Addr *a)
 
 	case ONAME:
 		a->etype = 0;
-		if(n->type != T)
+		a->width = 0;
+		if(n->type != T) {
 			a->etype = simtype[n->type->etype];
+			a->width = n->type->width;
+		}
 		a->offset = n->xoffset;
 		a->sym = n->sym;
 		if(a->sym == S)
@@ -1818,6 +1822,15 @@ odot:
 	o = dotoffset(n, oary, &nn);
 	if(nn == N)
 		goto no;
+
+	if(nn->addable && o == 1 && oary[0] >= 0) {
+		// directly addressable set of DOTs
+		n1 = *nn;
+		n1.type = n->type;
+		n1.xoffset += oary[0];
+		naddr(&n1, a);
+		goto yes;
+	}
 
 	regalloc(reg, types[tptr], N);
 	n1 = *reg;

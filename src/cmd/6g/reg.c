@@ -752,7 +752,7 @@ Bits
 mkvar(Reg *r, Adr *a)
 {
 	Var *v;
-	int i, t, n, et, z;
+	int i, t, n, et, z, w;
 	int32 o;
 	Bits bit;
 	Sym *s;
@@ -787,31 +787,29 @@ mkvar(Reg *r, Adr *a)
 	s = a->sym;
 	if(s == S)
 		goto none;
-//	if(s->name[0] == '!')
-//		goto none;
 	if(s->name[0] == '.')
 		goto none;
 	et = a->etype;
 	o = a->offset;
+	w = a->width;
 	v = var;
 	for(i=0; i<nvar; i++) {
 		if(s == v->sym)
 		if(n == v->name)
-		if(o == v->offset)
 			goto out;
 		v++;
 	}
 
 	switch(et) {
+	case 0:
 	case TFUNC:
 	case TARRAY:
-	case 0:
 		goto none;
 	}
 
 	if(nvar >= NVAR) {
 		if(debug['w'] > 1 && s)
-			fatal("variable not optimized: %s", s->name);
+			fatal("variable not optimized: %D", a);
 		goto none;
 	}
 	i = nvar;
@@ -821,8 +819,9 @@ mkvar(Reg *r, Adr *a)
 	v->offset = o;
 	v->name = n;
 	v->etype = et;
+	v->width = w;
 	if(debug['R'])
-		print("bit=%2d et=%2d %D\n", i, et, a);
+		print("bit=%2d et=%2d w=%d %D\n", i, et, w, a);
 	ostats.nvar++;
 
 out:
@@ -833,10 +832,17 @@ out:
 	if(n == D_PARAM)
 		for(z=0; z<BITS; z++)
 			params.b[z] |= bit.b[z];
-	if(v->etype != et) {
+
+	// this has horrible consequences -
+	// no structure elements are registerized,
+	// but i dont know how to be more specific
+	if(v->etype != et || v->width != w || v->offset != o) {
 		/* funny punning */
 		if(debug['R'])
-			print("pun %d %d %S\n", v->etype, et, s);
+			print("pun et=%d/%d w=%d/%d o=%d/%d %D\n",
+				v->etype, et,
+				v->width, w,
+				v->offset, o, a);
 		for(z=0; z<BITS; z++)
 			addrs.b[z] |= bit.b[z];
 	}
