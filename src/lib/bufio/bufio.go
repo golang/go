@@ -109,11 +109,11 @@ func (b *Reader) fill() os.Error {
 	return nil
 }
 
-// Read reads data into p.
-// It returns the number of bytes read into p.
-// If nn < len(p), also returns an error explaining
+// Read reads data into p, returning the number of bytes read.
+// Read reads as much data as possible into p.
+// If nn < len(p), Read also returns an error explaining
 // why the read is short.  At EOF, the count will be
-// zero and err will be io.ErrEOF.
+// zero and err will be io.ErrUnexpectedEOF.
 func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 	nn = 0;
 	for len(p) > 0 {

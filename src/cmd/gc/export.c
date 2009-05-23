@@ -190,7 +190,6 @@ dumpsym(Sym *s)
 		yyerror("package export symbol: %S", s);
 		break;
 	case LATYPE:
-	case LBASETYPE:
 		// TODO(rsc): sort methods by name
 		for(f=s->otype->method; f!=T; f=f->down)
 			dumpprereq(f);
@@ -201,10 +200,10 @@ dumpsym(Sym *s)
 				f->type->type->type, f->sym, f->type);
 		break;
 	case LNAME:
-		dumpexportvar(s);
-		break;
-	case LACONST:
-		dumpexportconst(s);
+		if(s->oconst)
+			dumpexportconst(s);
+		else
+			dumpexportvar(s);
 		break;
 	}
 }
@@ -344,7 +343,7 @@ importconst(Node *ss, Type *t, Node *n)
 		return;
 
 	convlit(n, t);
-	s = importsym(ss, LACONST);
+	s = importsym(ss, LNAME);
 	if(s->oconst != N) {
 		// TODO: check if already the same.
 		return;
