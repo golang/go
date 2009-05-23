@@ -434,6 +434,7 @@ struct	Var
 {
 	vlong	offset;
 	Sym*	sym;
+	int	width;
 	char	name;
 	char	etype;
 };

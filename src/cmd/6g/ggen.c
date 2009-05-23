@@ -717,7 +717,7 @@ stataddr(Node *nam, Node *n)
 	switch(n->op) {
 	case ONAME:
 		*nam = *n;
-		return 1;
+		return n->addable;
 
 	case ODOT:
 		if(!stataddr(nam, n->left))

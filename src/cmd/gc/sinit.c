@@ -41,14 +41,6 @@ initlin(Node* n)
 
 	case OCALL:
 		// call to mapassign1
-		if(n->left->op != ONAME ||
-		   n->right->op != OLIST ||
-		   n->right->left->op != OAS ||
-		   n->right->right->op != OLIST ||
-		   n->right->right->left->op != OAS ||
-		   n->right->right->right->op != OAS ||
-		   strcmp(n->left->sym->name, "mapassign1") != 0)
-			dump("o=call", n);
 		n->ninit = N;
 		xxx.list = list(xxx.list, n);
 		break;
@@ -72,7 +64,7 @@ inittmp(Node *n)
 	if(n->op == ONAME)
 	if(n->sym != S)
 	if(n->class == PAUTO)
-	if(strcmp(n->sym->name, "!tmpname!") == 0)
+	if(memcmp(n->sym->name, "autotmp_", 8) == 0)
 		return 1;
 	return 0;
 }
@@ -325,8 +317,9 @@ initfix(Node* n)
 	xxx.list = N;
 	initlin(n);
 	xxx.list = rev(xxx.list);
-
+if(1)
 return xxx.list;
+
 if(debug['A'])
 dump("preinitfix", xxx.list);
 

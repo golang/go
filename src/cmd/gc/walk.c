@@ -3980,6 +3980,27 @@ reorder4(Node *n)
 	return n;
 }
 
+static void
+fielddup(Node *n, Node *hash[], ulong nhash)
+{
+	uint h;
+	char *s;
+	Node *a;
+
+	if(n->op != ONAME)
+		fatal("fielddup: not ONAME");
+	s = n->sym->name;
+	h = stringhash(s)%nhash;
+	for(a=hash[h]; a!=N; a=a->ntest) {
+		if(strcmp(a->sym->name, s) == 0) {
+			yyerror("duplicate field name in struct literal: %s", s);
+			return;
+		}
+	}
+	n->ntest = hash[h];
+	hash[h] = n;
+}
+
 Node*
 structlit(Node *n, Node *var)
 {
@@ -3987,6 +4008,7 @@ structlit(Node *n, Node *var)
 	Type *l, *t;
 	Node *r, *a;
 	int mixflag;
+	Node* hash[101];
 
 	t = n->type;
 	if(t->etype != TSTRUCT)
@@ -4004,61 +4026,86 @@ structlit(Node *n, Node *var)
 		return var;
 
 	mixflag = 0;
-	if(r->op == OKEY) {
-		a = nod(OAS, var, N);
-		addtop = list(addtop, a);
-		goto loop2;
-	}
+	if(r->op == OKEY)
+		goto keyval;
 	l = structfirst(&savel, &n->type);
 
-loop1:
-	// assignment to every field
-	if(l == T || r == N) {
-		if(l != T)
-			yyerror("struct literal expect expr of type %T", l);
-		if(r != N)
-			yyerror("struct literal too many expressions");
-		if(mixflag)
-			yyerror("mixture of field:value initializers");
-		return var;
-	}
-	if(r->op == OKEY) {
-		mixflag = 1;
-		goto incr1;
-	}
+	while(r != N) {
+		// assignment to every field
+		if(l == T)
+			break;
+		if(r->op == OKEY) {
+			mixflag = 1;	// defer diagnostic
+			l = structnext(&savel);
+			r = listnext(&saver);
+			continue;
+		}
 
-	// build list of var.field = expr
-	a = nod(ODOT, var, newname(l->sym));
-	a = nod(OAS, a, r);
-	walktype(a, Etop);
+		// build list of var.field = expr
+		a = nod(ODOT, var, newname(l->sym));
+		a = nod(OAS, a, r);
+		walktype(a, Etop);
+		addtop = list(addtop, a);
+
+		l = structnext(&savel);
+		r = listnext(&saver);
+	}
+	if(l != T)
+		yyerror("struct literal expect expr of type %T", l);
+	if(r != N)
+		yyerror("struct literal too many expressions");
+	if(mixflag)
+		yyerror("mixture of field:value initializers");
+	return var;
+
+keyval:
+	memset(hash, 0, sizeof(hash));
+	a = nod(OAS, var, N);
 	addtop = list(addtop, a);
 
-incr1:
-	l = structnext(&savel);
-	r = listnext(&saver);
-	goto loop1;
+	while(r != N) {
+		// assignment to field:value elements
+		if(r->op != OKEY) {
+			mixflag = 1;
+			r = listnext(&saver);
+			continue;
+		}
 
-loop2:
-	// assignment to field:value elements
-	if(r == N) {
-		if(mixflag)
-			yyerror("mixture of field:value initializers");
-		return var;
+		// build list of var.field = expr
+		a = nod(ODOT, var, newname(r->left->sym));
+		fielddup(a->right, hash, nelem(hash));
+		a = nod(OAS, a, r->right);
+		walktype(a, Etop);
+		addtop = list(addtop, a);
+
+		r = listnext(&saver);
 	}
-	if(r->op != OKEY) {
-		mixflag = 1;
-		goto incr2;
+	if(mixflag)
+		yyerror("mixture of field:value initializers");
+	return var;
+}
+
+static void
+indexdup(Node *n, Node *hash[], ulong nhash)
+{
+	uint h;
+	Node *a;
+	ulong b, c;
+
+	if(n->op != OLITERAL)
+		fatal("indexdup: not OLITERAL");
+
+	b = mpgetfix(n->val.u.xval);
+	h = b%nhash;
+	for(a=hash[h]; a!=N; a=a->ntest) {
+		c = mpgetfix(a->val.u.xval);
+		if(b == c) {
+			yyerror("duplicate index in array literal: %ld", b);
+			return;
+		}
 	}
-
-	// build list of var.field = expr
-	a = nod(ODOT, var, newname(r->left->sym));
-	a = nod(OAS, a, r->right);
-	walktype(a, Etop);
-	addtop = list(addtop, a);
-
-incr2:
-	r = listnext(&saver);
-	goto loop2;
+	n->ntest = hash[h];
+	hash[h] = n;
 }
 
 Node*
@@ -4068,6 +4115,7 @@ arraylit(Node *n, Node *var)
 	Type *t;
 	Node *r, *a;
 	long ninit, b;
+	Node* hash[101];
 
 	t = n->type;
 	if(t->etype != TARRAY)
@@ -4126,6 +4174,8 @@ arraylit(Node *n, Node *var)
 	r = listfirst(&saver, &n->left);
 	if(r != N && r->op == OEMPTY)
 		r = N;
+
+	memset(hash, 0, sizeof(hash));
 	while(r != N) {
 		// build list of var[c] = expr
 		if(r->op == OKEY) {
@@ -4137,6 +4187,7 @@ arraylit(Node *n, Node *var)
 			r = r->right;
 		}
 		a = nodintconst(b);
+		indexdup(a, hash, nelem(hash));
 		a = nod(OINDEX, var, a);
 		a = nod(OAS, a, r);
 
@@ -4149,12 +4200,68 @@ arraylit(Node *n, Node *var)
 	return var;
 }
 
+static void
+keydup(Node *n, Node *hash[], ulong nhash)
+{
+	uint h;
+	ulong b;
+	double d;
+	int i;
+	Node *a;
+	Node cmp;
+	char *s;
+
+	evconst(n);
+	if(n->op != OLITERAL)
+		return;	// we dont check variables
+
+	switch(n->val.ctype) {
+	default:	// unknown, bool, nil
+		b = 23;
+		break;
+	case CTINT:
+		b = mpgetfix(n->val.u.xval);
+		break;
+	case CTFLT:
+		d = mpgetflt(n->val.u.fval);
+		s = (char*)&d;
+		b = 0;
+		for(i=sizeof(d); i>0; i--)
+			b = b*PRIME1 + *s++;
+		break;
+	case CTSTR:
+		b = 0;
+		s = n->val.u.sval->s;
+		for(i=n->val.u.sval->len; i>0; i--)
+			b = b*PRIME1 + *s++;
+		break;
+	}
+
+	h = b%nhash;
+	memset(&cmp, 0, sizeof(cmp));
+	for(a=hash[h]; a!=N; a=a->ntest) {
+		cmp.op = OEQ;
+		cmp.left = n;
+		cmp.right = a;
+		evconst(&cmp);
+		b = cmp.val.u.bval;
+		if(b) {
+			// too lazy to print the literal
+			yyerror("duplicate key in map literal");
+			return;
+		}
+	}
+	n->ntest = hash[h];
+	hash[h] = n;
+}
+
 Node*
 maplit(Node *n, Node *var)
 {
 	Iter saver;
 	Type *t;
 	Node *r, *a;
+	Node* hash[101];
 
 	t = n->type;
 	if(t->etype != TMAP)
@@ -4174,6 +4281,7 @@ maplit(Node *n, Node *var)
 	if(r != N && r->op == OEMPTY)
 		r = N;
 
+	memset(hash, 0, sizeof(hash));
 	while(r != N) {
 		if(r == N)
 			break;
@@ -4184,9 +4292,11 @@ maplit(Node *n, Node *var)
 		}
 
 		// build list of var[c] = expr
+		keydup(r->left, hash, nelem(hash));
+
 		a = nod(OINDEX, var, r->left);
 		a = nod(OAS, a, r->right);
-		walktype(a, Etop);	// add any assignments in r to addtop
+		walktype(a, Etop);
 		addtop = list(addtop, a);
 
 		r = listnext(&saver);
