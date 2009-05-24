@@ -6,6 +6,11 @@
 OUT="Make.deps"
 TMP="Make.deps.tmp"
 
+if [ -f $OUT ] && ! [ -w $OUT ]; then
+	echo "$0: $OUT is read-only; aborting." 1>&2
+	exit 1
+fi
+
 # Get list of directories from Makefile
 dirs=$(sed '1,/^DIRS=/d; /^$/,$d; s/\\//g' Makefile)
 dirpat=$(echo $dirs | sed 's/ /|/g; s/.*/^(&)$/')
@@ -28,5 +33,4 @@ for dir in $dirs; do (
 	echo $dir.install: $deps
 ) done > $TMP
 
-p4 open $OUT
 mv $TMP $OUT
