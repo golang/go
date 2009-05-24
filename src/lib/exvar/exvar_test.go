@@ -78,3 +78,16 @@ func TestMapCounter(t *testing.T) {
 		t.Error("red = %v, want 3", x)
 	}
 }
+
+func TestIntFunc(t *testing.T) {
+	x := int(4);
+	ix := IntFunc(func() int64 { return int64(x) });
+	if s := ix.String(); s != "4" {
+		t.Errorf("ix.String() = %v, want 4", s);
+	}
+
+	x++;
+	if s := ix.String(); s != "5" {
+		t.Errorf("ix.String() = %v, want 5", s);
+	}
+}
