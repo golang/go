@@ -88,3 +88,14 @@ func Wait(pid int, options uint64) (w *Waitmsg, err Error) {
 	return w, nil;
 }
 
+// Getpid returns the process id of the caller.
+func Getpid() int {
+	p, r2, e := syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0);
+	return int(p)
+}
+
+// Getppid returns the process id of the caller's parent.
+func Getppid() int {
+	p, r2, e := syscall.Syscall(syscall.SYS_GETPPID, 0, 0, 0);
+	return int(p)
+}
