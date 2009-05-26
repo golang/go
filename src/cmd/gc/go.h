@@ -928,7 +928,6 @@ void	arrayconv(Type*, Node*);
 Node*	colas(Node*, Node*);
 Node*	dorange(Node*);
 Node*	reorder1(Node*);
-Node*	reorder2(Node*);
 Node*	reorder3(Node*);
 Node*	reorder4(Node*);
 Node*	structlit(Node*, Node*);
