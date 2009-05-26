@@ -27,8 +27,7 @@ panic PC=xxx
 hello, world
 
 =========== ./initializerr.go
-BUG: errchk: ./initializerr.go:15: missing expected error: 'duplicate'
-errchk: ./initializerr.go:17: missing expected error: 'index'
+BUG: errchk: ./initializerr.go:17: missing expected error: 'index'
 
 =========== ./peano.go
 0! = 1
@@ -108,10 +107,6 @@ BUG: should crash
 =========== bugs/bug149.go
 bugs/bug149.go:14: cannot convert []uint8 constant to string
 BUG: should compile
-
-=========== bugs/bug150.go
-bugs/bug150.go:13: reorder2: too many function calls evaluating parameters
-BUG: bug150
 
 =========== bugs/bug151.go
 bugs/bug151.go:10: illegal types for operand: CALL
