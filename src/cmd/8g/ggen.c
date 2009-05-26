@@ -99,7 +99,40 @@ ret:
 void
 clearfat(Node *nl)
 {
-	fatal("clearfat");
+	uint32 w, c, q;
+	Node n1;
+
+	/* clear a fat object */
+	if(debug['g'])
+		dump("\nclearfat", nl);
+
+	w = nl->type->width;
+	c = w % 4;	// bytes
+	q = w / 4;	// quads
+
+	gconreg(AMOVL, 0, D_AX);
+	nodreg(&n1, types[tptr], D_DI);
+	agen(nl, &n1);
+
+	if(q >= 4) {
+		gconreg(AMOVL, q, D_CX);
+		gins(AREP, N, N);	// repeat
+		gins(ASTOSL, N, N);	// STOL AL,*(DI)+
+	} else
+	while(q > 0) {
+		gins(ASTOSL, N, N);	// STOL AL,*(DI)+
+		q--;
+	}
+
+	if(c >= 4) {
+		gconreg(AMOVL, c, D_CX);
+		gins(AREP, N, N);	// repeat
+		gins(ASTOSB, N, N);	// STOB AL,*(DI)+
+	} else
+	while(c > 0) {
+		gins(ASTOSB, N, N);	// STOB AL,*(DI)+
+		c--;
+	}
 }
 
 /*
@@ -290,7 +323,127 @@ cgen_ret(Node *n)
 void
 cgen_asop(Node *n)
 {
-	fatal("cgen_asop");
+	Node n1, n2, n3, n4;
+	Node *nl, *nr;
+	Prog *p1;
+	Addr addr;
+	int a;
+
+	nl = n->left;
+	nr = n->right;
+
+	if(nr->ullman >= UINF && nl->ullman >= UINF) {
+		tempname(&n1, nr->type);
+		cgen(nr, &n1);
+		n2 = *n;
+		n2.right = &n1;
+		cgen_asop(&n2);
+		goto ret;
+	}
+
+	if(!isint[nl->type->etype])
+		goto hard;
+	if(!isint[nr->type->etype])
+		goto hard;
+
+	switch(n->etype) {
+	case OADD:
+		if(smallintconst(nr))
+		if(mpgetfix(nr->val.u.xval) == 1) {
+			a = optoas(OINC, nl->type);
+			if(nl->addable) {
+				gins(a, N, nl);
+				goto ret;
+			}
+			if(sudoaddable(a, nl, &addr)) {
+				p1 = gins(a, N, N);
+				p1->to = addr;
+				sudoclean();
+				goto ret;
+			}
+		}
+		break;
+
+	case OSUB:
+		if(smallintconst(nr))
+		if(mpgetfix(nr->val.u.xval) == 1) {
+			a = optoas(ODEC, nl->type);
+			if(nl->addable) {
+				gins(a, N, nl);
+				goto ret;
+			}
+			if(sudoaddable(a, nl, &addr)) {
+				p1 = gins(a, N, N);
+				p1->to = addr;
+				sudoclean();
+				goto ret;
+			}
+		}
+		break;
+	}
+
+	switch(n->etype) {
+	case OADD:
+	case OSUB:
+	case OXOR:
+	case OAND:
+	case OOR:
+		a = optoas(n->etype, nl->type);
+		if(nl->addable) {
+			if(smallintconst(nr)) {
+				gins(a, nr, nl);
+				goto ret;
+			}
+			regalloc(&n2, nr->type, N);
+			cgen(nr, &n2);
+			gins(a, &n2, nl);
+			regfree(&n2);
+			goto ret;
+		}
+		if(nr->ullman < UINF)
+		if(sudoaddable(a, nl, &addr)) {
+			if(smallintconst(nr)) {
+				p1 = gins(a, nr, N);
+				p1->to = addr;
+				sudoclean();
+				goto ret;
+			}
+			regalloc(&n2, nr->type, N);
+			cgen(nr, &n2);
+			p1 = gins(a, &n2, N);
+			p1->to = addr;
+			regfree(&n2);
+			sudoclean();
+			goto ret;
+		}
+	}
+
+hard:
+	if(nr->ullman > nl->ullman) {
+		regalloc(&n2, nr->type, N);
+		cgen(nr, &n2);
+		igen(nl, &n1, N);
+	} else {
+		igen(nl, &n1, N);
+		tempalloc(&n2, nr->type);
+		cgen(nr, &n2);
+	}
+
+	n3 = *n;
+	n3.left = &n1;
+	n3.right = &n2;
+	n3.op = n->etype;
+
+	tempalloc(&n4, nl->type);
+	cgen(&n3, &n4);
+	gmove(&n4, &n1);
+
+	regfree(&n1);
+	tempfree(&n4);
+	tempfree(&n2);
+
+ret:
+	;
 }
 
 /*

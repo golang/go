@@ -85,6 +85,7 @@ void	ginscall(Node*, int);
  * cgen
  */
 void	agen(Node*, Node*);
+void	agenr(Node *n, Node *a, Node *res);
 void	igen(Node*, Node*, Node*);
 vlong	fieldoffset(Type*, Node*);
 void	bgen(Node*, int, Prog*);
@@ -129,7 +130,7 @@ void	buildtxt(void);
 Plist*	newplist(void);
 int	isfat(Type*);
 void	sudoclean(void);
-int	sudoaddable(Node*, Addr*);
+int	sudoaddable(int, Node*, Addr*);
 void	afunclit(Addr*);
 
 /*

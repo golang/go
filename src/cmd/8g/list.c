@@ -82,7 +82,7 @@ Dconv(Fmt *fp)
 	i = a->type;
 	if(i >= D_INDIR) {
 		if(a->offset)
-			snprint(str, sizeof(str), "%ld(%R)", a->offset, i-D_INDIR);
+			snprint(str, sizeof(str), "%d(%R)", a->offset, i-D_INDIR);
 		else
 			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
 		goto brk;
@@ -91,7 +91,7 @@ Dconv(Fmt *fp)
 
 	default:
 		if(a->offset)
-			snprint(str, sizeof(str), "$%ld,%R", a->offset, i);
+			snprint(str, sizeof(str), "$%d,%R", a->offset, i);
 		else
 			snprint(str, sizeof(str), "%R", i);
 		break;
@@ -101,33 +101,33 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_BRANCH:
-		snprint(str, sizeof(str), "%ld", a->branch->loc);
+		snprint(str, sizeof(str), "%d", a->branch->loc);
 		break;
 
 	case D_EXTERN:
-		snprint(str, sizeof(str), "%S+%ld(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S+%d(SB)", a->sym, a->offset);
 		break;
 
 	case D_STATIC:
-		snprint(str, sizeof(str), "%S<>+%ld(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S<>+%d(SB)", a->sym, a->offset);
 		break;
 
 	case D_AUTO:
-		snprint(str, sizeof(str), "%S+%ld(SP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S+%d(SP)", a->sym, a->offset);
 		break;
 
 	case D_PARAM:
-		snprint(str, sizeof(str), "%S+%ld(FP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S+%d(FP)", a->sym, a->offset);
 		break;
 
 	case D_CONST:
 		if(fp->flags & FmtLong) {
 			d1 = a->offset;
 			d2 = a->offset2;
-			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
+			snprint(str, sizeof(str), "$%ud-%ud", (ulong)d1, (ulong)d2);
 			break;
 		}
-		snprint(str, sizeof(str), "$%ld", a->offset);
+		snprint(str, sizeof(str), "$%d", a->offset);
 		break;
 
 	case D_FCONST:
