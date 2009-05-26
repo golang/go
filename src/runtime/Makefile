@@ -5,6 +5,7 @@
 # Set SIZE to 32 or 64.
 SIZE_386=32
 SIZE_amd64=64
+SIZE_arm=32
 SIZE=$(SIZE_$(GOARCH))
 
 # Setup CFLAGS.  Add -D_64BIT on 64-bit platforms (sorry).
@@ -14,6 +15,7 @@ CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE))
 # Set O to right letter.
 O_386=8
 O_amd64=6
+O_arm=5
 O=$(O_$(GOARCH))
 
 # Tools
@@ -79,10 +81,10 @@ $(LIB): $(OFILES)
 $(OFILES): $(HFILES)
 
 nuke:
-	rm -f *.[68] *.a $(GOROOT)/lib/$(LIB)
+	rm -f *.[568] *.a $(GOROOT)/lib/$(LIB)
 
 clean:
-	rm -f *.[68] *.a runtime.acid cgo2c
+	rm -f *.[568] *.a runtime.acid cgo2c
 
 %.$O:	%.c
 	$(CC) $(CFLAGS) $<
