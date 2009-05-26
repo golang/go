@@ -2349,8 +2349,11 @@ stringop(Node *n, int top)
 	case OLT:
 		// sys_cmpstring(s1, s2) :: 0
 		on = syslook("cmpstring", 0);
-		r = list(n->left, n->right);
-		r = nod(OCALL, on, r);
+		r = nod(OCONV, n->left, N);
+		r->type = types[TSTRING];
+		c = nod(OCONV, n->right, N);
+		c->type = types[TSTRING];
+		r = nod(OCALL, on, list(r, c));
 		c = nodintconst(0);
 		r = nod(n->op, r, c);
 		break;
@@ -2358,8 +2361,11 @@ stringop(Node *n, int top)
 	case OADD:
 		// sys_catstring(s1, s2)
 		on = syslook("catstring", 0);
-		r = list(n->left, n->right);
-		r = nod(OCALL, on, r);
+		r = nod(OCONV, n->left, N);
+		r->type = types[TSTRING];
+		c = nod(OCONV, n->right, N);
+		c->type = types[TSTRING];
+		r = nod(OCALL, on, list(r, c));
 		break;
 
 	case OASOP:
@@ -2372,9 +2378,12 @@ stringop(Node *n, int top)
 			// s1 = sys_catstring(s1, s2)
 			if(n->etype != OADD)
 				fatal("stringop: not cat");
-			r = list(n->left, n->right);
 			on = syslook("catstring", 0);
-			r = nod(OCALL, on, r);
+			r = nod(OCONV, n->left, N);
+			r->type = types[TSTRING];
+			c = nod(OCONV, n->right, N);
+			c->type = types[TSTRING];
+			r = nod(OCALL, on, list(r, c));
 			r = nod(OAS, n->left, r);
 			break;
 		}
