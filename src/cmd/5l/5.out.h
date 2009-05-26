@@ -34,7 +34,8 @@
 
 #define NOPROF		(1<<0)
 #define DUPOK		(1<<1)
-#define	ALLTHUMBS	(1<<2)
+#define NOSPLIT		(1<<2)
+#define	ALLTHUMBS	(1<<3)
 
 #define	REGRET		0
 #define	REGARG		0
