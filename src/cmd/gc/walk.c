@@ -473,7 +473,7 @@ loop:
 					break;
 				l = ascompatet(n->op, &n->left, &r->type, 0);
 				if(l != N)
-					indir(n, list(r, reorder2(l)));
+					indir(n, list(r, l));
 				goto ret;
 			}
 			break;
@@ -543,7 +543,7 @@ loop:
 				r = ifacecvt(r->type, r->left, et);
 				l = ascompatet(n->op, &n->left, &r->type, 0);
 				if(l != N)
-					indir(n, list(r, reorder2(l)));
+					indir(n, list(r, l));
 				goto ret;
 			}
 			break;
@@ -1774,12 +1774,29 @@ loop:
 	goto loop;
 }
 
+/*
+ * n is an lv and t is the type of an rv
+ * return 1 if this implies a function call
+ * evaluating the lv or a function call
+ * in the conversion of the types
+ */
+int
+fncall(Node *l, Type *rt)
+{
+	if(l->ullman >= UINF)
+		return 1;
+	if(eqtype(l->type, rt))
+		return 0;
+	return 1;
+}
+
 Node*
 ascompatet(int op, Node **nl, Type **nr, int fp)
 {
-	Node *l, *nn, *a;
+	Node *l, *nn, *mm, *tmp, *a;
 	Type *r;
 	Iter savel, saver;
+	int ucount;
 
 	/*
 	 * check assign type list to
@@ -1789,13 +1806,21 @@ ascompatet(int op, Node **nl, Type **nr, int fp)
 	l = listfirst(&savel, nl);
 	r = structfirst(&saver, nr);
 	nn = N;
+	mm = N;
+	ucount = 0;
 
 loop:
 	if(l == N || r == T) {
 		if(l != N || r != T)
 			yyerror("assignment count mismatch: %d = %d",
 				listcount(*nl), structcount(*nr));
-
+		if(ucount)
+			yyerror("reorder2: too many function calls evaluating parameters");
+		if(mm != N) {
+			mm = rev(mm);
+			for(l=listfirst(&savel, &mm); l!=N; l=listnext(&savel))
+				nn = list(nn, l);
+		}
 		return rev(nn);
 	}
 
@@ -1804,9 +1829,24 @@ loop:
 		return N;
 	}
 
+	// any lv that causes a fn call must be
+	// deferred until all the return arguments
+	// have been pulled from the output arguments
+	if(fncall(l, r->type)) {
+		tmp = nod(OXXX, N, N);
+		tempname(tmp, r->type);
+		a = nod(OAS, l, tmp);
+		a = convas(a);
+		mm = list(mm, a);
+		l = tmp;
+	}
+
 	a = nod(OAS, l, nodarg(r, fp));
 	a = convas(a);
-	nn = list(a, nn);
+	ullmancalc(a);
+	if(a->ullman >= UINF)
+		ucount++;
+	nn = list(nn, a);
 
 	l = listnext(&savel);
 	r = structnext(&saver);
@@ -3826,39 +3866,6 @@ loop2:
 more:
 	l = listnext(&save);
 	goto loop2;
-}
-
-/*
- * from ascompat[et]
- *	a,b = f()
- * return of a multi.
- * there can be no function calls at all,
- * or they will over-write the return values.
- */
-Node*
-reorder2(Node *n)
-{
-	Iter save;
-	Node *l;
-	int c;
-
-	l = listfirst(&save, &n);
-	c = 0;
-
-loop1:
-	if(l == N) {
-		if(c > 0)
-			yyerror("reorder2: too many function calls evaluating parameters");
-		return n;
-	}
-	if(l->op == OLIST)
-		fatal("reorder2 OLIST");
-
-	ullmancalc(l);
-	if(l->ullman >= UINF)
-		c++;
-	l = listnext(&save);
-	goto loop1;
 }
 
 /*
