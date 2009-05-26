@@ -594,8 +594,10 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 	offset = Boffset(b);
 	obj = objtype(b, 0);
 	if (obj < 0) {			/* not an object file */
-		if (!gflag || strcmp(file, pkgdef) != 0)  /* don't clear allobj if it's pkg defs */
+		if (!gflag || strcmp(file, pkgdef) != 0) {  /* don't clear allobj if it's pkg defs */
+			fprint(2, "ar: non-object file %s\n", file);
 			allobj = 0;
+		}
 		d = dirfstat(Bfildes(b));
 		if (d != nil && d->length == 0)
 			fprint(2, "ar: zero length file %s\n", file);
