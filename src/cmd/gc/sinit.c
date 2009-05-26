@@ -11,6 +11,21 @@ static struct
 	Type*	type;
 } xxx;
 
+enum
+{
+	TC_xxx,
+
+	TC_unknown,		// class
+	TC_struct,
+	TC_array,
+	TC_slice,
+	TC_map,
+
+	TS_start,		// state
+	TS_middle,
+	TS_end,
+};
+
 /*
  * the init code (thru initfix) reformats the
  *	var = ...
@@ -25,6 +40,23 @@ static struct
  * will look. ideally the lit routines could
  * write the code in this form, but ...
  */
+
+static int
+typeclass(Type *t)
+{
+	if(t != T)
+	switch(t->etype) {
+	case TSTRUCT:
+		return TC_struct;
+	case TARRAY:
+		if(t->bound >= 0)
+			return TC_array;
+		return TC_slice;
+	case TMAP:
+		return TC_map;
+	}
+	return TC_unknown;
+}
 
 void
 initlin(Node* n)
@@ -74,16 +106,6 @@ sametmp(Node *n1, Node *n2)
 {
 	if(inittmp(n1))
 	if(n1->xoffset == n2->xoffset)
-		return 1;
-	return 0;
-}
-
-int
-indsametmp(Node *n1, Node *n2)
-{
-	if(n1->op == OIND)
-	if(inittmp(n1->left))
-	if(n1->left->xoffset == n2->xoffset)
 		return 1;
 	return 0;
 }
@@ -203,7 +225,11 @@ mapindex(Node *n)
 
 	// pull all the primatives
 	key = findarg(n, "key", "mapassign1");
+	if(key == N)
+		return N;
 	val = findarg(n, "val", "mapassign1");
+	if(val == N)
+		return N;
 	index = nodintconst(xxx.type->bound);
 	xxx.type->bound++;
 	dowidth(xxx.type);
@@ -227,83 +253,200 @@ mapindex(Node *n)
 // look through the whole structure
 // and substitute references of B to A.
 // some rewrite goes on also.
-int
+void
 initsub(Node *n, Node *nam)
 {
 	Iter iter;
-	Node *r, *w;
-	int any;
+	Node *r, *w, *c;
+	int class, state;
 
-	any = 0;
-	r = listfirst(&iter, &xxx.list);
-	while(r != N) {
-		switch(r->op) {
-		case OAS:
-		case OEMPTY:
-			if(r->left != N)
-			switch(r->left->op) {
-			case ONAME:
-				if(sametmp(r->left, nam)) {
-					any = 1;
-					r->left = n;
+	// we could probably get a little more
+	// out of this if we allow minimal simple
+	// expression on the right (eg OADDR-ONAME)
+	if(n->op != ONAME)
+		return 0;
 
-					w = slicerewrite(r->right);
-					if(w != N) {
-						n = w->left;	// from now on use fixed array
-						r->right = w;
-						break;
-					}
+	class = typeclass(nam->type);
+	state = TS_start;
 
-					w = maprewrite(r->right);
-					if(w != N) {
-						n = w->left;	// from now on use fixed array
-						r->right = w;
-						break;
-					}
-				}
-				break;
-			case ODOT:
-				if(sametmp(r->left->left, nam)) {
-					any = 1;
-					r->left->left = n;
-				}
-				if(indsametmp(r->left->left, nam)) {
-					any = 1;
-					r->left->left->left = n;
-				}
-				break;
-			case OINDEX:
-				if(sametmp(r->left->left, nam)) {
-					any = 1;
-					r->left->left = n;
-				}
-				if(indsametmp(r->left->left, nam)) {
-					any = 1;
-					r->left->left->left = n;
-				}
-				break;
-			}
-			break;
-		case OCALL:
-			// call to mapassign1
-			// look through the parameters
-			w = findarg(r, "hmap", "mapassign1");
-			if(w == N)
-				break;
-			if(sametmp(w, nam)) {
-				any = 1;
-				*r = *mapindex(r);
-			}
-			if(indsametmp(w, nam)) {
-fatal("indirect map index");
-				any = 1;
-				w->right->left = n;
-			}
-			break;
-		}
-		r = listnext(&iter);
+	switch(class) {
+	case TC_struct:
+		goto str;
+	case TC_array:
+		goto ary;
+	case TC_slice:
+		goto sli;
+	case TC_map:
+		goto map;
 	}
-	return any;
+	return 0;
+
+str:
+	for(r=listfirst(&iter, &xxx.list); r != N; r = listnext(&iter)) {
+		if(r->op != OAS && r->op != OEMPTY)
+			continue;
+
+		// optional first usage "nam = N"
+		if(r->right == N && sametmp(r->left, nam)) {
+			if(state != TS_start) {
+				dump("", r);
+				fatal("initsub: str-first and state=%d", state);
+			}
+			state = TS_middle;
+			r->op = OEMPTY;
+			continue;
+		}
+
+		// last usage "n = nam"
+		if(r->left != N && sametmp(r->right, nam)) {
+			if(state == TS_end) {
+				dump("", r);
+				fatal("initsub: str-last and state=%d", state);
+			}
+			state = TS_end;
+			r->op = OEMPTY;
+			continue;
+		}
+
+		// middle usage "(nam DOT name) AS expr"
+		if(r->left->op != ODOT || !sametmp(r->left->left, nam))
+			continue;
+		if(state == TS_end) {
+			dump("", r);
+			fatal("initsub: str-middle and state=%d", state);
+		}
+		state = TS_middle;
+		r->left->left = n;
+	}
+	return;
+
+ary:
+	for(r=listfirst(&iter, &xxx.list); r != N; r = listnext(&iter)) {
+		if(r->op != OAS && r->op != OEMPTY)
+			continue;
+
+		// optional first usage "nam = N"
+		if(r->right == N && sametmp(r->left, nam)) {
+			if(state != TS_start) {
+				dump("", r);
+				fatal("initsub: ary-first and state=%d", state);
+			}
+			state = TS_middle;
+			r->op = OEMPTY;
+			continue;
+		}
+
+		// last usage "n = nam"
+		if(r->left != N && sametmp(r->right, nam)) {
+			if(state == TS_end) {
+				dump("", r);
+				fatal("initsub: ary-last and state=%d", state);
+			}
+			state = TS_end;
+			r->op = OEMPTY;
+			continue;
+		}
+
+		// middle usage "(nam INDEX literal) = expr"
+		if(r->left->op != OINDEX || !sametmp(r->left->left, nam))
+			continue;
+		if(state == TS_end) {
+			dump("", r);
+			fatal("initsub: ary-middle and state=%d", state);
+		}
+		state = TS_middle;
+		r->left->left = n;
+	}
+	return;
+
+sli:
+	w = N;
+	for(r=listfirst(&iter, &xxx.list); r != N; r = listnext(&iter)) {
+		if(r->op != OAS && r->op != OEMPTY)
+			continue;
+
+		// first usage "nam = (newarray CALL args)"
+		if(r->right != N && sametmp(r->left, nam)) {
+			w = slicerewrite(r->right);
+			if(w == N)
+				continue;
+			if(state != TS_start) {
+				dump("", r);
+				fatal("initsub: ary-first and state=%d", state);
+			}
+			state = TS_middle;
+			r->right = w;
+			r->left = n;
+			continue;
+		}
+
+		// last usage "n = nam"
+		if(r->left != N && sametmp(r->right, nam)) {
+			if(state != TS_middle) {
+				dump("", r);
+				fatal("initsub: ary-last and state=%d", state);
+			}
+			state = TS_end;
+			r->op = OEMPTY;
+			continue;
+		}
+
+		// middle usage "(nam INDEX literal) = expr"
+		if(r->left->op != OINDEX || !sametmp(r->left->left, nam))
+			continue;
+		if(state != TS_middle) {
+			dump("", r);
+			fatal("initsub: ary-middle and state=%d", state);
+		}
+		state = TS_middle;
+		r->left->left = w->left;
+	}
+	return;
+
+map:
+return;
+	w = N;
+	for(r=listfirst(&iter, &xxx.list); r != N; r = listnext(&iter)) {
+		if(r->op == OCALL) {
+			// middle usage "(CALL mapassign1 key, val, map)"
+			c = mapindex(r);
+			if(c == N)
+				continue;
+			state = TS_middle;
+			*r = *c;
+			continue;
+		}
+		if(r->op != OAS && r->op != OEMPTY)
+			continue;
+
+		// first usage "nam = (newmap CALL args)"
+		if(r->right != N && sametmp(r->left, nam)) {
+			w = maprewrite(r->right);
+			if(w == N)
+				continue;
+			if(state != TS_start) {
+				dump("", r);
+				fatal("initsub: ary-first and state=%d", state);
+			}
+			state = TS_middle;
+			r->right = w;
+			r->left = n;
+			continue;
+		}
+
+		// last usage "n = nam"
+		if(r->left != N && sametmp(r->right, nam)) {
+			if(state != TS_middle) {
+				dump("", r);
+				fatal("initsub: ary-last and state=%d", state);
+			}
+			state = TS_end;
+			r->op = OEMPTY;
+			continue;
+		}
+	}
+	return;
+
 }
 
 Node*
@@ -312,12 +455,11 @@ initfix(Node* n)
 	Iter iter;
 	Node *r;
 
-//dump("prelin", n);
-
 	xxx.list = N;
 	initlin(n);
 	xxx.list = rev(xxx.list);
-if(1)
+
+if(0)
 return xxx.list;
 
 if(debug['A'])
@@ -328,8 +470,7 @@ dump("preinitfix", xxx.list);
 	while(r != N) {
 		if(r->op == OAS)
 		if(inittmp(r->right)) {
-			if(initsub(r->left, r->right))
-				r->op = OEMPTY;
+			initsub(r->left, r->right);
 		}
 		r = listnext(&iter);
 	}
