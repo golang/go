@@ -30,6 +30,7 @@
 
 #define	EXTERN
 #include	"l.h"
+#include	"compat.h"
 #include	<ar.h>
 
 #ifndef	DEFAULT
@@ -144,6 +145,10 @@ main(int argc, char *argv[])
 		diag("usage: 5l [-options] objects");
 		errorexit();
 	}
+	mywhatsys();	// get goroot, goarch, goos
+	if(strcmp(goarch, thestring) != 0)
+		print("goarch is not known: %s\n", goarch);
+
 	if(!debug['9'] && !debug['U'] && !debug['B'])
 		debug[DEFAULT] = 1;
 	if(HEADTYPE == -1) {
@@ -259,19 +264,20 @@ main(int argc, char *argv[])
 	firstp = prg();
 	lastp = firstp;
 
-	if(INITENTRY == 0) {
-		INITENTRY = "_main";
-		if(debug['p'])
-			INITENTRY = "_mainp";
-		if(!debug['l'])
-			lookup(INITENTRY, 0)->type = SXREF;
-	} else
-		lookup(INITENTRY, 0)->type = SXREF;
+	if(INITENTRY == nil) {
+ 		INITENTRY = mal(strlen(goarch)+strlen(goos)+10);
+		sprint(INITENTRY, "_rt0_%s_%s", goarch, goos);
+	}
+	lookup(INITENTRY, 0)->type = SXREF;
 
 	while(*argv)
 		objfile(*argv++);
-	if(!debug['l'])
+	if(!debug['l']) {
 		loadlib();
+		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
+		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
+		objfile(a);
+	}
 	firstp = firstp->link;
 	if(firstp == P)
 		goto out;
