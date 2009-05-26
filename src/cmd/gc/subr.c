@@ -2382,6 +2382,7 @@ tempname(Node *n, Type *t)
 	// give each tmp a different name so that there
 	// a chance to registerizer them
 	snprint(namebuf, sizeof(namebuf), "autotmp_%.4d", statuniqgen);
+	statuniqgen++;
 	s = lookup(namebuf);
 
 	memset(n, 0, sizeof(*n));
