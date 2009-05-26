@@ -327,3 +327,8 @@ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 	fatal("cgen_bmul");
 }
 
+int
+gen_as_init(Node *nr, Node *nl)
+{
+	return 0;
+}

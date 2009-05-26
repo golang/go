@@ -47,7 +47,7 @@ EXTERN	Biobuf*	bout;
 EXTERN	int32	dynloc;
 EXTERN	uchar	reg[D_NONE];
 EXTERN	int32	pcloc;		// instruction counter
-EXTERN	String	emptystring;
+EXTERN	Strlit	emptystring;
 extern	char*	anames[];
 EXTERN	Hist*	hist;
 EXTERN	Prog	zprog;
@@ -124,6 +124,7 @@ void	nodreg(Node*, Type*, int);
 void	nodindreg(Node*, Type*, int);
 void	nodconst(Node*, Type*, vlong);
 void	gconreg(int, vlong, int);
+void	datagostring(Strlit*, Addr*);
 void	buildtxt(void);
 Plist*	newplist(void);
 int	isfat(Type*);

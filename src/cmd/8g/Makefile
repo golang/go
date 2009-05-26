@@ -16,9 +16,9 @@ HFILES=\
 OFILES=\
 	../8l/enam.$O\
 	list.$O\
-	align.$O\
-	obj.$O\
-	gen.$O\
+	galign.$O\
+	gobj.$O\
+	ggen.$O\
 	gsubr.$O\
 	cgen.$O\
 #	peep.$O\
