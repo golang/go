@@ -28,6 +28,11 @@ type Timeval struct {
 
 // Processes
 
+const (
+	RUSAGE_SELF = 0;
+	RUSAGE_CHILDREN = -1;
+)
+
 type Rusage struct {
 	Utime	Timeval;
 	Stime	Timeval;
