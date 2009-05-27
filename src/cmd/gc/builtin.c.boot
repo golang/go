@@ -65,6 +65,10 @@ char *sysimport =
 	"func sys.arrayslices (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
 	"func sys.arrays2d (old *any, nel int) (ary []any)\n"
 	"func sys.closure ()\n"
+	"func sys.int64div (? int64, ? int64) (? int64)\n"
+	"func sys.uint64div (? uint64, ? uint64) (? uint64)\n"
+	"func sys.int64mod (? int64, ? int64) (? int64)\n"
+	"func sys.uint64mod (? uint64, ? uint64) (? uint64)\n"
 	"\n"
 	"$$\n";
 char *unsafeimport =

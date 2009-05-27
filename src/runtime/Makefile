@@ -114,3 +114,6 @@ cgo2c: cgo2c.c
 runtime.acid: runtime.h proc.c
 	$(CC) -a proc.c >runtime.acid
 
+chan.acid: runtime.h chan.c
+	$(CC) -a chan.c >chan.acid
+

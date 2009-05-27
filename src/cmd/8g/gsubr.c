@@ -208,11 +208,11 @@ optoas(int op, Type *t)
 	default:
 		fatal("optoas: no entry %O-%T", op, t);
 		break;
-	
+
 	case CASE(OADDR, TPTR32):
 		a = ALEAL;
 		break;
-	
+
 	case CASE(OEQ, TBOOL):
 	case CASE(OEQ, TINT8):
 	case CASE(OEQ, TUINT8):
@@ -564,6 +564,9 @@ optoas(int op, Type *t)
 		a = ACWD;
 		break;
 
+	case CASE(OEXTEND, TINT32):
+		a = ACDQ;
+		break;
 	}
 	return a;
 }
@@ -588,7 +591,7 @@ ginit(void)
 		reg[i] = 1;
 	for(i=D_AX; i<=D_DI; i++)
 		reg[i] = 0;
-	
+
 	// TODO: Use MMX ?
 	for(i=D_F0; i<=D_F7; i++)
 		reg[i] = 0;
@@ -677,8 +680,13 @@ err:
 	return;
 
 out:
-	if(reg[i] == 0)
+	if(reg[i] == 0) {
 		regpc[i] = getcallerpc(&n);
+		if(i == D_AX || i == D_CX || i == D_DX || i == D_SP) {
+			dump("regalloc-o", o);
+			fatal("regalloc %R", i);
+		}
+	}
 	reg[i]++;
 	nodreg(n, t, i);
 }
@@ -696,6 +704,8 @@ regfree(Node *n)
 	if(reg[i] <= 0)
 		fatal("regfree: reg not allocated");
 	reg[i]--;
+	if(reg[i] == 0 && (i == D_AX || i == D_CX || i == D_DX || i == D_SP))
+		fatal("regfree %R", i);
 }
 
 void
@@ -749,6 +759,16 @@ nodreg(Node *n, Type *t, int r)
 	n->type = t;
 }
 
+/*
+ * initialize n to be indirect of register r; n is type t.
+ */
+void
+nodindreg(Node *n, Type *t, int r)
+{
+	nodreg(n, t, r);
+	n->op = OINDREG;
+}
+
 Node*
 nodarg(Type *t, int fp)
 {
@@ -775,7 +795,7 @@ nodarg(Type *t, int fp)
 		n->xoffset = first->width;
 		n->addable = 1;
 		break;
-	
+
 	case TFIELD:
 		n = nod(ONAME, N, N);
 		n->type = t->type;
@@ -835,6 +855,8 @@ gload(Node *f, Node *t)
 		fatal("gload %T", f->type);
 	case TINT8:
 		a = AMOVBLSX;
+		if(isconst(f, CTINT) || isconst(f, CTBOOL))
+			a = AMOVL;
 		break;
 	case TBOOL:
 	case TUINT8:
@@ -844,6 +866,8 @@ gload(Node *f, Node *t)
 		break;
 	case TINT16:
 		a = AMOVWLSX;
+		if(isconst(f, CTINT) || isconst(f, CTBOOL))
+			a = AMOVL;
 		break;
 	case TUINT16:
 		a = AMOVWLZX;
@@ -875,7 +899,7 @@ gstore(Node *f, Node *t)
 {
 	int a, ft, tt;
 	Node nod, adr;
-	
+
 	ft = simtype[f->type->etype];
 	tt = simtype[t->type->etype];
 
@@ -970,7 +994,7 @@ gmove(Node *f, Node *t)
 		sgen(f, t, 8);
 		return;
 	}
-	
+
 	regalloc(&nod, types[TINT32], t);
 	gload(f, &nod);
 	gstore(&nod, t);

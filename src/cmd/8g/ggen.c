@@ -63,10 +63,10 @@ compile(Node *fn)
 	ptxt = gins(ATEXT, curfn->nname, &nod1);
 	afunclit(&ptxt->from);
 
-//	ginit();
+	ginit();
 	gen(curfn->enter);
 	gen(curfn->nbody);
-//	gclean();
+	gclean();
 	checklabels();
 
 //	if(curfn->type->outtuple != 0)
@@ -181,7 +181,53 @@ ginscall(Node *f, int proc)
 void
 cgen_callinter(Node *n, Node *res, int proc)
 {
-	fatal("cgen_call");
+	Node *i, *f;
+	Node tmpi, nodo, nodr, nodsp;
+
+	i = n->left;
+	if(i->op != ODOTINTER)
+		fatal("cgen_callinter: not ODOTINTER %O", i->op);
+
+	f = i->right;		// field
+	if(f->op != ONAME)
+		fatal("cgen_callinter: not ONAME %O", f->op);
+
+	i = i->left;		// interface
+
+	if(!i->addable) {
+		tempname(&tmpi, i->type);
+		cgen(i, &tmpi);
+		i = &tmpi;
+	}
+
+	gen(n->right);			// args
+
+	// Can regalloc now; i is known to be addable,
+	// so the agen will be easy.
+	regalloc(&nodr, types[tptr], res);
+	regalloc(&nodo, types[tptr], &nodr);
+	nodo.op = OINDREG;
+
+	agen(i, &nodr);		// REG = &inter
+
+	nodindreg(&nodsp, types[tptr], D_SP);
+	nodo.xoffset += widthptr;
+	cgen(&nodo, &nodsp);	// 0(SP) = 8(REG) -- i.s
+
+	nodo.xoffset -= widthptr;
+	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.m
+
+	nodo.xoffset = n->left->xoffset + 4*widthptr;
+	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
+
+	// BOTCH nodr.type = fntype;
+	nodr.type = n->left->type;
+	ginscall(&nodr, proc);
+
+	regfree(&nodr);
+	regfree(&nodo);
+
+	setmaxarg(n->left->type);
 }
 
 /*
@@ -345,6 +391,8 @@ cgen_asop(Node *n)
 		goto hard;
 	if(!isint[nr->type->etype])
 		goto hard;
+	if(is64(nl->type) || is64(nr->type))
+		goto hard;
 
 	switch(n->etype) {
 	case OADD:
@@ -447,6 +495,59 @@ ret:
 }
 
 /*
+ * generate division.
+ * caller must set:
+ *	ax = allocated AX register
+ *	dx = allocated DX register
+ * generates one of:
+ *	res = nl / nr
+ *	res = nl % nr
+ * according to op.
+ */
+void
+dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+{
+	int a;
+	Node n3, n4;
+	Type *t;
+
+	t = nl->type;
+	if(t->width == 1) {
+		if(issigned[t->etype])
+			t = types[TINT32];
+		else
+			t = types[TUINT32];
+	}
+	a = optoas(op, t);
+
+	regalloc(&n3, nr->type, N);
+	if(nl->ullman >= nr->ullman) {
+		cgen(nl, ax);
+		if(!issigned[t->etype]) {
+			nodconst(&n4, t, 0);
+			gmove(&n4, dx);
+		} else
+			gins(optoas(OEXTEND, t), N, N);
+		cgen(nr, &n3);
+	} else {
+		cgen(nr, &n3);
+		cgen(nl, ax);
+		if(!issigned[t->etype]) {
+			nodconst(&n4, t, 0);
+			gmove(&n4, dx);
+		} else
+			gins(optoas(OEXTEND, t), N, N);
+	}
+	gins(a, &n3, N);
+	regfree(&n3);
+
+	if(op == ODIV)
+		gmove(ax, res);
+	else
+		gmove(dx, res);
+}
+
+/*
  * generate division according to op, one of:
  *	res = nl / nr
  *	res = nl % nr
@@ -454,7 +555,24 @@ ret:
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
-	fatal("cgen_div");
+	Node ax, dx;
+	int rax, rdx;
+
+	rax = reg[D_AX];
+	rdx = reg[D_DX];
+
+	if(is64(nl->type))
+		fatal("cgen_div %T", nl->type);
+
+	nodreg(&ax, types[TINT32], D_AX);
+	nodreg(&dx, types[TINT32], D_DX);
+	regalloc(&ax, nl->type, &ax);
+	regalloc(&dx, nl->type, &dx);
+
+	dodiv(op, nl, nr, res, &ax, &dx);
+
+	regfree(&ax);
+	regfree(&dx);
 }
 
 /*

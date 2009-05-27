@@ -95,8 +95,8 @@ Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);
 void	naddr(Node*, Addr*);
 void	cgen_aret(Node*, Node*);
-int	cgen64(Node*, Node*);
 int	is64(Type*);
+void	cmp64(Node*, Node*, int, Prog*);
 
 /*
  * gsubr.c

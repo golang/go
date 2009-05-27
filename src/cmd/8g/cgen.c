@@ -2,7 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO(rsc):
+//
+//	better management of 64-bit values,
+//	especially constants.  generated code is pretty awful.
+//
+//	assume CLD?
+
 #include "gg.h"
+
+static int cancgen64(Node *n, Node *res);
 
 int
 is64(Type *t)
@@ -85,7 +94,7 @@ cgen(Node *n, Node *res)
 	// let's do some computation.
 
 	// 64-bit ops are hard on 32-bit machine.
-	if(is64(n->type) && cgen64(n, res))
+	if(is64(n->type) && cancgen64(n, res))
 		return;
 	
 	// use ullman to pick operand to eval first.
@@ -712,8 +721,21 @@ bgen(Node *n, int true, Prog *to)
 		}
 		
 		if(is64(nr->type)) {
-			fatal("cmp64");
-		//	cmp64(nl, nr, a, to);
+			if(!nl->addable) {
+				tempalloc(&n1, nl->type);
+				cgen(nl, &n1);
+				nl = &n1;
+			}
+			if(!nr->addable) {
+				tempalloc(&n2, nr->type);
+				cgen(nr, &n2);
+				nr = &n2;
+			}
+			cmp64(nl, nr, a, to);
+			if(nr == &n2)
+				tempfree(&n2);
+			if(nl == &n1)
+				tempfree(&n1);
 			break;
 		}
 
@@ -839,6 +861,7 @@ sgen(Node *n, Node *res, int w)
 	c = w % 4;	// bytes
 	q = w / 4;	// doublewords
 
+	gins(ACLD, N, N);
 	// if we are copying forward on the stack and
 	// the src and dst overlap, then reverse direction
 	if(osrc < odst && odst < osrc+w) {
@@ -890,8 +913,275 @@ sgen(Node *n, Node *res, int w)
  *	res = n
  * return 1 on success, 0 if op not handled.
  */
-int
-cgen64(Node *n, Node *res)
+static int
+cancgen64(Node *n, Node *res)
 {
-	return 0;
+	Node adr1, adr2, t1, t2, r1, r2, r3, r4, r5, nod, *l, *r;
+	Prog *p1, *p2;
+
+	if(n->op == OCALL)
+		return 0;
+	if(res->op != OINDREG && res->op != ONAME) {
+		dump("n", n);
+		dump("res", res);
+		fatal("cgen64 %O of %O", n->op, res->op);
+	}
+	switch(n->op) {
+	default:
+		return 0;
+
+	case ONAME:
+	case ODOT:
+		gmove(n, res);
+		return 1;
+
+	case OMINUS:
+		cgen(n->left, res);
+		gins(ANEGL, N, res);
+		res->xoffset += 4;
+		regalloc(&nod, types[TINT32], N);
+		gins(AXORL, &nod, &nod);
+		gins(ASBBL, res, &nod);
+		gins(AMOVL, &nod, res);
+		regfree(&nod);
+		return 1;
+
+	case OADD:
+	case OSUB:
+	case OMUL:
+		break;
+	}
+	
+	l = n->left;
+	r = n->right;
+	if(!l->addable) {
+		tempalloc(&t1, l->type);
+		cgen(l, &t1);
+		l = &t1;
+	}
+	if(r != N && !r->addable) {
+		tempalloc(&t2, r->type);
+		cgen(r, &t2);
+		r = &t2;
+	}		
+
+	// Setup for binary operation.
+	tempalloc(&adr1, types[TPTR32]);
+	agen(l, &adr1);		
+	tempalloc(&adr2, types[TPTR32]);
+	agen(r, &adr2);
+
+	nodreg(&r1, types[TPTR32], D_AX);
+	nodreg(&r2, types[TPTR32], D_DX);
+	nodreg(&r3, types[TPTR32], D_CX);
+
+	switch(n->op) {
+	case OADD:
+	case OSUB:
+		gmove(&adr1, &r3);
+		r3.op = OINDREG;
+		r3.xoffset = 0;
+		gins(AMOVL, &r3, &r1);
+		r3.xoffset = 4;
+		gins(AMOVL, &r3, &r2);
+		
+		r3.xoffset = 0;
+		r3.op = OREGISTER;
+		gmove(&adr2, &r3);
+		r3.op = OINDREG;
+		if(n->op == OADD)
+			gins(AADDL, &r3, &r1);
+		else
+			gins(ASUBL, &r3, &r1);
+		r3.xoffset = 4;
+		if(n->op == OADD)
+			gins(AADCL, &r3, &r2);
+		else
+			gins(ASBBL, &r3, &r2);
+		break;
+
+	case OMUL:	
+		regalloc(&r4, types[TPTR32], N);
+		regalloc(&r5, types[TPTR32], N);
+		
+		// load args into r2:r1 and r4:r3.
+		// leave result in r2:r1 (DX:AX)
+		gmove(&adr1, &r5);
+		r5.op = OINDREG;
+		r5.xoffset = 0;
+		gmove(&r5, &r1);
+		r5.xoffset = 4;
+		gmove(&r5, &r2);
+		r5.xoffset = 0;
+		r5.op = OREGISTER;
+		gmove(&adr2, &r5);
+		r5.op = OINDREG;
+		gmove(&r5, &r3);
+		r5.xoffset = 4;
+		gmove(&r5, &r4);
+		r5.xoffset = 0;
+		r5.op = OREGISTER;
+
+		// if r2|r4 == 0, use one 32 x 32 -> 64 unsigned multiply
+		gmove(&r2, &r5);
+		gins(AORL, &r4, &r5);
+		p1 = gbranch(AJNE, T);
+		gins(AMULL, &r3, N);	// AX (=r1) is implied
+		p2 = gbranch(AJMP, T);
+		patch(p1, pc);
+	
+		// full 64x64 -> 64, from 32 x 32 -> 64.
+		gins(AIMULL, &r3, &r2);
+		gins(AMOVL, &r1, &r5);
+		gins(AIMULL, &r4, &r5);
+		gins(AADDL, &r2, &r5);
+		gins(AMOVL, &r3, &r2);
+		gins(AMULL, &r2, N);	// AX (=r1) is implied
+		gins(AADDL, &r5, &r2);
+		patch(p2, pc);
+		regfree(&r4);
+		regfree(&r5);
+		break;
+	
+	}
+	
+	tempfree(&adr2);
+	tempfree(&adr1);
+
+	// Store result.
+	gins(AMOVL, &r1, res);
+	res->xoffset += 4;
+	gins(AMOVL, &r2, res);
+	res->xoffset -= 4;
+	
+	if(r == &t2)
+		tempfree(&t2);
+	if(l == &t1)
+		tempfree(&t1);
+	return 1;
 }
+
+/*
+ * generate comparison of nl, nr, both 64-bit.
+ * nl is memory; nr is constant or memory.
+ */
+void
+cmp64(Node *nl, Node *nr, int op, Prog *to)
+{
+	int64 x;
+	Node adr1, adr2, rr;
+	Prog *br, *p;
+	Type *t;
+	
+	t = nr->type;
+	
+	memset(&adr1, 0, sizeof adr1);
+	memset(&adr2, 0, sizeof adr2);
+
+	regalloc(&adr1, types[TPTR32], N);
+	agen(nl, &adr1);
+	adr1.op = OINDREG;
+	nl = &adr1;
+	
+	x = 0;
+	if(nr->op == OLITERAL) {
+		if(!isconst(nr, CTINT))
+			fatal("bad const in cmp64");
+		x = mpgetfix(nr->val.u.xval);
+	} else {
+		regalloc(&adr2, types[TPTR32], N);
+		agen(nr, &adr2);
+		adr2.op = OINDREG;
+		nr = &adr2;
+	}
+	
+	// compare most significant word
+	nl->xoffset += 4;
+	if(nr->op == OLITERAL) {
+		p = gins(ACMPL, nl, nodintconst((uint32)(x>>32)));
+	} else {
+		regalloc(&rr, types[TUINT32], N);
+		nr->xoffset += 4;
+		gins(AMOVL, nr, &rr);
+		gins(ACMPL, nl, &rr);
+		nr->xoffset -= 4;
+		regfree(&rr);
+	}
+	nl->xoffset -= 4;
+
+	br = P;
+	switch(op) {
+	default:
+		fatal("cmp64 %O %T", op, t);
+	case OEQ:
+		// cmp hi
+		// jne L
+		// cmp lo
+		// jeq to
+		// L:
+		br = gbranch(AJNE, T);
+		break;
+	case ONE:
+		// cmp hi
+		// jne to
+		// cmp lo
+		// jne to
+		patch(gbranch(AJNE, T), to);
+		break;
+	case OGE:
+	case OGT:
+		// cmp hi
+		// jgt to
+		// jlt L
+		// cmp lo
+		// jge to (or jgt to)
+		// L:
+		patch(gbranch(optoas(OGT, t), T), to);
+		br = gbranch(optoas(OLT, t), T);
+		break;
+	case OLE:
+	case OLT:
+		// cmp hi
+		// jlt to
+		// jgt L
+		// cmp lo
+		// jle to (or jlt to)
+		// L:
+		patch(gbranch(optoas(OLT, t), T), to);
+		br = gbranch(optoas(OGT, t), T);
+		break;	
+	}
+
+	// compare least significant word
+	if(nr->op == OLITERAL) {
+		p = gins(ACMPL, nl, nodintconst((uint32)x));
+	} else {
+		regalloc(&rr, types[TUINT32], N);
+		gins(AMOVL, nr, &rr);
+		gins(ACMPL, nl, &rr);
+		regfree(&rr);
+	}
+
+	// jump again
+	switch(op) {
+	default:
+		fatal("cmp64 %O %T", op, nr->type);
+	case OEQ:
+	case ONE:
+	case OGE:
+	case OGT:
+	case OLE:
+	case OLT:
+		patch(gbranch(optoas(op, t), T), to);
+		break;	
+	}
+
+	// point first branch down here if appropriate
+	if(br != P)
+		patch(br, pc);
+
+	regfree(&adr1);
+	if(nr == &adr2)
+		regfree(&adr2);	
+}
+

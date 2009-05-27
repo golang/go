@@ -82,3 +82,9 @@ func	arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any);
 func	arrays2d(old *any, nel int) (ary []any);
 
 func	closure();	// has args, but compiler fills in
+
+// only used on 32-bit
+func	int64div(int64, int64) int64
+func	uint64div(uint64, uint64) uint64
+func	int64mod(int64, int64) int64
+func	uint64mod(uint64, uint64) uint64

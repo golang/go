@@ -648,9 +648,9 @@ funclit1(Type *type, Node *body)
 	// which builds a function that calls f after filling in arg0,
 	// arg1, ... for the PHEAP arguments above.
 	args = N;
-	if(narg*8 > 100)
+	if(narg*widthptr > 100)
 		yyerror("closure needs too many variables; runtime will reject it");
-	a = nodintconst(narg*8);
+	a = nodintconst(narg*widthptr);
 	args = list(args, a);	// siz
 	args = list(args, f);	// f
 	for(a=listfirst(&save, &func->cvars); a; a=listnext(&save)) {
