@@ -112,13 +112,6 @@ BUG: should compile
 BUG: errchk: bugs/bug153.go:9: error message does not match 'nil'
 bugs/bug153.go:9: fatal error: dowidth: unknown type: E-34
 
-=========== bugs/bug154.go
-r0 = 3.141592
-r1 = 3.141592025756836
-r0 and r1 should be the same
-panic PC=xxx
-BUG: should not panic
-
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 

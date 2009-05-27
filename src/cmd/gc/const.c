@@ -13,16 +13,20 @@ static Val copyval(Val);
 
 /*
  * truncate float literal fv to 32-bit or 64-bit precision
- * according to type.
+ * according to type; return truncated value.
  */
-void
-truncfltlit(Mpflt *fv, Type *t)
+Mpflt*
+truncfltlit(Mpflt *oldv, Type *t)
 {
 	double d;
 	float f;
+	Mpflt *fv;
 
 	if(t == T)
-		return;
+		return oldv;
+
+	fv = mal(sizeof *fv);
+	*fv = *oldv;
 
 	// convert large precision literal floating
 	// into limited precision (float64 or float32)
@@ -41,6 +45,7 @@ truncfltlit(Mpflt *fv, Type *t)
 		mpmovecflt(fv, d);
 		break;
 	}
+	return fv;
 }
 
 /*
@@ -154,7 +159,7 @@ convlit1(Node *n, Type *t, int explicit)
 			else if(ct != CTFLT)
 				goto bad;
 			overflow(n->val, t);
-			truncfltlit(n->val.u.fval, t);
+			n->val.u.fval = truncfltlit(n->val.u.fval, t);
 		} else if(et == TSTRING && ct == CTINT && explicit)
 			n->val = tostr(n->val);
 		else
@@ -607,7 +612,7 @@ ret:
 
 	// truncate precision for non-ideal float.
 	if(v.ctype == CTFLT && n->type->etype != TIDEAL)
-		truncfltlit(v.u.fval, n->type);
+		n->val.u.fval = truncfltlit(v.u.fval, n->type);
 	return;
 
 settrue:
