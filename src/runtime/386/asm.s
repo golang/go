@@ -135,7 +135,7 @@ TEXT setspgoto(SB), 7, $0
 	MOVL	AX, SP
 	PUSHL	CX
 	JMP	BX
-	POPL	AX
+	POPL	AX	// not reached
 	RET
 
 // bool cas(int32 *val, int32 old, int32 new)
