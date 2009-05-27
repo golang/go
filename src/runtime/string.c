@@ -181,6 +181,28 @@ sys·arraystring(Array b, String s)
 	FLUSH(&s);
 }
 
+void
+sys·arraystringi(Array b, String s)
+{
+	int32 siz, i;
+	int32 *a;
+	byte dum[8];
+
+	a = (int32*)b.array;
+	siz = 0;
+	for(i=0; i<b.nel; i++) {
+		siz += runetochar(dum, a[i]);
+	}
+
+	s = gostringsize(siz);
+	siz = 0;
+	for(i=0; i<b.nel; i++) {
+		siz += runetochar(s.str+siz, a[i]);
+	}
+
+	FLUSH(&s);
+}
+
 enum
 {
 	Runeself	= 0x80,

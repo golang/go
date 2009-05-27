@@ -29,6 +29,7 @@ func	slicestring(string, int, int) string;
 func	indexstring(string, int) byte;
 func	intstring(int64) string;
 func	arraystring([]byte) string;
+func	arraystringi([]int) string;
 func	stringiter(string, int) int;
 func	stringiter2(string, int) (retk int, retv int);
 
