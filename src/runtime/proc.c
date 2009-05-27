@@ -705,7 +705,7 @@ newstack(void)
 
 #pragma textflag 7
 void
-sys·morestack(uint64 u)
+sys·morestack(uintptr u)
 {
 	while(g == m->g0) {
 		// very bad news
