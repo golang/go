@@ -184,21 +184,25 @@ sys·arraystring(Array b, String s)
 void
 sys·arraystringi(Array b, String s)
 {
-	int32 siz, i;
+	int32 siz1, siz2, i;
 	int32 *a;
 	byte dum[8];
 
 	a = (int32*)b.array;
-	siz = 0;
+	siz1 = 0;
 	for(i=0; i<b.nel; i++) {
-		siz += runetochar(dum, a[i]);
+		siz1 += runetochar(dum, a[i]);
 	}
 
-	s = gostringsize(siz);
-	siz = 0;
+	s = gostringsize(siz1+4);
+	siz2 = 0;
 	for(i=0; i<b.nel; i++) {
-		siz += runetochar(s.str+siz, a[i]);
+		// check for race
+		if(siz2 >= siz1)
+			break;
+		siz2 += runetochar(s.str+siz2, a[i]);
 	}
+	s.len = siz2;
 
 	FLUSH(&s);
 }
