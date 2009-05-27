@@ -521,7 +521,7 @@ duint16(Sym *s, int off, uint32 v)
 int
 duintptr(Sym *s, int off, uint32 v)
 {
-	return duintxx(s, off, v, 8);
+	return duintxx(s, off, v, 4);
 }
 
 int
