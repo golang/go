@@ -1293,9 +1293,18 @@ walkconv(Node *n)
 			indir(n, stringop(n, Erv));
 			return;
 		}
+
 		// can convert []byte and *[10]byte
 		if((isptr[et] && isfixedarray(l->type->type) && istype(l->type->type->type, TUINT8))
 		|| (isslice(l->type) && istype(l->type->type, TUINT8))) {
+			n->op = OARRAY;
+			indir(n, stringop(n, Erv));
+			return;
+		}
+
+		// can convert []int and *[10]int
+		if((isptr[et] && isfixedarray(l->type->type) && istype(l->type->type->type, TINT))
+		|| (isslice(l->type) && istype(l->type->type, TINT))) {
 			n->op = OARRAY;
 			indir(n, stringop(n, Erv));
 			return;
@@ -2450,8 +2459,17 @@ stringop(Node *n, int top)
 		break;
 
 	case OARRAY:
-		// arraystring([]byte) string;
 		r = n->left;
+		if(r->type != T && r->type->type != T) {
+			if(istype(r->type->type, TINT) || istype(r->type->type->type, TINT)) {
+				// arraystring([]byte) string;
+				on = syslook("arraystringi", 0);
+				r = nod(OCALL, on, r);
+				break;
+			}
+		}
+
+		// arraystring([]byte) string;
 		on = syslook("arraystring", 0);
 		r = nod(OCALL, on, r);
 		break;
