@@ -29,9 +29,16 @@
 #include <libc.h>
 #include <bio.h>
 #include <mach_amd64.h>
+#define Ureg Ureg32
+#include <ureg_x86.h>
+#undef Ureg
+#define Ureg Ureg64
 #include <ureg_amd64.h>
-typedef struct Ureg Ureg;
+#undef Ureg
 #undef waitpid	/* want Unix waitpid, not Plan 9 */
+
+typedef struct Ureg32 Ureg32;
+typedef struct Ureg64 Ureg64;
 
 extern mach_port_t mach_reply_port(void);	// should be in system headers, is not
 
@@ -423,67 +430,105 @@ machsegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 	}
 }
 
-// Convert Ureg offset to x86_thread_state64_t offset.
+// Convert Ureg offset to x86_thread_state32_t offset.
 static int
-go2darwin(uvlong addr)
+go2darwin32(uvlong addr)
 {
 	switch(addr){
-	case offsetof(Ureg, ax):
+	case offsetof(Ureg32, ax):
+		return offsetof(x86_thread_state32_t, eax);
+	case offsetof(Ureg32, bx):
+		return offsetof(x86_thread_state32_t, ebx);
+	case offsetof(Ureg32, cx):
+		return offsetof(x86_thread_state32_t, ecx);
+	case offsetof(Ureg32, dx):
+		return offsetof(x86_thread_state32_t, edx);
+	case offsetof(Ureg32, si):
+		return offsetof(x86_thread_state32_t, esi);
+	case offsetof(Ureg32, di):
+		return offsetof(x86_thread_state32_t, edi);
+	case offsetof(Ureg32, bp):
+		return offsetof(x86_thread_state32_t, ebp);
+	case offsetof(Ureg32, fs):
+		return offsetof(x86_thread_state32_t, fs);
+	case offsetof(Ureg32, gs):
+		return offsetof(x86_thread_state32_t, gs);
+	case offsetof(Ureg32, pc):
+		return offsetof(x86_thread_state32_t, eip);
+	case offsetof(Ureg32, cs):
+		return offsetof(x86_thread_state32_t, cs);
+	case offsetof(Ureg32, flags):
+		return offsetof(x86_thread_state32_t, eflags);
+	case offsetof(Ureg32, sp):
+		return offsetof(x86_thread_state32_t, esp);
+	}
+	return -1;
+}
+
+// Convert Ureg offset to x86_thread_state64_t offset.
+static int
+go2darwin64(uvlong addr)
+{
+	switch(addr){
+	case offsetof(Ureg64, ax):
 		return offsetof(x86_thread_state64_t, rax);
-	case offsetof(Ureg, bx):
+	case offsetof(Ureg64, bx):
 		return offsetof(x86_thread_state64_t, rbx);
-	case offsetof(Ureg, cx):
+	case offsetof(Ureg64, cx):
 		return offsetof(x86_thread_state64_t, rcx);
-	case offsetof(Ureg, dx):
+	case offsetof(Ureg64, dx):
 		return offsetof(x86_thread_state64_t, rdx);
-	case offsetof(Ureg, si):
+	case offsetof(Ureg64, si):
 		return offsetof(x86_thread_state64_t, rsi);
-	case offsetof(Ureg, di):
+	case offsetof(Ureg64, di):
 		return offsetof(x86_thread_state64_t, rdi);
-	case offsetof(Ureg, bp):
+	case offsetof(Ureg64, bp):
 		return offsetof(x86_thread_state64_t, rbp);
-	case offsetof(Ureg, r8):
+	case offsetof(Ureg64, r8):
 		return offsetof(x86_thread_state64_t, r8);
-	case offsetof(Ureg, r9):
+	case offsetof(Ureg64, r9):
 		return offsetof(x86_thread_state64_t, r9);
-	case offsetof(Ureg, r10):
+	case offsetof(Ureg64, r10):
 		return offsetof(x86_thread_state64_t, r10);
-	case offsetof(Ureg, r11):
+	case offsetof(Ureg64, r11):
 		return offsetof(x86_thread_state64_t, r11);
-	case offsetof(Ureg, r12):
+	case offsetof(Ureg64, r12):
 		return offsetof(x86_thread_state64_t, r12);
-	case offsetof(Ureg, r13):
+	case offsetof(Ureg64, r13):
 		return offsetof(x86_thread_state64_t, r13);
-	case offsetof(Ureg, r14):
+	case offsetof(Ureg64, r14):
 		return offsetof(x86_thread_state64_t, r14);
-	case offsetof(Ureg, r15):
+	case offsetof(Ureg64, r15):
 		return offsetof(x86_thread_state64_t, r15);
-	case offsetof(Ureg, fs):
+	case offsetof(Ureg64, fs):
 		return offsetof(x86_thread_state64_t, fs);
-	case offsetof(Ureg, gs):
+	case offsetof(Ureg64, gs):
 		return offsetof(x86_thread_state64_t, gs);
-	case offsetof(Ureg, ip):
+	case offsetof(Ureg64, ip):
 		return offsetof(x86_thread_state64_t, rip);
-	case offsetof(Ureg, cs):
+	case offsetof(Ureg64, cs):
 		return offsetof(x86_thread_state64_t, cs);
-	case offsetof(Ureg, flags):
+	case offsetof(Ureg64, flags):
 		return offsetof(x86_thread_state64_t, rflags);
-	case offsetof(Ureg, sp):
+	case offsetof(Ureg64, sp):
 		return offsetof(x86_thread_state64_t, rsp);
 	}
 	return -1;
 }
 
+extern Mach mi386;
+
 // Read/write from fake register segment.
 static int
 machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 {
-	uint nn;
+	uint nn, count, state;
 	mach_port_t thread;
 	int reg;
 	char buf[100];
 	union {
-		x86_thread_state64_t regs;
+		x86_thread_state64_t reg64;
+		x86_thread_state32_t reg32;
 		uchar p[1];
 	} u;
 	uchar *p;
@@ -499,21 +544,36 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 		return -1;
 	}
 
-	if((reg = go2darwin(addr)) < 0 || reg+n > sizeof u){
-		if(isr){
-			memset(v, 0, n);
-			return 0;
+	if(mach == &mi386) {
+		count = x86_THREAD_STATE32_COUNT;
+		state = x86_THREAD_STATE32;
+		if((reg = go2darwin32(addr)) < 0 || reg+n > sizeof u){
+			if(isr){
+				memset(v, 0, n);
+				return 0;
+			}
+			werrstr("register %llud not available", addr);
+			return -1;
 		}
-		werrstr("register %llud not available", addr);
-		return -1;
+	} else {
+		count = x86_THREAD_STATE64_COUNT;
+		state = x86_THREAD_STATE64;
+		if((reg = go2darwin64(addr)) < 0 || reg+n > sizeof u){
+			if(isr){
+				memset(v, 0, n);
+				return 0;
+			}
+			werrstr("register %llud not available", addr);
+			return -1;
+		}
 	}
 
 	if(!isr && me(thread_suspend(thread)) < 0){
 		werrstr("thread suspend %#x: %r", thread);
 		return -1;
 	}
-	nn = x86_THREAD_STATE64_COUNT;
-	if(me(thread_get_state(thread, x86_THREAD_STATE64, (thread_state_t)&u.regs, &nn)) < 0){
+	nn = count;
+	if(me(thread_get_state(thread, state, (void*)u.p, &nn)) < 0){
 		if(!isr)
 			thread_resume(thread);
 		rerrstr(buf, sizeof buf);
@@ -529,8 +589,8 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 		memmove(v, p, n);
 	else{
 		memmove(p, v, n);
-		nn = x86_THREAD_STATE64_COUNT;
-		if(me(thread_set_state(thread, x86_THREAD_STATE64, (thread_state_t)&u.regs, nn)) < 0){
+		nn = count;
+		if(me(thread_set_state(thread, state, (void*)u.p, nn)) < 0){
 			thread_resume(thread);
 			werrstr("thread_set_state: %r");
 			return -1;
@@ -546,7 +606,7 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 
 enum
 {
-	RFLAGS_TF = 0x100		// x86 single-step processor flag
+	FLAGS_TF = 0x100		// x86 single-step processor flag
 };
 
 // Is thread t suspended?
@@ -572,25 +632,42 @@ threadstart(Thread *t, int singlestep)
 	int i;
 	uint n;
 	struct thread_basic_info info;
-	x86_thread_state64_t regs;
 
 	if(!threadstopped(t))
 		return 0;
 
 	// Set or clear the processor single-step flag, as appropriate.
-	n = x86_THREAD_STATE64_COUNT;
-	if(me(thread_get_state(t->thread, x86_THREAD_STATE64,
-			(thread_state_t)&regs,
-			&n)) < 0)
-		return -1;
-	if(singlestep)
-		regs.rflags |= RFLAGS_TF;
-	else
-		regs.rflags &= ~RFLAGS_TF;
-	if(me(thread_set_state(t->thread, x86_THREAD_STATE64,
-			(thread_state_t)&regs,
-			x86_THREAD_STATE64_COUNT)) < 0)
-		return -1;
+	if(mach == &mi386) {
+		x86_thread_state32_t regs;
+		n = x86_THREAD_STATE32_COUNT;
+		if(me(thread_get_state(t->thread, x86_THREAD_STATE32,
+				(thread_state_t)&regs,
+				&n)) < 0)
+			return -1;
+		if(singlestep)
+			regs.eflags |= FLAGS_TF;
+		else
+			regs.eflags &= ~FLAGS_TF;
+		if(me(thread_set_state(t->thread, x86_THREAD_STATE32,
+				(thread_state_t)&regs,
+				x86_THREAD_STATE32_COUNT)) < 0)
+			return -1;
+	} else {
+		x86_thread_state64_t regs;
+		n = x86_THREAD_STATE64_COUNT;
+		if(me(thread_get_state(t->thread, x86_THREAD_STATE64,
+				(thread_state_t)&regs,
+				&n)) < 0)
+			return -1;
+		if(singlestep)
+			regs.rflags |= FLAGS_TF;
+		else
+			regs.rflags &= ~FLAGS_TF;
+		if(me(thread_set_state(t->thread, x86_THREAD_STATE64,
+				(thread_state_t)&regs,
+				x86_THREAD_STATE64_COUNT)) < 0)
+			return -1;
+	}
 
 	// Run.
 	n = sizeof info;
