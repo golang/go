@@ -3580,7 +3580,7 @@ badt:
 Node*
 dorange(Node *nn)
 {
-	Node *k, *v, *m;
+	Node *k, *v, *m, *init;
 	Node *n, *hv, *hc, *ha, *hk, *ohk, *on, *r, *a;
 	Type *t, *th;
 	int local;
@@ -3596,6 +3596,7 @@ dorange(Node *nn)
 	}
 
 	n = nod(OFOR, N, N);
+	init = N;
 
 	walktype(nn->right, Erv);
 	implicitstar(&nn->right);
@@ -3624,8 +3625,11 @@ ary:
 	ha = nod(OXXX, N, N);		// hidden array
 	tempname(ha, t);
 
-	n->ninit = nod(OAS, hk, nodintconst(0));
-	n->ninit = list(nod(OAS, ha, m), n->ninit);
+	a = nod(OAS, hk, nodintconst(0));
+	init = list(init, a);
+
+	a = nod(OAS, ha, m);
+	init = list(init, a);
 
 	n->ntest = nod(OLT, hk, nod(OLEN, ha, N));
 	n->nincr = nod(OASOP, hk, nodintconst(1));
@@ -3659,7 +3663,8 @@ map:
 	r = nod(OADDR, hk, N);
 	r = list(m, r);
 	r = nod(OCALL, on, r);
-	n->ninit = r;
+
+	init = list(init, r);
 
 	r = nod(OINDEX, hk, nodintconst(0));
 	a = nod(OLITERAL, N, N);
@@ -3706,10 +3711,13 @@ chan:
 	hv = nod(OXXX, N, N);	// hidden value
 	tempname(hv, t->type);
 
-	n->ninit = list(
-		nod(OAS, hc, m),
-		nod(OAS, hv, nod(ORECV, hc, N))
-	);
+	a = nod(OAS, hc, m);
+	init = list(init, a);
+
+	a = nod(ORECV, hc, N);
+	a = nod(OAS, hv, a);
+	init = list(init, a);
+
 	n->ntest = nod(ONOT, nod(OCLOSED, hc, N), N);
 	n->nincr = nod(OAS, hv, nod(ORECV, hc, N));
 
@@ -3743,11 +3751,11 @@ strng:
 
 	// ha = s
 	a = nod(OAS, ha, m);
-	n->ninit = a;
+	init = list(init, a);
 
 	// ohk = 0
 	a = nod(OAS, ohk, nodintconst(0));
-	n->ninit = list(n->ninit, a);
+	init = list(init, a);
 
 	// hk[,hv] = stringiter(ha,hk)
 	if(v != N) {
@@ -3764,7 +3772,7 @@ strng:
 		a = nod(OCALL, on, a);
 		a = nod(OAS, hk, a);
 	}
-	n->ninit = list(n->ninit, a);
+	init = list(init, a);
 
 	// while(hk != 0)
 	n->ntest = nod(ONE, hk, nodintconst(0));
@@ -3799,6 +3807,7 @@ strng:
 	goto out;
 
 out:
+	n->ninit = list(n->ninit, init);
 	return n;
 }
 

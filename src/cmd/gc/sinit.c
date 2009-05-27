@@ -264,7 +264,7 @@ initsub(Node *n, Node *nam)
 	// out of this if we allow minimal simple
 	// expression on the right (eg OADDR-ONAME)
 	if(n->op != ONAME)
-		return 0;
+		return;
 
 	class = typeclass(nam->type);
 	state = TS_start;
@@ -279,7 +279,7 @@ initsub(Node *n, Node *nam)
 	case TC_map:
 		goto map;
 	}
-	return 0;
+	return;
 
 str:
 	for(r=listfirst(&iter, &xxx.list); r != N; r = listnext(&iter)) {
