@@ -27,7 +27,7 @@ gostringsize(int32 l)
 
 	if(l == 0)
 		return emptystring;
-	s.str = mal(l);
+	s.str = mal(l+1);	// leave room for NUL for C runtime (e.g., callers of getenv)
 	s.len = l;
 	if(l > maxstring)
 		maxstring = l;
