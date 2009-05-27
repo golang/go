@@ -13,3 +13,8 @@ import (
 	"syscall";
 	"unsafe";
 )
+
+func Getrusage(who int64, usage *Rusage) (ret, errno int64) {
+	r1, r2, err := Syscall(SYS_GETRUSAGE, who, int64(uintptr(unsafe.Pointer(usage))), 0);
+	return r1, err
+}
