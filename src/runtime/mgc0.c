@@ -22,6 +22,10 @@ enum {
 extern byte etext[];
 extern byte end[];
 
+enum {
+	PtrSize = sizeof(void*)
+};
+
 static void
 scanblock(int32 depth, byte *b, int64 n)
 {
@@ -34,14 +38,14 @@ scanblock(int32 depth, byte *b, int64 n)
 
 	if(Debug)
 		printf("%d scanblock %p %D\n", depth, b, n);
-	off = (uint32)(uintptr)b & 7;
+	off = (uint32)(uintptr)b & (PtrSize-1);
 	if(off) {
-		b += 8 - off;
-		n -= 8 - off;
+		b += PtrSize - off;
+		n -= PtrSize - off;
 	}
 
 	vp = (void**)b;
-	n /= 8;
+	n /= PtrSize;
 	for(i=0; i<n; i++) {
 		if(mlookup(vp[i], &obj, &size, &ref)) {
 			if(*ref == RefFree || *ref == RefStack)
