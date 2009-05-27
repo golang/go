@@ -1139,6 +1139,35 @@ loop:
 		break;
 	}
 
+	/*
+	 * rewrite div and mod into function calls
+	 * on 32-bit architectures.
+	 */
+ 	switch(n->op) {
+ 	case ODIV:
+ 	case OMOD:
+ 		et = n->left->type->etype;
+		if(widthptr > 4 || (et != TUINT64 && et != TINT64))
+			break;
+		if(et == TINT64)
+			strcpy(namebuf, "int64");
+		else
+			strcpy(namebuf, "uint64");
+		if(n->op == ODIV)
+			strcat(namebuf, "div");
+		else
+			strcat(namebuf, "mod");
+		l = syslook(namebuf, 0);
+		n->left = nod(OCONV, n->left, N);
+		n->left->type = types[et];
+		n->right = nod(OCONV, n->right, N);
+		n->right->type = types[et];
+		r = nod(OCALL, l, list(n->left, n->right));
+		walktype(r, Erv);
+		indir(n, r);
+		goto ret;
+	}
+
 	if(t == T)
 		t = n->left->type;
 	n->type = t;

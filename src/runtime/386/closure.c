@@ -27,7 +27,7 @@ sys·closure(int32 siz, byte *fn, byte *arg0)
 
 	// compute size of new fn.
 	// must match code laid out below.
-	n = 6+5+2;	// SUBL MOVL MOVL
+	n = 6+5+2+1;	// SUBL MOVL MOVL CLD
 	if(siz <= 4*4)
 		n += 1*siz/4;	// MOVSL MOVSL...
 	else
@@ -60,13 +60,16 @@ sys·closure(int32 siz, byte *fn, byte *arg0)
 	*p++ = 0x89;
 	*p++ = 0xe7;
 
+	// CLD
+	*p++ = 0xfc;
+
 	if(siz <= 4*4) {
 		for(i=0; i<siz; i+=4) {
 			// MOVSL
 			*p++ = 0xa5;
 		}
 	} else {
-		// MOVL $(siz/8), CX  [32-bit immediate siz/4]
+		// MOVL $(siz/4), CX  [32-bit immediate siz/4]
 		*p++ = 0xc7;
 		*p++ = 0xc1;
 		*(uint32*)p = siz/4;
