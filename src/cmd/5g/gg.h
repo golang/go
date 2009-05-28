@@ -19,12 +19,12 @@ struct	Addr
 {
 	int32	offset;
 	int32	offset2;
-
 	double	dval;
 	Prog*	branch;
 	char	sval[NSNAME];
 
 	Sym*	sym;
+	int	width;
 	uchar	type;
 	uchar	index;
 	uchar	etype;
@@ -47,7 +47,7 @@ EXTERN	Biobuf*	bout;
 EXTERN	int32	dynloc;
 EXTERN	uchar	reg[D_NONE];
 EXTERN	int32	pcloc;		// instruction counter
-/*EXTERN	String	emptystring;*/
+EXTERN	Strlit	emptystring;
 extern	char*	anames[];
 EXTERN	Hist*	hist;
 EXTERN	Prog	zprog;
@@ -57,7 +57,6 @@ EXTERN	Node*	deferproc;
 EXTERN	Node*	deferreturn;
 EXTERN	Node*	throwindex;
 EXTERN	Node*	throwreturn;
-EXTERN	int	maxstksize;
 
 /*
  * gen.c
@@ -80,6 +79,7 @@ void	genconv(Type*, Type*);
 void	allocparams(void);
 void	checklabels();
 void	ginscall(Node*, int);
+int	gen_as_init(Node*, Node*);
 
 /*
  * cgen
@@ -94,8 +94,6 @@ Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);
 void	naddr(Node*, Addr*);
 void	cgen_aret(Node*, Node*);
-int	cgen64(Node*, Node*);
-int	is64(Type*);
 
 /*
  * gsubr.c
@@ -117,19 +115,22 @@ void	ginit(void);
 void	gclean(void);
 void	regalloc(Node*, Type*, Node*);
 void	regfree(Node*);
-void	tempalloc(Node*, Type*);
-void	tempfree(Node*);
 Node*	nodarg(Type*, int);
 void	nodreg(Node*, Type*, int);
 void	nodindreg(Node*, Type*, int);
-void	nodconst(Node*, Type*, int64);
 void	gconreg(int, vlong, int);
 void	buildtxt(void);
 Plist*	newplist(void);
 int	isfat(Type*);
 void	sudoclean(void);
-int	sudoaddable(Node*, Addr*);
+int	sudoaddable(int, Node*, Addr*);
 void	afunclit(Addr*);
+void	datagostring(Strlit*, Addr*);
+
+/*
+ * obj.c
+ */
+void	datastring(char*, int, Addr*);
 
 /*
  * list.c

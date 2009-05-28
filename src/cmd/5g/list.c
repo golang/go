@@ -80,19 +80,19 @@ Dconv(Fmt *fp)
 
 	a = va_arg(fp->args, Addr*);
 	i = a->type;
-// TODO(kaib): add back
-// 	if(i >= D_INDIR) {
-// 		if(a->offset)
-// 			snprint(str, sizeof(str), "%ld(%R)", a->offset, i-D_INDIR);
-// 		else
-// 			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
-// 		goto brk;
-// 	}
+	// TODO(kaib): Add back
+//	if(i >= D_INDIR) {
+//		if(a->offset)
+//			snprint(str, sizeof(str), "%d(%R)", a->offset, i-D_INDIR);
+//		else
+//			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
+//		goto brk;
+//	}
 	switch(i) {
 
 	default:
 		if(a->offset)
-			snprint(str, sizeof(str), "$%ld,%R", a->offset, i);
+			snprint(str, sizeof(str), "$%d,%R", a->offset, i);
 		else
 			snprint(str, sizeof(str), "%R", i);
 		break;
@@ -102,33 +102,33 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_BRANCH:
-		snprint(str, sizeof(str), "%ld", a->branch->loc);
+		snprint(str, sizeof(str), "%d", a->branch->loc);
 		break;
 
 	case D_EXTERN:
-		snprint(str, sizeof(str), "%S+%ld(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S+%d(SB)", a->sym, a->offset);
 		break;
 
 	case D_STATIC:
-		snprint(str, sizeof(str), "%S<>+%ld(SB)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S<>+%d(SB)", a->sym, a->offset);
 		break;
 
 	case D_AUTO:
-		snprint(str, sizeof(str), "%S+%ld(SP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S+%d(SP)", a->sym, a->offset);
 		break;
 
 	case D_PARAM:
-		snprint(str, sizeof(str), "%S+%ld(FP)", a->sym, a->offset);
+		snprint(str, sizeof(str), "%S+%d(FP)", a->sym, a->offset);
 		break;
 
 	case D_CONST:
 		if(fp->flags & FmtLong) {
-			d1 = a->offset;
-			d2 = a->offset2;
+			d1 = a->offset & 0xffffffffLL;
+			d2 = (a->offset>>32) & 0xffffffffLL;
 			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
 			break;
 		}
-		snprint(str, sizeof(str), "$%ld", a->offset);
+		snprint(str, sizeof(str), "$%d", a->offset);
 		break;
 
 	case D_FCONST:
@@ -139,14 +139,14 @@ Dconv(Fmt *fp)
 		snprint(str, sizeof(str), "$\"%Y\"", a->sval);
 		break;
 
-// TODO(kaib): add back
-// 	case D_ADDR:
-// 		a->type = a->index;
-// 		a->index = D_NONE;
-// 		snprint(str, sizeof(str), "$%D", a);
-// 		a->index = a->type;
-// 		a->type = D_ADDR;
-// 		goto conv;
+		// TODO(kaib): Add back
+//	case D_ADDR:
+//		a->type = a->index;
+//		a->index = D_NONE;
+//		snprint(str, sizeof(str), "$%D", a);
+//		a->index = a->type;
+//		a->type = D_ADDR;
+//		goto conv;
 	}
 brk:
 	if(a->index != D_NONE) {
@@ -159,75 +159,23 @@ conv:
 
 static	char*	regstr[] =
 {
-	"AL",		/* [D_AL] */
-	"CL",
-	"DL",
-	"BL",
-
-	"AH",	/* [D_AH] */
-	"CH",
-	"DH",
-	"BH",
-
-	"AX",		/* [D_AX] */
-	"CX",
-	"DX",
-	"BX",
-	"SP",
-	"BP",
-	"SI",
-	"DI",
-
-	"F0",		/* [D_F0] */
-	"F1",
-	"F2",
-	"F3",
-	"F4",
-	"F5",
-	"F6",
-	"F7",
-
-	"CS",		/* [D_CS] */
-	"SS",
-	"DS",
-	"ES",
-	"FS",
-	"GS",
-
-	"GDTR",		/* [D_GDTR] */
-	"IDTR",		/* [D_IDTR] */
-	"LDTR",		/* [D_LDTR] */
-	"MSW",		/* [D_MSW] */
-	"TASK",		/* [D_TASK] */
-
-	"CR0",		/* [D_CR] */
-	"CR1",
-	"CR2",
-	"CR3",
-	"CR4",
-	"CR5",
-	"CR6",
-	"CR7",
-
-	"DR0",		/* [D_DR] */
-	"DR1",
-	"DR2",
-	"DR3",
-	"DR4",
-	"DR5",
-	"DR6",
-	"DR7",
-
-	"TR0",		/* [D_TR] */
-	"TR1",
-	"TR2",
-	"TR3",
-	"TR4",
-	"TR5",
-	"TR6",
-	"TR7",
-
-	"NONE",		/* [D_NONE] */
+	"R0",
+	"R1",
+	"R2",
+	"R3",
+	"R4",
+	"R5",
+	"R6",
+	"R7",
+	"R8",
+	"R9",
+	"R10",
+	"R11",
+	"R12",
+	"R13",
+	"R14",
+	"R15",
+	"NONE",
 };
 
 int
