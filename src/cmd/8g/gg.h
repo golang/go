@@ -43,6 +43,14 @@ struct	Prog
 	void*	reg;		// pointer to containing Reg struct
 };
 
+// foptoas flags
+enum
+{
+	Frev = 1<<0,
+	Fpop = 1<<1,
+	Fpop2 = 1<<2,
+};
+
 EXTERN	Biobuf*	bout;
 EXTERN	int32	dynloc;
 EXTERN	uchar	reg[D_NONE];
@@ -114,6 +122,7 @@ Prog*	gop(int, Node*, Node*, Node*);
 void	setconst(Addr*, vlong);
 void	setaddr(Addr*, Node*);
 int	optoas(int, Type*);
+int	foptoas(int, Type*, int);
 void	ginit(void);
 void	gclean(void);
 void	regalloc(Node*, Type*, Node*);
@@ -131,7 +140,10 @@ Plist*	newplist(void);
 int	isfat(Type*);
 void	sudoclean(void);
 int	sudoaddable(int, Node*, Addr*);
+int	dotaddable(Node*, Node*);
 void	afunclit(Addr*);
+void	split64(Node*, Node*, Node*);
+void	splitclean(void);
 
 /*
  * list.c

@@ -27,6 +27,42 @@ is64(Type *t)
 	return 0;
 }
 
+int
+noconv(Type *t1, Type *t2)
+{
+	int e1, e2;
+
+	e1 = simtype[t1->etype];
+	e2 = simtype[t2->etype];
+
+	switch(e1) {
+	case TINT8:
+	case TUINT8:
+		return e2 == TINT8 || e2 == TUINT8;
+
+	case TINT16:
+	case TUINT16:
+		return e2 == TINT16 || e2 == TUINT16;
+
+	case TINT32:
+	case TUINT32:
+	case TPTR32:
+		return e2 == TINT32 || e2 == TUINT32 || e2 == TPTR32;
+
+	case TINT64:
+	case TUINT64:
+	case TPTR64:
+		return e2 == TINT64 || e2 == TUINT64 || e2 == TPTR64;
+
+	case TFLOAT32:
+		return e2 == TFLOAT32;
+
+	case TFLOAT64:
+		return e2 == TFLOAT64;
+	}
+	return 0;
+}
+
 /*
  * generate:
  *	res = n;
@@ -38,7 +74,7 @@ is64(Type *t)
 void
 cgen(Node *n, Node *res)
 {
-	Node *nl, *nr, *r, n1, n2, rr;
+	Node *nl, *nr, *r, n1, n2, rr, f0, f1;
 	Prog *p1, *p2, *p3;
 	int a;
 
@@ -65,13 +101,13 @@ cgen(Node *n, Node *res)
 		sgen(n, res, n->type->width);
 		return;
 	}
-	
+
 	// if both are addressable, move
 	if(n->addable && res->addable) {
 		gmove(n, res);
 		return;
 	}
-	
+
 	// if both are not addressable, use a temporary.
 	if(!n->addable && !res->addable) {
 		tempalloc(&n1, n->type);
@@ -96,7 +132,7 @@ cgen(Node *n, Node *res)
 	// 64-bit ops are hard on 32-bit machine.
 	if(is64(n->type) && cancgen64(n, res))
 		return;
-	
+
 	// use ullman to pick operand to eval first.
 	nl = n->left;
 	nr = n->right;
@@ -112,12 +148,15 @@ cgen(Node *n, Node *res)
 		return;
 	}
 
+	if(isfloat[n->type->etype] && isfloat[nl->type->etype])
+		goto flt;
+
 	switch(n->op) {
 	default:
 		dump("cgen", n);
 		fatal("cgen %O", n->op);
 		break;
-	
+
 	// these call bgen to get a bool value
 	case OOROR:
 	case OANDAND:
@@ -162,7 +201,7 @@ cgen(Node *n, Node *res)
 		goto abop;
 
 	case OCONV:
-		if(eqtype(n->type, nl->type)) {
+		if(eqtype(n->type, nl->type) || noconv(n->type, nl->type)) {
 			cgen(nl, res);
 			break;
 		}
@@ -236,7 +275,7 @@ cgen(Node *n, Node *res)
 	case OADDR:
 		agen(nl, res);
 		break;
-	
+
 	case OCALLMETH:
 		cgen_callmeth(n, 0);
 		cgen_callret(n, res);
@@ -303,6 +342,29 @@ uop:	// unary
 	gmove(&n1, res);
 	tempfree(&n1);
 	return;
+
+flt:	// floating-point.  387 (not SSE2) to interoperate with 6c
+	nodreg(&f0, n->type, D_F0);
+	nodreg(&f1, n->type, D_F0+1);
+	if(nl->ullman >= nr->ullman) {
+		cgen(nl, &f0);
+		if(nr->addable)
+			gins(foptoas(n->op, n->type, 0), nr, &f0);
+		else {
+			cgen(nr, &f0);
+			gins(foptoas(n->op, n->type, Fpop), &f0, &f1);
+		}
+	} else {
+		cgen(nr, &f0);
+		if(nl->addable)
+			gins(foptoas(n->op, n->type, Frev), nl, &f0);
+		else {
+			cgen(nl, &f0);
+			gins(foptoas(n->op, n->type, Frev|Fpop), &f0, &f1);
+		}
+	}
+	gmove(&f0, res);
+	return;
 }
 
 /*
@@ -334,21 +396,21 @@ agen(Node *n, Node *res)
 		regfree(&n1);
 		return;
 	}
-	
+
 	// let's compute
 	nl = n->left;
 	nr = n->right;
-	
+
 	switch(n->op) {
 	default:
 		fatal("agen %O", n->op);
-	
+
 	case OCONV:
 		if(!eqtype(n->type, nl->type))
 			fatal("agen: non-trivial OCONV");
 		agen(nl, res);
 		break;
-	
+
 	case OCALLMETH:
 		cgen_callmeth(n, 0);
 		cgen_aret(n, res);
@@ -506,11 +568,11 @@ agen(Node *n, Node *res)
 			gins(optoas(OADD, types[tptr]), &n1, res);
 		}
 		break;
-	
+
 	case OIND:
 		cgen(nl, res);
 		break;
-	
+
 	case ODOT:
 		t = nl->type;
 		agen(nl, res);
@@ -719,7 +781,7 @@ bgen(Node *n, int true, Prog *to)
 			regfree(&n1);
 			break;
 		}
-		
+
 		if(is64(nr->type)) {
 			if(!nl->addable) {
 				tempalloc(&n1, nl->type);
@@ -916,7 +978,8 @@ sgen(Node *n, Node *res, int w)
 static int
 cancgen64(Node *n, Node *res)
 {
-	Node adr1, adr2, t1, t2, r1, r2, r3, r4, r5, nod, *l, *r;
+	Node t1, t2, ax, dx, cx, ex, fx, zero, *l, *r;
+	Node lo1, lo2, hi1, hi2;
 	Prog *p1, *p2;
 
 	if(n->op == OCALL)
@@ -936,14 +999,13 @@ cancgen64(Node *n, Node *res)
 		return 1;
 
 	case OMINUS:
+		nodconst(&zero, types[TINT32], 0);
 		cgen(n->left, res);
-		gins(ANEGL, N, res);
-		res->xoffset += 4;
-		regalloc(&nod, types[TINT32], N);
-		gins(AXORL, &nod, &nod);
-		gins(ASBBL, res, &nod);
-		gins(AMOVL, &nod, res);
-		regfree(&nod);
+		split64(res, &lo1, &hi1);
+		gins(ANEGL, N, &lo1);
+		gins(AADCL, &zero, &hi1);
+		gins(ANEGL, N, &hi1);
+		splitclean();
 		return 1;
 
 	case OADD:
@@ -951,7 +1013,7 @@ cancgen64(Node *n, Node *res)
 	case OMUL:
 		break;
 	}
-	
+
 	l = n->left;
 	r = n->right;
 	if(!l->addable) {
@@ -963,97 +1025,73 @@ cancgen64(Node *n, Node *res)
 		tempalloc(&t2, r->type);
 		cgen(r, &t2);
 		r = &t2;
-	}		
+	}
 
 	// Setup for binary operation.
-	tempalloc(&adr1, types[TPTR32]);
-	agen(l, &adr1);		
-	tempalloc(&adr2, types[TPTR32]);
-	agen(r, &adr2);
+	split64(l, &lo1, &hi1);
+	split64(r, &lo2, &hi2);
 
-	nodreg(&r1, types[TPTR32], D_AX);
-	nodreg(&r2, types[TPTR32], D_DX);
-	nodreg(&r3, types[TPTR32], D_CX);
+	nodreg(&ax, types[TPTR32], D_AX);
+	nodreg(&cx, types[TPTR32], D_CX);
+	nodreg(&dx, types[TPTR32], D_DX);
 
+	// Do op.  Leave result in DX:AX.
 	switch(n->op) {
 	case OADD:
-	case OSUB:
-		gmove(&adr1, &r3);
-		r3.op = OINDREG;
-		r3.xoffset = 0;
-		gins(AMOVL, &r3, &r1);
-		r3.xoffset = 4;
-		gins(AMOVL, &r3, &r2);
-		
-		r3.xoffset = 0;
-		r3.op = OREGISTER;
-		gmove(&adr2, &r3);
-		r3.op = OINDREG;
-		if(n->op == OADD)
-			gins(AADDL, &r3, &r1);
-		else
-			gins(ASUBL, &r3, &r1);
-		r3.xoffset = 4;
-		if(n->op == OADD)
-			gins(AADCL, &r3, &r2);
-		else
-			gins(ASBBL, &r3, &r2);
+		gins(AMOVL, &lo1, &ax);
+		gins(AMOVL, &hi1, &dx);
+		gins(AADDL, &lo2, &ax);
+		gins(AADCL, &hi2, &dx);
 		break;
 
-	case OMUL:	
-		regalloc(&r4, types[TPTR32], N);
-		regalloc(&r5, types[TPTR32], N);
-		
-		// load args into r2:r1 and r4:r3.
-		// leave result in r2:r1 (DX:AX)
-		gmove(&adr1, &r5);
-		r5.op = OINDREG;
-		r5.xoffset = 0;
-		gmove(&r5, &r1);
-		r5.xoffset = 4;
-		gmove(&r5, &r2);
-		r5.xoffset = 0;
-		r5.op = OREGISTER;
-		gmove(&adr2, &r5);
-		r5.op = OINDREG;
-		gmove(&r5, &r3);
-		r5.xoffset = 4;
-		gmove(&r5, &r4);
-		r5.xoffset = 0;
-		r5.op = OREGISTER;
+	case OSUB:
+		gins(AMOVL, &lo1, &ax);
+		gins(AMOVL, &hi1, &dx);
+		gins(ASUBL, &lo2, &ax);
+		gins(ASBBL, &hi2, &dx);
+		break;
 
-		// if r2|r4 == 0, use one 32 x 32 -> 64 unsigned multiply
-		gmove(&r2, &r5);
-		gins(AORL, &r4, &r5);
+	case OMUL:
+		// let's call the next two EX and FX.
+		regalloc(&ex, types[TPTR32], N);
+		regalloc(&fx, types[TPTR32], N);
+
+		// load args into DX:AX and EX:CX.
+		gins(AMOVL, &lo1, &ax);
+		gins(AMOVL, &hi1, &dx);
+		gins(AMOVL, &lo2, &cx);
+		gins(AMOVL, &hi2, &ex);
+
+		// if DX and EX are zero, use 32 x 32 -> 64 unsigned multiply.
+		gins(AMOVL, &dx, &fx);
+		gins(AORL, &ex, &fx);
 		p1 = gbranch(AJNE, T);
-		gins(AMULL, &r3, N);	// AX (=r1) is implied
+		gins(AMULL, &cx, N);	// implicit &ax
 		p2 = gbranch(AJMP, T);
 		patch(p1, pc);
-	
-		// full 64x64 -> 64, from 32 x 32 -> 64.
-		gins(AIMULL, &r3, &r2);
-		gins(AMOVL, &r1, &r5);
-		gins(AIMULL, &r4, &r5);
-		gins(AADDL, &r2, &r5);
-		gins(AMOVL, &r3, &r2);
-		gins(AMULL, &r2, N);	// AX (=r1) is implied
-		gins(AADDL, &r5, &r2);
-		patch(p2, pc);
-		regfree(&r4);
-		regfree(&r5);
-		break;
-	
-	}
-	
-	tempfree(&adr2);
-	tempfree(&adr1);
 
-	// Store result.
-	gins(AMOVL, &r1, res);
-	res->xoffset += 4;
-	gins(AMOVL, &r2, res);
-	res->xoffset -= 4;
-	
+		// full 64x64 -> 64, from 32x32 -> 64.
+		gins(AIMULL, &cx, &dx);
+		gins(AMOVL, &ax, &fx);
+		gins(AIMULL, &ex, &fx);
+		gins(AADDL, &dx, &fx);
+		gins(AMOVL, &cx, &dx);
+		gins(AMULL, &dx, N);	// implicit &ax
+		gins(AADDL, &fx, &dx);
+		patch(p2, pc);
+
+		regfree(&ex);
+		regfree(&fx);
+		break;
+	}
+	splitclean();
+	splitclean();
+
+	split64(res, &lo1, &hi1);
+	gins(AMOVL, &ax, &lo1);
+	gins(AMOVL, &dx, &hi1);
+	splitclean();
+
 	if(r == &t2)
 		tempfree(&t2);
 	if(l == &t1)
@@ -1068,47 +1106,23 @@ cancgen64(Node *n, Node *res)
 void
 cmp64(Node *nl, Node *nr, int op, Prog *to)
 {
-	int64 x;
-	Node adr1, adr2, rr;
-	Prog *br, *p;
+	Node lo1, hi1, lo2, hi2, rr;
+	Prog *br;
 	Type *t;
-	
-	t = nr->type;
-	
-	memset(&adr1, 0, sizeof adr1);
-	memset(&adr2, 0, sizeof adr2);
 
-	regalloc(&adr1, types[TPTR32], N);
-	agen(nl, &adr1);
-	adr1.op = OINDREG;
-	nl = &adr1;
-	
-	x = 0;
-	if(nr->op == OLITERAL) {
-		if(!isconst(nr, CTINT))
-			fatal("bad const in cmp64");
-		x = mpgetfix(nr->val.u.xval);
-	} else {
-		regalloc(&adr2, types[TPTR32], N);
-		agen(nr, &adr2);
-		adr2.op = OINDREG;
-		nr = &adr2;
-	}
-	
+	split64(nl, &lo1, &hi1);
+	split64(nr, &lo2, &hi2);
+
 	// compare most significant word
-	nl->xoffset += 4;
-	if(nr->op == OLITERAL) {
-		p = gins(ACMPL, nl, nodintconst((uint32)(x>>32)));
-	} else {
-		regalloc(&rr, types[TUINT32], N);
-		nr->xoffset += 4;
-		gins(AMOVL, nr, &rr);
-		gins(ACMPL, nl, &rr);
-		nr->xoffset -= 4;
+	t = hi1.type;
+	if(nl->op == OLITERAL || nr->op == OLITERAL)
+		gins(ACMPL, &hi1, &hi2);
+	else {
+		regalloc(&rr, types[TINT32], N);
+		gins(AMOVL, &hi1, &rr);
+		gins(ACMPL, &rr, &hi2);
 		regfree(&rr);
 	}
-	nl->xoffset -= 4;
-
 	br = P;
 	switch(op) {
 	default:
@@ -1149,39 +1163,28 @@ cmp64(Node *nl, Node *nr, int op, Prog *to)
 		// L:
 		patch(gbranch(optoas(OLT, t), T), to);
 		br = gbranch(optoas(OGT, t), T);
-		break;	
+		break;
 	}
 
 	// compare least significant word
-	if(nr->op == OLITERAL) {
-		p = gins(ACMPL, nl, nodintconst((uint32)x));
-	} else {
-		regalloc(&rr, types[TUINT32], N);
-		gins(AMOVL, nr, &rr);
-		gins(ACMPL, nl, &rr);
+	t = lo1.type;
+	if(nl->op == OLITERAL || nr->op == OLITERAL)
+		gins(ACMPL, &lo1, &lo2);
+	else {
+		regalloc(&rr, types[TINT32], N);
+		gins(AMOVL, &lo1, &rr);
+		gins(ACMPL, &rr, &lo2);
 		regfree(&rr);
 	}
 
 	// jump again
-	switch(op) {
-	default:
-		fatal("cmp64 %O %T", op, nr->type);
-	case OEQ:
-	case ONE:
-	case OGE:
-	case OGT:
-	case OLE:
-	case OLT:
-		patch(gbranch(optoas(op, t), T), to);
-		break;	
-	}
+	patch(gbranch(optoas(op, t), T), to);
 
 	// point first branch down here if appropriate
 	if(br != P)
 		patch(br, pc);
 
-	regfree(&adr1);
-	if(nr == &adr2)
-		regfree(&adr2);	
+	splitclean();
+	splitclean();
 }
 

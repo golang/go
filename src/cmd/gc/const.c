@@ -857,7 +857,7 @@ convconst(Node *con, Type *t, Val *val)
 		con->val.u.xval = mal(sizeof *con->val.u.xval);
 		switch(val->ctype) {
 		default:
-			fatal("convconst ctype=%d %lT", val->ctype, t->type);
+			fatal("convconst ctype=%d %lT", val->ctype, t);
 		case CTINT:
 			i = mpgetfix(val->u.xval);
 			break;

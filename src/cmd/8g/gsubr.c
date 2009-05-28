@@ -571,6 +571,81 @@ optoas(int op, Type *t)
 	return a;
 }
 
+#define FCASE(a, b, c)  (((a)<<16)|((b)<<8)|(c))
+int
+foptoas(int op, Type *t, int flg)
+{
+	int et;
+
+	et = t->etype;
+
+	// clear Frev if unneeded
+	switch(op) {
+	case OADD:
+	case OMUL:
+		flg &= ~Frev;
+		break;
+	}
+
+	switch(FCASE(op, et, flg)) {
+	case FCASE(OADD, TFLOAT32, 0):
+		return AFADDF;
+	case FCASE(OADD, TFLOAT64, 0):
+		return AFADDD;
+	case FCASE(OADD, TFLOAT64, Fpop):
+		return AFADDDP;
+
+	case FCASE(OSUB, TFLOAT32, 0):
+		return AFSUBF;
+	case FCASE(OSUB, TFLOAT32, Frev):
+		return AFSUBRF;
+
+	case FCASE(OSUB, TFLOAT64, 0):
+		return AFSUBD;
+	case FCASE(OSUB, TFLOAT64, Frev):
+		return AFSUBRD;
+	case FCASE(OSUB, TFLOAT64, Fpop):
+		return AFSUBDP;
+	case FCASE(OSUB, TFLOAT64, Fpop|Frev):
+		return AFSUBRDP;
+
+	case FCASE(OMUL, TFLOAT32, 0):
+		return AFMULF;
+	case FCASE(OMUL, TFLOAT64, 0):
+		return AFMULD;
+	case FCASE(OMUL, TFLOAT64, Fpop):
+		return AFMULDP;
+
+	case FCASE(ODIV, TFLOAT32, 0):
+		return AFDIVF;
+	case FCASE(ODIV, TFLOAT32, Frev):
+		return AFDIVRF;
+
+	case FCASE(ODIV, TFLOAT64, 0):
+		return AFDIVD;
+	case FCASE(ODIV, TFLOAT64, Frev):
+		return AFDIVRD;
+	case FCASE(ODIV, TFLOAT64, Fpop):
+		return AFDIVDP;
+	case FCASE(ODIV, TFLOAT64, Fpop|Frev):
+		return AFDIVRDP;
+
+	case FCASE(OCMP, TFLOAT32, 0):
+		return AFCOMF;
+	case FCASE(OCMP, TFLOAT32, Fpop):
+		return AFCOMFP;
+	case FCASE(OCMP, TFLOAT64, 0):
+		return AFCOMD;
+	case FCASE(OCMP, TFLOAT64, Fpop):
+		return AFCOMDP;
+	case FCASE(OCMP, TFLOAT64, Fpop2):
+		return AFCOMDPP;
+	}
+
+	fatal("foptoas %O %T %#x", op, t, flg);
+	return 0;
+}
+
 static	int	resvd[] =
 {
 //	D_DI,	// for movstring
@@ -600,6 +675,8 @@ ginit(void)
 		reg[resvd[i]]++;
 }
 
+ulong regpc[D_NONE];
+
 void
 gclean(void)
 {
@@ -610,13 +687,11 @@ gclean(void)
 
 	for(i=D_AX; i<=D_DI; i++)
 		if(reg[i])
-			yyerror("reg %R left allocated\n", i);
+			yyerror("reg %R left allocated at %lux\n", i, regpc[i]);
 	for(i=D_F0; i<=D_F7; i++)
 		if(reg[i])
 			yyerror("reg %R left allocated\n", i);
 }
-
-ulong regpc[D_NONE];
 
 /*
  * allocate register of type t, leave in n.
@@ -681,7 +756,7 @@ err:
 
 out:
 	if(reg[i] == 0) {
-		regpc[i] = getcallerpc(&n);
+		regpc[i] = (ulong)__builtin_return_address(0);
 		if(i == D_AX || i == D_CX || i == D_DX || i == D_SP) {
 			dump("regalloc-o", o);
 			fatal("regalloc %R", i);
@@ -837,168 +912,445 @@ gconreg(int as, vlong c, int reg)
 	gins(as, &n1, &n2);
 }
 
+
 /*
- * generate move:
- *	t = f
- * f may be in memory,
- * t is known to be a 32-bit register.
+ * Is this node a memory operand?
  */
-void
-gload(Node *f, Node *t)
+int
+ismem(Node *n)
 {
-	int a, ft;
-
-	ft = simtype[f->type->etype];
-
-	switch(ft) {
-	default:
-		fatal("gload %T", f->type);
-	case TINT8:
-		a = AMOVBLSX;
-		if(isconst(f, CTINT) || isconst(f, CTBOOL))
-			a = AMOVL;
-		break;
-	case TBOOL:
-	case TUINT8:
-		a = AMOVBLZX;
-		if(isconst(f, CTINT) || isconst(f, CTBOOL))
-			a = AMOVL;
-		break;
-	case TINT16:
-		a = AMOVWLSX;
-		if(isconst(f, CTINT) || isconst(f, CTBOOL))
-			a = AMOVL;
-		break;
-	case TUINT16:
-		a = AMOVWLZX;
-		if(isconst(f, CTINT))
-			a = AMOVL;
-		break;
-	case TINT32:
-	case TUINT32:
-	case TPTR32:
-		a = AMOVL;
-		break;
-	case TINT64:
-	case TUINT64:
-		a = AMOVL;	// truncating
-		break;
+	switch(n->op) {
+	case OINDREG:
+	case ONAME:
+	case OPARAM:
+		return 1;
 	}
-
-	gins(a, f, t);
+	return 0;
 }
 
+Node sclean[10];
+int nsclean;
+
 /*
- * generate move:
- *	t = f
- * f is known to be a 32-bit register.
- * t may be in memory.
+ * n is a 64-bit value.  fill in lo and hi to refer to its 32-bit halves.
  */
 void
-gstore(Node *f, Node *t)
+split64(Node *n, Node *lo, Node *hi)
 {
-	int a, ft, tt;
-	Node nod, adr;
+	Node n1;
+	int64 i;
 
-	ft = simtype[f->type->etype];
-	tt = simtype[t->type->etype];
+	if(!is64(n->type))
+		fatal("split64 %T", n->type);
 
-	switch(tt) {
+	sclean[nsclean].op = OEMPTY;
+	if(nsclean >= nelem(sclean))
+		fatal("split64 clean");
+	nsclean++;
+	switch(n->op) {
 	default:
-		fatal("gstore %T", t->type);
-	case TINT8:
-	case TBOOL:
-	case TUINT8:
-		a = AMOVB;
-		break;
-	case TINT16:
-	case TUINT16:
-		a = AMOVW;
-		break;
-	case TINT32:
-	case TUINT32:
-	case TPTR32:
-		a = AMOVL;
-		break;
-	case TINT64:
-	case TUINT64:
-		if(t->op == OREGISTER)
-			fatal("gstore %T %O", t->type, t->op);
-		memset(&adr, 0, sizeof adr);
-		igen(t, &adr, N);
-		t = &adr;
-		t->xoffset += 4;
-		switch(ft) {
-		default:
-			fatal("gstore %T -> %T", f, t);
-			break;
-		case TINT32:
-			nodreg(&nod, types[TINT32], D_AX);
-			gins(AMOVL, f, &nod);
-			gins(ACDQ, N, N);
-			nodreg(&nod, types[TINT32], D_DX);
-			gins(AMOVL, &nod, t);
-			break;
-		case TUINT32:
-			gins(AMOVL, nodintconst(0), t);
-			break;
+		if(!dotaddable(n, &n1)) {
+			igen(n, &n1, N);
+			sclean[nsclean-1] = n1;
 		}
-		t->xoffset -= 4;
-		a = AMOVL;
-	}
+		n = &n1;
+		// fall through
+	case ONAME:
+	case OINDREG:
+		*lo = *n;
+		*hi = *n;
+		lo->type = types[TUINT32];
+		if(n->type->etype == TINT64)
+			hi->type = types[TINT32];
+		else
+			hi->type = types[TUINT32];
+		hi->xoffset += 4;
+		break;
 
-	gins(a, f, t);
-	if(t == &adr)
-		regfree(&adr);
+	case OLITERAL:
+		convconst(&n1, n->type, &n->val);
+		i = mpgetfix(n1.val.u.xval);
+		nodconst(lo, types[TUINT32], (uint32)i);
+		i >>= 32;
+		if(n->type->etype == TINT64)
+			nodconst(hi, types[TINT32], (int32)i);
+		else
+			nodconst(hi, types[TUINT32], (uint32)i);
+		break;
+	}
+}
+
+void
+splitclean(void)
+{
+	if(nsclean <= 0)
+		fatal("splitclean");
+	nsclean--;
+	if(sclean[nsclean].op != OEMPTY)
+		regfree(&sclean[nsclean]);
 }
 
 void
 gmove(Node *f, Node *t)
 {
-	int ft, tt, t64, a;
-	Node nod;
-
-	ft = simtype[f->type->etype];
-	tt = simtype[t->type->etype];
-
-	a = AGOK;
-
-	t64 = 0;
-	if(tt == TINT64 || tt == TUINT64 || tt == TPTR64)
-		t64 = 1;
+	int a, ft, tt;
+	Type *cvt;
+	Node r1, r2, flo, fhi, tlo, thi, con;
 
 	if(debug['M'])
-		print("gop: %O %O[%E],%O[%E]\n", OAS,
-			f->op, ft, t->op, tt);
-	if(isfloat[ft] && f->op == OCONST) {
-		fatal("fp");
-		/* TO DO: pick up special constants, possibly preloaded */
-	//F
-	/*
-		if(mpgetflt(f->val.u.fval) == 0.0) {
-			regalloc(&nod, t->type, t);
-			gins(AXORPD, &nod, &nod);
-			gmove(&nod, t);
-			regfree(&nod);
-			return;
+		print("gmove %N -> %N\n", f, t);
+
+	ft = simsimtype(f->type);
+	tt = simsimtype(t->type);
+	cvt = t->type;
+
+	// cannot have two memory operands;
+	// except 64-bit, which always copies via registers anyway.
+	if(ismem(f) && ismem(t) && !is64(f->type) && !is64(t->type))
+		goto hard;
+
+	// convert constant to desired type
+	if(f->op == OLITERAL) {
+		convconst(&con, t->type, &f->val);
+		f = &con;
+		ft = tt;	// so big switch will choose a simple mov
+
+		// some constants can't move directly to memory.
+		if(ismem(t)) {
+			// float constants come from memory.
+			if(isfloat[tt])
+				goto hard;
 		}
+	}
+
+	// value -> value copy, only one memory operand.
+	// figure out the instruction to use.
+	// break out of switch for one-instruction gins.
+	// goto rdst for "destination must be register".
+	// goto hard for "convert to cvt type first".
+	// otherwise handle and return.
+
+	switch(CASE(ft, tt)) {
+	default:
+		fatal("gmove %N -> %N", f, t);
+
+	/*
+	 * integer copy and truncate
+	 */
+	case CASE(TINT8, TINT8):	// same size
+	case CASE(TINT8, TUINT8):
+	case CASE(TUINT8, TINT8):
+	case CASE(TUINT8, TUINT8):
+	case CASE(TINT16, TINT8):	// truncate
+	case CASE(TUINT16, TINT8):
+	case CASE(TINT32, TINT8):
+	case CASE(TUINT32, TINT8):
+//	case CASE(TINT64, TINT8):
+//	case CASE(TUINT64, TINT8):
+	case CASE(TINT16, TUINT8):
+	case CASE(TUINT16, TUINT8):
+	case CASE(TINT32, TUINT8):
+	case CASE(TUINT32, TUINT8):
+//	case CASE(TINT64, TUINT8):
+//	case CASE(TUINT64, TUINT8):
+		a = AMOVB;
+		break;
+
+	case CASE(TINT16, TINT16):	// same size
+	case CASE(TINT16, TUINT16):
+	case CASE(TUINT16, TINT16):
+	case CASE(TUINT16, TUINT16):
+	case CASE(TINT32, TINT16):	// truncate
+	case CASE(TUINT32, TINT16):
+//	case CASE(TINT64, TINT16):
+//	case CASE(TUINT64, TINT16):
+	case CASE(TINT32, TUINT16):
+	case CASE(TUINT32, TUINT16):
+//	case CASE(TINT64, TUINT16):
+//	case CASE(TUINT64, TUINT16):
+		a = AMOVW;
+		break;
+
+	case CASE(TINT32, TINT32):	// same size
+	case CASE(TINT32, TUINT32):
+	case CASE(TUINT32, TINT32):
+	case CASE(TUINT32, TUINT32):
+//	case CASE(TINT64, TINT32):	// truncate
+//	case CASE(TUINT64, TINT32):
+//	case CASE(TINT64, TUINT32):
+//	case CASE(TUINT64, TUINT32):
+		a = AMOVL;
+		break;
+
+	case CASE(TINT64, TINT64):	// same size
+	case CASE(TINT64, TUINT64):
+	case CASE(TUINT64, TINT64):
+	case CASE(TUINT64, TUINT64):
+		split64(f, &flo, &fhi);
+		split64(t, &tlo, &thi);
+		if(f->op == OLITERAL) {
+			gins(AMOVL, &flo, &tlo);
+			gins(AMOVL, &fhi, &thi);
+		} else {
+			regalloc(&r1, types[TUINT32], N);
+			regalloc(&r2, types[TUINT32], N);
+			gins(AMOVL, &flo, &r1);
+			gins(AMOVL, &fhi, &r2);
+			gins(AMOVL, &r1, &tlo);
+			gins(AMOVL, &r2, &thi);
+			regfree(&r2);
+			regfree(&r1);
+		}
+		splitclean();
+		splitclean();
+		return;
+
+	/*
+	 * integer up-conversions
+	 */
+	case CASE(TINT8, TINT16):	// sign extend int8
+	case CASE(TINT8, TUINT16):
+		a = AMOVBWSX;
+		goto rdst;
+	case CASE(TINT8, TINT32):
+	case CASE(TINT8, TUINT32):
+		a = AMOVBLSX;
+		goto rdst;
+//	case CASE(TINT8, TINT64):
+//	case CASE(TINT8, TUINT64):
+//		a = AMOVBQSX;
+//		goto rdst;
+
+	case CASE(TUINT8, TINT16):	// zero extend uint8
+	case CASE(TUINT8, TUINT16):
+		a = AMOVBWZX;
+		goto rdst;
+	case CASE(TUINT8, TINT32):
+	case CASE(TUINT8, TUINT32):
+		a = AMOVBLZX;
+		goto rdst;
+//	case CASE(TUINT8, TINT64):
+//	case CASE(TUINT8, TUINT64):
+//		a = AMOVBQZX;
+//		goto rdst;
+
+	case CASE(TINT16, TINT32):	// sign extend int16
+	case CASE(TINT16, TUINT32):
+		a = AMOVWLSX;
+		goto rdst;
+//	case CASE(TINT16, TINT64):
+//	case CASE(TINT16, TUINT64):
+//		a = AMOVWQSX;
+//		goto rdst;
+
+	case CASE(TUINT16, TINT32):	// zero extend uint16
+	case CASE(TUINT16, TUINT32):
+		a = AMOVWLZX;
+		goto rdst;
+//	case CASE(TUINT16, TINT64):
+//	case CASE(TUINT16, TUINT64):
+//		a = AMOVWQZX;
+//		goto rdst;
+
+	case CASE(TINT32, TINT64):	// sign extend int32
+	case CASE(TINT32, TUINT64):
+		split64(t, &tlo, &thi);
+		nodreg(&flo, tlo.type, D_AX);
+		nodreg(&fhi, thi.type, D_DX);
+		gmove(f, &flo);
+		gins(ACDQ, N, N);
+		gins(AMOVL, &flo, &tlo);
+		gins(AMOVL, &fhi, &thi);
+		return;
+
+//	case CASE(TUINT32, TINT64):	// zero extend uint32
+//	case CASE(TUINT32, TUINT64):
+//		// AMOVL into a register zeros the top of the register,
+//		// so this is not always necessary, but if we rely on AMOVL
+//		// the optimizer is almost certain to screw with us.
+//		a = AMOVLQZX;
+//		goto rdst;
+
+	/*
+	* float to integer
+	*
+	case CASE(TFLOAT32, TINT16):
+	case CASE(TFLOAT32, TINT32):
+	case CASE(TFLOAT32, TINT64):
+	case CASE(TFLOAT64, TINT16):
+	case CASE(TFLOAT64, TINT32):
+	case CASE(TFLOAT64, TINT64):
+		if(ft == TFLOAT32)
+			gins(AFMOVF, f, &f0);
+		else
+			gins(AFMOVD, f, &f0);
+		if(tt == TINT16)
+			gins(AFMOVWP, &f0, t);
+		else if(tt == TINT32)
+			gins(AFMOVLP, &f0, t);
+		else
+			gins(AFMOVVP, &f0, t);
+		return;
+
+	case CASE(TFLOAT32, TINT8):
+	case CASE(TFLOAT32, TUINT16):
+	case CASE(TFLOAT32, TUINT8):
+	case CASE(TFLOAT64, TINT8):
+	case CASE(TFLOAT64, TUINT16):
+	case CASE(TFLOAT64, TUINT8):
+		// convert via int32.
+		cvt = types[TINT32];
+		goto hard;
+
+	case CASE(TFLOAT32, TUINT32):
+	case CASE(TFLOAT64, TUINT32):
+		// could potentially convert via int64.
+		cvt = types[TINT64];
+		goto hard;
+
+	case CASE(TFLOAT32, TUINT64):
+	case CASE(TFLOAT64, TUINT64):
+		if(ft == TFLOAT32)
+			gins(AFMOVF, f, &f0);
+		else
+			gins(AFMOVD, f, &f0);
+		// algorithm is:
+		//	if small enough, use native float64 -> int64 conversion.
+		//	otherwise, subtract 2^63, convert, and add it back.
+		bignodes();
+		regalloc(&r1, types[ft], N);
+		regalloc(&r2, types[ft], N);
+		gins(optoas(OCMP, f->type), &bigf, &r1);
+		p1 = gbranch(optoas(OLE, f->type), T);
+		gins(a, &r1, &r2);
+		p2 = gbranch(AJMP, T);
+		patch(p1, pc);
+		gins(optoas(OAS, f->type), &bigf, &r3);
+		gins(optoas(OSUB, f->type), &r3, &r1);
+		gins(a, &r1, &r2);
+		gins(AMOVQ, &bigi, &r4);
+		gins(AXORQ, &r4, &r2);
+		patch(p2, pc);
+		gmove(&r2, t);
+		regfree(&r4);
+		regfree(&r3);
+		regfree(&r2);
+		regfree(&r1);
+		fatal("lazy");
+		return;
+	*/
+	/*
+	 * integer to float
+	 *
+	case CASE(TINT32, TFLOAT32):
+		a = ACVTSL2SS;
+		goto rdst;
+
+
+	case CASE(TINT32, TFLOAT64):
+		a = ACVTSL2SD;
+		goto rdst;
+
+	case CASE(TINT64, TFLOAT32):
+		a = ACVTSQ2SS;
+		goto rdst;
+
+	case CASE(TINT64, TFLOAT64):
+		a = ACVTSQ2SD;
+		goto rdst;
+
+	case CASE(TINT16, TFLOAT32):
+	case CASE(TINT16, TFLOAT64):
+	case CASE(TINT8, TFLOAT32):
+	case CASE(TINT8, TFLOAT64):
+	case CASE(TUINT16, TFLOAT32):
+	case CASE(TUINT16, TFLOAT64):
+	case CASE(TUINT8, TFLOAT32):
+	case CASE(TUINT8, TFLOAT64):
+		// convert via int32
+		cvt = types[TINT32];
+		goto hard;
+
+	case CASE(TUINT32, TFLOAT32):
+	case CASE(TUINT32, TFLOAT64):
+		// convert via int64.
+		cvt = types[TINT64];
+		goto hard;
+
+	case CASE(TUINT64, TFLOAT32):
+	case CASE(TUINT64, TFLOAT64):
+		// algorithm is:
+		//	if small enough, use native int64 -> uint64 conversion.
+		//	otherwise, halve (rounding to odd?), convert, and double.
+		a = ACVTSQ2SS;
+		if(tt == TFLOAT64)
+			a = ACVTSQ2SD;
+		nodconst(&zero, types[TUINT64], 0);
+		nodconst(&one, types[TUINT64], 1);
+		regalloc(&r1, f->type, f);
+		regalloc(&r2, t->type, t);
+		regalloc(&r3, f->type, N);
+		regalloc(&r4, f->type, N);
+		gmove(f, &r1);
+		gins(ACMPQ, &r1, &zero);
+		p1 = gbranch(AJLT, T);
+		gins(a, &r1, &r2);
+		p2 = gbranch(AJMP, T);
+		patch(p1, pc);
+		gmove(&r1, &r3);
+		gins(ASHRQ, &one, &r3);
+		gmove(&r1, &r4);
+		gins(AANDL, &one, &r4);
+		gins(AORQ, &r4, &r3);
+		gins(a, &r3, &r2);
+		gins(optoas(OADD, t->type), &r2, &r2);
+		patch(p2, pc);
+		gmove(&r2, t);
+		regfree(&r4);
+		regfree(&r3);
+		regfree(&r2);
+		regfree(&r1);
+		return;
+	*/
+	/*
+	 * float to float
+	 *
+	case CASE(TFLOAT32, TFLOAT32):
+		a = AMOVSS;
+		break;
+
+	case CASE(TFLOAT64, TFLOAT64):
+		a = AMOVSD;
+		break;
+
+	case CASE(TFLOAT32, TFLOAT64):
+		a = ACVTSS2SD;
+		goto rdst;
+
+	case CASE(TFLOAT64, TFLOAT32):
+		a = ACVTSD2SS;
+		goto rdst;
 	*/
 	}
 
-	if(is64(types[ft]) && isconst(f, CTINT)) {
-		f->type = types[TINT32];	// XXX check constant value, choose correct type
-		ft = TINT32;
-	}
+	gins(a, f, t);
+	return;
 
-	if(is64(types[ft]) && is64(types[tt])) {
-		sgen(f, t, 8);
-		return;
-	}
+rdst:
+	// requires register destination
+	regalloc(&r1, t->type, t);
+	gins(a, f, &r1);
+	gmove(&r1, t);
+	regfree(&r1);
+	return;
 
-	regalloc(&nod, types[TINT32], t);
-	gload(f, &nod);
-	gstore(&nod, t);
-	regfree(&nod);
+hard:
+	// requires register intermediate
+	regalloc(&r1, cvt, t);
+	gmove(f, &r1);
+	gmove(&r1, t);
+	regfree(&r1);
+	return;
 }
 
 int
@@ -1025,9 +1377,13 @@ gins(int as, Node *f, Node *t)
 {
 	Prog *p;
 
-	// generating AMOVL BX, BX is just dumb.
-	if(f != N && t != N && samaddr(f, t) && as == AMOVL)
-		return nil;
+	switch(as) {
+	case AMOVB:
+	case AMOVW:
+	case AMOVL:
+		if(f != N && t != N && samaddr(f, t))
+			return nil;
+	}
 
 	p = prog(as);
 	if(f != N)
@@ -1171,6 +1527,25 @@ naddr(Node *n, Addr *a)
 //		break;
 
 	}
+}
+
+int
+dotaddable(Node *n, Node *n1)
+{
+	int o, oary[10];
+	Node *nn;
+
+	if(n->op != ODOT)
+		return 0;
+
+	o = dotoffset(n, oary, &nn);
+	if(nn != N && nn->addable && o == 1 && oary[0] >= 0) {
+		*n1 = *nn;
+		n1->type = n->type;
+		n1->xoffset += oary[0];
+		return 1;
+	}
+	return 0;
 }
 
 void
