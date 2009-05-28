@@ -414,7 +414,7 @@ double	ieeedtod(Ieee*);
 int32	ieeedtof(Ieee*);
 void	import(void);
 int	isnop(Prog*);
-void	ldobj(int, int32, char*);
+void	ldobj(Biobuf*, int32, char*);
 void	loadlib(void);
 void	listinit(void);
 Sym*	lookup(char*, int);

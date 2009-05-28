@@ -371,7 +371,8 @@ void
 objfile(char *file)
 {
 	int32 off, esym, cnt, l;
-	int f, work;
+	int work;
+	Biobuf *f;
 	Sym *s;
 	char magbuf[SARMAG];
 	char name[100], pname[150];
@@ -390,24 +391,24 @@ objfile(char *file)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f ldobj: %s\n", cputime(), file);
 	Bflush(&bso);
-	f = open(file, 0);
-	if(f < 0) {
+	f = Bopen(file, 0);
+	if(f == nil) {
 		diag("cannot open file: %s", file);
 		errorexit();
 	}
-	l = read(f, magbuf, SARMAG);
+	l = Bread(f, magbuf, SARMAG);
 	if(l != SARMAG || strncmp(magbuf, ARMAG, SARMAG)){
 		/* load it as a regular file */
-		l = seek(f, 0L, 2);
-		seek(f, 0L, 0);
+		l = Bseek(f, 0L, 2);
+		Bseek(f, 0L, 0);
 		ldobj(f, l, file);
-		close(f);
+		Bterm(f);
 		return;
 	}
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f ldlib: %s\n", cputime(), file);
-	l = read(f, &arhdr, SAR_HDR);
+	l = Bread(f, &arhdr, SAR_HDR);
 	if(l != SAR_HDR) {
 		diag("%s: short read on archive file symbol header", file);
 		goto out;
@@ -423,12 +424,12 @@ objfile(char *file)
 	/*
 	 * just bang the whole symbol file into memory
 	 */
-	seek(f, off, 0);
+	Bseek(f, off, 0);
 	cnt = esym - off;
 	start = malloc(cnt + 10);
-	cnt = read(f, start, cnt);
+	cnt = Bread(f, start, cnt);
 	if(cnt <= 0){
-		close(f);
+		Bterm(f);
 		return;
 	}
 	stop = &start[cnt];
@@ -452,8 +453,8 @@ objfile(char *file)
 			l |= (e[2] & 0xff) << 8;
 			l |= (e[3] & 0xff) << 16;
 			l |= (e[4] & 0xff) << 24;
-			seek(f, l, 0);
-			l = read(f, &arhdr, SAR_HDR);
+			Bseek(f, l, 0);
+			l = Bread(f, &arhdr, SAR_HDR);
 			if(l != SAR_HDR)
 				goto bad;
 			if(strncmp(arhdr.fmag, ARFMAG, sizeof(arhdr.fmag)))
@@ -473,33 +474,42 @@ objfile(char *file)
 bad:
 	diag("%s: bad or out of date archive", file);
 out:
-	close(f);
+	Bterm(f);
 }
 
-int
-zaddr(uchar *p, Adr *a, Sym *h[])
+int32
+Bget4(Biobuf *f)
+{
+	uchar p[4];
+
+	if(Bread(f, p, 4) != 4)
+		return 0;
+	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+}
+
+void
+zaddr(Biobuf *f, Adr *a, Sym *h[])
 {
 	int i, c;
 	int32 l;
 	Sym *s;
 	Auto *u;
 
-	c = p[2];
+	a->type = Bgetc(f);
+	a->reg = Bgetc(f);
+	c = Bgetc(f);
 	if(c < 0 || c > NSYM){
 		print("sym out of range: %d\n", c);
-		p[0] = ALAST+1;
-		return 0;
+		Bputc(f, ALAST+1);
+		return;
 	}
-	a->type = p[0];
-	a->reg = p[1];
 	a->sym = h[c];
-	a->name = p[3];
-	c = 4;
+	a->name = Bgetc(f);
 
 	if(a->reg < 0 || a->reg > NREG) {
 		print("register out of range %d\n", a->reg);
-		p[0] = ALAST+1;
-		return 0;	/*  force real diagnostic */
+		Bputc(f, ALAST+1);
+		return;	/*  force real diagnostic */
 	}
 
 	if(a->type == D_CONST || a->type == D_OCONST) {
@@ -516,8 +526,8 @@ zaddr(uchar *p, Adr *a, Sym *h[])
 	switch(a->type) {
 	default:
 		print("unknown type %d\n", a->type);
-		p[0] = ALAST+1;
-		return 0;	/*  force real diagnostic */
+		Bputc(f, ALAST+1);
+		return;	/*  force real diagnostic */
 
 	case D_NONE:
 	case D_REG:
@@ -527,7 +537,7 @@ zaddr(uchar *p, Adr *a, Sym *h[])
 		break;
 
 	case D_REGREG:
-		a->offset = p[4];
+		a->offset = Bgetc(f);
 		c++;
 		break;
 
@@ -536,9 +546,7 @@ zaddr(uchar *p, Adr *a, Sym *h[])
 	case D_CONST:
 	case D_OCONST:
 	case D_SHIFT:
-		a->offset = p[4] | (p[5]<<8) |
-			(p[6]<<16) | (p[7]<<24);
-		c += 4;
+		a->offset = Bget4(f);
 		break;
 
 	case D_SCONST:
@@ -548,7 +556,7 @@ zaddr(uchar *p, Adr *a, Sym *h[])
 		nhunk -= NSNAME;
 		hunk += NSNAME;
 
-		memmove(a->sval, p+4, NSNAME);
+		Bread(f, a->sval, NSNAME);
 		c += NSNAME;
 		break;
 
@@ -559,19 +567,16 @@ zaddr(uchar *p, Adr *a, Sym *h[])
 		nhunk -= NSNAME;
 		hunk += NSNAME;
 
-		a->ieee->l = p[4] | (p[5]<<8) |
-			(p[6]<<16) | (p[7]<<24);
-		a->ieee->h = p[8] | (p[9]<<8) |
-			(p[10]<<16) | (p[11]<<24);
-		c += 8;
+		a->ieee->l = Bget4(f);
+		a->ieee->h = Bget4(f);
 		break;
 	}
 	s = a->sym;
 	if(s == S)
-		return c;
+		return;
 	i = a->name;
 	if(i != D_AUTO && i != D_PARAM)
-		return c;
+		return;
 
 	l = a->offset;
 	for(u=curauto; u; u=u->link)
@@ -579,7 +584,7 @@ zaddr(uchar *p, Adr *a, Sym *h[])
 		if(u->type == i) {
 			if(u->aoffset > l)
 				u->aoffset = l;
-			return c;
+			return;
 		}
 
 	while(nhunk < sizeof(Auto))
@@ -593,7 +598,6 @@ zaddr(uchar *p, Adr *a, Sym *h[])
 	u->asym = s;
 	u->aoffset = l;
 	u->type = i;
-	return c;
 }
 
 void
@@ -748,37 +752,22 @@ nopout(Prog *p)
 	p->to.type = D_NONE;
 }
 
-uchar*
-readsome(int f, uchar *buf, uchar *good, uchar *stop, int max)
-{
-	int n;
-
-	n = stop - good;
-	memmove(buf, good, stop - good);
-	stop = buf + n;
-	n = MAXIO - n;
-	if(n > max)
-		n = max;
-	n = read(f, stop, n);
-	if(n <= 0)
-		return 0;
-	return stop + n;
-}
-
 static void puntfp(Prog *);
 
 void
-ldobj(int f, int32 c, char *pn)
+ldobj(Biobuf *f, int32 len, char *pn)
 {
 	int32 ipc;
 	Prog *p, *t;
-	uchar *bloc, *bsize, *stop;
 	Sym *h[NSYM], *s, *di;
 	int v, o, r, skip;
 	uint32 sig;
 	static int files;
 	static char **filen;
-	char **nfilen;
+	char **nfilen,*name;
+	vlong eof;
+
+	eof = Boffset(f) + len;
 
 	if((files&15) == 0){
 		nfilen = malloc((files+16)*sizeof(char*));
@@ -788,8 +777,6 @@ ldobj(int f, int32 c, char *pn)
 	}
 	filen[files++] = strdup(pn);
 
-	bsize = buf.xbuf;
-	bloc = buf.xbuf;
 	di = S;
 
 newloop:
@@ -800,52 +787,38 @@ newloop:
 	skip = 0;
 
 loop:
-	if(c <= 0)
+	if(f->state == Bracteof || Boffset(f) >= eof)
 		goto eof;
-	r = bsize - bloc;
-	if(r < 100 && r < c) {		/* enough for largest prog */
-		bsize = readsome(f, buf.xbuf, bloc, bsize, c);
-		if(bsize == 0)
-			goto eof;
-		bloc = buf.xbuf;
-		goto loop;
-	}
-	o = bloc[0];		/* as */
+	o = Bgetc(f);
+	if(o == Beof)
+		goto eof;
+	// TODO(kaib): I wonder if this is an issue.
+// 	o |= Bgetc(f) << 8; 6l does this, 5l doesn't. I think 5g outputs 2 byte
+// 	AXXX's
+
 	if(o <= AXXX || o >= ALAST) {
-		diag("%s: line %ld: opcode out of range %d", pn, pc-ipc, o);
+		diag("%s:#%lld: opcode out of range: %#ux", pn, Boffset(f), o);
 		print("	probably not a .5 file\n");
 		errorexit();
 	}
 	if(o == ANAME || o == ASIGNAME) {
 		sig = 0;
-		if(o == ASIGNAME){
-			sig = bloc[1] | (bloc[2]<<8) | (bloc[3]<<16) | (bloc[4]<<24);
-			bloc += 4;
-			c -= 4;
-		}
-		stop = memchr(&bloc[3], 0, bsize-&bloc[3]);
-		if(stop == 0){
-			bsize = readsome(f, buf.xbuf, bloc, bsize, c);
-			if(bsize == 0)
-				goto eof;
-			bloc = buf.xbuf;
-			stop = memchr(&bloc[3], 0, bsize-&bloc[3]);
-			if(stop == 0){
-				fprint(2, "%s: name too long\n", pn);
-				errorexit();
-			}
-		}
-		v = bloc[1];	/* type */
-		o = bloc[2];	/* sym */
-		bloc += 3;
-		c -= 3;
-
+		if(o == ASIGNAME)
+			sig = Bget4(f);
+		v = Bgetc(f); /* type */
+		o = Bgetc(f); /* sym */
 		r = 0;
 		if(v == D_STATIC)
 			r = version;
-		s = lookup((char*)bloc, r);
-		c -= &stop[1] - bloc;
-		bloc = stop + 1;
+		name = Brdline(f, '\0');
+		if(name == nil) {
+			if(Blinelen(f) > 0) {
+				fprint(2, "%s: name too long\n", pn);
+				errorexit();
+			}
+			goto eof;
+		}
+		s = lookup(name, r);
 
 		if(sig != 0){
 			if(s->sig != 0 && s->sig != sig)
@@ -881,16 +854,14 @@ loop:
 	hunk += sizeof(Prog);
 
 	p->as = o;
-	p->scond = bloc[1];
-	p->reg = bloc[2];
-	p->line = bloc[3] | (bloc[4]<<8) | (bloc[5]<<16) | (bloc[6]<<24);
+	p->scond = Bgetc(f);
+	p->reg = Bgetc(f);
+	p->line = Bget4(f);
 
-	r = zaddr(bloc+7, &p->from, h) + 7;
-	r += zaddr(bloc+r, &p->to, h);
-	bloc += r;
-	c -= r;
+	zaddr(f, &p->from, h);
+	zaddr(f, &p->to, h);
 
-	if(p->reg < 0 || p->reg > NREG)
+	if(p->reg > NREG)
 		diag("register out of range %d", p->reg);
 
 	p->link = P;
@@ -918,9 +889,9 @@ loop:
 			curtext->to.autom = curauto;
 		curauto = 0;
 		curtext = P;
-		if(c)
-			goto newloop;
-		return;
+		if(Boffset(f) == eof)
+			return;
+		goto newloop;
 
 	case AGLOBL:
 		s = p->from.sym;
