@@ -16,7 +16,7 @@ Typedef	typedefs[] =
 {
 	"int",		TINT,		TINT32,
 	"uint",		TUINT,		TUINT32,
-	"uintptr",	TUINTPTR,	TUINT32,
+	"uintptr",	TUINTPTR,	TUINT64,
 	"float",	TFLOAT,		TFLOAT32,
 	0
 };
@@ -24,8 +24,8 @@ Typedef	typedefs[] =
 void
 betypeinit(void)
 {
-	maxround = 4;
-	widthptr = 4;
+	maxround = 8;
+	widthptr = 8;
 
 	zprog.link = P;
 	zprog.as = AGOK;

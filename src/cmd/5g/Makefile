@@ -11,18 +11,16 @@ HFILES=\
 	../gc/go.h\
 	../5l/5.out.h\
 	gg.h\
-#	opt.h\
+	opt.h\
 
 OFILES=\
-	../5l/enam.$O\
 	list.$O\
-	align.$O\
-	obj.$O\
-	gen.$O\
-	gsubr.$O\
+	gobj.$O\
+	galign.$O\
+	ggen.$O\
 	cgen.$O\
-#	peep.$O\
-#	reg.$O\
+	gsubr.$O\
+	../5l/enam.$O\
 
 LIB=\
 	../gc/gc.a$O
