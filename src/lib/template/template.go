@@ -53,7 +53,6 @@
 	where wr is the destination for output, data is the field
 	value, and formatter is its name at the invocation site.
 */
-
 package template
 
 import (
