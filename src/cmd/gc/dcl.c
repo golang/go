@@ -1284,18 +1284,24 @@ mixed:
 	yyerror("cannot mix anonymous and named function arguments");
 }
 
-// hand-craft the following initialization code
-//	var initdone·<file> bool 			(1)
-//	func	Init·<file>()				(2)
-//		if initdone·<file> { return }		(3)
-//		initdone.<file> = true;			(4)
-//		// over all matching imported symbols
-//			<pkg>.init·<file>()		(5)
-//		{ <init stmts> }			(6)
-//		init·<file>()	// if any		(7)
-//		return					(8)
-//	}
-
+/*
+ * hand-craft the following initialization code
+ *	var initdone·<file> uint8 			(1)
+ *	func	Init·<file>()				(2)
+ *		if initdone·<file> {			(3)
+ *			if initdone·<file> == 2		(4)
+ *				return			
+ *			throw();			(5)
+ *		}
+ *		initdone.<file>++;			(6)
+ *		// over all matching imported symbols
+ *			<pkg>.init·<file>()		(7)
+ *		{ <init stmts> }			(8)
+ *		init·<file>()	// if any		(9)
+ *		initdone.<file>++;			(10)
+ *		return					(11)
+ *	}
+ */
 int
 anyinit(Node *n)
 {
@@ -1333,8 +1339,8 @@ anyinit(Node *n)
 void
 fninit(Node *n)
 {
-	Node *done;
-	Node *a, *fn, *r;
+	Node *gatevar;
+	Node *a, *b, *fn, *r;
 	uint32 h;
 	Sym *s, *initsym;
 
@@ -1350,8 +1356,8 @@ fninit(Node *n)
 
 	// (1)
 	snprint(namebuf, sizeof(namebuf), "initdone·%s", filename);
-	done = newname(lookup(namebuf));
-	addvar(done, types[TBOOL], PEXTERN);
+	gatevar = newname(lookup(namebuf));
+	addvar(gatevar, types[TUINT8], PEXTERN);
 
 	// (2)
 
@@ -1373,15 +1379,26 @@ fninit(Node *n)
 
 	// (3)
 	a = nod(OIF, N, N);
-	a->ntest = done;
-	a->nbody = nod(ORETURN, N, N);
+	a->ntest = nod(ONE, gatevar, nodintconst(0));
 	r = list(r, a);
 
 	// (4)
-	a = nod(OAS, done, nodbool(1));
-	r = list(r, a);
+	b = nod(OIF, N, N);
+	b->ntest = nod(OEQ, gatevar, nodintconst(2));
+	b->nbody = nod(ORETURN, N, N);
+	a->nbody = b;
 
 	// (5)
+	b = syslook("throwinit", 0);
+	b = nod(OCALL, b, N);
+	a->nbody = list(a->nbody, b);
+
+	// (6)
+	a = nod(OASOP, gatevar, nodintconst(1));
+	a->etype = OADD;
+	r = list(r, a);
+
+	// (7)
 	for(h=0; h<NHASH; h++)
 	for(s = hash[h]; s != S; s = s->link) {
 		if(s->name[0] != 'I' || strncmp(s->name, "Init·", 6) != 0)
@@ -1396,10 +1413,10 @@ fninit(Node *n)
 		r = list(r, a);
 	}
 
-	// (6)
+	// (8)
 	r = list(r, initfix(n));
 
-	// (7)
+	// (9)
 	// could check that it is fn of no args/returns
 	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
 	s = lookup(namebuf);
@@ -1408,7 +1425,12 @@ fninit(Node *n)
 		r = list(r, a);
 	}
 
-	// (8)
+	// (10)
+	a = nod(OASOP, gatevar, nodintconst(1));
+	a->etype = OADD;
+	r = list(r, a);
+
+	// (11)
 	a = nod(ORETURN, N, N);
 	r = list(r, a);
 

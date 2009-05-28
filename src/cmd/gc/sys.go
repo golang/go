@@ -10,6 +10,7 @@ package PACKAGE
 func	mal(int32) *any;
 func	throwindex();
 func	throwreturn();
+func	throwinit();
 func	panicl(int32);
 
 func	printbool(bool);
