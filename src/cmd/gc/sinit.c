@@ -61,6 +61,8 @@ typeclass(Type *t)
 void
 initlin(Node* n)
 {
+
+loop:
 	if(n == N)
 		return;
 	initlin(n->ninit);
@@ -84,8 +86,8 @@ initlin(Node* n)
 
 	case OLIST:
 		initlin(n->left);
-		initlin(n->right);
-		break;
+		n = n->right;
+		goto loop;
 	}
 }
 

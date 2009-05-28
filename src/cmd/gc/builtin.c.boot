@@ -3,6 +3,7 @@ char *sysimport =
 	"func sys.mal (? int32) (? *any)\n"
 	"func sys.throwindex ()\n"
 	"func sys.throwreturn ()\n"
+	"func sys.throwinit ()\n"
 	"func sys.panicl (? int32)\n"
 	"func sys.printbool (? bool)\n"
 	"func sys.printfloat (? float64)\n"

@@ -52,6 +52,12 @@ sys·throwreturn(void)
 }
 
 void
+sys·throwinit(void)
+{
+	throw("recursive call during initialization");
+}
+
+void
 throw(int8 *s)
 {
 	printf("throw: %s\n", s);
