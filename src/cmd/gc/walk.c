@@ -1945,8 +1945,13 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
 	st = typ(TSTRUCT);	// generated structure
 	ft = T;			// last field
 	while(r != N) {
+		if(r->op == OLITERAL && r->val.ctype == CTNIL) {
+			if(r->type == T || r->type->etype == TNIL) {
+				yyerror("inappropriate use of nil in ... argument");
+				return N;
+			}
+		}
 		defaultlit(r, T);
-
 		if(r->type == T)	// type check failed
 			return N;
 
