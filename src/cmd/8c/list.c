@@ -57,7 +57,7 @@ Bconv(Fmt *fp)
 		if(str[0])
 			strcat(str, " ");
 		if(var[i].sym == S) {
-			sprint(ss, "$%ld", var[i].offset);
+			sprint(ss, "$%d", var[i].offset);
 			s = ss;
 		} else
 			s = var[i].sym->name;
@@ -108,7 +108,7 @@ Dconv(Fmt *fp)
 	i = a->type;
 	if(i >= D_INDIR) {
 		if(a->offset)
-			sprint(str, "%ld(%R)", a->offset, i-D_INDIR);
+			sprint(str, "%d(%R)", a->offset, i-D_INDIR);
 		else
 			sprint(str, "(%R)", i-D_INDIR);
 		goto brk;
@@ -117,7 +117,7 @@ Dconv(Fmt *fp)
 
 	default:
 		if(a->offset)
-			sprint(str, "$%ld,%R", a->offset, i);
+			sprint(str, "$%d,%R", a->offset, i);
 		else
 			sprint(str, "%R", i);
 		break;
@@ -127,35 +127,35 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_BRANCH:
-		sprint(str, "%ld(PC)", a->offset-pc);
+		sprint(str, "%d(PC)", a->offset-pc);
 		break;
 
 	case D_EXTERN:
-		sprint(str, "%s+%ld(SB)", a->sym->name, a->offset);
+		sprint(str, "%s+%d(SB)", a->sym->name, a->offset);
 		break;
 
 	case D_STATIC:
-		sprint(str, "%s<>+%ld(SB)", a->sym->name,
+		sprint(str, "%s<>+%d(SB)", a->sym->name,
 			a->offset);
 		break;
 
 	case D_AUTO:
-		sprint(str, "%s+%ld(SP)", a->sym->name, a->offset);
+		sprint(str, "%s+%d(SP)", a->sym->name, a->offset);
 		break;
 
 	case D_PARAM:
 		if(a->sym)
-			sprint(str, "%s+%ld(FP)", a->sym->name, a->offset);
+			sprint(str, "%s+%d(FP)", a->sym->name, a->offset);
 		else
-			sprint(str, "%ld(FP)", a->offset);
+			sprint(str, "%d(FP)", a->offset);
 		break;
 
 	case D_CONST:
-		sprint(str, "$%ld", a->offset);
+		sprint(str, "$%d", a->offset);
 		break;
 
 	case D_CONST2:
-		sprint(str, "$%ld-%ld", a->offset, a->offset2);
+		sprint(str, "$%d-%d", a->offset, a->offset2);
 		break;
 
 	case D_FCONST:
@@ -185,7 +185,7 @@ conv:
 
 char*	regstr[] =
 {
-	"AL",	/*[D_AL]*/	
+	"AL",	/*[D_AL]*/
 	"CL",
 	"DL",
 	"BL",

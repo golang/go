@@ -468,7 +468,7 @@ cgen_asop(Node *n)
 
 hard:
 	if(nr->ullman > nl->ullman) {
-		regalloc(&n2, nr->type, N);
+		tempalloc(&n2, nr->type);
 		cgen(nr, &n2);
 		igen(nl, &n1, N);
 	} else {

@@ -505,7 +505,7 @@ gmove(Node *f, Node *t)
 
 	switch(CASE(ft, tt)) {
 	default:
-		fatal("gmove %T -> %T", f, t);
+		fatal("gmove %lT -> %lT", f->type, t->type);
 
 	/*
 	 * integer copy and truncate
