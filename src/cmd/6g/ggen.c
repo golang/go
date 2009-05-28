@@ -491,8 +491,10 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 			t = types[TUINT32];
 	}
 	a = optoas(op, t);
+	ax->type = t;
+	dx->type = t;
 
-	regalloc(&n3, nr->type, N);
+	regalloc(&n3, t, N);
 	if(nl->ullman >= nr->ullman) {
 		cgen(nl, ax);
 		if(!issigned[t->etype]) {

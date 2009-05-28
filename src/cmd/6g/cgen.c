@@ -201,8 +201,14 @@ cgen(Node *n, Node *res)
 			break;
 		}
 		regalloc(&n1, nl->type, res);
+		regalloc(&n2, n->type, &n1);
 		cgen(nl, &n1);
-		gmove(&n1, res);
+		// if we do the conversion n1 -> n2 here
+		// reusing the register, then gmove won't
+		// have to allocate its own register.
+		gmove(&n1, &n2);
+		gmove(&n2, res);
+		regfree(&n2);
 		regfree(&n1);
 		break;
 
