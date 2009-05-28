@@ -801,3 +801,95 @@ nonnegconst(Node *n)
 	}
 	return -1;
 }
+
+/*
+ * convert x to type et and back to int64
+ * for sign extension and truncation.
+ */
+int64
+iconv(int64 x, int et)
+{
+	switch(et) {
+	case TINT8:
+		x = (int8)x;
+		break;
+	case TUINT8:
+		x = (uint8)x;
+		break;
+	case TINT16:
+		x = (int16)x;
+		break;
+	case TUINT16:
+		x = (uint64)x;
+		break;
+	case TINT32:
+		x = (int32)x;
+		break;
+	case TUINT32:
+		x = (uint32)x;
+		break;
+	case TINT64:
+	case TUINT64:
+		break;
+	}
+	return x;
+}
+
+/*
+ * convert constant val to type t; leave in con.
+ * for back end.
+ */
+void
+convconst(Node *con, Type *t, Val *val)
+{
+	int64 i;
+	int tt;
+
+	tt = simsimtype(t);
+
+	// copy the constant for conversion
+	nodconst(con, types[TINT8], 0);
+	con->type = t;
+	con->val = *val;
+
+	if(isint[tt]) {
+		con->val.ctype = CTINT;
+		con->val.u.xval = mal(sizeof *con->val.u.xval);
+		switch(val->ctype) {
+		default:
+			fatal("convconst ctype=%d %lT", val->ctype, t->type);
+		case CTINT:
+			i = mpgetfix(val->u.xval);
+			break;
+		case CTBOOL:
+			i = val->u.bval;
+			break;
+		case CTNIL:
+			i = 0;
+			break;
+		}
+		i = iconv(i, tt);
+		mpmovecfix(con->val.u.xval, i);
+		return;
+	}
+
+	if(isfloat[tt]) {
+		if(con->val.ctype == CTINT) {
+			con->val.ctype = CTFLT;
+			con->val.u.fval = mal(sizeof *con->val.u.fval);
+			mpmovefixflt(con->val.u.fval, val->u.xval);
+		}
+		if(con->val.ctype != CTFLT)
+			fatal("convconst ctype=%d %T", con->val.ctype, t);
+		if(!isfloat[tt]) {
+			// easy to handle, but can it happen?
+			fatal("convconst CTINT %T", t);
+		}
+		if(tt == TFLOAT32)
+			con->val.u.fval = truncfltlit(con->val.u.fval, t);
+		return;
+	}
+
+	fatal("convconst %lT constant", t);
+
+}

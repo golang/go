@@ -1061,7 +1061,7 @@ addconst(Node *n, Node *e, int ctxt)
 	d = dcl();
 	d->dsym = s;
 	d->dnode = e;
-	d->op = OCONST;
+	d->op = OLITERAL;
 	d->back = r->back;
 	r->back->forw = d;
 	r->back = d;

@@ -671,7 +671,6 @@ opnames[] =
 	[OCOMPOS]	= "COMPOS",
 	[OCOMPSLICE]	= "COMPSLICE",
 	[OCOM]		= "COM",
-	[OCONST]	= "CONST",
 	[OCONTINUE]	= "CONTINUE",
 	[OCONV]		= "CONV",
 	[ODCLARG]	= "DCLARG",
@@ -3015,3 +3014,29 @@ runifacechecks(void)
 	}
 	lineno = lno;
 }
+
+/*
+ * even simpler simtype; get rid of ptr, bool.
+ * assuming that the front end has rejected
+ * all the invalid conversions (like ptr -> bool)
+ */
+int
+simsimtype(Type *t)
+{
+	int et;
+
+	et = simtype[t->etype];
+	switch(et) {
+	case TPTR32:
+		et = TUINT32;
+		break;
+	case TPTR64:
+		et = TUINT64;
+		break;
+	case TBOOL:
+		et = TUINT8;
+		break;
+	}
+	return et;
+}
+

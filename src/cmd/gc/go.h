@@ -298,7 +298,7 @@ enum
 {
 	OXXX,
 
-	OTYPE, OCONST, OVAR, OIMPORT,
+	OTYPE, OVAR, OIMPORT,
 
 	ONAME, ONONAME, ODCL,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
@@ -315,7 +315,7 @@ enum
 	OEQ, ONE, OLT, OLE, OGE, OGT,
 	OADD, OSUB, OOR, OXOR,
 	OMUL, ODIV, OMOD, OLSH, ORSH, OAND, OANDNOT,
-	OINC, ODEC,	// placeholders - not used
+	OINC, ODEC,
 	OFUNC,
 	OLABEL,
 	OBREAK,
@@ -795,6 +795,8 @@ Node*	adddot(Node*);
 void	expandmeth(Sym*, Type*);
 void	genwrapper(Type*, Type*, Sym*);
 
+int	simsimtype(Type*);
+
 /*
  *	dcl.c
  */
@@ -949,6 +951,8 @@ int	smallintconst(Node*);
 long	nonnegconst(Node*);
 int	consttype(Node*);
 int	isconst(Node*, int);
+Mpflt*	truncfltlit(Mpflt*, Type*);
+void	convconst(Node*, Type*, Val*);
 
 /*
  *	align.c
