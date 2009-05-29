@@ -28,7 +28,7 @@ malloc(uintptr size)
 	uint32 *ref;
 
 	if(m->mallocing)
-		throw("malloc - deadlock");
+		throw("malloc/free - deadlock");
 	m->mallocing = 1;
 
 	if(size == 0)
@@ -89,6 +89,10 @@ free(void *v)
 	if(v == nil)
 		return;
 
+	if(m->mallocing)
+		throw("malloc/free - deadlock");
+	m->mallocing = 1;
+
 	mlookup(v, nil, nil, &ref);
 	*ref = RefFree;
 
@@ -106,7 +110,7 @@ free(void *v)
 			mstats.alloc -= s->npages<<PageShift;
 			sys_memclr(v, s->npages<<PageShift);
 			MHeap_Free(&mheap, s);
-			return;
+			goto out;
 		}
 		MHeapMapCache_SET(&mheap.mapcache, page, sizeclass);
 	}
@@ -117,6 +121,9 @@ free(void *v)
 	sys_memclr(v, size);
 	mstats.alloc -= size;
 	MCache_Free(c, v, sizeclass, size);
+
+out:
+	m->mallocing = 0;
 }
 
 int32
