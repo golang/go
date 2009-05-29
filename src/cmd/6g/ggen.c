@@ -557,13 +557,15 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	Node n1, n2, n3;
 	int a;
 	Prog *p1;
+	uvlong sc;
 
 	a = optoas(op, nl->type);
 
 	if(nr->op == OLITERAL) {
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
-		if(mpgetfix(nr->val.u.xval) >= nl->type->width*8) {
+		sc = mpgetfix(nr->val.u.xval);
+		if(sc >= nl->type->width*8) {
 			// large shift gets 2 shifts by width
 			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
 			gins(a, &n3, &n1);

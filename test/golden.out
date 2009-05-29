@@ -104,12 +104,6 @@ BUG should compile
 5 7
 BUG: should crash
 
-=========== bugs/bug155.go
-main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
-main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
-main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
-BUG: bug155
-
 =========== bugs/bug156.go
 bugs/bug156.go:7: constant 18446744073709551615 overflows int64
 BUG: bug156
