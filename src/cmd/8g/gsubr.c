@@ -1045,16 +1045,24 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT16, TINT8):
 	case CASE(TINT32, TINT8):
 	case CASE(TUINT32, TINT8):
-//	case CASE(TINT64, TINT8):
-//	case CASE(TUINT64, TINT8):
 	case CASE(TINT16, TUINT8):
 	case CASE(TUINT16, TUINT8):
 	case CASE(TINT32, TUINT8):
 	case CASE(TUINT32, TUINT8):
-//	case CASE(TINT64, TUINT8):
-//	case CASE(TUINT64, TUINT8):
 		a = AMOVB;
 		break;
+
+	case CASE(TINT64, TINT8):	// truncate low word
+	case CASE(TUINT64, TINT8):
+	case CASE(TINT64, TUINT8):
+	case CASE(TUINT64, TUINT8):
+		split64(f, &flo, &fhi);
+		regalloc(&r1, t->type, t);
+		gins(AMOVB, &flo, &r1);
+		gins(AMOVB, &r1, t);
+		regfree(&r1);
+		splitclean();
+		return;
 
 	case CASE(TINT16, TINT16):	// same size
 	case CASE(TINT16, TUINT16):
@@ -1062,14 +1070,22 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT16, TUINT16):
 	case CASE(TINT32, TINT16):	// truncate
 	case CASE(TUINT32, TINT16):
-//	case CASE(TINT64, TINT16):
-//	case CASE(TUINT64, TINT16):
 	case CASE(TINT32, TUINT16):
 	case CASE(TUINT32, TUINT16):
-//	case CASE(TINT64, TUINT16):
-//	case CASE(TUINT64, TUINT16):
 		a = AMOVW;
 		break;
+
+	case CASE(TINT64, TINT16):	// truncate low word
+	case CASE(TUINT64, TINT16):
+	case CASE(TINT64, TUINT16):
+	case CASE(TUINT64, TUINT16):
+		split64(f, &flo, &fhi);
+		regalloc(&r1, t->type, t);
+		gins(AMOVW, &flo, &r1);
+		gins(AMOVW, &r1, t);
+		regfree(&r1);
+		splitclean();
+		return;
 
 	case CASE(TINT32, TINT32):	// same size
 	case CASE(TINT32, TUINT32):
@@ -1124,10 +1140,10 @@ gmove(Node *f, Node *t)
 	case CASE(TINT8, TUINT32):
 		a = AMOVBLSX;
 		goto rdst;
-//	case CASE(TINT8, TINT64):
-//	case CASE(TINT8, TUINT64):
-//		a = AMOVBQSX;
-//		goto rdst;
+	case CASE(TINT8, TINT64):	// convert via int32
+	case CASE(TINT8, TUINT64):
+		cvt = types[TINT32];
+		goto hard;
 
 	case CASE(TUINT8, TINT16):	// zero extend uint8
 	case CASE(TUINT8, TUINT16):
@@ -1137,28 +1153,28 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT8, TUINT32):
 		a = AMOVBLZX;
 		goto rdst;
-//	case CASE(TUINT8, TINT64):
-//	case CASE(TUINT8, TUINT64):
-//		a = AMOVBQZX;
-//		goto rdst;
+	case CASE(TUINT8, TINT64):	// convert via uint32
+	case CASE(TUINT8, TUINT64):
+		cvt = types[TUINT32];
+		goto hard;
 
 	case CASE(TINT16, TINT32):	// sign extend int16
 	case CASE(TINT16, TUINT32):
 		a = AMOVWLSX;
 		goto rdst;
-//	case CASE(TINT16, TINT64):
-//	case CASE(TINT16, TUINT64):
-//		a = AMOVWQSX;
-//		goto rdst;
+	case CASE(TINT16, TINT64):	// convert via int32
+	case CASE(TINT16, TUINT64):
+		cvt = types[TINT32];
+		goto hard;
 
 	case CASE(TUINT16, TINT32):	// zero extend uint16
 	case CASE(TUINT16, TUINT32):
 		a = AMOVWLZX;
 		goto rdst;
-//	case CASE(TUINT16, TINT64):
-//	case CASE(TUINT16, TUINT64):
-//		a = AMOVWQZX;
-//		goto rdst;
+	case CASE(TUINT16, TINT64):	// convert via uint32
+	case CASE(TUINT16, TUINT64):
+		cvt = types[TUINT32];
+		goto hard;
 
 	case CASE(TINT32, TINT64):	// sign extend int32
 	case CASE(TINT32, TUINT64):
@@ -1323,15 +1339,16 @@ gmove(Node *f, Node *t)
 	*/
 	/*
 	 * float to float
-	 *
+	 */
 	case CASE(TFLOAT32, TFLOAT32):
-		a = AMOVSS;
+		a = AFMOVF;
 		break;
 
 	case CASE(TFLOAT64, TFLOAT64):
-		a = AMOVSD;
+		a = AFMOVD;
 		break;
 
+	/*
 	case CASE(TFLOAT32, TFLOAT64):
 		a = ACVTSS2SD;
 		goto rdst;
