@@ -2577,7 +2577,8 @@ follows:
 <pre class="grammar">
 +x                          is 0 + x
 -x    negation              is 0 - x
-^x    bitwise complement    is m ^ x  with m = "all bits set to 1"
+^x    bitwise complement    is m ^ x  with m = "all bits set to 1" for unsigned x
+                                      and  m = -1 for signed x
 </pre>
 
 <p>
@@ -2944,10 +2945,9 @@ uint8(100) * 100  // error, out of range
 </pre>
 
 <p>
-The size of the mask used by the unary bitwise complement
-operator in a typed constant expression is equal to the size of the
-expression's type.  In an ideal constant expression, the bitwise
-complement operator inverts all the bits, producing a negative value.
+The mask used by the unary bitwise complement operator matches
+the rule for non-constants: the mask is the all 1s for unsigned constants
+and -1 for signed and ideal constants.
 </p>
 
 <pre>
@@ -2955,7 +2955,7 @@ complement operator inverts all the bits, producing a negative value.
 uint8(^1)   // error, same as uint8(-2), out of range
 ^uint8(1)   // typed uint8 constant, same as 0xFF ^ uint8(1) = uint8(0xFE)
 int8(^1)    // same as int8(-2)
-^int8(1)    // error, same as 0xFF ^ int8(1) = int8(0xFE), out of range
+^int8(1)    // same as -1 ^ int8(1) = -2
 </pre>
 
 <p>
