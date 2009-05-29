@@ -16,6 +16,7 @@ func	panicl(int32);
 func	printbool(bool);
 func	printfloat(float64);
 func	printint(int64);
+func	printuint(uint64);
 func	printstring(string);
 func	printpointer(any);
 func	printiface(any);
