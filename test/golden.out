@@ -104,6 +104,15 @@ BUG should compile
 5 7
 BUG: should crash
 
+=========== bugs/bug157.go
+bugs/bug157.go:20: syntax error near default
+bugs/bug157.go:20: first switch statement must be a case
+BUG: should compile
+
+=========== bugs/bug158.go
+bugs/bug158.go:14: fatal error: dowidth: unknown type: E-33
+BUG: should compile
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
