@@ -83,7 +83,6 @@ convlit1(Node *n, Type *t, int explicit)
 		n->type = n->left->type;
 		return;
 	}
-
 	// avoided repeated calculations, errors
 	if(cvttype(n->type, t)) {
 		n->type = t;
@@ -126,6 +125,10 @@ convlit1(Node *n, Type *t, int explicit)
 		switch(et) {
 		default:
 			goto bad;
+
+		case TSTRING:
+			// let normal conversion code handle it
+			return;
 
 		case TPTR32:
 		case TPTR64:
