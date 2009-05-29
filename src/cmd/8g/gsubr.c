@@ -1075,12 +1075,20 @@ gmove(Node *f, Node *t)
 	case CASE(TINT32, TUINT32):
 	case CASE(TUINT32, TINT32):
 	case CASE(TUINT32, TUINT32):
-//	case CASE(TINT64, TINT32):	// truncate
-//	case CASE(TUINT64, TINT32):
-//	case CASE(TINT64, TUINT32):
-//	case CASE(TUINT64, TUINT32):
 		a = AMOVL;
 		break;
+
+	case CASE(TINT64, TINT32):	// truncate
+	case CASE(TUINT64, TINT32):
+	case CASE(TINT64, TUINT32):
+	case CASE(TUINT64, TUINT32):
+		split64(f, &flo, &fhi);
+		regalloc(&r1, t->type, t);
+		gins(AMOVL, &flo, &r1);
+		gins(AMOVL, &r1, t);
+		regfree(&r1);
+		splitclean();
+		return;
 
 	case CASE(TINT64, TINT64):	// same size
 	case CASE(TINT64, TUINT64):
@@ -1161,15 +1169,16 @@ gmove(Node *f, Node *t)
 		gins(ACDQ, N, N);
 		gins(AMOVL, &flo, &tlo);
 		gins(AMOVL, &fhi, &thi);
+		splitclean();
 		return;
 
-//	case CASE(TUINT32, TINT64):	// zero extend uint32
-//	case CASE(TUINT32, TUINT64):
-//		// AMOVL into a register zeros the top of the register,
-//		// so this is not always necessary, but if we rely on AMOVL
-//		// the optimizer is almost certain to screw with us.
-//		a = AMOVLQZX;
-//		goto rdst;
+	case CASE(TUINT32, TINT64):	// zero extend uint32
+	case CASE(TUINT32, TUINT64):
+		split64(t, &tlo, &thi);
+		gmove(f, &tlo);
+		gins(AMOVL, ncon(0), &thi);
+		splitclean();
+		return;
 
 	/*
 	* float to integer

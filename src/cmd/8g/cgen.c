@@ -3,10 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // TODO(rsc):
-//
-//	better management of 64-bit values,
-//	especially constants.  generated code is pretty awful.
-//
 //	assume CLD?
 
 #include "gg.h"
@@ -940,11 +936,11 @@ sgen(Node *n, Node *res, int w)
 
 		if(q > 0) {
 			if(c > 0) {
-				gconreg(AADDL, -7, D_SI);
-				gconreg(AADDL, -7, D_DI);
+				gconreg(AADDL, -3, D_SI);
+				gconreg(AADDL, -3, D_DI);
 			} else {
-				gconreg(AADDL, w-8, D_SI);
-				gconreg(AADDL, w-8, D_DI);
+				gconreg(AADDL, w-4, D_SI);
+				gconreg(AADDL, w-4, D_DI);
 			}
 			gconreg(AMOVL, q, D_CX);
 			gins(AREP, N, N);	// repeat
@@ -970,6 +966,27 @@ sgen(Node *n, Node *res, int w)
 	}
 }
 
+void
+nswap(Node *a, Node *b)
+{
+	Node t;
+
+	t = *a;
+	*a = *b;
+	*b = t;
+}
+
+Node*
+ncon(uint32 i)
+{
+	static Node n;
+
+	if(n.type == T)
+		nodconst(&n, types[TUINT32], 0);
+	mpmovecfix(n.val.u.xval, i);
+	return &n;
+}
+
 /*
  * attempt to generate 64-bit
  *	res = n
@@ -978,9 +995,11 @@ sgen(Node *n, Node *res, int w)
 static int
 cancgen64(Node *n, Node *res)
 {
-	Node t1, t2, ax, dx, cx, ex, fx, zero, *l, *r;
-	Node lo1, lo2, hi1, hi2;
+	Node t1, t2, ax, dx, cx, ex, fx, *l, *r;
+	Node lo1, lo2, lo3, hi1, hi2, hi3;
 	Prog *p1, *p2;
+	uint64 v;
+	uint32 lv, hv;
 
 	if(n->op == OCALL)
 		return 0;
@@ -999,18 +1018,32 @@ cancgen64(Node *n, Node *res)
 		return 1;
 
 	case OMINUS:
-		nodconst(&zero, types[TINT32], 0);
 		cgen(n->left, res);
 		split64(res, &lo1, &hi1);
 		gins(ANEGL, N, &lo1);
-		gins(AADCL, &zero, &hi1);
+		gins(AADCL, ncon(0), &hi1);
 		gins(ANEGL, N, &hi1);
+		splitclean();
+		return 1;
+
+	case OCOM:
+		cgen(n->left, res);
+		split64(res, &lo1, &hi1);
+		gins(ANOTL, N, &lo1);
+		gins(ANOTL, N, &hi1);
 		splitclean();
 		return 1;
 
 	case OADD:
 	case OSUB:
 	case OMUL:
+	case OLSH:
+	case ORSH:
+	case OAND:
+	case OOR:
+	case OXOR:
+		// binary operators.
+		// common setup below.
 		break;
 	}
 
@@ -1027,17 +1060,19 @@ cancgen64(Node *n, Node *res)
 		r = &t2;
 	}
 
+	nodreg(&ax, types[TINT32], D_AX);
+	nodreg(&cx, types[TINT32], D_CX);
+	nodreg(&dx, types[TINT32], D_DX);
+
 	// Setup for binary operation.
 	split64(l, &lo1, &hi1);
-	split64(r, &lo2, &hi2);
-
-	nodreg(&ax, types[TPTR32], D_AX);
-	nodreg(&cx, types[TPTR32], D_CX);
-	nodreg(&dx, types[TPTR32], D_DX);
+	if(is64(r->type))
+		split64(r, &lo2, &hi2);
 
 	// Do op.  Leave result in DX:AX.
 	switch(n->op) {
 	case OADD:
+		// TODO: Constants
 		gins(AMOVL, &lo1, &ax);
 		gins(AMOVL, &hi1, &dx);
 		gins(AADDL, &lo2, &ax);
@@ -1045,6 +1080,7 @@ cancgen64(Node *n, Node *res)
 		break;
 
 	case OSUB:
+		// TODO: Constants.
 		gins(AMOVL, &lo1, &ax);
 		gins(AMOVL, &hi1, &dx);
 		gins(ASUBL, &lo2, &ax);
@@ -1083,8 +1119,283 @@ cancgen64(Node *n, Node *res)
 		regfree(&ex);
 		regfree(&fx);
 		break;
+
+	case OLSH:
+		if(r->op == OLITERAL) {
+			v = mpgetfix(r->val.u.xval);
+			if(v >= 64) {
+				if(is64(r->type))
+					splitclean();
+				splitclean();
+				split64(res, &lo2, &hi2);
+				gins(AMOVL, ncon(0), &lo2);
+				gins(AMOVL, ncon(0), &hi2);
+				splitclean();
+				goto out;
+			}
+			if(v >= 32) {
+				if(is64(r->type))
+					splitclean();
+				split64(res, &lo2, &hi2);
+				gmove(&lo1, &hi2);
+				if(v > 32) {
+					gins(ASHLL, ncon(v - 32), &hi2);
+				}
+				gins(AMOVL, ncon(0), &lo2);
+				splitclean();
+				splitclean();
+				goto out;
+			}
+
+			// general shift
+			gins(AMOVL, &lo1, &ax);
+			gins(AMOVL, &hi1, &dx);
+			p1 = gins(ASHLL, ncon(v), &dx);
+			p1->from.index = D_AX;	// double-width shift
+			p1->from.scale = 0;
+			gins(ASHLL, ncon(v), &ax);
+			break;
+		}
+
+		// load value into DX:AX.
+		gins(AMOVL, &lo1, &ax);
+		gins(AMOVL, &hi1, &dx);
+
+		// load shift value into register.
+		// if high bits are set, zero value.
+		p1 = P;
+		if(is64(r->type)) {
+			gins(ACMPL, &hi2, ncon(0));
+			p1 = gbranch(AJNE, T);
+			gins(AMOVL, &lo2, &cx);
+		} else
+			gins(AMOVL, r, &cx);
+
+		// if shift count is >=64, zero value
+		gins(ACMPL, &cx, ncon(64));
+		p2 = gbranch(optoas(OLT, types[TUINT32]), T);
+		if(p1 != P)
+			patch(p1, pc);
+		gins(AXORL, &dx, &dx);
+		gins(AXORL, &ax, &ax);
+		patch(p2, pc);
+
+		// if shift count is >= 32, zero low.
+		gins(ACMPL, &cx, ncon(32));
+		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+		gins(AMOVL, &ax, &dx);
+		gins(ASHLL, &cx, &dx);	// SHLL only uses bottom 5 bits of count
+		gins(AXORL, &ax, &ax);
+		p2 = gbranch(AJMP, T);
+		patch(p1, pc);
+
+		// general shift
+		p1 = gins(ASHLL, &cx, &dx);
+		p1->from.index = D_AX;	// double-width shift
+		p1->from.scale = 0;
+		gins(ASHLL, &cx, &ax);
+		patch(p2, pc);
+		break;
+
+	case ORSH:
+		if(r->op == OLITERAL) {
+			v = mpgetfix(r->val.u.xval);
+			if(v >= 64) {
+				if(is64(r->type))
+					splitclean();
+				splitclean();
+				split64(res, &lo2, &hi2);
+				if(hi1.type->etype == TINT32) {
+					gmove(&hi1, &lo2);
+					gins(ASARL, ncon(31), &lo2);
+					gmove(&hi1, &hi2);
+					gins(ASARL, ncon(31), &hi2);
+				} else {
+					gins(AMOVL, ncon(0), &lo2);
+					gins(AMOVL, ncon(0), &hi2);
+				}
+				splitclean();
+				goto out;
+			}
+			if(v >= 32) {
+				if(is64(r->type))
+					splitclean();
+				split64(res, &lo2, &hi2);
+				gmove(&hi1, &lo2);
+				if(v > 32)
+					gins(optoas(ORSH, hi1.type), ncon(v-32), &lo2);
+				if(hi1.type->etype == TINT32) {
+					gmove(&hi1, &hi2);
+					gins(ASARL, ncon(31), &hi2);
+				} else
+					gins(AMOVL, ncon(0), &hi2);
+				splitclean();
+				splitclean();
+				goto out;
+			}
+
+			// general shift
+			gins(AMOVL, &lo1, &ax);
+			gins(AMOVL, &hi1, &dx);
+			p1 = gins(ASHRL, ncon(v), &ax);
+			p1->from.index = D_DX;	// double-width shift
+			p1->from.scale = 0;
+			gins(optoas(ORSH, hi1.type), ncon(v), &dx);
+			break;
+		}
+
+		// load value into DX:AX.
+		gins(AMOVL, &lo1, &ax);
+		gins(AMOVL, &hi1, &dx);
+
+		// load shift value into register.
+		// if high bits are set, zero value.
+		p1 = P;
+		if(is64(r->type)) {
+			gins(ACMPL, &hi2, ncon(0));
+			p1 = gbranch(AJNE, T);
+			gins(AMOVL, &lo2, &cx);
+		} else
+			gins(AMOVL, r, &cx);
+
+		// if shift count is >=64, zero or sign-extend value
+		gins(ACMPL, &cx, ncon(64));
+		p2 = gbranch(optoas(OLT, types[TUINT32]), T);
+		if(p1 != P)
+			patch(p1, pc);
+		if(hi1.type->etype == TINT32) {
+			gins(ASARL, ncon(31), &dx);
+			gins(AMOVL, &dx, &ax);
+		} else {
+			gins(AXORL, &dx, &dx);
+			gins(AXORL, &ax, &ax);
+		}
+		patch(p2, pc);
+
+		// if shift count is >= 32, sign-extend hi.
+		gins(ACMPL, &cx, ncon(32));
+		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+		gins(AMOVL, &dx, &ax);
+		if(hi1.type->etype == TINT32) {
+			gins(ASARL, &cx, &ax);	// SARL only uses bottom 5 bits of count
+			gins(ASARL, ncon(31), &dx);
+		} else {
+			gins(ASHRL, &cx, &ax);
+			gins(AXORL, &dx, &dx);
+		}
+		p2 = gbranch(AJMP, T);
+		patch(p1, pc);
+
+		// general shift
+		p1 = gins(ASHRL, &cx, &ax);
+		p1->from.index = D_DX;	// double-width shift
+		p1->from.scale = 0;
+		gins(optoas(ORSH, hi1.type), &cx, &dx);
+		patch(p2, pc);
+		break;
+
+	case OXOR:
+	case OAND:
+	case OOR:
+		// make constant the right side (it usually is anyway).
+		if(lo1.op == OLITERAL) {
+			nswap(&lo1, &lo2);
+			nswap(&hi1, &hi2);
+		}
+		if(lo2.op == OLITERAL) {
+			// special cases for constants.
+			lv = mpgetfix(lo2.val.u.xval);
+			hv = mpgetfix(hi2.val.u.xval);
+			splitclean();	// right side
+			split64(res, &lo2, &hi2);
+			switch(n->op) {
+			case OXOR:
+				gmove(&lo1, &lo2);
+				gmove(&hi1, &hi2);
+				switch(lv) {
+				case 0:
+					break;
+				case 0xffffffffu:
+					gins(ANOTL, N, &lo2);
+					break;
+				default:
+					gins(AXORL, ncon(lv), &lo2);
+					break;
+				}
+				switch(hv) {
+				case 0:
+					break;
+				case 0xffffffffu:
+					gins(ANOTL, N, &hi2);
+					break;
+				default:
+					gins(AXORL, ncon(hv), &hi2);
+					break;
+				}
+				break;
+
+			case OAND:
+				switch(lv) {
+				case 0:
+					gins(AMOVL, ncon(0), &lo2);
+					break;
+				default:
+					gmove(&lo1, &lo2);
+					if(lv != 0xffffffffu)
+						gins(AANDL, ncon(lv), &lo2);
+					break;
+				}
+				switch(hv) {
+				case 0:
+					gins(AMOVL, ncon(0), &hi2);
+					break;
+				default:
+					gmove(&hi1, &hi2);
+					if(hv != 0xffffffffu)
+						gins(AANDL, ncon(hv), &hi2);
+					break;
+				}
+				break;
+
+			case OOR:
+				switch(lv) {
+				case 0:
+					gmove(&lo1, &lo2);
+					break;
+				case 0xffffffffu:
+					gins(AMOVL, ncon(0xffffffffu), &lo2);
+					break;
+				default:
+					gmove(&lo1, &lo2);
+					gins(AORL, ncon(lv), &lo2);
+					break;
+				}
+				switch(hv) {
+				case 0:
+					gmove(&hi1, &hi2);
+					break;
+				case 0xffffffffu:
+					gins(AMOVL, ncon(0xffffffffu), &hi2);
+					break;
+				default:
+					gmove(&hi1, &hi2);
+					gins(AORL, ncon(hv), &hi2);
+					break;
+				}
+				break;
+			}
+			splitclean();
+			splitclean();
+			goto out;
+		}
+		gins(AMOVL, &lo1, &ax);
+		gins(AMOVL, &hi1, &dx);
+		gins(optoas(n->op, lo1.type), &lo2, &ax);
+		gins(optoas(n->op, lo1.type), &hi2, &dx);
+		break;
 	}
-	splitclean();
+	if(is64(r->type))
+		splitclean();
 	splitclean();
 
 	split64(res, &lo1, &hi1);
@@ -1092,6 +1403,7 @@ cancgen64(Node *n, Node *res)
 	gins(AMOVL, &dx, &hi1);
 	splitclean();
 
+out:
 	if(r == &t2)
 		tempfree(&t2);
 	if(l == &t1)
@@ -1113,7 +1425,8 @@ cmp64(Node *nl, Node *nr, int op, Prog *to)
 	split64(nl, &lo1, &hi1);
 	split64(nr, &lo2, &hi2);
 
-	// compare most significant word
+	// compare most significant word;
+	// if they differ, we're done.
 	t = hi1.type;
 	if(nl->op == OLITERAL || nr->op == OLITERAL)
 		gins(ACMPL, &hi1, &hi2);

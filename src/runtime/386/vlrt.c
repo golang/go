@@ -311,6 +311,13 @@ _divv(Vlong *q, Vlong n, Vlong d)
 	long nneg, dneg;
 
 	if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
+		if((long)n.lo == -0x80000000 && (long)d.lo == -1) {
+			// special case: 32-bit -0x80000000 / -1 causes divide error,
+			// but it's okay in this 64-bit context.
+			q->lo = 0x80000000;
+			q->hi = 0;
+			return;
+		}
 		q->lo = (long)n.lo / (long)d.lo;
 		q->hi = ((long)q->lo) >> 31;
 		return;
@@ -338,6 +345,13 @@ _modv(Vlong *r, Vlong n, Vlong d)
 	long nneg, dneg;
 
 	if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
+		if((long)n.lo == -0x80000000 && (long)d.lo == -1) {
+			// special case: 32-bit -0x80000000 % -1 causes divide error,
+			// but it's okay in this 64-bit context.
+			r->lo = 0;
+			r->hi = 0;
+			return;
+		}
 		r->lo = (long)n.lo % (long)d.lo;
 		r->hi = ((long)r->lo) >> 31;
 		return;

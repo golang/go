@@ -105,6 +105,7 @@ void	naddr(Node*, Addr*);
 void	cgen_aret(Node*, Node*);
 int	is64(Type*);
 void	cmp64(Node*, Node*, int, Prog*);
+Node*	ncon(uint32);
 
 /*
  * gsubr.c
