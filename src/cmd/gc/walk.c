@@ -2290,7 +2290,10 @@ loop:
 		on = syslook("printarray", 1);
 		argtype(on, l->type);	// any-1
 	} else if(isint[et]) {
-		on = syslook("printint", 0);
+		if(et == TUINT64)
+			on = syslook("printuint", 0);
+		else
+			on = syslook("printint", 0);
 	} else if(isfloat[et]) {
 		on = syslook("printfloat", 0);
 	} else if(et == TBOOL) {

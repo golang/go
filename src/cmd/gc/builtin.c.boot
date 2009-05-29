@@ -8,6 +8,7 @@ char *sysimport =
 	"func sys.printbool (? bool)\n"
 	"func sys.printfloat (? float64)\n"
 	"func sys.printint (? int64)\n"
+	"func sys.printuint (? uint64)\n"
 	"func sys.printstring (? string)\n"
 	"func sys.printpointer (? any)\n"
 	"func sys.printiface (? any)\n"
