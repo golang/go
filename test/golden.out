@@ -104,10 +104,6 @@ BUG should compile
 5 7
 BUG: should crash
 
-=========== bugs/bug149.go
-bugs/bug149.go:14: cannot convert []uint8 constant to string
-BUG: should compile
-
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
@@ -142,7 +138,6 @@ fixedbugs/bug039.go:6: variable x redeclared in this block
 fixedbugs/bug041.go:5: export of incomplete type t
 
 =========== fixedbugs/bug049.go
-fixedbugs/bug049.go:6: cannot convert nil constant to string
 fixedbugs/bug049.go:6: illegal types for operand: EQ
 	string
 	nil
@@ -154,7 +149,6 @@ fixedbugs/bug050.go:3: package statement must be first
 fixedbugs/bug051.go:10: expression must be a constant
 
 =========== fixedbugs/bug062.go
-fixedbugs/bug062.go:6: cannot convert nil constant to string
 fixedbugs/bug062.go:6: illegal types for operand: AS
 	string
 	nil
