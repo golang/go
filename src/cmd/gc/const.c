@@ -568,22 +568,17 @@ unary:
 		// result will be (a ^ mask)
 		switch(et) {
 		default:
+			// signed guys change sign
 			mpmovecfix(&b, -1);
 			break;
 
-		case TINT8:
-		case TINT16:
-		case TINT32:
-		case TINT64:
-		case TINT:
-			et++;		// convert to unsigned
-					// fallthrough
 		case TUINT8:
 		case TUINT16:
 		case TUINT32:
 		case TUINT64:
 		case TUINT:
 		case TUINTPTR:
+			// unsigned guys invert their bits
 			mpmovefixfix(&b, maxintval[et]);
 			break;
 		}
