@@ -58,6 +58,7 @@
 typedef struct	Arsymref
 {
 	char	*name;
+	char *file;
 	int	type;
 	int	len;
 	vlong	offset;
@@ -87,6 +88,7 @@ typedef	struct Arfile		/* Temp file control block - one per tempfile */
 typedef struct Hashchain
 {
 	char	*name;
+	char *file;
 	struct Hashchain *next;
 } Hashchain;
 
@@ -148,7 +150,7 @@ void	arread(Biobuf*, Armember*, int);
 void	arstream(int, Arfile*);
 int	arwrite(int, Armember*);
 int	bamatch(char*, char*);
-int	duplicate(char*);
+int	duplicate(char*, char**);
 Armember *getdir(Biobuf*);
 void	getpkgdef(char**, int*);
 int	getspace(void);
@@ -743,6 +745,7 @@ objsym(Sym *s, void *p)
 	int n;
 	Arsymref *as;
 	Arfile *ap;
+	char *ofile;
 
 	if (s->type != 'T' &&  s->type != 'D')
 		return;
@@ -750,9 +753,10 @@ objsym(Sym *s, void *p)
 	as = armalloc(sizeof(Arsymref));
 	as->offset = ap->size;
 	as->name = arstrdup(s->name);
-	if(s->type == 'T' && duplicate(as->name)) {
+	as->file = arstrdup(file);
+	if(s->type == 'T' && duplicate(as->name, &ofile)) {
 		dupfound = 1;
-		fprint(2, "duplicate text symbol: %s\n", as->name);
+		fprint(2, "duplicate text symbol: %s and %s: %s\n", as->file, ofile, as->name);
 		free(as->name);
 		free(as);
 		return;
@@ -783,7 +787,7 @@ hashstr(char *name)
 }
 
 int
-duplicate(char *name)
+duplicate(char *name, char **ofile)
 {
 	Hashchain *p;
 	int h;
@@ -791,12 +795,16 @@ duplicate(char *name)
 	h = hashstr(name) % NHASH;
 
 	for(p = hash[h]; p; p = p->next)
-		if(strcmp(p->name, name) == 0)
+		if(strcmp(p->name, name) == 0) {
+			*ofile = p->file;
 			return 1;
+		}
 	p = armalloc(sizeof(Hashchain));
 	p->next = hash[h];
 	p->name = name;
+	p->file = file;
 	hash[h] = p;
+	*ofile = nil;
 	return 0;
 }
 
@@ -893,7 +901,7 @@ getdir(Biobuf *b)
 	while(*--cp==' ')
 		;
 	cp[1] = '\0';
-	file = name;
+	file = arstrdup(name);
 	bp->date = strtol(bp->hdr.date, 0, 0);
 	bp->size = strtol(bp->hdr.size, 0, 0);
 	return bp;
@@ -1487,7 +1495,6 @@ loadpkgdata(char *data, int len)
 	char *p, *ep, *prefix, *name, *def;
 	Import *x;
 
-	file = arstrdup(file);
 	p = data;
 	ep = data + len;
 	while(parsepkgdata(&p, ep, &export, &prefix, &name, &def) > 0) {

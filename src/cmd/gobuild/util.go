@@ -6,8 +6,10 @@
 package gobuild
 
 import (
+	"bufio";
 	"exec";
 	"fmt";
+	"io";
 	"go/ast";
 	"go/parser";
 	"os";
@@ -15,6 +17,11 @@ import (
 	"sort";
 	"strconv";
 	"strings";
+)
+
+const (
+	ShowErrors = 1<<iota;
+	ForceDisplay;
 )
 
 var (
@@ -32,8 +39,8 @@ var theChars = map[string] string {
 
 const ObjDir = "_obj"
 
-func fatal(args ...) {
-	fmt.Fprintf(os.Stderr, "gobuild: %s\n", fmt.Sprint(args));
+func fatal(format string, args ...) {
+	fmt.Fprintf(os.Stderr, "gobuild: %s\n", fmt.Sprintf(format, args));
 	os.Exit(1);
 }
 
@@ -45,7 +52,7 @@ func init() {
 	var ok bool;
 	theChar, ok = theChars[goarch];
 	if !ok {
-		fatal("unknown $GOARCH: ", goarch);
+		fatal("unknown $GOARCH: %s", goarch);
 	}
 
 	var binaries = []string{
@@ -58,7 +65,7 @@ func init() {
 	for i, v := range binaries {
 		var s string;
 		if s, err = exec.LookPath(v); err != nil {
-			fatal("cannot find binary ", v);
+			fatal("cannot find binary %s", v);
 		}
 		bin[v] = s;
 	}
@@ -79,38 +86,55 @@ func PushString(v *[]string, p string) {
 }
 
 
-func run(argv []string, display bool) (ok bool) {
+func run(argv []string, flag int) (ok bool) {
 	argv0 := bin[argv[0]];
-	output := exec.DevNull;
-	if display {
-		output = exec.PassThrough;
+	null, err := os.Open("/dev/null", os.O_RDWR, 0);
+	if err != nil {
+		fatal("open /dev/null: %s", err);
 	}
-	p, err1 := exec.Run(argv0, argv, os.Environ(), exec.DevNull, output, output);
-	if err1 != nil {
+	defer null.Close();
+	r, w, err := os.Pipe();
+	if err != nil {
+		fatal("pipe: %s", err);
+	}
+	pid, err := os.ForkExec(argv0, argv, os.Environ(), "", []*os.File{null, w, w});
+	defer r.Close();
+	w.Close();
+	if err != nil {
 		return false;
 	}
-	w, err2 := p.Wait(0);
-	if err2 != nil {
-		return false;
-	}
-	return w.Exited() && w.ExitStatus() == 0;
-}
 
-func Build(cmd []string, file string, display bool) (ok bool) {
-	if display {
+	// Read the first line of output, if any.  Discard the rest.
+	// If there is output and ShowErrors is set, show it,
+	// preceded by a shell command line.
+	// If ForceDisplay is set, we show the command even
+	// if there's no output; this gets set if we're just trying
+	// to keep the user informed.
+	b := bufio.NewReader(r);
+	line, err := b.ReadLineString('\n', true);
+	if flag & ShowErrors != 0 && line != "" || flag & ForceDisplay != 0 {
 		fmt.Fprint(os.Stderr, "$ ");
-		for i, s := range cmd {
+		for i, s := range argv {
 			fmt.Fprint(os.Stderr, s, " ");
 		}
-		fmt.Fprint(os.Stderr, file, "\n");
+		fmt.Fprint(os.Stderr, "\n");
+		fmt.Fprint(os.Stderr, "  ", line);
+		io.Copy(r, null);	// don't let process block on pipe
 	}
+	waitmsg, err := os.Wait(pid, 0);
+	if err != nil {
+		return false;
+	}
+	return waitmsg.Exited() && waitmsg.ExitStatus() == 0;
+}
 
+func Build(cmd []string, file string, flag int) (ok bool) {
 	var argv []string;
 	for i, c := range cmd {
 		PushString(&argv, c);
 	}
 	PushString(&argv, file);
-	return run(argv, display);
+	return run(argv, flag);
 }
 
 func Archive(pkg string, files []string) {
@@ -118,7 +142,7 @@ func Archive(pkg string, files []string) {
 	for i, file := range files {
 		PushString(&argv, file);
 	}
-	if !run(argv, true) {
+	if !run(argv, ShowErrors) {
 		fatal("archive failed");
 	}
 }
@@ -132,7 +156,7 @@ func Compiler(file string) []string {
 	case strings.HasSuffix(file, ".s"):
 		return []string{ theChar + "a" };
 	}
-	fatal("don't know how to compile ", file);
+	fatal("don't know how to compile %s", file);
 	return nil;
 }
 
