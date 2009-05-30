@@ -14,6 +14,8 @@ import (
 	"sort";
 	"strings";
 	"template";
+	"unicode";
+	"utf8";
 )
 
 type Pkg struct
@@ -148,9 +150,16 @@ func ScanFiles(filenames []string) *Info {
 		f := new(File);
 		f.Name = filename;
 		if path.Ext(filename) == ".go" {
+			rune, _ := utf8.DecodeRuneInString(filename);
+			if rune != '_' && !unicode.IsLetter(rune) && !unicode.IsDecimalDigit(rune) {
+				// Ignore files with funny leading letters,
+				// to avoid editor files like .foo.go and ~foo.go.
+				continue;
+			}
+
 			pkgname, imp, err := PackageImports(filename);
 			if err != nil {
-				fatal("parsing", filename, err.String());
+				fatal("parsing %s: %s", filename, err);
 			}
 			if pkgname == "main" {
 				continue;
@@ -182,7 +191,7 @@ func ScanFiles(filenames []string) *Info {
 			// non-Go file: fill in package name.
 			// Must only be a single package in this directory.
 			if len(z.Pkgmap) != 1 {
-				fatal("cannot determine package for ", f.Name);
+				fatal("cannot determine package for %s", f.Name);
 			}
 			f.Pkg = pkg;
 		}
@@ -240,7 +249,7 @@ func (z *Info) Build() {
 		fail = fail[0:0];
 		success = success[0:0];
 		for _, f := range pending {
-			if !Build(Compiler(f.Name), f.Name, false) {
+			if !Build(Compiler(f.Name), f.Name, 0) {
 				PushFile(&fail, f);
 			} else {
 				if *verbose {
@@ -252,7 +261,7 @@ func (z *Info) Build() {
 		if len(success) == 0 {
 			// Nothing ran; give up.
 			for _, f := range fail {
-				Build(Compiler(f.Name), f.Name, true);
+				Build(Compiler(f.Name), f.Name, ShowErrors | ForceDisplay);
 			}
 			fatal("stalemate");
 		}
@@ -310,7 +319,7 @@ func Main() {
 		var err os.Error;
 		filenames, err= SourceFiles(".");
 		if err != nil {
-			fatal("reading .: ", err.String());
+			fatal("reading .: %s", err.String());
 		}
 	}
 
@@ -319,11 +328,11 @@ func Main() {
 	if *writeMakefile {
 		t, err := template.Parse(makefileTemplate, makefileMap);
 		if err != nil {
-			fatal("template.Parse: ", err.String());
+			fatal("template.Parse: %s", err.String());
 		}
 		err = t.Execute(state, os.Stdout);
 		if err != nil {
-			fatal("template.Expand: ", err.String());
+			fatal("template.Expand: %s", err.String());
 		}
 	}
 }
