@@ -22,5 +22,5 @@ func main() {
 
 
 /*
-bug156.go:14: fatal error: dowidth: unknown type: E-33
+bug158.go:14: fatal error: dowidth: unknown type: E-33
 */
