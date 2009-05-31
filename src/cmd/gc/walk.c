@@ -4084,9 +4084,10 @@ structlit(Node *n, Node *var)
 	Iter savel, saver;
 	Type *l, *t;
 	Node *r, *a;
-	int mixflag;
 	Node* hash[101];
+	int nerr;
 
+	nerr = nerrors;
 	t = n->type;
 	if(t->etype != TSTRUCT)
 		fatal("structlit: not struct");
@@ -4102,7 +4103,6 @@ structlit(Node *n, Node *var)
 	if(r == N)
 		return var;
 
-	mixflag = 0;
 	if(r->op == OKEY)
 		goto keyval;
 	l = structfirst(&savel, &n->type);
@@ -4112,16 +4112,16 @@ structlit(Node *n, Node *var)
 		if(l == T)
 			break;
 		if(r->op == OKEY) {
-			mixflag = 1;	// defer diagnostic
-			l = structnext(&savel);
-			r = listnext(&saver);
-			continue;
+			yyerror("mixture of value and field:value initializers");
+			return var;
 		}
 
 		// build list of var.field = expr
 		a = nod(ODOT, var, newname(l->sym));
 		a = nod(OAS, a, r);
 		walktype(a, Etop);
+		if(nerr != nerrors)
+			return var;
 		addtop = list(addtop, a);
 
 		l = structnext(&savel);
@@ -4131,8 +4131,6 @@ structlit(Node *n, Node *var)
 		yyerror("struct literal expect expr of type %T", l);
 	if(r != N)
 		yyerror("struct literal too many expressions");
-	if(mixflag)
-		yyerror("mixture of field:value initializers");
 	return var;
 
 keyval:
@@ -4143,22 +4141,25 @@ keyval:
 	while(r != N) {
 		// assignment to field:value elements
 		if(r->op != OKEY) {
-			mixflag = 1;
-			r = listnext(&saver);
-			continue;
+			yyerror("mixture of field:value and value initializers");
+			break;
 		}
 
 		// build list of var.field = expr
 		a = nod(ODOT, var, newname(r->left->sym));
 		fielddup(a->right, hash, nelem(hash));
+		if(nerr != nerrors)
+			break;
+
 		a = nod(OAS, a, r->right);
 		walktype(a, Etop);
+		if(nerr != nerrors)
+			break;
+
 		addtop = list(addtop, a);
 
 		r = listnext(&saver);
 	}
-	if(mixflag)
-		yyerror("mixture of field:value initializers");
 	return var;
 }
 
@@ -4193,7 +4194,9 @@ arraylit(Node *n, Node *var)
 	Node *r, *a;
 	long ninit, b;
 	Node* hash[101];
+	int nerr;
 
+	nerr = nerrors;
 	t = n->type;
 	if(t->etype != TARRAY)
 		fatal("arraylit: not array");
@@ -4263,12 +4266,23 @@ arraylit(Node *n, Node *var)
 			}
 			r = r->right;
 		}
+
+		if(t->bound >= 0 && b > t->bound) {
+			yyerror("array index out of bounds");
+			break;
+		}
+
 		a = nodintconst(b);
 		indexdup(a, hash, nelem(hash));
+		if(nerr != nerrors)
+			break;
+
 		a = nod(OINDEX, var, a);
 		a = nod(OAS, a, r);
-
 		walktype(a, Etop);	// add any assignments in r to addtop
+		if(nerr != nerrors)
+			break;
+
 		addtop = list(addtop, a);
 		b++;
 
@@ -4339,7 +4353,9 @@ maplit(Node *n, Node *var)
 	Type *t;
 	Node *r, *a;
 	Node* hash[101];
+	int nerr;
 
+	nerr = nerrors;
 	t = n->type;
 	if(t->etype != TMAP)
 		fatal("maplit: not map");
@@ -4370,10 +4386,15 @@ maplit(Node *n, Node *var)
 
 		// build list of var[c] = expr
 		keydup(r->left, hash, nelem(hash));
+		if(nerr != nerrors)
+			break;
 
 		a = nod(OINDEX, var, r->left);
 		a = nod(OAS, a, r->right);
 		walktype(a, Etop);
+		if(nerr != nerrors)
+			break;
+
 		addtop = list(addtop, a);
 
 		r = listnext(&saver);

@@ -464,9 +464,6 @@ initfix(Node* n)
 if(0)
 return xxx.list;
 
-if(debug['A'])
-dump("preinitfix", xxx.list);
-
 	// look for the copy-out reference
 	r = listfirst(&iter, &xxx.list);
 	while(r != N) {
@@ -476,7 +473,5 @@ dump("preinitfix", xxx.list);
 		}
 		r = listnext(&iter);
 	}
-if(debug['A'])
-dump("postinitfix", xxx.list);
 	return xxx.list;
 }

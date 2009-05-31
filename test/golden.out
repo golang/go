@@ -26,9 +26,6 @@ panic PC=xxx
 =========== ./helloworld.go
 hello, world
 
-=========== ./initializerr.go
-BUG: errchk: ./initializerr.go:17: missing expected error: 'index|too many'
-
 =========== ./peano.go
 0! = 1
 1! = 1
