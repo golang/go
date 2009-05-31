@@ -1539,8 +1539,8 @@ bad:
 void
 walkselect(Node *sel)
 {
-	Iter iter;
-	Node *n, *l, *oc, *on, *r;
+	Iter iter, iter1;
+	Node *n, *n1, *l, *oc, *on, *r;
 	Node *var, *bod, *nbod, *res, *def;
 	int count, op;
 	int32 lno;
@@ -1552,8 +1552,10 @@ walkselect(Node *sel)
 	tempname(var, ptrto(types[TUINT8]));
 
 	n = listfirst(&iter, &sel->left);
-	if(n == N || n->op != OXCASE)
-		yyerror("first select statement must be a case");
+	if(n == N || n->op == OEMPTY) {
+		yyerror("empty select");
+		return;
+	}
 
 	count = 0;	// number of cases
 	res = N;	// entire select body
@@ -1563,72 +1565,67 @@ walkselect(Node *sel)
 
 	for(; n!=N; n=listnext(&iter)) {
 		setlineno(n);
+		if(n->op != OXCASE)
+			fatal("walkselect %O", n->op);
 
-		switch(n->op) {
+		count++;
+		if(n->left == N) {
+			op = ORECV;	// actual value not used
+			if(def != N)
+				yyerror("repeated default; first at %L", def->lineno);
+			def = n;
+		} else
+			op = n->left->op;
+
+		nbod = N;
+		switch(op) {
 		default:
-			bod = list(bod, n);
-			break;
+			yyerror("select cases must be send, recv or default");
+			continue;
 
-		case OXCASE:
-			if(n->left == N) {
-				op = ORECV;	// actual value not used
-				if(def != N)
-					yyerror("only one default select allowed");
-				def = n;
-			} else
-				op = n->left->op;
-			nbod = N;
-			switch(op) {
-			default:
+		case OAS:
+			// convert new syntax (a=recv(chan)) to (recv(a,chan))
+			l = n->left;
+			if(l->right == N || l->right->op != ORECV) {
 				yyerror("select cases must be send, recv or default");
 				break;
-
-			case OAS:
-				// convert new syntax (a=recv(chan)) to (recv(a,chan))
-				l = n->left;
-				if(l->right == N || l->right->op != ORECV) {
-					yyerror("select cases must be send, recv or default");
-					break;
-				}
-				r = l->right;	// rcv
-				r->right = r->left;
-				r->left = l->left;
-				n->left = r;
-
-				// convert case x := foo: body
-				// to case tmp := foo: x := tmp; body.
-				// if x escapes and must be allocated
-				// on the heap, this delays the allocation
-				// until after the select has chosen this branch.
-				if(n->ninit != N && n->ninit->op == ODCL) {
-					on = nod(OXXX, N, N);
-					tempname(on, l->left->type);
-					on->sym = lookup("!tmpselect!");
-					r->left = on;
-					nbod = nod(OAS, l->left, on);
-					nbod->ninit = n->ninit;
-					n->ninit = N;
-				}
-
-				// fall through
-			case OSEND:
-			case ORECV:
-				if(oc != N) {
-					bod = list(bod, nod(OBREAK, N, N));
-					oc->nbody = rev(bod);
-				}
-				oc = selcase(n, var);
-				res = list(res, oc);
-				break;
 			}
-			bod = nbod;
-			count++;
+			r = l->right;	// rcv
+			r->right = r->left;
+			r->left = l->left;
+			n->left = r;
+
+			// convert case x := foo: body
+			// to case tmp := foo: x := tmp; body.
+			// if x escapes and must be allocated
+			// on the heap, this delays the allocation
+			// until after the select has chosen this branch.
+			if(n->ninit != N && n->ninit->op == ODCL) {
+				on = nod(OXXX, N, N);
+				tempname(on, l->left->type);
+				on->sym = lookup("!tmpselect!");
+				r->left = on;
+				nbod = nod(OAS, l->left, on);
+				nbod->ninit = n->ninit;
+				n->ninit = N;
+			}
+			break;
+
+		case OSEND:
+		case ORECV:
 			break;
 		}
-	}
-	if(oc != N) {
-		bod = list(bod, nod(OBREAK, N, N));
-		oc->nbody = rev(bod);
+
+		for(n1 = listfirst(&iter1, &n->nbody); n1 != N; n1 = listnext(&iter1))
+			nbod = list(nbod, n1);
+		nbod = list(nbod, nod(OBREAK, N, N));
+		n->nbody = N;
+
+		oc = selcase(n, var);
+		if(oc != N) {
+			oc->nbody = rev(nbod);
+			res = list(res, oc);
+		}
 	}
 	setlineno(sel);
 
