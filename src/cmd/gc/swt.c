@@ -348,8 +348,8 @@ newlabel()
 void
 casebody(Node *sw)
 {
-	Iter save;
-	Node *os, *oc, *n, *c;
+	Iter save, save1;
+	Node *os, *oc, *n, *n1, *c;
 	Node *cas, *stat, *def;
 	Node *go, *br;
 	int32 lno;
@@ -368,70 +368,56 @@ casebody(Node *sw)
 	oc = N;		// last case
 	br = nod(OBREAK, N, N);
 
-loop:
-	if(n == N) {
-		if(oc == N && os != N)
-			yyerror("first switch statement must be a case");
+	for(; n != N; n = listnext(&save)) {
+		lno = setlineno(n);
+		if(n->op != OXCASE)
+			fatal("casebody %O", n->op);
+		n->op = OCASE;
 
-		stat = list(stat, br);
-		cas = list(cas, def);
+		go = nod(OGOTO, newlabel(), N);
+		c = n->left;
+		if(c == N) {
+			if(def != N)
+				yyerror("more than one default case");
+			// reuse original default case
+			n->right = go;
+			def = n;
+		}
 
-		sw->nbody = nod(OLIST, rev(cas), rev(stat));
+		// expand multi-valued cases
+		for(; c!=N; c=c->right) {
+			if(c->op != OLIST) {
+				// reuse original case
+				n->left = c;
+				n->right = go;
+				cas = list(cas, n);
+				break;
+			}
+			cas = list(cas, nod(OCASE, c->left, go));
+		}
+
+		stat = list(stat, nod(OLABEL, go->left, N));
+
+		os = N;
+		for(n1 = listfirst(&save1, &n->nbody); n1 != N; n1 = listnext(&save1)) {
+			os = n1;
+			stat = list(stat, n1);
+		}
+
+		// botch - shouldnt fall thru declaration
+		if(os != N && os->op == OXFALL)
+			os->op = OFALL;
+		else
+			stat = list(stat, br);
+	}
+
+	stat = list(stat, br);
+	cas = list(cas, def);
+
+	sw->nbody = nod(OLIST, rev(cas), rev(stat));
 //dump("case", sw->nbody->left);
 //dump("stat", sw->nbody->right);
-		lineno = lno;
-		return;
-	}
-
-	lno = setlineno(n);
-
-	if(n->op != OXCASE) {
-		stat = list(stat, n);
-		os = n;
-		goto next;
-	}
-
-	n->op = OCASE;
-	if(oc == N && os != N)
-		yyerror("first switch statement must be a case");
-
-	// botch - shouldnt fall thru declaration
-	if(os != N && os->op == OXFALL)
-		os->op = OFALL;
-	else
-		stat = list(stat, br);
-
-	go = nod(OGOTO, newlabel(), N);
-
-	c = n->left;
-	if(c == N) {
-		if(def != N)
-			yyerror("more than one default case");
-
-		// reuse original default case
-		n->right = go;
-		def = n;
-	}
-
-	// expand multi-valued cases
-	for(; c!=N; c=c->right) {
-		if(c->op != OLIST) {
-			// reuse original case
-			n->left = c;
-			n->right = go;
-			cas = list(cas, n);
-			break;
-		}
-		cas = list(cas, nod(OCASE, c->left, go));
-	}
-	stat = list(stat, nod(OLABEL, go->left, N));
-	oc = n;
-	os = N;
-	goto next;
-
-next:
-	n = listnext(&save);
-	goto loop;
+	lineno = lno;
 }
 
 Case*

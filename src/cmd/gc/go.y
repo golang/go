@@ -47,11 +47,11 @@
 %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
 %type	<node>		oarg_type_list arg_type_list_r arg_chunk arg_chunk_list_r arg_type_list
 %type	<node>		Aelse_stmt Belse_stmt
-%type	<node>		complex_stmt compound_stmt ostmt_list
-%type	<node>		stmt_list_r Astmt_list_r Bstmt_list_r
+%type	<node>		complex_stmt compound_stmt switch_body ocaseblock_list ostmt_list
+%type	<node>		caseblock_list_r stmt_list_r Astmt_list_r Bstmt_list_r
 %type	<node>		Astmt Bstmt
 %type	<node>		for_stmt for_body for_header
-%type	<node>		if_stmt if_body if_header select_stmt condition
+%type	<node>		if_stmt if_header select_stmt switch_stmt condition case caseblock
 %type	<node>		simple_stmt osimple_stmt range_stmt semi_stmt
 %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
 %type	<node>		exprsym3_list_r exprsym3 pseudocall
@@ -511,34 +511,23 @@ simple_stmt:
 	}
 
 complex_stmt:
-	LFOR for_stmt
+	for_stmt
+|	switch_stmt
+|	select_stmt
+|	if_stmt
 	{
 		popdcl();
-		$$ = $2;
+		$$ = $1;
 	}
-|	LSWITCH if_stmt
+|	if_stmt LELSE Aelse_stmt
 	{
 		popdcl();
-		$$ = $2;
-		$$->op = OSWITCH;
+		$$ = $1;
+		$$->nelse = $3;
 	}
-|	LIF if_stmt
-	{
-		popdcl();
-		$$ = $2;
-	}
-|	LIF if_stmt LELSE Aelse_stmt
-	{
-		popdcl();
-		$$ = $2;
-		$$->nelse = $4;
-	}
-|	LSELECT select_stmt
-	{
-		popdcl();
-		$$ = $2;
-	}
-|	LCASE expr_list ':'
+
+case:
+	LCASE expr_list ':'
 	{
 		// will be converted to OCASE
 		// right will point to next case
@@ -620,11 +609,11 @@ semi_stmt:
 	{
 		$$ = nod(ORETURN, $2, N);
 	}
-|	LIF if_stmt LELSE Belse_stmt
+|	if_stmt LELSE Belse_stmt
 	{
 		popdcl();
-		$$ = $2;
-		$$->nelse = $4;
+		$$ = $1;
+		$$->nelse = $3;
 	}
 
 compound_stmt:
@@ -637,6 +626,33 @@ compound_stmt:
 		if($$ == N)
 			$$ = nod(OEMPTY, N, N);
 		popdcl();
+	}
+
+switch_body:
+	'{'
+	{
+		markdcl();
+	}
+	ocaseblock_list '}'
+	{
+		$$ = $3;
+		if($$ == N)
+			$$ = nod(OEMPTY, N, N);
+		popdcl();
+	}
+
+caseblock:
+	case ostmt_list
+	{
+		$$ = $1;
+		$$->nbody = $2;
+	}
+
+caseblock_list_r:
+	caseblock
+|	caseblock_list_r caseblock
+	{
+		$$ = nod(OLIST, $1, $2);
 	}
 
 range_stmt:
@@ -684,11 +700,14 @@ for_body:
 	}
 
 for_stmt:
+	LFOR
 	{
 		markdcl();
-	} for_body
+	}
+	for_body
 	{
-		$$ = $2;
+		$$ = $3;
+		popdcl();
 	}
 
 /*
@@ -722,38 +741,51 @@ if_header:
 		$$->ntest = $3;
 	}
 
-if_body:
+if_stmt:
+	LIF
+	{
+		markdcl();
+	}
+	if_header compound_stmt
+	{
+		$$ = $3;
+		$$->nbody = $4;
+		// no popdcl; maybe there's an LELSE
+	}
+
+switch_stmt:
+	LSWITCH
+	{
+		markdcl();
+	}
 	if_header
 	{
 		Node *n;
-		n = $1->ntest;
+		n = $3->ntest;
 		if(n != N && n->op == OTYPESW)
 			n = n->left;
 		else
 			n = N;
 		typeswvar = nod(OLIST, typeswvar, n);
-	} compound_stmt
-	{
-		$$ = $1;
-		$$->nbody = $3;
-		typeswvar = typeswvar->left;
 	}
-
-if_stmt:
+	switch_body
 	{
-		markdcl();
-	} if_body
-	{
-		$$ = $2;
+		$$ = $3;
+		$$->op = OSWITCH;
+		$$->nbody = $5;
+		typeswvar = typeswvar->left;
+		popdcl();
 	}
 
 select_stmt:
+	LSELECT
 	{
 		markdcl();
 	}
-	compound_stmt
+	switch_body
 	{
-		$$ = nod(OSELECT, $2, N);
+		$$ = nod(OSELECT, $3, N);
+		popdcl();
 	}
 
 /*
@@ -1845,6 +1877,15 @@ ostmt_list:
 		$$ = N;
 	}
 |	stmt_list_r
+	{
+		$$ = rev($1);
+	}
+
+ocaseblock_list:
+	{
+		$$ = N;
+	}
+|	caseblock_list_r
 	{
 		$$ = rev($1);
 	}
