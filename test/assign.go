@@ -16,18 +16,18 @@ type T struct {
 func main() {
 	{
 		var x, y sync.Mutex;
-		x = y;	// ERROR "assignment.*Mutex"
+		x = y;	// ERROR "assignment\[ -~\]*Mutex"
 	}
 	{
 		var x, y T;
-		x = y;	// ERROR "assignment.*Mutex"
+		x = y;	// ERROR "assignment\[ -~\]*Mutex"
 	}
 	{
 		var x, y [2]sync.Mutex;
-		x = y;	// ERROR "assignment.*Mutex"
+		x = y;	// ERROR "assignment\[ -~\]*Mutex"
 	}
 	{
 		var x, y [2]T;
-		x = y;	// ERROR "assignment.*Mutex"
+		x = y;	// ERROR "assignment\[ -~\]*Mutex"
 	}
 }
