@@ -27,6 +27,6 @@ func main() {
 
 
 /*
-bug155.go:20: syntax error near default
-bug155.go:20: first switch statement must be a case
+bug157.go:20: syntax error near default
+bug157.go:20: first switch statement must be a case
 */

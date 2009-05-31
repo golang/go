@@ -33,6 +33,14 @@ struct	Case
 };
 #define	C	((Case*)nil)
 
+Type*
+notideal(Type *t)
+{
+	if(t != T && t->etype == TIDEAL)
+		return T;
+	return t;
+}
+
 void
 dumpcase(Case *c0)
 {
@@ -254,8 +262,8 @@ sw0(Node *c, Type *place, int arg)
 Type*
 sw1(Node *c, Type *place, int arg)
 {
-	if(place == T)
-		return c->type;
+	if(place != T)
+		return notideal(c->type);
 	return place;
 }
 
@@ -605,7 +613,7 @@ exprswitch(Node *sw)
 	 * walk the cases as appropriate for switch type
 	 */
 	walkcases(sw, sw0, arg);
-	t = sw->ntest->type;
+	t = notideal(sw->ntest->type);
 	if(t == T)
 		t = walkcases(sw, sw1, arg);
 	if(t == T)
