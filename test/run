@@ -7,9 +7,14 @@ case X"$GOARCH" in
 Xamd64)
 	export A=6
 	;;
+X386)
+	export A=8
+	;;
+Xarm)
+	export A=5
+	;;
 *)
-	export A=6
-	echo 1>&2 run: assuming amd64
+	echo 1>&2 run: unsupported '$GOARCH'
 	exit 1
 esac
 
@@ -36,7 +41,7 @@ do
 	do
 		export F=$(basename $i .go)
 		export D=$dir
-		sed -n '1,/[^/]/p' $i | sed 's@//@@; $d' > $RUNFILE
+		sed '/^\/\//!q' $i | sed 's@//@@; $d' > $RUNFILE
 		if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
 		then
 			echo
