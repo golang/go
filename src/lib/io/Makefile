@@ -45,6 +45,7 @@ O1=\
 
 O2=\
 	pipe.$O\
+	utils.$O\
 
 
 phases: a1 a2
@@ -55,7 +56,7 @@ a1: $(O1)
 	rm -f $(O1)
 
 a2: $(O2)
-	$(AR) grc _obj$D/io.a pipe.$O
+	$(AR) grc _obj$D/io.a pipe.$O utils.$O
 	rm -f $(O2)
 
 
