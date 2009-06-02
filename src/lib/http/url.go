@@ -41,37 +41,60 @@ func unhex(c byte) byte {
 	return 0
 }
 
+// Return true if the specified character should be escaped when appearing in a
+// URL string.
+//
+// TODO: for now, this is a hack; it only flags a few common characters that have
+// special meaning in URLs.  That will get the job done in the common cases.
+func shouldEscape(c byte) bool {
+	switch c {
+	case ' ', '?', '&', '=', '#', '+', '%':
+		return true;
+	}
+	return false;
+}
+
 // URLUnescape unescapes a URL-encoded string,
-// converting %AB into the byte 0xAB.
+// converting %AB into the byte 0xAB and '+' into ' ' (space).
 // It returns a BadURL error if any % is not followed
 // by two hexadecimal digits.
 func URLUnescape(s string) (string, os.Error) {
 	// Count %, check that they're well-formed.
 	n := 0;
+	anyPlusses := false;
 	for i := 0; i < len(s); {
-		if s[i] == '%' {
+		switch s[i] {
+		case '%':
 			n++;
-			if !ishex(s[i+1]) || !ishex(s[i+2]) {
+			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
 				return "", BadURL{"invalid hexadecimal escape"}
 			}
-			i += 3
-		} else {
+			i += 3;
+		case '+':
+			anyPlusses = true;
+			i++;
+		default:
 			i++
 		}
 	}
 
-	if n == 0 {
+	if n == 0 && !anyPlusses {
 		return s, nil
 	}
 
 	t := make([]byte, len(s)-2*n);
 	j := 0;
 	for i := 0; i < len(s); {
-		if s[i] == '%' {
+		switch s[i] {
+		case '%':
 			t[j] = unhex(s[i+1]) << 4 | unhex(s[i+2]);
 			j++;
 			i += 3;
-		} else {
+		case '+':
+			t[j] = ' ';
+			j++;
+			i++;
+		default:
 			t[j] = s[i];
 			j++;
 			i++;
@@ -80,9 +103,53 @@ func URLUnescape(s string) (string, os.Error) {
 	return string(t), nil;
 }
 
+// URLEscape converts a string into URL-encoded form.
+func URLEscape(s string) string {
+	spaceCount, hexCount := 0, 0;
+	for i := 0; i < len(s); i++ {
+		c := s[i];
+		if (shouldEscape(c)) {
+			if (c == ' ') {
+				spaceCount++;
+			} else {
+				hexCount++;
+			}
+		}
+	}
+
+	if spaceCount == 0 && hexCount == 0 {
+		return s;
+	}
+
+	t := make([]byte, len(s)+2*hexCount);
+	j := 0;
+	for i := 0; i < len(s); i++ {
+		c := s[i];
+		if !shouldEscape(c) {
+			t[j] = s[i];
+			j++;
+		} else if (c == ' ') {
+			t[j] = '+';
+			j++;
+		} else {
+			t[j] = '%';
+			t[j+1] = "0123456789abcdef"[c>>4];
+			t[j+2] = "0123456789abcdef"[c&15];
+			j += 3;
+		}
+	}
+	return string(t);
+}
+
 // A URL represents a parsed URL (technically, a URI reference).
 // The general form represented is:
 //	scheme://[userinfo@]host/path[?query][#fragment]
+// The Raw, RawPath, and RawQuery fields are in "wire format" (special
+// characters must be hex-escaped if not meant to have special meaning).
+// All other fields are logical values; '+' or '%' represent themselves.
+//
+// Note, the reason for using wire format for the query is that it needs
+// to be split into key/value pairs before decoding.
 type URL struct {
 	Raw string;		// the original string
 	Scheme string;		// scheme
@@ -91,7 +158,7 @@ type URL struct {
 	Userinfo string;	// userinfo
 	Host string;		// host
 	Path string;		// /path
-	Query string;		// query
+	RawQuery string;	// query
 	Fragment string;	// fragment
 }
 
@@ -156,10 +223,7 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 	// RFC 2396: a relative URI (no scheme) has a ?query,
 	// but absolute URIs only have query if path begins with /
 	if url.Scheme == "" || len(path) > 0 && path[0] == '/' {
-		path, url.Query = split(path, '?', true);
-		if url.Query, err = URLUnescape(url.Query); err != nil {
-			return nil, err
-		}
+		path, url.RawQuery = split(path, '?', true);
 	}
 
 	// Maybe path is //authority/path
@@ -178,6 +242,21 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 	// TODO: Canonicalize (remove . and ..)?
 	if url.Path, err = URLUnescape(path); err != nil {
 		return nil, err
+	}
+
+	// Remove escapes from the Authority and Userinfo fields, and verify
+	// that Scheme and Host contain no escapes (that would be illegal).
+	if url.Authority, err = URLUnescape(url.Authority); err != nil {
+		return nil, err
+	}
+	if url.Userinfo, err = URLUnescape(url.Userinfo); err != nil {
+		return nil, err
+	}
+	if (strings.Index(url.Scheme, "%") >= 0) {
+		return nil, BadURL{"hexadecimal escape in scheme"}
+	}
+	if (strings.Index(url.Host, "%") >= 0) {
+		return nil, BadURL{"hexadecimal escape in host"}
 	}
 
 	return url, nil
@@ -200,7 +279,7 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
 //
 // There are redundant fields stored in the URL structure:
 // the String method consults Scheme, Path, Host, Userinfo,
-// Query, and Fragment, but not RawPath or Authority.
+// RawQuery, and Fragment, but not Raw, RawPath or Authority.
 func (url *URL) String() string {
 	result := "";
 	if url.Scheme != "" {
@@ -209,16 +288,16 @@ func (url *URL) String() string {
 	if url.Host != "" || url.Userinfo != "" {
 		result += "//";
 		if url.Userinfo != "" {
-			result += url.Userinfo + "@";
+			result += URLEscape(url.Userinfo) + "@";
 		}
 		result += url.Host;
 	}
-	result += url.Path;
-	if url.Query != "" {
-		result += "?" + url.Query;
+	result += URLEscape(url.Path);
+	if url.RawQuery != "" {
+		result += "?" + url.RawQuery;
 	}
 	if url.Fragment != "" {
-		result += "#" + url.Fragment;
+		result += "#" + URLEscape(url.Fragment);
 	}
 	return result;
 }
