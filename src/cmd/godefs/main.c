@@ -85,13 +85,14 @@
 void
 usage(void)
 {
-	fprint(2, "usage: godefs [-g] [-c cc] [-f cc-flag] defs.c\n");
+	fprint(2, "usage: godefs [-g package] [-c cc] [-f cc-flag] [defs.c ...]\n");
 	exit(1);
 }
 
 int gotypefmt(Fmt*);
 int ctypefmt(Fmt*);
 int prefixlen(Type*);
+int cutprefix(char*);
 
 Lang go =
 {
@@ -102,8 +103,8 @@ Lang go =
 	"type",
 
 	"type %s struct {\n",
-	"type %s union {\n",	// not really, but readable
-	"\tpad%d [%d]byte;\n",
+	"type %s struct {\n",
+	"\tPad%d [%d]byte;\n",
 	"}\n",
 
 	gotypefmt,
@@ -125,6 +126,8 @@ Lang c =
 	ctypefmt,
 };
 
+char *pkg;
+
 int oargc;
 char **oargv;
 Lang *lang = &c;
@@ -136,10 +139,16 @@ Type **typ;
 int ntyp;
 
 void
+waitforgcc(void)
+{
+	waitpid();
+}
+
+void
 main(int argc, char **argv)
 {
 	int p[2], pid, i, j, n, off, npad, prefix;
-	char *av[30], *q, *r, *tofree, *name;
+	char **av, *q, *r, *tofree, *name;
 	Biobuf *bin, *bout;
 	Type *t;
 	Field *f;
@@ -148,33 +157,37 @@ main(int argc, char **argv)
 
 	oargc = argc;
 	oargv = argv;
+	av = emalloc((30+argc)*sizeof av[0]);
+	atexit(waitforgcc);
 
 	n = 0;
 	av[n++] = "gcc";
+	av[n++] = "-c";
 	av[n++] = "-fdollars-in-identifiers";
 	av[n++] = "-S";	// write assembly
 	av[n++] = "-gstabs";	// include stabs info
 	av[n++] = "-o-";	// to stdout
+	av[n++] = "-xc";	// read C
 
 	ARGBEGIN{
 	case 'g':
 		lang = &go;
+		pkg = EARGF(usage());
 		break;
 	case 'c':
 		av[0] = EARGF(usage());
 		break;
 	case 'f':
-		if(n+2 >= nelem(av))
-			sysfatal("too many -f options");
 		av[n++] = EARGF(usage());
 		break;
 	default:
 		usage();
 	}ARGEND
 
-	if(argc != 1)
-		usage();
-	av[n++] = argv[0];
+	if(argc == 0)
+		av[n++] = "-";
+	else
+		av[n++] = argv[0];
 	av[n] = nil;
 
 	// Run gcc writing assembly and stabs debugging to p[1].
@@ -187,11 +200,28 @@ main(int argc, char **argv)
 	if(pid == 0) {
 		close(p[0]);
 		dup(p[1], 1);
+		if(argc == 0) {
+			exec(av[0], av);
+			fprint(2, "exec gcc: %r\n");
+			exit(1);
+		}
+		// Some versions of gcc do not accept -S with multiple files.
+		// Run gcc once for each file.
 		close(0);
 		open("/dev/null", OREAD);
-		exec(av[0], av);
-		fprint(2, "exec gcc: %r\n");
-		exit(1);
+		for(i=0; i<argc; i++) {
+			pid = fork();
+			if(pid < 0)
+				sysfatal("fork: %r");
+			if(pid == 0) {
+				av[n-1] = argv[i];
+				exec(av[0], av);
+				fprint(2, "exec gcc: %r\n");
+				exit(1);
+			}
+			waitpid();
+		}
+		exit(0);
 	}
 	close(p[1]);
 
@@ -244,6 +274,9 @@ main(int argc, char **argv)
 	Bprint(bout, "// MACHINE GENERATED - DO NOT EDIT.\n");
 	Bprint(bout, "\n");
 
+	if(pkg)
+		Bprint(bout, "package %s\n\n", pkg);
+
 	// Constants.
 	Bprint(bout, "// Constants\n");
 	if(ncon > 0) {
@@ -276,9 +309,25 @@ main(int argc, char **argv)
 	for(i=0; i<ntyp; i++) {
 		Bprint(bout, "\n");
 		t = typ[i];
-		while(t && t->kind == Typedef)
-			t = t->type;
 		name = t->name;
+		while(t && t->kind == Typedef) {
+			if(name == nil && t->name != nil) {
+				name = t->name;
+				if(t->printed)
+					break;
+			}
+			t = t->type;
+		}
+		if(name == nil && t->name != nil) {
+			name = t->name;
+			if(t->printed)
+				continue;
+			t->printed = 1;
+		}
+		if(name == nil) {
+			fprint(2, "unknown name for %T", typ[i]);
+			continue;
+		}
 		if(name[0] == '$')
 			name++;
 		npad = 0;
@@ -293,10 +342,8 @@ main(int argc, char **argv)
 			Bprint(bout, "%s %lT\n", lang->typdef, name, t);
 			break;
 		case Union:
-			if(lang == &go) {
-				fprint(2, "%s: cannot emit unions in go\n", name);
-				continue;
-			}
+			// In Go, print union as struct with only first element,
+			// padded the rest of the way.
 			Bprint(bout, lang->unionbegin, name, name, name);
 			goto StructBody;
 		case Struct:
@@ -308,7 +355,7 @@ main(int argc, char **argv)
 			for(j=0; j<t->nf; j++) {
 				f = &t->f[j];
 				// padding
-				if(t->kind == Struct) {
+				if(t->kind == Struct || lang == &go) {
 					if(f->offset%8 != 0 || f->size%8 != 0) {
 						fprint(2, "ignoring bitfield %s.%s\n", t->name, f->name);
 						continue;
@@ -321,10 +368,15 @@ main(int argc, char **argv)
 					}
 					off += f->size;
 				}
-				Bprint(bout, "\t%lT;\n", f->name+prefix, f->type);
+				name = f->name;
+				if(cutprefix(name))
+					name += prefix;
+				Bprint(bout, "\t%lT;\n", name, f->type);
+				if(t->kind == Union && lang == &go)
+					break;
 			}
 			// final padding
-			if(t->kind == Struct) {
+			if(t->kind == Struct || lang == &go) {
 				if(off/8 < t->size)
 					Bprint(bout, lang->structpadfmt, npad++, t->size - off/8);
 			}
@@ -444,13 +496,13 @@ gotypefmt(Fmt *f)
 		s = t->name;
 		if(s == nil) {
 			fprint(2, "need name for anonymous struct\n");
-			s = "STRUCT";
+			fmtprint(f, "STRUCT");
 		}
-		else if(s[0] != '$')
-			fprint(2, "need name for struct %s\n", s);
-		else
-			s++;
-		fmtprint(f, "%s", s);
+		else if(s[0] != '$') {
+			fprint(2, "warning: missing name for struct %s\n", s);
+			fmtprint(f, "[%d]byte /* %s */", t->size, s);
+		} else
+			fmtprint(f, "%s", s+1);
 		break;
 
 	case Array:
@@ -471,6 +523,21 @@ gotypefmt(Fmt *f)
 	return 0;
 }
 
+// Is this the kind of name we should cut a prefix from?
+// The rule is that the name cannot begin with underscore
+// and must have an underscore eventually.
+int
+cutprefix(char *name)
+{
+	char *p;
+
+	for(p=name; *p; p++) {
+		if(*p == '_')
+			return p-name > 0;
+	}
+	return 0;
+}
+
 // Figure out common struct prefix len
 int
 prefixlen(Type *t)
@@ -484,6 +551,8 @@ prefixlen(Type *t)
 	name = nil;
 	for(i=0; i<t->nf; i++) {
 		f = &t->f[i];
+		if(!cutprefix(f->name))
+			continue;
 		p = strchr(f->name, '_');
 		if(p == nil)
 			return 0;

@@ -209,6 +209,7 @@ parsedef(char **pp, char *name)
 	t = emalloc(sizeof *t);
 	switch(*p) {
 	default:
+		fprint(2, "unknown type char %c\n", *p);
 		*pp = "";
 		return t;
 
@@ -380,7 +381,24 @@ parsedef(char **pp, char *name)
 		}
 		break;
 
-
+	case 'x':
+		// reference to struct, union not yet defined.
+		p++;
+		switch(*p) {
+		case 's':
+			t->kind = Struct;
+			break;
+		case 'u':
+			t->kind = Union;
+			break;
+		default:
+			fprint(2, "unknown x type char x%c", *p);
+			*pp = "";
+			return t;
+		}
+		if(parsename(&p, &t->name) < 0)
+			return nil;
+		break;
 	}
 	*pp = p;
 	return t;

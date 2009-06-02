@@ -51,6 +51,7 @@ struct Type
 
 	int saved;	// recorded in typ array
 	int warned;	// warned about needing type
+	int printed;	// has the definition been printed yet?
 };
 
 struct Field
