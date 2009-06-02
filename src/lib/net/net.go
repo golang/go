@@ -113,6 +113,12 @@ func kernelSupportsIPv6() bool {
 
 var preferIPv4 = !kernelSupportsIPv6()
 
+// TODO(rsc): if syscall.OS == "linux", we're supposd to read
+// /proc/sys/net/core/somaxconn,
+// to take advantage of kernels that have raised the limit.
+func listenBacklog() int {
+	return syscall.SOMAXCONN
+}
 
 func LookupHost(name string) (cname string, addrs []string, err os.Error)
 
@@ -212,20 +218,48 @@ func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
 	return addr, p, nil
 }
 
-// Convert socket address into "host:port".
-func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err os.Error) {
-	switch sa.Family {
-	case syscall.AF_INET, syscall.AF_INET6:
-		addr, port, e := sockaddrToIP(sa);
-		if e != nil {
-			return "", e
-		}
-		host := addr.String();
-		return joinHostPort(host, strconv.Itoa(port)), nil;
-	default:
-		return "", UnknownSocketFamily
+func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
+	switch a := sa.(type) {
+	case *syscall.SockaddrInet4:
+		return joinHostPort(IP(&a.Addr).String(), strconv.Itoa(a.Port)), nil;
+	case *syscall.SockaddrInet6:
+		return joinHostPort(IP(&a.Addr).String(), strconv.Itoa(a.Port)), nil;
+	case *syscall.SockaddrUnix:
+		return a.Name, nil;
 	}
-	return "", nil // not reached
+	return "", UnknownSocketFamily
+}
+
+func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+	switch family {
+	case syscall.AF_INET:
+		if ip = ip.To4(); ip == nil {
+			return nil, os.EINVAL
+		}
+		s := new(syscall.SockaddrInet4);
+		for i := 0; i < IPv4len; i++ {
+			s.Addr[i] = ip[i];
+		}
+		s.Port = port;
+		return s, nil;
+	case syscall.AF_INET6:
+		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
+		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
+		// which it refuses to do.  Rewrite to the IPv6 all zeros.
+		if p4 := ip.To4(); p4 != nil && p4[0] == 0 && p4[1] == 0 && p4[2] == 0 && p4[3] == 0 {
+			ip = IPzero;
+		}
+		if ip = ip.To16(); ip == nil {
+			return nil, os.EINVAL
+		}
+		s := new(syscall.SockaddrInet6);
+		for i := 0; i < IPv6len; i++ {
+			s.Addr[i] = ip[i];
+		}
+		s.Port = port;
+		return s, nil;
+	}
+	return nil, os.EINVAL;
 }
 
 // Boolean to int.
@@ -237,7 +271,7 @@ func boolint(b bool) int {
 }
 
 // Generic socket creation.
-func socket(net, laddr, raddr string, f, p, t int64, la, ra *syscall.Sockaddr) (fd *netFD, err os.Error) {
+func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd *netFD, err os.Error) {
 	// See ../syscall/exec.go for description of ForkLock.
 	syscall.ForkLock.RLock();
 	s, e := syscall.Socket(f, p, t);
@@ -249,11 +283,11 @@ func socket(net, laddr, raddr string, f, p, t int64, la, ra *syscall.Sockaddr) (
 	syscall.ForkLock.RUnlock();
 
 	// Allow reuse of recently-used addresses.
-	syscall.Setsockopt_int(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1);
+	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1);
 
 	var r int64;
 	if la != nil {
-		r, e = syscall.Bind(s, la);
+		e = syscall.Bind(s, la);
 		if e != 0 {
 			syscall.Close(s);
 			return nil, os.ErrnoToError(e)
@@ -261,7 +295,7 @@ func socket(net, laddr, raddr string, f, p, t int64, la, ra *syscall.Sockaddr) (
 	}
 
 	if ra != nil {
-		r, e = syscall.Connect(s, ra);
+		e = syscall.Connect(s, ra);
 		if e != 0 {
 			syscall.Close(s);
 			return nil, os.ErrnoToError(e)
@@ -291,7 +325,7 @@ func (c *connBase) File() *os.File {
 	return c.fd.file;
 }
 
-func (c *connBase) sysFD() int64 {
+func (c *connBase) sysFD() int {
 	if c == nil || c.fd == nil {
 		return -1;
 	}
@@ -335,20 +369,21 @@ func (c *connBase) Close() os.Error {
 }
 
 
-func setsockopt_int(fd, level, opt int64, value int) os.Error {
-	return os.ErrnoToError(syscall.Setsockopt_int(fd, level, opt, value));
+func setsockoptInt(fd, level, opt int, value int) os.Error {
+	return os.ErrnoToError(syscall.SetsockoptInt(fd, level, opt, value));
 }
 
-func setsockopt_tv(fd, level, opt int64, nsec int64) os.Error {
-	return os.ErrnoToError(syscall.Setsockopt_tv(fd, level, opt, nsec));
+func setsockoptNsec(fd, level, opt int, nsec int64) os.Error {
+	var tv = syscall.NsecToTimeval(nsec);
+	return os.ErrnoToError(syscall.SetsockoptTimeval(fd, level, opt, &tv));
 }
 
 func (c *connBase) SetReadBuffer(bytes int) os.Error {
-	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes);
+	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes);
 }
 
 func (c *connBase) SetWriteBuffer(bytes int) os.Error {
-	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes);
+	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes);
 }
 
 func (c *connBase) SetReadTimeout(nsec int64) os.Error {
@@ -369,7 +404,7 @@ func (c *connBase) SetTimeout(nsec int64) os.Error {
 }
 
 func (c *connBase) SetReuseAddr(reuse bool) os.Error {
-	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse));
+	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse));
 }
 
 func (c *connBase) BindToDevice(dev string) os.Error {
@@ -378,22 +413,30 @@ func (c *connBase) BindToDevice(dev string) os.Error {
 }
 
 func (c *connBase) SetDontRoute(dontroute bool) os.Error {
-	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute));
+	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute));
 }
 
 func (c *connBase) SetKeepAlive(keepalive bool) os.Error {
-	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive));
+	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive));
 }
 
 func (c *connBase) SetLinger(sec int) os.Error {
-	e := syscall.Setsockopt_linger(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec);
+	var l syscall.Linger;
+	if sec >= 0 {
+		l.Onoff = 1;
+		l.Linger = int32(sec);
+	} else {
+		l.Onoff = 0;
+		l.Linger = 0;
+	}
+	e := syscall.SetsockoptLinger(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_LINGER, &l);
 	return os.ErrnoToError(e);
 }
 
 
 // Internet sockets (TCP, UDP)
 
-func internetSocket(net, laddr, raddr string, proto int64, mode string) (fd *netFD, err os.Error) {
+func internetSocket(net, laddr, raddr string, proto int, mode string) (fd *netFD, err os.Error) {
 	// Parse addresses (unless they are empty).
 	var lip, rip IP;
 	var lport, rport int;
@@ -430,25 +473,22 @@ func internetSocket(net, laddr, raddr string, proto int64, mode string) (fd *net
 		}
 	}
 
-	var cvt func(addr IP, port int) (sa *syscall.Sockaddr, err os.Error);
-	var family int64;
+	var family int;
 	if vers == 4 {
-		cvt = v4ToSockaddr;
 		family = syscall.AF_INET
 	} else {
-		cvt = v6ToSockaddr;
 		family = syscall.AF_INET6
 	}
 
-	var la, ra *syscall.Sockaddr;
+	var la, ra syscall.Sockaddr;
 	if lip != nil {
-		la, lerr = cvt(lip, lport);
+		la, lerr = ipToSockaddr(family, lip, lport);
 		if lerr != nil {
 			return nil, lerr
 		}
 	}
 	if rip != nil {
-		ra, rerr = cvt(rip, rport);
+		ra, rerr = ipToSockaddr(family, rip, rport);
 		if rerr != nil {
 			return nil, rerr
 		}
@@ -471,7 +511,7 @@ func (c *ConnTCP) SetNoDelay(nodelay bool) os.Error {
 	if c == nil {
 		return os.EINVAL
 	}
-	return setsockopt_int(c.sysFD(), syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(nodelay))
+	return setsockoptInt(c.sysFD(), syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(nodelay))
 }
 
 func newConnTCP(fd *netFD, raddr string) *ConnTCP {
@@ -535,7 +575,7 @@ func DialUDP(net, laddr, raddr string) (c *ConnUDP, err os.Error) {
 // Unix domain sockets
 
 func unixSocket(net, laddr, raddr string, mode string) (fd *netFD, err os.Error) {
-	var proto int64;
+	var proto int;
 	switch net {
 	default:
 		return nil, UnknownNetwork;
@@ -545,7 +585,7 @@ func unixSocket(net, laddr, raddr string, mode string) (fd *netFD, err os.Error)
 		proto = syscall.SOCK_DGRAM;
 	}
 
-	var la, ra *syscall.Sockaddr;
+	var la, ra syscall.Sockaddr;
 	switch mode {
 	case "dial":
 		if laddr != "" {
@@ -554,19 +594,13 @@ func unixSocket(net, laddr, raddr string, mode string) (fd *netFD, err os.Error)
 		if raddr == "" {
 			return nil, MissingAddress;
 		}
-		ra, err = unixToSockaddr(raddr);
-		if err != nil {
-			return nil, err;
-		}
+		ra = &syscall.SockaddrUnix{Name: raddr};
 
 	case "listen":
 		if laddr == "" {
 			return nil, MissingAddress;
 		}
-		la, err = unixToSockaddr(laddr);
-		if err != nil {
-			return nil, err;
-		}
+		la = &syscall.SockaddrUnix{Name: laddr};
 		if raddr != "" {
 			return nil, BadAddress;
 		}
@@ -636,7 +670,7 @@ func ListenUnix(net, laddr string) (l *ListenerUnix, err os.Error) {
 		}
 		fd = fd1;
 	}
-	r, e1 := syscall.Listen(fd.fd, 8); // listenBacklog());
+	e1 := syscall.Listen(fd.fd, 8); // listenBacklog());
 	if e1 != 0 {
 		syscall.Close(fd.fd);
 		return nil, os.ErrnoToError(e1);
@@ -650,17 +684,11 @@ func (l *ListenerUnix) AcceptUnix() (c *ConnUnix, raddr string, err os.Error) {
 	if l == nil || l.fd == nil || l.fd.fd < 0 {
 		return nil, "", os.EINVAL
 	}
-	var sa syscall.Sockaddr;
-	fd, e := l.fd.Accept(&sa);
+	fd, e := l.fd.accept();
 	if e != nil {
 		return nil, "", e
 	}
-	raddr, err = sockaddrToUnix(&sa);
-	if err != nil {
-		fd.Close();
-		return nil, "", err
-	}
-	return newConnUnix(fd, raddr), raddr, nil
+	return newConnUnix(fd, fd.raddr), raddr, nil
 }
 
 // Accept implements the Accept method in the Listener interface;
@@ -765,7 +793,7 @@ func ListenTCP(net, laddr string) (l *ListenerTCP, err os.Error) {
 	if e != nil {
 		return nil, e
 	}
-	r, e1 := syscall.Listen(fd.fd, listenBacklog());
+	e1 := syscall.Listen(fd.fd, listenBacklog());
 	if e1 != 0 {
 		syscall.Close(fd.fd);
 		return nil, os.ErrnoToError(e1)
@@ -781,17 +809,11 @@ func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err os.Error) {
 	if l == nil || l.fd == nil || l.fd.fd < 0 {
 		return nil, "", os.EINVAL
 	}
-	var sa syscall.Sockaddr;
-	fd, e := l.fd.Accept(&sa);
+	fd, e := l.fd.accept();
 	if e != nil {
 		return nil, "", e
 	}
-	raddr, err = sockaddrToHostPort(&sa);
-	if err != nil {
-		fd.Close();
-		return nil, "", err
-	}
-	return newConnTCP(fd, raddr), raddr, nil
+	return newConnTCP(fd, fd.raddr), fd.raddr, nil
 }
 
 // Accept implements the Accept method in the Listener interface;

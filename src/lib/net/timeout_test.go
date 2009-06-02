@@ -30,7 +30,7 @@ func testTimeout(t *testing.T, network, addr string) {
 	}
 }
 
-func TestTmeoutUDP(t *testing.T) {
+func TestTimeoutUDP(t *testing.T) {
 	testTimeout(t, "udp", "127.0.0.1:53");
 }
 

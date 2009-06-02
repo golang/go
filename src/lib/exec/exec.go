@@ -139,7 +139,7 @@ Error:
 // Setting options to 0 waits for p to exit;
 // other options cause Wait to return for other
 // process events; see package os for details.
-func (p *Cmd) Wait(options uint64) (*os.Waitmsg, os.Error) {
+func (p *Cmd) Wait(options int) (*os.Waitmsg, os.Error) {
 	if p.Pid < 0 {
 		return nil, os.EINVAL;
 	}

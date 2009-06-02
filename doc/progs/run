@@ -46,7 +46,7 @@ function testitpipe {
 
 
 testit helloworld "" "Hello, world; or Καλημέρα κόσμε; or こんにちは 世界"
-testit helloworld3 "" "hello, world can't open file; err=No such file or directory"
+testit helloworld3 "" "hello, world can't open file; err=no such file or directory"
 testit echo "hello, world" "hello, world"
 testit sum "" "6"
 

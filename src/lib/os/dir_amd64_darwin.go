@@ -32,25 +32,31 @@ func readdirnames(file *File, count int) (names []string, err Error) {
 	for count != 0 {
 		// Refill the buffer if necessary
 		if d.bufp >= d.nbuf {
-			var errno int64;
-			// Final argument is (basep *int64) and the syscall doesn't take nil.
-			d.nbuf, errno = syscall.Getdirentries(file.fd, &d.buf[0], int64(len(d.buf)), new(int64));
-			if d.nbuf < 0 {
+			var errno int;
+			d.bufp = 0;
+			// Final argument is (basep *uintptr) and the syscall doesn't take nil.
+			d.nbuf, errno = syscall.Getdirentries(file.fd, d.buf, new(uintptr));
+			if errno != 0 {
+				d.nbuf = 0;
 				return names, ErrnoToError(errno)
 			}
 			if d.nbuf == 0 {
 				break	// EOF
 			}
-			d.bufp = 0;
 		}
 		// Drain the buffer
 		for count != 0 && d.bufp < d.nbuf {
 			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
-			d.bufp += int64(dirent.Reclen);
+			if dirent.Reclen == 0 {
+				d.bufp = d.nbuf;
+				break
+			}
+			d.bufp += int(dirent.Reclen);
 			if dirent.Ino == 0 {	// File absent in directory.
 				continue
 			}
-			var name = string(dirent.Name[0:dirent.Namlen]);
+			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
+			var name = string(bytes[0:dirent.Namlen]);
 			if name == "." || name == ".." {	// Useless names
 				continue
 			}

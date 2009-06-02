@@ -18,27 +18,27 @@ const (
 )
 
 type pollster struct {
-	epfd int64;
+	epfd int;
 
 	// Events we're already waiting for
-	events map[int64] uint32;
+	events map[int] uint32;
 }
 
 func newpollster() (p *pollster, err os.Error) {
 	p = new(pollster);
-	var e int64;
+	var e int;
 
 	// The arg to epoll_create is a hint to the kernel
 	// about the number of FDs we will care about.
 	// We don't know.
-	if p.epfd, e = syscall.Epoll_create(16); e != 0 {
+	if p.epfd, e = syscall.EpollCreate(16); e != 0 {
 		return nil, os.ErrnoToError(e)
 	}
-	p.events = make(map[int64] uint32);
+	p.events = make(map[int] uint32);
 	return p, nil
 }
 
-func (p *pollster) AddFD(fd int64, mode int, repeat bool) os.Error {
+func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 	var ev syscall.EpollEvent;
 	var already bool;
 	ev.Fd = int32(fd);
@@ -52,20 +52,20 @@ func (p *pollster) AddFD(fd int64, mode int, repeat bool) os.Error {
 		ev.Events |= writeFlags;
 	}
 
-	var op int64;
+	var op int;
 	if already {
 		op = syscall.EPOLL_CTL_MOD;
 	} else {
 		op = syscall.EPOLL_CTL_ADD;
 	}
-	if e := syscall.Epoll_ctl(p.epfd, op, fd, &ev); e != 0 {
+	if e := syscall.EpollCtl(p.epfd, op, fd, &ev); e != 0 {
 		return os.ErrnoToError(e)
 	}
 	p.events[fd] = ev.Events;
 	return nil
 }
 
-func (p *pollster) StopWaiting(fd int64, bits uint) {
+func (p *pollster) StopWaiting(fd int, bits uint) {
 	events, already := p.events[fd];
 	if !already {
 		print("Epoll unexpected fd=", fd, "\n");
@@ -86,19 +86,19 @@ func (p *pollster) StopWaiting(fd int64, bits uint) {
 		var ev syscall.EpollEvent;
 		ev.Fd = int32(fd);
 		ev.Events = events;
-		if e := syscall.Epoll_ctl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &ev); e != 0 {
+		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &ev); e != 0 {
 			print("Epoll modify fd=", fd, ": ", os.ErrnoToError(e).String(), "\n");
 		}
 		p.events[fd] = events;
 	} else {
-		if e := syscall.Epoll_ctl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != 0 {
+		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != 0 {
 			print("Epoll delete fd=", fd, ": ", os.ErrnoToError(e).String(), "\n");
 		}
 		p.events[fd] = 0, false;
 	}
 }
 
-func (p *pollster) DelFD(fd int64, mode int) {
+func (p *pollster) DelFD(fd int, mode int) {
 	if mode == 'r' {
 		p.StopWaiting(fd, readFlags);
 	} else {
@@ -106,17 +106,17 @@ func (p *pollster) DelFD(fd int64, mode int) {
 	}
 }
 
-func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err os.Error) {
+func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 	// Get an event.
 	var evarray [1]syscall.EpollEvent;
 	ev := &evarray[0];
-	var msec int64 = -1;
+	var msec int = -1;
 	if nsec > 0 {
-		msec = (nsec + 1e6 - 1)/1e6;
+		msec = int((nsec + 1e6 - 1)/1e6);
 	}
-	n, e := syscall.Epoll_wait(p.epfd, &evarray, msec);
+	n, e := syscall.EpollWait(p.epfd, &evarray, msec);
 	for e == syscall.EAGAIN || e == syscall.EINTR {
-		n, e = syscall.Epoll_wait(p.epfd, &evarray, msec);
+		n, e = syscall.EpollWait(p.epfd, &evarray, msec);
 	}
 	if e != 0 {
 		return -1, 0, os.ErrnoToError(e);
@@ -124,7 +124,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err os.Error) {
 	if n == 0 {
 		return -1, 0, nil;
 	}
-	fd = int64(ev.Fd);
+	fd = int(ev.Fd);
 
 	if ev.Events & writeFlags != 0 {
 		p.StopWaiting(fd, writeFlags);
@@ -146,6 +146,5 @@ func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err os.Error) {
 }
 
 func (p *pollster) Close() os.Error {
-	r, e := syscall.Close(p.epfd);
-	return os.ErrnoToError(e);
+	return os.ErrnoToError(syscall.Close(p.epfd));
 }

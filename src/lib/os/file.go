@@ -14,20 +14,20 @@ import (
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
 	buf	[]byte;	// buffer for directory I/O
-	nbuf	int64;	// length of buf; return value from Getdirentries
-	bufp	int64;	// location of next record in buf.
+	nbuf	int;	// length of buf; return value from Getdirentries
+	bufp	int;	// location of next record in buf.
 }
 
 // File represents an open file descriptor.
 type File struct {
-	fd int64;
+	fd int;
 	name	string;
 	dirinfo	*dirInfo;	// nil unless directory being read
 	nepipe	int;	// number of consecutive EPIPE in Write
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
-func (file *File) Fd() int64 {
+func (file *File) Fd() int {
 	return file.fd
 }
 
@@ -37,7 +37,7 @@ func (file *File) Name() string {
 }
 
 // NewFile returns a new File with the given file descriptor and name.
-func NewFile(file int64, name string) *File {
+func NewFile(file int, name string) *File {
 	if file < 0 {
 		return nil
 	}
@@ -72,7 +72,7 @@ const (
 // if applicable.  If successful, methods on the returned File can be used for I/O.
 // It returns the File and an Error, if any.
 func Open(name string, flag int, perm int) (file *File, err Error) {
-	r, e := syscall.Open(name, int64(flag | syscall.O_CLOEXEC), int64(perm));
+	r, e := syscall.Open(name, flag | syscall.O_CLOEXEC, perm);
 	if e != 0 {
 		return nil, ErrnoToError(e);
 	}
@@ -92,9 +92,9 @@ func (file *File) Close() Error {
 	if file == nil {
 		return EINVAL
 	}
-	r, e := syscall.Close(file.fd);
+	err := ErrnoToError(syscall.Close(file.fd));
 	file.fd = -1;  // so it can't be closed again
-	return ErrnoToError(e)
+	return err;
 }
 
 // Read reads up to len(b) bytes from the File.
@@ -105,14 +105,11 @@ func (file *File) Read(b []byte) (ret int, err Error) {
 	if file == nil {
 		return 0, EINVAL
 	}
-	var r, e int64;
-	if len(b) > 0 {  // because we access b[0]
-		r, e = syscall.Read(file.fd, &b[0], int64(len(b)));
-		if r < 0 {
-			r = 0
-		}
+	n, e := syscall.Read(file.fd, b);
+	if n < 0 {
+		n = 0;
 	}
-	return int(r), ErrnoToError(e)
+	return n, ErrnoToError(e);
 }
 
 // Write writes len(b) bytes to the File.
@@ -122,12 +119,9 @@ func (file *File) Write(b []byte) (ret int, err Error) {
 	if file == nil {
 		return 0, EINVAL
 	}
-	var r, e int64;
-	if len(b) > 0 {  // because we access b[0]
-		r, e = syscall.Write(file.fd, &b[0], int64(len(b)));
-		if r < 0 {
-			r = 0
-		}
+	n, e := syscall.Write(file.fd, b);
+	if n < 0 {
+		n = 0
 	}
 	if e == syscall.EPIPE {
 		file.nepipe++;
@@ -137,7 +131,7 @@ func (file *File) Write(b []byte) (ret int, err Error) {
 	} else {
 		file.nepipe = 0;
 	}
-	return int(r), ErrnoToError(e)
+	return n, ErrnoToError(e)
 }
 
 // Seek sets the offset for the next Read or Write on file to offset, interpreted
@@ -145,7 +139,7 @@ func (file *File) Write(b []byte) (ret int, err Error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an Error, if any.
 func (file *File) Seek(offset int64, whence int) (ret int64, err Error) {
-	r, e := syscall.Seek(file.fd, offset, int64(whence));
+	r, e := syscall.Seek(file.fd, offset, whence);
 	if e != 0 {
 		return -1, ErrnoToError(e)
 	}
@@ -161,7 +155,9 @@ func (file *File) WriteString(s string) (ret int, err Error) {
 	if file == nil {
 		return 0, EINVAL
 	}
-	r, e := syscall.Write(file.fd, syscall.StringBytePtr(s), int64(len(s)));
+	b := syscall.StringByteSlice(s);
+	b = b[0:len(b)-1];
+	r, e := syscall.Write(file.fd, b);
 	if r < 0 {
 		r = 0
 	}
@@ -171,11 +167,11 @@ func (file *File) WriteString(s string) (ret int, err Error) {
 // Pipe returns a connected pair of Files; reads from r return bytes written to w.
 // It returns the files and an Error, if any.
 func Pipe() (r *File, w *File, err Error) {
-	var p [2]int64;
+	var p [2]int;
 
 	// See ../syscall/exec.go for description of lock.
 	syscall.ForkLock.RLock();
-	ret, e := syscall.Pipe(&p);
+	e := syscall.Pipe(&p);
 	if e != 0 {
 		syscall.ForkLock.RUnlock();
 		return nil, nil, ErrnoToError(e)
@@ -190,8 +186,7 @@ func Pipe() (r *File, w *File, err Error) {
 // Mkdir creates a new directory with the specified name and permission bits.
 // It returns an error, if any.
 func Mkdir(name string, perm int) Error {
-	r, e := syscall.Mkdir(name, int64(perm));
-	return ErrnoToError(e)
+	return ErrnoToError(syscall.Mkdir(name, perm));
 }
 
 // Stat returns a Dir structure describing the named file and an error, if any.
@@ -201,13 +196,13 @@ func Mkdir(name string, perm int) Error {
 // the link itself and has dir.FollowedSymlink set to false.
 func Stat(name string) (dir *Dir, err Error) {
 	var lstat, stat syscall.Stat_t;
-	r, e := syscall.Lstat(name, &lstat);
+	e := syscall.Lstat(name, &lstat);
 	if e != 0 {
 		return nil, ErrnoToError(e);
 	}
 	statp := &lstat;
 	if lstat.Mode & syscall.S_IFMT == syscall.S_IFLNK {
-		r, e := syscall.Stat(name, &stat);
+		e := syscall.Stat(name, &stat);
 		if e == 0 {
 			statp = &stat;
 		}
@@ -219,7 +214,7 @@ func Stat(name string) (dir *Dir, err Error) {
 // It returns the Dir and an error, if any.
 func (file *File) Stat() (dir *Dir, err Error) {
 	var stat syscall.Stat_t;
-	r, e := syscall.Fstat(file.fd, &stat);
+	e := syscall.Fstat(file.fd, &stat);
 	if e != 0 {
 		return nil, ErrnoToError(e)
 	}
@@ -231,7 +226,7 @@ func (file *File) Stat() (dir *Dir, err Error) {
 // symbolic link.  Lstat makes no attempt to follow the link.
 func Lstat(name string) (dir *Dir, err Error) {
 	var stat syscall.Stat_t;
-	r, e := syscall.Lstat(name, &stat);
+	e := syscall.Lstat(name, &stat);
 	if e != 0 {
 		return nil, ErrnoToError(e)
 	}
@@ -280,15 +275,13 @@ func (file *File) Readdir(count int) (dirs []Dir, err Error) {
 
 // Chdir changes the current working directory to the named directory.
 func Chdir(dir string) Error {
-	r, e := syscall.Chdir(dir);
-	return ErrnoToError(e);
+	return ErrnoToError(syscall.Chdir(dir));
 }
 
 // Chdir changes the current working directory to the file,
 // which must be a directory.
 func (f *File) Chdir() Error {
-	r, e := syscall.Fchdir(f.fd);
-	return ErrnoToError(e);
+	return ErrnoToError(syscall.Fchdir(f.fd));
 }
 
 // Remove removes the named file or directory.
@@ -297,11 +290,11 @@ func Remove(name string) Error {
 	// whether name is a file or directory.
 	// Try both: it is cheaper on average than
 	// doing a Stat plus the right one.
-	r, e := syscall.Unlink(name);
+	e := syscall.Unlink(name);
 	if e == 0 {
 		return nil;
 	}
-	r1, e1 := syscall.Rmdir(name);
+	e1 := syscall.Rmdir(name);
 	if e1 == 0 {
 		return nil;
 	}
@@ -323,26 +316,25 @@ func Remove(name string) Error {
 
 // Link creates a hard link.
 func Link(oldname, newname string) Error {
-	r, e := syscall.Link(oldname, newname);
-	return ErrnoToError(e);
+	return ErrnoToError(syscall.Link(oldname, newname));
 }
 
 // Symlink creates a symbolic link.
 func Symlink(oldname, newname string) Error {
-	r, e := syscall.Symlink(oldname, newname);
-	return ErrnoToError(e);
+	return ErrnoToError(syscall.Symlink(oldname, newname));
 }
 
 // Readlink reads the contents of a symbolic link: the destination of
 // the link.  It returns the contents and an Error, if any.
 func Readlink(name string) (string, Error) {
-	for len := int64(128); ; len *= 2 {
+	for len := 128; ; len *= 2 {
 		b := make([]byte, len);
-		r, e := syscall.Readlink(name, &b[0], len);
-		if r == -1 {
+		n, e := syscall.Readlink(name, b);
+		if e != 0 {
 			return "", ErrnoToError(e);
-		} else if r < len {
-			return string(b[0:r]), nil;
+		}
+		if n < len {
+			return string(b[0:n]), nil;
 		}
 	}
 	// Silence 6g.
@@ -352,47 +344,40 @@ func Readlink(name string) (string, Error) {
 // Chmod changes the mode of the named file to mode.
 // If the file is a symbolic link, it changes the uid and gid of the link's target.
 func Chmod(name string, mode int) Error {
-	r, e := syscall.Chmod(name, int64(mode));
-	return ErrnoToError(e);
+	return ErrnoToError(syscall.Chmod(name, mode));
 }
 
 // Chmod changes the mode of the file to mode.
 func (f *File) Chmod(mode int) Error {
-	r, e := syscall.Fchmod(f.fd, int64(mode));
-	return ErrnoToError(e);
+	return ErrnoToError(syscall.Fchmod(f.fd, mode));
 }
 
 // Chown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link's target.
 func Chown(name string, uid, gid int) Error {
-	r, e := syscall.Chown(name, int64(uid), int64(gid));
-	return ErrnoToError(e);
+	return ErrnoToError(syscall.Chown(name, uid, gid));
 }
 
 // Lchown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link itself.
 func Lchown(name string, uid, gid int) Error {
-	r, e := syscall.Lchown(name, int64(uid), int64(gid));
-	return ErrnoToError(e);
+	return ErrnoToError(syscall.Lchown(name, uid, gid));
 }
 
 // Chown changes the numeric uid and gid of the named file.
 func (f *File) Chown(uid, gid int) Error {
-	r, e := syscall.Fchown(f.fd, int64(uid), int64(gid));
-	return ErrnoToError(e);
+	return ErrnoToError(syscall.Fchown(f.fd, uid, gid));
 }
 
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
 func Truncate(name string, size int64) Error {
-	r, e := syscall.Truncate(name, size);
-	return ErrnoToError(e);
+	return ErrnoToError(syscall.Truncate(name, size));
 }
 
 // Truncate changes the size of the file.
 // It does not change the I/O offset.
 func (f *File) Truncate(size int64) Error {
-	r, e := syscall.Ftruncate(f.fd, size);
-	return ErrnoToError(e);
+	return ErrnoToError(syscall.Ftruncate(f.fd, size));
 }
 

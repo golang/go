@@ -21,12 +21,12 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
 	dir.Uid = stat.Uid;
 	dir.Gid = stat.Gid;
 	dir.Rdev = uint64(stat.Rdev);
-	dir.Size = stat.Size;
+	dir.Size = uint64(stat.Size);
 	dir.Blksize = uint64(stat.Blksize);
-	dir.Blocks = stat.Blocks;
-	dir.Atime_ns = uint64(stat.Atime.Sec) * 1e9 + stat.Atime.Nsec;
-	dir.Mtime_ns = uint64(stat.Mtime.Sec) * 1e9 + stat.Mtime.Nsec;
-	dir.Ctime_ns = uint64(stat.Ctime.Sec) * 1e9 + stat.Atime.Nsec;
+	dir.Blocks = uint64(stat.Blocks);
+	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atimespec));
+	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtimespec));
+	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctimespec));
 	for i := len(name) - 1; i >= 0; i-- {
 		if name[i] == '/' {
 			name = name[i+1:len(name)];
