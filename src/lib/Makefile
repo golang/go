@@ -26,6 +26,7 @@ DIRS=\
 	exvar\
 	flag\
 	fmt\
+	format\
 	go/ast\
 	go/doc\
 	go/parser\
@@ -73,6 +74,7 @@ TEST=\
 	exvar\
 	flag\
 	fmt\
+	format\
 	go/parser\
 	go/scanner\
 	hash/adler32\

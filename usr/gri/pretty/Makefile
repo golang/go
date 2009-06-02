@@ -32,7 +32,7 @@ clean:
 
 godoc.6:	astprinter.6
 
-pretty.6:	 astprinter.6 format.6
+pretty.6:	 astprinter.6
 
 %.6:	%.go
 	$(G) $(F) $<
