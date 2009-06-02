@@ -1921,6 +1921,15 @@ func readSource(src interface{}) ([]byte, os.Error) {
 }
 
 
+// scannerMode returns the scanner mode bits given the parser's mode bits.
+func scannerMode(mode uint) uint {
+	if mode & ParseComments != 0 {
+		return scanner.ScanComments;
+	}
+	return 0;
+}
+
+
 // Parse parses a Go program.
 //
 // The program source src may be provided in a variety of formats. At the
@@ -1944,7 +1953,7 @@ func Parse(src interface{}, mode uint) (*ast.Program, os.Error) {
 	// initialize parser state
 	var p parser;
 	p.errors.Init(0);
-	p.scanner.Init(data, &p, mode & ParseComments != 0);
+	p.scanner.Init(data, &p, scannerMode(mode));
 	p.mode = mode;
 	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
 	p.comments.Init(0);
