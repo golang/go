@@ -70,31 +70,67 @@ func makeTabwriter(writer io.Writer) *tabwriter.Writer {
 }
 
 
-func isValidPos(w io.Writer, env, value interface{}, name string) bool {
+func isValidPos(state *format.State, value interface{}, rule_name string) bool {
 	pos := value.(token.Position);
 	return pos.IsValid();
 }
 
 
-func isSend(w io.Writer, env, value interface{}, name string) bool {
+func isSend(state *format.State, value interface{}, rule_name string) bool {
 	return value.(ast.ChanDir) & ast.SEND != 0;
 }
 
 
-func isRecv(w io.Writer, env, value interface{}, name string) bool {
+func isRecv(state *format.State, value interface{}, rule_name string) bool {
 	return value.(ast.ChanDir) & ast.RECV != 0;
 }
 
-func isMultiLineComment(w io.Writer, env, value interface{}, name string) bool {
-	return value.([]byte)[1] == '*'
+
+func isMultiLineComment(state *format.State, value interface{}, rule_name string) bool {
+	return value.([]byte)[1] == '*';
 }
 
 
-var fmap = format.FormatterMap{
+type environment struct {
+	optSemi *bool;
+}
+
+
+func (e environment) Copy() format.Environment {
+	optSemi := *e.optSemi;
+	return environment{&optSemi};
+}
+
+
+func clearOptSemi(state *format.State, value interface{}, rule_name string) bool {
+	*state.Env().(environment).optSemi = false;
+	return true;
+}
+
+
+func setOptSemi(state *format.State, value interface{}, rule_name string) bool {
+	*state.Env().(environment).optSemi = true;
+	return true;
+}
+
+
+func optSemi(state *format.State, value interface{}, rule_name string) bool {
+	if !*state.Env().(environment).optSemi {
+		state.Write([]byte{';'});
+	}
+	return true;
+}
+
+
+var fmap = format.FormatterMap {
 	"isValidPos": isValidPos,
 	"isSend": isSend,
 	"isRecv": isRecv,
 	"isMultiLineComment": isMultiLineComment,
+	"/": clearOptSemi,
+	"clearOptSemi": clearOptSemi,
+	"setOptSemi": setOptSemi,
+	"optSemi": optSemi,
 }
 
 
@@ -120,7 +156,7 @@ func main() {
 	}
 	ast_format, err := format.Parse(src, fmap);
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s:%v\n", ast_txt, err);
+		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
 		os.Exit(1);
 	}
 
@@ -153,10 +189,10 @@ func main() {
 		if !*silent {
 			tw := makeTabwriter(os.Stdout);
 			if *formatter {
-				var optSemi bool;  // formatting environment
-				_, err := ast_format.Fprint(tw, &optSemi, prog);
+				env := environment{new(bool)};
+				_, err := ast_format.Fprint(tw, env, prog);
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "format error$$: %s", err);
+					fmt.Fprintf(os.Stderr, "format error: %v\n", err);
 					exitcode = 1;
 					continue;  // proceed with next file
 				}
