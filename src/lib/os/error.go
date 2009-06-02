@@ -27,12 +27,12 @@ func NewError(s string) Error {
 // wrappers to convert the error number into an Error.
 type Errno int64
 func (e Errno) String() string {
-	return syscall.Errstr(int64(e))
+	return syscall.Errstr(int(e))
 }
 
 // ErrnoToError converts errno to an Error (underneath, an Errno).
 // It returns nil for the "no error" errno.
-func ErrnoToError(errno int64) Error {
+func ErrnoToError(errno int) Error {
 	if errno == 0 {
 		return nil
 	}
@@ -41,7 +41,6 @@ func ErrnoToError(errno int64) Error {
 
 // Commonly known Unix errors.
 var (
-	ENONE Error = Errno(syscall.ENONE);
 	EPERM Error = Errno(syscall.EPERM);
 	ENOENT Error = Errno(syscall.ENOENT);
 	ESRCH Error = Errno(syscall.ESRCH);

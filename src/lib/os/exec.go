@@ -20,7 +20,7 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File
 	(pid int, err Error)
 {
 	// Create array of integer (system) fds.
-	intfd := make([]int64, len(fd));
+	intfd := make([]int, len(fd));
 	for i, f := range(fd) {
 		if f == nil {
 			intfd[i] = -1;
@@ -64,20 +64,20 @@ const (
 	WNOHANG = syscall.WNOHANG;	// Don't wait if no process has exited.
 	WSTOPPED = syscall.WSTOPPED;	// If set, status of stopped subprocesses is also reported.
 	WUNTRACED = WSTOPPED;
-	WRUSAGE = 1<<60;	// Record resource usage.
+	WRUSAGE = 1<<30;	// Record resource usage.
 )
 
 // Wait waits for process pid to exit or stop, and then returns a
 // Waitmsg describing its status and an Error, if any. The options
 // (WNOHANG etc.) affect the behavior of the Wait call.
-func Wait(pid int, options uint64) (w *Waitmsg, err Error) {
+func Wait(pid int, options int) (w *Waitmsg, err Error) {
 	var status syscall.WaitStatus;
 	var rusage *syscall.Rusage;
 	if options & WRUSAGE != 0 {
 		rusage = new(syscall.Rusage);
 		options ^= WRUSAGE;
 	}
-	pid1, e := syscall.Wait4(int64(pid), &status, int64(options), rusage);
+	pid1, e := syscall.Wait4(pid, &status, options, rusage);
 	if e != 0 {
 		return nil, ErrnoToError(e);
 	}

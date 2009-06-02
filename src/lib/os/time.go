@@ -15,11 +15,10 @@ import (
 // time is thus 1e9*sec+nsec, in nanoseconds.  The zero of
 // time is the Unix epoch.
 func Time() (sec int64, nsec int64, err Error) {
-	var errno int64;
-	sec, nsec, errno = syscall.Gettimeofday();
-	if errno != 0 {
+	var tv syscall.Timeval;
+	if errno := syscall.Gettimeofday(&tv); errno != 0 {
 		return 0, 0, ErrnoToError(errno)
 	}
-	return sec, nsec, nil
+	return int64(tv.Sec), int64(tv.Usec)*1000, err;
 }
 

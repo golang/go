@@ -8,12 +8,7 @@ package main
 
 import "syscall"
 
-func getpid() int64 {
-	r1, r2, err := syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0);
-	return r1;
-}
-
 func main() {
-	syscall.Syscall(syscall.SYS_KILL, getpid(), syscall.SIGCHLD, 0);
+	syscall.Syscall(syscall.SYS_KILL, uintptr(syscall.Getpid()), syscall.SIGCHLD, 0);
 	println("survived SIGCHLD");
 }
