@@ -11,22 +11,27 @@
 // the manuals for the appropriate operating system.
 package syscall
 
-/*
- * Foundation of system call interface.
- */
+import (
+	"syscall";
+	"unsafe";
+)
 
-func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
-func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
-func RawSyscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
 
-/*
- * Used to convert file names to byte arrays for passing to kernel,
- * but useful elsewhere too.
- */
-func StringBytePtr(s string) *byte {
+// StringByteSlice returns a NUL-terminated slice of bytes
+// containing the text of s.
+func StringByteSlice(s string) []byte {
 	a := make([]byte, len(s)+1);
 	for i := 0; i < len(s); i++ {
 		a[i] = s[i];
 	}
-	return &a[0];
+	return a;
+}
+
+// StringBytePtr returns a pointer to a NUL-terminated array of bytes
+// containing the text of s.
+func StringBytePtr(s string) *byte {
+	return &StringByteSlice(s)[0];
 }
