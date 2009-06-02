@@ -188,7 +188,7 @@ func TestScan(t *testing.T) {
 	// verify scan
 	index := 0;
 	eloc := token.Position{0, 1, 1};
-	nerrors := scanner.Tokenize(io.StringBytes(src), &TestErrorHandler{t}, true,
+	nerrors := scanner.Tokenize(io.StringBytes(src), &TestErrorHandler{t}, scanner.ScanComments,
 		func (pos token.Position, tok token.Token, litb []byte) bool {
 			e := elt{token.EOF, "", special};
 			if index < len(tokens) {
@@ -234,7 +234,7 @@ func TestInit(t *testing.T) {
 	var s scanner.Scanner;
 
 	// 1st init
-	s.Init(io.StringBytes("if true { }"), nil, false);
+	s.Init(io.StringBytes("if true { }"), nil, 0);
 	s.Scan();  // if
 	s.Scan();  // true
 	pos, tok, lit := s.Scan();  // {
@@ -243,10 +243,31 @@ func TestInit(t *testing.T) {
 	}
 
 	// 2nd init
-	s.Init(io.StringBytes("go true { ]"), nil, false);
+	s.Init(io.StringBytes("go true { ]"), nil, 0);
 	pos, tok, lit = s.Scan();  // go
 	if tok != token.GO {
 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO);
+	}
+
+	if s.ErrorCount != 0 {
+		t.Errorf("found %d errors", s.ErrorCount);
+	}
+}
+
+
+func TestIllegalChars(t *testing.T) {
+	var s scanner.Scanner;
+
+	const src = "*?*$*@*";
+	s.Init(io.StringBytes(src), &TestErrorHandler{t}, scanner.AllowIllegalChars);
+	for offs, ch := range src {
+		pos, tok, lit := s.Scan();
+		if pos.Offset != offs {
+			t.Errorf("bad position for %s: got %d, expected %d", string(lit), pos.Offset, offs);
+		}
+		if tok == token.ILLEGAL && string(lit) != string(ch) {
+			t.Errorf("bad token: got %s, expected %s", string(lit), string(ch));
+		}
 	}
 
 	if s.ErrorCount != 0 {

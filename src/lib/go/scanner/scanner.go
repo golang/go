@@ -35,7 +35,7 @@ type Scanner struct {
 	// immutable state
 	src []byte;  // source
 	err ErrorHandler;  // error reporting; or nil
-	scan_comments bool;  // if set, comments are reported as tokens
+	mode uint;  // scanning mode
 
 	// scanning state
 	pos token.Position;  // previous reading position (position before ch)
@@ -72,19 +72,26 @@ func (S *Scanner) next() {
 }
 
 
+// The mode parameter to the Init function is a set of flags (or 0).
+// They control scanner behavior.
+//
+const (
+	ScanComments = 1 << iota;  // return comments as COMMENT tokens
+	AllowIllegalChars;  // do not report an error for illegal chars
+)
+
+
 // Init prepares the scanner S to tokenize the text src. Calls to Scan
 // will use the error handler err if they encounter a syntax error and
 // err is not nil. Also, for each error encountered, the Scanner field
-// ErrorCount is incremented by one. The boolean scan_comments specifies
-// whether comments should be recognized and returned by Scan as COMMENT
-// tokens. If scan_comments is false, they are treated as white space and
-// ignored.
+// ErrorCount is incremented by one. The mode parameter determines how
+// comments and illegal characters are handled.
 //
-func (S *Scanner) Init(src []byte, err ErrorHandler, scan_comments bool) {
+func (S *Scanner) Init(src []byte, err ErrorHandler, mode uint) {
 	// Explicitly initialize all fields since a scanner may be reused.
 	S.src = src;
 	S.err = err;
-	S.scan_comments = scan_comments;
+	S.mode = mode;
 	S.pos = token.Position{0, 1, 0};
 	S.offset = 0;
 	S.ErrorCount = 0;
@@ -441,7 +448,7 @@ scan_again:
 			if S.ch == '/' || S.ch == '*' {
 				S.scanComment(pos);
 				tok = token.COMMENT;
-				if !S.scan_comments {
+				if S.mode & ScanComments == 0 {
 					goto scan_again;
 				}
 			} else {
@@ -467,7 +474,10 @@ scan_again:
 				tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
 			}
 		case '|': tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
-		default: S.error(pos, "illegal character " + charString(ch));
+		default:
+			if S.mode & AllowIllegalChars == 0 {
+				S.error(pos, "illegal character " + charString(ch));
+			}
 		}
 	}
 
@@ -481,9 +491,9 @@ scan_again:
 // false (usually when the token value is token.EOF). The result is the number
 // of errors encountered.
 //
-func Tokenize(src []byte, err ErrorHandler, scan_comments bool, f func (pos token.Position, tok token.Token, lit []byte) bool) int {
+func Tokenize(src []byte, err ErrorHandler, mode uint, f func (pos token.Position, tok token.Token, lit []byte) bool) int {
 	var s Scanner;
-	s.Init(src, err, scan_comments);
+	s.Init(src, err, mode);
 	for f(s.Scan()) {
 		// action happens in f
 	}
