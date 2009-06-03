@@ -11,8 +11,8 @@ func TimespecToNsec(ts Timespec) int64 {
 }
 
 func NsecToTimespec(nsec int64) (ts Timespec) {
-	ts.Sec = nsec / 1e9;
-	ts.Nsec = nsec % 1e9;
+	ts.Sec = int32(nsec / 1e9);
+	ts.Nsec = int32(nsec % 1e9);
 	return;
 }
 
@@ -23,7 +23,7 @@ func TimevalToNsec(tv Timeval) int64 {
 func NsecToTimeval(nsec int64) (tv Timeval) {
 	nsec += 999;	// round up to microsecond
 	tv.Usec = int32(nsec%1e9 / 1e3);
-	tv.Sec = int64(nsec/1e9);
+	tv.Sec = int32(nsec/1e9);
 	return;
 }
 
@@ -33,8 +33,8 @@ func Gettimeofday(tv *Timeval) (errno int) {
 	// but is otherwise unused.  The answers come back
 	// in the two registers.
 	sec, usec, err := gettimeofday(tv);
-	tv.Sec = sec;
-	tv.Usec = usec;
+	tv.Sec = int32(sec);
+	tv.Usec = int32(usec);
 	return err;
 }
 

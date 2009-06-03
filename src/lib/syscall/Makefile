@@ -48,10 +48,10 @@ O1=\
 
 O2=\
 	errstr.$O\
-	syscall_$(GOOS)_$(GOARCH).$O\
+	zsyscall_$(GOOS)_$(GOARCH).$O\
 
 O3=\
-	zsyscall_$(GOOS)_$(GOARCH).$O\
+	syscall_$(GOOS)_$(GOARCH).$O\
 
 O4=\
 	syscall_$(GOOS).$O\
@@ -68,11 +68,11 @@ a1: $(O1)
 	rm -f $(O1)
 
 a2: $(O2)
-	$(AR) grc _obj$D/syscall.a errstr.$O syscall_$(GOOS)_$(GOARCH).$O
+	$(AR) grc _obj$D/syscall.a errstr.$O zsyscall_$(GOOS)_$(GOARCH).$O
 	rm -f $(O2)
 
 a3: $(O3)
-	$(AR) grc _obj$D/syscall.a zsyscall_$(GOOS)_$(GOARCH).$O
+	$(AR) grc _obj$D/syscall.a syscall_$(GOOS)_$(GOARCH).$O
 	rm -f $(O3)
 
 a4: $(O4)

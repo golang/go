@@ -8,7 +8,13 @@
 # tests.
 # If files are named on the command line, use them instead of test*.go.
 
-O=6
+case "$GOARCH" in
+amd64)	O=6;;
+arm)	O=5;;
+386)	O=8;;
+*)	echo 'unknown $GOARCH' 1>&2
+esac
+
 GC=${GC:-${O}g}
 GL=${GL:-${O}l}
 export GC GL
@@ -43,7 +49,7 @@ x)
 	exit 1
 esac
 
-ofiles=$(echo $gofiles | sed 's/\.go/.6/g')
+ofiles=$(echo $gofiles | sed 's/\.go/.'$O'/g')
 files=$(echo $gofiles | sed 's/\.go//g')
 
 
@@ -60,7 +66,7 @@ do
 done
 
 # They all compile; now generate the code to call them.
-trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
 {
 	# package spec
 	echo 'package main'
