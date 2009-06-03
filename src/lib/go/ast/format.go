@@ -24,13 +24,13 @@ type Format datafmt.Format;
 type state struct {
 	// for now we have very little state
 	// TODO maintain list of unassociated comments
-	optSemi *bool
+	optSemi bool
 }
 
 
 func (s *state) Copy() datafmt.Environment {
-	optSemi := *s.optSemi;
-	return &state{&optSemi};
+	copy := *s;
+	return &copy;
 }
 
 
@@ -56,19 +56,19 @@ func isMultiLineComment(s *datafmt.State, value interface{}, ruleName string) bo
 
 
 func clearOptSemi(s *datafmt.State, value interface{}, ruleName string) bool {
-	*s.Env().(*state).optSemi = false;
+	s.Env().(*state).optSemi = false;
 	return true;
 }
 
 
 func setOptSemi(s *datafmt.State, value interface{}, ruleName string) bool {
-	*s.Env().(*state).optSemi = true;
+	s.Env().(*state).optSemi = true;
 	return true;
 }
 
 
 func optSemi(s *datafmt.State, value interface{}, ruleName string) bool {
-	if !*s.Env().(*state).optSemi {
+	if !s.Env().(*state).optSemi {
 		s.Write([]byte{';'});
 	}
 	return true;
@@ -109,7 +109,7 @@ func NewFormat(filename string) (Format, os.Error) {
 // of bytes written and an os.Error, if any.
 //
 func (f Format) Fprint(w io.Writer, nodes ...) (int, os.Error) {
-	s := state{new(bool)};
+	var s state;
 	return datafmt.Format(f).Fprint(w, &s, nodes);
 }
 
