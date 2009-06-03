@@ -2,28 +2,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package format
+package datafmt
 
 import (
 	"fmt";
-	"format";
+	"datafmt";
 	"io";
 	"os";
 	"testing";
 )
 
 
-func parse(t *testing.T, form string, fmap format.FormatterMap) format.Format {
-	f, err := format.Parse(io.StringBytes(form), fmap);
+func parse(t *testing.T, form string, fmap FormatterMap) Format {
+	f, err := Parse(io.StringBytes(form), fmap);
 	if err != nil {
-		t.Errorf("Parse(%s): %v", err);
+		t.Errorf("Parse(%s): %v", form, err);
 		return nil;
 	}
 	return f;
 }
 
 
-func verify(t *testing.T, f format.Format, expected string, args ...) {
+func verify(t *testing.T, f Format, expected string, args ...) {
 	if f == nil {
 		return;  // allow other tests to run
 	}
@@ -37,7 +37,7 @@ func verify(t *testing.T, f format.Format, expected string, args ...) {
 }
 
 
-func formatter(s *format.State, value interface{}, rule_name string) bool {
+func formatter(s *State, value interface{}, rule_name string) bool {
 	switch rule_name {
 	case "/":
 		fmt.Fprintf(s, "%d %d %d", s.Pos().Line, s.LinePos().Column, s.Pos().Column);
@@ -61,8 +61,8 @@ func formatter(s *format.State, value interface{}, rule_name string) bool {
 
 
 func TestCustomFormatters(t *testing.T) {
-	fmap0 := format.FormatterMap{ "/": formatter };
-	fmap1 := format.FormatterMap{ "int": formatter, "blank": formatter, "nil": formatter };
+	fmap0 := FormatterMap{ "/": formatter };
+	fmap1 := FormatterMap{ "int": formatter, "blank": formatter, "nil": formatter };
 
 	f := parse(t, `int=`, fmap0);
 	verify(t, f, ``, 1, 2, 3);
@@ -91,6 +91,9 @@ func TestCustomFormatters(t *testing.T) {
 
 func check(t *testing.T, form, expected string, args ...) {
 	f := parse(t, form, nil);
+	if f == nil {
+		return;  // allow other tests to run
+	}
 	result := f.Sprint(args);
 	if result != expected {
 		t.Errorf(
@@ -227,9 +230,9 @@ type T1 struct {
 }
 
 const F1 =
-	`format "format";`
+	`datafmt "datafmt";`
 	`int = "%d";`
-	`format.T1 = "<" a ">";`
+	`datafmt.T1 = "<" a ">";`
 
 func TestStruct1(t *testing.T) {
 	check(t, F1, "<42>", T1{42});
@@ -248,13 +251,13 @@ const F2a =
 	F1 +
 	`string = "%s";`
 	`ptr = *;`
-	`format.T2 = s ["-" p "-"];`
+	`datafmt.T2 = s ["-" p "-"];`
 	
 const F2b =
 	F1 +
 	`string = "%s";`
 	`ptr = *;`
-	`format.T2 = s ("-" p "-" | "empty");`;
+	`datafmt.T2 = s ("-" p "-" | "empty");`;
 	
 func TestStruct2(t *testing.T) {
 	check(t, F2a, "foo", T2{"foo", nil});
@@ -272,19 +275,19 @@ type T3 struct {
 }
 
 const F3a =
-	`format "format";`
+	`datafmt "datafmt";`
 	`default = "%v";`
 	`array = *;`
-	`format.T3 = s  {" " a a / ","};`
+	`datafmt.T3 = s  {" " a a / ","};`
 
 const F3b =
-	`format "format";`
+	`datafmt "datafmt";`
 	`int = "%d";`
 	`string = "%s";`
 	`array = *;`
 	`nil = ;`
 	`empty = *:nil;`
-	`format.T3 = s [a:empty ": " {a / "-"}]`
+	`datafmt.T3 = s [a:empty ": " {a / "-"}]`
 
 func TestStruct3(t *testing.T) {
 	check(t, F3a, "foo", T3{"foo", nil});
@@ -303,22 +306,22 @@ type T4 struct {
 }
 
 const F4a =
-	`format "format";`
+	`datafmt "datafmt";`
 	`int = "%d";`
 	`ptr = *;`
 	`array = *;`
 	`nil = ;`
 	`empty = *:nil;`
-	`format.T4 = "<" (x:empty x | "-") ">" `
+	`datafmt.T4 = "<" (x:empty x | "-") ">" `
 
 const F4b =
-	`format "format";`
+	`datafmt "datafmt";`
 	`int = "%d";`
 	`ptr = *;`
 	`array = *;`
 	`nil = ;`
 	`empty = *:nil;`
-	`format.T4 = "<" (a:empty {a / ", "} | "-") ">" `
+	`datafmt.T4 = "<" (a:empty {a / ", "} | "-") ">" `
 
 func TestStruct4(t *testing.T) {
 	x := 7;
@@ -338,11 +341,11 @@ type Point struct {
 }
 
 const FPoint =
-	`format "format";`
+	`datafmt "datafmt";`
 	`int = "%d";`
 	`hexInt = "0x%x";`
 	`string = "---%s---";`
-	`format.Point = name "{" x ", " y:hexInt "}";`
+	`datafmt.Point = name "{" x ", " y:hexInt "}";`
 
 func TestStructPoint(t *testing.T) {
 	p := Point{"foo", 3, 15};
