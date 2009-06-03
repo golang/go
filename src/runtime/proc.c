@@ -607,7 +607,7 @@ oldstack(void)
 	Stktop *top;
 	uint32 args;
 	byte *sp;
-	uint64 oldsp, oldpc, oldbase, oldguard;
+	uintptr oldsp, oldpc, oldbase, oldguard;
 
 // printf("oldstack m->cret=%p\n", m->cret);
 
@@ -622,10 +622,10 @@ oldstack(void)
 		mcpy(top->oldsp+2*sizeof(uintptr), sp, args);
 	}
 
-	oldsp = (uint64)top->oldsp + 8;
-	oldpc = *(uint64*)(top->oldsp + 8);
-	oldbase = (uint64)top->oldbase;
-	oldguard = (uint64)top->oldguard;
+	oldsp = (uintptr)top->oldsp + sizeof(uintptr);
+	oldpc = *(uintptr*)oldsp;
+	oldbase = (uintptr)top->oldbase;
+	oldguard = (uintptr)top->oldguard;
 
 	stackfree((byte*)m->curg->stackguard - StackGuard);
 
@@ -645,6 +645,7 @@ oldstack(void)
 	gogoret(&m->morestack, m->cret);
 }
 
+#pragma textflag 7
 void
 lessstack(void)
 {
@@ -818,13 +819,11 @@ sys·deferproc(int32 siz, byte* fn, byte* arg0)
 
 #pragma textflag 7
 void
-sys·deferreturn(int32 arg0)
+sys·deferreturn(uintptr arg0)
 {
-	// warning: jmpdefer knows the frame size
-	// of this routine. dont change anything
-	// that might change the frame size
 	Defer *d;
-	byte *sp;
+	byte *sp, *fn;
+	uintptr *caller;
 
 	d = g->defer;
 	if(d == nil)
@@ -834,10 +833,10 @@ sys·deferreturn(int32 arg0)
 		return;
 	mcpy(d->sp, d->args, d->siz);
 	g->defer = d->link;
-	sp = d->fn;
+	fn = d->fn;
 	free(d);
-	jmpdefer(sp);
-}
+	jmpdefer(fn, sp);
+  }
 
 void
 runtime·Breakpoint(void)

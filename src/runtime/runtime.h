@@ -314,7 +314,7 @@ int32	write(int32, void*, int32);
 void	close(int32);
 int32	fstat(int32, void*);
 bool	cas(uint32*, uint32, uint32);
-void	jmpdefer(byte*);
+void	jmpdefer(byte*, void*);
 void	exit1(int32);
 void	ready(G*);
 byte*	getenv(int8*);
