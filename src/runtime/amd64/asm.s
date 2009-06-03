@@ -172,7 +172,7 @@ TEXT setspgoto(SB), 7, $0
 	MOVQ	AX, SP
 	PUSHQ	CX
 	JMP	BX
-	POPQ	AX
+	POPQ	AX	// not reached
 	RET
 
 // bool cas(int32 *val, int32 old, int32 new)
@@ -194,12 +194,14 @@ TEXT cas(SB), 7, $0
 	MOVL	$1, AX
 	RET
 
-// void jmpdefer(byte*);
+// void jmpdefer(fn, sp);
+// called from deferreturn.
 // 1. pop the caller
 // 2. sub 5 bytes from the callers return
 // 3. jmp to the argument
 TEXT jmpdefer(SB), 7, $0
-	MOVQ	8(SP), AX	// function
-	ADDQ	$(8+56), SP	// pop saved PC and callers frame
-	SUBQ	$5, (SP)	// reposition his return address
-	JMP	AX		// and goto function
+	MOVQ	8(SP), AX	// fn
+	MOVQ	16(SP), BX	// caller sp
+	LEAQ	-8(BX), SP	// caller sp after CALL
+	SUBQ	$5, (SP)	// return to CALL again
+	JMP	AX	// but first run the deferred function

@@ -157,15 +157,17 @@ TEXT cas(SB), 7, $0
 	MOVL	$1, AX
 	RET
 
-// void jmpdefer(byte*);
+// void jmpdefer(fn, sp);
+// called from deferreturn.
 // 1. pop the caller
 // 2. sub 5 bytes from the callers return
 // 3. jmp to the argument
 TEXT jmpdefer(SB), 7, $0
-	MOVL	4(SP), AX	// function
-	ADDL	$(4+56), SP	// pop saved PC and callers frame
-	SUBL	$5, (SP)	// reposition his return address
-	JMP	AX		// and goto function
+	MOVL	4(SP), AX	// fn
+	MOVL	8(SP), BX	// caller sp
+	LEAL	-4(BX), SP	// caller sp after CALL
+	SUBL	$5, (SP)	// return to CALL again
+	JMP	AX	// but first run the deferred function
 
 TEXT	sys·memclr(SB),7,$0
 	MOVL	4(SP), DI		// arg 1 addr
