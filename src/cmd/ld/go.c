@@ -465,7 +465,6 @@ definetypesigs(void)
 	qsort(all, n, sizeof all[0], symcmp);
 
 	// emit array as sequence of references.
-	enum { PtrSize = 8 };
 	for(i=0; i<n; i++) {
 		prog = newdata(s, PtrSize*i, PtrSize, D_EXTERN);
 		prog->to.type = D_ADDR;

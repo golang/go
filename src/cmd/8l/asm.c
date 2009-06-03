@@ -416,7 +416,7 @@ asmb(void)
 		wputl(0x003E);			/* reloc table offset */
 		wputl(0x0000);			/* overlay number */
 		break;
-	
+
 	case 6:
 		/* apple MACH */
 		va = 4096;
@@ -766,6 +766,20 @@ datblk(int32 s, int32 n)
 				l++;
 			}
 			break;
+
+		case D_SBIG:
+			if(debug['a'] && i == 0) {
+				Bprint(&bso, pcstr, l+s+INITDAT);
+				for(j=0; j<c; j++)
+					Bprint(&bso, "%.2ux", p->to.scon[j] & 0xff);
+				Bprint(&bso, "\t%P\n", curp);
+			}
+			for(; i<c; i++) {
+				buf.dbuf[l] = p->to.sbig[i];
+				l++;
+			}
+			break;
+
 		default:
 			fl = p->to.offset;
 			if(p->to.type == D_ADDR) {
