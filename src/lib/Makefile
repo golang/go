@@ -16,6 +16,7 @@ GC=6g
 DIRS=\
 	bignum\
 	bufio\
+	container/list\
 	container/vector\
 	crypto/aes\
 	crypto/block\
@@ -65,6 +66,7 @@ DIRS=\
 TEST=\
 	bignum\
 	bufio\
+	container/list\
 	container/vector\
 	crypto/aes\
 	crypto/block\
