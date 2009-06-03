@@ -4,7 +4,7 @@
 
 #!/bin/bash
 
-CMD="./pretty -formatter"
+CMD="./pretty -format=ast.txt"
 TMP1=test_tmp1.go
 TMP2=test_tmp2.go
 TMP3=test_tmp3.go

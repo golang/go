@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package format
+package datafmt
 
 import (
 	"container/vector";
+	"datafmt";
 	"fmt";
-	"format";
 	"go/scanner";
 	"go/token";
 	"io";

@@ -22,11 +22,11 @@ DIRS=\
 	crypto/hmac\
 	crypto/md5\
 	crypto/sha1\
+	datafmt\
 	exec\
 	exvar\
 	flag\
 	fmt\
-	format\
 	go/ast\
 	go/doc\
 	go/parser\
@@ -70,11 +70,11 @@ TEST=\
 	crypto/block\
 	crypto/md5\
 	crypto/sha1\
+	datafmt\
 	exec\
 	exvar\
 	flag\
 	fmt\
-	format\
 	go/parser\
 	go/scanner\
 	hash/adler32\

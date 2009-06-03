@@ -5,10 +5,9 @@
 package main
 
 import (
-	"astprinter";
+	"astprinter";  // TODO remove once go/printer is fully functional
 	"flag";
 	"fmt";
-	"format";
 	"go/ast";
 	"go/parser";
 	"go/token";
@@ -22,13 +21,14 @@ import (
 var (
 	// operation modes
 	columns bool;
+	// TODO remove silent flag eventually, can achieve same by proving no format file
 	silent = flag.Bool("s", false, "silent mode: no pretty print output");
 	verbose = flag.Bool("v", false, "verbose mode: trace parsing");
 
 	// layout control
+	format = flag.String("format", "", "format file");
 	tabwidth = flag.Int("tabwidth", 4, "tab width");
 	usetabs = flag.Bool("tabs", false, "align with tabs instead of blanks");
-	formatter = flag.Bool("formatter", false, "use formatter");  // TODO remove eventually
 )
 
 
@@ -45,21 +45,6 @@ func usage() {
 }
 
 
-// TODO(gri) use library function for this once it exists
-func readFile(filename string) ([]byte, os.Error) {
-	f, err := os.Open(filename, os.O_RDONLY, 0);
-	if err != nil {
-		return nil, err;
-	}
-	defer f.Close();
-	var b io.ByteBuffer;
-	if n, err := io.Copy(f, &b); err != nil {
-		return nil, err;
-	}
-	return b.Data(), nil;
-}
-
-
 // TODO(gri) move this function into tabwriter.go? (also used in godoc)
 func makeTabwriter(writer io.Writer) *tabwriter.Writer {
 	padchar := byte(' ');
@@ -70,75 +55,18 @@ func makeTabwriter(writer io.Writer) *tabwriter.Writer {
 }
 
 
-func isValidPos(state *format.State, value interface{}, rule_name string) bool {
-	pos := value.(token.Position);
-	return pos.IsValid();
-}
-
-
-func isSend(state *format.State, value interface{}, rule_name string) bool {
-	return value.(ast.ChanDir) & ast.SEND != 0;
-}
-
-
-func isRecv(state *format.State, value interface{}, rule_name string) bool {
-	return value.(ast.ChanDir) & ast.RECV != 0;
-}
-
-
-func isMultiLineComment(state *format.State, value interface{}, rule_name string) bool {
-	return value.([]byte)[1] == '*';
-}
-
-
-type environment struct {
-	optSemi *bool;
-}
-
-
-func (e environment) Copy() format.Environment {
-	optSemi := *e.optSemi;
-	return environment{&optSemi};
-}
-
-
-func clearOptSemi(state *format.State, value interface{}, rule_name string) bool {
-	*state.Env().(environment).optSemi = false;
-	return true;
-}
-
-
-func setOptSemi(state *format.State, value interface{}, rule_name string) bool {
-	*state.Env().(environment).optSemi = true;
-	return true;
-}
-
-
-func optSemi(state *format.State, value interface{}, rule_name string) bool {
-	if !*state.Env().(environment).optSemi {
-		state.Write([]byte{';'});
-	}
-	return true;
-}
-
-
-var fmap = format.FormatterMap {
-	"isValidPos": isValidPos,
-	"isSend": isSend,
-	"isRecv": isRecv,
-	"isMultiLineComment": isMultiLineComment,
-	"/": clearOptSemi,
-	"clearOptSemi": clearOptSemi,
-	"setOptSemi": setOptSemi,
-	"optSemi": optSemi,
-}
-
-
 func main() {
 	// handle flags
 	flag.Parse();
 	if flag.NFlag() == 0 && flag.NArg() == 0 {
 		usage();
+	}
+
+	// initialize astFormat
+	astFormat, err := ast.NewFormat(*format);
+	if *format != "" && err != nil {  // ignore error if no format file given
+		fmt.Fprintf(os.Stderr, "ast.NewFormat(%s): %v\n", *format, err);
+		os.Exit(1);
 	}
 
 	// determine parsing mode
@@ -147,25 +75,12 @@ func main() {
 		mode |= parser.Trace;
 	}
 
-	// get ast format
-	const ast_txt = "ast.txt";
-	src, err := readFile(ast_txt);
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
-		os.Exit(1);
-	}
-	ast_format, err := format.Parse(src, fmap);
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
-		os.Exit(1);
-	}
-
 	// process files
 	exitcode := 0;
 	for i := 0; i < flag.NArg(); i++ {
 		filename := flag.Arg(i);
 
-		src, err := readFile(filename);
+		src, err := io.ReadFile(filename);
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", filename, err);
 			exitcode = 1;
@@ -188,9 +103,8 @@ func main() {
 
 		if !*silent {
 			tw := makeTabwriter(os.Stdout);
-			if *formatter {
-				env := environment{new(bool)};
-				_, err := ast_format.Fprint(tw, env, prog);
+			if *format != "" {
+				_, err := astFormat.Fprint(tw, prog);
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "format error: %v\n", err);
 					exitcode = 1;

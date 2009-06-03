@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/*	The format package implements syntax-directed, type-driven formatting
+/*	The datafmt package implements syntax-directed, type-driven formatting
 	of arbitrary data structures. Formatting a data structure consists of
 	two phases: first, a parser reads a format specification and builds a
 	"compiled" format. Then, the format can be applied repeatedly to
@@ -200,7 +200,7 @@
 	will format an argument list by printing each one in its default format,
 	separated by a comma and a space.
 */
-package format
+package datafmt
 
 import (
 	"container/vector";

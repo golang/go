@@ -6,12 +6,12 @@ crypto/block.install: fmt.install io.install os.install
 crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.install
 crypto/md5.install: hash.install os.install
 crypto/sha1.install: hash.install os.install
+datafmt.install: container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
 exec.install: os.install strings.install
 exvar.install: fmt.install http.install io.install log.install strconv.install sync.install
 flag.install: fmt.install os.install strconv.install
 fmt.install: io.install os.install reflect.install strconv.install utf8.install
-format.install: container/vector.install flag.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
-go/ast.install: go/token.install unicode.install utf8.install
+go/ast.install: datafmt.install go/token.install io.install os.install unicode.install utf8.install
 go/doc.install: container/vector.install fmt.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
 go/parser.install: container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install
 go/scanner.install: go/token.install strconv.install unicode.install utf8.install

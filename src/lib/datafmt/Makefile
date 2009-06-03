@@ -40,37 +40,37 @@ coverage: packages
 	$(AS) $*.s
 
 O1=\
-	format.$O\
+	datafmt.$O\
 
 O2=\
 	parser.$O\
 
 
 phases: a1 a2
-_obj$D/format.a: phases
+_obj$D/datafmt.a: phases
 
 a1: $(O1)
-	$(AR) grc _obj$D/format.a format.$O
+	$(AR) grc _obj$D/datafmt.a datafmt.$O
 	rm -f $(O1)
 
 a2: $(O2)
-	$(AR) grc _obj$D/format.a parser.$O
+	$(AR) grc _obj$D/datafmt.a parser.$O
 	rm -f $(O2)
 
 
 newpkg: clean
 	mkdir -p _obj$D
-	$(AR) grc _obj$D/format.a
+	$(AR) grc _obj$D/datafmt.a
 
 $(O1): newpkg
 $(O2): a1
 $(O3): a2
 
 nuke: clean
-	rm -f $(GOROOT)/pkg$D/format.a
+	rm -f $(GOROOT)/pkg$D/datafmt.a
 
-packages: _obj$D/format.a
+packages: _obj$D/datafmt.a
 
 install: packages
 	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
-	cp _obj$D/format.a $(GOROOT)/pkg$D/format.a
+	cp _obj$D/datafmt.a $(GOROOT)/pkg$D/datafmt.a
