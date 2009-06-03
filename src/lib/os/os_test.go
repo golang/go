@@ -12,16 +12,16 @@ import (
 )
 
 var dot = []string{
-	"dir_amd64_darwin.go",
-	"dir_amd64_linux.go",
+	"dir_darwin_amd64.go",
+	"dir_linux_amd64.go",
 	"env.go",
 	"error.go",
 	"file.go",
 	"os_test.go",
 	"time.go",
 	"types.go",
-	"stat_amd64_darwin.go",
-	"stat_amd64_linux.go"
+	"stat_darwin_amd64.go",
+	"stat_linux_amd64.go"
 }
 
 var etc = []string{
@@ -468,7 +468,7 @@ func TestChdirAndGetwd(t *testing.T) {
 			if mode == 0 {
 				err = Chdir(d);
 			} else {
-				fd1, err := os.Open(d, os.O_RDONLY, 0);
+				fd1, err := Open(d, O_RDONLY, 0);
 				if err != nil {
 					t.Errorf("Open %s: %s", d, err);
 					continue;
@@ -501,3 +501,17 @@ func TestChdirAndGetwd(t *testing.T) {
 	}
 	fd.Close();
 }
+
+func TestTime(t *testing.T) {
+	// Just want to check that Time() is getting something.
+	// A common failure mode on Darwin is to get 0, 0,
+	// because it returns the time in registers instead of
+	// filling in the structure passed to the system call.
+	// TODO(rsc): Too bad the compiler doesn't know that
+	// 365.24*86400 is an integer.
+	sec, nsec, err := Time();
+	if sec < (2009-1970)*36524*864 {
+		t.Errorf("Time() = %d, %d, %s; not plausible", sec, nsec, err);
+	}
+}
+
