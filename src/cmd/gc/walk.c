@@ -4113,7 +4113,7 @@ structlit(Node *n, Node *var)
 	if(r != N && r->op == OEMPTY)
 		r = N;
 	if(r == N)
-		return var;
+		goto keyval;	// must clear structure
 
 	if(r->op == OKEY)
 		goto keyval;
