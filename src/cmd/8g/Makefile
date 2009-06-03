@@ -21,6 +21,7 @@ OFILES=\
 	ggen.$O\
 	gsubr.$O\
 	cgen.$O\
+	cgen64.$O\
 #	peep.$O\
 #	reg.$O\
 
