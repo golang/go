@@ -212,7 +212,7 @@ gc(int32 force)
 		else
 			gcpercent = atoi(p);
 	}
-	if(gcpercent < 0)
+	if(gcpercent < 0 || sizeof(void*) == 4)	// TODO(rsc): broken on 32-bit right now
 		return;
 
 	semacquire(&gcsema);
