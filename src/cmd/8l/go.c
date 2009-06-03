@@ -5,6 +5,6 @@
 #include "l.h"
 enum
 {
-	PtrSize = 8
+	PtrSize = 4
 };
 #include "../ld/go.c"

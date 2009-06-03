@@ -137,10 +137,8 @@ main(int argc, char *argv[])
 		break;
 	} ARGEND
 	USED(argc);
-	if(*argv == 0) {
-		diag("usage: 6l [-options] objects");
-		errorexit();
-	}
+	if(*argv == 0)
+		usage();
 
 	mywhatsys();	// get goroot, goarch, goos
 	if(strcmp(goarch, thestring) != 0)

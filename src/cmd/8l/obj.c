@@ -72,6 +72,13 @@ isobjfile(char *f)
 }
 
 void
+usage(void)
+{
+	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] files...\n");
+	exits("usage");
+}
+
+void
 main(int argc, char *argv[])
 {
 	int i, c;
@@ -95,32 +102,26 @@ main(int argc, char *argv[])
 			debug[c]++;
 		break;
 	case 'o': /* output to (next arg) */
-		outfile = ARGF();
+		outfile = EARGF(usage());
 		break;
 	case 'E':
-		a = ARGF();
-		if(a)
-			INITENTRY = a;
+		INITENTRY = EARGF(usage());
 		break;
 	case 'H':
-		a = ARGF();
-		if(a)
-			HEADTYPE = atolwhex(a);
+		HEADTYPE = atolwhex(EARGF(usage()));
+		break;
+	case 'L':
+		LIBDIR = EARGF(usage());
 		break;
 	case 'T':
-		a = ARGF();
-		if(a)
-			INITTEXT = atolwhex(a);
+		INITTEXT = atolwhex(EARGF(usage()));
 		break;
 	case 'D':
-		a = ARGF();
-		if(a)
-			INITDAT = atolwhex(a);
+		INITDAT = atolwhex(EARGF(usage()));
 		break;
 	case 'R':
-		a = ARGF();
-		if(a)
-			INITRND = atolwhex(a);
+		INITRND = atolwhex(EARGF(usage()));
+		break;
 		break;
 	case 'x':	/* produce export table */
 		doexp = 1;
@@ -135,10 +136,8 @@ main(int argc, char *argv[])
 		break;
 	} ARGEND
 	USED(argc);
-	if(*argv == 0) {
-		diag("usage: 8l [-options] objects");
-		errorexit();
-	}
+	if(*argv == 0)
+		usage();
 
 	whatsys();	// get goroot, goarch, goos
 	if(strcmp(goarch, thestring) != 0)
@@ -602,12 +601,13 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 void
 addlib(char *src, char *obj)
 {
-	char name[1024], comp[256], *p, *q;
-	int i;
+	char name[1024], pname[1024], comp[256], *p, *q;
+	int i, search;
 
 	if(histfrogp <= 0)
 		return;
 
+	search = 0;
 	if(histfrog[0]->name[1] == '/') {
 		sprint(name, "");
 		i = 1;
@@ -616,11 +616,9 @@ addlib(char *src, char *obj)
 		sprint(name, ".");
 		i = 0;
 	} else {
-		if(debug['9'])
-			sprint(name, "/%s/lib", thestring);
-		else
-			sprint(name, "/usr/%clib", thechar);
+		sprint(name, "");
 		i = 0;
+		search = 1;
 	}
 
 	for(; i<histfrogp; i++) {
@@ -649,6 +647,16 @@ addlib(char *src, char *obj)
 		}
 		strcat(name, "/");
 		strcat(name, comp);
+	}
+
+	if(search) {
+		// try dot, -L "libdir", and then goroot.
+		snprint(pname, sizeof pname, "./%s", name);
+		if(access(pname, AEXIST) < 0 && LIBDIR != nil)
+			snprint(pname, sizeof pname, "%s/%s", LIBDIR, name);
+		if(access(pname, AEXIST) < 0)
+			snprint(pname, sizeof pname, "%s/pkg/%s", goroot, name);
+		strcpy(name, pname);
 	}
 	if(debug['v'])
 		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
@@ -976,6 +984,8 @@ loop:
 		}
 		if(p->to.offset > s->value)
 			s->value = p->to.offset;
+		if(p->from.scale & DUPOK)
+			s->dupok = 1;
 		goto loop;
 
 	case ADYNT:
