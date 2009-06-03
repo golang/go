@@ -44,7 +44,7 @@ ast.Decl =
 // Tokens and comments
 
 token.Token =
-	^:string;
+	@:string;
 
 ast.Comment =
 	// TODO this doesn't indent properly after //-style comments because
@@ -87,7 +87,7 @@ ast.StringList =
 	{Strings / "\n"};
 
 ast.FuncLit =
-	Type " " Body ^:clearOptSemi;  // no optional ; after a func literal body
+	Type " " Body @:clearOptSemi;  // no optional ; after a func literal body
 
 ast.CompositeLit =
 	Type "{" {Elts / ", "} "}";
@@ -139,7 +139,7 @@ funcSignature =
 	*:signature;
 
 ast.FuncType =
-	[Position:isValidPos "func"] ^:signature;
+	[Position:isValidPos "func"] @:signature;
 
 ast.InterfaceType =
 	"interface"
@@ -201,7 +201,7 @@ ast.BranchStmt =
 	Tok [" " Label];
 
 stmtList =
-	{^ / ^:optSemi "\n"};
+	{@ / @:optSemi "\n"};
 
 blockStmt =  // like ast.BlockStmt but w/o indentation
 	"{"
@@ -210,7 +210,7 @@ blockStmt =  // like ast.BlockStmt but w/o indentation
 		List:stmtList
 	"\n"
 	]
-	"}" ^:setOptSemi;
+	"}" @:setOptSemi;
 
 blockStmtPtr =
 	*:blockStmt;
@@ -222,7 +222,7 @@ ast.BlockStmt =
 		List:stmtList
 	) "\n"
 	]
-	"}" ^:setOptSemi;
+	"}" @:setOptSemi;
 
 ast.IfStmt =
 	"if " [Init "; "] [Cond " "] Body [" else " Else];
@@ -315,7 +315,7 @@ ast.GenDecl =
 			{Specs / ";\n"}
 		) "\n"
 		]
-		")" ^:setOptSemi
+		")" @:setOptSemi
 	|	{Specs / ";\n"}
 	);
 
