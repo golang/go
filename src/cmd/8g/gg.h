@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 #include <u.h>
 #include <libc.h>
 
@@ -68,7 +67,7 @@ EXTERN	Node*	throwreturn;
 EXTERN	int	maxstksize;
 
 /*
- * gen.c
+ * ggen.c
  */
 void	compile(Node*);
 void	proglist(void);
@@ -90,7 +89,7 @@ void	checklabels();
 void	ginscall(Node*, int);
 
 /*
- * cgen
+ * cgen.c
  */
 void	agen(Node*, Node*);
 void	agenr(Node *n, Node *a, Node *res);
@@ -103,9 +102,13 @@ Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);
 void	naddr(Node*, Addr*);
 void	cgen_aret(Node*, Node*);
-int	is64(Type*);
-void	cmp64(Node*, Node*, int, Prog*);
 Node*	ncon(uint32);
+
+/*
+ * cgen64.c
+ */
+void	cmp64(Node*, Node*, int, Prog*);
+void	cgen64(Node*, Node*);
 
 /*
  * gsubr.c
@@ -133,9 +136,10 @@ void	tempfree(Node*);
 Node*	nodarg(Type*, int);
 void	nodreg(Node*, Type*, int);
 void	nodindreg(Node*, Type*, int);
-void	nodconst(Node*, Type*, vlong);
+void	nodconst(Node*, Type*, int64);
 void	gconreg(int, vlong, int);
 void	datagostring(Strlit*, Addr*);
+void	datastring(char*, int, Addr*);
 void	buildtxt(void);
 Plist*	newplist(void);
 int	isfat(Type*);
@@ -145,6 +149,7 @@ int	dotaddable(Node*, Node*);
 void	afunclit(Addr*);
 void	split64(Node*, Node*, Node*);
 void	splitclean(void);
+void	nswap(Node*, Node*);
 
 /*
  * list.c
