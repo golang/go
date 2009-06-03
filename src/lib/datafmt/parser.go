@@ -86,7 +86,7 @@ func (p *parser) next() {
 
 func (p *parser) init(src []byte) {
 	p.errors.Init(0);
-	p.scanner.Init(src, p, 0);
+	p.scanner.Init(src, p, scanner.AllowIllegalChars);  // return '@' as token.ILLEGAL w/o error message
 	p.next();  // initializes pos, tok, lit
 	p.packs = make(map [string] string);
 	p.rules = make(map [string] expr);
@@ -231,8 +231,11 @@ func (p *parser) parseLiteral() literal {
 func (p *parser) parseField() expr {
 	var fname string;
 	switch p.tok {
-	case token.XOR:
-		fname = "^";
+	case token.ILLEGAL:
+		if string(p.lit) != "@" {
+			return nil;
+		}
+		fname = "@";
 		p.next();
 	case token.MUL:
 		fname = "*";

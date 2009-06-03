@@ -78,10 +78,10 @@
 
 	A field operand is a field name optionally followed by an alternate
 	rule name. The field name may be an identifier or one of the special
-	names ^ or *.
+	names @ or *.
 
 		Field       = FieldName [ ":" RuleName ] .
-		FieldName   = identifier | "^" | "*" .
+		FieldName   = identifier | "@" | "*" .
 
 	If the field name is an identifier, the current value must be a struct,
 	and there must be a field with that name in the struct. The same lookup
@@ -91,8 +91,7 @@
 	and an error message is returned. (TODO consider changing the semantics
 	such that if a field is not found, it evaluates to nil).
 
-	The special name '^' denotes the current value. (TODO see if ^ can
-	change to @ or be eliminated).
+	The special name '@' denotes the current value.
 
 	The meaning of the special name '*' depends on the type of the current
 	value:
@@ -252,7 +251,7 @@ type (
 	literal [][]byte;  // a list of string segments, possibly starting with '%'
 
 	field struct {
-		fieldName string;  // including "^", "*"
+		fieldName string;  // including "@", "*"
 		ruleName string;  // "" if no rule name specified
 	};
 
@@ -587,7 +586,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 	case *field:
 		// determine field value
 		switch t.fieldName {
-		case "^":
+		case "@":
 			// field value is current value
 
 		case "*":

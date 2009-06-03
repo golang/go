@@ -76,10 +76,10 @@ func TestCustomFormatters(t *testing.T) {
 	f = parse(t, ``, fmap1);
 	verify(t, f, `even odd even odd `, 0, 1, 2, 3);
 
-	f = parse(t, `/ =^:blank; float="#"`, fmap1);
+	f = parse(t, `/ =@:blank; float="#"`, fmap1);
 	verify(t, f, `# # #`, 0.0, 1.0, 2.0);
 
-	f = parse(t, `float=^:nil`, fmap1);
+	f = parse(t, `float=@:nil`, fmap1);
 	verify(t, f, ``, 0.0, 1.0, 2.0);
 
 	// TODO needs more tests
@@ -212,7 +212,7 @@ func TestDefaultRule(t *testing.T) {
 	check(t, `default="%v"`, `42foo3.14`, 42, "foo", 3.14);
 	check(t, `default="%v"; int="%x"`, `abcdef`, 10, 11, 12, 13, 14, 15);
 	check(t, `default="%v"; int="%x"`, `ab**ef`, 10, 11, "**", 14, 15);
-	check(t, `default="%x"; int=^:default`, `abcdef`, 10, 11, 12, 13, 14, 15);
+	check(t, `default="%x"; int=@:default`, `abcdef`, 10, 11, 12, 13, 14, 15);
 }
 
 
