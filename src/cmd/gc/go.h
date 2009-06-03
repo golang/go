@@ -755,6 +755,9 @@ void	tempname(Node*, Type*);
 Node*	staticname(Type*);
 int	iscomposite(Type*);
 Node*	callnew(Type*);
+Node*	saferef(Node*);
+int	is64(Type*);
+int	noconv(Type*, Type*);
 
 Type**	getthis(Type*);
 Type**	getoutarg(Type*);

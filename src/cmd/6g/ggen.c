@@ -127,8 +127,11 @@ ginscall(Node *f, int proc)
 		gins(APUSHQ, &con, N);
 		if(proc == 1)
 			ginscall(newproc, 0);
-		else
+		else {
+			if(!hasdefer)
+				fatal("hasdefer=0 but has defer");
 			ginscall(deferproc, 0);
+		}
 		gins(APOPQ, N, &reg);
 		gins(APOPQ, N, &reg);
 		break;
@@ -176,7 +179,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 	nodo.xoffset -= widthptr;
 	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.m
 
-	nodo.xoffset = n->left->xoffset + 4*widthptr;
+	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
 	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
 
 	// BOTCH nodr.type = fntype;
@@ -852,10 +855,6 @@ lit:
 		p->from.scale = types[TINT32]->width;
 		p->from.offset += types[tptr]->width;
 //print("%P\n", p);
-
-		p = gins(ADATA, &nam, &nod1);
-		p->from.scale = types[TINT32]->width;
-		p->from.offset += types[tptr]->width+types[TINT32]->width;
 		break;
 	}
 

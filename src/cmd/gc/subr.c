@@ -1806,6 +1806,62 @@ loop:
 	return 1;
 }
 
+/*
+ * Is this a 64-bit type?
+ */
+int
+is64(Type *t)
+{
+	if(t == T)
+		return 0;
+	switch(simtype[t->etype]) {
+	case TINT64:
+	case TUINT64:
+	case TPTR64:
+		return 1;
+	}
+	return 0;
+}
+
+/*
+ * Is a conversion between t1 and t2 a no-op?
+ */
+int
+noconv(Type *t1, Type *t2)
+{
+	int e1, e2;
+
+	e1 = simtype[t1->etype];
+	e2 = simtype[t2->etype];
+
+	switch(e1) {
+	case TINT8:
+	case TUINT8:
+		return e2 == TINT8 || e2 == TUINT8;
+
+	case TINT16:
+	case TUINT16:
+		return e2 == TINT16 || e2 == TUINT16;
+
+	case TINT32:
+	case TUINT32:
+	case TPTR32:
+		return e2 == TINT32 || e2 == TUINT32 || e2 == TPTR32;
+
+	case TINT64:
+	case TUINT64:
+	case TPTR64:
+		return e2 == TINT64 || e2 == TUINT64 || e2 == TPTR64;
+
+	case TFLOAT32:
+		return e2 == TFLOAT32;
+
+	case TFLOAT64:
+		return e2 == TFLOAT64;
+	}
+	return 0;
+}
+
 void
 argtype(Node *on, Type *t)
 {
@@ -2415,6 +2471,42 @@ staticname(Type *t)
 	n = newname(lookup(namebuf));
 	addvar(n, t, PEXTERN);
 	return n;
+}
+
+/*
+ * return side effect-free n, moving side effects to top.
+ */
+Node*
+saferef(Node *n)
+{
+	Node *l;
+	Node *r;
+
+	switch(n->op) {
+	case ONAME:
+		return n;
+	case ODOT:
+		l = saferef(n->left);
+		if(l == n->left)
+			return n;
+		r = nod(OXXX, N, N);
+		*r = *n;
+		r->left = l;
+		walktype(r, Elv);
+		return r;
+
+	case OINDEX:
+	case ODOTPTR:
+	case OIND:
+		l = nod(OXXX, N, N);
+		tempname(l, ptrto(n->type));
+		addtotop(nod(OAS, l, nod(OADDR, n, N)));
+		r = nod(OIND, l, N);
+		walktype(r, Elv);
+		return r;
+	}
+	fatal("saferef %N", n);
+	return N;
 }
 
 void
