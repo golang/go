@@ -224,7 +224,7 @@ cgen(Node *n, Node *res)
 
 	case OLEN:
 		if(istype(nl->type, TMAP)) {
-			// map hsd len in the first 32-bit word.
+			// map has len in the first 32-bit word.
 			// a zero pointer means zero length
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
@@ -245,7 +245,7 @@ cgen(Node *n, Node *res)
 			break;
 		}
 		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
-			// both slice and string have len in the first 32-bit word.
+			// both slice and string have len one pointer into the struct.
 			// a zero pointer means zero length
 			regalloc(&n1, types[tptr], res);
 			agen(nl, &n1);
@@ -835,7 +835,7 @@ stkof(Node *n)
 
 /*
  * block copy:
- *	memmove(&n, &ns, w);
+ *	memmove(&ns, &n, w);
  */
 void
 sgen(Node *n, Node *ns, int32 w)

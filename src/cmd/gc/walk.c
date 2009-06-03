@@ -1143,10 +1143,10 @@ loop:
 	 * rewrite div and mod into function calls
 	 * on 32-bit architectures.
 	 */
- 	switch(n->op) {
- 	case ODIV:
- 	case OMOD:
- 		et = n->left->type->etype;
+	switch(n->op) {
+	case ODIV:
+	case OMOD:
+		et = n->left->type->etype;
 		if(widthptr > 4 || (et != TUINT64 && et != TINT64))
 			break;
 		if(et == TINT64)
@@ -1163,7 +1163,19 @@ loop:
 		n->right = nod(OCONV, n->right, N);
 		n->right->type = types[et];
 		r = nod(OCALL, l, list(n->left, n->right));
+		r = nod(OCONV, r, N);
+		r->type = n->left->left->type;
 		walktype(r, Erv);
+		indir(n, r);
+		goto ret;
+
+	case OASOP:
+		et = n->left->type->etype;
+		if(widthptr > 4 || (et != TUINT64 && et != TINT64))
+			break;
+		l = saferef(n->left);
+		r = nod(OAS, l, nod(n->etype, l, n->right));
+		walktype(r, Etop);
 		indir(n, r);
 		goto ret;
 	}
