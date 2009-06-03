@@ -9,6 +9,11 @@ import "syscall"
 // An operating-system independent representation of Unix data structures.
 // OS-specific routines in this directory convert the OS-local versions to these.
 
+// Getpagesize returns the underlying system's memory page size.
+func Getpagesize() int{
+	return syscall.Getpagesize()
+}
+
 // A Dir describes a file and is returned by Stat, Fstat, and Lstat
 type Dir struct {
 	Dev	uint64;	// device number of file system holding file.
