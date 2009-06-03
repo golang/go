@@ -161,17 +161,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
 	return int64(n), e;
 }
 
-//sys	gettimeofday(tp *Timeval) (sec int64, usec int32, errno int)
-func Gettimeofday(tv *Timeval) (errno int) {
-	// The tv passed to gettimeofday must be non-nil
-	// but is otherwise unused.  The answers come back
-	// in the two registers.
-	sec, usec, err := gettimeofday(tv);
-	tv.Sec = sec;
-	tv.Usec = usec;
-	return err;
-}
-
 func Sleep(ns int64) (errno int) {
 	tv := NsecToTimeval(ns);
 	return Select(0, nil, nil, nil, &tv);
