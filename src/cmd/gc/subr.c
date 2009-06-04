@@ -1045,7 +1045,7 @@ Tpretty(Fmt *fp, Type *t)
 			else
 				fmtprint(fp, "%lS", s);
 			if(strcmp(s->package, package) == 0)
-			if(s->otype != t || (!s->export && !s->imported)) {
+			if((s->otype != t || !s->export) && !s->imported) {
 				fmtprint(fp, "·%s", filename);
 				if(t->vargen)
 					fmtprint(fp, "·%d", t->vargen);

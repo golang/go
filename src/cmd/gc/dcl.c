@@ -956,6 +956,8 @@ addvar(Node *n, Type *t, int ctxt)
 	s->vargen = gen;
 	s->oname = n;
 	s->offset = 0;
+	s->oconst = nil;
+	s->otype = nil;
 	s->lexical = LNAME;
 
 	n->funcdepth = funcdepth;
@@ -1003,6 +1005,8 @@ addtyp(Type *n, int ctxt)
 
 	redeclare("type", s);
 	s->otype = n;
+	s->oconst = nil;
+	s->oname = nil;
 	s->lexical = LATYPE;
 
 	d = dcl();
@@ -1056,6 +1060,8 @@ addconst(Node *n, Node *e, int ctxt)
 
 	redeclare("constant", s);
 	s->oconst = e;
+	s->otype = nil;
+	s->oname = nil;
 	s->lexical = LNAME;
 
 	d = dcl();
