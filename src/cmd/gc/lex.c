@@ -807,6 +807,9 @@ tnum:
 		}
 	}
 
+	if(c == 'p')	// 0p begins floating point zero
+		goto casep;
+
 	c1 = 0;
 	for(;;) {
 		if(!isdigit(c))
