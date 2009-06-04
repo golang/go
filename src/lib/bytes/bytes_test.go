@@ -128,3 +128,30 @@ func TestSplit(t *testing.T) {
 		}
 	}
 }
+
+type CopyTest struct {
+	a	string;
+	b	string;
+	res	string;
+}
+var copytests = []CopyTest {
+	CopyTest{ "", "", "" },
+	CopyTest{ "a", "", "a" },
+	CopyTest{ "a", "a", "a" },
+	CopyTest{ "a", "b", "b" },
+	CopyTest{ "xyz", "abc", "abc" },
+	CopyTest{ "wxyz", "abc", "abcz" },
+}
+
+func TestCopy(t *testing.T) {
+	for i := 0; i < len(copytests); i++ {
+		tt := copytests[i];
+		dst := io.StringBytes(tt.a);
+		Copy(dst, io.StringBytes(tt.b));
+		result := string(dst);
+		if result != tt.res {
+			t.Errorf(`Copy("%s", "%s") = "%s"; want "%s"`, tt.a, tt.b, result, tt.res);
+			continue;
+		}
+	}
+}

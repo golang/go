@@ -16,6 +16,7 @@ GC=6g
 DIRS=\
 	bignum\
 	bufio\
+	bytes\
 	container/list\
 	container/vector\
 	crypto/aes\
