@@ -10,6 +10,7 @@
 package io
 
 import (
+	"bytes";
 	"os";
 )
 
@@ -210,9 +211,7 @@ func (r ByteReader) Read(p []byte) (int, os.Error) {
 	if n > len(b) {
 		n = len(b);
 	}
-	for i := 0; i < n; i++ {
-		p[i] = b[i];
-	}
+	bytes.Copy(p, b[0:n]);
 	*b = b[n:len(b)];
 	return n, nil;
 }

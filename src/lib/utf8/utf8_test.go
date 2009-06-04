@@ -5,6 +5,7 @@
 package utf8
 
 import (
+	"bytes";
 	"fmt";
 	"io";
 	"testing";
@@ -45,7 +46,7 @@ var utf8map = []Utf8Map {
 }
 
 // io.StringBytes with one extra byte at end
-func bytes(s string) []byte {
+func makeBytes(s string) []byte {
 	s += "\x00";
 	b := io.StringBytes(s);
 	return b[0:len(s)-1];
@@ -54,7 +55,7 @@ func bytes(s string) []byte {
 func TestFullRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
-		b := bytes(m.str);
+		b := makeBytes(m.str);
 		if !utf8.FullRune(b) {
 			t.Errorf("FullRune(%q) (rune %04x) = false, want true", b, m.rune);
 		}
@@ -73,26 +74,14 @@ func TestFullRune(t *testing.T) {
 	}
 }
 
-func equalBytes(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false;
-	}
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false;
-		}
-	}
-	return true;
-}
-
 func TestEncodeRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
-		b := bytes(m.str);
+		b := makeBytes(m.str);
 		var buf [10]byte;
 		n := utf8.EncodeRune(m.rune, &buf);
 		b1 := buf[0:n];
-		if !equalBytes(b, b1) {
+		if !bytes.Equal(b, b1) {
 			t.Errorf("EncodeRune(0x%04x) = %q want %q", m.rune, b1, b);
 		}
 	}
@@ -101,7 +90,7 @@ func TestEncodeRune(t *testing.T) {
 func TestDecodeRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
-		b := bytes(m.str);
+		b := makeBytes(m.str);
 		rune, size := utf8.DecodeRune(b);
 		if rune != m.rune || size != len(b) {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
@@ -172,7 +161,7 @@ func TestRuneCount(t *testing.T) {
 		if out := utf8.RuneCountInString(tt.in); out != tt.out {
 			t.Errorf("RuneCountInString(%q) = %d, want %d", tt.in, out, tt.out);
 		}
-		if out := utf8.RuneCount(bytes(tt.in)); out != tt.out {
+		if out := utf8.RuneCount(makeBytes(tt.in)); out != tt.out {
 			t.Errorf("RuneCount(%q) = %d, want %d", tt.in, out, tt.out);
 		}
 	}

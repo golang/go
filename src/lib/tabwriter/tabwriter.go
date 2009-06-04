@@ -10,6 +10,7 @@
 package tabwriter
 
 import (
+	"bytes";
 	"container/vector";
 	"io";
 	"os";
@@ -56,9 +57,7 @@ func (b *byteArray) append(s []byte) {
 			n2 = m;
 		}
 		b := make([]byte, n2);
-		for i := 0; i < n; i++ {
-			b[i] = a[i];
-		}
+		bytes.Copy(b, a);
 		a = b;
 	}
 

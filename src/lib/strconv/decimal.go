@@ -11,6 +11,8 @@
 
 package strconv
 
+import "bytes"
+
 type decimal struct {
 	// TODO(rsc): Can make d[] a bit smaller and add
 	// truncated bool;
@@ -27,7 +29,6 @@ func (a *decimal) RoundDown(nd int) *decimal;
 func (a *decimal) RoundedInteger() uint64;
 
 
-func copy(dst []byte, src []byte) int;
 func digitZero(dst []byte) int;
 
 func (a *decimal) String() string {
@@ -52,18 +53,18 @@ func (a *decimal) String() string {
 		buf[w] = '.';
 		w++;
 		w += digitZero(buf[w:w+-a.dp]);
-		w += copy(buf[w:w+a.nd], a.d[0:a.nd]);
+		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
 
 	case a.dp < a.nd:
 		// decimal point in middle of digits
-		w += copy(buf[w:w+a.dp], a.d[0:a.dp]);
+		w += bytes.Copy(buf[w:w+a.dp], a.d[0:a.dp]);
 		buf[w] = '.';
 		w++;
-		w += copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
+		w += bytes.Copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
 
 	default:
 		// zeros fill space between digits and decimal point
-		w += copy(buf[w:w+a.nd], a.d[0:a.nd]);
+		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
 		w += digitZero(buf[w:w+a.dp-a.nd]);
 	}
 	return string(buf[0:w]);
