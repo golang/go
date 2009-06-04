@@ -59,7 +59,7 @@ ilookup(char *name)
 		if(x->name[0] == name[0] && strcmp(x->name, name) == 0)
 			return x;
 	x = mal(sizeof *x);
-	x->name = name;
+	x->name = strdup(name);
 	x->hash = ihash[h];
 	ihash[h] = x;
 	nimport++;
