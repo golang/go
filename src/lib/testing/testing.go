@@ -15,11 +15,14 @@ import (
 	"flag";
 	"fmt";
 	"os";
+	"regexp";
 	"runtime";
 )
 
 // Report as tests are run; default is silent for success.
-var chatty = flag.Bool("chatty", false, "chatty")
+var chatty = flag.Bool("v", false, "verbose: print additional output")
+var match = flag.String("match", "", "regular expression to select tests to run")
+
 
 // Insert final newline if needed and tabs after internal newlines.
 func tabify(s string) string {
@@ -114,11 +117,20 @@ func tRunner(t *T, test *Test) {
 // of gotest.
 func Main(tests []Test) {
 	flag.Parse();
+	args := flag.Args();
 	ok := true;
 	if len(tests) == 0 {
 		println("testing: warning: no tests to run");
 	}
+	re, err := regexp.Compile(*match);
+	if err != nil {
+		println("invalid regexp for -match:", err.String());
+		os.Exit(1);
+	}
 	for i := 0; i < len(tests); i++ {
+		if !re.Match(tests[i].Name) {
+			continue;
+		}
 		if *chatty {
 			println("=== RUN ", tests[i].Name);
 		}
