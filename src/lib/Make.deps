@@ -1,5 +1,6 @@
 bignum.install: fmt.install
 bufio.install: io.install os.install utf8.install
+bytes.install: utf8.install
 container/list.install:
 container/vector.install:
 crypto/aes.install: os.install

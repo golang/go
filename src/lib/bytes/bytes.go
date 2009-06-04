@@ -41,6 +41,15 @@ func Equal(a, b []byte) bool {
 	return true
 }
 
+// Copy copies the source to the destination, stopping when the source
+// is all transferred.  The caller must guarantee that there is enough
+// room in the destination.
+func Copy(dst, src []byte) {
+	for i, x := range src {
+		dst[i] = x
+	}
+}
+
 // Explode splits s into an array of UTF-8 sequences, one per Unicode character (still arrays of bytes).
 // Invalid UTF-8 sequences become correct encodings of U+FFF8.
 func Explode(s []byte) [][]byte {
