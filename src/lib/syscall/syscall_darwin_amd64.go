@@ -42,3 +42,8 @@ func Gettimeofday(tv *Timeval) (errno int) {
 	return err;
 }
 
+func SetKevent(k *Kevent_t, fd, mode, flags int) {
+	k.Ident = uint64(fd);
+	k.Filter = int16(mode);
+	k.Flags = uint16(flags);
+}

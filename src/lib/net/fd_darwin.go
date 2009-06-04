@@ -31,7 +31,7 @@ func newpollster() (p *pollster, err os.Error) {
 }
 
 func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
-	var kmode int16;
+	var kmode int;
 	if mode == 'r' {
 		kmode = syscall.EVFILT_READ
 	} else {
@@ -39,23 +39,21 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 	}
 	var events [1]syscall.Kevent_t;
 	ev := &events[0];
-	ev.Ident = uint64(fd);
-	ev.Filter = kmode;
-
 	// EV_ADD - add event to kqueue list
 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
 	//	rather than waiting for real event
 	// EV_ONESHOT - delete the event the first time it triggers
-	ev.Flags = syscall.EV_ADD | syscall.EV_RECEIPT;
+	flags := syscall.EV_ADD | syscall.EV_RECEIPT;
 	if !repeat {
-		ev.Flags |= syscall.EV_ONESHOT
+		flags |= syscall.EV_ONESHOT
 	}
+	syscall.SetKevent(ev, fd, kmode, flags);
 
 	n, e := syscall.Kevent(p.kq, &events, &events, nil);
 	if e != 0 {
 		return os.ErrnoToError(e)
 	}
-	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || ev.Ident != uint64(fd) || ev.Filter != kmode {
+	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
 		return kqueuePhaseError
 	}
 	if ev.Data != 0 {
@@ -65,7 +63,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 }
 
 func (p *pollster) DelFD(fd int, mode int) {
-	var kmode int16;
+	var kmode int;
 	if mode == 'r' {
 		kmode = syscall.EVFILT_READ
 	} else {
@@ -73,13 +71,10 @@ func (p *pollster) DelFD(fd int, mode int) {
 	}
 	var events [1]syscall.Kevent_t;
 	ev := &events[0];
-	ev.Ident = uint64(fd);
-	ev.Filter = kmode;
-
 	// EV_DELETE - delete event from kqueue list
 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
 	//	rather than waiting for real event
-	ev.Flags = syscall.EV_DELETE | syscall.EV_RECEIPT;
+	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE | syscall.EV_RECEIPT);
 	syscall.Kevent(p.kq, &events, &events, nil);
 }
 
@@ -90,9 +85,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 			if t == nil {
 				t = new(syscall.Timespec);
 			}
-			t.Sec = nsec / 1e9;
-			t.Nsec = int64(nsec % 1e9);
-//			*t = syscall.NsecToTimespec(nsec);
+			*t = syscall.NsecToTimespec(nsec);
 		}
 		nn, e := syscall.Kevent(p.kq, nil, &p.eventbuf, t);
 		if e != 0 {

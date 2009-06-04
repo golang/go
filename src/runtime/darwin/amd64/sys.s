@@ -157,6 +157,7 @@ TEXT bsdthread_create(SB),7,$-8
 	MOVQ	m+16(SP), SI	// "arg"
 	MOVQ	stk+8(SP), DX	// stack
 	MOVQ	g+24(SP), R10	// "pthread"
+// TODO(rsc): why do we get away with 0 flags here but not on 386?
 	MOVQ	$0, R8	// flags
 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
 	SYSCALL

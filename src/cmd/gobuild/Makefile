@@ -2,10 +2,14 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-# sadly, not auto-generated
+# ironically, not auto-generated
 
-O=6
-OS=568vqo
+O_arm=5
+O_amd64=6
+O_386=8
+OS=568vq
+
+O=$(O_$(GOARCH))
 GC=$(O)g
 CC=$(O)c -FVw
 AS=$(O)a

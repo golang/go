@@ -144,13 +144,15 @@ notewakeup(Note *n)
 void
 osinit(void)
 {
-	// Register our thread-creation callback (see sys_amd64_darwin.s).
+	// Register our thread-creation callback (see {amd64,386}/sys.s).
 	bsdthread_register();
 }
 
 void
 newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
+	// printf("newosproc m=%p g=%p stk=%p fn=%p\n", m, g, stk, fn);
+	m->tls[0] = m->id;	// so 386 asm can find it
 	bsdthread_create(stk, m, g, fn);
 }
 

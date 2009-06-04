@@ -88,25 +88,76 @@ TEXT sigaltstack(SB),7,$0
 	CALL	notok(SB)
 	RET
 
-TEXT bsdthread_create(SB),7,$0
+// void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
+// System call args are: func arg stack pthread flags.
+TEXT bsdthread_create(SB),7,$32
 	MOVL	$360, AX
+	// 0(SP) is where the caller PC would be; kernel skips it
+	MOVL	func+12(FP), BX
+	MOVL	BX, 4(SP)	// func
+	MOVL	m+4(FP), BX
+	MOVL	BX, 8(SP)	// arg
+	MOVL	stk+0(FP), BX
+	MOVL	BX, 12(SP)	// stack
+	MOVL	g+8(FP), BX
+	MOVL	BX, 16(SP)	// pthread
+	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
 	INT	$0x80
 	JAE	2(PC)
 	CALL	notok(SB)
 	RET
 
+// The thread that bsdthread_create creates starts executing here,
+// because we registered this function using bsdthread_register
+// at startup.
+//	AX = "pthread" (= g)
+//	BX = mach thread port
+//	CX = "func" (= fn)
+//	DX = "arg" (= m)
+//	DI = stack top
+//	SI = flags (= 0x1000000)
+//	SP = stack - C_32_STK_ALIGN
 TEXT bsdthread_start(SB),7,$0
-	CALL	notok(SB)
+	// set up ldt 7+id to point at m->tls.
+	// m->tls is at m+40.  newosproc left
+	// the m->id in tls[0].
+	LEAL	40(DX), BP
+	MOVL	0(BP), DI
+	ADDL	$7, DI	// m0 is LDT#7. count up.
+	// setldt(tls#, &tls, sizeof tls)
+	PUSHAL	// save registers
+	PUSHL	$32	// sizeof tls
+	PUSHL	BP	// &tls
+	PUSHL	DI	// tls #
+	CALL	setldt(SB)
+	POPL	AX
+	POPL	AX
+	POPL	AX
+	POPAL
+	SHLL	$3, DI	// segment# is ldt*8 + 7.
+	ADDL	$7, DI
+	MOVW	DI, FS
+
+	// Now segment is established.  Initialize m, g.
+	MOVL	AX, 0(FS)	// g
+	MOVL	DX, 4(FS)	// m
+	MOVL	BX, 20(DX)	// m->procid = thread port (for debuggers)
+	CALL	CX	// fn()
+	CALL	exit1(SB)
 	RET
 
+// void bsdthread_register(void)
+// registers callbacks for threadstart (see bsdthread_create above
+// and wqthread and pthsize (not used).  returns 0 on success.
 TEXT bsdthread_register(SB),7,$40
 	MOVL	$366, AX
-	MOVL	$bsdthread_start(SB), 0(SP)	// threadstart
-	MOVL	$0, 4(SP)	// wqthread, not used by us
-	MOVL	$0, 8(SP)	// pthsize, not used by us
-	MOVL	$0, 12(SP)	// paranoia
-	MOVL	$0, 16(SP)
+	// 0(SP) is where kernel expects caller PC; ignored
+	MOVL	$bsdthread_start(SB), 4(SP)	// threadstart
+	MOVL	$0, 8(SP)	// wqthread, not used by us
+	MOVL	$0, 12(SP)	// pthsize, not used by us
+	MOVL	$0, 16(SP)	// paranoia
 	MOVL	$0, 20(SP)
+	MOVL	$0, 24(SP)
 	INT	$0x80
 	JAE	2(PC)
 	CALL	notok(SB)
