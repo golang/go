@@ -99,6 +99,10 @@ darwin_amd64)
 	mktypes="godefs -gsyscall -f-m64"
 	mkerrors="mkerrors"
 	;;
+linux_386)
+	mksysnum="mksysnum_linux /usr/include/asm/unistd_32.h"
+	mktypes="godefs -gsyscall -f-m32"
+	;;
 linux_amd64)
 	mksysnum="mksysnum_linux /usr/include/asm/unistd_64.h"
 	mktypes="godefs -gsyscall -f-m64"

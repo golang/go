@@ -182,12 +182,13 @@ func Sleep(nsec int64) (errno int) {
 	return err;
 }
 
-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
-//sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
-//sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
-//sys	socket(domain int, typ int, proto int) (fd int, errno int)
-//sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
-//sys	Listen(s int, n int) (errno int)
+// Implemented in syscall_linux_*.go
+func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
+func bind(s int, addr uintptr, addrlen _Socklen) (errno int)
+func connect(s int, addr uintptr, addrlen _Socklen) (errno int)
+func socket(domain int, typ int, proto int) (fd int, errno int)
+func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+func Listen(s int, n int) (errno int)
 
 // For testing: clients can set this flag to force
 // creation of IPv6 sockets to return EAFNOSUPPORT.
@@ -454,7 +455,6 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
 //sys	Setsid() (pid int)
 //sys	Settimeofday(tv *Timeval) (errno int)
 //sys	Setuid(uid int) (errno int)
-//sys	Shutdown(fd int, how int) (errno int)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int)
 //sys	Stat(path string, stat *Stat_t) (errno int)
 //sys	Statfs(path string, buf *Statfs_t) (errno int)
