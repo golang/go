@@ -14,7 +14,7 @@ func main() {
 		print("$GOARCH: ", e0.String(), "\n");
 		os.Exit(1);
 	}
-	if ga != "amd64" {
+	if ga != "amd64" && ga != "386" && ga != "arm" {
 		print("$GOARCH=", ga, "\n");
 		os.Exit(1);
 	}

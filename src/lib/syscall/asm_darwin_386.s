@@ -48,7 +48,7 @@ TEXT	syscall·Syscall6(SB),7,$0
 	MOVSL
 	MOVSL
 	INT	$0x80
-	JAE	ok
+	JAE	ok6
 	MOVL	$-1, 32(SP)	// r1
 	MOVL	$-1, 36(SP)	// r2
 	MOVL	AX, 40(SP)		// errno

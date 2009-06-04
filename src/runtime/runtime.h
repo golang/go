@@ -168,7 +168,8 @@ struct	M
 	uint64	procid;		// for debuggers - must not move
 	G*	gsignal;	// signal-handling G - must not move
 	G*	curg;		// current running goroutine - must not move
-	G*	lastg;		// last running goroutine - to emulate fifo
+	G*	lastg;		// last running goroutine - to emulate fifo - must not move
+	uint32	tls[8];		// thread-local storage (for 386 extern register) - must not move
 	Gobuf	sched;
 	Gobuf	morestack;
 	byte*	moresp;

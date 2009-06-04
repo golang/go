@@ -7,12 +7,21 @@ set -e
 
 bash clean.bash
 
-cd 6l
+case "$GOARCH" in
+386)	O=8;;
+amd64)	O=6;;
+arm)	O=5;;
+*)
+	echo 'unknown $GOARCH' 1>&2
+	exit 1
+esac
+
+cd ${O}l
 bash mkenam
 make enam.o
 cd ..
 
-for i in cc 6l 6a 6c gc 6g ar db nm acid cov godefs prof gotest
+for i in cc ${O}l ${O}a ${O}c gc ${O}g ar db nm acid cov godefs prof gotest
 do
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i
