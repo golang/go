@@ -155,7 +155,7 @@ func (p *parser) collectComment() int {
 	// as there may be more whitespace lines after the comment.)
 	endline := p.pos.Line;
 	if p.lit[1] == '*' {
-		for i, b := range p.lit {
+		for _, b := range p.lit {
 			if b == '\n' {
 				endline++;
 			}
@@ -1240,7 +1240,7 @@ func (p *parser) parseSimpleStmt(label_ok bool) ast.Stmt {
 		token.DEFINE, token.ASSIGN, token.ADD_ASSIGN,
 		token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN,
 		token.REM_ASSIGN, token.AND_ASSIGN, token.OR_ASSIGN,
-		token.XOR_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
+		token.XOR_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN, token.AND_NOT_ASSIGN:
 		// assignment statement
 		pos, tok := p.pos, p.tok;
 		p.next();
