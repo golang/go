@@ -64,7 +64,7 @@
 	Literals evaluate to themselves, with two substitutions. First,
 	%-formats expand in the manner of fmt.Printf, with the current value
 	passed as the parameter. Second, the current indentation (see below)
-	is inserted after every newline character.
+	is inserted after every newline or form feed character.
 
 		Literal     = string .
 
@@ -359,13 +359,13 @@ func (s *State) Pos() token.Position {
 
 
 // Write writes data to the output buffer, inserting the indentation
-// string after each newline. It cannot return an error.
+// string after each newline or form feed character. It cannot return an error.
 //
 func (s *State) Write(data []byte) (int, os.Error) {
 	n := 0;
 	i0 := 0;
 	for i, ch := range data {
-		if ch == '\n' {
+		if ch == '\n' || ch == '\f' {
 			// write text segment and indentation
 			n1, _ := s.output.Write(data[i0 : i+1]);
 			n2, _ := s.output.Write(s.indent.Data());
@@ -725,6 +725,10 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 // the state parameter.
 //
 func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
+	if f == nil {
+		return nil, os.NewError("format is nil");
+	}
+
 	errors := make(chan os.Error);
 	s := newState(f, env, errors);
 
