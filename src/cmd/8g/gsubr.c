@@ -576,10 +576,6 @@ optoas(int op, Type *t)
 		a = ADIVL;
 		break;
 
-	case CASE(OEXTEND, TINT8):
-		a = ACBW;
-		break;
-
 	case CASE(OEXTEND, TINT16):
 		a = ACWD;
 		break;
@@ -716,10 +712,10 @@ gclean(void)
 
 	for(i=D_AL; i<=D_DI; i++)
 		if(reg[i])
-			yyerror("reg %R left allocated at %lux\n", i, regpc[i]);
+			yyerror("reg %R left allocated at %lux", i, regpc[i]);
 	for(i=D_F0; i<=D_F7; i++)
 		if(reg[i])
-			yyerror("reg %R left allocated\n", i);
+			yyerror("reg %R left allocated", i);
 }
 
 /*
@@ -760,7 +756,7 @@ regalloc(Node *n, Type *t, Node *o)
 	try:
 		if(o != N && o->op == OREGISTER) {
 			i = o->val.u.reg;
-			if(i >= D_AX && i <= max)
+			if(i >= min && i <= max)
 				goto out;
 		}
 		for(i=min; i<=max; i++)

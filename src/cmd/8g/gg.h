@@ -152,6 +152,12 @@ void	splitclean(void);
 void	nswap(Node*, Node*);
 
 /*
+ * gobj.c
+ */
+void	data(void);
+void	text(void);
+
+/*
  * list.c
  */
 int	Aconv(Fmt*);

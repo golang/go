@@ -2500,7 +2500,7 @@ saferef(Node *n)
 	case OIND:
 		l = nod(OXXX, N, N);
 		tempname(l, ptrto(n->type));
-		addtotop(nod(OAS, l, nod(OADDR, n, N)));
+		addtop = list(addtop, nod(OAS, l, nod(OADDR, n, N)));
 		r = nod(OIND, l, N);
 		walktype(r, Elv);
 		return r;
@@ -2930,7 +2930,7 @@ genwrapper(Type *rcvrtype, Type *method, Sym *newnam)
 		fn->nbody = nod(ORETURN, call, N);
 
 	if(debug['r'])
-		dump("genptrtramp body", fn->nbody);
+		dump("genwrapper body", fn->nbody);
 
 	funcbody(fn);
 }
@@ -3116,6 +3116,9 @@ int
 simsimtype(Type *t)
 {
 	int et;
+
+	if(t == 0)
+		return 0;
 
 	et = simtype[t->etype];
 	switch(et) {

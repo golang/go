@@ -183,7 +183,8 @@ dumpfuncs(void)
 	for(pl=plist; pl!=nil; pl=pl->link) {
 		for(p=pl->firstpc; p!=P; p=p->link) {
 			p->loc = pcloc;
-			pcloc++;
+			if(p->as != ADATA && p->as != AGLOBL)
+				pcloc++;
 		}
 	}
 
@@ -265,7 +266,7 @@ static Prog *estrdat;
 static int gflag;
 static Prog *savepc;
 
-static void
+void
 data(void)
 {
 	gflag = debug['g'];
@@ -282,7 +283,7 @@ data(void)
 	pc = estrdat;
 }
 
-static void
+void
 text(void)
 {
 	if(!savepc)
@@ -589,7 +590,7 @@ out:
 	p = pc;
 	gins(AMOVL, N, N);
 	p->from.type = D_INDIR+D_SP;
-	p->from.offset = 4;
+	p->from.offset = widthptr;
 	p->to.type = D_AX;
 //print("2. %P\n", p);
 
@@ -623,7 +624,7 @@ out:
 	gins(AMOVL, N, N);
 	p->from.type = D_AX;
 	p->to.type = D_INDIR+D_SP;
-	p->to.offset = 8;
+	p->to.offset = widthptr;
 //print("5. %P\n", p);
 
 	f = dotlist[0].field;
