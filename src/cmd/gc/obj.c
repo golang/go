@@ -461,7 +461,7 @@ dumpsignatures(void)
 		}
 
 		// if ifacet is too wide, the methods will see a pointer.
-		if(ifacet->width > 8) {
+		if(ifacet->width > widthptr) {
 			ifacet = ptrto(progt);
 			rcvrt = ptrto(progt);
 		}

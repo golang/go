@@ -7,6 +7,35 @@
 
 #include "gg.h"
 
+void
+mgen(Node *n, Node *n1, Node *rg)
+{
+	n1->ostk = 0;
+	n1->op = OEMPTY;
+
+	if(n->addable) {
+		*n1 = *n;
+		n1->ostk = 0;
+		if(n1->op == OREGISTER || n1->op == OINDREG)
+			reg[n->val.u.reg]++;
+		return;
+	}
+	if(n->type->width > widthptr)
+		tempalloc(n1, n->type);
+	else
+		regalloc(n1, n->type, rg);
+	cgen(n, n1);
+}
+
+void
+mfree(Node *n)
+{
+	if(n->ostk)
+		tempfree(n);
+	else if(n->op == OREGISTER)
+		regfree(n);
+}
+
 /*
  * generate:
  *	res = n;
@@ -18,7 +47,7 @@
 void
 cgen(Node *n, Node *res)
 {
-	Node *nl, *nr, *r, n1, n2, rr, f0, f1;
+	Node *nl, *nr, *r, n1, n2, f0, f1;
 	Prog *p1, *p2, *p3;
 	int a;
 
@@ -59,10 +88,17 @@ cgen(Node *n, Node *res)
 
 	// if both are not addressable, use a temporary.
 	if(!n->addable && !res->addable) {
-		tempalloc(&n1, n->type);
+		if(is64(n->type)) {
+			tempalloc(&n1, n->type);
+			cgen(n, &n1);
+			cgen(&n1, res);
+			tempfree(&n1);
+			return;
+		}
+		regalloc(&n1, n->type, N);
 		cgen(n, &n1);
 		cgen(&n1, res);
-		tempfree(&n1);
+		regfree(&n1);
 		return;
 	}
 
@@ -170,10 +206,9 @@ cgen(Node *n, Node *res)
 			cgen(nl, res);
 			break;
 		}
-		tempalloc(&n1, nl->type);
-		cgen(nl, &n1);
+		mgen(nl, &n1, res);
 		gmove(&n1, res);
-		tempfree(&n1);
+		mfree(&n1);
 		break;
 
 	case ODOT:
@@ -214,13 +249,16 @@ cgen(Node *n, Node *res)
 		}
 		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
 			// both slice and string have len one pointer into the struct.
-			// a zero pointer means zero length
 			igen(nl, &n1, res);
+			n1.op = OREGISTER;	// was OINDREG
+			regalloc(&n2, types[TUINT32], &n1);
 			n1.op = OINDREG;
 			n1.type = types[TUINT32];
 			n1.xoffset = Array_nel;
-			gmove(&n1, res);
+			gmove(&n1, &n2);
+			gmove(&n2, res);
 			regfree(&n1);
+			regfree(&n2);
 			break;
 		}
 		fatal("cgen: OLEN: unknown type %lT", nl->type);
@@ -279,23 +317,23 @@ sbop:	// symmetric binary
 
 abop:	// asymmetric binary
 	if(nl->ullman >= nr->ullman) {
-		tempalloc(&n1, nl->type);
+		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
-		tempalloc(&n2, nr->type);
-		cgen(nr, &n2);
+		mgen(nr, &n2, N);
+		gins(a, &n2, &n1);
+		gmove(&n1, res);
+		mfree(&n2);
+		regfree(&n1);
 	} else {
-		tempalloc(&n1, nl->type);
-		tempalloc(&n2, nr->type);
+		regalloc(&n2, nr->type, res);
 		cgen(nr, &n2);
+		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);
+		gins(a, &n2, &n1);
+		regfree(&n2);
+		gmove(&n1, res);
+		regfree(&n1);
 	}
-	regalloc(&rr, res->type, N);
-	gmove(&n1, &rr);
-	gins(a, &n2, &rr);
-	gmove(&rr, res);
-	regfree(&rr);
-	tempfree(&n2);
-	tempfree(&n1);
 	return;
 
 uop:	// unary
@@ -585,11 +623,8 @@ igen(Node *n, Node *a, Node *res)
 {
 	Node n1;
 
-	tempalloc(&n1, types[tptr]);
-	agen(n, &n1);
 	regalloc(a, types[tptr], res);
-	gins(optoas(OAS, types[tptr]), &n1, a);
-	tempfree(&n1);
+	agen(n, a);
 	a->op = OINDREG;
 	a->type = n->type;
 }

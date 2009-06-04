@@ -69,11 +69,11 @@ compile(Node *fn)
 	gclean();
 	checklabels();
 
-//	if(curfn->type->outtuple != 0)
-//		ginscall(throwreturn, 0);
+	if(curfn->type->outtuple != 0)
+		ginscall(throwreturn, 0);
 
-//	if(hasdefer)
-//		ginscall(deferreturn, 0);
+	if(hasdefer)
+		ginscall(deferreturn, 0);
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
@@ -195,7 +195,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 	i = i->left;		// interface
 
 	if(!i->addable) {
-		tempname(&tmpi, i->type);
+		tempalloc(&tmpi, i->type);
 		cgen(i, &tmpi);
 		i = &tmpi;
 	}
@@ -217,7 +217,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 	nodo.xoffset -= widthptr;
 	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.m
 
-	nodo.xoffset = n->left->xoffset + 4*widthptr;
+	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
 	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
 
 	// BOTCH nodr.type = fntype;
@@ -226,6 +226,9 @@ cgen_callinter(Node *n, Node *res, int proc)
 
 	regfree(&nodr);
 	regfree(&nodo);
+
+	if(i == &tmpi)
+		tempfree(i);
 
 	setmaxarg(n->left->type);
 }
@@ -379,11 +382,12 @@ cgen_asop(Node *n)
 	nr = n->right;
 
 	if(nr->ullman >= UINF && nl->ullman >= UINF) {
-		tempname(&n1, nr->type);
+		tempalloc(&n1, nr->type);
 		cgen(nr, &n1);
 		n2 = *n;
 		n2.right = &n1;
 		cgen_asop(&n2);
+		tempfree(&n1);
 		goto ret;
 	}
 
@@ -505,39 +509,27 @@ ret:
  * according to op.
  */
 void
-dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+dodiv(int op, Type *t, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 {
 	int a;
 	Node n3, n4;
-	Type *t;
 
-	t = nl->type;
-	if(t->width == 1) {
-		if(issigned[t->etype])
-			t = types[TINT32];
-		else
-			t = types[TUINT32];
-	}
+	regalloc(&n3, t, res);
 	a = optoas(op, t);
 
-	regalloc(&n3, nr->type, N);
-	if(nl->ullman >= nr->ullman) {
-		cgen(nl, ax);
-		if(!issigned[t->etype]) {
-			nodconst(&n4, t, 0);
-			gmove(&n4, dx);
-		} else
-			gins(optoas(OEXTEND, t), N, N);
+	if(nl->ullman >= UINF) {
+		cgen(nl, &n3);
+		gmove(&n3, ax);
 		cgen(nr, &n3);
 	} else {
 		cgen(nr, &n3);
 		cgen(nl, ax);
-		if(!issigned[t->etype]) {
-			nodconst(&n4, t, 0);
-			gmove(&n4, dx);
-		} else
-			gins(optoas(OEXTEND, t), N, N);
 	}
+	if(!issigned[t->etype]) {
+		nodconst(&n4, t, 0);
+		gmove(&n4, dx);
+	} else
+		gins(optoas(OEXTEND, t), N, N);
 	gins(a, &n3, N);
 	regfree(&n3);
 
@@ -557,6 +549,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
 	Node ax, dx;
 	int rax, rdx;
+	Type *t;
 
 	rax = reg[D_AX];
 	rdx = reg[D_DX];
@@ -564,12 +557,16 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 	if(is64(nl->type))
 		fatal("cgen_div %T", nl->type);
 
+	t = nl->type;
+	if(t->width == 1)
+		t = types[t->etype+2];	// int8 -> int16, uint8 -> uint16
+
 	nodreg(&ax, types[TINT32], D_AX);
 	nodreg(&dx, types[TINT32], D_DX);
-	regalloc(&ax, nl->type, &ax);
-	regalloc(&dx, nl->type, &dx);
+	regalloc(&ax, t, &ax);
+	regalloc(&dx, t, &dx);
 
-	dodiv(op, nl, nr, res, &ax, &dx);
+	dodiv(op, t, nl, nr, res, &ax, &dx);
 
 	regfree(&ax);
 	regfree(&dx);
@@ -583,7 +580,63 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 void
 cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
-	fatal("cgen_shift");
+	Node n1, n2;
+	int a, w;
+	Prog *p1;
+	uvlong sc;
+
+	if(nl->type->width > 4)
+		fatal("cgen_shift %T", nl->type->width);
+
+	if(nl->type->width == 1 && nl->type->etype != TUINT8)
+		fatal("cgen_shift %T", nl->type);
+
+	w = nl->type->width * 8;
+
+	a = optoas(op, nl->type);
+
+	if(nr->op == OLITERAL) {
+		regalloc(&n1, nl->type, res);
+		cgen(nl, &n1);
+		sc = mpgetfix(nr->val.u.xval);
+		if(sc >= nl->type->width*8) {
+			// large shift gets 2 shifts by width
+			gins(a, ncon(w-1), &n1);
+			gins(a, ncon(w-1), &n1);
+		} else
+			gins(a, nr, &n1);
+		gmove(&n1, res);
+		regfree(&n1);
+		return;
+	}
+
+	nodreg(&n1, types[TUINT32], D_CX);
+	regalloc(&n1, nr->type, &n1);		// to hold the shift type in CX
+
+	regalloc(&n2, nl->type, res);
+	if(nl->ullman >= nr->ullman) {
+		cgen(nl, &n2);
+		cgen(nr, &n1);
+	} else {
+		cgen(nr, &n1);
+		cgen(nl, &n2);
+	}
+
+	// test and fix up large shifts
+	gins(optoas(OCMP, types[TUINT32]), &n1, ncon(w));
+	p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+	if(op == ORSH && issigned[nl->type->etype]) {
+		gins(a, ncon(w-1), &n2);
+	} else {
+		gmove(ncon(0), &n2);
+	}
+	patch(p1, pc);
+	gins(a, &n1, &n2);
+
+	gmove(&n2, res);
+
+	regfree(&n1);
+	regfree(&n2);
 }
 
 /*
@@ -599,7 +652,180 @@ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 }
 
 int
+getlit(Node *lit)
+{
+	if(smallintconst(lit))
+		return mpgetfix(lit->val.u.xval);
+	return -1;
+}
+
+int
+stataddr(Node *nam, Node *n)
+{
+	int l;
+
+	if(n == N)
+		goto no;
+
+	switch(n->op) {
+	case ONAME:
+		*nam = *n;
+		return n->addable;
+
+	case ODOT:
+		if(!stataddr(nam, n->left))
+			break;
+		nam->xoffset += n->xoffset;
+		nam->type = n->type;
+		return 1;
+
+	case OINDEX:
+		if(n->left->type->bound < 0)
+			break;
+		if(!stataddr(nam, n->left))
+			break;
+		l = getlit(n->right);
+		if(l < 0)
+			break;
+		nam->xoffset += l*n->type->width;
+		nam->type = n->type;
+		return 1;
+	}
+
+no:
+	return 0;
+}
+
+int
 gen_as_init(Node *nr, Node *nl)
 {
+	Node nam, nod1, nhi, nlo;
+	Prog *p;
+	Addr a;
+
+	if(!initflag)
+		goto no;
+
+	if(nr == N) {
+		if(!stataddr(&nam, nl))
+			goto no;
+		if(nam.class != PEXTERN)
+			goto no;
+		return 1;
+	}
+
+	if(nr->op == OCOMPSLICE) {
+		// create a slice pointing to an array
+		if(!stataddr(&nam, nl)) {
+			dump("stataddr", nl);
+			goto no;
+		}
+
+		data();
+		p = gins(ADATA, &nam, nr->left);
+		p->from.scale = types[tptr]->width;
+		p->to.index = p->to.type;
+		p->to.type = D_ADDR;
+//print("%P\n", p);
+
+		nodconst(&nod1, types[TINT32], nr->left->type->bound);
+		p = gins(ADATA, &nam, &nod1);
+		p->from.scale = types[TINT32]->width;
+		p->from.offset += types[tptr]->width;
+//print("%P\n", p);
+
+		p = gins(ADATA, &nam, &nod1);
+		p->from.scale = types[TINT32]->width;
+		p->from.offset += types[tptr]->width+types[TINT32]->width;
+		text();
+
+		goto yes;
+	}
+
+	if(nr->op == OCOMPMAP) {
+		goto yes;
+	}
+
+	if(nr->type == T ||
+	   !eqtype(nl->type, nr->type))
+		goto no;
+
+	if(!stataddr(&nam, nl))
+		goto no;
+	if(nam.class != PEXTERN)
+		goto no;
+
+	switch(nr->op) {
+	default:
+		goto no;
+
+	case OLITERAL:
+		goto lit;
+	}
+
+no:
 	return 0;
+
+lit:
+	switch(nr->type->etype) {
+	default:
+		goto no;
+
+	case TBOOL:
+		if(memcmp(nam.sym->name, "initdone·", 9) == 0)
+			goto no;
+	case TINT8:
+	case TUINT8:
+	case TINT16:
+	case TUINT16:
+	case TINT32:
+	case TUINT32:
+	case TINT:
+	case TUINT:
+	case TFLOAT32:
+	case TFLOAT64:
+	case TFLOAT:
+		data();
+		p = gins(ADATA, &nam, nr);
+		p->from.scale = nr->type->width;
+		text();
+		break;
+
+	case TINT64:
+	case TUINT64:
+		data();
+		split64(nr, &nlo, &nhi);
+		p = gins(ADATA, &nam, &nlo);
+		p->from.scale = 4;
+		p = gins(ADATA, &nam, &nhi);
+		p->from.scale = 4;
+		p->from.offset += 4;
+		splitclean();
+		text();
+		break;
+
+	case TSTRING:
+		datastring(nr->val.u.sval->s, nr->val.u.sval->len, &a);
+		data();
+		p = gins(ADATA, &nam, N);
+		p->from.scale = types[tptr]->width;
+		p->to = a;
+		p->to.index = p->to.type;
+		p->to.type = D_ADDR;
+//print("%P\n", p);
+
+		nodconst(&nod1, types[TINT32], nr->val.u.sval->len);
+		p = gins(ADATA, &nam, &nod1);
+		p->from.scale = types[TINT32]->width;
+		p->from.offset += types[tptr]->width;
+//print("%P\n", p);
+		text();
+		break;
+	}
+
+yes:
+//dump("\ngen_as_init", nl);
+//dump("", nr);
+//print("%P\n", p);
+	return 1;
 }
