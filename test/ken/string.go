@@ -88,15 +88,25 @@ main()
 	z1[2] = 'c';
 	c = string(&z1);
 	if c != "abc" {
-		panic("create array ", c);
+		panic("create byte array ", c);
+	}
+
+	/* create string with int array */
+	var z2 [3]int;
+	z2[0] = 'a';
+	z2[1] = '\u1234';
+	z2[2] = 'c';
+	c = string(&z2);
+	if c != "a\u1234c" {
+		panic("create int array ", c);
 	}
 
 	/* create string with byte array pointer */
-	z2 := new([3]byte);
-	z2[0] = 'a';
-	z2[1] = 'b';
-	z2[2] = 'c';
-	c = string(z2);
+	z3 := new([3]byte);
+	z3[0] = 'a';
+	z3[1] = 'b';
+	z3[2] = 'c';
+	c = string(z3);
 	if c != "abc" {
 		panic("create array pointer ", c);
 	}
