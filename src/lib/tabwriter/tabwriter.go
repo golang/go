@@ -10,63 +10,11 @@
 package tabwriter
 
 import (
-	"bytes";
 	"container/vector";
 	"io";
 	"os";
 	"utf8";
 )
-
-
-// ----------------------------------------------------------------------------
-// Basic byteArray support
-
-type byteArray struct {
-	a []byte;
-}
-
-
-func (b *byteArray) init(initial_size int) {
-	b.a = make([]byte, initial_size)[0 : 0];
-}
-
-
-func (b *byteArray) len() int {
-	return len(b.a);
-}
-
-
-func (b *byteArray) clear() {
-	b.a = b.a[0 : 0];
-}
-
-
-func (b *byteArray) slice(i, j int) []byte {
-	return b.a[i : j];  // BUG should really be &b.a[i : j]
-}
-
-
-func (b *byteArray) append(s []byte) {
-	a := b.a;
-	n := len(a);
-	m := n + len(s);
-
-	if m > cap(a) {
-		n2 := 2*n;
-		if m > n2 {
-			n2 = m;
-		}
-		b := make([]byte, n2);
-		bytes.Copy(b, a);
-		a = b;
-	}
-
-	a = a[0 : m];
-	for i := len(s) - 1; i >= 0; i-- {
-		a[n + i] = s[i];
-	}
-	b.a = a;
-}
 
 
 // ----------------------------------------------------------------------------
@@ -88,6 +36,16 @@ func (b *byteArray) append(s []byte) {
 // this may not be true in some fonts, especially with certain
 // UTF-8 characters.
 //
+// If a Writer is configured to filter HTML, HTML tags and entities
+// are simply passed through and their widths are assumed to be zero
+// for formatting purposes.
+//
+// The form feed character ('\f') acts like a newline but it also
+// terminates all columns in the current line (effectively calling
+// Flush). Cells in the next line start new columns. Unless found
+// inside an HTML tag, form feed characters appear as newlines in
+// the output.
+//
 // The Writer must buffer input internally, because proper spacing
 // of one line may depend on the cells in future lines. Clients must
 // call Flush when done calling Write.
@@ -102,7 +60,7 @@ type Writer struct {
 
 	// current state
 	html_char byte;  // terminating char of html tag/entity, or 0 ('>', ';', or 0)
-	buf byteArray;  // collected text w/o tabs and newlines
+	buf io.ByteBuffer;  // collected text w/o tabs, newlines, or form feed chars
 	size int;  // size of incomplete cell in bytes
 	width int;  // width of incomplete cell in runes up to buf[pos] w/o ignored sections
 	pos int;  // buffer position up to which width of incomplete cell has been computed
@@ -114,7 +72,7 @@ type Writer struct {
 
 // Internal representation (current state):
 //
-// - all text written is appended to buf; tabs and newlines are stripped away
+// - all text written is appended to buf; form feed chars, tabs and newlines are stripped away
 // - at any given time there is a (possibly empty) incomplete cell at the end
 //   (the cell starts after a tab or newline)
 // - size is the number of bytes belonging to the cell so far
@@ -182,12 +140,10 @@ func (b *Writer) Init(output io.Writer, cellwidth, padding int, padchar byte, fl
 	}
 	if padchar == '\t' {
 		// tab enforces left-alignment
-		t := ^AlignRight;  // TODO 6g bug
-		flags &= uint(t);
+		flags &^= AlignRight;
 	}
 	b.flags = flags;
 
-	b.buf.init(1024);
 	b.lines_size.Init(0);
 	b.lines_width.Init(0);
 	b.widths.Init(0);
@@ -204,7 +160,8 @@ func (b *Writer) line(i int) (*vector.IntVector, *vector.IntVector) {
 }
 
 
-// debugging support
+// debugging support (keep code around)
+/*
 func (b *Writer) dump() {
 	pos := 0;
 	for i := 0; i < b.lines_size.Len(); i++ {
@@ -219,6 +176,7 @@ func (b *Writer) dump() {
 	}
 	print("\n");
 }
+*/
 
 
 func (b *Writer) write0(buf []byte) os.Error {
@@ -232,7 +190,7 @@ func (b *Writer) write0(buf []byte) os.Error {
 
 var newline = []byte{'\n'}
 
-func (b *Writer) writePadding(textw, cellw int) (err os.Error) {
+func (b *Writer) writePadding(textw, cellw int) os.Error {
 	if b.padbytes[0] == '\t' {
 		// make cell width a multiple of cellwidth
 		cellw = ((cellw + b.cellwidth - 1) / b.cellwidth) * b.cellwidth;
@@ -248,21 +206,18 @@ func (b *Writer) writePadding(textw, cellw int) (err os.Error) {
 	}
 
 	for n > len(b.padbytes) {
-		err = b.write0(&b.padbytes);
-		if err != nil {
-			goto exit;
+		if err := b.write0(&b.padbytes); err != nil {
+			return err;
 		}
 		n -= len(b.padbytes);
 	}
-	err = b.write0(b.padbytes[0 : n]);
 
-exit:
-	return err;
+	return b.write0(b.padbytes[0 : n]);
 }
 
 
-func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) {
-	pos = pos0;
+func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
+	pos := pos0;
 	for i := line0; i < line1; i++ {
 		line_size, line_width := b.line(i);
 		for j := 0; j < line_size.Len(); j++ {
@@ -271,29 +226,25 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 			switch {
 			default: // align left
 
-				err = b.write0(b.buf.slice(pos, pos + s));
-				if err != nil {
-					goto exit;
+				if err := b.write0(b.buf.Data()[pos : pos + s]); err != nil {
+					return pos, err;
 				}
 				pos += s;
 				if j < b.widths.Len() {
-					err = b.writePadding(w, b.widths.At(j));
-					if err != nil {
-						goto exit;
+					if err := b.writePadding(w, b.widths.At(j)); err != nil {
+						return pos, err;
 					}
 				}
 
 			case b.flags & AlignRight != 0:  // align right
 
 				if j < b.widths.Len() {
-					err = b.writePadding(w, b.widths.At(j));
-					if err != nil {
-						goto exit;
+					if err := b.writePadding(w, b.widths.At(j)); err != nil {
+						return pos, err;
 					}
 				}
-				err = b.write0(b.buf.slice(pos, pos + s));
-				if err != nil {
-					goto exit;
+				if err := b.write0(b.buf.Data()[pos : pos + s]); err != nil {
+					return pos, err;
 				}
 				pos += s;
 			}
@@ -302,19 +253,18 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 		if i+1 == b.lines_size.Len() {
 			// last buffered line - we don't have a newline, so just write
 			// any outstanding buffered data
-			err = b.write0(b.buf.slice(pos, pos + b.size));
+			if err := b.write0(b.buf.Data()[pos : pos + b.size]); err != nil {
+				return pos, err;
+			}
 			pos += b.size;
 		} else {
 			// not the last line - write newline
-			err = b.write0(newline);
-		}
-		if err != nil {
-			goto exit;
+			if err := b.write0(newline); err != nil {
+				return pos, err;
+			}
 		}
 	}
-
-exit:
-	return pos, err;
+	return pos, nil;
 }
 
 
@@ -332,7 +282,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 			// print unprinted lines until beginning of block
 			pos, err = b.writeLines(pos, last, this);
 			if err != nil {
-				goto exit;
+				return pos, err;
 			}
 			last = this;
 
@@ -362,10 +312,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 	}
 
 	// print unprinted lines until end
-	pos, err = b.writeLines(pos, last, line1);
-
-exit:
-	return pos, err;
+	return b.writeLines(pos, last, line1);
 }
 
 
@@ -373,9 +320,9 @@ exit:
 // that any data buffered in the Writer is written to output.
 //
 func (b *Writer) Flush() os.Error {
-	dummy, err := b.format(0, 0, b.lines_size.Len());
+	_, err := b.format(0, 0, b.lines_size.Len());
 	// reset (even in the presence of errors)
-	b.buf.clear();
+	b.buf.Reset();
 	b.size, b.width = 0, 0;
 	b.pos = 0;
 	b.lines_size.Init(0);
@@ -401,7 +348,7 @@ func unicodeLen(buf []byte) int {
 
 
 func (b *Writer) append(buf []byte) {
-	b.buf.append(buf);
+	b.buf.Write(buf);
 	b.size += len(buf);
 }
 
@@ -420,11 +367,11 @@ func (b *Writer) Write(buf []byte) (written int, err os.Error) {
 		if b.html_char == 0 {
 			// outside html tag/entity
 			switch ch {
-			case '\t', '\n':
+			case '\t', '\n', '\f':
 				b.append(buf[i0 : i]);
 				i0 = i + 1;  // exclude ch from (next) cell
-				b.width += unicodeLen(b.buf.slice(b.pos, b.buf.len()));
-				b.pos = b.buf.len();
+				b.width += unicodeLen(b.buf.Data()[b.pos : b.buf.Len()]);
+				b.pos = b.buf.Len();
 
 				// terminate cell
 				last_size, last_width := b.line(b.lines_size.Len() - 1);
@@ -432,15 +379,16 @@ func (b *Writer) Write(buf []byte) (written int, err os.Error) {
 				last_width.Push(b.width);
 				b.size, b.width = 0, 0;
 
-				if ch == '\n' {
+				if ch != '\t' {
+					// terminate line
 					b.addLine();
-					if last_size.Len() == 1 {
-						// The previous line has only one cell which does not have
-						// an impact on the formatting of the following lines (the
-						// last cell per line is ignored by format()), thus we can
-						// flush the Writer contents.
-						err = b.Flush();
-						if err != nil {
+					if ch == '\f' || last_size.Len() == 1 {
+						// A '\f' always forces a flush. Otherwise, if the previous
+						// line has only one cell which does not have an impact on
+						// the formatting of the following lines (the last cell per
+						// line is ignored by format()), thus we can flush the
+						// Writer contents.
+						if err = b.Flush(); err != nil {
 							return i0, err;
 						}
 					}
@@ -450,7 +398,7 @@ func (b *Writer) Write(buf []byte) (written int, err os.Error) {
 				if b.flags & FilterHTML != 0 {
 					b.append(buf[i0 : i]);
 					i0 = i;
-					b.width += unicodeLen(b.buf.slice(b.pos, b.buf.len()));
+					b.width += unicodeLen(b.buf.Data()[b.pos : b.buf.Len()]);
 					b.pos = -1;  // preventative - should not be used (will cause index out of bounds)
 					if ch == '<' {
 						b.html_char = '>';
@@ -469,7 +417,7 @@ func (b *Writer) Write(buf []byte) (written int, err os.Error) {
 				if b.html_char == ';' {
 					b.width++;  // count as one char
 				}
-				b.pos = b.buf.len();
+				b.pos = b.buf.Len();
 				b.html_char = 0;
 			}
 		}

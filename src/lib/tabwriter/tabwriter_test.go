@@ -103,132 +103,158 @@ func check(t *testing.T, tabwidth, padding int, padchar byte, flags uint, src, e
 }
 
 
-func Test(t *testing.T) {
-	check(
-		t, 8, 1, '.', 0,
+type entry struct {
+	tabwidth, padding int;
+	padchar byte;
+	flags uint;
+	src, expected string;
+}
+
+
+var tests = []entry {
+	entry{
+		8, 1, '.', 0,
 		"",
 		""
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"\n\n\n",
 		"\n\n\n"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"a\nb\nc",
 		"a\nb\nc"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"\t",  // '\t' terminates an empty cell on last line - nothing to print
 		""
-	);
+	},
 
-	check(
-		t, 8, 1, '.', tabwriter.AlignRight,
+	entry{
+		8, 1, '.', tabwriter.AlignRight,
 		"\t",  // '\t' terminates an empty cell on last line - nothing to print
 		""
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"*\t*",
 		"**"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"*\t*\n",
 		"*.......*\n"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"*\t*\t",
 		"*.......*"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', tabwriter.AlignRight,
+	entry{
+		8, 1, '.', tabwriter.AlignRight,
 		"*\t*\t",
 		".......**"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"\t\n",
 		"........\n"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"a) foo",
 		"a) foo"
-	);
+	},
 
-	check(
-		t, 8, 1, ' ', 0,
+	entry{
+		8, 1, ' ', 0,
 		"b) foo\tbar",  // "bar" is not in any cell - not formatted, just flushed
 		"b) foobar"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"c) foo\tbar\t",
 		"c) foo..bar"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"d) foo\tbar\n",
 		"d) foo..bar\n"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"e) foo\tbar\t\n",
 		"e) foo..bar.....\n"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', tabwriter.FilterHTML,
-		"e) f&lt;o\t<b>bar</b>\t\n",
-		"e) f&lt;o..<b>bar</b>.....\n"
-	);
+	entry{
+		8, 1, '.', tabwriter.FilterHTML,
+		"f) f&lt;o\t<b>bar</b>\t\n",
+		"f) f&lt;o..<b>bar</b>.....\n"
+	},
 
-	check(
-		t, 8, 1, '*', 0,
+	entry{
+		8, 1, '*', 0,
 		"Hello, world!\n",
 		"Hello, world!\n"
-	);
+	},
 
-	check(
-		t, 0, 0, '.', 0,
+	entry{
+		0, 0, '.', 0,
 		"1\t2\t3\t4\n"
 		"11\t222\t3333\t44444\n",
 
 		"1.2..3...4\n"
 		"11222333344444\n"
-	);
+	},
 
-	check(
-		t, 5, 0, '.', 0,
+	entry{
+		0, 0, '.', tabwriter.FilterHTML,
+		"1\t2<!---\f--->\t3\t4\n"  // \f inside HTML is ignored
+		"11\t222\t3333\t44444\n",
+
+		"1.2<!---\f--->..3...4\n"
+		"11222333344444\n"
+	},
+
+	entry{
+		0, 0, '.', 0,
+		"1\t2\t3\t4\f"  // \f causes a newline and flush
+		"11\t222\t3333\t44444\n",
+
+		"1234\n"
+		"11222333344444\n"
+	},
+
+	entry{
+		5, 0, '.', 0,
 		"1\t2\t3\t4\n",
 		"1....2....3....4\n"
-	);
+	},
 
-	check(
-		t, 5, 0, '.', 0,
+	entry{
+		5, 0, '.', 0,
 		"1\t2\t3\t4\t\n",
 		"1....2....3....4....\n"
-	);
+	},
 
-	check(
-		t, 8, 1, '.', 0,
+	entry{
+		8, 1, '.', 0,
 		"本\tb\tc\n"
 		"aa\t\u672c\u672c\u672c\tcccc\tddddd\n"
 		"aaa\tbbbb\n",
@@ -236,10 +262,10 @@ func Test(t *testing.T) {
 		"本.......b.......c\n"
 		"aa......本本本.....cccc....ddddd\n"
 		"aaa.....bbbb\n"
-	);
+	},
 
-	check(
-		t, 8, 1, ' ', tabwriter.AlignRight,
+	entry{
+		8, 1, ' ', tabwriter.AlignRight,
 		"a\tè\tc\t\n"
 		"aa\tèèè\tcccc\tddddd\t\n"
 		"aaa\tèèèè\t\n",
@@ -247,10 +273,10 @@ func Test(t *testing.T) {
 		"       a       è       c\n"
 		"      aa     èèè    cccc   ddddd\n"
 		"     aaa    èèèè\n"
-	);
+	},
 
-	check(
-		t, 2, 0, ' ', 0,
+	entry{
+		2, 0, ' ', 0,
 		"a\tb\tc\n"
 		"aa\tbbb\tcccc\n"
 		"aaa\tbbbb\n",
@@ -258,10 +284,10 @@ func Test(t *testing.T) {
 		"a  b  c\n"
 		"aa bbbcccc\n"
 		"aaabbbb\n"
-	);
+	},
 
-	check(
-		t, 8, 1, '_', 0,
+	entry{
+		8, 1, '_', 0,
 		"a\tb\tc\n"
 		"aa\tbbb\tcccc\n"
 		"aaa\tbbbb\n",
@@ -269,10 +295,10 @@ func Test(t *testing.T) {
 		"a_______b_______c\n"
 		"aa______bbb_____cccc\n"
 		"aaa_____bbbb\n"
-	);
+	},
 
-	check(
-		t, 4, 1, '-', 0,
+	entry{
+		4, 1, '-', 0,
 		"4444\t日本語\t22\t1\t333\n"
 		"999999999\t22\n"
 		"7\t22\n"
@@ -288,10 +314,10 @@ func Test(t *testing.T) {
 		"\n"
 		"666666-666666-666666----4444\n"
 		"1------1------999999999-0000000000\n"
-	);
+	},
 
-	check(
-		t, 4, 3, '.', 0,
+	entry{
+		4, 3, '.', 0,
 		"4444\t333\t22\t1\t333\n"
 		"999999999\t22\n"
 		"7\t22\n"
@@ -307,10 +333,10 @@ func Test(t *testing.T) {
 		"\n"
 		"666666...666666...666666......4444\n"
 		"1........1........999999999...0000000000\n"
-	);
+	},
 
-	check(
-		t, 8, 1, '\t', tabwriter.FilterHTML,
+	entry{
+		8, 1, '\t', tabwriter.FilterHTML,
 		"4444\t333\t22\t1\t333\n"
 		"999999999\t22\n"
 		"7\t22\n"
@@ -326,10 +352,10 @@ func Test(t *testing.T) {
 		"\n"
 		"666666\t666666\t666666\t\t4444\n"
 		"1\t1\t<font color=red attr=日本語>999999999</font>\t0000000000\n"
-	);
+	},
 
-	check(
-		t, 0, 2, ' ', tabwriter.AlignRight,
+	entry{
+		0, 2, ' ', tabwriter.AlignRight,
 		".0\t.3\t2.4\t-5.1\t\n"
 		"23.0\t12345678.9\t2.4\t-989.4\t\n"
 		"5.1\t12.0\t2.4\t-7.0\t\n"
@@ -343,5 +369,12 @@ func Test(t *testing.T) {
 		"    .0         0.0  332.0  8908.0\n"
 		"    .0         -.3  456.4    22.1\n"
 		"    .0         1.2   44.4   -13.3"
-	);
+	},
+}
+
+
+func Test(t *testing.T) {
+	for _, e := range tests {
+		check(t, e.tabwidth, e.padding, e.padchar, e.flags, e.src, e.expected);
+	}
 }
