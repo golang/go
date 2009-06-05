@@ -80,11 +80,11 @@ traceback(byte *pc0, byte *sp, G *g)
 	prints("...\n");
 }
 
-// func caller(n int) (pc uint64, file string, line int, ok bool)
+// func caller(n int) (pc uintptr, file string, line int, ok bool)
 void
-runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbool)
+runtime·Caller(int32 n, uintptr retpc, String retfile, int32 retline, bool retbool)
 {
-	uint64 pc;
+	uintptr pc;
 	byte *sp;
 	byte *p;
 	Stktop *stk;
@@ -92,7 +92,7 @@ runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbo
 
 	// our caller's pc, sp.
 	sp = (byte*)&n;
-	pc = *(uint64*)(sp-8);
+	pc = *((uintptr*)sp - 1);
 	if((f = findfunc(pc)) == nil) {
 	error:
 		retpc = 0;
@@ -109,27 +109,27 @@ runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbo
 	// now unwind n levels
 	stk = (Stktop*)g->stackbase;
 	while(n-- > 0) {
-		while(pc == (uint64)retfromnewstack) {
+		while(pc == (uintptr)retfromnewstack) {
 			sp = stk->oldsp;
 			stk = (Stktop*)stk->oldbase;
-			pc = *(uint64*)(sp+8);
-			sp += 16;
+			pc = *((uintptr*)sp + 1);
+			sp += 2*sizeof(uintptr);
 		}
 
-		if(f->frame < 8)	// assembly functions lie
-			sp += 8;
+		if(f->frame < sizeof(uintptr))	// assembly functions lie
+			sp += sizeof(uintptr);
 		else
 			sp += f->frame;
 
 	loop:
-		pc = *(uint64*)(sp-8);
+		pc = *((uintptr*)sp - 1);
 		if(pc <= 0x1000 || (f = findfunc(pc)) == nil) {
 			// dangerous, but let's try this.
 			// see if it is a closure.
 			p = (byte*)pc;
 			// ADDL $xxx, SP; RET
 			if(p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
-				sp += *(uint32*)(p+2) + 8;
+				sp += *(uint32*)(p+2) + sizeof(uintptr);
 				goto loop;
 			}
 			goto error;
@@ -145,5 +145,4 @@ runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbo
 	FLUSH(&retline);
 	FLUSH(&retbool);
 }
-
 

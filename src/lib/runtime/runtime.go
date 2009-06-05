@@ -25,4 +25,4 @@ func	Breakpoint()
 // ascend, with 1 identifying the the caller of Caller.  The return values report the
 // program counter, file name, and line number within the file of the corresponding
 // call.  The boolean ok is false if it was not possible to recover the information.
-func	Caller(n int) (pc uint64, file string, line int, ok bool)
+func	Caller(n int) (pc uintptr, file string, line int, ok bool)
