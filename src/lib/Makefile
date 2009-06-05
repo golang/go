@@ -11,8 +11,6 @@
 
 all: install
 
-GC=6g
-
 DIRS=\
 	bignum\
 	bufio\

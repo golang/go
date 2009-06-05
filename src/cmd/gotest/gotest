@@ -8,18 +8,20 @@
 # tests.
 # If files are named on the command line, use them instead of test*.go.
 
-case "$GOARCH" in
-amd64)	O=6;;
-arm)	O=5;;
-386)	O=8;;
-*)	echo 'unknown $GOARCH' 1>&2
-esac
+_GC=$GC	# Make.$GOARCH will overwrite this
 
-GC=${GC:-${O}g}
-GL=${GL:-${O}l}
-export GC GL
+. $GOROOT/src/Make.$GOARCH
+if [ -z "$O" ]; then
+	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+	exit 1
+fi
+
+# Allow overrides
+GC=${_GC:-$GC}
+GL=${GL:-$LD}
 GC="$GC -I _obj"
 GL="$GL -L _obj"
+export GC GL
 
 gofiles=""
 loop=true

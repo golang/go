@@ -4,11 +4,18 @@
 # license that can be found in the LICENSE file.
 
 set -e
+
+. $GOROOT/src/Make.$GOARCH
+if [ -z "$GC" ]; then
+	echo 'missing $GC - maybe no Make.$GOARCH?' 1>&2
+	exit 1
+fi
+
 gcc -o mkbuiltin1 mkbuiltin1.c
 rm -f _builtin.c
 for i in sys unsafe
 do
-	6g $i.go
+	$GC $i.go
 	./mkbuiltin1 $i >>_builtin.c
 done
 

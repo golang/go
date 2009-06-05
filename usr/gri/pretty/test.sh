@@ -4,6 +4,12 @@
 
 #!/bin/bash
 
+. $GOROOT/src/Make.$GOARCH
+if [ -z "$O" ]; then
+	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+	exit 1
+fi
+
 CMD="./pretty -format=ast.txt"
 TMP1=test_tmp1.go
 TMP2=test_tmp2.go
@@ -73,7 +79,7 @@ idempotent() {
 		echo "Error (step 1 of idempotency test): test.sh $1"
 		exit 1
 	fi
-	
+
 	$CMD $TMP1 > $TMP2
 	if [ $? != 0 ]; then
 		echo "Error (step 2 of idempotency test): test.sh $1"
@@ -103,7 +109,7 @@ valid() {
 		exit 1
 	fi
 
-	6g -o /dev/null $TMP1
+	$GC -o /dev/null $TMP1
 	if [ $? != 0 ]; then
 		echo "Error (step 2 of validity test): test.sh $1"
 		exit 1
@@ -125,7 +131,7 @@ runtest() {
 runtests() {
 	if [ $# == 0 ]; then
 		runtest apply
-		# verify the pretty-printed files can be compiled with 6g again
+		# verify the pretty-printed files can be compiled with $GC again
 		# do it in local directory only because of the prerequisites required
 		#echo "Testing validity"
 		cleanup
