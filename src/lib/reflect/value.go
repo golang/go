@@ -61,7 +61,7 @@ func (c *commonValue) Interface() interface {} {
 	switch {
 	case c.typ.Kind() == InterfaceKind:
 		panic("not reached");	// InterfaceValue overrides this method
-	case c.typ.Size() > 8:	// TODO(rsc): how do we know it is 8?
+	case c.typ.Size() > unsafe.Sizeof(uintptr(0)):
 		i = unsafe.Unreflect(uint64(uintptr(c.addr)), c.typ.String(), true);
 	default:
 		if uintptr(c.addr) == 0 {
@@ -872,7 +872,7 @@ var typecache = make(map[string] Type);
 func newValueAddr(typ Type, addr Addr) Value {
 	c, ok := creator[typ.Kind()];
 	if !ok {
-		panicln("no creator for type" , typ.Kind());
+		panicln("no creator for type" , typ.String());
 	}
 	return c(typ, addr);
 }
@@ -945,9 +945,16 @@ func NewValue(e interface {}) Value {
 	typ, ok := typecache[typestring];
 	if !ok {
 		typ = ParseTypeString("", typestring);
+		if typ.Kind() == MissingKind {
+			// This can not happen: unsafe.Reflect should only
+			// ever tell us the names of types that exist.
+			// Of course it does happen, and when it does
+			// it is more helpful to catch it in action here than
+			// to see $missing$ in a later print.
+			panicln("missing type for", typestring);
+		}
 		typecache[typestring] = typ;
 	}
-
 	var ap Addr;
 	if indir {
 		// Content of interface is large and didn't

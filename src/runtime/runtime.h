@@ -194,7 +194,7 @@ struct	Stktop
 };
 struct	Alg
 {
-	uint64	(*hash)(uint32, void*);
+	uintptr	(*hash)(uint32, void*);
 	uint32	(*equal)(uint32, void*, void*);
 	void	(*print)(uint32, void*);
 	void	(*copy)(uint32, void*, void*);
@@ -333,9 +333,9 @@ MCache*	allocmcache(void);
 void	mallocinit(void);
 bool	ifaceeq(Iface, Iface);
 bool	efaceeq(Eface, Eface);
-uint64	ifacehash(Iface);
-uint64	efacehash(Eface);
-uint64	nohash(uint32, void*);
+uintptr	ifacehash(Iface);
+uintptr	efacehash(Eface);
+uintptr	nohash(uint32, void*);
 uint32	noequal(uint32, void*, void*);
 void*	malloc(uintptr size);
 void*	mallocgc(uintptr size);
