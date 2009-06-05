@@ -42,6 +42,8 @@ import (
 	pathutil "path";
 	"sort";
 	"strings";
+	"sync";
+	"syscall";
 	"tabwriter";
 	"template";
 	"time";
@@ -53,6 +55,26 @@ import (
 const Pkg = "/pkg/"	// name for auto-generated package documentation tree
 
 
+type timeStamp struct {
+	mutex sync.RWMutex;
+	seconds int64;
+}
+
+
+func (ts *timeStamp) set() {
+	ts.mutex.Lock();
+	ts.seconds = time.Seconds();
+	ts.mutex.Unlock();
+}
+
+
+func (ts *timeStamp) get() int64 {
+	ts.mutex.RLock();
+	defer ts.mutex.RUnlock();
+	return ts.seconds;
+}
+
+
 var (
 	verbose = flag.Bool("v", false, "verbose mode");
 
@@ -61,6 +83,11 @@ var (
 	goroot string;
 	pkgroot = flag.String("pkgroot", "src/lib", "root package source directory (if unrooted, relative to goroot)");
 	tmplroot = flag.String("tmplroot", "usr/gri/pretty", "root template directory (if unrooted, relative to goroot)");
+
+	// workspace control
+	p4binary = flag.String("p4", "/usr/local/scripts/p4", "p4 binary");
+	syncSleep = flag.Int("sync", 10, "p4 sync interval in minutes; disabled if <= 0");
+	syncTime timeStamp;  // time of last p4 sync
 
 	// layout control
 	tabwidth = flag.Int("tabwidth", 4, "tab width");
@@ -319,7 +346,7 @@ func servePage(c *http.Conn, title, content interface{}) {
 	var d Data;
 	d.title = title;
 	d.header = title;
-	d.timestamp = time.UTC().String();
+	d.timestamp = time.SecondsToLocalTime(syncTime.get()).String();
 	d.content = content;
 	godocHtml.Execute(&d, c);
 }
@@ -578,12 +605,25 @@ func loggingHandler(h http.Handler) http.Handler {
 }
 
 
+func p4sync() bool {
+	if *verbose {
+		log.Stderrf("p4 sync");
+	}
+	args := []string{*p4binary, "sync"};
+	pid, err := os.ForkExec(*p4binary, args, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr});
+	if err != nil {
+		log.Stderrf("os.ForkExec(%s): %v", *p4binary, err);
+		return false;
+	}
+	os.Wait(pid, 0);
+	syncTime.set();
+	return true;
+}
+
+
 func restartGodoc(c *http.Conn, r *http.Request) {
 	binary := os.Args[0];
-	if len(binary) > 0 && binary[0] != '/' {
-		binary = pathutil.Join(launchdir, binary);
-	}
-	pid, err := os.ForkExec(binary, os.Args, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr});
+	pid, err := os.ForkExec(binary, os.Args, os.Environ(), launchdir, []*os.File{os.Stdin, os.Stdout, os.Stderr});
 	if err != nil {
 		log.Stderrf("os.ForkExec(%s): %v", binary, err);
 		return;  // do not terminate
@@ -642,7 +682,11 @@ func main() {
 		}
 
 		http.Handle(Pkg, http.HandlerFunc(servePkg));
-		http.Handle("/debug/restart", http.HandlerFunc(restartGodoc));
+		if syscall.OS != "darwin" {
+			http.Handle("/debug/restart", http.HandlerFunc(restartGodoc));
+		} else {
+			log.Stderrf("warning: debug/restart disabled (running on darwin)\n");
+		}
 		http.Handle("/", http.HandlerFunc(serveFile));
 
 		// The server may have been restarted; always wait 1sec to
@@ -650,6 +694,25 @@ func main() {
 		// the http port. (This is necessary because under OS X Exec
 		// won't work if there are more than one thread running.)
 		time.Sleep(1e9);
+
+		// Start p4 sync goroutine, if enabled.
+		if syscall.OS != "darwin" {
+			if *syncSleep > 0 {
+				go func() {
+					if *verbose {
+						log.Stderrf("p4 sync every %dmin", *syncSleep);
+					}
+					for p4sync() {
+						time.Sleep(int64(*syncSleep) * (60 * 1e9));
+					}
+					if *verbose {
+						log.Stderrf("periodic p4 sync stopped");
+					}
+				}();
+			}
+		} else {
+			log.Stderrf("warning: sync disabled (running on darwin)\n");
+		}
 
 		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
 			log.Exitf("ListenAndServe %s: %v", *httpaddr, err)
