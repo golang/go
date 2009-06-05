@@ -17,7 +17,7 @@ type Stats struct {
 	EnableGC	bool;
 }
 
-func Alloc(uint64) *byte
+func Alloc(uintptr) *byte
 func Free(*byte)
 func GetStats() *Stats
 func Lookup(*byte) (*byte, uintptr)
