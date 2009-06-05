@@ -118,3 +118,61 @@ func HasPrefix(s, prefix string) bool {
 func HasSuffix(s, suffix string) bool {
 	return len(s) >= len(suffix) && s[len(s)-len(suffix):len(s)] == suffix
 }
+
+// Upper returns a copy of the string s, with all low ASCII lowercase letters
+// converted to uppercase.
+// TODO: full Unicode support
+func UpperASCII(s string) string {
+	// Note, we can work byte-by-byte because UTF-8 multibyte characters
+	// don't use any low ASCII byte values.
+	b := make([]byte, len(s));
+	for i := 0; i < len(s); i++ {
+		c := s[i];
+		if 'a' <= c && c <= 'z' {
+			c -= 'a' - 'A';
+		}
+		b[i] = c;
+	}
+	return string(b);
+}
+
+// Upper returns a copy of the string s, with all low ASCII lowercase letters
+// converted to lowercase.
+// TODO: full Unicode support
+func LowerASCII(s string) string {
+	// Note, we can work byte-by-byte because UTF-8 multibyte characters
+	// don't use any low ASCII byte values.
+	b := make([]byte, len(s));
+	for i := 0; i < len(s); i++ {
+		c := s[i];
+		if 'A' <= c && c <= 'Z' {
+			c += 'a' - 'A';
+		}
+		b[i] = c;
+	}
+	return string(b);
+}
+
+func isWhitespaceASCII(c byte) bool {
+	switch int(c) {
+	case ' ', '\t', '\r', '\n':
+		return true;
+	}
+ 	return false;
+}
+
+// Trim returns a slice of the string s, with all leading and trailing whitespace
+// removed.  "Whitespace" for now defined as space, tab, CR, or LF.
+// TODO: full Unicode whitespace support (need a unicode.IsWhitespace method)
+func TrimSpaceASCII(s string) string {
+	// Note, we can work byte-by-byte because UTF-8 multibyte characters
+	// don't use any low ASCII byte values.
+	start, end := 0, len(s);
+	for start < end && isWhitespaceASCII(s[start]) {
+		start++;
+	}
+	for start < end && isWhitespaceASCII(s[end-1]) {
+		end--;
+	}
+	return s[start:end];
+}

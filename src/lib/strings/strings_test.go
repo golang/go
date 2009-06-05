@@ -79,3 +79,55 @@ func TestSplit(t *testing.T) {
 	}
 }
 
+// Test case for any function which accepts and returns a single string.
+type StringTest struct {
+	in, out string;
+}
+
+// Execute f on each test case.  funcName should be the name of f; it's used
+// in failure reports.
+func runStringTests(t *testing.T, f func(string) string, funcName string, testCases []StringTest) {
+	for i, tc := range testCases {
+		actual := f(tc.in);
+		if (actual != tc.out) {
+			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out);
+		}
+	}
+}
+
+var upperASCIITests = []StringTest {
+	StringTest{"", ""},
+	StringTest{"abc", "ABC"},
+	StringTest{"AbC123", "ABC123"},
+	StringTest{"azAZ09_", "AZAZ09_"}
+}
+
+var lowerASCIITests = []StringTest {
+	StringTest{"", ""},
+	StringTest{"abc", "abc"},
+	StringTest{"AbC123", "abc123"},
+	StringTest{"azAZ09_", "azaz09_"}
+}
+
+var trimSpaceASCIITests = []StringTest {
+	StringTest{"", ""},
+	StringTest{"abc", "abc"},
+	StringTest{" ", ""},
+	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
+	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
+	StringTest{" \t\r\n x\t\t\r\r\ny\n ", "x\t\t\r\r\ny"},
+	StringTest{"1 \t\r\n2", "1 \t\r\n2"},
+}
+
+func TestUpperASCII(t *testing.T) {
+	runStringTests(t, UpperASCII, "UpperASCII", upperASCIITests);
+}
+
+func TestLowerASCII(t *testing.T) {
+	runStringTests(t, LowerASCII, "LowerASCII", lowerASCIITests);
+}
+
+func TestTrimSpaceASCII(t *testing.T) {
+	runStringTests(t, TrimSpaceASCII, "TrimSpaceASCII", trimSpaceASCIITests);
+}
+
