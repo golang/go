@@ -39,13 +39,13 @@ func prime() {
 		b := malloc.Alloc(1<<uint(i));
 		malloc.Free(b);
 	}
-	for i := uint64(0); i < 256; i++ {
+	for i := uintptr(0); i < 256; i++ {
 		b := malloc.Alloc(i<<12);
 		malloc.Free(b);
 	}
 }
 
-func memset(b *byte, c byte, n uint64) {
+func memset(b *byte, c byte, n uintptr) {
 	np := uintptr(n);
 	for i := uintptr(0); i < np; i++ {
 		*(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(b))+i)) = c;
@@ -55,7 +55,7 @@ func memset(b *byte, c byte, n uint64) {
 func main() {
 	flag.Parse();
 //	prime();
-	var blocks [1] struct { base *byte; siz uint64; };
+	var blocks [1] struct { base *byte; siz uintptr; };
 	for i := 0; i < 1<<12; i++ {
 		if i%(1<<10) == 0 && *chatty {
 			println(i);
@@ -65,19 +65,19 @@ func main() {
 		//	println("Free", blocks[b].siz, blocks[b].base);
 			malloc.Free(blocks[b].base);
 			blocks[b].base = nil;
-			allocated -= blocks[b].siz;
+			allocated -= uint64(blocks[b].siz);
 			continue
 		}
-		siz := uint64(rand.Int() >> (11 + rand.Uint32() % 20));
+		siz := uintptr(rand.Int() >> (11 + rand.Uint32() % 20));
 		base := malloc.Alloc(siz);
-	//	ptr := uint64(syscall.BytePtr(base))+uint64(siz/2);
+	//	ptr := uintptr(syscall.BytePtr(base))+uintptr(siz/2);
 	//	obj, size, ref, ok := allocator.find(ptr);
 	//	if obj != base || *ref != 0 || !ok {
 	//		panicln("find", siz, obj, ref, ok);
 	//	}
 		blocks[b].base = base;
 		blocks[b].siz = siz;
-		allocated += siz;
+		allocated += uint64(siz);
 	//	println("Alloc", siz, base);
 		memset(base, 0xbb, siz);
 		bigger();

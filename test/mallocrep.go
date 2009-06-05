@@ -36,11 +36,14 @@ func main() {
 			if i == 0 && *chatty {
 				println("First alloc:", j);
 			}
-			b := malloc.Alloc(uint64(j));
+			if a := malloc.GetStats().Alloc; a != 0 {
+				panicln("no allocations but stats report", a, "bytes allocated");
+			}
+			b := malloc.Alloc(uintptr(j));
 			during := malloc.GetStats().Alloc;
 			malloc.Free(b);
 			if a := malloc.GetStats().Alloc; a != 0 {
-				panicln("malloc wrong count", a, "after", j, "during", during);
+				panic("allocated ", j, ": wrong stats: during=", during, " after=", a, " (want 0)");
 			}
 			bigger();
 		}

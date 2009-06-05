@@ -44,7 +44,7 @@ func AllocAndFree(size, count int) {
 	}
 	n1 := stats.Alloc;
 	for i := 0; i < count; i++ {
-		b[i] = malloc.Alloc(uint64(size));
+		b[i] = malloc.Alloc(uintptr(size));
 		base, n := malloc.Lookup(b[i]);
 		if base != b[i] || !OkAmount(uintptr(size), n) {
 			panicln("lookup failed: got", base, n, "for", b[i]);
@@ -63,14 +63,14 @@ func AllocAndFree(size, count int) {
 		if *reverse {
 			i = count - 1 - j;
 		}
-		alloc := stats.Alloc;
+		alloc := uintptr(stats.Alloc);
 		base, n := malloc.Lookup(b[i]);
 		if base != b[i] || !OkAmount(uintptr(size), n) {
 			panicln("lookup failed: got", base, n, "for", b[i]);
 		}
 		malloc.Free(b[i]);
-		if stats.Alloc != alloc - uint64(n) {
-			panicln("free alloc got", stats.Alloc, "expected", alloc - uint64(n), "after free of", n);
+		if stats.Alloc != uint64(alloc - n) {
+			panicln("free alloc got", stats.Alloc, "expected", alloc - n, "after free of", n);
 		}
 		if malloc.GetStats().Sys > 1e9 {
 			panicln("too much memory allocated");
@@ -100,12 +100,12 @@ func main() {
 	}
 	for j := 1; j <= 1<<22; j<<=1 {
 		n := len(b);
-		max := uint64(1<<28);
+		max := uintptr(1<<28);
 		if !*longtest {
 			max = 1<<22;
 		}
-		if uint64(j)*uint64(n) > max {
-			n = int(max / uint64(j));
+		if uintptr(j)*uintptr(n) > max {
+			n = int(max / uintptr(j));
 		}
 		if n < 10 {
 			n = 10;
