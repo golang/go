@@ -100,12 +100,12 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 		return;
 
 	if((int)len != len) {
-		fprint(2, "6l: too much pkg data in %s\n", filename);
+		fprint(2, "%s: too much pkg data in %s\n", argv0, filename);
 		return;
 	}
 	data = mal(len+1);
 	if(Bread(f, data, len) != len) {
-		fprint(2, "6l: short pkg read %s\n", filename);
+		fprint(2, "%s: short pkg read %s\n", argv0, filename);
 		return;
 	}
 	data[len] = '\0';
@@ -121,13 +121,13 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 	// second marks end of exports / beginning of local data
 	p1 = strstr(p0, "\n$$");
 	if(p1 == nil) {
-		fprint(2, "6l: cannot find end of exports in %s\n", filename);
+		fprint(2, "%s: cannot find end of exports in %s\n", argv0, filename);
 		return;
 	}
 	while(*p0 == ' ' || *p0 == '\t' || *p0 == '\n')
 		p0++;
 	if(strncmp(p0, "package ", 8) != 0) {
-		fprint(2, "6l: bad package section in %s\n", filename);
+		fprint(2, "%s: bad package section in %s\n", argv0, filename);
 		return;
 	}
 	p0 += 8;
@@ -147,7 +147,7 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 	// local types end at next \n$$.
 	p1 = strstr(p0, "\n$$");
 	if(p1 == nil) {
-		fprint(2, "6l: cannot find end of local types in %s\n", filename);
+		fprint(2, "%s: cannot find end of local types in %s\n", argv0, filename);
 		return;
 	}
 
@@ -173,13 +173,13 @@ loadpkgdata(char *file, char *data, int len)
 			x->export = export;
 		} else {
 			if(strcmp(x->prefix, prefix) != 0) {
-				fprint(2, "6l: conflicting definitions for %s\n", name);
+				fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
 				fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
 				fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
 				nerrors++;
 			}
 			else if(strcmp(x->def, def) != 0) {
-				fprint(2, "6l: conflicting definitions for %s\n", name);
+				fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
 				fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
 				fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
 				nerrors++;
@@ -232,7 +232,7 @@ parsepkgdata(char *file, char **pp, char *ep, int *exportp, char **prefixp, char
 	else if(strncmp(p, "const ", 6) == 0)
 		p += 6;
 	else{
-		fprint(2, "6l: confused in pkg data near <<%.20s>>\n", p);
+		fprint(2, "%s: confused in pkg data near <<%.20s>>\n", argv0, p);
 		nerrors++;
 		return -1;
 	}
@@ -265,7 +265,7 @@ parsepkgdata(char *file, char **pp, char *ep, int *exportp, char **prefixp, char
 			// indented we could do something more complicated,
 			// but for now just diagnose the problem and assume
 			// 6g will keep indenting for us.
-			fprint(2, "6l: %s: expected methods to be indented %p %p %.10s\n",
+			fprint(2, "%s: %s: expected methods to be indented %p %p %.10s\n", argv0,
 				file, edef, meth, meth);
 			nerrors++;
 			return -1;
@@ -305,7 +305,7 @@ parsemethod(char **pp, char *ep, char **methp)
 	while(p < ep && *p != '\n')
 		p++;
 	if(p >= ep) {
-		fprint(2, "6l: lost end of line in method definition\n");
+		fprint(2, "%s: lost end of line in method definition\n", argv0);
 		*pp = ep;
 		return -1;
 	}

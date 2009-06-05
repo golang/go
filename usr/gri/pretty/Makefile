@@ -2,19 +2,18 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-G=6g
-L=6l
+include $(GOROOT)/src/Make.$(GOARCH)
 
 all: untab godoc pretty
 
-untab: untab.6
-	$(L) -o untab untab.6
+untab: untab.$O
+	$(LD) -o untab untab.$O
 
-godoc: godoc.6
-	$(L) -o godoc godoc.6
+godoc: godoc.$O
+	$(LD) -o godoc godoc.$O
 
-pretty: pretty.6
-	$(L) -o pretty pretty.6
+pretty: pretty.$O
+	$(LD) -o pretty pretty.$O
 
 test: pretty
 	./test.sh
@@ -28,11 +27,11 @@ install: pretty godoc untab
 	cp untab $(HOME)/bin/untab
 
 clean:
-	rm -f pretty untab godoc *.6 *.a 6.out *~
+	rm -f pretty untab godoc *.$O *.a 6.out *~
 
-godoc.6:	astprinter.6
+godoc.$O:	astprinter.$O
 
-pretty.6:	 astprinter.6
+pretty.$O:	 astprinter.$O
 
-%.6:	%.go
-	$(G) $(F) $<
+%.$O:	%.go
+	$(GC) $(F) $<

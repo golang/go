@@ -7,14 +7,11 @@ set -e
 
 bash clean.bash
 
-case "$GOARCH" in
-386)	O=8;;
-amd64)	O=6;;
-arm)	O=5;;
-*)
-	echo 'unknown $GOARCH' 1>&2
+. $GOROOT/src/Make.$GOARCH
+if [ -z "$O" ]; then
+	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
 	exit 1
-esac
+fi
 
 cd ${O}l
 bash mkenam

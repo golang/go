@@ -3,7 +3,14 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-rm -f *.6
+. $GOROOT/src/Make.$GOARCH
+
+if [ -z "$O" ]; then
+	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+	exit 1
+fi
+
+rm -f *.$O
 
 for i in \
 	file.go \
@@ -23,12 +30,12 @@ for i in \
 ; do
 	BASE=$(basename $i .go)
 
-	6g $i
+	$GC $i
 done
 
 function testit {
-	6l $1.6
-	x=$(echo $(./6.out $2 2>&1))  # extra echo canonicalizes
+	$LD $1.$O
+	x=$(echo $(./$O.out $2 2>&1))  # extra echo canonicalizes
 	if [ "$x" != "$3" ]
 	then
 		echo $1 failed: '"'$x'"' is not '"'$3'"'
@@ -36,8 +43,8 @@ function testit {
 }
 
 function testitpipe {
-	6l $1.6
-	x=$(echo $(./6.out | $2 2>&1))  # extra echo canonicalizes
+	$LD $1.$O
+	x=$(echo $(./$O.out | $2 2>&1))  # extra echo canonicalizes
 	if [ "$x" != "$3" ]
 	then
 		echo $1 failed: '"'$x'"' is not '"'$3'"'
@@ -65,7 +72,7 @@ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
 testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
 
 # server hangs; don't run it, just compile it
-6g server.go
+$GC server.go
 testit server1 "" ""
 
-rm -f 6.out *.6
+rm -f $O.out *.$O
