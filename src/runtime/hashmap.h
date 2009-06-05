@@ -54,7 +54,7 @@
 	} else {
 	      printf ("not found in table\n");
 	}
-	
+
   Example iteration over the elements of *h:
 	char **data;
 	struct hash_iter it;
@@ -76,7 +76,7 @@ struct hash;		/* opaque */
 struct hash_subtable;	/* opaque */
 struct hash_entry;	/* opaque */
 
-typedef	uint64 uintptr_t;
+typedef uintptr uintptr_t;
 typedef uintptr_t hash_hash_t;
 
 struct hash_iter {
@@ -96,7 +96,7 @@ struct hash_iter {
 };
 
 /* Return a hashtable h 2**init_power empty entries, each with
-   "datasize" data bytes.  
+   "datasize" data bytes.
    (*data_hash)(a) should return the hash value of data element *a.
    (*data_eq)(a,b) should return whether the data at "a" and the data at "b"
    are equal.

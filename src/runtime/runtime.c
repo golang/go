@@ -267,16 +267,22 @@ check(void)
  * map and chan helpers for
  * dealing with unknown types
  */
-static uint64
+static uintptr
 memhash(uint32 s, void *a)
 {
 	byte *b;
-	uint64 hash;
+	uintptr hash;
 
 	b = a;
-	hash = 33054211828000289ULL;
+	if(sizeof(hash) == 4)
+		hash = 2860486313U;
+	else
+		hash = 33054211828000289ULL;
 	while(s > 0) {
-		hash = (hash ^ *b) * 23344194077549503ULL;
+		if(sizeof(hash) == 4)
+			hash = (hash ^ *b) * 3267000013UL;
+		else
+			hash = (hash ^ *b) * 23344194077549503ULL;
 		b++;
 		s--;
 	}
@@ -337,7 +343,7 @@ memcopy(uint32 s, void *a, void *b)
 		ba[i] = bb[i];
 }
 
-static uint64
+static uintptr
 strhash(uint32 s, String *a)
 {
 	USED(s);
@@ -358,7 +364,7 @@ strprint(uint32 s, String *a)
 	sys·printstring(*a);
 }
 
-static uint64
+static uintptr
 interhash(uint32 s, Iface *a)
 {
 	USED(s);
@@ -379,7 +385,7 @@ interequal(uint32 s, Iface *a, Iface *b)
 	return ifaceeq(*a, *b);
 }
 
-static uint64
+static uintptr
 nilinterhash(uint32 s, Eface *a)
 {
 	USED(s);
@@ -400,7 +406,7 @@ nilinterequal(uint32 s, Eface *a, Eface *b)
 	return efaceeq(*a, *b);
 }
 
-uint64
+uintptr
 nohash(uint32 s, void *a)
 {
 	USED(s);

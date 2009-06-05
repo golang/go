@@ -542,7 +542,7 @@ sys·ifaceE2I2(Sigi *si, Eface e, Iface ret, bool ok)
 	FLUSH(&ok);
 }
 
-static uint64
+static uintptr
 ifacehash1(void *data, Sigt *sigt)
 {
 	int32 alg, wid;
@@ -565,7 +565,7 @@ ifacehash1(void *data, Sigt *sigt)
 	return algarray[alg].hash(wid, data);
 }
 
-uint64
+uintptr
 ifacehash(Iface a)
 {
 	if(a.type == nil)
@@ -573,7 +573,7 @@ ifacehash(Iface a)
 	return ifacehash1(a.data, a.type->sigt);
 }
 
-uint64
+uintptr
 efacehash(Eface a)
 {
 	return ifacehash1(a.data, a.type);

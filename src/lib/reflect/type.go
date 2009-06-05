@@ -91,8 +91,8 @@ const (
 	interfacesize = unsafe.Sizeof(x.xinterface);
 )
 
-var missingString = "$missing$"	// syntactic name for undefined type names
-var dotDotDotString = "..."
+const missingString = "$missing$"	// syntactic name for undefined type names
+const dotDotDotString = "..."
 
 // Type is the generic interface to reflection types.  Once its Kind is known,
 // such as ArrayKind, the Type can be narrowed to the appropriate, more

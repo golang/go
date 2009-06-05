@@ -58,7 +58,10 @@ malloc(uintptr size)
 	}
 
 	// setup for mark sweep
-	mlookup(v, nil, nil, &ref);
+	if(!mlookup(v, nil, nil, &ref)) {
+		printf("malloc %D; mlookup failed\n", (uint64)size);
+		throw("malloc mlookup");
+	}
 	*ref = RefNone;
 
 	m->mallocing = 0;
@@ -93,7 +96,8 @@ free(void *v)
 		throw("malloc/free - deadlock");
 	m->mallocing = 1;
 
-	mlookup(v, nil, nil, &ref);
+	if(!mlookup(v, nil, nil, &ref))
+		throw("free mlookup");
 	*ref = RefFree;
 
 	// Find size class for v.
@@ -283,7 +287,8 @@ stackalloc(uint32 n)
 		return v;
 	}
 	v = malloc(n);
-	mlookup(v, nil, nil, &ref);
+	if(!mlookup(v, nil, nil, &ref))
+		throw("stackalloc mlookup");
 	*ref = RefStack;
 	return v;
 }

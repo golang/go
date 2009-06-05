@@ -116,7 +116,7 @@ TEXT gosave(SB), 7, $0
 // save AX, jmp to lesstack to switch back
 TEXT	retfromnewstack(SB),7,$0
 	MOVL	4(FS), BX	// m
-	MOVL	AX, 8(BX)	// save AX in m->cret
+	MOVL	AX, 12(BX)	// save AX in m->cret
 	JMP	lessstack(SB)
 
 // gogo, returning 2nd arg instead of 1
