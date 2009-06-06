@@ -7,16 +7,8 @@
 
 D=
 
-O_arm=5
-O_amd64=6
-O_386=8
-OS=568vq
-
-O=$(O_$(GOARCH))
-GC=$(O)g -I_obj
-CC=$(O)c -FVw
-AS=$(O)a
-AR=6ar
+include $(GOROOT)/src/Make.$(GOARCH)
+AR=gopack
 
 default: packages
 
@@ -31,7 +23,7 @@ coverage: packages
 	6cov -g `pwd` | grep -v '_test\.go:'
 
 %.$O: %.go
-	$(GC) $*.go
+	$(GC) -I_obj $*.go
 
 %.$O: %.c
 	$(CC) $*.c
@@ -96,10 +88,10 @@ $(O5): a4
 $(O6): a5
 
 nuke: clean
-	rm -f $(GOROOT)/pkg$D/syscall.a
+	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/syscall.a
 
 packages: _obj$D/syscall.a
 
 install: packages
-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
-	cp _obj$D/syscall.a $(GOROOT)/pkg$D/syscall.a
+	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
+	cp _obj$D/syscall.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/syscall.a
