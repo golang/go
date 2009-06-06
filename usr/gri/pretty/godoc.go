@@ -48,7 +48,7 @@ import (
 	"template";
 	"time";
 
-	"astprinter";
+	"astprinter";  // TODO remove eventually in favor of ast.Fprint
 )
 
 
@@ -137,21 +137,6 @@ func makeTabwriter(writer io.Writer) *tabwriter.Writer {
 }
 
 
-// TODO(rsc): this belongs in a library somewhere, maybe os
-func ReadFile(name string) ([]byte, os.Error) {
-	f, err := os.Open(name, os.O_RDONLY, 0);
-	if err != nil {
-		return nil, err;
-	}
-	defer f.Close();
-	var buf io.ByteBuffer;
-	if n, err := io.Copy(f, &buf); err != nil {
-		return nil, err;
-	}
-	return buf.Data(), nil;
-}
-
-
 // ----------------------------------------------------------------------------
 // Parsing
 
@@ -180,7 +165,7 @@ type parseErrors struct {
 // a sorted list (by file position) of errors, if any.
 //
 func parse(path string, mode uint) (*ast.Program, *parseErrors) {
-	src, err := ReadFile(path);
+	src, err := io.ReadFile(path);
 	if err != nil {
 		log.Stderrf("ReadFile %s: %v", path, err);
 		errs := []parseError{parseError{nil, 0, err.String()}};
@@ -303,7 +288,7 @@ var fmap = template.FormatterMap{
 
 func readTemplate(name string) *template.Template {
 	path := pathutil.Join(*tmplroot, name);
-	data, err := ReadFile(path);
+	data, err := io.ReadFile(path);
 	if err != nil {
 		log.Exitf("ReadFile %s: %v", path, err);
 	}
@@ -610,7 +595,11 @@ func p4sync() bool {
 		log.Stderrf("p4 sync");
 	}
 	args := []string{*p4binary, "sync"};
-	pid, err := os.ForkExec(*p4binary, args, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr});
+	var fds []*os.File;
+	if *verbose {
+		fds = []*os.File{os.Stdin, os.Stdout, os.Stderr};
+	}
+	pid, err := os.ForkExec(*p4binary, args, os.Environ(), "", fds);
 	if err != nil {
 		log.Stderrf("os.ForkExec(%s): %v", *p4binary, err);
 		return false;
@@ -623,7 +612,8 @@ func p4sync() bool {
 
 func restartGodoc(c *http.Conn, r *http.Request) {
 	binary := os.Args[0];
-	pid, err := os.ForkExec(binary, os.Args, os.Environ(), launchdir, []*os.File{os.Stdin, os.Stdout, os.Stderr});
+	fds := []*os.File{os.Stdin, os.Stdout, os.Stderr};
+	pid, err := os.ForkExec(binary, os.Args, os.Environ(), launchdir, fds);
 	if err != nil {
 		log.Stderrf("os.ForkExec(%s): %v", binary, err);
 		return;  // do not terminate
