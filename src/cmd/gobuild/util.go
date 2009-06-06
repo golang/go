@@ -59,7 +59,7 @@ func init() {
 		theChar + "g",
 		theChar + "c",
 		theChar + "a",
-		"6ar",	// sic
+		"gopack",
 	};
 
 	for i, v := range binaries {
@@ -138,7 +138,7 @@ func Build(cmd []string, file string, flag int) (ok bool) {
 }
 
 func Archive(pkg string, files []string) {
-	argv := []string{ "6ar", "grc", pkg };
+	argv := []string{ "gopack", "grc", pkg };
 	for i, file := range files {
 		PushString(&argv, file);
 	}
