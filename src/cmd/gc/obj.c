@@ -58,7 +58,7 @@ dumpglobls(void)
 			continue;
 
 		dowidth(n->type);
-		ggloblnod(s->oname, n->type->width);
+		ggloblnod(s->def, n->type->width);
 	}
 }
 
@@ -393,6 +393,7 @@ dumpsignatures(void)
 	Dcl *d, *x;
 	Type *t, *progt, *methodt, *ifacet, *rcvrt;
 	Sym *s;
+	Node *n;
 
 	// copy externdcl list to signatlist
 	for(d=externdcl; d!=D; d=d->forw) {
@@ -403,9 +404,10 @@ dumpsignatures(void)
 		if(t == T)
 			continue;
 
-		s = signame(t);
-		if(s == S)
+		n = signame(t);
+		if(n == N || n->sym == S)
 			continue;
+		s = n->sym;
 
 		x = mal(sizeof(*d));
 		x->op = OTYPE;
@@ -425,10 +427,11 @@ dumpsignatures(void)
 			continue;
 		t = d->dtype;
 		et = t->etype;
-		s = signame(t);
+		n = signame(t);
 //print("signame %S for %T\n", s, t);
-		if(s == S)
+		if(n == N || n->sym == S)
 			continue;
+		s = n->sym;
 
 		// only emit one
 		if(s->siggen)

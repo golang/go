@@ -145,6 +145,8 @@ struct	Type
 	uchar	copyany;
 	uchar	local;		// created in this file
 
+	Node*	nod;		// canonical OTYPE node
+
 	// TFUNCT
 	uchar	thistuple;
 	uchar	outtuple;
@@ -187,6 +189,7 @@ struct	Node
 	uchar	diag;		// already printed error about this
 	uchar	noescape;	// ONAME never move to heap
 	uchar	funcdepth;
+	uchar	builtin;	// built-in name, like len or close
 
 	// most nodes
 	Node*	left;
@@ -247,10 +250,7 @@ struct	Sym
 
 	char*	package;	// package name
 	char*	name;		// variable name
-	Node*	oname;		// ONAME node if a var
-	Type*	otype;		// TYPE node if a type
-	Node*	oconst;		// OLITERAL node if a const
-	char*	opack;		// package reference if lexical == LPACK
+	Node*	def;		// definition: ONAME OTYPE OPACK or OLITERAL
 	vlong	offset;		// stack location if automatic
 	int32	lexical;
 	int32	vargen;		// unique variable number
@@ -298,9 +298,8 @@ enum
 {
 	OXXX,
 
-	OTYPE, OVAR, OIMPORT,
-
-	ONAME, ONONAME, ODCL,
+	ONAME, ONONAME, OTYPE, OPACK, OLITERAL,
+	ODCL,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
 	ODCLFUNC, ODCLFIELD, ODCLARG,
 	OLIST, OCMP, OPTR, OARRAY, ORANGE,
@@ -325,7 +324,7 @@ enum
 	OCALL, OCALLMETH, OCALLINTER,
 	OINDEX, OSLICE,
 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
-	OLITERAL, OREGISTER, OINDREG,
+	OREGISTER, OINDREG,
 	OKEY, OPARAM,
 	OCOMPOS, OCOMPSLICE, OCOMPMAP,
 	OCONV,
@@ -573,6 +572,7 @@ EXTERN	int	importflag;
 EXTERN	int	inimportsys;
 EXTERN	int	initflag;		// compiling the init fn
 EXTERN	int	statuniqgen;		// name generator for static temps
+EXTERN	int	loophack;
 
 EXTERN	uint32	iota;
 EXTERN	Node*	lastconst;
@@ -595,8 +595,7 @@ EXTERN	Node*	fskel;
 EXTERN	Node*	addtop;
 EXTERN	Node*	typeswvar;
 
-EXTERN	char*	context;
-EXTERN	char*	pkgcontext;
+EXTERN	char*	structpkg;
 extern	int	thechar;
 extern	char*	thestring;
 EXTERN	char*	hunk;
@@ -623,7 +622,7 @@ void	importfile(Val*);
 void	cannedimports(char*, char*);
 void	unimportfile();
 int32	yylex(void);
-void	typeinit(int lex);
+void	typeinit(void);
 void	lexinit(void);
 char*	lexname(int);
 int32	getr(void);
@@ -731,7 +730,7 @@ int	isnilinter(Type*);
 int	isddd(Type*);
 Type*	maptype(Type*, Type*);
 Type*	methtype(Type*);
-Sym*	signame(Type*);
+Node*	signame(Type*);
 int	eqtype(Type*, Type*);
 int	cvttype(Type*, Type*);
 int	eqtypenoname(Type*, Type*);
@@ -821,6 +820,7 @@ Node*	renameinit(Node*);
 void	funchdr(Node*);
 void	funcargs(Type*);
 void	funcbody(Node*);
+Node*	typenod(Type*);
 Type*	dostruct(Node*, int);
 Type**	stotype(Node*, int, Type**);
 Type*	sortinter(Type*);
@@ -844,7 +844,7 @@ void	fninit(Node*);
 Node*	nametoanondcl(Node*);
 Node*	nametodcl(Node*, Type*);
 Node*	anondcl(Type*);
-void	checkarglist(Node*);
+Node*	checkarglist(Node*);
 void	checkwidth(Type*);
 void	defercheckwidth(void);
 void	resumecheckwidth(void);
@@ -887,12 +887,12 @@ void	doimport6(Node*, Node*);
 void	doimport7(Node*, Node*);
 void	doimport8(Node*, Val*, Node*);
 void	doimport9(Sym*, Node*);
-void	importconst(Node *ss, Type *t, Node *v);
+void	importconst(Sym *s, Type *t, Node *v);
 void	importmethod(Sym *s, Type *t);
-void	importtype(Node *ss, Type *t);
-void	importvar(Node *ss, Type *t, int ctxt);
+void	importtype(Sym *s, Type *t);
+void	importvar(Sym *s, Type *t, int ctxt);
 void	checkimports(void);
-Type*	pkgtype(char*, char*);
+Type*	pkgtype(Sym*);
 
 /*
  *	walk.c

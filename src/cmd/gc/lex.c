@@ -64,7 +64,7 @@ main(int argc, char *argv[])
 		fatal("betypeinit failed");
 
 	lexinit();
-	typeinit(LATYPE);
+	typeinit();
 
 	lineno = 1;
 	block = 1;
@@ -711,6 +711,40 @@ l0:
 		}
 		break;
 
+	/*
+	 * clumsy dance:
+	 * to implement rule that disallows
+	 *	if T{1}[0] { ... }
+	 * but allows
+	 * 	if (T{1}[0]) { ... }
+	 * the block bodies for if/for/switch/select
+	 * begin with an LBODY token, not '{'.
+	 *
+	 * when we see the keyword, the next
+	 * non-parenthesized '{' becomes an LBODY.
+	 * loophack is normally 0.
+	 * a keyword makes it go up to 1.
+	 * parens increment and decrement when loophack > 0.
+	 * a '{' with loophack == 1 becomes LBODY and disables loophack.
+	 *
+	 * i said it was clumsy.
+	 */
+	case '(':
+		if(loophack > 0)
+			loophack++;
+		goto lx;
+	case ')':
+		if(loophack > 0)
+			loophack--;
+		goto lx;
+	case '{':
+		if(loophack == 1) {
+			DBG("%L lex: LBODY\n", lineno);
+			loophack = 0;
+			return LBODY;
+		}
+		goto lx;
+
 	default:
 		goto lx;
 	}
@@ -764,15 +798,16 @@ talph:
 	ungetc(c);
 
 	s = lookup(lexbuf);
-	if(s->lexical == LIGNORE)
+	switch(s->lexical) {
+	case LIGNORE:
 		goto l0;
 
-	if(context != nil) {
-		s = pkglookup(s->name, context);
-		if(s->lexical == LIGNORE)
-			goto l0;
-		if(!exportname(s->name) && strcmp(package, s->package) != 0)
-			s = pkglookup(s->name, ".private");
+	case LFOR:
+	case LIF:
+	case LSWITCH:
+	case LSELECT:
+		loophack = 1;	// see comment about loophack above
+		break;
 	}
 
 	DBG("lex: %S %s\n", s, lexname(s->lexical));
@@ -1109,77 +1144,74 @@ static	struct
 	char*	name;
 	int	lexical;
 	int	etype;
+	int	op;
 } syms[] =
 {
-/*	name		lexical		etype
+/*	name		lexical		etype		op
  */
 /* basic types */
-	"int8",		LATYPE,	TINT8,
-	"int16",	LATYPE,	TINT16,
-	"int32",	LATYPE,	TINT32,
-	"int64",	LATYPE,	TINT64,
+	"int8",		LNAME,		TINT8,		OXXX,
+	"int16",	LNAME,		TINT16,		OXXX,
+	"int32",	LNAME,		TINT32,		OXXX,
+	"int64",	LNAME,		TINT64,		OXXX,
 
-	"uint8",	LATYPE,	TUINT8,
-	"uint16",	LATYPE,	TUINT16,
-	"uint32",	LATYPE,	TUINT32,
-	"uint64",	LATYPE,	TUINT64,
+	"uint8",	LNAME,		TUINT8,		OXXX,
+	"uint16",	LNAME,		TUINT16,	OXXX,
+	"uint32",	LNAME,		TUINT32,	OXXX,
+	"uint64",	LNAME,		TUINT64,	OXXX,
 
-	"float32",	LATYPE,	TFLOAT32,
-	"float64",	LATYPE,	TFLOAT64,
-	"float80",	LATYPE,	TFLOAT80,
+	"float32",	LNAME,		TFLOAT32,	OXXX,
+	"float64",	LNAME,		TFLOAT64,	OXXX,
+	"float80",	LNAME,		TFLOAT80,	OXXX,
 
-	"bool",		LATYPE,	TBOOL,
-	"byte",		LATYPE,	TUINT8,
-	"string",	LATYPE,	TSTRING,
+	"bool",		LNAME,		TBOOL,		OXXX,
+	"byte",		LNAME,		TUINT8,		OXXX,
+	"string",	LNAME,		TSTRING,	OXXX,
 
-	"any",		LATYPE,	TANY,
+	"any",		LNAME,		TANY,		OXXX,
 
-	"break",	LBREAK,		Txxx,
-	"case",		LCASE,		Txxx,
-	"chan",		LCHAN,		Txxx,
-	"const",	LCONST,		Txxx,
-	"continue",	LCONTINUE,	Txxx,
-	"default",	LDEFAULT,	Txxx,
-	"else",		LELSE,		Txxx,
-	"defer",	LDEFER,		Txxx,
-	"fallthrough",	LFALL,		Txxx,
-	"false",	LFALSE,		Txxx,
-	"for",		LFOR,		Txxx,
-	"func",		LFUNC,		Txxx,
-	"go",		LGO,		Txxx,
-	"goto",		LGOTO,		Txxx,
-	"if",		LIF,		Txxx,
-	"import",	LIMPORT,	Txxx,
-	"interface",	LINTERFACE,	Txxx,
-	"iota",		LIOTA,		Txxx,
-	"make",		LMAKE,		Txxx,
-	"map",		LMAP,		Txxx,
-	"new",		LNEW,		Txxx,
-	"len",		LLEN,		Txxx,
-	"cap",		LCAP,		Txxx,
-	"nil",		LNIL,		Txxx,
-	"package",	LPACKAGE,	Txxx,
-	"panic",	LPANIC,		Txxx,
-	"panicln",	LPANICN,	Txxx,
-	"print",	LPRINT,		Txxx,
-	"println",	LPRINTN,	Txxx,
-	"range",	LRANGE,		Txxx,
-	"return",	LRETURN,	Txxx,
-	"select",	LSELECT,	Txxx,
-	"struct",	LSTRUCT,	Txxx,
-	"switch",	LSWITCH,	Txxx,
-	"true",		LTRUE,		Txxx,
-	"type",		LTYPE,		Txxx,
-	"var",		LVAR,		Txxx,
+	"break",	LBREAK,		Txxx,		OXXX,
+	"case",		LCASE,		Txxx,		OXXX,
+	"chan",		LCHAN,		Txxx,		OXXX,
+	"const",	LCONST,		Txxx,		OXXX,
+	"continue",	LCONTINUE,	Txxx,		OXXX,
+	"default",	LDEFAULT,	Txxx,		OXXX,
+	"else",		LELSE,		Txxx,		OXXX,
+	"defer",	LDEFER,		Txxx,		OXXX,
+	"fallthrough",	LFALL,		Txxx,		OXXX,
+	"for",		LFOR,		Txxx,		OXXX,
+	"func",		LFUNC,		Txxx,		OXXX,
+	"go",		LGO,		Txxx,		OXXX,
+	"goto",		LGOTO,		Txxx,		OXXX,
+	"if",		LIF,		Txxx,		OXXX,
+	"import",	LIMPORT,	Txxx,		OXXX,
+	"interface",	LINTERFACE,	Txxx,		OXXX,
+	"map",		LMAP,		Txxx,		OXXX,
+	"package",	LPACKAGE,	Txxx,		OXXX,
+	"range",	LRANGE,		Txxx,		OXXX,
+	"return",	LRETURN,	Txxx,		OXXX,
+	"select",	LSELECT,	Txxx,		OXXX,
+	"struct",	LSTRUCT,	Txxx,		OXXX,
+	"switch",	LSWITCH,	Txxx,		OXXX,
+	"type",		LTYPE,		Txxx,		OXXX,
+	"var",		LVAR,		Txxx,		OXXX,
 
-	"close",	LCLOSE,		Txxx,
-	"closed",	LCLOSED,	Txxx,
+	"cap",		LNAME,		Txxx,		OCAP,
+	"close",	LNAME,		Txxx,		OCLOSE,
+	"closed",	LNAME,		Txxx,		OCLOSED,
+	"len",		LNAME,		Txxx,		OLEN,
+	"make",		LNAME,		Txxx,		OMAKE,
+	"new",		LNAME,		Txxx,		ONEW,
+	"panic",	LNAME,		Txxx,		OPANIC,
+	"panicln",	LNAME,		Txxx,		OPANICN,
+	"print",	LNAME,		Txxx,		OPRINT,
+	"println",	LNAME,		Txxx,		OPRINTN,
 
-	"notwithstanding",		LIGNORE,	Txxx,
-	"thetruthofthematter",		LIGNORE,	Txxx,
-	"despiteallobjections",		LIGNORE,	Txxx,
-	"whereas",			LIGNORE,	Txxx,
-	"insofaras",			LIGNORE,	Txxx,
+	"notwithstanding",		LIGNORE,	Txxx,		OXXX,
+	"thetruthofthematter",		LIGNORE,	Txxx,		OXXX,
+	"despiteallobjections",		LIGNORE,	Txxx,		OXXX,
+	"whereas",			LIGNORE,	Txxx,		OXXX,
+	"insofaras",			LIGNORE,	Txxx,		OXXX,
 };
 
 void
@@ -1189,6 +1221,7 @@ lexinit(void)
 	Sym *s;
 	Type *t;
 	int etype;
+	Val v;
 
 	/*
 	 * initialize basic types array
@@ -1201,24 +1234,50 @@ lexinit(void)
 		s->package = package;
 
 		etype = syms[i].etype;
-		if(etype == Txxx)
-			continue;
+		if(etype != Txxx) {
+			if(etype < 0 || etype >= nelem(types))
+				fatal("lexinit: %s bad etype", s->name);
+			t = types[etype];
+			if(t == T) {
+				t = typ(etype);
+				t->sym = s;
 
-		if(etype < 0 || etype >= nelem(types))
-			fatal("lexinit: %s bad etype", s->name);
-
-		t = types[etype];
-		if(t != T) {
-			s->otype = t;
+				dowidth(t);
+				types[etype] = t;
+			}
+			s->def = typenod(t);
 			continue;
 		}
-		t = typ(etype);
-		t->sym = s;
 
-		dowidth(t);
-		types[etype] = t;
-		s->otype = t;
+		etype = syms[i].op;
+		if(etype != OXXX) {
+			s->def = nod(ONAME, N, N);
+			s->def->sym = s;
+			s->def->etype = etype;
+			s->def->builtin = 1;
+			continue;
+		}
 	}
+
+	// there's only so much table-driven we can handle.
+	// these are special cases.
+	types[TNIL] = typ(TNIL);
+	s = lookup("nil");
+	v.ctype = CTNIL;
+	s->def = nodlit(v);
+	s->def->sym = s;
+
+	s = lookup("true");
+	s->def = nodbool(1);
+	s->def->sym = s;
+
+	s = lookup("false");
+	s->def = nodbool(0);
+	s->def->sym = s;
+
+	s = lookup("iota");
+	s->def = nodintconst(iota);
+	s->def->iota = 1;	// flag to reevaluate on copy
 
 	// logically, the type of a string literal.
 	// types[TSTRING] is the named type string
@@ -1244,14 +1303,18 @@ struct
 	LCONST,		"CONST",
 	LCONTINUE,	"CONTINUE",
 	LDEC,		"DEC",
+	LDEFER,		"DEFER",
 	LELSE,		"ELSE",
 	LEQ,		"EQ",
+	LFALL,		"FALL",
+	LFOR,		"FOR",
 	LFUNC,		"FUNC",
 	LGE,		"GE",
 	LGO,		"GO",
 	LGOTO,		"GOTO",
 	LGT,		"GT",
 	LIF,		"IF",
+	LIMPORT,	"IMPORT",
 	LINC,		"INC",
 	LINTERFACE,	"INTERFACE",
 	LLE,		"LE",
@@ -1262,7 +1325,7 @@ struct
 	LNAME,		"NAME",
 	LNE,		"NE",
 	LOROR,		"OROR",
-	LPACK,		"PACK",
+	LPACKAGE,	"PACKAGE",
 	LRANGE,		"RANGE",
 	LRETURN,	"RETURN",
 	LRSH,		"RSH",
@@ -1270,16 +1333,6 @@ struct
 	LSWITCH,	"SWITCH",
 	LTYPE,		"TYPE",
 	LVAR,		"VAR",
-	LFOR,		"FOR",
-	LNEW,		"NEW",
-	LLEN,		"LEN",
-	LFALL,		"FALL",
-	LIOTA,		"IOTA",
-	LPRINT,		"PRINT",
-	LPACKAGE,	"PACKAGE",
-	LIMPORT,	"IMPORT",
-	LDEFER,		"DEFER",
-	LPANIC,		"PANIC",
 };
 
 char*
@@ -1316,8 +1369,8 @@ mkpackage(char* pkg)
 
 	// declare this name as a package
 	s = lookup(package);
-	s->lexical = LPACK;
-	s->opack = s->name;
+	s->def = nod(OPACK, N, N);
+	s->def->sym = s;
 
 	if(outfile == nil) {
 		p = strrchr(infile, '/');

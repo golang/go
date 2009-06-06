@@ -156,9 +156,9 @@ lookup(char *p)
 	}
 
 	s = mal(sizeof(*s));
-	s->lexical = LNAME;
 	s->name = mal(strlen(p)+1);
 	s->package = package;
+	s->lexical = LNAME;
 
 	strcpy(s->name, p);
 
@@ -186,7 +186,6 @@ pkglookup(char *p, char *k)
 	}
 
 	s = mal(sizeof(*s));
-	s->lexical = LNAME;
 	s->name = mal(strlen(p)+1);
 	strcpy(s->name, p);
 
@@ -220,13 +219,11 @@ importdot(Sym *opkg)
 			if(strcmp(s->package, opkg->name) != 0)
 				continue;
 			s1 = lookup(s->name);
-			if(s1->oname != N || s1->otype != T) {
+			if(s1->def != N) {
 				yyerror("redeclaration of %S during import", s1);
 				continue;
 			}
-			s1->lexical = s->lexical;
-			s1->oname = s->oname;
-			s1->otype = s->otype;
+			s1->def = s->def;
 		}
 	}
 }
@@ -571,7 +568,7 @@ loop:
 		break;
 
 	case OTYPE:
-		print("%O-%E %lT\n", n->op, n->etype, n);
+		print("%O %T\n", n->op, n->type);
 		break;
 
 	case OIF:
@@ -696,7 +693,6 @@ opnames[] =
 	[OGOTO]		= "GOTO",
 	[OGT]		= "GT",
 	[OIF]		= "IF",
-	[OIMPORT]	= "IMPORT",
 	[OINC]		= "INC",
 	[OINDEX]	= "INDEX",
 	[OINDREG]	= "INDREG",
@@ -722,6 +718,7 @@ opnames[] =
 	[OOR]		= "OR",
 	[OPANICN]	= "PANICN",
 	[OPANIC]	= "PANIC",
+	[OPACK]		= "PACK",
 	[OPARAM]	= "PARAM",
 	[OPLUS]		= "PLUS",
 	[OPRINTN]	= "PRINTN",
@@ -741,7 +738,6 @@ opnames[] =
 	[OTYPEOF]	= "TYPEOF",
 	[OTYPESW]	= "TYPESW",
 	[OTYPE]		= "TYPE",
-	[OVAR]		= "VAR",
 	[OXCASE]	= "XCASE",
 	[OXFALL]	= "XFALL",
 	[OXOR]		= "XOR",
@@ -1044,8 +1040,11 @@ Tpretty(Fmt *fp, Type *t)
 				fmtprint(fp, "%hS", s);
 			else
 				fmtprint(fp, "%lS", s);
-			if(strcmp(s->package, package) == 0)
-			if((s->otype != t || !s->export) && !s->imported) {
+			if(strcmp(s->package, package) != 0)
+				return 0;
+			if(s->imported)
+				return 0;
+			if(s->def == N || s->def->op != OTYPE || s->def->type != t || !s->export) {
 				fmtprint(fp, "·%s", filename);
 				if(t->vargen)
 					fmtprint(fp, "·%d", t->vargen);
@@ -1339,7 +1338,7 @@ Nconv(Fmt *fp)
 		break;
 
 	case OTYPE:
-		snprint(buf, sizeof(buf), "%O-%E%J", n->op, n->etype, n);
+		snprint(buf, sizeof(buf), "%O %T", n->op, n->type);
 		break;
 	}
 	if(n->sym != S) {
@@ -1581,7 +1580,7 @@ iscomposite(Type *t)
 	return 0;
 }
 
-Sym*
+Node*
 signame(Type *t)
 {
 	Sym *ss;
@@ -1611,10 +1610,10 @@ signame(Type *t)
 		strcpy(buf, "dotdotdot");
 
 	ss = pkglookup(buf, e);
-	if(ss->oname == N) {
-		ss->oname = newname(ss);
-		ss->oname->type = types[TUINT8];
-		ss->oname->class = PEXTERN;
+	if(ss->def == N) {
+		ss->def = newname(ss);
+		ss->def->type = types[TUINT8];
+		ss->def->class = PEXTERN;
 	}
 
 //print("siggen %T %d\n", t, t->siggen);
@@ -1633,10 +1632,10 @@ signame(Type *t)
 	}
 
 out:
-	return ss;
+	return ss->def;
 
 bad:
-	return S;
+	return N;
 }
 
 int
@@ -1942,15 +1941,15 @@ syslook(char *name, int copy)
 	Node *n;
 
 	s = pkglookup(name, "sys");
-	if(s == S || s->oname == N)
+	if(s == S || s->def == N)
 		fatal("looksys: cant find sys.%s", name);
 
 	if(!copy)
-		return s->oname;
+		return s->def;
 
 	n = nod(0, N, N);
-	*n = *s->oname;
-	n->type = deep(s->oname->type);
+	*n = *s->def;
+	n->type = deep(s->def->type);
 
 	return n;
 }
@@ -2073,7 +2072,7 @@ frame(int context)
 		case OTYPE:
 			if(flag)
 				print("--- %s frame ---\n", p);
-			print("%O %lT\n", d->op, d->dnode);
+			print("%O %T\n", d->op, d->dnode);
 			flag = 0;
 			break;
 		}
