@@ -123,8 +123,16 @@ loop:
 		return;
 
 	more = N;
-	if(n->op != ONAME)
+	switch(n->op) {
+	case ONAME:	// one only; lineno isn't right for right now
+	case OPACK:
+	case OTYPE:
+	case OLITERAL:
+		break;
+	default:
 		lineno = n->lineno;
+	}
+
 	switch(n->op) {
 
 	case OLIST:
@@ -248,6 +256,7 @@ loop:
 
 	switch(n->op) {
 	default:
+		dump("walk", n);
 		fatal("walktype: switch 1 unknown op %N", n);
 		goto ret;
 
@@ -313,7 +322,10 @@ loop:
 		if(n->type == T) {
 			s = n->sym;
 			if(s->undef == 0) {
-				yyerror("walktype: %S undeclared", s);
+				if(n->etype != 0)
+					yyerror("walktype: %S must be called", s);
+				else
+					yyerror("walktype: %S undeclared", s);
 				s->undef = 1;
 			}
 		}
@@ -1030,20 +1042,28 @@ loop:
 	case OMAKE:
 		if(top != Erv)
 			goto nottop;
+		l = n->left;
+		if(l == N) {
+			yyerror("missing argument to make");
+			goto ret;
+		}
 		indir(n, makecompat(n));
 		goto ret;
 
 	case ONEW:
 		if(top != Erv)
 			goto nottop;
-		if(n->left != N) {
-			yyerror("cannot new(%T, expr)", t);
-			goto ret;
-		}
-		t = n->type;
-		if(t == T)
-			goto ret;
-		indir(n, callnew(t));
+		l = n->left;
+		if(l == N)
+			yyerror("missing argument to new");
+		else if(n->right != N)
+			yyerror("too many arguments to new");
+		else if(l->op != OTYPE)
+			yyerror("argument to new must be type");
+		else if((t = l->type) == T)
+			;
+		else
+			indir(n, callnew(t));
 		goto ret;
 	}
 
@@ -1927,12 +1947,12 @@ sigtype(Type *st)
 	x = mal(sizeof(*x));
 	x->op = OTYPE;
 	x->dsym = s;
-	x->dtype = s->otype;
+	x->dtype = t;
 	x->forw = signatlist;
 	x->block = block;
 	signatlist = x;
 
-	return s->otype;
+	return t;
 }
 
 /*
@@ -2350,8 +2370,22 @@ Node*
 makecompat(Node *n)
 {
 	Type *t;
+	Node *l, *r;
 
-	t = n->type;
+	l = n->left;
+	r = N;
+	if(l->op == OLIST) {
+		r = l->right;
+		l = l->left;
+	}
+	if(l->op != OTYPE) {
+		yyerror("cannot make(expr)");
+		return n;
+	}
+	t = l->type;
+	n->type = t;
+	n->left = r;
+	n->right = N;
 
 	if(t != T)
 	switch(t->etype) {
@@ -3045,9 +3079,8 @@ arrayop(Node *n, int top)
 
 		a = listfirst(&save, &n->left);		// nel
 		if(a == N) {
-			if(t->bound < 0)
-				yyerror("new open array must have size");
-			a = nodintconst(t->bound);
+			yyerror("new slice must have size");
+			a = nodintconst(1);
 		}
 		a = nod(OCONV, a, N);
 		a->type = types[TINT];
@@ -3193,7 +3226,6 @@ ifacecvt(Type *tl, Node *n, int et)
 {
 	Type *tr;
 	Node *r, *a, *on;
-	Sym *s;
 
 	tr = n->type;
 
@@ -3207,19 +3239,10 @@ ifacecvt(Type *tl, Node *n, int et)
 		a = n;				// elem
 		r = a;
 
-		s = signame(tr);		// sigt
-		if(s == S)
-			fatal("ifacecvt: signame-1 T2I: %lT", tr);
-		a = s->oname;
-		a = nod(OADDR, a, N);
+		a = nod(OADDR, signame(tr), N);	// sigt
 		r = list(a, r);
 
-		s = signame(tl);		// sigi
-		if(s == S) {
-			fatal("ifacecvt: signame-2 T2I: %lT", tl);
-		}
-		a = s->oname;
-		a = nod(OADDR, a, N);
+		a = nod(OADDR, signame(tl), N);	// sigi
 		r = list(a, r);
 
 		on = syslook("ifaceT2I", 1);
@@ -3240,11 +3263,7 @@ ifacecvt(Type *tl, Node *n, int et)
 		a = n;				// interface
 		r = a;
 
-		s = signame(tl);		// sigi or sigt
-		if(s == S)
-			fatal("ifacecvt: signame %d", et);
-		a = s->oname;
-		a = nod(OADDR, a, N);
+		a = nod(OADDR, signame(tl), N);	// sigi or sigt
 		r = list(a, r);
 
 		on = syslook(ifacename[et], 1);
@@ -3268,11 +3287,7 @@ ifacecvt(Type *tl, Node *n, int et)
 		a = n;				// elem
 		r = a;
 
-		s = signame(tr);		// sigt
-		if(s == S)
-			fatal("ifacecvt: signame-1 T2E: %lT", tr);
-		a = s->oname;
-		a = nod(OADDR, a, N);
+		a = nod(OADDR, signame(tr), N);	// sigt
 		r = list(a, r);
 
 		on = syslook("ifaceT2E", 1);
@@ -3394,7 +3409,9 @@ colasname(Node *n)
 	switch(n->op) {
 	case ONAME:
 	case ONONAME:
+	case OPACK:
 		break;
+	case OTYPE:
 	case OLITERAL:
 		if(n->sym != S)
 			break;
@@ -4248,9 +4265,7 @@ arraylit(Node *n, Node *var)
 
 	if(b < 0) {
 		// slice
-		a = nod(OMAKE, N, N);
-		a->type = t;
-		a->left = nodintconst(ninit);
+		a = nod(OMAKE, nod(OLIST, typenod(t), nodintconst(ninit)), N);
 		a = nod(OAS, var, a);
 		addtop = list(addtop, a);
 	} else {
@@ -4377,8 +4392,7 @@ maplit(Node *n, Node *var)
 		tempname(var, t);
 	}
 
-	a = nod(OMAKE, N, N);
-	a->type = t;
+	a = nod(OMAKE, typenod(t), N);
 	a = nod(OAS, var, a);
 	addtop = list(addtop, a);
 

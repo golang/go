@@ -100,7 +100,7 @@ dumpexportconst(Sym *s)
 	Node *n;
 	Type *t;
 
-	n = s->oconst;
+	n = s->def;
 	if(n == N || n->op != OLITERAL)
 		fatal("dumpexportconst: oconst nil: %S", s);
 
@@ -141,7 +141,7 @@ dumpexportvar(Sym *s)
 	Node *n;
 	Type *t;
 
-	n = s->oname;
+	n = s->def;
 	if(n == N || n->type == T) {
 		yyerror("variable exported but not defined: %S", s);
 		return;
@@ -161,49 +161,54 @@ dumpexportvar(Sym *s)
 void
 dumpexporttype(Sym *s)
 {
-	dumpprereq(s->otype);
+	Type *t;
+
+	t = s->def->type;
+	dumpprereq(t);
 	Bprint(bout, "\t");
-	switch (s->otype->etype) {
+	switch (t->etype) {
 	case TFORW:
 	case TFORWSTRUCT:
 	case TFORWINTER:
-		yyerror("export of incomplete type %T", s->otype);
+		yyerror("export of incomplete type %T", t);
 		return;
 	}
-	Bprint(bout, "type %#T %l#T\n",  s->otype, s->otype);
+	Bprint(bout, "type %#T %l#T\n",  t, t);
 }
 
 void
 dumpsym(Sym *s)
 {
-	Type *f;
+	Type *f, *t;
 
 	if(s->exported != 0)
 		return;
 	s->exported = 1;
 
-	switch(s->lexical) {
-	default:
+	if(s->def == N) {
 		yyerror("unknown export symbol: %S", s);
+		return;
+	}
+	switch(s->def->op) {
+	default:
+		yyerror("unexpected export symbol: %O %S", s->def->op, s);
 		break;
-	case LPACK:
-		yyerror("package export symbol: %S", s);
+	case OLITERAL:
+		dumpexportconst(s);
 		break;
-	case LATYPE:
+	case OTYPE:
+		t = s->def->type;
 		// TODO(rsc): sort methods by name
-		for(f=s->otype->method; f!=T; f=f->down)
+		for(f=t->method; f!=T; f=f->down)
 			dumpprereq(f);
 
 		dumpexporttype(s);
-		for(f=s->otype->method; f!=T; f=f->down)
+		for(f=t->method; f!=T; f=f->down)
 			Bprint(bout, "\tfunc (%#T) %hS %#hhT\n",
 				f->type->type->type, f->sym, f->type);
 		break;
-	case LNAME:
-		if(s->oconst)
-			dumpexportconst(s);
-		else
-			dumpexportvar(s);
+	case ONAME:
+		dumpexportvar(s);
 		break;
 	}
 }
@@ -216,7 +221,7 @@ dumptype(Type *t)
 		return;
 
 	// no need to dump type if it's not ours (was imported)
-	if(t->sym != S && t->sym->otype == t && !t->local)
+	if(t->sym != S && t->sym->def == typenod(t) && !t->local)
 		return;
 
 	Bprint(bout, "type %#T %l#T\n",  t, t);
@@ -257,42 +262,21 @@ dumpexport(void)
  */
 
 /*
- * look up and maybe declare pkg.name, which should match lexical
- */
-Sym*
-pkgsym(char *name, char *pkg, int lexical)
-{
-	Sym *s;
-
-	s = pkglookup(name, pkg);
-	switch(lexical) {
-	case LATYPE:
-		if(s->oname)
-			yyerror("%s.%s is not a type", name, pkg);
-		break;
-	case LNAME:
-		if(s->otype)
-			yyerror("%s.%s is not a name", name, pkg);
-		break;
-	}
-	s->lexical = lexical;
-	return s;
-}
-
-/*
  * return the sym for ss, which should match lexical
  */
 Sym*
-importsym(Node *ss, int lexical)
+importsym(Sym *s, int op)
 {
-	Sym *s;
-
-	if(ss->op != OIMPORT)
-		fatal("importsym: oops1 %N", ss);
-
-	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
-	/* TODO botch - need some diagnostic checking for the following assignment */
-	if(exportname(ss->sym->name))
+	if(s->def != N && s->def->op != op) {
+		// Clumsy hack for
+		//	package parser
+		//	import "go/parser"	// defines type parser
+		if(s == lookup(package))
+			s->def = N;
+		else
+			yyerror("redeclaration of %lS during import", s, s->def->op, op);
+	}
+	if(exportname(s->name))
 		s->export = 1;
 	else
 		s->export = 2;	// package scope
@@ -304,47 +288,36 @@ importsym(Node *ss, int lexical)
  * return the type pkg.name, forward declaring if needed
  */
 Type*
-pkgtype(char *name, char *pkg)
+pkgtype(Sym *s)
 {
-	Sym *s;
 	Type *t;
 
-	// botch
-	// s = pkgsym(name, pkg, LATYPE);
-	Node *n;
-	n = nod(OIMPORT, N, N);
-	n->sym = lookup(name);
-	n->psym = lookup(pkg);
-	s = importsym(n, LATYPE);
-
-	if(s->otype == T) {
+	importsym(s, OTYPE);
+	if(s->def == N || s->def->op != OTYPE) {
 		t = typ(TFORW);
 		t->sym = s;
-		s->otype = t;
+		s->def = typenod(t);
 	}
-	return s->otype;
+	return s->def->type;
 }
 
 static int
-mypackage(Node *ss)
+mypackage(Sym *s)
 {
 	// we import all definitions for sys.
 	// lowercase ones can only be used by the compiler.
-	return strcmp(ss->psym->name, package) == 0
-		|| strcmp(ss->psym->name, "sys") == 0;
+	return strcmp(s->package, package) == 0
+		|| strcmp(s->package, "sys") == 0;
 }
 
 void
-importconst(Node *ss, Type *t, Node *n)
+importconst(Sym *s, Type *t, Node *n)
 {
-	Sym *s;
-
-	if(!exportname(ss->sym->name) && !mypackage(ss))
+	if(!exportname(s->name) && !mypackage(s))
 		return;
-
+	importsym(s, OLITERAL);
 	convlit(n, t);
-	s = importsym(ss, LNAME);
-	if(s->oconst != N) {
+	if(s->def != N) {
 		// TODO: check if already the same.
 		return;
 	}
@@ -356,19 +329,17 @@ importconst(Node *ss, Type *t, Node *n)
 }
 
 void
-importvar(Node *ss, Type *t, int ctxt)
+importvar(Sym *s, Type *t, int ctxt)
 {
-	Sym *s;
-
-	if(!exportname(ss->sym->name) && !mypackage(ss))
+	if(!exportname(s->name) && !mypackage(s))
 		return;
 
-	s = importsym(ss, LNAME);
-	if(s->oname != N) {
-		if(cvttype(t, s->oname->type))
+	importsym(s, ONAME);
+	if(s->def != N && s->def->op == ONAME) {
+		if(cvttype(t, s->def->type))
 			return;
 		warn("redeclare import var %S from %T to %T",
-			s, s->oname->type, t);
+			s, s->def->type, t);
 	}
 	checkwidth(t);
 	addvar(newname(s), t, ctxt);
@@ -378,25 +349,34 @@ importvar(Node *ss, Type *t, int ctxt)
 }
 
 void
-importtype(Node *ss, Type *t)
+importtype(Sym *s, Type *t)
 {
-	Sym *s;
+	Node *n;
+	Type *tt;
 
-	s = importsym(ss, LATYPE);
-	if(s->otype != T) {
-		if(cvttype(t, s->otype))
+	importsym(s, OTYPE);
+	n = s->def;
+	if(n != N && n->op == OTYPE) {
+		if(cvttype(t, n->type))
 			return;
-		if(s->otype->etype != TFORW) {
+		if(n->type->etype != TFORW) {
 			warn("redeclare import type %S from %lT to %lT",
-				s, s->otype, t);
-			s->otype = typ(0);
+				s, n->type, t);
+			n = s->def = typenod(typ(0));
 		}
 	}
-	if(s->otype == T)
-		s->otype = typ(0);
-	*s->otype = *t;
-	s->otype->sym = s;
-	checkwidth(s->otype);
+	if(n == N || n->op != OTYPE) {
+		tt = typ(0);
+		tt->sym = s;
+		n = typenod(tt);
+		s->def = n;
+	}
+	if(n->type == T)
+		n->type = typ(0);
+	*n->type = *t;
+	n->type->sym = s;
+	n->type->nod = n;
+	checkwidth(n->type);
 
 	if(debug['E'])
 		print("import type %S %lT\n", s, t);
@@ -425,7 +405,9 @@ return;
 
 	for(h=0; h<NHASH; h++)
 	for(s = hash[h]; s != S; s = s->link) {
-		t = s->otype;
+		if(s->def == N || s->def->op != OTYPE)
+			continue;
+		t = s->def->type;
 		if(t == T)
 			continue;
 

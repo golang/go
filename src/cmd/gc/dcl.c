@@ -67,11 +67,11 @@ dodcltype(Type *n)
 	// if n has been forward declared,
 	// use the Type* created then
 	s = n->sym;
-	if(s->block == block && s->otype != T) {
-		switch(s->otype->etype) {
+	if(s->block == block && s->def != N && s->def->op == OTYPE) {
+		switch(s->def->type->etype) {
 		case TFORWSTRUCT:
 		case TFORWINTER:
-			n = s->otype;
+			n = s->def->type;
 			goto found;
 		}
 	}
@@ -95,7 +95,7 @@ updatetype(Type *n, Type *t)
 	int local;
 
 	s = n->sym;
-	if(s == S || s->otype != n)
+	if(s == S || s->def == N || s->def->op != OTYPE || s->def->type != n)
 		fatal("updatetype %T = %T", n, t);
 
 	switch(n->etype) {
@@ -132,7 +132,7 @@ updatetype(Type *n, Type *t)
 	n->printed = 0;
 	n->method = nil;
 	n->vargen = 0;
-
+	n->nod = N;
 	// catch declaration of incomplete type
 	switch(n->etype) {
 	case TFORWSTRUCT:
@@ -306,7 +306,7 @@ addmethod(Node *n, Type *t, int local)
 		goto bad;
 
 	if(local && !f->local) {
-		yyerror("cannot define methods on non-local type %T", t);
+		yyerror("cannot define methods on non-local type %T", f);
 		return;
 	}
 
@@ -383,7 +383,9 @@ funchdr(Node *n)
 	Sym *s;
 
 	s = n->nname->sym;
-	on = s->oname;
+	on = s->def;
+	if(on != N && (on->op != ONAME || on->builtin))
+		on = N;
 
 	// check for same types
 	if(on != N) {
@@ -748,7 +750,7 @@ loop:
 		f->embedded = n->embedded;
 		f->sym = f->nname->sym;
 		if(pkgimportname != S && !exportname(f->sym->name))
-			f->sym = pkglookup(f->sym->name, pkgcontext);
+			f->sym = pkglookup(f->sym->name, structpkg);
 	}
 
 	*t = f;
@@ -793,11 +795,8 @@ void
 dcopy(Sym *a, Sym *b)
 {
 	a->name = b->name;
-	a->oname = b->oname;
-	a->otype = b->otype;
-	a->oconst = b->oconst;
+	a->def = b->def;
 	a->package = b->package;
-	a->lexical = b->lexical;
 	a->undef = b->undef;
 	a->vargen = b->vargen;
 	a->block = b->block;
@@ -954,11 +953,8 @@ addvar(Node *n, Type *t, int ctxt)
 
 	redeclare("variable", s);
 	s->vargen = gen;
-	s->oname = n;
+	s->def = n;
 	s->offset = 0;
-	s->oconst = nil;
-	s->otype = nil;
-	s->lexical = LNAME;
 
 	n->funcdepth = funcdepth;
 	n->type = t;
@@ -1004,10 +1000,7 @@ addtyp(Type *n, int ctxt)
 	}
 
 	redeclare("type", s);
-	s->otype = n;
-	s->oconst = nil;
-	s->oname = nil;
-	s->lexical = LATYPE;
+	s->def = typenod(n);
 
 	d = dcl();
 	d->dsym = s;
@@ -1041,7 +1034,7 @@ addconst(Node *n, Node *e, int ctxt)
 	Sym *s;
 	Dcl *r, *d;
 
-	if(n->op != ONAME)
+	if(n->op != ONAME && n->op != ONONAME)
 		fatal("addconst: not a name");
 
 	if(e->op != OLITERAL) {
@@ -1059,10 +1052,8 @@ addconst(Node *n, Node *e, int ctxt)
 	}
 
 	redeclare("constant", s);
-	s->oconst = e;
-	s->otype = nil;
-	s->oname = nil;
-	s->lexical = LNAME;
+	s->def = e;
+	e->sym = s;
 
 	d = dcl();
 	d->dsym = s;
@@ -1073,7 +1064,7 @@ addconst(Node *n, Node *e, int ctxt)
 	r->back = d;
 
 	if(dflag())
-		print("const-dcl %S %N\n", n->sym, n->sym->oconst);
+		print("const-dcl %S %N\n", n->sym, n->sym->def);
 }
 
 Node*
@@ -1130,6 +1121,18 @@ newname(Sym *s)
 	return n;
 }
 
+Node*
+typenod(Type *t)
+{
+	if(t->nod == N) {
+		t->nod = nod(OTYPE, N, N);
+		t->nod->type = t;
+		t->nod->sym = t->sym;
+	}
+	return t->nod;
+}
+
+
 /*
  * this will return an old name
  * that has already been pushed on the
@@ -1142,15 +1145,7 @@ oldname(Sym *s)
 	Node *n;
 	Node *c;
 
-	if(s->oconst) {
-		n = nod(OLITERAL, N, N);
-		n->sym = s;
-		n->val = s->oconst->val;
-		n->type = s->oconst->type;
-		return n;
-	}
-
-	n = s->oname;
+	n = s->def;
 	if(n == N) {
 		n = nod(ONONAME, N, N);
 		n->sym = s;
@@ -1158,7 +1153,15 @@ oldname(Sym *s)
 		n->addable = 1;
 		n->ullman = 1;
 	}
-	if(n->funcdepth > 0 && n->funcdepth != funcdepth) {
+	if(n->op == OLITERAL) {
+		c = nod(OLITERAL, N, N);
+		c->sym = s;
+		c->val = n->val;
+		c->type = n->type;
+		c->iota = n->iota;
+		return c;
+	}
+	if(n->funcdepth > 0 && n->funcdepth != funcdepth && n->op == ONAME) {
 		// inner func is referring to var
 		// in outer func.
 		if(n->closure == N || n->closure->funcdepth != funcdepth) {
@@ -1200,9 +1203,19 @@ oldtype(Sym *s)
 {
 	Type *t;
 
-	t = s->otype;
-	if(t == T)
-		fatal("%S not a type", s); // cant happen
+	if(s->def == N || s->def->op != OTYPE) {
+		yyerror("%S is not a type", s);
+		return T;
+	}
+	t = s->def->type;
+
+	/*
+	 * If t is lowercase and not in our package
+	 * and this isn't a reference during the parsing
+	 * of import data, complain.
+	 */
+	if(pkgimportname == S && !exportname(s->name) && strcmp(s->package, package) != 0)
+		yyerror("cannot use type %T", t);
 	return t;
 }
 
@@ -1219,9 +1232,9 @@ nametoanondcl(Node *na)
 	for(l=&na; (n=*l)->op == OLIST; l=&n->left)
 		n->right = nametoanondcl(n->right);
 
-	t = n->sym->otype;
-	if(t == T) {
-		yyerror("%s is not a type", n->sym->name);
+	n = n->sym->def;
+	if(n == N || n->op != OTYPE || (t = n->type) == T) {
+		yyerror("%S is not a type", n->sym);
 		t = typ(TINT32);
 	}
 	n = nod(ODCLFIELD, N, N);
@@ -1261,33 +1274,95 @@ anondcl(Type *t)
 	return n;
 }
 
+static Node*
+findtype(Node *n)
+{
+	Node *r;
+
+	for(r=n; r->op==OLIST; r=r->right)
+		if(r->left->op == OKEY)
+			return r->left->right;
+	if(r->op == OKEY)
+		return r->right;
+	if(n->op == OLIST)
+		n = n->left;
+	return N;
+}
+
+static Node*
+xanondcl(Node *nt, int dddok)
+{
+	Node *n;
+	Type *t;
+
+	t = nt->type;
+	if(nt->op != OTYPE) {
+		yyerror("%N is not a type", nt);
+		t = types[TINT32];
+	}
+	n = nod(ODCLFIELD, N, N);
+	n->type = t;
+	if(!dddok && t->etype == TDDD)
+		yyerror("only last argument can have type ...");
+	return n;
+}
+
+static Node*
+namedcl(Node *nn, Node *nt, int dddok)
+{
+	Node *n;
+	Type *t;
+
+	if(nn->op == OKEY)
+		nn = nn->left;
+	if(nn->op == OTYPE && nn->sym == S) {
+		yyerror("cannot mix anonymous %T with named arguments", nn->type);
+		return xanondcl(nn, dddok);
+	}
+	t = types[TINT32];
+	if(nt == N)
+		yyerror("missing type for argument %S", nn->sym);
+	else if(nt->op != OTYPE)
+		yyerror("%S is not a type", nt->sym);
+	else
+		t = nt->type;
+	n = nod(ODCLFIELD, newname(nn->sym), N);
+	n->type = t;
+	if(!dddok && t->etype == TDDD)
+		yyerror("only last argument can have type ...");
+	return n;
+}
+
 /*
  * check that the list of declarations is either all anonymous or all named
  */
-void
+Node*
 checkarglist(Node *n)
 {
-	if(n->op != OLIST)
-		return;
-	if(n->left->op != ODCLFIELD)
-		fatal("checkarglist");
-	if(n->left->left != N) {
-		for(n=n->right; n->op == OLIST; n=n->right)
-			if(n->left->left == N)
-				goto mixed;
-		if(n->left == N)
-			goto mixed;
-	} else {
-		for(n=n->right; n->op == OLIST; n=n->right)
-			if(n->left->left != N)
-				goto mixed;
-		if(n->left != N)
-			goto mixed;
-	}
-	return;
+	Node *r;
+	Node **l;
 
-mixed:
-	yyerror("cannot mix anonymous and named function arguments");
+	// check for all anonymous
+	for(r=n; r->op==OLIST; r=r->right)
+		if(r->left->op == OKEY)
+			goto named;
+	if(r->op == OKEY)
+		goto named;
+
+	// all anonymous - add names
+	for(l=&n; (r=*l)->op==OLIST; l=&r->right)
+		r->left = xanondcl(r->left, 0);
+	*l = xanondcl(r, 1);
+	return n;
+
+
+named:
+	// otherwise, each run of names ends in a type.
+	// add a type to each one that needs one.
+	for(l=&n; (r=*l)->op==OLIST; l=&r->right)
+		r->left = namedcl(r->left, findtype(r), 0);
+	*l = namedcl(r, findtype(r), 1);
+	return n;
 }
 
 /*
@@ -1296,7 +1371,7 @@ mixed:
  *	func	Init·<file>()				(2)
  *		if initdone·<file> {			(3)
  *			if initdone·<file> == 2		(4)
- *				return			
+ *				return
  *			throw();			(5)
  *		}
  *		initdone.<file>++;			(6)
@@ -1325,7 +1400,7 @@ anyinit(Node *n)
 	// is there an explicit init function
 	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
 	s = lookup(namebuf);
-	if(s->oname != N)
+	if(s->def != N)
 		return 1;
 
 	// are there any imported init functions
@@ -1333,7 +1408,7 @@ anyinit(Node *n)
 	for(s = hash[h]; s != S; s = s->link) {
 		if(s->name[0] != 'I' || strncmp(s->name, "Init·", 6) != 0)
 			continue;
-		if(s->oname == N)
+		if(s->def == N)
 			continue;
 		return 1;
 	}
@@ -1409,13 +1484,13 @@ fninit(Node *n)
 	for(s = hash[h]; s != S; s = s->link) {
 		if(s->name[0] != 'I' || strncmp(s->name, "Init·", 6) != 0)
 			continue;
-		if(s->oname == N)
+		if(s->def == N)
 			continue;
 		if(s == initsym)
 			continue;
 
 		// could check that it is fn of no args/returns
-		a = nod(OCALL, s->oname, N);
+		a = nod(OCALL, s->def, N);
 		r = list(r, a);
 	}
 
@@ -1426,8 +1501,8 @@ fninit(Node *n)
 	// could check that it is fn of no args/returns
 	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
 	s = lookup(namebuf);
-	if(s->oname != N) {
-		a = nod(OCALL, s->oname, N);
+	if(s->def != N) {
+		a = nod(OCALL, s->def, N);
 		r = list(r, a);
 	}
 

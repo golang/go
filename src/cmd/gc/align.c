@@ -208,7 +208,7 @@ dowidth(Type *t)
 }
 
 void
-typeinit(int lex)
+typeinit(void)
 {
 	int i, etype, sameas;
 	Type *t;
@@ -306,7 +306,7 @@ typeinit(int lex)
 	types[TFUNC] = functype(N, N, N);
 
 	/* types used in front end */
-	types[TNIL] = typ(TNIL);
+	// types[TNIL] got set early in lexinit
 	types[TIDEAL] = typ(TIDEAL);
 
 	/* simple aliases */
@@ -317,7 +317,6 @@ typeinit(int lex)
 	/* pick up the backend typedefs */
 	for(i=0; typedefs[i].name; i++) {
 		s = lookup(typedefs[i].name);
-		s->lexical = lex;
 
 		etype = typedefs[i].etype;
 		if(etype < 0 || etype >= nelem(types))
@@ -340,7 +339,7 @@ typeinit(int lex)
 
 		dowidth(t);
 		types[etype] = t;
-		s->otype = t;
+		s->def = typenod(t);
 	}
 
 	Array_array = rnd(0, widthptr);
