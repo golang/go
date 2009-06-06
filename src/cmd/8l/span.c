@@ -823,6 +823,7 @@ uchar	ymovtab[] =
 	ASHRL,	Ycol,	Yml,	6,	0xac,0xad,0,0,
 
 /* extra imul */
+	AIMULW,	Yml,	Yrl,	7,	Pq,0xaf,0,0,
 	AIMULL,	Yml,	Yrl,	7,	Pm,0xaf,0,0,
 	0
 };
@@ -1281,7 +1282,11 @@ mfound:
 		break;
 
 	case 7: /* imul rm,r */
-		*andptr++ = t[4];
+		if(t[4] == Pq) {
+			*andptr++ = Pe;
+			*andptr++ = Pm;
+		} else
+			*andptr++ = t[4];
 		*andptr++ = t[5];
 		asmand(&p->from, reg[p->to.type]);
 		break;
