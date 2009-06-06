@@ -7,16 +7,8 @@
 
 D=
 
-O_arm=5
-O_amd64=6
-O_386=8
-OS=568vq
-
-O=$(O_$(GOARCH))
-GC=$(O)g -I_obj
-CC=$(O)c -FVw
-AS=$(O)a
-AR=6ar
+include $(GOROOT)/src/Make.$(GOARCH)
+AR=gopack
 
 default: packages
 
@@ -31,7 +23,7 @@ coverage: packages
 	6cov -g `pwd` | grep -v '_test\.go:'
 
 %.$O: %.go
-	$(GC) $*.go
+	$(GC) -I_obj $*.go
 
 %.$O: %.c
 	$(CC) $*.c
@@ -68,10 +60,10 @@ $(O2): a1
 $(O3): a2
 
 nuke: clean
-	rm -f $(GOROOT)/pkg$D/json.a
+	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/json.a
 
 packages: _obj$D/json.a
 
 install: packages
-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
-	cp _obj$D/json.a $(GOROOT)/pkg$D/json.a
+	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
+	cp _obj$D/json.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/json.a
