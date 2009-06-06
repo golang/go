@@ -599,7 +599,7 @@ func servePkg(c *http.Conn, r *http.Request) {
 
 func loggingHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(c *http.Conn, req *http.Request) {
-		log.Stderrf("%s\t%s", req.Host, req.Url.Path);
+		log.Stderrf("%s\t%s", c.RemoteAddr, req.Url);
 		h.ServeHTTP(c, req);
 	})
 }
