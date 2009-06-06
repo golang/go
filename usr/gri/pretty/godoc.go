@@ -106,6 +106,7 @@ func init() {
 		goroot = "/home/r/go-release/go";
 	}
 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");
+	syncTime.set();  // have a reasonable initial value
 }
 
 
