@@ -142,7 +142,7 @@ func TestFp(t *testing.T) {
 		}
 		if s != a[3] {
 			t.Error("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
-				"want ", a[3], " got ", s, "\n");
+				"want ", a[3], " got ", s);
 		}
 //else print("testfp.txt:", lineno, ": worked! ", s, "\n");
 	}
