@@ -655,7 +655,7 @@ addlib(char *src, char *obj)
 		if(access(pname, AEXIST) < 0 && LIBDIR != nil)
 			snprint(pname, sizeof pname, "%s/%s", LIBDIR, name);
 		if(access(pname, AEXIST) < 0)
-			snprint(pname, sizeof pname, "%s/pkg/%s", goroot, name);
+			snprint(pname, sizeof pname, "%s/pkg/%s_%s/%s", goroot, goos, goarch, name);
 		strcpy(name, pname);
 	}
 	if(debug['v'])

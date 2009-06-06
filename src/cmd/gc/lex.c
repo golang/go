@@ -212,11 +212,13 @@ addidir(char* dir)
 int
 findpkg(Strlit *name)
 {
-	static char* goroot;
-	Idir* p;
+	static char *goroot, *goos, *goarch;
+	Idir *p;
 
 	if(goroot == nil) {
 		goroot = getenv("GOROOT");
+		goos = getenv("GOOS");
+		goarch = getenv("GOARCH");
 	}
 
 	// try .a before .6.  important for building libraries:
@@ -238,10 +240,10 @@ findpkg(Strlit *name)
 	if(access(namebuf, 0) >= 0)
 		return 1;
 	if(goroot != nil) {
-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.a", goroot, name);
+		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s/%Z.a", goroot, goos, goarch, name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.%c", goroot, name, thechar);
+		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s/%Z.%c", goroot, goos, goarch, name, thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 	}
