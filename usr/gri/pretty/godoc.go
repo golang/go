@@ -86,7 +86,7 @@ var (
 
 	// workspace control
 	p4binary = flag.String("p4", "/usr/local/scripts/p4", "p4 binary");
-	syncSleep = flag.Int("sync", 10, "p4 sync interval in minutes; disabled if <= 0");
+	syncSleep = flag.Int("sync", 0, "p4 sync interval in minutes; disabled if <= 0");
 	syncTime timeStamp;  // time of last p4 sync
 
 	// layout control
