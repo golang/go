@@ -14,6 +14,7 @@ import (
 	"log";
 	"net";
 	"os";
+	"strconv";
 )
 
 
@@ -24,7 +25,7 @@ func HelloServer(c *http.Conn, req *http.Request) {
 	io.WriteString(c, "hello, world!\n");
 }
 
-// simple counter server
+// Simple counter server. POSTing to it will set the value.
 type Counter struct {
 	n int;
 }
@@ -36,8 +37,21 @@ func (ctr *Counter) String() string {
 }
 
 func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+	switch req.Method {
+	case "GET":
+		ctr.n++;
+	case "POST":
+		buf := new(io.ByteBuffer);
+		io.Copy(req.Body, buf);
+		body := string(buf.Data());
+		if n, err := strconv.Atoi(body); err != nil {
+			fmt.Fprintf(c, "bad POST: %v\nbody: [%v]\n", err, body);
+		} else {
+			ctr.n = n;
+			fmt.Fprint(c, "counter reset\n");
+		}
+	}
 	fmt.Fprintf(c, "counter = %d\n", ctr.n);
-	ctr.n++;
 }
 
 // simple file server
