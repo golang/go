@@ -8,6 +8,8 @@
 #include	"y.tab.h"
 #include <ar.h>
 
+extern int yychar;
+
 #define	DBG	if(!debug['x']);else print
 enum
 {
@@ -366,8 +368,8 @@ isfrog(int c)
 	return 0;
 }
 
-int32
-yylex(void)
+static int32
+_yylex(void)
 {
 	int c, c1, clen;
 	vlong v;
@@ -939,6 +941,44 @@ caseout:
 	yylval.val.ctype = CTFLT;
 	DBG("lex: floating literal\n");
 	return LLITERAL;
+}
+
+/*
+ * help the parser.  if the next token is not c and not ';',
+ * insert a ';' before it.
+ */
+void
+yyoptsemi(int c)
+{
+	if(c == 0)
+		c = -1;
+	if(yychar <= 0)
+		yysemi = c;
+}
+
+int32
+yylex(void)
+{
+	// if we delayed a token, return that one.
+	if(yynext) {
+		yylast = yynext;
+		yynext = 0;
+		return yylast;
+	}
+
+	yylast = _yylex();
+
+	// if there's an optional semicolon needed,
+	// delay the token we just read.
+	if(yysemi) {
+		if(yylast != ';' && yylast != yysemi) {
+			yynext = yylast;
+			yylast = ';';
+		}
+		yysemi = 0;
+	}
+
+	return yylast;
 }
 
 int
