@@ -648,7 +648,42 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 void
 cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 {
-	fatal("cgen_bmul");
+	Node n1b, n2b, n1w, n2w;
+	Type *t;
+	int a;
+
+	if(nl->ullman >= nr->ullman) {
+		regalloc(&n1b, nl->type, res);
+		cgen(nl, &n1b);
+		regalloc(&n2b, nr->type, N);
+		cgen(nr, &n2b);
+	} else {
+		regalloc(&n2b, nr->type, N);
+		cgen(nr, &n2b);
+		regalloc(&n1b, nl->type, res);
+		cgen(nl, &n1b);
+	}
+
+	// copy from byte to short registers
+	t = types[TUINT16];
+	if(issigned[nl->type->etype])
+		t = types[TINT16];
+
+	regalloc(&n2w, t, &n2b);
+	cgen(&n2b, &n2w);
+
+	regalloc(&n1w, t, &n1b);
+	cgen(&n1b, &n1w);
+
+	a = optoas(op, t);
+	gins(a, &n2w, &n1w);
+	cgen(&n1w, &n1b);
+	cgen(&n1b, res);
+
+	regfree(&n1w);
+	regfree(&n2w);
+	regfree(&n1b);
+	regfree(&n2b);
 }
 
 int

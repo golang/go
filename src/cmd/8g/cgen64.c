@@ -13,7 +13,7 @@ void
 cgen64(Node *n, Node *res)
 {
 	Node t1, t2, ax, dx, cx, ex, fx, *l, *r;
-	Node lo1, lo2, lo3, hi1, hi2, hi3;
+	Node lo1, lo2, hi1, hi2;
 	Prog *p1, *p2;
 	uint64 v;
 	uint32 lv, hv;

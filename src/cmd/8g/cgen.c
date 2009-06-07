@@ -120,10 +120,10 @@ cgen(Node *n, Node *res)
 	if(nl != N && nl->ullman >= UINF)
 	if(nr != N && nr->ullman >= UINF) {
 		// both are hard
-		tempalloc(&n1, nr->type);
-		cgen(nr, &n1);
+		tempalloc(&n1, nl->type);
+		cgen(nl, &n1);
 		n2 = *n;
-		n2.right = &n1;
+		n2.left = &n1;
 		cgen(&n2, res);
 		tempfree(&n1);
 		return;
@@ -193,7 +193,10 @@ cgen(Node *n, Node *res)
 	case OADD:
 	case OMUL:
 		a = optoas(n->op, nl->type);
-		// TODO: cgen_bmul ?
+		if(a == AIMULB) {
+			cgen_bmul(n->op, nl, nr, res);
+			break;
+		}
 		goto sbop;
 
 	// asymmetric binary
@@ -402,6 +405,8 @@ agen(Node *n, Node *res)
 
 	// addressable var is easy
 	if(n->addable) {
+		if(n->op == OREGISTER)
+			fatal("agen OREGISTER");
 		regalloc(&n1, types[tptr], res);
 		gins(ALEAL, n, &n1);
 		gmove(&n1, res);
@@ -439,33 +444,34 @@ agen(Node *n, Node *res)
 		break;
 
 	case OINDEX:
+		// TODO(rsc): uint64 indices
 		w = n->type->width;
 		if(nr->addable) {
 			agenr(nl, &n3, res);
 			if(!isconst(nr, CTINT)) {
-				tempalloc(&tmp, nr->type);
+				tempalloc(&tmp, types[TINT32]);
 				cgen(nr, &tmp);
-				regalloc(&n1, nr->type, N);
+				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 				tempfree(&tmp);
 			}
 		} else if(nl->addable) {
 			if(!isconst(nr, CTINT)) {
-				tempalloc(&tmp, nr->type);
+				tempalloc(&tmp, types[TINT32]);
 				cgen(nr, &tmp);
-				regalloc(&n1, nr->type, N);
+				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 				tempfree(&tmp);
 			}
 			regalloc(&n3, types[tptr], res);
 			agen(nl, &n3);
 		} else {
-			tempalloc(&tmp, nr->type);
+			tempalloc(&tmp, types[TINT32]);
 			cgen(nr, &tmp);
 			nr = &tmp;
 			agenr(nl, &n3, res);
-			regalloc(&n1, nr->type, N);
-			gins(optoas(OAS, nr->type), &tmp, &n1);
+			regalloc(&n1, tmp.type, N);
+			gins(optoas(OAS, tmp.type), &tmp, &n1);
 			tempfree(&tmp);
 		}
 
@@ -621,8 +627,6 @@ agen(Node *n, Node *res)
 void
 igen(Node *n, Node *a, Node *res)
 {
-	Node n1;
-
 	regalloc(a, types[tptr], res);
 	agen(n, a);
 	a->op = OINDREG;
@@ -686,6 +690,7 @@ bgen(Node *n, int true, Prog *to)
 
 	switch(n->op) {
 	default:
+	def:
 		regalloc(&n1, n->type, N);
 		cgen(n, &n1);
 		nodconst(&n2, n->type, 0);
@@ -698,12 +703,14 @@ bgen(Node *n, int true, Prog *to)
 		return;
 
 	case OLITERAL:
-// need to ask if it is bool?
+		// need to ask if it is bool?
 		if(!true == !n->val.u.bval)
 			patch(gbranch(AJMP, T), to);
 		return;
 
 	case ONAME:
+		if(!n->addable)
+			goto def;
 		nodconst(&n1, n->type, 0);
 		gins(optoas(OCMP, n->type), n, &n1);
 		a = AJNE;
