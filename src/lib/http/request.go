@@ -13,10 +13,12 @@ package http
 
 import (
 	"bufio";
+	"fmt";
 	"http";
 	"io";
 	"os";
-	"strings"
+	"strconv";
+	"strings";
 )
 
 const (
@@ -33,6 +35,8 @@ var (
 	LineTooLong = &ProtocolError{"http header line too long"};
 	ValueTooLong = &ProtocolError{"http header value too long"};
 	HeaderTooLong = &ProtocolError{"http header too long"};
+	BadContentLength = &ProtocolError{"invalid content length"};
+	ShortEntityBody = &ProtocolError{"entity body too short"};
 	BadHeader = &ProtocolError{"malformed http header"};
 	BadRequest = &ProtocolError{"invalid http request"};
 	BadHTTPVersion = &ProtocolError{"unsupported http version"};
@@ -40,9 +44,9 @@ var (
 
 // A Request represents a parsed HTTP request header.
 type Request struct {
-	Method string;		// GET, PUT,etc.
+	Method string;		// GET, POST, PUT, etc.
 	RawUrl string;		// The raw URL given in the request.
-	Url *URL;		// URL after GET, PUT etc.
+	Url *URL;		// Parsed URL.
 	Proto string;	// "HTTP/1.0"
 	ProtoMajor int;	// 1
 	ProtoMinor int;	// 0
@@ -67,6 +71,9 @@ type Request struct {
 	// name, making the first character and any characters
 	// following a hyphen uppercase and the rest lowercase.
 	Header map[string] string;
+
+	// The message body.
+	Body io.Reader;
 
 	// Whether to close the connection after replying to this request.
 	Close bool;
@@ -386,5 +393,21 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	//	Via
 	//	Warning
 
-	return req, nil;
+	// A message body exists when either Content-Length or Transfer-Encoding
+	// headers are present. TODO: Handle Transfer-Encoding.
+	if v, present := req.Header["Content-Length"]; present {
+		length, err := strconv.Btoui64(v, 10);
+		if err != nil {
+			return nil, BadContentLength
+		}
+		// TODO: limit the Content-Length. This is an easy DoS vector.
+		raw := make([]byte, length);
+		n, err := b.Read(raw);
+		if err != nil || uint64(n) < length {
+			return nil, ShortEntityBody
+		}
+		req.Body = io.NewByteReader(raw);
+	}
+
+	return req, nil
 }
