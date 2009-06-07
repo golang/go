@@ -692,10 +692,6 @@ ginit(void)
 	for(i=D_AL; i<=D_DI; i++)
 		reg[i] = 0;
 
-	// TODO: Use MMX ?
-	for(i=D_F0; i<=D_F7; i++)
-		reg[i] = 0;
-
 	for(i=0; i<nelem(resvd); i++)
 		reg[resvd[i]]++;
 }
@@ -713,9 +709,6 @@ gclean(void)
 	for(i=D_AL; i<=D_DI; i++)
 		if(reg[i])
 			yyerror("reg %R left allocated at %lux", i, regpc[i]);
-	for(i=D_F0; i<=D_F7; i++)
-		if(reg[i])
-			yyerror("reg %R left allocated", i);
 }
 
 /*
@@ -726,7 +719,7 @@ gclean(void)
 void
 regalloc(Node *n, Type *t, Node *o)
 {
-	int i, et, min, max;
+	int i, et;
 
 	if(t == T)
 		fatal("regalloc: t nil");
@@ -735,13 +728,6 @@ regalloc(Node *n, Type *t, Node *o)
 	switch(et) {
 	case TINT8:
 	case TUINT8:
-		// This is going to come back to bite us;
-		// we're not tracking tiny registers vs big ones.
-		// The hope is that because we use temporaries
-		// everywhere instead of registers, this will be okay.
-		min = D_AL;
-		max = D_BH;
-		goto try;
 	case TINT16:
 	case TUINT16:
 	case TINT32:
@@ -751,36 +737,25 @@ regalloc(Node *n, Type *t, Node *o)
 	case TPTR32:
 	case TPTR64:
 	case TBOOL:
-		min = D_AX;
-		max = D_DI;
-	try:
 		if(o != N && o->op == OREGISTER) {
 			i = o->val.u.reg;
-			if(i >= min && i <= max)
+			if(i >= D_AX && i <= D_DI)
 				goto out;
 		}
-		for(i=min; i<=max; i++)
+		for(i=D_AX; i<=D_DI; i++)
 			if(reg[i] == 0)
 				goto out;
 
 		fprint(2, "registers allocated at\n");
-		for(i=min; i<=max; i++)
+		for(i=D_AX; i<=D_DI; i++)
 			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
 		yyerror("out of fixed registers");
 		goto err;
 
 	case TFLOAT32:
 	case TFLOAT64:
-		if(o != N && o->op == OREGISTER) {
-			i = o->val.u.reg;
-			if(i >= D_F0 && i <= D_F7)
-				goto out;
-		}
-		for(i=D_F0; i<=D_F7; i++)
-			if(reg[i] == 0)
-				goto out;
-		yyerror("out of floating registers");
-		goto err;
+		i = D_F0;
+		goto out;
 	}
 	yyerror("regalloc: unknown type %T", t);
 	i = 0;
@@ -1396,10 +1371,7 @@ gmove(Node *f, Node *t)
 		nodreg(&f1, types[ft], D_F0 + 1);
 		nodreg(&ax, types[TUINT16], D_AX);
 
-		if(ft == TFLOAT32)
-			gins(AFMOVF, f, &f0);
-		else
-			gins(AFMOVD, f, &f0);
+		gmove(f, &f0);
 
 		// if 0 > v { answer = 0 }
 		gmove(&zerof, &f0);
@@ -1563,6 +1535,8 @@ gmove(Node *f, Node *t)
 		if(ft == TFLOAT64)
 			a = AFMOVD;
 		if(ismem(t)) {
+			if(f->op != OREGISTER || f->val.u.reg != D_F0)
+				fatal("gmove %N", f);
 			a = AFMOVFP;
 			if(ft == TFLOAT64)
 				a = AFMOVDP;
@@ -1570,15 +1544,27 @@ gmove(Node *f, Node *t)
 		break;
 
 	case CASE(TFLOAT32, TFLOAT64):
+		if(f->op == OREGISTER && t->op == OREGISTER) {
+			if(f->val.u.reg != D_F0 || t->val.u.reg != D_F0)
+				goto fatal;
+			return;
+		}
 		if(f->op == OREGISTER)
-			gins(AFMOVD, f, t);
+			gins(AFMOVDP, f, t);
 		else
 			gins(AFMOVF, f, t);
 		return;
 
 	case CASE(TFLOAT64, TFLOAT32):
+		if(f->op == OREGISTER && t->op == OREGISTER) {
+			tempalloc(&r1, types[TFLOAT32]);
+			gins(AFMOVFP, f, &r1);
+			gins(AFMOVF, &r1, t);
+			tempfree(&r1);
+			return;
+		}
 		if(f->op == OREGISTER)
-			gins(AFMOVF, f, t);
+			gins(AFMOVFP, f, t);
 		else
 			gins(AFMOVD, f, t);
 		return;
