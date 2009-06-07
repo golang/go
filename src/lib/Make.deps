@@ -40,9 +40,9 @@ strconv.install: bytes.install math.install os.install utf8.install
 strings.install: utf8.install
 sync.install:
 syscall.install: sync.install
-tabwriter.install: bytes.install container/vector.install io.install os.install utf8.install
+tabwriter.install: container/vector.install io.install os.install utf8.install
 template.install: container/vector.install fmt.install io.install os.install reflect.install runtime.install strings.install
-testing.install: flag.install fmt.install os.install runtime.install
+testing.install: flag.install fmt.install os.install regexp.install runtime.install
 testing/iotest.install: io.install log.install os.install
 time.install: io.install once.install os.install syscall.install
 unicode.install:
