@@ -5,10 +5,7 @@
 
 extern	char	gotypestrings[];	// 4-byte count followed by byte[count]
 
-void
-FLUSH(void*)
-{
-}
+void FLUSH(void*);
 
 typedef	struct	String	String;
 struct	String
