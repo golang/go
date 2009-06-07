@@ -91,11 +91,6 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug136.go
 BUG: should not compile
 
-=========== bugs/bug140.go
-bugs/bug140.go:6: syntax error near L1
-bugs/bug140.go:7: syntax error near L2
-BUG should compile
-
 =========== bugs/bug148.go
 2 3
 5 7
