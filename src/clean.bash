@@ -5,7 +5,7 @@
 
 rm -rf $GOROOT/pkg/[0-9a-zA-Z_]*
 rm -f $GOROOT/lib/*.[6a]
-for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib
+for i in lib9 libbio libmach_amd64 libregexp cmd lib
 do
 	cd $i
 	case $i in

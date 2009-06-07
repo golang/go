@@ -275,7 +275,7 @@ main(int argc, char *argv[])
 	if(!debug['l']) {
 		loadlib();
 		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
-		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
+		sprint(a, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
 		objfile(a);
 	}
 	firstp = firstp->link;
@@ -955,7 +955,7 @@ loop:
 		p->link = datap;
 		datap = p;
 		break;
-	
+
 	case ADATA:
 		if(p->from.sym == S) {
 			diag("DATA without a sym\n%P", p);

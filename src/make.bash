@@ -18,7 +18,7 @@ rm -f $HOME/bin/quietgcc
 cp quietgcc.bash $HOME/bin/quietgcc
 chmod +x $HOME/bin/quietgcc
 
-for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib cmd/gobuild
+for i in lib9 libbio libmach_amd64 libregexp cmd lib cmd/gobuild
 do
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i
