@@ -5,6 +5,7 @@
 package io
 
 import (
+	"fmt";
 	"io";
 	"os";
 	"testing";
@@ -132,72 +133,93 @@ func TestPipe3(t *testing.T) {
 
 // Test read after/before writer close.
 
-func delayClose(t *testing.T, cl Closer, ch chan int) {
-	time.Sleep(1000*1000);	// 1 ms
-	if err := cl.Close(); err != nil {
+type closer interface {
+	CloseWithError(os.Error) os.Error;
+	Close() os.Error;
+}
+
+type pipeTest struct {
+	async bool;
+	err os.Error;
+	closeWithError bool;
+}
+
+func (p pipeTest) String() string {
+	return fmt.Sprintf("async=%v err=%v closeWithError=%v", p.async, p.err, p.closeWithError);
+}
+
+var pipeTests = []pipeTest {
+	pipeTest{ true, nil, false },
+	pipeTest{ true, nil, true },
+	pipeTest{ true, io.ErrShortWrite, true },
+	pipeTest{ false, nil, false },
+	pipeTest{ false, nil, true },
+	pipeTest{ false, io.ErrShortWrite, true },
+}
+
+func delayClose(t *testing.T, cl closer, ch chan int, tt pipeTest) {
+	time.Sleep(1e6);	// 1 ms
+	var err os.Error;
+	if tt.closeWithError {
+		err = cl.CloseWithError(tt.err);
+	} else {
+		err = cl.Close();
+	}
+	if err != nil {
 		t.Errorf("delayClose: %v", err);
 	}
 	ch <- 0;
 }
 
-func testPipeReadClose(t *testing.T, async bool) {
-	c := make(chan int, 1);
-	r, w := Pipe();
-	if async {
-		go delayClose(t, w, c);
-	} else {
-		delayClose(t, w, c);
-	}
-	var buf = make([]byte, 64);
-	n, err := r.Read(buf);
-	<-c;
-	if err != nil {
-		t.Errorf("read from closed pipe: %v", err);
-	}
-	if n != 0 {
-		t.Errorf("read on closed pipe returned %d", n);
-	}
-	if err = r.Close(); err != nil {
-		t.Errorf("r.Close: %v", err);
+func TestPipeReadClose(t *testing.T) {
+	for _, tt := range pipeTests {
+		c := make(chan int, 1);
+		r, w := Pipe();
+		if tt.async {
+			go delayClose(t, w, c, tt);
+		} else {
+			delayClose(t, w, c, tt);
+		}
+		var buf = make([]byte, 64);
+		n, err := r.Read(buf);
+		<-c;
+		if err != tt.err {
+			t.Errorf("read from closed pipe: %v want %v", err, tt.err);
+		}
+		if n != 0 {
+			t.Errorf("read on closed pipe returned %d", n);
+		}
+		if err = r.Close(); err != nil {
+			t.Errorf("r.Close: %v", err);
+		}
 	}
 }
 
 // Test write after/before reader close.
 
-func testPipeWriteClose(t *testing.T, async bool) {
-	c := make(chan int, 1);
-	r, w := Pipe();
-	if async {
-		go delayClose(t, r, c);
-	} else {
-		delayClose(t, r, c);
+func TestPipeWriteClose(t *testing.T) {
+	for _, tt := range pipeTests {
+		c := make(chan int, 1);
+		r, w := Pipe();
+		if tt.async {
+			go delayClose(t, r, c, tt);
+		} else {
+			delayClose(t, r, c, tt);
+		}
+		n, err := WriteString(w, "hello, world");
+		<-c;
+		expect := tt.err;
+		if expect == nil {
+			expect = os.EPIPE;
+		}
+		if err != expect {
+			t.Errorf("write on closed pipe: %v want %v", err, expect);
+		}
+		if n != 0 {
+			t.Errorf("write on closed pipe returned %d", n);
+		}
+		if err = w.Close(); err != nil {
+			t.Errorf("w.Close: %v", err);
+		}
 	}
-	n, err := WriteString(w, "hello, world");
-	<-c;
-	if err != os.EPIPE {
-		t.Errorf("write on closed pipe: %v", err);
-	}
-	if n != 0 {
-		t.Errorf("write on closed pipe returned %d", n);
-	}
-	if err = w.Close(); err != nil {
-		t.Errorf("w.Close: %v", err);
-	}
 }
-
-func TestPipeReadCloseAsync(t *testing.T) {
-	testPipeReadClose(t, true);
-}
-
-func TestPipeReadCloseSync(t *testing.T) {
-	testPipeReadClose(t, false);
-}
-
-func TestPipeWriteCloseAsync(t *testing.T) {
-	testPipeWriteClose(t, true);
-}
-
-func TestPipeWriteCloseSync(t *testing.T) {
-	testPipeWriteClose(t, false);
-}
-
