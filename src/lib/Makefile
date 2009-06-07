@@ -15,6 +15,8 @@ DIRS=\
 	bignum\
 	bufio\
 	bytes\
+	compress/flate\
+	compress/gzip\
 	container/list\
 	container/vector\
 	crypto/aes\
