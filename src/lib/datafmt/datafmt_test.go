@@ -54,6 +54,9 @@ func formatter(s *State, value interface{}, rule_name string) bool {
 		return true;
 	case "nil":
 		return false;
+	case "testing.T":
+		s.Write(io.StringBytes("testing.T"));
+		return true;
 	}
 	panic("unreachable");
 	return false;
@@ -63,6 +66,7 @@ func formatter(s *State, value interface{}, rule_name string) bool {
 func TestCustomFormatters(t *testing.T) {
 	fmap0 := FormatterMap{ "/": formatter };
 	fmap1 := FormatterMap{ "int": formatter, "blank": formatter, "nil": formatter };
+	fmap2 := FormatterMap{ "testing.T": formatter };
 
 	f := parse(t, `int=`, fmap0);
 	verify(t, f, ``, 1, 2, 3);
@@ -81,6 +85,9 @@ func TestCustomFormatters(t *testing.T) {
 
 	f = parse(t, `float=@:nil`, fmap1);
 	verify(t, f, ``, 0.0, 1.0, 2.0);
+
+	f = parse(t, `testing "testing"; ptr=*`, fmap2);
+	verify(t, f, `testing.T`, t);
 
 	// TODO needs more tests
 }
