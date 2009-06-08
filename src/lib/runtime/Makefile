@@ -22,7 +22,7 @@ O=$(O_$(GOARCH))
 CC=$(O)c
 GC=$(O)g
 AS=$(O)a
-AR=6ar  # sic
+AR=gopack
 
 LIB=runtime.a
 
@@ -74,6 +74,7 @@ HFILES=\
 	$(GOOS)/$(GOARCH)/defs.h\
 
 install: $(LIB) runtime.acid
+	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)
 	cp $(LIB) $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/$(LIB)
 	cp runtime.acid $(GOROOT)/acid/runtime.acid
 
