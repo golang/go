@@ -437,28 +437,30 @@ func isPackageFile(dirname, filename, pakname string) bool {
 }
 
 
-// Returns the package denoted by path and the list of
-// sub-directories in the corresponding package directory.
-// If there is no such package, the first result is nil. If
-// there are no sub-directories, that list is nil.
-func findPackage(path string) (*pakDesc, dirList) {
+// Returns the canonical URL path, the package denoted by path, and
+// the list of sub-directories in the corresponding package directory.
+// If there is no such package, the package descriptor pd is nil.
+// If there are no sub-directories, the dirs list is nil.
+func findPackage(path string) (canonical string, pd *pakDesc, dirs dirList) {
+	canonical = pathutil.Clean(Pkg + path) + "/";
+
 	// get directory contents, if possible
 	importpath := pathutil.Clean(path);  // no trailing '/'
 	dirname := pathutil.Join(*pkgroot, importpath);
 	if !isDir(dirname) {
-		return nil, nil;
+		return;
 	}
 
 	fd, err1 := os.Open(dirname, os.O_RDONLY, 0);
 	if err1 != nil {
 		log.Stderrf("open %s: %v", dirname, err1);
-		return nil, nil;
+		return;
 	}
 
 	list, err2 := fd.Readdir(-1);
 	if err2 != nil {
 		log.Stderrf("readdir %s: %v", dirname, err2);
-		return nil, nil;
+		return;
 	}
 
 	// the package name is is the directory name within its parent
@@ -501,10 +503,10 @@ func findPackage(path string) (*pakDesc, dirList) {
 
 	// if there are no package files, then there is no package
 	if len(filenames) == 0 {
-		return nil, subdirs;
+		return canonical, nil, subdirs;
 	}
 
-	return &pakDesc{dirname, pakname, importpath, filenames}, subdirs;
+	return canonical, &pakDesc{dirname, pakname, importpath, filenames}, subdirs;
 }
 
 
@@ -541,20 +543,12 @@ type PageInfo struct {
 func servePkg(c *http.Conn, r *http.Request) {
 	path := r.Url.Path;
 	path = path[len(Pkg) : len(path)];
-	desc, dirs := findPackage(path);
+	canonical, desc, dirs := findPackage(path);
 
-	if path == "" {
-		path = ".";  // don't display an empty path
-	}
-
-	// TODO Decide what canonical URL is (w/ or w/o trailing slash)
-	// and make sure it's the one used to get to the page.
-	/*
-	if r.Url.Path != Pkg + info.Path {
-		http.Redirect(c, info.Path, http.StatusMovedPermanently);
+	if r.Url.Path != canonical {
+		http.Redirect(c, canonical, http.StatusMovedPermanently);
 		return;
 	}
-	*/
 
 	pdoc, errors := desc.Doc();
 	if errors != nil {
@@ -575,6 +569,10 @@ func servePkg(c *http.Conn, r *http.Request) {
 	err := packageHtml.Execute(PageInfo{pdoc, dirs}, &buf);
 	if err != nil {
 		log.Stderrf("packageHtml.Execute: %s", err);
+	}
+
+	if path == "" {
+		path = ".";  // don't display an empty path
 	}
 	servePage(c, path + " - Go package documentation", buf.Data());
 }
@@ -716,7 +714,7 @@ func main() {
 		parseerrorText = parseerrorHtml;
 	}
 
-	desc, dirs := findPackage(flag.Arg(0));
+	_, desc, dirs := findPackage(flag.Arg(0));
 	pdoc, errors := desc.Doc();
 	if errors != nil {
 		err := parseerrorText.Execute(errors, os.Stderr);
