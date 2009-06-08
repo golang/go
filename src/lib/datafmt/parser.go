@@ -399,11 +399,10 @@ func (p *parser) parseFormat() {
 func remap(p *parser, name string) string {
 	i := strings.Index(name, ".");
 	if i >= 0 {
-		packageName := name[0 : i];
-		typeName := name[i : len(name)];
+		packageName, suffix := name[0 : i], name[i : len(name)];
 		// lookup package
 		if importPath, found := p.packs[packageName]; found {
-			name = importPath + "." + typeName;
+			name = importPath + suffix;
 		} else {
 			var invalidPos token.Position;
 			p.Error(invalidPos, "package not declared: " + packageName);
