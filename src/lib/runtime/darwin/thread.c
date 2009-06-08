@@ -323,6 +323,8 @@ enum
 	Tmach_semdestroy = 3419,
 	Rmach_semdestroy = Tmach_semdestroy + Reply,
 
+	// Mach calls that get interrupted by Unix signals
+	// return this error code.  We retry them.
 	KERN_ABORTED = 14,
 };
 
