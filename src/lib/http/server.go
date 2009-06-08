@@ -21,6 +21,7 @@ import (
 	"os";
 	"path";
 	"strconv";
+	"strings";
 )
 
 // Errors introduced by the HTTP server.
@@ -53,6 +54,8 @@ type Conn struct {
 	chunking bool;	// using chunked transfer encoding for reply body
 	wroteHeader bool;	// reply header has been written
 	header map[string] string;	// reply header parameters
+	written int64;	// number of bytes written in body
+	status int;	// status code passed to WriteHeader
 }
 
 // Create new connection from rwc.
@@ -134,6 +137,8 @@ func (c *Conn) WriteHeader(code int) {
 		return
 	}
 	c.wroteHeader = true;
+	c.status = code;
+	c.written = 0;
 	if !c.Req.ProtoAtLeast(1, 0) {
 		return
 	}
@@ -168,6 +173,8 @@ func (c *Conn) Write(data []byte) (n int, err os.Error) {
 		return 0, nil
 	}
 
+	c.written += int64(len(data));	// ignoring errors, for errorKludge
+
 	// TODO(rsc): if chunking happened after the buffering,
 	// then there would be fewer chunk headers.
 	// On the other hand, it would make hijacking more difficult.
@@ -187,10 +194,53 @@ func (c *Conn) Write(data []byte) (n int, err os.Error) {
 	return n, err;
 }
 
+// If this is an error reply (4xx or 5xx)
+// and the handler wrote some data explaining the error,
+// some browsers (i.e., Chrome, Internet Explorer)
+// will show their own error instead unless the error is
+// long enough.  The minimum lengths used in those
+// browsers are in the 256-512 range.
+// Pad to 1024 bytes.
+func errorKludge(c *Conn, req *Request) {
+	const min = 1024;
+
+	// Is this an error?
+	if kind := c.status/100; kind != 4 && kind != 5 {
+		return;
+	}
+
+	// Did the handler supply any info?  Enough?
+	if c.written == 0 || c.written >= min {
+		return;
+	}
+
+	// Is it text?  ("Content-Type" is always in the map)
+	if s := c.header["Content-Type"]; len(s) < 5 || s[0:5] != "text/" {
+		return;
+	}
+
+	// Is it a broken browser?
+	var msg string;
+	switch agent := req.UserAgent; {
+	case strings.Index(agent, "MSIE") >= 0:
+		msg = "Internet Explorer";
+	case strings.Index(agent, "Chrome/") >= 0:
+		msg = "Chrome";
+	default:
+		return;
+	}
+	msg += " would ignore this error page if this text weren't here.\n";
+	io.WriteString(c, "\n");
+	for c.written < min {
+		io.WriteString(c, msg);
+	}
+}
+
 func (c *Conn) flush() {
 	if !c.wroteHeader {
 		c.WriteHeader(StatusOK);
 	}
+	errorKludge(c, c.Req);
 	if c.chunking {
 		io.WriteString(c.buf, "0\r\n");
 		// trailer key/value pairs, followed by blank line
