@@ -110,6 +110,33 @@ func (ch Chan) ServeHTTP(c *http.Conn, req *http.Request) {
 	io.WriteString(c, fmt.Sprintf("channel send #%d\n", <-ch));
 }
 
+// exec a program, redirecting output
+func DateServer(c *http.Conn, req *http.Request) {
+	c.SetHeader("content-type", "text/plain; charset=utf-8");
+	r, w, err := os.Pipe();
+	if err != nil {
+		fmt.Fprintf(c, "pipe: %s\n", err);
+		return;
+	}
+	pid, err := os.ForkExec("/bin/date", []string{"date"}, os.Environ(), "", []*os.File{nil, w, w});
+	defer r.Close();
+	w.Close();
+	if err != nil {
+		fmt.Fprintf(c, "fork/exec: %s\n", err);
+		return;
+	}
+	io.Copy(r, c);
+	wait, err := os.Wait(pid, 0);
+	if err != nil {
+		fmt.Fprintf(c, "wait: %s\n", err);
+		return;
+	}
+	if !wait.Exited() || wait.ExitStatus() != 0 {
+		fmt.Fprintf(c, "date: %v\n", wait);
+		return;
+	}
+}
+
 func main() {
 	flag.Parse();
 
@@ -123,6 +150,7 @@ func main() {
 	http.Handle("/args", http.HandlerFunc(ArgServer));
 	http.Handle("/go/hello", http.HandlerFunc(HelloServer));
 	http.Handle("/chan", ChanCreate());
+	http.Handle("/date", http.HandlerFunc(DateServer));
 	err := http.ListenAndServe(":12345", nil);
 	if err != nil {
 		log.Crash("ListenAndServe: ", err)

@@ -322,6 +322,8 @@ enum
 
 	Tmach_semdestroy = 3419,
 	Rmach_semdestroy = Tmach_semdestroy + Reply,
+
+	KERN_ABORTED = 14,
 };
 
 typedef struct Tmach_semcreateMsg Tmach_semcreateMsg;
@@ -372,8 +374,11 @@ mach_semcreate(void)
 	m.tx.policy = 0;	// 0 = SYNC_POLICY_FIFO
 	m.tx.value = 0;
 
-	if((r = machcall(&m.tx.h, sizeof m, sizeof(m.rx))) != 0)
+	while((r = machcall(&m.tx.h, sizeof m, sizeof(m.rx))) != 0){
+		if(r == KERN_ABORTED)	// interrupted
+			continue;
 		macherror(r, "semaphore_create");
+	}
 	if(m.rx.body.msgh_descriptor_count != 1)
 		unimplemented("mach_semcreate desc count");
 	return m.rx.semaphore.name;
@@ -397,8 +402,9 @@ mach_semdestroy(uint32 sem)
 	m.tx.semaphore.disposition = MACH_MSG_TYPE_MOVE_SEND;
 	m.tx.semaphore.type = 0;
 
-	if((r = machcall(&m.tx.h, sizeof m, 0)) != 0)
+	while((r = machcall(&m.tx.h, sizeof m, 0)) != 0){
 		macherror(r, "semaphore_destroy");
+	}
 }
 
 // The other calls have simple system call traps in sys.s
@@ -412,8 +418,11 @@ mach_semacquire(uint32 sem)
 {
 	int32 r;
 
-	if((r = mach_semaphore_wait(sem)) != 0)
+	while((r = mach_semaphore_wait(sem)) != 0) {
+		if(r == KERN_ABORTED)	// interrupted
+			continue;
 		macherror(r, "semaphore_wait");
+	}
 }
 
 void
@@ -421,7 +430,10 @@ mach_semrelease(uint32 sem)
 {
 	int32 r;
 
-	if((r = mach_semaphore_signal(sem)) != 0)
+	while((r = mach_semaphore_signal(sem)) != 0) {
+		if(r == KERN_ABORTED)	// interrupted
+			continue;
 		macherror(r, "semaphore_signal");
+	}
 }
 
