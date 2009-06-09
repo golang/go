@@ -79,14 +79,13 @@ var (
 	verbose = flag.Bool("v", false, "verbose mode");
 
 	// file system roots
-	launchdir string;	// directory from which godoc was launched
 	goroot string;
 	pkgroot = flag.String("pkgroot", "src/lib", "root package source directory (if unrooted, relative to goroot)");
 	tmplroot = flag.String("tmplroot", "usr/gri/pretty", "root template directory (if unrooted, relative to goroot)");
 
-	// workspace control
-	p4binary = flag.String("p4", "/usr/local/scripts/p4", "p4 binary");
-	syncSleep = flag.Int("sync", 0, "p4 sync interval in minutes; disabled if <= 0");
+	// periodic sync
+	syncCmd = flag.String("sync", "", "sync command; disabled if empty");
+	syncMin = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0");
 	syncTime timeStamp;  // time of last p4 sync
 
 	// layout control
@@ -589,36 +588,59 @@ func loggingHandler(h http.Handler) http.Handler {
 }
 
 
-func p4sync() bool {
-	if *verbose {
-		log.Stderrf("p4 sync");
-	}
-	args := []string{*p4binary, "sync"};
-	var fds []*os.File;
-	if *verbose {
-		fds = []*os.File{os.Stdin, os.Stdout, os.Stderr};
-	}
-	pid, err := os.ForkExec(*p4binary, args, os.Environ(), "", fds);
+func exec(c *http.Conn, args []string) bool {
+	r, w, err := os.Pipe();
 	if err != nil {
-		log.Stderrf("os.ForkExec(%s): %v", *p4binary, err);
+		log.Stderrf("os.Pipe(): %v\n", err);
 		return false;
 	}
-	os.Wait(pid, 0);
-	syncTime.set();
+
+	bin := args[0];
+	fds := []*os.File{nil, w, w};
+	if *verbose {
+		log.Stderrf("executing %v", args);
+	}
+	pid, err := os.ForkExec(bin, args, os.Environ(), goroot, fds);
+	defer r.Close();
+	w.Close();
+	if err != nil {
+		log.Stderrf("os.ForkExec(%q): %v\n", bin, err);
+		return false;
+	}
+
+	var buf io.ByteBuffer;
+	io.Copy(r, &buf);
+	wait, err := os.Wait(pid, 0);
+	if err != nil {
+		os.Stderr.Write(buf.Data());
+		log.Stderrf("os.Wait(%d, 0): %v\n", pid, err);
+		return false;
+	}
+	if !wait.Exited() || wait.ExitStatus() != 0 {
+		os.Stderr.Write(buf.Data());
+		log.Stderrf("executing %v failed (exit status = %d)", args, wait.ExitStatus());
+		return false;
+	}
+
+	if *verbose {
+		os.Stderr.Write(buf.Data());
+	}
+	if c != nil {
+		c.SetHeader("content-type", "text/plain; charset=utf-8");
+		c.Write(buf.Data());
+	}
+
 	return true;
 }
 
 
-func restartGodoc(c *http.Conn, r *http.Request) {
-	binary := os.Args[0];
-	fds := []*os.File{os.Stdin, os.Stdout, os.Stderr};
-	pid, err := os.ForkExec(binary, os.Args, os.Environ(), launchdir, fds);
-	if err != nil {
-		log.Stderrf("os.ForkExec(%s): %v", binary, err);
-		return;  // do not terminate
+func sync(c *http.Conn, r *http.Request) {
+	args := []string{"/bin/sh", "-c", *syncCmd};
+	if !exec(c, args) {
+		*syncMin = 0;  // disable sync
+		return;
 	}
-	log.Stderrf("restarted %s, pid = %d\n", binary, pid);
-	os.Exit(0);
+	syncTime.set();
 }
 
 
@@ -647,12 +669,6 @@ func main() {
 		}
 	}
 
-	var err os.Error;
-	if launchdir, err = os.Getwd(); err != nil {
-		log.Stderrf("unable to determine current working directory - restart may fail");
-		launchdir = "";
-	}
-
 	if err := os.Chdir(goroot); err != nil {
 		log.Exitf("chdir %s: %v", goroot, err);
 	}
@@ -671,36 +687,30 @@ func main() {
 		}
 
 		http.Handle(Pkg, http.HandlerFunc(servePkg));
-		if syscall.OS != "darwin" {
-			http.Handle("/debug/restart", http.HandlerFunc(restartGodoc));
-		} else {
-			log.Stderrf("warning: debug/restart disabled (running on darwin)\n");
+		if *syncCmd != "" {
+			http.Handle("/debug/sync", http.HandlerFunc(sync));
 		}
 		http.Handle("/", http.HandlerFunc(serveFile));
 
 		// The server may have been restarted; always wait 1sec to
 		// give the forking server a chance to shut down and release
-		// the http port. (This is necessary because under OS X Exec
-		// won't work if there are more than one thread running.)
+		// the http port.
 		time.Sleep(1e9);
 
-		// Start p4 sync goroutine, if enabled.
-		if syscall.OS != "darwin" {
-			if *syncSleep > 0 {
-				go func() {
-					if *verbose {
-						log.Stderrf("p4 sync every %dmin", *syncSleep);
-					}
-					for p4sync() {
-						time.Sleep(int64(*syncSleep) * (60 * 1e9));
-					}
-					if *verbose {
-						log.Stderrf("periodic p4 sync stopped");
-					}
-				}();
-			}
-		} else {
-			log.Stderrf("warning: sync disabled (running on darwin)\n");
+		// Start sync goroutine, if enabled.
+		if *syncCmd != "" && *syncMin > 0 {
+			go func() {
+				if *verbose {
+					log.Stderrf("sync every %dmin", *syncMin);
+				}
+				for *syncMin > 0 {
+					sync(nil, nil);
+					time.Sleep(int64(*syncMin) * (60 * 1e9));
+				}
+				if *verbose {
+					log.Stderrf("periodic sync stopped");
+				}
+			}();
 		}
 
 		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
