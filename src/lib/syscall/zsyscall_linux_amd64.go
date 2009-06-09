@@ -55,44 +55,6 @@ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err
 	return;
 }
 
-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
-	r0, r1, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
-	fd = int(r0);
-	errno = int(e1);
-	return;
-}
-
-func bind(s int, addr uintptr, addrlen _Socklen) (errno int) {
-	r0, r1, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen));
-	errno = int(e1);
-	return;
-}
-
-func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
-	r0, r1, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen));
-	errno = int(e1);
-	return;
-}
-
-func socket(domain int, typ int, proto int) (fd int, errno int) {
-	r0, r1, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto));
-	fd = int(r0);
-	errno = int(e1);
-	return;
-}
-
-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
-	r0, r1, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0);
-	errno = int(e1);
-	return;
-}
-
-func Listen(s int, n int) (errno int) {
-	r0, r1, e1 := Syscall(SYS_LISTEN, uintptr(s), uintptr(n), 0);
-	errno = int(e1);
-	return;
-}
-
 func Access(path string, mode int) (errno int) {
 	r0, r1, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
 	errno = int(e1);
@@ -197,7 +159,7 @@ func Faccessat(dirfd int, path string, mode int, flags int) (errno int) {
 }
 
 func Fallocate(fd int, mode int, off int64, len int64) (errno int) {
-	r0, r1, e1 := Syscall6(SYS_FALLOCATE, uintptr(fd), uintptr(mode), uintptr(off), uintptr(off >> 32), uintptr(len), uintptr(len >> 32));
+	r0, r1, e1 := Syscall6(SYS_FALLOCATE, uintptr(fd), uintptr(mode), uintptr(off), uintptr(len), 0, 0);
 	errno = int(e1);
 	return;
 }
@@ -264,7 +226,7 @@ func Fsync(fd int) (errno int) {
 }
 
 func Ftruncate(fd int, length int64) (errno int) {
-	r0, r1, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), uintptr(length >> 32));
+	r0, r1, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), 0);
 	errno = int(e1);
 	return;
 }
@@ -455,7 +417,7 @@ func PivotRoot(newroot string, putold string) (errno int) {
 func Pread(fd int, p []byte, offset int64) (n int, errno int) {
 	var _p0 *byte;
 	if len(p) > 0 { _p0 = &p[0]; }
-	r0, r1, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset >> 32), 0);
+	r0, r1, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0);
 	n = int(r0);
 	errno = int(e1);
 	return;
@@ -464,7 +426,7 @@ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
 func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
 	var _p0 *byte;
 	if len(p) > 0 { _p0 = &p[0]; }
-	r0, r1, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset >> 32), 0);
+	r0, r1, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0);
 	n = int(r0);
 	errno = int(e1);
 	return;
@@ -507,7 +469,7 @@ func Rmdir(path string) (errno int) {
 }
 
 func Seek(fd int, offset int64, whence int) (off int64, errno int) {
-	r0, r1, e1 := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset >> 32), uintptr(whence), 0, 0);
+	r0, r1, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
 	off = int64(r0);
 	errno = int(e1);
 	return;
@@ -608,12 +570,6 @@ func Setuid(uid int) (errno int) {
 	return;
 }
 
-func Shutdown(fd int, how int) (errno int) {
-	r0, r1, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0);
-	errno = int(e1);
-	return;
-}
-
 func Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int) {
 	r0, r1, e1 := Syscall6(SYS_SPLICE, uintptr(rfd), uintptr(unsafe.Pointer(roff)), uintptr(wfd), uintptr(unsafe.Pointer(woff)), uintptr(len), uintptr(flags));
 	n = int64(r0);
@@ -645,7 +601,7 @@ func Sync() () {
 }
 
 func SyncFileRange(fd int, off int64, n int64, flags int) (errno int) {
-	r0, r1, e1 := Syscall6(SYS_SYNC_FILE_RANGE, uintptr(fd), uintptr(off), uintptr(off >> 32), uintptr(n), uintptr(n >> 32), uintptr(flags));
+	r0, r1, e1 := Syscall6(SYS_SYNC_FILE_RANGE, uintptr(fd), uintptr(off), uintptr(n), uintptr(flags), 0, 0);
 	errno = int(e1);
 	return;
 }
@@ -684,7 +640,7 @@ func Times(tms *Tms) (ticks uintptr, errno int) {
 }
 
 func Truncate(path string, length int64) (errno int) {
-	r0, r1, e1 := Syscall(SYS_TRUNCATE, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), uintptr(length >> 32));
+	r0, r1, e1 := Syscall(SYS_TRUNCATE, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), 0);
 	errno = int(e1);
 	return;
 }
@@ -756,6 +712,50 @@ func read(fd int, p *byte, np int) (n int, errno int) {
 func write(fd int, p *byte, np int) (n int, errno int) {
 	r0, r1, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np));
 	n = int(r0);
+	errno = int(e1);
+	return;
+}
+
+func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+	r0, r1, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
+	fd = int(r0);
+	errno = int(e1);
+	return;
+}
+
+func bind(s int, addr uintptr, addrlen _Socklen) (errno int) {
+	r0, r1, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen));
+	errno = int(e1);
+	return;
+}
+
+func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
+	r0, r1, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen));
+	errno = int(e1);
+	return;
+}
+
+func socket(domain int, typ int, proto int) (fd int, errno int) {
+	r0, r1, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto));
+	fd = int(r0);
+	errno = int(e1);
+	return;
+}
+
+func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
+	r0, r1, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0);
+	errno = int(e1);
+	return;
+}
+
+func Listen(s int, n int) (errno int) {
+	r0, r1, e1 := Syscall(SYS_LISTEN, uintptr(s), uintptr(n), 0);
+	errno = int(e1);
+	return;
+}
+
+func Shutdown(fd int, how int) (errno int) {
+	r0, r1, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0);
 	errno = int(e1);
 	return;
 }

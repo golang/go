@@ -515,3 +515,35 @@ func TestTime(t *testing.T) {
 	}
 }
 
+func TestSeek(t *testing.T) {
+	f, err := Open("_obj/seektest", O_CREAT|O_RDWR|O_TRUNC, 0666);
+	if err != nil {
+		t.Fatalf("open _obj/seektest: %s", err);
+	}
+
+	const data = "hello, world\n";
+	io.WriteString(f, data);
+
+	type test struct {
+		in int64;
+		whence int;
+		out int64;
+	}
+	var tests = []test {
+		test{ 0, 1, int64(len(data)) },
+		test{ 0, 0, 0 },
+		test{ 5, 0, 5 },
+		test{ 0, 2, int64(len(data)) },
+		test{ 0, 0, 0 },
+		test{ -1, 2, int64(len(data)) - 1 },
+		test{ 1<<40, 0, 1<<40 },
+		test{ 1<<40, 2, 1<<40 + int64(len(data)) }
+	};
+	for i, tt := range tests {
+		off, err := f.Seek(tt.in, tt.whence);
+		if off != tt.out || err != nil {
+			t.Errorf("#%d: Seek(%v, %v) = %v, %v want %v, nil", i, tt.in, tt.whence, off, err, tt.out);
+		}
+	}
+	f.Close();
+}
