@@ -12,6 +12,7 @@
 all: install
 
 DIRS=\
+	archive/tar\
 	bignum\
 	bufio\
 	bytes\
@@ -65,8 +66,11 @@ DIRS=\
 	utf8\
 
 TEST=\
+	archive/tar\
 	bignum\
 	bufio\
+	compress/flate\
+	compress/gzip\
 	container/list\
 	container/vector\
 	crypto/aes\
