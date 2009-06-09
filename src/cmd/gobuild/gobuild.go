@@ -103,14 +103,14 @@ func (a FileArray) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-// If current directory is under $GOROOT/src/lib, return the
+// If current directory is under $GOROOT/src/pkg, return the
 // path relative to there.  Otherwise return "".
 func PkgDir() string {
 	goroot, err := os.Getenv("GOROOT");
 	if err != nil || goroot == "" {
 		return ""
 	}
-	srcroot := path.Clean(goroot + "/src/lib/");
+	srcroot := path.Clean(goroot + "/src/pkg/");
 	pwd, err1 := os.Getenv("PWD");	// TODO(rsc): real pwd
 	if err1 != nil || pwd == "" {
 		return ""

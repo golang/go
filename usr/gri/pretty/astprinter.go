@@ -475,7 +475,7 @@ func (P *Printer) HtmlPackageName(pos token.Position, name string) {
 	if P.html {
 		sname := name[1 : len(name)-1];  // strip quotes  TODO do this elsewhere eventually
 		// TODO CAPITAL HACK BELOW FIX THIS
-		P.TaggedString(pos, `"<a href="/src/lib/` + sname + `.go">`, sname, `</a>"`);
+		P.TaggedString(pos, `"<a href="/src/pkg/` + sname + `.go">`, sname, `</a>"`);
 	} else {
 		P.String(pos, name);
 	}

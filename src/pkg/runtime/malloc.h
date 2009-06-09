@@ -155,7 +155,7 @@ void	FixAlloc_Free(FixAlloc *f, void *p);
 
 
 // Statistics.
-// Shared with Go: if you edit this structure, also edit ../lib/malloc.go.
+// Shared with Go: if you edit this structure, also edit ../malloc/malloc.go.
 struct MStats
 {
 	uint64	alloc;
