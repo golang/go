@@ -33,7 +33,7 @@
 Optab	optab[] =
 {
 	/* Data layout:
-	  OPCODE,	ARG0, ARG1, ARG2,		 magic numbers? */
+	  OPCODE,	from, prog->reg, to,		 magic numbers? */
 	{ ATEXT,	C_LEXT,	C_NONE,	C_LCON, 	 0, 0, 0 },
 	{ ATEXT,	C_LEXT,	C_REG,	C_LCON, 	 0, 0, 0 },
 	{ ATEXT,	C_ADDR,	C_NONE,	C_LCON, 	 0, 0, 0 },

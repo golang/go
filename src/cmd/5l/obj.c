@@ -278,6 +278,11 @@ main(int argc, char *argv[])
 		sprint(a, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
 		objfile(a);
 	}
+	// TODO(kaib): add these go specific extensions
+// 	definetypestrings();
+// 	definetypesigs();
+// 	deadcode();
+
 	firstp = firstp->link;
 	if(firstp == P)
 		goto out;
@@ -764,8 +769,10 @@ ldobj(Biobuf *f, int32 len, char *pn)
 	uint32 sig;
 	static int files;
 	static char **filen;
-	char **nfilen,*name;
-	vlong eof;
+	char **nfilen, *line, *name;
+	int n, c1, c2, c3;
+	int32 eof;
+	int32 start, import0, import1;
 
 	eof = Boffset(f) + len;
 
@@ -778,6 +785,48 @@ ldobj(Biobuf *f, int32 len, char *pn)
 	filen[files++] = strdup(pn);
 
 	di = S;
+
+	goto newloop;
+
+	/* check the header */
+	start = Boffset(f);
+	line = Brdline(f, '\n');
+	if(line == nil) {
+		if(Blinelen(f) > 0) {
+			diag("%s: malformed object file", pn);
+			return;
+		}
+		goto eof;
+	}
+	n = Blinelen(f) - 1;
+	if(n != strlen(thestring) || strncmp(line, thestring, n) != 0) {
+		if(line)
+			line[n] = '\0';
+		diag("file not %s [%s]\n", thestring, line);
+	// TODO(kaib): Make not finding the header an error again
+// 		return;
+		Bseek(f, start, 0);
+		goto newloop;
+	}
+
+	/* skip over exports and other info -- ends with \n!\n */
+	import0 = Boffset(f);
+	c1 = '\n';	// the last line ended in \n
+	c2 = Bgetc(f);
+	c3 = Bgetc(f);
+	while(c1 != '\n' || c2 != '!' || c3 != '\n') {
+		c1 = c2;
+		c2 = c3;
+		c3 = Bgetc(f);
+		if(c3 == Beof)
+			goto eof;
+	}
+	import1 = Boffset(f);
+
+	Bseek(f, import0, 0);
+	// TODO(kaib): add in this go specific extension
+// 	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
+	Bseek(f, import1, 0);
 
 newloop:
 	memset(h, 0, sizeof(h));
@@ -1507,6 +1556,18 @@ puntfp(Prog *p)
 	curtext->from.sym->thumb = 0;
 	thumb = 0;
 	// print("%s: generating ARM code (contains floating point ops %d)\n", curtext->from.sym->name, p->line);
+}
+
+Prog*
+appendp(Prog *q)
+{
+	Prog *p;
+
+	p = prg();
+	p->link = q->link;
+	q->link = p;
+	p->line = q->line;
+	return p;
 }
 
 void

@@ -42,6 +42,9 @@
 /* compiler allocates R1 up as temps */
 /* compiler allocates register variables R3 up */
 #define	REGEXT		10
+/* these two registers are declared in runtime.h */
+#define REGG        (REGEXT-0)
+#define REGM        (REGEXT-1)
 /* compiler allocates external registers R10 down */
 #define	REGTMP		11
 #define	REGSB		12
