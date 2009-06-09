@@ -39,6 +39,7 @@ O2=\
 	request.$O\
 
 O3=\
+	client.$O\
 	server.$O\
 
 O4=\
@@ -57,7 +58,7 @@ a2: $(O2)
 	rm -f $(O2)
 
 a3: $(O3)
-	$(AR) grc _obj$D/http.a server.$O
+	$(AR) grc _obj$D/http.a client.$O server.$O
 	rm -f $(O3)
 
 a4: $(O4)

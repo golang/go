@@ -26,6 +26,61 @@ var faces = "☺☻☹";
 var commas = "1,2,3,4";
 var dots = "1....2....3....4";
 
+type IndexTest struct {
+	s string;
+	sep string;
+	out int;
+}
+
+var indexTests = []IndexTest {
+	IndexTest{"", "", 0},
+	IndexTest{"", "a", -1},
+	IndexTest{"", "foo", -1},
+	IndexTest{"fo", "foo", -1},
+	IndexTest{"foo", "foo", 0},
+	IndexTest{"oofofoofooo", "f", 2},
+	IndexTest{"oofofoofooo", "foo", 4},
+	IndexTest{"barfoobarfoo", "foo", 3},
+	IndexTest{"foo", "", 0},
+	IndexTest{"foo", "o", 1},
+	IndexTest{"abcABCabc", "A", 3},
+}
+
+var lastIndexTests = []IndexTest {
+	IndexTest{"", "", 0},
+	IndexTest{"", "a", -1},
+	IndexTest{"", "foo", -1},
+	IndexTest{"fo", "foo", -1},
+	IndexTest{"foo", "foo", 0},
+	IndexTest{"oofofoofooo", "f", 7},
+	IndexTest{"oofofoofooo", "foo", 7},
+	IndexTest{"barfoobarfoo", "foo", 9},
+	IndexTest{"foo", "", 3},
+	IndexTest{"foo", "o", 2},
+	IndexTest{"abcABCabc", "A", 3},
+	IndexTest{"abcABCabc", "a", 6},
+}
+
+// Execute f on each test case.  funcName should be the name of f; it's used
+// in failure reports.
+func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, testCases []IndexTest) {
+	for i,test := range testCases {
+		actual := f(test.s, test.sep);
+		if (actual != test.out) {
+			t.Errorf("%s(%q,%q) = %v; want %v", funcName, test.s, test.sep, actual, test.out);
+		}
+	}
+}
+
+func TestIndex(t *testing.T) {
+	runIndexTests(t, Index, "Index", indexTests);
+}
+
+func TestLastIndex(t *testing.T) {
+	runIndexTests(t, LastIndex, "LastIndex", lastIndexTests);
+}
+
+
 type ExplodeTest struct {
 	s string;
 	a []string;

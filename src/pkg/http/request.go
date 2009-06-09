@@ -4,11 +4,9 @@
 
 // HTTP Request reading and parsing.
 
-// The http package implements parsing of HTTP requests and URLs
-// and provides an extensible HTTP server.
-//
-// In the future it should also implement parsing of HTTP replies
-// and provide methods to fetch URLs via HTTP.
+// The http package implements parsing of HTTP requests, replies,
+// and URLs and provides an extensible HTTP server and a basic
+// HTTP client.
 package http
 
 import (
@@ -104,6 +102,56 @@ type Request struct {
 func (r *Request) ProtoAtLeast(major, minor int) bool {
 	return r.ProtoMajor > major ||
 		r.ProtoMajor == major && r.ProtoMinor >= minor
+}
+
+// Return value if nonempty, def otherwise.
+func valueOrDefault(value, def string) string {
+	if value != "" {
+		return value;
+	}
+	return def;
+}
+
+// TODO(rsc): Change default UserAgent before open-source release.
+const defaultUserAgent = "http.Client";
+
+// Write an HTTP request -- header and body -- in wire format.
+// See Send for a list of which Request fields we use.
+func (req *Request) write(w io.Writer) os.Error {
+	uri := "/" + URLEscape(req.Url.Path);
+	if req.Url.RawQuery != "" {
+		uri += "?" + req.Url.RawQuery;
+	}
+
+	fmt.Fprintf(w, "%s %s %s\r\n", valueOrDefault(req.Method, "GET"), uri, valueOrDefault(req.Proto, "HTTP/1.0"));
+	fmt.Fprintf(w, "Host: %s\r\n", req.Url.Host);
+	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent));
+
+	if (req.Referer != "") {
+		fmt.Fprintf(w, "Referer: %s\r\n", req.Referer);
+	}
+
+	// TODO: split long values?  (If so, should share code with Conn.Write)
+	// TODO: if Header includes values for Host, User-Agent, or Referer, this
+	// may conflict with the User-Agent or Referer headers we add manually.
+	// One solution would be to remove the Host, UserAgent, and Referer fields
+	// from Request, and introduce Request methods along the lines of
+	// Response.{GetHeader,AddHeader} and string constants for "Host",
+	// "User-Agent" and "Referer".
+	for k, v := range req.Header {
+		io.WriteString(w, k + ": " + v + "\r\n");
+	}
+
+	io.WriteString(w, "\r\n");
+
+	if req.Body != nil {
+		nCopied, err := io.Copy(req.Body, w);
+		if err != nil && err != io.ErrEOF {
+			return err;
+		}
+	}
+
+	return nil;
 }
 
 // Read a line of bytes (up to \n) from b.
