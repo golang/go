@@ -36,7 +36,6 @@ zname(Biobuf *b, Sym *s, int t)
 	char *n;
 
 	Bputc(b, ANAME);	/* as */
-	Bputc(b, ANAME>>8);	/* as */
 	Bputc(b, t);		/* type */
 	Bputc(b, s->sym);	/* sym */
 
@@ -52,7 +51,6 @@ void
 zfile(Biobuf *b, char *p, int n)
 {
 	Bputc(b, ANAME);
-	Bputc(b, ANAME>>8);
 	Bputc(b, D_FILE);
 	Bputc(b, 1);
 	Bputc(b, '<');
@@ -66,7 +64,6 @@ zhist(Biobuf *b, int line, vlong offset)
 	Addr a;
 
 	Bputc(b, AHISTORY);
-	Bputc(b, AHISTORY>>8);
 	Bputc(b, line);
 	Bputc(b, line>>8);
 	Bputc(b, line>>16);
@@ -231,7 +228,6 @@ dumpfuncs(void)
 				break;
 			}
 			Bputc(bout, p->as);
-			Bputc(bout, p->as>>8);
 			Bputc(bout, p->lineno);
 			Bputc(bout, p->lineno>>8);
 			Bputc(bout, p->lineno>>16);
