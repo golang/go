@@ -24,13 +24,13 @@ maketest() {
 }
 
 maketest \
-	lib \
+	pkg \
 
 # all of these are subtly different
 # from what maketest does.
 
 
-(xcd lib/sync;
+(xcd pkg/sync;
 make clean;
 time make
 GOMAXPROCS=10 make test

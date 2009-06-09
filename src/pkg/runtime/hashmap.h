@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 /* A hash table.
    Example, hashing nul-terminated char*s:
 	hash_hash_t str_hash (void *v) {
