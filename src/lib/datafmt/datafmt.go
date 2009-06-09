@@ -567,7 +567,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		s.hasOutput = true;
 		// write literal segments
 		for _, lit := range t {
-			if lit[0] == '%' && len(lit) > 1 {
+			if len(lit) > 1 && lit[0] == '%' {
 				// segment contains a %-format at the beginning
 				if lit[1] == '%' {
 					// "%%" is printed as a single "%"
