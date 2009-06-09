@@ -161,6 +161,8 @@ struct	Use
 
 enum
 {
+	Sxxx,
+
 	STEXT		= 1,
 	SDATA,
 	SBSS,
@@ -375,7 +377,7 @@ int	Sconv(Fmt*);
 int	aclass(Adr*);
 int	thumbaclass(Adr*, Prog*);
 void	addhist(int32, int);
-void	append(Prog*, Prog*);
+Prog*	appendp(Prog*);
 void	asmb(void);
 void	asmdyn(void);
 void	asmlc(void);
@@ -480,5 +482,14 @@ void	linuxphdr(int type, int flags, vlong foff,
 void	linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
 	vlong size, uint32 link, uint32 info, vlong align, vlong entsize);
 int	linuxstrtable(void);
+
+/*
+ *	go.c
+ */
+void	deadcode(void);
+void	definetypestrings(void);
+void	definetypesigs(void);
+char*	gotypefor(char *name);
+void	ldpkg(Biobuf *f, int64 len, char *filename);
 
 #endif

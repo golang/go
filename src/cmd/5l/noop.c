@@ -30,6 +30,12 @@
 
 #include	"l.h"
 
+// see ../../runtime/proc.c:/StackGuard
+enum
+{
+	StackBig = 4096,
+};
+
 static	Sym*	sym_div;
 static	Sym*	sym_divu;
 static	Sym*	sym_mod;
@@ -105,6 +111,8 @@ noops(void)
 {
 	Prog *p, *q, *q1, *q2;
 	int o, curframe, curbecome, maxbecome, foreign;
+	Prog *pmorestack;
+	Sym *symmorestack;
 
 	/*
 	 * find leaf subroutines
@@ -118,6 +126,23 @@ noops(void)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f noops\n", cputime());
 	Bflush(&bso);
+
+	pmorestack = P;
+	symmorestack = lookup("sys·morestack", 0);
+
+	if(symmorestack->type == STEXT)
+	for(p = firstp; p != P; p = p->link) {
+		if(p->as == ATEXT) {
+			if(p->from.sym == symmorestack) {
+				pmorestack = p;
+				p->reg |= NOSPLIT;
+				break;
+			}
+		}
+	}
+	// TODO(kaib): make lack of morestack an error
+// 	if(pmorestack == P)
+// 		diag("sys·morestack not defined");
 
 	curframe = 0;
 	curbecome = 0;
@@ -281,27 +306,13 @@ noops(void)
 			if(curtext->mark & LEAF) {
 				if(curtext->from.sym)
 					curtext->from.sym->type = SLEAF;
-#ifdef optimise_time
-				if(autosize) {
-					q = prg();
-					q->as = ASUB;
-					q->line = p->line;
-					q->from.type = D_CONST;
-					q->from.offset = autosize;
-					q->to.type = D_REG;
-					q->to.reg = REGSP;
-
-					q->link = p->link;
-					p->link = q;
-				}
-				break;
-#else
 				if(!autosize)
 					break;
-#endif
 			}
 
 			if(thumb){
+				if(!(p->reg & NOSPLIT))
+					diag("stack splitting not supported in thumb");
 				if(!(curtext->mark & LEAF)){
 					q = movrr(nil, REGLINK, REGTMPT-1, p);
 					p->link = q;
@@ -331,17 +342,75 @@ noops(void)
 				break;
 			}
 
-			q1 = prg();
-			q1->as = AMOVW;
-			q1->scond |= C_WBIT;
-			q1->line = p->line;
-			q1->from.type = D_REG;
-			q1->from.reg = REGLINK;
-			q1->to.type = D_OREG;
-			q1->to.offset = -autosize;
-			q1->to.reg = REGSP;
-			q1->link = p->link;
-			p->link = q1;
+// 			if(p->reg & NOSPLIT) {
+			if(1) {
+				q1 = prg();
+				q1->as = AMOVW;
+				q1->scond |= C_WBIT;
+				q1->line = p->line;
+				q1->from.type = D_REG;
+				q1->from.reg = REGLINK;
+				q1->to.type = D_OREG;
+				q1->to.offset = -autosize;
+				q1->to.reg = REGSP;
+				q1->link = p->link;
+				p->link = q1;
+			} else { // !NOSPLIT
+				// split stack check
+				if(autosize < StackBig) {
+					p = appendp(p); // load G.stackguard into R1
+					p->as = AMOVW;
+					p->from.type = D_OREG;
+					p->from.reg = REGG;
+					p->to.type = D_REG;
+					p->to.reg = 1;
+
+					p = appendp(p);
+					p->as = ACMP;
+					p->from.type = D_REG;
+					p->from.reg = 1;
+					p->from.offset = -autosize;
+					p->reg = REGSP;
+				}
+
+				// TODO(kaib): Optimize the heck out of this
+				p = appendp(p); // store autosize in M.morearg
+				p->as = AMOVW;
+				p->from.type = D_CONST;
+				if(autosize+160 > 4096)
+					p->from.offset = (autosize+160) & ~7LL;
+				p->to.type = D_REG;
+				p->to.reg = REGTMP;
+
+				p = appendp(p);
+				p->as = AMOVW;
+				p->from.type = D_REG;
+				p->from.reg = REGTMP;
+				p->to.type = D_OREG;
+				p->to.reg = REGM;
+				p->to.offset = 4;
+
+				p = appendp(p);
+				p->as = AMOVW;
+				p->from.type = D_CONST;
+// 				p->from.offset = curtext->to.offset2;
+				p->to.type = D_REG;
+				p->to.reg = REGTMP;
+
+				p = appendp(p);
+				p->as = AMOVW;
+				p->from.type = D_REG;
+				p->from.reg = REGTMP;
+				p->to.type = D_OREG;
+				p->to.reg = REGM;
+				p->to.offset = 8;
+ 
+// 				p = appendp(p);
+// 				p->as = ABL;
+// 				p->to.type = D_BRANCH;
+// 				p->to.sym = symmorestack;
+// 				p->cond = pmorestack;
+			}
 			break;
 
 		case ARET:
@@ -364,31 +433,6 @@ noops(void)
 					p->to.reg = REGLINK;
 					break;
 				}
-
-#ifdef optimise_time
-				p->as = AADD;
-				p->from.type = D_CONST;
-				p->from.offset = autosize;
-				p->to.type = D_REG;
-				p->to.reg = REGSP;
-				if(thumb){
-					p->link = fnret(nil, REGLINK, foreign, p);
-					break;
-				}
-				q = prg();
-// if(foreign) print("ABXRET 2 %s\n", curtext->from.sym->name);
-				q->as = foreign ? ABXRET : AB;
-				q->scond = p->scond;
-				q->line = p->line;
-				q->to.type = D_OREG;
-				q->to.offset = 0;
-				q->to.reg = REGLINK;
-
-				q->link = p->link;
-				p->link = q;
-
-				break;
-#endif
 			}
 			if(thumb){
 				if(curtext->mark & LEAF){
@@ -491,28 +535,6 @@ noops(void)
 					p->from = zprg.from;
 					break;
 				}
-
-#ifdef optimise_time
-				q = prg();
-				q->scond = p->scond;
-				q->line = p->line;
-				q->as = AB;
-				q->from = zprg.from;
-				q->to = p->to;
-				q->cond = p->cond;
-				q->link = p->link;
-				p->link = q;
-
-				p->as = AADD;
-				p->from = zprg.from;
-				p->from.type = D_CONST;
-				p->from.offset = autosize;
-				p->to = zprg.to;
-				p->to.type = D_REG;
-				p->to.reg = REGSP;
-
-				break;
-#endif
 			}
 			q = prg();
 			q->scond = p->scond;
