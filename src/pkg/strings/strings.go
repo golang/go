@@ -53,6 +53,21 @@ func Index(s, sep string) int {
 	return -1
 }
 
+// Index returns the index of the last instance of sep in s, or -1 if sep is not present in s.
+func LastIndex(s, sep string) int {
+	n := len(sep);
+	if n == 0 {
+		return len(s)
+	}
+	c := sep[0];
+	for i := len(s)-n; i >= 0; i-- {
+		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
+			return i
+		}
+	}
+	return -1
+}
+
 // Split returns the array representing the substrings of s separated by string sep. Adjacent
 // occurrences of sep produce empty substrings.  If sep is empty, it is the same as Explode.
 func Split(s, sep string) []string {
