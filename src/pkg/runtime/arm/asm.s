@@ -3,9 +3,9 @@
 // license that can be found in the LICENSE file.
 
 TEXT _rt0_arm(SB),7,$0
-	// copy arguments forward on an even stack
-    //      	MOVW	$0(SP), R0
-    //	MOVL	0(SP), R1		// argc
+// copy arguments forward on an even stack
+//     	MOVW	$0(SP), R0
+//	MOVL	0(SP), R1		// argc
 //	LEAL	4(SP), R1		// argv
 //	SUBL	$128, SP		// plenty of scratch
 //	ANDL	$~7, SP
@@ -13,71 +13,193 @@ TEXT _rt0_arm(SB),7,$0
 //	MOVL	BX, 124(SP)
 
 
-// 	// write "go386\n"
-// 	PUSHL	$6
-// 	PUSHL	$hello(SB)
-// 	PUSHL	$1
-// 	CALL	sys·write(SB)
-// 	POPL	AX
-// 	POPL	AX
-// 	POPL	AX
+//	// write "go386\n"
+//	PUSHL	$6
+//	PUSHL	$hello(SB)
+//	PUSHL	$1
+//	CALL	sys·write(SB)
+//	POPL	AX
+//	POPL	AX
+//	POPL	AX
 
 
-// 	CALL	ldt0setup(SB)
+//	CALL	ldt0setup(SB)
 
 	// set up %fs to refer to that ldt entry
-// 	MOVL	$(7*8+7), AX
-// 	MOVW	AX, FS
+//	MOVL	$(7*8+7), AX
+//	MOVW	AX, FS
 
-// 	// store through it, to make sure it works
-// 	MOVL	$0x123, 0(FS)
-// 	MOVL	tls0(SB), AX
-// 	CMPL	AX, $0x123
-// 	JEQ	ok
-// 	MOVL	AX, 0
+//	// store through it, to make sure it works
+//	MOVL	$0x123, 0(FS)
+//	MOVL	tls0(SB), AX
+//	CMPL	AX, $0x123
+//	JEQ	ok
+//	MOVL	AX, 0
 // ok:
 
-// 	// set up m and g "registers"
-// 	// g is 0(FS), m is 4(FS)
-// 	LEAL	g0(SB), CX
-// 	MOVL	CX, 0(FS)
-// 	LEAL	m0(SB), AX
-// 	MOVL	AX, 4(FS)
+//	// set up m and g "registers"
+//	// g is 0(FS), m is 4(FS)
+//	LEAL	g0(SB), CX
+//	MOVL	CX, 0(FS)
+//	LEAL	m0(SB), AX
+//	MOVL	AX, 4(FS)
 
-// 	// save m->g0 = g0
-// 	MOVL	CX, 0(AX)
+//	// save m->g0 = g0
+//	MOVL	CX, 0(AX)
 
-// 	// create istack out of the OS stack
-// 	LEAL	(-8192+104)(SP), AX	// TODO: 104?
-// 	MOVL	AX, 0(CX)	// 8(g) is stack limit (w 104b guard)
-// 	MOVL	SP, 4(CX)	// 12(g) is base
-// 	CALL	emptyfunc(SB)	// fault if stack check is wrong
+//	// create istack out of the OS stack
+//	LEAL	(-8192+104)(SP), AX	// TODO: 104?
+//	MOVL	AX, 0(CX)	// 8(g) is stack limit (w 104b guard)
+//	MOVL	SP, 4(CX)	// 12(g) is base
+//	CALL	emptyfunc(SB)	// fault if stack check is wrong
 
-// 	// convention is D is always cleared
-// 	CLD
+//	// convention is D is always cleared
+//	CLD
 
-// 	CALL	check(SB)
+//	CALL	check(SB)
 
-// 	// saved argc, argv
-// 	MOVL	120(SP), AX
-// 	MOVL	AX, 0(SP)
-// 	MOVL	124(SP), AX
-// 	MOVL	AX, 4(SP)
-// 	CALL	args(SB)
-// 	CALL	osinit(SB)
-// 	CALL	schedinit(SB)
+//	// saved argc, argv
+//	MOVL	120(SP), AX
+//	MOVL	AX, 0(SP)
+//	MOVL	124(SP), AX
+//	MOVL	AX, 4(SP)
+//	CALL	args(SB)
+//	CALL	osinit(SB)
+//	CALL	schedinit(SB)
 
-// 	// create a new goroutine to start program
-// 	PUSHL	$mainstart(SB)	// entry
-// 	PUSHL	$8	// arg size
-// 	CALL	sys·newproc(SB)
-// 	POPL	AX
-// 	POPL	AX
+//	// create a new goroutine to start program
+//	PUSHL	$mainstart(SB)	// entry
+//	PUSHL	$8	// arg size
+//	CALL	sys·newproc(SB)
+//	POPL	AX
+//	POPL	AX
 
-// 	// start this M
-// 	CALL	mstart(SB)
+//	// start this M
+//	CALL	mstart(SB)
 
-	BL	main�main(SB)
+	BL	main·main(SB)
 	MOVW	$99, R0
 	SWI	$0x00900001
+
+// TODO(kaib): remove these once linker works properly
+// pull in dummy dependencies
+// TEXT _dep_dummy(SB),7,$0
+//	BL	sys·morestack(SB)
+
+
+TEXT	breakpoint(SB),7,$0
+	BL	abort(SB)
+//	BYTE $0xcc
+//	RET
+
+// go-routine
+TEXT	gogo(SB), 7, $0
+	BL	abort(SB)
+//	MOVL	4(SP), AX	// gobuf
+//	MOVL	0(AX), SP	// restore SP
+//	MOVL	4(AX), AX
+//	MOVL	AX, 0(SP)	// put PC on the stack
+//	MOVL	$1, AX
+//	RET
+
+TEXT gosave(SB), 7, $0
+	BL	abort(SB)
+//	MOVL	4(SP), AX	// gobuf
+//	MOVL	SP, 0(AX)	// save SP
+//	MOVL	0(SP), BX
+//	MOVL	BX, 4(AX)	// save PC
+//	MOVL	$0, AX	// return 0
+//	RET
+
+// support for morestack
+
+// return point when leaving new stack.
+// save AX, jmp to lesstack to switch back
+TEXT	retfromnewstack(SB),7,$0
+	BL	abort(SB)
+//	MOVL	4(FS), BX	// m
+//	MOVL	AX, 12(BX)	// save AX in m->cret
+//	JMP	lessstack(SB)
+
+// gogo, returning 2nd arg instead of 1
+TEXT gogoret(SB), 7, $0
+	BL	abort(SB)
+//	MOVL	8(SP), AX	// return 2nd arg
+//	MOVL	4(SP), BX	// gobuf
+//	MOVL	0(BX), SP	// restore SP
+//	MOVL	4(BX), BX
+//	MOVL	BX, 0(SP)	// put PC on the stack
+//	RET
+
+TEXT setspgoto(SB), 7, $0
+	BL	abort(SB)
+//	MOVL	4(SP), AX	// SP
+//	MOVL	8(SP), BX	// fn to call
+//	MOVL	12(SP), CX	// fn to return
+//	MOVL	AX, SP
+//	PUSHL	CX
+//	JMP	BX
+//	POPL	AX	// not reached
+//	RET
+
+// bool cas(int32 *val, int32 old, int32 new)
+// Atomically:
+//	if(*val == old){
+//		*val = new;
+//		return 1;
+//	}else
+//		return 0;
+TEXT cas(SB), 7, $0
+	BL	abort(SB)
+//	MOVL	4(SP), BX
+//	MOVL	8(SP), AX
+//	MOVL	12(SP), CX
+//	LOCK
+//	CMPXCHGL	CX, 0(BX)
+//	JZ 3(PC)
+//	MOVL	$0, AX
+//	RET
+//	MOVL	$1, AX
+//	RET
+
+// void jmpdefer(fn, sp);
+// called from deferreturn.
+// 1. pop the caller
+// 2. sub 5 bytes from the callers return
+// 3. jmp to the argument
+TEXT jmpdefer(SB), 7, $0
+	BL	abort(SB)
+//	MOVL	4(SP), AX	// fn
+//	MOVL	8(SP), BX	// caller sp
+//	LEAL	-4(BX), SP	// caller sp after CALL
+//	SUBL	$5, (SP)	// return to CALL again
+//	JMP	AX	// but first run the deferred function
+
+TEXT	sys·memclr(SB),7,$0
+	BL	abort(SB)
+//	MOVL	4(SP), DI		// arg 1 addr
+//	MOVL	8(SP), CX		// arg 2 count
+//	ADDL	$3, CX
+//	SHRL	$2, CX
+//	MOVL	$0, AX
+//	CLD
+//	REP
+//	STOSL
+//	RET
+
+TEXT	sys·getcallerpc+0(SB),7,$0
+	BL	abort(SB)
+//	MOVL	x+0(FP),AX		// addr of first arg
+//	MOVL	-4(AX),AX		// get calling pc
+//	RET
+
+TEXT	sys·setcallerpc+0(SB),7,$0
+	BL	abort(SB)
+//	MOVL	x+0(FP),AX		// addr of first arg
+//	MOVL	x+4(FP), BX
+//	MOVL	BX, -4(AX)		// set calling pc
+//	RET
+
+TEXT abort(SB),7,$0
+	WORD	$0
 

@@ -31,6 +31,11 @@ OFILES_386=\
 	vlop.$O\
 	vlrt.$O\
 
+# arm-specific object files
+OFILES_arm=\
+	vlop.$O\
+	vlrt.$O\
+
 OFILES=\
 	array.$O\
 	asm.$O\
