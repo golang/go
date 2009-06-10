@@ -1314,7 +1314,7 @@ func (p *parser) parseReturnStmt() *ast.ReturnStmt {
 	pos := p.pos;
 	p.expect(token.RETURN);
 	var x []ast.Expr;
-	if p.tok != token.SEMICOLON && p.tok != token.RBRACE {
+	if p.tok != token.SEMICOLON && p.tok != token.CASE && p.tok != token.DEFAULT && p.tok != token.RBRACE {
 		x = p.parseExpressionList();
 	}
 
@@ -1431,7 +1431,7 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 
 func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
 	if p.trace {
-		defer un(trace(p, "CaseClause"));
+		defer un(trace(p, "TypeCaseClause"));
 	}
 
 	// TypeSwitchCase
