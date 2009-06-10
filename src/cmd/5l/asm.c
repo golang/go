@@ -943,6 +943,16 @@ datblk(int32 s, int32 n, int str)
 				break;
 			}
 			break;
+
+		case D_SBIG:
+			if(debug['a'] && i == 0) {
+				Bprint(&bso, "\t%P\n", curp);
+			}
+			for(; i<c; i++) {
+				buf.dbuf[l] = p->to.sbig[i];
+				l++;
+			}
+			break;
 		}
 	}
 	write(cout, buf.dbuf, n);
@@ -1311,7 +1321,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
 		o6 |= (1<<6);	/* ROL 8 */
 
 		break;
-		
+
 	case 34:	/* mov $lacon,R */
 		o1 = omvl(p, &p->from, REGTMP);
 		if(!o1)
@@ -1617,7 +1627,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
 		if(r == NREG)
 			r = o->param;
 		o1 = oshr(p->from.reg, instoffset, r, p->scond);
-		break;	
+		break;
 	case 71:	/* movb/movh/movhu O(R),R -> ldrsb/ldrsh/ldrh */
 		aclass(&p->from);
 		r = p->from.reg;
@@ -1637,7 +1647,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
 		if(r == NREG)
 			r = o->param;
 		o2 = oshrr(p->from.reg, REGTMP,r, p->scond);
-		break;	
+		break;
 	case 73:	/* movb/movh/movhu L(R),R -> ldrsb/ldrsh/ldrh */
 		o1 = omvl(p, &p->from, REGTMP);
 		if(!o1)
@@ -1922,7 +1932,7 @@ oshr(int r, int32 v, int b, int sc)
 	o = olhr(v, b, r, sc) ^ (1<<20);
 	return o;
 }
-	
+
 
 int32
 osrr(int r, int i, int b, int sc)
@@ -1989,7 +1999,7 @@ ofsr(int a, int r, int32 v, int b, int sc, Prog *p)
 
 int32
 omvl(Prog *p, Adr *a, int dr)
-{	
+{
 	int32 v, o1;
 	if(!p->cond) {
 		aclass(a);

@@ -208,6 +208,8 @@ enum	as
 #define D_REGREG	(D_NONE+21)
 #define D_ADDR		(D_NONE+22)
 
+#define D_SBIG		(D_NONE+23)
+
 /* name */
 #define	D_EXTERN	(D_NONE+3)
 #define	D_STATIC	(D_NONE+4)
