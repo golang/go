@@ -247,6 +247,7 @@ main(int argc, char *argv[])
 	histgen = 0;
 	textp = P;
 	datap = P;
+	edatap = P;
 	pc = 0;
 	dtype = 4;
 	if(outfile == 0)
@@ -278,10 +279,9 @@ main(int argc, char *argv[])
 		sprint(a, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
 		objfile(a);
 	}
-	// TODO(kaib): add these go specific extensions
-// 	definetypestrings();
-// 	definetypesigs();
-// 	deadcode();
+	definetypestrings();
+	definetypesigs();
+	deadcode();
 
 	firstp = firstp->link;
 	if(firstp == P)
@@ -786,8 +786,6 @@ ldobj(Biobuf *f, int32 len, char *pn)
 
 	di = S;
 
-	goto newloop;
-
 	/* check the header */
 	start = Boffset(f);
 	line = Brdline(f, '\n');
@@ -803,10 +801,7 @@ ldobj(Biobuf *f, int32 len, char *pn)
 		if(line)
 			line[n] = '\0';
 		diag("file not %s [%s]\n", thestring, line);
-	// TODO(kaib): Make not finding the header an error again
-// 		return;
-		Bseek(f, start, 0);
-		goto newloop;
+		return;
 	}
 
 	/* skip over exports and other info -- ends with \n!\n */
@@ -824,8 +819,7 @@ ldobj(Biobuf *f, int32 len, char *pn)
 	import1 = Boffset(f);
 
 	Bseek(f, import0, 0);
-	// TODO(kaib): add in this go specific extension
-// 	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
+	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
 	Bseek(f, import1, 0);
 
 newloop:
@@ -841,9 +835,6 @@ loop:
 	o = Bgetc(f);
 	if(o == Beof)
 		goto eof;
-	// TODO(kaib): I wonder if this is an issue.
-// 	o |= Bgetc(f) << 8; 6l does this, 5l doesn't. I think 5g outputs 2 byte
-// 	AXXX's
 
 	if(o <= AXXX || o >= ALAST) {
 		diag("%s:#%lld: opcode out of range: %#ux", pn, Boffset(f), o);
@@ -962,6 +953,7 @@ loop:
 		break;
 
 	case ADYNT:
+		s = p->from.sym;
 		if(p->to.sym == S) {
 			diag("DYNT without a sym\n%P", p);
 			break;
@@ -975,23 +967,31 @@ loop:
 			di->value = dtype;
 			dtype += 4;
 		}
-		if(p->from.sym == S)
+		if(s == S)
 			break;
 
 		p->from.offset = di->value;
-		p->from.sym->type = SDATA;
+		s->type = SDATA;
 		if(curtext == P) {
 			diag("DYNT not in text: %P", p);
 			break;
 		}
 		p->to.sym = curtext->from.sym;
 		p->to.type = D_CONST;
-		p->link = datap;
-		datap = p;
+		if(s != S) {
+			p->dlink = s->data;
+			s->data = p;
+		}
+		if(edatap == P)
+			datap = p;
+		else
+			edatap->link = p;
+		edatap = p;
 		break;
 
 	case AINIT:
-		if(p->from.sym == S) {
+		s = p->from.sym;
+		if(s == S) {
 			diag("INIT without a sym\n%P", p);
 			break;
 		}
@@ -1000,18 +1000,33 @@ loop:
 			break;
 		}
 		p->from.offset = di->value;
-		p->from.sym->type = SDATA;
-		p->link = datap;
-		datap = p;
+		s->type = SDATA;
+		if(s != S) {
+			p->dlink = s->data;
+			s->data = p;
+		}
+		if(edatap == P)
+			datap = p;
+		else
+			edatap->link = p;
+		edatap = p;
 		break;
 
 	case ADATA:
-		if(p->from.sym == S) {
+		s = p->from.sym;
+		if(s == S) {
 			diag("DATA without a sym\n%P", p);
 			break;
 		}
-		p->link = datap;
-		datap = p;
+		if(s != S) {
+			p->dlink = s->data;
+			s->data = p;
+		}
+		if(edatap == P)
+			datap = p;
+		else
+			edatap->link = p;
+		edatap = p;
 		break;
 
 	case AGOK:
@@ -1047,6 +1062,7 @@ loop:
 			diag("redefinition: %s\n%P", s->name, p);
 		}
 		s->type = STEXT;
+		s->text = p;
 		s->value = pc;
 		s->thumb = thumb;
 		lastp->link = p;
@@ -1123,8 +1139,12 @@ loop:
 				t->from.name = D_EXTERN;
 				t->reg = 4;
 				t->to = p->from;
-				t->link = datap;
-				datap = t;
+				if(edatap == P)
+					datap = t;
+				else
+					edatap->link = t;
+				edatap = t;
+				t->link = P;
 			}
 			p->from.type = D_OREG;
 			p->from.sym = s;
@@ -1155,8 +1175,12 @@ loop:
 				t->from.name = D_EXTERN;
 				t->reg = 8;
 				t->to = p->from;
-				t->link = datap;
-				datap = t;
+				if(edatap == P)
+					datap = t;
+				else
+					edatap->link = t;
+				edatap = t;
+				t->link = P;
 			}
 			p->from.type = D_OREG;
 			p->from.sym = s;

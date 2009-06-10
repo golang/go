@@ -18,7 +18,7 @@ OFILES=\
 	pass.$O\
 	thumb.$O\
 	span.$O\
-#	go.$O\
+	go.$O\
 
 HFILES=\
 	l.h\

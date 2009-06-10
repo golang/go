@@ -61,6 +61,7 @@ struct	Adr
 		int32	u0offset;
 		char*	u0sval;
 		Ieee*	u0ieee;
+		char*	u0sbig;
 	} u0;
 	union
 	{
@@ -68,6 +69,7 @@ struct	Adr
 		Sym*	u1sym;
 	} u1;
 	char	type;
+	uchar	index; // not used on arm, required by ld/go.c
 	char	reg;
 	char	name;
 	char	class;
@@ -76,6 +78,7 @@ struct	Adr
 #define	offset	u0.u0offset
 #define	sval	u0.u0sval
 #define	ieee	u0.u0ieee
+#define	sbig	u0.u0sbig
 
 #define	autom	u1.u1autom
 #define	sym	u1.u1sym
@@ -91,6 +94,7 @@ struct	Prog
 	} u0;
 	Prog*	cond;
 	Prog*	link;
+	Prog*	dlink;
 	int32	pc;
 	int32	line;
 	uchar	mark;
@@ -111,6 +115,7 @@ struct	Sym
 	short	become;
 	short	frame;
 	uchar	subtype;
+	uchar	reachable;
 	ushort	file;
 	int32	value;
 	int32	sig;
@@ -120,6 +125,8 @@ struct	Sym
 	uchar	fnptr;	// used as fn ptr
 	Use*		use;
 	Sym*	link;
+	Prog*	text;
+	Prog*	data;
 };
 
 #define SIGNINTERN	(1729*325*1729)
@@ -296,6 +303,7 @@ EXTERN	Prog*	curtext;
 EXTERN	Prog*	datap;
 EXTERN	int32	datsize;
 EXTERN	char	debug[128];
+EXTERN	Prog*	edatap;
 EXTERN	Prog*	etextp;
 EXTERN	Prog*	firstp;
 EXTERN	char	fnuxi4[4];
@@ -427,6 +435,7 @@ void	lputl(int32);
 void	mkfwd(void);
 void*	mysbrk(uint32);
 void	names(void);
+Prog*	newdata(Sym *s, int o, int w, int t);
 void	nocache(Prog*);
 void	nuxiinit(void);
 void	objfile(char*);
