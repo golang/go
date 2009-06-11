@@ -16,9 +16,9 @@ import (
 
 func TestClient(t *testing.T) {
 	// TODO: add a proper test suite.  Current test merely verifies that
-	// we can retrieve the Google home page.
-	
-	r, url, err := Get("http://www.google.com");
+	// we can retrieve the Google robots.txt file.
+
+	r, url, err := Get("http://www.google.com/robots.txt");
 	var b []byte;
 	if err == nil {
 		b, err = io.ReadAll(r.Body);
@@ -33,8 +33,8 @@ func TestClient(t *testing.T) {
 		t.Errorf("Error fetching URL: %v", err);
 	} else {
 		s := string(b);
-		if (!strings.HasPrefix(s, "<html>")) {
-			t.Errorf("Incorrect page body (did not begin with <html>): %q", s);
+		if (!strings.HasPrefix(s, "User-agent:")) {
+			t.Errorf("Incorrect page body (did not begin with User-agent): %q", s);
 		}
 	}
 }
