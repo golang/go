@@ -10,11 +10,107 @@ import (
 	"fmt";
 	"io";
 	"os";
+	"reflect";
 	"testing";
 )
 
-func TestUntar(t *testing.T) {
-	f, err := os.Open("testdata/test.tar", os.O_RDONLY, 0444);
+type untarTest struct {
+	file string;
+	headers []*Header;
+}
+
+var untarTests = []*untarTest{
+	&untarTest{
+		file: "testdata/gnu.tar",
+		headers: []*Header{
+			&Header{
+				Name: "small.txt",
+				Mode: 0640,
+				Uid: 73025,
+				Gid: 5000,
+				Size: 5,
+				Mtime: 1244428340,
+				Typeflag: '0',
+				Uname: "dsymonds",
+				Gname: "eng",
+			},
+			&Header{
+				Name: "small2.txt",
+				Mode: 0640,
+				Uid: 73025,
+				Gid: 5000,
+				Size: 11,
+				Mtime: 1244436044,
+				Typeflag: '0',
+				Uname: "dsymonds",
+				Gname: "eng",
+			},
+		},
+	},
+	&untarTest{
+		file: "testdata/star.tar",
+		headers: []*Header{
+			&Header{
+				Name: "small.txt",
+				Mode: 0640,
+				Uid: 73025,
+				Gid: 5000,
+				Size: 5,
+				Mtime: 1244592783,
+				Typeflag: '0',
+				Uname: "dsymonds",
+				Gname: "eng",
+				Atime: 1244592783,
+				Ctime: 1244592783,
+			},
+			&Header{
+				Name: "small2.txt",
+				Mode: 0640,
+				Uid: 73025,
+				Gid: 5000,
+				Size: 11,
+				Mtime: 1244592783,
+				Typeflag: '0',
+				Uname: "dsymonds",
+				Gname: "eng",
+				Atime: 1244592783,
+				Ctime: 1244592783,
+			},
+		},
+	},
+};
+
+func TestAll(t *testing.T) {
+testLoop:
+	for i, test := range untarTests {
+		f, err := os.Open(test.file, os.O_RDONLY, 0444);
+		if err != nil {
+			t.Errorf("test %d: Unexpected error: %v", i, err);
+			continue
+		}
+		tr := NewReader(f);
+		for j, header := range test.headers {
+			hdr, err := tr.Next();
+			if err != nil || hdr == nil {
+				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err);
+				f.Close();
+				continue testLoop
+			}
+			if !reflect.DeepEqual(hdr, header) {
+				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
+					 i, j, *hdr, *header);
+			}
+		}
+		hdr, err := tr.Next();
+		if hdr != nil || err != nil {
+			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err);
+		}
+		f.Close();
+	}
+}
+
+func TestPartialRead(t *testing.T) {
+	f, err := os.Open("testdata/gnu.tar", os.O_RDONLY, 0444);
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err);
 	}
@@ -22,22 +118,11 @@ func TestUntar(t *testing.T) {
 
 	tr := NewReader(f);
 
-	// First file
+	// Read the first four bytes; Next() should skip the last byte.
 	hdr, err := tr.Next();
 	if err != nil || hdr == nil {
 		t.Fatalf("Didn't get first file: %v", err);
 	}
-	if hdr.Name != "small.txt" {
-		t.Errorf(`hdr.Name = %q, want "small.txt"`, hdr.Name);
-	}
-	if hdr.Mode != 0640 {
-		t.Errorf("hdr.Mode = %v, want 0640", hdr.Mode);
-	}
-	if hdr.Size != 5 {
-		t.Errorf("hdr.Size = %v, want 5", hdr.Size);
-	}
-
-	// Read the first four bytes; Next() should skip the last one.
 	buf := make([]byte, 4);
 	if n, err := io.FullRead(tr, buf); err != nil {
 		t.Fatalf("Unexpected error: %v", err);
@@ -48,22 +133,14 @@ func TestUntar(t *testing.T) {
 
 	// Second file
 	hdr, err = tr.Next();
-	if err != nil {
+	if err != nil || hdr == nil {
 		t.Fatalf("Didn't get second file: %v", err);
 	}
-	if hdr.Name != "small2.txt" {
-		t.Errorf(`hdr.Name = %q, want "small2.txt"`, hdr.Name);
+	buf = make([]byte, 6);
+	if n, err := io.FullRead(tr, buf); err != nil {
+		t.Fatalf("Unexpected error: %v", err);
 	}
-	if hdr.Mode != 0640 {
-		t.Errorf("hdr.Mode = %v, want 0640", hdr.Mode);
-	}
-	if hdr.Size != 11 {
-		t.Errorf("hdr.Size = %v, want 11", hdr.Size);
-	}
-
-
-	hdr, err = tr.Next();
-	if hdr != nil || err != nil {
-		t.Fatalf("Unexpected third file or error: %v", err);
+	if expected := io.StringBytes("Google"); !bytes.Equal(buf, expected) {
+		t.Errorf("Contents = %v, want %v", buf, expected);
 	}
 }
