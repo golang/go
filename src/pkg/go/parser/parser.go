@@ -465,9 +465,6 @@ func (p *parser) parseStructType() *ast.StructType {
 				break;
 			}
 		}
-		if p.tok == token.SEMICOLON {
-			p.next();
-		}
 
 		rbrace = p.expect(token.RBRACE);
 		p.opt_semi = true;
