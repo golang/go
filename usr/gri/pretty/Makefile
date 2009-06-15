@@ -4,34 +4,26 @@
 
 include $(GOROOT)/src/Make.$(GOARCH)
 
-all: untab godoc pretty
-
-untab: untab.$O
-	$(LD) -o untab untab.$O
+all: godoc gofmt
 
 godoc: godoc.$O
 	$(LD) -o godoc godoc.$O
 
-pretty: pretty.$O
-	$(LD) -o pretty pretty.$O
+gofmt: gofmt.$O
+	$(LD) -o gofmt gofmt.$O
 
-test: pretty
+test: gofmt
 	./test.sh
 
-smoketest: pretty
-	./test.sh astprinter.go
+smoketest: gofmt
+	./test.sh $(GOROOT)/src/pkg/go/printer/printer.go
 
 install: pretty godoc untab
 	cp godoc $(HOME)/bin/godoc
-	cp pretty $(HOME)/bin/pretty
-	cp untab $(HOME)/bin/untab
+	cp gofmt $(HOME)/bin/gofmt
 
 clean:
-	rm -f pretty untab godoc *.$O *.a 6.out *~
-
-godoc.$O:	astprinter.$O
-
-pretty.$O:	 astprinter.$O
+	rm -f godoc gofmt *.$O *.a 6.out *~
 
 %.$O:	%.go
 	$(GC) $(F) $<

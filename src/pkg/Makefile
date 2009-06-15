@@ -33,6 +33,7 @@ DIRS=\
 	go/ast\
 	go/doc\
 	go/parser\
+	go/printer\
 	go/scanner\
 	go/token\
 	hash\

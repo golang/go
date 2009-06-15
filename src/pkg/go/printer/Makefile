@@ -32,29 +32,29 @@ coverage: packages
 	$(AS) $*.s
 
 O1=\
-	ast.$O\
+	printer.$O\
 
 
 phases: a1
-_obj$D/ast.a: phases
+_obj$D/printer.a: phases
 
 a1: $(O1)
-	$(AR) grc _obj$D/ast.a ast.$O
+	$(AR) grc _obj$D/printer.a printer.$O
 	rm -f $(O1)
 
 
 newpkg: clean
 	mkdir -p _obj$D
-	$(AR) grc _obj$D/ast.a
+	$(AR) grc _obj$D/printer.a
 
 $(O1): newpkg
 $(O2): a1
 
 nuke: clean
-	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/ast.a
+	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/printer.a
 
-packages: _obj$D/ast.a
+packages: _obj$D/printer.a
 
 install: packages
 	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
-	cp _obj$D/ast.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/ast.a
+	cp _obj$D/printer.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/printer.a

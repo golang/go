@@ -33,6 +33,7 @@ import (
 	"go/ast";
 	"go/doc";
 	"go/parser";
+	"go/printer";
 	"go/token";
 	"http";
 	"io";
@@ -47,8 +48,6 @@ import (
 	"tabwriter";
 	"template";
 	"time";
-
-	"astprinter";  // TODO remove eventually in favor of ast.Fprint
 )
 
 
@@ -90,7 +89,6 @@ var (
 
 	// layout control
 	tabwidth = flag.Int("tabwidth", 4, "tab width");
-	usetabs = flag.Bool("tabs", false, "align with tabs instead of spaces");
 	html = flag.Bool("html", false, "print HTML in command-line mode");
 
 	// server control
@@ -129,11 +127,7 @@ func isPkgDir(dir *os.Dir) bool {
 
 
 func makeTabwriter(writer io.Writer) *tabwriter.Writer {
-	padchar := byte(' ');
-	if *usetabs {
-		padchar = '\t';
-	}
-	return tabwriter.NewWriter(writer, *tabwidth, 1, padchar, tabwriter.FilterHTML);
+	return tabwriter.NewWriter(writer, *tabwidth, 1, byte(' '), 0);
 }
 
 
@@ -203,22 +197,12 @@ func parse(path string, mode uint) (*ast.Program, *parseErrors) {
 // ----------------------------------------------------------------------------
 // Templates
 
-// Return text for decl.
-func DeclText(d ast.Decl) []byte {
+// Return text for an AST node.
+func nodeText(node interface{}, mode uint) []byte {
 	var buf io.ByteBuffer;
-	var p astPrinter.Printer;
-	p.Init(&buf, nil, nil, false);
-	d.Visit(&p);
-	return buf.Data();
-}
-
-
-// Return text for expr.
-func ExprText(d ast.Expr) []byte {
-	var buf io.ByteBuffer;
-	var p astPrinter.Printer;
-	p.Init(&buf, nil, nil, false);
-	d.Visit(&p);
+	tw := makeTabwriter(&buf);
+	printer.Fprint(tw, node, mode);
+	tw.Flush();
 	return buf.Data();
 }
 
@@ -235,9 +219,9 @@ func toText(x interface{}) []byte {
 	case String:
 		return io.StringBytes(v.String());
 	case ast.Decl:
-		return DeclText(v);
+		return nodeText(v, printer.ExportsOnly);
 	case ast.Expr:
-		return ExprText(v);
+		return nodeText(v, printer.ExportsOnly);
 	}
 	var buf io.ByteBuffer;
 	fmt.Fprint(&buf, x);
@@ -247,23 +231,7 @@ func toText(x interface{}) []byte {
 
 // Template formatter for "html" format.
 func htmlFmt(w io.Writer, x interface{}, format string) {
-	// Can do better than text in some cases.
-	switch v := x.(type) {
-	case ast.Decl:
-		var p astPrinter.Printer;
-		tw := makeTabwriter(w);
-		p.Init(tw, nil, nil, true);
-		v.Visit(&p);
-		tw.Flush();
-	case ast.Expr:
-		var p astPrinter.Printer;
-		tw := makeTabwriter(w);
-		p.Init(tw, nil, nil, true);
-		v.Visit(&p);
-		tw.Flush();
-	default:
-		template.HtmlEscape(w, toText(x));
-	}
+	template.HtmlEscape(w, toText(x));
 }
 
 
@@ -363,11 +331,7 @@ func serveGoSource(c *http.Conn, name string) {
 
 	var buf io.ByteBuffer;
 	fmt.Fprintln(&buf, "<pre>");
-	var p astPrinter.Printer;
-	writer := makeTabwriter(&buf);  // for nicely formatted output
-	p.Init(writer, nil, nil, true);
-	p.DoProgram(prog);
-	writer.Flush();  // ignore errors
+	template.HtmlEscape(&buf, nodeText(prog, printer.DocComments));
 	fmt.Fprintln(&buf, "</pre>");
 
 	servePage(c, name + " - Go source", buf.Data());
