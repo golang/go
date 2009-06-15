@@ -113,7 +113,8 @@ type (
 		Doc Comments;  // associated documentation; or nil
 		Names []*Ident;  // field/method/parameter names; nil if anonymous field
 		Type Expr;  // field/method/parameter type
-		Tag []*StringLit;  // field tag; nil if no tag
+		Tag []*StringLit;  // field tag; or nil
+		Comment *Comment;  // trailing comment on same line; or nil
 	};
 )
 
@@ -672,15 +673,17 @@ type (
 		Doc Comments;  // associated documentation; or nil
 		Name *Ident;  // local package name (including "."); or nil
 		Path []*StringLit;  // package path
+		Comment *Comment;  // trailing comment on same line; or nil
 	};
 
 	// A ValueSpec node represents a constant or variable declaration
 	// (ConstSpec or VarSpec production).
 	ValueSpec struct {
 		Doc Comments;  // associated documentation; or nil
-		Names []*Ident;
+		Names []*Ident;  // value names
 		Type Expr;  // value type; or nil
-		Values []Expr;
+		Values []Expr;  // initial values; or nil
+		Comment *Comment;  // trailing comment on same line; or nil
 	};
 
 	// A TypeSpec node represents a type declaration (TypeSpec production).
@@ -688,6 +691,7 @@ type (
 		Doc Comments;  // associated documentation; or nil
 		Name *Ident;  // type name
 		Type Expr;
+		Comment *Comment;  // trailing comment on same line; or nil
 	};
 )
 
