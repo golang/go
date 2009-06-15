@@ -74,17 +74,19 @@ type parser struct {
 	indent uint;  // indentation used for tracing output
 
 	// Comments
+	// (comment indices and intervals index the comments vector)
 	comments vector.Vector;  // list of collected, unassociated comments
-	last_doc interval;  // last comments interval of consecutive comments
+	lastComment int;  // index of last trailing comment
+	lastDoc interval;  // last interval of consequtive free-standing comments
 
-	// The next token
+	// Next token
 	pos token.Position;  // token position
 	tok token.Token;  // one token look-ahead
 	lit []byte;  // token literal
 
 	// Non-syntactic parser control
-	opt_semi bool;  // true if semicolon separator is optional in statement list
-	expr_lev int;  // < 0: in control clause, >= 0: in expression
+	optSemi bool;  // true if semicolon separator is optional in statement list
+	exprLev int;  // < 0: in control clause, >= 0: in expression
 };
 
 
@@ -123,6 +125,7 @@ func un/*trace*/(p *parser) {
 }
 
 
+// Advance to the next token.
 func (p *parser) next0() {
 	// Because of one-token look-ahead, print the previous token
 	// when tracing as it provides a more readable output. The
@@ -141,14 +144,14 @@ func (p *parser) next0() {
 	}
 
 	p.pos, p.tok, p.lit = p.scanner.Scan();
-	p.opt_semi = false;
+	p.optSemi = false;
 }
 
 
-// Collect a comment in the parser's comment list and return the line
-// on which the comment ends.
+// Consume a comment, add it to the parser's comment list,
+// and return the line on which the comment ends.
 //
-func (p *parser) collectComment() int {
+func (p *parser) consumeComment() int {
 	// For /*-style comments, the comment may end on a different line.
 	// Scan the comment for '\n' chars and adjust the end line accordingly.
 	// (Note that the position of the next token may be even further down
@@ -168,48 +171,95 @@ func (p *parser) collectComment() int {
 }
 
 
-func (p *parser) getComments() interval {
-	// group adjacent comments, an empty line terminates a group
+// Consume a group of adjacent comments and return the interval of
+// indices into the parser's comment list. An empty line or non-comment
+// token terminates a comment group.
+//
+func (p *parser) consumeCommentGroup() interval {
 	beg := p.comments.Len();
 	endline := p.pos.Line;
 	for p.tok == token.COMMENT && endline+1 >= p.pos.Line {
-		endline = p.collectComment();
+		endline = p.consumeComment();
 	}
 	end := p.comments.Len();
-	return interval {beg, end};
+	return interval{beg, end};
 }
 
 
-func (p *parser) getDoc() ast.Comments {
-	doc := p.last_doc;
-	n := doc.end - doc.beg;
+var empty interval;
 
-	if n <= 0 || p.comments.At(doc.end - 1).(*ast.Comment).EndLine + 1 < p.pos.Line {
-		// no comments or empty line between last comment and current token;
-		// do not use as documentation
+// Advance to the next non-comment token.
+func (p *parser) next() {
+	p.lastComment = -1;
+	p.lastDoc = empty;
+
+	line := p.pos.Line;
+	p.next0();
+
+	if p.tok == token.COMMENT {
+		// the first comment may be a trailing comment
+		if p.pos.Line == line {
+			// comment is on same line as previous token;
+			// it is not considered part of a free-standing comment group
+			p.consumeComment();
+			if p.pos.Line != line {
+				// the next token is on a different line, thus
+				// the last comment is a trailing comment
+				p.lastComment = p.comments.Len() - 1;
+			}
+		}
+
+		// consume any successor comments
+		group := empty;
+		for p.tok == token.COMMENT {
+			group = p.consumeCommentGroup();
+		}
+
+		if group.end > 0 && p.comments.At(group.end - 1).(*ast.Comment).EndLine + 1 == p.pos.Line {
+			// there is a comment group and the next token is following on the
+			// line immediately after the group, thus the group may be used as
+			// documentation
+			p.lastDoc = group;
+		}
+	}
+}
+
+
+// Get current trailing comment, if any.
+func (p *parser) getComment() *ast.Comment {
+	i := p.lastComment;
+	if i < 0 {
+		// no last comment
 		return nil;
 	}
 
-	// found immediately adjacent comment interval;
-	// use as documentation
-	c := make(ast.Comments, n);
-	for i := 0; i < n; i++ {
-		c[i] = p.comments.At(doc.beg + i).(*ast.Comment);
-	}
-
-	// remove comments from the general list
-	p.comments.Cut(doc.beg, doc.end);
+	// get comment and remove it from the general list
+	c := p.comments.At(i).(*ast.Comment);
+	p.comments.Set(i, nil);  // clear entry
+	p.lastComment = -1;
 
 	return c;
 }
 
 
-func (p *parser) next() {
-	p.next0();
-	p.last_doc = interval{0, 0};
-	for p.tok == token.COMMENT {
-		p.last_doc = p.getComments();
+// Get current documentation comment group, if any.
+func (p *parser) getDoc() ast.Comments {
+	doc := p.lastDoc;
+	n := doc.end - doc.beg;
+	if n == 0 {
+		// no last comment group
+		return nil;
 	}
+
+	// get comment group and remove if from the general list
+	c := make(ast.Comments, n);
+	for i := 0; i < n; i++ {
+		c[i] = p.comments.At(doc.beg + i).(*ast.Comment);
+		p.comments.Set(doc.beg + i, nil);  // clear entry
+	}
+	p.lastDoc = empty;
+
+	return c;
 }
 
 
@@ -224,7 +274,7 @@ func (p *parser) Error(pos token.Position, msg string) {
 }
 
 
-func (p *parser) error_expected(pos token.Position, msg string) {
+func (p *parser) errorExpected(pos token.Position, msg string) {
 	msg = "expected " + msg;
 	if pos.Offset == p.pos.Offset {
 		// the error happened at the current position;
@@ -241,7 +291,7 @@ func (p *parser) error_expected(pos token.Position, msg string) {
 func (p *parser) expect(tok token.Token) token.Position {
 	pos := p.pos;
 	if p.tok != tok {
-		p.error_expected(pos, "'" + tok.String() + "'");
+		p.errorExpected(pos, "'" + tok.String() + "'");
 	}
 	p.next();  // make progress in any case
 	return pos;
@@ -327,7 +377,7 @@ func (p *parser) parseType() ast.Expr {
 	typ := p.tryType();
 
 	if typ == nil {
-		p.error_expected(p.pos, "type");
+		p.errorExpected(p.pos, "type");
 		p.next();  // make progress
 		return &ast.BadExpr{p.pos};
 	}
@@ -361,14 +411,14 @@ func (p *parser) parseTypeName() ast.Expr {
 }
 
 
-func (p *parser) parseArrayType(ellipsis_ok bool) ast.Expr {
+func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "ArrayType"));
 	}
 
 	lbrack := p.expect(token.LBRACK);
 	var len ast.Expr;
-	if ellipsis_ok && p.tok == token.ELLIPSIS {
+	if ellipsisOk && p.tok == token.ELLIPSIS {
 		len = &ast.Ellipsis{p.pos};
 		p.next();
 	} else if p.tok != token.RBRACK {
@@ -384,10 +434,10 @@ func (p *parser) parseArrayType(ellipsis_ok bool) ast.Expr {
 func (p *parser) makeIdentList(list *vector.Vector) []*ast.Ident {
 	idents := make([]*ast.Ident, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		ident, is_ident := list.At(i).(*ast.Ident);
-		if !is_ident {
+		ident, isIdent := list.At(i).(*ast.Ident);
+		if !isIdent {
 			pos := list.At(i).(ast.Expr).Pos();
-			p.error_expected(pos, "identifier");
+			p.errorExpected(pos, "identifier");
 			idents[i] = &ast.Ident{pos, ""};
 		}
 		idents[i] = ident;
@@ -435,12 +485,12 @@ func (p *parser) parseFieldDecl() *ast.Field {
 			// TODO check that this looks like a type
 			typ = list.At(0).(ast.Expr);
 		} else {
-			p.error_expected(p.pos, "anonymous field");
+			p.errorExpected(p.pos, "anonymous field");
 			typ = &ast.BadExpr{p.pos};
 		}
 	}
 
-	return &ast.Field{doc, idents, typ, tag};
+	return &ast.Field{doc, idents, typ, tag, nil};
 }
 
 
@@ -458,16 +508,19 @@ func (p *parser) parseStructType() *ast.StructType {
 
 		list := vector.New(0);
 		for p.tok != token.RBRACE && p.tok != token.EOF {
-			list.Push(p.parseFieldDecl());
+			f := p.parseFieldDecl();
+			list.Push(f);
 			if p.tok == token.SEMICOLON {
 				p.next();
+				f.Comment = p.getComment();
 			} else {
+				f.Comment = p.getComment();
 				break;
 			}
 		}
 
 		rbrace = p.expect(token.RBRACE);
-		p.opt_semi = true;
+		p.optSemi = true;
 
 		// convert vector
 		fields = make([]*ast.Field, list.Len());
@@ -492,8 +545,8 @@ func (p *parser) parsePointerType() *ast.StarExpr {
 }
 
 
-func (p *parser) tryParameterType(ellipsis_ok bool) ast.Expr {
-	if ellipsis_ok && p.tok == token.ELLIPSIS {
+func (p *parser) tryParameterType(ellipsisOk bool) ast.Expr {
+	if ellipsisOk && p.tok == token.ELLIPSIS {
 		pos := p.pos;
 		p.next();
 		if p.tok != token.RPAREN {
@@ -506,10 +559,10 @@ func (p *parser) tryParameterType(ellipsis_ok bool) ast.Expr {
 }
 
 
-func (p *parser) parseParameterType(ellipsis_ok bool) ast.Expr {
-	typ := p.tryParameterType(ellipsis_ok);
+func (p *parser) parseParameterType(ellipsisOk bool) ast.Expr {
+	typ := p.tryParameterType(ellipsisOk);
 	if typ == nil {
-		p.error_expected(p.pos, "type");
+		p.errorExpected(p.pos, "type");
 		p.next();  // make progress
 		typ = &ast.BadExpr{p.pos};
 	}
@@ -517,7 +570,7 @@ func (p *parser) parseParameterType(ellipsis_ok bool) ast.Expr {
 }
 
 
-func (p *parser) parseParameterDecl(ellipsis_ok bool) (*vector.Vector, ast.Expr) {
+func (p *parser) parseParameterDecl(ellipsisOk bool) (*vector.Vector, ast.Expr) {
 	if p.trace {
 		defer un(trace(p, "ParameterDecl"));
 	}
@@ -526,7 +579,7 @@ func (p *parser) parseParameterDecl(ellipsis_ok bool) (*vector.Vector, ast.Expr)
 	list := vector.New(0);
 	for {
 		// TODO do not allow ()'s here
-		list.Push(p.parseParameterType(ellipsis_ok));
+		list.Push(p.parseParameterType(ellipsisOk));
 		if p.tok == token.COMMA {
 			p.next();
 		} else {
@@ -535,36 +588,36 @@ func (p *parser) parseParameterDecl(ellipsis_ok bool) (*vector.Vector, ast.Expr)
 	}
 
 	// if we had a list of identifiers, it must be followed by a type
-	typ := p.tryParameterType(ellipsis_ok);
+	typ := p.tryParameterType(ellipsisOk);
 
 	return list, typ;
 }
 
 
-func (p *parser) parseParameterList(ellipsis_ok bool) []*ast.Field {
+func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 	if p.trace {
 		defer un(trace(p, "ParameterList"));
 	}
 
-	list, typ := p.parseParameterDecl(ellipsis_ok);
+	list, typ := p.parseParameterDecl(ellipsisOk);
 	if typ != nil {
 		// IdentifierList Type
 		idents := p.makeIdentList(list);
 		list.Init(0);
-		list.Push(&ast.Field{nil, idents, typ, nil});
+		list.Push(&ast.Field{nil, idents, typ, nil, nil});
 
 		for p.tok == token.COMMA {
 			p.next();
 			idents := p.parseIdentList(nil);
-			typ := p.parseParameterType(ellipsis_ok);
-			list.Push(&ast.Field{nil, idents, typ, nil});
+			typ := p.parseParameterType(ellipsisOk);
+			list.Push(&ast.Field{nil, idents, typ, nil, nil});
 		}
 
 	} else {
 		// Type { "," Type } (anonymous parameters)
 		// convert list of types into list of *Param
 		for i := 0; i < list.Len(); i++ {
-			list.Set(i, &ast.Field{nil, nil, list.At(i).(ast.Expr), nil});
+			list.Set(i, &ast.Field{Type: list.At(i).(ast.Expr)});
 		}
 	}
 
@@ -578,7 +631,7 @@ func (p *parser) parseParameterList(ellipsis_ok bool) []*ast.Field {
 }
 
 
-func (p *parser) parseParameters(ellipsis_ok bool) []*ast.Field {
+func (p *parser) parseParameters(ellipsisOk bool) []*ast.Field {
 	if p.trace {
 		defer un(trace(p, "Parameters"));
 	}
@@ -586,7 +639,7 @@ func (p *parser) parseParameters(ellipsis_ok bool) []*ast.Field {
 	var params []*ast.Field;
 	p.expect(token.LPAREN);
 	if p.tok != token.RPAREN {
-		params = p.parseParameterList(ellipsis_ok);
+		params = p.parseParameterList(ellipsisOk);
 	}
 	p.expect(token.RPAREN);
 
@@ -601,12 +654,12 @@ func (p *parser) parseResult() []*ast.Field {
 
 	var results []*ast.Field;
 	if p.tok == token.LPAREN {
-		results = p.parseParameters(false);
+		results = p.parseParameters(false);p
 	} else if p.tok != token.FUNC {
 		typ := p.tryType();
 		if typ != nil {
 			results = make([]*ast.Field, 1);
-			results[0] = &ast.Field{nil, nil, typ, nil};
+			results[0] = &ast.Field{Type: typ};
 		}
 	}
 
@@ -647,7 +700,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 	var idents []*ast.Ident;
 	var typ ast.Expr;
 	x := p.parseQualifiedIdent();
-	if tmp, is_ident := x.(*ast.Ident); is_ident && (p.tok == token.COMMA || p.tok == token.LPAREN) {
+	if tmp, isIdent := x.(*ast.Ident); isIdent && (p.tok == token.COMMA || p.tok == token.LPAREN) {
 		// methods
 		idents = p.parseIdentList(x);
 		params, results := p.parseSignature();
@@ -657,7 +710,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 		typ = x;
 	}
 
-	return &ast.Field{doc, idents, typ, nil};
+	return &ast.Field{doc, idents, typ, nil, nil};
 }
 
 
@@ -682,7 +735,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 		}
 
 		rbrace = p.expect(token.RBRACE);
-		p.opt_semi = true;
+		p.optSemi = true;
 
 		// convert vector
 		methods = make([]*ast.Field, list.Len());
@@ -734,10 +787,10 @@ func (p *parser) parseChanType() *ast.ChanType {
 }
 
 
-func (p *parser) tryRawType(ellipsis_ok bool) ast.Expr {
+func (p *parser) tryRawType(ellipsisOk bool) ast.Expr {
 	switch p.tok {
 	case token.IDENT: return p.parseTypeName();
-	case token.LBRACK: return p.parseArrayType(ellipsis_ok);
+	case token.LBRACK: return p.parseArrayType(ellipsisOk);
 	case token.STRUCT: return p.parseStructType();
 	case token.MUL: return p.parsePointerType();
 	case token.FUNC: return p.parseFuncType();
@@ -780,19 +833,19 @@ func (p *parser) parseStatementList() []ast.Stmt {
 	}
 
 	list := vector.New(0);
-	expect_semi := false;
+	expectSemi := false;
 	for p.tok != token.CASE && p.tok != token.DEFAULT && p.tok != token.RBRACE && p.tok != token.EOF {
-		if expect_semi {
+		if expectSemi {
 			p.expect(token.SEMICOLON);
-			expect_semi = false;
+			expectSemi = false;
 		}
 		list.Push(p.parseStatement());
 		if p.tok == token.SEMICOLON {
 			p.next();
-		} else if p.opt_semi {
-			p.opt_semi = false;  // "consume" optional semicolon
+		} else if p.optSemi {
+			p.optSemi = false;  // "consume" optional semicolon
 		} else {
-			expect_semi = true;
+			expectSemi = true;
 		}
 	}
 
@@ -808,7 +861,7 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
 	lbrace := p.expect(token.LBRACE);
 	list := p.parseStatementList();
 	rbrace := p.expect(token.RBRACE);
-	p.opt_semi = true;
+	p.optSemi = true;
 
 	return &ast.BlockStmt{lbrace, list, rbrace};
 }
@@ -848,10 +901,10 @@ func (p *parser) parseFuncLit() ast.Expr {
 	}
 
 	typ := p.parseFuncType();
-	p.expr_lev++;
+	p.exprLev++;
 	body := p.parseBlockStmt();
-	p.opt_semi = false;  // function body requires separating ";"
-	p.expr_lev--;
+	p.optSemi = false;  // function body requires separating ";"
+	p.exprLev--;
 
 	return &ast.FuncLit{typ, body};
 }
@@ -895,9 +948,9 @@ func (p *parser) parseOperand() ast.Expr {
 	case token.LPAREN:
 		lparen := p.pos;
 		p.next();
-		p.expr_lev++;
+		p.exprLev++;
 		x := p.parseExpression();
-		p.expr_lev--;
+		p.exprLev--;
 		rparen := p.expect(token.RPAREN);
 		return &ast.ParenExpr{lparen, x, rparen};
 
@@ -911,7 +964,7 @@ func (p *parser) parseOperand() ast.Expr {
 		}
 	}
 
-	p.error_expected(p.pos, "operand");
+	p.errorExpected(p.pos, "operand");
 	p.next();  // make progress
 	return &ast.BadExpr{p.pos};
 }
@@ -951,14 +1004,14 @@ func (p *parser) parseIndex(x ast.Expr) ast.Expr {
 	}
 
 	p.expect(token.LBRACK);
-	p.expr_lev++;
+	p.exprLev++;
 	begin := p.parseExpression();
 	var end ast.Expr;
 	if p.tok == token.COLON {
 		p.next();
 		end = p.parseExpression();
 	}
-	p.expr_lev--;
+	p.exprLev--;
 	p.expect(token.RBRACK);
 
 	return &ast.IndexExpr{x, begin, end};
@@ -1064,13 +1117,13 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	case *ast.UnaryExpr:
 		if t.Op == token.RANGE {
 			// the range operator is only allowed at the top of a for statement
-			p.error_expected(x.Pos(), "expression");
+			p.errorExpected(x.Pos(), "expression");
 			x = &ast.BadExpr{x.Pos()};
 		}
 	case *ast.BinaryExpr:
 	default:
 		// all other nodes are not proper expressions
-		p.error_expected(x.Pos(), "expression");
+		p.errorExpected(x.Pos(), "expression");
 		x = &ast.BadExpr{x.Pos()};
 	}
 	return x;
@@ -1117,11 +1170,11 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 	case *ast.UnaryExpr:
 		if t.Op == token.RANGE {
 			// the range operator is only allowed at the top of a for statement
-			p.error_expected(x.Pos(), "expression");
+			p.errorExpected(x.Pos(), "expression");
 			x = &ast.BadExpr{x.Pos()};
 		}
 	case *ast.ArrayType:
-		if len, is_ellipsis := t.Len.(*ast.Ellipsis); is_ellipsis {
+		if len, isEllipsis := t.Len.(*ast.Ellipsis); isEllipsis {
 			p.Error(len.Pos(), "expected array length, found '...'");
 			x = &ast.BadExpr{x.Pos()};
 		}
@@ -1144,7 +1197,7 @@ L:	for {
 		case token.LBRACK: x = p.parseIndex(p.checkExpr(x));
 		case token.LPAREN: x = p.parseCallOrConversion(p.checkExprOrType(x));
 		case token.LBRACE:
-			if isCompositeLitType(x) && (p.expr_lev >= 0 || !isTypeName(x)) {
+			if isCompositeLitType(x) && (p.exprLev >= 0 || !isTypeName(x)) {
 				x = p.parseCompositeLit(x);
 			} else {
 				break L;
@@ -1214,7 +1267,7 @@ func (p *parser) parseExpression() ast.Expr {
 // Statements
 
 
-func (p *parser) parseSimpleStmt(label_ok bool) ast.Stmt {
+func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 	if p.trace {
 		defer un(trace(p, "SimpleStmt"));
 	}
@@ -1225,8 +1278,8 @@ func (p *parser) parseSimpleStmt(label_ok bool) ast.Stmt {
 	case token.COLON:
 		// labeled statement
 		p.next();
-		if label_ok && len(x) == 1 {
-			if label, is_ident := x[0].(*ast.Ident); is_ident {
+		if labelOk && len(x) == 1 {
+			if label, isIdent := x[0].(*ast.Ident); isIdent {
 				return &ast.LabeledStmt{label, p.parseStatement()};
 			}
 		}
@@ -1267,10 +1320,10 @@ func (p *parser) parseSimpleStmt(label_ok bool) ast.Stmt {
 
 func (p *parser) parseCallExpr() *ast.CallExpr {
 	x := p.parseExpression();
-	if call, is_call := x.(*ast.CallExpr); is_call {
+	if call, isCall := x.(*ast.CallExpr); isCall {
 		return call;
 	}
-	p.error_expected(x.Pos(), "function/method call");
+	p.errorExpected(x.Pos(), "function/method call");
 	return nil;
 }
 
@@ -1338,8 +1391,8 @@ func (p *parser) isExpr(s ast.Stmt) bool {
 	if s == nil {
 		return true;
 	}
-	dummy, is_expr := s.(*ast.ExprStmt);
-	return is_expr;
+	dummy, isExpr := s.(*ast.ExprStmt);
+	return isExpr;
 }
 
 
@@ -1347,7 +1400,7 @@ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
 	if s == nil {
 		return nil;
 	}
-	if es, is_expr := s.(*ast.ExprStmt); is_expr {
+	if es, isExpr := s.(*ast.ExprStmt); isExpr {
 		return p.checkExpr(es.X);
 	}
 	p.Error(s.Pos(), "expected condition, found simple statement");
@@ -1357,8 +1410,8 @@ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
 
 func (p *parser) parseControlClause(isForStmt bool) (s1, s2, s3 ast.Stmt) {
 	if p.tok != token.LBRACE {
-		prev_lev := p.expr_lev;
-		p.expr_lev = -1;
+		prevLev := p.exprLev;
+		p.exprLev = -1;
 
 		if p.tok != token.SEMICOLON {
 			s1 = p.parseSimpleStmt(false);
@@ -1379,7 +1432,7 @@ func (p *parser) parseControlClause(isForStmt bool) (s1, s2, s3 ast.Stmt) {
 			s1, s2 = nil, s1;
 		}
 
-		p.expr_lev = prev_lev;
+		p.exprLev = prevLev;
 	}
 
 	return s1, s2, s3;
@@ -1464,7 +1517,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 			cases.Push(p.parseCaseClause());
 		}
 		rbrace := p.expect(token.RBRACE);
-		p.opt_semi = true;
+		p.optSemi = true;
 		body := &ast.BlockStmt{lbrace, makeStmtList(cases), rbrace};
 		return &ast.SwitchStmt{pos, s1, p.makeExpr(s2), body};
 	}
@@ -1477,7 +1530,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 		cases.Push(p.parseTypeCaseClause());
 	}
 	rbrace := p.expect(token.RBRACE);
-	p.opt_semi = true;
+	p.optSemi = true;
 	body := &ast.BlockStmt{lbrace, makeStmtList(cases), rbrace};
 	return &ast.TypeSwitchStmt{pos, s1, s2, body};
 }
@@ -1536,7 +1589,7 @@ func (p *parser) parseSelectStmt() *ast.SelectStmt {
 		cases.Push(p.parseCommClause());
 	}
 	rbrace := p.expect(token.RBRACE);
-	p.opt_semi = true;
+	p.optSemi = true;
 	body := &ast.BlockStmt{lbrace, makeStmtList(cases), rbrace};
 
 	return &ast.SelectStmt{pos, body};
@@ -1552,10 +1605,10 @@ func (p *parser) parseForStmt() ast.Stmt {
 	s1, s2, s3 := p.parseControlClause(true);
 	body := p.parseBlockStmt();
 
-	if as, is_as := s2.(*ast.AssignStmt); is_as {
+	if as, isAssign := s2.(*ast.AssignStmt); isAssign {
 		// possibly a for statement with a range clause; check assignment operator
 		if as.Tok != token.ASSIGN && as.Tok != token.DEFINE {
-			p.error_expected(as.TokPos, "'=' or ':='");
+			p.errorExpected(as.TokPos, "'=' or ':='");
 			return &ast.BadStmt{pos};
 		}
 		// check lhs
@@ -1567,19 +1620,19 @@ func (p *parser) parseForStmt() ast.Stmt {
 		case 1:
 			key = as.Lhs[0];
 		default:
-			p.error_expected(as.Lhs[0].Pos(), "1 or 2 expressions");
+			p.errorExpected(as.Lhs[0].Pos(), "1 or 2 expressions");
 			return &ast.BadStmt{pos};
 		}
 		// check rhs
 		if len(as.Rhs) != 1 {
-			p.error_expected(as.Rhs[0].Pos(), "1 expressions");
+			p.errorExpected(as.Rhs[0].Pos(), "1 expressions");
 			return &ast.BadStmt{pos};
 		}
-		if rhs, is_unary := as.Rhs[0].(*ast.UnaryExpr); is_unary && rhs.Op == token.RANGE {
+		if rhs, isUnary := as.Rhs[0].(*ast.UnaryExpr); isUnary && rhs.Op == token.RANGE {
 			// rhs is range expression; check lhs
 			return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, rhs.X, body}
 		} else {
-			p.error_expected(s2.Pos(), "range clause");
+			p.errorExpected(s2.Pos(), "range clause");
 			return &ast.BadStmt{pos};
 		}
 	} else {
@@ -1630,7 +1683,7 @@ func (p *parser) parseStatement() ast.Stmt {
 	}
 
 	// no statement found
-	p.error_expected(p.pos, "statement");
+	p.errorExpected(p.pos, "statement");
 	p.next();  // make progress
 	return &ast.BadStmt{p.pos};
 }
@@ -1661,7 +1714,7 @@ func parseImportSpec(p *parser, doc ast.Comments) ast.Spec {
 		p.expect(token.STRING);  // use expect() error handling
 	}
 
-	return &ast.ImportSpec{doc, ident, path};
+	return &ast.ImportSpec{doc, ident, path, nil};
 }
 
 
@@ -1678,7 +1731,8 @@ func parseConstSpec(p *parser, doc ast.Comments) ast.Spec {
 		values = p.parseExpressionList();
 	}
 
-	return &ast.ValueSpec{doc, idents, typ, values};
+	// TODO get trailing comments
+	return &ast.ValueSpec{doc, idents, typ, values, nil};
 }
 
 
@@ -1690,7 +1744,8 @@ func parseTypeSpec(p *parser, doc ast.Comments) ast.Spec {
 	ident := p.parseIdent();
 	typ := p.parseType();
 
-	return &ast.TypeSpec{doc, ident, typ};
+	// TODO get trailing comments
+	return &ast.TypeSpec{doc, ident, typ, nil};
 }
 
 
@@ -1707,7 +1762,8 @@ func parseVarSpec(p *parser, doc ast.Comments) ast.Spec {
 		values = p.parseExpressionList();
 	}
 
-	return &ast.ValueSpec{doc, idents, typ, values};
+	// TODO get trailing comments
+	return &ast.ValueSpec{doc, idents, typ, values, nil};
 }
 
 
@@ -1733,7 +1789,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 			}
 		}
 		rparen = p.expect(token.RPAREN);
-		p.opt_semi = true;
+		p.optSemi = true;
 	} else {
 		list.Push(f(p, doc));
 	}
@@ -1757,19 +1813,19 @@ func (p *parser) parseReceiver() *ast.Field {
 
 	// must have exactly one receiver
 	if len(par) != 1 || len(par) == 1 && len(par[0].Names) > 1 {
-		p.error_expected(pos, "exactly one receiver");
-		return &ast.Field{nil, nil, &ast.BadExpr{noPos}, nil};
+		p.errorExpected(pos, "exactly one receiver");
+		return &ast.Field{Type: &ast.BadExpr{noPos}};
 	}
 
 	recv := par[0];
 
 	// recv type must be TypeName or *TypeName
 	base := recv.Type;
-	if ptr, is_ptr := base.(*ast.StarExpr); is_ptr {
+	if ptr, isPtr := base.(*ast.StarExpr); isPtr {
 		base = ptr.X;
 	}
 	if !isTypeName(base) {
-		p.error_expected(base.Pos(), "type name");
+		p.errorExpected(base.Pos(), "type name");
 	}
 
 	return recv;
@@ -1815,7 +1871,7 @@ func (p *parser) parseDeclaration() ast.Decl {
 		return p.parseFunctionDecl();
 	default:
 		pos := p.pos;
-		p.error_expected(pos, "declaration");
+		p.errorExpected(pos, "declaration");
 		p.next();  // make progress
 		return &ast.BadDecl{pos};
 	}
@@ -1881,9 +1937,20 @@ func (p *parser) parsePackage() *ast.Program {
 	}
 
 	// convert comments list
-	comments := make([]*ast.Comment, p.comments.Len());
+	// 1) determine number of remaining comments
+	n := 0;
 	for i := 0; i < p.comments.Len(); i++ {
-		comments[i] = p.comments.At(i).(*ast.Comment);
+		if p.comments.At(i) != nil {
+			n++;
+		}
+	}
+	// 2) convert the remaining comments
+	comments := make([]*ast.Comment, n);
+	for i, j := 0, 0; i < p.comments.Len(); i++ {
+		if p.comments.At(i) != nil {
+			comments[j] = p.comments.At(i).(*ast.Comment);
+			j++;
+		}
 	}
 
 	return &ast.Program{comment, pos, ident, decls, comments};
