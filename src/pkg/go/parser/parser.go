@@ -654,7 +654,7 @@ func (p *parser) parseResult() []*ast.Field {
 
 	var results []*ast.Field;
 	if p.tok == token.LPAREN {
-		results = p.parseParameters(false);p
+		results = p.parseParameters(false);
 	} else if p.tok != token.FUNC {
 		typ := p.tryType();
 		if typ != nil {
