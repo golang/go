@@ -447,7 +447,7 @@ scheduler(void)
 	if(debug > 1) {
 		lock(&debuglock);
 		printf("m%d run g%d at %p\n", m->id, gp->goid, gp->sched.PC);
-		traceback(gp->sched.PC, gp->sched.SP+8, gp);
+		traceback(gp->sched.PC, gp->sched.SP+sizeof(uintptr), gp);
 		unlock(&debuglock);
 	}
 	m->curg = gp;
@@ -488,6 +488,10 @@ sys·entersyscall(uint64 callerpc, int64 trap)
 	}
 	lock(&sched);
 	g->status = Gsyscall;
+	// Leave SP around for gc and traceback.
+	// Do before notewakeup so that gc
+	// never sees Gsyscall with wrong stack.
+	gosave(&g->sched);
 	sched.mcpu--;
 	sched.msyscall++;
 	if(sched.gwait != 0)
@@ -497,8 +501,6 @@ sys·entersyscall(uint64 callerpc, int64 trap)
 		notewakeup(&sched.stopped);
 	}
 	unlock(&sched);
-	// leave SP around for gc and traceback
-	gosave(&g->sched);
 }
 
 // The goroutine g exited its system call.
@@ -823,7 +825,6 @@ sys·deferreturn(uintptr arg0)
 {
 	Defer *d;
 	byte *sp, *fn;
-	uintptr *caller;
 
 	d = g->defer;
 	if(d == nil)
