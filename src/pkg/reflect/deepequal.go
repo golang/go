@@ -12,6 +12,12 @@ import "reflect"
 // comparisons that have already been seen, which allows short circuiting on
 // recursive types.
 func deepValueEqual(v1, v2 Value, visited map[Addr]Addr) bool {
+	if v1 == nil {
+		return v2 == nil
+	}
+	if v2 == nil {
+		return false
+	}
 	if v1.Kind() != v2.Kind() {
 		return false;
 	}

@@ -611,3 +611,10 @@ func TestInterfaceEditing(t *testing.T) {
 		t.Errorf("Set(234) changed i to %d", i.(int));
 	}
 }
+
+func TestNilPtrValueSub(t *testing.T) {
+	var pi *int;
+	if pv := NewValue(pi).(PtrValue); pv.Sub() != nil {
+		t.Error("NewValue((*int)(nil)).(PtrValue).Sub() != nil");
+	}
+}
