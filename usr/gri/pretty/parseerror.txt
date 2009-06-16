@@ -1,6 +1,0 @@
-parse errors:
-{.repeated section list}
-{.section msg}
-{filename}:{line}: {msg}
-{.end}
-{.end}

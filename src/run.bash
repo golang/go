@@ -36,12 +36,10 @@ time make
 GOMAXPROCS=10 make test
 ) || exit $?
 
-(xcd ../usr/gri/pretty
+(xcd cmd/gofmt
 make clean
 time make
-make smoketest
-# TODO: this belongs elsewhere
-cp godoc $HOME/bin
+time make smoketest
 ) || exit $?
 
 (xcd ../doc/progs
