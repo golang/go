@@ -80,7 +80,7 @@ var (
 	// file system roots
 	goroot string;
 	pkgroot = flag.String("pkgroot", "src/pkg", "root package source directory (if unrooted, relative to goroot)");
-	tmplroot = flag.String("tmplroot", "src/cmd/godoc", "root template directory (if unrooted, relative to goroot)");
+	tmplroot = flag.String("tmplroot", "lib/godoc", "root template directory (if unrooted, relative to goroot)");
 
 	// periodic sync
 	syncCmd = flag.String("sync", "", "sync command; disabled if empty");
