@@ -322,6 +322,7 @@ func (p *printer) exprList(list []ast.Expr) {
 func (p *printer) parameters(list []*ast.Field) {
 	p.print(token.LPAREN);
 	if len(list) > 0 {
+		p.level++;  // adjust nesting level for parameters
 		for i, par := range list {
 			if i > 0 {
 				p.print(token.COMMA, blank);
@@ -333,6 +334,7 @@ func (p *printer) parameters(list []*ast.Field) {
 			};
 			p.expr(par.Type);
 		}
+		p.level--;
 	}
 	p.print(token.RPAREN);
 }
@@ -512,9 +514,9 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 		}
 
 	case *ast.FuncLit:
-		p.level++;
 		p.expr(x.Type);
 		p.print(blank);
+		p.level++;  // adjust nesting level for function body
 		p.stmt(x.Body);
 		p.level--;
 
@@ -929,7 +931,6 @@ func (p *printer) decl(decl ast.Decl) (optSemi bool) {
 		}
 
 	case *ast.FuncDecl:
-		p.level++;
 		p.doc(d.Doc);
 		p.print(d.Pos(), token.FUNC, blank);
 		if recv := d.Recv; recv != nil {
@@ -946,9 +947,10 @@ func (p *printer) decl(decl ast.Decl) (optSemi bool) {
 		p.signature(d.Type.Params, d.Type.Results);
 		if !p.exportsOnly() && d.Body != nil {
 			p.print(blank);
+			p.level++;  // adjust nesting level for function body
 			p.stmt(d.Body);
+			p.level--;
 		}
-		p.level--;
 
 	default:
 		panic("unreachable");
