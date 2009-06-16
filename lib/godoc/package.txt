@@ -1,0 +1,70 @@
+{.section Dirs}
+SUBDIRECTORIES
+{.repeated section @}
+	{Name}
+{.end}
+
+{.end}
+{.section PDoc}
+PACKAGE
+
+package {PackageName}
+import "{ImportPath}"
+{.section Doc}
+
+{@}
+{.end}
+{.section Consts}
+
+CONSTANTS
+{.repeated section @}
+{# the .repeated section, .section idiom skips over nils in the array}
+
+{Decl}
+
+{Doc}
+{.end}
+{.end}
+{.section Vars}
+
+VARIABLES
+{.repeated section @}
+
+{Decl}
+
+{Doc}
+{.end}
+{.end}
+{.section Funcs}
+
+FUNCTIONS
+{.repeated section @}
+
+{Decl}
+
+{Doc}
+{.end}
+{.end}
+{.section Types}
+
+TYPES
+{.repeated section @}
+
+{Decl}
+
+{Doc}
+{.repeated section Factories}
+
+{Decl}
+
+{Doc}
+{.end}
+{.repeated section Methods}
+
+{Decl}
+
+{Doc}
+{.end}
+{.end}
+{.end}
+{.end}
