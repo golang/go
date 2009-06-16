@@ -274,7 +274,7 @@ stackalloc(uint32 n)
 	uint32 *ref;
 
 //return oldmal(n);
-	if(m->mallocing) {
+	if(m->mallocing || m->gcing) {
 		lock(&stacks);
 		if(stacks.size == 0)
 			FixAlloc_Init(&stacks, n, SysAlloc, nil, nil);
@@ -298,7 +298,7 @@ stackfree(void *v)
 {
 //return;
 
-	if(m->mallocing) {
+	if(m->mallocing || m->gcing) {
 		lock(&stacks);
 		FixAlloc_Free(&stacks, v);
 		unlock(&stacks);

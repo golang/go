@@ -177,6 +177,7 @@ struct	M
 	int32	siz2;
 	int32	id;
 	int32	mallocing;
+	int32	gcing;
 	int32	locks;
 	Note	havenextg;
 	G*	nextg;
