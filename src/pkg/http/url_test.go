@@ -134,6 +134,17 @@ var urltests = []URLTest {
 		},
 		""
 	},
+	// unescaped :// in query should not create a scheme
+	URLTest{
+		"/foo?query=http://bad",
+		&URL{
+			"/foo?query=http://bad",
+			"", "/foo?query=http://bad",
+			"", "", "",
+			"/foo", "query=http://bad", ""
+		},
+		""
+	},
 }
 
 var urlnofragtests = []URLTest {

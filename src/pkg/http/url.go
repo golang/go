@@ -180,6 +180,10 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
 				return "", "", BadURL{"missing protocol scheme"}
 			}
 			return rawurl[0:i], rawurl[i+1:len(rawurl)], nil
+		default:
+			// we have encountered an invalid character,
+			// so there is no valid scheme
+			return "", rawurl, nil
 		}
 	}
 	return "", rawurl, nil
