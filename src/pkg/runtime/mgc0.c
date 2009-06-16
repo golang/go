@@ -215,6 +215,7 @@ gc(int32 force)
 	if(gcpercent < 0)
 		return;
 
+	m->gcing = 1;
 	semacquire(&gcsema);
 	gosave(&g->sched);	// update g's stack pointer for scanstack
 	stoptheworld();
@@ -228,4 +229,5 @@ gc(int32 force)
 	starttheworld();
 	gosave(&g->sched);	// update g's stack pointer for debugging
 	semrelease(&gcsema);
+	m->gcing = 0;
 }
