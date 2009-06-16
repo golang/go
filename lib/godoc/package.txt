@@ -18,7 +18,6 @@ import "{ImportPath}"
 
 CONSTANTS
 {.repeated section @}
-{# the .repeated section, .section idiom skips over nils in the array}
 {Decl}
 {Doc}
 {.end}
