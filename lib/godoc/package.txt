@@ -19,9 +19,7 @@ import "{ImportPath}"
 CONSTANTS
 {.repeated section @}
 {# the .repeated section, .section idiom skips over nils in the array}
-
 {Decl}
-
 {Doc}
 {.end}
 {.end}
@@ -29,9 +27,7 @@ CONSTANTS
 
 VARIABLES
 {.repeated section @}
-
 {Decl}
-
 {Doc}
 {.end}
 {.end}
@@ -39,9 +35,7 @@ VARIABLES
 
 FUNCTIONS
 {.repeated section @}
-
 {Decl}
-
 {Doc}
 {.end}
 {.end}
@@ -49,20 +43,14 @@ FUNCTIONS
 
 TYPES
 {.repeated section @}
-
 {Decl}
-
 {Doc}
 {.repeated section Factories}
-
 {Decl}
-
 {Doc}
 {.end}
 {.repeated section Methods}
-
 {Decl}
-
 {Doc}
 {.end}
 {.end}
