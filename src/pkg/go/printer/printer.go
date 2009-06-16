@@ -981,6 +981,8 @@ func (p *printer) program(prog *ast.Program) {
 			}
 		}
 	}
+
+	p.print(newline);
 }
 
 
@@ -1010,7 +1012,6 @@ func Fprint(output io.Writer, node interface{}, mode uint) (int, os.Error) {
 		default:
 			p.errors <- os.NewError("unsupported node type");
 		}
-		p.print(newline);
 		p.errors <- nil;  // no errors
 	}();
 	err := <-p.errors;  // wait for completion of goroutine
