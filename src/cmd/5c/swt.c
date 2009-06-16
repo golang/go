@@ -338,7 +338,7 @@ loop:
 		if(vs < 0) {
 			gopcode(OAS, &nod1, Z, &nod1);
 			gopcode(OSUB, &nod1, nodconst(0), nn);
-		} else 
+		} else
 			gopcode(OAS, &nod1, Z, nn);
 		regfree(&nod1);
 		return 1;
@@ -649,6 +649,13 @@ zaddr(char *bp, Adr *a, int s)
 	case D_PSR:
 		break;
 
+	case D_CONST2:
+		l = a->offset2;
+		bp[0] = l;
+		bp[1] = l>>8;
+		bp[2] = l>>16;
+		bp[3] = l>>24;
+		bp += 4;	// fall through
 	case D_OREG:
 	case D_CONST:
 	case D_BRANCH:

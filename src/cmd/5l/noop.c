@@ -128,7 +128,7 @@ noops(void)
 	Bflush(&bso);
 
 	pmorestack = P;
-	symmorestack = lookup("sys·morestack", 0);
+	symmorestack = lookup("sys·morestackx", 0);
 
 	if(symmorestack->type == STEXT)
 	for(p = firstp; p != P; p = p->link) {
@@ -342,8 +342,7 @@ noops(void)
 				break;
 			}
 
-// 			if(p->reg & NOSPLIT) {
-			if(1) {
+			if(p->reg & NOSPLIT) {
 				q1 = prg();
 				q1->as = AMOVW;
 				q1->scond |= C_WBIT;
@@ -355,61 +354,78 @@ noops(void)
 				q1->to.reg = REGSP;
 				q1->link = p->link;
 				p->link = q1;
-			} else { // !NOSPLIT
-				// split stack check
-				if(autosize < StackBig) {
-					p = appendp(p); // load G.stackguard into R1
-					p->as = AMOVW;
-					p->from.type = D_OREG;
-					p->from.reg = REGG;
-					p->to.type = D_REG;
-					p->to.reg = 1;
+			} else if (autosize < StackBig) {
+				// split stack check for small functions
+				// MOVW			(REGG), R1
+				// CMP			R1, $-autosize(SP)
+				// MOVW.W.LT	R14,$-autosize(SP)
+				// MOVW.W.GE	R14,$-4(SP)
+				// MOVW.GE		$(args << 24 | autosize), R1
+				// BL.GE		callmorestack(SB)
 
-					p = appendp(p);
-					p->as = ACMP;
-					p->from.type = D_REG;
-					p->from.reg = 1;
-					p->from.offset = -autosize;
-					p->reg = REGSP;
-				}
+				// TODO(kaib): double check we allocate autosize after
+				// 				stack has been split
+				// TODO(kaib): add error in case autosize doesn't pack
+				// TODO(kaib): add more trampolines
+				// TODO(kaib): put stackguard in register
+				// TODO(kaib): add support for -K and underflow detection
 
-				// TODO(kaib): Optimize the heck out of this
-				p = appendp(p); // store autosize in M.morearg
+				p = appendp(p); // load G.stackguard into R1
 				p->as = AMOVW;
-				p->from.type = D_CONST;
-				if(autosize+160 > 4096)
-					p->from.offset = (autosize+160) & ~7LL;
+				p->from.type = D_OREG;
+				p->from.reg = REGG;
 				p->to.type = D_REG;
-				p->to.reg = REGTMP;
+				p->to.reg = 1;
 
 				p = appendp(p);
-				p->as = AMOVW;
+				p->as = ACMP;
 				p->from.type = D_REG;
-				p->from.reg = REGTMP;
-				p->to.type = D_OREG;
-				p->to.reg = REGM;
-				p->to.offset = 4;
+				p->from.reg = 1;
+				p->from.offset = -autosize;
+				p->reg = REGSP;
 
 				p = appendp(p);
 				p->as = AMOVW;
+ 				p->scond = C_SCOND_GE | C_WBIT;
+				p->from.type = D_REG;
+				p->from.reg = REGLINK;
+				p->to.type = D_OREG;
+				p->to.offset = -autosize;
+				p->to.reg = REGSP;
+
+				p = appendp(p);
+				p->as = AMOVW;
+				p->scond = C_SCOND_LT | C_WBIT;
+				p->from.type = D_REG;
+				p->from.reg = REGLINK;
+				p->to.type = D_OREG;
+				p->to.offset = -4;
+				p->to.reg = REGSP;
+
+				p = appendp(p); // packs args and autosize
+				p->as = AMOVW;
+				p->scond = C_SCOND_LT;
 				p->from.type = D_CONST;
-// 				p->from.offset = curtext->to.offset2;
+				// top 8 bits are arg count, lower 24 bits number of 4 byte
+				// words
+				p->from.offset =
+					(curtext->to.offset2 & ~7) << 21 |
+					(autosize & ~7) >> 3;
 				p->to.type = D_REG;
-				p->to.reg = REGTMP;
+				p->to.reg = 1;
 
 				p = appendp(p);
-				p->as = AMOVW;
-				p->from.type = D_REG;
-				p->from.reg = REGTMP;
-				p->to.type = D_OREG;
-				p->to.reg = REGM;
-				p->to.offset = 8;
- 
-// 				p = appendp(p);
-// 				p->as = ABL;
-// 				p->to.type = D_BRANCH;
-// 				p->to.sym = symmorestack;
-// 				p->cond = pmorestack;
+				p->as = ABL;
+				p->scond = C_SCOND_LT;
+ 				p->to.type = D_BRANCH;
+				p->to.sym = symmorestack;
+				p->cond = pmorestack;
+			} else { // > StackBig
+				// MOVW.W		R14,$-4(SP)
+				// MOVW			$(args << 24 | autosize), R1
+				// BL			callmorestack(SB)
+				// TODO(kaib): Fix large stacks, don't use packing
+				diag("StackBig broken");
 			}
 			break;
 
@@ -803,7 +819,7 @@ noops(void)
 					p->link = q;
 				}
 			}
-			if(seenthumb && !thumb && p->to.type == D_OREG && p->to.reg == REGLINK){	
+			if(seenthumb && !thumb && p->to.type == D_OREG && p->to.reg == REGLINK){
 				// print("warn %s:	b	(R%d)	assuming a return\n", curtext->from.sym->name, p->to.reg);
 				p->as = ABXRET;
 			}

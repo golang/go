@@ -87,12 +87,12 @@ fninc(Sym *s)
 				return 4;
 			else
 				return 0;
-		}			
+		}
 	}
 	return 0;
 }
 
-int 
+int
 fnpinc(Sym *s)
 {
 	if(!s->fnptr){	// a simplified case BX O(R) -> BL O(R)
@@ -318,7 +318,7 @@ span(void)
 				else
 					m = 2;
 				p->align = 0;
-			}	
+			}
 			if(p->align){
 				if((p->align == 4 && (c&3)) || (p->align == 2 && !(c&3))){
 					if(ispad(op)){
@@ -374,9 +374,9 @@ span(void)
 		// print("%d bytes removed (padding)\n", d);
 		c -= d;
 	}
-	
+
 	if(debug['t']) {
-		/* 
+		/*
 		 * add strings to text segment
 		 */
 		c = rnd(c, 8);
@@ -391,7 +391,7 @@ span(void)
 			c += v;
 		}
 	}
-			
+
 	c = rnd(c, 8);
 
 	setext = lookup("etext", 0);
@@ -726,6 +726,7 @@ aclass(Adr *a)
 		return C_FCON;
 
 	case D_CONST:
+	case D_CONST2:
 		switch(a->name) {
 
 		case D_NONE:
@@ -1072,7 +1073,7 @@ buildop(void)
 			oprange[AMOVFD] = oprange[r];
 			oprange[AMOVDF] = oprange[r];
 			break;
-			
+
 		case ACMPF:
 			oprange[ACMPD] = oprange[r];
 			break;
@@ -1246,7 +1247,7 @@ asmdyn()
 				t += 4;
 				t += sput(s->name);
 			}
-	
+
 	la = 0;
 	r = &rels;
 	n = r->n;

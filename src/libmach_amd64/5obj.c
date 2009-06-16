@@ -123,6 +123,11 @@ addr(Biobuf *bp)
 	case D_PSR:
 	case D_FPCR:
 		break;
+	case D_CONST2:
+		Bgetc(bp);
+		Bgetc(bp);
+		Bgetc(bp);
+		Bgetc(bp);	// fall through
 	case D_OREG:
 	case D_CONST:
 	case D_BRANCH:
