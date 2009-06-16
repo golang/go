@@ -18,8 +18,8 @@ rm -f $HOME/bin/quietgcc
 cp quietgcc.bash $HOME/bin/quietgcc
 chmod +x $HOME/bin/quietgcc
 
-for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/gobuild
-do
+for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/gobuild cmd/godoc
+do (
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i
 	case $i in
@@ -29,8 +29,7 @@ do
 	*)
 		make install
 	esac
-	cd ..
-done
+) done
 
 case "`uname`" in
 Darwin)
