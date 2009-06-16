@@ -28,6 +28,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+
 #define	EXTERN
 #include "gc.h"
 
@@ -71,9 +72,9 @@ Bconv(Fmt *fp)
 }
 
 char *extra [] = {
-	".EQ", ".NE", ".CS", ".CC", 
-	".MI", ".PL", ".VS", ".VC", 
-	".HI", ".LS", ".GE", ".LT", 
+	".EQ", ".NE", ".CS", ".CC",
+	".MI", ".PL", ".VS", ".VC",
+	".HI", ".LS", ".GE", ".LT",
 	".GT", ".LE", "", ".NV",
 };
 
@@ -86,7 +87,7 @@ Pconv(Fmt *fp)
 
 	p = va_arg(fp->args, Prog*);
 	a = p->as;
-	s = p->scond; 
+	s = p->scond;
 	strcpy(sc, extra[s & C_SCOND]);
 	if(s & C_SBIT)
 		strcat(sc, ".S");
@@ -162,6 +163,10 @@ Dconv(Fmt *fp)
 			sprint(str, "$%N", a);
 		break;
 
+	case D_CONST2:
+		sprint(str, "$%d-%d", a->offset, a->offset2);
+		break;
+
 	case D_SHIFT:
 		v = a->offset;
 		op = "<<>>->@>" + (((v>>5) & 3) << 1);
@@ -224,6 +229,7 @@ Rconv(Fmt *fp)
 	sprint(str, "GOK-reglist");
 	switch(a->type) {
 	case D_CONST:
+	case D_CONST2:
 		if(a->reg != NREG)
 			break;
 		if(a->sym != S)

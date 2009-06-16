@@ -3,88 +3,80 @@
 // license that can be found in the LICENSE file.
 
 TEXT _rt0_arm(SB),7,$0
-// copy arguments forward on an even stack
-//     	MOVW	$0(SP), R0
-//	MOVL	0(SP), R1		// argc
-//	LEAL	4(SP), R1		// argv
-//	SUBL	$128, SP		// plenty of scratch
-//	ANDL	$~7, SP
-//	MOVL	AX, 120(SP)		// save argc, argv away
-//	MOVL	BX, 124(SP)
+	MOVW $setR12(SB), R12
 
+	// copy arguments forward on an even stack
+	MOVW	0(SP), R0		// argc
+	MOVW	4(SP), R1		// argv
+	SUB	$128, SP		// plenty of scratch
+	AND	$~7, SP
+	MOVW	R0, 120(SP)		// save argc, argv away
+	MOVW	R1, 124(SP)
 
-//	// write "go386\n"
-//	PUSHL	$6
-//	PUSHL	$hello(SB)
-//	PUSHL	$1
-//	CALL	sys·write(SB)
-//	POPL	AX
-//	POPL	AX
-//	POPL	AX
+	// set up m and g registers
+	// g is R10, m is R9
+	MOVW	$g0(SB), R10
+	MOVW	$m0(SB), R9
 
+	// save m->g0 = g0
+	MOVW	R10, 0(R9)
 
-//	CALL	ldt0setup(SB)
+	// create istack out of the OS stack
+	MOVW	$(-8192+104)(SP), R0
+	MOVW	R0, 0(R10)	// 0(g) is stack limit (w 104b guard)
+	MOVW	SP, 4(R10)	// 4(g) is base
+	BL	emptyfunc(SB)	// fault if stack check is wrong
 
-	// set up %fs to refer to that ldt entry
-//	MOVL	$(7*8+7), AX
-//	MOVW	AX, FS
+	BL	check(SB)
 
-//	// store through it, to make sure it works
-//	MOVL	$0x123, 0(FS)
-//	MOVL	tls0(SB), AX
-//	CMPL	AX, $0x123
-//	JEQ	ok
-//	MOVL	AX, 0
-// ok:
+	// saved argc, argv
+	MOVW	120(SP), R0
+	MOVW	R0, 0(SP)
+	MOVW	124(SP), R0
+	MOVW	R0, 4(SP)
+	BL	args(SB)
+	BL	osinit(SB)
+	BL	schedinit(SB)
 
-//	// set up m and g "registers"
-//	// g is 0(FS), m is 4(FS)
-//	LEAL	g0(SB), CX
-//	MOVL	CX, 0(FS)
-//	LEAL	m0(SB), AX
-//	MOVL	AX, 4(FS)
+	// create a new goroutine to start program
+	MOVW	$mainstart(SB), R0
+	MOVW.W	R0, -4(SP)
+	MOVW	$8, R0
+	MOVW.W	R0, -4(SP)
+	MOVW	$0, R0
+	MOVW.W	R0, -4(SP)	// push $0 as guard
+	BL	sys·newproc(SB)
+	MOVW	$12(SP), SP	// pop args and LR
 
-//	// save m->g0 = g0
-//	MOVL	CX, 0(AX)
+	// start this M
+	BL	mstart(SB)
 
-//	// create istack out of the OS stack
-//	LEAL	(-8192+104)(SP), AX	// TODO: 104?
-//	MOVL	AX, 0(CX)	// 8(g) is stack limit (w 104b guard)
-//	MOVL	SP, 4(CX)	// 12(g) is base
-//	CALL	emptyfunc(SB)	// fault if stack check is wrong
-
-//	// convention is D is always cleared
-//	CLD
-
-//	CALL	check(SB)
-
-//	// saved argc, argv
-//	MOVL	120(SP), AX
-//	MOVL	AX, 0(SP)
-//	MOVL	124(SP), AX
-//	MOVL	AX, 4(SP)
-//	CALL	args(SB)
-//	CALL	osinit(SB)
-//	CALL	schedinit(SB)
-
-//	// create a new goroutine to start program
-//	PUSHL	$mainstart(SB)	// entry
-//	PUSHL	$8	// arg size
-//	CALL	sys·newproc(SB)
-//	POPL	AX
-//	POPL	AX
-
-//	// start this M
-//	CALL	mstart(SB)
-
-	BL	main·main(SB)
-	MOVW	$99, R0
+	MOVW	$0, R0
 	SWI	$0x00900001
+	B	_dep_dummy(SB)	// Never reached
+
+
+TEXT mainstart(SB),7,$0
+	BL	main·init(SB)
+	BL	initdone(SB)
+	BL	main·main(SB)
+	MOVW	$0, R0
+	MOVW.W	R0, -4(SP)
+	MOVW.W	R14, -4(SP)	// Push link as well
+	BL	exit(SB)
+	MOVW	$8(SP), SP	// pop args and LR
+	RET
 
 // TODO(kaib): remove these once linker works properly
 // pull in dummy dependencies
-// TEXT _dep_dummy(SB),7,$0
-//	BL	sys·morestack(SB)
+TEXT _dep_dummy(SB),7,$0
+	BL	sys·morestack(SB)
+	BL	sys·morestackx(SB)
+	BL	_div(SB)
+	BL	_divu(SB)
+	BL	_mod(SB)
+	BL	_modu(SB)
+	BL	_modu(SB)
 
 
 TEXT	breakpoint(SB),7,$0
@@ -114,33 +106,38 @@ TEXT gosave(SB), 7, $0
 // support for morestack
 
 // return point when leaving new stack.
-// save AX, jmp to lesstack to switch back
+// save R0, jmp to lesstack to switch back
 TEXT	retfromnewstack(SB),7,$0
-	BL	abort(SB)
-//	MOVL	4(FS), BX	// m
-//	MOVL	AX, 12(BX)	// save AX in m->cret
-//	JMP	lessstack(SB)
+	MOVW	R0,12(R9)	// m->cret
+	B	lessstack(SB)
 
 // gogo, returning 2nd arg instead of 1
 TEXT gogoret(SB), 7, $0
-	BL	abort(SB)
-//	MOVL	8(SP), AX	// return 2nd arg
-//	MOVL	4(SP), BX	// gobuf
-//	MOVL	0(BX), SP	// restore SP
-//	MOVL	4(BX), BX
-//	MOVL	BX, 0(SP)	// put PC on the stack
-//	RET
+	MOVW	8(SP), R0	// return 2nd arg
+	MOVW	4(SP), R1	// gobuf
+	MOVW	0(R1), SP	// restore SP
+	MOVW	4(R1), PC	// restore PC
 
 TEXT setspgoto(SB), 7, $0
-	BL	abort(SB)
-//	MOVL	4(SP), AX	// SP
-//	MOVL	8(SP), BX	// fn to call
-//	MOVL	12(SP), CX	// fn to return
-//	MOVL	AX, SP
-//	PUSHL	CX
-//	JMP	BX
-//	POPL	AX	// not reached
-//	RET
+	MOVW	4(SP), R0	// SP
+	MOVW	8(SP), R1	// fn to call
+	MOVW	12(SP), R2	// fn to return into
+	MOVW	R2, R14		// restore LR
+	MOVW	R0, SP
+	MOVW	R1, PC		// goto
+
+// Optimization to make inline stack splitting code smaller
+// R0 is original first argument
+// R1 is arg_num << 24 | autosize >> 3
+TEXT sys·morestackx(SB), 7, $0
+	MOVW	R0, 4(SP)	// Save arg0
+	MOVW	R1<<8, R2
+	MOVW	R2>>5, R2
+	MOVW	R2, 4(R10)	// autooffset into g
+	MOVW	R1>>24, R2
+	MOVW	R2<<3, R2
+	MOVW	R2, 8(R10)	// argsize into g
+	B	sys·morestack(SB)
 
 // bool cas(int32 *val, int32 old, int32 new)
 // Atomically:
@@ -149,18 +146,26 @@ TEXT setspgoto(SB), 7, $0
 //		return 1;
 //	}else
 //		return 0;
-TEXT cas(SB), 7, $0
-	BL	abort(SB)
-//	MOVL	4(SP), BX
-//	MOVL	8(SP), AX
-//	MOVL	12(SP), CX
-//	LOCK
-//	CMPXCHGL	CX, 0(BX)
-//	JZ 3(PC)
-//	MOVL	$0, AX
-//	RET
-//	MOVL	$1, AX
-//	RET
+#define	LDREX(a,r)	WORD	$(0xe<<28|0x01900f9f | (a)<<16 | (r)<<12)
+#define	STREX(a,v,r)	WORD	$(0xe<<28|0x01800f90 | (a)<<16 | (r)<<12 | (v)<<0)
+
+TEXT	cas+0(SB),0,$12		/* r0 holds p */
+	MOVW	ov+4(FP), R1
+	MOVW	nv+8(FP), R2
+spin:
+/*	LDREX	0(R0),R3	*/
+	LDREX(0,3)
+	CMP.S	R3, R1
+	BNE	fail
+/*	STREX	0(R0),R2,R4	*/
+	STREX(0,2,4)
+	CMP.S	$0, R4
+	BNE	spin
+	MOVW	$1, R0
+	RET
+fail:
+	MOVW	$0, R0
+	RET
 
 // void jmpdefer(fn, sp);
 // called from deferreturn.
@@ -200,6 +205,10 @@ TEXT	sys·setcallerpc+0(SB),7,$0
 //	MOVL	BX, -4(AX)		// set calling pc
 //	RET
 
+TEXT emptyfunc(SB),0,$0
+	RET
+
 TEXT abort(SB),7,$0
-	WORD	$0
+	MOVW	$0, R0
+	MOVW	(R0), R1
 

@@ -546,6 +546,8 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 		c++;
 		break;
 
+	case D_CONST2:
+		a->offset2 = Bget4(f);	// fall through
 	case D_BRANCH:
 	case D_OREG:
 	case D_CONST:

@@ -61,6 +61,7 @@ typedef	struct	Rgn	Rgn;
 struct	Adr
 {
 	int32	offset;
+	int32	offset2;
 	double	dval;
 	char	sval[NSNAME];
 	Ieee	ieee;
@@ -140,7 +141,7 @@ struct	Reg
 	int32	regu;
 	int32	loop;		/* could be shorter */
 
-	
+
 	Reg*	log5;
 	int32	active;
 
@@ -362,10 +363,10 @@ int32	FtoB(int);
 int	BtoR(int32);
 int	BtoF(int32);
 
-void	predicate(void); 
-int	isbranch(Prog *); 
-int	predicable(Prog *p); 
-int	modifiescpsr(Prog *p); 
+void	predicate(void);
+int	isbranch(Prog *);
+int	predicable(Prog *p);
+int	modifiescpsr(Prog *p);
 
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"B"	Bits

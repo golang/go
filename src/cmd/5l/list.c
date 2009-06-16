@@ -61,7 +61,7 @@ Pconv(Fmt *fp)
 	switch(a) {
 	default:
 		s = str;
-		s += sprint(s, "(%ld)", p->line);
+		s += sprint(s, "(%d)", p->line);
 		if(p->reg == NREG)
 			sprint(s, "	%A%C	%D,%D",
 				a, p->scond, &p->from, &p->to);
@@ -76,23 +76,23 @@ Pconv(Fmt *fp)
 
 	case ASWPW:
 	case ASWPBU:
-		sprint(str, "(%ld)	%A%C	R%d,%D,%D",
+		sprint(str, "(%d)	%A%C	R%d,%D,%D",
 			p->line, a, p->scond, p->reg, &p->from, &p->to);
 		break;
 
 	case ADATA:
 	case AINIT:
 	case ADYNT:
-		sprint(str, "(%ld)	%A%C	%D/%d,%D",
+		sprint(str, "(%d)	%A%C	%D/%d,%D",
 			p->line, a, p->scond, &p->from, p->reg, &p->to);
 		break;
 
 	case AWORD:
-		sprint(str, "WORD %ld", p->to.offset);
+		sprint(str, "WORD %x", p->to.offset);
 		break;
 
 	case ADWORD:
-		sprint(str, "DWORD %ld %ld", p->from.offset, p->to.offset);
+		sprint(str, "DWORD %x %x", p->from.offset, p->to.offset);
 		break;
 	}
 	return fmtstrcpy(fp, str);
@@ -178,13 +178,17 @@ Dconv(Fmt *fp)
 			sprint(str, "$%N(R%d)", a, a->reg);
 		break;
 
+	case D_CONST2:
+		sprint(str, "$%d-%d", a->offset, a->offset2);
+		break;
+
 	case D_SHIFT:
 		v = a->offset;
 		op = "<<>>->@>" + (((v>>5) & 3) << 1);
 		if(v & (1<<4))
-			sprint(str, "R%ld%c%cR%ld", v&15, op[0], op[1], (v>>8)&15);
+			sprint(str, "R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15);
 		else
-			sprint(str, "R%ld%c%c%ld", v&15, op[0], op[1], (v>>7)&31);
+			sprint(str, "R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31);
 		if(a->reg != NREG)
 			sprint(str+strlen(str), "(R%d)", a->reg);
 		break;
@@ -262,9 +266,9 @@ Dconv(Fmt *fp)
 				sprint(str, "%.5lux(BRANCH)", v);
 		} else
 			if(a->sym != S)
-				sprint(str, "%s+%ld(APC)", a->sym->name, a->offset);
+				sprint(str, "%s+%d(APC)", a->sym->name, a->offset);
 			else
-				sprint(str, "%ld(APC)", a->offset);
+				sprint(str, "%d(APC)", a->offset);
 		break;
 
 	case D_FCONST:
@@ -293,35 +297,35 @@ Nconv(Fmt *fp)
 		break;
 
 	case D_NONE:
-		sprint(str, "%ld", a->offset);
+		sprint(str, "%d", a->offset);
 		break;
 
 	case D_EXTERN:
 		if(s == S)
-			sprint(str, "%ld(SB)", a->offset);
+			sprint(str, "%d(SB)", a->offset);
 		else
-			sprint(str, "%s+%ld(SB)", s->name, a->offset);
+			sprint(str, "%s+%d(SB)", s->name, a->offset);
 		break;
 
 	case D_STATIC:
 		if(s == S)
-			sprint(str, "<>+%ld(SB)", a->offset);
+			sprint(str, "<>+%d(SB)", a->offset);
 		else
-			sprint(str, "%s<>+%ld(SB)", s->name, a->offset);
+			sprint(str, "%s<>+%d(SB)", s->name, a->offset);
 		break;
 
 	case D_AUTO:
 		if(s == S)
-			sprint(str, "%ld(SP)", a->offset);
+			sprint(str, "%d(SP)", a->offset);
 		else
-			sprint(str, "%s-%ld(SP)", s->name, -a->offset);
+			sprint(str, "%s-%d(SP)", s->name, -a->offset);
 		break;
 
 	case D_PARAM:
 		if(s == S)
-			sprint(str, "%ld(FP)", a->offset);
+			sprint(str, "%d(FP)", a->offset);
 		else
-			sprint(str, "%s+%ld(FP)", s->name, a->offset);
+			sprint(str, "%s+%d(FP)", s->name, a->offset);
 		break;
 	}
 	return fmtstrcpy(fp, str);

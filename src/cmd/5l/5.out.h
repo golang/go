@@ -84,10 +84,10 @@ enum	as
 	AB,
 	ABL,
 
-/* 
- * Do not reorder or fragment the conditional branch 
- * opcodes, or the predication code will break 
- */ 
+/*
+ * Do not reorder or fragment the conditional branch
+ * opcodes, or the predication code will break
+ */
 	ABEQ,
 	ABNE,
 	ABCS,
@@ -186,6 +186,22 @@ enum	as
 #define	C_FBIT	(1<<7)	/* psr flags-only */
 #define	C_UBIT	(1<<7)	/* up bit */
 
+#define C_SCOND_EQ	0
+#define C_SCOND_NE	1
+#define C_SCOND_HS	2
+#define C_SCOND_LO	3
+#define C_SCOND_MI	4
+#define C_SCOND_PL	5
+#define C_SCOND_VS	6
+#define C_SCOND_VC	7
+#define C_SCOND_HI	8
+#define C_SCOND_LS	9
+#define C_SCOND_GE	10
+#define C_SCOND_LT	11
+#define C_SCOND_GT	12
+#define C_SCOND_LE	13
+#define C_SCOND_N	15
+
 /* type/name */
 #define	D_GOK	0
 #define	D_NONE	1
@@ -209,6 +225,7 @@ enum	as
 #define D_ADDR		(D_NONE+22)
 
 #define D_SBIG		(D_NONE+23)
+#define	D_CONST2	(D_NONE+24)
 
 /* name */
 #define	D_EXTERN	(D_NONE+3)
