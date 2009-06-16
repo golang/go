@@ -1203,6 +1203,8 @@ oldtype(Sym *s)
 {
 	Type *t;
 
+	if(s == S)
+		return T;
 	if(s->def == N || s->def->op != OTYPE) {
 		yyerror("%S is not a type", s);
 		return T;

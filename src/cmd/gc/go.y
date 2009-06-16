@@ -1087,6 +1087,11 @@ othertype:
 |	interfacetype
 |	dotname
 	{
+		if($1->op == ODOT) {
+			yyerror("%S.%S is not a type", $1->left->sym, $1->right->sym);
+			$$ = T;
+			break;
+		}
 		if($1->op == OTYPE)
 		if($1->type->etype == TANY)
 		if(strcmp(package, "PACKAGE") != 0)
