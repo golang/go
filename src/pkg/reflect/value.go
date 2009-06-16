@@ -512,7 +512,14 @@ func (v *ptrValueStruct) Get() Addr {
 	return *(*Addr)(v.addr)
 }
 
+func (v *ptrValueStruct) IsNil() bool {
+	return uintptr(*(*Addr)(v.addr)) == 0
+}
+
 func (v *ptrValueStruct) Sub() Value {
+	if v.IsNil() {
+		return nil
+	}
 	return newValueAddr(v.typ.(PtrType).Sub(), v.Get());
 }
 
@@ -524,10 +531,6 @@ func (v *ptrValueStruct) SetSub(subv Value) {
 			a.String(), b.String());
 	}
 	*(*Addr)(v.addr) = subv.Addr();
-}
-
-func (v *ptrValueStruct) IsNil() bool {
-	return uintptr(*(*Addr)(v.addr)) == 0
 }
 
 func ptrCreator(typ Type, addr Addr) Value {
