@@ -143,24 +143,24 @@ TEXT sys·lessstack(SB), 7, $0
 // morestack trampolines
 TEXT	sys·morestack00+0(SB),7,$0
 	MOVQ	$0, AX
-	MOVQ	AX, m_morearg(m)
+	MOVQ	AX, m_moreframe(m)
 	MOVQ	$sys·morestack+0(SB), AX
 	JMP	AX
 
 TEXT	sys·morestack01+0(SB),7,$0
 	SHLQ	$32, AX
-	MOVQ	AX, m_morearg(m)
+	MOVQ	AX, m_moreframe(m)
 	MOVQ	$sys·morestack+0(SB), AX
 	JMP	AX
 
 TEXT	sys·morestack10+0(SB),7,$0
 	MOVLQZX	AX, AX
-	MOVQ	AX, m_morearg(m)
+	MOVQ	AX, m_moreframe(m)
 	MOVQ	$sys·morestack+0(SB), AX
 	JMP	AX
 
 TEXT	sys·morestack11+0(SB),7,$0
-	MOVQ	AX, m_morearg(m)
+	MOVQ	AX, m_moreframe(m)
 	MOVQ	$sys·morestack+0(SB), AX
 	JMP	AX
 
@@ -199,7 +199,7 @@ TEXT	sys·morestack48(SB),7,$0
 TEXT	sys·morestackx(SB),7,$0
 	POPQ	AX
 	SHLQ	$35, AX
-	MOVQ	AX, m_morearg(m)
+	MOVQ	AX, m_moreframe(m)
 	MOVQ	$sys·morestack(SB), AX
 	JMP	AX
 

@@ -93,7 +93,7 @@ nuke:
 	rm -f *.[568] *.a $(GOROOT)/lib/$(LIB)
 
 clean:
-	rm -f *.[568] *.a runtime.acid cgo2c
+	rm -f *.[568] *.a runtime.acid cgo2c */asm.h
 
 %.$O:	%.go
 	$(GC) $<
@@ -128,4 +128,8 @@ runtime.acid: runtime.h proc.c
 
 chan.acid: runtime.h chan.c
 	$(CC) -a chan.c >chan.acid
+
+$(GOARCH)/asm.h: runtime.acid mkasmh
+	mkasmh >$@.x
+	mv -f $@.x $@
 
