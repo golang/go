@@ -6,13 +6,35 @@ package syscall
 
 import "syscall"
 
+//sys	Chown(path string, uid int, gid int) (errno int)
+//sys	Fchown(fd int, uid int, gid int) (errno int)
+//sys	Fstat(fd int, stat *Stat_t) (errno int)
+//sys	Fstatfs(fd int, buf *Statfs_t) (errno int)
+//sys	Getegid() (egid int)
+//sys	Geteuid() (euid int)
+//sys	Getgid() (gid int)
+//sys	Getuid() (uid int)
+//sys	Lchown(path string, uid int, gid int) (errno int)
+//sys	Listen(s int, n int) (errno int)
+//sys	Lstat(path string, stat *Stat_t) (errno int)
+//sys	Seek(fd int, offset int64, whence int) (off int64, errno int) = SYS_LSEEK
+//sys	Setfsgid(gid int) (errno int)
+//sys	Setfsuid(uid int) (errno int)
+//sys	Setgid(gid int) (errno int)
+//sys	Setregid(rgid int, egid int) (errno int)
+//sys	Setresgid(rgid int, egid int, sgid int) (errno int)
+//sys	Setresuid(ruid int, euid int, suid int) (errno int)
+//sys	Setreuid(ruid int, euid int) (errno int)
+//sys	Shutdown(fd int, how int) (errno int)
+//sys	Stat(path string, stat *Stat_t) (errno int)
+//sys	Statfs(path string, buf *Statfs_t) (errno int)
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
 //sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
 //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
-//sys	socket(domain int, typ int, proto int) (fd int, errno int)
+//sys	getgroups(n int, list *_Gid_t) (nn int, errno int)
+//sys	setgroups(n int, list *_Gid_t) (errno int)
 //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
-//sys	Listen(s int, n int) (errno int)
-//sys	Shutdown(fd int, how int) (errno int)
+//sys	socket(domain int, typ int, proto int) (fd int, errno int)
 
 func Getpagesize() int {
 	return 4096

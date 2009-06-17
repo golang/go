@@ -36,13 +36,6 @@ func pipe() (r int, w int, errno int) {
 	return;
 }
 
-func lseek(fd int, offset int64, whence int) (newoffset uintptr, errno int) {
-	r0, r1, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
-	newoffset = uintptr(r0);
-	errno = int(e1);
-	return;
-}
-
 func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
 	r0, r1, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
 	fd = int(r0);
@@ -446,6 +439,13 @@ func Revoke(path string) (errno int) {
 
 func Rmdir(path string) (errno int) {
 	r0, r1, e1 := Syscall(SYS_RMDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
+	r0, r1, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
+	newoffset = int64(r0);
 	errno = int(e1);
 	return;
 }

@@ -29,7 +29,7 @@ TEXT	syscall·Syscall(SB),7,$0
 	RET
 ok:
 	MOVL	AX, 20(SP)	// r1
-	MOVL	DX, 24(SP)	// r2 ???
+	MOVL	DX, 24(SP)	// r2
 	MOVL	$0, 28(SP)	// errno
 	CALL	sys·exitsyscall(SB)
 	RET
@@ -56,7 +56,7 @@ TEXT	syscall·Syscall6(SB),7,$0
 	RET
 ok6:
 	MOVL	AX, 32(SP)	// r1
-	MOVL	DX, 36(SP)	// r2 ???
+	MOVL	DX, 36(SP)	// r2
 	MOVL	$0, 40(SP)	// errno
 	CALL	sys·exitsyscall(SB)
 	RET
@@ -78,6 +78,6 @@ TEXT syscall·RawSyscall(SB),7,$0
 	RET
 ok1:
 	MOVL	AX, 20(SP)	// r1
-	MOVL	DX, 24(SP)	// r2 ???
+	MOVL	DX, 24(SP)	// r2
 	MOVL	$0, 28(SP)	// errno
 	RET

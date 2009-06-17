@@ -36,13 +36,6 @@ func pipe() (r int, w int, errno int) {
 	return;
 }
 
-func lseek(fd int, offset int64, whence int) (newoffset uintptr, errno int) {
-	r0, r1, e1 := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset >> 32), uintptr(whence), 0, 0);
-	newoffset = uintptr(r0);
-	errno = int(e1);
-	return;
-}
-
 func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
 	r0, r1, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
 	fd = int(r0);
@@ -450,6 +443,12 @@ func Rmdir(path string) (errno int) {
 	return;
 }
 
+func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
+	r0, r1, e1 := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset >> 32), uintptr(whence), 0, 0);
+	newoffset = int64(int64(r1)<<32 | int64(r0));
+	return;
+}
+
 func Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int) {
 	r0, r1, e1 := Syscall6(SYS_SELECT, uintptr(n), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
 	errno = int(e1);
@@ -612,9 +611,9 @@ func write(fd int, buf *byte, nbuf int) (n int, errno int) {
 	return;
 }
 
-func gettimeofday(tp *Timeval) (sec int64, usec int32, errno int) {
+func gettimeofday(tp *Timeval) (sec int32, usec int32, errno int) {
 	r0, r1, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0);
-	sec = int64(r0);
+	sec = int32(r0);
 	usec = int32(r1);
 	errno = int(e1);
 	return;

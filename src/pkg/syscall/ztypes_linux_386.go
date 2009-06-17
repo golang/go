@@ -163,8 +163,8 @@ type Rusage struct {
 }
 
 type Rlimit struct {
-	Cur uint32;
-	Max uint32;
+	Cur uint64;
+	Max uint64;
 }
 
 type _C_int int32
@@ -175,7 +175,7 @@ type Stat_t struct {
 	Dev uint64;
 	__pad1 uint16;
 	Pad0 [2]byte;
-	Ino uint32;
+	__st_ino uint32;
 	Mode uint32;
 	Nlink uint32;
 	Uid uint32;
@@ -183,24 +183,23 @@ type Stat_t struct {
 	Rdev uint64;
 	__pad2 uint16;
 	Pad1 [2]byte;
-	Size int32;
+	Size int64;
 	Blksize int32;
-	Blocks int32;
+	Blocks int64;
 	Atim Timespec;
 	Mtim Timespec;
 	Ctim Timespec;
-	__unused4 uint32;
-	__unused5 uint32;
+	Ino uint64;
 }
 
 type Statfs_t struct {
 	Type int32;
 	Bsize int32;
-	Blocks uint32;
-	Bfree uint32;
-	Bavail uint32;
-	Files uint32;
-	Ffree uint32;
+	Blocks uint64;
+	Bfree uint64;
+	Bavail uint64;
+	Files uint64;
+	Ffree uint64;
 	Fsid [8]byte /* __fsid_t */;
 	Namelen int32;
 	Frsize int32;
@@ -208,8 +207,8 @@ type Statfs_t struct {
 }
 
 type Dirent struct {
-	Ino uint32;
-	Off int32;
+	Ino uint64;
+	Off int64;
 	Reclen uint16;
 	Type uint8;
 	Name [256]int8;
@@ -254,7 +253,7 @@ type Linger struct {
 }
 
 type FdSet struct {
-	__fds_bits [32]int32;
+	Bits [32]int32;
 }
 
 type Sysinfo_t struct {
@@ -280,7 +279,7 @@ type Utsname struct {
 	Release [65]int8;
 	Version [65]int8;
 	Machine [65]int8;
-	__domainname [65]int8;
+	Domainname [65]int8;
 }
 
 type Ustat_t struct {

@@ -6,7 +6,7 @@
 // System calls for 386, Linux
 //
 
-// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+// func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 // Trap # in AX, args in BX CX DX SI DI, return in AX
 
 TEXT	syscall·Syscall(SB),7,$0
@@ -33,6 +33,7 @@ ok:
 	CALL	sys·exitsyscall(SB)
 	RET
 
+// func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
 // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
 TEXT	syscall·Syscall6(SB),7,$0
 	CALL	sys·entersyscall(SB)
@@ -59,6 +60,7 @@ ok6:
 	CALL	sys·exitsyscall(SB)
 	RET
 
+// func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 TEXT syscall·RawSyscall(SB),7,$0
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
@@ -96,13 +98,42 @@ TEXT syscall·socketcall(SB),7,$0
 	INT	$0x80
 	CMPL	AX, $0xfffff001
 	JLS	oksock
-	MOVL	$-1, 28(SP)	// n
+	MOVL	$-1, 32(SP)	// n
 	NEGL	AX
-	MOVL	AX, 32(SP)  // errno
+	MOVL	AX, 36(SP)  // errno
 	CALL	sys·exitsyscall(SB)
 	RET
 oksock:
-	MOVL	AX, 28(SP)	// n
-	MOVL	$0, 32(SP)	// errno
+	MOVL	AX, 32(SP)	// n
+	MOVL	$0, 36(SP)	// errno
+	CALL	sys·exitsyscall(SB)
+	RET
+
+#define SYS__LLSEEK 140	/* from zsysnum_linux_386.go */
+// func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+// Implemented in assembly to avoid allocation when
+// taking the address of the return value newoffset.
+// Underlying system call is
+//	llseek(int fd, int offhi, int offlo, int64 *result, int whence)
+TEXT syscall·Seek(SB),7,$0
+	CALL	sys·entersyscall(SB)
+	MOVL	$SYS__LLSEEK, AX	// syscall entry
+	MOVL	4(SP), BX	// fd
+	MOVL	12(SP), CX	// offset-high
+	MOVL	8(SP), DX	// offset-low
+	LEAL	20(SP), SI	// result pointer
+	MOVL	16(SP),  DI	// whence
+	INT	$0x80
+	CMPL	AX, $0xfffff001
+	JLS	okseek
+	MOVL	$-1, 20(SP)	// newoffset low
+	MOVL	$-1, 24(SP)	// newoffset high
+	NEGL	AX
+	MOVL	AX, 28(SP)  // errno
+	CALL	sys·exitsyscall(SB)
+	RET
+okseek:
+	// system call filled in newoffset already
+	MOVL	$0, 28(SP)	// errno
 	CALL	sys·exitsyscall(SB)
 	RET

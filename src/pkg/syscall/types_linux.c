@@ -6,8 +6,10 @@
 Input to godefs.  See PORT.
  */
 
-#define __DARWIN_UNIX03 0
-#define KERNEL
+#define _LARGEFILE_SOURCE
+#define _LARGEFILE64_SOURCE
+#define _FILE_OFFSET_BITS 64
+#define _GNU_SOURCE
 
 #include <dirent.h>
 #include <fcntl.h>
