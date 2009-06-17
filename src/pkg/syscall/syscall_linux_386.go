@@ -58,6 +58,8 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
 //sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
 
+//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
+
 // Underlying system call writes to newoffset via pointer.
 // Implemented in assembly to avoid allocation.
 func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
@@ -93,7 +95,7 @@ const (
 func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
 
 func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
-	fd, errno = socketcall(_SOCKET, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
+	fd, errno = socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
 	return;
 }
 
