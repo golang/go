@@ -134,23 +134,17 @@ struct	Array
 };
 struct	Gobuf
 {
-	// Offsets of fields in this struct are known to assembly.
-	// Any changes made here must be reflected in */asm.h.
-	// The debuggers also know the layout of this struct.
+	// The offsets of these fields are known to (hard-coded in) libmach.
 	byte*	sp;
 	byte*	pc;
 	G*	g;
 };
 struct	G
 {
-	// Offsets of fields in this block are known to assembly.
-	// Any changes made here must be reflected in */asm.h.
-	byte*	stackguard;	// cannot move - also known to linker, debuggers
-	byte*	stackbase;	// cannot move - also known to debuggers
+	byte*	stackguard;	// cannot move - also known to linker, libmach
+	byte*	stackbase;	// cannot move - also known to libmach
 	Defer*	defer;
-	Gobuf	sched;		// cannot move - also known to debuggers
-
-	// Fields not known to assembly.
+	Gobuf	sched;		// cannot move - also known to libmach
 	byte*	stack0;		// first stack segment
 	byte*	entry;		// initial function
 	G*	alllink;	// on allg
@@ -171,14 +165,12 @@ struct	Mem
 };
 struct	M
 {
-	// Offsets of fields in this block are known to assembly.
-	// Any changes made here must be reflected in */asm.h.
-	// These are known to debuggers.
+	// The offsets of these fields are known to (hard-coded in) libmach.
 	G*	g0;		// goroutine with scheduling stack
 	void	(*morepc)(void);
 	Gobuf	morebuf;	// gobuf arg to morestack
 
-	// Known to assembly, but not to debuggers.
+	// Fields not known to debuggers.
 	uint32	moreframe;	// size arguments to morestack
 	uint32	moreargs;
 	uintptr	cret;		// return value from C
@@ -187,8 +179,6 @@ struct	M
 	uint32	tls[8];		// thread-local storage (for 386 extern register)
 	Gobuf	sched;	// scheduling stack
 	G*	curg;		// current running goroutine
-
-	// Fields not known to assembly.
 	int32	id;
 	int32	mallocing;
 	int32	gcing;
@@ -202,7 +192,7 @@ struct	M
 };
 struct	Stktop
 {
-	// The debuggers know the layout of this struct.
+	// The offsets of these fields are known to (hard-coded in) libmach.
 	uint8*	stackguard;
 	uint8*	stackbase;
 	Gobuf	gobuf;
