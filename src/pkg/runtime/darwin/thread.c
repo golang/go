@@ -151,8 +151,12 @@ osinit(void)
 void
 newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
-	// printf("newosproc m=%p g=%p stk=%p fn=%p\n", m, g, stk, fn);
 	m->tls[0] = m->id;	// so 386 asm can find it
+
+	if(0){
+		printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+			stk, m, g, fn, m->id, m->tls[0], &m);
+	}
 	bsdthread_create(stk, m, g, fn);
 }
 

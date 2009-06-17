@@ -1038,7 +1038,7 @@ loop:
 		s = p->from.sym;
 		if(s != S && s->dupok) {
 			if(debug['v'])
-				Bprint(&bso, "skipping %s in %s: dupok", s->name, pn);
+				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
 			goto loop;
 		}
 		if(s != S) {

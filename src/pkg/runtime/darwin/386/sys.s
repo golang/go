@@ -6,6 +6,8 @@
 // See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
 // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
 
+#include "386/asm.h"
+
 TEXT notok(SB),7,$0
 	MOVL	$0xf1, 0xf1
 	RET
@@ -26,7 +28,7 @@ TEXT exit1(SB),7,$0
 	CALL	notok(SB)
 	RET
 
-TEXT sys·write(SB),7,$0
+TEXT write(SB),7,$0
 	MOVL	$4, AX
 	INT	$0x80
 	JAE	2(PC)
@@ -56,9 +58,10 @@ TEXT sigaction(SB),7,$0
 //	16(FP)	siginfo
 //	20(FP)	context
 TEXT sigtramp(SB),7,$40
-	MOVL	4(FS), BP	// m
-	MOVL	28(BP), BP	// m->gsignal
-	MOVL	BP, 0(FS)	// g = m->gsignal
+	// g = m->gsignal
+	MOVL	m, BP
+	MOVL	m_gsignal(BP), BP
+	MOVL	BP, g
 
 	MOVL	handler+4(FP), DI
 	MOVL	signo+12(FP), AX
@@ -95,11 +98,11 @@ TEXT bsdthread_create(SB),7,$32
 	// 0(SP) is where the caller PC would be; kernel skips it
 	MOVL	func+12(FP), BX
 	MOVL	BX, 4(SP)	// func
-	MOVL	m+4(FP), BX
+	MOVL	mm+4(FP), BX
 	MOVL	BX, 8(SP)	// arg
 	MOVL	stk+0(FP), BX
 	MOVL	BX, 12(SP)	// stack
-	MOVL	g+8(FP), BX
+	MOVL	gg+8(FP), BX
 	MOVL	BX, 16(SP)	// pthread
 	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
 	INT	$0x80
@@ -121,7 +124,7 @@ TEXT bsdthread_start(SB),7,$0
 	// set up ldt 7+id to point at m->tls.
 	// m->tls is at m+40.  newosproc left
 	// the m->id in tls[0].
-	LEAL	40(DX), BP
+	LEAL	m_tls(DX), BP
 	MOVL	0(BP), DI
 	ADDL	$7, DI	// m0 is LDT#7. count up.
 	// setldt(tls#, &tls, sizeof tls)
@@ -139,9 +142,9 @@ TEXT bsdthread_start(SB),7,$0
 	MOVW	DI, FS
 
 	// Now segment is established.  Initialize m, g.
-	MOVL	AX, 0(FS)	// g
-	MOVL	DX, 4(FS)	// m
-	MOVL	BX, 20(DX)	// m->procid = thread port (for debuggers)
+	MOVL	AX, g
+	MOVL	DX, m
+	MOVL	BX, m_procid(DX)	// m->procid = thread port (for debuggers)
 	CALL	CX	// fn()
 	CALL	exit1(SB)
 	RET

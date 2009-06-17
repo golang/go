@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "386/asm.h"
+
 TEXT _rt0_386(SB),7,$0
 	// copy arguments forward on an even stack
 	MOVL	0(SP), AX		// argc
@@ -10,17 +12,6 @@ TEXT _rt0_386(SB),7,$0
 	ANDL	$~7, SP
 	MOVL	AX, 120(SP)		// save argc, argv away
 	MOVL	BX, 124(SP)
-
-/*
-	// write "go386\n"
-	PUSHL	$6
-	PUSHL	$hello(SB)
-	PUSHL	$1
-	CALL	sys·write(SB)
-	POPL	AX
-	POPL	AX
-	POPL	AX
-*/
 
 	CALL	ldt0setup(SB)
 
@@ -37,19 +28,18 @@ TEXT _rt0_386(SB),7,$0
 ok:
 
 	// set up m and g "registers"
-	// g is 0(FS), m is 4(FS)
 	LEAL	g0(SB), CX
-	MOVL	CX, 0(FS)
+	MOVL	CX, g
 	LEAL	m0(SB), AX
-	MOVL	AX, 4(FS)
+	MOVL	AX, m
 
 	// save m->g0 = g0
-	MOVL	CX, 0(AX)
+	MOVL	CX, m_g0(AX)
 
 	// create istack out of the OS stack
 	LEAL	(-8192+104)(SP), AX	// TODO: 104?
-	MOVL	AX, 0(CX)	// 8(g) is stack limit (w 104b guard)
-	MOVL	SP, 4(CX)	// 12(g) is base
+	MOVL	AX, g_stackguard(CX)
+	MOVL	SP, g_stackbase(CX)
 	CALL	emptyfunc(SB)	// fault if stack check is wrong
 
 	// convention is D is always cleared
@@ -68,7 +58,7 @@ ok:
 
 	// create a new goroutine to start program
 	PUSHL	$mainstart(SB)	// entry
-	PUSHL	$8	// arg size
+	PUSHL	$0	// arg size
 	CALL	sys·newproc(SB)
 	POPL	AX
 	POPL	AX
@@ -93,50 +83,104 @@ TEXT	breakpoint(SB),7,$0
 	BYTE $0xcc
 	RET
 
-// go-routine
-TEXT	gogo(SB), 7, $0
-	MOVL	4(SP), AX	// gobuf
-	MOVL	0(AX), SP	// restore SP
-	MOVL	4(AX), AX
-	MOVL	AX, 0(SP)	// put PC on the stack
-	MOVL	$1, AX
-	RET
+/*
+ *  go-routine
+ */
 
+// uintptr gosave(Gobuf*)
+// save state in Gobuf; setjmp
 TEXT gosave(SB), 7, $0
-	MOVL	4(SP), AX	// gobuf
-	MOVL	SP, 0(AX)	// save SP
-	MOVL	0(SP), BX
-	MOVL	BX, 4(AX)	// save PC
-	MOVL	$0, AX	// return 0
+	MOVL	4(SP), AX		// gobuf
+	LEAL	4(SP), BX		// caller's SP
+	MOVL	BX, gobuf_sp(AX)
+	MOVL	0(SP), BX		// caller's PC
+	MOVL	BX, gobuf_pc(AX)
+	MOVL	g, BX
+	MOVL	BX, gobuf_g(AX)
+	MOVL	$0, AX			// return 0
 	RET
 
-// support for morestack
-
-// return point when leaving new stack.
-// save AX, jmp to lesstack to switch back
-TEXT	retfromnewstack(SB),7,$0
-	MOVL	4(FS), BX	// m
-	MOVL	AX, 12(BX)	// save AX in m->cret
-	JMP	lessstack(SB)
-
-// gogo, returning 2nd arg instead of 1
-TEXT gogoret(SB), 7, $0
-	MOVL	8(SP), AX	// return 2nd arg
-	MOVL	4(SP), BX	// gobuf
-	MOVL	0(BX), SP	// restore SP
-	MOVL	4(BX), BX
-	MOVL	BX, 0(SP)	// put PC on the stack
-	RET
-
-TEXT setspgoto(SB), 7, $0
-	MOVL	4(SP), AX	// SP
-	MOVL	8(SP), BX	// fn to call
-	MOVL	12(SP), CX	// fn to return
-	MOVL	AX, SP
-	PUSHL	CX
+// void gogo(Gobuf*, uintptr)
+// restore state from Gobuf; longjmp
+TEXT gogo(SB), 7, $0
+	MOVL	8(SP), AX		// return 2nd arg
+	MOVL	4(SP), BX		// gobuf
+	MOVL	gobuf_g(BX), DX
+	MOVL	0(DX), CX		// make sure g != nil
+	MOVL	DX, g
+	MOVL	gobuf_sp(BX), SP	// restore SP
+	MOVL	gobuf_pc(BX), BX
 	JMP	BX
-	POPL	AX	// not reached
+
+// void gogocall(Gobuf*, void (*fn)(void))
+// restore state from Gobuf but then call fn.
+// (call fn, returning to state in Gobuf)
+TEXT gogocall(SB), 7, $0
+	MOVL	8(SP), AX		// fn
+	MOVL	4(SP), BX		// gobuf
+	MOVL	gobuf_g(BX), DX
+	MOVL	DX, g
+	MOVL	0(DX), CX		// make sure g != nil
+	MOVL	gobuf_sp(BX), SP	// restore SP
+	MOVL	gobuf_pc(BX), BX
+	PUSHL	BX
+	JMP	AX
+	POPL	BX	// not reached
+
+/*
+ * support for morestack
+ */
+
+// Called during function prolog when more stack is needed.
+TEXT sys·morestack(SB),7,$0
+	// Cannot grow scheduler stack (m->g0).
+	MOVL	m, BX
+	MOVL	m_g0(BX), SI
+	CMPL	g, SI
+	JNE	2(PC)
+	INT	$3
+
+	// frame size in DX
+	// arg size in AX
+	// Save in m.
+	MOVL	DX, m_moreframe(BX)
+	MOVL	AX, m_moreargs(BX)
+
+	// Called from f.
+	// Set m->morebuf to f's caller.
+	MOVL	4(SP), DI	// f's caller's PC
+	MOVL	DI, (m_morebuf+gobuf_pc)(BX)
+	LEAL	8(SP), CX	// f's caller's SP
+	MOVL	CX, (m_morebuf+gobuf_sp)(BX)
+	MOVL	g, SI
+	MOVL	SI, (m_morebuf+gobuf_g)(BX)
+
+	// Set m->morepc to f's PC.
+	MOVL	0(SP), AX
+	MOVL	AX, m_morepc(BX)
+
+	// Call newstack on m's scheduling stack.
+	MOVL	m_g0(BX), BP
+	MOVL	BP, g
+	MOVL	(m_sched+gobuf_sp)(BX), SP
+	CALL	newstack(SB)
+	MOVL	$0, 0x1003	// crash if newstack returns
 	RET
+
+// Return point when leaving stack.
+TEXT sys·lessstack(SB), 7, $0
+	// Save return value in m->cret
+	MOVL	m, BX
+	MOVL	AX, m_cret(BX)
+
+	// Call oldstack on m's scheduling stack.
+	MOVL	m_g0(BX), DX
+	MOVL	DX, g
+	MOVL	(m_sched+gobuf_sp)(BX), SP
+	CALL	oldstack(SB)
+	MOVL	$0, 0x1004	// crash if oldstack returns
+	RET
+
 
 // bool cas(int32 *val, int32 old, int32 new)
 // Atomically:
@@ -211,7 +255,4 @@ TEXT emptyfunc(SB),0,$0
 
 TEXT	abort(SB),7,$0
 	INT $0x3
-
-DATA hello+0(SB)/8, $"go386\n\z\z"
-GLOBL hello+0(SB), $8
 

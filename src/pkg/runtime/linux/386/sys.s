@@ -6,6 +6,8 @@
 // System calls and other sys.stuff for 386, Linux
 //
 
+#include "386/asm.h"
+
 TEXT syscall(SB),7,$0
 	MOVL 4(SP), AX	// syscall number
 	MOVL 8(SP), BX	// arg1
@@ -42,26 +44,6 @@ TEXT write(SB),7,$0
 	INT	$0x80
 	RET
 
-TEXT getpid(SB),7,$0
-	MOVL	$20, AX
-	INT	$0x80
-	RET
-
-TEXT kill(SB),7,$0
-	MOVL	$37, AX
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	INT	$0x80
-	RET
-
-TEXT sys·write(SB),7,$0
-	MOVL	$4, AX		// syscall - write
-	MOVL	4(SP), BX
-	MOVL	8(SP), CX
-	MOVL	12(SP), DX
-	INT	$0x80
-	RET
-
 TEXT rt_sigaction(SB),7,$0
 	MOVL	$174, AX		// syscall - rt_sigaction
 	MOVL	4(SP), BX
@@ -72,18 +54,19 @@ TEXT rt_sigaction(SB),7,$0
 	RET
 
 TEXT sigtramp(SB),7,$0
-	MOVL	4(FS), BP	// m
-	MOVL	20(BP), AX	// m->gsignal
-	MOVL	AX, 0(FS)	// g = m->gsignal
+	MOVL	m, BP
+	MOVL	m_gsignal(BP), AX
+	MOVL	AX, g
 	JMP	sighandler(SB)
 
 TEXT sigignore(SB),7,$0
 	RET
 
 TEXT sigreturn(SB),7,$0
-	MOVL	4(FS), BP	// m
-	MOVL	32(BP), BP	// m->curg
-	MOVL	BP, 0(FS)	// g = m->curg
+	// g = m->curg
+	MOVL	m, BP
+	MOVL	m_curg(BP), BP
+	MOVL	BP, g
 	MOVL	$173, AX	// rt_sigreturn
 	INT $0x80
 	INT $3	// not reached
@@ -104,7 +87,7 @@ TEXT sys·mmap(SB),7,$0
 	INT	$3
 	RET
 
-// int64 futex(int32 *uaddr, int32 op, int32 val,
+// int32 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
 TEXT futex(SB),7,$0
 	MOVL	$240, AX	// futex
@@ -117,22 +100,24 @@ TEXT futex(SB),7,$0
 	INT	$0x80
 	RET
 
-// int64 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+// int32 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
 TEXT clone(SB),7,$0
 	MOVL	$120, AX	// clone
 	MOVL	flags+4(SP), BX
 	MOVL	stack+8(SP), CX
+	MOVL	$0, DX	// parent tid ptr
+	MOVL	$0, DI	// child tid ptr
 
 	// Copy m, g, fn off parent stack for use by child.
-	SUBL	$12, CX
-	MOVL	m+12(SP), DX
-	MOVL	DX, 0(CX)
-	MOVL	g+16(SP), DX
-	MOVL	DX, 4(CX)
-	MOVL	fn+20(SP), DX
-	MOVL	DX, 8(CX)
+	SUBL	$16, CX
+	MOVL	mm+12(SP), SI
+	MOVL	SI, 0(CX)
+	MOVL	gg+16(SP), SI
+	MOVL	SI, 4(CX)
+	MOVL	fn+20(SP), SI
+	MOVL	SI, 8(CX)
+	MOVL	$1234, 12(CX)
 
-	MOVL	$120, AX
 	INT	$0x80
 
 	// In parent, return.
@@ -140,29 +125,58 @@ TEXT clone(SB),7,$0
 	JEQ	2(PC)
 	RET
 
-	// In child, set up new stack, etc.
-	MOVL	0(CX), BX	// m
-	MOVL	12(AX), AX	// fs (= m->cret)
-	MOVW	AX, FS
-	MOVL	8(CX), DX	// fn
-	ADDL	$12, CX
-	MOVL	CX, SP
+	// Paranoia: check that SP is as we expect.
+	MOVL	12(SP), BP
+	CMPL	BP, $1234
+	JEQ	2(PC)
+	INT	$3
 
-	// fn is now on top of stack.
-
-	// initialize m->procid to Linux tid
+	// Initialize AX to Linux tid
 	MOVL	$224, AX
 	INT	$0x80
-	MOVL	AX, 20(BX)
 
-	// call fn
-	CALL	DX
+	// In child on new stack.  Reload registers (paranoia).
+	MOVL	0(SP), BX	// m
+	MOVL	4(SP), DX	// g
+	MOVL	8(SP), CX	// fn
 
-	// It shouldn't return; if it does, exit.
-	MOVL	$111, DI
-	MOVL	$1, AX
-	INT	$0x80
-	JMP	-3(PC)	// keep exiting
+	MOVL	AX, m_procid(BX)	// save tid as m->procid
+
+	// set up ldt 7+id to point at m->tls.
+	// m->tls is at m+40.  newosproc left the id in tls[0].
+	LEAL	m_tls(BX), BP
+	MOVL	0(BP), DI
+	ADDL	$7, DI	// m0 is LDT#7. count up.
+	// setldt(tls#, &tls, sizeof tls)
+	PUSHAL	// save registers
+	PUSHL	$32	// sizeof tls
+	PUSHL	BP	// &tls
+	PUSHL	DI	// tls #
+	CALL	setldt(SB)
+	POPL	AX
+	POPL	AX
+	POPL	AX
+	POPAL
+	SHLL	$3, DI	// segment# is ldt*8 + 7 (different 7 than above)
+	ADDL	$7, DI
+	MOVW	DI, FS
+
+	// Now segment is established.  Initialize m, g.
+	MOVL	DX, g
+	MOVL	BX, m
+
+	MOVL	0(DX), DX	// paranoia; check they are not nil
+	MOVL	0(BX), BX
+
+	// more paranoia; check that stack splitting code works
+	PUSHAL
+	CALL	emptyfunc(SB)
+	POPAL
+
+	CALL	CX	// fn()
+	CALL	exit1(SB)
+	MOVL	$0x1234, 0x1005
+	RET
 
 TEXT sigaltstack(SB),7,$-8
 	MOVL	$186, AX	// sigaltstack
@@ -174,10 +188,6 @@ TEXT sigaltstack(SB),7,$-8
 	INT	$3
 	RET
 
-//	// fake the per-goroutine and per-mach registers
-//	LEAL	m0(SB),
-
-// TODO(rsc): move to linux.s
 // <asm-i386/ldt.h>
 // struct user_desc {
 // 	unsigned int  entry_number;

@@ -30,7 +30,7 @@
 
 #include	"l.h"
 
-// see ../../runtime/proc.c:/StackGuard
+// see ../../pkg/runtime/proc.c:/StackGuard
 enum
 {
 	StackSmall = 128,
@@ -619,29 +619,17 @@ dostkoff(void)
 					q = p;
 				}
 
-				p = appendp(p);	// load m into DX
+				p = appendp(p);	// save frame size in DX
 				p->as = AMOVL;
-				p->from.type = D_INDIR+D_FS;
-				p->from.offset = 4;
 				p->to.type = D_DX;
-				if(q1) {
-					q1->pcond = p;
-					q1 = P;
-				}
-
-				p = appendp(p);	// save autoffset in 4(DX)
-				p->as = AMOVL;
-				p->to.type = D_INDIR+D_DX;
-				p->to.offset = 4;
 				/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
 				p->from.type = D_CONST;
 				if(autoffset+160 > 4096)
 					p->from.offset = (autoffset+160) & ~7LL;
 
-				p = appendp(p);	// save textarg in 8(DX)
+				p = appendp(p);	// save arg size in AX
 				p->as = AMOVL;
-				p->to.type = D_INDIR+D_DX;
-				p->to.offset = 8;
+				p->to.type = D_AX;
 				p->from.type = D_CONST;
 				p->from.offset = curtext->to.offset2;
 

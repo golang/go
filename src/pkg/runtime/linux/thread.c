@@ -42,7 +42,7 @@ static Timespec longtime =
 static void
 futexsleep(uint32 *addr, uint32 val)
 {
-	int64 ret;
+	int32 ret;
 
 	ret = futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
 	if(ret >= 0 || ret == -EAGAIN || ret == -EINTR)
@@ -234,7 +234,7 @@ enum
 void
 newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
-	int64 ret;
+	int32 ret;
 	int32 flags;
 
 	/*
@@ -248,21 +248,14 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 		| CLONE_THREAD	/* revisit - okay for now */
 		;
 
+	m->tls[0] = m->id;	// so 386 asm can find it
 	if(0){
-		prints("newosproc stk=");
-		sys·printpointer(stk);
-		prints(" m=");
-		sys·printpointer(m);
-		prints(" g=");
-		sys·printpointer(g);
-		prints(" fn=");
-		sys·printpointer(fn);
-		prints(" clone=");
-		sys·printpointer(clone);
-		prints("\n");
+		printf("newosproc stk=%p m=%p g=%p fn=%p clone=%p id=%d/%d ostk=%p\n",
+			stk, m, g, fn, clone, m->id, m->tls[0], &m);
 	}
 
 	ret = clone(flags, stk, m, g, fn);
+
 	if(ret < 0)
 		*(int32*)123 = 123;
 }
