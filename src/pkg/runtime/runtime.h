@@ -134,16 +134,25 @@ struct	Array
 };
 struct	Gobuf
 {
-	byte*	SP;
-	byte*	PC;
+	// Offsets of fields in this struct are known to assembly.
+	// Any changes made here must be reflected in */asm.h.
+	// The debuggers also know the layout of this struct.
+	byte*	sp;
+	byte*	pc;
+	G*	g;
 };
 struct	G
 {
-	byte*	stackguard;	// must not move
-	byte*	stackbase;	// must not move
-	Defer*	defer;		// must not move
+	// Offsets of fields in this block are known to assembly.
+	// Any changes made here must be reflected in */asm.h.
+	byte*	stackguard;	// cannot move - also known to linker, debuggers
+	byte*	stackbase;	// cannot move - also known to debuggers
+	Defer*	defer;
+	Gobuf	sched;		// cannot move - also known to debuggers
+
+	// Fields not known to assembly.
 	byte*	stack0;		// first stack segment
-	Gobuf	sched;
+	byte*	entry;		// initial function
 	G*	alllink;	// on allg
 	void*	param;		// passed parameter on wakeup
 	int16	status;
@@ -151,7 +160,7 @@ struct	G
 	int32	selgen;		// valid sudog pointer
 	G*	schedlink;
 	bool	readyonstop;
-	M*	m;		// for debuggers
+	M*	m;		// for debuggers, but offset not hard-coded
 };
 struct	Mem
 {
@@ -162,19 +171,24 @@ struct	Mem
 };
 struct	M
 {
-	G*	g0;		// g0 w interrupt stack - must not move
-	uint64	morearg;	// arg to morestack - must not move
-	uint64	cret;		// return value from C - must not move
-	uint64	procid;		// for debuggers - must not move
-	G*	gsignal;	// signal-handling G - must not move
-	G*	curg;		// current running goroutine - must not move
-	G*	lastg;		// last running goroutine - to emulate fifo - must not move
-	uint32	tls[8];		// thread-local storage (for 386 extern register) - must not move
-	Gobuf	sched;
-	Gobuf	morestack;
-	byte*	moresp;
-	int32	siz1;
-	int32	siz2;
+	// Offsets of fields in this block are known to assembly.
+	// Any changes made here must be reflected in */asm.h.
+	// These are known to debuggers.
+	G*	g0;		// goroutine with scheduling stack
+	void	(*morepc)(void);
+	Gobuf	morebuf;	// gobuf arg to morestack
+
+	// Known to assembly, but not to debuggers.
+	uint32	moreframe;	// size arguments to morestack
+	uint32	moreargs;
+	uintptr	cret;		// return value from C
+	uint64	procid;		// for debuggers, but offset not hard-coded
+	G*	gsignal;	// signal-handling G
+	uint32	tls[8];		// thread-local storage (for 386 extern register)
+	Gobuf	sched;	// scheduling stack
+	G*	curg;		// current running goroutine
+
+	// Fields not known to assembly.
 	int32	id;
 	int32	mallocing;
 	int32	gcing;
@@ -188,10 +202,11 @@ struct	M
 };
 struct	Stktop
 {
-	uint8*	oldbase;
-	uint8*	oldsp;
-	uint64	magic;
-	uint8*	oldguard;
+	// The debuggers know the layout of this struct.
+	uint8*	stackguard;
+	uint8*	stackbase;
+	Gobuf	gobuf;
+	uint32	args;
 };
 struct	Alg
 {
@@ -287,12 +302,11 @@ int32	charntorune(int32*, uint8*, int32);
 /*
  * very low level c-called
  */
-int32	gogo(Gobuf*);
-int32	gosave(Gobuf*);
-int32	gogoret(Gobuf*, uint64);
-void	retfromnewstack(void);
+void	gogo(Gobuf*, uintptr);
+void	gogocall(Gobuf*, void(*)(void));
+uintptr	gosave(Gobuf*);
+void	sys·lessstack(void);
 void	goargs(void);
-void	setspgoto(byte*, void(*)(void), void(*)(void));
 void	FLUSH(void*);
 void*	getu(void);
 void	throw(int8*);
@@ -311,10 +325,7 @@ int32	gotraceback(void);
 void	traceback(uint8 *pc, uint8 *sp, G* gp);
 void	tracebackothers(G*);
 int32	open(byte*, int32, ...);
-int32	read(int32, void*, int32);
 int32	write(int32, void*, int32);
-void	close(int32);
-int32	fstat(int32, void*);
 bool	cas(uint32*, uint32, uint32);
 void	jmpdefer(byte*, void*);
 void	exit1(int32);
@@ -395,7 +406,6 @@ void	notewakeup(Note*);
  */
 #ifndef __GNUC__
 #define sys_memclr sys·memclr
-#define sys_write sys·write
 #define sys_catstring sys·catstring
 #define sys_cmpstring sys·cmpstring
 #define sys_getcallerpc sys·getcallerpc
@@ -421,7 +431,6 @@ void	notewakeup(Note*);
 /*
  * low level go-called
  */
-void	sys_write(int32, void*, int32);
 uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
 void	sys_memclr(byte*, uint32);
 void	sys_setcallerpc(void*, void*);

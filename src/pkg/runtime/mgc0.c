@@ -66,12 +66,12 @@ scanstack(G *g)
 	Stktop *stk;
 	byte *sp;
 
-	sp = g->sched.SP;
+	sp = g->sched.sp;
 	stk = (Stktop*)g->stackbase;
 	while(stk) {
 		scanblock(0, sp, (byte*)stk - sp);
-		sp = stk->oldsp;
-		stk = (Stktop*)stk->oldbase;
+		sp = stk->gobuf.sp;
+		stk = (Stktop*)stk->stackbase;
 	}
 }
 

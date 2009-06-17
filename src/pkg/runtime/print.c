@@ -25,7 +25,7 @@ dump(byte *p, int32 n)
 void
 prints(int8 *s)
 {
-	sys·write(1, s, findnull((byte*)s));
+	write(1, s, findnull((byte*)s));
 }
 
 // Very simple printf.  Only for debugging prints.
@@ -42,7 +42,7 @@ printf(int8 *s, ...)
 		if(*p != '%')
 			continue;
 		if(p > lp)
-			sys·write(1, lp, p-lp);
+			write(1, lp, p-lp);
 		p++;
 		narg = nil;
 		switch(*p) {
@@ -95,7 +95,7 @@ printf(int8 *s, ...)
 		lp = p+1;
 	}
 	if(p > lp)
-		sys·write(1, lp, p-lp);
+		write(1, lp, p-lp);
 }
 
 
@@ -110,10 +110,10 @@ void
 sys·printbool(bool v)
 {
 	if(v) {
-		sys·write(1, (byte*)"true", 4);
+		write(1, (byte*)"true", 4);
 		return;
 	}
-	sys·write(1, (byte*)"false", 5);
+	write(1, (byte*)"false", 5);
 }
 
 void
@@ -124,15 +124,15 @@ sys·printfloat(float64 v)
 	float64 h;
 
 	if(isNaN(v)) {
-		sys·write(1, "NaN", 3);
+		write(1, "NaN", 3);
 		return;
 	}
 	if(isInf(v, 0)) {
-		sys·write(1, "+Inf", 4);
+		write(1, "+Inf", 4);
 		return;
 	}
 	if(isInf(v, -1)) {
-		sys·write(1, "+Inf", 4);
+		write(1, "+Inf", 4);
 		return;
 	}
 
@@ -191,7 +191,7 @@ sys·printfloat(float64 v)
 	buf[n+4] = (e/100) + '0';
 	buf[n+5] = (e/10)%10 + '0';
 	buf[n+6] = (e%10) + '0';
-	sys·write(1, buf, n+7);
+	write(1, buf, n+7);
 }
 
 void
@@ -206,14 +206,14 @@ sys·printuint(uint64 v)
 			break;
 		v = v/10;
 	}
-	sys·write(1, buf+i, nelem(buf)-i);
+	write(1, buf+i, nelem(buf)-i);
 }
 
 void
 sys·printint(int64 v)
 {
 	if(v < 0) {
-		sys·write(1, "-", 1);
+		write(1, "-", 1);
 		v = -v;
 	}
 	sys·printuint(v);
@@ -233,7 +233,7 @@ sys·printhex(uint64 v)
 		buf[--i] = '0';
 	buf[--i] = 'x';
 	buf[--i] = '0';
-	sys·write(1, buf+i, nelem(buf)-i);
+	write(1, buf+i, nelem(buf)-i);
 }
 
 void
@@ -248,21 +248,21 @@ sys·printstring(String v)
 	extern int32 maxstring;
 
 	if(v.len > maxstring) {
-		sys·write(1, "[invalid string]", 16);
+		write(1, "[invalid string]", 16);
 		return;
 	}
 	if(v.len > 0)
-		sys·write(1, v.str, v.len);
+		write(1, v.str, v.len);
 }
 
 void
 sys·printsp(void)
 {
-	sys·write(1, " ", 1);
+	write(1, " ", 1);
 }
 
 void
 sys·printnl(void)
 {
-	sys·write(1, "\n", 1);
+	write(1, "\n", 1);
 }

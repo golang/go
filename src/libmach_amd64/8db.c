@@ -30,9 +30,15 @@
 #include <libc.h>
 #include <bio.h>
 #include <mach_amd64.h>
+#define Ureg UregAmd64
 #include <ureg_amd64.h>
+#undef Ureg
+#define Ureg Ureg386
+#include <ureg_x86.h>
+#undef Ureg
 
-typedef struct Ureg Ureg_amd64;
+typedef struct UregAmd64 UregAmd64;
+typedef struct Ureg386 Ureg386;
 
 /*
  * i386-specific debugger interface
@@ -52,7 +58,8 @@ static	char	STARTSYM[] =	"_main";
 static	char	GOSTARTSYM[] =	"sys·goexit";
 static	char	PROFSYM[] =	"_mainp";
 static	char	FRAMENAME[] =	".frame";
-static	char	RETFROMNEWSTACK[] = "retfromnewstack";
+static	char	LESSSTACK[] = "sys·lessstack";
+static	char	MORESTACK[] = "sys·morestack";
 static char *excname[] =
 {
 [0]	"divide error",
@@ -124,23 +131,6 @@ i386excep(Map *map, Rgetter rget)
 		return excname[c];
 }
 
-// borrowed from src/runtime/runtime.h
-struct	Stktop
-{
-	uint8*	oldbase;
-	uint8*	oldsp;
-	uint64	magic;
-	uint8*	oldguard;
-};
-
-struct	G
-{
-	uvlong	stackguard;	// must not move
-	uvlong	stackbase;	// must not move
-	uvlong	stack0;		// first stack segment
-	// rest not needed
-};
-
 static int
 i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 {
@@ -149,21 +139,35 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 	Symbol s, f, s1;
 	extern Mach mamd64;
 	int isamd64;
-	struct Stktop *stktop;
-	struct G g;
-	uvlong r15;
-	uvlong retfromnewstack;
+	uvlong g, m, lessstack, morestack, stktop;
 
 	isamd64 = (mach == &mamd64);
-	retfromnewstack = 0;
-	if(isamd64) {
-		get8(map, offsetof(Ureg_amd64, r15), &r15);
-		get8(map, r15+offsetof(struct G, stackguard), &g.stackguard);
-		get8(map, r15+offsetof(struct G, stackbase), &g.stackbase);
-		get8(map, r15+offsetof(struct G, stack0), &g.stack0);
-		if(lookup(0, RETFROMNEWSTACK, &s))
-			retfromnewstack = s.value;
+
+	// ../pkg/runtime/runtime.h
+	// G is
+	//	byte* stackguard
+	//	byte* stackbase (= Stktop*)
+	//	Defer* defer
+	//	Gobuf sched
+	// TODO(rsc): Need some way to get at the g for other threads.
+	// Probably need to pass it into the trace function.
+	g = 0;
+	if(isamd64)
+		geta(map, offsetof(struct UregAmd64, r15), &g);
+	else {
+		// TODO(rsc): How to fetch g on 386?
 	}
+	stktop = 0;
+	if(g != 0)
+		geta(map, g+1*mach->szaddr, &stktop);
+
+	lessstack = 0;
+	if(lookup(0, LESSSTACK, &s))
+		lessstack = s.value;
+	morestack = 0;
+	if(lookup(0, MORESTACK, &s))
+		morestack = s.value;
+
 	USED(link);
 	osp = 0;
 	i = 0;
@@ -171,13 +175,19 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 	for(;;) {
 		if(!findsym(pc, CTEXT, &s)) {
 			// check for closure return sequence
-			uchar buf[8];
+			uchar buf[8], *p;
 			if(get1(map, pc, buf, 8) < 0)
 				break;
 			// ADDQ $xxx, SP; RET
-			if(buf[0] != 0x48 || buf[1] != 0x81 || buf[2] != 0xc4 || buf[7] != 0xc3)
+			p = buf;
+			if(mach == &mamd64) {
+				if(p[0] != 0x48)
+					break;
+				p++;
+			}
+			if(p[0] != 0x81 || p[1] != 0xc4 || p[6] != 0xc3)
 				break;
-			sp += buf[3] | (buf[4]<<8) | (buf[5]<<16) | (buf[6]<<24);
+			sp += p[2] | (p[3]<<8) | (p[4]<<16) | (p[5]<<24);
 			if(geta(map, sp, &pc) < 0)
 				break;
 			sp += mach->szaddr;
@@ -193,16 +203,53 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 		   strcmp(PROFSYM, s.name) == 0)
 			break;
 
-		if(pc == retfromnewstack) {
-			stktop = (struct Stktop*)g.stackbase;
-			get8(map, (uvlong)&stktop->oldbase, &g.stackbase);
-			get8(map, (uvlong)&stktop->oldguard, &g.stackguard);
-			get8(map, (uvlong)&stktop->oldsp, &sp);
-			get8(map, sp+8, &pc);
-			(*trace)(map, pc, sp +  8, &s1);
-			sp += 16;  // two irrelevant calls on stack - morestack, plus the call morestack made
+		if(s.value == morestack) {
+			// In the middle of morestack.
+			// Caller is m->morepc.
+			// Caller's caller is in m->morearg.
+			// TODO(rsc): 386
+			geta(map, offsetof(struct UregAmd64, r14), &m);
+
+			pc = 0;
+			sp = 0;
+			pc1 = 0;
+			s1 = s;
+			memset(&s, 0, sizeof s);
+			geta(map, m+1*mach->szaddr, &pc1);	// m->morepc
+			geta(map, m+2*mach->szaddr, &sp);	// m->morebuf.sp
+			geta(map, m+3*mach->szaddr, &pc);	// m->morebuf.pc
+			findsym(pc1, CTEXT, &s);
+			(*trace)(map, pc1, sp-mach->szaddr, &s1);	// morestack symbol; caller's PC/SP
+
+			// caller's caller
+			s1 = s;
+			findsym(pc, CTEXT, &s);
+			(*trace)(map, pc, sp, &s1);		// morestack's caller; caller's caller's PC/SP
+			continue;
+		} 
+
+		if(pc == lessstack) {
+			// ../pkg/runtime/runtime.h
+			// Stktop is
+			//	byte* stackguard
+			//	byte* stackbase
+			//	Gobuf gobuf
+			//		byte* sp;
+			//		byte* pc;
+			//		G*	g;
+			if(!isamd64)
+				fprint(2, "warning: cannot unwind stack split on 386\n");
+			if(stktop == 0)
+				break;
+			pc = 0;
+			sp = 0;
+			geta(map, stktop+2*mach->szaddr, &sp);
+			geta(map, stktop+3*mach->szaddr, &pc);
+			geta(map, stktop+1*mach->szaddr, &stktop);
+			(*trace)(map, pc, sp, &s1);
 			continue;
 		}
+
 		s1 = s;
 		pc1 = 0;
 		if(pc != s.value) {	/* not at first instruction */
@@ -227,7 +274,7 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 		if(pc == 0)
 			break;
 
-		if(pc != retfromnewstack)
+		if(pc != lessstack)
 			(*trace)(map, pc, sp, &s1);
 		sp += mach->szaddr;
 
