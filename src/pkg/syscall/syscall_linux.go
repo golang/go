@@ -427,7 +427,6 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
 //sys	Rename(oldpath string, newpath string) (errno int)
 //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (errno int)
 //sys	Rmdir(path string) (errno int)
-//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int)
 //sys	Setdomainname(p []byte) (errno int)
 //sys	Sethostname(p []byte) (errno int)
 //sys	Setpgid(pid int, pgid int) (errno int)

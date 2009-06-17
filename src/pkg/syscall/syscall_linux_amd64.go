@@ -18,6 +18,7 @@ import "syscall"
 //sys	Listen(s int, n int) (errno int)
 //sys	Lstat(path string, stat *Stat_t) (errno int)
 //sys	Seek(fd int, offset int64, whence int) (off int64, errno int) = SYS_LSEEK
+//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int)
 //sys	Setfsgid(gid int) (errno int)
 //sys	Setfsuid(uid int) (errno int)
 //sys	Setgid(gid int) (errno int)

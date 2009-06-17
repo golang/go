@@ -395,13 +395,6 @@ func Rmdir(path string) (errno int) {
 	return;
 }
 
-func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) {
-	r0, r1, e1 := Syscall6(SYS_SELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
-	n = int(r0);
-	errno = int(e1);
-	return;
-}
-
 func Setdomainname(p []byte) (errno int) {
 	var _p0 *byte;
 	if len(p) > 0 { _p0 = &p[0]; }
@@ -703,6 +696,13 @@ func getgroups(n int, list *_Gid_t) (nn int, errno int) {
 
 func setgroups(n int, list *_Gid_t) (errno int) {
 	r0, r1, e1 := Syscall(SYS_SETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0);
+	errno = int(e1);
+	return;
+}
+
+func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) {
+	r0, r1, e1 := Syscall6(SYS__NEWSELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
+	n = int(r0);
 	errno = int(e1);
 	return;
 }

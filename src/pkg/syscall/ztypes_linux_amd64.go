@@ -253,7 +253,7 @@ type Linger struct {
 }
 
 type FdSet struct {
-	__fds_bits [16]int64;
+	Bits [16]int64;
 }
 
 type Sysinfo_t struct {
@@ -281,7 +281,7 @@ type Utsname struct {
 	Release [65]int8;
 	Version [65]int8;
 	Machine [65]int8;
-	__domainname [65]int8;
+	Domainname [65]int8;
 }
 
 type Ustat_t struct {
