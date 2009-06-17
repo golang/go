@@ -27,19 +27,19 @@ traceback(byte *pc0, byte *sp, G *g)
 
 	stk = (Stktop*)g->stackbase;
 	for(n=0; n<100; n++) {
-		while(pc == (uintptr)retfromnewstack) {
+		if(pc == (uint64)sys·lessstack) {
+			// printf("--\n");
 			// pop to earlier stack block
-			sp = stk->oldsp;
-			stk = (Stktop*)stk->oldbase;
-			pc = *(uintptr*)(sp+sizeof(uintptr));
-			sp += 2*sizeof(uintptr);	// two irrelevant calls on stack: morestack plus its call
+			pc = (uintptr)stk->gobuf.pc;
+			sp = stk->gobuf.sp;
+			stk = (Stktop*)stk->stackbase;
 		}
 		f = findfunc(pc);
 		if(f == nil) {
 			// dangerous, but poke around to see if it is a closure
 			p = (byte*)pc;
 			// ADDL $xxx, SP; RET
-			if(p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
+			if(p != 0 && p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
 				sp += *(uint32*)(p+2) + 8;
 				pc = *(uintptr*)(sp - 8);
 				if(pc <= 0x1000)
@@ -109,11 +109,10 @@ runtime·Caller(int32 n, uintptr retpc, String retfile, int32 retline, bool retb
 	// now unwind n levels
 	stk = (Stktop*)g->stackbase;
 	while(n-- > 0) {
-		while(pc == (uintptr)retfromnewstack) {
-			sp = stk->oldsp;
-			stk = (Stktop*)stk->oldbase;
-			pc = *((uintptr*)sp + 1);
-			sp += 2*sizeof(uintptr);
+		while(pc == (uintptr)sys·lessstack) {
+			pc = (uintptr)stk->gobuf.pc;
+			sp = stk->gobuf.sp;
+			stk = (Stktop*)stk->stackbase;
 		}
 
 		if(f->frame < sizeof(uintptr))	// assembly functions lie
