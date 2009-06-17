@@ -108,6 +108,9 @@ BUG: should fail
 =========== bugs/bug163.go
 BUG: should not compile
 
+=========== bugs/bug164.go
+BUG: should not compile
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
