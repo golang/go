@@ -61,7 +61,7 @@ func TestStat(t *testing.T) {
 	}
 	filesize := size("/etc/passwd", t);
 	if dir.Size != filesize {
-		t.Error("size should be ", filesize, "; is", dir.Size);
+		t.Error("size should be", filesize, "; is", dir.Size);
 	}
 }
 
@@ -80,7 +80,7 @@ func TestFstat(t *testing.T) {
 	}
 	filesize := size("/etc/passwd", t);
 	if dir.Size != filesize {
-		t.Error("size should be ", filesize, "; is", dir.Size);
+		t.Error("size should be", filesize, "; is", dir.Size);
 	}
 }
 
@@ -94,7 +94,7 @@ func TestLstat(t *testing.T) {
 	}
 	filesize := size("/etc/passwd", t);
 	if dir.Size != filesize {
-		t.Error("size should be ", filesize, "; is", dir.Size);
+		t.Error("size should be", filesize, "; is", dir.Size);
 	}
 }
 
@@ -367,13 +367,13 @@ func TestChmod(t *testing.T) {
 func checkUidGid(t *testing.T, path string, uid, gid int) {
 	dir, err := Stat(path);
 	if err != nil {
-		t.Fatalf("Stat %q (looking for uid/gid %#o/%#o): %s", path, uid, gid, err);
+		t.Fatalf("Stat %q (looking for uid/gid %d/%d): %s", path, uid, gid, err);
 	}
 	if dir.Uid != uint32(uid) {
-		t.Errorf("Stat %q: uid %#o want %#o", path, dir.Uid, uid);
+		t.Errorf("Stat %q: uid %d want %d", path, dir.Uid, uid);
 	}
 	if dir.Gid != uint32(gid) {
-		t.Errorf("Stat %q: gid %#o want %#o", path, dir.Gid, uid);
+		t.Errorf("Stat %q: gid %d want %d", path, dir.Gid, gid);
 	}
 }
 
@@ -398,6 +398,7 @@ func TestChown(t *testing.T) {
 	// Can't change uid unless root, but can try
 	// changing the group id.  First try our current group.
 	gid := Getgid();
+	t.Log("gid:", gid);
 	if err = Chown(Path, -1, gid); err != nil {
 		t.Fatalf("chown %s -1 %d: %s", Path, gid, err);
 	}
@@ -408,6 +409,7 @@ func TestChown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getgroups: %s", err);
 	}
+	t.Log("groups: ", groups);
 	for i, g := range groups {
 		if err = Chown(Path, -1, g); err != nil {
 			t.Fatalf("chown %s -1 %d: %s", Path, g, err);

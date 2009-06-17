@@ -34,6 +34,34 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	return;
 }
 
+// 64-bit file system and 32-bit uid calls
+// (386 default is 32-bit file system and 16-bit uid).
+//sys	Chown(path string, uid int, gid int) (errno int) = SYS_CHOWN32
+//sys	Fchown(fd int, uid int, gid int) (errno int) = SYS_FCHOWN32
+//sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
+//sys	Fstatfs(fd int, buf *Statfs_t) (errno int) = SYS_FSTATFS64
+//sys	Getegid() (egid int) = SYS_GETEGID32
+//sys	Geteuid() (euid int) = SYS_GETEUID32
+//sys	Getgid() (gid int) = SYS_GETGID32
+//sys	Getuid() (uid int) = SYS_GETUID32
+//sys	Lchown(path string, uid int, gid int) (errno int) = SYS_LCHOWN32
+//sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
+//sys	Setfsgid(gid int) (errno int) = SYS_SETFSGID32
+//sys	Setfsuid(uid int) (errno int) = SYS_SETFSUID32
+//sys	Setgid(gid int) (errno int) = SYS_SETGID32
+//sys	Setregid(rgid int, egid int) (errno int) = SYS_SETREGID32
+//sys	Setresgid(rgid int, egid int, sgid int) (errno int) = SYS_SETRESGID32
+//sys	Setresuid(ruid int, euid int, suid int) (errno int) = SYS_SETRESUID32
+//sys	Setreuid(ruid int, euid int) (errno int) = SYS_SETREUID32
+//sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
+//sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
+//sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
+//sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
+
+// Underlying system call writes to newoffset via pointer.
+// Implemented in assembly to avoid allocation.
+func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+
 // On x86 Linux, all the socket calls go through an extra indirection,
 // I think because the 5-register system call interface can't handle
 // the 6-argument calls like sendto and recvfrom.  Instead the

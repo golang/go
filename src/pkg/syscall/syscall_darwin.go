@@ -154,13 +154,6 @@ func Pipe(p []int) (errno int) {
 	return;
 }
 
-// TODO(rsc): How does 386 return an int64 newoffset?
-//sys	lseek(fd int, offset int64, whence int) (newoffset uintptr, errno int)
-func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
-	n, e := lseek(fd, offset, whence);
-	return int64(n), e;
-}
-
 func Sleep(ns int64) (errno int) {
 	tv := NsecToTimeval(ns);
 	return Select(0, nil, nil, nil, &tv);
@@ -427,6 +420,7 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno
 //sys	Rename(from string, to string) (errno int)
 //sys	Revoke(path string) (errno int)
 //sys	Rmdir(path string) (errno int)
+//sys	Seek(fd int, offset int64, whence int) (newoffset int64, errno int) = SYS_LSEEK
 //sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int)
 //sys	Setegid(egid int) (errno int)
 //sys	Seteuid(euid int) (errno int)

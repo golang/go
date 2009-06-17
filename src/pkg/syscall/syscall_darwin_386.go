@@ -31,7 +31,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	return;
 }
 
-//sys	gettimeofday(tp *Timeval) (sec int64, usec int32, errno int)
+//sys	gettimeofday(tp *Timeval) (sec int32, usec int32, errno int)
 func Gettimeofday(tv *Timeval) (errno int) {
 	// The tv passed to gettimeofday must be non-nil
 	// but is otherwise unused.  The answers come back
