@@ -7,6 +7,7 @@ Open issues:
 	- declaration "type T S" strips methods of S. why/why not?
 	- no mechanism to declare a local type name: type T P.T
 
+
 Todo's:
 [ ] document illegality of package-external tuple assignments to structs
 	w/ private fields: P.T(1, 2) illegal since same as P.T(a: 1, b: 2) for
@@ -447,7 +448,7 @@ because the size of the pointer itself is always known.
 interface fit in here.)
 </p>
 <p>
-A type may have a method set associated with it
+A type may have a <i>method set</i> associated with it
 (§Interface types, §Method declarations).
 The method set of an interface type (§Interface types) is its interface.
 The method set of any other named type <code>T</code>
@@ -1341,7 +1342,7 @@ If an identifier satisfies these two conditions:
 declared at the top level;
 </ol>
 <p>
-it will be exported automatically.
+it will be exported.
 </p>
 
 <h3>Const declarations</h3>
@@ -3303,10 +3304,13 @@ in the type assertion.
 TypeSwitchStmt  = "switch" [ [ SimpleStmt ] ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
 TypeSwitchGuard = identifier ":=" Expression "." "(" "type" ")" .
 TypeCaseClause  = TypeSwitchCase ":" [ StatementList ] .
-TypeSwitchCase  = "case" ( type | "nil" ) | "default" .
+TypeSwitchCase  = "case" Type | "default" .
 </pre>
 
 <p>
+As a special case, the type in the type switch case may be an
+identifier denoting the predeclared constant <code>nil</code>
+(§Predeclared identifiers).
 If the interface value equals <code>nil</code>,
 only an explict <code>nil</code> case or "default"
 case will execute.
