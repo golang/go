@@ -8,6 +8,8 @@
 // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
 //
 
+#include "amd64/asm.h"
+
 // Exit the entire program (like C exit)
 TEXT	exit(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 exit status
@@ -25,52 +27,14 @@ TEXT	exit1(SB),7,$-8
 	CALL	notok(SB)
 	RET
 
-TEXT	sys·write(SB),7,$-8
-	MOVL	8(SP), DI		// arg 1 fid
+TEXT	write(SB),7,$-8
+	MOVL	8(SP), DI		// arg 1 fd
 	MOVQ	16(SP), SI		// arg 2 buf
 	MOVL	24(SP), DX		// arg 3 count
 	MOVL	$(0x2000000+4), AX	// syscall entry
 	SYSCALL
 	JCC	2(PC)
 	CALL	notok(SB)
-	RET
-
-TEXT	open(SB),7,$-8
-	MOVQ	8(SP), DI
-	MOVL	16(SP), SI
-	MOVL	20(SP), DX
-	MOVQ	$0, R10
-	MOVL	$(0x2000000+5), AX	// syscall entry
-	SYSCALL
-	RET
-
-TEXT	close(SB),7,$-8
-	MOVL	8(SP), DI
-	MOVL	$(0x2000000+6), AX	// syscall entry
-	SYSCALL
-	RET
-
-TEXT	fstat(SB),7,$-8
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVL	$(0x2000000+339), AX	// syscall entry; really fstat64
-	SYSCALL
-	RET
-
-TEXT	read(SB),7,$-8
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVL	24(SP), DX
-	MOVL	$(0x2000000+3), AX	// syscall entry
-	SYSCALL
-	RET
-
-TEXT	write(SB),7,$-8
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVL	24(SP), DX
-	MOVL	$(0x2000000+4), AX	// syscall entry
-	SYSCALL
 	RET
 
 TEXT	sigaction(SB),7,$-8
@@ -86,10 +50,10 @@ TEXT	sigaction(SB),7,$-8
 	RET
 
 TEXT sigtramp(SB),7,$40
-	MOVQ	32(R14), R15	// g = m->gsignal
-	MOVL	DX,0(SP)
-	MOVQ	CX,8(SP)
-	MOVQ	R8,16(SP)
+	MOVQ	m_gsignal(m), g
+	MOVL	DX, 0(SP)
+	MOVQ	CX, 8(SP)
+	MOVQ	R8, 16(SP)
 	MOVQ	R8, 24(SP)	// save ucontext
 	MOVQ	SI, 32(SP)	// save infostyle
 	CALL	DI
@@ -154,9 +118,9 @@ TEXT bsdthread_create(SB),7,$-8
 	// The ones in quotes pass through to the thread callback
 	// uninterpreted, so we can put whatever we want there.
 	MOVQ	fn+32(SP), DI	// "func"
-	MOVQ	m+16(SP), SI	// "arg"
+	MOVQ	mm+16(SP), SI	// "arg"
 	MOVQ	stk+8(SP), DX	// stack
-	MOVQ	g+24(SP), R10	// "pthread"
+	MOVQ	gg+24(SP), R10	// "pthread"
 // TODO(rsc): why do we get away with 0 flags here but not on 386?
 	MOVQ	$0, R8	// flags
 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
@@ -176,9 +140,9 @@ TEXT bsdthread_create(SB),7,$-8
 //	R9 = flags (= 0)
 //	SP = stack - C_64_REDZONE_LEN (= stack - 128)
 TEXT bsdthread_start(SB),7,$-8
-	MOVQ	CX, R14	// m
-	MOVQ	DI, R15	// g
-	MOVQ	SI, 24(R14)	// thread port is m->procid
+	MOVQ	CX, m
+	MOVQ	DI, g
+	MOVQ	SI, m_procid(m)	// thread port is m->procid
 	CALL	DX	// fn
 	CALL	exit1(SB)
 	RET

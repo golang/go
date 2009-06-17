@@ -6,6 +6,8 @@
 // System calls and other sys.stuff for AMD64, Linux
 //
 
+#include "amd64/asm.h"
+
 TEXT	exit(SB),7,$0-8
 	MOVL	8(SP), DI
 	MOVL	$231, AX	// exitgroup - force all os threads to exi
@@ -23,27 +25,6 @@ TEXT	open(SB),7,$0-16
 	MOVL	16(SP), SI
 	MOVL	20(SP), DX
 	MOVL	$2, AX			// syscall entry
-	SYSCALL
-	RET
-
-TEXT	close(SB),7,$0-8
-	MOVL	8(SP), DI
-	MOVL	$3, AX			// syscall entry
-	SYSCALL
-	RET
-
-TEXT	fstat(SB),7,$0-16
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVL	$5, AX			// syscall entry
-	SYSCALL
-	RET
-
-TEXT	read(SB),7,$0-24
-	MOVL	8(SP), DI
-	MOVQ	16(SP), SI
-	MOVL	24(SP), DX
-	MOVL	$0, AX			// syscall entry
 	SYSCALL
 	RET
 
@@ -73,10 +54,10 @@ TEXT	rt_sigaction(SB),7,$0-32
 	RET
 
 TEXT	sigtramp(SB),7,$24-16
-	MOVQ	32(R14), R15	// g = m->gsignal
-	MOVQ	DI,0(SP)
-	MOVQ	SI,8(SP)
-	MOVQ	DX,16(SP)
+	MOVQ	m_gsignal(m), g
+	MOVQ	DI, 0(SP)
+	MOVQ	SI, 8(SP)
+	MOVQ	DX, 16(SP)
 	CALL	sighandler(SB)
 	RET
 
@@ -151,8 +132,8 @@ TEXT clone(SB),7,$0
 
 	// Copy m, g, fn off parent stack for use by child.
 	// Careful: Linux system call clobbers CX and R11.
-	MOVQ	m+24(SP), R8
-	MOVQ	g+32(SP), R9
+	MOVQ	mm+24(SP), R8
+	MOVQ	gg+32(SP), R9
 	MOVQ	fn+40(SP), R12
 
 	MOVL	$56, AX
@@ -165,13 +146,13 @@ TEXT clone(SB),7,$0
 
 	// In child, set up new stack
 	MOVQ	SI, SP
-	MOVQ	R8, R14	// m
-	MOVQ	R9, R15	// g
+	MOVQ	R8, m
+	MOVQ	R9, g
 
 	// Initialize m->procid to Linux tid
 	MOVL	$186, AX	// gettid
 	SYSCALL
-	MOVQ	AX, 24(R14)
+	MOVQ	AX, m_procid(m)
 
 	// Call fn
 	CALL	R12

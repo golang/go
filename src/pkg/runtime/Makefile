@@ -75,6 +75,7 @@ HFILES=\
 	runtime.h\
 	hashmap.h\
 	malloc.h\
+	$(GOARCH)/asm.h\
 	$(GOOS)/os.h\
 	$(GOOS)/$(GOARCH)/defs.h\
 

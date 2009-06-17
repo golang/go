@@ -24,12 +24,11 @@ traceback(byte *pc0, byte *sp, G *g)
 
 	stk = (Stktop*)g->stackbase;
 	for(n=0; n<100; n++) {
-		while(pc == (uint64)retfromnewstack) {
+		if(pc == (uint64)sys·lessstack) {
 			// pop to earlier stack block
-			sp = stk->oldsp;
-			stk = (Stktop*)stk->oldbase;
-			pc = *(uint64*)(sp+8);
-			sp += 16;	// two irrelevant calls on stack: morestack plus its call
+			pc = (uintptr)stk->gobuf.pc;
+			sp = stk->gobuf.sp;
+			stk = (Stktop*)stk->stackbase;
 		}
 		f = findfunc(pc);
 		if(f == nil) {
@@ -46,8 +45,8 @@ traceback(byte *pc0, byte *sp, G *g)
 			printf("%p unknown pc\n", pc);
 			return;
 		}
-		if(f->frame < 8)	// assembly funcs say 0 but lie
-			sp += 8;
+		if(f->frame < sizeof(uintptr))	// assembly funcs say 0 but lie
+			sp += sizeof(uintptr);
 		else
 			sp += f->frame;
 
@@ -56,7 +55,7 @@ traceback(byte *pc0, byte *sp, G *g)
 		//		main(0x1, 0x2, 0x3)
 		printf("%S", f->name);
 		if(pc > f->entry)
-			printf("+%X", pc - f->entry);
+			printf("+%p", (uintptr)(pc - f->entry));
 		printf(" %S:%d\n", f->src, funcline(f, pc-1));	// -1 to get to CALL instr.
 		printf("\t%S(", f->name);
 		for(i = 0; i < f->args; i++) {
@@ -70,7 +69,7 @@ traceback(byte *pc0, byte *sp, G *g)
 		}
 		prints(")\n");
 
-		pc = *(uint64*)(sp-8);
+		pc = *(uintptr*)(sp-sizeof(uintptr));
 		if(pc <= 0x1000)
 			return;
 	}
@@ -106,20 +105,19 @@ runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbo
 	// now unwind n levels
 	stk = (Stktop*)g->stackbase;
 	while(n-- > 0) {
-		while(pc == (uint64)retfromnewstack) {
-			sp = stk->oldsp;
-			stk = (Stktop*)stk->oldbase;
-			pc = *(uint64*)(sp+8);
-			sp += 16;
+		while(pc == (uintptr)sys·lessstack) {
+			pc = (uintptr)stk->gobuf.pc;
+			sp = stk->gobuf.sp;
+			stk = (Stktop*)stk->stackbase;
 		}
 
-		if(f->frame < 8)	// assembly functions lie
-			sp += 8;
+		if(f->frame < sizeof(uintptr))	// assembly functions lie
+			sp += sizeof(uintptr);
 		else
 			sp += f->frame;
 
 	loop:
-		pc = *(uint64*)(sp-8);
+		pc = *((uintptr*)sp - 1);
 		if(pc <= 0x1000 || (f = findfunc(pc)) == nil) {
 			// dangerous, but let's try this.
 			// see if it is a closure.

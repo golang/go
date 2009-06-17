@@ -149,7 +149,7 @@ tracebackothers(G *me)
 		if(g == me || g->status == Gdead)
 			continue;
 		printf("\ngoroutine %d:\n", g->goid);
-		traceback(g->sched.PC, g->sched.SP+sizeof(uintptr), g);  // gogo adjusts SP by one word
+		traceback(g->sched.pc, g->sched.sp, g);
 	}
 }
 
@@ -387,7 +387,7 @@ matchmg(void)
 			m->id = sched.mcount++;
 			if(debug) {
 				lock(&debuglock);
-				printf("alloc m%d g%d\n", m->id, g->goid);
+				printf("alloc m=%p m%d g%d\n", m, m->id, g->goid);
 				unlock(&debuglock);
 			}
 			newosproc(m, m->g0, m->g0->stackbase, mstart);
@@ -402,7 +402,7 @@ scheduler(void)
 	G* gp;
 
 	lock(&sched);
-	if(gosave(&m->sched)){
+	if(gosave(&m->sched) != 0){
 		// Jumped here via gosave/gogo, so didn't
 		// execute lock(&sched) above.
 		lock(&sched);
@@ -446,14 +446,15 @@ scheduler(void)
 	gp->status = Grunning;
 	if(debug > 1) {
 		lock(&debuglock);
-		printf("m%d run g%d at %p\n", m->id, gp->goid, gp->sched.PC);
-		traceback(gp->sched.PC, gp->sched.SP+sizeof(uintptr), gp);
+		printf("m%d run g%d at %p\n", m->id, gp->goid, gp->sched.pc);
+		traceback(gp->sched.pc, gp->sched.sp, gp);
 		unlock(&debuglock);
 	}
 	m->curg = gp;
 	gp->m = m;
-	g = gp;
-	gogo(&gp->sched);
+	if(gp->sched.pc == (byte*)goexit)	// kickoff
+		gogocall(&gp->sched, (void(*)(void))gp->entry);
+	gogo(&gp->sched, 1);
 }
 
 // Enter scheduler.  If g->status is Grunning,
@@ -465,10 +466,8 @@ gosched(void)
 {
 	if(g == m->g0)
 		throw("gosched of g0");
-	if(gosave(&g->sched) == 0){
-		g = m->g0;
-		gogo(&m->sched);
-	}
+	if(gosave(&g->sched) == 0)
+		gogo(&m->sched, 1);
 }
 
 // The goroutine g is about to enter a system call.
@@ -606,53 +605,28 @@ enum
 void
 oldstack(void)
 {
-	Stktop *top;
+	Stktop *top, old;
 	uint32 args;
 	byte *sp;
-	uintptr oldsp, oldpc, oldbase, oldguard;
+	G *g1;
 
-// printf("oldstack m->cret=%p\n", m->cret);
+//printf("oldstack m->cret=%p\n", m->cret);
 
-	top = (Stktop*)m->curg->stackbase;
-
-	args = (top->magic>>32) & 0xffffLL;
-
+	g1 = m->curg;
+	top = (Stktop*)g1->stackbase;
 	sp = (byte*)top;
+	old = *top;
+	args = old.args;
 	if(args > 0) {
-		args = (args+7) & ~7;
 		sp -= args;
-		mcpy(top->oldsp+2*sizeof(uintptr), sp, args);
+		mcpy(top->gobuf.sp, sp, args);
 	}
 
-	oldsp = (uintptr)top->oldsp + sizeof(uintptr);
-	oldpc = *(uintptr*)oldsp;
-	oldbase = (uintptr)top->oldbase;
-	oldguard = (uintptr)top->oldguard;
+	stackfree((byte*)g1->stackguard - StackGuard);
+	g1->stackbase = old.stackbase;
+	g1->stackguard = old.stackguard;
 
-	stackfree((byte*)m->curg->stackguard - StackGuard);
-
-	m->curg->stackbase = (byte*)oldbase;
-	m->curg->stackguard = (byte*)oldguard;
-	m->morestack.SP = (byte*)oldsp;
-	m->morestack.PC = (byte*)oldpc;
-
-	// These two lines must happen in sequence;
-	// once g has been changed, must switch to g's stack
-	// before calling any non-assembly functions.
-	// TODO(rsc): Perhaps make the new g a parameter
-	// to gogoret and setspgoto, so that g is never
-	// explicitly assigned to without also setting
-	// the stack pointer.
-	g = m->curg;
-	gogoret(&m->morestack, m->cret);
-}
-
-#pragma textflag 7
-void
-lessstack(void)
-{
-	g = m->g0;
-	setspgoto(m->sched.SP, oldstack, nil);
+	gogo(&old.gobuf, m->cret);
 }
 
 void
@@ -661,73 +635,47 @@ newstack(void)
 	int32 frame, args;
 	Stktop *top;
 	byte *stk, *sp;
-	void (*fn)(void);
+	G *g1;
+	Gobuf label;
 
-	frame = m->morearg & 0xffffffffLL;
-	args = (m->morearg>>32) & 0xffffLL;
-
-// printf("newstack frame=%d args=%d moresp=%p morepc=%p\n", frame, args, m->moresp, *(uintptr*)m->moresp);
+	frame = m->moreframe;
+	args = m->moreargs;
+	
+	// Round up to align things nicely.
+	// This is sufficient for both 32- and 64-bit machines.
+	args = (args+7) & ~7;
 
 	if(frame < StackBig)
 		frame = StackBig;
 	frame += 1024;	// for more functions, Stktop.
 	stk = stackalloc(frame);
 
+//printf("newstack frame=%d args=%d morepc=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, g->sched.pc, g->sched.sp, stk);
+
+	g1 = m->curg;
 	top = (Stktop*)(stk+frame-sizeof(*top));
+	top->stackbase = g1->stackbase;
+	top->stackguard = g1->stackguard;
+	top->gobuf = m->morebuf;
+	top->args = args;
 
-	top->oldbase = m->curg->stackbase;
-	top->oldguard = m->curg->stackguard;
-	top->oldsp = m->moresp;
-	top->magic = m->morearg;
-
-	m->curg->stackbase = (byte*)top;
-	m->curg->stackguard = stk + StackGuard;
+	g1->stackbase = (byte*)top;
+	g1->stackguard = stk + StackGuard;
 
 	sp = (byte*)top;
-
 	if(args > 0) {
-		// Copy args.  There have been two function calls
-		// since they got pushed, so skip over those return
-		// addresses.
-		args = (args+7) & ~7;
 		sp -= args;
-		mcpy(sp, m->moresp+2*sizeof(uintptr), args);
+		mcpy(sp, top->gobuf.sp, args);
 	}
 
-	g = m->curg;
-
-	// sys.morestack's return address
-	fn = (void(*)(void))(*(uintptr*)m->moresp);
-
-// printf("fn=%p\n", fn);
-
-	setspgoto(sp, fn, retfromnewstack);
+	// Continue as if lessstack had just called m->morepc
+	// (the PC that decided to grow the stack).
+	label.sp = sp;
+	label.pc = (byte*)sys·lessstack;
+	label.g = m->curg;
+	gogocall(&label, m->morepc);
 
 	*(int32*)345 = 123;	// never return
-}
-
-#pragma textflag 7
-void
-sys·morestack(uintptr u)
-{
-	while(g == m->g0) {
-		// very bad news
-		*(int32*)0x1001 = 123;
-	}
-
-	// Morestack's frame is about 0x30 bytes on amd64.
-	// If that the frame ends below the stack bottom, we've already
-	// overflowed.  Stop right now.
-	while((byte*)&u - 0x30 < m->curg->stackguard - StackGuard) {
-		// very bad news
-		*(int32*)0x1002 = 123;
-	}
-
-	g = m->g0;
-	m->moresp = (byte*)(&u-1);
-	setspgoto(m->sched.SP, newstack, nil);
-
-	*(int32*)0x1003 = 123;	// never return
 }
 
 G*
@@ -786,12 +734,10 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 	sp -= siz;
 	mcpy(sp, (byte*)&arg0, siz);
 
-	sp -= sizeof(uintptr);
-	*(byte**)sp = (byte*)goexit;
-
-	sp -= sizeof(uintptr);	// retpc used by gogo
-	newg->sched.SP = sp;
-	newg->sched.PC = fn;
+	newg->sched.sp = sp;
+	newg->sched.pc = (byte*)goexit;
+	newg->sched.g = newg;
+	newg->entry = fn;
 
 	sched.gcount++;
 	goidgen++;
