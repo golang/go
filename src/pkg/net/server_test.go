@@ -8,6 +8,7 @@ import (
 	"io";
 	"net";
 	"os";
+	"strings";
 	"syscall";
 	"testing";
 )
@@ -25,12 +26,12 @@ func runEcho(fd io.ReadWriter, done chan<- int) {
 	done <- 1
 }
 
-func runServe(t *testing.T, network, addr string, listening, done chan<- int) {
+func runServe(t *testing.T, network, addr string, listening chan<- string, done chan<- int) {
 	l, err := net.Listen(network, addr);
 	if err != nil {
 		t.Fatalf("net.Listen(%q, %q) = _, %v", network, addr, err);
 	}
-	listening <- 1;
+	listening <- l.Addr();
 
 	for {
 		fd, addr, err := l.Accept();
@@ -68,20 +69,26 @@ func connect(t *testing.T, network, addr string) {
 
 func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 	t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr);
-	listening := make(chan int);
+	listening := make(chan string);
 	done := make(chan int);
+	if network == "tcp" {
+		listenaddr += ":0";	// any available port
+	}
 	go runServe(t, network, listenaddr, listening, done);
-	<-listening;	// wait for server to start
+	addr := <-listening;	// wait for server to start
+	if network == "tcp" {
+		dialaddr += addr[strings.LastIndex(addr, ":"):len(addr)];
+	}
 	connect(t, network, dialaddr);
 	<-done;	// make sure server stopped
 }
 
 func TestTcpServer(t *testing.T) {
-	doTest(t,  "tcp", "0.0.0.0:9997", "127.0.0.1:9997");
-	doTest(t, "tcp", "[::]:9997", "[::ffff:127.0.0.1]:9997");
-	doTest(t, "tcp", "[::]:9997", "127.0.0.1:9997");
-	doTest(t, "tcp", ":9997", "127.0.0.1:9997");
-	doTest(t, "tcp", "0.0.0.0:9997", "[::ffff:127.0.0.1]:9997");
+	doTest(t,  "tcp", "0.0.0.0", "127.0.0.1");
+	doTest(t, "tcp", "[::]", "[::ffff:127.0.0.1]");
+	doTest(t, "tcp", "[::]", "127.0.0.1");
+	doTest(t, "tcp", "", "127.0.0.1");
+	doTest(t, "tcp", "0.0.0.0", "[::ffff:127.0.0.1]");
 }
 
 func TestUnixServer(t *testing.T) {

@@ -440,18 +440,15 @@ func internetSocket(net, laddr, raddr string, proto int, mode string) (fd *netFD
 	// Parse addresses (unless they are empty).
 	var lip, rip IP;
 	var lport, rport int;
-	var lerr, rerr os.Error;
 
 	if laddr != "" {
-		lip, lport, lerr = hostPortToIP(net, laddr, mode);
-		if lerr != nil {
-			return nil, lerr
+		if lip, lport, err = hostPortToIP(net, laddr, mode); err != nil {
+			return
 		}
 	}
 	if raddr != "" {
-		rip, rport, rerr = hostPortToIP(net, raddr, mode);
-		if rerr != nil {
-			return nil, rerr
+		if rip, rport, err = hostPortToIP(net, raddr, mode); err != nil {
+			return
 		}
 	}
 
@@ -482,15 +479,13 @@ func internetSocket(net, laddr, raddr string, proto int, mode string) (fd *netFD
 
 	var la, ra syscall.Sockaddr;
 	if lip != nil {
-		la, lerr = ipToSockaddr(family, lip, lport);
-		if lerr != nil {
-			return nil, lerr
+		if la, err = ipToSockaddr(family, lip, lport); err != nil {
+			return
 		}
 	}
 	if rip != nil {
-		ra, rerr = ipToSockaddr(family, rip, rport);
-		if rerr != nil {
-			return nil, rerr
+		if ra, err = ipToSockaddr(family, rip, rport); err != nil {
+			return
 		}
 	}
 
@@ -727,6 +722,11 @@ func (l *ListenerUnix) Close() os.Error {
 	return err;
 }
 
+// Addr returns the listener's network address.
+func (l *ListenerUnix) Addr() string {
+	return l.fd.addr();
+}
+
 // Dial connects to the remote address raddr on the network net.
 // If the string laddr is not empty, it is used as the local address
 // for the connection.
@@ -776,6 +776,7 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 type Listener interface {
 	Accept() (c Conn, raddr string, err os.Error);
 	Close() os.Error;
+	Addr() string;	// Listener's network address
 }
 
 // ListenerTCP is a TCP network listener.
@@ -783,11 +784,12 @@ type Listener interface {
 // instead of assuming TCP.
 type ListenerTCP struct {
 	fd *netFD;
-	laddr string
 }
 
 // ListenTCP announces on the TCP address laddr and returns a TCP listener.
 // Net must be "tcp", "tcp4", or "tcp6".
+// If laddr has a port of 0, it means to listen on some available port.
+// The caller can use l.Addr() to retrieve the chosen address.
 func ListenTCP(net, laddr string) (l *ListenerTCP, err os.Error) {
 	fd, e := internetSocket(net, laddr, "", syscall.SOCK_STREAM, "listen");
 	if e != nil {
@@ -833,6 +835,11 @@ func (l *ListenerTCP) Close() os.Error {
 		return os.EINVAL
 	}
 	return l.fd.Close()
+}
+
+// Addr returns the listener's network address.
+func (l *ListenerTCP) Addr() string {
+	return l.fd.addr();
 }
 
 // Listen announces on the local network address laddr.

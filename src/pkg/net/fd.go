@@ -427,3 +427,12 @@ func (fd *netFD) accept() (nfd *netFD, err os.Error) {
 	return nfd, nil
 }
 
+func (fd *netFD) addr() string {
+	sa, err := syscall.Getsockname(fd.fd);
+	if err != 0 {
+		return "";
+	}
+	// TODO(rsc): woud like to say err not err1 but 6g complains
+	addr, err1 := sockaddrToString(sa);
+	return addr;
+}

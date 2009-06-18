@@ -324,6 +324,24 @@ func Accept(fd int) (nfd int, sa Sockaddr, errno int) {
 	return;
 }
 
+func Getsockname(fd int) (sa Sockaddr, errno int) {
+	var rsa RawSockaddrAny;
+	var len _Socklen = SizeofSockaddrAny;
+	if errno = getsockname(fd, &rsa, &len); errno != 0 {
+		return;
+	}
+	return anyToSockaddr(&rsa);
+}
+
+func Getpeername(fd int) (sa Sockaddr, errno int) {
+	var rsa RawSockaddrAny;
+	var len _Socklen = SizeofSockaddrAny;
+	if errno = getpeername(fd, &rsa, &len); errno != 0 {
+		return;
+	}
+	return anyToSockaddr(&rsa);
+}
+
 func Bind(fd int, sa Sockaddr) (errno int) {
 	ptr, n, err := sa.sockaddr();
 	if err != 0 {

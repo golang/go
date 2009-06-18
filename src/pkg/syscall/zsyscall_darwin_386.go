@@ -68,6 +68,18 @@ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
 	return;
 }
 
+func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+	r0, r1, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
+	errno = int(e1);
+	return;
+}
+
+func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+	r0, r1, e1 := Syscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
+	errno = int(e1);
+	return;
+}
+
 func kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int) {
 	r0, r1, e1 := Syscall6(SYS_KEVENT, uintptr(kq), uintptr(change), uintptr(nchange), uintptr(event), uintptr(nevent), uintptr(unsafe.Pointer(timeout)));
 	n = int(r0);
