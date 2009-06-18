@@ -374,7 +374,12 @@ the two bytes <code>0xc3 0xbf</code> of the UTF-8 encoding of character
 U+00FF.
 </p>
 
+<p>
+A sequence of string literals is concatenated to form a single string.
+</p>
+
 <pre class="grammar">
+StringLit              = string_lit { string_lit } .
 string_lit             = raw_string_lit | interpreted_string_lit .
 raw_string_lit         = "`" { unicode_char } "`" .
 interpreted_string_lit = """ { unicode_value | byte_value } """ .
@@ -383,13 +388,14 @@ interpreted_string_lit = """ { unicode_value | byte_value } """ .
 <pre>
 `abc`
 `\n`
-"hello, world\n"
 "\n"
 ""
 "Hello, world!\n"
 "日本語"
 "\u65e5本\U00008a9e"
 "\xff\u00FF"
+"Alea iacta est."
+"Alea " /* The die */ `iacta est` /* is cast */ "."  // same as "Alea iacta est."
 </pre>
 
 <p>
@@ -505,16 +511,14 @@ as the two's complement of its absolute value.
 </p>
 
 <p>
-There is also a set of architecture-independent basic numeric types
-whose size depends on the architecture:
+There is also a set of numeric types with implementation-specific sizes:
 </p>
 
 <pre class="grammar">
-uint     at least 32 bits, at most the size of the largest uint type
-int      at least 32 bits, at most the size of the largest int type
-float    at least 32 bits, at most the size of the largest float type
-uintptr  smallest uint type large enough to store the uninterpreted
-		 bits of a pointer value
+uint     either 32 or 64 bits
+int      either 32 or 64 bits
+float    either 32 or 64 bits
+uintptr  an unsigned integer large enough to store the uninterpreted bits of a pointer value
 </pre>
 
 <p>
@@ -546,21 +550,12 @@ The elements of strings have type <code>byte</code> and may be
 accessed using the usual indexing operations (§Indexes).  It is
 illegal to take the address of such an element, that is, even if
 <code>s[i]</code> is the <code>i</code><sup>th</sup> byte of a
-string, <code>&amp;s[i]</code> is invalid.  The length of a string
-can be computed by the function <code>len(s1)</code>.
+string, <code>&amp;s[i]</code> is invalid.  The length of string
+<code>s</code> can be discovered using the built-in function
+<code>len(s)</code>. It is a compile-time constant if <code>s</code>
+is a string literal.
 </p>
 
-<p>
-A sequence of string literals is concatenated into a single string.
-</p>
-<pre class="grammar">
-StringLit   = string_lit { string_lit } .
-</pre>
-
-<pre>
-"Alea iacta est."
-"Alea " /* The die */ `iacta est` /* is cast */ "."
-</pre>
 
 <h3>Array types</h3>
 
@@ -627,15 +622,8 @@ the length of the slice and the length of the array beyond the slice;
 a slice of length up to that capacity can be created by `slicing' a new
 one from the original slice (§Slices).
 The capacity of a slice <code>a</code> can be discovered using the
-built-in function
-</p>
-
-<pre>
-cap(s)
-</pre>
-
-<p>
-and the relationship between <code>len()</code> and <code>cap()</code> is:
+built-in function <code>cap(a)</code> and the relationship between
+<code>len()</code> and <code>cap()</code> is:
 </p>
 
 <pre>
@@ -1753,7 +1741,6 @@ Operands denote the elementary values in an expression.
 Operand    = Literal | QualifiedIdent | "(" Expression ")" .
 Literal    = BasicLit | CompositeLit | FunctionLit .
 BasicLit   = int_lit | float_lit | char_lit | StringLit .
-StringLit  = string_lit { string_lit } .
 </pre>
 
 
@@ -1836,6 +1823,7 @@ constant key value.
 
 <p>
 For struct literals the following rules apply:
+</p>
 <ul>
 	<li>A literal which does not contain any keys must
 	    list an element for each struct field in the
@@ -1854,7 +1842,6 @@ For struct literals the following rules apply:
 	    field of a struct belonging to a different package.
 	</li>
 </ul>
-</p>
 
 <p>
 Given the declarations
@@ -1873,7 +1860,9 @@ origin := Point{};                            // zero value for Point
 line := Line{origin, Point{y: -4, z: 12.3}};  // zero value for line.q.x
 </pre>
 
-<p>For array and slice literals the following rules apply:
+<p>
+For array and slice literals the following rules apply:
+</p>
 <ul>
 	<li>Each element has an associated integer index marking
 	    its position in the array.
@@ -1885,7 +1874,6 @@ line := Line{origin, Point{y: -4, z: 12.3}};  // zero value for line.q.x
 	    If the first element has no key, its index is zero.
 	</li>
 </ul>
-</p>
 
 <p>
 Taking the address of a composite literal (§Address operators)
