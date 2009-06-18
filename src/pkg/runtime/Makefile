@@ -79,6 +79,8 @@ HFILES=\
 	$(GOOS)/os.h\
 	$(GOOS)/$(GOARCH)/defs.h\
 
+all: $(LIB) runtime.acid
+
 install: $(LIB) runtime.acid
 	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)
 	cp $(LIB) $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/$(LIB)
