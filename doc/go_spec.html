@@ -354,9 +354,10 @@ literals.
 <p>
 Raw string literals are character sequences between back quotes
 <code>``</code>.  Within the quotes, any character is legal except
-newline and back quote. The value of a raw string literal is the
-string composed of the uninterpreted bytes between the quotes;
-in particular, backslashes have no special meaning.
+back quote. The value of a raw string literal is the
+string composed of the uninterpreted characters between the quotes;
+in particular, backslashes have no special meaning and the string may
+span multiple lines.
 </p>
 <p>
 Interpreted string literals are character sequences between double
@@ -386,8 +387,9 @@ interpreted_string_lit = """ { unicode_value | byte_value } """ .
 </pre>
 
 <pre>
-`abc`
-`\n`
+`abc`  // same as "abc"
+`\n
+\n`    // same as "\\n\n\\n"
 "\n"
 ""
 "Hello, world!\n"
