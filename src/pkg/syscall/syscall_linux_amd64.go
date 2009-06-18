@@ -36,6 +36,8 @@ import "syscall"
 //sys	setgroups(n int, list *_Gid_t) (errno int)
 //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
 //sys	socket(domain int, typ int, proto int) (fd int, errno int)
+//sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+//sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 
 func Getpagesize() int {
 	return 4096

@@ -164,6 +164,8 @@ func Sleep(ns int64) (errno int) {
 //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
 //sys	socket(domain int, typ int, proto int) (fd int, errno int)
 //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+//sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+//sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 
 // For testing: clients can set this flag to force
 // creation of IPv6 sockets to return EAFNOSUPPORT.
@@ -292,6 +294,24 @@ func Accept(fd int) (nfd int, sa Sockaddr, errno int) {
 	return;
 }
 
+func Getsockname(fd int) (sa Sockaddr, errno int) {
+	var rsa RawSockaddrAny;
+	var len _Socklen = SizeofSockaddrAny;
+	if errno = getsockname(fd, &rsa, &len); errno != 0 {
+		return;
+	}
+	return anyToSockaddr(&rsa);
+}
+
+func Getpeername(fd int) (sa Sockaddr, errno int) {
+	var rsa RawSockaddrAny;
+	var len _Socklen = SizeofSockaddrAny;
+	if errno = getpeername(fd, &rsa, &len); errno != 0 {
+		return;
+	}
+	return anyToSockaddr(&rsa);
+}
+
 func Bind(fd int, sa Sockaddr) (errno int) {
 	ptr, n, err := sa.sockaddr();
 	if err != 0 {
@@ -345,8 +365,6 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno
 //	Acct(name nil-string) (errno int)
 //	Futimes(fd int, timeval *Timeval) (errno int)	// Pointer to 2 timevals!
 //	Gethostuuid(uuid *byte, timeout *Timespec) (errno int)
-//	Getpeername(fd int, addr *Sockaddr, addrlen *int) (errno int)
-//	Getsockname(fd int, addr *Sockaddr, addrlen *int) (errno int)
 //	Getsockopt(s int, level int, name int, val *byte, vallen *int) (errno int)
 //	Madvise(addr *byte, len int, behav int) (errno int)
 //	Mprotect(addr *byte, len int, prot int) (errno int)

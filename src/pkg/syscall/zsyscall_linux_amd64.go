@@ -760,5 +760,17 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
 	return;
 }
 
+func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+	r0, r1, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
+	errno = int(e1);
+	return;
+}
+
+func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+	r0, r1, e1 := Syscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
+	errno = int(e1);
+	return;
+}
+
 
 

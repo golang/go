@@ -99,6 +99,18 @@ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
 	return;
 }
 
+func getsockname(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+	var _ int;
+	_, errno = socketcall(_GETSOCKNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
+	return;
+}
+
+func getpeername(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+	var _ int;
+	_, errno = socketcall(_GETPEERNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
+	return;
+}
+
 func bind(s int, addr uintptr, addrlen _Socklen) (errno int) {
 	var _ int;
 	_, errno = socketcall(_BIND, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0);
@@ -127,4 +139,3 @@ func Listen(s int, n int) (errno int) {
 	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0);
 	return;
 }
-
