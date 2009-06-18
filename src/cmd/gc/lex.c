@@ -371,11 +371,11 @@ isfrog(int c)
 static int32
 _yylex(void)
 {
-	int c, c1, clen;
+	int c, c1, clen, escflag;
 	vlong v;
 	char *cp;
 	Rune rune;
-	int escflag;
+	int32 lno;
 	Sym *s;
 
 	prevlineno = lineno;
@@ -459,9 +459,14 @@ l0:
 		clen = sizeof(int32);
 
 	casebq:
+		lno = lineno;
 		for(;;) {
 			c = getc();
-			if(c == EOF || c == '`')
+			if(c == EOF) {
+				yyerror("eof in string starting at line %L", lno);
+				break;
+			}
+			if(c == '`')
 				break;
 			cp = remal(cp, clen, 1);
 			cp[clen++] = c;
@@ -1082,11 +1087,16 @@ escchar(int e, int *escflg, vlong *val)
 
 loop:
 	c = getr();
-	if(c == '\n') {
+	switch(c) {
+	case EOF:
+		yyerror("eof in string");
+		return 1;
+	case '\n':
 		yyerror("newline in string");
 		return 1;
-	}
-	if(c != '\\') {
+	case '\\':
+		break;
+	default:
 		if(c == e)
 			return 1;
 		*val = c;
