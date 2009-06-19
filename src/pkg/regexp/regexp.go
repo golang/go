@@ -24,6 +24,7 @@ package regexp
 
 import (
 	"container/vector";
+	"io";
 	"os";
 	"runtime";
 	"utf8";
@@ -282,7 +283,7 @@ func (p *parser) regexp() (start, end instr)
 var iNULL instr
 
 func special(c int) bool {
-	s := `\.+*?()|[]`;
+	s := `\.+*?()|[]^$`;
 	for i := 0; i < len(s); i++ {
 		if c == int(s[i]) {
 			return true
@@ -762,3 +763,67 @@ func Match(pattern string, s string) (matched bool, error os.Error) {
 	}
 	return re.Match(s), nil
 }
+
+// ReplaceAll returns a copy of src in which all matches for the Regexp
+// have been replaced by repl.  No support is provided for expressions
+// (e.g. \1 or $1) in the replacement string.
+func (re *Regexp) ReplaceAll(src, repl string) string {
+	lastMatchEnd := 0; // end position of the most recent match
+	searchPos := 0; // position where we next look for a match
+	buf := new(io.ByteBuffer);
+	for searchPos <= len(src) {
+		a := re.doExecute(src, searchPos);
+		if len(a) == 0 {
+			break; // no more matches
+		}
+
+		// Copy the unmatched characters before this match.
+		io.WriteString(buf, src[lastMatchEnd:a[0]]);
+
+		// Now insert a copy of the replacement string, but not for a
+		// match of the empty string immediately after another match.
+		// (Otherwise, we get double replacement for patterns that
+		// match both empty and nonempty strings.)
+		if a[1] > lastMatchEnd || a[0] == 0 {
+			io.WriteString(buf, repl);
+		}
+		lastMatchEnd = a[1];
+
+		// Advance past this match; always advance at least one character.
+		rune, width := utf8.DecodeRuneInString(src[searchPos:len(src)]);
+		if searchPos + width > a[1] {
+			searchPos += width;
+		} else if searchPos + 1 > a[1] {
+			// This clause is only needed at the end of the input
+			// string.  In that case, DecodeRuneInString returns width=0.
+			searchPos++;
+		} else {
+			searchPos = a[1];
+		}
+	}
+
+	// Copy the unmatched characters after the last match.
+	io.WriteString(buf, src[lastMatchEnd:len(src)]);
+
+	return string(buf.Data());
+}
+
+// QuoteMeta returns a string that quotes all regular expression metacharacters
+// inside the argument text; the returned string is a regular expression matching
+// the literal text.  For example, QuoteMeta(`[foo]`) returns `\[foo\]`.
+func QuoteMeta(s string) string {
+	b := make([]byte, 2 * len(s));
+
+	// A byte loop is correct because all metacharacters are ASCII.
+	j := 0;
+	for i := 0; i < len(s); i++ {
+		if special(int(s[i])) {
+			b[j] = '\\';
+			j++;
+		}
+		b[j] = s[i];
+		j++;
+	}
+	return string(b[0:j]);
+}
+

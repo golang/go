@@ -37,7 +37,7 @@ os.install: once.install syscall.install
 path.install: io.install
 rand.install:
 reflect.install: strconv.install sync.install utf8.install
-regexp.install: container/vector.install os.install runtime.install utf8.install
+regexp.install: container/vector.install io.install os.install runtime.install utf8.install
 runtime.install:
 sort.install:
 strconv.install: bytes.install math.install os.install utf8.install
