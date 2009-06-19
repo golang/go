@@ -1723,10 +1723,29 @@ eqtype(Type *t1, Type *t2)
 	return eqtype1(t1, t2, 0, 1);
 }
 
+/*
+ * can we convert from type src to dst with
+ * a trivial conversion (no bits changing)?
+ */
 int
-cvttype(Type *t1, Type *t2)
+cvttype(Type *dst, Type *src)
 {
-	return eqtype1(t1, t2, 0, 0);
+	Sym *ds, *ss;
+	int ret;
+
+	if(eqtype1(dst, src, 0, 0))
+		return 1;
+
+	// Can convert if assignment compatible when
+	// top-level names are ignored.
+	ds = dst->sym;
+	dst->sym = nil;
+	ss = src->sym;
+	src->sym = nil;
+	ret = ascompat(dst, src);
+	dst->sym = ds;
+	src->sym = ss;
+	return ret == 1;
 }
 
 int

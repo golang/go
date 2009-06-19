@@ -1301,7 +1301,7 @@ walkconv(Node *n)
 		return;
 
 	// no-op conversion
-	if(cvttype(t, l->type)) {
+	if(cvttype(t, l->type) == 1) {
 	nop:
 		if(l->op != ONAME) {
 			indir(n, l);
@@ -2217,7 +2217,8 @@ exportasok(Type *t)
 }
 
 /*
- * can we assign var of type src to var of type dst
+ * can we assign var of type src to var of type dst?
+ * return 0 if not, 1 if conversion is trivial, 2 if conversion is non-trivial.
  */
 int
 ascompat(Type *dst, Type *src)
@@ -2228,6 +2229,28 @@ ascompat(Type *dst, Type *src)
 	}
 
 	if(dst == T || src == T)
+		return 0;
+
+	if(dst->etype == TFORWINTER || dst->etype == TFORWSTRUCT || dst->etype == TFORW)
+		return 0;
+	if(src->etype == TFORWINTER || src->etype == TFORWSTRUCT || src->etype == TFORW)
+		return 0;
+
+	// interfaces go through even if names don't match
+	if(isnilinter(dst) || isnilinter(src))
+		return 2;
+
+	if(isinter(dst) && isinter(src))
+		return 2;
+
+	if(isinter(dst) && methtype(src))
+		return 2;
+
+	if(isinter(src) && methtype(dst))
+		return 2;
+
+	// otherwise, if concrete types have names, they must match
+	if(dst->sym && src->sym && dst != src)
 		return 0;
 
 	if(dst->etype == TCHAN && src->etype == TCHAN) {
@@ -2242,19 +2265,7 @@ ascompat(Type *dst, Type *src)
 	&& isptr[src->etype]
 	&& isfixedarray(src->type)
 	&& eqtype(dst->type, src->type->type))
-		return 1;
-
-	if(isnilinter(dst) || isnilinter(src))
-		return 1;
-
-	if(isinter(dst) && isinter(src))
-		return 1;
-
-	if(isinter(dst) && methtype(src))
-		return 1;
-
-	if(isinter(src) && methtype(dst))
-		return 1;
+		return 2;
 
 	return 0;
 }
