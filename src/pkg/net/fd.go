@@ -436,3 +436,13 @@ func (fd *netFD) addr() string {
 	addr, err1 := sockaddrToString(sa);
 	return addr;
 }
+
+func (fd *netFD) remoteAddr() string {
+	sa, err := syscall.Getpeername(fd.fd);
+	if err != 0 {
+		return "";
+	}
+	// TODO(rsc): woud like to say err not err1 but 6g complains
+	addr, err1 := sockaddrToString(sa);
+	return addr;
+}

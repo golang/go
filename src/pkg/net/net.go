@@ -33,6 +33,12 @@ type Conn interface {
 	// Close closes the connection.
 	Close() os.Error;
 
+	// LocalAddr returns the local network address.
+	LocalAddr() string;
+
+	// RemoteAddr returns the remote network address.
+	RemoteAddr() string;
+
 	// For packet-based protocols such as UDP,
 	// ReadFrom reads the next packet from the network,
 	// returning the number of bytes read and the remote
@@ -316,6 +322,20 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd 
 type connBase struct {
 	fd *netFD;
 	raddr string;
+}
+
+func (c *connBase) LocalAddr() string {
+	if c == nil {
+		return ""
+	}
+	return c.fd.addr();
+}
+
+func (c *connBase) RemoteAddr() string {
+	if c == nil {
+		return ""
+	}
+	return c.fd.remoteAddr();
 }
 
 func (c *connBase) File() *os.File {
