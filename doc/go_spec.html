@@ -997,7 +997,7 @@ A channel provides a mechanism for two concurrently executing functions
 to synchronize execution and communicate by passing a value of a
 specified element type. The element type must be complete (§Types).
 (TODO: is completeness necessary here?)
-A channel value may be <code>nil</code>.
+A value of channel type may be <code>nil</code>.
 </p>
 
 <pre class="grammar">
@@ -1161,19 +1161,22 @@ be assigned to otherwise incompatible types:
 </p>
 <ul>
 <li>
-The predeclared constant <code>nil</code> can be assigned to any
-pointer, function, slice, map, channel, or interface variable.
-<li>
-A pointer to an array can be assigned to a slice variable with compatible element type.
-The slice variable then refers to the original array; the data is not copied.
-</li>
-<li>
 A value can be assigned to an interface variable if the static
 type of the value implements the interface.
 </li>
 <li>
-A value of bidirectional channel type can be assigned to any channel
-variable of compatible channel value type.
+The predeclared constant <code>nil</code> can be assigned to any
+pointer, function, slice, map, channel, or interface variable.
+<li>
+A pointer <code>p</code> to an array can be assigned to a slice variable
+<code>v</code> with compatible element type
+if the type of <code>p</code> or <code>v</code> is unnamed.
+The slice variable then refers to the original array; the data is not copied.
+</li>
+<li>
+A bidirectional channel <code>c</code> can be assigned to a channel variable
+<code>v</code> with compatible channel value type
+if the type of <code>c</code> or <code>v</code> is unnamed.
 </li>
 </ul>
 
@@ -3846,13 +3849,13 @@ The following conversion rules apply:
 </p>
 <ul>
 <li>
-1) Between two compatible types (§Type identity and compatibility).
-The conversion always succeeds.
+1) The conversion succeeds if the value is assignment-compatible
+to a variable of type T.
 </li>
 <li>
-2) Between two types that would be compatible if they
-or any of their component types were unnamed (§Type identity and compatibility).
-The conversion always succeeds.
+2) The conversion succeeds if the value would be assignment-compatible
+to a variable of type T if the value type or T or any of their component
+types are unnamed (§Type identity and compatibility).
 </li>
 <li>
 3) Between integer types.  If the value is a signed quantity, it is
