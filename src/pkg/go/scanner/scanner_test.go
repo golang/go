@@ -63,6 +63,8 @@ var tokens = [...]elt{
 	elt{ token.CHAR, "'\\uff16'", literal },
 	elt{ token.CHAR, "'\\U0000ff16'", literal },
 	elt{ token.STRING, "`foobar`", literal },
+	elt{ token.STRING, "`" `foo
+	                        bar` "`", literal },
 
 	// Operators and delimitors
 	elt{ token.ADD, "+", operator },
