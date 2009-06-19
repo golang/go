@@ -1,0 +1,25 @@
+// errchk $G $D/$F.go
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+// everything here is legal except the ERROR line
+
+var c chan int
+var d1 chan<- int = c
+var d2 = (chan<- int)(c)
+
+var e *[4]int
+var f1 []int = e
+var f2 = []int(e)
+
+var g = []int(nil)
+
+type H *[4]int
+type J []int
+var h H
+var j1 J = h	// ERROR "compat|illegal"
+var j2 = J(h)
