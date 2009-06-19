@@ -102,6 +102,17 @@ func (b *ByteBuffer) Read(p []byte) (n int, err os.Error) {
 	return n, nil
 }
 
+// ReadByte reads and returns the next byte from the buffer.
+// If no byte is available, it returns error ErrEOF.
+func (b *ByteBuffer) ReadByte() (c byte, err os.Error) {
+	if b.off >= len(b.buf) {
+		return 0, ErrEOF;
+	}
+        c = b.buf[b.off];
+	b.off++;
+	return c, nil;
+}
+
 // NewByteBufferFromArray creates and initializes a new ByteBuffer
 // with buf as its initial contents.
 func NewByteBufferFromArray(buf []byte) *ByteBuffer {

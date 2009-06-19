@@ -118,6 +118,19 @@ func TestBasicOperations(t *testing.T) {
 
 		empty(t, "TestBasicOperations (9)", &buf, string(data[0 : 20]), make([]byte, 5));
 		empty(t, "TestBasicOperations (10)", &buf, "", make([]byte, 100));
+
+		buf.WriteByte(data[1]);
+		c, err := buf.ReadByte();
+		if err != nil {
+			t.Errorf("ReadByte unexpected eof\n");
+		}
+		if c != data[1] {
+			t.Errorf("ReadByte wrong value c=%v\n", c);
+		}
+		c, err = buf.ReadByte();
+		if err == nil {
+			t.Errorf("ReadByte unexpected not eof\n");
+		}
 	}
 }
 
