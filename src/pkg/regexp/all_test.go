@@ -233,3 +233,125 @@ func TestMatchFunction(t *testing.T) {
 		matchFunctionTest(t, test.re, test.text, test.match)
 	}
 }
+
+type ReplaceTest struct {
+	pattern, replacement, input, output string;
+}
+
+var replaceTests = []ReplaceTest {
+	// Test empty input and/or replacement, with pattern that matches the empty string.
+	ReplaceTest{"", "", "", ""},
+	ReplaceTest{"", "x", "", "x"},
+	ReplaceTest{"", "", "abc", "abc"},
+	ReplaceTest{"", "x", "abc", "xaxbxcx"},
+
+	// Test empty input and/or replacement, with pattern that does not match the empty string.
+	ReplaceTest{"b", "", "", ""},
+	ReplaceTest{"b", "x", "", ""},
+	ReplaceTest{"b", "", "abc", "ac"},
+	ReplaceTest{"b", "x", "abc", "axc"},
+	ReplaceTest{"y", "", "", ""},
+	ReplaceTest{"y", "x", "", ""},
+	ReplaceTest{"y", "", "abc", "abc"},
+	ReplaceTest{"y", "x", "abc", "abc"},
+
+	// Multibyte characters -- verify that we don't try to match in the middle
+	// of a character.
+	ReplaceTest{"[a-c]*", "x", "\u65e5", "x\u65e5x"},
+	ReplaceTest{"[^\u65e5]", "x", "abc\u65e5def", "xxx\u65e5xxx"},
+
+	// Start and end of a string.
+	ReplaceTest{"^[a-c]*", "x", "abcdabc", "xdabc"},
+	ReplaceTest{"[a-c]*$", "x", "abcdabc", "abcdx"},
+	ReplaceTest{"^[a-c]*$", "x", "abcdabc", "abcdabc"},
+	ReplaceTest{"^[a-c]*", "x", "abc", "x"},
+	ReplaceTest{"[a-c]*$", "x", "abc", "x"},
+	ReplaceTest{"^[a-c]*$", "x", "abc", "x"},
+	ReplaceTest{"^[a-c]*", "x", "dabce", "xdabce"},
+	ReplaceTest{"[a-c]*$", "x", "dabce", "dabcex"},
+	ReplaceTest{"^[a-c]*$", "x", "dabce", "dabce"},
+	ReplaceTest{"^[a-c]*", "x", "", "x"},
+	ReplaceTest{"[a-c]*$", "x", "", "x"},
+	ReplaceTest{"^[a-c]*$", "x", "", "x"},
+
+	ReplaceTest{"^[a-c]+", "x", "abcdabc", "xdabc"},
+	ReplaceTest{"[a-c]+$", "x", "abcdabc", "abcdx"},
+	ReplaceTest{"^[a-c]+$", "x", "abcdabc", "abcdabc"},
+	ReplaceTest{"^[a-c]+", "x", "abc", "x"},
+	ReplaceTest{"[a-c]+$", "x", "abc", "x"},
+	ReplaceTest{"^[a-c]+$", "x", "abc", "x"},
+	ReplaceTest{"^[a-c]+", "x", "dabce", "dabce"},
+	ReplaceTest{"[a-c]+$", "x", "dabce", "dabce"},
+	ReplaceTest{"^[a-c]+$", "x", "dabce", "dabce"},
+	ReplaceTest{"^[a-c]+", "x", "", ""},
+	ReplaceTest{"[a-c]+$", "x", "", ""},
+	ReplaceTest{"^[a-c]+$", "x", "", ""},
+
+	// Other cases.
+	ReplaceTest{"abc", "def", "abcdefg", "defdefg"},
+	ReplaceTest{"bc", "BC", "abcbcdcdedef", "aBCBCdcdedef"},
+	ReplaceTest{"abc", "", "abcdabc", "d"},
+	ReplaceTest{"x", "xXx", "xxxXxxx", "xXxxXxxXxXxXxxXxxXx"},
+	ReplaceTest{"abc", "d", "", ""},
+	ReplaceTest{"abc", "d", "abc", "d"},
+	ReplaceTest{".+", "x", "abc", "x"},
+	ReplaceTest{"[a-c]*", "x", "def", "xdxexfx"},
+	ReplaceTest{"[a-c]+", "x", "abcbcdcdedef", "xdxdedef"},
+	ReplaceTest{"[a-c]*", "x", "abcbcdcdedef", "xdxdxexdxexfx"},
+}
+
+func TestReplaceAll(t *testing.T) {
+	for i, tc := range replaceTests {
+		re, err := Compile(tc.pattern);
+		if err != nil {
+			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err);
+			continue;
+		}
+		actual := re.ReplaceAll(tc.input, tc.replacement);
+		if actual != tc.output {
+			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
+				tc.pattern, tc.input, tc.replacement, actual, tc.output);
+		}
+	}
+}
+
+type QuoteMetaTest struct {
+	pattern, output string;
+}
+
+var quoteMetaTests = []QuoteMetaTest {
+	QuoteMetaTest{``, ``},
+	QuoteMetaTest{`foo`, `foo`},
+	QuoteMetaTest{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[{\]}\\\|,<\.>/\?~`},
+}
+
+func TestQuoteMeta(t *testing.T) {
+	for i, tc := range quoteMetaTests {
+		// Verify that QuoteMeta returns the expected string.
+		quoted := QuoteMeta(tc.pattern);
+		if quoted != tc.output {
+			t.Errorf("QuoteMeta(`%s`) = `%s`; want `%s`",
+				tc.pattern, quoted, tc.output);
+			continue;
+		}
+
+		// Verify that the quoted string is in fact treated as expected
+		// by Compile -- i.e. that it matches the original, unquoted string.
+		if tc.pattern != "" {
+			re, err := Compile(quoted);
+			if err != nil {
+				t.Errorf("Unexpected error compiling QuoteMeta(`%s`): %v", tc.pattern, err);
+				continue;
+			}
+			src := "abc" + tc.pattern + "def";
+			repl := "xyz";
+			replaced := re.ReplaceAll(src, repl);
+			expected := "abcxyzdef";
+			if replaced != expected {
+				t.Errorf("QuoteMeta(`%s`).Replace(`%s`,`%s`) = `%s`; want `%s`",
+					tc.pattern, src, repl, replaced, expected);
+			}
+		}
+	}
+}
+
