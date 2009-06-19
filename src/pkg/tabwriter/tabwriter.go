@@ -20,6 +20,16 @@ import (
 // ----------------------------------------------------------------------------
 // Filter implementation
 
+// A cell represents a segment of text delineated by tabs, form-feed,
+// or newline chars. The text itself is stored in a separate buffer;
+// cell only describes the segment's size in bytes and width in runes.
+//
+type cell struct {
+	size int;  // cell size in bytes
+	width int;  // cell width in runes
+}
+
+
 // A Writer is a filter that inserts padding around
 // tab-delimited columns in its input to align them
 // in the output.
@@ -37,8 +47,8 @@ import (
 // UTF-8 characters.
 //
 // If a Writer is configured to filter HTML, HTML tags and entities
-// are simply passed through and their widths are assumed to be zero
-// for formatting purposes.
+// are simply passed through. The widths of tags and entities are
+// assumed to be zero (tags) and one (entities) for formatting purposes.
 //
 // The form feed character ('\f') acts like a newline but it also
 // terminates all columns in the current line (effectively calling
@@ -59,14 +69,34 @@ type Writer struct {
 	flags uint;
 
 	// current state
-	html_char byte;  // terminating char of html tag/entity, or 0 ('>', ';', or 0)
 	buf io.ByteBuffer;  // collected text w/o tabs, newlines, or form feed chars
-	size int;  // size of incomplete cell in bytes
-	width int;  // width of incomplete cell in runes up to buf[pos] w/o ignored sections
 	pos int;  // buffer position up to which width of incomplete cell has been computed
-	lines_size vector.Vector;  // list of lines; each line is a list of cell sizes in bytes
-	lines_width vector.Vector;  // list of lines; each line is a list of cell widths in runes
+	cell cell;  // current incomplete cell; cell.width is up to buf[pos] w/o ignored sections
+	html_char byte;  // terminating char of html tag/entity, or 0 ('>', ';', or 0)
+	lines vector.Vector;  // list if lines; each line is a list of cells
 	widths vector.IntVector;  // list of column widths in runes - re-used during formatting
+}
+
+
+func (b *Writer) addLine() {
+	b.lines.Push(vector.New(0));
+}
+
+
+func (b *Writer) line(i int) *vector.Vector {
+	return b.lines.At(i).(*vector.Vector);
+}
+
+
+// Reset the current state.
+func (b *Writer) reset() {
+	b.buf.Reset();
+	b.pos = 0;
+	b.cell = cell{};
+	b.html_char = 0;
+	b.lines.Init(0);
+	b.widths.Init(0);
+	b.addLine();
 }
 
 
@@ -74,7 +104,7 @@ type Writer struct {
 //
 // - all text written is appended to buf; form feed chars, tabs and newlines are stripped away
 // - at any given time there is a (possibly empty) incomplete cell at the end
-//   (the cell starts after a tab or newline)
+//   (the cell starts after a tab, form feed, or newline)
 // - size is the number of bytes belonging to the cell so far
 // - width is text width in runes of that cell from the start of the cell to
 //   position pos; html tags and entities are excluded from this width if html
@@ -92,12 +122,6 @@ type Writer struct {
 // ^                  ^                         ^
 // |                  |                         |
 // buf                start of incomplete cell  pos
-
-
-func (b *Writer) addLine() {
-	b.lines_size.Push(vector.NewIntVector(0));
-	b.lines_width.Push(vector.NewIntVector(0));
-}
 
 
 // Formatting can be controlled with these flags.
@@ -144,19 +168,9 @@ func (b *Writer) Init(output io.Writer, cellwidth, padding int, padchar byte, fl
 	}
 	b.flags = flags;
 
-	b.lines_size.Init(0);
-	b.lines_width.Init(0);
-	b.widths.Init(0);
-	b.addLine();  // the very first line
+	b.reset();
 
 	return b;
-}
-
-
-func (b *Writer) line(i int) (*vector.IntVector, *vector.IntVector) {
-	return
-		b.lines_size.At(i).(*vector.IntVector),
-		b.lines_width.At(i).(*vector.IntVector);
 }
 
 
@@ -219,19 +233,19 @@ func (b *Writer) writePadding(textw, cellw int) os.Error {
 func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
 	pos := pos0;
 	for i := line0; i < line1; i++ {
-		line_size, line_width := b.line(i);
-		for j := 0; j < line_size.Len(); j++ {
-			s, w := line_size.At(j), line_width.At(j);
+		line := b.line(i);
+		for j := 0; j < line.Len(); j++ {
+			c := line.At(j).(cell);
 
 			switch {
 			default: // align left
 
-				if err := b.write0(b.buf.Data()[pos : pos + s]); err != nil {
+				if err := b.write0(b.buf.Data()[pos : pos + c.size]); err != nil {
 					return pos, err;
 				}
-				pos += s;
+				pos += c.size;
 				if j < b.widths.Len() {
-					if err := b.writePadding(w, b.widths.At(j)); err != nil {
+					if err := b.writePadding(c.width, b.widths.At(j)); err != nil {
 						return pos, err;
 					}
 				}
@@ -239,24 +253,24 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
 			case b.flags & AlignRight != 0:  // align right
 
 				if j < b.widths.Len() {
-					if err := b.writePadding(w, b.widths.At(j)); err != nil {
+					if err := b.writePadding(c.width, b.widths.At(j)); err != nil {
 						return pos, err;
 					}
 				}
-				if err := b.write0(b.buf.Data()[pos : pos + s]); err != nil {
+				if err := b.write0(b.buf.Data()[pos : pos + c.size]); err != nil {
 					return pos, err;
 				}
-				pos += s;
+				pos += c.size;
 			}
 		}
 
-		if i+1 == b.lines_size.Len() {
+		if i+1 == b.lines.Len() {
 			// last buffered line - we don't have a newline, so just write
 			// any outstanding buffered data
-			if err := b.write0(b.buf.Data()[pos : pos + b.size]); err != nil {
+			if err := b.write0(b.buf.Data()[pos : pos + b.cell.size]); err != nil {
 				return pos, err;
 			}
-			pos += b.size;
+			pos += b.cell.size;
 		} else {
 			// not the last line - write newline
 			if err := b.write0(newline); err != nil {
@@ -273,9 +287,9 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 	column := b.widths.Len();
 	last := line0;
 	for this := line0; this < line1; this++ {
-		line_size, line_width := b.line(this);
+		line := b.line(this);
 
-		if column < line_size.Len() - 1 {
+		if column < line.Len() - 1 {
 			// cell exists in this column
 			// (note that the last cell per line is ignored)
 
@@ -289,10 +303,10 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 			// column block begin
 			width := b.cellwidth;  // minimal width
 			for ; this < line1; this++ {
-				line_size, line_width = b.line(this);
-				if column < line_size.Len() - 1 {
+				line = b.line(this);
+				if column < line.Len() - 1 {
 					// cell exists in this column => update width
-					w := line_width.At(column) + b.padding;
+					w := line.At(column).(cell).width + b.padding;
 					if w > width {
 						width = w;
 					}
@@ -316,40 +330,77 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 }
 
 
+// Append text to current cell. Only update the cell width if updateWidth
+// is set (the cell width can only be updated if we know that we cannot be
+// in the middle of a UTF-8 encoded Unicode character).
+//
+func (b *Writer) append(text []byte, updateWidth bool) {
+	b.buf.Write(text);
+	b.cell.size += len(text);
+	if updateWidth {
+		b.cell.width += utf8.RuneCount(b.buf.Data()[b.pos : b.buf.Len()]);
+		b.pos = b.buf.Len();
+	}
+}
+
+
+// Start HTML-escape mode.
+func (b *Writer) startHTML(ch byte) {
+	if ch == '<' {
+		b.html_char = '>';
+	} else {
+		b.html_char = ';';
+	}
+}
+
+
+// Terminate HTML-escape mode. If the HTML text was an entity, its width
+// is assumed to be one for formatting purposes; otherwise it assumed to
+// be zero.
+//
+func (b *Writer) terminateHTML() {
+	if b.html_char == ';' {
+		// was entity, count as one rune
+		b.cell.width++;
+	}
+	b.pos = b.buf.Len();
+	b.html_char = 0;
+}
+
+
+// Terminate the current cell by adding it to the list of cells of the
+// current line. Returns the number of cells in that line.
+//
+func (b *Writer) terminateCell() int {
+	line := b.line(b.lines.Len() - 1);
+	line.Push(b.cell);
+	b.cell = cell{};
+	return line.Len();
+}
+
+
 // Flush should be called after the last call to Write to ensure
-// that any data buffered in the Writer is written to output.
+// that any data buffered in the Writer is written to output. Any
+// incomplete HTML tag or entity at the end is simply considered
+// complete for formatting purposes.
 //
 func (b *Writer) Flush() os.Error {
-	_, err := b.format(0, 0, b.lines_size.Len());
-	// reset (even in the presence of errors)
-	b.buf.Reset();
-	b.size, b.width = 0, 0;
-	b.pos = 0;
-	b.lines_size.Init(0);
-	b.lines_width.Init(0);
-	b.addLine();
-	return err;
-}
-
-
-func unicodeLen(buf []byte) int {
-	l := 0;
-	for i := 0; i < len(buf); {
-		if buf[i] < utf8.RuneSelf {
-			i++;
-		} else {
-			rune, size := utf8.DecodeRune(buf[i : len(buf)]);
-			i += size;
+	// add current cell if not empty
+	if b.cell.size > 0 {
+		if b.html_char != 0 {
+			// inside html tag/entity - terminate it even if incomplete
+			b.terminateHTML();
 		}
-		l++;
+		b.terminateCell();
 	}
-	return l;
-}
 
+	// format contents of buffer
+	_, err := b.format(0, 0, b.lines.Len());
 
-func (b *Writer) append(buf []byte) {
-	b.buf.Write(buf);
-	b.size += len(buf);
+	// reset, even in the presence of errors
+	b.reset();
+
+	return err;
 }
 
 
@@ -358,31 +409,21 @@ func (b *Writer) append(buf []byte) {
 // while writing to the underlying output stream.
 //
 func (b *Writer) Write(buf []byte) (written int, err os.Error) {
-	i0, n := 0, len(buf);
-
 	// split text into cells
-	for i := 0; i < n; i++ {
-		ch := buf[i];
-
+	i0 := 0;
+	for i, ch := range buf {
 		if b.html_char == 0 {
 			// outside html tag/entity
 			switch ch {
 			case '\t', '\n', '\f':
-				b.append(buf[i0 : i]);
-				i0 = i + 1;  // exclude ch from (next) cell
-				b.width += unicodeLen(b.buf.Data()[b.pos : b.buf.Len()]);
-				b.pos = b.buf.Len();
-
-				// terminate cell
-				last_size, last_width := b.line(b.lines_size.Len() - 1);
-				last_size.Push(b.size);
-				last_width.Push(b.width);
-				b.size, b.width = 0, 0;
-
+				// end of cell
+				b.append(buf[i0 : i], true);
+				i0 = i+1;  // exclude ch from (next) cell
+				ncells := b.terminateCell();
 				if ch != '\t' {
 					// terminate line
 					b.addLine();
-					if ch == '\f' || last_size.Len() == 1 {
+					if ch == '\f' || ncells == 1 {
 						// A '\f' always forces a flush. Otherwise, if the previous
 						// line has only one cell which does not have an impact on
 						// the formatting of the following lines (the last cell per
@@ -395,37 +436,29 @@ func (b *Writer) Write(buf []byte) (written int, err os.Error) {
 				}
 
 			case '<', '&':
+				// possibly an html tag/entity 
 				if b.flags & FilterHTML != 0 {
-					b.append(buf[i0 : i]);
+					// begin of tag/entity
+					b.append(buf[i0 : i], true);
 					i0 = i;
-					b.width += unicodeLen(b.buf.Data()[b.pos : b.buf.Len()]);
-					b.pos = -1;  // preventative - should not be used (will cause index out of bounds)
-					if ch == '<' {
-						b.html_char = '>';
-					} else {
-						b.html_char = ';';
-					}
+					b.startHTML(ch);
 				}
 			}
 
 		} else {
 			// inside html tag/entity
 			if ch == b.html_char {
-				// reached the end of tag/entity
-				b.append(buf[i0 : i + 1]);
-				i0 = i + 1;
-				if b.html_char == ';' {
-					b.width++;  // count as one char
-				}
-				b.pos = b.buf.Len();
-				b.html_char = 0;
+				// end of tag/entity
+				b.append(buf[i0 : i+1], false);
+				i0 = i+1;  // exclude ch from (next) cell
+				b.terminateHTML();
 			}
 		}
 	}
 
 	// append leftover text
-	b.append(buf[i0 : n]);
-	return n, nil;
+	b.append(buf[i0 : len(buf)], false);
+	return len(buf), nil;
 }
 
 

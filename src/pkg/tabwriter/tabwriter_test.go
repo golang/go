@@ -47,31 +47,31 @@ func (b *buffer) String() string {
 }
 
 
-func write(t *testing.T, w *tabwriter.Writer, src string) {
+func write(t *testing.T, testname string, w *tabwriter.Writer, src string) {
 	written, err := io.WriteString(w, src);
 	if err != nil {
-		t.Errorf("--- src:\n%s\n--- write error: %v\n", src, err);
+		t.Errorf("--- test: %s\n--- src:\n%s\n--- write error: %v\n", testname, src, err);
 	}
 	if written != len(src) {
-		t.Errorf("--- src:\n%s\n--- written = %d, len(src) = %d\n", src, written, len(src));
+		t.Errorf("--- test: %s\n--- src:\n%s\n--- written = %d, len(src) = %d\n", testname, src, written, len(src));
 	}
 }
 
 
-func verify(t *testing.T, w *tabwriter.Writer, b *buffer, src, expected string) {
+func verify(t *testing.T, testname string, w *tabwriter.Writer, b *buffer, src, expected string) {
 	err := w.Flush();
 	if err != nil {
-		t.Errorf("--- src:\n%s\n--- flush error: %v\n", src, err);
+		t.Errorf("--- test: %s\n--- src:\n%s\n--- flush error: %v\n", testname, src, err);
 	}
 
 	res := b.String();
 	if res != expected {
-		t.Errorf("--- src:\n%s\n--- found:\n%s\n--- expected:\n%s\n", src, res, expected)
+		t.Errorf("--- test: %s\n--- src:\n%s\n--- found:\n%s\n--- expected:\n%s\n", testname, src, res, expected)
 	}
 }
 
 
-func check(t *testing.T, tabwidth, padding int, padchar byte, flags uint, src, expected string) {
+func check(t *testing.T, testname string, tabwidth, padding int, padchar byte, flags uint, src, expected string) {
 	var b buffer;
 	b.init(1000);
 
@@ -80,30 +80,31 @@ func check(t *testing.T, tabwidth, padding int, padchar byte, flags uint, src, e
 
 	// write all at once
 	b.clear();
-	write(t, &w, src);
-	verify(t, &w, &b, src, expected);
+	write(t, testname, &w, src);
+	verify(t, testname, &w, &b, src, expected);
 
 	// write byte-by-byte
 	b.clear();
 	for i := 0; i < len(src); i++ {
-		write(t, &w, src[i : i+1]);
+		write(t, testname, &w, src[i : i+1]);
 	}
-	verify(t, &w, &b, src, expected);
+	verify(t, testname, &w, &b, src, expected);
 
 	// write using Fibonacci slice sizes
 	b.clear();
 	for i, d := 0, 0; i < len(src); {
-		write(t, &w, src[i : i+d]);
+		write(t, testname, &w, src[i : i+d]);
 		i, d = i+d, d+1;
 		if i+d > len(src) {
 			d = len(src) - i;
 		}
 	}
-	verify(t, &w, &b, src, expected);
+	verify(t, testname, &w, &b, src, expected);
 }
 
 
 type entry struct {
+	testname string;
 	tabwidth, padding int;
 	padchar byte;
 	flags uint;
@@ -113,108 +114,133 @@ type entry struct {
 
 var tests = []entry {
 	entry{
+		"1",
 		8, 1, '.', 0,
 		"",
 		""
 	},
 
 	entry{
+		"2",
 		8, 1, '.', 0,
 		"\n\n\n",
 		"\n\n\n"
 	},
 
 	entry{
+		"3",
 		8, 1, '.', 0,
 		"a\nb\nc",
 		"a\nb\nc"
 	},
 
 	entry{
+		"4a",
 		8, 1, '.', 0,
 		"\t",  // '\t' terminates an empty cell on last line - nothing to print
 		""
 	},
 
 	entry{
+		"4b",
 		8, 1, '.', tabwriter.AlignRight,
 		"\t",  // '\t' terminates an empty cell on last line - nothing to print
 		""
 	},
 
 	entry{
+		"5",
 		8, 1, '.', 0,
 		"*\t*",
-		"**"
+		"*.......*"
 	},
 
 	entry{
+		"5b",
 		8, 1, '.', 0,
 		"*\t*\n",
 		"*.......*\n"
 	},
 
 	entry{
+		"5c",
 		8, 1, '.', 0,
 		"*\t*\t",
 		"*.......*"
 	},
 
 	entry{
+		"5d",
 		8, 1, '.', tabwriter.AlignRight,
 		"*\t*\t",
 		".......**"
 	},
 
 	entry{
+		"6",
 		8, 1, '.', 0,
 		"\t\n",
 		"........\n"
 	},
 
 	entry{
+		"7a",
 		8, 1, '.', 0,
 		"a) foo",
 		"a) foo"
 	},
 
 	entry{
+		"7b",
 		8, 1, ' ', 0,
-		"b) foo\tbar",  // "bar" is not in any cell - not formatted, just flushed
-		"b) foobar"
+		"b) foo\tbar",
+		"b) foo  bar"
 	},
 
 	entry{
+		"7c",
 		8, 1, '.', 0,
 		"c) foo\tbar\t",
 		"c) foo..bar"
 	},
 
 	entry{
+		"7d",
 		8, 1, '.', 0,
 		"d) foo\tbar\n",
 		"d) foo..bar\n"
 	},
 
 	entry{
+		"7e",
 		8, 1, '.', 0,
 		"e) foo\tbar\t\n",
 		"e) foo..bar.....\n"
 	},
 
 	entry{
+		"7f",
 		8, 1, '.', tabwriter.FilterHTML,
 		"f) f&lt;o\t<b>bar</b>\t\n",
 		"f) f&lt;o..<b>bar</b>.....\n"
 	},
 
 	entry{
+		"7g",
+		8, 1, '.', tabwriter.FilterHTML,
+		"g) f&lt;o\t<b>bar</b>\t non-terminated entity &amp",
+		"g) f&lt;o..<b>bar</b>..... non-terminated entity &amp"
+	},
+
+	entry{
+		"8",
 		8, 1, '*', 0,
 		"Hello, world!\n",
 		"Hello, world!\n"
 	},
 
 	entry{
+		"9a",
 		0, 0, '.', 0,
 		"1\t2\t3\t4\n"
 		"11\t222\t3333\t44444\n",
@@ -224,6 +250,7 @@ var tests = []entry {
 	},
 
 	entry{
+		"9b",
 		0, 0, '.', tabwriter.FilterHTML,
 		"1\t2<!---\f--->\t3\t4\n"  // \f inside HTML is ignored
 		"11\t222\t3333\t44444\n",
@@ -233,6 +260,7 @@ var tests = []entry {
 	},
 
 	entry{
+		"9c",
 		0, 0, '.', 0,
 		"1\t2\t3\t4\f"  // \f causes a newline and flush
 		"11\t222\t3333\t44444\n",
@@ -242,18 +270,21 @@ var tests = []entry {
 	},
 
 	entry{
+		"10a",
 		5, 0, '.', 0,
 		"1\t2\t3\t4\n",
 		"1....2....3....4\n"
 	},
 
 	entry{
+		"10b",
 		5, 0, '.', 0,
 		"1\t2\t3\t4\t\n",
 		"1....2....3....4....\n"
 	},
 
 	entry{
+		"11",
 		8, 1, '.', 0,
 		"本\tb\tc\n"
 		"aa\t\u672c\u672c\u672c\tcccc\tddddd\n"
@@ -265,6 +296,7 @@ var tests = []entry {
 	},
 
 	entry{
+		"12a",
 		8, 1, ' ', tabwriter.AlignRight,
 		"a\tè\tc\t\n"
 		"aa\tèèè\tcccc\tddddd\t\n"
@@ -276,6 +308,7 @@ var tests = []entry {
 	},
 
 	entry{
+		"12b",
 		2, 0, ' ', 0,
 		"a\tb\tc\n"
 		"aa\tbbb\tcccc\n"
@@ -287,6 +320,7 @@ var tests = []entry {
 	},
 
 	entry{
+		"12c",
 		8, 1, '_', 0,
 		"a\tb\tc\n"
 		"aa\tbbb\tcccc\n"
@@ -298,6 +332,7 @@ var tests = []entry {
 	},
 
 	entry{
+		"13a",
 		4, 1, '-', 0,
 		"4444\t日本語\t22\t1\t333\n"
 		"999999999\t22\n"
@@ -317,6 +352,7 @@ var tests = []entry {
 	},
 
 	entry{
+		"13b",
 		4, 3, '.', 0,
 		"4444\t333\t22\t1\t333\n"
 		"999999999\t22\n"
@@ -336,6 +372,7 @@ var tests = []entry {
 	},
 
 	entry{
+		"13c",
 		8, 1, '\t', tabwriter.FilterHTML,
 		"4444\t333\t22\t1\t333\n"
 		"999999999\t22\n"
@@ -355,6 +392,7 @@ var tests = []entry {
 	},
 
 	entry{
+		"14",
 		0, 2, ' ', tabwriter.AlignRight,
 		".0\t.3\t2.4\t-5.1\t\n"
 		"23.0\t12345678.9\t2.4\t-989.4\t\n"
@@ -375,6 +413,6 @@ var tests = []entry {
 
 func Test(t *testing.T) {
 	for _, e := range tests {
-		check(t, e.tabwidth, e.padding, e.padchar, e.flags, e.src, e.expected);
+		check(t, e.testname, e.tabwidth, e.padding, e.padchar, e.flags, e.src, e.expected);
 	}
 }
