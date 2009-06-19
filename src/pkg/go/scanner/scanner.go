@@ -331,7 +331,7 @@ func (S *Scanner) scanRawString(pos token.Position) {
 	for S.ch != '`' {
 		ch := S.ch;
 		S.next();
-		if ch == '\n' || ch < 0 {
+		if ch < 0 {
 			S.error(pos, "string not terminated");
 			break;
 		}
