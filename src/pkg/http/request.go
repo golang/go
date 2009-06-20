@@ -11,6 +11,7 @@ package http
 
 import (
 	"bufio";
+	"container/vector";
 	"fmt";
 	"http";
 	"io";
@@ -38,6 +39,7 @@ var (
 	BadHeader = &ProtocolError{"malformed http header"};
 	BadRequest = &ProtocolError{"invalid http request"};
 	BadHTTPVersion = &ProtocolError{"unsupported http version"};
+	UnknownContentType = &ProtocolError{"unknown content type"};
 )
 
 // A Request represents a parsed HTTP request header.
@@ -95,6 +97,10 @@ type Request struct {
 
 	// The User-Agent: header string, if sent in the request.
 	UserAgent string;
+
+	// The parsed form data. Only available after ParseForm is called.
+	FormData map[string] *vector.StringVector
+
 }
 
 // ProtoAtLeast returns whether the HTTP protocol used
@@ -458,4 +464,46 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	}
 
 	return req, nil
+}
+
+func parseForm(body string) (data map[string] *vector.StringVector, err os.Error) {
+	data = make(map[string] *vector.StringVector);
+	for _, kv := range strings.Split(body, "&") {
+		kvPair := strings.Split(kv, "=");
+
+		var key, value string;
+		var e os.Error;
+		key, e = URLUnescape(kvPair[0]);
+		if e == nil && len(kvPair) > 1 {
+			value, e = URLUnescape(kvPair[1]);
+		}
+		if e != nil {
+			err := e;
+		}
+
+		vec, ok := data[key];
+		if !ok {
+			vec = vector.NewStringVector(0);
+			data[key] = vec;
+		}
+		vec.Push(value);
+	}
+	return
+}
+
+// ParseForm parses the request body as a form.
+func (r *Request) ParseForm() (err os.Error) {
+	ct, ok := r.Header["Content-Type"];
+	if !ok {
+		ct = "application/x-www-form-urlencoded";  // default
+	}
+	switch ct {
+	case "text/plain", "application/x-www-form-urlencoded":
+		buf := new(io.ByteBuffer);
+		io.Copy(r.Body, buf);
+		r.FormData, err = parseForm(string(buf.Data()));
+		return err
+	// TODO(dsymonds): Handle multipart/form-data
+	}
+	return UnknownContentType
 }
