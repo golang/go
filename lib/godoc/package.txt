@@ -17,6 +17,7 @@ import "{ImportPath}"
 {.section Consts}
 
 CONSTANTS
+
 {.repeated section @}
 {Decl}
 {Doc}
@@ -25,6 +26,7 @@ CONSTANTS
 {.section Vars}
 
 VARIABLES
+
 {.repeated section @}
 {Decl}
 {Doc}
@@ -33,6 +35,7 @@ VARIABLES
 {.section Funcs}
 
 FUNCTIONS
+
 {.repeated section @}
 {Decl}
 {Doc}
@@ -41,6 +44,7 @@ FUNCTIONS
 {.section Types}
 
 TYPES
+
 {.repeated section @}
 {Decl}
 {Doc}
