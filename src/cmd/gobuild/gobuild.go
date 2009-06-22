@@ -60,31 +60,33 @@ type Info struct {
 var verbose = flag.Bool("v", false, "verbose mode")
 var writeMakefile = flag.Bool("m", false, "write Makefile to standard output")
 
-func PushPkg(v *[]*Pkg, p *Pkg) {
+func PushPkg(vp *[]*Pkg, p *Pkg) {
+	v := *vp;
 	n := len(v);
 	if n >= cap(v) {
 		m := 2*n + 10;
 		a := make([]*Pkg, n, m);
-		for i := range *v {
+		for i := range v {
 			a[i] = v[i];
 		}
-		*v = a;
+		v = a;
 	}
-	*v = v[0:n+1];
+	*vp = v[0:n+1];
 	v[n] = p;
 }
 
-func PushFile(v *[]*File, p *File) {
+func PushFile(vp *[]*File, p *File) {
+	v := *vp;
 	n := len(v);
 	if n >= cap(v) {
 		m := 2*n + 10;
 		a := make([]*File, n, m);
-		for i := range *v {
+		for i := range v {
 			a[i] = v[i];
 		}
-		*v = a;
+		v = a;
 	}
-	*v = v[0:n+1];
+	*vp = v[0:n+1];
 	v[n] = p;
 }
 
