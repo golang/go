@@ -71,20 +71,20 @@ func init() {
 	}
 }
 
-func PushString(v *[]string, p string) {
+func PushString(vp *[]string, p string) {
+	v := *vp;
 	n := len(v);
 	if n >= cap(v) {
 		m := 2*n + 10;
 		a := make([]string, n, m);
-		for i := range *v {
+		for i := range v {
 			a[i] = v[i];
 		}
-		*v = a;
+		v = a;
 	}
-	*v = v[0:n+1];
+	*vp = v[0:n+1];
 	v[n] = p;
 }
-
 
 func run(argv []string, flag int) (ok bool) {
 	argv0 := bin[argv[0]];
