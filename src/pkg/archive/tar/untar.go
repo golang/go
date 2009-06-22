@@ -178,8 +178,9 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
 }
 
 type slicer []byte
-func (s *slicer) next(n int) (b []byte) {
-	b, *s = s[0:n], s[n:len(s)];
+func (sp *slicer) next(n int) (b []byte) {
+	s := *sp;
+	b, *sp = s[0:n], s[n:len(s)];
 	return
 }
 

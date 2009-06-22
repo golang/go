@@ -154,7 +154,8 @@ func (f *Fmt) pad(s string) {
 // never mind.)  val is known to be unsigned.  we could make things maybe
 // marginally faster by splitting the 32-bit case out into a separate function
 // but it's not worth the duplication, so val has 64 bits.
-func putint(buf *[nByte]byte, i int, base, val uint64, digits *string) int {
+func putint(buf []byte, base, val uint64, digits string) int {
+	i := len(buf) - 1;
 	for val >= base {
 		buf[i] = digits[val%base];
 		i--;
@@ -176,7 +177,7 @@ func (f *Fmt) Fmt_boolean(v bool) *Fmt {
 }
 
 // integer; interprets prec but not wid.
-func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string {
+func (f *Fmt) integer(a int64, base uint, is_signed bool, digits string) string {
 	var buf [nByte]byte;
 	negative := is_signed && a < 0;
 	if negative {
@@ -196,7 +197,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
 		}
 	}
 
-	i := putint(&buf, nByte-1, uint64(base), uint64(a), digits);
+	i := putint(&buf, uint64(base), uint64(a), digits);
 	for i > 0 && prec > (nByte-1-i) {
 		buf[i] = '0';
 		i--;
@@ -232,7 +233,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
 
 // Fmt_d64 formats an int64 in decimal.
 func (f *Fmt) Fmt_d64(v int64) *Fmt {
-	f.pad(f.integer(v, 10, true, &ldigits));
+	f.pad(f.integer(v, 10, true, ldigits));
 	f.clearflags();
 	return f;
 }
@@ -249,7 +250,7 @@ func (f *Fmt) Fmt_d(v int) *Fmt {
 
 // Fmt_ud64 formats a uint64 in decimal.
 func (f *Fmt) Fmt_ud64(v uint64) *Fmt {
-	f.pad(f.integer(int64(v), 10, false, &ldigits));
+	f.pad(f.integer(int64(v), 10, false, ldigits));
 	f.clearflags();
 	return f;
 }
@@ -266,7 +267,7 @@ func (f *Fmt) Fmt_ud(v uint) *Fmt {
 
 // Fmt_x64 formats an int64 in hexadecimal.
 func (f *Fmt) Fmt_x64(v int64) *Fmt {
-	f.pad(f.integer(v, 16, true, &ldigits));
+	f.pad(f.integer(v, 16, true, ldigits));
 	f.clearflags();
 	return f;
 }
@@ -283,7 +284,7 @@ func (f *Fmt) Fmt_x(v int) *Fmt {
 
 // Fmt_ux64 formats a uint64 in hexadecimal.
 func (f *Fmt) Fmt_ux64(v uint64) *Fmt {
-	f.pad(f.integer(int64(v), 16, false, &ldigits));
+	f.pad(f.integer(int64(v), 16, false, ldigits));
 	f.clearflags();
 	return f;
 }
@@ -300,7 +301,7 @@ func (f *Fmt) Fmt_ux(v uint) *Fmt {
 
 // Fmt_X64 formats an int64 in upper case hexadecimal.
 func (f *Fmt) Fmt_X64(v int64) *Fmt {
-	f.pad(f.integer(v, 16, true, &udigits));
+	f.pad(f.integer(v, 16, true, udigits));
 	f.clearflags();
 	return f;
 }
@@ -317,7 +318,7 @@ func (f *Fmt) Fmt_X(v int) *Fmt {
 
 // Fmt_uX64 formats a uint64 in upper case hexadecimal.
 func (f *Fmt) Fmt_uX64(v uint64) *Fmt {
-	f.pad(f.integer(int64(v), 16, false, &udigits));
+	f.pad(f.integer(int64(v), 16, false, udigits));
 	f.clearflags();
 	return f;
 }
@@ -334,7 +335,7 @@ func (f *Fmt) Fmt_uX(v uint) *Fmt {
 
 // Fmt_o64 formats an int64 in octal.
 func (f *Fmt) Fmt_o64(v int64) *Fmt {
-	f.pad(f.integer(v, 8, true, &ldigits));
+	f.pad(f.integer(v, 8, true, ldigits));
 	f.clearflags();
 	return f;
 }
@@ -351,7 +352,7 @@ func (f *Fmt) Fmt_o(v int) *Fmt {
 
 // Fmt_uo64 formats a uint64 in octal.
 func (f *Fmt) Fmt_uo64(v uint64) *Fmt {
-	f.pad(f.integer(int64(v), 8, false, &ldigits));
+	f.pad(f.integer(int64(v), 8, false, ldigits));
 	f.clearflags();
 	return f;
 }
@@ -368,7 +369,7 @@ func (f *Fmt) Fmt_uo(v uint) *Fmt {
 
 // Fmt_b64 formats a uint64 in binary.
 func (f *Fmt) Fmt_b64(v uint64) *Fmt {
-	f.pad(f.integer(int64(v), 2, false, &ldigits));
+	f.pad(f.integer(int64(v), 2, false, ldigits));
 	f.clearflags();
 	return f;
 }
