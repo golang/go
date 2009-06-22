@@ -26,7 +26,7 @@ type _MyStruct struct {
 	fl float;
 	fl32 float32;
 	fl64 float64;
-	a *[]string;	// TODO(rsc): Should be able to use []string.
+	a []string;
 	my *_MyStruct;
 };
 

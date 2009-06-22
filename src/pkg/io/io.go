@@ -197,7 +197,7 @@ type ByteReader struct {
 
 func (r ByteReader) Read(p []byte) (int, os.Error) {
 	n := len(p);
-	b := r.Data;
+	b := *r.Data;
 	if len(b) == 0 {
 		return 0, os.EOF;
 	}
@@ -205,7 +205,7 @@ func (r ByteReader) Read(p []byte) (int, os.Error) {
 		n = len(b);
 	}
 	bytes.Copy(p, b[0:n]);
-	*b = b[n:len(b)];
+	*r.Data = b[n:len(b)];
 	return n, nil;
 }
 
