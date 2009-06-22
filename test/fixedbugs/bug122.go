@@ -7,5 +7,6 @@
 package main
 
 func main() {
-	a := make([]int, 10, 20, 30, 40);  // should allow at most 2 sizes
+	// should allow at most 2 sizes
+	a := make([]int, 10, 20, 30, 40); // ERROR "too many"
 }

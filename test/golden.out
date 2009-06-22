@@ -228,9 +228,6 @@ fixedbugs/bug121.go:20: illegal types for operand: AS
 	I
 	*S
 
-=========== fixedbugs/bug122.go
-fixedbugs/bug122.go:6: too many arguments to make array
-
 =========== fixedbugs/bug131.go
 fixedbugs/bug131.go:7: cannot convert uint64 constant to int64
 fixedbugs/bug131.go:7: illegal types for operand: AS
