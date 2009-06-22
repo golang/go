@@ -233,7 +233,7 @@ func Lookup(name string) *Flag {
 	return f
 }
 
-// Set sets the value of tne named flag.  It returns true if the set succeeded; false if
+// Set sets the value of the named flag.  It returns true if the set succeeded; false if
 // there is no such flag defined.
 func Set(name, value string) bool {
 	f, ok := flags.formal[name];
@@ -264,7 +264,7 @@ func PrintDefaults() {
 // then calls os.Exit(1).
 func Usage() {
 	if len(os.Args) > 0 {
-		fmt.Fprintln(os.Stderr, "Usage of", os.Args[0] + ":");
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0]);
 	} else {
 		fmt.Fprintln(os.Stderr, "Usage:");
 	}
