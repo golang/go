@@ -30,7 +30,8 @@ var ErrUnexpectedEOF os.Error = &Error{"unexpected EOF"}
 // Reader is the interface that wraps the basic Read method.
 //
 // Read reads up to len(p) bytes into p.  It returns the number of bytes
-// read and any error encountered.  Even if Read returns n < len(p),
+// read (0 <= n <= len(p)) and any error encountered.
+// Even if Read returns n < len(p),
 // it may use all of p as scratch space during the call.
 // If some data is available but not len(p) bytes, Read conventionally
 // returns what is available rather than block waiting for more.
@@ -43,6 +44,11 @@ type Reader interface {
 }
 
 // Writer is the interface that wraps the basic Write method.
+//
+// Write writes len(p) bytes from p to the underlying data stream.
+// It returns the number of bytes written from p (0 <= n <= len(p))
+// and any error encountered that caused the write to stop early.
+// Write must return a non-nil error if it returns n < len(p).
 type Writer interface {
 	Write(p []byte) (n int, err os.Error);
 }
