@@ -104,6 +104,9 @@ func (p *pipe) CloseReader(rerr os.Error) os.Error {
 }
 
 func (p *pipe) CloseWriter(werr os.Error) os.Error {
+	if werr == nil {
+		werr = os.EOF;
+	}
 	if p == nil || p.wclosed {
 		return os.EINVAL;
 	}

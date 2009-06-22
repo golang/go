@@ -543,11 +543,8 @@ func (f *inflater) dataBlock() os.Error {
 	f.b = 0;
 
 	// Length then ones-complement of length.
-	nr, err := f.r.Read(f.buf[0:4]);
+	nr, err := io.ReadFull(f.r, f.buf[0:4]);
 	f.roffset += int64(nr);
-	if nr < 4 && err == nil {
-		err = io.ErrEOF;
-	}
 	if err != nil {
 		return &ReadError{f.roffset, err};
 	}
@@ -564,11 +561,8 @@ func (f *inflater) dataBlock() os.Error {
 		if m > n {
 			m = n;
 		}
-		m, err := f.r.Read(f.hist[f.hp:f.hp+m]);
+		m, err := io.ReadFull(f.r, f.hist[f.hp:f.hp+m]);
 		f.roffset += int64(m);
-		if m == 0 && err == nil {
-			err = io.ErrEOF;
-		}
 		if err != nil {
 			return &ReadError{f.roffset, err};
 		}

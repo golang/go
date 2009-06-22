@@ -106,9 +106,9 @@ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
 
 	// Read and decrypt directly in caller's buffer.
 	n, err = io.ReadAtLeast(x.r, p, x.blockSize);
-	if err == io.ErrEOF && n == 0 {
-		// EOF is okay on block boundary
-		err = nil;
+	if err == os.EOF && n > 0 {
+		// EOF is only okay on block boundary
+		err = os.ErrorString("block fragment at EOF during decryption");
 		return;
 	}
 	var i int;

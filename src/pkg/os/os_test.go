@@ -40,13 +40,13 @@ func size(name string, t *testing.T) uint64 {
 	len := 0;
 	for {
 		n, e := file.Read(&buf);
-		if n < 0 || e != nil {
-			t.Fatal("read failed:", err);
-		}
-		if n == 0 {
+		len += n;
+		if e == EOF {
 			break
 		}
-		len += n;
+		if e != nil {
+			t.Fatal("read failed:", err);
+		}
 	}
 	return uint64(len)
 }

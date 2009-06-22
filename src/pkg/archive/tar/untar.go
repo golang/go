@@ -186,13 +186,13 @@ func (s *slicer) next(n int) (b []byte) {
 func (tr *Reader) readHeader() *Header {
 	header := make([]byte, blockSize);
 	var n int;
-	if n, tr.err = io.FullRead(tr.r, header); tr.err != nil {
+	if n, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
 		return nil
 	}
 
 	// Two blocks of zero bytes marks the end of the archive.
 	if bytes.Equal(header, zeroBlock[0:blockSize]) {
-		if n, tr.err = io.FullRead(tr.r, header); tr.err != nil {
+		if n, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
 			return nil
 		}
 		if !bytes.Equal(header, zeroBlock[0:blockSize]) {

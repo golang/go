@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	maxFileSize = 8192;	// actual files are closer to 1K
 	headerSize = 4+16+4*7;
 
 	zoneDir = "/usr/share/zoneinfo/";
@@ -29,7 +28,6 @@ type TimeZoneError struct {
 
 var errShort = TimeZoneError{ "time: short zone file" }
 var errInvalid = TimeZoneError{ "time: invalid zone file" }
-var errLong = TimeZoneError{ "time: zone file too long" }
 
 // Simple I/O interface to binary blob of data.
 type data struct {
@@ -206,25 +204,8 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 	return zt, nil
 }
 
-func readfile(name string, max int) (p []byte, err os.Error) {
-	f, e := os.Open(name, os.O_RDONLY, 0);
-	if e != nil {
-		return nil, e;
-	}
-	p = make([]byte, max);
-	n, err1 := io.FullRead(f, p);
-	f.Close();
-	if err1 == nil {	// too long
-		return nil, errLong;
-	}
-	if err1 != io.ErrEOF {
-		return nil, err1;
-	}
-	return p[0:n], nil;
-}
-
 func readinfofile(name string) ([]zonetime, os.Error) {
-	buf, err := readfile(name, maxFileSize);
+	buf, err := io.ReadFile(name);
 	if err != nil {
 		goto Error;
 	}

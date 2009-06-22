@@ -45,13 +45,14 @@ func reader(t *testing.T, r Reader, c chan int) {
 	var buf = make([]byte, 64);
 	for {
 		n, err := r.Read(buf);
+		if err == os.EOF {
+			c <- 0;
+			break;
+		}
 		if err != nil {
 			t.Errorf("read: %v", err);
 		}
 		c <- n;
-		if n == 0 {
-			break;
-		}
 	}
 }
 
@@ -101,7 +102,7 @@ func TestPipe3(t *testing.T) {
 	tot := 0;
 	for n := 1; n <= 256; n *= 2 {
 		nn, err := r.Read(rdat[tot:tot+n]);
-		if err != nil {
+		if err != nil && err != os.EOF {
 			t.Fatalf("read: %v", err);
 		}
 
@@ -111,6 +112,9 @@ func TestPipe3(t *testing.T) {
 			expect = 1;
 		} else if n == 256 {
 			expect = 0;
+			if err != os.EOF {
+				t.Fatalf("read at end: %v", err);
+			}
 		}
 		if nn != expect {
 			t.Fatalf("read %d, expected %d, got %d", n, expect, nn);
@@ -183,8 +187,12 @@ func TestPipeReadClose(t *testing.T) {
 		var buf = make([]byte, 64);
 		n, err := r.Read(buf);
 		<-c;
-		if err != tt.err {
-			t.Errorf("read from closed pipe: %v want %v", err, tt.err);
+		want := tt.err;
+		if want == nil {
+			want = os.EOF;
+		}
+		if err != want {
+			t.Errorf("read from closed pipe: %v want %v", err, want);
 		}
 		if n != 0 {
 			t.Errorf("read on closed pipe returned %d", n);
