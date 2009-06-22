@@ -103,10 +103,10 @@ func (b *ByteBuffer) Read(p []byte) (n int, err os.Error) {
 }
 
 // ReadByte reads and returns the next byte from the buffer.
-// If no byte is available, it returns error ErrEOF.
+// If no byte is available, it returns error os.EOF.
 func (b *ByteBuffer) ReadByte() (c byte, err os.Error) {
 	if b.off >= len(b.buf) {
-		return 0, ErrEOF;
+		return 0, os.EOF;
 	}
         c = b.buf[b.off];
 	b.off++;

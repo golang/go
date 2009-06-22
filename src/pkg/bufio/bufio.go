@@ -113,7 +113,7 @@ func (b *Reader) fill() os.Error {
 // It returns the number of bytes read into p.
 // If nn < len(p), also returns an error explaining
 // why the read is short.  At EOF, the count will be
-// zero and err will be io.ErrEOF.
+// zero and err will be os.EOF.
 func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 	nn = 0;
 	for len(p) > 0 {
@@ -131,17 +131,11 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 				if b.err != nil {
 					return nn, b.err
 				}
-				if n == 0 {
-					return nn, io.ErrEOF
-				}
 				continue;
 			}
 			b.fill();
 			if b.err != nil {
 				return nn, b.err
-			}
-			if b.w == b.r {
-				return nn, io.ErrEOF
 			}
 		}
 		if n > b.w - b.r {
@@ -163,9 +157,6 @@ func (b *Reader) ReadByte() (c byte, err os.Error) {
 		b.fill();
 		if b.err != nil {
 			return 0, b.err
-		}
-		if b.w == b.r {
-			return 0, io.ErrEOF
 		}
 	}
 	c = b.buf[b.r];
@@ -205,9 +196,6 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
 		}
 		if b.w - b.r == n {
 			// no bytes read
-			if b.r == b.w {
-				return 0, 0, io.ErrEOF
-			}
 			break;
 		}
 	}
@@ -259,12 +247,9 @@ func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
 		n := b.Buffered();
 		b.fill();
 		if b.err != nil {
-			return nil, b.err
-		}
-		if b.Buffered() == n {	// no data added; end of file
 			line := b.buf[b.r:b.w];
 			b.r = b.w;
-			return line, io.ErrEOF
+			return line, b.err
 		}
 
 		// Search new part of buffer

@@ -105,7 +105,7 @@ func TestFp(t *testing.T) {
 	lineno := 0;
 	for {
 		line, err2 := b.ReadLineString('\n', false);
-		if err2 == io.ErrEOF {
+		if err2 == os.EOF {
 			break;
 		}
 		if err2 != nil {

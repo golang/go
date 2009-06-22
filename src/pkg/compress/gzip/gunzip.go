@@ -116,11 +116,8 @@ func (z *GzipInflater) read2() (uint32, os.Error) {
 }
 
 func (z *GzipInflater) readHeader(save bool) os.Error {
-	n, err := io.FullRead(z.r, z.buf[0:10]);
+	n, err := io.ReadFull(z.r, z.buf[0:10]);
 	if err != nil {
-		if n != 0 && err == io.ErrEOF {
-			return HeaderError;
-		}
 		return err;
 	}
 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
@@ -134,7 +131,7 @@ func (z *GzipInflater) readHeader(save bool) os.Error {
 	}
 	z.digest.Reset();
 	z.digest.Write(z.buf[0:10]);
-	
+
 	if z.flg & flagExtra != 0{
 		n, err := z.read2();
 		if err != nil {
@@ -142,7 +139,7 @@ func (z *GzipInflater) readHeader(save bool) os.Error {
 		}
 		data := make([]byte, n);
 		var nn int;
-		if nn, err = io.FullRead(z.r, data); err != nil {
+		if nn, err = io.ReadFull(z.r, data); err != nil {
 			return err;
 		}
 		if save {
@@ -196,17 +193,13 @@ func (z *GzipInflater) Read(p []byte) (n int, err os.Error) {
 	n, err = z.inflater.Read(p);
 	z.digest.Write(p[0:n]);
 	z.size += uint32(n);
-	if n != 0 || err != nil {
+	if n != 0 || err != os.EOF {
 		z.err = err;
 		return;
 	}
 
 	// Finished file; check checksum + size.
-	if _, err := io.FullRead(z.r, z.buf[0:8]); err != nil {
-		z.err = err;
-		return 0, err;
-	}
-	if err != nil {
+	if _, err := io.ReadFull(z.r, z.buf[0:8]); err != nil {
 		z.err = err;
 		return 0, err;
 	}
@@ -218,12 +211,7 @@ func (z *GzipInflater) Read(p []byte) (n int, err os.Error) {
 	}
 
 	// File is ok; is there another?
-	switch err = z.readHeader(false); {
-	case err == io.ErrEOF:
-		err = nil;
-		z.eof = true;
-		return;
-	case err != nil:
+	if err = z.readHeader(false); err != nil {
 		z.err = err;
 		return;
 	}

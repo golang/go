@@ -97,9 +97,21 @@ func (file *File) Close() Error {
 	return err;
 }
 
+type eofError int
+func (eofError) String() string {
+	return "EOF"
+}
+
+// EOF is the Error returned by Read when no more input is available.
+// Functions should return EOF only to signal a graceful end of input.
+// If the EOF occurs unexpectedly in a structured data stream,
+// the appropriate error is either io.ErrUnexpectedEOF or some other error
+// giving more detail.
+var EOF Error = eofError(0)
+
 // Read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an Error, if any.
-// EOF is signaled by a zero count with a nil Error.
+// EOF is signaled by a zero count with err set to EOF.
 // TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
 func (file *File) Read(b []byte) (ret int, err Error) {
 	if file == nil {
@@ -108,6 +120,9 @@ func (file *File) Read(b []byte) (ret int, err Error) {
 	n, e := syscall.Read(file.fd, b);
 	if n < 0 {
 		n = 0;
+	}
+	if n == 0 && e == 0 {
+		return 0, EOF
 	}
 	return n, ErrnoToError(e);
 }

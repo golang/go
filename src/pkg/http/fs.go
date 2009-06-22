@@ -142,7 +142,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 	} else {
 		// read first chunk to decide between utf-8 text and binary
 		var buf [1024]byte;
-		n, err := io.FullRead(f, &buf);
+		n, err := io.ReadFull(f, &buf);
 		b := buf[0:n];
 		if isText(b) {
 			c.SetHeader("Content-Type", "text-plain; charset=utf-8");

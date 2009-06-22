@@ -25,11 +25,7 @@ func TestClient(t *testing.T) {
 		r.Body.Close();
 	}
 
-	// TODO: io.ErrEOF check is needed because we're sometimes getting
-	// this error when nothing is actually wrong.  rsc suspects a bug
-	// in bufio.  Can remove the ErrEOF check once the bug is fixed
-	// (expected to occur within a few weeks of this writing, 6/9/09).
-	if err != nil && err != io.ErrEOF {
+	if err != nil {
 		t.Errorf("Error fetching URL: %v", err);
 	} else {
 		s := string(b);

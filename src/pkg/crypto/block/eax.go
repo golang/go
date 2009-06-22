@@ -150,7 +150,7 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 	tag := cr.tag;
 	if len(tag) < cap(tag) {
 		nt := len(tag);
-		nn, err1 := io.FullRead(cr.r, tag[nt:cap(tag)]);
+		nn, err1 := io.ReadFull(cr.r, tag[nt:cap(tag)]);
 		tag = tag[0:nt+nn];
 		cr.tag = tag;
 		if err1 != nil {

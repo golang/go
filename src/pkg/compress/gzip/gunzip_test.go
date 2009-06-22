@@ -14,6 +14,7 @@ import (
 
 type gzipTest struct {
 	name string;
+	desc string;
 	raw string;
 	gzip []byte;
 	err os.Error;
@@ -21,6 +22,7 @@ type gzipTest struct {
 
 var gzipTests = []gzipTest {
 	gzipTest {	// has 1 empty fixed-huffman block
+		"empty.txt",
 		"empty.txt",
 		"",
 		[]byte {
@@ -32,6 +34,7 @@ var gzipTests = []gzipTest {
 		nil
 	},
 	gzipTest {	// has 1 non-empty fixed huffman block
+		"hello.txt",
 		"hello.txt",
 		"hello world\n",
 		[]byte {
@@ -46,6 +49,7 @@ var gzipTests = []gzipTest {
 	},
 	gzipTest {	// concatenation
 		"hello.txt",
+		"hello.txt x2",
 		"hello world\n"
 		"hello world\n",
 		[]byte {
@@ -65,6 +69,7 @@ var gzipTests = []gzipTest {
 		nil
 	},
 	gzipTest {	// has dynamic huffman blocks
+		"gettysburg",
 		"gettysburg",
 		"  Four score and seven years ago our fathers brought forth on\n"
 		"this continent, a new nation, conceived in Liberty, and dedicated\n"
@@ -203,6 +208,7 @@ var gzipTests = []gzipTest {
 	},
 	gzipTest {	// has 1 non-empty fixed huffman block then garbage
 		"hello.txt",
+		"hello.txt + garbage",
 		"hello world\n",
 		[]byte {
 			0x1f, 0x8b, 0x08, 0x08, 0xc8, 0x58, 0x13, 0x4a,
@@ -210,12 +216,27 @@ var gzipTests = []gzipTest {
 			0x74, 0x78, 0x74, 0x00, 0xcb, 0x48, 0xcd, 0xc9,
 			0xc9, 0x57, 0x28, 0xcf, 0x2f, 0xca, 0x49, 0xe1,
 			0x02, 0x00, 0x2d, 0x3b, 0x08, 0xaf, 0x0c, 0x00,
-			0x00, 0x00, 'g', 'a', 'r', 'b', 'a', 'g', 'e', '!',
+			0x00, 0x00, 'g', 'a', 'r', 'b', 'a', 'g', 'e', '!', '!', '!',
 		},
 		HeaderError,
 	},
+	gzipTest {	// has 1 non-empty fixed huffman block not enough header
+		"hello.txt",
+		"hello.txt + garbage",
+		"hello world\n",
+		[]byte {
+			0x1f, 0x8b, 0x08, 0x08, 0xc8, 0x58, 0x13, 0x4a,
+			0x00, 0x03, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x2e,
+			0x74, 0x78, 0x74, 0x00, 0xcb, 0x48, 0xcd, 0xc9,
+			0xc9, 0x57, 0x28, 0xcf, 0x2f, 0xca, 0x49, 0xe1,
+			0x02, 0x00, 0x2d, 0x3b, 0x08, 0xaf, 0x0c, 0x00,
+			0x00, 0x00, gzipID1,
+		},
+		io.ErrUnexpectedEOF,
+	},
 	gzipTest {	// has 1 non-empty fixed huffman block but corrupt checksum
 		"hello.txt",
+		"hello.txt + corrupt checksum",
 		"hello world\n",
 		[]byte {
 			0x1f, 0x8b, 0x08, 0x08, 0xc8, 0x58, 0x13, 0x4a,
@@ -229,6 +250,7 @@ var gzipTests = []gzipTest {
 	},
 	gzipTest {	// has 1 non-empty fixed huffman block but corrupt size
 		"hello.txt",
+		"hello.txt + corrupt size",
 		"hello world\n",
 		[]byte {
 			0x1f, 0x8b, 0x08, 0x08, 0xc8, 0x58, 0x13, 0x4a,
@@ -257,7 +279,7 @@ func TestGzipInflater(t *testing.T) {
 		b.Reset();
 		n, err := io.Copy(gzip, b);
 		if err != tt.err {
-			t.Errorf("%s: io.Copy: %s want %s", tt.name, err, tt.err);
+			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err);
 		}
 		s := string(b.Data());
 		if s != tt.raw {

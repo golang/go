@@ -151,8 +151,8 @@ func (req *Request) write(w io.Writer) os.Error {
 	io.WriteString(w, "\r\n");
 
 	if req.Body != nil {
-		nCopied, err := io.Copy(req.Body, w);
-		if err != nil && err != io.ErrEOF {
+		_, err := io.Copy(req.Body, w);
+		if err != nil {
 			return err;
 		}
 	}
