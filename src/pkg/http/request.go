@@ -36,6 +36,7 @@ var (
 	HeaderTooLong = &ProtocolError{"http header too long"};
 	BadContentLength = &ProtocolError{"invalid content length"};
 	ShortEntityBody = &ProtocolError{"entity body too short"};
+	NoEntityBody = &ProtocolError{"no entity body"};
 	BadHeader = &ProtocolError{"malformed http header"};
 	BadRequest = &ProtocolError{"invalid http request"};
 	BadHTTPVersion = &ProtocolError{"unsupported http version"};
@@ -124,7 +125,7 @@ const defaultUserAgent = "http.Client";
 // Write an HTTP request -- header and body -- in wire format.
 // See Send for a list of which Request fields we use.
 func (req *Request) write(w io.Writer) os.Error {
-	uri := "/" + URLEscape(req.Url.Path);
+	uri := URLEscape(req.Url.Path);
 	if req.Url.RawQuery != "" {
 		uri += "?" + req.Url.RawQuery;
 	}
@@ -493,6 +494,9 @@ func parseForm(body string) (data map[string] *vector.StringVector, err os.Error
 
 // ParseForm parses the request body as a form.
 func (r *Request) ParseForm() (err os.Error) {
+	if r.Body == nil {
+		return NoEntityBody
+	}
 	ct, ok := r.Header["Content-Type"];
 	if !ok {
 		ct = "application/x-www-form-urlencoded";  // default
