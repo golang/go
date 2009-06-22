@@ -20,6 +20,11 @@ amd64)
 	echo '#define	g	R15'
 	echo '#define	m	R14'
 	;;
+arm)
+	echo '#define	g	R10'
+	echo '#define	m	R9'
+	echo '#define	LR	R14'
+	;;
 *)
 	echo 'unknown $GOARCH: '$GOARCH 1>&2
 	exit 1
