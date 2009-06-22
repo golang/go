@@ -19,17 +19,23 @@ cp quietgcc.bash $HOME/bin/quietgcc
 chmod +x $HOME/bin/quietgcc
 
 for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/gobuild cmd/godoc cmd/gofmt
-do (
-	echo; echo; echo %%%% making $i %%%%; echo
-	cd $i
-	case $i in
-	cmd)
-		bash make.bash
-		;;
-	*)
-		make install
-	esac
-) done
+do
+	# The ( ) here are to preserve the current directory
+	# for the next round despite the cd $i below.
+	# set -e does not apply to ( ) so we must explicitly
+	# test the exit status.
+	(
+		echo; echo; echo %%%% making $i %%%%; echo
+		cd $i
+		case $i in
+		cmd)
+			bash make.bash
+			;;
+		*)
+			make install
+		esac
+	)  || exit 1
+done
 
 case "`uname`" in
 Darwin)
