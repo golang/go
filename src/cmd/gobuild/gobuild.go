@@ -71,8 +71,9 @@ func PushPkg(vp *[]*Pkg, p *Pkg) {
 		}
 		v = a;
 	}
-	*vp = v[0:n+1];
+	v = v[0:n+1];
 	v[n] = p;
+	*vp = v;
 }
 
 func PushFile(vp *[]*File, p *File) {
@@ -86,8 +87,9 @@ func PushFile(vp *[]*File, p *File) {
 		}
 		v = a;
 	}
-	*vp = v[0:n+1];
+	v = v[0:n+1];
 	v[n] = p;
+	*vp = v;
 }
 
 // For sorting Files

@@ -82,8 +82,9 @@ func PushString(vp *[]string, p string) {
 		}
 		v = a;
 	}
-	*vp = v[0:n+1];
+	v = v[0:n+1];
 	v[n] = p;
+	*vp = v;
 }
 
 func run(argv []string, flag int) (ok bool) {
