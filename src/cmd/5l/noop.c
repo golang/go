@@ -141,8 +141,8 @@ noops(void)
 		}
 	}
 	// TODO(kaib): make lack of morestack an error
-// 	if(pmorestack == P)
-// 		diag("sys·morestack not defined");
+//	if(pmorestack == P)
+//		diag("sys·morestack not defined");
 
 	curframe = 0;
 	curbecome = 0;
@@ -356,27 +356,26 @@ noops(void)
 				p->link = q1;
 			} else if (autosize < StackBig) {
 				// split stack check for small functions
-				// MOVW			(REGG), R1
+				// MOVW			g_stackguard(g), R1
 				// CMP			R1, $-autosize(SP)
-				// MOVW.W.LT	R14,$-autosize(SP)
-				// MOVW.W.GE	R14,$-4(SP)
-				// MOVW.GE		$(args << 24 | autosize), R1
-				// BL.GE		callmorestack(SB)
+				// MOVW.LT		$args, R2
+				// MOVW.W.LT	R14, R3
+				// BL.LT		sys·morestackx(SB) // modifies LR
+				// MOVW.W		R14,$-autosize(SP)
 
-				// TODO(kaib): double check we allocate autosize after
-				// 				stack has been split
-				// TODO(kaib): add error in case autosize doesn't pack
 				// TODO(kaib): add more trampolines
 				// TODO(kaib): put stackguard in register
 				// TODO(kaib): add support for -K and underflow detection
 
-				p = appendp(p); // load G.stackguard into R1
+				// MOVW			g_stackguard(g), R1
+				p = appendp(p);
 				p->as = AMOVW;
 				p->from.type = D_OREG;
 				p->from.reg = REGG;
 				p->to.type = D_REG;
 				p->to.reg = 1;
 
+				// CMP			R1, $-autosize(SP)
 				p = appendp(p);
 				p->as = ACMP;
 				p->from.type = D_REG;
@@ -384,42 +383,41 @@ noops(void)
 				p->from.offset = -autosize;
 				p->reg = REGSP;
 
+				// MOVW.LT		$args, R2
 				p = appendp(p);
-				p->as = AMOVW;
- 				p->scond = C_SCOND_GE | C_WBIT;
-				p->from.type = D_REG;
-				p->from.reg = REGLINK;
-				p->to.type = D_OREG;
-				p->to.offset = -autosize;
-				p->to.reg = REGSP;
-
-				p = appendp(p);
-				p->as = AMOVW;
-				p->scond = C_SCOND_LT | C_WBIT;
-				p->from.type = D_REG;
-				p->from.reg = REGLINK;
-				p->to.type = D_OREG;
-				p->to.offset = -4;
-				p->to.reg = REGSP;
-
-				p = appendp(p); // packs args and autosize
 				p->as = AMOVW;
 				p->scond = C_SCOND_LT;
 				p->from.type = D_CONST;
-				// top 8 bits are arg count, lower 24 bits number of 4 byte
-				// words
-				p->from.offset =
-					(curtext->to.offset2 & ~7) << 21 |
-					(autosize & ~7) >> 3;
+				p->from.offset = curtext->to.offset2 & ~7;
 				p->to.type = D_REG;
-				p->to.reg = 1;
+				p->to.reg = 2;
 
+				// MOVW.W.LT	R14, R3
+				p = appendp(p);
+				p->as = AMOVW;
+				p->scond = C_SCOND_LT;
+				p->from.type = D_REG;
+				p->from.reg = REGLINK;
+				p->to.type = D_REG;
+				p->to.reg = 3;
+
+				// BL.LT		sys·morestackx(SB) // modifies LR
 				p = appendp(p);
 				p->as = ABL;
 				p->scond = C_SCOND_LT;
  				p->to.type = D_BRANCH;
 				p->to.sym = symmorestack;
 				p->cond = pmorestack;
+
+				// MOVW.W		R14,$-autosize(SP)
+				p = appendp(p);
+				p->as = AMOVW;
+ 				p->scond |= C_WBIT;
+				p->from.type = D_REG;
+				p->from.reg = REGLINK;
+				p->to.type = D_OREG;
+				p->to.offset = -autosize;
+				p->to.reg = REGSP;
 			} else { // > StackBig
 				// MOVW.W		R14,$-4(SP)
 				// MOVW			$(args << 24 | autosize), R1

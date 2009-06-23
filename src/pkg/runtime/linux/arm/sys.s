@@ -6,23 +6,28 @@
 // System calls and other sys.stuff for arm, Linux
 //
 
+#define SYS_BASE 0x00900000
+#define SYS_exit (SYS_BASE + 1)
+#define SYS_write (SYS_BASE + 4)
+#define SYS_mmap2 (SYS_BASE + 192)
+
 TEXT write(SB),7,$0
 	MOVW	8(SP), R1
 	MOVW	12(SP), R2
-    	SWI	$0x00900004  // syscall write
+    	SWI	$SYS_write
 	RET
 
 TEXT exit(SB),7,$0
-	SWI         $0x00900001 // exit value in R0
-
-TEXT sys·write(SB),7,$0
-	MOVW	8(SP), R1
-	MOVW	12(SP), R2
-    	SWI	$0x00900004  // syscall write
-	RET
+	// Exit value already in R0
+	SWI	$SYS_exit
 
 TEXT sys·mmap(SB),7,$0
-	BL  abort(SB)
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	12(FP), R3
+	MOVW	16(FP), R4
+	MOVW	20(FP), R5
+	SWI	$SYS_mmap2
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,
