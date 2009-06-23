@@ -722,7 +722,7 @@ func fmtbase(c int) uint {
 // Format is a support routine for fmt.Formatter. It accepts
 // the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
 //
-func (x Natural) Format(h fmt.Formatter, c int) {
+func (x Natural) Format(h fmt.State, c int) {
 	fmt.Fprintf(h, "%s", x.ToString(fmtbase(c)));
 }
 
@@ -1252,7 +1252,7 @@ func (x *Integer) String() string {
 // Format is a support routine for fmt.Formatter. It accepts
 // the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
 //
-func (x *Integer) Format(h fmt.Formatter, c int) {
+func (x *Integer) Format(h fmt.State, c int) {
 	fmt.Fprintf(h, "%s", x.ToString(fmtbase(c)));
 }
 
@@ -1424,7 +1424,7 @@ func (x *Rational) String() string {
 // Format is a support routine for fmt.Formatter. It accepts
 // the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
 //
-func (x *Rational) Format(h fmt.Formatter, c int) {
+func (x *Rational) Format(h fmt.State, c int) {
 	fmt.Fprintf(h, "%s", x.ToString(fmtbase(c)));
 }
 
