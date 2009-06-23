@@ -74,10 +74,10 @@ import (
 	"utf8";
 )
 
-// Formatter represents the printer state passed to custom formatters.
+// State represents the printer state passed to custom formatters.
 // It provides access to the io.Writer interface plus information about
 // the flags and options for the operand's format specifier.
-type Formatter interface {
+type State interface {
 	// Write is the function to call to emit formatted output to be printed.
 	Write(b []byte) (ret int, err os.Error);
 	// Width returns the value of the width option and whether it has been set.
@@ -92,8 +92,8 @@ type Formatter interface {
 // Format is the interface implemented by objects with a custom formatter.
 // The implementation of Format may call Sprintf or Fprintf(f) etc.
 // to generate its output.
-type Format interface {
-	Format(f Formatter, c int);
+type Formatter interface {
+	Format(f State, c int);
 }
 
 // String represents any object being printed that has a String() method that
@@ -565,7 +565,7 @@ func (p *pp) doprintf(format string, v reflect.StructValue) {
 		fieldnum++;
 		inter := field.Interface();
 		if inter != nil && c != 'T' {	// don't want thing to describe itself if we're asking for its type
-			if formatter, ok := inter.(Format); ok {
+			if formatter, ok := inter.(Formatter); ok {
 				formatter.Format(p, c);
 				continue;
 			}

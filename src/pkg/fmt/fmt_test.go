@@ -172,7 +172,7 @@ func TestSprintf(t *testing.T) {
 }
 
 type flagPrinter struct { }
-func (*flagPrinter) Format(f fmt.Formatter, c int) {
+func (*flagPrinter) Format(f fmt.State, c int) {
 	s := "%";
 	for i := 0; i < 128; i++ {
 		if f.Flag(i) {
