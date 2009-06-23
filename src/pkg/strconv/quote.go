@@ -97,22 +97,35 @@ func unhex(b byte) (v int, ok bool) {
 	return;
 }
 
-func unquoteChar(s string, q byte) (t, ns string, err os.Error) {
-	err = os.EINVAL;  // assume error for easy return
-
+// UnquoteChar decodes the first character or byte in the escaped string
+// or character literal represented by the string s.
+// It returns four values: 
+// 1) value, the decoded Unicode code point or byte value;
+// 2) multibyte, a boolean indicating whether the decoded character
+//    requires a multibyte UTF-8 representation;
+// 3) tail, the remainder of the string after the character; and
+// 4) an error that will be nil if the character is syntactically valid.
+// The second argument, quote, specifies the type of literal being parsed
+// and therefore which escaped quote character is permitted.
+// If set to a single quote, it permits the sequence \' and disallows unescaped '.
+// If set to a double quote, it permits \" and disallows unescaped ".
+// If set to zero, it does not permit either escape and allows both quote characters to appear unescaped.
+func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, err os.Error) {
 	// easy cases
 	switch c := s[0]; {
+	case c == quote && (quote == '\'' || quote == '"'):
+		err = os.EINVAL;
+		return;
 	case c >= utf8.RuneSelf:
 		r, size := utf8.DecodeRuneInString(s);
-		return s[0:size], s[size:len(s)], nil;
-	case c == q:
-		return;
+		return r, true, s[size:len(s)], nil;
 	case c != '\\':
-		return s[0:1], s[1:len(s)], nil;
+		return int(s[0]), false, s[1:len(s)], nil;
 	}
 
 	// hard case: c is backslash
 	if len(s) <= 1 {
+		err = os.EINVAL;
 		return;
 	}
 	c := s[1];
@@ -120,19 +133,19 @@ func unquoteChar(s string, q byte) (t, ns string, err os.Error) {
 
 	switch c {
 	case 'a':
-		return "\a", s, nil;
+		value = '\a';
 	case 'b':
-		return "\b", s, nil;
+		value = '\b';
 	case 'f':
-		return "\f", s, nil;
+		value = '\f';
 	case 'n':
-		return "\n", s, nil;
+		value = '\n';
 	case 'r':
-		return "\r", s, nil;
+		value = '\r';
 	case 't':
-		return "\t", s, nil;
+		value = '\t';
 	case 'v':
-		return "\v", s, nil;
+		value = '\v';
 	case 'x', 'u', 'U':
 		n := 0;
 		switch c {
@@ -145,11 +158,13 @@ func unquoteChar(s string, q byte) (t, ns string, err os.Error) {
 		}
 		v := 0;
 		if len(s) < n {
+			err = os.EINVAL;
 			return;
 		}
 		for j := 0; j < n; j++ {
 			x, ok := unhex(s[j]);
 			if !ok {
+				err = os.EINVAL;
 				return;
 			}
 			v = v<<4 | x;
@@ -157,15 +172,19 @@ func unquoteChar(s string, q byte) (t, ns string, err os.Error) {
 		s = s[n:len(s)];
 		if c == 'x' {
 			// single-byte string, possibly not UTF-8
-			return string([]byte{byte(v)}), s, nil;
+			value = v;
+			break;
 		}
 		if v > utf8.RuneMax {
+			err = os.EINVAL;
 			return;
 		}
-		return string(v), s, nil;
+		value = v;
+		multibyte = true;
 	case '0', '1', '2', '3', '4', '5', '6', '7':
 		v := int(c) - '0';
 		if len(s) < 2 {
+			err = os.EINVAL;
 			return;
 		}
 		for j := 0; j < 2; j++ {	// one digit already; two more
@@ -177,13 +196,23 @@ func unquoteChar(s string, q byte) (t, ns string, err os.Error) {
 		}
 		s = s[2:len(s)];
 		if v > 255 {
+			err = os.EINVAL;
 			return;
 		}
-		return string(v), s, nil;
-
-	case '\\', q:
-		return string(c), s, nil;
+		value = v;
+	case '\\':
+		value = '\\';
+	case '\'', '"':
+		if c != quote {
+			err = os.EINVAL;
+			return;
+		}
+		value = int(c);
+	default:
+		err = os.EINVAL;
+		return;
 	}
+	tail = s;
 	return;
 }
 
@@ -212,14 +241,19 @@ func Unquote(s string) (t string, err os.Error) {
 	}
 
 	// TODO(rsc): String accumulation could be more efficient.
-	var c, tt string;
-	var err1 os.Error;
+	var tt string;
 	for len(s) > 0 {
-		if c, s, err1 = unquoteChar(s, quote); err1 != nil {
+		c, multibyte, ss, err1 := UnquoteChar(s, quote);
+		if err1 != nil {
 			err = err1;
 			return;
 		}
-		tt += c;
+		s = ss;
+		if multibyte || c < utf8.RuneSelf {
+			tt += string(c);
+		} else {
+			tt += string([]byte{byte(c)});
+		}
 		if quote == '\'' && len(s) != 0 {
 			// single-quoted must be single character
 			return;
