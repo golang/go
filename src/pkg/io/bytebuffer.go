@@ -87,8 +87,13 @@ func (b *ByteBuffer) WriteByte(c byte) os.Error {
 }
 
 // Read reads the next len(p) bytes from the buffer or until the buffer
-// is drained.  The return value n is the number of bytes read; err is always nil.
+// is drained.  The return value n is the number of bytes read.  If the
+// buffer has no data to return, err is os.EOF even if len(p) is zero;
+// otherwise it is nil.
 func (b *ByteBuffer) Read(p []byte) (n int, err os.Error) {
+	if b.off >= len(b.buf) {
+		return 0, os.EOF
+	}
 	m := b.Len();
 	n = len(p);
 
@@ -99,7 +104,7 @@ func (b *ByteBuffer) Read(p []byte) (n int, err os.Error) {
 
 	bytecopy(p, 0, b.buf, b.off, n);
 	b.off += n;
-	return n, nil
+	return n, err
 }
 
 // ReadByte reads and returns the next byte from the buffer.
