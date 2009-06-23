@@ -129,7 +129,8 @@ file:
 		if(debug['f'])
 			frame(1);
 		fninit($4);
-		testdclstack();
+		if(nsyntaxerrors == 0)
+			testdclstack();
 	}
 
 package:

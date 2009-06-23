@@ -618,6 +618,9 @@ loop:
 			goto nottop;
 		walkconv(n);
 		goto ret;
+	
+	case OCONVNOP:
+		goto ret;
 
 	case OCOMPMAP:
 	case OCOMPSLICE:
@@ -1284,10 +1287,8 @@ walkconv(Node *n)
 		if(!isinter(l->type))
 			yyerror("type assertion requires interface on left, have %T", l->type);
 		et = ifaceas1(t, l->type, 1);
-		if(et == I2Isame || et == E2Esame) {
-			n->op = OCONV;
+		if(et == I2Isame || et == E2Esame)
 			goto nop;
-		}
 		if(et != Inone) {
 			indir(n, ifacecvt(t, l, et));
 			return;
@@ -1303,10 +1304,15 @@ walkconv(Node *n)
 	// no-op conversion
 	if(cvttype(t, l->type) == 1) {
 	nop:
-		if(l->op != ONAME) {
+		if(l->op == OLITERAL) {
 			indir(n, l);
-			n->type = t;
+			l->type = t;
+			return;
 		}
+		// leave OCONV node in place
+		// in case tree gets walked again.
+		// back end will ignore.
+		n->op = OCONVNOP;
 		return;
 	}
 
@@ -3564,6 +3570,8 @@ colas(Node *nl, Node *nr)
 			// finish call - first half above
 			l = listfirst(&savel, &nl);
 			t = structfirst(&saver, getoutarg(t));
+			if(t == T)
+				return N;
 			while(l != N) {
 				a = mixedoldnew(l, t->type);
 				n = list(n, a);

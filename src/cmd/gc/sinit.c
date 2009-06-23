@@ -144,6 +144,9 @@ slicerewrite(Node *n)
 	int b;
 	Node *a;
 
+	while(n->op == OCONVNOP)
+		n = n->left;
+
 	// call to newarray - find nel argument
 	nel = findarg(n, "nel", "newarray");
 	if(nel == N || !isslice(n->type))
