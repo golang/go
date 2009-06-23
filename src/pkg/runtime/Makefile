@@ -10,7 +10,10 @@ SIZE=$(SIZE_$(GOARCH))
 
 # Setup CFLAGS.  Add -D_64BIT on 64-bit platforms (sorry).
 CFLAGS_64=-D_64BIT
-CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE))
+# TODO(kaib): fix register allocation to honor extern register so we
+# can enable optimizations again.
+CFLAGS_arm=-N
+CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH))
 
 # Set O to right letter.
 O_386=8
@@ -33,6 +36,7 @@ OFILES_386=\
 
 # arm-specific object files
 OFILES_arm=\
+	memset.$O\
 	vlop.$O\
 	vlrt.$O\
 

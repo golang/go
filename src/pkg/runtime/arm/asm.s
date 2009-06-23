@@ -2,51 +2,55 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-TEXT _rt0_arm(SB),7,$0
+#include "arm/asm.h"
+
+// using frame size $-4 means do not save LR on stack.
+TEXT _rt0_arm(SB),7,$-4
 	MOVW $setR12(SB), R12
 
 	// copy arguments forward on an even stack
-	MOVW	0(SP), R0		// argc
-	MOVW	4(SP), R1		// argv
-	SUB	$128, SP		// plenty of scratch
-	AND	$~7, SP
-	MOVW	R0, 120(SP)		// save argc, argv away
-	MOVW	R1, 124(SP)
+	// use R13 instead of SP to avoid linker rewriting the offsets
+	MOVW	0(R13), R0		// argc
+	MOVW	$4(R13), R1		// argv
+	SUB	$128, R13		// plenty of scratch
+	AND	$~7, R13
+	MOVW	R0, 120(R13)		// save argc, argv away
+	MOVW	R1, 124(R13)
 
 	// set up m and g registers
 	// g is R10, m is R9
-	MOVW	$g0(SB), R10
-	MOVW	$m0(SB), R9
+	MOVW	$g0(SB), g
+	MOVW	$m0(SB), m
 
 	// save m->g0 = g0
-	MOVW	R10, 0(R9)
+	MOVW	g, m_g0(m)
 
 	// create istack out of the OS stack
-	MOVW	$(-8192+104)(SP), R0
-	MOVW	R0, 0(R10)	// 0(g) is stack limit (w 104b guard)
-	MOVW	SP, 4(R10)	// 4(g) is base
+	MOVW	$(-8192+104)(R13), R0
+	MOVW	R0, g_stackguard(g)	// (w 104b guard)
+	MOVW	R13, g_stackbase(g)
 	BL	emptyfunc(SB)	// fault if stack check is wrong
 
 	BL	check(SB)
 
 	// saved argc, argv
-	MOVW	120(SP), R0
-	MOVW	R0, 0(SP)
-	MOVW	124(SP), R0
-	MOVW	R0, 4(SP)
+	MOVW	120(R13), R0
+	MOVW	R0, 4(R13)
+	MOVW	124(R13), R1
+	MOVW	R1, 8(R13)
 	BL	args(SB)
 	BL	osinit(SB)
 	BL	schedinit(SB)
 
 	// create a new goroutine to start program
 	MOVW	$mainstart(SB), R0
-	MOVW.W	R0, -4(SP)
+	MOVW.W	R0, -4(R13)
 	MOVW	$8, R0
-	MOVW.W	R0, -4(SP)
+	MOVW.W	R0, -4(R13)
 	MOVW	$0, R0
-	MOVW.W	R0, -4(SP)	// push $0 as guard
+	MOVW.W	R0, -4(R13)	// push $0 as guard
 	BL	sys·newproc(SB)
-	MOVW	$12(SP), SP	// pop args and LR
+	MOVW	$12(R13), R13	// pop args and LR
 
 	// start this M
 	BL	mstart(SB)
@@ -70,73 +74,106 @@ TEXT mainstart(SB),7,$0
 // TODO(kaib): remove these once linker works properly
 // pull in dummy dependencies
 TEXT _dep_dummy(SB),7,$0
-	BL	sys·morestack(SB)
-	BL	sys·morestackx(SB)
 	BL	_div(SB)
 	BL	_divu(SB)
 	BL	_mod(SB)
 	BL	_modu(SB)
 	BL	_modu(SB)
 
-
 TEXT	breakpoint(SB),7,$0
 	BL	abort(SB)
 //	BYTE $0xcc
 //	RET
 
-// go-routine
-TEXT	gogo(SB), 7, $0
-	BL	abort(SB)
-//	MOVL	4(SP), AX	// gobuf
-//	MOVL	0(AX), SP	// restore SP
-//	MOVL	4(AX), AX
-//	MOVL	AX, 0(SP)	// put PC on the stack
-//	MOVL	$1, AX
-//	RET
+/*
+ *  go-routine
+ */
 
+// uintptr gosave(Gobuf*)
+// save state in Gobuf; setjmp
 TEXT gosave(SB), 7, $0
+	MOVW	SP, gobuf_sp(R0)
+	MOVW	LR, gobuf_pc(R0)
+	MOVW	g, gobuf_g(R0)
+	MOVW	$0, R0			// return 0
+	RET
+
+// void gogo(Gobuf*, uintptr)
+// restore state from Gobuf; longjmp
+TEXT	gogo(SB), 7, $0
+	MOVW	R0, R1			// gobuf
+	MOVW	8(SP), R0		// return 2nd arg
+	MOVW	gobuf_g(R1), g
+	MOVW	0(g), R2		// make sure g != nil
+	MOVW	gobuf_sp(R1), SP	// restore SP
+	MOVW	gobuf_pc(R1), PC
+
+// void gogocall(Gobuf*, void (*fn)(void))
+// restore state from Gobuf but then call fn.
+// (call fn, returning to state in Gobuf)
+// TODO(kaib): add R0 to gobuf so it can be restored properly
+// using frame size $-4 means do not save LR on stack.
+TEXT gogocall(SB), 7, $-4
+	MOVW	8(SP), R1		// fn
+	MOVW	gobuf_g(R0), g
+	MOVW	0(g), R2		// make sure g != nil
+	MOVW	gobuf_sp(R0), SP	// restore SP
+	MOVW	gobuf_pc(R0), LR
+	MOVW	R1, PC
+
+/*
+ * support for morestack
+ */
+
+// Called during function prolog when more stack is needed.
+// R1 frame size
+// R2 arg size
+// R3 prolog's LR
+// using frame size $-4 means do not save LR on stack.
+TEXT sys·morestack(SB),7,$-4
+	// Cannot grow scheduler stack (m->g0).
+	MOVW	m_g0(m), R4
+	CMP	g, R4
+	BNE	2(PC)
 	BL	abort(SB)
-//	MOVL	4(SP), AX	// gobuf
-//	MOVL	SP, 0(AX)	// save SP
-//	MOVL	0(SP), BX
-//	MOVL	BX, 4(AX)	// save PC
-//	MOVL	$0, AX	// return 0
-//	RET
 
-// support for morestack
+	// Save in m.
+	MOVW	R1, m_moreframe(m)
+	MOVW	R2, m_moreargs(m)
 
-// return point when leaving new stack.
-// save R0, jmp to lesstack to switch back
-TEXT	retfromnewstack(SB),7,$0
-	MOVW	R0,12(R9)	// m->cret
-	B	lessstack(SB)
+	// Called from f.
+	// Set m->morebuf to f's caller.
+	MOVW	R3, (m_morebuf+gobuf_pc)(m) // f's caller's PC
+	MOVW	SP, (m_morebuf+gobuf_sp)(m) // f's caller's SP
+	MOVW	g, (m_morebuf+gobuf_g)(m)
 
-// gogo, returning 2nd arg instead of 1
-TEXT gogoret(SB), 7, $0
-	MOVW	8(SP), R0	// return 2nd arg
-	MOVW	4(SP), R1	// gobuf
-	MOVW	0(R1), SP	// restore SP
-	MOVW	4(R1), PC	// restore PC
+	// Set m->morepc to f's PC.
+	MOVW	LR, m_morepc(m)
 
-TEXT setspgoto(SB), 7, $0
-	MOVW	4(SP), R0	// SP
-	MOVW	8(SP), R1	// fn to call
-	MOVW	12(SP), R2	// fn to return into
-	MOVW	R2, R14		// restore LR
-	MOVW	R0, SP
-	MOVW	R1, PC		// goto
+	// Call newstack on m's scheduling stack.
+	MOVW	m_g0(m), g
+	MOVW	(m_sched+gobuf_sp)(m), SP
+	B	newstack(SB)
+
+// Return point when leaving stack.
+// using frame size $-4 means do not save LR on stack.
+TEXT sys·lessstack(SB), 7, $-4
+	// Save return value in m->cret
+	MOVW	R0, m_cret(m)
+
+	// Call oldstack on m's scheduling stack.
+	MOVW	m_g0(m), g
+	MOVW	(m_sched+gobuf_sp)(m), SP
+	B	oldstack(SB)
 
 // Optimization to make inline stack splitting code smaller
 // R0 is original first argument
-// R1 is arg_num << 24 | autosize >> 3
-TEXT sys·morestackx(SB), 7, $0
-	MOVW	R0, 4(SP)	// Save arg0
-	MOVW	R1<<8, R2
-	MOVW	R2>>5, R2
-	MOVW	R2, 4(R10)	// autooffset into g
-	MOVW	R1>>24, R2
-	MOVW	R2<<3, R2
-	MOVW	R2, 8(R10)	// argsize into g
+// R2 is argsize
+// R3 is LR for f (f's caller's PC)
+// using frame size $-4 means do not save LR on stack.
+TEXT sys·morestackx(SB), 7, $-4
+	MOVW	R0, 0(FP)	// Save arg0
+	MOVW	$0, R1		// set frame size
 	B	sys·morestack(SB)
 
 // bool cas(int32 *val, int32 old, int32 new)
@@ -180,17 +217,18 @@ TEXT jmpdefer(SB), 7, $0
 //	SUBL	$5, (SP)	// return to CALL again
 //	JMP	AX	// but first run the deferred function
 
-TEXT	sys·memclr(SB),7,$0
-	BL	abort(SB)
-//	MOVL	4(SP), DI		// arg 1 addr
-//	MOVL	8(SP), CX		// arg 2 count
-//	ADDL	$3, CX
-//	SHRL	$2, CX
-//	MOVL	$0, AX
-//	CLD
-//	REP
-//	STOSL
-//	RET
+TEXT	sys·memclr(SB),7,$20
+// R0 = addr and passes implicitly to memset
+	MOVW	$0, R1		// c = 0
+	MOVW	R1, -16(SP)
+	MOVW	4(FP), R1	// n
+	MOVW	R1, -12(SP)
+	MOVW	m, -8(SP)	// Save m and g
+	MOVW	g, -4(SP)
+	BL	memset(SB)
+	MOVW	-8(SP), m	// Restore m and g, memset clobbers them
+	MOVW	-4(SP), g
+	RET
 
 TEXT	sys·getcallerpc+0(SB),7,$0
 	BL	abort(SB)
