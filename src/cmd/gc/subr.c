@@ -22,8 +22,10 @@ yyerror(char *fmt, ...)
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
-	if(strcmp(fmt, "syntax error") == 0)
+	if(strcmp(fmt, "syntax error") == 0) {
+		nsyntaxerrors++;
 		print(" near %s", lexbuf);
+	}
 	print("\n");
 	if(debug['h'])
 		*(int*)0 = 0;
@@ -670,6 +672,7 @@ opnames[] =
 	[OCOM]		= "COM",
 	[OCONTINUE]	= "CONTINUE",
 	[OCONV]		= "CONV",
+	[OCONVNOP]		= "CONVNOP",
 	[ODCLARG]	= "DCLARG",
 	[ODCLFIELD]	= "DCLFIELD",
 	[ODCLFUNC]	= "DCLFUNC",

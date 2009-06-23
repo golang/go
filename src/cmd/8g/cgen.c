@@ -61,6 +61,9 @@ cgen(Node *n, Node *res)
 	if(res == N || res->type == T)
 		fatal("cgen: res nil");
 
+	while(n->op == OCONVNOP)
+		n = n->left;
+
 	// static initializations
 	if(initflag && gen_as_init(n, res))
 		return;
@@ -403,6 +406,9 @@ agen(Node *n, Node *res)
 	if(n == N || n->type == T || res == N || res->type == T)
 		fatal("agen");
 
+	while(n->op == OCONVNOP)
+		n = n->left;
+
 	// addressable var is easy
 	if(n->addable) {
 		if(n->op == OREGISTER)
@@ -421,12 +427,6 @@ agen(Node *n, Node *res)
 	switch(n->op) {
 	default:
 		fatal("agen %O", n->op);
-
-	case OCONV:
-		if(!cvttype(n->type, nl->type))
-			fatal("agen: non-trivial OCONV");
-		agen(nl, res);
-		break;
 
 	case OCALLMETH:
 		cgen_callmeth(n, 0);

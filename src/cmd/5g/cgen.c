@@ -28,6 +28,9 @@ cgen(Node *n, Node *res)
 	if(res == N || res->type == T)
 		fatal("cgen: res nil");
 
+	while(n->op == OCONVNOP)
+		n = n->left;
+
 	// static initializations
 	if(initflag && gen_as_init(n, res))
 		goto ret;
@@ -197,10 +200,6 @@ cgen(Node *n, Node *res)
 		goto abop;
 
 	case OCONV:
-		if(eqtype(n->type, nl->type)) {
-			cgen(nl, res);
-			break;
-		}
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
 		gmove(&n1, res);
@@ -373,7 +372,10 @@ agen(Node *n, Node *res)
 
 //	if(!isptr[res->type->etype])
 //		fatal("agen: not tptr: %T", res->type);
-
+//
+//	while(n->op == OCONVNOP)
+//		n = n->left;
+//
 //	if(n->addable) {
 //		regalloc(&n1, types[tptr], res);
 //		gins(ALEAQ, n, &n1);
@@ -389,12 +391,6 @@ agen(Node *n, Node *res)
 //	default:
 //		fatal("agen: unknown op %N", n);
 //		break;
-
-//	case OCONV:
-//		if(!cvttype(n->type, nl->type))
-//			fatal("agen: non-trivial OCONV");
-//		agen(nl, res);
-//		return;
 
 //	case OCALLMETH:
 //		cgen_callmeth(n, 0);

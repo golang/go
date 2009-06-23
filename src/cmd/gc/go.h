@@ -327,7 +327,7 @@ enum
 	OREGISTER, OINDREG,
 	OKEY, OPARAM,
 	OCOMPOS, OCOMPSLICE, OCOMPMAP,
-	OCONV,
+	OCONV, OCONVNOP,
 	ODOTTYPE, OTYPESW,
 	OBAD,
 
@@ -530,6 +530,7 @@ EXTERN	char*	outfile;
 EXTERN	char*	package;
 EXTERN	Biobuf*	bout;
 EXTERN	int	nerrors;
+EXTERN	int	nsyntaxerrors;
 EXTERN	char	namebuf[NSYMB];
 EXTERN	char	lexbuf[NSYMB];
 EXTERN	char	debug[256];
