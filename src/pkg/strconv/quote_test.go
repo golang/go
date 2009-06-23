@@ -149,7 +149,7 @@ func TestUnquote(t *testing.T) {
 	for i := 0; i < len(unquotetests); i++ {
 		tt := unquotetests[i];
 		if out, err := Unquote(tt.in); err != nil && out != tt.out {
-			t.Errorf("Unquote(%s) = %q, %s want %q, nil", tt.in, out, err, tt.out);
+			t.Errorf("Unquote(%#q) = %q, %v want %q, nil", tt.in, out, err, tt.out);
 		}
 	}
 
@@ -157,14 +157,14 @@ func TestUnquote(t *testing.T) {
 	for i := 0; i < len(quotetests); i++ {
 		tt := quotetests[i];
 		if in, err := Unquote(tt.out); in != tt.in {
-			t.Errorf("Unquote(%s) = %q, %s, want %q, nil", tt.out, in, err, tt.in);
+			t.Errorf("Unquote(%#q) = %q, %v, want %q, nil", tt.out, in, err, tt.in);
 		}
 	}
 
 	for i := 0; i < len(misquoted); i++ {
 		s := misquoted[i];
 		if out, err := Unquote(s); out != "" || err != os.EINVAL {
-			t.Errorf("Unquote(%q) = %q, %s want %q, %s", s, out, err, "", os.EINVAL);
+			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", os.EINVAL);
 		}
 	}
 }
