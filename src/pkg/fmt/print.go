@@ -2,19 +2,67 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package fmt implements formatted I/O with functions analogous
-// to C's printf.  Because of reflection knowledge it does not need
-// to be told about sizes and signedness (no %llud etc. - just %d).
-// Still to do: document the formats properly.  For now, like C but:
-//	- don't need l or u flags - type of integer tells that.
-//	- %v prints any value using its native format.
-//	- for each Printf-like fn, there is also a Print fn that takes no format
-//		and is equivalent to saying %v for every operand.
-//	- another variant Println inserts blanks and appends a newline.
-//	- if an operand implements method String() that method will
-//		be used for %v, %s, or Print etc.
-//	- if an operand implements interface Formatter, that interface can
-//		be used for fine control of formatting.
+/*
+	Package fmt implements formatted I/O with functions analogous
+	to C's printf.  The format 'verbs' are derived from C's but
+	are simpler.
+
+	The verbs:
+
+	General:
+		%v	for any operand type, the value in a default format.
+			when printing structs, the plus flag (%+v) adds field names
+	Boolean:
+		%t	the word true or false
+	Integer:
+		%b	base 2
+		%c	the character represented by the corresponding Unicode code point
+		%d	base 10
+		%o	base 8
+		%x	base 16, with lower-case letters for a-f
+		%X	base 16, with upper-case letters for A-F
+	Floating-point:
+		%e	scientific notation, e.g. -1234.456e+78
+		%f	decimal point but no exponent, e.g. 123.456
+		%g	whichever of %e or %f produces more compact output
+	String and slice of bytes:
+		%s	the uninterpreted bytes of the string or slice
+		%q	a double-quoted string safely escaped with Go syntax
+		%x	base 16 notation with two characters per byte
+	Pointer:
+		%p	base 16 notation, with leading 0x
+	Type:
+		%T	a Go-syntax representation of the type of the operand
+
+	There is no 'u' flag.  Integers are printed unsigned if they have unsigned type.
+	Similarly, there is no need to specify the size of the operand (int8, int64).
+
+	For numeric values, the width and precision flags control
+	formatting; width sets the width of the field, precision the
+	number of places after the decimal, if appropriate.  The
+	format %6.2f prints 123.45.
+
+	Other flags:
+		+	always print a sign for numeric values
+		-	pad with spaces on the right rather than the left (left-justify the field)
+		#	alternate format: add leading 0 for octal (%#o), 0x for hex (%#x);
+			suppress 0x for %p (%#p);
+			print a raw (backquoted) string if possible for %q (%#q)
+		' '	(space) leave a space for elided sign in numbers (% d);
+			put spaces between bytes printing strings or slices in hex (% x)
+		0	pad with leading zeros rather than spaces
+
+	For each Printf-like function, there is also a Print function
+	that takes no format and is equivalent to saying %v for every
+	operand.  Another variant Println inserts blanks between
+	operands and appends a newline.
+
+	If an operand implements interface Format, that interface
+	can be used for fine control of formatting.
+
+	If an operand implements method String() string that method
+	will be used for %v, %s, or Print etc.
+*/
 package fmt
 
 
