@@ -142,10 +142,10 @@ struct	Autom
 struct	Optab
 {
 	char	as;
-	char	a1;
+	uchar	a1;
 	char	a2;
-	char	a3;
-	char	type;
+	uchar	a3;
+	uchar	type;
 	char	size;
 	char	param;
 	char	flag;
@@ -307,8 +307,8 @@ EXTERN	char	debug[128];
 EXTERN	Prog*	edatap;
 EXTERN	Prog*	etextp;
 EXTERN	Prog*	firstp;
-EXTERN	char	fnuxi4[4];
-EXTERN	char	fnuxi8[8];
+EXTERN	uchar	fnuxi4[4];
+EXTERN	uchar	fnuxi8[8];
 EXTERN	char*	noname;
 EXTERN	Sym*	hash[NHASH];
 EXTERN	Sym*	histfrog[MAXHIST];
@@ -319,9 +319,9 @@ EXTERN	char*	libraryobj[50];
 EXTERN	int	libraryp;
 EXTERN	int	xrefresolv;
 EXTERN	char*	hunk;
-EXTERN	char	inuxi1[1];
-EXTERN	char	inuxi2[2];
-EXTERN	char	inuxi4[4];
+EXTERN	uchar	inuxi1[1];
+EXTERN	uchar	inuxi2[2];
+EXTERN	uchar	inuxi4[4];
 EXTERN	Prog*	lastp;
 EXTERN	int32	lcsize;
 EXTERN	char	literal[32];
