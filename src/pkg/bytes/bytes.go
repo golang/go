@@ -41,10 +41,14 @@ func Equal(a, b []byte) bool {
 	return true
 }
 
-// Copy copies the source to the destination, stopping when the source
-// is all transferred.  The caller must guarantee that there is enough
-// room in the destination.  It returns the number of bytes copied
+// Copy copies bytes from src to dst,
+// stopping when either all of src has been copied
+// or all of dst has been filled.
+// It returns the number of bytes copied.
 func Copy(dst, src []byte) int {
+	if len(src) > len(dst) {
+		src = src[0:len(dst)];
+	}
 	for i, x := range src {
 		dst[i] = x
 	}
