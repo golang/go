@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Primitive HTTP client.  See RFC 2616.
+// Primitive HTTP client. See RFC 2616.
 
 package http
 
@@ -14,8 +14,8 @@ import (
 	"log";
 	"net";
 	"os";
-	"strings";
 	"strconv";
+	"strings";
 )
 
 // Response represents the response from an HTTP request.
@@ -73,24 +73,6 @@ type readClose struct {
 
 // Send issues an HTTP request.  Caller should close resp.Body when done reading it.
 //
-// This method consults the following fields of req:
-//
-//	Url
-//	Method (defaults to "GET")
-//	Proto (defaults to "HTTP/1.0")
-//	UserAgent (if empty, currently defaults to http.Client; may change)
-//	Referer (if empty, no Referer header will be supplied)
-//	Header
-//	Body (if nil, defaults to empty body)
-//
-// The following fields are redundant and are ignored:
-//
-//	RawUrl
-//	ProtoMajor
-//	ProtoMinor
-//	Close
-//	Host
-//
 // TODO: support persistent connections (multiple requests on a single connection).
 // send() method is nonpublic because, when we refactor the code for persistent
 // connections, it may no longer make sense to have a method with this signature.
@@ -126,14 +108,15 @@ func send(req *Request) (resp *Response, err os.Error) {
 	if err != nil {
 		return nil, err;
 	}
-	ss := strings.Split(line, " ");
-	if len(ss) != 3 {
+	i := strings.Index(line, " ");
+	j := strings.Index(line[i+1:len(line)], " ") + i+1;
+	if i < 0 || j < 0 {
 		return nil, os.ErrorString(fmt.Sprintf("Invalid first line in HTTP response: %q", line));
 	}
-	resp.Status = ss[1] + " " + ss[2];
-	resp.StatusCode, err = strconv.Atoi(ss[1]);
+	resp.Status = line[i+1:len(line)];
+	resp.StatusCode, err = strconv.Atoi(line[i+1:j]);
 	if err != nil {
-		return nil, os.ErrorString(fmt.Sprintf("Invalid status code in HTTP response %q", line));
+		return nil, os.ErrorString(fmt.Sprintf("Invalid status code in HTTP response: %q", line));
 	}
 
 	// Parse the response headers.
@@ -148,7 +131,14 @@ func send(req *Request) (resp *Response, err os.Error) {
 		resp.AddHeader(key, value);
 	}
 
-	resp.Body = readClose{reader, conn};
+	// TODO(rsc): Make this work:
+	//   r := io.Reader(reader);
+	var r io.Reader = reader;
+	if v := resp.GetHeader("Transfer-Encoding"); v == "chunked" {
+		r = newChunkedReader(reader);
+	}
+	resp.Body = readClose{ r, conn };
+
 	conn = nil; // so that defered func won't close it
 	err = nil;
 	return;
@@ -209,14 +199,16 @@ func Get(url string) (r *Response, finalUrl string, err os.Error) {
 
 // Post issues a POST to the specified URL.
 //
-// Caller should close resp.Body when done reading it.
-func Post(url string, requestBody io.Reader) (r *Response, err os.Error) {
-	// NOTE TO REVIEWER: this could share more code with Get, waiting for API to settle
-	// down before cleaning up that detail.
-
+// Caller should close r.Body when done reading it.
+func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Error) {
 	var req Request;
 	req.Method = "POST";
-	req.Body = requestBody;
+	req.Body = body;
+	req.Header = map[string] string{
+		"Content-Type": bodyType,
+		"Transfer-Encoding": "chunked",
+	};
+
 	req.Url, err = ParseURL(url);
 	if err != nil {
 		return nil, err;
@@ -224,4 +216,3 @@ func Post(url string, requestBody io.Reader) (r *Response, err os.Error) {
 
 	return send(&req);
 }
-

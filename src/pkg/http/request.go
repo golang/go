@@ -24,6 +24,7 @@ const (
 	maxLineLength = 1024;	// assumed < bufio.DefaultBufSize
 	maxValueLength = 1024;
 	maxHeaderLines = 1024;
+	chunkSize = 4 << 10;  // 4 KB chunks
 )
 
 // HTTP request parsing errors.
@@ -41,6 +42,7 @@ var (
 	BadRequest = &ProtocolError{"invalid http request"};
 	BadHTTPVersion = &ProtocolError{"unsupported http version"};
 	UnknownContentType = &ProtocolError{"unknown content type"};
+	BadChunkedEncoding = &ProtocolError{"bad chunked encoding"};
 )
 
 // A Request represents a parsed HTTP request header.
@@ -122,20 +124,33 @@ func valueOrDefault(value, def string) string {
 // TODO(rsc): Change default UserAgent before open-source release.
 const defaultUserAgent = "http.Client";
 
-// Write an HTTP request -- header and body -- in wire format.
-// See Send for a list of which Request fields we use.
+// Write an HTTP/1.1 request -- header and body -- in wire format.
+// This method consults the following fields of req:
+//	Url
+//	Method (defaults to "GET")
+//	UserAgent (defaults to defaultUserAgent)
+//	Referer
+//	Header
+//	Body
+//
+// If Body is present, "Transfer-Encoding: chunked" is forced as a header.
 func (req *Request) write(w io.Writer) os.Error {
 	uri := URLEscape(req.Url.Path);
 	if req.Url.RawQuery != "" {
 		uri += "?" + req.Url.RawQuery;
 	}
 
-	fmt.Fprintf(w, "%s %s %s\r\n", valueOrDefault(req.Method, "GET"), uri, valueOrDefault(req.Proto, "HTTP/1.0"));
+	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri);
 	fmt.Fprintf(w, "Host: %s\r\n", req.Url.Host);
 	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent));
 
-	if (req.Referer != "") {
+	if req.Referer != "" {
 		fmt.Fprintf(w, "Referer: %s\r\n", req.Referer);
+	}
+
+	if req.Body != nil {
+		// Force chunked encoding
+		req.Header["Transfer-Encoding"] = "chunked";
 	}
 
 	// TODO: split long values?  (If so, should share code with Conn.Write)
@@ -152,10 +167,32 @@ func (req *Request) write(w io.Writer) os.Error {
 	io.WriteString(w, "\r\n");
 
 	if req.Body != nil {
-		_, err := io.Copy(req.Body, w);
-		if err != nil {
-			return err;
+		buf := make([]byte, chunkSize);
+	Loop:
+		for {
+			var nr, nw int;
+			var er, ew os.Error
+			if nr, er = req.Body.Read(buf); nr > 0 {
+				if er == nil || er == os.EOF {
+					fmt.Fprintf(w, "%x\r\n", nr);
+					nw, ew = w.Write(buf[0:nr]);
+					fmt.Fprint(w, "\r\n");
+				}
+			}
+			switch {
+			case er != nil:
+				if er == os.EOF {
+					break Loop
+				}
+				return er;
+			case ew != nil:
+				return ew;
+			case nw < nr:
+				return io.ErrShortWrite;
+			}
 		}
+		// last-chunk CRLF
+		fmt.Fprint(w, "0\r\n\r\n");
 	}
 
 	return nil;
@@ -330,6 +367,70 @@ func CanonicalHeaderKey(s string) string {
 	return t;
 }
 
+type chunkedReader struct {
+	r *bufio.Reader;
+	n uint64;  // unread bytes in chunk
+	err os.Error;
+}
+
+func newChunkedReader(r *bufio.Reader) *chunkedReader {
+	return &chunkedReader{ r: r }
+}
+
+func (cr *chunkedReader) beginChunk() {
+	// chunk-size CRLF
+	var line string;
+	line, cr.err = readLine(cr.r);
+	if cr.err != nil {
+		return
+	}
+	cr.n, cr.err = strconv.Btoui64(line, 16);
+	if cr.err != nil {
+		return
+	}
+	if cr.n == 0 {
+		// trailer CRLF
+		for {
+			line, cr.err = readLine(cr.r);
+			if cr.err != nil {
+				return
+			}
+			if line == "" {
+				break
+			}
+		}
+		cr.err = os.EOF;
+	}
+}
+
+func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
+	if cr.err != nil {
+		return 0, cr.err
+	}
+	if cr.n == 0 {
+		cr.beginChunk();
+		if cr.err != nil {
+			return 0, cr.err
+		}
+	}
+	if uint64(len(b)) > cr.n {
+		b = b[0:cr.n];
+	}
+	n, cr.err = cr.r.Read(b);
+	cr.n -= uint64(n);
+	if cr.n == 0 && cr.err == nil {
+		// end of chunk (CRLF)
+		b := make([]byte, 2);
+		var nb int;
+		if nb, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
+			if b[0] != '\r' || b[1] != '\n' {
+				cr.err = BadChunkedEncoding;
+			}
+		}
+	}
+	return n, cr.err
+}
+
 // ReadRequest reads and parses a request from b.
 func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	req = new(Request);
@@ -449,8 +550,10 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	//	Warning
 
 	// A message body exists when either Content-Length or Transfer-Encoding
-	// headers are present. TODO: Handle Transfer-Encoding.
-	if v, present := req.Header["Content-Length"]; present {
+	// headers are present. Transfer-Encoding trumps Content-Length.
+	if v, present := req.Header["Transfer-Encoding"]; present && v == "chunked" {
+		req.Body = newChunkedReader(b);
+	} else if v, present := req.Header["Content-Length"]; present {
 		length, err := strconv.Btoui64(v, 10);
 		if err != nil {
 			return nil, BadContentLength
@@ -493,6 +596,7 @@ func parseForm(body string) (data map[string] *vector.StringVector, err os.Error
 }
 
 // ParseForm parses the request body as a form.
+// TODO(dsymonds): Parse r.Url.RawQuery instead for GET requests.
 func (r *Request) ParseForm() (err os.Error) {
 	if r.Body == nil {
 		return NoEntityBody
