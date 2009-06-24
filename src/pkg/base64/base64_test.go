@@ -6,6 +6,7 @@ package base64
 
 import (
 	"base64";
+	"bytes";
 	"io";
 	"os";
 	"reflect";
@@ -165,5 +166,38 @@ func TestDecodeCorrupt(t *testing.T) {
 		default:
 			t.Error("Decoder failed to detect corruption in", e);
 		}
+	}
+}
+
+func TestBig(t *testing.T) {
+	n := 3*1000+1;
+	raw := make([]byte, n);
+	const alpha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	for i := 0; i < n; i++ {
+		raw[i] = alpha[i%len(alpha)];
+	}
+	encoded := new(io.ByteBuffer);
+	w := NewEncoder(StdEncoding, encoded);
+	nn, err := w.Write(raw);
+	if nn != n || err != nil {
+		t.Fatalf("Encoder.Write(raw) = %d, %v want %d, nil", nn, err, n);
+	}
+	err = w.Close();
+	if err != nil {
+		t.Fatalf("Encoder.Close() = %v want nil", err);
+	}
+	decoded, err := io.ReadAll(NewDecoder(StdEncoding, encoded));
+	if err != nil {
+		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err);
+	}
+	
+	if !bytes.Equal(raw, decoded) {
+		var i int;
+		for i = 0; i < len(decoded) && i < len(raw); i++ {
+			if decoded[i] != raw[i] {
+				break;
+			}
+		}
+		t.Errorf("Decode(Encode(%d-byte string)) failed at offset %d", n, i);
 	}
 }
