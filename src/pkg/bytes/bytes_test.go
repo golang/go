@@ -132,25 +132,27 @@ func TestSplit(t *testing.T) {
 type CopyTest struct {
 	a	string;
 	b	string;
+	n	int;
 	res	string;
 }
 var copytests = []CopyTest {
-	CopyTest{ "", "", "" },
-	CopyTest{ "a", "", "a" },
-	CopyTest{ "a", "a", "a" },
-	CopyTest{ "a", "b", "b" },
-	CopyTest{ "xyz", "abc", "abc" },
-	CopyTest{ "wxyz", "abc", "abcz" },
+	CopyTest{ "", "", 0, "" },
+	CopyTest{ "a", "", 0, "a" },
+	CopyTest{ "a", "a", 1, "a" },
+	CopyTest{ "a", "b", 1, "b" },
+	CopyTest{ "xyz", "abc", 3, "abc" },
+	CopyTest{ "wxyz", "abc", 3, "abcz" },
+	CopyTest{ "xyz", "abcd", 3, "abc" },
 }
 
 func TestCopy(t *testing.T) {
 	for i := 0; i < len(copytests); i++ {
 		tt := copytests[i];
 		dst := io.StringBytes(tt.a);
-		Copy(dst, io.StringBytes(tt.b));
+		n := Copy(dst, io.StringBytes(tt.b));
 		result := string(dst);
-		if result != tt.res {
-			t.Errorf(`Copy("%s", "%s") = "%s"; want "%s"`, tt.a, tt.b, result, tt.res);
+		if result != tt.res || n != tt.n {
+			t.Errorf(`Copy(%q, %q) = %d, %q; want %d, %q`, tt.a, tt.b, n, result, tt.n, tt.res);
 			continue;
 		}
 	}
