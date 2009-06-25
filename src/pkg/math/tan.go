@@ -27,7 +27,7 @@ func Tan(x float64) float64 {
 
 	flag := false;
 	sign := false;
-	if(x < 0) {
+	if x < 0 {
 		x = -x;
 		sign = true;
 	}
@@ -55,7 +55,7 @@ func Tan(x float64) float64 {
 	temp = temp/(((xsq+Q2)*xsq+Q1)*xsq+Q0);
 
 	if flag {
-		if(temp == 0) {
+		if temp == 0 {
 			panic(NaN());
 		}
 		temp = 1/temp;

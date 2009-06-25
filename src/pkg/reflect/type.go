@@ -397,7 +397,7 @@ func (t *structTypeStruct) Size() int {
 		t.field[i].offset = size;
 		size += elemsize;
 	}
-	if (structAlignMask > 0) {
+	if structAlignMask > 0 {
 		// 6g etc. always aligns structs to a minimum size, typically int64
 		if structAlignMask < minStructAlignMask {
 			structAlignMask = minStructAlignMask

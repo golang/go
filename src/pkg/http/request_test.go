@@ -42,7 +42,7 @@ func TestParseForm(t *testing.T) {
 		if dlen, olen := len(data), len(test.out); dlen != olen {
 			t.Errorf("test %d: Have %d keys, want %d keys", i, dlen, olen);
 		}
-		for k, vs := range(test.out) {
+		for k, vs := range test.out {
 			vec, ok := data[k];
 			if !ok {
 				t.Errorf("test %d: Missing key %q", i, k);
@@ -52,7 +52,7 @@ func TestParseForm(t *testing.T) {
 				t.Errorf("test %d: key %q: Have %d keys, want %d keys", i, k, dlen, olen);
 				continue
 			}
-			for j, v := range(vs) {
+			for j, v := range vs {
 				if dv := vec.At(j); dv != v {
 					t.Errorf("test %d: key %q: val %d: Have %q, want %q", i, k, j, dv, v);
 				}
