@@ -123,15 +123,7 @@ loop:
 		return;
 
 	more = N;
-	switch(n->op) {
-	case ONAME:	// one only; lineno isn't right for right now
-	case OPACK:
-	case OTYPE:
-	case OLITERAL:
-		break;
-	default:
-		lineno = n->lineno;
-	}
+	setlineno(n);
 
 	switch(n->op) {
 
@@ -251,6 +243,13 @@ loop:
 	default:
 		dump("walk", n);
 		fatal("walktype: switch 1 unknown op %N", n);
+		goto ret;
+
+	case OTYPE:
+		if(!n->diag) {
+			n->diag = 1;
+			yyerror("type %T used as expression", n->type);
+		}
 		goto ret;
 
 	case ODCL:
@@ -1799,8 +1798,12 @@ walkdot(Node *n)
 		n->op = ODOTPTR;
 	}
 
-	if(!lookdot(n, t))
-		yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
+	if(!lookdot(n, t)) {
+		if(!n->diag) {
+			n->diag = 1;
+			yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
+		}
+	}
 }
 
 Node*

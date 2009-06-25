@@ -106,7 +106,14 @@ setlineno(Node *n)
 	int32 lno;
 
 	lno = lineno;
-	if(n != N && n->op != ONAME) {
+	if(n != N)
+	switch(n->op) {
+	case ONAME:
+	case OTYPE:
+	case OPACK:
+	case OLITERAL:
+		break;
+	default:
 		lineno = n->lineno;
 		if(lineno == 0) {
 			if(debug['K'])
