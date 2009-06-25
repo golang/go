@@ -9,7 +9,7 @@ package main
 func putint(digits *string) {
 	var i byte;
 	i = (*digits)[7];  // compiles
-	i = digits[7];  // doesn't compile
+	i = digits[7];  // ERROR "illegal"
 }
 
 func main() {
@@ -21,5 +21,5 @@ func main() {
 bug022.go:8: illegal types for operand
 	(*<string>*STRING) INDEXPTR (<int32>INT32)
 bug022.go:8: illegal types for operand
-	(<uint8>UINT8) AS 
+	(<uint8>UINT8) AS
 */

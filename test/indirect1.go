@@ -1,4 +1,4 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG indirect
+// errchk $G -e $D/$F.go
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -28,58 +28,42 @@ var b2 *[]int = &b0
 var b3 []int = []int{1, 2, 3}
 var b4 *[]int = &b3
 
-func crash()
-{
-	// these uses of nil pointers
-	// would crash but should type check
-	println("crash",
-		len(a1) + cap(a1));
-}
-
-func nocrash()
+func f()
 {
 	// this is spaced funny so that
 	// the compiler will print a different
-	// line number for each len call if
+	// line number for each len call when
 	// it decides there are type errors.
-	// it might also help in the traceback.
 	x :=
 		len(m0)+
-		len(m3);
-	if x != 1 {
-		panicln("wrong maplen");
-	}
+		len(m1)+	// ERROR "illegal"
+		len(m2)+	// ERROR "illegal"
+		len(m3)+
+		len(m4)+	// ERROR "illegal"
 
-	x =
 		len(s0)+
-		len(s3);
-	if x != 1 {
-		panicln("wrong stringlen");
-	}
+		len(s1)+	// ERROR "illegal"
+		len(s2)+	// ERROR "illegal"
+		len(s3)+
+		len(s4)+	// ERROR "illegal"
 
-	x =
 		len(a0)+
-		len(a2);
-	if x != 20 {
-		panicln("wrong arraylen");
-	}
+		len(a1)+
+		len(a2)+
 
-	x =
+		cap(a0)+
+		cap(a1)+
+		cap(a2)+
+
 		len(b0)+
-		len(b3);
-	if x != 3 {
-		panicln("wrong slicelen");
-	}
+		len(b1)+	// ERROR "illegal"
+		len(b2)+	// ERROR "illegal"
+		len(b3)+
+		len(b4)+	// ERROR "illegal"
 
-	x =
 		cap(b0)+
-		cap(b3);
-	if x != 3 {
-		panicln("wrong slicecap");
-	}
-}
-
-func main()
-{
-	nocrash();
+		cap(b1)+	// ERROR "illegal"
+		cap(b2)+	// ERROR "illegal"
+		cap(b3)+
+		cap(b4);	// ERROR "illegal"
 }

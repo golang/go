@@ -8,9 +8,9 @@ package main
 
 type myMap map[string] int;
 
-func f() *myMap {
+func f() myMap {
 	m := make(map[string] int);
-	return &m
+	return m
 }
 
 func main() {
@@ -22,9 +22,6 @@ func main() {
 	}
 	{
 		x, ok := (*mp)["key"]
-	}
-	{
-		x, ok := mp["key"]
 	}
 	{
 		x, ok := f()["key"]
