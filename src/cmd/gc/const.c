@@ -84,7 +84,7 @@ convlit1(Node *n, Type *t, int explicit)
 		return;
 	}
 	// avoided repeated calculations, errors
-	if(cvttype(n->type, t)) {
+	if(cvttype(n->type, t) == 1) {
 		n->type = t;
 		return;
 	}
@@ -603,8 +603,7 @@ ret:
 	n->val = v;
 
 	// check range.
-	lno = lineno;
-	lineno = n->lineno;
+	lno = setlineno(n);
 	overflow(v, n->type);
 	lineno = lno;
 
