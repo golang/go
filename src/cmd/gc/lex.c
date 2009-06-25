@@ -272,6 +272,9 @@ importfile(Val *f)
 		return;
 	}
 
+	if(!debug['A'])
+		anysym->def = typenod(types[TANY]);
+
 	if(!findpkg(f->u.sval))
 		fatal("can't find import: %Z", f->u.sval);
 	imp = Bopen(namebuf, OREAD);
@@ -343,11 +346,11 @@ unimportfile(void)
 void
 cannedimports(char *file, char *cp)
 {
-	lineno++;		// if sys.6 is included on line 1,
-	linehist(file, 0, 0);	// the debugger gets confused
-
 	if(!debug['A'])
 		anysym->def = typenod(types[TANY]);
+
+	lineno++;		// if sys.6 is included on line 1,
+	linehist(file, 0, 0);	// the debugger gets confused
 
 	pushedio = curio;
 	curio.bin = nil;
