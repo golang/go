@@ -64,6 +64,8 @@ zhist(Biobuf *b, int line, vlong offset)
 	Addr a;
 
 	Bputc(b, AHISTORY);
+	Bputc(b, 0);
+	Bputc(b, 0);
 	Bputc(b, line);
 	Bputc(b, line>>8);
 	Bputc(b, line>>16);
@@ -82,19 +84,26 @@ zaddr(Biobuf *b, Addr *a, int s)
 {
 	int32 l;
 	Ieee e;
+	int i;
+	char *n;
 
-//	Bputc(b, a->type);
-	// TODO(kaib): Re-introduce registers once we figure out what they are used
-	// for.
-//	Bputc(b, a->reg);
-//	Bputc(b, s);
-	// TODO(kaib): ditto for Addr.name
-//	Bputc(b, a->name);
+	switch(a->type) {
+	case D_STATIC:
+	case D_EXTERN:
+	case D_AUTO:
+	case D_PARAM:
+		Bputc(b, D_OREG);
+		Bputc(b, a->reg);
+		Bputc(b, s);
+		Bputc(b, a->type);
+		break;
+	default:
+		Bputc(b, a->type);
+		Bputc(b, a->reg);
+		Bputc(b, s);
+		Bputc(b, D_NONE);
+	}
 
-	Bputc(b, 1);
-	Bputc(b, 0);
-	Bputc(b, 0);
-	Bputc(b, 0);
 	switch(a->type) {
 	default:
 		print("unknown type %d in zaddr\n", a->type);
@@ -107,10 +116,18 @@ zaddr(Biobuf *b, Addr *a, int s)
 	case D_PARAM:
 		break;
 
+	case D_CONST2:
+		l = a->offset2;
+		Bputc(b, l);
+		Bputc(b, l>>8);
+		Bputc(b, l>>16);
+		Bputc(b, l>>24); // fall through
 	case D_OREG:
 	case D_CONST:
 	case D_BRANCH:
 	case D_SHIFT:
+	case D_STATIC:
+	case D_AUTO:
 		l = a->offset;
 		Bputc(b, l);
 		Bputc(b, l>>8);
@@ -118,27 +135,27 @@ zaddr(Biobuf *b, Addr *a, int s)
 		Bputc(b, l>>24);
 		break;
 
-//	case D_SCONST:
-//		n = a->sval;
-//		for(i=0; i<NSNAME; i++) {
-//			Bputc(b, b, *n);
-//			n++;
-//		}
-//		break;
+	case D_SCONST:
+		n = a->sval;
+		for(i=0; i<NSNAME; i++) {
+			Bputc(b, *n);
+			n++;
+		}
+		break;
 
-//	case D_FCONST:
-//		ieeedtod(&e, a->dval);
-//		l = e.l;
-//		Bputc(b, l);
-//		Bputc(b, l>>8);
-//		Bputc(b, l>>16);
-//		Bputc(b, l>>24);
-//		l = e.h;
-//		Bputc(b, l);
-//		Bputc(b, l>>8);
-//		Bputc(b, l>>16);
-//		Bputc(b, l>>24);
-//		break;
+	case D_FCONST:
+		ieeedtod(&e, a->dval);
+		l = e.l;
+		Bputc(b, l);
+		Bputc(b, l>>8);
+		Bputc(b, l>>16);
+		Bputc(b, l>>24);
+		l = e.h;
+		Bputc(b, l);
+		Bputc(b, l>>8);
+		Bputc(b, l>>16);
+		Bputc(b, l>>24);
+		break;
 	}
 }
 
@@ -228,6 +245,8 @@ dumpfuncs(void)
 				break;
 			}
 			Bputc(bout, p->as);
+			Bputc(bout, p->scond);
+ 			Bputc(bout, p->reg);
 			Bputc(bout, p->lineno);
 			Bputc(bout, p->lineno>>8);
 			Bputc(bout, p->lineno>>16);

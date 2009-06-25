@@ -65,10 +65,8 @@ compile(Node *fn)
 	ptxt = gins(ATEXT, curfn->nname, &nod1);
 	afunclit(&ptxt->from);
 
-	ginit();
 	gen(curfn->enter);
 	gen(curfn->nbody);
-	gclean();
 	checklabels();
 
 	if(curfn->type->outtuple != 0)
@@ -85,10 +83,14 @@ compile(Node *fn)
 	*/
 
 	// fill in argument size
+	ptxt->to.type = D_CONST2;
 	ptxt->to.offset2 = rnd(curfn->type->argwid, maxround);
 
 	// fill in final stack size
-	ptxt->to.offset = rnd(stksize+maxarg, maxround);
+	if(stksize > maxstksize)
+		maxstksize = stksize;
+	ptxt->to.offset = rnd(maxstksize+maxarg, maxround);
+	maxstksize = 0;
 
 	if(debug['f'])
 		frame(0);
@@ -358,42 +360,6 @@ cgen_asop(Node *n)
 		goto hard;
 	if(!isint[nr->type->etype])
 		goto hard;
-
-	switch(n->etype) {
-	case OADD:
-		if(smallintconst(nr))
-		if(mpgetfix(nr->val.u.xval) == 1) {
-			a = optoas(OINC, nl->type);
-			if(nl->addable) {
-				gins(a, N, nl);
-				goto ret;
-			}
-			if(sudoaddable(a, nl, &addr)) {
-				p1 = gins(a, N, N);
-				p1->to = addr;
-				sudoclean();
-				goto ret;
-			}
-		}
-		break;
-
-	case OSUB:
-		if(smallintconst(nr))
-		if(mpgetfix(nr->val.u.xval) == 1) {
-			a = optoas(ODEC, nl->type);
-			if(nl->addable) {
-				gins(a, N, nl);
-				goto ret;
-			}
-			if(sudoaddable(a, nl, &addr)) {
-				p1 = gins(a, N, N);
-				p1->to = addr;
-				sudoclean();
-				goto ret;
-			}
-		}
-		break;
-	}
 
 	switch(n->etype) {
 	case OADD:
