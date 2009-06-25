@@ -942,9 +942,7 @@ func copyArray(dst ArrayValue, src ArrayValue, n int) {
 	}
 }
 
-// NewValue creates a new Value from the interface{} object provided.
-func NewValue(e interface {}) Value {
-	value, typestring, indir := unsafe.Reflect(e);
+func typeof(typestring string) Type {
 	typ, ok := typecache[typestring];
 	if !ok {
 		typ = ParseTypeString("", typestring);
@@ -958,6 +956,13 @@ func NewValue(e interface {}) Value {
 		}
 		typecache[typestring] = typ;
 	}
+	return typ;
+}
+
+// NewValue creates a new Value from the interface{} object provided.
+func NewValue(e interface {}) Value {
+	value, typestring, indir := unsafe.Reflect(e);
+	typ := typeof(typestring);
 	var ap Addr;
 	if indir {
 		// Content of interface is large and didn't
@@ -982,6 +987,12 @@ func NewValue(e interface {}) Value {
 		ap = Addr(x);
 	}
 	return newValueAddr(typ, ap);
+}
+
+// Typeof returns the type of the value in the interface{} object provided.
+func Typeof(e interface{}) Type {
+	value, typestring, indir := unsafe.Reflect(e);
+	return typeof(typestring);
 }
 
 // Indirect indirects one level through a value, if it is a pointer.
