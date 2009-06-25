@@ -108,8 +108,8 @@ func URLEscape(s string) string {
 	spaceCount, hexCount := 0, 0;
 	for i := 0; i < len(s); i++ {
 		c := s[i];
-		if (shouldEscape(c)) {
-			if (c == ' ') {
+		if shouldEscape(c) {
+			if c == ' ' {
 				spaceCount++;
 			} else {
 				hexCount++;
@@ -128,7 +128,7 @@ func URLEscape(s string) string {
 		if !shouldEscape(c) {
 			t[j] = s[i];
 			j++;
-		} else if (c == ' ') {
+		} else if c == ' ' {
 			t[j] = '+';
 			j++;
 		} else {
@@ -256,10 +256,10 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 	if url.Userinfo, err = URLUnescape(url.Userinfo); err != nil {
 		return nil, err
 	}
-	if (strings.Index(url.Scheme, "%") >= 0) {
+	if strings.Index(url.Scheme, "%") >= 0 {
 		return nil, BadURL{"hexadecimal escape in scheme"}
 	}
-	if (strings.Index(url.Host, "%") >= 0) {
+	if strings.Index(url.Host, "%") >= 0 {
 		return nil, BadURL{"hexadecimal escape in host"}
 	}
 

@@ -93,17 +93,17 @@ var notletter = []int{
 }
 
 func TestIsLetter(t *testing.T) {
-	for i, r := range(upper) {
+	for i, r := range upper {
 		if !IsLetter(r) {
 			t.Errorf("IsLetter(%#x) = false, want true\n", r);
 		}
 	}
-	for i, r := range(letter) {
+	for i, r := range letter {
 		if !IsLetter(r) {
 			t.Errorf("IsLetter(%#x) = false, want true\n", r);
 		}
 	}
-	for i, r := range(notletter) {
+	for i, r := range notletter {
 		if IsLetter(r) {
 			t.Errorf("IsLetter(%#x) = true, want false\n", r);
 		}
@@ -111,17 +111,17 @@ func TestIsLetter(t *testing.T) {
 }
 
 func TestIsUpper(t *testing.T) {
-	for i, r := range(upper) {
+	for i, r := range upper {
 		if !IsUpper(r) {
 			t.Errorf("IsUpper(%#x) = false, want true\n", r);
 		}
 	}
-	for i, r := range(notupper) {
+	for i, r := range notupper {
 		if IsUpper(r) {
 			t.Errorf("IsUpper(%#x) = true, want false\n", r);
 		}
 	}
-	for i, r := range(notletter) {
+	for i, r := range notletter {
 		if IsUpper(r) {
 			t.Errorf("IsUpper(%#x) = true, want false\n", r);
 		}

@@ -68,7 +68,7 @@ func Environ() []string {
 	once.Do(copyenv);
 	a := make([]string, len(env));
 	i := 0;
-	for k, v := range(env) {
+	for k, v := range env {
 		// check i < len(a) for safety,
 		// in case env is changing underfoot.
 		if i < len(a) {

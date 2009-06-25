@@ -362,12 +362,12 @@ var testLetter = []int{
 }
 
 func TestIsDecimalDigit(t *testing.T) {
-	for i, r := range(testDecimal) {
+	for i, r := range testDecimal {
 		if !IsDecimalDigit(r) {
 			t.Errorf("IsDecimalDigit(%#x) = false, want true\n", r);
 		}
 	}
-	for i, r := range(testLetter) {
+	for i, r := range testLetter {
 		if IsDecimalDigit(r) {
 			t.Errorf("IsDecimalDigit(%#x) = true, want false\n", r);
 		}

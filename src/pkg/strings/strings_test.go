@@ -66,7 +66,7 @@ var lastIndexTests = []IndexTest {
 func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, testCases []IndexTest) {
 	for i,test := range testCases {
 		actual := f(test.s, test.sep);
-		if (actual != test.out) {
+		if actual != test.out {
 			t.Errorf("%s(%q,%q) = %v; want %v", funcName, test.s, test.sep, actual, test.out);
 		}
 	}
@@ -149,7 +149,7 @@ type StringTest struct {
 func runStringTests(t *testing.T, f func(string) string, funcName string, testCases []StringTest) {
 	for i, tc := range testCases {
 		actual := f(tc.in);
-		if (actual != tc.out) {
+		if actual != tc.out {
 			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out);
 		}
 	}

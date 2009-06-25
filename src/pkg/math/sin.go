@@ -20,7 +20,7 @@ func sinus(x float64, quad int) float64 {
 		Q2	=  .9463096101538208180571257e4;
 		Q3	=  .1326534908786136358911494e3;
 	)
-	if(x < 0) {
+	if x < 0 {
 		x = -x;
 		quad = quad+2;
 	}

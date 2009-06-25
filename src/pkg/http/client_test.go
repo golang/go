@@ -27,10 +27,7 @@ func TestClient(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Error fetching URL: %v", err);
-	} else {
-		s := string(b);
-		if (!strings.HasPrefix(s, "User-agent:")) {
-			t.Errorf("Incorrect page body (did not begin with User-agent): %q", s);
-		}
+	} else if s := string(b); !strings.HasPrefix(s, "User-agent:") {
+		t.Errorf("Incorrect page body (did not begin with User-agent): %q", s);
 	}
 }

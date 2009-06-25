@@ -75,7 +75,7 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
 }
 
 func TestAllLog(t *testing.T) {
-	for i, testcase := range(tests) {
+	for i, testcase := range tests {
 		testLog(t, testcase.flag, testcase.prefix, testcase.pattern, false);
 		testLog(t, testcase.flag, testcase.prefix, testcase.pattern, true);
 	}

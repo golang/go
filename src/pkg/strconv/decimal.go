@@ -328,7 +328,7 @@ func (a *decimal) Round(nd int) *decimal {
 	if nd <= 0 || nd >= a.nd {
 		return a;
 	}
-	if(shouldRoundUp(a, nd)) {
+	if shouldRoundUp(a, nd) {
 		return a.RoundUp(nd);
 	}
 	return a.RoundDown(nd);

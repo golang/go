@@ -21,7 +21,7 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File
 {
 	// Create array of integer (system) fds.
 	intfd := make([]int, len(fd));
-	for i, f := range(fd) {
+	for i, f := range fd {
 		if f == nil {
 			intfd[i] = -1;
 		} else {

@@ -77,7 +77,7 @@ func typeToString(typ Type, expand bool) string {
 	if name := typ.Name(); !expand && name != "" {
 		return name
 	}
-	switch(typ.Kind()) {
+	switch typ.Kind() {
 	case MissingKind:
 		return "$missing$";
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
@@ -141,7 +141,7 @@ func integer(v int64) string {
 func valueToString(val Value) string {
 	var str string;
 	typ := val.Type();
-	switch(val.Kind()) {
+	switch val.Kind() {
 	case MissingKind:
 		return "missing";
 	case IntKind:
