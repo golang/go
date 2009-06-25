@@ -1299,7 +1299,7 @@ xanondcl(Node *nt, int dddok)
 
 	t = nt->type;
 	if(nt->op != OTYPE) {
-		yyerror("%N is not a type", nt);
+		yyerror("%S is not a type", nt->sym);
 		t = types[TINT32];
 	}
 	n = nod(ODCLFIELD, N, N);
