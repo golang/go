@@ -15,7 +15,7 @@ gcc -o mkbuiltin1 mkbuiltin1.c
 rm -f _builtin.c
 for i in sys unsafe
 do
-	$GC $i.go
+	$GC -A $i.go
 	./mkbuiltin1 $i >>_builtin.c
 done
 
