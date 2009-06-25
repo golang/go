@@ -2155,17 +2155,31 @@ The value <code>x</code> is called the
 <i>array index</i> or <i>map key</i>, respectively. The following
 rules apply:
 </p>
+
 <p>
 For <code>a</code> of type <code>A</code> or <code>*A</code>
-where <code>A</code> is an array type (§Array types):
+where <code>A</code> is an array type (§Array types),
+or for <code>a</code> of type <code>S</code> where <code>S</code> is a slice type (§Slice types):
 </p>
 <ul>
 	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code>
 	<li><code>a[x]</code> is the array element at index <code>x</code> and the type of
 	  <code>a[x]</code> is the element type of <code>A</code>
 </ul>
+
 <p>
-For <code>a</code> of type <code>M</code> or <code>*M</code>
+For <code>a</code> of type <code>T</code>
+where <code>T</code> is a string type (§Strings):
+</p>
+<ul>
+	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code>
+	<li><code>a[x]</code> is the byte at index <code>x</code> and the type of
+	  <code>a[x]</code> is <code>byte</code>
+	<li><code>a[x]</code> may not be assigned to
+</ul>
+
+<p>
+For <code>a</code> of type <code>M</code>
 where <code>M</code> is a map type (§Map types):
 </p>
 <ul>
@@ -2248,7 +2262,7 @@ For arrays or strings, the indexes
 for slices, the upper bound is the capacity rather than the length.
 <p>
 If the sliced operand is a string, the result of the slice operation is another, new
-string (§String types). If the sliced operand is an array or slice, the result
+string (§Strings). If the sliced operand is an array or slice, the result
 of the slice operation is a slice (§Slice types).
 </p>
 
