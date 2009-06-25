@@ -26,6 +26,7 @@ struct	Addr
 	Sym*	sym;
 	int	width;
 	uchar	type;
+	char	reg;
 	uchar	index;
 	uchar	etype;
 	uchar	scale;	/* doubles as width in DATA op */
@@ -40,12 +41,18 @@ struct	Prog
 	Addr	from;		// src address
 	Addr	to;		// dst address
 	Prog*	link;		// next instruction in this func
-	void*	reg;		// pointer to containing Reg struct
+	char	reg;
+	uchar	scond;
 };
+
+#define REGALLOC_R0 0
+#define REGALLOC_RMAX REGEXT
+#define REGALLOC_F0 (REGALLOC_RMAX+1)
+#define REGALLOC_FMAX (REGALLOC_F0 + FREGEXT)
 
 EXTERN	Biobuf*	bout;
 EXTERN	int32	dynloc;
-EXTERN	uchar	reg[D_NONE];
+EXTERN	uchar	reg[REGALLOC_FMAX];
 EXTERN	int32	pcloc;		// instruction counter
 EXTERN	Strlit	emptystring;
 extern	char*	anames[];
@@ -57,6 +64,7 @@ EXTERN	Node*	deferproc;
 EXTERN	Node*	deferreturn;
 EXTERN	Node*	throwindex;
 EXTERN	Node*	throwreturn;
+EXTERN	int	maxstksize;
 
 /*
  * gen.c
@@ -115,6 +123,8 @@ void	ginit(void);
 void	gclean(void);
 void	regalloc(Node*, Type*, Node*);
 void	regfree(Node*);
+void	tempalloc(Node*, Type*);
+void	tempfree(Node*);
 Node*	nodarg(Type*, int);
 void	nodreg(Node*, Type*, int);
 void	nodindreg(Node*, Type*, int);

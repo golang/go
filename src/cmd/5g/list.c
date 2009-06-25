@@ -122,13 +122,14 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_CONST:
-		if(fp->flags & FmtLong) {
-			d1 = a->offset & 0xffffffffLL;
-			d2 = (a->offset>>32) & 0xffffffffLL;
-			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
-			break;
-		}
-		snprint(str, sizeof(str), "$%d", a->offset);
+		if(a->reg != NREG)
+			sprint(str, "$%N(R%d)", a, a->reg);
+		else
+			sprint(str, "$%N", a);
+		break;
+
+	case D_CONST2:
+		sprint(str, "$%d-%d", a->offset, a->offset2);
 		break;
 
 	case D_FCONST:
