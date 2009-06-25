@@ -214,7 +214,7 @@ func LookPath(file string) (string, os.Error) {
 		// (equivalent to PATH=".").
 		pathenv = "";
 	}
-	for i, dir := range strings.Split(pathenv, ":") {
+	for i, dir := range strings.Split(pathenv, ":", 0) {
 		if dir == "" {
 			// Unix shell semantics: path element "" means "."
 			dir = ".";

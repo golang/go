@@ -83,23 +83,24 @@ func TestLastIndex(t *testing.T) {
 
 type ExplodeTest struct {
 	s string;
+	n int;
 	a []string;
 }
 var explodetests = []ExplodeTest {
-	ExplodeTest{ abcd,	[]string{"a", "b", "c", "d"} },
-	ExplodeTest{ faces,	[]string{"☺", "☻", "☹" } },
+	ExplodeTest{ abcd,	4, []string{"a", "b", "c", "d"} },
+	ExplodeTest{ faces,	3, []string{"☺", "☻", "☹"} },
+	ExplodeTest{ abcd,	2, []string{"a", "bcd"} },
 }
 func TestExplode(t *testing.T) {
-	for i := 0; i < len(explodetests); i++ {
-		tt := explodetests[i];
-		a := Explode(tt.s);
+	for _, tt := range explodetests {
+		a := explode(tt.s, tt.n);
 		if !eq(a, tt.a) {
-			t.Errorf("Explode(%q) = %v; want %v", tt.s, a, tt.a);
+			t.Errorf("explode(%q, %d) = %v; want %v", tt.s, tt.n, a, tt.a);
 			continue;
 		}
 		s := Join(a, "");
 		if s != tt.s {
-			t.Errorf(`Join(Explode(%q), "") = %q`, tt.s, s);
+			t.Errorf(`Join(explode(%q, %d), "") = %q`, tt.s, tt.n, s);
 		}
 	}
 }
@@ -107,29 +108,33 @@ func TestExplode(t *testing.T) {
 type SplitTest struct {
 	s string;
 	sep string;
+	n int;
 	a []string;
 }
 var splittests = []SplitTest {
-	SplitTest{ abcd,	"a",	[]string{"", "bcd"} },
-	SplitTest{ abcd,	"z",	[]string{"abcd"} },
-	SplitTest{ abcd,	"",	[]string{"a", "b", "c", "d"} },
-	SplitTest{ commas,	",",	[]string{"1", "2", "3", "4"} },
-	SplitTest{ dots,	"...",	[]string{"1", ".2", ".3", ".4"} },
-	SplitTest{ faces,	"☹",	[]string{"☺☻", ""} },
-	SplitTest{ faces,	"~",	[]string{faces} },
-	SplitTest{ faces,	"",	[]string{"☺", "☻", "☹"} },
+	SplitTest{ abcd,	"a",	0, []string{"", "bcd"} },
+	SplitTest{ abcd,	"z",	0, []string{"abcd"} },
+	SplitTest{ abcd,	"",	0, []string{"a", "b", "c", "d"} },
+	SplitTest{ commas,	",",	0, []string{"1", "2", "3", "4"} },
+	SplitTest{ dots,	"...",	0, []string{"1", ".2", ".3", ".4"} },
+	SplitTest{ faces,	"☹",	0, []string{"☺☻", ""} },
+	SplitTest{ faces,	"~",	0, []string{faces} },
+	SplitTest{ faces,	"",	0, []string{"☺", "☻", "☹"} },
+	SplitTest{ "1 2 3 4",	" ",	3, []string{"1", "2", "3 4"} },
+	SplitTest{ "1 2",	" ",	3, []string{"1", "2"} },
+	SplitTest{ "123",	"",	2, []string{"1", "23"} },
+	SplitTest{ "123",	"",	17, []string{"1", "2", "3"} },
 }
 func TestSplit(t *testing.T) {
-	for i := 0; i < len(splittests); i++ {
-		tt := splittests[i];
-		a := Split(tt.s, tt.sep);
+	for _, tt := range splittests {
+		a := Split(tt.s, tt.sep, tt.n);
 		if !eq(a, tt.a) {
-			t.Errorf("Split(%q, %q) = %v; want %v", tt.s, tt.sep, a, tt.a);
+			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a);
 			continue;
 		}
 		s := Join(a, tt.sep);
 		if s != tt.s {
-			t.Errorf("Join(Split(%q, %q), %q) = %q", tt.s, tt.sep, tt.sep, s);
+			t.Errorf("Join(Split(%q, %q, %d), %q) = %q", tt.s, tt.sep, tt.n, tt.sep, s);
 		}
 	}
 }

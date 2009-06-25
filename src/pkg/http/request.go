@@ -442,7 +442,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	}
 
 	var f []string;
-	if f = strings.Split(s, " "); len(f) != 3 {
+	if f = strings.Split(s, " ", 3); len(f) < 3 {
 		return nil, BadRequest
 	}
 	req.Method, req.RawUrl, req.Proto = f[0], f[1], f[2];
@@ -572,8 +572,8 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 
 func parseForm(body string) (data map[string] *vector.StringVector, err os.Error) {
 	data = make(map[string] *vector.StringVector);
-	for _, kv := range strings.Split(body, "&") {
-		kvPair := strings.Split(kv, "=");
+	for _, kv := range strings.Split(body, "&", 0) {
+		kvPair := strings.Split(kv, "=", 2);
 
 		var key, value string;
 		var e os.Error;
