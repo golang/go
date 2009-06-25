@@ -1629,7 +1629,7 @@ embedded(Sym *s)
 	if(s == S)
 		return n;
 	n->type = oldtype(s);
-	if(isptr[n->type->etype])
+	if(n->type != T && isptr[n->type->etype])
 		yyerror("embedded type cannot be a pointer");
 	return n;
 }
