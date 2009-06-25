@@ -111,7 +111,6 @@ TEXT	gogo(SB), 7, $0
 // void gogocall(Gobuf*, void (*fn)(void))
 // restore state from Gobuf but then call fn.
 // (call fn, returning to state in Gobuf)
-// TODO(kaib): add R0 to gobuf so it can be restored properly
 // using frame size $-4 means do not save LR on stack.
 TEXT gogocall(SB), 7, $-4
 	MOVW	8(SP), R1		// fn
@@ -119,6 +118,7 @@ TEXT gogocall(SB), 7, $-4
 	MOVW	0(g), R2		// make sure g != nil
 	MOVW	gobuf_sp(R0), SP	// restore SP
 	MOVW	gobuf_pc(R0), LR
+	MOVW	gobuf_r0(R0), R0
 	MOVW	R1, PC
 
 /*
@@ -146,6 +146,7 @@ TEXT sys·morestack(SB),7,$-4
 	MOVW	R3, (m_morebuf+gobuf_pc)(m) // f's caller's PC
 	MOVW	SP, (m_morebuf+gobuf_sp)(m) // f's caller's SP
 	MOVW	g, (m_morebuf+gobuf_g)(m)
+	MOVW	R0, (m_morebuf+gobuf_r0)(m)
 
 	// Set m->morepc to f's PC.
 	MOVW	LR, m_morepc(m)
@@ -172,7 +173,6 @@ TEXT sys·lessstack(SB), 7, $-4
 // R3 is LR for f (f's caller's PC)
 // using frame size $-4 means do not save LR on stack.
 TEXT sys·morestackx(SB), 7, $-4
-	MOVW	R0, 0(FP)	// Save arg0
 	MOVW	$0, R1		// set frame size
 	B	sys·morestack(SB)
 
