@@ -1684,7 +1684,7 @@ void
 constiter(Node *vv, Type *t, Node *cc)
 {
 	Iter viter, citer;
-	Node *v, *c;
+	Node *v, *c, n1;
 
 	if(cc == N) {
 		if(t != T)
@@ -1712,7 +1712,16 @@ loop:
 		return;
 	}
 
-	gettype(c, N);
+	memset(&n1, 0, sizeof n1);
+	gettype(c, &n1);
+	if(n1.ninit != nil) {
+		// the expression had extra code to run.
+		// dodclconst is going to print an error
+		// because the expression isn't constant,
+		// but out of paranoia, bump nerrors so
+		// that compile cannot succeed accidentally
+		nerrors++;
+	}
 	if(t != T)
 		convlit(c, t);
 	if(t == T)
