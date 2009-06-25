@@ -9,6 +9,7 @@
 #include <ar.h>
 
 extern int yychar;
+Sym *anysym;
 
 #define	DBG	if(!debug['x']);else print
 enum
@@ -120,6 +121,7 @@ main(int argc, char *argv[])
 
 usage:
 	print("flags:\n");
+	// -A is allow use of "any" type, for bootstrapping
 	print("  -I DIR search for packages in DIR\n");
 	print("  -d print declarations\n");
 	print("  -e no limit on number of errors printed\n");
@@ -325,6 +327,9 @@ unimportfile(void)
 {
 	linehist(nil, 0, 0);
 
+	if(!debug['A'])
+		anysym->def = nil;
+
 	if(curio.bin != nil) {
 		Bterm(curio.bin);
 		curio.bin = nil;
@@ -340,6 +345,9 @@ cannedimports(char *file, char *cp)
 {
 	lineno++;		// if sys.6 is included on line 1,
 	linehist(file, 0, 0);	// the debugger gets confused
+
+	if(!debug['A'])
+		anysym->def = typenod(types[TANY]);
 
 	pushedio = curio;
 	curio.bin = nil;
@@ -1296,6 +1304,11 @@ lexinit(void)
 				types[etype] = t;
 			}
 			s->def = typenod(t);
+			if(etype == TANY) {
+				anysym = s;
+				if(!debug['A'])
+					s->def = nil;
+			}
 			continue;
 		}
 
