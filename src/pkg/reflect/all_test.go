@@ -419,6 +419,7 @@ var deepEqualTests = []DeepEqualTest {
 	DeepEqualTest{ make([]int, 10), make([]int, 10), true },
 	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 3 }, true },
 	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.5 }, true },
+	DeepEqualTest{ os.Error(nil), os.Error(nil), true },
 	// Inequalities
 	DeepEqualTest{ 1, 2, false },
 	DeepEqualTest{ int32(1), int32(2), false },
@@ -441,6 +442,16 @@ func TestDeepEqual(t *testing.T) {
 	for i, test := range deepEqualTests {
 		if r := DeepEqual(test.a, test.b); r != test.eq {
 			t.Errorf("DeepEqual(%v, %v) = %v, want %v", test.a, test.b, r, test.eq);
+		}
+	}
+}
+
+func TestTypeof(t *testing.T) {
+	for i, test := range deepEqualTests {
+		v := NewValue(test.a);
+		typ := Typeof(test.a);
+		if typ != v.Type() {
+			t.Errorf("Typeof(%v) = %v, but NewValue(%v).Type() = %v", test.a, typ, test.a, v.Type());
 		}
 	}
 }
