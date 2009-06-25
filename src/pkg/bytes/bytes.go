@@ -55,19 +55,27 @@ func Copy(dst, src []byte) int {
 	return len(src)
 }
 
-// Explode splits s into an array of UTF-8 sequences, one per Unicode character (still arrays of bytes).
-// Invalid UTF-8 sequences become correct encodings of U+FFF8.
-func Explode(s []byte) [][]byte {
-	a := make([][]byte, utf8.RuneCount(s));
-	var size, rune int;
-	i := 0;
-	for len(s) > 0 {
-		rune, size = utf8.DecodeRune(s);
-		a[i] = s[0:size];
-		s = s[size:len(s)];
-		i++;
+// explode splits s into an array of UTF-8 sequences, one per Unicode character (still arrays of bytes),
+// up to a maximum of n byte arrays. Invalid UTF-8 sequences are chopped into individual bytes.
+func explode(s []byte, n int) [][]byte {
+	if n <= 0 {
+		n = len(s);
 	}
-	return a
+	a := make([][]byte, n);
+	var size, rune int;
+	na := 0;
+	for len(s) > 0 {
+		if na+1 >= n {
+			a[na] = s;
+			na++;
+			break
+		}
+		rune, size = utf8.DecodeRune(s);
+		a[na] = s[0:size];
+		s = s[size:len(s)];
+		na++;
+	}
+	return a[0:na]
 }
 
 // Count counts the number of non-overlapping instances of sep in s.
@@ -101,27 +109,30 @@ func Index(s, sep []byte) int {
 	return -1
 }
 
-// Split returns the array representing the subarrays of s separated by sep. Adjacent
-// occurrences of sep produce empty subarrays.  If sep is empty, it is the same as Explode.
-func Split(s, sep []byte) [][]byte {
+// Split splits the array s around each instance of sep, returning an array of subarrays of s.
+// If sep is empty, Split splits s after each UTF-8 sequence.
+// If n > 0, split Splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
+func Split(s, sep []byte, n int) [][]byte {
 	if len(sep) == 0 {
-		return Explode(s)
+		return explode(s, n)
+	}
+	if n <= 0 {
+		n = Count(s, sep) + 1;
 	}
 	c := sep[0];
 	start := 0;
-	n := Count(s, sep)+1;
 	a := make([][]byte, n);
 	na := 0;
-	for i := 0; i+len(sep) <= len(s); i++ {
+	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
 		if s[i] == c && (len(sep) == 1 || Equal(s[i:i+len(sep)], sep)) {
 			a[na] = s[start:i];
 			na++;
 			start = i+len(sep);
-			i += len(sep)-1
+			i += len(sep)-1;
 		}
 	}
 	a[na] = s[start:len(s)];
-	return a
+	return a[0:na+1]
 }
 
 // Join concatenates the elements of a to create a single byte array.   The separator

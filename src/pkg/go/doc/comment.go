@@ -45,7 +45,7 @@ func commentText(comments []string) string {
 	lines := make([]string, 0, 20);
 	for i, c := range comments {
 		// split on newlines
-		cl := strings.Split(c, "\n");
+		cl := strings.Split(c, "\n", 0);
 
 		// walk lines, stripping comment markers
 		w := 0;

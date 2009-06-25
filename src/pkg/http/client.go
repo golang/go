@@ -108,13 +108,12 @@ func send(req *Request) (resp *Response, err os.Error) {
 	if err != nil {
 		return nil, err;
 	}
-	i := strings.Index(line, " ");
-	j := strings.Index(line[i+1:len(line)], " ") + i+1;
-	if i < 0 || j < 0 {
+	f := strings.Split(line, " ", 3);
+	if len(f) < 3 {
 		return nil, os.ErrorString(fmt.Sprintf("Invalid first line in HTTP response: %q", line));
 	}
-	resp.Status = line[i+1:len(line)];
-	resp.StatusCode, err = strconv.Atoi(line[i+1:j]);
+	resp.Status = f[1] + " " + f[2];
+	resp.StatusCode, err = strconv.Atoi(f[1]);
 	if err != nil {
 		return nil, os.ErrorString(fmt.Sprintf("Invalid status code in HTTP response: %q", line));
 	}
