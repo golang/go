@@ -284,8 +284,8 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
 	v1 := NewZeroValue(t1);
 	if v1 == nil { panic("V1 is nil"); }
 	v1.(PtrValue).SetSub(v);
-	a := v1.Interface().(*[]int32);
-	println(&a, len(a), cap(a));
+	a := *v1.Interface().(*[]int32);
+	println(a, len(a), cap(a));
 	for i := 0; i < len(a); i++ {
 		v.Elem(i).(Int32Value).Set(int32(i));
 	}
