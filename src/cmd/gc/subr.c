@@ -333,7 +333,7 @@ algtype(Type *t)
 		a = ASTRING;	// string
 	else if(isnilinter(t))
 		a = ANILINTER;	// nil interface
-	else if(t->etype == TINTER)
+	else if(t->etype == TINTER || t->etype == TFORWINTER)
 		a = AINTER;	// interface
 	else
 		a = ANOEQ;	// just bytes, but no hash/eq
