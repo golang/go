@@ -381,6 +381,7 @@ int	Aconv(Fmt*);
 int	Cconv(Fmt*);
 int	Dconv(Fmt*);
 int	Nconv(Fmt*);
+int	Oconv(Fmt*);
 int	Pconv(Fmt*);
 int	Sconv(Fmt*);
 int	aclass(Adr*);

@@ -40,6 +40,7 @@ listinit(void)
 	fmtinstall('P', Pconv);
 	fmtinstall('S', Sconv);
 	fmtinstall('N', Nconv);
+	fmtinstall('O', Oconv);		// C_type constants
 }
 
 void
@@ -370,6 +371,72 @@ Sconv(Fmt *fp)
 	}
 	*p = 0;
 	return fmtstrcpy(fp, str);
+}
+
+static char*
+cnames[] =
+{
+	[C_ADDR]	= "C_ADDR",
+	[C_BCON]	= "C_BCON",
+	[C_FAUTO]	= "C_FAUTO",
+	[C_FCON]	= "C_FCON",
+	[C_FCR]		= "C_FCR",
+	[C_FEXT]	= "C_FEXT",
+	[C_FOREG]	= "C_FOREG",
+	[C_FREG]	= "C_FREG",
+	[C_GACON]	= "C_GACON",
+	[C_GBRA]	= "C_GBRA",
+	[C_GCON]	= "C_GCON",
+	[C_GOK]		= "C_GOK",
+	[C_GOREG]	= "C_GOREG",
+	[C_HAUTO]	= "C_HAUTO",
+	[C_HEXT]	= "C_HEXT",
+	[C_HFAUTO]	= "C_HFAUTO",
+	[C_HFEXT]	= "C_HFEXT",
+	[C_HFOREG]	= "C_HFOREG",
+	[C_HOREG]	= "C_HOREG",
+	[C_HREG]	= "C_HREG",
+	[C_LACON]	= "C_LACON",
+	[C_LAUTO]	= "C_LAUTO",
+	[C_LBRA]	= "C_LBRA",
+	[C_LCON]	= "C_LCON",
+	[C_LECON]	= "C_LECON",
+	[C_LEXT]	= "C_LEXT",
+	[C_LOREG]	= "C_LOREG",
+	[C_NCON]	= "C_NCON",
+	[C_NONE]	= "C_NONE",
+	[C_OFFPC]	= "C_OFFPC",
+	[C_PC]		= "C_PC",
+	[C_PSR]		= "C_PSR",
+	[C_RACON]	= "C_RACON",
+	[C_RCON]	= "C_RCON",
+	[C_RECON]	= "C_RECON",
+	[C_REG]		= "C_REG",
+	[C_REGREG]	= "C_REGREG",
+	[C_ROREG]	= "C_ROREG",
+	[C_SACON]	= "C_SACON",
+	[C_SAUTO]	= "C_SAUTO",
+	[C_SBRA]	= "C_SBRA",
+	[C_SCON]	= "C_SCON",
+	[C_SEXT]	= "C_SEXT",
+	[C_SHIFT]	= "C_SHIFT",
+	[C_SOREG]	= "C_SOREG",
+	[C_SP]		= "C_SP",
+	[C_SROREG]	= "C_SROREG"
+};
+
+int
+Oconv(Fmt *fp)
+{
+	char buf[500];
+	int o;
+
+	o = va_arg(fp->args, int);
+	if(o < 0 || o >= nelem(cnames) || cnames[o] == nil) {
+		snprint(buf, sizeof(buf), "C_%d", o);
+		return fmtstrcpy(fp, buf);
+	}
+	return fmtstrcpy(fp, cnames[o]);
 }
 
 void

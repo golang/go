@@ -864,7 +864,7 @@ oplook(Prog *p)
 			p->optab = (o-otab)+1;
 			return o;
 		}
-	diag("illegal combination %A %d %d %d, %d %d",
+	diag("illegal combination %A %O %O %O, %d %d",
 		p->as, a1, a2, a3, p->from.type, p->to.type);
 	prasm(p);
 	if(o == 0)
