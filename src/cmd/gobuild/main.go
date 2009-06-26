@@ -4,9 +4,7 @@
 
 package main
 
-import (
-	"gobuild";
-)
+import "./gobuild";
 
 func main() {
 	gobuild.Main();

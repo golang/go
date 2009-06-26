@@ -6,10 +6,11 @@ package gobuild
 
 import (
 	"fmt";
-	"gobuild";
 	"io";
 	"path";
 	"template";
+
+	"./gobuild";
 )
 
 var makefileTemplate = `

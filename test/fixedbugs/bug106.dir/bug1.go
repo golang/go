@@ -3,5 +3,5 @@
 // license that can be found in the LICENSE file.
 
 package bug1
-import "bug0"
+import "./bug0"
 

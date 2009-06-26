@@ -5,7 +5,7 @@
 package main
 
 import (
-	"file";
+	"./file";
 	"flag";
 	"fmt";
 	"os";
