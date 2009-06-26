@@ -5,7 +5,7 @@
 package main
 
 import "os"
-import "x"
+import "./x"
 
 func main() {
 	if x.Zero != 0 {

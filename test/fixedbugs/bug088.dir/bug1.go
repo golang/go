@@ -4,7 +4,7 @@
 
 package main
 
-import P "bug0"
+import P "./bug0"
 
 func main() {
 	a0 := P.V0();  // works

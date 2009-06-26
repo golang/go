@@ -7,7 +7,6 @@ package gobuild
 import (
 	"flag";
 	"fmt";
-	"gobuild";
 	"io";
 	"os";
 	"path";
@@ -16,6 +15,8 @@ import (
 	"template";
 	"unicode";
 	"utf8";
+
+	"./gobuild";
 )
 
 type Pkg struct

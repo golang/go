@@ -4,7 +4,7 @@
 
 package bug1
 
-import "bug0"
+import "./bug0"
 
 // This is expected to fail--t0 is in package bug0 and should not be
 // visible here in package bug1.  The test for failure is in
