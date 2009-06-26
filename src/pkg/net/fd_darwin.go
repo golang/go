@@ -12,8 +12,6 @@ import (
 	"syscall";
 )
 
-var kqueuePhaseError = &Error{"kqueue phase error"}
-
 type pollster struct {
 	kq int;
 	eventbuf [10]syscall.Kevent_t;
@@ -24,7 +22,7 @@ func newpollster() (p *pollster, err os.Error) {
 	p = new(pollster);
 	var e int;
 	if p.kq, e = syscall.Kqueue(); e != 0 {
-		return nil, os.ErrnoToError(e)
+		return nil, os.NewSyscallError("kqueue", e)
 	}
 	p.events = p.eventbuf[0:0];
 	return p, nil
@@ -51,13 +49,13 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 
 	n, e := syscall.Kevent(p.kq, &events, &events, nil);
 	if e != 0 {
-		return os.ErrnoToError(e)
+		return os.NewSyscallError("kevent", e);
 	}
 	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
-		return kqueuePhaseError
+		return os.ErrorString("kqueue phase error");
 	}
 	if ev.Data != 0 {
-		return os.ErrnoToError(int(ev.Data))
+		return os.Errno(int(ev.Data))
 	}
 	return nil
 }
@@ -92,7 +90,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 			if e == syscall.EINTR {
 				continue
 			}
-			return -1, 0, os.ErrnoToError(e)
+			return -1, 0, os.NewSyscallError("kevent", e)
 		}
 		if nn == 0 {
 			return -1, 0, nil;
@@ -111,5 +109,5 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 }
 
 func (p *pollster) Close() os.Error {
-	return os.ErrnoToError(syscall.Close(p.kq))
+	return os.NewSyscallError("close", syscall.Close(p.kq))
 }

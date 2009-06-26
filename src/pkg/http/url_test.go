@@ -281,27 +281,27 @@ var unescapeTests = []URLEscapeTest {
 	URLEscapeTest{
 		"%", // not enough characters after %
 		"",
-		BadURL{"invalid hexadecimal escape"}
+		URLEscapeError("%"),
 	},
 	URLEscapeTest{
 		"%a", // not enough characters after %
 		"",
-		BadURL{"invalid hexadecimal escape"}
+		URLEscapeError("%a"),
 	},
 	URLEscapeTest{
 		"%1", // not enough characters after %
 		"",
-		BadURL{"invalid hexadecimal escape"}
+		URLEscapeError("%1"),
 	},
 	URLEscapeTest{
 		"123%45%6", // not enough characters after %
 		"",
-		BadURL{"invalid hexadecimal escape"}
+		URLEscapeError("%6"),
 	},
 	URLEscapeTest{
-		"%zz", // invalid hex digits
+		"%zzzzz", // invalid hex digits
 		"",
-		BadURL{"invalid hexadecimal escape"}
+		URLEscapeError("%zz"),
 	},
 }
 

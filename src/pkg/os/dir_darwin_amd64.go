@@ -38,9 +38,9 @@ func readdirnames(file *File, count int) (names []string, err Error) {
 			d.nbuf, errno = syscall.Getdirentries(file.fd, d.buf, new(uintptr));
 			if errno != 0 {
 				d.nbuf = 0;
-				return names, ErrnoToError(errno)
+				return names, NewSyscallError("getdirentries", errno);
 			}
-			if d.nbuf == 0 {
+			if d.nbuf <= 0 {
 				break	// EOF
 			}
 		}

@@ -6,6 +6,7 @@ package strconv
 import (
 	"fmt";
 	"os";
+	"reflect";
 	"strconv";
 	"testing"
 )
@@ -91,6 +92,17 @@ var atoftests = []atofTest {
 	atofTest{ ".e-1", "0", os.EINVAL },
 }
 
+func init() {
+	// The atof routines return NumErrors wrapping
+	// the error and the string.  Convert the table above.
+	for i := range atoftests {
+		test := &atoftests[i];
+		if test.err != nil {
+			test.err = &NumError{test.in, test.err}
+		}
+	}
+}
+
 func testAtof(t *testing.T, opt bool) {
 	oldopt := strconv.optimize;
 	strconv.optimize = opt;
@@ -98,7 +110,7 @@ func testAtof(t *testing.T, opt bool) {
 		test := &atoftests[i];
 		out, err := strconv.Atof64(test.in);
 		outs := strconv.Ftoa64(out, 'g', -1);
-		if outs != test.out || err != test.err {
+		if outs != test.out || !reflect.DeepEqual(err, test.err) {
 			t.Errorf("strconv.Atof64(%v) = %v, %v want %v, %v\n",
 				test.in, out, err, test.out, test.err);
 		}
@@ -106,7 +118,7 @@ func testAtof(t *testing.T, opt bool) {
 		if float64(float32(out)) == out {
 			out32, err := strconv.Atof32(test.in);
 			outs := strconv.Ftoa32(out32, 'g', -1);
-			if outs != test.out || err != test.err {
+			if outs != test.out || !reflect.DeepEqual(err, test.err) {
 				t.Errorf("strconv.Atof32(%v) = %v, %v want %v, %v  # %v\n",
 					test.in, out32, err, test.out, test.err, out);
 			}
@@ -115,7 +127,7 @@ func testAtof(t *testing.T, opt bool) {
 		if FloatSize == 64 || float64(float32(out)) == out {
 			outf, err := strconv.Atof(test.in);
 			outs := strconv.Ftoa(outf, 'g', -1);
-			if outs != test.out || err != test.err {
+			if outs != test.out || !reflect.DeepEqual(err, test.err) {
 				t.Errorf("strconv.Ftoa(%v) = %v, %v want %v, %v  # %v\n",
 					test.in, outf, err, test.out, test.err, out);
 			}

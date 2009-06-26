@@ -11,12 +11,7 @@ import (
 	"net";
 	"once";
 	"os";
-	"strconv";
 )
-
-// The error returned by LookupPort when a network service
-// is not listed in the database.
-var ErrNoService = &Error{"unknown network service"};
 
 var services map[string] map[string] int
 var servicesError os.Error
@@ -65,13 +60,10 @@ func LookupPort(network, service string) (port int, err os.Error) {
 		network = "udp";
 	}
 
-	m, ok := services[network];
-	if !ok {
-		return 0, ErrNoService;
+	if m, ok := services[network]; ok {
+		if port, ok = m[service]; ok {
+			return;
+		}
 	}
-	port, ok = m[service];
-	if !ok {
-		return 0, ErrNoService;
-	}
-	return port, nil;
+	return 0, &AddrError{"unknown port", network + "/" + service};
 }

@@ -11,6 +11,7 @@ package http
 
 import (
 	"bufio";
+	"bytes";
 	"container/vector";
 	"fmt";
 	"http";
@@ -32,18 +33,19 @@ type ProtocolError struct {
 	os.ErrorString
 }
 var (
-	LineTooLong = &ProtocolError{"http header line too long"};
-	ValueTooLong = &ProtocolError{"http header value too long"};
-	HeaderTooLong = &ProtocolError{"http header too long"};
-	BadContentLength = &ProtocolError{"invalid content length"};
-	ShortEntityBody = &ProtocolError{"entity body too short"};
-	NoEntityBody = &ProtocolError{"no entity body"};
-	BadHeader = &ProtocolError{"malformed http header"};
-	BadRequest = &ProtocolError{"invalid http request"};
-	BadHTTPVersion = &ProtocolError{"unsupported http version"};
-	UnknownContentType = &ProtocolError{"unknown content type"};
-	BadChunkedEncoding = &ProtocolError{"bad chunked encoding"};
+	ErrLineTooLong = &ProtocolError{"header line too long"};
+	ErrHeaderTooLong = &ProtocolError{"header too long"};
+	ErrShortBody = &ProtocolError{"entity body too short"};
 )
+
+type badStringError struct {
+	what string;
+	str string;
+}
+
+func (e *badStringError) String() string {
+	return fmt.Sprintf("%s %q", e.what, e.str);
+}
 
 // A Request represents a parsed HTTP request header.
 type Request struct {
@@ -204,10 +206,15 @@ func (req *Request) write(w io.Writer) os.Error {
 // the bufio, so they are only valid until the next bufio read.
 func readLineBytes(b *bufio.Reader) (p []byte, err os.Error) {
 	if p, err = b.ReadLineSlice('\n'); err != nil {
+		// We always know when EOF is coming.
+		// If the caller asked for a line, there should be a line.
+		if err == os.EOF {
+			err = io.ErrUnexpectedEOF;
+		}
 		return nil, err
 	}
 	if len(p) >= maxLineLength {
-		return nil, LineTooLong
+		return nil, ErrLineTooLong
 	}
 
 	// Chop off trailing white space.
@@ -229,6 +236,8 @@ func readLine(b *bufio.Reader) (s string, err os.Error) {
 	return string(p), nil
 }
 
+var colon = []byte{':'}
+
 // Read a key/value pair from b.
 // A key/value has the form Key: Value\r\n
 // and the Value can continue on multiple lines if each continuation line
@@ -243,58 +252,60 @@ func readKeyValue(b *bufio.Reader) (key, value string, err os.Error) {
 	}
 
 	// Scan first line for colon.
-	for i := 0; i < len(line); i++ {
-		switch line[i] {
-		case ' ':
-			// Key field has space - no good.
-			return "", "", BadHeader;
-		case ':':
-			key = string(line[0:i]);
-			// Skip initial space before value.
-			for i++; i < len(line); i++ {
-				if line[i] != ' ' {
-					break
-				}
-			}
-			value = string(line[i:len(line)]);
-
-			// Look for extension lines, which must begin with space.
-			for {
-				var c byte;
-
-				if c, e = b.ReadByte(); e != nil {
-					return "", "", e
-				}
-				if c != ' ' {
-					// Not leading space; stop.
-					b.UnreadByte();
-					break
-				}
-
-				// Eat leading space.
-				for c == ' ' {
-					if c, e = b.ReadByte(); e != nil {
-						return "", "", e
-					}
-				}
-				b.UnreadByte();
-
-				// Read the rest of the line and add to value.
-				if line, e = readLineBytes(b); e != nil {
-					return "", "", e
-				}
-				value += " " + string(line);
-
-				if len(value) >= maxValueLength {
-					return "", "", ValueTooLong
-				}
-			}
-			return key, value, nil
-		}
+	i := bytes.Index(line, colon);
+	if i < 0 {
+		goto Malformed;
 	}
 
-	// Line ended before space or colon.
-	return "", "", BadHeader;
+	key = string(line[0:i]);
+	if strings.Index(key, " ") >= 0 {
+		// Key field has space - no good.
+		goto Malformed;
+	}
+
+	// Skip initial space before value.
+	for i++; i < len(line); i++ {
+		if line[i] != ' ' {
+			break
+		}
+	}
+	value = string(line[i:len(line)]);
+
+	// Look for extension lines, which must begin with space.
+	for {
+		c, e := b.ReadByte();
+		if c != ' ' {
+			if e != os.EOF {
+				b.UnreadByte();
+			}
+			break;
+		}
+
+		// Eat leading space.
+		for c == ' ' {
+			if c, e = b.ReadByte(); e != nil {
+				if e == os.EOF {
+					e = io.ErrUnexpectedEOF;
+				}
+				return "", "", e
+			}
+		}
+		b.UnreadByte();
+
+		// Read the rest of the line and add to value.
+		if line, e = readLineBytes(b); e != nil {
+			return "", "", e
+		}
+		value += " " + string(line);
+
+		if len(value) >= maxValueLength {
+			return "", "", &badStringError{"value too long for key", key};
+		}
+	}
+	return key, value, nil;
+
+Malformed:
+	return "", "", &badStringError{"malformed header line", string(line)};
 }
 
 // Convert decimal at s[i:len(s)] to integer,
@@ -424,7 +435,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
 		var nb int;
 		if nb, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
 			if b[0] != '\r' || b[1] != '\n' {
-				cr.err = BadChunkedEncoding;
+				cr.err = os.NewError("malformed chunked encoding");
 			}
 		}
 	}
@@ -443,12 +454,12 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 
 	var f []string;
 	if f = strings.Split(s, " ", 3); len(f) < 3 {
-		return nil, BadRequest
+		return nil, &badStringError{"malformed HTTP request", s};
 	}
 	req.Method, req.RawUrl, req.Proto = f[0], f[1], f[2];
 	var ok bool;
 	if req.ProtoMajor, req.ProtoMinor, ok = parseHTTPVersion(req.Proto); !ok {
-		return nil, BadHTTPVersion
+		return nil, &badStringError{"malformed HTTP version", req.Proto};
 	}
 
 	if req.Url, err = ParseURL(req.RawUrl); err != nil {
@@ -467,7 +478,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 			break
 		}
 		if nheader++; nheader >= maxHeaderLines {
-			return nil, HeaderTooLong
+			return nil, ErrHeaderTooLong
 		}
 
 		key = CanonicalHeaderKey(key);
@@ -556,13 +567,13 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	} else if v, present := req.Header["Content-Length"]; present {
 		length, err := strconv.Btoui64(v, 10);
 		if err != nil {
-			return nil, BadContentLength
+			return nil, &badStringError{"invalid Content-Length", v};
 		}
 		// TODO: limit the Content-Length. This is an easy DoS vector.
 		raw := make([]byte, length);
 		n, err := b.Read(raw);
 		if err != nil || uint64(n) < length {
-			return nil, ShortEntityBody
+			return nil, ErrShortBody
 		}
 		req.Body = io.NewByteReader(raw);
 	}
@@ -599,7 +610,7 @@ func parseForm(body string) (data map[string] *vector.StringVector, err os.Error
 // TODO(dsymonds): Parse r.Url.RawQuery instead for GET requests.
 func (r *Request) ParseForm() (err os.Error) {
 	if r.Body == nil {
-		return NoEntityBody
+		return os.ErrorString("missing form body");
 	}
 	ct, ok := r.Header["Content-Type"];
 	if !ok {
@@ -613,5 +624,5 @@ func (r *Request) ParseForm() (err os.Error) {
 		return err
 	// TODO(dsymonds): Handle multipart/form-data
 	}
-	return UnknownContentType
+	return &badStringError{"unknown Content-Type", ct};
 }

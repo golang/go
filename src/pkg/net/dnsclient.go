@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// DNS client.
+// DNS client: see RFC 1035.
 // Has to be linked into package net for Dial.
 
 // TODO(rsc):
@@ -12,12 +12,10 @@
 //	Random UDP source port (net.Dial should do that for us).
 //	Random request IDs.
 //	More substantial error reporting.
-//	Remove use of fmt?
 
 package net
 
 import (
-	"fmt";
 	"io";
 	"net";
 	"once";
@@ -25,28 +23,29 @@ import (
 	"strings";
 )
 
-// DNS errors returned by LookupHost.
+// DNSError represents a DNS lookup error.
 type DNSError struct {
-	os.ErrorString
+	Error string;	// description of the error
+	Name string;	// name looked for
+	Server string;	// server used
 }
-var (
-	DNS_InternalError os.Error = &DNSError{"internal dns error"};
-	DNS_MissingConfig os.Error = &DNSError{"no dns configuration"};
-	DNS_No_Answer os.Error = &DNSError{"dns got no answer"};
-	DNS_BadRequest os.Error = &DNSError{"malformed dns request"};
-	DNS_BadReply os.Error = &DNSError{"malformed dns reply"};
-	DNS_ServerFailure os.Error = &DNSError{"dns server failure"};
-	DNS_NoServers os.Error = &DNSError{"no dns servers"};
-	DNS_NameTooLong os.Error = &DNSError{"dns name too long"};
-	DNS_RedirectLoop os.Error = &DNSError{"dns redirect loop"};
-	DNS_NameNotFound os.Error = &DNSError{"dns name not found"};
-)
+
+func (e *DNSError) String() string {
+	s := "lookup " + e.Name;
+	if e.Server != "" {
+		s += " on " + e.Server;
+	}
+	s += ": " + e.Error;
+	return s;
+}
+
+const noSuchHost = "no such host"
 
 // Send a request on the connection and hope for a reply.
 // Up to cfg.attempts attempts.
 func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error) {
 	if len(name) >= 256 {
-		return nil, DNS_NameTooLong
+		return nil, &DNSError{"name too long", name, ""}
 	}
 	out := new(_DNS_Msg);
 	out.id = 0x1234;
@@ -56,7 +55,7 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
 	out.recursion_desired = true;
 	msg, ok := out.Pack();
 	if !ok {
-		return nil, DNS_InternalError
+		return nil, &DNSError{"internal error - cannot pack message", name, ""}
 	}
 
 	for attempt := 0; attempt < cfg.attempts; attempt++ {
@@ -69,7 +68,8 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
 
 		buf := make([]byte, 2000);	// More than enough.
 		n, err = c.Read(buf);
-		if err == os.EAGAIN {
+		if isEAGAIN(err)  {
+			err = nil;
 			continue;
 		}
 		if err != nil {
@@ -82,25 +82,25 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
 		}
 		return in, nil
 	}
-	return nil, DNS_No_Answer
+	return nil, &DNSError{"no answer from server", name, c.RemoteAddr()}
 }
 
 
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
 // TODO(rsc): Maybe return []IP instead?
-func answer(name string, dns *_DNS_Msg) (addrs []string, err os.Error) {
+func answer(name, server string, dns *_DNS_Msg) (addrs []string, err *DNSError) {
 	addrs = make([]string, 0, len(dns.answer));
 
-	if dns.rcode == _DNS_RcodeNameError && dns.authoritative {
-		return nil, DNS_NameNotFound	// authoritative "no such host"
+	if dns.rcode == _DNS_RcodeNameError && dns.recursion_available {
+		return nil, &DNSError{noSuchHost, name, ""}
 	}
 	if dns.rcode != _DNS_RcodeSuccess {
 		// None of the error codes make sense
 		// for the query we sent.  If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly.
-		return nil, DNS_ServerFailure
+		return nil, &DNSError{"server misbehaving", name, server}
 	}
 
 	// Look for the name.
@@ -120,7 +120,7 @@ Cname:
 					n := len(addrs);
 					a := rr.(*_DNS_RR_A).a;
 					addrs = addrs[0:n+1];
-					addrs[n] = fmt.Sprintf("%d.%d.%d.%d", (a>>24), (a>>16)&0xFF, (a>>8)&0xFF, a&0xFF);
+					addrs[n] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a)).String();
 				case _DNS_TypeCNAME:
 					// redirect to cname
 					name = rr.(*_DNS_RR_CNAME).cname;
@@ -129,19 +129,20 @@ Cname:
 			}
 		}
 		if len(addrs) == 0 {
-			return nil, DNS_NameNotFound
+			return nil, &DNSError{noSuchHost, name, server}
 		}
 		return addrs, nil
 	}
 
-	// Too many redirects
-	return nil, DNS_RedirectLoop
+	return nil, &DNSError{"too many redirects", name, server}
 }
 
 // Do a lookup for a single name, which must be rooted
 // (otherwise answer will not find the answers).
 func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
-	err = DNS_NoServers;
+	if len(cfg.servers) == 0 {
+		return nil, &DNSError{"no DNS servers", name, ""}
+	}
 	for i := 0; i < len(cfg.servers); i++ {
 		// Calling Dial here is scary -- we have to be sure
 		// not to dial a name that will require a DNS lookup,
@@ -149,7 +150,8 @@ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
 		// The DNS config parser has already checked that
 		// all the cfg.servers[i] are IP addresses, which
 		// Dial will use without a DNS lookup.
-		c, cerr := Dial("udp", "", cfg.servers[i] + ":53");
+		server := cfg.servers[i] + ":53";
+		c, cerr := Dial("udp", "", server);
 		if cerr != nil {
 			err = cerr;
 			continue;
@@ -160,12 +162,16 @@ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
 			err = merr;
 			continue;
 		}
-		addrs, aerr := answer(name, msg);
-		if aerr != nil && aerr != DNS_NameNotFound {
-			err = aerr;
-			continue;
+		var dnserr *DNSError;
+		addrs, dnserr = answer(name, server, msg);
+		if dnserr != nil {
+			err = dnserr;
+		} else {
+			err = nil;	// nil os.Error, not nil *DNSError
 		}
-		return addrs, aerr;
+		if dnserr == nil || dnserr.Error == noSuchHost {
+			break;
+		}
 	}
 	return;
 }
@@ -177,18 +183,60 @@ func loadConfig() {
 	cfg, dnserr = _DNS_ReadConfig();
 }
 
+func isDomainName(s string) bool {
+	// Requirements on DNS name:
+	//	* must not be empty.
+	//	* must be alphanumeric plus - and .
+	//	* each of the dot-separated elements must begin
+	//	  and end with a letter or digit.
+	//	  RFC 1035 required the element to begin with a letter,
+	//	  but RFC 3696 says this has been relaxed to allow digits too.
+	//	  still, there must be a letter somewhere in the entire name.
+	if len(s) == 0 {
+		return false;
+	}
+	if s[len(s)-1] != '.' {	// simplify checking loop: make name end in dot
+		s += ".";
+	}
+
+	last := byte('.');
+	ok := false;	// ok once we've seen a letter
+	for i := 0; i < len(s); i++ {
+		c := s[i];
+		switch {
+		default:
+			return false;
+		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
+			ok = true;
+		case '0' <= c && c <= '9':
+			// fine
+		case c == '-':
+			// byte before dash cannot be dot
+			if last == '.' {
+				return false;
+			}
+		case c == '.':
+			// byte before dot cannot be dot, dash
+			if last == '.' || last == '-' {
+				return false;
+			}
+		}
+		last = c;
+	}
+
+	return ok;
+}
+
 // LookupHost looks up the host name using the local DNS resolver.
 // It returns the canonical name for the host and an array of that
 // host's addresses.
-func LookupHost(name string) (cname string, addrs []string, err os.Error)
-{
-	// TODO(rsc): Pick out obvious non-DNS names to avoid
-	// sending stupid requests to the server?
-
+func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+	if !isDomainName(name) {
+		return name, nil, &DNSError{"invalid domain name", name, ""};
+	}
 	once.Do(loadConfig);
 	if dnserr != nil || cfg == nil {
-		// better error than file not found.
-		err = DNS_MissingConfig;
+		err = dnserr;
 		return;
 	}
 
@@ -201,11 +249,12 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error)
 			rname += ".";
 		}
 		// Can try as ordinary name.
-		addrs, aerr := tryOneName(cfg, rname);
-		if aerr == nil {
-			return rname, addrs, nil;
+		var dnserr *DNSError;
+		addrs, err = tryOneName(cfg, rname);
+		if err == nil {
+			cname = rname;
+			return;
 		}
-		err = aerr;
 	}
 	if rooted {
 		return
@@ -213,15 +262,16 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error)
 
 	// Otherwise, try suffixes.
 	for i := 0; i < len(cfg.search); i++ {
-		newname := name+"."+cfg.search[i];
-		if newname[len(newname)-1] != '.' {
-			newname += "."
+		rname := name+"."+cfg.search[i];
+		if rname[len(rname)-1] != '.' {
+			rname += "."
 		}
-		addrs, aerr := tryOneName(cfg, newname);
-		if aerr == nil {
-			return newname, addrs, nil;
+		var dnserr *DNSError;
+		addrs, err = tryOneName(cfg, rname);
+		if err == nil {
+			cname = rname;
+			return;
 		}
-		err = aerr;
 	}
 	return
 }

@@ -17,6 +17,7 @@ import (
 	"crypto/block";
 	"io";
 	"os";
+	"strconv";
 )
 
 type ecbDecrypter struct {
@@ -71,6 +72,11 @@ func (x *ecbDecrypter) readPlain(p []byte) int {
 		x.plain = nil;
 	}
 	return n;
+}
+
+type ecbFragmentError int
+func (n ecbFragmentError) String() string {
+	return "crypto/block: " + strconv.Itoa(int(n)) + "-byte fragment at EOF";
 }
 
 func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {

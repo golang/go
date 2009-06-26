@@ -10,6 +10,7 @@ package bufio
 import (
 	"io";
 	"os";
+	"strconv";
 	"utf8";
 )
 
@@ -30,11 +31,16 @@ type Error struct {
 }
 
 var (
-	PhaseError os.Error = &Error{"bufio: phase error"};
-	BufferFull os.Error = &Error{"bufio: buffer full"};
-	InternalError os.Error = &Error{"bufio: internal error"};
-	BadBufSize os.Error = &Error{"bufio: bad buffer size"};
+	ErrInvalidUnreadByte os.Error = &Error{"bufio: invalid use of UnreadByte"};
+	ErrBufferFull os.Error = &Error{"bufio: buffer full"};
+	errInternal os.Error = &Error{"bufio: internal error"};
 )
+
+// BufSizeError is the error representing an invalid buffer size.
+type BufSizeError int
+func (b BufSizeError) String() string {
+	return "bufio: bad buffer size " + strconv.Itoa(int(b));
+}
 
 func copySlice(dst []byte, src []byte) {
 	for i := 0; i < len(dst); i++ {
@@ -60,7 +66,7 @@ type Reader struct {
 // It returns the Reader and any error.
 func NewReaderSize(rd io.Reader, size int) (*Reader, os.Error) {
 	if size <= 0 {
-		return nil, BadBufSize
+		return nil, BufSizeError(size)
 	}
 	// Is it already a Reader?
 	b, ok := rd.(*Reader);
@@ -165,7 +171,7 @@ func (b *Reader) ReadByte() (c byte, err os.Error) {
 	return c, nil
 }
 
-// UnreadByte unreads the last byte.  Only one byte may be unread at a given time.
+// UnreadByte unreads the last byte.  Only the most recently read byte can be unread.
 func (b *Reader) UnreadByte() os.Error {
 	if b.err != nil {
 		return b.err
@@ -178,7 +184,7 @@ func (b *Reader) UnreadByte() os.Error {
 		return nil;
 	}
 	if b.r <= 0 {
-		return PhaseError
+		return ErrInvalidUnreadByte
 	}
 	b.r--;
 	b.lastbyte = -1;
@@ -261,7 +267,7 @@ func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
 
 		// Buffer is full?
 		if b.Buffered() >= len(b.buf) {
-			return nil, BufferFull
+			return nil, ErrBufferFull
 		}
 	}
 
@@ -292,7 +298,7 @@ func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
 		if e == nil {	// got final fragment
 			break
 		}
-		if e != BufferFull {	// unexpected error
+		if e != ErrBufferFull {	// unexpected error
 			err = e;
 			break
 		}
@@ -308,7 +314,7 @@ func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
 		}
 		if n != len(buf) {
 			frag = buf[0:n];
-			err = InternalError;
+			err = errInternal;
 			break
 		}
 
@@ -378,7 +384,7 @@ type Writer struct {
 // It returns the Writer and any error.
 func NewWriterSize(wr io.Writer, size int) (*Writer, os.Error) {
 	if size <= 0 {
-		return nil, BadBufSize
+		return nil, BufSizeError(size)
 	}
 	// Is it already a Writer?
 	b, ok := wr.(*Writer);

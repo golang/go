@@ -85,7 +85,7 @@ func newPollServer() (s *pollServer, err os.Error) {
 	var e int;
 	if e = syscall.SetNonblock(s.pr.Fd(), true); e != 0 {
 	Errno:
-		err = os.ErrnoToError(e);
+		err = &os.PathError{"setnonblock", s.pr.Name(), os.Errno(e)};
 	Error:
 		s.pr.Close();
 		s.pw.Close();
@@ -304,17 +304,44 @@ func newFD(fd int, net, laddr, raddr string) (f *netFD, err os.Error) {
 		once.Do(_StartServer);
 	}
 	if e := syscall.SetNonblock(fd, true); e != 0 {
-		return nil, os.ErrnoToError(e);
+		return nil, &os.PathError{"setnonblock", laddr, os.Errno(e)};
 	}
 	f = new(netFD);
 	f.fd = fd;
 	f.net = net;
 	f.laddr = laddr;
 	f.raddr = raddr;
-	f.file = os.NewFile(fd, "net: " + net + " " + laddr + " " + raddr);
+	f.file = os.NewFile(fd, net + "!" + laddr + "->" + raddr);
 	f.cr = make(chan *netFD, 1);
 	f.cw = make(chan *netFD, 1);
 	return f, nil
+}
+
+func isEAGAIN(e os.Error) bool {
+	if e1, ok := e.(*os.PathError); ok {
+		return e1.Error == os.EAGAIN;
+	}
+	return e == os.EAGAIN;
+}
+
+func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error)
+
+func (fd *netFD) addr() string {
+	sa, e := syscall.Getsockname(fd.fd);
+	if e != 0 {
+		return "";
+	}
+	addr, err := sockaddrToString(sa);
+	return addr;
+}
+
+func (fd *netFD) remoteAddr() string {
+	sa, e := syscall.Getpeername(fd.fd);
+	if e != 0 {
+		return "";
+	}
+	addr, err := sockaddrToString(sa);
+	return addr;
 }
 
 func (fd *netFD) Close() os.Error {
@@ -338,7 +365,7 @@ func (fd *netFD) Close() os.Error {
 
 func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 	if fd == nil || fd.file == nil {
-		return -1, os.EINVAL
+		return 0, os.EINVAL
 	}
 	fd.rio.Lock();
 	defer fd.rio.Unlock();
@@ -347,17 +374,20 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 	} else {
 		fd.rdeadline = 0;
 	}
-	n, err = fd.file.Read(p);
-	for err == os.EAGAIN && fd.rdeadline >= 0 {
-		pollserver.WaitRead(fd);
-		n, err = fd.file.Read(p)
+	for {
+		n, err = fd.file.Read(p);
+		if isEAGAIN(err) && fd.rdeadline >= 0 {
+			pollserver.WaitRead(fd);
+			continue;
+		}
+		break;
 	}
-	return n, err
+	return;
 }
 
 func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 	if fd == nil || fd.file == nil {
-		return -1, os.EINVAL
+		return 0, os.EINVAL
 	}
 	fd.wio.Lock();
 	defer fd.wio.Unlock();
@@ -376,7 +406,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 		if nn == len(p) {
 			break;
 		}
-		if err == os.EAGAIN && fd.wdeadline >= 0 {
+		if isEAGAIN(err) && fd.wdeadline >= 0 {
 			pollserver.WaitWrite(fd);
 			continue;
 		}
@@ -386,8 +416,6 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 	}
 	return nn, err
 }
-
-func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error)
 
 func (fd *netFD) accept() (nfd *netFD, err os.Error) {
 	if fd == nil || fd.file == nil {
@@ -411,7 +439,7 @@ func (fd *netFD) accept() (nfd *netFD, err os.Error) {
 	}
 	if e != 0 {
 		syscall.ForkLock.RUnlock();
-		return nil, os.ErrnoToError(e)
+		return nil, &os.PathError{"accept", fd.addr(), os.Errno(e)}
 	}
 	syscall.CloseOnExec(s);
 	syscall.ForkLock.RUnlock();
@@ -425,24 +453,4 @@ func (fd *netFD) accept() (nfd *netFD, err os.Error) {
 		return nil, err
 	}
 	return nfd, nil
-}
-
-func (fd *netFD) addr() string {
-	sa, err := syscall.Getsockname(fd.fd);
-	if err != 0 {
-		return "";
-	}
-	// TODO(rsc): woud like to say err not err1 but 6g complains
-	addr, err1 := sockaddrToString(sa);
-	return addr;
-}
-
-func (fd *netFD) remoteAddr() string {
-	sa, err := syscall.Getpeername(fd.fd);
-	if err != 0 {
-		return "";
-	}
-	// TODO(rsc): woud like to say err not err1 but 6g complains
-	addr, err1 := sockaddrToString(sa);
-	return addr;
 }

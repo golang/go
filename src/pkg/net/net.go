@@ -7,18 +7,50 @@ package net
 import (
 	"net";
 	"os";
+	"reflect";
 	"strconv";
+	"strings";
 	"syscall";
 )
 
-var (
-	BadAddress os.Error = &Error{"malformed address"};
-	MissingAddress os.Error = &Error{"missing address"};
-	UnknownNetwork os.Error = &Error{"unknown network"};
-	UnknownHost os.Error = &Error{"unknown host"};
-	UnknownSocketFamily os.Error = &Error{"unknown socket family"};
-)
+var errMissingAddress = os.ErrorString("missing address")
 
+type OpError struct {
+	Op string;
+	Net string;
+	Addr string;
+	Error os.Error;
+}
+
+func (e *OpError) String() string {
+	s := e.Op;
+	if e.Net != "" {
+		s += " " + e.Net;
+	}
+	if e.Addr != "" {
+		s += " " + e.Addr;
+	}
+	s += ": " + e.Error.String();
+	return s;
+}
+
+type AddrError struct {
+	Error string;
+	Addr string;
+}
+
+func (e *AddrError) String() string {
+	s := e.Error;
+	if e.Addr != "" {
+		s += " " + e.Addr;
+	}
+	return s;
+}
+
+type UnknownNetworkError string
+func (e UnknownNetworkError) String() string {
+	return "unknown network " + string(e);
+}
 
 // Conn is a generic network connection.
 type Conn interface {
@@ -127,23 +159,19 @@ func listenBacklog() int {
 }
 
 func LookupHost(name string) (cname string, addrs []string, err os.Error)
+func LookupPort(network, service string) (port int, err os.Error)
 
 // Split "host:port" into "host" and "port".
 // Host cannot contain colons unless it is bracketed.
 func splitHostPort(hostport string) (host, port string, err os.Error) {
 	// The port starts after the last colon.
-	var i int;
-	for i = len(hostport)-1; i >= 0; i-- {
-		if hostport[i] == ':' {
-			break
-		}
-	}
+	i := strings.LastIndex(hostport, ":");
 	if i < 0 {
-		return "", "", BadAddress
+		err = &AddrError{"missing port in address", hostport};
+		return;
 	}
 
-	host = hostport[0:i];
-	port = hostport[i+1:len(hostport)];
+	host, port = hostport[0:i], hostport[i+1:len(hostport)];
 
 	// Can put brackets around host ...
 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
@@ -151,10 +179,11 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
 	} else {
 		// ... but if there are no brackets, no colons.
 		if byteIndex(host, ':') >= 0 {
-			return "", "", BadAddress
+			err = &AddrError{"too many colons in address", hostport};
+			return;
 		}
 	}
-	return host, port, nil
+	return;
 }
 
 // Join "host" and "port" into "host:port".
@@ -171,22 +200,21 @@ func joinHostPort(host, port string) string {
 // For now, host and port must be numeric literals.
 // Eventually, we'll have name resolution.
 func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
-	var host, port string;
-	host, port, err = splitHostPort(hostport);
+	host, port, err := splitHostPort(hostport);
 	if err != nil {
-		return nil, 0, err
+		goto Error;
 	}
 
 	var addr IP;
 	if host == "" {
-		if mode == "listen" {
-			if preferIPv4 {
-				addr = IPv4zero;
-			} else {
-				addr = IPzero;	// wildcard - listen to all
-			}
+		if mode != "listen" {
+			err = &AddrError{"no host in address", hostport};
+			goto Error;
+		}
+		if preferIPv4 {
+			addr = IPv4zero;
 		} else {
-			return nil, 0, MissingAddress;
+			addr = IPzero;	// wildcard - listen to all
 		}
 	}
 
@@ -196,17 +224,16 @@ func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
 	}
 	if addr == nil {
 		// Not an IP address.  Try as a DNS name.
-		hostname, addrs, err := LookupHost(host);
-		if err != nil {
-			return nil, 0, err
-		}
-		if len(addrs) == 0 {
-			return nil, 0, UnknownHost
+		hostname, addrs, err1 := LookupHost(host);
+		if err1 != nil {
+			err = err1;
+			goto Error;
 		}
 		addr = ParseIP(addrs[0]);
 		if addr == nil {
 			// should not happen
-			return nil, 0, BadAddress
+			err = &AddrError{"LookupHost returned invalid address", addrs[0]};
+			goto Error;
 		}
 	}
 
@@ -214,14 +241,25 @@ func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
 	if !ok || i != len(port) {
 		p, err = LookupPort(net, port);
 		if err != nil {
-			return nil, 0, err
+			goto Error;
 		}
 	}
 	if p < 0 || p > 0xFFFF {
-		return nil, 0, BadAddress
+		err = &AddrError{"invalid port", port};
+		goto Error;
 	}
 
-	return addr, p, nil
+	return addr, p, nil;
+
+Error:
+	return nil, 0, err;
+}
+
+type UnknownSocketError struct {
+	sa syscall.Sockaddr;
+}
+func (e *UnknownSocketError) String() string {
+	return "unknown socket address type " + reflect.Typeof(e.sa).String()
 }
 
 func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
@@ -233,7 +271,8 @@ func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
 	case *syscall.SockaddrUnix:
 		return a.Name, nil;
 	}
-	return "", UnknownSocketFamily
+
+	return "", &UnknownSocketError{sa};
 }
 
 func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
@@ -283,7 +322,7 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd 
 	s, e := syscall.Socket(f, p, t);
 	if e != 0 {
 		syscall.ForkLock.RUnlock();
-		return nil, os.ErrnoToError(e)
+		return nil, os.Errno(e)
 	}
 	syscall.CloseOnExec(s);
 	syscall.ForkLock.RUnlock();
@@ -296,7 +335,7 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd 
 		e = syscall.Bind(s, la);
 		if e != 0 {
 			syscall.Close(s);
-			return nil, os.ErrnoToError(e)
+			return nil, os.Errno(e)
 		}
 	}
 
@@ -304,7 +343,7 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd 
 		e = syscall.Connect(s, ra);
 		if e != 0 {
 			syscall.Close(s);
-			return nil, os.ErrnoToError(e)
+			return nil, os.Errno(e)
 		}
 	}
 
@@ -390,12 +429,12 @@ func (c *connBase) Close() os.Error {
 
 
 func setsockoptInt(fd, level, opt int, value int) os.Error {
-	return os.ErrnoToError(syscall.SetsockoptInt(fd, level, opt, value));
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, level, opt, value));
 }
 
 func setsockoptNsec(fd, level, opt int, nsec int64) os.Error {
 	var tv = syscall.NsecToTimeval(nsec);
-	return os.ErrnoToError(syscall.SetsockoptTimeval(fd, level, opt, &tv));
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptTimeval(fd, level, opt, &tv));
 }
 
 func (c *connBase) SetReadBuffer(bytes int) os.Error {
@@ -450,7 +489,7 @@ func (c *connBase) SetLinger(sec int) os.Error {
 		l.Linger = 0;
 	}
 	e := syscall.SetsockoptLinger(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_LINGER, &l);
-	return os.ErrnoToError(e);
+	return os.NewSyscallError("setsockopt", e);
 }
 
 
@@ -463,12 +502,12 @@ func internetSocket(net, laddr, raddr string, proto int, mode string) (fd *netFD
 
 	if laddr != "" {
 		if lip, lport, err = hostPortToIP(net, laddr, mode); err != nil {
-			return
+			goto Error;
 		}
 	}
 	if raddr != "" {
 		if rip, rport, err = hostPortToIP(net, raddr, mode); err != nil {
-			return
+			goto Error;
 		}
 	}
 
@@ -500,17 +539,27 @@ func internetSocket(net, laddr, raddr string, proto int, mode string) (fd *netFD
 	var la, ra syscall.Sockaddr;
 	if lip != nil {
 		if la, err = ipToSockaddr(family, lip, lport); err != nil {
-			return
+			goto Error;
 		}
 	}
 	if rip != nil {
 		if ra, err = ipToSockaddr(family, rip, rport); err != nil {
-			return
+			goto Error;
 		}
 	}
 
 	fd, err = socket(net, laddr, raddr, family, proto, 0, la, ra);
-	return fd, err
+	if err != nil {
+		goto Error;
+	}
+	return fd, nil;
+
+Error:
+	addr := raddr;
+	if mode == "listen" {
+		addr = laddr;
+	}
+	return nil, &OpError{mode, net, addr, err};
 }
 
 
@@ -541,7 +590,7 @@ func newConnTCP(fd *netFD, raddr string) *ConnTCP {
 // and returns a ConnTCP structure.
 func DialTCP(net, laddr, raddr string) (c *ConnTCP, err os.Error) {
 	if raddr == "" {
-		return nil, MissingAddress
+		return nil, &OpError{"dial", "tcp", "", errMissingAddress}
 	}
 	fd, e := internetSocket(net, laddr, raddr, syscall.SOCK_STREAM, "dial");
 	if e != nil {
@@ -572,7 +621,7 @@ func newConnUDP(fd *netFD, raddr string) *ConnUDP {
 // and returns a ConnUDP structure.
 func DialUDP(net, laddr, raddr string) (c *ConnUDP, err os.Error) {
 	if raddr == "" {
-		return nil, MissingAddress
+		return nil, &OpError{"dial", "udp", "", errMissingAddress}
 	}
 	fd, e := internetSocket(net, laddr, raddr, syscall.SOCK_DGRAM, "dial");
 	if e != nil {
@@ -593,7 +642,7 @@ func unixSocket(net, laddr, raddr string, mode string) (fd *netFD, err os.Error)
 	var proto int;
 	switch net {
 	default:
-		return nil, UnknownNetwork;
+		return nil, UnknownNetworkError(net);
 	case "unix":
 		proto = syscall.SOCK_STREAM;
 	case "unix-dgram":
@@ -602,27 +651,40 @@ func unixSocket(net, laddr, raddr string, mode string) (fd *netFD, err os.Error)
 
 	var la, ra syscall.Sockaddr;
 	switch mode {
+	default:
+		panic("unixSocket", mode);
+
 	case "dial":
 		if laddr != "" {
-			return nil, BadAddress;
+			return nil, &OpError{mode, net, raddr, &AddrError{"unexpected local address", laddr}}
 		}
 		if raddr == "" {
-			return nil, MissingAddress;
+			return nil, &OpError{mode, net, "", errMissingAddress}
 		}
 		ra = &syscall.SockaddrUnix{Name: raddr};
 
 	case "listen":
 		if laddr == "" {
-			return nil, MissingAddress;
+			return nil, &OpError{mode, net, "", errMissingAddress}
 		}
 		la = &syscall.SockaddrUnix{Name: laddr};
 		if raddr != "" {
-			return nil, BadAddress;
+			return nil, &OpError{mode, net, laddr, &AddrError{"unexpected remote address", raddr}}
 		}
 	}
 
 	fd, err = socket(net, laddr, raddr, syscall.AF_UNIX, proto, 0, la, ra);
-	return fd, err
+	if err != nil {
+		goto Error;
+	}
+	return fd, nil;
+
+Error:
+	addr := raddr;
+	if mode == "listen" {
+		addr = laddr;
+	}
+	return nil, &OpError{mode, net, addr, err};
 }
 
 // ConnUnix is an implementation of the Conn interface
@@ -663,6 +725,9 @@ type ListenerUnix struct {
 func ListenUnix(net, laddr string) (l *ListenerUnix, err os.Error) {
 	fd, e := unixSocket(net, laddr, "", "listen");
 	if e != nil {
+		if pe, ok := e.(*os.PathError); ok {
+			e = pe.Error;
+		}
 		// Check for socket ``in use'' but ``refusing connections,''
 		// which means some program created it and exited
 		// without unlinking it from the file system.
@@ -674,6 +739,9 @@ func ListenUnix(net, laddr string) (l *ListenerUnix, err os.Error) {
 		fd1, e1 := unixSocket(net, "", laddr, "dial");
 		if e1 == nil {
 			fd1.Close();
+		}
+		if pe, ok := e1.(*os.PathError); ok {
+			e1 = pe.Error;
 		}
 		if e1 != os.ECONNREFUSED {
 			return nil, e;
@@ -688,7 +756,7 @@ func ListenUnix(net, laddr string) (l *ListenerUnix, err os.Error) {
 	e1 := syscall.Listen(fd.fd, 8); // listenBacklog());
 	if e1 != 0 {
 		syscall.Close(fd.fd);
-		return nil, os.ErrnoToError(e1);
+		return nil, &OpError{"listen", "unix", laddr, os.Errno(e1)};
 	}
 	return &ListenerUnix{fd, laddr}, nil;
 }
@@ -788,7 +856,7 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 		return c, err
 */
 	}
-	return nil, UnknownNetwork
+	return nil, &OpError{"dial", net, raddr, UnknownNetworkError(net)};
 }
 
 // A Listener is a generic network listener.
@@ -818,7 +886,7 @@ func ListenTCP(net, laddr string) (l *ListenerTCP, err os.Error) {
 	e1 := syscall.Listen(fd.fd, listenBacklog());
 	if e1 != 0 {
 		syscall.Close(fd.fd);
-		return nil, os.ErrnoToError(e1)
+		return nil, &OpError{"listen", "tcp", laddr, os.Errno(e1)};
 	}
 	l = new(ListenerTCP);
 	l.fd = fd;
@@ -884,6 +952,6 @@ func Listen(net, laddr string) (l Listener, err os.Error) {
 */
 	// BUG(rsc): Listen should support UDP.
 	}
-	return nil, UnknownNetwork
+	return nil, UnknownNetworkError(net);
 }
 

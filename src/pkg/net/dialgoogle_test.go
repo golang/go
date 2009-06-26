@@ -6,7 +6,6 @@ package net
 
 import (
 	"flag";
-	"fmt";
 	"io";
 	"net";
 	"os";

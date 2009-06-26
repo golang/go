@@ -85,9 +85,13 @@ HFILES=\
 
 all: $(LIB) runtime.acid
 
-install: $(LIB) runtime.acid
+TARG=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)/$(LIB)
+
+install: $(TARG)
+
+$(TARG): $(LIB) runtime.acid
 	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)
-	cp $(LIB) $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/$(LIB)
+	cp $(LIB) $(TARG)
 	cp runtime.acid $(GOROOT)/acid/runtime.acid
 
 $(LIB): $(OFILES)
@@ -96,7 +100,7 @@ $(LIB): $(OFILES)
 $(OFILES): $(HFILES)
 
 nuke:
-	rm -f *.[568] *.a $(GOROOT)/lib/$(LIB)
+	rm -f *.[568] *.a $(TARG)
 
 clean:
 	rm -f *.[568] *.a runtime.acid cgo2c */asm.h

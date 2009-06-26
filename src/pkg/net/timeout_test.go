@@ -22,7 +22,7 @@ func testTimeout(t *testing.T, network, addr string) {
 	var b [100]byte;
 	n, err1 := fd.Read(&b);
 	t1 := time.Nanoseconds();
-	if n != 0 || err1 != os.EAGAIN {
+	if n != 0 || !isEAGAIN(err1) {
 		t.Errorf("fd.Read on %s %s did not return 0, EAGAIN: %v, %v", network, addr, n, err1);
 	}
 	if t1 - t0 < 0.5e8 || t1 - t0 > 1.5e8 {

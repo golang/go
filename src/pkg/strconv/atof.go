@@ -316,15 +316,18 @@ func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
 // Atof32 returns the nearest floating point number rounded
 // using IEEE754 unbiased rounding.
 //
-// If s is not syntactically well-formed, Atof32 returns err = os.EINVAL.
+// The errors that Atof32 returns have concrete type *NumError
+// and include err.Num = s.
+//
+// If s is not syntactically well-formed, Atof32 returns err.Error = os.EINVAL.
 //
 // If s is syntactically well-formed but is more than 1/2 ULP
 // away from the largest floating point number of the given size,
-// Atof32 returns f = ±Inf, err = os.ERANGE.
+// Atof32 returns f = ±Inf, err.Error = os.ERANGE.
 func Atof32(s string) (f float32, err os.Error) {
 	neg, d, trunc, ok := stringToDecimal(s);
 	if !ok {
-		return 0, os.EINVAL;
+		return 0, &NumError{s, os.EINVAL};
 	}
 	if optimize {
 		if f, ok := decimalAtof32(neg, d, trunc); ok {
@@ -334,7 +337,7 @@ func Atof32(s string) (f float32, err os.Error) {
 	b, ovf := decimalToFloatBits(neg, d, trunc, &float32info);
 	f = math.Float32frombits(uint32(b));
 	if ovf {
-		err = os.ERANGE;
+		err = &NumError{s, os.ERANGE};
 	}
 	return f, err
 }
@@ -345,7 +348,7 @@ func Atof32(s string) (f float32, err os.Error) {
 func Atof64(s string) (f float64, err os.Error) {
 	neg, d, trunc, ok := stringToDecimal(s);
 	if !ok {
-		return 0, os.EINVAL;
+		return 0, &NumError{s, os.EINVAL};
 	}
 	if optimize {
 		if f, ok := decimalAtof64(neg, d, trunc); ok {
@@ -355,7 +358,7 @@ func Atof64(s string) (f float64, err os.Error) {
 	b, ovf := decimalToFloatBits(neg, d, trunc, &float64info);
 	f = math.Float64frombits(b);
 	if ovf {
-		err = os.ERANGE;
+		err = &NumError{s, os.ERANGE};
 	}
 	return f, err
 }

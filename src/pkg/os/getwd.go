@@ -17,7 +17,7 @@ func Getwd() (string, Error) {
 	// If the operating system provides a Getwd call, use it.
 	if syscall.ImplementsGetwd {
 		s, e := syscall.Getwd();
-		return s, ErrnoToError(e);
+		return s, NewSyscallError("getwd", e);
 	}
 
 	// Otherwise, we're trying to find our way back to ".".
