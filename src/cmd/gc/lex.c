@@ -213,6 +213,19 @@ addidir(char* dir)
 	(*pp)->dir = dir;
 }
 
+// is this path a local name?  begins with ./ or ../ or /
+int
+islocalname(Strlit *name)
+{
+	if(name->len >= 1 && name->s[0] == '/')
+		return 1;
+	if(name->len >= 2 && strncmp(name->s, "./", 2) == 0)
+		return 1;
+	if(name->len >= 3 && strncmp(name->s, "../", 3) == 0)
+		return 1;
+	return 0;
+}
+
 int
 findpkg(Strlit *name)
 {
@@ -225,9 +238,19 @@ findpkg(Strlit *name)
 		goarch = getenv("GOARCH");
 	}
 
-	// try .a before .6.  important for building libraries:
-	// if there is an array.6 in the array.a library,
-	// want to find all of array.a, not just array.6.
+	if(islocalname(name)) {
+		// try .a before .6.  important for building libraries:
+		// if there is an array.6 in the array.a library,
+		// want to find all of array.a, not just array.6.
+		snprint(namebuf, sizeof(namebuf), "%Z.a", name);
+		if(access(namebuf, 0) >= 0)
+			return 1;
+		snprint(namebuf, sizeof(namebuf), "%Z.%c", name, thechar);
+		if(access(namebuf, 0) >= 0)
+			return 1;
+		return 0;
+	}
+
 	for(p = idirs; p != nil; p = p->link) {
 		snprint(namebuf, sizeof(namebuf), "%s/%Z.a", p->dir, name);
 		if(access(namebuf, 0) >= 0)
@@ -236,13 +259,6 @@ findpkg(Strlit *name)
 		if(access(namebuf, 0) >= 0)
 			return 1;
 	}
-
-	snprint(namebuf, sizeof(namebuf), "%Z.a", name);
-	if(access(namebuf, 0) >= 0)
-		return 1;
-	snprint(namebuf, sizeof(namebuf), "%Z.%c", name, thechar);
-	if(access(namebuf, 0) >= 0)
-		return 1;
 	if(goroot != nil) {
 		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s/%Z.a", goroot, goos, goarch, name);
 		if(access(namebuf, 0) >= 0)
