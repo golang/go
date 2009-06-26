@@ -111,10 +111,6 @@ BUG: should not compile
 =========== bugs/bug164.go
 BUG: should not compile
 
-=========== bugs/bug165.go
-bugs/bug165.go:6: invalid map key type I
-BUG: should compile
-
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 

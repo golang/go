@@ -171,6 +171,8 @@ struct	Type
 
 	// TARRAY
 	int32	bound;		// negative is dynamic array
+	
+	int32	maplineno;	// first use of TFORW as map key
 };
 #define	T	((Type*)0)
 

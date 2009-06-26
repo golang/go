@@ -93,6 +93,7 @@ updatetype(Type *n, Type *t)
 {
 	Sym *s;
 	int local;
+	int maplineno, lno;
 
 	s = n->sym;
 	if(s == S || s->def == N || s->def->op != OTYPE || s->def->type != n)
@@ -124,6 +125,7 @@ updatetype(Type *n, Type *t)
 	//	type n t;
 	// copy t, but then zero out state associated with t
 	// that is no longer associated with n.
+	maplineno = n->maplineno;
 	local = n->local;
 	*n = *t;
 	n->sym = s;
@@ -133,6 +135,7 @@ updatetype(Type *n, Type *t)
 	n->method = nil;
 	n->vargen = 0;
 	n->nod = N;
+
 	// catch declaration of incomplete type
 	switch(n->etype) {
 	case TFORWSTRUCT:
@@ -140,6 +143,14 @@ updatetype(Type *n, Type *t)
 		break;
 	default:
 		checkwidth(n);
+	}
+	
+	// double-check use of type as map key
+	if(maplineno) {
+		lno = lineno;
+		lineno = maplineno;
+		maptype(n, types[TBOOL]);
+		lineno = lno;
 	}
 }
 
