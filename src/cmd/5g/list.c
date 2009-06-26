@@ -38,7 +38,6 @@ listinit(void)
 	fmtinstall('A', Aconv);		// as
 	fmtinstall('P', Pconv);		// Prog*
 	fmtinstall('D', Dconv);		// Addr*
-	fmtinstall('R', Rconv);		// reg
 	fmtinstall('Y', Yconv);		// sconst
 }
 
@@ -80,21 +79,13 @@ Dconv(Fmt *fp)
 
 	a = va_arg(fp->args, Addr*);
 	i = a->type;
-	// TODO(kaib): Add back
-//	if(i >= D_INDIR) {
-//		if(a->offset)
-//			snprint(str, sizeof(str), "%d(%R)", a->offset, i-D_INDIR);
-//		else
-//			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
-//		goto brk;
-//	}
 	switch(i) {
 
 	default:
-		if(a->offset)
-			snprint(str, sizeof(str), "$%d,%R", a->offset, i);
+		if(a->type == D_OREG)
+			snprint(str, sizeof(str), "$%d(R%d)", a->offset, a->reg);
 		else
-			snprint(str, sizeof(str), "%R", i);
+			snprint(str, sizeof(str), "R%d", a->reg);
 		break;
 
 	case D_NONE:
@@ -149,48 +140,8 @@ Dconv(Fmt *fp)
 //		a->type = D_ADDR;
 //		goto conv;
 	}
-brk:
-	if(a->index != D_NONE) {
-		snprint(s, sizeof(s), "(%R*%d)", (int)a->index, (int)a->scale);
-		strcat(str, s);
-	}
 conv:
 	return fmtstrcpy(fp, str);
-}
-
-static	char*	regstr[] =
-{
-	"R0",
-	"R1",
-	"R2",
-	"R3",
-	"R4",
-	"R5",
-	"R6",
-	"R7",
-	"R8",
-	"R9",
-	"R10",
-	"R11",
-	"R12",
-	"R13",
-	"R14",
-	"R15",
-	"NONE",
-};
-
-int
-Rconv(Fmt *fp)
-{
-	char str[STRINGSZ];
-	int r;
-
-	r = va_arg(fp->args, int);
-	if(r < 0 || r >= nelem(regstr) || regstr[r] == nil) {
-		snprint(str, sizeof(str), "BAD_R(%d)", r);
-		return fmtstrcpy(fp, str);
-	}
-	return fmtstrcpy(fp, regstr[r]);
 }
 
 int

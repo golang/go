@@ -29,8 +29,11 @@ betypeinit(void)
 
 	zprog.link = P;
 	zprog.as = AGOK;
+	zprog.scond = C_SCOND_NONE;
+	zprog.reg = NREG;
 	zprog.from.type = D_NONE;
 	zprog.from.index = D_NONE;
+	zprog.from.reg = NREG;
 	zprog.from.scale = 0;
 	zprog.to = zprog.from;
 

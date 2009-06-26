@@ -34,10 +34,14 @@ void
 clearp(Prog *p)
 {
 	p->as = AEND;
+	p->reg = NREG;
+	p->scond = C_SCOND_NONE;
 	p->from.type = D_NONE;
 	p->from.index = D_NONE;
+	p->from.reg = NREG;
 	p->to.type = D_NONE;
 	p->to.index = D_NONE;
+	p->to.reg = NREG;
 	p->loc = pcloc;
 	pcloc++;
 }

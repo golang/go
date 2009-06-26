@@ -64,8 +64,8 @@ zhist(Biobuf *b, int line, vlong offset)
 	Addr a;
 
 	Bputc(b, AHISTORY);
-	Bputc(b, 0);
-	Bputc(b, 0);
+	Bputc(b, C_SCOND_NONE);
+	Bputc(b, NREG);
 	Bputc(b, line);
 	Bputc(b, line>>8);
 	Bputc(b, line>>16);
@@ -89,8 +89,8 @@ zaddr(Biobuf *b, Addr *a, int s)
 
 	switch(a->type) {
 	case D_STATIC:
-	case D_EXTERN:
 	case D_AUTO:
+	case D_EXTERN:
 	case D_PARAM:
 		Bputc(b, D_OREG);
 		Bputc(b, a->reg);
@@ -112,8 +112,6 @@ zaddr(Biobuf *b, Addr *a, int s)
 	case D_REG:
 	case D_FREG:
 	case D_PSR:
-	case D_EXTERN:
-	case D_PARAM:
 		break;
 
 	case D_CONST2:
@@ -128,6 +126,8 @@ zaddr(Biobuf *b, Addr *a, int s)
 	case D_SHIFT:
 	case D_STATIC:
 	case D_AUTO:
+	case D_EXTERN:
+	case D_PARAM:
 		l = a->offset;
 		Bputc(b, l);
 		Bputc(b, l>>8);
