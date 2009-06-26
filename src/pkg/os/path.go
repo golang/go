@@ -6,16 +6,6 @@ package os
 
 import "os"
 
-// PathError reports an error and the file path where it occurred.
-type PathError struct {
-	Path string;
-	Error Error;
-}
-
-func (p *PathError) String() string {
-	return p.Path + ": " + p.Error.String();
-}
-
 // MkdirAll creates a directory named path,
 // along with any necessary parents, and returns nil,
 // or else returns an error.
@@ -30,7 +20,7 @@ func MkdirAll(path string, perm int) Error {
 		if dir.IsDirectory() {
 			return nil;
 		}
-		return &PathError{path, ENOTDIR};
+		return &PathError{"mkdir", path, ENOTDIR};
 	}
 
 	// Doesn't already exist; make sure parent does.
@@ -61,7 +51,7 @@ func MkdirAll(path string, perm int) Error {
 		if err1 == nil && dir.IsDirectory() {
 			return nil;
 		}
-		return &PathError{path, err};
+		return err;
 	}
 	return nil;
 }
@@ -77,19 +67,19 @@ func RemoveAll(path string) Error {
 	}
 
 	// Otherwise, is this a directory we need to recurse into?
-	dir, err1 := os.Lstat(path);
-	if err1 != nil {
-		return &PathError{path, err1};
+	dir, err := os.Lstat(path);
+	if err != nil {
+		return err;
 	}
 	if !dir.IsDirectory() {
 		// Not a directory; return the error from Remove.
-		return &PathError{path, err};
+		return err;
 	}
 
 	// Directory.
 	fd, err := Open(path, os.O_RDONLY, 0);
 	if err != nil {
-		return &PathError{path, err};
+		return err;
 	}
 	defer fd.Close();
 
@@ -99,13 +89,13 @@ func RemoveAll(path string) Error {
 		names, err1 := fd.Readdirnames(100);
 		for i, name := range names {
 			err1 := RemoveAll(path + "/" + name);
-			if err1 != nil && err == nil {
+			if err == nil {
 				err = err1;
 			}
 		}
 		// If Readdirnames returned an error, use it.
-		if err1 != nil && err == nil {
-			err = &PathError{path, err1};
+		if err == nil {
+			err = err1;
 		}
 		if len(names) == 0 {
 			break;
@@ -113,9 +103,9 @@ func RemoveAll(path string) Error {
 	}
 
 	// Remove directory.
-	err1 = Remove(path);
-	if err1 != nil && err == nil {
-		err = &PathError{path, err1};
+	err1 := Remove(path);
+	if err == nil {
+		err = err1;
 	}
 	return err;
 }

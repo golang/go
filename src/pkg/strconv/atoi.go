@@ -3,7 +3,20 @@
 // license that can be found in the LICENSE file.
 
 package strconv
-import "os"
+import (
+	"os";
+	"strconv"
+)
+
+type NumError struct {
+	Num string;
+	Error os.Error;
+}
+
+func (e *NumError) String() string {
+	return "parsing " + e.Num + ": " + e.Error.String();
+}
+
 
 func computeIntsize() uint {
 	siz := uint(8);
@@ -25,13 +38,18 @@ func cutoff64(base int) uint64 {
 // Btoui64 interprets a string s in an arbitrary base b (2 to 36)
 // and returns the corresponding value n.
 //
-// Btoui64 returns err == os.EINVAL if b is out of
-// range or s is empty or contains invalid digits.
-// It returns err == os.ERANGE if the value corresponding
-// to s cannot be represented by a uint64.
+// The errors that Btoui64 returns have concrete type *NumError
+// and include err.Num = s.  If s is empty or contains invalid
+// digits, err.Error = os.EINVAL; if the value corresponding
+// to s cannot be represented by a uint64, err.Error = os.ERANGE.
 func Btoui64(s string, b int) (n uint64, err os.Error) {
-	if b < 2 || b > 36 || len(s) < 1 {
-		return 0, os.EINVAL;
+	if b < 2 || b > 36 {
+		err = os.ErrorString("invalid base " + Itoa(b));
+		goto Error;
+	}
+	if len(s) < 1 {
+		err = os.EINVAL;
+		goto Error;
 	}
 
 	n = 0;
@@ -47,27 +65,38 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 		case 'A' <= s[i] && s[i] <= 'Z':
 			v = s[i] - 'A' + 10;
 		default:
-			return 0, os.EINVAL;
+			n = 0;
+			err = os.EINVAL;
+			goto Error;
 		}
 		if int(v) >= b {
-			return 0, os.EINVAL;
+			n = 0;
+			err = os.EINVAL;
+			goto Error;
 		}
 
 		if n >= cutoff {
 			// n*b overflows
-			return 1<<64-1, os.ERANGE;
+			n = 1<<64-1;
+			err = os.ERANGE;
+			goto Error;
 		}
 		n *= uint64(b);
 
 		n1 := n+uint64(v);
 		if n1 < n {
 			// n+v overflows
-			return 1<<64-1, os.ERANGE;
+			n = 1<<64-1;
+			err = os.ERANGE;
+			goto Error;
 		}
 		n = n1;
 	}
 
 	return n, nil;
+
+Error:
+	return n, &NumError{s, err};
 }
 
 // Atoui64 interprets a string s as an unsigned decimal, octal, or
@@ -80,7 +109,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 func Atoui64(s string) (n uint64, err os.Error) {
 	// Empty string bad.
 	if len(s) == 0 {
-		return 0, os.EINVAL
+		return 0, &NumError{s, os.EINVAL}
 	}
 
 	// Look for octal, hex prefix.
@@ -102,7 +131,7 @@ func Atoui64(s string) (n uint64, err os.Error) {
 func Atoi64(s string) (i int64, err os.Error) {
 	// Empty string bad.
 	if len(s) == 0 {
-		return 0, os.EINVAL
+		return 0, &NumError{s, os.EINVAL}
 	}
 
 	// Pick off leading sign.
@@ -117,14 +146,14 @@ func Atoi64(s string) (i int64, err os.Error) {
 	// Convert unsigned and check range.
 	var un uint64;
 	un, err = Atoui64(s);
-	if err != nil && err != os.ERANGE {
+	if err != nil && err.(*NumError).Error != os.ERANGE {
 		return 0, err
 	}
 	if !neg && un >= 1<<63 {
-		return 1<<63-1, os.ERANGE
+		return 1<<63-1, &NumError{s, os.ERANGE}
 	}
 	if neg && un > 1<<63 {
-		return -1<<63, os.ERANGE
+		return -1<<63, &NumError{s, os.ERANGE}
 	}
 	n := int64(un);
 	if neg {
@@ -136,14 +165,12 @@ func Atoi64(s string) (i int64, err os.Error) {
 // Atoui is like Atoui64 but returns its result as a uint.
 func Atoui(s string) (i uint, err os.Error) {
 	i1, e1 := Atoui64(s);
-	if e1 != nil && e1 != os.ERANGE {
+	if e1 != nil && e1.(*NumError).Error != os.ERANGE {
 		return 0, e1
 	}
 	i = uint(i1);
 	if uint64(i) != i1 {
-		// TODO: return uint(^0), os.ERANGE.
-		i1 = 1<<64-1;
-		return uint(i1), os.ERANGE
+		return ^uint(0), &NumError{s, os.ERANGE}
 	}
 	return i, nil
 }
@@ -151,15 +178,15 @@ func Atoui(s string) (i uint, err os.Error) {
 // Atoi is like Atoi64 but returns its result as an int.
 func Atoi(s string) (i int, err os.Error) {
 	i1, e1 := Atoi64(s);
-	if e1 != nil && e1 != os.ERANGE {
+	if e1 != nil && e1.(*NumError).Error != os.ERANGE {
 		return 0, e1
 	}
 	i = int(i1);
 	if int64(i) != i1 {
 		if i1 < 0 {
-			return -1<<(intsize-1), os.ERANGE
+			return -1<<(intsize-1), &NumError{s, os.ERANGE}
 		}
-		return 1<<(intsize-1) - 1, os.ERANGE
+		return 1<<(intsize-1) - 1, &NumError{s, os.ERANGE}
 	}
 	return i, nil
 }

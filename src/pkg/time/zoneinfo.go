@@ -21,14 +21,6 @@ const (
 	zoneDir = "/usr/share/zoneinfo/";
 )
 
-// Errors that can be generated recovering time zone information.
-type TimeZoneError struct {
-	os.ErrorString
-}
-
-var errShort = TimeZoneError{ "time: short zone file" }
-var errInvalid = TimeZoneError{ "time: invalid zone file" }
-
 // Simple I/O interface to binary blob of data.
 type data struct {
 	p []byte;
@@ -89,18 +81,18 @@ type zonetime struct {
 	isstd, isutc bool;	// ignored - no idea what these mean
 }
 
-func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	d := data{bytes, false};
 
 	// 4-byte magic "TZif"
 	if magic := d.read(4); string(magic) != "TZif" {
-		return nil, TimeZoneError{ "time: bad zone magic" }
+		return nil, false
 	}
 
 	// 1-byte version, then 15 bytes of padding
 	var p []byte;
 	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
-		return nil, TimeZoneError { "time: bad zone file version" }
+		return nil, false
 	}
 	vers := p[0];
 
@@ -123,7 +115,7 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 	for i := 0; i < 6; i++ {
 		nn, ok := d.big4();
 		if !ok {
-			return nil, errShort
+			return nil, false
 		}
 		n[i] = int(nn);
 	}
@@ -152,7 +144,7 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 	isutc := d.read(n[NUTCLocal]);
 
 	if d.error {	// ran out of data
-		return nil, errShort
+		return nil, false
 	}
 
 	// If version == 2, the entire file repeats, this time using
@@ -167,16 +159,16 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 		var ok bool;
 		var n uint32;
 		if n, ok = zonedata.big4(); !ok {
-			return nil, errShort
+			return nil, false
 		}
 		z[i].utcoff = int(n);
 		var b byte;
 		if b, ok = zonedata.byte(); !ok {
-			return nil, errShort
+			return nil, false
 		}
 		z[i].isdst = b != 0;
 		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
-			return nil, errInvalid
+			return nil, false
 		}
 		z[i].name = byteString(abbrev[b:len(abbrev)])
 	}
@@ -187,11 +179,11 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 		var ok bool;
 		var n uint32;
 		if n, ok = txtimes.big4(); !ok {
-			return nil, errShort
+			return nil, false
 		}
 		zt[i].time = int32(n);
 		if int(txzones[i]) >= len(z) {
-			return nil, errInvalid
+			return nil, false
 		}
 		zt[i].zone = &z[txzones[i]];
 		if i < len(isstd) {
@@ -201,29 +193,18 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
 			zt[i].isutc = isutc[i] != 0
 		}
 	}
-	return zt, nil
+	return zt, true
 }
 
-func readinfofile(name string) ([]zonetime, os.Error) {
+func readinfofile(name string) ([]zonetime, bool) {
 	buf, err := io.ReadFile(name);
 	if err != nil {
-		goto Error;
+		return nil, false
 	}
-	tx, err := parseinfo(buf);
-	if err != nil {
-		goto Error;
-	}
-	return tx, nil;
-
-Error:
-	if tzerr, ok := err.(TimeZoneError); ok {
-		tzerr.ErrorString = os.ErrorString(tzerr.String() + ": " + name)
-	}
-	return nil, err
+	return parseinfo(buf);
 }
 
 var zones []zonetime
-var zoneerr os.Error
 
 func setupZone() {
 	// consult $TZ to find the time zone to use.
@@ -232,23 +213,21 @@ func setupZone() {
 	// $TZ="foo" means use /usr/share/zoneinfo/foo.
 
 	tz, err := os.Getenv("TZ");
-	var file string;
+	var ok bool;
 	switch {
 	case err == os.ENOENV:
-		zones, zoneerr = readinfofile("/etc/localtime");
-	case err != nil:
-		zoneerr = err;
+		zones, ok = readinfofile("/etc/localtime");
 	case len(tz) > 0:
-		zones, zoneerr = readinfofile(zoneDir + tz);
+		zones, ok = readinfofile(zoneDir + tz);
 	case len(tz) == 0:
 		// do nothing: use UTC
 	}
 }
 
-func lookupTimezone(sec int64) (zone string, offset int, err os.Error) {
+func lookupTimezone(sec int64) (zone string, offset int) {
 	once.Do(setupZone);
-	if zoneerr != nil || len(zones) == 0 {
-		return "UTC", 0, zoneerr
+	if len(zones) == 0 {
+		return "UTC", 0
 	}
 
 	// Binary search for entry with largest time <= sec
@@ -262,5 +241,5 @@ func lookupTimezone(sec int64) (zone string, offset int, err os.Error) {
 		}
 	}
 	z := tz[0].zone;
-	return z.name, z.utcoff, nil
+	return z.name, z.utcoff
 }

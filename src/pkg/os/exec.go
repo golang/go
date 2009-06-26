@@ -30,7 +30,10 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File
 	}
 
 	p, e := syscall.ForkExec(argv0, argv, envv, dir, intfd);
-	return int(p), ErrnoToError(e);
+	if e != 0 {
+		return 0, &PathError{"fork/exec", argv0, Errno(e)};
+	}
+	return p, nil;
 }
 
 // Exec replaces the current process with an execution of the program
@@ -42,7 +45,10 @@ func Exec(argv0 string, argv []string, envv []string) Error {
 		envv = Environ();
 	}
 	e := syscall.Exec(argv0, argv, envv);
-	return ErrnoToError(e);
+	if e != 0 {
+		return &PathError{"exec", argv0, Errno(e)};
+	}
+	return nil;
 }
 
 // TODO(rsc): Should os implement its own syscall.WaitStatus
@@ -79,10 +85,10 @@ func Wait(pid int, options int) (w *Waitmsg, err Error) {
 	}
 	pid1, e := syscall.Wait4(pid, &status, options, rusage);
 	if e != 0 {
-		return nil, ErrnoToError(e);
+		return nil, NewSyscallError("wait", e);
 	}
 	w = new(Waitmsg);
-	w.Pid = pid;
+	w.Pid = pid1;
 	w.WaitStatus = status;
 	w.Rusage = rusage;
 	return w, nil;

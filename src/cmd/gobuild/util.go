@@ -290,8 +290,8 @@ func RemoveAll(name string) {
 	if err != nil {
 		fatal("run /bin/rm: %v", err);
 	}
-	w, err1 := p.Wait(0);
-	if err1 != nil {
+	w, err := p.Wait(0);
+	if err != nil {
 		fatal("wait /bin/rm: %v", err);
 	}
 	if !w.Exited() || w.ExitStatus() != 0 {

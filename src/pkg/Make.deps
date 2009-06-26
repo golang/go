@@ -1,14 +1,14 @@
 archive/tar.install: bufio.install bytes.install io.install os.install strconv.install
 base64.install: bytes.install io.install os.install strconv.install
 bignum.install: fmt.install
-bufio.install: io.install os.install utf8.install
+bufio.install: io.install os.install strconv.install utf8.install
 bytes.install: utf8.install
 compress/flate.install: bufio.install io.install os.install strconv.install
 compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
 container/list.install:
 container/vector.install:
-crypto/aes.install: os.install
-crypto/block.install: fmt.install io.install os.install
+crypto/aes.install: os.install strconv.install
+crypto/block.install: fmt.install io.install os.install strconv.install
 crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.install
 crypto/md5.install: hash.install os.install
 crypto/sha1.install: hash.install os.install
@@ -26,7 +26,7 @@ go/token.install: strconv.install
 hash.install: io.install
 hash/adler32.install: hash.install os.install
 hash/crc32.install: hash.install os.install
-http.install: bufio.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
+http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
 io.install: bytes.install os.install sync.install
 json.install: container/vector.install fmt.install io.install math.install reflect.install strconv.install strings.install utf8.install
 log.install: fmt.install io.install os.install runtime.install time.install

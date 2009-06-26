@@ -17,7 +17,7 @@ import (
 func Time() (sec int64, nsec int64, err Error) {
 	var tv syscall.Timeval;
 	if errno := syscall.Gettimeofday(&tv); errno != 0 {
-		return 0, 0, ErrnoToError(errno)
+		return 0, 0, NewSyscallError("gettimeofday", errno);
 	}
 	return int64(tv.Sec), int64(tv.Usec)*1000, err;
 }

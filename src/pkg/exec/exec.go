@@ -140,8 +140,8 @@ Error:
 // other options cause Wait to return for other
 // process events; see package os for details.
 func (p *Cmd) Wait(options int) (*os.Waitmsg, os.Error) {
-	if p.Pid < 0 {
-		return nil, os.EINVAL;
+	if p.Pid <= 0 {
+		return nil, os.ErrorString("exec: invalid use of Cmd.Wait");
 	}
 	w, err := os.Wait(p.Pid, options);
 	if w != nil && (w.Exited() || w.Signaled()) {
@@ -154,7 +154,7 @@ func (p *Cmd) Wait(options int) (*os.Waitmsg, os.Error) {
 // if it hasn't already, and then closes the non-nil file descriptors
 // p.Stdin, p.Stdout, and p.Stderr.
 func (p *Cmd) Close() os.Error {
-	if p.Pid >= 0 {
+	if p.Pid > 0 {
 		// Loop on interrupt, but
 		// ignore other errors -- maybe
 		// caller has already waited for pid.

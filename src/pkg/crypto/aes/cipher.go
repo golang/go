@@ -7,6 +7,7 @@ package aes
 import (
 	"crypto/aes";
 	"os";
+	"strconv";
 )
 
 // The AES block size in bytes.
@@ -18,19 +19,25 @@ type Cipher struct {
 	dec []uint32;
 }
 
+type KeySizeError int
+func (k KeySizeError) String() string {
+	return "crypto/aes: invalid key size " + strconv.Itoa(int(k));
+}
+
 // NewCipher creates and returns a new Cipher.
 // The key argument should be the AES key,
 // either 16, 24, or 32 bytes to select
 // AES-128, AES-192, or AES-256.
 func NewCipher(key []byte) (*Cipher, os.Error) {
-	switch len(key) {
+	k := len(key);
+	switch k {
 	default:
-		return nil, os.ErrorString("crypto/aes: invalid key size");
+		return nil, KeySizeError(k);
 	case 16, 24, 32:
 		break;
 	}
 
-	n := len(key) + 28;
+	n := k + 28;
 	c := &Cipher{make([]uint32, n), make([]uint32, n)};
 	expandKey(key, c.enc, c.dec);
 	return c, nil;

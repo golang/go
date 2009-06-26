@@ -30,15 +30,6 @@ func (e Errno) String() string {
 	return syscall.Errstr(int(e))
 }
 
-// ErrnoToError converts errno to an Error (underneath, an Errno).
-// It returns nil for the "no error" errno.
-func ErrnoToError(errno int) Error {
-	if errno == 0 {
-		return nil
-	}
-	return Errno(errno)
-}
-
 // Commonly known Unix errors.
 var (
 	EPERM Error = Errno(syscall.EPERM);
@@ -81,3 +72,33 @@ var (
 	ENAMETOOLONG Error = Errno(syscall.ENAMETOOLONG);
 )
 
+// PathError records an error and the operation and file path that caused it.
+type PathError struct {
+	Op string;
+	Path string;
+	Error Error;
+}
+
+func (e *PathError) String() string {
+	return e.Op + " " + e.Path + ": " + e.Error.String();
+}
+
+// SyscallError records an error from a specific system call.
+type SyscallError struct {
+	Syscall string;
+	Errno Errno;
+}
+
+func (e *SyscallError) String() string {
+	return e.Syscall + ": " + e.Errno.String();
+}
+
+// NewSyscallError returns, as an os.Error, a new SyscallError
+// with the given system call name and error number.
+// As a convenience, if errno is 0, NewSyscallError returns nil.
+func NewSyscallError(syscall string, errno int) os.Error {
+	if errno == 0 {
+		return nil;
+	}
+	return &SyscallError{syscall, Errno(errno)}
+}

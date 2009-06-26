@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// DNS packet assembly.
+// DNS packet assembly.  See RFC 1035.
 //
 // This is intended to support name resolution during net.Dial.
 // It doesn't have to be blazing fast.
@@ -25,6 +25,7 @@ package net
 
 import (
 	"fmt";
+	"net";
 	"os";
 	"reflect";
 )
@@ -464,7 +465,7 @@ func printStructValue(val reflect.StructValue) string {
 			s += printStructValue(fld.(reflect.StructValue));
 		case kind == reflect.Uint32Kind && tag == "ipv4":
 			i := fld.(reflect.Uint32Value).Get();
-			s += fmt.Sprintf("%d.%d.%d.%d", (i>>24)&0xFF, (i>>16)&0xFF, (i>>8)&0xFF, i&0xFF);
+			s += IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i)).String();
 		default:
 			s += fmt.Sprint(fld.Interface())
 		}

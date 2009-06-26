@@ -47,10 +47,10 @@ func readdirnames(file *File, count int) (names []string, err Error) {
 		if d.bufp >= d.nbuf {
 			var errno int;
 			d.nbuf, errno = syscall.Getdents(file.fd, d.buf);
-			if d.nbuf < 0 {
-				return names, ErrnoToError(errno)
+			if errno != 0 {
+				return names, NewSyscallError("getdents", errno)
 			}
-			if d.nbuf == 0 {
+			if d.nbuf <= 0 {
 				break	// EOF
 			}
 			d.bufp = 0;

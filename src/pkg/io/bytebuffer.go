@@ -113,7 +113,7 @@ func (b *ByteBuffer) ReadByte() (c byte, err os.Error) {
 	if b.off >= len(b.buf) {
 		return 0, os.EOF;
 	}
-        c = b.buf[b.off];
+	c = b.buf[b.off];
 	b.off++;
 	return c, nil;
 }

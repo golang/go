@@ -549,3 +549,41 @@ func TestSeek(t *testing.T) {
 	}
 	f.Close();
 }
+
+type openErrorTest struct {
+	path string;
+	mode int;
+	error string;
+}
+
+var openErrorTests = []openErrorTest {
+	openErrorTest {
+		"/etc/no-such-file",
+		O_RDONLY,
+		"open /etc/no-such-file: no such file or directory",
+	},
+	openErrorTest {
+		"/etc",
+		O_WRONLY,
+		"open /etc: is a directory",
+	},
+	openErrorTest {
+		"/etc/passwd/group",
+		O_WRONLY,
+		"open /etc/passwd/group: not a directory",
+	},
+}
+
+func TestOpenError(t *testing.T) {
+	for i, tt := range openErrorTests {
+		f, err := Open(tt.path, tt.mode, 0);
+		if err == nil {
+			t.Errorf("Open(%q, %d) succeeded", tt.path, tt.mode);
+			f.Close();
+			continue;
+		}
+		if s := err.String(); s != tt.error {
+			t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, s, tt.error);
+		}
+	}
+}

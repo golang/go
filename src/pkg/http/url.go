@@ -9,12 +9,19 @@ package http
 
 import (
 	"os";
-	"strings"
+	"strconv";
+	"strings";
 )
 
-// Errors introduced by ParseURL.
-type BadURL struct {
-	os.ErrorString
+// URLError reports an error and the operation and URL that caused it.
+type URLError struct {
+	Op string;
+	URL string;
+	Error os.Error;
+}
+
+func (e *URLError) String() string {
+	return e.Op + " " + e.URL + ": " + e.Error.String();
 }
 
 func ishex(c byte) bool {
@@ -41,6 +48,11 @@ func unhex(c byte) byte {
 	return 0
 }
 
+type URLEscapeError string
+func (e URLEscapeError) String() string {
+	return "invalid URL escape " + strconv.Quote(string(e));
+}
+
 // Return true if the specified character should be escaped when appearing in a
 // URL string.
 //
@@ -56,7 +68,7 @@ func shouldEscape(c byte) bool {
 
 // URLUnescape unescapes a URL-encoded string,
 // converting %AB into the byte 0xAB and '+' into ' ' (space).
-// It returns a BadURL error if any % is not followed
+// It returns an error if any % is not followed
 // by two hexadecimal digits.
 func URLUnescape(s string) (string, os.Error) {
 	// Count %, check that they're well-formed.
@@ -67,7 +79,11 @@ func URLUnescape(s string) (string, os.Error) {
 		case '%':
 			n++;
 			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
-				return "", BadURL{"invalid hexadecimal escape"}
+				s = s[i:len(s)];
+				if len(s) > 3 {
+					s = s[0:3];
+				}
+				return "", URLEscapeError(s);
 			}
 			i += 3;
 		case '+':
@@ -124,18 +140,18 @@ func URLEscape(s string) string {
 	t := make([]byte, len(s)+2*hexCount);
 	j := 0;
 	for i := 0; i < len(s); i++ {
-		c := s[i];
-		if !shouldEscape(c) {
-			t[j] = s[i];
-			j++;
-		} else if c == ' ' {
+		switch c := s[i]; {
+		case c == ' ':
 			t[j] = '+';
 			j++;
-		} else {
+		case shouldEscape(c):
 			t[j] = '%';
 			t[j+1] = "0123456789abcdef"[c>>4];
 			t[j+2] = "0123456789abcdef"[c&15];
 			j += 3;
+		default:
+			t[j] = s[i];
+			j++;
 		}
 	}
 	return string(t);
@@ -177,7 +193,7 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
 			}
 		case c == ':':
 			if i == 0 {
-				return "", "", BadURL{"missing protocol scheme"}
+				return "", "", os.ErrorString("missing protocol scheme")
 			}
 			return rawurl[0:i], rawurl[i+1:len(rawurl)], nil
 		default:
@@ -204,15 +220,21 @@ func split(s string, c byte, cutc bool) (string, string) {
 	return s, ""
 }
 
+// TODO(rsc): The BUG comment is supposed to appear in the godoc output
+// in a BUGS section, but that got lost in the transition to godoc.
+
 // BUG(rsc): ParseURL should canonicalize the path,
 // removing unnecessary . and .. elements.
+
+
 
 // ParseURL parses rawurl into a URL structure.
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
 func ParseURL(rawurl string) (url *URL, err os.Error) {
 	if rawurl == "" {
-		return nil, BadURL{"empty url"}
+		err = os.ErrorString("empty url");
+		goto Error;
 	}
 	url = new(URL);
 	url.Raw = rawurl;
@@ -220,7 +242,7 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 	// split off possible leading "http:", "mailto:", etc.
 	var path string;
 	if url.Scheme, path, err = getscheme(rawurl); err != nil {
-		return nil, err
+		goto Error;
 	}
 	url.RawPath = path;
 
@@ -245,25 +267,31 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 	// What's left is the path.
 	// TODO: Canonicalize (remove . and ..)?
 	if url.Path, err = URLUnescape(path); err != nil {
-		return nil, err
+		goto Error;
 	}
 
 	// Remove escapes from the Authority and Userinfo fields, and verify
 	// that Scheme and Host contain no escapes (that would be illegal).
 	if url.Authority, err = URLUnescape(url.Authority); err != nil {
-		return nil, err
+		goto Error;
 	}
 	if url.Userinfo, err = URLUnescape(url.Userinfo); err != nil {
-		return nil, err
+		goto Error;
 	}
 	if strings.Index(url.Scheme, "%") >= 0 {
-		return nil, BadURL{"hexadecimal escape in scheme"}
+		err = os.ErrorString("hexadecimal escape in scheme");
+		goto Error;
 	}
 	if strings.Index(url.Host, "%") >= 0 {
-		return nil, BadURL{"hexadecimal escape in host"}
+		err = os.ErrorString("hexadecimal escape in host");
+		goto Error;
 	}
 
-	return url, nil
+	return url, nil;
+
+Error:
+	return nil, &URLError{"parse", rawurl, err}
+
 }
 
 // ParseURLReference is like ParseURL but allows a trailing #fragment.
@@ -274,7 +302,7 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
 		return nil, err
 	}
 	if url.Fragment, err = URLUnescape(frag); err != nil {
-		return nil, err
+		return nil, &URLError{"parse", rawurl, err}
 	}
 	return url, nil
 }

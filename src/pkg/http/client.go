@@ -78,7 +78,7 @@ type readClose struct {
 // connections, it may no longer make sense to have a method with this signature.
 func send(req *Request) (resp *Response, err os.Error) {
 	if req.Url.Scheme != "http" {
-		return nil, os.ErrorString("Unsupported protocol: " + req.Url.Scheme);
+		return nil, &badStringError{"unsupported protocol scheme", req.Url.Scheme};
 	}
 
 	addr := req.Url.Host;
@@ -87,7 +87,7 @@ func send(req *Request) (resp *Response, err os.Error) {
 	}
 	conn, err := net.Dial("tcp", "", addr);
 	if err != nil {
-		return nil, os.ErrorString("Error dialing " + addr + ": " + err.String());
+		return nil, err;
 	}
 
 	// Close the connection if we encounter an error during header parsing.  We'll
@@ -110,12 +110,12 @@ func send(req *Request) (resp *Response, err os.Error) {
 	}
 	f := strings.Split(line, " ", 3);
 	if len(f) < 3 {
-		return nil, os.ErrorString(fmt.Sprintf("Invalid first line in HTTP response: %q", line));
+		return nil, &badStringError{"malformed HTTP response", line};
 	}
 	resp.Status = f[1] + " " + f[2];
 	resp.StatusCode, err = strconv.Atoi(f[1]);
 	if err != nil {
-		return nil, os.ErrorString(fmt.Sprintf("Invalid status code in HTTP response: %q", line));
+		return nil, &badStringError{"malformed HTTP status code", f[1]};
 	}
 
 	// Parse the response headers.
@@ -165,34 +165,36 @@ func shouldRedirect(statusCode int) bool {
 // URL unless redirects were followed.
 //
 // Caller should close r.Body when done reading it.
-func Get(url string) (r *Response, finalUrl string, err os.Error) {
+func Get(url string) (r *Response, finalURL string, err os.Error) {
 	// TODO: if/when we add cookie support, the redirected request shouldn't
 	// necessarily supply the same cookies as the original.
-	// TODO: adjust referrer header on redirects.
-	for redirectCount := 0; redirectCount < 10; redirectCount++ {
+	// TODO: set referrer header on redirects.
+	for redirect := 0;; redirect++ {
+		if redirect >= 10 {
+			err = os.ErrorString("stopped after 10 redirects");
+			break;
+		}
+
 		var req Request;
-		req.Url, err = ParseURL(url);
-		if err != nil {
-			return nil, url, err;
+		if req.Url, err = ParseURL(url); err != nil {
+			break;
 		}
-
-		r, err := send(&req);
-		if err != nil {
-			return nil, url, err;
+		if r, err = send(&req); err != nil {
+			break;
 		}
-
-		if !shouldRedirect(r.StatusCode) {
-			return r, url, nil;
+		if shouldRedirect(r.StatusCode) {
+			r.Body.Close();
+			if url = r.GetHeader("Location"); url == "" {
+				err = os.ErrorString(fmt.Sprintf("%d response missing Location header", r.StatusCode));
+				break;
+			}
 		}
-
-		r.Body.Close();
-		url := r.GetHeader("Location");
-		if url == "" {
-			return r, url, os.ErrorString("302 result with no Location header");
-		}
+		finalURL = url;
+		return;
 	}
 
-	return nil, url, os.ErrorString("Too many redirects");
+	err = &URLError{"Get", url, err};
+	return;
 }
 
 
