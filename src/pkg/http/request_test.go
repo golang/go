@@ -7,56 +7,66 @@ package http
 import (
 	"fmt";
 	"http";
+	"os";
 	"testing";
 )
 
 type stringMultimap map[string] []string
 
 type parseTest struct {
-	body string;
+	query string;
 	out stringMultimap;
 }
 
 var parseTests = []parseTest{
 	parseTest{
-		body: "a=1&b=2",
+		query: "a=1&b=2",
 		out: stringMultimap{ "a": []string{ "1" }, "b": []string{ "2" } },
 	},
 	parseTest{
-		body: "a=1&a=2&a=banana",
+		query: "a=1&a=2&a=banana",
 		out: stringMultimap{ "a": []string{ "1", "2", "banana" } },
 	},
 	parseTest{
-		body: "ascii=%3Ckey%3A+0x90%3E",
+		query: "ascii=%3Ckey%3A+0x90%3E",
 		out: stringMultimap{ "ascii": []string{ "<key: 0x90>" } },
 	},
 }
 
 func TestParseForm(t *testing.T) {
 	for i, test := range parseTests {
-		data, err := parseForm(test.body);
+		form, err := parseForm(test.query);
 		if err != nil {
 			t.Errorf("test %d: Unexpected error: %v", i, err);
 			continue
 		}
-		if dlen, olen := len(data), len(test.out); dlen != olen {
-			t.Errorf("test %d: Have %d keys, want %d keys", i, dlen, olen);
+		if len(form) != len(test.out) {
+			t.Errorf("test %d: len(form) = %d, want %d", i, len(form), len(test.out));
 		}
-		for k, vs := range test.out {
-			vec, ok := data[k];
+		for k, evs := range test.out {
+			vs, ok := form[k];
 			if !ok {
 				t.Errorf("test %d: Missing key %q", i, k);
 				continue
 			}
-			if dlen, olen := vec.Len(), len(vs); dlen != olen {
-				t.Errorf("test %d: key %q: Have %d keys, want %d keys", i, k, dlen, olen);
+			if len(vs) != len(evs) {
+				t.Errorf("test %d: len(form[%q]) = %d, want %d", i, k, len(vs), len(evs));
 				continue
 			}
-			for j, v := range vs {
-				if dv := vec.At(j); dv != v {
-					t.Errorf("test %d: key %q: val %d: Have %q, want %q", i, k, j, dv, v);
+			for j, ev := range evs {
+				if v := vs[j]; v != ev {
+					t.Errorf("test %d: form[%q][%d] = %q, want %q", i, k, j, v, ev);
 				}
 			}
 		}
+	}
+}
+
+func TestQuery(t *testing.T) {
+	var err os.Error;
+	req := &Request{ Method: "GET" };
+	req.Url, err = ParseURL("http://www.google.com/search?q=foo&q=bar");
+	if q := req.FormValue("q"); q != "foo" {
+		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q);
 	}
 }

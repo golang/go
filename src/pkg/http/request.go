@@ -103,8 +103,8 @@ type Request struct {
 	// The User-Agent: header string, if sent in the request.
 	UserAgent string;
 
-	// The parsed form data. Only available after ParseForm is called.
-	FormData map[string] *vector.StringVector
+	// The parsed form. Only available after ParseForm is called.
+	Form map[string] []string;
 
 }
 
@@ -581,9 +581,9 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	return req, nil
 }
 
-func parseForm(body string) (data map[string] *vector.StringVector, err os.Error) {
-	data = make(map[string] *vector.StringVector);
-	for _, kv := range strings.Split(body, "&", 0) {
+func parseForm(query string) (m map[string] []string, err os.Error) {
+	data := make(map[string] *vector.StringVector);
+	for _, kv := range strings.Split(query, "&", 0) {
 		kvPair := strings.Split(kv, "=", 2);
 
 		var key, value string;
@@ -593,7 +593,7 @@ func parseForm(body string) (data map[string] *vector.StringVector, err os.Error
 			value, e = URLUnescape(kvPair[1]);
 		}
 		if e != nil {
-			err := e;
+			err = e;
 		}
 
 		vec, ok := data[key];
@@ -603,26 +603,56 @@ func parseForm(body string) (data map[string] *vector.StringVector, err os.Error
 		}
 		vec.Push(value);
 	}
+
+	m = make(map[string] []string);
+	for k, vec := range data {
+		m[k] = vec.Data();
+	}
+
 	return
 }
 
-// ParseForm parses the request body as a form.
-// TODO(dsymonds): Parse r.Url.RawQuery instead for GET requests.
+// ParseForm parses the request body as a form for POST requests, or the raw query for GET requests.
+// It is idempotent.
 func (r *Request) ParseForm() (err os.Error) {
-	if r.Body == nil {
-		return os.ErrorString("missing form body");
+	if r.Form != nil {
+		return
 	}
-	ct, ok := r.Header["Content-Type"];
-	if !ok {
-		ct = "application/x-www-form-urlencoded";  // default
+
+	var query string;
+
+	switch r.Method {
+	case "GET":
+		query = r.Url.RawQuery;
+	case "POST":
+		if r.Body == nil {
+			return os.ErrorString("missing form body")
+		}
+		ct, _ := r.Header["Content-Type"];
+		switch ct {
+		case "text/plain", "application/x-www-form-urlencoded", "":
+			var b []byte;
+			if b, err = io.ReadAll(r.Body); err != nil {
+				return
+			}
+			query = string(b);
+		// TODO(dsymonds): Handle multipart/form-data
+		default:
+			return &badStringError{"unknown Content-Type", ct}
+		}
 	}
-	switch ct {
-	case "text/plain", "application/x-www-form-urlencoded":
-		buf := new(io.ByteBuffer);
-		io.Copy(r.Body, buf);
-		r.FormData, err = parseForm(string(buf.Data()));
-		return err
-	// TODO(dsymonds): Handle multipart/form-data
+	r.Form, err = parseForm(query);
+	return
+}
+
+// FormValue returns the first value for the named component of the query.
+// FormValue calls ParseForm if necessary.
+func (r *Request) FormValue(key string) string {
+	if r.Form == nil {
+		r.ParseForm();
 	}
-	return &badStringError{"unknown Content-Type", ct};
+	if vs, ok := r.Form[key]; ok && len(vs) > 0 {
+		return vs[0]
+	}
+	return ""
 }
