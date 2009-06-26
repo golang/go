@@ -200,7 +200,8 @@ enum	as
 #define C_SCOND_LT	11
 #define C_SCOND_GT	12
 #define C_SCOND_LE	13
-#define C_SCOND_N	15
+#define C_SCOND_NONE	14
+#define C_SCOND_NV	15
 
 /* type/name */
 #define	D_GOK	0
