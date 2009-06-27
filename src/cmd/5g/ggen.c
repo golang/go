@@ -370,10 +370,6 @@ cgen_asop(Node *n)
 	case OOR:
 		a = optoas(n->etype, nl->type);
 		if(nl->addable) {
-			if(smallintconst(nr)) {
-				gins(a, nr, nl);
-				goto ret;
-			}
 			regalloc(&n2, nr->type, N);
 			cgen(nr, &n2);
 			gins(a, &n2, nl);
@@ -382,12 +378,6 @@ cgen_asop(Node *n)
 		}
 		if(nr->ullman < UINF)
 		if(sudoaddable(a, nl, &addr)) {
-			if(smallintconst(nr)) {
-				p1 = gins(a, nr, N);
-				p1->to = addr;
-				sudoclean();
-				goto ret;
-			}
 			regalloc(&n2, nr->type, N);
 			cgen(nr, &n2);
 			p1 = gins(a, &n2, N);

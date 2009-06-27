@@ -1017,6 +1017,25 @@ gins(int as, Node *f, Node *t)
 }
 
 /*
+ * insert n into reg slot of p
+ */
+void
+raddr(Node *n, Prog *p)
+{
+	Addr a;
+
+	naddr(n, &a);
+	if(a.type != D_REG && a.type != D_FREG) {
+		if(n)
+			fatal("bad in raddr: %O", n->op);
+		else
+			fatal("bad in raddr: <null>");
+		p->reg = NREG;
+	} else
+		p->reg = a.reg;
+}
+
+/*
  * generate code to compute n;
  * make a refer to result.
  */
@@ -1035,7 +1054,7 @@ naddr(Node *n, Addr *a)
 		break;
 
 	case OREGISTER:
-		a->type = D_OREG;
+		a->type = D_REG;
 		if (n->val.u.reg <= REGALLOC_RMAX)
 			a->reg = n->val.u.reg;
 		else
