@@ -14,7 +14,7 @@ cgen(Node *n, Node *res)
 {
 	Node *nl, *nr, *r;
 	Node n1, n2;
-	int a, f;
+	int a;
 	Prog *p1, *p2, *p3;
 	Addr addr;
 
@@ -68,20 +68,9 @@ cgen(Node *n, Node *res)
 		if(res->ullman >= UINF)
 			goto gen;
 
-		f = 1;	// gen thru register
-		switch(n->op) {
-		case OLITERAL:
-			if(smallintconst(n))
-				f = 0;
-			break;
-		case OREGISTER:
-			f = 0;
-			break;
-		}
-
 		a = optoas(OAS, res->type);
 		if(sudoaddable(a, res, &addr)) {
-			if(f) {
+			if(n->op != OREGISTER) {
 				regalloc(&n2, res->type, N);
 				cgen(n, &n2);
 				p1 = gins(a, &n2, N);
@@ -224,7 +213,8 @@ cgen(Node *n, Node *res)
 			cgen(nl, &n1);
 
 			nodconst(&n2, types[tptr], 0);
-			gins(optoas(OCMP, types[tptr]), &n1, &n2);
+			p1 = gins(optoas(OCMP, types[tptr]), &n1, N);
+			raddr(&n2, p1);
 			p1 = gbranch(optoas(OEQ, types[tptr]), T);
 
 			n2 = n1;
@@ -601,7 +591,7 @@ bgen(Node *n, int true, Prog *to)
 {
 	int et, a;
 	Node *nl, *nr, *r;
-	Node n1, n2, tmp;
+	Node n1, n2, n3, tmp;
 	Prog *p1, *p2;
 
 	if(debug['g']) {
@@ -635,12 +625,16 @@ bgen(Node *n, int true, Prog *to)
 		regalloc(&n1, n->type, N);
 		cgen(n, &n1);
 		nodconst(&n2, n->type, 0);
-		gins(optoas(OCMP, n->type), &n1, &n2);
-		 a = ABNE;
+		regalloc(&n3, n->type, N);
+		cgen(&n2, &n3);
+		p1 = gins(optoas(OCMP, n->type), &n1, N);
+		raddr(&n3, p1);
+		a = ABNE;
 		if(!true)
 			a = ABEQ;
 		patch(gbranch(a, n->type), to);
 		regfree(&n1);
+		regfree(&n3);
 		goto ret;
 
 	case OLITERAL:
@@ -770,17 +764,11 @@ bgen(Node *n, int true, Prog *to)
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);
 
-		if(smallintconst(nr)) {
-			gins(optoas(OCMP, nr->type), &n1, nr);
-			patch(gbranch(a, nr->type), to);
-			regfree(&n1);
-			break;
-		}
-
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
 
-		gins(optoas(OCMP, nr->type), &n1, &n2);
+		p1 = gins(optoas(OCMP, nr->type), &n1, N);
+		raddr(&n2, p1);
 		patch(gbranch(a, nr->type), to);
 
 		regfree(&n1);

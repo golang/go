@@ -100,6 +100,7 @@ void	sgen(Node*, Node*, int32);
 void	gmove(Node*, Node*);
 Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);
+void	raddr(Node *n, Prog *p);
 void	naddr(Node*, Addr*);
 void	cgen_aret(Node*, Node*);
 

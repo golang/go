@@ -39,6 +39,7 @@ listinit(void)
 	fmtinstall('P', Pconv);		// Prog*
 	fmtinstall('D', Dconv);		// Addr*
 	fmtinstall('Y', Yconv);		// sconst
+	fmtinstall('R', Rconv);		// register
 }
 
 int
@@ -196,5 +197,16 @@ Yconv(Fmt *fp)
 		*p++ = (c & 7) + '0';
 	}
 	*p = 0;
+	return fmtstrcpy(fp, str);
+}
+
+int
+Rconv(Fmt *fp)
+{
+	int r;
+	char str[30];
+
+	r = va_arg(fp->args, int);
+	snprint(str, sizeof(str), "R%d", r);
 	return fmtstrcpy(fp, str);
 }
