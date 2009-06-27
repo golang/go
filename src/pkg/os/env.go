@@ -29,9 +29,9 @@ func copyenv() {
 	}
 }
 
-// Getenv retrieves the value of the environment variable named by the key.
+// Getenverror retrieves the value of the environment variable named by the key.
 // It returns the value and an error, if any.
-func Getenv(key string) (value string, err Error) {
+func Getenverror(key string) (value string, err Error) {
 	once.Do(copyenv);
 
 	if len(key) == 0 {
@@ -42,6 +42,13 @@ func Getenv(key string) (value string, err Error) {
 		return "", ENOENV;
 	}
 	return v, nil;
+}
+
+// Getenv retrieves the value of the environment variable named by the key.
+// It returns the value, which will be empty if the variable is not present.
+func Getenv(key string) string {
+	v, _ := Getenverror(key);
+	return v;
 }
 
 // Setenv sets the value of the environment variable named by the key.

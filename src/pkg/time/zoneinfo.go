@@ -212,7 +212,7 @@ func setupZone() {
 	// $TZ="" means use UTC.
 	// $TZ="foo" means use /usr/share/zoneinfo/foo.
 
-	tz, err := os.Getenv("TZ");
+	tz, err := os.Getenverror("TZ");
 	var ok bool;
 	switch {
 	case err == os.ENOENV:

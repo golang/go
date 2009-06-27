@@ -28,7 +28,7 @@ func Getwd() (string, Error) {
 
 	// Clumsy but widespread kludge:
 	// if $PWD is set and matches ".", use it.
-	pwd, _ := Getenv("PWD");
+	pwd:= Getenv("PWD");
 	if len(pwd) > 0 && pwd[0] == '/' {
 		d, err := Stat(pwd);
 		if err == nil && d.Dev == dot.Dev && d.Ino == dot.Ino {
