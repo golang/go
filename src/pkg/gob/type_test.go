@@ -118,14 +118,15 @@ type Foo struct {
 	d *float;	// will become float32
 	e ****float64;	// will become float64
 	f *Bar;
-	g *Foo;	// will not explode
+	g *Bar;	// should not interpolate the definition of Bar again
+	h *Foo;	// will not explode
 }
 
 func TestStructType(t *testing.T) {
 	sstruct := GetType("Foo", Foo{});
 	str := sstruct.String();
 	// If we can print it correctly, we built it correctly.
-	expected := "struct { a int; b int; c string; d float32; e float64; f struct { x string; }; g Foo; }";
+	expected := "Foo = struct { a int; b int; c string; d float32; e float64; f Bar = struct { x string; }; g Bar; h Foo; }";
 	if str != expected {
 		t.Errorf("struct printed as %q; expected %q", str, expected);
 	}
