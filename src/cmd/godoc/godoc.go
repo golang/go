@@ -97,9 +97,8 @@ var (
 
 
 func init() {
-	var err os.Error;
-	goroot, err = os.Getenv("GOROOT");
-	if err != nil {
+	goroot = os.Getenv("GOROOT");
+	if goroot != "" {
 		goroot = "/home/r/go-release/go";
 	}
 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");

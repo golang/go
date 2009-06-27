@@ -208,12 +208,7 @@ func LookPath(file string) (string, os.Error) {
 		}
 		return "", os.ENOENT;
 	}
-	pathenv, err := os.Getenv("PATH");
-	if err != nil {
-		// Unix shell semantics: no $PATH means assume PATH=""
-		// (equivalent to PATH=".").
-		pathenv = "";
-	}
+	pathenv := os.Getenv("PATH");
 	for i, dir := range strings.Split(pathenv, ":", 0) {
 		if dir == "" {
 			// Unix shell semantics: path element "" means "."

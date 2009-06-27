@@ -45,9 +45,8 @@ func fatal(format string, args ...) {
 }
 
 func init() {
-	var err os.Error;
-	goarch, err = os.Getenv("GOARCH");
-	goos, err = os.Getenv("GOOS");
+	goarch = os.Getenv("GOARCH");
+	goos = os.Getenv("GOOS");
 
 	var ok bool;
 	theChar, ok = theChars[goarch];
@@ -64,7 +63,7 @@ func init() {
 
 	for i, v := range binaries {
 		var s string;
-		if s, err = exec.LookPath(v); err != nil {
+		if s, err := exec.LookPath(v); err != nil {
 			fatal("cannot find binary %s", v);
 		}
 		bin[v] = s;

@@ -9,7 +9,7 @@ package main
 import os "os"
 
 func main() {
-	ga, e0 := os.Getenv("GOARCH");
+	ga, e0 := os.Getenverror("GOARCH");
 	if e0 != nil {
 		print("$GOARCH: ", e0.String(), "\n");
 		os.Exit(1);
@@ -18,7 +18,7 @@ func main() {
 		print("$GOARCH=", ga, "\n");
 		os.Exit(1);
 	}
-	xxx, e1 := os.Getenv("DOES_NOT_EXIST");
+	xxx, e1 := os.Getenverror("DOES_NOT_EXIST");
 	if e1 != os.ENOENV {
 		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.String(), "\n");
 		os.Exit(1);
