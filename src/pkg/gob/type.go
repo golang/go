@@ -8,7 +8,9 @@ import (
 	"fmt";
 	"os";
 	"reflect";
+	"strings";
 	"sync";
+	"unicode";
 )
 
 var id	uint32	// incremented for each new type we build
@@ -119,7 +121,7 @@ func (s *structType) safeString(seen map[uint32] bool) string {
 		return s.name
 	}
 	seen[s._id] = true;
-	str := "struct { ";
+	str := s.name + " = struct { ";
 	for _, f := range s.field {
 		str += fmt.Sprintf("%s %s; ", f.name, f.typ.safeString(seen));
 	}
@@ -170,8 +172,15 @@ func newTypeObject(name string, rt reflect.Type) Type {
 		st := rt.(reflect.StructType);
 		field := make([]*fieldType, st.Len());
 		for i := 0; i < st.Len(); i++ {
-			name, typ, tag, offset := st.Field(i);
-			field[i] =  &fieldType{ name, newType("", typ) };
+			name, typ, _tag, _offset := st.Field(i);
+			// Find trailing name in type, e.g. from "*gob.Bar" want "Bar", which
+			// is defined as the word after the period (there is at most one period).
+			typestring := typ.String();
+			period := strings.Index(typestring, ".");
+			if period >= 0 {
+				typestring = typestring[period+1:len(typestring)]
+			}
+			field[i] =  &fieldType{ name, newType(typestring, typ) };
 		}
 		strType.field = field;
 		return strType;
