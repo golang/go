@@ -383,8 +383,6 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
 // Recvfrom
 // Sendmsg
 // Recvmsg
-// Getsockname
-// Getpeername
 // Socketpair
 // Getsockopt
 
