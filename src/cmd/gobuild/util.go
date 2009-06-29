@@ -63,7 +63,8 @@ func init() {
 
 	for i, v := range binaries {
 		var s string;
-		if s, err := exec.LookPath(v); err != nil {
+		var err os.Error;
+		if s, err = exec.LookPath(v); err != nil {
 			fatal("cannot find binary %s", v);
 		}
 		bin[v] = s;
@@ -101,6 +102,7 @@ func run(argv []string, flag int) (ok bool) {
 	defer r.Close();
 	w.Close();
 	if err != nil {
+		fmt.Fprintln(os.Stderr, err);
 		return false;
 	}
 
@@ -123,6 +125,7 @@ func run(argv []string, flag int) (ok bool) {
 	}
 	waitmsg, err := os.Wait(pid, 0);
 	if err != nil {
+		fmt.Fprintln(os.Stderr, err);
 		return false;
 	}
 	return waitmsg.Exited() && waitmsg.ExitStatus() == 0;
