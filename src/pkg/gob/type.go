@@ -57,6 +57,7 @@ var tUint Type
 var tFloat32 Type
 var tFloat64 Type
 var tString Type
+var tBytes Type
 
 // Array type
 type arrayType struct {
@@ -157,9 +158,12 @@ func newTypeObject(name string, rt reflect.Type) Type {
 	case reflect.StringKind:
 		return tString
 	case reflect.ArrayKind:
-		// TODO(r): worth a special case for array of bytes?
 		at := rt.(reflect.ArrayType);
 		if at.IsSlice() {
+			// []byte == []uint8 is a special case
+			if at.Elem().Kind() == reflect.Uint8Kind {
+				return tBytes
+			}
 			return newSliceType(name, newType("", at.Elem()));
 		} else {
 			return newArrayType(name, newType("", at.Elem()), at.Len());
@@ -236,5 +240,7 @@ func init() {
 	tUint = bootstrapType("uint", uint(0));
 	tFloat32 = bootstrapType("float32", float32(0));
 	tFloat64 = bootstrapType("float64", float64(0));
+	// The string for tBytes is "bytes" not "[]byte" to signify its specialness.
+	tBytes = bootstrapType("bytes", make([]byte, 0));
 	tString= bootstrapType("string", "");
 }
