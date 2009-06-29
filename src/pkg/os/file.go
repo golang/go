@@ -257,18 +257,12 @@ func Lstat(name string) (dir *Dir, err Error) {
 	return dirFromStat(name, new(Dir), &stat, &stat), nil
 }
 
-// Readdirnames has a non-portable implemenation so its code is separated into an
-// operating-system-dependent file.
-func readdirnames(file *File, count int) (names []string, err Error)
-
 // Readdirnames reads the contents of the directory associated with file and
 // returns an array of up to count names, in directory order.  Subsequent
 // calls on the same file will yield further names.
 // A negative count means to read until EOF.
 // Readdirnames returns the array and an Error, if any.
-func (file *File) Readdirnames(count int) (names []string, err Error) {
-	return readdirnames(file, count);
-}
+func (file *File) Readdirnames(count int) (names []string, err Error)
 
 // Readdir reads the contents of the directory associated with file and
 // returns an array of up to count Dir structures, as would be returned
