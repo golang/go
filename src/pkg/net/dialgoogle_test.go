@@ -9,6 +9,7 @@ import (
 	"io";
 	"net";
 	"os";
+	"strings";
 	"syscall";
 	"testing";
 )
@@ -19,7 +20,7 @@ var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 // fd is already connected to the destination, port 80.
 // Run an HTTP request to fetch the appropriate page.
 func fetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
-	req := io.StringBytes("GET /intl/en/privacy.html HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
+	req := strings.Bytes("GET /intl/en/privacy.html HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
 	n, err := fd.Write(req);
 
 	buf := make([]byte, 1000);

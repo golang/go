@@ -202,3 +202,13 @@ func TrimSpaceASCII(s string) string {
 	}
 	return s[start:end];
 }
+
+// Bytes returns an array of the bytes in s.
+func Bytes(s string) []byte {
+	b := make([]byte, len(s));
+	for i := 0; i < len(s); i++ {
+		b[i] = s[i];
+	}
+	return b;
+}
+

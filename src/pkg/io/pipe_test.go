@@ -8,6 +8,7 @@ import (
 	"fmt";
 	"io";
 	"os";
+	"strings";
 	"testing";
 	"time";
 )
@@ -28,7 +29,7 @@ func TestPipe1(t *testing.T) {
 	c := make(chan int);
 	r, w := Pipe();
 	var buf = make([]byte, 64);
-	go checkWrite(t, w, StringBytes("hello, world"), c);
+	go checkWrite(t, w, strings.Bytes("hello, world"), c);
 	n, err := r.Read(buf);
 	if err != nil {
 		t.Errorf("read: %v", err);

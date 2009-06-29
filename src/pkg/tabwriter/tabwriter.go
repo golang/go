@@ -10,6 +10,7 @@
 package tabwriter
 
 import (
+	"bytes";
 	"container/vector";
 	"io";
 	"os";
@@ -69,7 +70,7 @@ type Writer struct {
 	flags uint;
 
 	// current state
-	buf io.ByteBuffer;  // collected text w/o tabs, newlines, or form feed chars
+	buf bytes.Buffer;  // collected text w/o tabs, newlines, or form feed chars
 	pos int;  // buffer position up to which width of incomplete cell has been computed
 	cell cell;  // current incomplete cell; cell.width is up to buf[pos] w/o ignored sections
 	html_char byte;  // terminating char of html tag/entity, or 0 ('>', ';', or 0)
@@ -436,7 +437,7 @@ func (b *Writer) Write(buf []byte) (written int, err os.Error) {
 				}
 
 			case '<', '&':
-				// possibly an html tag/entity 
+				// possibly an html tag/entity
 				if b.flags & FilterHTML != 0 {
 					// begin of tag/entity
 					b.append(buf[i0 : i], true);

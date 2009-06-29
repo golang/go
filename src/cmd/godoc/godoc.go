@@ -27,6 +27,7 @@
 package main
 
 import (
+	"bytes";
 	"container/vector";
 	"flag";
 	"fmt";
@@ -198,7 +199,7 @@ func parse(path string, mode uint) (*ast.Program, *parseErrors) {
 
 // Return text for an AST node.
 func nodeText(node interface{}, mode uint) []byte {
-	var buf io.ByteBuffer;
+	var buf bytes.Buffer;
 	tw := makeTabwriter(&buf);
 	printer.Fprint(tw, node, mode);
 	tw.Flush();
@@ -214,15 +215,15 @@ func toText(x interface{}) []byte {
 	case []byte:
 		return v;
 	case string:
-		return io.StringBytes(v);
+		return strings.Bytes(v);
 	case String:
-		return io.StringBytes(v.String());
+		return strings.Bytes(v.String());
 	case ast.Decl:
 		return nodeText(v, printer.ExportsOnly);
 	case ast.Expr:
 		return nodeText(v, printer.ExportsOnly);
 	}
-	var buf io.ByteBuffer;
+	var buf bytes.Buffer;
 	fmt.Fprint(&buf, x);
 	return buf.Data();
 }
@@ -315,7 +316,7 @@ func serveText(c *http.Conn, text []byte) {
 
 func serveParseErrors(c *http.Conn, errors *parseErrors) {
 	// format errors
-	var buf io.ByteBuffer;
+	var buf bytes.Buffer;
 	parseerrorHtml.Execute(errors, &buf);
 	servePage(c, errors.filename + " - Parse Errors", buf.Data());
 }
@@ -328,7 +329,7 @@ func serveGoSource(c *http.Conn, name string) {
 		return;
 	}
 
-	var buf io.ByteBuffer;
+	var buf bytes.Buffer;
 	fmt.Fprintln(&buf, "<pre>");
 	template.HtmlEscape(&buf, nodeText(prog, printer.DocComments));
 	fmt.Fprintln(&buf, "</pre>");
@@ -518,7 +519,7 @@ func servePkg(c *http.Conn, r *http.Request) {
 		return;
 	}
 
-	var buf io.ByteBuffer;
+	var buf bytes.Buffer;
 	if false {	// TODO req.Params["format"] == "text"
 		err := packageText.Execute(PageInfo{pdoc, dirs}, &buf);
 		if err != nil {
@@ -571,7 +572,7 @@ func exec(c *http.Conn, args []string) bool {
 		return false;
 	}
 
-	var buf io.ByteBuffer;
+	var buf bytes.Buffer;
 	io.Copy(r, &buf);
 	wait, err := os.Wait(pid, 0);
 	if err != nil {

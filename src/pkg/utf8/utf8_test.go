@@ -7,7 +7,7 @@ package utf8
 import (
 	"bytes";
 	"fmt";
-	"io";
+	"strings";
 	"testing";
 	"utf8";
 )
@@ -45,10 +45,10 @@ var utf8map = []Utf8Map {
 	Utf8Map{ 0x10ffff, "\xf4\x8f\xbf\xbf" },
 }
 
-// io.StringBytes with one extra byte at end
+// strings.Bytes with one extra byte at end
 func makeBytes(s string) []byte {
 	s += "\x00";
-	b := io.StringBytes(s);
+	b := strings.Bytes(s);
 	return b[0:len(s)-1];
 }
 

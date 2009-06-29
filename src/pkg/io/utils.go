@@ -7,14 +7,15 @@
 package io
 
 import (
+	"bytes";
 	"io";
 	"os";
 )
 
 // ReadAll reads from r until an error or EOF and returns the data it read.
 func ReadAll(r Reader) ([]byte, os.Error) {
-	var buf ByteBuffer;
-	n, err := io.Copy(r, &buf);
+	var buf bytes.Buffer;
+	n, err := Copy(r, &buf);
 	return buf.Data(), err;
 }
 

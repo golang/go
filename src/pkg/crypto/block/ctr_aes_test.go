@@ -11,6 +11,7 @@
 package block
 
 import (
+	"bytes";
 	"crypto/aes";
 	"crypto/block";
 	"io";
@@ -83,7 +84,7 @@ func TestCTR_AES(t *testing.T) {
 		}
 
 		for j := 0; j <= 5; j += 5 {
-			var crypt io.ByteBuffer;
+			var crypt bytes.Buffer;
 			in := tt.in[0:len(tt.in) - j];
 			w := block.NewCTRWriter(c, tt.iv, &crypt);
 			var r io.Reader = io.NewByteReader(in);
@@ -96,7 +97,7 @@ func TestCTR_AES(t *testing.T) {
 		}
 
 		for j := 0; j <= 7; j += 7 {
-			var plain io.ByteBuffer;
+			var plain bytes.Buffer;
 			out := tt.out[0:len(tt.out) - j];
 			r := block.NewCTRReader(c, tt.iv, io.NewByteReader(out));
 			w := &plain;

@@ -5,6 +5,7 @@
 package block
 
 import (
+	"bytes";
 	"crypto/block";
 	"fmt";
 	"io";
@@ -38,7 +39,7 @@ func testXorWriter(t *testing.T, maxio int) {
 	for i := 0; i < len(plain); i++ {
 		plain[i] = byte(i);
 	}
-	b := new(io.ByteBuffer);
+	b := new(bytes.Buffer);
 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
 		// compute encrypted version
 		n := byte(0);
@@ -106,7 +107,7 @@ func testXorReader(t *testing.T, maxio int) {
 	for i := 0; i < len(plain); i++ {
 		plain[i] = byte(255 - i);
 	}
-	b := new(io.ByteBuffer);
+	b := new(bytes.Buffer);
 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
 		// compute encrypted version
 		n := byte(0);

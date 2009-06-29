@@ -11,6 +11,7 @@
 package block
 
 import (
+	"bytes";
 	"crypto/aes";
 	"crypto/block";
 	"io";
@@ -109,7 +110,7 @@ func TestECB_AES(t *testing.T) {
 			continue;
 		}
 
-		var crypt io.ByteBuffer;
+		var crypt bytes.Buffer;
 		w := NewECBEncrypter(c, &crypt);
 		var r io.Reader = io.NewByteReader(tt.in);
 		n, err := io.Copy(r, w);
@@ -119,7 +120,7 @@ func TestECB_AES(t *testing.T) {
 			t.Errorf("%s: ECBReader\nhave %x\nwant %x", test, d, tt.out);
 		}
 
-		var plain io.ByteBuffer;
+		var plain bytes.Buffer;
 		r = NewECBDecrypter(c, io.NewByteReader(tt.out));
 		w = &plain;
 		n, err = io.Copy(r, w);

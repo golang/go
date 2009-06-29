@@ -5,6 +5,7 @@
 package template
 
 import (
+	"bytes";
 	"fmt";
 	"io";
 	"os";
@@ -236,7 +237,7 @@ func TestAll(t *testing.T) {
 	s.empty = []*T{ };
 	s.null = nil;
 
-	var buf io.ByteBuffer;
+	var buf bytes.Buffer;
 	for i, test := range tests {
 		buf.Reset();
 		tmpl, err := Parse(test.in, formatters);
@@ -259,7 +260,7 @@ func TestStringDriverType(t *testing.T) {
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
-	var b io.ByteBuffer;
+	var b bytes.Buffer;
 	err = tmpl.Execute("hello", &b);
 	if err != nil {
 		t.Error("unexpected execute error:", err)
@@ -275,7 +276,7 @@ func TestTwice(t *testing.T) {
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
-	var b io.ByteBuffer;
+	var b bytes.Buffer;
 	err = tmpl.Execute("hello", &b);
 	if err != nil {
 		t.Error("unexpected parse error:", err)
@@ -320,7 +321,7 @@ func TestCustomDelims(t *testing.T) {
 				t.Errorf("expected parse error for empty delimiter: %d %d %q %q", i, j, ldelim, rdelim);
 				continue;
 			}
-			var b io.ByteBuffer;
+			var b bytes.Buffer;
 			err = tmpl.Execute("hello", &b);
 			s := string(b.Data());
 			if s != "template: hello" + ldelim + rdelim {

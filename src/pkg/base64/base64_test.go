@@ -10,6 +10,7 @@ import (
 	"io";
 	"os";
 	"reflect";
+	"strings";
 	"testing";
 )
 
@@ -62,26 +63,26 @@ func testEqual(t *testing.T, msg string, args ...) bool {
 func TestEncode(t *testing.T) {
 	for _, p := range pairs {
 		buf := make([]byte, StdEncoding.EncodedLen(len(p.decoded)));
-		StdEncoding.Encode(io.StringBytes(p.decoded), buf);
+		StdEncoding.Encode(strings.Bytes(p.decoded), buf);
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded);
 	}
 }
 
 func TestEncoder(t *testing.T) {
 	for _, p := range pairs {
-		bb := &io.ByteBuffer{};
+		bb := &bytes.Buffer{};
 		encoder := NewEncoder(StdEncoding, bb);
-		encoder.Write(io.StringBytes(p.decoded));
+		encoder.Write(strings.Bytes(p.decoded));
 		encoder.Close();
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(bb.Data()), p.encoded);
 	}
 }
 
 func TestEncoderBuffering(t *testing.T) {
-	input := io.StringBytes(bigtest.decoded);
+	input := strings.Bytes(bigtest.decoded);
 	for bs := 1; bs <= 12; bs++ {
 		buf := make([]byte, bs);
-		bb := &io.ByteBuffer{};
+		bb := &bytes.Buffer{};
 		encoder := NewEncoder(StdEncoding, bb);
 		for pos := 0; pos < len(input); pos += bs {
 			end := pos+bs;
@@ -101,7 +102,7 @@ func TestEncoderBuffering(t *testing.T) {
 func TestDecode(t *testing.T) {
 	for _, p := range pairs {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
-		count, end, err := StdEncoding.decode(io.StringBytes(p.encoded), dbuf);
+		count, end, err := StdEncoding.decode(strings.Bytes(p.encoded), dbuf);
 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded));
 		if len(p.encoded) > 0 {
@@ -113,7 +114,7 @@ func TestDecode(t *testing.T) {
 
 func TestDecoder(t *testing.T) {
 	for _, p := range pairs {
-		decoder := NewDecoder(StdEncoding, io.NewByteReader(io.StringBytes(p.encoded)));
+		decoder := NewDecoder(StdEncoding, io.NewByteReader(strings.Bytes(p.encoded)));
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
 		count, err := decoder.Read(dbuf);
 		if err != nil && err != os.EOF {
@@ -129,7 +130,7 @@ func TestDecoder(t *testing.T) {
 }
 
 func TestDecoderBuffering(t *testing.T) {
-	input := io.StringBytes(bigtest.encoded);
+	input := strings.Bytes(bigtest.encoded);
 	for bs := 1; bs <= 12; bs++ {
 		decoder := NewDecoder(StdEncoding, io.NewByteReader(input));
 		buf := make([]byte, len(bigtest.decoded) + 12);
@@ -159,7 +160,7 @@ func TestDecodeCorrupt(t *testing.T) {
 
 	for _, e := range examples {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(e.e)));
-		count, err := StdEncoding.Decode(io.StringBytes(e.e), dbuf);
+		count, err := StdEncoding.Decode(strings.Bytes(e.e), dbuf);
 		switch err := err.(type) {
 		case CorruptInputError:
 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);
@@ -176,7 +177,7 @@ func TestBig(t *testing.T) {
 	for i := 0; i < n; i++ {
 		raw[i] = alpha[i%len(alpha)];
 	}
-	encoded := new(io.ByteBuffer);
+	encoded := new(bytes.Buffer);
 	w := NewEncoder(StdEncoding, encoded);
 	nn, err := w.Write(raw);
 	if nn != n || err != nil {
@@ -190,7 +191,7 @@ func TestBig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err);
 	}
-	
+
 	if !bytes.Equal(raw, decoded) {
 		var i int;
 		for i = 0; i < len(decoded) && i < len(raw); i++ {

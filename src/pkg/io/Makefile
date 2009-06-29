@@ -35,28 +35,22 @@ coverage: packages
 O1=\
 	io.$O\
 	pipe.$O\
+	xxx.$O\
 
 O2=\
-	bytebuffer.$O\
-
-O3=\
 	utils.$O\
 
 
-phases: a1 a2 a3
+phases: a1 a2
 _obj$D/io.a: phases
 
 a1: $(O1)
-	$(AR) grc _obj$D/io.a io.$O pipe.$O
+	$(AR) grc _obj$D/io.a io.$O pipe.$O xxx.$O
 	rm -f $(O1)
 
 a2: $(O2)
-	$(AR) grc _obj$D/io.a bytebuffer.$O
-	rm -f $(O2)
-
-a3: $(O3)
 	$(AR) grc _obj$D/io.a utils.$O
-	rm -f $(O3)
+	rm -f $(O2)
 
 
 newpkg: clean
@@ -66,7 +60,6 @@ newpkg: clean
 $(O1): newpkg
 $(O2): a1
 $(O3): a2
-$(O4): a3
 
 nuke: clean
 	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/io.a

@@ -5,6 +5,7 @@
 package block
 
 import (
+	"bytes";
 	"crypto/aes";
 	"crypto/block";
 	"fmt";
@@ -195,7 +196,7 @@ var eaxAESTests = []eaxAESTest {
 }
 
 func TestEAXEncrypt_AES(t *testing.T) {
-	b := new(io.ByteBuffer);
+	b := new(bytes.Buffer);
 	for i, tt := range eaxAESTests {
 		test := fmt.Sprintf("test %d", i);
 		c, err := aes.NewCipher(tt.key);
@@ -219,7 +220,7 @@ func TestEAXEncrypt_AES(t *testing.T) {
 }
 
 func TestEAXDecrypt_AES(t *testing.T) {
-	b := new(io.ByteBuffer);
+	b := new(bytes.Buffer);
 	for i, tt := range eaxAESTests {
 		test := fmt.Sprintf("test %d", i);
 		c, err := aes.NewCipher(tt.key);

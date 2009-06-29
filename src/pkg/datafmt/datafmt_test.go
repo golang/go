@@ -7,14 +7,14 @@ package datafmt
 import (
 	"fmt";
 	"datafmt";
-	"io";
 	"os";
+	"strings";
 	"testing";
 )
 
 
 func parse(t *testing.T, form string, fmap FormatterMap) Format {
-	f, err := Parse(io.StringBytes(form), fmap);
+	f, err := Parse(strings.Bytes(form), fmap);
 	if err != nil {
 		t.Errorf("Parse(%s): %v", form, err);
 		return nil;
@@ -55,7 +55,7 @@ func formatter(s *State, value interface{}, rule_name string) bool {
 	case "nil":
 		return false;
 	case "testing.T":
-		s.Write(io.StringBytes("testing.T"));
+		s.Write(strings.Bytes("testing.T"));
 		return true;
 	}
 	panic("unreachable");
@@ -115,7 +115,7 @@ func TestBasicTypes(t *testing.T) {
 	check(t, ``, ``);
 	check(t, `bool=":%v"`, `:true:false`, true, false);
 	check(t, `int="%b %d %o 0x%x"`, `101010 42 52 0x2a`, 42);
-	
+
 	check(t, `int="%"`, `%`, 42);
 	check(t, `int="%%"`, `%`, 42);
 	check(t, `int="**%%**"`, `**%**`, 42);
@@ -259,13 +259,13 @@ const F2a =
 	`string = "%s";`
 	`ptr = *;`
 	`datafmt.T2 = s ["-" p "-"];`
-	
+
 const F2b =
 	F1 +
 	`string = "%s";`
 	`ptr = *;`
 	`datafmt.T2 = s ("-" p "-" | "empty");`;
-	
+
 func TestStruct2(t *testing.T) {
 	check(t, F2a, "foo", T2{"foo", nil});
 	check(t, F2a, "bar-<17>-", T2{"bar", &T1{17}});
@@ -366,7 +366,7 @@ func TestStructPoint(t *testing.T) {
 const FSlice =
 	`int = "%b";`
 	`array = { * / ", " }`
-	
+
 func TestSlice(t *testing.T) {
 	check(t, FSlice, "10, 11, 101, 111", []int{2, 3, 5, 7});
 }

@@ -12,7 +12,7 @@
 	A format specification is a set of package declarations and format rules:
 
 		Format      = [ Entry { ";" Entry } [ ";" ] ] .
-		Entry       = PackageDecl | FormatRule . 
+		Entry       = PackageDecl | FormatRule .
 
 	(The syntax of a format specification is presented in the same EBNF
 	notation as used in the Go language specification. The syntax of white
@@ -111,7 +111,7 @@
 
 	The following example shows a complete format specification for a
 	struct 'myPackage.Point'. Assume the package
-	
+
 		package myPackage  // in directory myDir/myPackage
 		type Point struct {
 			name string;
@@ -155,7 +155,7 @@
 
 		Repetition  = "{" Body [ "/" Separator ] "}" .
 		Separator   = Expression .
-	
+
 	A repeated expression is evaluated as follows: The body is evaluated
 	repeatedly and its results are concatenated until the body evaluates
 	to nil. The result of the repetition is the (possibly empty) concatenation,
@@ -202,6 +202,7 @@
 package datafmt
 
 import (
+	"bytes";
 	"container/vector";
 	"fmt";
 	"go/token";
@@ -306,8 +307,8 @@ type State struct {
 	env Environment;  // user-supplied environment
 	errors chan os.Error;  // not chan *Error (errors <- nil would be wrong!)
 	hasOutput bool;  // true after the first literal has been written
-	indent io.ByteBuffer;  // current indentation
-	output io.ByteBuffer;  // format output
+	indent bytes.Buffer;  // current indentation
+	output bytes.Buffer;  // format output
 	linePos token.Position;  // position of line beginning (Column == 0)
 	default_ expr;  // possibly nil
 	separator expr;  // possibly nil
@@ -418,7 +419,7 @@ func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
 	if val.Kind() != reflect.StructKind {
 		return nil, 0;
 	}
-	
+
 	sval, styp := val.(reflect.StructValue), val.Type().(reflect.StructType);
 
 	// look for field at the top level
@@ -450,7 +451,7 @@ func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
 			}
 		}
 	}
-	
+
 	return field, level + 1;
 }
 
@@ -668,7 +669,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 			s.restore(mark);
 			b = false;
 		}
-		
+
 		// reset indentation
 		s.indent.Truncate(indentLen);
 		return b;
@@ -780,7 +781,7 @@ func (f Format) Print(args ...) (int, os.Error) {
 // partially formatted result followed by an error message.
 //
 func (f Format) Sprint(args ...) string {
-	var buf io.ByteBuffer;
+	var buf bytes.Buffer;
 	n, err := f.Fprint(&buf, nil, args);
 	if err != nil {
 		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(args), err);

@@ -130,6 +130,7 @@ sweepspan(MSpan *s)
 			free(p);
 			break;
 		case RefSome:
+//printf("gc-mem 1 %D\n", (uint64)s->npages<<PageShift);
 			s->gcref0 = RefNone;	// set up for next mark phase
 			break;
 		}
@@ -159,6 +160,7 @@ sweepspan(MSpan *s)
 			break;
 		}
 	}
+//printf("gc-mem %d %d\n", s->ref, size);
 }
 
 static void
@@ -215,6 +217,7 @@ gc(int32 force)
 	if(gcpercent < 0)
 		return;
 
+//printf("gc...\n");
 	m->gcing = 1;
 	semacquire(&gcsema);
 	gosave(&g->sched);	// update g's stack pointer for scanstack

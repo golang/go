@@ -13,6 +13,7 @@ package block
 // gobuild: $GC ecb_aes_test.go
 
 import (
+	"bytes";
 	"crypto/aes";
 	"crypto/block";
 	"io";
@@ -289,7 +290,7 @@ func TestCFB_AES(t *testing.T) {
 			continue;
 		}
 
-		var crypt io.ByteBuffer;
+		var crypt bytes.Buffer;
 		w := NewCFBEncrypter(c, tt.s, tt.iv, &crypt);
 		var r io.Reader = io.NewByteReader(tt.in);
 		n, err := io.Copy(r, w);
@@ -299,7 +300,7 @@ func TestCFB_AES(t *testing.T) {
 			t.Errorf("%s: CFBEncrypter\nhave %x\nwant %x", test, d, tt.out);
 		}
 
-		var plain io.ByteBuffer;
+		var plain bytes.Buffer;
 		r = NewCFBDecrypter(c, tt.s, tt.iv, io.NewByteReader(tt.out));
 		w = &plain;
 		n, err = io.Copy(r, w);

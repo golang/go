@@ -762,7 +762,7 @@ func (t *Template) Parse(s string) os.Error {
 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
 		return &Error{1, fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
 	}
-	t.buf = io.StringBytes(s);
+	t.buf = strings.Bytes(s);
 	t.p = 0;
 	t.linenum = 0;
 	go func() {
@@ -792,8 +792,8 @@ func (t *Template) Execute(data interface{}, wr io.Writer) os.Error {
 // delimiters are very rarely invalid and Parse has the necessary
 // error-handling interface already.
 func (t *Template) SetDelims(left, right string) {
-	t.ldelim = io.StringBytes(left);
-	t.rdelim = io.StringBytes(right);
+	t.ldelim = strings.Bytes(left);
+	t.rdelim = strings.Bytes(right);
 }
 
 // Parse creates a Template with default parameters (such as {} for

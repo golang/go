@@ -6,7 +6,7 @@ package bytes
 
 import (
 	"bytes";
-	"io";
+	"strings";
 	"testing";
 )
 
@@ -59,8 +59,8 @@ var comparetests = []CompareTest {
 func TestCompare(t *testing.T) {
 	for i := 0; i < len(comparetests); i++ {
 		tt := comparetests[i];
-		a := io.StringBytes(tt.a);
-		b := io.StringBytes(tt.b);
+		a := strings.Bytes(tt.a);
+		b := strings.Bytes(tt.b);
 		cmp := Compare(a, b);
 		eql := Equal(a, b);
 		if cmp != tt.cmp {
@@ -85,7 +85,7 @@ var explodetests = []ExplodeTest {
 }
 func TestExplode(t *testing.T) {
 	for _, tt := range(explodetests) {
-		a := explode(io.StringBytes(tt.s), tt.n);
+		a := explode(strings.Bytes(tt.s), tt.n);
 		result := arrayOfString(a);
 		if !eq(result, tt.a) {
 			t.Errorf(`Explode("%s", %d) = %v; want %v`, tt.s, tt.n, result, tt.a);
@@ -122,13 +122,13 @@ var splittests = []SplitTest {
 }
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
-		a := Split(io.StringBytes(tt.s), io.StringBytes(tt.sep), tt.n);
+		a := Split(strings.Bytes(tt.s), strings.Bytes(tt.sep), tt.n);
 		result := arrayOfString(a);
 		if !eq(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a);
 			continue;
 		}
-		s := Join(a, io.StringBytes(tt.sep));
+		s := Join(a, strings.Bytes(tt.sep));
 		if string(s) != tt.s {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s);
 		}
@@ -154,8 +154,8 @@ var copytests = []CopyTest {
 func TestCopy(t *testing.T) {
 	for i := 0; i < len(copytests); i++ {
 		tt := copytests[i];
-		dst := io.StringBytes(tt.a);
-		n := Copy(dst, io.StringBytes(tt.b));
+		dst := strings.Bytes(tt.a);
+		n := Copy(dst, strings.Bytes(tt.b));
 		result := string(dst);
 		if result != tt.res || n != tt.n {
 			t.Errorf(`Copy(%q, %q) = %d, %q; want %d, %q`, tt.a, tt.b, n, result, tt.n, tt.res);

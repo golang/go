@@ -8,6 +8,7 @@
 package exvar
 
 import (
+	"bytes";
 	"fmt";
 	"http";
 	"io";
@@ -52,7 +53,7 @@ type KeyValue struct {
 func (v *Map) String() string {
 	v.mu.Lock();
 	defer v.mu.Unlock();
-	b := new(io.ByteBuffer);
+	b := new(bytes.Buffer);
 	fmt.Fprintf(b, "{");
 	first := true;
 	for key, val := range v.m {

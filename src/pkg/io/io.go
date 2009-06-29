@@ -12,6 +12,7 @@ package io
 import (
 	"bytes";
 	"os";
+	"strings";
 )
 
 // Error represents an unexpected I/O behavior.
@@ -83,18 +84,9 @@ type ReadWriteCloser interface {
 	Closer;
 }
 
-// Convert a string to an array of bytes for easy marshaling.
-func StringBytes(s string) []byte {
-	b := make([]byte, len(s));
-	for i := 0; i < len(s); i++ {
-		b[i] = s[i];
-	}
-	return b;
-}
-
 // WriteString writes the contents of the string s to w, which accepts an array of bytes.
 func WriteString(w Writer, s string) (n int, err os.Error) {
-	return w.Write(StringBytes(s))
+	return w.Write(strings.Bytes(s))
 }
 
 // ReadAtLeast reads from r into buf until it has read at least min bytes.

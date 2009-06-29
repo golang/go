@@ -10,7 +10,6 @@ import (
 	"fmt";
 	"go/scanner";
 	"go/token";
-	"io";
 	"os";
 	"strconv";
 	"strings";
@@ -194,7 +193,7 @@ func (p *parser) parseString() string {
 
 
 func (p *parser) parseLiteral() literal {
-	s := io.StringBytes(p.parseString());
+	s := strings.Bytes(p.parseString());
 
 	// A string literal may contain %-format specifiers. To simplify
 	// and speed up printing of the literal, split it into segments

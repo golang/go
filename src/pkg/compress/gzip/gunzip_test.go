@@ -5,6 +5,7 @@
 package gzip
 
 import (
+	"bytes";
 	"compress/gzip";
 	"fmt";
 	"io";
@@ -265,7 +266,7 @@ var gzipTests = []gzipTest {
 }
 
 func TestGzipInflater(t *testing.T) {
-	b := new(io.ByteBuffer);
+	b := new(bytes.Buffer);
 	for i, tt := range gzipTests {
 		in := io.NewByteReader(tt.gzip);
 		gzip, err := NewGzipInflater(in);
