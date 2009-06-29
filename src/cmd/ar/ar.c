@@ -1216,7 +1216,7 @@ longt(Armember *bp)
 	pmode(strtoul(bp->hdr.mode, 0, 8));
 	Bprint(&bout, "%3ld/%1ld", strtol(bp->hdr.uid, 0, 0), strtol(bp->hdr.gid, 0, 0));
 	Bprint(&bout, "%7ld", bp->size);
-	cp = ctime(bp->date);
+	cp = ctime(&bp->date);
 	Bprint(&bout, " %-12.12s %-4.4s ", cp+4, cp+24);
 }
 
@@ -1455,7 +1455,6 @@ typedef struct Import Import;
 struct Import
 {
 	Import *hash;	// next in hash table
-	char *export;	// marked as export or package?
 	char *prefix;	// "type", "var", "func", "const"
 	char *name;
 	char *def;
@@ -1485,58 +1484,65 @@ ilookup(char *name)
 	return x;
 }
 
+/*
+ * a and b don't match.
+ * is one a forward declaration and the other a valid completion?
+ * if so, return the one to keep.
+ */
+char*
+forwardfix(char *a, char *b)
+{
+	char *t;
+
+	if(strlen(a) > strlen(b)) {
+		t = a;
+		a = b;
+		b = t;
+	}
+	if(strcmp(a, "struct") == 0 && strncmp(b, "struct ", 7) == 0)
+		return b;
+	if(strcmp(a, "interface") == 0 && strncmp(b, "interface ", 10) == 0)
+		return b;
+	return nil;
+}
+
 int parsemethod(char**, char*, char**);
-int parsepkgdata(char**, char*, char**, char**, char**, char**);
+int parsepkgdata(char**, char*, char**, char**, char**);
 
 void
 loadpkgdata(char *data, int len)
 {
-	char *export;
-	char *p, *ep, *prefix, *name, *def;
+	char *p, *ep, *prefix, *name, *def, *ndef;
 	Import *x;
 
 	p = data;
 	ep = data + len;
-	while(parsepkgdata(&p, ep, &export, &prefix, &name, &def) > 0) {
+	while(parsepkgdata(&p, ep, &prefix, &name, &def) > 0) {
 		x = ilookup(name);
 		if(x->prefix == nil) {
 			x->prefix = prefix;
 			x->def = def;
 			x->file = file;
-			x->export = export;
+		} else if(strcmp(x->prefix, prefix) != 0) {
+			fprint(2, "ar: conflicting definitions for %s\n", name);
+			fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
+			fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
+			errors++;
+		} else if(strcmp(x->def, def) == 0) {
+			// fine
+		} else if((ndef = forwardfix(x->def, def)) != nil) {
+			x->def = ndef;
 		} else {
-			if(strcmp(x->prefix, prefix) != 0) {
-				fprint(2, "ar: conflicting definitions for %s\n", name);
-				fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
-				fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
-				errors++;
-			}
-			else if(strcmp(x->def, def) != 0) {
-				fprint(2, "ar: conflicting definitions for %s\n", name);
-				fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
-				fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
-				errors++;
-			}
-
-			// okay if some .6 say export/package and others don't.
-			// all it takes is one.  not okay if some say export
-			// and others say package.
-			if(export) {
-				if(x->export == nil)
-					x->export = export;
-				else if(strcmp(x->export, export) != 0) {
-					fprint(2, "ar: conflicting scopes for %s\n", name);
-					fprint(2, "%s:\t%s\n", x->file, x->export);
-					fprint(2, "%s:\t%s\n", file, export);
-					errors++;
-				}
-			}
+			fprint(2, "ar: conflicting definitions for %s\n", name);
+			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
+			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
+			errors++;
 		}
 	}
 }
 
 int
-parsepkgdata(char **pp, char *ep, char **exportp, char **prefixp, char **namep, char **defp)
+parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
 {
 	char *p, *prefix, *name, *def, *edef, *meth;
 	int n;
@@ -1547,16 +1553,6 @@ parsepkgdata(char **pp, char *ep, char **exportp, char **prefixp, char **namep, 
 		p++;
 	if(p == ep)
 		return 0;
-
-	// [export|package ]
-	*exportp = 0;
-	if(p + 7 <= ep && strncmp(p, "export ", 7) == 0) {
-		*exportp = "export";
-		p += 7;
-	} else if(p + 8 <= ep && strncmp(p, "package ", 8) == 0) {
-		*exportp = "package";
-		p += 8;
-	}
 
 	// prefix: (var|type|func|const)
 	prefix = p;
@@ -1710,8 +1706,6 @@ getpkgdef(char **datap, int *lenp)
 			len += strlen(x->prefix) + 1
 				+ strlen(x->name) + 1
 				+ strlen(x->def) + 1;
-			if(x->export)
-				len += strlen(x->export) + 1;
 		}
 	}
 	if(j != nimport) {
@@ -1735,11 +1729,7 @@ getpkgdef(char **datap, int *lenp)
 	p = strappend(p, "\n");
 	for(i=0; i<nimport; i++) {
 		x = all[i];
-		// [export|package] prefix name def\n
-		if(x->export) {
-			p = strappend(p, x->export);
-			p = strappend(p, " ");
-		}
+		// prefix name def\n
 		p = strappend(p, x->prefix);
 		p = strappend(p, " ");
 		p = strappend(p, x->name);

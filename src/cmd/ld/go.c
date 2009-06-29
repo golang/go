@@ -22,7 +22,6 @@ typedef struct Import Import;
 struct Import
 {
 	Import *hash;	// next in hash table
-	int export;	// marked as export?
 	char *prefix;	// "type", "var", "func", "const"
 	char *name;
 	char *def;
@@ -89,7 +88,7 @@ gotypefor(char *name)
 
 static void loadpkgdata(char*, char*, int);
 static int parsemethod(char**, char*, char**);
-static int parsepkgdata(char*, char**, char*, int*, char**, char**, char**);
+static int parsepkgdata(char*, char**, char*, char**, char**, char**);
 
 void
 ldpkg(Biobuf *f, int64 len, char *filename)
@@ -154,47 +153,63 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 	loadpkgdata(filename, p0, p1 - p0);
 }
 
+/*
+ * a and b don't match.
+ * is one a forward declaration and the other a valid completion?
+ * if so, return the one to keep.
+ */
+char*
+forwardfix(char *a, char *b)
+{
+	char *t;
+
+	if(strlen(a) > strlen(b)) {
+		t = a;
+		a = b;
+		b = t;
+	}
+	if(strcmp(a, "struct") == 0 && strncmp(b, "struct ", 7) == 0)
+		return b;
+	if(strcmp(a, "interface") == 0 && strncmp(b, "interface ", 10) == 0)
+		return b;
+	return nil;
+}
+
 static void
 loadpkgdata(char *file, char *data, int len)
 {
-	int export;
-	char *p, *ep, *prefix, *name, *def;
+	char *p, *ep, *prefix, *name, *def, *ndef;
 	Import *x;
 
 	file = strdup(file);
 	p = data;
 	ep = data + len;
-	while(parsepkgdata(file, &p, ep, &export, &prefix, &name, &def) > 0) {
+	while(parsepkgdata(file, &p, ep, &prefix, &name, &def) > 0) {
 		x = ilookup(name);
 		if(x->prefix == nil) {
 			x->prefix = prefix;
 			x->def = def;
 			x->file = file;
-			x->export = export;
+		} else if(strcmp(x->prefix, prefix) != 0) {
+			fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
+			fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
+			fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
+			nerrors++;
+		} else if(strcmp(x->def, def) == 0) {
+			// fine
+		} else if((ndef = forwardfix(x->def, def)) != nil) {
+			x->def = ndef;
 		} else {
-			if(strcmp(x->prefix, prefix) != 0) {
-				fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
-				fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
-				fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
-				nerrors++;
-			}
-			else if(strcmp(x->def, def) != 0) {
-				fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
-				fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
-				fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
-				nerrors++;
-			}
-
-			// okay if some .6 say export and others don't.
-			// all it takes is one.
-			if(export)
-				x->export = 1;
+			fprint(2, "%d: conflicting definitions for %s\n", argv0, name);
+			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
+			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
+			nerrors++;
 		}
 	}
 }
 
 static int
-parsepkgdata(char *file, char **pp, char *ep, int *exportp, char **prefixp, char **namep, char **defp)
+parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char **defp)
 {
 	char *p, *prefix, *name, *def, *edef, *meth;
 	int n;
@@ -205,17 +220,6 @@ parsepkgdata(char *file, char **pp, char *ep, int *exportp, char **prefixp, char
 		p++;
 	if(p == ep || strncmp(p, "$$\n", 3) == 0)
 		return 0;
-
-	// [export|package ]
-	*exportp = 0;
-	if(p + 7 <= ep && strncmp(p, "export ", 7) == 0) {
-		*exportp = 1;
-		p += 7;
-	}
-	else if(p + 8 <= ep && strncmp(p, "package ", 8) == 0) {
-		*exportp = 2;
-		p += 8;
-	}
 
 	// prefix: (var|type|func|const)
 	prefix = p;
