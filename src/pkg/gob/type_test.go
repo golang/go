@@ -5,20 +5,10 @@
 package gob
 
 import (
-"fmt";
 	"gob";
 	"os";
 	"testing";
 )
-
-func checkType(ti Type, expected string, t *testing.T) {
-	if ti.String() != expected {
-		t.Errorf("checkType: expected %q got %s", expected, ti.String())
-	}
-	if ti.id() == 0 {
-		t.Errorf("id for %q is zero", expected)
-	}
-}
 
 type typeT struct {
 	typ	Type;
