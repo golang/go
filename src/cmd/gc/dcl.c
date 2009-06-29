@@ -93,12 +93,13 @@ updatetype(Type *n, Type *t)
 {
 	Sym *s;
 	int local;
-	int maplineno, lno;
+	int maplineno, lno, etype;
 
 	s = n->sym;
 	if(s == S || s->def == N || s->def->op != OTYPE || s->def->type != n)
 		fatal("updatetype %T = %T", n, t);
 
+	etype = n->etype;
 	switch(n->etype) {
 	case TFORW:
 		break;
@@ -144,7 +145,7 @@ updatetype(Type *n, Type *t)
 	default:
 		checkwidth(n);
 	}
-	
+
 	// double-check use of type as map key
 	if(maplineno) {
 		lno = lineno;
@@ -316,13 +317,7 @@ addmethod(Node *n, Type *t, int local)
 	if(f == T)
 		goto bad;
 
-	if(local && !f->local) {
-		yyerror("cannot define methods on non-local type %T", f);
-		return;
-	}
-
 	pa = f;
-
 	if(pkgimportname != S && !exportname(sf->name))
 		sf = pkglookup(sf->name, pkgimportname->name);
 
@@ -331,17 +326,23 @@ addmethod(Node *n, Type *t, int local)
 
 	d = T;	// last found
 	for(f=pa->method; f!=T; f=f->down) {
+		d = f;
 		if(f->etype != TFIELD)
 			fatal("addmethod: not TFIELD: %N", f);
-
-		if(strcmp(sf->name, f->sym->name) != 0) {
-			d = f;
+		if(strcmp(sf->name, f->sym->name) != 0)
 			continue;
-		}
 		if(!eqtype(t, f->type)) {
 			yyerror("method redeclared: %T.%S", pa, sf);
 			print("\t%T\n\t%T\n", f->type, t);
 		}
+		return;
+	}
+
+	if(local && !pa->local) {
+		// defining method on non-local type.
+		// method must have been forward declared
+		// elsewhere, i.e. where the type was.
+		yyerror("cannot define new methods on non-local type %T", pa);
 		return;
 	}
 

@@ -1700,6 +1700,14 @@ hidden_import:
 	{
 		importtype($2, $3);
 	}
+|	LTYPE hidden_pkg_importsym LSTRUCT
+	{
+		importtype($2, typ(TFORWSTRUCT));
+	}
+|	LTYPE hidden_pkg_importsym LINTERFACE
+	{
+		importtype($2, typ(TFORWINTER));
+	}
 |	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres
 	{
 		importvar($2, functype(N, $4, $6), PFUNC);

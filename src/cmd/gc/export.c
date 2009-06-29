@@ -168,9 +168,13 @@ dumpexporttype(Sym *s)
 	Bprint(bout, "\t");
 	switch (t->etype) {
 	case TFORW:
-	case TFORWSTRUCT:
-	case TFORWINTER:
 		yyerror("export of incomplete type %T", t);
+		return;
+	case TFORWSTRUCT:
+		Bprint(bout, "type %#T struct\n", t);
+		return;
+	case TFORWINTER:
+		Bprint(bout, "type %#T interface\n", t);
 		return;
 	}
 	Bprint(bout, "type %#T %l#T\n",  t, t);
@@ -276,11 +280,15 @@ importsym(Sym *s, int op)
 		else
 			yyerror("redeclaration of %lS during import", s, s->def->op, op);
 	}
-	if(exportname(s->name))
-		s->export = 1;
-	else
-		s->export = 2;	// package scope
-	s->imported = 1;
+
+	// mark the symbol so it is not reexported
+	if(s->def == N) {
+		if(exportname(s->name))
+			s->export = 1;
+		else
+			s->export = 2;	// package scope
+		s->imported = 1;
+	}
 	return s;
 }
 
@@ -359,9 +367,12 @@ importtype(Sym *s, Type *t)
 	if(n != N && n->op == OTYPE) {
 		if(cvttype(t, n->type))
 			return;
-		if(n->type->etype != TFORW) {
-			warn("redeclare import type %S from %lT to %lT",
-				s, n->type, t);
+		if(t->etype == TFORWSTRUCT && n->type->etype == TSTRUCT)
+			return;
+		if(t->etype == TFORWINTER && n->type->etype == TINTER)
+			return;
+		if(n->type->etype != TFORW && n->type->etype != TFORWSTRUCT && n->type->etype != TFORWINTER) {
+			yyerror("redeclare import type %S from %lT to %lT", s, n->type, t);
 			n = s->def = typenod(typ(0));
 		}
 	}
@@ -376,7 +387,16 @@ importtype(Sym *s, Type *t)
 	*n->type = *t;
 	n->type->sym = s;
 	n->type->nod = n;
-	checkwidth(n->type);
+	switch(n->type->etype) {
+	case TFORWINTER:
+	case TFORWSTRUCT:
+		// allow re-export in case it gets defined
+		s->export = 0;
+		s->imported = 0;
+		break;
+	default:
+		checkwidth(n->type);
+	}
 
 	if(debug['E'])
 		print("import type %S %lT\n", s, t);
