@@ -361,6 +361,82 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno
 	return kevent(kq, change, len(changes), event, len(events), timeout);
 }
 
+//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (errno int) = SYS___SYSCTL
+
+// Translate "kern.hostname" to []_C_int{0,1,2,3}.
+func nametomib(name string) (mib []_C_int, errno int) {
+	const CTL_MAXNAME = 12;
+	const siz = uintptr(unsafe.Sizeof(mib[0]));
+
+	// NOTE(rsc): It seems strange to set the buffer to have
+	// size CTL_MAXNAME+2 but use only CTL_MAXNAME
+	// as the size.  I don't know why the +2 is here, but the
+	// kernel uses +2 for its own implementation of this function.
+	// I am scared that if we don't include the +2 here, the kernel
+	// will silently write 2 words farther than we specify
+	// and we'll get memory corruption.
+	var buf [CTL_MAXNAME+2] _C_int;
+	n := uintptr(CTL_MAXNAME)*siz;
+
+	p := (*byte)(unsafe.Pointer(&buf[0]));
+	bytes := StringByteSlice(name);
+
+	// Magic sysctl: "setting" 0.3 to a string name
+	// lets you read back the array of integers form.
+	if errno = sysctl([]_C_int{0, 3}, p, &n, &bytes[0], uintptr(len(name))); errno != 0 {
+		return nil, errno;
+	}
+	return buf[0:n/siz], 0;
+}
+
+func Sysctl(name string) (value string, errno int) {
+	// Translate name to mib number.
+	mib, errno := nametomib(name);
+	if errno != 0 {
+		return "", errno;
+	}
+
+	// Find size.
+	n := uintptr(0);
+	if errno = sysctl(mib, nil, &n, nil, 0); errno != 0 {
+		return "", errno;
+	}
+	if n == 0 {
+		return "", 0;
+	}
+
+	// Read into buffer of that size.
+	buf := make([]byte, n);
+	if errno = sysctl(mib, &buf[0], &n, nil, 0); errno != 0 {
+		return "", errno;
+	}
+
+	// Throw away terminating NUL.
+	if n > 0 && buf[n-1] == '\x00' {
+		n--;
+	}
+	return string(buf[0:n]), 0;
+}
+
+func SysctlUint32(name string) (value uint32, errno int) {
+	// Translate name to mib number.
+	mib, errno := nametomib(name);
+	if errno != 0 {
+		return 0, errno;
+	}
+
+	// Read into buffer of that size.
+	n := uintptr(4);
+	buf := make([]byte, 4);
+	if errno = sysctl(mib, &buf[0], &n, nil, 0); errno != 0 {
+		return 0, errno;
+	}
+	if n != 4 {
+		return 0, EIO;
+	}
+	return *(*uint32)(unsafe.Pointer(&buf[0])), 0;
+}
+
 // TODO: wrap
 //	Acct(name nil-string) (errno int)
 //	Futimes(fd int, timeval *Timeval) (errno int)	// Pointer to 2 timevals!
@@ -500,7 +576,6 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno
 // Kdebug_trace
 // Sigreturn
 // Mmap
-// __Sysctl
 // Mlock
 // Munlock
 // Atsocket

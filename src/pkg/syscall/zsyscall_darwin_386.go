@@ -87,6 +87,14 @@ func kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, time
 	return;
 }
 
+func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (errno int) {
+	var _p0 *_C_int;
+	if len(mib) > 0 { _p0 = &mib[0]; }
+	r0, r1, e1 := Syscall6(SYS___SYSCTL, uintptr(unsafe.Pointer(_p0)), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen));
+	errno = int(e1);
+	return;
+}
+
 func fcntl(fd int, cmd int, arg int) (val int, errno int) {
 	r0, r1, e1 := Syscall(SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg));
 	val = int(r0);

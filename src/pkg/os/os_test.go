@@ -587,3 +587,43 @@ func TestOpenError(t *testing.T) {
 		}
 	}
 }
+
+func run(t *testing.T, cmd []string) string {
+	// Run /bin/hostname and collect output.
+	r, w, err := Pipe();
+	if err != nil {
+		t.Fatal(err);
+	}
+	pid, err := ForkExec("/bin/hostname", []string{"hostname"}, nil, "/", []*File{nil, w, Stderr});
+	if err != nil {
+		t.Fatal(err);
+	}
+	w.Close();
+
+	var b io.ByteBuffer;
+	io.Copy(r, &b);
+	Wait(pid, 0);
+	output := string(b.Data());
+	if n := len(output); n > 0 && output[n-1] == '\n' {
+		output = output[0:n-1];
+	}
+	if output == "" {
+		t.Fatalf("%v produced no output", cmd);
+	}
+
+	return output;
+}
+
+
+func TestHostname(t *testing.T) {
+	// Check internal Hostname() against the output of /bin/hostname.
+	hostname, err := Hostname();
+	if err != nil {
+		t.Fatalf("%v", err);
+	}
+	want := run(t, []string{"/bin/hostname"});
+	if hostname != want {
+		t.Errorf("Hostname() = %q, want %q", hostname, want);
+	}
+}
+
