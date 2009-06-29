@@ -10,6 +10,7 @@
 package parser
 
 import (
+	"bytes";
 	"container/vector";
 	"fmt";
 	"go/ast";
@@ -17,6 +18,7 @@ import (
 	"go/token";
 	"io";
 	"os";
+	"strings";
 )
 
 
@@ -1964,16 +1966,16 @@ func readSource(src interface{}) ([]byte, os.Error) {
 	if src != nil {
 		switch s := src.(type) {
 		case string:
-			return io.StringBytes(s), nil;
+			return strings.Bytes(s), nil;
 		case []byte:
 			return s, nil;
-		case *io.ByteBuffer:
-			// is io.Read, but src is already available in []byte form
+		case *bytes.Buffer:
+			// is io.Reader, but src is already available in []byte form
 			if s != nil {
 				return s.Data(), nil;
 			}
 		case io.Reader:
-			var buf io.ByteBuffer;
+			var buf bytes.Buffer;
 			n, err := io.Copy(s, &buf);
 			if err != nil {
 				return nil, err;
@@ -1997,7 +1999,7 @@ func scannerMode(mode uint) uint {
 // Parse parses a Go program.
 //
 // The program source src may be provided in a variety of formats. At the
-// moment the following types are supported: string, []byte, and io.Read.
+// moment the following types are supported: string, []byte, and io.Reader.
 // The mode parameter controls the amount of source text parsed and other
 // optional parser functionality.
 //

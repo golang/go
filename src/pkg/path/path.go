@@ -6,7 +6,7 @@
 // slash-separated filename paths.
 package path
 
-import "io"
+import "strings"
 
 // Clean returns the shortest path name equivalent to path
 // by purely lexical processing.  It applies the following rules
@@ -38,7 +38,7 @@ func Clean(path string) string {
 	//	writing to buf; w is index of next byte to write.
 	//	dotdot is index in buf where .. must stop, either because
 	//		it is the leading slash or it is a leading ../../.. prefix.
-	buf := io.StringBytes(path);
+	buf := strings.Bytes(path);
 	r, w, dotdot := 0, 0, 0;
 	if rooted {
 		r, w, dotdot = 1, 1, 1;

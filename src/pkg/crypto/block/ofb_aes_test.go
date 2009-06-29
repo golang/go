@@ -13,6 +13,7 @@ package block
 // gotest: $GC ecb_aes_test.go
 
 import (
+	"bytes";
 	"crypto/aes";
 	"crypto/block";
 	"io";
@@ -81,7 +82,7 @@ func TestOFB_AES(t *testing.T) {
 		}
 
 		for j := 0; j <= 5; j += 5 {
-			var crypt io.ByteBuffer;
+			var crypt bytes.Buffer;
 			in := tt.in[0:len(tt.in) - j];
 			w := NewOFBWriter(c, tt.iv, &crypt);
 			var r io.Reader = io.NewByteReader(in);
@@ -94,7 +95,7 @@ func TestOFB_AES(t *testing.T) {
 		}
 
 		for j := 0; j <= 7; j += 7 {
-			var plain io.ByteBuffer;
+			var plain bytes.Buffer;
 			out := tt.out[0:len(tt.out) - j];
 			r := NewOFBReader(c, tt.iv, io.NewByteReader(out));
 			w := &plain;

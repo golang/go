@@ -142,8 +142,8 @@ func split(text []byte) [][]byte {
 
 
 var (
-	ldquo = io.StringBytes("&ldquo;");
-	rdquo = io.StringBytes("&rdquo;");
+	ldquo = strings.Bytes("&ldquo;");
+	rdquo = strings.Bytes("&rdquo;");
 )
 
 // Escape comment text for HTML.
@@ -168,10 +168,10 @@ func commentEscape(w io.Writer, s []byte) {
 
 
 var (
-	html_p = io.StringBytes("<p>\n");
-	html_endp = io.StringBytes("</p>\n");
-	html_pre = io.StringBytes("<pre>");
-	html_endpre = io.StringBytes("</pre>\n");
+	html_p = strings.Bytes("<p>\n");
+	html_endp = strings.Bytes("</p>\n");
+	html_pre = strings.Bytes("<pre>");
+	html_endpre = strings.Bytes("</pre>\n");
 )
 
 

@@ -5,9 +5,11 @@
 package os
 
 import (
+	"bytes";
 	"fmt";
 	"io";
 	"os";
+	"strings";
 	"testing";
 )
 
@@ -322,7 +324,7 @@ func TestForkExec(t *testing.T) {
 	}
 	w.Close();
 
-	var b io.ByteBuffer;
+	var b bytes.Buffer;
 	io.Copy(r, &b);
 	output := string(b.Data());
 	expect := "/\n";
@@ -443,7 +445,7 @@ func TestTruncate(t *testing.T) {
 	}
 
 	checkSize(t, Path, 0);
-	fd.Write(io.StringBytes("hello, world\n"));
+	fd.Write(strings.Bytes("hello, world\n"));
 	checkSize(t, Path, 13);
 	fd.Truncate(10);
 	checkSize(t, Path, 10);
@@ -451,7 +453,7 @@ func TestTruncate(t *testing.T) {
 	checkSize(t, Path, 1024);
 	fd.Truncate(0);
 	checkSize(t, Path, 0);
-	fd.Write(io.StringBytes("surprise!"));
+	fd.Write(strings.Bytes("surprise!"));
 	checkSize(t, Path, 13 + 9);	// wrote at offset past where hello, world was.
 	fd.Close();
 	Remove(Path);
@@ -600,7 +602,7 @@ func run(t *testing.T, cmd []string) string {
 	}
 	w.Close();
 
-	var b io.ByteBuffer;
+	var b bytes.Buffer;
 	io.Copy(r, &b);
 	Wait(pid, 0);
 	output := string(b.Data());
@@ -626,4 +628,3 @@ func TestHostname(t *testing.T) {
 		t.Errorf("Hostname() = %q, want %q", hostname, want);
 	}
 }
-

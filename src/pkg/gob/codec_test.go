@@ -7,7 +7,6 @@ package gob
 import (
 	"bytes";
 	"gob";
-	"io";
 	"os";
 	"testing";
 )
@@ -36,7 +35,7 @@ var encodeT = []EncodeT {
 
 // Test basic encode/decode routines for unsigned integers
 func TestUintCodec(t *testing.T) {
-	var b = new(io.ByteBuffer);
+	var b = new(bytes.Buffer);
 	for i, tt := range encodeT {
 		b.Reset();
 		err := EncodeUint(b, tt.x);
@@ -67,7 +66,7 @@ func TestUintCodec(t *testing.T) {
 }
 
 func verifyInt(i int64, t *testing.T) {
-	var b = new(io.ByteBuffer);
+	var b = new(bytes.Buffer);
 	err := EncodeInt(b, i);
 	if err != nil {
 		t.Error("EncodeInt:", i, err)
@@ -83,7 +82,7 @@ func verifyInt(i int64, t *testing.T) {
 
 // Test basic encode/decode routines for signed integers
 func TestIntCodec(t *testing.T) {
-	var b = new(io.ByteBuffer);
+	var b = new(bytes.Buffer);
 	for u := uint64(0); ; u = (u+1) * 7 {
 		// Do positive and negative values
 		i := int64(u);

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes";
 	"bufio";
 	"exvar";
 	"flag";
@@ -41,7 +42,7 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
 	case "GET":
 		ctr.n++;
 	case "POST":
-		buf := new(io.ByteBuffer);
+		buf := new(bytes.Buffer);
 		io.Copy(req.Body, buf);
 		body := string(buf.Data());
 		if n, err := strconv.Atoi(body); err != nil {

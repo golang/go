@@ -12,6 +12,7 @@ import (
 	"io";
 	"os";
 	"reflect";
+	"strings";
 )
 
 
@@ -166,9 +167,9 @@ func (p *printer) print(args ...) {
 		case []byte:
 			p.write(x);
 		case string:
-			p.write(io.StringBytes(x));
+			p.write(strings.Bytes(x));
 		case token.Token:
-			p.write(io.StringBytes(x.String()));
+			p.write(strings.Bytes(x.String()));
 		case token.Position:
 			// set current position
 			p.pos = x;

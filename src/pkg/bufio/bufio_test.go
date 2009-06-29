@@ -5,10 +5,12 @@
 package bufio
 
 import (
+	"bytes";
 	"bufio";
 	"fmt";
 	"io";
 	"os";
+	"strings";
 	"testing";
 	"testing/iotest";
 )
@@ -59,7 +61,7 @@ func readBytes(buf *Reader) string {
 }
 
 func TestReaderSimple(t *testing.T) {
-	data := io.StringBytes("hello world");
+	data := strings.Bytes("hello world");
 	b := NewReader(io.NewByteReader(data));
 	if s := readBytes(b); s != "hello world" {
 		t.Errorf("simple hello world test failed: got %q", s);
@@ -146,7 +148,7 @@ func TestReader(t *testing.T) {
 
 	for h := 0; h < len(texts); h++ {
 		text := texts[h];
-		textbytes := io.StringBytes(text);
+		textbytes := strings.Bytes(text);
 		for i := 0; i < len(readMakers); i++ {
 			for j := 0; j < len(bufreaders); j++ {
 				for k := 0; k < len(bufsizes); k++ {
@@ -172,7 +174,7 @@ func TestWriter(t *testing.T) {
 	for i := 0; i < len(data); i++ {
 		data[i] = byte(' '+ i%('~'-' '));
 	}
-	w := new(io.ByteBuffer);
+	w := new(bytes.Buffer);
 	for i := 0; i < len(bufsizes); i++ {
 		for j := 0; j < len(bufsizes); j++ {
 			nwrite := bufsizes[i];
@@ -237,7 +239,7 @@ var errorWriterTests = []errorWriterTest {
 func TestWriteErrors(t *testing.T) {
 	for i, w := range errorWriterTests {
 		buf := NewWriter(w);
-		n, e := buf.Write(io.StringBytes("hello world"));
+		n, e := buf.Write(strings.Bytes("hello world"));
 		if e != nil {
 			t.Errorf("Write hello to %v: %v", w, e);
 			continue;
@@ -251,7 +253,7 @@ func TestWriteErrors(t *testing.T) {
 
 func TestNewReaderSizeIdempotent(t *testing.T) {
 	const BufSize = 1000;
-	b, err := NewReaderSize(io.NewByteReader(io.StringBytes("hello world")), BufSize);
+	b, err := NewReaderSize(io.NewByteReader(strings.Bytes("hello world")), BufSize);
 	if err != nil {
 		t.Error("NewReaderSize create fail", err);
 	}
@@ -275,7 +277,7 @@ func TestNewReaderSizeIdempotent(t *testing.T) {
 
 func TestNewWriterSizeIdempotent(t *testing.T) {
 	const BufSize = 1000;
-	b, err := NewWriterSize(new(io.ByteBuffer), BufSize);
+	b, err := NewWriterSize(new(bytes.Buffer), BufSize);
 	if err != nil {
 		t.Error("NewWriterSize create fail", err);
 	}

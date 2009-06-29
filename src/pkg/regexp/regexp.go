@@ -23,6 +23,7 @@
 package regexp
 
 import (
+	"bytes";
 	"container/vector";
 	"io";
 	"os";
@@ -770,7 +771,7 @@ func Match(pattern string, s string) (matched bool, error os.Error) {
 func (re *Regexp) ReplaceAll(src, repl string) string {
 	lastMatchEnd := 0; // end position of the most recent match
 	searchPos := 0; // position where we next look for a match
-	buf := new(io.ByteBuffer);
+	buf := new(bytes.Buffer);
 	for searchPos <= len(src) {
 		a := re.doExecute(src, searchPos);
 		if len(a) == 0 {

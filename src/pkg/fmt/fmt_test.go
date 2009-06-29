@@ -8,6 +8,7 @@ import (
 	"fmt";
 	"io";
 	"math";
+	"strings";
 	"testing";
 )
 
@@ -40,12 +41,12 @@ var fmttests = []fmtTest{
 	fmtTest{ "%q",	"abc",	`"abc"` },
 
 	// basic bytes
-	fmtTest{ "%s",	io.StringBytes("abc"),	"abc" },
-	fmtTest{ "%x",	io.StringBytes("abc"),	"616263" },
-	fmtTest{ "% x",	io.StringBytes("abc"),	"61 62 63" },
-	fmtTest{ "%x",	io.StringBytes("xyz"),	"78797a" },
-	fmtTest{ "%X",	io.StringBytes("xyz"),	"78797A" },
-	fmtTest{ "%q",	io.StringBytes("abc"),	`"abc"` },
+	fmtTest{ "%s",	strings.Bytes("abc"),	"abc" },
+	fmtTest{ "%x",	strings.Bytes("abc"),	"616263" },
+	fmtTest{ "% x",	strings.Bytes("abc"),	"61 62 63" },
+	fmtTest{ "%x",	strings.Bytes("xyz"),	"78797a" },
+	fmtTest{ "%X",	strings.Bytes("xyz"),	"78797A" },
+	fmtTest{ "%q",	strings.Bytes("abc"),	`"abc"` },
 
 	// escaped strings
 	fmtTest{ "%#q",	`abc`,		"`abc`" },

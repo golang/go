@@ -7,9 +7,11 @@
 package template
 
 import (
+	"bytes";
 	"fmt";
 	"io";
 	"reflect";
+	"strings";
 )
 
 // StringFormatter formats into the default string representation.
@@ -21,9 +23,9 @@ func StringFormatter(w io.Writer, value interface{}, format string) {
 }
 
 
-var esc_amp = io.StringBytes("&amp;")
-var esc_lt = io.StringBytes("&lt;")
-var esc_gt = io.StringBytes("&gt;")
+var esc_amp = strings.Bytes("&amp;")
+var esc_lt = strings.Bytes("&lt;")
+var esc_gt = strings.Bytes("&gt;")
 
 // HtmlEscape writes to w the properly escaped HTML equivalent
 // of the plain text data s.
@@ -48,7 +50,7 @@ func HtmlEscape(w io.Writer, s []byte) {
 
 // HtmlFormatter formats arbitrary values for HTML
 func HtmlFormatter(w io.Writer, value interface{}, format string) {
-	var b io.ByteBuffer;
+	var b bytes.Buffer;
 	fmt.Fprint(&b, value);
 	HtmlEscape(w, b.Data());
 }

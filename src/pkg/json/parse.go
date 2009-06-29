@@ -11,8 +11,8 @@
 package json
 
 import (
+	"bytes";
 	"fmt";
-	"io";
 	"math";
 	"strconv";
 	"strings";
@@ -127,7 +127,7 @@ func Unquote(s string) (t string, ok bool) {
 func Quote(s string) string {
 	chr := make([]byte, utf8.UTFMax);
 	chr0 := chr[0:1];
-	b := new(io.ByteBuffer);
+	b := new(bytes.Buffer);
 	chr[0] = '"';
 	b.Write(chr0);
 	for i := 0; i < len(s); i++ {

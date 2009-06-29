@@ -52,7 +52,7 @@ func connect(t *testing.T, network, addr string) {
 		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
 	}
 
-	b := io.StringBytes("hello, world\n");
+	b := strings.Bytes("hello, world\n");
 	var b1 [100]byte;
 
 	n, errno := fd.Write(b);
