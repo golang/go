@@ -28,7 +28,7 @@ func clen(n []byte) int {
 }
 
 // Negative count means read until EOF.
-func readdirnames(file *File, count int) (names []string, err Error) {
+func (file *File) Readdirnames(count int) (names []string, err Error) {
 	// If this file has no dirinfo, create one.
 	if file.dirinfo == nil {
 		file.dirinfo = new(dirInfo);
