@@ -111,6 +111,9 @@ BUG: should not compile
 =========== bugs/bug164.go
 BUG: should not compile
 
+=========== bugs/bug166.go
+BUG: errchk: command succeeded unexpectedly:  6g bugs/bug166.go
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
