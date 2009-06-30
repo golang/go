@@ -7,34 +7,48 @@ package gob
 import (
 	"io";
 	"os";
+	"unsafe";
 )
 
-// DecodeUint reads an encoded unsigned integer from r.
-func DecodeUint(r io.Reader) (x uint64, err os.Error) {
-	var buf [1]byte;
+// The global execution state of an instance of the decoder.
+type DecState struct {
+	r	io.Reader;
+	err	os.Error;
+	base	uintptr;
+	buf [1]byte;	// buffer used by the decoder; here to avoid allocation.
+}
+
+// DecodeUint reads an encoded unsigned integer from state.r.
+// Sets state.err.  If state.err is already non-nil, it does nothing.
+func DecodeUint(state *DecState) (x uint64) {
+	if state.err != nil {
+		return
+	}
 	for shift := uint(0);; shift += 7 {
-		n, err := r.Read(&buf);
+		var n int;
+		n, state.err = state.r.Read(&state.buf);
 		if n != 1 {
-			return 0, err
+			return 0
 		}
-		b := uint64(buf[0]);
+		b := uint64(state.buf[0]);
 		x |= b << shift;
 		if b&0x80 != 0 {
 			x &^= 0x80 << shift;
 			break
 		}
 	}
-	return x, nil;
+	return x;
 }
 
-// DecodeInt reads an encoded signed integer from r.
-func DecodeInt(r io.Reader) (i int64, err os.Error) {
-	x, err := DecodeUint(r);
-	if err != nil {
-		return
+// DecodeInt reads an encoded signed integer from state.r.
+// Sets state.err.  If state.err is already non-nil, it does nothing.
+func DecodeInt(state *DecState) int64 {
+	x := DecodeUint(state);
+	if state.err != nil {
+		return 0
 	}
 	if x & 1 != 0 {
-		return ^int64(x>>1), nil
+		return ^int64(x>>1)
 	}
-	return int64(x >> 1), nil
+	return int64(x >> 1)
 }
