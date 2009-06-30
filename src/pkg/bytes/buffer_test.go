@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package io
+package bytes
 
 import (
-	"io";
+	"bytes";
 	"rand";
 	"testing";
 )
@@ -24,7 +24,7 @@ func init() {
 
 
 // Verify that contents of buf match the string s.
-func check(t *testing.T, testname string, buf *ByteBuffer, s string) {
+func check(t *testing.T, testname string, buf *Buffer, s string) {
 	if buf.Len() != len(buf.Data()) {
 		t.Errorf("%s: buf.Len() == %d, len(buf.Data()) == %d\n", testname, buf.Len(), len(buf.Data()))
 	}
@@ -42,7 +42,7 @@ func check(t *testing.T, testname string, buf *ByteBuffer, s string) {
 // Fill buf through n writes of fub.
 // The initial contents of buf corresponds to the string s;
 // the result is the final contents of buf returned as a string.
-func fill(t *testing.T, testname string, buf *ByteBuffer, s string, n int, fub []byte) string {
+func fill(t *testing.T, testname string, buf *Buffer, s string, n int, fub []byte) string {
 	check(t, testname + " (fill 1)", buf, s);
 	for ; n > 0; n-- {
 		m, err := buf.Write(fub);
@@ -61,7 +61,7 @@ func fill(t *testing.T, testname string, buf *ByteBuffer, s string, n int, fub [
 
 // Empty buf through repeated reads into fub.
 // The initial contents of buf corresponds to the string s.
-func empty(t *testing.T, testname string, buf *ByteBuffer, s string, fub []byte) {
+func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
 	check(t, testname + " (empty 1)", buf, s);
 
 	for {
@@ -81,7 +81,7 @@ func empty(t *testing.T, testname string, buf *ByteBuffer, s string, fub []byte)
 
 
 func TestBasicOperations(t *testing.T) {
-	var buf ByteBuffer;
+	var buf Buffer;
 
 	for i := 0; i < 5; i++ {
 		check(t, "TestBasicOperations (1)", &buf, "");
@@ -136,7 +136,7 @@ func TestBasicOperations(t *testing.T) {
 
 
 func TestLargeWrites(t *testing.T) {
-	var buf ByteBuffer;
+	var buf Buffer;
 	for i := 3; i < 30; i += 3 {
 		s := fill(t, "TestLargeWrites (1)", &buf, "", 5, data);
 		empty(t, "TestLargeWrites (2)", &buf, s, make([]byte, len(data)/i));
@@ -146,7 +146,7 @@ func TestLargeWrites(t *testing.T) {
 
 
 func TestLargeReads(t *testing.T) {
-	var buf ByteBuffer;
+	var buf Buffer;
 	for i := 3; i < 30; i += 3 {
 		s := fill(t, "TestLargeReads (1)", &buf, "", 5, data[0 : len(data)/i]);
 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(data)));
@@ -156,7 +156,7 @@ func TestLargeReads(t *testing.T) {
 
 
 func TestMixedReadsAndWrites(t *testing.T) {
-	var buf ByteBuffer;
+	var buf Buffer;
 	s := "";
 	for i := 0; i < 50; i++ {
 		wlen := rand.Intn(len(data));
