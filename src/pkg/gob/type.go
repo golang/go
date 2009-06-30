@@ -54,8 +54,7 @@ func (t *commonType) Name() string {
 var tBool Type
 var tInt Type
 var tUint Type
-var tFloat32 Type
-var tFloat64 Type
+var tFloat Type
 var tString Type
 var tBytes Type
 
@@ -151,10 +150,8 @@ func newTypeObject(name string, rt reflect.Type) Type {
 		return tInt
 	case reflect.UintKind, reflect.Uint32Kind, reflect.Uint64Kind:
 		return tUint
-	case reflect.FloatKind, reflect.Float32Kind:
-		return tFloat32
-	case reflect.Float64Kind:
-		return tFloat64
+	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind:
+		return tFloat
 	case reflect.StringKind:
 		return tString
 	case reflect.ArrayKind:
@@ -238,8 +235,7 @@ func init() {
 	tBool= bootstrapType("bool", false);
 	tInt = bootstrapType("int", int(0));
 	tUint = bootstrapType("uint", uint(0));
-	tFloat32 = bootstrapType("float32", float32(0));
-	tFloat64 = bootstrapType("float64", float64(0));
+	tFloat = bootstrapType("float", float64(0));
 	// The string for tBytes is "bytes" not "[]byte" to signify its specialness.
 	tBytes = bootstrapType("bytes", make([]byte, 0));
 	tString= bootstrapType("string", "");

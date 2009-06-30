@@ -18,8 +18,7 @@ var basicTypes = []typeT {
 	typeT { tBool, "bool" },
 	typeT { tInt, "int" },
 	typeT { tUint, "uint" },
-	typeT { tFloat32, "float32" },
-	typeT { tFloat64, "float64" },
+	typeT { tFloat, "float" },
 	typeT { tBytes, "bytes" },
 	typeT { tString, "string" },
 }
@@ -107,8 +106,8 @@ type Foo struct {
 	b int32;	// will become int
 	c string;
 	d []byte;
-	e *float;	// will become float32
-	f ****float64;	// will become float64
+	e *float;	// will become float
+	f ****float64;	// will become float
 	g *Bar;
 	h *Bar;	// should not interpolate the definition of Bar again
 	i *Foo;	// will not explode
@@ -118,7 +117,7 @@ func TestStructType(t *testing.T) {
 	sstruct := GetType("Foo", Foo{});
 	str := sstruct.String();
 	// If we can print it correctly, we built it correctly.
-	expected := "Foo = struct { a int; b int; c string; d bytes; e float32; f float64; g Bar = struct { x string; }; h Bar; i Foo; }";
+	expected := "Foo = struct { a int; b int; c string; d bytes; e float; f float; g Bar = struct { x string; }; h Bar; i Foo; }";
 	if str != expected {
 		t.Errorf("struct printed as %q; expected %q", str, expected);
 	}
