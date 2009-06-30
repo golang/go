@@ -35,7 +35,6 @@ coverage: packages
 O1=\
 	io.$O\
 	pipe.$O\
-	xxx.$O\
 
 O2=\
 	utils.$O\
@@ -45,7 +44,7 @@ phases: a1 a2
 _obj$D/io.a: phases
 
 a1: $(O1)
-	$(AR) grc _obj$D/io.a io.$O pipe.$O xxx.$O
+	$(AR) grc _obj$D/io.a io.$O pipe.$O
 	rm -f $(O1)
 
 a2: $(O2)
