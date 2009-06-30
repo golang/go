@@ -344,7 +344,8 @@ common_dcl:
 
 varoptsemi:
 	{
-		yyoptsemi('=');
+		if(yylast == LSEMIBRACE)
+			yyoptsemi('=');
 	}
 
 vardcl:

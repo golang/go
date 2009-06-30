@@ -1,4 +1,4 @@
-// errchk $G $D/$F.go
+// $G $D/$F.go
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,8 +6,12 @@
 
 package main
 
-import "fmt"
+// Multi-line string literal now allowed.
+
+const s = `
+Hello, World!
+`
 
 func main() {
-	日本語 := 1;	// Japanese ideographs are not letters
+	print(s)
 }
