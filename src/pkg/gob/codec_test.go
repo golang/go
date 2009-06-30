@@ -36,26 +36,30 @@ var encodeT = []EncodeT {
 
 // Test basic encode/decode routines for unsigned integers
 func TestUintCodec(t *testing.T) {
-	var b = new(bytes.Buffer);
+	b := new(bytes.Buffer);
+	encState := new(EncState);
+	encState.w = b;
 	for i, tt := range encodeT {
 		b.Reset();
-		err := EncodeUint(b, tt.x);
-		if err != nil {
-			t.Error("EncodeUint:", tt.x, err)
+		EncodeUint(encState, tt.x);
+		if encState.err != nil {
+			t.Error("EncodeUint:", tt.x, encState.err)
 		}
 		if !bytes.Equal(tt.b, b.Data()) {
 			t.Errorf("EncodeUint: expected % x got % x", tt.b, b.Data())
 		}
 	}
+	decState := new(DecState);
+	decState.r = b;
 	for u := uint64(0); ; u = (u+1) * 7 {
 		b.Reset();
-		err := EncodeUint(b, u);
-		if err != nil {
-			t.Error("EncodeUint:", u, err)
+		EncodeUint(encState, u);
+		if encState.err != nil {
+			t.Error("EncodeUint:", u, encState.err)
 		}
-		v, err := DecodeUint(b);
-		if err != nil {
-			t.Error("DecodeUint:", u, err)
+		v := DecodeUint(decState);
+		if decState.err != nil {
+			t.Error("DecodeUint:", u, decState.err)
 		}
 		if u != v {
 			t.Errorf("Encode/Decode: sent %#x received %#x\n", u, v)
@@ -68,13 +72,17 @@ func TestUintCodec(t *testing.T) {
 
 func verifyInt(i int64, t *testing.T) {
 	var b = new(bytes.Buffer);
-	err := EncodeInt(b, i);
-	if err != nil {
-		t.Error("EncodeInt:", i, err)
+	encState := new(EncState);
+	encState.w = b;
+	EncodeInt(encState, i);
+	if encState.err != nil {
+		t.Error("EncodeInt:", i, encState.err)
 	}
-	j, err := DecodeInt(b);
-	if err != nil {
-		t.Error("DecodeInt:", i, err)
+	decState := new(DecState);
+	decState.r = b;
+	j := DecodeInt(decState);
+	if decState.err != nil {
+		t.Error("DecodeInt:", i, decState.err)
 	}
 	if i != j {
 		t.Errorf("Encode/Decode: sent %#x received %#x\n", uint64(i), uint64(j))
@@ -109,7 +117,7 @@ var floatResult = []byte{0x80, 0x40, 0xe2, 0x81, 0x40, 0xe2, 0x82, 0x40, 0xe2}
 // Do not run the machine yet; instead do individual instructions crafted by hand.
 func TestScalarEncInstructions(t *testing.T) {
 	var b = new(bytes.Buffer);
-	var state encState;
+	var state EncState;
 
 	// bool
 	{
