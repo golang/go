@@ -173,7 +173,7 @@ func (req *Request) write(w io.Writer) os.Error {
 	Loop:
 		for {
 			var nr, nw int;
-			var er, ew os.Error
+			var er, ew os.Error;
 			if nr, er = req.Body.Read(buf); nr > 0 {
 				if er == nil || er == os.EOF {
 					fmt.Fprintf(w, "%x\r\n", nr);
