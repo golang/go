@@ -270,9 +270,7 @@ func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
 			return nil, ErrBufferFull
 		}
 	}
-
-	// BUG 6g bug100
-	return nil, nil
+	panic("not reached");
 }
 
 // ReadLineBytes reads until the first occurrence of delim in the input,
@@ -323,7 +321,6 @@ func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
 			full = make([][]byte, 16);
 		} else if nfull >= len(full) {
 			newfull := make([][]byte, len(full)*2);
-			// BUG slice assignment
 			for i := 0; i < len(full); i++ {
 				newfull[i] = full[i];
 			}

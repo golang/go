@@ -777,11 +777,12 @@ func (l *ListenerUnix) AcceptUnix() (c *ConnUnix, raddr string, err os.Error) {
 // Accept implements the Accept method in the Listener interface;
 // it waits for the next call and returns a generic Conn.
 func (l *ListenerUnix) Accept() (c Conn, raddr string, err os.Error) {
-	// TODO(rsc): 6g bug prevents saying
-	//	c, raddr, err = l.AcceptUnix();
-	//	return;
-	c1, r1, e1 := l.AcceptUnix();
-	return c1, r1, e1;
+	// TODO(rsc): Should return l.AcceptUnix() be okay here?
+	// There is a type conversion -- the first return arg of
+	// l.AcceptUnix() is *ConnUnix and it gets converted to Conn
+	// in the explicit assignment.
+	c, raddr, err = l.AcceptUnix();
+	return;
 }
 
 

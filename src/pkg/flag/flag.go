@@ -48,7 +48,7 @@ import (
 	"strconv"
 )
 
-// BUG: atob belongs elsewhere
+// TODO(r): BUG: atob belongs elsewhere
 func atob(str string) (value bool, ok bool) {
 	switch str {
 		case "1", "t", "T", "true", "TRUE", "True":

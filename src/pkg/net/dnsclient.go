@@ -88,7 +88,6 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
 
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
-// TODO(rsc): Maybe return []IP instead?
 func answer(name, server string, dns *_DNS_Msg) (addrs []string, err *DNSError) {
 	addrs = make([]string, 0, len(dns.answer));
 
