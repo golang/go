@@ -11,6 +11,7 @@ import (
 	"testing";
 	"unsafe";
 )
+import "fmt" // TODO DELETE
 
 // Guarantee encoding format by comparing some encodings to hand-written values
 type EncodeT struct {
@@ -117,7 +118,7 @@ var floatResult = []byte{0x80, 0x40, 0xe2, 0x81, 0x40, 0xe2, 0x82, 0x40, 0xe2}
 // Do not run the machine yet; instead do individual instructions crafted by hand.
 func TestScalarEncInstructions(t *testing.T) {
 	var b = new(bytes.Buffer);
-	var state EncState;
+	state := new(EncState);
 
 	// bool
 	{
@@ -129,15 +130,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encBool, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(boolResult, b.Data()) {
 			t.Errorf("bool enc instructions: expected % x got % x", boolResult, b.Data())
 		}
@@ -153,15 +154,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encInt, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(signedResult, b.Data()) {
 			t.Errorf("int enc instructions: expected % x got % x", signedResult, b.Data())
 		}
@@ -177,15 +178,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encUint, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(unsignedResult, b.Data()) {
 			t.Errorf("uint enc instructions: expected % x got % x", unsignedResult, b.Data())
 		}
@@ -201,15 +202,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encInt, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(signedResult, b.Data()) {
 			t.Errorf("int8 enc instructions: expected % x got % x", signedResult, b.Data())
 		}
@@ -225,15 +226,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encUint, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(unsignedResult, b.Data()) {
 			t.Errorf("uint8 enc instructions: expected % x got % x", unsignedResult, b.Data())
 		}
@@ -249,15 +250,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encInt16, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(signedResult, b.Data()) {
 			t.Errorf("int16 enc instructions: expected % x got % x", signedResult, b.Data())
 		}
@@ -273,15 +274,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encUint16, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(unsignedResult, b.Data()) {
 			t.Errorf("uint16 enc instructions: expected % x got % x", unsignedResult, b.Data())
 		}
@@ -297,15 +298,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encInt32, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(signedResult, b.Data()) {
 			t.Errorf("int32 enc instructions: expected % x got % x", signedResult, b.Data())
 		}
@@ -321,15 +322,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encUint32, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(unsignedResult, b.Data()) {
 			t.Errorf("uint32 enc instructions: expected % x got % x", unsignedResult, b.Data())
 		}
@@ -345,15 +346,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encInt64, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(signedResult, b.Data()) {
 			t.Errorf("int64 enc instructions: expected % x got % x", signedResult, b.Data())
 		}
@@ -369,15 +370,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encUint, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(unsignedResult, b.Data()) {
 			t.Errorf("uint64 enc instructions: expected % x got % x", unsignedResult, b.Data())
 		}
@@ -393,15 +394,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encFloat, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(floatResult, b.Data()) {
 			t.Errorf("float enc instructions: expected % x got % x", floatResult, b.Data())
 		}
@@ -417,15 +418,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encFloat32, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(floatResult, b.Data()) {
 			t.Errorf("float32 enc instructions: expected % x got % x", floatResult, b.Data())
 		}
@@ -441,17 +442,453 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encFloat64, 0, 0, 0 };
 		state.w = b;
 		state.base = uintptr(unsafe.Pointer(&data));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
-		instr.op(instr, &state);
+		instr.op(instr, state);
 		if !bytes.Equal(floatResult, b.Data()) {
 			t.Errorf("float64 enc instructions: expected % x got % x", floatResult, b.Data())
+		}
+	}
+}
+
+func expectField(n int, state *DecState, t *testing.T) {
+	v := int(DecodeUint(state));
+	if state.err != nil {
+		t.Fatalf("decoding field number %d: %v", n, state.err);
+	}
+	if v != n {
+		t.Fatalf("decoding field number %d, got %d", n, v);
+	}
+}
+
+// Test instruction execution for decoding.
+// Do not run the machine yet; instead do individual instructions crafted by hand.
+func TestScalarDecInstructions(t *testing.T) {
+	state := new(DecState);
+
+	// bool
+	{
+		b := bytes.NewBuffer(boolResult);
+		var data struct { a bool; b *bool; c **bool };
+		instr := &decInstr{ decBool, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != true {
+			t.Errorf("int a = %v not true", data.a)
+		}
+		if *data.b != true {
+			t.Errorf("int b = %v not true", *data.b)
+		}
+		if **data.c != true {
+			t.Errorf("int c = %v not true", **data.c)
+		}
+	}
+
+	// int
+	{
+		b := bytes.NewBuffer(signedResult);
+		var data struct { a int; b *int; c **int };
+		instr := &decInstr{ decInt, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// uint
+	{
+		b := bytes.NewBuffer(unsignedResult);
+		var data struct { a uint; b *uint; c **uint };
+		instr := &decInstr{ decUint, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// int8
+	{
+		b := bytes.NewBuffer(signedResult);
+		var data struct { a int8; b *int8; c **int8 };
+		instr := &decInstr{ decInt8, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// uint8
+	{
+		b := bytes.NewBuffer(unsignedResult);
+		var data struct { a uint8; b *uint8; c **uint8 };
+		instr := &decInstr{ decUint8, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// int16
+	{
+		b := bytes.NewBuffer(signedResult);
+		var data struct { a int16; b *int16; c **int16 };
+		instr := &decInstr{ decInt16, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// uint16
+	{
+		b := bytes.NewBuffer(unsignedResult);
+		var data struct { a uint16; b *uint16; c **uint16 };
+		instr := &decInstr{ decUint16, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// int32
+	{
+		b := bytes.NewBuffer(signedResult);
+		var data struct { a int32; b *int32; c **int32 };
+		instr := &decInstr{ decInt32, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// uint32
+	{
+		b := bytes.NewBuffer(unsignedResult);
+		var data struct { a uint32; b *uint32; c **uint32 };
+		instr := &decInstr{ decUint32, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// int64
+	{
+		b := bytes.NewBuffer(signedResult);
+		var data struct { a int64; b *int64; c **int64 };
+		instr := &decInstr{ decInt64, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// uint64
+	{
+		b := bytes.NewBuffer(unsignedResult);
+		var data struct { a uint64; b *uint64; c **uint64 };
+		instr := &decInstr{ decUint64, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// float
+	{
+		b := bytes.NewBuffer(floatResult);
+		var data struct { a float; b *float; c **float };
+		instr := &decInstr{ decFloat, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// float32
+	{
+		b := bytes.NewBuffer(floatResult);
+		var data struct { a float32; b *float32; c **float32 };
+		instr := &decInstr{ decFloat32, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
+		}
+	}
+
+	// float64
+	{
+		b := bytes.NewBuffer(floatResult);
+		var data struct { a float64; b *float64; c **float64 };
+		instr := &decInstr{ decFloat64, 0, 0, 0 };
+		state.r = b;
+		state.base = uintptr(unsafe.Pointer(&data));
+		expectField(0, state, t);
+		instr.op(instr, state);
+		instr.field = 1;
+		instr.indir = 1;
+		instr.offset = uintptr(unsafe.Offsetof(data.b));
+		expectField(1, state, t);
+		instr.op(instr, state);
+		instr.field = 2;
+		instr.indir = 2;
+		instr.offset = uintptr(unsafe.Offsetof(data.c));
+		expectField(2, state, t);
+		instr.op(instr, state);
+		if data.a != 17 {
+			t.Errorf("int a = %v not 17", data.a)
+		}
+		if *data.b != 17 {
+			t.Errorf("int b = %v not 17", *data.b)
+		}
+		if **data.c != 17 {
+			t.Errorf("int c = %v not 17", **data.c)
 		}
 	}
 }
