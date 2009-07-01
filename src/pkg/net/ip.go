@@ -346,7 +346,6 @@ L:	for j < IPv6len {
 			if p4 == nil {
 				return nil
 			}
-			// BUG: p[j:j+4] = p4
 			p[j] = p4[12];
 			p[j+1] = p4[13];
 			p[j+2] = p4[14];

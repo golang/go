@@ -109,9 +109,7 @@ func TestRemoveAll(t *testing.T) {
 		t.Fatalf("MkdirAll %q: %s", dpath, err);
 	}
 
-	// TODO(rsc): toss tmp once bug152 is fixed
-	tmp := []string{fpath, dpath+"/file1", path+"/zzz"};
-	for i, s := range tmp {
+	for i, s := range []string{fpath, dpath+"/file1", path+"/zzz"} {
 		fd, err = os.Open(s, os.O_WRONLY | os.O_CREAT, 0666);
 		if err != nil {
 			t.Fatalf("create %q: %s", s, err);

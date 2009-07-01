@@ -117,9 +117,7 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
 // If an EOF happens after reading some but not all the bytes,
 // ReadFull returns ErrUnexpectedEOF.
 func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
-	// TODO(rsc): 6g bug keeps us from writing the obvious 1-liner
-	n, err = ReadAtLeast(r, buf, len(buf));
-	return;
+	return ReadAtLeast(r, buf, len(buf));
 }
 
 // Copyn copies n bytes (or until an error) from src to dst.
