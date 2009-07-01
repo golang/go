@@ -68,7 +68,7 @@ oldmal(uint32 n)
 }
 
 void
-sys_mal(uint32 n, uint8 *ret)
+sys·mal(uint32 n, uint8 *ret)
 {
 	ret = mal(n);
 	FLUSH(&ret);
