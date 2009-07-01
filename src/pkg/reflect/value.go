@@ -16,7 +16,7 @@ import (
 type Addr unsafe.Pointer
 
 func equalType(a, b Type) bool {
-	return a.String() == b.String()
+	return a.Kind() == b.Kind() && a.String() == b.String()
 }
 
 // Value is the generic interface to reflection values.  Once its Kind is known,
