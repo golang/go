@@ -67,11 +67,20 @@ type encInstr struct {
 // Otherwise, the output (for a scalar) is the field number, as an encoded integer,
 // followed by the field data in its appropriate format.
 
-func encBool(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
+func encIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
+	for ; indir > 0; indir-- {
 		p = *(*unsafe.Pointer)(p);
 		if p == nil {
+			return unsafe.Pointer(nil)
+		}
+	}
+	return p
+}
+
+func encBool(i *encInstr, state *EncState) {
+	p := unsafe.Pointer(state.base+i.offset);
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -84,9 +93,8 @@ func encBool(i *encInstr, state *EncState) {
 
 func encInt(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -99,9 +107,8 @@ func encInt(i *encInstr, state *EncState) {
 
 func encUint(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -114,9 +121,8 @@ func encUint(i *encInstr, state *EncState) {
 
 func encInt8(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -129,9 +135,8 @@ func encInt8(i *encInstr, state *EncState) {
 
 func encUint8(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -144,9 +149,8 @@ func encUint8(i *encInstr, state *EncState) {
 
 func encInt16(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -159,9 +163,8 @@ func encInt16(i *encInstr, state *EncState) {
 
 func encUint16(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -174,9 +177,8 @@ func encUint16(i *encInstr, state *EncState) {
 
 func encInt32(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -189,9 +191,8 @@ func encInt32(i *encInstr, state *EncState) {
 
 func encUint32(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -204,9 +205,8 @@ func encUint32(i *encInstr, state *EncState) {
 
 func encInt64(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -219,9 +219,8 @@ func encInt64(i *encInstr, state *EncState) {
 
 func encUint64(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -250,9 +249,8 @@ func floatBits(f float64) uint64 {
 
 func encFloat(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -266,9 +264,8 @@ func encFloat(i *encInstr, state *EncState) {
 
 func encFloat32(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
@@ -282,9 +279,8 @@ func encFloat32(i *encInstr, state *EncState) {
 
 func encFloat64(i *encInstr, state *EncState) {
 	p := unsafe.Pointer(state.base+i.offset);
-	for indir := i.indir; indir > 0; indir-- {
-		p = *(*unsafe.Pointer)(p);
-		if p == nil {
+	if i.indir > 0 {
+		if p = encIndirect(p, i.indir); p == nil {
 			return
 		}
 	}
