@@ -420,6 +420,7 @@ var deepEqualTests = []DeepEqualTest {
 	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 3 }, true },
 	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.5 }, true },
 	DeepEqualTest{ os.Error(nil), os.Error(nil), true },
+
 	// Inequalities
 	DeepEqualTest{ 1, 2, false },
 	DeepEqualTest{ int32(1), int32(2), false },
@@ -429,6 +430,8 @@ var deepEqualTests = []DeepEqualTest {
 	DeepEqualTest{ make([]int, 10), make([]int, 11), false },
 	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 4 }, false },
 	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.6 }, false },
+	DeepEqualTest{ Basic{ 1, 0 }, Basic{ 2, 0 }, false },
+
 	// Mismatched types
 	DeepEqualTest{ 1, 1.0, false },
 	DeepEqualTest{ int32(1), int64(1), false },
