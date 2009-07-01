@@ -37,6 +37,51 @@ struct params {
 	char *type;
 };
 
+/* index into type_table */
+enum {
+	Bool,
+	Float,
+	Int,
+	Uint,
+	Uintptr,
+	String,
+	Array,
+};
+
+static struct {
+	char *name;
+	int size;
+} type_table[] = {
+	/* variable sized first, for easy replacement */
+	/* order matches enum above */
+	/* default is 32-bit architecture sizes */
+	"bool",		1,
+	"float",	4,
+	"int",		4,
+	"uint",		4,
+	"uintptr",	4,
+	"String",	8,
+	"Array",	12,
+
+	/* fixed size */
+	"float32",	4,
+	"float64",	8,
+	"byte",		1,
+	"int8",		1,
+	"uint8",	1,
+	"int16",	2,
+	"uint16",	2,
+	"int32",	4,
+	"uint32",	4,
+	"int64",	8,
+	"uint64",	8,
+
+	NULL,
+};
+
+/* Fixed structure alignment (non-gcc only) */
+int structround = 4;
+
 /* Unexpected EOF.  */
 static void
 bad_eof(void)
@@ -184,6 +229,8 @@ read_token(void)
 			if (c == EOF)
 				break;
 			if (isspace(c) || strchr(delims, c) != NULL) {
+				if (c == '\n')
+					lineno--;
 				ungetc(c, stdin);
 				break;
 			}
@@ -231,7 +278,7 @@ read_preprocessor_lines(void)
 		} while (isspace(c));
 		if (c != '#') {
 			ungetc(c, stdin);
-			return;
+			break;
 		}
 		putchar(c);
 		do {
@@ -272,24 +319,52 @@ read_type(void)
 	return q;
 }
 
+/* Return the size of the given type. */
+static int
+type_size(char *p)
+{
+	int i;
+
+	if(p[strlen(p)-1] == '*')
+		return type_table[Uintptr].size;
+
+	for(i=0; type_table[i].name; i++)
+		if(strcmp(type_table[i].name, p) == 0)
+			return type_table[i].size;
+	fprintf(stderr, "%s:%u: unknown type %s\n", file, lineno, p);
+	exit(1);
+	return 0;
+}
+
 /* Read a list of parameters.  Each parameter is a name and a type.
    The list ends with a ')'.  We have already read the '('.  */
 static struct params *
-read_params(void)
+read_params(int *poffset)
 {
 	char *token;
-	struct params *ret, **pp;
+	struct params *ret, **pp, *p;
+	int offset, size, rnd;
 
 	ret = NULL;
 	pp = &ret;
 	token = read_token_no_eof();
+	offset = 0;
 	if (strcmp(token, ")") != 0) {
 		while (1) {
-			*pp = xmalloc(sizeof(struct params));
-			(*pp)->name = token;
-			(*pp)->type = read_type();
-			pp = &(*pp)->next;
-			*pp = NULL;
+			p = xmalloc(sizeof(struct params));
+			p->name = token;
+			p->type = read_type();
+			p->next = NULL;
+			*pp = p;
+			pp = &p->next;
+
+			size = type_size(p->type);
+			rnd = size;
+			if(rnd > structround)
+				rnd = structround;
+			if(offset%rnd)
+				offset += rnd - offset%rnd;
+			offset += size;
 
 			token = read_token_no_eof();
 			if (strcmp(token, ",") != 0)
@@ -302,24 +377,39 @@ read_params(void)
 			file, lineno);
 		exit(1);
 	}
+	if (poffset != NULL)
+		*poffset = offset;
 	return ret;
 }
 
 /* Read a function header.  This reads up to and including the initial
    '{' character.  Returns 1 if it read a header, 0 at EOF.  */
 static int
-read_func_header(char **name, struct params **params, struct params **rets)
+read_func_header(char **name, struct params **params, int *paramwid, struct params **rets)
 {
+	int lastline;
 	char *token;
 
-	token = read_token();
-	if (token == NULL)
-		return 0;
-	if (strcmp(token, "func") != 0) {
-		fprintf(stderr, "%s:%u: expected \"func\"\n",
-			file, lineno);
-		exit(1);
+	lastline = -1;
+	while (1) {
+		token = read_token();
+		if (token == NULL)
+			return 0;
+		if (strcmp(token, "func") == 0) {
+			if(lastline != -1)
+				printf("\n");
+			break;
+		}
+		if (lastline != lineno) {
+			if (lastline == lineno-1)
+				printf("\n");
+			else
+				printf("\n#line %d \"%s\"\n", lineno, file);
+			lastline = lineno;
+		}
+		printf("%s ", token);
 	}
+
 	*name = read_token_no_eof();
 
 	token = read_token();
@@ -328,13 +418,13 @@ read_func_header(char **name, struct params **params, struct params **rets)
 			file, lineno);
 		exit(1);
 	}
-	*params = read_params();
+	*params = read_params(paramwid);
 
 	token = read_token();
 	if (token == NULL || strcmp(token, "(") != 0)
 		*rets = NULL;
 	else {
-		*rets = read_params();
+		*rets = read_params(NULL);
 		token = read_token();
 	}
 	if (token == NULL || strcmp(token, "{") != 0) {
@@ -363,13 +453,25 @@ write_params(struct params *params, int *first)
 /* Write a 6g function header.  */
 static void
 write_6g_func_header(char *package, char *name, struct params *params,
-		     struct params *rets)
+		     int paramwid, struct params *rets)
 {
-	int first;
+	int first, n;
 
 	printf("void\n%s·%s(", package, name);
 	first = 1;
 	write_params(params, &first);
+
+	/* insert padding to align output struct */
+	if(rets != NULL && paramwid%structround != 0) {
+		n = structround - paramwid%structround;
+		if(n & 1)
+			printf(", uint8");
+		if(n & 2)
+			printf(", uint16");
+		if(n & 4)
+			printf(", uint32");
+	}
+
 	write_params(rets, &first);
 	printf(")\n{\n");
 }
@@ -456,12 +558,13 @@ write_gcc_func_trailer(char *package, char *name, struct params *rets)
 /* Write out a function header.  */
 static void
 write_func_header(char *package, char *name,
-		  struct params *params, struct params *rets)
+		  struct params *params, int paramwid,
+		  struct params *rets)
 {
 	if (gcc)
 		write_gcc_func_header(package, name, params, rets);
 	else
-		write_6g_func_header(package, name, params, rets);
+		write_6g_func_header(package, name, params, paramwid, rets);
 	printf("#line %d \"%s\"\n", lineno, file);
 }
 
@@ -546,11 +649,12 @@ process_file(void)
 {
 	char *package, *name;
 	struct params *params, *rets;
+	int paramwid;
 
 	package = read_package();
 	read_preprocessor_lines();
-	while (read_func_header(&name, &params, &rets)) {
-		write_func_header(package, name, params, rets);
+	while (read_func_header(&name, &params, &paramwid, &rets)) {
+		write_func_header(package, name, params, paramwid, rets);
 		copy_body();
 		write_func_trailer(package, name, rets);
 		free(name);
@@ -570,6 +674,8 @@ usage(void)
 int
 main(int argc, char **argv)
 {
+	char *goarch;
+
 	while(argc > 1 && argv[1][0] == '-') {
 		if(strcmp(argv[1], "-") == 0)
 			break;
@@ -582,13 +688,13 @@ main(int argc, char **argv)
 		argc--;
 		argv++;
 	}
-	
+
 	if(argc <= 1 || strcmp(argv[1], "-") == 0) {
 		file = "<stdin>";
 		process_file();
 		return 0;
 	}
-	
+
 	if(argc > 2)
 		usage();
 
@@ -597,6 +703,18 @@ main(int argc, char **argv)
 		fprintf(stderr, "open %s: %s\n", file, strerror(errno));
 		exit(1);
 	}
+
+	if(!gcc) {
+		// 6g etc; update size table
+		goarch = getenv("GOARCH");
+		if(goarch != NULL && strcmp(goarch, "amd64") == 0) {
+			type_table[Uintptr].size = 8;
+			type_table[String].size = 16;
+			type_table[Array].size = 8+4+4;
+			structround = 8;
+		}
+	}
+
 	process_file();
 	return 0;
 }
