@@ -7,6 +7,7 @@
 // TODO(rsc): double-check stats.
 // TODO(rsc): solve "stack overflow during malloc" problem.
 
+package malloc
 #include "runtime.h"
 #include "malloc.h"
 #include "defs.h"
@@ -305,4 +306,24 @@ stackfree(void *v)
 		return;
 	}
 	free(v);
+}
+
+func Alloc(n uintptr) (p *byte) {
+	p = malloc(n);
+}
+
+func Free(p *byte) {
+	free(p);
+}
+
+func Lookup(p *byte) (base *byte, size uintptr) {
+	mlookup(p, &base, &size, nil);
+}
+
+func GetStats() (s *MStats) {
+	s = &mstats;
+}
+
+func GC() {
+	gc(1);
 }

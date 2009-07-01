@@ -47,11 +47,9 @@ OFILES=\
 	closure.$O\
 	extern.$O\
 	float.$O\
-	float_go.$O\
 	hashmap.$O\
 	iface.$O\
 	malloc.$O\
-	malloc_go.$O\
 	mcache.$O\
 	mcentral.$O\
 	mem.$O\
@@ -66,7 +64,6 @@ OFILES=\
 	runtime.$O\
 	rt0.$O\
 	sema.$O\
-	sema_go.$O\
 	signal.$O\
 	string.$O\
 	symtab.$O\
