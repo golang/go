@@ -397,12 +397,7 @@ void	notewakeup(Note*);
  */
 #ifndef __GNUC__
 #define sys_memclr sys·memclr
-#define sys_catstring sys·catstring
-#define sys_cmpstring sys·cmpstring
 #define sys_getcallerpc sys·getcallerpc
-#define sys_indexstring sys·indexstring
-#define sys_intstring sys·intstring
-#define sys_mal sys·mal
 #define sys_mmap sys·mmap
 #define sys_printarray sys·printarray
 #define sys_printbool sys·printbool
@@ -416,7 +411,6 @@ void	notewakeup(Note*);
 #define sys_printstring sys·printstring
 #define sys_printuint sys·printuint
 #define sys_setcallerpc sys·setcallerpc
-#define sys_slicestring sys·slicestring
 #endif
 
 /*
@@ -441,11 +435,6 @@ void	sys_printpointer(void*);
 void	sys_printuint(uint64);
 void	sys_printhex(uint64);
 void	sys_printarray(Array);
-void	sys_catstring(String, String, String);
-void	sys_cmpstring(String, String, int32);
-void	sys_slicestring(String, int32, int32, String);
-void	sys_indexstring(String, int32, byte);
-void	sys_intstring(int64, String);
 
 /*
  * wrapped for go users
