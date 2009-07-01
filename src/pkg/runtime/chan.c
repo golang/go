@@ -88,6 +88,10 @@ static	uint32	gcd(uint32, uint32);
 static	uint32	fastrand1(void);
 static	uint32	fastrand2(void);
 
+enum {
+	Structrnd = sizeof(uintptr)
+};
+
 // newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
 void
 sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
@@ -393,7 +397,7 @@ sys·chansend2(Hchan* c, ...)
 
 	o = rnd(sizeof(c), c->elemsize);
 	ae = (byte*)&c + o;
-	o = rnd(o+c->elemsize, 1);
+	o = rnd(o+c->elemsize, Structrnd);
 	ap = (byte*)&c + o;
 
 	sendchan(c, ae, ap);
@@ -406,7 +410,7 @@ sys·chanrecv1(Hchan* c, ...)
 	int32 o;
 	byte *ae;
 
-	o = rnd(sizeof(c), c->elemsize);
+	o = rnd(sizeof(c), Structrnd);
 	ae = (byte*)&c + o;
 
 	chanrecv(c, ae, nil);
@@ -419,7 +423,7 @@ sys·chanrecv2(Hchan* c, ...)
 	int32 o;
 	byte *ae, *ap;
 
-	o = rnd(sizeof(c), c->elemsize);
+	o = rnd(sizeof(c), Structrnd);
 	ae = (byte*)&c + o;
 	o = rnd(o+c->elemsize, 1);
 	ap = (byte*)&c + o;
@@ -436,10 +440,14 @@ sys·chanrecv3(Hchan* c, byte* ep, byte pres)
 
 // newselect(size uint32) (sel *byte);
 void
-sys·newselect(int32 size, Select *sel)
+sys·newselect(int32 size, ...)
 {
-	int32 n;
+	int32 n, o;
+	Select **selp;
+	Select *sel;
 
+	o = rnd(sizeof(size), Structrnd);
+	selp = (Select**)((byte*)&size + o);
 	n = 0;
 	if(size > 1)
 		n = size-1;
@@ -457,7 +465,7 @@ sys·newselect(int32 size, Select *sel)
 
 	sel->tcase = size;
 	sel->ncase = 0;
-	FLUSH(&sel);
+	*selp = sel;
 	if(debug) {
 		prints("newselect s=");
 		sys·printpointer(sel);
@@ -494,7 +502,7 @@ sys·selectsend(Select *sel, Hchan *c, ...)
 
 	eo = rnd(sizeof(sel), sizeof(c));
 	eo = rnd(eo+sizeof(c), c->elemsize);
-	cas->so = rnd(eo+c->elemsize, 1);
+	cas->so = rnd(eo+c->elemsize, Structrnd);
 	cas->send = 1;
 
 	ae = (byte*)&sel + eo;
@@ -540,7 +548,7 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
 
 	eo = rnd(sizeof(sel), sizeof(c));
 	eo = rnd(eo+sizeof(c), sizeof(byte*));
-	cas->so = rnd(eo+sizeof(byte*), 1);
+	cas->so = rnd(eo+sizeof(byte*), Structrnd);
 	cas->send = 0;
 	cas->u.elemp = *(byte**)((byte*)&sel + eo);
 
@@ -579,7 +587,7 @@ sys·selectdefault(Select *sel, ...)
 	cas->pc = sys·getcallerpc(&sel);
 	cas->chan = nil;
 
-	cas->so = rnd(sizeof(sel), 1);
+	cas->so = rnd(sizeof(sel), Structrnd);
 	cas->send = 2;
 	cas->u.elemp = nil;
 

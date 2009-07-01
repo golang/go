@@ -24,9 +24,20 @@ struct hash {	   /* a hash table; initialize with hash_init() */
 	uint32	keysize;
 	uint32	valsize;
 	uint32	datavo;
-	uint32	ko;
-	uint32	vo;
-	uint32	po;
+
+	// three sets of offsets: the digit counts how many
+	// of key, value are passed as inputs:
+	//	0 = func() (key, value)
+	//	1 = func(key) (value)
+	//	2 = func(key, value)
+	uint32	ko0;
+	uint32	vo0;
+	uint32	ko1;
+	uint32	vo1;
+	uint32	po1;
+	uint32	ko2;
+	uint32	vo2;
+	uint32	po2;
 	Alg*	keyalg;
 	Alg*	valalg;
 };
@@ -654,6 +665,10 @@ donothing(uint32 s, void *a, void *b)
 typedef	struct	hash	Hmap;
 static	int32	debug	= 0;
 
+enum {
+	Structrnd = sizeof(uintptr)
+};
+
 // newmap(keysize uint32, valsize uint32,
 //	keyalg uint32, valalg uint32,
 //	hint uint32) (hmap *map[any]any);
@@ -675,7 +690,7 @@ sys·newmap(uint32 keysize, uint32 valsize,
 	}
 
 	h = mal(sizeof(*h));
-	
+
 	// align value inside data so that mark-sweep gc can find it.
 	// might remove in the future and just assume datavo == keysize.
 	h->datavo = keysize;
@@ -692,34 +707,30 @@ sys·newmap(uint32 keysize, uint32 valsize,
 	h->valsize = valsize;
 	h->keyalg = &algarray[keyalg];
 	h->valalg = &algarray[valalg];
-	
+
 	// these calculations are compiler dependent.
 	// figure out offsets of map call arguments.
-	h->ko = rnd(sizeof(h), keysize);
-	h->vo = rnd(h->ko+keysize, valsize);
-	h->po = rnd(h->vo+valsize, 1);
+
+	// func() (key, val)
+	h->ko0 = rnd(sizeof(h), Structrnd);
+	h->vo0 = rnd(h->ko0+keysize, valsize);
+
+	// func(key) (val[, pres])
+	h->ko1 = rnd(sizeof(h), keysize);
+	h->vo1 = rnd(h->ko1+keysize, Structrnd);
+	h->po1 = rnd(h->vo1+valsize, 1);
+
+	// func(key, val[, pres])
+	h->ko2 = rnd(sizeof(h), keysize);
+	h->vo2 = rnd(h->ko2+keysize, valsize);
+	h->po2 = rnd(h->vo2+valsize, 1);
 
 	ret = h;
 	FLUSH(&ret);
 
 	if(debug) {
-		prints("newmap: map=");
-		sys·printpointer(h);
-		prints("; keysize=");
-		sys·printint(keysize);
-		prints("; valsize=");
-		sys·printint(valsize);
-		prints("; keyalg=");
-		sys·printint(keyalg);
-		prints("; valalg=");
-		sys·printint(valalg);
-		prints("; ko=");
-		sys·printint(h->ko);
-		prints("; vo=");
-		sys·printint(h->vo);
-		prints("; po=");
-		sys·printint(h->po);
-		prints("\n");
+		printf("newmap: map=%p; keysize=%d; valsize=%d; keyalg=%d; valalg=%d; offsets=%d,%d; %d,%d,%d; %d,%d,%d\n",
+			h, keysize, valsize, keyalg, valalg, h->ko0, h->vo0, h->ko1, h->vo1, h->po1, h->ko2, h->vo2, h->po2);
 	}
 }
 
@@ -731,8 +742,8 @@ sys·mapaccess1(Hmap *h, ...)
 	byte *res;
 	int32 hit;
 
-	ak = (byte*)&h + h->ko;
-	av = (byte*)&h + h->vo;
+	ak = (byte*)&h + h->ko1;
+	av = (byte*)&h + h->vo1;
 
 	res = nil;
 	hit = hash_lookup(h, ak, (void**)&res);
@@ -763,9 +774,9 @@ sys·mapaccess2(Hmap *h, ...)
 	byte *res;
 	int32 hit;
 
-	ak = (byte*)&h + h->ko;
-	av = (byte*)&h + h->vo;
-	ap = (byte*)&h + h->po;
+	ak = (byte*)&h + h->ko1;
+	av = (byte*)&h + h->vo1;
+	ap = (byte*)&h + h->po1;
 
 	res = nil;
 	hit = hash_lookup(h, ak, (void**)&res);
@@ -826,8 +837,8 @@ sys·mapassign1(Hmap *h, ...)
 {
 	byte *ak, *av;
 
-	ak = (byte*)&h + h->ko;
-	av = (byte*)&h + h->vo;
+	ak = (byte*)&h + h->ko2;
+	av = (byte*)&h + h->vo2;
 
 	mapassign(h, ak, av);
 }
@@ -840,9 +851,9 @@ sys·mapassign2(Hmap *h, ...)
 	byte *res;
 	int32 hit;
 
-	ak = (byte*)&h + h->ko;
-	av = (byte*)&h + h->vo;
-	ap = (byte*)&h + h->po;
+	ak = (byte*)&h + h->ko2;
+	av = (byte*)&h + h->vo2;
+	ap = (byte*)&h + h->po2;
 
 	if(*ap == true) {
 		// assign
@@ -909,7 +920,7 @@ sys·mapiter1(struct hash_iter *it, ...)
 	byte *ak, *res;
 
 	h = it->h;
-	ak = (byte*)&it + h->ko;
+	ak = (byte*)&it + h->ko0;
 
 	res = it->data;
 	if(res == nil)
@@ -934,8 +945,8 @@ sys·mapiter2(struct hash_iter *it, ...)
 	byte *ak, *av, *res;
 
 	h = it->h;
-	ak = (byte*)&it + h->ko;
-	av = (byte*)&it + h->vo;
+	ak = (byte*)&it + h->ko0;
+	av = (byte*)&it + h->vo0;
 
 	res = it->data;
 	if(res == nil)
