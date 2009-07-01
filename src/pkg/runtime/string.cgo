@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+package sys
 #include "runtime.h"
 
 String	emptystring;
@@ -46,9 +47,7 @@ gostring(byte *str)
 	return s;
 }
 
-void
-sys·catstring(String s1, String s2, String s3)
-{
+func catstring(s1 String, s2 String) (s3 String) {
 	if(s1.len == 0) {
 		s3 = s2;
 		goto out;
@@ -61,9 +60,7 @@ sys·catstring(String s1, String s2, String s3)
 	s3 = gostringsize(s1.len + s2.len);
 	mcpy(s3.str, s1.str, s1.len);
 	mcpy(s3.str+s1.len, s2.str, s2.len);
-
 out:
-	FLUSH(&s3);
 }
 
 static void
@@ -104,11 +101,8 @@ cmpstring(String s1, String s2)
 	return 0;
 }
 
-void
-sys·cmpstring(String s1, String s2, int32 v)
-{
+func cmpstring(s1 String, s2 String) (v int32) {
 	v = cmpstring(s1, s2);
-	FLUSH(&v);
 }
 
 int32
@@ -129,9 +123,7 @@ strcmp(byte *s1, byte *s2)
 	}
 }
 
-void
-sys·slicestring(String si, int32 lindex, int32 hindex, String so)
-{
+func slicestring(si String, lindex int32, hindex int32) (so String) {
 	int32 l;
 
 	if(lindex < 0 || lindex > si.len ||
@@ -148,13 +140,9 @@ sys·slicestring(String si, int32 lindex, int32 hindex, String so)
 //	alternate to create a new string
 //	so = gostringsize(l);
 //	mcpy(so.str, si.str+lindex, l);
-
-	FLUSH(&so);
 }
 
-void
-sys·indexstring(String s, int32 i, byte b)
-{
+func indexstring(s String, i int32) (b byte) {
 	if(i < 0 || i >= s.len) {
 		sys·printpc(&s);
 		prints(" ");
@@ -162,28 +150,20 @@ sys·indexstring(String s, int32 i, byte b)
 	}
 
 	b = s.str[i];
-	FLUSH(&b);
 }
 
-void
-sys·intstring(int64 v, String s)
-{
+func intstring(v int64) (s String) {
 	s = gostringsize(8);
 	s.len = runetochar(s.str, v);
-	FLUSH(&s);
 }
 
-void
-sys·arraystring(Array b, String s)
-{
+func arraystring(b Array) (s String) {
 	s = gostringsize(b.nel);
 	mcpy(s.str, b.array, s.len);
-	FLUSH(&s);
 }
 
-void
-sys·arraystringi(Array b, String s)
-{
+
+func arraystringi(b Array) (s String) {
 	int32 siz1, siz2, i;
 	int32 *a;
 	byte dum[8];
@@ -203,8 +183,6 @@ sys·arraystringi(Array b, String s)
 		siz2 += runetochar(s.str+siz2, a[i]);
 	}
 	s.len = siz2;
-
-	FLUSH(&s);
 }
 
 enum
@@ -212,10 +190,7 @@ enum
 	Runeself	= 0x80,
 };
 
-// func	stringiter(string, int) (retk int);
-void
-sys·stringiter(String s, int32 k, int32 retk)
-{
+func stringiter(s String, k int32) (retk int32) {
 	int32 l;
 
 	if(k >= s.len) {
@@ -234,13 +209,9 @@ sys·stringiter(String s, int32 k, int32 retk)
 	retk = k + charntorune(&l, s.str+k, s.len-k);
 
 out:
-	FLUSH(&retk);
 }
 
-// func	stringiter2(string, int) (retk int, retv any);
-void
-sys·stringiter2(String s, int32 k, int32 retk, int32 retv)
-{
+func stringiter2(s String, k int32) (retk int32, retv int32) {
 	if(k >= s.len) {
 		// retk=0 is end of iteration
 		retk = 0;
@@ -258,6 +229,4 @@ sys·stringiter2(String s, int32 k, int32 retk, int32 retv)
 	retk = k + charntorune(&retv, s.str+k, s.len-k);
 
 out:
-	FLUSH(&retk);
-	FLUSH(&retv);
 }
