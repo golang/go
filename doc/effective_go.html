@@ -360,7 +360,7 @@ out a data structure.
 <h3 id="buffer-slice">Use parallel assignment to slice a buffer</h3>
 
 <pre>
-hdr, body, checksum := buf[0:20], buf[20:len(buf)], buf[len(buf)-4:len(buf)];
+hdr, body, checksum := buf[0:20], buf[20:len(buf)-4], buf[len(buf)-4:len(buf)];
 </pre>
 
 <h2 id="control-flow">Control Flow</h2>
