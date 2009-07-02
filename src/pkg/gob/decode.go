@@ -5,9 +5,11 @@
 package gob
 
 import (
+	"gob";
 	"io";
 	"math";
 	"os";
+	"reflect";
 	"unsafe";
 )
 
@@ -16,6 +18,7 @@ type DecState struct {
 	r	io.Reader;
 	err	os.Error;
 	base	uintptr;
+	fieldnum	int;	// the last field number read.
 	buf [1]byte;	// buffer used by the decoder; here to avoid allocation.
 }
 
@@ -332,4 +335,115 @@ func decFloat64(i *decInstr, state *DecState) {
 	if state.err == nil {
 		*(*float64)(p) = v;
 	}
+}
+
+// Execution engine
+
+// The encoder engine is an array of instructions indexed by field number of the incoming
+// data.  It is executed with random access according to field number.
+type decEngine struct {
+	instr	[]decInstr
+}
+
+var decEngineMap = make(map[reflect.Type] *decEngine)
+var decOp = map[int] func(*decInstr, *DecState) {
+	 reflect.BoolKind: decBool,
+	 reflect.IntKind: decInt,
+	 reflect.Int8Kind: decInt8,
+	 reflect.Int16Kind: decInt16,
+	 reflect.Int32Kind: decInt32,
+	 reflect.Int64Kind: decInt64,
+	 reflect.UintKind: decUint,
+	 reflect.Uint8Kind: decUint8,
+	 reflect.Uint16Kind: decUint16,
+	 reflect.Uint32Kind: decUint32,
+	 reflect.Uint64Kind: decUint64,
+	 reflect.FloatKind: decFloat,
+	 reflect.Float32Kind: decFloat32,
+	 reflect.Float64Kind: decFloat64,
+}
+
+func compileDec(rt reflect.Type, typ Type) *decEngine {
+	srt, ok1 := rt.(reflect.StructType);
+	styp, ok2 := typ.(*structType);
+	if !ok1 || !ok2 {
+		panicln("TODO: can't handle non-structs");
+	}
+	engine := new(decEngine);
+	engine.instr = make([]decInstr, len(styp.field));
+	for fieldnum := 0; fieldnum < len(styp.field); fieldnum++ {
+		field := styp.field[fieldnum];
+		// TODO(r): verify compatibility with corresponding field of data.
+		// For now, assume perfect correspondence between struct and gob.
+		_name, ftyp, _tag, offset := srt.Field(fieldnum);
+		// How many indirections to the underlying data?
+		indir := 0;
+		for {
+			pt, ok := ftyp.(reflect.PtrType);
+			if !ok {
+				break
+			}
+			ftyp = pt.Sub();
+			indir++;
+		}
+		op, ok := decOp[ftyp.Kind()];
+		if !ok {
+			panicln("can't handle decode for type", ftyp.String());
+		}
+		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(offset)};
+	}
+	return engine;
+}
+
+
+func getDecEngine(rt reflect.Type) *decEngine {
+	engine, ok := decEngineMap[rt];
+	if !ok {
+		return compileDec(rt, newType(rt.Name(), rt));
+		decEngineMap[rt] = engine;
+	}
+	return engine;
+}
+
+func (engine *decEngine) decode(r io.Reader, v reflect.Value) os.Error {
+	sv, ok := v.(reflect.StructValue);
+	if !ok {
+		panicln("decoder can't handle non-struct values yet");
+	}
+	state := new(DecState);
+	state.r = r;
+	state.base = uintptr(sv.Addr());
+	state.fieldnum = -1;
+	for state.err == nil {
+		delta := int(DecodeUint(state));
+		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
+			break
+		}
+		fieldnum := state.fieldnum + delta;
+		if fieldnum >= len(engine.instr) {
+			panicln("TODO(r): need to handle unknown data");
+		}
+		instr := &engine.instr[fieldnum];
+		instr.op(instr, state);
+		state.fieldnum = fieldnum;
+	}
+	return state.err
+}
+
+func Decode(r io.Reader, e interface{}) os.Error {
+	// Dereference down to the underlying object.
+	rt := reflect.Typeof(e);
+	v := reflect.NewValue(e);
+	for {
+		pt, ok := rt.(reflect.PtrType);
+		if !ok {
+			break
+		}
+		rt = pt.Sub();
+		v = reflect.Indirect(v);
+	}
+	typeLock.Lock();
+	engine := getDecEngine(rt);
+	typeLock.Unlock();
+	return engine.decode(r, v);
 }

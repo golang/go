@@ -5,17 +5,24 @@
 package gob
 
 import (
+	"gob";
 	"io";
 	"math";
 	"os";
+	"reflect";
+	"sync";
 	"unsafe";
 )
 
 // The global execution state of an instance of the encoder.
+// Field numbers are delta encoded and always increase. The field
+// number is initialized to -1 so 0 comes out as delta(1). A delta of
+// 0 terminates the structure.
 type EncState struct {
 	w	io.Writer;
 	base	uintptr;	// the base address of the data structure being written
 	err	os.Error;	// error encountered during encoding;
+	fieldnum	int;	// the last field number written.
 	buf [16]byte;	// buffer used by the encoder; here to avoid allocation.
 }
 
@@ -86,7 +93,7 @@ func encBool(i *encInstr, state *EncState) {
 	}
 	b := *(*bool)(p);
 	if b {
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, 1);
 	}
 }
@@ -100,7 +107,7 @@ func encInt(i *encInstr, state *EncState) {
 	}
 	v := int64(*(*int)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeInt(state, v);
 	}
 }
@@ -114,7 +121,7 @@ func encUint(i *encInstr, state *EncState) {
 	}
 	v := uint64(*(*uint)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
 	}
 }
@@ -128,7 +135,7 @@ func encInt8(i *encInstr, state *EncState) {
 	}
 	v := int64(*(*int8)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeInt(state, v);
 	}
 }
@@ -142,7 +149,7 @@ func encUint8(i *encInstr, state *EncState) {
 	}
 	v := uint64(*(*uint8)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
 	}
 }
@@ -156,7 +163,7 @@ func encInt16(i *encInstr, state *EncState) {
 	}
 	v := int64(*(*int16)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeInt(state, v);
 	}
 }
@@ -170,7 +177,7 @@ func encUint16(i *encInstr, state *EncState) {
 	}
 	v := uint64(*(*uint16)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
 	}
 }
@@ -184,7 +191,7 @@ func encInt32(i *encInstr, state *EncState) {
 	}
 	v := int64(*(*int32)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeInt(state, v);
 	}
 }
@@ -198,7 +205,7 @@ func encUint32(i *encInstr, state *EncState) {
 	}
 	v := uint64(*(*uint32)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
 	}
 }
@@ -212,7 +219,7 @@ func encInt64(i *encInstr, state *EncState) {
 	}
 	v := *(*int64)(p);
 	if v != 0 {
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeInt(state, v);
 	}
 }
@@ -226,7 +233,7 @@ func encUint64(i *encInstr, state *EncState) {
 	}
 	v := *(*uint64)(p);
 	if v != 0 {
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
 	}
 }
@@ -257,7 +264,7 @@ func encFloat(i *encInstr, state *EncState) {
 	f := float(*(*float)(p));
 	if f != 0 {
 		v := floatBits(float64(f));
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
 	}
 }
@@ -272,7 +279,7 @@ func encFloat32(i *encInstr, state *EncState) {
 	f := float32(*(*float32)(p));
 	if f != 0 {
 		v := floatBits(float64(f));
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
 	}
 }
@@ -287,7 +294,118 @@ func encFloat64(i *encInstr, state *EncState) {
 	f := *(*float64)(p);
 	if f != 0 {
 		v := floatBits(f);
-		EncodeUint(state, uint64(i.field));
+		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
 	}
+}
+
+// The end of a struct is marked by a delta field number of 0.
+func encStructTerminator(i *encInstr, state *EncState) {
+	EncodeUint(state, 0);
+}
+
+// Execution engine
+
+// The encoder engine is an array of instructions indexed by field number of the encoding
+// data, typically a struct.  It is executed top to bottom, walking the struct.
+type encEngine struct {
+	instr	[]encInstr
+}
+
+var encEngineMap = make(map[reflect.Type] *encEngine)
+var encOp = map[int] func(*encInstr, *EncState) {
+	 reflect.BoolKind: encBool,
+	 reflect.IntKind: encInt,
+	 reflect.Int8Kind: encInt8,
+	 reflect.Int16Kind: encInt16,
+	 reflect.Int32Kind: encInt32,
+	 reflect.Int64Kind: encInt64,
+	 reflect.UintKind: encUint,
+	 reflect.Uint8Kind: encUint8,
+	 reflect.Uint16Kind: encUint16,
+	 reflect.Uint32Kind: encUint32,
+	 reflect.Uint64Kind: encUint64,
+	 reflect.FloatKind: encFloat,
+	 reflect.Float32Kind: encFloat32,
+	 reflect.Float64Kind: encFloat64,
+}
+
+// The local Type was compiled from the actual value, so we know
+// it's compatible.
+// TODO(r): worth checking?  typ is unused here.
+func compileEnc(rt reflect.Type, typ Type) *encEngine {
+	srt, ok := rt.(reflect.StructType);
+	if !ok {
+		panicln("TODO: can't handle non-structs");
+	}
+	engine := new(encEngine);
+	engine.instr = make([]encInstr, srt.Len()+1);	// +1 for terminator
+	for fieldnum := 0; fieldnum < srt.Len(); fieldnum++ {
+		_name, ftyp, _tag, offset := srt.Field(fieldnum);
+		// How many indirections to the underlying data?
+		indir := 0;
+		for {
+			pt, ok := ftyp.(reflect.PtrType);
+			if !ok {
+				break
+			}
+			ftyp = pt.Sub();
+			indir++;
+		}
+		op, ok := encOp[ftyp.Kind()];
+		if !ok {
+			panicln("encode can't handle type", ftyp.String());
+		}
+		engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(offset)};
+	}
+	engine.instr[srt.Len()] = encInstr{encStructTerminator, 0, 0, 0};
+	return engine;
+}
+
+// typeLock must be held.
+func getEncEngine(rt reflect.Type) *encEngine {
+	engine, ok := encEngineMap[rt];
+	if !ok {
+		engine = compileEnc(rt, newType(rt.Name(), rt));
+		encEngineMap[rt] = engine;
+	}
+	return engine
+}
+
+func (engine *encEngine) encode(w io.Writer, v reflect.Value) os.Error {
+	sv, ok := v.(reflect.StructValue);
+	if !ok {
+		panicln("encoder can't handle non-struct values yet");
+	}
+	state := new(EncState);
+	state.w = w;
+	state.base = uintptr(sv.Addr());
+	state.fieldnum = -1;
+	for i := 0; i < len(engine.instr); i++ {
+		instr := &engine.instr[i];
+		instr.op(instr, state);
+		if state.err != nil {
+			break
+		}
+		state.fieldnum = i;
+	}
+	return state.err
+}
+
+func Encode(w io.Writer, e interface{}) os.Error {
+	// Dereference down to the underlying object.
+	rt := reflect.Typeof(e);
+	v := reflect.NewValue(e);
+	for {
+		pt, ok := rt.(reflect.PtrType);
+		if !ok {
+			break
+		}
+		rt = pt.Sub();
+		v = reflect.Indirect(v);
+	}
+	typeLock.Lock();
+	engine := getEncEngine(rt);
+	typeLock.Unlock();
+	return engine.encode(w, v);
 }
