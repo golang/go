@@ -8,6 +8,7 @@ import (
 	"bytes";
 	"gob";
 	"os";
+	"reflect";
 	"testing";
 	"unsafe";
 )
@@ -106,35 +107,42 @@ func TestIntCodec(t *testing.T) {
 	verifyInt(-1<<63, t);	// a tricky case
 }
 
-
 // The result of encoding three true booleans with field numbers 0, 1, 2
-var boolResult = []byte{0x80, 0x81, 0x81, 0x81, 0x82, 0x81}
+var boolResult = []byte{0x81, 0x81, 0x81, 0x81, 0x81, 0x81}
 // The result of encoding three numbers = 17 with field numbers 0, 1, 2
-var signedResult = []byte{0x80, 0xa2, 0x81, 0xa2, 0x82, 0xa2}
-var unsignedResult = []byte{0x80, 0x91, 0x81, 0x91, 0x82, 0x91}
-var floatResult = []byte{0x80, 0x40, 0xe2, 0x81, 0x40, 0xe2, 0x82, 0x40, 0xe2}
+var signedResult = []byte{0x81, 0xa2, 0x81, 0xa2, 0x81, 0xa2}
+var unsignedResult = []byte{0x81, 0x91, 0x81, 0x91, 0x81, 0x91}
+var floatResult = []byte{0x81, 0x40, 0xe2, 0x81, 0x40, 0xe2, 0x81, 0x40, 0xe2}
+
+func newEncState(b *bytes.Buffer) *EncState {
+	b.Reset();
+	state := new(EncState);
+	state.w = b;
+	state.fieldnum = -1;
+	return state;
+}
 
 // Test instruction execution for encoding.
 // Do not run the machine yet; instead do individual instructions crafted by hand.
 func TestScalarEncInstructions(t *testing.T) {
 	var b = new(bytes.Buffer);
-	state := new(EncState);
 
 	// bool
 	{
-		b.Reset();
 		v := true;
 		pv := &v;
 		ppv := &pv;
 		data := (struct { a bool; b *bool; c **bool }){ v, pv, ppv };
 		instr := &encInstr{ encBool, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -152,13 +160,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a int; b *int; c **int }){ v, pv, ppv };
 		instr := &encInstr{ encInt, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -176,13 +186,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a uint; b *uint; c **uint }){ v, pv, ppv };
 		instr := &encInstr{ encUint, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -200,13 +212,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a int8; b *int8; c **int8 }){ v, pv, ppv };
 		instr := &encInstr{ encInt, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -224,13 +238,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a uint8; b *uint8; c **uint8 }){ v, pv, ppv };
 		instr := &encInstr{ encUint, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -248,13 +264,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a int16; b *int16; c **int16 }){ v, pv, ppv };
 		instr := &encInstr{ encInt16, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -272,13 +290,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a uint16; b *uint16; c **uint16 }){ v, pv, ppv };
 		instr := &encInstr{ encUint16, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -296,13 +316,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a int32; b *int32; c **int32 }){ v, pv, ppv };
 		instr := &encInstr{ encInt32, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -320,13 +342,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a uint32; b *uint32; c **uint32 }){ v, pv, ppv };
 		instr := &encInstr{ encUint32, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -344,13 +368,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a int64; b *int64; c **int64 }){ v, pv, ppv };
 		instr := &encInstr{ encInt64, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -368,13 +394,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a uint64; b *uint64; c **uint64 }){ v, pv, ppv };
 		instr := &encInstr{ encUint, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -392,13 +420,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a float; b *float; c **float }){ v, pv, ppv };
 		instr := &encInstr{ encFloat, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -416,13 +446,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a float32; b *float32; c **float32 }){ v, pv, ppv };
 		instr := &encInstr{ encFloat32, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -440,13 +472,15 @@ func TestScalarEncInstructions(t *testing.T) {
 		ppv := &pv;
 		data := (struct { a float64; b *float64; c **float64 }){ v, pv, ppv };
 		instr := &encInstr{ encFloat64, 0, 0, 0 };
-		state.w = b;
+		state := newEncState(b);
 		state.base = uintptr(unsafe.Pointer(&data));
 		instr.op(instr, state);
+		state.fieldnum = 0;
 		instr.field = 1;
 		instr.indir = 1;
 		instr.offset = uintptr(unsafe.Offsetof(data.b));
 		instr.op(instr, state);
+		state.fieldnum = 1;
 		instr.field = 2;
 		instr.indir = 2;
 		instr.offset = uintptr(unsafe.Offsetof(data.c));
@@ -462,22 +496,28 @@ func expectField(n int, state *DecState, t *testing.T) {
 	if state.err != nil {
 		t.Fatalf("decoding field number %d: %v", n, state.err);
 	}
-	if v != n {
+	if v + state.fieldnum != n {
 		t.Fatalf("decoding field number %d, got %d", n, v);
 	}
+	state.fieldnum = n;
+}
+
+func newDecState(data []byte) *DecState {
+	state := new(DecState);
+	state.r = bytes.NewBuffer(data);
+	state.fieldnum = -1;
+	return state;
 }
 
 // Test instruction execution for decoding.
 // Do not run the machine yet; instead do individual instructions crafted by hand.
 func TestScalarDecInstructions(t *testing.T) {
-	state := new(DecState);
 
 	// bool
 	{
-		b := bytes.NewBuffer(boolResult);
 		var data struct { a bool; b *bool; c **bool };
 		instr := &decInstr{ decBool, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(boolResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -504,10 +544,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// int
 	{
-		b := bytes.NewBuffer(signedResult);
 		var data struct { a int; b *int; c **int };
 		instr := &decInstr{ decInt, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(signedResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -534,10 +573,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// uint
 	{
-		b := bytes.NewBuffer(unsignedResult);
 		var data struct { a uint; b *uint; c **uint };
 		instr := &decInstr{ decUint, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(unsignedResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -564,10 +602,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// int8
 	{
-		b := bytes.NewBuffer(signedResult);
 		var data struct { a int8; b *int8; c **int8 };
 		instr := &decInstr{ decInt8, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(signedResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -594,10 +631,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// uint8
 	{
-		b := bytes.NewBuffer(unsignedResult);
 		var data struct { a uint8; b *uint8; c **uint8 };
 		instr := &decInstr{ decUint8, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(unsignedResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -624,10 +660,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// int16
 	{
-		b := bytes.NewBuffer(signedResult);
 		var data struct { a int16; b *int16; c **int16 };
 		instr := &decInstr{ decInt16, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(signedResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -654,10 +689,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// uint16
 	{
-		b := bytes.NewBuffer(unsignedResult);
 		var data struct { a uint16; b *uint16; c **uint16 };
 		instr := &decInstr{ decUint16, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(unsignedResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -684,10 +718,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// int32
 	{
-		b := bytes.NewBuffer(signedResult);
 		var data struct { a int32; b *int32; c **int32 };
 		instr := &decInstr{ decInt32, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(signedResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -714,10 +747,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// uint32
 	{
-		b := bytes.NewBuffer(unsignedResult);
 		var data struct { a uint32; b *uint32; c **uint32 };
 		instr := &decInstr{ decUint32, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(unsignedResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -744,10 +776,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// int64
 	{
-		b := bytes.NewBuffer(signedResult);
 		var data struct { a int64; b *int64; c **int64 };
 		instr := &decInstr{ decInt64, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(signedResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -774,10 +805,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// uint64
 	{
-		b := bytes.NewBuffer(unsignedResult);
 		var data struct { a uint64; b *uint64; c **uint64 };
 		instr := &decInstr{ decUint64, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(unsignedResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -804,10 +834,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// float
 	{
-		b := bytes.NewBuffer(floatResult);
 		var data struct { a float; b *float; c **float };
 		instr := &decInstr{ decFloat, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(floatResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -834,10 +863,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// float32
 	{
-		b := bytes.NewBuffer(floatResult);
 		var data struct { a float32; b *float32; c **float32 };
 		instr := &decInstr{ decFloat32, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(floatResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -864,10 +892,9 @@ func TestScalarDecInstructions(t *testing.T) {
 
 	// float64
 	{
-		b := bytes.NewBuffer(floatResult);
 		var data struct { a float64; b *float64; c **float64 };
 		instr := &decInstr{ decFloat64, 0, 0, 0 };
-		state.r = b;
+		state := newDecState(floatResult);
 		state.base = uintptr(unsafe.Pointer(&data));
 		expectField(0, state, t);
 		instr.op(instr, state);
@@ -890,5 +917,20 @@ func TestScalarDecInstructions(t *testing.T) {
 		if **data.c != 17 {
 			t.Errorf("int c = %v not 17", **data.c)
 		}
+	}
+}
+
+type T1 struct {
+	a, b,c int
+}
+
+func TestEncode(t *testing.T) {
+	t1 := &T1{17,18,-5};
+	b := new(bytes.Buffer);
+	Encode(b, t1);
+	var _t1 T1;
+	Decode(b, &_t1);
+	if !reflect.DeepEqual(t1, &_t1) {
+		t.Errorf("encode expected %v got %v", *t1, _t1);
 	}
 }
