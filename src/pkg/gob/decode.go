@@ -245,6 +245,32 @@ func decFloat64(i *decInstr, state *DecState, p unsafe.Pointer) {
 	*(*float64)(p) = floatFromBits(uint64(DecodeUint(state)));
 }
 
+// uint8 arrays are encoded as an unsigned count followed by the raw bytes.
+func decUint8Array(i *decInstr, state *DecState, p unsafe.Pointer) {
+	if i.indir > 0 {
+		if *(*unsafe.Pointer)(p) == nil {
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new([]uint8));
+		}
+		p = *(*unsafe.Pointer)(p);
+	}
+	b := make([]uint8, DecodeUint(state));
+	state.r.Read(b);
+	*(*[]uint8)(p) = b;
+}
+
+// Strings are encoded as an unsigned count followed by the raw bytes.
+func decString(i *decInstr, state *DecState, p unsafe.Pointer) {
+	if i.indir > 0 {
+		if *(*unsafe.Pointer)(p) == nil {
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new([]byte));
+		}
+		p = *(*unsafe.Pointer)(p);
+	}
+	b := make([]byte, DecodeUint(state));
+	state.r.Read(b);
+	*(*string)(p) = string(b);
+}
+
 // Execution engine
 
 // The encoder engine is an array of instructions indexed by field number of the incoming
@@ -269,6 +295,25 @@ var decOpMap = map[int] decOp {
 	 reflect.FloatKind: decFloat,
 	 reflect.Float32Kind: decFloat32,
 	 reflect.Float64Kind: decFloat64,
+	 reflect.StringKind: decString,
+}
+
+func decOpFor(typ reflect.Type) decOp {
+	op, ok := decOpMap[typ.Kind()];
+	if !ok {
+		// Special cases
+		if typ.Kind() == reflect.ArrayKind {
+			atyp := typ.(reflect.ArrayType);
+			switch atyp.Elem().Kind() {
+			case reflect.Uint8Kind:
+				op = decUint8Array
+			}
+		}
+	}
+	if op == nil {
+		panicln("decode can't handle type", typ.String());
+	}
+	return op
 }
 
 func compileDec(rt reflect.Type, typ Type) *decEngine {
@@ -294,10 +339,7 @@ func compileDec(rt reflect.Type, typ Type) *decEngine {
 			ftyp = pt.Sub();
 			indir++;
 		}
-		op, ok := decOpMap[ftyp.Kind()];
-		if !ok {
-			panicln("can't handle decode for type", ftyp.String());
-		}
+		op := decOpFor(ftyp);
 		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(offset)};
 	}
 	return engine;
