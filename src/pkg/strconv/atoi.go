@@ -113,16 +113,19 @@ func Atoui64(s string) (n uint64, err os.Error) {
 	}
 
 	// Look for octal, hex prefix.
-	if s[0] == '0' && len(s) > 1 {
-		if s[1] == 'x' || s[1] == 'X' {
-			// hex
-			return Btoui64(s[2:len(s)], 16);
-		}
-		// octal
-		return Btoui64(s[1:len(s)], 8);
+	switch {
+	case s[0] == '0' && len(s) > 1 && (s[1] == 'x' || s[1] == 'X'):
+		n, err = Btoui64(s[2:len(s)], 16);
+	case s[0] == '0':
+		n, err = Btoui64(s, 8);
+	default:
+		n, err = Btoui64(s, 10);
 	}
-	// decimal
-	return Btoui64(s, 10);
+
+	if err != nil {
+		err.(*NumError).Num = s;
+	}
+	return;
 }
 
 
@@ -135,6 +138,7 @@ func Atoi64(s string) (i int64, err os.Error) {
 	}
 
 	// Pick off leading sign.
+	s0 := s;
 	neg := false;
 	if s[0] == '+' {
 		s = s[1:len(s)]
@@ -147,13 +151,14 @@ func Atoi64(s string) (i int64, err os.Error) {
 	var un uint64;
 	un, err = Atoui64(s);
 	if err != nil && err.(*NumError).Error != os.ERANGE {
+		err.(*NumError).Num = s0;
 		return 0, err
 	}
 	if !neg && un >= 1<<63 {
-		return 1<<63-1, &NumError{s, os.ERANGE}
+		return 1<<63-1, &NumError{s0, os.ERANGE}
 	}
 	if neg && un > 1<<63 {
-		return -1<<63, &NumError{s, os.ERANGE}
+		return -1<<63, &NumError{s0, os.ERANGE}
 	}
 	n := int64(un);
 	if neg {
