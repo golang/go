@@ -92,6 +92,7 @@ func encBool(i *encInstr, state *EncState, p unsafe.Pointer) {
 	if b {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, 1);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -100,6 +101,7 @@ func encInt(i *encInstr, state *EncState, p unsafe.Pointer) {
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeInt(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -108,6 +110,7 @@ func encUint(i *encInstr, state *EncState, p unsafe.Pointer) {
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -116,6 +119,7 @@ func encInt8(i *encInstr, state *EncState, p unsafe.Pointer) {
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeInt(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -124,6 +128,7 @@ func encUint8(i *encInstr, state *EncState, p unsafe.Pointer) {
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -132,6 +137,7 @@ func encInt16(i *encInstr, state *EncState, p unsafe.Pointer) {
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeInt(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -140,6 +146,7 @@ func encUint16(i *encInstr, state *EncState, p unsafe.Pointer) {
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -148,6 +155,7 @@ func encInt32(i *encInstr, state *EncState, p unsafe.Pointer) {
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeInt(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -156,6 +164,7 @@ func encUint32(i *encInstr, state *EncState, p unsafe.Pointer) {
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -164,6 +173,7 @@ func encInt64(i *encInstr, state *EncState, p unsafe.Pointer) {
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeInt(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -172,6 +182,7 @@ func encUint64(i *encInstr, state *EncState, p unsafe.Pointer) {
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -197,6 +208,7 @@ func encFloat(i *encInstr, state *EncState, p unsafe.Pointer) {
 		v := floatBits(float64(f));
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -206,6 +218,7 @@ func encFloat32(i *encInstr, state *EncState, p unsafe.Pointer) {
 		v := floatBits(float64(f));
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -215,6 +228,7 @@ func encFloat64(i *encInstr, state *EncState, p unsafe.Pointer) {
 		v := floatBits(f);
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -225,6 +239,7 @@ func encUint8Array(i *encInstr, state *EncState, p unsafe.Pointer) {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, uint64(len(b)));
 		state.w.Write(b);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -235,6 +250,7 @@ func encString(i *encInstr, state *EncState, p unsafe.Pointer) {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, uint64(len(s)));
 		io.WriteString(state.w, s);
+		state.fieldnum = i.field;
 	}
 }
 
@@ -249,6 +265,28 @@ func encStructTerminator(i *encInstr, state *EncState, p unsafe.Pointer) {
 // data, typically a struct.  It is executed top to bottom, walking the struct.
 type encEngine struct {
 	instr	[]encInstr
+}
+
+func (engine *encEngine) encodeStruct(w io.Writer, p uintptr) os.Error {
+	state := new(EncState);
+	state.w = w;
+	state.base = p;
+	state.fieldnum = -1;
+	for i := 0; i < len(engine.instr); i++ {
+		instr := &engine.instr[i];
+		p := unsafe.Pointer(state.base+instr.offset);
+		if instr.indir > 0 {
+			if p = encIndirect(p, instr.indir); p == nil {
+				state.fieldnum = i;
+				continue
+			}
+		}
+		instr.op(instr, state, p);
+		if state.err != nil {
+			break
+		}
+	}
+	return state.err
 }
 
 var encEngineMap = make(map[reflect.Type] *encEngine)
@@ -270,6 +308,8 @@ var encOpMap = map[int] encOp {
 	 reflect.StringKind: encString,
 }
 
+func getEncEngine(rt reflect.Type) *encEngine
+
 func encOpFor(typ reflect.Type) encOp {
 	op, ok := encOpMap[typ.Kind()];
 	if !ok {
@@ -280,6 +320,15 @@ func encOpFor(typ reflect.Type) encOp {
 			case reflect.Uint8Kind:
 				op = encUint8Array
 			}
+		}
+		if typ.Kind() == reflect.StructKind {
+			// Generate a closure that calls out to the engine for the nested type.
+			engine := getEncEngine(typ);
+			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
+				EncodeUint(state, uint64(i.field - state.fieldnum));
+				state.err = engine.encodeStruct(state.w, uintptr(p));
+				state.fieldnum = i.field;
+			};
 		}
 	}
 	if op == nil {
@@ -327,33 +376,6 @@ func getEncEngine(rt reflect.Type) *encEngine {
 	return engine
 }
 
-func (engine *encEngine) encode(w io.Writer, v reflect.Value) os.Error {
-	sv, ok := v.(reflect.StructValue);
-	if !ok {
-		panicln("encoder can't handle non-struct values yet");
-	}
-	state := new(EncState);
-	state.w = w;
-	state.base = uintptr(sv.Addr());
-	state.fieldnum = -1;
-	for i := 0; i < len(engine.instr); i++ {
-		instr := &engine.instr[i];
-		p := unsafe.Pointer(state.base+instr.offset);
-		if instr.indir > 0 {
-			if p = encIndirect(p, instr.indir); p == nil {
-				state.fieldnum = i;
-				continue
-			}
-		}
-		instr.op(instr, state, p);
-		if state.err != nil {
-			break
-		}
-		state.fieldnum = i;
-	}
-	return state.err
-}
-
 func Encode(w io.Writer, e interface{}) os.Error {
 	// Dereference down to the underlying object.
 	rt := reflect.Typeof(e);
@@ -366,8 +388,11 @@ func Encode(w io.Writer, e interface{}) os.Error {
 		rt = pt.Sub();
 		v = reflect.Indirect(v);
 	}
+	if v.Kind() != reflect.StructKind {
+		return os.ErrorString("decode can't handle " + v.Type().String())
+	}
 	typeLock.Lock();
 	engine := getEncEngine(rt);
 	typeLock.Unlock();
-	return engine.encode(w, v);
+	return engine.encodeStruct(w, uintptr(v.(reflect.StructValue).Addr()));
 }
