@@ -60,13 +60,19 @@ var itob64tests = []itob64Test {
 }
 
 func TestItoa(t *testing.T) {
-	for i := 0; i < len(itob64tests); i++ {
-		test := itob64tests[i];
-
+	for i, test := range itob64tests {
 		s := strconv.Itob64(test.in, test.base);
 		if s != test.out {
 			t.Errorf("strconv.Itob64(%v, %v) = %v want %v\n",
 				test.in, test.base, s, test.out);
+		}
+
+		if test.in >= 0 {
+			s := strconv.Uitob64(uint64(test.in), test.base);
+			if s != test.out {
+				t.Errorf("strconv.Uitob64(%v, %v) = %v want %v\n",
+					test.in, test.base, s, test.out);
+			}
 		}
 
 		if int64(int(test.in)) == test.in {
@@ -74,6 +80,14 @@ func TestItoa(t *testing.T) {
 			if s != test.out {
 				t.Errorf("strconv.Itob(%v, %v) = %v want %v\n",
 					test.in, test.base, s, test.out);
+			}
+
+			if test.in >= 0  {
+				s := strconv.Uitob(uint(test.in), test.base);
+				if s != test.out {
+					t.Errorf("strconv.Uitob(%v, %v) = %v want %v\n",
+						test.in, test.base, s, test.out);
+				}
 			}
 		}
 
@@ -84,28 +98,77 @@ func TestItoa(t *testing.T) {
 					test.in, s, test.out);
 			}
 
+			if test.in >= 0 {
+				s := strconv.Uitob64(uint64(test.in), test.base);
+				if s != test.out {
+					t.Errorf("strconv.Uitob64(%v, %v) = %v want %v\n",
+						test.in, test.base, s, test.out);
+				}
+			}
+
 			if int64(int(test.in)) == test.in {
 				s := strconv.Itoa(int(test.in));
 				if s != test.out {
 					t.Errorf("strconv.Itoa(%v) = %v want %v\n",
 						test.in, s, test.out);
 				}
+
+				if test.in >= 0 {
+					s := strconv.Uitoa(uint(test.in));
+					if s != test.out {
+						t.Errorf("strconv.Uitoa(%v) = %v want %v\n",
+							test.in, s, test.out);
+					}
+				}
 			}
 		}
 	}
 }
 
-// TODO: Use once there is a strconv.uitoa
-type uitoa64Test struct {
+type uitob64Test struct {
 	in uint64;
+	base uint;
 	out string;
 }
 
-// TODO: should be able to call this atoui64tests.
-var uitoa64tests = []uitoa64Test {
-	uitoa64Test{ 1<<63-1, "9223372036854775807" },
-	uitoa64Test{ 1<<63, "9223372036854775808" },
-	uitoa64Test{ 1<<63+1, "9223372036854775809" },
-	uitoa64Test{ 1<<64-2, "18446744073709551614" },
-	uitoa64Test{ 1<<64-1, "18446744073709551615" },
+var uitob64tests = []uitob64Test {
+	uitob64Test{ 1<<63-1, 10, "9223372036854775807" },
+	uitob64Test{ 1<<63, 10, "9223372036854775808" },
+	uitob64Test{ 1<<63+1, 10, "9223372036854775809" },
+	uitob64Test{ 1<<64-2, 10, "18446744073709551614" },
+	uitob64Test{ 1<<64-1, 10, "18446744073709551615" },
+}
+
+func TestUitoa(t *testing.T) {
+	for i, test := range uitob64tests {
+		s := strconv.Uitob64(test.in, test.base);
+		if s != test.out {
+			t.Errorf("strconv.Uitob64(%v, %v) = %v want %v\n",
+				test.in, test.base, s, test.out);
+		}
+
+		if uint64(uint(test.in)) == test.in {
+			s := strconv.Uitob(uint(test.in), test.base);
+			if s != test.out {
+				t.Errorf("strconv.Uitob(%v, %v) = %v want %v\n",
+					test.in, test.base, s, test.out);
+			}
+		}
+
+		if test.base == 10 {
+			s := strconv.Uitoa64(test.in);
+			if s != test.out {
+				t.Errorf("strconv.Uitoa64(%v) = %v want %v\n",
+					test.in, s, test.out);
+			}
+
+			if uint64(uint(test.in)) == test.in {
+				s := strconv.Uitoa(uint(test.in));
+				if s != test.out {
+					t.Errorf("strconv.Uitoa(%v) = %v want %v\n",
+						test.in, s, test.out);
+				}
+			}
+		}
+	}
 }

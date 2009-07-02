@@ -4,15 +4,10 @@
 
 package strconv
 
-// Itob64 returns the string representation of i in the given base.
-func Itob64(i int64, base uint) string {
-	if i == 0 {
+// Uitob64 returns the string representation of i in the given base.
+func Uitob64(u uint64, base uint) string {
+	if u == 0 {
 		return "0"
-	}
-
-	u := uint64(i);
-	if i < 0 {
-		u = -u;
 	}
 
 	// Assemble decimal in reverse order.
@@ -25,17 +20,34 @@ func Itob64(i int64, base uint) string {
 		u /= b;
 	}
 
-	if i < 0 {	// add sign
-		j--;
-		buf[j] = '-'
+	return string(buf[j:len(buf)])
+}
+
+// Itob64 returns the string representation of i in the given base.
+func Itob64(i int64, base uint) string {
+	if i == 0 {
+		return "0"
 	}
 
-	return string(buf[j:len(buf)])
+	if i < 0 {
+		return "-" + Uitob64(-uint64(i), base);
+	}
+	return Uitob64(uint64(i), base);
 }
 
 // Itoa64 returns the decimal string representation of i.
 func Itoa64(i int64) string {
 	return Itob64(i, 10);
+}
+
+// Uitoa64 returns the decimal string representation of i.
+func Uitoa64(i uint64) string {
+	return Uitob64(i, 10);
+}
+
+// Uitob returns the string representation of i in the given base.
+func Uitob(i uint, base uint) string {
+	return Uitob64(uint64(i), base);
 }
 
 // Itob returns the string representation of i in the given base.
@@ -46,4 +58,9 @@ func Itob(i int, base uint) string {
 // Itoa returns the decimal string representation of i.
 func Itoa(i int) string {
 	return Itob64(int64(i), 10);
+}
+
+// Uitoa returns the decimal string representation of i.
+func Uitoa(i uint) string {
+	return Uitob64(uint64(i), 10);
 }
