@@ -218,6 +218,26 @@ func encFloat64(i *encInstr, state *EncState, p unsafe.Pointer) {
 	}
 }
 
+// Byte arrays are encoded as an unsigned count followed by the raw bytes.
+func encUint8Array(i *encInstr, state *EncState, p unsafe.Pointer) {
+	b := *(*[]byte)(p);
+	if len(b) > 0 {
+		EncodeUint(state, uint64(i.field - state.fieldnum));
+		EncodeUint(state, uint64(len(b)));
+		state.w.Write(b);
+	}
+}
+
+// Strings are encoded as an unsigned count followed by the raw bytes.
+func encString(i *encInstr, state *EncState, p unsafe.Pointer) {
+	s := *(*string)(p);
+	if len(s) > 0 {
+		EncodeUint(state, uint64(i.field - state.fieldnum));
+		EncodeUint(state, uint64(len(s)));
+		io.WriteString(state.w, s);
+	}
+}
+
 // The end of a struct is marked by a delta field number of 0.
 func encStructTerminator(i *encInstr, state *EncState, p unsafe.Pointer) {
 	EncodeUint(state, 0);
@@ -247,6 +267,25 @@ var encOpMap = map[int] encOp {
 	 reflect.FloatKind: encFloat,
 	 reflect.Float32Kind: encFloat32,
 	 reflect.Float64Kind: encFloat64,
+	 reflect.StringKind: encString,
+}
+
+func encOpFor(typ reflect.Type) encOp {
+	op, ok := encOpMap[typ.Kind()];
+	if !ok {
+		// Special cases
+		if typ.Kind() == reflect.ArrayKind {
+			atyp := typ.(reflect.ArrayType);
+			switch atyp.Elem().Kind() {
+			case reflect.Uint8Kind:
+				op = encUint8Array
+			}
+		}
+	}
+	if op == nil {
+		panicln("encode can't handle type", typ.String());
+	}
+	return op
 }
 
 // The local Type was compiled from the actual value, so we know
@@ -271,10 +310,7 @@ func compileEnc(rt reflect.Type, typ Type) *encEngine {
 			ftyp = pt.Sub();
 			indir++;
 		}
-		op, ok := encOpMap[ftyp.Kind()];
-		if !ok {
-			panicln("encode can't handle type", ftyp.String());
-		}
+		op := encOpFor(ftyp);
 		engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(offset)};
 	}
 	engine.instr[srt.Len()] = encInstr{encStructTerminator, 0, 0, 0};
