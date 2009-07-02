@@ -303,11 +303,11 @@ func (p *parser) expect(tok token.Token) token.Position {
 // ----------------------------------------------------------------------------
 // Common productions
 
-func (p *parser) tryType() ast.Expr;
+func (p *parser) tryType() ast.Expr
 func (p *parser) parseStringList(x *ast.StringLit) []*ast.StringLit
-func (p *parser) parseExpression() ast.Expr;
-func (p *parser) parseStatement() ast.Stmt;
-func (p *parser) parseDeclaration() ast.Decl;
+func (p *parser) parseExpression() ast.Expr
+func (p *parser) parseStatement() ast.Stmt
+func (p *parser) parseDeclaration(getSemi bool) (decl ast.Decl, gotSemi bool)
 
 
 func (p *parser) parseIdent() *ast.Ident {
@@ -1654,7 +1654,8 @@ func (p *parser) parseStatement() ast.Stmt {
 
 	switch p.tok {
 	case token.CONST, token.TYPE, token.VAR:
-		return &ast.DeclStmt{p.parseDeclaration()};
+		decl, _ := p.parseDeclaration(false);  // do not consume trailing semicolon
+		return &ast.DeclStmt{decl};
 	case
 		// tokens that may start a top-level expression
 		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,  // operand
@@ -1694,9 +1695,22 @@ func (p *parser) parseStatement() ast.Stmt {
 // ----------------------------------------------------------------------------
 // Declarations
 
-type parseSpecFunction func(p *parser, doc ast.Comments) ast.Spec
+type parseSpecFunction func(p *parser, doc ast.Comments, getSemi bool) (spec ast.Spec, gotSemi bool)
 
-func parseImportSpec(p *parser, doc ast.Comments) ast.Spec {
+
+// Consume semicolon if there is one and getSemi is set, and get any trailing comment.
+// Return the comment if any and indicate if a semicolon was consumed.
+//
+func (p *parser) parseComment(getSemi bool) (comment *ast.Comment, gotSemi bool) {
+	if getSemi && p.tok == token.SEMICOLON {
+		p.next();
+		gotSemi = true;
+	}
+	return p.getComment(), gotSemi;
+}
+
+
+func parseImportSpec(p *parser, doc ast.Comments, getSemi bool) (spec ast.Spec, gotSemi bool) {
 	if p.trace {
 		defer un(trace(p, "ImportSpec"));
 	}
@@ -1716,11 +1730,13 @@ func parseImportSpec(p *parser, doc ast.Comments) ast.Spec {
 		p.expect(token.STRING);  // use expect() error handling
 	}
 
-	return &ast.ImportSpec{doc, ident, path, nil};
+	comment, gotSemi := p.parseComment(getSemi);
+
+	return &ast.ImportSpec{doc, ident, path, comment}, gotSemi;
 }
 
 
-func parseConstSpec(p *parser, doc ast.Comments) ast.Spec {
+func parseConstSpec(p *parser, doc ast.Comments, getSemi bool) (spec ast.Spec, gotSemi bool) {
 	if p.trace {
 		defer un(trace(p, "ConstSpec"));
 	}
@@ -1732,26 +1748,26 @@ func parseConstSpec(p *parser, doc ast.Comments) ast.Spec {
 		p.expect(token.ASSIGN);
 		values = p.parseExpressionList();
 	}
+	comment, gotSemi := p.parseComment(getSemi);
 
-	// TODO get trailing comments
-	return &ast.ValueSpec{doc, idents, typ, values, nil};
+	return &ast.ValueSpec{doc, idents, typ, values, comment}, gotSemi;
 }
 
 
-func parseTypeSpec(p *parser, doc ast.Comments) ast.Spec {
+func parseTypeSpec(p *parser, doc ast.Comments, getSemi bool) (spec ast.Spec, gotSemi bool) {
 	if p.trace {
 		defer un(trace(p, "TypeSpec"));
 	}
 
 	ident := p.parseIdent();
 	typ := p.parseType();
+	comment, gotSemi := p.parseComment(getSemi);
 
-	// TODO get trailing comments
-	return &ast.TypeSpec{doc, ident, typ, nil};
+	return &ast.TypeSpec{doc, ident, typ, comment}, gotSemi;
 }
 
 
-func parseVarSpec(p *parser, doc ast.Comments) ast.Spec {
+func parseVarSpec(p *parser, doc ast.Comments, getSemi bool) (spec ast.Spec, gotSemi bool) {
 	if p.trace {
 		defer un(trace(p, "VarSpec"));
 	}
@@ -1763,13 +1779,13 @@ func parseVarSpec(p *parser, doc ast.Comments) ast.Spec {
 		p.expect(token.ASSIGN);
 		values = p.parseExpressionList();
 	}
+	comment, gotSemi := p.parseComment(getSemi);
 
-	// TODO get trailing comments
-	return &ast.ValueSpec{doc, idents, typ, values, nil};
+	return &ast.ValueSpec{doc, idents, typ, values, comment}, gotSemi;
 }
 
 
-func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.GenDecl {
+func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi bool) (decl *ast.GenDecl, gotSemi bool) {
 	if p.trace {
 		defer un(trace(p, keyword.String() + "Decl"));
 	}
@@ -1783,17 +1799,24 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 		p.next();
 		for p.tok != token.RPAREN && p.tok != token.EOF {
 			doc := p.getDoc();
-			list.Push(f(p, doc));
-			if p.tok == token.SEMICOLON {
-				p.next();
-			} else {
+			spec, semi := f(p, doc, true);  // consume semicolon if any
+			list.Push(spec);
+			if !semi {
 				break;
 			}
 		}
 		rparen = p.expect(token.RPAREN);
-		p.optSemi = true;
+
+		if getSemi && p.tok == token.SEMICOLON {
+			p.next();
+			gotSemi = true;
+		} else {
+			p.optSemi = true;
+		}
 	} else {
-		list.Push(f(p, doc));
+		spec, semi := f(p, doc, getSemi);
+		list.Push(spec);
+		gotSemi = semi;
 	}
 
 	// convert vector
@@ -1801,7 +1824,8 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 	for i := 0; i < list.Len(); i++ {
 		specs[i] = list.At(i);
 	}
-	return &ast.GenDecl{doc, pos, keyword, lparen, specs, rparen};
+
+	return &ast.GenDecl{doc, pos, keyword, lparen, specs, rparen}, gotSemi;
 }
 
 
@@ -1859,26 +1883,44 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
 }
 
 
-func (p *parser) parseDeclaration() ast.Decl {
+func (p *parser) parseDeclaration(getSemi bool) (decl ast.Decl, gotSemi bool) {
 	if p.trace {
 		defer un(trace(p, "Declaration"));
 	}
 
 	var f parseSpecFunction;
 	switch p.tok {
-	case token.CONST: f = parseConstSpec;
-	case token.TYPE: f = parseTypeSpec;
-	case token.VAR: f = parseVarSpec;
+	case token.CONST:
+		f = parseConstSpec;
+
+	case token.TYPE:
+		f = parseTypeSpec;
+
+	case token.VAR:
+		f = parseVarSpec;
+
 	case token.FUNC:
-		return p.parseFunctionDecl();
+		decl = p.parseFunctionDecl();
+		// Do not use parseComment here to consume a semicolon
+		// because we don't want to remove a trailing comment
+		// from the list of unassociated comments.
+		if getSemi && p.tok == token.SEMICOLON {
+			p.next();
+			gotSemi = true;
+		}
+		return decl, gotSemi;
+
 	default:
 		pos := p.pos;
 		p.errorExpected(pos, "declaration");
-		p.next();  // make progress
-		return &ast.BadDecl{pos};
+		decl = &ast.BadDecl{pos};
+		gotSemi = getSemi && p.tok == token.SEMICOLON;
+		p.next();  // make progress in any case
+		return decl, gotSemi;
 	}
 
-	return p.parseGenDecl(p.tok, f);
+	decl, gotSemi = p.parseGenDecl(p.tok, f, getSemi);  // TODO 6g/spec issue
+	return;
 }
 
 
@@ -1915,19 +1957,15 @@ func (p *parser) parsePackage() *ast.Program {
 		// import decls
 		list := vector.New(0);
 		for p.tok == token.IMPORT {
-			list.Push(p.parseGenDecl(token.IMPORT, parseImportSpec));
-			if p.tok == token.SEMICOLON {
-				p.next();
-			}
+			decl, _ := p.parseGenDecl(token.IMPORT, parseImportSpec, true);  // consume optional semicolon
+			list.Push(decl);
 		}
 
 		if p.mode & ImportsOnly == 0 {
 			// rest of package body
 			for p.tok != token.EOF {
-				list.Push(p.parseDeclaration());
-				if p.tok == token.SEMICOLON {
-					p.next();
-				}
+				decl, _ := p.parseDeclaration(true);  // consume optional semicolon
+				list.Push(decl);
 			}
 		}
 
