@@ -60,9 +60,12 @@ func EncodeInt(state *EncState, i int64){
 	EncodeUint(state, uint64(x))
 }
 
+type encInstr struct
+type encOp func(i *encInstr, state *EncState, p unsafe.Pointer)
+
 // The 'instructions' of the encoding machine
 type encInstr struct {
-	op	func(i *encInstr, state *EncState);
+	op	encOp;
 	field		int;	// field number
 	indir	int;	// how many pointer indirections to reach the value in the struct
 	offset	uintptr;	// offset in the structure of the field to encode
@@ -84,13 +87,7 @@ func encIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
 	return p
 }
 
-func encBool(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encBool(i *encInstr, state *EncState, p unsafe.Pointer) {
 	b := *(*bool)(p);
 	if b {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
@@ -98,13 +95,7 @@ func encBool(i *encInstr, state *EncState) {
 	}
 }
 
-func encInt(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encInt(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := int64(*(*int)(p));
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
@@ -112,13 +103,7 @@ func encInt(i *encInstr, state *EncState) {
 	}
 }
 
-func encUint(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encUint(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := uint64(*(*uint)(p));
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
@@ -126,13 +111,7 @@ func encUint(i *encInstr, state *EncState) {
 	}
 }
 
-func encInt8(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encInt8(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := int64(*(*int8)(p));
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
@@ -140,13 +119,7 @@ func encInt8(i *encInstr, state *EncState) {
 	}
 }
 
-func encUint8(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encUint8(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := uint64(*(*uint8)(p));
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
@@ -154,13 +127,7 @@ func encUint8(i *encInstr, state *EncState) {
 	}
 }
 
-func encInt16(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encInt16(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := int64(*(*int16)(p));
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
@@ -168,13 +135,7 @@ func encInt16(i *encInstr, state *EncState) {
 	}
 }
 
-func encUint16(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encUint16(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := uint64(*(*uint16)(p));
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
@@ -182,13 +143,7 @@ func encUint16(i *encInstr, state *EncState) {
 	}
 }
 
-func encInt32(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encInt32(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := int64(*(*int32)(p));
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
@@ -196,13 +151,7 @@ func encInt32(i *encInstr, state *EncState) {
 	}
 }
 
-func encUint32(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encUint32(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := uint64(*(*uint32)(p));
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
@@ -210,13 +159,7 @@ func encUint32(i *encInstr, state *EncState) {
 	}
 }
 
-func encInt64(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encInt64(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := *(*int64)(p);
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
@@ -224,13 +167,7 @@ func encInt64(i *encInstr, state *EncState) {
 	}
 }
 
-func encUint64(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encUint64(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := *(*uint64)(p);
 	if v != 0 {
 		EncodeUint(state, uint64(i.field - state.fieldnum));
@@ -254,13 +191,7 @@ func floatBits(f float64) uint64 {
 	return v;
 }
 
-func encFloat(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encFloat(i *encInstr, state *EncState, p unsafe.Pointer) {
 	f := float(*(*float)(p));
 	if f != 0 {
 		v := floatBits(float64(f));
@@ -269,13 +200,7 @@ func encFloat(i *encInstr, state *EncState) {
 	}
 }
 
-func encFloat32(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encFloat32(i *encInstr, state *EncState, p unsafe.Pointer) {
 	f := float32(*(*float32)(p));
 	if f != 0 {
 		v := floatBits(float64(f));
@@ -284,13 +209,7 @@ func encFloat32(i *encInstr, state *EncState) {
 	}
 }
 
-func encFloat64(i *encInstr, state *EncState) {
-	p := unsafe.Pointer(state.base+i.offset);
-	if i.indir > 0 {
-		if p = encIndirect(p, i.indir); p == nil {
-			return
-		}
-	}
+func encFloat64(i *encInstr, state *EncState, p unsafe.Pointer) {
 	f := *(*float64)(p);
 	if f != 0 {
 		v := floatBits(f);
@@ -300,7 +219,7 @@ func encFloat64(i *encInstr, state *EncState) {
 }
 
 // The end of a struct is marked by a delta field number of 0.
-func encStructTerminator(i *encInstr, state *EncState) {
+func encStructTerminator(i *encInstr, state *EncState, p unsafe.Pointer) {
 	EncodeUint(state, 0);
 }
 
@@ -313,7 +232,7 @@ type encEngine struct {
 }
 
 var encEngineMap = make(map[reflect.Type] *encEngine)
-var encOp = map[int] func(*encInstr, *EncState) {
+var encOpMap = map[int] encOp {
 	 reflect.BoolKind: encBool,
 	 reflect.IntKind: encInt,
 	 reflect.Int8Kind: encInt8,
@@ -352,7 +271,7 @@ func compileEnc(rt reflect.Type, typ Type) *encEngine {
 			ftyp = pt.Sub();
 			indir++;
 		}
-		op, ok := encOp[ftyp.Kind()];
+		op, ok := encOpMap[ftyp.Kind()];
 		if !ok {
 			panicln("encode can't handle type", ftyp.String());
 		}
@@ -383,7 +302,14 @@ func (engine *encEngine) encode(w io.Writer, v reflect.Value) os.Error {
 	state.fieldnum = -1;
 	for i := 0; i < len(engine.instr); i++ {
 		instr := &engine.instr[i];
-		instr.op(instr, state);
+		p := unsafe.Pointer(state.base+instr.offset);
+		if instr.indir > 0 {
+			if p = encIndirect(p, instr.indir); p == nil {
+				state.fieldnum = i;
+				continue
+			}
+		}
+		instr.op(instr, state, p);
 		if state.err != nil {
 			break
 		}
