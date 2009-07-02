@@ -153,7 +153,7 @@ func TestAtoui64(t *testing.T) {
 		test := &atoui64tests[i];
 		out, err := strconv.Atoui64(test.in);
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
-			t.Errorf("strconv.Atoui64(%v) = %v, %v want %v, %v\n",
+			t.Errorf("strconv.Atoui64(%q) = %v, %v want %v, %v\n",
 				test.in, out, err, test.out, test.err);
 		}
 	}
@@ -164,7 +164,7 @@ func TestAtoi64(t *testing.T) {
 		test := &atoi64tests[i];
 		out, err := strconv.Atoi64(test.in);
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
-			t.Errorf("strconv.Atoi64(%v) = %v, %v want %v, %v\n",
+			t.Errorf("strconv.Atoi64(%q) = %v, %v want %v, %v\n",
 				test.in, out, err, test.out, test.err);
 		}
 	}
@@ -177,7 +177,7 @@ func TestAtoui(t *testing.T) {
 			test := &atoui32tests[i];
 			out, err := strconv.Atoui(test.in);
 			if test.out != uint32(out) || !reflect.DeepEqual(test.err, err) {
-				t.Errorf("strconv.Atoui(%v) = %v, %v want %v, %v\n",
+				t.Errorf("strconv.Atoui(%q) = %v, %v want %v, %v\n",
 					test.in, out, err, test.out, test.err);
 			}
 		}
@@ -186,7 +186,7 @@ func TestAtoui(t *testing.T) {
 			test := &atoui64tests[i];
 			out, err := strconv.Atoui(test.in);
 			if test.out != uint64(out) || !reflect.DeepEqual(test.err, err) {
-				t.Errorf("strconv.Atoui(%v) = %v, %v want %v, %v\n",
+				t.Errorf("strconv.Atoui(%q) = %v, %v want %v, %v\n",
 					test.in, out, err, test.out, test.err);
 			}
 		}
@@ -200,7 +200,7 @@ func TestAtoi(t *testing.T) {
 			test := &atoi32tests[i];
 			out, err := strconv.Atoi(test.in);
 			if test.out != int32(out) || !reflect.DeepEqual(test.err, err) {
-				t.Errorf("strconv.Atoi(%v) = %v, %v want %v, %v\n",
+				t.Errorf("strconv.Atoi(%q) = %v, %v want %v, %v\n",
 					test.in, out, err, test.out, test.err);
 			}
 		}
@@ -209,7 +209,7 @@ func TestAtoi(t *testing.T) {
 			test := &atoi64tests[i];
 			out, err := strconv.Atoi(test.in);
 			if test.out != int64(out) || !reflect.DeepEqual(test.err, err) {
-				t.Errorf("strconv.Atoi(%v) = %v, %v want %v, %v\n",
+				t.Errorf("strconv.Atoi(%q) = %v, %v want %v, %v\n",
 					test.in, out, err, test.out, test.err);
 			}
 		}
