@@ -20,7 +20,6 @@ import (
 type DecState struct {
 	r	io.Reader;
 	err	os.Error;
-	base	uintptr;
 	fieldnum	int;	// the last field number read.
 	buf [1]byte;	// buffer used by the decoder; here to avoid allocation.
 }
@@ -279,11 +278,21 @@ type decEngine struct {
 	instr	[]decInstr
 }
 
-func (engine *decEngine) decodeStruct(r io.Reader, p uintptr) os.Error {
+func decodeStruct(engine *decEngine, rtyp reflect.StructType, r io.Reader, p uintptr, indir int) os.Error {
+	if indir > 0 {
+		up := unsafe.Pointer(p);
+		if *(*unsafe.Pointer)(up) == nil {
+			// Allocate the structure by making a slice of bytes and recording the
+			// address of the beginning of the array. TODO(rsc).
+			b := make([]byte, rtyp.Size());
+			*(*unsafe.Pointer)(up) = unsafe.Pointer(&b[0]);
+		}
+		p = *(*uintptr)(up);
+	}
 	state := new(DecState);
 	state.r = r;
-	state.base = p;
 	state.fieldnum = -1;
+	basep := p;
 	for state.err == nil {
 		delta := int(DecodeUint(state));
 		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
@@ -294,12 +303,34 @@ func (engine *decEngine) decodeStruct(r io.Reader, p uintptr) os.Error {
 			panicln("TODO(r): need to handle unknown data");
 		}
 		instr := &engine.instr[fieldnum];
-		p := unsafe.Pointer(state.base+instr.offset);
+		p := unsafe.Pointer(basep+instr.offset);
 		if instr.indir > 1 {
 			p = decIndirect(p, instr.indir);
 		}
 		instr.op(instr, state, p);
 		state.fieldnum = fieldnum;
+	}
+	return state.err
+}
+
+func decodeArray(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid int, length int, indir int) os.Error {
+	if indir > 0 {
+		up := unsafe.Pointer(p);
+		if *(*unsafe.Pointer)(up) == nil {
+			// Allocate the structure by making a slice of bytes and recording the
+			// address of the beginning of the array. TODO(rsc).
+			b := make([]byte, atyp.Size());
+			*(*unsafe.Pointer)(up) = unsafe.Pointer(&b[0]);
+		}
+		p = *(*uintptr)(up);
+	}
+	instr := &decInstr{elemOp, 0, 0, 0};	// TODO(r): indir on elements
+	if DecodeUint(state) != uint64(length) {
+		state.err = os.ErrorString("length mismatch in decodeArray");
+	}
+	for i := 0; i < length && state.err == nil; i++ {
+		elemOp(instr, state, unsafe.Pointer(p));
+		p += uintptr(elemWid);
 	}
 	return state.err
 }
@@ -331,16 +362,23 @@ func decOpFor(typ reflect.Type) decOp {
 		// Special cases
 		if typ.Kind() == reflect.ArrayKind {
 			atyp := typ.(reflect.ArrayType);
-			switch atyp.Elem().Kind() {
-			case reflect.Uint8Kind:
+			switch {
+			case atyp.Elem().Kind() == reflect.Uint8Kind:
 				op = decUint8Array
+			case atyp.IsSlice():
+			case !atyp.IsSlice():
+				elemOp := decOpFor(atyp.Elem());
+				op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
+					state.err = decodeArray(atyp, state, uintptr(p), elemOp, atyp.Elem().Size(), atyp.Len(), i.indir);
+				};
 			}
 		}
 		if typ.Kind() == reflect.StructKind {
 			// Generate a closure that calls out to the engine for the nested type.
 			engine := getDecEngine(typ);
+			styp := typ.(reflect.StructType);
 			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
-				state.err = engine.decodeStruct(state.r, uintptr(p))
+				state.err = decodeStruct(engine, styp, state.r, uintptr(p), i.indir)
 			};
 		}
 	}
@@ -401,11 +439,11 @@ func Decode(r io.Reader, e interface{}) os.Error {
 		rt = pt.Sub();
 		v = reflect.Indirect(v);
 	}
-	if v.Kind() != reflect.StructKind {
-		return os.ErrorString("decode can't handle " + v.Type().String())
+	if rt.Kind() != reflect.StructKind {
+		return os.ErrorString("decode can't handle " + rt.String())
 	}
 	typeLock.Lock();
 	engine := getDecEngine(rt);
 	typeLock.Unlock();
-	return engine.decodeStruct(r, uintptr(v.Addr()));
+	return decodeStruct(engine, rt.(reflect.StructType), r, uintptr(v.Addr()), 0);
 }
