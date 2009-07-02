@@ -563,17 +563,20 @@ func copyArray(dst ArrayValue, src ArrayValue, n int);
 			uint32	cap;
 		};
 */
-type runtimeSlice struct {
-	data	Addr;
-	len	uint32;
-	cap	uint32;
+
+// A published version of the Slice header so that clients don't have a separate copy of the definition.
+// SliceHeader is not useful to clients unless they use unsafe.Pointer.
+type SliceHeader struct {
+	Data	uintptr;
+	Len	uint32;
+	Cap	uint32;
 }
 
 type sliceValueStruct struct {
 	commonValue;
 	elemtype	Type;
 	elemsize	int;
-	slice *runtimeSlice;
+	slice *SliceHeader;
 }
 
 func (v *sliceValueStruct) IsSlice() bool {
@@ -581,18 +584,18 @@ func (v *sliceValueStruct) IsSlice() bool {
 }
 
 func (v *sliceValueStruct) Len() int {
-	return int(v.slice.len);
+	return int(v.slice.Len);
 }
 
 func (v *sliceValueStruct) Cap() int {
-	return int(v.slice.cap);
+	return int(v.slice.Cap);
 }
 
 func (v *sliceValueStruct) SetLen(len int) {
 	if len > v.Cap() {
 		panicln("reflect: sliceValueStruct.SetLen", len, v.Cap());
 	}
-	v.slice.len = uint32(len);
+	v.slice.Len = uint32(len);
 }
 
 func (v *sliceValueStruct) Set(src ArrayValue) {
@@ -607,7 +610,7 @@ func (v *sliceValueStruct) Set(src ArrayValue) {
 }
 
 func (v *sliceValueStruct) Elem(i int) Value {
-	data_uint := uintptr(v.slice.data) + uintptr(i * v.elemsize);
+	data_uint := v.slice.Data + uintptr(i * v.elemsize);
 	return newValueAddr(v.elemtype, Addr(data_uint));
 }
 
@@ -616,7 +619,7 @@ func (v *sliceValueStruct) CopyFrom(src ArrayValue, n int) {
 }
 
 func (v *sliceValueStruct) IsNil() bool {
-	return uintptr(v.slice.data) == 0
+	return v.slice.Data == 0
 }
 
 type arrayValueStruct struct {
@@ -668,7 +671,7 @@ func arrayCreator(typ Type, addr Addr) Value {
 		v.typ = typ;
 		v.elemtype = arraytype.Elem();
 		v.elemsize = v.elemtype.Size();
-		v.slice = (*runtimeSlice)(addr);
+		v.slice = (*SliceHeader)(addr);
 		return v;
 	}
 	v := new(arrayValueStruct);
@@ -897,15 +900,15 @@ func NewSliceValue(typ ArrayType, len, cap int) ArrayValue {
 		return nil
 	}
 
-	array := new(runtimeSlice);
+	array := new(SliceHeader);
 	size := typ.Elem().Size() * cap;
 	if size == 0 {
 		size = 1;
 	}
 	data := make([]uint8, size);
-	array.data = Addr(&data[0]);
-	array.len = uint32(len);
-	array.cap = uint32(cap);
+	array.Data = uintptr(Addr(&data[0]));
+	array.Len = uint32(len);
+	array.Cap = uint32(cap);
 
 	return newValueAddr(typ, Addr(array)).(ArrayValue);
 }
