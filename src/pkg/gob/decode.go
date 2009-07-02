@@ -4,6 +4,9 @@
 
 package gob
 
+// TODO(rsc): When garbage collector changes, revisit
+// the allocations in this file that use unsafe.Pointer.
+
 import (
 	"gob";
 	"io";
@@ -57,9 +60,12 @@ func DecodeInt(state *DecState) int64 {
 	return int64(x >> 1)
 }
 
+type decInstr struct
+type decOp func(i *decInstr, state *DecState, p unsafe.Pointer);
+
 // The 'instructions' of the decoding machine
 type decInstr struct {
-	op	func(i *decInstr, state *DecState);
+	op	decOp;
 	field		int;	// field number
 	indir	int;	// how many pointer indirections to reach the value in the struct
 	offset	uintptr;	// offset in the structure of the field to encode
@@ -84,14 +90,10 @@ func decIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
 	return p
 }
 
-func decBool(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decBool(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(bool));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -101,12 +103,8 @@ func decBool(i *decInstr, state *DecState) {
 	}
 }
 
-func decInt(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decInt(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
 			p = *(*unsafe.Pointer)(p);
@@ -118,14 +116,10 @@ func decInt(i *decInstr, state *DecState) {
 	}
 }
 
-func decUint(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decUint(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -135,14 +129,10 @@ func decUint(i *decInstr, state *DecState) {
 	}
 }
 
-func decInt8(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decInt8(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int8));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -152,14 +142,10 @@ func decInt8(i *decInstr, state *DecState) {
 	}
 }
 
-func decUint8(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decUint8(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint8));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -169,14 +155,10 @@ func decUint8(i *decInstr, state *DecState) {
 	}
 }
 
-func decInt16(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decInt16(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int16));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -186,14 +168,10 @@ func decInt16(i *decInstr, state *DecState) {
 	}
 }
 
-func decUint16(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decUint16(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint16));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -203,14 +181,10 @@ func decUint16(i *decInstr, state *DecState) {
 	}
 }
 
-func decInt32(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decInt32(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int32));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -220,14 +194,10 @@ func decInt32(i *decInstr, state *DecState) {
 	}
 }
 
-func decUint32(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decUint32(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint32));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -237,14 +207,10 @@ func decUint32(i *decInstr, state *DecState) {
 	}
 }
 
-func decInt64(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decInt64(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int64));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -254,14 +220,10 @@ func decInt64(i *decInstr, state *DecState) {
 	}
 }
 
-func decUint64(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decUint64(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint64));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -286,14 +248,10 @@ func floatFromBits(u uint64) float64 {
 	return math.Float64frombits(v);
 }
 
-func decFloat(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decFloat(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -303,14 +261,10 @@ func decFloat(i *decInstr, state *DecState) {
 	}
 }
 
-func decFloat32(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decFloat32(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float32));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -320,14 +274,10 @@ func decFloat32(i *decInstr, state *DecState) {
 	}
 }
 
-func decFloat64(i *decInstr, state *DecState) {
-	p := unsafe.Pointer(state.base+i.offset);
+func decFloat64(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
-		if i.indir > 1 {
-			p = decIndirect(p, i.indir);
-		}
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float64));
 			p = *(*unsafe.Pointer)(p);
 		}
 	}
@@ -346,7 +296,7 @@ type decEngine struct {
 }
 
 var decEngineMap = make(map[reflect.Type] *decEngine)
-var decOp = map[int] func(*decInstr, *DecState) {
+var decOpMap = map[int] decOp {
 	 reflect.BoolKind: decBool,
 	 reflect.IntKind: decInt,
 	 reflect.Int8Kind: decInt8,
@@ -386,7 +336,7 @@ func compileDec(rt reflect.Type, typ Type) *decEngine {
 			ftyp = pt.Sub();
 			indir++;
 		}
-		op, ok := decOp[ftyp.Kind()];
+		op, ok := decOpMap[ftyp.Kind()];
 		if !ok {
 			panicln("can't handle decode for type", ftyp.String());
 		}
@@ -424,7 +374,11 @@ func (engine *decEngine) decode(r io.Reader, v reflect.Value) os.Error {
 			panicln("TODO(r): need to handle unknown data");
 		}
 		instr := &engine.instr[fieldnum];
-		instr.op(instr, state);
+		p := unsafe.Pointer(state.base+instr.offset);
+		if instr.indir > 1 {
+			p = decIndirect(p, instr.indir);
+		}
+		instr.op(instr, state, p);
 		state.fieldnum = fieldnum;
 	}
 	return state.err
